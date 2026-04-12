@@ -89,6 +89,15 @@ void GdiDrawContext::DrawPolygon(const GPoint* pts, int count, DmsColor fillColo
 	::Polygon(m_hDC, &AsPOINT(*pts), count);
 }
 
+void GdiDrawContext::DrawEllipse(const GRect& boundingRect, DmsColor color)
+{
+	GdiHandle<HBRUSH> brush(CreateSolidBrush(DmsColor2COLORREF(color)));
+	GdiObjectSelector<HBRUSH> brushSel(m_hDC, brush);
+	GdiHandle<HPEN> pen(CreatePen(PS_NULL, 0, RGB(0, 0, 0)));
+	GdiObjectSelector<HPEN> penSel(m_hDC, pen);
+	::Ellipse(m_hDC, boundingRect.left, boundingRect.top, boundingRect.right, boundingRect.bottom);
+}
+
 void GdiDrawContext::TextOut(GPoint pos, CharPtr text, int len, DmsColor color)
 {
 	auto oldColor = ::SetTextColor(m_hDC, DmsColor2COLORREF(color));
@@ -131,6 +140,59 @@ GRect GdiDrawContext::GetClipRect() const
 	GRect r;
 	::GetClipBox(m_hDC, &AsRECT(r));
 	return r;
+}
+
+void GdiDrawContext::SetClipRegion(const Region& rgn)
+{
+	auto hrgn = RegionToHRGN(rgn);
+	::SelectClipRgn(m_hDC, hrgn);
+}
+
+void GdiDrawContext::SetClipRect(const GRect& rect)
+{
+	HRGN hrgn = ::CreateRectRgn(rect.left, rect.top, rect.right, rect.bottom);
+	::SelectClipRgn(m_hDC, hrgn);
+	::DeleteObject(hrgn);
+}
+
+void GdiDrawContext::ResetClip()
+{
+	::SelectClipRgn(m_hDC, NULL);
+}
+
+static void ShadowRectDC(HDC dc, GRect rect, HBRUSH lightBrush, HBRUSH darkBrush)
+{
+	if (rect.top >= rect.bottom || rect.left >= rect.right)
+		return;
+	Int32 nextLeft = rect.left + 1, nextTop = rect.top + 1;
+	Int32 prevRight = rect.right - 1, prevBottom = rect.bottom - 1;
+	auto fill = [dc](const GRect& r, HBRUSH br) {
+		GdiHandle<HPEN> pen(CreatePen(PS_NULL, 0, RGB(0,0,0)));
+		GdiObjectSelector<HPEN> ps(dc, pen);
+		GdiObjectSelector<HBRUSH> bs(dc, br);
+		::Rectangle(dc, r.left, r.top, r.right+1, r.bottom+1);
+	};
+	fill(GRect(prevRight, rect.top, rect.right, rect.bottom), darkBrush);
+	fill(GRect(rect.left, prevBottom, prevRight, rect.bottom), darkBrush);
+	if (rect.top >= prevBottom || rect.left >= prevRight) return;
+	fill(GRect(rect.left, rect.top, prevRight, nextTop), lightBrush);
+	fill(GRect(rect.left, nextTop, nextLeft, prevBottom), lightBrush);
+}
+
+void GdiDrawContext::DrawButtonBorder(GRect& rect)
+{
+	ShadowRectDC(m_hDC, rect, GetSysColorBrush(COLOR_3DLIGHT), GetSysColorBrush(COLOR_3DDKSHADOW));
+	rect.Shrink(1);
+	ShadowRectDC(m_hDC, rect, GetSysColorBrush(COLOR_3DHIGHLIGHT), GetSysColorBrush(COLOR_3DSHADOW));
+	rect.Shrink(1);
+}
+
+void GdiDrawContext::DrawReversedBorder(GRect& rect)
+{
+	ShadowRectDC(m_hDC, rect, GetSysColorBrush(COLOR_3DDKSHADOW), GetSysColorBrush(COLOR_3DLIGHT));
+	rect.Shrink(1);
+	ShadowRectDC(m_hDC, rect, GetSysColorBrush(COLOR_3DSHADOW), GetSysColorBrush(COLOR_3DHIGHLIGHT));
+	rect.Shrink(1);
 }
 
 #endif // _WIN32

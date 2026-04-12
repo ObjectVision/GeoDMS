@@ -543,7 +543,7 @@ GraphVisitState GraphDrawer::Visit(GraphicObject* go)
 		if (clipper && clipper->empty())
 			return GVS_Continue;
 
-		DcClipRegionSelector clipRegionSelector(GetDC(), m_AbsClipRegion, m_ClipDeviceRect);
+		DcClipRegionSelector clipRegionSelector(GetDrawContext(), m_AbsClipRegion, m_ClipDeviceRect);
 
 		if (clipRegionSelector.empty())
 			return GVS_Continue; // processing completed
@@ -589,22 +589,24 @@ GraphVisitState GraphDrawer::DoMovable(MovableObject* obj)
 		auto extents = obj->GetCurrFullAbsLogicalRect(*this);
 		auto devExtents = m_Transformation.Apply( extents );
 		auto gExtents = CrdRect2GRect(devExtents);
-		DrawBorder(GetDC(), gExtents, obj->RevBorder());
+		GetDrawContext()->DrawBorder(gExtents, obj->RevBorder());
 	}
 	return GVS_UnHandled;
 }
 
 GraphVisitState GraphDrawer::DoLayerControlBase(LayerControlBase* lc)
 {
-	DcTextColorSelector textColorHolder(GetDC(),
-		(lc->GetLayerSetElem()->AllVisible())
-		?	lc->GetDefaultTextColor()
-		:	COLORREF2DmsColor( GetSysColor(COLOR_GRAYTEXT) )
-	);
+	DmsColor textColor = (lc->GetLayerSetElem()->AllVisible())
+		? lc->GetDefaultTextColor()
+		: CombineRGB(160, 160, 160); // gray text color (portable)
+	GetDrawContext()->SetTextColor(textColor);
 
+	// Font selection: still uses HDC on Windows during transition
+#if defined(_WIN32)
 	GdiObjectSelector<HFONT> fontSelector(GetDC(),
 		m_ViewPtr->GetDefaultFont(lc->GetFontSizeCategory(), GetSubPixelFactor())
 	);
+#endif
 
 	return base_type::DoLayerControlBase(lc);
 }
@@ -697,7 +699,7 @@ void GraphDrawer::DoElement(DataItemColumn* dic, SizeT i, const GRect& absElemDe
 	assert(dic);
 	assert(DoDrawData());
 
-	DcClipRegionSelector clipRegionSelector(GetDC(), m_AbsClipRegion, absElemDeviceRect);
+	DcClipRegionSelector clipRegionSelector(GetDrawContext(), m_AbsClipRegion, absElemDeviceRect);
 	if (!clipRegionSelector.empty())
 		dic->DrawElement(*this, i, absElemDeviceRect, m_TileLocks);
 }
@@ -711,7 +713,9 @@ GraphVisitState GraphDrawer::DoViewPort(ViewPort* vp)
 	if (!DoDrawData())
 		return base_type::DoViewPort(vp);
 
+#if defined(_WIN32)
 	DcBrushOrgSelector brushOrgSelector(GetDC(), vp->GetBrushOrg());
+#endif
 	return base_type::DoViewPort(vp);
 }
 

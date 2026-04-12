@@ -149,6 +149,19 @@ void QtDrawContext::DrawPolygon(const GPoint* pts, int count, DmsColor fillColor
 	m_Painter->setBrush(oldBrush);
 }
 
+void QtDrawContext::DrawEllipse(const GRect& boundingRect, DmsColor color)
+{
+	if (!m_Painter)
+		return;
+	auto oldPen = m_Painter->pen();
+	auto oldBrush = m_Painter->brush();
+	m_Painter->setPen(Qt::NoPen);
+	m_Painter->setBrush(DmsColor2QColor(color));
+	m_Painter->drawEllipse(GRect2QRect(boundingRect));
+	m_Painter->setPen(oldPen);
+	m_Painter->setBrush(oldBrush);
+}
+
 void QtDrawContext::TextOut(GPoint pos, CharPtr text, int len, DmsColor color)
 {
 	if (!m_Painter)
@@ -214,4 +227,58 @@ GRect QtDrawContext::GetClipRect() const
 		return GRect(0, 0, 0, 0);
 	QRect qr = m_Painter->clipBoundingRect().toRect();
 	return GRect(qr.left(), qr.top(), qr.right(), qr.bottom());
+}
+
+void QtDrawContext::SetClipRegion(const Region& rgn)
+{
+	if (!m_Painter)
+		return;
+	m_Painter->setClipRegion(rgn.GetQRegion());
+}
+
+void QtDrawContext::SetClipRect(const GRect& rect)
+{
+	if (!m_Painter)
+		return;
+	m_Painter->setClipRect(GRect2QRect(rect));
+}
+
+void QtDrawContext::ResetClip()
+{
+	if (!m_Painter)
+		return;
+	m_Painter->setClipping(false);
+}
+
+static void DrawShadowRect(QPainter* p, GRect rect, QColor light, QColor dark)
+{
+	if (rect.top >= rect.bottom || rect.left >= rect.right)
+		return;
+	int nextLeft = rect.left + 1, nextTop = rect.top + 1;
+	int prevRight = rect.right - 1, prevBottom = rect.bottom - 1;
+	p->fillRect(QRect(prevRight, rect.top, 1, rect.bottom - rect.top), dark);
+	p->fillRect(QRect(rect.left, prevBottom, prevRight - rect.left, 1), dark);
+	if (rect.top >= prevBottom || rect.left >= prevRight) return;
+	p->fillRect(QRect(rect.left, rect.top, prevRight - rect.left, 1), light);
+	p->fillRect(QRect(rect.left, nextTop, 1, prevBottom - nextTop), light);
+}
+
+void QtDrawContext::DrawButtonBorder(GRect& rect)
+{
+	if (!m_Painter)
+		return;
+	DrawShadowRect(m_Painter, rect, QColor(227, 227, 227), QColor(64, 64, 64));
+	rect.Shrink(1);
+	DrawShadowRect(m_Painter, rect, QColor(255, 255, 255), QColor(160, 160, 160));
+	rect.Shrink(1);
+}
+
+void QtDrawContext::DrawReversedBorder(GRect& rect)
+{
+	if (!m_Painter)
+		return;
+	DrawShadowRect(m_Painter, rect, QColor(64, 64, 64), QColor(227, 227, 227));
+	rect.Shrink(1);
+	DrawShadowRect(m_Painter, rect, QColor(160, 160, 160), QColor(255, 255, 255));
+	rect.Shrink(1);
 }

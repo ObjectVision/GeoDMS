@@ -49,7 +49,7 @@ struct GraphicPoint : GraphicObject
 	bool Draw(GraphDrawer& d) const override 
 	{
 		CPoint p = Convert2CPoint(d.GetTransformationPtr()->Apply(m_Point));
-		Ellipse(d.GetDC(), p.x-3, p.y-3, p.x+3, p.y+3);
+		d.GetDrawContext()->DrawEllipse(GRect(p.x-3, p.y-3, p.x+3, p.y+3), CombineRGB(0, 0, 0));
 		return false;
 	};
   	void DoUpdateView() override

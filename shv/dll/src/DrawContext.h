@@ -66,6 +66,7 @@ public:
 
 	// === Polygons ===
 	virtual void DrawPolygon(const GPoint* pts, int count, DmsColor fillColor, DmsHatchStyle hatch = DmsHatchStyle::Solid) = 0;
+	virtual void DrawEllipse(const GRect& boundingRect, DmsColor color) = 0;
 
 	// === Text ===
 	virtual void TextOut(GPoint pos, CharPtr text, int len, DmsColor color) = 0;
@@ -77,6 +78,14 @@ public:
 
 	// === Clipping ===
 	virtual GRect GetClipRect() const = 0;
+	virtual void SetClipRegion(const Region& rgn) = 0;
+	virtual void SetClipRect(const GRect& rect) = 0;
+	virtual void ResetClip() = 0;
+
+	// === 3D Borders ===
+	virtual void DrawButtonBorder(GRect& rect) = 0;
+	virtual void DrawReversedBorder(GRect& rect) = 0;
+	void DrawBorder(GRect& rect, bool reversed) { if (reversed) DrawReversedBorder(rect); else DrawButtonBorder(rect); }
 
 	// === Backward compat (transitional, will be removed) ===
 #if defined(_WIN32)
@@ -110,6 +119,7 @@ public:
 	void DrawLine(GPoint from, GPoint to, DmsColor color, int width) override;
 	void DrawPolyline(const GPoint* pts, int count, DmsColor color, int width, DmsPenStyle style) override;
 	void DrawPolygon(const GPoint* pts, int count, DmsColor fillColor, DmsHatchStyle hatch) override;
+	void DrawEllipse(const GRect& boundingRect, DmsColor color) override;
 
 	void TextOut(GPoint pos, CharPtr text, int len, DmsColor color) override;
 	void DrawText(const GRect& rect, CharPtr text, int len, UInt32 format, DmsColor color) override;
@@ -119,6 +129,12 @@ public:
 	void SetBkMode(bool transparent) override;
 
 	GRect GetClipRect() const override;
+	void SetClipRegion(const Region& rgn) override;
+	void SetClipRect(const GRect& rect) override;
+	void ResetClip() override;
+
+	void DrawButtonBorder(GRect& rect) override;
+	void DrawReversedBorder(GRect& rect) override;
 
 private:
 	HDC m_hDC;

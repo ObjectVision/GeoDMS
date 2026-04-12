@@ -16,6 +16,7 @@
 #include "utl/Environment.h"
 
 #include "DataView.h"
+#include "DrawContext.h"
 #include "GdiRegionUtil.h"
 #include "GraphVisitor.h"
 #include "GraphicObject.h"
@@ -177,8 +178,8 @@ VisitorDeviceRectSelector::VisitorDeviceRectSelector(GraphVisitor* v, GRect objR
 // DcClipRegionSelector
 //----------------------------------------------------------------------
 
-DcClipRegionSelector::DcClipRegionSelector(HDC hdc, Region& currClipRegion, const GRect& newClipRect)
-	:	m_hDC(hdc)
+DcClipRegionSelector::DcClipRegionSelector(DrawContext* dc, Region& currClipRegion, const GRect& newClipRect)
+	:	m_DC(dc)
 	,	m_OrgRegionPtr (&currClipRegion )
 	,	m_OrgRegionCopy(currClipRegion.Clone() )
 {
@@ -190,25 +191,16 @@ DcClipRegionSelector::DcClipRegionSelector(HDC hdc, Region& currClipRegion, cons
 
 	currClipRegion &= newClipRect;
 
-	if (! currClipRegion.Empty() )
-	{
-		auto hrgn = RegionToHRGN(currClipRegion);
-		int result = SelectClipRgn(hdc, hrgn);
-
-		if (result == ERROR && GetLastError() )
-			throwLastSystemError("DcClipRegionSelector");
-	}
+	if (! currClipRegion.Empty() && m_DC)
+		m_DC->SetClipRegion(currClipRegion);
 }
 
 DcClipRegionSelector::~DcClipRegionSelector()
 {
 	dms_assert(m_OrgRegionPtr);
 
-	if (! m_OrgRegionPtr->Empty() )
-	{
-		auto hrgn = RegionToHRGN(m_OrgRegionCopy);
-		SelectClipRgn(m_hDC, hrgn);
-	}
+	if (! m_OrgRegionPtr->Empty() && m_DC)
+		m_DC->SetClipRegion(m_OrgRegionCopy);
 	m_OrgRegionPtr->swap(m_OrgRegionCopy);
 
 	assert(! m_OrgRegionPtr->Empty() ); // else we shoudn't get here at all

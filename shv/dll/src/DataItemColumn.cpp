@@ -718,7 +718,7 @@ void DataItemColumn::DrawElement(GraphDrawer& d, SizeT rowNr, GRect elemDeviceEx
 //	GRect elemExtents = absElemRect; //TRect( d.GetClientLogicalAbsPos(), d.GetClientLogicalAbsPos() + TPoint(elemSize) );
 
 	if (HasElemBorder())
-		DrawButtonBorder(d.GetDC(), elemDeviceExtents);
+		d.GetDrawContext()->DrawButtonBorder(elemDeviceExtents);
 
 	bool isSymbol = GetEnabledTheme(AN_SymbolIndex).get();
 	bool isActive = IsActive() && rowNr == GetActiveRow();
@@ -745,6 +745,7 @@ void DataItemColumn::DrawElement(GraphDrawer& d, SizeT rowNr, GRect elemDeviceEx
 
 	if (isSymbol || !GetEnabledTheme(AN_LabelText))
 	{
+#if defined(_WIN32)
 		HFONT hFont = isSymbol ? GetFont (recNo, FR_Symbol, d.GetSubPixelFactor()) : 0;
 		WCHAR wSymb = isSymbol ? GetSymbol(recNo) : UNDEFINED_WCHAR;
 		if (isActive) 
@@ -757,19 +758,35 @@ void DataItemColumn::DrawElement(GraphDrawer& d, SizeT rowNr, GRect elemDeviceEx
 			bkClr,
 			wSymb
 		);
+#else
+		auto* dc = d.GetDrawContext();
+		if (IsDefined(bkClr))
+			dc->FillRect(elemDeviceExtents, bkClr);
+#endif
 	}
 	else
 	{
+#if defined(_WIN32)
 		auto textInfo = GetText(recNo, MAX_TEXTOUT_SIZE, locks);
 		DrawEditText(
 			d.GetDC(),
 			elemDeviceExtents,
-			GetFont(recNo, FR_Label, d.GetSubPixelFactor()), //GetWindowDip2PixFactorY(GetHWnd())
+			GetFont(recNo, FR_Label, d.GetSubPixelFactor()),
 			textInfo.m_Grayed ? RGB(100, 100, 100) : GetColor(recNo, AN_LabelTextColor),
 			bkClr,
 			textInfo.m_Text.c_str(),
 			isActive
 		);
+#else
+		auto textInfo = GetText(recNo, MAX_TEXTOUT_SIZE, locks);
+		auto* dc = d.GetDrawContext();
+		if (IsDefined(bkClr))
+			dc->FillRect(elemDeviceExtents, bkClr);
+		DmsColor clr = textInfo.m_Grayed ? CombineRGB(100, 100, 100) : GetColor(recNo, AN_LabelTextColor);
+		if (!IsDefined(clr))
+			clr = GraphicObject::GetDefaultTextColor();
+		dc->TextOut(GPoint(elemDeviceExtents.left, elemDeviceExtents.top), textInfo.m_Text.c_str(), textInfo.m_Text.ssize(), clr);
+#endif
 	}
 	if (isActive)
 	{

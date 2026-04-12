@@ -18,6 +18,7 @@
 
 #include "ClipBoard.h"
 #include "DataView.h"
+#include "DrawContext.h"
 #include "MouseEventDispatcher.h"
 #include "GraphVisitor.h"
 #include "ScrollPort.h"
@@ -83,7 +84,10 @@ void MovableObject::SetRevBorder(bool revBorder)
 	auto dv = GetDataView().lock(); if (!dv) return;
 	DirectDC dc(dv.get(), Region(gExtents));
 	if (!dc.IsEmpty())
-		DrawBorder(dc, gExtents, revBorder);
+	{
+		GdiDrawContext drawCtx(dc);
+		drawCtx.DrawBorder(gExtents, revBorder);
+	}
 }
 
 void MovableObject::SetIsVisible(bool value)

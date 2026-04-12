@@ -127,22 +127,23 @@ inline Region operator -(const Region& a, const Region& b)
 }
 
 //----------------------------------------------------------------------
-// DcClipRegionSelector
-// GDI-specific: modifies HDC clip region on construction, restores on destruction.
-// Will be removed when rendering fully moves to Qt.
+// ClipRegionSelector
+// Modifies DrawContext clip region on construction, restores on destruction.
 //----------------------------------------------------------------------
+
+class DrawContext;
 
 struct DcClipRegionSelector
 {
-	DcClipRegionSelector(HDC hdc, Region& currClipRegion, const GRect& newClipRect);
+	DcClipRegionSelector(DrawContext* dc, Region& currClipRegion, const GRect& newClipRect);
 	~DcClipRegionSelector();
 
 	bool empty() const { return m_OrgRegionPtr->Empty(); }
 
 private:
-	HDC     m_hDC;
-	Region* m_OrgRegionPtr;
-	Region  m_OrgRegionCopy;
+	DrawContext* m_DC;
+	Region*      m_OrgRegionPtr;
+	Region       m_OrgRegionCopy;
 };
 
 #endif // __SHV_REGION_H

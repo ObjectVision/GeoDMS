@@ -87,63 +87,68 @@ const FontIndexCache* FeatureDrawer::GetUpdatedLabelFontIndexCache() const
 	return result;
 }
 
-struct LabelDrawer : WeakPtr<const FontIndexCache>, SelectingFontArray
+struct LabelDrawer : WeakPtr<const FontIndexCache>
+#if defined(_WIN32)
+	, SelectingFontArray
+#endif
 {
 	LabelDrawer(const FeatureDrawer& fd)
 		:	WeakPtr<const FontIndexCache>(fd.GetUpdatedLabelFontIndexCache())
+#if defined(_WIN32)
 		,	SelectingFontArray(fd.m_Drawer.GetDC(), get_ptr(), false)
+#endif
 		,	m_FeatureDrawer(fd)
 		,	m_TextColorTheme(fd.m_Layer->GetEnabledTheme(AN_LabelTextColor))
 		,	m_BackColorTheme(fd.m_Layer->GetEnabledTheme(AN_LabelBackColor))
-		,	m_TextColorSelector(fd.m_Drawer.GetDC(), (m_TextColorTheme && m_TextColorTheme->IsAspectParameter()) ? m_TextColorTheme->GetColorAspectValue() : fd.m_Layer->GetDefaultTextColor() ) // default: black
-		,	m_BackColorSelector(fd.m_Drawer.GetDC(), (m_BackColorTheme && m_BackColorTheme->IsAspectParameter()) ? m_BackColorTheme->GetColorAspectValue() : fd.m_Layer->GetDefaultBackColor() ) // default: TRANSPARENT
-		,	m_BkModeSelector   (fd.m_Drawer.GetDC(), (m_BackColorTheme && m_BackColorTheme->IsAspectParameter() && m_BackColorTheme->GetColorAspectValue() != DmsTransparent) ? OPAQUE : TRANSPARENT)
 		,	m_LabelTextValueGetter     ( GetValueGetter(fd.m_Layer->GetEnabledTheme(AN_LabelText     ).get()) )
 		,	m_LabelTextColorValueGetter( (m_TextColorTheme && !m_TextColorTheme->IsAspectParameter()) ? m_TextColorTheme->GetValueGetter() : nullptr )
 		,	m_LabelBackColorValueGetter( (m_BackColorTheme && !m_BackColorTheme->IsAspectParameter()) ? m_BackColorTheme->GetValueGetter() : nullptr )
+		,	m_DefaultTextColor( (m_TextColorTheme && m_TextColorTheme->IsAspectParameter()) ? m_TextColorTheme->GetColorAspectValue() : fd.m_Layer->GetDefaultTextColor() )
+		,	m_DefaultBackColor( (m_BackColorTheme && m_BackColorTheme->IsAspectParameter()) ? m_BackColorTheme->GetColorAspectValue() : fd.m_Layer->GetDefaultBackColor() )
 	{
 		dms_assert(fd.m_Layer->m_FontIndexCaches[FR_Label] == NULL || fd.m_Layer->GetTheme(AN_LabelText) ); // maybe the label sublayer has been turned off.
+#if defined(_WIN32)
 		if (SelectSingleton())
 			WeakPtr<const FontIndexCache>::reset();
+#endif
+		auto* dc = fd.m_Drawer.GetDrawContext();
+		dc->SetTextColor(m_DefaultTextColor);
+		dc->SetBkColor(m_DefaultBackColor);
+		dc->SetBkMode(!(m_BackColorTheme && m_BackColorTheme->IsAspectParameter() && m_BackColorTheme->GetColorAspectValue() != DmsTransparent));
 	}
 
 	void DrawLabel(entity_id entityIndex, const GPoint& location)
 	{
+#if defined(_WIN32)
 		if (has_ptr())
-			if (!SelectFontHandle(get_ptr()->GetKeyIndex(entityIndex))) // returns false if fontSize == 0;
+			if (!SelectFontHandle(get_ptr()->GetKeyIndex(entityIndex)))
 				return;
+#endif
 
-		HDC hdc = m_FeatureDrawer.m_Drawer.GetDC();
+		auto* dc = m_FeatureDrawer.m_Drawer.GetDrawContext();
 
+		DmsColor textColor = m_DefaultTextColor;
 		if (m_LabelTextColorValueGetter)
-			SetTextColor(
-				hdc, 
-				DmsColor2COLORREF(
-					m_LabelTextColorValueGetter->GetColorValue(entityIndex)
-				)
-			);
+		{
+			textColor = m_LabelTextColorValueGetter->GetColorValue(entityIndex);
+			dc->SetTextColor(textColor);
+		}
 
 		if (m_LabelBackColorValueGetter)
 		{
-			COLORREF clr = DmsColor2COLORREF( m_LabelBackColorValueGetter->GetColorValue(entityIndex) );
-			if (clr == TRANSPARENT_COLORREF)
-				SetBkMode(hdc, TRANSPARENT);
+			DmsColor backColor = m_LabelBackColorValueGetter->GetColorValue(entityIndex);
+			if (backColor == DmsTransparent)
+				dc->SetBkMode(true);
 			else
 			{
-				SetBkMode(hdc, OPAQUE);
-				SetBkColor(hdc, clr);
+				dc->SetBkMode(false);
+				dc->SetBkColor(backColor);
 			}
 		}
 
 		dms_assert(m_FeatureDrawer.HasLabelText() );
 		SharedStr label = m_LabelTextValueGetter->GetStringValue(entityIndex, m_LabelLock);
-		TextOutLimited(
-			hdc 
-		,	location.x, location.y
-		,	label.c_str()
-		,	label.ssize()
-		);
-
+		dc->TextOut(location, label.c_str(), label.ssize(), textColor);
 	}
 
 private:
@@ -156,9 +161,9 @@ private:
 	WeakPtr<const AbstrThemeValueGetter> m_LabelTextColorValueGetter;
 	WeakPtr<const AbstrThemeValueGetter> m_LabelBackColorValueGetter;
 
-	DcTextColorSelector  m_TextColorSelector;
-	DcBackColorSelector  m_BackColorSelector;
-	DcBkModeSelector     m_BkModeSelector;
+	DmsColor m_DefaultTextColor;
+	DmsColor m_DefaultBackColor;
+
 	mutable GuiReadLock  m_LabelLock;
 };
 
@@ -1139,7 +1144,9 @@ bool DrawPoints(
 
 	const GraphDrawer& d =fd.m_Drawer;
 
+#if defined(_WIN32)
 	DcTextAlignSelector selectCenterAlignment(d.GetDC(), TA_CENTER|TA_BASELINE|TA_NOUPDATECP);
+#endif
 
 	CrdTransformation transformer = d.GetTransformation();
 
@@ -1166,9 +1173,11 @@ bool DrawPoints(
 		if (!layer->IsDisabledAspectGroup(AG_Symbol))
 		{
 			//	thematic presentation
+#if defined(_WIN32)
 			SelectingFontArray fontStock(d.GetDC(), fontIndices, false);
 			if (fontStock.SelectSingleton()) 
 				fontIndices = nullptr;
+#endif
 
 			DmsColor defaultColor = layer->GetDefaultPointColor();
 			WCHAR defaultSymbol = defSymbol;
@@ -1194,7 +1203,8 @@ bool DrawPoints(
 					colorGetter = theme->GetValueGetter();
 			}
 
-			DcTextColorSelector selectTextColor(d.GetDC(), defaultColor );
+			auto* drawCtx = d.GetDrawContext();
+			drawCtx->SetTextColor(defaultColor);
 
 			ResumableCounter tileCounter(d.GetCounterStacks(), true);
 			for (tile_id t=tileCounter.Value(); t!=tn; ++t)
@@ -1214,9 +1224,11 @@ bool DrawPoints(
 						if (!IsDefined(entityIndex))
 							goto nextSymbol;
 				
-						if (fontIndices)
-							if (!fontStock.SelectFontHandle(fontIndices->GetKeyIndex(entityIndex))) // returns false if fontSize == 0;
-								goto nextSymbol;
+						#if defined(_WIN32)
+												if (fontIndices)
+													if (!fontStock.SelectFontHandle(fontIndices->GetKeyIndex(entityIndex)))
+														goto nextSymbol;
+						#endif
 
 						bool isSelected = selectionsArray && SelectionID( selectionsArray[entityIndex] );
 						if (selectedOnly)
@@ -1238,13 +1250,15 @@ bool DrawPoints(
 
 						CheckColor(textColor);
 
-						SetTextColor(d.GetDC(), DmsColor2COLORREF(textColor) );
+						drawCtx->SetTextColor(textColor);
 
 						if (symbolIdGetter)
 							defaultSymbol = symbolIdGetter->GetOrdinalValue(entityIndex);
 
-						auto viewPoint = Convert<TPoint>(transformer.Apply(*i));	
-					
+						auto viewPoint = Convert<TPoint>(transformer.Apply(*i));
+
+						// Symbol drawing: uses wide char on Win32, placeholder on Linux
+#if defined(_WIN32)
 						CheckedGdiCall(
 							TextOutW(
 								d.GetDC(), 
@@ -1252,6 +1266,13 @@ bool DrawPoints(
 								&defaultSymbol, 1
 							) 
 						,	"DrawPoint");
+#else
+						char symBuf[8];
+						int symLen = 1;
+						symBuf[0] = static_cast<char>(defaultSymbol & 0x7F);
+						symBuf[symLen] = 0;
+						drawCtx->TextOut(GPoint(viewPoint.X(), viewPoint.Y()), symBuf, symLen, textColor);
+#endif
 					}
 				nextSymbol:
 					++itemCounter; if (itemCounter.MustBreakOrSuspend1000()) return true;
@@ -1883,7 +1904,9 @@ bool DrawMultiPoints(
 
 	const GraphDrawer& d = fd.m_Drawer;
 
+#if defined(_WIN32)
 	DcTextAlignSelector selectCenterAlignment(d.GetDC(), TA_CENTER|TA_BASELINE|TA_NOUPDATECP);
+#endif
 
 	CrdTransformation transformer = d.GetTransformation();
 
@@ -1910,9 +1933,11 @@ bool DrawMultiPoints(
 	{
 		if (!layer->IsDisabledAspectGroup(AG_Symbol))
 		{
+#if defined(_WIN32)
 			SelectingFontArray fontStock(d.GetDC(), fontIndices, false);
 			if (fontStock.SelectSingleton()) 
 				fontIndices = nullptr;
+#endif
 
 			DmsColor defaultColor = layer->GetDefaultPointColor();
 			WCHAR defaultSymbol = defSymbol;
@@ -1938,7 +1963,8 @@ bool DrawMultiPoints(
 					colorGetter = theme->GetValueGetter();
 			}
 
-			DcTextColorSelector selectTextColor(d.GetDC(), defaultColor);
+			auto* drawCtx = d.GetDrawContext();
+			drawCtx->SetTextColor(defaultColor);
 
 			ResumableCounter tileCounter(d.GetCounterStacks(), true);
 			for (tile_id t = tileCounter.Value(); t != tn; ++t)
@@ -1970,9 +1996,11 @@ bool DrawMultiPoints(
 							if (!IsDefined(entityIndex))
 								goto nextMultiPoint;
 
-							if (fontIndices)
-								if (!fontStock.SelectFontHandle(fontIndices->GetKeyIndex(entityIndex)))
-									goto nextMultiPoint;
+							#if defined(_WIN32)
+													if (fontIndices)
+														if (!fontStock.SelectFontHandle(fontIndices->GetKeyIndex(entityIndex)))
+															goto nextMultiPoint;
+							#endif
 
 							bool isSelected = selectionsArray && SelectionID(selectionsArray[entityIndex]);
 							if (selectedOnly)
@@ -1992,28 +2020,33 @@ bool DrawMultiPoints(
 							if (textColor == TRANSPARENT_COLORREF)
 								goto nextMultiPoint;
 
-							CheckColor(textColor);
-							SetTextColor(d.GetDC(), DmsColor2COLORREF(textColor));
+													CheckColor(textColor);
+													drawCtx->SetTextColor(textColor);
 
-							if (symbolIdGetter)
-								defaultSymbol = symbolIdGetter->GetOrdinalValue(entityIndex);
+													if (symbolIdGetter)
+														defaultSymbol = symbolIdGetter->GetOrdinalValue(entityIndex);
 
-							auto pointSeq = data[i];
-							for (const auto& p : pointSeq)
-							{
-								if (IsIncluding(geoRect, p))
-								{
-									auto viewPoint = Convert<TPoint>(transformer.Apply(p));
+													auto pointSeq = data[i];
+													for (const auto& p : pointSeq)
+													{
+														if (IsIncluding(geoRect, p))
+														{
+															auto viewPoint = Convert<TPoint>(transformer.Apply(p));
 
-									CheckedGdiCall(
-										TextOutW(
-											d.GetDC(),
-											viewPoint.X(), viewPoint.Y(),
-											&defaultSymbol, 1
-										)
-										, "DrawMultiPoint");
-								}
-							}
+							#if defined(_WIN32)
+															CheckedGdiCall(
+																TextOutW(
+																	d.GetDC(),
+																	viewPoint.X(), viewPoint.Y(),
+																	&defaultSymbol, 1
+																)
+																, "DrawMultiPoint");
+							#else
+															char symBuf[2] = { static_cast<char>(defaultSymbol & 0x7F), 0 };
+															drawCtx->TextOut(GPoint(viewPoint.X(), viewPoint.Y()), symBuf, 1, textColor);
+							#endif
+														}
+													}
 						}
 					nextMultiPoint:
 						++itemCounter; if (itemCounter.MustBreakOrSuspend100()) return true;
