@@ -41,6 +41,7 @@ inline int strncmp(CharPtr lhs, CharPtr rhs, SizeT maxCount)
 		if (!lhsCh)
 			return 0;
 	}
+	return 0;
 }
 
 inline int strnicmp(CharPtr lhs, CharPtr rhs, SizeT maxCount)
@@ -55,6 +56,7 @@ inline int strnicmp(CharPtr lhs, CharPtr rhs, SizeT maxCount)
 		if (!lhsCh)
 			return 0;
 	}
+	return 0;
 }
 
 inline int stricmp(CharPtr lhs, CharPtr rhs)
