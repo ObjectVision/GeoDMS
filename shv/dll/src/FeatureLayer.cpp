@@ -1415,7 +1415,8 @@ bool DrawNetwork(
 		{
 			GPoint pointBuffer[2];
 
-			PenArray pa(d.GetDC(), penIndices);
+			penIndices->UpdateForZoomLevel(Abs(d.GetTransformation().ZoomLevel()), d.GetSubPixelFactor());
+			auto* drawCtx = d.GetDrawContext();
 
 			ResumableCounter itemCounter(d.GetCounterStacks(), true);
 
@@ -1434,6 +1435,11 @@ bool DrawNetwork(
 					auto dp1 = transformer.Apply(p1), dp2 = transformer.Apply(p2);
 					pointBuffer[0] = GPoint(dp1.X(), dp1.Y());
 					pointBuffer[1] = GPoint(dp2.X(), dp2.Y());
+
+					DmsColor penColor = 0;
+					int penWidth = 1;
+					DmsPenStyle penStyle = DmsPenStyle::Solid;
+
 					if (penIndices)
 					{
 						auto entityIndex = i;
@@ -1441,18 +1447,17 @@ bool DrawNetwork(
 						if (!IsDefined(entityIndex))
 							goto nextLink;
 
-						if (! pa.SelectPen(penIndices->GetKeyIndex(entityIndex)) )
+						UInt32 penKeyIndex = penIndices->GetKeyIndex(entityIndex);
+						if (!penIndices->IsPenVisible(penKeyIndex))
 							goto nextLink;
+
+						const auto& penKey = penIndices->GetPenKey(penKeyIndex);
+						penColor = penKey.m_Color;
+						penWidth = penKey.m_Width;
+						penStyle = static_cast<DmsPenStyle>(penKey.m_Style);
 					}
 
-					CheckedGdiCall(
-						Polyline(
-							d.GetDC(),
-							&AsPOINT(pointBuffer[0]),
-							2
-						)
-					,	"DrawLink"
-					);
+					drawCtx->DrawPolyline(pointBuffer, 2, penColor, penWidth, penStyle);
 				}
 			nextLink:
 				++itemCounter; if (itemCounter.MustBreakOrSuspend100()) return true;
@@ -2350,8 +2355,6 @@ bool DrawArcs(const GraphicArcLayer* layer, const FeatureDrawer& fd, const PenIn
 		assert(selectionsArray);
 	}
 
-	PenArray::SafePenHandle specialPenHolder;
-
 	SizeT fe = UNDEFINED_VALUE(SizeT);
 	if (layer->IsActive())
 		fe = layer->GetFocusElemIndex();
@@ -2362,9 +2365,11 @@ bool DrawArcs(const GraphicArcLayer* layer, const FeatureDrawer& fd, const PenIn
 	{
 		if (!layer->IsDisabledAspectGroup(AG_Pen))
 		{
-			std::vector<POINT> pointBuffer;
+			std::vector<GPoint> pointBuffer;
 
-			PenArray pa(d.GetDC(), penIndices);
+			penIndices->UpdateForZoomLevel(Abs(d.GetTransformation().ZoomLevel()), d.GetSubPixelFactor());
+			auto* drawCtx = d.GetDrawContext();
+
 			ResumableCounter tileCounter(d.GetCounterStacks(), true);
 			while (tileCounter !=tn)
 			{
@@ -2396,7 +2401,7 @@ bool DrawArcs(const GraphicArcLayer* layer, const FeatureDrawer& fd, const PenIn
 							entityIndex = fd.m_IndexCollector.GetEntityIndex(entityIndex);
 							if (!IsDefined(entityIndex))
 								goto nextArc;
-	
+
 							bool isSelected = selectionsArray && SelectionID(selectionsArray[entityIndex]);
 							if (selectedOnly)
 							{
@@ -2406,8 +2411,7 @@ bool DrawArcs(const GraphicArcLayer* layer, const FeatureDrawer& fd, const PenIn
 
 							UInt32 nrPoints = arcCPtr->size();
 							pointBuffer.reserve(nrPoints);
-//							auto bi = pointBuffer.begin();
-					
+
 							auto pntPtr = arcCPtr->begin();
 							while (pntPtr != arcCPtr->end())
 							{
@@ -2420,7 +2424,7 @@ bool DrawArcs(const GraphicArcLayer* layer, const FeatureDrawer& fd, const PenIn
 										break;
 									}
 									auto deviceDPoint = transformer.Apply(*pntPtr);
-									pointBuffer.emplace_back(deviceDPoint.X(), deviceDPoint.Y());
+									pointBuffer.emplace_back(GPoint(deviceDPoint.X(), deviceDPoint.Y()));
 									++pntPtr;
 								}
 
@@ -2433,41 +2437,43 @@ bool DrawArcs(const GraphicArcLayer* layer, const FeatureDrawer& fd, const PenIn
 								if (pointBuffer.size() < 2)
 									continue;
 
+								DmsColor penColor = 0;
+								int penWidth = 1;
+								DmsPenStyle penStyle = DmsPenStyle::Solid;
+
 								if (entityIndex == fe || isSelected)
 								{
-									int width = 4 * d.GetSubPixelFactor();
-									assert(width > 0);
+									penWidth = 4 * d.GetSubPixelFactor();
+									assert(penWidth > 0);
 									if (penIndices)
 									{
-										width += penIndices->GetWidth(entityIndex);
-										assert(width > 0);
+										penWidth += penIndices->GetWidth(entityIndex);
+										assert(penWidth > 0);
 									}
-									width += width / 2;
-									assert(width > 0);
+									penWidth += penWidth / 2;
+									assert(penWidth > 0);
 
-									COLORREF brushColor = (entityIndex == fe)
-										? ::GetSysColor(COLOR_HIGHLIGHT)
-										: GetSelectedClr();
-
-									specialPenHolder = CreatePen(PS_SOLID, width, brushColor);
-									pa.SetSpecificPen(specialPenHolder);
+									penColor = (entityIndex == fe)
+										? CombineRGB(51, 153, 255)  // highlight color
+										: COLORREF2DmsColor(GetSelectedClr());
 								}
 								else if (penIndices)
 								{
-									if (!pa.SelectPen(penIndices->GetKeyIndex(entityIndex)))
+									UInt32 penKeyIndex = penIndices->GetKeyIndex(entityIndex);
+									if (!penIndices->IsPenVisible(penKeyIndex))
 										goto nextArc;
+									const auto& penKey = penIndices->GetPenKey(penKeyIndex);
+									penColor = penKey.m_Color;
+									penWidth = penKey.m_Width;
+									penStyle = static_cast<DmsPenStyle>(penKey.m_Style);
 								}
-								else
-									pa.ResetPen();
 
-
-								CheckedGdiCall(
-									Polyline(
-										d.GetDC(),
-										begin_ptr(pointBuffer),
-										pointBuffer.size()
-									)
-									, "DrawArc"
+								drawCtx->DrawPolyline(
+									pointBuffer.data(),
+									pointBuffer.size(),
+									penColor,
+									penWidth,
+									penStyle
 								);
 							}
 						}
@@ -2771,10 +2777,6 @@ bool GraphicPolygonLayer::DrawImpl(FeatureDrawer& fd) const
 {
 	auto featureItem = GetFeatureAttr();
 	assert(featureItem);
-
-	HDC dc = fd.m_Drawer.GetDC();
-
-	DcPolyFillModeSelector selectAlternatePolyFillMode(dc);
 
 	auto penIndices = GetPenIndexCache(GetDefaultOrThemeColor(AN_PenColor));
 

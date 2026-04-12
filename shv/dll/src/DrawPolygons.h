@@ -14,6 +14,7 @@
 
 #include "BoundingBoxCache.h"
 #include "CounterStacks.h"
+#include "DrawContext.h"
 #include "FeatureLayer.h"
 #include "GeoTypes.h"
 #include "GraphVisitor.h"
@@ -109,8 +110,7 @@ bool DrawPolygonInterior(
 	ScalarType minWorldWidth  = s_DrawingSizeTresholdInPixels / zoomLevel;
 	ScalarType minWorldHeight = minWorldWidth;
 
-	GdiHandle<HPEN>         invisiblePen(CreatePen(PS_NULL, 0, RGB(0, 0, 0)));
-	GdiObjectSelector<HPEN> penSelector(d.GetDC(), invisiblePen);
+	auto* drawContext = d.GetDrawContext();
 
 	lfs_assert(rectArray.size() == featureData.size());
 
@@ -147,7 +147,7 @@ bool DrawPolygonInterior(
 			}
 
 			if (entityIndex == fe)
-				brushColor = ::GetSysColor(COLOR_HIGHLIGHT);
+				brushColor = DmsColor2COLORREF(CombineRGB(51, 153, 255)); // highlight color (portable replacement for GetSysColor(COLOR_HIGHLIGHT))
 			else if (isSelected)
 				brushColor = GetSelectedClr();
 			else
@@ -165,12 +165,6 @@ bool DrawPolygonInterior(
 			if (brushColor != TRANSPARENT_COLORREF)
 			{
 				CheckColor(brushColor);
-				GdiHandle<HBRUSH> brush(
-					(hatchStyle == -1)
-					?	CreateSolidBrush(brushColor)
-					:	CreateHatchBrush(hatchStyle, brushColor)
-				);
-				GdiObjectSelector<HBRUSH> brushSelector(d.GetDC(), brush);
 
 				typename sequence_traits<typename p_traits::PointType>::const_pointer
 					pointArrayBegin = i->begin(),
@@ -180,13 +174,11 @@ bool DrawPolygonInterior(
 
 				remove_adjacents_and_spikes(pointBuffer);
 				if (pointBuffer.size() >= 3)
-					CheckedGdiCall(
-						Polygon(
-							d.GetDC(),
-							&AsPOINT(*pointBuffer.begin()),
-							pointBuffer.size()
-						)
-					,	"DrawPolygon"
+					drawContext->DrawPolygon(
+						pointBuffer.data(),
+						pointBuffer.size(),
+						COLORREF2DmsColor(brushColor),
+						static_cast<DmsHatchStyle>(hatchStyle)
 					);
 
 /*	BEGIN NEW
@@ -325,7 +317,8 @@ bool DrawPolygons(const GraphicPolygonLayer* layer, const FeatureDrawer& fd, con
 		index_range_vector_t pointIndexBuffer;
 		if (penIndices && !layer->IsDisabledAspectGroup(AG_Pen))
 		{
-			PenArray pa(d.GetDC(), penIndices);
+			penIndices->UpdateForZoomLevel(Abs(d.GetTransformation().ZoomLevel()), d.GetSubPixelFactor());
+			auto* drawCtx = d.GetDrawContext();
 
 			ResumableCounter tileCounter(d.GetCounterStacks(), true);
 			for(tile_id t = tileCounter.Value(); t<tn; ++t)
@@ -354,14 +347,19 @@ bool DrawPolygons(const GraphicPolygonLayer* layer, const FeatureDrawer& fd, con
 					auto ri = rectArray.begin() + itemCounter;
 					if (featurePtr->size() >= 3 && IsIntersecting(clipRect, *ri) && Width(*ri) >= minWorldWidth && Height(*ri) >= minWorldHeight)
 					{
+						UInt32 penKeyIndex = 0;
 						if (penIndices || selectedOnly)
 						{
 							SizeT entityIndex = trd->GetRowIndex(t, itemCounter);
 							entityIndex = fd.m_IndexCollector.GetEntityIndex(entityIndex);
 							if (!IsDefined(entityIndex))
 								goto nextBorder;
-							if (penIndices && ! pa.SelectPen(penIndices->GetKeyIndex(entityIndex) ) )
-								goto nextBorder;
+							if (penIndices)
+							{
+								penKeyIndex = penIndices->GetKeyIndex(entityIndex);
+								if (!penIndices->IsPenVisible(penKeyIndex))
+									goto nextBorder;
+							}
 							if (selectedOnly && !(selectionsArray && SelectionID( selectionsArray[entityIndex])))
 								goto nextBorder;
 						}
@@ -371,6 +369,11 @@ bool DrawPolygons(const GraphicPolygonLayer* layer, const FeatureDrawer& fd, con
 						fillPointIndexBuffer(pointIndexBuffer, featurePtr->begin(), featurePtr->end());
 
 						auto bi = pointBuffer.begin();
+
+						const auto& penKey = penIndices->GetPenKey(penKeyIndex);
+						DmsColor penColor = penKey.m_Color;
+						int penWidth = penKey.m_Width;
+						DmsPenStyle penStyle = static_cast<DmsPenStyle>(penKey.m_Style);
 
 						// draw Polyline for each island and lake; identified by repetition of start-point
 						auto ii = pointIndexBuffer.begin(), ie = pointIndexBuffer.end();
@@ -388,13 +391,12 @@ bool DrawPolygons(const GraphicPolygonLayer* layer, const FeatureDrawer& fd, con
 							bufferOffsetEnd = std::unique(bufferOffset, bufferOffsetEnd);
 							UInt32 lineSize =  bufferOffsetEnd - bufferOffset;
 							if	(lineSize >= 2)
-								CheckedGdiCall(
-									Polyline(
-										d.GetDC(), 
-										&AsPOINT(*bufferOffset), 
-										lineSize
-									)
-								,	"DrawPolyline"
+								drawCtx->DrawPolyline(
+									&*bufferOffset,
+									lineSize,
+									penColor,
+									penWidth,
+									penStyle
 								);
 						}
 					}

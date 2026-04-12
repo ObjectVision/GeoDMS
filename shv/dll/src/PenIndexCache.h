@@ -95,6 +95,18 @@ struct PenIndexCache : ResourceIndexCache
 
 	void UpdateForZoomLevel(Float64 worldUnitsPerPixel, Float64 subPixelFactor) const;
 
+	const PenKeyType& GetPenKey(UInt32 keyIndex) const
+	{
+		dms_assert(keyIndex < m_Keys.size());
+		return m_Keys[keyIndex];
+	}
+
+	bool IsPenVisible(UInt32 keyIndex) const
+	{
+		auto& pk = GetPenKey(keyIndex);
+		return pk.m_Style != 5; // DmsPenStyle::Null
+	}
+
 #if defined(MG_DEBUG)
 	UInt32 GetKeyIndex(UInt32 entityId) const
 	{
