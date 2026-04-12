@@ -1931,10 +1931,36 @@ bool KillFileOrDir(WeakStr fileOrDirName, bool canBeDir)
 start_process_result_t StartChildProcess(CharPtr moduleName, Char* cmdLine)
 {
 	pid_t pid;
-	char* argv[] = { const_cast<char*>(moduleName), cmdLine, nullptr };
-	int status = posix_spawn(&pid, moduleName, nullptr, nullptr, argv, environ);
-	if (status != 0)
-		throwErrorF("Environment", "posix_spawn(%s) failed: %s", moduleName, strerror(status));
+	int status;
+
+	// On Linux, use /bin/sh -c for command interpretation when:
+	// - no module specified (nullptr/empty), or
+	// - module is a Windows command shell reference (e.g. "cmd.exe", "env:ComSpec")
+	bool useShell = !moduleName || !*moduleName
+		|| strstr(moduleName, "cmd") != nullptr
+		|| strstr(moduleName, "ComSpec") != nullptr;
+
+	if (useShell)
+	{
+		// Strip Windows cmd.exe "/c " prefix if present, since /bin/sh -c
+		// already interprets the remaining string as a command.
+		CharPtr shellCmd = cmdLine;
+		if (shellCmd && (strncmp(shellCmd, "/c ", 3) == 0 || strncmp(shellCmd, "/C ", 3) == 0))
+			shellCmd += 3;
+
+		char* argv[] = { const_cast<char*>("/bin/sh"), const_cast<char*>("-c"), const_cast<char*>(shellCmd), nullptr };
+		status = posix_spawn(&pid, "/bin/sh", nullptr, nullptr, argv, environ);
+		if (status != 0)
+			throwErrorF("Environment", "posix_spawn(/bin/sh -c '%s') failed: %s", shellCmd, strerror(status));
+	}
+	else
+	{
+		char* argv[] = { const_cast<char*>(moduleName), cmdLine, nullptr };
+		status = posix_spawn(&pid, moduleName, nullptr, nullptr, argv, environ);
+		if (status != 0)
+			throwErrorF("Environment", "posix_spawn(%s) failed: %s", moduleName, strerror(status));
+	}
+
 	// Return pid in the HANDLE pair (process, thread=0 on Linux)
 	return { reinterpret_cast<HANDLE>(static_cast<intptr_t>(pid)), nullptr };
 }
