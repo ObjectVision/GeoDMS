@@ -658,8 +658,10 @@ bool WmsLayer::Draw(GraphDrawer& d) const
 {
 	if (!VisibleLevel(d))
 		return GVS_Continue;
+#if defined(_WIN32)
 	if (!d.GetDC())
 		return GVS_Continue;
+#endif
 
 	auto transZoomLevel = d.GetTransformation().ZoomLevel();
 	auto worldSizeOfDevicePixel = 1.0 / transZoomLevel;
@@ -736,16 +738,20 @@ bool WmsLayer::Draw(GraphDrawer& d) const
 				if (result==WPoint())
 					goto nextTile;
 	
-				GridDrawer drawer(
-					drawGridCoords.get()
-					, GetIndexCollector()
-					, &palette
-					, nullptr // selValues
-					, d.GetDC()
-					, tileRelRect
-					, ::tile_id(0)
-					, Convert<IRect>(tileGridRect) - drawGridCoords->GetGridRect().first // adjusted tileRect
-				);
+							GridDrawer drawer(
+									drawGridCoords.get()
+									, GetIndexCollector()
+									, &palette
+									, nullptr // selValues
+				#if defined(_WIN32)
+									, d.GetDC()
+				#else
+									, nullptr
+				#endif
+									, tileRelRect
+									, ::tile_id(0)
+									, Convert<IRect>(tileGridRect) - drawGridCoords->GetGridRect().first // adjusted tileRect
+								);
 
 				if (!drawer.empty()) {
 					GdiHandle<HBITMAP> hBitmap(drawer.CreateDIBSectionFromPalette());

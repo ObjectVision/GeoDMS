@@ -989,8 +989,10 @@ bool GridLayer::DrawAllRects(GraphDrawer& d, const GridColorPalette& colorPalett
 
 	GridCoordPtr drawGridCoords = GetGridCoordInfo(d.GetViewPortPtr() );
 	drawGridCoords->UpdateToScale(d.GetSubPixelFactors());
+#if defined(_WIN32)
 	if (!d.GetDC())
 		return false;
+#endif
 
 	RectArray ra;
 	d.GetAbsClipRegion().FillRectArray(ra);
@@ -1026,17 +1028,21 @@ bool GridLayer::DrawAllRects(GraphDrawer& d, const GridColorPalette& colorPalett
 
 			ReadableTileLock lock(grid->GetRefObj().get(), t);
 
-			doneAnything = true;
-			GridDrawer drawer(
-				drawGridCoords.get()
-			,	GetIndexCollector()
-			,	&colorPalette 
-			,	nullptr	// selValues
-			,	d.GetDC()
-			,	tileRelRect
-			,	t
-			,	tileGridRect - drawGridCoords->GetGridRect().first // adjusted tileRect
-			);
+					doneAnything = true;
+						GridDrawer drawer(
+							drawGridCoords.get()
+						,	GetIndexCollector()
+						,	&colorPalette 
+						,	nullptr	// selValues
+			#if defined(_WIN32)
+						,	d.GetDC()
+			#else
+						,	nullptr
+			#endif
+						,	tileRelRect
+						,	t
+						,	tileGridRect - drawGridCoords->GetGridRect().first // adjusted tileRect
+						);
 			if (!drawer.empty())
 				drawer.CopyDIBSection( drawer.Apply(), viewportDeviceOffset, SRCAND );
 		}
@@ -1094,7 +1100,11 @@ void GridLayer::DrawPaste(GraphDrawer& d, const GridColorPalette& colorPalette) 
 		,	GetIndexCollector()
 		,	&colorPalette
 		,	m_PasteHandler->GetSelValues()
+#if defined(_WIN32)
 		,	d.GetDC() 
+#else
+		,	nullptr
+#endif
 		,	*rectPtr
 		);
 		if (!drawer.empty())
@@ -1129,7 +1139,7 @@ bool GridLayer::Draw(GraphDrawer& d) const
 	}
 
 	// Draw Focus
-	if (IsActive() && d.GetDC())
+	if (IsActive() && d.GetDrawContext())
 	{
 		SizeT fe = GetFocusElemIndex();
 		if (!IsDefined(fe))
@@ -1204,18 +1214,13 @@ bool GridLayer::Draw(GraphDrawer& d) const
 			focusBordRgn = Region( focusBordRect );
 		}
 
-		DcMixModeSelector xorMode(d.GetDC());
-		{
-			auto hFocusViewRgn = RegionToHRGN(focusViewRgn);
-			auto hFocusBordRgn = RegionToHRGN(focusBordRgn);
-			FrameRgn(d.GetDC(), hFocusViewRgn, GetSysColorBrush(COLOR_HIGHLIGHT), subPixelFactor, subPixelFactor);
-			FrameRgn(d.GetDC(), hFocusBordRgn, GetSysColorBrush(COLOR_HIGHLIGHT), FOCUS_BORDER_FRAMEWIDTH* subPixelFactor, FOCUS_BORDER_FRAMEWIDTH* subPixelFactor);
-		}
+		auto* drawCtx = d.GetDrawContext();
+		DmsColor highlightColor = CombineRGB(51, 153, 255); // portable highlight color
+		drawCtx->FillRegion(focusViewRgn, highlightColor);
+		drawCtx->FillRegion(focusBordRgn, highlightColor);
+
 		focusBordRgn -= focusViewRgn;
-		{
-			auto hFocusBordRgn2 = RegionToHRGN(focusBordRgn);
-			FillRgn (d.GetDC(), hFocusBordRgn2, GdiHandle<HBRUSH>( CreateHatchBrush(HS_BDIAGONAL, DmsColor2COLORREF(DmsRed))));
-		}
+		drawCtx->FillRegion(focusBordRgn, DmsRed);
 	}
 skipDrawFocus:
 	return false;
