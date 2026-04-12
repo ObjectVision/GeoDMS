@@ -94,11 +94,6 @@ public:
 	virtual void DrawButtonBorder(GRect& rect) = 0;
 	virtual void DrawReversedBorder(GRect& rect) = 0;
 	void DrawBorder(GRect& rect, bool reversed) { if (reversed) DrawReversedBorder(rect); else DrawButtonBorder(rect); }
-
-	// === Backward compat (transitional, will be removed) ===
-#if defined(_WIN32)
-	virtual HDC GetHDC() const = 0;
-#endif
 };
 
 #if defined(_WIN32)
@@ -116,7 +111,7 @@ public:
 	explicit GdiDrawContext(HDC hdc) : m_hDC(hdc), m_OwnedFont(NULL) {}
 	~GdiDrawContext() override;
 
-	HDC GetHDC() const override { return m_hDC; }
+	HDC GetHDC() const { return m_hDC; }
 	void SetHDC(HDC hdc) { m_hDC = hdc; }
 
 	void FillRect(const GRect& rect, DmsColor color) override;

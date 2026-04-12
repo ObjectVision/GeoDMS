@@ -53,10 +53,6 @@ public:
 	void DrawButtonBorder(GRect& rect) override;
 	void DrawReversedBorder(GRect& rect) override;
 
-#if defined(_WIN32)
-	HDC GetHDC() const override { return NULL; }
-#endif
-
 	QPainter* GetPainter() const { return m_Painter; }
 
 private:

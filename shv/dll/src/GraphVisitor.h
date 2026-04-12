@@ -158,9 +158,6 @@ public:
 	void DoElement         (DataItemColumn* dic, SizeT i, const GRect& absElemDeviceRect) override;
 	WeakPtr<CounterStacks> GetCounterStacks() const override;
 
-#if defined(_WIN32)
-	HDC GetDC() const { return m_DrawContext ? m_DrawContext->GetHDC() : NULL; }
-#endif
 	DrawContext*  GetDrawContext() const { return m_DrawContext; }
 	const Region& GetAbsClipRegion() const { return m_AbsClipRegion; }
 	ViewPort*     GetViewPortPtr  () const { return m_ViewPortPtr; }
