@@ -289,6 +289,9 @@ void QDmsViewArea::CreateDmsView(QMdiArea* parent, ViewStyle viewStyle)
     );
     m_DataViewHWnd = dv_hWnd;
 
+    m_ViewHost = std::make_unique<Win32ViewHost>(dv_hWnd);
+    SHV_DataView_SetViewHost(dv.get(), m_ViewHost.get());
+
     SHV_DataView_SetStatusTextFunc(dv.get(), this, OnStatusText); // to communicate title etc.
     SetWindowPos(dv_hWnd, HWND_TOP
         , rect.x(), rect.y()

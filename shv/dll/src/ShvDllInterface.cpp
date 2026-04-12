@@ -300,6 +300,16 @@ void DMS_CONV SHV_DataView_SetStatusTextFunc(DataView* self, ClientHandle client
 	DMS_CALL_END
 }
 
+void DMS_CONV SHV_DataView_SetViewHost(DataView* self, ViewHost* vh)
+{
+	DMS_CALL_BEGIN
+
+		assert(self);
+		self->SetViewHost(vh);
+
+	DMS_CALL_END
+}
+
 void DMS_CONV SHV_SetCreateViewActionFunc(CreateViewActionFunc cvaf)
 {
 	g_ViewActionFunc = cvaf;

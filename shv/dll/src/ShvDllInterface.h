@@ -8,6 +8,8 @@
 #include "ShvBase.h"
 #include "act/ActorEnums.h"
 
+class ViewHost;
+
 
 SHV_CALL void  DMS_Shv_Load();
 
@@ -24,6 +26,7 @@ SHV_CALL void SHV_DataView_Destroy(DataView*);
 SHV_CALL MsgResult SHV_DataView_DispatchMessage(DataView*, HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 SHV_CALL void SHV_DataView_SetStatusTextFunc(DataView* self, ClientHandle clientHandle, StatusTextFunc stf);
+SHV_CALL void SHV_DataView_SetViewHost(DataView* self, ViewHost* vh);
 SHV_CALL void SHV_SetCreateViewActionFunc(CreateViewActionFunc cvaf);
 
 SHV_CALL auto SHV_EditPaletteView_Create(TreeItem* desktopItem, TreeItem* classAttr, const TreeItem* themeAttr) -> const AbstrDataItem*;

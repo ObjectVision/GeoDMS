@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="14.3" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -68,6 +68,7 @@
     <ClCompile Include="src\DataItemColumn.cpp" />
     <ClCompile Include="src\dataview.cpp" />
     <ClCompile Include="src\DcHandle.cpp" />
+    <ClCompile Include="src\Win32ViewHost.cpp" />
     <ClCompile Include="src\EditPalette.cpp" />
     <ClCompile Include="src\ExportInfo.cpp" />
     <ClCompile Include="src\FeatureLayer.cpp" />
@@ -136,6 +137,8 @@
     <ClInclude Include="src\DataItemColumn.h" />
     <ClInclude Include="src\dataview.h" />
     <ClInclude Include="src\DcHandle.h" />
+    <ClInclude Include="src\ViewHost.h" />
+    <ClInclude Include="src\Win32ViewHost.h" />
     <ClInclude Include="src\DrawPolygons.h" />
     <ClInclude Include="src\EditPalette.h" />
     <ClInclude Include="src\ExportInfo.h" />

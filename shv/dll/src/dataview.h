@@ -34,6 +34,7 @@
 #include "LayerInfo.h"
 #include "MovableObject.h"
 #include "TextEditController.h"
+#include "ViewHost.h"
 #include "act/Waiter.h"
 
 #include "ShvUtils.h"
@@ -210,7 +211,9 @@ public:
 	TreeItem*      GetDesktopContext() const;
 
 	SHV_CALL void ResetHWnd(HWND hWnd);
-	HWND     GetHWnd()        const { return m_hWnd; }
+	HWND     GetHWnd()        const { return m_ViewHost ? m_ViewHost->VH_GetHWnd() : m_hWnd; }
+	SHV_CALL void SetViewHost(ViewHost* vh);
+	ViewHost* GetViewHost() const { return m_ViewHost; }
 	CrdPoint GetScaleFactors() const { assert(m_CurrScaleFactors.X() > 0.0 && m_CurrScaleFactors.Y() > 0.0);  return m_CurrScaleFactors; }
 	CrdPoint GetReverseFactors() const { auto sf = GetScaleFactors(); return { 1.0 / sf.first, 1.0 / sf.second }; }
 	CrdPoint Reverse(CrdPoint pnt) const { auto rf = GetReverseFactors();  pnt.X() *= rf.first; pnt.Y() *= rf.second; return pnt; }
@@ -313,6 +316,7 @@ protected:
 	TimeStamp                     m_CheckedTS;
 	mutable CounterStacks         m_DoneGraphics;
 	HWND                          m_hWnd;
+	ViewHost*                     m_ViewHost = nullptr;
 	GPoint                        m_TextCaretPos;
 	Region                        m_SelCaret;
 	GdiHandle<HBRUSH>             m_SelBrush, m_BrdBrush;

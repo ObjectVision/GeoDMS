@@ -305,7 +305,10 @@ void DataView::SetContents(std::shared_ptr<MovableObject> contents, ShvSyncMode 
 
 void DataView::DestroyWindow()
 {
-	SendMessage(GetHWnd(), WM_CLOSE, 0, 0);
+	if (m_ViewHost)
+		m_ViewHost->VH_SendClose();
+	else
+		SendMessage(GetHWnd(), WM_CLOSE, 0, 0);
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -432,14 +435,27 @@ void DataView::UpdateTextCaret()
 	if (m_State.GetBits(DVF_HasFocus|DVF_HasTextCaret) == (DVF_HasFocus|DVF_HasTextCaret))
 	{
 		if (!m_State.Get(DVF_TextCaretCreated))
-			::CreateCaret(m_hWnd, NULL, 2, 16);
+		{
+			if (m_ViewHost)
+				m_ViewHost->VH_CreateTextCaret(2, 16);
+			else
+				::CreateCaret(m_hWnd, NULL, 2, 16);
+		}
 
-		::SetCaretPos(m_TextCaretPos.x, m_TextCaretPos.y);
+		if (m_ViewHost)
+			m_ViewHost->VH_SetTextCaretPos(m_TextCaretPos);
+		else
+			::SetCaretPos(m_TextCaretPos.x, m_TextCaretPos.y);
 
 		if (!m_State.Get(DVF_TextCaretCreated))
 		{
 			if (m_State.Get(DVF_CaretsVisible))
-				::ShowCaret(m_hWnd);
+			{
+				if (m_ViewHost)
+					m_ViewHost->VH_ShowTextCaret();
+				else
+					::ShowCaret(m_hWnd);
+			}
 			m_State.Set(DVF_TextCaretCreated);
 		}
 	}
@@ -448,8 +464,16 @@ void DataView::UpdateTextCaret()
 		if (m_State.Get(DVF_TextCaretCreated))
 		{
 			if (m_State.Get(DVF_CaretsVisible))
-				::HideCaret(m_hWnd);
-			::DestroyCaret();
+			{
+				if (m_ViewHost)
+					m_ViewHost->VH_HideTextCaret();
+				else
+					::HideCaret(m_hWnd);
+			}
+			if (m_ViewHost)
+				m_ViewHost->VH_DestroyTextCaret();
+			else
+				::DestroyCaret();
 			m_State.Clear(DVF_TextCaretCreated);
 		}
 	}
@@ -470,9 +494,19 @@ void DataView::SetCaretsVisible(bool visibility, HDC dc)
 		m_State.Set(DVF_CaretsVisible, visibility);
 		if (m_State.Get(DVF_TextCaretCreated))
 			if (visibility)
-				::ShowCaret(m_hWnd);
+			{
+				if (m_ViewHost)
+					m_ViewHost->VH_ShowTextCaret();
+				else
+					::ShowCaret(m_hWnd);
+			}
 			else
-				::HideCaret(m_hWnd);
+			{
+				if (m_ViewHost)
+					m_ViewHost->VH_HideTextCaret();
+				else
+					::HideCaret(m_hWnd);
+			}
 
 	}
 }
@@ -598,12 +632,19 @@ MsgResult DataView::DispatchMsg(const MsgStruct& msg)
 			}
 			if (msg.m_wParam == HOVER_TIMER_ID)
 			{
-				KillTimer(GetHWnd(), HOVER_TIMER_ID);
+				if (m_ViewHost)
+					m_ViewHost->VH_KillTimer(HOVER_TIMER_ID);
+				else
+					KillTimer(GetHWnd(), HOVER_TIMER_ID);
 
 				GPoint ptScreen;
-				GetCursorPos(&ptScreen);
-				GPoint ptClient = ptScreen;
-				ScreenToClient(GetHWnd(), &ptClient);
+				if (m_ViewHost)
+					m_ViewHost->VH_GetCursorScreenPos(ptScreen);
+				else
+					GetCursorPos(&ptScreen);
+				GPoint ptClient = m_ViewHost
+					? m_ViewHost->VH_ScreenToClient(ptScreen)
+					: [&]() { GPoint p = ptScreen; ScreenToClient(GetHWnd(), &p); return p; }();
 				if (ptClient == m_hoverStartLocation)
 				{
 					TooltipCollector ttc(this, ptClient);
@@ -655,7 +696,10 @@ MsgResult DataView::DispatchMsg(const MsgStruct& msg)
 			if (!IsProcessingMainThreadOpers())
 			{
 
-				KillTimer(m_hWnd, UPDATE_TIMER_ID);
+				if (m_ViewHost)
+					m_ViewHost->VH_KillTimer(UPDATE_TIMER_ID);
+				else
+					KillTimer(m_hWnd, UPDATE_TIMER_ID);
 				if (IdleTimer::IsInIdleMode())
 				{
 					IdleTimer::Subscribe(shared_from_this());
@@ -693,25 +737,43 @@ MsgResult DataView::DispatchMsg(const MsgStruct& msg)
 			goto completed;
 
 		case WM_MOUSEWHEEL:
-			DispatchMouseEvent(EventID::MOUSEWHEEL, msg.m_wParam, LParam2Point(msg.m_lParam).ScreenToClient(m_hWnd));
+		{
+			GPoint pt = LParam2Point(msg.m_lParam);
+			GPoint clientPt = m_ViewHost
+				? m_ViewHost->VH_ScreenToClient(pt)
+				: pt.ScreenToClient(m_hWnd);
+			DispatchMouseEvent(EventID::MOUSEWHEEL, msg.m_wParam, clientPt);
 			goto completed;
+		}
 
 		case WM_SETCURSOR:
-			//	We assume to not arrive here reentrant: DMS doesn't employ message pumps and we assume that WM_SETCURSOR isn't sent from PeekMessage as WM_SIZE and WM_WINDOWPOSCHANGED and WM_NCIHITTEST adn WM_COPYDATA sometimes seems to be.
-			//	REMOVE dms_assert(GetContextLevel() == 0); but user32 sends it when we pump WM_MOUSEMOUVE; let's handle it anyway
 			if (LOWORD(msg.m_lParam) != HTCLIENT)
 				goto defaultProcessing;
 			if (IsBusy())
-				SetCursor( LoadCursor(NULL, IDC_WAIT) );
+			{
+				if (m_ViewHost)
+					m_ViewHost->VH_SetCursorWait();
+				else
+					SetCursor( LoadCursor(NULL, IDC_WAIT) );
+			}
 			else
 			{
 				GPoint cursorPos;
-				CheckedGdiCall(
-					GetCursorPos(&cursorPos),
-					"GetCursorPos"
-				);
-				if (!DispatchMouseEvent(EventID::SETCURSOR, 0, cursorPos.ScreenToClient(m_hWnd)) )
-					SetCursor( LoadCursor(NULL, IDC_ARROW) );
+				if (m_ViewHost)
+				{
+					m_ViewHost->VH_GetCursorScreenPos(cursorPos);
+					if (!DispatchMouseEvent(EventID::SETCURSOR, 0, m_ViewHost->VH_ScreenToClient(cursorPos)))
+						m_ViewHost->VH_SetCursorArrow();
+				}
+				else
+				{
+					CheckedGdiCall(
+						GetCursorPos(&cursorPos),
+						"GetCursorPos"
+					);
+					if (!DispatchMouseEvent(EventID::SETCURSOR, 0, cursorPos.ScreenToClient(m_hWnd)) )
+						SetCursor( LoadCursor(NULL, IDC_ARROW) );
+				}
 			}
 			goto completed;
 
@@ -721,10 +783,17 @@ MsgResult DataView::DispatchMsg(const MsgStruct& msg)
 
 		case WM_LBUTTONDOWN:
 		{
-			SetCapture(m_hWnd);
-			// notify Qt parent that we are active
-			auto parent = GetAncestor(m_hWnd, GA_PARENT);
-			SendMessage(parent, WM_QT_ACTIVATENOTIFIERS, 0, 0);
+			if (m_ViewHost)
+			{
+				m_ViewHost->VH_SetCapture();
+				m_ViewHost->VH_NotifyParentActivation();
+			}
+			else
+			{
+				SetCapture(m_hWnd);
+				auto parent = GetAncestor(m_hWnd, GA_PARENT);
+				SendMessage(parent, WM_QT_ACTIVATENOTIFIERS, 0, 0);
+			}
 			DispatchMouseEvent(EventID::LBUTTONDOWN, msg.m_wParam, LParam2Point(msg.m_lParam));
 			goto completed;
 		}
@@ -733,8 +802,11 @@ MsgResult DataView::DispatchMsg(const MsgStruct& msg)
 			goto completed;
 
 		case WM_LBUTTONUP:
-		 	DispatchMouseEvent(EventID::LBUTTONUP,     msg.m_wParam, LParam2Point(msg.m_lParam) );
-			ReleaseCapture();
+			DispatchMouseEvent(EventID::LBUTTONUP,     msg.m_wParam, LParam2Point(msg.m_lParam) );
+			if (m_ViewHost)
+				m_ViewHost->VH_ReleaseCapture();
+			else
+				ReleaseCapture();
 			goto completed;
 
 		case WM_RBUTTONUP:
@@ -788,7 +860,10 @@ MsgResult DataView::DispatchMsg(const MsgStruct& msg)
 			goto completed;
 
 		case WM_MOUSEACTIVATE:
-			SetFocus(m_hWnd);
+			if (m_ViewHost)
+				m_ViewHost->VH_SetFocus();
+			else
+				SetFocus(m_hWnd);
 			return { true, MA_ACTIVATE };
 		case WM_ACTIVATE:
 			OnActivate(LOWORD(msg.m_wParam) != WA_INACTIVE); // bool minimized = (HIWORD(msg.m_wParam) != 0);
@@ -892,7 +967,10 @@ void DataView::InvalidateChangedGraphics()
 	assert(!SuspendTrigger::DidSuspend());
 
 	// make sure the m_DoneGraphics is updated according to invalidated rgn before scrolling; can result in UpdateView
-	UpdateWindow(GetHWnd()); // may Send WM_PAINT or WM_ERASEBKGND to SHV_DataView_DispatchMessage
+	if (m_ViewHost)
+		m_ViewHost->VH_UpdateWindow();
+	else
+		UpdateWindow(GetHWnd()); // may Send WM_PAINT or WM_ERASEBKGND to SHV_DataView_DispatchMessage
 	assert(!SuspendTrigger::DidSuspend());
 }
 
@@ -1069,9 +1147,10 @@ ActorVisitState UpdateChildViews(DataViewTree* dvl)
 			return AVS_SuspendedOrFailed;
 
 		HWND hWnd = dv->GetHWnd();
-		if (IsWindowVisible(hWnd))
+		auto vh = dv->GetViewHost();
+		if (vh ? vh->VH_IsVisible() : IsWindowVisible(hWnd))
 		{
-			UINT showCmd = GetShowCmd(hWnd);
+			UINT showCmd = vh ? vh->VH_GetShowCmd() : GetShowCmd(hWnd);
 			if (showCmd != SW_HIDE && showCmd != SW_SHOWMINIMIZED)
 			{
 				if ((dv->UpdateView() != GVS_Continue))
@@ -1113,14 +1192,17 @@ void DataView::ScrollDevice(GPoint delta, GRect rcScroll, GRect rcClip, const Mo
 		if (!validRect.empty())
 			ValidateRect(validRect);
 
-		ScrollWindowEx(GetHWnd(),
-			delta.x , delta.y,
-			&rcClippedScroll,      // prcScrill
-			&rcClip,               // prcClip
-			drawRgn.GetHandle(),   // HRGN hrgnUpdate,  // handle to update region
-			NULL,                  // LPRECT prcUpdate, // address of structure for update rectangle
-			0                      // SW_SCROLLCHILDREN //SW_ERASE|SW_INVALIDATE // |SW_SMOOTHSCROLL + 0x00010000
-		);
+		if (m_ViewHost)
+			m_ViewHost->VH_ScrollWindow(delta, rcClippedScroll, rcClip, drawRgn, GRect());
+		else
+			ScrollWindowEx(GetHWnd(),
+				delta.x , delta.y,
+				&rcClippedScroll,      // prcScrill
+				&rcClip,               // prcClip
+				drawRgn.GetHandle(),   // HRGN hrgnUpdate,  // handle to update region
+				NULL,                  // LPRECT prcUpdate, // address of structure for update rectangle
+				0                      // SW_SCROLLCHILDREN //SW_ERASE|SW_INVALIDATE // |SW_SMOOTHSCROLL + 0x00010000
+			);
 /*
 		Region drawRgn(rcClippedScroll);                         // source region of scroll
 		if (rcScroll != rcClippedScroll)
@@ -1238,10 +1320,13 @@ void DataView::ShowPopupMenu(GPoint point, const MenuData& menuData) const
 	dms_assert(hMenus.size() > 0);
 
 	GPoint screenPoint = point;
-	CheckedGdiCall(
-		ClientToScreen(m_hWnd, &screenPoint),
-		"ShowPopupMenu"
-	);
+	if (m_ViewHost)
+		screenPoint = m_ViewHost->VH_ClientToScreen(screenPoint);
+	else
+		CheckedGdiCall(
+			ClientToScreen(m_hWnd, &screenPoint),
+			"ShowPopupMenu"
+		);
 
 	UInt32 result;
 	{
@@ -1324,12 +1409,19 @@ void DataView::ActivatePrev()
 
 void DataView::SetCursorPos(GPoint clientPoint)
 {
-	ClientToScreen(m_hWnd, &clientPoint);
-
-	GPoint currPos;
-	if (!::GetCursorPos(&currPos) || !(currPos == clientPoint))
+	if (m_ViewHost)
 	{
-		::SetCursorPos(clientPoint.x, clientPoint.y);
+		GPoint screenPoint = m_ViewHost->VH_ClientToScreen(clientPoint);
+		GPoint currPos;
+		if (!m_ViewHost->VH_GetCursorScreenPos(currPos) || !(currPos == screenPoint))
+			m_ViewHost->VH_SetGlobalCursorPos(screenPoint);
+	}
+	else
+	{
+		ClientToScreen(m_hWnd, &clientPoint);
+		GPoint currPos;
+		if (!::GetCursorPos(&currPos) || !(currPos == clientPoint))
+			::SetCursorPos(clientPoint.x, clientPoint.y);
 	}
 }
 
@@ -1474,7 +1566,10 @@ void DataView::OnPaint()
 void DataView::SetUpdateTimer()
 {
 	m_Waiter.start(this);
-	SetTimer(m_hWnd, UPDATE_TIMER_ID, 100, nullptr);
+	if (m_ViewHost)
+		m_ViewHost->VH_SetTimer(UPDATE_TIMER_ID, 100);
+	else
+		SetTimer(m_hWnd, UPDATE_TIMER_ID, 100, nullptr);
 }
 // ============   Mouse Handling
 
@@ -1482,13 +1577,17 @@ void DataView::OnMouseMove(WPARAM nFlags, GPoint devicePoint)
 {
 	if (IsDefined(devicePoint))
 	{
-		TRACKMOUSEEVENT tme;
-		tme.cbSize      = sizeof(TRACKMOUSEEVENT);
-		tme.dwFlags     = TME_LEAVE; // Request a WM_MOUSELEAVE message for this window
-		tme.hwndTrack   = m_hWnd;
-//		tme.dwHoverTime = HOVER_DEFAULT;
-		if (!_TrackMouseEvent(&tme))
-			throwLastSystemError("TrackMouseEvent");
+		if (m_ViewHost)
+			m_ViewHost->VH_TrackMouseLeave();
+		else
+		{
+			TRACKMOUSEEVENT tme;
+			tme.cbSize      = sizeof(TRACKMOUSEEVENT);
+			tme.dwFlags     = TME_LEAVE;
+			tme.hwndTrack   = m_hWnd;
+			if (!_TrackMouseEvent(&tme))
+				throwLastSystemError("TrackMouseEvent");
+		}
 	}
 	if (nFlags & MK_LBUTTON) // && (::GetCapture == HWindow)
 		DispatchMouseEvent(EventID::MOUSEDRAG, nFlags, devicePoint);
@@ -1585,6 +1684,11 @@ void DataView::ResetHWnd(HWND hWnd)
 		g_DataViewRoots.AddChildView(this);
 }
 
+void DataView::SetViewHost(ViewHost* vh)
+{
+	m_ViewHost = vh;
+}
+
 void DataView::SetScrollEventsReceiver(ScrollPort* sp)
 {
 	dms_assert(m_ScrollEventsReceiver == 0 || m_ScrollEventsReceiver == sp);
@@ -1612,7 +1716,10 @@ void DataView::InvalidateDeviceRect(GRect rect)
 #if defined(MG_DEBUG)
 	CheckRgnLimits(rect);
 #endif
-	::InvalidateRect(m_hWnd, &rect, true);
+	if (m_ViewHost)
+		m_ViewHost->VH_InvalidateRect(rect, true);
+	else
+		::InvalidateRect(m_hWnd, &rect, true);
 #if defined(MG_DEBUG)
 	if (MG_DEBUG_INVALIDATE || true)
 	{
@@ -1625,7 +1732,10 @@ void DataView::InvalidateDeviceRect(GRect rect)
 
 void DataView::InvalidateRgn (const Region& rgn)
 {
-	::InvalidateRgn(m_hWnd, rgn.GetHandle(), true);
+	if (m_ViewHost)
+		m_ViewHost->VH_InvalidateRgn(rgn, true);
+	else
+		::InvalidateRgn(m_hWnd, rgn.GetHandle(), true);
 #if defined(MG_DEBUG)
 	if (MG_DEBUG_INVALIDATE || true)
 	{
@@ -1639,7 +1749,10 @@ void DataView::InvalidateRgn (const Region& rgn)
 
 void DataView::ValidateRect(const GRect& pixRect)
 {
-	::ValidateRect(m_hWnd, &pixRect);
+	if (m_ViewHost)
+		m_ViewHost->VH_ValidateRect(pixRect);
+	else
+		::ValidateRect(m_hWnd, &pixRect);
 #if defined(MG_DEBUG)
 	if (MG_DEBUG_INVALIDATE && false)
 	{
@@ -1696,7 +1809,12 @@ void DataView::PostGuiOper(std::function<void()>&& func)
 {
 	bool wasEmpty = m_GuiOperQueue.Post(std::move(func));
 	if (wasEmpty && m_hWnd)
-		PostMessage(m_hWnd, UM_PROCESS_QUEUE, 0, 0);
+	{
+		if (m_ViewHost)
+			m_ViewHost->VH_PostMessage(UM_PROCESS_QUEUE, 0, 0);
+		else
+			PostMessage(m_hWnd, UM_PROCESS_QUEUE, 0, 0);
+	}
 }
 
 
@@ -1882,12 +2000,18 @@ HWND DataView::EnsureTooltipWindow()
 
 void DataView::StartTipWatchdog()
 {
-	SetTimer(GetHWnd(), TIP_WATCH_TIMER_ID, kTipWatchPeriodMs, nullptr);
+	if (m_ViewHost)
+		m_ViewHost->VH_SetTimer(TIP_WATCH_TIMER_ID, kTipWatchPeriodMs);
+	else
+		SetTimer(GetHWnd(), TIP_WATCH_TIMER_ID, kTipWatchPeriodMs, nullptr);
 }
 
 void DataView::StopTipWatchdog()
 {
-	KillTimer(GetHWnd(), TIP_WATCH_TIMER_ID);
+	if (m_ViewHost)
+		m_ViewHost->VH_KillTimer(TIP_WATCH_TIMER_ID);
+	else
+		KillTimer(GetHWnd(), TIP_WATCH_TIMER_ID);
 }
 
 void DataView::SetActiveTooltipObject(const GraphicObject* obj) noexcept
@@ -1929,11 +2053,18 @@ void DataView::HideActiveTooltip()
 
 bool DataView::IsCursorInsideObject(const GraphicObject& obj) const noexcept
 {
-	POINT ptScreen{};
-	if (!GetCursorPos(&ptScreen)) return false;
-
-	POINT ptClient = ptScreen;
-	ScreenToClient(GetHWnd(), &ptClient);
-
-	return obj.HitTest(ptClient);
+	GPoint ptScreen{};
+	if (m_ViewHost)
+	{
+		if (!m_ViewHost->VH_GetCursorScreenPos(ptScreen)) return false;
+		GPoint ptClient = m_ViewHost->VH_ScreenToClient(ptScreen);
+		return obj.HitTest(ptClient);
+	}
+	else
+	{
+		if (!GetCursorPos(&ptScreen)) return false;
+		POINT ptClient = ptScreen;
+		ScreenToClient(GetHWnd(), &ptClient);
+		return obj.HitTest(ptClient);
+	}
 }

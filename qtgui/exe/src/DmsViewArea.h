@@ -10,6 +10,7 @@
 #define DMSVIEWAREA_H
 
 #include "ShvUtils.h"
+#include "Win32ViewHost.h"
 
 #include <QMdiArea.h>
 #include <QMdiSubWindow.h>
@@ -72,6 +73,7 @@ private:
 
     std::weak_ptr<DataView> m_DataView;
     void* m_DataViewHWnd = nullptr;
+    std::unique_ptr<Win32ViewHost> m_ViewHost;
     DWORD m_cookie = 0; // used for RegisterScaleChangeNotifications
     DPoint m_LastScaleFactors;
 };
