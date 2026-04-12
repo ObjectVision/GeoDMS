@@ -359,7 +359,8 @@ void DataView::InsertCaret(AbstrCaret* c)
 	{
 		dms_assert(m_hWnd);
 		CaretDcHandle dc(m_hWnd, GetDefaultFont(FontSizeCategory::CARET));
-		c->Reverse(dc, true);
+		GdiDrawContext drawCtx(dc);
+		c->Reverse(drawCtx, true);
 	}
 }
 
@@ -370,7 +371,8 @@ void DataView::RemoveCaret(AbstrCaret* c)
 	if (m_State.Get(DVF_CaretsVisible) && m_hWnd && c->IsVisible())
 	{
 		CaretDcHandle dc(m_hWnd, GetDefaultFont(FontSizeCategory::CARET));
-		c->Reverse(dc, false);
+		GdiDrawContext drawCtx(dc);
+		c->Reverse(drawCtx, false);
 	}
 	vector_erase(m_CaretVector, c);
 }
@@ -392,10 +394,11 @@ void DataView::MoveCaret(AbstrCaret* caret, const AbstrCaretOperator& caretOpera
 	assert(caret);
 
 	if (m_State.Get(DVF_CaretsVisible))
-		caret->Move(
-			caretOperator, 
-			CaretDcHandle(m_hWnd, GetDefaultFont(FontSizeCategory::CARET))
-		);
+	{
+		CaretDcHandle hdc(m_hWnd, GetDefaultFont(FontSizeCategory::CARET));
+		GdiDrawContext drawCtx(hdc);
+		caret->Move(caretOperator, drawCtx);
+	}
 	else
 		caretOperator(caret);
 }
@@ -523,30 +526,26 @@ void DataView::ReverseCarets(HDC hdc, bool newVisibleState)
 		DcBkModeSelector bkMode(hdc, TRANSPARENT);
 		GdiObjectSelector smallFont(hdc, GetDefaultFont(FontSizeCategory::CARET));
 		DcMixModeSelector xorMode(hdc);
-		ReverseCaretsImpl(hdc, newVisibleState);
+		GdiDrawContext drawCtx(hdc);
+		ReverseCaretsImpl(drawCtx, newVisibleState);
 	}
 	else
 	{
 		CaretDcHandle dc(m_hWnd, GetDefaultFont(FontSizeCategory::CARET)); // activates xorMode in its constructor
-		ReverseCaretsImpl(dc, newVisibleState);
+		GdiDrawContext drawCtx(dc);
+		ReverseCaretsImpl(drawCtx, newVisibleState);
 	}
 }
 
-void DataView::ReverseCaretsImpl(HDC hdc, bool newVisibleState)
+void DataView::ReverseCaretsImpl(DrawContext& dc, bool newVisibleState)
 {
 	DBG_START("DataView", "ReverseCaretsImpl", MG_DEBUG_CARET);
-
-	dms_assert(hdc);
 
 	caret_iterator i = m_CaretVector.begin();
 	caret_iterator e = m_CaretVector.end();
 	for(; i != e; ++i)
 		if ((*i)->IsVisible())
-			(*i)->Reverse(hdc, newVisibleState);
-
-// SELCARET
-//	if (!m_SelCaret.Empty())
-//		ReverseSelCaretImpl(hdc, m_SelCaret);
+			(*i)->Reverse(dc, newVisibleState);
 }
 
 

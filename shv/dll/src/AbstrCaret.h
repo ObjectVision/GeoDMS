@@ -23,6 +23,7 @@
 #include "geo/Geometry.h"
 
 class AbstrCaretOperator;
+class DrawContext;
 class GraphicObject;
 
 //----------------------------------------------------------------------
@@ -40,8 +41,8 @@ class AbstrCaret : public SharedObj
 	using base_type = SharedObj;
 public:
 
-  	virtual void Reverse(HDC dc, bool newVisibleState) =0;
-	virtual void Move(const AbstrCaretOperator& caret_operator, HDC dc);
+	virtual void Reverse(DrawContext& dc, bool newVisibleState) =0;
+	virtual void Move(const AbstrCaretOperator& caret_operator, DrawContext& dc);
 
 	void SetUsedObject(GraphicObject* givenObject) { m_UsedObject = givenObject; }
 	void SetStartPoint(const GPoint& p)            { m_StartPoint = p; }

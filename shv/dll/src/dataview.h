@@ -280,8 +280,8 @@ private:
 
 	void SetCaretsVisible(bool visibility, HDC dc); friend struct CaretHider;
 	void UpdateTextCaret();
-	void ReverseCarets(HDC dc, bool newVisibleState); // creates a new tmp dc if pdc==0
-	void ReverseCaretsImpl(HDC  dc, bool newVisibleState);
+	void ReverseCarets(HDC dc, bool newVisibleState);
+	void ReverseCaretsImpl(DrawContext& dc, bool newVisibleState);
 	void ReverseSelCaretImpl(HDC hdc, const Region& selCaretRgn);
 	bool DispatchMouseEvent(EventID event, WPARAM modKeys, GPoint point);
 

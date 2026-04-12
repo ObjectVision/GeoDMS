@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2025 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -7,6 +7,8 @@
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
 #endif
+
+#if defined(_WIN32)
 
 #include "DrawContext.h"
 
@@ -37,3 +39,98 @@ void GdiDrawContext::DrawFocusRect(const GRect& rect)
 {
 	::DrawFocusRect(m_hDC, &AsRECT(rect));
 }
+
+void GdiDrawContext::InvertRegion(const Region& rgn)
+{
+	auto hrgn = RegionToHRGN(rgn);
+	::InvertRgn(m_hDC, hrgn);
+}
+
+static HPEN CreateDmsPen(DmsColor color, int width, DmsPenStyle style)
+{
+	int gdiStyle = PS_SOLID;
+	switch (style) {
+	case DmsPenStyle::Solid:      gdiStyle = PS_SOLID; break;
+	case DmsPenStyle::Dash:       gdiStyle = PS_DASH; break;
+	case DmsPenStyle::Dot:        gdiStyle = PS_DOT; break;
+	case DmsPenStyle::DashDot:    gdiStyle = PS_DASHDOT; break;
+	case DmsPenStyle::DashDotDot: gdiStyle = PS_DASHDOTDOT; break;
+	case DmsPenStyle::Null:       gdiStyle = PS_NULL; break;
+	}
+	return CreatePen(gdiStyle, width, DmsColor2COLORREF(color));
+}
+
+void GdiDrawContext::DrawLine(GPoint from, GPoint to, DmsColor color, int width)
+{
+	GdiHandle<HPEN> pen(CreateDmsPen(color, width, DmsPenStyle::Solid));
+	GdiObjectSelector<HPEN> sel(m_hDC, pen);
+	::MoveToEx(m_hDC, from.x, from.y, NULL);
+	::LineTo(m_hDC, to.x, to.y);
+}
+
+void GdiDrawContext::DrawPolyline(const GPoint* pts, int count, DmsColor color, int width, DmsPenStyle style)
+{
+	GdiHandle<HPEN> pen(CreateDmsPen(color, width, style));
+	GdiObjectSelector<HPEN> sel(m_hDC, pen);
+	::Polyline(m_hDC, &AsPOINT(*pts), count);
+}
+
+void GdiDrawContext::DrawPolygon(const GPoint* pts, int count, DmsColor fillColor, DmsHatchStyle hatch)
+{
+	GdiHandle<HPEN> invisiblePen(CreatePen(PS_NULL, 0, RGB(0, 0, 0)));
+	GdiObjectSelector<HPEN> penSel(m_hDC, invisiblePen);
+
+	GdiHandle<HBRUSH> brush(
+		(hatch == DmsHatchStyle::Solid)
+		? CreateSolidBrush(DmsColor2COLORREF(fillColor))
+		: CreateHatchBrush(static_cast<int>(hatch), DmsColor2COLORREF(fillColor))
+	);
+	GdiObjectSelector<HBRUSH> brushSel(m_hDC, brush);
+	::Polygon(m_hDC, &AsPOINT(*pts), count);
+}
+
+void GdiDrawContext::TextOut(GPoint pos, CharPtr text, int len, DmsColor color)
+{
+	auto oldColor = ::SetTextColor(m_hDC, DmsColor2COLORREF(color));
+	::TextOutA(m_hDC, pos.x, pos.y, text, len);
+	::SetTextColor(m_hDC, oldColor);
+}
+
+void GdiDrawContext::DrawText(const GRect& rect, CharPtr text, int len, UInt32 format, DmsColor color)
+{
+	auto oldColor = ::SetTextColor(m_hDC, DmsColor2COLORREF(color));
+	RECT r = AsRECT(rect);
+	::DrawTextA(m_hDC, text, len, &r, format);
+	::SetTextColor(m_hDC, oldColor);
+}
+
+GPoint GdiDrawContext::GetTextExtent(CharPtr text, int len)
+{
+	SIZE sz;
+	::GetTextExtentPoint32A(m_hDC, text, len, &sz);
+	return GPoint(sz.cx, sz.cy);
+}
+
+void GdiDrawContext::SetTextColor(DmsColor color)
+{
+	::SetTextColor(m_hDC, DmsColor2COLORREF(color));
+}
+
+void GdiDrawContext::SetBkColor(DmsColor color)
+{
+	::SetBkColor(m_hDC, DmsColor2COLORREF(color));
+}
+
+void GdiDrawContext::SetBkMode(bool transparent)
+{
+	::SetBkMode(m_hDC, transparent ? TRANSPARENT : OPAQUE);
+}
+
+GRect GdiDrawContext::GetClipRect() const
+{
+	GRect r;
+	::GetClipBox(m_hDC, &AsRECT(r));
+	return r;
+}
+
+#endif // _WIN32

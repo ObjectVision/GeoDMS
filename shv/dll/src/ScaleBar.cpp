@@ -9,6 +9,7 @@
 #endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "ScaleBar.h"
+#include "DrawContext.h"
 
 #include "act/ActorVisitor.h"
 #include "geo/PointOrder.h"
@@ -40,14 +41,14 @@ ScaleBarBase::~ScaleBarBase()
 const UInt32 MIN_MEASURE_SIZE = 24;
 const UInt32 MAX_TEXT_HEIGHT = 16;
 
-bool ScaleBarBase::Draw(HDC dc, CrdRect devAbsRect) const
+bool ScaleBarBase::Draw(DrawContext& dc, CrdRect devAbsRect) const
 {
 	GRect clientAbsRect = CrdRect2GRect(devAbsRect);
 	GPoint clientSize = clientAbsRect.Size();
 	if (clientSize.y < 30)
 		return false;
 
-	const Float64 maxTextHeight = MAX_TEXT_HEIGHT * GetWindowDip2PixFactorY(WindowFromDC(dc));
+	const Float64 maxTextHeight = MAX_TEXT_HEIGHT; // TODO: scale by DPI factor
 	CrdType measureGroupSize = m_MeasureSize * m_MeasureGroupCount;
 	UInt32  nrGroups         = clientSize.x / measureGroupSize; if (nrGroups == 0) return false;
 	GType   top              = clientSize.y / 3;
@@ -59,47 +60,41 @@ bool ScaleBarBase::Draw(HDC dc, CrdRect devAbsRect) const
 	Float64 topVal           = 0.0;
 	Float64 botVal           = 0.0;
 
-	GdiHandle<HBRUSH> brw( CreateSolidBrush( DmsColor2COLORREF(CombineRGB(0xFF, 0xFF, 0xFF)) ) );
-	GdiHandle<HBRUSH> br1( CreateSolidBrush( DmsColor2COLORREF(0) ) );
-	GdiHandle<HBRUSH> br2( CreateSolidBrush( DmsColor2COLORREF(CombineRGB(0xFF, 0, 0)) ) );
+	DmsColor white = CombineRGB(0xFF, 0xFF, 0xFF);
+	DmsColor black = CombineRGB(0, 0, 0);
+	DmsColor red   = CombineRGB(0xFF, 0, 0);
+	DmsColor blue  = CombineRGB(0, 0, 0xFF);
+	DmsColor fillColor1 = black;
+	DmsColor fillColor2 = red;
+
 	GPoint topLeft = clientAbsRect.LeftTop();
 	for (; nrGroups; --nrGroups)
 	{
 		{
 			GRect bottomRect = GRect(left, bottom, left + measureGroupSize, textBottom) + topLeft;
-			DrawRectDmsColor(dc, bottomRect, CombineRGB(0, 0, 0xFF));
+			dc.FillRect(bottomRect, blue);
 			bottomRect.Shrink(1);
-			FillRectWithBrush(dc, bottomRect, brw);
+			dc.FillRect(bottomRect, white);
 
 			botVal += m_MeasureValue * m_MeasureGroupCount;
-			DrawText(
-				dc, 
-				mySSPrintF("%1.0lf%s", botVal, m_UnitLabel.c_str()).c_str(),
-				-1,
-				&AsRECT(bottomRect),
-				DT_CENTER|DT_VCENTER
-			);
+			auto text = mySSPrintF("%1.0lf%s", botVal, m_UnitLabel.c_str());
+			dc.DrawText(bottomRect, text.c_str(), -1, 0x0001|0x0004|0x0020, black); // DT_CENTER|DT_VCENTER|DT_SINGLELINE
 		}
 		{
 			for (UInt32 i=0; i!= m_MeasureGroupCount; ++i)
 			{
 				CrdType right = left + m_MeasureSize;
 				GRect topRect = GRect(left, textTop, right, top) + topLeft;
-				DrawRectDmsColor(dc, topRect, CombineRGB(0, 0, 0xFF));
+				dc.FillRect(topRect, blue);
 				topRect.Shrink(1);
-				FillRectWithBrush(dc, topRect, brw);
+				dc.FillRect(topRect, white);
 				topVal += m_MeasureValue;
-				DrawText(
-					dc, 
-					mySSPrintF("%1.0lf", topVal).c_str(),
-					-1,
-					&AsRECT(topRect),
-					DT_CENTER|DT_VCENTER
-				);
+				auto text = mySSPrintF("%1.0lf", topVal);
+				dc.DrawText(topRect, text.c_str(), -1, 0x0001|0x0004|0x0020, black); // DT_CENTER|DT_VCENTER|DT_SINGLELINE
 
-				FillRectWithBrush(dc, GRect(left, top, right, mid   ) + topLeft, br1);
-				FillRectWithBrush(dc, GRect(left, mid, right, bottom) + topLeft, br2);
-				br1.swap(br2);
+				dc.FillRect(GRect(left, top, right, mid   ) + topLeft, fillColor1);
+				dc.FillRect(GRect(left, mid, right, bottom) + topLeft, fillColor2);
+				std::swap(fillColor1, fillColor2);
 				left = right;
 			}
 		}
@@ -225,7 +220,7 @@ bool ScaleBarObj::Draw(GraphDrawer& d) const
 	//const_cast<ScaleBarObj*>(this)->DoUpdateView();  // maybe size has changed the factor without invalidating the viewport
 	assert(IsUpdated());
 	auto absLogicalRect = GetCurrClientRelLogicalRect() + d.GetClientLogicalAbsPos();
-	return m_Impl.Draw(d.GetDC(), ScaleCrdRect(absLogicalRect, GetScaleFactors()));
+	return m_Impl.Draw(*d.GetDrawContext(), ScaleCrdRect(absLogicalRect, GetScaleFactors()));
 }
 
 void ScaleBarObj::DoUpdateView()
@@ -252,12 +247,12 @@ ScaleBarCaret::~ScaleBarCaret()
 
 
 //	override AbstrCaret
-void ScaleBarCaret::Reverse(HDC dc, bool newVisibleState)
+void ScaleBarCaret::Reverse(DrawContext& dc, bool newVisibleState)
 {
 	if (newVisibleState)
 	{
-		DcMixModeSelector xxxDontXRor(dc, R2_COPYPEN);
-		m_Impl.DoUpdateViewImpl(GetWindowDip2PixFactors(WindowFromDC(dc)));
+		auto sf = CrdPoint(1.0, 1.0); // TODO: get DPI scale from ViewHost
+		m_Impl.DoUpdateViewImpl(sf);
 		m_Impl.Draw(dc, GetCurrDeviceExtents());
 	}
 }
@@ -293,7 +288,7 @@ void ScaleBarCaret::DetermineAndSetBoundingBox(CrdPoint scaleFactor)
 	m_DeviceExtents = m_Impl.DetermineBoundingBox(m_Impl.GetViewPort(), scaleFactor);
 }
 
-void ScaleBarCaret::Move(const AbstrCaretOperator& caretOper, HDC dc)
+void ScaleBarCaret::Move(const AbstrCaretOperator& caretOper, DrawContext& dc)
 {
 	if (m_Impl.MustUpdateView())
 		base_type::Move(caretOper, dc);

@@ -4,6 +4,8 @@
 #include "ShvBase.h"
 #include "MovableObject.h"
 
+class DrawContext;
+
 //----------------------------------------------------------------------
 // class  : ScaleBarBase interface
 //----------------------------------------------------------------------
@@ -16,7 +18,7 @@ public:
 
 	bool MustUpdateView() const;
 	bool DoUpdateViewImpl(CrdPoint scaleFactor);
-	bool Draw(HDC dc, CrdRect clientAbsRect) const;
+	bool Draw(DrawContext& dc, CrdRect clientAbsRect) const;
 
 	const ViewPort* GetViewPort() const { return m_ViewPort; }
 
@@ -64,6 +66,8 @@ private:
 
 #include "AbstrCaret.h"
 
+class DrawContext;
+
 class ScaleBarCaret : public AbstrCaret
 {
 	typedef AbstrCaret base_type;
@@ -74,8 +78,8 @@ public:
 	bool DoUpdateViewImpl(CrdPoint scaleFactor) { return m_Impl.DoUpdateViewImpl(scaleFactor); }
 
 //	override AbstrCaret
-	void Move(const AbstrCaretOperator& caretOper, HDC dc) override;
-	void Reverse(HDC dc, bool newVisibleState) override;
+	void Move(const AbstrCaretOperator& caretOper, DrawContext& dc) override;
+	void Reverse(DrawContext& dc, bool newVisibleState) override;
 
 	CrdRect GetCurrDeviceExtents() const;
 	void  DetermineAndSetBoundingBox(CrdPoint scaleFactor);

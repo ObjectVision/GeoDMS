@@ -12,6 +12,7 @@
 //----------------------------------------------------------------------
 
 #include "AbstrCaret.h"
+#include "DrawContext.h"
 #include "ShvUtils.h"
 
 //----------------------------------------------------------------------
@@ -25,8 +26,8 @@ public:
 	NeedleCaret();
 
 //	override AbstrCaret interface
-  	void Reverse(HDC dc, bool newVisibleState) override;
-	void Move(const AbstrCaretOperator& caret_operator, HDC dc) override;
+	void Reverse(DrawContext& dc, bool newVisibleState) override;
+	void Move(const AbstrCaretOperator& caret_operator, DrawContext& dc) override;
 
 	void SetViewRect(const GRect& viewRect) { m_ViewRect = viewRect; }
 
@@ -62,7 +63,7 @@ public:
 	GRect GetRect() const;
 
 //	override AbstrCaret interface
-	void Reverse(HDC dc, bool newVisibleState) override;
+	void Reverse(DrawContext& dc, bool newVisibleState) override;
 };
 
 //----------------------------------------------------------------------
@@ -76,7 +77,7 @@ public:
 	LineCaret(DmsColor clr) : m_LineColor(clr) {}
 
 //	override AbstrCaret interface
-	void Reverse(HDC dc, bool newVisibleState) override;
+	void Reverse(DrawContext& dc, bool newVisibleState) override;
 
 private:
 	DmsColor m_LineColor;
@@ -96,7 +97,7 @@ public:
 	,	m_FillColor(clr) {}
 
 //	override AbstrCaret interface
-	void Reverse(HDC dc, bool newVisibleState) override;
+	void Reverse(DrawContext& dc, bool newVisibleState) override;
 
 private:
 	const GPoint* m_First;
@@ -113,11 +114,11 @@ class InvertRgnCaret : public DualPointCaret
 	typedef DualPointCaret base_type;
 
 public:	
-	virtual void GetRgn(Region& rgn, HDC dc) const=0;
+	virtual void GetRgn(Region& rgn, DrawContext& dc) const=0;
 
 //	override AbstrCaret interface
-	void Reverse(HDC dc, bool newVisibleState) override;
-	void Move(const AbstrCaretOperator& caret_operator, HDC dc) override;
+	void Reverse(DrawContext& dc, bool newVisibleState) override;
+	void Move(const AbstrCaretOperator& caret_operator, DrawContext& dc) override;
 
 	DECL_ABSTR(SHV_CALL, Class);
 };
@@ -132,7 +133,7 @@ class RectCaret : public InvertRgnCaret
 
 public:	
 //	override InvertRgnCaret interface
-	void GetRgn(Region& rgn, HDC dc) const override;
+	void GetRgn(Region& rgn, DrawContext& dc) const override;
 };
 
 //----------------------------------------------------------------------
@@ -146,7 +147,7 @@ class MovableRectCaret : public InvertRgnCaret
 public:
 	MovableRectCaret(GRect objRect);
 
-	void GetRgn(Region& rgn, HDC dc) const override;
+	void GetRgn(Region& rgn, DrawContext& dc) const override;
 
 private:
 	GRect m_ObjRect;
@@ -174,7 +175,7 @@ class RoiCaret : public RectCaret
 	typedef RectCaret base_type;
 
 public:	
-	void GetRgn(Region& rgn, HDC dc) const override;
+	void GetRgn(Region& rgn, DrawContext& dc) const override;
 };
 
 //----------------------------------------------------------------------
@@ -189,7 +190,7 @@ public:
 	GType Radius() const;
 
 //	override AbstrCaret interface
-	void GetRgn(Region& rgn, HDC dc) const override;
+	void GetRgn(Region& rgn, DrawContext& dc) const override;
 };
 
 #endif // __CARETS_H

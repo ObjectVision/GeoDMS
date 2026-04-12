@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2025 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -11,6 +11,8 @@
 #include <QRect>
 #include <QColor>
 #include <QBrush>
+#include <QPen>
+#include <QFontMetrics>
 
 static QColor DmsColor2QColor(DmsColor c)
 {
@@ -38,8 +40,6 @@ void QtDrawContext::InvertRect(const GRect& rect)
 {
 	if (!m_Painter)
 		return;
-	// QPainter doesn't have a direct InvertRect equivalent.
-	// Use CompositionMode_Difference to approximate XOR inversion.
 	auto oldMode = m_Painter->compositionMode();
 	m_Painter->setCompositionMode(QPainter::CompositionMode_Difference);
 	m_Painter->fillRect(GRect2QRect(rect), Qt::white);
@@ -58,4 +58,160 @@ void QtDrawContext::DrawFocusRect(const GRect& rect)
 	m_Painter->setPen(pen);
 	m_Painter->drawRect(qr.adjusted(0, 0, -1, -1));
 	m_Painter->setPen(oldPen);
+}
+
+void QtDrawContext::InvertRegion(const Region& rgn)
+{
+	if (!m_Painter)
+		return;
+	const QRegion& qrgn = rgn.GetQRegion();
+	auto oldMode = m_Painter->compositionMode();
+	m_Painter->setCompositionMode(QPainter::CompositionMode_Difference);
+	m_Painter->setClipRegion(qrgn);
+	m_Painter->fillRect(qrgn.boundingRect(), Qt::white);
+	m_Painter->setClipping(false);
+	m_Painter->setCompositionMode(oldMode);
+}
+
+static Qt::PenStyle toQtPenStyle(DmsPenStyle style)
+{
+	switch (style) {
+	case DmsPenStyle::Solid:      return Qt::SolidLine;
+	case DmsPenStyle::Dash:       return Qt::DashLine;
+	case DmsPenStyle::Dot:        return Qt::DotLine;
+	case DmsPenStyle::DashDot:    return Qt::DashDotLine;
+	case DmsPenStyle::DashDotDot: return Qt::DashDotDotLine;
+	case DmsPenStyle::Null:       return Qt::NoPen;
+	}
+	return Qt::SolidLine;
+}
+
+void QtDrawContext::DrawLine(GPoint from, GPoint to, DmsColor color, int width)
+{
+	if (!m_Painter)
+		return;
+	QPen pen(DmsColor2QColor(color));
+	pen.setWidth(width);
+	auto oldPen = m_Painter->pen();
+	m_Painter->setPen(pen);
+	m_Painter->drawLine(from.x, from.y, to.x, to.y);
+	m_Painter->setPen(oldPen);
+}
+
+void QtDrawContext::DrawPolyline(const GPoint* pts, int count, DmsColor color, int width, DmsPenStyle style)
+{
+	if (!m_Painter || count < 2)
+		return;
+	QVector<QPoint> qpts(count);
+	for (int i = 0; i < count; ++i)
+		qpts[i] = QPoint(pts[i].x, pts[i].y);
+	QPen pen(DmsColor2QColor(color));
+	pen.setWidth(width);
+	pen.setStyle(toQtPenStyle(style));
+	auto oldPen = m_Painter->pen();
+	m_Painter->setPen(pen);
+	m_Painter->drawPolyline(qpts.data(), count);
+	m_Painter->setPen(oldPen);
+}
+
+static Qt::BrushStyle toQtHatchStyle(DmsHatchStyle hatch)
+{
+	switch (hatch) {
+	case DmsHatchStyle::Solid:            return Qt::SolidPattern;
+	case DmsHatchStyle::Horizontal:       return Qt::HorPattern;
+	case DmsHatchStyle::Vertical:         return Qt::VerPattern;
+	case DmsHatchStyle::ForwardDiagonal:  return Qt::FDiagPattern;
+	case DmsHatchStyle::BackwardDiagonal: return Qt::BDiagPattern;
+	case DmsHatchStyle::Cross:            return Qt::CrossPattern;
+	case DmsHatchStyle::DiagonalCross:    return Qt::DiagCrossPattern;
+	}
+	return Qt::SolidPattern;
+}
+
+void QtDrawContext::DrawPolygon(const GPoint* pts, int count, DmsColor fillColor, DmsHatchStyle hatch)
+{
+	if (!m_Painter || count < 3)
+		return;
+	QVector<QPoint> qpts(count);
+	for (int i = 0; i < count; ++i)
+		qpts[i] = QPoint(pts[i].x, pts[i].y);
+
+	auto oldPen = m_Painter->pen();
+	auto oldBrush = m_Painter->brush();
+
+	m_Painter->setPen(Qt::NoPen);
+	QBrush brush(DmsColor2QColor(fillColor));
+	brush.setStyle(toQtHatchStyle(hatch));
+	m_Painter->setBrush(brush);
+	m_Painter->drawPolygon(qpts.data(), count);
+
+	m_Painter->setPen(oldPen);
+	m_Painter->setBrush(oldBrush);
+}
+
+void QtDrawContext::TextOut(GPoint pos, CharPtr text, int len, DmsColor color)
+{
+	if (!m_Painter)
+		return;
+	auto oldPen = m_Painter->pen();
+	m_Painter->setPen(DmsColor2QColor(color));
+	m_Painter->drawText(pos.x, pos.y + m_Painter->fontMetrics().ascent(), QString::fromUtf8(text, len));
+	m_Painter->setPen(oldPen);
+}
+
+void QtDrawContext::DrawText(const GRect& rect, CharPtr text, int len, UInt32 format, DmsColor color)
+{
+	if (!m_Painter)
+		return;
+	auto oldPen = m_Painter->pen();
+	m_Painter->setPen(DmsColor2QColor(color));
+
+	int qtFlags = 0;
+	if (format & 0x0001) qtFlags |= Qt::AlignHCenter; // DT_CENTER
+	if (format & 0x0004) qtFlags |= Qt::AlignVCenter; // DT_VCENTER
+	if (format & 0x0020) qtFlags |= Qt::TextSingleLine; // DT_SINGLELINE
+	if (format & 0x0002) qtFlags |= Qt::AlignRight; // DT_RIGHT
+	if (!(qtFlags & (Qt::AlignHCenter | Qt::AlignRight)))
+		qtFlags |= Qt::AlignLeft;
+
+	m_Painter->drawText(GRect2QRect(rect), qtFlags, QString::fromUtf8(text, len));
+	m_Painter->setPen(oldPen);
+}
+
+GPoint QtDrawContext::GetTextExtent(CharPtr text, int len)
+{
+	if (!m_Painter)
+		return GPoint(0, 0);
+	QFontMetrics fm = m_Painter->fontMetrics();
+	auto size = fm.size(0, QString::fromUtf8(text, len));
+	return GPoint(size.width(), size.height());
+}
+
+void QtDrawContext::SetTextColor(DmsColor color)
+{
+	if (!m_Painter)
+		return;
+	m_Painter->setPen(DmsColor2QColor(color));
+}
+
+void QtDrawContext::SetBkColor(DmsColor color)
+{
+	if (!m_Painter)
+		return;
+	m_Painter->setBackground(QBrush(DmsColor2QColor(color)));
+}
+
+void QtDrawContext::SetBkMode(bool transparent)
+{
+	if (!m_Painter)
+		return;
+	m_Painter->setBackgroundMode(transparent ? Qt::TransparentMode : Qt::OpaqueMode);
+}
+
+GRect QtDrawContext::GetClipRect() const
+{
+	if (!m_Painter)
+		return GRect(0, 0, 0, 0);
+	QRect qr = m_Painter->clipBoundingRect().toRect();
+	return GRect(qr.left(), qr.top(), qr.right(), qr.bottom());
 }
