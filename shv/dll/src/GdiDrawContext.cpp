@@ -17,6 +17,12 @@
 #include "Region.h"
 #include "GdiRegionUtil.h"
 
+GdiDrawContext::~GdiDrawContext()
+{
+	if (m_OwnedFont)
+		::DeleteObject(m_OwnedFont);
+}
+
 void GdiDrawContext::FillRect(const GRect& rect, DmsColor color)
 {
 	GdiHandle<HBRUSH> br(CreateSolidBrush(DmsColor2COLORREF(color)));
@@ -103,6 +109,39 @@ void GdiDrawContext::TextOut(GPoint pos, CharPtr text, int len, DmsColor color)
 	auto oldColor = ::SetTextColor(m_hDC, DmsColor2COLORREF(color));
 	::TextOutA(m_hDC, pos.x, pos.y, text, len);
 	::SetTextColor(m_hDC, oldColor);
+}
+
+void GdiDrawContext::TextOutW(GPoint pos, const wchar_t* text, int len, DmsColor color)
+{
+	auto oldColor = ::SetTextColor(m_hDC, DmsColor2COLORREF(color));
+	::TextOutW(m_hDC, pos.x, pos.y, text, len);
+	::SetTextColor(m_hDC, oldColor);
+}
+
+void GdiDrawContext::SetFont(CharPtr fontName, int pixelHeight, UInt16 angleDegTenths)
+{
+	HFONT hFont = CreateFontA(
+		pixelHeight, 0, angleDegTenths, 0,
+		FW_NORMAL, FALSE, FALSE, FALSE,
+		DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+		DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE,
+		fontName
+	);
+	if (hFont)
+	{
+		HFONT old = (HFONT)::SelectObject(m_hDC, hFont);
+		if (m_OwnedFont)
+			::DeleteObject(m_OwnedFont);
+		m_OwnedFont = hFont;
+	}
+}
+
+void GdiDrawContext::SetTextAlign(bool centerH, bool baseline)
+{
+	UINT flags = TA_NOUPDATECP;
+	flags |= centerH ? TA_CENTER : TA_LEFT;
+	flags |= baseline ? TA_BASELINE : TA_TOP;
+	::SetTextAlign(m_hDC, flags);
 }
 
 void GdiDrawContext::DrawText(const GRect& rect, CharPtr text, int len, UInt32 format, DmsColor color)

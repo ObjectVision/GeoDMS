@@ -39,6 +39,12 @@ struct FontIndexCache : ResourceIndexCache
 	Int32  GetMaxFontSize() const;
 	Float64 GetLastSubPixelFactor() const { return m_LastSubPixelFactor; }
 
+	const FontKeyType& GetFontKey(UInt32 keyIndex) const { return m_Keys[keyIndex]; }
+	Int32   GetFontHeight(UInt32 keyIndex) const { return m_Keys[keyIndex].get<0>(); }
+	TokenID GetFontNameId(UInt32 keyIndex) const { return m_Keys[keyIndex].get<1>(); }
+	UInt16  GetFontAngle (UInt32 keyIndex) const { return m_Keys[keyIndex].get<2>(); }
+	SizeT   GetNrKeys() const { return m_Keys.size(); }
+
 #if defined(MG_DEBUG)
 	UInt32 GetKeyIndex(UInt32 entityId) const
 	{

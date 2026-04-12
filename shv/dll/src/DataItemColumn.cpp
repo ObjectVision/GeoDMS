@@ -745,39 +745,21 @@ void DataItemColumn::DrawElement(GraphDrawer& d, SizeT rowNr, GRect elemDeviceEx
 
 	if (isSymbol || !GetEnabledTheme(AN_LabelText))
 	{
-#if defined(_WIN32)
-		HFONT hFont = isSymbol ? GetFont (recNo, FR_Symbol, d.GetSubPixelFactor()) : 0;
-		WCHAR wSymb = isSymbol ? GetSymbol(recNo) : UNDEFINED_WCHAR;
+		auto* dc = d.GetDrawContext();
 		if (isActive) 
 			bkClr = GetFocusClr();
-		DrawSymbol(
-			d.GetDC(), 
-			elemDeviceExtents,
-			hFont,
-			GetColor(recNo, AN_LabelTextColor),
-			bkClr,
-			wSymb
-		);
-#else
-		auto* dc = d.GetDrawContext();
 		if (IsDefined(bkClr))
 			dc->FillRect(elemDeviceExtents, bkClr);
-#endif
+		if (isSymbol)
+		{
+			WCHAR wSymb = GetSymbol(recNo);
+			DmsColor clr = GetColor(recNo, AN_LabelTextColor);
+			if (!IsDefined(clr)) clr = GraphicObject::GetDefaultTextColor();
+			dc->TextOutW(GPoint(elemDeviceExtents.left, elemDeviceExtents.top), &wSymb, 1, clr);
+		}
 	}
 	else
 	{
-#if defined(_WIN32)
-		auto textInfo = GetText(recNo, MAX_TEXTOUT_SIZE, locks);
-		DrawEditText(
-			d.GetDC(),
-			elemDeviceExtents,
-			GetFont(recNo, FR_Label, d.GetSubPixelFactor()),
-			textInfo.m_Grayed ? RGB(100, 100, 100) : GetColor(recNo, AN_LabelTextColor),
-			bkClr,
-			textInfo.m_Text.c_str(),
-			isActive
-		);
-#else
 		auto textInfo = GetText(recNo, MAX_TEXTOUT_SIZE, locks);
 		auto* dc = d.GetDrawContext();
 		if (IsDefined(bkClr))
@@ -786,7 +768,6 @@ void DataItemColumn::DrawElement(GraphDrawer& d, SizeT rowNr, GRect elemDeviceEx
 		if (!IsDefined(clr))
 			clr = GraphicObject::GetDefaultTextColor();
 		dc->TextOut(GPoint(elemDeviceExtents.left, elemDeviceExtents.top), textInfo.m_Text.c_str(), textInfo.m_Text.ssize(), clr);
-#endif
 	}
 	if (isActive)
 	{

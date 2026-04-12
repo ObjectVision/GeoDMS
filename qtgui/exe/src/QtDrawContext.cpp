@@ -172,6 +172,39 @@ void QtDrawContext::TextOut(GPoint pos, CharPtr text, int len, DmsColor color)
 	m_Painter->setPen(oldPen);
 }
 
+void QtDrawContext::TextOutW(GPoint pos, const wchar_t* text, int len, DmsColor color)
+{
+	if (!m_Painter)
+		return;
+	auto oldPen = m_Painter->pen();
+	m_Painter->setPen(DmsColor2QColor(color));
+	QString str = QString::fromWCharArray(text, len);
+	int yOffset = m_CenterH ? 0 : m_Painter->fontMetrics().ascent();
+	m_Painter->drawText(pos.x, pos.y + yOffset, str);
+	m_Painter->setPen(oldPen);
+}
+
+void QtDrawContext::SetFont(CharPtr fontName, int pixelHeight, UInt16 angleDegTenths)
+{
+	if (!m_Painter)
+		return;
+	QFont font(QString::fromUtf8(fontName));
+	font.setPixelSize(abs(pixelHeight));
+	if (angleDegTenths)
+	{
+		QTransform t;
+		t.rotate(-angleDegTenths / 10.0);
+		// Qt doesn't directly support rotated fonts on QFont, rotation is handled via QPainter transform
+	}
+	m_Painter->setFont(font);
+}
+
+void QtDrawContext::SetTextAlign(bool centerH, bool baseline)
+{
+	m_CenterH = centerH;
+	m_Baseline = baseline;
+}
+
 void QtDrawContext::DrawText(const GRect& rect, CharPtr text, int len, UInt32 format, DmsColor color)
 {
 	if (!m_Painter)

@@ -34,11 +34,14 @@ public:
 	void DrawEllipse(const GRect& boundingRect, DmsColor color) override;
 
 	void TextOut(GPoint pos, CharPtr text, int len, DmsColor color) override;
+	void TextOutW(GPoint pos, const wchar_t* text, int len, DmsColor color) override;
 	void DrawText(const GRect& rect, CharPtr text, int len, UInt32 format, DmsColor color) override;
 	GPoint GetTextExtent(CharPtr text, int len) override;
 	void SetTextColor(DmsColor color) override;
 	void SetBkColor(DmsColor color) override;
 	void SetBkMode(bool transparent) override;
+	void SetFont(CharPtr fontName, int pixelHeight, UInt16 angleDegTenths) override;
+	void SetTextAlign(bool centerH, bool baseline) override;
 
 	GRect GetClipRect() const override;
 	void SetClipRegion(const Region& rgn) override;
@@ -56,6 +59,8 @@ public:
 
 private:
 	QPainter* m_Painter;
+	bool m_CenterH = false;
+	bool m_Baseline = false;
 };
 
 #endif // __QT_DRAWCONTEXT_H

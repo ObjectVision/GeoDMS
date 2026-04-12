@@ -70,11 +70,16 @@ public:
 
 	// === Text ===
 	virtual void TextOut(GPoint pos, CharPtr text, int len, DmsColor color) = 0;
+	virtual void TextOutW(GPoint pos, const wchar_t* text, int len, DmsColor color) = 0;
 	virtual void DrawText(const GRect& rect, CharPtr text, int len, UInt32 format, DmsColor color) = 0;
 	virtual GPoint GetTextExtent(CharPtr text, int len) = 0;
 	virtual void SetTextColor(DmsColor color) = 0;
 	virtual void SetBkColor(DmsColor color) = 0;
 	virtual void SetBkMode(bool transparent) = 0;
+
+	// === Font ===
+	virtual void SetFont(CharPtr fontName, int pixelHeight, UInt16 angleDegTenths = 0) = 0;
+	virtual void SetTextAlign(bool centerH, bool baseline) = 0;
 
 	// === Clipping ===
 	virtual GRect GetClipRect() const = 0;
@@ -104,8 +109,9 @@ public:
 class GdiDrawContext : public DrawContext
 {
 public:
-	GdiDrawContext() : m_hDC(NULL) {}
-	explicit GdiDrawContext(HDC hdc) : m_hDC(hdc) {}
+	GdiDrawContext() : m_hDC(NULL), m_OwnedFont(NULL) {}
+	explicit GdiDrawContext(HDC hdc) : m_hDC(hdc), m_OwnedFont(NULL) {}
+	~GdiDrawContext() override;
 
 	HDC GetHDC() const override { return m_hDC; }
 	void SetHDC(HDC hdc) { m_hDC = hdc; }
@@ -122,11 +128,14 @@ public:
 	void DrawEllipse(const GRect& boundingRect, DmsColor color) override;
 
 	void TextOut(GPoint pos, CharPtr text, int len, DmsColor color) override;
+	void TextOutW(GPoint pos, const wchar_t* text, int len, DmsColor color) override;
 	void DrawText(const GRect& rect, CharPtr text, int len, UInt32 format, DmsColor color) override;
 	GPoint GetTextExtent(CharPtr text, int len) override;
 	void SetTextColor(DmsColor color) override;
 	void SetBkColor(DmsColor color) override;
 	void SetBkMode(bool transparent) override;
+	void SetFont(CharPtr fontName, int pixelHeight, UInt16 angleDegTenths) override;
+	void SetTextAlign(bool centerH, bool baseline) override;
 
 	GRect GetClipRect() const override;
 	void SetClipRegion(const Region& rgn) override;
@@ -137,7 +146,8 @@ public:
 	void DrawReversedBorder(GRect& rect) override;
 
 private:
-	HDC m_hDC;
+	HDC   m_hDC;
+	HFONT m_OwnedFont;
 };
 #endif // _WIN32
 

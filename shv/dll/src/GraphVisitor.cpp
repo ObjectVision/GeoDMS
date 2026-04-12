@@ -599,14 +599,11 @@ GraphVisitState GraphDrawer::DoLayerControlBase(LayerControlBase* lc)
 	DmsColor textColor = (lc->GetLayerSetElem()->AllVisible())
 		? lc->GetDefaultTextColor()
 		: CombineRGB(160, 160, 160); // gray text color (portable)
-	GetDrawContext()->SetTextColor(textColor);
+	auto* dc = GetDrawContext();
+	dc->SetTextColor(textColor);
 
-	// Font selection: still uses HDC on Windows during transition
-#if defined(_WIN32)
-	GdiObjectSelector<HFONT> fontSelector(GetDC(),
-		m_ViewPtr->GetDefaultFont(lc->GetFontSizeCategory(), GetSubPixelFactor())
-	);
-#endif
+	auto fontHeight = GetDefaultFontHeightDIP(lc->GetFontSizeCategory()) * GetSubPixelFactor() * (96.0 / 72.0);
+	dc->SetFont("Noto Sans Medium", fontHeight, 0);
 
 	return base_type::DoLayerControlBase(lc);
 }
@@ -713,9 +710,6 @@ GraphVisitState GraphDrawer::DoViewPort(ViewPort* vp)
 	if (!DoDrawData())
 		return base_type::DoViewPort(vp);
 
-#if defined(_WIN32)
-	DcBrushOrgSelector brushOrgSelector(GetDC(), vp->GetBrushOrg());
-#endif
 	return base_type::DoViewPort(vp);
 }
 

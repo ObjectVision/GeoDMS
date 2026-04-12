@@ -88,15 +88,9 @@ const FontIndexCache* FeatureDrawer::GetUpdatedLabelFontIndexCache() const
 }
 
 struct LabelDrawer : WeakPtr<const FontIndexCache>
-#if defined(_WIN32)
-	, SelectingFontArray
-#endif
 {
 	LabelDrawer(const FeatureDrawer& fd)
 		:	WeakPtr<const FontIndexCache>(fd.GetUpdatedLabelFontIndexCache())
-#if defined(_WIN32)
-		,	SelectingFontArray(fd.m_Drawer.GetDC(), get_ptr(), false)
-#endif
 		,	m_FeatureDrawer(fd)
 		,	m_TextColorTheme(fd.m_Layer->GetEnabledTheme(AN_LabelTextColor))
 		,	m_BackColorTheme(fd.m_Layer->GetEnabledTheme(AN_LabelBackColor))
@@ -107,25 +101,28 @@ struct LabelDrawer : WeakPtr<const FontIndexCache>
 		,	m_DefaultBackColor( (m_BackColorTheme && m_BackColorTheme->IsAspectParameter()) ? m_BackColorTheme->GetColorAspectValue() : fd.m_Layer->GetDefaultBackColor() )
 	{
 		dms_assert(fd.m_Layer->m_FontIndexCaches[FR_Label] == NULL || fd.m_Layer->GetTheme(AN_LabelText) ); // maybe the label sublayer has been turned off.
-#if defined(_WIN32)
-		if (SelectSingleton())
-			WeakPtr<const FontIndexCache>::reset();
-#endif
 		auto* dc = fd.m_Drawer.GetDrawContext();
 		dc->SetTextColor(m_DefaultTextColor);
 		dc->SetBkColor(m_DefaultBackColor);
 		dc->SetBkMode(!(m_BackColorTheme && m_BackColorTheme->IsAspectParameter() && m_BackColorTheme->GetColorAspectValue() != DmsTransparent));
+		if (has_ptr() && get_ptr()->GetNrKeys() == 1)
+		{
+			SelectFontViaDrawContext(dc, 0);
+			WeakPtr<const FontIndexCache>::reset();
+		}
 	}
 
 	void DrawLabel(entity_id entityIndex, const GPoint& location)
 	{
-#if defined(_WIN32)
-		if (has_ptr())
-			if (!SelectFontHandle(get_ptr()->GetKeyIndex(entityIndex)))
-				return;
-#endif
-
 		auto* dc = m_FeatureDrawer.m_Drawer.GetDrawContext();
+
+		if (has_ptr())
+		{
+			auto keyIndex = get_ptr()->GetKeyIndex(entityIndex);
+			if (get_ptr()->GetFontHeight(keyIndex) == 0)
+				return;
+			SelectFontViaDrawContext(dc, keyIndex);
+		}
 
 		DmsColor textColor = m_DefaultTextColor;
 		if (m_LabelTextColorValueGetter)
@@ -152,6 +149,14 @@ struct LabelDrawer : WeakPtr<const FontIndexCache>
 	}
 
 private:
+	void SelectFontViaDrawContext(DrawContext* dc, UInt32 keyIndex)
+	{
+		auto fontNameId = get_ptr()->GetFontNameId(keyIndex);
+		auto fontHeight = get_ptr()->GetFontHeight(keyIndex);
+		auto fontAngle  = get_ptr()->GetFontAngle(keyIndex);
+		dc->SetFont(GetTokenStr(fontNameId).c_str(), fontHeight, fontAngle);
+	}
+
 	const FeatureDrawer& m_FeatureDrawer;
 
 	std::shared_ptr<const Theme> m_TextColorTheme;
@@ -1144,9 +1149,8 @@ bool DrawPoints(
 
 	const GraphDrawer& d =fd.m_Drawer;
 
-#if defined(_WIN32)
-	DcTextAlignSelector selectCenterAlignment(d.GetDC(), TA_CENTER|TA_BASELINE|TA_NOUPDATECP);
-#endif
+	auto* drawCtx = d.GetDrawContext();
+	drawCtx->SetTextAlign(true, true); // center + baseline
 
 	CrdTransformation transformer = d.GetTransformation();
 
@@ -1173,11 +1177,14 @@ bool DrawPoints(
 		if (!layer->IsDisabledAspectGroup(AG_Symbol))
 		{
 			//	thematic presentation
-#if defined(_WIN32)
-			SelectingFontArray fontStock(d.GetDC(), fontIndices, false);
-			if (fontStock.SelectSingleton()) 
+			if (fontIndices && fontIndices->GetNrKeys() == 1)
+			{
+				auto fontNameId = fontIndices->GetFontNameId(0);
+				auto fontHeight = fontIndices->GetFontHeight(0);
+				auto fontAngle  = fontIndices->GetFontAngle(0);
+				drawCtx->SetFont(GetTokenStr(fontNameId).c_str(), fontHeight, fontAngle);
 				fontIndices = nullptr;
-#endif
+			}
 
 			DmsColor defaultColor = layer->GetDefaultPointColor();
 			WCHAR defaultSymbol = defSymbol;
@@ -1223,12 +1230,15 @@ bool DrawPoints(
 						entityIndex = fd.m_IndexCollector.GetEntityIndex(entityIndex);
 						if (!IsDefined(entityIndex))
 							goto nextSymbol;
-				
-						#if defined(_WIN32)
-												if (fontIndices)
-													if (!fontStock.SelectFontHandle(fontIndices->GetKeyIndex(entityIndex)))
-														goto nextSymbol;
-						#endif
+
+						if (fontIndices)
+						{
+							auto keyIndex = fontIndices->GetKeyIndex(entityIndex);
+							if (fontIndices->GetFontHeight(keyIndex) == 0)
+								goto nextSymbol;
+							drawCtx->SetFont(GetTokenStr(fontIndices->GetFontNameId(keyIndex)).c_str(),
+								fontIndices->GetFontHeight(keyIndex), fontIndices->GetFontAngle(keyIndex));
+						}
 
 						bool isSelected = selectionsArray && SelectionID( selectionsArray[entityIndex] );
 						if (selectedOnly)
@@ -1257,22 +1267,7 @@ bool DrawPoints(
 
 						auto viewPoint = Convert<TPoint>(transformer.Apply(*i));
 
-						// Symbol drawing: uses wide char on Win32, placeholder on Linux
-#if defined(_WIN32)
-						CheckedGdiCall(
-							TextOutW(
-								d.GetDC(), 
-								viewPoint.X(), viewPoint.Y(),
-								&defaultSymbol, 1
-							) 
-						,	"DrawPoint");
-#else
-						char symBuf[8];
-						int symLen = 1;
-						symBuf[0] = static_cast<char>(defaultSymbol & 0x7F);
-						symBuf[symLen] = 0;
-						drawCtx->TextOut(GPoint(viewPoint.X(), viewPoint.Y()), symBuf, symLen, textColor);
-#endif
+						drawCtx->TextOutW(GPoint(viewPoint.X(), viewPoint.Y()), &defaultSymbol, 1, textColor);
 					}
 				nextSymbol:
 					++itemCounter; if (itemCounter.MustBreakOrSuspend1000()) return true;
@@ -1904,9 +1899,8 @@ bool DrawMultiPoints(
 
 	const GraphDrawer& d = fd.m_Drawer;
 
-#if defined(_WIN32)
-	DcTextAlignSelector selectCenterAlignment(d.GetDC(), TA_CENTER|TA_BASELINE|TA_NOUPDATECP);
-#endif
+	auto* drawCtx = d.GetDrawContext();
+	drawCtx->SetTextAlign(true, true); // center + baseline
 
 	CrdTransformation transformer = d.GetTransformation();
 
@@ -1933,13 +1927,14 @@ bool DrawMultiPoints(
 	{
 		if (!layer->IsDisabledAspectGroup(AG_Symbol))
 		{
-#if defined(_WIN32)
-			SelectingFontArray fontStock(d.GetDC(), fontIndices, false);
-			if (fontStock.SelectSingleton()) 
-				fontIndices = nullptr;
-#endif
+if (fontIndices && fontIndices->GetNrKeys() == 1)
+{
+	drawCtx->SetFont(GetTokenStr(fontIndices->GetFontNameId(0)).c_str(),
+		fontIndices->GetFontHeight(0), fontIndices->GetFontAngle(0));
+	fontIndices = nullptr;
+}
 
-			DmsColor defaultColor = layer->GetDefaultPointColor();
+DmsColor defaultColor = layer->GetDefaultPointColor();
 			WCHAR defaultSymbol = defSymbol;
 			WeakPtr<const AbstrThemeValueGetter> symbolIdGetter;
 			if (layer->GetEnabledTheme(AN_SymbolIndex))
@@ -1996,11 +1991,14 @@ bool DrawMultiPoints(
 							if (!IsDefined(entityIndex))
 								goto nextMultiPoint;
 
-							#if defined(_WIN32)
-													if (fontIndices)
-														if (!fontStock.SelectFontHandle(fontIndices->GetKeyIndex(entityIndex)))
-															goto nextMultiPoint;
-							#endif
+							if (fontIndices)
+							{
+								auto keyIndex = fontIndices->GetKeyIndex(entityIndex);
+								if (fontIndices->GetFontHeight(keyIndex) == 0)
+									goto nextMultiPoint;
+								drawCtx->SetFont(GetTokenStr(fontIndices->GetFontNameId(keyIndex)).c_str(),
+									fontIndices->GetFontHeight(keyIndex), fontIndices->GetFontAngle(keyIndex));
+							}
 
 							bool isSelected = selectionsArray && SelectionID(selectionsArray[entityIndex]);
 							if (selectedOnly)
@@ -2032,19 +2030,7 @@ bool DrawMultiPoints(
 														if (IsIncluding(geoRect, p))
 														{
 															auto viewPoint = Convert<TPoint>(transformer.Apply(p));
-
-							#if defined(_WIN32)
-															CheckedGdiCall(
-																TextOutW(
-																	d.GetDC(),
-																	viewPoint.X(), viewPoint.Y(),
-																	&defaultSymbol, 1
-																)
-																, "DrawMultiPoint");
-							#else
-															char symBuf[2] = { static_cast<char>(defaultSymbol & 0x7F), 0 };
-															drawCtx->TextOut(GPoint(viewPoint.X(), viewPoint.Y()), symBuf, 1, textColor);
-							#endif
+															drawCtx->TextOutW(GPoint(viewPoint.X(), viewPoint.Y()), &defaultSymbol, 1, textColor);
 														}
 													}
 						}
