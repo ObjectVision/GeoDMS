@@ -33,6 +33,7 @@
 #include "ActivationInfo.h"
 #include "Carets.h"
 #include "CaretOperators.h"
+#include "DrawContext.h"
 #include "FocusElemProvider.h"
 #include "GraphVisitor.h"
 #include "IdleTimer.h"
@@ -355,12 +356,12 @@ void DataView::InsertCaret(AbstrCaret* c)
 	DBG_START("DataView", "InsertCaret", MG_DEBUG_CARET);
 
 	m_CaretVector.push_back(c);
-	if (m_State.Get(DVF_CaretsVisible) && m_hWnd && c->IsVisible())
+	if (m_State.Get(DVF_CaretsVisible) && m_ViewHost && c->IsVisible())
 	{
-		dms_assert(m_hWnd);
-		CaretDcHandle dc(m_hWnd, GetDefaultFont(FontSizeCategory::CARET));
-		GdiDrawContext drawCtx(dc);
-		c->Reverse(drawCtx, true);
+		Region fullRgn(m_ViewDeviceSize);
+		m_ViewHost->VH_DrawInContext(fullRgn, [c](DrawContext& dc) {
+			c->Reverse(dc, true);
+		});
 	}
 }
 
@@ -368,11 +369,12 @@ void DataView::RemoveCaret(AbstrCaret* c)
 {
 	DBG_START("DataView", "RemoveCaret", MG_DEBUG_CARET);
 
-	if (m_State.Get(DVF_CaretsVisible) && m_hWnd && c->IsVisible())
+	if (m_State.Get(DVF_CaretsVisible) && m_ViewHost && c->IsVisible())
 	{
-		CaretDcHandle dc(m_hWnd, GetDefaultFont(FontSizeCategory::CARET));
-		GdiDrawContext drawCtx(dc);
-		c->Reverse(drawCtx, false);
+		Region fullRgn(m_ViewDeviceSize);
+		m_ViewHost->VH_DrawInContext(fullRgn, [c](DrawContext& dc) {
+			c->Reverse(dc, false);
+		});
 	}
 	vector_erase(m_CaretVector, c);
 }
@@ -393,11 +395,12 @@ void DataView::MoveCaret(AbstrCaret* caret, const AbstrCaretOperator& caretOpera
 
 	assert(caret);
 
-	if (m_State.Get(DVF_CaretsVisible))
+	if (m_State.Get(DVF_CaretsVisible) && m_ViewHost)
 	{
-		CaretDcHandle hdc(m_hWnd, GetDefaultFont(FontSizeCategory::CARET));
-		GdiDrawContext drawCtx(hdc);
-		caret->Move(caretOperator, drawCtx);
+		Region fullRgn(m_ViewDeviceSize);
+		m_ViewHost->VH_DrawInContext(fullRgn, [caret, &caretOperator](DrawContext& dc) {
+			caret->Move(caretOperator, dc);
+		});
 	}
 	else
 		caretOperator(caret);
@@ -519,21 +522,12 @@ void DataView::ReverseCarets(HDC hdc, bool newVisibleState)
 {
 	DBG_START("DataView", "ReverseCarets", MG_DEBUG_CARET);
 
-	dms_assert(m_hWnd);
-
-	if (hdc)
+	if (m_ViewHost)
 	{
-		DcBkModeSelector bkMode(hdc, TRANSPARENT);
-		GdiObjectSelector smallFont(hdc, GetDefaultFont(FontSizeCategory::CARET));
-		DcMixModeSelector xorMode(hdc);
-		GdiDrawContext drawCtx(hdc);
-		ReverseCaretsImpl(drawCtx, newVisibleState);
-	}
-	else
-	{
-		CaretDcHandle dc(m_hWnd, GetDefaultFont(FontSizeCategory::CARET)); // activates xorMode in its constructor
-		GdiDrawContext drawCtx(dc);
-		ReverseCaretsImpl(drawCtx, newVisibleState);
+		Region fullRgn(m_ViewDeviceSize);
+		m_ViewHost->VH_DrawInContext(fullRgn, [this, newVisibleState](DrawContext& dc) {
+			ReverseCaretsImpl(dc, newVisibleState);
+		});
 	}
 }
 
@@ -1009,11 +1003,8 @@ GraphVisitState DataView::UpdateView()
 
 	if (!m_DoneGraphics.Empty())
 	{
-#if defined(_WIN32)
 		dbg_assert(md_IsDrawingCount == 0);
 		MG_DEBUGCODE( DynamicIncrementalLock<decltype(md_IsDrawingCount)> lock(md_IsDrawingCount); )
-
-		DcHandle dc(m_hWnd, GetDefaultFont(FontSizeCategory::MEDIUM));
 
 		MG_DEBUGCODE( DbgInvalidateDrawLock protectFromViewChanges(this); )
 
@@ -1023,66 +1014,37 @@ GraphVisitState DataView::UpdateView()
 			DBG_START("DataView::UpdateView", "Region", MG_DEBUG_REGION);
 
 			const Region& drawRegion = m_DoneGraphics.CurrRegion();
-#if defined(MG_DEBUG)
-			if (MG_DEBUG_REGION)
-			{
-				Region dcRegion = RegionFromSystemClipRgn(dc, m_hWnd);
-				Region combRegion = dcRegion & drawRegion;
 
-				DBG_TRACE(("drawRegion = %s", drawRegion.AsString().c_str()));
-				DBG_TRACE(("dc  Region = %s", dcRegion.AsString().c_str()));
-				DBG_TRACE(("combRegion = %s", combRegion.AsString().c_str()));
-			}
-#endif
+			bool regionDone = false;
+			if (m_ViewHost)
 			{
-				auto hDrawRgn = RegionToHRGN(drawRegion);
-				if ( ExtSelectClipRgn(dc, hDrawRgn, RGN_AND) == NULLREGION )
-				{
-#if defined(MG_DEBUG)
-					if (MG_DEBUG_REGION)
+				m_ViewHost->VH_DrawInContext(drawRegion, [&](DrawContext& drawContext) {
+					GraphDrawer drawer(&drawContext, m_DoneGraphics, this, GdMode(GD_StoreRect|GD_Suspendible|GD_UpdateData|GD_DrawData), scaleFactors);
+
+					dms_assert(!SuspendTrigger::DidSuspend());
+
+					GraphVisitState suspended = drawer.Visit( GetContents().get() );
+					bool stopped = m_DoneGraphics.DidBreak();
+
+					dms_assert(!stopped || !SuspendTrigger::DidSuspend());
+
+					if (stopped || suspended == GVS_Continue)
 					{
-						Region dcRegion2 = RegionFromSystemClipRgn(dc, m_hWnd);
-						if (!dcRegion2.Empty())
-						{
-							DBG_TRACE(("dc2 Region = %s", dcRegion2.AsString().c_str()));
-						}
+						if (!m_DoneGraphics.HasMultipleStacks() && !m_SelCaret.Empty())
+							drawContext.InvertRegion(m_SelCaret);
+						dms_assert( m_DoneGraphics.NoSuspendedCounters() );
+						m_DoneGraphics.PopBack();
+						SuspendTrigger::MarkProgress();
+						regionDone = true;
 					}
-#endif
-					m_DoneGraphics.PopBack();
-					continue;
-				}
+				});
 			}
-
-			GdiDrawContext drawContext(dc);
-			GraphDrawer drawer(&drawContext, m_DoneGraphics, this, GdMode( GD_StoreRect|GD_Suspendible|GD_UpdateData|GD_DrawData), scaleFactors);
-			CaretHider caretHider(this, dc); // Only area as clipped by m_DoneGraphics.Curr().Region() is hidden
-
-			dms_assert(!SuspendTrigger::DidSuspend());
-
-			GraphVisitState suspended = drawer.Visit( GetContents().get() );
-			bool stopped   = m_DoneGraphics.DidBreak();
-
-//			dms_assert((suspended == GVS_Break) == (SuspendTrigger::DidSuspend() || stopped)); // stopped implies suspended
-			dms_assert(!stopped  || !SuspendTrigger::DidSuspend()); // maximum one cause of suspension
-
-			if (stopped || suspended == GVS_Continue)
-			{
-				// SELCARET
- 				if (!m_DoneGraphics.HasMultipleStacks() && !m_SelCaret.Empty())
-				{
-					DcMixModeSelector xorMode(dc);
-					DcBrushOrgSelector brushOrgSelector(dc, debug_pointer_cast<MapControl>( GetContents() )->GetViewPort()->GetBrushOrg() );
-
-					ReverseSelCaretImpl(dc, m_SelCaret); // SelectClipRgn still actve?
-				}
-				dms_assert( m_DoneGraphics.NoSuspendedCounters() );
+			else
 				m_DoneGraphics.PopBack();
-				SuspendTrigger::MarkProgress();
-			}
+
 			if (SuspendTrigger::DidSuspend())
 				return GVS_Break;
 		}
-#endif // _WIN32
 	}
 	dms_assert(m_DoneGraphics.Empty()); // post condition of while loop
 
@@ -1535,22 +1497,20 @@ void DataView::OnEraseBkgnd(HDC dc)
 
 std::atomic<UInt32> s_DataViewOnPaintRecursionCount = 0;
 
+
 void DataView::OnPaint() 
 {
+#if defined(_WIN32)
 	DBG_START("DataView", "OnPaint", MG_DEBUG_CARET || MG_DEBUG_REGION);
 
 	if (s_DataViewOnPaintRecursionCount)
 		return; // already processing a message; do after completion.
 	StaticMtIncrementalLock<s_DataViewOnPaintRecursionCount> recursionLock;
 
-//	======================
-
 	PaintDcHandle paintDC(m_hWnd, GetDefaultFont(FontSizeCategory::MEDIUM));
 	if (!paintDC.GetHDC())
 		throwLastSystemError("DataView::OnPaint");
 
-//	SuspendTrigger::Resume();
-//	dms_assert(! SuspendTrigger::DidSuspend() );
 	Region rgn = RegionFromSystemClipRgn(paintDC, m_hWnd);
 	if (rgn.Empty())
 		return;
@@ -1558,14 +1518,6 @@ void DataView::OnPaint()
 	dbg_assert( md_InvalidateDrawLock == 0);
 	MG_DEBUGCODE( DbgInvalidateDrawLock protectFromViewChanges(this); )
 
-#if defined(MG_DEBUG)
-	if (MG_DEBUG_INVALIDATE || true)
-	{
-		GRect rect(GPoint(0, 0), m_ViewDeviceSize);
-		GdiHandle<HBRUSH> br1( CreateSolidBrush( DmsColor2COLORREF(DmsYellow) ) );
-		::FillRect(paintDC, &AsRECT(rect), br1 );
-	}
-#endif
 	GdiDrawContext paintDrawContext(paintDC);
 	GraphDrawer( &paintDrawContext, rgn, this, GdMode(GD_StoreRect|GD_OnPaint|GD_DrawBackground), GetScaleFactors())
 		.Visit( GetContents().get() );
@@ -1575,10 +1527,10 @@ void DataView::OnPaint()
 	DBG_TRACE(("PaintDc must erase %d", paintDC.MustEraseBkgnd()));
 
 	if (m_State.Get(DVF_CaretsVisible))
-		ReverseCarets(paintDC, true); // draw carets also in new areas; PaintDcHandle validates updateRect
+		ReverseCarets(paintDC, true);
 	SetUpdateTimer();
+#endif // _WIN32
 }
-
 void DataView::SetUpdateTimer()
 {
 	m_Waiter.start(this);

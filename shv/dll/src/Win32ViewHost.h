@@ -61,6 +61,8 @@ public:
 	void VH_ScrollWindow(GPoint delta, const GRect& scrollRect, const GRect& clipRect,
 		Region& updateRgn, const GRect& validRect) override;
 
+	void VH_DrawInContext(const Region& clipRgn, std::function<void(DrawContext&)> callback) override;
+
 	HWND VH_GetHWnd() const override;
 
 	void ResetHWnd(HWND hWnd) { m_hWnd = hWnd; }

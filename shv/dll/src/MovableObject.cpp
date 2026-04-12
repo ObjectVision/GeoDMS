@@ -82,11 +82,12 @@ void MovableObject::SetRevBorder(bool revBorder)
 	auto scaledExtents = ScaleCrdRect(extents, GetScaleFactors());
 	auto gExtents = CrdRect2GRect(scaledExtents);
 	auto dv = GetDataView().lock(); if (!dv) return;
-	DirectDC dc(dv.get(), Region(gExtents));
-	if (!dc.IsEmpty())
+	if (dv->GetViewHost())
 	{
-		GdiDrawContext drawCtx(dc);
-		drawCtx.DrawBorder(gExtents, revBorder);
+		Region rgn(gExtents);
+		dv->GetViewHost()->VH_DrawInContext(rgn, [&](DrawContext& dc) {
+			dc.DrawBorder(gExtents, revBorder);
+		});
 	}
 }
 
@@ -306,6 +307,7 @@ GraphVisitState MovableObject::InviteGraphVistor(AbstrVisitor& v)
 
 HBITMAP MovableObject::GetAsDDBitmap(DataView* dv, CrdType subPixelFactor, MovableObject* extraObj)
 {
+#if defined(_WIN32)
 	auto scaleFactors = GetScaleFactors();
 	auto devSize = ScaleCrdPoint(CalcClientSize(), scaleFactors);
 	auto intSize = CrdPoint2GPoint(devSize);
@@ -347,6 +349,9 @@ HBITMAP MovableObject::GetAsDDBitmap(DataView* dv, CrdType subPixelFactor, Movab
 	}
 
 	return hBitmap.release();
+#else
+	return nullptr;
+#endif // _WIN32
 }
 
 void GetDIBitsWithBmp(BITMAPINFO& bmp, GPoint size, UInt32 bitCount, HDC hDc, HBITMAP hDDBitmap, void* pvBits)

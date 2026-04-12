@@ -17,7 +17,10 @@
 #include "ShvBase.h"
 #include "GeoTypes.h"
 
+#include <functional>
+
 struct Region;
+class DrawContext;
 
 class SHV_CALL ViewHost
 {
@@ -77,6 +80,9 @@ public:
 	// Scroll
 	virtual void VH_ScrollWindow(GPoint delta, const GRect& scrollRect, const GRect& clipRect,
 		Region& updateRgn, const GRect& validRect) = 0;
+
+	// Drawing: execute callback with a DrawContext clipped to the given region
+	virtual void VH_DrawInContext(const Region& clipRgn, std::function<void(DrawContext&)> callback) = 0;
 
 	// Get the native window handle (temporary, for GDI drawing until Step 2 replaces it)
 	virtual HWND VH_GetHWnd() const = 0;

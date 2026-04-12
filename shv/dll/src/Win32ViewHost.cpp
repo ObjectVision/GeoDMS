@@ -10,6 +10,8 @@
 
 #include "Win32ViewHost.h"
 
+#include "DrawContext.h"
+#include "DcHandle.h"
 #include "Region.h"
 #include "GdiRegionUtil.h"
 #include "windowsx.h"
@@ -191,4 +193,17 @@ void Win32ViewHost::VH_ScrollWindow(GPoint delta, const GRect& scrollRect, const
 HWND Win32ViewHost::VH_GetHWnd() const
 {
 	return m_hWnd;
+}
+
+void Win32ViewHost::VH_DrawInContext(const Region& clipRgn, std::function<void(DrawContext&)> callback)
+{
+	HDC hdc = ::GetDC(m_hWnd);
+	if (!hdc)
+		return;
+	auto hrgn = RegionToHRGN(clipRgn);
+	::SelectClipRgn(hdc, hrgn);
+	GdiDrawContext ctx(hdc);
+	callback(ctx);
+	::SelectClipRgn(hdc, NULL);
+	::ReleaseDC(m_hWnd, hdc);
 }
