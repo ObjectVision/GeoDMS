@@ -85,25 +85,40 @@ The Win32 `ViewHost` implementation is kept temporarily but will be removed once
 ### Step 4: Remove GDI wrappers
 **Goal:** Eliminate GdiDrawContext, DcHandle, and all remaining direct GDI calls.
 
-Key tasks:
-- Migrate all remaining GDI drawing calls to DrawContext virtual methods
-- Move GDI-specific code (Polygon, Polyline, FillRect, TextOut, etc.) behind DrawContext
-- `QtDrawContext` already exists — extend it to cover all drawing operations
-- Remove `GdiDrawContext.cpp` once all callsites use DrawContext
-- Remove or deprecate `DcHandle.h` / `DcHandle.cpp` (HDC/HFONT/HPEN/HBRUSH wrappers)
-- Remove `GdiRegionUtil.h` (HRGN↔QRegion — only needed by GDI code)
+#### Step 4a: DrawContext line/shape/text interface + first migrations [aeff614d..14a1c511]
+- Extended DrawContext with 12 new abstract methods:
+  - Lines: `DrawLine`, `DrawPolyline`
+  - Polygons: `DrawPolygon` with `DmsHatchStyle` enum
+  - Text: `TextOut`, `DrawText`, `GetTextExtent`, `SetTextColor`, `SetBkColor`, `SetBkMode`
+  - Regions: `InvertRegion`
+  - Clipping: `GetClipRect`
+  - Portable enums: `DmsPenStyle`, `DmsHatchStyle`
+- Implemented in both GdiDrawContext (Win32, transitional) and QtDrawContext (QPainter)
+- GdiDrawContext guarded behind `#ifdef _WIN32`; `GetHDC()` now Win32-only
+- Migrated caret system: `AbstrCaret::Reverse/Move` take `DrawContext&` instead of `HDC`
+  - All caret subclasses updated: NeedleCaret, FocusCaret, LineCaret, PolygonCaret,
+    InvertRgnCaret, RectCaret, MovableRectCaret, RoiCaret, CircleCaret, ScaleBarCaret
+  - DataView caret methods wrap CaretDcHandle in GdiDrawContext
+- Migrated drawing files:
+  - `DrawPolygons.h` — Polygon/Polyline via DrawContext (removed PenArray usage)
+  - `FeatureLayer.cpp` — network/arc Polyline via DrawContext (removed PenArray usage)
+  - `ScaleBar.cpp` — Draw() uses DrawContext::FillRect/DrawText
+  - `Carets.cpp` — all GDI removed, uses DrawContext::DrawLine/DrawPolygon/InvertRegion
+  - `GraphicGrid.cpp` — DmsColor members, DrawContext::FillRect/DrawLine
+  - `GraphicRect.cpp` — removed AlphaBlend/CreateBlender, uses DrawContext
+  - `TextControl.cpp` — Draw() uses DrawContext::FillRect/TextOut/InvertRect
+  - `DataItemColumn.cpp` — DrawBackground uses DrawContext::FillRect
+- Added `PenIndexCache::GetPenKey()`/`IsPenVisible()` for portable pen property lookup
 
-Files with remaining direct GDI calls to migrate:
-- `DrawPolygons.h` — Polygon(), Polyline() via GDI (→ QPainter::drawPolygon/drawPolyline)
-- `FeatureLayer.cpp` — Polyline() for link drawing
-- `ScaleBar.cpp` — DrawText() via GDI (→ QPainter::drawText)
-- `TextControl.cpp` — TextOut, GetCurrentPositionEx, MoveToEx
-- `Carets.cpp` — MoveToEx, LineTo, DrawFocusRect, CreatePen
-- `DcHandle.cpp` — all GDI object selectors (pen, brush, font, etc.)
-- `GridLayer.cpp` — DIB/bitmap operations (StretchDIBits, etc.)
-- `GraphicGrid.cpp` — FillRect with HBRUSH
-- `GraphicRect.cpp` — FillRect, AlphaBlend
-- `ViewPort.cpp` — HBITMAP, CompatibleDcHandle, GetAsDDBitmap
+#### Step 4b: Remaining GDI migrations (TODO)
+Files with remaining `GetDC()` calls to migrate (37 callsites):
+- `FeatureLayer.cpp` (15) — label drawing: DcTextAlignSelector, SelectingFontArray, DcTextColorSelector, SetTextColor
+- `GraphVisitor.cpp` (6) — DcClipRegionSelector, DrawBorder, font/text color selectors
+- `GridLayer.cpp` (6) — StretchDIBits, DIB bitmap operations, FocusRgn
+- `DataItemColumn.cpp` (3) — DrawButtonBorder, DrawSymbol, DrawEditText
+- `WmsLayer.cpp` (2) — WMS tile rendering (StretchDIBits)
+- `GraphicPoint.h` (1) — Ellipse()
+- `DrawPolygons.h` (1) — commented-out code block
 
 ### Step 5: Linux build (CMake)
 **Goal:** Build shv.dll and GeoDmsGuiQt on Linux via CMake + WSL.
