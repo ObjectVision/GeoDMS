@@ -1940,18 +1940,32 @@ start_process_result_t StartChildProcess(CharPtr moduleName, Char* cmdLine)
 		|| strstr(moduleName, "cmd") != nullptr
 		|| strstr(moduleName, "ComSpec") != nullptr;
 
+	// Also use shell mode when module is explicitly a Unix shell
+	if (!useShell && moduleName)
+	{
+		CharPtr base = strrchr(moduleName, '/');
+		base = base ? base + 1 : moduleName;
+		if (strcmp(base, "sh") == 0 || strcmp(base, "bash") == 0 || strcmp(base, "dash") == 0)
+			useShell = true;
+	}
+
 	if (useShell)
 	{
-		// Strip Windows cmd.exe "/c " prefix if present, since /bin/sh -c
-		// already interprets the remaining string as a command.
-		CharPtr shellCmd = cmdLine;
-		if (shellCmd && (strncmp(shellCmd, "/c ", 3) == 0 || strncmp(shellCmd, "/C ", 3) == 0))
-			shellCmd += 3;
+		CharPtr shell = (moduleName && *moduleName && strstr(moduleName, "cmd") == nullptr && strstr(moduleName, "ComSpec") == nullptr)
+			? moduleName : "/bin/sh";
 
-		char* argv[] = { const_cast<char*>("/bin/sh"), const_cast<char*>("-c"), const_cast<char*>(shellCmd), nullptr };
-		status = posix_spawn(&pid, "/bin/sh", nullptr, nullptr, argv, environ);
+		// Strip Windows cmd.exe "/c " or Unix shell "-c " prefixes if present,
+		// since we pass -c as a separate argv element to the shell.
+		const char* shellCmd = cmdLine ? cmdLine : "";
+		if (strncmp(shellCmd, "/c ", 3) == 0 || strncmp(shellCmd, "/C ", 3) == 0)
+			shellCmd = shellCmd + 3;
+		else if (strncmp(shellCmd, "-c ", 3) == 0)
+			shellCmd = shellCmd + 3;
+
+		char* argv[] = { const_cast<char*>(shell), const_cast<char*>("-c"), const_cast<char*>(shellCmd), nullptr };
+		status = posix_spawn(&pid, shell, nullptr, nullptr, argv, environ);
 		if (status != 0)
-			throwErrorF("Environment", "posix_spawn(/bin/sh -c '%s') failed: %s", shellCmd, strerror(status));
+			throwErrorF("Environment", "posix_spawn(%s -c '%s') failed: %s", shell, shellCmd, strerror(status));
 	}
 	else
 	{
