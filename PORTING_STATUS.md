@@ -1,7 +1,7 @@
 # GeoDMS Linux GUI Porting Status
 
 > **Branch:** `refactor_linux_gui`
-> **Last updated:** 2025-07-05 (commit 27eb30e6 + uncommitted ShvBase.h guard)
+> **Last updated:** 2025-07-05 (commit 5498c583)
 > **Goal:** Port `shv.dll` (ShvDLL) and `GeoDmsGuiQt.exe` to Linux by replacing all Win32 GDI with QPainter/Qt.
 
 ## Overall Strategy
@@ -79,6 +79,24 @@ The Win32 `ViewHost` implementation is kept temporarily but will be removed once
 - `MsgResult` (uses LRESULT), `MG_WM_SIZE` (uses WM_SIZE), `g_ShvDllInstance` (HINSTANCE) all guarded
 - No Linux equivalent needed for `MsgResult` — Qt event system replaces Win32 message dispatch
 - Builds successfully on Windows (clean rebuild verified)
+
+### Step 3c: QDmsViewArea implements ViewHost [5498c583]
+- `QDmsViewArea` now inherits from `ViewHost` (multiple inheritance with `QMdiSubWindow`)
+- Implements all `VH_*` methods using Qt APIs:
+  - Timer: `QTimer` for `VH_SetTimer`/`VH_KillTimer`, calls `DataView::OnTimer()`
+  - Capture: `grabMouse()`/`releaseMouse()` for `VH_SetCapture`/`VH_ReleaseCapture`
+  - Focus: `setFocus()` for `VH_SetFocus`
+  - Cursor: `QCursor::pos()`, `mapFromGlobal()`, `mapToGlobal()` for cursor position methods
+  - Invalidation: `update()` for `VH_InvalidateRect`/`VH_InvalidateRgn`
+  - Synchronous paint: `repaint()` for `VH_UpdateWindow`
+  - Visibility: `isVisible()`, window state queries for `VH_IsVisible`/`VH_GetShowCmd`
+  - Text caret: Custom state tracking (Qt has no native caret API)
+  - Mouse tracking: `setMouseTracking(true)` for `VH_TrackMouseLeave`
+- Removed `Win32ViewHost` member from `QDmsViewArea`, now passes `this` as ViewHost
+- Added `DataView::OnTimer(UInt32)` public method with `SHV_CALL` export
+- Added `SHV_CALL` to `Region` struct for proper DLL export
+- Fixed `ClipBoard::GetText()` to use `CharPtrRange` constructor
+- **Windows build: OK**
 
 ## Next Steps
 
