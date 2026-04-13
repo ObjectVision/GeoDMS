@@ -33,4 +33,5 @@ todo*.txt
 /stx/dll/bin
 /stx/dll/obj
 /enc_temp_folder
-/qtgui/exe/obj/Release/x64/GeoDmsGuiQt
+/qtgui/exe/obj
+/qtgui/exe/bin
