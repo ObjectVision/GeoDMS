@@ -433,6 +433,29 @@ void QDmsViewArea::on_rescale() {
         dv->InvalidateDeviceRect(GRect(rect.left(), rect.top(), rect.right(), rect.bottom()));
 }
 
+void QDmsViewArea::ensureBackingStore(int width, int height)
+{
+    if (!m_BackingStore || m_BackingStore->width() != width || m_BackingStore->height() != height)
+    {
+        m_BackingStore = std::make_unique<QImage>(width, height, QImage::Format_ARGB32_Premultiplied);
+        m_BackingStore->fill(Qt::white);
+    }
+}
+
+void QDmsViewArea::scrollBackingStore(int dx, int dy, const QRect& scrollRect)
+{
+    if (!m_BackingStore)
+        return;
+
+    // Create a copy of the region to scroll
+    QImage scrolledContent = m_BackingStore->copy(scrollRect);
+
+    // Draw the scrolled content at the new position
+    QPainter painter(m_BackingStore.get());
+    painter.setCompositionMode(QPainter::CompositionMode_Source);
+    painter.drawImage(scrollRect.translated(dx, dy), scrolledContent);
+}
+
 void QDmsViewArea::paintEvent(QPaintEvent* event) {
     auto wId = winId();
     assert(wId);
@@ -441,6 +464,36 @@ void QDmsViewArea::paintEvent(QPaintEvent* event) {
         m_LastScaleFactors = currScaleFactors;
         on_rescale();
     }
+
+    // On Windows, the native HWND child handles its own painting
+    // On Linux, we would paint the backing store here
+#ifndef _WIN32
+    if (m_BackingStore)
+    {
+        QPainter painter(this);
+        QRect paintRect = event->rect();
+
+        // Blit backing store (model data)
+        painter.drawImage(paintRect, *m_BackingStore, paintRect);
+
+        // Draw caret overlay on top using XOR composition
+        if (m_CaretOverlayVisible && !m_CaretOverlayRegion.isEmpty())
+        {
+            painter.setCompositionMode(QPainter::RasterOp_SourceXorDestination);
+            painter.setClipRegion(m_CaretOverlayRegion);
+            painter.fillRect(m_CaretOverlayRegion.boundingRect(), Qt::white);
+        }
+
+        // Draw text caret if visible
+        if (m_TextCaretVisible)
+        {
+            painter.setCompositionMode(QPainter::RasterOp_SourceXorDestination);
+            painter.fillRect(m_TextCaretPos.x, m_TextCaretPos.y, 
+                           m_TextCaretWidth, m_TextCaretHeight, Qt::white);
+        }
+    }
+#endif
+
     return QMdiSubWindow::paintEvent(event);
 }
 
@@ -670,27 +723,45 @@ void QDmsViewArea::VH_ScrollWindow(GPoint delta, const GRect& scrollRect, const 
         DeleteObject(hrgnUpdate);
     }
 #else
-    // On Linux, just invalidate the whole scroll area
-    // Qt's scroll() method could be used for optimization
-    scroll(delta.x, delta.y, QRect(scrollRect.left, scrollRect.top, scrollRect.Width(), scrollRect.Height()));
-    updateRgn = Region(scrollRect);
+    // Scroll the backing store content
+    QRect qScrollRect(scrollRect.left, scrollRect.top, scrollRect.Width(), scrollRect.Height());
+    scrollBackingStore(delta.x, delta.y, qScrollRect);
+
+    // Calculate the exposed region that needs redrawing
+    QRegion scrolledRegion(qScrollRect);
+    QRegion destRegion = scrolledRegion.translated(delta.x, delta.y);
+    QRegion exposedRegion = scrolledRegion - destRegion;
+
+    updateRgn = Region(exposedRegion);
+    update(exposedRegion);
 #endif
 }
 
 void QDmsViewArea::VH_DrawInContext(const Region& clipRgn, std::function<void(DrawContext&)> callback)
 {
-    // For portable drawing, we create a QPainter and wrap it in QtDrawContext
-    // This is used for drawing outside WM_PAINT (carets, offscreen operations)
-
-    // Get the native widget we're drawing to
-    auto widget = reinterpret_cast<QWidget*>(QWidget::find(reinterpret_cast<WId>(m_DataViewHWnd)));
-    if (!widget)
+#ifdef _WIN32
+    // On Win32, use GDI drawing directly on the native HWND
+    // This allows drawing outside of WM_PAINT (for carets, etc.)
+    if (m_DataViewHWnd)
     {
-        // Fallback: try drawing to this widget
-        widget = this;
+        HWND hWnd = reinterpret_cast<HWND>(m_DataViewHWnd);
+        HDC hdc = ::GetDC(hWnd);
+        if (hdc)
+        {
+            SHV_DrawInHDC(hdc, clipRgn, callback);
+            ::ReleaseDC(hWnd, hdc);
+        }
     }
+#else
+    // On non-Windows platforms, draw to the backing store
+    // This can be called anytime; the backing store is blitted in paintEvent()
+    auto rect = contentsRect();
+    ensureBackingStore(rect.width(), rect.height());
 
-    QPainter painter(widget);
+    if (!m_BackingStore)
+        return;
+
+    QPainter painter(m_BackingStore.get());
     if (!painter.isActive())
         return;
 
@@ -703,5 +774,31 @@ void QDmsViewArea::VH_DrawInContext(const Region& clipRgn, std::function<void(Dr
     QtDrawContext ctx(&painter);
     callback(ctx);
 
-    // Painter automatically ends when it goes out of scope
+    // Schedule a repaint to show the updated backing store
+    if (!clipRgn.Empty())
+    {
+        GRect bbox = clipRgn.BoundingBox();
+        update(QRect(bbox.left, bbox.top, bbox.Width(), bbox.Height()));
+    }
+    else
+    {
+        update();
+    }
+#endif
+}
+
+void QDmsViewArea::VH_SetCaretOverlay(const Region& rgn, bool visible)
+{
+    QRegion oldRegion = m_CaretOverlayRegion;
+    bool wasVisible = m_CaretOverlayVisible;
+
+    m_CaretOverlayRegion = rgn.Empty() ? QRegion() : rgn.GetQRegion();
+    m_CaretOverlayVisible = visible;
+
+    // Invalidate both old and new caret regions to trigger repaint
+    // This ensures the XOR overlay is correctly toggled
+    if (wasVisible && !oldRegion.isEmpty())
+        update(oldRegion);
+    if (visible && !m_CaretOverlayRegion.isEmpty())
+        update(m_CaretOverlayRegion);
 }

@@ -81,8 +81,14 @@ public:
 	virtual void VH_ScrollWindow(GPoint delta, const GRect& scrollRect, const GRect& clipRect,
 		Region& updateRgn, const GRect& validRect) = 0;
 
-	// Drawing: execute callback with a DrawContext clipped to the given region
+	// Drawing: execute callback with a DrawContext for the backing store
+	// The backing store contains model data only; carets are drawn as overlays.
 	virtual void VH_DrawInContext(const Region& clipRgn, std::function<void(DrawContext&)> callback) = 0;
+
+	// Caret overlay: set region to be XOR-inverted on top of backing store during paint.
+	// This keeps backing store clean with only model data representation.
+	// Pass empty region to clear the overlay.
+	virtual void VH_SetCaretOverlay(const Region& rgn, bool visible) = 0;
 
 	// Get the native window handle (Win32-only, for transitional GDI code)
 #ifdef _WIN32

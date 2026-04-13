@@ -16,7 +16,10 @@
 #include <QMdiSubWindow.h>
 #include <QAbstractNativeEventFilter>
 #include <QTimer>
+#include <QImage>
+#include <QRegion>
 #include <map>
+#include <memory>
 
 struct TreeItem;
 class DataView;
@@ -131,6 +134,9 @@ public:
     // Drawing
     void VH_DrawInContext(const Region& clipRgn, std::function<void(DrawContext&)> callback) override;
 
+    // Caret overlay
+    void VH_SetCaretOverlay(const Region& rgn, bool visible) override;
+
 #ifdef _WIN32
     HWND VH_GetHWnd() const override { return reinterpret_cast<HWND>(m_DataViewHWnd); }
 #endif
@@ -146,13 +152,25 @@ private:
     void paintEvent(QPaintEvent* event) override;
     auto contentsRectInPixelUnits() -> QRect;
 
+    // Backing store management
+    void ensureBackingStore(int width, int height);
+    void scrollBackingStore(int dx, int dy, const QRect& scrollRect);
+
     std::weak_ptr<DataView> m_DataView;
     void* m_DataViewHWnd = nullptr;
 
     // Timer management for VH_SetTimer/VH_KillTimer
     std::map<UInt32, QTimer*> m_Timers;
 
-    // Text caret state
+    // Backing store for off-paint drawing (model data only, no carets)
+    std::unique_ptr<QImage> m_BackingStore;
+
+    // Caret overlay state (drawn on top of backing store in paintEvent)
+    // This keeps the backing store clean with only model data
+    QRegion m_CaretOverlayRegion;
+    bool m_CaretOverlayVisible = false;
+
+    // Text caret state (separate from graphical carets)
     bool m_TextCaretVisible = false;
     GPoint m_TextCaretPos = {0, 0};
     int m_TextCaretWidth = 2;

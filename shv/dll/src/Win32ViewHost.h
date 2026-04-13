@@ -63,6 +63,8 @@ public:
 
 	void VH_DrawInContext(const Region& clipRgn, std::function<void(DrawContext&)> callback) override;
 
+	void VH_SetCaretOverlay(const Region& rgn, bool visible) override;
+
 	HWND VH_GetHWnd() const override;
 
 	void ResetHWnd(HWND hWnd) { m_hWnd = hWnd; }

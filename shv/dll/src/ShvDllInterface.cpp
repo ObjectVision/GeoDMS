@@ -323,6 +323,25 @@ void DMS_CONV SHV_SetCreateViewActionFunc(CreateViewActionFunc cvaf)
 
 }
 
+#ifdef _WIN32
+#include "DrawContext.h"
+#include "GdiRegionUtil.h"
+
+void DMS_CONV SHV_DrawInHDC(HDC hdc, const Region& clipRgn, std::function<void(DrawContext&)> callback)
+{
+	if (!hdc)
+		return;
+	::SetBkMode(hdc, TRANSPARENT);
+	auto hrgn = RegionToHRGN(clipRgn);
+	::SelectClipRgn(hdc, hrgn);
+	GdiDrawContext ctx(hdc);
+	callback(ctx);
+	::SelectClipRgn(hdc, NULL);
+	if (hrgn)
+		::DeleteObject(hrgn);
+}
+#endif // _WIN32
+
 /******************************************************************************/
 
 //#include <oscalls.h>

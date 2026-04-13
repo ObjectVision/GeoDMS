@@ -208,3 +208,10 @@ void Win32ViewHost::VH_DrawInContext(const Region& clipRgn, std::function<void(D
 	::SelectClipRgn(hdc, NULL);
 	::ReleaseDC(m_hWnd, hdc);
 }
+
+void Win32ViewHost::VH_SetCaretOverlay(const Region& rgn, bool visible)
+{
+	// Win32 uses immediate-mode XOR drawing, so caret overlay is handled
+	// directly via VH_DrawInContext. This method is a no-op for Win32.
+	// The caret state is managed by the caret objects themselves.
+}
