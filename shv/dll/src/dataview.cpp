@@ -286,7 +286,9 @@ DataView::~DataView()
 	{
 		DataView* thisSubView = subView;
 		subView = subView->GetNextItem();
+#ifdef _WIN32
 		thisSubView->DestroyWindow();
+#endif
 	}
 
 	if (m_ParentView)
@@ -316,6 +318,8 @@ void DataView::SetContents(std::shared_ptr<MovableObject> contents, ShvSyncMode 
 	ObjectContextHandle contextHandle2(ti, sm ==SM_Load ? "Load" : "Save");
 	m_Contents->Sync(ti, sm);
 }
+
+#ifdef _WIN32
 
 void DataView::DestroyWindow()
 {
@@ -586,6 +590,8 @@ void DataView::ReverseSelCaretImpl(HDC hdc, const Region& selCaretRgn)
 #endif
 }
 
+#endif // _WIN32 (DestroyWindow through ReverseSelCaretImpl)
+
 void DataView::SetSelCaret(Region& newSelCaret)
 {
 	m_SelCaret.swap( newSelCaret );
@@ -599,6 +605,8 @@ void DataView::XOrSelCaret(const Region& newSelCaret)
 
 /////////////////////////////////////////////////////////////////////////////
 // DataView event handlers
+
+#ifdef _WIN32
 
 auto IsTooltipKiller(UINT msg) -> bool
 {
@@ -929,6 +937,8 @@ bool DataView::OnKeyDown(UInt32 nVirtKey)
 	return GetContents()->OnKeyDown(nVirtKey);
 }
 
+#endif // _WIN32 (IsTooltipKiller through OnKeyDown)
+
 ActorVisitState DataView::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor) const
 {
 	if (GetContents()->VisitSuppliers(svf, visitor) == AVS_SuspendedOrFailed)
@@ -971,8 +981,10 @@ void DataView::InvalidateChangedGraphics()
 	// make sure the m_DoneGraphics is updated according to invalidated rgn before scrolling; can result in UpdateView
 	if (m_ViewHost)
 		m_ViewHost->VH_UpdateWindow();
+#ifdef _WIN32
 	else
-		UpdateWindow(GetHWnd()); // may Send WM_PAINT or WM_ERASEBKGND to SHV_DataView_DispatchMessage
+		UpdateWindow(GetHWnd());
+#endif // may Send WM_PAINT or WM_ERASEBKGND to SHV_DataView_DispatchMessage
 	assert(!SuspendTrigger::DidSuspend());
 }
 

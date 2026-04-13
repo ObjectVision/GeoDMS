@@ -175,6 +175,22 @@ Remaining work:
 
 **Result:** `DmShv` compiles clean on Linux (GCC 13, WSL). Windows MSVC build: OK.
 
+#### Step 5b continued: Additional Win32 guards [c012f78d+]
+- **DataItemColumn.cpp**: `ChooseColorDialog`, `GetFont(HFONT)`, `m_FontArray` usage all behind `#ifdef _WIN32`; Linux stub for `ChooseColorDialog` returns false
+- **DataItemColumn.h**: `FontArray` forward-decl and member behind `#ifdef _WIN32`
+- **ShvCompat.h**: Added `COLOR_BTNFACE`, `CLR_INVALID`, `COLOR_HIGHLIGHT`/`TEXT`, `GetSysColor` stub, `MB_ICONEXCLAMATION`/`YESNO`, `MessageBoxA` stub; `WCHAR = wchar_t` (was `char16_t`)
+- **ShvUtils.cpp**: `GetInstance(HWND)`, `ScreenToClientGPoint(HWND)`, `CheckedGdiCall`/`FillRectWithBrush`/`ShadowRect`/`DrawButtonBorder`/`DrawReversedBorder`/`DrawRectDmsColor`/`FillRectDmsColor` block, `GetWindowEffectiveDPI`/`GetWindowDip2PixFactor*` functions all behind `#ifdef _WIN32`
+- **ScrollPort.cpp**: `SetScrollX/Y`, `RePosScrollBar`, `CalcNewPosBase`, `CalcNewPos`, `OnHScroll/OnVScroll`, scrollbar info code all behind `#ifdef _WIN32`; Linux stubs provided
+- **TableControl.cpp**: `SetViewPortCursor(LoadCursor(...))` call behind `#ifdef _WIN32`
+- **Theme.cpp**: Removed `static` keyword from `CreateValue`/`CreateVar` template definitions (GCC requires static only on declaration)
+- **ViewPort.cpp**: Constructor `SetViewPortCursor`, `SaveBitmap`+`Export` functions, `PasteGridController` class+`PasteGrid` function, `OnCommand` cursor changes all behind `#ifdef _WIN32`
+- **DcHandle.h**: Moved `AddTransformation`, `AddClientLogicalOffset`, `ClipDeviceRectSelector`, `VisitorDeviceRectSelector` to `GraphVisitor.h` (portable helper structs)
+- **GraphVisitor.h**: Added portable helper structs; now includes `utl/Swapper.h` and conditionally includes `DcHandle.h` on Win32
+- **dataview.cpp**: Guard `CommCtrl.h` includes, `LParam2Point`, `MsgStruct::Send`, `m_hWnd` initializer, destructor `DestroyWindow` call, large Win32 blocks (`DestroyWindow`→`ReverseSelCaretImpl`, `IsTooltipKiller`→`OnKeyDown`, `UpdateWindow(GetHWnd())` call)
+- **ShvDllInterface.cpp**: `DllMain`/`g_ShvDllInstance` behind `#ifdef _WIN32`, added `Environment.h` include for `g_DispatchLockCount`
+
+**Status:** Linux build errors reduced from ~400 to ~149 across 7 files. Windows MSVC: clean.
+
 #### Step 5c: Remaining tasks (TODO)
 - Build `GeoDmsGuiQt` on Linux (resolve qtgui/exe compilation issues)
 - Handle platform differences: shared library loading, font paths, etc.
