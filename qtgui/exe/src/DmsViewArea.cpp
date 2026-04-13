@@ -10,10 +10,15 @@
 #include <QMdiArea>
 #include <QMimeData>
 #include <QTimer>
+#include <QCursor>
 
+#ifdef _WIN32
 #include <ShellScalingApi.h>
+#endif
 
 #include "dbg/SeverityType.h"
+#include "Region.h"
+#include "GdiRegionUtil.h"
 
 #include "ShvDllInterface.h"
 #include "DataView.h"
@@ -289,8 +294,8 @@ void QDmsViewArea::CreateDmsView(QMdiArea* parent, ViewStyle viewStyle)
     );
     m_DataViewHWnd = dv_hWnd;
 
-    m_ViewHost = std::make_unique<Win32ViewHost>(dv_hWnd);
-    SHV_DataView_SetViewHost(dv.get(), m_ViewHost.get());
+    // Use QDmsViewArea as ViewHost (implements ViewHost interface with Qt)
+    SHV_DataView_SetViewHost(dv.get(), this);
 
     SHV_DataView_SetStatusTextFunc(dv.get(), this, OnStatusText); // to communicate title etc.
     SetWindowPos(dv_hWnd, HWND_TOP
@@ -447,4 +452,237 @@ void QDmsViewArea::onWindowStateChanged(Qt::WindowStates oldState, Qt::WindowSta
     if (!mdi_area)
         return;
     mdi_area->setTabbedViewModeStyle();
+}
+
+//----------------------------------------------------------------------
+// ViewHost implementation (Qt-based, portable)
+//----------------------------------------------------------------------
+
+void QDmsViewArea::VH_SetTimer(UInt32 id, UInt32 elapseMs)
+{
+    VH_KillTimer(id); // Remove any existing timer with this ID
+
+    auto* timer = new QTimer(this);
+    timer->setProperty("timerId", id);
+    connect(timer, &QTimer::timeout, this, &QDmsViewArea::onTimerTimeout);
+    timer->start(elapseMs);
+    m_Timers[id] = timer;
+}
+
+void QDmsViewArea::VH_KillTimer(UInt32 id)
+{
+    auto it = m_Timers.find(id);
+    if (it != m_Timers.end()) {
+        it->second->stop();
+        delete it->second;
+        m_Timers.erase(it);
+    }
+}
+
+void QDmsViewArea::onTimerTimeout()
+{
+    auto* timer = qobject_cast<QTimer*>(sender());
+    if (!timer) return;
+
+    UInt32 timerId = timer->property("timerId").toUInt();
+    auto dv = m_DataView.lock();
+    if (dv) {
+        // Post timer message to DataView for processing
+        // On Win32 this would be WM_TIMER; here we call directly
+        dv->OnTimer(timerId);
+    }
+}
+
+void QDmsViewArea::VH_SetCapture()
+{
+    grabMouse();
+}
+
+void QDmsViewArea::VH_ReleaseCapture()
+{
+    releaseMouse();
+}
+
+void QDmsViewArea::VH_SetFocus()
+{
+    setFocus(Qt::OtherFocusReason);
+}
+
+bool QDmsViewArea::VH_GetCursorScreenPos(GPoint& pos) const
+{
+    QPoint globalPos = QCursor::pos();
+    pos.x = globalPos.x();
+    pos.y = globalPos.y();
+    return true;
+}
+
+GPoint QDmsViewArea::VH_ScreenToClient(GPoint screenPt) const
+{
+    QPoint local = mapFromGlobal(QPoint(screenPt.x, screenPt.y));
+    return GPoint(local.x(), local.y());
+}
+
+GPoint QDmsViewArea::VH_ClientToScreen(GPoint clientPt) const
+{
+    QPoint global = mapToGlobal(QPoint(clientPt.x, clientPt.y));
+    return GPoint(global.x(), global.y());
+}
+
+void QDmsViewArea::VH_SetGlobalCursorPos(GPoint screenPt)
+{
+    QCursor::setPos(screenPt.x, screenPt.y);
+}
+
+void QDmsViewArea::VH_SetCursorArrow()
+{
+    setCursor(Qt::ArrowCursor);
+}
+
+void QDmsViewArea::VH_SetCursorWait()
+{
+    setCursor(Qt::WaitCursor);
+}
+
+void QDmsViewArea::VH_InvalidateRect(const GRect& rect, bool erase)
+{
+    // Qt handles erase automatically via background role
+    update(QRect(rect.left, rect.top, rect.Width(), rect.Height()));
+}
+
+void QDmsViewArea::VH_InvalidateRgn(const Region& rgn, bool erase)
+{
+    // Region is backed by QRegion
+    if (rgn.Empty())
+        update(rect());
+    else {
+        GRect bbox = rgn.BoundingBox();
+        update(QRect(bbox.left, bbox.top, bbox.Width(), bbox.Height()));
+    }
+}
+
+void QDmsViewArea::VH_ValidateRect(const GRect& rect)
+{
+    // Qt doesn't have direct equivalent; repaint handles this
+    // No-op in Qt - validation happens after paint
+}
+
+void QDmsViewArea::VH_UpdateWindow()
+{
+    repaint(); // Synchronous paint, unlike update() which is async
+}
+
+void QDmsViewArea::VH_PostMessage(UInt32 msg, UInt64 wParam, Int64 lParam)
+{
+#ifdef _WIN32
+    // On Win32, we can still post to the HWND for transitional code
+    if (m_DataViewHWnd) {
+        PostMessage(reinterpret_cast<HWND>(m_DataViewHWnd), msg, wParam, lParam);
+    }
+#else
+    // On Linux, use Qt's event system or direct calls
+    // TODO: Map common messages to Qt events
+#endif
+}
+
+void QDmsViewArea::VH_SendClose()
+{
+    close();
+}
+
+bool QDmsViewArea::VH_IsVisible() const
+{
+    return isVisible();
+}
+
+UInt32 QDmsViewArea::VH_GetShowCmd() const
+{
+    if (isMinimized()) return SW_SHOWMINIMIZED;
+    if (isMaximized()) return SW_SHOWMAXIMIZED;
+    if (!isVisible()) return SW_HIDE;
+    return SW_SHOWNORMAL;
+}
+
+void QDmsViewArea::VH_CreateTextCaret(int width, int height)
+{
+    m_TextCaretWidth = width;
+    m_TextCaretHeight = height;
+    // Qt doesn't have a native caret; we draw it ourselves in paintEvent
+}
+
+void QDmsViewArea::VH_DestroyTextCaret()
+{
+    m_TextCaretVisible = false;
+    update(); // Repaint to remove caret
+}
+
+void QDmsViewArea::VH_SetTextCaretPos(GPoint pos)
+{
+    m_TextCaretPos = pos;
+    if (m_TextCaretVisible)
+        update(); // Repaint to show caret at new position
+}
+
+void QDmsViewArea::VH_ShowTextCaret()
+{
+    m_TextCaretVisible = true;
+    update();
+}
+
+void QDmsViewArea::VH_HideTextCaret()
+{
+    m_TextCaretVisible = false;
+    update();
+}
+
+void QDmsViewArea::VH_TrackMouseLeave()
+{
+    // Qt handles mouse leave automatically via leaveEvent
+    setMouseTracking(true);
+}
+
+void QDmsViewArea::VH_NotifyParentActivation()
+{
+    auto mainWindow = MainWindow::TheOne();
+    if (mainWindow) {
+        mainWindow->activateWindow();
+    }
+}
+
+void QDmsViewArea::VH_ScrollWindow(GPoint delta, const GRect& scrollRect, const GRect& clipRect,
+    Region& updateRgn, const GRect& validRect)
+{
+#ifdef _WIN32
+    // Use Win32 ScrollWindowEx for efficiency on Windows
+    if (m_DataViewHWnd) {
+        RECT rcScroll = { scrollRect.left, scrollRect.top, scrollRect.right, scrollRect.bottom };
+        RECT rcClip = { clipRect.left, clipRect.top, clipRect.right, clipRect.bottom };
+        HRGN hrgnUpdate = CreateRectRgn(0, 0, 0, 0);
+        ScrollWindowEx(
+            reinterpret_cast<HWND>(m_DataViewHWnd),
+            delta.x, delta.y,
+            &rcScroll, &rcClip,
+            hrgnUpdate, nullptr,
+            SW_INVALIDATE
+        );
+        updateRgn = Region(HRGNToQRegion(hrgnUpdate));
+        DeleteObject(hrgnUpdate);
+    }
+#else
+    // On Linux, just invalidate the whole scroll area
+    // Qt's scroll() method could be used for optimization
+    scroll(delta.x, delta.y, QRect(scrollRect.left, scrollRect.top, scrollRect.Width(), scrollRect.Height()));
+    updateRgn = Region(scrollRect);
+#endif
+}
+
+void QDmsViewArea::VH_DrawInContext(const Region& clipRgn, std::function<void(DrawContext&)> callback)
+{
+    // This will be implemented when QtDrawContext is used
+    // For now, this is a placeholder for the portable drawing path
+    // The actual drawing is handled by the native Win32 window's WM_PAINT
+    // which creates its own GdiDrawContext. VH_DrawInContext is for
+    // non-WM_PAINT drawing scenarios (e.g., offscreen rendering).
+
+    // TODO: Implement QtDrawContext path for Linux
+    // TODO: Consider if this method is even needed - most drawing goes through WM_PAINT
 }

@@ -10,11 +10,13 @@
 #define DMSVIEWAREA_H
 
 #include "ShvUtils.h"
-#include "Win32ViewHost.h"
+#include "ViewHost.h"
 
 #include <QMdiArea.h>
 #include <QMdiSubWindow.h>
 #include <QAbstractNativeEventFilter>
+#include <QTimer>
+#include <map>
 
 struct TreeItem;
 class DataView;
@@ -41,28 +43,101 @@ public slots:
     void closeActiveDmsSubWindow();
 };
 
-class QDmsViewArea : public QMdiSubWindow
+//----------------------------------------------------------------------
+// QDmsViewArea: Qt-based ViewHost implementation
+// Replaces Win32ViewHost for portable windowing operations.
+// DataView uses ViewHost interface; this class provides Qt implementation.
+//----------------------------------------------------------------------
+
+class QDmsViewArea : public QMdiSubWindow, public ViewHost
 {
     Q_OBJECT
-        using base_class = QMdiSubWindow;
+    using base_class = QMdiSubWindow;
 
 public:
     QDmsViewArea(QMdiArea* parent, TreeItem* viewContext, const TreeItem* currItem, ViewStyle viewStyle);
     QDmsViewArea(QMdiArea* parent, MdiCreateStruct* createStruct);
     ~QDmsViewArea();
 
+    // QMdiSubWindow overrides
     bool nativeEvent(const QByteArray& eventType, void* message, qintptr* result) override;
     void dragEnterEvent(QDragEnterEvent* event) override;
     void closeEvent(QCloseEvent* event) override;
     void dropEvent(QDropEvent* event) override;
-    auto getDataView() -> std::shared_ptr<DataView> { return m_DataView.lock(); }
-    auto getDataViewHwnd() -> void* { return m_DataViewHWnd; } // QEvent::WinIdChange
-    void UpdatePosAndSize();
 
+    auto getDataView() -> std::shared_ptr<DataView> { return m_DataView.lock(); }
+    auto getDataViewHwnd() -> void* { return m_DataViewHWnd; }
+    void UpdatePosAndSize();
     void on_rescale();
+
+    //------------------------------------------------------------------
+    // ViewHost interface implementation (Qt-based, portable)
+    //------------------------------------------------------------------
+
+    // Timer management
+    void VH_SetTimer(UInt32 id, UInt32 elapseMs) override;
+    void VH_KillTimer(UInt32 id) override;
+
+    // Mouse capture
+    void VH_SetCapture() override;
+    void VH_ReleaseCapture() override;
+
+    // Focus
+    void VH_SetFocus() override;
+
+    // Cursor position
+    bool VH_GetCursorScreenPos(GPoint& pos) const override;
+    GPoint VH_ScreenToClient(GPoint screenPt) const override;
+    GPoint VH_ClientToScreen(GPoint clientPt) const override;
+    void VH_SetGlobalCursorPos(GPoint screenPt) override;
+
+    // Cursor shape
+    void VH_SetCursorArrow() override;
+    void VH_SetCursorWait() override;
+
+    // Invalidation and validation
+    void VH_InvalidateRect(const GRect& rect, bool erase) override;
+    void VH_InvalidateRgn(const Region& rgn, bool erase) override;
+    void VH_ValidateRect(const GRect& rect) override;
+
+    // Force synchronous paint processing
+    void VH_UpdateWindow() override;
+
+    // Async operations
+    void VH_PostMessage(UInt32 msg, UInt64 wParam, Int64 lParam) override;
+    void VH_SendClose() override;
+
+    // Visibility and window state
+    bool VH_IsVisible() const override;
+    UInt32 VH_GetShowCmd() const override;
+
+    // Text caret (blinking cursor in text editors)
+    void VH_CreateTextCaret(int width, int height) override;
+    void VH_DestroyTextCaret() override;
+    void VH_SetTextCaretPos(GPoint pos) override;
+    void VH_ShowTextCaret() override;
+    void VH_HideTextCaret() override;
+
+    // Mouse tracking
+    void VH_TrackMouseLeave() override;
+
+    // Parent notification
+    void VH_NotifyParentActivation() override;
+
+    // Scroll
+    void VH_ScrollWindow(GPoint delta, const GRect& scrollRect, const GRect& clipRect,
+        Region& updateRgn, const GRect& validRect) override;
+
+    // Drawing
+    void VH_DrawInContext(const Region& clipRgn, std::function<void(DrawContext&)> callback) override;
+
+#ifdef _WIN32
+    HWND VH_GetHWnd() const override { return reinterpret_cast<HWND>(m_DataViewHWnd); }
+#endif
 
 public slots:
     void onWindowStateChanged(Qt::WindowStates oldState, Qt::WindowStates newState);
+    void onTimerTimeout();
 
 private:
     void CreateDmsView(QMdiArea* parent, ViewStyle viewStyle);
@@ -73,8 +148,19 @@ private:
 
     std::weak_ptr<DataView> m_DataView;
     void* m_DataViewHWnd = nullptr;
-    std::unique_ptr<Win32ViewHost> m_ViewHost;
+
+    // Timer management for VH_SetTimer/VH_KillTimer
+    std::map<UInt32, QTimer*> m_Timers;
+
+    // Text caret state
+    bool m_TextCaretVisible = false;
+    GPoint m_TextCaretPos = {0, 0};
+    int m_TextCaretWidth = 2;
+    int m_TextCaretHeight = 16;
+
+#ifdef _WIN32
     DWORD m_cookie = 0; // used for RegisterScaleChangeNotifications
+#endif
     DPoint m_LastScaleFactors;
 };
 

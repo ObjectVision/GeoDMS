@@ -939,6 +939,37 @@ bool DataView::OnKeyDown(UInt32 nVirtKey)
 
 #endif // _WIN32 (IsTooltipKiller through OnKeyDown)
 
+//----------------------------------------------------------------------
+// OnTimer: Portable timer handler (called by ViewHost)
+//----------------------------------------------------------------------
+
+void DataView::OnTimer(UInt32 timerId)
+{
+	if (timerId == HOVER_TIMER_ID)
+{
+if (m_ViewHost)
+m_ViewHost->VH_KillTimer(HOVER_TIMER_ID);
+#ifdef _WIN32
+else
+KillTimer(GetHWnd(), HOVER_TIMER_ID);
+#endif
+// TODO: Implement tooltip display
+return;
+}
+
+if (timerId == UPDATE_TIMER_ID)
+{
+if (m_ViewHost)
+m_ViewHost->VH_KillTimer(UPDATE_TIMER_ID);
+#ifdef _WIN32
+else
+KillTimer(m_hWnd, UPDATE_TIMER_ID);
+#endif
+UpdateView();
+return;
+}
+}
+
 ActorVisitState DataView::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor) const
 {
 	if (GetContents()->VisitSuppliers(svf, visitor) == AVS_SuspendedOrFailed)

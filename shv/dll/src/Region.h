@@ -40,7 +40,7 @@ inline GRect QRect2GRect(const QRect& r)
 // class  : Region
 //----------------------------------------------------------------------
 
-struct Region
+struct SHV_CALL Region
 {
 	Region();
 	explicit Region(GPoint size);

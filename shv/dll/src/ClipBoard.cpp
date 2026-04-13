@@ -46,7 +46,7 @@ SharedStr ClipBoard::GetText() const
 	auto* cb = QGuiApplication::clipboard();
 	if (!cb) return SharedStr();
 	QByteArray utf8 = cb->text().toUtf8();
-	return SharedStr(utf8.constData(), utf8.constData() + utf8.size());
+	return SharedStr(CharPtrRange(utf8.constData(), utf8.constData() + utf8.size()));
 }
 
 void ClipBoard::SetText(CharPtr text)

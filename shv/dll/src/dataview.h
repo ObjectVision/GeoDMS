@@ -280,8 +280,9 @@ public:
 
 	bool IsInActiveDataViewSet();
 	void PostGuiOper(operation_type&& func);
+	void OnTimer(UInt32 timerId); // Called by ViewHost timer callback
 
-protected: // override virtuals of Actor 
+protected: // override virtuals of Actor
 	ActorVisitState VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor) const override;
 	void DoInvalidate() const override;
 
