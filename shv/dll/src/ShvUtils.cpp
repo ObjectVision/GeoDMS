@@ -73,10 +73,12 @@ void StatusTextCaller::operator() (SeverityTypeID st, CharPtr msg) const
 // section : Instance
 //----------------------------------------------------------------------
 
+#ifdef _WIN32
 HINSTANCE GetInstance(HWND hWnd)
 {
 	return reinterpret_cast<HINSTANCE>( GetWindowLongPtr(hWnd, GWLP_HINSTANCE) );
 }
+#endif
 
 //----------------------------------------------------------------------
 // section : CreateViewAction
@@ -114,13 +116,15 @@ void CreateGotoAction(const TreeItem* tiContext)
 // section : TPoint & TRect
 //----------------------------------------------------------------------
 
+#ifdef _WIN32
 GPoint ScreenToClientGPoint(GPoint pt, HWND hWnd)
 {
 	CheckedGdiCall( ::ScreenToClient(hWnd, &AsPOINT(pt)),
 		"ScreenToClient"
 	);
 	return pt;
-}		
+}
+#endif
 
 //----------------------------------------------------------------------
 #include "ser/RangeStream.h"
@@ -462,6 +466,8 @@ std::shared_ptr<GraphicObject> CreateFromContext(TreeItem* context, GraphicObjec
 // section : CheckedGdiCall
 //----------------------------------------------------------------------
 
+#ifdef _WIN32
+
 void CheckedGdiCall(bool result, CharPtr context)
 {
 	if (result)
@@ -562,6 +568,7 @@ void FillRectDmsColor(HDC dc, const GRect& rect, DmsColor color)
 	FillRect(dc, &AsRECT(rect), brushHandle );
 }
 
+#endif // _WIN32
 
 //----------------------------------------------------------------------
 // enum class FontSizeCategory
@@ -587,6 +594,8 @@ UInt32 GetDefaultFontHeightDIP(FontSizeCategory fid)
 
 	return g_DefaultFontHDIP[static_cast<int>(fid)];
 }
+
+#ifdef _WIN32
 
 Point<UINT> GetWindowEffectiveDPI(HWND hWnd)
 {
@@ -631,6 +640,8 @@ Point<Float64> GetWindowPix2DipFactors(HWND hWnd)
 	auto dpi = GetWindowEffectiveDPI(hWnd);
 	return shp2dms_order<Float64>(96.0 / dpi.first, 96.0 / dpi.second);
 }
+
+#endif // _WIN32
 
 //----------------------------------------------------------------------
 // desktop data section

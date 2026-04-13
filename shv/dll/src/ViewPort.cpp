@@ -96,7 +96,9 @@ ViewPort::ViewPort(MovableObject* owner, DataView* dv, CharPtr caption)
 	,	m_BrushOrg(0, 0)
 	,	m_BkColor(DmsColor2COLORREF( STG_Bmp_GetDefaultColor(CI_BACKGROUND) )) // White, adjustable by tools->options->Current configuration
 {
+#ifdef _WIN32
 	SetViewPortCursor(LoadCursor(NULL, IDC_ARROW));
+#endif
 	m_State.Set(GOF_IgnoreActivation);
 }
 
@@ -704,6 +706,8 @@ CrdType interpolate(CrdType min, CrdType max, UInt32 i, UInt32 n)
 
 #include "FilePtrHandle.h"
 
+#ifdef _WIN32
+
 void SaveBitmap(WeakStr filename, HBITMAP hBitmap)
 {
 	BITMAPINFO        bmpInfo;
@@ -803,7 +807,9 @@ void ViewPort::Export()
 	}
 }
 
-#if(WINVER < 0x0500)
+#endif // _WIN32 (SaveBitmap, Export)
+
+#if defined(_WIN32) && (WINVER < 0x0500)
 #define IDC_HAND            MAKEINTRESOURCE(32649)
 #endif /* WINVER >= 0x0500 */
 
@@ -870,15 +876,21 @@ bool ViewPort::OnCommand(ToolButtonID id)
 		case TB_ZoomSelectedObj:  AL_ZoomSel(); return true;
 		case TB_ShowFirstSelectedRow: AL_ZoomSel(); return true;
 		case TB_Neutral:
+#ifdef _WIN32
 			SetViewPortCursor( LoadCursor(NULL, IDC_ARROW) );
+#endif
 			goto setControllerID;
 
 		case TB_ZoomIn2:
+#ifdef _WIN32
 			SetViewPortCursor( LoadCursor(g_ShvDllInstance, MAKEINTRESOURCE(IDC_ZOOMIN) ) );
+#endif
 			goto setControllerID;
 
 		case TB_ZoomOut2:
+#ifdef _WIN32
 			SetViewPortCursor( LoadCursor(g_ShvDllInstance, MAKEINTRESOURCE(IDC_ZOOMOUT) ) );
+#endif
 			goto setControllerID;
 
 		case TB_SelectObject:
@@ -886,7 +898,9 @@ bool ViewPort::OnCommand(ToolButtonID id)
 		case TB_SelectCircle:
 		case TB_SelectPolygon:
 		case TB_SelectDistrict:
+#ifdef _WIN32
 			SetViewPortCursor( LoadCursor(NULL, MAKEINTRESOURCE(IDC_SELECTDIAMOND) ) );
+#endif
 			goto setControllerID;
 
 		case TB_SelectAll : AL_SelectAllObjects( true); return true;
@@ -1029,6 +1043,8 @@ CommandStatus ViewPort::OnCommandEnable(ToolButtonID id) const
 #include "GridLayer.h"
 #include "GridDrawer.h"
 
+#ifdef _WIN32
+
 class PasteGridController : public AbstrController
 {
 	typedef AbstrController base_type;
@@ -1105,6 +1121,8 @@ void ViewPort::PasteGrid(SelValuesData* svd, GridLayer* gl)
 	dv->InsertController(pasteController.get());
 	pasteController->m_OrgCursor = SetViewPortCursor(LoadCursor(g_ShvDllInstance, MAKEINTRESOURCE(IDC_PAN)));
 }
+
+#endif // _WIN32 (PasteGridController, PasteGrid)
 
 void ViewPort::ScrollDevice(GPoint delta)
 {

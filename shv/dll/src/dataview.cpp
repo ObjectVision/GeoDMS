@@ -61,13 +61,17 @@
 //    NOTABCONTROL Tab control.
 //    NOANIMATE    Animate control.
 
+#ifdef _WIN32
 #include "CommCtrl.h"
+#endif
 ActorVisitState UpdateChildViews(DataViewTree* dvl);
 
+#ifdef _WIN32
 GPoint LParam2Point(LPARAM lParam)
 {
 	return GPoint(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
 }
+#endif
 
 //----------------------------------------------------------------------
 // ViewStyle
@@ -102,6 +106,7 @@ SHV_CALL CharPtr GetViewStyleName(ViewStyle ct)
 // struct : MsgStruct
 //----------------------------------------------------------------------
 
+#ifdef _WIN32
 MsgResult MsgStruct::Send() const
 {
 	#if defined(MG_DEBUG_DATAVIEWSET)
@@ -109,6 +114,7 @@ MsgResult MsgStruct::Send() const
 	#endif
 	return m_DataView->DispatchMsg(*this);
 }
+#endif
 
 //----------------------------------------------------------------------
 // class  : DataViewTree
@@ -221,8 +227,12 @@ bool DataView::IsInActiveDataViewSet()
 // DataView construction/destruction
 
 DataView::DataView(TreeItem* viewContext)
-	:	m_hWnd(0)
-	,	m_ViewContext(viewContext)
+	:
+#ifdef _WIN32
+		m_hWnd(0)
+	,
+#endif
+		m_ViewContext(viewContext)
 	,	m_CheckedTS(0)
 	,	m_ViewDeviceSize(0, 0)
 	,	m_FocusCaret(new FocusCaret)
@@ -1943,8 +1953,10 @@ void Unkeep(DataView* self)
 
 // =============================================== ToolTip
 
+#ifdef _WIN32
 #include <commctrl.h>
 #pragma comment(lib, "comctl32.lib")
+#endif
 
 HWND DataView::EnsureTooltipWindow()
 {

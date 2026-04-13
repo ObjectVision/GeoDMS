@@ -824,7 +824,9 @@ bool TableControl::OnCommand(ToolButtonID id)
 		case TB_Neutral:
 		{
 			CreateTableGroupBy(id == TB_TableGroupBy);
+#ifdef _WIN32
 			SetViewPortCursor(LoadCursor(g_ShvDllInstance, IDC_ARROW));
+#endif
 
 			//setCommand:
 			auto dv = GetDataView().lock();

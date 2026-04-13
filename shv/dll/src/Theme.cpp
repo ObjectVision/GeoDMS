@@ -535,7 +535,7 @@ std::shared_ptr<Theme> Theme::Create(AspectNr aNr, AbstrThemeValueGetter* avg)
 }
 
 template <typename V>
-static std::shared_ptr<Theme> Theme::CreateValue(AspectNr aNr, V value)
+std::shared_ptr<Theme> Theme::CreateValue(AspectNr aNr, V value)
 {
 	auto constValueGetter = std::make_unique<ConstValueGetter<V>>(value);
 	auto result =  Theme::Create(aNr, constValueGetter.release());
@@ -543,7 +543,7 @@ static std::shared_ptr<Theme> Theme::CreateValue(AspectNr aNr, V value)
 }
 
 template <typename V>
-static std::shared_ptr<Theme> Theme::CreateVar(AspectNr aNr, V* valuePtr, GraphicObject* go)
+std::shared_ptr<Theme> Theme::CreateVar(AspectNr aNr, V* valuePtr, GraphicObject* go)
 {
 	auto constValueGetter = std::make_unique<ConstVarGetter<V>>(valuePtr, go);
 	auto result = Theme::Create(aNr, constValueGetter.release());

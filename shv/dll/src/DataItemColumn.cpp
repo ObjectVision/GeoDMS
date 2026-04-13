@@ -402,7 +402,9 @@ void DataItemColumn::SetElemSize(WPoint size)
 
 	m_ElemSize = size;
 
+#ifdef _WIN32
 	m_FontArray.reset();
+#endif
 	m_FontIndexCache.reset();
 
 	InvalidateView();
@@ -528,7 +530,9 @@ void DataItemColumn::DoInvalidate() const
 	base_type::DoInvalidate();
 	const_cast<DataItemColumn*>(this)->InvalidateDraw();
 
+#ifdef _WIN32
 	m_FontArray.reset();
+#endif
 	m_FontIndexCache.reset();
 	m_State.Clear(DIC_TotalReady);
 
@@ -964,6 +968,7 @@ void DataItemColumn::SetRevBorder(bool revBorder)
 	base_type::SetRevBorder(revBorder);
 }
 
+#ifdef _WIN32
 HFONT DataItemColumn::GetFont(SizeT recNo, FontRole fr, Float64 subPixelFactor) const
 {
 	auto fontTheme = GetTheme(fontNameAspect[fr]);
@@ -1008,6 +1013,7 @@ HFONT DataItemColumn::GetFont(SizeT recNo, FontRole fr, Float64 subPixelFactor) 
 
 	return m_FontArray->GetFontHandle(recNo);
 }
+#endif // _WIN32
 
 
 GraphVisitState DataItemColumn::InviteGraphVistor(class AbstrVisitor& gv)
@@ -1033,6 +1039,7 @@ std::weak_ptr<const TableControl> DataItemColumn::GetTableControl() const
 
 std::atomic<UInt32> s_ChooseColorDialogCount = 0;
 
+#ifdef _WIN32
 static bool ChooseColorDialog(DmsColor& rgb, DataView* dv)
 {
 	dms_assert(dv);
@@ -1073,6 +1080,12 @@ static bool ChooseColorDialog(DmsColor& rgb, DataView* dv)
 		dv->m_ColorPalette[i] = COLORREF2DmsColor(custColors[i]);
 	return result;
 }
+#else
+static bool ChooseColorDialog(DmsColor& /*rgb*/, DataView* /*dv*/)
+{
+	return false; // TODO: implement with QColorDialog
+}
+#endif
 
 void DataItemColumn::SetActive(bool newState)
 {
