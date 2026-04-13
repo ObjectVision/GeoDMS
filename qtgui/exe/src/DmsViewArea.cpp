@@ -3,6 +3,7 @@
 
 #include "DmsMainWindow.h"
 #include "DmsTreeView.h"
+#include "QtDrawContext.h"
 
 #include <QEvent.h>
 #include <QFileInfo>
@@ -11,6 +12,7 @@
 #include <QMimeData>
 #include <QTimer>
 #include <QCursor>
+#include <QPainter>
 
 #ifdef _WIN32
 #include <ShellScalingApi.h>
@@ -677,12 +679,29 @@ void QDmsViewArea::VH_ScrollWindow(GPoint delta, const GRect& scrollRect, const 
 
 void QDmsViewArea::VH_DrawInContext(const Region& clipRgn, std::function<void(DrawContext&)> callback)
 {
-    // This will be implemented when QtDrawContext is used
-    // For now, this is a placeholder for the portable drawing path
-    // The actual drawing is handled by the native Win32 window's WM_PAINT
-    // which creates its own GdiDrawContext. VH_DrawInContext is for
-    // non-WM_PAINT drawing scenarios (e.g., offscreen rendering).
+    // For portable drawing, we create a QPainter and wrap it in QtDrawContext
+    // This is used for drawing outside WM_PAINT (carets, offscreen operations)
 
-    // TODO: Implement QtDrawContext path for Linux
-    // TODO: Consider if this method is even needed - most drawing goes through WM_PAINT
+    // Get the native widget we're drawing to
+    auto widget = reinterpret_cast<QWidget*>(QWidget::find(reinterpret_cast<WId>(m_DataViewHWnd)));
+    if (!widget)
+    {
+        // Fallback: try drawing to this widget
+        widget = this;
+    }
+
+    QPainter painter(widget);
+    if (!painter.isActive())
+        return;
+
+    painter.setBackgroundMode(Qt::TransparentMode);
+
+    // Set clip region
+    if (!clipRgn.Empty())
+        painter.setClipRegion(clipRgn.GetQRegion());
+
+    QtDrawContext ctx(&painter);
+    callback(ctx);
+
+    // Painter automatically ends when it goes out of scope
 }

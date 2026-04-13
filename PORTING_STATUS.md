@@ -98,6 +98,14 @@ The Win32 `ViewHost` implementation is kept temporarily but will be removed once
 - Fixed `ClipBoard::GetText()` to use `CharPtrRange` constructor
 - **Windows build: OK**
 
+### Step 3d: Full tooltip implementation in OnTimer [65ab21bb]
+- `DataView::OnTimer()` now handles all timer types:
+  - `TIP_WATCH_TIMER_ID`: Monitors cursor position, hides tooltip when cursor leaves object
+  - `HOVER_TIMER_ID`: Full Win32 tooltip display via `TOOLINFOW`, uses ViewHost for cursor position
+  - `UPDATE_TIMER_ID`: Triggers `UpdateView()` for async graphics refresh
+- Tooltip code uses ViewHost abstraction when available, with Win32 fallback
+- **Windows build: OK**
+
 ## Next Steps
 
 ### Step 4: Remove GDI wrappers

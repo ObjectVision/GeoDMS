@@ -945,82 +945,83 @@ bool DataView::OnKeyDown(UInt32 nVirtKey)
 
 void DataView::OnTimer(UInt32 timerId)
 {
-if (timerId == TIP_WATCH_TIMER_ID)
-{
-auto attObj = m_activeTooltipObj.lock();
-if (!attObj)
-StopTipWatchdog();
-else
-if (!IsCursorInsideObject(*attObj))
-HideActiveTooltip();
-return;
-}
+	if (timerId == TIP_WATCH_TIMER_ID)
+	{
+		auto attObj = m_activeTooltipObj.lock();
+		if (!attObj)
+			StopTipWatchdog();
+		else
+			if (!IsCursorInsideObject(*attObj))
+				HideActiveTooltip();
+		return;
+	}
 
-if (timerId == HOVER_TIMER_ID)
-{
-if (m_ViewHost)
-m_ViewHost->VH_KillTimer(HOVER_TIMER_ID);
+	if (timerId == HOVER_TIMER_ID)
+	{
+		if (m_ViewHost)
+			m_ViewHost->VH_KillTimer(HOVER_TIMER_ID);
 #ifdef _WIN32
-else
-KillTimer(GetHWnd(), HOVER_TIMER_ID);
+		else
+			KillTimer(GetHWnd(), HOVER_TIMER_ID);
 
-GPoint ptScreen;
-if (m_ViewHost)
-m_ViewHost->VH_GetCursorScreenPos(ptScreen);
-else
-GetCursorPos(&AsPOINT(ptScreen));
-GPoint ptClient = m_ViewHost
-? m_ViewHost->VH_ScreenToClient(ptScreen)
-: [&]() { GPoint p = ptScreen; ScreenToClient(GetHWnd(), &AsPOINT(p)); return p; }();
-if (ptClient == m_hoverStartLocation)
-{
-TooltipCollector ttc(this, ptClient);
-SuspendTrigger::Resume();
-if (ttc.Visit(GetContents().get()))
-{
-assert(m_activeTooltipObj.lock().get());
+		GPoint ptScreen;
+		if (m_ViewHost)
+			m_ViewHost->VH_GetCursorScreenPos(ptScreen);
+		else
+			GetCursorPos(&AsPOINT(ptScreen));
+		GPoint ptClient = m_ViewHost
+			? m_ViewHost->VH_ScreenToClient(ptScreen)
+			: [&]() { GPoint p = ptScreen; ScreenToClient(GetHWnd(), &AsPOINT(p)); return p; }();
+		if (ptClient == m_hoverStartLocation)
+		{
+			TooltipCollector ttc(this, ptClient);
+			SuspendTrigger::Resume();
+			if (ttc.Visit(GetContents().get()))
+			{
+				assert(m_activeTooltipObj.lock().get());
 
-m_ToolTipText = Utf8_2_wchar(ttc.m_Buff.AsString());
+				m_ToolTipText = Utf8_2_wchar(ttc.m_Buff.AsString());
 
-HWND hwndTT = EnsureTooltipWindow();
+				HWND hwndTT = EnsureTooltipWindow();
 
-TOOLINFOW ti{};
-ti.cbSize = TTTOOLINFOW_V2_SIZE;
-ti.uFlags = TTF_TRACK | TTF_ABSOLUTE;
-ti.hwnd = GetHWnd();
-ti.uId = (UINT_PTR)this;
-ti.rect = AsRECT(CrdRect2GRect(ttc.m_DevRect));
-ti.lpszText = m_ToolTipText.get();
+				TOOLINFOW ti{};
+				ti.cbSize = TTTOOLINFOW_V2_SIZE;
+				ti.uFlags = TTF_TRACK | TTF_ABSOLUTE;
+				ti.hwnd = GetHWnd();
+				ti.uId = (UINT_PTR)this;
+				ti.rect = AsRECT(CrdRect2GRect(ttc.m_DevRect));
+				ti.lpszText = m_ToolTipText.get();
 
-if (!SendMessageW(hwndTT, TTM_UPDATETIPTEXTW, 0, (LPARAM)&ti))
-SendMessageW(hwndTT, TTM_ADDTOOLW, 0, (LPARAM)&ti);
-else
-SendMessageW(hwndTT, TTM_NEWTOOLRECTW, 0, (LPARAM)&ti);
+				if (!SendMessageW(hwndTT, TTM_UPDATETIPTEXTW, 0, (LPARAM)&ti))
+					SendMessageW(hwndTT, TTM_ADDTOOLW, 0, (LPARAM)&ti);
+				else
+					SendMessageW(hwndTT, TTM_NEWTOOLRECTW, 0, (LPARAM)&ti);
 
-ptScreen.x += 32;
-ptScreen.y += 10;
-SendMessageW(hwndTT, TTM_TRACKPOSITION, 0, MAKELONG(ptScreen.x, ptScreen.y));
-SendMessageW(hwndTT, TTM_TRACKACTIVATE, TRUE, (LPARAM)&ti);
+				ptScreen.x += 32;
+				ptScreen.y += 10;
+				SendMessageW(hwndTT, TTM_TRACKPOSITION, 0, MAKELONG(ptScreen.x, ptScreen.y));
+				SendMessageW(hwndTT, TTM_TRACKACTIVATE, TRUE, (LPARAM)&ti);
 
-StartTipWatchdog();
-}
-}
+				StartTipWatchdog();
+			}
+		}
 #endif // _WIN32
-return;
+		return;
+	}
+
+	if (timerId == UPDATE_TIMER_ID)
+	{
+		if (m_ViewHost)
+			m_ViewHost->VH_KillTimer(UPDATE_TIMER_ID);
+#ifdef _WIN32
+		else
+			KillTimer(m_hWnd, UPDATE_TIMER_ID);
+#endif
+		UpdateView();
+		return;
+	}
 }
 
-if (timerId == UPDATE_TIMER_ID)
-{
-if (m_ViewHost)
-m_ViewHost->VH_KillTimer(UPDATE_TIMER_ID);
-#ifdef _WIN32
-else
-KillTimer(m_hWnd, UPDATE_TIMER_ID);
-#endif
-UpdateView();
-return;
-}
-}
 ActorVisitState DataView::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor) const
 {
 	if (GetContents()->VisitSuppliers(svf, visitor) == AVS_SuspendedOrFailed)
