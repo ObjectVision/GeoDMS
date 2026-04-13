@@ -156,9 +156,28 @@ Remaining work:
   - Deploys font files to `bin/misc/fonts/`
 - Added `add_subdirectory(shv/dll)` and `add_subdirectory(qtgui/exe)` to top-level CMakeLists.txt
 
-#### Step 5b: Remaining tasks (TODO)
-- Resolve any remaining `#ifdef _WIN32` gaps found during Linux compilation
-- Handle platform differences: shared library loading, font paths, clipboard, etc.
+#### Step 5b: Linux build fixes + portable QClipboard [ff1e53aa]
+- **ShvBase.h**: `SHV_CALL` empty on non-MSVC (matches `RtcBase.h` pattern for `RTC_CALL`)
+- **ShvUtils.h**: `ScreenToClientGPoint(HWND)`, `DrawBorder/FillRect` HDC functions, `GetWindowDip2PixFactor(HWND)` all behind `#ifdef _WIN32`; portable `UNDEFINED_WCHAR` as `char16_t` on Linux
+- **DcHandle.h**: Entire content behind `#ifdef _WIN32` (excluded from Linux build via CMake, but header still included transitively)
+- **PenIndexCache.h/.cpp**: `PenArray` struct behind `#ifdef _WIN32`; portable `PS_*` constants (`#ifndef PS_SOLID`) for `PenIndexCache` key computation
+- **GeoTypes.h**: Fixed `IsDefined(GPoint)` forward-declaration order — `GRect` constructor assert expanded to member-level `IsDefined(p.x)` calls
+- **Clipboard.h/.cpp**: Rewritten with `QClipboard` (Qt) for portable text operations:
+  - `GetText()`, `SetText()`, `AddText()`, `AddTextLine()`, `Clear()`, `ClearBuff()` all use `QGuiApplication::clipboard()`
+  - UTF-8↔QString conversion replaces Win32 `MultiByteToWideChar`/`GlobalAlloc`
+  - Win32-only: `GlobalLockHandle`, `SetBitmap(HBITMAP)`, `SetDIB(HBITMAP)`, `GetData(UINT)`, `SetData(UINT,...)`, `GetCurrFormat()` kept behind `#ifdef _WIN32`
+  - Free function `ClipBoard_SetData(ClipBoard&, UINT, GlobalLockHandle&)` replaces removed member overload
+- **GridLayer.h/.cpp**: `PasteHandler`, `CopySelValues()`, `PasteSelValues*()`, `PasteNow()`, `ClearPaste()`, `InvalidatePasteArea()`, `DrawPaste()`, `m_PasteHandler`, `CF_CELLVALUES` all behind `#ifdef _WIN32`
+- **MovableObject.h/.cpp**: `HBITMAP GetAsDDBitmap()`, `HCURSOR` members, `CopyToClipboard()` implementation behind `#ifdef _WIN32` (Linux stub provided for `CopyToClipboard`)
+- **dataview.h / GraphVisitor.h**: Unscoped forward-declared enums (`ViewStyle`, `ViewStyleFlags`, `ToolButtonID`, `ShvSyncMode`, `GdMode`) given explicit `: int` underlying type (GCC requirement)
+- **Aspect.h**: `AspectNr : int` (same GCC fix)
+- **LispList.h**: `operator<<` changed from by-value to `const&` parameter (fixes GCC overload ambiguity with `AssocListPtrWrap`)
+
+**Result:** `DmShv` compiles clean on Linux (GCC 13, WSL). Windows MSVC build: OK.
+
+#### Step 5c: Remaining tasks (TODO)
+- Build `GeoDmsGuiQt` on Linux (resolve qtgui/exe compilation issues)
+- Handle platform differences: shared library loading, font paths, etc.
 
 ## Key Technical Decisions
 
