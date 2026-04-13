@@ -158,6 +158,7 @@
     <ClInclude Include="src\DcHandle.h" />
     <ClInclude Include="src\DrawContext.h" />
     <ClInclude Include="src\GdiRegionUtil.h" />
+    <ClInclude Include="src\ShvCompat.h" />
     <ClInclude Include="src\ViewHost.h" />
     <ClInclude Include="src\Win32ViewHost.h" />
     <ClInclude Include="src\DrawPolygons.h" />

@@ -16,8 +16,10 @@
 class GraphDrawer;
 
 //----------------------------------------------------------------------
-// DrawText funcs
+// DrawText funcs (Win32 GDI — used by legacy code paths)
 //----------------------------------------------------------------------
+
+#ifdef _WIN32
 
 void DrawSymbol(
 	HDC      dc, 
@@ -44,6 +46,8 @@ void TextOutLimited(
 	CharPtr txt, 
 	SizeT   strLen
 );
+
+#endif // _WIN32
 
 //----------------------------------------------------------------------
 // class  : TextControl enums
@@ -114,6 +118,7 @@ public:
 	virtual SharedStr GetOrgText(SizeT recNo, GuiReadLock& lock) const = 0;
 
 protected:
+#ifdef _WIN32
 	void DrawEditText(
 		HDC          dc, 
 		const GRect& rect,
@@ -123,6 +128,7 @@ protected:
 		CharPtr      txt,
 		bool         isActive
 	) const;
+#endif
 };
 
 //----------------------------------------------------------------------

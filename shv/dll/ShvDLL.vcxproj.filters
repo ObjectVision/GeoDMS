@@ -467,6 +467,9 @@
     <ClInclude Include="src\GdiRegionUtil.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\ShvCompat.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="res\DmShv32.rc">

@@ -7,6 +7,8 @@
 #if !defined(__SHV_GDIREGIONUTIL_H)
 #define __SHV_GDIREGIONUTIL_H
 
+#ifdef _WIN32
+
 //----------------------------------------------------------------------
 // GDI ↔ QRegion conversion utilities.
 // Used by Win32-specific code that still needs HRGN handles
@@ -113,5 +115,7 @@ inline Region RegionFromDCClipBox(HDC hdc, const GRect& rect)
 	}
 	return Region();
 }
+
+#endif // _WIN32
 
 #endif // __SHV_GDIREGIONUTIL_H

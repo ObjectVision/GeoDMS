@@ -1,0 +1,238 @@
+﻿/usr/include/c++/13/bits/stl_construct.h: no matching function for call to ΓÇÿconstruct_at(TextControl*&, EditPaletteControl*, int, int)ΓÇÖ
+/usr/include/c++/13/bits/stl_construct.h: no matching function for call to ΓÇÿconstruct_at(TextControl*&, EditPaletteControl*, unsigned int)ΓÇÖ
+/usr/include/c++/13/bits/unique_ptr.h: invalid application of ΓÇÿsizeofΓÇÖ to incomplete type ΓÇÿFontArrayΓÇÖ
+shv/dll/src/AspectGroup.cpp: ΓÇÿMFS_CHECKEDΓÇÖ was not declared in this scope; did you mean ΓÇÿMG_CHECK2ΓÇÖ?
+shv/dll/src/AspectGroup.cpp: ΓÇÿMFS_GRAYEDΓÇÖ was not declared in this scope
+shv/dll/src/AspectGroup.cpp: ΓÇÿMF_CHECKEDΓÇÖ was not declared in this scope; did you mean ΓÇÿMG_CHECK2ΓÇÖ?
+shv/dll/src/DataItemColumn.cpp: narrowing conversion of ΓÇÿ-1ΓÇÖ from ΓÇÿintΓÇÖ to ΓÇÿlong unsigned intΓÇÖ [-Wnarrowing]
+shv/dll/src/DataItemColumn.cpp: ΓÇÿCHOOSECOLORΓÇÖ was not declared in this scope
+shv/dll/src/DataItemColumn.cpp: ΓÇÿChooseColorΓÇÖ was not declared in this scope
+shv/dll/src/DataItemColumn.cpp: ΓÇÿGET_WHEEL_DELTA_WPARAMΓÇÖ was not declared in this scope
+shv/dll/src/DataItemColumn.cpp: ΓÇÿGetKeyStateΓÇÖ was not declared in this scope
+shv/dll/src/DataItemColumn.cpp: ΓÇÿHFONTΓÇÖ does not name a type; did you mean ΓÇÿEBFONTΓÇÖ?
+shv/dll/src/DataItemColumn.cpp: ΓÇÿHWNDΓÇÖ was not declared in this scope
+shv/dll/src/DataItemColumn.cpp: ΓÇÿIDC_ARROWΓÇÖ was not declared in this scope
+shv/dll/src/DataItemColumn.cpp: ΓÇÿIDC_IBEAMΓÇÖ was not declared in this scope
+shv/dll/src/DataItemColumn.cpp: ΓÇÿIDC_SIZEWEΓÇÖ was not declared in this scope
+shv/dll/src/DataItemColumn.cpp: ΓÇÿLoadCursorΓÇÖ was not declared in this scope; did you mean ΓÇÿQCursorΓÇÖ?
+shv/dll/src/DataItemColumn.cpp: ΓÇÿMFS_GRAYEDΓÇÖ was not declared in this scope
+shv/dll/src/DataItemColumn.cpp: ΓÇÿMF_CHECKEDΓÇÖ was not declared in this scope; did you mean ΓÇÿMG_CHECK2ΓÇÖ?
+shv/dll/src/DataItemColumn.cpp: ΓÇÿMF_ENABLEDΓÇÖ was not declared in this scope
+shv/dll/src/DataItemColumn.cpp: ΓÇÿMF_GRAYEDΓÇÖ was not declared in this scope
+shv/dll/src/DataItemColumn.cpp: ΓÇÿMessageBeepΓÇÖ was not declared in this scope
+shv/dll/src/DataItemColumn.cpp: ΓÇÿSetCursorΓÇÖ was not declared in this scope; did you mean ΓÇÿSetPassorΓÇÖ?
+shv/dll/src/DataItemColumn.cpp: ΓÇÿVK_F2ΓÇÖ was not declared in this scope
+shv/dll/src/DataItemColumn.cpp: ΓÇÿVK_SHIFTΓÇÖ was not declared in this scope
+shv/dll/src/DataItemColumn.cpp: ΓÇÿWCHARΓÇÖ does not name a type
+shv/dll/src/DataItemColumn.cpp: ΓÇÿWCHARΓÇÖ was not declared in this scope
+shv/dll/src/DataItemColumn.cpp: ΓÇÿWHEEL_DELTAΓÇÖ was not declared in this scope
+shv/dll/src/DataItemColumn.cpp: ΓÇÿcolorDataΓÇÖ was not declared in this scope
+shv/dll/src/DataItemColumn.cpp: ΓÇÿhParentΓÇÖ was not declared in this scope
+shv/dll/src/DataItemColumn.cpp: ΓÇÿwSymbΓÇÖ was not declared in this scope
+shv/dll/src/DataItemColumn.h: ΓÇÿHFONTΓÇÖ does not name a type; did you mean ΓÇÿEBFONTΓÇÖ?
+shv/dll/src/DataItemColumn.h: ΓÇÿWCHARΓÇÖ does not name a type
+shv/dll/src/DataView.h: template argument 2 is invalid
+shv/dll/src/DataView.h: template argument 4 is invalid
+shv/dll/src/DataView.h: ΓÇÿ<expression error>ΓÇÖ in namespace ΓÇÿstdΓÇÖ does not name a type
+shv/dll/src/DataView.h: ΓÇÿGdiHandleΓÇÖ does not name a type; did you mean ΓÇÿWinHandleΓÇÖ?
+shv/dll/src/DataView.h: ΓÇÿGdiHandleΓÇÖ was not declared in this scope; did you mean ΓÇÿWinHandleΓÇÖ?
+shv/dll/src/DataView.h: ΓÇÿHBRUSHΓÇÖ was not declared in this scope
+shv/dll/src/DataView.h: ΓÇÿHDCΓÇÖ has not been declared
+shv/dll/src/DataView.h: ΓÇÿHFONTΓÇÖ does not name a type; did you mean ΓÇÿEBFONTΓÇÖ?
+shv/dll/src/DataView.h: ΓÇÿHFONTΓÇÖ was not declared in this scope; did you mean ΓÇÿEBFONTΓÇÖ?
+shv/dll/src/DataView.h: ΓÇÿHWNDΓÇÖ does not name a type
+shv/dll/src/DataView.h: ΓÇÿHWNDΓÇÖ has not been declared
+shv/dll/src/DataView.h: ΓÇÿMsgResultΓÇÖ does not name a type
+shv/dll/src/DrawPolygons.h: ΓÇÿLabelDrawerΓÇÖ was not declared in this scope
+shv/dll/src/DrawPolygons.h: ΓÇÿldΓÇÖ was not declared in this scope; did you mean ΓÇÿdΓÇÖ?
+shv/dll/src/EditPalette.cpp: ΓÇÿMFS_GRAYEDΓÇÖ was not declared in this scope
+shv/dll/src/EditPalette.cpp: ΓÇÿMessageBeepΓÇÖ was not declared in this scope
+shv/dll/src/FeatureLayer.cpp: need ΓÇÿtypenameΓÇÖ before ΓÇÿSequenceBoundingBoxCache<ScalarType>::RectArrayTypeΓÇÖ because ΓÇÿSequenceBoundingBoxCache<ScalarType>ΓÇÖ is a dependent scope
+shv/dll/src/FeatureLayer.cpp: need ΓÇÿtypenameΓÇÖ before ΓÇÿsequence_traits<Point<T> >::container_typeΓÇÖ because ΓÇÿsequence_traits<Point<T> >ΓÇÖ is a dependent scope
+shv/dll/src/FeatureLayer.cpp: no matching function for call to ΓÇÿconst_array_cast<PolygonType>(const AbstrDataItem*&)ΓÇÖ
+shv/dll/src/FeatureLayer.cpp: request for member ΓÇÿGetTiledRangeDataΓÇÖ in ΓÇÿda->ΓÇÖ, which is of non-class type ΓÇÿconst DataArrayTypeΓÇÖ {aka ΓÇÿconst intΓÇÖ}
+shv/dll/src/FeatureLayer.cpp: request for member ΓÇÿGetTileΓÇÖ in ΓÇÿda->ΓÇÖ, which is of non-class type ΓÇÿconst DataArrayTypeΓÇÖ {aka ΓÇÿconst intΓÇÖ}
+shv/dll/src/FeatureLayer.cpp: template argument 1 is invalid
+shv/dll/src/FeatureLayer.cpp: ΓÇÿAddTransformationΓÇÖ was not declared in this scope; did you mean ΓÇÿCrdTransformationΓÇÖ?
+shv/dll/src/FeatureLayer.cpp: ΓÇÿPolygonTypeΓÇÖ was not declared in this scope; did you mean ΓÇÿIsPolygonTypeΓÇÖ?
+shv/dll/src/FeatureLayer.cpp: ΓÇÿWCHARΓÇÖ was not declared in this scope
+shv/dll/src/FeatureLayer.cpp: ΓÇÿdefaultSymbolΓÇÖ was not declared in this scope
+shv/dll/src/FontRole.h: ΓÇÿWCHARΓÇÖ does not name a type
+shv/dll/src/GdiRegionUtil.h: expected primary-expression before ΓÇÿconstΓÇÖ
+shv/dll/src/GdiRegionUtil.h: expected ΓÇÿ,ΓÇÖ or ΓÇÿ;ΓÇÖ before ΓÇÿ{ΓÇÖ token
+shv/dll/src/GdiRegionUtil.h: ΓÇÿGdiHandleΓÇÖ does not name a type; did you mean ΓÇÿWinHandleΓÇÖ?
+shv/dll/src/GdiRegionUtil.h: ΓÇÿHDCΓÇÖ was not declared in this scope
+shv/dll/src/GdiRegionUtil.h: ΓÇÿHRGNΓÇÖ was not declared in this scope
+shv/dll/src/GdiRegionUtil.h: ΓÇÿHWNDΓÇÖ was not declared in this scope
+shv/dll/src/GraphVisitor.cpp: base operand of ΓÇÿ->ΓÇÖ is not a pointer
+shv/dll/src/GraphVisitor.cpp: request for member ΓÇÿemplaceΓÇÖ in ΓÇÿclipperΓÇÖ, which is of non-class type ΓÇÿintΓÇÖ
+shv/dll/src/GraphVisitor.cpp: template argument 1 is invalid
+shv/dll/src/GraphVisitor.cpp: ΓÇÿAddClientLogicalOffsetΓÇÖ was not declared in this scope
+shv/dll/src/GraphVisitor.cpp: ΓÇÿAddTransformationΓÇÖ was not declared in this scope; did you mean ΓÇÿCrdTransformationΓÇÖ?
+shv/dll/src/GraphVisitor.cpp: ΓÇÿVisitorDeviceRectSelectorΓÇÖ was not declared in this scope
+shv/dll/src/GraphVisitor.cpp: ΓÇÿclipperΓÇÖ was not declared in this scope
+shv/dll/src/GraphicContainer.cpp: expected primary-expression before ΓÇÿ)ΓÇÖ token
+shv/dll/src/GraphicContainer.cpp: expected primary-expression before ΓÇÿ>ΓÇÖ token
+shv/dll/src/GraphicContainer.cpp: expected unqualified-id before ΓÇÿ;ΓÇÖ token
+shv/dll/src/GraphicLayer.cpp: ΓÇÿMF_CHECKEDΓÇÖ was not declared in this scope; did you mean ΓÇÿMG_CHECK2ΓÇÖ?
+shv/dll/src/GraphicObject.cpp: commctrl.h: No such file or directory
+shv/dll/src/GridLayer.cpp: ΓÇÿMB_ICONEXCLAMATIONΓÇÖ was not declared in this scope
+shv/dll/src/GridLayer.cpp: ΓÇÿMFS_GRAYEDΓÇÖ was not declared in this scope
+shv/dll/src/GridLayer.cpp: ΓÇÿMessageBeepΓÇÖ was not declared in this scope
+shv/dll/src/GridLayer.cpp: ΓÇÿPasteSelValuesDirectΓÇÖ was not declared in this scope
+shv/dll/src/GridLayer.cpp: ΓÇÿPasteSelValuesΓÇÖ was not declared in this scope; did you mean ΓÇÿAssignSelValuesΓÇÖ?
+shv/dll/src/LayerControl.cpp: ΓÇÿCOLOR_HIGHLIGHTTEXTΓÇÖ was not declared in this scope
+shv/dll/src/LayerControl.cpp: ΓÇÿCOLOR_HIGHLIGHTΓÇÖ was not declared in this scope; did you mean ΓÇÿCOLOR_PIX_HEIGHTΓÇÖ?
+shv/dll/src/LayerControl.cpp: ΓÇÿGetSysColorΓÇÖ was not declared in this scope; did you mean ΓÇÿGetBkColorΓÇÖ?
+shv/dll/src/LayerControl.cpp: ΓÇÿMFS_CHECKEDΓÇÖ was not declared in this scope; did you mean ΓÇÿMG_CHECK2ΓÇÖ?
+shv/dll/src/LayerSet.cpp: ΓÇÿInvalidateRectΓÇÖ was not declared in this scope; did you mean ΓÇÿInvalidateAtΓÇÖ?
+shv/dll/src/LayerSet.cpp: ΓÇÿusing std::__shared_ptr_access<DataView, __gnu_cxx::_S_atomic, false, false>::element_type = class DataViewΓÇÖ {aka ΓÇÿclass DataViewΓÇÖ} has no member named ΓÇÿGetHWndΓÇÖ; did you mean ΓÇÿResetHWndΓÇÖ?
+shv/dll/src/MapControl.cpp: ΓÇÿVK_CONTROLΓÇÖ was not declared in this scope
+shv/dll/src/MapControl.cpp: ΓÇÿVK_LEFTΓÇÖ was not declared in this scope; did you mean ΓÇÿRG_LEFTΓÇÖ?
+shv/dll/src/MapControl.cpp: ΓÇÿVK_RIGHTΓÇÖ was not declared in this scope; did you mean ΓÇÿRG_RIGHTΓÇÖ?
+shv/dll/src/MovableContainer.cpp: ΓÇÿAddClientLogicalOffsetΓÇÖ was not declared in this scope; did you mean ΓÇÿm_ClientLogicalSizeΓÇÖ?
+shv/dll/src/MovableObject.cpp: class ΓÇÿMovableObjectΓÇÖ does not have any field named ΓÇÿm_CursorΓÇÖ
+shv/dll/src/MovableObject.cpp: ΓÇÿHBITMAPΓÇÖ does not name a type
+shv/dll/src/MovableObject.cpp: ΓÇÿHCURSORΓÇÖ does not name a type
+shv/dll/src/MovableObject.cpp: ΓÇÿSetCursorΓÇÖ was not declared in this scope; did you mean ΓÇÿSetPassorΓÇÖ?
+shv/dll/src/MovableObject.cpp: ΓÇÿm_CursorΓÇÖ was not declared in this scope; did you mean ΓÇÿQCursorΓÇÖ?
+shv/dll/src/MovableObject.cpp: ΓÇÿusing std::__shared_ptr_access<DataView, __gnu_cxx::_S_atomic, false, false>::element_type = class DataViewΓÇÖ {aka ΓÇÿclass DataViewΓÇÖ} has no member named ΓÇÿGetHWndΓÇÖ; did you mean ΓÇÿResetHWndΓÇÖ?
+shv/dll/src/PaletteControl.cpp: ΓÇÿdefSymbolΓÇÖ was not declared in this scope; did you mean ΓÇÿFR_SymbolΓÇÖ?
+shv/dll/src/ScalableObject.cpp: ΓÇÿMFS_GRAYEDΓÇÖ was not declared in this scope
+shv/dll/src/ScrollPort.cpp: expected primary-expression before ΓÇÿdevPosΓÇÖ
+shv/dll/src/ScrollPort.cpp: expected primary-expression before ΓÇÿnettHeightΓÇÖ
+shv/dll/src/ScrollPort.cpp: expected primary-expression before ΓÇÿnettWidthΓÇÖ
+shv/dll/src/ScrollPort.cpp: expected primary-expression before ΓÇÿnrTPerGΓÇÖ
+shv/dll/src/ScrollPort.cpp: expected primary-expression before ΓÇÿscrollCmdΓÇÖ
+shv/dll/src/ScrollPort.cpp: expression list treated as compound expression in initializer [-fpermissive]
+shv/dll/src/ScrollPort.cpp: variable or field ΓÇÿRePosScrollBarΓÇÖ declared void
+shv/dll/src/ScrollPort.cpp: ΓÇÿCalcNewPosΓÇÖ cannot be used as a function
+shv/dll/src/ScrollPort.cpp: ΓÇÿCreateWindowExΓÇÖ was not declared in this scope
+shv/dll/src/ScrollPort.cpp: ΓÇÿDestroyWindowΓÇÖ was not declared in this scope
+shv/dll/src/ScrollPort.cpp: ΓÇÿGET_WHEEL_DELTA_WPARAMΓÇÖ was not declared in this scope
+shv/dll/src/ScrollPort.cpp: ΓÇÿGetInstanceΓÇÖ was not declared in this scope; did you mean ΓÇÿGetNrInstancesΓÇÖ?
+shv/dll/src/ScrollPort.cpp: ΓÇÿGetKeyStateΓÇÖ was not declared in this scope
+shv/dll/src/ScrollPort.cpp: ΓÇÿHMENUΓÇÖ was not declared in this scope
+shv/dll/src/ScrollPort.cpp: ΓÇÿHWNDΓÇÖ was not declared in this scope
+shv/dll/src/ScrollPort.cpp: ΓÇÿLPSTRΓÇÖ was not declared in this scope
+shv/dll/src/ScrollPort.cpp: ΓÇÿLPVOIDΓÇÖ was not declared in this scope
+shv/dll/src/ScrollPort.cpp: ΓÇÿRePosScrollBarΓÇÖ was not declared in this scope
+shv/dll/src/ScrollPort.cpp: ΓÇÿSBS_HORZΓÇÖ was not declared in this scope
+shv/dll/src/ScrollPort.cpp: ΓÇÿSBS_VERTΓÇÖ was not declared in this scope
+shv/dll/src/ScrollPort.cpp: ΓÇÿSB_CTLΓÇÖ was not declared in this scope
+shv/dll/src/ScrollPort.cpp: ΓÇÿSCROLLINFOΓÇÖ was not declared in this scope
+shv/dll/src/ScrollPort.cpp: ΓÇÿSIF_PAGEΓÇÖ was not declared in this scope
+shv/dll/src/ScrollPort.cpp: ΓÇÿSIF_POSΓÇÖ was not declared in this scope
+shv/dll/src/ScrollPort.cpp: ΓÇÿSIF_RANGEΓÇÖ was not declared in this scope
+shv/dll/src/ScrollPort.cpp: ΓÇÿSetScrollInfoΓÇÖ was not declared in this scope; did you mean ΓÇÿSetScrollXΓÇÖ?
+shv/dll/src/ScrollPort.cpp: ΓÇÿVK_DOWNΓÇÖ was not declared in this scope
+shv/dll/src/ScrollPort.cpp: ΓÇÿVK_ENDΓÇÖ was not declared in this scope
+shv/dll/src/ScrollPort.cpp: ΓÇÿVK_HOMEΓÇÖ was not declared in this scope
+shv/dll/src/ScrollPort.cpp: ΓÇÿVK_LEFTΓÇÖ was not declared in this scope; did you mean ΓÇÿRG_LEFTΓÇÖ?
+shv/dll/src/ScrollPort.cpp: ΓÇÿVK_RIGHTΓÇÖ was not declared in this scope; did you mean ΓÇÿRG_RIGHTΓÇÖ?
+shv/dll/src/ScrollPort.cpp: ΓÇÿVK_SHIFTΓÇÖ was not declared in this scope
+shv/dll/src/ScrollPort.cpp: ΓÇÿVK_UPΓÇÖ was not declared in this scope
+shv/dll/src/ScrollPort.cpp: ΓÇÿWHEEL_DELTAΓÇÖ was not declared in this scope
+shv/dll/src/ScrollPort.cpp: ΓÇÿWS_CHILDΓÇÖ was not declared in this scope; did you mean ΓÇÿECHILDΓÇÖ?
+shv/dll/src/ScrollPort.cpp: ΓÇÿhWndΓÇÖ was not declared in this scope
+shv/dll/src/ScrollPort.cpp: ΓÇÿm_HorScrollΓÇÖ was not declared in this scope; did you mean ΓÇÿOnHScrollΓÇÖ?
+shv/dll/src/ScrollPort.cpp: ΓÇÿm_HorScrollΓÇÖ was not declared in this scope; did you mean ΓÇÿhorScrollΓÇÖ?
+shv/dll/src/ScrollPort.cpp: ΓÇÿm_VerScrollΓÇÖ was not declared in this scope; did you mean ΓÇÿOnVScrollΓÇÖ?
+shv/dll/src/ScrollPort.cpp: ΓÇÿm_VerScrollΓÇÖ was not declared in this scope; did you mean ΓÇÿverScrollΓÇÖ?
+shv/dll/src/ScrollPort.cpp: ΓÇÿscrollInfoΓÇÖ was not declared in this scope
+shv/dll/src/ScrollPort.h: ΓÇÿHWNDΓÇÖ does not name a type
+shv/dll/src/ShvDllInterface.cpp: template argument 1 is invalid
+shv/dll/src/ShvDllInterface.cpp: ΓÇÿBOOLΓÇÖ does not name a type
+shv/dll/src/ShvDllInterface.cpp: ΓÇÿHINSTANCEΓÇÖ does not name a type
+shv/dll/src/ShvDllInterface.cpp: ΓÇÿMsgResultΓÇÖ does not name a type
+shv/dll/src/ShvDllInterface.cpp: ΓÇÿg_DispatchLockCountΓÇÖ was not declared in this scope
+shv/dll/src/ShvDllInterface.h: ΓÇÿMsgResultΓÇÖ does not name a type
+shv/dll/src/ShvUtils.cpp: shellscalingapi.h: No such file or directory
+shv/dll/src/TableControl.cpp: ΓÇÿGetKeyStateΓÇÖ was not declared in this scope
+shv/dll/src/TableControl.cpp: ΓÇÿIDC_ARROWΓÇÖ was not declared in this scope; did you mean ΓÇÿIDC_INFOARROWΓÇÖ?
+shv/dll/src/TableControl.cpp: ΓÇÿLoadCursorΓÇÖ was not declared in this scope; did you mean ΓÇÿQCursorΓÇÖ?
+shv/dll/src/TableControl.cpp: ΓÇÿSetViewPortCursorΓÇÖ was not declared in this scope
+shv/dll/src/TableControl.cpp: ΓÇÿVK_CONTROLΓÇÖ was not declared in this scope
+shv/dll/src/TableControl.cpp: ΓÇÿVK_DOWNΓÇÖ was not declared in this scope
+shv/dll/src/TableControl.cpp: ΓÇÿVK_ENDΓÇÖ was not declared in this scope
+shv/dll/src/TableControl.cpp: ΓÇÿVK_ESCAPEΓÇÖ was not declared in this scope
+shv/dll/src/TableControl.cpp: ΓÇÿVK_HOMEΓÇÖ was not declared in this scope
+shv/dll/src/TableControl.cpp: ΓÇÿVK_LEFTΓÇÖ was not declared in this scope; did you mean ΓÇÿRG_LEFTΓÇÖ?
+shv/dll/src/TableControl.cpp: ΓÇÿVK_NEXTΓÇÖ was not declared in this scope
+shv/dll/src/TableControl.cpp: ΓÇÿVK_PRIORΓÇÖ was not declared in this scope
+shv/dll/src/TableControl.cpp: ΓÇÿVK_RIGHTΓÇÖ was not declared in this scope; did you mean ΓÇÿRG_RIGHTΓÇÖ?
+shv/dll/src/TableControl.cpp: ΓÇÿVK_SHIFTΓÇÖ was not declared in this scope
+shv/dll/src/TableControl.cpp: ΓÇÿVK_TABΓÇÖ was not declared in this scope
+shv/dll/src/TableControl.cpp: ΓÇÿVK_UPΓÇÖ was not declared in this scope
+shv/dll/src/TableControl.cpp: ΓÇÿg_ShvDllInstanceΓÇÖ was not declared in this scope
+shv/dll/src/TableHeaderControl.cpp: ΓÇÿIDC_SIZEWEΓÇÖ was not declared in this scope
+shv/dll/src/TableHeaderControl.cpp: ΓÇÿLoadCursorΓÇÖ was not declared in this scope; did you mean ΓÇÿQCursorΓÇÖ?
+shv/dll/src/TableHeaderControl.cpp: ΓÇÿSetCursorΓÇÖ was not declared in this scope; did you mean ΓÇÿSetPassorΓÇÖ?
+shv/dll/src/TableViewControl.cpp: ΓÇÿMF_CHECKEDΓÇÖ was not declared in this scope; did you mean ΓÇÿMG_CHECK2ΓÇÖ?
+shv/dll/src/TableViewControl.cpp: ΓÇÿMF_UNCHECKEDΓÇÖ was not declared in this scope
+shv/dll/src/TextControl.cpp: expected primary-expression before ΓÇÿbkClrΓÇÖ
+shv/dll/src/TextControl.cpp: expected primary-expression before ΓÇÿboolΓÇÖ
+shv/dll/src/TextControl.cpp: expected primary-expression before ΓÇÿcolorΓÇÖ
+shv/dll/src/TextControl.cpp: expected primary-expression before ΓÇÿconstΓÇÖ
+shv/dll/src/TextControl.cpp: expected primary-expression before ΓÇÿintΓÇÖ
+shv/dll/src/TextControl.cpp: expected primary-expression before ΓÇÿrectΓÇÖ
+shv/dll/src/TextControl.cpp: expected primary-expression before ΓÇÿstrLenΓÇÖ
+shv/dll/src/TextControl.cpp: expected primary-expression before ΓÇÿtxtΓÇÖ
+shv/dll/src/TextControl.cpp: expression list treated as compound expression in initializer [-fpermissive]
+shv/dll/src/TextControl.cpp: variable or field ΓÇÿDrawEditTextΓÇÖ declared void
+shv/dll/src/TextControl.cpp: variable or field ΓÇÿDrawSymbolΓÇÖ declared void
+shv/dll/src/TextControl.cpp: variable or field ΓÇÿDrawTextΓÇÖ declared void
+shv/dll/src/TextControl.cpp: variable or field ΓÇÿTextOutLimitedΓÇÖ declared void
+shv/dll/src/TextControl.cpp: ΓÇÿHDCΓÇÖ was not declared in this scope
+shv/dll/src/TextControl.cpp: ΓÇÿHFONTΓÇÖ was not declared in this scope; did you mean ΓÇÿEBFONTΓÇÖ?
+shv/dll/src/TextControl.cpp: ΓÇÿIDC_IBEAMΓÇÖ was not declared in this scope
+shv/dll/src/TextControl.cpp: ΓÇÿLoadCursorΓÇÖ was not declared in this scope; did you mean ΓÇÿQCursorΓÇÖ?
+shv/dll/src/TextControl.cpp: ΓÇÿSetCursorΓÇÖ was not declared in this scope; did you mean ΓÇÿSetPassorΓÇÖ?
+shv/dll/src/TextControl.cpp: ΓÇÿVK_F2ΓÇÖ was not declared in this scope
+shv/dll/src/TextControl.cpp: ΓÇÿWCHARΓÇÖ was not declared in this scope
+shv/dll/src/TextControl.h: expected primary-expression before ΓÇÿbkClrΓÇÖ
+shv/dll/src/TextControl.h: expected primary-expression before ΓÇÿcolorΓÇÖ
+shv/dll/src/TextControl.h: expected primary-expression before ΓÇÿintΓÇÖ
+shv/dll/src/TextControl.h: expected primary-expression before ΓÇÿrectΓÇÖ
+shv/dll/src/TextControl.h: expected primary-expression before ΓÇÿstrLenΓÇÖ
+shv/dll/src/TextControl.h: expected primary-expression before ΓÇÿtxtΓÇÖ
+shv/dll/src/TextControl.h: variable or field ΓÇÿDrawSymbolΓÇÖ declared void
+shv/dll/src/TextControl.h: variable or field ΓÇÿDrawTextΓÇÖ declared void
+shv/dll/src/TextControl.h: variable or field ΓÇÿTextOutLimitedΓÇÖ declared void
+shv/dll/src/TextControl.h: ΓÇÿCLR_INVALIDΓÇÖ was not declared in this scope
+shv/dll/src/TextControl.h: ΓÇÿHDCΓÇÖ has not been declared
+shv/dll/src/TextControl.h: ΓÇÿHDCΓÇÖ was not declared in this scope
+shv/dll/src/TextControl.h: ΓÇÿHFONTΓÇÖ has not been declared
+shv/dll/src/TextControl.h: ΓÇÿHFONTΓÇÖ was not declared in this scope; did you mean ΓÇÿEBFONTΓÇÖ?
+shv/dll/src/TextControl.h: ΓÇÿWCHARΓÇÖ was not declared in this scope
+shv/dll/src/TextEditController.cpp: ΓÇÿGetKeyStateΓÇÖ was not declared in this scope
+shv/dll/src/TextEditController.cpp: ΓÇÿMessageBeepΓÇÖ was not declared in this scope
+shv/dll/src/TextEditController.cpp: ΓÇÿVK_BACKΓÇÖ was not declared in this scope
+shv/dll/src/TextEditController.cpp: ΓÇÿVK_CONTROLΓÇÖ was not declared in this scope
+shv/dll/src/TextEditController.cpp: ΓÇÿVK_DELETEΓÇÖ was not declared in this scope
+shv/dll/src/TextEditController.cpp: ΓÇÿVK_DOWNΓÇÖ was not declared in this scope
+shv/dll/src/TextEditController.cpp: ΓÇÿVK_ENDΓÇÖ was not declared in this scope
+shv/dll/src/TextEditController.cpp: ΓÇÿVK_ESCAPEΓÇÖ was not declared in this scope
+shv/dll/src/TextEditController.cpp: ΓÇÿVK_F2ΓÇÖ was not declared in this scope
+shv/dll/src/TextEditController.cpp: ΓÇÿVK_HOMEΓÇÖ was not declared in this scope
+shv/dll/src/TextEditController.cpp: ΓÇÿVK_LEFTΓÇÖ was not declared in this scope; did you mean ΓÇÿRG_LEFTΓÇÖ?
+shv/dll/src/TextEditController.cpp: ΓÇÿVK_MENUΓÇÖ was not declared in this scope
+shv/dll/src/TextEditController.cpp: ΓÇÿVK_RETURNΓÇÖ was not declared in this scope
+shv/dll/src/TextEditController.cpp: ΓÇÿVK_RIGHTΓÇÖ was not declared in this scope; did you mean ΓÇÿRG_RIGHTΓÇÖ?
+shv/dll/src/TextEditController.cpp: ΓÇÿVK_SHIFTΓÇÖ was not declared in this scope
+shv/dll/src/TextEditController.cpp: ΓÇÿVK_TABΓÇÖ was not declared in this scope
+shv/dll/src/TextEditController.cpp: ΓÇÿVK_UPΓÇÖ was not declared in this scope
+shv/dll/src/ViewHost.h: ΓÇÿHWNDΓÇÖ does not name a type
+shv/dll/src/dataview.h: template argument 2 is invalid
+shv/dll/src/dataview.h: template argument 4 is invalid
+shv/dll/src/dataview.h: ΓÇÿ<expression error>ΓÇÖ in namespace ΓÇÿstdΓÇÖ does not name a type
+shv/dll/src/dataview.h: ΓÇÿGdiHandleΓÇÖ does not name a type; did you mean ΓÇÿWinHandleΓÇÖ?
+shv/dll/src/dataview.h: ΓÇÿGdiHandleΓÇÖ was not declared in this scope; did you mean ΓÇÿWinHandleΓÇÖ?
+shv/dll/src/dataview.h: ΓÇÿHBRUSHΓÇÖ was not declared in this scope
+shv/dll/src/dataview.h: ΓÇÿHDCΓÇÖ has not been declared
+shv/dll/src/dataview.h: ΓÇÿHFONTΓÇÖ does not name a type; did you mean ΓÇÿEBFONTΓÇÖ?
+shv/dll/src/dataview.h: ΓÇÿHFONTΓÇÖ was not declared in this scope; did you mean ΓÇÿEBFONTΓÇÖ?
+shv/dll/src/dataview.h: ΓÇÿHWNDΓÇÖ does not name a type
+shv/dll/src/dataview.h: ΓÇÿHWNDΓÇÖ has not been declared
+shv/dll/src/dataview.h: ΓÇÿMsgResultΓÇÖ does not name a type
+stg/dll/src/Stg2Base.h: expected constructor, destructor, or type conversion before ΓÇÿ(ΓÇÖ token

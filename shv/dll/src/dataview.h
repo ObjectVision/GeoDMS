@@ -27,7 +27,9 @@
 #include "AbstrCaret.h"
 #include "ActivationInfo.h"
 #include "CounterStacks.h"
+#ifdef _WIN32
 #include "DcHandle.h"
+#endif
 #include "ExportInfo.h"
 #include "GraphicLayer.h"
 #include "GraphVisitor.h"
@@ -103,9 +105,10 @@ enum ViewStyleFlags : int {
 };
 
 //----------------------------------------------------------------------
-// struct : MsgStruct
+// struct : MsgStruct (Win32 message dispatch)
 //----------------------------------------------------------------------
 
+#ifdef _WIN32
 struct MsgStruct
 { 
 	MsgStruct(DataView* dv, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -122,6 +125,7 @@ struct MsgStruct
 
 	MsgResult Send() const;  // calls DataView::DispachMsg, and returns true if processed; else caller must call DefWindowProc
 };
+#endif // _WIN32
 
 const UInt32 DVF_InUpdateView     = actor_flag_set::AF_Next * 0x0001;
 const UInt32 DVF_HasFocus         = actor_flag_set::AF_Next * 0x0002;
@@ -174,7 +178,9 @@ struct MdiCreateStruct
 	CharPtr   caption = nullptr;
 	bool      makeOverlapped = true;
 	GPoint    maxSize = GPoint(600, 400);
+#ifdef _WIN32
 	HWND      hWnd = 0;
+#endif
 };
 
 //----------------------------------------------------------------------
@@ -218,8 +224,10 @@ public:
 	CrdPoint GetReverseFactors() const { auto sf = GetScaleFactors(); return { 1.0 / sf.first, 1.0 / sf.second }; }
 	CrdPoint Reverse(CrdPoint pnt) const { auto rf = GetReverseFactors();  pnt.X() *= rf.first; pnt.Y() *= rf.second; return pnt; }
 	CrdRect  Reverse(CrdRect rect) const { return CrdRect(Reverse(rect.first), Reverse(rect.second)); }
+	#ifdef _WIN32
 	HFONT   GetDefaultFont(FontSizeCategory fid, Float64 scaleFactor) const;
 	HFONT   GetDefaultFont(FontSizeCategory fid) const { return GetDefaultFont(fid, GetWindowDip2PixFactorY(GetHWnd())); }
+#endif
 
 	void SendStatusText(SeverityTypeID st, CharPtr msg) const;
 	SHV_CALL void SetStatusTextFunc(ClientHandle clientHandle, StatusTextFunc stf);
@@ -278,21 +286,29 @@ protected: // override virtuals of Actor
 private:
 	void InvalidateChangedGraphics();
 
+#ifdef _WIN32
 	void SetCaretsVisible(bool visibility, HDC dc); friend struct CaretHider;
+#endif
 	void UpdateTextCaret();
+#ifdef _WIN32
 	void ReverseCarets(HDC dc, bool newVisibleState);
+#endif
 	void ReverseCaretsImpl(DrawContext& dc, bool newVisibleState);
+#ifdef _WIN32
 	void ReverseSelCaretImpl(HDC hdc, const Region& selCaretRgn);
 	bool DispatchMouseEvent(EventID event, WPARAM modKeys, GPoint point);
 
 	// message handlers
 	void OnEraseBkgnd(HDC dc);
+#endif
 	void OnPaint();
 	void SetUpdateTimer(); friend struct IdleTimer;
 
+#ifdef _WIN32
 	void OnMouseMove(WPARAM nFlags, GPoint devicePoint);
 	void OnSize     (WPARAM nType,  GPoint deviceSize);
 	void OnCaptureChanged(HWND hWnd);
+#endif
 	void OnActivate(bool becomeActive);
 	void ProcessGuiOpers();
 	void OnCopyData(UINT cmd, const UInt32* first, const UInt32* last);
@@ -315,13 +331,17 @@ protected:
 	GPoint                        m_ViewDeviceSize = GPoint(0, 0);
 	TimeStamp                     m_CheckedTS;
 	mutable CounterStacks         m_DoneGraphics;
+#ifdef _WIN32
 	HWND                          m_hWnd;
+#endif
 	ViewHost*                     m_ViewHost = nullptr;
 	GPoint                        m_TextCaretPos;
 	Region                        m_SelCaret;
+#ifdef _WIN32
 	GdiHandle<HBRUSH>             m_SelBrush, m_BrdBrush;
 
 	mutable std::map<Float64, GdiHandle<HFONT> > m_DefaultFonts[static_cast<int>(FontSizeCategory::COUNT)];
+#endif
 
 	StatusTextCaller              m_StatusTextCaller;
 

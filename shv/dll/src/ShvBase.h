@@ -220,6 +220,9 @@ GraphVisitState GVS_BreakOnSuspended();
 #undef CreateDC
 
 extern HINSTANCE g_ShvDllInstance;
+#else
+// Linux: provide portable constants for Win32 types used in shv code
+#include "ShvCompat.h"
 #endif // _WIN32
 
 #endif // !defined(__SHV_BASE_H)

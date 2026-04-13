@@ -73,7 +73,9 @@ public:
 private:
 	CrdPoint m_NettSize = Point<CrdType>(0, 0);
 	GPoint m_NrLogicalUnitsPerTumpnailTick;
+#ifdef _WIN32
 	HWND   m_HorScroll =0, m_VerScroll =0;
+#endif
 
 	DECL_RTTI(SHV_CALL, Class);
 };

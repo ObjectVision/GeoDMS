@@ -30,6 +30,7 @@ granted by an additional written contract for support, assistance and/or develop
 #if !defined(__SHV_FONTROLE_H)
 #define __SHV_FONTROLE_H
 
+#include "ShvBase.h"
 #include "Aspect.h"
 
 enum FontRole { FR_Label, FR_Symbol, FR_Count = 2 };

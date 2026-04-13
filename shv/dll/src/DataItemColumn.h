@@ -167,7 +167,9 @@ private:
 	DmsColor  GetOrgColor(SizeT recNo, AspectNr a) const;
 	TextInfo  GetText    (SizeT recNo, SizeT maxLen, GuiReadLockPair& locks) const;
 	WCHAR     GetSymbol  (SizeT recNo) const;
+#ifdef _WIN32
 	HFONT     GetFont    (SizeT recNo, FontRole fr, Float64 subPixelFactor) const;
+#endif
 
 	void SetOrgColor(SizeT recNo, AspectNr a, DmsColor color);
 	void RampColors(AbstrDataObject* ado, SizeT firstRow, SizeT lastRow);

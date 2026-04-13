@@ -84,8 +84,10 @@ public:
 	// Drawing: execute callback with a DrawContext clipped to the given region
 	virtual void VH_DrawInContext(const Region& clipRgn, std::function<void(DrawContext&)> callback) = 0;
 
-	// Get the native window handle (temporary, for GDI drawing until Step 2 replaces it)
+	// Get the native window handle (Win32-only, for transitional GDI code)
+#ifdef _WIN32
 	virtual HWND VH_GetHWnd() const = 0;
+#endif
 };
 
 #endif // !defined(__SHV_VIEWHOST_H)
