@@ -106,6 +106,12 @@ The Win32 `ViewHost` implementation is kept temporarily but will be removed once
 - Tooltip code uses ViewHost abstraction when available, with Win32 fallback
 - **Windows build: OK**
 
+### Step 3e: VH_DrawInContext with QtDrawContext [b678ff3f]
+- `QDmsViewArea::VH_DrawInContext()` now creates `QPainter` and wraps it in `QtDrawContext`
+- Enables portable drawing for caret operations, offscreen rendering
+- Added `QPainter` and `QtDrawContext.h` includes to DmsViewArea.cpp
+- **Windows build: OK**
+
 ## Next Steps
 
 ### Step 4: Remove GDI wrappers
