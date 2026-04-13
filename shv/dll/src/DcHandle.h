@@ -212,54 +212,10 @@ private:
 };
 
 //----------------------------------------------------------------------
-// AddTransformation
+// Portable visitor helpers moved to GraphVisitor.h:
+//   AddTransformation, AddClientLogicalOffset,
+//   ClipDeviceRectSelector, VisitorDeviceRectSelector
 //----------------------------------------------------------------------
-
-class GraphVisitor;
-
-struct AddTransformation : private tmp_swapper<CrdTransformation>
-{
-	AddTransformation(GraphVisitor* v, const CrdTransformation& w2v);
-};
-
-//----------------------------------------------------------------------
-// AddClientLogicalOffset
-//----------------------------------------------------------------------
-
-struct AddClientLogicalOffset
-{
-	AddClientLogicalOffset(GraphVisitor* v, CrdPoint c2p);
-
-private:
-	tmp_swapper<CrdPoint> clientSwapper;
-};
-
-//----------------------------------------------------------------------
-// ClipRectSelector
-//----------------------------------------------------------------------
-
-struct ClipDeviceRectSelector : private tmp_swapper<GRect>
-{
-	ClipDeviceRectSelector(GRect& clipRect, const GRect& newClip)
-		:	tmp_swapper<GRect>(clipRect, newClip)
-	{
-		m_ResourceHandleRef &= m_ResourceHandleCopy; // newClip &= clipRect
-	}
-	bool empty() const 
-	{
-		return m_ResourceHandleRef.empty();
-	}
-};
-
-
-//----------------------------------------------------------------------
-// VistorRectSelector
-//----------------------------------------------------------------------
-
-struct VisitorDeviceRectSelector : ClipDeviceRectSelector
-{
-	VisitorDeviceRectSelector(GraphVisitor* v, GRect objRect);
-};
 
 
 //----------------------------------------------------------------------

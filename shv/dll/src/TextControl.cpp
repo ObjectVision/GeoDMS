@@ -29,8 +29,10 @@
 // see Community Comment at http://msdn.microsoft.com/en-us/library/windows/desktop/dd145133(v=vs.85).aspx
 
 //----------------------------------------------------------------------
-// DrawText funcs
+// DrawText funcs (Win32 GDI)
 //----------------------------------------------------------------------
+
+#ifdef _WIN32
 
 // TODO: scaled Font size, Set TextAlignMode
 void DrawSymbol(HDC dc, GRect rect, HFONT hFont, DmsColor color, DmsColor bkClr, WCHAR   symbolIndex)
@@ -298,6 +300,8 @@ void AbstrTextEditControl::DrawEditText(
 	else
 		DrawText(dc, rect, hFont, color, bkClr, txt);
 }
+
+#endif // _WIN32
 
 //----------------------------------------------------------------------
 // class  : EditableTextControl

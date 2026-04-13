@@ -55,7 +55,9 @@
 #include "LayerClass.h"
 #include "Theme.h"
 
+#ifdef _WIN32
 #include "shellscalingapi.h"
+#endif
 
 //----------------------------------------------------------------------
 // section : StatusText

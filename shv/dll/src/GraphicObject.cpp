@@ -738,7 +738,9 @@ bool GraphicObject::MouseEvent(MouseEventDispatcher& med)
 		{
 			dv->HideActiveTooltip();
 			dv->m_hoverStartLocation = med.r_EventInfo.m_Point;
+#ifdef _WIN32
 			SetTimer(dv->GetHWnd(), HOVER_TIMER_ID, 700, nullptr);
+#endif
 		}
 		return true;
 	}
@@ -846,7 +848,9 @@ IMPL_ABSTR_CLASS(GraphicObject)
 
 // =============================================== ToolTip
 
+#ifdef _WIN32
 #include <commctrl.h>
+#endif
 
 auto GetMovableObject(GraphicObject* obj) -> MovableObject*
 {

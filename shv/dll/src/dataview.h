@@ -203,11 +203,13 @@ public:
 
 //	composition
 	void BringToTop();
+#ifdef _WIN32
 	void DestroyWindow();
 	bool CreateMdiChild  (ViewStyle ct,     CharPtr caption);
 
 //	Operations
 	MsgResult DispatchMsg(const MsgStruct& msg);
+#endif
 	SHV_CALL bool OnKeyDown(UInt32 nVirtKey);
 
 //	Attributes
@@ -216,8 +218,10 @@ public:
 	TreeItem*      GetViewContext   () const { assert(m_ViewContext); return m_ViewContext.get(); }
 	TreeItem*      GetDesktopContext() const;
 
+	#ifdef _WIN32
 	SHV_CALL void ResetHWnd(HWND hWnd);
 	HWND     GetHWnd()        const { return m_ViewHost ? m_ViewHost->VH_GetHWnd() : m_hWnd; }
+#endif
 	SHV_CALL void SetViewHost(ViewHost* vh);
 	ViewHost* GetViewHost() const { return m_ViewHost; }
 	CrdPoint GetScaleFactors() const { assert(m_CurrScaleFactors.X() > 0.0 && m_CurrScaleFactors.Y() > 0.0);  return m_CurrScaleFactors; }
@@ -378,7 +382,9 @@ public:
 	void ClearActiveTooltipObject(const GraphicObject* obj) noexcept;
 
 	// Called by GraphicObject (lazy init) to access the tooltip HWND
+#ifdef _WIN32
 	HWND EnsureTooltipWindow();
+#endif
 
 	// Helpers used by watchdog
 	bool IsCursorInsideObject(const GraphicObject& obj) const noexcept;
@@ -388,17 +394,21 @@ public:
 	// Watchdog state
 	std::weak_ptr<const GraphicObject> m_activeTooltipObj;
 
+#ifdef _WIN32
 	static constexpr UINT_PTR kTipWatchTimerId = 2001;
 	static constexpr UINT     kTipWatchPeriodMs = 50;
+#endif
 
 	void StartTipWatchdog();
 	void StopTipWatchdog();
 
 	void HideActiveTooltip();
 
+#ifdef _WIN32
 	// Tooltip window (TOOLTIPS_CLASS)
 	HWND m_hwndTooltip = nullptr;
 	std::unique_ptr<wchar_t[]> m_ToolTipText;
+#endif
 };
 
 

@@ -33,11 +33,16 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "StgBase.h"
 
+#if !defined(_MSC_VER)
+#	undef DMSTG2DLL_EXPORTS
+#	define DMSTG2DLL_STATIC
+#endif
+
 #ifdef DMSTG2DLL_EXPORTS
 #	define STG2DLL_CALL __declspec(dllexport)
 #else
 #	ifdef DMSTG2DLL_STATIC
-#		define STGD2LL_CALL
+#		define STG2DLL_CALL
 #	else
 #		define STG2DLL_CALL __declspec(dllimport)
 #	endif
@@ -45,4 +50,4 @@ granted by an additional written contract for support, assistance and/or develop
 
 extern "C" STG2DLL_CALL void DMS_Stg2_Load();
 
-#endif __STG2_BASE_H
+#endif // __STG2_BASE_H

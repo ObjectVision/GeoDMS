@@ -116,7 +116,8 @@ void LayerSet::ProcessCollectionChange()
 	if (auto dv = GetDataView().lock())
 	{
 		dv->Invalidate();
-		InvalidateRect(dv->GetHWnd(), nullptr, true);
+		if (auto vh = dv->GetViewHost())
+			vh->VH_InvalidateRect(dv->ViewDeviceRect(), true);
 	}
 }
 

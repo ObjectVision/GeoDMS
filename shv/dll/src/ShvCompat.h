@@ -111,6 +111,37 @@ inline short GetKeyState(int /*vk*/) { return 0; } // TODO: connect to Qt key st
 inline HCURSOR LoadCursor(void* /*hInstance*/, HCURSOR id) { return id; }
 inline HCURSOR SetCursor(HCURSOR /*cursor*/) { return nullptr; } // TODO: connect to ViewHost cursor
 
+//----------------------------------------------------------------------
+// Color constants
+//----------------------------------------------------------------------
+
+#ifndef CLR_INVALID
+#define CLR_INVALID  0xFFFFFFFF
+#endif
+
+#ifndef COLOR_HIGHLIGHT
+#define COLOR_HIGHLIGHT       13
+#define COLOR_HIGHLIGHTTEXT   14
+#endif
+
+inline UInt32 GetSysColor(int index) { return (index == COLOR_HIGHLIGHTTEXT) ? 0x00FFFFFF : 0x000078D7; }
+
+#ifndef COLOR_BTNFACE
+#define COLOR_BTNFACE         15
+#endif
+
+//----------------------------------------------------------------------
+// Message box constants
+//----------------------------------------------------------------------
+
+#ifndef MB_ICONEXCLAMATION
+#define MB_ICONEXCLAMATION 0x00000030
+#define MB_YESNO           0x00000004
+#define IDYES              6
+#endif
+
+inline int MessageBoxA(void*, const char*, const char*, unsigned int) { return IDYES; } // TODO: Qt dialog
+
 #endif // !_WIN32
 
 #endif // __SHV_COMPAT_H

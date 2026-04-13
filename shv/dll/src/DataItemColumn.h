@@ -16,7 +16,9 @@
 #include "ThemeSet.h"
 
 struct FontIndexCache;
+#ifdef _WIN32
 struct FontArray;
+#endif
 
 // AggrMethods are related to the srcAttr of DataItemColumns
 // see DefaultAggrMethod(...) for getting a default aggregation method for a srcAttr
@@ -176,7 +178,9 @@ private:
 	void RampValues(AbstrDataObject* ado, SizeT firstRow, SizeT lastRow);
 
 	mutable std::unique_ptr<FontIndexCache> m_FontIndexCache;
+#ifdef _WIN32
 	mutable std::unique_ptr<FontArray>      m_FontArray;
+#endif
 
 	SharedDataItemInterestPtr m_FutureSrcAttr, m_FutureAggrAttr;
 

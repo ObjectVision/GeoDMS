@@ -23,8 +23,11 @@
 #include "TreeItemUtils.h"
 
 #include "DataView.h"
+#include "utl/Environment.h"
 
+#ifdef _WIN32
 std::vector<MsgStruct> g_MsgQueue;
+#endif
 
 //----------------------------------------------------------------------
 // C style Interface functions for class id retrieval
@@ -168,6 +171,8 @@ bool  DMS_CONV SHV_DataView_AddItem(DataView* dv, const TreeItem* viewItem, bool
 
 #include "dbg/debug.h"
 
+#ifdef _WIN32
+
 MsgResult DMS_CONV SHV_DataView_DispatchMessage(DataView* dv, HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	DMS_CALL_BEGIN
@@ -262,6 +267,8 @@ void OnDestroyDataView(DataView* self)
 	);
 }
 
+#endif // _WIN32
+
 ActorVisitState DataView_Update(DataView* self)
 {
 	DMS_CALL_BEGIN
@@ -335,21 +342,23 @@ void DMS_CONV SHV_SetCreateViewActionFunc(CreateViewActionFunc cvaf)
 *       DllMain and _pRawDllMain == NULL), just turn them off.  (WIN32-only)
 ******************************************************************************/
 
+#ifdef _WIN32
 HINSTANCE g_ShvDllInstance = 0;
 
 extern "C" BOOL WINAPI DllMain(
-        HANDLE  hDllHandle,
-        DWORD   dwReason,
-        LPVOID  lpreserved
-        )
+		HANDLE  hDllHandle,
+		DWORD   dwReason,
+		LPVOID  lpreserved
+		)
 {
 	g_ShvDllInstance = (HINSTANCE) hDllHandle;
 #if !defined (_MT) || defined (CRTDLL)
-        if ( dwReason == DLL_PROCESS_ATTACH && ! _pRawDllMain )
-                DisableThreadLibraryCalls(hDllHandle);
+		if ( dwReason == DLL_PROCESS_ATTACH && ! _pRawDllMain )
+				DisableThreadLibraryCalls(hDllHandle);
 #endif  /* !defined (_MT) || defined (CRTDLL) */
 	return TRUE ;
 }
+#endif // _WIN32
 
 static const TreeItem* g_LastQueriedItem    = 0;
 static bool            g_LastAdminMode      = false;

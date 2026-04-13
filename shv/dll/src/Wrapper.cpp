@@ -86,7 +86,7 @@ void Wrapper::Sync(TreeItem* context, ShvSyncMode sm)
 bool Wrapper::DataViewOK() const 
 {
 	auto dv = GetDataView().lock();
-	return dv && dv->GetHWnd(); 
+	return dv && dv->GetViewHost();
 }
 
 #endif

@@ -137,7 +137,11 @@ void ScrollPort::CalcNettSize()
 
 	omni::swap(m_NettSize, newNettSize);
 
+#ifdef _WIN32
 	bool hasScroll = m_HorScroll && m_VerScroll;
+#else
+	bool hasScroll = false;
+#endif
 	SetScrollX(horScroll);
 	SetScrollY(verScroll);
 	
@@ -175,9 +179,13 @@ void ScrollPort::GrowHor(CrdType deltaX, CrdType relPosX, const MovableObject* s
 		if (deltaX < 0)
 			base_type::GrowHor(deltaX, relPosX, 0);                  // maakt ruimte buiten kleiner
 
-		if ((m_HorScroll)
+		if (
+#ifdef _WIN32
+			(m_HorScroll)
 			?	deltaX <= 0
-			:	deltaX >= 0
+			:
+#endif
+				deltaX >= 0
 			)
 			return; // no invalidation required
 	}
@@ -201,14 +209,20 @@ void ScrollPort::GrowVer(CrdType deltaY, CrdType relPosY, const MovableObject* s
 		if (deltaY < 0)
 			base_type::GrowVer(deltaY, relPosY);  // maakt ruimte buiten kleiner en clipt DrawnFullSize
 
-		if ((m_VerScroll)
+		if (
+#ifdef _WIN32
+			(m_VerScroll)
 			?	deltaY <= 0
-			:	deltaY >= 0
+			:
+#endif
+				deltaY >= 0
 			)
 			return; // no invalidation required
 	}
 	InvalidateView();
 }
+
+#ifdef _WIN32
 
 void RePosScrollBar(HWND hScroll, GPoint devPos, GType nettWidth, GType nettHeight)
 {
@@ -368,6 +382,16 @@ void ScrollPort::OnVScroll(UInt16 scollCmd)
 		ScrollLogical(shp2dms_order<TType>(0, -(newPos + GetContents()->GetCurrClientRelPos().Y())) );
 }
 
+#else // !_WIN32
+
+void ScrollPort::SetScrollX(bool) {}
+void ScrollPort::SetScrollY(bool) {}
+void ScrollPort::SetScrollBars() {}
+void ScrollPort::OnHScroll(UInt16) {}
+void ScrollPort::OnVScroll(UInt16) {}
+
+#endif // _WIN32
+
 void ScrollPort::ScrollLogicalTo(CrdPoint newClientPos)
 {
 	ScrollLogical(newClientPos - Convert<CrdPoint>(GetContents()->GetCurrClientRelPos()) );
@@ -411,6 +435,7 @@ void ScrollPort::ScrollLogical(CrdPoint delta)
 		m_NrLogicalUnitsPerTumpnailTick.x = 1 + Width (contentExtents) / MaxValue<GType>();
 		m_NrLogicalUnitsPerTumpnailTick.y = 1 + Height(contentExtents) / MaxValue<GType>();
 
+#ifdef _WIN32
 		if (m_HorScroll)
 		{
 			SCROLLINFO scrollInfo;
@@ -435,6 +460,7 @@ void ScrollPort::ScrollLogical(CrdPoint delta)
 	//		scrollInfo.nTrackPos; 
 			SetScrollInfo(m_VerScroll, SB_CTL, &scrollInfo, true); // may Send msg's to SHV_DataView_DispatchMessage
 		}
+#endif // _WIN32
 	}
 	if (!(delta == Point<CrdType>(0,0)))
 		m_cmdOnScrolled();

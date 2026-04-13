@@ -42,7 +42,9 @@
 #include "ScrollPort.h"
 #include "GdiRegionUtil.h"
 
+#ifdef _WIN32
 #include "windowsx.h"
+#endif
 
 //    NOTOOLBAR    Customizable bitmap-button toolbar control.
 //    NOUPDOWN     Up and Down arrow increment/decrement control.

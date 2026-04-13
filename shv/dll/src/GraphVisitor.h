@@ -9,9 +9,12 @@
 
 #include "ptr/WeakPtr.h"
 #include "ptr/SharedPtr.h"
+#include "utl/Swapper.h"
 
 #include "DrawContext.h"
+#ifdef _WIN32
 #include "DcHandle.h"
+#endif
 #include "Region.h"
 #include "ShvUtils.h"
 
@@ -105,6 +108,41 @@ protected:
 	friend struct AddTransformation;
 	friend struct AddClientLogicalOffset;
 	friend struct VisitorDeviceRectSelector;
+};
+
+//----------------------------------------------------------------------
+// Portable visitor helper structs (moved from DcHandle.h)
+//----------------------------------------------------------------------
+
+struct AddTransformation : private tmp_swapper<CrdTransformation>
+{
+	AddTransformation(GraphVisitor* v, const CrdTransformation& w2v);
+};
+
+struct AddClientLogicalOffset
+{
+	AddClientLogicalOffset(GraphVisitor* v, CrdPoint c2p);
+
+private:
+	tmp_swapper<CrdPoint> clientSwapper;
+};
+
+struct ClipDeviceRectSelector : private tmp_swapper<GRect>
+{
+	ClipDeviceRectSelector(GRect& clipRect, const GRect& newClip)
+		:	tmp_swapper<GRect>(clipRect, newClip)
+	{
+		m_ResourceHandleRef &= m_ResourceHandleCopy; // newClip &= clipRect
+	}
+	bool empty() const 
+	{
+		return m_ResourceHandleRef.empty();
+	}
+};
+
+struct VisitorDeviceRectSelector : ClipDeviceRectSelector
+{
+	VisitorDeviceRectSelector(GraphVisitor* v, GRect objRect);
 };
 
 //----------------------------------------------------------------------

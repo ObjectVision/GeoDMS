@@ -30,13 +30,17 @@
 
 MovableObject::MovableObject(MovableObject* owner)
 	:	GraphicObject(owner)
+#ifdef _WIN32
 	,	m_Cursor(nullptr)
+#endif
 {}
 
 MovableObject::MovableObject(const MovableObject& src)
 	:	GraphicObject(0)
 	,	m_ClientLogicalSize(src.m_ClientLogicalSize)
+#ifdef _WIN32
 	,	m_Cursor(nullptr)
+#endif
 {}
 
 void MovableObject::SetBorder(bool hasBorder)
@@ -305,9 +309,9 @@ GraphVisitState MovableObject::InviteGraphVistor(AbstrVisitor& v)
 	return v.DoMovable(this);
 }
 
+#ifdef _WIN32
 HBITMAP MovableObject::GetAsDDBitmap(DataView* dv, CrdType subPixelFactor, MovableObject* extraObj)
 {
-#if defined(_WIN32)
 	auto scaleFactors = GetScaleFactors();
 	auto devSize = ScaleCrdPoint(CalcClientSize(), scaleFactors);
 	auto intSize = CrdPoint2GPoint(devSize);
@@ -349,10 +353,8 @@ HBITMAP MovableObject::GetAsDDBitmap(DataView* dv, CrdType subPixelFactor, Movab
 	}
 
 	return hBitmap.release();
-#else
-	return nullptr;
-#endif // _WIN32
 }
+#endif // _WIN32 (GetAsDDBitmap)
 
 #ifdef _WIN32
 void GetDIBitsWithBmp(BITMAPINFO& bmp, GPoint size, UInt32 bitCount, HDC hDc, HBITMAP hDDBitmap, void* pvBits)
@@ -458,7 +460,7 @@ void MovableObject::GrowHor(CrdType deltaX, CrdType relPosX, const MovableObject
 		m_ClientLogicalSize.X() += deltaX;
 	}
 
-	if (dv && dv->GetHWnd() && (!owner || owner->IsDrawn()) && IsVisible())
+	if (dv && dv->GetViewHost() && (!owner || owner->IsDrawn()) && IsVisible())
 	{
 		auto sf = GetScaleFactors();
 
@@ -556,7 +558,7 @@ void MovableObject::GrowVer(CrdType deltaY, CrdType relPosY, const MovableObject
 	}
 
 
-	if (dv && dv->GetHWnd() && ( !owner || owner->IsDrawn()) && IsVisible())
+	if (dv && dv->GetViewHost() && ( !owner || owner->IsDrawn()) && IsVisible())
 	{
 		auto sf = GetScaleFactors();
 
@@ -638,6 +640,7 @@ bool MovableObject::MouseEvent(MouseEventDispatcher& med)
 	return base_type::MouseEvent(med);
 }
 
+#ifdef _WIN32
 HCURSOR MovableObject::SetViewPortCursor(HCURSOR hCursor)
 {
 	if (m_Cursor != hCursor)
@@ -647,14 +650,17 @@ HCURSOR MovableObject::SetViewPortCursor(HCURSOR hCursor)
 	}
 	return hCursor;
 }
+#endif
 
 bool MovableObject::UpdateCursor() const
 {
+#ifdef _WIN32
 	if (m_Cursor)
 	{
 		SetCursor(m_Cursor);
 		return true;
 	}
+#endif
 	auto owner = m_Owner.lock();
 	if (!owner)
 		return false;
