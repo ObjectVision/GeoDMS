@@ -130,7 +130,7 @@ private:
 // class  : GraphDrawer
 //----------------------------------------------------------------------
 
-enum GdMode { 
+enum GdMode : int { 
 	GD_DrawBackground = 0x01
 ,	GD_UpdateData     = 0x02
 ,	GD_DrawData       = 0x04

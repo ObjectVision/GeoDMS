@@ -140,10 +140,24 @@ Remaining work:
 ### Step 5: Linux build (CMake)
 **Goal:** Build shv.dll and GeoDmsGuiQt on Linux via CMake + WSL.
 
-Key tasks:
-- Create CMakeLists.txt for shv/dll (find Qt6, link Qt6::Core Qt6::Gui)
-- Create CMakeLists.txt for qtgui/exe (link Qt6::Widgets)
-- Resolve any remaining `#ifdef _WIN32` gaps
+#### Step 5a: CMakeLists.txt for shv/dll and qtgui/exe
+- Created `shv/dll/CMakeLists.txt`:
+  - `DmShv` shared library, sources globbed from `src/*.cpp`
+  - Win32-only files (`Win32ViewHost.cpp`, `GdiDrawContext.cpp`, `DcHandle.cpp`) excluded on non-WIN32
+  - `DM_SHV_EXPORTS` compile definition (matches `ShvDllPch.h` / `ShvBase.h` guard)
+  - Links all DLL targets: DmRtc, DmSym, DmTic, DmStx, DmStg, DmClc, DmGeo
+  - Links Qt6::Core, Qt6::Gui (for QRegion, QRect, QPoint)
+  - Win32: links Shcore, comctl32, msimg32
+- Created `qtgui/exe/CMakeLists.txt`:
+  - `GeoDmsGuiQt` executable with AUTOMOC/AUTORCC/AUTOUIC
+  - Processes `GeoDmsGuiQt.qrc` and `res/ui/*.ui` files
+  - Links all DLL targets + DmShv + Qt6::Core, Qt6::Gui, Qt6::Widgets
+  - Win32: links Shcore, shell32; sets WIN32_EXECUTABLE
+  - Deploys font files to `bin/misc/fonts/`
+- Added `add_subdirectory(shv/dll)` and `add_subdirectory(qtgui/exe)` to top-level CMakeLists.txt
+
+#### Step 5b: Remaining tasks (TODO)
+- Resolve any remaining `#ifdef _WIN32` gaps found during Linux compilation
 - Handle platform differences: shared library loading, font paths, clipboard, etc.
 
 ## Key Technical Decisions

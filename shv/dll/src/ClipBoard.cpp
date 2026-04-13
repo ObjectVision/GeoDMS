@@ -15,12 +15,80 @@
 #include "ClipBoard.h"
 #include "ShvUtils.h"
 
-static UInt32    s_ClipBoardOpenCount = 0;
+#include <QClipboard>
+#include <QGuiApplication>
+#include <QMimeData>
+
 static SharedStr s_ClipBoardBuff;
 
 //----------------------------------------------------------------------
-// GlobalLockHandle
+// class  : ClipBoard (portable text via QClipboard)
 //----------------------------------------------------------------------
+
+ClipBoard::ClipBoard(bool wait)
+	: m_Success(QGuiApplication::instance() != nullptr)
+{
+}
+
+ClipBoard::~ClipBoard()
+{
+}
+
+void ClipBoard::Clear()
+{
+	dms_assert(m_Success);
+	auto* cb = QGuiApplication::clipboard();
+	if (cb) cb->clear();
+}
+
+SharedStr ClipBoard::GetText() const
+{
+	auto* cb = QGuiApplication::clipboard();
+	if (!cb) return SharedStr();
+	QByteArray utf8 = cb->text().toUtf8();
+	return SharedStr(utf8.constData(), utf8.constData() + utf8.size());
+}
+
+void ClipBoard::SetText(CharPtr text)
+{
+	SetText(text, text + StrLen(text));
+}
+
+void ClipBoard::SetText(CharPtr utf8Begin, CharPtr utf8End)
+{
+	dms_assert(m_Success);
+	auto* cb = QGuiApplication::clipboard();
+	if (!cb) return;
+	cb->setText(QString::fromUtf8(utf8Begin, utf8End - utf8Begin));
+}
+
+void ClipBoard::AddText(CharPtr text)
+{
+	dms_assert(m_Success);
+
+	s_ClipBoardBuff += text;
+	SetText( s_ClipBoardBuff.c_str() );
+}
+
+void ClipBoard::AddTextLine(CharPtr text)
+{
+	dms_assert(m_Success);
+
+	s_ClipBoardBuff += text;
+	s_ClipBoardBuff += "\n";
+	SetText( s_ClipBoardBuff.c_str() );
+}
+
+void ClipBoard::ClearBuff()
+{
+	s_ClipBoardBuff = SharedStr();
+}
+
+//----------------------------------------------------------------------
+// Win32-only: GlobalLockHandle, bitmap and raw data clipboard
+//----------------------------------------------------------------------
+
+#ifdef _WIN32
 
 GlobalLockHandle::GlobalLockHandle(HANDLE hMem)
 	:	m_hMem(hMem)
@@ -28,16 +96,13 @@ GlobalLockHandle::GlobalLockHandle(HANDLE hMem)
 {
 }
 
-HGLOBAL CheckedGlobalAlloc(_In_ UINT uFlags,
-	_In_ SIZE_T dwBytes
-)
+static HGLOBAL CheckedGlobalAlloc(UINT uFlags, SIZE_T dwBytes)
 {
 	auto result = GlobalAlloc(uFlags, dwBytes);
 	if (!result)
 		throwLastSystemError("CheckedGlobalAlloc(%s, %s bytes)", uFlags, dwBytes);
 	return result;
 }
-
 
 GlobalLockHandle::GlobalLockHandle(UInt32 size, UInt32 uFlags)
 	:	m_hMem(CheckedGlobalAlloc(uFlags, size))
@@ -50,11 +115,7 @@ GlobalLockHandle::~GlobalLockHandle()
 	GlobalUnlock(m_hMem);
 }
 
-//----------------------------------------------------------------------
-// class  : ClipBoard
-//----------------------------------------------------------------------
-
-bool LockClipBoard(bool wait)
+static bool LockWin32Clipboard(bool wait)
 {
 	do {
 		if (OpenClipboard(NULL))
@@ -65,173 +126,57 @@ bool LockClipBoard(bool wait)
 	} while (true);
 }
 
-ClipBoard::ClipBoard(bool wait) 
-{ 
-	m_Success = s_ClipBoardOpenCount || LockClipBoard(wait); 
-	if (m_Success) 
-		++s_ClipBoardOpenCount;
-	else
-		MessageBeep(-1);
-	assert(m_Success || !wait);
-}
-
-ClipBoard::~ClipBoard() 
-{ 
-	if (m_Success)
-	{
-		if (!--s_ClipBoardOpenCount)
-			CloseClipboard(); 
-	}
-}
-
-
-void ClipBoard::Clear()
+void ClipBoard::SetDIB(HBITMAP hBitmap)
 {
 	dms_assert(m_Success);
-	CheckedGdiCall(EmptyClipboard(), "EmptyClipboard");
+	if (!LockWin32Clipboard(false)) return;
+	EmptyClipboard();
+	SetClipboardData(CF_DIB, hBitmap);
+	CloseClipboard();
 }
 
-SharedStr ClipBoard::GetText() const
-{
-	void* handle = GetClipboardData(CF_TEXT);
-	if (handle)
-		return SharedStr( reinterpret_cast<CharPtr>( handle ) );
-	return SharedStr();
-}
-
-void ClipBoard::SetText(CharPtr text)
-{
-	SetText(text, text+StrLen(text));
-}
-
-bool IsUtf8TrailingByte(char x)
-{
-	return (x & 0xC0) == 0x80; // see https://en.wikipedia.org/wiki/UTF-8#Encoding 00 or 40 results are normal 7 bits utf8 ascii characters; C0
-}
-
-SizeT UTF8ToWideChar(CharPtr utf8Begin, CharPtr utf8End, wchar_t* destBuffer, SizeT destSize)
-{
-	const int MAX_MB2WC_CAPACITY = (1 << 30) - 1;
-	SizeT wCharSize = 0;
-	while (utf8Begin != utf8End)
-	{
-		SizeT utf8Size = (utf8End - utf8Begin);
-		if (utf8Size > MAX_MB2WC_CAPACITY)
-		{
-			utf8Size = MAX_MB2WC_CAPACITY;
-			while (IsUtf8TrailingByte(utf8Begin[utf8Size]))
-			{
-				utf8Size--;
-				if (utf8Size < MAX_MB2WC_CAPACITY - 4)
-					throwErrorF("UTF8ToWideChar", "Unexpected sequence of non-leading UTF8 bytes");
-			}
-		}
-		assert(utf8Size < std::numeric_limits<int>::max());
-		int destCurrMaxSize = std::numeric_limits<int>::max();
-		if (destSize < destCurrMaxSize)
-			destCurrMaxSize = destSize;
-		int ccWideChar = MultiByteToWideChar(CP_UTF8, 0, utf8Begin, int(utf8Size), destBuffer, destCurrMaxSize);
-		if (destBuffer != nullptr)
-		{
-			assert(ccWideChar <= destSize);
-			destBuffer += ccWideChar;
-			destSize -= ccWideChar;
-		}
-		utf8Begin += utf8Size;
-		wCharSize += ccWideChar;
-	}
-	assert(destSize == 0);
-	return wCharSize;
-}
-
-void ClipBoard::SetText(CharPtr utf8Begin, CharPtr utf8End)
-{
-	Clear();
-
-	dms_assert(m_Success);
-	SizeT textSize = (utf8End - utf8Begin);
-	MakeMin(textSize, MAX_VALUE(int));
-
-	auto ccWideChar = UTF8ToWideChar(utf8Begin, utf8End, nullptr, 0);
-	GlobalLockHandle data( GlobalAlloc(GMEM_MOVEABLE|GMEM_DDESHARE, (ccWideChar + 1)*sizeof(wchar_t)) );
-	LPWSTR unicodeText = reinterpret_cast<wchar_t*>(data.GetDataPtr());
-	UTF8ToWideChar(utf8Begin, utf8End, unicodeText, ccWideChar);
-	unicodeText[ccWideChar] = 0;
-
-	SetClipboardData(CF_UNICODETEXT, data.GetHandle());
-}
-
-void ClipBoard::SetData(UINT uFormat, const GlobalLockHandle& data )
+void ClipBoard::SetBitmap(HBITMAP hBitmap)
 {
 	dms_assert(m_Success);
-	Clear();
+	if (!LockWin32Clipboard(false)) return;
+	EmptyClipboard();
+	SetClipboardData(CF_BITMAP, hBitmap);
+	CloseClipboard();
+}
 
+void ClipBoard_SetData(ClipBoard& cb, UINT uFormat, const GlobalLockHandle& data)
+{
+	dms_assert(cb.IsOpen());
+	if (!LockWin32Clipboard(false)) return;
+	EmptyClipboard();
 	SetClipboardData(uFormat, data.GetHandle());
+	CloseClipboard();
+}
+
+void ClipBoard::SetData(UINT uFormat, CharPtr begin, CharPtr end)
+{
+	UInt32 dataSize = end - begin;
+	GlobalLockHandle data( GlobalAlloc(GMEM_MOVEABLE|GMEM_DDESHARE, dataSize) );
+	memcpy(data.GetDataPtr(), begin, dataSize);
+	ClipBoard_SetData(*this, uFormat, data);
 }
 
 HANDLE ClipBoard::GetData(UINT uFormat) const
 {
 	dms_assert(m_Success);
-
-	return GetClipboardData(uFormat);
-}
-
-void ClipBoard::SetData(UINT uFormat, CharPtr begin, CharPtr end)
-{
-	Clear();
-
-	UInt32 dataSize = end - begin;
-
-	GlobalLockHandle data( GlobalAlloc(GMEM_MOVEABLE|GMEM_DDESHARE, dataSize) );
-	
-	memcpy(data.GetDataPtr(), begin, dataSize);
-
-	ClipBoard::SetData(uFormat, data);
-}
-
-void ClipBoard::SetDIB(HBITMAP hBitmap)
-{
-	Clear();
-	dms_assert(m_Success);
-	SetClipboardData(CF_DIB, hBitmap);
-}
-
-void ClipBoard::SetBitmap(HBITMAP hBitmap)
-{
-	Clear();
-	dms_assert(m_Success);
-	SetClipboardData(CF_BITMAP, hBitmap);
-}
-
-void ClipBoard::AddText(CharPtr text)
-{
-	dms_assert(m_Success);
-
-	s_ClipBoardBuff += text;
-	SetText( s_ClipBoardBuff.c_str() );
-}
-
-
-void ClipBoard::AddTextLine(CharPtr text)
-{
-	dms_assert(m_Success);
-
-	s_ClipBoardBuff += text;
-	s_ClipBoardBuff += "\n";
-	SetText( s_ClipBoardBuff.c_str() );
-}
-
-
-void ClipBoard::ClearBuff()
-{
-	s_ClipBoardBuff = SharedStr();
+	if (!LockWin32Clipboard(false)) return nullptr;
+	HANDLE result = GetClipboardData(uFormat);
+	CloseClipboard();
+	return result;
 }
 
 UINT ClipBoard::GetCurrFormat()
 {
-	ClipBoard xxx(false);
-	if (!xxx.IsOpen())
+	if (!OpenClipboard(NULL))
 		return 0;
-	return EnumClipboardFormats(0);
-
+	UINT result = EnumClipboardFormats(0);
+	CloseClipboard();
+	return result;
 }
+
+#endif // _WIN32

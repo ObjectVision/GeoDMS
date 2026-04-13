@@ -72,7 +72,9 @@
     <ClCompile Include="src\DmsSplashScreen.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\FindTreeItemWindow.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="src\FindTreeItemWindow.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="src\DmsMainWindow.h">
@@ -140,7 +142,9 @@
     <ClInclude Include="src\QtDrawContext.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <QtMoc Include="src\FindTreeItemWindow.h"><Filter>Header Files</Filter></QtMoc>
+    <QtMoc Include="src\FindTreeItemWindow.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="GeoDmsGuiQt.rc" />
@@ -171,5 +175,6 @@
   </ItemGroup>
   <ItemGroup>
     <Text Include="DebugSettings.txt" />
+    <Text Include="CMakeLists.txt" />
   </ItemGroup>
 </Project>

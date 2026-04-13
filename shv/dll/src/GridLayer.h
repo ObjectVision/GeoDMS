@@ -14,7 +14,9 @@
 #include "GridLayerBase.h"
 
 template <typename T> struct AbstrRowProcessor;
+#ifdef _WIN32
 struct PasteHandler;
+#endif
 struct GridColorPalette;
 
 //----------------------------------------------------------------------
@@ -62,20 +64,26 @@ protected:
 
 
 	void CopySelValues ();
+#ifdef _WIN32
 	void PasteSelValuesDirect();
 	void PasteSelValues();
 	void PasteNow();
 	void ClearPaste();
+#endif
 
 public:
 	template <typename T> void SelectRegion(CrdRect worldRect, const AbstrRowProcessor<T>& rowProcessor, AbstrDataItem* selAttr, EventID eventID);
 
 private:
+#ifdef _WIN32
 	void InvalidatePasteArea(); friend class PasteGridController;
+#endif
 
 	CrdRect GetWorldExtents(feature_id featureIndex) const;
 	bool DrawAllRects(GraphDrawer& d, const GridColorPalette& colorPalette) const;
+#ifdef _WIN32
 	void DrawPaste   (GraphDrawer& d, const GridColorPalette& colorPalette) const;
+#endif
 
 	void Zoom1To1(ViewPort* vp) override;
 
@@ -85,7 +93,9 @@ private:
 
 	mutable SharedPtr<const AbstrUnit>    m_GeoCoordUnit;
 	mutable SelCaretPtr                   m_SelCaret;
+#ifdef _WIN32
 	mutable std::unique_ptr<PasteHandler> m_PasteHandler;
+#endif
 
 	DECL_RTTI(SHV_CALL, LayerClass);
 };

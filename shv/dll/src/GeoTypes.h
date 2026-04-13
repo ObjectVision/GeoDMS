@@ -147,7 +147,7 @@ struct GRect
 		: left(topLeft.x), top(topLeft.y), right(bottomRight.x), bottom(bottomRight.y)
 	{
 		assert(IsDefined(topLeft.x) && IsDefined(topLeft.y) && IsDefined(bottomRight.x) && IsDefined(bottomRight.y) 
-			|| !IsDefined(topLeft) && !IsDefined(bottomRight));
+			|| (!IsDefined(topLeft.x) && !IsDefined(topLeft.y) && !IsDefined(bottomRight.x) && !IsDefined(bottomRight.y)));
 	}
 
 	bool empty() const { return left >= right || top >= bottom; }

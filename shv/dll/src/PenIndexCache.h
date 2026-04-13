@@ -133,8 +133,10 @@ private: friend struct PenArray;
 
 
 //----------------------------------------------------------------------
-// struct  : PenArray
+// struct  : PenArray (Win32-only: GDI pen management)
 //----------------------------------------------------------------------
+
+#ifdef _WIN32
 
 #include "DcHandle.h"
 
@@ -160,6 +162,8 @@ private:
 	bool                       m_CurrPenIsExceptional = false;
 
 };
+
+#endif // _WIN32
 
 
 #endif // __SHV_PENINDEXCACHE_H

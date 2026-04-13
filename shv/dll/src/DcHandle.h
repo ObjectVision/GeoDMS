@@ -7,6 +7,8 @@
 #if !defined(__SHV_DCHANDLE_H)
 #define __SHV_DCHANDLE_H
 
+#ifdef _WIN32
+
 //----------------------------------------------------------------------
 // used modules and forward class references
 //----------------------------------------------------------------------
@@ -374,5 +376,6 @@ private:
 };
 
 
+#endif // _WIN32
 
 #endif // !defined(__SHV_DCHANDLE_H)

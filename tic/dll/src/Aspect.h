@@ -15,7 +15,7 @@
 // enum   : AspectID
 //----------------------------------------------------------------------
 
-enum AspectNr             // Grid Point Arc Poly Netw
+enum AspectNr : int             // Grid Point Arc Poly Netw
 {
 	AN_Feature,           // No   Yes   Yes  Yes Yes
 	AN_OrderBy,           // No   YES   YES  YES YES

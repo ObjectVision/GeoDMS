@@ -22,6 +22,11 @@
 #include <vector>
 #include <map>
 
+#if !defined(_MSC_VER)
+#	undef  DM_SHV_EXPORTS
+#	define DM_SHV_STATIC
+#endif
+
 #if defined(DM_SHV_EXPORTS)
 #	define SHV_CALL __declspec(dllexport)
 #else
@@ -89,16 +94,16 @@ struct Region;
 struct CounterStacks;
 struct EventInfo;
 
-enum AspectNr;
+enum AspectNr : int;
 enum class FontSizeCategory;
 
 using EventIdType = UInt32;
 enum class EventID : EventIdType;
 
-enum ShvSyncMode { SM_Load, SM_Save };
-enum ToolButtonID;
-enum ViewStyle;
-enum ViewStyleFlags;
+enum ShvSyncMode : int { SM_Load, SM_Save };
+enum ToolButtonID : int;
+enum ViewStyle : int;
+enum ViewStyleFlags : int;
 
 struct GridCoord;
 struct SelCaret;

@@ -49,7 +49,9 @@ struct StatusTextCaller
 // section : Instance
 //----------------------------------------------------------------------
 
+#ifdef _WIN32
 SHV_CALL HINSTANCE GetInstance(HWND hWnd);
+#endif
 
 //----------------------------------------------------------------------
 // section : CreateViewAction
@@ -122,7 +124,9 @@ std::shared_ptr<GraphicObject> CreateFromContext(TreeItem* context, GraphicObjec
 
 void CheckedGdiCall(bool result, CharPtr context);
 
+#ifdef _WIN32
 GPoint ScreenToClientGPoint(GPoint pt, HWND hWnd);
+#endif
 
 COLORREF GetFocusClr();
 COLORREF GetDefaultClr(UInt32 i);
@@ -134,6 +138,7 @@ COLORREF GetSelectedClr();
 // section : DrawBorder
 //----------------------------------------------------------------------
 
+#ifdef _WIN32
 void DrawButtonBorder(HDC dc, GRect& clientRect);
 void DrawReversedBorder(HDC dc, GRect& clientRect);
 inline void DrawBorder(HDC dc, GRect& clientRect, bool rev) 
@@ -147,13 +152,14 @@ inline void DrawBorder(HDC dc, GRect& clientRect, bool rev)
 void DrawRectDmsColor (HDC dc, const GRect& rect, DmsColor color);
 void FillRectDmsColor (HDC dc, const GRect& rect, DmsColor color);
 void FillRectWithBrush(HDC dc, const GRect& rect, HBRUSH br);
+#endif // _WIN32
 
 
 //----------------------------------------------------------------------
 // section : ToolButtonID
 //----------------------------------------------------------------------
 
-enum ToolButtonID // GeoDmsGui.exe: keep this list in sync with type ToolButtonID in fmDmsControl.pas
+enum ToolButtonID : int // GeoDmsGui.exe: keep this list in sync with type ToolButtonID in fmDmsControl.pas
 {
 	TB_ZoomAllLayers,               // Button Command
 	TB_ZoomActiveLayer,             // Button Command
@@ -241,13 +247,19 @@ enum class FontSizeCategory
 CharPtr GetDefaultFontName(FontSizeCategory fid);
 UInt32  GetDefaultFontHeightDIP(FontSizeCategory fid); // in Device Independent Pixels, which are assumed to be 1/96th of an inch.
 
+#ifdef _WIN32
 const WCHAR UNDEFINED_WCHAR = 0xFFFF;
+#else
+const char16_t UNDEFINED_WCHAR = 0xFFFF;
+#endif
 
+#ifdef _WIN32
 SHV_CALL Float64 GetWindowDip2PixFactorX(HWND hWnd);
 SHV_CALL Float64 GetWindowDip2PixFactorY(HWND hWnd);
 SHV_CALL Point<Float64> GetWindowDip2PixFactors(HWND hWnd);
 SHV_CALL Float64 GetWindowDip2PixFactor(HWND hWnd);
 SHV_CALL Point<Float64> GetWindowPix2DipFactors(HWND hWnd);
+#endif
 
 //----------------------------------------------------------------------
 // desktop data section

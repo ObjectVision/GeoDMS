@@ -49,9 +49,11 @@ add_subdirectory(stx/dll)
 add_subdirectory(stg/dll)
 add_subdirectory(clc/dll)
 add_subdirectory(geo/dll)
+add_subdirectory(shv/dll)
 
 # Executables
 add_subdirectory(run/exe)
+add_subdirectory(qtgui/exe)
 
 # Deploy resource files next to executables
 file(COPY ${CMAKE_SOURCE_DIR}/res/RewriteExpr.lsp DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})

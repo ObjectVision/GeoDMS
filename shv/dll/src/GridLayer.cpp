@@ -55,6 +55,7 @@ const UInt32 FOCUS_BORDER_FRAMEWIDTH =  2;
 const  Int32 FOCUS_BORDER_SIZE1      = FOCUS_BORDER_SIZE + FOCUS_BORDER_FRAMEWIDTH;
 
 
+#ifdef _WIN32
 const UINT CF_CELLVALUES = CF_PRIVATEFIRST;
 
 //----------------------------------------------------------------------
@@ -83,6 +84,7 @@ private:
 	OwningPtrSizedArray<BYTE>  m_SelValuesData;
 	SelValuesData*             m_SelValues;
 };
+#endif // _WIN32
 
 //----------------------------------------------------------------------
 // class  : GridLayer
@@ -726,6 +728,7 @@ GraphVisitState GridLayer::InviteGraphVistor(AbstrVisitor& v)
 
 #include "DataView.h"
 
+#ifdef _WIN32
 void GridLayer::CopySelValues()
 {
 	ClipBoard clipBoard(false); if (!clipBoard.IsOpen()) return;
@@ -777,7 +780,7 @@ void GridLayer::CopySelValues()
 		undefine_if_not(oldPtr, ptr, selArray + i);
 	}
 
-	clipBoard.SetData(CF_CELLVALUES, dataHandle); 
+	ClipBoard_SetData(clipBoard, CF_CELLVALUES, dataHandle); 
 
 }
 
@@ -808,12 +811,14 @@ void GridLayer::PasteSelValues()
 		InvalidatePasteArea();
 
 	m_PasteHandler = std::make_unique<PasteHandler>(dataHandle);
-	
+
 	GetViewPort()->PasteGrid(m_PasteHandler->GetSelValues(), this);
 	InvalidatePasteArea();
 	// CHECK values
 }
+#endif // _WIN32
 
+#ifdef _WIN32
 void GridLayer::InvalidatePasteArea()
 {
 	dms_assert(m_PasteHandler);
@@ -889,6 +894,7 @@ void GridLayer::ClearPaste()
 	InvalidatePasteArea();
 	m_PasteHandler.reset();
 }
+#endif // _WIN32
 
 void GridLayer::CopySelValuesToBitmap()
 {
@@ -1066,6 +1072,7 @@ bool GridLayer::DrawAllRects(GraphDrawer& d, const GridColorPalette& colorPalett
 	return false;
 }
 
+#ifdef _WIN32
 void GridLayer::DrawPaste(GraphDrawer& d, const GridColorPalette& colorPalette) const
 {
 	DBG_START("GridLayer", "DrawPaste", MG_DEBUG_REGION);
@@ -1122,6 +1129,7 @@ void GridLayer::DrawPaste(GraphDrawer& d, const GridColorPalette& colorPalette) 
 		}
 	}
 }
+#endif // _WIN32
 
 //	override virtuals of GraphicObject
 bool GridLayer::Draw(GraphDrawer& d) const 
@@ -1140,8 +1148,10 @@ bool GridLayer::Draw(GraphDrawer& d) const
 		if (DrawAllRects(d, colorPalette))
 			return true;
 
+#ifdef _WIN32
 		if (m_PasteHandler)
 			DrawPaste(d, colorPalette);
+#endif
 	}
 	if (m_Themes[AN_Selections])
 	{
@@ -1357,6 +1367,7 @@ void GridLayer::FillMenu(MouseEventDispatcher& med)
 			)
 		);	
 	}
+#ifdef _WIN32
 	if	(hasSelection)
 	{
 		dms_assert(IsVisible());
@@ -1379,6 +1390,7 @@ void GridLayer::FillMenu(MouseEventDispatcher& med)
 			)
 		);	
 	}
+#endif // _WIN32
 }
 
 GridCoordPtr GridLayerBase::GetGridCoordInfo(ViewPort* vp) const

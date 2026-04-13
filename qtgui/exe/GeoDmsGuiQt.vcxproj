@@ -225,6 +225,7 @@
     <QtUic Include="res\ui\DmsLocalMachineOptionsWindow.ui" />
   </ItemGroup>
   <ItemGroup>
+    <Text Include="CMakeLists.txt" />
     <Text Include="DebugSettings.txt" />
   </ItemGroup>
 </Project>

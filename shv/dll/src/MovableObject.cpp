@@ -354,6 +354,7 @@ HBITMAP MovableObject::GetAsDDBitmap(DataView* dv, CrdType subPixelFactor, Movab
 #endif // _WIN32
 }
 
+#ifdef _WIN32
 void GetDIBitsWithBmp(BITMAPINFO& bmp, GPoint size, UInt32 bitCount, HDC hDc, HBITMAP hDDBitmap, void* pvBits)
 {
 	bmp.bmiHeader.biSize          = sizeof(BITMAPINFOHEADER);
@@ -390,6 +391,12 @@ void MovableObject::CopyToClipboard(DataView* dv)
 		throwItemError("Cannot open Clipboard");
 	clipBoard.SetBitmap(hBmp);
 }
+#else // !_WIN32
+void MovableObject::CopyToClipboard(DataView* /*dv*/)
+{
+	// TODO: implement bitmap clipboard copy via QImage/QClipboard
+}
+#endif // _WIN32
 
 ControlRegion MovableObject::GetControlDeviceRegion(GType absX, bool isColOriented) const
 {

@@ -17,7 +17,7 @@
 #include "ShvUtils.h"
 
 enum ControlRegion { RG_MIDDLE, RG_LEFT, RG_RIGHT };
-enum GdMode;
+enum GdMode : int;
 
 //----------------------------------------------------------------------
 // class  : MovableObject
@@ -86,7 +86,9 @@ public:
 	CrdPoint GetBorderLogicalSize   () const;
 
 	void CopyToClipboard(DataView* dv);
+#ifdef _WIN32
 	HBITMAP GetAsDDBitmap(DataView* dv, CrdType subPixelFactor = 1.0, MovableObject* extraObj= nullptr);
+#endif
 
 	ControlRegion GetControlDeviceRegion(GType absX, bool isColOriented) const;
 
@@ -115,7 +117,9 @@ public:
 	bool HasElemBorder() const { return m_State.Get(DIC_HasElemBorder); }
 
 protected:
+#ifdef _WIN32
 	HCURSOR SetViewPortCursor(HCURSOR hCursor); friend class PasteGridController;
+#endif
 	bool GetTooltipText(TooltipCollector& ttc) const;
 
 private:
@@ -124,7 +128,9 @@ private:
 private:
 	CrdPoint m_RelPos            = Point<CrdType>(0, 0); // position of clients (0,0) in parents coordinate system, managed by container
 	CrdPoint m_ClientLogicalSize = Point<CrdType>(0, 0); // should be determined by DoUpdateView
+#ifdef _WIN32
 	HCURSOR m_Cursor;
+#endif
 
 	// =============================================== ToolTip
 	bool HitTest(GPoint ptClient) const noexcept override;

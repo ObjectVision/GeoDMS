@@ -21,14 +21,17 @@
 
 #define PS_GEOMETRIC_STYLE_MASK (0x07|0x00000300|0x00003000)
 
-//#define PS_SOLID            0
-//#define PS_DASH             1       /* -------  */
-//#define PS_DOT              2       /* .......  */
-//#define PS_DASHDOT          3       /* _._._._  */
-//#define PS_DASHDOTDOT       4       /* _.._.._  */
-//#define PS_NULL             5
-//#define PS_INSIDEFRAME      6
-//#define PS_USERSTYLE        7
+// Portable pen style constants (match Win32 GDI PS_* values)
+#ifndef PS_SOLID
+#define PS_SOLID            0
+#define PS_DASH             1
+#define PS_DOT              2
+#define PS_DASHDOT          3
+#define PS_DASHDOTDOT       4
+#define PS_NULL             5
+#define PS_INSIDEFRAME      6
+#define PS_USERSTYLE        7
+#endif
 
 //#define PS_ENDCAP_ROUND     0x00000000
 //#define PS_ENDCAP_SQUARE    0x00000100
@@ -208,8 +211,10 @@ void PenIndexCache::AddUndefinedKey() const
 }
 
 //----------------------------------------------------------------------
-// struct  : PenArray
+// struct  : PenArray (Win32-only)
 //----------------------------------------------------------------------
+
+#ifdef _WIN32
 
 PenArray::PenArray(HDC hDC, const PenIndexCache*& indexCache)
 	: m_hDC(hDC)
@@ -295,4 +300,6 @@ bool PenArray::SelectPen(UInt32 index)
 	SetPen(penHandle);
 	return true;
 }
+
+#endif // _WIN32
 

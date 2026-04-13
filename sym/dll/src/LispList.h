@@ -223,8 +223,9 @@ auto ExprList(TokenID t, Args&&... args)
 #include "ser/FormattedStream.h"
 
 template <class T>
-FormattedOutStream& operator <<(FormattedOutStream& output, LispListPtr<T> list)
+FormattedOutStream& operator <<(FormattedOutStream& output, const LispListPtr<T>& src)
 {
+	auto list = src;
 	output << "{";
 	while (!list.IsEmpty())
 	{

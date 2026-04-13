@@ -56,7 +56,7 @@ const int TIP_WATCH_TIMER_ID = 5;
 //----------------------------------------------------------------------
 
 // ViewStyle must be in sync with ilTreeview in unit fMain.dfm and TTreeItemViewStyle in uDmsInterface.pas
-enum ViewStyle {
+enum ViewStyle : int {
 //	Possible Default views
 	tvsMapView,
 	tvsTableView,
@@ -82,7 +82,7 @@ enum ViewStyle {
 
 SHV_CALL CharPtr GetViewStyleName(ViewStyle ct);
 	
-enum ViewStyleFlags {
+enum ViewStyleFlags : int {
 	vsfNone               = 0,
 	vsfMapView            = (1 << tvsMapView),
 	vsfTableView          = (1 << tvsTableView),
