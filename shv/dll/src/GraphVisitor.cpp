@@ -596,14 +596,17 @@ GraphVisitState GraphDrawer::DoMovable(MovableObject* obj)
 
 GraphVisitState GraphDrawer::DoLayerControlBase(LayerControlBase* lc)
 {
-	DmsColor textColor = (lc->GetLayerSetElem()->AllVisible())
-		? lc->GetDefaultTextColor()
-		: CombineRGB(160, 160, 160); // gray text color (portable)
 	auto* dc = GetDrawContext();
-	dc->SetTextColor(textColor);
+	if (dc)
+	{
+		DmsColor textColor = (lc->GetLayerSetElem()->AllVisible())
+			? lc->GetDefaultTextColor()
+			: CombineRGB(160, 160, 160); // gray text color (portable)
+		dc->SetTextColor(textColor);
 
-	auto fontHeight = GetDefaultFontHeightDIP(lc->GetFontSizeCategory()) * GetSubPixelFactor() * (96.0 / 72.0);
-	dc->SetFont("Noto Sans Medium", fontHeight, 0);
+		auto fontHeight = GetDefaultFontHeightDIP(lc->GetFontSizeCategory()) * (96.0 / 72.0);
+		dc->SetFont("Noto Sans Medium", fontHeight, 0);
+	}
 
 	return base_type::DoLayerControlBase(lc);
 }

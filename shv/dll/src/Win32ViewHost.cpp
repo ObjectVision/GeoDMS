@@ -200,6 +200,7 @@ void Win32ViewHost::VH_DrawInContext(const Region& clipRgn, std::function<void(D
 	HDC hdc = ::GetDC(m_hWnd);
 	if (!hdc)
 		return;
+	::SetBkMode(hdc, TRANSPARENT);
 	auto hrgn = RegionToHRGN(clipRgn);
 	::SelectClipRgn(hdc, hrgn);
 	GdiDrawContext ctx(hdc);

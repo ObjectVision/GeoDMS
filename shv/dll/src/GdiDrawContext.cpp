@@ -17,6 +17,8 @@
 #include "Region.h"
 #include "GdiRegionUtil.h"
 
+#include <vector>
+
 GdiDrawContext::~GdiDrawContext()
 {
 	if (m_OwnedFont)
@@ -107,7 +109,13 @@ void GdiDrawContext::DrawEllipse(const GRect& boundingRect, DmsColor color)
 void GdiDrawContext::TextOut(GPoint pos, CharPtr text, int len, DmsColor color)
 {
 	auto oldColor = ::SetTextColor(m_hDC, DmsColor2COLORREF(color));
-	::TextOutA(m_hDC, pos.x, pos.y, text, len);
+	int wLen = MultiByteToWideChar(CP_UTF8, 0, text, len, nullptr, 0);
+	if (wLen > 0)
+	{
+		std::vector<wchar_t> wBuf(wLen);
+		MultiByteToWideChar(CP_UTF8, 0, text, len, wBuf.data(), wLen);
+		::TextOutW(m_hDC, pos.x, pos.y, wBuf.data(), wLen);
+	}
 	::SetTextColor(m_hDC, oldColor);
 }
 
@@ -148,14 +156,26 @@ void GdiDrawContext::DrawText(const GRect& rect, CharPtr text, int len, UInt32 f
 {
 	auto oldColor = ::SetTextColor(m_hDC, DmsColor2COLORREF(color));
 	RECT r = AsRECT(rect);
-	::DrawTextA(m_hDC, text, len, &r, format);
+	int wLen = MultiByteToWideChar(CP_UTF8, 0, text, len, nullptr, 0);
+	if (wLen > 0)
+	{
+		std::vector<wchar_t> wBuf(wLen);
+		MultiByteToWideChar(CP_UTF8, 0, text, len, wBuf.data(), wLen);
+		::DrawTextW(m_hDC, wBuf.data(), wLen, &r, format);
+	}
 	::SetTextColor(m_hDC, oldColor);
 }
 
 GPoint GdiDrawContext::GetTextExtent(CharPtr text, int len)
 {
-	SIZE sz;
-	::GetTextExtentPoint32A(m_hDC, text, len, &sz);
+	SIZE sz = {};
+	int wLen = MultiByteToWideChar(CP_UTF8, 0, text, len, nullptr, 0);
+	if (wLen > 0)
+	{
+		std::vector<wchar_t> wBuf(wLen);
+		MultiByteToWideChar(CP_UTF8, 0, text, len, wBuf.data(), wLen);
+		::GetTextExtentPoint32W(m_hDC, wBuf.data(), wLen, &sz);
+	}
 	return GPoint(sz.cx, sz.cy);
 }
 
