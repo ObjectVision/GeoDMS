@@ -101,17 +101,17 @@ template <>
 struct ValueAdjuster<DmsColor>
 {
 	ValueAdjuster(const GridColorPalette* colorPalette)
-		:	m_UndefColor( Convert<RGBQUAD>( STG_Bmp_GetDefaultColor(CI_NODATA) ) )
+		:	m_UndefColor( STG_Bmp_GetDefaultColor(CI_NODATA) )
 	{
 		dms_assert(!colorPalette || ! colorPalette->GetPaletteCount() );
 	}
 
 	void operator ()(DmsColor& result) const { /* NOP */ }
 
-	DmsColor GetUndefValue() const { return *reinterpret_cast<const DmsColor*>(&m_UndefColor); } // last palette entry contains the UNDEF color
+	DmsColor GetUndefValue() const { return m_UndefColor; }
 
 private:
-	RGBQUAD m_UndefColor;
+	DmsColor m_UndefColor;
 };
 
 //----------------------------------------------------------------------
@@ -159,7 +159,7 @@ void GridFill(
 	,   bool                                                 isLastRun
 	)
 {
-	typename sequence_traits<PixelType>::pointer resultingClassIds = iter_creator<PixelType>()(gridDrawer->m_pvBits, 0);
+	typename sequence_traits<PixelType>::pointer resultingClassIds = iter_creator<PixelType>()(gridDrawer->m_PixelBuffer.data(), 0);
 
 	dms_assert(gridDrawer);
 	dms_assert(IsAligned4(resultingClassIds) );

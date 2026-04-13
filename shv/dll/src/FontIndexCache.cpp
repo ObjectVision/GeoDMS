@@ -217,8 +217,10 @@ Int32 FontIndexCache::GetMaxFontSize() const
 }
 
 //----------------------------------------------------------------------
-// struct  : FontArray
+// struct  : FontArray / SelectingFontArray (Win32-only)
 //----------------------------------------------------------------------
+
+#ifdef _WIN32
 
 FontArray::FontArray(const FontIndexCache* indexCache, bool sizesAreCellHeights)
 {
@@ -330,3 +332,5 @@ bool SelectingFontArray::SelectFontHandle(UInt32 index)
 		m_OrgHFont = reinterpret_cast<HFONT>(prevFontHandle);
 	return true;
 }
+
+#endif // _WIN32

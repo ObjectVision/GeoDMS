@@ -17,7 +17,9 @@ struct IndexCollector;
 class  Theme;
 class  DrawContext;
 
+#ifdef _WIN32
 template <typename HandleType> struct GdiHandle;
+#endif
 
 //----------------------------------------------------------------------
 // struct: SelValuesData
@@ -46,12 +48,22 @@ struct GridColorPalette
 	const AbstrUnit*        m_ClassIdUnit;
 
 	UInt32         GetPaletteCount() const { return m_Count; }
+	UInt32         GetBitCount()     const { return m_BitCount; }
+	const std::vector<UInt32>& GetPaletteColors() const { return m_PaletteColors; }
+#ifdef _WIN32
 	bool           IsReady        () const { return m_BitmapInfo; }
 	BITMAPINFO*    GetBitmapInfo(LONG width, LONG height) const;
+#else
+	bool           IsReady        () const { return m_BitCount > 0; }
+#endif
 
 private:
+#ifdef _WIN32
 	BITMAPINFO*             m_BitmapInfo;
+#endif
+	UInt32                  m_BitCount = 0;
 	UInt32                  m_Count = 0;
+	std::vector<UInt32>     m_PaletteColors;
 };
 
 //----------------------------------------------------------------------
@@ -101,8 +113,10 @@ struct GridDrawer: UnitProcessor
 	mutable GRect           m_sViewRect;
 	DrawContext*            m_DC;
 
-	mutable VOID*           m_pvBits; // DWORD Alignment per row
-	mutable std::vector<Byte> m_PixelBuffer; // portable pixel storage (used when no HDC)
+	#ifdef _WIN32
+	mutable void*           m_pvBits; // DWORD Alignment per row
+#endif
+	mutable std::vector<Byte> m_PixelBuffer; // portable pixel storage
 	mutable tile_id         m_TileID;
 	mutable IRect           m_TileRect;
 };

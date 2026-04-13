@@ -57,7 +57,12 @@ struct DmsColor2RgbQuadFunc
 {
 	UInt32 operator()(DmsColor x) const
 	{
+#ifdef _WIN32
 		return reinterpret_cast<UInt32&>( Convert<RGBQUAD>( x) );
+#else
+		// RGBQUAD layout: Blue, Green, Red, Reserved (same as DmsColor byte order on little-endian)
+		return x;
+#endif
 	}
 };
 
@@ -89,7 +94,9 @@ struct ConvertThemeValue2ClassIndexFunc
 GridColorPalette::GridColorPalette(const Theme* colorTheme)
 	:	m_ColorTheme (colorTheme)
 	,	m_ClassIdUnit(colorTheme ? colorTheme->GetClassIdUnit() : nullptr)
+#ifdef _WIN32
 	,	m_BitmapInfo(0)
+#endif
 {
 	bool usePalette = colorTheme && colorTheme->GetPaletteAttr();
 
@@ -125,6 +132,9 @@ GridColorPalette::GridColorPalette(const Theme* colorTheme)
 	else
 		m_Count = 0;
 
+	m_BitCount = bitCount;
+
+#ifdef _WIN32
 	m_BitmapInfo = reinterpret_cast<BITMAPINFO*>(new Byte[sizeof(BITMAPINFOHEADER) + (m_Count * sizeof(RGBQUAD))] );
 
 	BITMAPINFOHEADER& bmiHeader = m_BitmapInfo->bmiHeader;
@@ -139,6 +149,7 @@ GridColorPalette::GridColorPalette(const Theme* colorTheme)
 	bmiHeader.biYPelsPerMeter = 0;
 	bmiHeader.biClrUsed       = m_Count;
 	bmiHeader.biClrImportant  = m_Count;
+#endif
 
 	if (usePalette)
 	{
@@ -153,31 +164,56 @@ GridColorPalette::GridColorPalette(const Theme* colorTheme)
 		const UInt32* palettePtr = paletteData.begin();
 		const UInt32* paletteEnd = paletteData.end();
 
-		RGBQUAD* colorPtr = m_BitmapInfo->bmiColors;
+		m_PaletteColors.resize(m_Count);
+		UInt32 i = 0;
 
-		for (; palettePtr != paletteEnd; ++colorPtr, ++palettePtr)
+#ifdef _WIN32
+		RGBQUAD* colorPtr = m_BitmapInfo->bmiColors;
+		for (; palettePtr != paletteEnd; ++colorPtr, ++palettePtr, ++i)
+		{
 			*colorPtr = Convert<RGBQUAD>( *palettePtr);
+			m_PaletteColors[i] = *palettePtr;
+		}
 
 		UInt32 paletteCount = m_ClassIdUnit->GetCount();
+		for (UInt32 j = paletteData.size(), e = paletteCount; j != e; ++j, ++i)
+		{
+			auto c = STG_Bmp_GetDefaultColor( j & 0xFF );
+			*colorPtr++ = Convert<RGBQUAD>( c );
+			m_PaletteColors[i] = c;
+		}
 
-		// NYI: use default colors if PaletteAttr is not or partially provided
-		for (UInt32 i = paletteData.size(), e = paletteCount; i != e; ++i)
-			*colorPtr++ = Convert<RGBQUAD>( STG_Bmp_GetDefaultColor( i & 0xFF ));
-
-		// provide color for NODATA
 		if (paletteCount != m_Count)
-			*colorPtr++ = Convert<RGBQUAD>( STG_Bmp_GetDefaultColor(CI_NODATA) );
+		{
+			auto c = STG_Bmp_GetDefaultColor(CI_NODATA);
+			*colorPtr++ = Convert<RGBQUAD>( c );
+			m_PaletteColors[i] = c;
+		}
 		dms_assert(colorPtr == m_BitmapInfo->bmiColors + m_Count);
+#else
+		for (; palettePtr != paletteEnd; ++palettePtr, ++i)
+			m_PaletteColors[i] = *palettePtr;
+
+		UInt32 paletteCount = m_ClassIdUnit->GetCount();
+		for (UInt32 j = paletteData.size(), e = paletteCount; j != e; ++j, ++i)
+			m_PaletteColors[i] = STG_Bmp_GetDefaultColor( j & 0xFF );
+
+		if (paletteCount != m_Count)
+			m_PaletteColors[i] = STG_Bmp_GetDefaultColor(CI_NODATA);
+#endif
 	}
 }
 
 
 GridColorPalette::~GridColorPalette()
 {
+#ifdef _WIN32
 	delete [] reinterpret_cast<Byte*>(m_BitmapInfo);
 	m_BitmapInfo = NULL;
+#endif
 }
 
+#ifdef _WIN32
 BITMAPINFO* GridColorPalette::GetBitmapInfo(LONG width, LONG height) const
 {
 	dms_assert(m_BitmapInfo);
@@ -185,6 +221,7 @@ BITMAPINFO* GridColorPalette::GetBitmapInfo(LONG width, LONG height) const
 	m_BitmapInfo->bmiHeader.biHeight= height;
 	return m_BitmapInfo;
 }
+#endif
 
 //----------------------------------------------------------------------
 // class  : GridDrawer
@@ -207,7 +244,9 @@ GridDrawer::GridDrawer(
 	,	m_DC           (drawContext)
 	,	m_TileID       (t)
 	,	m_TileRect     (tileRect)
+#ifdef _WIN32
 	,	m_pvBits       (nullptr)
+#endif
 {
 	dms_assert(m_GridCoords);
 	dms_assert(colorPalette && colorPalette->IsReady());
@@ -218,8 +257,8 @@ void GridDrawer::Apply() const
 	dms_assert(!m_sViewRect.empty()); // PRECONDITION, Callers responsibility
 	AllocatePixelBuffer();
 	dms_assert(m_ColorPalette);
-	dms_assert(m_pvBits != nullptr);
-	if ((m_pvBits != nullptr))
+	dms_assert(!m_PixelBuffer.empty());
+	if (!m_PixelBuffer.empty())
 		m_ColorPalette->m_ClassIdUnit->InviteUnitProcessor(*this);
 }
 
@@ -395,8 +434,7 @@ INSTANTIATE_DOMAIN_INTS
 void GridDrawer::AllocatePixelBuffer() const
 {
 	dms_assert(m_ColorPalette);
-	BITMAPINFO* bitmapInfo = m_ColorPalette->GetBitmapInfo(m_sViewRect.Width(), m_sViewRect.Height());
-	int bitsPerPixel = bitmapInfo->bmiHeader.biBitCount;
+	int bitsPerPixel = m_ColorPalette->GetBitCount();
 	int width = m_sViewRect.Width();
 	int height = m_sViewRect.Height();
 
@@ -405,22 +443,23 @@ void GridDrawer::AllocatePixelBuffer() const
 	int bufferSize = bytesPerRow * height;
 
 	m_PixelBuffer.resize(bufferSize, 0);
+#ifdef _WIN32
 	m_pvBits = m_PixelBuffer.data();
+#endif
 }
 
 void GridDrawer::CopyToDrawContext(GPoint viewportOffset) const
 {
-	if (!m_DC || !m_pvBits)
+	if (!m_DC || m_PixelBuffer.empty())
 		return;
 
 	dms_assert(m_ColorPalette);
-	BITMAPINFO* bitmapInfo = m_ColorPalette->GetBitmapInfo(m_sViewRect.Width(), m_sViewRect.Height());
-	int bitsPerPixel = bitmapInfo->bmiHeader.biBitCount;
-	int paletteCount = bitmapInfo->bmiHeader.biClrUsed;
-	const void* palette = (paletteCount > 0) ? bitmapInfo->bmiColors : nullptr;
+	int bitsPerPixel = m_ColorPalette->GetBitCount();
+	UInt32 paletteCount = m_ColorPalette->GetPaletteCount();
+	const void* palette = (paletteCount > 0) ? m_ColorPalette->GetPaletteColors().data() : nullptr;
 
 	GRect destRect = m_sViewRect + viewportOffset;
-	m_DC->DrawImage(destRect, m_pvBits, m_sViewRect.Width(), m_sViewRect.Height(),
+	m_DC->DrawImage(destRect, m_PixelBuffer.data(), m_sViewRect.Width(), m_sViewRect.Height(),
 		bitsPerPixel, palette, paletteCount);
 }
 

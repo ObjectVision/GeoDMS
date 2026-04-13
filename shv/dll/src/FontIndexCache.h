@@ -75,8 +75,10 @@ private: friend struct FontArray;
 
 
 //----------------------------------------------------------------------
-// struct  : FontArray
+// struct  : FontArray / SelectingFontArray (Win32-only: GDI font management)
 //----------------------------------------------------------------------
+
+#ifdef _WIN32
 
 #include "DcHandle.h"
 
@@ -112,6 +114,8 @@ private:
 	HDC                    m_hDC;
 	HFONT                  m_OrgHFont;
 };
+
+#endif // _WIN32
 
 #endif // __SHV_FONDINDEXCACHE_H
 
