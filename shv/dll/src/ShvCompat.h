@@ -70,6 +70,29 @@ using HCURSOR = void*;
 #endif
 
 //----------------------------------------------------------------------
+// Mouse key flags (used by DispatchMouseEvent)
+//----------------------------------------------------------------------
+
+#ifndef MK_CONTROL
+#define MK_CONTROL  0x0008
+#define MK_SHIFT    0x0004
+#define MK_LBUTTON  0x0001
+#define MK_RBUTTON  0x0002
+#define MK_MBUTTON  0x0010
+#endif
+
+//----------------------------------------------------------------------
+// ShowWindow constants (used by UpdateChildViews)
+//----------------------------------------------------------------------
+
+#ifndef SW_HIDE
+#define SW_HIDE            0
+#define SW_SHOWNORMAL      1
+#define SW_SHOWMINIMIZED   2
+#define SW_SHOWMAXIMIZED   3
+#endif
+
+//----------------------------------------------------------------------
 // Mouse wheel
 //----------------------------------------------------------------------
 

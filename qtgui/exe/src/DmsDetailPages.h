@@ -1,5 +1,5 @@
 #include <QPointer>
-#include <qtextbrowser>
+#include <QTextBrowser>
 #include <QAbstractButton>
 #include "UpdatableBrowser.h"
 

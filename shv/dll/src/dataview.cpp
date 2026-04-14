@@ -367,6 +367,8 @@ HFONT DataView::GetDefaultFont(FontSizeCategory fid, Float64 dip2pixFactor) cons
 	return m_DefaultFonts[static_cast<int>(fid)][dip2pixFactor];
 }
 
+#endif // _WIN32 (DestroyWindow, GetDefaultFont)
+
 void DataView::InsertCaret(AbstrCaret* c)
 { 
 	DBG_START("DataView", "InsertCaret", MG_DEBUG_CARET);
@@ -461,14 +463,18 @@ void DataView::UpdateTextCaret()
 		{
 			if (m_ViewHost)
 				m_ViewHost->VH_CreateTextCaret(2, 16);
+#ifdef _WIN32
 			else
 				::CreateCaret(m_hWnd, NULL, 2, 16);
+#endif
 		}
 
 		if (m_ViewHost)
 			m_ViewHost->VH_SetTextCaretPos(m_TextCaretPos);
+#ifdef _WIN32
 		else
 			::SetCaretPos(m_TextCaretPos.x, m_TextCaretPos.y);
+#endif
 
 		if (!m_State.Get(DVF_TextCaretCreated))
 		{
@@ -476,8 +482,10 @@ void DataView::UpdateTextCaret()
 			{
 				if (m_ViewHost)
 					m_ViewHost->VH_ShowTextCaret();
+#ifdef _WIN32
 				else
 					::ShowCaret(m_hWnd);
+#endif
 			}
 			m_State.Set(DVF_TextCaretCreated);
 		}
@@ -490,18 +498,23 @@ void DataView::UpdateTextCaret()
 			{
 				if (m_ViewHost)
 					m_ViewHost->VH_HideTextCaret();
+#ifdef _WIN32
 				else
 					::HideCaret(m_hWnd);
+#endif
 			}
 			if (m_ViewHost)
 				m_ViewHost->VH_DestroyTextCaret();
+#ifdef _WIN32
 			else
 				::DestroyCaret();
+#endif
 			m_State.Clear(DVF_TextCaretCreated);
 		}
 	}
 }
 
+#ifdef _WIN32
 void DataView::SetCaretsVisible(bool visibility, HDC dc)
 {
 	DBG_START("DataView", "SetCaretsVisible", MG_DEBUG_CARET);
@@ -546,6 +559,7 @@ void DataView::ReverseCarets(HDC hdc, bool newVisibleState)
 		});
 	}
 }
+#endif // _WIN32
 
 void DataView::ReverseCaretsImpl(DrawContext& dc, bool newVisibleState)
 {
@@ -560,9 +574,9 @@ void DataView::ReverseCaretsImpl(DrawContext& dc, bool newVisibleState)
 
 
 
+#ifdef _WIN32
 void DataView::ReverseSelCaretImpl(HDC hdc, const Region& selCaretRgn)
 {
-#if defined(_WIN32)
 	if (!m_SelBrush)
 	{
 		struct {
@@ -587,10 +601,8 @@ void DataView::ReverseSelCaretImpl(HDC hdc, const Region& selCaretRgn)
 	}
 	auto hSelRgn = RegionToHRGN(selCaretRgn);
 	FillRgn (hdc, hSelRgn, m_SelBrush);
-#endif
 }
-
-#endif // _WIN32 (DestroyWindow through ReverseSelCaretImpl)
+#endif // _WIN32 (ReverseSelCaretImpl)
 
 void DataView::SetSelCaret(Region& newSelCaret)
 {
@@ -963,15 +975,24 @@ void DataView::OnTimer(UInt32 timerId)
 #ifdef _WIN32
 		else
 			KillTimer(GetHWnd(), HOVER_TIMER_ID);
+#endif
 
-		GPoint ptScreen;
+		GPoint ptScreen{};
+		GPoint ptClient{};
 		if (m_ViewHost)
+		{
 			m_ViewHost->VH_GetCursorScreenPos(ptScreen);
+			ptClient = m_ViewHost->VH_ScreenToClient(ptScreen);
+		}
+#ifdef _WIN32
 		else
+		{
 			GetCursorPos(&AsPOINT(ptScreen));
-		GPoint ptClient = m_ViewHost
-			? m_ViewHost->VH_ScreenToClient(ptScreen)
-			: [&]() { GPoint p = ptScreen; ScreenToClient(GetHWnd(), &AsPOINT(p)); return p; }();
+			ptClient = ptScreen;
+			ScreenToClient(GetHWnd(), &AsPOINT(ptClient));
+		}
+#endif
+
 		if (ptClient == m_hoverStartLocation)
 		{
 			TooltipCollector ttc(this, ptClient);
@@ -980,32 +1001,44 @@ void DataView::OnTimer(UInt32 timerId)
 			{
 				assert(m_activeTooltipObj.lock().get());
 
-				m_ToolTipText = Utf8_2_wchar(ttc.m_Buff.AsString());
+				GPoint tipPos = { ptScreen.x + 32, ptScreen.y + 10 };
 
-				HWND hwndTT = EnsureTooltipWindow();
-
-				TOOLINFOW ti{};
-				ti.cbSize = TTTOOLINFOW_V2_SIZE;
-				ti.uFlags = TTF_TRACK | TTF_ABSOLUTE;
-				ti.hwnd = GetHWnd();
-				ti.uId = (UINT_PTR)this;
-				ti.rect = AsRECT(CrdRect2GRect(ttc.m_DevRect));
-				ti.lpszText = m_ToolTipText.get();
-
-				if (!SendMessageW(hwndTT, TTM_UPDATETIPTEXTW, 0, (LPARAM)&ti))
-					SendMessageW(hwndTT, TTM_ADDTOOLW, 0, (LPARAM)&ti);
+				if (m_ViewHost)
+				{
+					// Portable: use ViewHost tooltip
+					auto tooltipText = ttc.m_Buff.AsString();
+					m_ViewHost->VH_ShowTooltip(tipPos, tooltipText.c_str());
+					StartTipWatchdog();
+				}
+#ifdef _WIN32
 				else
-					SendMessageW(hwndTT, TTM_NEWTOOLRECTW, 0, (LPARAM)&ti);
+				{
+					// Win32 fallback: use native tooltip control
+					m_ToolTipText = Utf8_2_wchar(ttc.m_Buff.AsString());
 
-				ptScreen.x += 32;
-				ptScreen.y += 10;
-				SendMessageW(hwndTT, TTM_TRACKPOSITION, 0, MAKELONG(ptScreen.x, ptScreen.y));
-				SendMessageW(hwndTT, TTM_TRACKACTIVATE, TRUE, (LPARAM)&ti);
+					HWND hwndTT = EnsureTooltipWindow();
 
-				StartTipWatchdog();
+					TOOLINFOW ti{};
+					ti.cbSize = TTTOOLINFOW_V2_SIZE;
+					ti.uFlags = TTF_TRACK | TTF_ABSOLUTE;
+					ti.hwnd = GetHWnd();
+					ti.uId = (UINT_PTR)this;
+					ti.rect = AsRECT(CrdRect2GRect(ttc.m_DevRect));
+					ti.lpszText = m_ToolTipText.get();
+
+					if (!SendMessageW(hwndTT, TTM_UPDATETIPTEXTW, 0, (LPARAM)&ti))
+						SendMessageW(hwndTT, TTM_ADDTOOLW, 0, (LPARAM)&ti);
+					else
+						SendMessageW(hwndTT, TTM_NEWTOOLRECTW, 0, (LPARAM)&ti);
+
+					SendMessageW(hwndTT, TTM_TRACKPOSITION, 0, MAKELONG(tipPos.x, tipPos.y));
+					SendMessageW(hwndTT, TTM_TRACKACTIVATE, TRUE, (LPARAM)&ti);
+
+					StartTipWatchdog();
+				}
+#endif // _WIN32
 			}
 		}
-#endif // _WIN32
 		return;
 	}
 
@@ -1186,6 +1219,7 @@ GraphVisitState DataView::UpdateView()
 
 #include "utl/Environment.h"
 
+#ifdef _WIN32
 UINT GetShowCmd(HWND hWnd)
 {
 	WINDOWPLACEMENT wpl;
@@ -1208,6 +1242,7 @@ UINT GetShowCmd(HWND hWnd)
 	);
 	return wpl.showCmd;
 }
+#endif // _WIN32
 
 ActorVisitState UpdateChildViews(DataViewTree* dvl)
 {
@@ -1217,11 +1252,17 @@ ActorVisitState UpdateChildViews(DataViewTree* dvl)
 		if (UpdateChildViews(dv) == AVS_SuspendedOrFailed)
 			return AVS_SuspendedOrFailed;
 
-		HWND hWnd = dv->GetHWnd();
 		auto vh = dv->GetViewHost();
+#ifdef _WIN32
+		HWND hWnd = dv->GetHWnd();
 		if (vh ? vh->VH_IsVisible() : IsWindowVisible(hWnd))
 		{
 			UINT showCmd = vh ? vh->VH_GetShowCmd() : GetShowCmd(hWnd);
+#else
+		if (!vh || vh->VH_IsVisible())
+		{
+			UINT showCmd = vh ? vh->VH_GetShowCmd() : SW_SHOWNORMAL;
+#endif
 			if (showCmd != SW_HIDE && showCmd != SW_SHOWMINIMIZED)
 			{
 				if ((dv->UpdateView() != GVS_Continue))
@@ -1262,7 +1303,11 @@ void DataView::ScrollDevice(GPoint delta, GRect rcScroll, GRect rcClip, const Mo
 		rcClippedScroll &= rcScroll; // prepare for making rcScrolll TRect
 
 		Region drawRgn(GPoint(0, 0));
+#ifdef _WIN32
 		Region invalidRgn = RegionFromUpdateRgn( GetHWnd() );
+#else
+		Region invalidRgn;
+#endif
 
 		DBG_TRACE(("invr = %s", invalidRgn.AsString().c_str()));
 
@@ -1335,6 +1380,8 @@ void DataView::ScrollDevice(GPoint delta, GRect rcScroll, GRect rcClip, const Mo
 	DispatchMouseEvent(EventID::SCROLLED, 0, UNDEFINED_VALUE(GPoint) ); 
 }
 
+#ifdef _WIN32
+
 typedef GdiHandle<HMENU>             SafeMenuHandle;
 typedef std::vector<SafeMenuHandle>  MenuHandleCollection;
 
@@ -1346,7 +1393,7 @@ void InsertMenuItems(
 	UInt32 level)
 {
 	dms_assert(i!=e && i->m_Level == level); // only get here when at least one item to insert
-	
+
 
 	hMenus.push_back( SafeMenuHandle( CreatePopupMenu() ) );
 	HMENU hMenu = hMenus.back();
@@ -1391,11 +1438,19 @@ void InsertMenuItems(
 	dms_assert(i==e || i->m_Level < level);
 
 }
+#endif // _WIN32
 
 void DataView::ShowPopupMenu(GPoint point, const MenuData& menuData) const
 {
 	dms_assert(menuData.size());
 
+	if (m_ViewHost)
+	{
+		m_ViewHost->VH_ShowPopupMenu(point, menuData);
+		return;
+	}
+
+#ifdef _WIN32
 	MenuHandleCollection hMenus;
 
 	UInt32 menuItemID = 1;
@@ -1404,22 +1459,19 @@ void DataView::ShowPopupMenu(GPoint point, const MenuData& menuData) const
 	dms_assert(hMenus.size() > 0);
 
 	GPoint screenPoint = point;
-	if (m_ViewHost)
-		screenPoint = m_ViewHost->VH_ClientToScreen(screenPoint);
-	else
-		CheckedGdiCall(
-			ClientToScreen(m_hWnd, &AsPOINT(screenPoint)),
-			"ShowPopupMenu"
-		);
+	CheckedGdiCall(
+		ClientToScreen(m_hWnd, &AsPOINT(screenPoint)),
+		"ShowPopupMenu"
+	);
 
 	UInt32 result;
 	{
 		IdleTimer idleProcessingProvider;
 		result = TrackPopupMenuEx(
-			hMenus[0], 
-			TPM_NONOTIFY|TPM_RETURNCMD|TPM_RIGHTBUTTON , 
-			screenPoint.x, screenPoint.y, 
-			m_hWnd, 
+			hMenus[0],
+			TPM_NONOTIFY|TPM_RETURNCMD|TPM_RIGHTBUTTON ,
+			screenPoint.x, screenPoint.y,
+			m_hWnd,
 			NULL //Pointer to a TPMPARAMS structure that specifies an area of the screen the menu should not overlap
 		);
 	}
@@ -1429,6 +1481,7 @@ void DataView::ShowPopupMenu(GPoint point, const MenuData& menuData) const
 		assert(result < menuData.size());
 		menuData[result].Execute();
 	}
+#endif // _WIN32
 }
 
 bool IsAnchestor(MovableObject* candidateParent, MovableObject* childObj)
@@ -1500,6 +1553,7 @@ void DataView::SetCursorPos(GPoint clientPoint)
 		if (!m_ViewHost->VH_GetCursorScreenPos(currPos) || !(currPos == screenPoint))
 			m_ViewHost->VH_SetGlobalCursorPos(screenPoint);
 	}
+#ifdef _WIN32
 	else
 	{
 		ClientToScreen(m_hWnd, &AsPOINT(clientPoint));
@@ -1507,6 +1561,7 @@ void DataView::SetCursorPos(GPoint clientPoint)
 		if (!::GetCursorPos(&AsPOINT(currPos)) || !(currPos == clientPoint))
 			::SetCursorPos(clientPoint.x, clientPoint.y);
 	}
+#endif
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -1586,7 +1641,8 @@ void DataView::OnCaptionChanged() const
 
 // ============   Painting
 
-void DataView::OnEraseBkgnd(HDC dc) 
+#ifdef _WIN32
+void DataView::OnEraseBkgnd(HDC dc)
 {
 	DBG_START("DataView", "OnEraseBkgnd", MG_DEBUG_CARET || MG_DEBUG_REGION);
 
@@ -1601,6 +1657,7 @@ void DataView::OnEraseBkgnd(HDC dc)
 
 	FillRect(dc, &AsRECT(rect), (HBRUSH) (COLOR_WINDOW+1) );
 }
+#endif // _WIN32
 
 std::atomic<UInt32> s_DataViewOnPaintRecursionCount = 0;
 
@@ -1643,12 +1700,16 @@ void DataView::SetUpdateTimer()
 	m_Waiter.start(this);
 	if (m_ViewHost)
 		m_ViewHost->VH_SetTimer(UPDATE_TIMER_ID, 100);
+#ifdef _WIN32
 	else
 		SetTimer(m_hWnd, UPDATE_TIMER_ID, 100, nullptr);
+#endif
 }
+
+#ifdef _WIN32
 // ============   Mouse Handling
 
-void DataView::OnMouseMove(WPARAM nFlags, GPoint devicePoint) 
+void DataView::OnMouseMove(WPARAM nFlags, GPoint devicePoint)
 {
 	if (IsDefined(devicePoint))
 	{
@@ -1670,17 +1731,42 @@ void DataView::OnMouseMove(WPARAM nFlags, GPoint devicePoint)
 		DispatchMouseEvent(EventID::MOUSEMOVE, nFlags, devicePoint);
 }
 
-void DataView::OnCaptureChanged(HWND hWnd) 
+void DataView::OnCaptureChanged(HWND hWnd)
 {
 //	SetCaretsVisible(false, 0);
 	if (hWnd && hWnd != m_hWnd)
 		DispatchMouseEvent(EventID::CAPTURECHANGED, 0, UNDEFINED_VALUE(GPoint) );
 }
+#endif // _WIN32
 
-void DataView::OnActivate(bool becomeActive) 
+void DataView::OnActivate(bool becomeActive)
 {
 	DBG_START("DataView", "OnActivate", MG_DEBUG_CARET);
+#ifdef _WIN32
 	SetCaretsVisible(becomeActive, 0);
+#else
+	if (m_State.Get(DVF_CaretsVisible) != becomeActive)
+	{
+		if (m_ViewHost)
+		{
+			Region fullRgn(m_ViewDeviceSize);
+			m_ViewHost->VH_DrawInContext(fullRgn, [this, becomeActive](DrawContext& dc) {
+				ReverseCaretsImpl(dc, becomeActive);
+			});
+		}
+		m_State.Set(DVF_CaretsVisible, becomeActive);
+		if (m_State.Get(DVF_TextCaretCreated))
+		{
+			if (m_ViewHost)
+			{
+				if (becomeActive)
+					m_ViewHost->VH_ShowTextCaret();
+				else
+					m_ViewHost->VH_HideTextCaret();
+			}
+		}
+	}
+#endif
 	if (becomeActive)
 	{
 		dms_assert(m_ParentView);
@@ -1689,7 +1775,8 @@ void DataView::OnActivate(bool becomeActive)
 	}
 }
 
-void DataView::OnSize(WPARAM nType, GPoint deviceSize) 
+#ifdef _WIN32
+void DataView::OnSize(WPARAM nType, GPoint deviceSize)
 {
 	DBG_START(GetClsName().c_str(), "OnSize", MG_DEBUG_CARET || MG_DEBUG_REGION || MG_DEBUG_SIZE);
 	DBG_TRACE(("NewSize=(%d,%d)", deviceSize.x, deviceSize.y));
@@ -1701,7 +1788,7 @@ void DataView::OnSize(WPARAM nType, GPoint deviceSize)
 		m_CurrScaleFactors = currScaleFactors;
 		GetContents()->InvalidateDraw();
 	}
-		 
+
 	auto logicalSize = Reverse(GPoint2CrdPoint(deviceSize));
 	if (m_ViewDeviceSize == deviceSize)
 	{
@@ -1743,6 +1830,43 @@ void DataView::OnSize(WPARAM nType, GPoint deviceSize)
 	dbg_assert( md_InvalidateDrawLock == 0);
 	m_DoneGraphics.LimitDrawRegions(deviceSize); // limit rect if window becomes smaller
 }
+#endif // _WIN32
+
+void DataView::OnResize(GPoint deviceSize, CrdPoint scaleFactors)
+{
+	if (m_CurrScaleFactors != scaleFactors)
+	{
+		m_CurrScaleFactors = scaleFactors;
+		GetContents()->InvalidateDraw();
+	}
+
+	auto logicalSize = Reverse(GPoint2CrdPoint(deviceSize));
+	if (m_ViewDeviceSize == deviceSize)
+	{
+		if (GetContents()->GetCurrFullSize() == logicalSize)
+			return;
+	}
+
+	if (deviceSize.x <= 0 || deviceSize.y <= 0)
+	{
+		GetContents()->InvalidateDraw();
+		return;
+	}
+
+	MakeUpperBound(m_ViewDeviceSize, deviceSize);
+
+	if (m_Contents) {
+		auto deviceRect = GRect(GPoint(0, 0), deviceSize);
+		auto logicalRect = CrdRect(Point<CrdType>(0, 0), logicalSize);
+		if (GetContents()->IsDrawn())
+			GetContents()->ClipDrawnRect(GRect2CrdRect(deviceRect));
+		GetContents()->SetFullRelRect(logicalRect);
+	}
+	m_ViewDeviceSize = deviceSize;
+
+	dbg_assert( md_InvalidateDrawLock == 0);
+	m_DoneGraphics.LimitDrawRegions(deviceSize);
+}
 
 TreeItem* DataView::GetDesktopContext() const
 {
@@ -1751,6 +1875,7 @@ TreeItem* DataView::GetDesktopContext() const
 	return desktopItem;
 }
 
+#ifdef _WIN32
 void DataView::ResetHWnd(HWND hWnd)
 {
 	dms_assert(hWnd);
@@ -1758,6 +1883,7 @@ void DataView::ResetHWnd(HWND hWnd)
 	if (!m_ParentView)
 		g_DataViewRoots.AddChildView(this);
 }
+#endif
 
 void DataView::SetViewHost(ViewHost* vh)
 {
@@ -1793,6 +1919,7 @@ void DataView::InvalidateDeviceRect(GRect rect)
 #endif
 	if (m_ViewHost)
 		m_ViewHost->VH_InvalidateRect(rect, true);
+#ifdef _WIN32
 	else
 		::InvalidateRect(m_hWnd, &AsRECT(rect), true);
 #if defined(MG_DEBUG)
@@ -1803,6 +1930,7 @@ void DataView::InvalidateDeviceRect(GRect rect)
 		::FillRect(dc, &AsRECT(rect), br );
 	}
 #endif
+#endif // _WIN32
 }
 
 void DataView::InvalidateRgn (const Region& rgn)
@@ -1815,7 +1943,6 @@ void DataView::InvalidateRgn (const Region& rgn)
 		auto hrgn = RegionToHRGN(rgn);
 		::InvalidateRgn(m_hWnd, hrgn, true);
 	}
-#endif
 #if defined(MG_DEBUG)
 	if (MG_DEBUG_INVALIDATE || true)
 	{
@@ -1825,6 +1952,7 @@ void DataView::InvalidateRgn (const Region& rgn)
 		::FillRgn(dc, hrgn, br );
 	}
 #endif
+#endif // _WIN32
 }
 
 
@@ -1832,6 +1960,7 @@ void DataView::ValidateRect(const GRect& pixRect)
 {
 	if (m_ViewHost)
 		m_ViewHost->VH_ValidateRect(pixRect);
+#ifdef _WIN32
 	else
 		::ValidateRect(m_hWnd, &AsRECT(pixRect));
 #if defined(MG_DEBUG)
@@ -1842,6 +1971,7 @@ void DataView::ValidateRect(const GRect& pixRect)
 		::FillRect(dc, &AsRECT(pixRect), br );
 	}
 #endif
+#endif // _WIN32
 }
 
 DmsColor DataView::GetNextDmsColor() const
@@ -1861,6 +1991,7 @@ IMPL_RTTI_CLASS(DataView);
 
 #include "ShvDllInterface.h"
 
+#ifdef _WIN32
 bool DataView::CreateMdiChild(ViewStyle ct, CharPtr caption)
 {
 	assert(m_ParentView == 0);
@@ -1871,7 +2002,7 @@ bool DataView::CreateMdiChild(ViewStyle ct, CharPtr caption)
 		.contextItem = GetViewContext(),
 		.caption = caption,
 	};
-//	if (m_Contents) 
+//	if (m_Contents)
 //		MakeLowerBound(createStruct.maxSize, TPoint2GPoint(GetContents()->CalcMaxSize(), GetScaleFactors()));
 
 	NotifyStateChange(reinterpret_cast<const TreeItem*>(&createStruct), CC_CreateMdiChild);
@@ -1885,16 +2016,19 @@ bool DataView::CreateMdiChild(ViewStyle ct, CharPtr caption)
 	}
 	return false;
 }
+#endif // _WIN32
 
 void DataView::PostGuiOper(std::function<void()>&& func)
 {
 	bool wasEmpty = m_GuiOperQueue.Post(std::move(func));
-	if (wasEmpty && m_hWnd)
+	if (wasEmpty)
 	{
 		if (m_ViewHost)
 			m_ViewHost->VH_PostMessage(UM_PROCESS_QUEUE, 0, 0);
-		else
+#ifdef _WIN32
+		else if (m_hWnd)
 			PostMessage(m_hWnd, UM_PROCESS_QUEUE, 0, 0);
+#endif
 	}
 }
 
@@ -2053,9 +2187,10 @@ void Unkeep(DataView* self)
 #pragma comment(lib, "comctl32.lib")
 #endif
 
+#ifdef _WIN32
 HWND DataView::EnsureTooltipWindow()
 {
-	if (m_hwndTooltip) 
+	if (m_hwndTooltip)
 		return m_hwndTooltip;
 
 	// Ensure common controls are initialized somewhere in your app startup too
@@ -2080,21 +2215,26 @@ HWND DataView::EnsureTooltipWindow()
 	SendMessageW(m_hwndTooltip, TTM_SETTIPTEXTCOLOR, (WPARAM)GetSysColor(COLOR_INFOTEXT), 0);
 	return m_hwndTooltip;
 }
+#endif // _WIN32
 
 void DataView::StartTipWatchdog()
 {
 	if (m_ViewHost)
 		m_ViewHost->VH_SetTimer(TIP_WATCH_TIMER_ID, kTipWatchPeriodMs);
+#ifdef _WIN32
 	else
 		SetTimer(GetHWnd(), TIP_WATCH_TIMER_ID, kTipWatchPeriodMs, nullptr);
+#endif
 }
 
 void DataView::StopTipWatchdog()
 {
 	if (m_ViewHost)
 		m_ViewHost->VH_KillTimer(TIP_WATCH_TIMER_ID);
+#ifdef _WIN32
 	else
 		KillTimer(GetHWnd(), TIP_WATCH_TIMER_ID);
+#endif
 }
 
 void DataView::SetActiveTooltipObject(const GraphicObject* obj) noexcept
@@ -2115,20 +2255,26 @@ void DataView::ClearActiveTooltipObject(const GraphicObject* obj) noexcept
 void DataView::HideActiveTooltip()
 {
 	auto attObj = m_activeTooltipObj.lock();
-	if (!attObj) 
+	if (!attObj)
 		return;
 
-	if (!m_hwndTooltip)
-		return;
+	if (m_ViewHost)
+	{
+		m_ViewHost->VH_HideTooltip();
+	}
+#ifdef _WIN32
+	else if (m_hwndTooltip)
+	{
+		HWND hwndTT = m_hwndTooltip;
 
-	HWND hwndTT = m_hwndTooltip;
+		TOOLINFOW ti{};
+		ti.cbSize = sizeof(ti);
+		ti.hwnd = GetHWnd();
+		ti.uId = (UINT_PTR)this;
 
-	TOOLINFOW ti{};
-	ti.cbSize = sizeof(ti);
-	ti.hwnd = GetHWnd();
-	ti.uId = (UINT_PTR)this;
-
-	SendMessageW(hwndTT, TTM_TRACKACTIVATE, FALSE, (LPARAM)&ti);
+		SendMessageW(hwndTT, TTM_TRACKACTIVATE, FALSE, (LPARAM)&ti);
+	}
+#endif
 	m_activeTooltipObj.reset();
 
 	StopTipWatchdog();
@@ -2143,6 +2289,7 @@ bool DataView::IsCursorInsideObject(const GraphicObject& obj) const noexcept
 		GPoint ptClient = m_ViewHost->VH_ScreenToClient(ptScreen);
 		return obj.HitTest(ptClient);
 	}
+#ifdef _WIN32
 	else
 	{
 		if (!GetCursorPos(&AsPOINT(ptScreen))) return false;
@@ -2150,4 +2297,6 @@ bool DataView::IsCursorInsideObject(const GraphicObject& obj) const noexcept
 		ScreenToClient(GetHWnd(), &ptClient);
 		return obj.HitTest(POINTToGPoint(ptClient));
 	}
+#endif
+	return false;
 }

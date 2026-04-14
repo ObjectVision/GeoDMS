@@ -8,7 +8,9 @@
 
 #include "Unit.h"
 #include "UnitClass.h"
+#ifdef _WIN32
 #include "utl/Registry.h"
+#endif
 #include "DmsMainWindow.h"
 #include "DmsTreeView.h"
 
@@ -708,11 +710,17 @@ void DmsConfigOptionsWindow::resetValues()
 {
     if (m_Options.size())
     {
+#ifdef _WIN32
         RegistryHandleLocalMachineRO regLM;
+#endif
         for (auto& option : m_Options)
         {
             bool hasSessionLocalOverride = HasSessionLocalOverride(option.name.c_str());
+#ifdef _WIN32
             bool hasRegistryOverride = regLM.ValueExists(option.name.c_str());
+#else
+            bool hasRegistryOverride = false;
+#endif
             bool valueExists = hasSessionLocalOverride || hasRegistryOverride;
             option.override_cbx->setChecked(valueExists);
             option.session_only_cbx->setChecked(hasSessionLocalOverride);
@@ -727,19 +735,27 @@ void DmsConfigOptionsWindow::updateAccordingToCheckboxStates()
 {
     if (m_Options.size())
     {
+#ifdef _WIN32
         RegistryHandleLocalMachineRO regLM;
+#endif
         for (auto& option : m_Options)
         {
             bool hasSessionLocalOverride = HasSessionLocalOverride(option.name.c_str());
+#ifdef _WIN32
             bool hasRegistryOverride = regLM.ValueExists(option.name.c_str());
+#else
+            bool hasRegistryOverride = false;
+#endif
             bool valueOverridden = option.override_cbx->isChecked();
 
             if (valueOverridden)
             {
                 if (hasSessionLocalOverride)
                     option.override_value->setText(GetSessionLocalOverride(option.name.c_str()).c_str());
+#ifdef _WIN32
                 else if (hasRegistryOverride)
                     option.override_value->setText(regLM.ReadString(option.name.c_str()).c_str());
+#endif
                 else
                     option.override_value->setText(option.configured_value.c_str());
             }
@@ -775,10 +791,16 @@ void DmsConfigOptionsWindow::apply()
 {
     if (m_Options.size())
     {
+#ifdef _WIN32
         RegistryHandleLocalMachineRW regLM;
+#endif
         for (auto& option : m_Options)
         {
+#ifdef _WIN32
             bool hasRegistryOverride = regLM.ValueExists(option.name.c_str());
+#else
+            bool hasRegistryOverride = false;
+#endif
             bool valueOverridden = option.override_cbx->isChecked();
             bool isSessionOnly = option.session_only_cbx->isChecked();
 
@@ -789,14 +811,21 @@ void DmsConfigOptionsWindow::apply()
                 {
                     // Store in session-local cache only
                     SetSessionLocalOverride(option.name.c_str(), overrideValue.constData());
+#ifdef _WIN32
                     // Remove from registry if it exists
                     if (hasRegistryOverride)
                         regLM.DeleteValue(option.name.c_str());
+#endif
                 }
                 else
                 {
+#ifdef _WIN32
                     // Store in registry
                     regLM.WriteString(option.name.c_str(), CharPtrRange(overrideValue.cbegin(), overrideValue.cend()));
+#else
+                    // On Linux, store as session-local (no registry)
+                    SetSessionLocalOverride(option.name.c_str(), overrideValue.constData());
+#endif
                     // Clear session-local override if it exists
                     ClearSessionLocalOverride(option.name.c_str());
                 }
@@ -805,8 +834,10 @@ void DmsConfigOptionsWindow::apply()
             {
                 // Clear both session-local and registry overrides
                 ClearSessionLocalOverride(option.name.c_str());
+#ifdef _WIN32
                 if (hasRegistryOverride)
                     regLM.DeleteValue(option.name.c_str());
+#endif
             }
         }
     }

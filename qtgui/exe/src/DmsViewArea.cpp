@@ -5,14 +5,19 @@
 #include "DmsTreeView.h"
 #include "QtDrawContext.h"
 
-#include <QEvent.h>
+#include <QDragEnterEvent>
+#include <QDropEvent>
+#include <QEvent>
+#include <QPaintEvent>
 #include <QFileInfo>
 #include <QLabel>
 #include <QMdiArea>
 #include <QMimeData>
 #include <QTimer>
 #include <QCursor>
+#include <QMenu>
 #include <QPainter>
+#include <QToolTip>
 #include <QScreen>
 #include <QGuiApplication>
 
@@ -27,6 +32,7 @@
 #include "ShvDllInterface.h"
 #include "DataView.h"
 #include "KeyFlags.h"
+#include "MenuData.h"
 
 // Portable ShowWindow constants (defined in windows.h on Win32)
 #ifndef SW_HIDE
@@ -484,7 +490,8 @@ void QDmsViewArea::UpdatePosAndSize() {
     auto dv = getDataView();
     if (dv) {
         GPoint deviceSize(rect.width(), rect.height());
-        dv->OnSize(0, deviceSize); // 0 = SIZE_RESTORED equivalent
+        auto sf = devicePixelRatioF();
+        dv->OnResize(deviceSize, CrdPoint(sf, sf));
     }
 #endif
 }
@@ -670,6 +677,22 @@ void QDmsViewArea::VH_SetCursorArrow()
 void QDmsViewArea::VH_SetCursorWait()
 {
     setCursor(Qt::WaitCursor);
+}
+
+void QDmsViewArea::VH_SetCursor(DmsCursor cursor)
+{
+    switch (cursor) {
+    case DmsCursor::Arrow:         setCursor(Qt::ArrowCursor); break;
+    case DmsCursor::IBeam:         setCursor(Qt::IBeamCursor); break;
+    case DmsCursor::Cross:         setCursor(Qt::CrossCursor); break;
+    case DmsCursor::Hand:          setCursor(Qt::PointingHandCursor); break;
+    case DmsCursor::Wait:          setCursor(Qt::WaitCursor); break;
+    case DmsCursor::ZoomIn:        setCursor(QCursor(QPixmap(":/res/images/TB_zoom_in.bmp").scaled(24, 24))); break;
+    case DmsCursor::ZoomOut:       setCursor(QCursor(QPixmap(":/res/images/TB_zoom_out.bmp").scaled(24, 24))); break;
+    case DmsCursor::Pan:           setCursor(Qt::OpenHandCursor); break;
+    case DmsCursor::SelectDiamond: setCursor(Qt::CrossCursor); break;
+    default:                       setCursor(Qt::ArrowCursor); break;
+    }
 }
 
 void QDmsViewArea::VH_InvalidateRect(const GRect& rect, bool erase)
@@ -859,6 +882,71 @@ void QDmsViewArea::VH_DrawInContext(const Region& clipRgn, std::function<void(Dr
         update();
     }
 #endif
+}
+
+void QDmsViewArea::VH_ShowTooltip(GPoint screenPoint, CharPtr utf8Text)
+{
+    QToolTip::showText(QPoint(screenPoint.x, screenPoint.y), QString::fromUtf8(utf8Text), this);
+}
+
+void QDmsViewArea::VH_HideTooltip()
+{
+    QToolTip::hideText();
+}
+
+void QDmsViewArea::VH_ShowPopupMenu(GPoint clientPoint, const MenuData& menuData)
+{
+    if (menuData.empty())
+        return;
+
+    // Build QMenu tree from flat MenuData (items have m_Level for nesting)
+    QMenu rootMenu(this);
+    std::vector<QMenu*> menuStack;
+    menuStack.push_back(&rootMenu);
+
+    for (SizeT i = 0; i < menuData.size(); ++i)
+    {
+        const auto& item = menuData[i];
+
+        // Adjust stack to match item level
+        while (menuStack.size() > item.m_Level + 1)
+            menuStack.pop_back();
+
+        QMenu* currentMenu = menuStack.back();
+
+        if (item.m_Caption.empty())
+        {
+            currentMenu->addSeparator();
+            continue;
+        }
+
+        // Check if next item is a deeper level (submenu)
+        bool hasSubmenu = (i + 1 < menuData.size() && menuData[i + 1].m_Level > item.m_Level);
+
+        if (hasSubmenu)
+        {
+            auto* subMenu = currentMenu->addMenu(QString::fromUtf8(item.m_Caption.c_str()));
+            menuStack.push_back(subMenu);
+        }
+        else
+        {
+            auto* action = currentMenu->addAction(QString::fromUtf8(item.m_Caption.c_str()));
+            action->setData(QVariant::fromValue(static_cast<quint64>(i)));
+            if (item.m_Flags & 0x0003) // MFS_DISABLED | MFS_GRAYED
+                action->setEnabled(false);
+            if (item.m_Flags & 0x0008) // MFS_CHECKED
+                action->setCheckable(true), action->setChecked(true);
+        }
+    }
+
+    QPoint screenPoint = mapToGlobal(QPoint(clientPoint.x, clientPoint.y));
+    QAction* selected = rootMenu.exec(screenPoint);
+    if (selected)
+    {
+        SizeT index = selected->data().value<quint64>();
+        if (index < menuData.size())
+            menuData[index].Execute();
+    }
 }
 
 void QDmsViewArea::VH_SetCaretOverlay(const Region& rgn, bool visible)

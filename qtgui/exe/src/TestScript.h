@@ -11,10 +11,10 @@
 
 #include "DmsMainWindow.h"
 
-using stx_error = std::exception;
+using stx_error = std::runtime_error;
 
 void reportErr(CharPtr errMsg);
-UINT32 str2int(CharPtr str);
+UInt32 str2int(CharPtr str);
 
 enum class CommandCode {
 	// MSG, WPARAM, LPARAM, 

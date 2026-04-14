@@ -259,12 +259,19 @@ void OnDestroyDataView(DataView* self)
 {
 	g_MsgQueue.erase(
 		std::remove_if(
-			g_MsgQueue.begin(), 
-			g_MsgQueue.end(), 
+			g_MsgQueue.begin(),
+			g_MsgQueue.end(),
 			[self](const MsgStruct& candidate) { return candidate.m_DataView == self; }
 		),
 		g_MsgQueue.end()
 	);
+}
+
+#else // !_WIN32
+
+void OnDestroyDataView(DataView* /*self*/)
+{
+	// No Win32 message queue to clean up on Linux
 }
 
 #endif // _WIN32

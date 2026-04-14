@@ -105,6 +105,19 @@ enum ToolButtonID : int;
 enum ViewStyle : int;
 enum ViewStyleFlags : int;
 
+// Portable cursor types for ViewHost::VH_SetCursor
+enum class DmsCursor : UInt8 {
+	Arrow,
+	IBeam,
+	Cross,
+	Hand,
+	Wait,
+	ZoomIn,
+	ZoomOut,
+	Pan,
+	SelectDiamond,
+};
+
 struct GridCoord;
 struct SelCaret;
 struct IndexCollector;

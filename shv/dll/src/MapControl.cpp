@@ -292,9 +292,11 @@ bool MapControl::OnCommand(ToolButtonID id)
 			SetLayout(id);
 			return true;
 
+#ifdef _WIN32
 		case TB_CopyLC:
 			GetScrollPort()->Export();
 			return true;
+#endif
 	}
 	return base_type::OnCommand(id) || GetViewPort()->OnCommand(id);
 }

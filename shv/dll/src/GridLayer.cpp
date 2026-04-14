@@ -1299,6 +1299,7 @@ bool GridLayer::OnCommand(ToolButtonID id)
 {
 	switch (id)
 	{
+#ifdef _WIN32
 		case TB_CutSel:
 			CheckEditability(this);
 			CopySelValues ();
@@ -1306,7 +1307,7 @@ bool GridLayer::OnCommand(ToolButtonID id)
 			return true;
 
 		case TB_CopySel:
-			CheckClassIdAttr(this);	
+			CheckClassIdAttr(this);
 			CopySelValues ();
 			return true;
 
@@ -1319,6 +1320,7 @@ bool GridLayer::OnCommand(ToolButtonID id)
 			CheckEditability(this);
 			PasteSelValues();
 			return true;
+#endif
 
 		case TB_DeleteSel:
 			CheckEditability(this);

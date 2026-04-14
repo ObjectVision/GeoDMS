@@ -18,9 +18,11 @@ target_compile_definitions(DmShv PRIVATE DM_SHV_EXPORTS)
 
 # Qt6 for QRegion, QRect, QPoint (core + gui only, no widgets)
 find_package(Qt6 REQUIRED COMPONENTS Core Gui)
+find_package(OpenSSL REQUIRED)
 target_link_libraries(DmShv PUBLIC
     DmRtc DmSym DmTic DmStx DmStg DmClc DmGeo
     Qt6::Core Qt6::Gui
+    OpenSSL::SSL OpenSSL::Crypto
 )
 
 if(WIN32)

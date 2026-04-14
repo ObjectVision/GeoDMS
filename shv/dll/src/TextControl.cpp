@@ -159,6 +159,8 @@ void DrawText(
 	) ;
 }
 
+#endif // _WIN32 (DrawSymbol/DrawText helper functions)
+
 //----------------------------------------------------------------------
 // class  : TextControl
 //----------------------------------------------------------------------
@@ -271,8 +273,10 @@ IMPL_RTTI_CLASS(TextControl)
 // class  : AbstrTextEditControl
 //----------------------------------------------------------------------
 
-void AbstrTextEditControl::DrawEditText(
-	HDC          dc, 
+#ifdef _WIN32
+void AbstrTextEditControl::
+DrawEditText(
+	HDC          dc,
 	const GRect& rect,
 	HFONT        hFont,
 	DmsColor     color,
@@ -371,7 +375,13 @@ bool EditableTextControl::MouseEvent(MouseEventDispatcher& med)
 {
 	if ((med.GetEventInfo().m_EventID & EventID::SETCURSOR ) && IsEditable(AN_LabelText))
 	{
-		SetCursor(LoadCursor(NULL, IDC_IBEAM));
+		auto dv = GetDataView().lock();
+		if (dv && dv->GetViewHost())
+			dv->GetViewHost()->VH_SetCursor(DmsCursor::IBeam);
+#ifdef _WIN32
+		else
+			SetCursor(LoadCursor(NULL, IDC_IBEAM));
+#endif
 		return true;
 	}
 	if(med.GetEventInfo().m_EventID & (EventID::LBUTTONDOWN|EventID::LBUTTONDBLCLK) )

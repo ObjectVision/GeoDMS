@@ -803,7 +803,7 @@ COLORREF DataItemColumn::GetBkColor() const
 
 	bool isSymbol = GetEnabledTheme(AN_SymbolIndex).get();
 	switch (m_GroupByIndex) {
-		case -1: break;
+		case gr_elem_index(-1): break;
 		case 0: return DmsColor2COLORREF(CombineRGB(128, 255, 128));  // Transparent
 		case 1: return DmsColor2COLORREF(CombineRGB(128 / 2 + 64, 255 / 2 + 64, 128/2 + 64));
 		case 2: return DmsColor2COLORREF(CombineRGB(128 / 4 + 64, 255 / 4 + 64, 128 / 4 + 64));
@@ -1322,7 +1322,13 @@ bool DataItemColumn::MouseEvent(MouseEventDispatcher& med)
 			
 		if (IsEditable(AN_LabelText))
 		{
-			SetCursor(LoadCursor(NULL, GetEnabledTheme(AN_LabelText) ? IDC_IBEAM : IDC_ARROW));
+			auto dv = GetDataView().lock();
+			if (dv && dv->GetViewHost())
+				dv->GetViewHost()->VH_SetCursor(GetEnabledTheme(AN_LabelText) ? DmsCursor::IBeam : DmsCursor::Arrow);
+#ifdef _WIN32
+			else
+				SetCursor(LoadCursor(NULL, GetEnabledTheme(AN_LabelText) ? IDC_IBEAM : IDC_ARROW));
+#endif
 			return true;
 		}
 	}

@@ -475,12 +475,12 @@ void ExportTab::repopulateDriverSelection()
     auto available_drivers = getAvailableDrivers();
     for (auto& driver : available_drivers)
     {
-        if (m_is_raster && (driver.driver_characteristics & driver_characteristics::is_raster)) // raster driver
+        if (m_is_raster && (driver.m_driver_characteristics & driver_characteristics::is_raster)) // raster driver
         {
             m_available_drivers.push_back(driver);
             m_driver_selection->addItem(driver.Caption());
         }
-        if (!m_is_raster && !(driver.driver_characteristics & driver_characteristics::is_raster)) // vector driver
+        if (!m_is_raster && !(driver.m_driver_characteristics & driver_characteristics::is_raster)) // vector driver
         {
             m_available_drivers.push_back(driver);
             m_driver_selection->addItem(driver.Caption());
@@ -603,7 +603,7 @@ void ExportTab::showEvent(QShowEvent* event)
     auto driver_has_native_version = currDriver.HasNativeVersion();
 
     m_native_driver_checkbox->setEnabled(driver_has_native_version);
-    if (driver_has_native_version &&  (currDriver.driver_characteristics & driver_characteristics::only_native_driver))
+    if (driver_has_native_version &&  (currDriver.m_driver_characteristics & driver_characteristics::only_native_driver))
     {
         m_native_driver_checkbox->setChecked(true);
         m_native_driver_checkbox->setEnabled(false);
@@ -638,9 +638,9 @@ void ExportTab::showEvent(QShowEvent* event)
     {
         auto* item = model->item(i);
         const auto& otherDriver = m_available_drivers.at(i);
-        if (!isCurrentItemOrItsSubItemsMappable() && (otherDriver.driver_characteristics & driver_characteristics::disable_with_no_geometry))
+        if (!isCurrentItemOrItsSubItemsMappable() && (otherDriver.m_driver_characteristics & driver_characteristics::disable_with_no_geometry))
             item->setEnabled(false);
-        else if (isCurrentItemOrItsSubItemsMappable() && (otherDriver.driver_characteristics & driver_characteristics::disable_with_geometry))
+        else if (isCurrentItemOrItsSubItemsMappable() && (otherDriver.m_driver_characteristics & driver_characteristics::disable_with_geometry))
             item->setEnabled(false);
         else
             item->setEnabled(true);
@@ -698,14 +698,14 @@ void DmsExportWindow::exportImpl()
     else
     {
         driverName = driver.shortname;
-        if (driver.driver_characteristics & driver_characteristics::is_raster)
+        if (driver.m_driver_characteristics & driver_characteristics::is_raster)
             storageTypeName = "gdalwrite.grid";
         else
             storageTypeName = "gdalwrite.vect";
     }
 
     const TreeItem* exportConfig = nullptr;
-    if (driver.driver_characteristics & driver_characteristics::is_raster)
+    if (driver.m_driver_characteristics & driver_characteristics::is_raster)
         exportConfig = DoExportRasterOrMatrixData(current_export_item, use_native_driver, filename, storageTypeName, driverName, "");
     else
         exportConfig = DoExportTableOrDatabase(current_export_item, use_native_driver, filename, storageTypeName, driverName, "");

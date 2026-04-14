@@ -211,6 +211,7 @@ public:
 	MsgResult DispatchMsg(const MsgStruct& msg);
 #endif
 	SHV_CALL bool OnKeyDown(UInt32 nVirtKey);
+	SHV_CALL void OnResize(GPoint deviceSize, CrdPoint scaleFactors);
 
 //	Attributes
 	std::shared_ptr<MovableObject> GetContents()             { assert(m_Contents); return m_Contents; }
@@ -299,9 +300,9 @@ private:
 	void ReverseCarets(HDC dc, bool newVisibleState);
 #endif
 	void ReverseCaretsImpl(DrawContext& dc, bool newVisibleState);
+	bool DispatchMouseEvent(EventID event, WPARAM modKeys, GPoint point);
 #ifdef _WIN32
 	void ReverseSelCaretImpl(HDC hdc, const Region& selCaretRgn);
-	bool DispatchMouseEvent(EventID event, WPARAM modKeys, GPoint point);
 
 	// message handlers
 	void OnEraseBkgnd(HDC dc);
@@ -395,10 +396,7 @@ public:
 	// Watchdog state
 	std::weak_ptr<const GraphicObject> m_activeTooltipObj;
 
-#ifdef _WIN32
-	static constexpr UINT_PTR kTipWatchTimerId = 2001;
-	static constexpr UINT     kTipWatchPeriodMs = 50;
-#endif
+	static constexpr UInt32 kTipWatchPeriodMs = 50;
 
 	void StartTipWatchdog();
 	void StopTipWatchdog();

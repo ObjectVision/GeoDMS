@@ -5,7 +5,7 @@
 #include <QContextMenuEvent>
 #include <QDialog>
 #include <QLayout>
-#include <qfontdatabase.h>
+#include <QFontDatabase>
 
 FindTextWindow::FindTextWindow(QWidget* parent)
     : QWidget(parent)

@@ -119,7 +119,7 @@ void GraphicContainer<ElemType>::InsertEntry(ElemType* g)
 	assert(GetEntryPos(g) >= m_Array.size());
 
 	g->SetOwner(this);
-	m_Array.push_back(g->shared_from_base<ElemType>());
+	m_Array.push_back(g->template shared_from_base<ElemType>());
 
 	ConnectObject(g, this->GetContext());
 	ProcessCollectionChange();
@@ -132,7 +132,7 @@ void GraphicContainer<ElemType>::InsertEntryAt(ElemType* g, gr_elem_index pos)
 	dms_assert(pos <= m_Array.size());
 
 	g->SetOwner(this);
-	m_Array.insert(m_Array.begin() + pos, g->shared_from_base<ElemType>() );
+	m_Array.insert(m_Array.begin() + pos, g->template shared_from_base<ElemType>() );
 
 	ConnectObject(g, this->GetContext());
 	ProcessCollectionChange();
@@ -147,7 +147,7 @@ void GraphicContainer<ElemType>::ReplaceEntryAt(ElemType* g, gr_elem_index pos)
 	bool wasVisible = m_Array[pos]->AllVisible(); 
 	m_Array[pos]->SetDisconnected();
 	g->SetOwner(this);
-	m_Array[pos] = g->shared_from_base<ElemType>();
+	m_Array[pos] = g->template shared_from_base<ElemType>();
 
 	ConnectObject(g, this->GetContext());
 	ProcessCollectionChange();
@@ -289,5 +289,5 @@ void GraphicContainer<ElemType>::DoUpdateView()
 #include "MovableObject.h"
 #include "ScalableObject.h"
 
-template GraphicContainer<MovableObject>;
-template GraphicContainer<ScalableObject>;
+template class GraphicContainer<MovableObject>;
+template class GraphicContainer<ScalableObject>;

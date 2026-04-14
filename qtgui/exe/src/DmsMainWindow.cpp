@@ -236,7 +236,8 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings) {
     auto menu_bar = menuBar();
     menu_bar->setFont(QApplication::font());
 
-    setTabOrder({ m_address_bar.get(), m_treeview, m_eventlog.get() });
+    setTabOrder(m_address_bar.get(), m_treeview);
+    setTabOrder(m_treeview, m_eventlog.get());
 }
 
 MainWindow::~MainWindow() {
@@ -1026,7 +1027,9 @@ void MainWindow::removeRecentFileAtIndex(size_t index) {
         return;
 
     auto msgTxt = mySSPrintF("Remove %s from the list of recent files ?", rf_action->m_cfg_file_path);
-    if (MessageBoxA((HWND)winId(), msgTxt.c_str(), "Confirmation Request", MB_YESNO | MB_ICONQUESTION) == IDYES) {
+    if (QMessageBox::question(this, "Confirmation Request",
+            QString::fromStdString(std::string(msgTxt.c_str())),
+            QMessageBox::Yes | QMessageBox::No) == QMessageBox::Yes) {
         m_file_menu->removeAction(menu_to_be_removed);
         m_recent_file_entries.removeAt(index);
         saveRecentFileActionToRegistry();
@@ -1217,7 +1220,7 @@ void MainWindow::end_timing(SharedStr descr) {
         return;
 
     if (passedTime > 5)
-        MessageBeep(MB_OK); // Beep after 5 sec of continuous work
+        QApplication::beep(); // Beep after 5 sec of continuous work
 
     if (m_processing_records.size() >= 10 && passedTime < passed_time(m_processing_records.front()))
         return;

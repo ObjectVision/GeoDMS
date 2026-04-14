@@ -903,3 +903,25 @@ GraphVisitState MouseEventDispatcher::DoViewPort(ViewPort* vp)
 	return result;
 }
 
+//----------------------------------------------------------------------
+// Portable visitor helpers (moved from DcHandle.cpp for Linux builds)
+//----------------------------------------------------------------------
+
+#ifndef _WIN32
+
+AddTransformation::AddTransformation(GraphVisitor* v, const CrdTransformation& w2v)
+	:	tmp_swapper<CrdTransformation>(v->m_Transformation, w2v * v->m_Transformation)
+{
+}
+
+AddClientLogicalOffset::AddClientLogicalOffset(GraphVisitor* v, CrdPoint c2p)
+	: clientSwapper(v->m_ClientLogicalAbsPos, v->m_ClientLogicalAbsPos + c2p)
+{}
+
+VisitorDeviceRectSelector::VisitorDeviceRectSelector(GraphVisitor* v, GRect objRect)
+	:	ClipDeviceRectSelector(v->m_ClipDeviceRect, objRect)
+{
+}
+
+#endif // !_WIN32
+

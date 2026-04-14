@@ -1,283 +1,148 @@
-# GeoDMS Linux GUI Porting Status
+# Linux Porting Status — DmShv + GeoDmsGuiQt
 
-> **Branch:** `refactor_linux_gui`
-> **Last updated:** 2025-07-05 (commit 5498c583)
-> **Goal:** Port `shv.dll` (ShvDLL) and `GeoDmsGuiQt.exe` to Linux by replacing all Win32 GDI with QPainter/Qt.
+Branch: `refactor_linux_gui`
+Last updated: 2026-04-14
 
-## Overall Strategy
+## Build status
 
-Replace **all** GDI drawing with QPainter — even on Windows. No dual GDI/Qt rendering paths.
-The Win32 `ViewHost` implementation is kept temporarily but will be removed once `DmsViewArea` (Qt) covers all functionality.
+| Target | Platform | Status |
+|--------|----------|--------|
+| DmShv (libDmShv.so) | Linux GCC 14 / Ubuntu 24.04 | Compiles and links clean |
+| GeoDmsGuiQt | Linux GCC 14 / Ubuntu 24.04 | Compiles and links clean |
+| DmShv (DmShv.dll) | Windows MSVC / VS 2022 | Not yet verified after latest changes |
+| GeoDmsGuiQt.exe | Windows MSVC / VS 2022 | Not yet verified after latest changes |
+
+Build environment: WSL2 Ubuntu 24.04, vcpkg (baseline `1441f2ae63070ddb8afa19b35127c32c03dcf9dd`), CMake + Ninja, Qt 6.9, Boost 1.88.
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────┐
-│  GeoDmsGuiQt.exe (Qt application)                       │
-│  ├── DmsViewArea : QWidget  (qtgui/exe/src/)            │
-│  │   └── implements ViewHost interface                  │
-│  │   └── creates QtDrawContext for painting             │
-│  ├── QtDrawContext : DrawContext  (qtgui/exe/src/)       │
-│  │   └── QPainter-based drawing                         │
-│  └── DmsMainWindow (Qt UI shell)                        │
-├─────────────────────────────────────────────────────────┤
-│  shv.dll (shared visualization logic)                   │
-│  ├── DrawContext (abstract base)  → shv/dll/src/DrawContext.h  │
-│  ├── GdiDrawContext : DrawContext → Win32-only, transitional   │
-│  ├── ViewHost (abstract base)     → shv/dll/src/ViewHost.h    │
-│  ├── Win32ViewHost : ViewHost     → Win32-only, transitional  │
-│  ├── Region (QRegion-backed)      → shv/dll/src/Region.h      │
-│  ├── GdiRegionUtil.h              → Win32-only HRGN↔QRegion   │
-│  ├── GeoTypes.h                   → standalone GPoint/GRect   │
-│  └── DcHandle.h                   → Win32-only HDC wrappers   │
-└─────────────────────────────────────────────────────────┘
-```
+Two abstraction layers decouple platform-specific code from the shared model:
 
-## Completed Steps
+- **ViewHost** (`shv/dll/src/ViewHost.h`) — abstract interface for windowing operations (timers, capture, focus, cursors, invalidation, tooltips, context menus, drawing, scroll, text caret). Implementations:
+  - `Win32ViewHost` (HWND-based, GDI) — for Windows
+  - `QDmsViewArea` (QWidget-based, QPainter) — for Qt/Linux (and Windows Qt path)
 
-### Step 1: ViewHost abstraction [5ed8ea93]
-- Created abstract `ViewHost` interface in `shv/dll/src/ViewHost.h`
-- Created `Win32ViewHost` implementing ViewHost for Win32 HWND
-- `DmsViewArea` (Qt) also implements ViewHost
-- `DataView` uses ViewHost* instead of direct HWND calls
+- **DrawContext** (`shv/dll/src/DrawContext.h`) — abstract interface for all rendering (rectangles, lines, polygons, text, images, clipping, fonts). Implementations:
+  - `GdiDrawContext` (HDC-based) — for Windows GDI
+  - `QtDrawContext` (QPainter-based) — for Qt/Linux
 
-### Step 2a: DrawContext abstraction [a2472124]
-- Created abstract `DrawContext` base class in `shv/dll/src/DrawContext.h`
-- Created `GdiDrawContext` (non-owning HDC wrapper) for Win32
-- `GraphDrawer` stores `DrawContext*` via `GetDrawContext()`
+## Completed work
 
-### Step 2b: Abstract drawing methods [516b3655]
-- Added `FillRect`, `FillRegion`, `InvertRect`, `DrawFocusRect` to DrawContext
-- `GdiDrawContext` implements via GDI
-- Migrated first callsites: MovableContainer, GraphicObject, DataItemColumn, TextControl
+### DmShv compilation fixes
 
-### Step 2c: Polymorphic DrawContext in GraphDrawer [8236a79b]
-- `GraphDrawer` uses polymorphic `DrawContext*`
-- `QtDrawContext` (in qtgui/) implements DrawContext with QPainter
+| File | Fix | Category |
+|------|-----|----------|
+| GraphicContainer.cpp | Added `template` keyword for dependent base call; fixed explicit instantiation syntax | GCC two-phase lookup |
+| FeatureLayer.cpp | Added `typename` for dependent types | GCC two-phase lookup |
+| DataItemColumn.cpp | Fixed narrowing conversion in switch case | GCC strictness |
+| DrawPolygons.h | Created `LabelDrawer.h` header to resolve incomplete type | Header refactoring |
+| GridLayer.cpp | Guarded `TB_CutSel`/`TB_CopySel`/`TB_PasteSelDirect`/`TB_PasteSel` with `#ifdef _WIN32` | Platform guard |
+| EditPalette.cpp | Guarded `CreateMdiChild()` calls with `#ifdef _WIN32` | Platform guard |
+| MapControl.cpp | Guarded `TB_CopyLC` (Export) with `#ifdef _WIN32` | Platform guard |
+| ShvCompat.h | Added `MK_*` mouse flags, `SW_*` show constants, `IDC_*` cursor stubs | Linux stubs |
+| ShvBase.h | Added `DmsCursor` enum for portable cursor types | Portable abstraction |
 
-### Step 2d: QRegion everywhere [62a6ebb1]
-- `Region` class now backed by `QRegion` (was HRGN-based)
-- Created `GdiRegionUtil.h` for transitional HRGN↔QRegion conversion (Win32-only)
-- Qt 6.9 integrated in ShvDLL.vcxproj (modules: core;gui)
-- UNICODE conflict resolved via `UndefinePreprocessorDefinitions=UNICODE;_UNICODE`
+### DmShv — portable code extracted from Win32 blocks
 
-### Step 3: Standalone GPoint/GRect [27eb30e6]
-- `GPoint` and `GRect` no longer inherit from Win32 `POINT`/`RECT`
-- `GType` changed from `typedef LONG` to `using GType = Int32` (portable)
-- Win32 interop helpers behind `#ifdef _WIN32` in GeoTypes.h:
-  - `AsPOINT()`/`AsRECT()` — reinterpret_cast (for passing to Win32 APIs)
-  - `POINTToGPoint()`/`RECTToGRect()` — value conversion
-  - `static_assert(sizeof(Int32) == sizeof(LONG))` for layout safety
-- `HitTest(POINT)` → `HitTest(GPoint)` in GraphicObject/MovableObject
-- `PolygonCaret` changed from `const POINT*` to `const GPoint*`
-- `GPoint::ScreenToClient()` method → free function `ScreenToClientGPoint()` in ShvUtils
-- RGBQUAD/COLORREF guarded behind `#ifdef _WIN32`; portable `using COLORREF = UInt32` in `#else`
-- All Win32 API call sites (22 files) wrapped with AsPOINT/AsRECT
+| File | What was moved | Details |
+|------|---------------|---------|
+| dataview.cpp | `InsertCaret`, `RemoveCaret`, `MoveCaret`, `ClearTextCaret`, `InsertController`, `RemoveController`, `OnCommandEnable`, `ReverseCaretsImpl` | Were trapped inside `#ifdef _WIN32` (DestroyWindow/GetDefaultFont block). Closed `#ifdef` after GetDefaultFont. |
+| dataview.cpp | `UpdateTextCaret` Win32 fallbacks (`CreateCaret`, `SetCaretPos`, `ShowCaret`, `HideCaret`, `DestroyCaret`) | Guarded individual `else` branches; ViewHost paths remain portable. |
+| dataview.cpp | `ReverseSelCaretImpl` (uses HBITMAP/BITMAPINFOHEADER) | Wrapped with `#ifdef _WIN32` |
+| dataview.h | Added `OnResize(GPoint, CrdPoint)` | Portable alternative to `OnSize(WPARAM, GPoint)` |
+| GraphVisitor.cpp | `AddTransformation`, `AddClientLogicalOffset`, `VisitorDeviceRectSelector` | Moved from DcHandle.cpp (excluded on Linux) |
+| Region.cpp | `DcClipRegionSelector` implementation | Moved from DcHandle.cpp |
+| ShvUtils.cpp | `GetFocusClr()`, `GetSelectedClr()` Linux stubs | Added `#ifndef _WIN32` block |
+| ScrollPort.cpp | `OnChildSizeChanged()` | Moved out of `#ifdef _WIN32` block |
+| ViewPort.cpp | `GetExportInfo()` | Moved out of `#ifdef _WIN32` block |
+| ViewPort.cpp | `Export()` Linux stub | Added `#else` branch to satisfy pure virtual |
+| TextControl.cpp | `TextControl` class methods | Moved out of `#ifdef _WIN32` block |
 
-### Step 3b: Guard windows.h in ShvBase.h [uncommitted]
-- `#include <windows.h>` in ShvBase.h now behind `#ifdef _WIN32`
-- `MsgResult` (uses LRESULT), `MG_WM_SIZE` (uses WM_SIZE), `g_ShvDllInstance` (HINSTANCE) all guarded
-- No Linux equivalent needed for `MsgResult` — Qt event system replaces Win32 message dispatch
-- Builds successfully on Windows (clean rebuild verified)
+### DmShv — portable ViewHost features implemented
 
-### Step 3c: QDmsViewArea implements ViewHost [5498c583]
-- `QDmsViewArea` now inherits from `ViewHost` (multiple inheritance with `QMdiSubWindow`)
-- Implements all `VH_*` methods using Qt APIs:
-  - Timer: `QTimer` for `VH_SetTimer`/`VH_KillTimer`, calls `DataView::OnTimer()`
-  - Capture: `grabMouse()`/`releaseMouse()` for `VH_SetCapture`/`VH_ReleaseCapture`
-  - Focus: `setFocus()` for `VH_SetFocus`
-  - Cursor: `QCursor::pos()`, `mapFromGlobal()`, `mapToGlobal()` for cursor position methods
-  - Invalidation: `update()` for `VH_InvalidateRect`/`VH_InvalidateRgn`
-  - Synchronous paint: `repaint()` for `VH_UpdateWindow`
-  - Visibility: `isVisible()`, window state queries for `VH_IsVisible`/`VH_GetShowCmd`
-  - Text caret: Custom state tracking (Qt has no native caret API)
-  - Mouse tracking: `setMouseTracking(true)` for `VH_TrackMouseLeave`
-- Removed `Win32ViewHost` member from `QDmsViewArea`, now passes `this` as ViewHost
-- Added `DataView::OnTimer(UInt32)` public method with `SHV_CALL` export
-- Added `SHV_CALL` to `Region` struct for proper DLL export
-- Fixed `ClipBoard::GetText()` to use `CharPtrRange` constructor
-- **Windows build: OK**
+| Feature | ViewHost method | QDmsViewArea (Qt) | DataView integration |
+|---------|----------------|-------------------|---------------------|
+| Popup menus | `VH_ShowPopupMenu(GPoint, MenuData&)` | QMenu from MenuData (levels, separators, flags, execute) | `ShowPopupMenu()` routes through ViewHost |
+| Tooltips | `VH_ShowTooltip(GPoint, CharPtr)` / `VH_HideTooltip()` | `QToolTip::showText()` / `hideText()` | `OnTimer(HOVER_TIMER_ID)` and `HideActiveTooltip()` use ViewHost |
+| Cursors | `VH_SetCursor(DmsCursor)` | Maps DmsCursor enum to Qt::CursorShape | `SetViewPortCursor(DmsCursor)` on MovableObject; used by ViewPort, TableControl, DataItemColumn, TextControl |
+| Drawing | `VH_DrawInContext(Region&, callback)` | QPainter on backing store QImage | Caret insert/remove/move |
+| Caret overlay | `VH_SetCaretOverlay(Region&, bool)` | XOR compositing in paintEvent | Selection/graphical caret display |
+| Timers | `VH_SetTimer` / `VH_KillTimer` | QTimer per ID | Hover, update, tip watchdog |
+| Text caret | `VH_CreateTextCaret` / `VH_SetTextCaretPos` / `VH_Show/HideTextCaret` / `VH_DestroyTextCaret` | Manual drawing in paintEvent | Text editing cursor |
+| Invalidation | `VH_InvalidateRect` / `VH_InvalidateRgn` / `VH_ValidateRect` | `QWidget::update()` / `repaint()` | Incremental redraw |
+| Scroll | `VH_ScrollWindow` | Backing store blit + expose region | Hardware-accelerated scroll |
+| Capture | `VH_SetCapture` / `VH_ReleaseCapture` | `grabMouse()` / `releaseMouse()` | Drag operations |
+| Focus | `VH_SetFocus` | `setFocus()` | Window activation |
+| Cursor pos | `VH_GetCursorScreenPos` / `VH_ScreenToClient` / `VH_ClientToScreen` / `VH_SetGlobalCursorPos` | QCursor/mapFromGlobal/mapToGlobal | Tooltip positioning, hit testing |
+| Window state | `VH_IsVisible` / `VH_GetShowCmd` / `VH_SendClose` | QWidget state queries | View lifecycle |
 
-### Step 3d: Full tooltip implementation in OnTimer [65ab21bb]
-- `DataView::OnTimer()` now handles all timer types:
-  - `TIP_WATCH_TIMER_ID`: Monitors cursor position, hides tooltip when cursor leaves object
-  - `HOVER_TIMER_ID`: Full Win32 tooltip display via `TOOLINFOW`, uses ViewHost for cursor position
-  - `UPDATE_TIMER_ID`: Triggers `UpdateView()` for async graphics refresh
-- Tooltip code uses ViewHost abstraction when available, with Win32 fallback
-- **Windows build: OK**
+### GeoDmsGuiQt compilation fixes
 
-### Step 3e: VH_DrawInContext with QtDrawContext [b678ff3f]
-- `QDmsViewArea::VH_DrawInContext()` now creates `QPainter` and wraps it in `QtDrawContext`
-- Enables portable drawing for caret operations, offscreen rendering
-- Added `QPainter` and `QtDrawContext.h` includes to DmsViewArea.cpp
-- **Windows build: OK**
+| File | Fix | Category |
+|------|-----|----------|
+| main_qt.cpp | `std::exception` -> `std::runtime_error`; `__argc`/`__argv` -> static storage; COPYDATASTRUCT/nativeEventFilter/darkmode guarded; `MessageBoxA` -> `QMessageBox` | Portable types, platform guards |
+| TestScript.h/cpp | `UINT32` -> `UInt32`; `stx_error` -> `std::runtime_error`; PassMsg guarded; ppltasks -> std::future/promise; `Sleep` -> `std::this_thread::sleep_for` | Portable types, platform guards |
+| DmsMainWindow.cpp | `MessageBoxA` -> `QMessageBox`; `MessageBeep` -> `QApplication::beep()`; `setTabOrder` chained calls | Portable replacements |
+| DmsExport.h/cpp | `driver_characteristics` member renamed to `m_driver_characteristics` | GCC name shadowing |
+| DmsOptions.cpp | Registry usage guarded with `#ifdef _WIN32` | Platform guard |
+| DmsViewArea.cpp | `OnSize` -> `OnResize` with `devicePixelRatioF()`; popup menu, tooltip, cursor implementations | Portable ViewHost |
+| ~17 Qt include files | Case-sensitive includes fixed (QCheckbox->QCheckBox, QMenubar->QMenuBar, etc.) | Linux filesystem |
+| CMakeLists.txt | Added `CMAKE_AUTOUIC_SEARCH_PATHS` for .ui files in res/ui/ | Build fix |
+| ElemTraits.h | `is_numeric<bool>` added `: std::false_type` base | GCC strictness |
 
-## Next Steps
+## Remaining Win32-only code in DmShv
 
-### Step 4: Remove GDI wrappers
-**Goal:** Eliminate GdiDrawContext, DcHandle, and all remaining direct GDI calls.
+These areas are still guarded with `#ifdef _WIN32` and compile out on Linux.
 
-#### Step 4a: DrawContext line/shape/text interface + first migrations [aeff614d..14a1c511]
-- Extended DrawContext with 12 new abstract methods:
-  - Lines: `DrawLine`, `DrawPolyline`
-  - Polygons: `DrawPolygon` with `DmsHatchStyle` enum
-  - Text: `TextOut`, `DrawText`, `GetTextExtent`, `SetTextColor`, `SetBkColor`, `SetBkMode`
-  - Regions: `InvertRegion`
-  - Clipping: `GetClipRect`
-  - Portable enums: `DmsPenStyle`, `DmsHatchStyle`
-- Implemented in both GdiDrawContext (Win32, transitional) and QtDrawContext (QPainter)
-- GdiDrawContext guarded behind `#ifdef _WIN32`; `GetHDC()` now Win32-only
-- Migrated caret system: `AbstrCaret::Reverse/Move` take `DrawContext&` instead of `HDC`
-  - All caret subclasses updated: NeedleCaret, FocusCaret, LineCaret, PolygonCaret,
-    InvertRgnCaret, RectCaret, MovableRectCaret, RoiCaret, CircleCaret, ScaleBarCaret
-  - DataView caret methods wrap CaretDcHandle in GdiDrawContext
-- Migrated drawing files:
-  - `DrawPolygons.h` — Polygon/Polyline via DrawContext (removed PenArray usage)
-  - `FeatureLayer.cpp` — network/arc Polyline via DrawContext (removed PenArray usage)
-  - `ScaleBar.cpp` — Draw() uses DrawContext::FillRect/DrawText
-  - `Carets.cpp` — all GDI removed, uses DrawContext::DrawLine/DrawPolygon/InvertRegion
-  - `GraphicGrid.cpp` — DmsColor members, DrawContext::FillRect/DrawLine
-  - `GraphicRect.cpp` — removed AlphaBlend/CreateBlender, uses DrawContext
-  - `TextControl.cpp` — Draw() uses DrawContext::FillRect/TextOut/InvertRect
-  - `DataItemColumn.cpp` — DrawBackground uses DrawContext::FillRect
-- Added `PenIndexCache::GetPenKey()`/`IsPenVisible()` for portable pen property lookup
+### Not needed — platform backends (intentionally Win32-only)
 
-#### Step 4b: All remaining GetDC() calls migrated or guarded [72c3ce19..6b03e6b8]
-- DrawContext extended with: SetClipRegion/SetClipRect/ResetClip, DrawButtonBorder/DrawReversedBorder, DrawEllipse
-- DcClipRegionSelector: changed from HDC to DrawContext* (portable clipping)
-- GraphVisitor.cpp: clip regions, borders, text color all via DrawContext
-- FeatureLayer.cpp: LabelDrawer uses DrawContext (no DcTextColorSelector/DcBackColorSelector)
-- DrawPoints/DrawMultiPoints: SetTextColor via DrawContext, font/TextOutW in _WIN32
-- DataItemColumn.cpp: DrawButtonBorder via DrawContext, symbol/text in _WIN32
-- GraphicPoint.h: DrawEllipse via DrawContext
-- GridLayer.cpp: focus drawing via DrawContext::FillRegion, GridDrawer HDC in _WIN32
-- WmsLayer.cpp: GridDrawer HDC in _WIN32
-- dataview.cpp: UpdateView draw loop, Scroll, InvalidateRgn, SelCaret all in _WIN32
+- `GdiDrawContext.cpp` — Win32 GDI DrawContext (Qt equivalent: `QtDrawContext`)
+- `DcHandle.h/cpp` — RAII wrappers for HDC/HFONT/HBRUSH (not needed on Qt)
+- `Win32ViewHost.cpp` — Win32 ViewHost (Qt equivalent: `QDmsViewArea`)
+- `dataview.cpp: DispatchMsg()` (~330 lines) — Win32 message loop (Qt uses QWidget events)
+- `dataview.cpp: OnPaint/OnEraseBkgnd` — Win32 paint cycle (Qt uses `paintEvent`)
+- `dataview.cpp: InvalidateDeviceRect/InvalidateRgn/ValidateRect` — (Qt uses `update()`)
+- `dataview.cpp: CreateMdiChild/ResetHWnd/DestroyWindow/PostGuiOper` — Win32 lifecycle
+- `ShvDllInterface.cpp: SHV_DataView_DispatchMessage/DllMain` — Win32 DLL entry points
 
-**Result:** All `GetDC()` calls in shv/dll/src are now either:
-- Behind `#if defined(_WIN32)` guards
-- Inside comment blocks (dead code)
-- In `GraphVisitor.h` definition (already _WIN32 guarded)
+### Medium priority — needed for full interactive use
 
-Linux clean rebuild (230/230 targets) and operator tests pass.
+- **Font management** (`FontIndexCache.cpp`, `DataItemColumn.cpp: GetFont()`, `dataview.cpp: GetDefaultFont()`) — GDI HFONT/LOGFONT. Qt path uses `DrawContext::SetFont()`. Need portable `FontArray` for indexed font caching.
+- **Pen management** (`PenIndexCache.cpp`) — GDI HPEN/CreatePen. Qt path uses `DrawContext::DrawPolyline()`. Need portable `PenArray` for indexed pen caching.
+- **Clipboard** (`ClipBoard.cpp`, `GridLayer.cpp: CopySelValues/PasteSelValues*`) — Win32 clipboard. Qt equivalent: `QClipboard`/`QMimeData`.
+- **Scroll bars** (`ScrollPort.cpp: SetScrollX/Y, CalcNewPos, OnHScroll/OnVScroll`) — Native Win32 scroll bar controls. Qt equivalent: `QScrollBar`.
 
-#### Step 4c: Cleanup (TODO)
-Remaining work:
-- Remove unused GDI utility functions from ShvUtils.h/cpp (DrawBorder, FillRectDmsColor etc.)
-- Guard DcHandle.h contents with _WIN32
-- Guard PenArray in _WIN32 (only used by legacy code now)
-- Clean up FontIndexCache/SelectingFontArray for portable font handling
-- Replace GridDrawer StretchDIBits with portable QImage rendering for Qt path
+### Low priority — polish / rare features
 
-### Step 5: Linux build (CMake)
-**Goal:** Build shv.dll and GeoDmsGuiQt on Linux via CMake + WSL.
+- **Bitmap export** (`ViewPort.cpp: Export/SaveBitmap`, `MovableObject.cpp: GetAsDDBitmap`) — Qt equivalent: `QImage::save()`.
+- **Color dialog** (`DataItemColumn.cpp: ChooseColorDialog()`) — Qt equivalent: `QColorDialog::getColor()`.
+- **GDI drawing utilities** (`ShvUtils.cpp: FillRectWithBrush, ShadowRect`, etc.) — 3D border painting.
+- **DPI scaling** (`ShvUtils.cpp: GetWindowDip2PixFactor*`) — Qt uses `devicePixelRatioF()` (already working).
+- **Grid bitmap rendering** (`GridDrawer.cpp: BITMAPINFO/RGBQUAD`) — Qt: `QImage` with `DrawContext::DrawImage()` (already implemented in QtDrawContext).
 
-#### Step 5a: CMakeLists.txt for shv/dll and qtgui/exe
-- Created `shv/dll/CMakeLists.txt`:
-  - `DmShv` shared library, sources globbed from `src/*.cpp`
-  - Win32-only files (`Win32ViewHost.cpp`, `GdiDrawContext.cpp`, `DcHandle.cpp`) excluded on non-WIN32
-  - `DM_SHV_EXPORTS` compile definition (matches `ShvDllPch.h` / `ShvBase.h` guard)
-  - Links all DLL targets: DmRtc, DmSym, DmTic, DmStx, DmStg, DmClc, DmGeo
-  - Links Qt6::Core, Qt6::Gui (for QRegion, QRect, QPoint)
-  - Win32: links Shcore, comctl32, msimg32
-- Created `qtgui/exe/CMakeLists.txt`:
-  - `GeoDmsGuiQt` executable with AUTOMOC/AUTORCC/AUTOUIC
-  - Processes `GeoDmsGuiQt.qrc` and `res/ui/*.ui` files
-  - Links all DLL targets + DmShv + Qt6::Core, Qt6::Gui, Qt6::Widgets
-  - Win32: links Shcore, shell32; sets WIN32_EXECUTABLE
-  - Deploys font files to `bin/misc/fonts/`
-- Added `add_subdirectory(shv/dll)` and `add_subdirectory(qtgui/exe)` to top-level CMakeLists.txt
+### Dead code (no callers, can be removed)
 
-#### Step 5b: Linux build fixes + portable QClipboard [ff1e53aa]
-- **ShvBase.h**: `SHV_CALL` empty on non-MSVC (matches `RtcBase.h` pattern for `RTC_CALL`)
-- **ShvUtils.h**: `ScreenToClientGPoint(HWND)`, `DrawBorder/FillRect` HDC functions, `GetWindowDip2PixFactor(HWND)` all behind `#ifdef _WIN32`; portable `UNDEFINED_WCHAR` as `char16_t` on Linux
-- **DcHandle.h**: Entire content behind `#ifdef _WIN32` (excluded from Linux build via CMake, but header still included transitively)
-- **PenIndexCache.h/.cpp**: `PenArray` struct behind `#ifdef _WIN32`; portable `PS_*` constants (`#ifndef PS_SOLID`) for `PenIndexCache` key computation
-- **GeoTypes.h**: Fixed `IsDefined(GPoint)` forward-declaration order — `GRect` constructor assert expanded to member-level `IsDefined(p.x)` calls
-- **Clipboard.h/.cpp**: Rewritten with `QClipboard` (Qt) for portable text operations:
-  - `GetText()`, `SetText()`, `AddText()`, `AddTextLine()`, `Clear()`, `ClearBuff()` all use `QGuiApplication::clipboard()`
-  - UTF-8↔QString conversion replaces Win32 `MultiByteToWideChar`/`GlobalAlloc`
-  - Win32-only: `GlobalLockHandle`, `SetBitmap(HBITMAP)`, `SetDIB(HBITMAP)`, `GetData(UINT)`, `SetData(UINT,...)`, `GetCurrFormat()` kept behind `#ifdef _WIN32`
-  - Free function `ClipBoard_SetData(ClipBoard&, UINT, GlobalLockHandle&)` replaces removed member overload
-- **GridLayer.h/.cpp**: `PasteHandler`, `CopySelValues()`, `PasteSelValues*()`, `PasteNow()`, `ClearPaste()`, `InvalidatePasteArea()`, `DrawPaste()`, `m_PasteHandler`, `CF_CELLVALUES` all behind `#ifdef _WIN32`
-- **MovableObject.h/.cpp**: `HBITMAP GetAsDDBitmap()`, `HCURSOR` members, `CopyToClipboard()` implementation behind `#ifdef _WIN32` (Linux stub provided for `CopyToClipboard`)
-- **dataview.h / GraphVisitor.h**: Unscoped forward-declared enums (`ViewStyle`, `ViewStyleFlags`, `ToolButtonID`, `ShvSyncMode`, `GdMode`) given explicit `: int` underlying type (GCC requirement)
-- **Aspect.h**: `AspectNr : int` (same GCC fix)
-- **LispList.h**: `operator<<` changed from by-value to `const&` parameter (fixes GCC overload ambiguity with `AssocListPtrWrap`)
+- `TextControl.cpp: DrawSymbol(), TextOutLimited(), DrawTextWithCursor(), DrawText()` (free functions) — legacy GDI text rendering, superseded by `DrawContext::TextOut()/TextOutW()`. Zero callers outside own `#ifdef` block.
+- `TextControl.h/cpp: AbstrTextEditControl::DrawEditText()` — declared in header, zero callers in entire codebase.
 
-**Result:** `DmShv` compiles clean on Linux (GCC 13, WSL). Windows MSVC build: OK.
+## TODO
 
-#### Step 5b continued: Additional Win32 guards [c012f78d+]
-- **DataItemColumn.cpp**: `ChooseColorDialog`, `GetFont(HFONT)`, `m_FontArray` usage all behind `#ifdef _WIN32`; Linux stub for `ChooseColorDialog` returns false
-- **DataItemColumn.h**: `FontArray` forward-decl and member behind `#ifdef _WIN32`
-- **ShvCompat.h**: Added `COLOR_BTNFACE`, `CLR_INVALID`, `COLOR_HIGHLIGHT`/`TEXT`, `GetSysColor` stub, `MB_ICONEXCLAMATION`/`YESNO`, `MessageBoxA` stub; `WCHAR = wchar_t` (was `char16_t`)
-- **ShvUtils.cpp**: `GetInstance(HWND)`, `ScreenToClientGPoint(HWND)`, `CheckedGdiCall`/`FillRectWithBrush`/`ShadowRect`/`DrawButtonBorder`/`DrawReversedBorder`/`DrawRectDmsColor`/`FillRectDmsColor` block, `GetWindowEffectiveDPI`/`GetWindowDip2PixFactor*` functions all behind `#ifdef _WIN32`
-- **ScrollPort.cpp**: `SetScrollX/Y`, `RePosScrollBar`, `CalcNewPosBase`, `CalcNewPos`, `OnHScroll/OnVScroll`, scrollbar info code all behind `#ifdef _WIN32`; Linux stubs provided
-- **TableControl.cpp**: `SetViewPortCursor(LoadCursor(...))` call behind `#ifdef _WIN32`
-- **Theme.cpp**: Removed `static` keyword from `CreateValue`/`CreateVar` template definitions (GCC requires static only on declaration)
-- **ViewPort.cpp**: Constructor `SetViewPortCursor`, `SaveBitmap`+`Export` functions, `PasteGridController` class+`PasteGrid` function, `OnCommand` cursor changes all behind `#ifdef _WIN32`
-- **DcHandle.h**: Moved `AddTransformation`, `AddClientLogicalOffset`, `ClipDeviceRectSelector`, `VisitorDeviceRectSelector` to `GraphVisitor.h` (portable helper structs)
-- **GraphVisitor.h**: Added portable helper structs; now includes `utl/Swapper.h` and conditionally includes `DcHandle.h` on Win32
-- **dataview.cpp**: Guard `CommCtrl.h` includes, `LParam2Point`, `MsgStruct::Send`, `m_hWnd` initializer, destructor `DestroyWindow` call, large Win32 blocks (`DestroyWindow`→`ReverseSelCaretImpl`, `IsTooltipKiller`→`OnKeyDown`, `UpdateWindow(GetHWnd())` call)
-- **ShvDllInterface.cpp**: `DllMain`/`g_ShvDllInstance` behind `#ifdef _WIN32`, added `Environment.h` include for `g_DispatchLockCount`
+### Before merging to v17
 
-**Status:** Linux build errors reduced from ~400 to ~149 across 7 files. Windows MSVC: clean.
+- [ ] Verify Windows MSVC build — no regressions from refactored `#ifdef` guards
+- [ ] Remove dead code: `TextControl.cpp` GDI free functions, `AbstrTextEditControl::DrawEditText()`
+- [ ] Runtime test on Linux: launch GeoDmsGuiQt, open a configuration, verify map/table views render
 
-#### Step 5c: Remaining tasks (TODO)
-- Build `GeoDmsGuiQt` on Linux (resolve qtgui/exe compilation issues)
-- Handle platform differences: shared library loading, font paths, etc.
+### Medium priority — needed for full interactive Linux use
 
-## Key Technical Decisions
+- [ ] **Portable font caching** — Replace `FontIndexCache` (GDI HFONT/LOGFONT) with a portable `FontArray` backed by `DrawContext::SetFont()`. Affects `DataItemColumn::GetFont()` and `dataview.cpp::GetDefaultFont()`.
+- [ ] **Portable pen caching** — Replace `PenIndexCache` (GDI HPEN) with a portable `PenArray` backed by `DrawContext::DrawPolyline()`.
+- [ ] **Clipboard** — Port `ClipBoard.cpp` and `GridLayer.cpp: CopySelValues/PasteSelValues*` to `QClipboard`/`QMimeData`.
+- [ ] **Scroll bars** — Port `ScrollPort.cpp: SetScrollX/Y, CalcNewPos, OnHScroll/OnVScroll` to `QScrollBar` (likely in `QDmsViewArea` or a wrapper).
 
-| Decision | Rationale |
-|----------|-----------|
-| QPainter everywhere (no GDI even on Windows) | Single rendering path, simpler maintenance |
-| No dual ViewHost | Qt's DmsViewArea replaces Win32ViewHost entirely on Linux |
-| QRegion as Region backing store | Qt provides cross-platform region operations |
-| GPoint/GRect as standalone structs | Removes POINT/RECT inheritance dependency on windows.h |
-| AsPOINT/AsRECT reinterpret_cast | Layout-compatible (static_assert verified), zero-cost for transitional Win32 interop |
-| COLORREF portable fallback | `using COLORREF = UInt32` — same bit layout as Win32 COLORREF |
+### Low priority — polish / rare features
 
-## Win32-Only Files (to be removed or replaced in Step 4-5)
-
-| File | Purpose | Replacement |
-|------|---------|-------------|
-| `Win32ViewHost.h/.cpp` | HWND-based ViewHost | DmsViewArea (Qt) |
-| `GdiDrawContext.cpp` | HDC-based DrawContext | QtDrawContext |
-| `DcHandle.h/.cpp` | HDC/HFONT/HPEN/HBRUSH RAII | QPainter state management |
-| `GdiRegionUtil.h` | HRGN↔QRegion conversion | Remove (no HRGN on Linux) |
-| `ShvDllInterface.h/.cpp` | DLL exports with HWND/LRESULT params | Qt-native API or conditional |
-
-## Qt Integration Details
-
-- **Qt version:** 6.9.0 (msvc2022_64 on Windows)
-- **Qt modules used:** core, gui (ShvDLL); core, gui, widgets (GeoDmsGuiQt)
-- **QtMsBuild:** `$env:LOCALAPPDATA\QtMsBuild` (Windows VS integration)
-- **UNICODE workaround:** Qt defines UNICODE/\_UNICODE; ShvDLL counters with `UndefinePreprocessorDefinitions`
-- **Qt in ShvDLL:** Only for QRegion and QRect (lightweight, no QWidget dependency)
-
-## File Modification Summary (all steps)
-
-### GeoTypes.h (core geometry)
-- GPoint: standalone `{ GType x, y; }` (was `: POINT`)
-- GRect: standalone `{ GType left, top, right, bottom; }` (was `: RECT`)
-- `using GType = Int32` (was `typedef LONG GType`)
-- `#ifdef _WIN32`: AsPOINT/AsRECT, POINTToGPoint/RECTToGRect, RGBQUAD, COLORREF
-- `#else`: `using COLORREF = UInt32`, portable DmsColor2COLORREF/COLORREF2DmsColor
-
-### Region.h/.cpp (region operations)
-- Backed by QRegion (was HRGN)
-- All set operations (union, intersect, subtract, XOR) via QRegion
-- `GetQRegion()` accessor for Qt interop
-
-### ShvBase.h (shared header)
-- `#include <windows.h>` guarded behind `#ifdef _WIN32`
-- `MsgResult`, `MG_WM_SIZE`, `g_ShvDllInstance` guarded behind `#ifdef _WIN32`
-
-### ViewHost.h (abstraction layer)
-- Abstract interface: cursor, scroll, invalidation, coordinate transform
-- Implemented by Win32ViewHost (HWND) and DmsViewArea (QWidget)
-
-### DrawContext.h (abstraction layer)
-- Abstract interface: FillRect, FillRegion, InvertRect, DrawFocusRect
-- Implemented by GdiDrawContext (HDC) and QtDrawContext (QPainter)
+- [ ] **Bitmap export** — Port `ViewPort::Export()/SaveBitmap` and `MovableObject::GetAsDDBitmap` using `QImage::save()`.
+- [ ] **Color dialog** — Port `DataItemColumn::ChooseColorDialog()` using `QColorDialog::getColor()`.
+- [ ] **GDI drawing utilities** — Port `ShvUtils.cpp: FillRectWithBrush, ShadowRect` etc. (3D borders) if needed.
+- [ ] **Grid bitmap rendering** — Verify `GridDrawer.cpp` works via `QtDrawContext::DrawImage()` on Linux (may already work).

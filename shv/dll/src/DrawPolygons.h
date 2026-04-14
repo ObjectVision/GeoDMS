@@ -16,6 +16,7 @@
 #include "CounterStacks.h"
 #include "DrawContext.h"
 #include "FeatureLayer.h"
+#include "LabelDrawer.h"
 #include "GeoTypes.h"
 #include "GraphVisitor.h"
 #include "IndexCollector.h"

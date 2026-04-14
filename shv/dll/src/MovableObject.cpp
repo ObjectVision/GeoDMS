@@ -640,6 +640,17 @@ bool MovableObject::MouseEvent(MouseEventDispatcher& med)
 	return base_type::MouseEvent(med);
 }
 
+DmsCursor MovableObject::SetViewPortCursor(DmsCursor cursor)
+{
+	auto old = m_DmsCursor;
+	if (m_DmsCursor != cursor)
+	{
+		m_DmsCursor = cursor;
+		UpdateCursor();
+	}
+	return old;
+}
+
 #ifdef _WIN32
 HCURSOR MovableObject::SetViewPortCursor(HCURSOR hCursor)
 {
@@ -654,6 +665,16 @@ HCURSOR MovableObject::SetViewPortCursor(HCURSOR hCursor)
 
 bool MovableObject::UpdateCursor() const
 {
+	// Try portable cursor via ViewHost
+	if (m_DmsCursor != DmsCursor::Arrow)
+	{
+		auto dv = GetDataView().lock();
+		if (dv && dv->GetViewHost())
+		{
+			dv->GetViewHost()->VH_SetCursor(m_DmsCursor);
+			return true;
+		}
+	}
 #ifdef _WIN32
 	if (m_Cursor)
 	{

@@ -12,17 +12,17 @@ void reportErr(CharPtr errMsg)
 	std::cerr << std::endl << errMsg;
 }
 
-UINT32 str2int(CharPtr str)
+UInt32 str2int(CharPtr str)
 {
 	int i = 0;
 	unsigned char nextNum = (str[i] - '0');
 	if (nextNum <= 9)
 	{
-		UINT32 value = nextNum;
+		UInt32 value = nextNum;
 
 		while ((nextNum = (str[++i] - '0')) <= 9)
 		{
-			UINT32 newValue = value * 10 + nextNum;
+			UInt32 newValue = value * 10 + nextNum;
 			if (newValue < value)
 				throw stx_error(mgFormat2string("numeric overflow at %1%", str).c_str());
 			value = newValue;
@@ -47,10 +47,11 @@ int PassMsg(int argc, char* argv[])
 		return waitMilliSec;
 	}
 
+#ifdef Q_OS_WIN
 	for (; i < argc; ++i)
 	{
 		COPYDATASTRUCT myCDS;
-		std::vector<UINT32> buffer;
+		std::vector<UInt32> buffer;
 
 		if (std::strcmp(argv[i], "SEND") == 0)
 		{
@@ -169,6 +170,10 @@ int PassMsg(int argc, char* argv[])
 			auto hwDispatch = (HWND)(mainWindow->winId());
 			SendMessage(hwDispatch, WM_COPYDATA, WPARAM(NULL), LPARAM(&myCDS));
 	}
+#else
+	// IPC via COPYDATASTRUCT/SendMessage not available on Linux
+	reportErr("PassMsg: Win32 IPC not available on this platform");
+#endif // Q_OS_WIN
 	return 0;
 }
 
@@ -233,7 +238,9 @@ SharedStr ReadLine(FormattedInpStream& fis)
 	return result;
 }
 
-#include <ppltasks.h>
+#include <future>
+#include <thread>
+#include <chrono>
 
 int RunTestScript(SharedStr testScriptName, bool* mustTerminateToken)
 {
@@ -243,8 +250,8 @@ int RunTestScript(SharedStr testScriptName, bool* mustTerminateToken)
 	{
 		auto line = ReadLine(fis);
 
-		auto p = Concurrency::task_completion_event<int>();
-		auto mainThreadResult = Concurrency::task<int>{ p };
+		std::promise<int> p;
+		auto mainThreadResult = p.get_future();
 		if (*mustTerminateToken)
 			return 0;
 
@@ -255,13 +262,13 @@ int RunTestScript(SharedStr testScriptName, bool* mustTerminateToken)
 		mw->PostAppOper([line, &p]
 			{
 				auto waitMilliSec = RunTestLine(line);
-				p.set(waitMilliSec);
+				p.set_value(waitMilliSec);
 			}
 		);
 
 		auto waitMilliSec = mainThreadResult.get();
 		if (waitMilliSec)
-			Sleep(waitMilliSec);
+			std::this_thread::sleep_for(std::chrono::milliseconds(waitMilliSec));
 	}
     return 0;
 }

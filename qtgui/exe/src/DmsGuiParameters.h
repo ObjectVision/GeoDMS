@@ -1,4 +1,4 @@
-#include <qsize.h>
+#include <QSize>
 
 #ifndef DMSGUIPARAMETERS_H
 #define DMSGUIPARAMETERS_H

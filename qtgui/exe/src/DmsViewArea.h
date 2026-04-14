@@ -12,8 +12,8 @@
 #include "ShvUtils.h"
 #include "ViewHost.h"
 
-#include <QMdiArea.h>
-#include <QMdiSubWindow.h>
+#include <QMdiArea>
+#include <QMdiSubWindow>
 #include <QAbstractNativeEventFilter>
 #include <QTimer>
 #include <QImage>
@@ -102,6 +102,7 @@ public:
     // Cursor shape
     void VH_SetCursorArrow() override;
     void VH_SetCursorWait() override;
+    void VH_SetCursor(DmsCursor cursor) override;
 
     // Invalidation and validation
     void VH_InvalidateRect(const GRect& rect, bool erase) override;
@@ -138,6 +139,13 @@ public:
 
     // Drawing
     void VH_DrawInContext(const Region& clipRgn, std::function<void(DrawContext&)> callback) override;
+
+    // Tooltip
+    void VH_ShowTooltip(GPoint screenPoint, CharPtr utf8Text) override;
+    void VH_HideTooltip() override;
+
+    // Context menu
+    void VH_ShowPopupMenu(GPoint clientPoint, const MenuData& menuData) override;
 
     // Caret overlay
     void VH_SetCaretOverlay(const Region& rgn, bool visible) override;

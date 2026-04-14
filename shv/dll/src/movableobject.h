@@ -117,6 +117,7 @@ public:
 	bool HasElemBorder() const { return m_State.Get(DIC_HasElemBorder); }
 
 protected:
+	DmsCursor SetViewPortCursor(DmsCursor cursor);
 #ifdef _WIN32
 	HCURSOR SetViewPortCursor(HCURSOR hCursor); friend class PasteGridController;
 #endif
@@ -128,6 +129,7 @@ private:
 private:
 	CrdPoint m_RelPos            = Point<CrdType>(0, 0); // position of clients (0,0) in parents coordinate system, managed by container
 	CrdPoint m_ClientLogicalSize = Point<CrdType>(0, 0); // should be determined by DoUpdateView
+	DmsCursor m_DmsCursor = DmsCursor::Arrow;
 #ifdef _WIN32
 	HCURSOR m_Cursor;
 #endif

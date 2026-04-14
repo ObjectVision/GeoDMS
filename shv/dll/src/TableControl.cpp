@@ -824,6 +824,7 @@ bool TableControl::OnCommand(ToolButtonID id)
 		case TB_Neutral:
 		{
 			CreateTableGroupBy(id == TB_TableGroupBy);
+			SetViewPortCursor(DmsCursor::Arrow);
 #ifdef _WIN32
 			SetViewPortCursor(LoadCursor(g_ShvDllInstance, IDC_ARROW));
 #endif

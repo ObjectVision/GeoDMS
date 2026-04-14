@@ -79,6 +79,22 @@ void Win32ViewHost::VH_SetCursorWait()
 	SetCursor(LoadCursor(NULL, IDC_WAIT));
 }
 
+void Win32ViewHost::VH_SetCursor(DmsCursor cursor)
+{
+	switch (cursor) {
+	case DmsCursor::Arrow:         SetCursor(LoadCursor(NULL, IDC_ARROW)); break;
+	case DmsCursor::IBeam:         SetCursor(LoadCursor(NULL, IDC_IBEAM)); break;
+	case DmsCursor::Cross:         SetCursor(LoadCursor(NULL, IDC_CROSS)); break;
+	case DmsCursor::Hand:          SetCursor(LoadCursor(NULL, IDC_HAND)); break;
+	case DmsCursor::Wait:          SetCursor(LoadCursor(NULL, IDC_WAIT)); break;
+	case DmsCursor::ZoomIn:        SetCursor(LoadCursor(g_ShvDllInstance, MAKEINTRESOURCE(IDC_ZOOMIN))); break;
+	case DmsCursor::ZoomOut:       SetCursor(LoadCursor(g_ShvDllInstance, MAKEINTRESOURCE(IDC_ZOOMOUT))); break;
+	case DmsCursor::Pan:           SetCursor(LoadCursor(g_ShvDllInstance, MAKEINTRESOURCE(IDC_PAN))); break;
+	case DmsCursor::SelectDiamond: SetCursor(LoadCursor(g_ShvDllInstance, MAKEINTRESOURCE(IDC_SELECTDIAMOND))); break;
+	default:                       SetCursor(LoadCursor(NULL, IDC_ARROW)); break;
+	}
+}
+
 void Win32ViewHost::VH_InvalidateRect(const GRect& rect, bool erase)
 {
 	::InvalidateRect(m_hWnd, &AsRECT(rect), erase);
@@ -207,6 +223,23 @@ void Win32ViewHost::VH_DrawInContext(const Region& clipRgn, std::function<void(D
 	callback(ctx);
 	::SelectClipRgn(hdc, NULL);
 	::ReleaseDC(m_hWnd, hdc);
+}
+
+void Win32ViewHost::VH_ShowTooltip(GPoint screenPoint, CharPtr utf8Text)
+{
+	// Win32ViewHost does not use this path; the DataView tooltip code
+	// uses the Win32 tooltip control directly via m_hWnd/m_hwndTooltip.
+}
+
+void Win32ViewHost::VH_HideTooltip()
+{
+	// Win32ViewHost does not use this path; see HideActiveTooltip in dataview.cpp.
+}
+
+void Win32ViewHost::VH_ShowPopupMenu(GPoint clientPoint, const MenuData& /*menuData*/)
+{
+	// Win32ViewHost does not use this path; the DataView::ShowPopupMenu
+	// Win32 code path uses HMENU/TrackPopupMenuEx directly via m_hWnd.
 }
 
 void Win32ViewHost::VH_SetCaretOverlay(const Region& rgn, bool visible)

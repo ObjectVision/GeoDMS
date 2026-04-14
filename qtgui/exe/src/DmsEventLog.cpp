@@ -4,14 +4,14 @@
 #include <QDockWidget>
 #include <QKeyEvent>
 #include <QKeySequence>
-#include <QMenubar>
+#include <QMenuBar>
 #include <QEvent>
 #include <QTimer>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QGridLayout>
 #include <QScrollBar>
-#include <QClipBoard>
+#include <QClipboard>
 #include <QEvent>
 #include <QKeyEvent>
 

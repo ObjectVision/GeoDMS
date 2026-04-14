@@ -1,9 +1,9 @@
-#include <QMenu.h>
-#include <QPointer.h>
+#include <QMenu>
+#include <QPointer>
 #include <QTreeView>
 #include <QCompleter>
 #include <QStyledItemDelegate>
-#include <qabstractitemmodel.h>
+#include <QAbstractItemModel>
 
 QT_BEGIN_NAMESPACE
 class QTreeView;

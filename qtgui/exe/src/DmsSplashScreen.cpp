@@ -3,7 +3,7 @@
 #include <QApplication>
 #include <QPainter>
 #include <QScreen>
-#include <qfontdatabase.h>
+#include <QFontDatabase>
 
 void DmsSplashScreen::drawContents(QPainter* painter) {
     QPixmap textPix = QSplashScreen::pixmap();

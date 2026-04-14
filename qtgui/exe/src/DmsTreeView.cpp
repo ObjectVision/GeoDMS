@@ -2,14 +2,14 @@
 
 #include <QObject>
 #include <QDockWidget>
-#include <QMenubar>
+#include <QMenuBar>
 #include <QFile>
 #include <QPainter>
 #include <QPixmap>
 #include <QBoxLayout>
 #include <QShortcut>
 #include <QHeaderView>
-#include <QScrollbar>
+#include <QScrollBar>
 
 #include <variant>
 
@@ -20,6 +20,7 @@
 #include "DmsTreeView.h"
 #include "SessionData.h"
 #include "TreeItem.h"
+#include "utl/Environment.h"
 #include <QMainWindow>
 #include <QApplication>
 

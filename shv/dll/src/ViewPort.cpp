@@ -96,6 +96,7 @@ ViewPort::ViewPort(MovableObject* owner, DataView* dv, CharPtr caption)
 	,	m_BrushOrg(0, 0)
 	,	m_BkColor(DmsColor2COLORREF( STG_Bmp_GetDefaultColor(CI_BACKGROUND) )) // White, adjustable by tools->options->Current configuration
 {
+	SetViewPortCursor(DmsCursor::Arrow);
 #ifdef _WIN32
 	SetViewPortCursor(LoadCursor(NULL, IDC_ARROW));
 #endif
@@ -741,12 +742,15 @@ void SaveBitmap(WeakStr filename, HBITMAP hBitmap)
 	fwrite(pBuf.begin(),bmpInfo.bmiHeader.biSizeImage,1,fh); 
 }
 
-//===================================== ViewPort::Export()
+#endif // _WIN32 (SaveBitmap)
+
+//===================================== ViewPort::GetExportInfo (portable)
 ExportInfo ViewPort::GetExportInfo()
 {
 	return ExportInfo(this);
 }
 
+#ifdef _WIN32
 void ViewPort::Export()
 {
 	auto dv = GetDataView().lock(); if (!dv) return;
@@ -807,7 +811,14 @@ void ViewPort::Export()
 	}
 }
 
-#endif // _WIN32 (SaveBitmap, Export)
+#else // !_WIN32
+
+void ViewPort::Export()
+{
+	// TODO: implement bitmap export on Linux (Qt-based rendering)
+}
+
+#endif // _WIN32 (Export)
 
 #if defined(_WIN32) && (WINVER < 0x0500)
 #define IDC_HAND            MAKEINTRESOURCE(32649)
@@ -876,18 +887,21 @@ bool ViewPort::OnCommand(ToolButtonID id)
 		case TB_ZoomSelectedObj:  AL_ZoomSel(); return true;
 		case TB_ShowFirstSelectedRow: AL_ZoomSel(); return true;
 		case TB_Neutral:
+			SetViewPortCursor(DmsCursor::Arrow);
 #ifdef _WIN32
 			SetViewPortCursor( LoadCursor(NULL, IDC_ARROW) );
 #endif
 			goto setControllerID;
 
 		case TB_ZoomIn2:
+			SetViewPortCursor(DmsCursor::ZoomIn);
 #ifdef _WIN32
 			SetViewPortCursor( LoadCursor(g_ShvDllInstance, MAKEINTRESOURCE(IDC_ZOOMIN) ) );
 #endif
 			goto setControllerID;
 
 		case TB_ZoomOut2:
+			SetViewPortCursor(DmsCursor::ZoomOut);
 #ifdef _WIN32
 			SetViewPortCursor( LoadCursor(g_ShvDllInstance, MAKEINTRESOURCE(IDC_ZOOMOUT) ) );
 #endif
@@ -898,6 +912,7 @@ bool ViewPort::OnCommand(ToolButtonID id)
 		case TB_SelectCircle:
 		case TB_SelectPolygon:
 		case TB_SelectDistrict:
+			SetViewPortCursor(DmsCursor::SelectDiamond);
 #ifdef _WIN32
 			SetViewPortCursor( LoadCursor(NULL, MAKEINTRESOURCE(IDC_SELECTDIAMOND) ) );
 #endif

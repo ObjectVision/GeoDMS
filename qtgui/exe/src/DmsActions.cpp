@@ -7,7 +7,7 @@
 #include <QTranslator>
 #include <QAction>
 #include <QMenuBar>
-#include <QShortCut>
+#include <QShortcut>
 
 #include "DmsEventLog.h"
 #include "DmsDetailPages.h"

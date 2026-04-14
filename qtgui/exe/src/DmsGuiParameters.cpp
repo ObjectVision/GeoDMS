@@ -1,4 +1,4 @@
-#include <qsize.h>
+#include <QSize>
 #include "DmsGuiParameters.h"
 
 // windows

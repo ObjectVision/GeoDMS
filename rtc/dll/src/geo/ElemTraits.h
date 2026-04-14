@@ -140,7 +140,7 @@ template <bit_size_t N> struct is_numeric<bit_value<N> > : std::true_type {};
 template <>             struct is_numeric<bit_value<1> > : std::false_type {}; // bit_value<1> (pseudo bool) is not considered as a numeric.
 
 
-template <>           struct is_numeric<bool> {};      // PREVENT USING bool directly
+template <>           struct is_numeric<bool> : std::false_type {};      // PREVENT USING bool directly
 
 template <typename T> constexpr bool is_numeric_v = is_numeric<T>::value;
 

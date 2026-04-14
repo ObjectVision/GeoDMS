@@ -282,3 +282,37 @@ Region Region::FromEllipse(const GRect& boundingRect)
 	QRect qr = GRect2QRect(boundingRect);
 	return Region(QRegion(qr, QRegion::Ellipse));
 }
+
+//----------------------------------------------------------------------
+// DcClipRegionSelector
+//----------------------------------------------------------------------
+
+#include "DrawContext.h"
+
+DcClipRegionSelector::DcClipRegionSelector(DrawContext* dc, Region& currClipRegion, const GRect& newClipRect)
+	:	m_DC(dc)
+	,	m_OrgRegionPtr (&currClipRegion )
+	,	m_OrgRegionCopy(currClipRegion.Clone() )
+{
+	DBG_START("DcClipRegionSelector", "ctor", MG_DEBUG_REGION);
+	DBG_TRACE(("NewRect    %s", AsString(   newClipRect).c_str()));
+	DBG_TRACE(("CurrRegion %s", currClipRegion.AsString().c_str()));
+
+	dms_assert(! m_OrgRegionCopy.Empty() ); // else we shoudn't get here at all
+
+	currClipRegion &= newClipRect;
+
+	if (! currClipRegion.Empty() && m_DC)
+		m_DC->SetClipRegion(currClipRegion);
+}
+
+DcClipRegionSelector::~DcClipRegionSelector()
+{
+	dms_assert(m_OrgRegionPtr);
+
+	if (! m_OrgRegionPtr->Empty() && m_DC)
+		m_DC->SetClipRegion(m_OrgRegionCopy);
+	m_OrgRegionPtr->swap(m_OrgRegionCopy);
+
+	assert(! m_OrgRegionPtr->Empty() ); // else we shoudn't get here at all
+}

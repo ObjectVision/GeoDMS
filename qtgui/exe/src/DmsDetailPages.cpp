@@ -8,7 +8,7 @@
 #include <QObject>
 #include <QDockWidget>
 #include <QTimer>
-#include <Qclipboard.h>
+#include <QClipboard>
 
 #include "DmsMainWindow.h"
 #include "DmsDetailPages.h"

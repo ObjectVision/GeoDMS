@@ -34,7 +34,7 @@ struct gdal_driver_id
     CharPtr name = nullptr;
     CharPtr nativeName = nullptr;
     std::vector<CharPtr> exts;
-    driver_characteristics driver_characteristics = driver_characteristics::none;
+    enum driver_characteristics m_driver_characteristics = driver_characteristics::none;
 
     CharPtr Caption() const
     {

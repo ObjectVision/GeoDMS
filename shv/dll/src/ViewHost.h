@@ -20,6 +20,7 @@
 #include <functional>
 
 struct Region;
+struct MenuData;
 class DrawContext;
 
 class SHV_CALL ViewHost
@@ -47,6 +48,7 @@ public:
 	// Cursor shape
 	virtual void VH_SetCursorArrow() = 0;
 	virtual void VH_SetCursorWait() = 0;
+	virtual void VH_SetCursor(DmsCursor cursor) = 0;
 
 	// Invalidation and validation
 	virtual void VH_InvalidateRect(const GRect& rect, bool erase) = 0;
@@ -84,6 +86,13 @@ public:
 	// Drawing: execute callback with a DrawContext for the backing store
 	// The backing store contains model data only; carets are drawn as overlays.
 	virtual void VH_DrawInContext(const Region& clipRgn, std::function<void(DrawContext&)> callback) = 0;
+
+	// Tooltip
+	virtual void VH_ShowTooltip(GPoint screenPoint, CharPtr utf8Text) = 0;
+	virtual void VH_HideTooltip() = 0;
+
+	// Context menu
+	virtual void VH_ShowPopupMenu(GPoint clientPoint, const MenuData& menuData) = 0;
 
 	// Caret overlay: set region to be XOR-inverted on top of backing store during paint.
 	// This keeps backing store clean with only model data representation.

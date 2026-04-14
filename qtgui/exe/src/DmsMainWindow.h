@@ -17,8 +17,8 @@
 #include <QTextEdit>
 #include <QDialog>
 #include <QPushButton>
-#include <QCheckbox>
-#include <qpushbutton>
+#include <QCheckBox>
+#include <QPushButton>
 #include <QSlider>
 #include <QTextBrowser>
 #include <QListView>

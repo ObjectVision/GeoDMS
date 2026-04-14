@@ -5,11 +5,13 @@
 #include <QMouseEvent>
 #include <QPainter>
 #include <QResource>
+#include <QMessageBox>
 #include <QScreen>
 #include <QThread> // TODO: remove
 
 #include <memory>
 #include <iostream>
+#include <stdexcept>
 
 #include "RtcInterface.h"
 
@@ -33,21 +35,31 @@
 #include "DmsTreeView.h"
 #include "TestScript.h"
 
-struct CmdLineException : SharedStr, std::exception {
+struct CmdLineException : SharedStr, std::runtime_error {
     CmdLineException(SharedStr x)
-    :   SharedStr(x + 
+    :   SharedStr(x +
             "\nexpected syntax:"
             "\nGeoDmsGuiQt.exe [options] [/LLogFile] [/TTestFile] configFileName.dms [item]"
         )
-    ,   std::exception(c_str())
+    ,   std::runtime_error(SharedStr::c_str())
     {}
     CmdLineException(CharPtr x) : CmdLineException(SharedStr(x)) {}
 };
 
+#ifndef _WIN32
+static int    s_argc = 0;
+static char** s_argv = nullptr;
+#endif
+
 std::any interpret_command_line_parameters(CmdLineSetttings& settingsFrame) {
+#ifdef _WIN32
     int    argc = __argc;
-    --argc;
     char** argv = __argv;
+#else
+    int    argc = s_argc;
+    char** argv = s_argv;
+#endif
+    --argc;
     ++argv;
 
     std::any result;
@@ -96,7 +108,7 @@ std::any init_geodms(QApplication& dms_app, CmdLineSetttings& settingsFrame) { /
 }
 
 #include "DmsViewArea.h"
-#include <qmdiarea.h>
+#include <QMdiArea>
 
 class CustomEventFilter : public QAbstractNativeEventFilter {
     //    Q_OBJECT
@@ -123,6 +135,8 @@ void SaveDetailPage(CharPtr fileName) {
    
     buff.WriteBytes(htmlsourceAsUtf8.data(), htmlsourceAsUtf8.size());*/
 }
+
+#ifdef Q_OS_WIN
 
 UInt32 Get4Bytes(const COPYDATASTRUCT* pcds, UInt32 i) {
     if (pcds->cbData < (i + 1) * 4)
@@ -165,7 +179,7 @@ bool WmCopyData(MSG* copyMsgPtr) {
     case CommandCode::ActivateItem:
         MainWindow::TheOne()->m_address_bar->setPath(CharPtr(pcds->lpData));
         return true;
-        
+
     case CommandCode::miExportViewPorts:
 //        miExportViewPorts.Click;
         return true;
@@ -233,6 +247,8 @@ bool WmCopyData(MSG* copyMsgPtr) {
     return SendMessage(hWindow, message, wParam, lParam);
 }
 
+#endif // Q_OS_WIN
+
 CustomEventFilter::CustomEventFilter() {
      reportD(MsgCategory::other, SeverityTypeID::ST_MinorTrace, "Created CustomEventFilter");
 }
@@ -241,10 +257,11 @@ CustomEventFilter::~CustomEventFilter() {
     reportD(MsgCategory::other, SeverityTypeID::ST_MinorTrace, "Destroy CustomEventFilter");
 }
 
-bool CustomEventFilter::nativeEventFilter(const QByteArray& /*eventType*/, void* message, qintptr* /*result*/ ) 
+bool CustomEventFilter::nativeEventFilter(const QByteArray& /*eventType*/, void* message, qintptr* /*result*/ )
 {
     SuspendTrigger::Resume();
 
+#ifdef Q_OS_WIN
     MSG* msg = static_cast<MSG*>(message);
     switch (msg->message) {
     case UM_SCALECHANGE:  // RegisterScaleChangeNotifications called in DmsViewArea.cpp, but this message is never received here
@@ -285,12 +302,15 @@ bool CustomEventFilter::nativeEventFilter(const QByteArray& /*eventType*/, void*
             }
             catch (...) {
                 auto msgTxt = catchException(false);
-                auto userResult = MessageBoxA(nullptr, msgTxt->GetAsText().c_str(), "exception in handling of WM_COPYDATA", MB_OKCANCEL | MB_ICONERROR | MB_SYSTEMMODAL);
-                if (userResult == IDCANCEL)
+                auto userResult = QMessageBox::critical(nullptr, "WM_COPYDATA Error",
+                    QString::fromStdString(msgTxt->GetAsText()),
+                    QMessageBox::Ok | QMessageBox::Cancel);
+                if (userResult == QMessageBox::Cancel)
                     terminate();
             }
         }
     }
+#endif // Q_OS_WIN
 
     return false;
 }
@@ -313,7 +333,9 @@ protected:
 
 int main_without_SE_handler(int argc, char *argv[]) {
     try {
+#ifdef Q_OS_WIN
         qputenv("QT_QPA_PLATFORM", "windows:darkmode=1"); // https://doc.qt.io/qt-6/qguiapplication.html#platform-specific-arguments
+#endif
         CmdLineSetttings settingsFrame;
         garbage_can geoDmsResources; // destruct resources after app completion
 
@@ -361,7 +383,7 @@ int main_without_SE_handler(int argc, char *argv[]) {
             ShowWindow(hwnd, SW_SHOWMAXIMIZED);
             SetWindowPos(hwnd, HWND_BOTTOM, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
 #else
-            main_window.setWindowState(Qt::WindowMaximized | Qt::WindowInactive);
+            main_window.setWindowState(Qt::WindowMaximized);
             main_window.show();
 #endif
             ConfirmMainThreadOperProcessing();
@@ -398,14 +420,16 @@ int main_without_SE_handler(int argc, char *argv[]) {
         auto msg = catchException(false);
         std::cout << "error          : " << msg->Why() << std::endl;
         std::cout << "context        : " << msg->Why() << std::endl;
-        MessageBoxA(nullptr, msg->GetAsText().c_str(), "GeoDms terminates due to an unexpected uncaught exception", MB_OK | MB_ICONERROR | MB_SYSTEMMODAL | MB_TASKMODAL);
+        QMessageBox::critical(nullptr, "GeoDMS Error",
+            QString::fromUtf8(msg->GetAsText().c_str()));
     }
     return 9;
 }
 
 void ProcessRequestedCmdLineFeedback(char* argMsg) {
     auto exceptionText = DoubleUnQuoteMiddle(argMsg);
-    MessageBoxA(nullptr, exceptionText.c_str(), "GeoDmsQt teminated due to a fatal OS Structured Exception", MB_OK | MB_ICONERROR | MB_SYSTEMMODAL | MB_TASKMODAL);
+    QMessageBox::critical(nullptr, "GeoDMS Fatal Error",
+        QString::fromStdString(std::string(exceptionText.c_str())));
 }
 
 #include "VersionComponent.h"
@@ -423,6 +447,10 @@ int main1(int argc, char* argv[]) {
 }
 
 int main(int argc, char* argv[]) {
+#ifndef _WIN32
+    s_argc = argc;
+    s_argv = argv;
+#endif
     if ((argc > 1) && (argv[1][0] == '/') && (argv[1][1] == 'F')) {
         ProcessRequestedCmdLineFeedback(argv[1] + 2 );
         return 0;

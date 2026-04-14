@@ -10,16 +10,16 @@
 #if !defined(DMS_QT_UPDATABLE_BROWSER_H)
 #define DMS_QT_UPDATABLE_BROWSER_H
 
-#include <QTextBrowser.h>
-#include <QTimer.h>
-#include <QMdiSubWindow.h>
-#include <QShortCut>
+#include <QTextBrowser>
+#include <QTimer>
+#include <QMdiSubWindow>
+#include <QShortcut>
 #include <QCheckBox>
 #include <QVBoxLayout>
 #include <QLineEdit>
 #include <QLabel>
 #include <QFocusEvent>
-#include "qtextdocument.h"
+#include <QTextDocument>
 
 #include "DmsMainWindow.h"
 

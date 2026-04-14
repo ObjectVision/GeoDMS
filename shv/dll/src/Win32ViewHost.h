@@ -35,6 +35,7 @@ public:
 
 	void VH_SetCursorArrow() override;
 	void VH_SetCursorWait() override;
+	void VH_SetCursor(DmsCursor cursor) override;
 
 	void VH_InvalidateRect(const GRect& rect, bool erase) override;
 	void VH_InvalidateRgn(const Region& rgn, bool erase) override;
@@ -62,6 +63,11 @@ public:
 		Region& updateRgn, const GRect& validRect) override;
 
 	void VH_DrawInContext(const Region& clipRgn, std::function<void(DrawContext&)> callback) override;
+
+	void VH_ShowTooltip(GPoint screenPoint, CharPtr utf8Text) override;
+	void VH_HideTooltip() override;
+
+	void VH_ShowPopupMenu(GPoint clientPoint, const MenuData& menuData) override;
 
 	void VH_SetCaretOverlay(const Region& rgn, bool visible) override;
 

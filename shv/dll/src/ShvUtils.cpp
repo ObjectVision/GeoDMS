@@ -643,6 +643,16 @@ Point<Float64> GetWindowPix2DipFactors(HWND hWnd)
 
 #endif // _WIN32
 
+#ifndef _WIN32
+//----------------------------------------------------------------------
+// Portable color functions
+//----------------------------------------------------------------------
+
+COLORREF GetFocusClr() { return 0x00D77800; } // Blue highlight (same as ShvCompat.h GetSysColor)
+COLORREF GetSelectedClr() { return CombineRGB(255, 255, 0); }
+
+#endif // !_WIN32
+
 //----------------------------------------------------------------------
 // desktop data section
 //----------------------------------------------------------------------

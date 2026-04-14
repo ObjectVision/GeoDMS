@@ -326,10 +326,14 @@ void ScrollPort::SetScrollBars()
 	SetScrollY(m_VerScroll);                   // shorten vertical bar
 }
 
+#endif // _WIN32 (temporarily close for portable OnChildSizeChanged)
+
 void ScrollPort::OnChildSizeChanged()
 {
 	InvalidateView();
 }
+
+#ifdef _WIN32
 
 GType CalcNewPosBase(HWND scrollBarCtl, UInt16 scrollCmd)
 {
