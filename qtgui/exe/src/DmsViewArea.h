@@ -63,15 +63,20 @@ public:
     ~QDmsViewArea();
 
     // QMdiSubWindow overrides
+#ifdef _WIN32
     bool nativeEvent(const QByteArray& eventType, void* message, qintptr* result) override;
+#endif
     void dragEnterEvent(QDragEnterEvent* event) override;
     void closeEvent(QCloseEvent* event) override;
     void dropEvent(QDropEvent* event) override;
 
     auto getDataView() -> std::shared_ptr<DataView> { return m_DataView.lock(); }
+#ifdef _WIN32
     auto getDataViewHwnd() -> void* { return m_DataViewHWnd; }
+#endif
     void UpdatePosAndSize();
     void on_rescale();
+    DPoint getScaleFactors() const;
 
     //------------------------------------------------------------------
     // ViewHost interface implementation (Qt-based, portable)
@@ -157,7 +162,10 @@ private:
     void scrollBackingStore(int dx, int dy, const QRect& scrollRect);
 
     std::weak_ptr<DataView> m_DataView;
+
+#ifdef _WIN32
     void* m_DataViewHWnd = nullptr;
+#endif
 
     // Timer management for VH_SetTimer/VH_KillTimer
     std::map<UInt32, QTimer*> m_Timers;
@@ -179,7 +187,7 @@ private:
 #ifdef _WIN32
     DWORD m_cookie = 0; // used for RegisterScaleChangeNotifications
 #endif
-    DPoint m_LastScaleFactors;
+    DPoint m_LastScaleFactors = {1.0, 1.0};
 };
 
 #endif // DMSVIEWAREA_H

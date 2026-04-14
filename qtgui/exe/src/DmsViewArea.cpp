@@ -13,6 +13,8 @@
 #include <QTimer>
 #include <QCursor>
 #include <QPainter>
+#include <QScreen>
+#include <QGuiApplication>
 
 #ifdef _WIN32
 #include <ShellScalingApi.h>
@@ -26,6 +28,15 @@
 #include "DataView.h"
 #include "KeyFlags.h"
 
+// Portable ShowWindow constants (defined in windows.h on Win32)
+#ifndef SW_HIDE
+#define SW_HIDE 0
+#define SW_SHOWNORMAL 1
+#define SW_SHOWMINIMIZED 2
+#define SW_SHOWMAXIMIZED 3
+#endif
+
+#ifdef _WIN32
 LRESULT CALLBACK DataViewWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     DBG_START("DataViewWndProc", "", MG_DEBUG_WNDPROC);
     DBG_TRACE(("msg: %x(%x, %x)", uMsg, wParam, lParam));
@@ -77,6 +88,7 @@ LPCWSTR RegisterViewAreaWindowClass(HINSTANCE instance) {
     RegisterClassEx(&wndClassData);
     return className;
 }
+#endif // _WIN32
 
 void DMS_CONV OnStatusText(ClientHandle clientHandle, SeverityTypeID st, CharPtr msg) {
     auto* dva = reinterpret_cast<QDmsViewArea*>(clientHandle);
@@ -205,83 +217,94 @@ void QDmsMdiArea::onCascadeSubWindows()
 
 void QDmsMdiArea::onTileSubWindows()
 {
-    setViewMode(QMdiArea::ViewMode::SubWindowView);
-    tileSubWindows();
+	setViewMode(QMdiArea::ViewMode::SubWindowView);
+	tileSubWindows();
 }
 
 void QDmsMdiArea::closeActiveDmsSubWindow()
 {
-    activatePreviousSubWindow();
-    closeActiveSubWindow();
+	activatePreviousSubWindow();
+	closeActiveSubWindow();
 }
 
 QDmsViewArea::QDmsViewArea(QMdiArea* parent, TreeItem* viewContext, const TreeItem* currItem, ViewStyle viewStyle)
-    : QMdiSubWindow(parent)
+	: QMdiSubWindow(parent)
 {
-    assert(currItem); // Precondition
-    setAcceptDrops(true);
+	assert(currItem); // Precondition
+	setAcceptDrops(true);
 
-    m_DataView = SHV_DataView_Create(viewContext, viewStyle, ShvSyncMode::SM_Load);
-    auto dv = m_DataView.lock();
-    if (!dv)
-        throwErrorF("CreateView", "Cannot create view with style %s with context '%s'"
-            , GetViewStyleName(viewStyle)
-            , viewContext->GetFullName().c_str()
-        );
+	m_DataView = SHV_DataView_Create(viewContext, viewStyle, ShvSyncMode::SM_Load);
+	auto dv = m_DataView.lock();
+	if (!dv)
+		throwErrorF("CreateView", "Cannot create view with style %s with context '%s'"
+			, GetViewStyleName(viewStyle)
+			, viewContext->GetFullName().c_str()
+		);
 
-    ObjectMsgGenerator thisMsgGenerator(currItem, "CreateDmsView");
-    Waiter showWaitingStatus(&thisMsgGenerator);
+	ObjectMsgGenerator thisMsgGenerator(currItem, "CreateDmsView");
+	Waiter showWaitingStatus(&thisMsgGenerator);
 
-    CreateDmsView(parent, viewStyle);
-    // SHV_DataView_AddItem can call ClassifyJenksFisher, which requires DataView with a m_hWnd, so this must be after CreateWindowEx
-    // or PostMessage(UM_PROCESS_QUEUE, ...) directly here to trigger DataView::ProcessGuiOpers()
-    try {
-        auto current_item = MainWindow::TheOne()->getCurrentTreeItem();
-        dv->AddLayer(currItem, false);
-        if (dv->GetViewType()== ViewStyle::tvsMapView)
-            reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "Add layer for item %s in %s", current_item->GetFullName(), dv->GetCaption());
-        else
-            reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "Add column for item %s in %s('%s')"
-                , current_item->GetFullName()
+	CreateDmsView(parent, viewStyle);
+	// SHV_DataView_AddItem can call ClassifyJenksFisher, which requires DataView with a m_hWnd, so this must be after CreateWindowEx
+	// or PostMessage(UM_PROCESS_QUEUE, ...) directly here to trigger DataView::ProcessGuiOpers()
+	try {
+		auto current_item = MainWindow::TheOne()->getCurrentTreeItem();
+		dv->AddLayer(currItem, false);
+		if (dv->GetViewType()== ViewStyle::tvsMapView)
+			reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "Add layer for item %s in %s", current_item->GetFullName(), dv->GetCaption());
+		else
+			reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "Add column for item %s in %s('%s')"
+				, current_item->GetFullName()
 				, GetViewStyleName(viewStyle)
-                , dv->GetCaption()
-            );
-    }
-    catch (...) {
-        CloseWindow((HWND)m_DataViewHWnd); // calls SHV_DataView_Destroy
-        throw;
-    }
+				, dv->GetCaption()
+			);
+	}
+	catch (...) {
+#ifdef _WIN32
+		CloseWindow((HWND)m_DataViewHWnd); // calls SHV_DataView_Destroy
+#else
+		// On Linux, DataView cleanup is handled differently
+		auto dv = m_DataView.lock();
+		if (dv)
+			SHV_DataView_Destroy(dv.get());
+#endif
+		throw;
+	}
 }
 
 QDmsViewArea::QDmsViewArea(QMdiArea* parent, MdiCreateStruct* createStruct)
-    :   QMdiSubWindow(parent)
-    ,   m_DataView(createStruct->dataView->shared_from_this())
+	:   QMdiSubWindow(parent)
+	,   m_DataView(createStruct->dataView->shared_from_this())
 {
-    //setUpdatesEnabled(false);
-    setWindowTitle(createStruct->caption);
-    CreateDmsView(parent, createStruct->ct);
-    createStruct->hWnd = (HWND)m_DataViewHWnd;
+	//setUpdatesEnabled(false);
+	setWindowTitle(createStruct->caption);
+	CreateDmsView(parent, createStruct->ct);
+#ifdef _WIN32
+	createStruct->hWnd = (HWND)m_DataViewHWnd;
+#endif
 }
 
 void QDmsViewArea::CreateDmsView(QMdiArea* parent, ViewStyle viewStyle)
 {
-    setAttribute(Qt::WA_DeleteOnClose);
+	setAttribute(Qt::WA_DeleteOnClose);
     //    setAttribute(Qt::WA_Mapped);
     //    setAttribute(Qt::WA_PaintOnScreen);
     //    setAttribute(Qt::WA_NoSystemBackground);
     //    setAttribute(Qt::WA_OpaquePaintEvent);
 
-    HWND hWndMain = (HWND)MainWindow::TheOne()->winId();
+    auto dv = m_DataView.lock(); MG_CHECK(dv);
 
+#ifdef _WIN32
+    // Win32: Create native HWND child window for GDI rendering
+    HWND hWndMain = (HWND)MainWindow::TheOne()->winId();
     HINSTANCE instance = GetInstance(hWndMain);
     auto parent_hwnd = (HWND)this->winId();
     auto rect = contentsRectInPixelUnits();
     if (rect.width() < 200) rect.setWidth(200);
     if (rect.height() < 100) rect.setHeight(100);
 
-    auto dv = m_DataView.lock(); MG_CHECK(dv);
     static LPCWSTR dmsViewAreaClassName = RegisterViewAreaWindowClass(instance); // I say this only once
-    auto vs = WS_CHILD | WS_CLIPSIBLINGS | WS_CLIPCHILDREN; //  viewStyle == tvsMapView ? WS_DLGFRAME | WS_CHILD : WS_CHILD;
+    auto vs = WS_CHILD | WS_CLIPSIBLINGS | WS_CLIPCHILDREN;
     auto dv_hWnd = CreateWindowEx(
         WS_EX_OVERLAPPEDWINDOW,          // extended style
         dmsViewAreaClassName,            // DmsDataView control class 
@@ -295,16 +318,20 @@ void QDmsViewArea::CreateDmsView(QMdiArea* parent, ViewStyle viewStyle)
         dv.get()
     );
     m_DataViewHWnd = dv_hWnd;
+#endif
 
     // Use QDmsViewArea as ViewHost (implements ViewHost interface with Qt)
     SHV_DataView_SetViewHost(dv.get(), this);
+    SHV_DataView_SetStatusTextFunc(dv.get(), this, OnStatusText);
 
-    SHV_DataView_SetStatusTextFunc(dv.get(), this, OnStatusText); // to communicate title etc.
+#ifdef _WIN32
     SetWindowPos(dv_hWnd, HWND_TOP
         , rect.x(), rect.y()
         , rect.width(), rect.height()
         , SWP_SHOWWINDOW
     );
+#endif
+
     parent->addSubWindow(this);
     this->setWindowIcon(MainWindow::TheOne()->getIconFromViewstyle(viewStyle));
     if (parent->subWindowList().size() == 1)
@@ -313,21 +340,37 @@ void QDmsViewArea::CreateDmsView(QMdiArea* parent, ViewStyle viewStyle)
     setMinimumSize(200, 150);
     show();
 
-    RegisterScaleChangeNotifications(DEVICE_PRIMARY, parent_hwnd, UM_SCALECHANGE, &m_cookie);
+#ifdef _WIN32
+    auto parent_hwnd_for_scale = (HWND)this->winId();
+    RegisterScaleChangeNotifications(DEVICE_PRIMARY, parent_hwnd_for_scale, UM_SCALECHANGE, &m_cookie);
+#endif
+
     setProperty("viewstyle", viewStyle);
 
+#ifdef _WIN32
     QTimer::singleShot(0, this, 
         [dv_hWnd]()
         { 
             SetFocus(dv_hWnd); 
         }
     );
+#else
+    // On Linux, set focus to this Qt widget
+    QTimer::singleShot(0, this, [this]() { setFocus(); });
+#endif
 }
 
 QDmsViewArea::~QDmsViewArea()
 {
+#ifdef _WIN32
     RevokeScaleChangeNotifications(DEVICE_PRIMARY, m_cookie);
     CloseWindow((HWND)m_DataViewHWnd); // calls SHV_DataView_Destroy
+#else
+    // On Linux, clean up DataView directly
+    auto dv = m_DataView.lock();
+    if (dv)
+        SHV_DataView_Destroy(dv.get());
+#endif
 
     if (!MainWindow::IsExisting())
         return;
@@ -341,6 +384,7 @@ QDmsViewArea::~QDmsViewArea()
     }
 }
 
+#ifdef _WIN32
 bool QDmsViewArea::nativeEvent(const QByteArray& eventType, void* message, qintptr* result) 
 {
     MSG* msg = static_cast<MSG*>(message);
@@ -360,6 +404,7 @@ bool QDmsViewArea::nativeEvent(const QByteArray& eventType, void* message, qintp
                 }
     return false;
 }
+#endif // _WIN32
 
 void QDmsViewArea::dragEnterEvent(QDragEnterEvent* event) {
     event->acceptProposedAction(); // TODO: further specify that only treenodes dragged from treeview can be dropped here.
@@ -407,23 +452,41 @@ void QDmsViewArea::resizeEvent(QResizeEvent* event) {
 }
 
 auto QDmsViewArea::contentsRectInPixelUnits()->QRect {
+    auto rect = contentsRect();
+#ifdef _WIN32
     auto wId = winId();
     assert(wId);
     auto scaleFactors = GetWindowDip2PixFactors(reinterpret_cast<HWND>(wId));
-    auto rect = contentsRect();
     QPoint topLeft (rect.left () * scaleFactors.first, rect.top   () * scaleFactors.second);
     QPoint botRight(rect.right() * scaleFactors.first, rect.bottom() * scaleFactors.second);
     return QRect(topLeft, botRight);
+#else
+    // On Linux, use Qt's device pixel ratio
+    qreal dpr = devicePixelRatioF();
+    QPoint topLeft (rect.left () * dpr, rect.top   () * dpr);
+    QPoint botRight(rect.right() * dpr, rect.bottom() * dpr);
+    return QRect(topLeft, botRight);
+#endif
 }
 
 void QDmsViewArea::UpdatePosAndSize() {
+#ifdef _WIN32
     auto rect = contentsRectInPixelUnits();
-
     MoveWindow((HWND)m_DataViewHWnd
         , rect.x(), rect.y()
         , rect.width (), rect.height()
         , true
     );
+#else
+    // On Linux, the Qt widget handles its own geometry
+    // Notify DataView of the new size via invalidation
+    auto rect = contentsRect();
+    auto dv = getDataView();
+    if (dv) {
+        GPoint deviceSize(rect.width(), rect.height());
+        dv->OnSize(0, deviceSize); // 0 = SIZE_RESTORED equivalent
+    }
+#endif
 }
 
 void QDmsViewArea::on_rescale() {
@@ -456,10 +519,21 @@ void QDmsViewArea::scrollBackingStore(int dx, int dy, const QRect& scrollRect)
     painter.drawImage(scrollRect.translated(dx, dy), scrolledContent);
 }
 
-void QDmsViewArea::paintEvent(QPaintEvent* event) {
+DPoint QDmsViewArea::getScaleFactors() const
+{
+#ifdef _WIN32
     auto wId = winId();
-    assert(wId);
-    auto currScaleFactors = GetWindowDip2PixFactors(reinterpret_cast<HWND>(wId));
+    if (wId)
+        return GetWindowDip2PixFactors(reinterpret_cast<HWND>(wId));
+    return DPoint(1.0, 1.0);
+#else
+    qreal dpr = devicePixelRatioF();
+    return DPoint(dpr, dpr);
+#endif
+}
+
+void QDmsViewArea::paintEvent(QPaintEvent* event) {
+    auto currScaleFactors = getScaleFactors();
     if (currScaleFactors != m_LastScaleFactors) { 
         m_LastScaleFactors = currScaleFactors;
         on_rescale();
