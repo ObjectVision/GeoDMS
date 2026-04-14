@@ -13,6 +13,7 @@
 #include "DrawContext.h"
 #include "DcHandle.h"
 #include "Region.h"
+#include "../res/resource.h"
 #include "GdiRegionUtil.h"
 #include "windowsx.h"
 #include "CommCtrl.h"

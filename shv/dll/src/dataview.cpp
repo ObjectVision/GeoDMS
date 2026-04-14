@@ -1050,7 +1050,25 @@ void DataView::OnTimer(UInt32 timerId)
 		else
 			KillTimer(m_hWnd, UPDATE_TIMER_ID);
 #endif
-		UpdateView();
+		if (!IsProcessingMainThreadOpers())
+		{
+			if (IdleTimer::IsInIdleMode())
+			{
+				IdleTimer::Subscribe(shared_from_this());
+				m_Waiter.end();
+			}
+			else
+			{
+				auto status = GVS_Ready;
+				auto curr = SessionData::Curr();
+				if (curr)
+					status = UpdateView();
+				if (status == GraphVisitState::GVS_Break)
+					SetUpdateTimer();
+				else
+					m_Waiter.end();
+			}
+		}
 		return;
 	}
 }

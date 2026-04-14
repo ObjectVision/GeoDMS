@@ -303,7 +303,7 @@ bool CustomEventFilter::nativeEventFilter(const QByteArray& /*eventType*/, void*
             catch (...) {
                 auto msgTxt = catchException(false);
                 auto userResult = QMessageBox::critical(nullptr, "WM_COPYDATA Error",
-                    QString::fromStdString(msgTxt->GetAsText()),
+                    QString::fromUtf8(msgTxt->GetAsText().c_str()),
                     QMessageBox::Ok | QMessageBox::Cancel);
                 if (userResult == QMessageBox::Cancel)
                     terminate();
@@ -348,12 +348,12 @@ int main_without_SE_handler(int argc, char *argv[]) {
 
         SharedStr tsn = settingsFrame.m_TestScriptName;
 
+        Q_INIT_RESOURCE(GeoDmsGuiQt);
+
         std::unique_ptr<DmsSplashScreen> splash;
         if (tsn.empty())
             splash = showSplashScreen();
 
-
-        Q_INIT_RESOURCE(GeoDmsGuiQt);
         if (tsn.empty())
             splash->showMessage("Initialize GeoDMS Gui");
 

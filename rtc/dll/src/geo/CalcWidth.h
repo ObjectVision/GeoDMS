@@ -11,7 +11,7 @@
 #define __RTC_GEO_CALCWIDTH_H
 
 #if defined(MG_DEBUG)
-bool MG_TRACE_LABELPOS = false;
+inline bool MG_TRACE_LABELPOS = false;
 #endif
 
 //**************************************************************************

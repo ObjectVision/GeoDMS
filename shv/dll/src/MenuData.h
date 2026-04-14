@@ -42,7 +42,7 @@ template <typename T> UInt32 ObjCountMonitor<T>::s_Destroy = 0;
 
 // =======================================
 
-struct MenuItem : movable
+struct SHV_CALL MenuItem : movable
 {
 	MenuItem();
 	MenuItem(WeakStr caption);

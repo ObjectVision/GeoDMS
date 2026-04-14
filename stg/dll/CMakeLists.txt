@@ -66,4 +66,13 @@ if(WIN32)
     target_link_libraries(DmStg PRIVATE odbc32 odbccp32 ole32)
 else()
     target_link_libraries(DmStg PRIVATE odbc)
+    # Hide static libjpeg/libtiff/libpng symbols from leaking into the global namespace.
+    # GDAL links these statically; without this, their symbols shadow the system versions
+    # used by Qt's image plugins (libqjpeg.so), causing ABI mismatches at runtime.
+    target_link_options(DmStg PRIVATE
+        -Wl,--exclude-libs,libjpeg.a
+        -Wl,--exclude-libs,libtiff.a
+        -Wl,--exclude-libs,libpng.a
+        -Wl,--exclude-libs,libpng16.a
+    )
 endif()

@@ -37,3 +37,24 @@ endif()
 if(PROJ_FOUND)
     target_link_libraries(DmGeo PRIVATE PROJ::proj)
 endif()
+
+if(NOT WIN32)
+    # GDAL (static) uses libjpeg/libpng/libtiff but they may not be pulled in by
+    # --as-needed unless explicitly listed. Add them so unresolved refs from libgdal.a
+    # are satisfied, then hide all three to prevent symbol conflicts with the system
+    # Qt JPEG plugin (libqjpeg.so) which uses the system libjpeg.so.8.
+    find_package(JPEG)
+    find_package(PNG)
+    if(JPEG_FOUND)
+        target_link_libraries(DmGeo PRIVATE JPEG::JPEG)
+    endif()
+    if(PNG_FOUND)
+        target_link_libraries(DmGeo PRIVATE PNG::PNG)
+    endif()
+    target_link_options(DmGeo PRIVATE
+        -Wl,--exclude-libs,libjpeg.a
+        -Wl,--exclude-libs,libtiff.a
+        -Wl,--exclude-libs,libpng.a
+        -Wl,--exclude-libs,libpng16.a
+    )
+endif()

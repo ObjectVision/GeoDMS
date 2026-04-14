@@ -284,8 +284,10 @@ Region Region::FromEllipse(const GRect& boundingRect)
 }
 
 //----------------------------------------------------------------------
-// DcClipRegionSelector
+// DcClipRegionSelector — on Win32 this lives in DcHandle.cpp
 //----------------------------------------------------------------------
+
+#ifndef _WIN32
 
 #include "DrawContext.h"
 
@@ -316,3 +318,5 @@ DcClipRegionSelector::~DcClipRegionSelector()
 
 	assert(! m_OrgRegionPtr->Empty() ); // else we shoudn't get here at all
 }
+
+#endif // !_WIN32

@@ -697,29 +697,49 @@ void QDmsViewArea::VH_SetCursor(DmsCursor cursor)
 
 void QDmsViewArea::VH_InvalidateRect(const GRect& rect, bool erase)
 {
-    // Qt handles erase automatically via background role
+#ifdef _WIN32
+    if (m_DataViewHWnd)
+        ::InvalidateRect(reinterpret_cast<HWND>(m_DataViewHWnd), &AsRECT(rect), erase);
+    else
+#endif
     update(QRect(rect.left, rect.top, rect.Width(), rect.Height()));
 }
 
 void QDmsViewArea::VH_InvalidateRgn(const Region& rgn, bool erase)
 {
-    // Region is backed by QRegion
-    if (rgn.Empty())
-        update(rect());
-    else {
-        GRect bbox = rgn.BoundingBox();
-        update(QRect(bbox.left, bbox.top, bbox.Width(), bbox.Height()));
+#ifdef _WIN32
+    if (m_DataViewHWnd) {
+        auto hrgn = RegionToHRGN(rgn); // GdiHandle<HRGN>, auto-deletes on scope exit
+        ::InvalidateRgn(reinterpret_cast<HWND>(m_DataViewHWnd), hrgn, erase);
+    }
+    else
+#endif
+    {
+        if (rgn.Empty())
+            update(rect());
+        else {
+            GRect bbox = rgn.BoundingBox();
+            update(QRect(bbox.left, bbox.top, bbox.Width(), bbox.Height()));
+        }
     }
 }
 
 void QDmsViewArea::VH_ValidateRect(const GRect& rect)
 {
-    // Qt doesn't have direct equivalent; repaint handles this
+#ifdef _WIN32
+    if (m_DataViewHWnd)
+        ::ValidateRect(reinterpret_cast<HWND>(m_DataViewHWnd), &AsRECT(rect));
+#endif
     // No-op in Qt - validation happens after paint
 }
 
 void QDmsViewArea::VH_UpdateWindow()
 {
+#ifdef _WIN32
+    if (m_DataViewHWnd)
+        ::UpdateWindow(reinterpret_cast<HWND>(m_DataViewHWnd));
+    else
+#endif
     repaint(); // Synchronous paint, unlike update() which is async
 }
 
