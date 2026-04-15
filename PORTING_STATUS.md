@@ -1,14 +1,14 @@
 # Linux Porting Status — DmShv + GeoDmsGuiQt
 
 Branch: `refactor_linux_gui`
-Last updated: 2026-04-14
+Last updated: 2026-04-15
 
 ## Build status
 
 | Target | Platform | Status |
 |--------|----------|--------|
 | DmShv (libDmShv.so) | Linux GCC 14 / Ubuntu 24.04 | Compiles and links clean |
-| GeoDmsGuiQt | Linux GCC 14 / Ubuntu 24.04 | Compiles and links clean |
+| GeoDmsGuiQt | Linux GCC 14 / Ubuntu 24.04 | **Builds and runs on WSLg** |
 | DmShv (DmShv.dll) | Windows MSVC / VS 2022 | Not yet verified after latest changes |
 | GeoDmsGuiQt.exe | Windows MSVC / VS 2022 | Not yet verified after latest changes |
 
@@ -131,7 +131,8 @@ These areas are still guarded with `#ifdef _WIN32` and compile out on Linux.
 
 - [ ] Verify Windows MSVC build — no regressions from refactored `#ifdef` guards
 - [ ] Remove dead code: `TextControl.cpp` GDI free functions, `AbstrTextEditControl::DrawEditText()`
-- [ ] Runtime test on Linux: launch GeoDmsGuiQt, open a configuration, verify map/table views render
+- [x] Runtime test on Linux: GeoDmsGuiQt launches and is interactive on WSL2/WSLg (2026-04-15)
+- [ ] Open a configuration file and verify map/table views render
 
 ### Medium priority — needed for full interactive Linux use
 
