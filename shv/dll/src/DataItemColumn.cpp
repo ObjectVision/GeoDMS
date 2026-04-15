@@ -1725,7 +1725,8 @@ bool DataItemColumn::GetTooltipText(TooltipCollector& ttc) const
 	auto activeTextAttr = GetActiveTextAttr();
 	if (!activeTextAttr)
 		return true;
-	if (!IsDataReady(activeTextAttr->GetCurrRefItem()))
+	auto currRefObj = activeTextAttr->GetCurrRefItem();
+	if (!currRefObj || !IsDataReady(currRefObj))
 	{
 		if (activeTextAttr->WasFailed(FailType::Data))
 			ttc.m_Stream << activeTextAttr->GetFailReason()->GetAsText() << "\n";
