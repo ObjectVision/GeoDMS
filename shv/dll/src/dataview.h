@@ -309,6 +309,8 @@ private:
 #endif
 	void OnPaint();
 	void SetUpdateTimer(); friend struct IdleTimer;
+public:
+	void RequestUpdate() { SetUpdateTimer(); } // portable: called by Qt ViewHost on invalidation
 
 #ifdef _WIN32
 	void OnMouseMove(WPARAM nFlags, GPoint devicePoint);

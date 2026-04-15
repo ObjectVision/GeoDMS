@@ -1989,11 +1989,130 @@ DWORD ExecuteChildProcess(CharPtr moduleName, Char* cmdLine)
 }
 
 // =====================================================================
-// Registry / Config (use environment variables on Linux)
+// Registry / Config — INI-file backend for Linux
+// =====================================================================
+// All GeoDMS settings are stored in ~/.config/geodms/geodms.ini.
+// Format:
+//   [section]
+//   key=value
+//
+// GetGeoDmsRegKey* / SetGeoDmsRegKey* use the fixed section [GeoDMS].
+// GetConfigKey* / SetConfigKey* use per-file sections.
 // =====================================================================
 
 static std::map<SharedStr, SharedStr> s_SessionLocalOverrides;
 static std::mutex s_SessionLocalMutex;
+
+// --------------- INI file helpers ------------------------------------
+
+static SharedStr GetGeoDmsConfigDir()
+{
+    const char* xdg = getenv("XDG_CONFIG_HOME");
+    SharedStr base = xdg && *xdg ? SharedStr(xdg) : mySSPrintF("%s/.config", getenv("HOME") ? getenv("HOME") : "/tmp");
+    return base + "/geodms";
+}
+
+static SharedStr GetGeoDmsIniPath()
+{
+    return GetGeoDmsConfigDir() + "/geodms.ini";
+}
+
+// Simple in-memory INI cache: section -> (key -> value)
+using IniData = std::map<std::string, std::map<std::string, std::string>>;
+
+static std::mutex s_IniMutex;
+static IniData    s_IniData;
+static bool       s_IniLoaded = false;
+
+static void EnsureIniDirExists()
+{
+    auto dir = GetGeoDmsConfigDir();
+    // mkdir -p equivalent: create each component
+    std::string path;
+    for (const char* p = dir.c_str(); *p; ++p)
+    {
+        path += *p;
+        if (*p == '/')
+            mkdir(path.c_str(), 0755);
+    }
+    mkdir(dir.c_str(), 0755);
+}
+
+static void LoadIni_Locked()
+{
+    if (s_IniLoaded) return;
+    s_IniLoaded = true;
+
+    auto path = GetGeoDmsIniPath();
+    FILE* f = fopen(path.c_str(), "r");
+    if (!f) return;
+
+    char line[4096];
+    std::string section;
+    while (fgets(line, sizeof(line), f))
+    {
+        // strip trailing newline
+        size_t len = strlen(line);
+        while (len > 0 && (line[len-1] == '\n' || line[len-1] == '\r')) line[--len] = 0;
+
+        const char* p = line;
+        // skip leading whitespace
+        while (*p == ' ' || *p == '\t') ++p;
+        if (!*p || *p == ';' || *p == '#') continue; // comment / blank
+
+        if (*p == '[')
+        {
+            const char* end = strchr(p + 1, ']');
+            if (end) section = std::string(p + 1, end);
+        }
+        else
+        {
+            const char* eq = strchr(p, '=');
+            if (eq && !section.empty())
+            {
+                std::string key(p, eq);
+                std::string val(eq + 1);
+                s_IniData[section][key] = val;
+            }
+        }
+    }
+    fclose(f);
+}
+
+static void SaveIni_Locked()
+{
+    EnsureIniDirExists();
+    auto path = GetGeoDmsIniPath();
+    FILE* f = fopen(path.c_str(), "w");
+    if (!f) return;
+    for (auto& [sec, kv] : s_IniData)
+    {
+        fprintf(f, "[%s]\n", sec.c_str());
+        for (auto& [k, v] : kv)
+            fprintf(f, "%s=%s\n", k.c_str(), v.c_str());
+        fprintf(f, "\n");
+    }
+    fclose(f);
+}
+
+static std::string IniGet(const char* section, const char* key, const char* defaultValue = "")
+{
+    std::lock_guard lock(s_IniMutex);
+    LoadIni_Locked();
+    auto si = s_IniData.find(section);
+    if (si == s_IniData.end()) return defaultValue;
+    auto ki = si->second.find(key);
+    if (ki == si->second.end()) return defaultValue;
+    return ki->second;
+}
+
+static void IniSet(const char* section, const char* key, const char* value)
+{
+    std::lock_guard lock(s_IniMutex);
+    LoadIni_Locked();
+    s_IniData[section][key] = value;
+    SaveIni_Locked();
+}
 
 RTC_CALL void SetSessionLocalOverride(CharPtr key, CharPtr value)
 {
@@ -2031,12 +2150,8 @@ RTC_CALL SharedStr GetGeoDmsRegKey(CharPtr key)
 		if (it != s_SessionLocalOverrides.end())
 			return it->second;
 	}
-	// On Linux, use environment variable GEODMS_<key>
-	SharedStr envName = mySSPrintF("GEODMS_%s", key);
-	const char* val = getenv(envName.c_str());
-	if (val)
-		return SharedStr(val);
-	return SharedStr();
+	auto val = IniGet("GeoDMS", key);
+	return SharedStr(val.c_str());
 }
 
 RTC_CALL auto GetGeoDmsRegKeyMultiString(CharPtr key) -> std::vector<SharedStr>
@@ -2044,7 +2159,7 @@ RTC_CALL auto GetGeoDmsRegKeyMultiString(CharPtr key) -> std::vector<SharedStr>
 	SharedStr val = GetGeoDmsRegKey(key);
 	if (val.empty())
 		return {};
-	// Split on ';' for multi-value
+	// Values are stored as NUL-separated; on Linux we write ';'-separated
 	std::vector<SharedStr> result;
 	const char* p = val.c_str();
 	const char* start = p;
@@ -2064,38 +2179,36 @@ RTC_CALL auto GetGeoDmsRegKeyMultiString(CharPtr key) -> std::vector<SharedStr>
 
 RTC_CALL bool SetGeoDmsRegKeyDWord(CharPtr key, DWORD dw, CharPtr section)
 {
-	// On Linux, persist to env (session-only)
-	SharedStr envName = mySSPrintF("GEODMS_%s", key);
-	SharedStr val = mySSPrintF("%u", dw);
-	setenv(envName.c_str(), val.c_str(), 1);
+	char buf[32];
+	snprintf(buf, sizeof(buf), "%u", (unsigned)dw);
+	IniSet("GeoDMS", key, buf);
 	return true;
 }
 
 RTC_CALL DWORD GetGeoDmsRegKeyDWord(CharPtr key, DWORD defaultValue, CharPtr section)
 {
-	SharedStr envName = mySSPrintF("GEODMS_%s", key);
-	const char* val = getenv(envName.c_str());
-	if (val)
-		return strtoul(val, nullptr, 10);
-	return defaultValue;
+	auto val = IniGet("GeoDMS", key);
+	if (val.empty()) return defaultValue;
+	return (DWORD)strtoul(val.c_str(), nullptr, 10);
 }
 
 RTC_CALL bool SetGeoDmsRegKeyString(CharPtr key, CharPtr str)
 {
-	SharedStr envName = mySSPrintF("GEODMS_%s", key);
-	setenv(envName.c_str(), str, 1);
+	IniSet("GeoDMS", key, str ? str : "");
 	return true;
 }
 
 RTC_CALL bool SetGeoDmsRegKeyMultiString(CharPtr key, const std::vector<SharedStr>& strings)
 {
-	SharedStr val;
+	// Store as ';'-separated (NUL-separated on Win32, but ';' is safe on Linux)
+	std::string val;
 	for (size_t i = 0; i < strings.size(); ++i)
 	{
 		if (i > 0) val += ";";
-		val += strings[i];
+		val += strings[i].c_str();
 	}
-	return SetGeoDmsRegKeyString(key, val.c_str());
+	IniSet("GeoDMS", key, val.c_str());
+	return true;
 }
 
 SharedStr GetConvertedGeoDmsRegKey(CharPtr key)
@@ -2301,20 +2414,36 @@ extern "C" RTC_CALL void RTC_SetCachedDWord(RegDWordEnum i, DWORD dw)
 // Config files (use simple file I/O on Linux)
 // =====================================================================
 
+// Config key storage: use "<configFile>/<sectionName>" as the INI section,
+// so each config file gets its own namespace.
+static std::string ConfigSection(WeakStr configFileName, CharPtr sectionName)
+{
+	std::string sec = "cfg:";
+	sec += getFileNameBase(configFileName.c_str()).c_str();
+	sec += "/";
+	sec += sectionName;
+	return sec;
+}
+
 Int32 GetConfigKeyValue(WeakStr configFileName, CharPtr sectionName, CharPtr keyName, Int32 defaultValue)
 {
-	// Simplified: on Linux, config key lookup from INI not implemented; return default
-	return defaultValue;
+	auto sec = ConfigSection(configFileName, sectionName);
+	auto val = IniGet(sec.c_str(), keyName);
+	if (val.empty()) return defaultValue;
+	return (Int32)strtol(val.c_str(), nullptr, 10);
 }
 
 SharedStr GetConfigKeyString(WeakStr configFileName, CharPtr sectionName, CharPtr keyName, CharPtr defaultValue)
 {
-	return SharedStr(defaultValue);
+	auto sec = ConfigSection(configFileName, sectionName);
+	auto val = IniGet(sec.c_str(), keyName, defaultValue ? defaultValue : "");
+	return SharedStr(val.c_str());
 }
 
 void SetConfigKeyString(WeakStr configFileName, CharPtr sectionName, CharPtr keyName, CharPtr keyValue)
 {
-	// Simplified: INI write not implemented on Linux
+	auto sec = ConfigSection(configFileName, sectionName);
+	IniSet(sec.c_str(), keyName, keyValue ? keyValue : "");
 }
 
 #include <time.h>
