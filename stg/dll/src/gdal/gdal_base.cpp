@@ -22,6 +22,15 @@
 #include <ogr_api.h>
 #include <ogrsf_frmts.h>
 
+#ifndef _WIN32
+// On some Linux distributions (e.g. Ubuntu 24.04 with GDAL 3.8.4), OGR Parquet/Arrow
+// drivers are compiled as plugins and RegisterOGRParquet/RegisterOGRArrow are absent
+// from libgdal.so. Define weak no-op stubs so linking succeeds; if the plugin is
+// loaded at runtime, the real functions take precedence.
+[[gnu::weak]] void RegisterOGRParquet() {}
+[[gnu::weak]] void RegisterOGRArrow() {}
+#endif
+
 #include "dbg/DmsCatch.h"
 #include "geo/PointOrder.h"
 #include "geo/StringArray.h"

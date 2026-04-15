@@ -86,8 +86,10 @@ std::any interpret_command_line_parameters(CmdLineSetttings& settingsFrame) {
         }
     }
     if (argc) {
+#ifdef _WIN32
         if ((*argv)[0] == '/')
             throw CmdLineException("configuration name expected ");
+#endif
 
         settingsFrame.m_ConfigFileName = SharedStr(*argv);
         argc--; argv++;

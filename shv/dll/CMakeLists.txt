@@ -19,6 +19,10 @@ target_compile_definitions(DmShv PRIVATE DM_SHV_EXPORTS)
 # Qt6 for QRegion, QRect, QPoint (core + gui only, no widgets)
 find_package(Qt6 REQUIRED COMPONENTS Core Gui)
 find_package(OpenSSL REQUIRED)
+find_package(GDAL)
+if(GDAL_FOUND)
+    target_include_directories(DmShv SYSTEM PRIVATE ${GDAL_INCLUDE_DIRS})
+endif()
 target_link_libraries(DmShv PUBLIC
     DmRtc DmSym DmTic DmStx DmStg DmClc DmGeo
     Qt6::Core Qt6::Gui

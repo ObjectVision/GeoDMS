@@ -1074,7 +1074,13 @@ struct BufferLineStringOperator : public AbstrBufferOperator
 					auto straight_skeleton = CGAL::create_interior_straight_skeleton_2(lsAsPolygon);
 					if (straight_skeleton)
 					{
-						auto offsetPolygons = CGAL::create_offset_polygons_2(bufferDistance, *straight_skeleton);
+						// create_offset_polygons_2 returns boost::shared_ptr; convert to std::shared_ptr
+						auto boostOffsetPolygons = CGAL::create_offset_polygons_2(bufferDistance, *straight_skeleton);
+						using PolygonType = typename decltype(boostOffsetPolygons)::value_type::element_type;
+						std::vector<std::shared_ptr<PolygonType>> offsetPolygons;
+						offsetPolygons.reserve(boostOffsetPolygons.size());
+						for (auto& bp : boostOffsetPolygons)
+							offsetPolygons.emplace_back(bp.get(), [bp](PolygonType*) mutable {});
 						cgal_assign_shared_polygon_vector(resData[i], std::move(offsetPolygons));
 					}
 
