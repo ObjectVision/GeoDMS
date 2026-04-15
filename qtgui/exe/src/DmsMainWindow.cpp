@@ -394,7 +394,10 @@ void MainWindow::fileOpen() {
         }
     }
 
-    auto configFileName = QFileDialog::getOpenFileName(this, "Open configuration", cfg_dir.c_str(), "*.dms").toLower();
+    auto configFileName = QFileDialog::getOpenFileName(this, "Open configuration", cfg_dir.c_str(), "*.dms");
+#ifdef _WIN32
+    configFileName = configFileName.toLower();
+#endif
 
     if (configFileName.isEmpty())
         return;
