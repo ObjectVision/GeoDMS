@@ -1099,8 +1099,10 @@ bool MainWindow::LoadConfigImpl(CharPtr configFilePath) {
         m_root = newRoot;
         if (m_root) {
             SharedStr configFilePathStr = DelimitedConcat(ConvertDosFileName(GetCurrentDir()), ConvertDosFileName(m_currConfigFileName));
+#ifdef _WIN32
             for (auto& ch : configFilePathStr)
                 ch = std::tolower(ch);
+#endif
 
             insertCurrentConfigInRecentFiles(configFilePathStr);
             SetGeoDmsRegKeyString("LastConfigFile", configFilePathStr.c_str());

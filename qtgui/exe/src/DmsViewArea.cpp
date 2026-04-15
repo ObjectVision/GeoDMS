@@ -703,15 +703,7 @@ void QDmsViewArea::VH_InvalidateRect(const GRect& rect, bool erase)
         ::InvalidateRect(reinterpret_cast<HWND>(m_DataViewHWnd), &AsRECT(rect), erase);
     else
 #endif
-    {
-        update(QRect(rect.left, rect.top, rect.Width(), rect.Height()));
-#ifndef _WIN32
-        // On Linux, VH_InvalidateRect replaces the Win32 InvalidateRect→WM_PAINT→OnPaint→SetUpdateTimer loop.
-        // We must arm the update timer here so UpdateView() → VH_DrawInContext() runs and fills the backing store.
-        if (auto dv = m_DataView.lock())
-            dv->RequestUpdate();
-#endif
-    }
+    update(QRect(rect.left, rect.top, rect.Width(), rect.Height()));
 }
 
 void QDmsViewArea::VH_InvalidateRgn(const Region& rgn, bool erase)
@@ -730,10 +722,6 @@ void QDmsViewArea::VH_InvalidateRgn(const Region& rgn, bool erase)
             GRect bbox = rgn.BoundingBox();
             update(QRect(bbox.left, bbox.top, bbox.Width(), bbox.Height()));
         }
-#ifndef _WIN32
-        if (auto dv = m_DataView.lock())
-            dv->RequestUpdate();
-#endif
     }
 }
 

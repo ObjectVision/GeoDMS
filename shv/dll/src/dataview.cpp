@@ -1059,6 +1059,13 @@ void DataView::OnTimer(UInt32 timerId)
 			}
 			else
 			{
+				// Resume any previous suspension before driving the update cycle.
+				// On Win32, Resume() is implicitly called by mouse/hover events between
+				// timer fires. On Linux (Qt path), no such events fire between timers,
+				// so we call Resume() explicitly — same semantics, portable.
+				if (m_ViewHost)
+					SuspendTrigger::Resume();
+
 				auto status = GVS_Ready;
 				auto curr = SessionData::Curr();
 				if (curr)
