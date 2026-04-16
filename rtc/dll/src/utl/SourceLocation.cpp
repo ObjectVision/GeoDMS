@@ -95,6 +95,8 @@ auto ReportChangedFiles() -> VectorOutStreamBuff
 		if (fdt != fd->LastFdt())
 		{
 			fd->m_LaterFdt = fdt;
+			if (!fdt)
+				fd->m_ReadFdt = 0; // file deleted: reset so it won't be reported again next activation
 			fos << fd->GetFileName().c_str() << "\n";
 		}
 		++i;

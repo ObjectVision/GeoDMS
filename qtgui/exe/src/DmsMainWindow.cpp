@@ -14,6 +14,7 @@
 #include "dbg/Timer.h"
 
 #include "utl/Encodes.h"
+#include "utl/Environment.h"
 #include "utl/mySPrintF.h"
 #include "utl/scoped_exit.h"
 #include "utl/splitPath.h"
@@ -241,6 +242,16 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings) {
 }
 
 MainWindow::~MainWindow() {
+    bool isMaximized = windowState() & Qt::WindowMaximized;
+    SetGeoDmsRegKeyDWord("WindowMaximized", isMaximized ? 1 : 0);
+    if (!isMaximized) {
+        auto geom = geometry();
+        SetGeoDmsRegKeyDWord("WindowX",      static_cast<DWORD>(static_cast<INT32>(geom.x())));
+        SetGeoDmsRegKeyDWord("WindowY",      static_cast<DWORD>(static_cast<INT32>(geom.y())));
+        SetGeoDmsRegKeyDWord("WindowWidth",  static_cast<DWORD>(geom.width()));
+        SetGeoDmsRegKeyDWord("WindowHeight", static_cast<DWORD>(geom.height()));
+    }
+
     g_IsTerminating = true;
 
     assert(s_CurrMainWindow == this);
