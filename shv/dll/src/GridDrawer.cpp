@@ -112,14 +112,29 @@ GridColorPalette::GridColorPalette(const Theme* colorTheme)
 		if (m_ClassIdUnit->WasFailed(FailType::Data))
 			m_ClassIdUnit->ThrowFail();
 		m_Count = m_ClassIdUnit->GetCount();
-		if (m_Count >= MaxPaletteSize) 
-			throwErrorD("GridDraw", "Palette too large to represent in an indirect bitmap");
-
-		MakeMin(bitCount, MaxNrIndirectPixelBits);
-		if (bitCount >= 8) // undefined is used
-			++m_Count;     // reserve one entry for NODATA
-
-		dms_assert(m_Count <= (1U << bitCount));
+		if (m_Count >= MaxPaletteSize)
+		{
+			// Too many classes for 8-bit indirect DIB; store palette separately and use 32-bit direct rendering.
+			const AbstrDataItem* paletteAttr = m_ColorTheme->GetPaletteAttr();
+			DataReadLock paletteLock(paletteAttr);
+			auto paletteData = const_array_checked_cast<UInt32>(paletteAttr)->GetDataRead();
+			m_LargePaletteColors.resize(m_Count);
+			UInt32 providedCount = Min<UInt32>(paletteData.size(), m_Count);
+			for (UInt32 i = 0; i != providedCount; ++i)
+				m_LargePaletteColors[i] = reinterpret_cast<const UInt32&>(Convert<RGBQUAD>(paletteData[i]));
+			for (UInt32 i = providedCount; i != m_Count; ++i)
+				m_LargePaletteColors[i] = reinterpret_cast<const UInt32&>(Convert<RGBQUAD>(STG_Bmp_GetDefaultColor(i & 0xFF)));
+			m_LargeNodataColor = reinterpret_cast<const UInt32&>(Convert<RGBQUAD>(STG_Bmp_GetDefaultColor(CI_NODATA)));
+			bitCount = 32;
+			m_Count = 0; // 32-bit direct mode; no DIB palette entries
+		}
+		else
+		{
+			MakeMin(bitCount, MaxNrIndirectPixelBits);
+			if (bitCount >= 8) // undefined is used
+				++m_Count;     // reserve one entry for NODATA
+			dms_assert(m_Count <= (1U << bitCount));
+		}
 	}
 	else
 		m_Count = 0;
@@ -139,7 +154,7 @@ GridColorPalette::GridColorPalette(const Theme* colorTheme)
 	bmiHeader.biClrUsed       = m_Count;
 	bmiHeader.biClrImportant  = m_Count;
 
-	if (usePalette)
+	if (usePalette && !HasLargePalette())
 	{
 		const AbstrDataItem* paletteAttr = m_ColorTheme->GetPaletteAttr();
 		dms_assert(paletteAttr);
@@ -243,6 +258,27 @@ void GridDrawer::FillPaletteIds(const Unit<ClassIdType>* classIdUnit
 }
 
 template <typename ClassIdType>
+void GridDrawer::FillLargePalette(const Unit<ClassIdType>* classIdUnit
+	,	typename sequence_traits<ClassIdType>::const_pointer classIdArray, SizeT classIdArraySize
+	,	Range<SizeT> themeArrayIndexRange, bool isLastRun
+	) const
+{
+	dms_assert(m_ColorPalette && m_ColorPalette->HasLargePalette());
+	const auto& paletteColors = m_ColorPalette->GetLargePaletteColors();
+	const UInt32 nodataColor  = m_ColorPalette->GetLargeNodataColor();
+	auto classRange           = classIdUnit->GetRange();
+
+	GridFill<ClassIdType, DmsColor>(this
+		, classIdArray, classIdArraySize
+		, [&](ClassIdType val) -> DmsColor {
+			SizeT idx = Range_GetIndex_checked(classRange, val);
+			return (idx < paletteColors.size()) ? paletteColors[idx] : nodataColor;
+		}
+		, themeArrayIndexRange, isLastRun
+	);
+}
+
+template <typename ClassIdType>
 void GridDrawer::FillTrueColor(const Unit<ClassIdType>* classIdUnit
 	, typename sequence_traits<ClassIdType>::const_pointer classIdArray, SizeT classIdArraySize
 	, bool isLastRun) const
@@ -277,6 +313,8 @@ GridDrawer_VisitImplDirect(
 {
 	if (self->m_ColorPalette->GetPaletteCount())
 		self->FillPaletteIds(classIdUnit, classIdArray, classIdArraySize, themeArrayIndexRange, isLastRun);
+	else if (self->m_ColorPalette->HasLargePalette())
+		self->FillLargePalette(classIdUnit, classIdArray, classIdArraySize, themeArrayIndexRange, isLastRun);
 	else
 		self->FillTrueColor(classIdUnit, classIdArray, classIdArraySize, isLastRun);
 }
@@ -289,13 +327,16 @@ GridDrawer_VisitImplDirect(
 	,	Range<SizeT> themeArrayIndexRange, bool isLastRun
 	)
 {
-	self->FillPaletteIds(classIdUnit, classIdArray, classIdArraySize, themeArrayIndexRange, isLastRun);
+	if (self->m_ColorPalette->HasLargePalette())
+		self->FillLargePalette(classIdUnit, classIdArray, classIdArraySize, themeArrayIndexRange, isLastRun);
+	else
+		self->FillPaletteIds(classIdUnit, classIdArray, classIdArraySize, themeArrayIndexRange, isLastRun);
 }
 
 template <typename ClassIdType>
 void GridDrawer::FillClassIds(const Unit<ClassIdType>* classIdUnit) const
 {
-	dms_assert(m_ColorPalette->GetPaletteCount());
+	dms_assert(m_ColorPalette->GetPaletteCount() || m_ColorPalette->HasLargePalette());
 
 	const Theme* colorTheme = m_ColorPalette->m_ColorTheme;
 	dms_assert(colorTheme);
@@ -316,7 +357,6 @@ void GridDrawer::FillClassIds(const Unit<ClassIdType>* classIdUnit) const
 	}
 	else
 	{
-		using PixelType = pixel_type_t<ClassIdType>;
 		WeakPtr< const ArrayValueGetter<ClassIdType> > avg = GetArrayValueGetter<ClassIdType>(colorTheme);
 
 		Range<SizeT> themeRange;
@@ -325,13 +365,32 @@ void GridDrawer::FillClassIds(const Unit<ClassIdType>* classIdUnit) const
 			SizeT tileFirstIndex = themeDomain->GetTileFirstIndex(0);
 			themeRange = Range<SizeT>(tileFirstIndex, tileFirstIndex+ themeDomain->GetTileCount(0));
 		}
-		GridFill<ClassIdType, PixelType>(this
-		,	avg->GetClassIndexArray(), avg->GetCount()
-		,	ID_Func()
-		,	themeRange
-		,	true
-		);
 
+		if (m_ColorPalette->HasLargePalette())
+		{
+			// Class indices from avg map directly to large palette colors (0-based)
+			const auto& paletteColors = m_ColorPalette->GetLargePaletteColors();
+			const UInt32 nodataColor  = m_ColorPalette->GetLargeNodataColor();
+			GridFill<ClassIdType, DmsColor>(this
+			,	avg->GetClassIndexArray(), avg->GetCount()
+			,	[&](ClassIdType classIdx) -> DmsColor {
+					SizeT i = static_cast<SizeT>(classIdx);
+					return (i < paletteColors.size()) ? paletteColors[i] : nodataColor;
+				}
+			,	themeRange
+			,	true
+			);
+		}
+		else
+		{
+			using PixelType = pixel_type_t<ClassIdType>;
+			GridFill<ClassIdType, PixelType>(this
+			,	avg->GetClassIndexArray(), avg->GetCount()
+			,	ID_Func()
+			,	themeRange
+			,	true
+			);
+		}
 	}
 }
 

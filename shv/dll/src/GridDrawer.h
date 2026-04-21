@@ -12,6 +12,8 @@
 
 #include "LockedIndexCollectorPtr.h"
 
+#include <vector>
+
 struct GridCoord;
 struct IndexCollector;
 class  Theme;
@@ -44,13 +46,18 @@ struct GridColorPalette
 	const Theme*            m_ColorTheme;
 	const AbstrUnit*        m_ClassIdUnit;
 
-	UInt32         GetPaletteCount() const { return m_Count; }
-	bool           IsReady        () const { return m_BitmapInfo; }
+	UInt32         GetPaletteCount    () const { return m_Count; }
+	bool           IsReady            () const { return m_BitmapInfo; }
+	bool           HasLargePalette    () const { return !m_LargePaletteColors.empty(); }
+	const std::vector<UInt32>& GetLargePaletteColors() const { return m_LargePaletteColors; }
+	UInt32         GetLargeNodataColor() const { return m_LargeNodataColor; }
 	BITMAPINFO*    GetBitmapInfo(LONG width, LONG height) const;
 
 private:
 	BITMAPINFO*             m_BitmapInfo;
 	UInt32                  m_Count = 0;
+	std::vector<UInt32>     m_LargePaletteColors;  // RGBQUAD-formatted colors for palettes >= MaxPaletteSize
+	UInt32                  m_LargeNodataColor = 0; // RGBQUAD-formatted
 };
 
 //----------------------------------------------------------------------
@@ -76,10 +83,11 @@ struct GridDrawer: UnitProcessor
 
 	template <typename ClassIdType> void  VisitImpl(const Unit<ClassIdType>* classIdUnit) const;
 	template <typename ClassIdType> void _VisitImpl(const Unit<ClassIdType>* classIdUnit) const;
-	template <typename ClassIdType> void  FillPaletteIds(const Unit<ClassIdType>* classIdUnit, typename sequence_traits<ClassIdType>::const_pointer classIdArray, SizeT classIdArraySize, Range<SizeT> themeArrayIndexRange, bool isLastRun) const;
-	template <typename ClassIdType> void  FillClassify  (const Unit<ClassIdType>* classIdUnit) const;
-	template <typename ClassIdType> void  FillTrueColor (const Unit<ClassIdType>* classIdUnit, typename sequence_traits<ClassIdType>::const_pointer classIdArray, SizeT classIdArraySize, bool isLastRun) const;
-	template <typename ClassIdType> void  FillClassIds  (const Unit<ClassIdType>* classIdUnit) const;
+	template <typename ClassIdType> void  FillPaletteIds   (const Unit<ClassIdType>* classIdUnit, typename sequence_traits<ClassIdType>::const_pointer classIdArray, SizeT classIdArraySize, Range<SizeT> themeArrayIndexRange, bool isLastRun) const;
+	template <typename ClassIdType> void  FillLargePalette (const Unit<ClassIdType>* classIdUnit, typename sequence_traits<ClassIdType>::const_pointer classIdArray, SizeT classIdArraySize, Range<SizeT> themeArrayIndexRange, bool isLastRun) const;
+	template <typename ClassIdType> void  FillClassify     (const Unit<ClassIdType>* classIdUnit) const;
+	template <typename ClassIdType> void  FillTrueColor    (const Unit<ClassIdType>* classIdUnit, typename sequence_traits<ClassIdType>::const_pointer classIdArray, SizeT classIdArraySize, bool isLastRun) const;
+	template <typename ClassIdType> void  FillClassIds     (const Unit<ClassIdType>* classIdUnit) const;
 	void  FillDirect(const UInt32* classIdArray, SizeT classIdArraySize, bool isLastRun) const;
 
 	#define INSTANTIATE(E) \
