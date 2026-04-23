@@ -57,3 +57,23 @@ add_subdirectory(qtgui/exe)
 
 # Deploy resource files next to executables
 file(COPY ${CMAKE_SOURCE_DIR}/res/RewriteExpr.lsp DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+
+# Deploy GDAL and PROJ geographic data files (needed at runtime by DmStg via GDAL/PROJ)
+# vcpkg installs these into vcpkg_installed/<triplet>/share/ during cmake configure.
+if(DEFINED VCPKG_TARGET_TRIPLET)
+    set(_vcpkg_share ${CMAKE_BINARY_DIR}/vcpkg_installed/${VCPKG_TARGET_TRIPLET}/share)
+    if(IS_DIRECTORY ${_vcpkg_share}/gdal)
+        file(COPY ${_vcpkg_share}/gdal/ DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/gdaldata)
+    endif()
+    if(IS_DIRECTORY ${_vcpkg_share}/proj)
+        file(COPY ${_vcpkg_share}/proj/ DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/proj4data)
+    endif()
+endif()
+
+# Deploy DMS script library and example configurations
+foreach(_res_dir library examples)
+    if(IS_DIRECTORY ${CMAKE_SOURCE_DIR}/CopyResources/${_res_dir})
+        file(COPY ${CMAKE_SOURCE_DIR}/CopyResources/${_res_dir}
+             DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+    endif()
+endforeach()
