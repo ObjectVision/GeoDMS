@@ -26,6 +26,7 @@
 #include "ClcInterface.h"
 #include "ShvDllInterface.h"
 
+#include <set>
 #include <QtWidgets>
 #include <QCompleter>
 #include <QMdiArea>
