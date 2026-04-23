@@ -35,3 +35,4 @@ todo*.txt
 /enc_temp_folder
 /qtgui/exe/obj
 /qtgui/exe/bin
+/.claude/settings.local.json
