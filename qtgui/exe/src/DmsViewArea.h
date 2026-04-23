@@ -70,6 +70,16 @@ public:
     void closeEvent(QCloseEvent* event) override;
     void dropEvent(QDropEvent* event) override;
 
+#ifndef _WIN32
+    // Mouse/wheel event dispatch to DataView (Linux: Qt events → DispatchMouseEvent)
+    void mousePressEvent(QMouseEvent* event) override;
+    void mouseReleaseEvent(QMouseEvent* event) override;
+    void mouseDoubleClickEvent(QMouseEvent* event) override;
+    void mouseMoveEvent(QMouseEvent* event) override;
+    void wheelEvent(QWheelEvent* event) override;
+    void leaveEvent(QEvent* event) override;
+#endif
+
     auto getDataView() -> std::shared_ptr<DataView> { return m_DataView.lock(); }
 #ifdef _WIN32
     auto getDataViewHwnd() -> void* { return m_DataViewHWnd; }
@@ -149,6 +159,9 @@ public:
 
     // Caret overlay
     void VH_SetCaretOverlay(const Region& rgn, bool visible) override;
+
+    // Clipboard copy: copies backing store region to clipboard and saves to /tmp/geodms_copy.png
+    void VH_CopyToClipboard(const GRect& rect) override;
 
 #ifdef _WIN32
     HWND VH_GetHWnd() const override { return reinterpret_cast<HWND>(m_DataViewHWnd); }

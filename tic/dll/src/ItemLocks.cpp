@@ -9,6 +9,7 @@
 #endif //defined(CC_PRAGMAHDRSTOP)
 
 #include <assert.h>
+#include <cstdio>
 #include "act/ActorLock.h"
 #include "act/MainThread.h"
 #include "dbg/DebugContext.h"

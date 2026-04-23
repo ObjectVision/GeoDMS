@@ -348,7 +348,8 @@ bool GraphicObject::PrepareDataOrUpdateViewLater(const TreeItem* item)
 					auto objSPtr = objWPtr.lock();
 					if (objSPtr) {
 						objSPtr->InvalidateView();
-						objSPtr->UpdateView();
+						if (!SuspendTrigger::DidSuspend())
+							objSPtr->UpdateView();
 						objSPtr->InvalidateDraw();
 					}
 

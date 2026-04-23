@@ -4591,6 +4591,11 @@ auto TreeItem_GetTemplateSource(const TreeItem* item) -> SharedTreeItem
 	assert(calculator);
 	if (calculator->HasTemplSource())
 		return calculator->GetTemplSource();
+	// IsForEachTemplHolder() is true only when applyItem==nullptr,
+	// but GetForEachTemplSource() asserts applyItem!=nullptr — mutually exclusive.
+	// Skip holders that have not yet been instantiated.
+	if (calculator->IsForEachTemplHolder())
+		return {};
 	return calculator->GetForEachTemplSource();
 }
 

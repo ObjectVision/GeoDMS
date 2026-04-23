@@ -147,11 +147,32 @@ inline HCURSOR SetCursor(HCURSOR /*cursor*/) { return nullptr; } // TODO: connec
 #define COLOR_HIGHLIGHTTEXT   14
 #endif
 
-inline UInt32 GetSysColor(int index) { return (index == COLOR_HIGHLIGHTTEXT) ? 0x00FFFFFF : 0x000078D7; }
-
 #ifndef COLOR_BTNFACE
 #define COLOR_BTNFACE         15
+#define COLOR_BTNSHADOW       16
+#define COLOR_BTNTEXT         18
 #endif
+
+#ifndef COLOR_WINDOW
+#define COLOR_WINDOW          5
+#define COLOR_WINDOWTEXT      8
+#define COLOR_3DSHADOW        16
+#endif
+
+// COLORREF format: 0x00BBGGRR  (R = byte0, G = byte1, B = byte2)
+// Values match typical Windows 10/11 system colors.
+inline UInt32 GetSysColor(int index) {
+    switch (index) {
+    case COLOR_WINDOW:        return 0x00FFFFFF; // white
+    case COLOR_WINDOWTEXT:    return 0x00000000; // black
+    case COLOR_HIGHLIGHT:     return 0x00D77800; // blue  (R=0,G=120,B=215)
+    case COLOR_HIGHLIGHTTEXT: return 0x00FFFFFF; // white
+    case COLOR_BTNFACE:       return 0x00F0F0F0; // light grey (R=240,G=240,B=240)
+    case COLOR_BTNSHADOW:     return 0x00A0A0A0; // medium grey (R=160,G=160,B=160)
+    case COLOR_BTNTEXT:       return 0x00000000; // black
+    default:                  return 0x00F0F0F0; // default: grey
+    }
+}
 
 //----------------------------------------------------------------------
 // Message box constants

@@ -180,6 +180,8 @@ struct MdiCreateStruct
 	GPoint    maxSize = GPoint(600, 400);
 #ifdef _WIN32
 	HWND      hWnd = 0;
+#else
+	bool      created = false; // set by Qt ViewHost when sub-window is created
 #endif
 };
 
@@ -203,9 +205,9 @@ public:
 
 //	composition
 	void BringToTop();
+	bool CreateMdiChild  (ViewStyle ct,     CharPtr caption);
 #ifdef _WIN32
 	void DestroyWindow();
-	bool CreateMdiChild  (ViewStyle ct,     CharPtr caption);
 
 //	Operations
 	MsgResult DispatchMsg(const MsgStruct& msg);
@@ -300,7 +302,6 @@ private:
 	void ReverseCarets(HDC dc, bool newVisibleState);
 #endif
 	void ReverseCaretsImpl(DrawContext& dc, bool newVisibleState);
-	bool DispatchMouseEvent(EventID event, WPARAM modKeys, GPoint point);
 #ifdef _WIN32
 	void ReverseSelCaretImpl(HDC hdc, const Region& selCaretRgn);
 
@@ -311,6 +312,20 @@ private:
 	void SetUpdateTimer(); friend struct IdleTimer;
 public:
 	void RequestUpdate() { SetUpdateTimer(); } // portable: called by Qt ViewHost on invalidation
+	bool DispatchMouseEvent(EventID event, WPARAM modKeys, GPoint point); // portable: called by Qt ViewHost for mouse events
+
+	// On Win32, OnPaint() seeds m_DoneGraphics via AddDrawRegion so UpdateView() has work to do.
+	// On Linux, OnPaint() is never called, so the ViewHost must seed m_DoneGraphics explicitly
+	// after the window size is known (i.e. after OnResize).
+	void SeedDrawRegion()
+	{
+		// Always reset to the current full viewport on resize.
+		// On Win32, WM_PAINT fills in the uncovered area after resize; on Linux there is
+		// no such message, so we must explicitly cover the entire viewport each time.
+		if (m_ViewDeviceSize.x > 0 && m_ViewDeviceSize.y > 0)
+			m_DoneGraphics.Reset(Region(m_ViewDeviceSize));
+	}
+	bool IsDoneGraphicsEmpty() const { return m_DoneGraphics.Empty(); }
 
 #ifdef _WIN32
 	void OnMouseMove(WPARAM nFlags, GPoint devicePoint);

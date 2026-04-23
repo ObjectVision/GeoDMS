@@ -1,4 +1,5 @@
 #include "RtcBase.h"
+#include "act/TriggerOperator.h"
 #include "DmsViewArea.h"
 
 #include "DmsMainWindow.h"
@@ -8,6 +9,8 @@
 #include <QDragEnterEvent>
 #include <QDropEvent>
 #include <QEvent>
+#include <QMouseEvent>
+#include <QWheelEvent>
 #include <QPaintEvent>
 #include <QFileInfo>
 #include <QLabel>
@@ -20,6 +23,8 @@
 #include <QToolTip>
 #include <QScreen>
 #include <QGuiApplication>
+#include <QClipboard>
+#include <QApplication>
 
 #ifdef _WIN32
 #include <ShellScalingApi.h>
@@ -31,8 +36,11 @@
 
 #include "ShvDllInterface.h"
 #include "DataView.h"
+#include "act/MainThread.h"
 #include "KeyFlags.h"
 #include "MenuData.h"
+#include "AbstrController.h"
+#include "ShvCompat.h"
 
 // Portable ShowWindow constants (defined in windows.h on Win32)
 #ifndef SW_HIDE
@@ -234,7 +242,7 @@ void QDmsMdiArea::closeActiveDmsSubWindow()
 }
 
 QDmsViewArea::QDmsViewArea(QMdiArea* parent, TreeItem* viewContext, const TreeItem* currItem, ViewStyle viewStyle)
-	: QMdiSubWindow(parent)
+	: QMdiSubWindow(parent)  // pass parent so Qt auto-registers via childEvent; we do NOT call addSubWindow() separately
 {
 	assert(currItem); // Precondition
 	setAcceptDrops(true);
@@ -279,7 +287,7 @@ QDmsViewArea::QDmsViewArea(QMdiArea* parent, TreeItem* viewContext, const TreeIt
 }
 
 QDmsViewArea::QDmsViewArea(QMdiArea* parent, MdiCreateStruct* createStruct)
-	:   QMdiSubWindow(parent)
+	:   QMdiSubWindow(parent)  // pass parent so Qt auto-registers via childEvent; we do NOT call addSubWindow() separately
 	,   m_DataView(createStruct->dataView->shared_from_this())
 {
 	//setUpdatesEnabled(false);
@@ -293,6 +301,9 @@ QDmsViewArea::QDmsViewArea(QMdiArea* parent, MdiCreateStruct* createStruct)
 void QDmsViewArea::CreateDmsView(QMdiArea* parent, ViewStyle viewStyle)
 {
 	setAttribute(Qt::WA_DeleteOnClose);
+#ifndef _WIN32
+    setMouseTracking(true); // receive mouseMoveEvent even without button pressed (for SETCURSOR/hover)
+#endif
     //    setAttribute(Qt::WA_Mapped);
     //    setAttribute(Qt::WA_PaintOnScreen);
     //    setAttribute(Qt::WA_NoSystemBackground);
@@ -338,7 +349,9 @@ void QDmsViewArea::CreateDmsView(QMdiArea* parent, ViewStyle viewStyle)
     );
 #endif
 
-    parent->addSubWindow(this);
+    // parent->addSubWindow(this) is intentionally omitted: the QMdiSubWindow(parent) constructor
+    // already registered this window via QMdiArea::childEvent. Calling addSubWindow() again
+    // triggers "window is already added" and heap corruption in glibc.
     this->setWindowIcon(MainWindow::TheOne()->getIconFromViewstyle(viewStyle));
     if (parent->subWindowList().size() == 1)
         showMaximized();
@@ -368,12 +381,28 @@ void QDmsViewArea::CreateDmsView(QMdiArea* parent, ViewStyle viewStyle)
 
 QDmsViewArea::~QDmsViewArea()
 {
+    // Stop all timers before any virtual dispatch can occur during teardown.
+    for (auto& [id, timer] : m_Timers) {
+        timer->stop();
+        delete timer;
+    }
+    m_Timers.clear();
+
+    // Disconnect ViewHost before destroying DataView.
+    // DataView's child objects (MapControl, LayerControl, WmsLayer, etc.) call
+    // back into the ViewHost from their own destructors or from async callbacks
+    // (WMS tile loaders, queued Qt lambdas that may fire after the QDmsViewArea
+    // is fully destroyed).  Clearing m_ViewHost to nullptr here ensures that all
+    // `if (m_ViewHost)` guards in dataview.cpp are false, preventing any virtual
+    // dispatch into an already-destroyed or partially-destroyed QDmsViewArea.
+    auto dv = m_DataView.lock();
+    if (dv)
+        SHV_DataView_SetViewHost(dv.get(), nullptr);
+
 #ifdef _WIN32
     RevokeScaleChangeNotifications(DEVICE_PRIMARY, m_cookie);
     CloseWindow((HWND)m_DataViewHWnd); // calls SHV_DataView_Destroy
 #else
-    // On Linux, clean up DataView directly
-    auto dv = m_DataView.lock();
     if (dv)
         SHV_DataView_Destroy(dv.get());
 #endif
@@ -492,6 +521,9 @@ void QDmsViewArea::UpdatePosAndSize() {
         GPoint deviceSize(rect.width(), rect.height());
         auto sf = devicePixelRatioF();
         dv->OnResize(deviceSize, CrdPoint(sf, sf));
+        // On Win32, WM_PAINT → OnPaint() seeds m_DoneGraphics so UpdateView() draws.
+        // On Linux, OnPaint() never fires, so seed it explicitly here.
+        dv->SeedDrawRegion();
         dv->RequestUpdate(); // kick off the render cycle (OnPaint not called on Linux)
     }
 #endif
@@ -542,7 +574,7 @@ DPoint QDmsViewArea::getScaleFactors() const
 
 void QDmsViewArea::paintEvent(QPaintEvent* event) {
     auto currScaleFactors = getScaleFactors();
-    if (currScaleFactors != m_LastScaleFactors) { 
+    if (currScaleFactors != m_LastScaleFactors) {
         m_LastScaleFactors = currScaleFactors;
         on_rescale();
     }
@@ -553,24 +585,34 @@ void QDmsViewArea::paintEvent(QPaintEvent* event) {
     if (m_BackingStore)
     {
         QPainter painter(this);
-        QRect paintRect = event->rect();
-
-        // Blit backing store (model data)
-        painter.drawImage(paintRect, *m_BackingStore, paintRect);
-
-        // Draw caret overlay on top using XOR composition
-        if (m_CaretOverlayVisible && !m_CaretOverlayRegion.isEmpty())
+        // contentsRect() is in widget coordinates; the backing store uses content-area
+        // coordinates (0,0 = top-left of contentsRect).  Translate before drawing so that
+        // backing-store pixel (0,0) lands at widget pixel contentsRect().topLeft().
+        QRect cr = contentsRect();
+        QRect widgetDirty = event->rect().intersected(cr);
+        if (!widgetDirty.isEmpty())
         {
-            painter.setCompositionMode(QPainter::RasterOp_SourceXorDestination);
-            painter.setClipRegion(m_CaretOverlayRegion);
-            painter.fillRect(m_CaretOverlayRegion.boundingRect(), Qt::white);
+            // Convert dirty region to backing-store coordinates for the source rect
+            QRect bsRect = widgetDirty.translated(-cr.left(), -cr.top())
+                                      .intersected(m_BackingStore->rect());
+            if (!bsRect.isEmpty())
+                painter.drawImage(widgetDirty.topLeft(), *m_BackingStore, bsRect);
         }
 
-        // Draw text caret if visible
+        // Draw caret overlay on top using XOR composition (overlay stored in content-area coords)
+        if (m_CaretOverlayVisible && !m_CaretOverlayRegion.isEmpty())
+        {
+            QRegion widgetOverlay = m_CaretOverlayRegion.translated(cr.topLeft());
+            painter.setCompositionMode(QPainter::RasterOp_SourceXorDestination);
+            painter.setClipRegion(widgetOverlay);
+            painter.fillRect(widgetOverlay.boundingRect(), Qt::white);
+        }
+
+        // Draw text caret if visible (position stored in content-area coords)
         if (m_TextCaretVisible)
         {
             painter.setCompositionMode(QPainter::RasterOp_SourceXorDestination);
-            painter.fillRect(m_TextCaretPos.x, m_TextCaretPos.y, 
+            painter.fillRect(m_TextCaretPos.x + cr.left(), m_TextCaretPos.y + cr.top(),
                            m_TextCaretWidth, m_TextCaretHeight, Qt::white);
         }
     }
@@ -703,7 +745,11 @@ void QDmsViewArea::VH_InvalidateRect(const GRect& rect, bool erase)
         ::InvalidateRect(reinterpret_cast<HWND>(m_DataViewHWnd), &AsRECT(rect), erase);
     else
 #endif
-    update(QRect(rect.left, rect.top, rect.Width(), rect.Height()));
+    {
+        // rect is in content-area coordinates; translate to widget coordinates for Qt
+        QRect cr = contentsRect();
+        update(QRect(rect.left + cr.left(), rect.top + cr.top(), rect.Width(), rect.Height()));
+    }
 }
 
 void QDmsViewArea::VH_InvalidateRgn(const Region& rgn, bool erase)
@@ -716,11 +762,13 @@ void QDmsViewArea::VH_InvalidateRgn(const Region& rgn, bool erase)
     else
 #endif
     {
+        // rgn is in content-area coordinates; translate to widget coordinates for Qt
+        QRect cr = contentsRect();
         if (rgn.Empty())
-            update(rect());
+            update(cr); // invalidate content area only
         else {
             GRect bbox = rgn.BoundingBox();
-            update(QRect(bbox.left, bbox.top, bbox.Width(), bbox.Height()));
+            update(QRect(bbox.left + cr.left(), bbox.top + cr.top(), bbox.Width(), bbox.Height()));
         }
     }
 }
@@ -752,8 +800,17 @@ void QDmsViewArea::VH_PostMessage(UInt32 msg, UInt64 wParam, Int64 lParam)
         PostMessage(reinterpret_cast<HWND>(m_DataViewHWnd), msg, wParam, lParam);
     }
 #else
-    // On Linux, use Qt's event system or direct calls
-    // TODO: Map common messages to Qt events
+    if (msg == UM_PROCESS_QUEUE) {
+        // Queue a call to ProcessGuiOpers() on the Qt event loop so that
+        // the DataView's GUI oper queue (which holds write locks on items
+        // like classBreaks) gets drained promptly.
+        QMetaObject::invokeMethod(this, [this]() {
+            SuspendTrigger::Resume(); // match Win32 nativeEventFilter which Resumes on every event
+            auto dv = getDataView();
+            if (dv)
+                dv->ProcessGuiOpers();
+        }, Qt::QueuedConnection);
+    }
 #endif
 }
 
@@ -821,6 +878,116 @@ void QDmsViewArea::VH_NotifyParentActivation()
     }
 }
 
+#ifndef _WIN32
+
+static UINT qtModsToMkFlags(Qt::MouseButtons buttons, Qt::KeyboardModifiers mods)
+{
+    UINT flags = 0;
+    if (buttons & Qt::LeftButton)  flags |= MK_LBUTTON;
+    if (buttons & Qt::RightButton) flags |= MK_RBUTTON;
+    if (buttons & Qt::MiddleButton)flags |= MK_MBUTTON;
+    if (mods & Qt::ControlModifier) flags |= MK_CONTROL;
+    if (mods & Qt::ShiftModifier)   flags |= MK_SHIFT;
+    return flags;
+}
+
+// Convert a position relative to the QMdiSubWindow frame to content-area coordinates.
+// QMdiSubWindow draws its own title bar and resize frame as part of the widget, so
+// event->pos() includes the title bar offset.  DataView expects coordinates relative to
+// the content area only (i.e. contentsRect().topLeft() is the origin).
+static GPoint toClientPoint(const QPoint& widgetPos, const QRect& contentsRect)
+{
+    return GPoint(widgetPos.x() - contentsRect.left(),
+                  widgetPos.y() - contentsRect.top());
+}
+
+void QDmsViewArea::mousePressEvent(QMouseEvent* event)
+{
+    QRect cr = contentsRect();
+    if (!cr.contains(event->pos())) { QMdiSubWindow::mousePressEvent(event); return; }
+    auto dv = getDataView(); if (!dv) { QMdiSubWindow::mousePressEvent(event); return; }
+    GPoint pt = toClientPoint(event->pos(), cr);
+    UINT flags = qtModsToMkFlags(event->buttons(), event->modifiers());
+    if (event->button() == Qt::LeftButton)
+    {
+        VH_NotifyParentActivation();
+        dv->DispatchMouseEvent(EventID::LBUTTONDOWN, flags, pt);
+    }
+    else if (event->button() == Qt::RightButton)
+        dv->DispatchMouseEvent(EventID::RBUTTONDOWN, flags, pt);
+    event->accept();
+}
+
+void QDmsViewArea::mouseReleaseEvent(QMouseEvent* event)
+{
+    QRect cr = contentsRect();
+    if (!cr.contains(event->pos()) && !(event->buttons())) {
+        // Release can happen outside contents if mouse was grabbed; still forward if we have capture
+    }
+    auto dv = getDataView(); if (!dv) { QMdiSubWindow::mouseReleaseEvent(event); return; }
+    GPoint pt = toClientPoint(event->pos(), cr);
+    UINT flags = qtModsToMkFlags(event->buttons(), event->modifiers());
+    if (event->button() == Qt::LeftButton)
+    {
+        dv->DispatchMouseEvent(EventID::LBUTTONUP, flags, pt);
+        VH_ReleaseCapture();
+    }
+    else if (event->button() == Qt::RightButton)
+        dv->DispatchMouseEvent(EventID::RBUTTONUP, flags, pt);
+    event->accept();
+}
+
+void QDmsViewArea::mouseDoubleClickEvent(QMouseEvent* event)
+{
+    QRect cr = contentsRect();
+    if (!cr.contains(event->pos())) { QMdiSubWindow::mouseDoubleClickEvent(event); return; }
+    auto dv = getDataView(); if (!dv) { QMdiSubWindow::mouseDoubleClickEvent(event); return; }
+    GPoint pt = toClientPoint(event->pos(), cr);
+    UINT flags = qtModsToMkFlags(event->buttons(), event->modifiers());
+    if (event->button() == Qt::LeftButton)
+        dv->DispatchMouseEvent(EventID::LBUTTONDBLCLK, flags, pt);
+    else if (event->button() == Qt::RightButton)
+        dv->DispatchMouseEvent(EventID::RBUTTONDBLCLK, flags, pt);
+    event->accept();
+}
+
+void QDmsViewArea::mouseMoveEvent(QMouseEvent* event)
+{
+    auto dv = getDataView(); if (!dv) { QMdiSubWindow::mouseMoveEvent(event); return; }
+    QRect cr = contentsRect();
+    GPoint pt = toClientPoint(event->pos(), cr);
+    UINT flags = qtModsToMkFlags(event->buttons(), event->modifiers());
+    // MOUSEDRAG when button held, MOUSEMOVE otherwise; SETCURSOR always
+    EventID moveEvent = (flags & (MK_LBUTTON|MK_RBUTTON)) ? EventID::MOUSEDRAG : EventID::MOUSEMOVE;
+    dv->DispatchMouseEvent(moveEvent, flags, pt);
+    if (!dv->DispatchMouseEvent(EventID::SETCURSOR, flags, pt))
+        VH_SetCursorArrow();
+    event->accept();
+}
+
+void QDmsViewArea::wheelEvent(QWheelEvent* event)
+{
+    auto dv = getDataView(); if (!dv) { QMdiSubWindow::wheelEvent(event); return; }
+    QRect cr = contentsRect();
+    GPoint pt = toClientPoint(event->position().toPoint(), cr);
+    // Pack delta (in 120-units) into HIWORD of flags, buttons in LOWORD — matches Win32 WM_MOUSEWHEEL wParam
+    int delta = event->angleDelta().y(); // positive = scroll up = zoom in
+    UINT flags = qtModsToMkFlags(event->buttons(), event->modifiers());
+    UINT wParam = (UINT)(((short)delta) << 16) | (flags & 0xFFFF);
+    dv->DispatchMouseEvent(EventID::MOUSEWHEEL, wParam, pt);
+    event->accept();
+}
+
+void QDmsViewArea::leaveEvent(QEvent* event)
+{
+    auto dv = getDataView();
+    if (dv)
+        dv->DispatchMouseEvent(EventID::MOUSEMOVE, 0, UNDEFINED_VALUE(GPoint));
+    QMdiSubWindow::leaveEvent(event);
+}
+
+#endif // !_WIN32
+
 void QDmsViewArea::VH_ScrollWindow(GPoint delta, const GRect& scrollRect, const GRect& clipRect,
     Region& updateRgn, const GRect& validRect)
 {
@@ -851,7 +1018,9 @@ void QDmsViewArea::VH_ScrollWindow(GPoint delta, const GRect& scrollRect, const 
     QRegion exposedRegion = scrolledRegion - destRegion;
 
     updateRgn = Region(exposedRegion);
-    update(exposedRegion);
+    // exposedRegion is in content-area coordinates; translate to widget coordinates for Qt
+    QPoint cr_origin = contentsRect().topLeft();
+    update(exposedRegion.translated(cr_origin));
 #endif
 }
 
@@ -885,22 +1054,23 @@ void QDmsViewArea::VH_DrawInContext(const Region& clipRgn, std::function<void(Dr
 
     painter.setBackgroundMode(Qt::TransparentMode);
 
-    // Set clip region
+    // Set clip region (clipRgn is in content-area / backing-store coordinates)
     if (!clipRgn.Empty())
         painter.setClipRegion(clipRgn.GetQRegion());
 
     QtDrawContext ctx(&painter);
     callback(ctx);
 
-    // Schedule a repaint to show the updated backing store
+    // Schedule a repaint to show the updated backing store.
+    // update() expects widget coordinates, so translate from content-area coordinates.
     if (!clipRgn.Empty())
     {
         GRect bbox = clipRgn.BoundingBox();
-        update(QRect(bbox.left, bbox.top, bbox.Width(), bbox.Height()));
+        update(QRect(bbox.left + rect.left(), bbox.top + rect.top(), bbox.Width(), bbox.Height()));
     }
     else
     {
-        update();
+        update(rect); // only repaint the content area, not the title bar
     }
 #endif
 }
@@ -978,10 +1148,37 @@ void QDmsViewArea::VH_SetCaretOverlay(const Region& rgn, bool visible)
     m_CaretOverlayRegion = rgn.Empty() ? QRegion() : rgn.GetQRegion();
     m_CaretOverlayVisible = visible;
 
-    // Invalidate both old and new caret regions to trigger repaint
-    // This ensures the XOR overlay is correctly toggled
+    // Invalidate both old and new caret regions to trigger repaint.
+    // Regions are in content-area coordinates; translate to widget coordinates for Qt.
+    QPoint cr_origin = contentsRect().topLeft();
     if (wasVisible && !oldRegion.isEmpty())
-        update(oldRegion);
+        update(oldRegion.translated(cr_origin));
     if (visible && !m_CaretOverlayRegion.isEmpty())
-        update(m_CaretOverlayRegion);
+        update(m_CaretOverlayRegion.translated(cr_origin));
+}
+
+void QDmsViewArea::VH_CopyToClipboard(const GRect& rect)
+{
+    if (!m_BackingStore)
+        return;
+
+    QRect qRect(rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top);
+    qRect = qRect.intersected(m_BackingStore->rect());
+    if (qRect.isEmpty())
+        qRect = m_BackingStore->rect(); // fall back to full backing store
+
+    QImage cropped = m_BackingStore->copy(qRect);
+
+    QApplication::clipboard()->setImage(cropped);
+
+    // Also save to file so test scripts can inspect the output
+    static int s_CopyCount = 0;
+#ifdef _WIN32
+    QString dir = QString::fromLocal8Bit(qgetenv("TEMP").constData());
+    if (dir.isEmpty()) dir = "C:\\temp";
+#else
+    QString dir = "/tmp";
+#endif
+    QString path = QString("%1/geodms_copy_%2.png").arg(dir).arg(s_CopyCount++);
+    cropped.save(path);
 }

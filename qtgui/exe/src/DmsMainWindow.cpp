@@ -137,9 +137,18 @@ bool CalculationTimesWindow::eventFilter(QObject* obj, QEvent* e) {
     return QObject::eventFilter(obj, e);
 }
 
-MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings) { 
+MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings) {
     assert(s_CurrMainWindow == nullptr);
     s_CurrMainWindow = this;
+
+#if !defined(Q_OS_WIN)
+    SetRequestMainThreadOperProcessingCallback([this]() {
+        QMetaObject::invokeMethod(this, [this]() {
+            SuspendTrigger::Resume();
+            ProcessAppOpers();
+        }, Qt::QueuedConnection);
+    });
+#endif
 
     m_mdi_area = new QDmsMdiArea(this);
     m_mdi_area->setFocusPolicy(Qt::FocusPolicy::ClickFocus);
@@ -246,16 +255,20 @@ MainWindow::~MainWindow() {
     SetGeoDmsRegKeyDWord("WindowMaximized", isMaximized ? 1 : 0);
     if (!isMaximized) {
         auto geom = geometry();
-        SetGeoDmsRegKeyDWord("WindowX",      static_cast<DWORD>(static_cast<INT32>(geom.x())));
-        SetGeoDmsRegKeyDWord("WindowY",      static_cast<DWORD>(static_cast<INT32>(geom.y())));
-        SetGeoDmsRegKeyDWord("WindowWidth",  static_cast<DWORD>(geom.width()));
-        SetGeoDmsRegKeyDWord("WindowHeight", static_cast<DWORD>(geom.height()));
+        SetGeoDmsRegKeyDWord("WindowX",      static_cast<UInt32>(static_cast<Int32>(geom.x())));
+        SetGeoDmsRegKeyDWord("WindowY",      static_cast<UInt32>(static_cast<Int32>(geom.y())));
+        SetGeoDmsRegKeyDWord("WindowWidth",  static_cast<UInt32>(geom.width()));
+        SetGeoDmsRegKeyDWord("WindowHeight", static_cast<UInt32>(geom.height()));
     }
 
     g_IsTerminating = true;
 
     assert(s_CurrMainWindow == this);
     s_CurrMainWindow = nullptr;
+
+#if !defined(Q_OS_WIN)
+    SetRequestMainThreadOperProcessingCallback(nullptr);
+#endif
 
     cleanupDmsCallbacks();
 }
@@ -1515,6 +1528,9 @@ void AnyTreeItemStateHasChanged(ClientHandle /*clientHandle*/, const TreeItem* s
         auto* createStruct = const_cast<MdiCreateStruct*>(reinterpret_cast<const MdiCreateStruct*>(self));
         assert(createStruct);
         new QDmsViewArea(mainWindow->m_mdi_area.get(), createStruct);
+#ifndef _WIN32
+        createStruct->created = true;
+#endif
         return;
     }
     case CC_Activate:

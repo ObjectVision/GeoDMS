@@ -406,7 +406,14 @@ namespace SuspendTrigger {
 
 		MGD_CHECKDATA(gd_TriggerApplyLockCount == 0); // find who pulls the trigger
 
+#if defined(WIN32)
 		if (s_SuspendLevel || s_Timer.PassedSec() && HasWaitingMessages()) // HasWaitingMessages() can send WM_SIZE ... that sets s_SuspendLevel
+#else
+		// On Linux there is no Win32 message pump, so HasWaitingMessages() is always false.
+		// Use the timer alone so that Join() on the meta thread can return task_status::suspended
+		// and yield back to the Qt event loop periodically.
+		if (s_SuspendLevel || s_Timer.PassedSec())
+#endif
 		{
 			s_bLastResult = true;
 			return true;

@@ -120,6 +120,15 @@ bool NoOtherThreadsStarted()
 
 std::atomic<bool> s_MainThreadOperProcessRequestPending = false;
 
+#if !defined(WIN32)
+static std::function<void()> s_requestMainThreadCallback;
+
+void SetRequestMainThreadOperProcessingCallback(std::function<void()> callback)
+{
+	s_requestMainThreadCallback = std::move(callback);
+}
+#endif
+
 static thread_local UInt32 s_MainThreadOperProcessingRequestLockCounter = 0;
 static thread_local bool   s_MainThreadOperProcessingRequested = false;
 
@@ -168,6 +177,9 @@ RTC_CALL void RequestMainThreadOperProcessing()
 	#if defined(WIN32)
 		if (sMainThreadHnd)  // not yet initialized.
 			PostThreadMessage(sMainThreadHnd, UM_PROCESS_MAINTHREAD_OPERS, 0, 0); // only effective when MainThread has MessageQueue, ie in GeoDmsGui, and not in GeoDmsRun or python process
+	#else
+		if (s_requestMainThreadCallback)
+			s_requestMainThreadCallback();
 	#endif
 }
 

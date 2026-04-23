@@ -94,6 +94,10 @@ public:
 	// Context menu
 	virtual void VH_ShowPopupMenu(GPoint clientPoint, const MenuData& menuData) = 0;
 
+	// Copy the visible backing-store contents for the given device rect to the system clipboard (and save to /tmp/geodms_copy.png on Linux).
+	// Default: no-op (Win32 handles clipboard copy per-object in MovableObject::CopyToClipboard).
+	virtual void VH_CopyToClipboard(const GRect& /*rect*/) {}
+
 	// Caret overlay: set region to be XOR-inverted on top of backing store during paint.
 	// This keeps backing store clean with only model data representation.
 	// Pass empty region to clear the overlay.

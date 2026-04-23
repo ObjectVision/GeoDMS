@@ -81,6 +81,9 @@ RTC_CALL void CancelMainThreadTasks();
 RTC_CALL bool IsProcessingMainThreadOpers();
 RTC_CALL void RequestMainThreadOperProcessing();
 RTC_CALL void ConfirmMainThreadOperProcessing();
+#if !defined(WIN32)
+RTC_CALL void SetRequestMainThreadOperProcessingCallback(std::function<void()> callback);
+#endif
 RTC_CALL bool IsMainThreadOperProcessingRequestPending();
 
 struct MainThreadBlocker

@@ -1,10 +1,22 @@
 #include <iostream>
 
 #include "DmsMainWindow.h"
+#include "DmsAddressBar.h"
+#include "DmsViewArea.h"
 
 #include "ser/FormattedStream.h"
 #include "ser/FileStreamBuff.h"
 #include "TestScript.h"
+
+#ifndef Q_OS_WIN
+#include "KeyFlags.h"
+#include "DataView.h"
+#include "MovableObject.h"
+#include "ShvUtils.h"
+#include "act/TriggerOperator.h"
+#include <QMdiArea>
+#include <QMdiSubWindow>
+#endif
 
 
 void reportErr(CharPtr errMsg)
@@ -171,8 +183,121 @@ int PassMsg(int argc, char* argv[])
 			SendMessage(hwDispatch, WM_COPYDATA, WPARAM(NULL), LPARAM(&myCDS));
 	}
 #else
-	// IPC via COPYDATASTRUCT/SendMessage not available on Linux
-	reportErr("PassMsg: Win32 IPC not available on this platform");
+	// Linux: direct method calls instead of Win32 IPC
+	for (; i < argc; ++i)
+	{
+		auto mw = MainWindow::TheOne();
+		if (!mw) return 0;
+
+		if (std::strcmp(argv[i], "DefaultView") == 0)
+		{
+			mw->defaultView();
+		}
+		else if (std::strcmp(argv[i], "GOTO") == 0 || std::strcmp(argv[i], "ActivateItem") == 0)
+		{
+			if (argc <= ++i)
+				throw stx_error("path expected after ActivateItem");
+			mw->m_address_bar->setPath(argv[i]);
+		}
+		else if (std::strcmp(argv[i], "EXPAND") == 0 || std::strcmp(argv[i], "Expand") == 0)
+		{
+			mw->expandActiveNode(true);
+		}
+		else if (std::strcmp(argv[i], "Collapse") == 0)
+		{
+			mw->expandActiveNode(false);
+		}
+		else if (std::strcmp(argv[i], "ExpandAll") == 0)
+		{
+			mw->expandAll();
+		}
+		else if (std::strcmp(argv[i], "ExpandRecursive") == 0)
+		{
+			mw->expandRecursiveFromCurrentItem();
+		}
+		else if (std::strcmp(argv[i], "CascadeSubWindows") == 0)
+		{
+			mw->m_mdi_area->cascadeSubWindows();
+		}
+		else if (std::strcmp(argv[i], "TileSubWindows") == 0)
+		{
+			mw->m_mdi_area->tileSubWindows();
+		}
+		else if (std::strcmp(argv[i], "SEND") == 0)
+		{
+			if (argc <= ++i)
+				throw stx_error("command-code expected after SEND");
+			int code = str2int(argv[i]);
+			if (argc <= ++i)
+				throw stx_error("DWORD count expected after SEND command-code");
+			int size = str2int(argv[i]);
+			std::vector<UInt32> buf;
+			buf.reserve(size ? size : 1);
+			for (int j = 0; j < size; ++j)
+			{
+				if (argc <= ++i)
+					throw stx_error("not enough DWORDs after SEND");
+				buf.emplace_back(str2int(argv[i]));
+			}
+			if (buf.empty()) buf.emplace_back(0);
+
+			auto getActiveDV = [&]() -> std::shared_ptr<DataView> {
+				auto aw = mw->m_mdi_area->activeSubWindow();
+				if (!aw) return nullptr;
+				auto va = dynamic_cast<QDmsViewArea*>(aw);
+				if (!va) return nullptr;
+				return va->getDataView();
+			};
+
+			switch (code)
+			{
+			case 1: // SendMain: {message, wParam, lParam}
+			{
+				UInt32 message = buf[0];
+				if (message == 16) // WM_CLOSE
+					mw->close();
+				// other messages not implemented
+				break;
+			}
+			case 3: // SendActiveDmsControl: {message, wParam, lParam}
+			{
+				auto dv = getActiveDV();
+				if (!dv) break;
+				UInt32 message = buf[0];
+				UInt32 wParam  = buf.size() > 1 ? buf[1] : 0;
+				// Translate Win32 WM_* to GraphicObject::OnKeyDown / OnCommand calls
+				// DataView::OnKeyDown is #ifdef _WIN32 only; use GetContents()->OnKeyDown
+				auto contents = dv->GetContents();
+				if (!contents) break;
+				if (message == 258) // WM_CHAR
+					contents->OnKeyDown(wParam | KeyInfo::Flag::Char);
+				else if (message == 256) // WM_KEYDOWN
+					contents->OnKeyDown(wParam);
+				else if (message == 273) // WM_COMMAND: trigger OnCommand(LOWORD(wParam))
+				{
+					SuspendTrigger::FencedBlocker suspendLock("TestScript::WM_COMMAND");
+					contents->OnCommand(ToolButtonID(wParam & 0xFFFF));
+				}
+				break;
+			}
+			case 4: // WmCopyActiveDmsControl: {cmd, data...}
+			{
+				auto dv = getActiveDV();
+				if (!dv) break;
+				UInt32 cmd = buf[0];
+				const UInt32* dataBegin = buf.data() + 1;
+				const UInt32* dataEnd   = buf.data() + buf.size();
+				dv->OnCopyData(cmd, dataBegin, dataEnd);
+				break;
+			}
+			default:
+				reportErr(mgFormat2string("SEND code %1% not implemented on Linux", code).c_str());
+				break;
+			}
+		}
+		else
+			reportErr(mgFormat2string("Unrecognized keyword (Linux): %1%", argv[i]).c_str());
+	}
 #endif // Q_OS_WIN
 	return 0;
 }

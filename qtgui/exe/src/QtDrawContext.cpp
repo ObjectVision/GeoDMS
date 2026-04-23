@@ -300,12 +300,18 @@ void QtDrawContext::DrawImage(const GRect& destRect, const void* pixelData, int 
 
 	if (bitsPerPixel == 32)
 	{
-		// pixelData is BGRA (RGBQUAD order), bottom-up
+		// pixelData is 0x00RRGGBB (Windows COLORREF / GDI DIB format): R=byte2, G=byte1, B=byte0, alpha=0.
+		// QImage::Format_ARGB32 treats alpha=0 as fully transparent; we must set alpha=0xFF (opaque).
+		// Windows GDI (StretchDIBits with BI_RGB) ignores the alpha byte, so this is safe on all platforms.
+		// The image is bottom-up (Windows DIB convention); flip to top-down for Qt.
 		auto src = static_cast<const quint32*>(pixelData);
 		for (int y = 0; y < abs(height); ++y)
 		{
 			int srcY = (height > 0) ? (abs(height) - 1 - y) : y; // bottom-up → top-down
-			memcpy(img.scanLine(y), src + srcY * width, width * 4);
+			auto* dst = reinterpret_cast<quint32*>(img.scanLine(y));
+			const auto* row = src + srcY * width;
+			for (int x = 0; x < width; ++x)
+				dst[x] = row[x] | 0xFF000000u; // ensure alpha=255 (fully opaque)
 		}
 	}
 	else if (bitsPerPixel == 8 && paletteRGBQuads && paletteCount > 0)

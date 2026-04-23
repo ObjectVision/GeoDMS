@@ -18,6 +18,7 @@
 
 #include "ClipBoard.h"
 #include "DataView.h"
+#include "ViewHost.h"
 #include "DrawContext.h"
 #include "MouseEventDispatcher.h"
 #include "GraphVisitor.h"
@@ -392,11 +393,21 @@ void MovableObject::CopyToClipboard(DataView* dv)
 	if (!clipBoard.IsOpen())
 		throwItemError("Cannot open Clipboard");
 	clipBoard.SetBitmap(hBmp);
+
+	// Also save to file for test verification (mirrors Linux VH_CopyToClipboard behavior)
+	if (dv) {
+		auto vh = dv->GetViewHost();
+		if (vh)
+			vh->VH_CopyToClipboard(CrdRect2GRect(GetCurrClientAbsDeviceRect()));
+	}
 }
 #else // !_WIN32
-void MovableObject::CopyToClipboard(DataView* /*dv*/)
+void MovableObject::CopyToClipboard(DataView* dv)
 {
-	// TODO: implement bitmap clipboard copy via QImage/QClipboard
+	if (!dv) return;
+	auto vh = dv->GetViewHost();
+	if (!vh) return;
+	vh->VH_CopyToClipboard(CrdRect2GRect(GetCurrClientAbsDeviceRect()));
 }
 #endif // _WIN32
 

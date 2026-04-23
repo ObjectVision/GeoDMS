@@ -723,9 +723,7 @@ void CreateEditPaletteMdiChild(GraphicLayer* layer, const AbstrDataItem* themeAt
 
 		SharedStr caption = "PaletteEditor for " + themeAttrSPtr->GetDisplayName();
 
-#ifdef _WIN32
 		if (editPaletteView->CreateMdiChild(tvsPaletteEdit, caption.c_str()))
-#endif
 			Keep(editPaletteView);
 		}
 	);
@@ -769,9 +767,7 @@ const AbstrDataItem* DMS_CONV SHV_EditPaletteView_Create(TreeItem* desktopItem, 
 
 		SharedStr caption ="PaletteEditor for " + themeItem->GetDisplayName();
 
-#ifdef _WIN32
-		if (editPaletteView->CreateMdiChild(tvsPaletteEdit, caption.c_str()) )
-#endif
+		if (editPaletteView->CreateMdiChild(tvsPaletteEdit, caption.c_str()))
 		{
 			editPaletteView->SetContents(make_shared_gr<EditPaletteControl>(editPaletteView.get())(classAttr, themeAttr, themeUnit), SM_Save);
 			const AbstrDataItem* adi = editPaletteView->GetEditPaletteControl()->GetPaletteControl()->GetBreakAttr();

@@ -375,8 +375,8 @@ int main_without_SE_handler(int argc, char *argv[]) {
                     if (wasMaximized) {
                         main_window.showMaximized();
                     } else {
-                        int x = static_cast<int>(static_cast<INT32>(GetGeoDmsRegKeyDWord("WindowX",      100)));
-                        int y = static_cast<int>(static_cast<INT32>(GetGeoDmsRegKeyDWord("WindowY",      100)));
+                        int x = static_cast<int>(static_cast<Int32>(GetGeoDmsRegKeyDWord("WindowX",      100)));
+                        int y = static_cast<int>(static_cast<Int32>(GetGeoDmsRegKeyDWord("WindowY",      100)));
                         int w = static_cast<int>(GetGeoDmsRegKeyDWord("WindowWidth",  1024));
                         int h = static_cast<int>(GetGeoDmsRegKeyDWord("WindowHeight", 768));
                         main_window.setGeometry(x, y, w, h);

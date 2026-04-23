@@ -1179,15 +1179,13 @@ GraphVisitState DataView::UpdateView()
 			DBG_START("DataView::UpdateView", "Region", MG_DEBUG_REGION);
 
 			const Region& drawRegion = m_DoneGraphics.CurrRegion();
-
 			bool regionDone = false;
 			if (m_ViewHost)
 			{
 				m_ViewHost->VH_DrawInContext(drawRegion, [&](DrawContext& drawContext) {
-					GraphDrawer drawer(&drawContext, m_DoneGraphics, this, GdMode(GD_StoreRect|GD_Suspendible|GD_UpdateData|GD_DrawData), scaleFactors);
-
 					dms_assert(!SuspendTrigger::DidSuspend());
 
+					GraphDrawer drawer(&drawContext, m_DoneGraphics, this, GdMode(GD_StoreRect|GD_Suspendible|GD_UpdateData|GD_DrawData), scaleFactors);
 					GraphVisitState suspended = drawer.Visit( GetContents().get() );
 					bool stopped = m_DoneGraphics.DidBreak();
 
@@ -1226,8 +1224,6 @@ GraphVisitState DataView::UpdateView()
 	GraphVisitState suspended = GraphDrawer(nullptr, updateAllStack, this, GdMode(GD_Suspendible | GD_UpdateData), scaleFactors)
 		.Visit(GetContents().get());
 
-//	auto allDrawer = GraphDrawer(nullptr, updateAllStack, this, GdMode(GD_Suspendible | GD_UpdateData));
-//	GraphVisitState suspended = allDrawer.Visit( GetContents().get() );
 	dms_assert((suspended == GVS_Break) == SuspendTrigger::DidSuspend());
 
 	dms_assert(m_DoneGraphics.Empty()); // it was empty and the OnPaint is only processed in sync
@@ -1239,6 +1235,7 @@ GraphVisitState DataView::UpdateView()
 
 	if (UpdateChildViews(this) == AVS_SuspendedOrFailed)
 		return GVS_Break;
+
 	return GVS_Ready;
 }
 
@@ -1310,6 +1307,10 @@ void DataView::ScrollDevice(GPoint delta, GRect rcScroll, GRect rcClip, const Mo
 
 	dbg_assert( md_InvalidateDrawLock == 0);
 	assert(src);
+#if !defined(_WIN32)
+	bool const wasCaretsVisible = m_State.Get(DVF_CaretsVisible);
+	m_State.Clear(DVF_CaretsVisible); // Linux: no CaretHider; satisfy assertion below
+#endif
 	{
 #if defined(_WIN32)
 		DcHandle dc(m_hWnd, GetDefaultFont(FontSizeCategory::MEDIUM)); // we could clip on the rcScroll|rcClip region
@@ -1400,6 +1401,9 @@ void DataView::ScrollDevice(GPoint delta, GRect rcScroll, GRect rcClip, const Mo
 			}
 		}
 	}
+#if !defined(_WIN32)
+	m_State.Set(DVF_CaretsVisible, wasCaretsVisible); // Linux: restore after scroll (mirrors CaretHider destructor)
+#endif
 	// Remove active carets after they reappeared to erase them in full.
 	// Removing them before reappearande would avoid flicker, but we have only partially removed active carets)
 	DispatchMouseEvent(EventID::SCROLLED, 0, UNDEFINED_VALUE(GPoint) ); 
@@ -2016,7 +2020,6 @@ IMPL_RTTI_CLASS(DataView);
 
 #include "ShvDllInterface.h"
 
-#ifdef _WIN32
 bool DataView::CreateMdiChild(ViewStyle ct, CharPtr caption)
 {
 	assert(m_ParentView == 0);
@@ -2031,6 +2034,7 @@ bool DataView::CreateMdiChild(ViewStyle ct, CharPtr caption)
 //		MakeLowerBound(createStruct.maxSize, TPoint2GPoint(GetContents()->CalcMaxSize(), GetScaleFactors()));
 
 	NotifyStateChange(reinterpret_cast<const TreeItem*>(&createStruct), CC_CreateMdiChild);
+#ifdef _WIN32
 	if (createStruct.hWnd)
 	{
 		m_hWnd = createStruct.hWnd;
@@ -2040,8 +2044,10 @@ bool DataView::CreateMdiChild(ViewStyle ct, CharPtr caption)
 		return true;
 	}
 	return false;
+#else
+	return createStruct.created;
+#endif
 }
-#endif // _WIN32
 
 void DataView::PostGuiOper(std::function<void()>&& func)
 {
