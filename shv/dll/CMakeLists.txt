@@ -31,4 +31,8 @@ target_link_libraries(DmShv PUBLIC
 
 if(WIN32)
     target_link_libraries(DmShv PRIVATE Shcore comctl32 msimg32)
+    # ShvDLL.vcxproj uses CharacterSet=MultiByte with UNICODE/_UNICODE undefined.
+    # DmShv uses narrow-char Win32 APIs (strncpy into WCHAR[], CreateWindowEx with
+    # char literals, CreateFont with char literal). Match that setting here.
+    target_compile_options(DmShv PRIVATE /UUNICODE /U_UNICODE)
 endif()

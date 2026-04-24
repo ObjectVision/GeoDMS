@@ -17,6 +17,19 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
+# Visual Studio is a multi-config generator: it appends /<Config> to output dirs.
+# Each CMake preset already has its own binary dir, so flattening to bin/ here
+# causes no collision and keeps resource deployment (file(COPY)) consistent
+# with the single-config Ninja generator used on Linux.
+if(CMAKE_GENERATOR MATCHES "Visual Studio")
+    foreach(_cfg Debug Release RelWithDebInfo MinSizeRel)
+        string(TOUPPER ${_cfg} _cfg_upper)
+        set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_${_cfg_upper} ${CMAKE_BINARY_DIR}/bin)
+        set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_${_cfg_upper} ${CMAKE_BINARY_DIR}/bin)
+        set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_${_cfg_upper} ${CMAKE_BINARY_DIR}/lib)
+    endforeach()
+endif()
+
 # Build feedback
 set(CMAKE_COLOR_DIAGNOSTICS ON)
 
@@ -58,22 +71,38 @@ add_subdirectory(qtgui/exe)
 # Deploy resource files next to executables
 file(COPY ${CMAKE_SOURCE_DIR}/res/RewriteExpr.lsp DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
 
-# Deploy GDAL and PROJ geographic data files (needed at runtime by DmStg via GDAL/PROJ)
-# vcpkg installs these into vcpkg_installed/<triplet>/share/ during cmake configure.
+# Deploy GDAL and PROJ geographic data files (needed at runtime by DmStg via GDAL/PROJ).
+# Prefer VCPKG_INSTALLED_DIR (set when the repo-root vcpkg_installed/ is used, e.g. on
+# Windows where msbuild already ran vcpkg). Fall back to the build-tree install used by
+# vcpkg manifest mode on Linux.
 if(DEFINED VCPKG_TARGET_TRIPLET)
-    set(_vcpkg_share ${CMAKE_BINARY_DIR}/vcpkg_installed/${VCPKG_TARGET_TRIPLET}/share)
+    if(DEFINED VCPKG_INSTALLED_DIR AND IS_DIRECTORY ${VCPKG_INSTALLED_DIR})
+        set(_vcpkg_share ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/share)
+    else()
+        set(_vcpkg_share ${CMAKE_BINARY_DIR}/vcpkg_installed/${VCPKG_TARGET_TRIPLET}/share)
+    endif()
     if(IS_DIRECTORY ${_vcpkg_share}/gdal)
         file(COPY ${_vcpkg_share}/gdal/ DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/gdaldata)
     endif()
-    if(IS_DIRECTORY ${_vcpkg_share}/proj)
-        file(COPY ${_vcpkg_share}/proj/ DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/proj4data)
-    endif()
+    foreach(_proj_share proj proj4)
+        if(IS_DIRECTORY ${_vcpkg_share}/${_proj_share})
+            file(COPY ${_vcpkg_share}/${_proj_share}/ DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/proj4data)
+        endif()
+    endforeach()
 endif()
 
 # Deploy DMS script library and example configurations
 foreach(_res_dir library examples)
     if(IS_DIRECTORY ${CMAKE_SOURCE_DIR}/CopyResources/${_res_dir})
         file(COPY ${CMAKE_SOURCE_DIR}/CopyResources/${_res_dir}
+             DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+    endif()
+endforeach()
+
+# Deploy Python utility scripts
+foreach(_py_script profiler.py regression.py)
+    if(EXISTS ${CMAKE_SOURCE_DIR}/profiler/${_py_script})
+        file(COPY ${CMAKE_SOURCE_DIR}/profiler/${_py_script}
              DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
     endif()
 endforeach()
