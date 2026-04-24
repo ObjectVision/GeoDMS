@@ -11,31 +11,25 @@
 #   export GeoDmsVersion=19.5.0
 #   bash nsi/CreateLinuxSetup.sh
 #
-# Signing (optional — needed once per machine):
-#   Export the Object Vision GlobalSign OV certificate from the Windows
-#   certificate store as a .pfx file (include private key), then convert:
+# Signing (optional — requires the Object Vision SafeNet hardware token):
+#   The private key never leaves the token; signing is done via PowerShell's
+#   .NET SignedCms API which drives the token through Windows CNG/CSP.
+#   This script must be run from WSL2 on the Windows machine that has the
+#   token plugged in.  You will be prompted for the token PIN.
 #
-#     openssl pkcs12 -in ObjectVision.pfx -out ~/.geodms-sign/cert.pem \
-#             -clcerts -nokeys
-#     openssl pkcs12 -in ObjectVision.pfx -out ~/.geodms-sign/key.pem  \
-#             -nocerts -nodes
-#     chmod 600 ~/.geodms-sign/key.pem
-#
-#   Or point to the files explicitly:
-#     export GEODMS_SIGN_CERT=/path/to/cert.pem
-#     export GEODMS_SIGN_KEY=/path/to/key.pem
-#
-#   The GlobalSign intermediate CA chain (needed for verification) can be
-#   downloaded from GlobalSign's repository and stored as:
-#     ~/.geodms-sign/chain.pem
-#   or set GEODMS_SIGN_CHAIN=/path/to/chain.pem
+#   The signing certificate thumbprint is hard-coded as GEODMS_SIGN_THUMBPRINT
+#   (default: E6E0FE67472C3A0DB879E19F8C797DB61645D9DE).  Override:
+#     export GEODMS_SIGN_THUMBPRINT=<other-thumbprint>
+#   Disable signing entirely:
+#     export GEODMS_SIGN_THUMBPRINT=
 #
 #   Verification by recipients:
-#     openssl cms -verify -binary \
-#       -in  GeoDms19.5.0-linux-x64.tar.gz.p7s -inform DER \
-#       -content GeoDms19.5.0-linux-x64.tar.gz \
-#       -CAfile /etc/ssl/certs/ca-certificates.crt
-#     # (GlobalSign root is in the standard system trust store on all major distros)
+#     openssl cms -verify -binary -purpose any \
+#       -in  GeoDms19.5.0-linux-x64.tar.gz.sha256.p7s -inform DER \
+#       -content GeoDms19.5.0-linux-x64.tar.gz.sha256 \
+#       -CAfile GlobalSign-CodeSigning-Root-R45.pem
+#     sha256sum -c GeoDms19.5.0-linux-x64.tar.gz.sha256
+#   (GlobalSign-CodeSigning-Root-R45.pem is produced alongside the tarball)
 
 set -euo pipefail
 
@@ -54,12 +48,19 @@ PKG_NAME="GeoDms${GeoDmsVersion}-linux-x64"
 STAGE="${DISTR}/${PKG_NAME}"
 INSTALL_PREFIX="/opt/ObjectVision/GeoDms${GeoDmsVersion}"
 
-# Signing certificate locations — override via environment variables or
-# place converted PEM files in ~/.geodms-sign/
-SIGN_DIR="${HOME}/.geodms-sign"
-SIGN_CERT="${GEODMS_SIGN_CERT:-${SIGN_DIR}/cert.pem}"
-SIGN_KEY="${GEODMS_SIGN_KEY:-${SIGN_DIR}/key.pem}"
-SIGN_CHAIN="${GEODMS_SIGN_CHAIN:-${SIGN_DIR}/chain.pem}"
+# Signing — Object Vision GlobalSign EV Code Signing certificate
+# The private key lives on a SafeNet hardware token (non-exportable).
+# Signing is performed via PowerShell's .NET SignedCms API, which drives the
+# token through the Windows CNG/CSP layer — no key export required.
+#
+# Override the certificate thumbprint via GEODMS_SIGN_THUMBPRINT, or set it
+# to the empty string to skip signing.
+SIGN_THUMBPRINT="${GEODMS_SIGN_THUMBPRINT:-E6E0FE67472C3A0DB879E19F8C797DB61645D9DE}"
+
+# GlobalSign Code Signing Root R45 — not in all distros' default trust stores,
+# so we download it once and ship it alongside the tarball.
+GS_ROOT_URL="http://secure.globalsign.com/cacert/codesigningrootr45.crt"
+GS_ROOT_PEM="${DISTR}/GlobalSign-CodeSigning-Root-R45.pem"
 
 if [[ ! -d "${SRC}" ]]; then
     echo "ERROR: Source directory not found: ${SRC}"
@@ -169,45 +170,70 @@ echo "     $(cat "${SHA256FILE}")"
 # practice: a signed checksum is smaller to sign and sufficient to prove
 # the tarball's integrity and origin.
 #
-# The resulting .p7s is a DER-encoded CMS detached signature verifiable
-# with OpenSSL on any platform. GlobalSign's root CA is in every major
-# OS trust store, so no extra CA file is needed on the recipient's side.
+# Signing is done via powershell.exe (accessible from WSL2) using the .NET
+# SignedCms API, which drives the SafeNet hardware token through Windows CNG
+# without exporting the private key.  The resulting .p7s is a DER-encoded
+# CMS detached signature.
+#
+# The GlobalSign Code Signing Root R45 is not in all distros' default CA
+# bundles, so we also fetch it once and ship it alongside the tarball.
+# Recipients verify with:
+#   openssl cms -verify -binary -purpose any \
+#     -in  <pkg>.tar.gz.sha256.p7s -inform DER \
+#     -content <pkg>.tar.gz.sha256 \
+#     -CAfile GlobalSign-CodeSigning-Root-R45.pem
+#   sha256sum -c <pkg>.tar.gz.sha256
 # ---------------------------------------------------------------------------
 SIG="${SHA256FILE}.p7s"
 
-if [[ -f "${SIGN_CERT}" && -f "${SIGN_KEY}" ]]; then
-    echo "Signing checksum with GlobalSign OV certificate..."
+if [[ -n "${SIGN_THUMBPRINT}" ]] && command -v powershell.exe &>/dev/null; then
+    echo "Signing checksum with GlobalSign EV certificate (token: ${SIGN_THUMBPRINT})..."
 
-    OPENSSL_ARGS=(
-        cms -sign -binary -noattr
-        -in  "${SHA256FILE}"
-        -out "${SIG}"
-        -outform DER
-        -signer "${SIGN_CERT}"
-        -inkey  "${SIGN_KEY}"
-    )
-    # Include intermediate CA chain if available (improves offline verification)
-    if [[ -f "${SIGN_CHAIN}" ]]; then
-        OPENSSL_ARGS+=(-certfile "${SIGN_CHAIN}")
+    # Windows path for the SHA256 file (needed by PowerShell)
+    SHA256_WIN=$(wslpath -w "${SHA256FILE}")
+    SIG_WIN=$(wslpath -w "${SIG}")
+
+    powershell.exe -NoProfile -Command "
+Add-Type -AssemblyName 'System.Security'
+\$cert = Get-Item ('Cert:\CurrentUser\My\\${SIGN_THUMBPRINT}')
+\$bytes  = [System.IO.File]::ReadAllBytes('${SHA256_WIN}')
+\$ci     = New-Object System.Security.Cryptography.Pkcs.ContentInfo(,\$bytes)
+\$cms    = New-Object System.Security.Cryptography.Pkcs.SignedCms(\$ci, \$true)
+\$signer = New-Object System.Security.Cryptography.Pkcs.CmsSigner(\$cert)
+\$signer.IncludeOption = [System.Security.Cryptography.X509Certificates.X509IncludeOption]::ExcludeRoot
+\$cms.ComputeSignature(\$signer)
+[System.IO.File]::WriteAllBytes('${SIG_WIN}', \$cms.Encode())
+Write-Host ('  -> ${SIG_WIN} (' + (Get-Item '${SIG_WIN}').Length + ' bytes)')
+"
+
+    # Download GlobalSign Code Signing Root R45 if not already present
+    if [[ ! -f "${GS_ROOT_PEM}" ]]; then
+        echo "Fetching GlobalSign Code Signing Root R45..."
+        if command -v curl &>/dev/null; then
+            curl -fsSL "${GS_ROOT_URL}" | openssl x509 -inform DER -out "${GS_ROOT_PEM}"
+        elif command -v wget &>/dev/null; then
+            wget -qO- "${GS_ROOT_URL}" | openssl x509 -inform DER -out "${GS_ROOT_PEM}"
+        else
+            echo "  WARNING: curl/wget not found — root cert not downloaded."
+        fi
+        [[ -f "${GS_ROOT_PEM}" ]] && echo "  -> ${GS_ROOT_PEM}"
     fi
 
-    openssl "${OPENSSL_ARGS[@]}"
-    echo "  -> ${SIG}"
     echo ""
     echo "  Recipients verify with:"
-    echo "    openssl cms -verify -binary \\"
+    echo "    openssl cms -verify -binary -purpose any \\"
     echo "      -in  ${PKG_NAME}.tar.gz.sha256.p7s -inform DER \\"
     echo "      -content ${PKG_NAME}.tar.gz.sha256 \\"
-    echo "      -CAfile /etc/ssl/certs/ca-certificates.crt"
+    echo "      -CAfile GlobalSign-CodeSigning-Root-R45.pem"
     echo "    sha256sum -c ${PKG_NAME}.tar.gz.sha256"
 else
     echo ""
-    echo "  NOTE: Signing skipped — certificate files not found."
-    echo "  To sign, export the Object Vision GlobalSign certificate as .pfx"
-    echo "  and convert to PEM (see script header for instructions), then"
-    echo "  place at:"
-    echo "    ${SIGN_CERT}"
-    echo "    ${SIGN_KEY}"
+    echo "  NOTE: Signing skipped."
+    if [[ -z "${SIGN_THUMBPRINT}" ]]; then
+        echo "  Set GEODMS_SIGN_THUMBPRINT to the certificate thumbprint to enable signing."
+    else
+        echo "  powershell.exe not found — run this script from WSL2 on a Windows host."
+    fi
 fi
 
 # ---------------------------------------------------------------------------
