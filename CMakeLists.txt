@@ -68,6 +68,9 @@ add_subdirectory(shv/dll)
 add_subdirectory(run/exe)
 add_subdirectory(qtgui/exe)
 
+# Python binding (Windows-only; guarded inside its own CMakeLists.txt)
+add_subdirectory(python/dll)
+
 # Deploy resource files next to executables
 file(COPY ${CMAKE_SOURCE_DIR}/res/RewriteExpr.lsp DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
 
