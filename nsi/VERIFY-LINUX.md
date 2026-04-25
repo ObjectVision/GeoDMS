@@ -12,22 +12,39 @@ certificate (issued to `O=Object Vision B.V., C=NL`).  The private key never
 leaves a hardware security token; signing is performed via the Windows CNG/CSP
 layer on the build machine.
 
-## Step 0 — obtain the root CA independently
+## Step 0 — obtain the root CA from an independent source
 
-Fetch the GlobalSign Code Signing Root R45 **directly from GlobalSign** — do not
-use a copy distributed alongside the release.  If you downloaded the CA file from
-the same source as the tarball, an attacker who compromised that source could
-substitute both the signature and the CA file, defeating verification entirely.
+Do not use a copy of the root CA distributed alongside the release — an
+attacker who compromised the release page could substitute both the `.p7s`
+and the CA file, defeating verification.
 
+`GlobalSign Code Signing Root R45` is **not** in standard Linux CA bundles
+(which focus on TLS/HTTPS roots).  It is, however, in the **Windows trusted
+root store** — Microsoft's root program explicitly includes code-signing roots
+so that Windows can verify EV shields on installers and drivers.  Any of the
+following independent sources will give you the genuine root:
+
+**Option A — fetch from GlobalSign's own server:**
 ```bash
 curl -fsSL http://secure.globalsign.com/cacert/codesigningrootr45.crt \
   | openssl x509 -inform DER -out GlobalSign-CodeSigning-Root-R45.pem
-
-# Confirm the fingerprint matches the value published in the GeoDMS README
-openssl x509 -in GlobalSign-CodeSigning-Root-R45.pem -fingerprint -sha256 -noout
 ```
 
-Expected fingerprint (published independently in the GeoDMS source repository):
+**Option B — export from the Windows trusted root store** (on any Windows machine):
+```powershell
+$root = Get-Item 'Cert:\LocalMachine\Root\4EFC31460C619ECAE59C1BCE2C008036D94C84B8'
+[System.IO.File]::WriteAllBytes('GlobalSign-CodeSigning-Root-R45.der', $root.RawData)
+```
+```bash
+openssl x509 -inform DER -in GlobalSign-CodeSigning-Root-R45.der -out GlobalSign-CodeSigning-Root-R45.pem
+```
+
+Whichever option you use, confirm the SHA-256 fingerprint matches the value
+published in the GeoDMS source repository README (a third independent anchor):
+```bash
+openssl x509 -in GlobalSign-CodeSigning-Root-R45.pem -fingerprint -sha256 -noout
+```
+Expected:
 ```
 7B:9D:55:3E:1C:92:CB:6E:88:03:E1:37:F4:F2:87:D4:36:37:57:F5:D4:4B:37:D5:2F:9F:CA:22:FB:97:DF:86
 ```
