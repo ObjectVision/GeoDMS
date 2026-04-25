@@ -147,6 +147,12 @@ Categories=Science;Education;
 EOF
 
 # ---------------------------------------------------------------------------
+# Verification instructions — shipped inside the tarball
+# ---------------------------------------------------------------------------
+sed "s/<ver>/${GeoDmsVersion}/g" "${SCRIPT_DIR}/VERIFY-LINUX.md" \
+    > "${STAGE}/VERIFY.md"
+
+# ---------------------------------------------------------------------------
 # Create tarball
 # ---------------------------------------------------------------------------
 TARBALL="${DISTR}/${PKG_NAME}.tar.gz"
