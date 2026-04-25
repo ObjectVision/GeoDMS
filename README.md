@@ -58,6 +58,16 @@ openssl cms -verify -binary -purpose any \
 sha256sum -c GeoDms<ver>-linux-x64.tar.gz.sha256
 ```
 
+GlobalSign is a root certificate authority independently trusted on Linux
+(via Mozilla's CA program — the same foundation used by all major browsers,
+independent of Windows).  However, `GlobalSign Code Signing Root R45` is a
+dedicated code-signing root that GlobalSign keeps separate from their TLS roots,
+and it is not included in standard Linux CA bundles, which focus on TLS/HTTPS.
+Fetching it from GlobalSign's own server is therefore an authoritative and
+independent source.  The fingerprint published above in this README (in version
+control) is a second independent anchor — an attacker would have to compromise
+both GlobalSign's server and this repository to forge a valid signature.
+
 A `VERIFY.md` with the same instructions is included inside the tarball.
 
 # Compilation
