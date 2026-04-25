@@ -34,30 +34,29 @@ signature → Details → confirm the signer is **Object Vision B.V.**
 
 Each Linux release includes four files:
 
-| File | Purpose |
-|------|---------|
-| `GeoDms<ver>-linux-x64.tar.gz` | The package |
-| `GeoDms<ver>-linux-x64.tar.gz.sha256` | SHA-256 checksum |
-| `GeoDms<ver>-linux-x64.tar.gz.sha256.p7s` | CMS/PKCS#7 signature over the checksum |
-| `GlobalSign-CodeSigning-Root-R45.pem` | Signing root CA |
-
-Download all four from the release page, then run:
+Download the two release files (`...tar.gz` and `...tar.gz.sha256.p7s`) and
+fetch the signing root CA **directly from GlobalSign** — do not use a copy
+distributed alongside the release, as that would allow an attacker who
+compromised the release page to substitute both the signature and the CA:
 
 ```bash
-# 1. Verify the signature (confirms the checksum was produced by Object Vision B.V.)
+# Fetch the GlobalSign Code Signing Root R45 from GlobalSign's own server
+curl -fsSL http://secure.globalsign.com/cacert/codesigningrootr45.crt \
+  | openssl x509 -inform DER -out GlobalSign-CodeSigning-Root-R45.pem
+
+# Verify its fingerprint against the value published in this README
+openssl x509 -in GlobalSign-CodeSigning-Root-R45.pem -fingerprint -sha256 -noout
+# Expected: 7B:9D:55:3E:1C:92:CB:6E:88:03:E1:37:F4:F2:87:D4:36:37:57:F5:D4:4B:37:D5:2F:9F:CA:22:FB:97:DF:86
+
+# Verify the signature (confirms the checksum was produced by Object Vision B.V.)
 openssl cms -verify -binary -purpose any \
   -in      GeoDms<ver>-linux-x64.tar.gz.sha256.p7s -inform DER \
   -content GeoDms<ver>-linux-x64.tar.gz.sha256 \
   -CAfile  GlobalSign-CodeSigning-Root-R45.pem
 
-# 2. Verify the tarball matches the signed checksum
+# Verify the tarball matches the signed checksum
 sha256sum -c GeoDms<ver>-linux-x64.tar.gz.sha256
 ```
-
-`GlobalSign-CodeSigning-Root-R45.pem` is a dedicated code-signing root that
-is not present in all Linux CA bundles; we distribute it alongside the release.
-You can independently fetch it from GlobalSign:
-`http://secure.globalsign.com/cacert/codesigningrootr45.crt`
 
 A `VERIFY.md` with the same instructions is included inside the tarball.
 

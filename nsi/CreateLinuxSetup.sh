@@ -23,13 +23,15 @@
 #   Disable signing entirely:
 #     export GEODMS_SIGN_THUMBPRINT=
 #
-#   Verification by recipients:
+#   Verification by recipients (root CA must be fetched from GlobalSign directly,
+#   NOT from the release page — see nsi/VERIFY-LINUX.md for the fingerprint):
+#     curl -fsSL http://secure.globalsign.com/cacert/codesigningrootr45.crt \
+#       | openssl x509 -inform DER -out GlobalSign-CodeSigning-Root-R45.pem
 #     openssl cms -verify -binary -purpose any \
 #       -in  GeoDms19.5.0-linux-x64.tar.gz.sha256.p7s -inform DER \
 #       -content GeoDms19.5.0-linux-x64.tar.gz.sha256 \
 #       -CAfile GlobalSign-CodeSigning-Root-R45.pem
 #     sha256sum -c GeoDms19.5.0-linux-x64.tar.gz.sha256
-#   (GlobalSign-CodeSigning-Root-R45.pem is produced alongside the tarball)
 
 set -euo pipefail
 
@@ -57,10 +59,10 @@ INSTALL_PREFIX="/opt/ObjectVision/GeoDms${GeoDmsVersion}"
 # to the empty string to skip signing.
 SIGN_THUMBPRINT="${GEODMS_SIGN_THUMBPRINT:-E6E0FE67472C3A0DB879E19F8C797DB61645D9DE}"
 
-# GlobalSign Code Signing Root R45 — not in all distros' default trust stores,
-# so we download it once and ship it alongside the tarball.
-GS_ROOT_URL="http://secure.globalsign.com/cacert/codesigningrootr45.crt"
-GS_ROOT_PEM="${DISTR}/GlobalSign-CodeSigning-Root-R45.pem"
+# NOTE: the GlobalSign Code Signing Root R45 is NOT distributed with the release.
+# Recipients must fetch it independently from GlobalSign to prevent a compromised
+# release page from substituting both the signature and the CA file.
+# See nsi/VERIFY-LINUX.md for the expected fingerprint and fetch instructions.
 
 if [[ ! -d "${SRC}" ]]; then
     echo "ERROR: Source directory not found: ${SRC}"
@@ -212,21 +214,11 @@ Add-Type -AssemblyName 'System.Security'
 Write-Host ('  -> ${SIG_WIN} (' + (Get-Item '${SIG_WIN}').Length + ' bytes)')
 "
 
-    # Download GlobalSign Code Signing Root R45 if not already present
-    if [[ ! -f "${GS_ROOT_PEM}" ]]; then
-        echo "Fetching GlobalSign Code Signing Root R45..."
-        if command -v curl &>/dev/null; then
-            curl -fsSL "${GS_ROOT_URL}" | openssl x509 -inform DER -out "${GS_ROOT_PEM}"
-        elif command -v wget &>/dev/null; then
-            wget -qO- "${GS_ROOT_URL}" | openssl x509 -inform DER -out "${GS_ROOT_PEM}"
-        else
-            echo "  WARNING: curl/wget not found — root cert not downloaded."
-        fi
-        [[ -f "${GS_ROOT_PEM}" ]] && echo "  -> ${GS_ROOT_PEM}"
-    fi
-
     echo ""
-    echo "  Recipients verify with:"
+    echo "  Recipients verify with (fetch root CA independently from GlobalSign):"
+    echo "    curl -fsSL http://secure.globalsign.com/cacert/codesigningrootr45.crt \\"
+    echo "      | openssl x509 -inform DER -out GlobalSign-CodeSigning-Root-R45.pem"
+    echo "    # verify fingerprint: 7B:9D:55:3E:1C:92:CB:6E:88:03:E1:37:F4:F2:87:D4:..."
     echo "    openssl cms -verify -binary -purpose any \\"
     echo "      -in  ${PKG_NAME}.tar.gz.sha256.p7s -inform DER \\"
     echo "      -content ${PKG_NAME}.tar.gz.sha256 \\"
