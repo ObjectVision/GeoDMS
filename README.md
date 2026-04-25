@@ -32,43 +32,23 @@ signature → Details → confirm the signer is **Object Vision B.V.**
 
 ### Linux
 
-Each Linux release includes four files:
-
-Download the two release files (`...tar.gz` and `...tar.gz.sha256.p7s`) and
-fetch the signing root CA **directly from GlobalSign** — do not use a copy
-distributed alongside the release, as that would allow an attacker who
-compromised the release page to substitute both the signature and the CA:
+Each Linux release includes a SHA-256 checksum file and a CMS/PKCS#7 detached
+signature (`.p7s`) signed with the Object Vision B.V. GlobalSign EV Code Signing
+certificate.  Download both alongside the tarball and verify before extracting:
 
 ```bash
-# Fetch the GlobalSign Code Signing Root R45 from GlobalSign's own server
-curl -fsSL http://secure.globalsign.com/cacert/codesigningrootr45.crt \
-  | openssl x509 -inform DER -out GlobalSign-CodeSigning-Root-R45.pem
-
-# Verify its fingerprint against the value published in this README
-openssl x509 -in GlobalSign-CodeSigning-Root-R45.pem -fingerprint -sha256 -noout
-# Expected: 7B:9D:55:3E:1C:92:CB:6E:88:03:E1:37:F4:F2:87:D4:36:37:57:F5:D4:4B:37:D5:2F:9F:CA:22:FB:97:DF:86
-
-# Verify the signature (confirms the checksum was produced by Object Vision B.V.)
 openssl cms -verify -binary -purpose any \
   -in      GeoDms<ver>-linux-x64.tar.gz.sha256.p7s -inform DER \
   -content GeoDms<ver>-linux-x64.tar.gz.sha256 \
-  -CAfile  GlobalSign-CodeSigning-Root-R45.pem
+  -CAfile  <(curl -fsSL http://secure.globalsign.com/cacert/codesigningrootr45.crt \
+             | openssl x509 -inform DER)
 
-# Verify the tarball matches the signed checksum
 sha256sum -c GeoDms<ver>-linux-x64.tar.gz.sha256
 ```
 
-GlobalSign is a root certificate authority independently trusted on Linux
-(via Mozilla's CA program — the same foundation used by all major browsers,
-independent of Windows).  However, `GlobalSign Code Signing Root R45` is a
-dedicated code-signing root that GlobalSign keeps separate from their TLS roots,
-and it is not included in standard Linux CA bundles, which focus on TLS/HTTPS.
-Fetching it from GlobalSign's own server is therefore an authoritative and
-independent source.  The fingerprint published above in this README (in version
-control) is a second independent anchor — an attacker would have to compromise
-both GlobalSign's server and this repository to forge a valid signature.
-
-A `VERIFY.md` with the same instructions is included inside the tarball.
+For a full explanation of the certificate chain, how to obtain the signing root
+from alternative sources, and how to inspect the signer identity, see
+[`nsi/VERIFY-LINUX.md`](nsi/VERIFY-LINUX.md).
 
 # Compilation
 Build instructions for GeoDMS can be found at our [wiki compilation page](https://github.com/ObjectVision/GeoDMS/wiki/Compiling-the-GeoDMS) or our [website](https://geodms.nl/docs/compiling-the-geodms.html).
