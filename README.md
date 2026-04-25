@@ -8,30 +8,58 @@ Recent GeoDMS versions can be downloaded from this repository's [release page](h
 If you are new to GeoDMS, the [GeoDMS Academy](https://github.com/ObjectVision/GeoDMS_Academy) will guide you through some of the language's basic features. 
 For the complete documentation of GeoDMS, including additional examples, see [our wiki](https://github.com/ObjectVision/GeoDMS/wiki) or [geodms website](https://geodms.nl)
 
-## Verifying a Linux download
+## Verifying downloads
 
-Each Linux release includes a SHA-256 checksum and a CMS/PKCS#7 signature
-signed with the **Object Vision B.V.** GlobalSign EV Code Signing certificate.
-Download all four files from the release page, then run:
+All GeoDMS installers and packages are signed with the **Object Vision B.V.**
+GlobalSign EV Code Signing certificate.  Only run or install a package after
+confirming it carries a valid signature from Object Vision B.V.
+
+### Windows
+
+The `.exe` installer is Authenticode-signed.  Windows will show a publisher
+dialog during installation; confirm the publisher reads **Object Vision B.V.**
+before proceeding.
+
+To verify before running:
+
+```powershell
+# PowerShell — should print "Valid" and show O=Object Vision B.V.
+Get-AuthenticodeSignature "GeoDms<ver>-Setup-x64-cmake.exe" | Format-List
+```
+
+Or right-click the file → Properties → Digital Signatures → select the
+signature → Details → confirm the signer is **Object Vision B.V.**
+
+### Linux
+
+Each Linux release includes four files:
+
+| File | Purpose |
+|------|---------|
+| `GeoDms<ver>-linux-x64.tar.gz` | The package |
+| `GeoDms<ver>-linux-x64.tar.gz.sha256` | SHA-256 checksum |
+| `GeoDms<ver>-linux-x64.tar.gz.sha256.p7s` | CMS/PKCS#7 signature over the checksum |
+| `GlobalSign-CodeSigning-Root-R45.pem` | Signing root CA |
+
+Download all four from the release page, then run:
 
 ```bash
-# 1. Verify the signature (proves the checksum came from Object Vision B.V.)
+# 1. Verify the signature (confirms the checksum was produced by Object Vision B.V.)
 openssl cms -verify -binary -purpose any \
   -in      GeoDms<ver>-linux-x64.tar.gz.sha256.p7s -inform DER \
   -content GeoDms<ver>-linux-x64.tar.gz.sha256 \
   -CAfile  GlobalSign-CodeSigning-Root-R45.pem
 
-# 2. Verify the tarball matches the checksum
+# 2. Verify the tarball matches the signed checksum
 sha256sum -c GeoDms<ver>-linux-x64.tar.gz.sha256
 ```
 
-`GlobalSign-CodeSigning-Root-R45.pem` is the signing root CA, distributed
-alongside the release because it is a dedicated code-signing root not present
-in all Linux CA bundles.  You can independently fetch it from GlobalSign:
+`GlobalSign-CodeSigning-Root-R45.pem` is a dedicated code-signing root that
+is not present in all Linux CA bundles; we distribute it alongside the release.
+You can independently fetch it from GlobalSign:
 `http://secure.globalsign.com/cacert/codesigningrootr45.crt`
 
-A `VERIFY.md` file with the same instructions is also included inside the
-tarball itself.
+A `VERIFY.md` with the same instructions is included inside the tarball.
 
 # Compilation
 Build instructions for GeoDMS can be found at our [wiki compilation page](https://github.com/ObjectVision/GeoDMS/wiki/Compiling-the-GeoDMS) or our [website](https://geodms.nl/docs/compiling-the-geodms.html).
