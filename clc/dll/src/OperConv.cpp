@@ -115,7 +115,10 @@ void OGRCheck(OGRSpatialReference* ref, OGRErr result, CharPtr format, const Abs
 
 const AbstrUnit* CompositeBase(const AbstrUnit* proj)
 {
-	const AbstrUnit* res = proj->GetCurrProjection()->GetCompositeBase();
+	const UnitProjection* up = proj->GetCurrProjection();
+	if (!up)
+		return proj;
+	const AbstrUnit* res = up->GetCompositeBase();
 	if (!res)
 		return proj;
 	return res;
