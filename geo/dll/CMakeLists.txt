@@ -41,8 +41,13 @@ endif()
 if(NOT WIN32)
     # GDAL (static) uses libjpeg/libpng/libtiff but they may not be pulled in by
     # --as-needed unless explicitly listed. Add them so unresolved refs from libgdal.a
-    # are satisfied, then hide all three to prevent symbol conflicts with the system
-    # Qt JPEG plugin (libqjpeg.so) which uses the system libjpeg.so.8.
+    # are satisfied.
+    # libjpeg, libpng and libtiff are all hidden to prevent their symbols from leaking
+    # into the global PLT namespace. This prevents symbol conflicts with Qt's image
+    # plugins (libqjpeg.so, which uses the system libjpeg.so). GeoTIFF tag registration
+    # for DmGeo's GDAL is handled via an explicit XTIFFInitialize() call in DmStg's
+    # gdalComponent constructor (gdal_base.cpp), which initializes DmStg's own libgeotiff
+    # instance. DmGeo's GDAL is initialized separately by GDAL's internal LibgeotiffOneTimeInit.
     find_package(JPEG)
     find_package(PNG)
     if(JPEG_FOUND)
@@ -53,8 +58,8 @@ if(NOT WIN32)
     endif()
     target_link_options(DmGeo PRIVATE
         -Wl,--exclude-libs,libjpeg.a
-        -Wl,--exclude-libs,libtiff.a
         -Wl,--exclude-libs,libpng.a
         -Wl,--exclude-libs,libpng16.a
+        -Wl,--exclude-libs,libtiff.a
     )
 endif()

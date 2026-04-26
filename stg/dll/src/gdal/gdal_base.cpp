@@ -21,6 +21,9 @@
 #include <proj.h>
 #include <ogr_api.h>
 #include <ogrsf_frmts.h>
+#ifndef _WIN32
+#include <xtiffio.h>   // XTIFFInitialize — ensures libgeotiff in DmStg.so is initialized
+#endif
 
 #ifndef _WIN32
 // On some Linux distributions (e.g. Ubuntu 24.04 with GDAL 3.8.4), OGR Parquet/Arrow
@@ -599,6 +602,15 @@ gdalComponent::gdalComponent()
 		try {
 
 			gdalComponentImpl::s_HookedFilesPtr = new std::map<SharedStr, SharedStr>; // can throw
+
+#ifndef _WIN32
+			// Ensure libgeotiff is initialised before any GTIF* functions are called.
+			// DmGeo.so exports XTIFFInitialize (from its own libgeotiff.a copy); calling
+			// it here, from DmStg.so code, guarantees GDAL's GTiff driver has registered
+			// the GeoTIFF tag extender with libtiff even if GDALRegister_GTiff has not
+			// been called yet in this process context.
+			XTIFFInitialize();
+#endif
 
 			// Set the Proj context on the GDAL/OGR library
 			CPLSetThreadLocalConfigOption("OGR_ENABLE_PARTIAL_REPROJECTION", "YES");

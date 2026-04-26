@@ -66,13 +66,21 @@ if(WIN32)
     target_link_libraries(DmStg PRIVATE odbc32 odbccp32 ole32)
 else()
     target_link_libraries(DmStg PRIVATE odbc)
-    # Hide static libjpeg/libtiff/libpng symbols from leaking into the global namespace.
+    # Hide static libjpeg/libtiff/libpng/libgeotiff symbols from leaking into the global namespace.
     # GDAL links these statically; without this, their symbols shadow the system versions
     # used by Qt's image plugins (libqjpeg.so), causing ABI mismatches at runtime.
+    #
+    # libgeotiff is also hidden here so that DmGeo.so (which is a direct dependency of
+    # GeoDmsRun, loaded first in BFS symbol resolution) exports XTIFFInitialize from its
+    # own statically-linked libgeotiff.a copy.  That copy calls TIFFSetTagExtender directly
+    # in DmGeo's private libtiff, registering GeoTIFF tags (33550, 33922, 34264) for TIFF
+    # handles opened by DmGeo's GDAL.  Without this, DmStg's exported XTIFFInitialize would
+    # win the PLT and register tags in DmStg's private libtiff instead of DmGeo's.
     target_link_options(DmStg PRIVATE
         -Wl,--exclude-libs,libjpeg.a
         -Wl,--exclude-libs,libtiff.a
         -Wl,--exclude-libs,libpng.a
         -Wl,--exclude-libs,libpng16.a
+        -Wl,--exclude-libs,libgeotiff.a
     )
 endif()
