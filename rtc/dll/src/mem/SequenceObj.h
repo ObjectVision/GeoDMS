@@ -11,6 +11,10 @@
 
 #include "mem/AbstrSequenceProvider.h"
 
+#if defined(MG_DEBUG_DATA)
+#include <atomic>
+#endif
+
 //----------------------------------------------------------------------
 // interfaces to allocated (file mapped?) arrays
 //----------------------------------------------------------------------
@@ -84,13 +88,13 @@ public:
 		assert(rhs.m_Provider.is_null());
 
 #if defined(MG_DEBUG_DATA)
-		md_IsLocked = rhs.md_IsLocked;
-		rhs.md_IsLocked = false;
+		md_LockCount.store(rhs.md_LockCount.load(std::memory_order_relaxed), std::memory_order_relaxed);
+		rhs.md_LockCount.store(0, std::memory_order_relaxed);
 #endif
 		return *this;
 	}
 
-	void swap(sequence_obj<V>& rhs) noexcept { m_Data.swap(rhs.m_Data); m_Provider.swap(rhs.m_Provider); MG_DEBUG_DATA_CODE(std::swap(md_IsLocked, rhs.md_IsLocked); ) }
+	void swap(sequence_obj<V>& rhs) noexcept { m_Data.swap(rhs.m_Data); m_Provider.swap(rhs.m_Provider); MG_DEBUG_DATA_CODE(int t = md_LockCount.load(std::memory_order_relaxed); md_LockCount.store(rhs.md_LockCount.load(std::memory_order_relaxed), std::memory_order_relaxed); rhs.md_LockCount.store(t, std::memory_order_relaxed); ) }
 
 	SizeT Size    () const { return m_Provider ? m_Provider->Size    (m_Data) : 0; }
 	SizeT Capacity() const { return m_Provider ? m_Provider->Capacity(m_Data) : 0; }
@@ -198,10 +202,10 @@ public:
 
 	abstr_sequence_provider<IndexRange<SizeT> >* CloneForSeqs() const { return m_Provider->CloneForSeqs(); }
 
-	void Open (SizeT nrElem, dms_rw_mode rwMode, bool isTmp MG_DEBUG_ALLOCATOR_SRC_ARG) { MGD_CHECKDATA(!md_IsLocked); m_Provider->Open(m_Data, nrElem, rwMode, isTmp MG_DEBUG_ALLOCATOR_SRC_PARAM); }
+	void Open (SizeT nrElem, dms_rw_mode rwMode, bool isTmp MG_DEBUG_ALLOCATOR_SRC_ARG) { MGD_CHECKDATA(!IsLocked()); m_Provider->Open(m_Data, nrElem, rwMode, isTmp MG_DEBUG_ALLOCATOR_SRC_PARAM); }
 //	void Close () { MGD_CHECKDATA(!IsLocked()); m_Provider->Close( m_Data); dms_assert(Empty()); }
-	void Lock  (dms_rw_mode rwMode) const { MGD_CHECKDATA(!IsLocked()); if (m_Provider) m_Provider->Lock(m_Data, rwMode); MG_DEBUG_DATA_CODE(md_IsLocked = true ); }
-	void UnLock() const { MGD_CHECKDATA( IsLocked() || !m_Provider); if (m_Provider) m_Provider->UnLock(m_Data); MG_DEBUG_DATA_CODE(md_IsLocked = false); }
+	void Lock  (dms_rw_mode rwMode) const { if (m_Provider) m_Provider->Lock(m_Data, rwMode); MG_DEBUG_DATA_CODE(md_LockCount.fetch_add(1, std::memory_order_relaxed)); }
+	void UnLock() const { MGD_CHECKDATA(IsLocked() || !m_Provider); if (m_Provider) m_Provider->UnLock(m_Data); MG_DEBUG_DATA_CODE(md_LockCount.fetch_sub(1, std::memory_order_relaxed)); }
 //	void Drop  () { MGD_CHECKDATA(!IsLocked() && m_Provider); m_Provider->Drop  (m_Data); dms_assert(Empty()); }
 	WeakStr GetFileName() const { return m_Provider->GetFileName(); }
 
@@ -213,9 +217,9 @@ private:
 	mutable alloc_data<V>        m_Data;
 
 #if defined(MG_DEBUG_DATA)
-	mutable bool md_IsLocked = false;
+	mutable std::atomic<int> md_LockCount = 0;
 public:
-	bool IsLocked() const { return md_IsLocked; }
+	bool IsLocked() const { return md_LockCount.load(std::memory_order_relaxed) > 0; }
 #endif
 
 };
