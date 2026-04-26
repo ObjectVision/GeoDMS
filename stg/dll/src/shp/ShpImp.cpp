@@ -228,7 +228,7 @@ bool ShpImp::Read(WeakStr name)
 			MG_CHECK( rhead.RecordNumber == m_Points.size() );
 			MG_CHECK( (m_FileLength - (pos - 8)) / 2 >=  UInt32(rhead.ContentLength));
 
-			pos += ReadLittleEndian(m_FH, (long&)shapeType);
+			pos += ReadLittleEndian(m_FH, (Int32&)shapeType);
 
 			MG_CHECK( IsPoint(shapeType) );
 
@@ -327,14 +327,14 @@ bool ShpImp::Write(WeakStr name, SharedStr wktPrjStr)
 		for (auto point = m_Points.begin(), pointEnd = m_Points.end(); point != pointEnd; ++point)
 		{
 			// Write record to index file
-			rhead.RecordNumber = ThrowingConvert<long>( pos / 2 );
+			rhead.RecordNumber = ThrowingConvert<Int32>( pos / 2 );
 			rhead.Write(m_FHX);
 
 			// Write record to shpfile
 			rhead.RecordNumber = ++recNr;
 			pos += rhead.Write(m_FH);
 
-			pos += WriteLittleEndian(m_FH, (long)ShapeTypes::ST_Point);
+			pos += WriteLittleEndian(m_FH, Int32(ShapeTypes::ST_Point));
 			pos += ::Write(*point, m_FH);
 		}
 	}
@@ -350,7 +350,7 @@ bool ShpImp::Write(WeakStr name, SharedStr wktPrjStr)
 			rhead.ContentLength = pol->CalcNrWordsInRecord();
 
 			// Write record to index file
-			rhead.RecordNumber = ThrowingConvert<long>(pos / 2);
+			rhead.RecordNumber = ThrowingConvert<Int32>(pos / 2);
 			rhead.Write(m_FHX);
 
 			// Write record to shpfile (base 1)
@@ -392,11 +392,11 @@ UInt32 ShpImp::CalcNrWordsInFile()
 			+	m_Points.size()
 				*	(	sizeof(ShpPoint)
 					+	sizeof(ShpRecordHeader)
-					+	sizeof(long) // ShapeType
-					) 
+					+	sizeof(Int32) // ShapeType
+					)
 			) / 2;
 
-	long result = sizeof(ShpHeader) / 2;	 // fileheader
+	UInt32 result = sizeof(ShpHeader) / 2;	 // fileheader
 	auto
 		i = m_Polygons.begin(),
 		e = m_Polygons.end();
@@ -669,12 +669,12 @@ std::size_t ShpParts::Read(FILE * fp, ShpPartIndex num_parts)
 		return 0;
 
 	// Read
-	std::size_t pos = fread(&*(get_ptr()->begin()), sizeof(long), num_parts, fp);
+	std::size_t pos = fread(&*(get_ptr()->begin()), sizeof(ShpPointIndex), num_parts, fp);
 
 	ConvertLittleEndian(get_ptr()->begin(), get_ptr()->begin()+pos);
 
 	// Number of bytes read
-	return pos * sizeof(long);
+	return pos * sizeof(ShpPointIndex);
 }
 
 
@@ -688,11 +688,11 @@ std::size_t ShpParts::Write(FILE * fp) const
 		return 0;
 #if defined(CC_BYTEORDER_INTEL)
 	 // byteorder OK
-	 return fwrite(&*(get_ptr()->begin()), sizeof(long), get_ptr()->size(), fp) * sizeof(long);
+	 return fwrite(&*(get_ptr()->begin()), sizeof(ShpPointIndex), get_ptr()->size(), fp) * sizeof(ShpPointIndex);
 #else
 	// conversion from BIG to little endian required
 	std::size_t pos = 0;
-	for (long i=0; i<size(); i++)
+	for (int i=0; i<size(); i++)
 	{
 		pos += WriteLittleEndian(fp, (*this)[i]);
 		DBG_TRACE(("[%d] = %d", i, (*this)[i]));
@@ -832,13 +832,13 @@ bool ShpPolygon::Check() const
 	return true;
 }
 // Record size in 16bit words (as in ESRI recordheader)
-long ShpPolygon::CalcNrWordsInRecord() const
+Int32 ShpPolygon::CalcNrWordsInRecord() const
 {
 	UInt32 sz = sizeof(ShpPoint) * (*m_Points).size();
 	if (m_Header.HasParts())
-		sz +=( sizeof(ShpPolygonHeader) + sizeof(long    ) * (*m_Parts ).size());
+		sz +=( sizeof(ShpPolygonHeader) + sizeof(Int32) * (*m_Parts ).size());
 	else
-		sz +=( sizeof(ShpPolygonHeader) - sizeof(long    ));
+		sz +=( sizeof(ShpPolygonHeader) - sizeof(Int32));
 	return sz / 2;
 }
 

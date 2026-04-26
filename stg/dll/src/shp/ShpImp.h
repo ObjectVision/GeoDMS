@@ -71,15 +71,15 @@ struct ShpHeader
 	STGIMPL_CALL std::size_t Read (FILE * fp);
 	STGIMPL_CALL std::size_t Write(FILE * fp) const;
 
-	long m_FileCode;
-	long m_Unused1;
-	long m_Unused2;
-	long m_Unused3;
-	long m_Unused4;
-	long m_Unused5;
-	long m_FileLength;
-	long m_Version;
-	ShapeTypes	   m_ShapeType; // long
+	Int32 m_FileCode;
+	Int32 m_Unused1;
+	Int32 m_Unused2;
+	Int32 m_Unused3;
+	Int32 m_Unused4;
+	Int32 m_Unused5;
+	Int32 m_FileLength;
+	Int32 m_Version;
+	ShapeTypes	   m_ShapeType;
 	ShpBox         m_Box;
 	Range<Float64> m_ZRange;
 	Range<Float64> m_MRange;
@@ -93,8 +93,8 @@ struct ShpRecordHeader
 	STGIMPL_CALL std::size_t Read (FILE * fp);
 	STGIMPL_CALL std::size_t Write(FILE * fp);
 
-	long RecordNumber;
-	long ContentLength;
+	Int32 RecordNumber;
+	Int32 ContentLength;
 };
 
 
@@ -102,7 +102,7 @@ struct ShpRecordHeader
 struct ShpPolygonHeader
 {
 	ShpPolygonHeader(ShapeTypes shapeType)
-		:	m_ShapeType(long(shapeType))
+		:	m_ShapeType(Int32(shapeType))
 		,	m_Box(ShpPoint(0, 0), ShpPoint(0, 0))
 		,	m_NumParts(0)
 		,	m_NumPoints(0)
@@ -110,17 +110,17 @@ struct ShpPolygonHeader
 		dms_assert(IsCompositeOrNone(shapeType));
 	};
 
-	bool HasParts() const { return m_ShapeType != long(ShapeTypes::ST_MultiPoint); }
+	bool HasParts() const { return m_ShapeType != Int32(ShapeTypes::ST_MultiPoint); }
 
 	STGIMPL_CALL std::size_t Read (FILE * fp);
 	STGIMPL_CALL std::size_t Write(FILE * fp) const;
 
 	DRect GetBoundingBox() const { return shp2dms_order(m_Box); }
 
-	long   m_ShapeType;
+	Int32  m_ShapeType;
 	ShpBox m_Box;
-	long   m_NumParts;
-	long   m_NumPoints;
+	Int32  m_NumParts;
+	Int32  m_NumPoints;
 };
 
 typedef Int32          ShpPointIndex;
@@ -165,7 +165,7 @@ struct ShpPolygon
 
 	bool CalcBox();
 
-	long CalcNrWordsInRecord() const;
+	Int32 CalcNrWordsInRecord() const;
 
 	UInt32 NrParts()  const { return (*m_Parts ).size(); }
 	UInt32 NrPoints() const { return (*m_Points).size(); }
