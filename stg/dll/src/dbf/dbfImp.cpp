@@ -894,8 +894,9 @@ template<class T> FileResult DbfImplStub<T>::WriteDataAppend(WeakStr filename, C
 	if (auto r = dbftarget.Create(filename_target); !r)
 		return r;
 
-	if (auto r= m_DbfImpl->OpenForRead(filename); !r)
-		return r;
+	if (IsFileOrDirAccessible(filename))
+		if (auto r = m_DbfImpl->OpenForRead(filename); !r)
+			return r;
 
 	dbftarget.m_RecordCount         = vec.size();
 	dbftarget.m_ColumnDescriptions	= m_DbfImpl->m_ColumnDescriptions;
