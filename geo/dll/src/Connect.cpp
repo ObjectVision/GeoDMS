@@ -1263,7 +1263,8 @@ public:
 			{
 				if (ci.foundAny)
 				{
-					auto& connEdge = *(resConnectionsBegin + connectionIndex);
+					auto connEdgeIter = resConnectionsBegin + connectionIndex;
+					auto& connEdge = *connEdgeIter;
 					connEdge.resize_uninitialized(2 MG_DEBUG_ALLOCATOR_SRC("Connect edge"));
 
 					// Get original point from the tile
