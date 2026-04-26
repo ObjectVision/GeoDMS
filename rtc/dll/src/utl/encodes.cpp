@@ -43,6 +43,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include <string>
 
 #include <boost/locale.hpp>
+
 //================= size funcs
 
 const auto& GetCp1250Locale()
@@ -168,10 +169,73 @@ SharedStr to_utf(CharPtr first, CharPtr last)
 	return SharedStr(result.c_str() MG_DEBUG_ALLOCATOR_SRC("to_utf"));
 }
 
+#ifndef _WIN32
+// Map each UTF-8 accented Latin codepoint to its ASCII base character, matching
+// the Windows WinAPI CP1250 best-fit mapping: exactly one output byte per input codepoint.
+// Covers Latin-1 Supplement (U+00C0–U+00FF) and Œ/œ (U+0152–U+0153).
+// Used instead of iconv(ASCII//TRANSLIT): glibc's built-in iconv has no transliteration
+// tables for these characters and produces '?' for each one.
+static std::string strip_to_ascii(const char* first, const char* last)
+{
+	// Indexed by (second_byte - 0x80) for 0xC3-prefixed 2-byte sequences (U+00C0–U+00FF).
+	static const char latin1_asc[64] = {
+	//  À     Á     Â     Ã     Ä     Å     Æ     Ç
+	    'A',  'A',  'A',  'A',  'A',  'A',  'A',  'C',
+	//  È     É     Ê     Ë     Ì     Í     Î     Ï
+	    'E',  'E',  'E',  'E',  'I',  'I',  'I',  'I',
+	//  Ð     Ñ     Ò     Ó     Ô     Õ     Ö     ×
+	    'D',  'N',  'O',  'O',  'O',  'O',  'O',  '?',
+	//  Ø     Ù     Ú     Û     Ü     Ý     Þ     ß
+	    'O',  'U',  'U',  'U',  'U',  'Y',  '?',  '?',
+	//  à     á     â     ã     ä     å     æ     ç
+	    'a',  'a',  'a',  'a',  'a',  'a',  'a',  'c',
+	//  è     é     ê     ë     ì     í     î     ï
+	    'e',  'e',  'e',  'e',  'i',  'i',  'i',  'i',
+	//  ð     ñ     ò     ó     ô     õ     ö     ÷
+	    'd',  'n',  'o',  'o',  'o',  'o',  'o',  '?',
+	//  ø     ù     ú     û     ü     ý     þ     ÿ
+	    'o',  'u',  'u',  'u',  'u',  'y',  '?',  'y',
+	};
+
+	std::string out;
+	out.reserve(last - first);
+	const auto* p   = reinterpret_cast<const unsigned char*>(first);
+	const auto* end = reinterpret_cast<const unsigned char*>(last);
+
+	while (p < end) {
+		unsigned b0 = *p;
+		if (b0 < 0x80) {
+			out += static_cast<char>(b0);
+			++p;
+		} else if (b0 == 0xC3 && p + 1 < end) {
+			unsigned b1 = p[1];
+			out += (b1 >= 0x80 && b1 <= 0xBF) ? latin1_asc[b1 - 0x80] : '?';
+			p += 2;
+		} else if (b0 == 0xC5 && p + 1 < end) {
+			unsigned b1 = p[1];
+			if      (b1 == 0x92) out += 'O'; // Œ U+0152
+			else if (b1 == 0x93) out += 'o'; // œ U+0153
+			else                 out += '?';
+			p += 2;
+		} else {
+			// No ASCII mapping — skip the entire multibyte sequence
+			++p;
+			while (p < end && (*p & 0xC0) == 0x80)
+				++p;
+		}
+	}
+	return out;
+}
+#endif
+
 SharedStr from_utf(CharPtr first, CharPtr last)
 {
-	std::string result = boost::locale::conv::from_utf<char>(first, last, GetCp1250Locale()); // s_from_utf_locale);
+#ifdef _WIN32
+	std::string result = boost::locale::conv::from_utf<char>(first, last, GetCp1250Locale());
 	return SharedStr(result.c_str() MG_DEBUG_ALLOCATOR_SRC("from_utf"));
+#else
+	return SharedStr(strip_to_ascii(first, last).c_str() MG_DEBUG_ALLOCATOR_SRC("from_utf"));
+#endif
 }
 
 bool itemName_test(CharPtr p)

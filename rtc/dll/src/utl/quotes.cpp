@@ -440,25 +440,37 @@ void DoubleQuote(struct FormattedOutStream& os, CharPtr begin, CharPtr end)
 
 //================= unquote middle
 
-// counts nr of chars until 
+// counts nr of chars until
 // - single quote '\'' (not included in count)
 // - end (if applicable)
 // - '\0', even after non counted '\\'
 // "\'\'" is counted as one
 // '\\' is skipped in counting, even before '\0' or end
+// '\xHH' (two hex digits) counts as one char
+
+static inline int hexDigitVal(unsigned char c)
+{
+	if (c >= '0' && c <= '9') return c - '0';
+	if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+	return c - 'a' + 10; // 'a'..'f'
+}
 
 SizeT _SingleUnQuoteMiddleSize(CharPtr str)
 {
 	SizeT c = 0;
-	while (true)  
+	while (true)
 	{
-		switch (*str++) 
+		switch (*str++)
 		{
-			case '\\': 
-				if (!*str++) // count only next ch if not '\0'
-					goto exit;
+			case '\\': {
+				char esc = *str;
+				if (!esc) goto exit;
+				++str;
+				if (esc == 'x' && isxdigit((unsigned char)str[0]) && isxdigit((unsigned char)str[1]))
+					str += 2; // consume both hex digits — \xHH counts as one char
 				break;
-			case '\'':   // stop at single quote '\'' unless followed by another one 
+			}
+			case '\'':   // stop at single quote '\'' unless followed by another one
 				if (*str++ == '\'')  // count first '\'' and skip second '\'' and continue
 					break;
 				[[fallthrough]];
@@ -477,17 +489,21 @@ SizeT _SingleUnQuoteMiddleSize(CharPtr begin, CharPtr end)
 	SizeT c = 0;
 	while (begin != end)    // stop at end
 	{
-		switch (*begin++) 
+		switch (*begin++)
 		{
-			case '\\': 
-				if (begin == end || !*begin++) // count only next ch if not '\0'
-					goto exit;
+			case '\\': {
+				if (begin == end) goto exit;
+				char esc = *begin++;
+				if (!esc) goto exit;
+				if (esc == 'x' && begin + 1 < end && isxdigit((unsigned char)begin[0]) && isxdigit((unsigned char)begin[1]))
+					begin += 2; // consume both hex digits — \xHH counts as one char
 				break;
-			case '\'':   // stop at single quote '\'' unless followed by another one 
+			}
+			case '\'':   // stop at single quote '\'' unless followed by another one
 				if (begin != end && *begin++ == '\'')  // count first '\'' and skip second '\'' and continue; notice end to avoid buggy unquotation of sequence arrays like 'a''b''c''d'
 					break;
 				[[fallthrough]];
-			case 0:   
+			case 0:
 				goto exit;  // stop at '\0' or swallow ch.
 		}
 		++c;
@@ -499,24 +515,30 @@ exit:
 char* _SingleUnQuoteMiddle(char* buf, CharPtr str)
 {
 	char ch;
-	while (true)  
+	while (true)
 	{
 		ch = *str++; // stop at '\0' or eat ch.
 		switch (ch)
 		{
 			case '\\':
-				ch = *str++; 
+				ch = *str++;
 				switch (ch) // transform ch
 				{
-					case '\0': goto exit; // eat only next ch if not '\0' or end
+					case '\0': goto exit;
 					case '0': ch = '\0'; break;
 					case 't': ch = '\t'; break;
 					case 'r': ch = '\r'; break;
 					case 'n': ch = '\n'; break;
+					case 'x':
+						if (isxdigit((unsigned char)str[0]) && isxdigit((unsigned char)str[1])) {
+							ch = (char)((hexDigitVal((unsigned char)str[0]) << 4) | hexDigitVal((unsigned char)str[1]));
+							str += 2;
+						}
+						break;
 				}
 				break;
-			case '\'':   // stop at single quote '\'' unless followed by another one 
-				if(*str++ == '\'') // eat first if second '\'' available to be skipped else exit
+			case '\'':   // stop at single quote '\'' unless followed by another one
+				if (*str++ == '\'') // eat first if second '\'' available to be skipped else exit
 					break;
 				[[fallthrough]];
 			case 0:
@@ -540,18 +562,24 @@ char* _SingleUnQuoteMiddle(char* buf, CharPtr begin, CharPtr end)
 			case '\\':
 				if (begin == end)
 					goto exit;
-				ch = *begin++; 
+				ch = *begin++;
 				switch (ch) // transform ch
 				{
-					case '\0': goto exit; // eat only next ch if not '\0' or end
+					case '\0': goto exit;
 					case '0': ch = '\0'; break;
 					case 't': ch = '\t'; break;
 					case 'r': ch = '\r'; break;
 					case 'n': ch = '\n'; break;
+					case 'x':
+						if (begin + 1 < end && isxdigit((unsigned char)begin[0]) && isxdigit((unsigned char)begin[1])) {
+							ch = (char)((hexDigitVal((unsigned char)begin[0]) << 4) | hexDigitVal((unsigned char)begin[1]));
+							begin += 2;
+						}
+						break;
 				}
 				break;
-			case '\'':   // stop at single quote '\'' unless followed by another one 
-				if(begin != end && *begin++ == '\'') // eat first if second '\'' available to be skipped else exit
+			case '\'':   // stop at single quote '\'' unless followed by another one
+				if (begin != end && *begin++ == '\'') // eat first if second '\'' available to be skipped else exit
 					break;
 				[[fallthrough]];
 			case 0:
@@ -608,10 +636,16 @@ SizeT _DoubleUnQuoteMiddleSize(CharPtr str)
 	{
 		switch (*str++)
 		{
-			case '\\': if (*str++) break; // eat only next ch if not '\0' or end
-				[[fallthrough]];
+			case '\\': {
+				char esc = *str;
+				if (!esc) return c;
+				++str;
+				if (esc == 'x' && isxdigit((unsigned char)str[0]) && isxdigit((unsigned char)str[1]))
+					str += 2; // consume both hex digits — \xHH counts as one char
+				break;
+			}
 			case '\"':
-			case 0: 
+			case 0:
 				return c;
 		}
 		++c;
@@ -627,11 +661,16 @@ SizeT _DoubleUnQuoteMiddleSize(CharPtr begin, CharPtr end)
 	{
 		switch (*begin++)
 		{
-			case '\\': 
-				if (begin != end && *begin++) break; // eat only next ch if not '\0' or end
-				[[fallthrough]];
+			case '\\': {
+				if (begin == end) goto exit;
+				char esc = *begin++;
+				if (!esc) goto exit;
+				if (esc == 'x' && begin + 1 < end && isxdigit((unsigned char)begin[0]) && isxdigit((unsigned char)begin[1]))
+					begin += 2; // consume both hex digits — \xHH counts as one char
+				break;
+			}
 			case '\"':
-			case 0: 
+			case 0:
 				goto exit;
 		}
 		++c;
@@ -645,9 +684,9 @@ char* _DoubleUnQuoteMiddle(char* buf, CharPtr str)
 	char ch;
 	while (true)
 	{
-		switch (ch = *str++) 
+		switch (ch = *str++)
 		{
-			case 0: 
+			case 0:
 			case '\"':
 				goto exit;
 			case '\\':
@@ -659,6 +698,12 @@ char* _DoubleUnQuoteMiddle(char* buf, CharPtr str)
 					case 't': ch = '\t'; break;
 					case 'r': ch = '\r'; break;
 					case 'n': ch = '\n'; break;
+					case 'x':
+						if (isxdigit((unsigned char)str[0]) && isxdigit((unsigned char)str[1])) {
+							ch = (char)((hexDigitVal((unsigned char)str[0]) << 4) | hexDigitVal((unsigned char)str[1]));
+							str += 2;
+						}
+						break;
 				}
 		}
 		*buf++ = ch;
@@ -674,9 +719,9 @@ char* _DoubleUnQuoteMiddle(char* buf, CharPtr begin, CharPtr end)
 	char ch;
 	while (begin != end)
 	{
-		switch (ch = *begin++) 
+		switch (ch = *begin++)
 		{
-			case 0: 
+			case 0:
 			case '\"':
 				goto exit;
 			case '\\':
@@ -686,9 +731,15 @@ char* _DoubleUnQuoteMiddle(char* buf, CharPtr begin, CharPtr end)
 				{
 					case '\0': goto exit;
 					case '0': ch = '\0'; break;
+					case 't': ch = '\t'; break;
 					case 'r': ch = '\r'; break;
 					case 'n': ch = '\n'; break;
-					case 't': ch = '\t'; break;
+					case 'x':
+						if (begin + 1 < end && isxdigit((unsigned char)begin[0]) && isxdigit((unsigned char)begin[1])) {
+							ch = (char)((hexDigitVal((unsigned char)begin[0]) << 4) | hexDigitVal((unsigned char)begin[1]));
+							begin += 2;
+						}
+						break;
 				}
 		}
 		*buf++ = ch;
