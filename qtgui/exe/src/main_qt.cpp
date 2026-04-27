@@ -24,6 +24,7 @@
 #include "xct/ErrMsg.h"
 
 #include "stg/AbstrStorageManager.h"
+#include "ser/FileStreamBuff.h"
 #include "ShvDllInterface.h"
 #include "ShvUtils.h"
 
@@ -127,15 +128,13 @@ void SaveDetailPage(CharPtr fileName) {
     auto dmsFileName = ConvertDosFileName(SharedStr(fileName));
     auto expandedFilename = AbstrStorageManager::Expand(currItem, dmsFileName);
 
-    // TODO: implement SaveDetailPage for QWebEngineView
-    /*auto htmlSource = MainWindow::TheOne()->m_detail_pages->toHtml();
-    auto htmlsourceAsUtf8 = htmlSource.toUtf8();
-
     reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "SaveDetailPage %s", DoubleQuote(expandedFilename.c_str()));
 
-    FileOutStreamBuff buff(SharedStr(expandedFilename), nullptr, true, false);
-   
-    buff.WriteBytes(htmlsourceAsUtf8.data(), htmlsourceAsUtf8.size());*/
+    auto htmlSource = MainWindow::TheOne()->m_detail_pages->toHtml();
+    auto htmlSourceAsUtf8 = htmlSource.toUtf8();
+
+    FileOutStreamBuff buff(expandedFilename, false);
+    buff.WriteBytes(reinterpret_cast<const Byte*>(htmlSourceAsUtf8.constData()), htmlSourceAsUtf8.size());
 }
 
 #ifdef Q_OS_WIN
