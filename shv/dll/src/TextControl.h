@@ -16,40 +16,6 @@
 class GraphDrawer;
 
 //----------------------------------------------------------------------
-// DrawText funcs (Win32 GDI — used by legacy code paths)
-//----------------------------------------------------------------------
-
-#ifdef _WIN32
-
-void DrawSymbol(
-	HDC      dc, 
-	GRect    rect,
-	HFONT    hFont,
-	DmsColor color,
-	DmsColor bkClr,
-	WCHAR    symbolIndex
-);
-
-void DrawText(
-	HDC      dc, 
-	GRect    rect,
-	HFONT    hFont,
-	DmsColor color,
-	DmsColor bkClr,
-	CharPtr  txt
-);
-
-void TextOutLimited(
-	HDC     dc,
-	int     x, 
-	int     y, 
-	CharPtr txt, 
-	SizeT   strLen
-);
-
-#endif // _WIN32
-
-//----------------------------------------------------------------------
 // class  : TextControl enums
 //----------------------------------------------------------------------
 
@@ -117,18 +83,6 @@ public:
 	virtual std::weak_ptr<DataView> GetDataView() const=0;
 	virtual SharedStr GetOrgText(SizeT recNo, GuiReadLock& lock) const = 0;
 
-protected:
-#ifdef _WIN32
-	void DrawEditText(
-		HDC          dc, 
-		const GRect& rect,
-		HFONT        hFont,
-		DmsColor     color,
-		DmsColor     bkClr,
-		CharPtr      txt,
-		bool         isActive
-	) const;
-#endif
 };
 
 //----------------------------------------------------------------------
