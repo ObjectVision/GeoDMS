@@ -177,10 +177,8 @@ public:
 public slots:
     void onWindowStateChanged(Qt::WindowStates oldState, Qt::WindowStates newState);
     void onTimerTimeout();
-#ifndef _WIN32
     void onHScrollValueChanged(int value);
     void onVScrollValueChanged(int value);
-#endif
 
 private:
     void CreateDmsView(QMdiArea* parent, ViewStyle viewStyle);

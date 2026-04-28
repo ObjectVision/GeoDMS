@@ -540,7 +540,10 @@ void QDmsViewArea::on_rescale() {
         dv->InvalidateDeviceRect(GRect(rect.left(), rect.top(), rect.right(), rect.bottom()));
 }
 
-#ifndef _WIN32
+#ifdef _WIN32
+void QDmsViewArea::onHScrollValueChanged(int) {}
+void QDmsViewArea::onVScrollValueChanged(int) {}
+#else
 
 void QDmsViewArea::repositionScrollBars()
 {
