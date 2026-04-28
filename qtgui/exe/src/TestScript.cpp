@@ -11,11 +11,14 @@
 #ifndef Q_OS_WIN
 #include "KeyFlags.h"
 #include "DataView.h"
+#include "DmsDetailPages.h"
 #include "MovableObject.h"
 #include "ShvUtils.h"
 #include "act/TriggerOperator.h"
 #include <QMdiArea>
 #include <QMdiSubWindow>
+
+void SaveDetailPage(CharPtr fileName); // defined in main_qt.cpp
 #endif
 
 
@@ -214,6 +217,18 @@ int PassMsg(int argc, char* argv[])
 		else if (std::strcmp(argv[i], "ExpandRecursive") == 0)
 		{
 			mw->expandRecursiveFromCurrentItem();
+		}
+		else if ((std::strcmp(argv[i], "DP") == 0) || (std::strcmp(argv[i], "ShowDetailPage") == 0))
+		{
+			if (argc <= ++i)
+				throw stx_error("number expected after ShowDetailPage");
+			mw->m_detail_pages->show((ActiveDetailPage)str2int(argv[i]));
+		}
+		else if ((std::strcmp(argv[i], "SAVE_DP") == 0) || (std::strcmp(argv[i], "SaveDetailPage") == 0))
+		{
+			if (argc <= ++i)
+				throw stx_error("path expected after SaveDetailPage");
+			SaveDetailPage(argv[i]);
 		}
 		else if (std::strcmp(argv[i], "CascadeSubWindows") == 0)
 		{
