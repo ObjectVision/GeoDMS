@@ -155,11 +155,8 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings) {
     m_mdi_area->setFocusPolicy(Qt::FocusPolicy::ClickFocus);
     connect(qApp, &QApplication::focusChanged, this, &MainWindow::onFocusChanged);
 
-    // fonts
-    int id = QFontDatabase::addApplicationFont(dms_params::dms_font_resource);
-    QString family = QFontDatabase::applicationFontFamilies(id).at(0);
-    QFont dms_text_font(family, dms_params::default_font_size);
-    QApplication::setFont(dms_text_font);
+    // dmstext font and link palette colour are set in init_geodms (before MainWindow).
+    // Load remixicon here for tree-view icons.
     QFontDatabase::addApplicationFont(dms_params::remix_icon_font_resource);
 
     // helper dialogues

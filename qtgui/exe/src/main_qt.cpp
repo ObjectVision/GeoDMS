@@ -4,6 +4,7 @@
 #include <QFontDatabase>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QPalette>
 #include <QResource>
 #include <QMessageBox>
 #include <QScreen>
@@ -102,11 +103,29 @@ std::any interpret_command_line_parameters(CmdLineSetttings& settingsFrame) {
 }
 
 std::any init_geodms(QApplication& dms_app, CmdLineSetttings& settingsFrame) { // TODO: GeoDMS engine
+    Q_INIT_RESOURCE(GeoDmsGuiQt);
+
     DMS_Shv_Load();
     SHV_SetAdminMode(true);
     auto exe_path = dms_app.applicationDirPath().toUtf8();
     DMS_Appl_SetExeDir(exe_path);
     DMS_Appl_SetFont();
+
+    // Set explicit application font and link color from bundled resources so
+    // QTextBrowser::toHtml() produces identical output on all platforms.
+    {
+        int id = QFontDatabase::addApplicationFont(dms_params::dms_font_resource);
+        if (id != -1) {
+            QString family = QFontDatabase::applicationFontFamilies(id).at(0);
+            QApplication::setFont(QFont(family, dms_params::default_font_size));
+        }
+    }
+    {
+        QPalette pal = dms_app.palette();
+        pal.setColor(QPalette::Link, QColor(0x00, 0x3e, 0x92));
+        dms_app.setPalette(pal);
+    }
+
     return interpret_command_line_parameters(settingsFrame);
 }
 
@@ -348,8 +367,6 @@ int main_without_SE_handler(int argc, char *argv[]) {
         dms_app_on_heap->installNativeEventFilter(native_event_filter_on_heap.get());
 
         SharedStr tsn = settingsFrame.m_TestScriptName;
-
-        Q_INIT_RESOURCE(GeoDmsGuiQt);
 
         std::unique_ptr<DmsSplashScreen> splash;
         if (tsn.empty())
