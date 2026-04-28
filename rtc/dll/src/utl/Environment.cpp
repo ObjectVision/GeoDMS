@@ -1386,7 +1386,7 @@ namespace PlatformInfo
 		wchar_t buffer[UNLEN+1];
 		if (!::GetUserNameW(buffer, &sz))
 			throwLastSystemError("GetUserName");
-		return SharedStr(wchar_2_Utf8Str(buffer, sz));
+		return SharedStr(wchar_2_Utf8Str(buffer, sz - 1)); // GetUserNameW includes null in sz
 	}
 	RTC_CALL SharedStr GetComputerNameA()
 	{
