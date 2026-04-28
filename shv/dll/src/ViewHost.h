@@ -98,6 +98,13 @@ public:
 	// Default: no-op (Win32 handles clipboard copy per-object in MovableObject::CopyToClipboard).
 	virtual void VH_CopyToClipboard(const GRect& /*rect*/) {}
 
+	// Scroll bars: show/hide and set position/page/range for horizontal and vertical scroll bars.
+	// Called by ScrollPort when content size changes or content is scrolled.
+	// pos/page/max are in the same tick-unit space as the ScrollPort (1 tick = 1 logical unit for typical content).
+	// Default: no-op (Win32 uses child HWND scroll bars created directly by ScrollPort).
+	virtual void VH_SetHScrollBar(bool /*visible*/, int /*pos*/, int /*page*/, int /*max*/, int /*tick*/) {}
+	virtual void VH_SetVScrollBar(bool /*visible*/, int /*pos*/, int /*page*/, int /*max*/, int /*tick*/) {}
+
 	// Caret overlay: set region to be XOR-inverted on top of backing store during paint.
 	// This keeps backing store clean with only model data representation.
 	// Pass empty region to clear the overlay.

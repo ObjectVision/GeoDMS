@@ -277,6 +277,7 @@ public:
 	void ShowPopupMenu(GPoint point, const MenuData& menuData) const;
 	void SetFocusRect(GRect focusRect);
 	void SetScrollEventsReceiver(ScrollPort* sp);
+	ScrollPort* GetScrollEventsReceiver() const { return m_ScrollEventsReceiver; }
 
 	virtual ExportInfo GetExportInfo(); // overruled by TableView and MapView, but not EditPaletteView
 	virtual SharedStr GetCaption() const;

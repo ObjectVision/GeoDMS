@@ -137,11 +137,7 @@ void ScrollPort::CalcNettSize()
 
 	omni::swap(m_NettSize, newNettSize);
 
-#ifdef _WIN32
 	bool hasScroll = m_HorScroll && m_VerScroll;
-#else
-	bool hasScroll = false;
-#endif
 	SetScrollX(horScroll);
 	SetScrollY(verScroll);
 	
@@ -388,11 +384,33 @@ void ScrollPort::OnVScroll(UInt16 scollCmd)
 
 #else // !_WIN32
 
-void ScrollPort::SetScrollX(bool) {}
-void ScrollPort::SetScrollY(bool) {}
-void ScrollPort::SetScrollBars() {}
-void ScrollPort::OnHScroll(UInt16) {}
-void ScrollPort::OnVScroll(UInt16) {}
+void ScrollPort::SetScrollX(bool horScroll)
+{
+	if (m_HorScroll == horScroll) return;
+	m_HorScroll = horScroll;
+	auto dv = GetDataView().lock(); if (!dv) return;
+	auto vh = dv->GetViewHost(); if (!vh) return;
+	dv->SetScrollEventsReceiver(this);
+	vh->VH_SetHScrollBar(horScroll, 0, 0, 0, 1); // range/pos set by ScrollLogical
+}
+
+void ScrollPort::SetScrollY(bool verScroll)
+{
+	if (m_VerScroll == verScroll) return;
+	m_VerScroll = verScroll;
+	auto dv = GetDataView().lock(); if (!dv) return;
+	auto vh = dv->GetViewHost(); if (!vh) return;
+	dv->SetScrollEventsReceiver(this);
+	vh->VH_SetVScrollBar(verScroll, 0, 0, 0, 1); // range/pos set by ScrollLogical
+}
+
+void ScrollPort::SetScrollBars()
+{
+	// reposition — show/hide already done by SetScrollX/Y; position handled by QDmsViewArea resizeEvent
+}
+
+void ScrollPort::OnHScroll(UInt16) {} // handled by QScrollBar::valueChanged → onHScrollValueChanged
+void ScrollPort::OnVScroll(UInt16) {} // handled by QScrollBar::valueChanged → onVScrollValueChanged
 
 #endif // _WIN32
 
@@ -465,6 +483,27 @@ void ScrollPort::ScrollLogical(CrdPoint delta)
 			SetScrollInfo(m_VerScroll, SB_CTL, &scrollInfo, true); // may Send msg's to SHV_DataView_DispatchMessage
 		}
 #endif // _WIN32
+#ifndef _WIN32
+		if (m_HorScroll || m_VerScroll)
+		{
+			auto dv = GetDataView().lock();
+			auto vh = dv ? dv->GetViewHost() : nullptr;
+			if (vh) {
+				int tx = m_NrLogicalUnitsPerTumpnailTick.x;
+				int ty = m_NrLogicalUnitsPerTumpnailTick.y;
+				if (m_HorScroll)
+					vh->VH_SetHScrollBar(true,
+						(int)(-GetContents()->GetCurrClientRelPos().X() / tx),
+						(int)(m_NettSize.X() / tx),
+						(int)((Width(contentExtents) - 1) / tx), tx);
+				if (m_VerScroll)
+					vh->VH_SetVScrollBar(true,
+						(int)(-GetContents()->GetCurrClientRelPos().Y() / ty),
+						(int)(m_NettSize.Y() / ty),
+						(int)((Height(contentExtents) - 1) / ty), ty);
+			}
+		}
+#endif // !_WIN32
 	}
 	if (!(delta == Point<CrdType>(0,0)))
 		m_cmdOnScrolled();

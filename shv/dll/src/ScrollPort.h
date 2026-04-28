@@ -75,6 +75,8 @@ private:
 	GPoint m_NrLogicalUnitsPerTumpnailTick;
 #ifdef _WIN32
 	HWND   m_HorScroll =0, m_VerScroll =0;
+#else
+	bool   m_HorScroll = false, m_VerScroll = false;
 #endif
 
 	DECL_RTTI(SHV_CALL, Class);

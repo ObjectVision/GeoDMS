@@ -36,6 +36,7 @@
 
 #include "ShvDllInterface.h"
 #include "DataView.h"
+#include "ScrollPort.h"
 #include "act/MainThread.h"
 #include "KeyFlags.h"
 #include "MenuData.h"
@@ -484,6 +485,9 @@ void QDmsViewArea::moveEvent(QMoveEvent* event) {
 void QDmsViewArea::resizeEvent(QResizeEvent* event) {
     base_class::resizeEvent(event);
     UpdatePosAndSize();
+#ifndef _WIN32
+    repositionScrollBars();
+#endif
 }
 
 auto QDmsViewArea::contentsRectInPixelUnits()->QRect {
@@ -535,6 +539,87 @@ void QDmsViewArea::on_rescale() {
     if (dv)
         dv->InvalidateDeviceRect(GRect(rect.left(), rect.top(), rect.right(), rect.bottom()));
 }
+
+#ifndef _WIN32
+
+void QDmsViewArea::repositionScrollBars()
+{
+    auto cr = contentsRect();
+    int W = cr.width(), H = cr.height();
+    const int SW = 16; // scroll bar width/height in logical pixels
+    bool hasH = m_hScrollBar != nullptr;
+    bool hasV = m_vScrollBar != nullptr;
+    if (m_hScrollBar)
+        m_hScrollBar->setGeometry(cr.left(), cr.top() + H - SW, W - (hasV ? SW : 0), SW);
+    if (m_vScrollBar)
+        m_vScrollBar->setGeometry(cr.left() + W - SW, cr.top(), SW, H - (hasH ? SW : 0));
+}
+
+void QDmsViewArea::VH_SetHScrollBar(bool visible, int pos, int page, int max, int tick)
+{
+    if (visible) {
+        if (!m_hScrollBar) {
+            m_hScrollBar = new QScrollBar(Qt::Horizontal, this);
+            connect(m_hScrollBar, &QScrollBar::valueChanged, this, &QDmsViewArea::onHScrollValueChanged);
+            repositionScrollBars();
+            m_hScrollBar->show();
+        }
+        m_hScrollTick = tick > 0 ? tick : 1;
+        m_hScrollBar->blockSignals(true);
+        m_hScrollBar->setRange(0, max);
+        m_hScrollBar->setPageStep(page);
+        m_hScrollBar->setValue(pos);
+        m_hScrollBar->blockSignals(false);
+    } else {
+        if (m_hScrollBar) {
+            delete m_hScrollBar;
+            m_hScrollBar = nullptr;
+            repositionScrollBars();
+        }
+    }
+}
+
+void QDmsViewArea::VH_SetVScrollBar(bool visible, int pos, int page, int max, int tick)
+{
+    if (visible) {
+        if (!m_vScrollBar) {
+            m_vScrollBar = new QScrollBar(Qt::Vertical, this);
+            connect(m_vScrollBar, &QScrollBar::valueChanged, this, &QDmsViewArea::onVScrollValueChanged);
+            repositionScrollBars();
+            m_vScrollBar->show();
+        }
+        m_vScrollTick = tick > 0 ? tick : 1;
+        m_vScrollBar->blockSignals(true);
+        m_vScrollBar->setRange(0, max);
+        m_vScrollBar->setPageStep(page);
+        m_vScrollBar->setValue(pos);
+        m_vScrollBar->blockSignals(false);
+    } else {
+        if (m_vScrollBar) {
+            delete m_vScrollBar;
+            m_vScrollBar = nullptr;
+            repositionScrollBars();
+        }
+    }
+}
+
+void QDmsViewArea::onHScrollValueChanged(int value)
+{
+    auto dv = getDataView(); if (!dv) return;
+    auto sp = dv->GetScrollEventsReceiver(); if (!sp || !sp->GetContents()) return;
+    auto currY = sp->GetContents()->GetCurrClientRelPos().Y();
+    sp->ScrollLogicalTo(shp2dms_order<CrdType>(-CrdType(value) * m_hScrollTick, currY));
+}
+
+void QDmsViewArea::onVScrollValueChanged(int value)
+{
+    auto dv = getDataView(); if (!dv) return;
+    auto sp = dv->GetScrollEventsReceiver(); if (!sp || !sp->GetContents()) return;
+    auto currX = sp->GetContents()->GetCurrClientRelPos().X();
+    sp->ScrollLogicalTo(shp2dms_order<CrdType>(currX, -CrdType(value) * m_vScrollTick));
+}
+
+#endif // !_WIN32
 
 void QDmsViewArea::ensureBackingStore(int width, int height)
 {

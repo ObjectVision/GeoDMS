@@ -15,6 +15,7 @@
 #include <QMdiArea>
 #include <QMdiSubWindow>
 #include <QAbstractNativeEventFilter>
+#include <QScrollBar>
 #include <QTimer>
 #include <QImage>
 #include <QRegion>
@@ -163,6 +164,12 @@ public:
     // Clipboard copy: copies backing store region to clipboard and saves to /tmp/geodms_copy.png
     void VH_CopyToClipboard(const GRect& rect) override;
 
+#ifndef _WIN32
+    // Scroll bars (Linux/Qt: implemented as QScrollBar child widgets)
+    void VH_SetHScrollBar(bool visible, int pos, int page, int max, int tick) override;
+    void VH_SetVScrollBar(bool visible, int pos, int page, int max, int tick) override;
+#endif
+
 #ifdef _WIN32
     HWND VH_GetHWnd() const override { return reinterpret_cast<HWND>(m_DataViewHWnd); }
 #endif
@@ -170,6 +177,10 @@ public:
 public slots:
     void onWindowStateChanged(Qt::WindowStates oldState, Qt::WindowStates newState);
     void onTimerTimeout();
+#ifndef _WIN32
+    void onHScrollValueChanged(int value);
+    void onVScrollValueChanged(int value);
+#endif
 
 private:
     void CreateDmsView(QMdiArea* parent, ViewStyle viewStyle);
@@ -209,6 +220,14 @@ private:
     DWORD m_cookie = 0; // used for RegisterScaleChangeNotifications
 #endif
     DPoint m_LastScaleFactors = {1.0, 1.0};
+
+#ifndef _WIN32
+    QScrollBar* m_hScrollBar = nullptr;
+    QScrollBar* m_vScrollBar = nullptr;
+    int m_hScrollTick = 1;
+    int m_vScrollTick = 1;
+    void repositionScrollBars();
+#endif
 };
 
 #endif // DMSVIEWAREA_H
