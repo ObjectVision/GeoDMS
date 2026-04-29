@@ -605,8 +605,8 @@ GraphVisitState GraphDrawer::DoLayerControlBase(LayerControlBase* lc)
 			: CombineRGB(160, 160, 160); // gray text color (portable)
 		dc->SetTextColor(textColor);
 
-		auto fontHeight = GetDefaultFontHeightDIP(lc->GetFontSizeCategory()) * (96.0 / 72.0);
-		dc->SetFont("Noto Sans Medium", fontHeight, 0);
+		auto fontHeight = GetDefaultFontHeightDIP(lc->GetFontSizeCategory());
+		dc->SetFont("Noto Sans", fontHeight, 0);
 	}
 
 	return base_type::DoLayerControlBase(lc);

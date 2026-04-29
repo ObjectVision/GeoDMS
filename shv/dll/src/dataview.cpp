@@ -1185,7 +1185,12 @@ GraphVisitState DataView::UpdateView()
 				m_ViewHost->VH_DrawInContext(drawRegion, [&](DrawContext& drawContext) {
 					dms_assert(!SuspendTrigger::DidSuspend());
 
+					// On Linux there is no WM_PAINT/OnPaint background pass, so include GD_DrawBackground here.
+#ifndef _WIN32
+					GraphDrawer drawer(&drawContext, m_DoneGraphics, this, GdMode(GD_StoreRect|GD_Suspendible|GD_UpdateData|GD_DrawData|GD_DrawBackground), scaleFactors);
+#else
 					GraphDrawer drawer(&drawContext, m_DoneGraphics, this, GdMode(GD_StoreRect|GD_Suspendible|GD_UpdateData|GD_DrawData), scaleFactors);
+#endif
 					GraphVisitState suspended = drawer.Visit( GetContents().get() );
 					bool stopped = m_DoneGraphics.DidBreak();
 
