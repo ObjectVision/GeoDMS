@@ -14,6 +14,7 @@
 //----------------------------------------------------------------------
 
 #include "GridLayerBase.h"
+#include <atomic>
 
 namespace wms {
 	typedef UPoint tile_pos;
@@ -85,7 +86,7 @@ private:
 	SharedPtr<const TreeItem> m_SpecContainer;
 	wms::tile_matrix_set m_TMS;
 	std::unique_ptr<wms::TileCache> m_TileCache;
-	mutable SizeT m_ZoomLevel = 0;
+	mutable std::atomic<SizeT> m_ZoomLevel = 0;
 	const AbstrUnit* m_WorldCrdUnit = nullptr;
 
 	CrdRect WorldExtents(wms::tile_id key) const {

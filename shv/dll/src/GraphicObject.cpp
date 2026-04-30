@@ -368,7 +368,14 @@ bool GraphicObject::PrepareDataOrUpdateViewLater(const TreeItem* item)
 void GraphicObject::UpdateView() const
 {
 	dms_assert(IsMainThread());
+#ifdef _WIN32
 	dbg_assert(!SuspendTrigger::DidSuspend());
+#else
+	// On Linux the timer-driven update cycle is the only path that calls SuspendTrigger::Resume().
+	// UI events (key press, layer toggle) may reach UpdateView() while the trigger is still armed
+	// from a previous suspension. Defer gracefully; the next timer cycle will Resume() and retry.
+	if (SuspendTrigger::DidSuspend()) return;
+#endif
 	GetLastChangeTS();
 
 	if (IsUpdated()) // || WasFailed(FailType::Data))

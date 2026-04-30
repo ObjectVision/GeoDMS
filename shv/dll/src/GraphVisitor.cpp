@@ -605,7 +605,13 @@ GraphVisitState GraphDrawer::DoLayerControlBase(LayerControlBase* lc)
 			: CombineRGB(160, 160, 160); // gray text color (portable)
 		dc->SetTextColor(textColor);
 
+#ifdef _WIN32
 		auto fontHeight = GetDefaultFontHeightDIP(lc->GetFontSizeCategory()) * (96.0 / 72.0);
+#else
+		// GDI CreateFont cell height includes ~3px internal leading; Qt setPixelSize is pure em.
+		// Scale down by 72/96 so Qt glyphs visually match GDI size at 96 DPI.
+		auto fontHeight = GetDefaultFontHeightDIP(lc->GetFontSizeCategory()) * (72.0 / 96.0);
+#endif
 		dc->SetFont("Noto Sans", fontHeight, 0);
 	}
 

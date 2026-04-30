@@ -1095,7 +1095,9 @@ void DataView::DoInvalidate() const
 	dbg_assert( md_InvalidateDrawLock == 0);
 
 	m_DoneGraphics.Reset( Region(m_ViewDeviceSize) );
-
+#ifndef _WIN32
+	m_BackgroundNeedsPainting = true;
+#endif
 	dms_assert(DoesHaveSupplInterest() || !GetInterestCount());
 }
 
@@ -1185,9 +1187,17 @@ GraphVisitState DataView::UpdateView()
 				m_ViewHost->VH_DrawInContext(drawRegion, [&](DrawContext& drawContext) {
 					dms_assert(!SuspendTrigger::DidSuspend());
 
-					// On Linux there is no WM_PAINT/OnPaint background pass, so include GD_DrawBackground here.
 #ifndef _WIN32
-					GraphDrawer drawer(&drawContext, m_DoneGraphics, this, GdMode(GD_StoreRect|GD_Suspendible|GD_UpdateData|GD_DrawData|GD_DrawBackground), scaleFactors);
+					// Pass 1: background (white fill + WMS tiles) — run once per dirty cycle, not on retries.
+					// On Windows this is done by OnPaint(); on Linux we guard with m_BackgroundNeedsPainting
+					// so suspended data retries never erase already-drawn fills.
+					if (m_BackgroundNeedsPainting) {
+						GraphDrawer(&drawContext, drawRegion, this, GdMode(GD_DrawBackground), scaleFactors)
+							.Visit(GetContents().get());
+						m_BackgroundNeedsPainting = false;
+					}
+					// Pass 2: data only (fills + borders) — suspendible, accumulates via m_DoneGraphics
+					GraphDrawer drawer(&drawContext, m_DoneGraphics, this, GdMode(GD_StoreRect|GD_Suspendible|GD_UpdateData|GD_DrawData), scaleFactors);
 #else
 					GraphDrawer drawer(&drawContext, m_DoneGraphics, this, GdMode(GD_StoreRect|GD_Suspendible|GD_UpdateData|GD_DrawData), scaleFactors);
 #endif
@@ -1952,7 +1962,17 @@ void DataView::InvalidateDeviceRect(GRect rect)
 	CheckRgnLimits(rect);
 #endif
 	if (m_ViewHost)
+	{
 		m_ViewHost->VH_InvalidateRect(rect, true);
+#ifndef _WIN32
+		// On Linux, VH_InvalidateRect only blits the current backing store.
+		// Queue the region for re-render so UpdateView() redraws updated content (e.g. WMS tiles).
+		// On Win32, WM_PAINT → OnPaint() → AddDrawRegion + SetUpdateTimer serves this purpose.
+		m_DoneGraphics.AddDrawRegion(Region(rect));
+		m_BackgroundNeedsPainting = true;
+		RequestUpdate();
+#endif
+	}
 #ifdef _WIN32
 	else
 		::InvalidateRect(m_hWnd, &AsRECT(rect), true);
@@ -1970,7 +1990,14 @@ void DataView::InvalidateDeviceRect(GRect rect)
 void DataView::InvalidateRgn (const Region& rgn)
 {
 	if (m_ViewHost)
+	{
 		m_ViewHost->VH_InvalidateRgn(rgn, true);
+#ifndef _WIN32
+		m_DoneGraphics.AddDrawRegion(Region(rgn.BoundingBox()));
+		m_BackgroundNeedsPainting = true;
+		RequestUpdate();
+#endif
+	}
 #if defined(_WIN32)
 	else
 	{

@@ -294,13 +294,13 @@ namespace wms {
 
 	void ProcessPendingTasks()
 	{
-		UInt32 retryCounter = 256;
 		while (TileLoader::s_InstanceCount) // destructor of last TileLoader, presumably called outside the run-loop, can queue new TileLoaders with new events
 		{
+			GetIOC()->restart(); // io_context::run() leaves the context stopped; restart before reuse
 			GetIOC()->run();
 			if (!TileLoader::s_InstanceCount)
 				break;
-		} 
+		}
 	}
 
 	struct TileCache
@@ -357,7 +357,7 @@ namespace wms {
 			leveled_critical_section::scoped_lock lock(s_ImageAccess);
 
 			image_info& info = m_ImageMap[t];
-			if (info.m_Status == image_status::undefined) 
+			if (info.m_Status == image_status::undefined)
 			{
 				info.m_FileName = m_FileTemplStr
 					.replace("@TM@", AsString(t.first, FormattingFlags::None).c_str())
@@ -503,6 +503,7 @@ namespace wms {
 				return;
 			if (!IsFileOrDirAccessible(m_FileName))
 			{
+				MakeDirsForFile(m_FileName);
 				FileOutStreamBuff file(m_FileName, false);
 				file.WriteBytes(&*m_Response.body().data(), m_Response.body().size());
 				// close file
@@ -511,7 +512,7 @@ namespace wms {
 		}
 
 		//	if (owner->GetScale() == m_Scale)
-		auto dv = owner->GetDataView().lock(); 
+		auto dv = owner->GetDataView().lock();
 		if (dv)
 			dv->PostGuiOper([key = m_Key, owner_wptr = m_Owner]() {
 				auto owner = owner_wptr.lock();
@@ -664,7 +665,7 @@ bool WmsLayer::Draw(GraphDrawer& d) const
 	auto transZoomLevel = d.GetTransformation().ZoomLevel();
 	auto worldSizeOfDevicePixel = 1.0 / transZoomLevel;
 	m_ZoomLevel = ChooseTileMatrix(m_TMS, worldSizeOfDevicePixel);
-	if (!IsDefined(m_ZoomLevel))
+	if (!IsDefined(SizeT(m_ZoomLevel)))
 		return GVS_Continue;
 
 	const wms::tile_matrix& tm = m_TMS[m_ZoomLevel];
@@ -704,7 +705,7 @@ bool WmsLayer::Draw(GraphDrawer& d) const
 	GDAL_SimpleReader gdalReader;
 	GDAL_SimpleReader::buffer_type rasterBuffer;
 	GridColorPalette palette(nullptr);
-	 
+
 	for (auto r = tlTile.Row(); r <= brTile.Row(); ++r)
 		for (auto c = tlTile.Col(); c <= brTile.Col(); ++c)
 		{
@@ -735,25 +736,25 @@ bool WmsLayer::Draw(GraphDrawer& d) const
 				auto result = gdalReader.ReadGridData(m_TileCache->FileName(wmsTileKey).c_str(), rasterBuffer);
 				if (result==WPoint())
 					goto nextTile;
-	
-							GridDrawer drawer(
-								drawGridCoords.get()
-								, GetIndexCollector()
-								, &palette
-								, nullptr // selValues
-								, d.GetDrawContext()
-								, tileRelRect
-								, ::tile_id(0)
-								, Convert<IRect>(tileGridRect) - drawGridCoords->GetGridRect().first // adjusted tileRect
-							);
 
-							if (!drawer.empty()) {
-								drawer.AllocatePixelBuffer();
-								drawer.FillDirect(&rasterBuffer.combinedBands[0], rasterBuffer.combinedBands.size(), true);
-								drawer.CopyToDrawContext(CrdPoint2GPoint(viewportDeviceOffset));
-							}
+						GridDrawer drawer(
+							drawGridCoords.get()
+							, GetIndexCollector()
+							, &palette
+							, nullptr // selValues
+							, d.GetDrawContext()
+							, tileRelRect
+							, ::tile_id(0)
+							, Convert<IRect>(tileGridRect) - drawGridCoords->GetGridRect().first // adjusted tileRect
+						);
+
+						if (!drawer.empty()) {
+							drawer.AllocatePixelBuffer();
+							drawer.FillDirect(&rasterBuffer.combinedBands[0], rasterBuffer.combinedBands.size(), true);
+							drawer.CopyToDrawContext(CrdPoint2GPoint(viewportDeviceOffset));
+						}
 			}
-			catch (...) 
+			catch (...)
 			{
 				catchAndReportException();
 			}
@@ -768,7 +769,7 @@ void WmsLayer::Zoom1To1(ViewPort* vp)
 
 	if (!vp->GetWorldCrdUnit())
 		return;
-	auto zoomLevel = m_ZoomLevel;
+	SizeT zoomLevel = m_ZoomLevel;
 	if (!IsDefined(zoomLevel))
 	{
 		if (m_TMS.empty())
@@ -793,7 +794,8 @@ bool WmsLayer::ZoomOut(ViewPort* vp, bool justClickIsOK)
 	m_ZoomLevel = ChooseTileMatrix(m_TMS, 1.0 / zoomFactor);
 	if (!m_ZoomLevel)
 		return false;
-	MakeMin(m_ZoomLevel, m_TMS.size());
+	if (m_TMS.size() < SizeT(m_ZoomLevel))
+		m_ZoomLevel = SizeT(m_TMS.size());
 	--m_ZoomLevel;
 	Zoom1To1(vp);
 //	m_ZoomLevel = ChooseTileMatrix(m_TMS, 1.0 / zoomLevel);
