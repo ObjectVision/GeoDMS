@@ -138,12 +138,12 @@ GDalGridImp::GDalGridImp(GDALDataset* hDS, const AbstrDataObject* ado, UPoint vi
 	if (rasterDataType != geoDmsDataType)
 		if (rasterDataType != GDT_Byte || geoDmsDataType != GDT_UInt32 || hDS->GetRasterCount() != 4)
 		{
-			// Use static set to track already-warned combinations of (hDS, rasterDataType, valueClassID)
-			// to avoid repeating the same warning for each tile
-			using WarningKey = std::tuple<const GDALDataset*, GDALDataType, ValueClassID>;
+			// Use static set to track already-warned combinations of (filename, rasterDataType, valueClassID)
+			// to avoid repeating the same warning for each tile (each tile may open a new GDALDataset instance)
+			using WarningKey = std::tuple<std::string, GDALDataType, ValueClassID>;
 			static std::set<WarningKey> s_IssuedWarnings;
 
-			auto warningKey = WarningKey(hDS, rasterDataType, valueClass->GetValueClassID());
+			auto warningKey = WarningKey(hDS->GetDescription(), rasterDataType, valueClass->GetValueClassID());
 			if (s_IssuedWarnings.find(warningKey) != s_IssuedWarnings.end())
 				return;
 			s_IssuedWarnings.insert(warningKey);
