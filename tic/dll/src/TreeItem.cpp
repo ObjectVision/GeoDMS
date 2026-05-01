@@ -2307,10 +2307,16 @@ LispRef TreeItem::GetBaseKeyExpr() const
 	{
 		auto& sourceItem = std::get<SharedTreeItem>(metaInfo);
 		assert(!sourceItem->IsCacheItem());
-		if (sourceItem == this) // avoid infinite recursion
+		if (sourceItem == this) // avoid direct self reference
 			throwItemError("Invalid self reference");
 		if (sourceItem != this)
+		{
+			thread_local std::unordered_set<const TreeItem*> s_VisitingItems;
+			if (!s_VisitingItems.insert(this).second)
+				throwItemError("Circular key expression reference");
+			auto guard = make_scoped_exit([this] { s_VisitingItems.erase(this); });
 			return sourceItem->GetCheckedKeyExpr();
+		}
 	}
 	//	if (metaInfo.index() == 0 && IsUnit(this) && std::get<MetaFuncCurry>(metaInfo).fullLispExpr.EndP())
 	//		return ExprList(AsUnit(this)->GetValueType()->GetID());
