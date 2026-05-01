@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(xargs grep *)"
+      "Bash(xargs grep *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Dev\\\\GeoDMS_2026\" -Directory)",
+      "Bash(Select-Object -First 20)"
     ]
   }
 }

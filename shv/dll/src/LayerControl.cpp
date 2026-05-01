@@ -697,7 +697,7 @@ void LayerControlSet::ShowHiddenControls()
 
 void LayerControlSet::OnElemSetChanged()
 {
-	InvalidateView();
+	InvalidateViews(); // force all existing LayerControls to re-evaluate their header captions with updated sibling context
 	InvalidateDraw();
 	if (m_LayerSet->NrEntries() != NrEntries())
 		OnSizeChanged();
