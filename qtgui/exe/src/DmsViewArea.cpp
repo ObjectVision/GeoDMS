@@ -9,6 +9,7 @@
 #include <QDragEnterEvent>
 #include <QDropEvent>
 #include <QEvent>
+#include <QKeyEvent>
 #include <QMouseEvent>
 #include <QWheelEvent>
 #include <QPaintEvent>
@@ -302,6 +303,7 @@ QDmsViewArea::QDmsViewArea(QMdiArea* parent, MdiCreateStruct* createStruct)
 void QDmsViewArea::CreateDmsView(QMdiArea* parent, ViewStyle viewStyle)
 {
 	setAttribute(Qt::WA_DeleteOnClose);
+	setFocusPolicy(Qt::StrongFocus); // accept keyboard focus so keyPressEvent fires for arrow keys etc.
 #ifndef _WIN32
     setMouseTracking(true); // receive mouseMoveEvent even without button pressed (for SETCURSOR/hover)
 #endif
@@ -1075,6 +1077,57 @@ void QDmsViewArea::leaveEvent(QEvent* event)
 }
 
 #endif // !_WIN32
+
+// Translate a Qt key code to the DMS virtKey value used by TableControl::OnKeyDown
+// (matches Win32 VK_* values defined in ShvCompat.h). Returns 0 for unsupported keys.
+static UInt32 qtKeyToVK(int qtKey)
+{
+    switch (qtKey) {
+        case Qt::Key_Left:     return VK_LEFT;
+        case Qt::Key_Right:    return VK_RIGHT;
+        case Qt::Key_Up:       return VK_UP;
+        case Qt::Key_Down:     return VK_DOWN;
+        case Qt::Key_Home:     return VK_HOME;
+        case Qt::Key_End:      return VK_END;
+        case Qt::Key_PageUp:   return VK_PRIOR;
+        case Qt::Key_PageDown: return VK_NEXT;
+        case Qt::Key_Tab:      return VK_TAB;
+        case Qt::Key_Backtab:  return VK_TAB; // Shift+Tab arrives as Backtab in Qt
+        case Qt::Key_Escape:   return VK_ESCAPE;
+        case Qt::Key_Return:
+        case Qt::Key_Enter:    return VK_RETURN;
+        case Qt::Key_Backspace:return VK_BACK;
+        case Qt::Key_Delete:   return VK_DELETE;
+        case Qt::Key_F2:       return VK_F2;
+    }
+    return 0;
+}
+
+void QDmsViewArea::keyPressEvent(QKeyEvent* event)
+{
+    auto dv = getDataView();
+    if (!dv) { QMdiSubWindow::keyPressEvent(event); return; }
+
+    UInt32 vk = qtKeyToVK(event->key());
+    if (vk == 0)
+    {
+        // Unhandled special key — let Qt do its default thing (e.g. Ctrl+W to close).
+        QMdiSubWindow::keyPressEvent(event);
+        return;
+    }
+
+    // Encode modifiers into the virtKey, mirroring DataView::OnKeyDown's Win32 GetKeyState path.
+    auto mods = event->modifiers();
+    if (mods & Qt::ControlModifier) vk |= KeyInfo::Flag::Ctrl;
+    if (mods & Qt::AltModifier)     vk |= KeyInfo::Flag::Menu;
+    if (mods & Qt::ShiftModifier)   vk |= KeyInfo::Flag::Shift;
+
+    bool handled = dv->OnKeyDown(vk);
+    if (handled)
+        event->accept();   // critical: prevents QMdiSubWindow's arrow-key-driven move/resize mode
+    else
+        QMdiSubWindow::keyPressEvent(event);
+}
 
 void QDmsViewArea::VH_ScrollWindow(GPoint delta, const GRect& scrollRect, const GRect& clipRect,
     Region& updateRgn, const GRect& validRect)

@@ -729,6 +729,7 @@ MsgResult DataView::DispatchMsg(const MsgStruct& msg)
 				}
 				else
 				{
+					SuspendTrigger::Resume(); // keyboard-only nav never generates mouse events, so Resume() must be called here
 					auto status = GVS_Ready;
 					auto curr = SessionData::Curr();
 					if (curr)
@@ -805,14 +806,15 @@ MsgResult DataView::DispatchMsg(const MsgStruct& msg)
 
 		case WM_LBUTTONDOWN:
 		{
+			// Capture on our own native HWND. Using VH_SetCapture (Qt grabMouse on the parent
+			// QDmsViewArea) here would leak the capture: subsequent WM_LBUTTONUP would be
+			// routed to QDmsViewArea, whose mouseReleaseEvent is Linux-only, so VH_ReleaseCapture
+			// would never be called and the title-bar [x] would stop responding.
+			SetCapture(m_hWnd);
 			if (m_ViewHost)
-			{
-				m_ViewHost->VH_SetCapture();
 				m_ViewHost->VH_NotifyParentActivation();
-			}
 			else
 			{
-				SetCapture(m_hWnd);
 				auto parent = GetAncestor(m_hWnd, GA_PARENT);
 				SendMessage(parent, WM_QT_ACTIVATENOTIFIERS, 0, 0);
 			}
@@ -825,10 +827,7 @@ MsgResult DataView::DispatchMsg(const MsgStruct& msg)
 
 		case WM_LBUTTONUP:
 			DispatchMouseEvent(EventID::LBUTTONUP,     msg.m_wParam, LParam2Point(msg.m_lParam) );
-			if (m_ViewHost)
-				m_ViewHost->VH_ReleaseCapture();
-			else
-				ReleaseCapture();
+			ReleaseCapture(); // pairs with SetCapture in WM_LBUTTONDOWN above
 			goto completed;
 
 		case WM_RBUTTONUP:
@@ -936,20 +935,24 @@ completed:
 	return { true, 0 }; // don't dispatch any further
 }
 
+#endif // _WIN32 (IsTooltipKiller through DispatchMsg)
+
 bool DataView::OnKeyDown(UInt32 nVirtKey)
 {
+#ifdef _WIN32
+	// On Windows the modifier flags are queried live (caller passes raw virtKey).
+	// On Linux/Qt the caller (QDmsViewArea::keyPressEvent) already encoded modifiers in the flag bits.
 	if (GetKeyState(VK_CONTROL) & 0x8000)
 		nVirtKey |= KeyInfo::Flag::Ctrl;
 	if (GetKeyState(VK_MENU) & 0x8000)
 		nVirtKey |= KeyInfo::Flag::Menu;
 	if (GetKeyState(VK_SHIFT) & 0x8000)
 		nVirtKey |= KeyInfo::Flag::Shift;
+#endif
 	if (m_ActivationInfo)
 		return m_ActivationInfo.OnKeyDown(nVirtKey);
 	return GetContents()->OnKeyDown(nVirtKey);
 }
-
-#endif // _WIN32 (IsTooltipKiller through OnKeyDown)
 
 //----------------------------------------------------------------------
 // OnTimer: Portable timer handler (called by ViewHost)

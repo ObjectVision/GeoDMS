@@ -81,6 +81,11 @@ public:
     void leaveEvent(QEvent* event) override;
 #endif
 
+    // Keyboard: forward to DataView::OnKeyDown on both platforms. Without this,
+    // QMdiSubWindow's default arrow-key handling enters a move/resize mode that also
+    // breaks the [x] close button until Esc is pressed.
+    void keyPressEvent(QKeyEvent* event) override;
+
     auto getDataView() -> std::shared_ptr<DataView> { return m_DataView.lock(); }
 #ifdef _WIN32
     auto getDataViewHwnd() -> void* { return m_DataViewHWnd; }

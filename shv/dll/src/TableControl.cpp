@@ -772,9 +772,13 @@ const UInt32 PAGE_SIZE = 10;
 
 bool TableControl::OnKeyDown(UInt32 virtKey)
 {
-	if (KeyInfo::IsSpec(virtKey))
+	// Treat Shift+<arrow|Home|End|PgUp|PgDn|Tab> as a "spec" key so the selection range
+	// can be widened/narrowed. KeyInfo::IsSpec rejects Shift via Flag::CCM, so strip Shift
+	// from the modifier bits before the IsSpec test, then read the shift state from the
+	// flag (works on both Win32 and Qt, unlike GetKeyState which is Win32-only).
+	bool shift = (virtKey & KeyInfo::Flag::Shift) != 0;
+	if (KeyInfo::IsSpec(virtKey & ~KeyInfo::Flag::Shift))
 	{
-		bool shift = GetKeyState(VK_SHIFT) & 0x8000;
 		switch (KeyInfo::CharOf(virtKey)) {
 			case VK_RIGHT:  if (IsColOriented()) GoRight(shift); else GoDn(shift, 1); return true;
 			case VK_LEFT:   if (IsColOriented()) GoLeft(shift);  else GoUp(shift, 1); return true;
