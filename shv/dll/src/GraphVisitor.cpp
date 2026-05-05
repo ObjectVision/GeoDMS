@@ -606,13 +606,15 @@ GraphVisitState GraphDrawer::DoLayerControlBase(LayerControlBase* lc)
 		dc->SetTextColor(textColor);
 
 #ifdef _WIN32
+		// GDI font height is in physical pixels; (96/72) converts DIP to pt-sized pixels. No DPI factor: the
+		// layout transformation already scales positions, and CreateFontA takes absolute pixel sizes.
 		auto fontHeight = GetDefaultFontHeightDIP(lc->GetFontSizeCategory()) * (96.0 / 72.0);
+		dc->SetFont("Noto Sans Medium", fontHeight, 0);
 #else
-		// GDI CreateFont cell height includes ~3px internal leading; Qt setPixelSize is pure em.
-		// Scale down by 72/96 so Qt glyphs visually match GDI size at 96 DPI.
+		// Qt setPixelSize is a pure em height (no external leading), so scale 72/96 to match GDI visual size.
 		auto fontHeight = GetDefaultFontHeightDIP(lc->GetFontSizeCategory()) * (72.0 / 96.0);
-#endif
 		dc->SetFont("Noto Sans", fontHeight, 0);
+#endif
 	}
 
 	return base_type::DoLayerControlBase(lc);
