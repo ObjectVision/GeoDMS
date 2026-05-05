@@ -131,8 +131,8 @@ void GdiDrawContext::SetFont(CharPtr fontName, int pixelHeight, UInt16 angleDegT
 	HFONT hFont = CreateFontA(
 		pixelHeight, 0, angleDegTenths, 0,
 		FW_NORMAL, FALSE, FALSE, FALSE,
-		DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
-		DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE,
+		ANSI_CHARSET, OUT_TT_PRECIS, CLIP_DEFAULT_PRECIS,
+		PROOF_QUALITY, DEFAULT_PITCH | FF_DONTCARE,
 		fontName
 	);
 	if (hFont)
