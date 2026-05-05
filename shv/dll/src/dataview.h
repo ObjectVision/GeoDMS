@@ -323,8 +323,12 @@ public:
 		// Always reset to the current full viewport on resize.
 		// On Win32, WM_PAINT fills in the uncovered area after resize; on Linux there is
 		// no such message, so we must explicitly cover the entire viewport each time.
-		if (m_ViewDeviceSize.x > 0 && m_ViewDeviceSize.y > 0)
+		if (m_ViewDeviceSize.x > 0 && m_ViewDeviceSize.y > 0) {
 			m_DoneGraphics.Reset(Region(m_ViewDeviceSize));
+#ifndef _WIN32
+			m_BackgroundNeedsPainting = true;
+#endif
+		}
 	}
 	bool IsDoneGraphicsEmpty() const { return m_DoneGraphics.Empty(); }
 
@@ -355,6 +359,9 @@ protected:
 	GPoint                        m_ViewDeviceSize = GPoint(0, 0);
 	TimeStamp                     m_CheckedTS;
 	mutable CounterStacks         m_DoneGraphics;
+#ifndef _WIN32
+	mutable bool                  m_BackgroundNeedsPainting = true;
+#endif
 #ifdef _WIN32
 	HWND                          m_hWnd;
 #endif

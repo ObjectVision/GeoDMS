@@ -313,10 +313,7 @@ bool GraphicObject::PrepareDataOrUpdateViewLater(const TreeItem* item)
 		return true;
 
 	if (!itemHolder->PrepareDataUsageImpl(DrlType::Suspendible))
-	{
-		if (SuspendTrigger::DidSuspend())
-			return false;
-	}
+		return false;
 
 	if (!IsMultiThreaded2())
 		return true;
@@ -348,7 +345,9 @@ bool GraphicObject::PrepareDataOrUpdateViewLater(const TreeItem* item)
 					auto objSPtr = objWPtr.lock();
 					if (objSPtr) {
 						objSPtr->InvalidateView();
+#ifndef _WIN32
 						if (!SuspendTrigger::DidSuspend())
+#endif
 							objSPtr->UpdateView();
 						objSPtr->InvalidateDraw();
 					}
