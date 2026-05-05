@@ -91,11 +91,15 @@ SharedStr MakeUnknownIdentifierErrorMsg(SharedStr supplRefStr, BestItemRef bestI
 		auto supplRefStrSize = supplRefStr.AsRange().size();
 		auto notFoundPartSize = bestItemRef.second.AsRange().size();
 		if (notFoundPartSize < supplRefStrSize)
-			errMsg += mySSPrintF("\nDid you mean '%s' that refers to [[%s]]?\nThe '%s' part was not found there."
-				, CharPtrRange(supplRefStr.begin(), supplRefStrSize - notFoundPartSize)
-				, bestItemRef.first->GetFullName().c_str()
-				, bestItemRef.second
-			);
+		{
+			auto bestFullName = bestItemRef.first->GetFullName();
+			if (!bestFullName.empty())
+				errMsg += mySSPrintF("\nDid you mean '%s' that refers to [[%s]]?\nThe '%s' part was not found there."
+					, CharPtrRange(supplRefStr.begin(), supplRefStrSize - notFoundPartSize)
+					, bestFullName.c_str()
+					, bestItemRef.second
+				);
+		}
 	}
 	return errMsg;
 }
@@ -615,7 +619,7 @@ SharedStr AbstrCalculator::EvaluateExpr(const TreeItem* context, CharPtrRange ex
 		
 		auto res = CalledCalcHandle(calculator.get(), DataArray<SharedStr>::GetStaticClass());
 		assert(res);
-		if (res->WasFailed(FailType::Data))
+		if (res->WasFailed()) // covers MetaInfo, Data, and Validate failures
 			res->ThrowFail();
 
 		auto resItem = res->GetOld();
@@ -624,11 +628,6 @@ SharedStr AbstrCalculator::EvaluateExpr(const TreeItem* context, CharPtrRange ex
 		irc.Add(resItem);
 
 		const AbstrDataItem* resDataItem = AsDataItem(resItem);
-		assert(resDataItem || res->WasFailed(FailType::Data));
-
-		if (res->WasFailed(FailType::Validate))
-			res->ThrowFail();
-
 		assert(resDataItem);
 		if (!resDataItem->WasFailed(FailType::Data))
 			resultStr = GetTheValue<SharedStr>(resDataItem);
@@ -708,16 +707,19 @@ ActorVisitState AbstrCalculator::VisitImplSuppl(SupplierVisitFlag svf, const Act
 		irc.Add(res.get_ptr());
 		irc.Add(res->GetOld());
 
-		const AbstrDataItem* resDataItem = AsDataItem(res->GetOld());
-		assert(resDataItem || res->WasFailed(FailType::Data));
-
 		if (calculator->VisitSuppliers(svf, visitor) == AVS_SuspendedOrFailed)
 			return AVS_SuspendedOrFailed;
 		res->VisitSuppliers(svf, visitor);
 
+		if (res->WasFailed())
+			break; // referenced item missing or data failure: can't evaluate further indirections
+
+		const AbstrDataItem* resDataItem = AsDataItem(res->GetOld());
+		assert(resDataItem);
+
 		if (!--nrEvals)
 			break;
-		
+
 		resultStr = GetValue<SharedStr>(resDataItem, 0);
 
 		auto nrNewEvals = CountIndirections( resultStr.c_str() );

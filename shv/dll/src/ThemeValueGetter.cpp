@@ -394,14 +394,32 @@ struct LazyClassifyGetter : public LazyGetter<V>
 
 	void GridFillDispatch(const GridDrawer* drawer, tile_id t, Range<SizeT> themeArrayIndexRange, bool isLastRun) const override
 	{
-		using PixelType = pixel_type_t<ClassIdType>;
 		auto themeData = const_array_cast<V>(this->GetThemeAttr())->GetLockedDataRead(t);
-		GridFill<V, PixelType>(drawer
-		,	themeData.begin(), themeData.size()
-		,	m_ClassifyFunc
-		,   themeArrayIndexRange
-		,   isLastRun
-		);
+		if (drawer->m_ColorPalette->HasLargePalette())
+		{
+			const auto& paletteColors = drawer->m_ColorPalette->GetLargePaletteColors();
+			const UInt32 nodataColor  = drawer->m_ColorPalette->GetLargeNodataColor();
+			GridFill<V, DmsColor>(drawer
+			,	themeData.begin(), themeData.size()
+			,	[&](V val) -> DmsColor {
+					ClassIdType classIdx = m_ClassifyFunc(val);
+					SizeT i = static_cast<SizeT>(classIdx);
+					return (i < paletteColors.size()) ? paletteColors[i] : nodataColor;
+				}
+			,	themeArrayIndexRange
+			,	isLastRun
+			);
+		}
+		else
+		{
+			using PixelType = pixel_type_t<ClassIdType>;
+			GridFill<V, PixelType>(drawer
+			,	themeData.begin(), themeData.size()
+			,	m_ClassifyFunc
+			,	themeArrayIndexRange
+			,	isLastRun
+			);
+		}
 	}
 
 private:

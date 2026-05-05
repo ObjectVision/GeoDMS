@@ -291,7 +291,7 @@ inline SharedStr ItemUrl(CharPtr itemName)
 inline SharedStr ItemUrl(CharPtrRange itemName)
 {
 	if (!itemName.size())
-		return ItemUrl(CharPtr());
+		return ItemUrl("");
 
 	return mySSPrintF("dms:dp.general:%s", itemName);
 }
