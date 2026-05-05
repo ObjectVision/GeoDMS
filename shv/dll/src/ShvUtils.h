@@ -129,6 +129,7 @@ GPoint ScreenToClientGPoint(GPoint pt, HWND hWnd);
 #endif
 
 COLORREF GetFocusClr();
+COLORREF GetFocusTextClr();
 COLORREF GetDefaultClr(UInt32 i);
 COLORREF GetSysPaletteColor(UInt8& counter);
 COLORREF GetSelectedClr();

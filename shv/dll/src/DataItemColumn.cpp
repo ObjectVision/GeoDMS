@@ -757,7 +757,7 @@ void DataItemColumn::DrawElement(GraphDrawer& d, SizeT rowNr, GRect elemDeviceEx
 		if (isSymbol)
 		{
 			WCHAR wSymb = GetSymbol(recNo);
-			DmsColor clr = GetColor(recNo, AN_LabelTextColor);
+			DmsColor clr = isActive ? COLORREF2DmsColor(GetFocusTextClr()) : GetColor(recNo, AN_LabelTextColor);
 			if (!IsDefined(clr)) clr = GraphicObject::GetDefaultTextColor();
 			dc->TextOutW(GPoint(elemDeviceExtents.left, elemDeviceExtents.top), &wSymb, 1, clr);
 		}
@@ -766,9 +766,15 @@ void DataItemColumn::DrawElement(GraphDrawer& d, SizeT rowNr, GRect elemDeviceEx
 	{
 		auto textInfo = GetText(recNo, MAX_TEXTOUT_SIZE, locks);
 		auto* dc = d.GetDrawContext();
+		if (isActive)
+			bkClr = GetFocusClr();
 		if (IsDefined(bkClr))
 			dc->FillRect(elemDeviceExtents, bkClr);
-		DmsColor clr = textInfo.m_Grayed ? CombineRGB(100, 100, 100) : GetColor(recNo, AN_LabelTextColor);
+		DmsColor clr;
+		if (isActive)
+			clr = COLORREF2DmsColor(GetFocusTextClr());
+		else
+			clr = textInfo.m_Grayed ? CombineRGB(100, 100, 100) : GetColor(recNo, AN_LabelTextColor);
 		if (!IsDefined(clr))
 			clr = GraphicObject::GetDefaultTextColor();
 		dc->TextOut(GPoint(elemDeviceExtents.left, elemDeviceExtents.top), textInfo.m_Text.c_str(), textInfo.m_Text.ssize(), clr);
