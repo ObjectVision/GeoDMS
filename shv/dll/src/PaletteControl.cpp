@@ -565,7 +565,7 @@ void PaletteControl::DoUpdateView()
 		if (m_Layer->GetTheme(AN_Selections))
 			CreateSelCountColumn();
 	}
-	SetRowHeight(GetDefaultFontHeightDIP( GetFontSizeCategory() ));
+	SetRowHeight(GetDefaultFontHeightDIP( GetFontSizeCategory() ) * dv->GetScaleFactors().second);
 	base_type::DoUpdateView();
 }
 
