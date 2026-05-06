@@ -280,16 +280,14 @@ int PassMsg(int argc, char* argv[])
 				if (!dv) break;
 				UInt32 message = buf[0];
 				UInt32 wParam  = buf.size() > 1 ? buf[1] : 0;
-				// Translate Win32 WM_* to GraphicObject::OnKeyDown / OnCommand calls
-				// DataView::OnKeyDown is #ifdef _WIN32 only; use GetContents()->OnKeyDown
-				auto contents = dv->GetContents();
-				if (!contents) break;
 				if (message == 258) // WM_CHAR
-					contents->OnKeyDown(wParam | KeyInfo::Flag::Char);
+					dv->OnKeyDown(wParam | KeyInfo::Flag::Char);
 				else if (message == 256) // WM_KEYDOWN
-					contents->OnKeyDown(wParam);
+					dv->OnKeyDown(wParam);
 				else if (message == 273) // WM_COMMAND: trigger OnCommand(LOWORD(wParam))
 				{
+					auto contents = dv->GetContents();
+					if (!contents) break;
 					SuspendTrigger::FencedBlocker suspendLock("TestScript::WM_COMMAND");
 					contents->OnCommand(ToolButtonID(wParam & 0xFFFF));
 				}
