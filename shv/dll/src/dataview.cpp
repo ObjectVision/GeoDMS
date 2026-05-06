@@ -1194,8 +1194,10 @@ GraphVisitState DataView::UpdateView()
 					// Pass 1: background (white fill + WMS tiles) — run once per dirty cycle, not on retries.
 					// On Windows this is done by OnPaint(); on Linux we guard with m_BackgroundNeedsPainting
 					// so suspended data retries never erase already-drawn fills.
+					// GD_OnPaint marks this as a paint-driven draw so GraphDrawer::Visit's assert
+					// (line 510 of GraphVisitor.cpp) accepts a non-suspendible, possibly-not-updated graph.
 					if (m_BackgroundNeedsPainting) {
-						GraphDrawer(&drawContext, drawRegion, this, GdMode(GD_DrawBackground), scaleFactors)
+						GraphDrawer(&drawContext, drawRegion, this, GdMode(GD_DrawBackground|GD_OnPaint), scaleFactors)
 							.Visit(GetContents().get());
 						m_BackgroundNeedsPainting = false;
 					}
