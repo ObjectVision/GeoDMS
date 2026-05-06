@@ -128,11 +128,12 @@ GridColorPalette::GridColorPalette(const Theme* colorTheme)
 			auto paletteData = const_array_checked_cast<UInt32>(paletteAttr)->GetDataRead();
 			m_LargePaletteColors.resize(m_Count);
 			UInt32 providedCount = Min<UInt32>(paletteData.size(), m_Count);
+			DmsColor2RgbQuadFunc toRgbQuad;
 			for (UInt32 i = 0; i != providedCount; ++i)
-				m_LargePaletteColors[i] = reinterpret_cast<const UInt32&>(Convert<RGBQUAD>(paletteData[i]));
+				m_LargePaletteColors[i] = toRgbQuad(paletteData[i]);
 			for (UInt32 i = providedCount; i != m_Count; ++i)
-				m_LargePaletteColors[i] = reinterpret_cast<const UInt32&>(Convert<RGBQUAD>(STG_Bmp_GetDefaultColor(i & 0xFF)));
-			m_LargeNodataColor = reinterpret_cast<const UInt32&>(Convert<RGBQUAD>(STG_Bmp_GetDefaultColor(CI_NODATA)));
+				m_LargePaletteColors[i] = toRgbQuad(STG_Bmp_GetDefaultColor(i & 0xFF));
+			m_LargeNodataColor = toRgbQuad(STG_Bmp_GetDefaultColor(CI_NODATA));
 			bitCount = 32;
 			m_Count = 0; // 32-bit direct mode; no DIB palette entries
 		}
