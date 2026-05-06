@@ -49,11 +49,7 @@ inline GType& get_y(GPoint& p) noexcept { return p.y; }
 inline GType get_x(const GPoint& p) noexcept { return p.x; }
 inline GType get_y(const GPoint& p) noexcept { return p.y; }
 
-#if defined(DMS_TM_HAS_UINT64_AS_DOMAIN)
 using TType = Int64;
-#else
-using TType = Int32;
-#endif //defined(DMS_TM_HAS_UINT64_AS_DOMAIN)
 
 inline GPoint operator + (GPoint a, GPoint b) { a += b; return a; }
 inline GPoint operator - (GPoint a, GPoint b) { a -= b; return a; }

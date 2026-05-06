@@ -26,11 +26,26 @@
 #	define	DMS_CONFIGURATION_NAME "Release"
 #endif
 
+// Platform string in vcpkg-triplet form: <arch>-<os>, e.g. "x64-windows" or
+// "x64-linux". Surfaces in the GUI title bar (DMS_GetVersion) and via
+// DMS_GetPlatform.
 #if defined(DMS_64)
-#	define DMS_PLATFORM "x64"
+#	define DMS_PLATFORM_ARCH "x64"
 #else
-#	define DMS_PLATFORM "Win32"
+#	define DMS_PLATFORM_ARCH "x86"
 #endif
+
+#if defined(_WIN32)
+#	define DMS_PLATFORM_OS "windows"
+#elif defined(__linux__)
+#	define DMS_PLATFORM_OS "linux"
+#elif defined(__APPLE__)
+#	define DMS_PLATFORM_OS "osx"
+#else
+#	define DMS_PLATFORM_OS "unknown"
+#endif
+
+#define DMS_PLATFORM DMS_PLATFORM_ARCH "-" DMS_PLATFORM_OS
 
 Float64 DMS_CONV DMS_GetVersionNumber()
 {
@@ -92,9 +107,7 @@ RTC_CALL CharPtr DMS_CONV DMS_GetVersion()
 #if defined(MG_DEBUG)
 		" [" DMS_CONFIGURATION_NAME "]"
 #endif
-#if !defined(DMS_64)
 		" [" DMS_PLATFORM "]"
-#endif
 		" [" DMS_BUILD_DATE "]"
 		MG_DEBUGCODE( MG_EDG_VERSION_STR )
 	;

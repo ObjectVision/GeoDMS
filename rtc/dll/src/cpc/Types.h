@@ -20,8 +20,20 @@
 //----------------------------------------------------------------------
 
 #include "CompChar.h"
-#include <rtctypemodel.h>
 #include <stdint.h>
+
+//----------------------------------------------------------------------
+// Address mode: define DMS_64 on 64-bit pointer platforms (Windows-x64,
+// Linux-x64, etc.), DMS_32 otherwise. Portable across MSVC/GCC/Clang.
+//----------------------------------------------------------------------
+
+#if defined(_WIN64) || defined(__x86_64__) || defined(__aarch64__) || (UINTPTR_MAX == 0xFFFFFFFFFFFFFFFFu)
+#	define DMS_64
+#else
+#	define DMS_32
+#endif
+
+#include <rtctypemodel.h>
 
 #define TYPEID(T) ((const T*)nullptr)
 

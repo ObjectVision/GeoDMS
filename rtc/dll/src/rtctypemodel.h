@@ -12,17 +12,11 @@
 
 //----------------------------------------------------------------------
 // element-types control
+// (DMS_32 / DMS_64 are defined in cpc/Types.h based on pointer size, so
+//  they work portably on Windows-x64, Linux-x64, etc.)
 //----------------------------------------------------------------------
 
-
-#if defined(_WIN64)
-#	define DMS_64
-#	define DMS_TM_HAS_UINT64_AS_DOMAIN
-#else
-#	define DMS_32
-#	define DMS_TM_HAS_UINT64_AS_DOMAIN
-#endif
-
+#define DMS_TM_HAS_UINT64_AS_DOMAIN
 #define DMS_TM_HAS_UINT4
 #define DMS_TM_HAS_UINT2
 #define DMS_TM_HAS_INT64
