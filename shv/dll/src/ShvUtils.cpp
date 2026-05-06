@@ -1216,9 +1216,17 @@ void UpdateShowSelOnlyImpl(
 		selEntity    = entity;
 		selIndexAttr = indexAttr;
 
-		TreeItem* oldSelEntity= self->GetContext()->GetSubTreeItemByID(selSetID);
-		if (oldSelEntity)
-			oldSelEntity->EnableAutoDelete();
+		// GetContext() can be null for sub-controls built before their ViewContext is wired,
+		// e.g. the TableControl created inside PaletteControl::CreateColumns. Skip the
+		// cleanup in that case — there is no SelSet sub-item to dispose of yet.
+		// (Release-only crash on Linux: optimizer changes the order so that this code
+		//  runs with m_ViewContext still null; Debug initialization happens to work.)
+		if (auto* ctx = self->GetContext())
+		{
+			TreeItem* oldSelEntity = ctx->GetSubTreeItemByID(selSetID);
+			if (oldSelEntity)
+				oldSelEntity->EnableAutoDelete();
+		}
 	}
 }
 
