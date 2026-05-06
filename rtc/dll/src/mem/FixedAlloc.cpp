@@ -834,7 +834,13 @@ void ReportFixedAllocFinalSummary()
 
 	reportD(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, msgStr.c_str());
 
-	ProcessMainThreadOpers(); // pump it out
+	// Do NOT pump the main-thread operation queue here. This function runs from a
+	// static destructor in libDmRtc, which on Linux fires AFTER the executable's
+	// text segment has been unmapped by _dl_call_fini. Any leftover std::function
+	// queued by PostAppOper (e.g. the dmsscript test driver) would then call into
+	// freed code — observed as SIGSEGV during GeoDmsGuiQt teardown when running
+	// with /T<dmsscript>. The queue is the responsibility of the active main loop
+	// (Qt event loop / Win32 message pump) which drains it during normal shutdown.
 }
 
 #endif //defined(MG_CACHE_ALLOC)
