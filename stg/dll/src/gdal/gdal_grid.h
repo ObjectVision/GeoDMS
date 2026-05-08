@@ -37,13 +37,19 @@ struct GdalGridSM : AbstrGridStorageManager, gdalComponent
 	FileResult WriteDataItem(StorageMetaInfoPtr&& smiHolder) override;
 	prop_tables GetPropTables(const TreeItem* storageHolder=nullptr, TreeItem* curr=nullptr) const override;
 
+	UInt32 GetNativeTileSizeX() const override;
+	UInt32 GetNativeTileSizeY() const override;
+
 private:
+	void EnsureBlockSizeCached() const;
 	void ReadGridData  (StgViewPortInfo& vip, AbstrDataObject* ado, tile_id t, SharedStr sqlBandSpecification, StorageMetaInfoPtr smi);
 	void ReadGridCounts(StgViewPortInfo& vip, AbstrDataObject* ado, tile_id t, SharedStr sqlBandSpecification, StorageMetaInfoPtr smi);
 	bool ReadPalette(AbstrDataObject* adi);
 //	void WriteGridData(const TreeItem* storageHolder, const AbstrDataItem* adi);
 
 	mutable GDALDatasetHandle m_hDS;
+	mutable UInt32 m_CachedBlockSizeX = 0;
+	mutable UInt32 m_CachedBlockSizeY = 0;
 	//mutable DataItemsWriteStatusInfo m_DataItemsWriteStatus;
 
 	DECL_RTTI(STGDLL_CALL, StorageClass)

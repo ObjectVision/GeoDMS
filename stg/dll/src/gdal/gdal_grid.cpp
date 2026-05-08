@@ -65,6 +65,52 @@ void GdalGridSM::DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwMode) c
 			, smi.StorageManager()->GetClsName().c_str()
 		);
 	m_hDS = Gdal_DoOpenStorage(smi, rwMode, GDAL_OF_RASTER, false);
+	if (!m_CachedBlockSizeX && !m_CachedBlockSizeY) {
+		if (auto first_band = m_hDS->GetRasterBand(1)) {
+			int x, y;
+			first_band->GetBlockSize(&x, &y);
+			m_CachedBlockSizeX = x;
+			m_CachedBlockSizeY = y;
+		}
+	}
+}
+
+void GdalGridSM::EnsureBlockSizeCached() const
+{
+	if (m_CachedBlockSizeX || m_CachedBlockSizeY)
+		return;
+	if (m_hDS) {
+		if (auto first_band = m_hDS->GetRasterBand(1)) {
+			int x, y;
+			first_band->GetBlockSize(&x, &y);
+			m_CachedBlockSizeX = x;
+			m_CachedBlockSizeY = y;
+		}
+		return;
+	}
+	try {
+		GDAL_ErrorFrame frame;
+		GDALDatasetHandle ds(static_cast<GDALDataset*>(GDALOpenEx(GetNameStr().c_str(), GDAL_OF_RASTER, nullptr, nullptr, nullptr)));
+		if (ds) {
+			if (auto first_band = ds->GetRasterBand(1)) {
+				int x, y;
+				first_band->GetBlockSize(&x, &y);
+				m_CachedBlockSizeX = x;
+				m_CachedBlockSizeY = y;
+			}
+		}
+	} catch (...) {}
+}
+
+UInt32 GdalGridSM::GetNativeTileSizeX() const
+{
+	EnsureBlockSizeCached();
+	return m_CachedBlockSizeX;
+}
+UInt32 GdalGridSM::GetNativeTileSizeY() const
+{
+	EnsureBlockSizeCached();
+	return m_CachedBlockSizeY;
 }
 
 void GdalGridSM::DoCloseStorage(bool mustCommit) const

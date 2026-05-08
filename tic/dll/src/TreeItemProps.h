@@ -42,6 +42,9 @@ TIC_CALL extern PropDef<TreeItem, TokenID  >* tableTypeNamePropDefPtr;
 TIC_CALL extern PropDef<TreeItem, SharedStr>* cdfPropDefPtr;
 TIC_CALL extern PropDef<TreeItem, SharedStr>* urlPropDefPtr;
 
+TIC_CALL extern PropDef<TreeItem, UInt32>* storageTileSizeXPropDefPtr;
+TIC_CALL extern PropDef<TreeItem, UInt32>* storageTileSizeYPropDefPtr;
+
 // Generic Properties
 
 TIC_CALL SharedStr TreeItemPropertyValue       (const TreeItem* ti, const AbstrPropDef* pd);

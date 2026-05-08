@@ -677,6 +677,34 @@ namespace { // local defs
 		}
 	};
 
+	struct StorageTileSizeXPropDef : ReadOnlyPropDef<TreeItem, UInt32>
+	{
+		StorageTileSizeXPropDef()
+			: ReadOnlyPropDef<TreeItem, UInt32>("StorageTileSizeX")
+		{}
+		ApiType GetValue(TreeItem const* ti) const override
+		{
+			MGD_PRECONDITION(ti);
+			if (auto sm = ti->GetStorageManager())
+				return sm->GetNativeTileSizeX();
+			return 0;
+		}
+	};
+
+	struct StorageTileSizeYPropDef : ReadOnlyPropDef<TreeItem, UInt32>
+	{
+		StorageTileSizeYPropDef()
+			: ReadOnlyPropDef<TreeItem, UInt32>("StorageTileSizeY")
+		{}
+		ApiType GetValue(TreeItem const* ti) const override
+		{
+			MGD_PRECONDITION(ti);
+			if (auto sm = ti->GetStorageManager())
+				return sm->GetNativeTileSizeY();
+			return 0;
+		}
+	};
+
 	struct ExplicitSuppliersPropDef : PropDef<TreeItem, SharedStr>
 	{
 		ExplicitSuppliersPropDef()
@@ -769,6 +797,8 @@ namespace {
 
 	static struct ExplicitSuppliersPropDef explicitSupplPropDef;
 
+	static StorageTileSizeXPropDef storageTileSizeXPropDef;
+	static StorageTileSizeYPropDef storageTileSizeYPropDef;
 
 #if defined(MG_DEBUG)
 
@@ -806,3 +836,6 @@ PropDef<TreeItem, SharedStr>* sqlStringPropDefPtr      = &sqlStringPropDef;
 PropDef<TreeItem, TokenID  >* tableTypeNamePropDefPtr  = &tableTypeNamePropDef;
 PropDef<TreeItem, SharedStr>* cdfPropDefPtr            = &cdfPropDef;
 PropDef<TreeItem, SharedStr>* urlPropDefPtr            = &urlPropDef;
+
+PropDef<TreeItem, UInt32>* storageTileSizeXPropDefPtr = &storageTileSizeXPropDef;
+PropDef<TreeItem, UInt32>* storageTileSizeYPropDefPtr = &storageTileSizeYPropDef;
