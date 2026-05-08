@@ -352,17 +352,17 @@ protected:
 
 
 int main_without_SE_handler(int argc, char *argv[]) {
-    try {
 #ifdef Q_OS_WIN
-        qputenv("QT_QPA_PLATFORM", "windows:darkmode=1"); // https://doc.qt.io/qt-6/qguiapplication.html#platform-specific-arguments
+    qputenv("QT_QPA_PLATFORM", "windows:darkmode=1"); // https://doc.qt.io/qt-6/qguiapplication.html#platform-specific-arguments
 #endif
+    auto dms_app_on_heap = std::make_unique<QApplication>(argc, argv);
+    try {
         CmdLineSetttings settingsFrame;
         garbage_can geoDmsResources; // destruct resources after app completion
 
         auto native_event_filter_on_heap = std::make_unique<CustomEventFilter>();
         auto mouse_forward_backward_event_filter_on_heap = std::make_unique<DmsMouseForwardBackwardEventFilter>();
 
-        auto dms_app_on_heap = std::make_unique<QApplication>(argc, argv);
         geoDmsResources |= init_geodms(*dms_app_on_heap.get(), settingsFrame); // destruct resources after app completion
         dms_app_on_heap->installNativeEventFilter(native_event_filter_on_heap.get());
 
