@@ -1190,6 +1190,7 @@ GraphVisitState DataView::UpdateView()
 				m_ViewHost->VH_DrawInContext(drawRegion, [&](DrawContext& drawContext) {
 					dms_assert(!SuspendTrigger::DidSuspend());
 
+					regionDone = true;
 #ifndef _WIN32
 					// Pass 1: background (white fill + WMS tiles) — run once per dirty cycle, not on retries.
 					// On Windows this is done by OnPaint(); on Linux we guard with m_BackgroundNeedsPainting
@@ -1215,11 +1216,12 @@ GraphVisitState DataView::UpdateView()
 					{
 						if (!m_DoneGraphics.HasMultipleStacks() && !m_SelCaret.Empty())
 							drawContext.InvertRegion(m_SelCaret);
-						dms_assert( m_DoneGraphics.NoSuspendedCounters() );
+						dms_assert(m_DoneGraphics.NoSuspendedCounters());
 						m_DoneGraphics.PopBack();
 						SuspendTrigger::MarkProgress();
-						regionDone = true;
 					}
+					else
+						regionDone = false;
 				});
 			}
 			else
