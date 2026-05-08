@@ -9,6 +9,8 @@
 #endif
 
 #include "Win32ViewHost.h"
+#include "ShvDllInterface.h"
+#include "dbg/DmsCatch.h"
 
 #include "DrawContext.h"
 #include "DcHandle.h"
@@ -215,14 +217,7 @@ HWND Win32ViewHost::VH_GetHWnd() const
 void Win32ViewHost::VH_DrawInContext(const Region& clipRgn, std::function<void(DrawContext&)> callback)
 {
 	HDC hdc = ::GetDC(m_hWnd);
-	if (!hdc)
-		return;
-	::SetBkMode(hdc, TRANSPARENT);
-	auto hrgn = RegionToHRGN(clipRgn);
-	::SelectClipRgn(hdc, hrgn);
-	GdiDrawContext ctx(hdc);
-	callback(ctx);
-	::SelectClipRgn(hdc, NULL);
+	SHV_DrawInHDC(hdc, clipRgn, callback);
 	::ReleaseDC(m_hWnd, hdc);
 }
 

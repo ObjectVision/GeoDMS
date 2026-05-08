@@ -342,7 +342,13 @@ void DMS_CONV SHV_DrawInHDC(HDC hdc, const Region& clipRgn, std::function<void(D
 	auto hrgn = RegionToHRGN(clipRgn);
 	::SelectClipRgn(hdc, hrgn);
 	GdiDrawContext ctx(hdc);
-	callback(ctx);
+	try {
+		callback(ctx);
+	}
+	catch (...)
+	{
+		catchAndReportException();
+	}
 	::SelectClipRgn(hdc, NULL);
 	if (hrgn)
 		::DeleteObject(hrgn);
