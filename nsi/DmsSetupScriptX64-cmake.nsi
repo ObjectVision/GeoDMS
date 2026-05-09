@@ -10,15 +10,20 @@
 !define GeoDmsPlatform "x64"
 !define CMakeBinDir "..\build\windows-x64-release\bin"
 
+; Flavor suffix — c for cmake, so install dir / setup filename become
+;   GeoDms<version>c   /   GeoDms<version>c-Setup-x64.exe
+; and co-exist with the msbuild (m) and linux (l) outputs of the same version.
+!define GeoDmsFlavor "c"
+
 !define GeoDmsVersion "$%GeoDmsVersion%"
 !echo "Current Version: ${GeoDmsVersion}"
-Name "GeoDms${GeoDmsVersion} for ${GeoDmsPlatform} (CMake)"
+Name "GeoDms${GeoDmsVersion}${GeoDmsFlavor} for ${GeoDmsPlatform} (CMake)"
 
 ; The file to write
-OutFile "..\distr\GeoDms${GeoDmsVersion}-Setup-${GeoDmsPlatform}-cmake.exe"
+OutFile "..\distr\GeoDms${GeoDmsVersion}${GeoDmsFlavor}-Setup-${GeoDmsPlatform}-cmake.exe"
 
 ; The default installation directory
-InstallDir $PROGRAMFILES64\ObjectVision\GeoDms${GeoDmsVersion}
+InstallDir $PROGRAMFILES64\ObjectVision\GeoDms${GeoDmsVersion}${GeoDmsFlavor}
 
 ; Request application privileges for Windows Vista
 RequestExecutionLevel admin
