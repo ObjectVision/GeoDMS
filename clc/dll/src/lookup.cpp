@@ -139,7 +139,7 @@ template <typename E, typename A> struct same_size_type<std::vector<E, A> > { us
 // *****************************************************************************
 // CalcTileSized: Size-based lookup calculation helper
 // Instantiated only for (T, SizeType) pairs, reducing template bloat
-// for the core lookup_best operation
+// for the core lookup_best operation.
 // *****************************************************************************
 
 template <typename T, typename SameSize>
@@ -152,6 +152,25 @@ void CalcTileSized(typename sequence_traits<SameSize>::seq_t resultData, typenam
 	assert(valuesData.size() == Cardinality(actualIndexRange));// <= domain of valid indexData
 
 	lookup_best(resultData.begin(), resultData.end(), indexData.begin(), valuesData.begin(), actualIndexRange, dcmArg1);
+}
+
+// *****************************************************************************
+// CalcTileSizedWithUndef: variant for the merged (V → SameSize) case where the
+// V-typed UNDEFINED bit-pattern must be propagated explicitly so missing-index
+// slots get V's NULL pattern (not SameSize's). See the comment on
+// LookupOperator::CalcTile below and on lookup_impl_with_undef in lookup.h.
+// *****************************************************************************
+
+template <typename T, typename SameSize>
+void CalcTileSizedWithUndef(typename sequence_traits<SameSize>::seq_t resultData, typename sequence_traits<T>::cseq_t indexData, DataCheckMode dcmArg1, typename Unit<T>::range_t actualIndexRange, typename sequence_traits<SameSize>::cseq_t valuesData, const SameSize& undefVal)
+{
+	assert(resultData.size() == indexData.size());
+	if (!indexData.size())
+		return;
+
+	assert(valuesData.size() == Cardinality(actualIndexRange));// <= domain of valid indexData
+
+	lookup_best_with_undef(resultData.begin(), resultData.end(), indexData.begin(), valuesData.begin(), actualIndexRange, dcmArg1, undefVal);
 }
 
 template <class T, class V>
@@ -241,9 +260,34 @@ public:
 	static void CalcTile(sequence_traits<V>::seq_t resultData, sequence_traits<T>::cseq_t indexData, DataCheckMode dcmArg1, Arg1RangeType actualIndexRange, sequence_traits<V>::cseq_t valuesData)
 	{
 		using SameSize = same_size_type_t<V>;
-		auto sameSizeValuesData = reinterpret_cast<typename sequence_traits<SameSize>::cseq_t&>(valuesData);
-		auto sameSizeResultData = reinterpret_cast<typename sequence_traits<SameSize>::seq_t&>(resultData);
-		CalcTileSized<T, SameSize>(sameSizeResultData, indexData, dcmArg1, actualIndexRange, sameSizeValuesData);
+
+		if constexpr (std::is_same_v<V, SameSize>)
+		{
+			// V is not in the merge table (e.g. String, DPoint, bit_value<N>):
+			// SameSize == V, no reinterpret_cast, original code path with the
+			// `Undefined()` tag handles the missing-index else branch correctly.
+			CalcTileSized<T, SameSize>(resultData, indexData, dcmArg1, actualIndexRange, valuesData);
+		}
+		else
+		{
+			// V is one of the merged numeric/point types and gets reinterpret_cast'd
+			// into a smaller-template-set unsigned proxy (#462). Compute V's
+			// UNDEFINED_VALUE bit-pattern, bytewise-copy it into the SameSize slot,
+			// and propagate that explicit `undefVal` through lookup_best so missing-
+			// index slots receive V's correct NULL bit-pattern (e.g. IPoint NULL =
+			// (INT32_MIN, INT32_MIN) = 0x8000_0000_8000_0000) rather than SameSize's
+			// own NULL (e.g. UInt64 NULL = 0xFF…F = (-1, -1) when reinterpreted back
+			// as IPoint). See the explanatory comment on lookup_impl_with_undef in
+			// clc/dll/include/lookup.h.
+			static_assert(sizeof(V) == sizeof(SameSize));
+			V vUndef = UNDEFINED_VALUE(V);
+			SameSize undefAsSameSize;
+			std::memcpy(&undefAsSameSize, &vUndef, sizeof(V));
+
+			auto sameSizeValuesData = reinterpret_cast<typename sequence_traits<SameSize>::cseq_t&>(valuesData);
+			auto sameSizeResultData = reinterpret_cast<typename sequence_traits<SameSize>::seq_t&>(resultData);
+			CalcTileSizedWithUndef<T, SameSize>(sameSizeResultData, indexData, dcmArg1, actualIndexRange, sameSizeValuesData, undefAsSameSize);
+		}
 	}
 };
 
