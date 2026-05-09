@@ -418,6 +418,9 @@ def loadExperimentFromPickleFile(experiment, exp_fn=None):
         fldrname, filename = getExperimentFileName(experiment)
         exp_fn = fldrname + filename
 
+    # Legacy .bin files were pickled under module name "Profiler" (capital P);
+    # the current module loads under "profiler". Alias so unpickling resolves.
+    sys.modules.setdefault('Profiler', sys.modules[__name__])
     with open(exp_fn, "rb") as f:
         experiment = pickle.load(f)
     return experiment

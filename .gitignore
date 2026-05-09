@@ -36,4 +36,6 @@ todo*.txt
 /qtgui/exe/obj
 /qtgui/exe/bin
 /.claude/settings.local.json
+/.claude/tmp*
+/.claude/__pycache__/
 /profiler/__pycache__

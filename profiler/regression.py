@@ -3,7 +3,24 @@ import platform
 import importlib
 import warnings
 import sys
-from packaging.version import Version
+from packaging.version import Version, InvalidVersion
+
+_FLAVOR_SUFFIXES = ("c", "m", "l")
+
+def _try_parse_version(s:str):
+    """Return packaging.Version(s), or None if s is not a semantic version
+    (e.g. the "local" pseudo-version). None means "newer than anything"
+    in the comparisons below. A trailing flavor suffix (".c"/".m"/".l")
+    is stripped before parsing — otherwise PEP 440 would interpret ".c"
+    as a release-candidate marker (e.g. "20.0.0.c" -> 20.0.0rc0)."""
+    if "." in s:
+        head, tail = s.rsplit(".", 1)
+        if tail in _FLAVOR_SUFFIXES:
+            s = head
+    try:
+        return Version(s)
+    except InvalidVersion:
+        return None
 import glob
 from bs4 import BeautifulSoup
 import webbrowser
@@ -151,7 +168,7 @@ def collect_experiment_summaries(version_range:tuple, result_paths:dict, sorted_
                     prev_results = summaries[row][col+1]["results"]
                     prev_indicators = prev_results[1]
 
-            results = get_regression_test_result(status_code, regression_test, f"{result_paths["results_base_folder"]}/{sorted_valid_result_folders[col-1][0]}", experiment.file_comparison, experiment.result['indicators'], prev_indicators)
+            results = get_regression_test_result(status_code, regression_test, f"{result_paths["results_base_folder"]}/{sorted_valid_result_folders[col-1][0]}", experiment.file_comparison, experiment.result.get('indicators'), prev_indicators)
             summaries[row][col]["status"] = results[0]
             summaries[row][col]["results"] = results
         
@@ -174,6 +191,8 @@ def collect_experiment_summaries(version_range:tuple, result_paths:dict, sorted_
             total_duration += summary_row_col["duration"]
             if summaries[row][col]["status"] == "OK":
                 succeeded += 1
+        if summaries[0][col] is None:
+            summaries[0][col] = get_col_header(col, sorted_valid_result_folders)
         summaries[0][col]["total_duration"] = total_duration
         summaries[0][col]["success_ratio"] = (succeeded, total_tests)
     return summaries
@@ -239,8 +258,9 @@ def get_profile_figure_filename(result_folder:str, regression_test:str):
 
 def get_col_header(col:int, sorted_valid_result_folders:list) -> dict:
     result_folder_name, _,_ = sorted_valid_result_folders[col-1]
-    major, minor, patch, architecture, sf, multithreading, local_machine_name, time, hash = parse_folder_name(result_folder_name)
-    return {"version":f"{major}.{minor}.{patch}", "build":"Release", "platform":architecture, "multi_tasking":multithreading, "computer_name":local_machine_name, "time":time, "hash":hash}
+    major, minor, patch, flavor, architecture, sf, multithreading, local_machine_name, time, hash = parse_folder_name(result_folder_name)
+    display_version = f"{major}.{minor}.{patch}" + (f".{flavor}" if flavor else "")
+    return {"version":display_version, "build":"Release", "platform":architecture, "multi_tasking":multithreading, "computer_name":local_machine_name, "time":time, "hash":hash}
 
 def get_result_col(experiment_file:str, sorted_valid_result_folders:list):
     col = 1
@@ -304,60 +324,86 @@ def get_experiment_name_from_experiment_filename(experiment_filename:str) -> str
 
 def get_valid_result_folders(version:str, result_paths:dict) -> list:
     valid_result_folders = []
+    if not os.path.isdir(result_paths["results_base_folder"]):
+        return valid_result_folders
+    target = _try_parse_version(version)
     result_folder_candidates = os.listdir(result_paths["results_base_folder"])
     for candidate in result_folder_candidates:
         if not folder_is_results_folder(candidate):
             continue
-        parsed_result_folder_name = parse_folder_name(candidate)
-        if len(parsed_result_folder_name)==7:
-            major, minor, patch, architecture, sf, multithreading, local_machine_name = parsed_result_folder_name
-        else:
-            major, minor, patch, architecture, sf, multithreading, local_machine_name, time, hash  = parsed_result_folder_name
-        if Version(f"{major}.{minor}.{patch}") <= Version(version):
+        major, minor, patch, flavor, architecture, sf, multithreading, local_machine_name, time, hash = parse_folder_name(candidate)
+        # Non-semver `version` (e.g. "local") is treated as newer than any
+        # historical numeric version, so all candidates are valid for compare.
+        if target is None or Version(f"{major}.{minor}.{patch}") <= target:
             valid_result_folders.append(candidate)
 
     return valid_result_folders
 
 def folder_is_results_folder(result_folder_name:str) -> bool:
-    # valid: 17_4_5_x64_SF_C1C2C3_OVSRV07
+    # valid legacy:    17_4_5_x64_SF_C1C2C3_OVSRV07               (7 parts)
+    # valid flavored:  20_0_0_c_x64_SF_C1C2C3_OVSRV10             (8 parts)
+    # legacy + ts/hash:   17_4_5_x64_SF_C1C2C3_OVSRV07_<ts>_<hash>   (9)
+    # flavored + ts/hash: 20_0_0_c_x64_SF_C1C2C3_OVSRV10_<ts>_<hash> (10)
     split_result_folder_name = result_folder_name.split("_")
-    split_length = len(split_result_folder_name)
-    if split_length !=7 and split_length != 9:
+    if len(split_result_folder_name) not in (7, 8, 9, 10):
         return False
-    if split_length==7:
-        major, minor, patch, architecture,_,statusflags,machine_name = split_result_folder_name
-    if split_length==9:
-        major, minor, patch, architecture,_,statusflags,machine_name,commit_time,hash = split_result_folder_name
+    major, minor, patch = split_result_folder_name[0:3]
     return major.isdigit() and minor.isdigit() and patch.isdigit()
 
 def parse_folder_name(result_folder_name:str) -> list:
-    result = result_folder_name.split("_")
-    if len(result) == 7:
-        result.extend(["",""])
-    return result
+    """Always returns 10 elements:
+    [major, minor, patch, flavor, arch, sf, multitask, machine, time, hash].
+    Legacy 7/9-part names get an empty flavor inserted at index 3."""
+    parts = result_folder_name.split("_")
+    n = len(parts)
+    if n == 7:
+        major, minor, patch, arch, sf, mt, machine = parts
+        return [major, minor, patch, "", arch, sf, mt, machine, "", ""]
+    if n == 8:
+        major, minor, patch, flavor, arch, sf, mt, machine = parts
+        return [major, minor, patch, flavor, arch, sf, mt, machine, "", ""]
+    if n == 9:
+        major, minor, patch, arch, sf, mt, machine, time, hash = parts
+        return [major, minor, patch, "", arch, sf, mt, machine, time, hash]
+    if n == 10:
+        return parts
+    return parts
 
 def get_datetime_from_folder_name(result_folder_name:str) -> datetime:
-    split_result_folder = result_folder_name.split("_")
+    parts = result_folder_name.split("_")
     commit_time = datetime(1970, 1, 1)
-    if len(split_result_folder) == 9:
-        commit_time = datetime.strptime(split_result_folder[-2], r'%Y%m%d%H%M%S')
+    if len(parts) in (9, 10):
+        commit_time = datetime.strptime(parts[-2], r'%Y%m%d%H%M%S')
     return commit_time
 
 def get_semantic_version_from_folder_name(result_folder_name:str):
-    split_result_folder = result_folder_name.split("_")
-    major, minor, patch,_,_,_,_,_,_ = parse_folder_name(result_folder_name)
+    major, minor, patch, *_ = parse_folder_name(result_folder_name)
     return f"{major}.{minor}.{patch}"
 
+def get_display_version_from_folder_name(result_folder_name:str) -> str:
+    """Numeric version + optional flavor suffix, e.g. "20.0.0.c" or "17.9.5"."""
+    major, minor, patch, flavor, *_ = parse_folder_name(result_folder_name)
+    return f"{major}.{minor}.{patch}" + (f".{flavor}" if flavor else "")
+
 def get_version_range(valid_result_folders:list) -> tuple:
-    newest_tested_geodms_version = get_semantic_version_from_folder_name(valid_result_folders[0])
-    oldest_tested_geodms_version = newest_tested_geodms_version
+    """Returns (newest_display, oldest_display) where the strings include any
+    flavor suffix so reports for different flavors land in distinct files."""
+    if not valid_result_folders:
+        return ("", "")
+    newest_numeric = get_semantic_version_from_folder_name(valid_result_folders[0])
+    oldest_numeric = newest_numeric
+    newest_display = get_display_version_from_folder_name(valid_result_folders[0])
+    oldest_display = newest_display
     for result_folder_name in valid_result_folders:
         version = get_semantic_version_from_folder_name(result_folder_name)
-        if Version(version) > Version(newest_tested_geodms_version):
-            newest_tested_geodms_version = version
-        if Version(version) < Version(oldest_tested_geodms_version):
-            oldest_tested_geodms_version = version
-    return (newest_tested_geodms_version, oldest_tested_geodms_version)
+        display = get_display_version_from_folder_name(result_folder_name)
+        if Version(version) > Version(newest_numeric):
+            newest_numeric = version
+            newest_display = display
+        if Version(version) < Version(oldest_numeric):
+            oldest_numeric = version
+            oldest_display = display
+    return (newest_display, oldest_display)
 
 def get_full_regression_test_environment_string(local_machine_parameters:dict, geodms_paths:dict, regression_test_paths:dict, result_paths:dict) -> str:
     full_regression_test_string = ""
@@ -579,6 +625,11 @@ def render_regression_test_result_html(version_range:tuple, result_paths:dict, r
 def collect_and_generate_test_results(version:str, result_paths:dict):
     valid_result_folders        = get_valid_result_folders(version, result_paths)
     version_range               = get_version_range(valid_result_folders)
+    # Anchor the report filename and title to the just-run flavor so per-flavor
+    # runs produce distinct reports (20_0_0_c vs 20_0_0_m even though both are
+    # numerically 20.0.0).
+    if version:
+        version_range = (version, version_range[1])
     sorted_valid_result_folders = sort_valid_result_folders_new_to_old(valid_result_folders)
     regression_test_names       = get_all_regression_tests_by_name(result_paths, valid_result_folders)
     regression_test_files       = collect_experiment_filenames_per_experiment(regression_test_names, result_paths, sorted_valid_result_folders)
