@@ -19,8 +19,9 @@
 !echo "Current Version: ${GeoDmsVersion}"
 Name "GeoDms${GeoDmsVersion}${GeoDmsFlavor} for ${GeoDmsPlatform} (CMake)"
 
-; The file to write
-OutFile "..\distr\GeoDms${GeoDmsVersion}${GeoDmsFlavor}-Setup-${GeoDmsPlatform}-cmake.exe"
+; The file to write — flavor suffix (`c`) is enough; the trailing `-cmake`
+; in the older filename was redundant once GeoDmsFlavor was introduced.
+OutFile "..\distr\GeoDms${GeoDmsVersion}${GeoDmsFlavor}-Setup-${GeoDmsPlatform}.exe"
 
 ; The default installation directory
 InstallDir $PROGRAMFILES64\ObjectVision\GeoDms${GeoDmsVersion}${GeoDmsFlavor}
@@ -155,8 +156,11 @@ Section "GeoDMS Program Folder"
   SetOutPath $INSTDIR\tls
   File ${CMakeBinDir}\tls\*.*
 
+  ; Qt translations: /nonfatal because the cmake build only stages this
+  ; directory when Qt's qttranslations component is present on the build
+  ; machine. Recipients can still localize via system Qt if needed.
   SetOutPath $INSTDIR\translations
-  File ${CMakeBinDir}\translations\*.*
+  File /nonfatal ${CMakeBinDir}\translations\*.*
 
   ; Geographic data
   SetOutPath $INSTDIR\gdaldata
