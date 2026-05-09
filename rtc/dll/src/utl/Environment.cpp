@@ -1092,7 +1092,8 @@ bool IsFileOrDirAccessible(WeakStr fileOrDirName)
 
 bool IsFileOrDirWritable(WeakStr fileOrDirName)
 {
-	return _access(ConvertDmsFileName(fileOrDirName).c_str(), 2) != -1;
+	auto dosNameW = Utf8_2_wchar(ConvertDmsFileName(fileOrDirName).c_str());
+	return _waccess(dosNameW.get(), 2) != -1;
 }
 
 void GetWritePermission(WeakStr fileName)
