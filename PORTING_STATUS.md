@@ -3,6 +3,18 @@
 Branch: `refactor_linux_gui`
 Last updated: 2026-04-15
 
+## How-to / gotchas
+
+Practical notes that travel with the code, useful when picking up the port
+on a different machine — especially the GUI / display-indirection ones:
+
+| Doc | What it covers |
+|---|---|
+| [doc/linux/wsl-build-setup.md](doc/linux/wsl-build-setup.md) | WSL2 / CMake / vcpkg / Qt6 setup |
+| [doc/linux/qt-hwnd-gotchas.md](doc/linux/qt-hwnd-gotchas.md) | Mouse capture, key events, focus, timer paths in the hybrid HWND/QWidget architecture |
+| [doc/linux/operator-dms-tests.md](doc/linux/operator-dms-tests.md) | Operator.dms unit-test fixes (hex-escape parsing, ASCII translit, intentional non-UTF-8 bytes) |
+| [doc/linux/sa-iterator-lifetime.md](doc/linux/sa-iterator-lifetime.md) | `auto& x = *(iter + n)` dangling-reference pattern (surfaced by Linux GCC) |
+
 ## Build status
 
 | Target | Platform | Status |
