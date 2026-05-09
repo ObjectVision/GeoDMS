@@ -168,6 +168,14 @@ int PassMsg(int argc, char* argv[])
 			myCDS.cbData = 0;
 			myCDS.lpData = nullptr;
 		}
+		else if (std::strcmp(argv[i], "BringToFront") == 0)
+		{
+			// Raise our own window in the Z-order; no WM_COPYDATA needed.
+			// Use continue so the SendMessage at the end of the iteration is skipped.
+			auto mw = MainWindow::TheOne();
+			if (mw) { mw->raise(); mw->activateWindow(); }
+			continue;
+		}
 		else if (std::strcmp(argv[i], "SaveValueInfo") == 0)
 		{
 			if (argc <= ++i)
@@ -237,6 +245,11 @@ int PassMsg(int argc, char* argv[])
 		else if (std::strcmp(argv[i], "TileSubWindows") == 0)
 		{
 			mw->m_mdi_area->tileSubWindows();
+		}
+		else if (std::strcmp(argv[i], "BringToFront") == 0)
+		{
+			mw->raise();
+			mw->activateWindow();
 		}
 		else if (std::strcmp(argv[i], "SEND") == 0)
 		{
