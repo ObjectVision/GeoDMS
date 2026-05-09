@@ -537,7 +537,7 @@ SharedStr AbstrUnit::GetLabelAtIndex(SizeT index, SharedDataItemInterestPtr& ipH
 {
 	if (!ipHolder)
 	{
-		assert(IsMainThread());
+		assert(IsMetaThread());
 		ipHolder = GetLabelAttr();
 	}
 	assert(ipHolder == this->GetCurrLabelAttr());
@@ -548,7 +548,7 @@ SharedStr AbstrUnit::GetLabelAtIndex(SizeT index, SharedDataItemInterestPtr& ipH
 #if defined(MG_DEBUG_INTERESTSOURCE)
 	DemandManagement::BlockIncInterestDetector allowIncInterestsForLabelAccess; // user must choose label wisely; new interest leaks out of this frame.
 #endif //defined(MG_DEBUG_INTERESTSOURCE)
-	if (IsMainThread())
+	if (IsMetaThread())
 	{
 		if (!ipHolder->PrepareDataUsage(DrlType::Certain))
 			return SharedStr();

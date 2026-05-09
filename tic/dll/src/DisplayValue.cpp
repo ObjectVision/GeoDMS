@@ -39,7 +39,7 @@ SharedStr AsStrWithLabel(const AbstrUnit* au, const AbstrValue* valuePtr, bool u
 	SharedUnitInterestPtr uip = { au, existing_obj{} }; // covered by ipHolder soon.
 	if (!ipHolder)
 	{
-		assert(IsMainThread());
+		assert(IsMetaThread());
 		au->PrepareDataUsage(DrlType::Suspendible);
 	}
 

@@ -39,7 +39,7 @@ ErrMsgPtr SetUnrollingErrMsgPtr(ErrMsgPtr msg)
 
 void SetLastHandledErrMsg(ErrMsgPtr msg)
 {
-	if (IsMainThread())
+	if (IsMetaThread())
 		g_LastHandledErrMsgPtr = msg;
 }
 
@@ -61,7 +61,7 @@ SharedStr GenerateContext()
 	{
 		fos << "\nContext:";
 
-		if (!IsMainThread())
+		if (!IsMetaThread())
 			fos << "\nThread " << GetThreadID();
 
 		UInt32 nrContexts = 0;
@@ -385,7 +385,7 @@ namespace { // local defs
 
 extern "C" RTC_CALL void DMS_CONV DMS_SetGlobalCppExceptionTranslator(TCppExceptionTranslator trFunc)
 {
-	assert(IsMainThread());
+	assert(IsMetaThread());
 	s_cppTrFunc = trFunc;
 }
 
@@ -448,7 +448,7 @@ RTC_CALL ErrMsgPtr catchAndReportException()
 
 RTC_CALL void catchAndProcessException()
 {
-	assert(IsMainThread());
+	assert(IsMetaThread());
 	if (!s_cppTrFunc)
 	{
 		catchAndReportException();
@@ -468,8 +468,8 @@ RTC_CALL void catchAndProcessException()
 
 SharedStr GetLastErrorMsgStr()
 {
-	assert(IsMainThread());
-	if (!IsMainThread())
+	assert(IsMetaThread());
+	if (!IsMetaThread())
 		return {};
 
 	return g_LastHandledErrMsgPtr->Why();
@@ -665,7 +665,7 @@ CppTranslatorContext::CppTranslatorContext(TCppExceptionTranslator trFunc)
 
 CppTranslatorContext::~CppTranslatorContext()
 {
-	if (IsMainThread() && !m_PrevCppTranslator)
+	if (IsMetaThread() && !m_PrevCppTranslator)
 	{
 		dms_assert(g_DebugStream);
 	}

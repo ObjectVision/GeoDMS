@@ -36,7 +36,7 @@
 
 void DSM::CancelIfOutOfInterest(const TreeItem* item)
 {
-	if (IsMainThread() && !CancelableFrame::CurrActive())
+	if (IsMetaThread() && !CancelableFrame::CurrActive())
 		return;
 
 	CancelableFrame::CurrActiveCancelIfNoInterestOrForced(DSM::IsCancelling());
@@ -115,7 +115,7 @@ bool MarkSources(const Actor* a, supplier_level level)
 
 TIC_CALL void TreeItem_SetAnalysisTarget(const TreeItem * ti, bool mustClean)
 {
-	assert(IsMainThread());
+	assert(IsMetaThread());
 	if (mustClean)
 	{
 //	TODO: issue: registered suppliers may alredy be destroyed (and locations even be reused !). We need std::weak_ptr here.
@@ -142,7 +142,7 @@ TIC_CALL void TreeItem_SetAnalysisSource(const TreeItem * ti)
 
 TIC_CALL supplier_level TreeItem_GetSupplierLevel(const TreeItem * ti)
 {
-	assert(IsMainThread());
+	assert(IsMetaThread());
 	auto iter = s_SupplierLevels.find(ti);
 	if (iter != s_SupplierLevels.end())
 		return iter->second;

@@ -348,7 +348,7 @@ DataController::~DataController()
 DataControllerRef
 GetDataControllerImpl(LispPtr keyExpr, bool mayCreate)
 {
-	MG_CHECK(IsMainThread() || !mayCreate);
+	MG_CHECK(IsMetaThread() || !mayCreate);
 
 	if (keyExpr.EndP())
 		return {};
@@ -378,7 +378,7 @@ GetDataControllerImpl(LispPtr keyExpr, bool mayCreate)
 #endif
 	assert(!keyExpr.EndP()); // entry condition
 	assert(mayCreate);
-	assert(IsMainThread());
+	assert(IsMetaThread());
 
 	auto dcRef = CreateDC(keyExpr);
 	assert(dcRef->GetLispRef() == keyExpr);

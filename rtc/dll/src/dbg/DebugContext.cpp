@@ -33,14 +33,14 @@ namespace { // local defs
 
 extern "C" RTC_CALL void DMS_CONV DMS_SetContextNotification(TContextNotification clientFunc, ClientHandle clientHandle)
 {
-	assert(IsMainThread());
+	assert(IsMetaThread());
 	s_clientFunc  = clientFunc;
 	s_cientHandle = clientHandle;
 }
 
 void ProgressMsg(CharPtr msg)
 {
-	assert(IsMainThread());
+	assert(IsMetaThread());
 	if (s_clientFunc)
 		(*s_clientFunc)(s_cientHandle, msg);
 }

@@ -168,7 +168,7 @@ bool WriteUnitProps(XML_Table& xmlTable, const AbstrUnit* unit, bool allTileInfo
 {
 	assert(unit);
 	assert(!SuspendTrigger::DidSuspend()); // PRECONDITION
-	assert(IsMainThread());
+	assert(IsMetaThread());
 
 	TreeItem_XML_DumpDescr(unit, xmlTable);
 

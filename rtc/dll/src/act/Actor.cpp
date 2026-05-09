@@ -1541,7 +1541,7 @@ void AssignPhaseNumber(const Actor* item) noexcept
 // Public accessor that ensures assignment and returns cached phase number.
 auto Actor::GetPhaseNumber() const -> phase_number
 {
-    assert(IsMainThread());
+    assert(IsMetaThread());
 //  assert(m_State.GetProgress() >= ProgressState::ProgressState::MetaInfo);
     AssignPhaseNumber(this);
     return m_PhaseNumber;

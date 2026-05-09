@@ -75,7 +75,7 @@ RTC_CALL void DMS_CONV DMS_RegisterMsgCallback(MsgCallbackFunc fcb, ClientHandle
 {
 	DMS_CALL_BEGIN
 
-		assert(IsMainThread());
+		assert(IsMetaThread());
 
 		if (!g_MsgCallbacks) 
 			g_MsgCallbacks.assign( new TMsgCallbackSinkContainer );
@@ -89,7 +89,7 @@ RTC_CALL void DMS_CONV DMS_ReleaseMsgCallback(MsgCallbackFunc fcb, ClientHandle 
 {
 	DMS_CALL_BEGIN
 
-		assert(IsMainThread());
+		assert(IsMetaThread());
 
 		MG_CHECK(g_MsgCallbacks)
 		vector_erase(*g_MsgCallbacks, TMsgCallbackSink(fcb, clientHandle));
@@ -102,7 +102,7 @@ RTC_CALL void DMS_CONV DMS_ReleaseMsgCallback(MsgCallbackFunc fcb, ClientHandle 
 void MsgDispatch(MsgData* msgData, bool moreToCome)
 {
 	assert(msgData);
-	assert((msgData->m_SeverityType == SeverityTypeID::ST_Nothing) || IsMainThread());
+	assert((msgData->m_SeverityType == SeverityTypeID::ST_Nothing) || IsMetaThread());
 	if (!g_MsgCallbacks)
 		return;
 	if (msgData->m_Txt.ssize() > 256)
@@ -203,7 +203,7 @@ namespace { // DebugOutStreamBuff is local
 
 	void ProcessMsgDataPipeline()
 	{
-		assert(IsMainThread());
+		assert(IsMetaThread());
 
 		if (!s_nrRtcStreamLocks)
 			return;
@@ -474,7 +474,7 @@ namespace { // local defs
 		//		third entry of MyNewExceptionHandler,
 		//		don't try to call CalesceHeap, just fire a silent (static) exception
 
-		if (g_MyNewExceptionHandlerCount > 2 || !IsMainThread())
+		if (g_MyNewExceptionHandlerCount > 2 || !IsMetaThread())
 		{
 			dms_assert( g_DebugStream );
 			dbg_assert( 0 ); // break to invoke debugger, hopefully before total disorder starts
@@ -560,7 +560,7 @@ RtcReportLock::RtcReportLock()
 #if defined(_MSC_VER)
 		_set_new_handler(MyNewExceptionHandler);
 #endif
-		assert(IsMainThread());
+		assert(IsMetaThread());
 	}
 }
 
@@ -574,7 +574,7 @@ RtcReportLock::~RtcReportLock()
 		DMS_CALL_BEGIN
 			
 			ReportExistingObjects(); // Dump Memory leaks of PersistentObjects; if registered
-			assert(IsMainThread());
+			assert(IsMetaThread());
 
 		DMS_CALL_END
 	}

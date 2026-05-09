@@ -112,7 +112,7 @@ namespace UpdateMarker {
 	ChangeSourceLock::ChangeSourceLock(const SharedActor* actor, CharPtr contextDescr)
 		: ChangeSourceLock(GetLastChangeTS(actor), contextDescr)
 	{
-//		dms_assert(IsMainThread());
+//		dms_assert(IsMetaThread());
 		g_CurrChangedActor = actor;
 	}
 

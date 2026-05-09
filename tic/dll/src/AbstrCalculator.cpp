@@ -647,7 +647,7 @@ SharedStr AbstrCalculator::EvaluateExpr(const TreeItem* context, CharPtrRange ex
 
 ActorVisitState AbstrCalculator::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor) const
 {
-	assert(IsMainThread());
+	assert(IsMetaThread());
 	GetMetaInfo();
 
 	assert(Test(svf, SupplierVisitFlag::NamedSuppliers) || Test(svf, SupplierVisitFlag::ImplSuppliers) || Test(svf, SupplierVisitFlag::Checker));

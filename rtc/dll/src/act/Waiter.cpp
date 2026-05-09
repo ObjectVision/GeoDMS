@@ -40,7 +40,7 @@ void SetBusy(bool v)
 
 void Waiter::start(AbstrMsgGenerator* ach)
 {
-	assert(IsMainThread());
+	assert(IsMetaThread());
 	if (m_is_counted)
 		return;
 	m_is_counted = true;
@@ -58,7 +58,7 @@ void Waiter::start(AbstrMsgGenerator* ach)
 
 void Waiter::end()
 {
-	assert(IsMainThread());
+	assert(IsMetaThread());
 	if (!m_is_counted)
 		return;
 	m_is_counted = false;
@@ -85,13 +85,13 @@ bool Waiter::IsWaiting()
 
 void register_overlapping_periods_callback(wating_event_callback starting, wating_event_callback ending, void* clientHandle)
 {
-	assert(IsMainThread());
+	assert(IsMetaThread());
 	s_WaitingCallbacks.insert(callback_record( starting, ending, clientHandle ));
 }
 
 void unregister_overlapping_periods_callback(wating_event_callback starting, wating_event_callback ending, void* clientHandle)
 {
-	assert(IsMainThread());
+	assert(IsMetaThread());
 	s_WaitingCallbacks.erase(callback_record(starting, ending, clientHandle));
 }
 

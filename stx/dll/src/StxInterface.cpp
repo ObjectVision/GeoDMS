@@ -55,7 +55,7 @@ static UInt32 s_LoadNumber = 0;
 
 SYNTAX_CALL TreeItem* CreateTreeFromConfiguration(CharPtr sourceFilename)
 {
-	assert(IsMainThread());
+	assert(IsMetaThread());
 
 	//auto current_dir = GetCurrentDir();
 	TreeItem* res = nullptr;

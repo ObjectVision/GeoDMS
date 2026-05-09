@@ -499,7 +499,7 @@ CLC_CALL CharPtr DMS_CONV DMS_NumericDataItem_GetStatistics(const TreeItem* item
 
 		TreeItemContextHandle checkPtr(item, TreeItem::GetStaticClass(), "DMS_NumericDataItem_GetStatistics");
 
-		dms_assert(IsMainThread());
+		dms_assert(IsMetaThread());
 		static ExternalVectorOutStreamBuff::VectorType statisticsBuffer;
 		static const TreeItem*  s_LastItem = 0;
 		static TimeStamp        s_LastChangeTS=0;

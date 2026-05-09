@@ -602,7 +602,7 @@ namespace
 
 		static TokenID CreateName(field_spec fs)
 		{
-			dms_assert(IsMainThread());
+			dms_assert(IsMetaThread());
 
 			const int BUFSIZE = 10 + 9 + 2*4;
 			static char buffer[ BUFSIZE ] = "for_each_n";

@@ -110,7 +110,7 @@ TokenID::TokenID(CharPtr first, CharPtr last, mt_tag*)
 
 TokenID::TokenID(CharPtr first, CharPtr last, st_tag*)
 {
-	dms_assert(IsMainThread());
+	dms_assert(IsMetaThread());
 #if defined(MG_DEBUG)
 	SizeT c = s_TokenListPtr->size();
 #endif

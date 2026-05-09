@@ -1287,7 +1287,7 @@ namespace Explain
 
 			assert(!SuspendTrigger::DidSuspend());
 			SuspendTrigger::Resume();
-			assert(IsMainThread());
+			assert(IsMetaThread());
 
 			Explain::CalcExplanations expl(*xmlOutStrPtr, bShowHidden, context);
 

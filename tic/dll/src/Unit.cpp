@@ -653,7 +653,7 @@ RangedUnit<V>::GetPreparedRange() const
 
 	dms_assert(!this->InTemplate() || this->GetTSF(TSF_HasConfigData)); // PRECONDITION?
 
-	MG_CHECK(IsMainThread()); // DEBUG
+	MG_CHECK(IsMetaThread()); // DEBUG
 
 	dms_check_not_debugonly; 
 	dms_assert(!this->m_State.IsInTrans() || (this->m_State.GetTransState() > actor_flag_set::AF_CalculatingData) );

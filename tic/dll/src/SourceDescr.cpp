@@ -230,7 +230,7 @@ namespace { // local defs
 
 SharedStr TreeItem_GetSourceDescr(const TreeItem* studyObject, SourceDescrMode sdm, bool bShowHidden)
 {
-	dms_assert(IsMainThread());
+	dms_assert(IsMetaThread());
 	TreeItemContextHandle hnd(studyObject, TreeItem::GetStaticClass(), "DMS_TreeItem_GetSourceDescr");
 	
 	auto source_description_string = SourceCalculator(sdm, bShowHidden).GetDescr(studyObject);

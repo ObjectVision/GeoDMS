@@ -837,7 +837,7 @@ void TreeItem::AssertDataChangeRights(CharPtr changeWhat) const
 //	dms_assert(HasConfigSource()); // implied by !IsDerivable && !IsCacheItem(), but MUTATING through HasCalculator
 
 //	AssertPropChangeRights(changeWhat);
-	dms_assert(IsMainThread());
+	dms_assert(IsMetaThread());
 
 	if ((! IsEndogenous()) || s_MakeEndoLockCount)
 		return;
@@ -2261,7 +2261,7 @@ MetaInfo TreeItem::GetCurrMetaInfo(metainfo_policy_flags mpf) const
 {
 	// suppliers have been scanned, thus mc_Calculator and m_SupplCache have been determined.
 //	assert(diagnostic_tests::DetermineStateWasCalled(this));
-	assert(IsMainThread());
+	assert(IsMetaThread());
 
 	if (m_State.Get(ASF_GetCalcMetaInfo))
 		throwItemError(
@@ -2514,7 +2514,7 @@ bool TreeItem::CheckMetaInfoReadyOrPassor() const
 
 const TreeItem* TreeItem::GetBackRef() const 
 {
-//	dms_assert(IsMainThread());
+//	dms_assert(IsMetaThread());
 // TODO: SYNC on backref
 	return m_BackRef;
 }
@@ -3152,7 +3152,7 @@ void TreeItem_RemoveDC(const TreeItem* self)
 {
 	assert(self);
 	assert(!self->IsCacheItem());
-	assert(IsMainThread());
+	assert(IsMetaThread());
 
 	if (!self->mc_DC)
 		return;
@@ -3174,7 +3174,7 @@ void TreeItem_RemoveDC(const TreeItem* self)
 void TreeItem::DoInvalidate() const
 {
 	assert(!IsCacheItem());
-	assert(IsMainThread());
+	assert(IsMetaThread());
 
 	// m_State Has already been set to US_Invalidated before DoInvalidate gets called 
 	if (m_SupplCache)
@@ -3914,7 +3914,7 @@ nodata:
 
 bool TreeItem::PrepareData() const
 {
-	assert(IsMainThread());
+	assert(IsMetaThread());
 
 	if (!PrepareDataUsage(DrlType::Suspendible))
 		return false;
@@ -4483,7 +4483,7 @@ void TreeItem::LoadBlobStream (const InpStreamBuff*)
 /*
 void TreeItem::StoreBlobBuffer(BlobBuffer& rs) const
 {
-	dms_assert(IsInWriteLock(this) || IsMainThread() || (IsUnit(this) && !IsCacheItem()));
+	dms_assert(IsInWriteLock(this) || IsMetaThread() || (IsUnit(this) && !IsCacheItem()));
 	VectorOutStreamBuff os;
 
 	StoreBlobStream(&os);

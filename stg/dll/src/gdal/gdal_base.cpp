@@ -516,7 +516,7 @@ void CheckSpatialReference(std::optional<OGRSpatialReference>& ogrSR, const Tree
 	if (!ogrSR) // dataset spatial reference does not exist, no check possible.
 		return;
 
-	assert(IsMainThread());
+	assert(IsMetaThread());
 	assert(uBase);
 	auto projection = uBase->GetProjectionStr(FormattingFlags::None);
 	SharedStr wktPrjStr(uBase->GetSpatialReference());

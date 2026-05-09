@@ -269,7 +269,7 @@ SharedStr GetStorageBaseName(const TreeItem* configStore)
 
 SharedStr GetProjDir(CharPtr configDir)
 {	
-	assert(IsMainThread());
+	assert(IsMetaThread());
 	assert(*configDir);
 	assert(!HasDosDelimiters(configDir));
 	assert(IsAbsolutePath(configDir));
@@ -1041,7 +1041,7 @@ StorageWriteHandle::StorageWriteHandle(NonmappableStorageManager* storageManager
 void GenerateMetaInfo(AbstrPropWriter& apw, const TreeItem* curr, const TreeItem* contents)
 {
 	assert(contents);
-	assert(IsMainThread());
+	assert(IsMetaThread());
 
 	GenerateSystemInfo(apw, curr);
 
