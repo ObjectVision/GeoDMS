@@ -38,6 +38,9 @@ add_compile_definitions(
     _CRT_SECURE_NO_WARNINGS
     BOOST_SPIRIT_USE_OLD_NAMESPACE
     BOOST_SPIRIT_THREADSAFE
+    # Marker so DMS_PLATFORM (rtc/dll/src/gen/General.cpp) can distinguish
+    # cmake builds from msbuild builds in the GUI title bar.
+    DMS_TOOLSET_CMAKE
 )
 
 # Platform-specific settings

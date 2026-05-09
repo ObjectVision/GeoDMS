@@ -26,9 +26,9 @@
 #	define	DMS_CONFIGURATION_NAME "Release"
 #endif
 
-// Platform string in vcpkg-triplet form: <arch>-<os>, e.g. "x64-windows" or
-// "x64-linux". Surfaces in the GUI title bar (DMS_GetVersion) and via
-// DMS_GetPlatform.
+// Platform string in vcpkg-triplet-like form: <arch>-<os>[-<toolset>], e.g.
+// "x64-windows-cmake", "x64-windows-msbuild", "x64-linux-cmake". Surfaces in
+// the GUI title bar (DMS_GetVersion) and via DMS_GetPlatform.
 #if defined(DMS_64)
 #	define DMS_PLATFORM_ARCH "x64"
 #else
@@ -45,7 +45,16 @@
 #	define DMS_PLATFORM_OS "unknown"
 #endif
 
-#define DMS_PLATFORM DMS_PLATFORM_ARCH "-" DMS_PLATFORM_OS
+// Toolset distinction: cmake defines DMS_TOOLSET_CMAKE in CMakeLists.txt; in
+// its absence we are being built by MSBuild (the .vcxproj/.sln path). Both are
+// surfaced explicitly so the GUI title bar makes the toolset unambiguous.
+#if defined(DMS_TOOLSET_CMAKE)
+#	define DMS_PLATFORM_TOOLSET "-cmake"
+#else
+#	define DMS_PLATFORM_TOOLSET "-msbuild"
+#endif
+
+#define DMS_PLATFORM DMS_PLATFORM_ARCH "-" DMS_PLATFORM_OS DMS_PLATFORM_TOOLSET
 
 Float64 DMS_CONV DMS_GetVersionNumber()
 {
