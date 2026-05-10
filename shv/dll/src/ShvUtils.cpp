@@ -596,6 +596,14 @@ UInt32 GetDefaultFontHeightDIP(FontSizeCategory fid)
 	return g_DefaultFontHDIP[static_cast<int>(fid)];
 }
 
+UInt32 GetDefaultRowHeightDIP(FontSizeCategory fid)
+{
+	// GetDefaultFontHeightDIP returns POINTS (legacy name); * (96/72) gives DIPs.
+	// + 4 DIPs of padding so top-aligned text leaves breathing room above the next
+	// row separator (~5 device px at 125% scale).
+	return UInt32(GetDefaultFontHeightDIP(fid) * (96.0 / 72.0) + 4);
+}
+
 #ifdef _WIN32
 
 Point<UINT> GetWindowEffectiveDPI(HWND hWnd)

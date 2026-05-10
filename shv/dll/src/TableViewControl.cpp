@@ -71,7 +71,7 @@ TableViewControl::~TableViewControl()
 void TableViewControl::ProcessSize(CrdPoint newSize) 
 {
 	bool isColOriented = (m_TableControl) ? m_TableControl->IsColOriented(): true;
-	TType  headerHeight = TType(isColOriented ? DEF_TEXT_PIX_HEIGHT : DEF_TEXT_PIX_WIDTH) + DOUBLE_BORDERSIZE;
+	TType  headerHeight = TType(isColOriented ? GetDefaultRowHeightDIP(GetFontSizeCategory()) : DEF_TEXT_PIX_WIDTH) + DOUBLE_BORDERSIZE;
 	MakeMin(headerHeight, newSize.FlippableY(isColOriented));
 
 	m_TableScrollPort->SetClientRect(CrdRect( prj2dms_order<CrdType>(0, headerHeight, isColOriented), newSize) );
@@ -128,7 +128,7 @@ void TableViewControl::ToggleTableOrientation()
 {
 	m_TableControl->ToggleOrientation();
 	m_TableHeader->ToggleOrientation();
-	m_TableHeader->SetMaxSize((m_TableHeader->IsColOriented() ? DEF_TEXT_PIX_HEIGHT : DEF_TEXT_PIX_WIDTH) + DOUBLE_BORDERSIZE);
+	m_TableHeader->SetMaxSize((m_TableHeader->IsColOriented() ? GetDefaultRowHeightDIP(GetFontSizeCategory()) : DEF_TEXT_PIX_WIDTH) + DOUBLE_BORDERSIZE);
 
 	ProcessSize(GetCurrClientSize());
 }

@@ -565,7 +565,11 @@ void PaletteControl::DoUpdateView()
 		if (m_Layer->GetTheme(AN_Selections))
 			CreateSelCountColumn();
 	}
-	SetRowHeight(GetDefaultFontHeightDIP( GetFontSizeCategory() ) * dv->GetScaleFactors().second);
+	// Same convention as TableControl: GetDefaultFontHeightDIP is in points; (96/72)
+	// converts to DIPs so cell height matches the font height in DIPs. The earlier
+	// `* GetScaleFactors().second` was a workaround that happened to be close at 125%
+	// but produced a different unit (device px for one side, DIP for the other).
+	SetRowHeight(GetDefaultFontHeightDIP(GetFontSizeCategory()) * (96.0 / 72.0));
 	base_type::DoUpdateView();
 }
 

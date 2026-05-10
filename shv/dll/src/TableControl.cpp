@@ -182,7 +182,7 @@ TableControl::TableControl(MovableObject* owner)
 	assert(owner);
 	auto dv = owner->GetDataView().lock();
 	assert(dv);
-	SetRowHeight(GetDefaultFontHeightDIP(GetFontSizeCategory()));
+	SetRowHeight(GetDefaultRowHeightDIP(GetFontSizeCategory()));
 }
 
 TableControl::~TableControl()
