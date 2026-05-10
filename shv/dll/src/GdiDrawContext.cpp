@@ -144,6 +144,27 @@ void GdiDrawContext::SetFont(CharPtr fontName, int pixelHeight, UInt16 angleDegT
 	}
 }
 
+void GdiDrawContext::SetBold(bool isBold)
+{
+	HFONT current = (HFONT)::GetCurrentObject(m_hDC, OBJ_FONT);
+	if (!current)
+		return;
+	LOGFONT lf{};
+	if (!::GetObjectA(current, sizeof(lf), &lf))
+		return;
+	int desired = isBold ? FW_BOLD : FW_NORMAL;
+	if (lf.lfWeight == desired)
+		return;
+	lf.lfWeight = desired;
+	HFONT hFont = ::CreateFontIndirect(&lf);
+	if (!hFont)
+		return;
+	::SelectObject(m_hDC, hFont);
+	if (m_OwnedFont)
+		::DeleteObject(m_OwnedFont);
+	m_OwnedFont = hFont;
+}
+
 void GdiDrawContext::SetTextAlign(bool centerH, bool baseline)
 {
 	UINT flags = TA_NOUPDATECP;

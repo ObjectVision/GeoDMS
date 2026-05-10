@@ -206,6 +206,17 @@ void QtDrawContext::SetFont(CharPtr fontName, int pixelHeight, UInt16 angleDegTe
 	}
 }
 
+void QtDrawContext::SetBold(bool isBold)
+{
+	if (!m_Painter)
+		return;
+	QFont f = m_Painter->font();
+	if (f.bold() == isBold)
+		return;
+	f.setBold(isBold);
+	m_Painter->setFont(f);
+}
+
 void QtDrawContext::SetTextAlign(bool centerH, bool baseline)
 {
 	m_CenterH = centerH;

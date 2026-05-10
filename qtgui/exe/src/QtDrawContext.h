@@ -41,6 +41,7 @@ public:
 	void SetBkColor(DmsColor color) override;
 	void SetBkMode(bool transparent) override;
 	void SetFont(CharPtr fontName, int pixelHeight, UInt16 angleDegTenths) override;
+	void SetBold(bool isBold) override;
 	void SetTextAlign(bool centerH, bool baseline) override;
 
 	GRect GetClipRect() const override;

@@ -79,6 +79,7 @@ public:
 
 	// === Font ===
 	virtual void SetFont(CharPtr fontName, int pixelHeight, UInt16 angleDegTenths = 0) = 0;
+	virtual void SetBold(bool isBold) = 0; // toggles bold weight on the currently-selected font
 	virtual void SetTextAlign(bool centerH, bool baseline) = 0;
 
 	// === Clipping ===
@@ -133,6 +134,7 @@ public:
 	void SetBkColor(DmsColor color) override;
 	void SetBkMode(bool transparent) override;
 	void SetFont(CharPtr fontName, int pixelHeight, UInt16 angleDegTenths) override;
+	void SetBold(bool isBold) override;
 	void SetTextAlign(bool centerH, bool baseline) override;
 
 	GRect GetClipRect() const override;
