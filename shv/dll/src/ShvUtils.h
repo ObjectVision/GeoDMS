@@ -254,16 +254,17 @@ const WCHAR UNDEFINED_WCHAR = 0xFFFF;
 const char16_t UNDEFINED_WCHAR = 0xFFFF;
 #endif
 
-#ifdef _WIN32
-SHV_CALL Float64 GetWindowDip2PixFactorX(HWND hWnd);
-SHV_CALL Float64 GetWindowDip2PixFactorY(HWND hWnd);
-SHV_CALL Point<Float64> GetWindowDip2PixFactors(HWND hWnd);
-
 // Default row height for tabular controls (TableControl, TableHeaderControl, etc.)
 // in DIPs. Derives from font height plus a small constant pad so body+header text
 // (drawn top-aligned) sits inside the cell with breathing room. Returned value is
 // DIPs and gets * dip2pixFactor scaled to device pixels by the layout pipeline.
 SHV_CALL UInt32 GetDefaultRowHeightDIP(FontSizeCategory fid);
+
+#ifdef _WIN32
+SHV_CALL Float64 GetWindowDip2PixFactorX(HWND hWnd);
+SHV_CALL Float64 GetWindowDip2PixFactorY(HWND hWnd);
+SHV_CALL Point<Float64> GetWindowDip2PixFactors(HWND hWnd);
+
 SHV_CALL Float64 GetWindowDip2PixFactor(HWND hWnd);
 SHV_CALL Point<Float64> GetWindowPix2DipFactors(HWND hWnd);
 #endif

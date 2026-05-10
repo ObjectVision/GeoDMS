@@ -18,6 +18,7 @@
 #include "GraphVisitor.h"
 #include "KeyFlags.h"
 #include "MouseEventDispatcher.h"
+#include "ShvUtils.h"
 #include "TableControl.h"
 #include "TextControl.h"
 

@@ -22,6 +22,7 @@
 #include "MenuData.h"
 #include "MouseEventDispatcher.h"
 #include "ScrollPort.h"
+#include "ShvUtils.h"
 #include "TableHeaderControl.h"
 
 //----------------------------------------------------------------------
