@@ -51,9 +51,9 @@ GeoDmsFlavor="${GeoDmsFlavor:-l}"
 
 SRC="${REPO_ROOT}/build/linux-x64-release/bin"
 DISTR="${REPO_ROOT}/distr"
-PKG_NAME="GeoDms${GeoDmsVersion}${GeoDmsFlavor}-linux-x64"
+PKG_NAME="GeoDms${GeoDmsVersion}.${GeoDmsFlavor}-linux-x64"
 STAGE="${DISTR}/${PKG_NAME}"
-INSTALL_PREFIX="/opt/ObjectVision/GeoDms${GeoDmsVersion}${GeoDmsFlavor}"
+INSTALL_PREFIX="/opt/ObjectVision/GeoDms${GeoDmsVersion}.${GeoDmsFlavor}"
 
 # Signing — Object Vision GlobalSign EV Code Signing certificate
 # The private key lives on a SafeNet hardware token (non-exportable).
@@ -142,9 +142,9 @@ chmod +x "${DST}/geodms"
 # ---------------------------------------------------------------------------
 APPS_DIR="${STAGE}/usr/share/applications"
 mkdir -p "${APPS_DIR}"
-cat > "${APPS_DIR}/geodms-${GeoDmsVersion}${GeoDmsFlavor}.desktop" <<EOF
+cat > "${APPS_DIR}/geodms-${GeoDmsVersion}.${GeoDmsFlavor}.desktop" <<EOF
 [Desktop Entry]
-Name=GeoDMS ${GeoDmsVersion}${GeoDmsFlavor}
+Name=GeoDMS ${GeoDmsVersion}.${GeoDmsFlavor}
 Comment=Geographic Data & Model Software
 Exec=${INSTALL_PREFIX}/geodms
 Icon=${INSTALL_PREFIX}/misc/fonts/dms.ttf

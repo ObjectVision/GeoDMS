@@ -17,14 +17,14 @@
 
 !define GeoDmsVersion "$%GeoDmsVersion%"
 !echo "Current Version: ${GeoDmsVersion}"
-Name "GeoDms${GeoDmsVersion}${GeoDmsFlavor} for ${GeoDmsPlatform} (CMake)"
+Name "GeoDms${GeoDmsVersion}.${GeoDmsFlavor} for ${GeoDmsPlatform} (CMake)"
 
 ; The file to write — flavor suffix (`c`) is enough; the trailing `-cmake`
 ; in the older filename was redundant once GeoDmsFlavor was introduced.
-OutFile "..\distr\GeoDms${GeoDmsVersion}${GeoDmsFlavor}-Setup-${GeoDmsPlatform}.exe"
+OutFile "..\distr\GeoDms${GeoDmsVersion}.${GeoDmsFlavor}-Setup-${GeoDmsPlatform}.exe"
 
 ; The default installation directory
-InstallDir $PROGRAMFILES64\ObjectVision\GeoDms${GeoDmsVersion}${GeoDmsFlavor}
+InstallDir $PROGRAMFILES64\ObjectVision\GeoDms${GeoDmsVersion}.${GeoDmsFlavor}
 
 ; Request application privileges for Windows Vista
 RequestExecutionLevel admin

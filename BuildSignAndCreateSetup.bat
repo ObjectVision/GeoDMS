@@ -65,16 +65,16 @@ if ErrorLevel 2 exit /B
 
 :afterNSIS
 set SIGNTOOL=C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe
-"%SIGNTOOL%" sign /debug /a /n "Object Vision" /fd SHA256 /tr http://timestamp.globalsign.com/tsa/r6advanced1 /td SHA256 "distr\GeoDms%GeoDmsVersion%%GeoDmsFlavor%-Setup-x64.exe"
+"%SIGNTOOL%" sign /debug /a /n "Object Vision" /fd SHA256 /tr http://timestamp.globalsign.com/tsa/r6advanced1 /td SHA256 "distr\GeoDms%GeoDmsVersion%.%GeoDmsFlavor%-Setup-x64.exe"
 CHOICE /M  "Signing OK? Ready to run installation?"
 if ErrorLevel 2 goto afterNSIS
 
-if exist "C:\Program Files\ObjectVision\GeoDms%GeoDmsVersion%%GeoDmsFlavor%" CHOICE /M "Removed "C:\Program Files\ObjectVision\GeoDms%GeoDmsVersion%%GeoDmsFlavor%" or accept testing with an overwritten folder ?"
+if exist "C:\Program Files\ObjectVision\GeoDms%GeoDmsVersion%.%GeoDmsFlavor%" CHOICE /M "Removed "C:\Program Files\ObjectVision\GeoDms%GeoDmsVersion%.%GeoDmsFlavor%" or accept testing with an overwritten folder ?"
 
-"distr\GeoDms%GeoDmsVersion%%GeoDmsFlavor%-Setup-x64.exe" /S
+"distr\GeoDms%GeoDmsVersion%.%GeoDmsFlavor%-Setup-x64.exe" /S
 
-del filelist%GeoDmsVersion%%GeoDmsFlavor%.txt
-FORFILES /P "C:\Program Files\ObjectVision\GeoDms%GeoDmsVersion%%GeoDmsFlavor%" /S /C "cmd /c echo @relpath" >> filelist%GeoDmsVersion%%GeoDmsFlavor%.txt
+del filelist%GeoDmsVersion%.%GeoDmsFlavor%.txt
+FORFILES /P "C:\Program Files\ObjectVision\GeoDms%GeoDmsVersion%.%GeoDmsFlavor%" /S /C "cmd /c echo @relpath" >> filelist%GeoDmsVersion%.%GeoDmsFlavor%.txt
 
 cd ..\tst\batch
 Call unit.bat %GeoDmsVersion% off
