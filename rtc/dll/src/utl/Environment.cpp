@@ -564,6 +564,7 @@ extern "C" RTC_CALL bool DMS_CONV RTC_ParseRegStatusFlag(const char* param)
 		case 'E': SetCachedStatusFlag(RSF_EventLogVisible, newValue); break;
 		case 'T': SetCachedStatusFlag(RSF_ToolBarVisible, newValue); break;
 		case 'I': SetCachedStatusFlag(RSF_CurrentItemBarHidden, newValue); break;
+		case 'M': SetCachedStatusFlag(RSF_DebugMode, newValue); break;
 		case 'R': SetCachedStatusFlag(RSF_DynamicROI, newValue); break;
 		case 'S':
 		case '0': SetCachedStatusFlag(RSF_SuspendForGUI, newValue); break;
@@ -2416,6 +2417,7 @@ extern "C" RTC_CALL bool DMS_CONV RTC_ParseRegStatusFlag(const char* param)
 		case 'E': SetCachedStatusFlag(RSF_EventLogVisible, newValue); break;
 		case 'T': SetCachedStatusFlag(RSF_ToolBarVisible, newValue); break;
 		case 'I': SetCachedStatusFlag(RSF_CurrentItemBarHidden, newValue); break;
+		case 'M': SetCachedStatusFlag(RSF_DebugMode, newValue); break;
 		case 'R': SetCachedStatusFlag(RSF_DynamicROI, newValue); break;
 		case 'S': case '0': SetCachedStatusFlag(RSF_SuspendForGUI, newValue); break;
 		case '1': SetCachedStatusFlag(RSF_MultiThreading1, newValue); break;
