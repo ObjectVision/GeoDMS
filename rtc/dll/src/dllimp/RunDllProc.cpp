@@ -23,6 +23,7 @@
 
 #include "geo/StringBounds.h"
 #include "set/VectorFunc.h"
+#include "utl/Environment.h"  // Utf8_2_wchar
 
 #include <map>
 
@@ -81,7 +82,10 @@ private:
 
 static void LoadDll(DllHandle& hnd, CharPtr dllname)
 {
-	hnd.SetInstance(LoadLibrary(dllname));
+	// dllname is UTF-8; the unsuffixed LoadLibrary resolves to LoadLibraryA
+	// (no UNICODE/_UNICODE in this project), interpreting the bytes as ACP.
+	// Use the wide-char variant so non-ASCII DLL paths load correctly.
+	hnd.SetInstance(LoadLibraryW(Utf8_2_wchar(dllname).get()));
 }
 
 #else //defined(WIN32)

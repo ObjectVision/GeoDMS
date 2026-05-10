@@ -1557,7 +1557,15 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 		throwErrorF("GDAL", "Unsupported rwMode %d for %s", int(rwMode), data_source_name.c_str());
 
 	auto path = SharedStr(CPLGetPath(data_source_name.c_str())); // some GDAL drivers cannot create when there is no folder present (ie GPKG)
-	if (!std::filesystem::is_directory(path.c_str()) && !std::filesystem::create_directories(path.c_str()))
+	// path is UTF-8; std::filesystem::* (const char*) on MSVC interprets it as
+	// the active code page. Build a wchar_t-typed path so non-ASCII directories
+	// work. See #1101 for the same UTF-8/ANSI antipattern.
+#if defined(_MSC_VER)
+	auto fsPath = std::filesystem::path(Utf8_2_wchar(path.c_str()).get());
+#else
+	auto fsPath = std::filesystem::path(path.c_str());
+#endif
+	if (!std::filesystem::is_directory(fsPath) && !std::filesystem::create_directories(fsPath))
 		throwErrorF("GDAL", "Unable to create directories: %s", path);
 
 	auto driver_short_name = GetDriverShortNameFromDataSourceNameOrDriverArray(data_source_name.c_str(), driver_array);
@@ -1574,7 +1582,12 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 
 	if (!continueWrite || driver_short_name == "GML" || (gdalOpenFlags & GDAL_OF_RASTER))
 	{
-		if (std::filesystem::exists(data_source_name.c_str()))
+#if defined(_MSC_VER)
+		bool dataSourceExists = std::filesystem::exists(Utf8_2_wchar(data_source_name.c_str()).get());
+#else
+		bool dataSourceExists = std::filesystem::exists(data_source_name.c_str());
+#endif
+		if (dataSourceExists)
 			driver->Delete(data_source_name.c_str()); gdal_error_frame.GetMsgAndReleaseError(); // start empty, release error in case of nonexistance.
 
 		// check for values unit support in driver

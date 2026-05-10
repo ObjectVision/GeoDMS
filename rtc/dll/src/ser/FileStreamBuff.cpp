@@ -25,7 +25,15 @@ SharedStr ConvertFileName(WeakStr fileName)
 FileOutStreamBuff::FileOutStreamBuff(WeakStr fileName, bool isAsciiFile, bool mustAppend)
 	:	m_FileName((GetWritePermission(fileName), fileName))
 	,	m_ofstream(
+			// On MSVC, std::ofstream(const char*) interprets the path as the
+			// active code page; non-ASCII filenames break. Use the wchar_t*
+			// overload via Utf8_2_wchar so UTF-8 paths are handled correctly.
+			// See #1101 for the original symptom of this antipattern.
+#if defined(_MSC_VER)
+			Utf8_2_wchar(ConvertFileName(fileName).c_str()).get()
+#else
 			ConvertFileName(fileName).c_str()
+#endif
 		,	std::ios_base::openmode(std::ios::out | (isAsciiFile ? 0 : std::ios::binary) | (mustAppend ? std::ios::app : 0)
 		))
 {
@@ -63,9 +71,13 @@ FileInpStreamBuff::FileInpStreamBuff(WeakStr fileName, bool isAsciiFile)
 	:	m_ByteCount(0)
 	,	m_FileName(fileName)
 	,	m_ifstream(
-			ConvertFileName(fileName).c_str(), 
-			(isAsciiFile) 
-				?	(std::ios::in) 
+#if defined(_MSC_VER)
+			Utf8_2_wchar(ConvertFileName(fileName).c_str()).get(),
+#else
+			ConvertFileName(fileName).c_str(),
+#endif
+			(isAsciiFile)
+				?	(std::ios::in)
 				:	(std::ios::in | std::ios::binary)
 		)
 {
