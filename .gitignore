@@ -38,4 +38,5 @@ todo*.txt
 /.claude/settings.local.json
 /.claude/tmp*
 /.claude/__pycache__/
+/.claude/scheduled_tasks.lock
 /profiler/__pycache__
