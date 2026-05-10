@@ -750,7 +750,7 @@ void DataItemColumn::DrawElement(GraphDrawer& d, SizeT rowNr, GRect elemDeviceEx
 	if (isSymbol || !GetEnabledTheme(AN_LabelText))
 	{
 		auto* dc = d.GetDrawContext();
-		if (isActive) 
+		if (isActive)
 			bkClr = GetFocusClr();
 		if (IsDefined(bkClr))
 			dc->FillRect(elemDeviceExtents, bkClr);
@@ -759,7 +759,11 @@ void DataItemColumn::DrawElement(GraphDrawer& d, SizeT rowNr, GRect elemDeviceEx
 			WCHAR wSymb = GetSymbol(recNo);
 			DmsColor clr = isActive ? COLORREF2DmsColor(GetFocusTextClr()) : GetColor(recNo, AN_LabelTextColor);
 			if (!IsDefined(clr)) clr = GraphicObject::GetDefaultTextColor();
-			dc->TextOutW(GPoint(elemDeviceExtents.left, elemDeviceExtents.top), &wSymb, 1, clr);
+			dc->SetBold(false);
+			// 1-px left pad so the value does not sit flush against the column separator.
+			// No vertical offset: TableControl/PaletteControl size cells to font in DIPs
+			// (see SetRowHeight), so top-aligned text sits naturally inside the box.
+			dc->TextOutW(GPoint(elemDeviceExtents.left + 1, elemDeviceExtents.top), &wSymb, 1, clr);
 		}
 	}
 	else
@@ -777,7 +781,11 @@ void DataItemColumn::DrawElement(GraphDrawer& d, SizeT rowNr, GRect elemDeviceEx
 			clr = textInfo.m_Grayed ? CombineRGB(100, 100, 100) : GetColor(recNo, AN_LabelTextColor);
 		if (!IsDefined(clr))
 			clr = GraphicObject::GetDefaultTextColor();
-		dc->TextOut(GPoint(elemDeviceExtents.left, elemDeviceExtents.top), textInfo.m_Text.c_str(), textInfo.m_Text.ssize(), clr);
+		dc->SetBold(false);
+		// 1-px left pad so the value does not sit flush against the column separator.
+		// No vertical offset: TableControl/PaletteControl size cells to font in DIPs
+		// (see SetRowHeight), so top-aligned text sits naturally inside the box.
+		dc->TextOut(GPoint(elemDeviceExtents.left + 1, elemDeviceExtents.top), textInfo.m_Text.c_str(), textInfo.m_Text.ssize(), clr);
 	}
 	if (isActive)
 	{

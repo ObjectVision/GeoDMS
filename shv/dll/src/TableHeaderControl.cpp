@@ -14,6 +14,8 @@
 
 #include "DataItemColumn.h"
 #include "DataView.h"
+#include "DrawContext.h"
+#include "GraphVisitor.h"
 #include "KeyFlags.h"
 #include "MouseEventDispatcher.h"
 #include "TableControl.h"
@@ -97,6 +99,16 @@ public:
 		return true;
 	}
 
+	// Render header text in bold; restore non-bold so subsequent cell paints in the
+	// same DC do not inherit the weight.
+	bool Draw(GraphDrawer& d) const override
+	{
+		auto* dc = d.GetDrawContext();
+		if (dc) dc->SetBold(true);
+		bool result = base_type::Draw(d);
+		if (dc) dc->SetBold(false);
+		return result;
+	}
 
 	std::shared_ptr<DataItemColumn> GetDic() const { return m_Dic;  }
 
@@ -254,7 +266,7 @@ TableHeaderControl::TableHeaderControl(MovableObject* owner, TableControl* table
 	assert(tableControl);
 	assert(owner);
 	auto dv = owner->GetDataView().lock(); assert(dv);
-	SetMaxSize((IsColOriented() ? DEF_TEXT_PIX_HEIGHT + DOUBLE_BORDERSIZE : DEF_TEXT_PIX_WIDTH + DOUBLE_BORDERSIZE));
+	SetMaxSize((IsColOriented() ? GetDefaultRowHeightDIP(GetFontSizeCategory()) + DOUBLE_BORDERSIZE : DEF_TEXT_PIX_WIDTH + DOUBLE_BORDERSIZE));
 }
 
 void TableHeaderControl::DoUpdateView()
@@ -300,7 +312,7 @@ void TableHeaderControl::DoUpdateView()
 		auto headerWidth = dic->CalcClientSize().FlippableX(isColOriented) 
 			+ Size(dic->GetBorderLogicalExtents()).FlippableX(isColOriented) 
 			- Size(columnHeader->GetBorderLogicalExtents()).FlippableX(isColOriented);
-		auto headerSize = prj2dms_order<TType>(headerWidth, isColOriented ? DEF_TEXT_PIX_HEIGHT : DEF_TEXT_PIX_WIDTH, isColOriented);
+		auto headerSize = prj2dms_order<TType>(headerWidth, isColOriented ? GetDefaultRowHeightDIP(GetFontSizeCategory()) : DEF_TEXT_PIX_WIDTH, isColOriented);
 		columnHeader->SetClientSize(headerSize);
 		columnHeader->SetIsInverted(m_TableControl->m_Cols.IsInRange(i));
 		if (activeDic == dic)
