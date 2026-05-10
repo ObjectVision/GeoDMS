@@ -97,10 +97,20 @@ if(DEFINED VCPKG_TARGET_TRIPLET)
     endforeach()
 endif()
 
-# Deploy DMS script library and example configurations
+# Deploy DMS script library and example configurations.
+# Both CopyResources/<dir>/ and the top-level <dir>/ are valid sources;
+# msbuild .vcxproj copies from the top-level layout while CopyResources/
+# is the older cmake input. The two have drifted slightly (e.g. only
+# library/ has Units.dms) — copy from both so the cmake bin matches the
+# msbuild bin in coverage. Top-level wins on collision (last `file(COPY)`
+# overwrites).
 foreach(_res_dir library examples)
     if(IS_DIRECTORY ${CMAKE_SOURCE_DIR}/CopyResources/${_res_dir})
         file(COPY ${CMAKE_SOURCE_DIR}/CopyResources/${_res_dir}
+             DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+    endif()
+    if(IS_DIRECTORY ${CMAKE_SOURCE_DIR}/${_res_dir})
+        file(COPY ${CMAKE_SOURCE_DIR}/${_res_dir}
              DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
     endif()
 endforeach()

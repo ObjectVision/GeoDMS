@@ -30,6 +30,10 @@ target_link_libraries(GeoDmsGuiQt PRIVATE
 if(WIN32)
     target_link_libraries(GeoDmsGuiQt PRIVATE Shcore shell32)
     set_target_properties(GeoDmsGuiQt PROPERTIES WIN32_EXECUTABLE TRUE)
+    # Match msbuild's 64 MB stack reserve (DmsDef.props). See run/exe/CMakeLists.txt
+    # for context — without this the cmake build over-triggers the meta-thread
+    # baton transfer (#1102).
+    target_link_options(GeoDmsGuiQt PRIVATE "/STACK:67108864,8192")
 endif()
 
 # Deploy Qt plugins and translations alongside the executable.

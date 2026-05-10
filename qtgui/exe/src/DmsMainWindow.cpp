@@ -1028,7 +1028,15 @@ void MainWindow::cleanRecentFilesThatDoNotExistOrListedBefore()
                 continue;
             }
             auto dosFileName = ConvertDmsFileName(SharedStr(it_rf->c_str()));
-            if (std::filesystem::exists(dosFileName.c_str())) 
+            // dosFileName is UTF-8; std::filesystem::exists(const char*) on
+            // MSVC interprets it as the active code page. Use the wchar_t*
+            // overload so non-ASCII recent-file paths are recognised.
+#if defined(_MSC_VER)
+            bool fileExists = std::filesystem::exists(Utf8_2_wchar(dosFileName.c_str()).get());
+#else
+            bool fileExists = std::filesystem::exists(dosFileName.c_str());
+#endif
+            if (fileExists)
             {
                 ++it_rf; // and this one
                 continue;

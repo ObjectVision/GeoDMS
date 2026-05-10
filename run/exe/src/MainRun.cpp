@@ -106,7 +106,16 @@ int main2_without_SE(int argc, char** argv)
 	std::ofstream outstream;
 	if (!fileName.empty())
 	{
+#if defined(_MSC_VER)
+		// fileName is UTF-8 (CLI arg). MSVC's std::ofstream(const std::string&)
+		// interprets the path as the active code page; for non-ASCII paths
+		// this fails or opens the wrong file. Use the wchar_t* overload,
+		// transcoding via Utf8_2_wchar (same fix family as #1101).
+		auto wideName = Utf8_2_wchar(fileName.c_str());
+		outstream = std::ofstream(wideName.get());
+#else
 		outstream = std::ofstream(fileName);
+#endif
 		dataOut = &outstream;
 	}
 

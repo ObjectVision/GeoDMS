@@ -46,8 +46,8 @@ echo --- creating Linux setup (.tar.gz + .deb, signed via PowerShell .NET Signed
 wsl bash -c "cd /mnt/c/dev/GeoDMS_2026 && export GeoDmsVersion=%GeoDmsVersion% && bash nsi/CreateLinuxSetup.sh"
 if errorlevel 1 goto :nsis_failed
 
-set DEB=distr\GeoDms%GeoDmsVersion%%GeoDmsFlavor%-linux-x64.deb
-set TARBALL=distr\GeoDms%GeoDmsVersion%%GeoDmsFlavor%-linux-x64.tar.gz
+set DEB=distr\GeoDms%GeoDmsVersion%.%GeoDmsFlavor%-linux-x64.deb
+set TARBALL=distr\GeoDms%GeoDmsVersion%.%GeoDmsFlavor%-linux-x64.tar.gz
 if not exist "%DEB%" (
     if not exist "%TARBALL%" (
         echo CreateLinuxSetup.sh produced neither %DEB% nor %TARBALL%
@@ -58,10 +58,10 @@ if not exist "%DEB%" (
 echo --- installing .deb in WSL (passwordless sudo required, or skipped) ---
 wsl bash -c "if [ -f '/mnt/c/dev/GeoDMS_2026/%DEB:\=/%' ] && sudo -n true 2>/dev/null; then sudo dpkg -i '/mnt/c/dev/GeoDMS_2026/%DEB:\=/%'; else echo '** skipping dpkg install (no passwordless sudo) — install manually with:  wsl sudo dpkg -i /mnt/c/dev/GeoDMS_2026/%DEB:\=/%'; fi"
 
-echo === DONE: GeoDms%GeoDmsVersion%%GeoDmsFlavor% built and packaged ===
+echo === DONE: GeoDms%GeoDmsVersion%.%GeoDmsFlavor% built and packaged ===
 if exist "%DEB%"     echo   .deb:     %DEB%
 if exist "%TARBALL%" echo   tarball:  %TARBALL%
-echo Run regression with:    python full.py -version %GeoDmsVersion%%GeoDmsFlavor%
+echo Run regression with:    python full.py -version %GeoDmsVersion%.%GeoDmsFlavor%
 endlocal
 exit /B 0
 

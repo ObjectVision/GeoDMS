@@ -140,7 +140,10 @@ SharedStr RegistryHandle::ReadString(CharPtr name) const
 
 void RegistryHandle::DeleteValue(CharPtr name) const
 {
-	RegDeleteValue(m_Key, name);
+	// `name` is UTF-8; the unsuffixed RegDeleteValue resolves to
+	// RegDeleteValueA which interprets it as the active code page. Match
+	// the *W convention used everywhere else in this module.
+	RegDeleteValueW(m_Key, Utf8_2_wchar(name).get());
 }
 
 

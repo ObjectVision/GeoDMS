@@ -3,14 +3,14 @@
 
 !define GeoDmsVersion "$%GeoDmsVersion%"
 !echo "Current Version: {GeoDmsVersion}"
-Name "GeoDms${GeoDmsVersion}${GeoDmsFlavor} for ${GeoDmsPlatform}"
+Name "GeoDms${GeoDmsVersion}.${GeoDmsFlavor} for ${GeoDmsPlatform}"
 
 
 ; The file to write
-OutFile "..\distr\GeoDms${GeoDmsVersion}${GeoDmsFlavor}-Setup-${GeoDmsPlatform}.exe"
+OutFile "..\distr\GeoDms${GeoDmsVersion}.${GeoDmsFlavor}-Setup-${GeoDmsPlatform}.exe"
 
 ; The default installation directory
-InstallDir ${PlatformPF}\ObjectVision\GeoDms${GeoDmsVersion}${GeoDmsFlavor}
+InstallDir ${PlatformPF}\ObjectVision\GeoDms${GeoDmsVersion}.${GeoDmsFlavor}
 
 ; Request application privileges for Windows Vista
 RequestExecutionLevel admin ; required for writing in program files and start menu

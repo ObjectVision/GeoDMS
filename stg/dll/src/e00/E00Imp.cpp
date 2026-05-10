@@ -37,6 +37,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "dbg/Check.h"
 #include "dbg/debug.h"
+#include "utl/Environment.h"  // Utf8_2_wchar (MSVC narrow→wide path conversion)
 
 #include <string.h>
 #include <share.h>
@@ -96,13 +97,19 @@ bool E00Imp::OpenForRead(const char * name)
 
 	// try to open
 	Close();
+    // `name` is UTF-8; narrow _fsopen interprets it as the active code page,
+    // breaking non-ASCII filenames. Use the wide-char variant on MSVC.
+#if defined(_MSC_VER)
+    if((FP = _wfsopen( Utf8_2_wchar(name).get(), L"r", _SH_DENYWR )) == NULL) return false;
+#else
     if((FP = _fsopen( name, "r", _SH_DENYWR )) == NULL) return false;
+#endif
 	else
 	{
 		strcpy(sFileName, name);
 		DBG_TRACE(("Opened: %s", sFileName));
 	}
- 
+
 	// read header info
 	if (ReadHeader() == false) return false;
 	
@@ -119,13 +126,18 @@ bool E00Imp::OpenForWrite(const char * name)
 
 	// try to open
 	Close();
+    // Same UTF-8 vs ACP issue as OpenForRead above.
+#if defined(_MSC_VER)
+    if((FP = _wfsopen( Utf8_2_wchar(name).get(), L"w", _SH_DENYWR )) == NULL) return false;
+#else
     if((FP = _fsopen( name, "w", _SH_DENYWR )) == NULL) return false;
+#endif
 	else
 	{
 		strcpy(sFileName, name);
 		DBG_TRACE(("Opened: %s", sFileName));
 	}
- 
+
 	// write header info
 	if (WriteHeader() == false) return false;
 	

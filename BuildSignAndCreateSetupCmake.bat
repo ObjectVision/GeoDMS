@@ -62,7 +62,7 @@ if errorlevel 1 (
 )
 cd ..
 
-set INSTALLER=distr\GeoDms%GeoDmsVersion%%GeoDmsFlavor%-Setup-x64.exe
+set INSTALLER=distr\GeoDms%GeoDmsVersion%.%GeoDmsFlavor%-Setup-x64.exe
 if not exist "%INSTALLER%" (
     echo NSIS produced no installer at %INSTALLER%
     goto :nsis_failed
@@ -74,7 +74,7 @@ set SIGNTOOL=C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtoo
     /tr http://timestamp.globalsign.com/tsa/r6advanced1 /td SHA256 "%INSTALLER%"
 if errorlevel 1 goto :sign_failed
 
-set INSTALL_DIR=%ProgramFiles%\ObjectVision\GeoDms%GeoDmsVersion%%GeoDmsFlavor%
+set INSTALL_DIR=%ProgramFiles%\ObjectVision\GeoDms%GeoDmsVersion%.%GeoDmsFlavor%
 if exist "%INSTALL_DIR%" (
     echo --- silent uninstall of previous %INSTALL_DIR% ---
     if exist "%INSTALL_DIR%\uninstaller.exe" "%INSTALL_DIR%\uninstaller.exe" /S _?=%INSTALL_DIR%
@@ -84,11 +84,11 @@ echo --- silent install ---
 "%INSTALLER%" /S
 echo Installed to: %INSTALL_DIR%
 
-del filelist%GeoDmsVersion%%GeoDmsFlavor%.txt 2>nul
-FORFILES /P "%INSTALL_DIR%" /S /C "cmd /c echo @relpath" >> filelist%GeoDmsVersion%%GeoDmsFlavor%.txt 2>nul
+del filelist%GeoDmsVersion%.%GeoDmsFlavor%.txt 2>nul
+FORFILES /P "%INSTALL_DIR%" /S /C "cmd /c echo @relpath" >> filelist%GeoDmsVersion%.%GeoDmsFlavor%.txt 2>nul
 
-echo === DONE: GeoDms%GeoDmsVersion%%GeoDmsFlavor% built, signed, installed ===
-echo Run regression with:    python full.py -version %GeoDmsVersion%%GeoDmsFlavor%
+echo === DONE: GeoDms%GeoDmsVersion%.%GeoDmsFlavor% built, signed, installed ===
+echo Run regression with:    python full.py -version %GeoDmsVersion%.%GeoDmsFlavor%
 endlocal
 exit /B 0
 

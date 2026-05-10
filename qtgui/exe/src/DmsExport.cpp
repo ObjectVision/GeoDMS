@@ -246,7 +246,15 @@ void DoExportTable(const TreeItem* ti, SharedStr fn, TreeItem* vdc)
     if (fn.empty())
         return;
 
+    // fn is UTF-8; std::filesystem::path(const char*) on MSVC interprets it
+    // as the active code page (CP1252), garbling non-ASCII paths. Build the
+    // path from a wchar_t* via Utf8_2_wchar so the bytes are decoded as UTF-8.
+    // See #1101 for the original symptom of this antipattern.
+#if defined(_MSC_VER)
+    auto filePath = std::filesystem::path(Utf8_2_wchar(fn.c_str()).get());
+#else
     auto filePath = std::filesystem::path(fn.c_str());
+#endif
     if (vdGeometry)
     {
         auto shpPath = filePath; shpPath.replace_extension("shp");
