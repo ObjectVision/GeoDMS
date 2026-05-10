@@ -334,6 +334,8 @@ int RunTestLine(SharedStr line)
 	char* argv[MAX_ARG_COUNT];
 	int argc = 0;
 	char* currPtr = line.begin();
+	while (currPtr != line.end() && *currPtr && isspace(*currPtr))
+		++currPtr;
 	while (argc < MAX_ARG_COUNT && currPtr != line.end() && *currPtr)
 	{
 		if (*currPtr == '"')
