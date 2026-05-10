@@ -243,13 +243,20 @@ namespace py_geodms
 			MG_USERCHECK2(s_currSingleEngine == nullptr, "Engine should only be constructed once");
 			s_currSingleEngine = this;
 
-			TCHAR szPath[MAX_PATH];
-			::GetModuleFileName((HINSTANCE)&__ImageBase, szPath, _MAX_PATH);
-			auto dll_path = std::filesystem::path(szPath).remove_filename();
+			// TCHAR is `char` here (UNICODE/_UNICODE not defined for this
+			// project), so the unsuffixed GetModuleFileName resolves to
+			// GetModuleFileNameA — returning the path in the active code
+			// page. DMS_Appl_SetExeDir treats its argument as UTF-8, so
+			// non-ASCII install paths would be mojibake'd. Use the wide
+			// variant + Utf8 transcoding to fix.
+			wchar_t wPath[MAX_PATH];
+			::GetModuleFileNameW((HINSTANCE)&__ImageBase, wPath, _MAX_PATH);
+			auto dll_path = std::filesystem::path(wPath).remove_filename();
 
 			DMS_Clc_Load();
 			DMS_Geo_Load();
-			DMS_Appl_SetExeDir(dll_path.string().c_str()); // only call once
+			auto exe_dir_utf8 = wchar_2_Utf8Str(dll_path.wstring().c_str());
+			DMS_Appl_SetExeDir(exe_dir_utf8.c_str()); // only call once
 		}
 		~Engine()
 		{

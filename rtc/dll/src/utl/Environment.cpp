@@ -50,20 +50,28 @@ struct LocalAllocatedPtr
 
 SharedStr platform::GetSystemErrorText(DWORD lastErr)
 {
-	LocalAllocatedPtr lpMsgBuf;
-	FormatMessage( 
-		FORMAT_MESSAGE_ALLOCATE_BUFFER | 
-		FORMAT_MESSAGE_FROM_SYSTEM | 
+	// Use FormatMessageW so the system-language message comes back in UTF-16,
+	// then transcode to UTF-8 for the rest of the DMS string pipeline.
+	// FormatMessageA returns the message in the active code page, which then
+	// gets handed up as if it were UTF-8 — non-ASCII characters in localised
+	// system messages would become mojibake.
+	LPWSTR wMsgBuf = nullptr;
+	auto wLen = ::FormatMessageW(
+		FORMAT_MESSAGE_ALLOCATE_BUFFER |
+		FORMAT_MESSAGE_FROM_SYSTEM |
 		FORMAT_MESSAGE_IGNORE_INSERTS,
 		NULL,
 		lastErr,
 		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), // Default language
-		(LPTSTR) &(lpMsgBuf.m_Ptr),
+		reinterpret_cast<LPWSTR>(&wMsgBuf),
 		0,
-		NULL 
+		NULL
 	);
-	// Process any inserts in lpMsgBuf.
-	return SharedStr((LPCTSTR)lpMsgBuf.m_Ptr MG_DEBUG_ALLOCATOR_SRC("platform::GetSystemErrorText"));
+	if (!wMsgBuf || wLen == 0)
+		return SharedStr();
+	auto utf8 = wchar_2_Utf8Str(wMsgBuf, wLen);
+	::LocalFree(wMsgBuf);
+	return utf8;
 };
 
 RTC_CALL bool platform::isCharPtrAndExceeds_MAX_PATH(CharPtr xFileName)
@@ -203,7 +211,11 @@ void AddFontResourceExA_checked(_In_ LPCSTR name, _In_ DWORD fl, _Reserved_ PVOI
 		auto result = AddFontResourceExW(nameW.get(), fl, res);
 		if (result)
 			break;
-		auto userResponse = MessageBoxA(nullptr, mySSPrintF("Failed to load FontResource %s", name).c_str(), "Warning", MB_ABORTRETRYIGNORE | MB_ICONWARNING);
+		// MessageBoxW: the message contains the font filename (UTF-8) which
+		// would mojibake under ANSI MessageBoxA for non-ASCII paths.
+		auto msg     = mySSPrintF("Failed to load FontResource %s", name);
+		auto msgW    = Utf8_2_wchar(msg.c_str());
+		auto userResponse = MessageBoxW(nullptr, msgW.get(), L"Warning", MB_ABORTRETRYIGNORE | MB_ICONWARNING);
 		switch (userResponse)
 		{
 		case IDABORT: terminate();
