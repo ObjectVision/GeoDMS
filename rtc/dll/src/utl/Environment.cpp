@@ -1497,6 +1497,7 @@ struct WindowsComponent : AbstrVersionComponent {
 #include <fcntl.h>
 #include <pwd.h>
 #include <spawn.h>
+#include <strings.h>     // strncasecmp
 #include <sys/wait.h>
 
 #include <vector>
@@ -1542,30 +1543,38 @@ SizeT RemainingStackSpace()
 	// Linux. Without baton transfer, deeply recursive cfg trees would
 	// overflow the main thread's stack instead of handing the metadata
 	// work to a worker.
-	pthread_attr_t attr;
-	if (pthread_getattr_np(pthread_self(), &attr) != 0)
+	//
+	// pthread_getattr_np reads /proc/self/maps via getline — millisecond
+	// cost on every call, which surfaces as massive slowdowns when
+	// UpdateMetaInfo runs in tight per-record loops (gpkg writer was
+	// 80 min vs 2 min on Windows). Cache the stack base in TLS — it is
+	// stable for the thread's lifetime.
+	thread_local uintptr_t s_stack_low = 0;
+	if (!s_stack_low)
 	{
-		// Fallback: rlimit-based estimate, halved (preserves previous
-		// behaviour if pthread introspection is unavailable for some
-		// reason — e.g. very stripped-down libc).
-		struct rlimit rl;
-		getrlimit(RLIMIT_STACK, &rl);
-		return rl.rlim_cur / 2;
+		pthread_attr_t attr;
+		if (pthread_getattr_np(pthread_self(), &attr) != 0)
+		{
+			// Fallback: rlimit-based estimate, halved (preserves previous
+			// behaviour if pthread introspection is unavailable for some
+			// reason — e.g. very stripped-down libc).
+			struct rlimit rl;
+			getrlimit(RLIMIT_STACK, &rl);
+			return rl.rlim_cur / 2;
+		}
+		void*  stack_addr = nullptr;
+		size_t stack_size = 0;
+		pthread_attr_getstack(&attr, &stack_addr, &stack_size);
+		pthread_attr_destroy(&attr);
+		s_stack_low = reinterpret_cast<uintptr_t>(stack_addr);
 	}
-	void*  stack_addr = nullptr;
-	size_t stack_size = 0;
-	pthread_attr_getstack(&attr, &stack_addr, &stack_size);
-	pthread_attr_destroy(&attr);
 
-	// stack_addr is the LOW end of the stack region [stack_addr, stack_addr+stack_size).
-	// On every architecture currently targeted (x86_64, aarch64, ...), the stack
-	// grows downward, so RemainingStackSpace = current_sp - stack_addr.
+	// stack grows downward on x86_64/aarch64; remaining = current_sp - base.
 	char stackVar;
 	auto current_sp = reinterpret_cast<uintptr_t>(&stackVar);
-	auto stack_low  = reinterpret_cast<uintptr_t>(stack_addr);
-	if (current_sp <= stack_low)
+	if (current_sp <= s_stack_low)
 		return 0;
-	return current_sp - stack_low;
+	return current_sp - s_stack_low;
 }
 
 void Wait(UInt32 nrMillisecs)
@@ -2558,9 +2567,28 @@ namespace PlatformInfo
 	RTC_CALL bool GetEnv(CharPtr varName, SharedStr& result)
 	{
 		const char* val = getenv(varName);
-		if (!val) return false;
-		result = SharedStr(val);
-		return true;
+		if (val)
+		{
+			result = SharedStr(val);
+			return true;
+		}
+		// Linux env vars are case-sensitive; Windows env vars are not.
+		// Test harnesses (e.g. tst/batch/full.py) sometimes set var names in
+		// a different case than what callers look up — match Windows
+		// behaviour by walking environ for a case-insensitive hit.
+		size_t nameLen = std::strlen(varName);
+		for (char** envp = environ; envp && *envp; ++envp)
+		{
+			const char* eq = std::strchr(*envp, '=');
+			if (!eq) continue;
+			if (size_t(eq - *envp) != nameLen) continue;
+			if (strncasecmp(*envp, varName, nameLen) == 0)
+			{
+				result = SharedStr(eq + 1);
+				return true;
+			}
+		}
+		return false;
 	}
 
 	RTC_CALL bool GetEnvString(CharPtr section, CharPtr key, SharedStr& result)
