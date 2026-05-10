@@ -167,7 +167,7 @@ struct FindFileBlock
 	RTC_CALL ~FindFileBlock() noexcept;
 
 	RTC_CALL bool    IsValid() const;
-	RTC_CALL CharPtr GetCurrFileName() const;
+	RTC_CALL CharPtr GetCurrFileName() const;          // UTF-8 (transcoded from WIN32_FIND_DATAW::cFileName)
 	RTC_CALL DWORD   GetFileAttr() const;
 	RTC_CALL bool    IsDirectory() const;
 	RTC_CALL FileDateTime GetFileOrDirDateTime() const;
@@ -175,8 +175,12 @@ struct FindFileBlock
 	RTC_CALL bool    Next();
 
 private:
+	// m_Data carries a WIN32_FIND_DATAW (wide-char filenames). m_CurrFileNameUtf8
+	// is refreshed from cFileName whenever the iterator advances, so that
+	// GetCurrFileName() can hand back a stable UTF-8 string pointer to callers.
 	std::unique_ptr<Byte[]> m_Data;
 	HANDLE                  m_Handle;
+	mutable SharedStr       m_CurrFileNameUtf8;
 };
 
 using start_process_result_t = std::pair<HANDLE, HANDLE>;

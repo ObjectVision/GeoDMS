@@ -652,7 +652,12 @@ void MakeDir(WeakStr dirName)
 
 bool IsDosDir(WeakStr dosFileName, CharPtr dmsFileName)
 {
-	DWORD attr = GetFileAttributes(dosFileName.c_str());
+	// dosFileName is UTF-8; the unsuffixed GetFileAttributes resolves to
+	// GetFileAttributesA (UNICODE/_UNICODE not defined for this project),
+	// which interprets the bytes as the active code page. Use the wide-
+	// char variant so non-ASCII paths (e.g. Greek β) resolve correctly.
+	// See #1101 for the original symptom.
+	DWORD attr = GetFileAttributesW(Utf8_2_wchar(dosFileName.c_str()).get());
 	if (attr == INVALID_FILE_ATTRIBUTES)
 		throwLastSystemError("IsDir(%s)", dmsFileName);
 	return (attr & FILE_ATTRIBUTE_DIRECTORY);
@@ -790,11 +795,14 @@ extern "C" RTC_CALL void DMS_CONV DMS_MakeDirsForFile(CharPtr fileName)
 //  -----------------------------------------------------------------------
 
 FindFileBlock::FindFileBlock(WeakStr fileSearchSpec)
-	:	m_Data  (new Byte[sizeof(WIN32_FIND_DATA)])
+	:	m_Data  (new Byte[sizeof(WIN32_FIND_DATAW)])
 	,	m_Handle(
-			FindFirstFile(
-				ConvertDmsFileName(fileSearchSpec).c_str()
-			,	reinterpret_cast<WIN32_FIND_DATA*>(m_Data.get())
+			// Use the wide-char variant: WIN32_FIND_DATA (= WIN32_FIND_DATAA
+			// since UNICODE/_UNICODE aren't defined for this project) would
+			// fail on non-ASCII filenames the same way #1101 did.
+			FindFirstFileW(
+				Utf8_2_wchar(ConvertDmsFileName(fileSearchSpec).c_str()).get()
+			,	reinterpret_cast<WIN32_FIND_DATAW*>(m_Data.get())
 			)
 		)
 {
@@ -821,7 +829,7 @@ bool FindFileBlock::IsValid() const
 DWORD FindFileBlock::GetFileAttr() const
 {
 	dms_assert(IsValid());
-	return reinterpret_cast<const WIN32_FIND_DATA*>(m_Data.get())->dwFileAttributes;
+	return reinterpret_cast<const WIN32_FIND_DATAW*>(m_Data.get())->dwFileAttributes;
 }
 
 bool FindFileBlock::IsDirectory() const
@@ -831,12 +839,17 @@ bool FindFileBlock::IsDirectory() const
 
 CharPtr FindFileBlock::GetCurrFileName() const
 {
-	return reinterpret_cast<const WIN32_FIND_DATA*>(m_Data.get())->cFileName;
+	// Lazy-cache the UTF-8 transcoding of cFileName so the returned pointer
+	// stays valid for the caller's lifetime of this iterator entry.
+	if (m_CurrFileNameUtf8.empty())
+		m_CurrFileNameUtf8 = wchar_2_Utf8Str(reinterpret_cast<const WIN32_FIND_DATAW*>(m_Data.get())->cFileName);
+	return m_CurrFileNameUtf8.c_str();
 }
 
 bool FindFileBlock::Next()
 {
-	return FindNextFile(m_Handle, reinterpret_cast<WIN32_FIND_DATA*>(m_Data.get()));
+	m_CurrFileNameUtf8 = SharedStr(); // invalidate cached UTF-8 view
+	return FindNextFileW(m_Handle, reinterpret_cast<WIN32_FIND_DATAW*>(m_Data.get()));
 }
 
 FileDateTime AsFileDateTime(UInt32 hiDW, UInt32 loDW)
@@ -860,7 +873,7 @@ FileDateTime FindFileBlock::GetFileOrDirDateTime() const
 {
 	if (IsValid())
 	{
-		const WIN32_FIND_DATA* findData= reinterpret_cast<const WIN32_FIND_DATA*>(m_Data.get());
+		const WIN32_FIND_DATAW* findData= reinterpret_cast<const WIN32_FIND_DATAW*>(m_Data.get());
 		return AsFileDateTime(
 			findData->ftLastWriteTime.dwHighDateTime,
 			findData->ftLastWriteTime.dwLowDateTime
@@ -913,11 +926,14 @@ error:
 void SetWritable(CharPtr dosFileName)
 {
 	// PRECONDITION: fileName is in dos format (no file:// prefix).
-	DWORD dwAttrs = GetFileAttributes(dosFileName);
-	if (dwAttrs & FILE_ATTRIBUTE_READONLY) 
-	{ 
-		SetFileAttributes(dosFileName, dwAttrs & ~FILE_ATTRIBUTE_READONLY);
-	} 
+	// dosFileName is UTF-8; use the wide-char Win32 variants so non-ASCII
+	// paths (e.g. Greek β, see #1101) actually resolve.
+	auto wideName = Utf8_2_wchar(dosFileName);
+	DWORD dwAttrs = GetFileAttributesW(wideName.get());
+	if (dwAttrs & FILE_ATTRIBUTE_READONLY)
+	{
+		SetFileAttributesW(wideName.get(), dwAttrs & ~FILE_ATTRIBUTE_READONLY);
+	}
 }
 
 bool CopyOrMoveFileOrDirImpl(CharPtr srcFileOrDirName, CharPtr destFileOrDirName, bool mustCopy, bool mayBeMissing)
@@ -952,9 +968,11 @@ bool CopyOrMoveFileOrDirImpl(CharPtr srcFileOrDirName, CharPtr destFileOrDirName
 		fullSrcDOS = ConvertDmsFileName(fullSrc),
 		fullDstDOS = ConvertDmsFileName(fullDst);
 
+	auto wideSrc = Utf8_2_wchar(fullSrcDOS.c_str());
+	auto wideDst = Utf8_2_wchar(fullDstDOS.c_str());
 	if (!mustCopy)
 	{
-		if (!MoveFile(fullSrcDOS.c_str(), fullDstDOS.c_str()))
+		if (!MoveFileW(wideSrc.get(), wideDst.get()))
 		{
 			if (GetLastError() != 2 || !mayBeMissing)
 				return false;
@@ -963,7 +981,7 @@ bool CopyOrMoveFileOrDirImpl(CharPtr srcFileOrDirName, CharPtr destFileOrDirName
 	}
 	else
 	{
-		DWORD attr = GetFileAttributes(fullSrcDOS.c_str());
+		DWORD attr = GetFileAttributesW(wideSrc.get());
 		if (attr == INVALID_FILE_ATTRIBUTES)
 			throwLastSystemError("CopyFileOrDir(%s, %s)", srcFileOrDirName, destFileOrDirName);
 
@@ -974,7 +992,7 @@ bool CopyOrMoveFileOrDirImpl(CharPtr srcFileOrDirName, CharPtr destFileOrDirName
 		}
 		else
 		{
-			if (!CopyFile(fullSrcDOS.c_str(), fullDstDOS.c_str(), FALSE))
+			if (!CopyFileW(wideSrc.get(), wideDst.get(), FALSE))
 				throwLastSystemError("CopyFile(%s, %s)", srcFileOrDirName, destFileOrDirName);
 			SetWritable(fullDstDOS.c_str());
 		}
@@ -1049,9 +1067,10 @@ bool KillFileOrDir(WeakStr fileOrDirName, bool canBeDir)
 		if (!KillAllInDir(fileOrDirName.c_str()))
 			return false;
 
+		auto wideName = Utf8_2_wchar(dosFileOrDirName.c_str());
 		UInt32 retryConter = 0;
 		do {
-			if (RemoveDirectory(dosFileOrDirName.c_str()))
+			if (RemoveDirectoryW(wideName.get()))
 				return true;
 			if (BreakingReport("RemoveDirectory", fileOrDirName.c_str()))
 				break;
@@ -1072,9 +1091,10 @@ bool KillFileOrDir(WeakStr fileOrDirName, bool canBeDir)
 				"Only .dmsdata, .tmp or .old extensions are allowed now.", fileOrDirName.c_str()
 			);
 
+		auto wideName = Utf8_2_wchar(dosFileOrDirName.c_str());
 		UInt32 retryConter = 0;
 		do {
-			if (DeleteFile(dosFileOrDirName.c_str()))
+			if (DeleteFileW(wideName.get()))
 				return true;
 			if (BreakingReport("DeleteFile", fileOrDirName.c_str()))
 				break;
@@ -1441,11 +1461,20 @@ struct WindowsComponent : AbstrVersionComponent {
 // Linux implementations of Environment.h declarations
 // =====================================================================
 
+// pthread_getattr_np is a glibc extension (note the _np = "non-portable"
+// suffix) — its declaration is only visible when _GNU_SOURCE is set. Other
+// libcs (musl) provide it too but might gate it the same way. The define
+// below is local to the Linux block.
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
 #include <cerrno>
 #include <climits>
+#include <pthread.h>     // pthread_getattr_np / pthread_attr_getstack — for RemainingStackSpace
+#include <sys/resource.h>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -1490,13 +1519,40 @@ RTC_CALL DWORD platform::GetLastError()
 
 SizeT RemainingStackSpace()
 {
-	struct rlimit rl;
-	getrlimit(RLIMIT_STACK, &rl);
-	// Approximate: distance from current stack variable to estimated stack bottom
+	// Real per-thread measurement: ask pthread for the current thread's
+	// stack [base, base+size), then return (current_sp - base).
+	//
+	// The previous implementation returned a fake constant (rl.rlim_cur/2),
+	// which on a default 8 MB Linux stack is ~4 MB — always above the
+	// 327680 (=320 KB) threshold in TreeItem::UpdateMetaInfo, so the
+	// meta-thread baton transfer that #1102 depends on never fired on
+	// Linux. Without baton transfer, deeply recursive cfg trees would
+	// overflow the main thread's stack instead of handing the metadata
+	// work to a worker.
+	pthread_attr_t attr;
+	if (pthread_getattr_np(pthread_self(), &attr) != 0)
+	{
+		// Fallback: rlimit-based estimate, halved (preserves previous
+		// behaviour if pthread introspection is unavailable for some
+		// reason — e.g. very stripped-down libc).
+		struct rlimit rl;
+		getrlimit(RLIMIT_STACK, &rl);
+		return rl.rlim_cur / 2;
+	}
+	void*  stack_addr = nullptr;
+	size_t stack_size = 0;
+	pthread_attr_getstack(&attr, &stack_addr, &stack_size);
+	pthread_attr_destroy(&attr);
+
+	// stack_addr is the LOW end of the stack region [stack_addr, stack_addr+stack_size).
+	// On every architecture currently targeted (x86_64, aarch64, ...), the stack
+	// grows downward, so RemainingStackSpace = current_sp - stack_addr.
 	char stackVar;
-	// This is a rough approximation; for a more precise solution, use pthread_attr_getstack
-	SizeT stackSize = rl.rlim_cur;
-	return stackSize / 2; // conservative estimate
+	auto current_sp = reinterpret_cast<uintptr_t>(&stackVar);
+	auto stack_low  = reinterpret_cast<uintptr_t>(stack_addr);
+	if (current_sp <= stack_low)
+		return 0;
+	return current_sp - stack_low;
 }
 
 void Wait(UInt32 nrMillisecs)
