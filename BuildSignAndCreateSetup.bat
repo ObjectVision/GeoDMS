@@ -1,9 +1,10 @@
 echo on
 cls
 
-set DMS_VERSION_MAJOR=20
-set DMS_VERSION_MINOR=0
-set DMS_VERSION_PATCH=0
+REM Version comes from nsi\GeoDmsVersion.cmd (shared with the cmake + linux
+REM sister scripts). Bump the patch number there, not here.
+call nsi\GeoDmsVersion.cmd
+
 REM Flavor suffix appended to install dir + setup filename. Sister scripts:
 REM   BuildSignAndCreateSetupCmake.bat (c)  /  BuildSignAndCreateSetupLinux.bat (l)
 set GeoDmsFlavor=m
@@ -18,9 +19,9 @@ cd tst
 git pull
 cd %geodms_rootdir%
 
-CHOICE /M "Write lastest version number and date into header files?"
-if ErrorLevel 2 goto :retryBuild
-
+REM Always refresh the generated headers with the version from
+REM nsi\GeoDmsVersion.cmd and a fresh build timestamp. No CHOICE — the
+REM headers are tiny and ensure the binaries report the right version.
 echo #define DMS_VERSION_MAJOR %DMS_VERSION_MAJOR% > "rtc/dll/src/RtcGeneratedVersion.h"
 echo #define DMS_VERSION_MINOR %DMS_VERSION_MINOR% >> "rtc/dll/src/RtcGeneratedVersion.h"
 echo #define DMS_VERSION_PATCH %DMS_VERSION_PATCH% >> "rtc/dll/src/RtcGeneratedVersion.h"
@@ -28,26 +29,13 @@ echo #define DMS_VERSION_PATCH %DMS_VERSION_PATCH% >> "rtc/dll/src/RtcGeneratedV
 echo #define DMS_BUILD_DATE "%DATE%" > "rtc/dll/src/buildstamp.h"
 echo #define DMS_BUILD_TIME "%TIME%" >> "rtc/dll/src/buildstamp.h"
 
-REM CHOICE /M "Build GeoDms %GeoDmsVersion%?"
-REM if ErrorLevel 2 goto :setupCreation
-
-set MS_VERB=build
-CHOICE /M "Rebuild all Release x64 (requires start from Tools..Cmd line)?"
-if ErrorLevel 2 goto :retryBuild
-
-set MS_VERB=rebuild
-del /s /q "bin\release\x64"
-
+REM Always do an incremental build. If intermediates become funky, clean
+REM from the MSVC IDE or `rmdir /s /q bin build` from the shell — no need
+REM for a CHOICE inside this script.
 :retryBuild
-REM msbuild all22.sln -t:%MS_VERB% -p:Configuration=Debug -p:Platform=x64
-msbuild all22.sln -t:%MS_VERB% -p:Configuration=Release -p:Platform=x64
-REM 2nd build to complete copy actions.
-REM set MS_VERB=build
-REM msbuild all22.sln -t:%MS_VERB% -p:Configuration=Debug -p:Platform=x64
-REM msbuild all22.sln -t:%MS_VERB% -p:Configuration=Release -p:Platform=x64
+msbuild all22.sln -t:build -p:Configuration=Release -p:Platform=x64
 
 CHOICE /M  "Built OK? Ready to create installation?"
-set MS_VERB=build
 if ErrorLevel 2 goto retryBuild
 
 :setupCreation

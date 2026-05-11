@@ -13,9 +13,9 @@ REM Run from the repo root:  C:\dev\GeoDMS_2026>BuildSignAndCreateSetupCmake.bat
 
 cls
 
-set DMS_VERSION_MAJOR=20
-set DMS_VERSION_MINOR=0
-set DMS_VERSION_PATCH=0
+REM Version comes from nsi\GeoDmsVersion.cmd (shared with the msbuild + linux
+REM sister scripts). Bump the patch number there, not here.
+call nsi\GeoDmsVersion.cmd
 set GeoDmsFlavor=c
 
 set geodms_rootdir=%cd%
