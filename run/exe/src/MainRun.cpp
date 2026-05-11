@@ -39,13 +39,34 @@ int main2_without_SE(int argc, char** argv)
 
 	std::cout << std::endl << "LocalDataDir:" << GetLocalDataDir() << std::endl;
 
+	// Unknown-option guard: on Windows '/x' is the option-prefix convention,
+	// on Linux it's '-x'. Anything that survives the known-option parsing
+	// above (/L, /S<X>, /C<X>) and still looks like an option must be a typo
+	// or unsupported — fail loudly rather than treating it as a cfg name.
+	if (argc >= 1)
+	{
+#ifdef _WIN32
+		bool isUnknownOpt = (argv[0][0] == '/');
+#else
+		bool isUnknownOpt = (argv[0][0] == '-' && argv[0][1] != '\0');
+#endif
+		if (isUnknownOpt)
+		{
+			std::cerr << std::endl
+				<< "Unknown command-line option " << argv[0]
+				<< ". Known options: /L<log>, /S<X>/C<X> status flags." << std::endl;
+			return 2;
+		}
+	}
+
 	if (argc <= 1)
 	{
-		std::cerr << "To (re)calculate a resulting item use:\n\n" 
+		std::cerr << "To (re)calculate a resulting item use:\n\n"
 			<< "   GeoDmsRun.exe [/PProjName] [/LLogFileName] ConfigFileName ItemNames\n\n"
 			<< "Multiple item names can be specified and data will be committed to the external storages that are configured for the mentioned items\n\n";
 		return 2;
 	}
+
 	int result = 0;
 
 	std::cout << std::endl << "Read configuration file " << argv[0] << std::endl;

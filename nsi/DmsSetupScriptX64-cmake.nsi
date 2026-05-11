@@ -63,21 +63,18 @@ Section "GeoDMS Program Folder"
   File ${CMakeBinDir}\DmClc.dll
   File ${CMakeBinDir}\DmGeo.dll
 
-  ; Qt core DLLs
+  ; Qt core DLLs (QWidget-based UI: Core/Gui/Widgets; Svg for SVG icons).
+  ; Qt6Network, D3Dcompiler_47/dxcompiler/dxil and opengl32sw are picked up
+  ; by windeployqt as RHI/QtQuick fallbacks — GeoDmsGuiQt uses neither, so
+  ; we skip them and save ~42 MB installed (verified by smoke-testing
+  ; GeoDmsGuiQt with the files renamed aside).
   File ${CMakeBinDir}\Qt6Core.dll
   File ${CMakeBinDir}\Qt6Gui.dll
-  File ${CMakeBinDir}\Qt6Network.dll
   File ${CMakeBinDir}\Qt6Svg.dll
   File ${CMakeBinDir}\Qt6Widgets.dll
 
   ; Python runtime (pulled in by geodms.pyd)
   File /nonfatal ${CMakeBinDir}\python3*.dll
-
-  ; DirectX / shader support (from Qt)
-  File /nonfatal ${CMakeBinDir}\D3Dcompiler_47.dll
-  File /nonfatal ${CMakeBinDir}\dxcompiler.dll
-  File /nonfatal ${CMakeBinDir}\dxil.dll
-  File /nonfatal ${CMakeBinDir}\opengl32sw.dll
 
   ; vcpkg third-party DLLs
   File ${CMakeBinDir}\boost_locale-vc145-mt-x64-1_88.dll
