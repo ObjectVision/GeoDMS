@@ -63,18 +63,10 @@ Section "GeoDMS Program Folder"
   File ${CMakeBinDir}\DmClc.dll
   File ${CMakeBinDir}\DmGeo.dll
 
-  ; Qt core DLLs
   File ${CMakeBinDir}\Qt6Core.dll
   File ${CMakeBinDir}\Qt6Gui.dll
-  File ${CMakeBinDir}\Qt6Network.dll
   File ${CMakeBinDir}\Qt6Svg.dll
   File ${CMakeBinDir}\Qt6Widgets.dll
-
-  ; DirectX / shader support (from Qt)
-  File /nonfatal ${CMakeBinDir}\D3Dcompiler_47.dll
-  File /nonfatal ${CMakeBinDir}\dxcompiler.dll
-  File /nonfatal ${CMakeBinDir}\dxil.dll
-  File /nonfatal ${CMakeBinDir}\opengl32sw.dll
 
   ; vcpkg third-party DLLs
   File ${CMakeBinDir}\boost_locale-vc145-mt-x64-1_88.dll

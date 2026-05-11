@@ -20,6 +20,7 @@
 #include "dbg/DebugLog.h"
 #include "dbg/DmsCatch.h"
 #include "utl/Environment.h"
+#include "utl/mySPrintF.h"
 #include "utl/splitPath.h"
 #include "xct/DmsException.h"
 #include "xct/ErrMsg.h"
@@ -88,9 +89,17 @@ std::any interpret_command_line_parameters(CmdLineSetttings& settingsFrame) {
         }
     }
     if (argc) {
+        // Unknown-option guard: on Windows '/x' is the option-prefix
+        // convention; on Linux it's '-x'. Anything that survives the known-
+        // option parsing above and still looks like an option must be a typo
+        // or an unsupported flag — fail loudly rather than silently treating
+        // it as a config-file name.
 #ifdef _WIN32
         if ((*argv)[0] == '/')
-            throw CmdLineException("configuration name expected ");
+            throw CmdLineException(mySSPrintF("Unknown command-line option %s. Known options: /L<log>, /T<test>, /S<X>/C<X> status flags, /noconfig.", *argv));
+#else
+        if ((*argv)[0] == '-' && (*argv)[1] != '\0')
+            throw CmdLineException(mySSPrintF("Unknown command-line option %s. Known options: /L<log>, /T<test>, /S<X>/C<X> status flags, /noconfig.", *argv));
 #endif
 
         settingsFrame.m_ConfigFileName = SharedStr(*argv);
