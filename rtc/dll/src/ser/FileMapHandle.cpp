@@ -1068,13 +1068,13 @@ ViewData::ViewData(MappedFileHandle* mappedFile, DWORD desiredAccess, dms::files
 			(unsigned long long)viewOffset, (unsigned long long)viewCapacity);
 
 	m_Ptr = addr;
+	m_LinuxMmapSize = viewCapacity;
 }
 
 ViewData::~ViewData()
 {
-	// Note: munmap requires size, which is not tracked here.
-	// This will be fully addressed when FileView is ported.
-	// For now, the OS reclaims on process exit.
+	if (m_Ptr && m_LinuxMmapSize)
+		munmap(m_Ptr, m_LinuxMmapSize);
 }
 
 // -----------------------------------------------------------------------

@@ -149,7 +149,18 @@ struct ViewData : ptr_base<void, movable>
 	void operator=(ViewData&& rhs) noexcept
 	{
 		ptr_base<void, movable >::swap(rhs);
+#if !defined(_MSC_VER)
+		std::swap(m_LinuxMmapSize, rhs.m_LinuxMmapSize);
+#endif
 	}
+
+#if !defined(_MSC_VER)
+	// Linux: track mmap size for munmap on destruction. Windows uses
+	// UnmapViewOfFile which only needs the address; Linux munmap requires
+	// the size and leaks the mapping if we forget. Fixed an unbounded
+	// anon-RSS growth that OOM-killed long-running tile-heavy runs (t641).
+	std::size_t m_LinuxMmapSize = 0;
+#endif
 };
 
 struct FileViewHandle
