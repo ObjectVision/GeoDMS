@@ -328,12 +328,21 @@ TieCursorController::TieCursorController(DataView* owner, GraphicObject* target
 
 bool TieCursorController::Move (EventInfo& eventInfo)
 {
+	// Only warp the cursor when the event point actually escaped the tie rect.
+	// Calling SetCursorPos on every MOUSEDRAG (including those where no clamp was
+	// needed) used to be a no-op under Win32's ::SetCursorPos, but on the Qt port the
+	// QCursor::setPos round-trip and Qt event-loop timing turn it into a per-frame
+	// "pull" that the user perceives as the column border drifting left while the
+	// mouse is held still (Issue 1100, also seen by Jip).
+	GPoint origPoint = eventInfo.m_Point;
 	MakeUpperBound( eventInfo.m_Point, m_TieRect.LeftTop());
 	MakeLowerBound( eventInfo.m_Point, m_TieRect.RightBottom());
-	GPoint mousePoint = eventInfo.m_Point;
-	auto dv = GetOwner().lock();
-	if (dv)
-		dv->SetCursorPos(mousePoint);
+	if (eventInfo.m_Point != origPoint)
+	{
+		auto dv = GetOwner().lock();
+		if (dv)
+			dv->SetCursorPos(eventInfo.m_Point);
+	}
 	return false;
 }
 
