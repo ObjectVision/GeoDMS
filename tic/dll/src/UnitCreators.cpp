@@ -176,7 +176,7 @@ ConstUnitRef compatible_values_unit_creator_func(arg_index nrSkippedArgs, const 
 		const UnitMetric* currArg_MetricPtr = currArg_ValuesUnit->GetMetric();
 		if (!IsEmpty(a1MetricPtr))
 		{
-			if ((!IsEmpty(currArg_MetricPtr)) && !(*a1MetricPtr == *currArg_MetricPtr))
+			if ((!IsEmpty(currArg_MetricPtr)) && !AreEqual(a1MetricPtr,	currArg_MetricPtr))
 				throwCompatibleError(gr, nrSkippedArgs, i, "Metric", arg1_ValuesUnit->GetMetricStr(FormattingFlags::ThousandSeparator).c_str(), currArg_ValuesUnit->GetMetricStr(FormattingFlags::ThousandSeparator).c_str());
 		}
 		else if (!IsEmpty(currArg_MetricPtr))
