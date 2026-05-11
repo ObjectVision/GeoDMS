@@ -451,6 +451,88 @@ def _normalised_bytes(path:str) -> bytes:
         data = f.read()
     return data.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
 
+# Files we compare table-by-table instead of byte-for-byte. GeoPackage and
+# SQLite store user data deterministically but also carry SQLite-managed
+# internal book-keeping (rtree_*_node / _parent / _rowid index packing,
+# sqlite_sequence) whose physical layout is non-deterministic across runs
+# of the same producer. Byte-comparing them therefore reports spurious
+# diffs even when every user-visible row is identical.
+_SQLITE_SUFFIXES = (".gpkg", ".sqlite", ".sqlite3", ".db")
+
+def _is_sqlite_path(path:str) -> bool:
+    return path.lower().endswith(_SQLITE_SUFFIXES)
+
+# Per-table columns to ignore during the content hash. These hold values
+# that vary between runs of the same producer even though the user data
+# is identical — write-timestamps, generation IDs etc. Match table-name
+# case-insensitively, column-name case-insensitively.
+_SQLITE_SKIP_COLS = {
+    "gpkg_contents":           {"last_change"},        # GeoPackage write timestamp
+    "gpkg_metadata":           {"timestamp"},          # GeoPackage metadata timestamp
+    "gpkg_metadata_reference": {"timestamp"},
+}
+
+def _hash_sqlite_table(con, table:str) -> str:
+    """Hash all rows of `table` from `con`, ordered by the first column.
+    BLOB columns are hex-encoded so the hash captures content, not the
+    Python sqlite3 driver's memoryview-vs-bytes representation. Columns
+    listed in _SQLITE_SKIP_COLS for this table are excluded so timestamp-
+    like fields don't trip the comparison."""
+    import hashlib
+    cols_info = list(con.execute(f'PRAGMA table_info("{table}")'))
+    if not cols_info:
+        return ""
+    skip = {c.lower() for c in _SQLITE_SKIP_COLS.get(table.lower(), set())}
+    select_exprs = []
+    for cid, name, ctype, notnull, dflt, pk in cols_info:
+        if name.lower() in skip:
+            continue
+        if ctype and ctype.upper() == "BLOB":
+            select_exprs.append(f'hex("{name}")')
+        else:
+            select_exprs.append(f'"{name}"')
+    if not select_exprs:
+        return ""
+    sql = f'SELECT {", ".join(select_exprs)} FROM "{table}" ORDER BY 1'
+    h = hashlib.sha256()
+    for row in con.execute(sql):
+        h.update(repr(row).encode())
+    return h.hexdigest()
+
+def _sqlite_content_equivalent(path_a:str, path_b:str) -> bool:
+    """True if both .gpkg/.sqlite files have identical user-data tables.
+    Skips internal SQLite/GeoPackage tables whose physical layout is not
+    a function of the user data (rtree_* index packing, sqlite_sequence).
+    """
+    import sqlite3
+    keep_q = ("SELECT name FROM sqlite_master "
+              "WHERE type='table' "
+              "AND name NOT LIKE 'rtree_%' "
+              "AND name NOT LIKE 'sqlite_%' "
+              "ORDER BY name")
+    con_a = sqlite3.connect(path_a)
+    con_b = sqlite3.connect(path_b)
+    try:
+        tables_a = [r[0] for r in con_a.execute(keep_q)]
+        tables_b = [r[0] for r in con_b.execute(keep_q)]
+        if tables_a != tables_b:
+            return False
+        for t in tables_a:
+            if _hash_sqlite_table(con_a, t) != _hash_sqlite_table(con_b, t):
+                return False
+        return True
+    finally:
+        con_a.close()
+        con_b.close()
+
+def _files_equivalent(benchmark:str, generated:str) -> bool:
+    """Dispatch: SQLite-family files go through content compare so non-
+    deterministic index packing doesn't fail the test; everything else
+    is byte-compared with CRLF/CR normalisation."""
+    if _is_sqlite_path(benchmark) and _is_sqlite_path(generated):
+        return _sqlite_content_equivalent(benchmark, generated)
+    return _normalised_bytes(benchmark) == _normalised_bytes(generated)
+
 def compare_files(file_comparison:tuple):
     benchmark_files = glob.glob(file_comparison[0])
     generated_files = glob.glob(file_comparison[1])
@@ -459,9 +541,7 @@ def compare_files(file_comparison:tuple):
     for benchmark_file, generated_file in filepairs:
         if not generated_file:
             return False
-        # filecmp.cmp is shallow by default; use byte-compare with line-ending
-        # normalisation so a CRLF-vs-LF-only diff doesn't fail the test.
-        if _normalised_bytes(benchmark_file) != _normalised_bytes(generated_file):
+        if not _files_equivalent(benchmark_file, generated_file):
             return False
     return True
 
