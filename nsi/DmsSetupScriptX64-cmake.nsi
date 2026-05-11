@@ -70,9 +70,6 @@ Section "GeoDMS Program Folder"
   File ${CMakeBinDir}\Qt6Svg.dll
   File ${CMakeBinDir}\Qt6Widgets.dll
 
-  ; Python runtime (pulled in by geodms.pyd)
-  File /nonfatal ${CMakeBinDir}\python3*.dll
-
   ; DirectX / shader support (from Qt)
   File /nonfatal ${CMakeBinDir}\D3Dcompiler_47.dll
   File /nonfatal ${CMakeBinDir}\dxcompiler.dll
