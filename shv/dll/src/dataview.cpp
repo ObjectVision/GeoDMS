@@ -278,8 +278,12 @@ DataView::DataView(TreeItem* viewContext)
 DataView::~DataView()
 {
 	dbg_assert(md_IsDrawingCount == 0);
+
+	// Hide any tooltip still attached to this DataView so it cannot outlive us.
+	HideActiveTooltip();
+
 	// avoid destructor of m_ControllerVector that triggers RemoveCaret to Reverse any remaining carets
-	m_State.Clear(DVF_CaretsVisible); 
+	m_State.Clear(DVF_CaretsVisible);
 
 	DataView* subView = _GetFirstSubItem();
 	while (subView)
