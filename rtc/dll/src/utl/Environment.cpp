@@ -1707,9 +1707,22 @@ SharedStr ConvertDmsFileName(WeakStr path)
 	if (path.empty())
 		return path;
 	// Strip file: prefix if present
-	if (!strncmp(path.begin(), "file:", 5))
-		return SharedStr(CharPtrRange(path.begin() + 5, path.send()));
-	return path;
+	SharedStr stripped = !strncmp(path.begin(), "file:", 5)
+		? SharedStr(CharPtrRange(path.begin() + 5, path.send()))
+		: SharedStr(path);
+
+	// POSIX path resolution rejects `..` after a non-directory component
+	// (e.g. `cfg/Regression_test/../main/Units.dms` where `Regression_test`
+	// is the .dms-file stem, not a real directory). Windows pathname
+	// resolution is more forgiving — match it by lexically normalising
+	// `<dir>/<name>/../<rest>` to `<dir>/<rest>` before any access()/open()
+	// call. Skip when there is nothing to collapse so the common path stays
+	// a no-op.
+	if (std::strstr(stripped.c_str(), "/../") == nullptr
+	 && std::strstr(stripped.c_str(), "/./") == nullptr)
+		return stripped;
+	auto norm = std::filesystem::path(stripped.c_str()).lexically_normal().string();
+	return SharedStr(norm.c_str() MG_DEBUG_ALLOCATOR_SRC("ConvertDmsFileName-norm"));
 }
 
 void ReplaceSpecificDelimiters(MutableCharPtrRange range, const char delimiter)
