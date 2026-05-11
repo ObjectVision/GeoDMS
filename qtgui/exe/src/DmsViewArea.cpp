@@ -1157,6 +1157,8 @@ static UInt32 qtKeyToVK(int qtKey)
         case Qt::Key_Backspace:return VK_BACK;
         case Qt::Key_Delete:   return VK_DELETE;
         case Qt::Key_F2:       return VK_F2;
+        case Qt::Key_Plus:     return VK_ADD;      // ViewPort::OnKeyDown maps VK_ADD -> TB_ZoomIn1
+        case Qt::Key_Minus:    return VK_SUBTRACT; // ViewPort::OnKeyDown maps VK_SUBTRACT -> TB_ZoomOut1
     }
     return 0;
 }
