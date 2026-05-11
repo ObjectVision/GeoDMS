@@ -37,9 +37,6 @@ public:
 	TIC_CALL SharedStr AsString(FormattingFlags ff) const;
 	const AbstrUnit* GetBaseUnit() const { assert(m_BaseUnit); return m_BaseUnit.get(); }
 
-	TIC_CALL bool operator ==(const UnitProjection& rhs) const;
-	bool operator !=(const UnitProjection& rhs) const { return !operator ==(rhs); }
-
 	static TIC_CALL CrdTransformation GetCompositeTransform(const UnitProjection* curr);
 	TIC_CALL const AbstrUnit* GetCompositeBase() const;
 
@@ -50,6 +47,9 @@ private:
 };
 
 FormattedOutStream& operator <<(FormattedOutStream& str, const UnitProjection& repr);
+
+// nullptr is treated as the identity projection (no projection chain).
+TIC_CALL bool AreEqual(const UnitProjection* lhs, const UnitProjection* rhs);
 
 TIC_CALL const AbstrUnit* GetWorldCrdUnitFromGeoUnit(const AbstrUnit* geoUnit);
 TIC_CALL const AbstrUnit* GetCurrWorldCrdUnitFromGeoUnit(const AbstrUnit* geoUnit);

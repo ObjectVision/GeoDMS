@@ -384,6 +384,11 @@ void QDmsViewArea::CreateDmsView(QMdiArea* parent, ViewStyle viewStyle)
 
 QDmsViewArea::~QDmsViewArea()
 {
+    // Hide any active QToolTip. QToolTip is a singleton top-level widget that
+    // does not auto-hide when the owning widget is destroyed, so without this
+    // a tooltip shown by VH_ShowTooltip can outlive its DataView.
+    QToolTip::hideText();
+
     // Stop all timers before any virtual dispatch can occur during teardown.
     for (auto& [id, timer] : m_Timers) {
         timer->stop();
