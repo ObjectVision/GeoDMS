@@ -5,6 +5,8 @@
       "Read",
       "Glob",
       "Grep",
+      "Edit",
+      "Write",
       "Bash(ls)",
       "Bash(ls *)",
       "Bash(stat *)",
