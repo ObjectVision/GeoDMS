@@ -443,6 +443,14 @@ def get_filepairs(benchmark_files:list, generated_files:list) -> list:
                 file_pairs.append((benchmark_file, None))
     return file_pairs
 
+def _normalised_bytes(path:str) -> bytes:
+    """Read file as bytes with CRLF/CR collapsed to LF so cross-platform
+    line-ending differences (e.g. Windows-captured norm vs Linux-generated
+    @file output) don't cause spurious file-comparison failures."""
+    with open(path, "rb") as f:
+        data = f.read()
+    return data.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+
 def compare_files(file_comparison:tuple):
     benchmark_files = glob.glob(file_comparison[0])
     generated_files = glob.glob(file_comparison[1])
@@ -451,9 +459,10 @@ def compare_files(file_comparison:tuple):
     for benchmark_file, generated_file in filepairs:
         if not generated_file:
             return False
-        files_are_similar = filecmp.cmp(benchmark_file, generated_file)
-        if not files_are_similar:
-            return False        
+        # filecmp.cmp is shallow by default; use byte-compare with line-ending
+        # normalisation so a CRLF-vs-LF-only diff doesn't fail the test.
+        if _normalised_bytes(benchmark_file) != _normalised_bytes(generated_file):
+            return False
     return True
 
 def RunExperiments(experiments:list[Experiment]):
