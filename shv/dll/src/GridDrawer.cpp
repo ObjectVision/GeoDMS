@@ -57,12 +57,13 @@ struct DmsColor2RgbQuadFunc
 {
 	UInt32 operator()(DmsColor x) const
 	{
-#ifdef _WIN32
-		return reinterpret_cast<UInt32&>( Convert<RGBQUAD>( x) );
-#else
-		// RGBQUAD layout: Blue, Green, Red, Reserved (same as DmsColor byte order on little-endian)
-		return x;
-#endif
+		// Produce a UInt32 whose little-endian bytes match the RGBQUAD layout
+		// {rgbBlue, rgbGreen, rgbRed, rgbReserved}. DmsColor 0xTTBBGGRR has R in
+		// the low byte, so a raw cast would swap R and B; build explicitly.
+		return  (UInt32(GetTrans(x)) << 24)
+			|	(UInt32(GetRed  (x)) << 16)
+			|	(UInt32(GetGreen(x)) <<  8)
+			|	(UInt32(GetBlue (x))      );
 	}
 };
 
@@ -182,13 +183,14 @@ GridColorPalette::GridColorPalette(const Theme* colorTheme)
 
 		m_PaletteColors.resize(m_Count);
 		UInt32 i = 0;
+		DmsColor2RgbQuadFunc toRgbQuad;
 
 #ifdef _WIN32
 		RGBQUAD* colorPtr = m_BitmapInfo->bmiColors;
 		for (; palettePtr != paletteEnd; ++colorPtr, ++palettePtr, ++i)
 		{
 			*colorPtr = Convert<RGBQUAD>( *palettePtr);
-			m_PaletteColors[i] = *palettePtr;
+			m_PaletteColors[i] = toRgbQuad(*palettePtr);
 		}
 
 		UInt32 paletteCount = m_ClassIdUnit->GetCount();
@@ -196,26 +198,26 @@ GridColorPalette::GridColorPalette(const Theme* colorTheme)
 		{
 			auto c = STG_Bmp_GetDefaultColor( j & 0xFF );
 			*colorPtr++ = Convert<RGBQUAD>( c );
-			m_PaletteColors[i] = c;
+			m_PaletteColors[i] = toRgbQuad(c);
 		}
 
 		if (paletteCount != m_Count)
 		{
 			auto c = STG_Bmp_GetDefaultColor(CI_NODATA);
 			*colorPtr++ = Convert<RGBQUAD>( c );
-			m_PaletteColors[i] = c;
+			m_PaletteColors[i] = toRgbQuad(c);
 		}
 		dms_assert(colorPtr == m_BitmapInfo->bmiColors + m_Count);
 #else
 		for (; palettePtr != paletteEnd; ++palettePtr, ++i)
-			m_PaletteColors[i] = *palettePtr;
+			m_PaletteColors[i] = toRgbQuad(*palettePtr);
 
 		UInt32 paletteCount = m_ClassIdUnit->GetCount();
 		for (UInt32 j = paletteData.size(), e = paletteCount; j != e; ++j, ++i)
-			m_PaletteColors[i] = STG_Bmp_GetDefaultColor( j & 0xFF );
+			m_PaletteColors[i] = toRgbQuad(STG_Bmp_GetDefaultColor( j & 0xFF ));
 
 		if (paletteCount != m_Count)
-			m_PaletteColors[i] = STG_Bmp_GetDefaultColor(CI_NODATA);
+			m_PaletteColors[i] = toRgbQuad(STG_Bmp_GetDefaultColor(CI_NODATA));
 #endif
 	}
 }

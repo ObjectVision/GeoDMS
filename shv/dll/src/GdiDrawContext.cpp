@@ -27,8 +27,41 @@ GdiDrawContext::~GdiDrawContext()
 
 void GdiDrawContext::FillRect(const GRect& rect, DmsColor color)
 {
-	GdiHandle<HBRUSH> br(CreateSolidBrush(DmsColor2COLORREF(color)));
-	::FillRect(m_hDC, &AsRECT(rect), br);
+	UInt8 trans = GetTrans(color);
+	if (trans == 0xFF)
+		return; // fully transparent: nothing to draw
+
+	DmsColor opaqueColor = color & 0x00FFFFFF; // CreateSolidBrush requires high byte == 0
+
+	if (trans == 0)
+	{
+		GdiHandle<HBRUSH> br(CreateSolidBrush(DmsColor2COLORREF(opaqueColor)));
+		::FillRect(m_hDC, &AsRECT(rect), br);
+		return;
+	}
+
+	// Semi-transparent fill via AlphaBlend with a 1x1 source bitmap.
+	CompatibleDcHandle memDC(m_hDC, nullptr);
+	GdiHandle<HBITMAP> bmp(::CreateCompatibleBitmap(m_hDC, 1, 1));
+	GdiObjectSelector<HBITMAP> selectBitmap(memDC, bmp);
+
+	RECT oneByOne = { 0, 0, 1, 1 };
+	GdiHandle<HBRUSH> fillBr(::CreateSolidBrush(DmsColor2COLORREF(opaqueColor)));
+	::FillRect(memDC, &oneByOne, fillBr);
+
+	BLENDFUNCTION blendFunction = {};
+	blendFunction.BlendOp             = AC_SRC_OVER;
+	blendFunction.BlendFlags          = 0;
+	blendFunction.SourceConstantAlpha = 255 - trans;
+	blendFunction.AlphaFormat         = 0; // not AC_SRC_ALPHA
+
+	::AlphaBlend(
+		m_hDC,
+		rect.left, rect.top,
+		rect.Width(), rect.Height(),
+		memDC, 0, 0, 1, 1,
+		blendFunction
+	);
 }
 
 void GdiDrawContext::FillRegion(const Region& rgn, DmsColor color)
