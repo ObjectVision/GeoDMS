@@ -35,10 +35,7 @@ struct UnitMetric : SharedBase
 	TIC_CALL void SetQuotient(const UnitMetric* arg1SI, const UnitMetric* arg2SI);
 	TIC_CALL bool IsNumeric() const;
 
-	TIC_CALL bool operator ==(const UnitMetric& rhs) const;
-	bool operator !=(const UnitMetric& rhs) const { return !(*this == rhs); }
-
-	bool Empty() const 
+	bool Empty() const
 	{
 		return m_Factor == 1.0 && m_BaseUnits.empty();
 	}
@@ -48,6 +45,9 @@ struct UnitMetric : SharedBase
 
 	friend bool IsEmpty(const UnitMetric* self) { return !self || self->Empty(); }
 };
+
+// nullptr is treated as an empty UnitMetric.
+TIC_CALL bool AreEqual(const UnitMetric* lhs, const UnitMetric* rhs);
 
 FormattedOutStream& operator <<(FormattedOutStream& str, const UnitMetric& repr);
 

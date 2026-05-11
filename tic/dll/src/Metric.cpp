@@ -320,12 +320,15 @@ bool IsNear(Float64 factor, Float64 rhsFactor)
 	return (factor * margin < rhsFactor) && (rhsFactor * margin < factor);
 }
 
-bool UnitMetric::operator ==(const UnitMetric& rhs) const
+bool AreEqual(const UnitMetric* lhs, const UnitMetric* rhs)
 {
-	return this==&rhs
-		||	(this && &rhs && IsNear(m_Factor, rhs.m_Factor) && m_BaseUnits == rhs.m_BaseUnits)
-		||	(!this && rhs.Empty())
-		||	(!&rhs && Empty());
+	if (lhs == rhs)
+		return true;
+	bool lhsEmpty = IsEmpty(lhs);
+	bool rhsEmpty = IsEmpty(rhs);
+	if (lhsEmpty || rhsEmpty)
+		return lhsEmpty && rhsEmpty;
+	return IsNear(lhs->m_Factor, rhs->m_Factor) && lhs->m_BaseUnits == rhs->m_BaseUnits;
 }
 
 // *****************************************************************************
@@ -379,9 +382,14 @@ UnitProjection::~UnitProjection()
 	dms_assert(m_BaseUnit);
 }
 
-bool UnitProjection::operator ==(const UnitProjection& rhs) const
+bool AreEqual(const UnitProjection* lhs, const UnitProjection* rhs)
 {
-	return GetCompositeTransform(this) == GetCompositeTransform(&rhs) && GetCompositeBase() == rhs.GetCompositeBase();
+	if (lhs == rhs)
+		return true;
+	const AbstrUnit* lhsBase = lhs ? lhs->GetCompositeBase() : nullptr;
+	const AbstrUnit* rhsBase = rhs ? rhs->GetCompositeBase() : nullptr;
+	return lhsBase == rhsBase
+		&& UnitProjection::GetCompositeTransform(lhs) == UnitProjection::GetCompositeTransform(rhs);
 }
 
 const AbstrUnit* UnitProjection::GetCompositeBase() const
