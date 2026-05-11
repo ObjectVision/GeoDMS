@@ -777,29 +777,83 @@ void QDmsViewArea::VH_SetFocus()
     setFocus(Qt::OtherFocusReason);
 }
 
+// Cursor-conversion entry points.
+//
+// On Windows, mouse events flow into SHV through DataViewWndProc (a Win32 wndproc on
+// m_DataViewHWnd), with positions in m_DataViewHWnd-client pixels.  The cursor warp
+// path (TieCursorController, StartResize, ...) must round-trip through the same
+// Win32 coordinate system, otherwise the per-monitor DPI awareness mismatch with
+// Qt's mapToGlobal pulls the cursor off by hundreds of pixels on a HiDPI secondary
+// monitor (Issue 1100: Qt's mapToGlobal of QDmsViewArea returns coordinates ~962 px
+// off from where Win32 has the data-view child HWND).  So on Windows we delegate to
+// the same ::ClientToScreen / ::SetCursorPos / ::GetCursorPos APIs the 19.x build
+// used and bypass Qt entirely.
+//
+// On Linux/non-Windows there is no m_DataViewHWnd; mouse events come through Qt's
+// mouseMoveEvent (which our toClientPoint converts to device-px).  The Qt path scales
+// at the boundary: QCursor::pos / setPos / mapToGlobal / mapFromGlobal speak DIPs,
+// so we * / / dpr.
 bool QDmsViewArea::VH_GetCursorScreenPos(GPoint& pos) const
 {
-    QPoint globalPos = QCursor::pos();
-    pos.x = globalPos.x();
-    pos.y = globalPos.y();
+#ifdef _WIN32
+    POINT pt;
+    if (!::GetCursorPos(&pt))
+        return false;
+    pos.x = pt.x;
+    pos.y = pt.y;
     return true;
+#else
+    qreal dpr = devicePixelRatioF();
+    QPoint globalPos = QCursor::pos();
+    pos.x = qRound(globalPos.x() * dpr);
+    pos.y = qRound(globalPos.y() * dpr);
+    return true;
+#endif
 }
 
 GPoint QDmsViewArea::VH_ScreenToClient(GPoint screenPt) const
 {
-    QPoint local = mapFromGlobal(QPoint(screenPt.x, screenPt.y));
-    return GPoint(local.x(), local.y());
+#ifdef _WIN32
+    if (m_DataViewHWnd)
+    {
+        POINT pt = { screenPt.x, screenPt.y };
+        ::ScreenToClient(reinterpret_cast<HWND>(m_DataViewHWnd), &pt);
+        return GPoint(pt.x, pt.y);
+    }
+#endif
+    qreal dpr = devicePixelRatioF();
+    QRect cr = contentsRect();
+    QPoint widgetLocalDip = mapFromGlobal(QPoint(qRound(screenPt.x / dpr), qRound(screenPt.y / dpr)));
+    return GPoint(qRound((widgetLocalDip.x() - cr.left()) * dpr),
+                  qRound((widgetLocalDip.y() - cr.top())  * dpr));
 }
 
 GPoint QDmsViewArea::VH_ClientToScreen(GPoint clientPt) const
 {
-    QPoint global = mapToGlobal(QPoint(clientPt.x, clientPt.y));
-    return GPoint(global.x(), global.y());
+#ifdef _WIN32
+    if (m_DataViewHWnd)
+    {
+        POINT pt = { clientPt.x, clientPt.y };
+        ::ClientToScreen(reinterpret_cast<HWND>(m_DataViewHWnd), &pt);
+        return GPoint(pt.x, pt.y);
+    }
+#endif
+    qreal dpr = devicePixelRatioF();
+    QRect cr = contentsRect();
+    QPoint widgetLocalDip(qRound(clientPt.x / dpr) + cr.left(),
+                          qRound(clientPt.y / dpr) + cr.top());
+    QPoint global = mapToGlobal(widgetLocalDip);
+    return GPoint(qRound(global.x() * dpr), qRound(global.y() * dpr));
 }
 
 void QDmsViewArea::VH_SetGlobalCursorPos(GPoint screenPt)
 {
-    QCursor::setPos(screenPt.x, screenPt.y);
+#ifdef _WIN32
+    ::SetCursorPos(screenPt.x, screenPt.y);
+#else
+    qreal dpr = devicePixelRatioF();
+    QCursor::setPos(qRound(screenPt.x / dpr), qRound(screenPt.y / dpr));
+#endif
 }
 
 void QDmsViewArea::VH_SetCursorArrow()
@@ -981,14 +1035,18 @@ static UINT qtModsToMkFlags(Qt::MouseButtons buttons, Qt::KeyboardModifiers mods
     return flags;
 }
 
-// Convert a position relative to the QMdiSubWindow frame to content-area coordinates.
-// QMdiSubWindow draws its own title bar and resize frame as part of the widget, so
-// event->pos() includes the title bar offset.  DataView expects coordinates relative to
-// the content area only (i.e. contentsRect().topLeft() is the origin).
-static GPoint toClientPoint(const QPoint& widgetPos, const QRect& contentsRect)
+// Convert a position relative to the QMdiSubWindow frame to content-area coordinates,
+// in DEVICE pixels.  QMdiSubWindow draws its own title bar and resize frame as part of
+// the widget, so event->pos() includes the title bar offset.  DataView expects
+// coordinates relative to the content area only (i.e. contentsRect().topLeft() is the
+// origin), and the rest of the SHV codebase (StartResize, ColumnSizerDragger,
+// TieCursorController, ...) was written for the Win32 lParam contract: client-area
+// device-pixels.  Qt event positions and contentsRect are in DIP, so we multiply by
+// devicePixelRatio to restore that contract.
+static GPoint toClientPoint(const QPoint& widgetPos, const QRect& contentsRect, qreal dpr)
 {
-    return GPoint(widgetPos.x() - contentsRect.left(),
-                  widgetPos.y() - contentsRect.top());
+    return GPoint(qRound((widgetPos.x() - contentsRect.left()) * dpr),
+                  qRound((widgetPos.y() - contentsRect.top()) * dpr));
 }
 
 void QDmsViewArea::mousePressEvent(QMouseEvent* event)
@@ -996,7 +1054,7 @@ void QDmsViewArea::mousePressEvent(QMouseEvent* event)
     QRect cr = contentsRect();
     if (!cr.contains(event->pos())) { QMdiSubWindow::mousePressEvent(event); return; }
     auto dv = getDataView(); if (!dv) { QMdiSubWindow::mousePressEvent(event); return; }
-    GPoint pt = toClientPoint(event->pos(), cr);
+    GPoint pt = toClientPoint(event->pos(), cr, devicePixelRatioF());
     UINT flags = qtModsToMkFlags(event->buttons(), event->modifiers());
     if (event->button() == Qt::LeftButton)
     {
@@ -1015,7 +1073,7 @@ void QDmsViewArea::mouseReleaseEvent(QMouseEvent* event)
         // Release can happen outside contents if mouse was grabbed; still forward if we have capture
     }
     auto dv = getDataView(); if (!dv) { QMdiSubWindow::mouseReleaseEvent(event); return; }
-    GPoint pt = toClientPoint(event->pos(), cr);
+    GPoint pt = toClientPoint(event->pos(), cr, devicePixelRatioF());
     UINT flags = qtModsToMkFlags(event->buttons(), event->modifiers());
     if (event->button() == Qt::LeftButton)
     {
@@ -1032,7 +1090,7 @@ void QDmsViewArea::mouseDoubleClickEvent(QMouseEvent* event)
     QRect cr = contentsRect();
     if (!cr.contains(event->pos())) { QMdiSubWindow::mouseDoubleClickEvent(event); return; }
     auto dv = getDataView(); if (!dv) { QMdiSubWindow::mouseDoubleClickEvent(event); return; }
-    GPoint pt = toClientPoint(event->pos(), cr);
+    GPoint pt = toClientPoint(event->pos(), cr, devicePixelRatioF());
     UINT flags = qtModsToMkFlags(event->buttons(), event->modifiers());
     if (event->button() == Qt::LeftButton)
         dv->DispatchMouseEvent(EventID::LBUTTONDBLCLK, flags, pt);
@@ -1045,7 +1103,7 @@ void QDmsViewArea::mouseMoveEvent(QMouseEvent* event)
 {
     auto dv = getDataView(); if (!dv) { QMdiSubWindow::mouseMoveEvent(event); return; }
     QRect cr = contentsRect();
-    GPoint pt = toClientPoint(event->pos(), cr);
+    GPoint pt = toClientPoint(event->pos(), cr, devicePixelRatioF());
     UINT flags = qtModsToMkFlags(event->buttons(), event->modifiers());
     // MOUSEDRAG when button held, MOUSEMOVE otherwise; SETCURSOR always
     EventID moveEvent = (flags & (MK_LBUTTON|MK_RBUTTON)) ? EventID::MOUSEDRAG : EventID::MOUSEMOVE;
@@ -1059,7 +1117,7 @@ void QDmsViewArea::wheelEvent(QWheelEvent* event)
 {
     auto dv = getDataView(); if (!dv) { QMdiSubWindow::wheelEvent(event); return; }
     QRect cr = contentsRect();
-    GPoint pt = toClientPoint(event->position().toPoint(), cr);
+    GPoint pt = toClientPoint(event->position().toPoint(), cr, devicePixelRatioF());
     // Pack delta (in 120-units) into HIWORD of flags, buttons in LOWORD — matches Win32 WM_MOUSEWHEEL wParam
     int delta = event->angleDelta().y(); // positive = scroll up = zoom in
     UINT flags = qtModsToMkFlags(event->buttons(), event->modifiers());
@@ -1133,8 +1191,15 @@ void QDmsViewArea::VH_ScrollWindow(GPoint delta, const GRect& scrollRect, const 
     Region& updateRgn, const GRect& validRect)
 {
 #ifdef _WIN32
-    // Use Win32 ScrollWindowEx for efficiency on Windows
+    // Use Win32 ScrollWindowEx, matching the 19.x Win32ViewHost reference path:
+    //   - ValidateRect first if the caller flagged a region as already-painted
+    //   - flags = 0 (NOT SW_INVALIDATE): the caller (DataView::ScrollDevice) reads
+    //     the returned hrgnUpdate and explicitly InvalidateRgns it.  Adding
+    //     SW_INVALIDATE here double-invalidates and was producing scroll trails
+    //     in the table cells (Issue 1100).
     if (m_DataViewHWnd) {
+        if (!validRect.empty())
+            ::ValidateRect(reinterpret_cast<HWND>(m_DataViewHWnd), &AsRECT(validRect));
         RECT rcScroll = { scrollRect.left, scrollRect.top, scrollRect.right, scrollRect.bottom };
         RECT rcClip = { clipRect.left, clipRect.top, clipRect.right, clipRect.bottom };
         HRGN hrgnUpdate = CreateRectRgn(0, 0, 0, 0);
@@ -1143,9 +1208,24 @@ void QDmsViewArea::VH_ScrollWindow(GPoint delta, const GRect& scrollRect, const 
             delta.x, delta.y,
             &rcScroll, &rcClip,
             hrgnUpdate, nullptr,
-            SW_INVALIDATE
+            0
         );
         updateRgn = Region(HRGNToQRegion(hrgnUpdate));
+        // Issue 1100: when AutoSizeContainer::GrowHor shifts sibling m_RelPos for
+        // columns beyond scrollRect.right (or .bottom), no ScrollDevice is issued
+        // for them and their old pixels stay on the canvas.  Subsequent paint draws
+        // them at the new position but the old pixels show through (text has a
+        // transparent background) producing a vertical/horizontal smear.  Force-
+        // invalidate the strip beyond the scrolled rect so the affected siblings
+        // are repainted cleanly.
+        if (delta.x != 0 && scrollRect.right < clipRect.right) {
+            RECT rcTrailX = { scrollRect.right, scrollRect.top, clipRect.right, scrollRect.bottom };
+            ::InvalidateRect(reinterpret_cast<HWND>(m_DataViewHWnd), &rcTrailX, TRUE);
+        }
+        if (delta.y != 0 && scrollRect.bottom < clipRect.bottom) {
+            RECT rcTrailY = { scrollRect.left, scrollRect.bottom, scrollRect.right, clipRect.bottom };
+            ::InvalidateRect(reinterpret_cast<HWND>(m_DataViewHWnd), &rcTrailY, TRUE);
+        }
         DeleteObject(hrgnUpdate);
     }
 #else

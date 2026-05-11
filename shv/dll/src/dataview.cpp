@@ -1335,7 +1335,14 @@ void DataView::ScrollDevice(GPoint delta, GRect rcScroll, GRect rcClip, const Mo
 #endif
 	{
 #if defined(_WIN32)
-		DcHandle dc(m_hWnd, GetDefaultFont(FontSizeCategory::MEDIUM)); // we could clip on the rcScroll|rcClip region
+		// Issue 1100: use GetHWnd() (= VH_GetHWnd() / m_DataViewHWnd on the Qt port)
+		// rather than the bare m_hWnd member, which is 0 when running with a
+		// ViewHost.  With 0 the DcHandle ended up holding a screen DC and the
+		// CaretHider's hide/show XOR operations were issued against the screen
+		// instead of the data-view child HWND -- so the XOR'd resize-guide carets
+		// were never un-drawn before ScrollWindowEx, got blitted along with the
+		// scrolled cell pixels, and produced the vertical-streak smears.
+		DcHandle dc(GetHWnd(), GetDefaultFont(FontSizeCategory::MEDIUM));
 		Region   rgnClip(rcClip);
 		{
 			auto hClip = RegionToHRGN(rgnClip);
@@ -1397,6 +1404,19 @@ void DataView::ScrollDevice(GPoint delta, GRect rcScroll, GRect rcClip, const Mo
 				drawRgn  |= invalidRgn;
 			}
 		}
+
+		// Issue 1100: any visible XOR caret that overlaps the scroll source ends
+		// up with HIDE/SHOW imbalance across the scroll (HIDE un-XORs original
+		// cells, ScrollWindowEx shifts cells, SHOW re-XORs over different cell
+		// content -- leaving inverted "ghost" pixels every drag step).  Tried
+		// invalidating only InvertRgnCaret regions, but other caret types
+		// (FocusCaret, NeedleCaret) and selection/focus highlights baked into
+		// the cells themselves also contribute.  Pragmatic fix: invalidate the
+		// entire scroll source so OnPaint draws the whole affected area fresh
+		// and the tail ReverseCarets in OnPaint XORs caret(s) cleanly.  Loses
+		// the scroll-blit's perf advantage on this path but matches the 19.x
+		// reference behaviour.
+		drawRgn |= Region(rcClippedScroll);
 
 		// then invalidate rgn that became waste
 		if (!drawRgn.Empty())
