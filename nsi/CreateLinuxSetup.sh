@@ -99,6 +99,20 @@ install -m 644 "${SRC}/RewriteExpr.lsp" "${DST}/"
 [[ -f "${SRC}/profiler.py"   ]] && install -m 644 "${SRC}/profiler.py"   "${DST}/"
 [[ -f "${SRC}/regression.py" ]] && install -m 644 "${SRC}/regression.py" "${DST}/"
 
+# Linux-side performance sampler (issue #1104). When the Windows-side
+# profiler.py spots a `wsl --` invocation it splices run_with_sampler.sh
+# in front of the GeoDmsRun command; the wrapper then forks
+# linux_sampler.py against the exact GeoDmsRun PID so the Bokeh series
+# show real CPU/memory/IO from inside the WSL VM instead of zeros.
+PROFILER_SRC="${REPO_ROOT}/profiler"
+mkdir -p "${DST}/profiler"
+if [[ -f "${PROFILER_SRC}/run_with_sampler.sh" ]]; then
+    install -m 755 "${PROFILER_SRC}/run_with_sampler.sh" "${DST}/profiler/"
+fi
+if [[ -f "${PROFILER_SRC}/linux_sampler.py" ]]; then
+    install -m 755 "${PROFILER_SRC}/linux_sampler.py" "${DST}/profiler/"
+fi
+
 # Geographic data
 cp -r "${SRC}/gdaldata"   "${DST}/"
 cp -r "${SRC}/proj4data"  "${DST}/"
@@ -263,7 +277,7 @@ Version: ${GeoDmsVersion}
 Architecture: amd64
 Maintainer: Object Vision B.V. <info@objectvision.nl>
 Installed-Size: ${INSTALLED_SIZE}
-Depends: libxcb-xinerama0, libxcb-icccm4, libxcb-image0, libxcb-keysyms1, libxcb-randr0, libxcb-render-util0, libxcb-xkb1, libxkbcommon-x11-0
+Depends: libxcb-xinerama0, libxcb-icccm4, libxcb-image0, libxcb-keysyms1, libxcb-randr0, libxcb-render-util0, libxcb-xkb1, libxkbcommon-x11-0, python3, python3-psutil
 Description: GeoDMS ${GeoDmsVersion} -- Geographic Data & Model Software
  GeoDMS is a software environment for the specification and calculation
  of geographic data models. This package contains the GUI and runtime.

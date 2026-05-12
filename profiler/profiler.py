@@ -11,7 +11,7 @@ import argparse
 import csv
 import sys
 from bokeh import plotting
-from bokeh.models import HoverTool, PanTool, ResetTool, WheelZoomTool, CheckboxGroup, CheckboxButtonGroup, CustomJS, Legend, LegendItem
+from bokeh.models import HoverTool, PanTool, ResetTool, WheelZoomTool, CheckboxGroup, CheckboxButtonGroup, CustomJS, Legend, LegendItem, Label
 from bokeh.layouts import row, column
 from bokeh.palettes import Category10, Category20, Category20b, Category20c
 import glob
@@ -113,33 +113,87 @@ def readLogAllocator(log_fn, start_time):
         log_alloc["PageFileUsage"].append(int(integers_in_entry[4])*10**-3) # [GB]
     return log_alloc
 
-def getProcessIdIfActive(names, parent_pid=None):
-    pid = -1
-    if not type(names)== list:
-        names = [names]
+def _to_wsl_path(p:str) -> str:
+    """Translate a Windows path like 'C:/foo/bar.csv' into the WSL form
+    '/mnt/c/foo/bar.csv'. Paths that already look POSIX or are not drive-
+    rooted are returned unchanged."""
+    if not p or len(p) < 2:
+        return p
+    if p[1] == ":" and p[0].isalpha():
+        return f"/mnt/{p[0].lower()}{p[2:]}".replace("\\", "/")
+    return p.replace("\\", "/")
 
-    # if parent pid is given, use this scope only
-    for i in range(10):
-        if parent_pid:
-            if not psutil.pid_exists(parent_pid):
-                time.sleep(0.5)
-                continue
-            
-            parent_process = psutil.Process(parent_pid)
-            for child_process in parent_process.children(recursive=True):
-                print(child_process.name())
-                for name in names:
-                    if(name.lower() in child_process.name().lower()):
-                        print(child_process.name())
-                        return child_process.pid
-        else:
-            for proc in psutil.process_iter():
-                for name in names:
-                    if(name.lower() in proc.name().lower()):
-                        pid = proc.pid # assume only one exe_name is active at this time!
-                        return pid
-        time.sleep(0.5)
-    return pid
+
+def _read_sampler_csv(csv_path:str) -> dict:
+    """Read a linux_sampler.py CSV into the same dict shape as the
+    Windows-side profile_log. Returns an empty-but-keyed dict if the
+    CSV is missing or unreadable, so downstream code sees consistent
+    structure even on sampler failure."""
+    profile_log = {"time":[], "dtime":[], "cpu_percent":[], "cpu_curr_time":[],
+                   "memory_percent":[], "rss":[], "vms":[], "num_threads":[],
+                   "total_read_bytes":[], "total_write_bytes":[],
+                   "net_connections":[], "processes":[]}
+    if not os.path.exists(csv_path):
+        return profile_log
+    try:
+        with open(csv_path, "r", newline="") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                # `time` is ISO-8601 in the CSV; profile_log uses datetime
+                # objects on the Windows path, so parse for parity.
+                try:
+                    t = datetime.fromisoformat(row["time"])
+                except (ValueError, KeyError):
+                    continue
+                profile_log["time"].append(t)
+                profile_log["dtime"].append(float(row["dtime"]))
+                profile_log["cpu_percent"].append(float(row["cpu_percent"]))
+                profile_log["cpu_curr_time"].append(float(row["cpu_curr_time"]))
+                profile_log["memory_percent"].append(float(row["memory_percent"]))
+                profile_log["rss"].append(float(row["rss"]))
+                profile_log["vms"].append(float(row["vms"]))
+                profile_log["num_threads"].append(int(row["num_threads"]))
+                profile_log["total_read_bytes"].append(float(row["total_read_bytes"]))
+                profile_log["total_write_bytes"].append(float(row["total_write_bytes"]))
+                profile_log["net_connections"].append(int(row["net_connections"]))
+                profile_log["processes"].append(int(row["processes"]))
+    except (OSError, csv.Error, ValueError) as e:
+        print(f"_read_sampler_csv: failed to parse {csv_path}: {e}")
+    return profile_log
+
+
+def _tree_kill(parent_process:psutil.Process):
+    """Terminate parent_process AND every descendant. Plain
+    parent_process.kill() on Windows is TerminateProcess on a single PID
+    — it doesn't propagate to children, so a `cmd.exe` wrapper's wsl.exe
+    descendants survive as orphans, conhost keeps the console window
+    visible, and the Linux GeoDmsRun keeps running detached. Walk first
+    so we don't lose visibility into descendants when the parent dies."""
+    try:
+        descendants = parent_process.children(recursive=True)
+    except (psutil.NoSuchProcess, psutil.AccessDenied):
+        descendants = []
+    for p in descendants:
+        try:
+            p.kill()
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            pass
+    try:
+        parent_process.kill()
+    except (psutil.NoSuchProcess, psutil.AccessDenied):
+        pass
+    # Belt-and-braces on Windows: also issue `taskkill /T /F /PID <ppid>`
+    # in case a child was reparented mid-walk and now hangs off the
+    # session leader instead of our parent. Cheap and silent on success.
+    if os.name == "nt":
+        try:
+            subprocess.run(
+                ["taskkill", "/T", "/F", "/PID", str(parent_process.pid)],
+                capture_output=True, check=False,
+            )
+        except FileNotFoundError:
+            pass
+
 
 def getProcessCurrentStatistics(process:psutil.Process, experiment_start_time):
     t=None
@@ -181,14 +235,43 @@ def getPerformance(exp:Experiment, sampling_rate=1.0, timeout=7200):
     command_with_args = exp.command
     environment_string = exp.environment_variables
     cwd = exp.cwd
+    profiler_status = "ok"
+    profiler_status_detail = ""
+    sample_csv = None
+    is_linux_flavor = False
 
     try:
         # If command_with_args is a full string like "path\\to\\script.bat arg1 arg2"
         # and the first part is a relative path, resolve it:
         parts = shlex.split(command_with_args)  # splits respecting quotes
-        
+
         if cwd:
             parts[0] = os.path.abspath(os.path.join(cwd, parts[0]))  # make sure script path is absolute
+
+        # ----- Linux/WSL flavor detection (#1104) --------------------
+        # For the .l flavor, parts looks like:
+        #   ["wsl", "--", "/opt/ObjectVision/GeoDms<ver>/GeoDmsRun", ...]
+        # Splice run_with_sampler.sh between "--" and GeoDmsRun so the
+        # wrapper runs Linux-side and forks linux_sampler.py against the
+        # exact GeoDmsRun PID. The CSV path is on the Windows side (under
+        # the experiment folder) and translated to /mnt/<x>/... for wsl.
+        is_linux_flavor = bool(parts) and parts[0] in ("wsl", "wsl.exe") and len(parts) >= 3 and parts[1] == "--"
+        if is_linux_flavor:
+            geodms_exec_linux = parts[2]
+            install_root_linux = os.path.dirname(geodms_exec_linux)
+            wrapper_linux = f"{install_root_linux}/profiler/run_with_sampler.sh"
+            sample_csv = os.path.join(exp.experiment_folder, f"{exp.name}.sample.csv").replace("\\", "/")
+            sample_csv_linux = _to_wsl_path(sample_csv)
+            # Remove a stale CSV from a prior aborted run so an empty/old
+            # file can't masquerade as a successful sample.
+            if os.path.exists(sample_csv):
+                try:
+                    os.remove(sample_csv)
+                except OSError:
+                    pass
+            parts = parts[:2] + [
+                wrapper_linux, sample_csv_linux, str(sampling_rate), "--",
+            ] + parts[2:]
 
         title = exp.name.replace('"', "'")  # zorg dat er geen quotes inzitten
         print(f"Running subprocess: {parts}, cwd={cwd}, title={title}")
@@ -220,9 +303,9 @@ def getPerformance(exp:Experiment, sampling_rate=1.0, timeout=7200):
         try:
             parent_process_open_handle = subprocess.Popen(
                 cmd_parts,
-                cwd=cwd, env=custom_env, 
-                creationflags=subprocess.CREATE_NEW_CONSOLE, 
-                shell=False 
+                cwd=cwd, env=custom_env,
+                creationflags=subprocess.CREATE_NEW_CONSOLE,
+                shell=False
             )
         except Exception as e:
             pass
@@ -231,82 +314,132 @@ def getPerformance(exp:Experiment, sampling_rate=1.0, timeout=7200):
         experiment_start_time = datetime.fromtimestamp(parent_process.create_time())
         cpu_ct = 0
 
-        while (psutil.pid_exists(parent_process.pid)):
-            time_measurement_start = datetime.now()
+        if is_linux_flavor:
+            # No Windows-side sample loop -- linux_sampler.py inside WSL is
+            # writing the CSV. Just watch for timeout and wait. The CSV is
+            # ingested after parent_process.wait() returns.
+            while psutil.pid_exists(parent_process.pid):
+                if (datetime.now() - experiment_start_time).total_seconds() > timeout:
+                    profiler_status = "failed"
+                    profiler_status_detail = f"timeout after {timeout}s -- tree-killed"
+                    _tree_kill(parent_process)
+                    break
+                time.sleep(sampling_rate)
+        else:
+            while (psutil.pid_exists(parent_process.pid)):
+                time_measurement_start = datetime.now()
 
-            # timeout
-            if (time_measurement_start - experiment_start_time).total_seconds() > timeout:
-                parent_process.kill()
-            
-            try: # dry run cpu_p for every child, first time cpu_percent() always returns 0.0, see
-            
-                child_processes = parent_process.children(recursive=True)
-                dummy_parent_cpu_p = parent_process.cpu_percent()
-                for child_process in child_processes:
-                    dummy_child_cpu_p = child_process.cpu_percent()
-            except:
-                pass
-            time.sleep(0.1)
+                # timeout
+                if (time_measurement_start - experiment_start_time).total_seconds() > timeout:
+                    profiler_status = "failed"
+                    profiler_status_detail = f"timeout after {timeout}s -- tree-killed"
+                    _tree_kill(parent_process)
+                    break
 
-            t, dt, cpu_p, mem_p, rss, vms, num_threads, rb, wb, net_c = getProcessCurrentStatistics(parent_process, experiment_start_time)
-            if not t:
-                continue
+                try: # dry run cpu_p for every child, first time cpu_percent() always returns 0.0, see
 
-            # add a log row to each attribute
-            profile_log["time"].append(t)
-            profile_log["dtime"].append(dt)
-            profile_log["cpu_percent"].append(cpu_p)
-            profile_log["memory_percent"].append(mem_p)
-            profile_log["rss"].append(rss)
-            profile_log["vms"].append(vms)
-            profile_log["num_threads"].append(num_threads)
-            profile_log["total_read_bytes"].append(rb)
-            profile_log["total_write_bytes"].append(wb)
-            profile_log["net_connections"].append(net_c)
-        
-            profile_log["processes"].append(len(child_processes)+1)
+                    child_processes = parent_process.children(recursive=True)
+                    dummy_parent_cpu_p = parent_process.cpu_percent()
+                    for child_process in child_processes:
+                        dummy_child_cpu_p = child_process.cpu_percent()
+                except:
+                    pass
+                time.sleep(0.1)
 
-            for child_process in child_processes:
-                t, _, cpu_p, mem_p, rss, vms, num_threads, rb, wb, net_c = getProcessCurrentStatistics(child_process, experiment_start_time)
+                t, dt, cpu_p, mem_p, rss, vms, num_threads, rb, wb, net_c = getProcessCurrentStatistics(parent_process, experiment_start_time)
                 if not t:
                     continue
-                profile_log["cpu_percent"][-1]       += cpu_p
-                profile_log["memory_percent"][-1]    += mem_p
-                profile_log["rss"][-1]               += rss
-                profile_log["vms"][-1]               += vms
-                profile_log["num_threads"][-1]       += num_threads
-                profile_log["total_read_bytes"][-1]  += rb
-                profile_log["total_write_bytes"][-1] += wb
-                profile_log["net_connections"][-1]   += net_c
-            cpu_ct += profile_log["cpu_percent"][-1] / 100.0
-            profile_log["cpu_curr_time"].append(cpu_ct)
 
-            time_measurement_end = datetime.now()
-            dtimestamp = (time_measurement_end-time_measurement_start).total_seconds()
-            sleep_time = sampling_rate-dtimestamp
+                # add a log row to each attribute
+                profile_log["time"].append(t)
+                profile_log["dtime"].append(dt)
+                profile_log["cpu_percent"].append(cpu_p)
+                profile_log["memory_percent"].append(mem_p)
+                profile_log["rss"].append(rss)
+                profile_log["vms"].append(vms)
+                profile_log["num_threads"].append(num_threads)
+                profile_log["total_read_bytes"].append(rb)
+                profile_log["total_write_bytes"].append(wb)
+                profile_log["net_connections"].append(net_c)
 
-            if sleep_time > 0.0:
-                time.sleep(sleep_time)
-            else:
-                print(f"Warning: measurements of calculation process took {dtimestamp} seconds, and is longer than sampling rate: {sampling_rate}")
+                profile_log["processes"].append(len(child_processes)+1)
+
+                for child_process in child_processes:
+                    t, _, cpu_p, mem_p, rss, vms, num_threads, rb, wb, net_c = getProcessCurrentStatistics(child_process, experiment_start_time)
+                    if not t:
+                        continue
+                    profile_log["cpu_percent"][-1]       += cpu_p
+                    profile_log["memory_percent"][-1]    += mem_p
+                    profile_log["rss"][-1]               += rss
+                    profile_log["vms"][-1]               += vms
+                    profile_log["num_threads"][-1]       += num_threads
+                    profile_log["total_read_bytes"][-1]  += rb
+                    profile_log["total_write_bytes"][-1] += wb
+                    profile_log["net_connections"][-1]   += net_c
+                cpu_ct += profile_log["cpu_percent"][-1] / 100.0
+                profile_log["cpu_curr_time"].append(cpu_ct)
+
+                time_measurement_end = datetime.now()
+                dtimestamp = (time_measurement_end-time_measurement_start).total_seconds()
+                sleep_time = sampling_rate-dtimestamp
+
+                if sleep_time > 0.0:
+                    time.sleep(sleep_time)
+                else:
+                    print(f"Warning: measurements of calculation process took {dtimestamp} seconds, and is longer than sampling rate: {sampling_rate}")
 
     except FileNotFoundError as e:
         print(f"FileNotFoundError: {e}")
         print("Check if the batch, command, or executable file exists at the specified location:")
         print(f"  Resolved command path: {parts[0]}")
         print(f"  Working directory: {cwd}")
+        if profiler_status == "ok":
+            profiler_status = "failed"
+            profiler_status_detail = f"FileNotFoundError: {e}"
 
     except Exception as e:
         print(f"Unexpected error occurred: {e}")
-    
+        if profiler_status == "ok":
+            profiler_status = "failed"
+            profiler_status_detail = f"sampling exception: {e}"
+
     return_code = parent_process.wait()
-    
+
+    # ---- Linux-flavor: ingest sampler CSV -----------------------------
+    if is_linux_flavor and sample_csv:
+        linux_log = _read_sampler_csv(sample_csv)
+        if not linux_log["time"]:
+            if profiler_status == "ok":
+                profiler_status = "unavailable"
+                profiler_status_detail = (
+                    "WSL sampler produced no rows; run_with_sampler.sh or "
+                    "linux_sampler.py may be missing from the .deb install "
+                    "(check /opt/ObjectVision/GeoDms<ver>/profiler/), or "
+                    "python3-psutil is not installed in the WSL distro."
+                )
+        else:
+            profile_log = linux_log
+
+    # ---- Common: detect empty/short profile_log as a sampler failure --
+    # A real GeoDmsRun is expected to take at least a few seconds. If the
+    # run took noticeable wall time but we ended up with zero samples or a
+    # near-zero CommitCharge while the test reported success, the sampler
+    # was broken. Flag it so VisualizeExperiments can overlay a placeholder
+    # series instead of misleading the user with a flat-zero line.
+    wall_time_s = (datetime.now() - experiment_start_time).total_seconds()
+    if profiler_status == "ok" and wall_time_s >= 5 and len(profile_log["time"]) == 0:
+        profiler_status = "failed"
+        profiler_status_detail = (
+            f"sampler produced 0 rows for a {wall_time_s:.0f}s run "
+            "(test may still have passed -- check GeoDmsRun /L log)"
+        )
+
     #C005 -> access violation niet in log
     # return_code 0 -> geen fout
     # return_code > 0 fout
     # toevoegen log file aan output
     # error level -> kleur
-    return profile_log, experiment_start_time, return_code
+    return profile_log, experiment_start_time, return_code, profiler_status, profiler_status_detail
 
 def getClosestLog(dms_log_t, profile_log, param, current_ind):
     smallest_dt = float("inf") # start with positive infinity
@@ -581,8 +714,10 @@ def RunExperiments(experiments:list[Experiment]):
         geodms_logfile = exp.geodms_logfile
         if os.path.exists(geodms_logfile): # always start with empty log
             os.remove(geodms_logfile)
-        exp.result["log"], start_time, status_code = getPerformance(exp)
+        exp.result["log"], start_time, status_code, profiler_status, profiler_status_detail = getPerformance(exp)
         exp.result["status_code"] = status_code
+        exp.result["profiler_status"] = profiler_status
+        exp.result["profiler_status_detail"] = profiler_status_detail
 
         # if file comparison check, change status in case of failure
         if exp.result["status_code"]==0 and exp.file_comparison and not compare_files(exp.file_comparison):
@@ -709,6 +844,11 @@ def VisualizeExperiments(experiments, show_figure:bool=True, vgroups=[("cpu_perc
         else:
             p = plotting.figure(width=2000, height=500, y_range=(vgroup[1][0], vgroup[1][1]), tooltips=tool_tips, tools="pan,wheel_zoom,box_zoom,reset,save,hover", title=title)
             
+        # Track failed-profiler experiments per figure so we can overlay a
+        # placeholder annotation instead of misleading the user with a flat
+        # zero line. Status comes from getPerformance / RunExperiments and
+        # is sticky in exp.result (issue #1104, also Windows sampler crashes).
+        failed_overlay_lines = []
         for i, exp in enumerate(experiments):
             if not exp:
                 continue
@@ -716,6 +856,14 @@ def VisualizeExperiments(experiments, show_figure:bool=True, vgroups=[("cpu_perc
             color = Category10[10][color_index]
 
             fldrname, filename = getExperimentFileName(exp)
+            prof_status = exp.result.get("profiler_status", "ok")
+            if prof_status != "ok":
+                detail = exp.result.get("profiler_status_detail", "") or prof_status
+                failed_overlay_lines.append(f"{labels[i]}: {detail}")
+                # Skip the line/scatter render -- the only data we'd plot is
+                # a flat zero series, which is exactly the visual confusion
+                # we're trying to remove.
+                continue
             if type(vgroup[0]) is tuple: # do something with this vgroup case
                 renderers.append(p.line('time', vgroup[0][0], color=color, line_dash="4 4", source=exps_ds[i][0]))
                 renderers.append(p.line('time', vgroup[0][1], color=color, source=exps_ds[i][0]))
@@ -740,9 +888,20 @@ def VisualizeExperiments(experiments, show_figure:bool=True, vgroups=[("cpu_perc
         p.yaxis.axis_label = vgroupToLabel(vgroup)
         p.toolbar.logo = None # remove Bokeh logo
 
+        # Overlay the sampler-failure annotation pinned to the top-left in
+        # screen space so it stays visible regardless of pan/zoom. One line
+        # per failed experiment (#1104).
+        for line_idx, msg in enumerate(failed_overlay_lines):
+            p.add_layout(Label(
+                x=10, y=10 + 18 * line_idx, x_units="screen", y_units="screen",
+                text=msg, text_color="#a00", text_font_size="11px",
+                background_fill_color="#fff", background_fill_alpha=0.85,
+                border_line_color="#a00", border_line_alpha=0.4,
+            ))
+
         if figs:
             p.x_range = figs[0].x_range # sync xrange between figures
-        
+
         figs.append(p) # add figure to figs
 
     legend_items = []
