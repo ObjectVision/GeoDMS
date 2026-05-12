@@ -402,16 +402,18 @@ public:
 	DECL_RTTI(SHV_CALL, Class);
 
 	// =============================================== ToolTip
+	//
+	// Tooltips are owned by the host GUI (Qt's QToolTip singleton, accessed
+	// via ViewHost::VH_ShowTooltip / VH_HideTooltip). DataView only tracks
+	// which GraphicObject currently holds the tooltip so the watchdog timer
+	// can hide it when the cursor leaves that object. The previous Win32
+	// per-DataView tooltip HWND has been removed: it bypassed Qt's singleton
+	// and could not be hidden on window-level events (deactivate/move/resize).
 
 public:
 	// Called by GraphicObject when it shows/hides a tooltip
 	void SetActiveTooltipObject(const GraphicObject* obj) noexcept;
 	void ClearActiveTooltipObject(const GraphicObject* obj) noexcept;
-
-	// Called by GraphicObject (lazy init) to access the tooltip HWND
-#ifdef _WIN32
-	HWND EnsureTooltipWindow();
-#endif
 
 	// Helpers used by watchdog
 	bool IsCursorInsideObject(const GraphicObject& obj) const noexcept;
@@ -427,12 +429,6 @@ public:
 	void StopTipWatchdog();
 
 	void HideActiveTooltip();
-
-#ifdef _WIN32
-	// Tooltip window (TOOLTIPS_CLASS)
-	HWND m_hwndTooltip = nullptr;
-	std::unique_ptr<wchar_t[]> m_ToolTipText;
-#endif
 };
 
 

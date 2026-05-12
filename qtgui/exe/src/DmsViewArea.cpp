@@ -485,11 +485,16 @@ void QDmsViewArea::dropEvent(QDropEvent* event) {
 }
 
 void QDmsViewArea::moveEvent(QMoveEvent* event) {
+    // Any motion of this DataView's subwindow desynchronises the singleton
+    // QToolTip from the spot it was anchored to; hide it so the user is not
+    // left with a stale tip floating over unrelated content.
+    QToolTip::hideText();
     base_class::moveEvent(event);
     UpdatePosAndSize();
 }
 
 void QDmsViewArea::resizeEvent(QResizeEvent* event) {
+    QToolTip::hideText();
     base_class::resizeEvent(event);
     UpdatePosAndSize();
 #ifndef _WIN32

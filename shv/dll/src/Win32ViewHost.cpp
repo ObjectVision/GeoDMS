@@ -221,15 +221,17 @@ void Win32ViewHost::VH_DrawInContext(const Region& clipRgn, std::function<void(D
 	::ReleaseDC(m_hWnd, hdc);
 }
 
-void Win32ViewHost::VH_ShowTooltip(GPoint screenPoint, CharPtr utf8Text)
+void Win32ViewHost::VH_ShowTooltip(GPoint /*screenPoint*/, CharPtr /*utf8Text*/)
 {
-	// Win32ViewHost does not use this path; the DataView tooltip code
-	// uses the Win32 tooltip control directly via m_hWnd/m_hwndTooltip.
+	// Win32ViewHost is not a shipping target -- the only ViewHost in use is
+	// QDmsViewArea (Qt). If Win32ViewHost is ever revived, a real native
+	// tooltip control should be implemented here (singleton owned by the
+	// host's HWND, lazy-allocated). Until then this is a no-op.
 }
 
 void Win32ViewHost::VH_HideTooltip()
 {
-	// Win32ViewHost does not use this path; see HideActiveTooltip in dataview.cpp.
+	// See VH_ShowTooltip above.
 }
 
 void Win32ViewHost::VH_ShowPopupMenu(GPoint clientPoint, const MenuData& /*menuData*/)
