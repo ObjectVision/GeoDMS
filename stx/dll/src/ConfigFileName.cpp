@@ -106,15 +106,22 @@ ConfigurationFilenameLockBase ::ConfigurationFilenameLockBase(WeakStr sourceFile
 	s_LastFileNameLock = this;
 }
 
+// Bound on #include nesting depth. Caps stack usage of the recursive
+// AppendTreeFromConfiguration call chain against malicious or pathological
+// configurations; legitimate configs nest well below this limit.
+static constexpr int kMaxIncludeDepth = 64;
+
 ConfigurationFilenameLock::ConfigurationFilenameLock(WeakStr sourceFileName, WeakStr currDirName)
 	:	ConfigurationFilenameLockBase(sourceFileName, currDirName)
 {
-	const ConfigurationFilenameLockBase* i = s_LastFileNameLock->m_PrevFilenameLock;
-	while (i)
+	int depth = 1; // count the current lock
+	for (const ConfigurationFilenameLockBase* i = s_LastFileNameLock->m_PrevFilenameLock; i; i = i->m_PrevFilenameLock)
 	{
 		if (!FilePathCompare(i->m_SourceFileRef->GetFileName().c_str(), sourceFileName.c_str()))
 			throwErrorF("CFG", "recursive inclusion of configuration file %s", sourceFileName.c_str());
-		i = i->m_PrevFilenameLock;
+		if (++depth > kMaxIncludeDepth)
+			throwErrorF("CFG", "configuration #include nesting depth exceeds maximum (%d) while processing %s"
+				, kMaxIncludeDepth, sourceFileName.c_str());
 	}
 }
 
