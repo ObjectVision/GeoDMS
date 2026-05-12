@@ -87,6 +87,13 @@ echo Installed to: %INSTALL_DIR%
 del filelist%GeoDmsVersion%.%GeoDmsFlavor%.txt 2>nul
 FORFILES /P "%INSTALL_DIR%" /S /C "cmd /c echo @relpath" >> filelist%GeoDmsVersion%.%GeoDmsFlavor%.txt 2>nul
 
+REM Post-install unit tests (mirrors BuildSignAndCreateSetup.bat for the .m
+REM flavor). Flavor passed separately so unit_flagged.bat ->
+REM SetGeoDMSPlatform.bat composes the install dir as GeoDms<ver>.<flavor>.
+cd ..\tst\batch
+Call unit.bat %GeoDmsVersion% c off
+cd %geodms_rootdir%
+
 echo === DONE: GeoDms%GeoDmsVersion%.%GeoDmsFlavor% built, signed, installed ===
 echo Run regression with:    python full.py -version %GeoDmsVersion%.%GeoDmsFlavor%
 endlocal

@@ -65,7 +65,12 @@ del filelist%GeoDmsVersion%.%GeoDmsFlavor%.txt
 FORFILES /P "C:\Program Files\ObjectVision\GeoDms%GeoDmsVersion%.%GeoDmsFlavor%" /S /C "cmd /c echo @relpath" >> filelist%GeoDmsVersion%.%GeoDmsFlavor%.txt
 
 cd ..\tst\batch
-Call unit.bat %GeoDmsVersion% off
+REM Pass the flavor separately so unit.bat -> unit_flagged.bat ->
+REM SetGeoDMSPlatform.bat can compose the install dir as
+REM GeoDms<ver>.<flavor> (e.g. GeoDms20.0.0.m). Without the flavor the
+REM path becomes GeoDms<ver> which does not exist and every GeoDmsRun.exe
+REM invocation reports a missing-file FAILED.
+Call unit.bat %GeoDmsVersion% m off
 cd %geodms_rootdir%
 echo on
 
