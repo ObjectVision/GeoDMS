@@ -44,6 +44,20 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "ConfigFileName.h"
 
+// Compare two configuration file paths for filesystem-equivalence.
+// Filenames must reflect filesystem case-sensitivity: case-insensitive on
+// Windows (where Foo.dms and foo.dms open the same file and recursion must
+// be detected) and case-sensitive elsewhere (where they are distinct files
+// and stricmp would yield false-positive recursion errors).
+static int FilePathCompare(CharPtr lhs, CharPtr rhs)
+{
+#ifdef _WIN32
+	return stricmp(lhs, rhs);
+#else
+	return strcmp(lhs, rhs);
+#endif
+}
+
 // *****************************************************************************
 // class/module: ConfigurationFilenameContainer
 // *****************************************************************************
@@ -65,7 +79,7 @@ ConfigurationFilenameContainer::~ConfigurationFilenameContainer()
 FileDescrPtr ConfigurationFilenameContainer::GetFileRef(CharPtr name)
 {
 	for (auto i = m_FileRefs.begin(), e = m_FileRefs.end(); i != e; ++i)
-		if (!stricmp( (*i)->GetFileName().c_str(), name))
+		if (!FilePathCompare((*i)->GetFileName().c_str(), name))
 			return *i;
 
 	m_FileRefs.emplace_back(new FileDescr(SharedStr(name MG_DEBUG_ALLOCATOR_SRC("ConfigurationFilenameContainer::GetFileRef")), 0, m_LoadNumber), newly_obj{});
@@ -98,7 +112,7 @@ ConfigurationFilenameLock::ConfigurationFilenameLock(WeakStr sourceFileName, Wea
 	const ConfigurationFilenameLockBase* i = s_LastFileNameLock->m_PrevFilenameLock;
 	while (i)
 	{
-		if (!stricmp(i->m_SourceFileRef->GetFileName().c_str(), sourceFileName.c_str()))
+		if (!FilePathCompare(i->m_SourceFileRef->GetFileName().c_str(), sourceFileName.c_str()))
 			throwErrorF("CFG", "recursive inclusion of configuration file %s", sourceFileName.c_str());
 		i = i->m_PrevFilenameLock;
 	}
