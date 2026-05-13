@@ -1,0 +1,279 @@
+
+  copying files to C:\dev\GeoDMS_2026\bin\Debug\x64\
+  
+  	                   1	C:\dev\GeoDMS_2026\library\
+  	                   3	C:\dev\GeoDMS_2026\library\basedata_nl\
+  	                   1	C:\dev\GeoDMS_2026\library\basedata_nl\rdc\
+  	                   1	C:\dev\GeoDMS_2026\library\geometry\
+  
+  	                   1	C:\dev\GeoDMS_2026\examples\
+  ActorEnums.cpp
+  garbage_can.cpp
+  MainThread.cpp
+  Waiter.cpp
+  DebugContext.cpp
+  DebugReporter.cpp
+  DebugStream.cpp
+  Transform.cpp
+  FixedAlloc.cpp
+  HeapSequenceProvider.cpp
+  portable_task_group.cpp
+  SharedObjBase.cpp
+  RtcMain.cpp
+  AsString.cpp
+  encodes.cpp
+  MemGuard.cpp
+  SourceLocation.cpp
+  DmsException.cpp
+  Environment.cpp
+  mySPrintF.cpp
+  quotes.cpp
+  Registry.cpp
+  TypeInfoOrdering.cpp
+  SharedStr.cpp
+  BaseBounds.cpp
+  iterrangefuncs.cpp
+  SequenceArray.cpp
+  BaseStreamBuff.cpp
+  FileMapHandle.cpp
+  FileStreamBuff.cpp
+  FormattedStream.cpp
+  MoreStreamBuff.cpp
+  StringStream.cpp
+  persistent.cpp
+  PropDef.cpp
+  ValueWrap.cpp
+  BigInt.cpp
+  Case.cpp
+  IndexedStrings.cpp
+  Token.cpp
+  XmlConst.cpp
+  XMLOut.cpp
+  XmlParser.cpp
+  Actor.cpp
+  ActorSet.cpp
+  InvalidationBlock.cpp
+  TriggerOperator.cpp
+  UpdateMark.cpp
+  General.cpp
+  RunDllProc.cpp
+  ==========:---------------
+  Compiler  : Microsoft Visual C++ version 1950
+  MSC_VER   : 1950
+  StdVersion: Dinkumware standard library version 650
+  Platform  : Win32
+  DmsVersion: 20.0.0
+  DmsDate   : 11/05/2026
+  DmsTime   : 20:36:31.63
+  ==========:---------------
+     Creating library C:\dev\GeoDMS_2026\bin\Debug\x64\Rtc.lib and object C:\dev\GeoDMS_2026\bin\Debug\x64\Rtc.exp
+  DmRtc.vcxproj -> C:\dev\GeoDMS_2026\bin\Debug\x64\Rtc.dll
+  'pwsh.exe' is not recognized as an internal or external command,
+  operable program or batch file.
+  Assoc.cpp
+  Lispeval.cpp
+  LispRef.cpp
+  Parser.cpp
+  Prolog.cpp
+     Creating library C:\dev\GeoDMS_2026\bin\Debug\x64\Sym.lib and object C:\dev\GeoDMS_2026\bin\Debug\x64\Sym.exp
+  DmSym.vcxproj -> C:\dev\GeoDMS_2026\bin\Debug\x64\Sym.dll
+  'pwsh.exe' is not recognized as an internal or external command,
+  operable program or batch file.
+  FileName.cpp
+  Aspect.cpp
+  DedicatedAttrs.cpp
+  ExprRewrite.cpp
+  IndexGetterCreator.cpp
+  ItemLocks.cpp
+  LispContextHandle.cpp
+  OperationContext.cpp
+  SessionData.cpp
+  AbstrStoragemanager.cpp
+  AbstrStreamManager.cpp
+  AsmUtil.cpp
+  MemoryMappedDataStorageManager.cpp
+  StorageClass.cpp
+  StorageInterface.cpp
+  AbstrCalculator.cpp
+  AbstrDataItem.cpp
+  AbstrDataObject.cpp
+  AbstrUnit.cpp
+  attr_Interface.cpp
+  CopyTreeContext.cpp
+  DataController.cpp
+  DataItemClass.cpp
+  DataLockContainers.cpp
+  DataLocks.cpp
+  DataStoreManager.cpp
+  DisplayValue.cpp
+  Explain.cpp
+  ExtLockMgr.cpp
+  FreeDataManager.cpp
+  LispTreeType.cpp
+  Metric.cpp
+  MoreDataControllers.cpp
+  Operator.cpp
+  OperGroups.cpp
+  Param.cpp
+  SourceDescr.cpp
+  StateChangeNotification.cpp
+  SupplCache.cpp
+  TicInterface.cpp
+  TreeItem.cpp
+  TreeItemClass.cpp
+  TreeItemContextHandle.cpp
+  TreeItemProps.cpp
+  TreeItemSet.cpp
+  TreeItemUtils.cpp
+  Unit.cpp
+  UnitClass.cpp
+  UnitCreators.cpp
+  UsingCache.cpp
+  XmlTreeOut.cpp
+  XmlTreeParser.cpp
+C:\dev\GeoDMS_2026\tic\dll\src\TreeItem.cpp(4675): warning C6246: Local declaration of 'result' hides declaration of the same name in outer scope. For additional information, see previous declaration at line '4666' of 'c:\dev\geodms_2026\tic\dll\src\treeitem.cpp'.: Lines: 4666 [C:\dev\GeoDMS_2026\tic\dll\DmTic.vcxproj]
+  DataArray.cpp
+     Creating library C:\dev\GeoDMS_2026\bin\Debug\x64\Tic.lib and object C:\dev\GeoDMS_2026\bin\Debug\x64\Tic.exp
+  DmTic.vcxproj -> C:\dev\GeoDMS_2026\bin\Debug\x64\Tic.dll
+  'pwsh.exe' is not recognized as an internal or external command,
+  operable program or batch file.
+  AbstrDataBlockProd.cpp
+  ConfigFileName.cpp
+  ConfigParse.cpp
+  ConfigProd.cpp
+  DataBlockProd.cpp
+  DataBlockTask.cpp
+  DijkstraString.cpp
+  ExprParse.cpp
+  ExprProd.cpp
+  SpiritTools.cpp
+  StringProd.cpp
+  StxInterface.cpp
+  BmpStorageManager.cpp
+  gdal_base.cpp
+  gdal_grid.cpp
+  gdal_vect.cpp
+  BmpImp.cpp
+  OdbcImp.cpp
+  XdbImp.cpp
+  ShpImp.cpp
+  TifImp.cpp
+  dbfImp.cpp
+  ImplMain.cpp
+  GridStoragemanager.cpp
+  OdbcStorageManager.cpp
+  XdbStorageManager.cpp
+  TifStorageManager.cpp
+  FileSystemStorageManager.cpp
+  dbfStorageManager.cpp
+  StrStorageManager.cpp
+  ShpStorageManager.cpp
+  DllMain.cpp
+C:\dev\GeoDMS_2026\stg\dll\src\DllMain.cpp(515): warning C6246: Local declaration of 'vc' hides declaration of the same name in outer scope. For additional information, see previous declaration at line '504' of 'c:\dev\geodms_2026\stg\dll\src\dllmain.cpp'.: Lines: 504 [C:\dev\GeoDMS_2026\stg\dll\StgDll.vcxproj]
+     Creating library C:\dev\GeoDMS_2026\bin\Debug\x64\Stx.lib and object C:\dev\GeoDMS_2026\bin\Debug\x64\Stx.exp
+  StxDll.vcxproj -> C:\dev\GeoDMS_2026\bin\Debug\x64\Stx.dll
+  'pwsh.exe' is not recognized as an internal or external command,
+  operable program or batch file.
+     Creating library C:\dev\GeoDMS_2026\bin\Debug\x64\Stg.lib and object C:\dev\GeoDMS_2026\bin\Debug\x64\Stg.exp
+LINK : warning LNK4199: /DELAYLOAD:proj_d.dll ignored; no imports found from proj_d.dll [C:\dev\GeoDMS_2026\stg\dll\StgDll.vcxproj]
+  StgDll.vcxproj -> C:\dev\GeoDMS_2026\bin\Debug\x64\Stg.dll
+  'pwsh.exe' is not recognized as an internal or external command,
+  operable program or batch file.
+  AnyAll.cpp
+  AbstrBoundingBoxCache.cpp
+  BoostGeometry.cpp
+  BoostPolygon.cpp
+  CalcClassBreaks.cpp
+  CalcFactory.cpp
+  Checker.cpp
+  ClassBreak.cpp
+  ClcInterface.cpp
+  Cumulate.cpp
+  ExprCalculator.cpp
+  FileOper.cpp
+  Canyon.cpp
+  CGAL.cpp
+  Connect.cpp
+  ConnectedParts.cpp
+  Dijkstra.cpp
+  DiscrAlloc.cpp
+  ForEach.cpp
+  GeoInterface.cpp
+  GridDist.cpp
+  IpfAlloc.cpp
+  GetStatistics.cpp
+  ID.cpp
+  Index.cpp
+  JoinEqualValues.cpp
+  JoinNearValues.cpp
+  Mandlebrot.cpp
+  nth_element.cpp
+  OperDistrict.cpp
+  Invert.cpp
+  OperPolygon.cpp
+  OperPot.cpp
+  Perimeter.cpp
+  lookup.cpp
+  Loop.cpp
+  Modus.cpp
+  Point.cpp
+  Poly2GridOper.cpp
+  Overlay.cpp
+  PCount.cpp
+  PolyOper.cpp
+  Potential.cpp
+  RasterMerge.cpp
+  PhaseContainer.cpp
+  Ramp.cpp
+  random.cpp
+  ReadData.cpp
+  RegCount.cpp
+  RLookup.cpp
+  Sort.cpp
+  SpatialAnalyzer.cpp
+  TraceBack.cpp
+  Voronoi.cpp
+  SubItem.cpp
+  Subset.cpp
+  Union.cpp
+  Unique.cpp
+  OperAttrVar.cpp
+  BoostBlas.cpp
+  BoostXML.cpp
+C:\dev\GeoDMS_2026\geo\dll\src\Potential.cpp(841,16): warning C4099: 'IppsArray<Float32>': type name first seen using 'struct' now seen using 'class' [C:\dev\GeoDMS_2026\geo\dll\GeoDLL.vcxproj]
+      C:\dev\GeoDMS_2026\geo\dll\src\Potential.h(89,8):
+      see declaration of 'IppsArray<Float32>'
+  
+C:\dev\GeoDMS_2026\geo\dll\src\Potential.cpp(842,16): warning C4099: 'IppsArray<Float64>': type name first seen using 'struct' now seen using 'class' [C:\dev\GeoDMS_2026\geo\dll\GeoDLL.vcxproj]
+      C:\dev\GeoDMS_2026\geo\dll\src\Potential.h(89,8):
+      see declaration of 'IppsArray<Float64>'
+  
+C:\dev\GeoDMS_2026\geo\dll\src\SpatialAnalyzer.cpp(341,16): warning C4099: 'DiversityCalculator<UInt32>': type name first seen using 'struct' now seen using 'class' [C:\dev\GeoDMS_2026\geo\dll\GeoDLL.vcxproj]
+      C:\dev\GeoDMS_2026\geo\dll\src\SpatialAnalyzer.h(114,8):
+      see declaration of 'DiversityCalculator<UInt32>'
+  
+C:\dev\GeoDMS_2026\geo\dll\src\SpatialAnalyzer.cpp(342,16): warning C4099: 'DiversityCalculator<UInt8>': type name first seen using 'struct' now seen using 'class' [C:\dev\GeoDMS_2026\geo\dll\GeoDLL.vcxproj]
+      C:\dev\GeoDMS_2026\geo\dll\src\SpatialAnalyzer.h(114,8):
+      see declaration of 'DiversityCalculator<UInt8>'
+  
+  OperAccBin.cpp
+  OperAccCount.cpp
+  OperAccFirstLast.cpp
+  OperAccMinMax.cpp
+  OperAccUniStatistics.cpp
+  OperAccUniStr.cpp
+  OperAttrBin.cpp
+  OperAttrTer.cpp
+  OperAttrUni.cpp
+  OperConv.cpp
+  OperExec.cpp
+  OperLinInterpol.cpp
+  OperPropValue.cpp
+  OperUnit.cpp
+  regex.cpp
+  ReportFunctions.cpp
+  OperConvNumeric.cpp
+  OperConvPoint.cpp
+  OperConvSequence.cpp
+  OperConvMapping.cpp
+  OperConvTransform.cpp

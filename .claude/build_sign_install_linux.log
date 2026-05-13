@@ -1,0 +1,288 @@
+
+C:\dev\GeoDMS_2026>setlocal
+
+C:\dev\GeoDMS_2026>REM BuildSignAndCreateSetupLinux.bat 
+
+C:\dev\GeoDMS_2026>REM Builds the linux (l) flavor of GeoDMS via WSL2 (CMake), then runs 
+
+C:\dev\GeoDMS_2026>REM nsi/CreateLinuxSetup.sh to package + sign, then optionally installs the 
+
+C:\dev\GeoDMS_2026>REM .deb via dpkg inside WSL so it can be tested via: 
+
+C:\dev\GeoDMS_2026>REM    python full.py -version <ver>l 
+
+C:\dev\GeoDMS_2026>REM (the linux flavor of full.py invokes the binary via `wsl --` — see 
+
+C:\dev\GeoDMS_2026>REM the linux-handling extension in full.py's _resolve_local_build). 
+
+C:\dev\GeoDMS_2026>REM
+
+C:\dev\GeoDMS_2026>REM Sister script of BuildSignAndCreateSetup.bat (m, msbuild) and 
+
+C:\dev\GeoDMS_2026>REM BuildSignAndCreateSetupCmake.bat (c, cmake). 
+
+C:\dev\GeoDMS_2026>REM
+
+C:\dev\GeoDMS_2026>REM Prereqs: 
+
+C:\dev\GeoDMS_2026>REM   - WSL2 with Ubuntu 24.04 (or similar) installed 
+
+C:\dev\GeoDMS_2026>REM   - cmake, ninja, gcc-13, vcpkg available inside WSL 
+
+C:\dev\GeoDMS_2026>REM   - Linux build tree: build/linux-x64-release/  (configured separately) 
+
+C:\dev\GeoDMS_2026>REM   - dpkg-deb available in WSL (for .deb creation) 
+
+C:\dev\GeoDMS_2026>REM
+
+C:\dev\GeoDMS_2026>REM Run from the repo root:  C:\dev\GeoDMS_2026>BuildSignAndCreateSetupLinux.bat 
+
+C:\dev\GeoDMS_2026>cls
+
+C:\dev\GeoDMS_2026>REM Version comes from nsi\GeoDmsVersion.cmd (shared with the msbuild + cmake 
+
+C:\dev\GeoDMS_2026>REM sister scripts). Bump the patch number there, not here. 
+
+C:\dev\GeoDMS_2026>call nsi\GeoDmsVersion.cmd 
+
+C:\dev\GeoDMS_2026>set DMS_VERSION_MAJOR=20 
+
+C:\dev\GeoDMS_2026>set DMS_VERSION_MINOR=0 
+
+C:\dev\GeoDMS_2026>set DMS_VERSION_PATCH=0 
+
+C:\dev\GeoDMS_2026>set GeoDmsFlavor=l 
+
+C:\dev\GeoDMS_2026>set geodms_rootdir=C:\dev\GeoDMS_2026 
+
+C:\dev\GeoDMS_2026>set GeoDmsVersion=20.0.0 
+
+C:\dev\GeoDMS_2026>REM Refresh generated headers (idempotent; lets WSL build pick the same version). 
+
+C:\dev\GeoDMS_2026>echo #define DMS_VERSION_MAJOR 20  1>"rtc\dll\src\RtcGeneratedVersion.h" 
+
+C:\dev\GeoDMS_2026>echo #define DMS_VERSION_MINOR 0  1>>"rtc\dll\src\RtcGeneratedVersion.h" 
+
+C:\dev\GeoDMS_2026>echo #define DMS_VERSION_PATCH 0  1>>"rtc\dll\src\RtcGeneratedVersion.h" 
+
+C:\dev\GeoDMS_2026>echo #define DMS_BUILD_DATE "12/05/2026"  1>"rtc\dll\src\buildstamp.h" 
+
+C:\dev\GeoDMS_2026>echo #define DMS_BUILD_TIME "12:01:08.18"  1>>"rtc\dll\src\buildstamp.h" 
+
+C:\dev\GeoDMS_2026>echo --- building linux-x64-release in WSL --- 
+--- building linux-x64-release in WSL ---
+
+C:\dev\GeoDMS_2026>wsl bash -c "cd /mnt/c/dev/GeoDMS_2026 && cmake --build build/linux-x64-release --config Release" 
+[1/11] Building CXX object rtc/dll/CMakeFiles/DmRtc.dir/src/gen/General.cpp.o
+In file included from /mnt/c/dev/GeoDMS_2026/rtc/dll/src/dbg/Check.h:25,
+                 from /mnt/c/dev/GeoDMS_2026/rtc/dll/src/RtcPCH.h:18,
+                 from /mnt/c/dev/GeoDMS_2026/rtc/dll/src/gen/General.cpp:5:
+/mnt/c/dev/GeoDMS_2026/rtc/dll/src/ser/format.h:48: warning: ignoring ‘#pragma warning ’ [-Wunknown-pragmas]
+   48 | #pragma warning (push)
+      | 
+/mnt/c/dev/GeoDMS_2026/rtc/dll/src/ser/format.h:49: warning: ignoring ‘#pragma warning ’ [-Wunknown-pragmas]
+   49 | #pragma warning (disable: 26800)
+      | 
+/mnt/c/dev/GeoDMS_2026/rtc/dll/src/ser/format.h:66: warning: ignoring ‘#pragma warning ’ [-Wunknown-pragmas]
+   66 | #pragma warning (pop)
+      | 
+In file included from /mnt/c/dev/GeoDMS_2026/rtc/dll/src/ser/FormattedStream.h:10,
+                 from /mnt/c/dev/GeoDMS_2026/rtc/dll/src/gen/General.cpp:11:
+/mnt/c/dev/GeoDMS_2026/rtc/dll/src/ser/FormattingFlags.h:27: warning: ignoring ‘#pragma warning ’ [-Wunknown-pragmas]
+   27 | #pragma warning (push)
+      | 
+/mnt/c/dev/GeoDMS_2026/rtc/dll/src/ser/FormattingFlags.h:28: warning: ignoring ‘#pragma warning ’ [-Wunknown-pragmas]
+   28 | #pragma warning (disable: 26827)
+      | 
+/mnt/c/dev/GeoDMS_2026/rtc/dll/src/ser/FormattingFlags.h:38: warning: ignoring ‘#pragma warning ’ [-Wunknown-pragmas]
+   38 | #pragma warning (pop)
+      | 
+In file included from /usr/include/c++/13/backward/strstream:50,
+                 from /mnt/c/dev/GeoDMS_2026/rtc/dll/src/utl/mySPrintF.h:13,
+                 from /mnt/c/dev/GeoDMS_2026/rtc/dll/src/gen/General.cpp:14:
+/usr/include/c++/13/backward/backward_warning.h:32:2: warning: #warning This file includes at least one deprecated or antiquated header which may be removed without further notice at a future date. Please use a non-deprecated interface with equivalent functionality instead. For a listing of replacement headers and interfaces, consult the file backward_warning.h. To disable this warning use -Wno-deprecated. [-Wcpp]
+   32 | #warning \
+      |  ^~~~~~~
+In file included from /mnt/c/dev/GeoDMS_2026/rtc/dll/src/geo/BitValue.h:16,
+                 from /mnt/c/dev/GeoDMS_2026/rtc/dll/src/geo/BaseBounds.h:14,
+                 from /mnt/c/dev/GeoDMS_2026/rtc/dll/src/ptr/SharedStr.h:10,
+                 from /mnt/c/dev/GeoDMS_2026/rtc/dll/src/throwItemError.h:10,
+                 from /mnt/c/dev/GeoDMS_2026/rtc/dll/src/mci/Object.h:47,
+                 from /mnt/c/dev/GeoDMS_2026/rtc/dll/src/ptr/SharedObj.h:25,
+                 from /mnt/c/dev/GeoDMS_2026/rtc/dll/src/ptr/PersistentObject.h:10,
+                 from /mnt/c/dev/GeoDMS_2026/rtc/dll/src/dbg/DebugContext.h:20,
+                 from /mnt/c/dev/GeoDMS_2026/rtc/dll/src/dbg/debug.h:18,
+                 from /mnt/c/dev/GeoDMS_2026/rtc/dll/src/RtcPCH.h:19:
+/mnt/c/dev/GeoDMS_2026/rtc/dll/src/geo/Undefined.h: In function ‘bool IsDefined(Float32)’:
+/mnt/c/dev/GeoDMS_2026/rtc/dll/src/geo/Undefined.h:212:29: warning: dereferencing type-punned pointer will break strict-aliasing rules [-Wstrict-aliasing]
+  212 |         UInt32 vAsUInt32 = *reinterpret_cast<const UInt32*>(&v);
+      |                             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/c/dev/GeoDMS_2026/rtc/dll/src/geo/Undefined.h: In function ‘bool IsDefined(Float64)’:
+/mnt/c/dev/GeoDMS_2026/rtc/dll/src/geo/Undefined.h:220:29: warning: dereferencing type-punned pointer will break strict-aliasing rules [-Wstrict-aliasing]
+  220 |         UInt64 vAsUInt64 = *reinterpret_cast<const UInt64*>(&v);
+      |                             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/c/dev/GeoDMS_2026/rtc/dll/src/geo/BitValue.h: In function ‘bool IsDefined(bit_value<N>)’:
+/mnt/c/dev/GeoDMS_2026/rtc/dll/src/geo/BitValue.h:98:1: warning: no return statement in function returning non-void [-Wreturn-type]
+   98 | }
+      | ^
+In file included from /mnt/c/dev/GeoDMS_2026/rtc/dll/src/ptr/PtrBase.h:14,
+                 from /mnt/c/dev/GeoDMS_2026/rtc/dll/src/ptr/SharedPtr.h:15,
+                 from /mnt/c/dev/GeoDMS_2026/rtc/dll/src/ptr/SharedStr.h:16:
+/mnt/c/dev/GeoDMS_2026/rtc/dll/src/set/BitVector.h: At global scope:
+/mnt/c/dev/GeoDMS_2026/rtc/dll/src/set/BitVector.h:181:22: warning: ‘template<class _Category, class _Tp, class _Distance, class _Pointer, class _Reference> struct std::iterator’ is deprecated [-Wdeprecated-declarations]
+  181 |         ,       std::iterator<std::random_access_iterator_tag
+      |                      ^~~~~~~~
+In file included from /usr/include/c++/13/bits/stl_construct.h:61,
+                 from /usr/include/c++/13/bits/stl_tempbuf.h:61,
+                 from /usr/include/c++/13/memory:66,
+                 from /mnt/c/dev/GeoDMS_2026/rtc/dll/src/RtcBase.h:51,
+                 from /mnt/c/dev/GeoDMS_2026/rtc/dll/src/RtcPCH.h:17:
+/usr/include/c++/13/bits/stl_iterator_base_types.h:127:34: note: declared here
+  127 |     struct _GLIBCXX17_DEPRECATED iterator
+      |                                  ^~~~~~~~
+In file included from /mnt/c/dev/GeoDMS_2026/rtc/dll/src/ptr/SharedStr.h:17:
+/mnt/c/dev/GeoDMS_2026/rtc/dll/src/ptr/SharedArray.h:149:20: warning: ISO C++ forbids flexible array member ‘m_Data’ [-Wpedantic]
+  149 |         block_type m_Data[];
+      |                    ^~~~~~
+/mnt/c/dev/GeoDMS_2026/rtc/dll/src/mci/Object.h:180:36: warning: extra ‘;’ [-Wpedantic]
+  180 |         DECL_ABSTR(RTC_CALL, Class);
+      |                                    ^
+      |                                    -
+/mnt/c/dev/GeoDMS_2026/rtc/dll/src/ptr/PersistentObject.h:80:36: warning: extra ‘;’ [-Wpedantic]
+   80 |         DECL_ABSTR(RTC_CALL, Class);
+      |                                    ^
+      |                                    -
+In file included from /mnt/c/dev/GeoDMS_2026/rtc/dll/src/dbg/DebugContext.h:22:
+/mnt/c/dev/GeoDMS_2026/rtc/dll/src/set/Token.h: In member function ‘IndexedString_shared_lock& IndexedString_shared_lock::operator=(IndexedString_shared_lock&&)’:
+/mnt/c/dev/GeoDMS_2026/rtc/dll/src/set/Token.h:22:8: warning: implicitly-declared ‘constexpr RequestMainThreadOperProcessingBlocker& RequestMainThreadOperProcessingBlocker::operator=(const RequestMainThreadOperProcessingBlocker&)’ is deprecated [-Wdeprecated-copy]
+   22 | struct IndexedString_shared_lock : RequestMainThreadOperProcessingBlocker, leveled_counted_section::shared_lock { using leveled_counted_section::shared_lock::shared_lock; };
+      |        ^~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from /mnt/c/dev/GeoDMS_2026/rtc/dll/src/set/Token.h:15:
+/mnt/c/dev/GeoDMS_2026/rtc/dll/src/act/MainThread.h:98:18: note: because ‘RequestMainThreadOperProcessingBlocker’ has user-provided ‘RequestMainThreadOperProcessingBlocker::RequestMainThreadOperProcessingBlocker(const RequestMainThreadOperProcessingBlocker&)’
+   98 |         RTC_CALL RequestMainThreadOperProcessingBlocker(const RequestMainThreadOperProcessingBlocker&);
+      |                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/c/dev/GeoDMS_2026/rtc/dll/src/set/Token.h: In member function ‘void TokenStr::operator=(TokenStr&&)’:
+/mnt/c/dev/GeoDMS_2026/rtc/dll/src/set/Token.h:46:48: note: synthesized method ‘IndexedString_shared_lock& IndexedString_shared_lock::operator=(IndexedString_shared_lock&&)’ first required here
+   46 |                 m_Guard = std::move(src.m_Guard);
+      |                                                ^
+/mnt/c/dev/GeoDMS_2026/rtc/dll/src/ser/FormattedStream.h: At global scope:
+/mnt/c/dev/GeoDMS_2026/rtc/dll/src/ser/FormattedStream.h:41:34: warning: ‘template<class _Category, class _Tp, class _Distance, class _Pointer, class _Reference> struct std::iterator’ is deprecated [-Wdeprecated-declarations]
+   41 | struct FormattedInpStream : std::iterator<std::input_iterator_tag, char>
+      |                                  ^~~~~~~~
+/usr/include/c++/13/bits/stl_iterator_base_types.h:127:34: note: declared here
+  127 |     struct _GLIBCXX17_DEPRECATED iterator
+      |                                  ^~~~~~~~
+/mnt/c/dev/GeoDMS_2026/rtc/dll/src/gen/General.cpp:99:47: note: ‘#pragma message: ==========:---------------’
+   99 | #pragma message( "==========:---------------" )
+      |                                               ^
+/mnt/c/dev/GeoDMS_2026/rtc/dll/src/gen/General.cpp:100:48: note: ‘#pragma message: Compiler  : GNU C++ version 13.3.0’
+  100 | #pragma message( "Compiler  : " BOOST_COMPILER )
+      |                                                ^
+/mnt/c/dev/GeoDMS_2026/rtc/dll/src/gen/General.cpp:101:61: note: ‘#pragma message: MSC_VER   : _MSC_VER’
+  101 | #pragma message( "MSC_VER   : " BOOST_STRINGIZE( _MSC_VER ) )
+      |                                                             ^
+/mnt/c/dev/GeoDMS_2026/rtc/dll/src/gen/General.cpp:105:46: note: ‘#pragma message: StdVersion: GNU libstdc++ version 20240904’
+  105 | #pragma message( "StdVersion: " BOOST_STDLIB )
+      |                                              ^
+/mnt/c/dev/GeoDMS_2026/rtc/dll/src/gen/General.cpp:106:48: note: ‘#pragma message: Platform  : linux’
+  106 | #pragma message( "Platform  : " BOOST_PLATFORM )
+      |                                                ^
+/mnt/c/dev/GeoDMS_2026/rtc/dll/src/gen/General.cpp:107:152: note: ‘#pragma message: DmsVersion: 20.0.0’
+  107 | #pragma message( "DmsVersion: " BOOST_STRINGIZE( DMS_VERSION_MAJOR ) "." BOOST_STRINGIZE( DMS_VERSION_MINOR ) "." BOOST_STRINGIZE( DMS_VERSION_PATCH ) )
+      |                                                                                                                                                        ^
+/mnt/c/dev/GeoDMS_2026/rtc/dll/src/gen/General.cpp:108:48: note: ‘#pragma message: DmsDate   : 12/05/2026’
+  108 | #pragma message( "DmsDate   : " DMS_BUILD_DATE )
+      |                                                ^
+/mnt/c/dev/GeoDMS_2026/rtc/dll/src/gen/General.cpp:109:48: note: ‘#pragma message: DmsTime   : 12:01:08.18’
+  109 | #pragma message( "DmsTime   : " DMS_BUILD_TIME )
+      |                                                ^
+/mnt/c/dev/GeoDMS_2026/rtc/dll/src/gen/General.cpp:110:47: note: ‘#pragma message: ==========:---------------’
+  110 | #pragma message( "==========:---------------" )
+      |                                               ^
+[2/11] Linking CXX shared library bin/libDmRtc.so
+[3/11] Linking CXX shared library bin/libDmSym.so
+[4/11] Linking CXX shared library bin/libDmTic.so
+[5/11] Linking CXX shared library bin/libDmStx.so
+[6/11] Linking CXX shared library bin/libDmStg.so
+[7/11] Linking CXX shared library bin/libDmClc.so
+[8/11] Linking CXX shared library bin/libDmGeo.so
+[9/11] Linking CXX executable bin/GeoDmsRun
+[10/11] Linking CXX shared library bin/libDmShv.so
+[11/11] Linking CXX executable bin/GeoDmsGuiQt
+
+C:\dev\GeoDMS_2026>if errorlevel 1 goto :build_failed 
+
+C:\dev\GeoDMS_2026>echo --- creating Linux setup (.tar.gz + .deb, signed via PowerShell .NET SignedCms) --- 
+--- creating Linux setup (.tar.gz + .deb, signed via PowerShell .NET SignedCms) ---
+
+C:\dev\GeoDMS_2026>wsl bash -c "cd /mnt/c/dev/GeoDMS_2026 && export GeoDmsVersion=20.0.0 && bash nsi/CreateLinuxSetup.sh" 
+Staging files to /mnt/c/dev/GeoDMS_2026/distr/GeoDms20.0.0.l-linux-x64...
+Creating tarball /mnt/c/dev/GeoDMS_2026/distr/GeoDms20.0.0.l-linux-x64.tar.gz...
+  -> /mnt/c/dev/GeoDMS_2026/distr/GeoDms20.0.0.l-linux-x64.tar.gz
+Generating SHA256 checksum...
+  -> /mnt/c/dev/GeoDMS_2026/distr/GeoDms20.0.0.l-linux-x64.tar.gz.sha256
+     891745ad0af8514db5d06fc6d9b1aeb3d2913578af29ac3638d4160f3510ad69  GeoDms20.0.0.l-linux-x64.tar.gz
+Signing checksum with GlobalSign EV certificate (token: E6E0FE67472C3A0DB879E19F8C797DB61645D9DE)...
+  -> C:\dev\GeoDMS_2026\distr\GeoDms20.0.0.l-linux-x64.tar.gz.sha256.p7s (4483 bytes)
+
+  Recipients verify with (fetch root CA independently from GlobalSign):
+    curl -fsSL http://secure.globalsign.com/cacert/codesigningrootr45.crt \
+      | openssl x509 -inform DER -out GlobalSign-CodeSigning-Root-R45.pem
+    # verify fingerprint: 7B:9D:55:3E:1C:92:CB:6E:88:03:E1:37:F4:F2:87:D4:...
+    openssl cms -verify -binary -purpose any \
+      -in  GeoDms20.0.0.l-linux-x64.tar.gz.sha256.p7s -inform DER \
+      -content GeoDms20.0.0.l-linux-x64.tar.gz.sha256 \
+      -CAfile GlobalSign-CodeSigning-Root-R45.pem
+    sha256sum -c GeoDms20.0.0.l-linux-x64.tar.gz.sha256
+
+Creating .deb package...
+dpkg-deb: building package 'geodms' in '/mnt/c/dev/GeoDMS_2026/distr/GeoDms20.0.0.l-linux-x64.deb'.
+  -> /mnt/c/dev/GeoDMS_2026/distr/GeoDms20.0.0.l-linux-x64.deb
+
+Done. Packages in /mnt/c/dev/GeoDMS_2026/distr/
+-rwxrwxrwx 1 builder builder  73M May 12 12:04 /mnt/c/dev/GeoDMS_2026/distr/GeoDms20.0.0.l-linux-x64.deb
+-rwxrwxrwx 1 builder builder  96M May 12 12:03 /mnt/c/dev/GeoDMS_2026/distr/GeoDms20.0.0.l-linux-x64.tar.gz
+-rwxrwxrwx 1 builder builder   98 May 12 12:04 /mnt/c/dev/GeoDMS_2026/distr/GeoDms20.0.0.l-linux-x64.tar.gz.sha256
+-rwxrwxrwx 1 builder builder 4.4K May 12 12:04 /mnt/c/dev/GeoDMS_2026/distr/GeoDms20.0.0.l-linux-x64.tar.gz.sha256.p7s
+
+/mnt/c/dev/GeoDMS_2026/distr/GeoDms20.0.0.l-linux-x64:
+total 4.0K
+-rwxrwxrwx 1 builder builder 3.3K May 12 12:03 VERIFY.md
+drwxrwxrwx 1 builder builder 4.0K May 12 12:03 opt
+drwxrwxrwx 1 builder builder 4.0K May 12 12:03 usr
+
+C:\dev\GeoDMS_2026>if errorlevel 1 goto :nsis_failed 
+
+C:\dev\GeoDMS_2026>set DEB=distr\GeoDms20.0.0.l-linux-x64.deb 
+
+C:\dev\GeoDMS_2026>set TARBALL=distr\GeoDms20.0.0.l-linux-x64.tar.gz 
+
+C:\dev\GeoDMS_2026>if not exist "distr\GeoDms20.0.0.l-linux-x64.deb" (if not exist "distr\GeoDms20.0.0.l-linux-x64.tar.gz" (
+echo CreateLinuxSetup.sh produced neither distr\GeoDms20.0.0.l-linux-x64.deb nor distr\GeoDms20.0.0.l-linux-x64.tar.gz  
+ goto :nsis_failed 
+) ) 
+
+C:\dev\GeoDMS_2026>echo --- installing .deb in WSL (passwordless sudo required, or skipped) --- 
+--- installing .deb in WSL (passwordless sudo required, or skipped) ---
+
+C:\dev\GeoDMS_2026>wsl bash -c "if [ -f '/mnt/c/dev/GeoDMS_2026/distr/GeoDms20.0.0.l-linux-x64.deb' ] && sudo -n true 2>/dev/null; then sudo dpkg -i '/mnt/c/dev/GeoDMS_2026/distr/GeoDms20.0.0.l-linux-x64.deb'; else echo '** skipping dpkg install (no passwordless sudo) — install manually with:  wsl sudo dpkg -i /mnt/c/dev/GeoDMS_2026/distr/GeoDms20.0.0.l-linux-x64.deb'; fi" 
+(Reading database ... 89837 files and directories currently installed.)
+Preparing to unpack .../GeoDms20.0.0.l-linux-x64.deb ...
+Unpacking geodms (20.0.0) over (20.0.0) ...
+Setting up geodms (20.0.0) ...
+
+C:\dev\GeoDMS_2026>echo === DONE: GeoDms20.0.0.l built and packaged === 
+=== DONE: GeoDms20.0.0.l built and packaged ===
+
+C:\dev\GeoDMS_2026>if exist "distr\GeoDms20.0.0.l-linux-x64.deb" echo   .deb:     distr\GeoDms20.0.0.l-linux-x64.deb 
+  .deb:     distr\GeoDms20.0.0.l-linux-x64.deb
+
+C:\dev\GeoDMS_2026>if exist "distr\GeoDms20.0.0.l-linux-x64.tar.gz" echo   tarball:  distr\GeoDms20.0.0.l-linux-x64.tar.gz 
+  tarball:  distr\GeoDms20.0.0.l-linux-x64.tar.gz
+
+C:\dev\GeoDMS_2026>echo Run regression with:    python full.py -version 20.0.0.l 
+Run regression with:    python full.py -version 20.0.0.l
+
+C:\dev\GeoDMS_2026>endlocal
+
+C:\dev\GeoDMS_2026>exit /B 0 

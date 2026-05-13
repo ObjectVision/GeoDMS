@@ -1,0 +1,19 @@
+sudo OK (passwordless)
+=== C:  (NVMe -- where the Windows pagefile lives)  (/mnt/c/temp) ===
+  write 4096 MB (4M blocks) ...
+    4294967296 bytes (4.3 GB, 4.0 GiB) copied, 18.1734 s, 236 MB/s
+  read  4096 MB ...
+    4294967296 bytes (4.3 GB, 4.0 GiB) copied, 13.4492 s, 319 MB/s
+
+=== F:  (where wsl-swap.vhdx currently lives)  (/mnt/f/temp) ===
+  write 4096 MB (4M blocks) ...
+    4294967296 bytes (4.3 GB, 4.0 GiB) copied, 17.6736 s, 243 MB/s
+  read  4096 MB ...
+    4294967296 bytes (4.3 GB, 4.0 GiB) copied, 13.1142 s, 328 MB/s
+
+=== ext4 inside the WSL VM (~/wsl-tmp)  (/home/builder/wsl-tmp) ===
+  write 4096 MB (4M blocks) ...
+    4294967296 bytes (4.3 GB, 4.0 GiB) copied, 5.04662 s, 851 MB/s
+  read  4096 MB ...
+    4294967296 bytes (4.3 GB, 4.0 GiB) copied, 2.02659 s, 2.1 GB/s
+
