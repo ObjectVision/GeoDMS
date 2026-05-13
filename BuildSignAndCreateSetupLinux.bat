@@ -24,19 +24,11 @@ cls
 
 REM Version comes from nsi\GeoDmsVersion.cmd (shared with the msbuild + cmake
 REM sister scripts). Bump the patch number there, not here.
-call nsi\GeoDmsVersion.cmd
+call GeoDmsVersion.cmd
 set GeoDmsFlavor=l
 
 set geodms_rootdir=%cd%
 set GeoDmsVersion=%DMS_VERSION_MAJOR%.%DMS_VERSION_MINOR%.%DMS_VERSION_PATCH%
-
-REM Refresh generated headers (idempotent; lets WSL build pick the same version).
-echo #define DMS_VERSION_MAJOR %DMS_VERSION_MAJOR% > "rtc\dll\src\RtcGeneratedVersion.h"
-echo #define DMS_VERSION_MINOR %DMS_VERSION_MINOR% >> "rtc\dll\src\RtcGeneratedVersion.h"
-echo #define DMS_VERSION_PATCH %DMS_VERSION_PATCH% >> "rtc\dll\src\RtcGeneratedVersion.h"
-
-echo #define DMS_BUILD_DATE "%DATE%" > "rtc\dll\src\buildstamp.h"
-echo #define DMS_BUILD_TIME "%TIME%" >> "rtc\dll\src\buildstamp.h"
 
 echo --- building linux-x64-release in WSL ---
 wsl bash -c "cd /mnt/c/dev/GeoDMS_2026 && cmake --build build/linux-x64-release --config Release"

@@ -3,7 +3,7 @@ cls
 
 REM Version comes from nsi\GeoDmsVersion.cmd (shared with the cmake + linux
 REM sister scripts). Bump the patch number there, not here.
-call nsi\GeoDmsVersion.cmd
+call GeoDmsVersion.cmd
 
 REM Flavor suffix appended to install dir + setup filename. Sister scripts:
 REM   BuildSignAndCreateSetupCmake.bat (c)  /  BuildSignAndCreateSetupLinux.bat (l)
@@ -19,15 +19,6 @@ cd tst
 git pull
 cd %geodms_rootdir%
 
-REM Always refresh the generated headers with the version from
-REM nsi\GeoDmsVersion.cmd and a fresh build timestamp. No CHOICE — the
-REM headers are tiny and ensure the binaries report the right version.
-echo #define DMS_VERSION_MAJOR %DMS_VERSION_MAJOR% > "rtc/dll/src/RtcGeneratedVersion.h"
-echo #define DMS_VERSION_MINOR %DMS_VERSION_MINOR% >> "rtc/dll/src/RtcGeneratedVersion.h"
-echo #define DMS_VERSION_PATCH %DMS_VERSION_PATCH% >> "rtc/dll/src/RtcGeneratedVersion.h"
-
-echo #define DMS_BUILD_DATE "%DATE%" > "rtc/dll/src/buildstamp.h"
-echo #define DMS_BUILD_TIME "%TIME%" >> "rtc/dll/src/buildstamp.h"
 
 REM Always do an incremental build. If intermediates become funky, clean
 REM from the MSVC IDE or `rmdir /s /q bin build` from the shell — no need
