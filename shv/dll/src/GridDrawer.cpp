@@ -510,7 +510,7 @@ void GridDrawer::AllocatePixelBuffer() const
 #endif
 }
 
-void GridDrawer::CopyToDrawContext(GPoint viewportOffset) const
+void GridDrawer::CopyToDrawContext(GPoint viewportOffset, DmsRasterOp op) const
 {
 	if (!m_DC || m_PixelBuffer.empty())
 		return;
@@ -522,7 +522,7 @@ void GridDrawer::CopyToDrawContext(GPoint viewportOffset) const
 
 	GRect destRect = m_sViewRect + viewportOffset;
 	m_DC->DrawImage(destRect, m_PixelBuffer.data(), m_sViewRect.Width(), m_sViewRect.Height(),
-		bitsPerPixel, palette, paletteCount);
+		bitsPerPixel, palette, paletteCount, op);
 }
 
 bool GridDrawer::empty() const { return m_sViewRect.empty(); }

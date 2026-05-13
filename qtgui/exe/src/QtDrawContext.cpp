@@ -301,7 +301,7 @@ void QtDrawContext::ResetClip()
 	m_Painter->setClipping(false);
 }
 
-void QtDrawContext::DrawImage(const GRect& destRect, const void* pixelData, int width, int height, int bitsPerPixel, const void* paletteRGBQuads, int paletteCount)
+void QtDrawContext::DrawImage(const GRect& destRect, const void* pixelData, int width, int height, int bitsPerPixel, const void* paletteRGBQuads, int paletteCount, DmsRasterOp op)
 {
 	if (!m_Painter || !pixelData || width <= 0 || height <= 0)
 		return;
@@ -349,5 +349,10 @@ void QtDrawContext::DrawImage(const GRect& destRect, const void* pixelData, int 
 	else
 		return; // unsupported format
 
+	QPainter::CompositionMode prevMode = m_Painter->compositionMode();
+	if (op == DmsRasterOp::SrcAnd)
+		m_Painter->setCompositionMode(QPainter::CompositionMode_Multiply); // closest analogue of GDI SRCAND: white preserves dest, colored pixels darken it
 	m_Painter->drawImage(GRect2QRect(destRect), img);
+	if (op == DmsRasterOp::SrcAnd)
+		m_Painter->setCompositionMode(prevMode);
 }

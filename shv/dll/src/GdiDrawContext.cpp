@@ -273,7 +273,7 @@ void GdiDrawContext::ResetClip()
 	::SelectClipRgn(m_hDC, NULL);
 }
 
-void GdiDrawContext::DrawImage(const GRect& destRect, const void* pixelData, int width, int height, int bitsPerPixel, const void* paletteRGBQuads, int paletteCount)
+void GdiDrawContext::DrawImage(const GRect& destRect, const void* pixelData, int width, int height, int bitsPerPixel, const void* paletteRGBQuads, int paletteCount, DmsRasterOp op)
 {
 	int paletteBytes = paletteCount * sizeof(RGBQUAD);
 	std::vector<Byte> bmiBuffer(sizeof(BITMAPINFOHEADER) + paletteBytes);
@@ -292,10 +292,11 @@ void GdiDrawContext::DrawImage(const GRect& destRect, const void* pixelData, int
 	if (paletteCount > 0 && paletteRGBQuads)
 		memcpy(bmi->bmiColors, paletteRGBQuads, paletteBytes);
 
+	DWORD rop = (op == DmsRasterOp::SrcAnd) ? SRCAND : SRCCOPY;
 	::StretchDIBits(m_hDC,
 		destRect.left, destRect.top, destRect.Width(), destRect.Height(),
 		0, 0, width, height,
-		pixelData, bmi, DIB_RGB_COLORS, SRCCOPY);
+		pixelData, bmi, DIB_RGB_COLORS, rop);
 }
 
 #endif // _WIN32
