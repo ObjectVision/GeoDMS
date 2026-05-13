@@ -1517,6 +1517,7 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 			auto driver_short_name = driver_array[i];
 			if (!driver_short_name || !*driver_short_name)
 				throwErrorF("GDAL", "cannot register user specified gdal driver from GDAL_Driver array: %s", driver_array[i]);
+			GDALRegisterTrustedDriverFromKnownDriverShortName(driver_short_name);
 		}
 
 	}
