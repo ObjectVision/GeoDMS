@@ -3,7 +3,7 @@ cls
 
 REM Version comes from nsi\GeoDmsVersion.cmd (shared with the cmake + linux
 REM sister scripts). Bump the patch number there, not here.
-call nsi\GeoDmsVersion.cmd
+call GeoDmsVersion.cmd
 
 REM Flavor suffix appended to install dir + setup filename. Sister scripts:
 REM   BuildSignAndCreateSetupCmake.bat (c)  /  BuildSignAndCreateSetupLinux.bat (l)
@@ -19,15 +19,6 @@ cd tst
 git pull
 cd %geodms_rootdir%
 
-REM Always refresh the generated headers with the version from
-REM nsi\GeoDmsVersion.cmd and a fresh build timestamp. No CHOICE — the
-REM headers are tiny and ensure the binaries report the right version.
-echo #define DMS_VERSION_MAJOR %DMS_VERSION_MAJOR% > "rtc/dll/src/RtcGeneratedVersion.h"
-echo #define DMS_VERSION_MINOR %DMS_VERSION_MINOR% >> "rtc/dll/src/RtcGeneratedVersion.h"
-echo #define DMS_VERSION_PATCH %DMS_VERSION_PATCH% >> "rtc/dll/src/RtcGeneratedVersion.h"
-
-echo #define DMS_BUILD_DATE "%DATE%" > "rtc/dll/src/buildstamp.h"
-echo #define DMS_BUILD_TIME "%TIME%" >> "rtc/dll/src/buildstamp.h"
 
 REM Always do an incremental build. If intermediates become funky, clean
 REM from the MSVC IDE or `rmdir /s /q bin build` from the shell — no need
@@ -65,7 +56,12 @@ del filelist%GeoDmsVersion%.%GeoDmsFlavor%.txt
 FORFILES /P "C:\Program Files\ObjectVision\GeoDms%GeoDmsVersion%.%GeoDmsFlavor%" /S /C "cmd /c echo @relpath" >> filelist%GeoDmsVersion%.%GeoDmsFlavor%.txt
 
 cd ..\tst\batch
-Call unit.bat %GeoDmsVersion% off
+REM Pass the flavor separately so unit.bat -> unit_flagged.bat ->
+REM SetGeoDMSPlatform.bat can compose the install dir as
+REM GeoDms<ver>.<flavor> (e.g. GeoDms20.0.0.m). Without the flavor the
+REM path becomes GeoDms<ver> which does not exist and every GeoDmsRun.exe
+REM invocation reports a missing-file FAILED.
+Call unit.bat %GeoDmsVersion% m off
 cd %geodms_rootdir%
 echo on
 

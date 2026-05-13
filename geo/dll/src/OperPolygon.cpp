@@ -162,6 +162,21 @@ struct MlsLengthFunc : Sequence2ScalarFunc<P>
 };
 
 // *****************************************************************************
+//									ElementCount Operator
+// *****************************************************************************
+
+template <class T>
+struct ElementCountFunc : unary_func<UInt32, typename sequence_traits<T>::container_type>
+{
+	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return default_unit_creator<UInt32>(); }
+
+	auto operator() (typename ElementCountFunc::arg1_cref arg1) const -> typename ElementCountFunc::res_type
+	{
+		return typename ElementCountFunc::res_type(arg1.size());
+	}
+};
+
+// *****************************************************************************
 //									Area Operator
 // *****************************************************************************
 
@@ -1825,6 +1840,7 @@ namespace
 	CommonOperGroup cogAL("arc_length", oper_policy::better_not_in_meta_scripting);
 	CommonOperGroup cogAREA("area", oper_policy::better_not_in_meta_scripting);
 	CommonOperGroup cogMLSL("mls_length", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup cogSEC("sequence_element_count", oper_policy::better_not_in_meta_scripting);
 
 	CommonOperGroup cogP2S    ("points2sequence", oper_policy::better_not_in_meta_scripting);
 	CommonOperGroup cogP2S_p  ("points2sequence_p", oper_policy::better_not_in_meta_scripting);
@@ -1867,6 +1883,9 @@ namespace
 		UnaryAttrSpecialFuncOperator<FirstFunc<T> > firstP;
 		UnaryAttrSpecialFuncOperator<LastFunc <T> > lastP;
 
+		// Functor that returns the number of elements in the sequence (0 for empty/null)
+		UnaryAttrSpecialFuncOperator<ElementCountFunc<T> > elementCount;
+
 		// points2sequence
 		Points2SequenceOperator<T, Void> p2s1, p2s_p, p2s_po;
 		Points2SequenceOperator<T, UInt32> p2s2_ui32, p2s3_ui32, p2s_ps_ui32, p2s_pso_ui32;
@@ -1886,6 +1905,8 @@ namespace
 
 			, firstP(&cogFP)
 			, lastP(&cogLP)
+
+			, elementCount(&cogSEC)
 
 			// points2sequence
 			, p2s1(&cogP2S, false, ValueComposition::Sequence)

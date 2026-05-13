@@ -15,7 +15,7 @@ cls
 
 REM Version comes from nsi\GeoDmsVersion.cmd (shared with the msbuild + linux
 REM sister scripts). Bump the patch number there, not here.
-call nsi\GeoDmsVersion.cmd
+call GeoDmsVersion.cmd
 set GeoDmsFlavor=c
 
 set geodms_rootdir=%cd%
@@ -28,13 +28,6 @@ cd tst
 git pull
 cd %geodms_rootdir%
 
-REM Refresh generated headers (matches the msbuild script). Idempotent.
-echo #define DMS_VERSION_MAJOR %DMS_VERSION_MAJOR% > "rtc\dll\src\RtcGeneratedVersion.h"
-echo #define DMS_VERSION_MINOR %DMS_VERSION_MINOR% >> "rtc\dll\src\RtcGeneratedVersion.h"
-echo #define DMS_VERSION_PATCH %DMS_VERSION_PATCH% >> "rtc\dll\src\RtcGeneratedVersion.h"
-
-echo #define DMS_BUILD_DATE "%DATE%" > "rtc\dll\src\buildstamp.h"
-echo #define DMS_BUILD_TIME "%TIME%" >> "rtc\dll\src\buildstamp.h"
 
 set CMAKE="C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe"
 set BUILD_DIR=build\windows-x64-release
@@ -86,6 +79,13 @@ echo Installed to: %INSTALL_DIR%
 
 del filelist%GeoDmsVersion%.%GeoDmsFlavor%.txt 2>nul
 FORFILES /P "%INSTALL_DIR%" /S /C "cmd /c echo @relpath" >> filelist%GeoDmsVersion%.%GeoDmsFlavor%.txt 2>nul
+
+REM Post-install unit tests (mirrors BuildSignAndCreateSetup.bat for the .m
+REM flavor). Flavor passed separately so unit_flagged.bat ->
+REM SetGeoDMSPlatform.bat composes the install dir as GeoDms<ver>.<flavor>.
+cd ..\tst\batch
+Call unit.bat %GeoDmsVersion% c off
+cd %geodms_rootdir%
 
 echo === DONE: GeoDms%GeoDmsVersion%.%GeoDmsFlavor% built, signed, installed ===
 echo Run regression with:    python full.py -version %GeoDmsVersion%.%GeoDmsFlavor%

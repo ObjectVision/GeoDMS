@@ -1754,12 +1754,35 @@ bool DataItemColumn::GetTooltipText(TooltipCollector& ttc) const
 
 	auto activeTextAttr = GetActiveTextAttr();
 	if (!activeTextAttr)
-		return true;
-	auto currRefObj = activeTextAttr->GetCurrRefItem();
-	if (!currRefObj || !IsDataReady(currRefObj))
 	{
-		if (activeTextAttr->WasFailed(FailType::Data))
-			ttc.m_Stream << activeTextAttr->GetFailReason()->GetAsText() << "\n";
+		// Column is rendered via a theme's value getter (e.g. palette /
+		// classification — typically the non-editable, coloured-background
+		// cells). Mirror DataItemColumn::GetText's fallback so the tooltip
+		// shows the same string the cell displays, instead of nothing.
+		auto theme = GetEnabledTheme(AN_LabelText);
+		if (!theme)
+			return true;
+		if (theme->IsFailed(FailType::Data))
+		{
+			if (auto fr = theme->GetFailReason())
+				ttc.m_Stream << fr->GetAsText();
+			return true;
+		}
+		GuiReadLock dummy;
+		auto info = theme->GetValueGetter()->GetTextInfo(recNr, dummy);
+		if (!info.m_Text.empty())
+			ttc.m_Stream << info.m_Text << "\n";
+		return true; // tipping stops here !
+	}
+	auto currRefObj = activeTextAttr->GetCurrRefObj();
+	if (activeTextAttr->WasFailed(FailType::Data))
+	{
+		ttc.m_Stream << activeTextAttr->GetFailReason()->GetAsText();
+		return true;
+	}
+	if (!currRefObj)
+	{
+		ttc.m_Stream << "Data not available";
 		return true;
 	}
 
@@ -1769,7 +1792,7 @@ bool DataItemColumn::GetTooltipText(TooltipCollector& ttc) const
 
 	GuiReadLock lock;
 	auto txt = GetOrgText(recNr, lock);
-	ttc.m_Stream << txt << "\n";
+	ttc.m_Stream << txt;
 
 	return true; // tipping stops here !
 }

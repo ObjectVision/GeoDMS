@@ -745,9 +745,13 @@ bool GraphicObject::MouseEvent(MouseEventDispatcher& med)
 		{
 			dv->HideActiveTooltip();
 			dv->m_hoverStartLocation = med.r_EventInfo.m_Point;
-#ifdef _WIN32
-			SetTimer(dv->GetHWnd(), HOVER_TIMER_ID, 700, nullptr);
-#endif
+			// Route the hover timer through the ViewHost so the timeout fires the
+			// portable OnTimer(HOVER_TIMER_ID) path (Qt: QTimer -> VH_ShowTooltip).
+			// The previous Win32 SetTimer fired WM_TIMER on the SHV child HWND,
+			// which produced a per-DataView native tooltip that bypassed Qt's
+			// singleton QToolTip and could not be hidden on window-level events.
+			if (auto* vh = dv->GetViewHost())
+				vh->VH_SetTimer(HOVER_TIMER_ID, 700);
 		}
 		return true;
 	}

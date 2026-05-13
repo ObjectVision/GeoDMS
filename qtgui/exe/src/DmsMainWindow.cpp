@@ -610,6 +610,21 @@ void MainWindow::updateToolbar() {
 }
 
 bool MainWindow::event(QEvent* event) {
+    // Hide the singleton QToolTip whenever the main window is deactivated,
+    // moved, or resized. QToolTip otherwise stays visible across all three,
+    // floating over other applications or detaching from the spot it was
+    // anchored to. QToolTip::hideText() is a cheap no-op when no tooltip
+    // is currently shown, so calling it on every Move/Resize tick is fine.
+    switch (event->type()) {
+    case QEvent::WindowDeactivate:
+    case QEvent::Move:
+    case QEvent::Resize:
+        QToolTip::hideText();
+        break;
+    default:
+        break;
+    }
+
     if (event->type() == QEvent::WindowActivate && !s_errorWindowActivationCount)
     {
         QTimer::singleShot(0, this, 

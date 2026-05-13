@@ -436,49 +436,50 @@ void PaletteControl::CreateAreaOrLengthColumn(TreeItem* container, SharedStr exp
 			attrLabel = attrName;
 		funcExpr = mySSPrintF("Float64(pcount(%s)) * Float64(%g)", exprStr.c_str(), cellArea);
 	}
-	else if (layerClass == GraphicPolygonLayer::GetStaticClass())
+	else 
 	{
-		// For PolygonLayers: Area = sum(area(geometry), classification)
 		auto featureLayer = dynamic_cast<const FeatureLayer*>(m_Layer.get());
 		if (!featureLayer)
 			return;
 		auto featureAttr = featureLayer->GetFeatureAttr();
 		if (!featureAttr)
 			return;
-
-		attrName = "Area";
-		funcExpr = mySSPrintF("sum(Float64(area(%s, %s)), %s)"
-			, featureAttr->GetFullName().c_str()
-			, featureAttr->GetAbstrValuesUnit()->GetValueType()->GetScalarClass()->GetID()
-			, exprStr.c_str()
-		);
-		if (useKm)
+		if (layerClass == GraphicPolygonLayer::GetStaticClass())
 		{
-			attrLabel = "Area [km2]";
-			funcExpr += " / 1000000.0";
+			// For PolygonLayers: Area = sum(area(geometry), classification)
+			attrName = "Area";
+			funcExpr = mySSPrintF("sum(Float64(area(%s, %s)), %s)"
+				, featureAttr->GetFullName().c_str()
+				, featureAttr->GetAbstrValuesUnit()->GetValueType()->GetScalarClass()->GetID()
+				, exprStr.c_str()
+			);
+			if (useKm)
+			{
+				attrLabel = "Area [km2]";
+				funcExpr += " / 1000000.0";
+			}
 		}
-	}
-	else if (layerClass == GraphicArcLayer::GetStaticClass())
-	{
-		// For ArcLayers: Length = sum(arc_length(geometry), classification)
-		auto featureLayer = dynamic_cast<const FeatureLayer*>(m_Layer.get());
-		if (!featureLayer)
-			return;
-		auto featureAttr = featureLayer->GetFeatureAttr();
-		if (!featureAttr)
-			return;
-
-		attrName = "Length";
-		if (useKm)
+		else if (layerClass == GraphicArcLayer::GetStaticClass())
 		{
-			attrLabel = "Length [km]";
-			funcExpr = mySSPrintF("sum(arc_length(%s), %s) / 1e3", featureAttr->GetFullName().c_str(), exprStr.c_str());
+			// For ArcLayers: Length = sum(arc_length(geometry), classification)
+			attrName = "Length";
+			if (useKm)
+			{
+				attrLabel = "Length [km]";
+				funcExpr = mySSPrintF("sum(arc_length(%s), %s) / 1e3", featureAttr->GetFullName().c_str(), exprStr.c_str());
+			}
+			else
+				funcExpr = mySSPrintF("sum(arc_length(%s), %s)", featureAttr->GetFullName().c_str(), exprStr.c_str());
+		}
+		else if (layerClass == GraphicMultiPointLayer::GetStaticClass())
+		{
+			// For MultiPointLayers: PointCount = sum(sequence_element_count(geometry), classification)
+			attrName = "PointCount";
+			funcExpr = mySSPrintF("sum_float64(sequence_element_count(%s), %s)", featureAttr->GetFullName().c_str(), exprStr.c_str());
 		}
 		else
-			funcExpr = mySSPrintF("sum(arc_length(%s), %s)", featureAttr->GetFullName().c_str(), exprStr.c_str());
+			return; // Other layer types: no area or length column
 	}
-	else
-		return; // Other layer types: no area or length column
 
 	// Create a Float64 unit for the area/length values
 	auto areaUnit = Unit<Float64>::GetStaticClass()->CreateDefault();

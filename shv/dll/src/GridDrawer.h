@@ -10,6 +10,7 @@
 #include "UnitProcessor.h"
 #include "ShvUtils.h"
 
+#include "DrawContext.h" // for DmsRasterOp
 #include "LockedIndexCollectorPtr.h"
 
 #include <vector>
@@ -109,7 +110,7 @@ struct GridDrawer: UnitProcessor
 	#undef INSTANTIATE
 
 	void AllocatePixelBuffer() const;
-	void CopyToDrawContext(GPoint viewportOffset) const;
+	void CopyToDrawContext(GPoint viewportOffset, DmsRasterOp op = DmsRasterOp::SrcCopy) const;
 
 	bool empty() const;
 

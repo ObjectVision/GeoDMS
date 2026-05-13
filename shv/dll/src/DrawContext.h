@@ -43,6 +43,15 @@ enum class DmsHatchStyle : Int32 {
 };
 
 //----------------------------------------------------------------------
+// RasterOp enum (portable subset of GDI ternary ROPs used by DrawImage)
+//----------------------------------------------------------------------
+
+enum class DmsRasterOp : Int16 {
+	SrcCopy = 0, // dest = src               (GDI SRCCOPY)
+	SrcAnd  = 1, // dest = src AND dest      (GDI SRCAND) -- used by GridLayer so white pixels keep underlying layers visible
+};
+
+//----------------------------------------------------------------------
 // class  : DrawContext
 //----------------------------------------------------------------------
 // Abstract drawing context for all rendering operations.
@@ -89,7 +98,7 @@ public:
 	virtual void ResetClip() = 0;
 
 	// === Raster Image ===
-	virtual void DrawImage(const GRect& destRect, const void* pixelData, int width, int height, int bitsPerPixel, const void* paletteRGBQuads = nullptr, int paletteCount = 0) = 0;
+	virtual void DrawImage(const GRect& destRect, const void* pixelData, int width, int height, int bitsPerPixel, const void* paletteRGBQuads = nullptr, int paletteCount = 0, DmsRasterOp op = DmsRasterOp::SrcCopy) = 0;
 
 	// === 3D Borders ===
 	void DrawButtonBorder(GRect& rect);
@@ -142,7 +151,7 @@ public:
 	void SetClipRect(const GRect& rect) override;
 	void ResetClip() override;
 
-	void DrawImage(const GRect& destRect, const void* pixelData, int width, int height, int bitsPerPixel, const void* paletteRGBQuads, int paletteCount) override;
+	void DrawImage(const GRect& destRect, const void* pixelData, int width, int height, int bitsPerPixel, const void* paletteRGBQuads, int paletteCount, DmsRasterOp op) override;
 
 private:
 	HDC   m_hDC;

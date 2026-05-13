@@ -1061,10 +1061,10 @@ bool GridLayer::DrawAllRects(GraphDrawer& d, const GridColorPalette& colorPalett
 			if (!drawer.empty())
 			{
 				drawer.Apply();
-				drawer.CopyToDrawContext(viewportDeviceOffset);
+				drawer.CopyToDrawContext(viewportDeviceOffset, DmsRasterOp::SrcAnd); // SRCAND: white pixels (non-study-area) keep underlying layers visible
 			}
 		}
-		++tileCounter; 
+		++tileCounter;
 		if (tileCounter.MustBreak()) return true;
 		if (doneAnything && SuspendTrigger::MustSuspend()) return true;
 	}
