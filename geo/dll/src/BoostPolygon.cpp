@@ -1563,8 +1563,8 @@ public:
 		if constexpr (!std::is_floating_point_v<scalar_of_t<P> > || sizeof(scalar_of_t<P>) < 8)
 		{
 			if (GetGeosNonDPointDepreciationFlag() == oper_policy::obsolete)
-				throwDmsErrF("GEOS_PolygonOperator", "GEOS-based polygon operation %s are no longer supported for non-double-precision point types", this->GetGroup()->GetNameStr());
-			reportF(SeverityTypeID::ST_Warning, "GEOS-based polygon operation %s are no longer supported for non-double-precision point types", this->GetGroup()->GetNameStr());
+				throwErrorF("GEOS_PolygonOperator", "GEOS-based polygon operation %s is no longer supported for non-double-precision point types", this->GetGroup()->GetNameStr());
+			reportF(SeverityTypeID::ST_Warning, "GEOS-based polygon operation %s is no longer supported for non-double-precision point types", this->GetGroup()->GetNameStr());
 		}
 		UnionPolygon<P, SequenceType, MultiPolygonTower>(r, domainCount, polyDataA, partitionDataA, t, GetGroup(), processTimer, itemRef);
 	}
