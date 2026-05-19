@@ -230,7 +230,7 @@ def getProcessCurrentStatistics(process:psutil.Process, experiment_start_time):
         return [t, dt, cpu_p, mem_p, rss, vms, num_threads, rb, wb, net_c]
     return [t, dt, cpu_p, mem_p, rss, vms, num_threads, rb, wb, net_c]
 
-def getPerformance(exp:Experiment, sampling_rate=1.0, timeout=7200):
+def getPerformance(exp:Experiment, sampling_rate=1.0, timeout=14400):
     profile_log = {"time":[], "dtime":[], "cpu_percent":[], "cpu_curr_time":[], "memory_percent":[], "rss":[], "vms":[], "num_threads":[], "total_read_bytes":[], "total_write_bytes":[], "net_connections":[], "processes":[]} # rss=resident set size (aka physical non swapped memory in use by process), vms virtual memory ize
     command_with_args = exp.command
     environment_string = exp.environment_variables
