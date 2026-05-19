@@ -256,8 +256,10 @@ constexpr int MAX_NR_CANDIDATES = 64;
 void AddClassificationMenu(MenuData& menuData, AspectNr a, Theme* classifiedTheme, const AbstrDataItem* themeAttr, GraphicLayer* layer)
 {
 	const AbstrDataItem* classification = classifiedTheme ? classifiedTheme->GetClassification() : nullptr;
-	if (classifiedTheme && classifiedTheme->GetThemeAttr())
-		themeAttr = classifiedTheme->GetThemeAttr();
+	if (classifiedTheme)
+		if (auto classifiedThemeAttr = classifiedTheme->GetThemeAttr())
+			if (!classifiedThemeAttr->HasVoidDomainGuarantee())
+				themeAttr = classifiedThemeAttr;
 
 	if (!themeAttr)
 		return;

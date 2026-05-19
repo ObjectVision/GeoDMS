@@ -15,6 +15,7 @@
 #include "act/Actor.h"
 #include "dbg/debug.h"
 #include "utl/Instantiate.h"
+#include "xct/ErrMsg.h"
 #include "StgBase.h"
 
 
@@ -126,6 +127,9 @@ DmsColor AbstrThemeValueGetter::GetColorValue(entity_id entityIndex) const
 		return STG_Bmp_GetDefaultColor(CI_NODATA);
 	if (!m_PaletteAttr)
 		return classIndex;
+	if (m_PaletteAttr->WasFailed(FailType::Data))
+		return DmsRed;
+
 	DataReadLock lock(m_PaletteAttr);
 	return m_PaletteAttr->GetValue<DmsColor>(classIndex);
 }
@@ -138,8 +142,9 @@ Int32 AbstrThemeValueGetter::GetOrdinalValue(SizeT entityIndex) const
 
 	if (!m_PaletteAttr)
 		return classIndex;
+	if (m_PaletteAttr->WasFailed(FailType::Data))
+		return 0;
 	return m_PaletteAttr->GetRefObj()->GetValueAsInt32(classIndex);
-
 }
 
 UInt32 AbstrThemeValueGetter::GetCardinalValue(SizeT entityIndex) const
@@ -147,7 +152,11 @@ UInt32 AbstrThemeValueGetter::GetCardinalValue(SizeT entityIndex) const
 	assert(m_PaletteAttr);
 	entity_id classIndex = GetClassIndex(entityIndex);
 	if (!IsDefined(classIndex))
-		return UNDEFINED_VALUE(Int32);
+		return UNDEFINED_VALUE(UInt32);
+	if (!m_PaletteAttr)
+		return classIndex;
+	if (m_PaletteAttr->WasFailed(FailType::Data))
+		return UNDEFINED_VALUE(UInt32);
 	return m_PaletteAttr->GetRefObj()->GetValueAsUInt32(classIndex);
 }
 
@@ -158,10 +167,12 @@ SharedStr AbstrThemeValueGetter::GetStringValue(SizeT entityIndex, GuiReadLock& 
 		if (auto cvg = dynamic_cast<const ConstValueGetter<SharedStr>*>(this))
 			return cvg->m_Value;
 	}
-	dms_assert(m_PaletteAttr);
+	assert(m_PaletteAttr);
 	entity_id classIndex = GetClassIndex(entityIndex);
 	if (!IsDefined(classIndex))
 		return UNDEFINED_VALUE(SharedStr);
+	if (m_PaletteAttr->WasFailed(FailType::Data))
+		return m_PaletteAttr->GetFailReason()->Why();
 	return m_PaletteAttr->GetRefObj()->AsString(classIndex, lock, FormattingFlags::ThousandSeparator);
 }
 

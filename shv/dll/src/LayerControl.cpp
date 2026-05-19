@@ -413,7 +413,7 @@ LayerControl::~LayerControl()
 
 COLORREF LayerControl::GetBkColor() const
 {
-	if (m_Layer->IsFailed())
+	if (m_Layer->WasFailed())
 		return DmsColor2COLORREF( DmsRed );
 
 	if (m_Layer->ShowSelectedOnly())
