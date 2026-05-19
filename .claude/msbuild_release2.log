@@ -1,0 +1,62 @@
+
+  copying files to C:\dev\GeoDMS_2026\bin\Release\x64\
+  
+  	                   1	C:\dev\GeoDMS_2026\library\
+  	                   3	C:\dev\GeoDMS_2026\library\basedata_nl\
+  	                   1	C:\dev\GeoDMS_2026\library\basedata_nl\rdc\
+  	                   1	C:\dev\GeoDMS_2026\library\geometry\
+  
+  	                   1	C:\dev\GeoDMS_2026\examples\
+  DmRtc.vcxproj -> C:\dev\GeoDMS_2026\bin\Release\x64\Rtc.dll
+  DmSym.vcxproj -> C:\dev\GeoDMS_2026\bin\Release\x64\Sym.dll
+C:\dev\GeoDMS_2026\sym\dll\src\LispRef.cpp(348): warning C26800: Use of a moved from object: '(*rhs)' (lifetime.1). [C:\dev\GeoDMS_2026\sym\dll\DmSym.vcxproj]
+C:\dev\GeoDMS_2026\rtc\dll\src\set\Cache.h(128): warning C26495: Variable 'UnorderedSetCache<LispCaches::MakeNumbFunc>::m_EqComp' is uninitialized. Always initialize a member variable (type.6). [C:\dev\GeoDMS_2026\sym\dll\DmSym.vcxproj]
+C:\dev\GeoDMS_2026\rtc\dll\src\set\Cache.h(128): warning C26495: Variable 'UnorderedSetCache<LispCaches::MakeUI64Func>::m_Hasher' is uninitialized. Always initialize a member variable (type.6). [C:\dev\GeoDMS_2026\sym\dll\DmSym.vcxproj]
+C:\dev\GeoDMS_2026\rtc\dll\src\set\Cache.h(128): warning C26495: Variable 'UnorderedSetCache<LispCaches::MakeStrnFunc>::m_Hasher' is uninitialized. Always initialize a member variable (type.6). [C:\dev\GeoDMS_2026\sym\dll\DmSym.vcxproj]
+  DmTic.vcxproj -> C:\dev\GeoDMS_2026\bin\Release\x64\Tic.dll
+C:\dev\GeoDMS_2026\rtc\dll\src\utl\TypeListOper.h(47): warning C26800: Use of a moved from object: '(*<args_0>)' (lifetime.1). [C:\dev\GeoDMS_2026\tic\dll\DmTic.vcxproj]
+  StgDll.vcxproj -> C:\dev\GeoDMS_2026\bin\Release\x64\Stg.dll
+  StxDll.vcxproj -> C:\dev\GeoDMS_2026\bin\Release\x64\Stx.dll
+C:\dev\GeoDMS_2026\stg\dll\src\gdal\gdal_base.cpp(1217): warning C28182: Dereferencing NULL pointer. 'subItem' contains the same NULL value as 'unitItem' did. . [C:\dev\GeoDMS_2026\stg\dll\StgDll.vcxproj]
+C:\dev\GeoDMS_2026\stg\dll\src\str\StrStorageManager.cpp(73): warning C28182: Dereferencing NULL pointer. 'ado' contains the same NULL value as 'sdo' did. . [C:\dev\GeoDMS_2026\stg\dll\StgDll.vcxproj]
+  Clc.vcxproj -> C:\dev\GeoDMS_2026\bin\Release\x64\Clc.dll
+C:\dev\GeoDMS_2026\rtc\dll\src\utl\TypeListOper.h(47): warning C26800: Use of a moved from object: '(*<args_1>)' (lifetime.1). [C:\dev\GeoDMS_2026\clc\dll\Clc.vcxproj]
+C:\dev\GeoDMS_2026\rtc\dll\src\utl\TypeListOper.h(47): warning C26800: Use of a moved from object: '(*<args_2>)' (lifetime.1). [C:\dev\GeoDMS_2026\clc\dll\Clc.vcxproj]
+  GeoDLL.vcxproj -> C:\dev\GeoDMS_2026\bin\Release\x64\Geo.dll
+C:\dev\GeoDMS_2026\geo\dll\src\BoostPolygon.cpp(306): warning C26813: Use 'bitwise and' to check if a flag is set. [C:\dev\GeoDMS_2026\geo\dll\GeoDLL.vcxproj]
+C:\dev\GeoDMS_2026\geo\dll\src\BoostPolygon.cpp(1565): warning C26813: Use 'bitwise and' to check if a flag is set. [C:\dev\GeoDMS_2026\geo\dll\GeoDLL.vcxproj]
+C:\dev\GeoDMS_2026\rtc\dll\src\utl\TypeListOper.h(47): warning C26800: Use of a moved from object: '(*<args_1>)' (lifetime.1). [C:\dev\GeoDMS_2026\geo\dll\GeoDLL.vcxproj]
+C:\dev\GeoDMS_2026\geo\dll\src\Poly2GridOper.cpp(585): warning C28182: Dereferencing NULL pointer. 'abstrPolyDomain' contains the same NULL value as 'polyDomain' did. See line 574 for an earlier location where this can occur. [C:\dev\GeoDMS_2026\geo\dll\GeoDLL.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Microsoft\VC\v180\Microsoft.CppBuild.targets(1415,5): warning MSB8012: TargetPath(C:\dev\GeoDMS_2026\bin\Release\x64\geodms.dll) does not match the Linker's OutputFile property value (C:\dev\GeoDMS_2026\bin\Release\x64\geodms.pyd). This may cause your project to build incorrectly. To correct this, please make sure that $(OutDir), $(TargetName) and $(TargetExt) property values match the value specified in %(Link.OutputFile). [C:\dev\GeoDMS_2026\python\dll\DmsPython.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Microsoft\VC\v180\Microsoft.CppBuild.targets(1416,5): warning MSB8012: TargetExt(.dll) does not match the Linker's OutputFile property value (.pyd). This may cause your project to build incorrectly. To correct this, please make sure that $(OutDir), $(TargetName) and $(TargetExt) property values match the value specified in %(Link.OutputFile). [C:\dev\GeoDMS_2026\python\dll\DmsPython.vcxproj]
+   Qt/MSBuild: 3.5.0.0
+  DmsPython.vcxproj -> C:\dev\GeoDMS_2026\bin\Release\x64\geodms.dll
+  DmsRun.vcxproj -> C:\dev\GeoDMS_2026\bin\Release\x64\GeoDmsRun.exe
+  DmTicTst.vcxproj -> C:\dev\GeoDMS_2026\bin\Release\x64\TicTst.exe
+  Reading Qt configuration (C:/Qt/6.9.0/msvc2022_64/bin/qmake)
+   Qt: 6.9.0
+cl : command line  warning D9025: overriding '/DUNICODE' with '/UUNICODE' [C:\dev\GeoDMS_2026\shv\dll\ShvDLL.vcxproj]
+cl : command line  warning D9025: overriding '/D_UNICODE' with '/U_UNICODE' [C:\dev\GeoDMS_2026\shv\dll\ShvDLL.vcxproj]
+  DataItemColumn.cpp
+     Creating library C:\dev\GeoDMS_2026\bin\Release\x64\Shv.lib and object C:\dev\GeoDMS_2026\bin\Release\x64\Shv.exp
+  Generating code
+  Finished generating code
+  ShvDLL.vcxproj -> C:\dev\GeoDMS_2026\bin\Release\x64\Shv.dll
+  'pwsh.exe' is not recognized as an internal or external command,
+  operable program or batch file.
+C:\dev\GeoDMS_2026\shv\dll\src\Carets.cpp(95): warning C26498: The function 'CombineRGB' is constexpr, mark variable 'lineColor' constexpr if compile-time evaluation is desired (con.5). [C:\dev\GeoDMS_2026\shv\dll\ShvDLL.vcxproj]
+C:\dev\GeoDMS_2026\shv\dll\src\GridLayer.cpp(1239): warning C26498: The function 'CombineRGB' is constexpr, mark variable 'highlightColor' constexpr if compile-time evaluation is desired (con.5). [C:\dev\GeoDMS_2026\shv\dll\ShvDLL.vcxproj]
+C:\dev\GeoDMS_2026\shv\dll\src\ScaleBar.cpp(63): warning C26498: The function 'CombineRGB' is constexpr, mark variable 'white' constexpr if compile-time evaluation is desired (con.5). [C:\dev\GeoDMS_2026\shv\dll\ShvDLL.vcxproj]
+C:\dev\GeoDMS_2026\shv\dll\src\ScaleBar.cpp(64): warning C26498: The function 'CombineRGB' is constexpr, mark variable 'black' constexpr if compile-time evaluation is desired (con.5). [C:\dev\GeoDMS_2026\shv\dll\ShvDLL.vcxproj]
+C:\dev\GeoDMS_2026\shv\dll\src\ScaleBar.cpp(65): warning C26498: The function 'CombineRGB' is constexpr, mark variable 'red' constexpr if compile-time evaluation is desired (con.5). [C:\dev\GeoDMS_2026\shv\dll\ShvDLL.vcxproj]
+C:\dev\GeoDMS_2026\shv\dll\src\ScaleBar.cpp(66): warning C26498: The function 'CombineRGB' is constexpr, mark variable 'blue' constexpr if compile-time evaluation is desired (con.5). [C:\dev\GeoDMS_2026\shv\dll\ShvDLL.vcxproj]
+   Qt/MSBuild: 3.5.0.0
+   Qt: 6.9.0
+  Generating code
+  Finished generating code
+  GeoDmsGuiQt.vcxproj -> C:\dev\GeoDMS_2026\bin\Release\x64\GeoDmsGuiQt.exe
+  'pwsh.exe' is not recognized as an internal or external command,
+  operable program or batch file.
+  Qt Deploy: "C:/Qt/6.9.0/msvc2022_64/bin\windeployqt.exe" --list target --qmldir C:\dev\GeoDMS_2026\qtgui\exe\ --dir C:\dev\GeoDMS_2026\bin\Release\x64\ C:\dev\GeoDMS_2026\bin\Release\x64\GeoDmsGuiQt.exe
+EXEC : warning : Cannot find any version of the dxcompiler.dll and dxil.dll. [C:\dev\GeoDMS_2026\qtgui\exe\GeoDmsGuiQt.vcxproj]
+C:\dev\GeoDMS_2026\qtgui\exe\src\DmsTreeView.cpp(826): warning C28182: Dereferencing NULL pointer. 'target_item' contains the same NULL value as 'visible_parent' did. See line 816 for an earlier location where this can occur. [C:\dev\GeoDMS_2026\qtgui\exe\GeoDmsGuiQt.vcxproj]

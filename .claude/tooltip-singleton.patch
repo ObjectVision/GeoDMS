@@ -1,0 +1,396 @@
+diff --git a/qtgui/exe/src/DmsMainWindow.cpp b/qtgui/exe/src/DmsMainWindow.cpp
+index aaf1cda1..747c1f8d 100644
+--- a/qtgui/exe/src/DmsMainWindow.cpp
++++ b/qtgui/exe/src/DmsMainWindow.cpp
+@@ -610,6 +610,21 @@ void MainWindow::updateToolbar() {
+ }
+ 
+ bool MainWindow::event(QEvent* event) {
++    // Hide the singleton QToolTip whenever the main window is deactivated,
++    // moved, or resized. QToolTip otherwise stays visible across all three,
++    // floating over other applications or detaching from the spot it was
++    // anchored to. QToolTip::hideText() is a cheap no-op when no tooltip
++    // is currently shown, so calling it on every Move/Resize tick is fine.
++    switch (event->type()) {
++    case QEvent::WindowDeactivate:
++    case QEvent::Move:
++    case QEvent::Resize:
++        QToolTip::hideText();
++        break;
++    default:
++        break;
++    }
++
+     if (event->type() == QEvent::WindowActivate && !s_errorWindowActivationCount)
+     {
+         QTimer::singleShot(0, this, 
+diff --git a/qtgui/exe/src/DmsViewArea.cpp b/qtgui/exe/src/DmsViewArea.cpp
+index d0414e76..f7cd8ab5 100644
+--- a/qtgui/exe/src/DmsViewArea.cpp
++++ b/qtgui/exe/src/DmsViewArea.cpp
+@@ -485,11 +485,16 @@ void QDmsViewArea::dropEvent(QDropEvent* event) {
+ }
+ 
+ void QDmsViewArea::moveEvent(QMoveEvent* event) {
++    // Any motion of this DataView's subwindow desynchronises the singleton
++    // QToolTip from the spot it was anchored to; hide it so the user is not
++    // left with a stale tip floating over unrelated content.
++    QToolTip::hideText();
+     base_class::moveEvent(event);
+     UpdatePosAndSize();
+ }
+ 
+ void QDmsViewArea::resizeEvent(QResizeEvent* event) {
++    QToolTip::hideText();
+     base_class::resizeEvent(event);
+     UpdatePosAndSize();
+ #ifndef _WIN32
+diff --git a/shv/dll/src/GraphicObject.cpp b/shv/dll/src/GraphicObject.cpp
+index 39cca885..1e67e42e 100644
+--- a/shv/dll/src/GraphicObject.cpp
++++ b/shv/dll/src/GraphicObject.cpp
+@@ -745,9 +745,13 @@ bool GraphicObject::MouseEvent(MouseEventDispatcher& med)
+ 		{
+ 			dv->HideActiveTooltip();
+ 			dv->m_hoverStartLocation = med.r_EventInfo.m_Point;
+-#ifdef _WIN32
+-			SetTimer(dv->GetHWnd(), HOVER_TIMER_ID, 700, nullptr);
+-#endif
++			// Route the hover timer through the ViewHost so the timeout fires the
++			// portable OnTimer(HOVER_TIMER_ID) path (Qt: QTimer -> VH_ShowTooltip).
++			// The previous Win32 SetTimer fired WM_TIMER on the SHV child HWND,
++			// which produced a per-DataView native tooltip that bypassed Qt's
++			// singleton QToolTip and could not be hidden on window-level events.
++			if (auto* vh = dv->GetViewHost())
++				vh->VH_SetTimer(HOVER_TIMER_ID, 700);
+ 		}
+ 		return true;
+ 	}
+diff --git a/shv/dll/src/Win32ViewHost.cpp b/shv/dll/src/Win32ViewHost.cpp
+index acf91ad5..7e95a2ba 100644
+--- a/shv/dll/src/Win32ViewHost.cpp
++++ b/shv/dll/src/Win32ViewHost.cpp
+@@ -221,15 +221,17 @@ void Win32ViewHost::VH_DrawInContext(const Region& clipRgn, std::function<void(D
+ 	::ReleaseDC(m_hWnd, hdc);
+ }
+ 
+-void Win32ViewHost::VH_ShowTooltip(GPoint screenPoint, CharPtr utf8Text)
++void Win32ViewHost::VH_ShowTooltip(GPoint /*screenPoint*/, CharPtr /*utf8Text*/)
+ {
+-	// Win32ViewHost does not use this path; the DataView tooltip code
+-	// uses the Win32 tooltip control directly via m_hWnd/m_hwndTooltip.
++	// Win32ViewHost is not a shipping target -- the only ViewHost in use is
++	// QDmsViewArea (Qt). If Win32ViewHost is ever revived, a real native
++	// tooltip control should be implemented here (singleton owned by the
++	// host's HWND, lazy-allocated). Until then this is a no-op.
+ }
+ 
+ void Win32ViewHost::VH_HideTooltip()
+ {
+-	// Win32ViewHost does not use this path; see HideActiveTooltip in dataview.cpp.
++	// See VH_ShowTooltip above.
+ }
+ 
+ void Win32ViewHost::VH_ShowPopupMenu(GPoint clientPoint, const MenuData& /*menuData*/)
+diff --git a/shv/dll/src/dataview.cpp b/shv/dll/src/dataview.cpp
+index 550effde..f135e237 100644
+--- a/shv/dll/src/dataview.cpp
++++ b/shv/dll/src/dataview.cpp
+@@ -646,76 +646,13 @@ MsgResult DataView::DispatchMsg(const MsgStruct& msg)
+ 
+ 		case WM_TIMER:
+ 		{
+-			if (msg.m_wParam == TIP_WATCH_TIMER_ID)
+-			{
+-				auto attObj = m_activeTooltipObj.lock();
+-				if (!attObj)
+-					StopTipWatchdog();
+-				else
+-					if (!IsCursorInsideObject(*attObj))
+-						HideActiveTooltip();
+-				goto completed;
+-			}
+-			if (msg.m_wParam == HOVER_TIMER_ID)
+-			{
+-				if (m_ViewHost)
+-					m_ViewHost->VH_KillTimer(HOVER_TIMER_ID);
+-				else
+-					KillTimer(GetHWnd(), HOVER_TIMER_ID);
+-
+-				GPoint ptScreen;
+-				if (m_ViewHost)
+-					m_ViewHost->VH_GetCursorScreenPos(ptScreen);
+-				else
+-					GetCursorPos(&AsPOINT(ptScreen));
+-				GPoint ptClient = m_ViewHost
+-					? m_ViewHost->VH_ScreenToClient(ptScreen)
+-					: [&]() { GPoint p = ptScreen; ScreenToClient(GetHWnd(), &AsPOINT(p)); return p; }();
+-				if (ptClient == m_hoverStartLocation)
+-				{
+-					TooltipCollector ttc(this, ptClient);
+-					SuspendTrigger::Resume();
+-					if (ttc.Visit(GetContents().get()))
+-					{
+-						assert(m_activeTooltipObj.lock().get());
+-
+-						m_ToolTipText = Utf8_2_wchar(ttc.m_Buff.AsString());
+-
+-						HWND hwndTT = EnsureTooltipWindow();
+-
+-						// Ensure tool exists / update rect + text
+-						TOOLINFOW ti{};
+-						ti.cbSize = TTTOOLINFOW_V2_SIZE; // sizeof(ti);
+-						ti.uFlags = TTF_TRACK | TTF_ABSOLUTE;
+-						ti.hwnd = GetHWnd();
+-						ti.uId = (UINT_PTR)this;
+-
+-						ti.rect = AsRECT(CrdRect2GRect(ttc.m_DevRect));
+-
+-						ti.lpszText = m_ToolTipText.get();
+-
+-						// Add if missing, else update
+-						if (!SendMessageW(hwndTT, TTM_UPDATETIPTEXTW, 0, (LPARAM)&ti))
+-						{
+-							BOOL addOk = SendMessageW(hwndTT, TTM_ADDTOOLW, 0, (LPARAM)&ti);
+-							assert(addOk);
+-						}
+-						else
+-							SendMessageW(hwndTT, TTM_NEWTOOLRECTW, 0, (LPARAM)&ti);
+-
+-						// Position near cursor (screen coords)
+-						ptScreen.x += 32;
+-						ptScreen.y += 10;
+-
+-						SendMessageW(hwndTT, TTM_TRACKPOSITION, 0, MAKELONG(ptScreen.x, ptScreen.y));
+-						SendMessageW(hwndTT, TTM_TRACKACTIVATE, TRUE, (LPARAM)&ti);
+-
+-						StartTipWatchdog();
+-					}
+-				}
+-
+-				goto completed;
+-			}
++			// TIP_WATCH_TIMER_ID and HOVER_TIMER_ID are now started exclusively via
++			// VH_SetTimer (see GraphicObject::MouseEvent and StartTipWatchdog), so
++			// their timeouts fire on the portable OnTimer() path -- not WM_TIMER --
++			// even on Windows. Removing the WM_TIMER handlers for those IDs
++			// eliminates the per-DataView native Win32 tooltip path that bypassed
++			// Qt's singleton QToolTip and could not be hidden on window-level
++			// events (deactivate / move / resize).
+ 			if (msg.m_wParam != UPDATE_TIMER_ID)
+ 				goto defaultProcessing;
+ 
+@@ -977,28 +914,14 @@ void DataView::OnTimer(UInt32 timerId)
+ 
+ 	if (timerId == HOVER_TIMER_ID)
+ 	{
+-		if (m_ViewHost)
+-			m_ViewHost->VH_KillTimer(HOVER_TIMER_ID);
+-#ifdef _WIN32
+-		else
+-			KillTimer(GetHWnd(), HOVER_TIMER_ID);
+-#endif
++		if (!m_ViewHost)
++			return;
++		m_ViewHost->VH_KillTimer(HOVER_TIMER_ID);
+ 
+ 		GPoint ptScreen{};
+-		GPoint ptClient{};
+-		if (m_ViewHost)
+-		{
+-			m_ViewHost->VH_GetCursorScreenPos(ptScreen);
+-			ptClient = m_ViewHost->VH_ScreenToClient(ptScreen);
+-		}
+-#ifdef _WIN32
+-		else
+-		{
+-			GetCursorPos(&AsPOINT(ptScreen));
+-			ptClient = ptScreen;
+-			ScreenToClient(GetHWnd(), &AsPOINT(ptClient));
+-		}
+-#endif
++		if (!m_ViewHost->VH_GetCursorScreenPos(ptScreen))
++			return;
++		GPoint ptClient = m_ViewHost->VH_ScreenToClient(ptScreen);
+ 
+ 		if (ptClient == m_hoverStartLocation)
+ 		{
+@@ -1009,41 +932,9 @@ void DataView::OnTimer(UInt32 timerId)
+ 				assert(m_activeTooltipObj.lock().get());
+ 
+ 				GPoint tipPos = { ptScreen.x + 32, ptScreen.y + 10 };
+-
+-				if (m_ViewHost)
+-				{
+-					// Portable: use ViewHost tooltip
+-					auto tooltipText = ttc.m_Buff.AsString();
+-					m_ViewHost->VH_ShowTooltip(tipPos, tooltipText.c_str());
+-					StartTipWatchdog();
+-				}
+-#ifdef _WIN32
+-				else
+-				{
+-					// Win32 fallback: use native tooltip control
+-					m_ToolTipText = Utf8_2_wchar(ttc.m_Buff.AsString());
+-
+-					HWND hwndTT = EnsureTooltipWindow();
+-
+-					TOOLINFOW ti{};
+-					ti.cbSize = TTTOOLINFOW_V2_SIZE;
+-					ti.uFlags = TTF_TRACK | TTF_ABSOLUTE;
+-					ti.hwnd = GetHWnd();
+-					ti.uId = (UINT_PTR)this;
+-					ti.rect = AsRECT(CrdRect2GRect(ttc.m_DevRect));
+-					ti.lpszText = m_ToolTipText.get();
+-
+-					if (!SendMessageW(hwndTT, TTM_UPDATETIPTEXTW, 0, (LPARAM)&ti))
+-						SendMessageW(hwndTT, TTM_ADDTOOLW, 0, (LPARAM)&ti);
+-					else
+-						SendMessageW(hwndTT, TTM_NEWTOOLRECTW, 0, (LPARAM)&ti);
+-
+-					SendMessageW(hwndTT, TTM_TRACKPOSITION, 0, MAKELONG(tipPos.x, tipPos.y));
+-					SendMessageW(hwndTT, TTM_TRACKACTIVATE, TRUE, (LPARAM)&ti);
+-
+-					StartTipWatchdog();
+-				}
+-#endif // _WIN32
++				auto tooltipText = ttc.m_Buff.AsString();
++				m_ViewHost->VH_ShowTooltip(tipPos, tooltipText.c_str());
++				StartTipWatchdog();
+ 			}
+ 		}
+ 		return;
+@@ -2275,60 +2166,25 @@ void Unkeep(DataView* self)
+ }
+ 
+ // =============================================== ToolTip
+-
+-#ifdef _WIN32
+-#include <commctrl.h>
+-#pragma comment(lib, "comctl32.lib")
+-#endif
+-
+-#ifdef _WIN32
+-HWND DataView::EnsureTooltipWindow()
+-{
+-	if (m_hwndTooltip)
+-		return m_hwndTooltip;
+-
+-	// Ensure common controls are initialized somewhere in your app startup too
+-	INITCOMMONCONTROLSEX icc{ sizeof(icc), ICC_WIN95_CLASSES };
+-	BOOL ok = InitCommonControlsEx(&icc);
+-	assert(ok);
+-
+-	auto hWnd = GetHWnd();
+-	assert(hWnd);
+-	m_hwndTooltip = CreateWindowExW(
+-		WS_EX_TOPMOST, TOOLTIPS_CLASSW, nullptr,
+-		WS_POPUP | TTS_ALWAYSTIP | TTS_NOPREFIX,
+-		CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
+-		hWnd, nullptr, GetModuleHandleW(nullptr), nullptr);
+-	assert(m_hwndTooltip);
+-
+-	SetWindowPos(m_hwndTooltip, HWND_TOPMOST, 0, 0, 0, 0,
+-		SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+-
+-	SendMessageW(m_hwndTooltip, TTM_SETMAXTIPWIDTH, 0, 400);
+-	SendMessageW(m_hwndTooltip, TTM_SETTIPBKCOLOR, (WPARAM)GetSysColor(COLOR_INFOBK), 0);
+-	SendMessageW(m_hwndTooltip, TTM_SETTIPTEXTCOLOR, (WPARAM)GetSysColor(COLOR_INFOTEXT), 0);
+-	return m_hwndTooltip;
+-}
+-#endif // _WIN32
++//
++// Tooltips are rendered by the host GUI (Qt's QToolTip singleton, reached
++// through ViewHost::VH_ShowTooltip / VH_HideTooltip). DataView no longer
++// owns a native tooltip window: doing so produced a per-DataView floating
++// HWND_TOPMOST that bypassed Qt's singleton and remained visible across
++// window deactivate / move / resize. The watchdog below still tracks the
++// GraphicObject under the cursor so the host tooltip can be hidden as soon
++// as the cursor leaves that object.
+ 
+ void DataView::StartTipWatchdog()
+ {
+ 	if (m_ViewHost)
+ 		m_ViewHost->VH_SetTimer(TIP_WATCH_TIMER_ID, kTipWatchPeriodMs);
+-#ifdef _WIN32
+-	else
+-		SetTimer(GetHWnd(), TIP_WATCH_TIMER_ID, kTipWatchPeriodMs, nullptr);
+-#endif
+ }
+ 
+ void DataView::StopTipWatchdog()
+ {
+ 	if (m_ViewHost)
+ 		m_ViewHost->VH_KillTimer(TIP_WATCH_TIMER_ID);
+-#ifdef _WIN32
+-	else
+-		KillTimer(GetHWnd(), TIP_WATCH_TIMER_ID);
+-#endif
+ }
+ 
+ void DataView::SetActiveTooltipObject(const GraphicObject* obj) noexcept
+@@ -2353,22 +2209,8 @@ void DataView::HideActiveTooltip()
+ 		return;
+ 
+ 	if (m_ViewHost)
+-	{
+ 		m_ViewHost->VH_HideTooltip();
+-	}
+-#ifdef _WIN32
+-	else if (m_hwndTooltip)
+-	{
+-		HWND hwndTT = m_hwndTooltip;
+-
+-		TOOLINFOW ti{};
+-		ti.cbSize = sizeof(ti);
+-		ti.hwnd = GetHWnd();
+-		ti.uId = (UINT_PTR)this;
+ 
+-		SendMessageW(hwndTT, TTM_TRACKACTIVATE, FALSE, (LPARAM)&ti);
+-	}
+-#endif
+ 	m_activeTooltipObj.reset();
+ 
+ 	StopTipWatchdog();
+diff --git a/shv/dll/src/dataview.h b/shv/dll/src/dataview.h
+index 76f9525e..be208ac4 100644
+--- a/shv/dll/src/dataview.h
++++ b/shv/dll/src/dataview.h
+@@ -402,17 +402,19 @@ public:
+ 	DECL_RTTI(SHV_CALL, Class);
+ 
+ 	// =============================================== ToolTip
++	//
++	// Tooltips are owned by the host GUI (Qt's QToolTip singleton, accessed
++	// via ViewHost::VH_ShowTooltip / VH_HideTooltip). DataView only tracks
++	// which GraphicObject currently holds the tooltip so the watchdog timer
++	// can hide it when the cursor leaves that object. The previous Win32
++	// per-DataView tooltip HWND has been removed: it bypassed Qt's singleton
++	// and could not be hidden on window-level events (deactivate/move/resize).
+ 
+ public:
+ 	// Called by GraphicObject when it shows/hides a tooltip
+ 	void SetActiveTooltipObject(const GraphicObject* obj) noexcept;
+ 	void ClearActiveTooltipObject(const GraphicObject* obj) noexcept;
+ 
+-	// Called by GraphicObject (lazy init) to access the tooltip HWND
+-#ifdef _WIN32
+-	HWND EnsureTooltipWindow();
+-#endif
+-
+ 	// Helpers used by watchdog
+ 	bool IsCursorInsideObject(const GraphicObject& obj) const noexcept;
+ 
+@@ -427,12 +429,6 @@ public:
+ 	void StopTipWatchdog();
+ 
+ 	void HideActiveTooltip();
+-
+-#ifdef _WIN32
+-	// Tooltip window (TOOLTIPS_CLASS)
+-	HWND m_hwndTooltip = nullptr;
+-	std::unique_ptr<wchar_t[]> m_ToolTipText;
+-#endif
+ };
+ 
+ 
