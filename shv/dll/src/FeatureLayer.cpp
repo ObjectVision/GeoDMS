@@ -2795,9 +2795,14 @@ bool FeatureLayer::GetTooltipText(TooltipCollector& ttc) const
 		ttc.m_Stream << "Feature " << featureIndex;
 		if (ado)
 		{
-			auto attrValue = ado->AsString(featureIndex, lockHolder, FormattingFlags::ThousandSeparator);
-			if (IsDefined(attrValue))
-				ttc.m_Stream << ": " << attrValue;
+			auto attrValueStr = ado->AsString(featureIndex, lockHolder, FormattingFlags::ThousandSeparator);
+			if (IsDefined(attrValueStr))
+			{
+				if (attrValueStr.ssize() > 400)
+					ttc.m_Stream << ": " << CharPtrRange(attrValueStr.begin(), attrValueStr.begin() + 400) << "...";
+				else
+					ttc.m_Stream << ": " << attrValueStr;
+			}
 		}
 		ttc.m_Stream << "\n";
 	}

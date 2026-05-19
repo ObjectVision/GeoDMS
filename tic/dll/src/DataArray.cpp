@@ -591,7 +591,7 @@ auto DataArrayBase<V>::GetWritableTile(tile_id t, dms_rw_mode rwMode) -> locked_
 }
 
 template <class V>
-bool    DataArrayBase<V>::AsCharArray(SizeT index, char* sink, streamsize_t bufLen, GuiReadLock& lockHolder, FormattingFlags ff) const
+bool DataArrayBase<V>::AsCharArray(SizeT index, char* sink, streamsize_t bufLen, GuiReadLock& lockHolder, FormattingFlags ff) const
 {
 	auto ii = GetIndexedIterator(index, lockHolder);
 	if (ii==const_iterator())

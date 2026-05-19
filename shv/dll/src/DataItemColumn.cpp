@@ -1792,7 +1792,10 @@ bool DataItemColumn::GetTooltipText(TooltipCollector& ttc) const
 
 	GuiReadLock lock;
 	auto txt = GetOrgText(recNr, lock);
-	ttc.m_Stream << txt;
+	if (txt.ssize() > 400)
+		ttc.m_Stream << ": " << CharPtrRange(txt.begin(), txt.begin() + 400) << "...";
+	else
+		ttc.m_Stream << ": " << txt;
 
 	return true; // tipping stops here !
 }
