@@ -466,10 +466,10 @@ void PaletteControl::CreateAreaOrLengthColumn(TreeItem* container, SharedStr exp
 			if (useKm)
 			{
 				attrLabel = "Length [km]";
-				funcExpr = mySSPrintF("sum(arc_length(%s), %s) / 1e3", featureAttr->GetFullName().c_str(), exprStr.c_str());
+				funcExpr = mySSPrintF("sum(arc_length(%s, float64), %s) / 1e3", featureAttr->GetFullName().c_str(), exprStr.c_str());
 			}
 			else
-				funcExpr = mySSPrintF("sum(arc_length(%s), %s)", featureAttr->GetFullName().c_str(), exprStr.c_str());
+				funcExpr = mySSPrintF("sum(arc_length(%s, float64), %s)", featureAttr->GetFullName().c_str(), exprStr.c_str());
 		}
 		else if (layerClass == GraphicMultiPointLayer::GetStaticClass())
 		{
