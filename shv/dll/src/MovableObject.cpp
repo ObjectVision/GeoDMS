@@ -740,6 +740,21 @@ bool ColumnSizerDragger::Exec(EventInfo& eventInfo)
 		newWidth -= DOUBLE_BORDERSIZE;
 	MakeMax(newWidth, 6);
 	target->SetElemWidth(TType2GType(newWidth));
+
+	// The resize MovableRectCarets (StartResize, 9px and 5px wide) are centered on the
+	// column's right edge, so they straddle the GrowHor scroll/invalidate boundary:
+	// the left half lives in the column interior (untouched), the right half in the
+	// scrolled sibling area.  OnPaint's tail ReverseCarets toggles every visible caret,
+	// and the half that wasn't repainted gets double-toggled into a permanent inverted
+	// bar in the column body.  Invalidate the resized column's footprint (with a small
+	// right-side buffer for caret extent) so OnPaint cleanly wipes both halves and the
+	// tail XOR draws the caret at its current logical position only.
+	if (auto dv = target->GetDataView().lock())
+	{
+		auto colDevRect = CrdRect2GRect(target->GetCurrFullAbsDeviceRect());
+		colDevRect.right += 10;
+		dv->InvalidateDeviceRect(colDevRect);
+	}
 	return true;
 }
 

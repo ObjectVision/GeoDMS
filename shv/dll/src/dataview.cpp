@@ -529,7 +529,9 @@ void DataView::SetCaretsVisible(bool visibility, HDC dc)
 
 	if (m_State.Get(DVF_CaretsVisible) != visibility)
 	{
-		if (m_hWnd)
+		// Qt port: m_hWnd is 0; ReverseCarets routes through m_ViewHost->VH_DrawInContext.
+		// Gating on m_hWnd here made CaretHider a no-op on the Qt path, leaking XOR pixels across ScrollWindowEx.
+		if (m_ViewHost || m_hWnd)
 			ReverseCarets(dc, visibility);
 		m_State.Set(DVF_CaretsVisible, visibility);
 		if (m_State.Get(DVF_TextCaretCreated))
@@ -1230,13 +1232,16 @@ void DataView::ScrollDevice(GPoint delta, GRect rcScroll, GRect rcClip, const Mo
 #endif
 	{
 #if defined(_WIN32)
-		// Issue 1100: use GetHWnd() (= VH_GetHWnd() / m_DataViewHWnd on the Qt port)
-		// rather than the bare m_hWnd member, which is 0 when running with a
-		// ViewHost.  With 0 the DcHandle ended up holding a screen DC and the
-		// CaretHider's hide/show XOR operations were issued against the screen
-		// instead of the data-view child HWND -- so the XOR'd resize-guide carets
-		// were never un-drawn before ScrollWindowEx, got blitted along with the
-		// scrolled cell pixels, and produced the vertical-streak smears.
+		// Carets are hidden across this scroll by CaretHider below, so the
+		// XOR-drawn MovableRectCaret resize guides are erased before the blit
+		// and do not get smeared across the scrolled cells.  Use GetHWnd()
+		// (= m_ViewHost->VH_GetHWnd() on the Qt port) so the DcHandle holds
+		// the data-view child HWND rather than a screen DC; the DC itself is
+		// unused on the Qt path (ReverseCarets goes through
+		// m_ViewHost->VH_DrawInContext), but keep it correct for any future
+		// HDC-based path.  See issue 1100; the actual gate that was silently
+		// dropping the XOR-erase on the Qt port was the m_hWnd check inside
+		// DataView::SetCaretsVisible, fixed there.
 		DcHandle dc(GetHWnd(), GetDefaultFont(FontSizeCategory::MEDIUM));
 		Region   rgnClip(rcClip);
 		{
@@ -1300,17 +1305,14 @@ void DataView::ScrollDevice(GPoint delta, GRect rcScroll, GRect rcClip, const Mo
 			}
 		}
 
-		// Issue 1100: any visible XOR caret that overlaps the scroll source ends
-		// up with HIDE/SHOW imbalance across the scroll (HIDE un-XORs original
-		// cells, ScrollWindowEx shifts cells, SHOW re-XORs over different cell
-		// content -- leaving inverted "ghost" pixels every drag step).  Tried
-		// invalidating only InvertRgnCaret regions, but other caret types
-		// (FocusCaret, NeedleCaret) and selection/focus highlights baked into
-		// the cells themselves also contribute.  Pragmatic fix: invalidate the
-		// entire scroll source so OnPaint draws the whole affected area fresh
-		// and the tail ReverseCarets in OnPaint XORs caret(s) cleanly.  Loses
-		// the scroll-blit's perf advantage on this path but matches the 19.x
-		// reference behaviour.
+		// Belt-and-suspenders full-source invalidation.  With CaretHider now
+		// actually erasing carets on the Qt port (SetCaretsVisible gate fix),
+		// the MovableRectCaret resize guides are clean before ScrollWindowEx
+		// and the scroll-blit alone would be visually correct.  Keep the full
+		// invalidate anyway because other caret/selection paths (FocusCaret,
+		// NeedleCaret, selection highlights baked into cells) can still leak
+		// across a partial scroll; matching the 19.x reference behaviour is
+		// worth more here than the scroll-blit perf advantage.
 		drawRgn |= Region(rcClippedScroll);
 
 		// then invalidate rgn that became waste
