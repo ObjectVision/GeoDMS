@@ -23,6 +23,11 @@
 
 #include <vector>
 
+// XorModeScope (in DrawContext.h) restores the pre-refactor R2_NOTXORPEN /
+// RasterOp_NotSourceXorDestination behaviour so successive Reverse() calls
+// at the same coordinates cancel.  Without it LineCaret / PolygonCaret /
+// NeedleCaret would stamp solid lines that never erase.
+
 void AbstrCaret::Move(const AbstrCaretOperator& caret_operator, DrawContext& dc)
 {
 	DBG_START("AbstrCaret", "Move", MG_DEBUG_CARET);
@@ -57,6 +62,7 @@ void NeedleCaret::Reverse(DrawContext& dc, bool newVisibleState)
 	if (viewRect.empty())
 		return;
 
+	XorModeScope xor_mode(dc);
 	if (m_StartPoint.y != -1)
 		dc.DrawLine(GPoint(viewRect.left, m_StartPoint.y), GPoint(viewRect.right, m_StartPoint.y), CombineRGB(0, 0, 0));
 	if (m_StartPoint.x != -1)
@@ -92,6 +98,7 @@ void NeedleCaret::Move(const AbstrCaretOperator& caret_operator, DrawContext& dc
 			viewRect &= clipRect;
 		}
 
+		XorModeScope xor_mode(dc);
 		DmsColor lineColor = CombineRGB(0, 0, 0);
 
 		GType currRow = m_StartPoint.y;
@@ -153,6 +160,7 @@ GRect FocusCaret::GetRect() const
 
 void LineCaret::Reverse(DrawContext& dc, bool newVisibleState)
 {
+	XorModeScope xor_mode(dc);
 	dc.DrawLine(m_StartPoint, m_EndPoint, m_LineColor, 2);
 }
 
@@ -162,6 +170,7 @@ void LineCaret::Reverse(DrawContext& dc, bool newVisibleState)
 
 void PolygonCaret::Reverse(DrawContext& dc, bool newVisibleState)
 {
+	XorModeScope xor_mode(dc);
 	dc.DrawPolygon(m_First, m_Count, COLORREF2DmsColor(m_FillColor));
 }
 

@@ -49,6 +49,11 @@ public:
 	void SetClipRect(const GRect& rect) override;
 	void ResetClip() override;
 
+	void SetXorMode(bool on) override;
+
+	void FrameRegion(const Region& rgn, DmsColor color, int xThickness, int yThickness) override;
+	void FillRegion(const Region& rgn, DmsColor color, DmsHatchStyle hatch) override;
+
 	void DrawImage(const GRect& destRect, const void* pixelData, int width, int height, int bitsPerPixel, const void* paletteRGBQuads, int paletteCount, DmsRasterOp op) override;
 
 	QPainter* GetPainter() const { return m_Painter; }

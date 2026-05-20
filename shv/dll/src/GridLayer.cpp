@@ -37,6 +37,7 @@
 #include "Clipboard.h"
 #include "CounterStacks.h"
 #include "dataview.h"
+#include "DrawContext.h"
 #include "GraphVisitor.h"
 #include "GridCoord.h"
 #include "GridDrawer.h"
@@ -1237,11 +1238,25 @@ bool GridLayer::Draw(GraphDrawer& d) const
 
 		auto* drawCtx = d.GetDrawContext();
 		DmsColor highlightColor = CombineRGB(51, 153, 255); // portable highlight color
-		drawCtx->FillRegion(focusViewRgn, highlightColor);
-		drawCtx->FillRegion(focusBordRgn, highlightColor);
 
+		// XOR'd thin/thick highlight frames around the focus cell and its
+		// outer border (mirrors the pre-refactor DcMixModeSelector + FrameRgn
+		// pair, so the highlight reads well over any underlying cell color).
+		{
+			XorModeScope xor_mode(*drawCtx);
+			int frameThin  = static_cast<int>(subPixelFactor);
+			int frameThick = static_cast<int>(FOCUS_BORDER_FRAMEWIDTH * subPixelFactor);
+			drawCtx->FrameRegion(focusViewRgn, highlightColor, frameThin,  frameThin);
+			drawCtx->FrameRegion(focusBordRgn, highlightColor, frameThick, frameThick);
+		}
+
+		// Hatched (backward-diagonal) red fill in the ring between the cell
+		// and its outer border, drawn in normal copy mode with transparent
+		// background (set by SHV_DrawInHDC / Qt default).  This is the visual
+		// the user identifies the focus cell by; the regression that replaced
+		// it with a solid red square was introduced in 5b65f7dc.
 		focusBordRgn -= focusViewRgn;
-		drawCtx->FillRegion(focusBordRgn, DmsRed);
+		drawCtx->FillRegion(focusBordRgn, DmsRed, DmsHatchStyle::BackwardDiagonal);
 	}
 skipDrawFocus:
 	return false;
