@@ -1231,7 +1231,12 @@ bool OperationContext_ConnectArgs(OperationContext* oc, const FutureSuppliers& a
 	return oc->connectArgs(allArgInterest);
 }
 
-// Schedule a single OperationContext (recursively pre-schedules suppliers if needed).
+// Pre-schedule self and all parallel-capable suppliers reachable through the
+// m_Suppliers DAG. Iterative form to keep stack usage O(1) regardless of DAG
+// depth; the recursion entry-check (status != none) doubles as the visited
+// guard, so shared suppliers in diamond DAGs are touched at most once. The
+// loop holds cs_ThreadMessing for its full duration (same as the previous
+// recursive form), so intermediate states are not observable.
 void OperationContext_scheduleThis(OperationContext* self)
 {
 	assert(!cs_ThreadMessing.try_lock());
@@ -1239,17 +1244,25 @@ void OperationContext_scheduleThis(OperationContext* self)
 	assert(self);
 	assert(!self->m_FuncDC || self->GetOperator()->CanRunParallel());
 
-	if (self->getStatus() != task_status::none)
-		return;
+	std::deque<OperationContext*> worklist;
+	worklist.push_back(self);
 
-	if (self->m_Suppliers.empty())
+	while (!worklist.empty())
 	{
-		scheduleRunnableTask(self);
-		assert(self->getStatus() == task_status::scheduled);
-	}
-	else
-	{
-		for (const auto& s : self->m_Suppliers)
+		OperationContext* curr = worklist.back();
+		worklist.pop_back();
+
+		if (curr->getStatus() != task_status::none)
+			continue;
+
+		if (curr->m_Suppliers.empty())
+		{
+			scheduleRunnableTask(curr);
+			assert(curr->getStatus() == task_status::scheduled);
+			continue;
+		}
+
+		for (const auto& s : curr->m_Suppliers)
 		{
 			auto supplier = s.get();
 			assert(supplier);
@@ -1258,10 +1271,10 @@ void OperationContext_scheduleThis(OperationContext* self)
 				assert(supplier->m_Status == task_status::done);
 			}
 			else
-				OperationContext_scheduleThis(supplier);
+				worklist.push_back(supplier);
 		}
-		self->m_Status = task_status::waiting_for_suppliers;
-		assert(!(self->m_Suppliers.empty()));
+		curr->m_Status = task_status::waiting_for_suppliers;
+		assert(!(curr->m_Suppliers.empty()));
 	}
 }
 
