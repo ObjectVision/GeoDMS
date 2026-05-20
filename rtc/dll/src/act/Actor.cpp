@@ -675,6 +675,12 @@ void Actor::DoInvalidate () const
     assert(DoesHaveSupplInterest() || !m_InterestCount || IsPassor() || WasFailed(FailType::Data));
 }
 
+namespace {
+    // See s_inSuspendibleUpdateDrain for the parallel pattern; same reentry-
+    // latch semantics for UpdateMetaInfo's iterative driver.
+    thread_local bool s_inUpdateMetaInfoDrain = false;
+}
+
 // Default meta-info update is empty. Derived classes may override.
 // NOTE: Must be noexcept to preserve state invariants during metadata refresh.
 void Actor::UpdateMetaInfo() const noexcept
@@ -684,6 +690,74 @@ void Actor::UpdateMetaInfo() const noexcept
     if (m_State.GetProgress() >= ProgressState::MetaInfo)
         return;
     try {
+        // Outermost entry only: walk the supplier DAG (under the union of all
+        // three UpdateSupplMetaInfo* flags = SupplierVisitFlag::UpdateSupplMetaInfo)
+        // in post-order via an explicit stack and drain it before running
+        // self's body. Each drained supplier reaches MetaInfo before its
+        // dependents touch it, so the recursive supplier->UpdateMetaInfo
+        // inside UpdateSupplMetaInfo's three lambdas exits at the
+        // already-MetaInfo guard above; depth becomes O(1) in supplier-DAG
+        // depth. The three lambdas remain unchanged, so each pass's role-
+        // specific FailType is preserved on a properly-finalized supplier.
+        if (!s_inUpdateMetaInfoDrain)
+        {
+            std::vector<const Actor*> postOrder;
+            std::unordered_set<const Actor*> visited;
+            visited.insert(this); // self runs via the body below
+
+            struct frame_t
+            {
+                const Actor*              actor;
+                std::vector<const Actor*> children;
+                std::size_t               nextChild;
+            };
+            std::vector<frame_t> stack;
+
+            auto enterIfFresh = [&](const Actor* a)
+            {
+                if (!a || a->IsPassor())
+                    return;
+                if (a->m_State.GetProgress() >= ProgressState::MetaInfo)
+                    return;
+                if (!visited.insert(a).second)
+                    return;
+                std::vector<const Actor*> children;
+                VisitSupplProcImpl(a, SupplierVisitFlag::UpdateSupplMetaInfo,
+                    [&](const Actor* supplier)
+                    {
+                        if (supplier)
+                            children.push_back(supplier);
+                    });
+                stack.push_back({a, std::move(children), 0});
+            };
+
+            VisitSupplProcImpl(this, SupplierVisitFlag::UpdateSupplMetaInfo,
+                [&](const Actor* supplier)
+                {
+                    if (supplier)
+                        enterIfFresh(supplier);
+                });
+
+            while (!stack.empty())
+            {
+                auto& f = stack.back();
+                if (f.nextChild < f.children.size())
+                    enterIfFresh(f.children[f.nextChild++]);
+                else
+                {
+                    postOrder.push_back(f.actor);
+                    stack.pop_back();
+                }
+            }
+
+            s_inUpdateMetaInfoDrain = true;
+            auto drainGuard = make_scoped_exit([]() noexcept { s_inUpdateMetaInfoDrain = false; });
+
+            for (const Actor* a : postOrder)
+                a->UpdateMetaInfo(); // virtual; nested entry skips the drain-build
+            // fall through to run self's body
+        }
+
         UpdateSupplMetaInfo(); // Update Suppliers, calls MakeCalculator() -> mc_DC
 
         // collect IntegrityCheck Related MetaInfo
