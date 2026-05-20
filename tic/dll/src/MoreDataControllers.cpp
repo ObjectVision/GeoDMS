@@ -799,6 +799,16 @@ bool FuncDC::MakeResultImpl() const
 
 // =========================================  CallCalcResult
 
+namespace {
+	// Reentry latch for FuncDC::CallCalcResultImpl's iterative scheduling
+	// driver. Outermost entry pre-walks the FuncDC arg DAG and drains in
+	// post-order so that, by the time this FuncDC's GetArgs(false, true)
+	// iterates m_Args, every FuncDC arg already has an OC at status >
+	// task_status::none and arg.CallCalcResultImpl exits at the
+	// already-scheduled guard rather than recursing.
+	thread_local bool s_inCallCalcResultDrain = false;
+}
+
 void FuncDC::CallCalcResultImpl(std::shared_ptr<Explain::Context> context) const
 {
 #if defined(MG_DEBUG_DCDATA)
@@ -813,6 +823,92 @@ void FuncDC::CallCalcResultImpl(std::shared_ptr<Explain::Context> context) const
 	assert(m_Data);
 	assert(GetInterestCount());
 	assert(!IsTmp());
+
+	// Already-scheduled short-circuit: if our OC has progressed past
+	// task_status::none and we're not in an explain context, the existing
+	// flow's late guard at the ScheduleCalcResult site (below) would skip the
+	// schedule anyway. Move that decision to the top so re-entry from a
+	// parent FuncDC's GetArgs returns immediately without running
+	// GetArgs(false, true) again. This is what bounds the C stack to a
+	// constant number of frames per drain step.
+	if (!context)
+		if (auto oc = GetOperContext(); oc && oc->GetStatus() != task_status::none)
+			return;
+
+	// Outermost entry only: pre-walk reachable FuncDC nodes via m_Args and
+	// materialize each in post-order. Each drain step's body runs the
+	// existing CallCalcResultImpl flow on a FuncDC; by post-order, that
+	// flow's GetArgs sees its own FuncDC args already scheduled (caught by
+	// the guard above when arg->CallCalcResult routes back here).
+	if (!s_inCallCalcResultDrain && !context)
+	{
+		auto needsScheduling = [](const FuncDC* fdc) -> bool
+		{
+			auto oc = fdc->GetOperContext();
+			return !oc || oc->GetStatus() == task_status::none;
+		};
+
+		auto enumerateFuncDCArgs = [&](const FuncDC* fdc) -> std::vector<const FuncDC*>
+		{
+			std::vector<const FuncDC*> result;
+			for (const DcRefListElem* it = fdc->m_Args.get(); it; it = it->m_Next.get())
+				if (it->m_DC)
+					if (auto* sub = dynamic_cast<const FuncDC*>(it->m_DC.get()))
+						if (needsScheduling(sub))
+							result.push_back(sub);
+			return result;
+		};
+
+		auto immediate = enumerateFuncDCArgs(this);
+		if (!immediate.empty())
+		{
+			std::vector<const FuncDC*> postOrder;
+			std::unordered_set<const FuncDC*> visited;
+			visited.insert(this); // self runs via the body below
+
+			struct frame_t
+			{
+				const FuncDC*               fdc;
+				std::vector<const FuncDC*>  children;
+				std::size_t                 nextChild;
+			};
+			std::vector<frame_t> stack;
+
+			auto enterIfFresh = [&](const FuncDC* sub)
+			{
+				if (!sub || !needsScheduling(sub))
+					return;
+				if (!visited.insert(sub).second)
+					return;
+				stack.push_back({sub, enumerateFuncDCArgs(sub), 0});
+			};
+
+			for (const FuncDC* sub : immediate)
+				enterIfFresh(sub);
+
+			while (!stack.empty())
+			{
+				auto& f = stack.back();
+				if (f.nextChild < f.children.size())
+					enterIfFresh(f.children[f.nextChild++]);
+				else
+				{
+					postOrder.push_back(f.fdc);
+					stack.pop_back();
+				}
+			}
+
+			s_inCallCalcResultDrain = true;
+			auto drainGuard = make_scoped_exit([]() noexcept { s_inCallCalcResultDrain = false; });
+
+			for (const FuncDC* fdc : postOrder)
+			{
+				fdc->CallCalcResult({}); // virtual; reentry into this function skips the drain branch and runs the body
+				if (SuspendTrigger::DidSuspend())
+					return;
+			}
+		}
+	}
 
 //	SharedTreeItemInterestPtr promise = m_Data;
 
