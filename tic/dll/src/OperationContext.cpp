@@ -1013,19 +1013,27 @@ auto collectOperationContexts() -> std::pair<context_array, garbage_can>
 
 		for (; currContext != scheduledContexts.end(); ++currContext)
 		{
-			// Heuristic: don't activate too many when low on RAM or when too many joins are waiting.
+			auto operContext = currContext->lock();
+			if (!operContext)
+				continue;
+
+			// Memory-aware throttle (Phase 5): use a per-task RAM estimate when
+			// available, falling back to the generic IsLowOnFreeRAM threshold
+			// otherwise. Once-per-round caching is preserved for the
+			// unknown-estimate case (matches pre-Phase-5 behavior); when an
+			// operator provides a real estimate, the check runs per task so
+			// activations that have consumed RAM affect subsequent decisions.
 			if (!isLowOnFreeRamTested && s_NrActivatedOrRunningOperations[nextPhaseNumber] >= s_NrWaitingJoins) // HEURISTIC: only allow more than 1 operations when RAM isn't being exausted
 			{
-				if (IsLowOnFreeRAM())
+				auto estimate = operContext->EstimateRamUsage();
+				if (!SufficientFreeSpace(estimate))
 				{
 					s_IsInLowRamMode = true;
 					break;
 				}
-				isLowOnFreeRamTested = true;
+				if (estimate == 0)
+					isLowOnFreeRamTested = true; // generic check covers the rest of this round
 			}
-			auto operContext = currContext->lock();
-			if (!operContext)
-				continue;
 
 			cancelGarbage |= operContext->shared_from_this(); // copy shared_ptr into container for destruction consideration outside current critical section
 			assert(operContext->m_Status >= task_status::scheduled);
