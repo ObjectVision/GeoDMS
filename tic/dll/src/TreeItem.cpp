@@ -2955,24 +2955,57 @@ auto TreeItem_VisitConstVisibleSubTree(const TreeItem * self, const ActorVisitor
 	if (!isNewItem)
 		return ActorVisitState::AVS_Ready;
 
-	// go to subItems of refItem, if any
-	std::unordered_set<TokenID> visitedSubItemNames;
+	// Iterative DFS. Each frame holds the current link in a TreeItem's
+	// refItem-chain plus the next subItem to visit at that link, and a
+	// per-frame name-dedup set (matching the local std::unordered_set in the
+	// recursive form). Keeps stack usage O(1) in subtree depth.
+	struct frame_t
+	{
+		const TreeItem* refChain;     // current link in the refItem-chain of the frame's owner
+		const TreeItem* nextSubItem;  // next subItem to visit at refChain
+		std::unordered_set<TokenID> visitedSubItemNames;
+	};
+	std::vector<frame_t> stack;
+	stack.push_back({self, self->GetFirstSubItem(), {}});
+
 	assert(!SuspendTrigger::DidSuspend());
 
-	for (const TreeItem* curr = self; curr; curr = curr->GetReferredItem())
-		for (auto subItem = curr->GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
+	while (!stack.empty())
+	{
+		auto& f = stack.back();
+
+		// Advance past empty refItem-chain links until we find a subItem or run out.
+		while (!f.nextSubItem && f.refChain)
 		{
-			auto [_2, isNewSubItem] = visitedSubItemNames.insert(subItem->GetID());
-			if (!isNewSubItem)
-				continue;
-			if (SuspendTrigger::DidSuspend())
-				return ActorVisitState::AVS_SuspendedOrFailed;
-			if (visitor(subItem) == ActorVisitState::AVS_SuspendedOrFailed)
-				return ActorVisitState::AVS_SuspendedOrFailed;
-			assert(!SuspendTrigger::DidSuspend());
-			if (TreeItem_VisitConstVisibleSubTree(subItem, visitor, visitedItems) == ActorVisitState::AVS_SuspendedOrFailed)
-				return ActorVisitState::AVS_SuspendedOrFailed;
+			f.refChain = f.refChain->GetReferredItem();
+			f.nextSubItem = f.refChain ? f.refChain->GetFirstSubItem() : nullptr;
 		}
+
+		if (!f.nextSubItem)
+		{
+			stack.pop_back();
+			continue;
+		}
+
+		const TreeItem* subItem = f.nextSubItem;
+		f.nextSubItem = subItem->GetNextItem();
+
+		auto [_2, isNewSubItem] = f.visitedSubItemNames.insert(subItem->GetID());
+		if (!isNewSubItem)
+			continue;
+		if (SuspendTrigger::DidSuspend())
+			return ActorVisitState::AVS_SuspendedOrFailed;
+		if (visitor(subItem) == ActorVisitState::AVS_SuspendedOrFailed)
+			return ActorVisitState::AVS_SuspendedOrFailed;
+		assert(!SuspendTrigger::DidSuspend());
+
+		// Equivalent of TreeItem_VisitConstVisibleSubTree(subItem, visitor, visitedItems):
+		// the recursive call's first action is the visited-items insert/early-return,
+		// inlined here so we only push a frame when we'd actually descend.
+		auto [_3, isNewSubTreeItem] = visitedItems.insert(subItem);
+		if (isNewSubTreeItem)
+			stack.push_back({subItem, subItem->GetFirstSubItem(), {}});
+	}
 	return ActorVisitState::AVS_Ready;
 }
 
