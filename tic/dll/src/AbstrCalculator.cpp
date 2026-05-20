@@ -934,29 +934,54 @@ LispRef AbstrCalculator::slSupplierExprImpl(SubstitutionBuffer& substBuff, const
 LispRef AbstrCalculator::SubstituteArgs(SubstitutionBuffer& substBuff, LispPtr localArgs, const AbstrOperGroup* og, arg_index argNr, SharedStr firstArgValue) const
 {
 	assert(og);
-	if (localArgs.EndP())
-		return localArgs;
-	assert(localArgs.IsList());
 
-	metainfo_policy_flags mpf = arg2metainfo_polcy(og->GetArgPolicy(argNr, firstArgValue.begin()));
-	LispRef left = SubstituteExpr_impl(substBuff, localArgs.Left(),  mpf);
-	if (substBuff.avs == AVS_SuspendedOrFailed)
-		return {};
-
-	if (argNr == 0 && og->HasDynamicArgPolicies())
+	// Iterate the arg list rather than tail-recursing on localArgs.Right();
+	// keeps stack usage O(1) for long arg lists. Forward pass collects each
+	// frame's substituted Left(); the right-to-left unwind preserves the
+	// "no change -> return original pair" structural-sharing path per frame.
+	struct frame_t
 	{
-		auto dc = GetOrCreateDataController(left);
-		FutureData fd = dc->CalcCertainResult();
-		firstArgValue = const_array_cast<SharedStr>(DataReadLock(AsDataItem(fd->GetOld())))->GetIndexedValue(0);
+		LispPtr originalPair; // == localArgs at this depth in the recursive form
+		LispRef left;         // substituted Left()
+	};
+	std::vector<frame_t> frames;
+
+	LispPtr cursor = localArgs;
+	while (!cursor.EndP())
+	{
+		assert(cursor.IsList());
+
+		metainfo_policy_flags mpf = arg2metainfo_polcy(og->GetArgPolicy(argNr, firstArgValue.begin()));
+		LispRef left = SubstituteExpr_impl(substBuff, cursor.Left(), mpf);
+		if (substBuff.avs == AVS_SuspendedOrFailed)
+			return {};
+
+		if (argNr == 0 && og->HasDynamicArgPolicies())
+		{
+			auto dc = GetOrCreateDataController(left);
+			FutureData fd = dc->CalcCertainResult();
+			firstArgValue = const_array_cast<SharedStr>(DataReadLock(AsDataItem(fd->GetOld())))->GetIndexedValue(0);
+		}
+
+		frames.push_back({cursor, std::move(left)});
+		cursor = cursor.Right();
+		++argNr;
 	}
 
-	LispRef right = SubstituteArgs(substBuff, localArgs.Right(), og, argNr + 1, firstArgValue);
 	if (substBuff.optionalVisitor)
-		return {};
+		return {}; // visit-only mode: traversal recorded the suppliers; result is discarded
 
-	if (right == localArgs.Right() && left == localArgs.Left())
-		return localArgs;
-	return LispRef(left, right);
+	// Build the substituted list right-to-left, reusing original pairs whenever
+	// neither this frame's left nor the accumulated right has changed.
+	LispRef right = cursor; // terminal EndP value (base case in the recursive form)
+	for (auto it = frames.rbegin(); it != frames.rend(); ++it)
+	{
+		if (right == it->originalPair.Right() && it->left == it->originalPair.Left())
+			right = it->originalPair;
+		else
+			right = LispRef(it->left, right);
+	}
+	return right;
 }
 
 void InstantiateTemplate(TreeItem* holder, const TreeItem* applyItem, LispPtr templCallArgList)
