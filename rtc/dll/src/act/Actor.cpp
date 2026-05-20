@@ -56,6 +56,7 @@ PSEUDOCODE PLAN (documentation-only, no behavior changes)
 #include "LockLevels.h"
 
 #include <set>
+#include <unordered_set>
 //#include <ppltasks.h>
 
 #if defined(MG_DEBUG_INTERESTSOURCE)
@@ -427,6 +428,17 @@ TimeStamp Actor::GetLastChangeTS () const
 // 4) If suppliers ready, attempt own DoUpdate, respecting suspension.
 // 5) Propagate failure or raise own progress to 'ps'.
 // TODO: Reduce cyclomatic complexity (many branches). Consider splitting into helpers.
+namespace {
+    // Reentry latch: set while an outer SuspendibleUpdate call is draining a
+    // pre-computed post-order list of transitively-needed suppliers. Nested
+    // SuspendibleUpdate calls (the original supplier->SuspendibleUpdate
+    // recursion inside UpdateSuppliers) skip the drain-build and fall through
+    // to the body below; by post-order ordering they hit the
+    // already-Committed guard at the top, bottoming out at 5 stack frames
+    // regardless of supplier-DAG depth.
+    thread_local bool s_inSuspendibleUpdateDrain = false;
+}
+
 ActorVisitState Actor::SuspendibleUpdate() const // returns false in case of failed or suspended
 {
     assert(!SuspendTrigger::DidSuspend()); // PRECONDITION
@@ -441,6 +453,80 @@ ActorVisitState Actor::SuspendibleUpdate() const // returns false in case of fai
     if (m_State.GetProgress() >= ProgressState::Committed)
 		return this->WasFailed(FailType::Committed) ? AVS_SuspendedOrFailed : AVS_Ready;
 
+    // Outermost entry only: walk the supplier DAG in post-order via an
+    // explicit stack and drain it before running self's body. Each drained
+    // supplier reaches Committed before its dependents are touched, so the
+    // recursive supplier->SuspendibleUpdate inside UpdateSuppliers (below)
+    // exits at the already-Committed guard above.
+    //
+    // Each visited actor needs UpdateMetaInfo done before VisitSuppliers can
+    // safely enumerate it (TreeItem::VisitSuppliers requires MetaInfo for the
+    // parent chain); we call UpdateMetaInfo on entry to mirror what the
+    // recursive TreeItem::SuspendibleUpdate override would have done lazily
+    // per frame.
+    if (!s_inSuspendibleUpdateDrain)
+    {
+        std::vector<const Actor*> postOrder;
+        std::unordered_set<const Actor*> visited;
+        visited.insert(this); // self runs via the body below, not the drain
+
+        struct frame_t
+        {
+            const Actor*              actor;
+            std::vector<const Actor*> children;
+            std::size_t               nextChild;
+        };
+        std::vector<frame_t> stack;
+
+        auto enterIfFresh = [&](const Actor* a)
+        {
+            if (!a || a->IsPassor())
+                return;
+            if (a->m_State.GetProgress() >= ProgressState::Committed)
+                return;
+            if (!visited.insert(a).second)
+                return;
+            a->UpdateMetaInfo(); // virtual; precondition for VisitSuppliers
+            std::vector<const Actor*> children;
+            VisitSupplBoolImpl(a, SupplierVisitFlag::Update,
+                [&](const Actor* supplier) -> ActorVisitState
+                {
+                    children.push_back(supplier);
+                    return AVS_Ready;
+                });
+            stack.push_back({a, std::move(children), 0});
+        };
+
+        VisitSupplBoolImpl(this, SupplierVisitFlag::Update,
+            [&](const Actor* supplier) -> ActorVisitState
+            {
+                enterIfFresh(supplier);
+                return AVS_Ready;
+            });
+
+        while (!stack.empty())
+        {
+            auto& f = stack.back();
+            if (f.nextChild < f.children.size())
+                enterIfFresh(f.children[f.nextChild++]);
+            else
+            {
+                postOrder.push_back(f.actor);
+                stack.pop_back();
+            }
+        }
+
+        s_inSuspendibleUpdateDrain = true;
+        auto drainGuard = make_scoped_exit([]() noexcept { s_inSuspendibleUpdateDrain = false; });
+
+        for (const Actor* a : postOrder)
+        {
+            a->SuspendibleUpdate(); // virtual; nested entry path skips the drain-build
+            if (SuspendTrigger::DidSuspend())
+                return AVS_SuspendedOrFailed;
+        }
+        // fall through to run self's body
+    }
 
     assert(m_LastChangeTS); // must have been set by DetermineState
 
