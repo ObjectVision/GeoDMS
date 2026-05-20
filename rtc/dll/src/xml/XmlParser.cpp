@@ -177,28 +177,74 @@ void XmlParser::ReadText(XmlElement::TextType& elementText)
 	elementText.push_back(0);
 }
 
-void XmlParser::ReadEncl(XmlElement& element)
+void XmlParser::ReadEncl(XmlElement& rootEnclElement)
 {
-	ReadText(element.m_EnclText);
+	// Iterative form of the original ReadElem <-> ReadEncl mutual recursion.
+	// openStack tracks the chain of Paired elements whose subElement loop is
+	// in progress; descend by emplacing into m_SubElements and pushing, ascend
+	// when a matching ClosingTag is encountered. Keeps stack usage O(1)
+	// regardless of XML nesting depth (attacker-controlled input).
+	//
+	// The caller (ReadElem) has consumed rootEnclElement's open tag and will
+	// consume its tail text + ReadElemCallback after we return; we only
+	// finalize *descendants* of rootEnclElement here.
+	ReadText(rootEnclElement.m_EnclText);
 
-	// read sub element zooi
-	while (true)
+	std::vector<XmlElement*> openStack;
+	openStack.push_back(&rootEnclElement);
+
+	while (!openStack.empty())
 	{
+		XmlElement& parent = *openStack.back();
+
 		dms_assert(NextChar() == '<');
-		element.m_SubElements.emplace_back(&element); //in-place creation of an XmlElement with element as parent.
-		XmlElement& subElement = element.m_SubElements.back();
-		bool keepElem = ReadElem(subElement);
-		bool isClosingTag = subElement.m_ElementType == XmlElementType::ClosingTag; 
+		parent.m_SubElements.emplace_back(&parent);
+		XmlElement& subElement = parent.m_SubElements.back();
+
+		// Inline of ReadElem(subElement), with the Paired branch redirected
+		// back through the outer loop instead of recursing.
+		ReadAttr(subElement);
+		if (subElement.m_ElementType != XmlElementType::ClosingTag)
+			ReadAttrCallback(subElement);
+
+		if (subElement.m_ElementType == XmlElementType::Paired)
+		{
+			ReadText(subElement.m_EnclText);
+			openStack.push_back(&subElement);
+			continue;
+		}
+
+		// Non-Paired (UnPaired, Header, or ClosingTag): finalize this slot.
+		bool isClosingTag = (subElement.m_ElementType == XmlElementType::ClosingTag);
+		bool keepElem = false;
 		if (isClosingTag)
 		{
-			MG_CHECK(subElement.m_NameID == element.m_NameID);
+			MG_CHECK(subElement.m_NameID == parent.m_NameID);
 			MG_CHECK(subElement.GetNrAttrValues() == 0);
+		}
+		else
+		{
+			ReadText(subElement.m_TailText);
+			keepElem = ReadElemCallback(subElement);
 		}
 
 		if (isClosingTag || !keepElem)
-			element.m_SubElements.pop_back(); // destroy subElement
-		if (isClosingTag)
-			return;
+			parent.m_SubElements.pop_back();
+
+		if (!isClosingTag)
+			continue;
+
+		// Closing tag for parent: pop parent off the stack and finalize it on
+		// behalf of its grandparent (the next stack entry, if any).
+		openStack.pop_back();
+		if (openStack.empty())
+			break;
+
+		XmlElement* grandparent = openStack.back();
+		ReadText(parent.m_TailText);
+		bool parentKeep = ReadElemCallback(parent);
+		if (!parentKeep)
+			grandparent->m_SubElements.pop_back();
 	}
 }
 
