@@ -30,6 +30,13 @@ target_link_libraries(GeoDmsGuiQt PRIVATE
 if(WIN32)
     target_link_libraries(GeoDmsGuiQt PRIVATE Shcore shell32)
     set_target_properties(GeoDmsGuiQt PROPERTIES WIN32_EXECUTABLE TRUE)
+    # Match msbuild's 64 MB stack reserve (DmsDef.props). See
+    # run/exe/CMakeLists.txt for context.
+    target_link_options(GeoDmsGuiQt PRIVATE "/STACK:67108864,8192")
+elseif(UNIX AND NOT APPLE)
+    # Linux parity with the 64 MB Windows stack reserve; see
+    # run/exe/CMakeLists.txt for caveats about worker-thread inheritance.
+    target_link_options(GeoDmsGuiQt PRIVATE "-Wl,-z,stack-size=67108864")
 endif()
 
 # Deploy Qt plugins and translations alongside the executable.
