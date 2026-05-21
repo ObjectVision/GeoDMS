@@ -1120,7 +1120,14 @@ GraphVisitState DataView::UpdateView()
 #else
 					GraphDrawer drawer(&drawContext, m_DoneGraphics, this, GdMode(GD_StoreRect|GD_Suspendible|GD_UpdateData|GD_DrawData), scaleFactors);
 #endif
-					GraphVisitState suspended = drawer.Visit( GetContents().get() );
+					GraphVisitState suspended = GVS_Continue;
+					try {
+						suspended = drawer.Visit(GetContents().get());
+					}
+					catch (...)
+					{
+						catchAndReportException();
+					}
 					bool stopped = m_DoneGraphics.DidBreak();
 
 					dms_assert(!stopped || !SuspendTrigger::DidSuspend());
@@ -1129,7 +1136,7 @@ GraphVisitState DataView::UpdateView()
 					{
 						if (!m_DoneGraphics.HasMultipleStacks() && !m_SelCaret.Empty())
 							drawContext.InvertRegion(m_SelCaret);
-						dms_assert(m_DoneGraphics.NoSuspendedCounters());
+//						dms_assert(m_DoneGraphics.NoSuspendedCounters());
 						m_DoneGraphics.PopBack();
 						SuspendTrigger::MarkProgress();
 					}

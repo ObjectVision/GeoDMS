@@ -120,7 +120,7 @@ public:
 	}
 	template <typename V> typename sequence_array<V>::const_reference GetReference(SizeT index, GuiReadLock& lockHolder) const
 	{
-		ssert(AsDataItem(GetCurrUltimateItem())->m_DataLockCount != 0);
+		assert(AsDataItem(GetCurrUltimateItem())->m_DataLockCount != 0);
 		return const_array_checked_cast<V>(this)->GetIndexedReference(index, lockHolder);
 	}
 	template <typename V> SizeT CountValues(param_type_t<V> value) const
