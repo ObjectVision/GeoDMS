@@ -15,4 +15,12 @@ if(WIN32)
     # ApplyTopEnv (Lispeval); until those are iterative (tasks C1b, H1,
     # H3) the MSVC 1 MB default overflows. See also #1102.
     target_link_options(GeoDmsRun PRIVATE "/STACK:67108864,8192")
+elseif(UNIX AND NOT APPLE)
+    # Linux parity with the 64 MB Windows stack reserve. The PT_GNU_STACK
+    # ELF segment size sets the main-thread stack hint for the kernel
+    # loader; modern glibc honours this. Worker threads (PPL task_group /
+    # std::async) inherit RLIMIT_STACK at creation time -- for full
+    # parity, main() would also need setrlimit(RLIMIT_STACK, ...) before
+    # any thread spawn.
+    target_link_options(GeoDmsRun PRIVATE "-Wl,-z,stack-size=67108864")
 endif()
