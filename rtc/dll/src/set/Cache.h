@@ -14,6 +14,7 @@
 
 #include <functional>
 #include <atomic>
+#include <optional>
 
 /****************** struct Cache                  *******************/
 
@@ -157,6 +158,31 @@ struct UnorderedMapCache
 		m_UMap.insert({ std::move(arg), res });
 		MG_DEBUGCODE(md_NrMisses++; )
 		return res;
+	}
+
+	// lookup: cache-only query, no compute. Returns the cached result for arg
+	// if present, std::nullopt otherwise. Used by iterative drivers that need
+	// to separate cache lookup from compute to avoid stack-recursion through
+	// apply() (e.g., the H1 ApplyTopEnv driver in sym/dll/src/Lispeval.cpp).
+	std::optional<result_type> lookup(argument_reftype arg)
+	{
+		auto cacheLock = std::lock_guard(mx_MapLock);
+		MG_DEBUGCODE(md_NrCalls++; )
+		auto i = m_UMap.find(arg);
+		if (i != m_UMap.end() && m_EqComp(arg, i->first))
+			return i->second;
+		return std::nullopt;
+	}
+
+	// store: cache-only write. Counterpart to lookup(); the iterative driver
+	// computes res itself and then calls store() to persist the mapping.
+	// insert_or_assign rather than insert because the same arg may be passed
+	// repeatedly when the driver caches chain entries.
+	void store(argument_type arg, result_type res)
+	{
+		auto cacheLock = std::lock_guard(mx_MapLock);
+		m_UMap.insert_or_assign(std::move(arg), std::move(res));
+		MG_DEBUGCODE(md_NrMisses++; )
 	}
 
 	//	SizeT size () const { return m_Map.size (); }

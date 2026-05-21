@@ -575,16 +575,75 @@ UnorderedMapCache<ApplyTopEnvFunc> g_applyTopEnvCache;
 std::atomic<UInt32> gd_ApplyTopLevel = 0;
 #endif
 
-LispRef ApplyTopEnv(LispPtr expr)
+LispRef ApplyTopEnv(LispPtr root_expr)
 {
 	assert(IsMetaThread());
 #if defined(MG_DEBUG)
 	StaticMtIncrementalLock<gd_ApplyTopLevel> levelLock;
 	assert(gd_ApplyTopLevel <= MaxAllowedLevel);
 #endif
-	assert(expr.IsRealList());
+	assert(root_expr.IsRealList());
 
-	return g_applyTopEnvCache.apply(expr);
+	// Iterative driver for the outer rewrite-rule application chain. Each
+	// loop iteration tries to match one rule against `current`; on match the
+	// substituted result becomes the new `current` and we loop. When no rule
+	// matches, `current` is the fixed point.
+	//
+	// The inner AssocList_RepApplyTopEnv recursion remains -- it walks the
+	// matched rule's template tree, whose depth is bounded by the template
+	// shape (typically 3-5 levels). The wraps in ApplyTopEnv inside that
+	// recursion now re-enter THIS iterative driver, so the chain of nested
+	// ApplyTopEnv invocations in iterated-calc configs no longer grows the
+	// C stack proportional to chain length.
+	//
+	// Cache write-back at the end matches the recursive form's behavior:
+	// the original root_expr and every intermediate expression in the chain
+	// map to the fixed-point result.
+	std::vector<LispRef> chain;
+	LispRef current = root_expr;
+
+	while (current.IsRealList())
+	{
+		auto cached = g_applyTopEnvCache.lookup(current);
+		if (cached)
+		{
+			current = *cached;
+			break;
+		}
+
+		// Inline of ApplyTopEnvFunc::operator(): find the first matching rule.
+		LispPtr head = current.Left();
+		auto rulePtr = g_RewriteRuleSetPtr->FindLowerBoundByFuncName(head);
+		auto ruleEnd = g_RewriteRuleSetPtr->End();
+		bool ruleMatched = false;
+		LispRef substituted;
+		while (rulePtr != ruleEnd)
+		{
+			LispPtr pattern = rulePtr->Key();
+			if (pattern.Left() != head)
+				break;
+			AssocList unifier = Match(AssocList(), pattern, current);
+			if (!unifier.IsFailed())
+			{
+				substituted = AssocList_RepApplyTopEnv(unifier, rulePtr->Val());
+				ruleMatched = true;
+				break;
+			}
+			++rulePtr;
+		}
+
+		if (!ruleMatched)
+			break; // current is the fixed point
+
+		chain.push_back(current);
+		current = substituted;
+	}
+
+	for (auto& e : chain)
+		g_applyTopEnvCache.store(e, current);
+	g_applyTopEnvCache.store(root_expr, current);
+
+	return current;
 }
 
 //==============================
