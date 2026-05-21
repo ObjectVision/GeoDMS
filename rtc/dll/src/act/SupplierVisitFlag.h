@@ -71,7 +71,7 @@ enum class SupplierVisitFlag
 	IntegrityCheckedForCommit = ExportInfo,
 	IntegrityCheckedForValidation = IntegrityChecked & (~IntegrityCheckedForDataPrep) & (~IntegrityCheckedForCommit),
 
-	StartSupplInterest = DetermineState & ~Signature // Signature Already explicitly done by StartInterest function
+	StartSupplInterest = (DetermineState | ExportInfo) & ~Signature // Signature Already explicitly done by StartInterest function
 };
 
 #endif // __RTC_ACT_SUPPLIERVISITFLAG_H

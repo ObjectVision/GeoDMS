@@ -273,6 +273,29 @@ void GdiDrawContext::ResetClip()
 	::SelectClipRgn(m_hDC, NULL);
 }
 
+void GdiDrawContext::SetXorMode(bool on)
+{
+	::SetROP2(m_hDC, on ? R2_NOTXORPEN : R2_COPYPEN);
+}
+
+void GdiDrawContext::FrameRegion(const Region& rgn, DmsColor color, int xThickness, int yThickness)
+{
+	GdiHandle<HBRUSH> brush(::CreateSolidBrush(DmsColor2COLORREF(color)));
+	GdiHandle<HRGN>   hrgn(RegionToHRGN(rgn));
+	::FrameRgn(m_hDC, hrgn, brush, xThickness, yThickness);
+}
+
+void GdiDrawContext::FillRegion(const Region& rgn, DmsColor color, DmsHatchStyle hatch)
+{
+	GdiHandle<HBRUSH> brush(
+		(hatch == DmsHatchStyle::Solid)
+		? ::CreateSolidBrush(DmsColor2COLORREF(color))
+		: ::CreateHatchBrush(static_cast<int>(hatch), DmsColor2COLORREF(color))
+	);
+	GdiHandle<HRGN> hrgn(RegionToHRGN(rgn));
+	::FillRgn(m_hDC, hrgn, brush);
+}
+
 void GdiDrawContext::DrawImage(const GRect& destRect, const void* pixelData, int width, int height, int bitsPerPixel, const void* paletteRGBQuads, int paletteCount, DmsRasterOp op)
 {
 	int paletteBytes = paletteCount * sizeof(RGBQUAD);

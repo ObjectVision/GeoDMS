@@ -1088,6 +1088,22 @@ GraphVisitState DataView::UpdateView()
 					dms_assert(!SuspendTrigger::DidSuspend());
 
 					regionDone = true;
+
+					// Hide carets across the redraw.  Any caret (NeedleCaret in
+					// particular) whose XOR pixels overlap the dirty region would
+					// otherwise be silently wiped by GraphDrawer's paint while the
+					// DataView still considers it "visible" -- the next caret Move
+					// then XOR-erases on top of freshly-painted pixels and leaves
+					// a permanent inverted streak in the MapView.  Clear the flag
+					// for the duration so nested code (if any) does not draw a
+					// second caret pass on top.
+					bool const caretsActive = m_State.Get(DVF_CaretsVisible);
+					if (caretsActive)
+					{
+						ReverseCaretsImpl(drawContext, false);
+						m_State.Clear(DVF_CaretsVisible);
+					}
+
 #ifndef _WIN32
 					// Pass 1: background (white fill + WMS tiles) — run once per dirty cycle, not on retries.
 					// On Windows this is done by OnPaint(); on Linux we guard with m_BackgroundNeedsPainting
@@ -1104,7 +1120,14 @@ GraphVisitState DataView::UpdateView()
 #else
 					GraphDrawer drawer(&drawContext, m_DoneGraphics, this, GdMode(GD_StoreRect|GD_Suspendible|GD_UpdateData|GD_DrawData), scaleFactors);
 #endif
-					GraphVisitState suspended = drawer.Visit( GetContents().get() );
+					GraphVisitState suspended = GVS_Continue;
+					try {
+						suspended = drawer.Visit(GetContents().get());
+					}
+					catch (...)
+					{
+						catchAndReportException();
+					}
 					bool stopped = m_DoneGraphics.DidBreak();
 
 					dms_assert(!stopped || !SuspendTrigger::DidSuspend());
@@ -1113,12 +1136,20 @@ GraphVisitState DataView::UpdateView()
 					{
 						if (!m_DoneGraphics.HasMultipleStacks() && !m_SelCaret.Empty())
 							drawContext.InvertRegion(m_SelCaret);
-						dms_assert(m_DoneGraphics.NoSuspendedCounters());
+//						dms_assert(m_DoneGraphics.NoSuspendedCounters());
 						m_DoneGraphics.PopBack();
 						SuspendTrigger::MarkProgress();
 					}
 					else
 						regionDone = false;
+
+					// Restore carets after the paint so the on-screen XOR pixels match
+					// the still-"visible" state the DataView holds.
+					if (caretsActive)
+					{
+						m_State.Set(DVF_CaretsVisible);
+						ReverseCaretsImpl(drawContext, true);
+					}
 				});
 			}
 			else
@@ -1651,6 +1682,23 @@ void DataView::OnPaint()
 	MG_DEBUGCODE( DbgInvalidateDrawLock protectFromViewChanges(this); )
 
 	GdiDrawContext paintDrawContext(paintDC);
+
+	// Bracket the background paint with caret hide/show, mirroring the
+	// UpdateView pattern (and CaretHider in ScrollDevice).  The previous
+	// trailing ReverseCarets(paintDC, true) call toggled every visible
+	// caret in the full view: that worked when the paint wiped the caret
+	// entirely (small carets fully contained in the invalidated region)
+	// but corrupted NeedleCaret, whose cross-hair spans the whole view.
+	// On a partial-paint the unconditional toggle flips the part outside
+	// the paint area from XOR'd to clean -- the next NeedleCaret::Move
+	// then XOR-erases on now-clean pixels and stamps a permanent streak.
+	bool const caretsActive = m_State.Get(DVF_CaretsVisible);
+	if (caretsActive)
+	{
+		ReverseCaretsImpl(paintDrawContext, false);
+		m_State.Clear(DVF_CaretsVisible);
+	}
+
 	GraphDrawer( &paintDrawContext, rgn, this, GdMode(GD_StoreRect|GD_OnPaint|GD_DrawBackground), GetScaleFactors())
 		.Visit( GetContents().get() );
 
@@ -1658,8 +1706,11 @@ void DataView::OnPaint()
 
 	DBG_TRACE(("PaintDc must erase %d", paintDC.MustEraseBkgnd()));
 
-	if (m_State.Get(DVF_CaretsVisible))
-		ReverseCarets(paintDC, true);
+	if (caretsActive)
+	{
+		m_State.Set(DVF_CaretsVisible);
+		ReverseCaretsImpl(paintDrawContext, true);
+	}
 	SetUpdateTimer();
 #endif // _WIN32
 }

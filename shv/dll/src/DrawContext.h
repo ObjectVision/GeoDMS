@@ -97,6 +97,19 @@ public:
 	virtual void SetClipRect(const GRect& rect) = 0;
 	virtual void ResetClip() = 0;
 
+	// === XOR draw mode (pre-refactor R2_NOTXORPEN) ===
+	// Toggle XOR drawing so two successive Draw* calls at the same coordinates
+	// cancel out, restoring the original pixels.  Required by LineCaret /
+	// PolygonCaret / NeedleCaret to toggle visibility via repeated draws.
+	virtual void SetXorMode(bool on) = 0;
+
+	// === Region outline / hatched fill ===
+	// FrameRegion: outline the boundary of rgn with the given pixel thickness.
+	// FillRegion with hatch: fill rgn with the given hatch pattern in fill color
+	// (background is transparent, matching SetBkMode(transparent)).
+	virtual void FrameRegion(const Region& rgn, DmsColor color, int xThickness, int yThickness) = 0;
+	virtual void FillRegion(const Region& rgn, DmsColor color, DmsHatchStyle hatch) = 0;
+
 	// === Raster Image ===
 	virtual void DrawImage(const GRect& destRect, const void* pixelData, int width, int height, int bitsPerPixel, const void* paletteRGBQuads = nullptr, int paletteCount = 0, DmsRasterOp op = DmsRasterOp::SrcCopy) = 0;
 
@@ -151,6 +164,11 @@ public:
 	void SetClipRect(const GRect& rect) override;
 	void ResetClip() override;
 
+	void SetXorMode(bool on) override;
+
+	void FrameRegion(const Region& rgn, DmsColor color, int xThickness, int yThickness) override;
+	void FillRegion(const Region& rgn, DmsColor color, DmsHatchStyle hatch) override;
+
 	void DrawImage(const GRect& destRect, const void* pixelData, int width, int height, int bitsPerPixel, const void* paletteRGBQuads, int paletteCount, DmsRasterOp op) override;
 
 private:
@@ -158,5 +176,18 @@ private:
 	HFONT m_OwnedFont;
 };
 #endif // _WIN32
+
+//----------------------------------------------------------------------
+// XorModeScope: RAII helper that sets a DrawContext to XOR mode and
+// restores normal copy mode on destruction.  Use around caret Reverse
+// calls and XOR'd focus / highlight frames.
+//----------------------------------------------------------------------
+
+struct XorModeScope
+{
+	DrawContext& m_dc;
+	explicit XorModeScope(DrawContext& dc) : m_dc(dc) { m_dc.SetXorMode(true); }
+	~XorModeScope() { m_dc.SetXorMode(false); }
+};
 
 #endif // __SHV_DRAWCONTEXT_H

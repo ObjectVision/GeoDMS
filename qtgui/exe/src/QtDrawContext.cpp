@@ -301,6 +301,44 @@ void QtDrawContext::ResetClip()
 	m_Painter->setClipping(false);
 }
 
+void QtDrawContext::SetXorMode(bool on)
+{
+	if (!m_Painter)
+		return;
+	m_Painter->setCompositionMode(on
+		? QPainter::RasterOp_NotSourceXorDestination
+		: QPainter::CompositionMode_SourceOver);
+}
+
+void QtDrawContext::FrameRegion(const Region& rgn, DmsColor color, int xThickness, int yThickness)
+{
+	if (!m_Painter)
+		return;
+	auto oldPen = m_Painter->pen();
+	auto oldBrush = m_Painter->brush();
+	QPen pen(DmsColor2QColor(color));
+	pen.setWidth(std::max(xThickness, yThickness));
+	pen.setJoinStyle(Qt::MiterJoin);
+	m_Painter->setPen(pen);
+	m_Painter->setBrush(Qt::NoBrush);
+	for (auto const& r : rgn.GetQRegion())
+		m_Painter->drawRect(r);
+	m_Painter->setPen(oldPen);
+	m_Painter->setBrush(oldBrush);
+}
+
+void QtDrawContext::FillRegion(const Region& rgn, DmsColor color, DmsHatchStyle hatch)
+{
+	if (!m_Painter)
+		return;
+	const QRegion& qrgn = rgn.GetQRegion();
+	QBrush brush(DmsColor2QColor(color));
+	brush.setStyle(toQtHatchStyle(hatch));
+	m_Painter->setClipRegion(qrgn);
+	m_Painter->fillRect(qrgn.boundingRect(), brush);
+	m_Painter->setClipping(false);
+}
+
 void QtDrawContext::DrawImage(const GRect& destRect, const void* pixelData, int width, int height, int bitsPerPixel, const void* paletteRGBQuads, int paletteCount, DmsRasterOp op)
 {
 	if (!m_Painter || !pixelData || width <= 0 || height <= 0)

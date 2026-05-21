@@ -560,7 +560,7 @@ GraphVisitState GraphDrawer::Visit2(GraphicObject* go)
 		go->SetIsDrawn();
 	if (DoDrawBackground())           // should not suspend
 		go->DrawBackground(*this);
-	dms_assert(!SuspendTrigger::DidSuspend()); // should have been acted upon
+	assert(!SuspendTrigger::DidSuspend()); // should have been acted upon
 	return go->InviteGraphVistor(*this);
 }
 
