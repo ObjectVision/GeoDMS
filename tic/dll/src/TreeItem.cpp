@@ -2622,51 +2622,23 @@ void TreeItem::UpdateMetaInfoImpl2() const
 	assert(m_State.GetProgress() >= ProgressState::MetaInfo);
 }
 
-#include <future>
-
 void TreeItem::UpdateMetaInfo() const noexcept
 {
 	auto contextForReportingPurposes = TreeItemContextHandle(this, "UpdateMetaInfo");
 
 	assert(IsMetaThread());
-	auto remainingStackSpace = RemainingStackSpace();
-	if (remainingStackSpace <= 327680)
-	{
-		// just use async to start a new thread.
-		auto future = std::async([this] ()->void
-			{ 
-				SetMetaThreadID();
-				assert(IsMetaThread());
-				this->UpdateMetaInfoImpl2();
-			}
-		);
-		future.get();
-		SetMetaThreadID();
-		assert(IsMetaThread());
-	}
-	else
-		UpdateMetaInfoImpl2();
+
+	// Pre-A1/A2 this guarded against deep supplier-DAG recursion by handing
+	// off to a fresh OS thread (std::async with RemainingStackSpace() <= 320 KB).
+	// Now that Actor::UpdateMetaInfo (commit 4a7e4f72) and SuspendibleUpdate
+	// (57d30e5e) run the supplier-DAG walk iteratively in post-order, the
+	// recursion that motivated the baton is gone.
+	UpdateMetaInfoImpl2();
 }
 
 ActorVisitState TreeItem::SuspendibleUpdate() const
 {
 	UpdateMetaInfo();
-	auto remainingStackSpace = RemainingStackSpace();
-	if (remainingStackSpace <= 327680)
-	{
-		// just use async to start a new thread.
-		auto future = std::async([this]()->ActorVisitState
-			{
-				SetMetaThreadID();
-				assert(IsMetaThread());
-				return this->base_type::SuspendibleUpdate();
-			}
-		);
-		ActorVisitState result = future.get();
-		SetMetaThreadID();
-		assert(IsMetaThread());
-		return result;
-	}
 	return base_type::SuspendibleUpdate();
 }
 
