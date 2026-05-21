@@ -26,6 +26,7 @@
 #endif
 
 #include <functional>
+#include <vector>
 #include "set/Cache.h"
 
 using cache_key_t = std::pair<LispRef, AssocList>;
@@ -459,20 +460,42 @@ LispRef AssocList_RepApplyTopEnvList(AssocListPtr unifier, LispPtr templExprPtr)
 	DBG_START("AssocList", "RepApplyTopEnvList", MG_TRACE_LISP);
 	DBG_TRACE(("templExprList   = %s", AsString(templExprPtr).c_str()));
 
-	if (templExprPtr.IsVar()) // TAIL var
+	// Iterate the list right-spine instead of tail-recursing on .Right(); each
+	// processed Left() is collected and the result is folded right-to-left.
+	// AssocList_RepApplyTopEnv (per Left) is still called recursively -- the
+	// full bound on iterated-calc depths requires also iterativizing the
+	// ApplyTopEnv wrap inside RepApplyTopEnv (worklist-driver, deferred).
+	struct frame_t { LispPtr originalPair; LispRef processedLeft; };
+	std::vector<frame_t> frames;
+
+	LispPtr cursor = templExprPtr;
+	while (true)
 	{
-		auto found = unifier.FindByKey(templExprPtr);
-		assert( !found.IsFailed() ); // all vars should be matched
-		return found.Val();
+		if (cursor.IsVar())
+			break; // TAIL var: terminal at the unifier lookup below
+		assert(cursor.IsList()); // constants cannot be tail in resulting list
+		if (!cursor.IsRealList())
+			break; // empty list terminates the spine
+		LispRef left = AssocList_RepApplyTopEnv(unifier, cursor.Left());
+		frames.push_back({cursor, std::move(left)});
+		cursor = cursor.Right();
 	}
-	assert(templExprPtr.IsList()); // constants cannot be tail in resulting list
-	if (!templExprPtr.IsRealList())
-		return templExprPtr;
-	return
-		LispRef(
-			AssocList_RepApplyTopEnv    (unifier, templExprPtr.Left ()), // EXPR
-			AssocList_RepApplyTopEnvList(unifier, templExprPtr.Right())  // TAIL
-		);
+
+	LispRef tail;
+	if (cursor.IsVar())
+	{
+		auto found = unifier.FindByKey(cursor);
+		assert(!found.IsFailed()); // all vars should be matched
+		tail = found.Val();
+	}
+	else
+	{
+		tail = cursor; // non-real-list (empty terminator)
+	}
+
+	for (auto it = frames.rbegin(); it != frames.rend(); ++it)
+		tail = LispRef(it->processedLeft, tail);
+	return tail;
 }
 
 LispRef AssocList_RepApplyTopEnv(AssocListPtr unifier, LispPtr templExpr)
