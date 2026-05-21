@@ -3,6 +3,8 @@
 /obj
 .vs
 *.user
+*.log
+build*.ps1
 Thumbs.db
 /filelist*.txt
 todo*.txt
@@ -32,6 +34,8 @@ todo*.txt
 /stg/dll/obj
 /stx/dll/bin
 /stx/dll/obj
+/run/exe/bin
+/run/exe/obj
 /enc_temp_folder
 /qtgui/exe/obj
 /qtgui/exe/bin
