@@ -52,6 +52,8 @@
       <DataExecutionPrevention>true</DataExecutionPrevention>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <StackReserveSize>67108864</StackReserveSize>
+      <StackCommitSize>8192</StackCommitSize>
     </Link>
     <Midl>
       <MkTypLibCompatible>true</MkTypLibCompatible>
