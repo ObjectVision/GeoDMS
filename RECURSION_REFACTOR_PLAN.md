@@ -38,9 +38,9 @@ batch file through the PowerShell→cmd boundary, see
 | 12 | `7d7a0b3b` | Remove 64 MB stack-reserve override (reverted in 13) |
 | 13 | `d635a50f` | Restore 64 MB stack reserve + TreeItem batons; iterated-calc depths matter |
 | 14 | `5c61e71f` | Linux: -Wl,-z,stack-size=67108864 for GeoDmsRun and GeoDmsGuiQt |
-| 15 | `010bd409` | Assoc::ApplyOnce / ApplyMany: recursion → result-stitching worklist (H3) |
-| 16 | `9de39661` | AssocList_RepApplyTopEnvList: tail-recursion → loop (partial H1) |
-| 17 | `afe44a8e` | ApplyTopEnv: iterative outer rewrite-chain loop (full H1) |
+| 15 | `127d0415` | Assoc::ApplyOnce / ApplyMany: recursion → result-stitching worklist (H3) |
+| 16 | `b07b954a` | AssocList_RepApplyTopEnvList: tail-recursion → loop (partial H1) |
+| 17 | `43c4bbd4` | ApplyTopEnv: iterative outer rewrite-chain loop (full H1) |
 
 ### Validation status
 
@@ -53,6 +53,11 @@ batch file through the PowerShell→cmd boundary, see
   drivers in 5/6 are bounded but other recursion paths (see "Open
   problems" below) still grow with iterated-calc depth, so the 64 MB
   reserve and the std::async batons remain in place.
+
+Note: commits 15-18 were rebased onto upstream after the initial push
+(remote had three commits ahead at fetch time). The hashes above
+reflect post-rebase IDs; the commit subjects and ordering are
+unchanged. Future rebases / merges may shift these hashes again.
 
 ### Build context
 
