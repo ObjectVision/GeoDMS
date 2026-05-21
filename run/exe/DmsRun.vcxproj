@@ -51,9 +51,6 @@
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
-      <StackReserveSize Condition="'$(Platform)'=='x64'">67108864</StackReserveSize>
-      <StackReserveSize Condition="'$(Platform)'=='Win32'">16777216</StackReserveSize>
-      <StackCommitSize>8192</StackCommitSize>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Platform)'=='Win32'">
