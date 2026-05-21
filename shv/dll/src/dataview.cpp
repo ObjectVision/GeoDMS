@@ -1336,15 +1336,18 @@ void DataView::ScrollDevice(GPoint delta, GRect rcScroll, GRect rcClip, const Mo
 			}
 		}
 
-		// Belt-and-suspenders full-source invalidation.  With CaretHider now
-		// actually erasing carets on the Qt port (SetCaretsVisible gate fix),
-		// the MovableRectCaret resize guides are clean before ScrollWindowEx
-		// and the scroll-blit alone would be visually correct.  Keep the full
-		// invalidate anyway because other caret/selection paths (FocusCaret,
-		// NeedleCaret, selection highlights baked into cells) can still leak
-		// across a partial scroll; matching the 19.x reference behaviour is
-		// worth more here than the scroll-blit perf advantage.
-		drawRgn |= Region(rcClippedScroll);
+		// Full-source invalidation was added here as belt-and-suspenders
+		// coverage when the carets-around-scroll/paint contract was broken
+		// (XOR pixels of NeedleCaret / FocusCaret / selection highlights
+		// could survive the blit and stamp permanent streaks).  With
+		// CaretHider properly erasing all carets before ScrollWindowEx
+		// (SetCaretsVisible gate fix) plus the explicit caret hide/show
+		// brackets in OnPaint and UpdateView, the scroll-blit alone is
+		// visually correct -- only the trailing strip exposed by the scroll
+		// needs invalidation, and ScrollWindowEx's update region (folded
+		// into drawRgn just above) already covers it.  Keeping the union
+		// here invalidates the entire scroll source on every drag step,
+		// which is what made MapView pan blank the view until mouse-up.
 
 		// then invalidate rgn that became waste
 		if (!drawRgn.Empty())
