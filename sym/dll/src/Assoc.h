@@ -11,6 +11,8 @@
 
 #include "LispRef.h"
 
+#include <vector>
+
 /**************** Assoc with type security *****************/
 
 template <class BasePtr>
@@ -131,24 +133,110 @@ struct AssocListPtrWrap : LispListPtrWrap<BasePtr, Assoc>
 		}
 	}
 
+	// Iterative result-stitching walk over the Lisp expression tree. Each frame
+	// represents an in-progress node: phase 0 enters (assoc-lookup, list-test
+	// or leaf-return), phase 1 records the left child's result and dispatches
+	// the right, phase 2 stitches the LispRef(left, right) and pops. Keeps
+	// stack usage O(1) regardless of expression depth -- iterated-calc configs
+	// can produce thousands of nested levels here, the recursive form was the
+	// load-bearing source of stack growth in the rewrite/substitute path.
 	LispRef ApplyOnce(::LispPtr expr) const
 	{
-		AssocPtr found = FindByKey(expr);
-		if (!found.IsFailed())
-			return found.Val();
-		if (!expr.IsRealList())
-			return expr;
-		return LispRef(ApplyOnce(expr.Left()), ApplyOnce(expr.Right()));
+		struct frame_t
+		{
+			::LispPtr node;
+			LispRef   left;
+			uint8_t   phase; // 0=enter, 1=left done, 2=right done (stitch)
+		};
+		std::vector<frame_t> stack;
+		stack.push_back({expr, {}, 0});
+		LispRef result;
+
+		while (!stack.empty())
+		{
+			auto& f = stack.back();
+			if (f.phase == 0)
+			{
+				AssocPtr found = FindByKey(f.node);
+				if (!found.IsFailed())
+				{
+					result = found.Val();
+					stack.pop_back();
+					continue;
+				}
+				if (!f.node.IsRealList())
+				{
+					result = f.node;
+					stack.pop_back();
+					continue;
+				}
+				f.phase = 1;
+				stack.push_back({f.node.Left(), {}, 0});
+			}
+			else if (f.phase == 1)
+			{
+				f.left = std::move(result);
+				f.phase = 2;
+				stack.push_back({f.node.Right(), {}, 0});
+			}
+			else // phase == 2
+			{
+				result = LispRef(f.left, result);
+				stack.pop_back();
+			}
+		}
+		return result;
 	}
 
+	// Same iterative walk as ApplyOnce, with the substitution-chain behavior:
+	// an assoc hit feeds Val() back through the same processing instead of
+	// returning it as-is. Implemented by replacing f.node with found.Val()
+	// and re-entering phase 0 on the next iteration.
 	LispRef ApplyMany(::LispPtr expr) const
 	{
-		AssocPtr found = FindByKey(expr);
-		if (!found.IsFailed())
-			return ApplyMany(found.Val());
-		if (!expr.IsRealList())
-			return expr;
-		return LispRef(ApplyMany(expr.Left()), ApplyMany(expr.Right()));
+		struct frame_t
+		{
+			::LispPtr node;
+			LispRef   left;
+			uint8_t   phase; // 0=enter, 1=left done, 2=right done (stitch)
+		};
+		std::vector<frame_t> stack;
+		stack.push_back({expr, {}, 0});
+		LispRef result;
+
+		while (!stack.empty())
+		{
+			auto& f = stack.back();
+			if (f.phase == 0)
+			{
+				AssocPtr found = FindByKey(f.node);
+				if (!found.IsFailed())
+				{
+					f.node = found.Val();
+					continue; // re-enter phase 0 with the chased value
+				}
+				if (!f.node.IsRealList())
+				{
+					result = f.node;
+					stack.pop_back();
+					continue;
+				}
+				f.phase = 1;
+				stack.push_back({f.node.Left(), {}, 0});
+			}
+			else if (f.phase == 1)
+			{
+				f.left = std::move(result);
+				f.phase = 2;
+				stack.push_back({f.node.Right(), {}, 0});
+			}
+			else // phase == 2
+			{
+				result = LispRef(f.left, result);
+				stack.pop_back();
+			}
+		}
+		return result;
 	}
 
 //protected: friend struct AssocList;
