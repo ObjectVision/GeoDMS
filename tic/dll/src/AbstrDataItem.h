@@ -115,24 +115,24 @@ public:
 
 	template <typename V> V GetValue(SizeT index) const
 	{
-		dms_assert(AsDataItem(GetCurrUltimateItem())->m_DataLockCount != 0);
-		return const_array_cast<V>(this)->GetIndexedValue(index);
+		assert(AsDataItem(GetCurrUltimateItem())->m_DataLockCount != 0);
+		return const_array_checked_cast<V>(this)->GetIndexedValue(index);
 	}
 	template <typename V> typename sequence_array<V>::const_reference GetReference(SizeT index, GuiReadLock& lockHolder) const
 	{
-		dms_assert(AsDataItem(GetCurrUltimateItem())->m_DataLockCount != 0);
-		return const_array_cast<V>(this)->GetIndexedReference(index, lockHolder);
+		ssert(AsDataItem(GetCurrUltimateItem())->m_DataLockCount != 0);
+		return const_array_checked_cast<V>(this)->GetIndexedReference(index, lockHolder);
 	}
 	template <typename V> SizeT CountValues(param_type_t<V> value) const
 	{
 		assert(AsDataItem(GetCurrUltimateItem())->m_DataLockCount != 0);
-		return const_array_cast<V>(this)->CountValues(value);
+		return const_array_checked_cast<V>(this)->CountValues(value);
 	}
 
 	template <typename V> SizeT FindPos(param_type_t<V> value, SizeT startPos) const
 	{
 		assert(AsDataItem(GetCurrUltimateItem())->m_DataLockCount != 0);
-		return const_array_cast<V>(this)->FindPos(value, startPos);
+		return const_array_checked_cast<V>(this)->FindPos(value, startPos);
 	}
 
 	template <typename V> V LockAndGetValue(SizeT index) const;
