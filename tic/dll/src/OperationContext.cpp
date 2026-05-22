@@ -274,10 +274,24 @@ tile_task_group::~tile_task_group()
 	if (m_Commissioned < m_Last) // recheck if decommission is still required
 	{
 		auto remainingTasks = (m_Last - m_Commissioned); // current slot still has to be registered as completed, after which this task_group may be destructed.
+		auto firstBulkSlot = m_Commissioned;
 		m_Commissioned += remainingTasks;
 		CheckThis(this);
 		assert(m_Commissioned == m_Last);
 		decommission(); // stop handing out slots for this task group, so that no new tasks will be started, but the current ones can still finish.
+#if defined(MG_DEBUG)
+		// Keep CheckThis's sum-vs-counter invariant valid across the bulk
+		// completion path. registerCompletions(N) below bumps m_NrCompleted
+		// by N for the uncommissioned slots without touching md_CompletedWork;
+		// mark those slots here so the per-slot bits stay in sync with the
+		// counter. The asserted-zero precondition catches a stray double-
+		// completion if a slot somehow got both individually and bulk-completed.
+		for (IndexType i = firstBulkSlot; i < m_Last; ++i)
+		{
+			assert(md_CompletedWork[i] == 0);
+			md_CompletedWork[i] = 1;
+		}
+#endif
 		registerCompletions(remainingTasks); // other tasks in flight might still come in before m_TileTasksDone can be notified.
 	}
 	assert(m_Commissioned == m_Last); // we now expect to have completed all commissioned task-slots.
@@ -417,15 +431,41 @@ void tile_task_group::DoWork(IndexType i)
 	{
 		auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex);
 		if (m_ExceptionPtr)
+		{
+#if defined(MG_DEBUG)
+			// This slot's work threw after another thread already set
+			// m_ExceptionPtr; we still need to count its completion. Mark
+			// md_CompletedWork[i] here so the registerCompletions(1) below
+			// keeps the sum-vs-counter invariant valid in CheckThis.
+			assert(md_CompletedWork[i] == 0);
+			md_CompletedWork[i] = 1;
+#endif
 			registerCompletions(1); // release this slot of the task_group, so from here, this may be destroyed; decommissioning already was done by an earlier settler of m_Exception.
+		}
 		else
 		{
 			m_ExceptionPtr = std::current_exception();
+			auto firstBulkSlot = m_Commissioned;
 			auto remainingTasks = m_Last - m_Commissioned; // current slot still has to be registered as completed, after which this task_group may be destructed.
 			m_Commissioned += remainingTasks;
 			CheckThis(this);
 			assert(m_Commissioned == m_Last);
 			decommission(); // stop handing out slots for this task group, so that no new tasks will be started, but the current ones can still finish.
+#if defined(MG_DEBUG)
+			// Same bookkeeping fix as the destructor's bulk-completion
+			// branch: registerCompletions(1 + remainingTasks) below bumps
+			// m_NrCompleted by (1 + remainingTasks) - the failed slot i
+			// plus the uncommissioned tail - without touching
+			// md_CompletedWork. Mark all of those slots so the invariant
+			// in CheckThis holds.
+			assert(md_CompletedWork[i] == 0);
+			md_CompletedWork[i] = 1;
+			for (IndexType k = firstBulkSlot; k < m_Last; ++k)
+			{
+				assert(md_CompletedWork[k] == 0);
+				md_CompletedWork[k] = 1;
+			}
+#endif
 			registerCompletions(1 + remainingTasks); // other tasks in flight might still come in before m_TileTasksDone can be notified.
 		}
 //		assert(m_Commissioned == m_Last); // post condition, but this task_group may already be destructed by owner
