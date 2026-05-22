@@ -205,16 +205,6 @@ public:
 	// Return the result TreeItem (shared interest), if any.
 	SharedPtr<const TreeItem> GetResult() const { return m_Result; }
 
-	// EstimateRamUsage
-	// Memory-aware scheduling hook: returns an estimate (in bytes) of additional
-	// RAM this task will need when run. 0 means "unknown" -- the scheduler
-	// treats this as the conservative pre-Phase-5 behavior (only checks the
-	// generic IsLowOnFreeRAM threshold once per activation round). Real
-	// per-operator estimates can be plugged in later -- e.g., result-item
-	// domain cardinality x value-type size for typical data-producing
-	// operators -- without touching the activation loop.
-	std::size_t EstimateRamUsage() const { return 0; }
-
 	// GetStatus
 	// Synchronizing accessor to current status (may include acquire semantics in impl).
 	TIC_CALL task_status GetStatus() const;

@@ -37,7 +37,6 @@ void WaitForAvailableMemory(std::size_t requestedSize = 0);
 void ConsiderMakingFreeSpace(SizeT sz);
 
 RTC_CALL bool IsLowOnFreeRAM();
-RTC_CALL bool SufficientFreeSpace(std::size_t requestedSize);
 
 
 #endif // __RTC_UTL_MEMGUARD_H
