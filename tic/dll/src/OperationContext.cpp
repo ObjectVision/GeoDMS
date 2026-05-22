@@ -2102,61 +2102,46 @@ struct prioritize_results
 	context_array collectedActivations;
 };
 
-// Iterative traversal over the supplier DAG: collects activated suppliers,
-// promotes collectable scheduled tasks, and gathers waiting/scheduled nodes
-// for prioritization. Uses a worklist to keep stack usage O(1) regardless of
-// DAG depth; waitingAndScheduledContexts doubles as the visited-set so shared
-// suppliers in diamond DAGs are expanded at most once. The other early-exit
-// branches (running/activated/scheduled-collected) are idempotent under
-// repeat visits, so they don't need a separate visited guard.
+// DFS-like traversal to collect activated suppliers and collectable tasks
+// while avoiding revisiting nodes.
 void prioritize_impl(prioritize_results& results, OperationContextSPtr self)
 {
 	assert(!cs_ThreadMessing.try_lock());
 	assert(self);
+	assert(self->m_PhaseNumber == s_CurrActivePhaseNumber); // else we wouldn't be here.
 
-	std::deque<OperationContextSPtr> worklist;
-	worklist.push_back(std::move(self));
+	auto status = self->getStatus();
+	assert(status != task_status::none);
 
-	while (!worklist.empty())
+	if (status >= task_status::running)
+		return; // no more running of this task than already is or was going on.
+
+	if (status == task_status::activated)
 	{
-		OperationContextSPtr curr = std::move(worklist.back());
-		worklist.pop_back();
+		results.activatedContexts.insert(self);
+		return;
+	}
 
-		assert(curr);
-		assert(curr->m_PhaseNumber == s_CurrActivePhaseNumber); // else we wouldn't be here.
-
-		auto status = curr->getStatus();
-		assert(status != task_status::none);
-
-		if (status >= task_status::running)
-			continue; // no more running of this task than already is or was going on.
-
-		if (status == task_status::activated)
+	if (status == task_status::scheduled)
+		if (self->collectTaskImpl())
 		{
-			results.activatedContexts.insert(std::move(curr));
-			continue;
+			auto& vec = s_ScheduledContextsMap[self->m_PhaseNumber];
+			auto it = std::find_if(vec.begin(), vec.end(), [&](const OperationContextWPtr& wptr) { return !wptr.expired() && wptr.lock() == self; });
+			if (it != vec.end())
+				vec.erase(it);
+			status = self->getStatus();
+			results.collectedActivations.emplace_back(self);
+			return;
 		}
 
-		if (status == task_status::scheduled)
-			if (curr->collectTaskImpl())
-			{
-				auto& vec = s_ScheduledContextsMap[curr->m_PhaseNumber];
-				auto it = std::find_if(vec.begin(), vec.end(), [&](const OperationContextWPtr& wptr) { return !wptr.expired() && wptr.lock() == curr; });
-				if (it != vec.end())
-					vec.erase(it);
-				results.collectedActivations.emplace_back(std::move(curr));
-				continue;
-			}
+	assert(status == task_status::waiting_for_suppliers || status == task_status::scheduled);
 
-		assert(status == task_status::waiting_for_suppliers || status == task_status::scheduled);
+	auto [_, wasInserted] = results.waitingAndScheduledContexts.insert(self);
+	if (!wasInserted)
+		return;   // self was already visited and in this set.
 
-		auto [_, wasInserted] = results.waitingAndScheduledContexts.insert(curr);
-		if (!wasInserted)
-			continue;   // curr was already visited and in this set.
-
-		for (auto& s : curr->m_Suppliers)
-			worklist.push_back(s);
-	}
+	for (auto& s : self->m_Suppliers)
+		prioritize_impl(results, s);
 }
 
 // Convenience wrapper to compute sets for prioritization.
