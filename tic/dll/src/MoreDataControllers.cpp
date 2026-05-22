@@ -43,10 +43,6 @@
 #include "TreeItemClass.h"
 #include "Unit.h"
 #include "UnitClass.h"
-#include "utl/scoped_exit.h"
-
-#include <unordered_set>
-#include <vector>
 extern leveled_std_section cs_ThreadMessing;
 
 #if defined(MG_DEBUG_DCDATA)
@@ -299,16 +295,6 @@ oper_arg_policy FuncDC::GetArgPolicy(arg_index argNr, CharPtr firstArgValue) con
 //		loop
 //		TemplDC's
 
-namespace {
-	// Reentry latch for FuncDC::MakeResult's iterative driver. Mirrors the
-	// A1/A2 pattern (see s_inSuspendibleUpdateDrain / s_inUpdateMetaInfoDrain
-	// in rtc/dll/src/act/Actor.cpp). Nested MakeResult calls inside
-	// MakeResultImpl -> FuncDC_CreateResult -> GetArgs -> arg->MakeResult fall
-	// through to the body below; by post-order pre-walk above, FuncDC args
-	// already have m_Data populated and exit at the !m_Data guard.
-	thread_local bool s_inMakeResultDrain = false;
-}
-
 SharedTreeItem FuncDC::MakeResult() const // produce signature
 {
 #if defined(MG_DEBUG_DCDATA)
@@ -326,74 +312,8 @@ SharedTreeItem FuncDC::MakeResult() const // produce signature
 	static UInt32 debug_counter = 0;
 	DBG_TRACE(("%s m_Data %s m_OperContext %s", debug_counter++, bool(m_Data), bool(m_OperContext)));
 
-	if (!m_Data)
+	if (!m_Data) 
 	{
-		// Outermost entry only: pre-walk the transitively-reachable FuncDC
-		// nodes via m_Args in post-order, then materialize each so that by the
-		// time this FuncDC's MakeResultImpl -> FuncDC_CreateResult -> GetArgs
-		// runs, every FuncDC arg has its m_Data populated and exits at the
-		// !m_Data guard rather than recursing. Stack bounded; non-FuncDC args
-		// remain leaves materialized by their parent FuncDC's GetArgs.
-		if (!s_inMakeResultDrain)
-		{
-			auto enumerateFuncDCArgs = [](const FuncDC* fdc) -> std::vector<const FuncDC*>
-			{
-				std::vector<const FuncDC*> result;
-				for (const DcRefListElem* it = fdc->m_Args.get(); it; it = it->m_Next.get())
-					if (it->m_DC)
-						if (auto* sub = dynamic_cast<const FuncDC*>(it->m_DC.get()))
-							if (!sub->m_Data)
-								result.push_back(sub);
-				return result;
-			};
-
-			auto immediate = enumerateFuncDCArgs(this);
-			if (!immediate.empty())
-			{
-				std::vector<const FuncDC*> postOrder;
-				std::unordered_set<const FuncDC*> visited;
-				visited.insert(this); // self runs via the body below
-
-				struct frame_t
-				{
-					const FuncDC*               fdc;
-					std::vector<const FuncDC*>  children;
-					std::size_t                 nextChild;
-				};
-				std::vector<frame_t> stack;
-
-				auto enterIfFresh = [&](const FuncDC* sub)
-				{
-					if (!sub || sub->m_Data)
-						return;
-					if (!visited.insert(sub).second)
-						return;
-					stack.push_back({sub, enumerateFuncDCArgs(sub), 0});
-				};
-
-				for (const FuncDC* sub : immediate)
-					enterIfFresh(sub);
-
-				while (!stack.empty())
-				{
-					auto& f = stack.back();
-					if (f.nextChild < f.children.size())
-						enterIfFresh(f.children[f.nextChild++]);
-					else
-					{
-						postOrder.push_back(f.fdc);
-						stack.pop_back();
-					}
-				}
-
-				s_inMakeResultDrain = true;
-				auto drainGuard = make_scoped_exit([]() noexcept { s_inMakeResultDrain = false; });
-
-				for (const FuncDC* fdc : postOrder)
-					fdc->MakeResult(); // virtual; nested entry skips this branch; populates m_Data or marks Failed
-			}
-		}
-
 		DBG_TRACE(("MakeResult starts"));
 		if (!MakeResultImpl())
 		{
