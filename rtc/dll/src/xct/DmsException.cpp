@@ -116,9 +116,7 @@ ErrMsg::ErrMsg(WeakStr msg, const Object* ptr)
 {
 	TellWhere(ptr);
 
-	AbstrContextHandle* ach = AbstrContextHandle::GetLast();
-	if (ach)
-		m_Context = GenerateContext();
+	m_Context = GenerateContext();
 }
 
 void ErrMsg::TellExtra(CharPtrRange msg)
@@ -128,7 +126,7 @@ void ErrMsg::TellExtra(CharPtrRange msg)
 	if (m_Context.empty())
 		m_Context = SharedStr(msg);
 	else
-		m_Context += mySSPrintF("%s\n%s", m_Context, msg);
+		m_Context = mySSPrintF("%s\n%s", m_Context, msg);
 }
 
 void ErrMsg::TellWhere(const Object* ptr)

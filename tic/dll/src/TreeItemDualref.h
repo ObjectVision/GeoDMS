@@ -102,6 +102,8 @@ struct TreeItemDualRefContextHandle : ObjectContextHandle
 	TIC_CALL bool HasItemContext() const override { return HasBackRef(); }
 	TIC_CALL auto ItemAsStr() const->SharedStr override { return GetBackRefStr(); }
 
+protected:
+	TIC_CALL void GenerateDescription() override;
 
 private:
 	const TreeItemDualRef* m_PrevRef;

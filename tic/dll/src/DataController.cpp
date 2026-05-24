@@ -239,6 +239,13 @@ auto TreeItemDualRefContextHandle::GetBackRefStr() ->SharedStr
 	return s_CurrTreeItemDualRef->GetBackRefStr();
 }
 
+
+void TreeItemDualRefContextHandle::GenerateDescription()
+{
+	if (HasBackRef())
+		SetText(mySSPrintF("while processing result for %s", GetBackRefStr().c_str()));
+}
+
 /********** DataControllerContextHandle **********/
 
 void DataControllerContextHandle::GenerateDescription()
