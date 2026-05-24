@@ -443,20 +443,26 @@ void DataView::ClearTextCaret()
 
 auto DataView::OnCommandEnable(ToolButtonID id) const->CommandStatus
 {
-	auto result = GetContents()->OnCommandEnable(id);
-	if (result == CommandStatus::ENABLED)
-	{
-		for (auto ctrlPtr: m_ControllerVector)
+	try {
+		auto result = GetContents()->OnCommandEnable(id);
+		if (result == CommandStatus::ENABLED)
 		{
-			switch (ctrlPtr->GetPressStatus(id))
+			for (auto ctrlPtr : m_ControllerVector)
 			{
+				switch (ctrlPtr->GetPressStatus(id))
+				{
 				case PressStatus::DontCare: continue;
 				case PressStatus::Dn: return CommandStatus::DOWN;
 				case PressStatus::Up: return CommandStatus::UP;
+				}
 			}
 		}
+		return result;
 	}
-	return result;
+	catch (...)
+	{
+		return CommandStatus::DISABLED;
+	}
 }
 
 void DataView::UpdateTextCaret()
@@ -1702,8 +1708,14 @@ void DataView::OnPaint()
 		m_State.Clear(DVF_CaretsVisible);
 	}
 
-	GraphDrawer( &paintDrawContext, rgn, this, GdMode(GD_StoreRect|GD_OnPaint|GD_DrawBackground), GetScaleFactors())
+	try {
+		GraphDrawer( &paintDrawContext, rgn, this, GdMode(GD_StoreRect|GD_OnPaint|GD_DrawBackground), GetScaleFactors())
 		.Visit( GetContents().get() );
+	}
+	catch (...)
+	{
+		catchAndReportException();
+	}
 
 	m_DoneGraphics.AddDrawRegion( std::move(rgn) );
 

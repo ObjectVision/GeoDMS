@@ -493,14 +493,20 @@ SharedStr TableControl::GetCaption() const
 	if (!domain)
 		return SharedStr("<UNDEFINED DOMAIN>");
 
-	SizeT nrRows = NrRows();
-	SizeT nrRecs = const_cast<TableControl*>(this)->PrepareDataOrUpdateViewLater(domain) ? domain->GetDataCount() : UNDEFINED_VALUE(SizeT);
-	
-	if (m_GroupByEntity)
-		return mgFormat2SharedStr("#%s = %s, grouped to %d rows by %s", domain->GetName(), AsString(nrRecs), nrRows, m_GroupByEntity->GetExpr());
-	if (nrRows == nrRecs)
-		return mgFormat2SharedStr("#%s = %s", domain->GetName(), AsString(nrRecs));
-	return mgFormat2SharedStr("#%s = %s, %s selected", domain->GetName(), AsString(nrRecs), AsString(nrRows));
+	try {
+		SizeT nrRows = NrRows();
+		SizeT nrRecs = const_cast<TableControl*>(this)->PrepareDataOrUpdateViewLater(domain) ? domain->GetDataCount() : UNDEFINED_VALUE(SizeT);
+
+		if (m_GroupByEntity)
+			return mgFormat2SharedStr("#%s = %s, grouped to %d rows by %s", domain->GetName(), AsString(nrRecs), nrRows, m_GroupByEntity->GetExpr());
+		if (nrRows == nrRecs)
+			return mgFormat2SharedStr("#%s = %s", domain->GetName(), AsString(nrRecs));
+		return mgFormat2SharedStr("#%s = %s, %s selected", domain->GetName(), AsString(nrRecs), AsString(nrRows));
+	}
+	catch (...)
+	{
+		return mgFormat2SharedStr("#%s Could not be determined", domain->GetName());
+	}
 }
 
 void TableControl::NotifyCaptionChange()

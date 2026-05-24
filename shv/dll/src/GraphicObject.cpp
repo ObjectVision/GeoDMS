@@ -385,13 +385,13 @@ void GraphicObject::UpdateView() const
 		dbg_assert( !dv || !dv->md_InvalidateDrawLock );
 
 		const_cast<GraphicObject*>(this)->DoUpdateView();
-		m_State.Set(GOF_IsUpdated);
 	}
 	catch(...)
 	{
 		auto err = catchException(true);
 		DoFailCaller(err, FailType::Data);
 	}
+	m_State.Set(GOF_IsUpdated);
 }
 
 void GraphicObject::InvalidateView()
