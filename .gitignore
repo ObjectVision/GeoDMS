@@ -44,3 +44,4 @@ todo*.txt
 /.claude/__pycache__/
 /.claude/scheduled_tasks.lock
 /profiler/__pycache__
+/.claude/sign_install_m.bat
