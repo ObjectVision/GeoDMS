@@ -26,6 +26,9 @@
 #include <iostream>
 #include <algorithm>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 // ============== Main
 
@@ -318,6 +321,13 @@ void DMS_CONV reportMsg(CharPtr msg)
 
 int main(int argc, char** argv)
 {
+#ifdef _WIN32
+	// Lock the DLL search path before any LoadLibrary call (GDAL drivers,
+	// RunDllProc) so a planted DLL in CWD or PATH cannot hijack the process.
+	::SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
+	::SetDllDirectoryW(L"");
+#endif
+
 	s_argcOrg = argc;
 	s_argvOrg = argv;
 

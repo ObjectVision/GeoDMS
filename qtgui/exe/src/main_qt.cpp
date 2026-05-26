@@ -484,7 +484,16 @@ int main1(int argc, char* argv[]) {
 }
 
 int main(int argc, char* argv[]) {
-#ifndef _WIN32
+#ifdef _WIN32
+    // Lock the DLL search path before any LoadLibrary call (Qt plugin
+    // discovery, GDAL drivers, RunDllProc) so a planted DLL in CWD or PATH
+    // cannot hijack the process. LOAD_LIBRARY_SEARCH_DEFAULT_DIRS narrows
+    // unflagged loads to <appdir> + AddDllDirectory-registered dirs + System32;
+    // SetDllDirectoryW(L"") removes CWD from the legacy search order used by
+    // older LoadLibrary call sites.
+    ::SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
+    ::SetDllDirectoryW(L"");
+#else
     s_argc = argc;
     s_argv = argv;
 #endif
