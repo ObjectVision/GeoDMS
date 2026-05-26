@@ -252,8 +252,19 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings) {
         CharPtr currentItemPath = "";
         if (cmdLineSettings.m_ConfigFileName.empty()) {
             auto regPath = GetGeoDmsRegKey(dms_params::reg_key_LastConfigFile);
-            if (IsSafeAutoLoadPath(regPath))
-                cmdLineSettings.m_ConfigFileName = regPath;
+            if (IsSafeAutoLoadPath(regPath)) {
+                // Even after A+B, ask before silently parsing a path the user
+                // didn't supply this session: HKCU is per-user-writable, so a
+                // confirmation prompt removes the planting-into-startup vector.
+                auto answer = QMessageBox::question(this,
+                    "Reopen last configuration?",
+                    QString("Reopen the last loaded configuration?\n\n%1")
+                        .arg(QString::fromUtf8(regPath.c_str())),
+                    QMessageBox::Yes | QMessageBox::No,
+                    QMessageBox::Yes);
+                if (answer == QMessageBox::Yes)
+                    cmdLineSettings.m_ConfigFileName = regPath;
+            }
             else if (!regPath.empty())
                 reportF(MsgCategory::commands, SeverityTypeID::ST_Warning,
                     "Ignoring registry %s value '%s': not a regular local file. Use File->Open or --config to load.",
