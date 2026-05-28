@@ -1475,7 +1475,7 @@ template <typename S>
 void CreateResultingItems(
 	const AbstrDataItem* ggTypeNamesA,
 	const AbstrUnit* allocUnit,
-	const TreeItem* suitabilitiesSet,
+	const TreeItem* suitabilitySet,
 	const TreeItem* minClaimSet,
 	const TreeItem* maxClaimSet,
 	const AbstrDataItem* ggTypes2partitioningsA,
@@ -1494,7 +1494,7 @@ void CreateResultingItems(
 	//	dms_assert(atomicRegionUnit);
 	assert(minClaimSet);
 	assert(maxClaimSet);
-	assert(suitabilitiesSet);
+	assert(suitabilitySet);
 	SharedStr resultMsg;
 
 	// get array of partitionNames
@@ -1579,13 +1579,13 @@ void CreateResultingItems(
 	UInt32 K = ggTypeNames->GetDataRead().size();
 	htpMeta.m_ggTypes.resize(K);
 
-	for (UInt32 j=0; j<K; ++j)
+	for (UInt32 j = 0; j < K; ++j)
 	{
 		ggType_meta_t* gg = begin_ptr(htpMeta.m_ggTypes) + j;
 		gg->m_strName = ggTypeNames->GetIndexedValue(j);
 		auto contextHandle = MakeLCH([gg]() { return "discrete_alloc_init for Type " + gg->m_strName;  });
 
-		gg->m_NameID         = GetTokenID_mt(gg->m_strName.begin(), gg->m_strName.send());
+		gg->m_NameID = GetTokenID_mt(gg->m_strName.begin(), gg->m_strName.send());
 		auto minClaims = GetClaimAttr(minClaimSet, gg->m_NameID);
 		auto maxClaims = GetClaimAttr(maxClaimSet, gg->m_NameID);
 		gg->m_diMinClaims = minClaims;
@@ -1665,9 +1665,18 @@ void CreateResultingItems(
 				);
 		}
 
-		gg->m_diSuitabilityMap = AsCertainDataItem(suitabilitiesSet->GetConstSubTreeItemByID(gg->m_NameID).get());
-		gg->m_diSuitabilityMap->UpdateMetaInfo();
+		{
+			FixedContextHandle lch("Obtaining a suitability map from the suitability map container");
 
+			auto subItem = suitabilitySet->GetConstSubTreeItemByID(gg->m_NameID);
+			if (!subItem)
+				throwErrorF("discrete_alloc", "cannot find %s in container %s", gg->m_NameID, suitabilitySet->GetFullName());
+			if (!IsDataItem(subItem))
+				subItem->throwItemError("is expected to be a DataItem,  a.k.a. attribute");
+
+			gg->m_diSuitabilityMap = AsCertainDataItem(subItem.get());
+			gg->m_diSuitabilityMap->UpdateMetaInfo();
+		}
 		auto suitMapDc = gg->m_diSuitabilityMap->GetCheckedDC();
 		if (!suitMapDc)
 			if (gg->m_diSuitabilityMap->WasFailed(FailType::MetaInfo))

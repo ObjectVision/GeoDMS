@@ -22,7 +22,13 @@
       "Bash(git branch)",
       "Bash(git branch -v)",
       "Bash(git branch -vv)",
-      "Bash(git branch --list*)"
+      "Bash(git branch --list*)",
+      "PowerShell(Get-ChildItem *)",
+      "PowerShell(Test-Path *)",
+      "PowerShell(Select-String *)",
+      "PowerShell(Get-Content *)",
+      "PowerShell(Get-Process *)",
+      "PowerShell(Get-Item *)"
     ],
     "additionalDirectories": [
       "C:\\dev\\tst"
