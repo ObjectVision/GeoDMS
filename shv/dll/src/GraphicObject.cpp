@@ -357,7 +357,10 @@ bool GraphicObject::PrepareDataOrUpdateViewLater(const TreeItem* item)
 						vpZoomSPtr->AL_ZoomAll();
 				});
 		}
-		catch (...) {} // let it go, it's just GUI.
+		catch (...) 
+		{
+			catchAndReportException();
+		}
 	};
 
 	dms_task updater = dms_task(prepareDataTask); // XXX, TODO: WaitForReadyOrSuspend on itemHolder. XXX how to deal with suspend or cancel here ?
