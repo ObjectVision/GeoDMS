@@ -3056,7 +3056,7 @@ void IncrementAtomicRegionCount(std::vector<claim_type>& atomicRegionCount, cons
 			regionInfo.m_AtomicRegionMap->GetAbstrValuesUnit()->throwItemErrorF(
 					"Value %u%s out of range of valid Atomic Regions"
 				,	ar
-				,	IsDefined(ar) ? "" : "(a.k.a. null-value)"
+				,	IsDefined(ar) ? "" : " (a.k.a. null-value)"
 			);
 		++atomicRegionCount[ar];
 	}
