@@ -138,6 +138,38 @@ bool CalculationTimesWindow::eventFilter(QObject* obj, QEvent* e) {
     return QObject::eventFilter(obj, e);
 }
 
+// HKCU\...\LastConfigFile is per-user-writable, so any local process running as
+// the user can plant a path here and have the next GeoDMS launch silently parse
+// it. Reject non-local sources and non-regular files for the silent auto-load;
+// manual File->Open and --config remain unconstrained.
+//
+// On Windows, ConvertDosFileName encodes UNC \\server\share as file://server/...,
+// so a "file:" prefix in the stored registry value indicates a network source.
+static bool IsSafeAutoLoadPath(WeakStr path)
+{
+    if (path.empty())
+        return false;
+
+    auto p = path.c_str();
+    if (strnicmp(p, "file:",  5) == 0) return false;
+    if (strnicmp(p, "http:",  5) == 0) return false;
+    if (strnicmp(p, "https:", 6) == 0) return false;
+    if (strnicmp(p, "ftp:",   4) == 0) return false;
+    if (strnicmp(p, "ftps:",  5) == 0) return false;
+    if ((p[0] == '/'  && p[1] == '/')
+     || (p[0] == '\\' && p[1] == '\\'))
+        return false;
+
+    auto dosFileName = ConvertDmsFileName(SharedStr(path));
+    std::error_code ec;
+#if defined(_MSC_VER)
+    auto wpath = Utf8_2_wchar(dosFileName.c_str());
+    return std::filesystem::is_regular_file(wpath.get(), ec);
+#else
+    return std::filesystem::is_regular_file(dosFileName.c_str(), ec);
+#endif
+}
+
 MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings) {
     assert(s_CurrMainWindow == nullptr);
     s_CurrMainWindow = this;
@@ -218,8 +250,26 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings) {
     // read initial last config file
     if (!cmdLineSettings.m_NoConfig) {
         CharPtr currentItemPath = "";
-        if (cmdLineSettings.m_ConfigFileName.empty())
-            cmdLineSettings.m_ConfigFileName = GetGeoDmsRegKey(dms_params::reg_key_LastConfigFile);
+        if (cmdLineSettings.m_ConfigFileName.empty()) {
+            auto regPath = GetGeoDmsRegKey(dms_params::reg_key_LastConfigFile);
+            if (IsSafeAutoLoadPath(regPath)) {
+                // Even after A+B, ask before silently parsing a path the user
+                // didn't supply this session: HKCU is per-user-writable, so a
+                // confirmation prompt removes the planting-into-startup vector.
+                auto answer = QMessageBox::question(this,
+                    "Reopen last configuration?",
+                    QString("Reopen the last loaded configuration?\n\n%1")
+                        .arg(QString::fromUtf8(regPath.c_str())),
+                    QMessageBox::Yes | QMessageBox::No,
+                    QMessageBox::Yes);
+                if (answer == QMessageBox::Yes)
+                    cmdLineSettings.m_ConfigFileName = regPath;
+            }
+            else if (!regPath.empty())
+                reportF(MsgCategory::commands, SeverityTypeID::ST_Warning,
+                    "Ignoring registry %s value '%s': not a regular local file. Use File->Open or --config to load.",
+                    dms_params::reg_key_LastConfigFile, regPath.c_str());
+        }
         else {
             if (cmdLineSettings.m_CurrItemFullNames.size())
                 currentItemPath = cmdLineSettings.m_CurrItemFullNames.back().c_str();

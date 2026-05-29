@@ -158,7 +158,10 @@ FormattedOutStream& operator <<(FormattedOutStream& str, const UnitMetric& repr)
 				str << "*";
 			str << (u.first);
 			if (u.second != 1)
-				str << "^" << u.second;
+				if (u.second == 2)
+					str << "\u00B2"; // special case for square, which is common and has a nice symbol
+				else
+					str << "^" << u.second;
 			unitsPrinted = true;
 		}
 	}
@@ -177,7 +180,10 @@ FormattedOutStream& operator <<(FormattedOutStream& str, const UnitMetric& repr)
 			}
 			str << (u.first);
 			if (u.second != -1)
-				str << "^" << - u.second;
+				if (u.second == -2)
+					str << "\u00B2"; // special case for square, which is common and has a nice symbol
+				else
+					str << "^" << - u.second;
 			unitsPrinted = true;
 		}
 	}
