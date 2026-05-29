@@ -49,12 +49,6 @@ public:
 	bool VH_IsVisible() const override;
 	UInt32 VH_GetShowCmd() const override;
 
-	void VH_CreateTextCaret(int width, int height) override;
-	void VH_DestroyTextCaret() override;
-	void VH_SetTextCaretPos(GPoint pos) override;
-	void VH_ShowTextCaret() override;
-	void VH_HideTextCaret() override;
-
 	void VH_TrackMouseLeave() override;
 
 	void VH_NotifyParentActivation() override;

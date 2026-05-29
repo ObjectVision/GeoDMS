@@ -428,17 +428,74 @@ void DataView::MoveCaret(AbstrCaret* caret, const AbstrCaretOperator& caretOpera
 		caretOperator(caret);
 }
 
+GRect DataView::TextCaretRect() const
+{
+	return GRect(
+		m_TextCaretPos.x, m_TextCaretPos.y,
+		m_TextCaretPos.x + m_TextCaretWidth,
+		m_TextCaretPos.y + m_TextCaretHeight
+	);
+}
+
+bool DataView::TextCaretTargetVisible() const
+{
+	return m_State.Get(DVF_TextCaretCreated)
+		&& m_TextCaretHideCount == 0
+		&& m_TextCaretBlinkOn;
+}
+
+void DataView::SyncTextCaret(DrawContext& dc, bool forceHidden)
+{
+	if (!m_State.Get(DVF_TextCaretCreated))
+		return;
+	bool target = forceHidden ? false : TextCaretTargetVisible();
+	if (target == m_TextCaretCurrentlyDrawn)
+		return;
+	dc.InvertRect(TextCaretRect());
+	m_TextCaretCurrentlyDrawn = target;
+}
+
 void DataView::SetTextCaret(const GPoint& caretPos)
 {
-	m_State.Set(DVF_HasTextCaret);
+	bool const justCreated = !m_State.Get(DVF_TextCaretCreated);
+	if (justCreated)
+	{
+		m_State.Set(DVF_TextCaretCreated);
+		m_TextCaretHideCount = 0;
+		m_TextCaretBlinkOn = true;
+		m_TextCaretCurrentlyDrawn = false;
+		// Start blink timer. ~530ms half-cycle ≈ system default cursor flash.
+		if (m_ViewHost)
+			m_ViewHost->VH_SetTimer(CARET_BLINK_TIMER_ID, 530);
+	}
+	// Position update. The OnPaint / ScrollDevice / etc. brackets call
+	// SyncTextCaret via ReverseCaretsImpl with the paintDC, so when this
+	// SetTextCaret is invoked from inside DataItemColumn::DrawElement during
+	// Visit, the post-Visit ReverseCaretsImpl will draw at the new position.
 	m_TextCaretPos = caretPos;
-	UpdateTextCaret();
+	m_TextCaretBlinkOn = true; // reset blink phase on caret move
 }
 
 void DataView::ClearTextCaret()
 {
-	m_State.Clear(DVF_HasTextCaret);
-	UpdateTextCaret();
+	if (!m_State.Get(DVF_TextCaretCreated))
+		return;
+	if (m_ViewHost)
+		m_ViewHost->VH_KillTimer(CARET_BLINK_TIMER_ID);
+	// Erase before clearing the created flag (otherwise SyncTextCaret short-
+	// circuits and the XOR pixels stay on screen).
+	if (m_TextCaretCurrentlyDrawn && m_ViewHost)
+	{
+		Region rgn(TextCaretRect());
+		m_ViewHost->VH_DrawInContext(rgn, [this](DrawContext& dc) {
+			dc.InvertRect(TextCaretRect());
+			m_TextCaretCurrentlyDrawn = false;
+		});
+	}
+	m_State.Clear(DVF_TextCaretCreated);
+	m_TextCaretHideCount = 0;
+	m_TextCaretBlinkOn = false;
+	m_TextCaretCurrentlyDrawn = false;
 }
 
 auto DataView::OnCommandEnable(ToolButtonID id) const->CommandStatus
@@ -465,64 +522,6 @@ auto DataView::OnCommandEnable(ToolButtonID id) const->CommandStatus
 	}
 }
 
-void DataView::UpdateTextCaret()
-{
-	if (m_State.GetBits(DVF_HasFocus|DVF_HasTextCaret) == (DVF_HasFocus|DVF_HasTextCaret))
-	{
-		if (!m_State.Get(DVF_TextCaretCreated))
-		{
-			if (m_ViewHost)
-				m_ViewHost->VH_CreateTextCaret(2, 16);
-#ifdef _WIN32
-			else
-				::CreateCaret(m_hWnd, NULL, 2, 16);
-#endif
-		}
-
-		if (m_ViewHost)
-			m_ViewHost->VH_SetTextCaretPos(m_TextCaretPos);
-#ifdef _WIN32
-		else
-			::SetCaretPos(m_TextCaretPos.x, m_TextCaretPos.y);
-#endif
-
-		if (!m_State.Get(DVF_TextCaretCreated))
-		{
-			if (m_State.Get(DVF_CaretsVisible))
-			{
-				if (m_ViewHost)
-					m_ViewHost->VH_ShowTextCaret();
-#ifdef _WIN32
-				else
-					::ShowCaret(m_hWnd);
-#endif
-			}
-			m_State.Set(DVF_TextCaretCreated);
-		}
-	}
-	else
-	{
-		if (m_State.Get(DVF_TextCaretCreated))
-		{
-			if (m_State.Get(DVF_CaretsVisible))
-			{
-				if (m_ViewHost)
-					m_ViewHost->VH_HideTextCaret();
-#ifdef _WIN32
-				else
-					::HideCaret(m_hWnd);
-#endif
-			}
-			if (m_ViewHost)
-				m_ViewHost->VH_DestroyTextCaret();
-#ifdef _WIN32
-			else
-				::DestroyCaret();
-#endif
-			m_State.Clear(DVF_TextCaretCreated);
-		}
-	}
-}
 
 #ifdef _WIN32
 void DataView::SetCaretsVisible(bool visibility, HDC dc)
@@ -537,24 +536,10 @@ void DataView::SetCaretsVisible(bool visibility, HDC dc)
 	{
 		// Qt port: m_hWnd is 0; ReverseCarets routes through m_ViewHost->VH_DrawInContext.
 		// Gating on m_hWnd here made CaretHider a no-op on the Qt path, leaking XOR pixels across ScrollWindowEx.
+		// The managed text caret is hidden/shown by ReverseCaretsImpl via SyncTextCaret.
 		if (m_ViewHost || m_hWnd)
 			ReverseCarets(dc, visibility);
 		m_State.Set(DVF_CaretsVisible, visibility);
-		if (m_State.Get(DVF_TextCaretCreated))
-			if (visibility)
-			{
-				if (m_ViewHost)
-					m_ViewHost->VH_ShowTextCaret();
-				else
-					::ShowCaret(m_hWnd);
-			}
-			else
-			{
-				if (m_ViewHost)
-					m_ViewHost->VH_HideTextCaret();
-				else
-					::HideCaret(m_hWnd);
-			}
 
 	}
 }
@@ -582,6 +567,13 @@ void DataView::ReverseCaretsImpl(DrawContext& dc, bool newVisibleState)
 	for(; i != e; ++i)
 		if ((*i)->IsVisible())
 			(*i)->Reverse(dc, newVisibleState);
+	// Managed text caret: integrated with the same hide-before-paint /
+	// show-after-paint bracket as the rubber-band carets above so its XOR
+	// pixels go through the same DrawContext (paintDC during OnPaint, or the
+	// VH_DrawInContext DC during ScrollDevice/blink). `newVisibleState=false`
+	// means we're entering the bracket (hide everything); `true` means we're
+	// leaving it (restore to per-caret target visibility).
+	SyncTextCaret(dc, /*forceHidden=*/!newVisibleState);
 }
 
 
@@ -696,12 +688,10 @@ MsgResult DataView::DispatchMsg(const MsgStruct& msg)
 
 		case WM_SETFOCUS:
 			m_State.Set(DVF_HasFocus);
-			UpdateTextCaret();
 			goto defaultProcessing;
 
 		case WM_KILLFOCUS:
 			m_State.Clear(DVF_HasFocus);
-			UpdateTextCaret();
 			goto defaultProcessing;
 
 		case WM_MOUSEMOVE:
@@ -760,10 +750,19 @@ MsgResult DataView::DispatchMsg(const MsgStruct& msg)
 			// routed to QDmsViewArea, whose mouseReleaseEvent is Linux-only, so VH_ReleaseCapture
 			// would never be called and the title-bar [x] would stop responding.
 			SetCapture(m_hWnd);
+			// Take focus on every click. WM_MOUSEACTIVATE only fires when activating an
+			// inactive top-level window, so on second+ clicks inside an already-active
+			// main window focus would otherwise stay on whichever widget had it before
+			// (TreeView, address bar, …) and key events would never reach DispatchMsg
+			// or QDmsViewArea::keyPressEvent (issue #1112).
 			if (m_ViewHost)
+			{
+				m_ViewHost->VH_SetFocus();
 				m_ViewHost->VH_NotifyParentActivation();
+			}
 			else
 			{
+				SetFocus(m_hWnd);
 				auto parent = GetAncestor(m_hWnd, GA_PARENT);
 				SendMessage(parent, WM_QT_ACTIVATENOTIFIERS, 0, 0);
 			}
@@ -917,6 +916,22 @@ void DataView::OnTimer(UInt32 timerId)
 		else
 			if (!IsCursorInsideObject(*attObj))
 				HideActiveTooltip();
+		return;
+	}
+
+	if (timerId == CARET_BLINK_TIMER_ID)
+	{
+		// Blink toggle for the managed text caret. Route the XOR through
+		// VH_DrawInContext so the same DrawContext.InvertRect primitive used
+		// inside ReverseCaretsImpl draws here too — same code path, same
+		// surface, no DWM-cache desync (issue #1112).
+		if (!m_State.Get(DVF_TextCaretCreated) || !m_ViewHost)
+			return;
+		m_TextCaretBlinkOn = !m_TextCaretBlinkOn;
+		Region rgn(TextCaretRect());
+		m_ViewHost->VH_DrawInContext(rgn, [this](DrawContext& dc) {
+			SyncTextCaret(dc, /*forceHidden=*/false);
+		});
 		return;
 	}
 
@@ -1789,16 +1804,7 @@ void DataView::OnActivate(bool becomeActive)
 			});
 		}
 		m_State.Set(DVF_CaretsVisible, becomeActive);
-		if (m_State.Get(DVF_TextCaretCreated))
-		{
-			if (m_ViewHost)
-			{
-				if (becomeActive)
-					m_ViewHost->VH_ShowTextCaret();
-				else
-					m_ViewHost->VH_HideTextCaret();
-			}
-		}
+		// Managed text caret is hidden/shown by ReverseCaretsImpl via SyncTextCaret above.
 	}
 #endif
 	if (becomeActive)

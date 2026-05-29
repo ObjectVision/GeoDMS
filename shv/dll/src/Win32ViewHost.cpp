@@ -150,31 +150,6 @@ UInt32 Win32ViewHost::VH_GetShowCmd() const
 	return wpl.showCmd;
 }
 
-void Win32ViewHost::VH_CreateTextCaret(int width, int height)
-{
-	::CreateCaret(m_hWnd, NULL, width, height);
-}
-
-void Win32ViewHost::VH_DestroyTextCaret()
-{
-	::DestroyCaret();
-}
-
-void Win32ViewHost::VH_SetTextCaretPos(GPoint pos)
-{
-	::SetCaretPos(pos.x, pos.y);
-}
-
-void Win32ViewHost::VH_ShowTextCaret()
-{
-	::ShowCaret(m_hWnd);
-}
-
-void Win32ViewHost::VH_HideTextCaret()
-{
-	::HideCaret(m_hWnd);
-}
-
 void Win32ViewHost::VH_TrackMouseLeave()
 {
 	TRACKMOUSEEVENT tme;

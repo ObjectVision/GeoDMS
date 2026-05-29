@@ -136,12 +136,8 @@ public:
     bool VH_IsVisible() const override;
     UInt32 VH_GetShowCmd() const override;
 
-    // Text caret (blinking cursor in text editors)
-    void VH_CreateTextCaret(int width, int height) override;
-    void VH_DestroyTextCaret() override;
-    void VH_SetTextCaretPos(GPoint pos) override;
-    void VH_ShowTextCaret() override;
-    void VH_HideTextCaret() override;
+    // (Text caret is managed inside DataView; the host no longer provides
+    // create/destroy/set-pos/show/hide primitives.)
 
     // Mouse tracking
     void VH_TrackMouseLeave() override;
@@ -212,12 +208,6 @@ private:
     // This keeps the backing store clean with only model data
     QRegion m_CaretOverlayRegion;
     bool m_CaretOverlayVisible = false;
-
-    // Text caret state (separate from graphical carets)
-    bool m_TextCaretVisible = false;
-    GPoint m_TextCaretPos = {0, 0};
-    int m_TextCaretWidth = 2;
-    int m_TextCaretHeight = 16;
 
 #ifdef _WIN32
     DWORD m_cookie = 0; // used for RegisterScaleChangeNotifications

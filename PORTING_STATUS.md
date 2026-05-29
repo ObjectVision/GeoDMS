@@ -59,7 +59,7 @@ Two abstraction layers decouple platform-specific code from the shared model:
 | File | What was moved | Details |
 |------|---------------|---------|
 | dataview.cpp | `InsertCaret`, `RemoveCaret`, `MoveCaret`, `ClearTextCaret`, `InsertController`, `RemoveController`, `OnCommandEnable`, `ReverseCaretsImpl` | Were trapped inside `#ifdef _WIN32` (DestroyWindow/GetDefaultFont block). Closed `#ifdef` after GetDefaultFont. |
-| dataview.cpp | `UpdateTextCaret` Win32 fallbacks (`CreateCaret`, `SetCaretPos`, `ShowCaret`, `HideCaret`, `DestroyCaret`) | Guarded individual `else` branches; ViewHost paths remain portable. |
+| dataview.cpp | Text caret (`SetTextCaret` / `ClearTextCaret`) | DataView owns the single managed caret state. XOR pixel inversion via `DrawContext::InvertRect` through `SyncTextCaret` in `ReverseCaretsImpl`. Blink driven by `VH_SetTimer(CARET_BLINK_TIMER_ID)` + `VH_DrawInContext`. |
 | dataview.cpp | `ReverseSelCaretImpl` (uses HBITMAP/BITMAPINFOHEADER) | Wrapped with `#ifdef _WIN32` |
 | dataview.h | Added `OnResize(GPoint, CrdPoint)` | Portable alternative to `OnSize(WPARAM, GPoint)` |
 | GraphVisitor.cpp | `AddTransformation`, `AddClientLogicalOffset`, `VisitorDeviceRectSelector` | Moved from DcHandle.cpp (excluded on Linux) |
@@ -80,7 +80,7 @@ Two abstraction layers decouple platform-specific code from the shared model:
 | Drawing | `VH_DrawInContext(Region&, callback)` | QPainter on backing store QImage | Caret insert/remove/move |
 | Caret overlay | `VH_SetCaretOverlay(Region&, bool)` | XOR compositing in paintEvent | Selection/graphical caret display |
 | Timers | `VH_SetTimer` / `VH_KillTimer` | QTimer per ID | Hover, update, tip watchdog |
-| Text caret | `VH_CreateTextCaret` / `VH_SetTextCaretPos` / `VH_Show/HideTextCaret` / `VH_DestroyTextCaret` | Manual drawing in paintEvent | Text editing cursor |
+| Text caret | (managed inside DataView; no host primitives) | `DrawContext::InvertRect` via `VH_DrawInContext` on Qt's backing store | XOR-toggle in `SyncTextCaret` called from `ReverseCaretsImpl` and blink-timer tick |
 | Invalidation | `VH_InvalidateRect` / `VH_InvalidateRgn` / `VH_ValidateRect` | `QWidget::update()` / `repaint()` | Incremental redraw |
 | Scroll | `VH_ScrollWindow` | Backing store blit + expose region | Hardware-accelerated scroll |
 | Capture | `VH_SetCapture` / `VH_ReleaseCapture` | `grabMouse()` / `releaseMouse()` | Drag operations |

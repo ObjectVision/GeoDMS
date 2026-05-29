@@ -52,6 +52,7 @@ class DataView;
 const int UPDATE_TIMER_ID = 3;
 const int HOVER_TIMER_ID = 4;
 const int TIP_WATCH_TIMER_ID = 5;
+const int CARET_BLINK_TIMER_ID = 6;
 
 //----------------------------------------------------------------------
 // ViewStyle
@@ -129,7 +130,6 @@ struct MsgStruct
 
 const UInt32 DVF_InUpdateView     = actor_flag_set::AF_Next * 0x0001;
 const UInt32 DVF_HasFocus         = actor_flag_set::AF_Next * 0x0002;
-const UInt32 DVF_HasTextCaret     = actor_flag_set::AF_Next * 0x0004;
 const UInt32 DVF_CaretsVisible    = actor_flag_set::AF_Next * 0x0008;
 const UInt32 DVF_TextCaretCreated = actor_flag_set::AF_Next * 0x0010;
 
@@ -298,7 +298,15 @@ private:
 #ifdef _WIN32
 	void SetCaretsVisible(bool visibility, HDC dc); friend struct CaretHider;
 #endif
-	void UpdateTextCaret();
+	// Sync the managed text caret to its target visibility on `dc`. Called
+	// from inside ReverseCaretsImpl so the hide-before-paint / show-after-
+	// paint bracket and the blink-timer's VH_DrawInContext both route the
+	// XOR pixel inversion through the same DrawContext the rubber-band
+	// carets use (issue #1112). If `forceHidden`, target visibility is false
+	// (used by the "hide before paint" pass).
+	void SyncTextCaret(DrawContext& dc, bool forceHidden);
+	GRect TextCaretRect() const;
+	bool  TextCaretTargetVisible() const;
 #ifdef _WIN32
 	void ReverseCarets(HDC dc, bool newVisibleState);
 #endif
@@ -366,7 +374,16 @@ protected:
 	HWND                          m_hWnd;
 #endif
 	ViewHost*                     m_ViewHost = nullptr;
+	// Single managed text caret per DataView (architecture: integrate with
+	// rubber-band caret system so the OnPaint / ScrollDevice / etc. brackets
+	// hide/show it via ReverseCaretsImpl + DVF_CaretsVisible, same as the
+	// line/focus carets — see SyncTextCaret).
 	GPoint                        m_TextCaretPos;
+	int                           m_TextCaretWidth = 2;
+	int                           m_TextCaretHeight = 16;
+	int                           m_TextCaretHideCount = 0;
+	bool                          m_TextCaretBlinkOn = true;
+	bool                          m_TextCaretCurrentlyDrawn = false;
 	Region                        m_SelCaret;
 #ifdef _WIN32
 	GdiHandle<HBRUSH>             m_SelBrush, m_BrdBrush;

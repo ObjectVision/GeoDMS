@@ -135,13 +135,15 @@ bool TextEditController::OnKeyDown(AbstrTextEditControl* srcTC, SizeT srcRec, UI
 	dms_assert(srcTC);
 	OnActivate(srcTC, srcRec);
 
-	if (GetKeyState(VK_MENU) & 0x8000)
-		return false; // let Qt receive this
-	if (GetKeyState(VK_CONTROL) & 0x8000)
-		return false; // let Qt receive this
-
 	auto isWmChar = KeyInfo::IsChar(virtKey);
 	auto vk = KeyInfo::CharOf(virtKey);
+
+	if (GetKeyState(VK_MENU) & 0x8000)
+		return false; // let Qt receive this
+	if ((GetKeyState(VK_CONTROL) & 0x8000) && vk != VK_F2)
+		return false; // let Qt receive this; Ctrl+F2 is the in-cell edit-start
+		              // fallback because plain F2 is consumed app-wide by the
+		              // "Step up to FailReason" QShortcut (#1112)
 
 	if (!m_IsEditing)
 	{
@@ -153,15 +155,19 @@ bool TextEditController::OnKeyDown(AbstrTextEditControl* srcTC, SizeT srcRec, UI
 
 		if (!isWmChar)
 		{
-			// we're in WM_KeyDown; these virtual keys may trickle down the GraphicObject tree and then to Qt Controls 
+			// we're in WM_KeyDown; these virtual keys may trickle down the GraphicObject tree and then to Qt Controls
 			if (vk == VK_UP    ) return false;
 			if (vk == VK_DOWN  ) return false;
 			if (vk == VK_LEFT  ) return false;
 			if (vk == VK_RIGHT ) return false;
+			if (vk == VK_PRIOR ) return false; // PgUp must reach TableControl::OnKeyDown for paging
+			if (vk == VK_NEXT  ) return false; // PgDn must reach TableControl::OnKeyDown for paging
+			if (vk == VK_HOME  ) return false; // Home/End likewise navigate the table when not editing
+			if (vk == VK_END   ) return false;
 			if (vk == VK_ESCAPE) return false;
 			if (vk == VK_DELETE) return false;
 
-			if (virtKey != VK_F2)
+			if (vk != VK_F2)
 				return true; // mark as handled as we want to process a subsequent WM_CHAR if that would follow, but ignore non-char keys otherwise
 		}
 		if (m_CurrTextControl->IsEditable(AN_LabelText))
@@ -169,16 +175,23 @@ bool TextEditController::OnKeyDown(AbstrTextEditControl* srcTC, SizeT srcRec, UI
 			GuiReadLock lock;
 			m_OrgText = srcTC->GetOrgText(srcRec, lock).c_str();
 			StartEdit();
-			if (virtKey == VK_F2)
+			if (vk == VK_F2)
+			{
+				// F2 / Ctrl+F2 / double-click: pre-load the original text and
+				// select it all, so the first char typed replaces the value
+				// (standard edit-control convention). Subsequent chars then
+				// insert at the collapsed caret.
 				m_CurrText = m_OrgText;
+				m_SelRange.m_Begin = 0;
+				m_SelRange.m_End = m_SelRange.m_Curr = m_CurrText.ssize();
+			}
 			else
 			{
 				m_CurrText = SharedStr();
-				if (virtKey != VK_BACK)
-					m_CurrText += char(virtKey);
+				if (vk != VK_BACK)
+					m_CurrText += char(vk);
+				m_SelRange.m_End = m_SelRange.m_Begin = m_SelRange.m_Curr = m_CurrText.ssize();
 			}
-
-			m_SelRange.m_End = m_SelRange.m_Begin = m_SelRange.m_Curr = m_CurrText.ssize();
 			InvalidateCaretPos();
 		}
 		else 
@@ -186,6 +199,16 @@ bool TextEditController::OnKeyDown(AbstrTextEditControl* srcTC, SizeT srcRec, UI
 		return true;
 	}
 	assert(m_IsEditing);
+
+	// Several control keys (Backspace, Enter, Tab, Delete) are delivered as both
+	// WM_KEYDOWN (vk in the switch below) AND a subsequent WM_CHAR with the
+	// same character code (0x08, 0x0D, 0x09, 0x7F). The cases below switch on
+	// vk = CharOf(virtKey) which strips the Char flag, so the unreachable
+	// `case VK_BACK | Flag::Char` cases below never matched and the WM_CHAR
+	// delivery fell into the regular VK_BACK case, causing a second erase
+	// per Backspace press (issue #1112). Suppress the WM_CHAR follow-up here.
+	if (isWmChar && (vk == VK_BACK || vk == VK_RETURN || vk == VK_TAB || vk == 0x7F))
+		return true;
 
 	bool shiftKey = GetKeyState(VK_SHIFT) & 0x8000;
 	switch (vk) {

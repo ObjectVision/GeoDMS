@@ -84,6 +84,8 @@ public:
 	CharPtr GetCurrText()     const { return m_CurrText.c_str(); }
 	UInt32  GetCurrSize()     const { return m_CurrText.ssize(); }
 	bool    IsEditing  ()     const { return m_IsEditing; }
+	bool    CurrTextControlIs(const AbstrTextEditControl* tc) const { return m_CurrTextControl == tc; }
+	SizeT   GetCurrRec ()     const { return m_CurrRec; }
 
 	const SelRange& GetCurrSelRange() const { return m_SelRange; }
 //	UInt32  GetCurrSelBegin() const { return m_SelRange.m_Begin; }

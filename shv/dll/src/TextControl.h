@@ -14,6 +14,8 @@
 #include "geo/color.h"
 
 class GraphDrawer;
+class DrawContext;
+struct GRect;
 
 //----------------------------------------------------------------------
 // class  : TextControl enums
@@ -83,6 +85,17 @@ public:
 	virtual std::weak_ptr<DataView> GetDataView() const=0;
 	virtual SharedStr GetOrgText(SizeT recNo, GuiReadLock& lock) const = 0;
 
+	// Returns true if THIS control is the active edit target for `recNo`.
+	// DataItemColumn-style multi-row controls pass their active row index;
+	// single-value controls like EditableTextControl pass 0.
+	bool IsBeingEdited(SizeT recNo) const;
+
+	// Renders the uncommitted edit buffer (TextEditController::m_CurrText
+	// with selection highlight and the blinking insertion caret) at `rect`
+	// using `dc`. Caller has already verified IsBeingEdited(recNo). Common
+	// rendering shared between DataItemColumn cells and EditableTextControl
+	// (issue #1112: keep cell-editor look consistent across both sites).
+	void DrawEditBuffer(DrawContext& dc, const GRect& rect) const;
 };
 
 //----------------------------------------------------------------------
