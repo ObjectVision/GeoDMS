@@ -107,7 +107,15 @@ namespace treeitem_production_task
 		if (self->m_ItemCount < 0)
 		{
 			if (noMoreOperationsRunning)
-				throwErrorD("DeadLock", "lock_shared waiting for ItemCount to be unlocked but no active or running operations");
+			{
+				// Race guard: in OperationContext::Schedule, the write lock is acquired (under
+				// cs_lockCounterUpdate) BEFORE the counter is incremented (under cs_ThreadMessing
+				// in OperationContex_setActivated). Check m_Producer to distinguish a real stale
+				// lock from this transient window.
+				if (self->m_Producer.expired())
+					throwErrorD("DeadLock", "lock_shared waiting for ItemCount to be unlocked but no active or running operations");
+				// else: producer exists but counter not yet incremented — fall through to wait_for
+			}
 
 			cv_lockrelease.wait_for(lock.m_BaseLock, std::chrono::milliseconds(500));
 			if (self->m_ItemCount < 0)

@@ -423,11 +423,12 @@ TokenID AbstrUnit::GetCurrSpatialReference() const
 	return TokenID::GetEmptyID();
 }
 
-SharedStr AbstrUnit::GetMetricStr(FormattingFlags ff) const
-{
-	auto labelStr = labelPropDefPtr->GetValue(this);
 
-	auto m = GetMetric();
+auto AbstrUnit_GetMetricStr(const AbstrUnit* u, const UnitMetric* m, FormattingFlags ff) -> SharedStr
+{
+	assert(u);
+	auto labelStr = labelPropDefPtr->GetValue(u);
+
 	if (m)
 	{
 		auto metricStr = m->AsString(ff);
@@ -435,18 +436,20 @@ SharedStr AbstrUnit::GetMetricStr(FormattingFlags ff) const
 		{
 			if (labelStr.empty())
 				return metricStr;
-			return mySSPrintF("%s [ %s ]", labelStr, metricStr);
+			return mySSPrintF("%s: %s", labelStr, metricStr);
 		}
 	}
 	return labelStr;
 }
 
+SharedStr AbstrUnit::GetMetricStr(FormattingFlags ff) const
+{
+	return AbstrUnit_GetMetricStr(this, GetMetric(), ff);
+}
+
 SharedStr AbstrUnit::GetCurrMetricStr(FormattingFlags ff) const
 {
-	const UnitMetric* m = GetCurrMetric();
-	if (m)
-		return m->AsString(ff);
-	return SharedStr();
+	return AbstrUnit_GetMetricStr(this, GetCurrMetric(), ff);
 }
 
 SharedStr AbstrUnit::GetFormattedMetricStr () const
