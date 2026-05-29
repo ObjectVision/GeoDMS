@@ -123,6 +123,23 @@ Section "GeoDMS Program Folder"
 
   WriteUninstaller $INSTDIR\uninstaller.exe
 
+  ; Register in Windows "Apps & Features" so the install is visible there
+  ; and can be removed via the standard system UI. Subkey includes flavor
+  ; so side-by-side .m/.c/.l installs of the same version each get their
+  ; own row. See issue #499.
+  !define UninstKey "Software\Microsoft\Windows\CurrentVersion\Uninstall\GeoDms${GeoDmsVersion}.${GeoDmsFlavor}"
+  SetRegView 64
+  WriteRegStr   HKLM "${UninstKey}" "DisplayName"          "GeoDMS ${GeoDmsVersion}.${GeoDmsFlavor} (${GeoDmsPlatform})"
+  WriteRegStr   HKLM "${UninstKey}" "DisplayVersion"       "${GeoDmsVersion}.${GeoDmsFlavor}"
+  WriteRegStr   HKLM "${UninstKey}" "Publisher"            "Object Vision B.V."
+  WriteRegStr   HKLM "${UninstKey}" "URLInfoAbout"         "https://github.com/ObjectVision/GeoDMS"
+  WriteRegStr   HKLM "${UninstKey}" "InstallLocation"      "$INSTDIR"
+  WriteRegStr   HKLM "${UninstKey}" "DisplayIcon"          "$INSTDIR\GeoDmsGuiQt.exe"
+  WriteRegStr   HKLM "${UninstKey}" "UninstallString"      '"$INSTDIR\uninstaller.exe"'
+  WriteRegStr   HKLM "${UninstKey}" "QuietUninstallString" '"$INSTDIR\uninstaller.exe" /S'
+  WriteRegDWORD HKLM "${UninstKey}" "NoModify" 1
+  WriteRegDWORD HKLM "${UninstKey}" "NoRepair" 1
+
   ; Qt plugin subdirectories
   SetOutPath $INSTDIR\generic
   File ${CMakeBinDir}\generic\*.*
@@ -257,6 +274,11 @@ Section uninstall
   RMDIR $INSTDIR\library\basedata_nl
   RMDIR $INSTDIR\library
   RMDIR $INSTDIR\examples
+
+  ; Remove the Apps & Features entry created at install time (issue #499).
+  SetRegView 64
+  DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\GeoDms${GeoDmsVersion}.${GeoDmsFlavor}"
+
   RMDIR $INSTDIR
 
 SectionEnd
