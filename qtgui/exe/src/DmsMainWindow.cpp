@@ -653,7 +653,35 @@ bool MainWindow::event(QEvent* event) {
         );
     }
 
-    return QMainWindow::event(event);
+    // Let the base class process the event first so the dock layout is updated.
+    bool result = QMainWindow::event(event);
+
+    // After the layout has settled, drive docks back to their default width
+    // whenever the window is being made wider after a squeeze.
+    if (event->type() == QEvent::Resize && m_dock_restore_timer
+            && m_treeview_dock && m_detailpages_dock) {
+        auto* re = static_cast<QResizeEvent*>(event);
+        if (re->oldSize().width() > 0) {
+            int tv_w = m_treeview_dock->width();
+            int dp_w = m_detailpages_dock->width();
+            bool grew  = re->size().width() > re->oldSize().width();
+            bool shrank = re->size().width() < re->oldSize().width();
+
+            // Window shrink compressed the docks — remember this
+            if (shrank && (tv_w < 290 || dp_w < 290))
+                m_dock_was_compressed = true;
+
+            // Both docks fully restored — stop trying
+            if (tv_w >= 290 && dp_w >= 290)
+                m_dock_was_compressed = false;
+
+            // On every grow step while compressed: fire resizeDocks
+            if (grew && m_dock_was_compressed)
+                m_dock_restore_timer->start();
+        }
+    }
+
+    return result;
 }
 
 std::string fillOpenConfigSourceCommand(const std::string command, const std::string filename, const std::string line) {
@@ -1946,6 +1974,7 @@ void MainWindow::createDetailPagesDock() {
     vertical_layout->addWidget(m_detail_pages.get());
     vertical_layout->setContentsMargins(0, 0, 0, 0);
     detail_pages_holder->setLayout(vertical_layout);
+    detail_pages_holder->setMinimumWidth(100);
     m_detailpages_dock->setWidget(detail_pages_holder);
 
     addDockWidget(Qt::RightDockWidgetArea, m_detailpages_dock);
@@ -1960,6 +1989,14 @@ void MainWindow::createDmsHelperWindowDocks() {
     // resize docks
     resizeDocks({ m_treeview_dock, m_detailpages_dock }, { 300, 300 }, Qt::Horizontal);
     resizeDocks({ m_eventlog_dock }, { 150 }, Qt::Vertical);
+
+    m_dock_restore_timer = new QTimer(this);
+    m_dock_restore_timer->setSingleShot(true);
+    m_dock_restore_timer->setInterval(0);
+    connect(m_dock_restore_timer, &QTimer::timeout, this, [this]() {
+        if (!m_treeview_dock || !m_detailpages_dock) return;
+        resizeDocks({m_treeview_dock, m_detailpages_dock}, {300, 300}, Qt::Horizontal);
+    });
 }
 
 void MainWindow::back() {

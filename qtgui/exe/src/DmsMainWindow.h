@@ -332,6 +332,8 @@ public:
     QList<DmsRecentFileEntry*> m_recent_file_entries;
 
 private:
+    bool    m_dock_was_compressed = false;
+    QTimer* m_dock_restore_timer  = nullptr;
     std::vector<processing_record> m_processing_records;
     SharedStr m_StatusMsg, m_LongestProcessingRecordTxt;
     bool m_UpdateToolbarRequestPending = false;
