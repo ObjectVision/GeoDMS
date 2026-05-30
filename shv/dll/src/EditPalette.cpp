@@ -61,7 +61,13 @@ SharedStr NumericEditControl::GetAsText() const
 SharedStr NumericEditControl::GetOrgText (SizeT recNo, GuiReadLock& lock) const
 {
 	assert(recNo == 0);
-	return GetAsText();
+	// FormattingFlags::None (no thousand separator) so the edit-buffer text
+	// round-trips through AssignValueFromCharPtr on commit. With the default
+	// ThousandSeparator the C-locale parser would either truncate at the
+	// first separator character or interpret it as a decimal point and then
+	// truncate to int — both drop data (issue #1112). The non-edit caption
+	// keeps the thousand-separator format via GetAsText for readability.
+	return AsString(m_Value, FormattingFlags::None);
 }
 
 bool NumericEditControl::OnKeyDown(UInt32 nVirtKey)

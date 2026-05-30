@@ -770,22 +770,37 @@ void DataItemColumn::DrawElement(GraphDrawer& d, SizeT rowNr, GRect elemDeviceEx
 	{
 		auto textInfo = GetText(recNo, MAX_TEXTOUT_SIZE, locks);
 		auto* dc = d.GetDrawContext();
-		if (isActive)
-			bkClr = GetFocusClr();
-		if (IsDefined(bkClr))
-			dc->FillRect(elemDeviceExtents, bkClr);
-		DmsColor clr;
-		if (isActive)
-			clr = COLORREF2DmsColor(GetFocusTextClr());
+
+		// While this cell is being edited, render the TextEditController's
+		// m_CurrText (the typed-but-uncommitted buffer) instead of the
+		// underlying attribute value. Step 4a's DrawContext migration dropped
+		// this path along with DrawEditText/DrawTextWithCursor; without it
+		// users typing into a cell only see the old value (issue #1112).
+		// IsBeingEdited(rowNr) is the AbstrTextEditControl shared check —
+		// the controller's m_CurrRec is the row currently being edited.
+		if (IsBeingEdited(rowNr))
+		{
+			DrawEditBuffer(*dc, elemDeviceExtents);
+		}
 		else
-			clr = textInfo.m_Grayed ? CombineRGB(100, 100, 100) : GetColor(recNo, AN_LabelTextColor);
-		if (!IsDefined(clr))
-			clr = GraphicObject::GetDefaultTextColor();
-		dc->SetBold(false);
-		// 1-px left pad so the value does not sit flush against the column separator.
-		// No vertical offset: TableControl/PaletteControl size cells to font in DIPs
-		// (see SetRowHeight), so top-aligned text sits naturally inside the box.
-		dc->TextOut(GPoint(elemDeviceExtents.left + 1, elemDeviceExtents.top), textInfo.m_Text.c_str(), textInfo.m_Text.ssize(), clr);
+		{
+			if (isActive)
+				bkClr = GetFocusClr();
+			if (IsDefined(bkClr))
+				dc->FillRect(elemDeviceExtents, bkClr);
+			DmsColor clr;
+			if (isActive)
+				clr = COLORREF2DmsColor(GetFocusTextClr());
+			else
+				clr = textInfo.m_Grayed ? CombineRGB(100, 100, 100) : GetColor(recNo, AN_LabelTextColor);
+			if (!IsDefined(clr))
+				clr = GraphicObject::GetDefaultTextColor();
+			dc->SetBold(false);
+			// 1-px left pad so the value does not sit flush against the column separator.
+			// No vertical offset: TableControl/PaletteControl size cells to font in DIPs
+			// (see SetRowHeight), so top-aligned text sits naturally inside the box.
+			dc->TextOut(GPoint(elemDeviceExtents.left + 1, elemDeviceExtents.top), textInfo.m_Text.c_str(), textInfo.m_Text.ssize(), clr);
+		}
 	}
 	if (isActive)
 	{
@@ -963,16 +978,28 @@ SharedStr DataItemColumn::GetOrgText(SizeT recNo, GuiReadLock& lock) const
 
 void DataItemColumn::SetOrgText  (SizeT recNo, CharPtr textData)
 {
+	assert(!SuspendTrigger::DidSuspend());
 	auto theme = GetTheme(AN_LabelText);
 	if (!theme)
 		return;
 	AbstrDataItem* adi = const_cast<AbstrDataItem*>(theme->GetThemeAttrSource());
+	if (!adi)
+		return;
+
+	// Mirror SetOrgColor: take the endogenous lock so a calculated attr
+	// (e.g. the break-attr that PaletteControl set up via async
+	// CreateNonzeroJenksFisherBreakAttr) accepts a user-initiated cell write,
+	// and explicitly MarkTS after commit so subsequent reads see the new
+	// value (issue #1112).
+	StaticStIncrementalLock<TreeItem::s_MakeEndoLockCount> makeEndoLock;
+
 	DataWriteLock dwl(adi, dms_rw_mode::read_write);
 		AbstrDataObject* ado = dwl.get();
 		auto av = ado->CreateAbstrValue();
 		av->AssignFromCharPtr(textData);
 		ado->SetAbstrValue(recNo, *av);
 	dwl.Commit();
+	adi->MarkTS(UpdateMarker::GetFreshTS(MG_DEBUG_TS_SOURCE_CODE("SetOrgText")));
 
 	adi->m_StatusFlags.SetHasSortedValues(false); // no longer guaranteed
 }

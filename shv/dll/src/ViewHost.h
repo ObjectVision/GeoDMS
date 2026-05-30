@@ -66,12 +66,8 @@ public:
 	virtual bool VH_IsVisible() const = 0;
 	virtual UInt32 VH_GetShowCmd() const = 0;
 
-	// Text caret (blinking cursor in text editors)
-	virtual void VH_CreateTextCaret(int width, int height) = 0;
-	virtual void VH_DestroyTextCaret() = 0;
-	virtual void VH_SetTextCaretPos(GPoint pos) = 0;
-	virtual void VH_ShowTextCaret() = 0;
-	virtual void VH_HideTextCaret() = 0;
+	// (Text caret is managed inside DataView via SyncTextCaret + ReverseCaretsImpl
+	// + VH_DrawInContext; the host no longer needs a caret-specific API.)
 
 	// Mouse tracking (request leave notification)
 	virtual void VH_TrackMouseLeave() = 0;

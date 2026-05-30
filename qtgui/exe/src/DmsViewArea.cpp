@@ -707,14 +707,8 @@ void QDmsViewArea::paintEvent(QPaintEvent* event) {
             painter.setClipRegion(widgetOverlay);
             painter.fillRect(widgetOverlay.boundingRect(), Qt::white);
         }
-
-        // Draw text caret if visible (position stored in content-area coords)
-        if (m_TextCaretVisible)
-        {
-            painter.setCompositionMode(QPainter::RasterOp_SourceXorDestination);
-            painter.fillRect(m_TextCaretPos.x + cr.left(), m_TextCaretPos.y + cr.top(),
-                           m_TextCaretWidth, m_TextCaretHeight, Qt::white);
-        }
+        // (Text caret is drawn via DataView::SyncTextCaret → DrawContext::InvertRect
+        // through the VH_DrawInContext callback, not in paintEvent.)
     }
 #endif
 
@@ -784,6 +778,18 @@ void QDmsViewArea::VH_ReleaseCapture()
 
 void QDmsViewArea::VH_SetFocus()
 {
+#ifdef _WIN32
+    // Focus the native HWND (m_DataViewHWnd) so WM_KEYDOWN/WM_CHAR flow into
+    // DataView::DispatchMsg -> DataView::OnKeyDown. That path handles all keys
+    // (digits, letters, F2, arrows, …) via the legacy Win32 message contract.
+    // Routing through the Qt widget instead would limit us to whatever qtKeyToVK
+    // explicitly translates, breaking text-cell editing in the PaletteEditor
+    // and TableView (issue #1112).
+    if (m_DataViewHWnd) {
+        ::SetFocus(reinterpret_cast<HWND>(m_DataViewHWnd));
+        return;
+    }
+#endif
     setFocus(Qt::OtherFocusReason);
 }
 
@@ -986,38 +992,6 @@ UInt32 QDmsViewArea::VH_GetShowCmd() const
     return SW_SHOWNORMAL;
 }
 
-void QDmsViewArea::VH_CreateTextCaret(int width, int height)
-{
-    m_TextCaretWidth = width;
-    m_TextCaretHeight = height;
-    // Qt doesn't have a native caret; we draw it ourselves in paintEvent
-}
-
-void QDmsViewArea::VH_DestroyTextCaret()
-{
-    m_TextCaretVisible = false;
-    update(); // Repaint to remove caret
-}
-
-void QDmsViewArea::VH_SetTextCaretPos(GPoint pos)
-{
-    m_TextCaretPos = pos;
-    if (m_TextCaretVisible)
-        update(); // Repaint to show caret at new position
-}
-
-void QDmsViewArea::VH_ShowTextCaret()
-{
-    m_TextCaretVisible = true;
-    update();
-}
-
-void QDmsViewArea::VH_HideTextCaret()
-{
-    m_TextCaretVisible = false;
-    update();
-}
-
 void QDmsViewArea::VH_TrackMouseLeave()
 {
     // Qt handles mouse leave automatically via leaveEvent
@@ -1178,25 +1152,69 @@ void QDmsViewArea::keyPressEvent(QKeyEvent* event)
     auto dv = getDataView();
     if (!dv) { QMdiSubWindow::keyPressEvent(event); return; }
 
+    const auto mods = event->modifiers();
     UInt32 vk = qtKeyToVK(event->key());
-    if (vk == 0)
+    if (vk != 0)
     {
-        // Unhandled special key — let Qt do its default thing (e.g. Ctrl+W to close).
-        QMdiSubWindow::keyPressEvent(event);
+        // Ctrl+F2 → enter edit mode (substitutes for plain F2, which is
+        // consumed app-wide by the "Step up to FailReason" QShortcut in
+        // DmsActions.cpp). Strip Ctrl before delivery so it goes through the
+        // existing F2 edit-start path in TextEditController::OnKeyDown
+        // (which otherwise bails out when Ctrl is held). See #1112.
+        if (vk == VK_F2 && (mods & Qt::ControlModifier) && !(mods & Qt::AltModifier))
+        {
+            if (dv->OnKeyDown(VK_F2))
+                event->accept();
+            else
+                QMdiSubWindow::keyPressEvent(event);
+            return;
+        }
+
+        // Encode modifiers into the virtKey, mirroring DataView::OnKeyDown's Win32 GetKeyState path.
+        if (mods & Qt::ControlModifier) vk |= KeyInfo::Flag::Ctrl;
+        if (mods & Qt::AltModifier)     vk |= KeyInfo::Flag::Menu;
+        if (mods & Qt::ShiftModifier)   vk |= KeyInfo::Flag::Shift;
+
+        bool handled = dv->OnKeyDown(vk);
+        if (handled)
+            event->accept();   // critical: prevents QMdiSubWindow's arrow-key-driven move/resize mode
+        else
+            QMdiSubWindow::keyPressEvent(event);
         return;
     }
 
-    // Encode modifiers into the virtKey, mirroring DataView::OnKeyDown's Win32 GetKeyState path.
-    auto mods = event->modifiers();
-    if (mods & Qt::ControlModifier) vk |= KeyInfo::Flag::Ctrl;
-    if (mods & Qt::AltModifier)     vk |= KeyInfo::Flag::Menu;
-    if (mods & Qt::ShiftModifier)   vk |= KeyInfo::Flag::Shift;
+    // qtKeyToVK didn't translate this key. If it produces printable text
+    // (digit, letter, punctuation), deliver it as a WM_CHAR-equivalent so
+    // TextEditController's isWmChar branch starts/extends an edit. On the
+    // Qt build, focus lives on the QDmsViewArea Qt widget — keypresses for
+    // character keys never reach m_DataViewHWnd's DispatchMsg, so without
+    // this path nothing inserts characters into the edit buffer (issue #1112).
+    //
+    // Skip when Ctrl is held so Ctrl+letter shortcuts (Ctrl+C copy, etc.) are
+    // not converted to a character insert.
+    const QString text = event->text();
+    if (!text.isEmpty() && !(mods & Qt::ControlModifier))
+    {
+        bool anyHandled = false;
+        for (QChar ch : text)
+        {
+            ushort code = ch.unicode();
+            if (code == 0)
+                continue;
+            UInt32 charKey = UInt32(code) | KeyInfo::Flag::Char;
+            if (mods & Qt::ShiftModifier) charKey |= KeyInfo::Flag::Shift;
+            if (dv->OnKeyDown(charKey))
+                anyHandled = true;
+        }
+        if (anyHandled)
+        {
+            event->accept();
+            return;
+        }
+    }
 
-    bool handled = dv->OnKeyDown(vk);
-    if (handled)
-        event->accept();   // critical: prevents QMdiSubWindow's arrow-key-driven move/resize mode
-    else
-        QMdiSubWindow::keyPressEvent(event);
+    // Unhandled special key — let Qt do its default thing (e.g. Ctrl+W to close).
+    QMdiSubWindow::keyPressEvent(event);
 }
 
 void QDmsViewArea::VH_ScrollWindow(GPoint delta, const GRect& scrollRect, const GRect& clipRect,

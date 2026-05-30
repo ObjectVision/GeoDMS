@@ -581,6 +581,16 @@ void initializeGDAL()
 {
 	DMS_SE_CALLBACK_BEGIN
 
+		// Disable code-execution side channels in GDAL. Must happen before any
+		// driver registration or dataset open so it covers every subsequent
+		// call.
+		// GDAL_VRT_ENABLE_PYTHON: when not "NO", <PixelFunctionType python> in
+		//   a .vrt file invokes an arbitrary Python expression.
+		// GDAL_PAM_ENABLED: when not "NO", a sibling .aux.xml file silently
+		//   overrides geotransform/SRS/nodata of a benign raster.
+		CPLSetConfigOption("GDAL_VRT_ENABLE_PYTHON", "NO");
+		CPLSetConfigOption("GDAL_PAM_ENABLED",       "NO");
+
 		gdalComponentImpl::s_OldErrorHandler = CPLSetErrorHandler(gdalComponentImpl::ErrorHandler); // can throw
 
 	DMS_SE_CALLBACK_END

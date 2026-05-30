@@ -17,6 +17,7 @@
 #include "ser/FormattedStream.h"
 
 #include "DataView.h"
+#include "DrawContext.h"
 #include "GraphVisitor.h"
 #include "MouseEventDispatcher.h"
 #include "ShvUtils.h"
@@ -131,6 +132,62 @@ bool TextControl::GetTooltipText(TooltipCollector& ttc) const
 IMPL_RTTI_CLASS(TextControl)
 
 //----------------------------------------------------------------------
+// class  : AbstrTextEditControl — shared edit-buffer rendering
+//----------------------------------------------------------------------
+
+bool AbstrTextEditControl::IsBeingEdited(SizeT recNo) const
+{
+	auto dv = GetDataView().lock(); if (!dv) return false;
+	auto const& tec = dv->m_TextEditController;
+	return tec.IsEditing()
+		&& tec.CurrTextControlIs(this)
+		&& tec.GetCurrRec() == recNo;
+}
+
+void AbstrTextEditControl::DrawEditBuffer(DrawContext& dc, const GRect& rect) const
+{
+	auto dv = GetDataView().lock(); if (!dv) return;
+	auto& tec = dv->m_TextEditController;
+
+	CharPtr textPtr = tec.GetCurrText();
+	SizeT   textLen = tec.GetCurrSize();
+	const SelRange& sel = tec.GetCurrSelRange();
+
+	// Text-editor look: white background, black text, selection range
+	// overlaid as a blue (Windows COLOR_HIGHLIGHT) rect with white text.
+	dc.FillRect(rect, CombineRGB(255, 255, 255));
+	dc.SetBold(false);
+	dc.TextOut(GPoint(rect.left + 1, rect.top), textPtr, textLen, CombineRGB(0, 0, 0));
+
+	if (!sel.IsClosed() && sel.m_Begin < sel.m_End && sel.m_End <= textLen)
+	{
+		GPoint preExt = (sel.m_Begin > 0)
+			? dc.GetTextExtent(textPtr, sel.m_Begin)
+			: GPoint{ 0, 0 };
+		GPoint selExt = dc.GetTextExtent(textPtr + sel.m_Begin, sel.m_End - sel.m_Begin);
+		GRect selRect = {
+			rect.left + 1 + preExt.x,
+			rect.top,
+			rect.left + 1 + preExt.x + selExt.x,
+			rect.top + selExt.y
+		};
+		if (selRect.right > rect.right)
+			selRect.right = rect.right;
+		if (selRect.bottom > rect.bottom)
+			selRect.bottom = rect.bottom;
+		dc.FillRect(selRect, CombineRGB(0, 120, 215));
+		dc.TextOut(GPoint(selRect.left, selRect.top), textPtr + sel.m_Begin, sel.m_End - sel.m_Begin, CombineRGB(255, 255, 255));
+	}
+
+	// Register the caret position with DataView so the blink timer + the
+	// hide/show bracket in ReverseCaretsImpl find it.
+	GPoint curExt = (sel.m_Curr > 0 && sel.m_Curr <= textLen)
+		? dc.GetTextExtent(textPtr, sel.m_Curr)
+		: GPoint{ 0, 0 };
+	dv->SetTextCaret(GPoint(rect.left + 1 + curExt.x, rect.top));
+}
+
+//----------------------------------------------------------------------
 // class  : EditableTextControl
 //----------------------------------------------------------------------
 
@@ -167,13 +224,21 @@ bool EditableTextControl::Draw(GraphDrawer& d) const
 		auto clientIntRect = CrdRect2GRect(clientAbsRect);
 		auto* dc = d.GetDrawContext();
 
-		DmsColor bk = GetBkColor();
-		if (IsDefined(bk))
-			dc->FillRect(clientIntRect, bk);
-		DmsColor clr = GetColor();
-		if (!IsDefined(clr))
-			clr = GraphicObject::GetDefaultTextColor();
-		dc->TextOut(GPoint(clientIntRect.left, clientIntRect.top), GetCaption().c_str(), StrLen(GetCaption().c_str()), clr);
+		// Single-value edit controls always use recNo 0 (see OnKeyDown).
+		if (IsBeingEdited(0))
+		{
+			DrawEditBuffer(*dc, clientIntRect);
+		}
+		else
+		{
+			DmsColor bk = GetBkColor();
+			if (IsDefined(bk))
+				dc->FillRect(clientIntRect, bk);
+			DmsColor clr = GetColor();
+			if (!IsDefined(clr))
+				clr = GraphicObject::GetDefaultTextColor();
+			dc->TextOut(GPoint(clientIntRect.left, clientIntRect.top), GetCaption().c_str(), StrLen(GetCaption().c_str()), clr);
+		}
 
 		if (m_IsInverted)
 			dc->InvertRect(clientIntRect);
