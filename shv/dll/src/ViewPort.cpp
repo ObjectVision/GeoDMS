@@ -1230,17 +1230,54 @@ void LimitRange(Float64& start, Float64& end, Float64 minSize, Float64 maxSize)
 	end   = center + radius;
 }
 
-void ViewPort::SetROI(const CrdRect& r) 
-{ 
+// Returns true if rr is a usable ROI for worldCrdUnit; rr is clamped in place.
+// Rejects inverted / undefined / non-finite / out-of-envelope rects so that
+// junk values (e.g. corrupted persisted RoiTopLeft/RoiBottomRight) cannot reach
+// the drawing path, where Float64->Int32 conversion would yield UNDEFINED_VALUE.
+static bool SanitizeRoi(CrdRect& rr, const AbstrUnit* worldCrdUnit)
+{
+	if (rr.inverted() || !IsDefined(rr.first) || !IsDefined(rr.second))
+	{
+		reportF(SeverityTypeID::ST_MinorTrace, "ViewPort::SanitizeRoi rejected inverted/undefined ROI %s", AsString(rr).c_str());
+		return false;
+	}
+	if (!worldCrdUnit)
+		return false;
+
+	CrdType minSize = GetSubItemValue(worldCrdUnit, vpminsID, -1.0);
+	CrdType maxSize = GetSubItemValue(worldCrdUnit, vpmaxsID, 40000.0e+9);
+	if (minSize == -1.0)
+		minSize = 10.0 / GetUnitSizeInMeters(worldCrdUnit);
+
+	// LimitRange only clamps the size of the range; a junk center (e.g. 1e303) survives.
+	// Reject if any coordinate is already outside the projection's max envelope.
+	if (Abs(rr.first .Row()) > maxSize || Abs(rr.second.Row()) > maxSize
+	 || Abs(rr.first .Col()) > maxSize || Abs(rr.second.Col()) > maxSize)
+	{
+		reportF(SeverityTypeID::ST_MinorTrace, "ViewPort::SanitizeRoi rejected out-of-envelope ROI %s (maxSize=%g)", AsString(rr).c_str(), maxSize);
+		return false;
+	}
+
+	LimitRange(rr.first.Row(), rr.second.Row(), minSize, maxSize);
+	LimitRange(rr.first.Col(), rr.second.Col(), minSize, maxSize);
+	return true;
+}
+
+void ViewPort::SetROI(const CrdRect& r)
+{
 	DBG_START("ViewPort", "SetROI", MG_DEBUG_SCROLL);
 
 	DBG_TRACE(("NewRect : %s", AsString(r).c_str() ));
 
-	if (r.inverted() || m_ROI == r || !IsDefined(r.first) || !IsDefined(r.second))
+	if (m_ROI == r)
 		return;
-    
+
 	InitWorldCrdUnit(0);
 	dms_assert(m_WorldCrdUnit); // must be set before
+
+	CrdRect rr = r;
+	if (!SanitizeRoi(rr, m_WorldCrdUnit.get()))
+		return;
 
 	bool tlIsNew = CreatePointParam(m_ROI_TL, this, t_RoiTL);
 	bool brIsNew = CreatePointParam(m_ROI_BR, this, t_RoiBR);
@@ -1248,14 +1285,6 @@ void ViewPort::SetROI(const CrdRect& r)
 	DBG_TRACE(("IsNew : %d", tlIsNew || brIsNew ));
 	DBG_TRACE(("TlChanged: %d", GetContext() ? m_ROI_TL->GetLastChangeTS() : 0 ));
 	DBG_TRACE(("BrChanged: %d", GetContext() ? m_ROI_BR->GetLastChangeTS() : 0 ));
-
-	CrdType minSize = GetSubItemValue(m_WorldCrdUnit.get(),  vpminsID, -1.0);
-	CrdType maxSize = GetSubItemValue(m_WorldCrdUnit.get(),  vpmaxsID, 40000.0e+9);
-	if (minSize == -1.0)
-		minSize = 10.0 / GetUnitSizeInMeters(m_WorldCrdUnit.get());
-	CrdRect rr = r;
-	LimitRange(rr.first.Row(), rr.second.Row(), minSize, maxSize);
-	LimitRange(rr.first.Col(), rr.second.Col(), minSize, maxSize);
 
 	ChangePoint(m_ROI_TL, rr.first , tlIsNew);
 	ChangePoint(m_ROI_BR, rr.second, brIsNew);
@@ -1307,9 +1336,11 @@ ActorVisitState ViewPort::DoUpdate()
 		DataReadLock l2(m_ROI_BR);
 
 		CrdRect roi = CrdRect(
-			m_ROI_TL->GetRefObj()->GetValueAsDPoint(0), 
+			m_ROI_TL->GetRefObj()->GetValueAsDPoint(0),
 			m_ROI_BR->GetRefObj()->GetValueAsDPoint(0)
 		);
+		if (!SanitizeRoi(roi, m_WorldCrdUnit.get()))
+			return AVS_Ready; // persisted ROI was junk; leave m_ROI for ZoomAll/SetROI to populate
 		if (m_ROI != roi)
 		{
 			m_ROI = roi;
