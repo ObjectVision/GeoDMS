@@ -228,8 +228,15 @@ struct SelectMetaOperator : public BinaryOperator
 
 		const TreeItem* attrContainer = GetItem(args[0]);
 
+		if (!metaCallArgs.IsRealList())
+			throwErrorD(GetGroup()->GetNameStr(), "arguments expected");
 		auto containerExpr = metaCallArgs.Left();
-		auto conditionExpr = metaCallArgs.Right().Left();
+
+		auto tailExprList = metaCallArgs.Right();
+		if (!tailExprList.IsRealList())
+			throwErrorD(GetGroup()->GetNameStr(), "2nd argument expected");
+		auto conditionExpr = tailExprList.Left();
+
 		auto conditionExprStr = AsFLispSharedStr(conditionExpr, FormattingFlags::NoLimitInLispExpr);
 		auto conditionCalc = AbstrCalculator::ConstructFromLispRef(resultHolder.GetOld(), conditionExpr, CalcRole::Other);
 		MG_CHECK(conditionCalc);
@@ -443,13 +450,18 @@ struct CollectWithAttrOperator : public BinaryOperator
 		const AbstrUnit* domainA = AsDynamicUnit(subsetDomainItem);
 		MG_USERCHECK2(domainA, "domain unit expected as 2nd argument");
 
+		if (!metaCallArgs.IsRealList())
+			throwErrorD(GetGroup()->GetNameStr(), "arguments expected");
 		auto containerExpr = metaCallArgs.Left();
+		if (!metaCallArgs.Right().IsRealList())
+			throwErrorD(GetGroup()->GetNameStr(), "2nd argument expected");
 		auto subsetDomainExpr = metaCallArgs.Right().Left();
 		auto subsetDomainExprStr = AsFLispSharedStr(subsetDomainExpr, FormattingFlags::NoLimitInLispExpr);
 
-		MG_USERCHECK2(metaCallArgs.Right().Right().IsRealList(), m_CollectMode == collect_mode::org_rel
-			? "collect_with_attr_by_org_rel: org_rel data-item expected as 3rd argument"
-			: "condition data-item expected as 3rd argument"
+		if (!metaCallArgs.Right().Right().IsRealList())
+			throwErrorD(GetGroup()->GetNameStr(), m_CollectMode == collect_mode::org_rel
+			? "org_rel attribute expected as 3rd argument"
+			: "attribute expected as 3rd argument"
 		);
 		const AbstrDataItem* condOrOrgRelA = nullptr;
 		SharedStr condOrOrgRelExprStr;

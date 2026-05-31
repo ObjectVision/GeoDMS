@@ -313,6 +313,13 @@ struct RapidXmlOperator : public BinaryOperator
 			resultHolder = TreeItem::CreateCacheRoot();
 
 		assert(metaCallArgs);
+
+		if (!metaCallArgs.IsRealList())
+			throwErrorD(GetGroup()->GetNameStr(), "arguments expected");
+		if (!metaCallArgs.Right().IsRealList())
+			throwErrorD(GetGroup()->GetNameStr(), "2nd argument expected");
+
+
 		InstantiateTemplate(resultHolder.GetNew(), args[1], metaCallArgs.Right().Right()); // GetArgList()->m_Next->m_Next) is the remainder of the nul-terminated left-right list after taking the first two elements out
 //		TemplDC::Instantiate(resultHolder, args[1], debug_cast<FuncDC*>(&resultHolder)->GetArgList()->m_Next->m_Next);
 

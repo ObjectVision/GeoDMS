@@ -2626,8 +2626,6 @@ void TreeItem::UpdateMetaInfoImpl2() const
 
 void TreeItem::UpdateMetaInfo() const noexcept
 {
-	auto contextForReportingPurposes = TreeItemContextHandle(this, "UpdateMetaInfo");
-
 	assert(IsMetaThread());
 	auto remainingStackSpace = RemainingStackSpace();
 	if (remainingStackSpace <= 327680)
