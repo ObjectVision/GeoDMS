@@ -35,11 +35,14 @@ template <typename T, int N> struct scalar_replace_u : scalar_subst<T, typename 
 // section : RoundToZero
 //----------------------------------------------------------------------`
 
-template <int N, typename V> 
+template <int N, typename V>
 typename scalar_replace<V, N>::type
 	RoundToZero(const V& v)
 {
 	typedef typename scalar_replace<V, N>::type R;
+	// NaN-safe: without this guard, `return v` would convert NaN to 0x80000000 (UNDEFINED).
+	if (!IsDefined(v))
+		return UNDEFINED_VALUE(R);
 	if (v < MIN_VALUE(R))
 		return MIN_VALUE(R);
 	if (v > MAX_VALUE(R))
@@ -66,12 +69,16 @@ Range<typename scalar_replace<P, N>::type>
 // section : RoundDown
 //----------------------------------------------------------------------
 
-template <int N, typename V> 
+template <int N, typename V>
 typename scalar_replace<V, N>::type
 	RoundDown(const V& v)
 {
 	using R = typename scalar_replace<V, N>::type;
 
+	// NaN-safe: comparisons against NaN are all false, so without this guard
+	// the (double->int) conversion below would produce 0x80000000 (UNDEFINED).
+	if (!IsDefined(v))
+		return UNDEFINED_VALUE(R);
 	if (v < MIN_VALUE(R))
 		return MIN_VALUE(R);
 	if (v > MAX_VALUE(R))
@@ -105,6 +112,11 @@ RoundDownPositiveAndFloorAtZero(const V& v)
 {
 	typedef typename scalar_replace_u<V, N>::type R;
 
+	// NaN-safe: NaN < 0 and NaN > MAX are both false, so `R uv = v` would otherwise
+	// produce 0x80000000 (UNDEFINED for signed; bit-pattern garbage for unsigned).
+	if (!IsDefined(v))
+		return UNDEFINED_VALUE(R);
+
 	if (v < R(0)) // 0?
 		return 0;
 
@@ -134,11 +146,16 @@ RoundDownPositiveAndFloorAtZero(const Range<P>& r)
 // section : RoundDownPositive
 //----------------------------------------------------------------------
 
-template <int N, typename V> 
+template <int N, typename V>
 typename scalar_replace_u<V, N>::type
 	RoundDownPositive(const V& v)
 {
 	typedef typename scalar_replace_u<V, N>::type R;
+
+	// NaN-safe: dms_assert is debug-only; in release builds NaN would silently
+	// flow through to `R uv = v` and convert to 0x80000000.
+	if (!IsDefined(v))
+		return UNDEFINED_VALUE(R);
 
 	dms_assert(v>=0);
 
@@ -172,7 +189,20 @@ template <int N, typename V>
 typename scalar_replace<V, N>::type
 	RoundUp(const V& v)
 {
-	typename scalar_replace<V, N>::type lv = v;
+	using R = typename scalar_replace<V, N>::type;
+
+	// Symmetric with RoundDown: without these guards a double outside [MIN,MAX](R)
+	// (or NaN) would convert to 0x80000000 (UNDEFINED) and the ++lv branch would
+	// then silently shift it by 1, producing a partially-defined Range<IPoint>
+	// that breaks invariants downstream (e.g. GRect ctor in shv/GeoTypes.h).
+	if (!IsDefined(v))
+		return UNDEFINED_VALUE(R);
+	if (v < MIN_VALUE(R))
+		return MIN_VALUE(R);
+	if (v > MAX_VALUE(R))
+		return MAX_VALUE(R);
+
+	R lv = v;
 	if (V(lv) < v)
 		++lv;
 	return lv;
