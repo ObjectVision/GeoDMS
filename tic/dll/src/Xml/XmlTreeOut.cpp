@@ -427,6 +427,29 @@ void WriteLispRefExpr(OutStreamBase& stream, LispPtr lispExpr)
 
 TIC_CALL void(*s_AnnotateExprFunc)(OutStreamBase& outStream, const TreeItem* searchContext, SharedStr expr);
 
+// Renders an indirect expression value (starting with one or more '=' chars) with each TreeItem identifier
+// rendered as a clickable hyperlink, so users can navigate to the items referenced inside e.g. an indirect StorageName.
+static void WriteAnnotatedIndirectExpr(OutStreamBase& stream, const TreeItem* context, WeakStr value)
+{
+	auto begin = value.begin();
+	auto end = value.send();
+	auto exprStart = begin;
+	while (exprStart != end && AbstrCalculator::MustEvaluate(exprStart))
+		++exprStart;
+
+	stream.WriteRange(begin, exprStart);
+
+	if (s_AnnotateExprFunc && exprStart != end)
+	{
+		SharedStr exprStr = SharedStr(CharPtrRange(exprStart, end) MG_DEBUG_ALLOCATOR_SRC("WriteAnnotatedIndirectExpr"));
+		s_AnnotateExprFunc(stream
+			, AbstrCalculator::GetSearchContext(context, CalcRole::Calculator).get()
+			, exprStr);
+	}
+	else
+		stream.WriteRange(exprStart, end);
+}
+
 const TreeItem* WriteExprOrSourceDescrAndReturnSourceItem(OutStreamBase& stream, const TreeItem* ti)
 {
 	SharedStr exprStr = ti->GetExpr();
@@ -740,6 +763,16 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 				row.ValueCell("assigned to");
 				row.ItemCell(sp.get());
 			}
+			{
+				auto configuredStorageName = storageNamePropDefPtr->GetValueAsSharedStr(sp.get());
+				if (!configuredStorageName.empty() && AbstrCalculator::MustEvaluate(configuredStorageName.c_str()))
+				{
+					XML_Table::Row row(xmlTable);
+					row.ValueCell("as configured");
+					XML_Table::Row::Cell valueCell(row);
+					WriteAnnotatedIndirectExpr(row.OutStream(), sp.get(), configuredStorageName);
+				}
+			}
 			result = storageTypePropDefPtr->GetValue(sp.get());
 			if (!result.empty())
 				xmlTable.NameValueRow(STORAGETYPE_NAME, result.c_str());
@@ -982,7 +1015,19 @@ void WritePropValueRows(XML_Table& xmlTable, const TreeItem* self, const Class* 
 			if (result.empty() && !showAll)
 				break;
 
-			if (firstValue)
+			bool isIndirectExpr = canBeIndirect && !result.empty() && AbstrCalculator::MustEvaluate(result.c_str());
+
+			if (isIndirectExpr)
+			{
+				XML_Table::Row row(xmlTable);
+				if (firstValue)
+					row.EditablePropCell(pd->GetName().c_str(), pd->GetName().c_str(), nullptr);
+				else
+					row.ValueCell("which evaluates to:");
+				XML_Table::Row::Cell valueCell(row);
+				WriteAnnotatedIndirectExpr(row.OutStream(), self, result);
+			}
+			else if (firstValue)
 				xmlTable.EditableNameValueRow(pd->GetName().c_str(), result.c_str());
 			else
 				xmlTable.NameValueRow("which evaluates to:", result.c_str());
@@ -990,7 +1035,7 @@ void WritePropValueRows(XML_Table& xmlTable, const TreeItem* self, const Class* 
 			if (!canBeIndirect)
 				break;
 
-			if (!AbstrCalculator::MustEvaluate(result.c_str()))
+			if (!isIndirectExpr)
 				break;
 
 			if (self->InTemplate())
