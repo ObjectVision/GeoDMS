@@ -955,6 +955,36 @@ TIC_CALL const TreeItem* DMS_CONV DMS_TreeItem_GetTemplSourceItem(const TreeItem
 #include "TreeItemProps.h"
 #include "MoreDataControllers.h"
 
+// Follow SupplCache chains through FenceContainer (PhaseContainer) cache items to find
+// the original non-cache failed source. Cache items inside a FenceContainer have their
+// SupplCache set to the corresponding source item via InitAt().
+static SharedTreeItem GetFencedErrorSource(const TreeItem* cacheItem)
+{
+	if (!cacheItem || !cacheItem->WasFailed() || !cacheItem->HasSupplCache())
+		return {};
+
+	auto n = cacheItem->GetSupplCache()->GetNrConfigured(cacheItem);
+	for (UInt32 i = 0; i < n; ++i)
+	{
+		auto supplier = cacheItem->GetSupplCache()->begin(cacheItem)[i];
+		auto supplTI = dynamic_cast<const TreeItem*>(supplier.get());
+		if (!supplTI)
+			continue;
+		if (!supplTI->IsCacheItem())
+		{
+			if (WasInFailed(supplTI))
+				return supplTI;
+		}
+		else
+		{
+			auto nestedResult = GetFencedErrorSource(supplTI);
+			if (nestedResult)
+				return nestedResult;
+		}
+	}
+	return {};
+}
+
 TIC_CALL SharedTreeItem DataController_GetErrorSource(const DataController* dc, UInt32 searchLevel, bool mustVisitSubTree)
 {
 	auto ti = dc->GetOld();
@@ -966,7 +996,7 @@ TIC_CALL SharedTreeItem DataController_GetErrorSource(const DataController* dc, 
 		{
 			TreeItemSet visitedSet;
 			SharedTreeItem foundErrorSource;
-			auto visitor = MakeDerivedBoolVisitor([&foundErrorSource](const Actor* subItemAsActor) 
+			auto visitor = MakeDerivedBoolVisitor([&foundErrorSource](const Actor* subItemAsActor)
 				{
 					auto ti = dynamic_cast<const TreeItem*>(subItemAsActor);
 					if (ti)
@@ -982,6 +1012,13 @@ TIC_CALL SharedTreeItem DataController_GetErrorSource(const DataController* dc, 
 			if (foundErrorSource)
 				return foundErrorSource;
 		}
+	}
+	else if (ti && ti->WasFailed())
+	{
+		// Failed cache item: follow SupplCache to find original source through FenceContainer
+		auto fencedSrc = GetFencedErrorSource(ti);
+		if (fencedSrc)
+			return fencedSrc;
 	}
 
 	if (!searchLevel)
