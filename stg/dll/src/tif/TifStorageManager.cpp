@@ -91,6 +91,43 @@ void TiffSM::DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwMode) const
 		MG_CHECK(result); // false after TIFF open error
 	}
 	m_pImp = std::move(imp);
+	if (!m_CachedBlockSizeX && !m_CachedBlockSizeY && m_pImp->IsOpen())
+	{
+		m_CachedBlockSizeX = m_pImp->GetTileWidth();
+		m_CachedBlockSizeY = m_pImp->GetTileHeight();
+	}
+}
+
+void TiffSM::EnsureBlockSizeCached() const
+{
+	if (m_CachedBlockSizeX || m_CachedBlockSizeY)
+		return;
+	if (m_pImp && m_pImp->IsOpen())
+	{
+		m_CachedBlockSizeX = m_pImp->GetTileWidth();
+		m_CachedBlockSizeY = m_pImp->GetTileHeight();
+		return;
+	}
+	try {
+		TifImp tmp;
+		if (tmp.Open(GetNameStr(), TifFileMode::READ))
+		{
+			m_CachedBlockSizeX = tmp.GetTileWidth();
+			m_CachedBlockSizeY = tmp.GetTileHeight();
+		}
+	} catch (...) {}
+}
+
+UInt32 TiffSM::GetNativeTileSizeX() const
+{
+	EnsureBlockSizeCached();
+	return m_CachedBlockSizeX;
+}
+
+UInt32 TiffSM::GetNativeTileSizeY() const
+{
+	EnsureBlockSizeCached();
+	return m_CachedBlockSizeY;
 }
 
 // Close any open file and forget about it

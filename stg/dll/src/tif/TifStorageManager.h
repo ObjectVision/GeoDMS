@@ -58,6 +58,9 @@ struct TiffSM : AbstrGridStorageManager
 
 	bool CanWriteTiles() const override { return true; }
 
+	UInt32 GetNativeTileSizeX() const override;
+	UInt32 GetNativeTileSizeY() const override;
+
 private:
 	void ReadGridCounts(const StgViewPortInfo& vpi, AbstrDataItem* adi, AbstrDataObject* borrowedReadResultHolder, tile_id t, StorageMetaInfoPtr smi);
 	void ReadGridData  (const StgViewPortInfo& vpi, AbstrDataItem* adi, AbstrDataObject* borrowedReadResultHolder, tile_id t, StorageMetaInfoPtr smi);
@@ -66,8 +69,12 @@ private:
 	void WriteGridData(TifImp& imp, const StgViewPortInfo& vpi, const TreeItem* storageHolder, const AbstrDataItem* adi, const ValueClass* streamType);
 	void WritePalette (TifImp& imp, const TreeItem* storageHolder, const AbstrDataItem* adi);
 
+	void EnsureBlockSizeCached() const;
+
 private:
 	mutable std::unique_ptr<TifImp> m_pImp;
+	mutable UInt32 m_CachedBlockSizeX = 0;
+	mutable UInt32 m_CachedBlockSizeY = 0;
 
 	DECL_RTTI(STGDLL_CALL, StorageClass)
 };
