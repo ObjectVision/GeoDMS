@@ -383,7 +383,7 @@ bool BmpPalStorageManager::ReadUnitRange(const StorageMetaInfo& smi) const
 
 	AbstrUnit* gridDomain = smi.CurrWU();
 	UpdateMarker::ChangeSourceLock changeStamp(gridDomain, "ReadUnitRange");
-	gridDomain->SetRangeAsIPoint(0, 0, imp.GetHeight(), imp.GetWidth());
+	gridDomain->SetRangeAsIPoint(0, 0, imp.GetHeight(), imp.GetWidth(), GetNativeTileSizeY(), GetNativeTileSizeX());
 	return true;
 }
 

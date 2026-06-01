@@ -376,7 +376,7 @@ bool TiffSM::ReadUnitRange(const StorageMetaInfo& smi) const
 
 	UpdateMarker::ChangeSourceLock changeStamp( smi.CurrWU(), "ReadUnitRange");
 	if (smi.CurrWU()->GetNrDimensions() == 2)
-		smi.CurrWU()->SetRangeAsIPoint(0, 0, m_pImp->GetHeight(), m_pImp->GetWidth() );
+		smi.CurrWU()->SetRangeAsIPoint(0, 0, m_pImp->GetHeight(), m_pImp->GetWidth(), GetNativeTileSizeY(), GetNativeTileSizeX());
 	else
 	{
 		if (!m_pImp->HasColorTable())

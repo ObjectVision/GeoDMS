@@ -525,7 +525,7 @@ bool GdalGridSM::ReadUnitRange(const StorageMetaInfo& smi) const
 
 	FixedContextHandle exceptionContext("while reading the extents of raster data; consider another values type for this grid-domain such as IPoint");
 
-	smi.CurrWU()->SetRangeAsIPoint(0, 0, y, x);
+	smi.CurrWU()->SetRangeAsIPoint(0, 0, y, x, GetNativeTileSizeY(), GetNativeTileSizeX());
 
 	return true;
 }

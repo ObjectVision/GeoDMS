@@ -935,7 +935,7 @@ IRect AbstrUnit::GetTileRangeAsIRect(tile_id) const
 	throwIllegalAbstract(MG_POS, this, "GetTileRangeAsIRect");
 }
 
-void AbstrUnit::SetRangeAsIPoint(Int32  rowBegin, Int32  colBegin, Int32  rowEnd, Int32  colEnd)
+void AbstrUnit::SetRangeAsIPoint(Int32  rowBegin, Int32  colBegin, Int32  rowEnd, Int32  colEnd, UInt16 blockSizeY, UInt16 blockSizeX)
 {
 	throwIllegalAbstract(MG_POS, this, "SetRangeAsIPoint"); 
 }
@@ -955,11 +955,6 @@ void AbstrUnit::SetRangeAsDPoint(Float64  rowBegin, Float64  colBegin, Float64  
 	throwIllegalAbstract(MG_POS, this, "SetRangeAsDPoint"); 
 }
 
-
-void AbstrUnit::SetRangeAsIRect(const IRect& rect)
-{
-	SetRangeAsIPoint(rect.first.Row(), rect.first.Col(), rect.second.Row(), rect.second.Col());
-}
 
 void AbstrUnit::SetRangeAsDRect(const DRect& rect)
 {

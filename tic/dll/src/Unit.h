@@ -72,6 +72,7 @@ struct RangedUnit : UnitBase<V>
 	TIC_CALL range_t GetPreparedRange() const;
 	TIC_CALL range_t GetRange() const;
 	TIC_CALL virtual void SetRange(const range_t& range) = 0;
+	TIC_CALL virtual void SetRange(const range_t& range, tile_extent_t<V> blockSize) =0;
 
 	void  ClearData(garbage_can& g) const override;
 
@@ -107,6 +108,7 @@ struct FloatUnit : RangedUnit<V>
 	using range_t = Range<V>;
 
 	TIC_CALL void SetRange(const range_t& range) override;
+	TIC_CALL void SetRange(const range_t& range, tile_extent_t<V> blockSize) override;
 	TIC_CALL void SetMaxRange() override;
 };
 
@@ -146,7 +148,7 @@ struct GeoUnitAdapter : U // all integral and float Point types
 	~GeoUnitAdapter(); // hide dtor of SharedPtr<const UnitProjection>
 // Support for Countable Geometrics
 	IRect GetRangeAsIRect() const override;
-	void SetRangeAsIPoint(Int32  rowBegin, Int32  colBegin, Int32  rowEnd, Int32  colEnd) override;
+	void SetRangeAsIPoint(Int32  rowBegin, Int32  colBegin, Int32  rowEnd, Int32  colEnd, UInt16 blockSizeY, UInt16 blockSizeX) override;
 
 // Support for Geometrics
 	DRect GetRangeAsDRect() const override;
@@ -182,6 +184,7 @@ struct CountableUnitBase : RangedUnit<V> // all integral objects and integral po
 	using typename base_type::range_t;
 
 	TIC_CALL void SetRange(const range_t& range) override;
+	TIC_CALL void SetRange(const range_t& range, tile_extent_t<V> blockSize) override;
 	TIC_CALL void SetMaxRange() override;
 
 	auto GetTiledRangeData() const -> SharedPtr<const AbstrTileRangeData> override;

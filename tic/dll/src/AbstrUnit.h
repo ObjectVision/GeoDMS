@@ -167,7 +167,7 @@ public:
 	virtual Range<Float64> GetTileRangeAsFloat64(tile_id t) const;
 
 // Support for Geometrics
-	virtual void SetRangeAsIPoint(Int32  rowBegin, Int32  colBegin, Int32  rowEnd, Int32  colEnd);
+	virtual void SetRangeAsIPoint(Int32  rowBegin, Int32  colBegin, Int32  rowEnd, Int32  colEnd, UInt16 blockSizeY, UInt16 blockSizeX);
 	virtual DRect GetRangeAsDRect() const;
 	virtual DRect GetTileRangeAsDRect(tile_id t) const;
 	virtual void SetRangeAsDPoint(Float64  rowBegin, Float64  colBegin, Float64  rowEnd, Float64  colEnd);
@@ -175,7 +175,6 @@ public:
 	virtual IRect GetRangeAsIRect() const;
 	virtual I64Rect GetTileSizeAsI64Rect(tile_id t) const; // asssume 1D; GeoUnitAdapter overrules this for all 2D domains
 	virtual IRect GetTileRangeAsIRect(tile_id t) const;
-	TIC_CALL void SetRangeAsIRect(const IRect& rect);
 	TIC_CALL void SetRangeAsDRect(const DRect& rect);
 
 //	Generalization

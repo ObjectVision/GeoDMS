@@ -202,7 +202,7 @@ TIC_CALL void DMS_CONV DMS_GeometricUnit_GetRangeAsDPoint(const AbstrUnit* self,
 	Float64* rowBegin, Float64* colBegin, Float64* rowEnd, Float64* colEnd );
 
 TIC_CALL void DMS_CONV DMS_GeometricUnit_SetRangeAsIPoint(AbstrUnit* self, 
-	Int32 rowBegin, Int32 colBegin, Int32 rowEnd, Int32 colEnd );
+	Int32 rowBegin, Int32 colBegin, Int32 rowEnd, Int32 colEnd, UInt16 blockSizeY, UInt16 blockSizeX);
 TIC_CALL void DMS_CONV DMS_GeometricUnit_GetRangeAsIPoint(const AbstrUnit* self, 
 	Int32* rowBegin, Int32* colBegin, Int32* rowEnd, Int32* colEnd );
 

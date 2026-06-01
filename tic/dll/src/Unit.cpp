@@ -764,6 +764,42 @@ void CountableUnitBase<V>::SetRange(const range_t& range)
 }
 
 template <class V>
+void CountableUnitBase<V>::SetRange(const range_t& range, tile_extent_t<V> blockSize)
+{
+	decltype(this->m_RangeDataPtr) oldRangeDataPtr, newRangeDataPtr;
+	static_assert(!has_simple_range_v<V>);
+	{
+		auto lock = std::lock_guard(sc_RangeDataPtrAccess);
+		oldRangeDataPtr = this->m_RangeDataPtr;
+		if constexpr (has_small_range_v<V>)
+			this->m_RangeDataPtr.reset(std::make_unique<SmallRangeData<V>>(range).release());
+		else
+		{
+			if (blockSize == tile_extent_t<V>() || blockSize == default_tile_size<V>())
+				this->m_RangeDataPtr.reset(std::make_unique<DefaultTileRangeData<V>>(range).release());
+			else
+				this->m_RangeDataPtr.reset(std::make_unique<RegularTileRangeData<V>>(range, blockSize).release());
+		}
+		newRangeDataPtr = this->m_RangeDataPtr;
+	}
+	if (this->IsCacheItem())
+		return;
+
+	//	if (!UpdateMetaInfoDetectionLock::IsLocked())
+	//		this->DoInvalidate();
+	//	this->SetDC(nullptr);
+	//	this->SetReferredItem(nullptr);
+
+	if (oldRangeDataPtr)
+	{
+		MG_CHECK(IsMetaThread());
+		dms_assert(!UpdateMarker::IsLoadingConfig());
+		NotifyRangeDataChange(this, oldRangeDataPtr.get_ptr(), newRangeDataPtr.get_ptr());
+	}
+	MarkUnitChange(this);
+}
+
+template <class V>
 void CountableUnitBase<V>::SetMaxRange()
 {
 	dms_assert(!this->m_RangeDataPtr);
@@ -787,6 +823,12 @@ void FloatUnit<V>::SetRange (const range_t& range)
 	if (this->IsCacheItem())
 		return;
 	MarkUnitChange(this);
+}
+
+template <class V>
+void FloatUnit<V>::SetRange(const range_t& range, tile_extent_t<V> blockSize)
+{
+	SetRange(range); // ignore blockSize since tiling doesn't make sense for floating point types
 }
 
 template <class V>
@@ -917,13 +959,13 @@ IRect GeoUnitAdapterI<U>::GetTileRangeAsIRect(tile_id t) const
 
 
 template <class U>
-void GeoUnitAdapter<U>::SetRangeAsIPoint(Int32 rowBegin, Int32  colBegin, Int32  rowEnd, Int32  colEnd )
+void GeoUnitAdapter<U>::SetRangeAsIPoint(Int32 rowBegin, Int32  colBegin, Int32  rowEnd, Int32  colEnd, UInt16 blockSizeY, UInt16 blockSizeX)
 {
 	auto topLeft = shp2dms_order<Int32>(colBegin, rowBegin);
 	auto bottomRight = shp2dms_order<Int32>(colEnd, rowEnd);
 	auto iRange = IRect(topLeft, bottomRight);
 	auto range = ThrowingConvert<typename U::range_t>(iRange);
-	this->SetRange(range);
+	this->SetRange(range, shp2dms_order(blockSizeX, blockSizeY));
 }
 
 template <class U>
@@ -1439,13 +1481,13 @@ extern "C" {
 	}
 
 	TIC_CALL void DMS_CONV DMS_GeometricUnit_SetRangeAsIPoint(AbstrUnit* self,
-		Int32 rowBegin, Int32 colBegin, Int32 rowEnd, Int32 colEnd)
+		Int32 rowBegin, Int32 colBegin, Int32 rowEnd, Int32 colEnd, UInt16 blockSizeY, UInt16 blockSizeX)
 	{
 		DMS_CALL_BEGIN
 
 			TreeItemContextHandle checkPtr(self, AbstrUnit::GetStaticClass(), "DMS_GeometricUnit_SetRangeAsIPoint");
 
-			self->SetRangeAsIPoint(rowBegin, colBegin, rowEnd, colEnd);
+			self->SetRangeAsIPoint(rowBegin, colBegin, rowEnd, colEnd, blockSizeY, blockSizeX);
 
 		DMS_CALL_END
 	}
