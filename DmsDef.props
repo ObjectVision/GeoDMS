@@ -20,7 +20,12 @@
     <VcpkgEnableManifest>true</VcpkgEnableManifest>
     <VcpkgAdditionalInstallOptions>--binarysource=clear;files,$(SolutionDir)\vc_archives,readwrite --downloads-root=$(SolutionDir)\vc_downloads</VcpkgAdditionalInstallOptions>
 	<VcpkgTriplet>x64-windows-v145</VcpkgTriplet>
-  </PropertyGroup>  
+	<!-- Override default (vcpkg_installed\$(VcpkgTriplet)\) so the layout matches what cmake -->
+	<!-- writes via -DVCPKG_INSTALLED_DIR=vcpkg_installed: a single $(VcpkgTriplet) level, -->
+	<!-- not the doubly-nested vcpkg_installed\<triplet>\<triplet>\ MS's vcpkg.targets produces -->
+	<!-- by default. Shared layout means .m and .c link against the same binaries. -->
+	<VcpkgInstalledDir>$(SolutionDir)vcpkg_installed\</VcpkgInstalledDir>
+  </PropertyGroup>
   <ItemDefinitionGroup>
     <Bscmake>
       <SuppressStartupBanner>true</SuppressStartupBanner>

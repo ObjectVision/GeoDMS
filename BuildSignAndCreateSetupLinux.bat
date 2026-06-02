@@ -30,9 +30,28 @@ set GeoDmsFlavor=l
 set geodms_rootdir=%cd%
 set GeoDmsVersion=%DMS_VERSION_MAJOR%.%DMS_VERSION_MINOR%.%DMS_VERSION_PATCH%
 
+REM Mark script start so we can verify cmake --build actually produced a fresh
+REM binary. cmake exits 0 even when the dep tracker decided nothing needed
+REM rebuilding -- which silently ships stale binaries inside the .deb.
+REM -5s fudge to absorb any clock skew between WSL filesystem and Windows.
+for /f "delims=" %%T in ('powershell -NoProfile -Command "[DateTime]::Now.AddSeconds(-5).ToString('o')"') do set BUILD_GATE_TIME=%%T
+
 echo --- building linux-x64-release in WSL ---
-wsl bash -c "cd /mnt/c/dev/GeoDMS_2026 && cmake --build build/linux-x64-release --config Release"
+REM Share the vc_archives binary cache with the msbuild (.m) and cmake (.c)
+REM flavors. Only matters if the WSL build tree needs reconfiguring (which
+REM re-triggers vcpkg install via the toolchain file); harmless for pure
+REM --build. vcpkg keys archives by ABI hash, so Linux gcc entries coexist
+REM with the Windows MSVC entries already in vc_archives.
+wsl bash -c "export VCPKG_BINARY_SOURCES='clear;files,/mnt/c/dev/GeoDMS_2026/vc_archives,readwrite' && cd /mnt/c/dev/GeoDMS_2026 && cmake --build build/linux-x64-release --config Release"
 if errorlevel 1 goto :build_failed
+
+REM Linux ELF has no Windows FileVersion -- use mtime: GeoDmsRun must be at
+REM least as new as the script start, otherwise cmake --build was a no-op.
+powershell -NoProfile -Command "if ((Get-Item 'build\linux-x64-release\bin\GeoDmsRun').LastWriteTime -ge [DateTime]'%BUILD_GATE_TIME%') { exit 0 } else { exit 1 }"
+if errorlevel 1 (
+    echo *** ABORT: build\linux-x64-release\bin\GeoDmsRun was not rebuilt - cmake --build was a no-op against stale binary. ***
+    goto :build_failed
+)
 
 echo --- creating Linux setup (.tar.gz + .deb, signed via PowerShell .NET SignedCms) ---
 wsl bash -c "cd /mnt/c/dev/GeoDMS_2026 && export GeoDmsVersion=%GeoDmsVersion% && bash nsi/CreateLinuxSetup.sh"

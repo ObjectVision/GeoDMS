@@ -21,6 +21,12 @@ set GeoDmsFlavor=c
 set geodms_rootdir=%cd%
 set GeoDmsVersion=%DMS_VERSION_MAJOR%.%DMS_VERSION_MINOR%.%DMS_VERSION_PATCH%
 
+REM Share the vc_archives binary cache with the msbuild (.m) flavor — see
+REM DmsDef.props VcpkgAdditionalInstallOptions. Without this, cmake falls
+REM back to %LOCALAPPDATA%\vcpkg\archives and rebuilds every port from
+REM source after a compiler / toolchain hash change.
+set VCPKG_BINARY_SOURCES=clear;files,%geodms_rootdir%\vc_archives,readwrite
+
 REM Pull tst on the parallel checkout for the post-install regression run.
 cd ..
 md tst 2>nul
@@ -41,9 +47,33 @@ if not exist "%BUILD_DIR%\CMakeCache.txt" (
     if errorlevel 1 goto :build_failed
 )
 
+REM Refuse to build if a prior bin\GeoDmsGuiQt.exe or bin\GeoDmsRun.exe is still
+REM running -- a held file handle on Dm*.dll silently turns the build into a
+REM no-op (worst case: ships a stale setup signed with today's version).
+tasklist /FI "IMAGENAME eq GeoDmsGuiQt.exe" 2>nul | findstr /I /C:"GeoDmsGuiQt.exe" >nul
+if not errorlevel 1 (
+    echo *** ABORT: GeoDmsGuiQt.exe is running. Close it before building - it locks %BUILD_DIR%\bin\Dm*.dll ***
+    goto :build_failed
+)
+tasklist /FI "IMAGENAME eq GeoDmsRun.exe" 2>nul | findstr /I /C:"GeoDmsRun.exe" >nul
+if not errorlevel 1 (
+    echo *** ABORT: GeoDmsRun.exe is running. Close it before building. ***
+    goto :build_failed
+)
+
 echo --- building cmake-Release ---
 %CMAKE% --build "%BUILD_DIR%" --config Release
 if errorlevel 1 goto :build_failed
+
+REM cmake --build exits 0 even when the dep tracker decided nothing needed
+REM rebuilding -- which silently ships stale binaries. Assert the produced
+REM GeoDmsRun.exe carries the version we just bumped to before letting NSIS
+REM package it.
+powershell -NoProfile -Command "if ((Get-Item '%BUILD_DIR%\bin\GeoDmsRun.exe').VersionInfo.FileVersion -like '%GeoDmsVersion%*') { exit 0 } else { exit 1 }"
+if errorlevel 1 (
+    echo *** ABORT: %BUILD_DIR%\bin\GeoDmsRun.exe FileVersion does not match expected %GeoDmsVersion% - build was a no-op against stale binaries. ***
+    goto :build_failed
+)
 
 echo --- creating NSIS installer ---
 mkdir distr 2>nul

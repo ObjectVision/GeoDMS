@@ -92,9 +92,12 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "NSIS", "NSIS", "{F6034506-5822-49C4-B88A-ECF5818E44C3}"
 	ProjectSection(SolutionItems) = preProject
+		nsi\CreateLinuxSetup.sh = nsi\CreateLinuxSetup.sh
 		nsi\DmsSetupScript.nsh = nsi\DmsSetupScript.nsh
 		nsi\DmsSetupScriptW32.nsi = nsi\DmsSetupScriptW32.nsi
+		nsi\DmsSetupScriptX64-cmake.nsi = nsi\DmsSetupScriptX64-cmake.nsi
 		nsi\DmsSetupScriptX64.nsi = nsi\DmsSetupScriptX64.nsi
+		nsi\VERIFY-LINUX.md = nsi\VERIFY-LINUX.md
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "doc", "doc", "{1030BDA1-1D30-4E73-8472-758D73FED24A}"

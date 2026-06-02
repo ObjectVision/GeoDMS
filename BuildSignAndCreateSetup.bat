@@ -20,6 +20,20 @@ git pull
 cd %geodms_rootdir%
 
 
+REM Refuse to build if a prior bin\Release\x64 binary is still running --
+REM a held file handle on Dm*.dll silently turns msbuild's link step into a
+REM skip (worst case: ships a stale setup signed with today's version).
+tasklist /FI "IMAGENAME eq GeoDmsGuiQt.exe" 2>nul | findstr /I /C:"GeoDmsGuiQt.exe" >nul
+if not errorlevel 1 (
+    echo *** ABORT: GeoDmsGuiQt.exe is running. Close it before building - it locks bin\Release\x64\Dm*.dll ***
+    goto :build_failed
+)
+tasklist /FI "IMAGENAME eq GeoDmsRun.exe" 2>nul | findstr /I /C:"GeoDmsRun.exe" >nul
+if not errorlevel 1 (
+    echo *** ABORT: GeoDmsRun.exe is running. Close it before building. ***
+    goto :build_failed
+)
+
 REM Always do an incremental build. If intermediates become funky, clean
 REM from the MSVC IDE or `rmdir /s /q bin build` from the shell — no need
 REM for a CHOICE inside this script.
@@ -28,6 +42,15 @@ msbuild all22.sln -t:build -p:Configuration=Release -p:Platform=x64
 
 CHOICE /M  "Built OK? Ready to create installation?"
 if ErrorLevel 2 goto retryBuild
+
+REM msbuild can exit 0 even when the IsUpToDate cache decided nothing needed
+REM rebuilding -- which silently ships stale binaries. Assert the produced
+REM GeoDmsRun.exe carries the version we just bumped to before NSIS packages it.
+powershell -NoProfile -Command "if ((Get-Item 'bin\Release\x64\GeoDmsRun.exe').VersionInfo.FileVersion -like '%GeoDmsVersion%*') { exit 0 } else { exit 1 }"
+if errorlevel 1 (
+    echo *** ABORT: bin\Release\x64\GeoDmsRun.exe FileVersion does not match expected %GeoDmsVersion% - build was a no-op against stale binaries. ***
+    goto :build_failed
+)
 
 :setupCreation
 
@@ -67,3 +90,8 @@ echo on
 
 
 pause "Klaar ?"
+exit /B 0
+
+:build_failed
+echo *** Build failed - NSIS, signing, install and unit tests skipped ***
+exit /B 1
