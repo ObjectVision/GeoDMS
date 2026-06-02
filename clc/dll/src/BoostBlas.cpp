@@ -24,8 +24,7 @@
 #include <boost/numeric/ublas/matrix.hpp>
 #include <boost/numeric/ublas/operation.hpp>
 
-#include "VersionComponent.h"
-static VersionComponent s_BoostBlas("boost::blas"); // BOOST_STRINGIZE(BOOST_POLYGON_VERSION));
+// boost::numeric::ublas is listed as a boost sub-library by the boost VersionComponent in the geo DLL.
 
 CommonOperGroup cogMM("matr_mul", oper_policy::better_not_in_meta_scripting);
 CommonOperGroup cogMV("matr_var", oper_policy::better_not_in_meta_scripting);

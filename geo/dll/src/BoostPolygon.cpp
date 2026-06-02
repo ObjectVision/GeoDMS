@@ -44,11 +44,28 @@ const Int32 MAX_COORD = (1 << 26);
 #include <geos/version.h>
 #include <CGAL/version.h>
 
-static VersionComponent s_Boost("boost " BOOST_LIB_VERSION);
-static VersionComponent s_BoostPolygon("boost::polygon " BOOST_STRINGIZE(BOOST_POLYGON_VERSION));
-static VersionComponent s_BoostGeometry("boost::geometry " BOOST_LIB_VERSION);
-static VersionComponent s_BoostGEOS2("boost::geos " GEOS_VERSION);
-static VersionComponent s_BoostCGAL("boost::CGAL " BOOST_STRINGIZE(CGAL_VERSION));
+// Present the boost sub-libraries as children of the "boost" container, so that the
+// container version is shown first and the sub-libraries it provides are nested under it.
+// This is a single component so that grouping and ordering are independent of the order
+// in which DLLs (and their static VersionComponents) happen to be loaded.
+// Note: property_tree::detail::rapidxml and numeric::ublas are used in the clc DLL, but
+// listed here so all boost sub-libraries appear together under the same boost version.
+struct BoostVersionComponent : AbstrVersionComponent
+{
+	void Visit(ClientHandle clientHandle, VersionComponentCallbackFunc callBack, UInt32 componentLevel) const override
+	{
+		callBack(clientHandle, componentLevel,     "boost " BOOST_LIB_VERSION);
+		callBack(clientHandle, componentLevel + 1, "polygon " BOOST_STRINGIZE(BOOST_POLYGON_VERSION));
+		callBack(clientHandle, componentLevel + 1, "geometry " BOOST_LIB_VERSION);
+		callBack(clientHandle, componentLevel + 1, "property_tree::detail::rapidxml");
+		callBack(clientHandle, componentLevel + 1, "numeric::ublas");
+	}
+};
+
+// geos and CGAL are independent libraries (not part of boost), listed at top level.
+static BoostVersionComponent s_Boost;
+static VersionComponent      s_GEOS("geos " GEOS_VERSION);
+static VersionComponent      s_CGAL("CGAL " BOOST_STRINGIZE(CGAL_VERSION));
 
 template <typename T>
 static bool coords_using_more_than_25_bits(T coord)

@@ -25,9 +25,8 @@
 
 #include "MoreDataControllers.h"
 
-#include "VersionComponent.h"
+// boost::property_tree::detail::rapidxml is listed as a boost sub-library by the boost VersionComponent in the geo DLL.
 
-static VersionComponent s_BoostPropTree("boost::property_tree::detail::rapidxml");
 using IndexedStringValues = IndexedStrings<false, GenericEqual, GenericHasher>;
 
 namespace { // anonymous
