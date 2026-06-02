@@ -38,6 +38,12 @@ cd %geodms_rootdir%
 set CMAKE="C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe"
 set BUILD_DIR=build\windows-x64-release
 
+REM Mark script start so the post-build staleness guard can verify cmake
+REM --build actually produced a fresh binary. cmake exits 0 on no-op
+REM dep-tracker decisions; binaries don't carry FileVersion metadata, so
+REM mtime is the only reliable signal. -5s fudge to absorb clock skew.
+for /f "delims=" %%T in ('powershell -NoProfile -Command "[DateTime]::Now.AddSeconds(-5).ToString('o')"') do set BUILD_GATE_TIME=%%T
+
 if not exist "%BUILD_DIR%\CMakeCache.txt" (
     echo --- configuring %BUILD_DIR% ---
     %CMAKE% --preset windows-x64-release ^
@@ -66,12 +72,12 @@ echo --- building cmake-Release ---
 if errorlevel 1 goto :build_failed
 
 REM cmake --build exits 0 even when the dep tracker decided nothing needed
-REM rebuilding -- which silently ships stale binaries. Assert the produced
-REM GeoDmsRun.exe carries the version we just bumped to before letting NSIS
-REM package it.
-powershell -NoProfile -Command "if ((Get-Item '%BUILD_DIR%\bin\GeoDmsRun.exe').VersionInfo.FileVersion -like '%GeoDmsVersion%*') { exit 0 } else { exit 1 }"
+REM rebuilding -- which silently ships stale binaries. Binaries carry no
+REM FileVersion, so use mtime: GeoDmsRun.exe must be at least as new as
+REM the script start, otherwise the build was a no-op.
+powershell -NoProfile -Command "if ((Get-Item '%BUILD_DIR%\bin\GeoDmsRun.exe').LastWriteTime -ge [DateTime]'%BUILD_GATE_TIME%') { exit 0 } else { exit 1 }"
 if errorlevel 1 (
-    echo *** ABORT: %BUILD_DIR%\bin\GeoDmsRun.exe FileVersion does not match expected %GeoDmsVersion% - build was a no-op against stale binaries. ***
+    echo *** ABORT: %BUILD_DIR%\bin\GeoDmsRun.exe was not rebuilt - cmake --build was a no-op against stale binaries. ***
     goto :build_failed
 )
 

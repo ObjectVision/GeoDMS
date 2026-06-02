@@ -19,6 +19,11 @@ cd tst
 git pull
 cd %geodms_rootdir%
 
+REM Mark script start so the post-build staleness guard can verify msbuild
+REM actually produced a fresh binary. msbuild exits 0 on no-op IsUpToDate
+REM caches; binaries don't carry FileVersion metadata, so mtime is the
+REM only reliable signal. -5s fudge to absorb clock skew.
+for /f "delims=" %%T in ('powershell -NoProfile -Command "[DateTime]::Now.AddSeconds(-5).ToString('o')"') do set BUILD_GATE_TIME=%%T
 
 REM Refuse to build if a prior bin\Release\x64 binary is still running --
 REM a held file handle on Dm*.dll silently turns msbuild's link step into a
@@ -44,11 +49,12 @@ CHOICE /M  "Built OK? Ready to create installation?"
 if ErrorLevel 2 goto retryBuild
 
 REM msbuild can exit 0 even when the IsUpToDate cache decided nothing needed
-REM rebuilding -- which silently ships stale binaries. Assert the produced
-REM GeoDmsRun.exe carries the version we just bumped to before NSIS packages it.
-powershell -NoProfile -Command "if ((Get-Item 'bin\Release\x64\GeoDmsRun.exe').VersionInfo.FileVersion -like '%GeoDmsVersion%*') { exit 0 } else { exit 1 }"
+REM rebuilding -- which silently ships stale binaries. Binaries carry no
+REM FileVersion, so use mtime: GeoDmsRun.exe must be at least as new as
+REM the script start, otherwise the build was a no-op.
+powershell -NoProfile -Command "if ((Get-Item 'bin\Release\x64\GeoDmsRun.exe').LastWriteTime -ge [DateTime]'%BUILD_GATE_TIME%') { exit 0 } else { exit 1 }"
 if errorlevel 1 (
-    echo *** ABORT: bin\Release\x64\GeoDmsRun.exe FileVersion does not match expected %GeoDmsVersion% - build was a no-op against stale binaries. ***
+    echo *** ABORT: bin\Release\x64\GeoDmsRun.exe was not rebuilt - msbuild was a no-op against stale binaries. ***
     goto :build_failed
 )
 
