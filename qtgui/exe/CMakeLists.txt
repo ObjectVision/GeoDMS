@@ -53,7 +53,7 @@ if(WIN32)
         COMMAND ${_windeployqt}
             --dir "$<TARGET_FILE_DIR:GeoDmsGuiQt>"
             --plugindir "$<TARGET_FILE_DIR:GeoDmsGuiQt>"
-            --translations "$<TARGET_FILE_DIR:GeoDmsGuiQt>/translations"
+            --translationdir "$<TARGET_FILE_DIR:GeoDmsGuiQt>/translations"
             $<IF:$<CONFIG:Debug>,--debug,--release>
             --no-compiler-runtime
             "$<TARGET_FILE:GeoDmsGuiQt>"
