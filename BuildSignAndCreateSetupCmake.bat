@@ -73,11 +73,15 @@ if errorlevel 1 goto :build_failed
 
 REM cmake --build exits 0 even when the dep tracker decided nothing needed
 REM rebuilding -- which silently ships stale binaries. Binaries carry no
-REM FileVersion, so use mtime: GeoDmsRun.exe must be at least as new as
-REM the script start, otherwise the build was a no-op.
-powershell -NoProfile -Command "if ((Get-Item '%BUILD_DIR%\bin\GeoDmsRun.exe').LastWriteTime -ge [DateTime]'%BUILD_GATE_TIME%') { exit 0 } else { exit 1 }"
+REM FileVersion, so use mtime. Check DmRtc.dll, not GeoDmsRun.exe:
+REM GeoDmsVersion.cmd rewrites buildstamp.h on every run, which forces
+REM DmRtc to relink unconditionally -- so DmRtc.dll fresher than script
+REM start proves cmake actually executed. Downstream binaries may skip
+REM relink when DmRtc's ABI is unchanged (correct incremental optimization,
+REM not staleness).
+powershell -NoProfile -Command "if ((Get-Item '%BUILD_DIR%\bin\DmRtc.dll').LastWriteTime -ge [DateTime]'%BUILD_GATE_TIME%') { exit 0 } else { exit 1 }"
 if errorlevel 1 (
-    echo *** ABORT: %BUILD_DIR%\bin\GeoDmsRun.exe was not rebuilt - cmake --build was a no-op against stale binaries. ***
+    echo *** ABORT: %BUILD_DIR%\bin\DmRtc.dll was not rebuilt - cmake --build was a no-op against stale binaries. ***
     goto :build_failed
 )
 

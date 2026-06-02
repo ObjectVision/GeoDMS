@@ -51,7 +51,10 @@ if ErrorLevel 2 goto retryBuild
 REM msbuild can exit 0 even when the IsUpToDate cache decided nothing needed
 REM rebuilding -- which silently ships stale binaries. Binaries carry no
 REM FileVersion, so use mtime: GeoDmsRun.exe must be at least as new as
-REM the script start, otherwise the build was a no-op.
+REM the script start, otherwise the build was a no-op. (msbuild on the
+REM handwritten .vcxproj solution auto-relinks dependents when a referenced
+REM Dm*.dll changes, so checking the leaf binary is safe here -- unlike
+REM the cmake-generated .vcxproj files, which need a DmRtc.dll check.)
 powershell -NoProfile -Command "if ((Get-Item 'bin\Release\x64\GeoDmsRun.exe').LastWriteTime -ge [DateTime]'%BUILD_GATE_TIME%') { exit 0 } else { exit 1 }"
 if errorlevel 1 (
     echo *** ABORT: bin\Release\x64\GeoDmsRun.exe was not rebuilt - msbuild was a no-op against stale binaries. ***
