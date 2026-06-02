@@ -396,17 +396,20 @@ int main_without_SE_handler(int argc, char *argv[]) {
             QTimer::singleShot(1000, &main_window,
                 [splashHandle = std::move(splash), &main_window]()
                 {
-                    bool wasMaximized = GetGeoDmsRegKeyDWord("WindowMaximized", 1) != 0;
-                    if (wasMaximized) {
-                        main_window.showMaximized();
-                    } else {
-                        int x = static_cast<int>(static_cast<Int32>(GetGeoDmsRegKeyDWord("WindowX",      100)));
-                        int y = static_cast<int>(static_cast<Int32>(GetGeoDmsRegKeyDWord("WindowY",      100)));
-                        int w = static_cast<int>(GetGeoDmsRegKeyDWord("WindowWidth",  1024));
-                        int h = static_cast<int>(GetGeoDmsRegKeyDWord("WindowHeight", 768));
-                        main_window.setGeometry(x, y, w, h);
+                    // Restore the placement saved by MainWindow::~MainWindow().
+                    // restoreGeometry() is DPI- and screen-aware and clamps the
+                    // window onto the currently available screen, so a geometry
+                    // saved on a larger/again-scaled display no longer reopens
+                    // oversized (which previously looked like a maximized window).
+                    // Fall back to maximized on first run or unreadable data.
+                    auto geomHex = GetGeoDmsRegKey("WindowGeometry");
+                    QByteArray geom = geomHex.empty()
+                        ? QByteArray()
+                        : QByteArray::fromHex(QByteArray(geomHex.c_str()));
+                    if (!geom.isEmpty() && main_window.restoreGeometry(geom))
                         main_window.show();
-                    }
+                    else
+                        main_window.showMaximized();
                     splashHandle->close();
                     ConfirmMainThreadOperProcessing();
                 }

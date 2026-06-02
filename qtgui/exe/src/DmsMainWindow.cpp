@@ -299,15 +299,15 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings) {
 }
 
 MainWindow::~MainWindow() {
-    bool isMaximized = windowState() & Qt::WindowMaximized;
-    SetGeoDmsRegKeyDWord("WindowMaximized", isMaximized ? 1 : 0);
-    if (!isMaximized) {
-        auto geom = geometry();
-        SetGeoDmsRegKeyDWord("WindowX",      static_cast<UInt32>(static_cast<Int32>(geom.x())));
-        SetGeoDmsRegKeyDWord("WindowY",      static_cast<UInt32>(static_cast<Int32>(geom.y())));
-        SetGeoDmsRegKeyDWord("WindowWidth",  static_cast<UInt32>(geom.width()));
-        SetGeoDmsRegKeyDWord("WindowHeight", static_cast<UInt32>(geom.height()));
-    }
+    // Persist the full window placement (position, size and maximized/fullscreen
+    // state) for the next session via Qt's saveGeometry(). We deliberately do
+    // NOT store raw pixel rectangles: those carry no DPI or screen context, so a
+    // window saved on a higher-resolution / differently-scaled display reopened
+    // oversized and clipped to the screen, which looked like an unwanted "always
+    // maximized" window. saveGeometry() records the device-pixel-ratio and the
+    // screen, and the matching restoreGeometry() clamps the window back onto the
+    // currently available screen.
+    SetGeoDmsRegKeyString("WindowGeometry", saveGeometry().toHex().constData());
 
     g_IsTerminating = true;
 
