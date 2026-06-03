@@ -831,6 +831,16 @@ bool WmsLayer::ZoomIn(ViewPort* vp)
 	return true;
 }
 
+bool WmsLayer::ZoomToFinestLevel(ViewPort* vp)
+{
+	assert(vp);
+	if (m_TMS.empty())
+		return false;
+	m_ZoomLevel = m_TMS.size() - 1; // deepest = highest available zoom level
+	Zoom1To1(vp);                   // sizes the ROI to that level, centered on the current ROI center
+	return true;
+}
+
 void WmsLayer::Sync(TreeItem* viewContext, ShvSyncMode sm)
 {
 	base_type::Sync(viewContext, sm);

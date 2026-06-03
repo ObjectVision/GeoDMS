@@ -62,6 +62,7 @@ struct WmsLayer : GridLayerBase
 
 	bool ZoomIn(ViewPort* vp);
 	bool ZoomOut(ViewPort* vp, bool justClickIsOK);
+	bool ZoomToFinestLevel(ViewPort* vp); // size the ROI to the deepest available tile matrix, centered on the current ROI center (issue #374)
 
 protected:
 //	override virtuals of GraphicObject

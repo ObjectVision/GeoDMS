@@ -158,6 +158,11 @@ private:
 	bool MouseEvent(MouseEventDispatcher& med) override;
 
 	bool HasROI() const;
+	// Apply a zoom-to-extent target ROI. A degenerate (single-point / zero-area)
+	// target is expanded rather than over-zoomed to ViewPortMinSize: it snaps to a
+	// background WMS layer's finest tile level if one is present, else to a fixed
+	// default extent (issue #374).
+	void ZoomToTargetRoi(CrdRect roi);
 	void UpdateScaleBar();
 	void InvalidateOverlapped();
 

@@ -126,6 +126,13 @@ static TokenID t_RoiBR = GetTokenID_st(ROI_BR_NAME);
 static TokenID t_WCU = GetTokenID_st("WorldCrdUnit");
 static TokenID vpminsID = GetTokenID_st("ViewPortMinSize");
 static TokenID vpmaxsID = GetTokenID_st("ViewPortMaxSize");
+static TokenID vpdefsID = GetTokenID_st("ViewPortDefaultSize");
+
+// Fallback view size (in metres, scaled to coordinate units) when zooming to a
+// single-point / zero-area extent with no background WMS layer to snap to (issue #374).
+constexpr CrdType DEFAULT_POINT_VIEW_SIZE_IN_METERS = 1000.0;
+
+Float64 GetSubItemValue(const TreeItem* context, TokenID id, Float64 defaultVal); // defined below
 
 void ViewPort::Sync(TreeItem* context, ShvSyncMode sm) 
 {
@@ -394,7 +401,7 @@ void ViewPort::ZoomWorldFullRect(CrdRect relClientRect)
 
 	if (roi.empty())
 		roi = Convert<CrdRect>(relClientRect);
-	SetROI(roi);
+	ZoomToTargetRoi(roi);
 }
 
 CrdRect ViewPort::GetCurrWorldFullRect() const
@@ -464,7 +471,7 @@ void ViewPort::AL_ZoomAll()
 	if (!dv)
 		return;
 
-	SetROI(calcWorldFullRect(CalcClientRelRect(), go, m_Orientation));
+	ZoomToTargetRoi(calcWorldFullRect(CalcClientRelRect(), go, m_Orientation));
 }
 
 void ViewPort::AL_ZoomSel()
@@ -475,7 +482,7 @@ void ViewPort::AL_ZoomSel()
 
 	CrdRect selectRect = calcSelectedWorldFullRect(CalcClientRelRect(), al, m_Orientation);
 	if (! selectRect.empty())
-		SetROI(selectRect);
+		ZoomToTargetRoi(selectRect); // a single selected point would otherwise over-zoom (issue #374)
 }
 
 void ViewPort::AL_SelectAllObjects(bool select)
@@ -526,6 +533,37 @@ void ViewPort::ZoomFactor(CrdType factor)
 	CrdPoint s = Size(GetROI()) * (factor * 0.5);
 
 	SetROI(CrdRect(p-s, p+s)); // zoom in on half of org ROI
+}
+
+void ViewPort::ZoomToTargetRoi(CrdRect roi)
+{
+	// A non-degenerate extent zooms as before.
+	if (Size(roi).X() > 0.0 && Size(roi).Y() > 0.0)
+	{
+		SetROI(roi);
+		return;
+	}
+
+	// Degenerate (single-point / zero-area) extent: don't let SetROI over-zoom it to
+	// ViewPortMinSize. Snap to a background WMS layer's finest tile level if present,
+	// else to a fixed default extent (issue #374).
+	CrdPoint center = Center(roi);
+
+	if (auto* wms = FindBackgroundWmsLayer())
+	{
+		SetROI(CrdRect(center, center)); // set the center; ZoomToFinestLevel sizes around the ROI center
+		if (wms->ZoomToFinestLevel(this))
+			return;
+	}
+
+	InitWorldCrdUnit(0);
+	CrdType metersPerUnit = m_WorldCrdUnit ? GetUnitSizeInMeters(m_WorldCrdUnit.get()) : 1.0;
+	CrdType defSize = m_WorldCrdUnit ? GetSubItemValue(m_WorldCrdUnit.get(), vpdefsID, -1.0) : -1.0;
+	if (defSize <= 0.0)
+		defSize = DEFAULT_POINT_VIEW_SIZE_IN_METERS / metersPerUnit;
+
+	CrdPoint h = CrdPoint(defSize, defSize) * 0.5;
+	SetROI(CrdRect(center - h, center + h));
 }
 
 
