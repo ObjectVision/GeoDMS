@@ -84,6 +84,8 @@ public:
 
 	SharedStr Caption() const;
 	void SetElemWidth(UInt16 width) override;
+	void ResizeDragTo(CrdType mouseLogicalX) override;
+	GType ResizeTieLeftDevice(CrdPoint subPixelFactors) const override;
 	void SetElemSize(WPoint size);
 
 	UInt32 ColumnNr() const    { dms_assert(IsDefined(m_ColumnNr)); return m_ColumnNr; }
@@ -164,6 +166,17 @@ private:
 	CrdRect GetElemFullRelLogicalRect( SizeT rowNr) const;
 	void  SetFocusRect();
 	DataItemColumn* GetPrevControl();
+
+	// True when this column belongs to a multi-column selection (a non-collapsed
+	// selection range that includes it). A border-resize of such a column must not
+	// collapse the selection, so the pooled width adjustment still sees all of it.
+	bool IsInMultiColSelection() const;
+
+	// Geometry of a pooled (multi-column) border-resize whose dragged column is this
+	// one. Returns false for a single-column / non-pooled resize. spannedCount is the
+	// number of selected columns from the leftmost up to and including this one;
+	// anchorLeftLogical is the leftmost selected column's left edge (issue #1121).
+	bool GetPooledResizeGeometry(SizeT& spannedCount, CrdType& anchorLeftLogical) const;
 
 	COLORREF  GetColor   (SizeT recNo, AspectNr a) const;
 	DmsColor  GetOrgColor(SizeT recNo, AspectNr a) const;

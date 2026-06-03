@@ -734,13 +734,30 @@ bool ColumnSizerDragger::Exec(EventInfo& eventInfo)
 	auto to = GetTargetObject().lock(); if (!to) return true;
 	MovableObject* target = debug_cast<MovableObject*>(to.get());
 	assert(target);
-	auto clientPos = target->GetCurrClientAbsLogicalPos();
-	auto newWidth = eventInfo.m_Point.x / target->GetScaleFactors().first - clientPos.X();
-	if (target->HasElemBorder())
-		newWidth -= DOUBLE_BORDERSIZE;
-	MakeMax(newWidth, 6);
-	target->SetElemWidth(TType2GType(newWidth));
+	target->ResizeDragTo(eventInfo.m_Point.x / target->GetScaleFactors().first);
+	return true;
+}
 
+void MovableObject::ResizeDragTo(CrdType mouseLogicalX)
+{
+	auto newWidth = mouseLogicalX - GetCurrClientAbsLogicalPos().X();
+	if (HasElemBorder())
+		newWidth -= DOUBLE_BORDERSIZE;
+	MakeMax(newWidth, MIN_COL_ELEM_WIDTH);
+	SetElemWidth(TType2GType(newWidth));
+	InvalidateResizedCaret();
+}
+
+GType MovableObject::ResizeTieLeftDevice(CrdPoint subPixelFactors) const
+{
+	// Left bound for the resize cursor-tie: the dragged border may not move left of
+	// this column's left edge (+6 device px epsilon to avoid an inverted column).
+	auto fullDevRect = CrdRect2GRect(ScaleCrdRect(GetCurrFullAbsLogicalRect(), subPixelFactors));
+	return fullDevRect.left + 6;
+}
+
+void MovableObject::InvalidateResizedCaret()
+{
 	// The resize MovableRectCarets (StartResize, 9px and 5px wide) are centered on the
 	// column's right edge, so they straddle the GrowHor scroll/invalidate boundary:
 	// the left half lives in the column interior (untouched), the right half in the
@@ -749,13 +766,12 @@ bool ColumnSizerDragger::Exec(EventInfo& eventInfo)
 	// bar in the column body.  Invalidate the resized column's footprint (with a small
 	// right-side buffer for caret extent) so OnPaint cleanly wipes both halves and the
 	// tail XOR draws the caret at its current logical position only.
-	if (auto dv = target->GetDataView().lock())
+	if (auto dv = GetDataView().lock())
 	{
-		auto colDevRect = CrdRect2GRect(target->GetCurrFullAbsDeviceRect());
+		auto colDevRect = CrdRect2GRect(GetCurrFullAbsDeviceRect());
 		colDevRect.right += 10;
 		dv->InvalidateDeviceRect(colDevRect);
 	}
-	return true;
 }
 
 //==========================================================================
@@ -773,7 +789,7 @@ void MovableObject::StartResize(MouseEventDispatcher& med)
 
 	medOwner->InsertController(
 		new TieCursorController(medOwner.get(), owner.get()
-			, GRect(currIntRect.Left() + 6, mousePoint.y, MaxValue<GType>(), mousePoint.y + 1)
+			, GRect(ResizeTieLeftDevice(med.GetSubPixelFactors()), mousePoint.y, MaxValue<GType>(), mousePoint.y + 1)
 			, EventID::MOUSEDRAG, EventID::CLOSE_EVENTS - EventID::SCROLLED
 		)
 	);

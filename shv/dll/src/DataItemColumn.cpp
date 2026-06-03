@@ -445,6 +445,80 @@ void DataItemColumn::SetElemWidth(UInt16 width)
 	assert(m_ElemSize.X()          == width);
 }
 
+bool DataItemColumn::IsInMultiColSelection() const
+{
+	auto tc = GetTableControl().lock();
+	if (!tc || !IsDefined(m_ColumnNr))
+		return false;
+	const SelRange& cols = tc->SelCols();
+	return !cols.IsClosed() && cols.IsInRange(m_ColumnNr);
+}
+
+bool DataItemColumn::GetPooledResizeGeometry(SizeT& spannedCount, CrdType& anchorLeftLogical) const
+{
+	if (!IsInMultiColSelection())
+		return false; // single-column / non-pooled resize
+
+	auto tc = GetTableControl().lock();
+	const SelRange& cols = tc->SelCols();
+	auto* firstCol = tc->GetConstColumn(cols.m_Begin);
+	if (!firstCol)
+		return false;
+
+	spannedCount = m_ColumnNr - cols.m_Begin + 1; // leftmost selected .. dragged, inclusive
+	anchorLeftLogical = firstCol->GetCurrClientAbsLogicalPos().X(); // client left, matching the single-column formula
+	return true;
+}
+
+// Excel-style pooled column-width adjustment (issue #1121): when an interactive
+// border-drag resizes a column that is part of a multi-column selection, all
+// selected columns adopt the same width. Only the border-drag gesture reaches
+// here (via ColumnSizerDragger); selection and column-move drags do not.
+//
+// The dragged border (mouseLogicalX) is the right edge of this column. The
+// selected columns from the leftmost up to and including this one span that
+// border, so the shared width is the distance from the leftmost selected
+// column's left edge divided by that count. Anchoring on that left edge keeps
+// the calculation stable: columns left of it are never resized, so the anchor
+// does not move during the drag. The per-column width is clamped to
+// MIN_COL_ELEM_WIDTH, i.e. the block cannot shrink below count*MIN_COL_ELEM_WIDTH
+// measured from that left edge.
+void DataItemColumn::ResizeDragTo(CrdType mouseLogicalX)
+{
+	SizeT spannedCount; CrdType anchorLeft;
+	if (!GetPooledResizeGeometry(spannedCount, anchorLeft))
+		return base_type::ResizeDragTo(mouseLogicalX);
+
+	CrdType newWidth = (mouseLogicalX - anchorLeft) / CrdType(spannedCount);
+	if (HasElemBorder())
+		newWidth -= DOUBLE_BORDERSIZE;
+	MakeMax(newWidth, MIN_COL_ELEM_WIDTH);
+
+	auto tc = GetTableControl().lock(); if (!tc) return;
+	const SelRange& cols = tc->SelCols();
+	UInt16 elemWidth = TType2GType(newWidth);
+	for (SizeT c = cols.m_Begin; c <= cols.m_End; ++c)
+		if (auto* col = tc->GetColumn(c))
+			col->SetElemWidth(elemWidth);
+
+	InvalidateResizedCaret();
+}
+
+// Allow the pooled drag to shrink the whole block down to its minimum: the dragged
+// border may travel left to the leftmost selected column's edge plus
+// spannedCount*(min element + border) width. Without this the cursor-tie would stop
+// at this column's own left edge, well short of that minimum for wide columns.
+GType DataItemColumn::ResizeTieLeftDevice(CrdPoint subPixelFactors) const
+{
+	SizeT spannedCount; CrdType anchorLeft;
+	if (!GetPooledResizeGeometry(spannedCount, anchorLeft))
+		return base_type::ResizeTieLeftDevice(subPixelFactors);
+
+	CrdType minFull = MIN_COL_ELEM_WIDTH + (HasElemBorder() ? DOUBLE_BORDERSIZE : 0);
+	CrdType minBorderLogical = anchorLeft + CrdType(spannedCount) * minFull;
+	return CrdType2GType(minBorderLogical * subPixelFactors.first);
+}
+
 void DataItemColumn::SetActiveRow(SizeT row)
 {
 	auto dv = GetDataView().lock();
@@ -1317,14 +1391,18 @@ bool DataItemColumn::MouseEvent(MouseEventDispatcher& med)
 				DataItemColumn* prevHeader = GetPrevControl();
 				if (prevHeader)
 				{
-					prevHeader->SelectCol();
+					// Keep an existing multi-column selection so the resize pools across
+					// all of it; only (re)select when resizing a non-pooled column.
+					if (!prevHeader->IsInMultiColSelection())
+						prevHeader->SelectCol();
 					prevHeader->StartResize(med);
 				}
 				return true;
 			}
 			case RG_RIGHT:
 			{
-				SelectCol();
+				if (!IsInMultiColSelection())
+					SelectCol();
 				StartResize(med);
 				return true;
 			}

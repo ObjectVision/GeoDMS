@@ -19,6 +19,9 @@
 enum ControlRegion { RG_MIDDLE, RG_LEFT, RG_RIGHT };
 enum GdMode : int;
 
+// Smallest element (content) width an interactive resize-drag may produce, per column.
+constexpr CrdType MIN_COL_ELEM_WIDTH = 6;
+
 //----------------------------------------------------------------------
 // class  : MovableObject
 //----------------------------------------------------------------------
@@ -38,6 +41,18 @@ public:
 	virtual void MoveTo(CrdPoint newClientRelPos); // SetClientRelPos
 	virtual void SetClientSize(CrdPoint newRelPos);
 	virtual void SetElemWidth(UInt16 width);
+
+	// Apply an interactive border-resize drag whose pointer is at logical X.
+	// The default resizes this single element to fit the pointer. DataItemColumn
+	// overrides it so that, when the dragged column is part of a multi-column
+	// selection, all selected columns adopt the same width (issue #1121).
+	virtual void ResizeDragTo(CrdType mouseLogicalX);
+	// Device-space left bound for the resize cursor-tie (how far left the dragged
+	// border may travel). DataItemColumn widens it for a pooled multi-column drag
+	// so the whole block can shrink to count*MIN_COL_ELEM_WIDTH from the leftmost
+	// selected column's edge (issue #1121).
+	virtual GType ResizeTieLeftDevice(CrdPoint subPixelFactors) const;
+	void InvalidateResizedCaret(); // wipe the resize-caret XOR artifact at the column's right edge
 
 	void SetClientRect(CrdRect r);
 	void SetFullRelRect(CrdRect r);
