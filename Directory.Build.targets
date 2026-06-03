@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project>
+  <!--
+    Auto-provision the in-repo vcpkg tool (./vcpkg submodule, see Directory.Build.props)
+    on a fresh checkout, so that `git clone` + build just works with no documented
+    manual steps. Without this, the first build fails in the vcpkg integration with
+    "vcpkg.exe is not recognized ... exited with code 9009" because the submodule has
+    not been checked out / bootstrapped yet.
+
+    The hook runs only when vcpkg.exe is missing (so it costs nothing on normal
+    incremental builds) and just before the vcpkg manifest-install target consumes it.
+    tools\ensure-vcpkg.ps1 does the submodule checkout + bootstrap and serializes
+    itself across parallel MSBuild nodes with a named mutex.
+  -->
+  <Target Name="EnsureVcpkgBootstrapped"
+          BeforeTargets="VcpkgInstallManifestDependencies"
+          Condition="!Exists('$(VcpkgRoot)\vcpkg.exe')">
+    <Message Importance="high"
+             Text="Bootstrapping in-repo vcpkg ($(VcpkgRoot)) — one-time setup for this checkout..." />
+    <Exec Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)tools\ensure-vcpkg.ps1&quot;"
+          WorkingDirectory="$(MSBuildThisFileDirectory)" />
+  </Target>
+</Project>
