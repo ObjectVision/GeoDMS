@@ -22,5 +22,11 @@
         "rtree"
       ]
     }
+  ],
+  "overrides": [
+    {
+      "name": "libffi",
+      "version": "3.5.1"
+    }
   ]
 }

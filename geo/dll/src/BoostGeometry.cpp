@@ -1074,13 +1074,13 @@ struct BufferLineStringOperator : public AbstrBufferOperator
 					auto straight_skeleton = CGAL::create_interior_straight_skeleton_2(lsAsPolygon);
 					if (straight_skeleton)
 					{
-						// create_offset_polygons_2 returns boost::shared_ptr; convert to std::shared_ptr
-						auto boostOffsetPolygons = CGAL::create_offset_polygons_2(bufferDistance, *straight_skeleton);
-						using PolygonType = typename decltype(boostOffsetPolygons)::value_type::element_type;
-						std::vector<std::shared_ptr<PolygonType>> offsetPolygons;
-						offsetPolygons.reserve(boostOffsetPolygons.size());
-						for (auto& bp : boostOffsetPolygons)
-							offsetPolygons.emplace_back(bp.get(), [bp](PolygonType*) mutable {});
+						// CGAL 6.1: create_offset_polygons_2 takes an explicit OutPolygon type as its
+						// first template argument and already returns std::vector<std::shared_ptr<OutPolygon>>
+						// (it no longer returns boost::shared_ptr, so the old conversion dance is gone).
+						// The straight skeleton is built in the inexact kernel (the default), so the offset
+						// polygons come back as Polygon_2<EPICK> — the same type the old code deduced.
+						using PolygonType = CGAL::Polygon_2<CGAL::Exact_predicates_inexact_constructions_kernel>;
+						auto offsetPolygons = CGAL::create_offset_polygons_2<PolygonType>(bufferDistance, *straight_skeleton);
 						cgal_assign_shared_polygon_vector(resData[i], std::move(offsetPolygons));
 					}
 

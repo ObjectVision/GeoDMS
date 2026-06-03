@@ -7,7 +7,7 @@
             "cacheVariables": {
                 "CMAKE_TOOLCHAIN_FILE": {
                     "type": "FILEPATH",
-                    "value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+                    "value": "${sourceDir}/vcpkg/scripts/buildsystems/vcpkg.cmake"
                 },
                 "VCPKG_MANIFEST_DIR": {
                     "type": "FILEPATH",
@@ -24,7 +24,8 @@
             "binaryDir": "${sourceDir}/build/windows-x64-debug",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
-                "VCPKG_TARGET_TRIPLET": "x64-windows-v145"
+                "VCPKG_TARGET_TRIPLET": "x64-windows-v145",
+                "VCPKG_HOST_TRIPLET": "x64-windows-v145"
             }
         },
         {
@@ -36,7 +37,8 @@
             "binaryDir": "${sourceDir}/build/windows-x64-release",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
-                "VCPKG_TARGET_TRIPLET": "x64-windows-v145"
+                "VCPKG_TARGET_TRIPLET": "x64-windows-v145",
+                "VCPKG_HOST_TRIPLET": "x64-windows-v145"
             }
         },
         {

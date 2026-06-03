@@ -9,5 +9,21 @@
       triggers an unnecessary rebuild after CLI builds (the *.tlog command-line check matches).
     -->
     <PreferredToolArchitecture>x64</PreferredToolArchitecture>
+
+    <!--
+      Use the in-repo vcpkg tool (./vcpkg submodule) instead of the VS-bundled one.
+      The bundled vcpkg ships read-only with Visual Studio and lags the ports baseline;
+      a baseline ahead of it (see vcpkg-configuration.json) breaks autotools ports
+      (libffi/mpfr) in vcpkg_fixup_pkgconfig. The submodule is pinned to the same commit
+      as the baseline, so the helper scripts match the ports. Setting VcpkgRoot here
+      (before the bundled vcpkg.props default, which only applies when it is empty) makes
+      both VS F5 and CLI MSBuild use it. CMake is pointed at the same root via its toolchain
+      file in CMakePresets.json, so .m and .c share one tool, baseline and binary cache.
+
+      VcpkgHostTriplet pins host build-tools (e.g. libffi for python3) to our overlay
+      triplet, avoiding the stock x64-windows host path.
+    -->
+    <VcpkgRoot>$(MSBuildThisFileDirectory)vcpkg</VcpkgRoot>
+    <VcpkgHostTriplet>x64-windows-v145</VcpkgHostTriplet>
   </PropertyGroup>
 </Project>
