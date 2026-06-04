@@ -11,6 +11,19 @@
     <PreferredToolArchitecture>x64</PreferredToolArchitecture>
 
     <!--
+      All GeoDMS modules build as Unicode (UTF-8 internally, explicit -W Win32 calls at
+      OS boundaries). Set here because Directory.Build.props is imported before
+      Microsoft.Cpp.props consumes CharacterSet; DmsDef.props is a property sheet imported
+      AFTER Cpp.props, so a CharacterSet there has no effect (it produced no /D UNICODE).
+    -->
+    <CharacterSet>Unicode</CharacterSet>
+
+    <!-- Common toolset settings for every GeoDMS C++ project (ConfigurationType stays
+         per-project: DynamicLibrary vs Application). -->
+    <PlatformToolset>v145</PlatformToolset>
+    <UseOfMfc>false</UseOfMfc>
+
+    <!--
       Use the in-repo vcpkg tool (./vcpkg submodule) instead of the VS-bundled one.
       The bundled vcpkg ships read-only with Visual Studio and lags the ports baseline;
       a baseline ahead of it (see vcpkg-configuration.json) breaks autotools ports

@@ -126,7 +126,7 @@ static void Diagnostics(const SQLRETURN ret, const SQLSMALLINT handletype, const
 
 	sqlstate[0] = 0;
 	message [0] = 0;
-	SQLRETURN diagRet = SQLGetDiagRec(handletype, handle, 1, sqlstate, &nativeerror, message, MAXBUFLEN_EXT, &messagelen);
+	SQLRETURN diagRet = SQLGetDiagRecA(handletype, handle, 1, sqlstate, &nativeerror, message, MAXBUFLEN_EXT, &messagelen);
 
 	CharPtr level = (ret == SQL_SUCCESS_WITH_INFO) ? "Diagnostic" : "Error";
 
@@ -505,7 +505,7 @@ void TDatabase::Open()
 	BYTE buffer[DEFAULT_BUFFER_SIZE];
 	Int16 returnSize = 0;
 
-	Check(SQLDriverConnect(
+	Check(SQLDriverConnectA(
 			Handle(), 
 			NULL,                // SQLHWND WindowHandle
 			const_cast<SQLCHAR*>(reinterpret_cast<const SQLCHAR*>( GetConnectionStr() ) ), 
@@ -528,7 +528,7 @@ void TDatabase::Open()
 			++returnSize; // allow for string terminator
 			m_ConnectionString.resize(returnSize MG_DEBUG_ALLOCATOR_SRC("TDatabase.ConnectionString"));
 			CharType* connectionStr = m_ConnectionString.begin();
-			Check(SQLDriverConnect(
+			Check(SQLDriverConnectA(
 				Handle(), 
 				NULL,                       // SQLHWND WindowHandle
 				reinterpret_cast<SQLCHAR*>(connectionStr), // szConnStrIn
@@ -1159,15 +1159,15 @@ void TRecordSet::OpenImpl()
 	{
 		case rseRecordSet:
 		case rseExecSQL:
-			Check(SQLExecDirect(Handle(), (SQLCHAR*) (m_SQL.c_str()), m_SQL.ssize())); 
+			Check(SQLExecDirectA(Handle(), (SQLCHAR*) (m_SQL.c_str()), m_SQL.ssize()));
 			break;
 
 		case rseTableInfo:
-			Check(SQLTables(Handle(), nullptr, 0, nullptr, 0, nullptr, 0, nullptr, 0)); 
+			Check(SQLTablesA(Handle(), nullptr, 0, nullptr, 0, nullptr, 0, nullptr, 0));
 			break;
 
 		case rseColumnInfo:
-			Check(SQLColumns(Handle(), nullptr, 0, nullptr, 0, (SQLCHAR*) (m_SQL.c_str()), SQL_NTS, nullptr, 0)); 
+			Check(SQLColumnsA(Handle(), nullptr, 0, nullptr, 0, (SQLCHAR*) (m_SQL.c_str()), SQL_NTS, nullptr, 0));
 			break;
 	}
 	m_Active = true;
@@ -1471,7 +1471,7 @@ SQLINTEGER TRecordSet::StatementAttributeValue(const SQLINTEGER attribute)
 SQLLEN TRecordSet::ColumnAttrValueNumeric(const SQLUSMALLINT col, const SQLUSMALLINT attribute)
 {
 	SQLLEN result = 0;
-	Check(SQLColAttributes(Handle(), col, attribute, nullptr, 0, nullptr, &result));
+	Check(SQLColAttributesA(Handle(), col, attribute, nullptr, 0, nullptr, &result));
 	return result;
 }
 
@@ -1479,7 +1479,7 @@ SharedStr TRecordSet::ColumnAttrValueString(const SQLUSMALLINT col, const SQLUSM
 {
 	char result[MAXBUFLEN];
 	SQLSMALLINT	attrValueLen;
-	Check(SQLColAttributes(Handle(), col, attribute, result, MAXBUFLEN, &attrValueLen, nullptr));
+	Check(SQLColAttributesA(Handle(), col, attribute, result, MAXBUFLEN, &attrValueLen, nullptr));
 	return SharedStr(CharPtrRange(result, result + attrValueLen));
 }
 

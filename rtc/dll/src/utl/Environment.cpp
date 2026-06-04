@@ -1362,22 +1362,28 @@ SharedStr GetConfigKeyString(WeakStr configFileName, CharPtr sectionName, CharPt
 	if (!IsFileOrDirAccessible(configFileName))
 		return SharedStr(defaultValue MG_DEBUG_ALLOCATOR_SRC("GetConfigKeyString"));
 
+	// The section/key/value/filename are UTF-8; use the explicit -W INI API with
+	// UTF-8<->wide conversion (matching GetConfigKeyValue above).
+	auto sectionNameW  = Utf8_2_wchar(sectionName);
+	auto keyNameW      = Utf8_2_wchar(keyName);
+	auto defaultValueW = Utf8_2_wchar(defaultValue);
+	auto dmsFileNameW  = Utf8_2_wchar(ConvertDmsFileName(configFileName).c_str());
+
 	const UInt32 DEFAULT_BUFFER_SIZE = 300;
 
-	std::unique_ptr<char[]> heapBuffer;
+	std::unique_ptr<wchar_t[]> heapBuffer;
 
-	char stackBuffer[DEFAULT_BUFFER_SIZE];
-	char* buf  = stackBuffer;
-	DWORD size = DEFAULT_BUFFER_SIZE;
+	wchar_t  stackBuffer[DEFAULT_BUFFER_SIZE];
+	wchar_t* buf  = stackBuffer;
+	DWORD    size = DEFAULT_BUFFER_SIZE;
 
 	while (true)
 	{
-//		char* buffer = s_CharBuffer.GetBuffer(size);
-		DWORD resSize = GetPrivateProfileString(sectionName, keyName, defaultValue, buf, size, ConvertDmsFileName(configFileName).c_str());
+		DWORD resSize = GetPrivateProfileStringW(sectionNameW.get(), keyNameW.get(), defaultValueW.get(), buf, size, dmsFileNameW.get());
 		if (resSize+2 < size )
-			return SharedStr(CharPtrRange(buf, buf+resSize));
+			return wchar_2_Utf8Str(buf, resSize);
 		size *= 2;
-		heapBuffer.reset(new char[size]);
+		heapBuffer.reset(new wchar_t[size]);
 		buf = heapBuffer.get();
 	}
 }
@@ -1386,7 +1392,11 @@ void SetConfigKeyString(WeakStr configFileName, CharPtr sectionName, CharPtr key
 {
 	MakeDirsForFile(configFileName);
 
-	WritePrivateProfileString(sectionName, keyName, keyValue, ConvertDmsFileName(configFileName).c_str());
+	auto sectionNameW = Utf8_2_wchar(sectionName);
+	auto keyNameW     = Utf8_2_wchar(keyName);
+	auto keyValueW    = Utf8_2_wchar(keyValue);
+	auto dmsFileNameW = Utf8_2_wchar(ConvertDmsFileName(configFileName).c_str());
+	WritePrivateProfileStringW(sectionNameW.get(), keyNameW.get(), keyValueW.get(), dmsFileNameW.get());
 }
 
 #include <time.h>

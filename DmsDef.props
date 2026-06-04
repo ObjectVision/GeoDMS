@@ -9,12 +9,15 @@
 	<CAExcludePath>c:\SourceData\ext\boost;$(CAExcludePath)</CAExcludePath>
 	<Platforms>x64;x86</Platforms>
   </PropertyGroup>
-  <PropertyGroup Label="Configuration">
-    <PlatformToolset>v145</PlatformToolset>
-    <PreferredToolArchitecture>x64</PreferredToolArchitecture>
+  <!--
+    Configuration-time settings (PlatformToolset, CharacterSet, PreferredToolArchitecture,
+    UseOfMfc) now live in Directory.Build.props. They must be set before Microsoft.Cpp.props
+    consumes them, but this file is imported as a property sheet (via DmsDebug/DmsRelease.props)
+    AFTER Cpp.props, so setting them here had no effect. EnableUnitySupport is read later by the
+    C++ targets, so it is still honored from this property sheet.
+  -->
+  <PropertyGroup>
     <EnableUnitySupport>true</EnableUnitySupport>
-    <CharacterSet>Unicode</CharacterSet>
-    <UseOfMfc>false</UseOfMfc>
   </PropertyGroup>
   <PropertyGroup Label="Vcpkg">
     <VcpkgEnableManifest>true</VcpkgEnableManifest>
