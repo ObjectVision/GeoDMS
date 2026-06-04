@@ -20,6 +20,10 @@
 
 #include <unordered_set>
 
+// m_Hasher{}/m_EqComp{} below are NSDMI-initialized, but /analyze misses that
+// through [[no_unique_address]] and reports them as uninitialized (type.6).
+#pragma warning(push)
+#pragma warning(disable: 26495)
 template<typename Func>
 struct UnorderedSetCache
 {
@@ -127,6 +131,7 @@ private:
 	[[no_unique_address]] hasher           m_Hasher{};
 	[[no_unique_address]] equality_compare m_EqComp{};
 };
+#pragma warning(pop)
 
 
 template<typename Func>

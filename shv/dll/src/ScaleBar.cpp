@@ -60,10 +60,10 @@ bool ScaleBarBase::Draw(DrawContext& dc, CrdRect devAbsRect) const
 	Float64 topVal           = 0.0;
 	Float64 botVal           = 0.0;
 
-	DmsColor white = CombineRGB(0xFF, 0xFF, 0xFF);
-	DmsColor black = CombineRGB(0, 0, 0);
-	DmsColor red   = CombineRGB(0xFF, 0, 0);
-	DmsColor blue  = CombineRGB(0, 0, 0xFF);
+	constexpr DmsColor white = CombineRGB(0xFF, 0xFF, 0xFF);
+	constexpr DmsColor black = CombineRGB(0, 0, 0);
+	constexpr DmsColor red   = CombineRGB(0xFF, 0, 0);
+	constexpr DmsColor blue  = CombineRGB(0, 0, 0xFF);
 	DmsColor fillColor1 = black;
 	DmsColor fillColor2 = red;
 

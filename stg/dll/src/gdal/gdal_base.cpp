@@ -1205,7 +1205,8 @@ auto GetGeometryTypeFromLayerHolder(const TreeItem* subItem) -> OGRwkbGeometryTy
 
 const TreeItem* GetLayerHolderFromDataItem(const TreeItem* storageHolder, const TreeItem* subItem)
 {
-	assert(storageHolder && subItem && storageHolder->DoesContain(subItem)); // PRECONDITION
+	MG_CHECK(storageHolder && subItem); // PRECONDITION
+	assert(storageHolder->DoesContain(subItem)); // PRECONDITION
 
 	const TreeItem* unitItem = subItem;
 	while (unitItem && unitItem != storageHolder && not IsUnit(unitItem))

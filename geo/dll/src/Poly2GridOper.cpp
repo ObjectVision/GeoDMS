@@ -552,7 +552,7 @@ namespace poly2grid
 			const AbstrDataItem* polyAttr = m_PolyAttr;
 			const AbstrDataObject* polyData = polyAttr->GetCurrRefObj().get();
 			const AbstrUnit* abstrPolyDomain = polyAttr->GetAbstrDomainUnit(); // could be void domain.
-			assert(abstrPolyDomain);
+			MG_CHECK(abstrPolyDomain); // invariant: never null (the void domain is still a unit)
 			const Unit<E>* polyDomain = dynamic_cast<const Unit<E>*>(abstrPolyDomain); // could be nullptr
 
 			DRect clipRect = m_ViewPortInfo.GetViewPortInGrid();
@@ -651,7 +651,7 @@ namespace poly2grid
 			const AbstrDataItem* polyAttr = m_PolyAttr;
 			const AbstrDataObject* polyData = polyAttr->GetCurrRefObj().get();
 			const AbstrUnit* abstrPolyDomain = polyAttr->GetAbstrDomainUnit(); // could be void domain.
-			assert(abstrPolyDomain);
+			MG_CHECK(abstrPolyDomain); // invariant: never null (the void domain is still a unit)
 
 		//	const Unit<E>* polyDomain = dynamic_cast<const Unit<E>*>(abstrPolyDomain); // could be nullptr
 

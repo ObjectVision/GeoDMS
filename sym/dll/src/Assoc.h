@@ -185,6 +185,9 @@ struct AssocListPtrWrap : LispListPtrWrap<BasePtr, Assoc>
 				stack.pop_back();
 			}
 		}
+		// result is rebuilt by the explicit-stack walk on every iteration; the
+		// analyzer cannot follow that control flow and sees a moved-from read.
+#pragma warning(suppress: 26800)
 		return result;
 	}
 
@@ -236,6 +239,9 @@ struct AssocListPtrWrap : LispListPtrWrap<BasePtr, Assoc>
 				stack.pop_back();
 			}
 		}
+		// result is rebuilt by the explicit-stack walk on every iteration; the
+		// analyzer cannot follow that control flow and sees a moved-from read.
+#pragma warning(suppress: 26800)
 		return result;
 	}
 

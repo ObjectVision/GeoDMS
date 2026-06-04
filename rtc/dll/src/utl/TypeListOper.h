@@ -43,8 +43,11 @@ namespace tl_oper
 
 		template<class... Args>
 		explicit constructed_tuple_impl(Args&&... args)
-			: Base(std::forward<Args>(args)...)
-			, head(std::forward<Args>(args)...)
+			// The same args are broadcast to construct *every* element, so they
+			// must be copied into each (not forwarded) — forwarding would move
+			// the args into Base and then read them moved-from for head (lifetime.1).
+			: Base(args...)
+			, head(args...)
 		{}
 
 		Head head;

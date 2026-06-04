@@ -1237,7 +1237,7 @@ bool GridLayer::Draw(GraphDrawer& d) const
 		}
 
 		auto* drawCtx = d.GetDrawContext();
-		DmsColor highlightColor = CombineRGB(51, 153, 255); // portable highlight color
+		constexpr DmsColor highlightColor = CombineRGB(51, 153, 255); // portable highlight color
 
 		// XOR'd thin/thick highlight frames around the focus cell and its
 		// outer border (mirrors the pre-refactor DcMixModeSelector + FrameRgn

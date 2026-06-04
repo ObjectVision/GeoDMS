@@ -99,7 +99,7 @@ void NeedleCaret::Move(const AbstrCaretOperator& caret_operator, DrawContext& dc
 		}
 
 		XorModeScope xor_mode(dc);
-		DmsColor lineColor = CombineRGB(0, 0, 0);
+		constexpr DmsColor lineColor = CombineRGB(0, 0, 0);
 
 		GType currRow = m_StartPoint.y;
 		GType prevRow   = prevStartPoint.y;

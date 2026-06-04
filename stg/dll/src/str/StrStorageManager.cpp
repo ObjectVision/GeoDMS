@@ -46,7 +46,7 @@ FileResult StrStorageManager::ReadDataItem (StorageMetaInfoPtr smi, AbstrDataObj
 	AbstrDataItem* adi = smi->CurrWD();
 	assert(adi);
 	AbstrDataObject* ado = borrowedReadResultHolder;
-	assert(ado);
+	MG_CHECK(ado);
 	DataArray<SharedStr>* sdo = dynamic_cast<DataArray<SharedStr>*>(ado);
 	for (SizeT i=0, n = GetNrFiles(storageHolder, adi); i!=n; ++i) {
 		FilePtrHandle file;

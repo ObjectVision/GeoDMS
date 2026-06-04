@@ -345,6 +345,9 @@ LispRef::LispRef(LispPtr lrb, no_zombies nz) noexcept
 LispRef::LispRef(SharedPtr<const LispObj>&& rhs) noexcept
 	: base_type(std::move(rhs))
 {
+	// Reading rhs after the move is intentional: SharedPtr's move ctor nulls the
+	// source, and we assert exactly that invariant here. (lifetime.1 false positive)
+#pragma warning(suppress: 26800)
 	MG_CHECK(!rhs.get());
 	MG_CHECK(!get() || get()->IsOwned());
 }
