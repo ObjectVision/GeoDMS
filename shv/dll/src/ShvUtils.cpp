@@ -481,7 +481,10 @@ void CheckedGdiCall(bool result, CharPtr context)
 // section : Colors
 //----------------------------------------------------------------------
 
-COLORREF GetFocusClr() { return ::GetSysColor(COLOR_HIGHLIGHT); }
+// Fixed magenta focus highlight (issue #1039): the OS COLOR_HIGHLIGHT is blue and
+// collides with blue layer colors; magenta is distinct from both data palettes and
+// the yellow selection color. Kept fixed (not OS-following) for cross-platform parity.
+COLORREF GetFocusClr() { return DmsColor2COLORREF(CombineRGB(255, 0, 255)); }
 COLORREF GetFocusTextClr() { return ::GetSysColor(COLOR_HIGHLIGHTTEXT); }
 COLORREF GetDefaultClr(UInt32 i) { return DmsColor2COLORREF(STG_Bmp_GetDefaultColor(i)); }
 COLORREF GetSelectedClr() { return DmsColor2COLORREF(CombineRGB(255, 255,0)); }
@@ -657,7 +660,7 @@ Point<Float64> GetWindowPix2DipFactors(HWND hWnd)
 // Portable color functions
 //----------------------------------------------------------------------
 
-COLORREF GetFocusClr() { return 0x00D77800; } // Blue highlight (same as ShvCompat.h GetSysColor)
+COLORREF GetFocusClr() { return CombineRGB(255, 0, 255); } // Magenta focus highlight (issue #1039), matches Windows path
 COLORREF GetFocusTextClr() { return CombineRGB(255, 255, 255); } // white text on focus background
 COLORREF GetSelectedClr() { return CombineRGB(255, 255, 0); }
 

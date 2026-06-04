@@ -50,6 +50,7 @@
 #include "Theme.h"
 #include "ThemeReadLocks.h"
 #include "ViewPort.h"
+#include "ShvUtils.h"
 
 const UInt32 FOCUS_BORDER_SIZE       = 12;
 const UInt32 FOCUS_BORDER_FRAMEWIDTH =  2;
@@ -1237,7 +1238,7 @@ bool GridLayer::Draw(GraphDrawer& d) const
 		}
 
 		auto* drawCtx = d.GetDrawContext();
-		constexpr DmsColor highlightColor = CombineRGB(51, 153, 255); // portable highlight color
+		DmsColor highlightColor = COLORREF2DmsColor(GetFocusClr()); // centralized focus highlight (issue #1039)
 
 		// XOR'd thin/thick highlight frames around the focus cell and its
 		// outer border (mirrors the pre-refactor DcMixModeSelector + FrameRgn

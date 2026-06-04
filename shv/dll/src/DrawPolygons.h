@@ -148,7 +148,7 @@ bool DrawPolygonInterior(
 			}
 
 			if (entityIndex == fe)
-				brushColor = DmsColor2COLORREF(CombineRGB(51, 153, 255)); // highlight color (portable replacement for GetSysColor(COLOR_HIGHLIGHT))
+				brushColor = GetFocusClr(); // centralized focus highlight (issue #1039)
 			else if (isSelected)
 				brushColor = GetSelectedClr();
 			else

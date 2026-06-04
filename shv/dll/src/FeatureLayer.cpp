@@ -2392,7 +2392,7 @@ bool DrawArcs(const GraphicArcLayer* layer, const FeatureDrawer& fd, const PenIn
 									assert(penWidth > 0);
 
 									penColor = (entityIndex == fe)
-										? CombineRGB(51, 153, 255)  // highlight color
+										? COLORREF2DmsColor(GetFocusClr())  // centralized focus highlight (issue #1039)
 										: COLORREF2DmsColor(GetSelectedClr());
 								}
 								else if (penIndices)
