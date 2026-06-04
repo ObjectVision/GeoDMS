@@ -30,6 +30,8 @@ target_link_libraries(GeoDmsGuiQt PRIVATE
 if(WIN32)
     target_link_libraries(GeoDmsGuiQt PRIVATE Shcore shell32)
     set_target_properties(GeoDmsGuiQt PROPERTIES WIN32_EXECUTABLE TRUE)
+    # Embed the UTF-8 active-code-page manifest (process ACP = UTF-8). See res/utf8.manifest.
+    target_sources(GeoDmsGuiQt PRIVATE ${CMAKE_SOURCE_DIR}/res/utf8.manifest)
     # Match msbuild's 64 MB stack reserve (DmsDef.props). See
     # run/exe/CMakeLists.txt for context.
     target_link_options(GeoDmsGuiQt PRIVATE "/STACK:67108864,8192")

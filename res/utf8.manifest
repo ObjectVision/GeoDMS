@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!--
+  Make the process active code page UTF-8 (Windows 10 1903+). With CP_ACP == UTF-8 the
+  narrow Win32 -A APIs, the CRT (fopen, ...), and the ODBC SQL_C_CHAR path all interpret
+  char* as UTF-8 - matching GeoDMS's internal UTF-8 strings without per-call wchar
+  conversion. The explicit Utf8_2_wchar -> -W paths remain correct regardless.
+  This fragment is merged into each exe's linker-generated manifest (UAC/DPI/deps).
+-->
+<assembly manifestVersion="1.0" xmlns="urn:schemas-microsoft-com:asm.v1">
+  <application xmlns="urn:schemas-microsoft-com:asm.v3">
+    <windowsSettings>
+      <activeCodePage xmlns="http://schemas.microsoft.com/SMI/2019/WindowsSettings">UTF-8</activeCodePage>
+    </windowsSettings>
+  </application>
+</assembly>

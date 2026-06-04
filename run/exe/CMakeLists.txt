@@ -9,6 +9,8 @@ target_link_libraries(GeoDmsRun PRIVATE
 
 if(WIN32)
     set_target_properties(GeoDmsRun PROPERTIES WIN32_EXECUTABLE FALSE)
+    # Embed the UTF-8 active-code-page manifest (process ACP = UTF-8). See res/utf8.manifest.
+    target_sources(GeoDmsRun PRIVATE ${CMAKE_SOURCE_DIR}/res/utf8.manifest)
     # Match the msbuild build's stack-reserve setting (DmsDef.props sets
     # StackReserveSize=67108864 / 64 MB). Iterated calculation steps can
     # produce thousands-deep AST/rewrite chains in SubstituteExpr_impl and

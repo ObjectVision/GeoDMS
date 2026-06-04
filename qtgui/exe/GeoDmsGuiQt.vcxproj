@@ -80,6 +80,7 @@
     </Midl>
     <Manifest>
       <EnableDpiAwareness>PerMonitorHighDPIAware</EnableDpiAwareness>
+      <AdditionalManifestFiles>$(SolutionDir)res\utf8.manifest</AdditionalManifestFiles>
     </Manifest>
     <QtMoc>
       <CompilerFlavor>msvc</CompilerFlavor>
