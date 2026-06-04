@@ -247,10 +247,10 @@ void ScrollPort::SetScrollX(bool horScroll)
 			dv->SetScrollEventsReceiver(this);
 			HWND hWnd = dv->GetHWnd();
 			
-			m_HorScroll = CreateWindowEx( // may Send WM_PARENTNOTIFY to SHV_DataView_DispatchMessage
-				0L,                                       // no extended styles 
-				"SCROLLBAR",                              // scroll bar control class 
-				(LPSTR) NULL,                             // text for window title bar 
+			m_HorScroll = CreateWindowExW( // may Send WM_PARENTNOTIFY to SHV_DataView_DispatchMessage
+				0L,                                       // no extended styles
+				L"SCROLLBAR",                             // scroll bar control class
+				nullptr,                                  // text for window title bar
 				WS_CHILD | SBS_HORZ,                      // scroll bar styles 
 				absDeviceBase.X(),                        // horizontal position 
 				absDeviceBase.Y(),                        // vertical position 
@@ -290,10 +290,10 @@ void ScrollPort::SetScrollY(bool verScroll)
 			auto dv = GetDataView().lock();
 			dv->SetScrollEventsReceiver(this);
 			HWND hWnd = dv->GetHWnd();
-			m_VerScroll = CreateWindowEx(
-				0L,                                 // no extended styles 
-				"SCROLLBAR",                        // scroll bar control class 
-				(LPSTR) NULL,                       // text for window title bar 
+			m_VerScroll = CreateWindowExW(
+				0L,                                 // no extended styles
+				L"SCROLLBAR",                       // scroll bar control class
+				nullptr,                            // text for window title bar
 				WS_CHILD | SBS_VERT,                // scroll bar styles 
 				absDeviceBase.X(),                  // horizontal position 
 				absDeviceBase.Y(),                  // vertical position 

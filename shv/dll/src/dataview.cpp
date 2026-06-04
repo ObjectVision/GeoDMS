@@ -349,7 +349,7 @@ HFONT DataView::GetDefaultFont(FontSizeCategory fid, Float64 dip2pixFactor) cons
 	{
 		m_DefaultFonts[static_cast<int>(fid)][dip2pixFactor] =
 			GdiHandle<HFONT>(
-				CreateFont(
+				CreateFontW(
 	//				-10, // nHeight, -MulDiv(8, GetDeviceCaps(hDC, LOGPIXELSY), 72) // height, we assume LOGPIXELSY == 96*dip2pixFactor
 					GetDefaultFontHeightDIP(fid)*font_scaling,
 					  0, // nWidth,  match against the digitization aspect ratio of the available fonts 
@@ -364,7 +364,7 @@ HFONT DataView::GetDefaultFont(FontSizeCategory fid, Float64 dip2pixFactor) cons
 					CLIP_DEFAULT_PRECIS,       // DWORD fdwClipPrecision,  // clipping precision
 					PROOF_QUALITY,             // DWORD fdwQuality,        // output quality
 					DEFAULT_PITCH|FF_DONTCARE, // DWORD fdwPitchAndFamily,  // pitch and family
-					"Noto Sans Medium"         // pointer to typeface name string
+					L"Noto Sans Medium"        // pointer to typeface name string
 				)
 			);
 	}
@@ -1426,11 +1426,16 @@ void InsertMenuItems(
 		MENUITEMINFO itemInfo;
 		itemInfo.cbSize = sizeof(MENUITEMINFO);
 		itemInfo.fMask  = MIIM_TYPE|MIIM_ID|MIIM_STATE|MIIM_SUBMENU|MIIM_DATA;
+		std::wstring wCaption; // wide copy of the UTF-8 caption; must outlive the InsertMenuItem call below
 		if (! i->m_Caption.empty())
 		{
+			CharPtr cap = i->m_Caption.c_str();
+			int wLen = MultiByteToWideChar(CP_UTF8, 0, cap, i->m_Caption.ssize(), nullptr, 0);
+			wCaption.resize(wLen);
+			MultiByteToWideChar(CP_UTF8, 0, cap, i->m_Caption.ssize(), wCaption.data(), wLen);
 			itemInfo.fType      = MFT_STRING;
-			itemInfo.dwTypeData = const_cast<LPSTR>(i->m_Caption.c_str());
-			itemInfo.cch        = i->m_Caption.ssize();
+			itemInfo.dwTypeData = wCaption.data();
+			itemInfo.cch        = wLen;
 		}
 		else
 			itemInfo.fType = MFT_SEPARATOR;

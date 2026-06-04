@@ -161,12 +161,17 @@ void GdiDrawContext::TextOutW(GPoint pos, const wchar_t* text, int len, DmsColor
 
 void GdiDrawContext::SetFont(CharPtr fontName, int pixelHeight, UInt16 angleDegTenths)
 {
-	HFONT hFont = CreateFontA(
+	// Font name carries UTF-8 (DMS strings are UTF-8); convert to wide and use the
+	// explicit -W font API, like the text path (TextOutW/DrawTextW) already does.
+	WCHAR wFaceName[LF_FACESIZE] = {};
+	MultiByteToWideChar(CP_UTF8, 0, fontName, -1, wFaceName, LF_FACESIZE);
+	wFaceName[LF_FACESIZE - 1] = 0;
+	HFONT hFont = CreateFontW(
 		pixelHeight, 0, angleDegTenths, 0,
 		FW_NORMAL, FALSE, FALSE, FALSE,
 		ANSI_CHARSET, OUT_TT_PRECIS, CLIP_DEFAULT_PRECIS,
 		PROOF_QUALITY, DEFAULT_PITCH | FF_DONTCARE,
-		fontName
+		wFaceName
 	);
 	if (hFont)
 	{
@@ -182,14 +187,14 @@ void GdiDrawContext::SetBold(bool isBold)
 	HFONT current = (HFONT)::GetCurrentObject(m_hDC, OBJ_FONT);
 	if (!current)
 		return;
-	LOGFONT lf{};
-	if (!::GetObjectA(current, sizeof(lf), &lf))
+	LOGFONTW lf{};
+	if (!::GetObjectW(current, sizeof(lf), &lf))
 		return;
 	int desired = isBold ? FW_BOLD : FW_NORMAL;
 	if (lf.lfWeight == desired)
 		return;
 	lf.lfWeight = desired;
-	HFONT hFont = ::CreateFontIndirect(&lf);
+	HFONT hFont = ::CreateFontIndirectW(&lf);
 	if (!hFont)
 		return;
 	::SelectObject(m_hDC, hFont);

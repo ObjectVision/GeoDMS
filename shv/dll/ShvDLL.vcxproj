@@ -29,7 +29,7 @@
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <PlatformToolset>v145</PlatformToolset>
     <UseOfMfc>false</UseOfMfc>
-    <CharacterSet>MultiByte</CharacterSet>
+    <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup>
     <_ProjectFileVersion>10.0.21006.1</_ProjectFileVersion>
@@ -64,7 +64,6 @@
     <ClCompile>
       <AdditionalIncludeDirectories>./src;../../rtc/dll/src;../../sym/dll/src;../../tic/dll/src;../../stgimpl/dll/src;../../stg/dll/src;../../clc/dll/include;../../geo/dll/src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>SHVDLL_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <UndefinePreprocessorDefinitions>UNICODE;_UNICODE;%(UndefinePreprocessorDefinitions)</UndefinePreprocessorDefinitions>
     </ClCompile>
     <CustomBuildStep>
       <Command>"C:\Program Files (x86)\NSIS\makensisw.exe" "..\..\..\nsi\DmsSetupScriptW32.nsi"</Command>

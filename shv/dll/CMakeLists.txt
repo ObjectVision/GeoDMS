@@ -33,8 +33,8 @@ target_link_libraries(DmShv PUBLIC
 
 if(WIN32)
     target_link_libraries(DmShv PRIVATE Shcore comctl32 msimg32)
-    # ShvDLL.vcxproj uses CharacterSet=MultiByte with UNICODE/_UNICODE undefined.
-    # DmShv uses narrow-char Win32 APIs (strncpy into WCHAR[], CreateWindowEx with
-    # char literals, CreateFont with char literal). Match that setting here.
-    target_compile_options(DmShv PRIVATE /UUNICODE /U_UNICODE)
+    # DmShv is now a Unicode module (ShvDLL.vcxproj CharacterSet=Unicode): all its
+    # string-carrying Win32 calls use the explicit -W variants (TextOutW/DrawTextW,
+    # CreateFontW/CreateFontIndirectW, CreateWindowExW), so it inherits UNICODE/_UNICODE
+    # from Qt without the old /U override (which also removes the D9025 warning).
 endif()

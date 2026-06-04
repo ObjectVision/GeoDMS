@@ -229,7 +229,7 @@ FontArray::FontArray(const FontIndexCache* indexCache, bool sizesAreCellHeights)
 
 	m_FontArray.reserve(indexCache->m_Keys.size());
 
-	LOGFONT fontInfo;
+	LOGFONTW fontInfo;
 
 	// LONG values
 //	fontInfo.lfHeight        = 0; -MulDiv(PointSize, GetDeviceCaps(hDC, LOGPIXELSY), 72);=
@@ -262,7 +262,8 @@ FontArray::FontArray(const FontIndexCache* indexCache, bool sizesAreCellHeights)
 		{
 			UInt16  fontAngle = i->get<2>();
 			CharPtr fontName  = GetTokenStr(i->get<1>()).c_str();
-			strncpy(fontInfo.lfFaceName, fontName, LF_FACESIZE);
+			// Font name is UTF-8; convert to wide for the -W font API (LOGFONTW).
+			MultiByteToWideChar(CP_UTF8, 0, fontName, -1, fontInfo.lfFaceName, LF_FACESIZE);
 			fontInfo.lfFaceName[LF_FACESIZE-1] = 0;
 			fontInfo.lfHeight = (sizesAreCellHeights)
 				?	fontSize
@@ -271,7 +272,7 @@ FontArray::FontArray(const FontIndexCache* indexCache, bool sizesAreCellHeights)
 		   	fontInfo.lfOrientation   = fontAngle;
 
 			//	CreatePointFont(UInt32(fontSize) * 10, fontName, NULL)
-			auto font = CreateFontIndirect(&fontInfo);
+			auto font = CreateFontIndirectW(&fontInfo);
 			m_FontArray.push_back(GdiHandle<HFONT>(font));// CreateFontIndirect(&fontInfo) ) );
 		}
 	}
