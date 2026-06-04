@@ -1133,6 +1133,21 @@ void TableControl::AddLayer(const TreeItem* viewCandidate, bool isDropped)
 	for(SizeT nrCols = SHV_DataContainer_GetItemCount(viewCandidate, m_Entity, 1, hasAdminMode), colNr=0; colNr != nrCols; ++colNr)
 	{
 		auto adi = SHV_DataContainer_GetItem(viewCandidate, m_Entity, colNr, 1, hasAdminMode);
+
+		// #1122: when adding from a container (or any non-drop activation), don't
+		// duplicate a column that is already shown -- select the existing one instead.
+		// On an explicit drag-and-drop (isDropped) we DO allow duplicates, so a user can
+		// show the same attribute twice (e.g. different aggregations when grouping-by).
+		if (!isDropped)
+		{
+			gr_elem_index existing = FindColumn(adi);
+			if (IsDefined(existing))
+			{
+				GetColumn(existing)->SelectCol();
+				continue;
+			}
+		}
+
 		AspectNrSet possibleAspects = ASE_LabelText;
 		AspectNr    activeTheme = AN_LabelText;
 

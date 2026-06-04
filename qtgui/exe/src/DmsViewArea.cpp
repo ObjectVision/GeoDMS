@@ -479,7 +479,7 @@ void QDmsViewArea::dropEvent(QDropEvent* event) {
 
     auto current_item = MainWindow::TheOne()->getCurrentTreeItem();
     if (dv->CanContain(current_item))
-        SHV_DataView_AddItem(dv.get(), MainWindow::TheOne()->getCurrentTreeItem(), false);
+        SHV_DataView_AddItem(dv.get(), MainWindow::TheOne()->getCurrentTreeItem(), true); // isDropped: allow duplicate column on drag-and-drop (#1122)
     else
         reportF(MsgCategory::commands, SeverityTypeID::ST_Error, "Item %s is incompatible with view: %s", current_item->GetFullName(), dv->GetCaption());
 }
