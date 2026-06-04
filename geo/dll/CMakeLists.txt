@@ -9,7 +9,8 @@ target_include_directories(DmGeo
     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
-target_compile_definitions(DmGeo PRIVATE GEO_EXPORTS)
+# GEO_EXPORTS is defined by the DLL's PCH (src/GeoPCH.h). Defining it here as well
+# caused C4005 (macro redefinition) in every TU; the .vcxproj relies on the PCH alone.
 
 find_package(FFTW3 CONFIG)
 find_package(CGAL CONFIG)

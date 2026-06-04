@@ -44,7 +44,8 @@ target_include_directories(DmStg
             ${CMAKE_CURRENT_SOURCE_DIR}/src/gdal
 )
 
-target_compile_definitions(DmStg PRIVATE DMSTGDLL_EXPORTS)
+# DMSTGDLL_EXPORTS is defined by the DLL's PCH (src/StoragePch.h). Defining it here as
+# well caused C4005 (macro redefinition) in every TU; the .vcxproj relies on the PCH alone.
 
 find_package(GDAL)
 find_package(TIFF)

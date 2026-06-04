@@ -14,7 +14,9 @@ target_include_directories(DmShv
     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
-target_compile_definitions(DmShv PRIVATE DM_SHV_EXPORTS)
+# DM_SHV_EXPORTS is defined by the DLL's PCH (src/ShvDllPch.h). Defining it here as
+# well caused C4005 (macro redefinition) in every TU; the .vcxproj relies on the PCH
+# alone, so we do the same.
 
 # Qt6 for QRegion, QRect, QPoint (core + gui only, no widgets)
 find_package(Qt6 REQUIRED COMPONENTS Core Gui)
