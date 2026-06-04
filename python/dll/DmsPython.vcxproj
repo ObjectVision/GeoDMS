@@ -29,10 +29,14 @@
   </PropertyGroup>
   <PropertyGroup>
     <_ProjectFileVersion>10.0.21006.1</_ProjectFileVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <!-- Set after Cpp.props so its DynamicLibrary default (.dll) does not override .pyd;
+       otherwise $(TargetExt) stays .dll and mismatches the linker OutputFile (MSB8012). -->
+  <PropertyGroup>
     <TargetExt>.pyd</TargetExt>
     <TargetName>geodms</TargetName>
   </PropertyGroup>
-  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
   </ImportGroup>
   <ImportGroup Label="PropertySheets">
