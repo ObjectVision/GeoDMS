@@ -21,6 +21,11 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
+    <!-- Pin explicitly (matches CopyResources/DmTicTst): the VS IDE evaluates
+         PlatformToolset during load of this Qt-keyword project before folding in
+         the repo Directory.Build.props (which sets v145), and falls back to the
+         empty->v100 default, causing MSB8020 on F5. CLI builds resolve v145 fine. -->
+    <PlatformToolset>v145</PlatformToolset>
     <PrimaryOutput>GeoDmsGuiQt</PrimaryOutput>
     <ATLMinimizesCRunTimeLibraryUsage>false</ATLMinimizesCRunTimeLibraryUsage>
   </PropertyGroup>
