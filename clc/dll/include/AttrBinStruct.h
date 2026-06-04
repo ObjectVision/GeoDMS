@@ -7,6 +7,7 @@
 #if !defined(__CLC_ATTRBINSTRUCT_H)
 #define __CLC_ATTRBINSTRUCT_H
 
+#include <cmath>
 #include <functional>
 
 #include "mci/ValueClass.h"
@@ -530,10 +531,84 @@ template <typename T> struct mod_func: binary_func<T, T, T >
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return div_unit_creator(gr, args); }
 
 	typename mod_func::res_type operator()(typename mod_func::arg1_cref t1, typename mod_func::arg2_cref t2) const
-	{ 
+	{
 		return (t2 != T())
 			?	mod_func_impl(t1, t2)
 			:	UNDEFINED_VALUE(typename mod_func::res_type);
+	}
+};
+
+// *****************************************************************************
+//										pow (a^b) as a first-class operator (issue #839)
+// *****************************************************************************
+//
+// pow(base, exponent) with floating-point base T and an exponent that is either
+// the same float type or any integer type U. This replaces the old expression
+// rewrite a^b -> exp(b*log(a)), which yielded Null for any non-positive base
+// (e.g. 0f^2f -> Null) because log() is undefined there. Following eoudejans'
+// rules in issue #839:
+//   - integer-valued exponent: exact result by repeated multiplication, so the
+//     sign of a negative base is honoured (odd power keeps the sign, even power
+//     drops it) and small powers (^2..^6) stay exact;
+//   - 0^positive = 0; 0^(<=0) = Null;
+//   - negative base with a non-integer exponent = Null (was the log() trap);
+//   - positive base with a non-integer exponent: std::pow (= exp(b*log(a))).
+
+template <typename T>
+inline T pow_int_exponent(T base, Int64 n)
+{
+	bool neg = (n < 0);
+	UInt64 m = neg ? (UInt64(0) - UInt64(n)) : UInt64(n); // two's-complement abs, safe for INT64_MIN
+	T result = T(1);
+	T b = base;
+	while (m)
+	{
+		if (m & UInt64(1))
+			result *= b;
+		m >>= 1;
+		if (m)
+			b *= b;
+	}
+	if (neg)
+	{
+		if (result == T(0))
+			return UNDEFINED_VALUE(T); // 1/0 : a non-positive base raised to a negative power
+		result = T(1) / result;
+	}
+	return std::isfinite(result) ? result : UNDEFINED_VALUE(T); // overflow -> Null
+}
+
+template <typename T>
+inline T pow_float_exponent(T base, T expo)
+{
+	if (expo == std::floor(expo) && std::fabs(expo) < T(1e18))
+		return pow_int_exponent<T>(base, Int64(expo)); // whole-number exponent: exact, sign-correct
+
+	// genuine non-integer exponent
+	if (base < T(0))
+		return UNDEFINED_VALUE(T);                       // would be exp(b*log(neg)) -> Null
+	if (base == T(0))
+		return (expo > T(0)) ? T(0) : UNDEFINED_VALUE(T); // 0^positive = 0, else Null
+	T r = std::pow(base, expo);
+	return std::isfinite(r) ? r : UNDEFINED_VALUE(T);
+}
+
+// T: floating-point base type; U: exponent type (the same float type, or any integer type)
+template <typename T, typename U>
+struct pow_func : binary_func<T, T, U>
+{
+	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args)
+	{
+		return default_unit_creator_and_check_input<T>(gr, args); // base and exponent must be metric-free
+	}
+
+	T operator()(typename pow_func::arg1_cref base, typename pow_func::arg2_cref expo) const
+	{
+		// undefined args are filtered by do_binary_func before we get here
+		if constexpr (std::is_integral_v<U>)
+			return pow_int_exponent<T>(base, Int64(expo));
+		else
+			return pow_float_exponent<T>(base, expo);
 	}
 };
 

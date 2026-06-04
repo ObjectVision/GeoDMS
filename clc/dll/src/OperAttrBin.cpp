@@ -503,6 +503,19 @@ namespace {
 	CogBinaryInstantiation<aints, logical_and> sAnd("and");
 	CogBinaryInstantiation<aints, logical_or > sOr("or");
 
+	// pow (a^b) as first-class value operators (issue #839): floating-point base,
+	// exponent either the same float type or any integer type. See pow_func in
+	// AttrBinStruct.h. The catch-all a^b -> exp(b*log(a)) rewrite is removed from
+	// RewriteExpr.lsp so these operators are reached; the small integer-literal
+	// rewrites (^2..^6) are kept as an expression-level fast path.
+	template <typename U> struct PowF32Oper : BinaryAttrFuncOper<pow_func<Float32, U> > { using BinaryAttrFuncOper<pow_func<Float32, U> >::BinaryAttrFuncOper; };
+	template <typename U> struct PowF64Oper : BinaryAttrFuncOper<pow_func<Float64, U> > { using BinaryAttrFuncOper<pow_func<Float64, U> >::BinaryAttrFuncOper; };
+
+	BinaryAttrFuncOper<pow_func<Float32, Float32> > s_powF32F32(&cog_pow);
+	BinaryAttrFuncOper<pow_func<Float64, Float64> > s_powF64F64(&cog_pow);
+	tl_oper::inst_tuple_templ<ints, PowF32Oper> s_powF32Int(&cog_pow);
+	tl_oper::inst_tuple_templ<ints, PowF64Oper> s_powF64Int(&cog_pow);
+
 //TODO: voor alle Floats beschikbaar maken.
 	tl_oper::inst_tuple<num_objects, tl::bind_placeholders<UnitMulOpers, ph::_1, ph::_1, ph::_1> > g_UnitUnaryTypeMulOpers;
 

@@ -52,9 +52,11 @@
 [(pow _X 4)                 (sqr (sqr _X))]
 [(pow _X 5)                 (mul _X (pow _X 4))]
 [(pow _X 6)                 (mul (sqr _X) (pow _X 4))]
-[(pow x (neg _Y))           (div 1 (pow _X _Y))]
-
-[(pow _X _Y)                (exp (mul (log _X) _Y))]
+/* These integer-literal fast paths keep unit-aware exact powers (e.g. length^2 -> length^2).
+   All other a^b cases (float/runtime/fractional exponents) are handled by the first-class
+   pow operator (issue #839, clc/OperAttrBin.cpp); the old catch-all rewrite
+   [(pow _X _Y) (exp (mul (log _X) _Y))] is removed because it yielded Null for any
+   non-positive base (e.g. 0f^2f). */
 /*********** Associative Binary functions *********/
 
 [(add _a1)                    _a1]
