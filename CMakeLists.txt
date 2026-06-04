@@ -46,6 +46,11 @@ add_compile_definitions(
 # Platform-specific settings
 if(MSVC)
     add_compile_options(/utf-8 /bigobj /W3 /EHsc /GR)
+    # Build every module as a Unicode module, matching the msbuild side
+    # (CharacterSet=Unicode in Directory.Build.props). GeoDMS is UTF-8 internally and uses
+    # explicit -W Win32 calls at OS boundaries, so generic Win32/CRT macros resolving to the
+    # wide variants is consistent. UNICODE is meaningless on Linux, hence MSVC-only here.
+    add_compile_definitions(UNICODE _UNICODE)
 else()
     add_compile_options(-Wall -Wextra -Wpedantic -pthread)
     add_link_options(-pthread)
