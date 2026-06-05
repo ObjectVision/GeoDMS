@@ -27,6 +27,7 @@
 #include "AbstrUnit.h"
 #include "SessionData.h"
 #include "StateChangeNotification.h"
+#include "TreeItemUtils.h" // GetPartialName, for #418 cross-view caption disambiguation
 
 #include "ShvUtils.h"
 
@@ -40,6 +41,8 @@
 #include "KeyFlags.h"
 #include "MouseEventDispatcher.h"
 #include "ScrollPort.h"
+#include "TableControl.h"     // GetCaptionItem: TableControl::GetEntity, for #418
+#include "TableViewControl.h" // GetCaptionItem: contents is a TableViewControl holding the TableControl, for #418
 #include "GdiRegionUtil.h"
 
 #ifdef _WIN32
@@ -1664,7 +1667,6 @@ SharedStr DataView::GetCaption() const
 void DataView::OnCaptionChanged() const
 {
 	SendStatusText(SeverityTypeID::ST_MajorTrace, GetCaption().c_str());
-
 }
 
 // ============   Painting
@@ -2234,14 +2236,65 @@ void DataView::GenerateDescription()
 
 std::map<DataView*, std::shared_ptr<DataView>> g_DataViewMap;
 
+// #418: re-emit every open view's caption. Called when the set of caption items changes (a view
+// opens with / changes its domain, or a view closes), so cross-view name disambiguation stays
+// current. Each view's caption is recomputed self-only (no fan-out), so this is bounded to the
+// rare set-changing moments rather than every count/selection update.
+void RefreshAllDataViewCaptions()
+{
+	for (const auto& [dvPtr, dvKeep] : g_DataViewMap)
+		dvPtr->OnCaptionChanged();
+}
+
 void Keep(const std::shared_ptr<DataView>& self)
 {
 	g_DataViewMap[self.get()] = self;
+	// No refresh needed yet — the newcomer has no caption item until its domain/active layer is
+	// established, which itself triggers RefreshAllDataViewCaptions().
 }
 
 void Unkeep(DataView* self)
 {
 	g_DataViewMap.erase(self);
+	RefreshAllDataViewCaptions(); // remaining views may now be able to shorten their captions
+}
+
+const TreeItem* DataView::GetCaptionItem() const
+{
+	// Default (table views): the domain whose name the caption shows. The contents is a
+	// TableViewControl that *holds* the TableControl (it is not itself one), so reach through it.
+	if (auto tvc = dynamic_cast<const TableViewControl*>(m_Contents.get()))
+		if (auto tc = tvc->GetTableControl())
+			return tc->GetEntity();
+	return nullptr;
+}
+
+SharedStr DataView::GetDisambiguatedItemName(const TreeItem* item) const
+{
+	if (!item)
+		return {};
+	if (item->IsCacheItem())
+		return SharedStr(item->GetFullName());
+
+	UInt32 nameLevel = 1; // 1 == leaf name
+again:
+	SharedStr result = GetPartialName(item, nameLevel);
+	if (nameLevel < 10) // 10: same loop guard as GetDisplayNameWithinContext
+	{
+		for (const auto& [dvPtr, dvKeep] : g_DataViewMap)
+		{
+			if (dvPtr == this)
+				continue;
+			const TreeItem* peer = dvPtr->GetCaptionItem();
+			if (peer && peer != item && !peer->IsCacheItem())
+				if (result == GetPartialName(peer, nameLevel))
+				{
+					++nameLevel;
+					goto again;
+				}
+		}
+	}
+	return result;
 }
 
 // =============================================== ToolTip

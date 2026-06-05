@@ -282,6 +282,13 @@ public:
 	virtual ExportInfo GetExportInfo(); // overruled by TableView and MapView, but not EditPaletteView
 	virtual SharedStr GetCaption() const;
 
+	// #418: the TreeItem whose name drives this view's caption (table domain / map active-layer
+	// entity). Used to disambiguate captions across the set of open views.
+	virtual const TreeItem* GetCaptionItem() const;
+	// Qualify item->GetName() with just enough parent context to differ from the caption items of
+	// the *other* open views, mirroring how the layer control disambiguates layer names (#418).
+	SharedStr GetDisambiguatedItemName(const TreeItem* item) const;
+
 	bool IsInActiveDataViewSet();
 	void PostGuiOper(operation_type&& func);
 	SHV_CALL void OnTimer(UInt32 timerId); // Called by ViewHost timer callback
@@ -457,5 +464,6 @@ void Unkeep(DataView*);
 void OnDestroyDataView(DataView* self);
 void BroadcastCommandToAllDataViews(ToolButtonID id);
 void BroadcastUpdateRequest();
+void RefreshAllDataViewCaptions(); // #418: re-disambiguate all open views' captions after the caption-item set changes
 
 #endif // !defined(__SHV_DATAVIEW_H)

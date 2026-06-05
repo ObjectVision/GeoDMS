@@ -446,6 +446,16 @@ SharedStr GraphDataView::GetCaption() const // Mapview caption
 	return SharedStr("");
 }
 
+const TreeItem* GraphDataView::GetCaptionItem() const // #418: the active layer's domain, as a cross-view disambiguation peer
+{
+	auto mapContents = GetContents();
+	if (mapContents)
+		if (auto ls = mapContents->GetLayerSet())
+			if (auto active_layer = ls->GetActiveLayer())
+				return active_layer->GetActiveEntity();
+	return nullptr;
+}
+
 LayerInfo GraphDataView::GetCompleteLayerInfoOrThrow(const TreeItem* viewItem) const
 {
 	dms_assert(viewItem);

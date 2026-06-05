@@ -34,6 +34,7 @@ protected:
 	void AddLayer(const TreeItem*, bool isDropped) override;
 	ExportInfo GetExportInfo() override;
 	SharedStr GetCaption() const override;
+	const TreeItem* GetCaptionItem() const override; // #418: active-layer entity, as a disambiguation peer
 
 private:
 	LayerInfo GetCompleteLayerInfoOrThrow(const TreeItem* viewItem) const;

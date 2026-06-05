@@ -36,6 +36,7 @@
 #include "TreeItemProps.h"
 #include "TreeItemClass.h"
 #include "TreeItemContextHandle.h"
+#include "TreeItemUtils.h" // GetPartialName, for #620 value-info name disambiguation
 #include "xml/XmlTreeOut.h"
 
 //  -----------------------------------------------------------------------
@@ -430,8 +431,46 @@ namespace Explain { // local defs
 		arg_index                m_ExprLevel  = 0;
 		TimeStamp                m_LastChange = 0;
 
+		// #620: running, order-of-appearance name disambiguation across the value-info page.
+		// Each item's name starts at its leaf and only grows enough parent context to differ
+		// from the names of items shown *earlier* on the page; the first (requested) item is
+		// therefore never qualified. m_ShownNames records (item, shown name) in display order.
+		std::vector<std::pair<const TreeItem*, SharedStr>> m_ShownNames;
+		SharedStr QualifyName(const TreeItem* item);
+
 		friend struct CalcExplanations;
 	};
+
+	SharedStr CalcExplImpl::QualifyName(const TreeItem* item)
+	{
+		if (!item)
+			return {};
+		if (item->IsCacheItem())
+			return SharedStr(item->GetName()); // intermediate results keep their short generated name
+
+		for (const auto& shown : m_ShownNames)
+			if (shown.first == item)
+				return shown.second; // same item seen again on this page: reuse its (possibly qualified) name
+
+		UInt32 nameLevel = 1; // 1 == leaf name
+		SharedStr result;
+		while (true)
+		{
+			result = GetPartialName(item, nameLevel);
+			bool collidesWithEarlier = false;
+			for (const auto& shown : m_ShownNames)
+				if (shown.second == result)
+				{
+					collidesWithEarlier = true;
+					break;
+				}
+			if (!collidesWithEarlier || nameLevel >= 10) // 10: same loop guard as GetDisplayNameWithinContext
+				break;
+			++nameLevel;
+		}
+		m_ShownNames.emplace_back(item, result);
+		return result;
+	}
 
 	void CalcExplImpl::Init(const AbstrDataItem* studyObject, SizeT studyIdx, CharPtr extraInfo)
 	{
@@ -745,6 +784,8 @@ namespace Explain { // local defs
 
 			assert(m_CalcExplImplPtr->m_Expl.size() >= 1);
 
+			m_CalcExplImplPtr->m_ShownNames.clear(); // #620: fresh name disambiguation per page render
+
 			NewLine(m_OutStream);
 			bool isFirst = true;
 			for (const auto& expl: m_CalcExplImplPtr->m_Expl)
@@ -879,7 +920,7 @@ namespace Explain { // local defs
 						stream.FormattingStream() << "&#8226;";
 					{
 						XML_hRef supplRef(stream, ItemUrl(m_DataItem.get_ptr()).c_str());
-						stream << m_DataItem->GetName().c_str();
+						stream << self->QualifyName(m_DataItem.get_ptr()).c_str();
 					}
 					stream << " := ";  WriteExprOrSourceDescr(stream, m_DataItem.get_ptr());
 				}
@@ -1005,12 +1046,14 @@ namespace Explain { // local defs
 			{
 				XML_Table::Row::Cell xmlElemTD(row);
 				stream << "id in ";
-				hRefWithText(stream, domainUnit->GetName().c_str(), ItemUrl(domainUnit).c_str());
+				SharedStr domainName = self->QualifyName(domainUnit); // #620
+				hRefWithText(stream, domainName.c_str(), ItemUrl(domainUnit).c_str());
 
-				
+
 				//row.ClickableCell(domainUnit->GetName().c_str(), ItemUrl(domainUnit).c_str());
 			}
-			row.ClickableCell(m_DataItem->GetName().c_str(), ItemUrl(m_DataItem.get_ptr()).c_str());// ItemOrValueTypeName(valuesUnit).c_str(), ItemUrl(valuesUnit).c_str());
+			SharedStr dataItemName = self->QualifyName(m_DataItem.get_ptr()); // #620
+			row.ClickableCell(dataItemName.c_str(), ItemUrl(m_DataItem.get_ptr()).c_str());// ItemOrValueTypeName(valuesUnit).c_str(), ItemUrl(valuesUnit).c_str());
 		}
 
 		for (SizeT i = 0; i != n; ++i)

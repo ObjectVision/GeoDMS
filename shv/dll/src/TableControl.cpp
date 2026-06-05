@@ -493,19 +493,24 @@ SharedStr TableControl::GetCaption() const
 	if (!domain)
 		return SharedStr("<UNDEFINED DOMAIN>");
 
+	// #418: qualify the domain name with enough parent context to stay distinct from the other
+	// open views' captions (e.g. .../size_100/Domain vs .../size_500/Domain).
+	auto dv = GetDataView().lock();
+	SharedStr domainName = dv ? dv->GetDisambiguatedItemName(domain) : SharedStr(domain->GetName());
+
 	try {
 		SizeT nrRows = NrRows();
 		SizeT nrRecs = const_cast<TableControl*>(this)->PrepareDataOrUpdateViewLater(domain) ? domain->GetDataCount() : UNDEFINED_VALUE(SizeT);
 
 		if (m_GroupByEntity)
-			return mgFormat2SharedStr("#%s = %s, grouped to %d rows by %s", domain->GetName(), AsString(nrRecs), nrRows, m_GroupByEntity->GetExpr());
+			return mgFormat2SharedStr("#%s = %s, grouped to %d rows by %s", domainName, AsString(nrRecs), nrRows, m_GroupByEntity->GetExpr());
 		if (nrRows == nrRecs)
-			return mgFormat2SharedStr("#%s = %s", domain->GetName(), AsString(nrRecs));
-		return mgFormat2SharedStr("#%s = %s, %s selected", domain->GetName(), AsString(nrRecs), AsString(nrRows));
+			return mgFormat2SharedStr("#%s = %s", domainName, AsString(nrRecs));
+		return mgFormat2SharedStr("#%s = %s, %s selected", domainName, AsString(nrRecs), AsString(nrRows));
 	}
 	catch (...)
 	{
-		return mgFormat2SharedStr("#%s Could not be determined", domain->GetName());
+		return mgFormat2SharedStr("#%s Could not be determined", domainName);
 	}
 }
 
@@ -1385,6 +1390,7 @@ void TableControl::SetEntity(const AbstrUnit* newDomain)
 
 	InvalidateView();
 	NotifyCaptionChange();
+	RefreshAllDataViewCaptions(); // #418: this view's domain changed; let other views re-disambiguate against it
 }
 
 void TableControl::SyncIndex(ShvSyncMode sm)

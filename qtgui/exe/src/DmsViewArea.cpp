@@ -143,7 +143,15 @@ void QDmsMdiArea::updateTabTooltips()
     auto windows = subWindowList();
     for (int i = 0; i < mdi_tabbar->count() && i < windows.size(); ++i)
     {
-        mdi_tabbar->setTabToolTip(i, windows[i]->windowTitle());
+        QString tip = windows[i]->windowTitle();
+        // #418: prepend the full path of the item driving the caption, so tabs whose short
+        // titles collide (e.g. several template instances all named "Domain") can still be
+        // told apart on hover.
+        if (auto* va = qobject_cast<QDmsViewArea*>(windows[i]))
+            if (auto dv = va->getDataView())
+                if (const TreeItem* ci = dv->GetCaptionItem())
+                    tip = QString(ci->GetFullName().c_str()) + "\n" + windows[i]->windowTitle();
+        mdi_tabbar->setTabToolTip(i, tip);
     }
 }
 
