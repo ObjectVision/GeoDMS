@@ -478,6 +478,62 @@ namespace wms {
 		return true;
 	}
 
+	// One-shot synchronous HTTPS GET of a legend image into a local cache file
+	// (issue #405). Legends are small and fetched only when the user reveals the
+	// legend, so a blocking fetch on the GUI thread is acceptable; the cached file
+	// is then decoded by the same GDAL reader used for the tiles.
+	bool FetchUrlToFile(const SharedStr& hostName, const SharedStr& target, const SharedStr& localFile)
+	{
+		try {
+			auto ioc = GetIOC();
+			ssl::context ctx(boost::asio::ssl::context::sslv23);
+			ctx.set_default_verify_paths();
+			ctx.set_verify_mode(ssl::verify_none);
+
+			tcp::resolver resolver(*ioc);
+			auto results = resolver.resolve(hostName.c_str(), "https");
+
+			ssl_socket stream(*ioc, ctx);
+			stream.set_verify_mode(ssl::verify_none);
+			boost::asio::connect(stream.lowest_layer(), results.begin(), results.end());
+			stream.handshake(ssl::stream_base::client);
+
+			http::request<http::empty_body> req{ http::verb::get, target.c_str(), 11 };
+			req.set(http::field::host, hostName.c_str());
+			req.set(http::field::user_agent, "GeoDMS");
+			req.set(http::field::connection, "close");
+			http::write(stream, req);
+
+			boost::beast::flat_buffer buffer;
+			http::response<http::dynamic_body> res;
+			http::read(stream, buffer, res);
+
+			boost::system::error_code ec;
+			stream.shutdown(ec); // many servers close without a clean TLS shutdown; ignore ec
+
+			if (res.result() != http::status::ok)
+			{
+				reportF(MsgCategory::background_layer_request, SeverityTypeID::ST_Warning
+					, "Legend fetch https://%s%s returned HTTP status %d"
+					, hostName.c_str(), target.c_str(), int(res.result_int()));
+				return false;
+			}
+
+			auto body = boost::beast::buffers_to_string(res.body().data());
+			if (body.empty())
+				return false;
+
+			MakeDirsForFile(localFile);
+			FileOutStreamBuff file(localFile, false);
+			file.WriteBytes(body.data(), body.size());
+			return true;
+		}
+		catch (...) {
+			catchAndReportException();
+			return false;
+		}
+	}
+
 	void TileLoader::on_read(boost::system::error_code ec, std::size_t size)
 	{
 		m_Timer.cancel();
@@ -595,6 +651,31 @@ void WmsLayer::SetSpecContainer(const TreeItem* specContainer)
 
 	m_TileCache = std::make_unique<wms::TileCache>(hostName, targetTemplStr, AbstrStorageManager::GetFullStorageName("", ("%LocalDataDir%/wms/"+layerName+"/@TM@/@TR@_@TC@."+imageFormat).c_str()), ift);
 
+	// Legend (issue #405): optional `legend` item holds a full legend-image url
+	// (a WMTS Style/LegendURL or a WMS GetLegendGraphic url). Split into host +
+	// target (https assumed, like the tiles); fetched and decoded lazily and cached
+	// as %LocalDataDir%/wms/<layer>/legend.<ext>. WMTS does not guarantee png, so
+	// the extension is only a cache-name hint -- GDAL sniffs the actual format.
+	SharedTreeItemInterestPtr legendItem = specContainer->GetConstSubTreeItemByID(GetTokenID_mt("legend"));
+	if (legendItem)
+	{
+		std::string url = GetTheValue<SharedStr>(legendItem.get_ptr()).c_str();
+		auto schemePos = url.find("://");
+		std::string::size_type hostStart = (schemePos == std::string::npos) ? 0 : schemePos + 3;
+		auto slashPos = url.find('/', hostStart);
+		std::string host = url.substr(hostStart, (slashPos == std::string::npos) ? std::string::npos : slashPos - hostStart);
+		std::string path = (slashPos == std::string::npos) ? std::string("/") : url.substr(slashPos);
+		if (!host.empty())
+		{
+			m_LegendHost = SharedStr(host.c_str());
+			m_LegendTarget = SharedStr(path.c_str());
+			bool looksJpeg = url.find("jpeg") != std::string::npos || url.find("jpg") != std::string::npos
+				|| url.find("JPEG") != std::string::npos || url.find("JPG") != std::string::npos;
+			SharedStr legendExt = looksJpeg ? SharedStr("jpg") : SharedStr("png");
+			m_LegendFile = AbstrStorageManager::GetFullStorageName("", ("%LocalDataDir%/wms/"+layerName+"/legend."+legendExt).c_str());
+		}
+	}
+
 	SuspendTrigger::SilentBlocker block("WmsLayer::SetSpecContainer");
 
 	SharedPtr<const TreeItem> tileMatrices = specContainer->GetConstSubTreeItemByID(GetTokenID_mt("TileMatrix"));
@@ -630,6 +711,60 @@ void WmsLayer::SetSpecContainer(const TreeItem* specContainer)
 			extents |= m_TMS.back().WorldExtents();
 		}
 		SetWorldClientRect(extents);
+	}
+}
+
+bool WmsLayer::EnsureLegendImage() const
+{
+	if (m_LegendState == legend_state::ready)
+		return true;
+	if (m_LegendState == legend_state::failed || m_LegendTarget.empty())
+	{
+		m_LegendState = legend_state::failed;
+		return false;
+	}
+
+	// Fetch to the local cache file unless an earlier session already did.
+	if (!IsFileOrDirAccessible(m_LegendFile))
+	{
+		if (!wms::FetchUrlToFile(m_LegendHost, m_LegendTarget, m_LegendFile))
+		{
+			m_LegendState = legend_state::failed;
+			return false;
+		}
+	}
+
+	// Decode the cached image with the same GDAL reader the tiles use.
+	try {
+		GDAL_SimpleReader gdalReader;
+		GDAL_SimpleReader::buffer_type buffer;
+		WPoint size = gdalReader.ReadGridData(m_LegendFile.c_str(), buffer);
+		if (size == WPoint() || buffer.combinedBands.empty())
+		{
+			m_LegendState = legend_state::failed;
+			return false;
+		}
+		m_LegendPixels = std::move(buffer.combinedBands);
+		m_LegendSize = size;
+
+		// GDAL yields top-down rows, but DrawContext::DrawImage (32bpp) expects a
+		// bottom-up DIB. Flip vertically once here so a positive height renders
+		// correctly on both the GDI and Qt backends.
+		UInt32 w = m_LegendSize.Col(), h = m_LegendSize.Row();
+		if (w > 0 && h > 0 && SizeT(w) * h == m_LegendPixels.size())
+			for (UInt32 y = 0; y < h / 2; ++y)
+				std::swap_ranges(
+					m_LegendPixels.begin() + SizeT(y) * w,
+					m_LegendPixels.begin() + SizeT(y) * w + w,
+					m_LegendPixels.begin() + SizeT(h - 1 - y) * w);
+
+		m_LegendState = legend_state::ready;
+		return true;
+	}
+	catch (...) {
+		catchAndReportException();
+		m_LegendState = legend_state::failed;
+		return false;
 	}
 }
 

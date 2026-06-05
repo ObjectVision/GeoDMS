@@ -33,6 +33,8 @@
 #include "ShvDllInterface.h"
 #include "TableHeaderControl.h"
 #include "Theme.h"
+#include "WmsLayer.h"
+#include "WmsLegendControl.h"
 
 //----------------------------------------------------------------------
 // class  : LayerHeaderControl
@@ -446,13 +448,18 @@ void LayerControl::FillMenu(MouseEventDispatcher& med)
 	if (NrEntries() < 3)
 		return;
 
-	med.m_MenuData.push_back(
-		MenuItem(SharedStr("Show &Palette"),
-			make_MembFuncCmd(&GraphicLayer::ToggleDetailsVisibility),
-			m_Layer.get(), 
-			GetEntry(2)->IsVisible() ? MFS_CHECKED : 0 
-		)
-	);
+	// #405: a tiled WMS/WMTS background has no palette. Label the toggle "Show Legend"
+	// when a legend image is available, and omit it entirely when there is nothing to
+	// show (the original complaint: "Show Palette" was uninformative for a background).
+	auto wmsLayer = dynamic_cast<WmsLayer*>(m_Layer.get());
+	if (!wmsLayer || wmsLayer->HasLegend())
+		med.m_MenuData.push_back(
+			MenuItem(SharedStr(wmsLayer ? "Show &Legend" : "Show &Palette"),
+				make_MembFuncCmd(&GraphicLayer::ToggleDetailsVisibility),
+				m_Layer.get(),
+				GetEntry(2)->IsVisible() ? MFS_CHECKED : 0
+			)
+		);
 
 	auto layer = GetLayer();  if (!layer) return;
 	auto theme = layer->GetActiveTheme(); if (!theme) return;
@@ -585,6 +592,18 @@ void LayerControl::SetPaletteControl()
 
 //	m_TableView = make_shared_gr<TableViewControl>(dv)(dv, "PaletteData");
 //	m_PaletteControl = make_shared_gr<PaletteControl>(m_TableView->GetTableScrollPort(), layer, false)();
+
+	// #405: a WMS/WMTS background has no palette; if the config advertised a legend
+	// image, show that in this slot instead (revealed by the "Show Legend" toggle).
+	if (auto wmsLayer = dynamic_cast<WmsLayer*>(m_Layer.get()); wmsLayer && wmsLayer->HasLegend())
+	{
+		auto legendContainer = std::make_shared<GraphicVarRows>(this);
+		InsertEntry(legendContainer.get());
+		legendContainer->SetRowSepHeight(0);
+		auto lc = make_shared_gr<WmsLegendControl>(legendContainer.get(), wmsLayer->shared_from_base<WmsLayer>())();
+		legendContainer->InsertEntry(lc.get());
+		return;
+	}
 
 	auto paletteContainer = std::make_shared<GraphicVarRows>(this);
 	InsertEntry(paletteContainer.get());

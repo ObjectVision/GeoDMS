@@ -15,6 +15,8 @@
 
 #include "GridLayerBase.h"
 #include <atomic>
+#include <vector>
+#include <algorithm>
 
 namespace wms {
 	typedef UPoint tile_pos;
@@ -60,6 +62,15 @@ struct WmsLayer : GridLayerBase
 	void SetSpecContainer(const TreeItem* specContainer);
 	void SetWorldCrdUnit(const AbstrUnit* WorldCrdUnit);
 
+	// Legend support (issue #405): a WMS/WMTS service can advertise a legend image
+	// (Style/LegendURL in GetCapabilities, or a WMS GetLegendGraphic url). When the
+	// config provides an optional `legend` url, fetch + decode it lazily on first
+	// request and expose the decoded RGB raster so the layer control can show it.
+	bool HasLegend() const { return !m_LegendTarget.empty(); }
+	bool EnsureLegendImage() const; // lazily fetch+decode; true when a legend raster is ready
+	const UInt32* LegendPixels() const { return m_LegendPixels.empty() ? nullptr : m_LegendPixels.data(); }
+	WPoint        LegendSize  () const { return m_LegendSize; } // (width, height) in pixels, bottom-up DIB order
+
 	bool ZoomIn(ViewPort* vp);
 	bool ZoomOut(ViewPort* vp, bool justClickIsOK);
 	bool ZoomToFinestLevel(ViewPort* vp); // size the ROI to the deepest available tile matrix, centered on the current ROI center (issue #374)
@@ -89,6 +100,15 @@ private:
 	std::unique_ptr<wms::TileCache> m_TileCache;
 	mutable std::atomic<SizeT> m_ZoomLevel = 0;
 	const AbstrUnit* m_WorldCrdUnit = nullptr;
+
+	// Legend (issue #405): parsed from the optional `legend` config item.
+	SharedStr m_LegendHost;       // host part of the legend url (https assumed)
+	SharedStr m_LegendTarget;     // path+query part of the legend url
+	SharedStr m_LegendFile;       // local cache file
+	enum class legend_state : UInt8 { untried, ready, failed };
+	mutable legend_state          m_LegendState = legend_state::untried;
+	mutable std::vector<UInt32>   m_LegendPixels; // decoded raster, DIB byte order (0x00RRGGBB)
+	mutable WPoint                m_LegendSize = WPoint(0, 0);
 
 	CrdRect WorldExtents(wms::tile_id key) const {
 		const wms::tile_matrix& tm = m_TMS[key.first];

@@ -134,6 +134,7 @@
     <ClCompile Include="src\ViewControl.cpp" />
     <ClCompile Include="src\ViewPort.cpp" />
     <ClCompile Include="src\WmsLayer.cpp" />
+    <ClCompile Include="src\WmsLegendControl.cpp" />
     <ClCompile Include="src\Wrapper.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -220,6 +221,7 @@
     <ClInclude Include="src\ViewControl.h" />
     <ClInclude Include="src\ViewPort.h" />
     <ClInclude Include="src\WmsLayer.h" />
+    <ClInclude Include="src\WmsLegendControl.h" />
     <ClInclude Include="src\Wrapper.h" />
     <ClInclude Include="res\resource.h" />
   </ItemGroup>
