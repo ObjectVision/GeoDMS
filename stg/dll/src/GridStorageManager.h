@@ -107,7 +107,7 @@ struct GridStorageMetaInfo : GdalMetaInfo
 	GridStorageMetaInfo(const TreeItem* storageHolder, TreeItem* curr, StorageAction);
 	std::optional<ViewPortInfoProvider> m_VPIP;
 	SharedStr                           m_SqlString;
-	void OnPreLock() override;
+	void PrepareReadDataOrSuspend() override; // #933 (formerly OnPreLock)
 };
 
 

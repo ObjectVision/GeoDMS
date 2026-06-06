@@ -3608,6 +3608,12 @@ static how_to_proceed PrepareDataRead(SharedPtr<const TreeItem> self, const Tree
 	if (auto nmsm = MakeSharedFromBorrowedObjectPtr(dynamic_cast<NonmappableStorageManager*>(sm.get())))
 		if (StorageMetaInfoPtr readInfo = nmsm->GetMetaInfo(storageParent.get(), const_cast<TreeItem*>(refItem), StorageAction::read))
 		{
+			// #933: resolve pre-lock prerequisites HERE (suspendable, on the requesting thread) so the
+			// gated read payload performs only the locked read and never waits while holding the CS.
+			readInfo->PrepareReadDataOrSuspend();
+			if (SuspendTrigger::DidSuspend())
+				return how_to_proceed::suspended;
+
 			auto readInfoPtr = std::make_shared<std::atomic<StorageMetaInfoPtr>>(std::move(readInfo));
 			assert(!CheckCalculatingOrReady(refItem));
 
@@ -3651,7 +3657,7 @@ static how_to_proceed PrepareDataRead(SharedPtr<const TreeItem> self, const Tree
 				[storageParent
 				, ocWeakPtrPtr = std::weak_ptr<OcPtr>(ocPtrPtr)
 				, readInfoPtr
-				, nmsm](OperationContext* /*ocPtr*/, explain_context_ptr_t /*context*/)
+				, nmsm](OperationContext* ocPtr, explain_context_ptr_t /*context*/)
 				{
 					auto onExit = make_scoped_exit([ocWeakPtrPtr]() {
 						if (auto ocSharedPtrPtr = ocWeakPtrPtr.lock())
@@ -3659,13 +3665,23 @@ static how_to_proceed PrepareDataRead(SharedPtr<const TreeItem> self, const Tree
 					});
 					assert(readInfoPtr);
 					assert(readInfoPtr->load());
-					(*readInfoPtr).load()->OnPreLock();
-					StorageReadHandle sHandle(nmsm.get(), readInfoPtr->exchange(StorageMetaInfoPtr())); // locks storage manager
+					auto smi = readInfoPtr->exchange(StorageMetaInfoPtr());
 					assert(!readInfoPtr->load());
-					sHandle.FocusItem()->ReadItem(std::move(sHandle)); // Read Item
+					if (ocPtr->m_StorageLockHeld) // #933: gate already acquired the CS; adopt it
+					{
+						ocPtr->m_StorageLockHeld = false; // ownership transfers to sHandle on the next line
+						StorageReadHandle sHandle(nmsm.get(), std::move(smi), adopt_storage_lock);
+						sHandle.FocusItem()->ReadItem(std::move(sHandle)); // Read Item
+					}
+					else // runDirect / inline path: no gate ran, acquire normally
+					{
+						StorageReadHandle sHandle(nmsm.get(), std::move(smi)); // locks storage manager
+						sHandle.FocusItem()->ReadItem(std::move(sHandle)); // Read Item
+					}
 				}
 				, std::move(futureSuppliers)
 				, false
+				, nmsm // #933: gate on this storage manager
 			);
 
 			if (auto loadedPtr = ocPtrPtr->load())

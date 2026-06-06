@@ -89,6 +89,7 @@
 #include "DataStoreManagerCaller.h"
 #include "Operator.h"
 #include "MoreDataControllers.h"
+#include "stg/AbstrStorageManager.h" // #933: NonmappableStorageManager + m_CriticalSection
 RTC_CALL void NotifyCurrentTargetCount();
 
 
@@ -1236,6 +1237,27 @@ OperationContext::OperationContext(task_func_type func)
 	OperationContext_AddOcCount(this);
 }
 
+// #933: out-of-line so the SharedPtr<NonmappableStorageManager> member sees the complete type.
+std::shared_ptr<OperationContext> OperationContext::CreateItemWriter(TreeItem* item, task_func_type func, const FutureSuppliers& allArgInterests, bool runDirect, SharedPtr<NonmappableStorageManager> requiredStorageManager)
+{
+	auto result = std::make_shared<OperationContext>(func);
+	result->m_RequiredStorageManager = std::move(requiredStorageManager); // set BEFORE Schedule so the gate sees it
+	result->Schedule(item, allArgInterests, runDirect); // might run inline
+	return result;
+}
+
+// #933: release a storage critical section acquired at the gate but not adopted by a read payload
+// (e.g. the payload threw before adopting, or the task was cancelled). No-op on the normal path.
+void OperationContext::releaseStorageLockIfHeld() noexcept
+{
+	if (m_StorageLockHeld)
+	{
+		m_StorageLockHeld = false;
+		m_RequiredStorageManager->m_CriticalSection.release();
+		try { WakeUpJoiners(); } catch (...) {} // let a sibling gated on this same manager retry promptly
+	}
+}
+
 // Destructor enforces finalization and ensures no active/running states linger.
 OperationContext::~OperationContext()
 {
@@ -1246,6 +1268,7 @@ OperationContext::~OperationContext()
 
 
 	assert(m_Status != task_status::running);
+	releaseStorageLockIfHeld(); // #933 backstop
 	OnEnd(task_status::cancelled);
 
 	assert(m_Status != task_status::scheduled); // cancel, exception or done caught.
@@ -1524,6 +1547,22 @@ bool  OperationContext::getUniqueLicenseToRun(bool runDirect)
 	DSM::CancelIfOutOfInterest(m_Result);
 	if (s_OcTaskGroupIsCanceling)
 		throw task_canceled{};
+
+	// #933: don't let a worker OS-block on the storage manager's critical section.
+	// cs_ThreadMessing is held here, so this MUST be a non-blocking try_acquire. On contention,
+	// put the task back as 'scheduled' (keeping our phase open) and free the worker to steal other
+	// tile tasks / run other OCs. The holder's completion notify and the Join/DoWorkWhileWaiting
+	// poll loop re-drive us; the lock is handed to the read payload via adopt_storage_lock.
+	// Skipped on runDirect (inline / single-threaded): no worker pool to starve there.
+	if (!runDirect && m_RequiredStorageManager && !m_StorageLockHeld)
+	{
+		if (!m_RequiredStorageManager->m_CriticalSection.try_acquire())
+		{
+			scheduleRunnableTask(this);
+			return false;
+		}
+		m_StorageLockHeld = true;
+	}
 
 	m_Status = task_status::running;
 	return true;
@@ -2080,6 +2119,8 @@ void OperationContext::Run_with_catch(explain_context_ptr_t context) noexcept
 	catch (...) {
 		GetResult()->CatchFail(FailType::Data);
 	}
+
+	releaseStorageLockIfHeld(); // #933: no-op on the normal path (payload adopted & released it)
 
 	ItemWriteLock localWriteLock;
 	leveled_std_section::unique_lock lock(cs_ThreadMessing);

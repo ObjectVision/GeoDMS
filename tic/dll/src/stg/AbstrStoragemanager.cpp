@@ -65,7 +65,7 @@ StorageMetaInfo::~StorageMetaInfo()
 auto StorageMetaInfo::CurrRD() const -> SharedPtr<const AbstrDataItem> { return AsDataItem(m_Curr); }
 auto StorageMetaInfo::CurrRU() const -> SharedPtr<const AbstrUnit> { return AsUnit(m_Curr); }
 
-void StorageMetaInfo::OnPreLock()
+void StorageMetaInfo::PrepareReadDataOrSuspend()
 {
 	if (IsDataItem(m_Curr.get()))
 	{
@@ -977,6 +977,13 @@ StorageCloseHandle::StorageCloseHandle(NonmappableStorageManager* storageManager
 	, m_MetaInfo(std::move(smi))
 {}
 
+// #933: adopt a critical section already acquired at the scheduling gate (getUniqueLicenseToRun).
+StorageCloseHandle::StorageCloseHandle(NonmappableStorageManager* storageManager, StorageMetaInfoPtr&& smi, adopt_storage_lock_t)
+	: m_StorageManager(storageManager)
+	, m_StorageLock(storageManager->m_CriticalSection, adopt_storage_lock)
+	, m_MetaInfo(std::move(smi))
+{}
+
 StorageCloseHandle::~StorageCloseHandle()
 {
 	assert(StorageManager());
@@ -995,6 +1002,13 @@ StorageReadHandle::StorageReadHandle(NonmappableStorageManager* sm, const TreeIt
 
 StorageReadHandle::StorageReadHandle(NonmappableStorageManager* storageManager, StorageMetaInfoPtr&& smi)
 : StorageCloseHandle(storageManager, std::move(smi))
+{
+	Init();
+}
+
+// #933: adopt CS already held by the OperationContext run-gate.
+StorageReadHandle::StorageReadHandle(NonmappableStorageManager* storageManager, StorageMetaInfoPtr&& smi, adopt_storage_lock_t tag)
+: StorageCloseHandle(storageManager, std::move(smi), tag)
 {
 	Init();
 }

@@ -145,7 +145,7 @@ struct StorageMetaInfo : std::enable_shared_from_this<StorageMetaInfo>
 	{
 	}
 	TIC_CALL virtual ~StorageMetaInfo();
-	TIC_CALL virtual void OnPreLock();
+	TIC_CALL virtual void PrepareReadDataOrSuspend(); // #933: resolve supplier prerequisites for the read (may suspend); formerly OnPreLock
 	TIC_CALL virtual void OnOpenForRead(StorageReadHandle*);
 	TIC_CALL virtual void OnClose(StorageCloseHandle*);
 
@@ -187,6 +187,11 @@ struct GdalMetaInfo :StorageMetaInfo
 //
 // *****************************************************************************
 
+// #933: tag for constructing a lock_t / StorageCloseHandle that ADOPTS an
+// already-held m_CriticalSection (acquired earlier at the scheduling gate in
+// OperationContext::getUniqueLicenseToRun) instead of acquiring it again.
+struct adopt_storage_lock_t { explicit adopt_storage_lock_t() = default; };
+inline constexpr adopt_storage_lock_t adopt_storage_lock{};
 
 class AbstrStorageManager : public SharedObj
 {
@@ -274,9 +279,12 @@ public:
 	using mutex_t = std::binary_semaphore;
 
 	struct lock_t {
-		lock_t(mutex_t& m) : m_Mutex(m) { m_Mutex.acquire(); }
-		~lock_t() { m_Mutex.release(); }
-		mutex_t& m_Mutex;
+		lock_t(mutex_t& m) : m_Mutex(&m) { m_Mutex->acquire(); }
+		lock_t(mutex_t& m, adopt_storage_lock_t) noexcept : m_Mutex(&m) {} // #933: already held; release on dtor, do not acquire
+		lock_t(lock_t&& rhs) noexcept : m_Mutex(rhs.m_Mutex) { rhs.m_Mutex = nullptr; }
+		lock_t& operator=(lock_t&&) = delete;
+		~lock_t() { if (m_Mutex) m_Mutex->release(); }
+		mutex_t* m_Mutex;
 	};
 
 	mutable mutex_t m_CriticalSection;
@@ -352,6 +360,7 @@ struct StorageCloseHandle
 {
 	TIC_CALL StorageCloseHandle(NonmappableStorageManager* storageManager, const TreeItem* storageHolder, const TreeItem* focusItem, StorageAction sa);
 	TIC_CALL StorageCloseHandle(NonmappableStorageManager* storageManager, StorageMetaInfoPtr&& smi);
+	TIC_CALL StorageCloseHandle(NonmappableStorageManager* storageManager, StorageMetaInfoPtr&& smi, adopt_storage_lock_t); // #933: adopt CS acquired at the scheduling gate
 
 	TIC_CALL virtual ~StorageCloseHandle();
 
@@ -382,6 +391,7 @@ struct StorageReadHandle : StorageCloseHandle
 {
 	TIC_CALL StorageReadHandle(NonmappableStorageManager* storageManager, const TreeItem* storageHolder, TreeItem* focusItem, StorageAction sa, bool mustRegisterFailure = true);
 	TIC_CALL StorageReadHandle(NonmappableStorageManager* storageManager, StorageMetaInfoPtr&& smi);
+	TIC_CALL StorageReadHandle(NonmappableStorageManager* storageManager, StorageMetaInfoPtr&& smi, adopt_storage_lock_t); // #933
 
 	bool Read() const;
 

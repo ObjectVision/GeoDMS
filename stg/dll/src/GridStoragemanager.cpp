@@ -174,9 +174,9 @@ GridStorageMetaInfo::GridStorageMetaInfo(const TreeItem* storageHolder, TreeItem
 	m_VPIP.emplace(storageHolder, adi, true, true);
 }
 
-void GridStorageMetaInfo::OnPreLock()
+void GridStorageMetaInfo::PrepareReadDataOrSuspend()
 {
-	StorageMetaInfo::OnPreLock();
+	StorageMetaInfo::PrepareReadDataOrSuspend();
 	if (m_VPIP)
 		m_VPIP->m_GridDomain->GetCount();
 }

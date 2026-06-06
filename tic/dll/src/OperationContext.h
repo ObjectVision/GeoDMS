@@ -51,6 +51,8 @@ Diagnostics:
 
 #include <optional>
 
+struct NonmappableStorageManager; // #933
+
 // tg_maintainer
 // RAII helper to install/uninstall thread-global state required for task execution.
 // Exact responsibilities are defined in its implementation (e.g., init telemetry or TLS).
@@ -136,12 +138,9 @@ struct OperationContext : std::enable_shared_from_this<OperationContext>
 	// - func:           task body to execute.
 	// - allArgInterests:suppliers this task depends on.
 	// - runDirect:      if true, may execute on the caller thread if licensing allows.
-	static std::shared_ptr<OperationContext> CreateItemWriter(TreeItem* item, task_func_type func, const FutureSuppliers& allArgInterests, bool runDirect)
-	{
-		auto result = std::make_shared<OperationContext>(func);
-		result->Schedule(item, allArgInterests, runDirect); // might run inline
-		return result;
-	}
+	// requiredStorageManager (#933): if set, the run-gate cooperatively try-acquires its
+	// critical section before running, instead of blocking a worker inside the read payload.
+	TIC_CALL static std::shared_ptr<OperationContext> CreateItemWriter(TreeItem* item, task_func_type func, const FutureSuppliers& allArgInterests, bool runDirect, SharedPtr<NonmappableStorageManager> requiredStorageManager = {});
 
 	TIC_CALL ~OperationContext();
 
@@ -270,6 +269,11 @@ public:
 
 	// Write lock for the destination item (held when needed).
 	ItemWriteLock      m_WriteLock;
+
+	// #933: storage manager whose critical section this task needs; gated in getUniqueLicenseToRun.
+	SharedPtr<NonmappableStorageManager> m_RequiredStorageManager;
+	bool                                 m_StorageLockHeld = false; // CS held between gate-acquire and payload-adopt / release
+	void releaseStorageLockIfHeld() noexcept;                       // backstop release for abort/exception paths
 
 	// Timestamp when this context became active (for diagnostics/scheduling).
 	TimeStamp          m_ActiveTimestamp = -1;
