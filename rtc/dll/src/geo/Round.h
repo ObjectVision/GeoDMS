@@ -29,7 +29,7 @@ template <typename T, typename I> struct scalar_subst<Point<T>, I> { typedef Poi
 template <typename T, typename I> struct scalar_subst<Range<T>, I> { typedef Range<typename scalar_subst<T, I>::type> type; };
 
 template <typename T, int N> struct scalar_replace   : scalar_subst<T, typename std::conditional_t<is_signed<T>::value, typename int_type<N>::signed_type, typename int_type<N>::unsigned_type> > {};
-template <typename T, int N> struct scalar_replace_u : scalar_subst<T, typename int_type<N>::signed_type> {};
+template <typename T, int N> struct scalar_replace_u : scalar_subst<T, typename int_type<N>::unsigned_type> {}; // unsigned variant: a Positive round to a wpoint/upoint target must round in UNSIGNED space, else a grid coord > Int16/Int32 max gets clamped to the signed max (e.g. 32767 / 2^31), truncating large grids
 
 //----------------------------------------------------------------------
 // section : RoundToZero
@@ -219,7 +219,47 @@ template <int N, typename P>
 Range<typename scalar_replace<P, N>::type>
 	RoundUp(const Range<P>& r)
 {
-	return Range<typename scalar_replace<P, N>::type>(RoundUp<N>(r.first), RoundUp<N>(r.second) ); 
+	return Range<typename scalar_replace<P, N>::type>(RoundUp<N>(r.first), RoundUp<N>(r.second) );
+}
+
+//----------------------------------------------------------------------
+// section : RoundUpPositive
+//----------------------------------------------------------------------
+// Unsigned-target ceil. RoundUp<N> derives its result scalar from scalar_replace<V,N>,
+// which keys off the SOURCE signedness; converting a signed source (e.g. Int32 grid coord)
+// to an unsigned 16/32-bit target therefore picks the SIGNED int_type (Int16/Int32) and
+// (since 10685294) clamps at the signed max (32767 / 2^31), truncating large grids.
+// RoundUpPositive uses scalar_replace_u (unsigned), so it clamps at the UNSIGNED max.
+
+template <int N, typename V>
+typename scalar_replace_u<V, N>::type
+	RoundUpPositive(const V& v)
+{
+	typedef typename scalar_replace_u<V, N>::type R;
+	if (!IsDefined(v))
+		return UNDEFINED_VALUE(R);
+	if (v < R(0))
+		return 0;
+	if (v > MAX_VALUE(R))
+		return MAX_VALUE(R);
+	R uv = v;
+	if (V(uv) < v) // round up if a fractional part was truncated
+		++uv;
+	return uv;
+}
+
+template <int N, typename T>
+Point<typename scalar_replace_u<T, N>::type>
+	RoundUpPositive(const Point<T>& p)
+{
+	return Point<typename scalar_replace_u<T, N>::type>(RoundUpPositive<N>(p.first), RoundUpPositive<N>(p.second) );
+}
+
+template <int N, typename P>
+Range<typename scalar_replace_u<P, N>::type>
+	RoundUpPositive(const Range<P>& r)
+{
+	return Range<typename scalar_replace_u<P, N>::type>(RoundUpPositive<N>(r.first), RoundUpPositive<N>(r.second) );
 }
 
 //----------------------------------------------------------------------

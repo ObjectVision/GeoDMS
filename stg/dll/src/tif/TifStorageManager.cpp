@@ -376,7 +376,11 @@ bool TiffSM::ReadUnitRange(const StorageMetaInfo& smi) const
 
 	UpdateMarker::ChangeSourceLock changeStamp( smi.CurrWU(), "ReadUnitRange");
 	if (smi.CurrWU()->GetNrDimensions() == 2)
-		smi.CurrWU()->SetRangeAsIPoint(0, 0, m_pImp->GetHeight(), m_pImp->GetWidth(), GetNativeTileSizeY(), GetNativeTileSizeX());
+		// subdivide native file-block dims into internal-tile dims that fit the UInt16 blockSize
+		// params (Y < 0x401, X < 0x10000), keeping tiles aligned with file blocks (GridBlockSubdivide).
+		smi.CurrWU()->SetRangeAsIPoint(0, 0, m_pImp->GetHeight(), m_pImp->GetWidth()
+			, GridBlockSubdivide(m_pImp->GetHeight(), GetNativeTileSizeY(), 0x400)
+			, GridBlockSubdivide(m_pImp->GetWidth(),  GetNativeTileSizeX(), 0xFFFF));
 	else
 	{
 		if (!m_pImp->HasColorTable())

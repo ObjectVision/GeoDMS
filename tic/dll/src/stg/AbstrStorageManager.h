@@ -193,6 +193,28 @@ struct GdalMetaInfo :StorageMetaInfo
 struct adopt_storage_lock_t { explicit adopt_storage_lock_t() = default; };
 inline constexpr adopt_storage_lock_t adopt_storage_lock{};
 
+// Reduce a native on-disk file-block dimension to an internal grid-tile dimension that fits the
+// UInt16 blockSize params of SetRangeAsIPoint (so a tile/strip dim > 65535 cannot wrap to a bogus
+// small value when narrowed). Rather than hard-clamping (which would misalign internal tiles with
+// file blocks), split the native block into the FEWEST equal-ish sub-tiles, keeping tile boundaries
+// aligned with file blocks (exactly so when nativeBlockSize is a multiple of the part count, e.g.
+// powers of two). The result is always <= maxTileDim.
+inline UInt32 GridBlockSubdivide(UInt32 imageSize, UInt32 nativeBlockSize, UInt32 maxTileDim)
+{
+	if (nativeBlockSize <= maxTileDim)
+		return nativeBlockSize;
+	UInt32 minParts = (nativeBlockSize + maxTileDim - 1) / maxTileDim; // fewest parts s.t. nativeBlockSize/parts <= maxTileDim
+	// Tile/block boundaries only repeat across the image when it spans MORE THAN ONE block; only then
+	// can a non-dividing split cause partial tile/block overlap. In that case prefer a part count that
+	// divides nativeBlockSize evenly so memory tiles stay aligned with file blocks. Bounded search keeps
+	// the tile >= ~maxTileDim/2; fall back to an equal-ish ceil-divide (e.g. single block, or prime size).
+	if (imageSize > nativeBlockSize)
+		for (UInt32 parts = minParts; parts < minParts * 2 && parts <= nativeBlockSize; ++parts)
+			if (nativeBlockSize % parts == 0)
+				return nativeBlockSize / parts; // exact: parts equal tiles tile the file block, aligned
+	return 256; // default tile size for non-divisible blocks, or small images that don't span multiple blocks
+}
+
 class AbstrStorageManager : public SharedObj
 {
 	using base_type = SharedObj;

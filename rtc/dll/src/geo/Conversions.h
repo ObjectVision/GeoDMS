@@ -137,7 +137,13 @@ struct UpConvertFunc
 	template <typename T>
 	U operator ()(const T& val) const
 	{
-		return RoundUp<sizeof(U)>(val);
+		// Round up in the TARGET's signedness. RoundUp<N> derives its result scalar from the
+		// SOURCE (scalar_replace), so converting a signed source to an unsigned target clamps at
+		// the signed max (e.g. 32767 for a wpoint upper bound). Use RoundUpPositive for unsigned.
+		if constexpr (is_signed<scalar_of_t<U>>::value)
+			return RoundUp<sizeof(scalar_of_t<U>)>(val);
+		else
+			return RoundUpPositive<sizeof(scalar_of_t<U>)>(val);
 	}
 	template <typename T>
 	struct rebind

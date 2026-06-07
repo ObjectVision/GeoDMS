@@ -525,7 +525,11 @@ bool GdalGridSM::ReadUnitRange(const StorageMetaInfo& smi) const
 
 	FixedContextHandle exceptionContext("while reading the extents of raster data; consider another values type for this grid-domain such as IPoint");
 
-	smi.CurrWU()->SetRangeAsIPoint(0, 0, y, x, GetNativeTileSizeY(), GetNativeTileSizeX());
+	// subdivide native file-block dims into internal-tile dims that fit the UInt16 blockSize
+	// params (Y < 0x401, X < 0x10000), keeping tiles aligned with file blocks (GridBlockSubdivide).
+	smi.CurrWU()->SetRangeAsIPoint(0, 0, y, x
+		, GridBlockSubdivide(y, GetNativeTileSizeY(), 0x400)
+		, GridBlockSubdivide(x, GetNativeTileSizeX(), 0xFFFF));
 
 	return true;
 }

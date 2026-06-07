@@ -301,7 +301,8 @@ void RegularAdapter<Base>::CalcTilingExtent()
 	if (this->m_Range.empty())
 		m_TilingExtent = value_type();
 	else
-		m_TilingExtent = CeilDivide(unsigned_type_t<value_type>(this->m_Range.second - this->m_Range.first), this->tile_extent()); 
+		m_TilingExtent = CeilDivide(unsigned_type_t<value_type>(this->m_Range.second - this->m_Range.first), this->tile_extent());
+	// NB: this runs under sc_RangeDataPtrAccess (RangeData ctor) -> do NOT reportF here (lock-order deadlock with the log mutex)
 }
 
 template <typename Base>
@@ -965,6 +966,10 @@ void GeoUnitAdapter<U>::SetRangeAsIPoint(Int32 rowBegin, Int32  colBegin, Int32 
 	auto bottomRight = shp2dms_order<Int32>(colEnd, rowEnd);
 	auto iRange = IRect(topLeft, bottomRight);
 	auto range = ThrowingConvert<typename U::range_t>(iRange);
+	// Cap per-tile rows at MAX_STRIP_SIZE so a single-strip native layout (a full-height strip on a
+	// large grid) doesn't yield one over-tall tile. No cap on blockSizeX: it is already a UInt16
+	// (<= 0xFFFF) and the per-tile cell count (<= 1024 * 65535 = 2^26) stays within tile_offset (UInt32).
+	blockSizeY = Min<UInt16>(blockSizeY, UInt16(1024));
 	this->SetRange(range, shp2dms_order(blockSizeX, blockSizeY));
 }
 

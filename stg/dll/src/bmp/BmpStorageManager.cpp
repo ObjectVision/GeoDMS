@@ -383,7 +383,11 @@ bool BmpPalStorageManager::ReadUnitRange(const StorageMetaInfo& smi) const
 
 	AbstrUnit* gridDomain = smi.CurrWU();
 	UpdateMarker::ChangeSourceLock changeStamp(gridDomain, "ReadUnitRange");
-	gridDomain->SetRangeAsIPoint(0, 0, imp.GetHeight(), imp.GetWidth(), GetNativeTileSizeY(), GetNativeTileSizeX());
+	// subdivide native file-block dims into internal-tile dims that fit the UInt16 blockSize
+	// params (Y < 0x401, X < 0x10000), keeping tiles aligned with file blocks (GridBlockSubdivide).
+	gridDomain->SetRangeAsIPoint(0, 0, imp.GetHeight(), imp.GetWidth()
+		, GridBlockSubdivide(imp.GetHeight(), GetNativeTileSizeY(), 0x400)
+		, GridBlockSubdivide(imp.GetWidth(),  GetNativeTileSizeX(), 0xFFFF));
 	return true;
 }
 
