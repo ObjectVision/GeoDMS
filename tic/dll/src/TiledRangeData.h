@@ -20,6 +20,8 @@
 #include "geo/RangeIndex.h"
 #include "ser/FileMapHandle.h"
 
+#include "LispRef.h"
+
 //----------------------------------------------------------------------
 
 enum class tile_type_id { none, simple, small_, default_, regular, irregular, max };

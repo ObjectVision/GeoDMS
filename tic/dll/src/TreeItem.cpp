@@ -4685,8 +4685,7 @@ auto TreeItem_FindItem_impl(template_set& visitedSet, const TreeItem* searchLoc,
 			if (subItem->GetID() == id)
 				return subItem;
 
-			auto result = TreeItem_FindItem_impl(visitedSet, subItem, id);
-			if (result)
+			if (auto result = TreeItem_FindItem_impl(visitedSet, subItem, id))
 				return result;
 		}
 	}
@@ -4710,8 +4709,7 @@ TIC_CALL auto TreeItem_FindItem(const TreeItem* searchLoc, TokenID id) -> Shared
 	}
 	
 	template_set alreadyVisited;
-	auto result = TreeItem_FindItem_impl(alreadyVisited, searchLoc, id, nullptr, false);
-	if (result)
+	if (auto result = TreeItem_FindItem_impl(alreadyVisited, searchLoc, id, nullptr, false))
 		return result;	
 
 	while (auto parent = searchLoc->GetTreeParent().get())
@@ -4719,8 +4717,7 @@ TIC_CALL auto TreeItem_FindItem(const TreeItem* searchLoc, TokenID id) -> Shared
 		if (!findNextMode && parent->GetID() == id)
 			return parent;
 
-		auto result = TreeItem_FindItem_impl(alreadyVisited, parent, id, searchLoc, findNextMode);
-		if (result)
+		if (auto result = TreeItem_FindItem_impl(alreadyVisited, parent, id, searchLoc, findNextMode))
 			return result;
 		searchLoc = parent;
 	}

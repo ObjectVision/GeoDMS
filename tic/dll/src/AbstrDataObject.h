@@ -11,6 +11,7 @@
 #define __TIC_ABSTRDATAOBJECT_H
 
 #include "TicBase.h"
+#include "LispRef.h"
 
 //----------------------------------------------------------------------
 // used modules and forward class references
