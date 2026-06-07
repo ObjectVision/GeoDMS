@@ -43,9 +43,9 @@ typename scalar_replace<V, N>::type
 	// NaN-safe: without this guard, `return v` would convert NaN to 0x80000000 (UNDEFINED).
 	if (!IsDefined(v))
 		return UNDEFINED_VALUE(R);
-	if (v < MIN_VALUE(R))
+	if (v < V(MIN_VALUE(R)))
 		return MIN_VALUE(R);
-	if (v > MAX_VALUE(R))
+	if (v > V(MAX_VALUE(R)))
 		return MAX_VALUE(R);
 
 	return v;
@@ -79,9 +79,9 @@ typename scalar_replace<V, N>::type
 	// the (double->int) conversion below would produce 0x80000000 (UNDEFINED).
 	if (!IsDefined(v))
 		return UNDEFINED_VALUE(R);
-	if (v < MIN_VALUE(R))
+	if (v < V(MIN_VALUE(R)))
 		return MIN_VALUE(R);
-	if (v > MAX_VALUE(R))
+	if (v > V(MAX_VALUE(R)))
 		return MAX_VALUE(R);
 
 	R lv = v;
@@ -110,17 +110,20 @@ template <int N, typename V>
 typename scalar_replace_u<V, N>::type
 RoundDownPositiveAndFloorAtZero(const V& v)
 {
-	typedef typename scalar_replace_u<V, N>::type R;
+	using R = typename scalar_replace_u<V, N>::type;
 
 	// NaN-safe: NaN < 0 and NaN > MAX are both false, so `R uv = v` would otherwise
 	// produce 0x80000000 (UNDEFINED for signed; bit-pattern garbage for unsigned).
 	if (!IsDefined(v))
 		return UNDEFINED_VALUE(R);
 
-	if (v < R(0)) // 0?
-		return 0;
+	if constexpr (std::is_signed_v<V>)
+	{
+		if (v < V(0)) // 0?
+			return 0;
+	}
 
-	if (v > MAX_VALUE(R))
+	if (v > V(MAX_VALUE(R)))
 		return MAX_VALUE(R);
 
 	R uv = v;
@@ -150,20 +153,24 @@ template <int N, typename V>
 typename scalar_replace_u<V, N>::type
 	RoundDownPositive(const V& v)
 {
-	typedef typename scalar_replace_u<V, N>::type R;
+	using R = typename scalar_replace_u<V, N>::type;
 
 	// NaN-safe: dms_assert is debug-only; in release builds NaN would silently
 	// flow through to `R uv = v` and convert to 0x80000000.
 	if (!IsDefined(v))
 		return UNDEFINED_VALUE(R);
 
-	dms_assert(v>=0);
+	if constexpr (std::is_signed_v<V>)
+	{
+		if (v < V(0))
+			return 0;
+	}
 
-	if (v > MAX_VALUE(R))
+	if (v > V(MAX_VALUE(R)))
 		return MAX_VALUE(R);
 
 	R uv = v;
-	dms_assert(uv <= v);
+	assert(uv <= v);
 	return uv;
 }
 
@@ -197,9 +204,9 @@ typename scalar_replace<V, N>::type
 	// that breaks invariants downstream (e.g. GRect ctor in shv/GeoTypes.h).
 	if (!IsDefined(v))
 		return UNDEFINED_VALUE(R);
-	if (v < MIN_VALUE(R))
+	if (v < V(MIN_VALUE(R)))
 		return MIN_VALUE(R);
-	if (v > MAX_VALUE(R))
+	if (v > V(MAX_VALUE(R)))
 		return MAX_VALUE(R);
 
 	R lv = v;
@@ -235,12 +242,15 @@ template <int N, typename V>
 typename scalar_replace_u<V, N>::type
 	RoundUpPositive(const V& v)
 {
-	typedef typename scalar_replace_u<V, N>::type R;
+	using R = typename scalar_replace_u<V, N>::type;
 	if (!IsDefined(v))
 		return UNDEFINED_VALUE(R);
-	if (v < R(0))
-		return 0;
-	if (v > MAX_VALUE(R))
+	if constexpr (std::is_signed_v<V>)
+	{
+		if (v < V(0))
+			return 0;
+	}
+	if (v > V(MAX_VALUE(R)))
 		return MAX_VALUE(R);
 	R uv = v;
 	if (V(uv) < v) // round up if a fractional part was truncated
