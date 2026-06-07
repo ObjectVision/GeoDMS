@@ -9,6 +9,8 @@
 #ifndef __TIC_PROJECTION_H
 #define __TIC_PROJECTION_H
 
+#include "ptr/SharedBase.h"
+#include "ptr/SharedPtr.h"
 #include "geo/Transform.h"
 
 // *****************************************************************************

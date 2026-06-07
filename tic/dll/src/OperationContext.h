@@ -51,7 +51,7 @@ Diagnostics:
 
 #include <optional>
 
-struct NonmappableStorageManager; // #933
+class NonmappableStorageManager; // #933
 
 // tg_maintainer
 // RAII helper to install/uninstall thread-global state required for task execution.
