@@ -138,7 +138,7 @@ void GraphicRect::AdjustTargetVieport()
 	CrdRect  wr  = GetCurrWorldClientRect();            // == sourceVP->WorldRect
 	CrdPoint wrs = Size(wr);
 	CrdPoint wrc = Center(wr);
-	CrdRect  wr2 = Inflate(wrc, wrs*CrdType(2)); // == 2*wr
+	CrdRect  wr2 = Inflate(wrc, wrs);            // inner hysteresis bound (issue #1107: was wrs*2)
 
 	CrdRect tr  = targetVP->GetROI();
 	if (IsIncluding(tr, wr2)) {
@@ -147,7 +147,7 @@ void GraphicRect::AdjustTargetVieport()
 		MakeLowerBound(center, wr2.second);
 		wrc = center;
 	}
-	CrdRect trr = Inflate(wrc, wrs*CrdType(4));
+	CrdRect trr = Inflate(wrc, wrs*CrdType(2));  // overview ROI: factor 2, not 4 (issue #1107)
 	if (!IsNearlyEqual(tr, trr))
 	{
 		targetVP->SetROI(trr);
