@@ -12,6 +12,7 @@
 #include "cpc/Types.h"
 #include "geo/iterrange.h"
 #include "ptr/OwningPtrArray.h"
+#include "ptr/SharedStr.h"
 
 //  -----------------------------------------------------------------------
 namespace platform {
