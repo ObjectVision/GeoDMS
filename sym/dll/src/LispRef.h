@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -18,10 +18,12 @@
 
 /****************** forward decls *******************/
 
-struct LispRef;
-class SymbObj;
-class NumbObj;
-class ListObj;
+//struct LispRef;
+
+//struct LispObj;
+//class SymbObj;
+//class NumbObj;
+//class ListObj;
 using ChroID = UInt32;
 struct FormattedOutStream;
 
@@ -37,7 +39,6 @@ struct LispComponent
 
 // Reference: Symbolic Computing with LISP, R.D. Cameron & A.H. Dixon., 1992
 
-struct LispRef;
 struct LispObj;
 
 template <typename BasePtr> struct LispPtrWrap;

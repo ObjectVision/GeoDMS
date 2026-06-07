@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -39,7 +39,9 @@ struct Number
 	Number_t m_Value;
 };
 
-#include "LispRef.h"
 
+/****************** forward decls *******************/
+
+struct LispRef;
 
 #endif // __SYM_BASE_H
