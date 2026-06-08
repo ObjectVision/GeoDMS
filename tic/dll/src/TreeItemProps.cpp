@@ -685,8 +685,9 @@ namespace { // local defs
 		ApiType GetValue(TreeItem const* ti) const override
 		{
 			MGD_PRECONDITION(ti);
-			if (auto sm = ti->GetStorageManager())
-				return sm->GetNativeTileSizeX();
+			if (ti->HasStorageManager())
+				if (auto sm = ti->GetStorageManager())
+					return sm->GetNativeTileSizeX();
 			return 0;
 		}
 	};
@@ -699,8 +700,9 @@ namespace { // local defs
 		ApiType GetValue(TreeItem const* ti) const override
 		{
 			MGD_PRECONDITION(ti);
-			if (auto sm = ti->GetStorageManager())
-				return sm->GetNativeTileSizeY();
+			if (ti->HasStorageManager())
+				if (auto sm = ti->GetStorageManager())
+					return sm->GetNativeTileSizeY();
 			return 0;
 		}
 	};
