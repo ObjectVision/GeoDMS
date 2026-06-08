@@ -329,7 +329,7 @@ void TiffSM::WritePalette(TifImp& imp, const TreeItem* storageHolder, const Abst
 	UInt32 nrColorsDomain = adi->GetAbstrDomainUnit()->GetCount();
 
 	if (nrColorsDomain > MAX_COLORS_PAL)
-		adi->throwItemError("Cannnot write palette to TIFF, too many colors");
+		adi->throwItemError("Cannot write palette to TIFF, too many colors");
 	MakeMin(nrColorsDomain, nrColorsRepr);
 
 	UInt16 red[MAX_COLORS_PAL], green[MAX_COLORS_PAL], blue[MAX_COLORS_PAL];
@@ -363,7 +363,7 @@ void TiffSM::WritePalette(TifImp& imp, const TreeItem* storageHolder, const Abst
 	}
 
 	if (!imp.SetColorMap(red, green, blue))
-		adi->throwItemError("Cannnot write palette to TIFF, SetColorMap failed");
+		adi->throwItemError("Cannot write palette to TIFF, SetColorMap failed");
 }
 
 

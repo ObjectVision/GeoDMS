@@ -512,14 +512,14 @@ bool CreateTreeItemColumnInfo(TreeItem* tiTable, CharPtr colName, const AbstrUni
 	{
 		if (!TreeItemIsColumn(tiColumn))
 			return false;
-		const ValueClass *vc = AsDataItem(tiColumn)->GetAbstrValuesUnit()->GetValueType();
-		bool res = CompatibleTypes(dbValuesClass, vc);
+		const ValueClass *vCls = AsDataItem(tiColumn)->GetAbstrValuesUnit()->GetValueType();
+		bool res = CompatibleTypes(dbValuesClass, vCls);
 		if (!res)
 		{
 			auto msg = mySSPrintF("StorageManager: inconsistent value types; table: %s, column: %s, configured type: %s, database type: %s",
 				tiTable->GetFullName(),
 				colName,
-				vc->GetName(),
+				vCls->GetName(),
 				dbValuesClass->GetName()
 			);
 			tiColumn->Fail(msg, FailType::Data);

@@ -644,7 +644,7 @@ AbstrStorageManagerRef AbstrStorageManager::Construct(CharPtr storageName, Token
 	{
 		if (!throwOnFailure)
 			return {};
-		throwDmsErrF("Cannnot derive storage type for storage '%s'", storageName);
+		throwDmsErrF("Cannot derive storage type for storage '%s'", storageName);
 	}
 	bool readOnly = false;
 	if (typeID == s_mdbToken)
