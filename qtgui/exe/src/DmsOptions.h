@@ -54,6 +54,7 @@ class QSlider;
 class QLabel;
 class QFileDialog;
 class QLineEdit;
+class QComboBox;
 
 
 
@@ -106,6 +107,7 @@ private slots:
     void setSourceDataDirThroughDialog();
     void setEditorProgramThroughDialog();
     void setDefaultEditorParameters();
+    void onEditorPresetChange(int index);
 
 private:
     void setInitialLocalDataDirValue();
@@ -113,6 +115,7 @@ private:
     void setInitialEditorValue();
     void setInitialMemoryFlushTresholdValue();
     void setChanged(bool isChanged);
+    void updateEditorCustomVisibility(bool isCustom);
 
     bool m_changed = false;
     QPointer<QFileDialog> m_folder_dialog;

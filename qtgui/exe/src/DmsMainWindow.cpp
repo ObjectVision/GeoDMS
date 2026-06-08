@@ -26,6 +26,8 @@
 #include "ClcInterface.h"
 #include "ShvDllInterface.h"
 
+#include "StartEditor.h"
+
 #include <set>
 #include <QtWidgets>
 #include <QCompleter>
@@ -734,48 +736,30 @@ bool MainWindow::event(QEvent* event) {
     return result;
 }
 
-std::string fillOpenConfigSourceCommand(const std::string command, const std::string filename, const std::string line) {
-    //tested for "%env:ProgramFiles%\Notepad++\Notepad++.exe" "%F" -n%L and "%ProgramFiles32%\Crimson Editor\cedt.exe" /L:%L "%F"
-    std::string result = command;
-    auto fnp_pos = result.find("%F");
-    if (fnp_pos == std::string::npos)
-        return result;
-    result.replace(fnp_pos, 2, "");
-    result.insert(fnp_pos, filename);
-
-    auto lnp_pos = result.find("%L");
-    if (lnp_pos == std::string::npos)
-        return result;
-    result.replace(lnp_pos, 2, "");
-    result.insert(lnp_pos, line);
-    return result;
-}
-
 void MainWindow::openConfigSourceDirectly(std::string_view filename, std::string_view line) {
+    if (filename.empty() || line.empty())
+        return;
+
     std::string filename_dos_style = ConvertDmsFileNameAlways(SharedStr(filename.data())).c_str();
-    std::string command = GetGeoDmsRegKey("DmsEditor").c_str();
-    std::string unexpanded_open_config_source_command = "";
-    std::string open_config_source_command = "";
-    if (!filename.empty() && !line.empty() && !command.empty()) {
-        unexpanded_open_config_source_command = fillOpenConfigSourceCommand(command, std::string(filename), std::string(line));
-        const TreeItem* ti = getCurrentTreeItemOrRoot();
+    QString     qFile  = QString::fromStdString(filename_dos_style);
+    std::string preset = GetGeoDmsRegKey("DmsEditorPreset").c_str();
 
-        if (!ti)
-            open_config_source_command = AbstrStorageManager::Expand("", unexpanded_open_config_source_command.c_str()).c_str();// AbstrStorageManager::GetFullStorageName("", unexpanded_open_config_source_command.c_str()).c_str();
-        else
-            open_config_source_command = AbstrStorageManager::Expand(ti, SharedStr(unexpanded_open_config_source_command.c_str())).c_str();//AbstrStorageManager::GetFullStorageName(ti, SharedStr(unexpanded_open_config_source_command.c_str())).c_str();
-
-        assert(!open_config_source_command.empty());
-
-        QProcess process;
-        QStringList args = QProcess::splitCommand(QString(open_config_source_command.c_str()));
-        process.setProgram(args.takeFirst());
-        process.setArguments(args);
-        if (process.startDetached())
-            reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, open_config_source_command.c_str());
-        else
-            reportF(MsgCategory::commands, SeverityTypeID::ST_Warning, "Unable to start open config source command %s.", open_config_source_command.c_str());
+    // For custom/legacy preset: expand the command template here (needs TreeItem context).
+    std::string expandedCustomCmd;
+    if (preset == "custom" || preset.empty())
+    {
+        std::string command = GetGeoDmsRegKey("DmsEditor").c_str();
+        if (!command.empty())
+        {
+            std::string unexpanded = fillOpenConfigSourceCommand(command, filename_dos_style, std::string(line));
+            const TreeItem* ti = getCurrentTreeItemOrRoot();
+            expandedCustomCmd = ti
+                ? AbstrStorageManager::Expand(ti, SharedStr(unexpanded.c_str())).c_str()
+                : AbstrStorageManager::Expand("", unexpanded.c_str()).c_str();
+        }
     }
+
+    startEditorForFile(preset, qFile, line, expandedCustomCmd);
 }
 
 void MainWindow::openConfigSourceFor(const TreeItem* context) {

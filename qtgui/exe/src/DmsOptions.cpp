@@ -20,9 +20,12 @@
 #include <QLabel>
 #include <QFileDialog>
 #include <QLineEdit>
+#include <QComboBox>
 #include <QGridLayout>
 #include <QColorDialog>
 #include <QProcess>
+#include <QFileInfo>
+#include <QDir>
 
 #include "DrawPolygons.h"
 
@@ -332,6 +335,7 @@ DmsLocalMachineOptionsWindow::DmsLocalMachineOptionsWindow(QWidget* parent)
     connect(m_sd_input, &QLineEdit::textChanged, this, &DmsLocalMachineOptionsWindow::onTextChange);
     connect(m_editor_input, &QLineEdit::textChanged, this, &DmsLocalMachineOptionsWindow::onTextChange);
     connect(m_editor_parameters_input, &QLineEdit::textChanged, this, &DmsLocalMachineOptionsWindow::onTextChange);
+    connect(m_editor_preset, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &DmsLocalMachineOptionsWindow::onEditorPresetChange);
 
     connect(m_ld_folder_dialog, &QPushButton::clicked, this, &DmsLocalMachineOptionsWindow::setLocalDataDirThroughDialog);
     connect(m_sd_folder_dialog, &QPushButton::clicked, this, &DmsLocalMachineOptionsWindow::setSourceDataDirThroughDialog);
@@ -412,35 +416,61 @@ void DmsLocalMachineOptionsWindow::setInitialSourceDatDirValue()
 
 void DmsLocalMachineOptionsWindow::setInitialEditorValue()
 {
-    const auto& editorOptionsData = sStringOptionsData[string_option::StartEditorCmd];
-    auto regKeyName = editorOptionsData.reg_key;
-    auto regKey = GetGeoDmsRegKey(regKeyName);
-    if (regKey.empty())
-    {
-        regKey = editorOptionsData.default_value;
-        SetGeoDmsRegKeyString(regKeyName, regKey.c_str());
-    }
+    auto preset = GetGeoDmsRegKey("DmsEditorPreset");
 
-    auto cmd_qstring = QString(regKey.c_str());
-    cmd_qstring.replace(QString("\""), QString("\"\"\"")); // only triple quotes will be interpreted as single quote by QProcess::splitCommand
-    // replace first two occurences of 
-    auto first_index_of_triple_quotes = cmd_qstring.indexOf("\"\"\"");
-    if (first_index_of_triple_quotes == 0) // command line program is quoted
-        cmd_qstring.replace(first_index_of_triple_quotes, 3, "\"");
+    int idx = 3; // default: Custom (preserves existing DmsEditor setting on upgrade)
+    if (preset == "vscode")        idx = 0;
+    else if (preset == "visualstudio") idx = 1;
+    else if (preset == "notepadpp") idx = 2;
+    else if (preset == "custom")    idx = 3;
+
+    {
+        const QSignalBlocker blocker(m_editor_preset);
+        m_editor_preset->setCurrentIndex(idx);
+    }
+    updateEditorCustomVisibility(idx == 3);
+
+    if (idx == 3) // Custom: load saved DmsEditor command into path + params fields
+    {
+        const auto& editorOptionsData = sStringOptionsData[string_option::StartEditorCmd];
+        auto regKey = GetGeoDmsRegKey(editorOptionsData.reg_key);
+        if (regKey.empty())
+        {
+            regKey = editorOptionsData.default_value;
+            SetGeoDmsRegKeyString(editorOptionsData.reg_key, regKey.c_str());
+        }
+
+        auto cmd_qstring = QString(regKey.c_str());
+        cmd_qstring.replace(QString("\""), QString("\"\"\""));
+        auto first_index_of_triple_quotes = cmd_qstring.indexOf("\"\"\"");
+        if (first_index_of_triple_quotes == 0)
+            cmd_qstring.replace(first_index_of_triple_quotes, 3, "\"");
         cmd_qstring.replace(cmd_qstring.indexOf("\"\"\""), 3, "\"");
 
-    QStringList args = QProcess::splitCommand(cmd_qstring);
-    if (args.isEmpty())
-        return;
+        QStringList args = QProcess::splitCommand(cmd_qstring);
+        if (!args.isEmpty())
+        {
+            m_editor_input->setText("\"" + args.takeFirst() + "\"");
+            m_editor_parameters_input->setText(args.join(" "));
+        }
+    }
+}
 
-    auto editor_program = args.takeFirst();
-    m_editor_input->setText("\"" + editor_program + "\"");
+void DmsLocalMachineOptionsWindow::updateEditorCustomVisibility(bool isCustom)
+{
+    lbl_applications->setVisible(isCustom);
+    m_editor_input->setVisible(isCustom);
+    m_editor_folder_dialog->setVisible(isCustom);
+    lbl_applications_2->setVisible(isCustom);
+    m_editor_parameters_input->setVisible(isCustom);
+    m_param_info->setVisible(isCustom);
+    m_set_editor_parameters->setVisible(isCustom);
+}
 
-    QString editor_arguments = args.join(" ");
-    if (editor_arguments.isEmpty())
-        return;
-
-    m_editor_parameters_input->setText(editor_arguments);
+void DmsLocalMachineOptionsWindow::onEditorPresetChange(int index)
+{
+    updateEditorCustomVisibility(index == 3);
+    setChanged(true);
 }
 
 void DmsLocalMachineOptionsWindow::setInitialMemoryFlushTresholdValue()
@@ -455,6 +485,7 @@ void DmsLocalMachineOptionsWindow::restoreOptions()
         const QSignalBlocker blocker1(m_ld_input);
         const QSignalBlocker blocker2(m_sd_input);
         const QSignalBlocker blocker3(m_editor_input);
+        const QSignalBlocker blocker3b(m_editor_preset);
         const QSignalBlocker blocker4(m_flush_treshold);
         const QSignalBlocker blocker5(m_pp0);
         const QSignalBlocker blocker6(m_pp1);
@@ -485,7 +516,13 @@ void DmsLocalMachineOptionsWindow::apply()
 {
     SetGeoDmsRegKeyString("LocalDataDir", m_ld_input->text().toStdString().c_str());
     SetGeoDmsRegKeyString("SourceDataDir", m_sd_input->text().toStdString().c_str());
-    SetGeoDmsRegKeyString("DmsEditor", (m_editor_input->text() + " " + m_editor_parameters_input->text()).toStdString().c_str());
+
+    static const char* presetKeys[] = { "vscode", "visualstudio", "notepadpp", "custom" };
+    int presetIdx = m_editor_preset->currentIndex();
+    if (presetIdx < 0 || presetIdx > 3) presetIdx = 3;
+    SetGeoDmsRegKeyString("DmsEditorPreset", presetKeys[presetIdx]);
+    if (presetIdx == 3) // Custom only
+        SetGeoDmsRegKeyString("DmsEditor", (m_editor_input->text() + " " + m_editor_parameters_input->text()).toStdString().c_str());
 
     SetStatusFlag(RSF_SuspendForGUI, m_pp0->isChecked());
     SetStatusFlag(RSF_MultiThreading1, m_pp1->isChecked());
