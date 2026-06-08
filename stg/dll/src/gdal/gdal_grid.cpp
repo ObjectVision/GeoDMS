@@ -458,10 +458,12 @@ void GDalGridImp::SetWidth(auto width)
 {
 	MG_CHECK(width == GetWidth());
 }
+
 void GDalGridImp::SetHeight(auto height)
 {
 	MG_CHECK(height == GetHeight());
 }
+
 void GDalGridImp::SetTiled()
 {
 //		m_hDS->SetMetadataItem()
@@ -472,7 +474,7 @@ void GDalGridImp::SetTiled()
 
 void GdalGridSM::ReadGridData(StgViewPortInfo& vpi, AbstrDataObject* ado, tile_id t, SharedStr sqlBandSpecification, StorageMetaInfoPtr smi)
 {
-	MG_CHECK(m_hDS->GetRasterCount() >=  1 );
+	MG_USERCHECK(m_hDS->GetRasterCount() >=  1 );
 
 	GDalGridImp imp(m_hDS, ado, Size(vpi.GetViewPortExtents()), sqlBandSpecification, smi);
 	Grid::ReadGridData(imp, vpi, ado, t, GetNameStr().c_str());
@@ -480,7 +482,7 @@ void GdalGridSM::ReadGridData(StgViewPortInfo& vpi, AbstrDataObject* ado, tile_i
 
 void GdalGridSM::ReadGridCounts(StgViewPortInfo& vpi, AbstrDataObject* ado, tile_id t, SharedStr sqlBandSpecification, StorageMetaInfoPtr smi)
 {
-	MG_CHECK(m_hDS->GetRasterCount() >= 1);
+	MG_USERCHECK(m_hDS->GetRasterCount() >= 1);
 
 	GDalGridImp imp(m_hDS, ado, Size(vpi.GetViewPortExtents()), sqlBandSpecification, smi);
 	Grid::ReadGridCounts(imp, vpi, ado, t, GetNameStr().c_str());
@@ -671,6 +673,8 @@ void GdalGridSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 			GDAL_ErrorFrame frame;
 			auto number_of_bands = m_hDS->GetRasterCount();
 			auto first_band = m_hDS->GetRasterBand(1);
+			if (!first_band)
+				return;
 			auto first_band_datatype = first_band->GetRasterDataType();
 			if (number_of_bands==4 && first_band_datatype ==GDT_Byte)
 			{
