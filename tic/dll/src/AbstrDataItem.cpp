@@ -584,7 +584,6 @@ auto AbstrDataItem::GetDataObj() const -> SharedPtr<const AbstrDataObject>
 
 auto AbstrDataItem::GetCurrDataObj() const -> SharedPtr<const AbstrDataObject>
 { 
-	assert(m_DataObject); 
 	return m_DataObject; 
 }
 

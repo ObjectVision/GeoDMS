@@ -122,7 +122,10 @@ struct DnConvertFunc
 	template <typename T>
 	U operator ()(const T& val) const
 	{
-		return RoundDown<sizeof(U)>(val);
+		if constexpr (std::is_floating_point_v<scalar_of_t<T>>)
+			return RoundDown<sizeof(U)>(val);
+		else
+			return U(val);
 	}
 	template <typename T>
 	struct rebind
@@ -140,10 +143,13 @@ struct UpConvertFunc
 		// Round up in the TARGET's signedness. RoundUp<N> derives its result scalar from the
 		// SOURCE (scalar_replace), so converting a signed source to an unsigned target clamps at
 		// the signed max (e.g. 32767 for a wpoint upper bound). Use RoundUpPositive for unsigned.
-		if constexpr (is_signed<scalar_of_t<U>>::value)
-			return RoundUp<sizeof(scalar_of_t<U>)>(val);
+		if constexpr (std::is_floating_point_v<scalar_of_t<T>>)
+			if constexpr (is_signed<scalar_of_t<U>>::value)
+				return RoundUp<sizeof(scalar_of_t<U>)>(val);
+			else
+				return RoundUpPositive<sizeof(scalar_of_t<U>)>(val);
 		else
-			return RoundUpPositive<sizeof(scalar_of_t<U>)>(val);
+			return U(val);
 	}
 	template <typename T>
 	struct rebind

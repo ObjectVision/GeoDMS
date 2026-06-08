@@ -1129,7 +1129,6 @@ bool DrawPoints(
 					colorGetter = theme->GetValueGetter();
 			}
 
-			auto* drawCtx = d.GetDrawContext();
 			drawCtx->SetTextColor(defaultColor);
 
 			ResumableCounter tileCounter(d.GetCounterStacks(), true);
@@ -1846,14 +1845,14 @@ bool DrawMultiPoints(
 	{
 		if (!layer->IsDisabledAspectGroup(AG_Symbol))
 		{
-if (fontIndices && fontIndices->GetNrKeys() == 1)
-{
-	drawCtx->SetFont(GetTokenStr(fontIndices->GetFontNameId(0)).c_str(),
-		fontIndices->GetFontHeight(0), fontIndices->GetFontAngle(0));
-	fontIndices = nullptr;
-}
+			if (fontIndices && fontIndices->GetNrKeys() == 1)
+			{
+				drawCtx->SetFont(GetTokenStr(fontIndices->GetFontNameId(0)).c_str(),
+					fontIndices->GetFontHeight(0), fontIndices->GetFontAngle(0));
+				fontIndices = nullptr;
+			}
 
-DmsColor defaultColor = layer->GetDefaultPointColor();
+			DmsColor defaultColor = layer->GetDefaultPointColor();
 			WCHAR defaultSymbol = defSymbol;
 			WeakPtr<const AbstrThemeValueGetter> symbolIdGetter;
 			if (layer->GetEnabledTheme(AN_SymbolIndex))
@@ -1877,7 +1876,6 @@ DmsColor defaultColor = layer->GetDefaultPointColor();
 					colorGetter = theme->GetValueGetter();
 			}
 
-			auto* drawCtx = d.GetDrawContext();
 			drawCtx->SetTextColor(defaultColor);
 
 			ResumableCounter tileCounter(d.GetCounterStacks(), true);
@@ -1937,21 +1935,21 @@ DmsColor defaultColor = layer->GetDefaultPointColor();
 							if (textColor == TRANSPARENT_COLORREF)
 								goto nextMultiPoint;
 
-													CheckColor(textColor);
-													drawCtx->SetTextColor(textColor);
+							CheckColor(textColor);
+							drawCtx->SetTextColor(textColor);
 
-													if (symbolIdGetter)
-														defaultSymbol = symbolIdGetter->GetOrdinalValue(entityIndex);
+							if (symbolIdGetter)
+								defaultSymbol = symbolIdGetter->GetOrdinalValue(entityIndex);
 
-													auto pointSeq = data[i];
-													for (const auto& p : pointSeq)
-													{
-														if (IsIncluding(geoRect, p))
-														{
-															auto viewPoint = Convert<TPoint>(transformer.Apply(p));
-															drawCtx->TextOutW(GPoint(viewPoint.X(), viewPoint.Y()), &defaultSymbol, 1, textColor);
-														}
-													}
+							auto pointSeq = data[i];
+							for (const auto& p : pointSeq)
+							{
+								if (IsIncluding(geoRect, p))
+								{
+									auto viewPoint = Convert<TPoint>(transformer.Apply(p));
+									drawCtx->TextOutW(GPoint(viewPoint.X(), viewPoint.Y()), &defaultSymbol, 1, textColor);
+								}
+							}
 						}
 					nextMultiPoint:
 						++itemCounter; if (itemCounter.MustBreakOrSuspend100()) return true;
