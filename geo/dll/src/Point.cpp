@@ -18,10 +18,13 @@
 #include "utl/Swap.h"
 
 #include "ParallelTiles.h"
+#include "Projection.h"
 #include "Param.h"
 #include "UnitClass.h"
 #include "DataItemClass.h"
 #include "stg/AbstrStorageManager.h"
+
+#include "OperAttrUni.h"
 
 // *****************************************************************************
 //									RELATIONAL FUNCTIONS
@@ -291,6 +294,30 @@ struct point2colFunc : unary_func<Scalar, Point<Scalar> >
 	}
 };
 
+template <typename PointType, bool TAKE_THE_Y, typename ResCoordType = Float64>
+struct UnaryAttr_XY_FuncOperator : UnaryAttrOperator<ResCoordType, PointType>
+{
+	UnaryAttr_XY_FuncOperator(AbstrOperGroup* gr)
+		: UnaryAttrOperator<ResCoordType, PointType>(gr
+			, ArgFlags()
+			, &default_unit_creator<ResCoordType>, ValueComposition::Single
+		)
+	{
+	}
+
+	void CalcTile(sequence_traits<ResCoordType>::seq_t resData, sequence_traits<PointType>::cseq_t arg1Data, const AbstrUnit* argVU, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const override
+	{
+		assert(arg1Data.size() == resData.size());
+
+		auto tr = UnitProjection::GetCompositeTransform(argVU->GetCurrProjection());
+
+		if constexpr (TAKE_THE_Y)
+			dms_transform(arg1Data.begin(), arg1Data.end(), resData.begin(), [fy = tr.Factor().Y(), ty = tr.Offset().Y()](const auto& p) { return p.Y() * fy + ty;  });
+		else
+			dms_transform(arg1Data.begin(), arg1Data.end(), resData.begin(), [fx = tr.Factor().X(), tx = tr.Offset().X()](const auto& p) { return p.X() * fx + tx;  });
+	}
+};
+
 
 // *****************************************************************************
 //											INSTANTIATION
@@ -302,7 +329,6 @@ struct point2colFunc : unary_func<Scalar, Point<Scalar> >
 
 #include "LispTreeType.h"
 
-#include "OperAttrUni.h"
 
 namespace 
 {
