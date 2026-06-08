@@ -21,6 +21,12 @@
     <!-- Common toolset settings for every GeoDMS C++ project (ConfigurationType stays
          per-project: DynamicLibrary vs Application). -->
     <PlatformToolset>v145</PlatformToolset>
+    <!-- WORKAROUND: MSVC 14.51.36231 (VS2026 18.6.x) miscompiles geos's KdTree::queryNodePoint
+         (elides the `while(currentNode!=nullptr)` back-edge null-check -> 0xC0000005 in MultiPolygon
+         buffer/snap-rounding; also silent wrong results). 14.50.35717 compiles it correctly.
+         Pin the compiler to 14.50 until Microsoft fixes 14.5x. See memory project_geos_buffer_crash_2026_06.
+         Keep in sync with VCPKG_PLATFORM_TOOLSET_VERSION in vcpkg-triplets/x64-windows-v145.cmake. -->
+    <VCToolsVersion>14.50.35717</VCToolsVersion>
     <UseOfMfc>false</UseOfMfc>
 
     <!--
