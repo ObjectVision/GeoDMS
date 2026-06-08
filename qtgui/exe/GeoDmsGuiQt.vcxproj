@@ -156,6 +156,7 @@
       <DynamicSource Condition="'$(Configuration)|$(Platform)'=='Release|x64'">input</DynamicSource>
       <QtMocFileName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(Filename).moc</QtMocFileName>
     </ClCompile>
+    <ClCompile Include="src\StartEditor.cpp" />
     <ClCompile Include="src\TestScript.cpp" />
     <ClCompile Include="src\UpdatableBrowser.cpp" />
   </ItemGroup>
