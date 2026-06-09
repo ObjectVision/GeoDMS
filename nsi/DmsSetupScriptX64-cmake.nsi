@@ -117,7 +117,6 @@ Section "GeoDMS Program Folder"
   File ${CMakeBinDir}\szip.dll
   File ${CMakeBinDir}\z.dll
   File ${CMakeBinDir}\zstd.dll
-  File /nonfatal ${CMakeBinDir}\uriparser.dll
 
   ; Notepad++ syntax definition
   File ..\res\NotePadPlusPlus\GeoDMS_npp_def.xml
