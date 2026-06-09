@@ -21,6 +21,7 @@
             "inherits": "vcpkg-base",
             "generator": "Visual Studio 18 2026",
             "architecture": { "value": "x64" },
+            "toolset": { "value": "version=14.50.35717,host=x64" },
             "binaryDir": "${sourceDir}/build/windows-x64-debug",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
@@ -34,6 +35,7 @@
             "inherits": "vcpkg-base",
             "generator": "Visual Studio 18 2026",
             "architecture": { "value": "x64" },
+            "toolset": { "value": "version=14.50.35717,host=x64" },
             "binaryDir": "${sourceDir}/build/windows-x64-release",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
