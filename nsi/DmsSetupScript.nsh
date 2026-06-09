@@ -51,7 +51,8 @@ Section "GeoDMS Program Folder" ;No components page, name is not important
   File ..\bin\Release\${GeoDmsPlatform}\Qt6Gui.dll
   File ..\bin\Release\${GeoDmsPlatform}\Qt6Svg.dll
   File ..\bin\Release\${GeoDmsPlatform}\Qt6Widgets.dll
-
+  File ..\bin\Release\${GeoDmsPlatform}\tinyxml2.dll
+  
   File ..\bin\Release\${GeoDmsPlatform}\vccorlib140.dll
   File ..\bin\Release\${GeoDmsPlatform}\vcomp140.dll
   File ..\bin\Release\${GeoDmsPlatform}\vcruntime140.dll

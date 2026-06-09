@@ -67,6 +67,7 @@ Section "GeoDMS Program Folder"
   File ${CMakeBinDir}\Qt6Gui.dll
   File ${CMakeBinDir}\Qt6Svg.dll
   File ${CMakeBinDir}\Qt6Widgets.dll
+  File ${CMakeBinDir}\tinyxml2.dll
 
   ; vcpkg third-party DLLs
   File ${CMakeBinDir}\boost_locale-vc145-mt-x64-1_91.dll
