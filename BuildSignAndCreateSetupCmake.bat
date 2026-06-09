@@ -59,18 +59,15 @@ if not exist "%BUILD_DIR%\CMakeCache.txt" (
     if errorlevel 1 goto :build_failed
 )
 
-REM Refuse to build if a prior bin\GeoDmsGuiQt.exe or bin\GeoDmsRun.exe is still
-REM running -- a held file handle on Dm*.dll silently turns the build into a
-REM no-op (worst case: ships a stale setup signed with today's version).
-tasklist /FI "IMAGENAME eq GeoDmsGuiQt.exe" 2>nul | findstr /I /C:"GeoDmsGuiQt.exe" >nul
-if not errorlevel 1 (
-REM    echo *** ABORT: GeoDmsGuiQt.exe is running. Close it before building - it locks %BUILD_DIR%\bin\Dm*.dll ***
-REM    goto :build_failed
-)
-tasklist /FI "IMAGENAME eq GeoDmsRun.exe" 2>nul | findstr /I /C:"GeoDmsRun.exe" >nul
-if not errorlevel 1 (
-REM    echo *** ABORT: GeoDmsRun.exe is running. Close it before building. ***
-REM    goto :build_failed
+REM Refuse to build only if a GeoDmsRun/GeoDmsGuiQt is running FROM the build output
+REM (%geodms_rootdir%\%BUILD_DIR%\bin) -- a held handle on its Dm*.dll silently turns
+REM the build into a no-op. A process from an INSTALLED build (e.g. full.py driving
+REM GeoDms<ver>.c\GeoDmsRun.exe) does NOT lock this output, so it is ignored. Path is
+REM derived from %geodms_rootdir%, so this works wherever the working copy lives.
+powershell -NoProfile -Command "$b=(Resolve-Path -LiteralPath '%geodms_rootdir%\%BUILD_DIR%\bin' -EA SilentlyContinue); $hit=0; if($b){$p=($b.Path.TrimEnd('\')+'\').ToLower(); foreach($pr in (Get-Process GeoDmsRun,GeoDmsGuiQt -EA SilentlyContinue)){ if($pr.Path -and $pr.Path.ToLower().StartsWith($p)){$hit=1} } }; exit $hit"
+if errorlevel 1 (
+    echo *** ABORT: a GeoDmsRun/GeoDmsGuiQt is running from %BUILD_DIR%\bin - it locks the build's Dm*.dll. Close it. ***
+    goto :build_failed
 )
 
 echo --- building cmake-Release ---
