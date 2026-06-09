@@ -69,8 +69,8 @@ Section "GeoDMS Program Folder"
   File ${CMakeBinDir}\Qt6Widgets.dll
 
   ; vcpkg third-party DLLs
-  File ${CMakeBinDir}\boost_locale-vc145-mt-x64-1_88.dll
-  File ${CMakeBinDir}\boost_thread-vc145-mt-x64-1_88.dll
+  File ${CMakeBinDir}\boost_locale-vc145-mt-x64-1_91.dll
+  File ${CMakeBinDir}\boost_thread-vc145-mt-x64-1_91.dll
   File ${CMakeBinDir}\fftw3.dll
   File ${CMakeBinDir}\gdal.dll
   File ${CMakeBinDir}\tiff.dll
@@ -114,7 +114,7 @@ Section "GeoDMS Program Folder"
   File ${CMakeBinDir}\spatialite.dll
   File ${CMakeBinDir}\sqlite3.dll
   File ${CMakeBinDir}\szip.dll
-  File ${CMakeBinDir}\zlib1.dll
+  File ${CMakeBinDir}\z.dll
   File ${CMakeBinDir}\zstd.dll
   File /nonfatal ${CMakeBinDir}\uriparser.dll
 
