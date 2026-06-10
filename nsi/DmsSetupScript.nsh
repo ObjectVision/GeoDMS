@@ -51,7 +51,8 @@ Section "GeoDMS Program Folder" ;No components page, name is not important
   File ..\bin\Release\${GeoDmsPlatform}\Qt6Gui.dll
   File ..\bin\Release\${GeoDmsPlatform}\Qt6Svg.dll
   File ..\bin\Release\${GeoDmsPlatform}\Qt6Widgets.dll
-
+  File ..\bin\Release\${GeoDmsPlatform}\tinyxml2.dll
+  
   File ..\bin\Release\${GeoDmsPlatform}\vccorlib140.dll
   File ..\bin\Release\${GeoDmsPlatform}\vcomp140.dll
   File ..\bin\Release\${GeoDmsPlatform}\vcruntime140.dll
@@ -65,8 +66,8 @@ Section "GeoDMS Program Folder" ;No components page, name is not important
   File ..\bin\Release\${GeoDmsPlatform}\msvcp140_atomic_wait.dll
   File ..\bin\Release\${GeoDmsPlatform}\msvcp140_codecvt_ids.dll
 
-  File ..\bin\Release\${GeoDmsPlatform}\boost_locale-vc145-mt-x64-1_88.dll
-  File ..\bin\Release\${GeoDmsPlatform}\boost_thread-vc145-mt-x64-1_88.dll
+  File ..\bin\Release\${GeoDmsPlatform}\boost_locale-vc145-mt-x64-1_91.dll
+  File ..\bin\Release\${GeoDmsPlatform}\boost_thread-vc145-mt-x64-1_91.dll
 
   File ..\bin\Release\${GeoDmsPlatform}\fftw3.dll
   File ..\bin\Release\${GeoDmsPlatform}\gdal.dll
@@ -111,7 +112,7 @@ Section "GeoDMS Program Folder" ;No components page, name is not important
   File ..\bin\Release\${GeoDmsPlatform}\spatialite.dll
   File ..\bin\Release\${GeoDmsPlatform}\sqlite3.dll
   File ..\bin\Release\${GeoDmsPlatform}\szip.dll
-  File ..\bin\Release\${GeoDmsPlatform}\zlib1.dll
+  File ..\bin\Release\${GeoDmsPlatform}\z.dll
   File ..\bin\Release\${GeoDmsPlatform}\zstd.dll
 
   File ..\bin\Release\${GeoDmsPlatform}\geodms.pyd

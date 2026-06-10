@@ -39,9 +39,5 @@ todo*.txt
 /enc_temp_folder
 /qtgui/exe/obj
 /qtgui/exe/bin
-/.claude/settings.local.json
-/.claude/tmp*
-/.claude/__pycache__/
-/.claude/scheduled_tasks.lock
+/.claude
 /profiler/__pycache__
-/.claude/sign_install_m.bat

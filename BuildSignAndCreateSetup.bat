@@ -25,17 +25,14 @@ REM caches; binaries don't carry FileVersion metadata, so mtime is the
 REM only reliable signal. -5s fudge to absorb clock skew.
 for /f "delims=" %%T in ('powershell -NoProfile -Command "[DateTime]::Now.AddSeconds(-5).ToString('o')"') do set BUILD_GATE_TIME=%%T
 
-REM Refuse to build if a prior bin\Release\x64 binary is still running --
-REM a held file handle on Dm*.dll silently turns msbuild's link step into a
-REM skip (worst case: ships a stale setup signed with today's version).
-tasklist /FI "IMAGENAME eq GeoDmsGuiQt.exe" 2>nul | findstr /I /C:"GeoDmsGuiQt.exe" >nul
-if not errorlevel 1 (
-    echo *** ABORT: GeoDmsGuiQt.exe is running. Close it before building - it locks bin\Release\x64\Dm*.dll ***
-    goto :build_failed
-)
-tasklist /FI "IMAGENAME eq GeoDmsRun.exe" 2>nul | findstr /I /C:"GeoDmsRun.exe" >nul
-if not errorlevel 1 (
-    echo *** ABORT: GeoDmsRun.exe is running. Close it before building. ***
+REM Refuse to build only if a GeoDmsRun/GeoDmsGuiQt is running FROM the build output
+REM (%geodms_rootdir%\bin\Release\x64) -- a held handle on its Dm*.dll silently turns
+REM msbuild's link step into a skip. A process from an INSTALLED build (e.g. full.py
+REM driving GeoDms<ver>.m\GeoDmsRun.exe) does NOT lock this output, so it is ignored.
+REM Path is derived from %geodms_rootdir%, so this works wherever the working copy lives.
+powershell -NoProfile -Command "$b=(Resolve-Path -LiteralPath '%geodms_rootdir%\bin\Release\x64' -EA SilentlyContinue); $hit=0; if($b){$p=($b.Path.TrimEnd('\')+'\').ToLower(); foreach($pr in (Get-Process GeoDmsRun,GeoDmsGuiQt -EA SilentlyContinue)){ if($pr.Path -and $pr.Path.ToLower().StartsWith($p)){$hit=1} } }; exit $hit"
+if errorlevel 1 (
+    echo *** ABORT: a GeoDmsRun/GeoDmsGuiQt is running from bin\Release\x64 - it locks the build's Dm*.dll. Close it. ***
     goto :build_failed
 )
 
