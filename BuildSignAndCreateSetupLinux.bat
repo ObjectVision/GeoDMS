@@ -69,6 +69,16 @@ if not exist "%DEB%" (
 echo --- installing .deb in WSL (passwordless sudo required, or skipped) ---
 wsl bash -c "if [ -f '/mnt/c/dev/GeoDMS_2026/%DEB:\=/%' ] && sudo -n true 2>/dev/null; then sudo dpkg -i '/mnt/c/dev/GeoDMS_2026/%DEB:\=/%'; else echo '** skipping dpkg install (no passwordless sudo) — install manually with:  wsl sudo dpkg -i /mnt/c/dev/GeoDMS_2026/%DEB:\=/%'; fi"
 
+REM Post-install unit tests (mirrors the unit.bat call in BuildSignAndCreateSetup.bat
+REM (.m) and BuildSignAndCreateSetupCmake.bat (.c)). TestLinuxReleaseUnit.sh runs
+REM tst/batch/unit_linux.sh against build/linux-x64-release and exits non-zero on
+REM any FAILED test. On failure we REMOVE the installed package and the built setup
+REM files: a warning echo is too easy to miss in the long build log, and a build
+REM with failing unit tests must not remain installed or shippable.
+echo --- running Linux unit tests ---
+wsl bash -c "cd /mnt/c/dev/GeoDMS_2026 && bash TestLinuxReleaseUnit.sh"
+if errorlevel 1 goto :unit_failed
+
 echo === DONE: GeoDms%GeoDmsVersion%.%GeoDmsFlavor% built and packaged ===
 if exist "%DEB%"     echo   .deb:     %DEB%
 if exist "%TARBALL%" echo   tarball:  %TARBALL%
@@ -83,5 +93,18 @@ exit /B 1
 
 :nsis_failed
 echo *** CreateLinuxSetup.sh failed ***
+endlocal
+exit /B 1
+
+:unit_failed
+echo *** Linux unit tests FAILED - removing installed package and setup files so a broken build cannot ship ***
+REM dpkg -r removes the package (and the /opt/ObjectVision/GeoDms<ver>.l tree it
+REM owns); the explicit rm -rf is belt-and-suspenders for the versioned dir.
+wsl bash -c "sudo -n dpkg -r geodms 2>/dev/null; sudo -n rm -rf '/opt/ObjectVision/GeoDms%GeoDmsVersion%.%GeoDmsFlavor%'"
+del /q "%DEB%" 2>nul
+del /q "%TARBALL%" 2>nul
+del /q "%TARBALL%.sha256" 2>nul
+del /q "%TARBALL%.sha256.p7s" 2>nul
+echo Removed install /opt/ObjectVision/GeoDms%GeoDmsVersion%.%GeoDmsFlavor% and distr setup files for %GeoDmsVersion%.%GeoDmsFlavor%.
 endlocal
 exit /B 1

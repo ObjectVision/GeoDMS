@@ -107,14 +107,22 @@ LPCWSTR RegisterViewAreaWindowClass(HINSTANCE instance) {
 #endif // _WIN32
 
 void DMS_CONV OnStatusText(ClientHandle clientHandle, SeverityTypeID st, CharPtr msg) {
+    auto* mw = MainWindow::TheOne();
+    if (!mw)
+        return; // App is shutting down: ~MainWindow already cleared s_CurrMainWindow, yet
+                // its child QDmsViewAreas are still being destroyed in the base ~QObject pass.
+                // That destroy path runs RefreshAllDataViewCaptions() (the #418/#620 cross-view
+                // caption disambiguation), which calls back here to re-caption surviving views.
+                // With no MainWindow there is nothing to update, and dereferencing TheOne()
+                // (== nullptr) or a sibling QDmsViewArea mid-destruction would segfault.
     auto* dva = reinterpret_cast<QDmsViewArea*>(clientHandle);
     assert(dva);
     if (st == SeverityTypeID::ST_MajorTrace) {
         dva->setWindowTitle(msg);
-        MainWindow::TheOne()->m_mdi_area->updateTabTooltips();
+        mw->m_mdi_area->updateTabTooltips();
     }
     else {
-        MainWindow::TheOne()->m_statusbar_coordinates->setText(QString(msg));
+        mw->m_statusbar_coordinates->setText(QString(msg));
     }
 }
 

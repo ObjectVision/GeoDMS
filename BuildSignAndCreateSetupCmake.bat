@@ -130,10 +130,27 @@ cd ..\tst\batch
 Call unit.bat %GeoDmsVersion% c off
 cd %geodms_rootdir%
 
+REM Harness unit-test failure. unit.bat sets no errorlevel, so scan the newest
+REM result file (v<ver>.<flavor>_*.txt under %LocalDataDir%\GeoDMSTestResults\unit,
+REM where unit.bat -> SetLocalDataDir.bat just set %LocalDataDir%) for a FAILED line.
+REM On failure REMOVE the installed build and the signed setup file: a warning echo
+REM is too easy to miss, and a build with failing unit tests must not stay installed/shippable.
+powershell -NoProfile -Command "$d='%LocalDataDir%\GeoDMSTestResults\unit'; $f=Get-ChildItem (Join-Path $d 'v%GeoDmsVersion%.%GeoDmsFlavor%_*.txt') -EA SilentlyContinue | Sort-Object LastWriteTime -Desc | Select-Object -First 1; if(-not $f){Write-Host 'no unit result file found - treating as failure'; exit 1}; if(Select-String -Path $f.FullName -Pattern 'FAILED' -Quiet){Write-Host ('unit FAILED: '+$f.Name); exit 1} else {Write-Host ('unit OK: '+$f.Name); exit 0}"
+if errorlevel 1 goto :unit_failed
+
 echo === DONE: GeoDms%GeoDmsVersion%.%GeoDmsFlavor% built, signed, installed ===
 echo Run regression with:    python full.py -version %GeoDmsVersion%.%GeoDmsFlavor%
 endlocal
 exit /B 0
+
+:unit_failed
+echo *** Unit tests FAILED - removing installed build and signed setup file so a broken build cannot ship ***
+if exist "%INSTALL_DIR%\uninstaller.exe" "%INSTALL_DIR%\uninstaller.exe" /S _?=%INSTALL_DIR%
+if exist "%INSTALL_DIR%" rmdir /s /q "%INSTALL_DIR%"
+del /q "%INSTALLER%" 2>nul
+echo Removed "%INSTALL_DIR%" and "%INSTALLER%"
+endlocal
+exit /B 1
 
 :build_failed
 echo *** cmake build failed ***
