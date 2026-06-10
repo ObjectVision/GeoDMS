@@ -133,10 +133,11 @@ void startEditorForFile(const std::string& preset,
 {
     if (preset == "vscode")
     {
-        QString exe  = findVSCodeExe();
-        QString root = findVSCodeProjectRoot(filePath);
+        QString exe      = findVSCodeExe();
+        QString root     = findVSCodeProjectRoot(filePath);
+        QString cleanFile = QString(filePath).replace('\\', '/'); // single colon in C:/path/file:line → unambiguous for VS Code parser
         launchDetached(exe,
-            { root, "--goto", filePath + ":" + QString::fromStdString(std::string(line)) },
+            { root, "--goto", cleanFile + ":" + QString::fromStdString(std::string(line)) },
             "VS Code");
         return;
     }
