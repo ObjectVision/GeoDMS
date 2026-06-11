@@ -88,10 +88,13 @@ void MmdStorageManager::DoWriteTree(const TreeItem* storageHolder)
 
 	auto dictFileName = GetFullFileName("0Dictionary.dms");
 
-	auto osb = FileOutStreamBuff(dictFileName, true);
+	auto osb = VectorOutStreamBuff();
 	auto out = OutStream_DMS(&osb, calcRulePropDefPtr);
 
-	TreeItem_XML_Dump(storageHolder, &out, false);
+	TreeItem_XML_DumpOrThrow(storageHolder, &out, false);
+
+	auto fsb = FileOutStreamBuff(dictFileName, true);
+	fsb.WriteBytes(osb.GetData(), osb.CurrPos());
 }
 
 bool IsInMMD(const AbstrDataItem* cacheItem)

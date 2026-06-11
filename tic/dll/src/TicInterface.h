@@ -314,6 +314,7 @@ TIC_CALL void DMS_CONV DMS_Tic_Load();
 } // end extern "C"
 
 TIC_CALL void TreeItem_XML_Dump(const TreeItem* self, OutStreamBase* xmlOutStr, bool notWritingDictionary) noexcept;
+TIC_CALL void TreeItem_XML_DumpOrThrow(const TreeItem* self, OutStreamBase* xmlOutStr, bool notWritingDictionary);
 TIC_CALL bool XML_MetaInfoRef(const TreeItem* self, OutStreamBase* xmlOutStrPtr);
 TIC_CALL bool TreeItem_XML_DumpGeneral(const TreeItem* self, OutStreamBase* xmlOutStrPtr);
 TIC_CALL void TreeItem_XML_DumpSourceDescription(const TreeItem* self, SourceDescrMode mode, OutStreamBase* xmlOutStrPtr);

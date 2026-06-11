@@ -993,7 +993,18 @@ void DataView::OnTimer(UInt32 timerId)
 				auto status = GVS_Ready;
 				auto curr = SessionData::Curr();
 				if (curr)
-					status = UpdateView();
+				{
+					try {
+						status = UpdateView();
+					}
+					catch (...)
+					{
+						// exceptions may not escape into the Qt event loop; report them
+						// through the regular channel (eventlog / failed items in detail page)
+						catchAndReportException();
+						status = GVS_Break;
+					}
+				}
 				if (status == GraphVisitState::GVS_Break)
 					SetUpdateTimer();
 				else
