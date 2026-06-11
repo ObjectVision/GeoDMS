@@ -85,7 +85,8 @@ def get_table_regression_test_row(result_paths:dict, summary_row:list) -> str:
         command = command.replace("'", '"')
         command = command.replace("\"", "")
         table_col_header = table_col_header.replace("@@@GEODMS_CMD@@@", command)
-        table_col_header = table_col_header.replace("@@@STARTTIME@@@", str(summary_col_row["start_time"].strftime("%Y %m %d %H:%M:%S")))
+        start_time_value = summary_col_row["start_time"]
+        table_col_header = table_col_header.replace("@@@STARTTIME@@@", start_time_value.strftime("%Y %m %d %H:%M:%S") if start_time_value else "n/a")
         table_col_header = table_col_header.replace("@@@DAYS@@@", str(int(day)))
         table_col_header = table_col_header.replace("@@@HOURS@@@", str(int(hour)))
         table_col_header = table_col_header.replace("@@@MINS@@@", str(int(minutes)))
@@ -335,6 +336,13 @@ def get_valid_result_folders(version:str, result_paths:dict) -> list:
         # Non-semver `version` (e.g. "local") is treated as newer than any
         # historical numeric version, so all candidates are valid for compare.
         if target is None or Version(f"{major}.{minor}.{patch}") <= target:
+            # Skip folders with no stored experiments (*.bin) -- they only
+            # produce empty report columns. These are typically abandoned runs
+            # or old preset-named folders (e.g. 20_0_1_x64-linux-cmake_... and
+            # 20_0_1_x64-windows-{cmake,msbuild}_... instead of 20_0_1_{l,c,m}_...),
+            # which carry 0 experiments.
+            if not glob.glob(f"{result_paths['results_base_folder']}/{candidate}/*.bin"):
+                continue
             valid_result_folders.append(candidate)
 
     return valid_result_folders
@@ -484,7 +492,12 @@ def get_result_folder_name(version:str, geodms_paths:dict, MT1:str, MT2:str, MT3
 
 def get_result_paths(geodms_paths:dict, regression_test_paths:dict, version:str, MT1:str, MT2:str, MT3:str) -> dict:
     result_paths = {}
-    result_paths["results_base_folder"] = f"{regression_test_paths["TstDir"]}/Regression/GeoDMSTestResults"
+    # Results tree base. Prefer the configured ResultsBaseDir (full.py sets it
+    # from the RegressionResultsDir setting, default {LocalDataDir}/GeoDMS-Test)
+    # so results live under C:\LocalData, not the source/tst tree. Falls back to
+    # TstDir for callers that don't set it (legacy behavior).
+    result_base = regression_test_paths.get("ResultsBaseDir") or regression_test_paths["TstDir"]
+    result_paths["results_base_folder"] = f"{result_base}/Regression/GeoDMSTestResults"
     result_paths["results_folder"] = f"{result_paths["results_base_folder"]}/{get_result_folder_name(version, geodms_paths, MT1, MT2, MT3)}"
     result_paths["results_log_folder"] = f"{result_paths["results_folder"]}/log"
     return result_paths
