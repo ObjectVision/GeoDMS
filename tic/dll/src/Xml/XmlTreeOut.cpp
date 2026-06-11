@@ -644,13 +644,18 @@ void TraceConfigSource(const TreeItem* self, XML_Table& xmlTable)
 //											ITERFACE FUNCS
 // *****************************************************************************
 
-TIC_CALL void TreeItem_XML_Dump(const TreeItem* self, OutStreamBase* xmlOutStr, bool notWritingDictionary) noexcept
+TIC_CALL void TreeItem_XML_DumpOrThrow(const TreeItem* self, OutStreamBase* xmlOutStr, bool notWritingDictionary)
 {
 	assert(xmlOutStr);
 
 	auto contextSwapper = tmp_swapper{ s_RelativeScope, self };
+	self->XML_Dump(xmlOutStr, notWritingDictionary);
+}
+
+TIC_CALL void TreeItem_XML_Dump(const TreeItem* self, OutStreamBase* xmlOutStr, bool notWritingDictionary) noexcept
+{
 	try {
-		self->XML_Dump(xmlOutStr, notWritingDictionary);
+		TreeItem_XML_DumpOrThrow(self, xmlOutStr, notWritingDictionary);
 	}
 	catch (...)
 	{
@@ -1368,7 +1373,7 @@ void ItemSave(const TreeItem* self, CharPtr fileName, bool copyDir)
 	fout << commentedHeader;
 
 	auto xmlOutStr = XML_OutStream_Create(&fileOut, syntax, "DMS", calcRulePropDefPtr);
-	TreeItem_XML_Dump(self, xmlOutStr.get(), true);
+	TreeItem_XML_DumpOrThrow(self, xmlOutStr.get(), true);
 }
 
 void IncludeFileSave(const TreeItem* self, CharPtr fileName)

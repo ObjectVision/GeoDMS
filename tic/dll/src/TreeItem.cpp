@@ -4257,8 +4257,11 @@ void TreeItem::XML_Dump(OutStreamBase* xmlOutStr, bool notWritingDictionary) con
 	else if (IsUnit(this) && !notWritingDictionary)
 	{
 		auto au = AsUnit(this);
-		if (au->HasVarRange())
+		if (au->HasVarRange() && IsCalculatingOrReady(au->GetCurrRangeItem()))
 		{
+			// when the dictionary is written at OpenForWrite time, the range of this unit may not have been
+			// calculated yet (issue #1130: we can be inside PrepareDataUsage of this very unit);
+			// then skip the Range subtag rather than tripping the IsCalculatingOrReady invariant in WaitReady
 			TreeItemInterestPtr xholder(this);
 			this->PrepareDataUsage(DrlType::Certain);
 
