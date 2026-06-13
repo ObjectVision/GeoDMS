@@ -388,6 +388,7 @@ void MainWindow::updateActionsForNewCurrentItem() {
     m_histogramview_action->setEnabled(histogramEnabled);
     m_scatterview_action->setEnabled(histogramEnabled);
     m_lineview_action->setEnabled(histogramEnabled);
+    m_barview_action->setEnabled(histogramEnabled);
     m_statistics_action->setEnabled(ci ? IsDataItem(ci) : false);
     m_process_schemes_action->setEnabled(true);
     m_update_treeitem_action->setEnabled(true);
@@ -760,38 +761,44 @@ bool MainWindow::event(QEvent* event) {
     return result;
 }
 
-void MainWindow::openConfigSourceDirectly(std::string_view filename, std::string_view line) {
+void MainWindow::openConfigSourceDirectly(std::string_view filename, std::string_view line, std::string_view column) {
     if (filename.empty() || line.empty())
         return;
 
-    std::string filename_dos_style = ConvertDmsFileNameAlways(SharedStr(filename.data())).c_str();
-    QString     qFile  = QString::fromStdString(filename_dos_style);
-    std::string preset = GetGeoDmsRegKey("DmsEditorPreset").c_str();
+    // Normalize the path to forward slashes for %F: editors on Windows accept '/', and it
+    // matches VS Code's canonical document URI so repeated jumps reuse the already-open tab
+    // instead of opening duplicates (the VS-Code-specific fix from #1125, now applied for
+    // every editor rather than special-cased).
+    std::string filename_fwd_style = ConvertDmsFileNameAlways(SharedStr(filename.data())).c_str();
+    for (char& c : filename_fwd_style)
+        if (c == '\\')
+            c = '/';
 
-    // For custom/legacy preset: expand the command template here (needs TreeItem context).
-    std::string expandedCustomCmd;
-    if (preset == "custom" || preset.empty())
-    {
-        std::string command = GetGeoDmsRegKey("DmsEditor").c_str();
-        if (!command.empty())
-        {
-            std::string unexpanded = fillOpenConfigSourceCommand(command, filename_dos_style, std::string(line));
-            const TreeItem* ti = getCurrentTreeItemOrRoot();
-            expandedCustomCmd = ti
-                ? AbstrStorageManager::Expand(ti, SharedStr(unexpanded.c_str())).c_str()
-                : AbstrStorageManager::Expand("", unexpanded.c_str()).c_str();
-        }
-    }
+    // The editor is always launched from the single, user-editable command line stored
+    // under DmsEditor (Application + Parameters); we no longer remember an editor "type".
+    std::string commandTemplate = GetGeoDmsRegKey("DmsEditor").c_str();
+    if (commandTemplate.empty())
+        return;
 
-    startEditorForFile(preset, qFile, line, expandedCustomCmd);
+    // 1. Substitute %F / %L / %C as before #1125, then 2. expand %projDir% and other
+    //    %placeholder% values via AbstrStorageManager::Expand (needs TreeItem context).
+    std::string filled = fillOpenConfigSourceCommand(commandTemplate, filename_fwd_style,
+                                                     std::string(line), std::string(column));
+    const TreeItem* ti = getCurrentTreeItemOrRoot();
+    std::string expandedCmd = ti
+        ? AbstrStorageManager::Expand(ti, SharedStr(filled.c_str())).c_str()
+        : AbstrStorageManager::Expand("", filled.c_str()).c_str();
+
+    launchEditorCommandLine(expandedCmd);
 }
 
 void MainWindow::openConfigSourceFor(const TreeItem* context) {
     if (!context)
         return;
     auto filename = ConvertDmsFileNameAlways(context->GetConfigFileName());
-    std::string line = std::to_string(context->GetConfigFileLineNr());
-    openConfigSourceDirectly(filename.c_str(), line);
+    std::string line   = std::to_string(context->GetConfigFileLineNr());
+    std::string column = std::to_string(context->GetConfigFileColNr());
+    openConfigSourceDirectly(filename.c_str(), line, column);
 }
 
 void MainWindow::openConfigSource() {
@@ -1103,6 +1110,14 @@ void MainWindow::lineChartView() {
         return;
     reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "lineChartView // for item %s", currItem->GetFullName());
     createView(ViewStyle::tvsHistogram, ChartKind::Line);
+}
+
+void MainWindow::barChartView() {
+    auto currItem = getCurrentTreeItem();
+    if (!currItem)
+        return;
+    reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "barChartView // for item %s", currItem->GetFullName());
+    createView(ViewStyle::tvsHistogram, ChartKind::Bar);
 }
 
 void geoDMSContextMessage(ClientHandle clientHandle, CharPtr msg) {
@@ -1554,7 +1569,7 @@ void MainWindow::onInternalLinkClick(const QUrl& link, QWidget* origin) {
         if (realm.size() == 16 && !strnicmp(realm.begin(), "editConfigSource", 16)) {
             auto clicked_error_link = linkStr.substr(17);
             auto parsed_clicked_error_link = getLinkFromErrorMessage(clicked_error_link);
-            MainWindow::TheOne()->openConfigSourceDirectly(parsed_clicked_error_link.filename, parsed_clicked_error_link.line);
+            MainWindow::TheOne()->openConfigSourceDirectly(parsed_clicked_error_link.filename, parsed_clicked_error_link.line, parsed_clicked_error_link.col);
             return;
         }
         if (realm.size() == 9 && !strnicmp(realm.begin(), "clipboard", 9)) {

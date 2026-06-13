@@ -106,8 +106,7 @@ private slots:
     void setLocalDataDirThroughDialog();
     void setSourceDataDirThroughDialog();
     void setEditorProgramThroughDialog();
-    void setDefaultEditorParameters();
-    void onEditorPresetChange(int index);
+    void showEditorDefaultsMenu();
 
 private:
     void setInitialLocalDataDirValue();
@@ -115,7 +114,6 @@ private:
     void setInitialEditorValue();
     void setInitialMemoryFlushTresholdValue();
     void setChanged(bool isChanged);
-    void updateEditorCustomVisibility(bool isCustom);
 
     bool m_changed = false;
     QPointer<QFileDialog> m_folder_dialog;

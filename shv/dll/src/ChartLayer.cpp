@@ -16,6 +16,10 @@
 #include "geo/IsInside.h"
 #include "geo/PointOrder.h"
 #include "mci/Class.h"
+#include "mci/ValueClass.h"
+
+#include <algorithm>
+#include <map>
 
 #include "AbstrDataItem.h"
 #include "AbstrDataObject.h"
@@ -29,6 +33,7 @@
 #include "LayerClass.h"
 #include "LayerSet.h"
 #include "MenuData.h"
+#include "ShvUtils.h"
 #include "Theme.h"
 #include "ThemeReadLocks.h"
 #include "ThemeValueGetter.h"
@@ -60,11 +65,30 @@ void ChartLayer::SetDrawMode(ChartDrawMode m)
 	InvalidateDraw();
 }
 
+static TokenID s_DrawModeID = GetTokenID_st("ChartDrawMode");
+static TokenID s_XAttrID    = GetTokenID_st("XAttr");
+
+void ChartLayer::Sync(TreeItem* viewContext, ShvSyncMode sm)
+{
+	base_type::Sync(viewContext, sm); // GraphicLayer: themes, visibility, show-sel-only
+	SyncRef(m_XAttr, viewContext, s_XAttrID, sm); // persist the chosen X attribute by reference
+	if (sm == SM_Save)
+		SaveValue<UInt32>(viewContext, s_DrawModeID, UInt32(m_DrawMode));
+	else
+	{
+		m_DrawMode = ChartDrawMode(LoadValue<UInt32>(viewContext, s_DrawModeID, UInt32(ChartDrawMode::Points)));
+		// a layer reconstructed from a saved desktop must respect the restored ROI: suppress the
+		// one-shot auto-ZoomAll that a freshly-added layer posts from DoUpdateView.
+		m_ZoomedOnce = true;
+	}
+}
+
 void ChartLayer::SetXAttr(const AbstrDataItem* xAttr)
 {
 	if (m_XAttr.get_ptr() == xAttr)
 		return;
 	m_XAttr = xAttr;
+	m_ZoomPending = true; // the world extent changes with X; re-fit once the new geometry is ready
 	InvalidateView(); // geometry depends on X
 	InvalidateDraw();
 }
@@ -105,9 +129,46 @@ void ChartLayer::FillLcMenu(MenuData& menuData)
 			, m_DrawMode == ChartDrawMode::Line ? MF_CHECKED : 0));
 		menuData.push_back(MenuItem(SharedStr("Points + Line"), make_MembFuncCmd(&ChartLayer::SetDrawModePointsAndLine), this
 			, m_DrawMode == ChartDrawMode::PointsAndLine ? MF_CHECKED : 0));
+		menuData.push_back(MenuItem(SharedStr("Bars"), make_MembFuncCmd(&ChartLayer::SetDrawModeBars), this
+			, m_DrawMode == ChartDrawMode::Bars ? MF_CHECKED : 0));
 	}
 
+	AddXAxisMenu(menuData); // "Use as X axis ..." picker
+
 	base_type::FillLcMenu(menuData); // Classify... + Activate, from GraphicLayer
+}
+
+void ChartLayer::AddXAxisMenu(MenuData& menuData)
+{
+	auto theme = GetActiveTheme();
+	const AbstrDataItem* yAttr = theme ? theme->GetThemeAttr() : nullptr;
+	if (!yAttr)
+		return;
+	const AbstrUnit* domain = yAttr->GetAbstrDomainUnit(); // the entity domain E
+
+	SubMenu subMenu(menuData, SharedStr("Use as X axis ..."));
+
+	// default: the element's row number (id of E)
+	menuData.push_back(MenuItem(SharedStr("Row number (default)")
+		, make_MembFuncCmd(&ChartLayer::SetXAttr, static_cast<const AbstrDataItem*>(nullptr)), this
+		, m_XAttr.is_null() ? MF_CHECKED : 0));
+
+	// candidate X axes: sibling attributes of Y that share E as their domain
+	auto container = yAttr->GetTreeParent();
+	if (container)
+	{
+		for (auto subItem = container->GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
+		{
+			auto candidate = AsDynamicDataItem(subItem);
+			if (!candidate || candidate == yAttr)
+				continue;
+			if (candidate->GetAbstrDomainUnit() != domain)
+				continue;
+			menuData.push_back(MenuItem(SharedStr(candidate->GetName())
+				, make_MembFuncCmd(&ChartLayer::SetXAttr, static_cast<const AbstrDataItem*>(candidate)), this
+				, m_XAttr.get_ptr() == candidate ? MF_CHECKED : 0));
+		}
+	}
 }
 
 void ChartLayer::DoUpdateView()
@@ -160,6 +221,10 @@ void ChartLayer::DoUpdateView()
 	if (xData)
 		MakeMin(n, xData->GetTiledRangeData()->GetElemCount());
 
+	// A non-numeric X attribute (e.g. a string or relation) is laid out categorically:
+	// distinct values map to consecutive ordinals 0,1,2,… and feed the axis tick labels.
+	bool xIsCategorical = xAttr && !xAttr->GetAbstrValuesUnit()->GetValueType()->IsNumeric();
+
 	auto vg = theme->GetValueGetter(); // per-element classification, for colour; may be null
 	const AbstrThemeValueGetter* paletteGetter = vg ? vg->CreatePaletteGetter() : nullptr;
 
@@ -170,12 +235,32 @@ void ChartLayer::DoUpdateView()
 	m_Points.resize(n);
 	m_PointColors.assign(n, s_DefaultPointColor);
 	m_Selected.assign(n, false);
+	m_XAxisLabels.clear();
+
+	// categorical ordinal assignment, in order of first appearance
+	std::map<SharedStr, CrdType> categoryOrdinals;
+	GuiReadLock categoryLock;
 
 	bool any = false;
 	Float64 minX = 0, maxX = 0, minY = 0, maxY = 0; // origin anchored at (0,0)
 	for (SizeT e = 0; e != n; ++e)
 	{
-		Float64 x = xData ? xData->GetValueAsFloat64(e) : Float64(e);
+		Float64 x;
+		if (xIsCategorical)
+		{
+			SharedStr label = xData->AsString(e, categoryLock, FormattingFlags::None);
+			auto it = categoryOrdinals.find(label);
+			if (it == categoryOrdinals.end())
+			{
+				CrdType ordinal = CrdType(categoryOrdinals.size());
+				it = categoryOrdinals.emplace(label, ordinal).first;
+				m_XAxisLabels.emplace_back(ordinal, label);
+			}
+			x = it->second;
+		}
+		else
+			x = xData ? xData->GetValueAsFloat64(e) : Float64(e);
+
 		Float64 y = yData->GetValueAsFloat64(e);
 		m_Points[e] = shp2dms_order<CrdType>(x, y); // X=col, Y=row
 		if (IsDefined(x) && IsDefined(y))
@@ -190,20 +275,45 @@ void ChartLayer::DoUpdateView()
 	}
 	m_Ready = true;
 
-	// anchor origin at (0,0): the value axis only extends below zero when the data does
+	// bar geometry: 0.4× the smallest gap between distinct X positions is the slot half-width
+	// (so adjacent slots nearly touch); categorical/row-number X have unit spacing.
+	CrdType slotHalf = 0.4;
+	{
+		CrdType minGap = 1.0;
+		if (!xIsCategorical && xData && n >= 2)
+		{
+			std::vector<CrdType> xs(n);
+			for (SizeT e = 0; e != n; ++e) xs[e] = m_Points[e].X();
+			std::sort(xs.begin(), xs.end());
+			bool gapFound = false;
+			for (SizeT e = 1; e != n; ++e)
+			{
+				CrdType g = xs[e] - xs[e - 1];
+				if (g > 0 && (!gapFound || g < minGap)) { minGap = g; gapFound = true; }
+			}
+		}
+		slotHalf = 0.4 * minGap;
+	}
+	m_BarSlotHalf = slotHalf; // per-bar offset/width derived from this at draw time (sees the live bar-layer set)
+
+	// anchor origin at (0,0): the value axis only extends below zero when the data does.
+	// Pad the X-extent by a slot half-width so the outermost bars are not clipped.
+	CrdType xPad = (m_DrawMode == ChartDrawMode::Bars) ? slotHalf : 0.0;
 	SetWorldClientRect(CrdRect(
-		shp2dms_order<CrdType>(Min<CrdType>(0.0, minX), Min<CrdType>(0.0, minY)),
-		shp2dms_order<CrdType>(maxX, maxY)
+		shp2dms_order<CrdType>(Min<CrdType>(0.0, minX) - xPad, Min<CrdType>(0.0, minY)),
+		shp2dms_order<CrdType>(maxX + xPad, maxY)
 	));
 
-	if (!m_ZoomedOnce)
+	if (!m_ZoomedOnce || m_ZoomPending)
 	{
+		bool forceZoom = m_ZoomPending; // an explicit X-axis change re-fits regardless of layer count
 		m_ZoomedOnce = true;
+		m_ZoomPending = false;
 		auto dv = GetDataView().lock();
 		auto vp = GetViewPort();
 		auto ls = GetLayerSet().lock();
-		// only an initial solitary layer adopts the view (see HistogramLayer)
-		if (dv && vp && ls && ls->NrEntries() == 1)
+		// an initial solitary layer adopts the view (see HistogramLayer); an X-axis change always re-fits
+		if (dv && vp && ls && (forceZoom || ls->NrEntries() == 1))
 			dv->PostGuiOper(
 				[wvp = std::weak_ptr<GraphicObject>(vp->weak_from_this())]()
 				{
@@ -225,6 +335,55 @@ bool ChartLayer::Draw(GraphDrawer& d) const
 	DmsColor selColor = COLORREF2DmsColor(GetSelectedClr());
 
 	auto toDev = [&w2d](CrdPoint wp) -> GPoint { return CrdPoint2GPoint(w2d.Apply(wp)); };
+
+	// vertical bars: one filled rect per element, from y=0 to y=value, centred at x
+	if (m_DrawMode == ChartDrawMode::Bars)
+	{
+		// place this layer's bars side-by-side among the bar-mode sibling layers (computed here, at
+		// draw time, so adding/removing a bar layer re-groups every layer on the next repaint).
+		SizeT barCount = 1, barIndex = 0;
+		{
+			std::vector<const ChartLayer*> barLayers;
+			if (auto ls = const_cast<ChartLayer*>(this)->GetLayerSet().lock())
+				for (gr_elem_index i = 0, ne = ls->NrEntries(); i != ne; ++i)
+					if (auto* cl = dynamic_cast<const ChartLayer*>(ls->GetEntry(i)))
+						if (cl->GetDrawMode() == ChartDrawMode::Bars)
+							barLayers.push_back(cl);
+			if (!barLayers.empty())
+			{
+				barCount = barLayers.size();
+				for (SizeT k = 0; k != barCount; ++k)
+					if (barLayers[k] == this) barIndex = k;
+			}
+		}
+		CrdType subFull   = (2.0 * m_BarSlotHalf) / CrdType(barCount);
+		CrdType halfWidth = 0.45 * subFull; // a small gap between grouped bars
+		CrdType groupOfs  = (CrdType(barIndex) - CrdType(barCount - 1) / 2.0) * subFull;
+
+		DmsColor frameColor = CombineRGB(64, 64, 64);
+		for (SizeT e = 0, n = m_Points.size(); e != n; ++e)
+		{
+			if (showSelOnly && !m_Selected[e])
+				continue;
+			CrdType x = m_Points[e].X() + groupOfs, y = m_Points[e].Y(); // X=col(+group shift), Y=row(value)
+			CrdRect barWorld(
+				shp2dms_order<CrdType>(x - halfWidth, Min<CrdType>(0.0, y)),
+				shp2dms_order<CrdType>(x + halfWidth, Max<CrdType>(0.0, y))
+			);
+			w2d.InplApply(barWorld);
+			GRect bar = CrdRect2GRect(barWorld);
+			dc->FillRect(bar, m_Selected[e] ? selColor : m_PointColors[e]);
+			if (bar.right - bar.left >= 3) // outline only when wide enough to read
+			{
+				GPoint outline[5] = {
+					GPoint(bar.left, bar.top), GPoint(bar.right-1, bar.top),
+					GPoint(bar.right-1, bar.bottom-1), GPoint(bar.left, bar.bottom-1), GPoint(bar.left, bar.top)
+				};
+				dc->DrawPolyline(outline, 5, frameColor, 1);
+			}
+		}
+		return false;
+	}
 
 	// connecting polyline (in element/row order)
 	if ((m_DrawMode == ChartDrawMode::Line || m_DrawMode == ChartDrawMode::PointsAndLine) && m_Points.size() >= 2)

@@ -47,6 +47,13 @@ const AbstrUnit* HistogramLayer::GetGeoCrdUnit() const
 	return vp->GetWorldCrdUnit(); // the synthetic chart-space unit
 }
 
+void HistogramLayer::Sync(TreeItem* viewContext, ShvSyncMode sm)
+{
+	base_type::Sync(viewContext, sm);
+	if (sm == SM_Load)
+		m_ZoomedOnce = true; // reconstructed from a saved desktop: keep the restored ROI, don't auto-zoom
+}
+
 bool HistogramLayer::OnCommand(ToolButtonID id)
 {
 	switch (id)
