@@ -21,6 +21,14 @@ way the solution/presets don't define.
 - **No improvised setup.** vcpkg is auto-provisioned by `tools/ensure-vcpkg.ps1` (msbuild
   hook) and `tools/vcpkg-toolchain.cmake` (CMake). Never manually `git clone` / bootstrap
   vcpkg or run `vcpkg install` by hand.
+- **The vcpkg MSBuild integration is project-local — never run `vcpkg integrate install`.**
+  `Directory.Build.props` (props, early) and `Directory.Build.targets` (targets, late) import
+  vcpkg's `vcpkg.props`/`vcpkg.targets` from the in-repo `./vcpkg` submodule via `$(VcpkgRoot)`.
+  If MSBuild stops seeing vcpkg include/lib paths ("Cannot open `boost/format.hpp`", unresolved
+  `boost_locale`, …), do **not** "fix" it with `vcpkg integrate install` — that reintroduces a
+  machine-wide dependency that silently breaks when the registered Visual Studio is uninstalled
+  (the original failure). Instead check those two imports and that `./vcpkg/vcpkg.exe` is
+  bootstrapped. CMake is already self-contained via `tools/vcpkg-toolchain.cmake`.
 - **Do not change the toolset/triplet.** Compiler is pinned to MSVC **14.50.35717**
   (`Directory.Build.props` `VCToolsVersion`; triplet `x64-windows-v145`) — 14.51 miscompiles
   geos.
