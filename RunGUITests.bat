@@ -4,7 +4,12 @@ setlocal
 set "geodms_rootdir=%~dp0"
 if "%geodms_rootdir:~-1%"=="\" set "geodms_rootdir=%geodms_rootdir:~0,-1%"
 set TstDir=C:\dev\tst
-set LocalDataDir=C:\Users\MaartenHilferink\Objectvision\Object Vision - General\LocalData
+REM LocalDataDir: read the GeoDMS "Local Machine" setting from the registry (the same
+REM value GeoDmsGuiQt/GeoDmsRun use), so test results land where the exe reads/writes.
+REM Fall back to the GeoDMS default C:\LocalData if the key is unset.
+set "LocalDataDir="
+for /f "tokens=2,*" %%a in ('reg query "HKCU\Software\ObjectVision\%COMPUTERNAME%\GeoDMS" /v LocalDataDir 2^>nul ^| find "LocalDataDir"') do set "LocalDataDir=%%b"
+if not defined LocalDataDir set "LocalDataDir=C:\LocalData"
 set ResultDir=%LocalDataDir%\GeoDMSTestResults
 set ResultFileName=%ResultDir%\unit\gui_test_run.txt
 
