@@ -275,8 +275,9 @@ void ChartLayer::DoUpdateView()
 	}
 	m_Ready = true;
 
-	// bar half-width: 0.4× the smallest gap between distinct X positions (so adjacent bars
-	// nearly touch without overlapping); categorical/row-number X have unit spacing.
+	// bar geometry: 0.4× the smallest gap between distinct X positions is the slot half-width
+	// (so adjacent slots nearly touch); categorical/row-number X have unit spacing.
+	CrdType slotHalf = 0.4;
 	{
 		CrdType minGap = 1.0;
 		if (!xIsCategorical && xData && n >= 2)
@@ -291,12 +292,13 @@ void ChartLayer::DoUpdateView()
 				if (g > 0 && (!gapFound || g < minGap)) { minGap = g; gapFound = true; }
 			}
 		}
-		m_BarHalfWidth = 0.4 * minGap;
+		slotHalf = 0.4 * minGap;
 	}
+	m_BarSlotHalf = slotHalf; // per-bar offset/width derived from this at draw time (sees the live bar-layer set)
 
 	// anchor origin at (0,0): the value axis only extends below zero when the data does.
-	// Pad the X-extent by a bar half-width so the outermost bars are not clipped.
-	CrdType xPad = (m_DrawMode == ChartDrawMode::Bars) ? m_BarHalfWidth : 0.0;
+	// Pad the X-extent by a slot half-width so the outermost bars are not clipped.
+	CrdType xPad = (m_DrawMode == ChartDrawMode::Bars) ? slotHalf : 0.0;
 	SetWorldClientRect(CrdRect(
 		shp2dms_order<CrdType>(Min<CrdType>(0.0, minX) - xPad, Min<CrdType>(0.0, minY)),
 		shp2dms_order<CrdType>(maxX + xPad, maxY)
@@ -337,15 +339,36 @@ bool ChartLayer::Draw(GraphDrawer& d) const
 	// vertical bars: one filled rect per element, from y=0 to y=value, centred at x
 	if (m_DrawMode == ChartDrawMode::Bars)
 	{
+		// place this layer's bars side-by-side among the bar-mode sibling layers (computed here, at
+		// draw time, so adding/removing a bar layer re-groups every layer on the next repaint).
+		SizeT barCount = 1, barIndex = 0;
+		{
+			std::vector<const ChartLayer*> barLayers;
+			if (auto ls = const_cast<ChartLayer*>(this)->GetLayerSet().lock())
+				for (gr_elem_index i = 0, ne = ls->NrEntries(); i != ne; ++i)
+					if (auto* cl = dynamic_cast<const ChartLayer*>(ls->GetEntry(i)))
+						if (cl->GetDrawMode() == ChartDrawMode::Bars)
+							barLayers.push_back(cl);
+			if (!barLayers.empty())
+			{
+				barCount = barLayers.size();
+				for (SizeT k = 0; k != barCount; ++k)
+					if (barLayers[k] == this) barIndex = k;
+			}
+		}
+		CrdType subFull   = (2.0 * m_BarSlotHalf) / CrdType(barCount);
+		CrdType halfWidth = 0.45 * subFull; // a small gap between grouped bars
+		CrdType groupOfs  = (CrdType(barIndex) - CrdType(barCount - 1) / 2.0) * subFull;
+
 		DmsColor frameColor = CombineRGB(64, 64, 64);
 		for (SizeT e = 0, n = m_Points.size(); e != n; ++e)
 		{
 			if (showSelOnly && !m_Selected[e])
 				continue;
-			CrdType x = m_Points[e].X(), y = m_Points[e].Y(); // X=col, Y=row(value)
+			CrdType x = m_Points[e].X() + groupOfs, y = m_Points[e].Y(); // X=col(+group shift), Y=row(value)
 			CrdRect barWorld(
-				shp2dms_order<CrdType>(x - m_BarHalfWidth, Min<CrdType>(0.0, y)),
-				shp2dms_order<CrdType>(x + m_BarHalfWidth, Max<CrdType>(0.0, y))
+				shp2dms_order<CrdType>(x - halfWidth, Min<CrdType>(0.0, y)),
+				shp2dms_order<CrdType>(x + halfWidth, Max<CrdType>(0.0, y))
 			);
 			w2d.InplApply(barWorld);
 			GRect bar = CrdRect2GRect(barWorld);

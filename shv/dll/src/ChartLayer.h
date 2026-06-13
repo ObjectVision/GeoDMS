@@ -95,7 +95,7 @@ private:
 	mutable std::vector<CrdPoint> m_Points;
 	mutable std::vector<DmsColor> m_PointColors;
 	mutable std::vector<bool>     m_Selected;
-	mutable CrdType               m_BarHalfWidth = 0.4; // world half-width for Bars mode
+	mutable CrdType               m_BarSlotHalf = 0.4; // world half-width of a per-element bar slot (shared by sibling bar layers)
 	// categorical X: tick labels at ordinal positions (empty => numeric X axis)
 	mutable std::vector<std::pair<CrdType, SharedStr>> m_XAxisLabels;
 	mutable bool m_Ready = false;
