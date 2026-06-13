@@ -9,7 +9,7 @@ REM
 REM Sister script of BuildSignAndCreateSetup.bat (m flavor, msbuild) and
 REM BuildSignAndCreateSetupLinux.bat (l flavor, WSL).
 REM
-REM Run from the repo root:  C:\dev\GeoDMS_2026>BuildSignAndCreateSetupCmake.bat
+REM Run from the repo root:  <repo-root>>BuildSignAndCreateSetupCmake.bat
 
 cls
 

@@ -33,7 +33,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-$CurExe = "C:\dev\GeoDMS26\bin\$CurFlavor\x64\GeoDmsGuiQt.exe"
+$CurExe = Join-Path $PSScriptRoot "bin\$CurFlavor\x64\GeoDmsGuiQt.exe"
 
 # Commands that exist in the current source but NOT in the 19.2.0 parser.
 # When running against a legacy exe we strip these from the dmsscript before launch

@@ -16,7 +16,7 @@
   .vs, .git, and this LOC folder itself).
 
 .EXAMPLE
-  powershell -File C:\dev\GeoDMS26\LOC\count-loc.ps1
+  powershell -File <repo-root>\LOC\count-loc.ps1
   # writes LOC\loc-<yyyy-MM-dd>.md and prints the table.
 
 .PARAMETER Root
@@ -111,7 +111,7 @@ $cppSLOC  = [int]($cppRows | Measure-Object SLOC  -Sum).Sum
 $date = Get-Date -Format 'yyyy-MM-dd'
 $nl = [Environment]::NewLine
 $lines = New-Object System.Collections.Generic.List[string]
-$lines.Add("# GeoDMS26 - Lines of Code")
+$lines.Add("# $(Split-Path -Leaf $Root) - Lines of Code")
 $lines.Add("")
 $lines.Add("_Generated: $date_")
 $lines.Add("_Workspace: $Root (excludes vcpkg trees, bin/obj/build, .vs, .git, LOC)_")

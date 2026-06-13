@@ -35,7 +35,7 @@ Community installation:
 
 vcpkg packages are pre-installed under `vcpkg_installed/` at the repo root
 (triplet `x64-windows-v145`). Point CMake at this dir via
-`-DVCPKG_INSTALLED_DIR=C:/dev/GeoDMS_2026/vcpkg_installed`.
+`-DVCPKG_INSTALLED_DIR=<repo-root>/vcpkg_installed`.
 
 Qt6 is at `C:/Qt/6.9.0/msvc2022_64/` — pass as `CMAKE_PREFIX_PATH`.
 
@@ -50,7 +50,7 @@ CMAKE='/c/Program Files/Microsoft Visual Studio/18/Community/Common7/IDE/CommonE
 TOOLCHAIN='C:/Program Files/Microsoft Visual Studio/18/Community/VC/vcpkg/scripts/buildsystems/vcpkg.cmake'
 "$CMAKE" --preset windows-x64-release \
   -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN" \
-  -DVCPKG_INSTALLED_DIR="C:/dev/GeoDMS_2026/vcpkg_installed" \
+  -DVCPKG_INSTALLED_DIR="$(pwd)/vcpkg_installed" \
   -DCMAKE_PREFIX_PATH="C:/Qt/6.9.0/msvc2022_64"
 ```
 

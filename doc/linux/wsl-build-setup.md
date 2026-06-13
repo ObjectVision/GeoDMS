@@ -6,9 +6,9 @@ display, against the shared Windows source tree.
 
 ## Source location — shared, not duplicated
 
-The Windows source tree at `C:\dev\GeoDMS_2026` is shared with WSL at
-`/mnt/c/dev/GeoDMS_2026`. There is **no** separate Linux checkout — both
-platforms build from the same files.
+The Windows source tree (your checkout, e.g. `C:\dev\GeoDMS26`) is shared with WSL
+at the corresponding `/mnt/<drive>/...` path (e.g. `/mnt/c/dev/GeoDMS26`). There is
+**no** separate Linux checkout — both platforms build from the same files.
 
 Build outputs land in `build/linux-x64-{debug,release}/` and
 `build/windows-x64-{debug,release}/` respectively, side-by-side under the
@@ -27,7 +27,7 @@ same repo root, accessible from both Windows and WSL.
 Typical build invocation from a WSL2 bash shell:
 
 ```sh
-cd /mnt/c/dev/GeoDMS_2026
+cd /mnt/c/dev/<your-checkout>      # WSL view of your Windows repo root
 cmake --preset linux-x64-debug
 cmake --build --preset linux-x64-debug
 ```

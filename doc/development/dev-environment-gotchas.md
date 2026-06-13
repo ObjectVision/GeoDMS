@@ -22,7 +22,7 @@ those scripts.
 
 ```powershell
 $env:NoDefaultCurrentDirectoryInExePath = $null
-cd C:\dev\GeoDMS_2026
+cd <repo-root>
 & cmd.exe /c .\TestDebugUnit.bat
 ```
 

@@ -1,7 +1,8 @@
 @echo off
 setlocal
 
-set geodms_rootdir=C:\dev\GeoDMS_2026
+set "geodms_rootdir=%~dp0"
+if "%geodms_rootdir:~-1%"=="\" set "geodms_rootdir=%geodms_rootdir:~0,-1%"
 set TstDir=C:\dev\tst
 set LocalDataDir=C:\Users\MaartenHilferink\Objectvision\Object Vision - General\LocalData
 set ResultDir=%LocalDataDir%\GeoDMSTestResults
