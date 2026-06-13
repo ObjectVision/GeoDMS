@@ -105,13 +105,15 @@ void DmsToolbuttonAction::onToolbuttonPressed() {
 
     updateState();
 
-    if (m_data.is_global) // ie. zoom-in and zoom-out are mutually exclusive
-        onGlobalButtonPressed(dms_view_area);
-
-    if (m_data.ids[0] == ToolButtonID::TB_Export)
-        onExportButtonPressed(dms_view_area);
-
     try {
+        // onGlobalButtonPressed / onExportButtonPressed call into the DataView (OnCommand,
+        // GetExportInfo, GetViewType) and can throw — keep them inside the guard.
+        if (m_data.is_global) // ie. zoom-in and zoom-out are mutually exclusive
+            onGlobalButtonPressed(dms_view_area);
+
+        if (m_data.ids[0] == ToolButtonID::TB_Export)
+            onExportButtonPressed(dms_view_area);
+
         SuspendTrigger::Resume();
         if (auto dv = dms_view_area->getDataView())
             dv->GetContents()->OnCommand(m_data.ids[m_state]);
@@ -156,6 +158,13 @@ auto getAvailableMapviewButtonIds() -> std::vector<ToolButtonID> {
              TB_ZoomAllLayers, TB_ZoomActiveLayer, TB_Pan, TB_ZoomIn2, TB_ZoomOut2, TB_Undefined,
              TB_ZoomSelectedObj,TB_SelectObject,TB_SelectRect,TB_SelectCircle,TB_SelectPolygon,TB_SelectDistrict,TB_SelectAll,TB_SelectNone,TB_ShowSelOnlyOn, TB_Undefined,
              TB_Show_VP,TB_SP_All,TB_NeedleOn,TB_ScaleBarOn };
+}
+
+auto getAvailableChartviewButtonIds() -> std::vector<ToolButtonID> {
+    return { TB_CopyLC, TB_Copy, TB_Undefined,
+             TB_ZoomAllLayers, TB_ZoomActiveLayer, TB_Pan, TB_ZoomIn2, TB_ZoomOut2, TB_Undefined,
+             TB_ZoomSelectedObj,TB_SelectObject,TB_SelectRect,TB_SelectCircle,TB_SelectPolygon,TB_SelectAll,TB_SelectNone,TB_ShowSelOnlyOn, TB_Undefined,
+             TB_Show_VP,TB_SP_All };
 }
 
 auto getToolbarButtonData(ToolButtonID button_id) -> ToolbarButtonData {
@@ -221,7 +230,8 @@ void updateDmsToolbar() {
         // disable/enable coordinate tool
         auto is_mapview = view_style == ViewStyle::tvsMapView;
         auto is_tableview = view_style == ViewStyle::tvsTableView;
-        main_window->m_statusbar_coordinates->setVisible(is_mapview || is_tableview);
+        auto is_chartview = view_style == ViewStyle::tvsHistogram;
+        main_window->m_statusbar_coordinates->setVisible(is_mapview || is_tableview || is_chartview);
         clearToolbarUpToDetailPagesTools();
 
         if (view_style == ViewStyle::tvsUndefined) // No tools for undefined viewstyle
@@ -229,12 +239,14 @@ void updateDmsToolbar() {
 
         static std::vector<ToolButtonID> available_table_buttons = getAvailableTableviewButtonIds();
         static std::vector<ToolButtonID> available_map_buttons = getAvailableMapviewButtonIds();
+        static std::vector<ToolButtonID> available_chart_buttons = getAvailableChartviewButtonIds();
 
         std::vector<ToolButtonID>* buttons_array_ptr = nullptr;
 
         switch (view_style) {
         case ViewStyle::tvsTableView: buttons_array_ptr = &available_table_buttons; break;
         case ViewStyle::tvsMapView:   buttons_array_ptr = &available_map_buttons; break;
+        case ViewStyle::tvsHistogram: buttons_array_ptr = &available_chart_buttons; break;
         }
         if (buttons_array_ptr == nullptr)
             return;

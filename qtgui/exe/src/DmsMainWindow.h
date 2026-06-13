@@ -180,6 +180,7 @@ public slots:
     void defaultView();
     void tableView();
     void mapView();
+    void histogramChartView();
     void openConfigSource();
     void openConfigRootSource();
     void exportPrimaryData();
@@ -288,7 +289,7 @@ public:
 		, m_step_to_failreason_action, m_go_to_causa_prima_action, m_edit_config_source_action, m_find_treeitem_action
         , m_update_treeitem_action, m_update_subtree_action, m_invalidate_action
         , m_defaultview_action, m_tableview_action, m_mapview_action, m_statistics_action
-        //    , m_histogramview_action
+        , m_histogramview_action
         , m_process_schemes_action, m_view_calculation_times_action, m_view_current_config_filelist, m_open_root_config_file_action, m_expand_all_action, m_save_value_info_pages
         , m_toggle_treeview_action, m_toggle_detailpage_action, m_toggle_eventlog_action, m_toggle_toolbar_action, m_toggle_currentitembar_action
         , m_gui_options_action, m_advanced_options_action, m_config_options_action

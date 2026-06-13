@@ -127,19 +127,28 @@ QModelIndex DmsModel::index(int row, int column, const QModelIndex& parent) cons
 	if (!hasIndex(row, column, parent))
 		return QModelIndex();
 
-	auto ti = GetTreeItemOrRoot(parent);
-	assert(ti);
+	// index() runs during Qt view layout/painting; a thrown DmsException must not
+	// propagate into Qt's event dispatch. catchAndReportException() is safe here:
+	// reportD posts the event-log update to the main-thread oper queue (it is not
+	// dispatched synchronously at this call site), so it cannot re-enter painting.
+	try {
+		auto ti = GetTreeItemOrRoot(parent);
+		assert(ti);
 
-	int currRow = 0;
-	for (ti = ti->_GetFirstSubItem(); ti; ti = ti->GetNextItem()) {
-		if (show_hidden_items || !ti->GetTSF(TSF_IsHidden)) {
-			if (currRow == row)
-				return createIndex(row, column, ti);
-			++currRow;
+		int currRow = 0;
+		for (ti = ti->_GetFirstSubItem(); ti; ti = ti->GetNextItem()) {
+			if (show_hidden_items || !ti->GetTSF(TSF_IsHidden)) {
+				if (currRow == row)
+					return createIndex(row, column, ti);
+				++currRow;
+			}
 		}
-	}
 
-	reportF(MsgCategory::other, SeverityTypeID::ST_FatalError, "Invalid row at DmsModel::index");
+		reportF(MsgCategory::other, SeverityTypeID::ST_FatalError, "Invalid row at DmsModel::index");
+	}
+	catch (...) {
+		catchAndReportException();
+	}
 	return QModelIndex();
 }
 
@@ -147,13 +156,21 @@ QModelIndex DmsModel::parent(const QModelIndex& child) const {
 	if (!child.isValid())
 		return QModelIndex();
 
-	auto ti = GetTreeItem(child);
-	assert(ti);
-	auto parent = ti->GetTreeParent();
-	if (!parent)
-		return{};
+	// parent() runs during Qt view layout/painting; report-and-continue is safe because
+	// reportD posts the event-log update to the main-thread oper queue — see DmsModel::index.
+	try {
+		auto ti = GetTreeItem(child);
+		assert(ti);
+		auto parent = ti->GetTreeParent();
+		if (!parent)
+			return{};
 
-	return createIndex(GetRow(parent.get()), 0, parent.get());
+		return createIndex(GetRow(parent.get()), 0, parent.get());
+	}
+	catch (...) {
+		catchAndReportException();
+	}
+	return QModelIndex();
 }
 
 int DmsModel::rowCount(const QModelIndex& parent) const {

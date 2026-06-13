@@ -131,10 +131,13 @@ void createDmsActions() {
     main_window->connect(main_window->m_statistics_action.get(), &QAction::triggered, main_window, &MainWindow::showStatistics);
     main_window->m_view_menu->addAction(main_window->m_statistics_action.get());
 
-    // histogram view
-//    m_histogramview_action = std::make_unique<QAction>(tr("&Histogram View"));
-//    m_histogramview_action->setShortcut(QKeySequence(tr("Ctrl+H")));
-    //connect(m_histogramview_action.get(), &QAction::triggered, this, & #TODO);
+    // histogram chart view (issue #75)
+    main_window->m_histogramview_action = std::make_unique<QAction>(QObject::tr("Create &Histogram Chart"));
+    main_window->m_histogramview_action->setStatusTip(QObject::tr("Open a chart with a histogram of the current selected TreeItem's (classified) values."));
+    main_window->m_histogramview_action->setIcon(main_window->getIconFromViewstyle(ViewStyle::tvsHistogram));
+    main_window->connect(main_window->m_histogramview_action.get(), &QAction::triggered, main_window, &MainWindow::histogramChartView);
+    main_window->m_view_menu->addAction(main_window->m_histogramview_action.get());
+    main_window->m_histogramview_action->setShortcut(QKeySequence(QObject::tr("Ctrl+H")));
 
     // process schemes
     main_window->m_process_schemes_action = std::make_unique<QAction>(QObject::tr("&Process Schemes"));

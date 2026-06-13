@@ -17,6 +17,7 @@
 #include "ShvBase.h"
 
 #include "ExportInfo.h"
+#include "ShvSignal.h"
 #include "Wrapper.h"
 
 class NeedleCaret;
@@ -107,6 +108,16 @@ public:
   	void        SetROI(const CrdRect& r);
 	CrdRect     GetROI() const;
 	OrientationType Orientation() const;
+	void SetOrientation(OrientationType orientation) { m_Orientation = orientation; }
+
+	// FitMode::Stretch scales x and y independently so the ROI fills the client rect (charts);
+	// default Isotropic letterboxes (maps). See rtc/geo/Transform.h.
+	void    SetFitMode(FitMode fm) { m_FitMode = fm; }
+	FitMode GetFitMode() const     { return m_FitMode; }
+
+	// Lower bound for SanitizeRoi's minimum ROI size, in world units. Charts plot value ranges
+	// that can be far smaller than the 10-units-or-ViewPortMinSize default that suits geographic maps.
+	void SetMinRoiSize(CrdType minSize) { m_MinRoiSize = minSize; }
 	const AbstrDataItem* GetRoiTlParam() const { return m_ROI_TL;}
 	const AbstrDataItem* GetRoiBrParam() const { return m_ROI_BR;}
 
@@ -151,6 +162,8 @@ public:
 	WeakPtr<RoiTracker> m_Tracker;
 	auto FindBackgroundWmsLayer() -> WmsLayer*;
 
+	CmdSignal m_cmdTransformChanged; // fired by DoUpdateView when m_w2vTr changed; observed by chart AxisControls
+
 private:
 	// Override virtuals of GraphicObject
 	void DoUpdateView() override;
@@ -170,6 +183,8 @@ private:
 	mutable SharedMutableDataItemInterestPtr   m_ROI_TL;   // AOI in world coordinates (TopLeft)
 	mutable SharedMutableDataItemInterestPtr   m_ROI_BR;   // AOI in world coordinates (BottomRight)
 	OrientationType            m_Orientation;
+	FitMode                    m_FitMode = FitMode::Isotropic;
+	CrdType                    m_MinRoiSize = -1.0; // <= 0: use SanitizeRoi's geographic default
 	CrdRect                    m_ROI;
 	CrdTransformation          m_w2vTr;
 	GPoint                     m_BrushOrg;

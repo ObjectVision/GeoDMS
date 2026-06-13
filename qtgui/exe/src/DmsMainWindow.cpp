@@ -21,6 +21,9 @@
 
 #include "DataView.h"
 #include "TreeItem.h"
+#include "AbstrDataItem.h"
+#include "AbstrUnit.h"
+#include "mci/ValueClass.h"
 #include "SessionData.h"
 
 #include "ClcInterface.h"
@@ -372,6 +375,17 @@ void MainWindow::updateActionsForNewCurrentItem() {
     m_defaultview_action->setEnabled(viewstyle_flags & (ViewStyleFlags::vsfDefault | ViewStyleFlags::vsfTableView | ViewStyleFlags::vsfTableContainer | ViewStyleFlags::vsfMapView)); // TODO: vsfDefault appears to never be set
     m_tableview_action->setEnabled(viewstyle_flags & (ViewStyleFlags::vsfTableView | ViewStyleFlags::vsfTableContainer));
     m_mapview_action->setEnabled(viewstyle_flags & ViewStyleFlags::vsfMapView);
+    // accessing the values unit / value type can throw on a failed item; this slot runs on
+    // every current-item change, so guard rather than let it escape into Qt.
+    bool histogramEnabled = false;
+    try {
+        histogramEnabled = ci && IsDataItem(ci) && !AsDataItem(ci)->HasVoidDomainGuarantee()
+            && AsDataItem(ci)->GetAbstrValuesUnit()->GetValueType()->IsNumericOrBool();
+    }
+    catch (...) {
+        catchException(false); // swallow: don't enable the action, don't disrupt the UI update
+    }
+    m_histogramview_action->setEnabled(histogramEnabled);
     m_statistics_action->setEnabled(ci ? IsDataItem(ci) : false);
     m_process_schemes_action->setEnabled(true);
     m_update_treeitem_action->setEnabled(true);
@@ -409,40 +423,48 @@ void MainWindow::setCurrentTreeItem(TreeItem* target_item, bool update_history)
     if (!target_item)
         return;
 
-    MG_CHECK(!m_root || !target_item || isAncestor(m_root.get(), target_item));
-    if (target_item && !m_dms_model->show_hidden_items) {
-        if (target_item->GetTSF(TSF_InHidden)) {
-            const TreeItem* visible_parent = target_item;
-            while (visible_parent && visible_parent->GetTSF(TSF_InHidden))
-                visible_parent = visible_parent->GetTreeParent().get();
-            reportF(MsgCategory::other, SeverityTypeID::ST_Warning, "cannnot set '%1%' as Current Item, as it is a hidden sub-item of '%2%'"
-                "\nHint: you can make hidden items visible in the Settings->GUI Options Dialog"
-                , target_item->GetFullName().c_str()
-                , visible_parent ? visible_parent->GetFullName().c_str() : "a hidden root"
-            );
-            return;
+    // central funnel reached from many Qt paths (tree selection, address bar, back/forward,
+    // stepToFailReason): the TreeItem queries here (GetTSF, GetFullName, ...) and the
+    // currentItemChanged listeners can throw; guard so nothing escapes into Qt's dispatch.
+    try {
+        MG_CHECK(!m_root || !target_item || isAncestor(m_root.get(), target_item));
+        if (target_item && !m_dms_model->show_hidden_items) {
+            if (target_item->GetTSF(TSF_InHidden)) {
+                const TreeItem* visible_parent = target_item;
+                while (visible_parent && visible_parent->GetTSF(TSF_InHidden))
+                    visible_parent = visible_parent->GetTreeParent().get();
+                reportF(MsgCategory::other, SeverityTypeID::ST_Warning, "cannnot set '%1%' as Current Item, as it is a hidden sub-item of '%2%'"
+                    "\nHint: you can make hidden items visible in the Settings->GUI Options Dialog"
+                    , target_item->GetFullName().c_str()
+                    , visible_parent ? visible_parent->GetFullName().c_str() : "a hidden root"
+                );
+                return;
+            }
         }
+
+        m_current_item = target_item;
+
+        // update actions based on new current item
+        updateActionsForNewCurrentItem();
+
+        if (m_address_bar) {
+            if (m_current_item)
+                m_address_bar->setText(m_current_item->GetFullName().c_str());
+            else
+                m_address_bar->setText("");
+        }
+
+        if (update_history)
+            updateTreeItemVisitHistory();
+
+        m_treeview->setNewCurrentItem(target_item);
+        m_treeview->scrollTo(m_treeview->currentIndex(), QAbstractItemView::ScrollHint::EnsureVisible);
+        emit currentItemChanged();
+        reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "ActivateItem %s", m_current_item->GetFullName());
     }
-
-    m_current_item = target_item;
-
-    // update actions based on new current item
-    updateActionsForNewCurrentItem();
-
-    if (m_address_bar) {
-        if (m_current_item)
-            m_address_bar->setText(m_current_item->GetFullName().c_str());
-        else
-            m_address_bar->setText("");
+    catch (...) {
+        catchAndReportException();
     }
-
-    if (update_history)
-        updateTreeItemVisitHistory();
-
-    m_treeview->setNewCurrentItem(target_item);
-    m_treeview->scrollTo(m_treeview->currentIndex(), QAbstractItemView::ScrollHint::EnsureVisible);
-    emit currentItemChanged();
-    reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "ActivateItem %s", m_current_item->GetFullName());
 }
 
 void MainWindow::removeTreeItem(const TreeItem* destructing_item)
@@ -786,38 +808,50 @@ void MainWindow::focusAddressBar() const {
 }
 
 void MainWindow::stepToFailReason() {
-    auto ti = getCurrentTreeItem();
-    if (!ti)
-        return;
-
-    if (!WasInFailed(ti))
-        return;
-
-    SuspendTrigger::Resume();
-
-    BestItemRef result = TreeItem_GetErrorSourceCaller(ti);
-    if (result.first) {
-        if (result.first->IsCacheItem())
+    // shortcut slot (F2): inspecting fail state and navigating to the error source can throw.
+    try {
+        auto ti = getCurrentTreeItem();
+        if (!ti)
             return;
 
-        setCurrentTreeItem(const_cast<TreeItem*>(result.first.get()));
-    }
+        if (!WasInFailed(ti))
+            return;
 
-    if (!result.second.empty()) {
-        auto textWithUnfoundPart = m_address_bar->text() + " " + result.second.c_str();
-        m_address_bar->setText(textWithUnfoundPart);
+        SuspendTrigger::Resume();
+
+        BestItemRef result = TreeItem_GetErrorSourceCaller(ti);
+        if (result.first) {
+            if (result.first->IsCacheItem())
+                return;
+
+            setCurrentTreeItem(const_cast<TreeItem*>(result.first.get()));
+        }
+
+        if (!result.second.empty()) {
+            auto textWithUnfoundPart = m_address_bar->text() + " " + result.second.c_str();
+            m_address_bar->setText(textWithUnfoundPart);
+        }
+    }
+    catch (...) {
+        catchAndReportException();
     }
 }
 
 void MainWindow::runToFailReason() {
-    auto current_ti = getCurrentTreeItem();
-    while (current_ti->WasFailed()) {
-        stepToFailReason();
-        auto new_ti = getCurrentTreeItem();
-        if (current_ti == new_ti)
-            break;
-        current_ti = new_ti;
-    }   
+    // shortcut slot (Shift+F2): the loop condition WasFailed() and stepToFailReason() can throw.
+    try {
+        auto current_ti = getCurrentTreeItem();
+        while (current_ti && current_ti->WasFailed()) {
+            stepToFailReason();
+            auto new_ti = getCurrentTreeItem();
+            if (current_ti == new_ti)
+                break;
+            current_ti = new_ti;
+        }
+    }
+    catch (...) {
+        catchAndReportException();
+    }
 }
 
 void MainWindow::visual_update_treeitem() {
@@ -857,19 +891,35 @@ void MainWindow::toggle_currentitembar() const {
 
 void MainWindow::gui_options() {
     // Modal
-    auto optionsWindow = new DmsGuiOptionsWindow(this);
-    optionsWindow->show();
+    try {
+        auto optionsWindow = new DmsGuiOptionsWindow(this);
+        optionsWindow->show();
+    }
+    catch (...) {
+        catchAndReportException();
+    }
 }
 
 void MainWindow::advanced_options() {
     // Modal
-    auto optionsWindow = new DmsLocalMachineOptionsWindow(this);
-    optionsWindow->show();
+    try {
+        auto optionsWindow = new DmsLocalMachineOptionsWindow(this);
+        optionsWindow->show();
+    }
+    catch (...) {
+        catchAndReportException();
+    }
 }
 
 void MainWindow::config_options() {
-    auto optionsWindow = new DmsConfigOptionsWindow(this);
-    optionsWindow->show();
+    // the DmsConfigOptionsWindow ctor reads the config tree (overridable options) and can throw.
+    try {
+        auto optionsWindow = new DmsConfigOptionsWindow(this);
+        optionsWindow->show();
+    }
+    catch (...) {
+        catchAndReportException();
+    }
 }
 
 void MainWindow::code_analysis_set_source() {
@@ -945,10 +995,12 @@ void MainWindow::exportPrimaryData() {
 TokenID s_ViewToken = GetTokenID_st("View");
 
 void MainWindow::createView(ViewStyle viewStyle) {
-    if (openErrorOnFailedCurrentItem())
-        return;
-
     try {
+        // openErrorOnFailedCurrentItem() inspects the item's fail state and can throw;
+        // keep it inside the guard so it cannot escape into the action-slot dispatch.
+        if (openErrorOnFailedCurrentItem())
+            return;
+
         auto currItem = getCurrentTreeItem();
         if (!currItem)
             return;
@@ -1021,6 +1073,14 @@ void MainWindow::tableView() {
         return;
     reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "tableView // for item %s", currItem->GetFullName());
     createView(ViewStyle::tvsTableView);
+}
+
+void MainWindow::histogramChartView() {
+    auto currItem = getCurrentTreeItem();
+    if (!currItem)
+        return;
+    reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "histogramChartView // for item %s", currItem->GetFullName());
+    createView(ViewStyle::tvsHistogram);
 }
 
 void geoDMSContextMessage(ClientHandle clientHandle, CharPtr msg) {
@@ -1377,6 +1437,7 @@ void MainWindow::updateStatusMessage() {
 auto MainWindow::getIconFromViewstyle(ViewStyle viewstyle) const -> QIcon {
     switch (viewstyle) {
     case ViewStyle::tvsMapView: { return QPixmap(":/res/images/TV_globe.bmp"); }
+    case ViewStyle::tvsHistogram: { return QPixmap(":/res/images/DP_statistics.bmp"); }
     case ViewStyle::tvsStatistics: { return QPixmap(":/res/images/DP_statistics.bmp"); }
     case ViewStyle::tvsCalculationTimes: { return QPixmap(":/res/images/IconCalculationTimeOverview.png"); }
     case ViewStyle::tvsPaletteEdit: { return QPixmap(":/res/images/TV_palette.bmp");}

@@ -106,11 +106,17 @@ void FindTreeItemWindow::onFindTextChanged(const QString& text)
     if (!current_item)
         return;
 
-    auto current_id = current_item->GetID();
-    if (text.compare(current_id.GetStr().c_str(), Qt::CaseInsensitive) == 0)
-        next->setText("Find next");
-    else
-        next->setText("Find");
+    // text-changed slot fires per keystroke; swallow without reporting to avoid log spam.
+    try {
+        auto current_id = current_item->GetID();
+        if (text.compare(current_id.GetStr().c_str(), Qt::CaseInsensitive) == 0)
+            next->setText("Find next");
+        else
+            next->setText("Find");
+    }
+    catch (...) {
+        catchException(false);
+    }
 }
 
 void FindTreeItemWindow::keyPressEvent(QKeyEvent* event)

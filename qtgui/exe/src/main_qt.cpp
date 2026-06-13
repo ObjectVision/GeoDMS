@@ -349,10 +349,18 @@ protected:
     bool eventFilter(QObject* obj, QEvent* event) override {
         if (event->type() == QEvent::MouseButtonPress) {
             QMouseEvent* mouse_event = static_cast<QMouseEvent*>(event);
-            switch (mouse_event->button()) {
-            case Qt::BackButton: { MainWindow::TheOne()->back(); return true; }
-            case Qt::ForwardButton: { MainWindow::TheOne()->forward(); return true; }
-            default: break;
+            // back()/forward() navigate the tree (TreeItem lookups, setCurrentTreeItem) and
+            // can throw; an event filter must not let that propagate into Qt's event dispatch.
+            try {
+                switch (mouse_event->button()) {
+                case Qt::BackButton: { MainWindow::TheOne()->back(); return true; }
+                case Qt::ForwardButton: { MainWindow::TheOne()->forward(); return true; }
+                default: break;
+                }
+            }
+            catch (...) {
+                catchAndReportException();
+                return true;
             }
         }
         return false; // QObject::eventFilter(obj, event);

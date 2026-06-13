@@ -1,5 +1,6 @@
 #include "DmsFileChangedWindow.h"
 #include "DmsMainWindow.h"
+#include "dbg/DmsCatch.h"
 
 #include <QLayout>
 
@@ -52,10 +53,20 @@ void DmsFileChangedWindow::ignore() {
 
 void DmsFileChangedWindow::reopen() {
     done(QDialog::Accepted);
-    MainWindow::TheOne()->reopen();
+    try {
+        MainWindow::TheOne()->reopen();
+    }
+    catch (...) {
+        catchAndReportException();
+    }
 }
 
 void DmsFileChangedWindow::onAnchorClicked(const QUrl& link) {
-    auto clicked_file_link = link.toString().toStdString();
-    MainWindow::TheOne()->openConfigSourceDirectly(clicked_file_link, "0");
+    try {
+        auto clicked_file_link = link.toString().toStdString();
+        MainWindow::TheOne()->openConfigSourceDirectly(clicked_file_link, "0");
+    }
+    catch (...) {
+        catchAndReportException();
+    }
 }

@@ -44,6 +44,8 @@ std::vector<MsgStruct> g_MsgQueue;
 #include "GeoInterface.h"
 
 #include "TableDataView.h"
+#include "ChartControl.h"
+#include "ChartDataView.h"
 #include "GraphDataView.h"
 #include "ItemSchemaView.h"
 #include "EditPalette.h"
@@ -76,6 +78,11 @@ auto DMS_CONV SHV_DataView_Create(TreeItem* context, ViewStyle ct, ShvSyncMode s
 			case tvsMapView:
 				result = std::make_shared<GraphDataView>(context, sm);
 				result->SetContents(std::static_pointer_cast<MovableObject>(make_shared_gr<MapControl>(result.get())(result.get())), sm);
+				break;
+
+			case tvsHistogram:
+				result = std::make_shared<ChartDataView>(context, sm);
+				result->SetContents(std::static_pointer_cast<MovableObject>(make_shared_gr<ChartControl>(result.get())(result.get())), sm);
 				break;
 
 			case tvsPaletteEdit:

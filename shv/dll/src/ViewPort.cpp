@@ -185,9 +185,10 @@ CrdTransformation ViewPort::CalcWorldToClientTransformation() const
 CrdTransformation ViewPort::CalcCurrWorldToClientTransformation() const
 {
 	return CrdTransformation(
-		const_cast<ViewPort*>(this)->GetROI(), 
+		const_cast<ViewPort*>(this)->GetROI(),
 		CrdRect(Point<CrdType>(0, 0), GetCurrClientSize() ),
-		m_Orientation
+		m_Orientation,
+		m_FitMode
 	);
 }
 
@@ -215,6 +216,7 @@ void ViewPort::DoUpdateView()
 
 	InvalidateDraw();
 	UpdateScaleBar();
+	m_cmdTransformChanged();
 
 	auto sf = GetScaleFactors();
 	auto deviceSize = ScaleCrdPoint(GetCurrClientSize(), sf);
@@ -1272,7 +1274,7 @@ void LimitRange(Float64& start, Float64& end, Float64 minSize, Float64 maxSize)
 // Rejects inverted / undefined / non-finite / out-of-envelope rects so that
 // junk values (e.g. corrupted persisted RoiTopLeft/RoiBottomRight) cannot reach
 // the drawing path, where Float64->Int32 conversion would yield UNDEFINED_VALUE.
-static bool SanitizeRoi(CrdRect& rr, const AbstrUnit* worldCrdUnit)
+static bool SanitizeRoi(CrdRect& rr, const AbstrUnit* worldCrdUnit, CrdType minSizeOverride = -1.0)
 {
 	if (rr.inverted() || !IsDefined(rr.first) || !IsDefined(rr.second))
 	{
@@ -1285,7 +1287,7 @@ static bool SanitizeRoi(CrdRect& rr, const AbstrUnit* worldCrdUnit)
 	CrdType minSize = GetSubItemValue(worldCrdUnit, vpminsID, -1.0);
 	CrdType maxSize = GetSubItemValue(worldCrdUnit, vpmaxsID, 40000.0e+9);
 	if (minSize == -1.0)
-		minSize = 10.0 / GetUnitSizeInMeters(worldCrdUnit);
+		minSize = (minSizeOverride > 0.0) ? minSizeOverride : 10.0 / GetUnitSizeInMeters(worldCrdUnit);
 
 	// LimitRange only clamps the size of the range; a junk center (e.g. 1e303) survives.
 	// Reject if any coordinate is already outside the projection's max envelope.
@@ -1314,7 +1316,7 @@ void ViewPort::SetROI(const CrdRect& r)
 	dms_assert(m_WorldCrdUnit); // must be set before
 
 	CrdRect rr = r;
-	if (!SanitizeRoi(rr, m_WorldCrdUnit.get()))
+	if (!SanitizeRoi(rr, m_WorldCrdUnit.get(), m_MinRoiSize))
 		return;
 
 	bool tlIsNew = CreatePointParam(m_ROI_TL, this, t_RoiTL);
@@ -1377,7 +1379,7 @@ ActorVisitState ViewPort::DoUpdate()
 			m_ROI_TL->GetRefObj()->GetValueAsDPoint(0),
 			m_ROI_BR->GetRefObj()->GetValueAsDPoint(0)
 		);
-		if (!SanitizeRoi(roi, m_WorldCrdUnit.get()))
+		if (!SanitizeRoi(roi, m_WorldCrdUnit.get(), m_MinRoiSize))
 			return AVS_Ready; // persisted ROI was junk; leave m_ROI for ZoomAll/SetROI to populate
 		if (m_ROI != roi)
 		{

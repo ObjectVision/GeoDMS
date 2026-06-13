@@ -1,5 +1,6 @@
 #include "DmsOptions.h"
 #include "DmsEventLog.h"
+#include "dbg/DmsCatch.h"
 #include "utl/Environment.h"
 #include "Parallel.h"
 #include "ptr/SharedStr.h"
@@ -237,7 +238,7 @@ void SetDrawingSizeTresholdValue(Float32 drawing_size)
 }
 
 void DmsGuiOptionsWindow::apply()
-{
+try {
     SetStatusFlag(RSF_TreeView_FollowOSLayout, m_follow_os_layout             ->isChecked());
     SetStatusFlag(RSF_AdminMode,               m_show_hidden_items            ->isChecked());
     SetStatusFlag(RSF_ShowThousandSeparator,   m_show_thousand_separator      ->isChecked());
@@ -271,6 +272,9 @@ void DmsGuiOptionsWindow::apply()
     SetGeoDmsRegKeyDWord("DrawingSizeInPixels", drawing_size_dword);
 
     setChanged(false);
+}
+catch (...) {
+    catchAndReportException();
 }
 
 Float32 GetDrawingSizeInPixels()
@@ -825,7 +829,7 @@ void DmsConfigOptionsWindow::onSessionOnlyToggle()
 }
 
 void DmsConfigOptionsWindow::apply()
-{
+try {
     if (m_Options.size())
     {
 #ifdef _WIN32
@@ -880,6 +884,9 @@ void DmsConfigOptionsWindow::apply()
     }
 
     setChanged(false);
+}
+catch (...) {
+    catchAndReportException();
 }
 
 

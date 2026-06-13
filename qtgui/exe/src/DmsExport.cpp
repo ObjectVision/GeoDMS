@@ -607,69 +607,81 @@ auto convertFullNameToFoldernameExtension(TreeItem* current_item) -> QString
 
 void ExportTab::showEvent(QShowEvent* event)
 {
-    const auto& currDriver = m_available_drivers.at(m_driver_selection->currentIndex());
-    auto driver_has_native_version = currDriver.HasNativeVersion();
+    // Qt calls this when the tab becomes visible; the TreeItem queries below
+    // (GetFullFolderNameBase, GetName, isCurrentItemOrItsSubItemsMappable) can throw.
+    try {
+        const auto& currDriver = m_available_drivers.at(m_driver_selection->currentIndex());
+        auto driver_has_native_version = currDriver.HasNativeVersion();
 
-    m_native_driver_checkbox->setEnabled(driver_has_native_version);
-    if (driver_has_native_version &&  (currDriver.m_driver_characteristics & driver_characteristics::only_native_driver))
-    {
-        m_native_driver_checkbox->setChecked(true);
-        m_native_driver_checkbox->setEnabled(false);
-    }
-    else
-    {
-        m_native_driver_checkbox->setChecked(false);
-    }
-
-    auto current_item = MainWindow::TheOne()->getCurrentTreeItem();
-    auto full_foldername_base = GetFullFolderNameBase(current_item);
-    auto current_item_folder_name_extension = convertFullNameToFoldernameExtension(current_item);
-    m_foldername_entry->setText((QString(full_foldername_base.c_str())+current_item_folder_name_extension));// +current_item_folder_name_extention));
-    auto filename = current_item->GetName();
-    m_filename_entry->setText(filename.c_str());
-
-    // set disabled drivers in combobox
-    QStandardItemModel* model = qobject_cast<QStandardItemModel*>(m_driver_selection->model());
-
-    if (!model)
-        return;
-
-//    auto vsflags = SHV_GetViewStyleFlags(current_item);
-    auto is_mappable = isCurrentItemOrItsSubItemsMappable();
-
-    if (!m_is_raster && is_mappable)
-        m_driver_selection->setCurrentIndex(1); // ESRI Shapefile
-    else 
-        m_driver_selection->setCurrentIndex(0); // CSV
-
-    for (int i=0; i<model->rowCount(); i++)
-    {
-        auto* item = model->item(i);
-        const auto& otherDriver = m_available_drivers.at(i);
-        if (!isCurrentItemOrItsSubItemsMappable() && (otherDriver.m_driver_characteristics & driver_characteristics::disable_with_no_geometry))
-            item->setEnabled(false);
-        else if (isCurrentItemOrItsSubItemsMappable() && (otherDriver.m_driver_characteristics & driver_characteristics::disable_with_geometry))
-            item->setEnabled(false);
+        m_native_driver_checkbox->setEnabled(driver_has_native_version);
+        if (driver_has_native_version &&  (currDriver.m_driver_characteristics & driver_characteristics::only_native_driver))
+        {
+            m_native_driver_checkbox->setChecked(true);
+            m_native_driver_checkbox->setEnabled(false);
+        }
         else
-            item->setEnabled(true);
+        {
+            m_native_driver_checkbox->setChecked(false);
+        }
+
+        auto current_item = MainWindow::TheOne()->getCurrentTreeItem();
+        auto full_foldername_base = GetFullFolderNameBase(current_item);
+        auto current_item_folder_name_extension = convertFullNameToFoldernameExtension(current_item);
+        m_foldername_entry->setText((QString(full_foldername_base.c_str())+current_item_folder_name_extension));// +current_item_folder_name_extention));
+        auto filename = current_item->GetName();
+        m_filename_entry->setText(filename.c_str());
+
+        // set disabled drivers in combobox
+        QStandardItemModel* model = qobject_cast<QStandardItemModel*>(m_driver_selection->model());
+
+        if (!model)
+            return;
+
+    //    auto vsflags = SHV_GetViewStyleFlags(current_item);
+        auto is_mappable = isCurrentItemOrItsSubItemsMappable();
+
+        if (!m_is_raster && is_mappable)
+            m_driver_selection->setCurrentIndex(1); // ESRI Shapefile
+        else
+            m_driver_selection->setCurrentIndex(0); // CSV
+
+        for (int i=0; i<model->rowCount(); i++)
+        {
+            auto* item = model->item(i);
+            const auto& otherDriver = m_available_drivers.at(i);
+            if (!isCurrentItemOrItsSubItemsMappable() && (otherDriver.m_driver_characteristics & driver_characteristics::disable_with_no_geometry))
+                item->setEnabled(false);
+            else if (isCurrentItemOrItsSubItemsMappable() && (otherDriver.m_driver_characteristics & driver_characteristics::disable_with_geometry))
+                item->setEnabled(false);
+            else
+                item->setEnabled(true);
+        }
+    }
+    catch (...) {
+        catchAndReportException();
     }
 }
 
 void DmsExportWindow::prepare()
 {
-    SuspendTrigger::Resume();
+    try {
+        SuspendTrigger::Resume();
 
-    auto current_item = MainWindow::TheOne()->getCurrentTreeItem();
-    setWindowTitle(QString("Export ") + current_item->GetFullName().c_str());
-    
-    bool can_be_exported_to_vector = currentItemCanBeExportedToVector(current_item);
-    bool can_be_exported_to_raster = currentItemCanBeExportedToRaster(current_item);
-    m_tabs->setTabEnabled(m_vector_tab_index, can_be_exported_to_vector);
-    m_tabs->setTabEnabled(m_raster_tab_index, can_be_exported_to_raster);
-    if (can_be_exported_to_raster)
-        m_tabs->setCurrentIndex(m_raster_tab_index);
-    m_tabs->widget(m_vector_tab_index);
-    resetExportDialog();
+        auto current_item = MainWindow::TheOne()->getCurrentTreeItem();
+        setWindowTitle(QString("Export ") + current_item->GetFullName().c_str());
+
+        bool can_be_exported_to_vector = currentItemCanBeExportedToVector(current_item);
+        bool can_be_exported_to_raster = currentItemCanBeExportedToRaster(current_item);
+        m_tabs->setTabEnabled(m_vector_tab_index, can_be_exported_to_vector);
+        m_tabs->setTabEnabled(m_raster_tab_index, can_be_exported_to_raster);
+        if (can_be_exported_to_raster)
+            m_tabs->setCurrentIndex(m_raster_tab_index);
+        m_tabs->widget(m_vector_tab_index);
+        resetExportDialog();
+    }
+    catch (...) {
+        catchAndReportException();
+    }
 }
 
 void DmsExportWindow::resetExportDialog()
