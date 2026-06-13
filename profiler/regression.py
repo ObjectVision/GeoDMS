@@ -49,6 +49,13 @@ def get_days_hours_minutes_seconds_from_duration(duration:int):
     seconds = time
     return day, hour, minutes, seconds
 
+def format_duration(duration:int) -> str:
+    """Format a duration [s] as a zero-padded H:MM:SS string, prefixed with
+    a day count only when it is non-zero (e.g. "3:23:09" or "1d 2:30:19")."""
+    day, hour, minutes, seconds = get_days_hours_minutes_seconds_from_duration(duration)
+    time_part = f"{int(hour)}:{int(minutes):02d}:{int(seconds):02d}"
+    return f"{int(day)}d {time_part}" if day else time_part
+
 def get_indicator_part_from_parsed_results(parsed_results:dict)->list:
     indicator_part = ""
     set_indicator_flag = False
@@ -538,7 +545,6 @@ def get_table_col_header_html_template() -> str:
     #<td style="border-right: 0px; border-bottom: 1px solid #BEBEE6; box-shadow: 0 1px 0 #FFFFFF; padding: 5px;"><I>version</I>: <B>17.4.6</B><BR><I>build</I>: <B>Release</B><BR><I>platform</I>: <B>x64</B><BR><I>multi tasking</I>: <B>S1S2S3</B><BR> 			<I>operating system</I>: <B>Windows 10</B><BR> 			<I>computername</I>: <B>OVSRV07</B><BR> </td>
     return '<td style="border-right: 0px; border-bottom: 1px solid #BEBEE6; box-shadow: 0 1px 0 #FFFFFF; padding: 0px;"><B>@@@VERSION@@@</B><BR>\
     <B>@@@GITSHORTHASH@@@<B><BR>\
-    <B>@@@MULTITASKING@@@</B><BR>\
     <B>@@@TOTALTIME@@@</B><BR>\
     <B>@@@SUCCESSRATIO@@@</B></td>\n'
 
@@ -556,9 +562,7 @@ def get_table_header_row(summary_row:list) -> str:
         table_col_header = table_col_header.replace("@@@GITSHORTHASH@@@", summary_col_header["hash"])
         table_col_header = table_col_header.replace("@@@VERSION@@@", summary_col_header["version"])
         table_col_header = table_col_header.replace("@@@PLATFORM@@@", summary_col_header["platform"])
-        table_col_header = table_col_header.replace("@@@MULTITASKING@@@", summary_col_header["multi_tasking"])
-        days, hours, minutes, seconds = get_days_hours_minutes_seconds_from_duration(summary_col_header["total_duration"])
-        table_col_header = table_col_header.replace("@@@TOTALTIME@@@", f"{int(days)} {int(hours)}:{int(minutes)}:{int(seconds)}")
+        table_col_header = table_col_header.replace("@@@TOTALTIME@@@", format_duration(summary_col_header["total_duration"]))
         table_col_header = table_col_header.replace("@@@SUCCESSRATIO@@@", f"{summary_col_header["success_ratio"][0]}/{summary_col_header["success_ratio"][1]}")
         table_col_header = table_col_header.replace("@@@COMPUTER_NAME@@@", summary_col_header["computer_name"])
         table_header_row += table_col_header
