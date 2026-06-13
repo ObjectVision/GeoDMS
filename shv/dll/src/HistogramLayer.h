@@ -42,6 +42,7 @@ public:
 	void SelectPolygon(const CrdPoint* first, const CrdPoint* last, EventID eventID) override;
 
 //	override virtuals of GraphicObject
+	void Sync(TreeItem* viewContext, ShvSyncMode sm) override; // suppress auto-zoom on reload (respect restored ROI)
 	bool OnCommand(ToolButtonID id) override;
 	bool ShowSelectedOnlyEnabled() const override { return true; }
 	void UpdateShowSelOnly() override { InvalidateDraw(); }

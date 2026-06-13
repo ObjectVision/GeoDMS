@@ -10,6 +10,7 @@
 
 #include "AxisControl.h"
 
+#include "ChartLayer.h"
 #include "geo/Conversions.h"
 #include "geo/PointOrder.h"
 #include "mci/Class.h"
@@ -97,6 +98,30 @@ bool AxisControl::Draw(GraphDrawer& d) const
 
 	CrdType worldMin = isHor ? roi.first .X() : roi.first .Y();
 	CrdType worldMax = isHor ? roi.second.X() : roi.second.Y();
+
+	// categorical horizontal axis: when the active ChartLayer maps a non-numeric X attribute to
+	// ordinal positions, label each ordinal with its category instead of drawing numeric ticks.
+	if (isHor)
+	{
+		auto* chartLayer = dynamic_cast<const ChartLayer*>(m_ViewPort->GetActiveLayer());
+		if (chartLayer && !chartLayer->GetXAxisLabels().empty())
+		{
+			for (const auto& posLabel : chartLayer->GetXAxisLabels())
+			{
+				CrdType pos = posLabel.first;
+				if (pos < worldMin || pos > worldMax)
+					continue;
+				CrdPoint vpLogical = w2v.Apply(shp2dms_order<CrdType>(pos, roi.first.Y()));
+				GType devX = GType(vpAbsDevicePos.X() + vpLogical.X() * sf.X());
+				if (devX < clientIntRect.left || devX >= clientIntRect.right)
+					continue;
+				const SharedStr& text = posLabel.second;
+				dc->DrawLine(GPoint(devX, clientIntRect.top), GPoint(devX, clientIntRect.top + TICK_LEN), lineColor, 1);
+				dc->TextOut(GPoint(devX + 2, clientIntRect.top + TICK_LEN), text.c_str(), text.ssize(), lineColor);
+			}
+			return false;
+		}
+	}
 
 	auto bandDeviceSize = isHor ? clientIntRect.Width() : clientIntRect.Height();
 	UInt32 maxTicks = Max<Int32>(bandDeviceSize / (isHor ? 80 : 32), 1);

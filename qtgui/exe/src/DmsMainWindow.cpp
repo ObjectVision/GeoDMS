@@ -388,6 +388,7 @@ void MainWindow::updateActionsForNewCurrentItem() {
     m_histogramview_action->setEnabled(histogramEnabled);
     m_scatterview_action->setEnabled(histogramEnabled);
     m_lineview_action->setEnabled(histogramEnabled);
+    m_barview_action->setEnabled(histogramEnabled);
     m_statistics_action->setEnabled(ci ? IsDataItem(ci) : false);
     m_process_schemes_action->setEnabled(true);
     m_update_treeitem_action->setEnabled(true);
@@ -1103,6 +1104,14 @@ void MainWindow::lineChartView() {
         return;
     reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "lineChartView // for item %s", currItem->GetFullName());
     createView(ViewStyle::tvsHistogram, ChartKind::Line);
+}
+
+void MainWindow::barChartView() {
+    auto currItem = getCurrentTreeItem();
+    if (!currItem)
+        return;
+    reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "barChartView // for item %s", currItem->GetFullName());
+    createView(ViewStyle::tvsHistogram, ChartKind::Bar);
 }
 
 void geoDMSContextMessage(ClientHandle clientHandle, CharPtr msg) {

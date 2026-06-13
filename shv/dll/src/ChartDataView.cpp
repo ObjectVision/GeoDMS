@@ -12,15 +12,10 @@
 
 #include "mci/Class.h"
 #include "mci/ValueClass.h"
-#include "utl/mySPrintF.h"
 
 #include "AbstrDataItem.h"
 #include "AbstrUnit.h"
-#include "DataItemClass.h"
 #include "PropFuncs.h"
-#include "Unit.h"
-#include "UnitClass.h"
-#include "mci/ValueComposition.h"
 
 #include "ChartControl.h"
 #include "ChartLayer.h"
@@ -150,7 +145,10 @@ void ChartDataView::AddSeriesLayer(const AbstrDataItem* adi, ChartKind kind, boo
 	// shown on the vertical axis, X = the row number (id of E) by default, settable later for
 	// X-axis management. Scatter and line differ only by draw mode, so switching is a toggle.
 	auto layer = std::make_shared<ChartLayer>(ls);
-	layer->SetDrawMode(kind == ChartKind::Line ? ChartDrawMode::Line : ChartDrawMode::Points);
+	layer->SetDrawMode(
+		kind == ChartKind::Bar  ? ChartDrawMode::Bars :
+		kind == ChartKind::Line ? ChartDrawMode::Line :
+		                          ChartDrawMode::Points);
 
 	// thematic symbolisation (issue #75 requirement): a classification + colour palette of the
 	// value attribute drives the per-element colour (AN_SymbolColor) and brings the "Classify..."

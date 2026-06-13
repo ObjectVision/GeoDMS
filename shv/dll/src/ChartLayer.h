@@ -29,7 +29,7 @@ class AbstrThemeValueGetter;
 // Like HistogramLayer the drawing domain is E, so selection writes the shared
 // AN_Selections attribute and stays in sync with Map- and TableViews.
 
-enum class ChartDrawMode : UInt8 { Points, Line, PointsAndLine };
+enum class ChartDrawMode : UInt8 { Points, Line, PointsAndLine, Bars };
 
 class ChartLayer : public GraphicLayer
 {
@@ -46,6 +46,10 @@ public:
 	void SetXAttr(const AbstrDataItem* xAttr);
 	const AbstrDataItem* GetXAttr() const { return m_XAttr.get_ptr(); }
 
+	// categorical X tick labels (position -> label) for the horizontal AxisControl; empty for a
+	// numeric X axis. Queried by AxisControl on the chart's active layer.
+	const std::vector<std::pair<CrdType, SharedStr>>& GetXAxisLabels() const { return m_XAxisLabels; }
+
 //	override virtuals of GraphicLayer
 	const AbstrUnit* GetGeoCrdUnit() const override;
 	CrdRect CalcSelectedFullWorldRect() const override;
@@ -57,6 +61,7 @@ public:
 	void SelectPolygon(const CrdPoint* first, const CrdPoint* last, EventID eventID) override;
 
 //	override virtuals of GraphicObject
+	void Sync(TreeItem* viewContext, ShvSyncMode sm) override; // persist draw mode; suppress auto-zoom on reload
 	bool OnCommand(ToolButtonID id) override;
 	void FillLcMenu(MenuData& menuData) override;
 	bool ShowSelectedOnlyEnabled() const override { return true; }
@@ -78,6 +83,10 @@ private:
 	void SetDrawModePoints()        { SetDrawMode(ChartDrawMode::Points); }
 	void SetDrawModeLine()          { SetDrawMode(ChartDrawMode::Line); }
 	void SetDrawModePointsAndLine() { SetDrawMode(ChartDrawMode::PointsAndLine); }
+	void SetDrawModeBars()          { SetDrawMode(ChartDrawMode::Bars); }
+
+	// X-axis picker: enumerate numeric attributes over Y's domain E as candidate X axes.
+	void AddXAxisMenu(MenuData& menuData);
 
 	SharedDataItemInterestPtr m_XAttr; // optional; null => row number
 	ChartDrawMode m_DrawMode = ChartDrawMode::Points;
@@ -86,8 +95,12 @@ private:
 	mutable std::vector<CrdPoint> m_Points;
 	mutable std::vector<DmsColor> m_PointColors;
 	mutable std::vector<bool>     m_Selected;
+	mutable CrdType               m_BarHalfWidth = 0.4; // world half-width for Bars mode
+	// categorical X: tick labels at ordinal positions (empty => numeric X axis)
+	mutable std::vector<std::pair<CrdType, SharedStr>> m_XAxisLabels;
 	mutable bool m_Ready = false;
 	bool m_ZoomedOnce = false;
+	bool m_ZoomPending = false; // request a one-shot zoom-to-fit (e.g. after the X attribute changed)
 
 	DECL_RTTI(SHV_CALL, LayerClass);
 };

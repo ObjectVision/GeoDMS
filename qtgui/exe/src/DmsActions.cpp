@@ -153,6 +153,13 @@ void createDmsActions() {
     main_window->connect(main_window->m_lineview_action.get(), &QAction::triggered, main_window, &MainWindow::lineChartView);
     main_window->m_view_menu->addAction(main_window->m_lineview_action.get());
 
+    // bar chart view (issue #75)
+    main_window->m_barview_action = std::make_unique<QAction>(QObject::tr("Create &Bar Chart"));
+    main_window->m_barview_action->setStatusTip(QObject::tr("Open a chart that draws the current selected TreeItem's values as vertical bars."));
+    main_window->m_barview_action->setIcon(main_window->getIconFromViewstyle(ViewStyle::tvsHistogram));
+    main_window->connect(main_window->m_barview_action.get(), &QAction::triggered, main_window, &MainWindow::barChartView);
+    main_window->m_view_menu->addAction(main_window->m_barview_action.get());
+
     // process schemes
     main_window->m_process_schemes_action = std::make_unique<QAction>(QObject::tr("&Process Schemes"));
     //connect(m_process_schemes_action.get(), &QAction::triggered, this, & #TODO);
