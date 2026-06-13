@@ -1,4 +1,4 @@
-# GeoDMS26 — Claude project instructions
+# GeoDMS — Claude project instructions and repo notes
 
 ## Build & setup policy — do NOT improvise
 
@@ -34,12 +34,11 @@ way the solution/presets don't define.
   geos.
 
 If a build cannot be run exactly as above, **stop and ask** — do not work around it.
-# GeoDMS — repo notes for Claude
 
 
 ## Running the freshly built GeoDmsGuiQt.exe
 
-An incremental build drops the GUI at:
+An incremental build with msbuild drops the GUI at:
 
 ```
 C:\dev\GeoDMS_2026\bin\Release\x64\GeoDmsGuiQt.exe
@@ -49,7 +48,7 @@ or
 C:\dev\GeoDMS_2026\bin\Release\x64\GeoDmsGuiQt.exe
 ```
 
-**Always launch it with a specific config `.dms` file as a command-line argument:**
+**For grabbing user control, always launch it with a specific config `.dms` file as a command-line argument:**
 
 ```powershell
 & 'C:\dev\GeoDMS_2026\bin\Release\x64\GeoDmsGuiQt.exe' '<path>\some_config.dms'
@@ -62,11 +61,7 @@ Why the explicit config matters:
   someone clicks Yes/No. Automated/headless drivers get stuck there.
 - Passing a config makes it load that file directly and bring up the main window with a
   **recognisable caption** (`<config>.dms (aka ...) in <path> - GeoDms <ver> ...`), which is
-  how you confirm you're driving the right instance — important when several `GeoDmsGuiQt.exe`
-  processes are around (e.g. an old one still holding the last config).
-
-Tip: kill any stale instances and launch exactly one fresh process so you know you're running
-the just-built binary, not an older in-memory one:
+  how you confirm you're driving the right instance.
 
 ```powershell
 Get-Process GeoDmsGuiQt -ErrorAction SilentlyContinue | Stop-Process -Force
@@ -75,3 +70,29 @@ Get-Process GeoDmsGuiQt -ErrorAction SilentlyContinue | Stop-Process -Force
 
 For headless feature verification (capture the exact command an action launches, drive
 test-script verbs) use the `/L<logfile> /T<scriptfile> <config>` form instead of clicking.
+
+
+## Build & headless-run gotchas
+
+- **`'pwsh.exe' is not recognized` post-build line is noise.** A post-build event shells out to
+  `pwsh.exe` (PowerShell 7), which may be absent (only Windows PowerShell `powershell.exe` is
+  installed). When missing you'll see `'pwsh.exe' is not recognized as an internal or external
+  command` after `… -> …\Geo.dll`, but msbuild still succeeds and the DLL is already written to
+  its `OutDir` (`bin\<Config>\x64`). Treat the line as noise, not a build failure. (Install
+  PowerShell 7 to silence it.)
+
+- **`GeoDmsRun.exe` item paths are relative to the desktop root, and the config's top-level
+  container *is* that root.** For `container foo { … export { … } }`, compute `/export`, not
+  `/foo/export` — the wrapping container's name is not part of the path. A wrong prefix reports
+  `the specified item '/foo/export' was not found`.
+
+- **Debug-build assertions pop a modal `abort()` dialog that hangs headless runs.** A failed
+  assertion prints `Assertion failed: <cond>, file …, line …` then `abort() has been called` and
+  blocks on a Retry/Ignore dialog; a headless `GeoDmsRun` then hangs forever and keeps a handle
+  on the build's `Dm*.dll` (which silently turns the next link into a skip — see the
+  `BuildSignAndCreateSetup.bat` guard). To capture the assertion text + stack non-interactively,
+  run under cdb and always kill stray `GeoDmsRun`/`cdb` before rebuilding:
+  ```powershell
+  & 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\cdb.exe' -c 'g;kn;q' `
+      'C:\dev\GeoDMS26\bin\Debug\x64\GeoDmsRun.exe' /L<logfile> <config>.dms /item/path
+  ```
