@@ -20,4 +20,16 @@
     <Exec Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)tools\ensure-vcpkg.ps1&quot;"
           WorkingDirectory="$(MSBuildThisFileDirectory)" />
   </Target>
+
+  <!--
+    Counterpart to the vcpkg.props import in Directory.Build.props: pull in the submodule's
+    vcpkg.targets late (manifest install + include/lib injection + applocal DLL copy). It
+    must come after the per-project property sheet DmsDef.props (which sets
+    VcpkgEnableManifest / VcpkgTriplet / VcpkgInstalledDir); Directory.Build.targets is
+    imported at the very end of evaluation, so that ordering holds. The
+    EnsureVcpkgBootstrapped target above hooks BeforeTargets="VcpkgInstallManifestDependencies",
+    which this import defines.
+  -->
+  <Import Project="$(VcpkgRoot)\scripts\buildsystems\msbuild\vcpkg.targets"
+          Condition="Exists('$(VcpkgRoot)\scripts\buildsystems\msbuild\vcpkg.targets')" />
 </Project>

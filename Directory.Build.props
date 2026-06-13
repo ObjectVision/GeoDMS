@@ -45,4 +45,21 @@
     <VcpkgRoot>$(MSBuildThisFileDirectory)vcpkg</VcpkgRoot>
     <VcpkgHostTriplet>x64-windows-v145</VcpkgHostTriplet>
   </PropertyGroup>
+
+  <!--
+    Import vcpkg's MSBuild integration directly from the in-repo ./vcpkg submodule, so the
+    build does NOT depend on a machine-wide `vcpkg integrate install`. That user-wide
+    integration is fragile: it records one absolute vcpkg path in
+    %LOCALAPPDATA%\vcpkg\vcpkg.path.txt, and uninstalling the Visual Studio it pointed at
+    (VS 2022) silently breaks every build (missing include/lib paths -> "Cannot open
+    boost/format.hpp", unresolved boost_locale, etc.).
+
+    props is imported early (here); the matching vcpkg.targets is imported late from
+    Directory.Build.targets — after DmsDef.props has set VcpkgEnableManifest / VcpkgTriplet /
+    VcpkgInstalledDir, which vcpkg.targets consumes. VcpkgRoot (set above) makes the
+    integration use the pinned submodule vcpkg. Guarded against double-import in case a
+    user-wide integration is still registered.
+  -->
+  <Import Project="$(VcpkgRoot)\scripts\buildsystems\msbuild\vcpkg.props"
+          Condition="'$(VcpkgPropsImported)' != 'true' and Exists('$(VcpkgRoot)\scripts\buildsystems\msbuild\vcpkg.props')" />
 </Project>
