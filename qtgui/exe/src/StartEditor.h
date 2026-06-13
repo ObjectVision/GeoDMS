@@ -2,7 +2,6 @@
 
 #include <QString>
 #include <string>
-#include <string_view>
 
 // Locate editor executables in standard installation paths.
 // Returns empty string if not found (except findVSCodeExe which falls back to "code").
@@ -10,21 +9,22 @@ QString findVSCodeExe();
 QString findDevenvExe();
 QString findNotepadPlusPlusExe();
 
-// Walk up from filePath's directory; return parent of nearest dir named 'cfg'.
-// Falls back to the file's own directory if no 'cfg' ancestor found.
-QString findVSCodeProjectRoot(const QString& filePath);
+// Build the raw, unexpanded command-line template for the editor selected by `preset`.
+// For the named presets ("vscode" | "visualstudio" | "notepadpp") this is the quoted
+// application path followed by a parameter template that may contain the placeholders
+// %F (filename), %L (line), %C (column) and %projDir% (workspace root).
+// For "custom" or "" (legacy) the user-configured `customCmd` is returned verbatim.
+// Returns an empty string when the application for a named preset cannot be located.
+std::string buildEditorCommandLineTemplate(const std::string& preset, const std::string& customCmd);
 
-// Substitute %F (filename) and %L (line) placeholders in a command string.
+// Substitute %F (filename), %L (line) and %C (column) in `command`, each only when the
+// two-character token is followed by a non-alphanumeric, non-'%' character so that longer
+// placeholders such as %LocalDataDir% or %localAppData% are left intact for the subsequent
+// AbstrStorageManager::Expand pass.
 std::string fillOpenConfigSourceCommand(const std::string& command,
                                         const std::string& filename,
-                                        const std::string& line);
+                                        const std::string& line,
+                                        const std::string& column);
 
-// Open the editor for filePath:line using the given preset.
-// preset:          "vscode" | "visualstudio" | "notepadpp" | "custom" | ""
-// expandedCustomCmd: full expanded command string; only used when preset is
-//                    "custom" or empty (legacy). %F/%L already substituted and
-//                    env-vars already expanded by the caller.
-void startEditorForFile(const std::string& preset,
-                        const QString&     filePath,
-                        std::string_view   line,
-                        const std::string& expandedCustomCmd);
+// Split a fully expanded command line and start it detached.
+void launchEditorCommandLine(const std::string& expandedCmd);

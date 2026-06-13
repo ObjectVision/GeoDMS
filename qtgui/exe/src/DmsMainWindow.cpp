@@ -761,38 +761,49 @@ bool MainWindow::event(QEvent* event) {
     return result;
 }
 
-void MainWindow::openConfigSourceDirectly(std::string_view filename, std::string_view line) {
+void MainWindow::openConfigSourceDirectly(std::string_view filename, std::string_view line, std::string_view column) {
     if (filename.empty() || line.empty())
         return;
 
-    std::string filename_dos_style = ConvertDmsFileNameAlways(SharedStr(filename.data())).c_str();
-    QString     qFile  = QString::fromStdString(filename_dos_style);
+    // Normalize the path to forward slashes for %F: editors on Windows accept '/', and it
+    // matches VS Code's canonical document URI so repeated jumps reuse the already-open tab
+    // instead of opening duplicates (the VS-Code-specific fix from #1125, now applied for
+    // every editor rather than special-cased).
+    std::string filename_fwd_style = ConvertDmsFileNameAlways(SharedStr(filename.data())).c_str();
+    for (char& c : filename_fwd_style)
+        if (c == '\\')
+            c = '/';
     std::string preset = GetGeoDmsRegKey("DmsEditorPreset").c_str();
 
-    // For custom/legacy preset: expand the command template here (needs TreeItem context).
-    std::string expandedCustomCmd;
+    // For custom/legacy the command line is the user-configured DmsEditor value; for the
+    // named presets it is derived from the located application plus its parameter template.
+    std::string customCmd;
     if (preset == "custom" || preset.empty())
-    {
-        std::string command = GetGeoDmsRegKey("DmsEditor").c_str();
-        if (!command.empty())
-        {
-            std::string unexpanded = fillOpenConfigSourceCommand(command, filename_dos_style, std::string(line));
-            const TreeItem* ti = getCurrentTreeItemOrRoot();
-            expandedCustomCmd = ti
-                ? AbstrStorageManager::Expand(ti, SharedStr(unexpanded.c_str())).c_str()
-                : AbstrStorageManager::Expand("", unexpanded.c_str()).c_str();
-        }
-    }
+        customCmd = GetGeoDmsRegKey("DmsEditor").c_str();
 
-    startEditorForFile(preset, qFile, line, expandedCustomCmd);
+    std::string commandTemplate = buildEditorCommandLineTemplate(preset, customCmd);
+    if (commandTemplate.empty())
+        return;
+
+    // 1. Substitute %F / %L / %C as before #1125, then 2. expand %projDir% and other
+    //    %placeholder% values via AbstrStorageManager::Expand (needs TreeItem context).
+    std::string filled = fillOpenConfigSourceCommand(commandTemplate, filename_fwd_style,
+                                                     std::string(line), std::string(column));
+    const TreeItem* ti = getCurrentTreeItemOrRoot();
+    std::string expandedCmd = ti
+        ? AbstrStorageManager::Expand(ti, SharedStr(filled.c_str())).c_str()
+        : AbstrStorageManager::Expand("", filled.c_str()).c_str();
+
+    launchEditorCommandLine(expandedCmd);
 }
 
 void MainWindow::openConfigSourceFor(const TreeItem* context) {
     if (!context)
         return;
     auto filename = ConvertDmsFileNameAlways(context->GetConfigFileName());
-    std::string line = std::to_string(context->GetConfigFileLineNr());
-    openConfigSourceDirectly(filename.c_str(), line);
+    std::string line   = std::to_string(context->GetConfigFileLineNr());
+    std::string column = std::to_string(context->GetConfigFileColNr());
+    openConfigSourceDirectly(filename.c_str(), line, column);
 }
 
 void MainWindow::openConfigSource() {
@@ -1563,7 +1574,7 @@ void MainWindow::onInternalLinkClick(const QUrl& link, QWidget* origin) {
         if (realm.size() == 16 && !strnicmp(realm.begin(), "editConfigSource", 16)) {
             auto clicked_error_link = linkStr.substr(17);
             auto parsed_clicked_error_link = getLinkFromErrorMessage(clicked_error_link);
-            MainWindow::TheOne()->openConfigSourceDirectly(parsed_clicked_error_link.filename, parsed_clicked_error_link.line);
+            MainWindow::TheOne()->openConfigSourceDirectly(parsed_clicked_error_link.filename, parsed_clicked_error_link.line, parsed_clicked_error_link.col);
             return;
         }
         if (realm.size() == 9 && !strnicmp(realm.begin(), "clipboard", 9)) {

@@ -154,7 +154,7 @@ public:
     void LoadConfig(CharPtr configFilePath, CharPtr currentItemPath = "");
     bool LoadConfigImpl(CharPtr configFilePath);
     void updateToolbar();
-    void openConfigSourceDirectly(std::string_view filename, std::string_view line);
+    void openConfigSourceDirectly(std::string_view filename, std::string_view line, std::string_view column = "1");
     void cleanRecentFilesThatDoNotExistOrListedBefore();
     void insertCurrentConfigInRecentFiles(WeakStr cfg);
     void removeRecentFileAtIndex(size_t index);

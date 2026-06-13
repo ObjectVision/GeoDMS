@@ -4,10 +4,11 @@
 #include "dbg/Check.h"
 #include "dbg/SeverityType.h"
 
-#include <QDir>
 #include <QFileInfo>
 #include <QProcess>
 #include <QStringList>
+
+#include <cctype>
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -81,97 +82,104 @@ QString findNotepadPlusPlusExe()
 }
 
 // ---------------------------------------------------------------------------
-// Project root detection
+// Editor presets
+//
+// Every preset is expressed as an application finder plus a command-line parameter
+// template. The template uses the same placeholder vocabulary as the custom command
+// line: %F (filename), %L (line), %C (column) and %projDir% (the workspace root, which
+// AbstrStorageManager::Expand resolves to the project directory). This keeps the named
+// editors transparent ("what gets executed") and as configurable as the custom option.
 // ---------------------------------------------------------------------------
 
-QString findVSCodeProjectRoot(const QString& filePath)
+struct EditorPreset
 {
-    QDir dir = QFileInfo(filePath).absoluteDir();
-    while (true)
+    const char* key;                 // value stored under registry key DmsEditorPreset
+    QString   (*findApplication)();  // locates the editor executable
+    const char* paramTemplate;       // parameters appended after the quoted application
+};
+
+static const EditorPreset s_editorPresets[] = {
+    { "vscode",       &findVSCodeExe,          "\"%projDir%\" --goto \"%F:%L:%C\"" },
+    { "visualstudio", &findDevenvExe,          "/edit \"%F\"" },
+    { "notepadpp",    &findNotepadPlusPlusExe, "\"%F\" -n%L" },
+};
+
+std::string buildEditorCommandLineTemplate(const std::string& preset, const std::string& customCmd)
+{
+    for (const auto& p : s_editorPresets)
     {
-        if (dir.dirName().compare("cfg", Qt::CaseInsensitive) == 0)
+        if (preset != p.key)
+            continue;
+
+        QString exe = p.findApplication();
+        if (exe.isEmpty())
         {
-            QDir parent = dir;
-            if (parent.cdUp())
-                return parent.absolutePath();
+            reportF(MsgCategory::commands, SeverityTypeID::ST_Warning,
+                    "Editor application for preset '%s' not found.", preset.c_str());
+            return {};
         }
-        if (!dir.cdUp())
-            break;
+        // Quote the application and append the parameter template, mirroring the way a
+        // custom command line is composed (quoted exe followed by its arguments).
+        return "\"" + exe.toStdString() + "\" " + p.paramTemplate;
     }
-    return QFileInfo(filePath).absoluteDir().absolutePath();
+
+    // "custom" or empty (legacy): use the user-configured command verbatim.
+    return customCmd;
 }
 
 // ---------------------------------------------------------------------------
-// Command template substitution
+// Placeholder substitution
 // ---------------------------------------------------------------------------
+
+// A %X token is only treated as one of our F/L/C placeholders when the character that
+// follows the two-character token is neither alphanumeric nor a '%'. This is how %F, %L
+// and %C were substituted before #1125, and it prevents collisions with longer
+// placeholders such as %LocalDataDir% (which AbstrStorageManager::Expand resolves later).
+static bool isPlaceholderBoundary(char c)
+{
+    return !std::isalnum(static_cast<unsigned char>(c)) && c != '%';
+}
 
 std::string fillOpenConfigSourceCommand(const std::string& command,
                                         const std::string& filename,
-                                        const std::string& line)
+                                        const std::string& line,
+                                        const std::string& column)
 {
-    std::string result = command;
-    auto fnp_pos = result.find("%F");
-    if (fnp_pos == std::string::npos)
-        return result;
-    result.replace(fnp_pos, 2, filename);
+    std::string result;
+    result.reserve(command.size() + filename.size());
 
-    auto lnp_pos = result.find("%L");
-    if (lnp_pos == std::string::npos)
-        return result;
-    result.replace(lnp_pos, 2, line);
+    for (std::size_t i = 0; i < command.size(); )
+    {
+        if (command[i] == '%' && i + 1 < command.size())
+        {
+            char code = command[i + 1];
+            char next = (i + 2 < command.size()) ? command[i + 2] : '\0'; // end-of-string is a boundary
+            if ((code == 'F' || code == 'L' || code == 'C') && isPlaceholderBoundary(next))
+            {
+                switch (code)
+                {
+                case 'F': result += filename; break;
+                case 'L': result += line;     break;
+                case 'C': result += column;   break;
+                }
+                i += 2;
+                continue;
+            }
+        }
+        result += command[i++];
+    }
     return result;
 }
 
 // ---------------------------------------------------------------------------
-// Main entry point
+// Launch
 // ---------------------------------------------------------------------------
 
-void startEditorForFile(const std::string& preset,
-                        const QString&     filePath,
-                        std::string_view   line,
-                        const std::string& expandedCustomCmd)
+void launchEditorCommandLine(const std::string& expandedCmd)
 {
-    if (preset == "vscode")
-    {
-        QString exe      = findVSCodeExe();
-        QString root     = findVSCodeProjectRoot(filePath);
-        QString cleanFile = QString(filePath).replace('\\', '/'); // single colon in C:/path/file:line → unambiguous for VS Code parser
-        launchDetached(exe,
-            { root, "--goto", cleanFile + ":" + QString::fromStdString(std::string(line)) },
-            "VS Code");
+    if (expandedCmd.empty())
         return;
-    }
-    if (preset == "visualstudio")
-    {
-        QString exe = findDevenvExe();
-        if (exe.isEmpty())
-        {
-            reportF(MsgCategory::commands, SeverityTypeID::ST_Warning,
-                    "Visual Studio (devenv.exe) not found.");
-            return;
-        }
-        launchDetached(exe, { "/edit", filePath }, "Visual Studio");
-        return;
-    }
-    if (preset == "notepadpp")
-    {
-        QString exe = findNotepadPlusPlusExe();
-        if (exe.isEmpty())
-        {
-            reportF(MsgCategory::commands, SeverityTypeID::ST_Warning,
-                    "Notepad++ not found in standard locations.");
-            return;
-        }
-        launchDetached(exe,
-            { filePath, "-n" + QString::fromStdString(std::string(line)) },
-            "Notepad++");
-        return;
-    }
-
-    // "custom" or empty (legacy): use the pre-expanded command string
-    if (expandedCustomCmd.empty())
-        return;
-    QStringList args = QProcess::splitCommand(QString::fromStdString(expandedCustomCmd));
+    QStringList args = QProcess::splitCommand(QString::fromStdString(expandedCmd));
     if (args.isEmpty())
         return;
     QString prog = args.takeFirst();
