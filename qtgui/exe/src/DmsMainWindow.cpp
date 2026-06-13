@@ -773,15 +773,10 @@ void MainWindow::openConfigSourceDirectly(std::string_view filename, std::string
     for (char& c : filename_fwd_style)
         if (c == '\\')
             c = '/';
-    std::string preset = GetGeoDmsRegKey("DmsEditorPreset").c_str();
 
-    // For custom/legacy the command line is the user-configured DmsEditor value; for the
-    // named presets it is derived from the located application plus its parameter template.
-    std::string customCmd;
-    if (preset == "custom" || preset.empty())
-        customCmd = GetGeoDmsRegKey("DmsEditor").c_str();
-
-    std::string commandTemplate = buildEditorCommandLineTemplate(preset, customCmd);
+    // The editor is always launched from the single, user-editable command line stored
+    // under DmsEditor (Application + Parameters); we no longer remember an editor "type".
+    std::string commandTemplate = GetGeoDmsRegKey("DmsEditor").c_str();
     if (commandTemplate.empty())
         return;
 

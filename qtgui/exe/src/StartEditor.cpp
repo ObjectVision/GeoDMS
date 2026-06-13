@@ -81,50 +81,65 @@ QString findNotepadPlusPlusExe()
     return findExeInCandidates(candidates);
 }
 
+QString findNotepadExe()
+{
+    QString sysRoot = qEnvironmentVariable("SystemRoot");
+    QStringList candidates = {
+        sysRoot + "/System32/notepad.exe",
+        sysRoot + "/notepad.exe",
+    };
+    QString found = findExeInCandidates(candidates);
+    return found.isEmpty() ? "notepad.exe" : found; // fallback to PATH
+}
+
 // ---------------------------------------------------------------------------
-// Editor presets
+// Editor defaults offered by the options dialog
 //
-// Every preset is expressed as an application finder plus a command-line parameter
-// template. The template uses the same placeholder vocabulary as the custom command
-// line: %F (filename), %L (line), %C (column) and %projDir% (the workspace root, which
-// AbstrStorageManager::Expand resolves to the project directory). This keeps the named
-// editors transparent ("what gets executed") and as configurable as the custom option.
+// Each supported editor is an application finder plus a parameter template. The template
+// uses the same placeholder vocabulary as a hand-written command line: %F (filename),
+// %L (line), %C (column) and %projDir% (the workspace root, which AbstrStorageManager::
+// Expand resolves to the project directory). The dialog only fills the Application and
+// Parameters fields from these; the actual editor is always launched from the stored,
+// user-editable command line (registry key DmsEditor), never from a remembered editor type.
 // ---------------------------------------------------------------------------
 
-struct EditorPreset
+namespace {
+
+std::string quoted(const QString& path)
 {
-    const char* key;                 // value stored under registry key DmsEditorPreset
-    QString   (*findApplication)();  // locates the editor executable
-    const char* paramTemplate;       // parameters appended after the quoted application
-};
+    return "\"" + path.toStdString() + "\"";
+}
 
-static const EditorPreset s_editorPresets[] = {
-    { "vscode",       &findVSCodeExe,          "\"%projDir%\" --goto \"%F:%L:%C\"" },
-    { "visualstudio", &findDevenvExe,          "/edit \"%F\"" },
-    { "notepadpp",    &findNotepadPlusPlusExe, "\"%F\" -n%L" },
-};
-
-std::string buildEditorCommandLineTemplate(const std::string& preset, const std::string& customCmd)
+// Build a choice for a named editor: located path when found, else a best-effort bare exe
+// name so the Application field still shows an editable hint.
+EditorChoice namedEditor(const char* label, const QString& exe, const char* bareExe, const char* params)
 {
-    for (const auto& p : s_editorPresets)
-    {
-        if (preset != p.key)
-            continue;
+    bool found = !exe.isEmpty();
+    return { label, quoted(found ? exe : QString(bareExe)), params, found };
+}
 
-        QString exe = p.findApplication();
-        if (exe.isEmpty())
-        {
-            reportF(MsgCategory::commands, SeverityTypeID::ST_Warning,
-                    "Editor application for preset '%s' not found.", preset.c_str());
-            return {};
-        }
-        // Quote the application and append the parameter template, mirroring the way a
-        // custom command line is composed (quoted exe followed by its arguments).
-        return "\"" + exe.toStdString() + "\" " + p.paramTemplate;
-    }
+} // namespace
 
-    // "custom" or empty (legacy): use the user-configured command verbatim.
-    return customCmd;
+std::vector<EditorChoice> getEditorChoices()
+{
+    std::vector<EditorChoice> choices;
+
+    choices.push_back(namedEditor("Visual Studio",      findDevenvExe(),  "devenv.exe",
+                                  "/edit \"%F\" /command \"edit.goto %L\""));
+    // findVSCodeExe falls back to "code" on PATH, so Visual Studio Code is always available.
+    choices.push_back(namedEditor("Visual Studio Code", findVSCodeExe(),  "code",
+                                  "\"%projDir%\" --goto \"%F:%L:%C\""));
+
+    QString npp = findNotepadPlusPlusExe();
+    choices.push_back(namedEditor("Notepad++",          npp,              "notepad++.exe",
+                                  "\"%F\" -n%L"));
+
+    // Plain Notepad is only useful as a fallback when Notepad++ is not installed.
+    if (npp.isEmpty())
+        choices.push_back(namedEditor("Notepad",        findNotepadExe(), "notepad.exe",
+                                      "\"%F\""));
+
+    return choices;
 }
 
 // ---------------------------------------------------------------------------

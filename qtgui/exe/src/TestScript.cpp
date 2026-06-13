@@ -179,8 +179,8 @@ int PassMsg(int argc, char* argv[])
 		else if (std::strcmp(argv[i], "EditConfigSource") == 0 || std::strcmp(argv[i], "EditConfigRootSource") == 0)
 		{
 			// Fire the real "edit config source" menu action for the current item (or the
-			// root): read DmsEditorPreset, build & expand the command, and launch the editor
-			// detached. The executed command line is written to the trace log
+			// root): read the stored DmsEditor command, substitute & expand it, and launch the
+			// editor detached. The executed command line is written to the trace log
 			// (MsgCategory::commands), so a headless test can assert on it. Handled directly
 			// like BringToFront; continue skips the trailing WM_COPYDATA SendMessage.
 			auto mw = MainWindow::TheOne();

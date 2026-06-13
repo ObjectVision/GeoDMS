@@ -2,20 +2,32 @@
 
 #include <QString>
 #include <string>
+#include <vector>
 
 // Locate editor executables in standard installation paths.
 // Returns empty string if not found (except findVSCodeExe which falls back to "code").
 QString findVSCodeExe();
 QString findDevenvExe();
 QString findNotepadPlusPlusExe();
+QString findNotepadExe();
 
-// Build the raw, unexpanded command-line template for the editor selected by `preset`.
-// For the named presets ("vscode" | "visualstudio" | "notepadpp") this is the quoted
-// application path followed by a parameter template that may contain the placeholders
-// %F (filename), %L (line), %C (column) and %projDir% (workspace root).
-// For "custom" or "" (legacy) the user-configured `customCmd` is returned verbatim.
-// Returns an empty string when the application for a named preset cannot be located.
-std::string buildEditorCommandLineTemplate(const std::string& preset, const std::string& customCmd);
+// A suggested default for one of the supported editors, used to fill the Application /
+// Parameters fields in the Local Machine options dialog. `application` is the quoted
+// (located, or best-effort) executable path; `parameters` is the parameter template using
+// the placeholders %F (filename), %L (line), %C (column) and %projDir% (workspace root).
+// `found` is false when the executable could not be located on this machine.
+struct EditorChoice
+{
+    std::string label;        // menu text, e.g. "Visual Studio Code"
+    std::string application;  // quoted application path
+    std::string parameters;   // parameter template
+    bool        found = false;
+};
+
+// The supported editors offered by the "Set default parameters for editor" menu:
+// Visual Studio, Visual Studio Code and Notepad++ are always listed (disabled when not
+// installed); plain Notepad is appended only when Notepad++ is not available.
+std::vector<EditorChoice> getEditorChoices();
 
 // Substitute %F (filename), %L (line) and %C (column) in `command`, each only when the
 // two-character token is followed by a non-alphanumeric, non-'%' character so that longer
