@@ -758,6 +758,9 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos) {
 	auto table_view_action = MainWindow::TheOne()->m_tableview_action.get();
 	auto map_view_action = MainWindow::TheOne()->m_mapview_action.get();
 	auto statistics_view_action = MainWindow::TheOne()->m_statistics_action.get();
+	auto histogram_view_action = MainWindow::TheOne()->m_histogramview_action.get();
+	auto scatter_view_action = MainWindow::TheOne()->m_scatterview_action.get();
+	auto line_view_action = MainWindow::TheOne()->m_lineview_action.get();
 
 	if (!m_context_menu) {
 		m_context_menu = std::make_unique<QMenu>(MainWindow::TheOne());
@@ -782,12 +785,11 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos) {
 		m_context_menu->addAction(table_view_action);
 		m_context_menu->addAction(map_view_action);
 		m_context_menu->addAction(statistics_view_action);
-		//	m_context_menu->exec(viewport()->mapToGlobal(pos));
 
-		// histogram view
-		//	auto histogramview = MainWindow::TheOne()->m_histogramview_action.get();
-		//	histogramview->setDisabled(true);
-		//	m_context_menu->addAction(histogramview);
+		// chart views (issue #75): keep the popup in sync with the main 'View' menu
+		m_context_menu->addAction(histogram_view_action);
+		m_context_menu->addAction(scatter_view_action);
+		m_context_menu->addAction(line_view_action);
 
 		// process scheme
 		//	auto process_scheme = MainWindow::TheOne()->m_process_schemes_action.get(); //TODO: to be implemented or not..

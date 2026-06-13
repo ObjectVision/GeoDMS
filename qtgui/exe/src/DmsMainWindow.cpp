@@ -386,6 +386,8 @@ void MainWindow::updateActionsForNewCurrentItem() {
         catchException(false); // swallow: don't enable the action, don't disrupt the UI update
     }
     m_histogramview_action->setEnabled(histogramEnabled);
+    m_scatterview_action->setEnabled(histogramEnabled);
+    m_lineview_action->setEnabled(histogramEnabled);
     m_statistics_action->setEnabled(ci ? IsDataItem(ci) : false);
     m_process_schemes_action->setEnabled(true);
     m_update_treeitem_action->setEnabled(true);
@@ -994,7 +996,7 @@ void MainWindow::exportPrimaryData() {
 
 TokenID s_ViewToken = GetTokenID_st("View");
 
-void MainWindow::createView(ViewStyle viewStyle) {
+void MainWindow::createView(ViewStyle viewStyle, ChartKind chartKind) {
     try {
         // openErrorOnFailedCurrentItem() inspects the item's fail state and can throw;
         // keep it inside the guard so it cannot escape into the action-slot dispatch.
@@ -1007,6 +1009,10 @@ void MainWindow::createView(ViewStyle viewStyle) {
 
         auto desktopItem = GetDefaultDesktopContainer(m_root.get()); // rootItem->CreateItemFromPath("DesktopInfo");
         auto viewContextItem = desktopItem->CreateItem(UniqueName(desktopItem, s_ViewToken));
+
+        // seed the chart kind on the view context so ChartDataView::AddLayer builds the right layer
+        if (viewStyle == ViewStyle::tvsHistogram)
+            SetViewContextChartKind(viewContextItem.get(), chartKind);
 
         SuspendTrigger::Resume();
 
@@ -1080,7 +1086,23 @@ void MainWindow::histogramChartView() {
     if (!currItem)
         return;
     reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "histogramChartView // for item %s", currItem->GetFullName());
-    createView(ViewStyle::tvsHistogram);
+    createView(ViewStyle::tvsHistogram, ChartKind::Histogram);
+}
+
+void MainWindow::scatterChartView() {
+    auto currItem = getCurrentTreeItem();
+    if (!currItem)
+        return;
+    reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "scatterChartView // for item %s", currItem->GetFullName());
+    createView(ViewStyle::tvsHistogram, ChartKind::Scatter);
+}
+
+void MainWindow::lineChartView() {
+    auto currItem = getCurrentTreeItem();
+    if (!currItem)
+        return;
+    reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "lineChartView // for item %s", currItem->GetFullName());
+    createView(ViewStyle::tvsHistogram, ChartKind::Line);
 }
 
 void geoDMSContextMessage(ClientHandle clientHandle, CharPtr msg) {

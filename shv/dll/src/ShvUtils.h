@@ -109,6 +109,18 @@ void SyncState(GraphicObject* obj, TreeItem* context, TokenID stateID, UInt32 st
 void ChangePoint(AbstrDataItem* pointItem, const CrdPoint& point, bool isNew);
 
 //----------------------------------------------------------------------
+// section : ChartKind (issue #75)
+//----------------------------------------------------------------------
+// All chart kinds share the tvsHistogram ViewStyle; the kind is carried on the
+// chart's view-context item (via its DialogType token) so the create-action can
+// seed it and it round-trips through desktop save/load.
+
+enum class ChartKind : UInt8 { Histogram, Scatter, Line, Bar };
+
+SHV_CALL void      SetViewContextChartKind(TreeItem* viewContext, ChartKind kind);
+SHV_CALL ChartKind GetViewContextChartKind(const TreeItem* viewContext);
+
+//----------------------------------------------------------------------
 // section : ViewContext
 //----------------------------------------------------------------------
 

@@ -139,6 +139,20 @@ void createDmsActions() {
     main_window->m_view_menu->addAction(main_window->m_histogramview_action.get());
     main_window->m_histogramview_action->setShortcut(QKeySequence(QObject::tr("Ctrl+H")));
 
+    // scatter chart view (issue #75)
+    main_window->m_scatterview_action = std::make_unique<QAction>(QObject::tr("Create &Scatter Chart"));
+    main_window->m_scatterview_action->setStatusTip(QObject::tr("Open a chart that plots the current selected TreeItem's values against their row number."));
+    main_window->m_scatterview_action->setIcon(main_window->getIconFromViewstyle(ViewStyle::tvsHistogram));
+    main_window->connect(main_window->m_scatterview_action.get(), &QAction::triggered, main_window, &MainWindow::scatterChartView);
+    main_window->m_view_menu->addAction(main_window->m_scatterview_action.get());
+
+    // line chart view (issue #75)
+    main_window->m_lineview_action = std::make_unique<QAction>(QObject::tr("Create &Line Chart"));
+    main_window->m_lineview_action->setStatusTip(QObject::tr("Open a chart that connects the current selected TreeItem's values (in row order) with a line."));
+    main_window->m_lineview_action->setIcon(main_window->getIconFromViewstyle(ViewStyle::tvsHistogram));
+    main_window->connect(main_window->m_lineview_action.get(), &QAction::triggered, main_window, &MainWindow::lineChartView);
+    main_window->m_view_menu->addAction(main_window->m_lineview_action.get());
+
     // process schemes
     main_window->m_process_schemes_action = std::make_unique<QAction>(QObject::tr("&Process Schemes"));
     //connect(m_process_schemes_action.get(), &QAction::triggered, this, & #TODO);

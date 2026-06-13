@@ -77,6 +77,7 @@
     <ClCompile Include="src\Carets.cpp" />
     <ClCompile Include="src\ChartControl.cpp" />
     <ClCompile Include="src\ChartDataView.cpp" />
+    <ClCompile Include="src\ChartLayer.cpp" />
     <ClCompile Include="src\ClipBoard.cpp" />
     <ClCompile Include="src\Cmds.cpp" />
     <ClCompile Include="src\Controllers.cpp" />
@@ -153,6 +154,7 @@
     <ClInclude Include="src\changelock.h" />
     <ClInclude Include="src\ChartControl.h" />
     <ClInclude Include="src\ChartDataView.h" />
+    <ClInclude Include="src\ChartLayer.h" />
     <ClInclude Include="src\Clipboard.h" />
     <ClInclude Include="src\Cmds.h" />
     <ClInclude Include="src\Controllers.h" />
