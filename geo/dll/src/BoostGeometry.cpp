@@ -894,7 +894,10 @@ struct BufferMultiPointOperator : public AbstrBufferOperator
 		auto resData = mutable_array_cast<PolygonType>(resObj)->GetWritableTile(t);
 		assert(polyData.size() == resData.size());
 
-		assert(polyItem->GetValueComposition() == ValueComposition::MultiPoint);
+		// multipoint is the intended composition (CheckGeometryArgComposition warns otherwise), but arc/polygon
+		// input is still processed (each coordinate buffered) rather than aborting debug builds - this keeps configs
+		// that predate multipoint composition working without change (#1038 backward compatibility).
+		assert(IsAcceptableValuesComposition(polyItem->GetValueComposition()));
 
 		SizeT i = 0, n = polyData.size(); if (!n) return;
 
