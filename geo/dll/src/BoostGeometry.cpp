@@ -149,6 +149,15 @@ struct BgMultiPolygonOperator : BinaryMapAlgebraicOperator<P>
 	BgMultiPolygonOperator(AbstrOperGroup& gr, BinaryBgMpOper&& oper = BinaryBgMpOper())
 		: BinaryMapAlgebraicOperator<P>(&gr, compatible_simple_values_unit_creator, ValueComposition::Polygon)
 	{}
+
+	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
+	{
+		assert(args.size() == 2);
+		CheckGeometryArgComposition(this->GetGroup(), AsDataItem(args[0]), ValueComposition::Polygon);
+		CheckGeometryArgComposition(this->GetGroup(), AsDataItem(args[1]), ValueComposition::Polygon);
+		return BinaryMapAlgebraicOperator<P>::CreateResult(resultHolder, args, mustCalc);
+	}
+
 	using st = sequence_traits<PolygonType>;
 	using seq_t = typename st::seq_t;
 	using cseq_t = typename st::cseq_t;
@@ -202,6 +211,15 @@ struct CGAL_MultiPolygonOperator : BinaryMapAlgebraicOperator<P>
 	CGAL_MultiPolygonOperator(AbstrOperGroup& gr, BinaryBgMpOper&& oper = BinaryBgMpOper())
 		: BinaryMapAlgebraicOperator<P>(&gr, compatible_simple_values_unit_creator, ValueComposition::Polygon)
 	{}
+
+	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
+	{
+		assert(args.size() == 2);
+		CheckGeometryArgComposition(this->GetGroup(), AsDataItem(args[0]), ValueComposition::Polygon);
+		CheckGeometryArgComposition(this->GetGroup(), AsDataItem(args[1]), ValueComposition::Polygon);
+		return BinaryMapAlgebraicOperator<P>::CreateResult(resultHolder, args, mustCalc);
+	}
+
 	using st = sequence_traits<PolygonType>;
 	using seq_t = typename st::seq_t;
 	using cseq_t = typename st::cseq_t;
@@ -255,6 +273,15 @@ struct GEOS_MultiPolygonOperator : BinaryMapAlgebraicOperator<P>
 	GEOS_MultiPolygonOperator(AbstrOperGroup& gr, BinaryBgMpOper&& oper = BinaryBgMpOper())
 		: BinaryMapAlgebraicOperator<P>(&gr, compatible_simple_values_unit_creator, ValueComposition::Polygon)
 	{}
+
+	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
+	{
+		assert(args.size() == 2);
+		CheckGeometryArgComposition(this->GetGroup(), AsDataItem(args[0]), ValueComposition::Polygon);
+		CheckGeometryArgComposition(this->GetGroup(), AsDataItem(args[1]), ValueComposition::Polygon);
+		return BinaryMapAlgebraicOperator<P>::CreateResult(resultHolder, args, mustCalc);
+	}
+
 	using st = sequence_traits<PolygonType>;
 	using seq_t = typename st::seq_t;
 	using cseq_t = typename st::cseq_t;
@@ -297,12 +324,15 @@ struct GEOS_MultiPolygonOperator : BinaryMapAlgebraicOperator<P>
 class AbstrSimplifyOperator : public BinaryOperator
 {
 protected:
-	AbstrSimplifyOperator(AbstrOperGroup& gr, const DataItemClass* polyAttrClass)
+	AbstrSimplifyOperator(AbstrOperGroup& gr, ValueComposition expectedInputVC, const DataItemClass* polyAttrClass)
 		:	BinaryOperator(&gr, polyAttrClass
 			,	polyAttrClass
 			,	DataArray<Float64>::GetStaticClass()
 			)
+		,	m_ExpectedInputVC(expectedInputVC)
 	{}
+
+	ValueComposition m_ExpectedInputVC;
 
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
@@ -310,8 +340,10 @@ protected:
 
 		const AbstrDataItem* arg1A = AsDataItem(args[0]);
 		const AbstrDataItem* arg2A = AsDataItem(args[1]);
-		dms_assert(arg1A); 
-		dms_assert(arg2A); 
+		dms_assert(arg1A);
+		dms_assert(arg2A);
+
+		CheckGeometryArgComposition(GetGroup(), arg1A, m_ExpectedInputVC);
 
 		const AbstrUnit* domain1Unit = arg1A->GetAbstrDomainUnit(); bool e1IsVoid = domain1Unit->GetValueType() == ValueWrap<Void>::GetStaticClass();
 		const AbstrUnit* values1Unit = arg1A->GetAbstrValuesUnit();
@@ -401,7 +433,7 @@ struct SimplifyMultiPolygonOperator : public AbstrSimplifyOperator
 	using Arg1Type = DataArray<PolygonType>;
 
 	SimplifyMultiPolygonOperator(AbstrOperGroup& aog)
-		: AbstrSimplifyOperator(aog, Arg1Type::GetStaticClass())
+		: AbstrSimplifyOperator(aog, ValueComposition::Polygon, Arg1Type::GetStaticClass())
 	{}
 
 	void Calculate(AbstrDataObject* resItem, const AbstrDataItem* polyItem, Float64 maxError, tile_id t) const override
@@ -500,7 +532,7 @@ struct SimplifyPolygonOperator : public AbstrSimplifyOperator
 	using Arg1Type = DataArray<PolygonType>;
 
 	SimplifyPolygonOperator()
-		: AbstrSimplifyOperator(grBgSimplify_polygon, Arg1Type::GetStaticClass())
+		: AbstrSimplifyOperator(grBgSimplify_polygon, ValueComposition::Polygon, Arg1Type::GetStaticClass())
 	{}
 
 	void Calculate(AbstrDataObject* resItem, const AbstrDataItem* polyItem, Float64 maxError, tile_id t) const override
@@ -569,7 +601,7 @@ struct SimplifyLinestringOperator : public AbstrSimplifyOperator
 	using Arg1Type = DataArray<PolygonType>;
 
 	SimplifyLinestringOperator(AbstrOperGroup& operGroup)
-		: AbstrSimplifyOperator(operGroup, Arg1Type::GetStaticClass())
+		: AbstrSimplifyOperator(operGroup, ValueComposition::Sequence, Arg1Type::GetStaticClass())
 	{}
 
 	void Calculate(AbstrDataObject* resItem, const AbstrDataItem* polyItem, Float64 maxError, tile_id t) const override
@@ -625,13 +657,16 @@ struct SimplifyLinestringOperator : public AbstrSimplifyOperator
 class AbstrBufferOperator : public TernaryOperator
 {
 protected:
-	AbstrBufferOperator(AbstrOperGroup& og, const DataItemClass* polyAttrClass, const DataItemClass* argAttrClass = nullptr)
+	AbstrBufferOperator(AbstrOperGroup& og, ValueComposition expectedInputVC, const DataItemClass* polyAttrClass, const DataItemClass* argAttrClass = nullptr)
 		: TernaryOperator(&og, polyAttrClass
 			, argAttrClass ? argAttrClass : polyAttrClass
 			, DataArray<Float64>::GetStaticClass()
 			, DataArray<UInt8>::GetStaticClass()
 		)
+		, m_ExpectedInputVC(expectedInputVC)
 	{}
+
+	ValueComposition m_ExpectedInputVC;
 
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
@@ -643,6 +678,8 @@ protected:
 		assert(arg1A);
 		assert(arg2A);
 		assert(arg3A);
+
+		CheckGeometryArgComposition(GetGroup(), arg1A, m_ExpectedInputVC);
 
 		const AbstrUnit* domain1Unit = arg1A->GetAbstrDomainUnit(); bool e1IsVoid = domain1Unit->GetValueType() == ValueWrap<Void>::GetStaticClass();
 		const AbstrUnit* values1Unit = arg1A->GetAbstrValuesUnit();
@@ -723,7 +760,7 @@ struct BufferPointOperator : public AbstrBufferOperator
 	using ResultType = DataArray<PolygonType>;
 
 	BufferPointOperator(AbstrOperGroup& gr)
-		: AbstrBufferOperator(gr, ResultType::GetStaticClass(), Arg1Type::GetStaticClass())
+		: AbstrBufferOperator(gr, ValueComposition::Single, ResultType::GetStaticClass(), Arg1Type::GetStaticClass())
 	{}
 
 	void Calculate(AbstrDataObject* resObj, const AbstrDataItem* pointItem
@@ -839,7 +876,7 @@ struct BufferMultiPointOperator : public AbstrBufferOperator
 	using Arg1Type = DataArray<PolygonType>;
 
 	BufferMultiPointOperator(AbstrOperGroup& gr)
-		: AbstrBufferOperator(gr, Arg1Type::GetStaticClass())
+		: AbstrBufferOperator(gr, ValueComposition::MultiPoint, Arg1Type::GetStaticClass())
 	{}
 
 	void Calculate(AbstrDataObject* resObj, const AbstrDataItem* polyItem
@@ -853,6 +890,8 @@ struct BufferMultiPointOperator : public AbstrBufferOperator
 
 		auto resData = mutable_array_cast<PolygonType>(resObj)->GetWritableTile(t);
 		assert(polyData.size() == resData.size());
+
+		assert(polyItem->GetValueComposition() == ValueComposition::MultiPoint);
 
 		SizeT i = 0, n = polyData.size(); if (!n) return;
 
@@ -870,8 +909,6 @@ struct BufferMultiPointOperator : public AbstrBufferOperator
 				boost::geometry::strategy::buffer::end_round                   endStrategy(pointsPerCircle);
 				boost::geometry::strategy::buffer::point_circle                circleStrategy(pointsPerCircle);
 				boost::geometry::strategy::buffer::side_straight               sideStrategy;
-
-				assert(polyItem->GetValueComposition() == ValueComposition::Sequence);
 
 				boost::geometry::model::multi_point<DPoint> currGeometry;
 				bg_multi_polygon_t resMP;
@@ -992,7 +1029,7 @@ struct BufferLineStringOperator : public AbstrBufferOperator
 	using Arg1Type = DataArray<PolygonType>;
 
 	BufferLineStringOperator(AbstrOperGroup& gr)
-		: AbstrBufferOperator(gr, Arg1Type::GetStaticClass())
+		: AbstrBufferOperator(gr, ValueComposition::Sequence, Arg1Type::GetStaticClass())
 	{}
 
 	void Calculate(AbstrDataObject* resItem, const AbstrDataItem* lineStringItem
@@ -1133,7 +1170,7 @@ struct BufferMultiPolygonOperator : public AbstrBufferOperator
 	using Arg1Type = DataArray<PolygonType>;
 
 	BufferMultiPolygonOperator(AbstrOperGroup& gr)
-		: AbstrBufferOperator(gr, Arg1Type::GetStaticClass())
+		: AbstrBufferOperator(gr, ValueComposition::Polygon, Arg1Type::GetStaticClass())
 	{}
 
 	void Calculate(AbstrDataObject* resItem, const AbstrDataItem* polyItem
@@ -1231,7 +1268,7 @@ struct BufferSinglePolygonOperator : public AbstrBufferOperator
 	using Arg1Type = DataArray<PolygonType>;
 
 	BufferSinglePolygonOperator(AbstrOperGroup& gr)
-		: AbstrBufferOperator(gr, Arg1Type::GetStaticClass())
+		: AbstrBufferOperator(gr, ValueComposition::Polygon, Arg1Type::GetStaticClass())
 	{}
 
 	void Calculate(AbstrDataObject* resObj, const AbstrDataItem* polyItem
@@ -1315,6 +1352,8 @@ protected:
 
 		const AbstrDataItem* arg1A = AsDataItem(args[0]);
 		dms_assert(arg1A);
+
+		CheckGeometryArgComposition(GetGroup(), arg1A, ValueComposition::Polygon);
 
 		const AbstrUnit* domain1Unit = arg1A->GetAbstrDomainUnit(); bool e1IsVoid = domain1Unit->GetValueType() == ValueWrap<Void>::GetStaticClass();
 		const AbstrUnit* values1Unit = arg1A->GetAbstrValuesUnit();

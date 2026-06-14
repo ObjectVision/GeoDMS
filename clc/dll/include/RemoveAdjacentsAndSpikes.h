@@ -20,9 +20,20 @@ Iter remove_adjacents_and_spikes(Iter first, Iter last)
 	if (last == first)
 		return last;
 
+	// A null/separator inside a presumed polygon ring almost always means a polygon operation
+	// was fed arc (linestring) or multipoint geometry: those compositions use null separators
+	// that are not valid inside a polygon ring, whereas polygon rings are delimited by closure
+	// (a repeated start point), never by nulls. Point this out, since the bare "unexpected null"
+	// message left users guessing (issue #1038).
 	for (auto iter = first; iter != last; ++iter)
 		if (!IsDefined(*iter))
-			throwErrorF("remove_adjacents_and_spikes", "unexpected null or separator found in point sequence at pos %d", iter - first);
+			throwErrorF("remove_adjacents_and_spikes"
+				, "unexpected null or separator found in point sequence at pos %d.\n"
+				  "A polygon operation likely received arc (linestring) or multipoint geometry, "
+				  "whose null separators are not valid inside a polygon ring.\n"
+				  "For arc geometry use a *_linestring variant (e.g. geos_buffer_linestring); "
+				  "for multipoint geometry use a *_multi_point variant (e.g. geos_buffer_multi_point)."
+				, iter - first);
 
 	last = std::unique(first, last); // remove doubles
 

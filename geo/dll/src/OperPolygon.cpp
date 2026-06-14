@@ -2163,6 +2163,21 @@ namespace
 	CommonOperGroup cogP2P_po ("points2polygon_po", oper_policy::better_not_in_meta_scripting);
 	CommonOperGroup cogP2P_pso("points2polygon_pso", oper_policy::better_not_in_meta_scripting);
 
+	// points2arc is a feature-type-named alias of points2sequence (both yield ValueComposition::Sequence).
+	// The suffixes disambiguate the 2nd argument: _ps = (point, sequence_rel), _po = (point, ordinal).
+	CommonOperGroup cogP2Arc    ("points2arc", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup cogP2Arc_p  ("points2arc_p", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup cogP2Arc_ps ("points2arc_ps", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup cogP2Arc_po ("points2arc_po", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup cogP2Arc_pso("points2arc_pso", oper_policy::better_not_in_meta_scripting);
+
+	// points2multi_point constructs ValueComposition::MultiPoint geometry from a point table.
+	CommonOperGroup cogP2MP    ("points2multi_point", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup cogP2MP_p  ("points2multi_point_p", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup cogP2MP_ps ("points2multi_point_ps", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup cogP2MP_po ("points2multi_point_po", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup cogP2MP_pso("points2multi_point_pso", oper_policy::better_not_in_meta_scripting);
+
 	CommonOperGroup cogS2P("sequence2points", oper_policy::better_not_in_meta_scripting);
 	CommonOperGroup cogS2P_uint64("sequence2points_uint64", oper_policy::better_not_in_meta_scripting);
 
@@ -2205,6 +2220,28 @@ namespace
 		Points2SequenceOperator<T, UInt32> p2p2_ui32, p2p3_ui32, p2p_ps_ui32, p2p_pso_ui32;
 		Points2SequenceOperator<T, UInt64> p2s2_ui64, p2s3_ui64, p2s_ps_ui64, p2s_pso_ui64;
 
+		// points2arc (Sequence): base group (all arities) + _p/_ps/_po/_pso explicit-arity groups
+		Points2SequenceOperator<T, Void>   p2arc1;
+		Points2SequenceOperator<T, UInt32> p2arc2_ui32, p2arc3_ui32;
+		Points2SequenceOperator<T, UInt64> p2arc2_ui64, p2arc3_ui64;
+		Points2SequenceOperator<T, Void>   p2arc_p;
+		Points2SequenceOperator<T, UInt32> p2arc_ps_ui32;
+		Points2SequenceOperator<T, UInt64> p2arc_ps_ui64;
+		Points2SequenceOperator<T, Void>   p2arc_po;
+		Points2SequenceOperator<T, UInt32> p2arc_pso_ui32;
+		Points2SequenceOperator<T, UInt64> p2arc_pso_ui64;
+
+		// points2multi_point (MultiPoint): base group (all arities) + _p/_ps/_po/_pso explicit-arity groups
+		Points2SequenceOperator<T, Void>   p2mp1;
+		Points2SequenceOperator<T, UInt32> p2mp2_ui32, p2mp3_ui32;
+		Points2SequenceOperator<T, UInt64> p2mp2_ui64, p2mp3_ui64;
+		Points2SequenceOperator<T, Void>   p2mp_p;
+		Points2SequenceOperator<T, UInt32> p2mp_ps_ui32;
+		Points2SequenceOperator<T, UInt64> p2mp_ps_ui64;
+		Points2SequenceOperator<T, Void>   p2mp_po;
+		Points2SequenceOperator<T, UInt32> p2mp_pso_ui32;
+		Points2SequenceOperator<T, UInt64> p2mp_pso_ui64;
+
 		Arcs2SegmentsOperator <T> arc2segm, arc2segm_uint64, seq2point, seq2point_uint64;
 
 		SequenceOperators()
@@ -2246,6 +2283,32 @@ namespace
 			, p2p_po(&cogP2P_po, true, ValueComposition::Polygon)
 			, p2p_ps_ui64(&cogP2P_ps, false, ValueComposition::Polygon)
 			, p2p_pso_ui64(&cogP2P_pso, true, ValueComposition::Polygon)
+
+			// points2arc (alias of points2sequence, ValueComposition::Sequence)
+			, p2arc1(&cogP2Arc, false, ValueComposition::Sequence)
+			, p2arc2_ui32(&cogP2Arc, false, ValueComposition::Sequence)
+			, p2arc3_ui32(&cogP2Arc, true, ValueComposition::Sequence)
+			, p2arc2_ui64(&cogP2Arc, false, ValueComposition::Sequence)
+			, p2arc3_ui64(&cogP2Arc, true, ValueComposition::Sequence)
+			, p2arc_p(&cogP2Arc_p, false, ValueComposition::Sequence)            // (point)
+			, p2arc_ps_ui32(&cogP2Arc_ps, false, ValueComposition::Sequence)     // (point, sequence_rel)
+			, p2arc_ps_ui64(&cogP2Arc_ps, false, ValueComposition::Sequence)
+			, p2arc_po(&cogP2Arc_po, true, ValueComposition::Sequence)           // (point, ordinal)
+			, p2arc_pso_ui32(&cogP2Arc_pso, true, ValueComposition::Sequence)    // (point, sequence_rel, ordinal)
+			, p2arc_pso_ui64(&cogP2Arc_pso, true, ValueComposition::Sequence)
+
+			// points2multi_point (ValueComposition::MultiPoint)
+			, p2mp1(&cogP2MP, false, ValueComposition::MultiPoint)
+			, p2mp2_ui32(&cogP2MP, false, ValueComposition::MultiPoint)
+			, p2mp3_ui32(&cogP2MP, true, ValueComposition::MultiPoint)
+			, p2mp2_ui64(&cogP2MP, false, ValueComposition::MultiPoint)
+			, p2mp3_ui64(&cogP2MP, true, ValueComposition::MultiPoint)
+			, p2mp_p(&cogP2MP_p, false, ValueComposition::MultiPoint)            // (point)
+			, p2mp_ps_ui32(&cogP2MP_ps, false, ValueComposition::MultiPoint)     // (point, sequence_rel)
+			, p2mp_ps_ui64(&cogP2MP_ps, false, ValueComposition::MultiPoint)
+			, p2mp_po(&cogP2MP_po, true, ValueComposition::MultiPoint)           // (point, ordinal)
+			, p2mp_pso_ui32(&cogP2MP_pso, true, ValueComposition::MultiPoint)    // (point, sequence_rel, ordinal)
+			, p2mp_pso_ui64(&cogP2MP_pso, true, ValueComposition::MultiPoint)
 
 			, arc2segm(&cogArc2segm, DoCreateNextPoint | DoCreateNrOrgEntity)
 			, arc2segm_uint64(&cogArc2segm_uint64, DoCreateNextPoint | DoCreateNrOrgEntity| CreateUInt64Domain)

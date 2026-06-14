@@ -50,6 +50,7 @@ public:
 
 	bool HasDataObj() const { return m_DataObject; }
 	TIC_CALL ValueComposition GetValueComposition() const;
+	TIC_CALL void SetValueComposition(ValueComposition vc);
 
 	void InitAbstrDataItem(TokenID domainUnit, TokenID valuesUnit, ValueComposition vc);
 

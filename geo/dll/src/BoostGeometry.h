@@ -653,6 +653,36 @@ void dms_insert(bg_multi_polygon_t& lvalue, SA_ConstReference<DmsPointType> rval
 	lvalue.swap(resMP);
 }
 
+// *****************************************************************************
+//	geometry composition deprecation check
+// *****************************************************************************
+
+// Arc, polygon and multipoint attributes all share one DataItemClass (their value type is the common
+// sequence-class), so feeding a geometry operator the wrong composition - e.g. geos_buffer_multi_polygon
+// on arc geometry - is not caught by argument-type dispatch and instead fails deep inside the geometry
+// code (issue #1038). Warn so users configure the matching composition explicitly (points2sequence for
+// arc, points2polygon for poly); this is slated to become an error in a future GeoDms major version.
+inline void CheckGeometryArgComposition(const AbstrOperGroup* gr, const AbstrDataItem* argA, ValueComposition expectedVC)
+{
+	ValueComposition givenVC = argA->GetValueComposition();
+	if (givenVC == expectedVC)
+		return;
+	if (!IsAcceptableValuesComposition(givenVC) || !IsAcceptableValuesComposition(expectedVC))
+		return; // only nudge between arc/poly/multipoint, never Single
+
+	auto argName = argA->GetFullName();
+	reportF(SeverityTypeID::ST_Warning
+		, "%s: Depreciated: the geometry argument%s%s has ValueComposition '%s' but %s is meant for '%s' geometry.\n"
+		  "Configure the argument with the matching composition (points2sequence for arc, points2polygon for poly). "
+		  "This will become an error in a future GeoDms major version."
+		, gr->GetNameStr()
+		, argName.empty() ? "" : " "
+		, argName.c_str()
+		, GetValueCompositionID(givenVC).AsSharedStr().c_str()
+		, gr->GetNameStr()
+		, GetValueCompositionID(expectedVC).AsSharedStr().c_str()
+	);
+}
 
 
 #endif //!defined(MG_GEO_BOOST_GEOMETRY_H)

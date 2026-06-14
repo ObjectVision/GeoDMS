@@ -927,6 +927,26 @@ static void FailItemType(const TreeItem* self, const TreeItem* refItem)
 	self->Fail(msg, FailType::Determine);
 }
 
+// Arc, polygon and multipoint attributes all share the same DataItemClass (their value type is the
+// common sequence-class, see UnitClass::GetValueType), so a declared composition that disagrees with
+// the computed one passes the ItemType check unnoticed - e.g. an attribute declared (poly) but filled
+// by points2sequence (which yields arc). Warn so users can make the configuration explicit about the
+// intended composition (points2sequence for arc, points2polygon for poly); this is slated to become an
+// error in a future GeoDms major version (issue #1038).
+static void ReportResultCompositionDeprecation(const TreeItem* self, const AbstrDataItem* selfDi, const AbstrDataItem* refDi)
+{
+	auto msg = mySSPrintF(
+		"%s: Depreciated: the declared ValueComposition '%s' differs from the '%s' of the calculation result.\n"
+		"Make the configuration explicit about the intended composition "
+		"(use points2sequence for arc and points2polygon for poly). "
+		"This will become an error in a future GeoDms major version."
+	,	self->GetFullName().c_str()
+	,	GetValueCompositionID(selfDi->GetValueComposition()).AsSharedStr().c_str()
+	,	GetValueCompositionID(refDi->GetValueComposition()).AsSharedStr().c_str()
+	);
+	reportD(SeverityTypeID::ST_Warning, msg.c_str());
+}
+
 bool TreeItem::_CheckResultObjType(const TreeItem* refItem) const
 {
 	assert(refItem);
@@ -939,7 +959,23 @@ bool TreeItem::_CheckResultObjType(const TreeItem* refItem) const
 			ReportItemType(this, refItem);
 
 		if (refItem->GetDynamicObjClass()->IsDerivedFrom(GetDynamicObjClass()) )
+		{
+			// same DynamicObjClass but a different (arc/poly/multipoint) ValueComposition: deprecated, warn (#1038)
+			if (IsDataItem(this) && IsDataItem(refItem))
+			{
+				auto selfDi = AsDataItem(this);
+				auto refDi  = AsDataItem(refItem);
+				auto refVC  = refDi->GetValueComposition();
+				if (selfDi->GetValueComposition() != refVC)
+				{
+					ReportResultCompositionDeprecation(this, selfDi, refDi);
+					// Adopt the computed composition: silences a second visit (dedup) and propagates the
+					// actual composition to consumers of this item.
+					const_cast<AbstrDataItem*>(selfDi)->SetValueComposition(refVC);
+				}
+			}
 			return true;
+		}
 		FailItemType(this, refItem);
 	}
 	catch (...)
