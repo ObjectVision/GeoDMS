@@ -126,6 +126,9 @@ static CommonOperGroup grBpBuffer_multi_polygon("bp_buffer_multi_polygon", oper_
 static CommonOperGroup grBgBuffer_multi_polygon("bg_buffer_multi_polygon", oper_policy::better_not_in_meta_scripting);
 static CommonOperGroup grGeosBuffer_multi_polygon("geos_buffer_multi_polygon", oper_policy::better_not_in_meta_scripting);
 
+// generic geos buffer that dispatches on the ValueComposition of its first argument (#1038)
+static CommonOperGroup grGeosBuffer("geos_buffer", oper_policy::better_not_in_meta_scripting);
+
 static CommonOperGroup grOuter_polygon("outer_single_polygon", oper_policy::better_not_in_meta_scripting);
 static CommonOperGroup grOuter_multi_polygon("outer_multi_polygon", oper_policy::better_not_in_meta_scripting);
 
@@ -1336,6 +1339,106 @@ struct BufferSinglePolygonOperator : public AbstrBufferOperator
 };
 
 // *****************************************************************************
+//	geos_buffer: dispatch on the ValueComposition of the argument
+// *****************************************************************************
+
+// A single geos_buffer operator that picks the geos_buffer_multi_polygon,
+// geos_buffer_linestring or geos_buffer_multi_point behaviour at run-time, based on the
+// ValueComposition of its first argument (issue #1038). The result is always a polygon.
+template <typename P>
+struct GeosBufferOperator : public AbstrBufferOperator
+{
+	using PointType = P;
+	using PolygonType = sequence_traits<PointType>::container_type;
+	using Arg1Type = DataArray<PolygonType>;
+
+	// ValueComposition::Unknown: accept any geometry composition (no deprecation nudge), dispatch in Calculate
+	GeosBufferOperator(AbstrOperGroup& gr)
+		: AbstrBufferOperator(gr, ValueComposition::Unknown, Arg1Type::GetStaticClass())
+	{}
+
+	void Calculate(AbstrDataObject* resObj, const AbstrDataItem* polyItem
+		, bool e2IsVoid, const AbstrDataItem* bufDistItem, Float64 bufferDistance
+		, bool e3IsVoid, const AbstrDataItem* ppcItem, UInt8 pointsPerCircle
+		, tile_id t, Timer& processTimer, CharPtr itemRef = "") const override
+	{
+		auto polyData = const_array_cast<PolygonType>(polyItem)->GetTile(t);
+		auto bufDistData = e2IsVoid ? DataArray<Float64>::locked_cseq_t{} : const_array_cast<Float64>(bufDistItem)->GetTile(t);
+		auto ppcData     = e3IsVoid ? DataArray<UInt8  >::locked_cseq_t{} : const_array_cast<UInt8>  (ppcItem)->GetTile(t);
+		auto resData = mutable_array_cast<PolygonType>(resObj)->GetWritableTile(t);
+		assert(polyData.size() == resData.size());
+
+		ValueComposition vc = polyItem->GetValueComposition();
+		if (vc != ValueComposition::Polygon && vc != ValueComposition::Sequence && vc != ValueComposition::MultiPoint)
+			GetGroup()->throwOperErrorF(
+				"geos_buffer: unsupported ValueComposition '%s' of the first argument; expected polygon, arc or multipoint geometry"
+				, GetValueCompositionID(vc).AsSharedStr().c_str());
+
+		SizeT i = 0, n = polyData.size(); if (!n) return;
+
+		while (true)
+		{
+			if (!e2IsVoid)
+				bufferDistance = bufDistData[i];
+			if (!e3IsVoid)
+				pointsPerCircle = ppcData[i];
+
+			switch (vc)
+			{
+			case ValueComposition::Polygon: // as geos_buffer_multi_polygon
+			{
+				auto mp = geos_create_polygons(polyData[i]);
+				if (mp && !mp->isEmpty())
+				{
+					auto resMP = mp->buffer(bufferDistance, pointsPerCircle);
+					geos_assign_geometry(resData[i], resMP.get());
+				}
+				break;
+			}
+			case ValueComposition::Sequence: // as geos_buffer_linestring
+			{
+				auto lineStringRef = polyData[i];
+				auto lineString = geos_create_multi_linestring<P>(lineStringRef.begin(), lineStringRef.end());
+				auto bufferedLineString = lineString->buffer(bufferDistance, (pointsPerCircle + 3) / 4);
+				geos_assign_geometry(resData[i], bufferedLineString.get());
+				break;
+			}
+			case ValueComposition::MultiPoint: // as geos_buffer_multi_point
+			{
+				std::unique_ptr<geos::geom::Geometry> geosResult;
+				for (const auto& p : polyData[i])
+				{
+					auto point = geos_factory()->createPoint(geos::geom::Coordinate(p.X(), p.Y()));
+					auto bufferGeometry = point->buffer(bufferDistance, (pointsPerCircle + 3) / 4);
+					if (!geosResult)
+						geosResult = std::move(bufferGeometry);
+					else
+						geosResult = geosResult->Union(bufferGeometry.get());
+				}
+				geos_assign_geometry(resData[i], geosResult.get());
+				break;
+			}
+			default:
+				break; // unreachable: checked above
+			}
+
+			if (processTimer.PassedSecs())
+			{
+				reportF(SeverityTypeID::ST_MajorTrace, "%s%s: processed %s / %s sequences of tile %s / %s"
+					, itemRef
+					, GetGroup()->GetNameStr()
+					, AsString(i), AsString(n)
+					, AsString(t), AsString(resObj->GetTiledRangeData()->GetNrTiles())
+				);
+			}
+
+			if (++i == n)
+				return;
+		}
+	}
+};
+
+// *****************************************************************************
 //	outer
 // *****************************************************************************
 
@@ -1523,6 +1626,9 @@ namespace
 	tl_oper::inst_tuple_templ<typelists::points, BufferSinglePolygonOperator> bg_buffersinglePolygonOperators(grBgBuffer_single_polygon);
 	tl_oper::inst_tuple_templ<typelists::points, BgBufferMultiPolygonOperator> bg_bufferMultiPolygonOperators(grBgBuffer_multi_polygon);
 	tl_oper::inst_tuple_templ<typelists::points, GeosBufferMultiPolygonOperator> geos_bufferMultiPolygonOperators(grGeosBuffer_multi_polygon);
+
+	// generic geos_buffer: dispatches to multi_polygon / linestring / multi_point by ValueComposition (#1038)
+	tl_oper::inst_tuple_templ<typelists::points, GeosBufferOperator> geosBufferOperators(grGeosBuffer);
 
 	tl_oper::inst_tuple_templ<typelists::points, OuterSinglePolygonOperator> outerSinglePolygonOperators(grOuter_polygon);
 	tl_oper::inst_tuple_templ<typelists::points, OuterMultiPolygonOperator> outerMultiPolygonOperators(grOuter_multi_polygon);
