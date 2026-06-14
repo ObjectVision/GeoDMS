@@ -216,22 +216,6 @@ void logCommandLine(const char* msg)
 	ProcessMainThreadOpers(); // flush
 }
 
-char SeverityAsChar(SeverityTypeID st)
-{
-	switch (st)
-	{
-	case SeverityTypeID::ST_Nothing   : return 'N';
-	case SeverityTypeID::ST_MinorTrace: return '.';
-	case SeverityTypeID::ST_MajorTrace: return '!';
-	case SeverityTypeID::ST_CaseMixup : return 'C';
-	case SeverityTypeID::ST_Warning   : return 'W';
-	case SeverityTypeID::ST_Error     : return 'E';
-	case SeverityTypeID::ST_FatalError: return 'F';
-	case SeverityTypeID::ST_DispError : return 'D';
-	default: return '?';
-	}
-}
-
 void DMS_CONV logMsg(ClientHandle clientHandle, const MsgData* msgData, bool moreToCome)
 {
 	assert(msgData);
