@@ -27,7 +27,6 @@
 #include <condition_variable>
 
 #include "OperationContext.h"
-SizeT GetNumberOfActivatedOrRunningOperations();
 
 //----------------------------------------------------------------------
 // impl details
@@ -100,23 +99,17 @@ namespace treeitem_production_task
 			}
 		}
 
+		// Wait for the write lock to be released. There is deliberately no instantaneous deadlock
+		// test here: a held write lock (m_ItemCount < 0) may be released by an OperationContext, by
+		// a main-thread-posted action, or by an ItemWriteLock destructor on another thread — none of
+		// which are visible in a single (running-operations / lock-count) snapshot, so any such test
+		// only produces false positives (#1126). unlock_unique always notifies cv_lockrelease on
+		// release; genuine no-progress (task starvation) is detected over time by the
+		// SuspendTrigger / progress watchdog, not from a snapshot here.
 	retry:
-		bool noMoreOperationsRunning = (GetNumberOfActivatedOrRunningOperations() == 0);
-
 		leveled_critical_section::unique_lock lock(cs_lockCounterUpdate);
 		if (self->m_ItemCount < 0)
 		{
-			if (noMoreOperationsRunning)
-			{
-				// Race guard: in OperationContext::Schedule, the write lock is acquired (under
-				// cs_lockCounterUpdate) BEFORE the counter is incremented (under cs_ThreadMessing
-				// in OperationContex_setActivated). Check m_Producer to distinguish a real stale
-				// lock from this transient window.
-				if (self->m_Producer.expired())
-					throwErrorD("DeadLock", "lock_shared waiting for ItemCount to be unlocked but no active or running operations");
-				// else: producer exists but counter not yet incremented — fall through to wait_for
-			}
-
 			cv_lockrelease.wait_for(lock.m_BaseLock, std::chrono::milliseconds(500));
 			if (self->m_ItemCount < 0)
 				goto retry;
