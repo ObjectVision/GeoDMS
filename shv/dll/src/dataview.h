@@ -255,7 +255,7 @@ public:
 	void MoveCaret  (AbstrCaret*, const AbstrCaretOperator&);
 	void SetSelCaret (      Region& newSelCaret);
 	void XOrSelCaret (const Region& newSelCaret);
-	void SetTextCaret(const GPoint& caretPos);
+	void SetTextCaret(const GPoint& caretPos, const GRect& clipRect);
 	void ClearTextCaret();
 
 	SHV_CALL auto OnCommandEnable(ToolButtonID id) const->CommandStatus;

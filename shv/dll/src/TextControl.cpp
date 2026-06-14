@@ -184,7 +184,10 @@ void AbstrTextEditControl::DrawEditBuffer(DrawContext& dc, const GRect& rect) co
 	GPoint curExt = (sel.m_Curr > 0 && sel.m_Curr <= textLen)
 		? dc.GetTextExtent(textPtr, sel.m_Curr)
 		: GPoint{ 0, 0 };
-	dv->SetTextCaret(GPoint(rect.left + 1 + curExt.x, rect.top));
+	// Pass the cell rect so DataView confines the caret to the box: a value
+	// wider than the box would otherwise leave a trail of XOR bars to the
+	// right of the box (issue #607).
+	dv->SetTextCaret(GPoint(rect.left + 1 + curExt.x, rect.top), rect);
 }
 
 //----------------------------------------------------------------------
