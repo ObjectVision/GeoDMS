@@ -15,6 +15,7 @@
 #include "utl/Environment.h"
 #include "utl/scoped_exit.h"
 #include "utl/splitPath.h"
+#include "act/MainThread.h" // SetMainThreadID
 #include "xct/DmsException.h"
 
 #include "AbstrDataItem.h"
@@ -254,8 +255,7 @@ void DMS_CONV logMsg(ClientHandle clientHandle, const MsgData* msgData, bool mor
 
 int main1(int argc, char** argv)
 {
-	if (argc > 0)
-		DMS_Appl_SetExeDir(splitFullPath(ConvertDosFileName(SharedStr(argv[0])).c_str()).c_str());
+	SetMainThreadID(); // identify the main thread (formerly done via DMS_Appl_SetExeDir)
 
 	SuspendTrigger::FencedBlocker lockSuspend("@DmsRun main");
 	--argc; ++argv;

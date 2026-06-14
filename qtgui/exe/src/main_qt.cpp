@@ -17,6 +17,7 @@
 #include "RtcInterface.h"
 
 #include "act/garbage_can.h"
+#include "act/MainThread.h" // SetMainThreadID
 #include "dbg/DebugLog.h"
 #include "dbg/DmsCatch.h"
 #include "utl/Environment.h"
@@ -116,8 +117,7 @@ std::any init_geodms(QApplication& dms_app, CmdLineSetttings& settingsFrame) { /
 
     DMS_Shv_Load();
     SHV_SetAdminMode(true);
-    auto exe_path = dms_app.applicationDirPath().toUtf8();
-    DMS_Appl_SetExeDir(exe_path);
+    SetMainThreadID(); // identify the main thread (formerly done via DMS_Appl_SetExeDir)
     DMS_Appl_SetFont();
 
     // Set explicit application font and link color from bundled resources so

@@ -6,6 +6,10 @@ Build ONLY through the committed solution / preset files, using **msbuild** or *
 Never invent custom build, setup, or bootstrap steps, and never build to "save time" in a
 way the solution/presets don't define.
 
+**For testing a new feature, always use msbuild as the preferred build tool** (the `.m`
+flavour — see "Claude CLI msbuild recipe" below). It gives the fastest incremental turnaround
+into `bin\Release\x64`.
+
 - **Windows (msbuild):** build the solution **`all22.sln`**, or run
   `BuildSignAndCreateSetup.bat`. Do **not** build individual `*.vcxproj` projects standalone
   (e.g. `DmTic.vcxproj`, `DmRtc.vcxproj`). A standalone project build makes `$(SolutionDir)`
