@@ -462,14 +462,19 @@ void PaletteControl::CreateAreaOrLengthColumn(TreeItem* container, SharedStr exp
 		else if (layerClass == GraphicArcLayer::GetStaticClass())
 		{
 			// For ArcLayers: Length = sum(arc_length(geometry), classification)
+			// The arc_length unit-conversion argument (issue #1119) must match the geometry's
+			// scalar field type, so derive it from the feature values unit (e.g. float32 for FPolygon).
 			attrName = "Length";
+			funcExpr = mySSPrintF("sum(Float64(arc_length(%s, %s)), %s)"
+				, featureAttr->GetFullName().c_str()
+				, featureAttr->GetAbstrValuesUnit()->GetValueType()->GetScalarClass()->GetID()
+				, exprStr.c_str()
+			);
 			if (useKm)
 			{
 				attrLabel = "Length [km]";
-				funcExpr = mySSPrintF("sum(arc_length(%s, float64), %s) / 1e3", featureAttr->GetFullName().c_str(), exprStr.c_str());
+				funcExpr += " / 1e3";
 			}
-			else
-				funcExpr = mySSPrintF("sum(arc_length(%s, float64), %s)", featureAttr->GetFullName().c_str(), exprStr.c_str());
 		}
 		else if (layerClass == GraphicMultiPointLayer::GetStaticClass())
 		{

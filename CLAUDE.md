@@ -10,7 +10,11 @@ way the solution/presets don't define.
 flavour — see "Claude CLI msbuild recipe" below). It gives the fastest incremental turnaround
 into `bin\Release\x64`.
 
-- **Windows (msbuild):** build the solution **`all22.sln`**, or run
+- **Windows (msbuild):** use the **MSVC 18 (VS18) msbuild**, never the VS2022 one — the repo
+  builds with PlatformToolset **v145** and the VS2022 msbuild fails with `MSB8020: build tools
+  for v145 cannot be found`. Use:
+  `C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Current\Bin\amd64\MSBuild.exe`.
+  Build the solution **`all22.sln`**, or run
   `BuildSignAndCreateSetup.bat`. Do **not** build individual `*.vcxproj` projects standalone
   (e.g. `DmTic.vcxproj`, `DmRtc.vcxproj`). A standalone project build makes `$(SolutionDir)`
   resolve to that module's `dll\` folder, which scatters `vcpkg_installed`, `vc_archives`, and
