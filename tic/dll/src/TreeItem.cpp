@@ -3939,7 +3939,7 @@ suspended_or_failed:
 failed:
 	assert(WasFailed());
 	assert(!SuspendTrigger::DidSuspend());
-	if (IsCalculatingOrReady(refItem))
+	if (refItem && IsCalculatingOrReady(refItem))
 		return true;
 
 failed_norefitem:
