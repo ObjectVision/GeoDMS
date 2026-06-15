@@ -32,7 +32,11 @@
 #include "Prototypes.h"
 #include "UnitCreators.h"
 
+#include "Metric.h"
+#include "Projection.h"
+#include "dbg/SeverityType.h"
 
+#include <cmath>
 #include <numeric>
 
 // *****************************************************************************
@@ -146,18 +150,32 @@ struct Sequence2ScalarFunc:	unary_func<scalar_of_t<P>, typename sequence_traits<
 template <class P>
 struct ArcLengthFunc : Sequence2ScalarFunc<P>
 {
+	static constexpr UInt32 c_NrDims = 1; // length is one-dimensional
+
+	Float64 m_Factor = 1.0; // unit-conversion factor, see issue #1119
+	ArcLengthFunc() = default;
+	explicit ArcLengthFunc(Float64 factor) : m_Factor(factor) {}
+
 	auto operator() (typename ArcLengthFunc::arg1_cref arg1) const -> typename ArcLengthFunc::res_type
 	{
-		return Convert<typename ArcLengthFunc::res_type>( ArcLength<Float64>(arg1) );
+		Float64 v = ArcLength<Float64>(arg1);
+		return Convert<typename ArcLengthFunc::res_type>( IsDefined(v) ? v * m_Factor : v );
 	}
 };
 
 template <class P>
 struct MlsLengthFunc : Sequence2ScalarFunc<P>
 {
+	static constexpr UInt32 c_NrDims = 1; // length is one-dimensional
+
+	Float64 m_Factor = 1.0; // unit-conversion factor, see issue #1119
+	MlsLengthFunc() = default;
+	explicit MlsLengthFunc(Float64 factor) : m_Factor(factor) {}
+
 	auto operator() (typename MlsLengthFunc::arg1_cref arg1) const -> typename MlsLengthFunc::res_type
 	{
-		return Convert<typename MlsLengthFunc::res_type>(MlsLength<Float64>(arg1));
+		Float64 v = MlsLength<Float64>(arg1);
+		return Convert<typename MlsLengthFunc::res_type>( IsDefined(v) ? v * m_Factor : v );
 	}
 };
 
@@ -185,9 +203,300 @@ struct ElementCountFunc : unary_func<UInt32, typename sequence_traits<T>::contai
 template <class P>
 struct AreaFunc : Sequence2ScalarFunc<P>
 {
+	static constexpr UInt32 c_NrDims = 2; // area is two-dimensional
+
+	Float64 m_Factor = 1.0; // unit-conversion factor, see issue #1119
+	AreaFunc() = default;
+	explicit AreaFunc(Float64 factor) : m_Factor(factor) {}
+
 	typename AreaFunc::res_type operator() (typename AreaFunc::arg1_cref arg1) const
 	{
-		return Convert<typename AreaFunc::res_type>( Area<Float64>(arg1) );
+		Float64 v = Area<Float64>(arg1);
+		return Convert<typename AreaFunc::res_type>( IsDefined(v) ? v * m_Factor : v );
+	}
+};
+
+// *****************************************************************************
+//   area / arc_length / mls_length unit conversion (issue #1119)
+//
+// Historically the second argument of area()/arc_length() only relabeled the
+// result; it did not convert. These helpers + operator derive the source unit
+// from the geometry's coordinate (values) unit and convert the computed measure
+// to the requested target unit, validating dimensional compatibility.
+// *****************************************************************************
+
+// Derives, for a measure of dimensionality nrDims (1 = length, 2 = area):
+//   outL = the linear SI metric of the coordinate unit (may be null/empty)
+//   outJ = the projection Jacobian (1 for metric-based units; |fx*fy| for area /
+//          |fx| for length when the coordinate unit carries an affine projection)
+// Returns false when the coordinate unit is dimensionless (no metric, no projection),
+// in which case there is no information to convert and callers keep legacy behavior.
+inline bool GeoMeasure_GetCoordMetric(const AbstrOperGroup* gr, const AbstrUnit* coordUnit, UInt32 nrDims,
+	const UnitMetric*& outL, Float64& outJ)
+{
+	outJ = 1.0;
+	outL = nullptr;
+
+	// Use the Curr* accessors: GetMetric()/GetProjection() read GetReferredItem(), which is
+	// null until metainfo is resolved for expression-defined units (e.g. BaseUnit('m', dpoint)).
+	const UnitMetric* m = coordUnit->GetCurrMetric();
+	if (!IsEmpty(m))
+	{
+		// Spatial-reference coordinate units (GDAL-read / CRS-tagged) encode the CRS in their
+		// metric: a single base unit (power 1) whose symbol carries a 0xFF separator (the encoding
+		// AbstrUnit::GetSpatialReference parses). That "metric" is the projection WKT/EPSG, not a
+		// linear unit, so a linear area/length unit cannot be derived from it — keep the legacy
+		// label-only behavior. We inspect the metric directly rather than calling
+		// GetCurrSpatialReference(), which asserts metainfo-ready and is unsafe to call this early
+		// during supplier determination.
+		if (m->m_BaseUnits.size() == 1 && m->m_BaseUnits.begin()->second == 1)
+		{
+			const SharedStr& sym = m->m_BaseUnits.begin()->first;
+			if (std::find(sym.begin(), sym.send(), char(0xFF)) != sym.send())
+				return false;
+		}
+		outL = m;
+		return true;
+	}
+
+	const UnitProjection* p = coordUnit->GetCurrProjection();
+	if (p)
+	{
+		auto tr = UnitProjection::GetCompositeTransform(p);
+		DPoint f = tr.Factor();
+		if (nrDims == 2)
+			outJ = std::abs(f.X() * f.Y());
+		else
+		{
+			if (f.X() != f.Y())
+				gr->throwOperErrorF("the coordinate unit has an anisotropic projection (X-scale %g != Y-scale %g); arc_length cannot be expressed as a single scalar unit"
+					, f.X(), f.Y());
+			outJ = std::abs(f.X());
+		}
+		const AbstrUnit* base = p->GetCompositeBase();
+		if (base)
+			outL = base->GetCurrMetric();
+		return true;
+	}
+	return false;
+}
+
+// CALC-SAFE: the pure numeric factor by which the raw (coordinate-space) measure must be
+// multiplied to express it in targetUnit. Reads only unit *metrics* (no TreeItem stored
+// properties such as names/labels), so it is legal off the meta thread, unlike
+// GeoMeasure_ValidateAndWarn below. Compatibility is validated at meta time.
+inline Float64 GeoMeasure_PureFactor(const AbstrOperGroup* gr,
+	const AbstrUnit* coordUnit, const AbstrUnit* targetUnit, UInt32 nrDims)
+{
+	const UnitMetric* L = nullptr;
+	Float64 J = 1.0;
+	if (!GeoMeasure_GetCoordMetric(gr, coordUnit, nrDims, L, J))
+		return 1.0; // dimensionless coordinates: nothing to convert (legacy behavior)
+
+	const UnitMetric* tgt = targetUnit->GetCurrMetric();
+	if (IsEmpty(tgt))
+		return 1.0; // dimensionless target, e.g. area(geom, float32): a plain-type cast, not a conversion
+
+	Float64 naturalFactor = L ? std::pow(L->m_Factor, double(nrDims)) : 1.0;
+	return J * naturalFactor / tgt->m_Factor;
+}
+
+// META-PHASE ONLY: validates dimensional compatibility (throws on mismatch) and emits the
+// warn-then-convert message (issue #1119). Must run on the meta thread because it reads
+// stored properties (GetMetricStr / GetName), which assert IsMetaThread() otherwise.
+inline void GeoMeasure_ValidateAndWarn(const AbstrOperGroup* gr,
+	const AbstrUnit* coordUnit, const AbstrUnit* targetUnit, UInt32 nrDims)
+{
+	const UnitMetric* L = nullptr;
+	Float64 J = 1.0;
+	if (!GeoMeasure_GetCoordMetric(gr, coordUnit, nrDims, L, J))
+		return; // dimensionless coordinates: keep legacy behavior, nothing to validate
+
+	const UnitMetric* tgt = targetUnit->GetCurrMetric();
+	if (IsEmpty(tgt))
+		return; // dimensionless target (plain-type cast, e.g. float32): no conversion to validate or warn about
+
+	// Natural measure: base-units = each coordinate base-unit power * nrDims, factor = L.factor^nrDims.
+	// Work on a plain base-unit map, NOT a UnitMetric object: UnitMetric is a SharedBase with
+	// intrusive refcounting (freed via its own Release()), so owning one via unique_ptr/stack
+	// corrupts the heap.
+	UnitMetric::BaseUnitsMapType natBaseUnits;
+	Float64 natFactor = 1.0;
+	if (L)
+	{
+		natFactor = std::pow(L->m_Factor, double(nrDims));
+		natBaseUnits = L->m_BaseUnits;
+		for (auto& bu : natBaseUnits)
+			bu.second = Int32(bu.second * nrDims);
+	}
+
+	// Validate dimensional compatibility: base-unit maps must match.
+	if (!(natBaseUnits == tgt->m_BaseUnits))
+		gr->throwOperErrorF("the result unit (%s) is not compatible with the coordinate metric %s^%u of %s"
+			, targetUnit->GetMetricStr(FormattingFlags::ThousandSeparator).c_str()
+			, coordUnit->GetMetricStr(FormattingFlags::ThousandSeparator).c_str()
+			, nrDims
+			, coordUnit->GetName().c_str());
+
+	Float64 factor = J * natFactor / tgt->m_Factor;
+	if (factor != 1.0)
+		reportF(SeverityTypeID::ST_Warning
+			, "%s: the result is now converted to %s (factor %g); the second argument previously acted as a label only (issue #1119)"
+			, gr->GetName().c_str()
+			, targetUnit->GetMetricStr(FormattingFlags::ThousandSeparator).c_str()
+			, factor);
+}
+
+// CALC-SAFE: the value-scaling factor for the auto-derived (single-argument) form. For a
+// metric-based coordinate unit this is 1 (the raw measure is already in the derived unit's
+// terms); for a projected coordinate unit it is the projection Jacobian.
+inline Float64 GeoMeasure_AutoFactor(const AbstrOperGroup* gr, const AbstrUnit* coordUnit, UInt32 nrDims)
+{
+	const UnitMetric* L = nullptr;
+	Float64 J = 1.0;
+	GeoMeasure_GetCoordMetric(gr, coordUnit, nrDims, L, J);
+	return J;
+}
+
+// META-PHASE: builds the result values unit for the auto-derived form: a scalar Unit<...> whose
+// metric is the coordinate unit's linear metric raised to nrDims (e.g. m -> m^2 for area).
+// Falls back to the default (dimensionless) unit when the coordinate unit has no metric.
+inline ConstUnitRef GeoMeasure_DeriveResultUnit(const UnitClass* resUnitClass,
+	const AbstrOperGroup* gr, const AbstrUnit* coordUnit, UInt32 nrDims)
+{
+	const UnitMetric* L = nullptr;
+	Float64 J = 1.0;
+	if (!GeoMeasure_GetCoordMetric(gr, coordUnit, nrDims, L, J) || IsEmpty(L))
+		return resUnitClass->CreateDefault();
+
+	// D = L^nrDims (mirror UnitSqrtOperator's make_unique idiom; UnitMetric is not copy-assignable).
+	auto metric = std::make_unique<UnitMetric>(*L);
+	metric->m_Factor = std::pow(L->m_Factor, double(nrDims));
+	for (auto& bu : metric->m_BaseUnits)
+		bu.second = Int32(bu.second * nrDims);
+
+	auto tmp = resUnitClass->CreateTmpUnit(nullptr);
+	tmp->SetMetric(metric.release());
+	return tmp.release();
+}
+
+// Shared calc-phase tile loop: writes factor * raw-measure(geometry) into the result.
+template <typename TUniOper>
+void GeoMeasure_ComputeTiles(AbstrDataItem* res, const AbstrDataItem* argDataA, Float64 factor)
+{
+	using Arg1Values      = typename TUniOper::arg1_type;
+	using Arg1Type        = DataArray<Arg1Values>;
+	using ResultValueType = typename TUniOper::res_type;
+	using ResultType      = DataArray<ResultValueType>;
+
+	DataReadLock  arg1Lock(argDataA);
+	DataWriteLock resLock(res, dms_rw_mode::write_only_all);
+
+	const Arg1Type* arg1   = const_array_cast<Arg1Values>(argDataA);
+	ResultType*     result = mutable_array_cast<ResultValueType>(resLock.get());
+
+	tile_id nrTiles = argDataA->GetAbstrDomainUnit()->GetNrTiles();
+	parallel_tileloop(nrTiles, [arg1, result, factor, res](tile_id t)->void
+		{
+			try {
+				auto arg1Data = arg1->GetTile(t);
+				auto resData  = result->GetWritableTile(t);
+				TUniOper oper(factor);
+				std::transform(arg1Data.begin(), arg1Data.end(), resData.begin(), oper);
+			}
+			catch (const DmsException& x)
+			{
+				res->Fail(x.GetAsText(), FailType::Data);
+			}
+		}
+	);
+	resLock.Commit();
+}
+
+// Binary form: area(geometry, targetUnit) — converts to the requested unit, validating it.
+template <typename TUniOper>
+class MeasureConvertOperator : public BinaryOperator
+{
+	using Arg1Values      = typename TUniOper::arg1_type;
+	using Arg1Type        = DataArray<Arg1Values>;
+	using ResultValueType = typename TUniOper::res_type;
+	using ResultType      = DataArray<ResultValueType>;
+	using ValuesUnitType  = Unit<field_of_t<ResultValueType>>;
+
+public:
+	MeasureConvertOperator(AbstrOperGroup* gr)
+		:	BinaryOperator(gr
+			,	ResultType::GetStaticClass()
+			,	Arg1Type::GetStaticClass()
+			,	ValuesUnitType::GetStaticClass()
+			)
+	{}
+
+	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
+	{
+		assert(args.size() == 2);
+
+		const AbstrDataItem* argDataA = AsDataItem(args[0]); assert(argDataA);
+		const AbstrUnit*     argUnitA = AsUnit(args[1]);      assert(argUnitA);
+
+		if (!resultHolder)
+		{
+			// Meta phase (meta thread): validate dimensional compatibility and warn-then-convert.
+			GeoMeasure_ValidateAndWarn(GetGroup(), argDataA->GetAbstrValuesUnit(), argUnitA, TUniOper::c_NrDims);
+			resultHolder = CreateCacheDataItem(argDataA->GetAbstrDomainUnit(), argUnitA, composition_of<ResultValueType>::value);
+		}
+
+		if (mustCalc)
+		{
+			AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
+			MG_PRECONDITION(res);
+
+			// Calc phase (may be a worker thread): pure numeric factor only, no stored-property reads.
+			Float64 factor = GeoMeasure_PureFactor(GetGroup(), argDataA->GetAbstrValuesUnit(), argUnitA, TUniOper::c_NrDims);
+			GeoMeasure_ComputeTiles<TUniOper>(res, argDataA, factor);
+		}
+		return true;
+	}
+};
+
+// Unary form: area(geometry) — auto-derives the result unit from the coordinate system (issue #1119).
+template <typename TUniOper>
+class MeasureAutoOperator : public UnaryOperator
+{
+	using Arg1Values      = typename TUniOper::arg1_type;
+	using Arg1Type        = DataArray<Arg1Values>;
+	using ResultValueType = typename TUniOper::res_type;
+	using ResultType      = DataArray<ResultValueType>;
+	using ValuesUnitType  = Unit<field_of_t<ResultValueType>>;
+
+public:
+	MeasureAutoOperator(AbstrOperGroup* gr)
+		:	UnaryOperator(gr, ResultType::GetStaticClass(), Arg1Type::GetStaticClass())
+	{}
+
+	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
+	{
+		assert(args.size() == 1);
+
+		const AbstrDataItem* argDataA  = AsDataItem(args[0]); assert(argDataA);
+		const AbstrUnit*     coordUnit = argDataA->GetAbstrValuesUnit();
+
+		if (!resultHolder)
+		{
+			// Meta phase: derive the result values unit (coordinate metric ^ nrDims).
+			ConstUnitRef resUnit = GeoMeasure_DeriveResultUnit(ValuesUnitType::GetStaticClass(), GetGroup(), coordUnit, TUniOper::c_NrDims);
+			resultHolder = CreateCacheDataItem(argDataA->GetAbstrDomainUnit(), resUnit.get(), composition_of<ResultValueType>::value);
+		}
+
+		if (mustCalc)
+		{
+			AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
+			MG_PRECONDITION(res);
+
+			Float64 factor = GeoMeasure_AutoFactor(GetGroup(), coordUnit, TUniOper::c_NrDims);
+			GeoMeasure_ComputeTiles<TUniOper>(res, argDataA, factor);
+		}
+		return true;
 	}
 };
 
@@ -1854,6 +2163,21 @@ namespace
 	CommonOperGroup cogP2P_po ("points2polygon_po", oper_policy::better_not_in_meta_scripting);
 	CommonOperGroup cogP2P_pso("points2polygon_pso", oper_policy::better_not_in_meta_scripting);
 
+	// points2arc is a feature-type-named alias of points2sequence (both yield ValueComposition::Sequence).
+	// The suffixes disambiguate the 2nd argument: _ps = (point, sequence_rel), _po = (point, ordinal).
+	CommonOperGroup cogP2Arc    ("points2arc", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup cogP2Arc_p  ("points2arc_p", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup cogP2Arc_ps ("points2arc_ps", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup cogP2Arc_po ("points2arc_po", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup cogP2Arc_pso("points2arc_pso", oper_policy::better_not_in_meta_scripting);
+
+	// points2multi_point constructs ValueComposition::MultiPoint geometry from a point table.
+	CommonOperGroup cogP2MP    ("points2multi_point", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup cogP2MP_p  ("points2multi_point_p", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup cogP2MP_ps ("points2multi_point_ps", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup cogP2MP_po ("points2multi_point_po", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup cogP2MP_pso("points2multi_point_pso", oper_policy::better_not_in_meta_scripting);
+
 	CommonOperGroup cogS2P("sequence2points", oper_policy::better_not_in_meta_scripting);
 	CommonOperGroup cogS2P_uint64("sequence2points_uint64", oper_policy::better_not_in_meta_scripting);
 
@@ -1895,6 +2219,28 @@ namespace
 		Points2SequenceOperator<T, Void> p2p1, p2p_p, p2p_po;
 		Points2SequenceOperator<T, UInt32> p2p2_ui32, p2p3_ui32, p2p_ps_ui32, p2p_pso_ui32;
 		Points2SequenceOperator<T, UInt64> p2s2_ui64, p2s3_ui64, p2s_ps_ui64, p2s_pso_ui64;
+
+		// points2arc (Sequence): base group (all arities) + _p/_ps/_po/_pso explicit-arity groups
+		Points2SequenceOperator<T, Void>   p2arc1;
+		Points2SequenceOperator<T, UInt32> p2arc2_ui32, p2arc3_ui32;
+		Points2SequenceOperator<T, UInt64> p2arc2_ui64, p2arc3_ui64;
+		Points2SequenceOperator<T, Void>   p2arc_p;
+		Points2SequenceOperator<T, UInt32> p2arc_ps_ui32;
+		Points2SequenceOperator<T, UInt64> p2arc_ps_ui64;
+		Points2SequenceOperator<T, Void>   p2arc_po;
+		Points2SequenceOperator<T, UInt32> p2arc_pso_ui32;
+		Points2SequenceOperator<T, UInt64> p2arc_pso_ui64;
+
+		// points2multi_point (MultiPoint): base group (all arities) + _p/_ps/_po/_pso explicit-arity groups
+		Points2SequenceOperator<T, Void>   p2mp1;
+		Points2SequenceOperator<T, UInt32> p2mp2_ui32, p2mp3_ui32;
+		Points2SequenceOperator<T, UInt64> p2mp2_ui64, p2mp3_ui64;
+		Points2SequenceOperator<T, Void>   p2mp_p;
+		Points2SequenceOperator<T, UInt32> p2mp_ps_ui32;
+		Points2SequenceOperator<T, UInt64> p2mp_ps_ui64;
+		Points2SequenceOperator<T, Void>   p2mp_po;
+		Points2SequenceOperator<T, UInt32> p2mp_pso_ui32;
+		Points2SequenceOperator<T, UInt64> p2mp_pso_ui64;
 
 		Arcs2SegmentsOperator <T> arc2segm, arc2segm_uint64, seq2point, seq2point_uint64;
 
@@ -1938,6 +2284,32 @@ namespace
 			, p2p_ps_ui64(&cogP2P_ps, false, ValueComposition::Polygon)
 			, p2p_pso_ui64(&cogP2P_pso, true, ValueComposition::Polygon)
 
+			// points2arc (alias of points2sequence, ValueComposition::Sequence)
+			, p2arc1(&cogP2Arc, false, ValueComposition::Sequence)
+			, p2arc2_ui32(&cogP2Arc, false, ValueComposition::Sequence)
+			, p2arc3_ui32(&cogP2Arc, true, ValueComposition::Sequence)
+			, p2arc2_ui64(&cogP2Arc, false, ValueComposition::Sequence)
+			, p2arc3_ui64(&cogP2Arc, true, ValueComposition::Sequence)
+			, p2arc_p(&cogP2Arc_p, false, ValueComposition::Sequence)            // (point)
+			, p2arc_ps_ui32(&cogP2Arc_ps, false, ValueComposition::Sequence)     // (point, sequence_rel)
+			, p2arc_ps_ui64(&cogP2Arc_ps, false, ValueComposition::Sequence)
+			, p2arc_po(&cogP2Arc_po, true, ValueComposition::Sequence)           // (point, ordinal)
+			, p2arc_pso_ui32(&cogP2Arc_pso, true, ValueComposition::Sequence)    // (point, sequence_rel, ordinal)
+			, p2arc_pso_ui64(&cogP2Arc_pso, true, ValueComposition::Sequence)
+
+			// points2multi_point (ValueComposition::MultiPoint)
+			, p2mp1(&cogP2MP, false, ValueComposition::MultiPoint)
+			, p2mp2_ui32(&cogP2MP, false, ValueComposition::MultiPoint)
+			, p2mp3_ui32(&cogP2MP, true, ValueComposition::MultiPoint)
+			, p2mp2_ui64(&cogP2MP, false, ValueComposition::MultiPoint)
+			, p2mp3_ui64(&cogP2MP, true, ValueComposition::MultiPoint)
+			, p2mp_p(&cogP2MP_p, false, ValueComposition::MultiPoint)            // (point)
+			, p2mp_ps_ui32(&cogP2MP_ps, false, ValueComposition::MultiPoint)     // (point, sequence_rel)
+			, p2mp_ps_ui64(&cogP2MP_ps, false, ValueComposition::MultiPoint)
+			, p2mp_po(&cogP2MP_po, true, ValueComposition::MultiPoint)           // (point, ordinal)
+			, p2mp_pso_ui32(&cogP2MP_pso, true, ValueComposition::MultiPoint)    // (point, sequence_rel, ordinal)
+			, p2mp_pso_ui64(&cogP2MP_pso, true, ValueComposition::MultiPoint)
+
 			, arc2segm(&cogArc2segm, DoCreateNextPoint | DoCreateNrOrgEntity)
 			, arc2segm_uint64(&cogArc2segm_uint64, DoCreateNextPoint | DoCreateNrOrgEntity| CreateUInt64Domain)
 			, seq2point(&cogS2P, DoCloseLast | DoCreateNrOrgEntity| DoCreateOrdinal)
@@ -1956,10 +2328,13 @@ namespace
 		UnaryAttrSpecialFuncOperator<CentroidOrMidFunc<P> > centroidOrMid;
 
 	//Casted functions that result in scalars
-		// Functors that return 0 for both empty and null sequences
-		CastedUnaryAttrSpecialFuncOperator<ArcLengthFunc<P> > arcLength;
-		CastedUnaryAttrSpecialFuncOperator<MlsLengthFunc<P> > mlsLength;
-		CastedUnaryAttrSpecialFuncOperator<AreaFunc     <P> > area;
+		// Functors that return 0 for both empty and null sequences.
+		// Each is registered twice (issue #1119): a binary form where the 2nd argument drives an
+		// actual unit conversion (not just a label), and a unary form that auto-derives the result
+		// unit from the geometry's coordinate system.
+		MeasureConvertOperator<ArcLengthFunc<P> > arcLength;    MeasureAutoOperator<ArcLengthFunc<P> > arcLengthAuto;
+		MeasureConvertOperator<MlsLengthFunc<P> > mlsLength;    MeasureAutoOperator<MlsLengthFunc<P> > mlsLengthAuto;
+		MeasureConvertOperator<AreaFunc     <P> > area;         MeasureAutoOperator<AreaFunc     <P> > areaAuto;
 
 		PointInPolygonOperator<P> pip;
 		PointInRankedPolygonOperator<P, UInt8> pirpu8;
@@ -1977,9 +2352,9 @@ namespace
 			,	mid          (&cogMid)
 			,	centroidOrMid(&cogCentroidOrMid)
 
-			,	arcLength(&cogAL)
-			,	mlsLength(&cogMLSL)
-			,	area(&cogAREA)
+			,	arcLength(&cogAL),     arcLengthAuto(&cogAL)
+			,	mlsLength(&cogMLSL),   mlsLengthAuto(&cogMLSL)
+			,	area(&cogAREA),        areaAuto(&cogAREA)
 			,	dynaPoint1(&cogDynaPoint,           DoCreateNrOrgEntity | DoCreateOrdinal)
 			,	dynaPoint2(&cogDynaPointWithEnds,   DoCreateNrOrgEntity | DoCreateOrdinal | DoIncludeEndPoints)
 			,	dynaPoint3(&cogDynaSegment,         DoCreateNextPoint | DoCreateNrOrgEntity | DoCreateOrdinal)

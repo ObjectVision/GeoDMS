@@ -72,8 +72,12 @@
   <ItemGroup>
     <ClCompile Include="src\ActivationInfo.cpp" />
     <ClCompile Include="src\AspectGroup.cpp" />
+    <ClCompile Include="src\AxisControl.cpp" />
     <ClCompile Include="src\CaretOperators.cpp" />
     <ClCompile Include="src\Carets.cpp" />
+    <ClCompile Include="src\ChartControl.cpp" />
+    <ClCompile Include="src\ChartDataView.cpp" />
+    <ClCompile Include="src\ChartLayer.cpp" />
     <ClCompile Include="src\ClipBoard.cpp" />
     <ClCompile Include="src\Cmds.cpp" />
     <ClCompile Include="src\Controllers.cpp" />
@@ -99,6 +103,7 @@
     <ClCompile Include="src\GridCoord.cpp" />
     <ClCompile Include="src\GridDrawer.cpp" />
     <ClCompile Include="src\GridLayer.cpp" />
+    <ClCompile Include="src\HistogramLayer.cpp" />
     <ClCompile Include="src\IdleTimer.cpp" />
     <ClCompile Include="src\ResourceIndexCache.cpp" />
     <ClCompile Include="src\IndexCollector.cpp" />
@@ -143,9 +148,13 @@
     <ClInclude Include="src\AbstrController.h" />
     <ClInclude Include="src\ActivationInfo.h" />
     <ClInclude Include="src\AspectGroup.h" />
+    <ClInclude Include="src\AxisControl.h" />
     <ClInclude Include="src\CaretOperators.h" />
     <ClInclude Include="src\Carets.h" />
     <ClInclude Include="src\changelock.h" />
+    <ClInclude Include="src\ChartControl.h" />
+    <ClInclude Include="src\ChartDataView.h" />
+    <ClInclude Include="src\ChartLayer.h" />
     <ClInclude Include="src\Clipboard.h" />
     <ClInclude Include="src\Cmds.h" />
     <ClInclude Include="src\Controllers.h" />
@@ -179,6 +188,7 @@
     <ClInclude Include="src\GridFill.h" />
     <ClInclude Include="src\GridLayer.h" />
     <ClInclude Include="src\GridLayerBase.h" />
+    <ClInclude Include="src\HistogramLayer.h" />
     <ClInclude Include="src\IdleTimer.h" />
     <ClInclude Include="src\ResourceIndexCache.h" />
     <ClInclude Include="src\IndexCollector.h" />

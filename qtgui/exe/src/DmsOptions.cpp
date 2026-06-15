@@ -1,5 +1,6 @@
 #include "DmsOptions.h"
 #include "DmsEventLog.h"
+#include "dbg/DmsCatch.h"
 #include "utl/Environment.h"
 #include "Parallel.h"
 #include "ptr/SharedStr.h"
@@ -13,6 +14,7 @@
 #endif
 #include "DmsMainWindow.h"
 #include "DmsTreeView.h"
+#include "StartEditor.h"
 
 #include <QCheckBox>
 #include <QPushButton>
@@ -21,6 +23,8 @@
 #include <QFileDialog>
 #include <QLineEdit>
 #include <QComboBox>
+#include <QMenu>
+#include <QAction>
 #include <QGridLayout>
 #include <QColorDialog>
 #include <QProcess>
@@ -237,7 +241,7 @@ void SetDrawingSizeTresholdValue(Float32 drawing_size)
 }
 
 void DmsGuiOptionsWindow::apply()
-{
+try {
     SetStatusFlag(RSF_TreeView_FollowOSLayout, m_follow_os_layout             ->isChecked());
     SetStatusFlag(RSF_AdminMode,               m_show_hidden_items            ->isChecked());
     SetStatusFlag(RSF_ShowThousandSeparator,   m_show_thousand_separator      ->isChecked());
@@ -271,6 +275,9 @@ void DmsGuiOptionsWindow::apply()
     SetGeoDmsRegKeyDWord("DrawingSizeInPixels", drawing_size_dword);
 
     setChanged(false);
+}
+catch (...) {
+    catchAndReportException();
 }
 
 Float32 GetDrawingSizeInPixels()
@@ -335,12 +342,11 @@ DmsLocalMachineOptionsWindow::DmsLocalMachineOptionsWindow(QWidget* parent)
     connect(m_sd_input, &QLineEdit::textChanged, this, &DmsLocalMachineOptionsWindow::onTextChange);
     connect(m_editor_input, &QLineEdit::textChanged, this, &DmsLocalMachineOptionsWindow::onTextChange);
     connect(m_editor_parameters_input, &QLineEdit::textChanged, this, &DmsLocalMachineOptionsWindow::onTextChange);
-    connect(m_editor_preset, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &DmsLocalMachineOptionsWindow::onEditorPresetChange);
 
     connect(m_ld_folder_dialog, &QPushButton::clicked, this, &DmsLocalMachineOptionsWindow::setLocalDataDirThroughDialog);
     connect(m_sd_folder_dialog, &QPushButton::clicked, this, &DmsLocalMachineOptionsWindow::setSourceDataDirThroughDialog);
     connect(m_editor_folder_dialog, &QPushButton::clicked, this, &DmsLocalMachineOptionsWindow::setEditorProgramThroughDialog);
-    connect(m_set_editor_parameters, &QPushButton::clicked, this, &DmsLocalMachineOptionsWindow::setDefaultEditorParameters);
+    connect(m_set_editor_parameters, &QPushButton::clicked, this, &DmsLocalMachineOptionsWindow::showEditorDefaultsMenu);
     m_ld_folder_dialog->setIcon(QIcon(":/res/images/DP_explore.bmp"));
     m_ld_folder_dialog->setText("");
     m_sd_folder_dialog->setIcon(QIcon(":/res/images/DP_explore.bmp"));
@@ -416,61 +422,33 @@ void DmsLocalMachineOptionsWindow::setInitialSourceDatDirValue()
 
 void DmsLocalMachineOptionsWindow::setInitialEditorValue()
 {
-    auto preset = GetGeoDmsRegKey("DmsEditorPreset");
-
-    int idx = 3; // default: Custom (preserves existing DmsEditor setting on upgrade)
-    if (preset == "vscode")        idx = 0;
-    else if (preset == "visualstudio") idx = 1;
-    else if (preset == "notepadpp") idx = 2;
-    else if (preset == "custom")    idx = 3;
-
+    // Load the stored command line (Application + Parameters) into the two fields. The
+    // first token is the application; everything after it is the parameter string. The
+    // application's surrounding quotes must drive the split, while quotes inside the
+    // parameters (e.g. around %F) must survive as literal characters: temporarily triple
+    // up every quote, restore only the application's opening/closing pair to single quotes,
+    // then split.
+    const auto& editorOptionsData = sStringOptionsData[string_option::StartEditorCmd];
+    auto regKey = GetGeoDmsRegKey(editorOptionsData.reg_key);
+    if (regKey.empty())
     {
-        const QSignalBlocker blocker(m_editor_preset);
-        m_editor_preset->setCurrentIndex(idx);
+        regKey = editorOptionsData.default_value;
+        SetGeoDmsRegKeyString(editorOptionsData.reg_key, regKey.c_str());
     }
-    updateEditorCustomVisibility(idx == 3);
 
-    if (idx == 3) // Custom: load saved DmsEditor command into path + params fields
+    auto cmd_qstring = QString(regKey.c_str());
+    cmd_qstring.replace(QString("\""), QString("\"\"\""));
+    auto first_index_of_triple_quotes = cmd_qstring.indexOf("\"\"\"");
+    if (first_index_of_triple_quotes == 0)
+        cmd_qstring.replace(first_index_of_triple_quotes, 3, "\"");
+    cmd_qstring.replace(cmd_qstring.indexOf("\"\"\""), 3, "\"");
+
+    QStringList args = QProcess::splitCommand(cmd_qstring);
+    if (!args.isEmpty())
     {
-        const auto& editorOptionsData = sStringOptionsData[string_option::StartEditorCmd];
-        auto regKey = GetGeoDmsRegKey(editorOptionsData.reg_key);
-        if (regKey.empty())
-        {
-            regKey = editorOptionsData.default_value;
-            SetGeoDmsRegKeyString(editorOptionsData.reg_key, regKey.c_str());
-        }
-
-        auto cmd_qstring = QString(regKey.c_str());
-        cmd_qstring.replace(QString("\""), QString("\"\"\""));
-        auto first_index_of_triple_quotes = cmd_qstring.indexOf("\"\"\"");
-        if (first_index_of_triple_quotes == 0)
-            cmd_qstring.replace(first_index_of_triple_quotes, 3, "\"");
-        cmd_qstring.replace(cmd_qstring.indexOf("\"\"\""), 3, "\"");
-
-        QStringList args = QProcess::splitCommand(cmd_qstring);
-        if (!args.isEmpty())
-        {
-            m_editor_input->setText("\"" + args.takeFirst() + "\"");
-            m_editor_parameters_input->setText(args.join(" "));
-        }
+        m_editor_input->setText("\"" + args.takeFirst() + "\"");
+        m_editor_parameters_input->setText(args.join(" "));
     }
-}
-
-void DmsLocalMachineOptionsWindow::updateEditorCustomVisibility(bool isCustom)
-{
-    lbl_applications->setVisible(isCustom);
-    m_editor_input->setVisible(isCustom);
-    m_editor_folder_dialog->setVisible(isCustom);
-    lbl_applications_2->setVisible(isCustom);
-    m_editor_parameters_input->setVisible(isCustom);
-    m_param_info->setVisible(isCustom);
-    m_set_editor_parameters->setVisible(isCustom);
-}
-
-void DmsLocalMachineOptionsWindow::onEditorPresetChange(int index)
-{
-    updateEditorCustomVisibility(index == 3);
-    setChanged(true);
 }
 
 void DmsLocalMachineOptionsWindow::setInitialMemoryFlushTresholdValue()
@@ -485,7 +463,7 @@ void DmsLocalMachineOptionsWindow::restoreOptions()
         const QSignalBlocker blocker1(m_ld_input);
         const QSignalBlocker blocker2(m_sd_input);
         const QSignalBlocker blocker3(m_editor_input);
-        const QSignalBlocker blocker3b(m_editor_preset);
+        const QSignalBlocker blocker3b(m_editor_parameters_input);
         const QSignalBlocker blocker4(m_flush_treshold);
         const QSignalBlocker blocker5(m_pp0);
         const QSignalBlocker blocker6(m_pp1);
@@ -517,12 +495,9 @@ void DmsLocalMachineOptionsWindow::apply()
     SetGeoDmsRegKeyString("LocalDataDir", m_ld_input->text().toStdString().c_str());
     SetGeoDmsRegKeyString("SourceDataDir", m_sd_input->text().toStdString().c_str());
 
-    static const char* presetKeys[] = { "vscode", "visualstudio", "notepadpp", "custom" };
-    int presetIdx = m_editor_preset->currentIndex();
-    if (presetIdx < 0 || presetIdx > 3) presetIdx = 3;
-    SetGeoDmsRegKeyString("DmsEditorPreset", presetKeys[presetIdx]);
-    if (presetIdx == 3) // Custom only
-        SetGeoDmsRegKeyString("DmsEditor", (m_editor_input->text() + " " + m_editor_parameters_input->text()).toStdString().c_str());
+    // Store the resulting command line (Application + Parameters); the editor type itself
+    // is not remembered — only these values are used to start the editor.
+    SetGeoDmsRegKeyString("DmsEditor", (m_editor_input->text() + " " + m_editor_parameters_input->text()).toStdString().c_str());
 
     SetStatusFlag(RSF_SuspendForGUI, m_pp0->isChecked());
     SetStatusFlag(RSF_MultiThreading1, m_pp1->isChecked());
@@ -583,18 +558,33 @@ void DmsLocalMachineOptionsWindow::setSourceDataDirThroughDialog()
 
 void DmsLocalMachineOptionsWindow::setEditorProgramThroughDialog()
 {
-    auto new_editor_program = m_folder_dialog->QFileDialog::getOpenFileName(this, tr("Select Editor Program"), "C:/Program Files", tr("Exe files (*.exe)"));;
+    auto new_editor_program = m_folder_dialog->QFileDialog::getOpenFileName(this, tr("Select Editor Program"), "C:/Program Files", tr("Exe files (*.exe)"));
     if (!new_editor_program.isEmpty())
+    {
         m_editor_input->setText("\"" + new_editor_program + "\""); // set quoted .exe editor program
+        // A hand-picked editor gets generic default parameters the user can refine.
+        m_editor_parameters_input->setText("\"%F\" -%L");
+    }
 }
 
-void DmsLocalMachineOptionsWindow::setDefaultEditorParameters()
+void DmsLocalMachineOptionsWindow::showEditorDefaultsMenu()
 {
-    auto editor_program = m_editor_input->text();
-    if (editor_program.contains("notepad++", Qt::CaseInsensitive))
-        m_editor_parameters_input->setText("\"%F\" -n%L");
-    if (editor_program.contains("crimson", Qt::CaseInsensitive))
-        m_editor_parameters_input->setText("/L:%L \"%F\"");
+    // Popup offering the supported editors; picking one fills the Application and Parameters
+    // fields with its located executable and default parameter template (both stay editable).
+    QMenu menu(this);
+    for (const auto& choice : getEditorChoices())
+    {
+        QAction* action = menu.addAction(QString::fromStdString(choice.label));
+        action->setEnabled(choice.found); // editors not installed on this machine are shown but disabled
+        const QString application = QString::fromStdString(choice.application);
+        const QString parameters  = QString::fromStdString(choice.parameters);
+        connect(action, &QAction::triggered, this, [this, application, parameters]() {
+            m_editor_input->setText(application);
+            m_editor_parameters_input->setText(parameters);
+            setChanged(true);
+        });
+    }
+    menu.exec(m_set_editor_parameters->mapToGlobal(QPoint(0, m_set_editor_parameters->height())));
 }
 
 void DmsLocalMachineOptionsWindow::onFlushTresholdValueChange(int value)
@@ -825,7 +815,7 @@ void DmsConfigOptionsWindow::onSessionOnlyToggle()
 }
 
 void DmsConfigOptionsWindow::apply()
-{
+try {
     if (m_Options.size())
     {
 #ifdef _WIN32
@@ -880,6 +870,9 @@ void DmsConfigOptionsWindow::apply()
     }
 
     setChanged(false);
+}
+catch (...) {
+    catchAndReportException();
 }
 
 

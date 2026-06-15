@@ -127,19 +127,28 @@ QModelIndex DmsModel::index(int row, int column, const QModelIndex& parent) cons
 	if (!hasIndex(row, column, parent))
 		return QModelIndex();
 
-	auto ti = GetTreeItemOrRoot(parent);
-	assert(ti);
+	// index() runs during Qt view layout/painting; a thrown DmsException must not
+	// propagate into Qt's event dispatch. catchAndReportException() is safe here:
+	// reportD posts the event-log update to the main-thread oper queue (it is not
+	// dispatched synchronously at this call site), so it cannot re-enter painting.
+	try {
+		auto ti = GetTreeItemOrRoot(parent);
+		assert(ti);
 
-	int currRow = 0;
-	for (ti = ti->_GetFirstSubItem(); ti; ti = ti->GetNextItem()) {
-		if (show_hidden_items || !ti->GetTSF(TSF_IsHidden)) {
-			if (currRow == row)
-				return createIndex(row, column, ti);
-			++currRow;
+		int currRow = 0;
+		for (ti = ti->_GetFirstSubItem(); ti; ti = ti->GetNextItem()) {
+			if (show_hidden_items || !ti->GetTSF(TSF_IsHidden)) {
+				if (currRow == row)
+					return createIndex(row, column, ti);
+				++currRow;
+			}
 		}
-	}
 
-	reportF(MsgCategory::other, SeverityTypeID::ST_FatalError, "Invalid row at DmsModel::index");
+		reportF(MsgCategory::other, SeverityTypeID::ST_FatalError, "Invalid row at DmsModel::index");
+	}
+	catch (...) {
+		catchAndReportException();
+	}
 	return QModelIndex();
 }
 
@@ -147,13 +156,21 @@ QModelIndex DmsModel::parent(const QModelIndex& child) const {
 	if (!child.isValid())
 		return QModelIndex();
 
-	auto ti = GetTreeItem(child);
-	assert(ti);
-	auto parent = ti->GetTreeParent();
-	if (!parent)
-		return{};
+	// parent() runs during Qt view layout/painting; report-and-continue is safe because
+	// reportD posts the event-log update to the main-thread oper queue — see DmsModel::index.
+	try {
+		auto ti = GetTreeItem(child);
+		assert(ti);
+		auto parent = ti->GetTreeParent();
+		if (!parent)
+			return{};
 
-	return createIndex(GetRow(parent.get()), 0, parent.get());
+		return createIndex(GetRow(parent.get()), 0, parent.get());
+	}
+	catch (...) {
+		catchAndReportException();
+	}
+	return QModelIndex();
 }
 
 int DmsModel::rowCount(const QModelIndex& parent) const {
@@ -741,6 +758,10 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos) {
 	auto table_view_action = MainWindow::TheOne()->m_tableview_action.get();
 	auto map_view_action = MainWindow::TheOne()->m_mapview_action.get();
 	auto statistics_view_action = MainWindow::TheOne()->m_statistics_action.get();
+	auto histogram_view_action = MainWindow::TheOne()->m_histogramview_action.get();
+	auto scatter_view_action = MainWindow::TheOne()->m_scatterview_action.get();
+	auto line_view_action = MainWindow::TheOne()->m_lineview_action.get();
+	auto bar_view_action = MainWindow::TheOne()->m_barview_action.get();
 
 	if (!m_context_menu) {
 		m_context_menu = std::make_unique<QMenu>(MainWindow::TheOne());
@@ -765,12 +786,12 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos) {
 		m_context_menu->addAction(table_view_action);
 		m_context_menu->addAction(map_view_action);
 		m_context_menu->addAction(statistics_view_action);
-		//	m_context_menu->exec(viewport()->mapToGlobal(pos));
 
-		// histogram view
-		//	auto histogramview = MainWindow::TheOne()->m_histogramview_action.get();
-		//	histogramview->setDisabled(true);
-		//	m_context_menu->addAction(histogramview);
+		// chart views (issue #75): keep the popup in sync with the main 'View' menu
+		m_context_menu->addAction(histogram_view_action);
+		m_context_menu->addAction(scatter_view_action);
+		m_context_menu->addAction(line_view_action);
+		m_context_menu->addAction(bar_view_action);
 
 		// process scheme
 		//	auto process_scheme = MainWindow::TheOne()->m_process_schemes_action.get(); //TODO: to be implemented or not..

@@ -15,6 +15,7 @@
 #include "utl/Environment.h"
 #include "utl/scoped_exit.h"
 #include "utl/splitPath.h"
+#include "act/MainThread.h" // SetMainThreadID
 #include "xct/DmsException.h"
 
 #include "AbstrDataItem.h"
@@ -215,22 +216,6 @@ void logCommandLine(const char* msg)
 	ProcessMainThreadOpers(); // flush
 }
 
-char SeverityAsChar(SeverityTypeID st)
-{
-	switch (st)
-	{
-	case SeverityTypeID::ST_Nothing   : return 'N';
-	case SeverityTypeID::ST_MinorTrace: return '.';
-	case SeverityTypeID::ST_MajorTrace: return '!';
-	case SeverityTypeID::ST_CaseMixup : return 'C';
-	case SeverityTypeID::ST_Warning   : return 'W';
-	case SeverityTypeID::ST_Error     : return 'E';
-	case SeverityTypeID::ST_FatalError: return 'F';
-	case SeverityTypeID::ST_DispError : return 'D';
-	default: return '?';
-	}
-}
-
 void DMS_CONV logMsg(ClientHandle clientHandle, const MsgData* msgData, bool moreToCome)
 {
 	assert(msgData);
@@ -254,8 +239,7 @@ void DMS_CONV logMsg(ClientHandle clientHandle, const MsgData* msgData, bool mor
 
 int main1(int argc, char** argv)
 {
-	if (argc > 0)
-		DMS_Appl_SetExeDir(splitFullPath(ConvertDosFileName(SharedStr(argv[0])).c_str()).c_str());
+	SetMainThreadID(); // identify the main thread (formerly done via DMS_Appl_SetExeDir)
 
 	SuspendTrigger::FencedBlocker lockSuspend("@DmsRun main");
 	--argc; ++argv;

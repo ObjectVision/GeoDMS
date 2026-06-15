@@ -668,7 +668,11 @@ CDebugLog::~CDebugLog()
 void DMS_CONV CDebugLog::DebugMsgCallback(ClientHandle clientHandle, const MsgData* msgData, bool moreToCome)
 {
 	CDebugLog* dl = reinterpret_cast<CDebugLog*>(clientHandle);
-	dl->m_Stream << '\n' << msgData->m_DateTime << "[" << msgData->m_ThreadID << "]" << msgData->m_Txt;
+	dl->m_Stream << '\n' << msgData->m_DateTime
+		<< "[" << msgData->m_ThreadID << "]"
+		<< "[" << SeverityAsChar(msgData->m_SeverityType) << "]"
+		<< AsString(msgData->m_MsgCategory)
+		<< msgData->m_Txt;
 }
 
 CDebugLog* DMS_CONV DBG_DebugLog_Open(CharPtr fileName)

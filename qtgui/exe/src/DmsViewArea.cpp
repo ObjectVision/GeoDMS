@@ -31,6 +31,7 @@
 #include <ShellScalingApi.h>
 #endif
 
+#include "dbg/DmsCatch.h"
 #include "dbg/SeverityType.h"
 #include "Region.h"
 #include "GdiRegionUtil.h"
@@ -50,6 +51,34 @@
 #define SW_SHOWNORMAL 1
 #define SW_SHOWMINIMIZED 2
 #define SW_SHOWMAXIMIZED 3
+#endif
+
+// Qt event handlers and slots must not let (Dms)Exceptions propagate into Qt's event
+// dispatch (which aborts); report them and continue. The Win32 native input path goes
+// through SHV_DataView_DispatchMessage, which guards by itself.
+
+static bool GuardedOnKeyDown(DataView* dv, UInt32 virtKey) noexcept
+{
+    try {
+        return dv->OnKeyDown(virtKey);
+    }
+    catch (...) {
+        catchAndReportException();
+        return true; // the key was consumed by the error report
+    }
+}
+
+#ifndef _WIN32
+static bool GuardedDispatchMouseEvent(DataView* dv, EventID eventID, UINT modKeys, GPoint pt) noexcept
+{
+    try {
+        return dv->DispatchMouseEvent(eventID, modKeys, pt);
+    }
+    catch (...) {
+        catchAndReportException();
+        return true; // the event was consumed by the error report
+    }
+}
 #endif
 
 #ifdef _WIN32
@@ -479,25 +508,32 @@ void QDmsViewArea::closeEvent(QCloseEvent* event) {
 }
 
 void QDmsViewArea::dropEvent(QDropEvent* event) {
-    const QMimeData* mimeData = event->mimeData();
-    if (mimeData->hasUrls()) {
-        QList<QUrl> urls = mimeData->urls();
-        if (processUrlOfDropEvent(urls))
+    // exceptions (f.e. the domain or values type of the dropped item isn't accepted by the
+    // receiving view) must be reported here and not propagate into Qt's event dispatch
+    try {
+        const QMimeData* mimeData = event->mimeData();
+        if (mimeData->hasUrls()) {
+            QList<QUrl> urls = mimeData->urls();
+            if (processUrlOfDropEvent(urls))
+                return;
+        }
+        auto tree_view = MainWindow::TheOne()->m_treeview;
+        auto source = qobject_cast<DmsTreeView*>(event->source());
+        if (tree_view != source)
             return;
-    }
-    auto tree_view = MainWindow::TheOne()->m_treeview;
-    auto source = qobject_cast<DmsTreeView*>(event->source());
-    if (tree_view != source)
-        return;
-    auto dv = getDataView();
-    if (!dv)
-        return;
+        auto dv = getDataView();
+        if (!dv)
+            return;
 
-    auto current_item = MainWindow::TheOne()->getCurrentTreeItem();
-    if (dv->CanContain(current_item))
-        SHV_DataView_AddItem(dv.get(), MainWindow::TheOne()->getCurrentTreeItem(), true); // isDropped: allow duplicate column on drag-and-drop (#1122)
-    else
-        reportF(MsgCategory::commands, SeverityTypeID::ST_Error, "Item %s is incompatible with view: %s", current_item->GetFullName(), dv->GetCaption());
+        auto current_item = MainWindow::TheOne()->getCurrentTreeItem();
+        if (dv->CanContain(current_item))
+            SHV_DataView_AddItem(dv.get(), MainWindow::TheOne()->getCurrentTreeItem(), true); // isDropped: allow duplicate column on drag-and-drop (#1122)
+        else
+            reportF(MsgCategory::commands, SeverityTypeID::ST_Error, "Item %s is incompatible with view: %s", current_item->GetFullName(), dv->GetCaption());
+    }
+    catch (...) {
+        catchAndReportException();
+    }
 }
 
 void QDmsViewArea::moveEvent(QMoveEvent* event) {
@@ -549,7 +585,7 @@ void QDmsViewArea::UpdatePosAndSize() {
     // Notify DataView of the new size via invalidation
     auto rect = contentsRect();
     auto dv = getDataView();
-    if (dv) {
+    if (dv) try {
         GPoint deviceSize(rect.width(), rect.height());
         auto sf = devicePixelRatioF();
         dv->OnResize(deviceSize, CrdPoint(sf, sf));
@@ -557,6 +593,9 @@ void QDmsViewArea::UpdatePosAndSize() {
         // On Linux, OnPaint() never fires, so seed it explicitly here.
         dv->SeedDrawRegion();
         dv->RequestUpdate(); // kick off the render cycle (OnPaint not called on Linux)
+    }
+    catch (...) {
+        catchAndReportException();
     }
 #endif
 }
@@ -778,7 +817,12 @@ void QDmsViewArea::onTimerTimeout()
     if (dv) {
         // Post timer message to DataView for processing
         // On Win32 this would be WM_TIMER; here we call directly
-        dv->OnTimer(timerId);
+        try {
+            dv->OnTimer(timerId);
+        }
+        catch (...) {
+            catchAndReportException();
+        }
     }
 }
 
@@ -981,10 +1025,15 @@ void QDmsViewArea::VH_PostMessage(UInt32 msg, UInt64 wParam, Int64 lParam)
         // the DataView's GUI oper queue (which holds write locks on items
         // like classBreaks) gets drained promptly.
         QMetaObject::invokeMethod(this, [this]() {
-            SuspendTrigger::Resume(); // match Win32 nativeEventFilter which Resumes on every event
-            auto dv = getDataView();
-            if (dv)
-                dv->ProcessGuiOpers();
+            try {
+                SuspendTrigger::Resume(); // match Win32 nativeEventFilter which Resumes on every event
+                auto dv = getDataView();
+                if (dv)
+                    dv->ProcessGuiOpers();
+            }
+            catch (...) {
+                catchAndReportException();
+            }
         }, Qt::QueuedConnection);
     }
 #endif
@@ -1059,10 +1108,10 @@ void QDmsViewArea::mousePressEvent(QMouseEvent* event)
     if (event->button() == Qt::LeftButton)
     {
         VH_NotifyParentActivation();
-        dv->DispatchMouseEvent(EventID::LBUTTONDOWN, flags, pt);
+        GuardedDispatchMouseEvent(dv.get(), EventID::LBUTTONDOWN, flags, pt);
     }
     else if (event->button() == Qt::RightButton)
-        dv->DispatchMouseEvent(EventID::RBUTTONDOWN, flags, pt);
+        GuardedDispatchMouseEvent(dv.get(), EventID::RBUTTONDOWN, flags, pt);
     event->accept();
 }
 
@@ -1077,11 +1126,11 @@ void QDmsViewArea::mouseReleaseEvent(QMouseEvent* event)
     UINT flags = qtModsToMkFlags(event->buttons(), event->modifiers());
     if (event->button() == Qt::LeftButton)
     {
-        dv->DispatchMouseEvent(EventID::LBUTTONUP, flags, pt);
+        GuardedDispatchMouseEvent(dv.get(), EventID::LBUTTONUP, flags, pt);
         VH_ReleaseCapture();
     }
     else if (event->button() == Qt::RightButton)
-        dv->DispatchMouseEvent(EventID::RBUTTONUP, flags, pt);
+        GuardedDispatchMouseEvent(dv.get(), EventID::RBUTTONUP, flags, pt);
     event->accept();
 }
 
@@ -1093,9 +1142,9 @@ void QDmsViewArea::mouseDoubleClickEvent(QMouseEvent* event)
     GPoint pt = toClientPoint(event->pos(), cr, devicePixelRatioF());
     UINT flags = qtModsToMkFlags(event->buttons(), event->modifiers());
     if (event->button() == Qt::LeftButton)
-        dv->DispatchMouseEvent(EventID::LBUTTONDBLCLK, flags, pt);
+        GuardedDispatchMouseEvent(dv.get(), EventID::LBUTTONDBLCLK, flags, pt);
     else if (event->button() == Qt::RightButton)
-        dv->DispatchMouseEvent(EventID::RBUTTONDBLCLK, flags, pt);
+        GuardedDispatchMouseEvent(dv.get(), EventID::RBUTTONDBLCLK, flags, pt);
     event->accept();
 }
 
@@ -1107,8 +1156,8 @@ void QDmsViewArea::mouseMoveEvent(QMouseEvent* event)
     UINT flags = qtModsToMkFlags(event->buttons(), event->modifiers());
     // MOUSEDRAG when button held, MOUSEMOVE otherwise; SETCURSOR always
     EventID moveEvent = (flags & (MK_LBUTTON|MK_RBUTTON)) ? EventID::MOUSEDRAG : EventID::MOUSEMOVE;
-    dv->DispatchMouseEvent(moveEvent, flags, pt);
-    if (!dv->DispatchMouseEvent(EventID::SETCURSOR, flags, pt))
+    GuardedDispatchMouseEvent(dv.get(), moveEvent, flags, pt);
+    if (!GuardedDispatchMouseEvent(dv.get(), EventID::SETCURSOR, flags, pt))
         VH_SetCursorArrow();
     event->accept();
 }
@@ -1122,7 +1171,7 @@ void QDmsViewArea::wheelEvent(QWheelEvent* event)
     int delta = event->angleDelta().y(); // positive = scroll up = zoom in
     UINT flags = qtModsToMkFlags(event->buttons(), event->modifiers());
     UINT wParam = (UINT)(((short)delta) << 16) | (flags & 0xFFFF);
-    dv->DispatchMouseEvent(EventID::MOUSEWHEEL, wParam, pt);
+    GuardedDispatchMouseEvent(dv.get(), EventID::MOUSEWHEEL, wParam, pt);
     event->accept();
 }
 
@@ -1130,7 +1179,7 @@ void QDmsViewArea::leaveEvent(QEvent* event)
 {
     auto dv = getDataView();
     if (dv)
-        dv->DispatchMouseEvent(EventID::MOUSEMOVE, 0, UNDEFINED_VALUE(GPoint));
+        GuardedDispatchMouseEvent(dv.get(), EventID::MOUSEMOVE, 0, UNDEFINED_VALUE(GPoint));
     QMdiSubWindow::leaveEvent(event);
 }
 
@@ -1179,7 +1228,7 @@ void QDmsViewArea::keyPressEvent(QKeyEvent* event)
         // (which otherwise bails out when Ctrl is held). See #1112.
         if (vk == VK_F2 && (mods & Qt::ControlModifier) && !(mods & Qt::AltModifier))
         {
-            if (dv->OnKeyDown(VK_F2))
+            if (GuardedOnKeyDown(dv.get(), VK_F2))
                 event->accept();
             else
                 QMdiSubWindow::keyPressEvent(event);
@@ -1191,7 +1240,7 @@ void QDmsViewArea::keyPressEvent(QKeyEvent* event)
         if (mods & Qt::AltModifier)     vk |= KeyInfo::Flag::Menu;
         if (mods & Qt::ShiftModifier)   vk |= KeyInfo::Flag::Shift;
 
-        bool handled = dv->OnKeyDown(vk);
+        bool handled = GuardedOnKeyDown(dv.get(), vk);
         if (handled)
             event->accept();   // critical: prevents QMdiSubWindow's arrow-key-driven move/resize mode
         else
@@ -1219,7 +1268,7 @@ void QDmsViewArea::keyPressEvent(QKeyEvent* event)
                 continue;
             UInt32 charKey = UInt32(code) | KeyInfo::Flag::Char;
             if (mods & Qt::ShiftModifier) charKey |= KeyInfo::Flag::Shift;
-            if (dv->OnKeyDown(charKey))
+            if (GuardedOnKeyDown(dv.get(), charKey))
                 anyHandled = true;
         }
         if (anyHandled)

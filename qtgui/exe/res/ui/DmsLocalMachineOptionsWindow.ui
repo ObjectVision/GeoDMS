@@ -223,18 +223,6 @@
        </property>
       </widget>
      </item>
-     <item row="9" column="0" colspan="2">
-      <widget class="QLabel" name="lbl_editor_label">
-       <property name="font">
-        <font>
-         <pointsize>10</pointsize>
-        </font>
-       </property>
-       <property name="text">
-        <string>Editor:</string>
-       </property>
-      </widget>
-     </item>
      <item row="10" column="0" colspan="2">
       <widget class="QLabel" name="lbl_applications">
        <property name="font">
@@ -268,35 +256,6 @@
          <pointsize>10</pointsize>
         </font>
        </property>
-      </widget>
-     </item>
-     <item row="9" column="2" colspan="8">
-      <widget class="QComboBox" name="m_editor_preset">
-       <property name="font">
-        <font>
-         <pointsize>10</pointsize>
-        </font>
-       </property>
-       <item>
-        <property name="text">
-         <string>Visual Studio Code</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>Visual Studio</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>Notepad++</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>Custom...</string>
-        </property>
-       </item>
       </widget>
      </item>
      <item row="10" column="2" colspan="7">
@@ -551,7 +510,7 @@
        </property>
       </widget>
      </item>
-     <item row="11" column="7" colspan="4">
+     <item row="9" column="2" colspan="8">
       <widget class="QPushButton" name="m_set_editor_parameters">
        <property name="font">
         <font>
@@ -563,7 +522,7 @@
        </property>
       </widget>
      </item>
-     <item row="11" column="2" colspan="4">
+     <item row="11" column="2" colspan="7">
       <widget class="QLineEdit" name="m_editor_parameters_input">
        <property name="font">
         <font>
@@ -572,7 +531,7 @@
        </property>
       </widget>
      </item>
-     <item row="11" column="6">
+     <item row="11" column="9">
       <widget class="QPushButton" name="m_param_info">
        <property name="cursor">
         <cursorShape>WhatsThisCursor</cursorShape>

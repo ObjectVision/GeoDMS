@@ -38,7 +38,6 @@
 #undef Context
 #undef Yield
 
-static SharedStr          g_ExeDir;
 static SharedStr          g_LocalDataDir;
 
 struct LocalAllocatedPtr
@@ -224,25 +223,39 @@ void AddFontResourceExA_checked(_In_ LPCSTR name, _In_ DWORD fl, _Reserved_ PVOI
 	}
 }
 
-void DMS_Appl_SetExeDir(CharPtr exeDir)
-{
-	assert(g_ExeDir.empty()); // should only called once, exeDirs don't just change during a session
-	g_ExeDir = ConvertDosFileName(SharedStr(exeDir MG_DEBUG_ALLOCATOR_SRC("DMS_Appl_SetExeDir")));
-	
-	SetMainThreadID();
-}
-
 RTC_CALL void DMS_CONV DMS_Appl_SetFont()
 {
-	MG_CHECK(!g_ExeDir.empty());
-	AddFontResourceExA_checked(DelimitedConcat(g_ExeDir.c_str(), "misc/fonts/dms.ttf").c_str(), FR_PRIVATE, nullptr);
-	AddFontResourceExA_checked(DelimitedConcat(g_ExeDir.c_str(), "misc/fonts/dmstext.ttf").c_str(), FR_PRIVATE, nullptr);
+	auto exeDir = GetExeDir();
+	MG_CHECK(!exeDir.empty());
+	AddFontResourceExA_checked(DelimitedConcat(exeDir.c_str(), "misc/fonts/dms.ttf").c_str(), FR_PRIVATE, nullptr);
+	AddFontResourceExA_checked(DelimitedConcat(exeDir.c_str(), "misc/fonts/dmstext.ttf").c_str(), FR_PRIVATE, nullptr);
 }
 
-RTC_CALL SharedStr GetExeDir()     // contains DmsClient.exe (+dlls?) and dms.ini; does NOT end with '/' 
+// The GeoDms binaries (and their bundled resources: fonts, proj4data, gdal
+// data, RewriteExpr.lsp, ...) all live next to this Rtc module, so we derive
+// the exe-root dir from this module's own path rather than having each host
+// (GeoDmsGuiQt, GeoDmsRun, the python binding) convey it.
+extern "C" IMAGE_DOS_HEADER __ImageBase; // linker-provided base of this (Rtc) module
+
+static SharedStr GetExeDirImpl()
 {
-	assert(! g_ExeDir.empty());
-	return g_ExeDir;
+	std::vector<wchar_t> buf(MAX_PATH);
+	for (;;)
+	{
+		DWORD n = GetModuleFileNameW(reinterpret_cast<HINSTANCE>(&__ImageBase), buf.data(), DWORD(buf.size()));
+		if (n == 0)
+			return SharedStr();
+		if (n < buf.size())            // fit; a truncated result returns buf.size()
+			return splitFullPath(ConvertDosFileName(wchar_2_Utf8Str(buf.data(), n)).c_str());
+		buf.resize(buf.size() * 2);    // ERROR_INSUFFICIENT_BUFFER: grow and retry
+	}
+}
+
+RTC_CALL SharedStr GetExeDir()     // dir holding the GeoDms binaries + dms.ini; does NOT end with '/'
+{
+	static SharedStr s_exeDir = GetExeDirImpl();
+	assert(!s_exeDir.empty());
+	return s_exeDir;
 }
 
 #include "utl/Registry.h"
@@ -1509,6 +1522,7 @@ struct WindowsComponent : AbstrVersionComponent {
 #include <spawn.h>
 #include <strings.h>     // strncasecmp
 #include <sys/wait.h>
+#include <dlfcn.h>       // dladdr — for GetExeDir self-determination
 
 #include <vector>
 #include <map>
@@ -1671,24 +1685,26 @@ void SetCurrentDir(CharPtr dir)
 	chdir(dir);
 }
 
-static SharedStr g_ExeDir;
-
-void DMS_Appl_SetExeDir(CharPtr exeDir)
-{
-	assert(g_ExeDir.empty());
-	g_ExeDir = ConvertDosFileName(SharedStr(exeDir));
-	SetMainThreadID();
-}
-
 RTC_CALL void DMS_CONV DMS_Appl_SetFont()
 {
 	// No-op on Linux (no Windows font resource loading)
 }
 
+static SharedStr GetExeDirImpl()
+{
+	// dladdr on an address in this shared object yields its own path; the
+	// GeoDms binaries + bundled resources live in that directory.
+	Dl_info info;
+	if (dladdr(reinterpret_cast<const void*>(&GetExeDir), &info) && info.dli_fname)
+		return splitFullPath(ConvertDosFileName(SharedStr(info.dli_fname)).c_str());
+	return SharedStr();
+}
+
 RTC_CALL SharedStr GetExeDir()
 {
-	assert(!g_ExeDir.empty());
-	return g_ExeDir;
+	static SharedStr s_exeDir = GetExeDirImpl();
+	assert(!s_exeDir.empty());
+	return s_exeDir;
 }
 
 SharedStr ConvertDosFileName(WeakStr fileName)
@@ -2681,3 +2697,51 @@ auto wchar_2_Utf8Str(const wchar_t* wCharStr, int strLen) -> SharedStr
 }
 
 #endif //defined(_MSC_VER)
+
+//  -----------------------------------------------------------------------
+// Executable version component (cross-platform), shown in the Help/About
+// dialog as two lines:
+//   Executable:        full path of the running host process (e.g. the GUI
+//                      exe, or python.exe when driven via the python binding),
+//                      queried from the running process so a renamed binary
+//                      shows its actual file name.
+//   GeoDms Exe Folder: the GeoDms binary/resource root (GetExeDir), which is
+//                      this Rtc module's own directory and may differ from the
+//                      host process (e.g. the python case).
+
+#include "VersionComponent.h"
+
+// Full path of the currently running host-process executable (UTF-8, DMS-style
+// '/' delimiters), or an empty string when it cannot be determined.
+static SharedStr GetExeFullPath()
+{
+#if defined(_MSC_VER)
+	std::vector<wchar_t> buf(MAX_PATH);
+	for (;;)
+	{
+		DWORD n = GetModuleFileNameW(nullptr, buf.data(), DWORD(buf.size()));
+		if (n == 0)
+			return SharedStr();
+		if (n < buf.size())            // fit; a truncated result returns buf.size()
+			return ConvertDosFileName(wchar_2_Utf8Str(buf.data(), n));
+		buf.resize(buf.size() * 2);    // ERROR_INSUFFICIENT_BUFFER: grow and retry
+	}
+#else
+	char buf[PATH_MAX];
+	ssize_t n = readlink("/proc/self/exe", buf, sizeof(buf) - 1);
+	if (n <= 0)
+		return SharedStr();
+	return ConvertDosFileName(SharedStr(CharPtrRange(buf, buf + n)));
+#endif
+}
+
+struct ExeComponent : AbstrVersionComponent {
+	void Visit(ClientHandle clientHandle, VersionComponentCallbackFunc callBack, UInt32 componentLevel) const override {
+		SharedStr exePath = GetExeFullPath();
+		if (!exePath.empty())
+			callBack(clientHandle, componentLevel, mySSPrintF("Executable: %s", exePath.c_str()).c_str());
+		callBack(clientHandle, componentLevel, mySSPrintF("GeoDms Exe Folder: %s", GetExeDir().c_str()).c_str());
+	}
+};
+
+static ExeComponent s_ExeComponent;

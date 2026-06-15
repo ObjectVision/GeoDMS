@@ -50,18 +50,59 @@ class Experiment:
 
     def summary(self) -> dict:
         status = True if self.result else False
-        start_time = self.result['log']['time'][0]
-        end_time = self.result['log']['time'][-1]
+        log = self.result.get('log') if self.result else None
+        if not log or not log.get('time'):
+            # Experiment ran but produced no profile samples (a truncated or
+            # failed run, or a sampler that wrote 0 rows). Return a no-data
+            # summary with the same keys so the report renders an empty cell
+            # -- still showing the real pass/fail status set by the caller --
+            # instead of crashing on log['time'][0] (issue: empty report columns).
+            return {"status": status, "command": self.command, "start_time": None,
+                    "end_time": None, "duration": 0, "highest_commit": 0,
+                    "total_read": 0, "total_write": 0, "max_threads": 0}
+        start_time = log['time'][0]
+        end_time = log['time'][-1]
         duration = (end_time - start_time).total_seconds()
-        highest_commit = max(self.result['log']['vms'])
-        total_read = self.result['log']['total_read_bytes'][-1]
-        total_write = self.result['log']['total_write_bytes'][-1]
-        max_threads = max(self.result['log']['num_threads'])
+        highest_commit = max(log['vms'])
+        total_read = log['total_read_bytes'][-1]
+        total_write = log['total_write_bytes'][-1]
+        max_threads = max(log['num_threads'])
         
         return {"status":status, "command":self.command, "start_time":start_time, "end_time":end_time, "duration":duration, "highest_commit":highest_commit, "total_read":total_read, "total_write":total_write, "max_threads":max_threads}
 
+# GeoDMS /L log line prefix (everything after the 19-char date). Two formats
+# coexist and both must parse:
+#   new (GeoDMS #1133): "[<thread>][<severity>][<category>]<message>"
+#   old (pre-#1133):    "[<thread>]<message>"
+# <severity> is a single SeverityAsChar() char (N . ! C W E F D, or ? for
+# unknown); <category> is an AsString(MsgCategory) word in brackets. The binary
+# emits severity+category together or not at all, so they are matched as one
+# optional unit -- old logs (and any message that merely starts with a bracket)
+# fall through to <message> with severity/category left None.
+_LOG_PREFIX_RE = re.compile(
+    r'^\[(?P<thread>\d+)\]'
+    r'(?:\[(?P<severity>[N.!CWEFD?])\]\[(?P<category>[^\]]*)\])?'
+    r'(?P<message>.*)$',
+    re.DOTALL,
+)
+
+def parse_log_prefix(text_after_date:str):
+    """Split a post-date log fragment into (thread, severity, category, message),
+    handling both the severity/category-tagged format (#1133) and the older
+    untagged format. severity and category are None for old-format lines (or any
+    line that doesn't carry the tag pair), so callers can fall back to the
+    legacy string heuristic when they are absent."""
+    m = _LOG_PREFIX_RE.match(text_after_date)
+    if not m:
+        return (None, None, None, text_after_date)
+    return (m.group("thread"), m.group("severity"),
+            m.group("category"), m.group("message"))
+
 def readLog(log_filename, filter=None):
-    ret = {"time":[], "text":[]}
+    # severity/category are populated per line for #1133-tagged logs and left
+    # None for older untagged logs; existing callers that only read time/text
+    # are unaffected.
+    ret = {"time":[], "text":[], "severity":[], "category":[]}
     if not os.path.exists(log_filename):
         return ret
 
@@ -71,13 +112,13 @@ def readLog(log_filename, filter=None):
             line = f.readline()
             if not line:
                 break
-                
+
             if len(line) <= 26: # empty line, no information
                 continue
-                 
+
             if not line[0].isnumeric():
                 continue
-                
+
             if filter and not filter in line:
                 continue
 
@@ -85,8 +126,14 @@ def readLog(log_filename, filter=None):
 
             #2023-11-15 09:39:22
             datet = datetime.strptime(date, "%Y-%m-%d %H:%M:%S")
+            _, severity, category, _ = parse_log_prefix(line[date_end:].rstrip("\n"))
             ret["time"].append(datet)
+            # text keeps the full post-date fragment (incl. thread/tag prefix) so
+            # the allocator's "first integer is the thread id" heuristic and the
+            # existing hover tooltips are unchanged.
             ret["text"].append(f"{line[date_end:]}<br>")
+            ret["severity"].append(severity)
+            ret["category"].append(category)
     return ret
 
 def readLogAllocator(log_fn, start_time):

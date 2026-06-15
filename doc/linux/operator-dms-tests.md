@@ -64,7 +64,7 @@ and break those tests.
 ## Quick-test invocation
 
 ```sh
-cd /mnt/c/dev/GeoDMS_2026
+cd /mnt/c/dev/<your-checkout>      # WSL view of your Windows repo root
 ./TestLinuxReleaseUnit.sh
 # or for the debug build:
 ./TestLinuxDebugUnit.sh

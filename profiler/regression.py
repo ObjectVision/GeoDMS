@@ -49,6 +49,13 @@ def get_days_hours_minutes_seconds_from_duration(duration:int):
     seconds = time
     return day, hour, minutes, seconds
 
+def format_duration(duration:int) -> str:
+    """Format a duration [s] as a zero-padded H:MM:SS string, prefixed with
+    a day count only when it is non-zero (e.g. "3:23:09" or "1d 2:30:19")."""
+    day, hour, minutes, seconds = get_days_hours_minutes_seconds_from_duration(duration)
+    time_part = f"{int(hour)}:{int(minutes):02d}:{int(seconds):02d}"
+    return f"{int(day)}d {time_part}" if day else time_part
+
 def get_indicator_part_from_parsed_results(parsed_results:dict)->list:
     indicator_part = ""
     set_indicator_flag = False
@@ -85,7 +92,8 @@ def get_table_regression_test_row(result_paths:dict, summary_row:list) -> str:
         command = command.replace("'", '"')
         command = command.replace("\"", "")
         table_col_header = table_col_header.replace("@@@GEODMS_CMD@@@", command)
-        table_col_header = table_col_header.replace("@@@STARTTIME@@@", str(summary_col_row["start_time"].strftime("%Y %m %d %H:%M:%S")))
+        start_time_value = summary_col_row["start_time"]
+        table_col_header = table_col_header.replace("@@@STARTTIME@@@", start_time_value.strftime("%Y %m %d %H:%M:%S") if start_time_value else "n/a")
         table_col_header = table_col_header.replace("@@@DAYS@@@", str(int(day)))
         table_col_header = table_col_header.replace("@@@HOURS@@@", str(int(hour)))
         table_col_header = table_col_header.replace("@@@MINS@@@", str(int(minutes)))
@@ -335,6 +343,13 @@ def get_valid_result_folders(version:str, result_paths:dict) -> list:
         # Non-semver `version` (e.g. "local") is treated as newer than any
         # historical numeric version, so all candidates are valid for compare.
         if target is None or Version(f"{major}.{minor}.{patch}") <= target:
+            # Skip folders with no stored experiments (*.bin) -- they only
+            # produce empty report columns. These are typically abandoned runs
+            # or old preset-named folders (e.g. 20_0_1_x64-linux-cmake_... and
+            # 20_0_1_x64-windows-{cmake,msbuild}_... instead of 20_0_1_{l,c,m}_...),
+            # which carry 0 experiments.
+            if not glob.glob(f"{result_paths['results_base_folder']}/{candidate}/*.bin"):
+                continue
             valid_result_folders.append(candidate)
 
     return valid_result_folders
@@ -484,7 +499,12 @@ def get_result_folder_name(version:str, geodms_paths:dict, MT1:str, MT2:str, MT3
 
 def get_result_paths(geodms_paths:dict, regression_test_paths:dict, version:str, MT1:str, MT2:str, MT3:str) -> dict:
     result_paths = {}
-    result_paths["results_base_folder"] = f"{regression_test_paths["TstDir"]}/Regression/GeoDMSTestResults"
+    # Results tree base. Prefer the configured ResultsBaseDir (full.py sets it
+    # from the RegressionResultsDir setting, default {LocalDataDir}/GeoDMS-Test)
+    # so results live under C:\LocalData, not the source/tst tree. Falls back to
+    # TstDir for callers that don't set it (legacy behavior).
+    result_base = regression_test_paths.get("ResultsBaseDir") or regression_test_paths["TstDir"]
+    result_paths["results_base_folder"] = f"{result_base}/Regression/GeoDMSTestResults"
     result_paths["results_folder"] = f"{result_paths["results_base_folder"]}/{get_result_folder_name(version, geodms_paths, MT1, MT2, MT3)}"
     result_paths["results_log_folder"] = f"{result_paths["results_folder"]}/log"
     return result_paths
@@ -525,7 +545,6 @@ def get_table_col_header_html_template() -> str:
     #<td style="border-right: 0px; border-bottom: 1px solid #BEBEE6; box-shadow: 0 1px 0 #FFFFFF; padding: 5px;"><I>version</I>: <B>17.4.6</B><BR><I>build</I>: <B>Release</B><BR><I>platform</I>: <B>x64</B><BR><I>multi tasking</I>: <B>S1S2S3</B><BR> 			<I>operating system</I>: <B>Windows 10</B><BR> 			<I>computername</I>: <B>OVSRV07</B><BR> </td>
     return '<td style="border-right: 0px; border-bottom: 1px solid #BEBEE6; box-shadow: 0 1px 0 #FFFFFF; padding: 0px;"><B>@@@VERSION@@@</B><BR>\
     <B>@@@GITSHORTHASH@@@<B><BR>\
-    <B>@@@MULTITASKING@@@</B><BR>\
     <B>@@@TOTALTIME@@@</B><BR>\
     <B>@@@SUCCESSRATIO@@@</B></td>\n'
 
@@ -543,9 +562,7 @@ def get_table_header_row(summary_row:list) -> str:
         table_col_header = table_col_header.replace("@@@GITSHORTHASH@@@", summary_col_header["hash"])
         table_col_header = table_col_header.replace("@@@VERSION@@@", summary_col_header["version"])
         table_col_header = table_col_header.replace("@@@PLATFORM@@@", summary_col_header["platform"])
-        table_col_header = table_col_header.replace("@@@MULTITASKING@@@", summary_col_header["multi_tasking"])
-        days, hours, minutes, seconds = get_days_hours_minutes_seconds_from_duration(summary_col_header["total_duration"])
-        table_col_header = table_col_header.replace("@@@TOTALTIME@@@", f"{int(days)} {int(hours)}:{int(minutes)}:{int(seconds)}")
+        table_col_header = table_col_header.replace("@@@TOTALTIME@@@", format_duration(summary_col_header["total_duration"]))
         table_col_header = table_col_header.replace("@@@SUCCESSRATIO@@@", f"{summary_col_header["success_ratio"][0]}/{summary_col_header["success_ratio"][1]}")
         table_col_header = table_col_header.replace("@@@COMPUTER_NAME@@@", summary_col_header["computer_name"])
         table_header_row += table_col_header

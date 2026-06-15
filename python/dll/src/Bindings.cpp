@@ -17,6 +17,7 @@
 #include "utl/Encodes.h"
 #include "utl/Environment.h"
 #include "utl/scoped_exit.h"
+#include "act/MainThread.h" // SetMainThreadID
 #include "utl/splitPath.h"
 #include "DataArray.h"
 
@@ -38,8 +39,6 @@
 
 
 namespace py = pybind11;
-
-EXTERN_C IMAGE_DOS_HEADER __ImageBase;
 
 namespace py_geodms
 {	
@@ -243,20 +242,14 @@ namespace py_geodms
 			MG_USERCHECK2(s_currSingleEngine == nullptr, "Engine should only be constructed once");
 			s_currSingleEngine = this;
 
-			// TCHAR is `char` here (UNICODE/_UNICODE not defined for this
-			// project), so the unsuffixed GetModuleFileName resolves to
-			// GetModuleFileNameA — returning the path in the active code
-			// page. DMS_Appl_SetExeDir treats its argument as UTF-8, so
-			// non-ASCII install paths would be mojibake'd. Use the wide
-			// variant + Utf8 transcoding to fix.
-			wchar_t wPath[MAX_PATH];
-			::GetModuleFileNameW((HINSTANCE)&__ImageBase, wPath, _MAX_PATH);
-			auto dll_path = std::filesystem::path(wPath).remove_filename();
+			// Identify the main thread here, on the thread that constructs the
+			// single Engine (formerly done via DMS_Appl_SetExeDir). The exe-root
+			// dir is now self-determined by GetExeDir() from the Rtc module's
+			// own location, so it no longer needs to be conveyed.
+			SetMainThreadID();
 
 			DMS_Clc_Load();
 			DMS_Geo_Load();
-			auto exe_dir_utf8 = wchar_2_Utf8Str(dll_path.wstring().c_str());
-			DMS_Appl_SetExeDir(exe_dir_utf8.c_str()); // only call once
 		}
 		~Engine()
 		{

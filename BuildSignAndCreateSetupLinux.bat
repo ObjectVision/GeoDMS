@@ -18,7 +18,7 @@ REM   - cmake, ninja, gcc-13, vcpkg available inside WSL
 REM   - Linux build tree: build/linux-x64-release/  (configured separately)
 REM   - dpkg-deb available in WSL (for .deb creation)
 REM
-REM Run from the repo root:  C:\dev\GeoDMS_2026>BuildSignAndCreateSetupLinux.bat
+REM Run from the repo root:  <repo-root>>BuildSignAndCreateSetupLinux.bat
 
 cls
 
@@ -29,6 +29,11 @@ set GeoDmsFlavor=l
 
 set geodms_rootdir=%cd%
 set GeoDmsVersion=%DMS_VERSION_MAJOR%.%DMS_VERSION_MINOR%.%DMS_VERSION_PATCH%
+
+REM WSL view of the repo root, derived from %cd% so this script is not tied to a
+REM specific checkout path (was hardcoded to /mnt/c/dev/GeoDMS_2026). wslpath maps the
+REM Windows path to /mnt/<drive>/...; used in the `wsl bash -c` invocations below.
+for /f "usebackq delims=" %%i in (`wsl wslpath -a "%geodms_rootdir%"`) do set "geodms_wsldir=%%i"
 
 REM Mark script start so we can verify cmake --build actually produced a fresh
 REM binary. cmake exits 0 even when the dep tracker decided nothing needed
@@ -42,7 +47,7 @@ REM flavors. Only matters if the WSL build tree needs reconfiguring (which
 REM re-triggers vcpkg install via the toolchain file); harmless for pure
 REM --build. vcpkg keys archives by ABI hash, so Linux gcc entries coexist
 REM with the Windows MSVC entries already in vc_archives.
-wsl bash -c "export VCPKG_BINARY_SOURCES='clear;files,/mnt/c/dev/GeoDMS_2026/vc_archives,readwrite' && cd /mnt/c/dev/GeoDMS_2026 && cmake --build build/linux-x64-release --config Release"
+wsl bash -c "export VCPKG_BINARY_SOURCES='clear;files,%geodms_wsldir%/vc_archives,readwrite' && cd %geodms_wsldir% && cmake --build build/linux-x64-release --config Release"
 if errorlevel 1 goto :build_failed
 
 REM Linux ELF has no Windows FileVersion -- use mtime: GeoDmsRun must be at
@@ -54,7 +59,7 @@ if errorlevel 1 (
 )
 
 echo --- creating Linux setup (.tar.gz + .deb, signed via PowerShell .NET SignedCms) ---
-wsl bash -c "cd /mnt/c/dev/GeoDMS_2026 && export GeoDmsVersion=%GeoDmsVersion% && bash nsi/CreateLinuxSetup.sh"
+wsl bash -c "cd %geodms_wsldir% && export GeoDmsVersion=%GeoDmsVersion% && bash nsi/CreateLinuxSetup.sh"
 if errorlevel 1 goto :nsis_failed
 
 set DEB=distr\GeoDms%GeoDmsVersion%.%GeoDmsFlavor%-linux-x64.deb
@@ -67,7 +72,7 @@ if not exist "%DEB%" (
 )
 
 echo --- installing .deb in WSL (passwordless sudo required, or skipped) ---
-wsl bash -c "if [ -f '/mnt/c/dev/GeoDMS_2026/%DEB:\=/%' ] && sudo -n true 2>/dev/null; then sudo dpkg -i '/mnt/c/dev/GeoDMS_2026/%DEB:\=/%'; else echo '** skipping dpkg install (no passwordless sudo) — install manually with:  wsl sudo dpkg -i /mnt/c/dev/GeoDMS_2026/%DEB:\=/%'; fi"
+wsl bash -c "if [ -f '%geodms_wsldir%/%DEB:\=/%' ] && sudo -n true 2>/dev/null; then sudo dpkg -i '%geodms_wsldir%/%DEB:\=/%'; else echo '** skipping dpkg install (no passwordless sudo) — install manually with:  wsl sudo dpkg -i %geodms_wsldir%/%DEB:\=/%'; fi"
 
 REM Post-install unit tests (mirrors the unit.bat call in BuildSignAndCreateSetup.bat
 REM (.m) and BuildSignAndCreateSetupCmake.bat (.c)). TestLinuxReleaseUnit.sh runs
@@ -76,7 +81,7 @@ REM any FAILED test. On failure we REMOVE the installed package and the built se
 REM files: a warning echo is too easy to miss in the long build log, and a build
 REM with failing unit tests must not remain installed or shippable.
 echo --- running Linux unit tests ---
-wsl bash -c "cd /mnt/c/dev/GeoDMS_2026 && bash TestLinuxReleaseUnit.sh"
+wsl bash -c "cd %geodms_wsldir% && bash TestLinuxReleaseUnit.sh"
 if errorlevel 1 goto :unit_failed
 
 echo === DONE: GeoDms%GeoDmsVersion%.%GeoDmsFlavor% built and packaged ===

@@ -1,6 +1,6 @@
 # Tic - Tree Item Core library
-file(GLOB_RECURSE TIC_SOURCES src/*.cpp)
-file(GLOB_RECURSE TIC_HEADERS src/*.h)
+file(GLOB_RECURSE TIC_SOURCES CONFIGURE_DEPENDS src/*.cpp)
+file(GLOB_RECURSE TIC_HEADERS CONFIGURE_DEPENDS src/*.h)
 
 add_library(DmTic SHARED ${TIC_SOURCES} ${TIC_HEADERS})
 

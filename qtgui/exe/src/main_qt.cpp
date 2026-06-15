@@ -17,6 +17,7 @@
 #include "RtcInterface.h"
 
 #include "act/garbage_can.h"
+#include "act/MainThread.h" // SetMainThreadID
 #include "dbg/DebugLog.h"
 #include "dbg/DmsCatch.h"
 #include "utl/Environment.h"
@@ -116,8 +117,7 @@ std::any init_geodms(QApplication& dms_app, CmdLineSetttings& settingsFrame) { /
 
     DMS_Shv_Load();
     SHV_SetAdminMode(true);
-    auto exe_path = dms_app.applicationDirPath().toUtf8();
-    DMS_Appl_SetExeDir(exe_path);
+    SetMainThreadID(); // identify the main thread (formerly done via DMS_Appl_SetExeDir)
     DMS_Appl_SetFont();
 
     // Set explicit application font and link color from bundled resources so
@@ -349,10 +349,18 @@ protected:
     bool eventFilter(QObject* obj, QEvent* event) override {
         if (event->type() == QEvent::MouseButtonPress) {
             QMouseEvent* mouse_event = static_cast<QMouseEvent*>(event);
-            switch (mouse_event->button()) {
-            case Qt::BackButton: { MainWindow::TheOne()->back(); return true; }
-            case Qt::ForwardButton: { MainWindow::TheOne()->forward(); return true; }
-            default: break;
+            // back()/forward() navigate the tree (TreeItem lookups, setCurrentTreeItem) and
+            // can throw; an event filter must not let that propagate into Qt's event dispatch.
+            try {
+                switch (mouse_event->button()) {
+                case Qt::BackButton: { MainWindow::TheOne()->back(); return true; }
+                case Qt::ForwardButton: { MainWindow::TheOne()->forward(); return true; }
+                default: break;
+                }
+            }
+            catch (...) {
+                catchAndReportException();
+                return true;
             }
         }
         return false; // QObject::eventFilter(obj, event);

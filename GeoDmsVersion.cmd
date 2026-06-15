@@ -7,7 +7,7 @@
 @REM after this call.
 
 set DMS_VERSION_MAJOR=20
-set DMS_VERSION_MINOR=1
+set DMS_VERSION_MINOR=2
 set DMS_VERSION_PATCH=0
 
 REM Always refresh the generated headers with the version from

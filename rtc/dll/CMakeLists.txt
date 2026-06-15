@@ -1,6 +1,6 @@
 # Rtc - Runtime Core library
-file(GLOB_RECURSE RTC_SOURCES src/*.cpp)
-file(GLOB_RECURSE RTC_HEADERS src/*.h src/*.hpp src/*.ipp)
+file(GLOB_RECURSE RTC_SOURCES CONFIGURE_DEPENDS src/*.cpp)
+file(GLOB_RECURSE RTC_HEADERS CONFIGURE_DEPENDS src/*.h src/*.hpp src/*.ipp)
 
 add_library(DmRtc SHARED ${RTC_SOURCES} ${RTC_HEADERS})
 

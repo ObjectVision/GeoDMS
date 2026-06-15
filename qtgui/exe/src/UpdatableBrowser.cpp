@@ -111,10 +111,19 @@ void QUpdatableBrowser::restart_updating()
         {
             if (self)
             {
-                if (!self->update())
-                    self->restart_updating();
-                else
+                // update() (ValueInfo / Statistics HTML generation) runs DMS code that can throw.
+                // Report and END the loop on failure: a thrown exception must not escape into the
+                // timer dispatch, and we must not re-schedule (which would loop on a persistent error).
+                try {
+                    if (!self->update())
+                        self->restart_updating();
+                    else
+                        self->m_Waiter.end();
+                }
+                catch (...) {
+                    catchAndReportException();
                     self->m_Waiter.end();
+                }
             }
         }
     );

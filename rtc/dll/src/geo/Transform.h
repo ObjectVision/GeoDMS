@@ -58,6 +58,15 @@ inline bool IsBottomTop(OrientationType orientation) { return int(orientation) &
 inline bool MustNegateX(OrientationType orientation) { return IsRightLeft(orientation); }
 inline bool MustNegateY(OrientationType orientation) { return IsBottomTop(orientation); }
 
+// How a roi->viewPort fitting Transformation distributes scale over the axes.
+// Isotropic letterboxes (maps: aspect ratio preserved); Stretch scales each axis
+// independently so the roi fills the viewPort (charts: value vs index axes).
+enum class FitMode : UInt8
+{
+	Isotropic = 0,
+	Stretch   = 1,
+};
+
 template <typename T>
 Point<T> GetTopLeft(const Range<Point<T>>& extents, OrientationType orientation)
 {
@@ -93,17 +102,22 @@ public:
 		CheckSingularity();
 	}
 
-	Transformation(const rect_type& roi, const rect_type& viewPort, OrientationType orientation)
+	Transformation(const rect_type& roi, const rect_type& viewPort, OrientationType orientation, FitMode fitMode = FitMode::Isotropic)
 	{
 		point_type sizeROI = Size(roi);
 		point_type sizeVP  = Size(viewPort);
 		if (sizeROI == point_type(0, 0))
 			sizeROI = sizeVP;
 		dms_assert( !(sizeROI == point_type(0, 0)) );
-		T f = (sizeVP.first * sizeROI.second < sizeVP.second* sizeROI.first || (sizeROI.second == 0))
-				?	(sizeVP.first / sizeROI.first)
-				:	(sizeVP.second/ sizeROI.second);
-		m_Factor = point_type(f, f);
+		if (fitMode == FitMode::Stretch && sizeROI.first != 0 && sizeROI.second != 0)
+			m_Factor = point_type(sizeVP.first / sizeROI.first, sizeVP.second / sizeROI.second);
+		else
+		{
+			T f = (sizeVP.first * sizeROI.second < sizeVP.second* sizeROI.first || (sizeROI.second == 0))
+					?	(sizeVP.first / sizeROI.first)
+					:	(sizeVP.second/ sizeROI.second);
+			m_Factor = point_type(f, f);
+		}
 		if (MustNegateY(orientation)) m_Factor.Row()= -m_Factor.Row();
 		if (MustNegateX(orientation)) m_Factor.Col()= -m_Factor.Col();
 

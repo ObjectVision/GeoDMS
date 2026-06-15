@@ -1,6 +1,7 @@
 #include "DmsErrorWindow.h"
 #include "DmsDetailPages.h"
 #include "DmsMainWindow.h"
+#include "dbg/DmsCatch.h"
 
 void DmsErrorWindow::ignore() {
     done(QDialog::Rejected);
@@ -18,7 +19,12 @@ void DmsErrorWindow::reopen() {
 }
 
 void DmsErrorWindow::onAnchorClicked(const QUrl& link) {
-    MainWindow::TheOne()->onInternalLinkClick(link);
+    try {
+        MainWindow::TheOne()->onInternalLinkClick(link);
+    }
+    catch (...) {
+        catchAndReportException();
+    }
 }
 
 DmsErrorWindow::DmsErrorWindow(QWidget* parent)

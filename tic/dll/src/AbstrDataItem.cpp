@@ -470,6 +470,12 @@ ValueComposition AbstrDataItem::GetValueComposition() const
 	return vc;
 }
 
+void AbstrDataItem::SetValueComposition(ValueComposition vc)
+{
+	assert(vc != ValueComposition::Unknown);
+	m_StatusFlags.SetValueComposition(vc);
+}
+
 void AbstrDataItem::LoadBlobStream (const InpStreamBuff* f)
 {
 	

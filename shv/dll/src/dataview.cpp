@@ -458,7 +458,7 @@ void DataView::SyncTextCaret(DrawContext& dc, bool forceHidden)
 	m_TextCaretCurrentlyDrawn = target;
 }
 
-void DataView::SetTextCaret(const GPoint& caretPos)
+void DataView::SetTextCaret(const GPoint& caretPos, const GRect& clipRect)
 {
 	bool const justCreated = !m_State.Get(DVF_TextCaretCreated);
 	if (justCreated)
@@ -476,6 +476,18 @@ void DataView::SetTextCaret(const GPoint& caretPos)
 	// SetTextCaret is invoked from inside DataItemColumn::DrawElement during
 	// Visit, the post-Visit ReverseCaretsImpl will draw at the new position.
 	m_TextCaretPos = caretPos;
+	// Confine the caret to the cell box (#607). A value wider than the box
+	// otherwise pushes the caret past clipRect.right; since cell repaints clip
+	// to the box, those out-of-box XOR pixels are never erased and accumulate
+	// as a trail of vertical bars to the right of the box. Also size the caret
+	// to the box height so it never overflows top/bottom.
+	m_TextCaretHeight = clipRect.bottom - clipRect.top;
+	if (m_TextCaretPos.x + m_TextCaretWidth > clipRect.right)
+		m_TextCaretPos.x = clipRect.right - m_TextCaretWidth;
+	if (m_TextCaretPos.x < clipRect.left)
+		m_TextCaretPos.x = clipRect.left;
+	if (m_TextCaretPos.y < clipRect.top)
+		m_TextCaretPos.y = clipRect.top;
 	m_TextCaretBlinkOn = true; // reset blink phase on caret move
 }
 

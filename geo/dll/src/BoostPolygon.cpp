@@ -806,6 +806,7 @@ protected:
 
 		arg_index argCount = 0;
 		const AbstrDataItem* argPoly = AsDataItem(args[argCount++]);
+		CheckGeometryArgComposition(GetGroup(), argPoly, ValueComposition::Polygon);
 		const AbstrDataItem* argPart = (m_Flags & PolygonFlags::F_HasPartition) ? AsDataItem(args[argCount++]) : nullptr;
 		const AbstrDataItem* argNum1 = (m_Flags & PolygonFlags::F_Mask1       ) ? AsDataItem(args[argCount++]) : nullptr;
 		const AbstrDataItem* argNum2 = (m_Flags & PolygonFlags::F_Mask2       ) ? AsDataItem(args[argCount++]) : nullptr;

@@ -39,5 +39,6 @@ enum class MsgCategory : UInt8 {
 };
 
 RTC_CALL CharPtr AsString(MsgCategory);
+RTC_CALL char SeverityAsChar(SeverityTypeID);
 
 #endif // __RTC_DBG_SEVERITYTYPE_H
