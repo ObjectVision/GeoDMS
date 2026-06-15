@@ -233,7 +233,7 @@ void ImageFilledPolygon(AbstrRasterizeInfo* rasterInfo, point_t* padf, part_inde
     seq_index_t n = 0;
     for(part_index_t part = 0; part < nPartCount; part++ )
         n += panPartSize[part];
-	if (!n)
+    if (!n)
 		return;
 
 	// Full raster bounds

@@ -496,7 +496,6 @@ static TokenID s_LabelID = GetTokenID_st("Label"), s_LabelTextID = GetTokenID_st
 
 auto AbstrUnit::GetLabelAttr() const -> SharedDataItemInterestPtr
 {
-	assert(this);
 
 	auto si = GetConstSubTreeItemByID(s_LabelID);
 	if (!si) 
@@ -591,7 +590,6 @@ static TokenID s_MissingValueLabelID = GetTokenID_st("MissingValueLabel");
 
 SharedStr AbstrUnit::GetMissingValueLabel() const
 {
-	dms_assert(this);
 
 	const TreeItem* si = GetConstSubTreeItemByID(s_MissingValueLabelID).get();
 	if (IsDataItem(si))

@@ -59,7 +59,7 @@ private:
 
 	ScopedConnection  m_connOnScrolled, m_connOnCaptionChange;
 
-	DECL_RTTI(SHV_CALL, Class);
+	DECL_RTTI(SHV_CALL, Class)
 };
 
 #include "ScrollPort.h"

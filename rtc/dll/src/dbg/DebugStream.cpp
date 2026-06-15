@@ -141,7 +141,7 @@ namespace { // DebugOutStreamBuff is local
 		assert(*e == 0); // guaranteed by caller to have a completed Line.
 
 		// forget the terminating nulls and drop trailing empty lines in order to point to just beyond a real message that is the last line.
-		while (i != e && e[-1] == 0 || e[-1] == '\n')
+		while ((i != e && e[-1] == 0) || e[-1] == '\n')
 			--e; 
 		bool islastMsgSentAsMoreToCome = false;
 		while (i != e || minorSkipCount || majorSkipCount)
@@ -150,7 +150,7 @@ namespace { // DebugOutStreamBuff is local
 			bool isLastLine = (endofline == e);
 
 			assert(st <= SeverityTypeID::ST_DispError);
-			if (e - i >= 10240 && (st < SeverityTypeID::ST_MajorTrace || st == SeverityTypeID::ST_MajorTrace && printedLines > 16)) // filter out large trace sections
+			if (e - i >= 10240 && (st < SeverityTypeID::ST_MajorTrace || (st == SeverityTypeID::ST_MajorTrace && printedLines > 16))) // filter out large trace sections
 				if (st <= SeverityTypeID::ST_MinorTrace)
 					++minorSkipCount;
 				else
@@ -296,7 +296,6 @@ DebugOutStream::DebugOutStream()
 
 void DebugOutStream::SetSeverity(SeverityTypeID st)
 {
-	assert(this);
 	g_DebugStreamBuff->SetSeverity(st);
 }
 
@@ -309,15 +308,11 @@ void DebugOutStream::SetSeverity(DebugOutStream* self, SeverityTypeID st) // sta
 
 void DebugOutStream::SetMsgCategory(MsgCategory msgCat)
 {
-	assert(this); // go in a recursive loop if DebugStream is already destructed
-	if (!this)
-		abort();
 	g_DebugStreamBuff->SetMsgCategory(msgCat);
 }
 
 void DebugOutStream::NewLine()
 {
-	assert(this);
 	g_DebugStreamBuff->NewLine();
 }
 
@@ -483,7 +478,7 @@ namespace { // local defs
 
 		const int bufSize = 66+1-29 + 23;
 		char buf[bufSize];
-		snprintf(buf, bufSize, "Memory Allocation failed for %I64u bytes", (UInt64)size);
+		snprintf(buf, bufSize, "Memory Allocation failed for %llu bytes", (unsigned long long)size);
 
 		reportD(SeverityTypeID::ST_Warning, buf);
 		if (!CoalesceHeap(size, g_MyNewExceptionHandlerCount-1))

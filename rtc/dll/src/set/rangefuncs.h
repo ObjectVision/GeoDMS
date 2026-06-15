@@ -644,7 +644,10 @@ template <typename T>
 	requires std::is_trivially_assignable_v<T, T>
 inline void fast_zero(T* first, T* last)
 {
-	memset(first, 0, (last - first) * sizeof(T));
+	// void* cast: memset-to-zero is the intended in-place accumulator reset (e.g. var_accumulation_type
+	// has no member init), so it must NOT be rerouted to value-init. The cast silences -Wclass-memaccess
+	// on types that are trivially assignable but have a non-trivial default ctor.
+	memset(static_cast<void*>(first), 0, (last - first) * sizeof(T));
 }
 
 template <int N, typename Block> inline void

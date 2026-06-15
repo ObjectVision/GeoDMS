@@ -197,7 +197,7 @@ void AddFoundAspects(GraphicLayer* layer, const AbstrDataItem* viewItem, const L
 {
 	static_assert(AN_Feature == 0);  // skip Feature aspect
 
-	for (AspectNr aNr = AspectNr(1); aNr != AN_AspectCount; ++reinterpret_cast<UInt32&>(aNr) )
+	for (AspectNr aNr = AspectNr(1); aNr != AN_AspectCount; aNr = AspectNr(aNr + 1) )
 	{
 		if ((AspectNrSet(1<<aNr) & aspectSet)==0) continue;
 		if (aNr == AN_LabelText && viewItem->GetAbstrValuesUnit()->GetValueType()->GetValueClassID() == ValueClassID::VT_SharedStr)

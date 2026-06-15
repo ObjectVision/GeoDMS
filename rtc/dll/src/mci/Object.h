@@ -177,7 +177,7 @@ public:
 	[[noreturn]] void throwItemErrorF(CharPtr msg, Args&&... args) const {
 		::throwItemErrorF(this, msg, std::forward<Args>(args)...);
 	}
-	DECL_ABSTR(RTC_CALL, Class);
+	DECL_ABSTR(RTC_CALL, Class)
 };
 
 //**********  dynamic creation                           **********

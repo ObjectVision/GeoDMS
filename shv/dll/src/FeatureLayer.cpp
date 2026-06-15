@@ -472,7 +472,7 @@ void FeatureLayer::FillLcMenu(MenuData& menuData)
 	
 	AspectNrSet layerClassSet = GetLayerClass()->GetPossibleAspects();
 
-	for (AspectGroup ag=AG_First; ag != AG_Other; ++reinterpret_cast<UInt32&>(ag))
+	for (AspectGroup ag=AG_First; ag != AG_Other; ag = AspectGroup(ag + 1))
 		if (IsPossibleAspectGroup(ag) && AspectGroupArray[ag].menuFunc)
 		{
 			AspectGroupArray[ag].menuFunc(this, ag, menuData);

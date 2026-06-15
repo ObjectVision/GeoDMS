@@ -32,7 +32,7 @@ void AspectGroupMenuFunc(GraphicLayer* layer, AspectGroup ag, MenuData& menuData
 		menuData.push_back( MenuItem(SharedStr("Visible"), std::make_unique<SubLayerCmd>(ag, isDisabled), layer, isDisabled ? 0 : MF_CHECKED) );
 	}
 
-	for (AspectNr a = AN_First; a != AN_AspectCount; ++reinterpret_cast<UInt32&>(a))
+	for (AspectNr a = AN_First; a != AN_AspectCount; a = AspectNr(a + 1))
 		if (AspectArray[a].aspectGroup == ag)
 		{
 			auto theme = layer->GetTheme(a);

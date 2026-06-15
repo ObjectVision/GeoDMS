@@ -15,34 +15,34 @@
 StudyObjectHistory::StudyObjectHistory() {}
 StudyObjectHistory::~StudyObjectHistory() {}
 
-auto StudyObjectHistory::currentContext() -> Explain::CalcExplImpl* const
+auto StudyObjectHistory::currentContext() -> Explain::CalcExplImpl*
 {
     return study_objects.at(current_index).explain_context.get();
 }
 
-auto StudyObjectHistory::currentStudyObject() -> SharedDataItemInterestPtr const
+auto StudyObjectHistory::currentStudyObject() -> SharedDataItemInterestPtr
 {
     return study_objects.at(current_index).study_object;
 }
 
-auto StudyObjectHistory::currentIndex() -> Int64 const
+auto StudyObjectHistory::currentIndex() -> Int64
 {
     return study_objects.at(current_index).index;
 }
 
-auto StudyObjectHistory::currentExtraInfo() -> SharedStr const
+auto StudyObjectHistory::currentExtraInfo() -> SharedStr
 {
     return study_objects.at(current_index).extra_info;
 }
 
-auto StudyObjectHistory::nrPreviousStudyObjects() -> SizeT const
+auto StudyObjectHistory::nrPreviousStudyObjects() -> SizeT
 {
     if (current_index == -1)
         return 0;
     return current_index;
 }
 
-auto StudyObjectHistory::nrNextStudyObjects() -> SizeT const
+auto StudyObjectHistory::nrNextStudyObjects() -> SizeT
 {
     SizeT number_of_studyobjects = study_objects.size();
     return number_of_studyobjects - (current_index+1);

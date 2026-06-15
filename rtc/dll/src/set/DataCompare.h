@@ -68,7 +68,8 @@ struct DataEqualityCompareImpl<T, true>
 	template <typename U1, typename U2>
 	bool operator()(U1&& left, U2&& right) const noexcept
 	{
-		return left == right || !IsDefined(left) && !IsDefined(right);
+		return left == right 
+			|| (!IsDefined(left) && !IsDefined(right));
 	}
 };
 

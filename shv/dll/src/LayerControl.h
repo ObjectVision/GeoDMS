@@ -141,7 +141,7 @@ private:
 
 	ScopedConnection                      m_connFocusElemChanged;
 
-	DECL_RTTI(SHV_CALL, Class);
+	DECL_RTTI(SHV_CALL, Class)
 };
 
 //----------------------------------------------------------------------
@@ -174,7 +174,7 @@ private:
 
 	ScopedConnection    m_connElemSetChanged;
 
-	DECL_RTTI(SHV_CALL, Class);
+	DECL_RTTI(SHV_CALL, Class)
 };
 
 //----------------------------------------------------------------------
@@ -208,7 +208,7 @@ private:
 
 	ScopedConnection           m_connVisibilityChanged;
 
-	DECL_RTTI(SHV_CALL, Class);
+	DECL_RTTI(SHV_CALL, Class)
 };
 
 

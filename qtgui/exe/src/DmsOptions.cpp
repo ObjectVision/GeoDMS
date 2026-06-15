@@ -7,6 +7,8 @@
 #include "StgBase.h"
 #include "AbstrDataItem.h"
 
+#include <bit>
+
 #include "Unit.h"
 #include "UnitClass.h"
 #ifdef _WIN32
@@ -125,7 +127,7 @@ void saveBackgroundColor(QPushButton* btn, color_option co)
 
 void LoadColors()
 {
-    for (color_option co = color_option(0); co != color_option::count; reinterpret_cast<int&>(co)++)
+    for (color_option co = color_option(0); co != color_option::count; co = color_option(int(co) + 1))
     {
         auto& colorOptionData = sColorOptionData[(int)co];
         auto clr = GetGeoDmsRegKeyDWord(colorOptionData.regKey, colorOptionData.color, "Colors");
@@ -271,7 +273,7 @@ try {
     // drawing size in pixels
     Float32 drawing_size_in_pixels = m_drawing_size->value();
     SetDrawingSizeTresholdValue(drawing_size_in_pixels);
-    UInt32  drawing_size_dword = reinterpret_cast<UInt32&>(drawing_size_in_pixels); // Float32 stored as UInt32(DWORD) in registry
+    UInt32  drawing_size_dword = std::bit_cast<UInt32>(drawing_size_in_pixels); // Float32 stored as UInt32(DWORD) in registry
     SetGeoDmsRegKeyDWord("DrawingSizeInPixels", drawing_size_dword);
 
     setChanged(false);
@@ -284,7 +286,7 @@ Float32 GetDrawingSizeInPixels()
 {
     auto default_drawing_size_in_pixels = RTC_GetRegDWord(RegDWordEnum::DrawingSizeInPixels);
     UInt32 dms_reg_drawing_size_pixels = GetGeoDmsRegKeyDWord("DrawingSizeInPixels", default_drawing_size_in_pixels);
-    Float32 drawing_size_in_pixels = reinterpret_cast<Float32&>(dms_reg_drawing_size_pixels); // Float32 stored as UInt32(DWORD) in registry
+    Float32 drawing_size_in_pixels = std::bit_cast<Float32>(dms_reg_drawing_size_pixels); // Float32 stored as UInt32(DWORD) in registry
     return drawing_size_in_pixels;
 }
 

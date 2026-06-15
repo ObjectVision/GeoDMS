@@ -149,7 +149,6 @@ template <> AbstrContextHandle* AbstrContextHandle::GetPrev() const
 template<typename Base>
 UInt32 StackHandle<Base>::GetContextLevel() const
 {
-	dms_assert(this);
 	UInt32 r=1;
 	AbstrContextHandle* prev = m_Prev;
 	while (prev)

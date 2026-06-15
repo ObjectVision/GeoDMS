@@ -36,7 +36,7 @@ protected:
 	void AddLayer(const TreeItem*, bool isDropped) override;
 	ExportInfo GetExportInfo() override;
 
-	DECL_RTTI(SHV_CALL, Class);
+	DECL_RTTI(SHV_CALL, Class)
 };
 
 #endif // !defined(__SHV_TABLEDATAVIEW_H)

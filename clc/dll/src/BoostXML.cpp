@@ -327,7 +327,7 @@ struct RapidXmlOperator : public BinaryOperator
 
 		TreeItem* walkRoot = resultHolder.GetNew();
 		TreeItem* walker = nullptr;
-		while (walker = WalkNextElementOrContainer(walkRoot, walker))
+		while ((walker = WalkNextElementOrContainer(walkRoot, walker)))
 		{
 			if (walker != walkRoot && walker->HasCalculatorImpl())
 			{
@@ -382,7 +382,7 @@ struct RapidXmlOperator : public BinaryOperator
 		Entity defaultEntity;
 
 		TreeItem* walker = nullptr; 
-		while (walker = WalkNextElementOrContainer(resultHolder.GetNew(), walker))
+		while ((walker = WalkNextElementOrContainer(resultHolder.GetNew(), walker)))
 		{
 			if (walker->GetDynamicClass() == TreeItem::GetStaticClass())
 			{

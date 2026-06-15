@@ -91,10 +91,11 @@ constexpr bit_value<N> UndefinedOrMax(const bit_value<N>* ) { return bit_value<N
 
 void dont_link_this();
 
-template <bit_size_t N> inline bool IsDefined(bit_value<N>) 
+template <bit_size_t N> inline bool IsDefined(bit_value<N>)
 {
-	dont_link_this();
-//	struct dont_instantiate_this; return dont_instantiate_this(); 
+	dont_link_this(); // intentionally undefined: a bit_value is never undefined, so any real use must fail to link
+//	struct dont_instantiate_this; return dont_instantiate_this();
+	return false;     // unreachable; present only to satisfy -Wreturn-type on GCC
 }
 
 template <typename T>

@@ -124,10 +124,12 @@ bool AbstrController::SendStatusText(CharPtr format, CrdType dst, CrdType dst2) 
 		if (to)
 			if (auto vp = dynamic_cast<ViewPort*>(to.get()))
 				if (auto worldCrdUnit = vp->GetWorldCrdUnit())
+				{
 					if (auto projection = worldCrdUnit->GetProjection())
 						*m_UnitLabelScalePtr = projection->GetUnitlabeledScalePair();
 					else
 						*m_UnitLabelScalePtr = AsUnit(worldCrdUnit->GetUltimateItem())->GetUnitlabeledScalePair();
+				}
 	}
 
 	MG_CHECK(m_UnitLabelScalePtr);

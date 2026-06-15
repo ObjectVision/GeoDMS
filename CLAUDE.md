@@ -43,6 +43,26 @@ into `bin\Release\x64`.
 
 If a build cannot be run exactly as above, **stop and ask** — do not work around it.
 
+### Running a setup script with live progress on screen *and* readable by Claude
+
+The `BuildSignAndCreateSetup{,Cmake,Linux}.bat` scripts are run by the **user** in their own
+interactive PowerShell (so they inherit the user's environment and don't trigger a clean-env
+vcpkg re-bootstrap). To let the user watch live progress **and** let Claude read the output,
+pipe the script through `Tee-Object`:
+
+```powershell
+& cmd /c "BuildSignAndCreateSetupLinux.bat 2>&1" | Tee-Object -FilePath build_linux_<ver>.log
+```
+
+- `cmd /c "... 2>&1"` merges **stderr** (where GCC/clang warnings + errors land) into stdout
+  *inside cmd*, avoiding Windows PowerShell 5.1 wrapping native stderr lines as
+  `NativeCommandError` noise.
+- `Tee-Object` shows live output on the user's console and writes a logfile Claude tails
+  (`wc -l`, `Read` with offset, `Select-String 'warning:|error:'`).
+- Swap the `.bat` name and log name per flavor: `build_{m,c,l}_<ver>.log`. Claude does **not**
+  launch these scripts itself — it only reads the teed log. The `.m`/`.c` Windows setups still
+  need the user to drive CHOICE prompts + the SafeNet PIN at the console.
+
 
 ## Running the freshly built GeoDmsGuiQt.exe
 

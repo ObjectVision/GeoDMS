@@ -252,7 +252,7 @@ bool TifImp::HasColorTable() const
 		&& (TIFFGetField(m_TiffHandle, TIFFTAG_COLORMAP, &rcmap, &gcmap, &bcmap));
 }
 
-const ValueClassID TifImp::GetValueClassFromTiffDataTypeTag()
+ValueClassID TifImp::GetValueClassFromTiffDataTypeTag()
 {
 	uint16 sample_format = 0;
 	uint16 bits_per_sample = 0;
@@ -605,7 +605,7 @@ void TifImp::UnpackStrip(UInt32* pixelData, void* stripBuff, UInt32 nrBitsPerPix
 				{
 					if (*pixelData == UNDEFINED_VALUE(UInt32))
 						*pixelData = defaultColor;
-						++pixelData;
+					++pixelData;
 				}
 			}
 		}

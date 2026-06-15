@@ -30,16 +30,16 @@ public:
     StudyObjectHistory();
     ~StudyObjectHistory();
 
-    auto currentContext() -> Explain::CalcExplImpl* const;
-    auto currentStudyObject() -> SharedDataItemInterestPtr const;
-    auto currentIndex() -> Int64 const;
-    auto currentExtraInfo() -> SharedStr const;
+    auto currentContext() -> Explain::CalcExplImpl*;
+    auto currentStudyObject() -> SharedDataItemInterestPtr;
+    auto currentIndex() -> Int64;
+    auto currentExtraInfo() -> SharedStr;
 
     bool previous();
     bool next();
     void insert(SharedDataItemInterestPtr studyObject, SizeT index, SharedStr extra_info);
-    auto nrPreviousStudyObjects() -> SizeT const;
-    auto nrNextStudyObjects() -> SizeT const;
+    auto nrPreviousStudyObjects() -> SizeT;
+    auto nrNextStudyObjects() -> SizeT;
     void deleteAfterCurrentIndex();
 
     void ClearGarbage();

@@ -201,7 +201,7 @@ private:
 public:
 	static ViewPort* g_CurrZoom;
 
-	DECL_RTTI(SHV_CALL, Class);
+	DECL_RTTI(SHV_CALL, Class)
 };
 
 

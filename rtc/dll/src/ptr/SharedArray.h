@@ -146,7 +146,16 @@ private: // copying this is not allowed
 
 	size_t     m_Size;
 	size_t     m_AllocSize;
+	// Flexible array member: SharedArray is always over-allocated with trailing element
+	// storage. ISO C++ forbids this (it's a C99/GCC/MSVC extension), so -Wpedantic warns.
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#endif
 	block_type m_Data[];
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 };
 
 #endif // __RTC_PTR_SHAREDARRAY_H

@@ -413,7 +413,7 @@ struct ConnectPointOperator : AbstrConnectPointOperator
 		{
 			if (IsDefined(point2Begin[i]))
 			{
-				Float64 minWeight;
+				Float64 minWeight = 0;
 				if (weights1)
 				{
 					dms_assert(weights2);
@@ -1400,7 +1400,7 @@ struct SpatialIndexOper : TernaryAttrOper< QuadIdType, T, T, LevelType>
 
 		auto levelIter = levelData.begin();
 
-		UInt32 level; if (e3Void) level = LevelType(*levelIter);
+		UInt32 level = 0; if (e3Void) level = LevelType(*levelIter);
 
 		auto resIter = resData.begin();
 

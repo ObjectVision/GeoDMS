@@ -39,8 +39,8 @@ enum class metainfo_policy_flags {
 	is_metafunc_call = is_root_expr,
 };
 
-inline bool operator &(metainfo_policy_flags lhs, metainfo_policy_flags rhs) { return reinterpret_cast<int&>(lhs) & reinterpret_cast<int&>(rhs);  }
-inline metainfo_policy_flags operator |(metainfo_policy_flags lhs, metainfo_policy_flags rhs) { return metainfo_policy_flags(reinterpret_cast<int&>(lhs) | reinterpret_cast<int&>(rhs)); }
+inline bool operator &(metainfo_policy_flags lhs, metainfo_policy_flags rhs) { return int(lhs) & int(rhs);  }
+inline metainfo_policy_flags operator |(metainfo_policy_flags lhs, metainfo_policy_flags rhs) { return metainfo_policy_flags(int(lhs) | int(rhs)); }
 
 metainfo_policy_flags arg2metainfo_polcy(oper_arg_policy oap);
 

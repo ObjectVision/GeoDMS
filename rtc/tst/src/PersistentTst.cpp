@@ -56,7 +56,7 @@ struct PTestje : Object
 
 	int i;
 
-	DECL_RTTI(RTC_CALL, Class);
+	DECL_RTTI(RTC_CALL, Class)
 };
 
 IMPL_DYNC(PTestje, Class)

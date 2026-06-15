@@ -94,7 +94,6 @@ CharPtr GetActorFlagName(actor_flag_set::TransState ts)
 {
     switch (ts)
     {
-        case actor_flag_set::AF_IsPassor:         return "Passor";
         case actor_flag_set::AF_DeterminingState: return "DetermineState";
         case actor_flag_set::AF_UpdatingMetaInfo: return "MetaInfo";
         case actor_flag_set::AF_ChangingInterest: return "ChangeInterest";
@@ -1458,7 +1457,6 @@ SupplInterestListPtr::~SupplInterestListPtr()
 // NOTE: Increments interest count while returning shared pointer wrapper.
 SharedActorInterestPtr Actor::GetInterestPtrOrNull() const
 {
-    assert(this);
 
 	auto psa = dynamic_cast<const SharedActor*>(this);
     assert(psa);

@@ -260,6 +260,7 @@ bool IsAspectData(AspectNr aNr, const AbstrDataItem* adi, const LayerClass* laye
 #else
 	// stuff for backward compatibility
 	if (dialogTypeID == oldColorPaletteNameID)
+	{
 		if (layerClass)
 			switch (layerClass->GetNrDims())
 			{
@@ -269,6 +270,7 @@ bool IsAspectData(AspectNr aNr, const AbstrDataItem* adi, const LayerClass* laye
 			}
 		else
 			return aNr == AN_LabelTextColor;
+	}
 
 	if (dialogTypeID == oldFontPaletteNameID) 
 	{

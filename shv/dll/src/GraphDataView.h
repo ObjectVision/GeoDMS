@@ -39,7 +39,7 @@ protected:
 private:
 	LayerInfo GetCompleteLayerInfoOrThrow(const TreeItem* viewItem) const;
 
-	DECL_RTTI(SHV_CALL, Class);
+	DECL_RTTI(SHV_CALL, Class)
 };
 
 #endif // !defined(__SHV_GRAPHDATAVIEW_H)

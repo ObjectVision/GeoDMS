@@ -210,11 +210,11 @@ void DoExportTable(const TreeItem* ti, SharedStr fn, TreeItem* vdc)
     }
 
     if (!adiGeometry)
-        while (adiGeometry = DataContainer_NextItem(ti, adiGeometry, auCommon, false))
+        while ((adiGeometry = DataContainer_NextItem(ti, adiGeometry, auCommon, false)))
             if (adiGeometry->GetAbstrValuesUnit()->GetValueType()->GetNrDims() == 2)
                 break;
     if (!adiGeometry && auCommon != ti)
-        while (adiGeometry = DataContainer_NextItem(auCommon, adiGeometry, auCommon, false))
+        while ((adiGeometry = DataContainer_NextItem(auCommon, adiGeometry, auCommon, false)))
             if (adiGeometry->GetAbstrValuesUnit()->GetValueType()->GetNrDims() == 2)
                 break;
 
@@ -226,7 +226,7 @@ void DoExportTable(const TreeItem* ti, SharedStr fn, TreeItem* vdc)
     }
 
     const AbstrDataItem* adi = nullptr;
-    while (adi = DataContainer_NextItem(ti, adi, auCommon, false))
+    while ((adi = DataContainer_NextItem(ti, adi, auCommon, false)))
         if (adi != adiGeometry)
         {
             // TODO: reproduce multi-level structure of DataContainer

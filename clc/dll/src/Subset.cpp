@@ -577,7 +577,7 @@ struct AbstrRecollectByCondOperator : BinaryOperator
 		if (!resultHolder)
 			resultHolder = CreateCacheDataItem(condA->GetAbstrDomainUnit(), dataA->GetAbstrValuesUnit(), dataA->GetValueComposition());
 
-		if (dataA->GetTSF(TSF_Categorical) || fillA && fillA->GetTSF(TSF_Categorical))
+		if (dataA->GetTSF(TSF_Categorical) || (fillA && fillA->GetTSF(TSF_Categorical)))
 		{
 			if (fillA)
 				dataA->GetAbstrValuesUnit()->UnifyDomain(fillA->GetAbstrValuesUnit(), "v2", "v3", UnifyMode(UM_AllowDefaultRight | UM_Throw));

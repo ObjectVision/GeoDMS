@@ -312,7 +312,7 @@ struct TileFunctor : data_array_traits<V>::type
 #if defined(MG_DEBUG_ALLOCATOR)
 	SharedStr md_SrcStr;
 #endif
-	DECL_RTTI(TIC_CALL, DataItemClass);
+	DECL_RTTI(TIC_CALL, DataItemClass)
 
 };
 

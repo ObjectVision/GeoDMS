@@ -120,7 +120,7 @@ public:
 	void Reverse(DrawContext& dc, bool newVisibleState) override;
 	void Move(const AbstrCaretOperator& caret_operator, DrawContext& dc) override;
 
-	DECL_ABSTR(SHV_CALL, Class);
+	DECL_ABSTR(SHV_CALL, Class)
 };
 
 //----------------------------------------------------------------------

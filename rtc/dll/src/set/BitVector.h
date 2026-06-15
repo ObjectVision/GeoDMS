@@ -130,9 +130,22 @@ struct bit_reference : private bit_sequence_base<N, Block>
 	bit_iterator<N, Block>       operator &()       { return bit_iterator<N,       Block>(this->m_BlockData, this->m_NrElems); }
 	bit_iterator<N, const Block> operator &() const { return bit_iterator<N, const Block>(this->m_BlockData, this->m_NrElems); }
 
+	// These read-modify-write the whole Block word at m_BlockData. When this reference wraps a
+	// standalone 1-byte bit_value (the bit_reference(bit_value<N>&) ctor reinterprets &elem as a
+	// Block*), the Block-wide access touches bytes past the 1-byte object. It is benign — only the
+	// masked bits change and the trailing bytes are written back unchanged, and object alignment/
+	// allocator slack keeps it from faulting — so suppress GCC's -Warray-bounds here.
+	// TODO: a byte-granular single-element path would remove the underlying out-of-bounds access.
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"
+#endif
 	void do_set() { block() |= mask(); }
 	void do_clear() { block() &= ~mask(); }
 	void do_flip() { block() ^= mask(); }
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 
 	typename bit_info_t::bit_index_type shift() const { return this->m_NrElems * N;  }
 	Block  mask() const { return Block(bit_value<N>::mask) << shift(); }
@@ -177,19 +190,16 @@ void Assign(bit_reference<N, Block> lhs, bit_reference<N, CBlock> rhs)
 template <bit_size_t N, typename Block>
 struct bit_iterator
 	:	bit_sequence_base<N, Block>
-		// TODO: EMPTY MEMBER OPTIMIZATION
-	, 	std::iterator<std::random_access_iterator_tag
-		,	bit_value<N>
-		,	typename bit_info    <N, Block>::difference_type
-		,	bit_iterator<N, Block>
-		,	typename bit_sequence_base<N, Block>::reference
-		>
 {
 	using base_type = bit_sequence_base<N, Block>;
 	using typename base_type::value_type;
 	using typename base_type::difference_type;
 	using typename base_type::reference;
 	using base_type::data_begin;
+
+	// std::iterator was deprecated in C++17; provide the iterator traits explicitly.
+	using iterator_category = std::random_access_iterator_tag;
+	using pointer           = bit_iterator;
 
 	using bit_info_t = bit_info<N, Block>;
 	using typename bit_info_t::size_type;

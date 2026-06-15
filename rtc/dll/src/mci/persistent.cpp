@@ -321,7 +321,6 @@ const SourceLocation* PersistentObject::GetLocation() const
 
 SharedStr PersistentObject::GetFullName() const
 {
-	dms_assert(this);
 	// calc size
 	UInt32 nameSz = 1;
 	auto item = this;
@@ -412,7 +411,6 @@ SharedStr PersistentObject::GetFindableName(const PersistentObject* subItem) con
 	assert(IsMetaThread());
 	dms_check_not_debugonly;
 
-	assert(this);
 	assert(subItem);
 	assert(GetRoot() == subItem->GetRoot());
 	if (subItem == this)

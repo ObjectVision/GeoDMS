@@ -175,7 +175,7 @@ public:
 		m_HasSubstituted : 1 = false,
 		m_HasCollectedNamedSuppliers: 1 = false;
 
-	CalcRole m_CalcRole : 2 = CalcRole::Calculator;
+	CalcRole m_CalcRole : 3 = CalcRole::Calculator;
 
 	mutable BestItemRef m_BestGuessErrorSuppl;
 	mutable std::vector<SharedTreeItem> m_NamedSuppliers;

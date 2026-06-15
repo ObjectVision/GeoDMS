@@ -2286,7 +2286,7 @@ namespace diagnostic_tests {
 		return !self->GetTreeParent() || self->GetTreeParent()->Was(ProgressState::MetaInfo) || self->GetTreeParent()->WasFailed(FailType::MetaInfo);
 	}
 
-	static bool DetermineStateWasCalled(const TreeItem* self)
+	[[maybe_unused]] static bool DetermineStateWasCalled(const TreeItem* self)
 	{
 		return TreeParenMetaInfoReadyOrFailed(self)
 			&& (self->m_LastGetStateTS == UpdateMarker::GetLastTS() || self->HasConfigData() || self->InTemplate() || self->IsPassor());
@@ -4039,7 +4039,7 @@ TIC_CALL void TreeItem::DisableStorage(bool disabledStorage) // does not call Up
 	}
 }
 
-static bool HasCfsStorage(const TreeItem* obj)
+[[maybe_unused]] static bool HasCfsStorage(const TreeItem* obj)
 {
 	auto storageHolder = obj->GetStorageParent(false);
 

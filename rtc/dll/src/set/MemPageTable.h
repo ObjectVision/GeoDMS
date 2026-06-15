@@ -19,14 +19,14 @@ using FreeChunk = IndexRange<dms::filesize_t>;
 struct LexiLess {
 	bool operator ()(const FreeChunk& a, const FreeChunk& b) const
 	{ 
-		return a.first < b.first || a.first == b.first && a.second < b.second; 
+		return a.first < b.first || (a.first == b.first && a.second < b.second);
 	}
 };
 
 struct SizeLess {
 	bool operator()(const FreeChunk& a, const FreeChunk& b) const
 	{
-		return a.size() < b.size() || a.size() == b.size() && m_FallbackCmp(a, b);
+		return a.size() < b.size() || (a.size() == b.size() && m_FallbackCmp(a, b));
 	}
 	LexiLess m_FallbackCmp;
 };

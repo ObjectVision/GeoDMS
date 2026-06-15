@@ -180,6 +180,7 @@ struct ArgMinMaxOper : UnaryOperator
 									argAndValueSoFarComparable = false;
 								}
 							if (argAndValueSoFarComparable)
+							{
 								if constexpr (OperType == MinMaxOperType::Maximum)
 								{
 									if (argValue <= valueSoFar[i])
@@ -190,6 +191,7 @@ struct ArgMinMaxOper : UnaryOperator
 									if (argValue >= valueSoFar[i])
 										continue;
 								}
+							}
 							valueSoFar[i] = argValue;
 							if constexpr (IsArgIndex)
 								resTile[i] = j;

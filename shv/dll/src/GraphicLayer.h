@@ -133,7 +133,7 @@ private:
 	mutable SharedPtr<IndexCollector> m_EntityIndexCollector;
 	mutable SharedDataItemInterestPtr m_ActiveThemeValuesUnitLabelLock;
 
-	DECL_ABSTR(SHV_CALL, Class);
+	DECL_ABSTR(SHV_CALL, Class)
 };
 
 #endif // __SHV_GRAPHICLAYER_H

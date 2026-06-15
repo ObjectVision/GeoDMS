@@ -97,7 +97,7 @@ private:
 	mutable std::unique_ptr<PasteHandler> m_PasteHandler;
 #endif
 
-	DECL_RTTI(SHV_CALL, LayerClass);
+	DECL_RTTI(SHV_CALL, LayerClass)
 };
 
 

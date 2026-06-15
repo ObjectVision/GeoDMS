@@ -97,6 +97,9 @@ struct RequestMainThreadOperProcessingBlocker
 	RTC_CALL RequestMainThreadOperProcessingBlocker();
 	RTC_CALL RequestMainThreadOperProcessingBlocker(const RequestMainThreadOperProcessingBlocker&);
 	RTC_CALL ~RequestMainThreadOperProcessingBlocker();
+	// Declared explicitly to silence -Wdeprecated-copy (a user copy-ctor+dtor deprecates the
+	// implicit copy-assignment). The class is stateless, so a defaulted no-op matches prior behavior.
+	RequestMainThreadOperProcessingBlocker& operator=(const RequestMainThreadOperProcessingBlocker&) = default;
 };
 
 #endif // __RTC_ACT_MAINTHREAD_H

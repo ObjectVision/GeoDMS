@@ -50,10 +50,12 @@ struct DisplacementInfo // { Start, NW, N, NE, W, E, SW, S, SE }
 		{
 			MG_CHECK(row < latFactors.size());
 			if (dx)
+			{
 				if (dy)
 					return latFactors[row].second;
 				else
 					return latFactors[row].first;
+			}
 		}
 		return factor;
 	}

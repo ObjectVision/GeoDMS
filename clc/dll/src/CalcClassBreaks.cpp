@@ -435,7 +435,7 @@ break_array ClassifyNZEqualCount(AbstrDataItem* breakAttr, const ValueCountPairC
 		assert(m + j >= kk); // follows from previous assert and positivity of j
 		UInt32 maxI = m + j - kk; // (m-i) > (kk-j)
 		assert(maxI < m);  // j < kk
-		while (c < cc && i < maxI && (i==0 || ((vcpc[i-1].first >= 0) == vcpc[i].first > 0)))
+		while (c < cc && i < maxI && (i==0 || ((vcpc[i-1].first >= 0) == (vcpc[i].first > 0))))
 		{
 			assert(i < m);
 			c += vcpc[i].second;
@@ -687,7 +687,7 @@ break_array ClassifyJenksFisher(const ValueCountPairContainer& vcpc, SizeT kk, b
 	SizeT m = vcpc.size();
 	if (kk >= m)
 		return ClassifyUniqueValues(vcpc, kk);
-	if (!separateZero || kk < 2 || kk == 2 && (vcpc[0].first > 0 || vcpc.back().first < 0))
+	if (!separateZero || kk < 2 || (kk == 2 && (vcpc[0].first > 0 || vcpc.back().first < 0)))
 		return ClassifyCRJenksFisher(vcpc, kk);
 
 	DBG_START("ClassifyNonzeroJenksFisher", "", MG_DEBUG_CLASSBREAKS);

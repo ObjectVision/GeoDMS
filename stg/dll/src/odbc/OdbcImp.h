@@ -120,9 +120,9 @@ public:
 	STGIMPL_CALL  bool IsVarSized() const;
 
 	// data
-	STGIMPL_CALL const SQLPOINTER  Buffer()       const;
+	STGIMPL_CALL SQLPOINTER  Buffer()       const;
 	STGIMPL_CALL SQLINTEGER        BufferSize()   const;
-	STGIMPL_CALL const SQLPOINTER  ElementBuffer()const;
+	STGIMPL_CALL SQLPOINTER  ElementBuffer()const;
 	STGIMPL_CALL SQLINTEGER        ElementSize()  const;
 
 	STGIMPL_CALL const SQLLEN*     ActualSizes()  const { return m_ActualSizes; }
@@ -461,10 +461,10 @@ struct TRecordSetOpenLock
 // out of class inline member function definitions
 // inline TColumn member functions
 
-inline const SQLPOINTER TColumn::Buffer()       const { return m_Buffer; }
+inline SQLPOINTER TColumn::Buffer()       const { return m_Buffer; }
 inline SQLINTEGER       TColumn::BufferSize()   const { return m_RecordSet->FrameSize() * ElementSize(); }
 inline SQLINTEGER       TColumn::ElementSize()  const { return m_ElementSize; }	
-inline const SQLPOINTER TColumn::ElementBuffer()const { return((char*) Buffer()) + SizeT(m_RecordSet->FrameElementNumber()) * ElementSize(); }
+inline SQLPOINTER TColumn::ElementBuffer()const { return((char*) Buffer()) + SizeT(m_RecordSet->FrameElementNumber()) * ElementSize(); }
 inline SQLLEN           TColumn::ActualSize()   const { dms_assert(m_ActualSizes); return m_ActualSizes[m_RecordSet->FrameElementNumber()]; }
 inline bool             TColumn::IsNull()       const { return ActualSize() == SQL_NULL_DATA; }
 

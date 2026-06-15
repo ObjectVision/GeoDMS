@@ -78,7 +78,7 @@ private:
 	std::shared_ptr<ViewPort>        m_OvViewPort;
 	std::shared_ptr<LayerSet>        m_OvLayerSet;
 
-	DECL_RTTI(SHV_CALL, Class);
+	DECL_RTTI(SHV_CALL, Class)
 };
 
 #endif // __SHV_MAPCONTROL_H

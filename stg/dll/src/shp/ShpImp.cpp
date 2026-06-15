@@ -228,7 +228,9 @@ bool ShpImp::Read(WeakStr name)
 			MG_CHECK( rhead.RecordNumber == m_Points.size() );
 			MG_CHECK( (m_FileLength - (pos - 8)) / 2 >=  UInt32(rhead.ContentLength));
 
-			pos += ReadLittleEndian(m_FH, (Int32&)shapeType);
+			Int32 shapeTypeAsInt = 0;
+			pos += ReadLittleEndian(m_FH, shapeTypeAsInt);
+			shapeType = decltype(shapeType)(shapeTypeAsInt);
 
 			MG_CHECK( IsPoint(shapeType) );
 

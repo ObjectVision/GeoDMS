@@ -66,8 +66,8 @@ struct AbstrBinaryAttrOper : BinaryOperator
 			DataReadLock arg1Lock(arg1A);
 			DataReadLock arg2Lock(arg2A);
 			ArgFlags af = static_cast<ArgFlags>((e1Void ? AF1_ISPARAM : 0) | (e2Void ? AF2_ISPARAM : 0) );
-			if (m_PossibleArgFlags & AF1_HASUNDEFINED) reinterpret_cast<UInt32&>(af) |= (arg1A->HasUndefinedValues() ? AF1_HASUNDEFINED : 0);
-			if (m_PossibleArgFlags & AF2_HASUNDEFINED) reinterpret_cast<UInt32&>(af) |= (arg2A->HasUndefinedValues() ? AF2_HASUNDEFINED : 0);
+			if (m_PossibleArgFlags & AF1_HASUNDEFINED) af = ArgFlags(UInt32(af) | (arg1A->HasUndefinedValues() ? AF1_HASUNDEFINED : 0));
+			if (m_PossibleArgFlags & AF2_HASUNDEFINED) af = ArgFlags(UInt32(af) | (arg2A->HasUndefinedValues() ? AF2_HASUNDEFINED : 0));
 
 			AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
 
@@ -80,7 +80,7 @@ struct AbstrBinaryAttrOper : BinaryOperator
 				DataWriteLock resLock(res);
 
 				parallel_tileloop(tn,
-					[=, &resLock](tile_id t)->void
+					[=, this, &resLock](tile_id t)->void
 					{
 						Calculate(resLock.get(), arg1A, arg2A, af, t);
 					}

@@ -45,11 +45,13 @@ auto mgFormat(CharPtr msg, Args&&... args)
 template <typename T>
 using remove_rvalue_reference_t = std::conditional_t<std::is_rvalue_reference_v<T>, std::remove_reference_t<T>, T>;
 
+#if defined(_MSC_VER)
 #pragma warning (push)
 #pragma warning (disable: 26800)
+#endif
 
 template <typename ...Args>
-void release_resources(Args...) 
+void release_resources(Args...)
 {
 }
 
@@ -63,6 +65,8 @@ std::string mgFormat2string(CharPtr msg, Args&&... args)
 	return result;
 }
 
+#if defined(_MSC_VER)
 #pragma warning (pop)
+#endif
 
 #endif // __RTC_SER_FORMAT_H

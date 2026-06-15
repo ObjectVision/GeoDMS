@@ -149,7 +149,6 @@ SharedTreeItem SessionData::GetConfigSettings(CharPtr section, CharPtr key) cons
 
 SharedStr SessionData::ReadConfigString(CharPtr section, CharPtr key, CharPtr defaultValue) const
 {
-	dms_assert(this);
 
 	SharedStr result;
 	if (PlatformInfo::GetEnvString(section, key, result))
@@ -163,7 +162,6 @@ SharedStr SessionData::ReadConfigString(CharPtr section, CharPtr key, CharPtr de
 
 Int32 SessionData::ReadConfigValue(CharPtr section, CharPtr key, Int32 defaultValue) const
 {
-	dms_assert(this);
 	const AbstrDataItem* adi = AsDataItem(GetConfigSettings(section, key).get());
 	if (adi)
 		return NumericParam_GetValueAsInt32(adi);
@@ -201,7 +199,6 @@ void SessionData::Open(const TreeItem* configRoot)
 {
 	dms_assert(!m_ConfigRoot); // only open this once
 	m_ConfigRoot = configRoot;
-	dms_assert(this);
 	m_ConfigLoadTS = UpdateMarker::GetLastTS();
 	auto configSettings = const_cast<TreeItem*>(configRoot)->CreateItem(t_ConfigSettings);
 	configSettings->SetIsHidden(true);

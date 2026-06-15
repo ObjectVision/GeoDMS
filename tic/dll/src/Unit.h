@@ -366,7 +366,7 @@ public:
 private: friend Object* CreateFunc<Unit<V> >();
 	Unit();
 
-	DECL_RTTI(TIC_CALL, UnitClass);
+	DECL_RTTI(TIC_CALL, UnitClass)
 };
 
 template <typename V>

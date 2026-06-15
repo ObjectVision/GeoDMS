@@ -164,7 +164,7 @@ public:
 
 	STGIMPL_CALL bool HasColorTable() const;
 
-	STGIMPL_CALL const ValueClassID GetValueClassFromTiffDataTypeTag();
+	STGIMPL_CALL ValueClassID GetValueClassFromTiffDataTypeTag();
 
 	STGIMPL_CALL PALETTE_SIZE GetClrImportant() const;
 	STGIMPL_CALL void     GetColor(PALETTE_SIZE, UByte& r, UByte& g, UByte& b) const;

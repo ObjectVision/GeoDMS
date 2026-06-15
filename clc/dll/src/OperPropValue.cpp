@@ -154,6 +154,7 @@ struct PropValueOperator : public BinaryOperator
 		const AbstrUnit* argDomain = arg2A->GetAbstrDomainUnit();
 
 		if (!resultHolder)
+		{
 			if (m_ItemSetProvider)
 			{
 				resultHolder = Unit<UInt32>::GetStaticClass()->CreateResultUnit(resultHolder).release(); // count subitems.
@@ -169,6 +170,7 @@ struct PropValueOperator : public BinaryOperator
 			}
 			else
 				resultHolder = CreateCacheDataItem(argDomain, Unit<SharedStr>::GetStaticClass()->CreateDefault());
+		}
 
 		if (!mustCalc) 
 			return true;

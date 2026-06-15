@@ -14,6 +14,7 @@
 #include "utl/mySPrintF.h"
 
 #include "AbstrDataItem.h"
+#include "Metric.h"
 #include "OperGroups.h"
 #include "Unit.h"
 #include "UnitClass.h"

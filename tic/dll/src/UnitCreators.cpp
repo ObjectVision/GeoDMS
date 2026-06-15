@@ -200,7 +200,7 @@ ConstUnitRef compatible_values_unit_creator_func(arg_index nrSkippedArgs, const 
 		}
 		dms_assert(IsEmpty(currArg_MetricPtr) || !currArg_ProjectionPtr); // this code assumes units never have both a metric and a projection
 	}
-	MG_CHECK(!catUnit || arg1_ValuesUnit && catUnit->UnifyDomain(arg1_ValuesUnit, "", "", UM_AllowDefaultRight));
+	MG_CHECK(!catUnit || (arg1_ValuesUnit && catUnit->UnifyDomain(arg1_ValuesUnit, "", "", UM_AllowDefaultRight)));
 
 	return arg1_ValuesUnit;
 }

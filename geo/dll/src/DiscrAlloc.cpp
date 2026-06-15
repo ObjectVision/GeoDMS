@@ -79,7 +79,7 @@ results in:
 *  - making one reallocation is bounded by O(k*p) search steps and adjustments
 *  - the scaling provides an upper bound on the expected number of reallocations
 *  - The algorithm is O(n*k) where n is the number of land units and k the number of claims.
-/* 
+*
 	SMALL PERTURBATIONS
 	In order to make exact allocation possible, equal suitabilities are virtually perturbated.
 	It should never be the case that for any two cells i,h and types j,k,
@@ -263,10 +263,10 @@ struct claim
 	facet_id         m_FirstInpHeapID; // singly linked via facet array
 
 	// See detailed semantics in header comment above.
-	bool Overflow ()  const { return m_Count >  m_ClaimRange.second || m_Count >  m_ClaimRange.first  && m_ShadowPrice > shadow_price<S>(); }
-	bool AtMax    ()  const { return m_Count >= m_ClaimRange.second || m_Count >= m_ClaimRange.first  && m_ShadowPrice > shadow_price<S>(); }
-	bool Underflow()  const { return m_Count <  m_ClaimRange.first  || m_Count <  m_ClaimRange.second && m_ShadowPrice < shadow_price<S>(); }
-	bool AtMin    ()  const { return m_Count <= m_ClaimRange.first  || m_Count <=  m_ClaimRange.second && m_ShadowPrice < shadow_price<S>(); }
+	bool Overflow ()  const { return m_Count >  m_ClaimRange.second || (m_Count >  m_ClaimRange.first  && m_ShadowPrice > shadow_price<S>()); }
+	bool AtMax    ()  const { return m_Count >= m_ClaimRange.second || (m_Count >= m_ClaimRange.first  && m_ShadowPrice > shadow_price<S>()); }
+	bool Underflow()  const { return m_Count <  m_ClaimRange.first  || (m_Count <  m_ClaimRange.second && m_ShadowPrice < shadow_price<S>()); }
+	bool AtMin    ()  const { return m_Count <= m_ClaimRange.first  || (m_Count <=  m_ClaimRange.second && m_ShadowPrice < shadow_price<S>()); }
 
 	// Caution: relies on && precedence over ||. Parentheses added at 09/09/2025
 	bool IsOK     ()  const 

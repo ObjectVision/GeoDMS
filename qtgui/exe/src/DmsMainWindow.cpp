@@ -525,7 +525,7 @@ void OnVersionComponentVisit(ClientHandle clientHandle, UInt32 componentLevel, C
         stream << "-  ";
         componentLevel--;
     }
-    for (char ch; ch = *componentName; ++componentName)
+    for (char ch; (ch = *componentName); ++componentName)
         if (ch == '\n')
             stream << "; ";
         else
@@ -705,8 +705,8 @@ bool MainWindow::event(QEvent* event) {
     if (event->type() == QEvent::WindowActivate && !s_errorWindowActivationCount)
     {
         QTimer::singleShot(0, this, 
-            [=]() 
-            { 
+            [=, this]()
+            {
                 if (g_IsTerminating)
                     return;
                 auto vos = ReportChangedFiles();
@@ -718,7 +718,7 @@ bool MainWindow::event(QEvent* event) {
                     // now allow MsgQueue to process GUI events, such TreeView item activation, 
                     // that initiated the WindowActivate, before showing the FileChangedWindow
                     QTimer::singleShot(0, this, 
-                        [=]()
+                        [=, this]()
                         {
                             if (g_IsTerminating)
                                 return;
@@ -1271,13 +1271,13 @@ void MainWindow::LoadConfig(CharPtr configFilePath, CharPtr currentItemPath) {
     SharedStr currentItemPathStr(currentItemPath);
 
     QTimer::singleShot(hadSubWindows ? 100 : 0, this, 
-        [=]()
-        { 
+        [=, this]()
+        {
             if (g_IsTerminating)
                 return;
             if (LoadConfigImpl(configFilePathStr.c_str()))
                 QTimer::singleShot(0, this, 
-                    [=]()
+                    [=, this]()
                     {
                         if (g_IsTerminating)
                             return;

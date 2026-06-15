@@ -139,7 +139,7 @@ private:
 	mutable UInt32                           m_MaxLabelStrLen;
 protected:
 	mutable DmsColor m_DefaultPointColor = -2, m_DefaultArcColor=-2, m_DefaultBrushColor=-2;
-	DECL_ABSTR(SHV_CALL, Class);
+	DECL_ABSTR(SHV_CALL, Class)
 };
 
 //----------------------------------------------------------------------
@@ -172,7 +172,7 @@ protected:
 private:
 	void InvalidatePoint(UInt32 selectedID);
 
-	DECL_RTTI(SHV_CALL, LayerClass);
+	DECL_RTTI(SHV_CALL, LayerClass)
 };
 
 //----------------------------------------------------------------------
@@ -188,7 +188,7 @@ class GraphicNetworkLayer : public GraphicPointLayer
 public:
 	GraphicNetworkLayer(GraphicObject* owner, const LayerClass* cls = GetStaticClass()) : base_type(owner, cls) {}
 
-	DECL_RTTI(SHV_CALL, LayerClass);
+	DECL_RTTI(SHV_CALL, LayerClass)
 };
 
 //----------------------------------------------------------------------
@@ -216,7 +216,7 @@ protected:
 	SizeT FindFeatureByPoint(const CrdPoint& geoPnt) const override;
 	void  InvalidateFeature(SizeT featureIndex) override;
 
-	DECL_RTTI(SHV_CALL, LayerClass);
+	DECL_RTTI(SHV_CALL, LayerClass)
 };
 
 //----------------------------------------------------------------------
@@ -245,7 +245,7 @@ protected:
 	SizeT FindFeatureByPoint(const CrdPoint& geoPnt) const override;
 	void  InvalidateFeature(SizeT featureIndex) override;
 
-	DECL_RTTI(SHV_CALL, LayerClass);
+	DECL_RTTI(SHV_CALL, LayerClass)
 };
 
 //----------------------------------------------------------------------
@@ -274,7 +274,7 @@ protected:
 	SizeT FindNextFeatureByPoint(const CrdPoint& geoPnt, SizeT currFeatureIndex) const override;
 	void  InvalidateFeature(SizeT featureIndex) override;
 
-	DECL_RTTI(SHV_CALL, LayerClass);
+	DECL_RTTI(SHV_CALL, LayerClass)
 };
 
 //----------------------------------------------------------------------

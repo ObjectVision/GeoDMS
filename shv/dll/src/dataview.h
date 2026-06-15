@@ -423,7 +423,7 @@ public:
 	DmsColor m_ColorPalette[nrPaletteColors];
 	DmsColor GetNextDmsColor() const;
 
-	DECL_RTTI(SHV_CALL, Class);
+	DECL_RTTI(SHV_CALL, Class)
 
 	// =============================================== ToolTip
 	//

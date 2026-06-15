@@ -85,7 +85,7 @@ public:
 			DataReadLock arg2Lock(arg2A);
 
 			DataCheckMode dcmArg1 = arg1A->GetCheckMode();
-			if (dcmArg1 == DCM_CheckBoth || !(dcmArg1 & DCM_CheckRange) && MustCheckRange(arg1A, arg2DomainA))
+			if (dcmArg1 == DCM_CheckBoth || (!(dcmArg1 & DCM_CheckRange) && MustCheckRange(arg1A, arg2DomainA)))
 				dcmArg1 = DCM_CheckRange; // if <null> is within the data range, lookup the null value in the data value array.
 
 			auto tn = domainA->GetNrTiles();
@@ -284,8 +284,21 @@ public:
 			SameSize undefAsSameSize;
 			std::memcpy(&undefAsSameSize, &vUndef, sizeof(V));
 
+			// Reinterpret the value/result sequence views as views of the same-byte-size integer
+			// SameSize (for the byte-level memcpy-undef path). The element types are the same size
+			// and SameSize is a char/integer type, so the underlying access is well-defined; but the
+			// view types are not trivially copyable, so std::bit_cast/memcpy can't express this and
+			// reinterpret_cast on the view reference is the only option. Suppress GCC's conservative
+			// -Wstrict-aliasing here only.
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstrict-aliasing"
+#endif
 			auto sameSizeValuesData = reinterpret_cast<typename sequence_traits<SameSize>::cseq_t&>(valuesData);
 			auto sameSizeResultData = reinterpret_cast<typename sequence_traits<SameSize>::seq_t&>(resultData);
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 			CalcTileSizedWithUndef<T, SameSize>(sameSizeResultData, indexData, dcmArg1, actualIndexRange, sameSizeValuesData, undefAsSameSize);
 		}
 	}

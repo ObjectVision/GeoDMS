@@ -147,7 +147,11 @@ auto GetPartitionedCountsDirect(typename sequence_traits<V>::cseq_t data, const 
 	if (size == 0)
 		return {};
 	DataLessThanCompare<V> valueComp;
-	auto comp = [valueComp](const partition_value_pair& lhs, const partition_value_pair& rhs) { return lhs.first < rhs.first || lhs.first == rhs.first && valueComp(lhs.second, rhs.second);  };
+	auto comp = [valueComp](const partition_value_pair& lhs, const partition_value_pair& rhs) 
+		{ 
+			return lhs.first < rhs.first 
+				|| (lhs.first == rhs.first && valueComp(lhs.second, rhs.second));  
+		};
 
 	bool speciallySorted = false;
 	if constexpr (compare_must_check_undefines_v<V>)

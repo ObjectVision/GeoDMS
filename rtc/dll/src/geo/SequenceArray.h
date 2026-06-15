@@ -447,13 +447,7 @@ private:
 //=======================================
 
 template <typename T>
-struct SA_ConstIterator: std::iterator<std::random_access_iterator_tag
-	,	typename sequence_traits<T>::container_type
-	,	dms::diff_type
-	,	SA_ConstReference<T>*
-	,	SA_ConstReference<T>
-	>
-	,	private SA_ConstReference<T>
+struct SA_ConstIterator: private SA_ConstReference<T>
 {
 	using SequenceArrayType = typename SequenceArray_Base<T>::SequenceArrayType;
 	using const_seq_iterator = typename SequenceArray_Base<T>::const_seq_iterator;
@@ -462,11 +456,11 @@ struct SA_ConstIterator: std::iterator<std::random_access_iterator_tag
 	using SA_ConstReference<T>::m_Container;
 	using SA_ConstReference<T>::is_null;
 
-	// redefine boost::iterator typedefs
-	typedef typename sequence_traits<T>::container_type value_type;
-	typedef SA_ConstReference<T>*                       pointer; 
-	typedef SA_ConstReference<T>                        reference;
-	typedef dms::diff_type                              difference_type;
+	using iterator_category = std::random_access_iterator_tag;
+	using value_type = typename sequence_traits<T>::container_type;
+	using difference_type = dms::diff_type;
+	using pointer = SA_ConstReference<T>*;
+	using reference = SA_ConstReference<T>;
 
 	SA_ConstIterator() {}
 
@@ -533,13 +527,7 @@ private:
 //=======================================
 
 template <typename T>
-struct SA_Iterator: std::iterator<std::random_access_iterator_tag
-	,	typename sequence_traits<T>::container_type
-	,	dms::diff_type
-	,	SA_Reference<T>*
-	,	SA_Reference<T>
-	>
-	,	private SA_Reference<T>
+struct SA_Iterator: private SA_Reference<T>
 {
 	using SequenceArrayType = typename SequenceArray_Base<T>::SequenceArrayType;
 	using seq_iterator = typename SequenceArray_Base<T>::seq_iterator;
@@ -548,11 +536,11 @@ struct SA_Iterator: std::iterator<std::random_access_iterator_tag
 	using SA_Reference<T>::m_Container;
 	using SA_Reference<T>::is_null;
 
-	// redefine std::iterator typedefs to avoid ambiguity with the SA_Reference<T> base class.
-	typedef typename sequence_traits<T>::container_type value_type;
-	typedef SA_Reference<T>*                            pointer; 
-	typedef SA_Reference<T>                             reference;
-	typedef dms::diff_type                              difference_type;
+	using iterator_category = std::random_access_iterator_tag;
+	using value_type = typename sequence_traits<T>::container_type;
+	using difference_type = dms::diff_type;
+	using pointer = SA_Reference<T>*;
+	using reference = SA_Reference<T>;
 
 	SA_Iterator() {}
 

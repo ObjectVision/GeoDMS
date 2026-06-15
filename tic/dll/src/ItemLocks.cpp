@@ -663,7 +663,7 @@ bool CheckAllSubDataReady(const TreeItem* item)
 		return false;
 	if (!item->IsCacheItem())
 		return true;
-	for (auto walker = item->WalkConstSubTree(nullptr); walker = item->WalkConstSubTree(walker); walker)
+	for (auto walker = item->WalkConstSubTree(nullptr); (walker = item->WalkConstSubTree(walker)); )
 		if (!CheckDataReady(walker))
 			return false;
 	return true;

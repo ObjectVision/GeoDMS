@@ -13,7 +13,11 @@
 
 #include "OperConv.h"
 
-namespace {
+// Named (not anonymous) namespace: these transform functors are used as template arguments
+// to the externally-linked do_transform<> instantiations in OperConv.h. Anonymous-namespace
+// (internal-linkage) types in that role trip -Wsubobject-linkage; a named namespace gives them
+// external linkage. They remain local to this TU in practice (defined/used only here).
+namespace coord_conv {
 
 // *****************************************************************************
 //			COORDINATE CONVERSION FUNCTIONS (local to this unit)
@@ -243,4 +247,4 @@ Rd2LlOpersWithSeq<DPoint, DPoint> rd2llDD;
 Rd2LlOpersWithSeq<DPoint, FPoint> rd2llDF;
 Rd2LlOpersWithSeq<FPoint, FPoint> rd2llFF;
 
-} // end anonymous namespace
+} // end namespace coord_conv

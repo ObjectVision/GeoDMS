@@ -572,10 +572,12 @@ BestItemRef AbstrCalculator::GetErrorSource(const TreeItem* context, WeakStr exp
 			assert(resDataItem);
 
 			if (WasInFailed(resDataItem))
+			{
 				if (resDataItem->WasFailed())
 					return calculator->FindErrorneousItem();
 				else
 					return { resDataItem->GetTreeParent(), {} };
+			}
 
 			resultStr = GetValue<SharedStr>(resDataItem, 0);
 
@@ -915,7 +917,7 @@ LispRef AbstrCalculator::slSupplierExprImpl(SubstitutionBuffer& substBuff, const
 	if (m_Holder != supplier)
 		registerSupplier(substBuff, supplier);
 
-	if (mpf & metainfo_policy_flags::subst_never || !supplier->IsPassor() && !supplier->HasCalculator() && !IsDataItem(supplier) && !IsUnit(supplier))
+	if (mpf & metainfo_policy_flags::subst_never || (!supplier->IsPassor() && !supplier->HasCalculator() && !IsDataItem(supplier) && !IsUnit(supplier)))
 		return CreateLispTree(supplier, mpf & metainfo_policy_flags::suppl_tree);
 
 	LispRef result = (m_CalcRole == CalcRole::Checker && m_Holder == supplier) ? supplier->GetKeyExprImpl() : supplier->GetCheckedKeyExpr();
@@ -1064,7 +1066,7 @@ OArgRefs ApplyMetaFunc_GetArgs(TreeItem* holder, const AbstrCalculator* ac, cons
 				else
 					argRef.emplace<SharedTreeItem>(foundItem);
 			}
-			dms_assert(argRef.index() == 1 && std::get<1>(argRef).has_ptr() || holder->WasFailed(FailType::MetaInfo));
+			dms_assert((argRef.index() == 1 && std::get<1>(argRef).has_ptr()) || holder->WasFailed(FailType::MetaInfo));
 			dms_assert(!SuspendTrigger::DidSuspend()); // POSTCONDITION of argIter->m_DC->MakeResult();
 		}
 		else

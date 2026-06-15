@@ -696,7 +696,7 @@ TreeItem* GetDefaultDesktopContainer(const TreeItem* ti)
 	assert(ti);
 	assert(!ti->IsCacheItem());
 	const TreeItem* pi = nullptr;
-	while (pi = ti->GetTreeParent().get())
+	while ((pi = ti->GetTreeParent().get()))
 		ti = pi;
 	auto desktops = const_cast<TreeItem*>(ti)->CreateItem(desktopsID);
 	return desktops->CreateItem(defaultID).release();
@@ -1064,7 +1064,7 @@ SHV_CALL void SHV_SetAdminMode(bool v)
 
 const AbstrUnit* SHV_DataContainer_GetDomain(const TreeItem* ti, UInt32 level, bool adminMode)
 {
-	if (!ti || !adminMode && ti->GetTSF(TSF_InHidden)) return nullptr;
+	if (!ti || (!adminMode && ti->GetTSF(TSF_InHidden))) return nullptr;
 
 	if (IsDataItem(ti))
 	{
@@ -1092,7 +1092,7 @@ const AbstrUnit* SHV_DataContainer_GetDomain(const TreeItem* ti, UInt32 level, b
 UInt32 SHV_DataContainer_GetItemCount(const TreeItem* ti, const AbstrUnit* domain, UInt32 level, bool adminMode)
 {
 	assert(domain);
-	if (!ti || !adminMode && ti->GetTSF(TSF_InHidden)) return 0;
+	if (!ti || (!adminMode && ti->GetTSF(TSF_InHidden))) return 0;
 
 	UInt32 result =0;
 
@@ -1113,7 +1113,7 @@ UInt32 SHV_DataContainer_GetItemCount(const TreeItem* ti, const AbstrUnit* domai
 auto DataContainer_NextItem(const TreeItem* ti, const TreeItem* si, const AbstrUnit* domain, bool adminMode) -> const AbstrDataItem*
 {
 	assert(ti);
-	while (si = ti->WalkConstSubTree(si))
+	while ((si = ti->WalkConstSubTree(si)))
 	{
 		// skip hidden items
 		if (!adminMode)
@@ -1147,7 +1147,7 @@ auto DataContainer_NextItem(const TreeItem* ti, const TreeItem* si, const AbstrU
 const AbstrDataItem* SHV_DataContainer_GetItem(const TreeItem* ti, const AbstrUnit* domain, UInt32 k, UInt32 level, bool adminMode)
 {
 	assert(domain);
-	if (!ti || !adminMode && ti->GetTSF(TSF_InHidden)) return 0;
+	if (!ti || (!adminMode && ti->GetTSF(TSF_InHidden))) return 0;
 
 	UInt32 result =0;
 	if (IsDataItem(ti) && AsDataItem(ti)->GetAbstrDomainUnit()->UnifyDomain(domain))

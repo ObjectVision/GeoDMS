@@ -301,7 +301,7 @@ public:
 
 		AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
 
-		dms_assert(!context || context->m_Domain && resultDomain->UnifyDomain(context->m_Domain, "r1", "e2"));
+		dms_assert(!context || (context->m_Domain && resultDomain->UnifyDomain(context->m_Domain, "r1", "e2")));
 		dms_assert(!context || context->m_Coordinate);
 		SizeT coordOffset = 0;
 		if (context) if (auto coordPtr = context->m_Coordinate)

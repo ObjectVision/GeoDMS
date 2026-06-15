@@ -68,7 +68,7 @@ private:
 	mutable bool m_BinsReady = false;
 	bool m_ZoomedOnce = false;
 
-	DECL_RTTI(SHV_CALL, LayerClass);
+	DECL_RTTI(SHV_CALL, LayerClass)
 };
 
 #endif // __SHV_HISTOGRAMLAYER_H

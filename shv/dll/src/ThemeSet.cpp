@@ -37,7 +37,7 @@ ThemeSet::ThemeSet(AspectNrSet possibleAspects, AspectNr activeTheme)
 	,	m_PossibleAspects(possibleAspects)
 {
 	// Initialize m_PossibleAspectGroups
-	for (AspectGroup ag=AG_First; ag != AG_Count; ++reinterpret_cast<UInt32&>(ag))
+	for (AspectGroup ag=AG_First; ag != AG_Count; ag = AspectGroup(ag + 1))
 	{
 		if (AspectGroupArray[ag].aspects & possibleAspects)
 			m_PossibleAspectGroups |= (1 << ag);
@@ -51,7 +51,7 @@ ThemeSet::ThemeSet(const ThemeSet& src)
 	,	m_DisabledAspectGroups(src.m_DisabledAspectGroups)
 	,	m_FocusElemProvider   (src.m_FocusElemProvider)
 {
-	for (AspectGroup ag=AG_First; ag != AG_Count; ++reinterpret_cast<UInt32&>(ag))
+	for (AspectGroup ag=AG_First; ag != AG_Count; ag = AspectGroup(ag + 1))
 		if (src.m_Themes[ag])
 			m_Themes[ag] = Theme::Create( src.m_Themes[ag].get() );
 
@@ -84,7 +84,7 @@ void ThemeSet::SyncThemes(TreeItem* viewContext, ShvSyncMode sm)
 	if ((sm == SM_Load) && (activeThemeNr < AN_AspectCount) && activeThemeNr != AN_Feature)
 		m_ActiveTheme = AspectNr(activeThemeNr);
 
-	for (AspectNr aNr = AN_Feature; aNr < AN_AspectCount; ++(UInt32&)aNr)
+	for (AspectNr aNr = AN_Feature; aNr < AN_AspectCount; aNr = AspectNr(aNr + 1))
 	{
 		SharedPtr<TreeItem> aspectContext = const_cast<TreeItem*>(
 			viewContext->GetConstSubTreeItemByID(
@@ -109,7 +109,7 @@ void ThemeSet::SyncThemes(TreeItem* viewContext, ShvSyncMode sm)
 		}
 	}
 
-	for (AspectGroup ag = AG_First; ag != AG_Other; ++reinterpret_cast<UInt32&>(ag))
+	for (AspectGroup ag = AG_First; ag != AG_Other; ag = AspectGroup(ag + 1))
 	{
 		TokenID agID = GetAspectGroupNameID(ag);
 		TreeItem* refItem = viewContext->GetSubTreeItemByID(agID);
@@ -141,7 +141,7 @@ std::shared_ptr<Theme> ThemeSet::GetEnabledTheme(AspectNr nr) const
 
 bool   ThemeSet::HasAttrTheme(AspectNrSet ase) const
 {
-	for (AspectNr aNr = AN_First; aNr != AN_AspectCount; ++reinterpret_cast<UInt32&>(aNr) )
+	for (AspectNr aNr = AN_First; aNr != AN_AspectCount; aNr = AspectNr(aNr + 1) )
 		if (ase & (1<< aNr))
 		{
 			auto result = GetTheme(aNr);
@@ -162,7 +162,7 @@ std::shared_ptr<Theme> ThemeSet::GetActiveTheme() const
 
 	// else look for the first aspect that has a non parameter theme and a separate palette, save any non parameter theme as second best
 
-	for (AspectNr aNr = AspectNr(1); aNr != AN_AspectCount; ++reinterpret_cast<UInt32&>(aNr) )
+	for (AspectNr aNr = AspectNr(1); aNr != AN_AspectCount; aNr = AspectNr(aNr + 1) )
 		if (aNr != AN_Selections)
 		{
 			std::shared_ptr<Theme> result2 = GetTheme(aNr);
@@ -181,7 +181,7 @@ std::shared_ptr<Theme> ThemeSet::GetActiveTheme() const
 	if (result)
 		return result; // possible Aspect Parameter
 
-	for (AspectNr aNr = AspectNr(1); aNr != AN_AspectCount; ++reinterpret_cast<UInt32&>(aNr) )
+	for (AspectNr aNr = AspectNr(1); aNr != AN_AspectCount; aNr = AspectNr(aNr + 1) )
 		if (aNr != AN_Selections)
 		{
 			result = GetTheme(aNr);
@@ -388,7 +388,7 @@ void ThemeSet::EnableAspectGroup (AspectGroup ag, bool enable)
 
 ActorVisitState ThemeSet::PrepareThemeSetData(const Actor* act) const
 {
-	for (AspectNr a = AN_First; a!= AN_AspectCount; ++reinterpret_cast<UInt32&>(a))
+	for (AspectNr a = AN_First; a!= AN_AspectCount; a = AspectNr(a + 1))
 		if (m_Themes[a])
 			if (m_Themes[a]->PrepareThemeData(act) == AVS_SuspendedOrFailed)
 			{

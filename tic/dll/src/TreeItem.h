@@ -301,7 +301,7 @@ public:
 	TIC_CALL bool IsCurrStorable()  const;
 
 	// Derivable if loadable or has calculator without config data.
-	bool IsDerivable()     const { return IsLoadable() || HasCalculator() && !HasConfigData(); }
+	bool IsDerivable()     const { return IsLoadable() || (HasCalculator() && !HasConfigData()); }
 	TIC_CALL bool HasConfigData() const;
 	TIC_CALL bool HasCurrConfigData() const;
 

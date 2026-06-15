@@ -77,7 +77,7 @@ public:
 
 	/// Declare abstract RTTI for this class (macro from project infrastructure).
 	/// Typically provides meta-class registration and introspection facilities.
-	DECL_ABSTR(RTC_CALL, Class);
+	DECL_ABSTR(RTC_CALL, Class)
 };
 
 /*

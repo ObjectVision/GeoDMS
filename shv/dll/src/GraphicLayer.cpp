@@ -328,12 +328,12 @@ void GraphicLayer::FillLcMenu(MenuData& menuData)
 	if (themeAttr)
 		classifiableAspects.push_back( GetActiveTheme().get()->GetAspectNr() );
 
-	for (AspectNr a = AN_OrderBy; a != AN_AspectCount; ++reinterpret_cast<int&>(a))
+	for (AspectNr a = AN_OrderBy; a != AN_AspectCount; a = AspectNr(a + 1))
 		if (m_Themes[a] && m_Themes[a] != GetActiveTheme())
 			classifiableAspects.push_back(a);
 
 	auto aspectSet = GetLayerClass()->GetPossibleAspects();
-	for (AspectNr a = AN_OrderBy; a != AN_AspectCount; ++reinterpret_cast<int&>(a))
+	for (AspectNr a = AN_OrderBy; a != AN_AspectCount; a = AspectNr(a + 1))
 		if (!m_Themes[a] && ((1 <<a) & aspectSet))
 			classifiableAspects.push_back(a);
 
@@ -355,7 +355,7 @@ void GraphicLayer::FillLcMenu(MenuData& menuData)
 	SubMenu subMenu(menuData, SharedStr("Activate TreeItem of Layer Aspect")); // SUBMENU
 
 	InsertThemeActivationMenu(menuData, activeTheme.get(), this);
-	for (AspectNr aNr = AspectNr(0); aNr != AN_AspectCount; ++reinterpret_cast<UInt32&>(aNr) )
+	for (AspectNr aNr = AspectNr(0); aNr != AN_AspectCount; aNr = AspectNr(aNr + 1) )
 	{
 		auto theme = GetTheme(aNr);
 		if (theme != activeTheme)

@@ -176,7 +176,7 @@ void IndexGetterCreatorBase<TileCreationData>::VisitImpl(const Unit<E>* inviter)
 
 	bool hasOutOfRangeIndices = dcmIndices & DCM_CheckRange;
 	if (hasOutOfRangeIndices && !IsIncluding(range, UNDEFINED_VALUE(E)))
-		reinterpret_cast<UInt32&>(dcmIndices) &= ~DCM_CheckDefined;
+		dcmIndices = DataCheckMode(UInt32(dcmIndices) & ~DCM_CheckDefined);
 
 	if (!(dcmIndices & DCM_CheckDefined))
 		if (!hasOutOfRangeIndices)

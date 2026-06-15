@@ -102,7 +102,8 @@ struct AutoLambdaCallerBase : UnitProcessor
 template <typename Host, typename Base>
 struct UnitVisitorImpl : Base
 {
-	using Base::Base; // inherit ctors
+	using Base::Base;   // inherit ctors
+	using Base::Visit;  // keep base Visit overloads visible (matches UnitVisitorBase); avoids -Woverloaded-virtual name-hiding
 
 	void Visit(const Unit<Host>* inviter) const override
 	{

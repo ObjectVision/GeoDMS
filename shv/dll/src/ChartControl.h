@@ -67,7 +67,7 @@ private:
 	std::shared_ptr<ScrollPort>      m_ScrollPort;
 	std::shared_ptr<LayerControlSet> m_LayerControlSet;
 
-	DECL_RTTI(SHV_CALL, Class);
+	DECL_RTTI(SHV_CALL, Class)
 };
 
 #endif // __SHV_CHARTCONTROL_H

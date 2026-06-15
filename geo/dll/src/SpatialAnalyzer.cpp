@@ -130,7 +130,7 @@ bool TForm::NextContainedPoint(UGridPoint& p)
 		m_CurrentPoint.Row()++;
 
 		FormType colCoord;
-		if (m_Defined = GetOtherCoordinateCentered(m_CurrentPoint.Row(), colCoord))
+		if ((m_Defined = GetOtherCoordinateCentered(m_CurrentPoint.Row(), colCoord)))
 			m_CurrentPoint.Col() = -colCoord; 
 	}
 
@@ -147,7 +147,7 @@ bool TForm::NextBorderPoint(UGridPoint& p, TTranslation t)
 	else
 		m_CurrentPoint.Col()++;
 	
-	if (m_Defined = GetOtherCoordinateCentered(m_CurrentPoint.Col(), m_CurrentPoint.Row()))
+	if ((m_Defined = GetOtherCoordinateCentered(m_CurrentPoint.Col(), m_CurrentPoint.Row())))
 	{
 		p = m_Center;
 		switch (t)

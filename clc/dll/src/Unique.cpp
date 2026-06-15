@@ -57,10 +57,10 @@ std::vector<V> GetUniqueValuesDirect(typename DataArray<V>::locked_cseq_t seq, t
 
 				// areEqual returns true iff a and b are "the same" (i.e., not different)
 				//				auto areEqual = [&cmp](auto const& a, auto const& b) {
-				//					return a == b || !IsDefined(a) && !IsDefined(b); // a and b are "equal" if NOT (a != b), i.e. NOT (cmp(a,b) || cmp(b,a)).
+				//					return a == b || (!IsDefined(a) && !IsDefined(b)); // a and b are "equal" if NOT (a != b), i.e. NOT (cmp(a,b) || cmp(b,a)).
 				//				};
 
-				auto areEqual = [](auto const& a, auto const& b) {  return a == b || !IsDefined(a) && !IsDefined(b); };
+				auto areEqual = [](auto const& a, auto const& b) {  return a == b || (!IsDefined(a) && !IsDefined(b)); };
 				bufferCursor = std::unique_copy(i, e, buffer, areEqual);
 				// use the ordering that handles null well
 				std::sort(buffer, bufferCursor, cmp);
@@ -164,7 +164,7 @@ std::vector<V> GetTileUniqueValues(typename DataArray<V>::locked_cseq_t tileData
 
 	auto secondHalf = GetTileUniqueValues<V>(tileData, index + m, size - m, mustBeDefined);
 
-	return MergeToLeft<V>(std::move(firstHalf->get()), std::move(secondHalf), mustBeDefined);
+	return MergeToLeft<V>(firstHalf->get(), std::move(secondHalf), mustBeDefined);
 }
 
 template <typename V>

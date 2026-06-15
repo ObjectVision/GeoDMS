@@ -41,7 +41,7 @@ private:
 	SharedTreeItemInterestPtr m_InterestHolder;
 	bool                m_ZoomAll;
 
-	DECL_RTTI(SHV_CALL, Class);
+	DECL_RTTI(SHV_CALL, Class)
 
 public:
 	SharedMutableUnitInterestPtr     m_SchemaNodes, m_SchemaLinks;

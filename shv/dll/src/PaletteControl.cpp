@@ -136,7 +136,7 @@ void PaletteControl::CreateSymbolColumnFromLayer()
 
 	for (AspectNr a = AspectNr(AN_Feature+1); 
 		a !=AN_AspectCount;
-		++reinterpret_cast<UInt32&>(a))
+		a = AspectNr(a + 1))
 	{
 		if ((1<<a) & as)
 		{
@@ -252,7 +252,7 @@ void PaletteControl::CreateSymbolColumnFromAttr()
 
 	for (AspectNr a = AspectNr(AN_Feature+1); 
 		a !=AN_AspectCount;
-		++reinterpret_cast<UInt32&>(a))
+		a = AspectNr(a + 1))
 	{
 		if ((1<<a) & ASE_AllDrawAspects)
 		{

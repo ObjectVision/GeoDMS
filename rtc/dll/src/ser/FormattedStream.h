@@ -38,8 +38,15 @@ struct FormattedOutStream : geodms::rtc::noncopyable
 
 typedef unsigned char UChar;
 
-struct FormattedInpStream : std::iterator<std::input_iterator_tag, char>
-{ 
+struct FormattedInpStream
+{
+	// std::iterator was deprecated in C++17; provide the iterator traits explicitly.
+	using iterator_category = std::input_iterator_tag;
+	using value_type        = char;
+	using difference_type   = std::ptrdiff_t;
+	using pointer           = char*;
+	using reference         = char&;
+
 	enum class reader_flags : UInt32
 	{
 		commaAsDecimalSeparator = 1,

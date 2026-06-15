@@ -73,10 +73,10 @@ struct AbstrTernaryAttrOper : TernaryOperator
 			|	(e3Void ? AF3_ISPARAM : 0)
 			);
 			if (m_NeedsUndefInfo)
-				reinterpret_cast<UInt32&>(af) |= 
+				af = ArgFlags(UInt32(af) |
 					(arg1A->HasUndefinedValues() ? AF1_HASUNDEFINED : 0 )
 				|	(arg2A->HasUndefinedValues() ? AF2_HASUNDEFINED : 0 )
-				|	(arg3A->HasUndefinedValues() ? AF3_HASUNDEFINED : 0 );
+				|	(arg3A->HasUndefinedValues() ? AF3_HASUNDEFINED : 0 ));
 
 			auto res = AsDataItem(resultHolder.GetNew());
 			assert(res);
@@ -91,7 +91,7 @@ struct AbstrTernaryAttrOper : TernaryOperator
 				DataWriteLock resLock(res);
 
 				parallel_tileloop(tn,
-					[=, &resLock](tile_id t)->void
+					[=, this, &resLock](tile_id t)->void
 					{
 						Calculate(resLock.get(), arg1A, arg2A, arg3A, af, t);
 					}

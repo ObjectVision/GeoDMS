@@ -202,10 +202,12 @@ AssocList Match(AssocListPtr aList, LispPtr header, LispPtr expr)
 	if (header.IsVar())
 		return Insert(aList, Assoc(header, expr) );
 	if (!header.IsRealList())
+	{
 		if (header==expr)
 			return aList;
 		else
 			return AssocList::failed();
+	}
 	if (!expr.IsRealList())
 		return AssocList::failed();
 	AssocList newAssocList = Match(aList, header.Left(), expr.Left());

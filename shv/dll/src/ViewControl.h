@@ -58,7 +58,7 @@ protected: // new callbacks
 private:
 	std::weak_ptr<DataView> m_DataView;
 
-	DECL_ABSTR(SHV_CALL, Class);
+	DECL_ABSTR(SHV_CALL, Class)
 };
 
 #endif // __MG_VIEWCONTROL_H

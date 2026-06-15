@@ -10,6 +10,14 @@
 //----------------------------------------------------------------------
 
 #include <stdarg.h>
+// std::ostrstream (from the deprecated <strstream>) is still the simplest in-place,
+// fixed-buffer formatter used by the myFixedBuffer* helpers below. Pre-defining the
+// libstdc++ backward-header guard suppresses its deprecation banner without changing
+// behavior; harmless on MSVC, which has no backward_warning.h.
+// TODO: migrate to a custom fixed-buffer std::streambuf and drop <strstream>.
+#ifndef _BACKWARD_BACKWARD_WARNING_H
+#define _BACKWARD_BACKWARD_WARNING_H
+#endif
 #include <strstream>
 
 #include "RtcBase.h"

@@ -59,7 +59,7 @@ struct StrConcatOperator : BinaryAttrOper<SharedStr, SharedStr, SharedStr>
 			ri = resData.begin(),
 			re = resData.end();
 
-		SizeT a1Size, a2Size;
+		SizeT a1Size = 0, a2Size = 0;
 		sequence_traits<char>::const_pointer a1Begin = nullptr, a1End = nullptr, a2Begin = nullptr, a2End = nullptr;
 		bool a1Defined, a2Defined;
 		if (e1Void && (a1Defined = a1i->IsDefined())) { a1Begin = a1i->begin(); a1End = a1i->end(); a1Size = a1End - a1Begin; }
@@ -67,8 +67,8 @@ struct StrConcatOperator : BinaryAttrOper<SharedStr, SharedStr, SharedStr>
 
 		for (;ri != re; ++ri)
 		{
-			if (!e1Void) { if (a1Defined = a1i->IsDefined()) { a1Begin = a1i->begin(); a1End = a1i->end(); a1Size = a1End - a1Begin; } ++a1i; }
-			if (!e2Void) { if (a2Defined = a2i->IsDefined()) { a2Begin = a2i->begin(); a2End = a2i->end(); a2Size = a2End - a2Begin; } ++a2i; }
+			if (!e1Void) { if ((a1Defined = a1i->IsDefined())) { a1Begin = a1i->begin(); a1End = a1i->end(); a1Size = a1End - a1Begin; } ++a1i; }
+			if (!e2Void) { if ((a2Defined = a2i->IsDefined())) { a2Begin = a2i->begin(); a2End = a2i->end(); a2Size = a2End - a2Begin; } ++a2i; }
 
 			if (a1Defined && a2Defined)
 			{

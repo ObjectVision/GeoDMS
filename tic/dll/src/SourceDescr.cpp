@@ -157,7 +157,7 @@ namespace { // local defs
 		if (alsoSubItems && ti)
 		{
 			auto curr = ti;
-			while (curr = ti->WalkConstSubTree(curr))
+			while ((curr = ti->WalkConstSubTree(curr)))
 				merger(curr);
 		}
 
@@ -188,7 +188,7 @@ namespace { // local defs
 		return mi->second;
 	}
 
-	auto SourceCalculator::GetSourceSequence(const TreeItem* ti) -> SA_Reference<TokenID>
+	[[maybe_unused]] auto SourceCalculator::GetSourceSequence(const TreeItem* ti) -> SA_Reference<TokenID>
 	{
 		return m_SourceSecArray[GetOrCalcSourceSeqIndex(ti, true)];
 	}

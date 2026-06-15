@@ -263,8 +263,6 @@ FileResult XdbImp::WriteColumn(const void * buf, recno_t cnt, column_index col_i
 	long colwidth = ColWidth(col_index);
     DBG_TRACE(("width, offset: %d %d", width, offset));
 
-	// Clip
-	if (cnt < 0) cnt = 0;
 	long stripped = nRecPos + cnt -  NrOfRows();
 	if (stripped < 0) stripped = 0;
 	if (stripped > 0) cnt = cnt - stripped;
@@ -313,7 +311,7 @@ bool XdbImp::ReadHeader()
 	long offset = 0;
 
 	int int_type = 0;
-	while (fscanf(*this, "%s %d %d", fldName, &len, &int_type) != EOF)
+	while (fscanf(*this, "%s %ld %d", fldName, &len, &int_type) != EOF)
 	{	
 		MG_CHECK(int_type >= 0 && int_type < int(ValueClassID::VT_Count));
 		auto type = ValueClassID(int_type);

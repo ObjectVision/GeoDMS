@@ -77,7 +77,7 @@ char* TimeStampToString(TIMESTAMP_STRUCT *timestamp, char *s)
 	time.minute	=	timestamp->minute;
 	time.second	=	timestamp->second;
 
-	sprintf(s, "%s %s:%lu", DateToString(&date, datestr), TimeToString(&time, timestr), timestamp->fraction);
+	sprintf(s, "%s %s:%lu", DateToString(&date, datestr), TimeToString(&time, timestr), (unsigned long)timestamp->fraction);
 	return	s;
 } // TimeStampToString
 
@@ -319,7 +319,7 @@ CharPtr AttributeValueToString(const SQLINTEGER attribute, const SQLINTEGER attr
 }
 #endif
 
-static bool CTypeHasVarSize(const SQLSMALLINT ctype)
+[[maybe_unused]] static bool CTypeHasVarSize(const SQLSMALLINT ctype)
 {
 	return	ctype == SQL_C_CHAR || ctype == SQL_C_BINARY;
 } // CTypeHasVarSize
@@ -732,7 +732,7 @@ void TColumn::Undefine()
 void TColumn::FreeBuffers()
 { 
 	if (m_IsInternalBuffer)
-		delete [] m_Buffer;
+		delete [] static_cast<char*>(m_Buffer); // m_Buffer was allocated as new char[]; delete[] of void* is UB
 	m_Buffer = nullptr;
 	delete [] m_ActualSizes;
 	m_ActualSizes = nullptr;
@@ -872,7 +872,7 @@ CharPtr TColumn::AsString() const
 
 		case SQL_C_ULONG:	
 			m_AsString.resize(MAXBUFLEN);
-			sprintf(&*m_AsString.begin(), "%hu", * ((ULONG*) ElementBuffer()));
+			sprintf(&*m_AsString.begin(), "%lu", (unsigned long) * ((ULONG*) ElementBuffer()));
 			break;
 
 		case SQL_C_USHORT:	
@@ -1388,7 +1388,7 @@ UInt32 TRecordSet::RecordCount()
 	Check(SQLSetStmtAttr(Handle(), SQL_ATTR_RETRIEVE_DATA, SQL_RD_OFF, 0));
 #pragma warning(pop)
 
-	while (maximum != (1 << (8 * sizeof(maximum)-1)) && SQLFetchScroll(Handle(), SQL_FETCH_ABSOLUTE, maximum) != SQL_NO_DATA)
+	while (maximum != (decltype(maximum)(1) << (8 * sizeof(maximum)-1)) && SQLFetchScroll(Handle(), SQL_FETCH_ABSOLUTE, maximum) != SQL_NO_DATA)
 		maximum *= 2;
 
 	while (minimum + 1 < maximum)

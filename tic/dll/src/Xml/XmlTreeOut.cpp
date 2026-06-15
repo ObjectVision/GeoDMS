@@ -563,7 +563,7 @@ void WriteExprOrSourceDescr(OutStreamBase& stream, const TreeItem* self)
 		NewLine(stream);
 		stream << "CalcExpr: " << AsFLispSharedStr(calcExpr, FormattingFlags::ThousandSeparator).c_str();
 
-		if (metaInfo.index() == 1 || metaInfo.index() == 0 && std::get<MetaFuncCurry>(metaInfo).fullLispExpr.EndP())
+		if (metaInfo.index() == 1 || (metaInfo.index() == 0 && std::get<MetaFuncCurry>(metaInfo).fullLispExpr.EndP()))
 		{
 			auto keyExpr = self->GetCheckedKeyExpr();
 			if (keyExpr != calcExpr)
@@ -802,10 +802,12 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 			if (prevUnit != avu || prevVC != vc)
 			{
 				if (!WriteUnitInfo(xmlTable, title, avu))
+				{
 					if (SuspendTrigger::DidSuspend())
 						return false;
 					else
 						break;
+				}
 				if (vc != ValueComposition::Single)
 					xmlTable.NameValueRow("ValueComposition", GetValueCompositionID(vc).GetStr().c_str());
 

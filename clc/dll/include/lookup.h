@@ -51,7 +51,7 @@ void lookup_impl(OIV outFirst, OIV outLast
 		valuesArray -= partitioner.GetIndexBase();
 	for (; outFirst != outLast; ++outFirst, ++indicesFirst)
 	{
-		typename Partitioner::Range::value_type p = *indicesFirst;
+		typename Partitioner::RangeType::value_type p = *indicesFirst;
 		if (partitioner.Check(p))
 			Assign(
 				*outFirst,
@@ -79,7 +79,7 @@ void lookup_impl_with_undef(OIV outFirst, OIV outLast
 		valuesArray -= partitioner.GetIndexBase();
 	for (; outFirst != outLast; ++outFirst, ++indicesFirst)
 	{
-		typename Partitioner::Range::value_type p = *indicesFirst;
+		typename Partitioner::RangeType::value_type p = *indicesFirst;
 		if (partitioner.Check(p))
 			Assign(
 				*outFirst,

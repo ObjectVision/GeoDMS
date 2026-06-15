@@ -87,7 +87,8 @@ struct ValueClassAutoLambdaCallerBase : ValueClassVisitor
 template <typename Host, typename Base>
 struct ValueClassProcessorImpl : Base
 {
-	using Base::Base; // inherit ctors
+	using Base::Base;   // inherit ctors
+	using Base::Visit;  // keep base Visit overloads visible; avoids -Woverloaded-virtual name-hiding
 
 	void Visit(const Host* inviter) const override
 	{

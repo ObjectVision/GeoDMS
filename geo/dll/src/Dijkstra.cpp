@@ -536,7 +536,7 @@ void UpdateALW(const NetworkInfo<NodeType, ZoneType, ImpType>& ni, const OwningD
 
 		nodeALW[node] = 0;
 
-		while (currNodePtr = tr.WalkDepthFirst_TopDown(currNodePtr))
+		while ((currNodePtr = tr.WalkDepthFirst_TopDown(currNodePtr)))
 		{
 			assert(currNodePtr && currNodePtr->GetParent());
 			node = tr.NrOfNode(currNodePtr);
@@ -624,7 +624,7 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 	bool tgBetaDecayIsOne  = (tgBetaDecay == 1.0);
 	bool tgBetaDecayIsZeroOrOne = tgBetaDecayIsZero || tgBetaDecayIsOne;
 	bool useSrcZoneStamps = flags(df & DijkstraFlag::SparseResult) && flags(df & DijkstraFlag::OD);
-	bool useTraceBack = (altLinkWeights || linkAttr || res.od_LS || res.LinkFlow || flags(df & DijkstraFlag::VerboseLogging) && !res.node_TB);
+	bool useTraceBack = (altLinkWeights || linkAttr || res.od_LS || res.LinkFlow || (flags(df & DijkstraFlag::VerboseLogging) && !res.node_TB));
 
 	WriteBlock writeBlocks;
 

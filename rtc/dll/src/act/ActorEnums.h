@@ -177,7 +177,7 @@ public:
 	}
 
 	TransState GetTransState() const { return TransState( GetBits(AF_TransientMask) ); }
-	bool   IsInTrans    () const { return GetTransState() > AF_IsPassor; }
+	bool   IsInTrans    () const { return GetTransState() != TransState(0); }
 	void   SetTransState(TransState state) { SetBits(AF_TransientMask, state); }
 	void   ClearTransState() { Clear(AF_TransientMask); }
 

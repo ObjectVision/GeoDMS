@@ -64,7 +64,7 @@ public:
 protected:
 	DataControllerKey m_Key;  // expr + root of context
 
-	DECL_RTTI(TIC_CALL, Class);
+	DECL_RTTI(TIC_CALL, Class)
 };
 
 TIC_CALL DataControllerRef GetOrCreateDataController(LispPtr keyExpr);

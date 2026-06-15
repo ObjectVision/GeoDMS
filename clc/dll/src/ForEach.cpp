@@ -114,7 +114,7 @@ auto FindName(const TreeItem* context, const SharedStrArray* nameArray, arg_inde
 
 	SharedStr itemName = nameArray->GetIndexedValue(i);
 	auto result = context->FindItem(itemName);
-	if (!result || mustBeUnit && !IsUnit(result.get()))
+	if (!result || (mustBeUnit && !IsUnit(result.get())))
 	{
 		auto contextName = SharedStr(context->GetName());
 		if (!result)
@@ -507,6 +507,7 @@ oper_arg_policy CalcArgPolicy(arg_index argNr, field_spec fs)
 	if (argNr--)                        // ! NAME
 		if (!(fs & FS_EXPR) || argNr--)  // ! EXPR
 			if (!(fs & FS_CHECK) || argNr--)  // ! CHECK
+			{
 				if (fs & FS_HASDOMAINVALUESPEC)
 				{
 					if (!argNr--)
@@ -528,6 +529,7 @@ oper_arg_policy CalcArgPolicy(arg_index argNr, field_spec fs)
 					if (fs & FS_TEMPLATE) return oper_arg_policy::is_templ;
 					if (fs & FS_UNIT) return oper_arg_policy::calc_never;
 				}
+			}
 	return oper_arg_policy::calc_always;
 }
 

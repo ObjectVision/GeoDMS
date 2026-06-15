@@ -53,7 +53,7 @@ protected:
 	GraphicObject* m_UsedObject = nullptr;
 	GPoint         m_StartPoint = UNDEFINED_VALUE(GPoint);
 
-	DECL_ABSTR(SHV_CALL, Class);
+	DECL_ABSTR(SHV_CALL, Class)
 };
 
 #endif // __ABSTRCARET_H

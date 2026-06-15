@@ -397,7 +397,7 @@ auto FuncDC::CallCalcResult(std::shared_ptr<Explain::Context> context) const -> 
 	if (m_Data->WasFailed(FailType::Data))
 		Fail(m_Data.get());
 
-	if (WasFailed(FailType::Data) && !context || WasFailed(FailType::MetaInfo))
+	if ((WasFailed(FailType::Data) && !context) || WasFailed(FailType::MetaInfo))
 		return {};
 
 	assert(m_OperatorGroup);
@@ -433,10 +433,12 @@ auto FuncDC::CallCalcResult(std::shared_ptr<Explain::Context> context) const -> 
 	assert(!IsTmp());
 	bool mustStartCalc = (context != nullptr);
 	if (!mustStartCalc)
+	{
 		if (IsNew() && GetOperator()->CanRunParallel())
 			mustStartCalc = !IsAllInterestedCalculatingOrDataReady(m_Data.get());
 		else
 			mustStartCalc = !IsAllDataCurrStandby(m_Data.get()); // condition required for operations such as parse_xml as first argument of a SubItem
+	}
 
 	if (mustStartCalc)
 	{

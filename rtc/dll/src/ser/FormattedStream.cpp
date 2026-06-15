@@ -34,7 +34,7 @@ FormattedOutStream::FormattedOutStream(OutStreamBuff* out, FormattingFlags ff)
 {
 	if (HasThousandSeparator(m_FormattingFlags))
 		if (!ShowThousandSeparator())
-			reinterpret_cast<UInt32&>(m_FormattingFlags) &= ~UInt32(FormattingFlags::ThousandSeparator);
+			m_FormattingFlags = FormattingFlags(UInt32(m_FormattingFlags) & ~UInt32(FormattingFlags::ThousandSeparator));
 	MG_PRECONDITION(out);
 }
 

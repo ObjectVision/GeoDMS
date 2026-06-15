@@ -1020,7 +1020,7 @@ void TableControl_SaveTo(const TableControl* self, OutStreamBuff* buffPtr, Table
 {
 	SizeT k1, k2;
 	SizeT n1, n2;
-	if (tcm == TableCopyMode::WholeTable || self->SelCols().IsClosed() && self->SelRows().IsClosed() && tcm == TableCopyMode::OpenFocusOrTable || !self->SelCols().IsDefined() || !self->SelRows().IsDefined())
+	if (tcm == TableCopyMode::WholeTable || (self->SelCols().IsClosed() && self->SelRows().IsClosed() && tcm == TableCopyMode::OpenFocusOrTable) || !self->SelCols().IsDefined() || !self->SelRows().IsDefined())
 	{
 		n1 = 0;
 		n2 = self->NrRows();

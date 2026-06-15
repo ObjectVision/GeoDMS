@@ -79,7 +79,7 @@ static bool coords_using_more_than_25_bits(Int32 v)
 	return v <= -MAX_COORD || v >= MAX_COORD;
 }
 
-static bool coords_using_more_than_25_bits(UInt32 v)
+[[maybe_unused]] static bool coords_using_more_than_25_bits(UInt32 v)
 {
 	return v >= MAX_COORD;
 }
@@ -1133,7 +1133,7 @@ public:
 		typename traits_t::multi_polygon_type      geometry;
 		typename traits_t::polygon_with_holes_type polygon;
 
-		NumType value;
+		NumType value{};
 		if (isParam)
 		{
 			value = argNumData[0];

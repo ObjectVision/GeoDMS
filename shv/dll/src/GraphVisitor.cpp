@@ -899,7 +899,7 @@ GraphVisitState MouseEventDispatcher::DoViewPort(ViewPort* vp)
 		{
 			if (!viewPoint.WriteAsString(buffer, 200, FormattingFlags::ThousandSeparator))
 				buffer[200] = char(0); // truncate
-				dv->SendStatusText(SeverityTypeID::ST_MinorTrace, buffer);
+			dv->SendStatusText(SeverityTypeID::ST_MinorTrace, buffer);
 		}
 		if (r_EventInfo.m_EventID & EventID::COPYCOORD)
 		{

@@ -1493,7 +1493,7 @@ bool DataItemColumn::MouseEvent(MouseEventDispatcher& med)
 					return true;
 				}
 			}
-			else if (theme = GetEnabledTheme(AN_LabelTextColor))
+			else if ((theme = GetEnabledTheme(AN_LabelTextColor)))
 			{
 				if (theme->IsEditable())
 				{
@@ -1501,7 +1501,7 @@ bool DataItemColumn::MouseEvent(MouseEventDispatcher& med)
 					return true;
 				}
 			}
-			else if (theme = GetEnabledTheme(AN_LabelText))
+			else if ((theme = GetEnabledTheme(AN_LabelText)))
 			{
 				if (theme->IsEditable())
 				{

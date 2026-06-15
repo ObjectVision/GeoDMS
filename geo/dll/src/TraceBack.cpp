@@ -134,7 +134,7 @@ struct TraceBackOperator : QuaternaryOperator
 			TreeRelations tr(tbData.begin(), node1Data.begin(), node2Data.begin(), nrV, nrE);
 
 			TreeNode* currNodePtr = nullptr;
-			while(currNodePtr = tr.WalkDepthFirst_BottomUp_all(currNodePtr))
+			while((currNodePtr = tr.WalkDepthFirst_BottomUp_all(currNodePtr)))
 			{
 				if (! currNodePtr->GetParent()) continue; // nothing to flow
 
@@ -240,7 +240,7 @@ public:
 			NodeType currRoot = UNDEFINED_VALUE(NodeType); // INIT VALUE IS NOT USED, SEE ASSERTION BELOW
 
 			TreeNode* currNodePtr = nullptr;
-			while(currNodePtr = tr.WalkDepthFirst_TopDown_all(currNodePtr))
+			while((currNodePtr = tr.WalkDepthFirst_TopDown_all(currNodePtr)))
 			{
 				NodeType currNode = tr.NrOfNode(currNodePtr);
 

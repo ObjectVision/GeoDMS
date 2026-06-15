@@ -1546,7 +1546,7 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 	{
 		GDALDatasetHandle result = GDALDataset::FromHandle(
 			GDALOpenEx(data_source_name.c_str()
-				, (rwMode > dms_rw_mode::read_only) ? GA_Update : GA_ReadOnly | gdalOpenFlags | GDAL_OF_VERBOSE_ERROR
+				, GA_ReadOnly | gdalOpenFlags | GDAL_OF_VERBOSE_ERROR // rwMode == read_only here (see guard above)
 				, driver_array
 				, option_array
 				, nullptr // papszSiblingFiles
@@ -1592,7 +1592,7 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 
 	GDALDatasetHandle result = nullptr;
 
-	if (!continueWrite || driver_short_name == "GML" || (gdalOpenFlags & GDAL_OF_RASTER))
+	if (!continueWrite || std::string_view(driver_short_name) == "GML" || (gdalOpenFlags & GDAL_OF_RASTER))
 	{
 #if defined(_MSC_VER)
 		bool dataSourceExists = std::filesystem::exists(Utf8_2_wchar(data_source_name.c_str()).get());

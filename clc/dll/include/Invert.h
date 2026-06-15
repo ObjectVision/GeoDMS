@@ -118,7 +118,7 @@ void invertAll2values_tile(ResIter  resultPerV
 	SizeT i = 0;
 	for (;curr != last; ++curr, ++i, ++resultPerE)
 	{
-		typename Partitioner::Range::value_type v = *curr;
+		typename Partitioner::RangeType::value_type v = *curr;
 		if (partitioner.Check(v))
 		{
 			ResIter resPtr = resultPerV + partitioner.GetIndex(v);

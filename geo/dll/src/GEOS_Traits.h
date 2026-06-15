@@ -664,10 +664,12 @@ struct geos_union_base {
 	auto operator ()(const geos::geom::Geometry* a, const geos::geom::Geometry* b) const -> std::unique_ptr<geos::geom::Geometry>
 	{
 		if (!a)
+		{
 			if (!b)
 				return {};
 			else
 				return b->clone();
+		}
 		if (!b)
 			return a->clone();
 		auto  r = a->Union(b);
@@ -693,10 +695,12 @@ struct geos_sym_difference_base {
 	auto operator ()(const geos::geom::Geometry* a, const geos::geom::Geometry* b) const -> std::unique_ptr<geos::geom::Geometry>
 	{
 		if (!a)
+		{
 			if (!b)
 				return {};
 			else
 				return b->clone();
+		}
 		if (!b)
 			return a->clone();
 

@@ -59,7 +59,7 @@ AspectData AspectArrayData[] =
 
 	{ "Selected",       AR_AttrOnly,  AT_Cardinal, AG_None,   UNDEFINED_VALUE(TokenID)          },
 
-	{ "Unknown" } // AspectThemeNr[AN_AspectCount]     
+	{ "Unknown", {}, {}, {}, {} } // AspectThemeNr[AN_AspectCount]
 };
 AspectData* AspectArray = AspectArrayData;
 

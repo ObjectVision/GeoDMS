@@ -207,7 +207,7 @@ bool Theme::IsAspectParameter() const
 {
 //	dms_assert(GetAspectNr() != AN_Feature);
 	const AbstrDataItem* activeAttr = GetActiveAttr();
-	return activeAttr && activeAttr->HasVoidDomainGuarantee() || m_ValueGetterPtr && m_ValueGetterPtr->IsParameterGetter();
+	return (activeAttr && activeAttr->HasVoidDomainGuarantee()) || (m_ValueGetterPtr && m_ValueGetterPtr->IsParameterGetter());
 }
 
 bool Theme::IsAspectAttr() const
@@ -271,7 +271,7 @@ DmsColor Theme::GetColorAspectValue() const
 	dms_assert(IsAspectParameter());
 	dms_assert(AspectArray[m_AspectNr].aspectType == AT_Color);
 
-	dms_assert(GetThemeAttr() && GetThemeAttr()->GetDataRefLockCount() > 0 || m_ValueGetterPtr && m_ValueGetterPtr->IsParameterGetter());
+	dms_assert((GetThemeAttr() && GetThemeAttr()->GetDataRefLockCount() > 0) || (m_ValueGetterPtr && m_ValueGetterPtr->IsParameterGetter()));
 	if (GetThemeAttr())
 	{
 //		GetThemeAttr()->PrepareDataUsage(DrlType::CertainOrThrow);

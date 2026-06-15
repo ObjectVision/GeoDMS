@@ -1067,10 +1067,12 @@ template <typename Range>
 SizeT CheckedCardinality(const TreeItem* context, const Range& range, bool throwOnUndefined)
 {
 	if (!IsDefined(range))
+	{
 		if (throwOnUndefined)
 			context->throwItemError("Cardinality is undefined");
 		else
 			return UNDEFINED_VALUE(SizeT);
+	}
 	return Cardinality(range);
 }
 
@@ -1316,8 +1318,8 @@ namespace {
 	{
 		TiledUnitInstantiator()
 		{
-			&Unit<V>::SetRegularTileRange;
-			&Unit<V>::SetIrregularTileRange;
+			(void)&Unit<V>::SetRegularTileRange;   // force instantiation/ODR-use
+			(void)&Unit<V>::SetIrregularTileRange;
 		}
 
 		DefaultTileRangeData<V>* dtr = nullptr;

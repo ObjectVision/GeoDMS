@@ -98,7 +98,7 @@ private: friend class LayerSet;
 	mutable std::weak_ptr<ViewPort> m_TargetVP;
 
 
-	DECL_RTTI(SHV_CALL, ShvClass);
+	DECL_RTTI(SHV_CALL, ShvClass)
 };
 
 #endif // __SHV_GRAPHICRECT_H
