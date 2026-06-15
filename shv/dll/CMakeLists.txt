@@ -1,6 +1,6 @@
 # Shv - Shared Visualization library
-file(GLOB SHV_SOURCES src/*.cpp)
-file(GLOB SHV_HEADERS src/*.h)
+file(GLOB SHV_SOURCES CONFIGURE_DEPENDS src/*.cpp)
+file(GLOB SHV_HEADERS CONFIGURE_DEPENDS src/*.h)
 
 # Win32-only sources: exclude on other platforms
 if(NOT WIN32)

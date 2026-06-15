@@ -1,6 +1,6 @@
 # Clc - Calculation operators library
-file(GLOB_RECURSE CLC_SOURCES src/*.cpp)
-file(GLOB_RECURSE CLC_HEADERS src/*.h include/*.h)
+file(GLOB_RECURSE CLC_SOURCES CONFIGURE_DEPENDS src/*.cpp)
+file(GLOB_RECURSE CLC_HEADERS CONFIGURE_DEPENDS src/*.h include/*.h)
 
 add_library(DmClc SHARED ${CLC_SOURCES} ${CLC_HEADERS})
 

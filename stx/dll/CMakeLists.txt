@@ -1,6 +1,6 @@
 # Stx - Syntax / parsing library
-file(GLOB_RECURSE STX_SOURCES src/*.cpp)
-file(GLOB_RECURSE STX_HEADERS src/*.h)
+file(GLOB_RECURSE STX_SOURCES CONFIGURE_DEPENDS src/*.cpp)
+file(GLOB_RECURSE STX_HEADERS CONFIGURE_DEPENDS src/*.h)
 
 add_library(DmStx SHARED ${STX_SOURCES} ${STX_HEADERS})
 

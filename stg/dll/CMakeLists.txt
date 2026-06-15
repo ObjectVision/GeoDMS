@@ -24,7 +24,7 @@ set(STG_SOURCES
     src/xdb/XdbImp.cpp
     src/xdb/XdbStorageManager.cpp
 )
-file(GLOB_RECURSE STG_HEADERS src/*.h)
+file(GLOB_RECURSE STG_HEADERS CONFIGURE_DEPENDS src/*.h)
 
 add_library(DmStg SHARED ${STG_SOURCES} ${STG_HEADERS})
 

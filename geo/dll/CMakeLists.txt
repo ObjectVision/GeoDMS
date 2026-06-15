@@ -1,6 +1,6 @@
 # Geo - Geometry operators library
-file(GLOB_RECURSE GEO_SOURCES src/*.cpp)
-file(GLOB_RECURSE GEO_HEADERS src/*.h)
+file(GLOB_RECURSE GEO_SOURCES CONFIGURE_DEPENDS src/*.cpp)
+file(GLOB_RECURSE GEO_HEADERS CONFIGURE_DEPENDS src/*.h)
 
 add_library(DmGeo SHARED ${GEO_SOURCES} ${GEO_HEADERS})
 

@@ -1,6 +1,6 @@
 # Sym - Symbol library
-file(GLOB_RECURSE SYM_SOURCES src/*.cpp)
-file(GLOB_RECURSE SYM_HEADERS src/*.h)
+file(GLOB_RECURSE SYM_SOURCES CONFIGURE_DEPENDS src/*.cpp)
+file(GLOB_RECURSE SYM_HEADERS CONFIGURE_DEPENDS src/*.h)
 
 add_library(DmSym SHARED ${SYM_SOURCES} ${SYM_HEADERS})
 
