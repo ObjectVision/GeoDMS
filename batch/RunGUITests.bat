@@ -1,8 +1,10 @@
 @echo off
 setlocal
 
-set "geodms_rootdir=%~dp0"
-if "%geodms_rootdir:~-1%"=="\" set "geodms_rootdir=%geodms_rootdir:~0,-1%"
+REM This script now lives in <repo-root>\batch; geodms_rootdir is the repo root (parent
+REM of this script's dir), used below to locate build\windows-x64-{debug,release}\bin.
+cd /d "%~dp0.."
+set "geodms_rootdir=%cd%"
 set TstDir=C:\dev\tst
 REM LocalDataDir: read the GeoDMS "Local Machine" setting from the registry (the same
 REM value GeoDmsGuiQt/GeoDmsRun use), so test results land where the exe reads/writes.

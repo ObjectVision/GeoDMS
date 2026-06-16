@@ -15,16 +15,22 @@ into `bin\Release\x64`.
   for v145 cannot be found`. Use:
   `C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Current\Bin\amd64\MSBuild.exe`.
   Build the solution **`all22.sln`**, or run
-  `BuildSignAndCreateSetup.bat`. Do **not** build individual `*.vcxproj` projects standalone
+  `batch\BuildSignAndCreateSetup.bat` (or `Build.bat` at the repo root to do all three
+  flavors m/c/l in sequence). Do **not** build individual `*.vcxproj` projects standalone
   (e.g. `DmTic.vcxproj`, `DmRtc.vcxproj`). A standalone project build makes `$(SolutionDir)`
   resolve to that module's `dll\` folder, which scatters `vcpkg_installed`, `vc_archives`, and
   `vc_downloads` into the module folder (this is what contaminated `rtc\dll`). All vcpkg
   caches must stay at the **repo root**.
 - **Windows (CMake):** use the committed presets —
   `cmake --preset windows-x64-release` (or `windows-x64-debug`), then `cmake --build`. Or run
-  `BuildSignAndCreateSetupCmake.bat`.
+  `batch\BuildSignAndCreateSetupCmake.bat`.
 - **Linux (CMake):** use presets `linux-x64-release` / `linux-x64-debug`, or run
-  `BuildSignAndCreateSetupLinux.bat`.
+  `batch\BuildSignAndCreateSetupLinux.bat`.
+- **The per-flavor setup scripts now live in `batch\`.** The repo root holds a single
+  `Build.bat` that calls `batch\BuildSignAndCreateSetup{,Cmake,Linux}.bat` sequentially; the
+  unit-test launchers (`Test*Unit.bat`, `RunGUITests.bat`, `run_unit.bat`) also moved to
+  `batch\`. Each moved script re-roots to the repo root via `cd /d "%~dp0.."`, so it still
+  works whether run from `batch\` or via `Build.bat`. `GeoDmsVersion.cmd` stays at the root.
 - **No partial / incremental single-project builds.** Build per the solution or presets only.
 - **No improvised setup.** vcpkg is auto-provisioned by `tools/ensure-vcpkg.ps1` (msbuild
   hook) and `tools/vcpkg-toolchain.cmake` (CMake). Never manually `git clone` / bootstrap
@@ -45,13 +51,13 @@ If a build cannot be run exactly as above, **stop and ask** — do not work arou
 
 ### Running a setup script with live progress on screen *and* readable by Claude
 
-The `BuildSignAndCreateSetup{,Cmake,Linux}.bat` scripts are run by the **user** in their own
+The `batch\BuildSignAndCreateSetup{,Cmake,Linux}.bat` scripts (and the `Build.bat` wrapper) are run by the **user** in their own
 interactive PowerShell (so they inherit the user's environment and don't trigger a clean-env
 vcpkg re-bootstrap). To let the user watch live progress **and** let Claude read the output,
 pipe the script through `Tee-Object`:
 
 ```powershell
-& cmd /c "BuildSignAndCreateSetupLinux.bat 2>&1" | Tee-Object -FilePath build_linux_<ver>.log
+& cmd /c "batch\BuildSignAndCreateSetupLinux.bat 2>&1" | Tee-Object -FilePath build_linux_<ver>.log
 ```
 
 - `cmd /c "... 2>&1"` merges **stderr** (where GCC/clang warnings + errors land) into stdout
@@ -118,7 +124,7 @@ test-script verbs) use the `/L<logfile> /T<scriptfile> <config>` form instead of
   assertion prints `Assertion failed: <cond>, file …, line …` then `abort() has been called` and
   blocks on a Retry/Ignore dialog; a headless `GeoDmsRun` then hangs forever and keeps a handle
   on the build's `Dm*.dll` (which silently turns the next link into a skip — see the
-  `BuildSignAndCreateSetup.bat` guard). To capture the assertion text + stack non-interactively,
+  `batch\BuildSignAndCreateSetup.bat` guard). To capture the assertion text + stack non-interactively,
   run under cdb and always kill stray `GeoDmsRun`/`cdb` before rebuilding:
   ```powershell
   & 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\cdb.exe' -c 'g;kn;q' `

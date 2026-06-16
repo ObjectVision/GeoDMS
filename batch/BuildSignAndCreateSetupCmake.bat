@@ -13,6 +13,10 @@ REM Run from the repo root:  <repo-root>>BuildSignAndCreateSetupCmake.bat
 
 cls
 
+REM This script now lives in <repo-root>\batch; re-root to the repo root so all the
+REM relative paths below (all22.sln, nsi, distr, ..\tst\batch, %cd% capture) resolve.
+cd /d "%~dp0.."
+
 REM Version comes from nsi\GeoDmsVersion.cmd (shared with the msbuild + linux
 REM sister scripts). Bump the patch number there, not here.
 call GeoDmsVersion.cmd

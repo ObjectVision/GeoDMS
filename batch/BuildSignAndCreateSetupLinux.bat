@@ -22,6 +22,11 @@ REM Run from the repo root:  <repo-root>>BuildSignAndCreateSetupLinux.bat
 
 cls
 
+REM This script now lives in <repo-root>\batch; re-root to the repo root so the %cd%
+REM capture below (and the WSL geodms_wsldir derived from it) points at the repo, and
+REM the relative nsi/ + TestLinuxReleaseUnit.sh references resolve.
+cd /d "%~dp0.."
+
 REM Version comes from nsi\GeoDmsVersion.cmd (shared with the msbuild + cmake
 REM sister scripts). Bump the patch number there, not here.
 call GeoDmsVersion.cmd
