@@ -94,6 +94,26 @@ install -m 755 "${SRC}/GeoDmsRun"     "${DST}/"
 # GeoDMS shared libraries
 install -m 755 "${SRC}"/libDm*.so     "${DST}/"
 
+# Bundle the Qt6 runtime + its less-ubiquitous dependencies so the install is
+# self-contained and runs on machines without a (matching) system Qt6 -- e.g. the
+# headless OVSRV05 test server (#1137). The Qt *plugins* (platforms/, imageformats/,
+# ...) are staged further below; here we add the core libraries they and the
+# executable link against. Resolved via ldd from THIS build so the bundled libs
+# always match the bundled plugins. Base libs (glibc, libstdc++, glib, freetype,
+# png, zstd) are intentionally left to the host -- present on any desktop/server
+# distro, and bundling them risks ABI conflicts with the host's own software.
+echo "Bundling Qt6 runtime libraries..."
+QT_BUNDLE_RE='/(libQt6[A-Za-z]+|libicudata|libicui18n|libicuuc|libdouble-conversion|libpcre2-16|libmd4c|libb2|libgraphite2|libharfbuzz)\.so'
+_qt_libs=$( { ldd "${SRC}/GeoDmsGuiQt" || true
+              for _p in "${SRC}"/platforms/*.so; do [[ -e "$_p" ]] && { ldd "$_p" || true; }; done
+            } 2>/dev/null | awk '/=> \// {print $3}' | { grep -E "${QT_BUNDLE_RE}" || true; } | sort -u )
+for _lib in ${_qt_libs}; do
+    if [[ -f "${_lib}" ]]; then
+        cp -Lf "${_lib}" "${DST}/"        # -L: copy the concrete file under its soname
+        echo "  + $(basename "${_lib}")"
+    fi
+done
+
 # Scripts
 install -m 644 "${SRC}/RewriteExpr.lsp" "${DST}/"
 [[ -f "${SRC}/profiler.py"   ]] && install -m 644 "${SRC}/profiler.py"   "${DST}/"
@@ -130,6 +150,30 @@ for plugin_dir in platforms imageformats xcbglintegrations iconengines tls netwo
         cp -r "${SRC}/${plugin_dir}" "${DST}/"
     fi
 done
+
+# ---------------------------------------------------------------------------
+# Self-contained loader paths: point every bundled ELF's rpath at its own
+# directory ($ORIGIN) so libDm*.so and the bundled libQt6*.so are found no
+# matter how the binary is launched. The GUI test harness runs GeoDmsGuiQt
+# directly (not via the geodms launcher), so LD_LIBRARY_PATH is not set there.
+# --force-rpath uses DT_RPATH, which (unlike DT_RUNPATH) also covers transitive
+# deps (e.g. libQt6Gui -> libicuuc). This also clears the build-tree rpath leak
+# (#1134): the installed binaries otherwise point back at build/.../bin.
+# ---------------------------------------------------------------------------
+if command -v patchelf &>/dev/null; then
+    echo "Setting \$ORIGIN rpath on bundled binaries (self-contained)..."
+    for _f in "${DST}/GeoDmsGuiQt" "${DST}/GeoDmsRun" "${DST}"/*.so*; do
+        [[ -f "${_f}" ]] && patchelf --force-rpath --set-rpath '$ORIGIN' "${_f}" || true
+    done
+    # plugins live one level down; their Qt deps are in the parent dir
+    for _f in "${DST}"/*/*.so; do
+        [[ -f "${_f}" ]] && patchelf --force-rpath --set-rpath '$ORIGIN/..' "${_f}" || true
+    done
+else
+    echo "  WARNING: patchelf not found -- the bundled Qt will only be found via the"
+    echo "           geodms launcher's LD_LIBRARY_PATH; direct GeoDmsGuiQt invocations"
+    echo "           (the test harness) may fail. Install it:  sudo apt-get install patchelf"
+fi
 
 # ---------------------------------------------------------------------------
 # qt.conf — tell Qt to find plugins relative to the executable
