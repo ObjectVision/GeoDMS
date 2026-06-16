@@ -331,12 +331,33 @@ inline void GeoMeasure_ValidateAndWarn(const AbstrOperGroup* gr,
 	}
 
 	// Validate dimensional compatibility: base-unit maps must match.
+	// #1119 follow-up: a coordinate unit whose "metric" is actually a CRS/spatial-reference
+	// identity tag (e.g. the synthesized "EPSG:28992\xFFwmts_layer" base unit) is not a linear
+	// metric, so it cannot be matched against m². Rather than hard-failing existing configurations
+	// (which broke t060), treat the 2nd argument as a label only — the pre-#1119 behavior — and
+	// emit a deprecation warning. The calc-phase GeoMeasure_PureFactor then yields the raw measure
+	// (factor 1), which is already correct for metre-based CRS such as EPSG:28992.
+	// Proper fix (model CRS units as a projection over a real `m` base) is tracked in
+	// CRS_metric_decoupling_plan.md.
 	if (!(natBaseUnits == tgt->m_BaseUnits))
-		gr->throwOperErrorF("the result unit (%s) is not compatible with the coordinate metric %s^%u of %s"
-			, targetUnit->GetMetricStr(FormattingFlags::ThousandSeparator).c_str()
-			, coordUnit->GetMetricStr(FormattingFlags::ThousandSeparator).c_str()
-			, nrDims
-			, coordUnit->GetName().c_str());
+	{
+		// Report L itself (the metric that GeoMeasure_GetCoordMetric actually resolved and squared):
+		// for a projection-bearing coordinate unit, coordUnit's own metric is empty (units never
+		// have both a metric and a projection), so the squared base-units come from the projection's
+		// composite base, not from coordUnit->GetCurrMetricStr(). L is null/empty when that base
+		// carries no linear metric at all (e.g. a metric-less CRS coordinate unit).
+		SharedStr coordMetricStr = (L && !IsEmpty(L)) ? L->AsString(FormattingFlags::ThousandSeparator)
+		                                              : SharedStr("<none>");
+		reportF(SeverityTypeID::ST_Warning
+			, "%s: the requested result unit %s is not compatible with the coordinate metric (%s)^%u; "
+			  "the second argument is accepted as a label only (deprecated, issue #1119). "
+			  "This will become an error once CRS coordinate units carry a proper linear metric."
+			, gr->GetName().c_str()
+			, targetUnit->GetCurrMetricStr(FormattingFlags::ThousandSeparator).c_str()
+			, coordMetricStr.c_str()
+			, nrDims);
+		return; // label-only: no conversion factor applied
+	}
 
 	Float64 factor = J * natFactor / tgt->m_Factor;
 	if (factor != 1.0)
