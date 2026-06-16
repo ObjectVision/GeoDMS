@@ -1,0 +1,5 @@
+# Shell scripts MUST stay LF: bash (the WSL Linux build via nsi/CreateLinuxSetup.sh
+# and the Linux unit-test launchers TestLinux*Unit.sh / RunLinuxGUITests.sh) fails on
+# CRLF ($'\r': command not found). Without this, core.autocrlf=true rewrites them to
+# CRLF on checkout/merge and breaks the Linux build + unit tests.
+*.sh text eol=lf
