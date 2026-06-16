@@ -45,7 +45,14 @@ public:
 
 		if (!resultHolder)
 		{
-			resultHolder = CreateCacheDataItem(argDataA->GetAbstrDomainUnit(), argUnitA, m_VC);
+			// A value/coordinate conversion preserves the geometric composition of its
+			// argument (poly stays poly, arc stays arc, multipoint stays multipoint). It must
+			// NOT default to the result value-type's composition (m_VC == composition_of_v<TR>,
+			// which is Sequence/arc for coordinate types) -- that silently turned poly into arc,
+			// and #1038 then surfaced the mismatch (e.g. t060 pand geometry -> LINESTRING).
+			auto argVC = argDataA->GetValueComposition();
+			resultHolder = CreateCacheDataItem(argDataA->GetAbstrDomainUnit(), argUnitA,
+			                                   argVC != ValueComposition::Unknown ? argVC : m_VC);
 			if (argUnitA->GetTSF(TSF_Categorical))
 				resultHolder->SetTSF(TSF_Categorical);
 		}
