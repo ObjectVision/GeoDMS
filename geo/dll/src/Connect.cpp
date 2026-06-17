@@ -1105,7 +1105,9 @@ public:
 							cutInfo.inSegm = arcHnd.m_InSegm;
 
 							// Calculate fraction along segment for deterministic ordering
-							if (arcHnd.m_InSegm && cutInfo.arcIndex < arg1Count)
+							MG_CHECK(cutInfo.arcIndex < arg1Count);
+
+							if (arcHnd.m_InSegm)
 							{
 								auto arc = arg1Data[cutInfo.arcIndex];
 								if (cutInfo.segmIndex + 1 < arc.size())
@@ -1122,7 +1124,17 @@ public:
 									cutInfo.segmFraction = 1.0;
 							}
 							else
-								cutInfo.segmFraction = arcHnd.m_InSegm ? 0.5 : (arcHnd.m_InArc ? 0.0 : 1.0);
+							{
+								// m_InArc==true  => cut is on the segment END vertex arc[segmIndex+1] -> 1.0.
+								// m_InArc==false => cut is on the arc's terminal/begin vertex -> 0.0 (and such
+								// cuts are excluded from cutsPerArc, so this only orders correctly-by-construction).
+								// 
+								// The old 'm_InArc ? 0.0 : 1.0' put the END-vertex cut at 0.0, mis-sorting it
+								// before co-segment interior cuts; processed end-to-beginning the interior cut
+								// overwrote that vertex, collapsing the vertex cut to tailSize==1 (skipped), so
+								// the cut point never became a node and the connector dead-ended (#1138/#1136).
+								cutInfo.segmFraction = (arcHnd.m_InArc ? 1.0 : 0.0);
+							}
 						}
 					}
 					tileCutInfos.push_back(cutInfo);
