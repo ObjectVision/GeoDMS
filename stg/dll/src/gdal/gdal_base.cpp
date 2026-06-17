@@ -1544,12 +1544,52 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 
 	if (rwMode == dms_rw_mode::read_only)
 	{
+		// #1140: GeoDMS may write a private "<stem>.xml" metadata sidecar next to
+		// an exported raster. That name collides with GDAL's ESRI-metadata
+		// convention (GTiffDataset::LookForProjectionFromXML reads
+		// CPLResetExtension(file,"xml")), so on open GDAL feeds the sidecar to its
+		// restricted mini-XML parser (CPLParseXMLString). That parser only accepts
+		// ASCII in element/attribute names and crashes ("Didn't find expected '='
+		// for value of attribute") on the non-ASCII item names GeoDMS permits
+		// (e.g. a Greek "<..._β_Size>") — even though the sidecar is well-formed
+		// UTF-8 XML and GDAL's parser is the non-conforming party.
+		//
+		// Enumerating each driver's required companion files would be brittle
+		// (.shx/.dbf for .shp, world files .tfw/.bpw/..., .ovr, ...). Instead
+		// reproduce GDAL's own directory scan and hand it that list with only the
+		// one poison sidecar removed, so every legitimate companion stays visible.
+		// papszSiblingFiles == nullptr means "GDAL, scan the directory yourself";
+		// a non-null list is used verbatim, so omitting a file hides it.
+		CPLStringList siblingFiles;
+		CSLConstList siblingFilesArg = nullptr; // default: let GDAL scan (prior behavior)
+#if defined(_MSC_VER)
+		bool isRegularFile = std::filesystem::is_regular_file(std::filesystem::path(Utf8_2_wchar(data_source_name.c_str()).get()));
+#else
+		bool isRegularFile = std::filesystem::is_regular_file(std::filesystem::path(data_source_name.c_str()));
+#endif
+		if (isRegularFile) // a plain on-disk file; skip db/subdataset/vsi specs where readdir is meaningless
+		{
+			SharedStr dirName = SharedStr(CPLGetPath(data_source_name.c_str()));
+			int readdirLimit = atoi(CPLGetConfigOption("GDAL_READDIR_LIMIT_ON_OPEN", "1000")); // match GDAL's own scan cap
+			char** dirEntries = VSIReadDirEx(dirName.empty() ? "." : dirName.c_str(), readdirLimit);
+			if (dirEntries)
+			{
+				SharedStr dsnXml = SharedStr(CPLResetExtension(data_source_name.c_str(), "xml")); // GDAL's sidecar candidate, written by GeoDMS and to be ignored on open as GDAL expects it to be ASCII-only and thus chokes on non-ASCII names.
+				CharPtr dsnSidecar = CPLGetFilename(dsnXml.c_str()); // points into dsnXml; compared case-insensitively below
+				for (char** it = dirEntries; *it; ++it)
+					if (!EQUAL(*it, dsnSidecar)) // EQUAL: case-insensitive, also covers .XML / .Xml
+						siblingFiles.AddString(*it);
+				CSLDestroy(dirEntries);
+				siblingFilesArg = siblingFiles.List(); // non-null: the dir always contains at least the file itself
+			}
+		}
+
 		GDALDatasetHandle result = GDALDataset::FromHandle(
 			GDALOpenEx(data_source_name.c_str()
 				, GA_ReadOnly | gdalOpenFlags | GDAL_OF_VERBOSE_ERROR // rwMode == read_only here (see guard above)
 				, driver_array
 				, option_array
-				, nullptr // papszSiblingFiles
+				, siblingFilesArg // #1140: GDAL's own dir listing minus our colliding "<stem>.xml" sidecar
 			)
 		);
 
