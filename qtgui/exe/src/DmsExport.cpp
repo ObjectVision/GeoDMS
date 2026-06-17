@@ -416,6 +416,22 @@ bool currentItemCanBeExportedToVector(const TreeItem* item)
     return false;
 }
 
+// GDAL raster drivers (e.g. GTiff) cannot write sub-byte value types (Bool,
+// UInt2, UInt4): the write attempt fails with "driver ... does not support
+// writing of values type ...", producing no output file. Only the native
+// GeoDMS tiff driver writes these. So for such items the "Use native driver"
+// option must be forced on. See issue #1141.
+static bool rasterItemRequiresNativeDriver(const TreeItem* item)
+{
+    if (!item || !IsDataItem(item))
+        return false;
+    auto avu = AsDataItem(item)->GetAbstrValuesUnit();
+    if (!avu)
+        return false;
+    auto vt = avu->GetValueType();
+    return vt && vt->IsSubByteElem();
+}
+
 bool currentItemCanBeExportedToRaster(const TreeItem* item)
 {
     if (!item)
@@ -473,7 +489,10 @@ void ExportTab::setNativeDriverCheckbox()
     auto driver = m_available_drivers.at(m_driver_selection->currentIndex());
     auto driver_has_native_version = driver.HasNativeVersion();
     m_native_driver_checkbox->setChecked(driver_has_native_version);
-    m_native_driver_checkbox->setEnabled(driver_has_native_version);
+    // #1141: GDAL cannot write sub-byte raster types (Bool/UInt2/UInt4); force the native driver.
+    bool require_native = m_is_raster && driver_has_native_version
+        && rasterItemRequiresNativeDriver(MainWindow::TheOne()->getCurrentTreeItem());
+    m_native_driver_checkbox->setEnabled(driver_has_native_version && !require_native);
 }
 
 void ExportTab::repopulateDriverSelection()
@@ -613,8 +632,11 @@ void ExportTab::showEvent(QShowEvent* event)
         const auto& currDriver = m_available_drivers.at(m_driver_selection->currentIndex());
         auto driver_has_native_version = currDriver.HasNativeVersion();
 
+        auto current_item = MainWindow::TheOne()->getCurrentTreeItem();
+        bool require_native = m_is_raster && driver_has_native_version && rasterItemRequiresNativeDriver(current_item); // #1141
+
         m_native_driver_checkbox->setEnabled(driver_has_native_version);
-        if (driver_has_native_version &&  (currDriver.m_driver_characteristics & driver_characteristics::only_native_driver))
+        if (driver_has_native_version && ((currDriver.m_driver_characteristics & driver_characteristics::only_native_driver) || require_native))
         {
             m_native_driver_checkbox->setChecked(true);
             m_native_driver_checkbox->setEnabled(false);
@@ -623,8 +645,6 @@ void ExportTab::showEvent(QShowEvent* event)
         {
             m_native_driver_checkbox->setChecked(false);
         }
-
-        auto current_item = MainWindow::TheOne()->getCurrentTreeItem();
         auto full_foldername_base = GetFullFolderNameBase(current_item);
         auto current_item_folder_name_extension = convertFullNameToFoldernameExtension(current_item);
         m_foldername_entry->setText((QString(full_foldername_base.c_str())+current_item_folder_name_extension));// +current_item_folder_name_extention));
