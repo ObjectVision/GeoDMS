@@ -1015,15 +1015,20 @@ bool GridLayer::DrawAllRects(GraphDrawer& d, const GridColorPalette& colorPalett
 	if (!d.GetDrawContext())
 		return false;
 
-	RectArray ra;
-	d.GetAbsClipRegion().FillRectArray(ra);
-
 	const AbstrDataItem* grid = GetGridAttr();
 	dms_assert(grid);
 	const AbstrUnit* gridDomain = grid->GetAbstrDomainUnit();
 	dms_assert(gridDomain->GetValueType()->GetNrDims() == 2);
 
 	auto viewportDeviceOffset = CrdPoint2GPoint( ScaleCrdPoint(d.GetClientLogicalAbsPos(), d.GetSubPixelFactors()) );
+
+	if (!drawGridCoords->IsSeparable())
+		// rotated/projective grid->device: the separable row/col resampler below does not apply.
+		return DrawAllRectsTransformed(d, colorPalette, drawGridCoords.get(), grid, gridDomain, viewportDeviceOffset);
+
+	RectArray ra;
+	d.GetAbsClipRegion().FillRectArray(ra);
+
 	GRect clippedAbsRect = drawGridCoords->GetClippedRelDeviceRect() + viewportDeviceOffset;
 
 	ResumableCounter tileCounter(d.GetCounterStacks(), true);
@@ -1069,6 +1074,155 @@ bool GridLayer::DrawAllRects(GraphDrawer& d, const GridColorPalette& colorPalett
 		++tileCounter;
 		if (tileCounter.MustBreak()) return true;
 		if (doneAnything && SuspendTrigger::MustSuspend()) return true;
+	}
+	tileCounter.Close();
+	return false;
+}
+
+// Expand a GridDrawer's native-bpp source buffer (W cols x H rows, GridFill's row order — bottom-up in
+// device terms) into a 32bpp RGBQUAD buffer in the SAME row order. The caller's src2device encodes the
+// bottom-up flip (a negative row factor), so this does NOT flip. Supports 32bpp direct and <=8bpp
+// indirect (the two GridColorPalette modes real rasters use); other depths are skipped with a one-time
+// warning. Returns false (skip the tile) when it cannot expand.
+static bool ExpandBufferTo32bpp(const GridDrawer& drawer, const GridColorPalette& palette, int W, int H, std::vector<UInt32>& out)
+{
+	const Byte* base = drawer.m_PixelBuffer.data();
+	if (!base)
+		return false;
+
+	int bitCount    = palette.GetBitCount();
+	int bytesPerRow = ((W * bitCount + 31) / 32) * 4;
+	out.resize(SizeT(W) * SizeT(H));
+
+	if (palette.GetPaletteCount() == 0)
+	{
+		// direct color: only 32bpp RGBQUAD is supported on this path
+		if (bitCount != 32)
+		{
+			static bool reported = false;
+			if (!reported) { reported = true; reportF(SeverityTypeID::ST_Warning, "GridLayer rotated blit: unsupported direct bit depth %d; tile skipped", bitCount); }
+			return false;
+		}
+		for (int r = 0; r != H; ++r)
+		{
+			const UInt32* srcRow = reinterpret_cast<const UInt32*>(base + SizeT(r) * bytesPerRow);
+			UInt32* dst = &out[SizeT(r) * W];
+			for (int c = 0; c != W; ++c)
+				dst[c] = srcRow[c];
+		}
+		return true;
+	}
+
+	// indirect palette: a <=8bpp index per pixel, MSB-first packed within each byte (DIB convention,
+	// matching GridFill's Bit/Twip/NibbleSwap PostProcess). Map through the RGBQUAD palette colors.
+	const auto& pal = palette.GetPaletteColors();
+	if (pal.empty() || bitCount > 8)
+	{
+		static bool reported = false;
+		if (!reported) { reported = true; reportF(SeverityTypeID::ST_Warning, "GridLayer rotated blit: unsupported indirect bit depth %d; tile skipped", bitCount); }
+		return false;
+	}
+	UInt32 mask     = (1u << bitCount) - 1;
+	UInt32 fallback = pal.back();
+	for (int r = 0; r != H; ++r)
+	{
+		const Byte* srcRow = base + SizeT(r) * bytesPerRow;
+		UInt32* dst = &out[SizeT(r) * W];
+		for (int c = 0; c != W; ++c)
+		{
+			UInt32 bitPos = UInt32(c) * bitCount;
+			UInt32 idx    = (srcRow[bitPos >> 3] >> (8 - bitCount - (bitPos & 7))) & mask;
+			dst[c] = (idx < pal.size()) ? pal[idx] : fallback;
+		}
+	}
+	return true;
+}
+
+bool GridLayer::DrawAllRectsTransformed(GraphDrawer& d, const GridColorPalette& colorPalette
+	, GridCoord* drawGridCoords, const AbstrDataItem* grid, const AbstrUnit* gridDomain
+	, GPoint viewportDeviceOffset) const
+{
+	DBG_START("GridLayer", "DrawAllRectsTransformed", MG_DEBUG_REGION);
+
+	auto* dc = d.GetDrawContext();
+	if (!dc)
+		return false;
+
+	ViewPort* vp = d.GetViewPortPtr();
+	IRect gridRect = drawGridCoords->GetGridRect();
+	CrdTransformation grid2dev = drawGridCoords->GetGrid2DeviceTransformation();
+	CrdPoint devOffsetDms = g2dms_order<CrdType>(viewportDeviceOffset);
+
+	ResumableCounter tileCounter(d.GetCounterStacks(), true);
+	for (tile_id t = tileCounter.Value(), tn = gridDomain->GetNrTiles(); t != tn; ++t)
+	{
+		IRect tileGridRect = gridDomain->GetTileRangeAsIRect(t);
+		int tileH = Height(tileGridRect); // rows (dms first)
+		int tileW = Width (tileGridRect); // cols (dms second)
+		if (tileW > 0 && tileH > 0)
+		{
+			// rough device AABB of the whole tile (cull fully off-screen tiles before the source fill)
+			CrdRect tileDevDms = grid2dev.ApplyBounds(Convert<CrdRect>(tileGridRect));
+			IPoint lo = RoundDown<4>(tileDevDms.first  + devOffsetDms);
+			IPoint hi = RoundUp  <4>(tileDevDms.second + devOffsetDms);
+			GRect tileDevRect(lo.Col(), lo.Row(), hi.Col(), hi.Row());
+			tileDevRect &= dc->GetClipRect();
+			if (!tileDevRect.empty())
+			{
+				ReadableTileLock lock(grid->GetRefObj().get(), t);
+
+				// Render the tile at native 1:1 resolution via an identity grid->device GridCoord, so the
+				// standard separable resampler + theme/classify/palette machinery fills a source buffer.
+				GridCoord srcGC(vp, grid_coord_key(CrdTransformation(), gridRect));
+				srcGC.Init(GPoint(tileW, tileH), CrdTransformation(-Convert<CrdPoint>(tileGridRect.first), CrdPoint(1.0, 1.0)));
+				srcGC.UpdateUnscaled();
+
+				// IMPORTANT: drive the GridDrawer with srcGC's ACTUAL clipped device rect (the standard
+				// GRID_EXTENTS_MARGIN deflate + RoundUp can trim it ~1px), so GridFill walks exactly the
+				// row/col arrays srcGC built (a mismatch would read past them). The source buffer is this
+				// clip's size; src2device (below) maps buffer pixels back to device, including the trim.
+				GRect clip = srcGC.GetClippedRelDeviceRect();
+				int W = clip.Width(), H = clip.Height();
+				if (W > 0 && H > 0)
+				{
+					GridDrawer drawer(
+						&srcGC
+					,	GetIndexCollector()
+					,	&colorPalette
+					,	nullptr	// selValues
+					,	nullptr	// DrawContext: we expand + transformed-blit ourselves
+					,	clip
+					,	t
+					,	tileGridRect - gridRect.first // tile-local data indexing
+					);
+					if (!drawer.empty())
+					{
+						drawer.Apply(); // fills native-bpp source buffer (W x H), GridFill row order
+
+						std::vector<UInt32> src32;
+						if (ExpandBufferTo32bpp(drawer, colorPalette, W, H, src32))
+						{
+							// buffer pixel (br,bc) -> absolute grid cell. GridFill's buffer is bottom-up in
+							// srcGC's device space: buffer row br = device row (clip.bottom-1-br), col bc =
+							// device col (clip.left+bc). srcGC device == tile-local grid (identity translate),
+							// so grid = device + tileGridRect.first. Fold this affine map (with the row flip)
+							// into one axis-separable transform, then through grid2dev + viewport offset.
+							CrdTransformation buf2grid(
+								CrdPoint(double(clip.bottom - 1 + tileGridRect.first.Row()), double(clip.left + tileGridRect.first.Col()))
+							,	CrdPoint(-1.0, 1.0));
+							CrdTransformation src2device = buf2grid;
+							src2device *= grid2dev;
+							src2device += devOffsetDms;
+
+							dc->DrawImageTransformed(src2device, src32.data(), W, H, DmsRasterOp::SrcAnd); // SRCAND keeps underlying layers under white
+						}
+					}
+				}
+			}
+		}
+		++tileCounter;
+		if (tileCounter.MustBreak()) return true;
+		if (SuspendTrigger::MustSuspend()) return true;
 	}
 	tileCounter.Close();
 	return false;
@@ -1134,7 +1288,7 @@ void GridLayer::DrawPaste(GraphDrawer& d, const GridColorPalette& colorPalette) 
 #endif // _WIN32
 
 //	override virtuals of GraphicObject
-bool GridLayer::Draw(GraphDrawer& d) const 
+bool GridLayer::Draw(GraphDrawer& d) const
 {
 	if (!VisibleLevel(d))
 		return false;
@@ -1270,7 +1424,7 @@ void GridLayer::DoUpdateView()
 	{
 		if (PrepareDataOrUpdateViewLater(geoCrdUnit))
 			SetWorldClientRect(
-				AsWorldExtents( 
+				AsWorldExtents(
 					Convert<CrdRect>(geoCrdUnit->GetRangeAsIRect()),
 					GetGeoCrdUnit()
 				)

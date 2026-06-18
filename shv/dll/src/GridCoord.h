@@ -35,8 +35,12 @@ struct GridCoord : public std::enable_shared_from_this<GridCoord>
 	bool IsDirty() const { return m_IsDirty; }
 	bool IsSeparable() const { return m_IsSeparable; } // false => rotated/projective; use the transformed-blit path
 
-	const GRect& GetClippedRelDeviceRect() const { dms_assert(!IsDirty()); return m_ClippedRelDeviceRect; } 
+	const GRect& GetClippedRelDeviceRect() const { dms_assert(!IsDirty()); return m_ClippedRelDeviceRect; }
 	const IRect& GetGridRect      () const { return m_Key.second; }
+
+	// grid -> device (incl subpixel scale, baked into m_World2DeviceTr). Mirrors the composite built in
+	// Recalc; used by the >c (rotated/projective) transformed-blit path in GridLayer::DrawAllRects.
+	CrdTransformation GetGrid2DeviceTransformation() const { auto tr = m_Key.first; tr *= m_World2DeviceTr; return tr; }
 
 	IRect GetClippedGridRect       (const GRect& viewRelRect) const;
 

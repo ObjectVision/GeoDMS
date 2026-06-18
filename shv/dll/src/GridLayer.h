@@ -18,6 +18,7 @@ template <typename T> struct AbstrRowProcessor;
 struct PasteHandler;
 #endif
 struct GridColorPalette;
+struct GridCoord;
 
 //----------------------------------------------------------------------
 // class  : GraphicGridLayer
@@ -81,6 +82,11 @@ private:
 
 	CrdRect GetWorldExtents(feature_id featureIndex) const;
 	bool DrawAllRects(GraphDrawer& d, const GridColorPalette& colorPalette) const;
+	// >c (rotated/projective grid->device) path: render each tile at native resolution and issue one
+	// transformed blit per tile. Selected when the composite grid->device is !IsAxisSeparable().
+	bool DrawAllRectsTransformed(GraphDrawer& d, const GridColorPalette& colorPalette
+		, GridCoord* drawGridCoords, const AbstrDataItem* grid, const AbstrUnit* gridDomain
+		, GPoint viewportDeviceOffset) const;
 #ifdef _WIN32
 	void DrawPaste   (GraphDrawer& d, const GridColorPalette& colorPalette) const;
 #endif

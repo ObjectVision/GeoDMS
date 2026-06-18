@@ -52,6 +52,8 @@ void DrawContext::DrawImageTransformed(const CrdTransformation& src2device, cons
 {
 	if (!pixelData32 || srcWidth <= 0 || srcHeight <= 0)
 		return;
+	if (!src2device.CanReverse()) // singular (e.g. a not-yet-fitted view): nothing sensible to inverse-map
+		return;
 	auto src32 = static_cast<const UInt32*>(pixelData32);
 
 	// device-space AABB of the transformed source rectangle (source pixel coords: first=row, second=col)
