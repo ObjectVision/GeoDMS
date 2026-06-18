@@ -36,6 +36,7 @@ namespace KeyInfo {
 
 	inline bool IsChar     (UInt32 virtKey) { return  (virtKey & Flag::IsCharMask) == Flag::Char; } // nonsystem normal char or shifted char
 	inline bool IsSpec     (UInt32 virtKey) { return  CcmOf(virtKey) == 0; }
+	inline bool IsShift    (UInt32 virtKey) { return  CcmOf(virtKey) == Flag::Shift; }
 	inline bool IsCtrl     (UInt32 virtKey) { return  CcmOf(virtKey) == Flag::Ctrl; }
 	inline bool IsShiftCtrl(UInt32 virtKey) { return  CcmOf(virtKey) == (Flag::Ctrl|Flag::Shift); }
 	inline bool IsAlt      (UInt32 virtKey) { return  CcmOf(virtKey) == Flag::Menu; }

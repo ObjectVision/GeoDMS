@@ -131,14 +131,36 @@ class ZoomInController : public DualPointCaretController // DualPointController 
 {
 	typedef DualPointCaretController base_type;
 public:
+	// rightButtonMarquee: drive the marquee with the right mouse button (RBUTTONUP) instead of the
+	// left, and treat a sub-threshold drag as a click (returns false from Exec) so the caller's
+	// context menu still appears. Used by Alt+drag (left, default) and right-button drag.
 	ZoomInController(DataView* owner, ViewPort* target
 	,	const CrdTransformation& transformation, const GPoint& origin
+	,	bool rightButtonMarquee = false
 	);
 
 protected: // override TDualPointController callback
 	bool Exec(EventInfo& eventInfo) override;
 
 	CrdTransformation m_Transformation;
+	bool              m_RightButton;
+};
+
+//----------------------------------------------------------------------
+// class  : OrbitController (rotate / tilt about the view centre)
+//----------------------------------------------------------------------
+
+// Shift+drag orbit. STUB: the world->view CrdTransformation is still affine-only (level c), so
+// composing a rotation/tilt is a no-op until the Transformation complexity work lands
+// (see Transformation_complexity_plan.md). Wired now so the gesture routing is in place.
+class OrbitController : public DualPointController // <ViewPort>
+{
+	typedef DualPointController base_type;
+public:
+	OrbitController(DataView* owner, ViewPort* target, const GPoint& origin);
+
+protected:
+	bool Exec(EventInfo& eventInfo) override;
 };
 
 //----------------------------------------------------------------------

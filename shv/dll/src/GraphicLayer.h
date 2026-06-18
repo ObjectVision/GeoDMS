@@ -79,7 +79,10 @@ public:
 
 	virtual void SelectPoint(CrdPoint /*worldPnt*/ , EventID) {};
 	virtual void SelectRect(CrdRect /*worldRect*/, EventID) {};
-	virtual void SelectCircle(CrdPoint /*worldPnt*/, CrdType /*worldRadius*/, EventID ) {};
+	// worldEllipse (optional): for a rotated/projective view a device circle maps to a world-space
+	// ellipse (quadratic form); when set, selection uses it instead of the scalar worldRadius. nullptr
+	// (the axis-separable case) keeps the exact historical circle selection.
+	virtual void SelectCircle(CrdPoint /*worldPnt*/, CrdType /*worldRadius*/, EventID, const JacobianMatrix<CrdType>* /*worldEllipse*/ = nullptr) {};
 	virtual void SelectPolygon(const CrdPoint* /*first*/, const CrdPoint* /*last*/, EventID) {};
 	virtual void SelectDistrict(CrdPoint /*worldPnt*/, EventID );
 

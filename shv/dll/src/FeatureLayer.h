@@ -161,7 +161,7 @@ protected:
 	bool DrawImpl(FeatureDrawer& fd) const override;
 
 	void SelectRect   (CrdRect worldRect, EventID eventID) override;
-	void SelectCircle (CrdPoint worldPnt, CrdType worldRadius, EventID eventID) override;
+	void SelectCircle (CrdPoint worldPnt, CrdType worldRadius, EventID eventID, const JacobianMatrix<CrdType>* worldEllipse = nullptr) override;
 	void SelectPolygon(const CrdPoint* first, const CrdPoint* last, EventID eventID) override;
 
 	CrdRect CalcSelectedClientWorldRect() const override; // specialization that doesn't use BoundinBox
@@ -210,7 +210,7 @@ protected:
 	bool DrawImpl(FeatureDrawer& fd) const override;
 
 	void SelectRect   (CrdRect worldRect, EventID eventID) override;
-	void SelectCircle (CrdPoint worldPnt, CrdType worldRadius, EventID eventID) override;
+	void SelectCircle (CrdPoint worldPnt, CrdType worldRadius, EventID eventID, const JacobianMatrix<CrdType>* worldEllipse = nullptr) override;
 	void SelectPolygon(const CrdPoint* first, const CrdPoint* last, EventID eventID) override;
 
 	SizeT FindFeatureByPoint(const CrdPoint& geoPnt) const override;
@@ -239,7 +239,7 @@ protected:
 	bool DrawImpl(FeatureDrawer& fd) const override;
 
 	void SelectRect   (CrdRect worldRect, EventID eventID) override;
-	void SelectCircle (CrdPoint worldPnt, CrdType worldRadius, EventID eventID) override;
+	void SelectCircle (CrdPoint worldPnt, CrdType worldRadius, EventID eventID, const JacobianMatrix<CrdType>* worldEllipse = nullptr) override;
 	void SelectPolygon(const CrdPoint* first, const CrdPoint* last, EventID eventID) override;
 
 	SizeT FindFeatureByPoint(const CrdPoint& geoPnt) const override;
@@ -268,7 +268,7 @@ protected:
 	bool DrawImpl(FeatureDrawer& fd) const override;
 
 	void SelectRect   (CrdRect worldRect, EventID eventID) override;
-	void SelectCircle (CrdPoint worldPnt, CrdType worldRadius, EventID eventID) override;
+	void SelectCircle (CrdPoint worldPnt, CrdType worldRadius, EventID eventID, const JacobianMatrix<CrdType>* worldEllipse = nullptr) override;
 	void SelectPolygon(const CrdPoint* first, const CrdPoint* last, EventID eventID) override;
 
 	SizeT FindNextFeatureByPoint(const CrdPoint& geoPnt, SizeT currFeatureIndex) const override;

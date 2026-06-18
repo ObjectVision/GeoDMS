@@ -1081,6 +1081,7 @@ static UINT qtModsToMkFlags(Qt::MouseButtons buttons, Qt::KeyboardModifiers mods
     if (buttons & Qt::MiddleButton)flags |= MK_MBUTTON;
     if (mods & Qt::ControlModifier) flags |= MK_CONTROL;
     if (mods & Qt::ShiftModifier)   flags |= MK_SHIFT;
+    if (mods & Qt::AltModifier)     flags |= MK_ALT;
     return flags;
 }
 

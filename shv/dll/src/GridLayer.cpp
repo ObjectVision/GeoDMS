@@ -299,7 +299,7 @@ private:
 	Oper     m_Oper;
 };
 
-void GridLayer::SelectCircle(CrdPoint worldPnt, CrdType worldRadius, EventID eventID)
+void GridLayer::SelectCircle(CrdPoint worldPnt, CrdType worldRadius, EventID eventID, const JacobianMatrix<CrdType>* /*worldEllipse*/)
 {
 	CrdRect worldRect = Inflate(worldPnt, CrdPoint(worldRadius, worldRadius));
 

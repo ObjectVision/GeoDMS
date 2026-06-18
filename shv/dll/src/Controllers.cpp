@@ -357,11 +357,19 @@ bool TieCursorController::Move (EventInfo& eventInfo)
 #include "ViewPort.h"
 #include "Carets.h"
 
+// Right-button marquee uses RBUTTONUP as its exec/stop trigger; the left-button (Alt+drag and
+// classic TB_ZoomIn2) variant uses LBUTTONUP/CLOSE_EVENTS.
+static EventID ZoomInStopEvents(bool rightButton) { return rightButton ? (EventID::RBUTTONUP|EventID::CAPTURECHANGED|EventID::MOUSEMOVE) : EventID::CLOSE_EVENTS; }
+
 ZoomInController::ZoomInController(DataView* owner, ViewPort* target
-	,	const CrdTransformation& transformation, const GPoint& origin)
+	,	const CrdTransformation& transformation, const GPoint& origin
+	,	bool rightButtonMarquee)
 	:	DualPointCaretController(owner, new RoiCaret, target, origin
-		, EventID::MOUSEDRAG, EventID::LBUTTONUP, EventID::CLOSE_EVENTS, ToolButtonID::TB_ZoomIn2)
+		, EventID::MOUSEDRAG
+		, rightButtonMarquee ? EventID::RBUTTONUP : EventID::LBUTTONUP
+		, ZoomInStopEvents(rightButtonMarquee), ToolButtonID::TB_ZoomIn2)
 	,	m_Transformation(transformation)
+	,	m_RightButton(rightButtonMarquee)
 {
 }
 
@@ -371,11 +379,18 @@ bool ZoomInController::Exec(EventInfo& eventInfo)
 //	auto dv = GetOwner().lock(); if (!dv) return;
 	auto to = GetTargetObject().lock(); if (!to) return true;
 
-	ViewPort* view = debug_cast<ViewPort*>(to.get()); 
+	ViewPort* view = debug_cast<ViewPort*>(to.get());
 	dms_assert(view);
 
 	GPoint size = Abs(eventInfo.m_Point - m_Origin);
-	if (size == GPoint(0, 0))
+	if (m_RightButton)
+	{
+		// Sub-threshold movement = a right-click, not a drag: do nothing and return false so the
+		// dispatcher leaves the event UNHANDLED, letting ViewPort::FillMenu show the context menu.
+		if (size.x <= DRAG_THRESHOLD_PIXELS && size.y <= DRAG_THRESHOLD_PIXELS)
+			return false;
+	}
+	else if (size == GPoint(0, 0))
 	{
 		CrdPoint oldWorldPoint = m_Transformation.Reverse(g2dms_order<Float64>(eventInfo.m_Point)); // curr World location of click location
 		view->ZoomIn1();
@@ -387,6 +402,28 @@ bool ZoomInController::Exec(EventInfo& eventInfo)
 	auto deviceRect = CrdRect(g2dms_order<Float64>(m_Origin), g2dms_order<Float64>(eventInfo.m_Point));
 	auto worldRect = m_Transformation.Reverse(deviceRect);
 	view->SetROI(worldRect);
+	return true;
+}
+
+//----------------------------------------------------------------------
+// class  : OrbitController (STUB until Transformation supports rotation/tilt)
+//----------------------------------------------------------------------
+
+OrbitController::OrbitController(DataView* owner, ViewPort* target, const GPoint& origin)
+	:	DualPointController(owner, target, origin
+		,	EventID::NONE
+		,	EventID::LBUTTONUP|EventID::MOUSEDRAG
+		,	EventID::LBUTTONUP|EventID::CAPTURECHANGED|EventID::MOUSEMOVE
+		,	ToolButtonID::TB_Neutral)
+{}
+
+bool OrbitController::Exec(EventInfo& eventInfo)
+{
+	auto to = GetTargetObject().lock(); if (!to) return true;
+	// TODO(transform-d): decompose (eventInfo.m_Point - m_Origin) relative to the view centre into
+	// a tangential (yaw) and radial (tilt/untilt) component and compose Rotation/Tilt into the
+	// ViewPort's world->view transform. No-op while that transform is affine-only (level c).
+	m_Origin = eventInfo.m_Point;
 	return true;
 }
 
@@ -681,10 +718,27 @@ bool SelectCircleController::Exec(EventInfo& eventInfo)
 	GraphicLayer* layer = ls->GetActiveLayer();
 	if (!layer)
 		return false;
-	CrdPoint orgPoint = m_Transformation.Reverse(g2dms_order<CrdType>(m_Origin         ) );
-	CrdPoint dstPoint = m_Transformation.Reverse(g2dms_order<CrdType>(eventInfo.m_Point) );
-	auto dist = sqrt(SqrDist<CrdType>(orgPoint, dstPoint));
-	layer	->	SelectCircle(orgPoint, dist, eventInfo.m_EventID | EventID::REQUEST_SEL);
+	CrdPoint pc = g2dms_order<CrdType>(m_Origin);
+	CrdPoint pe = g2dms_order<CrdType>(eventInfo.m_Point);
+	if (m_Transformation.IsAxisSeparable())
+	{
+		// historical path: a device circle maps to a world circle (rotation-free distances are uniform)
+		CrdPoint orgPoint = m_Transformation.Reverse(pc);
+		CrdPoint dstPoint = m_Transformation.Reverse(pe);
+		auto dist = sqrt(SqrDist<CrdType>(orgPoint, dstPoint));
+		layer->SelectCircle(orgPoint, dist, eventInfo.m_EventID | EventID::REQUEST_SEL);
+	}
+	else
+	{
+		// rotated/projective view: a device circle is a world-space ellipse A = MᵀM / r² (M = view Jacobian)
+		CrdType r2 = SqrDist<CrdType>(pc, pe);
+		if (r2 > 0)
+		{
+			CrdPoint wc = m_Transformation.Reverse(pc);
+			auto Aworld = Scaled(GramMatrix(m_Transformation.JacobianAt(wc)), CrdType(1) / r2);
+			layer->SelectCircle(wc, CrdType(0), eventInfo.m_EventID | EventID::REQUEST_SEL, &Aworld);
+		}
+	}
 	return true;
 }
 

@@ -728,14 +728,14 @@ bool SelectArcsInRect(FeatureLayer* layer, const AbstrDataObject* arcs, Range<Po
 
 
 template <typename ScalarType>
-bool SelectPointsInCircle(GraphicPointLayer* layer, const AbstrDataObject* points, Point<ScalarType> geoPnt, ScalarType geoRadius, EventID eventID)
+bool SelectPointsInCircle(GraphicPointLayer* layer, const AbstrDataObject* points, Point<ScalarType> geoPnt, ScalarType geoRadius, EventID eventID, const JacobianMatrix<CrdType>* ellipseA = nullptr)
 {
 	using PointType = Point<ScalarType>;
 	using RangeType = Range<PointType>;
 
-	auto radialDelta = PointType(geoRadius, geoRadius);
+	auto geoRadius2 = Norm<CrdType>(PointType(geoRadius, geoRadius)); // only used when !ellipseA
+	auto radialDelta = ellipseA ? Convert<PointType>(EllipseAABBHalf(*ellipseA) + CrdPoint(1, 1)) : PointType(geoRadius, geoRadius);
 	auto geoRect  = Inflate(geoPnt, radialDelta);
-	auto geoRadius2 = Norm<CrdType>(radialDelta);
 
 	DataWriteLock writeLock(const_cast<AbstrDataItem*>(layer->CreateSelectionsTheme()->GetThemeAttr()), CompoundWriteType(eventID));
 	bool result = false;
@@ -746,7 +746,7 @@ bool SelectPointsInCircle(GraphicPointLayer* layer, const AbstrDataObject* point
 	auto bbCache = GetPointBoundingBoxCache<ScalarType>(layer);
 	assert(bbCache);
 
-	parallel_tileloop_if(!layer->HasEntityIndex(), trd->GetNrTiles(), [da, trd, layer, bbCache, geoRect, geoPnt, geoRadius2, &writeLock, &result, eventID](tile_id t)
+	parallel_tileloop_if(!layer->HasEntityIndex(), trd->GetNrTiles(), [da, trd, layer, bbCache, geoRect, geoPnt, geoRadius2, ellipseA, &writeLock, &result, eventID](tile_id t)
 		{
 			const auto& rectArray = bbCache->GetBoxData(t);
 			if (!IsIntersecting(geoRect, rectArray.m_TotalBound))
@@ -762,7 +762,8 @@ bool SelectPointsInCircle(GraphicPointLayer* layer, const AbstrDataObject* point
 							return;
 
 				auto dataPnt = data[i];
-				if (IsIncluding(geoRect, dataPnt) && SqrDist<CrdType>(geoPnt, dataPnt) <= geoRadius2)
+				bool inSel = ellipseA ? (QuadForm(*ellipseA, Convert<CrdPoint>(dataPnt) - Convert<CrdPoint>(geoPnt)) <= 1.0) : (SqrDist<CrdType>(geoPnt, dataPnt) <= geoRadius2);
+				if (IsIncluding(geoRect, dataPnt) && inSel)
 				{
 					SizeT entityID = trd->GetRowIndex(t, i);
 					result |= layer->SelectFeatureIndex(writeLock.get(), entityID, eventID);
@@ -776,17 +777,17 @@ bool SelectPointsInCircle(GraphicPointLayer* layer, const AbstrDataObject* point
 }
 
 template <typename ScalarType>
-bool SelectArcsInCircle(FeatureLayer* layer, const AbstrDataObject* arcs, CrdPoint worldPnt, CrdType worldRadius, EventID eventID)
+bool SelectArcsInCircle(FeatureLayer* layer, const AbstrDataObject* arcs, CrdPoint worldPnt, CrdType worldRadius, EventID eventID, const JacobianMatrix<CrdType>* ellipseA = nullptr)
 {
 	using PointType = Point<ScalarType>;
 	using ArcType = typename sequence_traits<PointType>::container_type;
 
 	CrdRect worldRect = Inflate(worldPnt, CrdPoint(worldRadius, worldRadius));
 	CrdPoint geoPnt = layer->GetGeoTransformation().Reverse(worldPnt);
-	auto geoRect = Convert<Range<PointType>>(layer->GetGeoTransformation().Reverse(worldRect));
-	CrdType geoRadius2 = Area(geoRect) / 4;
-
 	PointType geoPntInT = Convert<PointType>(geoPnt);
+	auto geoCircleRect = Convert<Range<PointType>>(layer->GetGeoTransformation().Reverse(worldRect));
+	CrdType geoRadius2 = Area(geoCircleRect) / 4; // only used when !ellipseA
+	auto geoRect = ellipseA ? Inflate(geoPntInT, Convert<PointType>(EllipseAABBHalf(*ellipseA) + CrdPoint(1, 1))) : geoCircleRect;
 
 	DataWriteLock writeLock(const_cast<AbstrDataItem*>(layer->CreateSelectionsTheme()->GetThemeAttr()), CompoundWriteType(eventID));
 	bool result = false;
@@ -797,7 +798,7 @@ bool SelectArcsInCircle(FeatureLayer* layer, const AbstrDataObject* arcs, CrdPoi
 	auto bbCache = GetSequenceBoundingBoxCache<ScalarType>(layer);
 	assert(bbCache);
 
-	parallel_tileloop_if(!layer->HasEntityIndex(), trd->GetNrTiles(), [da, trd, layer, bbCache, geoRect, geoPntInT, geoRadius2, &writeLock, &result, eventID](tile_id t)
+	parallel_tileloop_if(!layer->HasEntityIndex(), trd->GetNrTiles(), [da, trd, layer, bbCache, geoRect, geoPntInT, geoRadius2, ellipseA, &writeLock, &result, eventID](tile_id t)
 		{
 			const auto& rectArray = bbCache->GetBoxData(t);
 			if (!IsIntersecting(geoRect, rectArray.m_TotalBound))
@@ -807,7 +808,7 @@ bool SelectArcsInCircle(FeatureLayer* layer, const AbstrDataObject* arcs, CrdPoi
 			tile_offset ts = data.size();
 			for (tile_offset i = 0; i != ts; ++i)
 			{
-				if (i % AbstrBoundingBoxCache::c_BlockSize == 0) 
+				if (i % AbstrBoundingBoxCache::c_BlockSize == 0)
 					while (!IsIntersecting(geoRect, rectArray.m_BlockBoundArray[i / AbstrBoundingBoxCache::c_BlockSize]))
 						if ((i += AbstrBoundingBoxCache::c_BlockSize) >= ts)
 							return;
@@ -816,7 +817,7 @@ bool SelectArcsInCircle(FeatureLayer* layer, const AbstrDataObject* arcs, CrdPoi
 				if (IsIncluding(geoRect, rectArray.m_FeatBoundArray[i]))
 				{
 					for (const auto& p : *arcCPtr)
-						if (SqrDist<CrdType>(geoPntInT, p) > geoRadius2)
+						if (ellipseA ? (QuadForm(*ellipseA, Convert<CrdPoint>(p) - Convert<CrdPoint>(geoPntInT)) > 1.0) : (SqrDist<CrdType>(geoPntInT, p) > geoRadius2))
 							goto nextArc;
 
 					SizeT entityID = trd->GetRowIndex(t, i);
@@ -922,7 +923,7 @@ void GraphicPointLayer::SelectRect(CrdRect worldRect, EventID eventID)
 	}
 }
 
-void GraphicPointLayer::SelectCircle(CrdPoint worldPnt, CrdType worldRadius, EventID eventID)
+void GraphicPointLayer::SelectCircle(CrdPoint worldPnt, CrdType worldRadius, EventID eventID, const JacobianMatrix<CrdType>* worldEllipse)
 {
 	const AbstrDataItem* valuesItem = GetFeatureAttr();
 	dms_assert(valuesItem);
@@ -939,16 +940,23 @@ void GraphicPointLayer::SelectCircle(CrdPoint worldPnt, CrdType worldRadius, Eve
 		auto layer2worldTransformation = GetGeoTransformation();
 		CrdPoint geoPnt = layer2worldTransformation.Reverse(worldPnt);
 		CrdType  geoRadius = worldRadius;
-		if (!layer2worldTransformation.IsSingular())
+		JacobianMatrix<CrdType> geoEllipse{};
+		const JacobianMatrix<CrdType>* geoEllipsePtr = nullptr;
+		if (worldEllipse) // rotated/projective view: map the world-space ellipse to geo coords (GᵀAG)
+		{
+			geoEllipse = Congruence(layer2worldTransformation.JacobianAt(geoPnt), *worldEllipse);
+			geoEllipsePtr = &geoEllipse;
+		}
+		else if (!layer2worldTransformation.IsSingular())
 			geoRadius /= std::abs(layer2worldTransformation.Factor().X());
 
 		DataReadLock lck(valuesItem);
 		dms_assert(lck.IsLocked());
 
-		result = visit_and_return_result<typelists::points, bool>(valuesItem->GetAbstrValuesUnit(), 
-			[this, valuesItem, geoRadius, eventID, geoPnt, &result] <typename P> (const Unit<P>*) 
+		result = visit_and_return_result<typelists::points, bool>(valuesItem->GetAbstrValuesUnit(),
+			[this, valuesItem, geoRadius, eventID, geoPnt, geoEllipsePtr, &result] <typename P> (const Unit<P>*)
 			{
-				return SelectPointsInCircle< scalar_of_t<P> >(this, valuesItem->GetRefObj().get(), Convert<P>(geoPnt), Convert<scalar_of_t<P>>(geoRadius), eventID);
+				return SelectPointsInCircle< scalar_of_t<P> >(this, valuesItem->GetRefObj().get(), Convert<P>(geoPnt), Convert<scalar_of_t<P>>(geoRadius), eventID, geoEllipsePtr);
 			}
 		);
 	}
@@ -1566,15 +1574,15 @@ bool SelectMultiPointsInRect(GraphicMultiPointLayer* layer, const AbstrDataObjec
 }
 
 template <typename ScalarType>
-bool SelectMultiPointsInCircle(GraphicMultiPointLayer* layer, const AbstrDataObject* multiPoints, Point<ScalarType> geoPnt, ScalarType geoRadius, EventID eventID)
+bool SelectMultiPointsInCircle(GraphicMultiPointLayer* layer, const AbstrDataObject* multiPoints, Point<ScalarType> geoPnt, ScalarType geoRadius, EventID eventID, const JacobianMatrix<CrdType>* ellipseA = nullptr)
 {
 	using PointType = Point<ScalarType>;
 	using RangeType = Range<PointType>;
 	using PointSequenceType = typename sequence_traits<PointType>::container_type;
 
-	auto radialDelta = PointType(geoRadius, geoRadius);
+	auto geoRadius2 = Norm<CrdType>(PointType(geoRadius, geoRadius)); // only used when !ellipseA
+	auto radialDelta = ellipseA ? Convert<PointType>(EllipseAABBHalf(*ellipseA) + CrdPoint(1, 1)) : PointType(geoRadius, geoRadius);
 	auto geoRect = Inflate(geoPnt, radialDelta);
-	auto geoRadius2 = Norm<CrdType>(radialDelta);
 
 	DataWriteLock writeLock(const_cast<AbstrDataItem*>(layer->CreateSelectionsTheme()->GetThemeAttr()), CompoundWriteType(eventID));
 	bool result = false;
@@ -1585,7 +1593,7 @@ bool SelectMultiPointsInCircle(GraphicMultiPointLayer* layer, const AbstrDataObj
 	auto bbCache = GetSequenceBoundingBoxCache<ScalarType>(layer);
 	assert(bbCache);
 
-	parallel_tileloop_if(!layer->HasEntityIndex(), trd->GetNrTiles(), [da, trd, layer, bbCache, geoRect, geoPnt, geoRadius2, &writeLock, &result, eventID](tile_id t)
+	parallel_tileloop_if(!layer->HasEntityIndex(), trd->GetNrTiles(), [da, trd, layer, bbCache, geoRect, geoPnt, geoRadius2, ellipseA, &writeLock, &result, eventID](tile_id t)
 		{
 			const auto& rectArray = bbCache->GetBoxData(t);
 			if (!IsIntersecting(geoRect, rectArray.m_TotalBound))
@@ -1605,7 +1613,8 @@ bool SelectMultiPointsInCircle(GraphicMultiPointLayer* layer, const AbstrDataObj
 					auto pointSeq = data[i];
 					for (const auto& p : pointSeq)
 					{
-						if (IsIncluding(geoRect, p) && SqrDist<CrdType>(geoPnt, p) <= geoRadius2)
+						bool inSel = ellipseA ? (QuadForm(*ellipseA, Convert<CrdPoint>(p) - Convert<CrdPoint>(geoPnt)) <= 1.0) : (SqrDist<CrdType>(geoPnt, p) <= geoRadius2);
+						if (IsIncluding(geoRect, p) && inSel)
 						{
 							SizeT entityID = trd->GetRowIndex(t, i);
 							if (layer->SelectFeatureIndex(writeLock.get(), entityID, eventID))
@@ -1715,7 +1724,7 @@ void GraphicMultiPointLayer::SelectRect(CrdRect worldRect, EventID eventID)
 	}
 }
 
-void GraphicMultiPointLayer::SelectCircle(CrdPoint worldPnt, CrdType worldRadius, EventID eventID)
+void GraphicMultiPointLayer::SelectCircle(CrdPoint worldPnt, CrdType worldRadius, EventID eventID, const JacobianMatrix<CrdType>* worldEllipse)
 {
 	const AbstrDataItem* valuesItem = GetFeatureAttr();
 	dms_assert(valuesItem);
@@ -1732,16 +1741,23 @@ void GraphicMultiPointLayer::SelectCircle(CrdPoint worldPnt, CrdType worldRadius
 		auto layer2worldTransformation = GetGeoTransformation();
 		CrdPoint geoPnt = layer2worldTransformation.Reverse(worldPnt);
 		CrdType  geoRadius = worldRadius;
-		if (!layer2worldTransformation.IsSingular())
+		JacobianMatrix<CrdType> geoEllipse{};
+		const JacobianMatrix<CrdType>* geoEllipsePtr = nullptr;
+		if (worldEllipse)
+		{
+			geoEllipse = Congruence(layer2worldTransformation.JacobianAt(geoPnt), *worldEllipse);
+			geoEllipsePtr = &geoEllipse;
+		}
+		else if (!layer2worldTransformation.IsSingular())
 			geoRadius /= std::abs(layer2worldTransformation.Factor().X());
 
 		DataReadLock lck(valuesItem);
 		dms_assert(lck.IsLocked());
 
-		result = visit_and_return_result<typelists::seq_points, bool>(valuesItem->GetAbstrValuesUnit(), 
-			[this, valuesItem, geoRadius, eventID, geoPnt, &result] <typename P> (const Unit<P>*) 
+		result = visit_and_return_result<typelists::seq_points, bool>(valuesItem->GetAbstrValuesUnit(),
+			[this, valuesItem, geoRadius, eventID, geoPnt, geoEllipsePtr, &result] <typename P> (const Unit<P>*)
 			{
-				return SelectMultiPointsInCircle< scalar_of_t<P> >(this, valuesItem->GetRefObj().get(), Convert<P>(geoPnt), Convert<scalar_of_t<P>>(geoRadius), eventID);
+				return SelectMultiPointsInCircle< scalar_of_t<P> >(this, valuesItem->GetRefObj().get(), Convert<P>(geoPnt), Convert<scalar_of_t<P>>(geoRadius), eventID, geoEllipsePtr);
 			}
 		);
 	}
@@ -2206,7 +2222,7 @@ void GraphicArcLayer::SelectRect  (CrdRect worldRect, EventID eventID)
 	}
 }
 
-void GraphicArcLayer::SelectCircle(CrdPoint worldPnt, CrdType worldRadius, EventID eventID)
+void GraphicArcLayer::SelectCircle(CrdPoint worldPnt, CrdType worldRadius, EventID eventID, const JacobianMatrix<CrdType>* worldEllipse)
 {
 	const AbstrDataItem* valuesItem = GetFeatureAttr();
 	dms_assert(valuesItem);
@@ -2221,14 +2237,21 @@ void GraphicArcLayer::SelectCircle(CrdPoint worldPnt, CrdType worldRadius, Event
 	if (valuesItem->PrepareData())
 	{
 		auto layer2worldTransformation = GetGeoTransformation();
+		JacobianMatrix<CrdType> geoEllipse{};
+		const JacobianMatrix<CrdType>* geoEllipsePtr = nullptr;
+		if (worldEllipse)
+		{
+			geoEllipse = Congruence(layer2worldTransformation.JacobianAt(layer2worldTransformation.Reverse(worldPnt)), *worldEllipse);
+			geoEllipsePtr = &geoEllipse;
+		}
 
 		DataReadLock lck(valuesItem);
 		dms_assert(lck.IsLocked());
 
 		result = visit_and_return_result<typelists::seq_points, bool>(valuesItem->GetAbstrValuesUnit(),
-			[this, valuesItem, worldPnt, worldRadius, eventID] <typename P> (const Unit<P>*)
+			[this, valuesItem, worldPnt, worldRadius, eventID, geoEllipsePtr] <typename P> (const Unit<P>*)
 			{
-				return SelectArcsInCircle< scalar_of_t<P> >(this, valuesItem->GetRefObj().get(), worldPnt, worldRadius, eventID);
+				return SelectArcsInCircle< scalar_of_t<P> >(this, valuesItem->GetRefObj().get(), worldPnt, worldRadius, eventID, geoEllipsePtr);
 			}
 		);
 	}
@@ -2662,7 +2685,7 @@ void GraphicPolygonLayer::SelectRect  (CrdRect worldRect, EventID eventID)
 	}
 }
 
-void GraphicPolygonLayer::SelectCircle(CrdPoint worldPnt, CrdType worldRadius, EventID eventID)
+void GraphicPolygonLayer::SelectCircle(CrdPoint worldPnt, CrdType worldRadius, EventID eventID, const JacobianMatrix<CrdType>* worldEllipse)
 {
 	const AbstrDataItem* valuesItem = GetFeatureAttr();
 	dms_assert(valuesItem);
@@ -2677,14 +2700,21 @@ void GraphicPolygonLayer::SelectCircle(CrdPoint worldPnt, CrdType worldRadius, E
 	if (valuesItem->PrepareData())
 	{
 		auto layer2worldTransformation = GetGeoTransformation();
+		JacobianMatrix<CrdType> geoEllipse{};
+		const JacobianMatrix<CrdType>* geoEllipsePtr = nullptr;
+		if (worldEllipse)
+		{
+			geoEllipse = Congruence(layer2worldTransformation.JacobianAt(layer2worldTransformation.Reverse(worldPnt)), *worldEllipse);
+			geoEllipsePtr = &geoEllipse;
+		}
 
 		DataReadLock lck(valuesItem);
 		dms_assert(lck.IsLocked());
 
 		result = visit_and_return_result<typelists::seq_points, bool>(valuesItem->GetAbstrValuesUnit(),
-			[this, valuesItem, worldPnt, worldRadius, eventID] <typename P> (const Unit<P>*)
+			[this, valuesItem, worldPnt, worldRadius, eventID, geoEllipsePtr] <typename P> (const Unit<P>*)
 			{
-				return SelectArcsInCircle< scalar_of_t<P> >(this, valuesItem->GetRefObj().get(), worldPnt, worldRadius, eventID);
+				return SelectArcsInCircle< scalar_of_t<P> >(this, valuesItem->GetRefObj().get(), worldPnt, worldRadius, eventID, geoEllipsePtr);
 			}
 		);
 	}

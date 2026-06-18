@@ -110,6 +110,15 @@ public:
 	OrientationType Orientation() const;
 	void SetOrientation(OrientationType orientation) { m_Orientation = orientation; }
 
+	// Map rotation (yaw) and tilt (pitch) about the view centre, in radians. STUBS: the world->view
+	// CrdTransformation is still affine-only (level c), so these store state but do not yet rotate or
+	// tilt the rendered view (see Transformation_complexity_plan.md §7). Wired so the navigation
+	// tools/keys (TB_RestoreNorth/TB_RestoreUntilted, Shift+arrows) exist and route correctly now.
+	CrdType GetRotation() const { return m_Rotation; }
+	void    SetRotation(CrdType yawRad)   { m_Rotation = yawRad; /* TODO(transform-d): rebuild m_w2vTr + invalidate */ }
+	CrdType GetTilt()     const { return m_Tilt; }
+	void    SetTilt(CrdType pitchRad)     { m_Tilt = pitchRad;   /* TODO(transform-f): rebuild m_w2vTr + invalidate */ }
+
 	// FitMode::Stretch scales x and y independently so the ROI fills the client rect (charts);
 	// default Isotropic letterboxes (maps). See rtc/geo/Transform.h.
 	void    SetFitMode(FitMode fm) { m_FitMode = fm; }
@@ -135,8 +144,10 @@ public:
 	CrdTransformation GetCurrWorldToClientTransformation() const { return m_w2vTr; }
 	CrdPoint          CalcCurrWorldToDeviceFactors() const { return CalcCurrWorldToClientTransformation().Factor() * GetScaleFactors(); }
 	CrdPoint          GetCurrWorldToDeviceFactors() const { return m_w2vTr.Factor() * GetScaleFactors(); }
-	CrdType           CalcCurrWorldToDeviceZoomLevel() const { return Abs(CalcCurrWorldToDeviceFactors().first); }
-	CrdType           GetCurrWorldToDeviceZoomLevel() const { return Abs(GetCurrWorldToDeviceFactors().first); }
+	// Scalar device zoom level via ZoomLevel() (>c-safe: |fx| for <=c, LocalScaleAt for rotated/projective),
+	// avoiding the per-axis Factor() which only exists for axis-separable transforms. Byte-identical at <=c.
+	CrdType           CalcCurrWorldToDeviceZoomLevel() const { return CalcCurrWorldToClientTransformation().ZoomLevel() * Abs(GetScaleFactors().first); }
+	CrdType           GetCurrWorldToDeviceZoomLevel() const { return m_w2vTr.ZoomLevel() * Abs(GetScaleFactors().first); }
 
 //	override other virtuals of GraphicObject
   	GraphVisitState InviteGraphVistor(AbstrVisitor&) override;
@@ -183,6 +194,8 @@ private:
 	mutable SharedMutableDataItemInterestPtr   m_ROI_TL;   // AOI in world coordinates (TopLeft)
 	mutable SharedMutableDataItemInterestPtr   m_ROI_BR;   // AOI in world coordinates (BottomRight)
 	OrientationType            m_Orientation;
+	CrdType                    m_Rotation = 0.0; // yaw about view centre (radians); STUB, see Set/GetRotation
+	CrdType                    m_Tilt     = 0.0; // pitch (radians); STUB, see Set/GetTilt
 	FitMode                    m_FitMode = FitMode::Isotropic;
 	CrdType                    m_MinRoiSize = -1.0; // <= 0: use SanitizeRoi's geographic default
 	CrdRect                    m_ROI;

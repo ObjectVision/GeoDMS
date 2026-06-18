@@ -81,6 +81,12 @@ using HCURSOR = void*;
 #define MK_MBUTTON  0x0010
 #endif
 
+// MK_ALT is not a standard Win32 mouse-key flag, so define it unconditionally on a free bit
+// (Win32 uses 0x20/0x40 for MK_XBUTTON1/2). Carries the Alt modifier into DispatchMouseEvent.
+#ifndef MK_ALT
+#define MK_ALT      0x0080
+#endif
+
 //----------------------------------------------------------------------
 // ShowWindow constants (used by UpdateChildViews)
 //----------------------------------------------------------------------

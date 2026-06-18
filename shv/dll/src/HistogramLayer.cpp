@@ -368,7 +368,7 @@ void HistogramLayer::SelectRect(CrdRect worldRect, EventID eventID)
 	SelectBins(picked, eventID);
 }
 
-void HistogramLayer::SelectCircle(CrdPoint worldPnt, CrdType worldRadius, EventID eventID)
+void HistogramLayer::SelectCircle(CrdPoint worldPnt, CrdType worldRadius, EventID eventID, const JacobianMatrix<CrdType>* /*worldEllipse*/)
 {
 	// bars are world-axis-aligned rects; clamp the center into the bar to find the nearest bar point
 	if (!m_BinsReady)

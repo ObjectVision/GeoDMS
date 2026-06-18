@@ -61,6 +61,7 @@ enum class EventID : EventIdType  {
 	PANNED        = 0x400,
 	CTRLKEY       = 0x800,
 	SHIFTKEY      = 0x1000,
+	ALTKEY        = 0x00400000, // navigation modifier (e.g. Alt+drag marquee zoom); see DispatchMouseEvent
 	OBJECTFOUND   = 0x2000,
 	ACTIVATE      = 0x4000,
 

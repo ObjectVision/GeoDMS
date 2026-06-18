@@ -785,6 +785,7 @@ MsgResult DataView::DispatchMsg(const MsgStruct& msg)
 			goto completed;
 		}
 		case WM_RBUTTONDOWN:
+			SetCapture(m_hWnd); // capture for the right-button marquee drag; released on WM_RBUTTONUP
 			DispatchMouseEvent(EventID::RBUTTONDOWN,   msg.m_wParam, LParam2Point(msg.m_lParam) );
 			goto completed;
 
@@ -795,6 +796,7 @@ MsgResult DataView::DispatchMsg(const MsgStruct& msg)
 
 		case WM_RBUTTONUP:
 			DispatchMouseEvent(EventID::RBUTTONUP,     msg.m_wParam, LParam2Point(msg.m_lParam) );
+			ReleaseCapture(); // pairs with SetCapture in WM_RBUTTONDOWN above
 			goto completed;
 
 		case WM_LBUTTONDBLCLK:
@@ -1629,8 +1631,14 @@ void DataView::SetCursorPos(GPoint clientPoint)
 
 bool DataView::DispatchMouseEvent(EventID event, WPARAM nFlags, GPoint devicePoint)
 {
+#if defined(_WIN32)
+	// Win32 mouse-message wParam carries MK_CONTROL/MK_SHIFT but not Alt; fold it in here.
+	// On Linux the Qt path (qtModsToMkFlags) already sets MK_ALT, so this is Win32-only.
+	if (GetKeyState(VK_MENU) & 0x8000) nFlags |= MK_ALT;
+#endif
 	if (nFlags & MK_CONTROL) event |= EventID::CTRLKEY;
 	if (nFlags & MK_SHIFT  ) event |= EventID::SHIFTKEY;
+	if (nFlags & MK_ALT    ) event |= EventID::ALTKEY;
 
 	EventInfo eventInfo(event, nFlags, devicePoint);
 
@@ -1804,7 +1812,7 @@ void DataView::OnMouseMove(WPARAM nFlags, GPoint devicePoint)
 				throwLastSystemError("TrackMouseEvent");
 		}
 	}
-	if (nFlags & MK_LBUTTON) // && (::GetCapture == HWindow)
+	if (nFlags & (MK_LBUTTON|MK_RBUTTON)) // left- or right-button drag (right = marquee zoom)
 		DispatchMouseEvent(EventID::MOUSEDRAG, nFlags, devicePoint);
 	else if ((nFlags & (MK_LBUTTON|MK_MBUTTON|MK_RBUTTON)) == 0)
 		DispatchMouseEvent(EventID::MOUSEMOVE, nFlags, devicePoint);

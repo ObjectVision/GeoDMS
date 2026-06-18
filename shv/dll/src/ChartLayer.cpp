@@ -508,7 +508,7 @@ void ChartLayer::SelectRect(CrdRect worldRect, EventID eventID)
 	SelectElems([worldRect](CrdPoint p) { return IsIncluding(worldRect, p); }, eventID);
 }
 
-void ChartLayer::SelectCircle(CrdPoint worldPnt, CrdType worldRadius, EventID eventID)
+void ChartLayer::SelectCircle(CrdPoint worldPnt, CrdType worldRadius, EventID eventID, const JacobianMatrix<CrdType>* /*worldEllipse*/)
 {
 	CrdType r2 = worldRadius * worldRadius;
 	SelectElems([worldPnt, r2](CrdPoint p) { return SqrDist<CrdType>(p, worldPnt) <= r2; }, eventID);

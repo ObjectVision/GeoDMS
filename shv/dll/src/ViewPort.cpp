@@ -649,6 +649,13 @@ bool ViewPort::MouseEvent(MouseEventDispatcher& med)
 		wheelDelta /= WHEEL_DELTA;
 		if (wheelDelta)
 		{
+			if (eventID & EventID::SHIFTKEY)
+			{
+				// Shift+Wheel: raise/lower viewpoint (eye height). STUB until the world->view
+				// transform supports perspective (Transformation_complexity_plan.md §7).
+				// TODO(transform-f): adjust eye height by wheelDelta.
+				return true;
+			}
 			CrdPoint oldWorldPoint = CalcWorldToClientTransformation().Reverse(g2dms_order<CrdType>(eventInfo.m_Point)); // curr World location of click location
 			if (wheelDelta > 0)
 			{
@@ -676,6 +683,15 @@ bool ViewPort::MouseEvent(MouseEventDispatcher& med)
 
 		if (MustQuery(medOwner->m_ControllerID))
 			InfoController::SelectFocusElem(GetLayerSet(), w2dTr.Reverse(g2dms_order<CrdType>(eventInfo.m_Point)), eventID);
+
+		// Alt+drag = marquee zoom, regardless of the active tool (navigation override).
+		if ((eventID & EventID::LBUTTONDOWN) && (eventID & EventID::ALTKEY))
+		{
+			medOwner->InsertController(
+				new ZoomInController(medOwner.get(), this, w2dTr, eventInfo.m_Point)
+			);
+			return true;
+		}
 
 		if (eventID & EventID::LBUTTONDOWN) switch (medOwner->m_ControllerID)
 		{
@@ -723,18 +739,55 @@ bool ViewPort::MouseEvent(MouseEventDispatcher& med)
 				return true;
 
 			case TB_Neutral:
-				if (med.GetEventInfo().m_EventID & EventID::CTRLKEY)
+			{
+				bool ctrl  = med.GetEventInfo().m_EventID & EventID::CTRLKEY;
+				bool shift = med.GetEventInfo().m_EventID & EventID::SHIFTKEY;
+				if (ctrl && shift)
 				{
-					if (med.GetEventInfo().m_EventID & EventID::SHIFTKEY)
-						ClipBoard::ClearBuff();
+					// Ctrl+Shift+click: copy coordinate to clipboard (fresh copy). Fall through
+					// (no return) so the visit reaches DoViewPort, which consumes COPYCOORD.
+					ClipBoard::ClearBuff();
 					med.GetEventInfo().m_EventID |= EventID::COPYCOORD;
+				}
+				else if (ctrl)
+				{
+					// Ctrl+click/drag: apply the active selection tool (default = point selection).
+					medOwner->InsertController(
+						new SelectObjectController(medOwner.get(), this, w2dTr)
+					);
+					return true;
+				}
+				else if (shift)
+				{
+					// Shift+drag: orbit (rotate/tilt) about the view centre. STUB until the
+					// world->view transform supports rotation (Transformation_complexity_plan.md).
+					medOwner->InsertController(
+						new OrbitController(medOwner.get(), this, eventInfo.m_Point)
+					);
+					return true;
 				}
 				else
 					medOwner->InsertController(
 						new PanController(medOwner.get(), this, eventInfo.m_Point)
 					);
+			}
 		}
 	}
+	// Right-button: a drag is a marquee zoom; a click (sub-threshold) is the context menu.
+	// Start the right-button marquee controller on RBUTTONDOWN; it decides on RBUTTONUP whether the
+	// movement was a drag (commit zoom, consume the event) or a click (leave the event unhandled so
+	// the later FillMenu shows the context menu).
+	if (eventID & EventID::RBUTTONDOWN)
+	{
+		AddClientLogicalOffset viewportOffset(&med, GetCurrClientRelPos());
+		auto w2dTr = CalcWorldToClientTransformation() + Convert<CrdPoint>(med.GetClientLogicalAbsPos());
+		w2dTr *= CrdTransformation(CrdPoint(0, 0), med.GetSubPixelFactors());
+		medOwner->InsertController(
+			new ZoomInController(medOwner.get(), this, w2dTr, eventInfo.m_Point, /*rightButtonMarquee*/ true)
+		);
+		return true;
+	}
+
 	return Wrapper::MouseEvent(med); // returns false
 }
 
@@ -883,6 +936,19 @@ bool ViewPort::OnKeyDown(UInt32 virtKey)
 			case VK_LEFT:     ScrollLogical(shp2dms_order<TType>( ScrollStepSize(), 0)); return true;
 			case VK_UP:       ScrollLogical(shp2dms_order<TType>(0,  ScrollStepSize())); return true;
 			case VK_DOWN:     ScrollLogical(shp2dms_order<TType>(0, -ScrollStepSize())); return true;
+			case 'N':         return OnCommand(TB_RestoreNorth);    // restore north-up (yaw=0)
+			case 'T':         return OnCommand(TB_RestoreUntilted); // restore untilted (pitch=0)
+		}
+	} else if (KeyInfo::IsShift(virtKey)) {
+		// Shift+arrows: step rotate (yaw) / tilt (pitch). STUB setters until the world->view
+		// transform supports rotation/tilt (Transformation_complexity_plan.md §7).
+		const CrdType ROT_STEP  = 0.2617993878; // ~15 degrees in radians
+		const CrdType TILT_STEP = 0.1745329252; // ~10 degrees in radians
+		switch (KeyInfo::CharOf(virtKey)) {
+			case VK_LEFT:  SetRotation(GetRotation() - ROT_STEP);  return true;
+			case VK_RIGHT: SetRotation(GetRotation() + ROT_STEP);  return true;
+			case VK_UP:    SetTilt    (GetTilt()     + TILT_STEP); return true;
+			case VK_DOWN:  SetTilt    (GetTilt()     - TILT_STEP); return true;
 		}
 	} else if (KeyInfo::IsCtrl(virtKey)) {
 		switch (KeyInfo::CharOf(virtKey)) {
@@ -925,6 +991,9 @@ bool ViewPort::OnCommand(ToolButtonID id)
 		case TB_ZoomAllLayers:    ZoomAll();   return true;
 		case TB_ZoomActiveLayer:  AL_ZoomAll(); return true;
 		case TB_ZoomSelectedObj:  AL_ZoomSel(); return true;
+
+		case TB_RestoreNorth:     SetRotation(0.0); return true; // yaw->0, leave any tilt (STUB)
+		case TB_RestoreUntilted:  SetTilt(0.0);     return true; // pitch->0, leave any rotation (STUB)
 		case TB_ShowFirstSelectedRow: AL_ZoomSel(); return true;
 		case TB_Neutral:
 			SetViewPortCursor(DmsCursor::Arrow);
@@ -1192,10 +1261,25 @@ void ViewPort::ScrollDevice(GPoint delta)
 
 	UpdateView();
 
-	CrdTransformation w2d(CrdPoint(0.0, 0.0), CalcCurrWorldToDeviceFactors());
 	{
 		InvalidationBlock lock(this);
-		SetROI(GetROI() - w2d.WorldScale(g2dms_order<CrdType>(delta)));
+		auto w2c = CalcCurrWorldToClientTransformation();
+		CrdPoint worldDelta;
+		if (w2c.IsAxisSeparable())
+		{
+			// exact historical path (per-axis device factors)
+			CrdTransformation w2d(CrdPoint(0.0, 0.0), w2c.Factor() * GetScaleFactors());
+			worldDelta = w2d.WorldScale(g2dms_order<CrdType>(delta));
+		}
+		else
+		{
+			// rotated/projective view: convert the device pan delta to a world delta via the inverse of
+			// the world->device transform (Reverse-difference), which is valid at any complexity.
+			auto w2d = w2c * CrdTransformation(CrdPoint(0.0, 0.0), GetScaleFactors());
+			auto dDelta = g2dms_order<CrdType>(delta);
+			worldDelta = w2d.Reverse(dDelta) - w2d.Reverse(CrdPoint(0.0, 0.0));
+		}
+		SetROI(GetROI() - worldDelta);
 	}
 	m_w2vTr = CalcCurrWorldToClientTransformation();
 	auto deviceExtents = ScaleCrdRect( CalcClientRelRect(), GetScaleFactors() );

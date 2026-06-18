@@ -228,7 +228,13 @@ enum ToolButtonID : int // GeoDmsGui.exe: keep this list in sync with type ToolB
 	TB_Undefined,
 	OBSOLETE_TB_Pan,                // DualPoint   Tool
 	TB_UpdateView,
+	TB_RestoreNorth,                // Button Command: reset map rotation (yaw) to north-up, leaving any tilt
+	TB_RestoreUntilted,             // Button Command: reset map tilt (pitch) to 0, leaving any rotation
 };
+
+// Minimum pointer travel (device pixels) before a button press counts as a drag rather than a
+// click. Used to discriminate a right-button marquee-zoom drag from a right-click context menu.
+const GType DRAG_THRESHOLD_PIXELS = 4;
 
 inline bool MustQuery(ToolButtonID id)
 {

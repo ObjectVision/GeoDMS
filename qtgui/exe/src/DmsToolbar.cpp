@@ -155,7 +155,7 @@ auto getAvailableTableviewButtonIds() -> std::vector<ToolButtonID> {
 
 auto getAvailableMapviewButtonIds() -> std::vector<ToolButtonID> {
     return { TB_Export , TB_CopyLC, TB_Copy, TB_Undefined,
-             TB_ZoomAllLayers, TB_ZoomActiveLayer, TB_Pan, TB_ZoomIn2, TB_ZoomOut2, TB_Undefined,
+             TB_ZoomAllLayers, TB_ZoomActiveLayer, TB_RestoreNorth, TB_RestoreUntilted, TB_Pan, TB_ZoomIn2, TB_ZoomOut2, TB_Undefined,
              TB_ZoomSelectedObj,TB_SelectObject,TB_SelectRect,TB_SelectCircle,TB_SelectPolygon,TB_SelectDistrict,TB_SelectAll,TB_SelectNone,TB_ShowSelOnlyOn, TB_Undefined,
              TB_Show_VP,TB_SP_All,TB_NeedleOn,TB_ScaleBarOn };
 }
@@ -182,6 +182,9 @@ auto getToolbarButtonData(ToolButtonID button_id) -> ToolbarButtonData {
     case TB_TableGroupBy: return { TB_TableGroupBy, {"Group by the highlighted columns",""}, {TB_Neutral, TB_TableGroupBy}, {":/res/images/TB_group_by.bmp"} };
     case TB_ZoomAllLayers: return { TB_ZoomAllLayers, {"","Make the extents of all layers fit in the ViewPort"}, {TB_ZoomAllLayers}, {":/res/images/TB_zoom_all_layers.bmp"} };
     case TB_ZoomActiveLayer: return { TB_ZoomActiveLayer, {"","Make the extent of the active layer fit in the ViewPort"}, {TB_ZoomActiveLayer}, {":/res/images/TB_zoom_active_layer.bmp"} };
+    // TODO(icons): add dedicated compass / flatten artwork; reusing zoom icons as placeholders.
+    case TB_RestoreNorth: return { TB_RestoreNorth, {"","Restore north-up orientation (reset map rotation), leaving any tilt"}, {TB_RestoreNorth}, {":/res/images/TB_zoom_all_layers.bmp"} };
+    case TB_RestoreUntilted: return { TB_RestoreUntilted, {"","Restore untilted top-down view (reset map tilt), leaving any rotation"}, {TB_RestoreUntilted}, {":/res/images/TB_zoom_active_layer.bmp"} };
     case TB_ZoomIn2: return { TB_ZoomIn2, {"","Zoom in by drawing a rectangle"}, {TB_Neutral, TB_ZoomIn2}, {":/res/images/TB_zoomin_button.bmp"}, true };
     case TB_ZoomOut2: return { TB_ZoomOut2, {"","Zoom out by clicking on a ViewPort location"}, {TB_Neutral, TB_ZoomOut2}, {":/res/images/TB_zoomout_button.bmp"}, true };
     case TB_Pan: return { TB_Pan, {"","Pan by holding left mouse button down in the ViewPort and dragging"}, {TB_Neutral, TB_Pan}, {":/res/images/TB_pan_button.bmp"}, true };

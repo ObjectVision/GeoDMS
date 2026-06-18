@@ -57,7 +57,7 @@ public:
 
 	void SelectPoint  (CrdPoint worldPnt, EventID eventID) override;
 	void SelectRect   (CrdRect worldRect, EventID eventID) override;
-	void SelectCircle (CrdPoint worldPnt, CrdType worldRadius, EventID eventID) override;
+	void SelectCircle (CrdPoint worldPnt, CrdType worldRadius, EventID eventID, const JacobianMatrix<CrdType>* worldEllipse = nullptr) override;
 	void SelectPolygon(const CrdPoint* first, const CrdPoint* last, EventID eventID) override;
 
 //	override virtuals of GraphicObject

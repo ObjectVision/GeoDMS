@@ -14,7 +14,16 @@
 
 FormattedOutStream& operator << (FormattedOutStream& os, const CrdTransformation& t)
 {
-	os << "[ *" << t.Factor() << " + " << t.Offset() << "]";
+	if (t.IsAxisSeparable())
+		os << "[ *" << t.Factor() << " + " << t.Offset() << "]";
+	else
+	{
+		auto h = t.Matrix();
+		os << "[ H";
+		for (int i = 0; i != 9; ++i)
+			os << (i ? " " : "= ") << h[i];
+		os << "]";
+	}
 	return os;
 }
 
