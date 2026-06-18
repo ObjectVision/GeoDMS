@@ -797,7 +797,14 @@ bool WmsLayer::Draw(GraphDrawer& d) const
 	if (!d.GetDrawContext())
 		return GVS_Continue;
 
-	auto transZoomLevel = d.GetTransformation().ZoomLevel();
+	ViewPort* vp = d.GetViewPortPtr();
+	assert(vp);
+	// For a tilted (projective) view the device-per-world scale varies across the plane, so
+	// ZoomLevel()'s LocalScaleAt((0,0)) (the world origin, far outside the view) is meaningless and
+	// ChooseTileMatrix would fail -> the WMS would draw nothing. Sample the scale at the VIEW CENTRE
+	// instead. Axis-separable (incl. pure yaw) keeps the historical ZoomLevel(), byte-identical.
+	auto viewTr = d.GetTransformation();
+	auto transZoomLevel = viewTr.IsAxisSeparable() ? viewTr.ZoomLevel() : viewTr.LocalScaleAt(Center(vp->GetROI()));
 	auto worldSizeOfDevicePixel = 1.0 / transZoomLevel;
 	m_ZoomLevel = ChooseTileMatrix(m_TMS, worldSizeOfDevicePixel);
 	if (!IsDefined(SizeT(m_ZoomLevel)))
@@ -805,8 +812,6 @@ bool WmsLayer::Draw(GraphDrawer& d) const
 
 	const wms::tile_matrix& tm = m_TMS[m_ZoomLevel];
 	grid_coord_key gcKey = tm.GridCoordKey();
-	ViewPort* vp = d.GetViewPortPtr();
-	assert(vp);
 	GridCoordPtr drawGridCoords = vp->GetOrCreateGridCoord(gcKey);
 
 	if (vp == GetViewPort())
@@ -817,19 +822,28 @@ bool WmsLayer::Draw(GraphDrawer& d) const
 	GRect bb = d.GetAbsClipRegion().BoundingBox();
 
 	auto viewportDeviceOffset = ScaleCrdPoint(d.GetClientLogicalAbsPos(), d.GetSubPixelFactors());
-	GRect clippedRelRect = drawGridCoords->GetClippedRelDeviceRect();
-	if (clippedRelRect.empty())
-		return GVS_Continue;
-
-	clippedRelRect &= (bb - CrdPoint2GPoint(viewportDeviceOffset));
-	if (clippedRelRect.empty())
-		return GVS_Continue;
 
 	// Under a rotated/tilted VIEW the composite raster->device is >c (not axis-separable), so the
 	// GridCoord's separable device<->grid row/col arrays are empty. Use the composite inverse to map the
 	// visible device rect back to raster space (and to place each tile) instead. grid2dev = raster->device.
 	CrdTransformation grid2dev = drawGridCoords->GetGrid2DeviceTransformation();
 	bool wmsSeparable = drawGridCoords->IsSeparable();
+
+	GRect visibleRel = bb - CrdPoint2GPoint(viewportDeviceOffset); // visible device region (relative)
+	GRect clippedRelRect;
+	if (wmsSeparable)
+	{
+		clippedRelRect = drawGridCoords->GetClippedRelDeviceRect();
+		if (clippedRelRect.empty())
+			return GVS_Continue;
+		clippedRelRect &= visibleRel;
+	}
+	else
+		// >c: the Recalc device AABB of the WHOLE raster is unreliable under a projective transform (its
+		// far corners project with w<=0), so use the actual visible device region directly.
+		clippedRelRect = visibleRel;
+	if (clippedRelRect.empty())
+		return GVS_Continue;
 
 	IPoint tlPixel, brPixel;
 	if (wmsSeparable)
