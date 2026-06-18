@@ -1704,14 +1704,20 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 
 CrdTransformation GetTransformation(gdal_transform gdalTr)
 {
-	//	Xp = padfTransform[0] + P*padfTransform[1] + L*padfTransform[2];
+	//	Xp = padfTransform[0] + P*padfTransform[1] + L*padfTransform[2];   (P = col, L = row)
 	//	Yp = padfTransform[3] + P*padfTransform[4] + L*padfTransform[5];
 
-	MG_CHECK(gdalTr[2] == 0);
-	MG_CHECK(gdalTr[4] == 0);
-	return CrdTransformation(
-		shp2dms_order(gdalTr[0], gdalTr[3]),
-		shp2dms_order(gdalTr[1], gdalTr[5])
-	);
+	if (gdalTr[2] == 0 && gdalTr[4] == 0)
+		// axis-aligned georeference (the common case): build the historical level-c transform, byte-identical.
+		return CrdTransformation(
+			shp2dms_order(gdalTr[0], gdalTr[3]),
+			shp2dms_order(gdalTr[1], gdalTr[5])
+		);
+
+	// rotated georeference: full 2x3 affine (level d). In dms order (in.first=L=row, in.second=P=col;
+	// out.first=Yworld, out.second=Xworld):
+	//   out.first  = gdalTr[5]*L + gdalTr[4]*P + gdalTr[3]
+	//   out.second = gdalTr[2]*L + gdalTr[1]*P + gdalTr[0]
+	return CrdTransformation::Affine2x3({ gdalTr[5], gdalTr[4], gdalTr[3],  gdalTr[2], gdalTr[1], gdalTr[0] });
 }
 

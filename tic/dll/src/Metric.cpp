@@ -451,7 +451,10 @@ SharedStr UnitProjection::AsString(FormattingFlags ff) const
 
 FormattedOutStream& operator <<(FormattedOutStream& str, const UnitProjection& repr)
 {
-	str << repr.Factor() << "*" << repr.GetBaseUnit()->GetNameOrCurrMetric(str.GetFormattingFlags()) << "+" << repr.Offset();
+	if (repr.IsAxisSeparable())
+		str << repr.Factor() << "*" << repr.GetBaseUnit()->GetNameOrCurrMetric(str.GetFormattingFlags()) << "+" << repr.Offset();
+	else
+		str << static_cast<const CrdTransformation&>(repr) << " on " << repr.GetBaseUnit()->GetNameOrCurrMetric(str.GetFormattingFlags());
 	return str;
 }
 
