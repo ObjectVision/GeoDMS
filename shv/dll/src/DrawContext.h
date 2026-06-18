@@ -113,6 +113,14 @@ public:
 	// === Raster Image ===
 	virtual void DrawImage(const GRect& destRect, const void* pixelData, int width, int height, int bitsPerPixel, const void* paletteRGBQuads = nullptr, int paletteCount = 0, DmsRasterOp op = DmsRasterOp::SrcCopy) = 0;
 
+	// Blit a 32bpp (0x00RRGGBB) source image transformed by an arbitrary src->device transform
+	// (rotation/shear/projection). Portable: CPU inverse-map (nearest) resampler into the device-AABB,
+	// then one DrawImage for the final copy (so it works on every backend and honors `op`). Source and
+	// device coordinates are in dms order (first=row/Y, second=col/X), matching GridCoord's grid2device.
+	// Pixels outside the source map to white (0x00FFFFFF) so SrcAnd keeps the underlying layers.
+	// Axis-aligned transforms should keep using DrawImage directly; this is for the >c raster path.
+	void DrawImageTransformed(const CrdTransformation& src2device, const void* pixelData32, int srcWidth, int srcHeight, DmsRasterOp op = DmsRasterOp::SrcCopy);
+
 	// === 3D Borders ===
 	void DrawButtonBorder(GRect& rect);
 	void DrawReversedBorder(GRect& rect);
