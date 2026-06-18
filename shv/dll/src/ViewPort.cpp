@@ -491,9 +491,25 @@ CrdType ViewPort::GetCurrLogicalZoomLevel() const
 	return m_w2vTr.ZoomLevel();
 }
 
+// Per-axis logical zoom factors. Factor() only exists for axis-separable transforms (levels a..c);
+// under view rotation/tilt (>c) there is no single per-axis factor, so fall back to the isotropic
+// local scale at the world centre. Byte-identical at <=c.
+static CrdPoint LogicalZoomFactorsOf(const CrdTransformation& tr, CrdPoint worldCenter)
+{
+	if (tr.IsAxisSeparable())
+		return tr.Factor();
+	auto s = tr.LocalScaleAt(worldCenter);
+	return CrdPoint(s, s);
+}
+
 CrdPoint ViewPort::GetCurrLogicalZoomFactors() const
 {
-	return m_w2vTr.Factor();
+	return LogicalZoomFactorsOf(m_w2vTr, Center(GetROI()));
+}
+
+CrdPoint ViewPort::CalcCurrWorldToDeviceFactors() const
+{
+	return LogicalZoomFactorsOf(CalcCurrWorldToClientTransformation(), Center(GetROI())) * GetScaleFactors();
 }
 
 void ViewPort::ZoomAll()

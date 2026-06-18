@@ -143,8 +143,8 @@ public:
 	CrdTransformation CalcWorldToClientTransformation() const; // calls DoUpdateView -> AdjustTargetViewport
 	CrdTransformation CalcCurrWorldToClientTransformation() const; // called by DoUpdateView and GraphicRect::AdjustTargetViewport, uses m_ROI and GetCurrClientSize()
 	CrdTransformation GetCurrWorldToClientTransformation() const { return m_w2vTr; }
-	CrdPoint          CalcCurrWorldToDeviceFactors() const { return CalcCurrWorldToClientTransformation().Factor() * GetScaleFactors(); }
-	CrdPoint          GetCurrWorldToDeviceFactors() const { return m_w2vTr.Factor() * GetScaleFactors(); }
+	CrdPoint          CalcCurrWorldToDeviceFactors() const; // >c-safe (LogicalZoomFactorsOf); byte-identical at <=c
+	CrdPoint          GetCurrWorldToDeviceFactors() const { return GetCurrLogicalZoomFactors() * GetScaleFactors(); }
 	// Scalar device zoom level via ZoomLevel() (>c-safe: |fx| for <=c, LocalScaleAt for rotated/projective),
 	// avoiding the per-axis Factor() which only exists for axis-separable transforms. Byte-identical at <=c.
 	CrdType           CalcCurrWorldToDeviceZoomLevel() const { return CalcCurrWorldToClientTransformation().ZoomLevel() * Abs(GetScaleFactors().first); }
