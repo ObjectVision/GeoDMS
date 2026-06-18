@@ -943,7 +943,12 @@ bool WmsLayer::Draw(GraphDrawer& d) const
 								CrdTransformation src2device(Convert<CrdPoint>(tileIR.first), CrdPoint(1.0, 1.0));
 								src2device *= grid2dev;
 								src2device += viewportDeviceOffset;
-								d.GetDrawContext()->DrawImageTransformed(src2device, rasterBuffer.combinedBands.data(), tileW, tileH, DmsRasterOp::SrcCopy);
+								// SrcAnd, not SrcCopy: DrawImageTransformed pads the rotated tile's device AABB with
+								// white. Under SrcCopy each tile's white AABB corners overwrite the adjacent already-
+								// drawn tile, leaving white triangular seams between rotated tiles. SrcAnd makes white
+								// the AND-identity (transparent) so neighbours show through and warped tiles tessellate.
+								// Matches GridLayer's rotated-raster blit.
+								d.GetDrawContext()->DrawImageTransformed(src2device, rasterBuffer.combinedBands.data(), tileW, tileH, DmsRasterOp::SrcAnd);
 							}
 						}
 			}
