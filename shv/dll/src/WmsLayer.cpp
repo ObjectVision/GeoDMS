@@ -825,8 +825,26 @@ bool WmsLayer::Draw(GraphDrawer& d) const
 	if (clippedRelRect.empty())
 		return GVS_Continue;
 
-	auto tlPixel = drawGridCoords->GetExtGridCoord(clippedRelRect.LeftTop());
-	auto brPixel = drawGridCoords->GetExtGridCoord(clippedRelRect.RightBottom() - GPoint(1,1) );
+	// Under a rotated/tilted VIEW the composite raster->device is >c (not axis-separable), so the
+	// GridCoord's separable device<->grid row/col arrays are empty. Use the composite inverse to map the
+	// visible device rect back to raster space (and to place each tile) instead. grid2dev = raster->device.
+	CrdTransformation grid2dev = drawGridCoords->GetGrid2DeviceTransformation();
+	bool wmsSeparable = drawGridCoords->IsSeparable();
+
+	IPoint tlPixel, brPixel;
+	if (wmsSeparable)
+	{
+		tlPixel = drawGridCoords->GetExtGridCoord(clippedRelRect.LeftTop());
+		brPixel = drawGridCoords->GetExtGridCoord(clippedRelRect.RightBottom() - GPoint(1,1) );
+	}
+	else
+	{
+		// AABB of the visible (rotated) device rect mapped back to raster pixels - bounds the tile loop
+		// (without this the garbage pixel coords clamp to [0, matrixSize-1] and enumerate the whole matrix).
+		CrdRect gridR = grid2dev.ReverseBounds(g2dms_order<CrdType>(clippedRelRect));
+		tlPixel = RoundDown<4>(gridR.first);
+		brPixel = RoundUp  <4>(gridR.second);
+	}
 
 	auto tileSizeAsIPoint = Convert<IPoint>(tm.m_TileSize);
 	wms::tile_pos tlTile = tlPixel / tileSizeAsIPoint;
@@ -846,7 +864,16 @@ bool WmsLayer::Draw(GraphDrawer& d) const
 		{
 			wms::tile_pos tp = shp2dms_order(c, r);
 			auto tileGridRect = tm.RasterExtents(tp);
-			GRect tileRelRect = drawGridCoords->GetClippedRelDeviceRect(Convert<IRect>(tileGridRect));
+			IRect tileIR = Convert<IRect>(tileGridRect);
+			GRect tileRelRect;
+			if (wmsSeparable)
+				tileRelRect = drawGridCoords->GetClippedRelDeviceRect(tileIR);
+			else
+			{
+				CrdRect tdev = grid2dev.ApplyBounds(Convert<CrdRect>(tileIR));
+				IPoint lo = RoundDown<4>(tdev.first), hi = RoundUp<4>(tdev.second);
+				tileRelRect = GRect(lo.Col(), lo.Row(), hi.Col(), hi.Row()) & clippedRelRect;
+			}
 			if (tileRelRect.empty())
 				continue;
 
@@ -872,21 +899,38 @@ bool WmsLayer::Draw(GraphDrawer& d) const
 				if (result==WPoint())
 					goto nextTile;
 
-						GridDrawer drawer(
-							drawGridCoords.get()
-							, GetIndexCollector()
-							, &palette
-							, nullptr // selValues
-							, d.GetDrawContext()
-							, tileRelRect
-							, ::tile_id(0)
-							, Convert<IRect>(tileGridRect) - drawGridCoords->GetGridRect().first // adjusted tileRect
-						);
+						if (wmsSeparable)
+						{
+							GridDrawer drawer(
+								drawGridCoords.get()
+								, GetIndexCollector()
+								, &palette
+								, nullptr // selValues
+								, d.GetDrawContext()
+								, tileRelRect
+								, ::tile_id(0)
+								, tileIR - drawGridCoords->GetGridRect().first // adjusted tileRect
+							);
 
-						if (!drawer.empty()) {
-							drawer.AllocatePixelBuffer();
-							drawer.FillDirect(&rasterBuffer.combinedBands[0], rasterBuffer.combinedBands.size(), true);
-							drawer.CopyToDrawContext(CrdPoint2GPoint(viewportDeviceOffset));
+							if (!drawer.empty()) {
+								drawer.AllocatePixelBuffer();
+								drawer.FillDirect(&rasterBuffer.combinedBands[0], rasterBuffer.combinedBands.size(), true);
+								drawer.CopyToDrawContext(CrdPoint2GPoint(viewportDeviceOffset));
+							}
+						}
+						else
+						{
+							// rotated/tilted view: one transformed blit of the tile's raster buffer (32bpp,
+							// GDAL top-down). src2device: tile-local raster pixel -> device (= raster origin
+							// translate, then raster->device, then the viewport device offset).
+							int tileW = Width(tileIR), tileH = Height(tileIR);
+							if (tileW > 0 && tileH > 0 && SizeT(tileW) * SizeT(tileH) <= rasterBuffer.combinedBands.size())
+							{
+								CrdTransformation src2device(Convert<CrdPoint>(tileIR.first), CrdPoint(1.0, 1.0));
+								src2device *= grid2dev;
+								src2device += viewportDeviceOffset;
+								d.GetDrawContext()->DrawImageTransformed(src2device, rasterBuffer.combinedBands.data(), tileW, tileH, DmsRasterOp::SrcCopy);
+							}
 						}
 			}
 			catch (...)

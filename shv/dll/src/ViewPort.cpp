@@ -184,12 +184,56 @@ CrdTransformation ViewPort::CalcWorldToClientTransformation() const
 
 CrdTransformation ViewPort::CalcCurrWorldToClientTransformation() const
 {
-	return CrdTransformation(
+	CrdRect clientRect(Point<CrdType>(0, 0), GetCurrClientSize());
+	CrdTransformation base(
 		const_cast<ViewPort*>(this)->GetROI(),
-		CrdRect(Point<CrdType>(0, 0), GetCurrClientSize() ),
+		clientRect,
 		m_Orientation,
 		m_FitMode
 	);
+	// Parity: a north-up, untilted view stays byte-identical to the historical level-c transform.
+	if (m_Rotation == 0.0 && m_Tilt == 0.0)
+		return base;
+
+	// View rotation/tilt are applied in CLIENT space about the view centre, so they compose AFTER the
+	// world->client fit. f*g = g(f(x)): apply base, then yaw, then tilt. Result is level-d (yaw) / level-f
+	// (tilt). All downstream consumers read m_w2vTr via Apply/Reverse/GetGrid2DeviceTransformation.
+	CrdPoint clientCentre = Center(clientRect);
+	CrdTransformation tr = base;
+	if (m_Rotation != 0.0)
+		tr *= CrdTransformation::Rotation(m_Rotation, clientCentre);
+	if (m_Tilt != 0.0)
+		tr *= CrdTransformation::Tilt(m_Tilt, clientCentre, GetCurrClientSize().Row());
+	return tr;
+}
+
+const CrdType ViewPort::s_MaxTilt = 1.221730476; // ~70 degrees in radians
+
+// SetRotation/SetTilt change a CalcCurrWorldToClientTransformation input. They must NOT call
+// DoUpdateView() directly: that re-inits every GridCoord and could collide with a suspended/in-flight
+// draw (a threading race -> crash). Instead defer like SetClientSize (another transform change):
+// InvalidateView() clears GOF_IsUpdated so the next UpdateView pass (main thread, try/catch-guarded,
+// before the draw) rebuilds m_w2vTr + re-inits the GridCoords; InvalidateDraw() schedules that repaint.
+void ViewPort::SetRotation(CrdType yawRad)
+{
+	if (m_Rotation == yawRad)
+		return;
+	m_Rotation = yawRad;
+	InvalidateView();
+	InvalidateDraw();
+	UpdateScaleBar();
+}
+
+void ViewPort::SetTilt(CrdType pitchRad)
+{
+	MakeMin(pitchRad,  s_MaxTilt); // keep the visible rect in front of the perspective horizon
+	MakeMax(pitchRad, -s_MaxTilt);
+	if (m_Tilt == pitchRad)
+		return;
+	m_Tilt = pitchRad;
+	InvalidateView();
+	InvalidateDraw();
+	UpdateScaleBar();
 }
 
 void ViewPort::DoUpdateView()

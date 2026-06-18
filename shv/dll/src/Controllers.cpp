@@ -420,9 +420,15 @@ OrbitController::OrbitController(DataView* owner, ViewPort* target, const GPoint
 bool OrbitController::Exec(EventInfo& eventInfo)
 {
 	auto to = GetTargetObject().lock(); if (!to) return true;
-	// TODO(transform-d): decompose (eventInfo.m_Point - m_Origin) relative to the view centre into
-	// a tangential (yaw) and radial (tilt/untilt) component and compose Rotation/Tilt into the
-	// ViewPort's world->view transform. No-op while that transform is affine-only (level c).
+	ViewPort* view = debug_cast<ViewPort*>(to.get());
+	// Orbit about the view centre: horizontal drag -> yaw, vertical drag -> tilt. (A tangential/radial
+	// decomposition about the centre is a later refinement; this dx/dy mapping is intuitive and enough
+	// for the rotation+tilt milestone.) SetRotation/SetTilt rebuild m_w2vTr and repaint.
+	GPoint d = eventInfo.m_Point - m_Origin;
+	const CrdType YAW_PER_PX  = 0.005; // radians per device pixel (~57 deg per 200 px)
+	const CrdType TILT_PER_PX = 0.005;
+	if (d.x != 0) view->SetRotation(view->GetRotation() + d.x * YAW_PER_PX);
+	if (d.y != 0) view->SetTilt    (view->GetTilt()     + d.y * TILT_PER_PX);
 	m_Origin = eventInfo.m_Point;
 	return true;
 }

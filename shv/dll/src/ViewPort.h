@@ -110,14 +110,15 @@ public:
 	OrientationType Orientation() const;
 	void SetOrientation(OrientationType orientation) { m_Orientation = orientation; }
 
-	// Map rotation (yaw) and tilt (pitch) about the view centre, in radians. STUBS: the world->view
-	// CrdTransformation is still affine-only (level c), so these store state but do not yet rotate or
-	// tilt the rendered view (see Transformation_complexity_plan.md §7). Wired so the navigation
-	// tools/keys (TB_RestoreNorth/TB_RestoreUntilted, Shift+arrows) exist and route correctly now.
+	// Map rotation (yaw) and tilt (pitch) about the view centre, in radians. The world->view transform
+	// composes these in client space (CalcCurrWorldToClientTransformation); the setters rebuild m_w2vTr
+	// and repaint. yaw=0 & tilt=0 keeps the historical level-c transform (parity). SetTilt clamps to a
+	// safe range so the visible rect stays in front of the perspective horizon.
 	CrdType GetRotation() const { return m_Rotation; }
-	void    SetRotation(CrdType yawRad)   { m_Rotation = yawRad; /* TODO(transform-d): rebuild m_w2vTr + invalidate */ }
+	void    SetRotation(CrdType yawRad);
 	CrdType GetTilt()     const { return m_Tilt; }
-	void    SetTilt(CrdType pitchRad)     { m_Tilt = pitchRad;   /* TODO(transform-f): rebuild m_w2vTr + invalidate */ }
+	void    SetTilt(CrdType pitchRad);
+	static const CrdType s_MaxTilt; // ~70 degrees, the safe pitch ceiling
 
 	// FitMode::Stretch scales x and y independently so the ROI fills the client rect (charts);
 	// default Isotropic letterboxes (maps). See rtc/geo/Transform.h.
