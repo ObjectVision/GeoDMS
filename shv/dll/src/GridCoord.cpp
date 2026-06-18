@@ -146,8 +146,31 @@ void GridCoord::Recalc()
 
 	auto vp = m_Owner.lock();
 
+	if (!grid2DeviceTr.IsAxisSeparable())
+	{
+		// Rotated/projective grid->device: the separable row/col resampler does not apply. GridLayer::DrawGrid
+		// takes the transformed-blit path for this case (it does not use the row/col arrays). Here we only set a
+		// device clip extent (AABB of the grid quad) so Empty()/clipping behave; the per-axis members are unused.
+		m_IsSeparable  = false;
+		m_Orientation  = OrientationType::Default;
+		m_GridCellSize = CrdPoint(1.0, 1.0);
+		m_GridOrigin   = CrdPoint(0.0, 0.0);
+		CrdRect gridCRect = Convert<CrdRect>(m_Key.second);
+		CrdRect clientDeviceRect = CrdRect(CrdPoint(0, 0), g2dms_order<CrdType>(m_DeviceSize)) & grid2DeviceTr.ApplyBounds(gridCRect);
+		if (clientDeviceRect.empty())
+			m_ClippedRelDeviceRect = GRect();
+		else
+		{
+			auto devRect = RoundUp<4>(clientDeviceRect);
+			m_ClippedRelDeviceRect = GRect(devRect.first.X(), devRect.first.Y(), devRect.second.X(), devRect.second.Y());
+		}
+		m_GridRows.clear(); m_GridCols.clear(); m_LinedRows.clear(); m_LinedCols.clear();
+		return;
+	}
+
 	m_Orientation = grid2DeviceTr.Orientation();
 
+	m_IsSeparable = true;
 	CrdRect gridCRect = Deflate(Convert<CrdRect>(m_Key.second), CrdPoint(GRID_EXTENTS_MARGIN, GRID_EXTENTS_MARGIN));
 	CrdRect viewDRect = grid2DeviceTr.Apply(gridCRect); // grid in device coordinates
 
@@ -187,6 +210,9 @@ void GridCoord::UpdateToScale(DPoint subPixelFactors)
 	m_SubPixelFactors = subPixelFactors;
 	Recalc();
 	m_IsDirty = false;
+
+	if (!m_IsSeparable)
+		return; // rotated/projective: row/col arrays are not used (GridLayer takes the transformed-blit path)
 
 // process
 	GPoint viewSize = m_ClippedRelDeviceRect.Size();

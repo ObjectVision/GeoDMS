@@ -33,6 +33,7 @@ struct GridCoord : public std::enable_shared_from_this<GridCoord>
 
 	bool Empty  () const;
 	bool IsDirty() const { return m_IsDirty; }
+	bool IsSeparable() const { return m_IsSeparable; } // false => rotated/projective; use the transformed-blit path
 
 	const GRect& GetClippedRelDeviceRect() const { dms_assert(!IsDirty()); return m_ClippedRelDeviceRect; } 
 	const IRect& GetGridRect      () const { return m_Key.second; }
@@ -69,6 +70,7 @@ private:
 	CrdPoint                   m_GridOrigin;
 	CrdPoint                   m_GridCellSize;
 	OrientationType            m_Orientation = OrientationType::Default;
+	bool                       m_IsSeparable = true; // false for rotated/projective grid->device (transformed-blit path)
 	CrdPoint                   m_SubPixelFactors = {-1.0, -1.0};
 	grid_coord_array           m_GridRows,  m_GridCols;
 	grid_coord_array           m_LinedRows, m_LinedCols;
