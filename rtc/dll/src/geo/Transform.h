@@ -252,6 +252,17 @@ public:
 		}
 		return ApplyHomogeneous<F>(DPoint(p), transform_detail::Inverse3x3(m_H));
 	}
+	// Perspective denominator w of the homogeneous map at p (always 1 for <= Affine2D, so yaw/affine and
+	// the level-c fast path are unaffected). For a projective (tilt) transform the horizon is the locus
+	// w == 0; callers use the sign of w to cap source-extent enumeration at the horizon so a tilted view
+	// never reverse-maps points behind the camera into garbage grid coords. Use on the inverse transform
+	// (grid2dev.Inverse()) to test the in-front side of a device point.
+	template <typename F> scalar_type ApplyDenom(const Point<F>& p) const
+	{
+		if (m_Complexity <= TransformComplexity::Affine2D)
+			return scalar_type(1);
+		return m_H[6]*scalar_type(p.first) + m_H[7]*scalar_type(p.second) + m_H[8];
+	}
 	// Rect overloads: the image of a rect is only a rect when axis-separable; for >c it is a rotated/
 	// projective quad, so return its axis-aligned bounding box. The axis-separable branch is the exact
 	// historical two-corner result (intentionally NON-normalized, preserving inversion under axis flips

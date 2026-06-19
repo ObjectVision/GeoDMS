@@ -845,6 +845,11 @@ bool WmsLayer::Draw(GraphDrawer& d) const
 	if (clippedRelRect.empty())
 		return GVS_Continue;
 
+	// For the rotated/tilted (>c) path the composite inverse (device->grid) bounds the tile loop and the
+	// forward perspective-w sign (fwdRefSign = the sign in front of the camera) rejects behind-horizon tiles.
+	CrdTransformation dev2grid;
+	CrdType fwdRefSign = 1.0;
+
 	IPoint tlPixel, brPixel;
 	if (wmsSeparable)
 	{
@@ -853,9 +858,39 @@ bool WmsLayer::Draw(GraphDrawer& d) const
 	}
 	else
 	{
-		// AABB of the visible (rotated) device rect mapped back to raster pixels - bounds the tile loop
-		// (without this the garbage pixel coords clamp to [0, matrixSize-1] and enumerate the whole matrix).
-		CrdRect gridR = grid2dev.ReverseBounds(g2dms_order<CrdType>(clippedRelRect));
+		// Map the visible (rotated/tilted) device rect back to raster pixels to bound the tile loop. Under
+		// TILT the far edge of the device rect can project BEYOND the projective horizon, where Reverse()
+		// yields garbage that would otherwise clamp the loop to the WHOLE matrix (tile flood). So sample the
+		// device rect and keep only points in front of the camera (perspective-w of the same sign as the view
+		// centre); the AABB of those valid grid samples caps the extent at the horizon. For yaw/affine w is
+		// constant (==1) so every sample is valid and (the rect corners being the extremes) this AABB equals
+		// the old ReverseBounds clamped to the matrix - byte-identical tile range to the committed behaviour.
+		dev2grid = grid2dev.Inverse();
+		CrdRect  devR     = g2dms_order<CrdType>(clippedRelRect);
+		CrdPoint fullSize = Convert<CrdPoint>(tm.RasterSize());
+		CrdType  refSign  = (dev2grid.ApplyDenom(Center(devR)) < 0) ? -1.0 : 1.0;
+		fwdRefSign        = (grid2dev.ApplyDenom(dev2grid.Apply(Center(devR))) < 0) ? -1.0 : 1.0;
+		const int N = 24; // horizon resolution along each device edge
+		CrdRect gridR; bool haveValid = false;
+		for (int i = 0; i <= N; ++i)
+			for (int j = 0; j <= N; ++j)
+			{
+				CrdPoint devP( devR.first.first  + (devR.second.first  - devR.first.first ) * (i / CrdType(N))
+				             , devR.first.second + (devR.second.second - devR.first.second) * (j / CrdType(N)) );
+				if (dev2grid.ApplyDenom(devP) * refSign <= 0) // on/behind the horizon -> skip
+					continue;
+				CrdPoint g = dev2grid.Apply(devP);
+				g.first  = std::max(0.0, std::min(fullSize.first,  g.first )); // clamp to the matrix (a near-horizon
+				g.second = std::max(0.0, std::min(fullSize.second, g.second)); // sample's grid coord can explode)
+				if (!haveValid) { gridR = CrdRect(g, g); haveValid = true; }
+				else
+				{
+					gridR.first.first   = std::min(gridR.first.first,   g.first);  gridR.first.second  = std::min(gridR.first.second,  g.second);
+					gridR.second.first  = std::max(gridR.second.first,  g.first);  gridR.second.second = std::max(gridR.second.second, g.second);
+				}
+			}
+		if (!haveValid)
+			return GVS_Continue; // the entire visible rect is behind the horizon
 		tlPixel = RoundDown<4>(gridR.first);
 		brPixel = RoundUp  <4>(gridR.second);
 	}
@@ -884,7 +919,13 @@ bool WmsLayer::Draw(GraphDrawer& d) const
 				tileRelRect = drawGridCoords->GetClippedRelDeviceRect(tileIR);
 			else
 			{
-				CrdRect tdev = grid2dev.ApplyBounds(Convert<CrdRect>(tileIR));
+				CrdRect tileCR = Convert<CrdRect>(tileIR);
+				// Skip tiles whose centre is behind the projective horizon: their forward projection has
+				// w<=0 so ApplyBounds would yield a bogus device rect that could spuriously pass the clip.
+				// (No-op for yaw/affine, where w==1 and fwdRefSign==1.)
+				if (grid2dev.ApplyDenom(Center(tileCR)) * fwdRefSign <= 0)
+					continue;
+				CrdRect tdev = grid2dev.ApplyBounds(tileCR);
 				IPoint lo = RoundDown<4>(tdev.first), hi = RoundUp<4>(tdev.second);
 				tileRelRect = GRect(lo.Col(), lo.Row(), hi.Col(), hi.Row()) & clippedRelRect;
 			}
