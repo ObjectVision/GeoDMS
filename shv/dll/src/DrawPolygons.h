@@ -11,6 +11,7 @@
 
 #include "geo/CalcWidth.h"
 #include "geo/PointIndexBuffer.h"
+#include "geo/PointOrder.h"
 
 #include "BoundingBoxCache.h"
 #include "CounterStacks.h"
@@ -144,11 +145,20 @@ bool DrawPolygonInterior(
 	dms_assert(zoomLevel > 1.0e-30); // we assume that nothing remains visible on such a small scale to avoid numerical overflow in the following inversion
 
 	// Under a projective (tilted) view, clip polygon interiors against the horizon (see fillPointBufferHorizonClipped);
-	// a vertex beyond the horizon would otherwise balloon the filled polygon into a screen-wide slab. Computed once:
-	// the in-front sign at the view-area centre, and a small positive horizon margin. Affine views keep the 1:1 fill.
+	// a vertex beyond the horizon would otherwise balloon the filled polygon into a screen-wide slab. Computed once.
+	// Sample the in-front horizon sign at the TRUE view centre = Reverse(device-clip centre), which is always in
+	// front. Do NOT use Center(clipRect): clipRect is the AABB of the back-projected device rect, whose centre
+	// drifts toward/past the horizon at steep tilt -> the sign flips -> the clip inverts and discards the (in-front)
+	// polygon, so it vanished at the steepest tilt levels. Affine views keep the exact 1:1 fill.
 	const bool   isProjective = d.GetTransformation().IsProjective();
-	const double horizonRefSign = isProjective && (d.GetTransformation().ApplyDenom(DPoint(Center(clipRect))) < 0) ? -1.0 : 1.0;
-	const double horizonWEps    = 0.01;
+	double horizonRefSign = 1.0;
+	if (isProjective)
+	{
+		auto viewCentreWorld = d.GetTransformation().Reverse(Center(g2dms_order<CrdType>(d.GetAbsClipDeviceRect())));
+		if (d.GetTransformation().ApplyDenom(viewCentreWorld) < 0)
+			horizonRefSign = -1.0;
+	}
+	const double horizonWEps = 0.01;
 
 	ScalarType minWorldWidth  = s_DrawingSizeTresholdInPixels / zoomLevel;
 	ScalarType minWorldHeight = minWorldWidth;
