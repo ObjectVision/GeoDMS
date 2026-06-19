@@ -86,6 +86,11 @@ public:
     // breaks the [x] close button until Esc is pressed.
     void keyPressEvent(QKeyEvent* event) override;
 
+    // When Qt hands this MDI subwindow keyboard focus (app/window re-activation, MDI activation, tab),
+    // push focus down to the native DataView HWND so WM_KEYDOWN keeps flowing into DataView::OnKeyDown.
+    // Without this the MapView stops responding to keys (Shift+arrows etc.) after an app switch until clicked.
+    void focusInEvent(QFocusEvent* event) override;
+
     auto getDataView() -> std::shared_ptr<DataView> { return m_DataView.lock(); }
 #ifdef _WIN32
     auto getDataViewHwnd() -> void* { return m_DataViewHWnd; }

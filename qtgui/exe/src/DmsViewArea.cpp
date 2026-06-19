@@ -1213,6 +1213,17 @@ static UInt32 qtKeyToVK(int qtKey)
     return 0;
 }
 
+void QDmsViewArea::focusInEvent(QFocusEvent* event)
+{
+    QMdiSubWindow::focusInEvent(event);
+    // This subwindow is a thin Qt host around the native DataView HWND. On Windows the keyboard must
+    // reach that HWND (VH_SetFocus -> ::SetFocus(m_DataViewHWnd)) for WM_KEYDOWN to flow into
+    // DataView::OnKeyDown. Qt re-grants focus to this subwindow on app/window re-activation and MDI
+    // activation, but it does NOT restore Win32 focus to the embedded native child, so without forwarding
+    // it here the MapView stops responding to Shift+arrows etc. after an app switch until the user clicks it.
+    VH_SetFocus();
+}
+
 void QDmsViewArea::keyPressEvent(QKeyEvent* event)
 {
     auto dv = getDataView();

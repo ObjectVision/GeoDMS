@@ -704,7 +704,22 @@ bool MainWindow::event(QEvent* event) {
 
     if (event->type() == QEvent::WindowActivate && !s_errorWindowActivationCount)
     {
-        QTimer::singleShot(0, this, 
+        // Restore keyboard focus to the active data view's native HWND after the app is re-activated.
+        // When that native child held Win32 focus before the app lost activation, Qt has no focusWidget
+        // to restore, so the MapView stops receiving Shift+arrows etc. until clicked. Only act when no Qt
+        // widget currently claims focus (focusWidget()==nullptr) so we never steal focus from a treeview/
+        // editor the user clicked to re-activate the window. Deferred so it runs after activation settles.
+        QTimer::singleShot(0, this,
+            [this]()
+            {
+                if (g_IsTerminating || QApplication::focusWidget())
+                    return;
+                if (auto* va = dynamic_cast<QDmsViewArea*>(m_mdi_area ? m_mdi_area->activeSubWindow() : nullptr))
+                    va->VH_SetFocus();
+            }
+        );
+
+        QTimer::singleShot(0, this,
             [=, this]()
             {
                 if (g_IsTerminating)
