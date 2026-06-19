@@ -384,19 +384,22 @@ public:
 		return Affine2x3({ cs, -sn, cx - cs * cx + sn * cy,
 		                   sn,  cs, cy - sn * cx - cs * cy });
 	}
-	// Planar perspective "tilt" (pitch): foreshortens the FIRST (row / vertical) axis about the
-	// horizontal axis through `center`, as if the plane is pitched away from the viewer by pitchRad.
-	// eyeDist D>0 controls the strength (smaller D = stronger perspective; the horizon sits where
-	// w -> 0, i.e. first-offset == D/sin(pitch)). Level f (projective). Built from the 3x3 homography
-	// (row-major over (first,second,1)) core { first'=cos*first/w, second'=second/w, w=1-(sin/D)*first },
-	// conjugated by translate(+/-center). Keep |pitch| well below the angle that brings the visible
-	// rect to the horizon (callers clamp).
+	// Planar perspective "tilt" (pitch): rotates the ground plane about the HORIZONTAL axis through
+	// `center`, foreshortening the SECOND (Y / vertical screen) axis, so the scale shrinks toward the top
+	// (far field) and the horizon is a HORIZONTAL line. NOTE this build is colrow (point.first = X/col,
+	// point.second = Y/row), so the vertical screen axis that must foreshorten is `second`, NOT `first`
+	// (using `first` tilts about a VERTICAL axis -> vertical horizon + scale depending on viewport X, the
+	// pre-2026-06-19 bug). eyeDist D>0 controls the strength (smaller D = stronger perspective; the horizon
+	// sits where w -> 0, i.e. second-offset == D/sin(pitch)). Level f (projective). Built from the 3x3
+	// homography (row-major over (first,second,1)) core { first'=first/w, second'=cos*second/w,
+	// w=1-(sin/D)*second }, conjugated by translate(+/-center). Keep |pitch| well below the angle that
+	// brings the visible rect to the horizon (callers clamp; eyeDist=client height keeps it off-screen).
 	static Transformation Tilt(scalar_type pitchRad, const point_type& center, scalar_type eyeDist)
 	{
 		scalar_type sn = std::sin(pitchRad), cs = std::cos(pitchRad);
 		scalar_type cx = center.first, cy = center.second;
 		if (eyeDist == 0) eyeDist = 1;
-		std::array<T, 9> core = { cs, T(0), T(0),  T(0), T(1), T(0),  -sn / eyeDist, T(0), T(1) };
+		std::array<T, 9> core = { T(1), T(0), T(0),  T(0), cs, T(0),  T(0), -sn / eyeDist, T(1) };
 		std::array<T, 9> tNeg = { T(1), T(0), -cx,  T(0), T(1), -cy,  T(0), T(0), T(1) };
 		std::array<T, 9> tPos = { T(1), T(0),  cx,  T(0), T(1),  cy,  T(0), T(0), T(1) };
 		return FromHomography(transform_detail::Mul3x3(tPos, transform_detail::Mul3x3(core, tNeg)), TransformComplexity::Projective);
