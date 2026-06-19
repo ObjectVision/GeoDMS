@@ -427,7 +427,7 @@ bool OrbitController::Exec(EventInfo& eventInfo)
 	GPoint d = eventInfo.m_Point - m_Origin;
 	const CrdType YAW_PER_PX  = 0.005; // radians per device pixel (~57 deg per 200 px)
 	const CrdType TILT_PER_PX = 0.005;
-	if (d.x != 0) view->SetRotation(view->GetRotation() + d.x * YAW_PER_PX);
+	if (d.x != 0) view->SetRotation(view->GetRotation() - d.x * YAW_PER_PX); // match keyboard/Google-Maps yaw sense
 	if (d.y != 0) view->SetTilt    (view->GetTilt()     + d.y * TILT_PER_PX);
 	m_Origin = eventInfo.m_Point;
 	return true;

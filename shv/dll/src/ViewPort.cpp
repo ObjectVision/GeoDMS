@@ -1007,8 +1007,8 @@ bool ViewPort::OnKeyDown(UInt32 virtKey)
 		const CrdType ROT_STEP  = 0.2617993878; // ~15 degrees in radians
 		const CrdType TILT_STEP = 0.1745329252; // ~10 degrees in radians
 		switch (KeyInfo::CharOf(virtKey)) {
-			case VK_LEFT:  SetRotation(GetRotation() - ROT_STEP);  return true;
-			case VK_RIGHT: SetRotation(GetRotation() + ROT_STEP);  return true;
+			case VK_LEFT:  SetRotation(GetRotation() + ROT_STEP);  return true; // match Google-Maps feel: Left rotates view CCW
+			case VK_RIGHT: SetRotation(GetRotation() - ROT_STEP);  return true; // Right rotates view CW
 			case VK_UP:    SetTilt    (GetTilt()     - TILT_STEP); return true; // viewpoint higher -> less tilt (toward top-down)
 			case VK_DOWN:  SetTilt    (GetTilt()     + TILT_STEP); return true; // viewpoint lower  -> more tilt
 		}
