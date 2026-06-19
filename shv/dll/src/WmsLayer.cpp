@@ -943,12 +943,15 @@ bool WmsLayer::Draw(GraphDrawer& d) const
 								CrdTransformation src2device(Convert<CrdPoint>(tileIR.first), CrdPoint(1.0, 1.0));
 								src2device *= grid2dev;
 								src2device += viewportDeviceOffset;
-								// SrcAnd, not SrcCopy: DrawImageTransformed pads the rotated tile's device AABB with
-								// white. Under SrcCopy each tile's white AABB corners overwrite the adjacent already-
-								// drawn tile, leaving white triangular seams between rotated tiles. SrcAnd makes white
-								// the AND-identity (transparent) so neighbours show through and warped tiles tessellate.
-								// Matches GridLayer's rotated-raster blit.
-								d.GetDrawContext()->DrawImageTransformed(src2device, rasterBuffer.combinedBands.data(), tileW, tileH, DmsRasterOp::SrcAnd);
+								// GDAL delivers the WMS tile buffer TOP-DOWN, but DrawImageTransformed reads its
+								// source bottom-up (the GridLayer path feeds it a bottom-up GridFill buffer). Without
+								// compensating, each tile is Y-mirrored, so the placement follows the view rotation but
+								// the pixel content appears counter-rotated. Flip the rows here so content matches.
+								using pixel_t = std::decay_t<decltype(rasterBuffer.combinedBands[0])>;
+								std::vector<pixel_t> flipped(SizeT(tileW) * SizeT(tileH));
+								for (int rr = 0; rr < tileH; ++rr)
+									memcpy(&flipped[SizeT(rr) * tileW], &rasterBuffer.combinedBands[SizeT(tileH - 1 - rr) * tileW], SizeT(tileW) * sizeof(pixel_t));
+								d.GetDrawContext()->DrawImageTransformed(src2device, flipped.data(), tileW, tileH, DmsRasterOp::SrcAnd);
 							}
 						}
 			}
