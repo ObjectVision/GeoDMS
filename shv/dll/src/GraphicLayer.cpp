@@ -399,7 +399,10 @@ TokenID GraphicLayer::GetID() const
 
 bool GraphicLayer::VisibleLevel(GraphDrawer& d) const
 {
-	auto currNrPixelsPerUnit = d.GetTransformation().ZoomLevel() / d.GetSubPixelFactor();
+	// Use the view-centre scale (GetWorldZoomLevel), not GetTransformation().ZoomLevel() which samples the
+	// world origin (0,0) - bogus under tilt and could wrongly hide a layer at its LOD threshold (e.g. polygons
+	// vanishing when tilted). Byte-identical at <=c.
+	auto currNrPixelsPerUnit = d.GetWorldZoomLevel() / d.GetSubPixelFactor();
 	return VisibleLevel(currNrPixelsPerUnit);
 }
 
