@@ -1207,9 +1207,12 @@ bool GridLayer::DrawAllRectsTransformed(GraphDrawer& d, const GridColorPalette& 
 							// device col (clip.left+bc). srcGC device == tile-local grid (identity translate),
 							// so grid = device + tileGridRect.first. Fold this affine map (with the row flip)
 							// into one axis-separable transform, then through grid2dev + viewport offset.
+							// Built with explicit X(col)/Y(row) order (shp2dms_order) to match the point-order-
+							// independent DrawImageTransformed: grid.X = +bc + (clip.left+tileCol);
+							// grid.Y = -br + (clip.bottom-1+tileRow). (bc = buffer col, br = buffer row.)
 							CrdTransformation buf2grid(
-								CrdPoint(double(clip.bottom - 1 + tileGridRect.first.Row()), double(clip.left + tileGridRect.first.Col()))
-							,	CrdPoint(-1.0, 1.0));
+								shp2dms_order<CrdType>(double(clip.left + tileGridRect.first.Col()), double(clip.bottom - 1 + tileGridRect.first.Row()))
+							,	shp2dms_order<CrdType>(1.0, -1.0));
 							CrdTransformation src2device = buf2grid;
 							src2device *= grid2dev;
 							src2device += devOffsetDms;

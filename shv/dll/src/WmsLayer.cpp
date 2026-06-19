@@ -940,18 +940,13 @@ bool WmsLayer::Draw(GraphDrawer& d) const
 							int tileW = Width(tileIR), tileH = Height(tileIR);
 							if (tileW > 0 && tileH > 0 && SizeT(tileW) * SizeT(tileH) <= rasterBuffer.combinedBands.size())
 							{
+								// src2device maps a tile-local pixel (X=col, Y=row) to device. The GDAL tile buffer is
+								// row-major top-down (row 0 = north = the tile's min grid row), which is exactly what
+								// the (order-independent) DrawImageTransformed expects (src32[row*tileW + col]).
 								CrdTransformation src2device(Convert<CrdPoint>(tileIR.first), CrdPoint(1.0, 1.0));
 								src2device *= grid2dev;
 								src2device += viewportDeviceOffset;
-								// GDAL delivers the WMS tile buffer TOP-DOWN, but DrawImageTransformed reads its
-								// source bottom-up (the GridLayer path feeds it a bottom-up GridFill buffer). Without
-								// compensating, each tile is Y-mirrored, so the placement follows the view rotation but
-								// the pixel content appears counter-rotated. Flip the rows here so content matches.
-								using pixel_t = std::decay_t<decltype(rasterBuffer.combinedBands[0])>;
-								std::vector<pixel_t> flipped(SizeT(tileW) * SizeT(tileH));
-								for (int rr = 0; rr < tileH; ++rr)
-									memcpy(&flipped[SizeT(rr) * tileW], &rasterBuffer.combinedBands[SizeT(tileH - 1 - rr) * tileW], SizeT(tileW) * sizeof(pixel_t));
-								d.GetDrawContext()->DrawImageTransformed(src2device, flipped.data(), tileW, tileH, DmsRasterOp::SrcAnd);
+								d.GetDrawContext()->DrawImageTransformed(src2device, rasterBuffer.combinedBands.data(), tileW, tileH, DmsRasterOp::SrcAnd);
 							}
 						}
 			}

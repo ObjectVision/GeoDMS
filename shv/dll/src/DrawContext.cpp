@@ -47,7 +47,9 @@ void DrawContext::DrawReversedBorder(GRect& rect)
 }
 
 // Portable transformed blit: CPU inverse-map (nearest) resample into the device-AABB, then one
-// DrawImage. Coordinates are dms order (first=row/Y, second=col/X), matching GridCoord's grid2device.
+// DrawImage. POINT-ORDER INDEPENDENT: src2device maps a source pixel (X=col, Y=row) to a device
+// pixel (X,Y); the source buffer is row-major (src32[row*srcWidth + col]). Uses the semantic
+// .X()/.Y() accessors (not raw .first/.second) so it is correct on both colrow and rowcol builds.
 void DrawContext::DrawImageTransformed(const CrdTransformation& src2device, const void* pixelData32, int srcWidth, int srcHeight, DmsRasterOp op)
 {
 	if (!pixelData32 || srcWidth <= 0 || srcHeight <= 0)
@@ -56,11 +58,11 @@ void DrawContext::DrawImageTransformed(const CrdTransformation& src2device, cons
 		return;
 	auto src32 = static_cast<const UInt32*>(pixelData32);
 
-	// device-space AABB of the transformed source rectangle (source pixel coords: first=row, second=col)
-	CrdRect devDms = src2device.ApplyBounds(CrdRect(CrdPoint(0.0, 0.0), CrdPoint(double(srcHeight), double(srcWidth))));
+	// device-space AABB of the transformed source rectangle (source pixel coords: X in [0,srcWidth], Y in [0,srcHeight])
+	CrdRect devBounds = src2device.ApplyBounds(CrdRect(CrdPoint(0.0, 0.0), shp2dms_order<CrdType>(double(srcWidth), double(srcHeight))));
 	GRect destRect(
-		GType(std::floor(devDms.first.second)),  GType(std::floor(devDms.first.first)),   // left, top   (minX, minY)
-		GType(std::ceil (devDms.second.second)), GType(std::ceil (devDms.second.first))    // right, bottom(maxX, maxY)
+		GType(std::floor(devBounds.first.X())),  GType(std::floor(devBounds.first.Y())),   // left, top   (minX, minY)
+		GType(std::ceil (devBounds.second.X())), GType(std::ceil (devBounds.second.Y()))    // right, bottom(maxX, maxY)
 	);
 	destRect &= GetClipRect();
 	if (destRect.empty())
@@ -79,11 +81,11 @@ void DrawContext::DrawImageTransformed(const CrdTransformation& src2device, cons
 		for (int dx = 0; dx != destW; ++dx)
 		{
 			double deviceX = double(destRect.left + dx) + 0.5;
-			CrdPoint srcP = src2device.Reverse(CrdPoint(deviceY, deviceX)); // -> (srcRow, srcCol)
-			int r = int(std::floor(srcP.first));
-			int c = int(std::floor(srcP.second));
-			if (unsigned(r) < unsigned(srcHeight) && unsigned(c) < unsigned(srcWidth))
-				outRow[dx] = src32[SizeT(r) * SizeT(srcWidth) + SizeT(c)];
+			CrdPoint srcP = src2device.Reverse(shp2dms_order<CrdType>(deviceX, deviceY)); // -> source pixel (X=col, Y=row)
+			int col = int(std::floor(srcP.X()));
+			int row = int(std::floor(srcP.Y()));
+			if (unsigned(col) < unsigned(srcWidth) && unsigned(row) < unsigned(srcHeight))
+				outRow[dx] = src32[SizeT(row) * SizeT(srcWidth) + SizeT(col)];
 		}
 	}
 	// bottom-up 32bpp DIB; reuse the backend's DrawImage so `op` (e.g. SrcAnd) applies.
