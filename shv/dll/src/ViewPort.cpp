@@ -488,7 +488,9 @@ CrdRect ViewPort::CalcWorldClientRect() const
 
 CrdType ViewPort::GetCurrLogicalZoomLevel() const
 {
-	return m_w2vTr.ZoomLevel();
+	// >c-safe: the isotropic scale at the VIEW CENTRE, not m_w2vTr.ZoomLevel() which samples the world origin
+	// (0,0) - bogus under tilt/rotation. Byte-identical at <=c (Abs(Factor().first) == ZoomLevel()).
+	return Abs(GetCurrLogicalZoomFactors().first);
 }
 
 // Per-axis logical zoom factors. Factor() only exists for axis-separable transforms (levels a..c);

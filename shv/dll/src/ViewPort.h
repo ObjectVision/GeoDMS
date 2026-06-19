@@ -145,10 +145,13 @@ public:
 	CrdTransformation GetCurrWorldToClientTransformation() const { return m_w2vTr; }
 	CrdPoint          CalcCurrWorldToDeviceFactors() const; // >c-safe (LogicalZoomFactorsOf); byte-identical at <=c
 	CrdPoint          GetCurrWorldToDeviceFactors() const { return GetCurrLogicalZoomFactors() * GetScaleFactors(); }
-	// Scalar device zoom level via ZoomLevel() (>c-safe: |fx| for <=c, LocalScaleAt for rotated/projective),
-	// avoiding the per-axis Factor() which only exists for axis-separable transforms. Byte-identical at <=c.
-	CrdType           CalcCurrWorldToDeviceZoomLevel() const { return CalcCurrWorldToClientTransformation().ZoomLevel() * Abs(GetScaleFactors().first); }
-	CrdType           GetCurrWorldToDeviceZoomLevel() const { return m_w2vTr.ZoomLevel() * Abs(GetScaleFactors().first); }
+	// Scalar isotropic world->device zoom level. Routes through the *Factors() accessors (LogicalZoomFactorsOf:
+	// |fx| for <=c, LocalScaleAt(VIEW CENTRE) for rotated/projective) - NOT the transform's ZoomLevel(), which
+	// samples LocalScaleAt(world origin (0,0)); under tilt/rotation that origin sits near the projective horizon
+	// and yields a bogus, non-monotonic scale (e.g. WMS +/- then chose a wildly wrong tile matrix -> over-zoom &
+	// mis-recenter). Byte-identical at <=c (Factor().first * scaleFactor == ZoomLevel() * scaleFactor).
+	CrdType           CalcCurrWorldToDeviceZoomLevel() const { return Abs(CalcCurrWorldToDeviceFactors().first); }
+	CrdType           GetCurrWorldToDeviceZoomLevel() const { return Abs(GetCurrWorldToDeviceFactors().first); }
 
 //	override other virtuals of GraphicObject
   	GraphVisitState InviteGraphVistor(AbstrVisitor&) override;
