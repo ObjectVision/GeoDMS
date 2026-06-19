@@ -988,18 +988,30 @@ int ScrollStepSize()
 
 bool ViewPort::OnKeyDown(UInt32 virtKey)
 {
-	if (KeyInfo::IsSpec(virtKey)) 
+	// N = restore north-up (yaw->0), T = restore untilted (pitch->0). Handle here, before the IsSpec
+	// branch, so they work on BOTH key paths: the native Win32 path delivers WM_KEYDOWN (VK_N/VK_T, no
+	// Char flag), while the Qt path delivers letters qtKeyToVK does not translate as WM_CHAR-equivalents
+	// with KeyInfo::Flag::Char set -- which makes IsSpec() (CcmOf==0) false, so the keys were dead on the
+	// Qt build. Match the keydown VK ('N'/'T') and the char codes ('n'/'t', and shifted 'N'/'T'); only when
+	// no Ctrl/Alt is held (a map view has no text-cell editing, so Char delivery is safe to treat as a command).
+	if (!(virtKey & (KeyInfo::Flag::Ctrl | KeyInfo::Flag::Menu)))
+	{
+		switch (KeyInfo::CharOf(virtKey)) {
+			case 'N': case 'n': return OnCommand(TB_RestoreNorth);    // restore north-up (yaw=0)
+			case 'T': case 't': return OnCommand(TB_RestoreUntilted); // restore untilted (pitch=0)
+		}
+	}
+
+	if (KeyInfo::IsSpec(virtKey))
 	{
 		switch (KeyInfo::CharOf(virtKey)) {
 			case VK_ADD:      return OnCommand(TB_ZoomIn1);
-			case VK_SUBTRACT: return OnCommand(TB_ZoomOut1);			
+			case VK_SUBTRACT: return OnCommand(TB_ZoomOut1);
 
 			case VK_RIGHT:    ScrollLogical(shp2dms_order<TType>(-ScrollStepSize(), 0)); return true;
 			case VK_LEFT:     ScrollLogical(shp2dms_order<TType>( ScrollStepSize(), 0)); return true;
 			case VK_UP:       ScrollLogical(shp2dms_order<TType>(0,  ScrollStepSize())); return true;
 			case VK_DOWN:     ScrollLogical(shp2dms_order<TType>(0, -ScrollStepSize())); return true;
-			case 'N':         return OnCommand(TB_RestoreNorth);    // restore north-up (yaw=0)
-			case 'T':         return OnCommand(TB_RestoreUntilted); // restore untilted (pitch=0)
 		}
 	} else if (KeyInfo::IsShift(virtKey)) {
 		// Shift+arrows: step rotate (yaw) / tilt (pitch). STUB setters until the world->view
@@ -1343,11 +1355,11 @@ void ViewPort::ScrollDevice(GPoint delta)
 		}
 		SetROI(GetROI() - worldDelta);
 	}
-	m_w2vTr = CalcCurrWorldToClientTransformation();
+	auto newW2vTr = CalcCurrWorldToClientTransformation();
 
 	InvalidateOverlapped();
 
-	if (m_w2vTr.IsProjective())
+	if (newW2vTr.IsProjective())
 	{
 		// Tilted (projective) view: a world pan is NOT a uniform device translation (perspective makes
 		// near features shift more than far ones), so the rendered pixels cannot be blit-scrolled and the
@@ -1356,10 +1368,17 @@ void ViewPort::ScrollDevice(GPoint delta)
 		// GridCoord for the new ROI (the same safe deferred path SetRotation/SetTilt use -- never call
 		// DoUpdateView() directly here, that would race an in-flight draw); InvalidateDraw() schedules the
 		// paint. Affine views (north-up AND pure yaw) keep the fast, pixel-exact translative scroll below.
+		//
+		// Do NOT assign m_w2vTr here: DoUpdateView only re-inits the GridCoords (which place the WMS/raster
+		// tiles) when its freshly computed transform DIFFERS from m_w2vTr (the `if (m_w2vTr == w2vTr) return;`
+		// guard). Pre-assigning short-circuits that guard, leaving the WMS tiles at the old ROI while the
+		// vector layers -- which read m_w2vTr at draw time -- move to the new one (the pan-under-tilt skew).
 		InvalidateView();
 		InvalidateDraw();
 		return;
 	}
+
+	m_w2vTr = newW2vTr;
 
 	auto deviceExtents = ScaleCrdRect( CalcClientRelRect(), GetScaleFactors() );
 	auto intExtents = CrdRect2GRect(deviceExtents);
