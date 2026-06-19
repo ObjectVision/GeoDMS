@@ -207,7 +207,7 @@ CrdTransformation ViewPort::CalcCurrWorldToClientTransformation() const
 	return tr;
 }
 
-const CrdType ViewPort::s_MaxTilt = 1.221730476; // ~70 degrees in radians
+const CrdType ViewPort::s_MaxTilt = 1.308996939; // 75 degrees in radians (beyond ~90 deg the image flips upside down)
 
 // SetRotation/SetTilt change a CalcCurrWorldToClientTransformation input. They must NOT call
 // DoUpdateView() directly: that re-inits every GridCoord and could collide with a suspended/in-flight
@@ -226,8 +226,8 @@ void ViewPort::SetRotation(CrdType yawRad)
 
 void ViewPort::SetTilt(CrdType pitchRad)
 {
-	MakeMin(pitchRad,  s_MaxTilt); // keep the visible rect in front of the perspective horizon
-	MakeMax(pitchRad, -s_MaxTilt);
+	MakeMin(pitchRad, s_MaxTilt); // cap at 75 deg: beyond ~90 deg the plane would flip upside down
+	MakeMax(pitchRad, CrdType(0)); // 0 deg = top view (pure affine); never tilt below 0 (no horizon below the view centre)
 	if (m_Tilt == pitchRad)
 		return;
 	m_Tilt = pitchRad;

@@ -118,7 +118,7 @@ public:
 	void    SetRotation(CrdType yawRad);
 	CrdType GetTilt()     const { return m_Tilt; }
 	void    SetTilt(CrdType pitchRad);
-	static const CrdType s_MaxTilt; // ~70 degrees, the safe pitch ceiling
+	static const CrdType s_MaxTilt; // 75 degrees, the safe pitch ceiling (tilt clamped to [0, s_MaxTilt])
 
 	// FitMode::Stretch scales x and y independently so the ROI fills the client rect (charts);
 	// default Isotropic letterboxes (maps). See rtc/geo/Transform.h.
