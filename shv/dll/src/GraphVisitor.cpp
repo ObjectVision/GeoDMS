@@ -391,7 +391,21 @@ GraphVisitState GraphVisitor::DoScrollPort(ScrollPort* sp)
 
 CrdRect GraphVisitor::GetWorldClipRect() const
 {
-	return m_Transformation.Reverse(g2dms_order<CrdType>( GetAbsClipDeviceRect() ) ); 
+	return m_Transformation.Reverse(g2dms_order<CrdType>( GetAbsClipDeviceRect() ) );
+}
+
+CrdType GraphVisitor::GetWorldZoomLevel() const
+{
+	if (m_Transformation.IsAxisSeparable())
+		return Abs(m_Transformation.ZoomLevel()); // constant scale; byte-identical to the historical value
+
+	// >c (rotated/tilted): the scale varies across the plane, so sample it at the VIEW CENTRE = the world
+	// point that the device clip-rect centre maps back to. Do NOT use Center(GetWorldClipRect()): that takes
+	// the AABB of the back-projected (trapezoidal) device rect, whose centre is skewed toward the far field
+	// where the local scale is smaller -> pen widths collapse to 0px and thin arc/polygon outlines (e.g. BAG
+	// pand) vanish after tilting. ZoomLevel()'s world-origin (0,0) is even worse (near the projective horizon).
+	auto deviceCentre = Center(g2dms_order<CrdType>(GetAbsClipDeviceRect()));
+	return Abs(m_Transformation.LocalScaleAt(m_Transformation.Reverse(deviceCentre)));
 }
 
 GPoint GraphVisitor::GetDeviceSize(TPoint relPoint) const

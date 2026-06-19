@@ -1009,8 +1009,8 @@ bool ViewPort::OnKeyDown(UInt32 virtKey)
 		switch (KeyInfo::CharOf(virtKey)) {
 			case VK_LEFT:  SetRotation(GetRotation() - ROT_STEP);  return true;
 			case VK_RIGHT: SetRotation(GetRotation() + ROT_STEP);  return true;
-			case VK_UP:    SetTilt    (GetTilt()     + TILT_STEP); return true;
-			case VK_DOWN:  SetTilt    (GetTilt()     - TILT_STEP); return true;
+			case VK_UP:    SetTilt    (GetTilt()     - TILT_STEP); return true; // viewpoint higher -> less tilt (toward top-down)
+			case VK_DOWN:  SetTilt    (GetTilt()     + TILT_STEP); return true; // viewpoint lower  -> more tilt
 		}
 	} else if (KeyInfo::IsCtrl(virtKey)) {
 		switch (KeyInfo::CharOf(virtKey)) {

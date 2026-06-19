@@ -93,14 +93,9 @@ public:
 
 	// Scalar world->device zoom for LOD / pen-width / minimum-feature-size. Axis-separable (<=c) views have a
 	// constant scale (|factor|); a rotated/tilted (>c) view's scale varies across the plane, so evaluate it at
-	// the centre of the visible world rect instead of ZoomLevel()'s world-origin (0,0) - under tilt that origin
-	// sits near the projective horizon and yields a bogus, non-monotonic scale, which makes features balloon
-	// (e.g. small polygons drawn as fat dots) at certain tilt angles. <=c stays byte-identical (Abs(ZoomLevel)).
-	CrdType GetWorldZoomLevel() const
-	{
-		auto tr = GetTransformation();
-		return tr.IsAxisSeparable() ? Abs(tr.ZoomLevel()) : Abs(tr.LocalScaleAt(Center(GetWorldClipRect())));
-	}
+	// the VIEW CENTRE (reverse-map of the device clip-rect centre) instead of ZoomLevel()'s world-origin (0,0).
+	// Byte-identical at <=c. See GraphVisitor.cpp.
+	CrdType GetWorldZoomLevel() const;
 
 	CrdPoint GetSubPixelFactors() const;
 	CrdType GetSubPixelFactor() const;
