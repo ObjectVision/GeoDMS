@@ -65,7 +65,7 @@
 FeatureDrawer::FeatureDrawer(const FeatureLayer* layer, GraphDrawer&  drawer)
 	:	m_Layer                ( layer  )
 	,	m_Drawer               ( drawer )
-	,	m_WorldZoomLevel       ( drawer.GetTransformation().ZoomLevel() )
+	,	m_WorldZoomLevel       ( drawer.GetWorldZoomLevel() )
 	,	m_IndexCollector       ( layer->GetIndexCollector(), no_tile )
 	,	m_SelValues            ( )
 {
@@ -1357,7 +1357,7 @@ bool DrawNetwork(
 		{
 			GPoint pointBuffer[2];
 
-			penIndices->UpdateForZoomLevel(Abs(d.GetTransformation().ZoomLevel()), d.GetSubPixelFactor());
+			penIndices->UpdateForZoomLevel(d.GetWorldZoomLevel(), d.GetSubPixelFactor());
 			auto* drawCtx = d.GetDrawContext();
 
 			ResumableCounter itemCounter(d.GetCounterStacks(), true);
@@ -2298,7 +2298,7 @@ bool DrawArcs(const GraphicArcLayer* layer, const FeatureDrawer& fd, const PenIn
 	CrdTransformation transformer = d.GetTransformation();
 	auto geoRect = Convert<RangeType>( layer->GetWorldClipRect(d) );
 
-	CrdType zoomLevel = Abs(transformer.ZoomLevel());
+	CrdType zoomLevel = d.GetWorldZoomLevel();
 	dms_assert(zoomLevel > 1.0e-30); // we assume that nothing remains visible on such a small scale to avoid numerical overflow in the following inversion
 
 	ScalarType minWorldWidth  = s_DrawingSizeTresholdInPixels / zoomLevel;
@@ -2326,7 +2326,7 @@ bool DrawArcs(const GraphicArcLayer* layer, const FeatureDrawer& fd, const PenIn
 		{
 			std::vector<GPoint> pointBuffer;
 
-			penIndices->UpdateForZoomLevel(Abs(d.GetTransformation().ZoomLevel()), d.GetSubPixelFactor());
+			penIndices->UpdateForZoomLevel(d.GetWorldZoomLevel(), d.GetSubPixelFactor());
 			auto* drawCtx = d.GetDrawContext();
 
 			ResumableCounter tileCounter(d.GetCounterStacks(), true);

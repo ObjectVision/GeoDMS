@@ -104,7 +104,7 @@ bool DrawPolygonInterior(
 			hatchStyleGetter = hatchStyleTheme->GetValueGetter();
 	}
 
-	CrdType zoomLevel = Abs(d.GetTransformation().ZoomLevel());
+	CrdType zoomLevel = d.GetWorldZoomLevel();
 
 	dms_assert(zoomLevel > 1.0e-30); // we assume that nothing remains visible on such a small scale to avoid numerical overflow in the following inversion
 
@@ -254,7 +254,7 @@ bool DrawPolygons(const GraphicPolygonLayer* layer, const FeatureDrawer& fd, con
 
 	pointBuffer_t pointBuffer;
 
-	CrdType zoomLevel = Abs(d.GetTransformation().ZoomLevel());
+	CrdType zoomLevel = d.GetWorldZoomLevel();
 	assert(zoomLevel > 1.0e-30); // we assume that nothing remains visible on such a small scale to avoid numerical overflow in the following inversion
 
 	ScalarType minWorldWidth  = s_DrawingSizeTresholdInPixels / zoomLevel;
@@ -318,7 +318,7 @@ bool DrawPolygons(const GraphicPolygonLayer* layer, const FeatureDrawer& fd, con
 		index_range_vector_t pointIndexBuffer;
 		if (penIndices && !layer->IsDisabledAspectGroup(AG_Pen))
 		{
-			penIndices->UpdateForZoomLevel(Abs(d.GetTransformation().ZoomLevel()), d.GetSubPixelFactor());
+			penIndices->UpdateForZoomLevel(d.GetWorldZoomLevel(), d.GetSubPixelFactor());
 			auto* drawCtx = d.GetDrawContext();
 
 			ResumableCounter tileCounter(d.GetCounterStacks(), true);

@@ -91,6 +91,17 @@ public:
 	GRect   GetAbsClipDeviceRect() const { return m_ClipDeviceRect; }
 	CrdRect GetWorldClipRect() const;
 
+	// Scalar world->device zoom for LOD / pen-width / minimum-feature-size. Axis-separable (<=c) views have a
+	// constant scale (|factor|); a rotated/tilted (>c) view's scale varies across the plane, so evaluate it at
+	// the centre of the visible world rect instead of ZoomLevel()'s world-origin (0,0) - under tilt that origin
+	// sits near the projective horizon and yields a bogus, non-monotonic scale, which makes features balloon
+	// (e.g. small polygons drawn as fat dots) at certain tilt angles. <=c stays byte-identical (Abs(ZoomLevel)).
+	CrdType GetWorldZoomLevel() const
+	{
+		auto tr = GetTransformation();
+		return tr.IsAxisSeparable() ? Abs(tr.ZoomLevel()) : Abs(tr.LocalScaleAt(Center(GetWorldClipRect())));
+	}
+
 	CrdPoint GetSubPixelFactors() const;
 	CrdType GetSubPixelFactor() const;
 	GPoint GetDeviceSize(TPoint relPoint) const;
