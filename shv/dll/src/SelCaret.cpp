@@ -186,6 +186,22 @@ void SelCaret::UpdateRgn(const Region& updateRgn)
 	PreparedDataReadLock readLock(m_SelAttr.get(), "SelCaret::UpdateRgn");
 
 	m_GridCoords->UpdateUnscaled();
+
+	// Under view rotation/tilt the composite grid->device transform is >c (not axis-separable), so the
+	// GridCoord's separable device<->grid row/col index arrays that UpdateRectImpl walks are not built
+	// (left empty by GridCoord's >c guard). Walking them then reads past the (empty) arrays -> out-of-bounds
+	// access violation during the timer-driven redraw (observed as 0xc0000409 in SelCaret::UpdateRectImpl).
+	// The grid selection-caret highlight has no separable representation under rotation; quad-aware selection
+	// rendering is a deferred feature, so drop any existing caret and skip rather than crash. Axis-separable
+	// (north-up) views keep the original path, byte-identical.
+	if (!m_GridCoords->IsSeparable())
+	{
+		if (!m_SelCaretRgn.Empty())
+			SetSelCaretRgn(Region());
+		m_Ready = true;
+		return;
+	}
+
 	Region clippedUpdateRgn = Region( m_GridCoords->GetClippedRelDeviceRect() );
 	clippedUpdateRgn &= updateRgn;
 	if (clippedUpdateRgn.Empty())
