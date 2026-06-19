@@ -14,6 +14,8 @@
 #include "act/MainThread.h"
 #include "dbg/DebugCast.h"
 #include "geo/Conversions.h"
+#include "geo/PointOrder.h"
+#include "geo/Range.h"
 #include "utl/mySPrintF.h"
 #include "mci/Class.h"
 #include "utl/IncrementalLock.h"
@@ -67,7 +69,36 @@ CrdRect ScalableObject::GetCurrFullAbsDeviceRect(const GraphVisitor& v) const
 	if (cwcr.empty())
 		return CrdRect();
 
-	auto cwDeviceRect = v.GetTransformation().Apply(cwcr);
+	auto tr = v.GetTransformation();
+	auto cwDeviceRect = tr.Apply(cwcr);
+
+	// Under a projective (tilted) view the layer's full world rect can straddle the projective horizon
+	// (the locus w == 0). A corner beyond the horizon maps through a non-positive denominator and yields
+	// garbage device coords, so the axis-aligned bounding box from Apply() is unreliable and the
+	// IsIntersecting cull in GraphVisitor::Visit would wrongly drop the WHOLE layer (e.g. a nation-wide BAG
+	// layer vanishes on the first tilt step). When the rect crosses the horizon, fall back to the current
+	// clip device rect so the layer is still visited; the finer per-feature culls inside the draw (which use
+	// the bounded visible rect) then limit the actual work. ApplyDenom() returns 1 for <= Affine2D, so yaw/
+	// affine and the level-c separable path are byte-identical (no corner ever "crosses").
+	if (!tr.IsAxisSeparable())
+	{
+		auto     devClip = g2dms_order<CrdType>(v.GetAbsClipDeviceRect());
+		CrdType  refW    = tr.ApplyDenom(tr.Reverse(Center(devClip)));
+		CrdType  refSign = (refW >= 0) ? 1.0 : -1.0;
+		const CrdPoint corners[4] = {
+			cwcr.first,
+			CrdPoint(cwcr.second.first, cwcr.first.second),
+			CrdPoint(cwcr.first.first,  cwcr.second.second),
+			cwcr.second
+		};
+		for (const auto& c : corners)
+			if (tr.ApplyDenom(c) * refSign <= 0.0)
+			{
+				cwDeviceRect = GRect2CrdRect(v.GetAbsClipDeviceRect());
+				break;
+			}
+	}
+
 	auto borderDeviceExtents = TRect2CrdRect(GetBorderLogicalExtents(), v.GetSubPixelFactors());
 	return cwDeviceRect + borderDeviceExtents;
 }
