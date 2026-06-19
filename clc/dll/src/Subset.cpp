@@ -570,6 +570,11 @@ struct AbstrRecollectByCondOperator : BinaryOperator
 		{
 			fillA = AsDynamicDataItem(args[2]);
 			MG_USERCHECK2(fillA, "recollect_by_cond: third argument is expected to be an attribute or parameter");
+			if (dataA->GetValueComposition() != fillA->GetValueComposition())
+				reportF(SeverityTypeID::ST_Warning, "%s: value composition %s of the 2nd argument differs from value composition %s of the 3rd argument; the result takes the value composition of the 2nd argument"
+					, GetGroup()->GetNameStr()
+					, SharedStr(GetValueCompositionID(dataA->GetValueComposition()))
+					, SharedStr(GetValueCompositionID(fillA->GetValueComposition())));
 			dataA->GetAbstrValuesUnit()->UnifyValues(fillA->GetAbstrValuesUnit(), "v2", "v3", UnifyMode::UM_Throw | UnifyMode::UM_AllowDefaultRight);
 			condA->GetAbstrDomainUnit()->UnifyDomain(fillA->GetAbstrDomainUnit(), "e1", "e3", UnifyMode::UM_Throw | UnifyMode::UM_AllowDefaultRight | UnifyMode::UM_AllowVoidRight);
 		}
