@@ -35,10 +35,45 @@ void fillPointBuffer(pointBuffer_t& buf, PI ii, PI ie, CrdTransformation transfo
 
 	buf.resize(nrPoints);
 
-	pointBuffer_t::iterator 
+	pointBuffer_t::iterator
 		bi = buf.begin();
 	for(;ii!=ie; ++ii, ++bi)
 		*bi = DPoint2GPoint(*ii, transformer);
+}
+
+// Clip a closed polygon ring (world coords) to the in-front half-plane (refSign * w >= wEps) in WORLD space
+// -- where w == CrdTransformation::ApplyDenom is LINEAR in (x,y) -- then project the result to device GPoints.
+// Used only for the INTERIOR fill under a PROJECTIVE (tilted) view: a vertex beyond the projective horizon
+// (w <= 0) otherwise divides by ~0 in the perspective map and the polygon balloons into a screen-filling slab.
+// Sutherland-Hodgman against the single horizon edge; the clip edge along the horizon is kept, which is correct
+// for a filled area (it bounds the visible part of the polygon at the horizon). wEps > 0 keeps the projected
+// near-horizon vertices finite (within GDI's coordinate range); within the visible rect w stays well above it,
+// so on-screen geometry is never clipped. Affine/axis-separable views keep the exact 1:1 fillPointBuffer path.
+template <typename PI>
+void fillPointBufferHorizonClipped(pointBuffer_t& buf, PI ii, PI ie, const CrdTransformation& tr, double refSign, double wEps)
+{
+	buf.clear();
+	if (ii == ie)
+		return;
+	auto signedW = [&](const DPoint& p) { return refSign * tr.ApplyDenom(p); };
+
+	DPoint pPrev = DPoint(*(ie - 1));      // closed ring: start from the last vertex
+	double wPrev = signedW(pPrev);
+	for (PI cur = ii; cur != ie; ++cur)
+	{
+		DPoint  pCur = DPoint(*cur);
+		double  wCur = signedW(pCur);
+		bool    inPrev = wPrev >= wEps, inCur = wCur >= wEps;
+		if (inCur != inPrev)                 // edge crosses the horizon -> insert the intersection
+		{
+			double t = (wEps - wPrev) / (wCur - wPrev);
+			buf.push_back(DPoint2GPoint(pPrev + (pCur - pPrev) * t, tr));
+		}
+		if (inCur)
+			buf.push_back(DPoint2GPoint(pCur, tr));
+		pPrev = pCur;
+		wPrev = wCur;
+	}
 }
 
 inline void CorrectHatchStyle(Int32& hatchStyle)
@@ -108,6 +143,13 @@ bool DrawPolygonInterior(
 
 	dms_assert(zoomLevel > 1.0e-30); // we assume that nothing remains visible on such a small scale to avoid numerical overflow in the following inversion
 
+	// Under a projective (tilted) view, clip polygon interiors against the horizon (see fillPointBufferHorizonClipped);
+	// a vertex beyond the horizon would otherwise balloon the filled polygon into a screen-wide slab. Computed once:
+	// the in-front sign at the view-area centre, and a small positive horizon margin. Affine views keep the 1:1 fill.
+	const bool   isProjective = d.GetTransformation().IsProjective();
+	const double horizonRefSign = isProjective && (d.GetTransformation().ApplyDenom(DPoint(Center(clipRect))) < 0) ? -1.0 : 1.0;
+	const double horizonWEps    = 0.01;
+
 	ScalarType minWorldWidth  = s_DrawingSizeTresholdInPixels / zoomLevel;
 	ScalarType minWorldHeight = minWorldWidth;
 
@@ -171,7 +213,10 @@ bool DrawPolygonInterior(
 					pointArrayBegin = i->begin(),
 					pointArrayEnd   = i->end();
 
-				fillPointBuffer(pointBuffer, pointArrayBegin, pointArrayEnd, d.GetTransformation());
+				if (isProjective)
+					fillPointBufferHorizonClipped(pointBuffer, pointArrayBegin, pointArrayEnd, d.GetTransformation(), horizonRefSign, horizonWEps);
+				else
+					fillPointBuffer(pointBuffer, pointArrayBegin, pointArrayEnd, d.GetTransformation());
 
 				remove_adjacents_and_spikes(pointBuffer);
 				if (pointBuffer.size() >= 3)
