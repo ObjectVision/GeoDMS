@@ -1344,10 +1344,25 @@ void ViewPort::ScrollDevice(GPoint delta)
 		SetROI(GetROI() - worldDelta);
 	}
 	m_w2vTr = CalcCurrWorldToClientTransformation();
-	auto deviceExtents = ScaleCrdRect( CalcClientRelRect(), GetScaleFactors() );
-	auto intExtents = CrdRect2GRect(deviceExtents);
 
 	InvalidateOverlapped();
+
+	if (m_w2vTr.IsProjective())
+	{
+		// Tilted (projective) view: a world pan is NOT a uniform device translation (perspective makes
+		// near features shift more than far ones), so the rendered pixels cannot be blit-scrolled and the
+		// cached per-tile GridCoords are not simply delta-offsettable. Rebuild + repaint the whole viewport:
+		// InvalidateView() defers a main-thread UpdateView that recomputes m_w2vTr and re-inits every
+		// GridCoord for the new ROI (the same safe deferred path SetRotation/SetTilt use -- never call
+		// DoUpdateView() directly here, that would race an in-flight draw); InvalidateDraw() schedules the
+		// paint. Affine views (north-up AND pure yaw) keep the fast, pixel-exact translative scroll below.
+		InvalidateView();
+		InvalidateDraw();
+		return;
+	}
+
+	auto deviceExtents = ScaleCrdRect( CalcClientRelRect(), GetScaleFactors() );
+	auto intExtents = CrdRect2GRect(deviceExtents);
 
 	dv->ScrollDevice(delta, intExtents, intExtents, this);
 
