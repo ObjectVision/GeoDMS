@@ -248,7 +248,18 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings) {
 
     // schedule update toolbar
     connect(m_mdi_area.get(), &QDmsMdiArea::subWindowActivated, this, &MainWindow::scheduleUpdateToolbar);
-    
+
+    // When a MapView/data-view subwindow becomes the active MDI subwindow (tab switch, Tile/Cascade,
+    // programmatic activation), give its native child Win32 focus so Shift+arrows etc. reach the map without
+    // an extra click. Only fires on an actual active-subwindow change, so clicking a dock (treeview/detail
+    // pages) does not steal focus. Deferred so it runs after activation settles.
+    connect(m_mdi_area.get(), &QDmsMdiArea::subWindowActivated, this,
+        [](QMdiSubWindow* sw)
+        {
+            if (auto* va = dynamic_cast<QDmsViewArea*>(sw))
+                QTimer::singleShot(0, va, [va]() { if (!g_IsTerminating) va->VH_SetFocus(); });
+        });
+
     // actions
     createDmsActions();
 
@@ -704,18 +715,25 @@ bool MainWindow::event(QEvent* event) {
 
     if (event->type() == QEvent::WindowActivate && !s_errorWindowActivationCount)
     {
-        // Restore keyboard focus to the active data view's native HWND after the app is re-activated.
-        // When that native child held Win32 focus before the app lost activation, Qt has no focusWidget
-        // to restore, so the MapView stops receiving Shift+arrows etc. until clicked. Only act when no Qt
-        // widget currently claims focus (focusWidget()==nullptr) so we never steal focus from a treeview/
-        // editor the user clicked to re-activate the window. Deferred so it runs after activation settles.
+        // Restore keyboard focus to the active data view's native HWND after the app is re-activated, so the
+        // MapView keeps receiving Shift+arrows etc. without an extra click. The map's native child holds the
+        // real Win32 focus, which Qt reports back as the QDmsViewArea itself -- so the old focusWidget()==nullptr
+        // guard was too strict: after an alt-tab back focusWidget() is the QDmsViewArea (non-null) and the
+        // restore never fired (the user had to Tile/Cascade to recover). Now only skip when the user
+        // deliberately focused a DIFFERENT Qt widget (treeview/editor/dock) to reactivate; restore when nothing
+        // is focused or focus is the map subwindow (or a child of it). Deferred so it runs after activation settles.
         QTimer::singleShot(0, this,
             [this]()
             {
-                if (g_IsTerminating || QApplication::focusWidget())
+                if (g_IsTerminating)
                     return;
-                if (auto* va = dynamic_cast<QDmsViewArea*>(m_mdi_area ? m_mdi_area->activeSubWindow() : nullptr))
-                    va->VH_SetFocus();
+                auto* va = dynamic_cast<QDmsViewArea*>(m_mdi_area ? m_mdi_area->activeSubWindow() : nullptr);
+                if (!va)
+                    return;
+                auto* fw = QApplication::focusWidget();
+                if (fw && fw != va && !va->isAncestorOf(fw))
+                    return;
+                va->VH_SetFocus();
             }
         );
 
