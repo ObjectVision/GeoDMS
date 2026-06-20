@@ -1153,20 +1153,56 @@ bool GridLayer::DrawAllRectsTransformed(GraphDrawer& d, const GridColorPalette& 
 	CrdTransformation grid2dev = drawGridCoords->GetGrid2DeviceTransformation();
 	CrdPoint devOffsetDms = g2dms_order<CrdType>(viewportDeviceOffset);
 
+	// Bound the tile loop by the RELATIVE visible region (abs clip region minus the viewport device offset),
+	// exactly like WmsLayer -- NOT dc->GetClipRect() (the GDI clip box). grid2dev maps grid -> RELATIVE device,
+	// and the offset is only re-applied to src2device for the final blit (below). Clipping the relative tile
+	// AABB against the offset DC clip box meant that once the viewport device offset grew, near tiles fell
+	// outside and the raster was cut along a tile edge.
+	GRect visibleRel = d.GetAbsClipRegion().BoundingBox() - viewportDeviceOffset;
+
+	// In-front (horizon) reference for the projective case, sampled at the (relative) view centre. A grid tile
+	// fully behind the horizon is skipped; a tile that STRADDLES it is kept so its in-front (near) half still
+	// draws -- the per-tile device AABB and DrawImageTransformed are clamped to the visible region so the w<0
+	// corner (which maps towards +/-1e305) cannot overflow the int rounding and drop the whole tile. ApplyDenom()
+	// == 1 for <= Affine2D, so affine / pure-yaw is unaffected and byte-identical.
+	const bool isProjective = grid2dev.IsProjective();
+	CrdType horizonRefSign = 1.0;
+	if (isProjective)
+		horizonRefSign = (grid2dev.ApplyDenom(grid2dev.Reverse(Center(g2dms_order<CrdType>(visibleRel)))) >= 0) ? 1.0 : -1.0;
+	auto clampD = [](double v, double lo, double hi) { return v < lo ? lo : (v > hi ? hi : v); };
+
+
 	ResumableCounter tileCounter(d.GetCounterStacks(), true);
 	for (tile_id t = tileCounter.Value(), tn = gridDomain->GetNrTiles(); t != tn; ++t)
 	{
 		IRect tileGridRect = gridDomain->GetTileRangeAsIRect(t);
 		int tileH = Height(tileGridRect); // rows (dms first)
 		int tileW = Width (tileGridRect); // cols (dms second)
-		if (tileW > 0 && tileH > 0)
+		bool tileInFront = true;
+		if (isProjective && tileW > 0 && tileH > 0)
 		{
-			// rough device AABB of the whole tile (cull fully off-screen tiles before the source fill)
+			CrdRect tcr = Convert<CrdRect>(tileGridRect);
+			const CrdPoint corners[4] = {
+				tcr.first,
+				CrdPoint(tcr.second.first, tcr.first.second),
+				CrdPoint(tcr.first.first,  tcr.second.second),
+				tcr.second };
+			tileInFront = false;
+			for (const auto& cn : corners)
+				if (grid2dev.ApplyDenom(cn) * horizonRefSign > 0) { tileInFront = true; break; }
+		}
+		if (tileW > 0 && tileH > 0 && tileInFront)
+		{
+			// rough RELATIVE device AABB of the whole tile (cull fully off-screen tiles before the source fill);
+			// clamp to the visible region BEFORE rounding so a straddling tile's w<0 corner (towards +/-1e305)
+			// can't overflow the int rounding. No viewport offset here -- this is relative device space.
 			CrdRect tileDevDms = grid2dev.ApplyBounds(Convert<CrdRect>(tileGridRect));
-			IPoint lo = RoundDown<4>(tileDevDms.first  + devOffsetDms);
-			IPoint hi = RoundUp  <4>(tileDevDms.second + devOffsetDms);
+			CrdPoint loC = shp2dms_order<CrdType>(clampD(tileDevDms.first.X(),  visibleRel.left, visibleRel.right), clampD(tileDevDms.first.Y(),  visibleRel.top, visibleRel.bottom));
+			CrdPoint hiC = shp2dms_order<CrdType>(clampD(tileDevDms.second.X(), visibleRel.left, visibleRel.right), clampD(tileDevDms.second.Y(), visibleRel.top, visibleRel.bottom));
+			IPoint lo = RoundDown<4>(loC);
+			IPoint hi = RoundUp  <4>(hiC);
 			GRect tileDevRect(lo.Col(), lo.Row(), hi.Col(), hi.Row());
-			tileDevRect &= dc->GetClipRect();
+			tileDevRect &= visibleRel;
 			if (!tileDevRect.empty())
 			{
 				ReadableTileLock lock(grid->GetRefObj().get(), t);

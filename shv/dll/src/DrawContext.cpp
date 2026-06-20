@@ -58,13 +58,46 @@ void DrawContext::DrawImageTransformed(const CrdTransformation& src2device, cons
 		return;
 	auto src32 = static_cast<const UInt32*>(pixelData32);
 
-	// device-space AABB of the transformed source rectangle (source pixel coords: X in [0,srcWidth], Y in [0,srcHeight])
-	CrdRect devBounds = src2device.ApplyBounds(CrdRect(CrdPoint(0.0, 0.0), shp2dms_order<CrdType>(double(srcWidth), double(srcHeight))));
-	GRect destRect(
-		GType(std::floor(devBounds.first.X())),  GType(std::floor(devBounds.first.Y())),   // left, top   (minX, minY)
-		GType(std::ceil (devBounds.second.X())), GType(std::ceil (devBounds.second.Y()))    // right, bottom(maxX, maxY)
-	);
-	destRect &= GetClipRect();
+	GRect clip = GetClipRect();
+	auto clampD = [](double v, double lo, double hi) { return v < lo ? lo : (v > hi ? hi : v); };
+
+	// In-front reference: the screen-clip CENTRE (always a visible, in-front device point) back-projected into
+	// this tile's source coords. Its forward-denominator sign is the in-front sign -- NOT the tile's own source
+	// centre, which for a far-field tile can lie beyond the horizon and invert the sign. ApplyDenom()==1 for
+	// <= Affine2D, so affine blits keep every pixel and stay byte-identical.
+	const CrdType refSign = (src2device.ApplyDenom(src2device.Reverse(Center(g2dms_order<CrdType>(clip)))) >= 0) ? 1.0 : -1.0;
+
+	// Classify the four source corners by forward-denominator (horizon) side. The forward denominator is LINEAR
+	// in source coords, so the w==0 line is straight: all four corners on one side => the whole tile is on that
+	// side. Wholly behind => nothing to draw. Wholly in front => the corner AABB is the exact device extent.
+	// STRADDLING => the in-front part excursions towards Y=+/-inf as w->0 in the tile INTERIOR (not at a corner),
+	// so the corner AABB badly underestimates the extent and would drop the near-horizon (foreground) half;
+	// instead cover the whole clip and let the per-pixel skip below select the in-front pixels.
+	const CrdPoint srcCorner[4] = {
+		shp2dms_order<CrdType>(0.0, 0.0),
+		shp2dms_order<CrdType>(double(srcWidth), 0.0),
+		shp2dms_order<CrdType>(0.0, double(srcHeight)),
+		shp2dms_order<CrdType>(double(srcWidth), double(srcHeight)) };
+	int nFront = 0;
+	for (const auto& s : srcCorner)
+		if (src2device.ApplyDenom(s) * refSign > 0) ++nFront;
+	if (nFront == 0)
+		return; // wholly behind the horizon
+
+	GRect destRect = clip; // straddling: cover the whole clip (per-pixel skip selects in-front pixels)
+	if (nFront == 4)
+	{
+		// wholly in front: the AABB of the four transformed corners is exact; clamp to the clip range before the
+		// int conversion so a far-but-in-front corner can't overflow GType(floor(...)).
+		CrdRect devBounds = src2device.ApplyBounds(CrdRect(CrdPoint(0.0, 0.0), shp2dms_order<CrdType>(double(srcWidth), double(srcHeight))));
+		devBounds = CrdRect(
+			shp2dms_order<CrdType>(clampD(devBounds.first.X(),  clip.left, clip.right), clampD(devBounds.first.Y(),  clip.top, clip.bottom)),
+			shp2dms_order<CrdType>(clampD(devBounds.second.X(), clip.left, clip.right), clampD(devBounds.second.Y(), clip.top, clip.bottom)));
+		destRect = GRect(
+			GType(std::floor(devBounds.first.X())),  GType(std::floor(devBounds.first.Y())),
+			GType(std::ceil (devBounds.second.X())), GType(std::ceil (devBounds.second.Y())));
+	}
+	destRect &= clip;
 	if (destRect.empty())
 		return;
 
@@ -72,6 +105,11 @@ void DrawContext::DrawImageTransformed(const CrdTransformation& src2device, cons
 	if (destW <= 0 || destH <= 0)
 		return;
 	std::vector<UInt32> destBuf(SizeT(destW) * SizeT(destH), 0x00FFFFFFu); // white = transparent under SrcAnd
+
+	// Under a PROJECTIVE (tilted) src2device a device pixel beyond the horizon inverse-maps to a source point
+	// that FOLDS back into [0,srcWidth)x[0,srcHeight) (Reverse is not monotone across the horizon), so the
+	// in-bounds test below would paint a mirrored copy in the "sky". Skip a pixel whose reversed source point is
+	// on the far side of the horizon (opposite forward-denominator sign to the in-front reference above).
 
 	for (int dy = 0; dy != destH; ++dy)
 	{
@@ -82,6 +120,8 @@ void DrawContext::DrawImageTransformed(const CrdTransformation& src2device, cons
 		{
 			double deviceX = double(destRect.left + dx) + 0.5;
 			CrdPoint srcP = src2device.Reverse(shp2dms_order<CrdType>(deviceX, deviceY)); // -> source pixel (X=col, Y=row)
+			if (src2device.ApplyDenom(srcP) * refSign <= 0.0)
+				continue; // device pixel is beyond the horizon (a folded mirror) -> leave transparent
 			int col = int(std::floor(srcP.X()));
 			int row = int(std::floor(srcP.Y()));
 			if (unsigned(col) < unsigned(srcWidth) && unsigned(row) < unsigned(srcHeight))
