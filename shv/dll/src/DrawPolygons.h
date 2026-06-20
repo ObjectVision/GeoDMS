@@ -77,6 +77,48 @@ void fillPointBufferHorizonClipped(pointBuffer_t& buf, PI ii, PI ie, const CrdTr
 	}
 }
 
+// Horizon-clip an OPEN polyline (a polygon-border ring or an arc) under a PROJECTIVE view and draw it.
+// Unlike the filled-interior clip, no spurious edge along the horizon is added: the in-front portions are
+// emitted as separate open polylines and the behind-horizon parts are dropped. Without this, a ring/arc with
+// a vertex beyond the horizon (w <= 0) projects to a wild device coordinate and draws as a line shooting
+// across the whole viewport. `scratch` is a reusable device-point buffer. Affine views never call this.
+template <typename PI>
+void drawHorizonClippedPolyline(DrawContext* drawCtx, pointBuffer_t& scratch, PI ii, PI ie,
+	const CrdTransformation& tr, double refSign, double wEps,
+	DmsColor penColor, int penWidth, DmsPenStyle penStyle)
+{
+	if (ii == ie)
+		return;
+	auto signedW = [&](const DPoint& p) { return refSign * tr.ApplyDenom(p); };
+	auto flush   = [&]() { if (scratch.size() >= 2) drawCtx->DrawPolyline(scratch.data(), scratch.size(), penColor, penWidth, penStyle); scratch.clear(); };
+
+	scratch.clear();
+	DPoint pPrev = DPoint(*ii);
+	double wPrev = signedW(pPrev);
+	bool   inPrev = wPrev >= wEps;
+	if (inPrev)
+		scratch.push_back(DPoint2GPoint(pPrev, tr));
+	for (PI cur = ii + 1; cur != ie; ++cur)
+	{
+		DPoint pCur = DPoint(*cur);
+		double wCur = signedW(pCur);
+		bool   inCur = wCur >= wEps;
+		if (inCur != inPrev)                       // crossing: add the horizon intersection point
+		{
+			double t = (wEps - wPrev) / (wCur - wPrev);
+			scratch.push_back(DPoint2GPoint(pPrev + (pCur - pPrev) * t, tr));
+			if (!inCur)                            // leaving the in-front side -> finish this run
+				flush();
+		}
+		if (inCur)
+			scratch.push_back(DPoint2GPoint(pCur, tr));
+		pPrev = pCur;
+		wPrev = wCur;
+		inPrev = inCur;
+	}
+	flush();
+}
+
 inline void CorrectHatchStyle(Int32& hatchStyle)
 {
 	if (hatchStyle < -1 || hatchStyle > 5) 
@@ -317,6 +359,20 @@ bool DrawPolygons(const GraphicPolygonLayer* layer, const FeatureDrawer& fd, con
 
 	typename p_traits::RangeType clipRect = Convert<typename p_traits::RangeType>( layer->GetWorldClipRect(d) );
 
+	// Projective (tilted) view: horizon-clip border rings (see drawHorizonClippedPolyline) so an outline whose
+	// far vertices fall beyond the horizon does not shoot a line across the whole viewport. Sign sampled at the
+	// true view centre = Reverse(device-clip centre) (always in front; Center(clipRect) drifts past the horizon
+	// at steep tilt and flips it). Affine views keep the exact 1:1 border path.
+	const bool   isProjective = d.GetTransformation().IsProjective();
+	double horizonRefSign = 1.0;
+	if (isProjective)
+	{
+		auto viewCentreWorld = d.GetTransformation().Reverse(Center(g2dms_order<CrdType>(d.GetAbsClipDeviceRect())));
+		if (d.GetTransformation().ApplyDenom(viewCentreWorld) < 0)
+			horizonRefSign = -1.0;
+	}
+	const double horizonWEps = 0.01;
+
 	SelectionIdCPtr selectionsArray; assert(!selectionsArray);
 	if (fd.m_SelValues)
 	{
@@ -420,11 +476,8 @@ bool DrawPolygons(const GraphicPolygonLayer* layer, const FeatureDrawer& fd, con
 								goto nextBorder;
 						}
 
-						fillPointBuffer     (pointBuffer, featurePtr->begin(), featurePtr->end(), d.GetTransformation());
 						pointIndexBuffer.resize(0);
 						fillPointIndexBuffer(pointIndexBuffer, featurePtr->begin(), featurePtr->end());
-
-						auto bi = pointBuffer.begin();
 
 						const auto& penKey = penIndices->GetPenKey(penKeyIndex);
 						DmsColor penColor = penKey.m_Color;
@@ -433,27 +486,40 @@ bool DrawPolygons(const GraphicPolygonLayer* layer, const FeatureDrawer& fd, con
 
 						// draw Polyline for each island and lake; identified by repetition of start-point
 						auto ii = pointIndexBuffer.begin(), ie = pointIndexBuffer.end();
-
 						lfs_assert(featurePtr->size());
-						auto iBegin = begin_ptr(*featurePtr);
-						for (; ii != ie; ++ii)
+
+						if (isProjective)
 						{
-							assert(ii->first <= ii->second);
-							assert(ii->second <= pointBuffer.size());
+							// horizon-clip each ring as open polylines over the WORLD points (no 1:1 device buffer,
+							// since clipping changes the vertex count); reuse pointBuffer as scratch.
+							auto pBegin = featurePtr->begin();
+							for (; ii != ie; ++ii)
+								drawHorizonClippedPolyline(drawCtx, pointBuffer, pBegin + ii->first, pBegin + ii->second,
+									d.GetTransformation(), horizonRefSign, horizonWEps, penColor, penWidth, penStyle);
+						}
+						else
+						{
+							fillPointBuffer(pointBuffer, featurePtr->begin(), featurePtr->end(), d.GetTransformation());
+							auto bi = pointBuffer.begin();
+							for (; ii != ie; ++ii)
+							{
+								assert(ii->first <= ii->second);
+								assert(ii->second <= pointBuffer.size());
 
-							auto bufferOffset    = bi + ii->first;
-							auto bufferOffsetEnd = bi + ii->second;
+								auto bufferOffset    = bi + ii->first;
+								auto bufferOffsetEnd = bi + ii->second;
 
-							bufferOffsetEnd = std::unique(bufferOffset, bufferOffsetEnd);
-							UInt32 lineSize =  bufferOffsetEnd - bufferOffset;
-							if	(lineSize >= 2)
-								drawCtx->DrawPolyline(
-									&*bufferOffset,
-									lineSize,
-									penColor,
-									penWidth,
-									penStyle
-								);
+								bufferOffsetEnd = std::unique(bufferOffset, bufferOffsetEnd);
+								UInt32 lineSize =  bufferOffsetEnd - bufferOffset;
+								if	(lineSize >= 2)
+									drawCtx->DrawPolyline(
+										&*bufferOffset,
+										lineSize,
+										penColor,
+										penWidth,
+										penStyle
+									);
+							}
 						}
 					}
 				nextBorder:
