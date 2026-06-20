@@ -2304,6 +2304,20 @@ bool DrawArcs(const GraphicArcLayer* layer, const FeatureDrawer& fd, const PenIn
 	ScalarType minWorldWidth  = s_DrawingSizeTresholdInPixels / zoomLevel;
 	ScalarType minWorldHeight = minWorldWidth;
 
+	// Projective (tilted) view: horizon-clip arc polylines so an arc whose far vertices fall beyond the
+	// projective horizon does not shoot a line across the whole viewport (see drawHorizonClippedPolyline).
+	// Sign sampled at the true view centre = Reverse(device-clip centre) (always in front; Center(clipRect)
+	// drifts past the horizon at steep tilt and flips it). Affine views keep the exact 1:1 device path.
+	const bool isProjective = transformer.IsProjective();
+	double horizonRefSign = 1.0;
+	if (isProjective)
+	{
+		auto viewCentreWorld = transformer.Reverse(Center(g2dms_order<CrdType>(d.GetAbsClipDeviceRect())));
+		if (transformer.ApplyDenom(viewCentreWorld) < 0)
+			horizonRefSign = -1.0;
+	}
+	const double horizonWEps = 0.01;
+
 	ResumableCounter mainCount(d.GetCounterStacks(), false);
 
 	bool selectedOnly = layer->ShowSelectedOnly();
@@ -2371,69 +2385,87 @@ bool DrawArcs(const GraphicArcLayer* layer, const FeatureDrawer& fd, const PenIn
 							UInt32 nrPoints = arcCPtr->size();
 							pointBuffer.reserve(nrPoints);
 
-							auto pntPtr = arcCPtr->begin();
-							while (pntPtr != arcCPtr->end())
+							// Pen attributes are identical for every sub-run of one arc; compute once here so the
+							// projective and affine draw branches below share them (hoisted out of the run loop).
+							DmsColor penColor = 0;
+							int penWidth = 1;
+							DmsPenStyle penStyle = DmsPenStyle::Solid;
+
+							if (entityIndex == fe || isSelected)
 							{
-								pointBuffer.clear();
-								while (pntPtr != arcCPtr->end())
+								penWidth = 4 * d.GetSubPixelFactor();
+								assert(penWidth > 0);
+								if (penIndices)
 								{
-									if (!IsDefined(*pntPtr))
-									{
+									penWidth += penIndices->GetWidth(entityIndex);
+									assert(penWidth > 0);
+								}
+								penWidth += penWidth / 2;
+								assert(penWidth > 0);
+
+								penColor = (entityIndex == fe)
+									? COLORREF2DmsColor(GetFocusClr())  // centralized focus highlight (issue #1039)
+									: COLORREF2DmsColor(GetSelectedClr());
+							}
+							else if (penIndices)
+							{
+								UInt32 penKeyIndex = penIndices->GetKeyIndex(entityIndex);
+								if (!penIndices->IsPenVisible(penKeyIndex))
+									goto nextArc;
+								const auto& penKey = penIndices->GetPenKey(penKeyIndex);
+								penColor = penKey.m_Color;
+								penWidth = penKey.m_Width;
+								penStyle = static_cast<DmsPenStyle>(penKey.m_Style);
+							}
+
+							auto pntPtr = arcCPtr->begin();
+							auto pntEnd = arcCPtr->end();
+							while (pntPtr != pntEnd)
+							{
+								if (isProjective)
+								{
+									// horizon-clip each defined sub-run over WORLD points (clipping changes the
+									// vertex count, so no 1:1 device buffer); reuse pointBuffer as scratch.
+									while (pntPtr != pntEnd && !IsDefined(*pntPtr))
 										++pntPtr;
-										break;
-									}
-									auto deviceDPoint = transformer.Apply(*pntPtr);
-									pointBuffer.emplace_back(GPoint(deviceDPoint.X(), deviceDPoint.Y()));
-									++pntPtr;
+									auto runStart = pntPtr;
+									while (pntPtr != pntEnd && IsDefined(*pntPtr))
+										++pntPtr;
+									drawHorizonClippedPolyline(drawCtx, pointBuffer, runStart, pntPtr,
+										transformer, horizonRefSign, horizonWEps, penColor, penWidth, penStyle);
 								}
-
-								// remove duplicates
-								pointBuffer.erase(
-									std::unique(pointBuffer.begin(), pointBuffer.end(), [](auto a, auto b) { return a.x == b.x && a.y == b.y;  })
-									, pointBuffer.end()
-								);
-
-								if (pointBuffer.size() < 2)
-									continue;
-
-								DmsColor penColor = 0;
-								int penWidth = 1;
-								DmsPenStyle penStyle = DmsPenStyle::Solid;
-
-								if (entityIndex == fe || isSelected)
+								else
 								{
-									penWidth = 4 * d.GetSubPixelFactor();
-									assert(penWidth > 0);
-									if (penIndices)
+									pointBuffer.clear();
+									while (pntPtr != pntEnd)
 									{
-										penWidth += penIndices->GetWidth(entityIndex);
-										assert(penWidth > 0);
+										if (!IsDefined(*pntPtr))
+										{
+											++pntPtr;
+											break;
+										}
+										auto deviceDPoint = transformer.Apply(*pntPtr);
+										pointBuffer.emplace_back(GPoint(deviceDPoint.X(), deviceDPoint.Y()));
+										++pntPtr;
 									}
-									penWidth += penWidth / 2;
-									assert(penWidth > 0);
 
-									penColor = (entityIndex == fe)
-										? COLORREF2DmsColor(GetFocusClr())  // centralized focus highlight (issue #1039)
-										: COLORREF2DmsColor(GetSelectedClr());
-								}
-								else if (penIndices)
-								{
-									UInt32 penKeyIndex = penIndices->GetKeyIndex(entityIndex);
-									if (!penIndices->IsPenVisible(penKeyIndex))
-										goto nextArc;
-									const auto& penKey = penIndices->GetPenKey(penKeyIndex);
-									penColor = penKey.m_Color;
-									penWidth = penKey.m_Width;
-									penStyle = static_cast<DmsPenStyle>(penKey.m_Style);
-								}
+									// remove duplicates
+									pointBuffer.erase(
+										std::unique(pointBuffer.begin(), pointBuffer.end(), [](auto a, auto b) { return a.x == b.x && a.y == b.y;  })
+										, pointBuffer.end()
+									);
 
-								drawCtx->DrawPolyline(
-									pointBuffer.data(),
-									pointBuffer.size(),
-									penColor,
-									penWidth,
-									penStyle
-								);
+									if (pointBuffer.size() < 2)
+										continue;
+
+									drawCtx->DrawPolyline(
+										pointBuffer.data(),
+										pointBuffer.size(),
+										penColor,
+										penWidth,
+										penStyle
+									);
+								}
 							}
 						}
 					nextArc:
