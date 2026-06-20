@@ -32,4 +32,47 @@
   -->
   <Import Project="$(VcpkgRoot)\scripts\buildsystems\msbuild\vcpkg.targets"
           Condition="Exists('$(VcpkgRoot)\scripts\buildsystems\msbuild\vcpkg.targets')" />
+
+  <!--
+    Repo-owned, self-healing deployment of the vcpkg runtime DLLs next to the exes.
+
+    The vcpkg baseline (2026.05.25) carries upstream #50521, which gates its applocal
+    copy (AppLocalFromInstalled) on '$(LinkSkippedExecution)' != 'true' — i.e. it only
+    deploys when the linker actually re-links. On a no-relink incremental build (a bare
+    `msbuild all22.sln`, or F5 after Ctrl+Alt+B) the copy is skipped, and MSBuild's
+    IncrementalClean then reaps the previously-deployed DLLs as orphan outputs. The
+    upstream AppLocalFromInstalledPreserve target only re-registers EXISTING files to
+    protect them from clean; it cannot restore ones already deleted, so once bin\<cfg>\x64
+    is stripped, no incremental build (msbuild OR VS) brings them back without a full relink.
+
+    This target sidesteps both problems: it runs AfterTargets="Build" for every exe project
+    (which all share one $(OutDir)), unconditionally — not gated on relink — and copies with
+    SkipUnchangedFiles, so a normal build copies nothing but a stripped output dir is
+    refilled. Glob-based (bin\*.dll), so GDAL/boost/etc. version bumps are picked up with no
+    edits. Config-aware: Debug deps live in a separate debug\bin subdir with different names
+    (gdald.dll, proj_9_d.dll, ...). CopiedFiles feed @(FileWrites) so the next build's
+    IncrementalClean treats them as claimed, not orphans.
+
+    MSBuild-only (the .m flavor). The CMake flavors deploy via vcpkg's own CMake applocal
+    (Windows) or $ORIGIN rpath + setup bundling (Linux) and don't hit IncrementalClean
+    reaping, so they need no equivalent here.
+  -->
+  <Target Name="DmsDeployVcpkgDeps"
+          AfterTargets="Build"
+          Condition="'$(ConfigurationType)' == 'Application' and '$(VcpkgInstalledDir)' != '' and '$(VcpkgTriplet)' != ''">
+    <PropertyGroup>
+      <_DmsVcpkgBin>$(VcpkgInstalledDir)$(VcpkgTriplet)\bin</_DmsVcpkgBin>
+      <_DmsVcpkgBin Condition="'$(Configuration)' == 'Debug'">$(VcpkgInstalledDir)$(VcpkgTriplet)\debug\bin</_DmsVcpkgBin>
+    </PropertyGroup>
+    <ItemGroup>
+      <_DmsVcpkgDll Include="$(_DmsVcpkgBin)\*.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_DmsVcpkgDll)"
+          DestinationFolder="$(OutDir)"
+          SkipUnchangedFiles="true"
+          Retries="3"
+          Condition="'@(_DmsVcpkgDll)' != ''">
+      <Output TaskParameter="CopiedFiles" ItemName="FileWrites" />
+    </Copy>
+  </Target>
 </Project>
