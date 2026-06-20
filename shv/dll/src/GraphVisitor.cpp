@@ -391,7 +391,44 @@ GraphVisitState GraphVisitor::DoScrollPort(ScrollPort* sp)
 
 CrdRect GraphVisitor::GetWorldClipRect() const
 {
-	return m_Transformation.Reverse(g2dms_order<CrdType>( GetAbsClipDeviceRect() ) );
+	CrdRect devRect = g2dms_order<CrdType>( GetAbsClipDeviceRect() );
+	if (m_Transformation.IsAxisSeparable())
+		return m_Transformation.Reverse(devRect); // affine: exact 2-corner reverse, byte-identical
+
+	// Projective (tilted) view: the naive ReverseBounds of the 4 device corners is WRONG once the viewport
+	// crosses the projective horizon -- a corner beyond the horizon (forward denominator w < 0) back-projects
+	// to a mirrored point that hijacks the axis-aligned bound, so the world clip rect jumps to the (beyond-
+	// horizon) "sky" region and EXCLUDES the in-front visible ground, culling every ground feature. Instead
+	// back-project a grid of device samples and bound only the IN-FRONT ones (same horizon side as the view
+	// centre, with a small denominator margin so near-horizon samples -- which map toward infinity -- do not
+	// blow up the bound). Over-inclusion toward the far field is harmless: the per-feature horizon clip in the
+	// draw limits what is actually painted. ApplyDenom() returns 1 for <= Affine2D, so this branch is only
+	// taken under genuine projective tilt; yaw/affine use the exact path above.
+	CrdPoint devCentre = Center(devRect);
+	CrdType  refSign   = (m_Transformation.ApplyDenom(m_Transformation.Reverse(devCentre)) >= 0) ? 1.0 : -1.0;
+	const CrdType wMargin = 0.1; // drop samples foreshortened past ~10% scale (far field is sub-pixel there)
+	const int     N       = 12;
+	CrdPoint lo(0, 0), hi(0, 0);
+	bool any = false;
+	for (int iy = 0; iy <= N; ++iy)
+		for (int ix = 0; ix <= N; ++ix)
+		{
+			CrdPoint dev(
+				devRect.first.first  + (devRect.second.first  - devRect.first.first ) * (CrdType(ix) / N),
+				devRect.first.second + (devRect.second.second - devRect.first.second) * (CrdType(iy) / N));
+			CrdPoint w = m_Transformation.Reverse(dev);
+			if (m_Transformation.ApplyDenom(w) * refSign <= wMargin)
+				continue; // beyond, or too close to, the horizon
+			if (!any) { lo = hi = w; any = true; }
+			else
+			{
+				lo.first  = std::min(lo.first,  w.first ); lo.second = std::min(lo.second, w.second);
+				hi.first  = std::max(hi.first,  w.first ); hi.second = std::max(hi.second, w.second);
+			}
+		}
+	if (!any)
+		return m_Transformation.Reverse(devRect); // nothing in front (degenerate) -> historical fallback
+	return CrdRect(lo, hi);
 }
 
 CrdType GraphVisitor::GetWorldZoomLevel() const
