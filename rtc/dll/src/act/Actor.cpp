@@ -601,8 +601,6 @@ void Actor::UpdateMetaInfo() const noexcept
 
         // collect IntegrityCheck Related MetaInfo
 
-    //    static_assert((UInt32(SupplierVisitFlag::IntegrityChecked) & UInt32(SupplierVisitFlag::UpdateSupplMetaInfo)) == UInt32(SupplierVisitFlag::IntegrityChecked)); // require that all inspected suppliers for check were also MetaInfo updated.
-
         VisitSupplProcImpl(this, SupplierVisitFlag::IntegrityChecked, [this](const Actor* supplier)
             {
                 assert(supplier);
@@ -628,28 +626,12 @@ void Actor::UpdateMetaInfo() const noexcept
 // Propagate meta-info update to suppliers and record failures.
 void Actor::UpdateSupplMetaInfo() const
 {
-    VisitSupplProcImpl(this, SupplierVisitFlag::UpdateSupplMetaInfoForDataPrep, [this](const Actor* supplier)
+    VisitSupplProcImpl(this, SupplierVisitFlag::UpdateSupplMetaInfo, [this](const Actor* supplier)
         {
             assert(supplier);
             supplier->UpdateMetaInfo();
-            if (supplier->WasFailed())
+            if (supplier->WasFailed(FailType::MetaInfo))
                 this->Fail(supplier);
-        }
-    );
-    VisitSupplProcImpl(this, SupplierVisitFlag::UpdateSupplMetaInfoForValidation, [this](const Actor* supplier)
-        {
-            assert(supplier);
-            supplier->UpdateMetaInfo();
-            if (supplier->WasFailed())
-                this->Fail(supplier, FailType::Validate);
-        }
-    );
-    VisitSupplProcImpl(this, SupplierVisitFlag::UpdateSupplMetaInfoForCommit, [this](const Actor* supplier)
-        {
-            assert(supplier);
-            supplier->UpdateMetaInfo();
-            if (supplier->WasFailed())
-                this->Fail(supplier, FailType::Committed);
         }
     );
 }

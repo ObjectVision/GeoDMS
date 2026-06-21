@@ -331,7 +331,7 @@ namespace cs_lock {
 
 		// from here nothrow
 		unlockDsmUsageCounter.release();
-		assert(item->WasFailed(FailType::Data) || CheckDataReady(item));
+		assert(item->WasFailed() || CheckDataReady(item));
 	}
 
 	bool TryReadLockInit(const TreeItem* item)
@@ -394,8 +394,14 @@ ItemReadLock::ItemReadLock(SharedTreeItemInterestPtr&& rhs)
 	m_Ptr = std::move(rhs);
 	if (IsDataItem(m_Ptr.get_ptr()) || IsUnit(m_Ptr.get_ptr()))
 	{
-		MG_CHECK(IsCalculatingOrReady(m_Ptr.get_ptr()) || m_Ptr->WasFailed(FailType::Data));
-		MG_CHECK(!IsDataItem(m_Ptr.get_ptr()) || m_Ptr->WasFailed(FailType::Data) || AsDataItem(m_Ptr.get_ptr())->GetCurrRefObj());
+		if (!IsCalculatingOrReady(m_Ptr.get_ptr()))
+		{
+			cs_lock::ReadFree(m_Ptr);
+			s_SessionUsageCounter.unlock_shared();
+
+			MG_CHECK(m_Ptr->WasFailed());
+			m_Ptr->ThrowFail();
+		}
 	}
 
 #if defined(MG_DEBUG_DATASTORELOCK)
@@ -841,10 +847,10 @@ bool WaitReady(const TreeItem* item)
 {
 	assert(item);
 	assert(item == item->GetCurrRangeItem());
-	assert(CheckCalculatingOrReady(item) || item->WasFailed(FailType::Data));
+	assert(CheckCalculatingOrReady(item) || item->WasFailed());
 	if (IsDataReady(item))
 		return true;
-	if (item->WasFailed(FailType::Data))
+	if (!IsCalculatingOrReady(item))
 		return false;
 
 	dbg_assert(!SuspendTrigger::DidSuspend());

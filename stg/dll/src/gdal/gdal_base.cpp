@@ -1269,6 +1269,12 @@ auto FileExtensionToKnownGDALDriverShortName(std::string_view ext) -> const char
 		if (boost::iequals(ext, "gpkg"))
 			return "GPKG";
 
+		else if (boost::iequals(ext, "parquet")) // issue #1142: (Geo)Parquet write/read
+			return "Parquet";
+
+		else if (boost::iequals(ext, "arrow") || boost::iequals(ext, "feather")) // issue #1142: Arrow IPC / Feather
+			return "Arrow";
+
 		else if (boost::iequals(ext, "json") || boost::iequals(ext, "geojson"))
 			return "GeoJSON";
 
