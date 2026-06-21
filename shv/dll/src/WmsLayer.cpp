@@ -28,6 +28,7 @@
 #include "parallel/dms_task.h"
 #include "DataView.h"
 #include "GraphVisitor.h"
+#include "CounterStacks.h"
 #include "GridDrawer.h"
 #include "LayerClass.h"
 #include "ViewPort.h"
@@ -908,8 +909,23 @@ bool WmsLayer::Draw(GraphDrawer& d) const
 	GDAL_SimpleReader::buffer_type rasterBuffer;
 	GridColorPalette palette(nullptr);
 
-	for (auto r = tlTile.Row(); r <= brTile.Row(); ++r)
-		for (auto c = tlTile.Col(); c <= brTile.Col(); ++c)
+	// Suspendible/resumable tile loop (port of GridLayer::DrawAllRects' ResumableCounter pattern).
+	// The 2-D tile grid is flattened to a single index so one ResumableCounter can drive it. In the
+	// suspendible idle data pass the counter is backed by the GraphDrawer's CounterStacks, so Value()
+	// restores the resume position for the *same* draw region: idle (no navigation) -> resume mid-loop
+	// and eventually reach Close() so the region settles to one frame; a changed view -> different draw
+	// region -> restart from 0. In the non-suspendible OnPaint background pass GetCounterStacks() is null,
+	// so the counter is a plain 0..nTiles counter that draws every tile synchronously (byte-identical to
+	// the old r x c loop). `i < nTiles` (not !=) so a stale resume value can never spin past the end.
+	ResumableCounter tileCounter(d.GetCounterStacks(), true);
+	SizeT nCols  = SizeT(brTile.Col() - tlTile.Col()) + 1;
+	SizeT nRows  = SizeT(brTile.Row() - tlTile.Row()) + 1;
+	SizeT nTiles = nCols * nRows;
+	for (SizeT i = tileCounter.Value(); i < nTiles; ++i)
+	{
+		auto r = tlTile.Row() + UInt32(i / nCols);
+		auto c = tlTile.Col() + UInt32(i % nCols);
+		bool doneAnything = false;
 		{
 			wms::tile_pos tp = shp2dms_order(c, r);
 			auto tileGridRect = tm.RasterExtents(tp);
@@ -924,13 +940,13 @@ bool WmsLayer::Draw(GraphDrawer& d) const
 				// w<=0 so ApplyBounds would yield a bogus device rect that could spuriously pass the clip.
 				// (No-op for yaw/affine, where w==1 and fwdRefSign==1.)
 				if (grid2dev.ApplyDenom(Center(tileCR)) * fwdRefSign <= 0)
-					continue;
+					goto nextTile;
 				CrdRect tdev = grid2dev.ApplyBounds(tileCR);
 				IPoint lo = RoundDown<4>(tdev.first), hi = RoundUp<4>(tdev.second);
 				tileRelRect = GRect(lo.Col(), lo.Row(), hi.Col(), hi.Row()) & clippedRelRect;
 			}
 			if (tileRelRect.empty())
-				continue;
+				goto nextTile;
 
 			wms::tile_id wmsTileKey(m_ZoomLevel, tp);
 			if (!m_TileCache->LoadTile(this, wmsTileKey))
@@ -953,6 +969,7 @@ bool WmsLayer::Draw(GraphDrawer& d) const
 				auto result = gdalReader.ReadGridData(m_TileCache->FileName(wmsTileKey).c_str(), rasterBuffer);
 				if (result==WPoint())
 					goto nextTile;
+				doneAnything = true; // a real tile read+blit follows: only suspend after doing actual work
 
 						if (wmsSeparable)
 						{
@@ -995,8 +1012,15 @@ bool WmsLayer::Draw(GraphDrawer& d) const
 			{
 				catchAndReportException();
 			}
-		nextTile:;
-		}
+		} // end per-tile block (its locals are destroyed before the nextTile label below)
+	nextTile:
+		++tileCounter;
+		if (tileCounter.MustBreak())
+			return GVS_Break; // CounterStacks signalled a break (DidBreak): resume this region next pass
+		if (doneAnything && SuspendTrigger::MustSuspend())
+			return GVS_Break; // yield after real work; ResumableCounter::Value() resumes here next pass
+	}
+	tileCounter.Close();
 	return GVS_Continue;
 }
 
