@@ -37,10 +37,7 @@ enum class SupplierVisitFlag
 	UpdateForValidation = Update & ~Calc & ~ExportInfo,
 
 	UpdateSupplMetaInfo = Parent | Update | ScanSupplTree,
-	UpdateSupplMetaInfoForDataPrep = Calc,
-	UpdateSupplMetaInfoForCommit = ExportInfo,
-	UpdateSupplMetaInfoForValidation = UpdateSupplMetaInfo & (~UpdateSupplMetaInfoForDataPrep) & (~UpdateSupplMetaInfoForCommit),
-	DetermineState = UpdateSupplMetaInfoForDataPrep | UpdateSupplMetaInfoForValidation | Calc | Checker | ReadyDcsToo | DetermineCalc,
+	DetermineState = (UpdateSupplMetaInfo & ~ExportInfo) | Calc | Checker | ReadyDcsToo | DetermineCalc, // == old ForDataPrep(Calc) | ForValidation(UpdateSupplMetaInfo&~Calc&~ExportInfo) | Calc | Checker | ReadyDcsToo | DetermineCalc
 
 	Explain = NamedSuppliers | SourceData,
 
