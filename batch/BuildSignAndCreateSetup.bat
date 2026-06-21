@@ -40,6 +40,14 @@ if errorlevel 1 (
     goto :build_failed
 )
 
+REM Wipe the build OUTPUT folder (the final DLLs/EXEs/import-libs that NSIS
+REM packages) before building, so obsolete binaries from before a component
+REM rename/removal cannot linger in bin\Release\x64 and ship in the installer.
+REM Intermediate .obj/.tlog live under each project's IntDir (not here), so this
+REM stays a fast incremental compile + full relink/redeploy, not a full rebuild.
+REM (Runs after the lock check above so no held handle can block the rmdir.)
+if exist "bin\Release\x64" rmdir /s /q "bin\Release\x64"
+
 REM Always do an incremental build. If intermediates become funky, clean
 REM from the MSVC IDE or `rmdir /s /q bin build` from the shell — no need
 REM for a CHOICE inside this script.

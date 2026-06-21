@@ -52,7 +52,12 @@ REM flavors. Only matters if the WSL build tree needs reconfiguring (which
 REM re-triggers vcpkg install via the toolchain file); harmless for pure
 REM --build. vcpkg keys archives by ABI hash, so Linux gcc entries coexist
 REM with the Windows MSVC entries already in vc_archives.
-wsl bash -c "export VCPKG_BINARY_SOURCES='clear;files,%geodms_wsldir%/vc_archives,readwrite' && cd %geodms_wsldir% && cmake --build build/linux-x64-release --config Release"
+REM Wipe the build OUTPUT folder (build/linux-x64-release/bin -- the .so libs +
+REM ELF binaries CreateLinuxSetup.sh packages) before building, so obsolete
+REM binaries from before a component rename/removal cannot linger and ship in
+REM the .deb/.tar.gz. Object files live under CMakeFiles/ (not bin), so this
+REM stays an incremental compile + relink, not a full rebuild.
+wsl bash -c "export VCPKG_BINARY_SOURCES='clear;files,%geodms_wsldir%/vc_archives,readwrite' && cd %geodms_wsldir% && rm -rf build/linux-x64-release/bin && cmake --build build/linux-x64-release --config Release"
 if errorlevel 1 goto :build_failed
 
 REM Linux ELF has no Windows FileVersion -- use mtime: GeoDmsRun must be at

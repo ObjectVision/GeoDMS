@@ -102,51 +102,33 @@ add_subdirectory(qtgui/exe)
 # Python binding (Windows-only; guarded inside its own CMakeLists.txt)
 add_subdirectory(python/dll)
 
-# Deploy resource files next to executables
-file(COPY ${CMAKE_SOURCE_DIR}/res/RewriteExpr.lsp DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
-
-# Deploy GDAL and PROJ geographic data files (needed at runtime by DmStg via GDAL/PROJ).
-# Prefer VCPKG_INSTALLED_DIR (set when the repo-root vcpkg_installed/ is used, e.g. on
-# Windows where msbuild already ran vcpkg). Fall back to the build-tree install used by
-# vcpkg manifest mode on Linux.
+# Deploy resource files next to the executables. This MUST run at BUILD time,
+# not only at configure time: BuildSignAndCreateSetup{Cmake,Linux}.bat wipe the
+# bin\ output dir before each build, and an incremental `cmake --build` does not
+# re-run configure -- so a plain file(COPY) here would never restore the wiped
+# RewriteExpr.lsp / gdaldata / library / examples / *.py and the installer (and
+# the unit tests) would fail. The deploy_resources target below runs the copy
+# script on every build instead. See tools/DeployResources.cmake for details.
+#
+# Resolve the (configure-time) vcpkg share dir here and pass it to the script.
+# Prefer VCPKG_INSTALLED_DIR (set when the repo-root vcpkg_installed/ is used,
+# e.g. on Windows where msbuild already ran vcpkg). Fall back to the build-tree
+# install used by vcpkg manifest mode on Linux.
+set(_vcpkg_share "")
 if(DEFINED VCPKG_TARGET_TRIPLET)
     if(DEFINED VCPKG_INSTALLED_DIR AND IS_DIRECTORY ${VCPKG_INSTALLED_DIR})
         set(_vcpkg_share ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/share)
     else()
         set(_vcpkg_share ${CMAKE_BINARY_DIR}/vcpkg_installed/${VCPKG_TARGET_TRIPLET}/share)
     endif()
-    if(IS_DIRECTORY ${_vcpkg_share}/gdal)
-        file(COPY ${_vcpkg_share}/gdal/ DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/gdaldata)
-    endif()
-    foreach(_proj_share proj proj4)
-        if(IS_DIRECTORY ${_vcpkg_share}/${_proj_share})
-            file(COPY ${_vcpkg_share}/${_proj_share}/ DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/proj4data)
-        endif()
-    endforeach()
 endif()
 
-# Deploy DMS script library and example configurations.
-# Both CopyResources/<dir>/ and the top-level <dir>/ are valid sources;
-# msbuild .vcxproj copies from the top-level layout while CopyResources/
-# is the older cmake input. The two have drifted slightly (e.g. only
-# library/ has Units.dms) — copy from both so the cmake bin matches the
-# msbuild bin in coverage. Top-level wins on collision (last `file(COPY)`
-# overwrites).
-foreach(_res_dir library examples)
-    if(IS_DIRECTORY ${CMAKE_SOURCE_DIR}/CopyResources/${_res_dir})
-        file(COPY ${CMAKE_SOURCE_DIR}/CopyResources/${_res_dir}
-             DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
-    endif()
-    if(IS_DIRECTORY ${CMAKE_SOURCE_DIR}/${_res_dir})
-        file(COPY ${CMAKE_SOURCE_DIR}/${_res_dir}
-             DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
-    endif()
-endforeach()
-
-# Deploy Python utility scripts
-foreach(_py_script profiler.py regression.py)
-    if(EXISTS ${CMAKE_SOURCE_DIR}/profiler/${_py_script})
-        file(COPY ${CMAKE_SOURCE_DIR}/profiler/${_py_script}
-             DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
-    endif()
-endforeach()
+add_custom_target(deploy_resources ALL
+    COMMAND ${CMAKE_COMMAND}
+            -DSRC_DIR=${CMAKE_SOURCE_DIR}
+            -DRUNTIME_DIR=${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+            -DVCPKG_SHARE=${_vcpkg_share}
+            -P ${CMAKE_SOURCE_DIR}/tools/DeployResources.cmake
+    COMMENT "Deploying runtime resources into ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}"
+    VERBATIM
+)

@@ -74,6 +74,14 @@ if errorlevel 1 (
     goto :build_failed
 )
 
+REM Wipe the build OUTPUT folder (%BUILD_DIR%\bin -- the final DLLs/EXEs that
+REM NSIS packages) before building, so obsolete binaries from before a component
+REM rename/removal cannot linger and ship in the installer. CMakeCache.txt and
+REM the CMakeFiles\ object tree live under %BUILD_DIR% (not bin), so configure is
+REM skipped and compilation stays incremental -- only a relink/redeploy happens.
+REM (Runs after the lock check above so no held handle can block the rmdir.)
+if exist "%BUILD_DIR%\bin" rmdir /s /q "%BUILD_DIR%\bin"
+
 echo --- building cmake-Release ---
 %CMAKE% --build "%BUILD_DIR%" --config Release
 if errorlevel 1 goto :build_failed
@@ -81,9 +89,10 @@ if errorlevel 1 goto :build_failed
 REM cmake --build exits 0 even when the dep tracker decided nothing needed
 REM rebuilding -- which silently ships stale binaries. Binaries carry no
 REM FileVersion, so use mtime. Check DmRtc.dll, not GeoDmsRun.exe:
-REM GeoDmsVersion.cmd rewrites buildstamp.h on every run, which forces
-REM DmRtc to relink unconditionally -- so DmRtc.dll fresher than script
-REM start proves cmake actually executed. Downstream binaries may skip
+REM GeoDmsVersion.cmd rewrites buildstamp.h once per build session (newer than
+REM the previous session's binaries), which forces DmRtc to relink -- so
+REM DmRtc.dll fresher than script start proves cmake actually executed.
+REM Downstream binaries may skip
 REM relink when DmRtc's ABI is unchanged (correct incremental optimization,
 REM not staleness).
 powershell -NoProfile -Command "if ((Get-Item '%BUILD_DIR%\bin\DmRtc.dll').LastWriteTime -ge [DateTime]'%BUILD_GATE_TIME%') { exit 0 } else { exit 1 }"

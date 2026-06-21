@@ -17,6 +17,17 @@ REM    batch\BuildSignAndCreateSetupLinux.bat  (l)
 REM  The version is bumped in GeoDmsVersion.cmd (repo root).
 REM ============================================================================
 
+REM Generate the version + buildstamp headers ONCE here, before any flavor
+REM builds, so all three (m/c/l) share a single header with one timestamp.
+REM GeoDmsVersion.cmd sets GEODMS_VERSION_HEADER_DONE; the per-flavor scripts
+REM still `call` it (for the version numbers) but the guard makes those calls
+REM reuse this header instead of rewriting it -- which stops a later F5 in MSVC
+REM from re-running msbuild and emitting .pdb files that no longer match the
+REM installed binaries. (cd to repo root: the header paths are relative to it.)
+cd /d "%~dp0"
+set "GEODMS_VERSION_HEADER_DONE="
+call GeoDmsVersion.cmd
+
 echo === [m] msbuild setup ===
 call "%~dp0batch\BuildSignAndCreateSetup.bat"
 if errorlevel 1 goto :failed

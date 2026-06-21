@@ -1,0 +1,57 @@
+# tools/DeployResources.cmake
+#
+# Deploy GeoDMS runtime resource files into the binary output directory.
+#
+# Invoked at BUILD time (via `cmake -P` from the deploy_resources custom target
+# in the root CMakeLists.txt), NOT only at configure time. That distinction is
+# the whole point: the BuildSignAndCreateSetup{Cmake,Linux}.bat scripts wipe the
+# bin\ output folder before each build (to drop obsolete binaries left over from
+# renamed / removed components). A plain file(COPY) in CMakeLists runs only
+# during `cmake` configure, which an incremental `cmake --build` skips -- so the
+# wiped resources would never be restored, and the installer (plus the unit
+# tests that run the freshly built binary) would fail on a missing
+# RewriteExpr.lsp, gdaldata, library, ... Running the copies here, on every
+# build, fixes that. file(COPY) preserves timestamps and skips unchanged files,
+# so re-running it each build is cheap.
+#
+# Expected -D arguments:
+#   SRC_DIR      = repo root                       (CMAKE_SOURCE_DIR)
+#   RUNTIME_DIR  = binary output dir               (CMAKE_RUNTIME_OUTPUT_DIRECTORY)
+#   VCPKG_SHARE  = <vcpkg>/<triplet>/share, or ""  (empty when not using vcpkg)
+
+# Expression-rewrite rules, required for expression parsing at runtime.
+file(COPY ${SRC_DIR}/res/RewriteExpr.lsp DESTINATION ${RUNTIME_DIR})
+
+# GDAL and PROJ geographic data files (needed at runtime by DmStg via GDAL/PROJ).
+if(VCPKG_SHARE AND IS_DIRECTORY ${VCPKG_SHARE})
+    if(IS_DIRECTORY ${VCPKG_SHARE}/gdal)
+        file(COPY ${VCPKG_SHARE}/gdal/ DESTINATION ${RUNTIME_DIR}/gdaldata)
+    endif()
+    foreach(_proj_share proj proj4)
+        if(IS_DIRECTORY ${VCPKG_SHARE}/${_proj_share})
+            file(COPY ${VCPKG_SHARE}/${_proj_share}/ DESTINATION ${RUNTIME_DIR}/proj4data)
+        endif()
+    endforeach()
+endif()
+
+# DMS script library and example configurations.
+# Both CopyResources/<dir>/ and the top-level <dir>/ are valid sources; msbuild
+# .vcxproj copies from the top-level layout while CopyResources/ is the older
+# cmake input. The two have drifted slightly (e.g. only library/ has Units.dms)
+# -- copy from both so the cmake bin matches the msbuild bin in coverage.
+# Top-level wins on collision (last file(COPY) overwrites).
+foreach(_res_dir library examples)
+    if(IS_DIRECTORY ${SRC_DIR}/CopyResources/${_res_dir})
+        file(COPY ${SRC_DIR}/CopyResources/${_res_dir} DESTINATION ${RUNTIME_DIR})
+    endif()
+    if(IS_DIRECTORY ${SRC_DIR}/${_res_dir})
+        file(COPY ${SRC_DIR}/${_res_dir} DESTINATION ${RUNTIME_DIR})
+    endif()
+endforeach()
+
+# Python utility scripts.
+foreach(_py_script profiler.py regression.py)
+    if(EXISTS ${SRC_DIR}/profiler/${_py_script})
+        file(COPY ${SRC_DIR}/profiler/${_py_script} DESTINATION ${RUNTIME_DIR})
+    endif()
+endforeach()

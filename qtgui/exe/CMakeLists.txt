@@ -64,26 +64,40 @@ if(WIN32)
 else()
     # On Linux with a system Qt the plugins are found automatically at runtime,
     # but copy them here so the bin/ dir is self-contained without a Qt install.
+    # POST_BUILD (not configure-time file(COPY)) so they are restored when
+    # GeoDmsGuiQt relinks after BuildSignAndCreateSetupLinux.bat wipes bin/.
     set(_qt_plugins ${_qt_prefix}/lib/qt6/plugins)
     if(NOT IS_DIRECTORY ${_qt_plugins})
         set(_qt_plugins ${_qt_prefix}/lib/x86_64-linux-gnu/qt6/plugins)
     endif()
     foreach(_plugin_dir platforms imageformats xcbglintegrations iconengines tls networkinformation generic styles)
         if(IS_DIRECTORY ${_qt_plugins}/${_plugin_dir})
-            file(COPY ${_qt_plugins}/${_plugin_dir}
-                 DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+            add_custom_command(TARGET GeoDmsGuiQt POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_directory
+                    ${_qt_plugins}/${_plugin_dir}
+                    ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${_plugin_dir}
+                COMMENT "Deploying Qt plugin dir ${_plugin_dir}"
+                VERBATIM)
         endif()
     endforeach()
 endif()
 
-# Deploy font files next to the executable
-file(COPY
-    ${CMAKE_CURRENT_SOURCE_DIR}/res/fonts/dmstext.ttf
-    DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/misc/fonts
+# Deploy font files next to the executable. POST_BUILD (not configure-time
+# file(COPY)) so they are restored when GeoDmsGuiQt relinks after the build
+# scripts wipe bin/. copy_if_different skips the copy when already up to date.
+add_custom_command(TARGET GeoDmsGuiQt POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/misc/fonts
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_CURRENT_SOURCE_DIR}/res/fonts/dmstext.ttf
+        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/misc/fonts/
+    COMMENT "Deploying fonts into misc/fonts"
+    VERBATIM
 )
 if(EXISTS ${CMAKE_SOURCE_DIR}/res/fonts/dms.ttf)
-    file(COPY
-        ${CMAKE_SOURCE_DIR}/res/fonts/dms.ttf
-        DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/misc/fonts
+    add_custom_command(TARGET GeoDmsGuiQt POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${CMAKE_SOURCE_DIR}/res/fonts/dms.ttf
+            ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/misc/fonts/
+        VERBATIM
     )
 endif()
