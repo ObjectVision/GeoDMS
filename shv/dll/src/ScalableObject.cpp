@@ -202,13 +202,14 @@ void ScalableObject::Sync(TreeItem* viewContext, ShvSyncMode sm)
 void ScalableObject::OnVisibilityChanged()
 {
 	base_type::OnVisibilityChanged();
+	// A layer becoming visible changes the viewport, so force a full repaint. The previous targeted
+	// InvalidateWorldRect(CalcWorldClientRect()) was unreliable: ViewPort::InvalidateWorldRect projects the
+	// world rect with Apply(), which under a projective (tilted) view is ApplyBounds and collapses across the
+	// horizon to a garbage/inverted device rect -> nothing was invalidated, so REACTIVATING a layer (double-
+	// click in the LayerControl) did NOT redraw until the next navigation action.
 	if (AllVisible())
-	{
-		if (HasNoExtent())
-			GetViewPort()->InvalidateDraw();
-		else
-			InvalidateWorldRect(CalcWorldClientRect(), nullptr);
-	}
+		if (auto vp = GetViewPort())
+			vp->InvalidateDraw();
 	m_cmdVisibilityChanged();
 
 	if ((AllVisible() && !DetailsTooLong()) != DetailsVisible())
