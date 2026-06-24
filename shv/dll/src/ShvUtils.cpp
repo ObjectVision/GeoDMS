@@ -1102,7 +1102,10 @@ UInt32 SHV_DataContainer_GetItemCount(const TreeItem* ti, const AbstrUnit* domai
 	if (IsDataItem(ti) && AsDataItem(ti)->GetAbstrDomainUnit()->UnifyDomain(domain))
 		++result;
 
-	if (!level) return result; --level;
+	if (!level) 
+		return result; 
+
+	--level;
 
 	for (ti = ti->GetFirstSubItem(); ti; ti = ti->GetNextItem()) 
 		result += SHV_DataContainer_GetItemCount(ti, domain, level, adminMode);

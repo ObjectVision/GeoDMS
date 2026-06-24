@@ -47,9 +47,8 @@ struct DataLessThanCompare<Point<T> >
 	bool operator()(U1&& left, U2&& right) const noexcept
 	{
 		return m_ElemComp(left.Row(), right.Row())
-			||	!m_ElemComp(right.Row(), left.Row())
-			&& m_ElemComp(left.Col(), right.Col())
-			;
+			||	(!m_ElemComp(right.Row(), left.Row()) && m_ElemComp(left.Col(), right.Col()))
+		;
 	}
 	DataLessThanCompare<T> m_ElemComp = {};
 };

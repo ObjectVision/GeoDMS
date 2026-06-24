@@ -1534,7 +1534,9 @@ SharedTreeItem TreeItem::GetCurrSubTreeItemByID(TokenID subItemID) const
 
 TreeItem* TreeItem::GetSubTreeItemByID(TokenID subItemID) // does not UpdateMetaInfo
 {
-	if (!this) 
+	assert(this);
+
+	if (!this)
 		return {};
 
 	TreeItem* subItem = _GetFirstSubItem(); // doesn't call UpdateMetaInfo (non const)
