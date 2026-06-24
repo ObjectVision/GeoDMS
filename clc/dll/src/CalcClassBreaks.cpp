@@ -705,10 +705,18 @@ break_array ClassifyJenksFisher(const ValueCountPairContainer& vcpc, SizeT kk, b
 	bool hasZeroClass = (zeroCount > 0);
 
 	auto negativeValues = ValueCountPairContainer(vcpc.begin(), vcpc.begin() + firstNonnegativePos MG_DEBUG_ALLOCATOR_SRC("ClassifyJenksFischer"));
+
+	// Issue #1146: a diverging color palette anchors "white" on a class-break whose value is exactly 0.
+	// The exact-zero test above only fires when the data contains a literal 0 value; signed data with a
+	// near-zero mass but no exact 0 (e.g. floating-point residue) then gets no 0-break and the white is
+	// off-center. Also force a break at 0 whenever the data straddles zero (both negative and positive
+	// values present, with room for a negative + zero + positive class), so it gets a 0-centered classification.
+	bool insertZeroBreak = hasZeroClass || (negativeValues.size() != 0 && positiveValues.size() != 0 && kk >= 3);
+
 	if (negativeValues.size() <= 1)
 	{
-		auto result = ClassifyCRJenksFisher(positiveValues, kk - negativeValues.size() - (hasZeroClass ? 1 : 0));
-		if (hasZeroClass)
+		auto result = ClassifyCRJenksFisher(positiveValues, kk - negativeValues.size() - (insertZeroBreak ? 1 : 0));
+		if (insertZeroBreak)
 			result.insert(result.begin(), 0);
 		if (negativeValues.size())
 			result.insert(result.begin(), negativeValues[0].first);
@@ -716,8 +724,8 @@ break_array ClassifyJenksFisher(const ValueCountPairContainer& vcpc, SizeT kk, b
 	}
 	if (positiveValues.size() <= 1)
 	{
-		auto result = ClassifyCRJenksFisher(negativeValues, kk - positiveValues.size() - (hasZeroClass ? 1 : 0));
-		if (hasZeroClass)
+		auto result = ClassifyCRJenksFisher(negativeValues, kk - positiveValues.size() - (insertZeroBreak ? 1 : 0));
+		if (insertZeroBreak)
 			result.insert(result.end(), 0);
 		if (positiveValues.size())
 			result.insert(result.end(), positiveValues[0].first);
@@ -729,7 +737,7 @@ break_array ClassifyJenksFisher(const ValueCountPairContainer& vcpc, SizeT kk, b
 	ClassBreakValueType maxSSM = 0;
 	for(;; nrNegativeClasses++)
 	{
-		SizeT nrPositiveClasses = kk - nrNegativeClasses - (hasZeroClass ? 1 : 0);
+		SizeT nrPositiveClasses = kk - nrNegativeClasses - (insertZeroBreak ? 1 : 0);
 		assert(nrPositiveClasses >= 1);
 		if (nrPositiveClasses > positiveValues.size())
 			continue;
@@ -744,7 +752,7 @@ break_array ClassifyJenksFisher(const ValueCountPairContainer& vcpc, SizeT kk, b
 		{
 			maxSSM = ssm1 + ssm2;
 			auto resIter = std::copy(res1.begin(), res1.end(), result.begin());
-			if (hasZeroClass)
+			if (insertZeroBreak)
 				*resIter++ = 0;
 			resIter = std::copy(res2.begin(), res2.end(), resIter);
 			assert(resIter == result.end());
