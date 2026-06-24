@@ -45,7 +45,7 @@ add_compile_definitions(
 
 # Platform-specific settings
 if(MSVC)
-    add_compile_options(/utf-8 /bigobj /W3 /EHsc /GR)
+    add_compile_options(/utf-8 /bigobj /W3 /EHsc /GR /fp:precise)
     # Build every module as a Unicode module, matching the msbuild side
     # (CharacterSet=Unicode in Directory.Build.props). GeoDMS is UTF-8 internally and uses
     # explicit -W Win32 calls at OS boundaries, so generic Win32/CRT macros resolving to the
@@ -59,7 +59,11 @@ else()
     # parentheses, deprecated-declarations, ...) and silence the high-volume / low-signal
     # categories below. -Wpedantic is dropped entirely: it only flags deliberate GCC/MSVC
     # extensions used by design (flexible array members, macro trailing ';').
-    add_compile_options(-Wall -Wextra -pthread)
+    add_compile_options(-Wall -Wextra -pthread
+        -fno-fast-math
+        -ffp-contract=off
+        -fexcess-precision=standard
+    )
     add_compile_options(
         -Wno-unused-parameter        # ~21k: pervasive in virtual/overload signatures
         -Wno-deprecated-copy         # ~17k: user dtor/copy-ctor + implicit copy-assign idiom
