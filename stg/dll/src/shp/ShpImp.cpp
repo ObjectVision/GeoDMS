@@ -823,8 +823,8 @@ bool ShpPolygon::Check() const
 {
 	assert(((*m_Points).size() > 0) == ((*m_Parts ).size() > 0));
 	assert(((*m_Parts ).size() == 0) || (*m_Parts)[0] == 0);
-	assert(m_Header.m_NumParts  == (*m_Parts ).size());
-	assert(m_Header.m_NumPoints == (*m_Points).size());
+	assert(SizeT(m_Header.m_NumParts)  == (*m_Parts ).size());
+	assert(SizeT(m_Header.m_NumPoints) == (*m_Points).size());
 	assert(m_Parts.m_Index == m_Points.m_Index);
 	for (UInt32 i = 1, n = (*m_Parts).size(); i < n; ++i)
 	{

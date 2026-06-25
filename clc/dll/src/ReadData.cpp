@@ -44,8 +44,8 @@ struct NumberReaderBase : UnitProcessor
 	{
 		assert(m_ResPtr);
 		assert(m_FIS);
-		assert(m_Offset!= -1);
-		assert(m_Count != -1);
+		assert(m_Offset!= SizeT(-1));
+		assert(m_Count != SizeT(-1));
 
 		auto seq = mutable_array_cast<E>(*m_ResPtr)->GetDataWrite(m_TileID, dms_rw_mode::read_write);
 		auto elem = E();

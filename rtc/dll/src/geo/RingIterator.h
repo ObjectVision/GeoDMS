@@ -101,21 +101,21 @@ struct SA_ConstRingIterator
 
 	void operator ++()
 	{ 
-		assert(m_RingIndex != -1);
+		assert(m_RingIndex != SizeT(-1));
 		if (++m_RingIndex == m_PointIndexPairArray.size())
-			m_RingIndex = -1;
+			m_RingIndex = SizeT(-1);
 	}
 	void operator --()
 	{
 		assert(m_RingIndex != 0);
-		if (m_RingIndex == -1)
+		if (m_RingIndex == SizeT(-1))
 			m_RingIndex = m_PointIndexPairArray.size() - 1;
 		else
 			--m_RingIndex;
 	}
 	SA_ConstRing<P> operator *() const
 	{
-		assert(m_RingIndex != -1);
+		assert(m_RingIndex != SizeT(-1));
 		assert(m_RingIndex < m_PointIndexPairArray.size());
 		return SA_ConstRing<P>(
 			m_SequenceBase + m_PointIndexPairArray[m_RingIndex].first 
@@ -137,7 +137,7 @@ struct SA_ConstRingIterator
 
 	const P*              m_SequenceBase = nullptr;
 	index_range_vector_t  m_PointIndexPairArray;
-	SizeT                 m_RingIndex = -1;
+	SizeT                 m_RingIndex = SizeT(-1);
 };
 
 #endif //!defined(DMS_RTC_GEO_RINGITERATOR_H)

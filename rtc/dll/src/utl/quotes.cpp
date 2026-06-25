@@ -816,7 +816,7 @@ RTC_CALL void DoubleQuote(SharedStr& ref, CharPtr b, CharPtr e)
 	*ref_iter++ = '\"';
 	ref_iter = _DoubleUnQuoteMiddle(ref_iter, b, e);
 	*ref_iter++ = '\"';
-	assert(ref.ssize() == ref_iter - ref.begin());
+	assert(ref.ssize() == SizeT(ref_iter - ref.begin()));
 	*ref_iter++ = '\0';
 }
 
@@ -856,7 +856,7 @@ void DoubleUnQuote(SharedStr& result, CharPtr begin, CharPtr end)
 
 	auto res_end = _DoubleUnQuoteMiddle(result.begin(), begin, end);
 	assert(result[sz] == '\0');
-	assert(result.ssize() == res_end - result.begin());
+	assert(result.ssize() == SizeT(res_end - result.begin()));
 }
 
 SharedStr DoubleUnQuote(CharPtr begin, CharPtr end)

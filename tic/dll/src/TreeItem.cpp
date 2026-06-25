@@ -3839,7 +3839,7 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 									Fail(adu);	
 								return false;
 							}
-							assert(adu->GetCount() != -1);
+							assert(adu->GetCount() != SizeT(-1));
 							auto fh = OpenFileData(AsDataItem(this), avu ? avu->GetTiledRangeData().get() : nullptr, fn);
 							if (!fh)
 							{

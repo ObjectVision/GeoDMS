@@ -158,7 +158,7 @@ void SA_Reference<T>::assign(const_iterator first, const_iterator last MG_DEBUG_
 	assert( !is_null() );
 
 	m_Container->allocateSequenceRange(m_SeqPtr, first, last MG_DEBUG_ALLOCATOR_SRC_PARAM);
-	assert(size() == last - first);
+	assert(size() == SizeT(last - first));
 }
 
 template <typename T>
