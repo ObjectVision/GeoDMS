@@ -639,13 +639,16 @@ LayerInfo GetAspectInfo(AspectNr aNr, const AbstrDataItem* adi, const LayerInfo&
 				}
 			}
 #		if defined(SHV_SUPPORT_OLDNAMES)
-			if (featureInfo.m_diAspectOrFeature)
+			if (!res && featureInfo.m_diAspectOrFeature)
 			{
-				res = AsDynamicDataItem(featureInfo.m_diAspectOrFeature->GetAbstrDomainUnit()->GetConstSubTreeItemByID(GetTokenID_mt("ExternalKeyData")).get());
-				if (res)
+				if (auto aspectOrFeatureUnit = featureInfo.m_diAspectOrFeature->GetAbstrDomainUnit())
 				{
-					const AbstrUnit* adu = res->GetAbstrValuesUnit();
-					res = FindAspectParam(aNr, adu, layerClass); if (res) goto returnAspectParam;
+					res = AsDynamicDataItem(aspectOrFeatureUnit->GetConstSubTreeItemByID(GetTokenID_mt("ExternalKeyData")).get());
+					if (res)
+					{
+						const AbstrUnit* adu = res->GetAbstrValuesUnit();
+						res = FindAspectParam(aNr, adu, layerClass); if (res) goto returnAspectParam;
+					}
 				}
 			}
 #		endif

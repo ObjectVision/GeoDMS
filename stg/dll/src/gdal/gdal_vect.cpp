@@ -225,6 +225,9 @@ auto GetGeometry(const TreeItem* storageHolder, AbstrUnit* layerDomain, bool isR
 
 auto GetGeometry(const TreeItem* storageHolder, const AbstrUnit* layerDomain) -> const AbstrDataItem*
 {
+	if (!layerDomain)
+		return nullptr;
+
 	auto geometry_item = layerDomain->GetCurrSubTreeItemByID(token::geometry);
 	if (geometry_item && !IsValidGeometry(geometry_item.get(), true))
 		geometry_item = nullptr;
