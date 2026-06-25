@@ -1,13 +1,23 @@
 # Demonstrates building a complete GeoDMS configuration in memory (no .dms model
 # script) and querying results via Primary Data Access, using the geodms module.
+#
+# Resolves the geodms module from the GEODMS_PYDIR environment variable when set (else
+# from the dev-tree bin dir relative to this script). Exits 0 on success / 1 on failure.
 import os
 import sys
 
-geodms_path = os.path.abspath('../../bin/Release/x64')
+script_dir = os.path.dirname(os.path.abspath(__file__))
+geodms_path = os.environ.get('GEODMS_PYDIR') or os.path.abspath(os.path.join(script_dir, '..', '..', 'bin', 'Release', 'x64'))
 sys.path.append(geodms_path)
+if hasattr(os, 'add_dll_directory') and os.path.isdir(geodms_path):
+    os.add_dll_directory(geodms_path)
 os.environ['PATH'] += os.pathsep + geodms_path
 
-from geodms import *
+try:
+    from geodms import *
+except Exception as e:
+    print(f"InMemoryConfig.py: FAIL: cannot import geodms: {e}")
+    sys.exit(1)
 
 print(f"geodms version: {version()}")
 
@@ -68,3 +78,17 @@ for item in root.sub_items():
         print(f"  {item.name():12s} [attr] {descr}, vc={d.value_composition().name}")
     else:
         print(f"  {item.name():12s} [container]")
+
+# --- verify the computed results -----------------------------------------------
+try:
+    assert nr_param.get_param_float() == 5.0
+    assert abs(pi.get_param_float() - 3.14159) < 1e-9
+    assert total.get_param_float() == 15.0
+    assert values.asDataItem().get_values_as_float_list() == [1.0, 2.0, 3.0, 4.0, 5.0]
+    assert doubled.asDataItem().get_values_as_float_list() == [2.0, 4.0, 6.0, 8.0, 10.0]
+except AssertionError as e:
+    print("InMemoryConfig.py: FAIL")
+    sys.exit(1)
+
+print("InMemoryConfig.py: PASS")
+sys.exit(0)

@@ -1,4 +1,4 @@
-container basic_data_test
+﻿container basic_data_test
 {
 
 	container parameters
@@ -32,7 +32,7 @@ container basic_data_test
 
 		unit<uint32> point: nrofrows = 5
 		{
-			attribute<fpoint> geometry :[{401331, 115135},{399476, 111803},{399289, 114903},{401729, 111353},{398696, 111741}];
+			attribute<fpoint> geometry :[yx(401331, 115135),yx(399476, 111803),yx(399289, 114903),yx(401729, 111353),yx(398696, 111741)];
 			attribute<string> label    := 'point_' + string(id(.));
 		}
 
@@ -40,7 +40,7 @@ container basic_data_test
 		{
 			unit<uint32> pointset: nrofrows = 8
 			{
-				attribute<fpoint> geometry : [{411022, 120157},{413887, 120487},{414205, 120584},{410929, 119680},{411022, 120157},{410640, 120123},{410900, 120146},{411022, 120157}];
+				attribute<fpoint> geometry : [yx(411022, 120157),yx(413887, 120487),yx(414205, 120584),yx(410929, 119680),yx(411022, 120157),yx(410640, 120123),yx(410900, 120146),yx(411022, 120157)];
 				attribute<arc>    seq_nr   : [0,0,0,1,1,2,2,2];
 				attribute<uint32> ordinal  : [0,1,2,0,1,0,1,2];
 			}
@@ -52,7 +52,7 @@ container basic_data_test
 		{
 			unit<uint32> pointset: nrofrows = 8
 			{
-				attribute<fpoint>  geometry : [{411022, 120157},{413887, 120487},{414205, 120584},{411022, 120157},{410640, 120123},{410900, 120146},{411022, 120157},{410640, 120123}];
+				attribute<fpoint>  geometry : [yx(411022, 120157),yx(413887, 120487),yx(414205, 120584),yx(411022, 120157),yx(410640, 120123),yx(410900, 120146),yx(411022, 120157),yx(410640, 120123)];
 				attribute<polygon> seq_nr   : [0,0,0,0,2,2,2,2];
 				attribute<uint32>  ordinal  : [0,1,2,3,0,1,2,3];
 			}
