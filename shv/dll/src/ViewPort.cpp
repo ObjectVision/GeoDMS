@@ -934,12 +934,12 @@ void ViewPort::Export()
 	CrdRect tileRoi; 
 	
 	for (	tileRoi.first .Row() = info.m_ROI.first.Row(), row = 0
-		;	tileRoi.second.Row() = interpolate(info.m_ROI.first.Row(), info.m_ROI.second.Row(), row+1, info.m_NrTiles.Row()), row != info.m_NrTiles.Row()
+		;	tileRoi.second.Row() = interpolate(info.m_ROI.first.Row(), info.m_ROI.second.Row(), row+1, info.m_NrTiles.Row()), row != UInt32(info.m_NrTiles.Row())
 		;	tileRoi.first .Row() = tileRoi.second.Row(), ++row)
 	{
 		UInt32 rowFromTop = info.m_NrTiles.Row() - row - 1;
 		for (	tileRoi.first .Col() = info.m_ROI.first.Col(), col = 0
-			;	tileRoi.second.Col() = interpolate(info.m_ROI.first.Col(), info.m_ROI.second.Col(), col+1, info.m_NrTiles.Col()), col != info.m_NrTiles.Col()
+			;	tileRoi.second.Col() = interpolate(info.m_ROI.first.Col(), info.m_ROI.second.Col(), col+1, info.m_NrTiles.Col()), col != UInt32(info.m_NrTiles.Col())
 			;	tileRoi.first. Col() = tileRoi.second.Col(), ++col)
 		{
 			tmpVP->SetROI( tileRoi );

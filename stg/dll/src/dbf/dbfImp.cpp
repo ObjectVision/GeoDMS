@@ -280,7 +280,7 @@ bool DbfImpl::GoTo(UInt32 recNo)
 
 bool DbfImpl::IsAt(UInt32 recNo) const
 {
-	return ftell(GetFP()) == ActualPosition(recNo);
+	return UInt32(ftell(GetFP())) == ActualPosition(recNo);
 }
 
 bool DbfImpl::ReadRecord  (void* buffer)
@@ -294,7 +294,7 @@ bool DbfImpl::AppendRecord(const void* buffer)
 {
 	dms_assert(GetFP());
 
-	dms_assert(ftell(GetFP()) == ActualPosition(m_RecordCount));
+	dms_assert(UInt32(ftell(GetFP())) == ActualPosition(m_RecordCount));
 	if (fwrite(buffer, m_RecordSize, 1, GetFP()) != 1)
 		return false;
 	++m_RecordCount;
