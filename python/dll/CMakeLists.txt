@@ -5,6 +5,27 @@ if(NOT WIN32)
     return()
 endif()
 
+# Link against the SAME Python the msbuild build (DmsPython.vcxproj uses %PYTHON3_*%)
+# and the test harness (batch/Unit/PythonTest.bat -> `py -3.13`) use -- NOT the
+# vcpkg-provided python3 build-tool port. Under the active vcpkg toolchain,
+# find_package(Python3) otherwise resolves to vcpkg's python3 (currently 3.12), so the
+# resulting geodms.pyd is a cp312 module and fails to import into the 3.13 runtime
+# interpreter ("Module use of python312.dll conflicts with this version of Python").
+# See https://github.com/ObjectVision/GeoDMS/issues/1105 for the multi-ABI end state;
+# this is the single-pinned-version (N=1) tactical step toward it.
+if(DEFINED ENV{PYTHON3_INCLUDE_DIR})
+    get_filename_component(_py3_root "$ENV{PYTHON3_INCLUDE_DIR}" DIRECTORY)
+    set(Python3_ROOT_DIR   "${_py3_root}")
+    set(Python3_EXECUTABLE "${_py3_root}/python.exe")
+    set(Python3_FIND_STRATEGY LOCATION)
+    set(Python3_FIND_REGISTRY NEVER)
+    message(STATUS "geodms.pyd: pinning Python3 to ${_py3_root} (PYTHON3_INCLUDE_DIR)")
+else()
+    message(WARNING "geodms.pyd: PYTHON3_INCLUDE_DIR not set; find_package(Python3) may "
+                    "resolve to the vcpkg python3 port and build an ABI that the test "
+                    "harness/runtime interpreter cannot import.")
+endif()
+
 find_package(Python3 REQUIRED COMPONENTS Development)
 find_package(pybind11 CONFIG REQUIRED)
 
