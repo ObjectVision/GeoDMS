@@ -37,7 +37,7 @@ vcpkg packages are pre-installed under `vcpkg_installed/` at the repo root
 (triplet `x64-windows-v145`). Point CMake at this dir via
 `-DVCPKG_INSTALLED_DIR=<repo-root>/vcpkg_installed`.
 
-Qt6 is at `C:/Qt/6.9.0/msvc2022_64/` — pass as `CMAKE_PREFIX_PATH`.
+Qt6 is at `C:/Qt/6.11.1/msvc2022_64/` — pass as `CMAKE_PREFIX_PATH`.
 
 The CMake presets in [`CMakePresets.json`](../../CMakePresets.json) use
 `$env{VCPKG_ROOT}` which is **not** set in the environment by default;
@@ -51,7 +51,7 @@ TOOLCHAIN='C:/Program Files/Microsoft Visual Studio/18/Community/VC/vcpkg/script
 "$CMAKE" --preset windows-x64-release \
   -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN" \
   -DVCPKG_INSTALLED_DIR="$(pwd)/vcpkg_installed" \
-  -DCMAKE_PREFIX_PATH="C:/Qt/6.9.0/msvc2022_64"
+  -DCMAKE_PREFIX_PATH="C:/Qt/6.11.1/msvc2022_64"
 ```
 
 ### Build invocation

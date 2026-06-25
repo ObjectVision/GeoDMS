@@ -52,7 +52,7 @@
     <IgnoreImportLibrary>true</IgnoreImportLibrary>
   </PropertyGroup>
   <PropertyGroup Label="QtSettings">
-    <QtInstall>6.9.0_msvc2022_64</QtInstall>
+    <QtInstall>6.11.1_msvc2022_64</QtInstall>
     <QtModules>core;gui;widgets</QtModules>
     <QtDeploy>true</QtDeploy>
   </PropertyGroup>
