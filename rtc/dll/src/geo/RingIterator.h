@@ -71,7 +71,7 @@ struct SA_ConstRingIterator
 		:	m_SequenceBase(begin_ptr(scr))
 		,	m_RingIndex(index)
 	{
-		if (index != -1)
+		if (index != SizeT(-1))
 		{
 			fillPointIndexBuffer(m_PointIndexPairArray, scr.begin(), scr.end());
 			if (m_PointIndexPairArray.empty())
@@ -128,9 +128,9 @@ struct SA_ConstRingIterator
 		SizeT othIndex = oth.m_RingIndex;
 		if (index == othIndex) // same, including both at end
 			return 0;
-		if (othIndex == -1)
+		if (othIndex == SizeT(-1))
 			othIndex = m_PointIndexPairArray.size(); // oth is at end but not this
-		if (index == -1)
+		if (index == SizeT(-1))
 			index = oth.m_PointIndexPairArray.size(); // this is at end but not oth
 		return index - othIndex;
 	}

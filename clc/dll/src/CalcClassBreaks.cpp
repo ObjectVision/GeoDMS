@@ -251,7 +251,7 @@ break_array ClassifyNZEqualInterval(AbstrDataItem* breakAttr, const ValueCountPa
 	assert(m);
 
 	assert(m <= GetTotalCount(vcpc));
-	auto mz = 0; while (mz < m && vcpc[mz].first < 0.0) ++mz; 
+	SizeT mz = 0; while (mz < m && vcpc[mz].first < 0.0) ++mz;
 	bool hasNegative = (mz > 0);
 
 	Float64 minValueN = 0.0, maxValueN = 0.0;

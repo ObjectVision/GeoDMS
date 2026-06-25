@@ -1085,7 +1085,7 @@ ViewData::~ViewData()
 FileViewHandle::FileViewHandle(std::shared_ptr<MappedFileHandle> mfh, dms::filesize_t viewOffset, dms::filesize_t viewSize, dms::filesize_t viewCapacity)
 	: m_MappedFile(mfh)
 {
-	if (viewOffset == -1)
+	if (viewOffset == UNDEFINED_FILE_SIZE)
 	{
 		assert(mfh);
 		auto lock = std::scoped_lock(mfh->m_ResizeMutex);
@@ -1101,7 +1101,7 @@ ConstFileViewHandle::ConstFileViewHandle(std::shared_ptr<ConstMappedFileHandle> 
 {
 	auto lock = std::scoped_lock(cmfh->m_ResizeMutex);
 
-	if (viewOffset == -1)
+	if (viewOffset == UNDEFINED_FILE_SIZE)
 		m_ViewSpec = cmfh->allocAtEnd(viewSize, viewCapacity);
 	else
 		m_ViewSpec = { viewOffset, viewSize, viewCapacity };
@@ -1110,7 +1110,7 @@ ConstFileViewHandle::ConstFileViewHandle(std::shared_ptr<ConstMappedFileHandle> 
 
 	MakeMin(m_ViewSpec.capacity, cmfh->GetFileSize() - m_ViewSpec.offset);
 
-	if (m_ViewSpec.size == -1)
+	if (m_ViewSpec.size == UNDEFINED_FILE_SIZE)
 		m_ViewSpec.size = m_ViewSpec.capacity;
 
 	MG_CHECK(m_ViewSpec.size <= m_ViewSpec.capacity);

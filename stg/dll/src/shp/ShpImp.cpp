@@ -215,7 +215,7 @@ bool ShpImp::Read(WeakStr name)
 		// Read points
 		ShapeTypes shapeType;
 		m_Points.resize(0); 
-		if (m_NrRecs != -1) m_Points.reserve(m_NrRecs);
+		if (m_NrRecs != UInt32(-1)) m_Points.reserve(m_NrRecs);
 		while (pos < m_FileLength)
 		{
 			MG_CHECK(m_FileLength - pos >=  (8+4+2*8));
@@ -225,7 +225,7 @@ bool ShpImp::Read(WeakStr name)
 
 			m_Points.push_back(ShpPoint());
 
-			MG_CHECK( rhead.RecordNumber == m_Points.size() );
+			MG_CHECK( SizeT(rhead.RecordNumber) == m_Points.size() );
 			MG_CHECK( (m_FileLength - (pos - 8)) / 2 >=  UInt32(rhead.ContentLength));
 
 			Int32 shapeTypeAsInt = 0;
@@ -250,7 +250,7 @@ bool ShpImp::Read(WeakStr name)
 	else
 	{
 		// Read lines, polygons or multipoints
-		if (m_NrRecs != -1) 
+		if (m_NrRecs != UInt32(-1))
 			ShapeSet_PrepareDataStore(m_NrRecs, 0);
 		else
 			ShapeSet_PrepareDataStore(0, 0);
@@ -266,7 +266,7 @@ bool ShpImp::Read(WeakStr name)
 			// Add polygon and fill it
 			ShapeSet_PushBackPolygon(ShapeTypes::ST_None);
 
-			MG_CHECK( rhead.RecordNumber == m_Polygons.size() );
+			MG_CHECK( SizeT(rhead.RecordNumber) == m_Polygons.size() );
 			MG_CHECK( (m_FileLength - (pos - 8)) / 2 >=  UInt32(rhead.ContentLength));
 
 			pos += m_Polygons.back().Read(m_FH);

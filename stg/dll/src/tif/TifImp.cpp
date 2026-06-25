@@ -611,12 +611,12 @@ void TifImp::UnpackStrip(UInt32* pixelData, void* stripBuff, UInt32 nrBitsPerPix
 		}
 		if (sampleFormat == SAMPLEFORMAT_INT)
 		{
-			if (defaultColor != UNDEFINED_VALUE(Int32))
+			if (defaultColor != UInt32(UNDEFINED_VALUE(Int32)))
 			{
 				auto nrValues = currNrProcesedBytes / 4;
 				while (nrValues--)
 				{
-					if (*pixelData == UNDEFINED_VALUE(Int32))
+					if (*pixelData == UInt32(UNDEFINED_VALUE(Int32)))
 						*pixelData = defaultColor;
 					++pixelData;
 				}

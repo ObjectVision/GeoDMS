@@ -1425,7 +1425,7 @@ SizeT LayerFieldEnable(OGRLayer* layer, CharPtrRange itemName, const Actor* cont
 		if (!itemName.empty())
 		{
 			fieldID = 0;
-			while (fieldID < featureDefn->GetFieldCount())
+			while (fieldID < SizeT(featureDefn->GetFieldCount()))
 			{
 				CharPtr columnName = featureDefn->GetFieldDefn(fieldID)->GetNameRef();
 				SizeT columnNameLen = StrLen(columnName);
@@ -1794,11 +1794,11 @@ bool GdalVectSM::ReadAttrData(const GdalVectlMetaInfo* br, AbstrDataObject * ado
 		layer->ResetReading();
 //	dms_assert(br->m_CurrFieldIndex != -1); 
 	// TODO G8: REMOVE following if, as it should have been set by the GdalVectlMetaInfo provider
-	if (m_CurrFieldIndex==-1) {
+	if (m_CurrFieldIndex==SizeT(-1)) {
 		// TODO: Lock.
 		auto adi = br->CurrWD();
 		m_CurrFieldIndex = LayerFieldEnable(layer, adi->GetName().c_str(), adi); // only set once
-		if (m_CurrFieldIndex == -1)
+		if (m_CurrFieldIndex == SizeT(-1))
 			throwErrorF("GdalVectSM::ReadAttrData", "No column '%s' available in datasource", br->m_RelativeName);
 	}
 	assert(m_CurrFieldIndex != -1); 
@@ -2065,7 +2065,7 @@ bool GdalVectSM::WriteGeometryElement(const AbstrDataItem* adi, OGRFeature* feat
 				case ValueComposition::Single: {
 					auto darray = const_array_cast<value_type>(adi)->GetDataRead(t); // GetDataRead(t) can also accept tile t
 					auto b = darray.begin(), e = darray.end();
-					dms_assert(tileFeatureIndex < (e - b));
+					dms_assert(tileFeatureIndex < SizeT(e - b));
 
 					SetPointGeometryForFeature(feature, *(b+tileFeatureIndex), vc);
 
@@ -2077,7 +2077,7 @@ bool GdalVectSM::WriteGeometryElement(const AbstrDataItem* adi, OGRFeature* feat
 
 					auto darray = debug_valcast<const DataArray<sequence_type>*>(ado)->GetDataRead(t);
 					auto b = darray.begin(), e = darray.end();
-					dms_assert(tileFeatureIndex < (e - b));
+					dms_assert(tileFeatureIndex < SizeT(e - b));
 
 					SetArcGeometryForFeature(feature, b[tileFeatureIndex], vc);
 
@@ -2176,7 +2176,7 @@ bool GdalVectSM::WriteFieldElement(const AbstrDataItem* adi, int field_index, OG
 			auto darray = const_array_cast<field_type>(adi)->GetDataRead(t); // GetDataRead(t) can also accept tile t
 
 			auto b = darray.begin(), e = darray.end();
-			dms_assert(tileFeatureIndex < (e - b));
+			dms_assert(tileFeatureIndex < SizeT(e - b));
 
 			SetField(feature, field_index, *(b+tileFeatureIndex) );
 		}
@@ -2222,7 +2222,7 @@ SizeT ReadUnitRange(OGRLayer* layer, GDALDataset* m_hDS)
 
 	const bool bRandomLayerReading = CPL_TO_BOOL(m_hDS->TestCapability(ODsCRandomLayerRead));
 
-	if (count == -1 && bRandomLayerReading)
+	if (count == SizeT(-1) && bRandomLayerReading)
 	{
 		count = ReadUnitRangeInterleaved(layer, m_hDS);
 	}

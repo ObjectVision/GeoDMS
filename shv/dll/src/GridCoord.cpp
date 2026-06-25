@@ -81,7 +81,7 @@ void CalcGridNrs(UInt32* gridCoords, UInt32* linedCoords, CrdType currGridCrd, C
 	CrdType bolGridCrd = currGridCrd;
 	while (showLinesNow)
 	{
-		if (RoundDown<4>(bolGridCrd -= deltaGridCrd) != currGridPos)
+		if (UInt32(RoundDown<4>(bolGridCrd -= deltaGridCrd)) != currGridPos) // explicit (already-implicit) signed->unsigned: an off-grid negative maps to a large value that differs from the in-range currGridPos, so we break
 			break;
 		--showLinesNow;
 	}

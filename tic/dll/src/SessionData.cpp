@@ -102,7 +102,7 @@ bool SessionData::IsConfigDirty() const
 {
 	auto sectionLock = std::scoped_lock(sd_SessionDataCriticalSection);
 
-	dms_assert(m_ConfigLoadTS != -1); // PRECONDITION: SessionData::Open was called after this was created
+	dms_assert(m_ConfigLoadTS != TimeStamp(-1)); // PRECONDITION: SessionData::Open was called after this was created
 	return m_ConfigLoadTS < UpdateMarker::GetLastTS();
 }
 

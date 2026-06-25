@@ -440,7 +440,7 @@ namespace Grid {
 		{
 			OwningPtrSizedArray<UInt32>::pointer viewRectOffsetPtr = viewRectOffsets.begin();
 			Double finvx = 1.0 / viewPort2tiff.Factor().X(), ox = viewPort2tiff.Offset().X() - 0.5;
-			for (UInt32 c = readRect.first.Col(); c != readRect.second.Col(); ++viewRectOffsetPtr, ++c)
+			for (UInt32 c = readRect.first.Col(); c != UInt32(readRect.second.Col()); ++viewRectOffsetPtr, ++c)
 			{
 				UInt32 viewOffset = RoundDown<4>((c - ox) * finvx) - viewPortOrigin.X(); // offset in x direction in view buffer (first element = 0) 
 				dms_assert(viewOffset < viewPort2tiff.GetViewPortSize().X());

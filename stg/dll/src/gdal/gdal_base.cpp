@@ -834,7 +834,7 @@ auto GetListOfDriverFileExts(GDALDriver* driver) -> std::vector<std::string>
 	CPLStringList driver_cpl_exts(CSLTokenizeString(driver->GetMetadataItem(GDAL_DMD_EXTENSIONS)));
 	auto ext_count = CSLCount(driver_cpl_exts);
 
-	for (SizeT i = 0; i != ext_count; i++) // loop over extensions of driver i
+	for (SizeT i = 0; i != SizeT(ext_count); i++) // loop over extensions of driver i
 		driver_exts.push_back(CSLGetField(driver_cpl_exts, i));
 
 	return driver_exts;

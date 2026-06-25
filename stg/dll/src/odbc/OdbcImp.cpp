@@ -959,7 +959,7 @@ bool TColumns::BindExternal(SQLUSMALLINT colindex, SQLPOINTER buf, SQLLEN buflen
 
 	SizeT framesize = 0;
 	if (buf) framesize = ThrowingConvert<SizeT>( buflen / (begin() + (colindex - 1))->ElementSize() );
-	if (buf && framesize != rs->FrameSize())
+	if (buf && framesize != SizeT(rs->FrameSize()))
 		return false;
 
 	return operator[](colindex - 1).BindExternal(buf);

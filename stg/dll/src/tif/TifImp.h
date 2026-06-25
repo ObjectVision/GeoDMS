@@ -108,7 +108,7 @@ public:
 		{
 			char* byteBuff = reinterpret_cast<char*>(stripBuff);
 			for (; th; --th, byteBuff += nrBytesPerRow)
-				for (Int32 i = 0; i != tw; ++i)
+				for (UInt32 i = 0; i != tw; ++i)
 					*pixelData++ = byteBuff[i];
 
 			currNrProcesedBytes = (N*currNrProcesedBytes + 7) / 8;

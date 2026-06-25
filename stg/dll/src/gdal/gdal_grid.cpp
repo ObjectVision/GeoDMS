@@ -411,7 +411,7 @@ void GDalGridImp::UnpackStrip(bit_iterator<N, bit_block_t> pixelData, void* stri
 		char* byteBuff = reinterpret_cast<char*>(stripBuff);
 		for (; th; --th, byteBuff += nrBytesPerRow)
 		{
-			for (Int32 i = 0; i != tw; ++i)
+			for (UInt32 i = 0; i != tw; ++i)
 				*pixelData++ = byteBuff[i] & bint_mask;
 			pixelData += (tw_aligned - tw);
 		}

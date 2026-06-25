@@ -175,7 +175,7 @@ void DecRemainingTargetCount()
 
 	void LeaveNotificationBlock()
 	{
-		dms_assert(g_NrTargetsAtEnter != -1);
+		dms_assert(g_NrTargetsAtEnter != UInt32(-1));
 		if (g_NrTargetsAtEnter != g_RemainingTargetCount)
 		{
 			leveled_critical_section::scoped_lock notifyLock(sc_NotifyTargetCount);

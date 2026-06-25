@@ -109,7 +109,7 @@ struct Str2Operator : BinaryAttrOper<SharedStr, SharedStr, strpos_t>
 
 		using data_size_type = sequence_traits<SharedStr>::seq_t::data_size_type;
 		data_size_type totalSize = 0;
-		for (auto i = 0; i != cardinality; ++i) {
+		for (SizeT i = 0; i != cardinality; ++i) {
 			auto size = a1b[e1Void ? 0 : i].size();
 			auto pos = a2b[e2Void ? 0 : i];
 			if (pos < size)

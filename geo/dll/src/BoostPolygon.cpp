@@ -1774,7 +1774,7 @@ public:
 		for (auto gi=graph.begin(), ge=graph.end(); gi!=ge; ++i, ++gi)
 		{
 			for (auto vsi = gi->begin(), vse=gi->end(); vsi!=vse; ++vsi)
-				if (i < *vsi)
+				if (i < SizeT(*vsi))
 				{
 					assert(e < nrEdges);
 					assert(*vsi < domain_rel.size());

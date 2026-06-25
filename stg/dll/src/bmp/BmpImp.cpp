@@ -684,7 +684,7 @@ Boolean BmpImp::GetRle8Row(row_t rowNumber, UByte *buf) const
 		// Read next buffer
 		if 
 		(
-			(cur_read == buf_width) &&
+			(cur_read == DWORD(buf_width)) &&
 			((cur_read - cur_pos) < 5)
 		)
 		{
@@ -718,7 +718,7 @@ Boolean BmpImp::GetRle8Row(row_t rowNumber, UByte *buf) const
 					// Read next buffer
 					if 
 					(
-						(cur_read == buf_width) &&
+						(cur_read == DWORD(buf_width)) &&
 						((cur_read - cur_pos) <= cnt+1)
 					)
 					{
@@ -1029,8 +1029,8 @@ Boolean BmpImp :: SetHeight(row_t height)
 //
 Boolean BmpImp :: SetWidth(col_t width)
 {
-	dms_assert(!m_IsFileOpen 
-		|| (m_InfoHeader->biWidth == width) 
+	dms_assert(!m_IsFileOpen
+		|| (UInt32(m_InfoHeader->biWidth) == width)
 		|| (m_BmpFileMode == BMP_WRITE && !m_RowSizeWasUsed));
 	m_InfoHeader->biWidth = width;
 
@@ -1190,7 +1190,7 @@ Boolean BmpImp::SetRle8Row(row_t rowNumber, UByte *buf)
     }
 
     // Write end of line or end of file...
-    esc[1] = (m_InternRowNumber == m_InfoHeader->biHeight - 1) ?
+    esc[1] = (m_InternRowNumber == UInt32(m_InfoHeader->biHeight) - 1) ?
              RLE_EOF : RLE_EOL;
 
     esc[0] = RLE_ESCAPE;
@@ -1263,7 +1263,7 @@ Boolean BmpImp::SetRow(row_t rowNumber, UByte* buf)
 		{
 			vector_zero_n(m_CodedBuf, GetRowSize());
 			std::vector<UByte>::iterator out_buf = m_CodedBuf.begin();
-			for (SizeT cnt = 0; cnt != m_InfoHeader->biWidth; ++cnt)
+			for (SizeT cnt = 0; cnt != SizeT(m_InfoHeader->biWidth); ++cnt)
 			{
 				auto bit_cnt = cnt / 8;
 				UInt32 shift_cnt = 7 - (cnt & 0x07);
@@ -1276,7 +1276,7 @@ Boolean BmpImp::SetRow(row_t rowNumber, UByte* buf)
 		{
 			vector_zero_n(m_CodedBuf, GetRowSize());
 			std::vector<UByte>::iterator out_buf = m_CodedBuf.begin();
-			for (SizeT cnt = 0; cnt != m_InfoHeader->biWidth; ++cnt)
+			for (SizeT cnt = 0; cnt != SizeT(m_InfoHeader->biWidth); ++cnt)
 			{
 				auto bit_cnt = cnt / 2;
 //				UInt32 shift_cnt = (4 - 4 * (cnt & 0x01));
@@ -1295,7 +1295,7 @@ Boolean BmpImp::SetRow(row_t rowNumber, UByte* buf)
 			std::vector<UByte>::iterator out_buf = m_CodedBuf.begin();
 			// A true color row, make it 3 bytes per pixel B, G & R
 			// instead of R, G & B
-			for (SizeT cnt = 0; cnt != m_InfoHeader->biWidth; ++cnt)
+			for (SizeT cnt = 0; cnt != SizeT(m_InfoHeader->biWidth); ++cnt)
 			{
 				auto bit_cnt = cnt * 3;
 				out_buf[bit_cnt]     = buf[bit_cnt + 2];

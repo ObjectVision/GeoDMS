@@ -455,9 +455,9 @@ public:
 
 	UInt32 GetRecordCount()
 	{
-		if (m_RecordCount == -1)
+		if (m_RecordCount == UInt32(-1))
 			m_RecordCount = GetRecordSet()->RecordCount();
-		dms_assert(m_RecordCount != -1);
+		dms_assert(m_RecordCount != UInt32(-1));
 		return m_RecordCount;
 	}
 

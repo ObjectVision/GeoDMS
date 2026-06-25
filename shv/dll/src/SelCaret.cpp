@@ -127,7 +127,7 @@ Region SelCaret::UpdateRectImpl(const GRect& updateRect)
 		dbg_assert(currViewRow - updateRect.top == currGridRowPtr -gridRowBeginPtr );
 
 		UInt32 currGridRow = *currGridRowPtr;
-		UInt32 nextViewRow = currViewRow;
+		Int32 nextViewRow = currViewRow;
 		do {
 			++currGridRowPtr;
 			++nextViewRow;
@@ -148,7 +148,7 @@ Region SelCaret::UpdateRectImpl(const GRect& updateRect)
 				dbg_assert(currViewCol - viewColBegin == currGridColPtr - gridColBeginPtr );
 
 				UInt32 currGridCol = *currGridColPtr;
-				UInt32 nextViewCol = currViewCol;
+				Int32 nextViewCol = currViewCol;
 				do {
 					++currGridColPtr;
 					++nextViewCol;
