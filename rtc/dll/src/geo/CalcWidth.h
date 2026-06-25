@@ -20,8 +20,7 @@ template <typename ScalarType>
 bool ComesAfterZero(const Point<ScalarType>& p)
 {
 	return 0 <  p.Row()
-		|| 0 == p.Row()
-		&& 0 <  p.Col();
+		|| (0 == p.Row() && 0 <  p.Col());
 }
 
 template <typename ScalarType, typename ConstPointIter>

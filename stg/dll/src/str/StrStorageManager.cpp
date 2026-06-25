@@ -74,7 +74,7 @@ FileResult StrStorageManager::ReadDataItem (StorageMetaInfoPtr smi, AbstrDataObj
 
 			MG_CHECK(dataSize <= fileSize);
 		}
-		fread(dataBegin, dataSize, 1, file);
+		MG_CHECK(dataSize == 0 || fread(dataBegin, dataSize, 1, file) == 1);
 	}
 	return {};
 }
@@ -134,8 +134,9 @@ void StrStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* cu
 		return; // noop
 
 	if (	!	IsDataItem(storageHolder)
-	   ||	(	!	AsDataItem(storageHolder)->HasVoidDomainGuarantee() )
+	   ||	(	(	!	AsDataItem(storageHolder)->HasVoidDomainGuarantee() )
 			&&	AsDataItem(storageHolder)->GetAbstrValuesUnit()->GetUnitClass() == Unit<SharedStr>::GetStaticClass()
+			)
 	   )
 		throwItemError("StrStorageManager requires as storageHolder a parameter<SharedStr> or an attribute<valuesUnit with fixed element size>");
 

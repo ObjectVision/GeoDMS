@@ -20,7 +20,7 @@
 AspectData AspectArrayData[] = 
 {
 
-	{ "Feature",            AR_AttrOnly, AT_Feature,  AG_Other},
+	{ "Feature",            AR_AttrOnly, AT_Feature,  AG_Other,  UNDEFINED_VALUE(TokenID)      },
 
 	{ "OrderBy",            AR_AttrOnly, AT_Numeric,  AG_Other,  UNDEFINED_VALUE(TokenID)      },
 

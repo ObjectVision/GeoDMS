@@ -201,7 +201,7 @@ redo:
 			m_NextToken.push_back(nextChar);
 			nextChar = ReadChar();
 		}
-		if (nextChar == '.' && !(m_Flags & reader_flags::commaAsDecimalSeparator)
+		if ((nextChar == '.' && !(m_Flags & reader_flags::commaAsDecimalSeparator))
 			|| (nextChar == ',' && (m_Flags & reader_flags::commaAsDecimalSeparator)))
 		{
 			m_NextToken.push_back(nextChar);
@@ -245,29 +245,29 @@ redo:
 	{
 		tokenType = TokenType::DoubleQuote;
 		if (!ReadDQuote())
-			goto labelEOF;
+		{
+			tokenType = TokenType::EOF_;
+			m_NextToken.clear(); // EOF_ is signalled via tokenType; text is empty (Parser keys on tokenType)
+		}
 	}
 	else if (nextChar == '\'')
 	{
 		tokenType = TokenType::SingleQuote;
 		if (!ReadSQuote())
-			goto labelEOF;
+		{
+			tokenType = TokenType::EOF_;
+			m_NextToken.clear(); // EOF_ is signalled via tokenType; text is empty (Parser keys on tokenType)
+		}
 	}
-	else if (nextChar == EOF)
+	else 
 	{
-labelEOF:
-		tokenType = TokenType::EOF_;
-		m_NextToken.clear();
-		m_NextToken.push_back(EOF); // single char token
-	}
-	else if (nextChar != 0)
-	{
+		assert(nextChar != 0);
 		tokenType = TokenType::Punctuation;
 		m_NextToken.push_back(nextChar); // single char token
 		ReadChar(); // Read past token;
 	}
 
-	dms_assert(tokenType != TokenType::Unknown);
+	assert(tokenType != TokenType::Unknown);
 	if (m_NextToken.empty())
 		return { tokenType, CharPtrRange("") };
 	return { tokenType, CharPtrRange(begin_ptr(m_NextToken), end_ptr(m_NextToken)) };
@@ -305,9 +305,7 @@ bool FormattedInpStream::ReadSQuote()
 	while (true)
 	{
 		unsigned char nextChar = ReadChar();      // Read past opening delimiter
-		if(nextChar == EOF)
-			return false;
-		if(nextChar == 0) 
+		if(nextChar == 0)
 		{
 			ReadChar();  // Read past closing delimiter
 			break;

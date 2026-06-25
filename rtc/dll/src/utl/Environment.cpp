@@ -1682,7 +1682,8 @@ SharedStr GetCurrentDir()
 
 void SetCurrentDir(CharPtr dir)
 {
-	chdir(dir);
+	if (chdir(dir) != 0)
+		throwErrorD("Environment", "chdir failed");
 }
 
 RTC_CALL void DMS_CONV DMS_Appl_SetFont()

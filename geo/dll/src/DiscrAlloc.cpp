@@ -791,7 +791,7 @@ struct regions_info_t : regions_info_base
 	using atomic_region_data_handle = typename DataArray<atomic_region_id>::locked_cseq_t;
 
 	regions_info_t(const regions_meta_t& meta)
-		: regions_info_base{ meta }
+		: regions_info_base{ meta, 0, 1, 0, 0, 0, {}, {}, {} }
 	{
 		m_Partitionings.reserve(meta.m_PartitioningMetas.size());
 		for (const auto& pm : meta.m_PartitioningMetas)
@@ -850,7 +850,7 @@ struct regions_info_t<Void> : regions_info_base
 	using atomic_region_proxy = UInt32;
 
 	regions_info_t(const regions_meta_t& meta)
-		: regions_info_base{ meta }
+		: regions_info_base{ meta, 0, 1, 0, 0, 0, {}, {}, {} }
 	{}
 
 

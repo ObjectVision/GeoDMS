@@ -222,7 +222,7 @@ void ReadGeoRefFile(WeakStr geoRefFileName, AbstrUnit* uDomain, const AbstrUnit*
 			r.Throw("ReadGeoRefFile");
 		SizeT size = file.GetFileSize();
 		buffer.resize(size + 1, 0);
-		fread(begin_ptr(buffer), size, 1, file);
+		MG_CHECK(size == 0 || fread(begin_ptr(buffer), size, 1, file) == 1);
 	}
 	assert(buffer.size());
 

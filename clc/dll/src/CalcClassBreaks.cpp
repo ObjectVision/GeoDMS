@@ -60,8 +60,10 @@ CLC_CALL void ClassifyLogInterval(break_array& faLimits, SizeT k, const ValueCou
 	Float64 fValue = 1;
 	if(valueRange.first > 0)
 	{
-		while (fValue > valueRange.first * 10 ) fValue *= 0.1; assert(fValue <= valueRange.first*10);
-		while (fValue <= valueRange.first)      fValue *= 10;  assert(fValue <= valueRange.first*10);
+		while (fValue > valueRange.first * 10 ) fValue *= 0.1;
+		assert(fValue <= valueRange.first*10);
+		while (fValue <= valueRange.first)      fValue *= 10;
+		assert(fValue <= valueRange.first*10);
 		assert(fValue <= valueRange.first*10);
 	}
 	assert(fValue > valueRange.first);

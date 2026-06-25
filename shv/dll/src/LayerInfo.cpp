@@ -530,7 +530,8 @@ LayerInfo GetAspectInfo(AspectNr aNr, const AbstrDataItem* adi, const LayerInfo&
 	SharedStr infoTxt;
 	// look for most specific first: as sub-items of adi; prefer with avu as domain
 	const AbstrDataItem* res = FindAspectAttr (aNr, adi, avu, layerClass); if (res) return LayerInfo(LayerInfo::Aspect, res, 0, adi);
-	if (allowParameter)  res = FindAspectParam(aNr, adi, layerClass);      if (res) goto returnAspectParam;
+	if (allowParameter)  res = FindAspectParam(aNr, adi, layerClass);
+	if (res) goto returnAspectParam;
 
 	// Then, look at avu, the valuesunit of adi
 	                     res = FindAspectAttr (aNr, avu, avu, layerClass); if (res) return LayerInfo(LayerInfo::Aspect, res, 0, adi);
@@ -583,11 +584,13 @@ LayerInfo GetAspectInfo(AspectNr aNr, const AbstrDataItem* adi, const LayerInfo&
 			res = FindAspectAttr(aNr, mapItem2, classIdUnit, layerClass); if (res) return LayerInfo(LayerInfo::Aspect, res, mapItem2, adi);
 			res = FindAspectAttr(aNr, mapItem2, avu, layerClass); if (res) return LayerInfo(LayerInfo::Aspect, res, 0, adi);
 			if (allowParameter)
-				res = FindAspectParam(aNr, mapItem2, layerClass); if (res) goto returnAspectParam;
+				res = FindAspectParam(aNr, mapItem2, layerClass);
+			if (res) goto returnAspectParam;
 
 			res = FindAspectAttr(aNr, classIdUnit, classIdUnit, layerClass); if (res) return LayerInfo(LayerInfo::Aspect, res, mapItem2, adi);
 			if (allowParameter)
-				res = FindAspectParam(aNr, classIdUnit, layerClass); if (res) goto returnAspectParam;
+				res = FindAspectParam(aNr, classIdUnit, layerClass);
+			if (res) goto returnAspectParam;
 			infoTxt += mySSPrintF("\nbut no %s attribute found for the ClassEntity %s\nStart the palette editor for this ClassEntity."
 				, AspectArray[aNr].name
 				, classIdUnit->GetFullName().c_str()
@@ -604,7 +607,8 @@ LayerInfo GetAspectInfo(AspectNr aNr, const AbstrDataItem* adi, const LayerInfo&
 			const AbstrUnit* adu = featureInfo.m_uEntity;
 			res = FindAspectAttr(aNr, adu, adu, layerClass); if (res) return LayerInfo(LayerInfo::Aspect, 0, 0, res);
 			if (allowParameter)
-				res = FindAspectParam(aNr, adu, layerClass); if (res) goto returnAspectParam;
+				res = FindAspectParam(aNr, adu, layerClass);
+			if (res) goto returnAspectParam;
 		}
 
 		if (aNr == AN_LabelText

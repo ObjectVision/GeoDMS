@@ -248,8 +248,8 @@ TIC_CALL const TreeItem* DMS_CONV DMS_TreeItem_GetItem(const TreeItem* context, 
 
 		TreeItemContextHandle tich(context, TreeItem::GetStaticClass(), "DMS_TreeItem_GetItem");
 		const TreeItem* result = context->FindItem(path).get();
-		if	(	!requiredClass 
-			||	result && result->GetDynamicObjClass()->IsDerivedFrom(requiredClass)
+		if	(	!requiredClass
+			||	(result && result->GetDynamicObjClass()->IsDerivedFrom(requiredClass))
 			)
 			return result;
 

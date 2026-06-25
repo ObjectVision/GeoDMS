@@ -1646,7 +1646,8 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 		bool dataSourceExists = std::filesystem::exists(data_source_name.c_str());
 #endif
 		if (dataSourceExists)
-			driver->Delete(data_source_name.c_str()); gdal_error_frame.GetMsgAndReleaseError(); // start empty, release error in case of nonexistance.
+			driver->Delete(data_source_name.c_str());
+		gdal_error_frame.GetMsgAndReleaseError(); // start empty, release error in case of nonexistance.
 
 		// check for values unit support in driver
 		if (!(smi.CurrRI()->GetID() == token::geometry) && !Gdal_DriverSupportsDmsValueType(gdalOpenFlags, valuesTypeID, value_composition, driver))

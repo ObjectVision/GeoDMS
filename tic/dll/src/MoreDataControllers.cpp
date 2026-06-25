@@ -846,8 +846,8 @@ ActorVisitState FuncDC::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor
 		if (visitor(dcResult.get()) == AVS_SuspendedOrFailed)
 			return AVS_SuspendedOrFailed;
 
-		if (m_OperatorGroup->MustSupplyTree(argNr, firstArgValueCPtr) || 
-			Test(svf, SupplierVisitFlag::ScanSupplTree) && m_OperatorGroup->IsSubItemRoot(argNr, firstArgValueCPtr)) 
+		if (m_OperatorGroup->MustSupplyTree(argNr, firstArgValueCPtr) ||
+			(Test(svf, SupplierVisitFlag::ScanSupplTree) && m_OperatorGroup->IsSubItemRoot(argNr, firstArgValueCPtr)))
 		{
 			if (dcResult->VisitConstVisibleSubTree(visitor) == AVS_SuspendedOrFailed)
 				return AVS_SuspendedOrFailed;

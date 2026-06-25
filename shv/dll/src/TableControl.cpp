@@ -659,7 +659,7 @@ redo:
 	NotifyRowColChange();
 }
 
-void TableControl::GoHome(bool shift, bool firstActiveCol)
+void TableControl::GoHome(bool shift, [[maybe_unused]] bool firstActiveCol)
 {
 	assert(m_Rows.IsDefined() == m_Cols.IsDefined());
 

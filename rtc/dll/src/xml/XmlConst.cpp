@@ -22,7 +22,7 @@ char SymbolGetChar(CharPtr symbol)
 struct RegisterConst {
 	RegisterConst(char ch, CharPtr token)
 	{
-		XmlConstTable[ch] = token;
+		XmlConstTable[static_cast<unsigned char>(ch)] = token;
 		XmlConstMap[token] = ch;
 	}
 };

@@ -54,8 +54,6 @@ leveled_critical_section scs_ExplainAccess(item_level_type(0), ord_level_type::M
 //  struct CalcExplanation
 //  -----------------------------------------------------------------------
 
-struct Explain::CalcExplImpl;
-
 namespace Explain { // local defs
 
 	using CoordinateCollectionType = std::vector<CoordinateType>;

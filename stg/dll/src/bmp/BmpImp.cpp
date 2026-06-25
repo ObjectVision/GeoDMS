@@ -981,9 +981,9 @@ void BmpImp::GetColor(PALETTE_SIZE index, UByte &r, UByte &g, UByte &b) const
 	// But if biClrUsed == 0, we ignore it
 	if 
 	(
-		(m_InfoHeader->biClrUsed > 0) && (index >= m_InfoHeader->biClrUsed)
+		((m_InfoHeader->biClrUsed > 0) && (index >= m_InfoHeader->biClrUsed))
 		||
-		(index >= MAX_COLORS) 
+		(index >= MAX_COLORS)
 	)
 	{
 		r = 0;
@@ -1053,8 +1053,8 @@ Boolean BmpImp::SetRle8Row(row_t rowNumber, UByte *buf)
     if (m_InternRowNumber != rowNumber)
         return FALSE;
 
-	if (m_InternRowNumber == 0)
-		m_FileRowOffsets[m_InternRowNumber] = GetRowsOffset();
+    if (m_InternRowNumber == 0)
+        m_FileRowOffsets[m_InternRowNumber] = GetRowsOffset();
 
     m_InternRowFilePointer = m_FileRowOffsets[m_InternRowNumber];
 

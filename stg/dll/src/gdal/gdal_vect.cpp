@@ -2332,7 +2332,7 @@ void SetFeatureDefnForOGRLayerFromLayerHolder(const TreeItem* subItem, OGRLayer*
 				TokenStr fieldName = fieldNameID.GetStr();
 				OGRFieldDefn    fieldDefn(fieldName.c_str(), type);     error_frame.ThrowUpWhateverCameUp();
 				fieldDefn.SetSubType(subtype);                 error_frame.ThrowUpWhateverCameUp();
-				layerHandle->CreateField(&fieldDefn, bApproxOK); error_frame.ThrowUpWhateverCameUp();
+				[[maybe_unused]] OGRErr createFieldErr = layerHandle->CreateField(&fieldDefn, bApproxOK); error_frame.ThrowUpWhateverCameUp();
 				// destructor of TokenStr gives up lock on tokenlist to allow for GetTokenID_mt to be called
 			}
 			// check for laundered fieldname
@@ -2574,9 +2574,9 @@ void GdalVectSM::WriteLayer(TokenID layer_id, const GdalMetaInfo& gmi)
 			}
 
 			if (not numExistingFeatures)
-				layer_handle->CreateFeature(curFeature);
+				{ [[maybe_unused]] OGRErr createFeatureErr = layer_handle->CreateFeature(curFeature); }
 			else
-				layer_handle->SetFeature(curFeature);
+				{ [[maybe_unused]] OGRErr setFeatureErr = layer_handle->SetFeature(curFeature); }
 		}
 	}
 	m_DataItemsStatusInfo.ReleaseAllLayerInterestPtrs(layer_id);

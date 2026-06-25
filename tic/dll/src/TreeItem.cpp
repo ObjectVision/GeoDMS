@@ -668,7 +668,7 @@ void TreeItem::SetExpr(WeakStr expr)
 
 void TreeItem::SetDC(DataControllerRef newDC, const TreeItem* newRefItem) const
 {
-	dms_assert(!InTemplate() || !newDC && !newRefItem);
+	dms_assert(!InTemplate() || (!newDC && !newRefItem));
 
 	if (mc_DC == newDC && (!newRefItem || newRefItem == mc_RefItem))
 		return;
@@ -889,7 +889,7 @@ void TreeItem::MakeCalculator() const noexcept
 		);
 	auto_flag_recursion_lock<ASF_MakeCalculatorLock> lock(m_State);
 
-	if (mc_Expr.empty() && (IsCacheItem() || !IsUnit(this))|| IsPassor())
+	if ((mc_Expr.empty() && (IsCacheItem() || !IsUnit(this)))|| IsPassor())
 		return;
 
 
@@ -1047,7 +1047,7 @@ const TreeItem* TreeItem::GetUltimateSourceItem() const noexcept
 {
 	const TreeItem* item = this;
 	const TreeItem* source;
-	while (source = item->GetSourceItem())
+	while ((source = item->GetSourceItem()))
 		item = source;
 	assert(item);
 	return item;
@@ -1069,7 +1069,7 @@ const TreeItem* TreeItem::GetCurrUltimateSourceItem() const noexcept
 {
 	const TreeItem* item = this;
 	const TreeItem* source;
-	while (source = item->GetCurrSourceItem())
+	while ((source = item->GetCurrSourceItem()))
 		item = source;
 	dms_assert(item);
 	return item;
@@ -1540,7 +1540,7 @@ TreeItem* TreeItem::GetItem(CharPtrRange subItemNames)
 	auto ids = NameTreeReg_GetParentAndBranchID(subItemNames);
 	if (ids.first.empty()) // subItemNames is an atomic token or parent = root
 	{
-		if (ids.second.first != subItemNames.first || ids.second.size() && ids.second.first[0] == '.')
+		if (ids.second.first != subItemNames.first || (ids.second.size() && ids.second.first[0] == '.'))
 			return nullptr;
 		return GetSubTreeItemByID(GetTokenID(ids.second));
 	}
@@ -1556,7 +1556,7 @@ TreeItem* TreeItem::GetBestItem(CharPtrRange subItemNames)
 	auto ids = NameTreeReg_GetParentAndBranchID(subItemNames);
 	if (ids.first.empty()) // subItemNames is an atomic token or parent = root
 	{
-		if (ids.second.first != subItemNames.first || ids.second.size() && ids.second.first[0] == '.')
+		if (ids.second.first != subItemNames.first || (ids.second.size() && ids.second.first[0] == '.'))
 			return nullptr;
 		auto result = GetSubTreeItemByID(GetTokenID(ids.second));
 		return result ? result : this;
@@ -1576,7 +1576,7 @@ SharedTreeItem TreeItem::GetCurrItem(CharPtrRange subItemNames) const
 	auto ids = NameTreeReg_GetParentAndBranchID(subItemNames);
 	if (ids.first.empty()) // subItemNames is an atomic token or parent = root
 	{
-		if (ids.second.first != subItemNames.first || ids.second.size() && ids.second.first[0] == '.')
+		if (ids.second.first != subItemNames.first || (ids.second.size() && ids.second.first[0] == '.'))
 			throwItemError("GetCurrItem is not allowed to look outside the accessible search context");
 		return GetCurrSubTreeItemByID(GetTokenID(ids.second));
 	}
@@ -1893,10 +1893,12 @@ auto TreeItem_CreateItemFromPath(TreeItem* self, CharPtr subItemNames, const Cla
 	assert(subItemNames);
 
 	if (*subItemNames == 0) // all subItemNames are processed ??
+	{
 		if (self)
 			return CheckedAs(self, requiredClass);
 		else
 			return CreateAndInitItem(self, TokenID(), requiredClass);
+	}
 
 
 	// parsing the subItemNames recursively by calling this method on subItemNames parts
@@ -3797,7 +3799,7 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 				{
 					bool mustWrite = HasCalculator() && !GetCalculator()->IsDataBlock();
 					bool mustSkip = HasCalculator() && GetCalculator()->IsDataBlock();
-					if (!mustSkip && !mmd->IsOpen() || mustWrite && !mmd->IsOpenForWrite())
+					if ((!mustSkip && !mmd->IsOpen()) || (mustWrite && !mmd->IsOpenForWrite()))
 					{
 						auto parent = GetStorageParent(mustWrite);
 						if (!parent)
@@ -4127,7 +4129,7 @@ bool TreeItem::CommitDataChanges() const
 	auto sm = storageHolder->GetStorageManager();
 	assert(sm); // guaranteed by IsStorable();
 
-	if (!IsCalculatingOrReady(GetCurrRangeItem()) && !PrepareDataUsage(DrlType::Suspendible) || GetCurrRangeItem()->WasFailed(FailType::Committed))
+	if ((!IsCalculatingOrReady(GetCurrRangeItem()) && !PrepareDataUsage(DrlType::Suspendible)) || GetCurrRangeItem()->WasFailed(FailType::Committed))
 		// can have failed just because PrepareDataUsage suspended or failed; 
 		return FinalizeFailure(this, [this]() { return mySSPrintF("Unable to start calculating data when trying to store it in %s", DMS_TreeItem_GetAssociatedFilename(this)); });
 
