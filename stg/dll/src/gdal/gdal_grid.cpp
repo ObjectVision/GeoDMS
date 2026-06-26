@@ -17,6 +17,8 @@
 #include "gdal_base.h"
 #include "gdal_grid.h"
 
+#include "utl/Environment.h" // ConvertDmsFileName, see issue #367
+
 #include <gdal_priv.h>
 
 #include "TicPropDefConst.h"
@@ -90,7 +92,8 @@ void GdalGridSM::EnsureBlockSizeCached() const
 	}
 	try {
 		GDAL_ErrorFrame frame;
-		GDALDatasetHandle ds(static_cast<GDALDataset*>(GDALOpenEx(GetNameStr().c_str(), GDAL_OF_RASTER, nullptr, nullptr, nullptr)));
+		// Convert the internal file:// UNC encoding back to a native path for GDAL. See issue #367.
+		GDALDatasetHandle ds(static_cast<GDALDataset*>(GDALOpenEx(ConvertDmsFileName(GetNameStr()).c_str(), GDAL_OF_RASTER, nullptr, nullptr, nullptr)));
 		if (ds) {
 			if (auto first_band = ds->GetRasterBand(1)) {
 				int x, y;

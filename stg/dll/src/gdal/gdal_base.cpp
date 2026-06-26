@@ -1466,7 +1466,9 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 
 	const TreeItem* storageHolder = smi.StorageHolder();
 
-	SharedStr data_source_name = smi.StorageManager()->GetNameStr();
+	// GDAL's C API expects native paths (e.g. \\server\share on Windows), not the internal
+	// file:// UNC encoding that ConvertDosFileName produces; convert back at the GDAL boundary. See issue #367.
+	SharedStr data_source_name = ConvertDmsFileName(smi.StorageManager()->GetNameStr());
 
 	const auto& gmi = dynamic_cast<const GdalMetaInfo&>(smi);
 

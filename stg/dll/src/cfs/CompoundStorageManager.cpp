@@ -262,7 +262,8 @@ void CompoundStorageManager::DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mo
 	// try to open the file
 
 	IStorage* tmp = 0;
-	auto nameStr  = GetNameStr();
+	// StgOpenStorage expects a native path, not the internal file:// UNC encoding. See issue #367.
+	auto nameStr  = ConvertDmsFileName(GetNameStr());
 	auto nameStrW = Utf8_2_wchar(nameStr.c_str());
 	result = StgOpenStorage(nameStrW.get(), NULL, dwMode, NULL, 0, &tmp);
 	m_Root = tmp;
@@ -353,7 +354,9 @@ void CompoundStorageManager::CreateNewFile(WeakStr workingFileName)
 	
 	// create file
 	IStorage* tmp = NULL;
-	result = StgCreateDocfile(Utf8_2_wchar(workingFileName.c_str()).get(), dwMode, 0, &tmp);
+	// StgCreateDocfile expects a native path, not the internal file:// UNC encoding. See issue #367.
+	auto dosFileName = ConvertDmsFileName(workingFileName);
+	result = StgCreateDocfile(Utf8_2_wchar(dosFileName.c_str()).get(), dwMode, 0, &tmp);
 	m_Root.Reset(tmp);
 	// convert result to ASM defined result
 	CheckResult(result, "CreateNewFile", 0);
