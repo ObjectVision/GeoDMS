@@ -548,7 +548,7 @@ bool DrawPolygons(const GraphicPolygonLayer* layer, const FeatureDrawer& fd, con
 				e = lockedData.end();
 			const typename p_traits::RectArrayType& rectArray  = boundingBoxCache->GetBoundsArray(t);
 			const typename p_traits::RectArrayType& blockArray = boundingBoxCache->GetBlockBoundArray(t);
-			lfs_assert(rectArray.size() == e-b);
+			lfs_assert(rectArray.size() == SizeT(e-b));
 
 			ResumableCounter itemCounter(d.GetCounterStacks(), true);
 			typename p_traits::RectArrayType::const_iterator ri = rectArray.begin() + itemCounter.Value();

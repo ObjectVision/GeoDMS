@@ -86,7 +86,7 @@ struct RampOperator : AbstrRampOperator
 
 		auto resultIter = resData.begin();
 
-		assert((resData.end() -resultIter) == n);
+		assert(SizeT(resData.end() -resultIter) == n);
 
 		RampFunc rf(m_IsClosed ? n-1 : n, firstV, lastV);
 		for (UInt32 i=0; i != n; ++i, ++resultIter)

@@ -1801,7 +1801,7 @@ bool GdalVectSM::ReadAttrData(const GdalVectlMetaInfo* br, AbstrDataObject * ado
 		if (m_CurrFieldIndex == SizeT(-1))
 			throwErrorF("GdalVectSM::ReadAttrData", "No column '%s' available in datasource", br->m_RelativeName);
 	}
-	assert(m_CurrFieldIndex != -1); 
+	assert(m_CurrFieldIndex != SizeT(-1));
 
 	OGRFeatureDefn* layerDefn = layer->GetLayerDefn();
 	dms_assert(layerDefn);

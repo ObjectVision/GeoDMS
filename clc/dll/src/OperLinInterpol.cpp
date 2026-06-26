@@ -64,7 +64,7 @@ void DoInterpolateLinear(
 	SizeT    n  = xCoords.size();
 
 	OwningPtrSizedArray<SizeT> index(n, dont_initialize MG_DEBUG_ALLOCATOR_SRC( "DoInterpolateLinear: index"));
-	auto indexBegin = index.begin(), indexEnd = index.end(); assert(indexEnd - indexBegin == n);
+	auto indexBegin = index.begin(), indexEnd = index.end(); assert(SizeT(indexEnd - indexBegin) == n);
 	make_index_in_existing_span(indexBegin, indexEnd, xi);
 
 	chart_t chart;
