@@ -680,39 +680,39 @@ void WmsLayer::SetSpecContainer(const TreeItem* specContainer)
 	SuspendTrigger::SilentBlocker block("WmsLayer::SetSpecContainer");
 
 	SharedPtr<const TreeItem> tileMatrices = specContainer->GetConstSubTreeItemByID(GetTokenID_mt("TileMatrix"));
+	MG_USERCHECK2(tileMatrices, "TileMatrix container not found");
+
+	Table tab(tileMatrices.get(), "name", "ScaleDenominator", "LeftCoord", "TopCoord", "TileWidth", "TileHeight", "MatrixWidth", "MatrixHeight");
+
+	auto nameArray = const_array_cast<SharedStr>(tab[0].m_Ptr)->GetLockedDataRead();
+	auto sdArray = const_array_cast<Float64>(tab[1].m_Ptr)->GetLockedDataRead();
+	auto lcArray = const_array_cast<Float64>(tab[2].m_Ptr)->GetLockedDataRead();
+	auto tcArray = const_array_cast<Float64>(tab[3].m_Ptr)->GetLockedDataRead();
+	auto twArray = const_array_cast<UInt16>(tab[4].m_Ptr)->GetLockedDataRead();
+	auto thArray = const_array_cast<UInt16>(tab[5].m_Ptr)->GetLockedDataRead();
+	auto mwArray = const_array_cast<UInt32>(tab[6].m_Ptr)->GetLockedDataRead();
+	auto mhArray = const_array_cast<UInt32>(tab[7].m_Ptr)->GetLockedDataRead();
+	SizeT size = nameArray.size();
+	MG_CHECK(size == sdArray.size() && size == lcArray.size() && size == tcArray.size() && size == twArray.size() && size == thArray.size() && size == mwArray.size() && size == mhArray.size());
+
+	CrdRect extents;
+	for (SizeT i = 0; i != size; ++i)
 	{
-		Table tab(tileMatrices.get(), "name", "ScaleDenominator", "LeftCoord", "TopCoord", "TileWidth", "TileHeight", "MatrixWidth", "MatrixHeight");
+		Float64 scaleDenom = sdArray[i] * 0.00028; // size of a pixel in meters ?
 
-		auto nameArray = const_array_cast<SharedStr>(tab[0].m_Ptr)->GetLockedDataRead();
-		auto sdArray = const_array_cast<Float64>(tab[1].m_Ptr)->GetLockedDataRead();
-		auto lcArray = const_array_cast<Float64>(tab[2].m_Ptr)->GetLockedDataRead();
-		auto tcArray = const_array_cast<Float64>(tab[3].m_Ptr)->GetLockedDataRead();
-		auto twArray = const_array_cast<UInt16>(tab[4].m_Ptr)->GetLockedDataRead();
-		auto thArray = const_array_cast<UInt16>(tab[5].m_Ptr)->GetLockedDataRead();
-		auto mwArray = const_array_cast<UInt32>(tab[6].m_Ptr)->GetLockedDataRead();
-		auto mhArray = const_array_cast<UInt32>(tab[7].m_Ptr)->GetLockedDataRead();
-		SizeT size = nameArray.size();
-		MG_CHECK(size == sdArray.size() && size == lcArray.size() && size == tcArray.size() && size == twArray.size() && size == thArray.size() && size == mwArray.size() && size == mhArray.size());
-
-		CrdRect extents;
-		for (SizeT i = 0; i != size; ++i)
-		{
-			Float64 scaleDenom = sdArray[i] * 0.00028; // size of a pixel in meters ?
-
-			if (strncmp(unit.c_str(), "degree", 30) == 0)
-				ScaleCorrection = 40075000;
+		if (strncmp(unit.c_str(), "degree", 30) == 0)
+			ScaleCorrection = 40075000;
 			
-			scaleDenom *= (360.0 / ScaleCorrection); // 360 degrees span the equator of length 40075km.
+		scaleDenom *= (360.0 / ScaleCorrection); // 360 degrees span the equator of length 40075km.
 			
-			m_TMS.emplace_back(wms::tile_matrix{ SharedStr(nameArray[i]), 
-				CrdTransformation(shp2dms_order(lcArray[i], tcArray[i]), shp2dms_order(scaleDenom, -scaleDenom)),
-				shp2dms_order(twArray[i], thArray[i]), 
-				shp2dms_order(mwArray[i], mhArray[i]) 
-			});
-			extents |= m_TMS.back().WorldExtents();
-		}
-		SetWorldClientRect(extents);
+		m_TMS.emplace_back(wms::tile_matrix{ SharedStr(nameArray[i]), 
+			CrdTransformation(shp2dms_order(lcArray[i], tcArray[i]), shp2dms_order(scaleDenom, -scaleDenom)),
+			shp2dms_order(twArray[i], thArray[i]), 
+			shp2dms_order(mwArray[i], mhArray[i]) 
+		});
+		extents |= m_TMS.back().WorldExtents();
 	}
+	SetWorldClientRect(extents);
 }
 
 bool WmsLayer::EnsureLegendImage() const

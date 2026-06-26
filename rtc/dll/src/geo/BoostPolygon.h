@@ -12,7 +12,17 @@
 #pragma warning( disable : 4018) // warning C4018: '<=' : signed/unsigned mismatch
 #pragma warning( disable : 4146) // warning C4146: unary minus operator applied to unsigned type, result still unsigned
 
+// The vendored boost.polygon headers (ipolygon/) trip GCC's -Wmisleading-indentation
+// (e.g. polygon_set_data.hpp extents()). Silence it only across this include rather
+// than editing vendored upstream code.
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmisleading-indentation"
+#endif
 #include "ipolygon/polygon.hpp"
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 
 #include "geo/GeoSequence.h"
 #include "geo/PointIndexBuffer.h"

@@ -139,7 +139,7 @@ struct add_dummy_copy_constructor : T
 	//	~add_dummy_copy_constructor() override = default; // ensure that the destructor is virtual
 
 	//	add_dummy_copy_constructor(add_dummy_copy_constructor const&) = delete;
-	add_dummy_copy_constructor(const add_dummy_copy_constructor<T> &) { throwIllegalAbstract(MG_POS, "add_dummy_copy_constructor::copy CTOR"); }
+	add_dummy_copy_constructor(const add_dummy_copy_constructor<T> &) : T() { throwIllegalAbstract(MG_POS, "add_dummy_copy_constructor::copy CTOR"); }
 	//	add_dummy_copy_constructor& operator=(add_dummy_copy_constructor const&) = delete;
 	add_dummy_copy_constructor<T>& operator=(const add_dummy_copy_constructor<T> &) { throwIllegalAbstract(MG_POS, "add_dummy_copy_constructor::copy assignment"); }
 };

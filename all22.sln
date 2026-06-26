@@ -71,9 +71,6 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Clc", "clc\dll\Clc.vcxproj"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{43041446-F114-4F3C-8750-B147FD69766E}"
 	ProjectSection(SolutionItems) = preProject
-		BuildSignAndCreateSetup.bat = BuildSignAndCreateSetup.bat
-		BuildSignAndCreateSetupCmake.bat = BuildSignAndCreateSetupCmake.bat
-		BuildSignAndCreateSetupLinux.bat = BuildSignAndCreateSetupLinux.bat
 		DmsDebug.props = DmsDebug.props
 		DmsDef.props = DmsDef.props
 		DmsRelease.props = DmsRelease.props
@@ -82,10 +79,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		license.md = license.md
 		readme-dms.MD = readme-dms.MD
 		README.md = README.md
-		TestDebugFast.bat = TestDebugFast.bat
-		TestDebugUnit.bat = TestDebugUnit.bat
-		TestReleaseFast.bat = TestReleaseFast.bat
-		TestReleaseUnit.bat = TestReleaseUnit.bat
 		vcpkg-configuration.json = vcpkg-configuration.json
 		vcpkg.json = vcpkg.json
 	EndProjectSection
@@ -141,6 +134,23 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "rdc", "rdc", "{DF48FB24-2017-41E7-AE22-3E7A013014E1}"
 	ProjectSection(SolutionItems) = preProject
 		library\basedata_nl\rdc\ngr_layer.dms = library\basedata_nl\rdc\ngr_layer.dms
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "build and test scripts", "build and test scripts", "{FDCB5CD2-9278-4AC8-B46C-1C9EC43FB32D}"
+	ProjectSection(SolutionItems) = preProject
+		Build.bat = Build.bat
+		batch\BuildSignAndCreateSetup.bat = batch\BuildSignAndCreateSetup.bat
+		batch\BuildSignAndCreateSetupCmake.bat = batch\BuildSignAndCreateSetupCmake.bat
+		batch\BuildSignAndCreateSetupLinux.bat = batch\BuildSignAndCreateSetupLinux.bat
+		batch\RunGUITests.bat = batch\RunGUITests.bat
+		RunLinuxGUITests.sh = RunLinuxGUITests.sh
+		batch\run_unit.bat = batch\run_unit.bat
+		batch\TestCMakeDebugUnit.bat = batch\TestCMakeDebugUnit.bat
+		batch\TestCMakeReleaseUnit.bat = batch\TestCMakeReleaseUnit.bat
+		batch\TestDebugUnit.bat = batch\TestDebugUnit.bat
+		TestLinuxDebugUnit.sh = TestLinuxDebugUnit.sh
+		TestLinuxReleaseUnit.sh = TestLinuxReleaseUnit.sh
+		batch\TestReleaseUnit.bat = batch\TestReleaseUnit.bat
 	EndProjectSection
 EndProject
 Global
@@ -446,6 +456,7 @@ Global
 		{DAEA2268-E8F4-4B5A-BA92-78B6706573F0} = {5EB69BFA-4450-4654-9D5D-3BD8A6252EFA}
 		{4BA5370E-B346-4808-8EB1-FFEA14F95C08} = {5EB69BFA-4450-4654-9D5D-3BD8A6252EFA}
 		{DF48FB24-2017-41E7-AE22-3E7A013014E1} = {4BA5370E-B346-4808-8EB1-FFEA14F95C08}
+		{FDCB5CD2-9278-4AC8-B46C-1C9EC43FB32D} = {43041446-F114-4F3C-8750-B147FD69766E}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {C5FA5874-0ACE-4DE3-8FFD-61207AF7E57B}

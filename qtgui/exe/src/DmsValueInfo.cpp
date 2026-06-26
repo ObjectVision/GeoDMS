@@ -74,7 +74,7 @@ void StudyObjectHistory::deleteAfterCurrentIndex()
         garbage.emplace_back(std::move(study_objects.back().explain_context));
         study_objects.pop_back();
     }
-    assert(current_index + 1 == study_objects.size());
+    assert(SizeT(current_index + 1) == study_objects.size());
 }
 
 void StudyObjectHistory::ClearGarbage()
@@ -89,7 +89,7 @@ void StudyObjectHistory::insert(SharedDataItemInterestPtr studyObject, SizeT ind
 
     study_objects.emplace_back(studyObject, index, extraInfo, std::move(newContext));
     current_index++;
-    assert(current_index + 1 == study_objects.size());
+    assert(SizeT(current_index + 1) == study_objects.size());
 }
 
 ValueInfoWindow::ValueInfoWindow(SharedDataItemInterestPtr studyObject, SizeT index, SharedStr extraInfo, QWidget* parent)

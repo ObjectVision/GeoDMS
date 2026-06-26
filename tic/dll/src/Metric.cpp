@@ -379,7 +379,8 @@ UnitProjection::UnitProjection(const AbstrUnit* unit, const CrdTransformation& t
 }
 
 UnitProjection::UnitProjection(const UnitProjection& src)
-	:	Transformation(src)
+	:	SharedBase(src)
+	,	Transformation(src)
 	,	m_BaseUnit(src.m_BaseUnit)
 {
 	dms_assert(m_BaseUnit);

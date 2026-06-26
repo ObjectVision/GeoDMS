@@ -61,7 +61,7 @@ template <typename T>
 T ReadValue(FormattedInpStream& str)
 {
 	T value;
-	assert(str.CurrPos() != -1);
+	assert(str.CurrPos() != SizeT(-1));
 	if (str.IsCommaDecimalSeparator())
 	{
 		char buffer[max_scan_size_v<T>];

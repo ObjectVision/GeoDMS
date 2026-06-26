@@ -423,7 +423,7 @@ COLORREF LayerControl::GetBkColor() const
 	auto bkColor = base_type::GetBkColor();
 	if (m_Layer->IsVisible())
 	{
-		bkColor = bkColor & 0xFF000000
+		bkColor = (bkColor & 0xFF000000)
 			| (((bkColor & 0x00FF0000) >> 16) * 7 / 8 << 16)
 			| (((bkColor & 0x0000FF00) >>  8) * 7 / 8 <<  8)
 			| (((bkColor & 0x000000FF) >>  0) * 7 / 8 <<  0);

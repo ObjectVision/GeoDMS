@@ -280,7 +280,7 @@ bool DbfImpl::GoTo(UInt32 recNo)
 
 bool DbfImpl::IsAt(UInt32 recNo) const
 {
-	return ftell(GetFP()) == ActualPosition(recNo);
+	return UInt32(ftell(GetFP())) == ActualPosition(recNo);
 }
 
 bool DbfImpl::ReadRecord  (void* buffer)
@@ -294,7 +294,7 @@ bool DbfImpl::AppendRecord(const void* buffer)
 {
 	dms_assert(GetFP());
 
-	dms_assert(ftell(GetFP()) == ActualPosition(m_RecordCount));
+	dms_assert(UInt32(ftell(GetFP())) == ActualPosition(m_RecordCount));
 	if (fwrite(buffer, m_RecordSize, 1, GetFP()) != 1)
 		return false;
 	++m_RecordCount;
@@ -444,11 +444,11 @@ FileResult DbfImpl::ReadHeader()
 	FILE* fp = GetFP();
 	m_HeaderSize = m_RecordCount = m_RecordSize	=	0;
 	fseek(fp, 0, 0);
-	fread(&m_DbfVersion, sizeof(m_DbfVersion), 1, fp);
+	MG_CHECK(fread(&m_DbfVersion, sizeof(m_DbfVersion), 1, fp) == 1);
 	fseek(fp, 4, 0);
-	fread(&m_RecordCount, sizeof(m_RecordCount), 1, fp);
-	fread(&m_HeaderSize, sizeof(m_HeaderSize), 1, fp);
-	fread(&m_RecordSize, sizeof(m_RecordSize), 1, fp);
+	MG_CHECK(fread(&m_RecordCount, sizeof(m_RecordCount), 1, fp) == 1);
+	MG_CHECK(fread(&m_HeaderSize, sizeof(m_HeaderSize), 1, fp) == 1);
+	MG_CHECK(fread(&m_RecordSize, sizeof(m_RecordSize), 1, fp) == 1);
 	DBG_TRACE(("m_HeaderSize  : %d", m_HeaderSize));
 	DBG_TRACE(("m_RecordSize  : %d", m_RecordSize));
 	DBG_TRACE(("m_RecordCount : %d", m_RecordCount));
@@ -477,23 +477,23 @@ FileResult DbfImpl::ReadHeader()
 		// read name
 		char	name[DBF_COLNAME_SIZE + 1];
 		name[0]						=	0;
-		fread(name, DBF_COLNAME_SIZE + 1, 1, fp);
+		MG_CHECK(fread(name, DBF_COLNAME_SIZE + 1, 1, fp) == 1);
 		name[DBF_COLNAME_SIZE]	=	0;
 		m_ColumnDescriptions[i].m_Name = name;
 
 		// read type
 		UInt8		dbftype;
-		fread(&dbftype, sizeof(dbftype), 1, fp);
+		MG_CHECK(fread(&dbftype, sizeof(dbftype), 1, fp) == 1);
 		m_ColumnDescriptions[i].m_DbfType = DbfTypeCharToDbfType(dbftype);
 
 		// read length
 		m_ColumnDescriptions[i].m_Offset = offset;
 		fseek(fp, ftell(fp) + 4, 0);
-		fread(&m_ColumnDescriptions[i].m_Length, sizeof(m_ColumnDescriptions[i].m_Length), 1, fp);
+		MG_CHECK(fread(&m_ColumnDescriptions[i].m_Length, sizeof(m_ColumnDescriptions[i].m_Length), 1, fp) == 1);
 		offset	+=	m_ColumnDescriptions[i].m_Length;
 
 		// read decimal count
-		fread(&m_ColumnDescriptions[i].m_DecimalCount, sizeof(m_ColumnDescriptions[i].m_DecimalCount), 1, fp);
+		MG_CHECK(fread(&m_ColumnDescriptions[i].m_DecimalCount, sizeof(m_ColumnDescriptions[i].m_DecimalCount), 1, fp) == 1);
 	}
 	MG_CHECK(m_RecordSize == RecordLength());
 
@@ -666,7 +666,7 @@ void DbfImpl::ReadDataElement(void* data, UInt32 recordindex, UInt32 columnindex
 	char fieldBuffer[256];
 
 	fseek(GetFP(), ActualPosition(recordindex, columnindex), 0);
-	fread(fieldBuffer, fieldSize, 1, GetFP());
+	MG_CHECK(fieldSize == 0 || fread(fieldBuffer, fieldSize, 1, GetFP()) == 1);
 
 //	fieldBuffer[fieldSize] = 0;
 

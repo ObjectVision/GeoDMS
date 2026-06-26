@@ -14,3 +14,4 @@ fi
 
 export GEODMS_ROOT="$SCRIPT_DIR"
 bash "$TST_BATCH/unit_linux.sh" linux-x64-debug
+

@@ -556,7 +556,7 @@ public:
 	// Override Operator
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-		dms_assert(args.size() == (m_ArgClassesEnd - m_ArgClassesBegin));
+		dms_assert(args.size() == SizeT(m_ArgClassesEnd - m_ArgClassesBegin));
 
 		const AbstrDataItem* arg1A = AsDataItem(args[0]); UInt32 argCount = 0;
 		dms_assert(arg1A);

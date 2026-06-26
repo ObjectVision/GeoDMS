@@ -95,7 +95,8 @@ namespace url
 	bool IsSafeChar(char ch)
 	{
 		impl::InitSafeChars();
-		return ch >= 32 && ch < 128 && impl::isSafe[ch - 32];
+		unsigned char uch = ch;
+		return uch >= 32 && uch < 128 && impl::isSafe[uch - 32];
 	}
 }
 

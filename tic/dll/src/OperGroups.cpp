@@ -273,7 +273,7 @@ SpecialOperGroup::SpecialOperGroup(TokenID operNameID, arg_index maxNrArgs, oper
 		// TODO WIKI
 		auto operNameStr = SharedStr(operNameID.str_range_st());
 		DBG_START("SpecialOperGroup", operNameStr.c_str(), false);
-		for (auto i = 0; i != maxNrArgs; ++i)
+		for (auto i = arg_index(0); i != maxNrArgs; ++i)
 		{
 			auto oap = argPolicyArray[i];
 			dms_assert(oap <= oper_arg_policy::calc_at_subitem);

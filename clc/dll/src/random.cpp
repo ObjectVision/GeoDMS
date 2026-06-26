@@ -290,7 +290,7 @@ public:
 						auto newEngine = uniform_engine<V>(seeds, range.first, range.second);
 						*resIter++ = newEngine();
 					}
-					assert(resIter - resData.begin() == seedData.size());
+					assert(SizeT(resIter - resData.begin()) == seedData.size());
 				}
 			);
 

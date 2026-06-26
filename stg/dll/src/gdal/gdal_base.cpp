@@ -834,7 +834,7 @@ auto GetListOfDriverFileExts(GDALDriver* driver) -> std::vector<std::string>
 	CPLStringList driver_cpl_exts(CSLTokenizeString(driver->GetMetadataItem(GDAL_DMD_EXTENSIONS)));
 	auto ext_count = CSLCount(driver_cpl_exts);
 
-	for (SizeT i = 0; i != ext_count; i++) // loop over extensions of driver i
+	for (SizeT i = 0; i != SizeT(ext_count); i++) // loop over extensions of driver i
 		driver_exts.push_back(CSLGetField(driver_cpl_exts, i));
 
 	return driver_exts;
@@ -1648,7 +1648,8 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 		bool dataSourceExists = std::filesystem::exists(data_source_name.c_str());
 #endif
 		if (dataSourceExists)
-			driver->Delete(data_source_name.c_str()); gdal_error_frame.GetMsgAndReleaseError(); // start empty, release error in case of nonexistance.
+			driver->Delete(data_source_name.c_str());
+		gdal_error_frame.GetMsgAndReleaseError(); // start empty, release error in case of nonexistance.
 
 		// check for values unit support in driver
 		if (!(smi.CurrRI()->GetID() == token::geometry) && !Gdal_DriverSupportsDmsValueType(gdalOpenFlags, valuesTypeID, value_composition, driver))

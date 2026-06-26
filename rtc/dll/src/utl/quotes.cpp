@@ -192,7 +192,7 @@ SharedStr SingleQuote(CharPtr str)
 
 	char* resEnd = _SingleQuote(result->begin(), str);
 	*resEnd = 0;
-	dms_assert(resultStr.ssize() == resEnd - result->begin());
+	dms_assert(resultStr.ssize() == SizeT(resEnd - result->begin()));
 	return resultStr;
 }
 
@@ -201,7 +201,7 @@ void SingleQuote  (StringRef& result, CharPtr begin, CharPtr end)
 	dms_assert(end || !begin);
 	result.resize_uninitialized(sizeSingleQuouteMiddle(begin, end) + 2 MG_DEBUG_ALLOCATOR_SRC("SingleQuote"));
 	end = _SingleQuote(&result[0], begin, end);
-	dms_assert(result.size() == end - &(result[0]));
+	dms_assert(result.size() == SizeT(end - &(result[0])));
 }
 
 void SingleQuote  (SharedStr& result, CharPtr begin, CharPtr end)
@@ -211,7 +211,7 @@ void SingleQuote  (SharedStr& result, CharPtr begin, CharPtr end)
 	result = SharedStr(resPtr);
 	char* resEnd = _SingleQuote(resPtr->begin(), begin, end);
 	*resEnd = 0;
-	dms_assert(result.ssize() == resEnd - result.begin());
+	dms_assert(result.ssize() == SizeT(resEnd - result.begin()));
 }
 
 SharedStr SingleQuote(CharPtr begin, CharPtr end)
@@ -361,7 +361,7 @@ SharedStr DoubleQuote(CharPtr str)
 
 	char* resEnd = _DoubleQuote(result->begin(), str);
 	*resEnd = 0;
-	dms_assert(result->size()-1 == resEnd - result->begin());
+	dms_assert(result->size()-1 == SizeT(resEnd - result->begin()));
 	return resultStr;
 }
 
@@ -371,7 +371,7 @@ void DoubleQuote(sequence_array<char>::reference& result, CharPtr begin, CharPtr
 	dms_assert(end || !begin);
 	result.resize_uninitialized(sizeDoubleQuouteMiddle(begin, end)+2 MG_DEBUG_ALLOCATOR_SRC("DoubleQuote"));
 	end = _DoubleQuote(&(result[0]), begin, end);
-	dms_assert(result.size() == end - &(result[0]));
+	dms_assert(result.size() == SizeT(end - &(result[0])));
 }
 
 
@@ -601,7 +601,7 @@ SharedStr SingleUnQuoteMiddle(CharPtr str)
 
 	char* resEnd = _SingleUnQuoteMiddle(result->begin(), str);
 	*resEnd = 0;
-	dms_assert(result->size() == resEnd - result->begin());
+	dms_assert(result->size() == SizeT(resEnd - result->begin()));
 	return resultStr;
 }
 
@@ -618,7 +618,7 @@ void SingleUnQuoteMiddle(SharedStr& resStr, CharPtr begin, CharPtr end)
 		resStr = SharedStr(result);
 		char* resEnd = _SingleUnQuoteMiddle(result->begin(), begin, end);
 		*resEnd = 0;
-		dms_assert(resStr.ssize() == resEnd - resStr.begin());
+		dms_assert(resStr.ssize() == SizeT(resEnd - resStr.begin()));
 	}
 }
 
@@ -758,7 +758,7 @@ SharedStr DoubleUnQuoteMiddle(CharPtr str)
 
 	char* resEnd = _DoubleUnQuoteMiddle(result->begin(), str);
 	*resEnd = 0;
-	dms_assert(resStr.ssize() == resEnd - result->begin());
+	dms_assert(resStr.ssize() == SizeT(resEnd - result->begin()));
 	return resStr;
 }
 
@@ -776,7 +776,7 @@ void DoubleUnQuoteMiddle(SharedStr& resStr, CharPtr begin, CharPtr end)
 		resStr = result;
 		char* resEnd = _DoubleUnQuoteMiddle(result->begin(), begin, end);
 		*resEnd = 0;
-		dms_assert(resStr.ssize() == resEnd - result->begin());
+		dms_assert(resStr.ssize() == SizeT(resEnd - result->begin()));
 	}
 }
 
@@ -816,7 +816,7 @@ RTC_CALL void DoubleQuote(SharedStr& ref, CharPtr b, CharPtr e)
 	*ref_iter++ = '\"';
 	ref_iter = _DoubleUnQuoteMiddle(ref_iter, b, e);
 	*ref_iter++ = '\"';
-	assert(ref.ssize() == ref_iter - ref.begin());
+	assert(ref.ssize() == SizeT(ref_iter - ref.begin()));
 	*ref_iter++ = '\0';
 }
 
@@ -829,7 +829,7 @@ void SingleUnQuote(StringRef& result, CharPtr begin, CharPtr end)
 	if (!result.empty())
 	{
 		end = _SingleUnQuoteMiddle(&(result[0]), begin, end);
-		dms_assert(result.size() == end - &(result[0]));
+		dms_assert(result.size() == SizeT(end - &(result[0])));
 	}
 }
 
@@ -842,7 +842,7 @@ void DoubleUnQuote(StringRef& result, CharPtr begin, CharPtr end)
 	if (!result.empty())
 	{
 		end = _DoubleUnQuoteMiddle(&(result[0]), begin, end);
-		dms_assert(result.size() == end - &(result[0]));
+		dms_assert(result.size() == SizeT(end - &(result[0])));
 	}
 }
 
@@ -856,7 +856,7 @@ void DoubleUnQuote(SharedStr& result, CharPtr begin, CharPtr end)
 
 	auto res_end = _DoubleUnQuoteMiddle(result.begin(), begin, end);
 	assert(result[sz] == '\0');
-	assert(result.ssize() == res_end - result.begin());
+	assert(result.ssize() == SizeT(res_end - result.begin()));
 }
 
 SharedStr DoubleUnQuote(CharPtr begin, CharPtr end)

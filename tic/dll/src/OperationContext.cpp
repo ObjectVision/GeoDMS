@@ -139,7 +139,7 @@ void CheckThis(tile_task_group* self)
 #if defined(MG_DEBUG)
 	assert(!s_TileTaskGroupsMutex.try_lock()); // don't let the notification fall outside a waiter lock
 
-	auto nrCompleted = std::accumulate(self->md_CompletedWork.begin(), self->md_CompletedWork.end(), 0, std::plus<>());
+	auto nrCompleted = std::accumulate(self->md_CompletedWork.begin(), self->md_CompletedWork.end(), UInt32(0), std::plus<>());
 	assert(nrCompleted == self->m_NrCompleted);
 
 	if (self->m_Commissioned == 858 && self->m_Last == 857)

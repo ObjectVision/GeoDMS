@@ -323,7 +323,7 @@ DcBkModeSelector::~DcBkModeSelector()
 {
 	if (m_hDC)
 	{
-		UINT result = SetBkMode(m_hDC, m_oldBkMode);
+		auto result = SetBkMode(m_hDC, m_oldBkMode);
 		dbg_assert(result == m_selBkMode);
 	}
 }

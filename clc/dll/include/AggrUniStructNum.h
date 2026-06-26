@@ -42,9 +42,10 @@ struct null_wrap : private std::pair<T, bool>
 		this->second = rhs.second;
 	}
 	null_wrap(const null_wrap<T>& rhs)
+		: std::pair<T, bool>(rhs)
 	{
-		Assign(this->first, rhs.first);
-		this->second = rhs.second;
+		assert(this->first == rhs.first);
+		assert(this->second == rhs.second);
 	}
 	bool IsDefined() const { return this->second; };
 

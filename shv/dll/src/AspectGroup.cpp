@@ -57,7 +57,7 @@ void AspectGroupMenuFunc(GraphicLayer* layer, AspectGroup ag, MenuData& menuData
 		}
 }
 
-extern AspectGroupData AspectGroupArray[] =
+AspectGroupData AspectGroupArray[] =
 {
 	{ "Symbol",  ASE_Symbol,   AspectGroupMenuFunc },
 	{ "Pen",     ASE_Pen,      AspectGroupMenuFunc },

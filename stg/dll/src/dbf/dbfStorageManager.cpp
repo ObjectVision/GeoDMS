@@ -149,9 +149,9 @@ void DbfStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* cu
 
 			const ValueClass* vc = adi->GetDynamicObjClass()->GetValuesType();
 			if (! 
-					(	vc->IsNumeric()                    && ValueClass::FindByValueClassID(dbf.ColumnType(i))->IsNumeric()
-					||	vc->GetValueClassID() == ValueClassID::VT_SharedStr && dbf.ColumnType(i) == ValueClassID::VT_SharedStr
-					||	vc->GetValueClassID() == ValueClassID::VT_Bool   && dbf.ColumnType(i) == ValueClassID::VT_Bool
+					(	(vc->IsNumeric()                    && ValueClass::FindByValueClassID(dbf.ColumnType(i))->IsNumeric())
+					||	(vc->GetValueClassID() == ValueClassID::VT_SharedStr && dbf.ColumnType(i) == ValueClassID::VT_SharedStr)
+					||	(vc->GetValueClassID() == ValueClassID::VT_Bool   && dbf.ColumnType(i) == ValueClassID::VT_Bool)
 					)
 				)
 				ti->throwItemErrorF(

@@ -1212,7 +1212,7 @@ std::unique_ptr<wchar_t[]> Utf8_2_wchar(const char* utf8str, int sSize)
 	// If inLen != -1, the output is NOT null-terminated by WideCharToMultiByte.
 	// Add a terminator if there's room (there should be, given our sizing).
 	if (inLen != -1) {
-		assert(written < allocSize);
+		assert(SizeT(written )< allocSize);
 		utf16Buff[written] = '\0';
 	}
 	return utf16Buff;
@@ -1283,7 +1283,7 @@ auto wchar_2_Utf8Str(const wchar_t* wCharStr, int strLen) -> SharedStr
 
 	if (inLen != -1) {
 
-		assert(written < allocSize);
+		assert(SizeT(written) < allocSize);
 		utf8Buff->begin()[written] = '\0';
 	}
 #if defined(MG_DEBUG)
@@ -1682,7 +1682,8 @@ SharedStr GetCurrentDir()
 
 void SetCurrentDir(CharPtr dir)
 {
-	chdir(dir);
+	if (chdir(dir) != 0)
+		throwErrorD("Environment", "chdir failed");
 }
 
 RTC_CALL void DMS_CONV DMS_Appl_SetFont()

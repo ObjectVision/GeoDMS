@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2023 Object Vision b.v.
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 #define PYBIND11_DETAILED_ERROR_MESSAGES
@@ -8,6 +8,7 @@
 #include "GeoInterface.h"
 #include "StxInterface.h"
 #include "RtcInterface.h"
+#include "PropDefInterface.h"
 #include "ShvUtils.h"
 
 #include "dbg/Debug.h"
@@ -27,26 +28,54 @@
 #include "AbstrDataObject.h"
 #include "AbstrUnit.h"
 #include "DataLocks.h"
+#include "DbgInterface.h"     // DMS_RegisterMsgCallback, MsgData
+#include "OperationContext.h" // tg_maintainer: manages the global operation-context task group
+#include "SessionData.h"      // SessionData: per-configuration session context
+#include "TreeItemFlags.h"    // TSF_HasConfigData
+#include "UnitClass.h"
+#include "mci/ValueClass.h"
+#include "mci/ValueClassID.h"
+#include "mci/ValueComposition.h"
 
 
 #include <algorithm>
 #include <filesystem>
 #include <iostream>
+#include <memory>
+#include <vector>
 
 #include <pybind11/pybind11.h>
 #include <pybind11/cast.h>
+#include <pybind11/stl.h>
 
 
 
 namespace py = pybind11;
 
 namespace py_geodms
-{	
+{
+	//----------------------------------------------------------------------
+	// helper: resolve a script value-type name (e.g. "float64", "uint32",
+	//         "spoint", "string") to its UnitClass.
+	//----------------------------------------------------------------------
+	static const UnitClass* UnitClassFromValueTypeName(CharPtr valueTypeName)
+	{
+		const ValueClass* vc = ValueClass::FindByScriptName(GetTokenID_mt(valueTypeName));
+		MG_USERCHECK2(vc, "unknown value type name; expected a basic type such as 'float64', 'uint32', 'spoint' or 'string'");
+		return DMS_UnitClass_Find(vc);
+	}
+
+	//----------------------------------------------------------------------
+	// Unit wrappers
+	//----------------------------------------------------------------------
+	struct MutableUnitItem;
+
 	struct UnitItem
 	{
 		UnitItem(const AbstrUnit* au)
 			: m_au(au)
 		{}
+		UnitItem(const MutableUnitItem& rhs);
 
 		SharedPtr<const AbstrUnit> m_au;
 	};
@@ -57,37 +86,18 @@ namespace py_geodms
 			: m_au(au)
 		{}
 
+		UnitItem asConst() const { return UnitItem(m_au.get()); }
+
 		SharedPtr<AbstrUnit> m_au;
 	};
 
-	/*
-	template <typename T>
-	struct FutureTile
-	{
+	inline UnitItem::UnitItem(const MutableUnitItem& rhs)
+		: m_au(rhs.m_au.get())
+	{}
 
-	};
-
-
-	template <typename T>
-	struct TileFunctor
-	{
-		TileFunctor(const AbstrDataObject* ado)
-			: m_ado(ado)
-		{}
-
-		auto GetTile() -> FutureTile
-		{
-			// get tile
-		}
-
-		void data(tile_id tile)
-		{
-
-		}
-
-		const AbstrDataObject* m_ado = nullptr;
-	};
-*/
+	//----------------------------------------------------------------------
+	// DataItem wrappers
+	//----------------------------------------------------------------------
 	struct DataItem
 	{
 		DataItem(const AbstrDataItem* adi)
@@ -99,36 +109,17 @@ namespace py_geodms
 			return UnitItem(m_adi->GetAbstrDomainUnit());
 		}
 
+		auto GetAbstrValuesUnit() -> UnitItem
+		{
+			return UnitItem(m_adi->GetAbstrValuesUnit());
+		}
+
 		auto LockAndGetStringValue(SizeT i) -> std::string
 		{
+			MG_USERCHECK2(m_adi.get(), "invalid dereference of a null data item");
+			SharedTreeItemInterestPtr ip(m_adi.get()); // hold interest so calculated items compute
 			return m_adi->LockAndGetValue<SharedStr>(i).c_str();
 		}
-/*
-		template <typename T>
-		auto getDataObject() -> FutureData
-		{
-			using prepare_data = SharedPtr<FutureTile>;
-
-			auto tileRange_data = AsUnit(m_adi->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
-			auto valuesUnit = debug_cast<const Unit<field_of_t<T>>*>(m_adi->GetAbstrValuesUnit());
-			auto* ado = make_unique_FutureTileFunctor<T, prepare_data, false>(m_adi, false , tileRange_data, get_range_ptr_of_valuesunit(valuesUnit));
-			return FutureData(ado.release());
-
-			// covariant return typing, argumenten contravariant
-			// get abstr tile, get tile
-		}
-
-		auto calculate() -> pybind11::memoryview
-		{
-			PreparedDataReadLock lck2(m_adi, "python::calculate");
-			// data future, implemented as interest counter data item, type future data, tile functor
-			// prepare data - data is scheduled for calculation
-			// get van future data, per tile
-			// interest count future op tile functor, tile functor 
-			//auto count = adu->GetCount();
-			//auto sz = adu->GetTileSizeAsI64Rect(no_tile);
-		}
-		*/
 
 		SharedPtr<const AbstrDataItem> m_adi;
 	};
@@ -147,18 +138,9 @@ namespace py_geodms
 		SharedPtr<AbstrDataItem> m_adi;
 	};
 
-	/*DataItem AsDataItem(const SharedDataItem& item)
-	{
-		MG_USERCHECK(item.is_data_item());
-		return DataItem(::AsDataItem(item.m_item.get_ptr()));
-	}*/
-
-	/*UnitItem AsUnitItem(const Item& item)
-	{
-		MG_USERCHECK(item.is_unit_item());
-		return UnitItem(::AsUnit(item.m_item.get_ptr()));
-	}*/
-
+	//----------------------------------------------------------------------
+	// TreeItem wrappers
+	//----------------------------------------------------------------------
 	struct ConstTreeItem
 	{
 		SharedTreeItem item;
@@ -186,12 +168,18 @@ namespace py_geodms
 		{
 			check_unique();
 			TokenID configName = GetTokenID_mt(akaName);
+			// Mirror DMS_CreateTreeFromString: a SessionData must be created and opened on
+			// the root, otherwise SessionData::Curr() is unset and expression evaluation /
+			// Primary Data Access produce undefined results.
+			m_session = SessionData::Create(GetCurrentDir().c_str(), "");
 			m_root = TreeItem::CreateConfigRoot(configName);
+			m_session->Open(m_root.get());
 			init();
 		}
 
 		Config(Config&& rhs) noexcept
 			: m_root(std::move(rhs.m_root))
+			, m_session(std::move(rhs.m_session))
 		{
 			assert(currSingleConfig == &rhs);
 			currSingleConfig = this;
@@ -231,9 +219,16 @@ namespace py_geodms
 
 	private:
 		SharedMutableTreeItem m_root = nullptr;
+		std::shared_ptr<SessionData> m_session;
 	};
 
 	Config* Config::currSingleConfig = nullptr;
+
+	static void DMS_CONV py_geodms_msg_callback(ClientHandle, const MsgData* msgData, bool)
+	{
+		if (msgData)
+			std::cerr << "[geodms] " << msgData->m_Txt.c_str() << std::endl;
+	}
 
 	struct Engine
 	{
@@ -248,8 +243,18 @@ namespace py_geodms
 			// own location, so it no longer needs to be conveyed.
 			SetMainThreadID();
 
+			DMS_RegisterMsgCallback(py_geodms_msg_callback, nullptr);
+
 			DMS_Clc_Load();
 			DMS_Geo_Load();
+			DMS_Stx_Load(); // initialize the expression parser so runtime set_expr() can be compiled
+
+			// Initialize the global operation-context task group (the worker pool used
+			// by data calculation / Primary Data Access). The exe entry points create a
+			// stack-scoped tg_maintainer in main(); for the embedded engine we tie its
+			// lifetime to the Engine. Without it, any data access dereferences a null
+			// task-group singleton (release builds skip the assert -> access violation).
+			m_taskGroup = std::make_unique<tg_maintainer>();
 		}
 		~Engine()
 		{
@@ -264,11 +269,31 @@ namespace py_geodms
 		{
 			return Config(akaName, int(0));
 		}
+
+		// Resolve a basic value-type name to its shared, non-ranged default unit,
+		// e.g. default_unit("float64") yields the values unit for floating-point attributes.
+		UnitItem default_unit(CharPtr valueTypeName)
+		{
+			return UnitItem(DMS_GetDefaultUnit(UnitClassFromValueTypeName(valueTypeName)));
+		}
+
+		// The Void unit; the domain of any parameter.
+		UnitItem void_unit()
+		{
+			return UnitItem(DMS_GetDefaultUnit(DMS_VoidUnit_GetStaticClass()));
+		}
+
+	private:
+		std::unique_ptr<tg_maintainer> m_taskGroup;
 	};
 
 } // namespace py_geodms
 
 
+
+//----------------------------------------------------------------------
+// TreeItem free functions (querying + building)
+//----------------------------------------------------------------------
 
 void treeitem_CheckNonNull_const(py_geodms::ConstTreeItem self) {
 	MG_USERCHECK2(self.item, "invalid dereference of item nullptr");
@@ -291,14 +316,14 @@ auto treeitem_find_mutable(py_geodms::MutableTreeItem self, CharPtr itemPath) ->
 	return py_geodms::MutableTreeItem(const_cast<TreeItem*>(foundItem.get_ptr())); // TODO: future improvement: use GetItem to stay non-const.
 }
 
-/*auto treeitem_find_non_mutable() -> SharedTreeItem
-{
-	return nullptr;
-}*/
-
 auto treeitem_name_const(py_geodms::ConstTreeItem self) -> std::string {
 	treeitem_CheckNonNull_const(self);
 	return self.item->GetID().AsStdString();
+}
+
+auto treeitem_fullname_const(py_geodms::ConstTreeItem self) -> std::string {
+	treeitem_CheckNonNull_const(self);
+	return self.item->GetFullName().AsStdString();
 }
 
 auto treeitem_expr_const(py_geodms::ConstTreeItem self) -> std::string {
@@ -306,9 +331,19 @@ auto treeitem_expr_const(py_geodms::ConstTreeItem self) -> std::string {
 	return self.item->GetExpr().AsStdString();
 }
 
+auto treeitem_descr_const(py_geodms::ConstTreeItem self) -> std::string {
+	treeitem_CheckNonNull_const(self);
+	return self.item->GetDescr().AsStdString();
+}
+
 auto treeitem_name_mutable(py_geodms::MutableTreeItem self) -> std::string {
 	treeitem_CheckNonNull_mutable(self);
 	return self.item->GetID().AsStdString();
+}
+
+auto treeitem_fullname_mutable(py_geodms::MutableTreeItem self) -> std::string {
+	treeitem_CheckNonNull_mutable(self);
+	return self.item->GetFullName().AsStdString();
 }
 
 auto treeitem_expr_mutable(py_geodms::MutableTreeItem self) -> std::string {
@@ -321,35 +356,253 @@ auto treeitem_GetFirstSubItem(py_geodms::ConstTreeItem self) -> py_geodms::Const
 	return py_geodms::ConstTreeItem(self.item->GetFirstSubItem());
 }
 
-auto treeitem_GetNextItem(py_geodms::ConstTreeItem self) -> SharedTreeItem {
+auto treeitem_GetNextItem(py_geodms::ConstTreeItem self) -> py_geodms::ConstTreeItem {
 	treeitem_CheckNonNull_const(self);
-	return self.item->GetNextItem();
+	return py_geodms::ConstTreeItem(self.item->GetNextItem());
+}
+
+auto treeitem_subitems_const(py_geodms::ConstTreeItem self) -> std::vector<py_geodms::ConstTreeItem> {
+	treeitem_CheckNonNull_const(self);
+	std::vector<py_geodms::ConstTreeItem> result;
+	for (auto si = self.item->GetFirstSubItem(); si; si = si->GetNextItem())
+		result.push_back(py_geodms::ConstTreeItem(si));
+	return result;
+}
+
+auto treeitem_subitems_mutable(py_geodms::MutableTreeItem self) -> std::vector<py_geodms::MutableTreeItem> {
+	treeitem_CheckNonNull_mutable(self);
+	std::vector<py_geodms::MutableTreeItem> result;
+	for (auto si = self.item->GetFirstSubItem(); si; si = si->GetNextItem())
+		result.push_back(py_geodms::MutableTreeItem(const_cast<TreeItem*>(si)));
+	return result;
+}
+
+auto treeitem_parent_const(py_geodms::ConstTreeItem self) -> py_geodms::ConstTreeItem {
+	treeitem_CheckNonNull_const(self);
+	return py_geodms::ConstTreeItem(DMS_TreeItem_GetParent(self.item.get()));
+}
+
+auto treeitem_parent_mutable(py_geodms::MutableTreeItem self) -> py_geodms::MutableTreeItem {
+	treeitem_CheckNonNull_mutable(self);
+	return py_geodms::MutableTreeItem(const_cast<TreeItem*>(DMS_TreeItem_GetParent(self.item.get())));
+}
+
+auto treeitem_fail_reason(py_geodms::ConstTreeItem self) -> std::string {
+	treeitem_CheckNonNull_const(self);
+	auto handle = DMS_TreeItem_GetFailReasonAsIString(self.item.get());
+	if (!handle)
+		return std::string();
+	CharPtr str = DMS_IString_AsCharPtr(handle);
+	std::string result = str ? str : "";
+	DMS_IString_Release(handle);
+	return result;
+}
+
+//----------------------------------------------------------------------
+// TreeItem building free functions (mutable only)
+//----------------------------------------------------------------------
+
+auto treeitem_add_container(py_geodms::MutableTreeItem self, const std::string& name) -> py_geodms::MutableTreeItem {
+	treeitem_CheckNonNull_mutable(self);
+	TreeItem* ti = DMS_CreateTreeItem(self.item.get(), name.c_str());
+	return py_geodms::MutableTreeItem(ti);
+}
+
+auto treeitem_create_unit(py_geodms::MutableTreeItem self, const std::string& name, const std::string& valueType) -> py_geodms::MutableUnitItem {
+	treeitem_CheckNonNull_mutable(self);
+	const UnitClass* uc = py_geodms::UnitClassFromValueTypeName(valueType.c_str());
+	AbstrUnit* au = DMS_CreateUnit(self.item.get(), name.c_str(), uc);
+	return py_geodms::MutableUnitItem(au);
+}
+
+auto treeitem_add_data_item(py_geodms::MutableTreeItem self, const std::string& name,
+	py_geodms::UnitItem domain, py_geodms::UnitItem values, ValueComposition vc) -> py_geodms::MutableDataItem {
+	treeitem_CheckNonNull_mutable(self);
+	AbstrDataItem* adi = DMS_CreateDataItem(self.item.get(), name.c_str(), domain.m_au.get(), values.m_au.get(), vc);
+	return py_geodms::MutableDataItem(adi);
+}
+
+auto treeitem_add_attribute(py_geodms::MutableTreeItem self, const std::string& name,
+	py_geodms::UnitItem domain, const std::string& valuesValueType) -> py_geodms::MutableDataItem {
+	treeitem_CheckNonNull_mutable(self);
+	const AbstrUnit* values = DMS_GetDefaultUnit(py_geodms::UnitClassFromValueTypeName(valuesValueType.c_str()));
+	AbstrDataItem* adi = DMS_CreateDataItem(self.item.get(), name.c_str(), domain.m_au.get(), values, ValueComposition::Single);
+	return py_geodms::MutableDataItem(adi);
+}
+
+auto treeitem_add_param(py_geodms::MutableTreeItem self, const std::string& name, const std::string& valuesValueType) -> py_geodms::MutableDataItem {
+	treeitem_CheckNonNull_mutable(self);
+	const AbstrUnit* voidUnit = DMS_GetDefaultUnit(DMS_VoidUnit_GetStaticClass());
+	const AbstrUnit* values = DMS_GetDefaultUnit(py_geodms::UnitClassFromValueTypeName(valuesValueType.c_str()));
+	AbstrDataItem* adi = DMS_CreateDataItem(self.item.get(), name.c_str(), voidUnit, values, ValueComposition::Single);
+	return py_geodms::MutableDataItem(adi);
+}
+
+void treeitem_set_storage_manager(py_geodms::MutableTreeItem self, const std::string& storageName, const std::string& storageType, bool readOnly) {
+	treeitem_CheckNonNull_mutable(self);
+	self.item->SetStorageManager(storageName.c_str(), storageType.c_str(),
+		readOnly ? StorageReadOnlySetting::ReadOnly : StorageReadOnlySetting::ReadWrite);
+}
+
+//----------------------------------------------------------------------
+// DataItem primary data access free functions
+//----------------------------------------------------------------------
+
+// Bulk-read all values of an attribute. We address tiles through the data object's own
+// GetTiledLocation rather than the DMS_NumericAttr_Get*Array C functions, which resolve
+// the tile location via GetAbstrDomainUnit()->GetTiledRangeData() — null for a domain
+// whose range is defined by an expression (the range then lives in its current range item).
+auto dataitem_get_values_as_float_list(py_geodms::DataItem self) -> std::vector<Float64> {
+	const AbstrDataItem* adi = self.m_adi.get();
+	MG_USERCHECK2(adi, "invalid dereference of a null data item");
+	SharedTreeItemInterestPtr ip(adi); // hold interest so a calculated item is computed and kept alive
+	SizeT n = DMS_Unit_GetCount(adi->GetAbstrDomainUnit());
+	std::vector<Float64> result(n);
+	if (n) {
+		PreparedDataReadLock dlr(adi, "geodms::get_values_as_float_list");
+		auto ado = adi->GetRefObj();
+		SizeT index = 0, len = n; Float64* ptr = result.data();
+		while (len) {
+			SizeT nrRead = ado->GetValuesAsFloat64Array(ado->GetTiledLocation(index), len, ptr);
+			if (!nrRead) break;
+			len -= nrRead; ptr += nrRead; index += nrRead;
+		}
+	}
+	return result;
+}
+
+auto dataitem_get_values_as_int_list(py_geodms::DataItem self) -> std::vector<Int32> {
+	const AbstrDataItem* adi = self.m_adi.get();
+	MG_USERCHECK2(adi, "invalid dereference of a null data item");
+	SharedTreeItemInterestPtr ip(adi); // hold interest so a calculated item is computed and kept alive
+	SizeT n = DMS_Unit_GetCount(adi->GetAbstrDomainUnit());
+	std::vector<Int32> result(n);
+	if (n) {
+		PreparedDataReadLock dlr(adi, "geodms::get_values_as_int_list");
+		auto ado = adi->GetRefObj();
+		SizeT index = 0, len = n; Int32* ptr = result.data();
+		while (len) {
+			SizeT nrRead = ado->GetValuesAsInt32Array(ado->GetTiledLocation(index), len, ptr);
+			if (!nrRead) break;
+			len -= nrRead; ptr += nrRead; index += nrRead;
+		}
+	}
+	return result;
+}
+
+// Read a single value, holding interest so calculated items compute. Used by the scalar
+// get_value_as_* and parameter accessors.
+auto dataitem_get_value_as_float(const AbstrDataItem* adi, SizeT i) -> Float64 {
+	MG_USERCHECK2(adi, "invalid dereference of a null data item");
+	SharedTreeItemInterestPtr ip(adi);
+	PreparedDataReadLock dlr(adi, "geodms::get_value_as_float");
+	return adi->GetRefObj()->GetValueAsFloat64(i);
+}
+
+auto dataitem_get_value_as_int(const AbstrDataItem* adi, SizeT i) -> Int32 {
+	MG_USERCHECK2(adi, "invalid dereference of a null data item");
+	SharedTreeItemInterestPtr ip(adi);
+	PreparedDataReadLock dlr(adi, "geodms::get_value_as_int");
+	return adi->GetRefObj()->GetValueAsInt32(i);
+}
+
+// Write primary data into a fresh in-memory attribute. We open the DataWriteLock in
+// write_only_all mode (fresh allocation) rather than the read_write mode used by the
+// DMS_NumericAttr_Set*Array C functions, which clone the previous data object and so
+// crash on an attribute that has no data yet. The domain range is prepared first so the
+// data object can be sized; the values list length should equal the domain element count.
+void dataitem_set_values_from_float_list(py_geodms::MutableDataItem self, const std::vector<Float64>& data) {
+	AbstrDataItem* adi = self.m_adi.get();
+	MG_USERCHECK2(adi, "invalid dereference of a null data item");
+	adi->SetTSF(TSF_HasConfigData); // mark as authoritative primary data so dependents don't recompute it
+	DMS_Unit_GetCount(adi->GetAbstrDomainUnit());
+	DataWriteLock lock(adi, dms_rw_mode::write_only_all);
+	if (!data.empty())
+		lock->SetValuesAsFloat64Array(lock->GetTiledLocation(0), data.size(), data.data());
+	lock.Commit();
+}
+
+void dataitem_set_values_from_int_list(py_geodms::MutableDataItem self, const std::vector<Int32>& data) {
+	AbstrDataItem* adi = self.m_adi.get();
+	MG_USERCHECK2(adi, "invalid dereference of a null data item");
+	adi->SetTSF(TSF_HasConfigData); // mark as authoritative primary data so dependents don't recompute it
+	DMS_Unit_GetCount(adi->GetAbstrDomainUnit());
+	DataWriteLock lock(adi, dms_rw_mode::write_only_all);
+	if (!data.empty())
+		lock->SetValuesAsInt32Array(lock->GetTiledLocation(0), data.size(), data.data());
+	lock.Commit();
 }
 
 PYBIND11_MODULE(geodms, m) {
+	m.doc() = "Python bindings for the GeoDMS Data & Model Server: read/query a configuration, "
+	          "set parameter values, build an in-memory configuration without a model script, "
+	          "and query results via Primary Data Access.";
+
 	// meta data
-	m.def("version", DMS_GetVersion);
+	m.def("version", DMS_GetVersion, "GeoDMS version string");
+
+	// value composition of an attribute / values unit
+	py::enum_<ValueComposition>(m, "ValueComposition")
+		.value("Single", ValueComposition::Single)
+		.value("Polygon", ValueComposition::Polygon)
+		.value("Sequence", ValueComposition::Sequence)
+		.value("MultiPoint", ValueComposition::MultiPoint)
+		;
+
+	// the value type of a unit, as an enumeration (no type-system structure is exposed)
+	py::enum_<ValueClassID>(m, "ValueTypeId")
+		.value("UInt32", ValueClassID::VT_UInt32)
+		.value("Int32", ValueClassID::VT_Int32)
+		.value("UInt16", ValueClassID::VT_UInt16)
+		.value("Int16", ValueClassID::VT_Int16)
+		.value("UInt8", ValueClassID::VT_UInt8)
+		.value("Int8", ValueClassID::VT_Int8)
+		.value("UInt64", ValueClassID::VT_UInt64)
+		.value("Int64", ValueClassID::VT_Int64)
+		.value("Float64", ValueClassID::VT_Float64)
+		.value("Float32", ValueClassID::VT_Float32)
+		.value("Bool", ValueClassID::VT_Bool)
+		.value("UInt4", ValueClassID::VT_UInt4)
+		.value("SPoint", ValueClassID::VT_SPoint)
+		.value("WPoint", ValueClassID::VT_WPoint)
+		.value("IPoint", ValueClassID::VT_IPoint)
+		.value("UPoint", ValueClassID::VT_UPoint)
+		.value("FPoint", ValueClassID::VT_FPoint)
+		.value("DPoint", ValueClassID::VT_DPoint)
+		.value("String", ValueClassID::VT_SharedStr)
+		.value("Void", ValueClassID::VT_Void)
+		.value("Unknown", ValueClassID::VT_Unknown)
+		;
 
 	// engine
 	py::class_<py_geodms::Engine>(m, "Engine")
 		.def(py::init())
-		.def("load_config", &py_geodms::Engine::load_config)
-		//.def("create_root", &py_geodms::Engine::create_config_root)
+		.def("load_config", &py_geodms::Engine::load_config, "Load a configuration from a .dms file and return its Config")
+		.def("create_config_root", &py_geodms::Engine::create_config_root, "Create an empty in-memory configuration with the given root name")
+		.def("default_unit", &py_geodms::Engine::default_unit, "Return the shared default unit for a basic value-type name (e.g. 'float64')")
+		.def("void_unit", &py_geodms::Engine::void_unit, "Return the Void unit, used as the domain of parameters")
 		;
 
 	// config
 	py::class_<py_geodms::Config>(m, "Config")
-		.def("root", &py_geodms::Config::get_root);
+		.def("root", &py_geodms::Config::get_root, "Return the mutable root container of the configuration")
+		.def("const_root", &py_geodms::Config::get_root_non_mutable, "Return the read-only root container of the configuration")
+		;
 
 	// non-mutable treeitem
 	py::class_<py_geodms::ConstTreeItem>(m, "ConstTreeItem")
 		.def("is_null", [](py_geodms::ConstTreeItem self) {return self.item.is_null(); })
-		.def("find", &treeitem_find_const)
+		.def("find", &treeitem_find_const, "Find a sub-item by relative or absolute path")
 		.def("name", &treeitem_name_const)
+		.def("full_name", &treeitem_fullname_const)
 		.def("expr", &treeitem_expr_const)
+		.def("descr", &treeitem_descr_const)
 		.def("first_subitem", &treeitem_GetFirstSubItem)
 		.def("next", &treeitem_GetNextItem)
-		.def("update", [](py_geodms::ConstTreeItem self) { DMS_TreeItem_Update(self.item.get()); return; })
+		.def("sub_items", &treeitem_subitems_const, "Return a list of all direct sub-items")
+		.def("parent", &treeitem_parent_const)
+		.def("fail_reason", &treeitem_fail_reason, "Failure reason string, or empty when the item is valid")
+		.def("update", [](py_geodms::ConstTreeItem self) { treeitem_CheckNonNull_const(self); DMS_TreeItem_Update(self.item.get()); }, "Force (re)calculation of this item and its suppliers")
 		.def("isDataItem", [](py_geodms::ConstTreeItem self) -> bool { return IsDataItem(self.item.get()); })
 		.def("asDataItem", [](py_geodms::ConstTreeItem self) -> py_geodms::DataItem { return AsDataItem(self.item.get()); })
 		.def("isUnitItem", [](py_geodms::ConstTreeItem self) -> bool { return IsUnit(self.item.get()); })
@@ -359,68 +612,111 @@ PYBIND11_MODULE(geodms, m) {
 	// mutable treeitem
 	py::class_<py_geodms::MutableTreeItem>(m, "MutableTreeItem")
 		.def("is_null", [](py_geodms::MutableTreeItem self) {return self.item.is_null(); })
-		.def("find", &treeitem_find_mutable)
+		.def("find", &treeitem_find_mutable, "Find a sub-item by relative or absolute path")
 		.def("name", &treeitem_name_mutable)
+		.def("full_name", &treeitem_fullname_mutable)
 		.def("expr", &treeitem_expr_mutable)
 		.def("asConst", [](py_geodms::MutableTreeItem self) -> py_geodms::ConstTreeItem { return { self.item.get() }; })
-		//.def("first_subitem", &treeitem_GetFirstSubItem)
-		//.def("next", &treeitem_GetNextItem)
-		.def("update", [](py_geodms::MutableTreeItem self) { DMS_TreeItem_Update(self.item.get()); return; })
-		.def("set_expr", [](py_geodms::MutableTreeItem self, const std::string& str) { return (self.item->SetExpr(SharedStr(str))); })
+		.def("sub_items", &treeitem_subitems_mutable, "Return a list of all direct sub-items")
+		.def("parent", &treeitem_parent_mutable)
+		.def("update", [](py_geodms::MutableTreeItem self) { treeitem_CheckNonNull_mutable(self); DMS_TreeItem_Update(self.item.get()); }, "Force (re)calculation of this item and its suppliers")
+		.def("set_expr", [](py_geodms::MutableTreeItem self, const std::string& str) { treeitem_CheckNonNull_mutable(self); self.item->SetExpr(SharedStr(str)); }, "Set the calculation expression of this item")
+		.def("set_descr", [](py_geodms::MutableTreeItem self, const std::string& str) { treeitem_CheckNonNull_mutable(self); self.item->SetDescr(SharedStr(str)); }, "Set the description property of this item")
+		// configuration building
+		.def("add_container", &treeitem_add_container, "Create and return a new sub-container with the given name")
+		.def("create_unit", &treeitem_create_unit, "Create a named unit of the given basic value type (e.g. 'uint32', 'spoint')")
+		.def("add_data_item", &treeitem_add_data_item,
+			py::arg("name"), py::arg("domain"), py::arg("values"), py::arg("vc") = ValueComposition::Single,
+			"Create an attribute with the given domain unit, values unit and value composition")
+		.def("add_attribute", &treeitem_add_attribute,
+			py::arg("name"), py::arg("domain"), py::arg("values_value_type"),
+			"Create an attribute over the given domain whose values unit is the default unit of a basic value type")
+		.def("add_param", &treeitem_add_param,
+			py::arg("name"), py::arg("values_value_type"),
+			"Create a parameter (Void domain) whose values unit is the default unit of a basic value type")
+		.def("set_storage_manager", &treeitem_set_storage_manager,
+			py::arg("storage_name"), py::arg("storage_type"), py::arg("read_only") = true,
+			"Attach a storage manager (e.g. type 'gdal.vect', 'gdal.grid') to this item")
+		.def("disable_storage", [](py_geodms::MutableTreeItem self) { self.item->DisableStorage(); }, "Force in-memory / calculator-only operation")
 		.def("isDataItem", [](py_geodms::MutableTreeItem self) -> bool { return IsDataItem(self.item.get()); })
 		.def("asDataItem", [](py_geodms::MutableTreeItem self) -> py_geodms::MutableDataItem { return AsDataItem(self.item.get()); })
 		.def("isUnitItem", [](py_geodms::MutableTreeItem self) -> bool { return IsUnit(self.item.get()); })
 		.def("asUnitItem", [](py_geodms::MutableTreeItem self) -> py_geodms::MutableUnitItem { return AsUnit(self.item.get()); })
 		;
 
-	// mutable treeitem
+	// const unit
+	py::class_<py_geodms::UnitItem>(m, "UnitItem")
+		.def("is_null", [](py_geodms::UnitItem self) {return self.m_au.is_null(); })
+		.def("name", [](py_geodms::UnitItem self) -> std::string { return self.m_au->GetID().AsStdString(); })
+		.def("full_name", [](py_geodms::UnitItem self) -> std::string { return self.m_au->GetFullName().AsStdString(); })
+		.def("value_type_id", [](py_geodms::UnitItem self) -> ValueClassID { return DMS_Unit_GetValueTypeID(self.m_au.get()); }, "The value type of this unit, as a ValueTypeId enumeration value")
+		.def("count", [](py_geodms::UnitItem self) -> SizeT { return DMS_Unit_GetCount(self.m_au.get()); }, "Number of elements (entity count) of this domain unit")
+		.def("get_range", [](py_geodms::UnitItem self) -> std::pair<Float64, Float64> {
+				Float64 b = 0, e = 0;
+				DMS_NumericUnit_GetRangeAsFloat64(self.m_au.get(), &b, &e);
+				return { b, e };
+			})
+		;
+
+	// mutable unit
+	py::class_<py_geodms::MutableUnitItem>(m, "MutableUnitItem")
+		.def("is_null", [](py_geodms::MutableUnitItem self) {return self.m_au.is_null(); })
+		.def("name", [](py_geodms::MutableUnitItem self) -> std::string { return self.m_au->GetID().AsStdString(); })
+		.def("full_name", [](py_geodms::MutableUnitItem self) -> std::string { return self.m_au->GetFullName().AsStdString(); })
+		.def("value_type_id", [](py_geodms::MutableUnitItem self) -> ValueClassID { return DMS_Unit_GetValueTypeID(self.m_au.get()); }, "The value type of this unit, as a ValueTypeId enumeration value")
+		.def("asConst", &py_geodms::MutableUnitItem::asConst)
+		.def("count", [](py_geodms::MutableUnitItem self) -> SizeT { return DMS_Unit_GetCount(self.m_au.get()); })
+		.def("set_expr", [](py_geodms::MutableUnitItem self, const std::string& str) { self.m_au->SetExpr(SharedStr(str)); }, "Define this (domain) unit by an expression, e.g. 'range(uint32, 0, n)'")
+		.def("set_count", [](py_geodms::MutableUnitItem self, SizeT count) { self.m_au->SetCount(count); }, "Set the entity count of an ordinal domain unit")
+		.def("set_range", [](py_geodms::MutableUnitItem self, Float64 begin, Float64 end) { DMS_NumericUnit_SetRangeAsFloat64(self.m_au.get(), begin, end); }, "Set the numeric range [begin, end) of this unit")
+		.def("get_range", [](py_geodms::MutableUnitItem self) -> std::pair<Float64, Float64> {
+				Float64 b = 0, e = 0;
+				DMS_NumericUnit_GetRangeAsFloat64(self.m_au.get(), &b, &e);
+				return { b, e };
+			})
+		;
+
+	py::implicitly_convertible<py_geodms::MutableUnitItem, py_geodms::UnitItem>();
+
+	// const data item
 	py::class_<py_geodms::DataItem>(m, "DataItem")
 		.def("is_null", [](py_geodms::DataItem self) {return self.m_adi.is_null(); })
-		.def("LockAndGetStringValue", &py_geodms::DataItem::LockAndGetStringValue)
+		.def("name", [](py_geodms::DataItem self) -> std::string { return self.m_adi->GetID().AsStdString(); })
+		.def("full_name", [](py_geodms::DataItem self) -> std::string { return self.m_adi->GetFullName().AsStdString(); })
+		.def("domain_unit", &py_geodms::DataItem::GetAbstrDomainUnit)
+		.def("values_unit", &py_geodms::DataItem::GetAbstrValuesUnit)
+		.def("value_composition", [](py_geodms::DataItem self) -> ValueComposition { return DMS_DataItem_GetValueComposition(self.m_adi.get()); })
+		.def("size", [](py_geodms::DataItem self) -> SizeT { return DMS_Unit_GetCount(self.m_adi->GetAbstrDomainUnit()); }, "Number of values (= domain unit count)")
+		.def("update", [](py_geodms::DataItem self) { DMS_TreeItem_Update(self.m_adi.get()); }, "Force (re)calculation before reading values")
+		// Primary Data Access (scalar)
+		.def("get_value_as_float", [](py_geodms::DataItem self, SizeT i) -> Float64 { return dataitem_get_value_as_float(self.m_adi.get(), i); })
+		.def("get_value_as_int", [](py_geodms::DataItem self, SizeT i) -> Int32 { return dataitem_get_value_as_int(self.m_adi.get(), i); })
+		.def("get_value_as_str", &py_geodms::DataItem::LockAndGetStringValue)
+		.def("LockAndGetStringValue", &py_geodms::DataItem::LockAndGetStringValue) // backward-compatible alias
+		// Primary Data Access (bulk)
+		.def("get_values_as_float_list", &dataitem_get_values_as_float_list, "Read all values of this attribute as a list of floats")
+		.def("get_values_as_int_list", &dataitem_get_values_as_int_list, "Read all values of this attribute as a list of ints")
 		;
 
-
-
-
-
-
-
-
-	/*
-	py::class_<py_geodms::MutableTreeItem>(m, "MutableTreeItem");
-
-	py::class_<SharedTreeItem>(m, "Item")
-		.def("isNull", &SharedTreeItem::is_null)
-		.def("find", &treeitem_find)
-		.def("name", &treeitem_name)
-		.def("expr", &treeitem_expr)
-		.def("firstSubItem", &treeitem_GetFirstSubItem)
-		.def("nextItem", &treeitem_GetNextItem)
+	// mutable data item
+	py::class_<py_geodms::MutableDataItem>(m, "MutableDataItem")
+		.def("is_null", [](py_geodms::MutableDataItem self) {return self.m_adi.is_null(); })
+		.def("name", [](py_geodms::MutableDataItem self) -> std::string { return self.m_adi->GetID().AsStdString(); })
+		.def("full_name", [](py_geodms::MutableDataItem self) -> std::string { return self.m_adi->GetFullName().AsStdString(); })
+		.def("asDataItem", &py_geodms::MutableDataItem::asDataItem, "Return a read-only view of this data item")
+		.def("domain_unit", [](py_geodms::MutableDataItem self) -> py_geodms::UnitItem { return py_geodms::UnitItem(self.m_adi->GetAbstrDomainUnit()); })
+		.def("values_unit", [](py_geodms::MutableDataItem self) -> py_geodms::UnitItem { return py_geodms::UnitItem(self.m_adi->GetAbstrValuesUnit()); })
+		.def("value_composition", [](py_geodms::MutableDataItem self) -> ValueComposition { return DMS_DataItem_GetValueComposition(self.m_adi.get()); })
+		.def("size", [](py_geodms::MutableDataItem self) -> SizeT { return DMS_Unit_GetCount(self.m_adi->GetAbstrDomainUnit()); })
+		.def("update", [](py_geodms::MutableDataItem self) { DMS_TreeItem_Update(self.m_adi.get()); })
+		.def("set_expr", [](py_geodms::MutableDataItem self, const std::string& str) { self.m_adi->SetExpr(SharedStr(str)); }, "Set the calculation expression of this data item")
+		// Primary Data Modification (bulk; fresh in-memory allocation via write_only_all)
+		.def("set_values_from_float_list", &dataitem_set_values_from_float_list, "Write all values of this attribute from a list of floats")
+		.def("set_values_from_int_list", &dataitem_set_values_from_int_list, "Write all values of this attribute from a list of ints")
+		// Parameter (Void domain) convenience accessors
+		.def("set_param_float", [](py_geodms::MutableDataItem self, Float64 v) { MG_USERCHECK2(self.m_adi.get(), "invalid dereference of a null data item"); DMS_NumericParam_SetValueAsFloat64(self.m_adi.get(), v); }, "Set the value of a numeric parameter")
+		.def("set_param_int", [](py_geodms::MutableDataItem self, Int32 v) { MG_USERCHECK2(self.m_adi.get(), "invalid dereference of a null data item"); DMS_NumericParam_SetValueAsFloat64(self.m_adi.get(), Float64(v)); }, "Set the value of an integer parameter")
+		.def("set_param_str", [](py_geodms::MutableDataItem self, const std::string& v) { MG_USERCHECK2(self.m_adi.get(), "invalid dereference of a null data item"); DMS_StringParam_SetValue(self.m_adi.get(), v.c_str()); }, "Set the value of a string parameter")
+		.def("get_param_float", [](py_geodms::MutableDataItem self) -> Float64 { return dataitem_get_value_as_float(self.m_adi.get(), 0); }, "Read the value of a numeric parameter")
 		;
-
-	py::class_<SharedTreeItemInterestPtr>(m, "SharedInterestItem")
-		.def("update", [](SharedTreeItemInterestPtr self) {
-				DMS_TreeItem_Update(self.get_ptr());
-				return;
-			})
-		.def("find", &treeitem_find)
-		.def("set_expr", [](SharedTreeItemInterestPtr self, const std::string& str) {return (const_cast<TreeItem*>(self.get_ptr())->SetExpr(SharedStr(str))); })
-		.def("asMutableItem", [](SharedTreeItemInterestPtr self) {});
-
-	py::class_<SharedMutableTreeItem>(m, "SharedMutableItem")
-		.def("asItem", &treeitem_AsMutableItem);
-
-	py::class_<SharedDataItem>(m, "DataItem")
-		.def("getDomainUnit", [](SharedDataItem self) { return self->GetAbstrDomainUnit(); })
-		//.def("calculate", );
-		;
-
-	//py::class_<py_geodms::FutureData>(m, "FutureData")
-	//	.def(GetTile);//<uint32_t>)
-	//	//.def(GetTile<int32_t>)
-	//;
-	
-	py::class_<SharedUnit>(m, "UnitItem"); */
-
-
 }

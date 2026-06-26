@@ -142,7 +142,7 @@ LispRef UnitBase<V>::GetKeyExprImpl() const
 					auto resultIter = fast_copy(sr_range.begin(), sr_range.end(), baseUnitStr.begin());
 					* resultIter++ = char(0xFF);
 					resultIter = fast_copy(dd.begin(), dd.send(), resultIter);
-					assert(resultIter - baseUnitStr.begin() == baseUnitStr.size());
+					assert(SizeT(resultIter - baseUnitStr.begin()) == baseUnitStr.size());
 					baseUnitMetricExpr = LispRef(baseUnitStr.begin(), baseUnitStr.end());
 				}
 				else

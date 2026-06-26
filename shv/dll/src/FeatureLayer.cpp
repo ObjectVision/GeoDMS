@@ -125,7 +125,7 @@ SizeT FeatureLayer::FindNextFeatureByPoint(const CrdPoint& geoPnt, SizeT feature
 
 Int32 FeatureLayer::GetMaxLabelStrLen() const
 {
-	if (m_MaxLabelStrLen == -1)
+	if (m_MaxLabelStrLen == UInt32(-1))
 	{
 		UInt32 result = 0;
 
@@ -185,7 +185,7 @@ const AbstrUnit* FeatureLayer::GetThemeDomainEntity() const
 
 DmsColor& FeatureLayer::UpdateDefaultColor(DmsColor& mutableDefaultPaletteColor) const
 {
-	if (mutableDefaultPaletteColor == -2)
+	if (mutableDefaultPaletteColor == DmsColor(-2))
 	{
 		auto dv = GetDataView().lock();
 		if (dv)

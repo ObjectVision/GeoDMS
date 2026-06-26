@@ -81,7 +81,7 @@ void CalcGridNrs(UInt32* gridCoords, UInt32* linedCoords, CrdType currGridCrd, C
 	CrdType bolGridCrd = currGridCrd;
 	while (showLinesNow)
 	{
-		if (RoundDown<4>(bolGridCrd -= deltaGridCrd) != currGridPos)
+		if (UInt32(RoundDown<4>(bolGridCrd -= deltaGridCrd)) != currGridPos) // explicit (already-implicit) signed->unsigned: an off-grid negative maps to a large value that differs from the in-range currGridPos, so we break
 			break;
 		--showLinesNow;
 	}
@@ -413,8 +413,10 @@ GRect GridCoord::GetClippedRelDeviceRect(const IRect& selRect) const
 		FirstViewCol(selRect.second.Col() ),
 		FirstViewRow(selRect.second.Row() )
 	);
-	if (IsBottomTop(m_Orientation)) omni::swap(result.bottom, result.top ); assert(result.top <= result.bottom); 
-	if (IsRightLeft(m_Orientation)) omni::swap(result.right,  result.left); assert(result.left<= result.right ); 
+	if (IsBottomTop(m_Orientation)) omni::swap(result.bottom, result.top );
+	assert(result.top <= result.bottom);
+	if (IsRightLeft(m_Orientation)) omni::swap(result.right,  result.left);
+	assert(result.left<= result.right );
 	
 	result += m_ClippedRelDeviceRect.LeftTop();
 	result &= m_ClippedRelDeviceRect;

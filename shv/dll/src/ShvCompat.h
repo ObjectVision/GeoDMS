@@ -122,13 +122,12 @@ using HCURSOR = void*;
 #define IDC_HAND        ((HCURSOR)(uintptr_t)32649)
 #endif
 
-// App-specific cursor IDs (defined in shv resource.h for Win32)
-#ifndef IDC_ZOOMIN
-#define IDC_ZOOMIN      ((HCURSOR)(uintptr_t)40001)
-#define IDC_ZOOMOUT     ((HCURSOR)(uintptr_t)40002)
-#define IDC_PAN         ((HCURSOR)(uintptr_t)40003)
-#define IDC_SELECTDIAMOND ((HCURSOR)(uintptr_t)40004)
-#endif
+// App-specific cursor IDs (IDC_ZOOMIN/ZOOMOUT/PAN/SELECTDIAMOND) live solely in
+// shv/res/resource.h as Win32 .rc resource IDs. The cursor code that uses them
+// (ViewPort.cpp, and Win32-only Win32ViewHost.cpp) includes that header and passes
+// them to LoadCursor via MAKEINTRESOURCE -- i.e. they are integer resource IDs, not
+// HCURSORs. They are intentionally NOT duplicated here: a second (wrongly typed,
+// differently valued) definition is what caused the redefinition inconsistency.
 
 //----------------------------------------------------------------------
 // Stub functions

@@ -554,7 +554,7 @@ std::size_t GenericHasher::operator()(CharPtrRange str) const noexcept {
 //	constexpr std::size_t prime = 0x0305070b0d111317; // swirl prime for 8-byte chunks
 
 	// Process full word chunks
-	while (end - ptr >= sizeof(chunk_t)) {
+	while (std::size_t(end - ptr) >= sizeof(chunk_t)) {
 		chunk_t chunk = _mm_loadu_si128(reinterpret_cast<const chunk_t*>(ptr));
 		hash_in(hash, chunk);
 		ptr += sizeof(chunk_t);
@@ -577,7 +577,7 @@ std::size_t AsciiFoldedChunkedCaseInsensitiveHasher::operator()(CharPtrRange str
 	//	constexpr std::size_t prime = 0x0305070b0d111317; // swirl prime for 8-byte chunks
 
 		// Process full word chunks
-	while (end - ptr >= sizeof(chunk_t)) {
+	while (std::size_t(end - ptr) >= sizeof(chunk_t)) {
 		chunk_t chunk = _mm_loadu_si128(reinterpret_cast<const chunk_t*>(ptr));
 		hash_in(hash, fold_ascii_uppercase(chunk));
 		ptr += sizeof(chunk_t);

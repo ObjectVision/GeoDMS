@@ -376,7 +376,9 @@ static field_spec ScanFirstArg(const AbstrOperGroup* og, CharPtr argSpecPtr)
 	if (*argSpecPtr == 'd') {
 		fs |= FS_HASDOMAINVALUESPEC; ++argSpecPtr;
 		if (*argSpecPtr == 'n') { fs |= FS_DOMAIN_AS_SUBITEM; ++argSpecPtr; }
-		if (*argSpecPtr != 'v') goto parseEnd; ++argSpecPtr;
+		if (*argSpecPtr != 'v')
+			goto parseEnd;
+		++argSpecPtr;
 		if (*argSpecPtr == 'n') { fs |= FS_VALUES_AS_SUBITEM; ++argSpecPtr; }
 		if (*argSpecPtr == 'v' && *++argSpecPtr == 'c') 
 		{ 

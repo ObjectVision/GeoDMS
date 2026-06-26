@@ -432,8 +432,8 @@ void rasterize_one_shape(AbstrRasterizeInfo* rasterInfo, std::vector<DPoint>& po
 {
 	assert(rasterInfo);
 
-    if (poShape.empty())
-        return;
+	if (poShape.empty())
+		return;
 
 	seq_index_t poNrValues = poShape.size();
 

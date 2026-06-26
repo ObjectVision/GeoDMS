@@ -70,7 +70,7 @@ private:
 	friend void CheckThis(tile_task_group* self);
 
 #if defined(MG_DEBUG)
-	std::vector<int> md_CompletedWork;
+	std::vector<UInt32> md_CompletedWork;
 #endif
 
 };

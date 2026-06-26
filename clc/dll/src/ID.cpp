@@ -111,7 +111,7 @@ public:
 			i = resData.begin(),
 			e = resData.end();
 
-		assert((e-i) == Cardinality(resRange));
+		assert(SizeT(e-i) == Cardinality(resRange));
 
 		for (row_id count = 0; i != e; ++i)
 			*i = Range_GetValue_naked(resRange, count++);

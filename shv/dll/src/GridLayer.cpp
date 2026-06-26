@@ -602,7 +602,7 @@ IRect GridLayer::CalcSelectedGeoRect()  const
 			{
 				while (c < cRight)
 				{
-					assert(Range_GetIndex_naked(gridRect, shp2dms_order(IPoint(c, r))) == sdi - sdb);
+					assert(Range_GetIndex_naked(gridRect, shp2dms_order(IPoint(c, r))) == SizeT(sdi - sdb));
 					if (sdi.nr_elem() || *sdi.data_begin())
 					{
 						if (SelectionID(*sdi))

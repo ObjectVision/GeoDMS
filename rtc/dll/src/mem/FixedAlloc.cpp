@@ -753,7 +753,7 @@ RTC_CALL auto UpdateFixedAllocStatus() -> FreeStackAllocSummary
 
 	FreeStackAllocSummary cumulBytes;
 	const auto& fsaa = GetFreeStackAllocatorArray();
-	for (int i = 0; i != fsaa.size(); ++i)
+	for (SizeT i = 0; i != fsaa.size(); ++i)
 		cumulBytes = cumulBytes + fsaa[i].ReportStatus();
 
 	std::get<4>(cumulBytes) = CommittedSize();

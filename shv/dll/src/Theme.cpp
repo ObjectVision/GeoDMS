@@ -390,9 +390,9 @@ std::shared_ptr<Theme> Theme::Create(AspectNr aNr, const AbstrDataItem* thematic
 		|| (layerInfo.m_diThemeOrGeoRel 
 				&& (layerInfo.m_diThemeOrGeoRel->GetAbstrDomainUnit()->GetUnitClass() 
 						== Unit<Void>::GetStaticClass()
-					|| thematicAttr
-						&& layerInfo.m_diThemeOrGeoRel->GetAbstrDomainUnit()->GetCurrUltimateItem() 
-							== thematicAttr->GetAbstrDomainUnit()->GetCurrUltimateItem()
+					|| (thematicAttr
+						&& layerInfo.m_diThemeOrGeoRel->GetAbstrDomainUnit()->GetCurrUltimateItem()
+							== thematicAttr->GetAbstrDomainUnit()->GetCurrUltimateItem())
 					)
 			)
 	);

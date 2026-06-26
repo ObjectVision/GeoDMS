@@ -45,6 +45,7 @@
 #include "mci/ValueClassID.h"
 #include "stg/StorageClass.h"
 
+#include <optional>
 #include <set>
 #include <sstream>
 
@@ -413,7 +414,7 @@ void GDalGridImp::UnpackStrip(bit_iterator<N, bit_block_t> pixelData, void* stri
 		char* byteBuff = reinterpret_cast<char*>(stripBuff);
 		for (; th; --th, byteBuff += nrBytesPerRow)
 		{
-			for (Int32 i = 0; i != tw; ++i)
+			for (UInt32 i = 0; i != tw; ++i)
 				*pixelData++ = byteBuff[i] & bint_mask;
 			pixelData += (tw_aligned - tw);
 		}
@@ -667,8 +668,24 @@ void GdalGridSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 	curr->SetFreeDataState(true);
 
 	AbstrUnit* gridDataDomain = GetGridDataDomainRW(curr);
-	StorageReadHandle storageHandle(const_cast<GdalGridSM*>(this), storageHolder, curr, StorageAction::updatetree);
-	
+
+	// A read-only gdal.grid whose domain and values unit are fully configured must not fail
+	// metadata determination merely because its backing file cannot be opened yet - e.g. a
+	// write-back base-data product that has not been generated. The open below only serves to
+	// read band-type and projection from the file; when the source is absent/unreadable there is
+	// nothing to read and the configured metadata suffices. Defer the physical open to data-read
+	// time instead of failing the whole subtree (and its not-yet-run producer) at browse time.
+	// mustRememberFailure=false so a failed open rethrows plainly (no MetaInfo failure stamped on
+	// the holder); we then swallow it and return. Mirrors OpenForWrite()'s DoesExist() branch and
+	// TiffSM::DoUpdateTree's graceful return on a missing source.
+	std::optional<StorageReadHandle> storageHandle;
+	try {
+		storageHandle.emplace(const_cast<GdalGridSM*>(this), storageHolder, curr, StorageAction::updatetree, false);
+	}
+	catch (...) {
+		return;
+	}
+
 	if (storageHolder == curr && !GetGridData(curr)) // Construct GridData if unavailable
 	{
 		const AbstrUnit* vu = nullptr;

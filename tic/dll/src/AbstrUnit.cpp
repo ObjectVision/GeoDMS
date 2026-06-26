@@ -16,6 +16,7 @@
 #include "dbg/SeverityType.h"
 #include "geo/PointOrder.h"
 #include "mci/ValueClass.h"
+#include "mci/ValueClassID.h"
 #include "set/StaticQuickAssoc.h"
 #include "set/VectorFunc.h"
 #include "utl/mySPrintF.h"
@@ -1107,6 +1108,17 @@ TIC_CALL const ValueClass* DMS_CONV DMS_Unit_GetValueType(const AbstrUnit* self)
 
 	DMS_CALL_END
 	return nullptr;
+}
+
+TIC_CALL ValueClassID DMS_CONV DMS_Unit_GetValueTypeID(const AbstrUnit* self)
+{
+	DMS_CALL_BEGIN
+
+		TreeItemContextHandle checkPtr(self, AbstrUnit::GetStaticClass(), "DMS_Unit_GetValueTypeID");
+		return self->GetValueType()->GetValueClassID();
+
+	DMS_CALL_END
+	return ValueClassID::VT_Unknown;
 }
 
 

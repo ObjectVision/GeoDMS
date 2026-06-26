@@ -191,6 +191,7 @@ TIC_CALL void        DMS_CONV DMS_TreeItem_Update(const TreeItem* self);
 
 // Unit property access
 TIC_CALL const ValueClass* DMS_CONV DMS_Unit_GetValueType(const AbstrUnit* self);
+TIC_CALL ValueClassID      DMS_CONV DMS_Unit_GetValueTypeID(const AbstrUnit* self); // returns the value-type enum without exposing the ValueClass type-system structure
 
 // Unit range functions
 TIC_CALL void DMS_CONV DMS_NumericUnit_SetRangeAsFloat64(AbstrUnit* self, Float64 begin, Float64 end);

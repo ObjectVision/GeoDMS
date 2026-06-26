@@ -284,6 +284,8 @@ void CreateQueryColumnInfo(const ODBCStorageManager* self, const TreeItem* stora
 
 void CreateDatabaseTableColumnInfo(const ODBCStorageManager* self, const TreeItem* storageHolder, CharPtr tableName, CharPtr tableTypeName)
 {
+	MG_CHECK(storageHolder);
+
 	TreeItem* tableHolder = const_cast<TreeItem*>(storageHolder)->GetSubTreeItemByID(GetTokenID_mt(tableName));
 
 	const AbstrUnit *domainUnit;
@@ -299,14 +301,15 @@ void CreateDatabaseTableColumnInfo(const ODBCStorageManager* self, const TreeIte
 		tableHolder = newTable;
 		domainUnit = newTable;
 	}
-	dms_assert(tableHolder);
+	assert(tableHolder);
 	CreateAllColumnInfo(self, storageHolder, tableHolder, domainUnit, tableTypeName);
 }
 
 
 void CreateDatabaseTableInfo(const ODBCStorageManager* self, const TreeItem* storageHolder, SyncMode syncMode)
 {
-	dms_assert(syncMode != SyncMode::None);
+	assert(syncMode != SyncMode::None);
+	MG_CHECK(storageHolder);
 
 	TDatabase* database = self->OpenDatabaseInstance(storageHolder);
 	if (! database)
@@ -452,9 +455,9 @@ public:
 
 	UInt32 GetRecordCount()
 	{
-		if (m_RecordCount == -1)
+		if (m_RecordCount == UInt32(-1))
 			m_RecordCount = GetRecordSet()->RecordCount();
-		dms_assert(m_RecordCount != -1);
+		dms_assert(m_RecordCount != UInt32(-1));
 		return m_RecordCount;
 	}
 

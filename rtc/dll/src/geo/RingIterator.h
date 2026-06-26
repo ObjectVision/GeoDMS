@@ -71,7 +71,7 @@ struct SA_ConstRingIterator
 		:	m_SequenceBase(begin_ptr(scr))
 		,	m_RingIndex(index)
 	{
-		if (index != -1)
+		if (index != SizeT(-1))
 		{
 			fillPointIndexBuffer(m_PointIndexPairArray, scr.begin(), scr.end());
 			if (m_PointIndexPairArray.empty())
@@ -101,21 +101,21 @@ struct SA_ConstRingIterator
 
 	void operator ++()
 	{ 
-		assert(m_RingIndex != -1);
+		assert(m_RingIndex != SizeT(-1));
 		if (++m_RingIndex == m_PointIndexPairArray.size())
-			m_RingIndex = -1;
+			m_RingIndex = SizeT(-1);
 	}
 	void operator --()
 	{
 		assert(m_RingIndex != 0);
-		if (m_RingIndex == -1)
+		if (m_RingIndex == SizeT(-1))
 			m_RingIndex = m_PointIndexPairArray.size() - 1;
 		else
 			--m_RingIndex;
 	}
 	SA_ConstRing<P> operator *() const
 	{
-		assert(m_RingIndex != -1);
+		assert(m_RingIndex != SizeT(-1));
 		assert(m_RingIndex < m_PointIndexPairArray.size());
 		return SA_ConstRing<P>(
 			m_SequenceBase + m_PointIndexPairArray[m_RingIndex].first 
@@ -128,16 +128,16 @@ struct SA_ConstRingIterator
 		SizeT othIndex = oth.m_RingIndex;
 		if (index == othIndex) // same, including both at end
 			return 0;
-		if (othIndex == -1)
+		if (othIndex == SizeT(-1))
 			othIndex = m_PointIndexPairArray.size(); // oth is at end but not this
-		if (index == -1)
+		if (index == SizeT(-1))
 			index = oth.m_PointIndexPairArray.size(); // this is at end but not oth
 		return index - othIndex;
 	}
 
 	const P*              m_SequenceBase = nullptr;
 	index_range_vector_t  m_PointIndexPairArray;
-	SizeT                 m_RingIndex = -1;
+	SizeT                 m_RingIndex = SizeT(-1);
 };
 
 #endif //!defined(DMS_RTC_GEO_RINGITERATOR_H)

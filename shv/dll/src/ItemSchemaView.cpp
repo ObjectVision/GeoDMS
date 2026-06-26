@@ -410,7 +410,7 @@ GraphVisitState ItemSchemaView::UpdateView()
 	if (MustUpdate())
 	{
 		ItemSchemaController* isc = m_Controller.get();
-		for(auto i = 0; i < isc->m_RootItems.size(); ++i)
+		for(SizeT i = 0; i < isc->m_RootItems.size(); ++i)
 		{
 			const TreeItem* theItem = isc->m_RootItems[i];
 			switch (m_ViewStyle) {

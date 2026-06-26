@@ -826,8 +826,29 @@ ActorVisitState AbstrStorageManager::VisitSuppliers(SupplierVisitFlag svf, const
 	if (Test(svf, SupplierVisitFlag::ExportInfo) && self->IsStorable() && (self->HasCalculator() || self->HasConfigData()))
 	{
 		const TreeItem* metaInfo = GetExportMetaInfo(self);
-		if (metaInfo && metaInfo->VisitConstVisibleSubTree(visitor)== AVS_SuspendedOrFailed)
-			return AVS_SuspendedOrFailed;
+		if (metaInfo)
+		{
+			// A storable item must not appear in the export-meta description that governs the
+			// sidecar of its own storage: producing that sidecar would require this item's value
+			// (and its siblings'), whose storage in turn requires the sidecar - a true cycle.
+			// GetExportMetaInfo(self) here resolves (via namespace-climbing FindItem) to an
+			// ExportSettings/MetaInfo whose Contents transitively reference `self`. Silently
+			// skipping `self` would break referential transparency and only hide the cycle until
+			// export time, so fail with an actionable description instead.
+			auto detectSelfRefVisitor = MakeDerivedBoolVisitor([&visitor, self, metaInfo](const Actor* a) -> bool
+				{
+					if (a == self)
+						self->throwItemErrorF(
+							"This storable item is (transitively) referenced by the export-meta description %s, "
+							"so producing that sidecar requires this item, whose storage in turn requires the sidecar.\n"
+							"Remedy: override the global ExportSettings/MetaInfo with a local, lighter one in an "
+							"enclosing container, or drop StorageName and keep the result with KeepData = \"True\".",
+							metaInfo->GetFullName().c_str());
+					return visitor(a) != AVS_SuspendedOrFailed;
+				});
+			if (metaInfo->VisitConstVisibleSubTree(detectSelfRefVisitor) == AVS_SuspendedOrFailed)
+				return AVS_SuspendedOrFailed;
+		}
 	}
 	return AVS_Ready;
 }

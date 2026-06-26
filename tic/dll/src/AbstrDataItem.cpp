@@ -399,7 +399,7 @@ void AbstrDataItem::Unify(const TreeItem* refItem, CharPtr leftRole, CharPtr rig
 {
 	const AbstrDataItem* refAsDi = AsDataItem(refItem);
 	GetAbstrDomainUnit()->UnifyDomain(refAsDi->GetAbstrDomainUnit(), leftRole, rightRole, UM_Throw);
-	while (refItem = refAsDi->GetReferredItem())
+	while ((refItem = refAsDi->GetReferredItem()))
 	{
 		Unify(refItem, leftRole, rightRole);
 		refAsDi = AsDataItem(refItem);

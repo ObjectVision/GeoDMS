@@ -138,8 +138,8 @@ public:
 		InviterFunc           iFunc,           // visitor invitation bridge
 		TokenID               scriptID,        // script-visible name/id
 		ValueClassID          vt,              // type identity tag
-		Int32                 size,            // size in bytes (0 for aggregated?)
-		Int32                 bitSize,         // sub-byte element size (0 or 1..7), see IsSubByteElem
+		UInt32                size,            // size in bytes (0 for aggregated?)
+		UInt32                bitSize,         // sub-byte element size (0 or 1..7), see IsSubByteElem
 		DimType               nrDims,          // number of dimensions (sequence/shape semantics)
 		bool                  isNumeric,       // numeric or logical (sub-byte)
 		bool                  isIntegral,      // integral numeric domain

@@ -525,7 +525,7 @@ namespace nth {
 			}
 		}
 		// Terminal case: single element or empty; verify cumulative threshold
-		return (last != first) && (cumulWeight < firstWeight[*first]) || (originalLast != last)
+		return ((last != first) && (cumulWeight < firstWeight[*first])) || (originalLast != last)
 			?	firstRank[*first]
 			:	UNDEFINED_OR_MAX(RankType);
 	}

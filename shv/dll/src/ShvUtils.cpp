@@ -1160,7 +1160,9 @@ const AbstrDataItem* SHV_DataContainer_GetItem(const TreeItem* ti, const AbstrUn
 		--k;
 	}
 
-	if (!level) return 0; --level;
+	if (!level) 
+		return 0;
+	--level;
 
 	for (ti = ti->GetFirstSubItem(); ti; ti = ti->GetNextItem()) 
 	{

@@ -311,7 +311,7 @@ void WriteAsTable(OutStreamBase& os, const bin_count_type& binCounts, const Abst
 	streamsize_t maxLen = 33;
 	GuiReadLock guiLock;
 
-	for (Int32 i = 0; i != binCounts.size(); ++i)
+	for (SizeT i = 0; i != binCounts.size(); ++i)
 	{
 		if (binCounts[i])
 			table.NameValueRow(DisplayValue(vu, i, useMetric, ipHolder, maxLen, guiLock).c_str()

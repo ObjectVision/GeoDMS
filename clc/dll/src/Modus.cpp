@@ -293,7 +293,7 @@ void ModusPartBySet(const AbstrDataItem* indicesItem, abstr_future_tile_array pa
 		, 0, tn, pCount, valueMustBeDefined);
 
 	auto i = counters.begin(), e = counters.end();
-	auto ri = 0;
+	SizeT ri = 0;
 	auto getCount = [](auto counterPtr) { return counterPtr->second; };
 	auto getValue = [](auto counterPtr) { return counterPtr->first.second; };
 	while (i != e)
@@ -501,7 +501,7 @@ void WeightedModusPartBySet(const DataArray<V>* valuesTF, const AbstrDataItem* w
 	auto getValue = [](auto counterPtr) { return counterPtr->first.second; };
 
 	auto i = wieghtAccumulators.begin(), e = wieghtAccumulators.end();
-	auto ri = 0;
+	SizeT ri = 0;
 	while (i != e)
 	{
 		SizeT p = i->first.first;

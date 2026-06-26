@@ -668,7 +668,7 @@ void TreeItem::SetExpr(WeakStr expr)
 
 void TreeItem::SetDC(DataControllerRef newDC, const TreeItem* newRefItem) const
 {
-	dms_assert(!InTemplate() || !newDC && !newRefItem);
+	dms_assert(!InTemplate() || (!newDC && !newRefItem));
 
 	if (mc_DC == newDC && (!newRefItem || newRefItem == mc_RefItem))
 		return;
@@ -889,7 +889,7 @@ void TreeItem::MakeCalculator() const noexcept
 		);
 	auto_flag_recursion_lock<ASF_MakeCalculatorLock> lock(m_State);
 
-	if (mc_Expr.empty() && (IsCacheItem() || !IsUnit(this))|| IsPassor())
+	if ((mc_Expr.empty() && (IsCacheItem() || !IsUnit(this)))|| IsPassor())
 		return;
 
 
@@ -1047,7 +1047,7 @@ const TreeItem* TreeItem::GetUltimateSourceItem() const noexcept
 {
 	const TreeItem* item = this;
 	const TreeItem* source;
-	while (source = item->GetSourceItem())
+	while ((source = item->GetSourceItem()))
 		item = source;
 	assert(item);
 	return item;
@@ -1069,7 +1069,7 @@ const TreeItem* TreeItem::GetCurrUltimateSourceItem() const noexcept
 {
 	const TreeItem* item = this;
 	const TreeItem* source;
-	while (source = item->GetCurrSourceItem())
+	while ((source = item->GetCurrSourceItem()))
 		item = source;
 	dms_assert(item);
 	return item;
@@ -1482,11 +1482,6 @@ bool TreeItem::IsDataReadable() const
 
 SharedTreeItem TreeItem::GetConstSubTreeItemByID(TokenID subItemID) const
 {
-	assert(this);
-
-	if (!this) 
-		return {};
-
 	const TreeItem* subItem = GetFirstSubItem(); // calls UpdateMetaInfo
 	while (true)
 	{
@@ -1508,11 +1503,6 @@ SharedTreeItem TreeItem::GetConstSubTreeItemByID(TokenID subItemID) const
 
 SharedTreeItem TreeItem::GetCurrSubTreeItemByID(TokenID subItemID) const
 {
-	assert(this);
-
-	if (!this)
-		return {};
-
 	auto subItem = GetCurrFirstSubItem(); // requires UpdateMetaInfo to have been called
 	while (true)
 	{
@@ -1534,11 +1524,6 @@ SharedTreeItem TreeItem::GetCurrSubTreeItemByID(TokenID subItemID) const
 
 TreeItem* TreeItem::GetSubTreeItemByID(TokenID subItemID) // does not UpdateMetaInfo
 {
-	assert(this);
-
-	if (!this)
-		return {};
-
 	TreeItem* subItem = _GetFirstSubItem(); // doesn't call UpdateMetaInfo (non const)
 
 	while (subItem && subItem->GetID() != subItemID)
@@ -1555,7 +1540,7 @@ TreeItem* TreeItem::GetItem(CharPtrRange subItemNames)
 	auto ids = NameTreeReg_GetParentAndBranchID(subItemNames);
 	if (ids.first.empty()) // subItemNames is an atomic token or parent = root
 	{
-		if (ids.second.first != subItemNames.first || ids.second.size() && ids.second.first[0] == '.')
+		if (ids.second.first != subItemNames.first || (ids.second.size() && ids.second.first[0] == '.'))
 			return nullptr;
 		return GetSubTreeItemByID(GetTokenID(ids.second));
 	}
@@ -1571,7 +1556,7 @@ TreeItem* TreeItem::GetBestItem(CharPtrRange subItemNames)
 	auto ids = NameTreeReg_GetParentAndBranchID(subItemNames);
 	if (ids.first.empty()) // subItemNames is an atomic token or parent = root
 	{
-		if (ids.second.first != subItemNames.first || ids.second.size() && ids.second.first[0] == '.')
+		if (ids.second.first != subItemNames.first || (ids.second.size() && ids.second.first[0] == '.'))
 			return nullptr;
 		auto result = GetSubTreeItemByID(GetTokenID(ids.second));
 		return result ? result : this;
@@ -1585,14 +1570,13 @@ TreeItem* TreeItem::GetBestItem(CharPtrRange subItemNames)
 
 SharedTreeItem TreeItem::GetCurrItem(CharPtrRange subItemNames) const
 {
-	assert(this);
 	if (subItemNames.empty())
 		return this;
 
 	auto ids = NameTreeReg_GetParentAndBranchID(subItemNames);
 	if (ids.first.empty()) // subItemNames is an atomic token or parent = root
 	{
-		if (ids.second.first != subItemNames.first || ids.second.size() && ids.second.first[0] == '.')
+		if (ids.second.first != subItemNames.first || (ids.second.size() && ids.second.first[0] == '.'))
 			throwItemError("GetCurrItem is not allowed to look outside the accessible search context");
 		return GetCurrSubTreeItemByID(GetTokenID(ids.second));
 	}
@@ -1603,7 +1587,6 @@ SharedTreeItem TreeItem::GetCurrItem(CharPtrRange subItemNames) const
 
 SharedTreeItem TreeItem::FindItem(CharPtrRange subItemNames) const
 {
-	assert(this);
 	assert(IsMetaThread());
 
 	if (subItemNames.empty())
@@ -1644,7 +1627,6 @@ SharedTreeItem TreeItem::FindItem(CharPtrRange subItemNames) const
 
 auto TreeItem::FindAndVisitItem(CharPtrRange subItemNames, SupplierVisitFlag svf, const ActorVisitor& visitor) const->std::optional<SharedTreeItem>  // directly referred persistent object.
 {
-	assert(this);
 	assert(IsMetaThread());
 	assert(Test(svf, SupplierVisitFlag::ImplSuppliers));
 
@@ -1721,8 +1703,6 @@ static auto FollowBestDots(const TreeItem* self, CharPtrRange dots) noexcept -> 
 
 auto TreeItem::FindBestItem(CharPtrRange subItemNames) const -> BestItemRef
 {
-	dms_assert(this);
-
 	if (subItemNames.empty())
 		return { this, {} };
 
@@ -1830,7 +1810,6 @@ TreeItem* TreeItem::CheckCls(const Class* requiredClass)
 
 const TreeItem* TreeItem::FollowDots(CharPtrRange dots) const
 {
-	assert(this);
 	assert(dots.size());
 	const TreeItem* result = this;
 	while (true)
@@ -1905,7 +1884,7 @@ auto TreeItem::CreateItem(TokenID id, const Class* requiredClass) -> OwningPtr<T
 	return TreeItem_CreateItem(this, id, requiredClass);
 }
 
-auto TreeItem::CreateItemFromPath(CharPtr subItemNames, const Class* requiredClass) -> OwningPtr<TreeItem>
+auto TreeItem_CreateItemFromPath(TreeItem* self, CharPtr subItemNames, const Class* requiredClass) -> OwningPtr<TreeItem>
 {
 	if (!requiredClass)
 		requiredClass = TreeItem::GetStaticClass();
@@ -1914,10 +1893,12 @@ auto TreeItem::CreateItemFromPath(CharPtr subItemNames, const Class* requiredCla
 	assert(subItemNames);
 
 	if (*subItemNames == 0) // all subItemNames are processed ??
-		if (this)
-			return CheckedAs(this, requiredClass);
+	{
+		if (self)
+			return CheckedAs(self, requiredClass);
 		else
-			return CreateAndInitItem(this, TokenID(), requiredClass);
+			return CreateAndInitItem(self, TokenID(), requiredClass);
+	}
 
 
 	// parsing the subItemNames recursively by calling this method on subItemNames parts
@@ -1930,22 +1911,27 @@ auto TreeItem::CreateItemFromPath(CharPtr subItemNames, const Class* requiredCla
 	if (firstSubItemName.empty() || firstSubItemName[0] == '.')
 		// subItemNames started with a '/': traversing an absolute path is not allowed for locating a new object
 		// traversing outside the specified namespace is not allowed for locating a new object
-		throwItemErrorF("CreateItemFromPath(%s): Cannot create new items outside creation context", subItemNames);
+		throwItemErrorF(self, "CreateItemFromPath(%s): Cannot create new items outside creation context", subItemNames);
 
 	TokenID   firstSubItemID = GetTokenID_mt(firstSubItemName.c_str());
 	dms_assert(!firstSubItemID.empty());
-	TreeItem* foundSubItem   = 0;
-	if (this)
-		foundSubItem = GetSubTreeItemByID(firstSubItemID); // find foundSubItem according to firstSubItemName
+	TreeItem* foundSubItem   = nullptr;
+	if (self)
+		foundSubItem = self->GetSubTreeItemByID(firstSubItemID); // find foundSubItem according to firstSubItemName
 
 	if (!foundSubItem) // create something
 	{
-		foundSubItem = CreateAndInitItem(this, firstSubItemID, (hasRestSubItems || !requiredClass) ? TreeItem::GetStaticClass() : requiredClass).release();
+		foundSubItem = CreateAndInitItem(self, firstSubItemID, (hasRestSubItems || !requiredClass) ? TreeItem::GetStaticClass() : requiredClass).release();
 		if (!hasRestSubItems)
 			return foundSubItem;
 	}
 	assert(foundSubItem);
-	return foundSubItem->CreateItemFromPath(restSubItemNames, requiredClass);
+	return TreeItem_CreateItemFromPath(foundSubItem, restSubItemNames, requiredClass);
+}
+
+auto TreeItem::CreateItemFromPath(CharPtr subItemNames, const Class* requiredClass) -> OwningPtr<TreeItem>
+{
+	return TreeItem_CreateItemFromPath(this, subItemNames, requiredClass);
 }
 
 TreeItem* TreeItem::CreateConfigRoot(TokenID id) // static
@@ -2945,8 +2931,6 @@ void TreeItem::SetProgress(ProgressState ps) const
 
 const TreeItem* TreeItem::GetFirstVisibleSubItem() const noexcept
 {
-	dms_assert(this);
-
 	const TreeItem* subItem = GetFirstSubItem(); // calls UpdateMetaInfo
 	if (subItem || !mc_RefItem)
 		return subItem;
@@ -2956,7 +2940,6 @@ const TreeItem* TreeItem::GetFirstVisibleSubItem() const noexcept
 
 const TreeItem* TreeItem::GetNextVisibleItem() const noexcept
 {
-	dms_assert(this);
 	dms_assert(m_Parent);
 
 	const TreeItem* nextItem = GetNextItem();
@@ -3816,7 +3799,7 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 				{
 					bool mustWrite = HasCalculator() && !GetCalculator()->IsDataBlock();
 					bool mustSkip = HasCalculator() && GetCalculator()->IsDataBlock();
-					if (!mustSkip && !mmd->IsOpen() || mustWrite && !mmd->IsOpenForWrite())
+					if ((!mustSkip && !mmd->IsOpen()) || (mustWrite && !mmd->IsOpenForWrite()))
 					{
 						auto parent = GetStorageParent(mustWrite);
 						if (!parent)
@@ -3856,7 +3839,7 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 									Fail(adu);	
 								return false;
 							}
-							assert(adu->GetCount() != -1);
+							assert(adu->GetCount() != SizeT(-1));
 							auto fh = OpenFileData(AsDataItem(this), avu ? avu->GetTiledRangeData().get() : nullptr, fn);
 							if (!fh)
 							{
@@ -4146,7 +4129,7 @@ bool TreeItem::CommitDataChanges() const
 	auto sm = storageHolder->GetStorageManager();
 	assert(sm); // guaranteed by IsStorable();
 
-	if (!IsCalculatingOrReady(GetCurrRangeItem()) && !PrepareDataUsage(DrlType::Suspendible) || GetCurrRangeItem()->WasFailed(FailType::Committed))
+	if ((!IsCalculatingOrReady(GetCurrRangeItem()) && !PrepareDataUsage(DrlType::Suspendible)) || GetCurrRangeItem()->WasFailed(FailType::Committed))
 		// can have failed just because PrepareDataUsage suspended or failed; 
 		return FinalizeFailure(this, [this]() { return mySSPrintF("Unable to start calculating data when trying to store it in %s", DMS_TreeItem_GetAssociatedFilename(this)); });
 

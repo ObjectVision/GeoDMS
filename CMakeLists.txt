@@ -71,7 +71,8 @@ else()
         -Wno-unused-but-set-variable # ~2k
         -Wno-reorder                 # ~1.5k: member-init order, harmless here
         -Wno-unknown-pragmas         # ~0.9k: MSVC #pragma warning / region across the tree
-        -Wno-sign-compare            # ~0.6k: signed/unsigned compares, very noisy
+        # -Wsign-compare is intentionally NOT suppressed: the tree is clean under it and it
+        # catches real signed/unsigned comparison bugs (kept enabled as a ratchet).
         -Wno-endif-labels            # ~0.5k: "#endif FOO" comment style
         -Wno-unused-local-typedefs   # ~0.2k
         -Wno-deprecated-declarations # third-party API deprecations (libtiff uint16, Qt, GDAL, boost) used in .cpp

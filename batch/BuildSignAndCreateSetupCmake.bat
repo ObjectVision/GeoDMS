@@ -59,7 +59,7 @@ if not exist "%BUILD_DIR%\CMakeCache.txt" (
     REM full re-churn of the shared vcpkg_installed every time .m and .c alternate.
     %CMAKE% --preset windows-x64-release ^
         -DVCPKG_INSTALLED_DIR="%geodms_rootdir%/vcpkg_installed" ^
-        -DCMAKE_PREFIX_PATH="C:/Qt/6.9.0/msvc2022_64"
+        -DCMAKE_PREFIX_PATH="C:/Qt/6.11.1/msvc2022_64"
     if errorlevel 1 goto :build_failed
 )
 

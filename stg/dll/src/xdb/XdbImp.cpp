@@ -406,7 +406,7 @@ CharPtr XdbImp::ColName(column_index i) const
 
 XdbImp::recno_t XdbImp::NrOfRows() const
 {
-	if (nrows == -1)
+	if (nrows == UInt32(-1))
 		const_cast<XdbImp*>(this)->nrows = ThrowingConvert<XdbImp::recno_t>((m_FHD.GetViewSize() -headersize) / RecSize());
 	return nrows;
 };
@@ -462,7 +462,7 @@ FileResult XdbImp::AppendColumn
 	DBG_START("XdbImp", "AppendColumn", MG_DEBUG_XDB);
 
 	// Columnnames should be unique
-	if (auto r = FileResult::require(ColIndex(fldName) == -1, "Column alredy exists"); !r)
+	if (auto r = FileResult::require(ColIndex(fldName) == UInt32(-1), "Column alredy exists"); !r)
 		return r;
 	if (size < 1) 
 		return std::unexpected(SharedStr("invalid size"));
