@@ -183,7 +183,7 @@ void ConfigProd::DataBlockCompleted(iterator_t first, iterator_t last)
 		m_pCurrent->throwItemError("DataBlockAssignment: assignee must be a DataItem");
 	dms_assert(!m_pCurrent->GetInterestCount());
 
-	m_pCurrent->mc_Calculator =
+	m_pCurrent->GetOrCreateConfigProperties().mc_Calculator =
 		new DataBlockTask(
 			AsDataItem(m_pCurrent.get_ptr()), 
 			&*first, &*last, 

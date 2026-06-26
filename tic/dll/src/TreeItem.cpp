@@ -73,11 +73,57 @@ using treeitem_lock_map = cs_lock_map<SharedTreeItem>;
 
 // #undef MG_DEBUG_DATA // DEBUG MEMORY ALLOCS AND SETS md_FullName
 
+auto TreeItem::GetOrCreateConfigProperties() const -> ConfigProperties&
+{
+	if (!m_ConfigProperties)
+	{
+		assert(!IsCacheItem()); // ConfigProperties is config-only and is never created on cache items
+		m_ConfigProperties = std::make_unique<ConfigProperties>();
+	}
+	return *m_ConfigProperties;
+}
+
+const SharedStr& TreeItem::GetExprMember() const noexcept
+{
+	static const SharedStr s_emptyExpr;
+	return m_ConfigProperties ? m_ConfigProperties->mc_Expr : s_emptyExpr;
+}
+
+const AbstrCalculatorRef& TreeItem::GetCalculatorMember() const noexcept
+{
+	static const AbstrCalculatorRef s_empty;
+	return m_ConfigProperties ? m_ConfigProperties->mc_Calculator : s_empty;
+}
+
+const AbstrCalculatorRef& TreeItem::GetIntegrityCheckerMember() const noexcept
+{
+	static const AbstrCalculatorRef s_empty;
+	return m_ConfigProperties ? m_ConfigProperties->mc_IntegrityChecker : s_empty;
+}
+
+const AbstrCalculatorRef& TreeItem::GetSizeEstimatorMember() const noexcept
+{
+	static const AbstrCalculatorRef s_empty;
+	return m_ConfigProperties ? m_ConfigProperties->mc_SizeEstimator : s_empty;
+}
+
+void TreeItem::ResetCalculatorMember() const
+{
+	if (m_ConfigProperties)
+		m_ConfigProperties->mc_Calculator.reset();
+}
+
+void TreeItem::ResetIntegrityCheckerMember() const
+{
+	if (m_ConfigProperties)
+		m_ConfigProperties->mc_IntegrityChecker.reset();
+}
+
 bool TreeItem::IsEditable() const
 {
-	if (!mc_Expr.empty())
+	if (!GetExprMember().empty())
 		return false;
-	if (mc_Calculator && !mc_Calculator->IsDataBlock())
+	if (auto& calc = GetCalculatorMember(); calc && !calc->IsDataBlock())
 		return false;
 
 	return !IsCurrLoadable() || IsCurrStorable();
@@ -327,8 +373,8 @@ void TreeItem::EnableAutoDeleteImpl() // does not call UpdateMetaInfo
 	DBG_TRACE(("Item: %s", GetFullName().c_str()));      //  DEBUG Access violation
 
 	assert(IsAutoDeleteDisabled());
-	mc_Calculator.reset();
-	mc_IntegrityChecker.reset();
+	ResetCalculatorMember();
+	ResetIntegrityCheckerMember();
 
 	if (!IsCacheItem())
 		DisableStorage();
@@ -638,7 +684,7 @@ SharedStr TreeItem::GetExpr() const
 {
 	if (m_Parent)
 		m_Parent->UpdateMetaInfo();
-	return mc_Expr;
+	return GetExprMember();
 }
 
 void TreeItem::SetDescr(WeakStr description)
@@ -654,11 +700,11 @@ void TreeItem::SetExpr(WeakStr expr)
 		throwItemErrorF("SetExpr(%s) not allowed since Calculator is set by parent", SingleQuote( exprStr.begin(), exprStr.send() ).c_str());
 	}
 
-	if (mc_Expr != expr)
+	if (GetExprMember() != expr)
 	{
 		AssertPropChangeRights("CalculationRule");
 
-		mc_Expr = expr;
+		GetOrCreateConfigProperties().mc_Expr = expr;
 
 		Invalidate();
 
@@ -725,10 +771,10 @@ void TreeItem::SetCalculator(AbstrCalculatorRef pr) const
 	dms_check_not_debugonly;
 	dms_assert(IsMetaThread());
 
-	if (pr == mc_Calculator)
+	if (pr == GetCalculatorMember())
 		return;
 	dms_assert(pr);
-	mc_Calculator = std::move(pr);
+	GetOrCreateConfigProperties().mc_Calculator = std::move(pr);
 }
 
 SharedTreeItemInterestPtr TreeItem::GetInterestPtrOrNull() const 
@@ -746,12 +792,12 @@ bool TreeItem::HasCalculatorImpl() const  noexcept
 // in which case mc_Calculator has already been set by DataController to a DC_BackPtr
 {
 	dbg_assert(IsPassor() || !m_Parent || m_Parent->CheckMetaInfoReady() || s_MakeEndoLockCount);
-	if (mc_Calculator)
+	if (GetCalculatorMember())
 		return true;
 	// items in templates never have calculators
 	if (InTemplate())
 		return false;
-	if (!mc_Expr.empty())
+	if (!GetExprMember().empty())
 		return true;
 	if (IsUnit(this) && GetTSF(USF_HasConfigRange))
 	{
@@ -789,28 +835,30 @@ bool TreeItem::HasIntegrityChecker() const
 auto TreeItem::GetIntegrityChecker() const -> AbstrCalculatorRef
 {
 	assert(HasIntegrityChecker()); // Precondition
-	if (!mc_IntegrityChecker)
+	auto& cfg = GetOrCreateConfigProperties();
+	if (!cfg.mc_IntegrityChecker)
 	{
 		SharedStr iCheckStr = integrityCheckPropDefPtr->GetValue(this);
-		mc_IntegrityChecker = AbstrCalculator::ConstructFromStr(this, iCheckStr, CalcRole::Checker);
+		cfg.mc_IntegrityChecker = AbstrCalculator::ConstructFromStr(this, iCheckStr, CalcRole::Checker);
 	}
-	return mc_IntegrityChecker;
+	return cfg.mc_IntegrityChecker;
 }
 
 bool TreeItem::HasSizeEstimator() const
 {
-	return mc_SizeEstimator || sizeEstimatorPropDefPtr->HasNonDefaultValue(this);
+	return GetSizeEstimatorMember() || sizeEstimatorPropDefPtr->HasNonDefaultValue(this);
 }
 
 auto TreeItem::GetSizeEstimator() const -> AbstrCalculatorRef
 {
 	assert(HasSizeEstimator()); // Precondition
-	if (!mc_SizeEstimator)
+	auto& cfg = GetOrCreateConfigProperties();
+	if (!cfg.mc_SizeEstimator)
 	{
 		SharedStr iCheckStr = sizeEstimatorPropDefPtr->GetValue(this);
-		mc_SizeEstimator = AbstrCalculator::ConstructFromStr(this, iCheckStr, CalcRole::Checker);
+		cfg.mc_SizeEstimator = AbstrCalculator::ConstructFromStr(this, iCheckStr, CalcRole::Checker);
 	}
-	return mc_SizeEstimator;
+	return cfg.mc_SizeEstimator;
 }
 
 void TreeItem::AssertPropChangeRights(CharPtr changeWhat) const
@@ -848,7 +896,7 @@ void TreeItem::AssertDataChangeRights(CharPtr changeWhat) const
 SharedPtr<const AbstrCalculator> TreeItem::GetCalculator() const
 {
 	MakeCalculator();
-	return mc_Calculator;
+	return GetCalculatorMember();
 }
 
 static void ApplyCalculator(TreeItem* holder, const AbstrCalculator* ac)
@@ -876,7 +924,7 @@ void TreeItem::MakeCalculator() const noexcept
 	//	may only be called after HasCalculator (would) return(ed) true
 //	dms_assert(!InTemplate() || (mc_Calculator && mc_Calculator->DelayDataControllerAccess()));
 //	dms_assert(mc_Calculator || !mc_Expr.empty()); 
-	if (mc_DC || GetIsInstantiated() || mc_Calculator)
+	if (mc_DC || GetIsInstantiated() || GetCalculatorMember())
 		return;
 
 	TreeItemContextHandle tich(this, "MakeCalculator"); FencedInterestRetainContext irc("MakeCalculator");
@@ -889,14 +937,14 @@ void TreeItem::MakeCalculator() const noexcept
 		);
 	auto_flag_recursion_lock<ASF_MakeCalculatorLock> lock(m_State);
 
-	if ((mc_Expr.empty() && (IsCacheItem() || !IsUnit(this)))|| IsPassor())
+	if ((GetExprMember().empty() && (IsCacheItem() || !IsUnit(this)))|| IsPassor())
 		return;
 
 
 	try {
 		AbstrCalculatorRef newCalculator;
-		if (!mc_Expr.empty())
-			newCalculator = AbstrCalculator::ConstructFromStr(this, mc_Expr, CalcRole::Calculator);
+		if (!GetExprMember().empty())
+			newCalculator = AbstrCalculator::ConstructFromStr(this, GetExprMember(), CalcRole::Calculator);
 		SetCalculator(newCalculator);
 	}
 	catch (...)
@@ -1210,7 +1258,7 @@ void TreeItem::SetInTemplate()
 		SetTSF(TSF_InTemplate);
 		for (TreeItem* subItem = _GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
 			subItem->SetInTemplate();
-		dms_assert(!mc_Calculator);
+		dms_assert(!GetCalculatorMember());
 		SetPassor();
 	}
 }
@@ -1955,7 +2003,7 @@ TreeItem* TreeItem::CreateCacheRoot() // static
 static bool HasOwnCalculatorNow(TreeItem* result)
 {
 	dms_assert(result);
-	return (!result->mc_Expr.empty()) || (result->mc_Calculator && result->mc_Calculator->IsDataBlock());
+	return (!result->GetExprMember().empty()) || (result->GetCalculatorMember() && result->GetCalculatorMember()->IsDataBlock());
 }
 
 OwningPtr<TreeItem> TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& copyContext) const
@@ -2078,13 +2126,13 @@ OwningPtr<TreeItem> TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& 
 			{
 				// subItems van referees dmv case-parameter value of gewoon expr-ref. aangeroepen vanuit UpdateMetaInfo 
 				// Case-Parameter := itemRef OF result of compound-expr  (met DC_Ptr)
-				if (!result->mc_Calculator)
+				if (!result->GetCalculatorMember())
 					result->SetCalculator(CreateCalculatorForTreeItem(result.get(), this, copyContext));
 			}
 			else
 			{
-				if (mc_Calculator && mc_Calculator->IsDataBlock())
-					result->SetCalculator(AbstrCalculator::ConstructFromDBT(AsDataItem(result.get()), mc_Calculator.get()));
+				if (GetCalculatorMember() && GetCalculatorMember()->IsDataBlock())
+					result->SetCalculator(AbstrCalculator::ConstructFromDBT(AsDataItem(result.get()), GetCalculatorMember().get()));
 			}
 		}
 	}	// if (mustCopyProps)
@@ -2218,8 +2266,8 @@ void TreeItem::UpdateMetaInfoImpl() const
 		thisAdi->GetAbstrValuesUnit()->UpdateMetaInfo();
 	}
 
-	if (mc_Calculator && !mc_Calculator->IsDataBlock())
-		ApplyCalculator(const_cast<TreeItem*>(this), mc_Calculator.get());
+	if (GetCalculatorMember() && !GetCalculatorMember()->IsDataBlock())
+		ApplyCalculator(const_cast<TreeItem*>(this), GetCalculatorMember().get());
 
 //	UpdateDC();
 
@@ -2229,7 +2277,7 @@ void TreeItem::UpdateMetaInfoImpl() const
 			Fail(mc_DC.get());
 	}
 
-	if (HasConfigData() && mc_Calculator && mc_Calculator->IsDataBlock())
+	if (HasConfigData() && GetCalculatorMember() && GetCalculatorMember()->IsDataBlock())
 		return;
 
 	if (mc_RefItem)
@@ -2297,7 +2345,7 @@ MetaInfo TreeItem::GetCurrMetaInfo(metainfo_policy_flags mpf) const
 	if (HasCalculatorImpl())
 	{
 		//		if (IsCacheItem() && (!HasSupplCache() || GetSupplCache()->GetNrConfigured(this) == 0) )
-		const AbstrCalculator* calc = mc_Calculator.get();
+		const AbstrCalculator* calc = GetCalculatorMember().get();
 		if (!calc)
 		{
 //			dms_assert(IsUnit(this)); // follows from CanSubstituteByCalcSpec()
@@ -3135,9 +3183,9 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 	if (Test(svf, SupplierVisitFlag::DetermineCalc))
 		MakeCalculator(); // sets mc_Calculator, mc_DC, and mc_RefItem;
 
-	if (mc_Calculator && Test(svf, SupplierVisitFlag::NamedSuppliers))
+	if (GetCalculatorMember() && Test(svf, SupplierVisitFlag::NamedSuppliers))
 	{
-		if (mc_Calculator->VisitSuppliers(svf, visitor) == AVS_SuspendedOrFailed)
+		if (GetCalculatorMember()->VisitSuppliers(svf, visitor) == AVS_SuspendedOrFailed)
 			return AVS_SuspendedOrFailed;
 	}
 
@@ -3243,17 +3291,17 @@ void TreeItem::DoInvalidate() const
 	m_State.Clear(ASF_WasLoaded);
 	m_StatusFlags.Clear(TSF_DataInMem);
 
-	mc_IntegrityChecker.reset();
+	ResetIntegrityCheckerMember();
 
 	TreeItem_RemoveDC(this);
-	if (!mc_Expr.empty())
+	if (!GetExprMember().empty())
 	{
-		mc_Calculator.reset();
+		ResetCalculatorMember();
 		for (auto subItem = _GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
 		{
-			if (subItem->mc_Calculator && subItem->mc_Calculator->IsDcPtr()) // reflection of composite result component?
+			if (subItem->GetCalculatorMember() && subItem->GetCalculatorMember()->IsDcPtr()) // reflection of composite result component?
 			{
-				subItem->mc_Calculator.reset();
+				subItem->ResetCalculatorMember();
 				TreeItem_RemoveDC(subItem);
 			}
 		}
@@ -4038,9 +4086,9 @@ bool TreeItem::HasConfigData() const
 	if (!IsDataItem(this) && !IsUnit(this))
 		return false;
 
-	if (mc_Calculator)  // DC_Ptr: false
-		return mc_Calculator->IsDataBlock(); // DC_Ptr: false, ExprCalculator: false;
-	if (!mc_Expr.empty())
+	if (GetCalculatorMember())  // DC_Ptr: false
+		return GetCalculatorMember()->IsDataBlock(); // DC_Ptr: false, ExprCalculator: false;
+	if (!GetExprMember().empty())
 		return false;
 	if (GetStorageParent(false) != nullptr)
 		return false;
@@ -4058,9 +4106,9 @@ bool TreeItem::HasCurrConfigData() const
 	if (!IsDataItem(this) && !IsUnit(this))
 		return false;
 
-	if (mc_Calculator)  // DC_Ptr: false
-		return mc_Calculator->IsDataBlock(); // DC_Ptr: false, ExprCalculator: false;
-	if (!mc_Expr.empty())
+	if (GetCalculatorMember())  // DC_Ptr: false
+		return GetCalculatorMember()->IsDataBlock(); // DC_Ptr: false, ExprCalculator: false;
+	if (!GetExprMember().empty())
 		return false;
 	if (GetCurrStorageParent(false) != nullptr)
 		return false;
@@ -4262,12 +4310,12 @@ void TreeItem::XML_Dump(OutStreamBase* xmlOutStr, bool notWritingDictionary) con
 
 	if (IsDataItem(this))
 	{
-		bool isDataBlock = mc_Calculator && mc_Calculator->IsDataBlock();
+		bool isDataBlock = GetCalculatorMember() && GetCalculatorMember()->IsDataBlock();
 		if (isDataBlock || HasConfigData())
 		{
 			xmlOutStr->DumpSubTagDelim();
 			if (isDataBlock)
-				*xmlOutStr << mc_Calculator->GetExpr().c_str();
+				*xmlOutStr << GetCalculatorMember()->GetExpr().c_str();
 			else
 			{
 				TreeItemInterestPtr holder(this);

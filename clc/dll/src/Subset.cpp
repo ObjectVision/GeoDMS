@@ -309,7 +309,7 @@ struct SelectMetaOperator : public BinaryOperator
 				,	containerExpr.GetSymbID()
 				,	subDataID
 				);
-			auto oldExpr = resSub->mc_Expr;
+			auto oldExpr = resSub->GetExprMember();
 			if (!oldExpr.empty() && oldExpr != selectExpr)
 			{
 				auto msg = mySSPrintF("Cannot set calculation rule '%s' to selected attribute '%s' as it is already defined as '%s'", selectExpr, subDataID, oldExpr);
@@ -536,7 +536,7 @@ struct CollectWithAttrOperator : public BinaryOperator
 					, subDataID
 				);
 
-			auto oldExpr = resSub->mc_Expr;
+			auto oldExpr = resSub->GetExprMember();
 			if (!oldExpr.empty() && oldExpr != collectExpr)
 			{
 				auto msg = mySSPrintF("Cannot set calculation rule '%s' to collected attribute '%s' as it is already defined as '%s'", collectExpr, subDataID, oldExpr);

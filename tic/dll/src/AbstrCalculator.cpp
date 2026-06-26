@@ -762,7 +762,7 @@ BestItemRef AbstrCalculator::FindErrorneousItem() const
 						errorneousItem = ti;
 						return  AVS_SuspendedOrFailed;
 					}
-				if (auto miDcPtr = ti->mc_Calculator)
+				if (auto miDcPtr = ti->GetCalculatorMember())
 				{
 					if (miDcPtr->IsSourceRef())
 						if (auto si = miDcPtr->GetSourceItem())

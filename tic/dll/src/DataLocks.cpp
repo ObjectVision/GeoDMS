@@ -337,10 +337,10 @@ TIC_CALL void DataWriteLock::Commit()
 		adi->m_DataObject->md_ActorFlags.Set(actor_flag_set::AFD_PivotElem);
 #endif
 
-	if (adi->mc_Calculator)
+	if (adi->GetCalculatorMember())
 	{
 		adi->SetDC(DataControllerRef{}, nullptr);
-		adi->mc_Calculator.reset();
+		adi->ResetCalculatorMember();
 		adi->SetExpr(SharedStr{});
 	}
 	DataWrite_Unlock(adi.get());

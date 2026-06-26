@@ -474,7 +474,7 @@ SHV_CALL ViewStyleFlags DMS_CONV SHV_GetViewStyleFlags(const TreeItem* item)
 			if (item->HasSubItems  ()) g_LastViewStyleFlags |= vsfContainer;
 			if (Waiter::IsWaiting())
 			{
-				if (item->mc_Calculator) g_LastViewStyleFlags |= vsfExprEdit;
+				if (item->GetCalculatorMember()) g_LastViewStyleFlags |= vsfExprEdit;
 			}
 			else
 			{

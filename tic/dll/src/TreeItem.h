@@ -182,9 +182,8 @@ public:
 
 	// Expression (config) getter/setter; _GetExprStr returns the raw stored expression.
 	TIC_CALL SharedStr GetExpr() const;
-//	         CharPtr _GetExpr() const  { return mc_Expr.c_str(); }
-    SharedStr _GetExprStr() const { return mc_Expr; }
-    void _SetExpr(WeakStr str) { mc_Expr = str; }
+    SharedStr _GetExprStr() const { return GetExprMember(); }
+    void _SetExpr(WeakStr str) { if (m_ConfigProperties || !str.empty()) GetOrCreateConfigProperties().mc_Expr = str; }
 
 // Namespaces
 
@@ -564,10 +563,6 @@ public:
 	// Subitems manage insertion in a non-refcounted set; child holds counted-ref to parent.
 	SharedTreeItem                 m_Parent;   // ro-access, counted-ref
 
-	// Configuration-time expression associated with this item.
-	mutable SharedStr              mc_Expr;
-
-
 	// optional pointers to various services
 	mutable std::unique_ptr<SupplCache>  m_SupplCache;
 	mutable std::unique_ptr<UsingCache>  m_UsingCache;
@@ -579,8 +574,31 @@ public: // TODO G8: encapsulate and move config attr (aka mc_ ) into a separate 
 	// Status flags for visibility, template state, storage/data retention, etc.
 	mutable treeitem_flag_set      m_StatusFlags;
 
-	// Pluggable behavior: calculators, integrity checkers, size estimators, and DC.
-	mutable AbstrCalculatorRef     mc_Calculator, mc_IntegrityChecker, mc_SizeEstimator;
+	// Config-only data: the calculation-rule expression plus the pluggable calculators.
+	// Allocated lazily and only for configuration items; GetOrCreateConfigProperties() asserts the
+	// owner is not a cache item. (Unrelated to HasConfigData(), which reports whether the item
+	// holds authoritative primary data.)
+	struct ConfigProperties
+	{
+		SharedStr          mc_Expr;             // configuration-time calculation rule
+		AbstrCalculatorRef mc_Calculator;
+		AbstrCalculatorRef mc_IntegrityChecker;
+		AbstrCalculatorRef mc_SizeEstimator;
+	};
+	mutable std::unique_ptr<ConfigProperties> m_ConfigProperties;
+
+	// ConfigProperties accessors: read-side helpers are null-safe (return an empty value when the
+	// ConfigProperties is absent); the create-side allocates on demand and is config-only.
+	const ConfigProperties*                  GetConfigProperties() const noexcept { return m_ConfigProperties.get(); }
+	TIC_CALL ConfigProperties&               GetOrCreateConfigProperties() const;
+	TIC_CALL const SharedStr&          GetExprMember()             const noexcept;
+	TIC_CALL const AbstrCalculatorRef& GetCalculatorMember()       const noexcept;
+	TIC_CALL const AbstrCalculatorRef& GetIntegrityCheckerMember() const noexcept;
+	TIC_CALL const AbstrCalculatorRef& GetSizeEstimatorMember()    const noexcept;
+	TIC_CALL void ResetCalculatorMember()       const; // defined in .cpp where AbstrCalculator is complete
+	TIC_CALL void ResetIntegrityCheckerMember() const;
+
+	// Pluggable behavior: data controller and referred/template-original items.
 	mutable DataControllerRef      mc_DC;
 	mutable SharedPtr<const TreeItem> mc_RefItem, mc_OrgItem;
 

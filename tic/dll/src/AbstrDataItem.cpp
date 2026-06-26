@@ -765,7 +765,7 @@ bool AbstrDataItem::HasVoidDomainGuarantee() const
 void AbstrDataItem::OnDomainUnitRangeChange(const DomainChangeInfo* info)
 {
 //	MG_CHECK2(false, "NYI: Copy Data into newly formed DataArray");
-	if (mc_Calculator ? mc_Calculator->IsDataBlock() : m_DataObject)
+	if (GetCalculatorMember() ? GetCalculatorMember()->IsDataBlock() : bool(m_DataObject))
 	{
 		// is info->oldRangeData nog "actief" ? "actief" <-> Actor <-> TimeStamp of land change <-!-> Value Bases Calculation <-> declarative modelling
 		try {
@@ -775,7 +775,7 @@ void AbstrDataItem::OnDomainUnitRangeChange(const DomainChangeInfo* info)
 			DataWriteLock lock(this); // calls CreateAbstrHeapTileFunctor(); is dan nu ineens info->newDataRange "actief" ?
 			CopyData(oldDataObject.get(), lock.get(), info); // can I reuse tiles ?
 			lock.Commit();
-			assert(!mc_Calculator); // DataWriteLock::Commit() destroyed DataBlockTask
+			assert(!GetCalculatorMember()); // DataWriteLock::Commit() destroyed DataBlockTask
 		}
 		catch (DmsException& x)
 		{
