@@ -5,35 +5,41 @@ if(NOT WIN32)
     return()
 endif()
 
-# Link against the SAME Python the msbuild build (DmsPython.vcxproj uses %PYTHON3_*%)
-# and the test harness (batch/Unit/PythonTest.bat -> `py -3.13`) use -- NOT the
-# vcpkg-provided python3 build-tool port. Under the active vcpkg toolchain,
-# find_package(Python3) otherwise resolves to vcpkg's python3 (currently 3.12), so the
-# resulting geodms.pyd is a cp312 module and fails to import into the 3.13 runtime
-# interpreter ("Module use of python312.dll conflicts with this version of Python").
-# See https://github.com/ObjectVision/GeoDMS/issues/1105 for the multi-ABI end state;
-# this is the single-pinned-version (N=1) tactical step toward it.
-if(DEFINED ENV{PYTHON3_INCLUDE_DIR})
-    get_filename_component(_py3_root "$ENV{PYTHON3_INCLUDE_DIR}" DIRECTORY)
-    set(Python3_ROOT_DIR   "${_py3_root}")
-    set(Python3_EXECUTABLE "${_py3_root}/python.exe")
-    set(Python3_FIND_STRATEGY LOCATION)
-    set(Python3_FIND_REGISTRY NEVER)
-    message(STATUS "geodms.pyd: pinning Python3 to ${_py3_root} (PYTHON3_INCLUDE_DIR)")
-else()
-    message(WARNING "geodms.pyd: PYTHON3_INCLUDE_DIR not set; find_package(Python3) may "
-                    "resolve to the vcpkg python3 port and build an ABI that the test "
-                    "harness/runtime interpreter cannot import.")
+# Build against the SAME Python the msbuild build (DmsPython.vcxproj uses %PYTHON3_*%) and
+# the test harness (batch/Unit/PythonTest.bat -> `py -3.13`) use, by consuming the include
+# dir and import library directly from %PYTHON3_INCLUDE_DIR% / %PYTHON3_LIBRARIES% — exactly
+# like DmsPython.vcxproj (%PYTHON3_INCLUDE_DIR% + %PYTHON3_LIBRARIES%/*.lib).
+#
+# We deliberately do NOT call find_package(Python3 ... COMPONENTS Development): under the
+# vcpkg toolchain the python3 cmake-wrapper (share/python3/vcpkg-cmake-wrapper.cmake) forces
+# vcpkg's own python3 (currently 3.12) for the Development component, regardless of any cache
+# pin, so geodms.pyd would link cp312 and fail to import in the 3.13 runtime ("Module use of
+# python312.dll conflicts with this version of Python"). See issue #1105 for the multi-ABI
+# end state; this is the single-pinned-version (N=1) tactical step toward it.
+if(NOT DEFINED ENV{PYTHON3_INCLUDE_DIR} OR NOT DEFINED ENV{PYTHON3_LIBRARIES})
+    message(WARNING "geodms.pyd: PYTHON3_INCLUDE_DIR / PYTHON3_LIBRARIES not set; skipping the "
+                    "Python binding. Set them to the target CPython (e.g. 3.13) install, as the "
+                    "msbuild build and the py launcher used by the test harness do.")
+    return()
 endif()
 
-find_package(Python3 REQUIRED COMPONENTS Development)
+set(_py3_inc "$ENV{PYTHON3_INCLUDE_DIR}")
+# %PYTHON3_LIBRARIES% is the libs directory; pick the version-stamped import lib (python3XX.lib,
+# not the _d debug variant).
+file(GLOB _py3_libs "$ENV{PYTHON3_LIBRARIES}/python3??.lib")
+if(NOT _py3_libs)
+    message(FATAL_ERROR "geodms.pyd: no python3??.lib found under $ENV{PYTHON3_LIBRARIES}")
+endif()
+list(GET _py3_libs 0 _py3_lib)
+message(STATUS "geodms.pyd: using Python include ${_py3_inc} and lib ${_py3_lib}")
+
 find_package(pybind11 CONFIG REQUIRED)
 
-# MODULE library builds as a .pyd (Python extension) on Windows
-python3_add_library(geodms MODULE src/Bindings.cpp WITH_SOABI)
+# MODULE library builds as a .pyd (Python extension) on Windows. We create it directly
+# (not via python3_add_library) to avoid find_package(Python3) and the vcpkg wrapper.
+add_library(geodms MODULE src/Bindings.cpp)
 
 # Match DmsPython.vcxproj: output name is always "geodms.pyd" regardless of config.
-# Suppress the Python debug ABI suffix (_d) and any CMake debug postfix.
 set_target_properties(geodms PROPERTIES
     OUTPUT_NAME "geodms"
     SUFFIX ".pyd"
@@ -42,6 +48,7 @@ set_target_properties(geodms PROPERTIES
 )
 
 target_include_directories(geodms PRIVATE
+    ${_py3_inc}
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_SOURCE_DIR}/sym/dll/src
     ${CMAKE_SOURCE_DIR}/tic/dll/src
@@ -55,5 +62,6 @@ target_include_directories(geodms PRIVATE
 
 target_link_libraries(geodms PRIVATE
     pybind11::headers
+    ${_py3_lib}
     DmRtc DmSym DmTic DmStx DmStg DmClc DmGeo DmShv
 )
