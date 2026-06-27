@@ -37,7 +37,7 @@ inline ConstUnitRef operated_unit_creator(const AbstrOperGroup* gr, const ArgSeq
 template<typename T>
 inline ConstUnitRef default_unit_creator()
 {
-	return Unit<field_of_t<T>>::GetStaticClass()->CreateDefault();  // metric = unitary.
+	return ConstUnitRef(Unit<field_of_t<T>>::GetStaticClass()->CreateDefault(), existing_obj{});  // metric = unitary.
 }
 
 template<typename T>

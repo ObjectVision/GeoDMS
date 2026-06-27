@@ -480,7 +480,7 @@ ConstUnitRef AbstrOperGroup::CreateValuesUnit(const ArgSeqType& dataArgs) const
 			unit_i = AsUnit(ti);
 		}
 		dms_assert(unit_i);
-		unitSeq.emplace_back(std::in_place_type<SharedTreeItem>, unit_i);
+		unitSeq.emplace_back(std::in_place_type<SharedTreeItem>, unit_i, existing_obj{});
 		MakeMax(ts, unit_i->GetLastChangeTS());
 	}
 

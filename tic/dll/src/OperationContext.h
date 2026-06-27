@@ -250,7 +250,7 @@ public:
 
 	// Result handle and its keeper to maintain actor interest until completion.
 	FutureResultData m_Result;
-	SharedActorInterestPtr m_ResKeeper;
+	SharedTreeItemInterestPtr m_ResKeeper; // std-based interest keeper for the (make_shared'd) result TreeItem
 
 	// Atomic task status; drives state machine transitions.
 	std::atomic<task_status> m_Status = task_status::none;

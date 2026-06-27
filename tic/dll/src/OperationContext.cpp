@@ -1489,7 +1489,7 @@ bool OperationContext::collectTaskImpl()
 
 	auto res = GetResult();
 	assert(res);
-	SharedActorInterestPtr resKeeper;
+	SharedTreeItemInterestPtr resKeeper; // std-based: the result is a (make_shared'd) TreeItem; an intrusive Actor interest ptr here would double-manage it
 	resKeeper = GetResult()->GetInterestPtrOrNull();
 
 	if (!resKeeper)

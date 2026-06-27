@@ -68,7 +68,7 @@
 using TreeItemInterestPtr = InterestPtr<const TreeItem*>;
 
 #include "cs_lock_map.h"
-using treeitem_lock_map = cs_lock_map<SharedTreeItem>;
+using treeitem_lock_map = cs_lock_map<const TreeItem*>; // raw identity key (transient, non-owning), like actor_section_lock_map / data_flags_lock_map
 
 // #undef MG_DEBUG_DATA // DEBUG MEMORY ALLOCS AND SETS md_FullName
 
