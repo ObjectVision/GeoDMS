@@ -58,8 +58,17 @@ struct InterestPtr
 
 	template <typename T>
 	InterestPtr(T* ptr)
-		: m_Item(ptr)
+		: m_Item()
 	{
+		if (ptr)
+		{
+			// CPtr may be a raw pointer, an intrusive SharedPtr, or a std::shared_ptr-backed
+			// shared_tree_ptr. Only the latter needs a construction tag to recover its control block.
+			if constexpr (requires { CPtr(ptr, existing_obj{}); })
+				m_Item = CPtr(ptr, existing_obj{});
+			else
+				m_Item = CPtr(ptr);
+		}
 		OptionalInterestInc<IVal>(get_ptr());
 	}
 
@@ -104,13 +113,13 @@ struct InterestPtr
 		OptionalInterestInc<IVal>(get_ptr());
 	}
 
-	template <typename SrcPtr>
+	template <typename SrcPtr> requires std::is_constructible_v<CPtr, SrcPtr&&>
 	InterestPtr(InterestPtr<SrcPtr>&& rhs) noexcept
 		: m_Item(std::move(rhs.m_Item))
 	{
 		rhs.m_Item = SrcPtr();
 	}
-	template <typename SrcPtr>
+	template <typename SrcPtr> requires std::is_constructible_v<CPtr, const SrcPtr&>
 	InterestPtr(const InterestPtr<SrcPtr>& rhs) noexcept
 		: m_Item(rhs.m_Item)
 	{

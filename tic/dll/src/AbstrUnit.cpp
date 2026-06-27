@@ -287,7 +287,7 @@ bool AbstrUnit::UnifyDomain(const AbstrUnit* cu, CharPtr leftRole, CharPtr right
 
 	if (GetCurrUltimateItem() != cu->GetCurrUltimateItem())
 	{
-		SharedTreeItem thisRepresentation = this; 
+		SharedTreeItem thisRepresentation(this, existing_obj{});
 		if (!this->IsCacheItem())
 		{
 			auto thisDC = GetOrCreateDataController(this->GetCheckedKeyExpr());
@@ -296,7 +296,7 @@ bool AbstrUnit::UnifyDomain(const AbstrUnit* cu, CharPtr leftRole, CharPtr right
 			thisRepresentation = thisDC->MakeResult();
 		}
 		{
-			SharedTreeItem thatRepresentation = cu;
+			SharedTreeItem thatRepresentation(cu, existing_obj{});
 			if (!cu->IsCacheItem())
 			{
 				auto thatDC = GetExistingDataController(cu->GetCheckedKeyExpr());

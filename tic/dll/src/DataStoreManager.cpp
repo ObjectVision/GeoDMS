@@ -75,7 +75,7 @@ static void ProcessDeletion(ClientHandle clientHandle, const TreeItem* self, Not
 bool MarkSources(const Actor* a, supplier_level level)
 {
 	assert(a);
-	SharedTreeItem ti = dynamic_cast<const TreeItem*>(a); // block a from deletion when in process
+	SharedTreeItem ti(dynamic_cast<const TreeItem*>(a), existing_obj{}); // block a from deletion when in process
 	if (a->IsPassor())
 		if (!ti || ti->IsCacheItem())
 			return false;
