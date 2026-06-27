@@ -251,7 +251,7 @@ public:
 
 	// Parent access (PersistentSharedObj override) and storage parent resolution (for R/W).
 	TIC_CALL [[nodiscard]] const PersistentObject* GetParent () const noexcept override;       // override PersistentSharedObj
-          SharedTreeItem GetTreeParent   () const   { return m_Parent; }
+          SharedTreeItem GetTreeParent   () const   { return SharedTreeItem(m_Parent.get(), no_zombies{}); } // safe weak->shared upgrade (parent owns child; m_Parent is non-owning)
 	TIC_CALL SharedTreeItem GetStorageParent(bool alsoForWrite) const;
 	TIC_CALL SharedTreeItem GetCurrStorageParent(bool alsoForWrite) const;
 
@@ -285,9 +285,10 @@ public:
 	TIC_CALL auto CreateItemFromPath(CharPtr subItemNames, const Class* cls = 0) -> OwningPtr<TreeItem>;
 	TIC_CALL auto CreateItem        (TokenID id,           const Class* cls = 0) -> OwningPtr<TreeItem>;
 
-	// Special roots for config and cache trees.
-	static TIC_CALL TreeItem* CreateConfigRoot(TokenID id);
-	static TIC_CALL TreeItem* CreateCacheRoot();
+	// Special roots for config and cache trees. Both own the root from birth (no auto-delete pin),
+	// so a parentless root is never exposed as a raw, unowned pointer.
+	static TIC_CALL SharedMutableTreeItem CreateConfigRoot(TokenID id);
+	static TIC_CALL SharedMutableTreeItem CreateCacheRoot();
 
 	// Calculator presence; Impl may check a deeper condition than HasCalculator.
 	TIC_CALL bool HasCalculator()   const noexcept;
@@ -310,10 +311,9 @@ public:
 	bool IsCacheRoot()     const { return IsCacheItem() && !GetTreeParent(); }   // doesn't call UpdateMetaInfo
 	TIC_CALL bool IsEditable()      const;
 
-//	implement AdoptableRefObject (ex virtual)
-	TIC_CALL void DisableAutoDelete();
+	// Breaks supplier cycles over the subtree and, for a config root, releases it from its SessionData
+	// (which cascades destruction). Ownership is downward; there is no longer an auto-delete pin.
 	TIC_CALL void EnableAutoDelete();
-          bool IsAutoDeleteDisabled() const { return GetTSF(TSF_IsAutoDeleteDisabled); }
 	TIC_CALL void SetIsCacheItem();
           bool IsCacheItem() const { return GetTSF(TSF_IsCacheItem); }
 
@@ -451,7 +451,7 @@ public:
 	// Hooks for storage read/write and data (clear/copy/signature/result checks).
 	TIC_CALL virtual bool DoReadItem(StorageMetaInfoPtr smi); friend struct StorageReadHandle;
 	TIC_CALL virtual bool DoWriteItem(StorageMetaInfoPtr&& smiHolder) const;
-	TIC_CALL virtual void ClearData(garbage_can&) const;
+	TIC_CALL virtual void ClearDataObject(garbage_can&) const;
 	TIC_CALL virtual void CopyProps(TreeItem* result, const CopyTreeContext& copyContext) const;
 	TIC_CALL virtual SharedStr GetSignature() const;
 	TIC_CALL virtual bool CheckResultItem(const TreeItem* refItem) const;
@@ -493,8 +493,7 @@ protected:
 private:
 public: // TODO G8: Re-encapsulate
 	// Internal helpers; consider moving to private when callers are refactored.
-	void EnableAutoDeleteImpl(); // does not call UpdateMetaInfo
-	void EnableAutoDeleteRootImpl(); // does not call UpdateMetaInfo
+	void ResetSubTreeConfigData(); // recursive: reset calculators/integrity/storage to break supplier cycles before teardown
 	void MakeCalculator() const noexcept;
 	void UpdateMetaInfoImpl() const;
 	TIC_CALL void SetReferredItem(const TreeItem* refItem) const;
@@ -503,6 +502,7 @@ public: // TODO G8: Re-encapsulate
 	// Subtree mutation; preconditions enforced by assertions.
 	void AddItem   (TreeItem* child); // PRECONDITION: child->GetParent()==0;
 	void RemoveItem(TreeItem* child); // PRECONDITION: child->GetParent()==this
+	void ReleaseSubItem(TreeItem* subItem); // detaches a sub-item and releases the parent's ownership of it
 
 	// Storage IO entry points; ReadItem integrates with StorageReadHandle.
 	bool ReadItem(StorageReadHandle&& srh);
@@ -567,7 +567,9 @@ public:
 	mutable WeakPtr<const TreeItem> m_BackRef; // only used by CacheRoots
 
 	// Subitems manage insertion in a non-refcounted set; child holds counted-ref to parent.
-	SharedTreeItem                 m_Parent;   // ro-access, counted-ref
+	// Non-owning weak back-pointer to the parent. Ownership is downward: the parent owns its
+	// sub-items via the intrusive refcount (AddItem adopts a reference; ReleaseSubItem releases it).
+	WeakPtr<const TreeItem>        m_Parent;   // ro-access, NON-owning (parent owns child)
 
 	// optional pointers to various services
 	mutable std::unique_ptr<SupplCache>  m_SupplCache;

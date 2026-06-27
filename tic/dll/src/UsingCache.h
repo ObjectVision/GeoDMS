@@ -14,8 +14,8 @@
 
 struct UsingCache
 {
-	using usings_iterator = TreeItemCRefArray::iterator;
-	using const_usings_iterator = TreeItemCRefArray::const_iterator;
+	using usings_iterator = TreeItemCPtrArray::iterator;
+	using const_usings_iterator = TreeItemCPtrArray::const_iterator;
 
 	using item_array_iterator = TreeItemCPtrArray::iterator;
 	using const_item_array_iterator = TreeItemCPtrArray::const_iterator;
@@ -76,7 +76,7 @@ private:
 	const TreeItem*                      m_Context;
 
 	mutable std::vector<TokenID>         m_UsingUrls;
-	mutable TreeItemCRefArray            m_Usings;
+	mutable TreeItemCPtrArray            m_Usings; // non-owning: the tree owns these namespaces (parent-owns-child). An owning ref here forms a retain cycle up to the config root (teardown leak). The m_Incoming back-link keeps it consistent: a namespace detaches itself from its incomings on destruction.
 	mutable TreeItemCPtrArray            m_SortedItemCache;
 	mutable std::vector<UsingCache*>     m_Incoming;
 

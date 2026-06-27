@@ -85,30 +85,46 @@ void TreeItemDualRef::Set(const TreeItem* ti, bool isNew)
 			m_State.Set(DCF_IsOld);
 
 
-		auto dataPtr = MakeSharedFromBorrowedObjectPtr( ti );
+		// Ownership policy (see TreeItemDualref.h, m_Data / m_OwnedData):
+		//  - isNew: a freshly created parentless refcount-0 cache result (e.g. CreateCacheDataItem /
+		//    CreateCacheRoot); this DualRef is its primary owner, so adopt it.
+		//  - isOld borrowing a CACHE item: owned transiently by its producing DC, so co-own it (borrow).
+		//  - isOld borrowing a CONFIG item: the config tree owns it; owning it here would form a retain
+		//    cycle up to the config root (the teardown leak), so keep m_Data non-owning (m_OwnedData empty).
+		bool ownIt = isNew || ti->IsCacheItem();
+		SharedTreeItem ownerHolder;
+		if (ownIt)
+			ownerHolder = isNew
+				? MakeSharedForNewlyCreatedObject( ti )
+				: MakeSharedFromBorrowedObjectPtr( ti );
+
 		if (auto x = GetInterestPtrOrNull())
 		{
 			if (m_Data)
 				DecDataInterestCount();
 			m_Data = nullptr;
+			m_OwnedData = nullptr;
 
 			try {
 				// StopInterest cannot be asynchronysly be called now as x also holds interest
-				m_Data = dataPtr;
+				m_OwnedData = std::move(ownerHolder);
+				m_Data = ti;
 				IncDataInterestCount();
 				assert(GetInterestCount());
 			}
 			catch (...)
 			{
 				m_Data = nullptr;
+				m_OwnedData = nullptr;
 				throw;
 			}
 		}
 		else
 		{
 			// IncInterest can only be called in MetaThread no interest can be gained or lost as it is already zero
-			m_Data = dataPtr;
-			assert(!GetInterestCount()); 
+			m_OwnedData = std::move(ownerHolder);
+			m_Data = ti;
+			assert(!GetInterestCount());
 		}
 	}
 	assert(!ti || GetOld() == ti);
@@ -130,7 +146,8 @@ void TreeItemDualRef::SetTmp(TreeItem* res)
 	if (!m_Data)
 	{
 		assert(!m_State.Get(DCF_IsOld|DCF_IsTmp));
-		m_Data = MakeSharedFromBorrowedObjectPtr( res );
+		m_OwnedData = MakeSharedFromBorrowedObjectPtr( res ); // tmp: co-own the existing (owned) holder, as before
+		m_Data = res;
 		m_State.Set(DCF_IsTmp);
 	}
 	assert(GetNew() == res);
@@ -147,7 +164,8 @@ void TreeItemDualRef::Clear()
 			if (!m_State.Get(DCF_IsOld))
 				const_cast<TreeItem*>(m_Data.get())->EnableAutoDelete();
 		}
-		m_Data = nullptr;
+		m_Data = nullptr;       // drop the non-owning current pointer first
+		m_OwnedData = nullptr;  // then release ownership (new/tmp/cache) -> may destroy the result
 	}
 	m_State.Clear(DCF_IsOld|DCF_IsTmp);
 }
@@ -329,6 +347,21 @@ static DataControllerMap s_DcMap;
 static std::mutex sd_DataControllerMapCriticalSeciton;
 static std::condition_variable sd_DataControllerMapCriticalSectionWasRevisited;
 
+// TEMP teardown-trace instrumentation (REMOVE after diagnosis): log s_DcMap size at teardown boundaries.
+void DBG_DumpDcMapSize(const char* where)
+{
+	size_t sz;
+	{
+		std::lock_guard lk(sd_DataControllerMapCriticalSeciton);
+		sz = s_DcMap.size();
+	}
+	if (FILE* f = fopen("C:\\dev\\GeoDMS_2026\\dcmap_trace.txt", "a"))
+	{
+		fprintf(f, "%-32s s_DcMap.size = %llu\n", where, (unsigned long long)sz);
+		fclose(f);
+	}
+}
+
 // *****************************************************************************
 // Section:     DataController Implementation
 // *****************************************************************************
@@ -406,6 +439,95 @@ DataControllerRef GetExistingDataController(LispPtr keyExpr)
 }
 
 #include "DataLocks.h"
+#include "AbstrUnit.h" // TEMP: for du/vu base conversion in DBG_DumpDcDetails
+
+// TEMP TEST/FIX (teardown-race diagnosis): break result<->m_DataObject self-cycles for the cache results
+// still registered in s_DcMap. A result's data object (Future/Lazy tile functor) owns its own result item
+// via m_ResultAdi, so the result is self-pinned until its data is dropped. Parentless cache results are not
+// reached by the config-root teardown sweep, so drop their data here. Hold every result alive across the
+// reset loop so a cascade-free mid-loop cannot dangle a sibling, then release for a deterministic collapse.
+void DBG_DropCacheResultData()
+{
+	std::vector<SharedTreeItem> results;
+	{
+		std::lock_guard lk(sd_DataControllerMapCriticalSeciton);
+		results.reserve(s_DcMap.size());
+		for (auto& kv : s_DcMap)
+			if (auto* dc = kv.second)
+				if (auto* res = dc->GetOld())
+					results.emplace_back(res, existing_obj{});
+	}
+	for (auto& res : results)
+		if (IsDataItem(res.get()))
+		{
+			auto* adi = AsDataItem(res.get());
+			if (adi->m_DataObject)
+				adi->m_DataObject.reset(); // mutable member; drops the functor -> releases its m_ResultAdi back-ref
+		}
+}
+
+const TreeItem* g_DBG_ConfigRoot = nullptr; // TEMP: set by the EnableAutoDelete probe so the dump can flag the root.
+
+// TEMP: dump per-DC holding structure + supplier graph to identify what pins the leaked DataControllers.
+void DBG_DumpDcDetails(const char* where)
+{
+	std::vector<const DataController*> dcs;
+	{
+		std::lock_guard lk(sd_DataControllerMapCriticalSeciton);
+		for (auto& kv : s_DcMap)
+			dcs.push_back(kv.second);
+	}
+	std::map<const DataController*, int> idx;
+	for (int i = 0; i < (int)dcs.size(); ++i) idx[dcs[i]] = i;
+	auto idxOf = [&](const DataController* p) { auto it = idx.find(p); return it != idx.end() ? it->second : -1; };
+
+	// map each leaked DC's result item -> its DC index, so we can tell whether an attribute's domain/values
+	// unit is itself one of the leaked results (an intra-graph unit<->attribute ownership cycle).
+	std::map<const TreeItem*, int> resIdx;
+	for (int i = 0; i < (int)dcs.size(); ++i)
+		if (auto* r = dcs[i]->GetOld())
+			resIdx[r] = i;
+	auto resIdxOf = [&](const TreeItem* p) { auto it = resIdx.find(p); return it != resIdx.end() ? it->second : -1; };
+
+	if (FILE* f = fopen("C:\\dev\\GeoDMS_2026\\dcmap_detail.txt", "a"))
+	{
+		fprintf(f, "=== %s: %llu DCs ===\n", where, (unsigned long long)dcs.size());
+		for (int i = 0; i < (int)dcs.size(); ++i)
+		{
+			auto* dc = dcs[i];
+			const TreeItem* res = dc->GetOld();
+			auto dcRc  = dc->GetRefCount();
+			int  dcIC  = (int)dc->GetInterestCount();
+			bool isNew = dc->IsNew();
+			bool isOld = dc->IsOld();
+			unsigned resRc = res ? (unsigned)res->GetRefCount() : 0;
+			bool resIsRoot = (res && res == g_DBG_ConfigRoot);
+			int  resCache = res ? (int)res->IsCacheItem() : -1;
+			fprintf(f, "[%d] dcRc=%u dcIC=%d isNew=%d isOld=%d resRc=%u resCache=%d%s", i, (unsigned)dcRc, dcIC, (int)isNew, (int)isOld, resRc, resCache, resIsRoot ? " RES==ROOT" : "");
+			if (res)
+				fprintf(f, " res='%s'", res->GetSourceName().c_str());
+			if (res && IsDataItem(res))
+			{
+				auto* adi = AsDataItem(res);
+				const TreeItem* du = adi->GetAbstrDomainUnit();
+				const TreeItem* vu = adi->GetAbstrValuesUnit();
+				fprintf(f, " du=r%d(rc=%u) vu=r%d(rc=%u)",
+					resIdxOf(du), du ? (unsigned)du->GetRefCount() : 0u,
+					resIdxOf(vu), vu ? (unsigned)vu->GetRefCount() : 0u);
+			}
+			fprintf(f, " suppliers:");
+			if (auto* fdc = dynamic_cast<const FuncDC*>(dc))
+			{
+				for (DcRefListElem* e = fdc->GetArgList(); e; e = e->m_Next.get())
+					fprintf(f, " a%d", idxOf(e->m_DC.get()));
+				for (auto& os : fdc->DBG_GetOtherSuppliers())
+					fprintf(f, " o%d", idxOf(os.get()));
+			}
+			fprintf(f, "\n");
+		}
+		fclose(f);
+	}
+}
 
 auto DataController::CallCalcResult(std::shared_ptr<Explain::Context> context) const -> FutureData
 {

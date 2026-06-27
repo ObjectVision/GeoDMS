@@ -1241,7 +1241,7 @@ void UpdateShowSelOnlyImpl(
 		{
 			TreeItem* oldSelEntity = ctx->GetSubTreeItemByID(selSetID);
 			if (oldSelEntity)
-				oldSelEntity->EnableAutoDelete();
+				oldSelEntity->RemoveFromConfig(); // detach from owning parent -> releases (and destroys) it
 		}
 	}
 }

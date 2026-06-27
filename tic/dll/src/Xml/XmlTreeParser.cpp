@@ -62,7 +62,7 @@ private:
 	XmlTreeParser* m_Xml;
 };
 
-TreeItem* XmlTreeParser::ReadTree(TreeItem* root, bool rootIsFirstItem)
+SharedMutableTreeItem XmlTreeParser::ReadTree(TreeItem* root, bool rootIsFirstItem)
 {
 	m_CurrItem = root;
 	m_RootIsFirstItem = rootIsFirstItem;
@@ -76,12 +76,15 @@ TreeItem* XmlTreeParser::ReadTree(TreeItem* root, bool rootIsFirstItem)
 		XmlRead(); 
 
 	DMS_CALL_END
-	if (!root) 
+	if (!root)
 	{
-		root = m_CurrItem; // is Root?
-		assert(root == m_CurrItem->GetRoot());
+		// brand-new root: ownership lives in m_RootHolder, hand it to the caller.
+		// A null holder (empty / rootless document) yields a null result, which the caller handles.
+		assert(!m_RootHolder || (m_RootHolder.get() == m_CurrItem && m_RootHolder.get() == m_CurrItem->GetRoot()));
+		return m_RootHolder;
 	}
-	return root;
+	// appended into an existing tree: that tree's owner keeps it alive (share its existing ownership)
+	return SharedMutableTreeItem(root, existing_obj{});
 }
 
 static TokenID nameTokenID = GetTokenID_st("name");
@@ -96,7 +99,16 @@ void XmlTreeParser::ReadAttrCallback(XmlElement& element)
 
 	MetaClass* cls = MetaClass::Find(element.m_NameID);
 	if (cls)
-		thisItem = debug_cast<TreeItem*>(cls->CreateFromXml(m_CurrItem, element));
+	{
+		// CreateFromXml hands back an owning SharedPtr; a child is already owned by its parent, so the
+		// holder may drop. A brand-new root (created with no parent context) has no other owner yet, so
+		// retain it in m_RootHolder for the parse lifetime and hand it to ReadTree's caller.
+		bool isNewRoot = (m_CurrItem == nullptr);
+		SharedPtr<SharedActor> created = cls->CreateFromXml(m_CurrItem, element);
+		thisItem = debug_cast<TreeItem*>(created.get());
+		if (thisItem && isNewRoot)
+			m_RootHolder = thisItem;
+	}
 	if (thisItem)
 	{
 		CharPtr storageType = element.GetAttrValue(storageTypeID);

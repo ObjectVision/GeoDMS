@@ -315,7 +315,11 @@ TreeItem::~TreeItem ()
 
 	SetKeepDataState(false); // StringDC en NumbDC cache items hebben ook KeepInterest
 
-	dms_assert(_GetFirstSubItem() == 0);
+	// Parent owns its sub-items: release (and possibly destroy) each child now.
+	// ReleaseSubItem clears each child's weak m_Parent before dropping the parent's ownership;
+	// iterating on m_FirstSub keeps the recursion bounded by tree depth (siblings are looped).
+	while (_GetFirstSubItem())
+		ReleaseSubItem(_GetFirstSubItem());
 
 	if (mc_RefItem)
 		SetReferredItem(nullptr);
@@ -323,8 +327,7 @@ TreeItem::~TreeItem ()
 	dms_assert(!HasInterest());
 	dms_assert( !m_State.Get(actor_flag_set::AF_SupplInterest) );
 
-	if (m_Parent)
-		const_cast<TreeItem*>(m_Parent.get())->RemoveItem(this);
+	// m_Parent is a non-owning weak back-pointer, already cleared by the owning parent's ReleaseSubItem.
 
 	if (GetTSF(TSF_HasStoredProps))
 		RemoveStoredPropValues(this);
@@ -349,91 +352,86 @@ static void ResetAllKeepInterest(TreeItem* item)
 	} while (walker);
 }
 
-void TreeItem::DisableAutoDelete() // does not call UpdateMetaInfo
-{
-	assert(IsMetaThread());
-	if (IsAutoDeleteDisabled())
-		return;
-
-	TreeItem* subItem = _GetFirstSubItem(); 
-	while (subItem)
-	{
-		subItem->DisableAutoDelete();
-		subItem = subItem->GetNextItem();
-	}
-
-	SetTSF(TSF_IsAutoDeleteDisabled, true); // call inherited
-	AdoptRef();
-}
-
-void TreeItem::EnableAutoDeleteImpl() // does not call UpdateMetaInfo
-{
-	DBG_START("TreeItem", "EnableAutoDeleteImpl", false); //  DEBUG Access violation
-
-	DBG_TRACE(("Item: %s", GetFullName().c_str()));      //  DEBUG Access violation
-
-	assert(IsAutoDeleteDisabled());
-	ResetCalculatorMember();
-	ResetIntegrityCheckerMember();
-
-	if (!IsCacheItem())
-		DisableStorage();
-
-	auto subItem = SharedPtr<TreeItem>(_GetFirstSubItem(), no_zombies{});
-	while (subItem)
-	{
-		if (subItem->IsAutoDeleteDisabled() )
-			subItem->EnableAutoDeleteImpl();
-
-//		MG_ASSERT(subItem->IsOwned());
-		subItem = subItem->GetNextItem();
-	}
-
-//	m_UsingCache.reset();
-
-	SetTSF(TSF_IsAutoDeleteDisabled, false); // call inherited
-	if (!DecRef())
-		Release();
-}
-
 #if defined(MG_DEBUG)
 bool ExplainValue_IsClear();
 #endif
 
-void TreeItem::EnableAutoDeleteRootImpl() // does not call UpdateMetaInfo
+// Recursively reset config-derived state (calculators, integrity checker, storage) over the subtree.
+// This breaks calculator->supplier (and calculator->ancestor) reference cycles BEFORE the refcount
+// teardown, so the owned subtree can actually collapse once its holder is released. (Pre-A this was
+// bundled into EnableAutoDeleteImpl together with releasing the per-node auto-delete pin; the pin is gone.)
+void TreeItem::ResetSubTreeConfigData()
 {
-	DBG_START("TreeItem", "EnableAutoDeleteRootImpl", true);
+	ResetCalculatorMember();
+	ResetIntegrityCheckerMember();
+	if (!IsCacheItem())
+		DisableStorage();
+	for (TreeItem* subItem = _GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
+		subItem->ResetSubTreeConfigData();
+}
 
-	dbg_assert(ExplainValue_IsClear());
+// Formerly removed the auto-delete pin. The pin is gone (ownership is downward: the parent owns its
+// sub-items and roots are held by their SharedPtr owners). This now (a) breaks supplier cycles via
+// ResetSubTreeConfigData so refcount teardown can complete, and (b) for a config root, releases the
+// SessionData ownership, which drops the last owning ref and cascades destruction of the (now cycle-free)
+// tree. For any owned item (parented/cache/endogenous) the holder dropping its SharedPtr (or the parent's
+// ReleaseSubItem) is what frees it; here we only need the cycle-break.
+void TreeItem::EnableAutoDelete() // does not call UpdateMetaInfo
+{
+	bool isConfigRoot = !(IsCacheItem() || IsEndogenous() || GetTreeParent());
 
+	if (isConfigRoot)
+	{
+		// Gracefully end worker threads before tearing down the config tree. Mark the session as
+		// cancelling so in-flight workers cancel (releasing the shared ownership of their inputs and the
+		// mutable ownership of what they produce), then drain by taking s_SessionUsageCounter exclusively:
+		// this makes any new try_lock_shared fail (the designed cancellation trigger, see ItemLocks.cpp)
+		// and blocks until every worker has released its shared usage. Without it the main thread could
+		// begin teardown / static-component destruction while workers still hold resources -> leak (the
+		// timing-dependent leak the removed auto-delete pin used to mask).
+		if (auto sd = SessionData::Curr())
+			sd->SetCancelling();
+		{ leveled_counted_section::scoped_lock drainWorkers(s_SessionUsageCounter); }
 
-	assert(!SessionData::Curr() || !SessionData::Curr()->GetConfigRoot() || SessionData::Curr()->GetConfigRoot().get() == this);
-
-	DBG_TRACE(("START ResetAllKeepIterest(this)"));
-	ResetAllKeepInterest(this);              // neccesary to bring interestCount to 0 and DataInMem to DiskCache         
+		dbg_assert(ExplainValue_IsClear());
+		assert(!SessionData::Curr() || !SessionData::Curr()->GetConfigRoot() || SessionData::Curr()->GetConfigRoot().get() == this);
+		ResetAllKeepInterest(this); // bring interestCount to 0 and DataInMem to DiskCache before teardown
+	}
 
 	StaticMtIncrementalLock<TreeItem::s_NotifyChangeLockCount> dontNotify;
 
-	EnableAutoDeleteImpl(); // this may be destroyed
+	ResetSubTreeConfigData(); // break supplier cycles so the tree can collapse by refcount
 
-	DBG_TRACE(("START SessionData::ReleaseIt(this)"));
-	SessionData::ReleaseIt(this);
+	if (isConfigRoot)
+	{
+		// TEMP: is the config root actually unique-owned (so ReleaseIt destroys it) at teardown?
+		if (FILE* f = fopen("C:\\dev\\GeoDMS_2026\\dcmap_trace.txt", "a"))
+		{
+			fprintf(f, "configRoot BEFORE ReleaseIt: rootRc=%u\n", (unsigned)GetRefCount());
+			fclose(f);
+		}
+	}
 
-	DBG_TRACE(("START sfwa.Commit()"));
-}
+	if (isConfigRoot)
+		SessionData::ReleaseIt(this); // drop SessionData's owning ref -> cascade destroys the tree
 
-void TreeItem::EnableAutoDelete() // does not call UpdateMetaInfo
-{
-	if (! IsAutoDeleteDisabled())
-		return;
-
-	bool isConfigRoot = !(IsCacheItem() || IsEndogenous() || GetTreeParent());
-
-	if (isConfigRoot) // we have a configRoot: close all handles to it
-		EnableAutoDeleteRootImpl();
-	else
-		EnableAutoDeleteImpl();
-	// this may be deleted here or after the keepAliveForReentryLock destruction
+	if (isConfigRoot)
+	{
+		void DBG_DumpDcMapSize(const char*);  // TEMP
+		void DBG_DumpDcDetails(const char*);  // TEMP
+		void DBG_DropCacheResultData();       // TEMP
+		extern const TreeItem* g_DBG_ConfigRoot; // TEMP
+		g_DBG_ConfigRoot = this;
+		if (FILE* f = fopen("C:\\dev\\GeoDMS_2026\\dcmap_trace.txt", "a"))
+		{
+			fprintf(f, "configRoot AFTER ReleaseIt:  rootRc=%u\n", (unsigned)GetRefCount());
+			fclose(f);
+		}
+		DBG_DumpDcMapSize("after EnableAutoDelete(configRoot)");
+		DBG_DumpDcDetails("after EnableAutoDelete(configRoot)");
+		DBG_DropCacheResultData();
+		DBG_DumpDcMapSize("after DropCacheResultData");
+	}
 }
 
 // MTA, 16-08-2004:
@@ -450,12 +448,7 @@ void TreeItem::SetIsCacheItem() // does not call UpdateMetaInfo
 	assert(IsEndogenous());
 	assert(!GetTreeParent()); // only call on root
 	if (IsCacheItem())
-	{
-		assert(IsAutoDeleteDisabled());
 		return;
-	}
-
-	DisableAutoDelete();
 
 	TreeItem* walker = this;
 	do {
@@ -479,9 +472,6 @@ void TreeItem::InitTreeItem(TreeItem* parent, TokenID id)
 	{
 		MG_LOCKER_NO_UPDATEMETAINFO
 
-		// inherit some TreeItem State Flags.
-		if (parent->IsAutoDeleteDisabled())
-			DisableAutoDelete();
 		parent->AddItem(this);
 		m_StatusFlags.Set( parent->m_StatusFlags.GetBits(TSF_InTemplate | TSF_IsCacheItem | TSF_InHidden) );
 
@@ -589,12 +579,20 @@ void TreeItem::AddItem(TreeItem* child)
 	assert(!GetSubTreeItemByID(child->GetID()));
 
 	assert(!child->GetInterestCount());
-	child->m_Parent = this;
-	assert(child->IsAutoDeleteDisabled() == IsAutoDeleteDisabled() );
 
-	AddSub(child);
+	AddSub(child);            // structural link into the sub-item list (single_linked_tree)
+	child->AdoptRef();        // parent takes ownership of the sub-item (intrusive refcount)
+	child->m_Parent = this;   // non-owning weak back-pointer
 
 	if (m_UsingCache)         m_UsingCache->OnItemAdded(child);
+}
+
+void TreeItem::ReleaseSubItem(TreeItem* subItem) // detach a sub-item and release the parent's ownership of it
+{
+	DelSub(subItem);              // structural unlink from the sub-item list (single_linked_tree)
+	subItem->m_Parent = nullptr;  // clear the weak back-pointer before releasing ownership
+	if (!subItem->DecRef())       // release the parent's ownership (intrusive refcount)
+		subItem->Release();       // destroy when this was the last reference
 }
 
 void TreeItem::RemoveItem(TreeItem* child)
@@ -604,17 +602,14 @@ void TreeItem::RemoveItem(TreeItem* child)
 
 	if (m_UsingCache) m_UsingCache->OnItemRemoved(child);
 
-	DelSub(child);
-
-	SharedTreeItem thisHolder;
 	bool mustDisconnectInterest;
 	{
 		leveled_std_section::scoped_lock globalDataLockCountLock(sg_CountSection);
 		mustDisconnectInterest = child->m_InterestCount;
-		thisHolder = std::move(child->m_Parent); // reduces ref count
 	}
+	ReleaseSubItem(child); // unlink, clear weak m_Parent, release the parent's ownership (may destroy child)
 	if (mustDisconnectInterest)
-		thisHolder->DecInterestCount();
+		DecInterestCount(); // 'this' is the parent that carried the child's interest
 }
 
 //----------------------------------------------------------------------
@@ -1479,9 +1474,13 @@ void TreeItem::RemoveFromConfig() const
 	assert(!IsCacheItem());
 	auto self = const_cast<TreeItem*>(this);
 	assert(self);
-	assert(IsOwned()); // Disabled Auto Delete results in at least one refCount
-	self->EnableAutoDelete();
-	assert(IsOwned()); // holder counts as well
+	// Ownership is downward now: detaching from the owning parent releases (and, if this was the last
+	// reference, destroys) the item. A config root has no parent and is released from its session.
+	auto parent = GetTreeParent();
+	if (parent)
+		const_cast<TreeItem*>(parent.get())->RemoveItem(self);
+	else
+		self->EnableAutoDelete();
 }
 
 void TreeItem::AddUsingUrls(CharPtr urlsBegin, CharPtr urlsEnd)
@@ -1915,12 +1914,7 @@ auto TreeItem_CreateItem(TreeItem* self, TokenID id, const Class* requiredClass)
 		// find foundSubItem according to firstSubItemName
 		TreeItem* foundSubItem = self->GetSubTreeItemByID(id);
 		if (foundSubItem)
-		{
-			// inherit some TreeItem State Flags and reset AutoDeleteDisabled
-			if (self->IsAutoDeleteDisabled() && !self->IsCacheItem())
-				foundSubItem->DisableAutoDelete();
 			return CheckedAs(foundSubItem, requiredClass);
-		}
 	}
 
 	// create something
@@ -1982,19 +1976,18 @@ auto TreeItem::CreateItemFromPath(CharPtr subItemNames, const Class* requiredCla
 	return TreeItem_CreateItemFromPath(this, subItemNames, requiredClass);
 }
 
-TreeItem* TreeItem::CreateConfigRoot(TokenID id) // static
+SharedMutableTreeItem TreeItem::CreateConfigRoot(TokenID id) // static
 {
 	dms_assert(!s_MakeEndoLockCount);
-	TreeItem* result = new TreeItem;
+	SharedMutableTreeItem result = new TreeItem; // owned from birth (SharedPtr ctor AdoptRefs the refcount-0 object)
 	result->InitTreeItem(nullptr, id);
-	result->DisableAutoDelete();
 	result->SetFreeDataState(true);
 	return result;
 }
-TreeItem* TreeItem::CreateCacheRoot() // static
+SharedMutableTreeItem TreeItem::CreateCacheRoot() // static
 {
 	dms_assert(s_MakeEndoLockCount);
-	TreeItem* result = new TreeItem;
+	SharedMutableTreeItem result = new TreeItem; // owned from birth (SharedPtr ctor AdoptRefs the refcount-0 object)
 	result->InitTreeItem(nullptr, TokenID::GetEmptyID());
 	result->SetPassor();
 	return result;
@@ -2017,7 +2010,6 @@ OwningPtr<TreeItem> TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& 
 	auto result = dest->CreateItem(id, cls);
 	if (isNew)
 	{
-		result->DisableAutoDelete();
 		if (copyContext.MustMakePassor())
 			result->SetPassor();
 	}
@@ -3334,7 +3326,7 @@ garbage_can TreeItem::DropValue()
 	MG_LOCKER_NO_UPDATEMETAINFO
 
 	garbage_can garbageCan;
-	ClearData(garbageCan); // Resets m_SegsPtr (DoClearData) and resets TSF_DataInMem
+	ClearDataObject(garbageCan); // Resets m_SegsPtr (DoClearData) and resets TSF_DataInMem
 	return garbageCan;
 }
 
@@ -4253,7 +4245,7 @@ bool TreeItem::TryCleanupMemImpl(garbage_can& garbageCan) const
 
 	if (IsDataItem(this))
 		if (!AsDataItem(this)->HasVoidDomainGuarantee())
-			ClearData(garbageCan);
+			ClearDataObject(garbageCan);
 
 	if (IsCacheItem())
 		for (const TreeItem* subTI = _GetFirstSubItem(); subTI; subTI = subTI->GetNextItem())
@@ -4262,7 +4254,7 @@ bool TreeItem::TryCleanupMemImpl(garbage_can& garbageCan) const
 	return true;
 }
 
-void TreeItem::ClearData(garbage_can&) const
+void TreeItem::ClearDataObject(garbage_can&) const
 {}
 
 //----------------------------------------------------------------------

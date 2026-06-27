@@ -73,6 +73,12 @@ public:
 	TIC_CALL SharedPtr<const AbstrTileRangeData> GetTiledRangeData() const;
 
 	TIC_CALL virtual bool IsMemoryObject() const { return false; }
+
+	// Called by the owning AbstrDataItem::ClearDataObject right before it releases this data object, so a
+	// non-owning back-reference into that item (e.g. a tile functor's m_ResultAdi) can be cleared before this
+	// object is (deferred-)destroyed and the item possibly dies. Default: nothing to clear.
+	virtual void ImLosingIt() const {}
+
 	TIC_CALL virtual bool CheckValuesUnit(const AbstrUnit* valuesUnit) = 0;
 //	Meta Info
 

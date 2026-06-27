@@ -129,6 +129,7 @@ struct FuncDC : DataController
 	
 	virtual bool MakeResultImpl() const;
 	void AddDependency(const DataController* dc) const { MG_CHECK(dc); m_OtherSuppliers.emplace_back(dc); }
+	const std::vector<DataControllerRef>& DBG_GetOtherSuppliers() const { return m_OtherSuppliers; } // TEMP
 
 	void CallCalcResultImpl(std::shared_ptr<Explain::Context> context) const;
 	const Class* GetResultCls () const override;

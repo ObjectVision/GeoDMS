@@ -76,7 +76,10 @@ AbstrDataItem::~AbstrDataItem() noexcept
 
 	SetKeepDataState(false);
 	if (m_DataObject)
-		CleanupMem(true, 0);
+	{
+		garbage_can garbageCan;
+		ClearDataObject(garbageCan); // releases m_DataObject (and calls ImLosingIt) so a non-owning functor back-ref can't dangle
+	}
 
 	if (!IsEndogenous())
 		if (m_DomainUnit) m_DomainUnit->DelDataItemOut(this);
@@ -164,11 +167,14 @@ auto AbstrDataItem::CreateAbstrValue  () const -> std::unique_ptr<AbstrValue>
 	return GetDynamicObjClass()->GetValuesType()->CreateValue();
 }
 
-void AbstrDataItem::ClearData(garbage_can& garbage) const
+void AbstrDataItem::ClearDataObject(garbage_can& garbage) const
 {
 	MG_CHECK(GetDataObjLockCount() == 0);
 	MG_CHECK(m_ItemCount == 0);
 	MG_CHECK(m_InterestCount == 0);
+
+	if (m_DataObject)
+		m_DataObject->ImLosingIt(); // clear any non-owning back-ref into this item (e.g. a tile functor's m_ResultAdi) before (deferred) destruction
 
 	garbage |= std::move(m_DataObject);
 	assert(!m_DataObject);
@@ -823,7 +829,7 @@ bool AbstrDataItem::TryCleanupMemImpl(garbage_can& garbageCan) const
 }
 
 // called when InterestCount drops to 0 or KeepData went to false 
-// TODO G8: Consider merging with ClearData 
+// TODO G8: Consider merging with ClearDataObject
 garbage_can AbstrDataItem::CleanupMem(bool hasSourceOrExit, std::size_t minNrBytes) noexcept
 {
 	MG_LOCKER_NO_UPDATEMETAINFO
@@ -832,7 +838,7 @@ garbage_can AbstrDataItem::CleanupMem(bool hasSourceOrExit, std::size_t minNrByt
 	// Drop Composite from root when Out Of Interest
 	garbage_can garbageCan;
 	if (hasSourceOrExit && !GetKeepDataState())
-		garbageCan |= DropValue(); // calls ClearData
+		garbageCan |= DropValue(); // calls ClearDataObject
 
 	return garbageCan;
 }

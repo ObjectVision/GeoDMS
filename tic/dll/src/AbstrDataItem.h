@@ -35,7 +35,7 @@ class AbstrDataItem : public TreeItem
 {
 	typedef TreeItem base_type;
 
-	friend class AbstrDataObject; 
+	friend class AbstrDataObject;
 	friend class DataItemClass;
 
 public:
@@ -80,7 +80,7 @@ public:
 	SharedStr GetSignature() const override;
 	bool DoReadItem(StorageMetaInfoPtr smi) override;
 	bool DoWriteItem(StorageMetaInfoPtr&& smi) const override;
-	void ClearData(garbage_can&) const override;
+	void ClearDataObject(garbage_can&) const override;
 
 	void Unify(const TreeItem* refItem, CharPtr leftRole, CharPtr rightRole) const override;
 //REMOVE	LispRef GetKeyExprImpl() const override;

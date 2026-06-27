@@ -42,7 +42,8 @@ typedef UInt32 TreeItemStatusFlags;
 typedef TreeItemStatusFlags DataItemStatusFlags;
 typedef TreeItemStatusFlags UnitItemStatusFlags;
 
-const TreeItemStatusFlags TSF_IsAutoDeleteDisabled        = 0x0001;
+// 0x0001 free (was TSF_IsAutoDeleteDisabled; the auto-delete pin was removed when TreeItem ownership
+// became downward: the parent owns its sub-items and roots are held by their SharedPtr owners).
 const TreeItemStatusFlags TSF_DataInMem                   = 0x0002;
 const TreeItemStatusFlags TSF_IsCacheItem                 = 0x0004;
 const TreeItemStatusFlags TSF_IsEndogenous                = 0x0008;

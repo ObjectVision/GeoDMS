@@ -671,7 +671,7 @@ MetaClass* MetaClass::Find(TokenID id)
 	return g_MetaClassKernel.Find(id);
 }
 
-Object* MetaClass::CreateFromXml(Object* context, struct XmlElement& elem) const
+SharedPtr<SharedActor> MetaClass::CreateFromXml(Object* context, struct XmlElement& elem) const
 {
 	dms_assert(m_XmlFunc);
 	return m_XmlFunc(context, elem);

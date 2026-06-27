@@ -209,17 +209,18 @@ static TokenID domainUnitTokenID = GetTokenID_st("DomainUnit");
 static TokenID valuesUnitTokenID = GetTokenID_st("ValuesUnit");
 static TokenID featureTypeID = GetTokenID_st("ValueComposition");
 
-Object* DataItemClass::CreateFromXml(Object* context, XmlElement& elem)
+SharedPtr<SharedActor> DataItemClass::CreateFromXml(Object* context, XmlElement& elem)
 {
 	CheckPtr(context, TreeItem::GetStaticClass(), "DataItemClass::CreateFromXml");
 	TreeItem* container = debug_cast<TreeItem*>(context);
 
-	return CreateAbstrDataItem(container, 
+	// the new data item is already owned by its parent container (AddItem AdoptRef); share that ownership
+	return SharedPtr<SharedActor>(CreateAbstrDataItem(container,
 		GetTokenID_mt(elem.GetAttrValue(nameTokenID)),
 		GetTokenID_mt(elem.GetAttrValue(domainUnitTokenID)),
 		GetTokenID_mt(elem.GetAttrValue(valuesUnitTokenID)),
 		DetermineValueComposition(elem.GetAttrValue(featureTypeID))
-	);
+	), existing_obj{});
 }
 
 //----------------------------------------------------------------------

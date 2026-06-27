@@ -6,6 +6,7 @@
 #include "TicBase.h"
 
 #include "act/Actor.h"
+#include "ptr/WeakPtr.h"
 
 // *****************************************************************************
 // Section:     DataControllerFlags
@@ -38,7 +39,7 @@ struct TreeItemDualRef : SharedActor
 
 	      TreeItem* GetNew()  const { dms_assert(!IsOld()); return const_cast<TreeItem*>(m_Data.get()); }
 	const TreeItem* GetOld()  const { return m_Data.get(); }
-	const TreeItem* GetUlt()  const { if (!m_Data) return nullptr;  return m_Data->GetCurrUltimateItem(); }
+	const TreeItem* GetUlt()  const { if (m_Data.is_null()) return nullptr;  return m_Data->GetCurrUltimateItem(); }
 
 	virtual bool IsSymbDC() const { return false; }
 	virtual bool CanResultToConfigItem() const { return false; }
@@ -47,18 +48,21 @@ struct TreeItemDualRef : SharedActor
 	operator       TreeItem* () const { return GetNew(); }
 	operator const TreeItem* () const { return GetOld(); }
 
-	const TreeItem* operator ->() const { assert(m_Data); return m_Data.get(); }
+	const TreeItem* operator ->() const { assert(m_Data.has_ptr()); return m_Data.get(); }
 
-	operator       bool      () const { return ( m_Data); }
-	bool operator  !         () const { return (!m_Data); }
+	operator       bool      () const { return  m_Data.has_ptr(); }
+	bool operator  !         () const { return  m_Data.is_null(); }
 
-	bool IsNew() const { return m_Data && !m_State.Get(DCF_IsOld|DCF_IsTmp); }
-	bool IsOld() const { return m_Data &&  m_State.Get(DCF_IsOld); }
-	bool IsTmp() const { return m_Data &&  m_State.Get(DCF_IsTmp); }
+	bool IsNew() const { return m_Data.has_ptr() && !m_State.Get(DCF_IsOld|DCF_IsTmp); }
+	bool IsOld() const { return m_Data.has_ptr() &&  m_State.Get(DCF_IsOld); }
+	bool IsTmp() const { return m_Data.has_ptr() &&  m_State.Get(DCF_IsTmp); }
 	bool IsTransient() const { return m_State.Get(DCF_IsTmp|DCF_CanChange); };
 
 	void operator =(      TreeItem* rhs) { SetNew(rhs); }
 	void operator =(const TreeItem* rhs) { SetOld(rhs); }
+	// Takes a freshly created (owned) item; rhs keeps it alive across SetNew's borrow so the item is
+	// never seen at refcount 0 (e.g. CreateCacheRoot()). The DualRef's m_Data then owns it.
+	void operator =(const SharedMutableTreeItem& rhs) { SetNew(rhs.get()); }
 
 	TIC_CALL void Clear();
 
@@ -66,7 +70,7 @@ struct TreeItemDualRef : SharedActor
 	TIC_CALL void SetOld(const TreeItem* oldTI);
 	TIC_CALL void SetTmp(      TreeItem* tmpTI);
 
-	bool HasBackRef() const { return m_Data && m_Data->m_BackRef; }
+	bool HasBackRef() const { return m_Data.has_ptr() && m_Data->m_BackRef; }
 	SharedStr GetBackRefStr() const { return m_Data->m_BackRef->GetSourceName(); }
 
 protected:
@@ -84,7 +88,13 @@ protected:
 	friend struct data_swapper;
 	friend struct InterestReporter;
 
-	mutable SharedTreeItem m_Data; // sometimes const, new or tmp;
+	// m_Data is the non-owning current-result pointer used by every accessor. Object ownership lives in
+	// m_OwnedData, which is set only when this DualRef must keep the result alive: a freshly created cache
+	// result (isNew), a tmp result, or a borrowed CACHE item. A borrowed CONFIG item (isOld on a tree-owned
+	// item) is intentionally NOT owned here: owning it would form a retain cycle up to the config root
+	// (config item -> mc_DC -> DC supplier graph -> this m_Data -> ... -> root) — the teardown leak.
+	mutable WeakPtr<const TreeItem> m_Data;
+	mutable SharedTreeItem          m_OwnedData;
 };
 
 // *****************************************************************************

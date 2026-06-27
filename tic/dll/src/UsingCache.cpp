@@ -88,7 +88,18 @@ UsingCache::UsingCache(const TreeItem* context)
 UsingCache::~UsingCache()
 {
 	MG_DEBUGCODE( --sd_NrInstances; )
-	dms_assert(m_Incoming.empty());
+
+	// m_Usings is non-owning: an incoming cache may still hold a raw pointer to m_Context.
+	// Detach ourselves from each incoming so its m_Usings doesn't dangle and recomputes
+	// without us. In the well-ordered (parent) teardown m_Incoming is already empty here.
+	while (!m_Incoming.empty())
+	{
+		UsingCache* incoming = m_Incoming.back();
+		m_Incoming.pop_back();
+		vector_erase(incoming->m_Usings, m_Context);
+		incoming->SetDirty();
+	}
+
 	ClearUsings(false);
 }
 
@@ -108,7 +119,7 @@ const TreeItem* UsingCache::GetUsing(UInt32 i) const
 {
 	assert(m_UsingUrls.empty());
 	MG_PRECONDITION(i < m_Usings.size());
-	return m_Usings[i].get();
+	return m_Usings[i];
 }
 
 
@@ -144,11 +155,11 @@ void UsingCache::CheckSearchSpace(const TreeItem* nameSpace) const
 
 	// don't trigger unneccesary UpdateCache
 
-	const TreeItemCRefArray& nameSpaceUsings = nameSpace->GetUsingCache()->m_Usings;
-	TreeItemCRefArray::const_iterator i = nameSpaceUsings.end();
-	TreeItemCRefArray::const_iterator b = nameSpaceUsings.begin();
+	const TreeItemCPtrArray& nameSpaceUsings = nameSpace->GetUsingCache()->m_Usings;
+	TreeItemCPtrArray::const_iterator i = nameSpaceUsings.end();
+	TreeItemCPtrArray::const_iterator b = nameSpaceUsings.begin();
 	while (i != b)
-		CheckSearchSpace((*--i).get());
+		CheckSearchSpace(*--i);
 }
 
 
@@ -216,7 +227,7 @@ void UsingCache::AddUsings(const TreeItem** firstNameSpace, const TreeItem** las
 	{
 		const TreeItem** i = firstNameSpace;
 		while (pos != end)
-			if (*i++ != (*pos++).get()) 
+			if (*i++ != *pos++)
 				goto doAdd;
 		firstNameSpace = i; // skip starting range that is equal to end range of m_Usings
 	}
@@ -344,7 +355,7 @@ void UsingCache::UpdateCache() const
 	UpdateUsings();
 	UInt32 nrUsings = m_Usings.size();
 	for (UInt32 i = nrUsings; i--; )
-		Update(m_Usings[i].get());
+		Update(m_Usings[i]);
 
 #if defined(MG_DEBUG)
 	MG_LOCKER_NO_UPDATEMETAINFO

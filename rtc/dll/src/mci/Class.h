@@ -11,6 +11,8 @@
 #define __RTC_MCI_CLASS_H
 
 #include "mci/Object.h"
+#include "ptr/SharedPtr.h"
+#include "act/Actor.h" // for SharedActor (= SharedObjWrap<Actor>): the owning return type of the CreateFromXml factories
 
 //----------------------------------------------------------------------
 // Macro's for RunTimeTypeInfo (introspection) and dynamic creation
@@ -107,16 +109,21 @@ class MetaClass : public Class
 {
 	typedef Class base_type;
 public:
-	typedef Object* (*createFromXmlFuncType)(Object* currObj, struct XmlElement& elem);
+	// Factories own their freshly created product from birth and hand it back as an owning SharedPtr,
+	// so no parentless item is ever exposed as a raw, unowned pointer (orphanage detected at the source).
+	// The element type is SharedActor (= SharedObjWrap<Actor>): the nearest rtc-visible refcounted,
+	// polymorphic, Release()-providing base that every factory product (all TreeItem-derived) shares.
+	// (Object itself is deliberately non-refcounted; refcount lives in the SharedBase mixin.)
+	typedef SharedPtr<SharedActor> (*createFromXmlFuncType)(Object* currObj, struct XmlElement& elem);
 
 	RTC_CALL MetaClass(
-		TokenID scriptID, 
+		TokenID scriptID,
 		const Class* baseCls,
 		createFromXmlFuncType xmlFunc);
 	RTC_CALL ~MetaClass();
 
 	RTC_CALL static MetaClass* Find(TokenID id);
-	RTC_CALL Object* CreateFromXml(Object* currObj, struct XmlElement& elem) const;
+	RTC_CALL SharedPtr<SharedActor> CreateFromXml(Object* currObj, struct XmlElement& elem) const;
 
 	DECL_RTTI(RTC_CALL, MetaClass)
 

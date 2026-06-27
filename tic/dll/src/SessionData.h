@@ -51,6 +51,9 @@ struct SessionData : std::enable_shared_from_this<SessionData>
 	static std::weak_ptr<SessionData> GetItWeak(const TreeItem* configRoot) { return GetIt(configRoot); }
 
 	bool IsCancelling() const { return m_IsCancelling;  }
+	// Mark the session as cancelling WITHOUT deactivating it (keeps Curr() valid so in-flight workers
+	// can still observe IsCancelling() and cancel gracefully). Used at config teardown to drain workers.
+	void SetCancelling() { m_IsCancelling = true; }
 
 
 	TIC_CALL static std::shared_ptr<SessionData> Curr();

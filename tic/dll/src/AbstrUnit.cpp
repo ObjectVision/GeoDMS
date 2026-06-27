@@ -123,7 +123,7 @@ namespace {
 AbstrUnit::AbstrUnit() {}  // ctor calls for ~OwningPtr<DataItemsAssocPair> in case of exception
 
 // DataItemsOut
-AbstrUnit::~AbstrUnit() 
+AbstrUnit::~AbstrUnit()
 {
 	if (GetTSF(USF_HasSpatialReference))
 		s_SpatialReferenceAssoc.eraseExisting(this);

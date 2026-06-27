@@ -17,6 +17,7 @@
 #include "dbg/SeverityType.h"
 #include "mem/TileData.h"
 #include "ptr/OwningPtrReservedArray.h"
+#include "ptr/WeakPtr.h"
 #include "ser/VectorStream.h"
 
 template <typename V>
@@ -27,11 +28,14 @@ struct DelayedTileFunctor : TileFunctor<V>
 
 	using cache_t = std::unique_ptr<std::shared_ptr<future_tile>[]>;
 	cache_t m_ActiveTiles;
-	SharedPtr<AbstrDataItem> m_ResultAdi;
+	// Non-owning back-ref to the owning result item, used only to propagate FR_Data failures. The result
+	// OWNS this functor (via its m_DataObject), so this back-ref must not own the result back (that self-cycle
+	// pinned both). Cleared by ImLosingIt() when the item releases this object (AbstrDataItem::ClearDataObject).
+	mutable WeakPtr<AbstrDataItem> m_ResultAdi;
 
 	DelayedTileFunctor(SharedPtr<AbstrDataItem> resultAdi, const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<field_of_t<V>> valueRangePtr MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr))
 		: TileFunctor<V>(tiledDomainRangeData, valueRangePtr MG_DEBUG_ALLOCATOR_SRC_PARAM)
-		, m_ResultAdi(resultAdi)
+		, m_ResultAdi(resultAdi.get_ptr())
 		, m_ActiveTiles(std::make_unique<std::shared_ptr<future_tile>[]>(tiledDomainRangeData->GetNrTiles()))
 	{
 		MG_CHECK(tiledDomainRangeData);
@@ -46,9 +50,11 @@ struct DelayedTileFunctor : TileFunctor<V>
 	{
 		return m_ActiveTiles[t];
 	}
+	// m_ResultAdi is non-owning: if the item already let go of this object it is null -> nothing to report to.
+	void ImLosingIt() const override { m_ResultAdi = nullptr; }
 	auto GetTile(tile_id t) const->locked_cseq_t override
 	{
-		if (m_ResultAdi->WasFailed(FailType::Data))
+		if (m_ResultAdi && m_ResultAdi->WasFailed(FailType::Data))
 			m_ResultAdi->ThrowFail();
 		try
 		{
@@ -58,7 +64,8 @@ struct DelayedTileFunctor : TileFunctor<V>
 		}
 		catch (...)
 		{
-			m_ResultAdi->CatchFail(FailType::Data);
+			if (m_ResultAdi)
+				m_ResultAdi->CatchFail(FailType::Data);
 			throw;
 		}
 	}
@@ -172,7 +179,7 @@ struct LazyTileFunctor : GeneratedTileFunctor<V>
 		: GeneratedTileFunctor<V>(tiledDomainRangeData, valueRangePtr MG_DEBUG_ALLOCATOR_SRC_PARAM)
 		, m_ApplyFunc(std::move(aFunc))
 		, m_ActiveTiles(std::make_unique<lazy_tile_record[]>(tiledDomainRangeData->GetNrTiles()))
-		, m_ResultAdi(resultAdi)
+		, m_ResultAdi(resultAdi.get_ptr())
 	{
 		assert(resultAdi);
 	}
@@ -180,10 +187,13 @@ struct LazyTileFunctor : GeneratedTileFunctor<V>
 //	auto CreateFutureTile(tile_id t) const->TileRef override;
 	auto GetWritableTile(tile_id t, dms_rw_mode rwMode)->locked_seq_t override;
 	auto GetTile(tile_id t) const->locked_cseq_t override;
+	// m_ResultAdi is non-owning: cleared when the item releases this object (AbstrDataItem::ClearDataObject).
+	void ImLosingIt() const override { m_ResultAdi = nullptr; }
 
 	ApplyFunc m_ApplyFunc;
 	mutable cache_t m_ActiveTiles;
-	SharedPtr<AbstrDataItem> m_ResultAdi;
+	// Non-owning back-ref to the owning result item (failure propagation only); see DelayedTileFunctor.
+	mutable WeakPtr<AbstrDataItem> m_ResultAdi;
 };
 
 template <typename V, typename ApplyFunc>
@@ -215,7 +225,7 @@ auto LazyTileFunctor<V, ApplyFunc>::GetWritableTile(tile_id t, dms_rw_mode rwMod
 template <typename V, typename ApplyFunc>
 auto LazyTileFunctor<V, ApplyFunc>::GetTile(tile_id t) const -> locked_cseq_t
 {
-	if (m_ResultAdi->WasFailed(FailType::Data))
+	if (m_ResultAdi && m_ResultAdi->WasFailed(FailType::Data))
 		m_ResultAdi->ThrowFail();
 	try {
 		assert(t < this->GetTiledRangeData()->GetNrTiles());
@@ -239,7 +249,8 @@ auto LazyTileFunctor<V, ApplyFunc>::GetTile(tile_id t) const -> locked_cseq_t
 	}
 	catch (...)
 	{
-		m_ResultAdi->CatchFail(FailType::Data);
+		if (m_ResultAdi)
+			m_ResultAdi->CatchFail(FailType::Data);
 		throw;
 	}
 }

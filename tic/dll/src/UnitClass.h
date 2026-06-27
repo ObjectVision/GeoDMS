@@ -52,7 +52,7 @@ public:
 	TIC_CALL static const AbstrUnit* GetUnitOrDefault(const TreeItem* context, TokenID id, ValueComposition* vcPtr);
 
 	TIC_CALL static const UnitClass* Find(const ValueClass*);
-	TIC_CALL static Object* CreateFromXml(Object* context, struct XmlElement& elem);
+	TIC_CALL static SharedPtr<SharedActor> CreateFromXml(Object* context, struct XmlElement& elem);
 
 private:
 	const ValueClass*            m_ValueType;

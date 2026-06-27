@@ -62,19 +62,6 @@ SharedStr GetCaseName(TreeItem* context)
 	return caseNameItem->GetValue<SharedStr>(0);
 }
 
-TIC_CALL TreeItem* DMS_CONV DMS_CreateTree(CharPtr name)
-{
-	DMS_CALL_BEGIN
-
-		DBG_START("DMS", "CreateTree", true);
-		DBG_TRACE(("name = %s", name));
-
-		return TreeItem::CreateConfigRoot(GetTokenID_mt(name));
-
-	DMS_CALL_END
-	return nullptr;
-}
-
 TIC_CALL TreeItem* DMS_CONV DMS_CreateTreeItem(TreeItem* context, CharPtr name)
 {
 	DMS_CALL_BEGIN
@@ -163,7 +150,7 @@ TIC_CALL bool DMS_CONV DMS_TreeItem_GetAutoDeleteState(TreeItem* self)
 	DMS_CALL_BEGIN
 
 		TreeItemContextHandle checkPtr(self, TreeItem::GetStaticClass(), "DMS_TreeItem_GetAutoDeleteState");
-		return !self->IsAutoDeleteDisabled();
+		return true; // auto-delete pin removed: items are now always destroyed by refcount when unreferenced
 
 	DMS_CALL_END
 	return true;

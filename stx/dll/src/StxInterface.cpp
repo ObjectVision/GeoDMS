@@ -58,7 +58,7 @@ SYNTAX_CALL TreeItem* CreateTreeFromConfiguration(CharPtr sourceFilename)
 	assert(IsMetaThread());
 
 	//auto current_dir = GetCurrentDir();
-	TreeItem* res = nullptr;
+	SharedMutableTreeItem res; // owns the config root until SessionData::Open takes over
 	try {
 		CDebugContextHandle debugContext("DMS_CreateTreeFromConfiguration", sourceFilename, false);
 
@@ -85,10 +85,10 @@ SYNTAX_CALL TreeItem* CreateTreeFromConfiguration(CharPtr sourceFilename)
 #endif // MG_DEBUG_INTERESTSOURCE
 			res = AppendTreeFromConfiguration(fileName, nullptr, false);
 		}
-		currSession->Open(res);
+		currSession->Open(res.get()); // SessionData::m_ConfigRoot now owns it
 		auto fts = UpdateMarker::GetFreshTS(MG_DEBUG_TS_SOURCE_CODE("CreateTreeFromConfiguration"));
 		dms_assert(fts > UpdateMarker::tsBereshit);
-		return res;
+		return res.get(); // safe: SessionData holds the owning ref after Open
 	}
 	catch (...)
 	{
@@ -166,7 +166,7 @@ TreeItem* AppendTreeFromDictionary(CharPtr sourceFileName, TreeItem* context /*c
 	auto configLoadDir = splitFullPath(sourceFileName);
 	try {
 		ConfigurationFilenameContainer filenameContainer(configLoadDir, ++s_LoadNumber);
-		context = AppendTreeFromConfiguration(sourceFileName, context, true);
+		context = AppendTreeFromConfiguration(sourceFileName, context, true).get(); // appended under context, which owns it
 	}
 	catch (...)
 	{
@@ -190,9 +190,9 @@ struct InitAppendFuncPtr
 static InitAppendFuncPtr s_SetCallbackfunc;
 
 
-TreeItem* AppendTreeFromConfiguration(CharPtr sourceFileName, TreeItem* context /*can be NULL*/, bool rootIsFirstItem)
+SharedMutableTreeItem AppendTreeFromConfiguration(CharPtr sourceFileName, TreeItem* context /*can be NULL*/, bool rootIsFirstItem)
 {
-	TreeItem* result = nullptr;
+	SharedMutableTreeItem result; // owns the (root) item past the parser's local cp/xmlParse lifetime
 
 	MG_PRECONDITION(sourceFileName);
 	CDebugContextHandle debugContext("AppendTreeFromConfiguration", sourceFileName, false);
@@ -239,9 +239,9 @@ TreeItem* AppendTreeFromConfiguration(CharPtr sourceFileName, TreeItem* context 
 	}
 
 	if (!result)
-		return nullptr;
+		return {};
 
-	configStorePropDefPtr->SetValue(result, GetTokenID_mt(sourceFileName));
+	configStorePropDefPtr->SetValue(result.get(), GetTokenID_mt(sourceFileName));
 	if (context == nullptr) // did we process the root?
 	{
 		// Append DesktopRoot
@@ -254,10 +254,10 @@ TreeItem* AppendTreeFromConfiguration(CharPtr sourceFileName, TreeItem* context 
 				,	ConfigurationFilenameLock::GetCurrentDirNameFromConfigLoadDir()
 				);
 
-			if (TryAppendTreeFromConfiguration( desktopRootFolderNameStr.c_str(),  "Desktops.dms", result))
-				TryAppendTreeFromConfiguration( desktopRootFolderNameStr.c_str(),  "DesktopTemplates.dms", result);
+			if (TryAppendTreeFromConfiguration( desktopRootFolderNameStr.c_str(),  "Desktops.dms", result.get()))
+				TryAppendTreeFromConfiguration( desktopRootFolderNameStr.c_str(),  "DesktopTemplates.dms", result.get());
 			else
-				TryAppendTreeFromConfiguration( desktopRootFolderNameStr.c_str(),  "DesktopRoot.dms", result);
+				TryAppendTreeFromConfiguration( desktopRootFolderNameStr.c_str(),  "DesktopRoot.dms", result.get());
 		}
 	}
 

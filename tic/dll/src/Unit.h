@@ -74,7 +74,7 @@ struct RangedUnit : UnitBase<V>
 	TIC_CALL virtual void SetRange(const range_t& range) = 0;
 	TIC_CALL virtual void SetRange(const range_t& range, tile_extent_t<V> blockSize) =0;
 
-	void  ClearData(garbage_can& g) const override;
+	void  ClearDataObject(garbage_can& g) const override;
 
 	TIC_CALL void ValidateRange(const range_t& range) const;
 

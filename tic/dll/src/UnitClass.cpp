@@ -140,8 +140,7 @@ const AbstrUnit* UnitClass::CreateDefault() const
 #endif // MG_DEBUG_INTERESTSOURCE
 
 			m_DefaultUnit = MakeSharedForNewlyCreatedObject( CreateTmpUnit(nullptr).release() );
-			assert(m_DefaultUnit);
-			m_DefaultUnit->DisableAutoDelete();
+			assert(m_DefaultUnit); // m_DefaultUnit (SharedPtr) is now the sole owner; no auto-delete pin needed
 		}
 	}
 	return m_DefaultUnit.get();
@@ -194,19 +193,20 @@ const ValueClass* UnitClass::GetValueType(ValueComposition vc) const
 static TokenID nameTokenID = GetTokenID_st("name");
 static TokenID valueTypeID = GetTokenID_st("ValueType");
 
-Object* UnitClass::CreateFromXml(Object* context, struct XmlElement& elem)
+SharedPtr<SharedActor> UnitClass::CreateFromXml(Object* context, struct XmlElement& elem)
 {
 	CheckPtr(context, TreeItem::GetStaticClass(), "UnitClass::CreateFromXml");
 	TreeItem* container = debug_cast<TreeItem*>(context);
 
-	CharPtr itemName      = elem.GetAttrValue(nameTokenID); 
+	CharPtr itemName      = elem.GetAttrValue(nameTokenID);
 	CharPtr valueTypeName = elem.GetAttrValue(valueTypeID);
 
 	const ValueClass* vc = ValueClass::FindByScriptName(GetTokenID_mt(valueTypeName) );
 	if (!vc) throwDmsErrF("Unknown ValueType '%s' for Unit '%s'", valueTypeName, itemName);
 	const UnitClass* uc = UnitClass::Find(vc);
 	if (!uc) throwDmsErrF("UnitClass for found for ValueType %s", vc->GetName());
-	return uc->CreateUnit(container, GetTokenID_mt(itemName)).release();
+	// the new unit is already owned by its parent container (AddItem AdoptRef); share that ownership
+	return SharedPtr<SharedActor>(uc->CreateUnit(container, GetTokenID_mt(itemName)).get_ptr(), existing_obj{});
 }
 
 //----------------------------------------------------------------------

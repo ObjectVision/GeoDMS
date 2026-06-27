@@ -8,6 +8,7 @@
 #define __XML_XMLTREEPARSER_H
 
 #include "xml/XmlParser.h"
+#include "TicBase.h" // for SharedMutableTreeItem
 
 class XmlTreeParser : public XmlParser
 {
@@ -15,15 +16,16 @@ public:
 	TIC_CALL XmlTreeParser(InpStreamBuff* inpBuff);
 	TIC_CALL ~XmlTreeParser();
 
-	TIC_CALL TreeItem* ReadTree(TreeItem* context, bool rootIsFirstItem);
+	TIC_CALL SharedMutableTreeItem ReadTree(TreeItem* context, bool rootIsFirstItem);
 
 protected: // override XmlParser
 	virtual void ReadAttrCallback(XmlElement& element);
 	virtual bool ReadElemCallback(XmlElement& element);
 
 private:
-	TreeItem* m_CurrItem = nullptr;
-	bool      m_RootIsFirstItem = false;
+	TreeItem*             m_CurrItem = nullptr;
+	SharedMutableTreeItem m_RootHolder; // owns a brand-new (parentless) root for the parse lifetime
+	bool                  m_RootIsFirstItem = false;
 
 	UInt32 m_CurrItemLevel;
 	UInt32 m_CurrElemLevel;

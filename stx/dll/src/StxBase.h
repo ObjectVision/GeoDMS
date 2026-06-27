@@ -20,6 +20,9 @@
 #endif
 
 // functions called from within the stx module
-TreeItem* AppendTreeFromConfiguration(CharPtr p_pSourcefile, TreeItem* p_pRoot, bool rootIsFirstItem);
+// Returns an OWNING ref: the parsed (root) item is owned by the returned SharedPtr from creation until
+// the caller takes ownership (e.g. SessionData::Open), since there is no longer an auto-delete pin to
+// keep a parent-less config root alive across the parser's transient SharedPtrs.
+SharedMutableTreeItem AppendTreeFromConfiguration(CharPtr p_pSourcefile, TreeItem* p_pRoot, bool rootIsFirstItem);
 
 #endif // __STX_BASE_H

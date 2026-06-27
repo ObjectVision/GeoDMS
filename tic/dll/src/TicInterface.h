@@ -32,7 +32,6 @@ TIC_CALL auto TreeItem_GetBestItemAndUnfoundPart(const TreeItem* context, CharPt
 //----------------------------------------------------------------------
 extern "C" {
 
-TIC_CALL TreeItem*   DMS_CONV DMS_CreateTree      (CharPtr name);
 TIC_CALL TreeItem*   DMS_CONV DMS_CreateTreeItem  (TreeItem* context, CharPtr name);
 
 TIC_CALL AbstrUnit*  DMS_CONV DMS_CreateUnit(TreeItem* parent, CharPtr name, const UnitClass* vt);
