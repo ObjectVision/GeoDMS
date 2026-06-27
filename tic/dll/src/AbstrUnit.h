@@ -238,5 +238,12 @@ template <typename T> inline auto AsDynamicUnit(const SharedPtr<T>& self) { retu
 template <typename T> inline auto AsCheckedUnit(const SharedPtr<T>& self) { return MakeSharedFromBorrowedObjectPtr(AsCheckedUnit(self.get())); }
 template <typename T> inline auto AsCertainUnit(const SharedPtr<T>& self) { return MakeSharedFromBorrowedObjectPtr(AsCertainUnit(self.get())); }
 
+// shared_tree_ptr (std::shared_ptr) overloads: borrow an owning share of the same managed object.
+template <typename T> inline bool IsUnit(const shared_tree_ptr<T>& self) { return IsUnit(self.get()); }
+template <typename T> inline auto AsUnit(const shared_tree_ptr<T>& self) { auto* r = AsUnit(self.get()); return shared_tree_ptr<std::remove_pointer_t<decltype(r)>>(r, existing_obj{}); }
+template <typename T> inline auto AsDynamicUnit(const shared_tree_ptr<T>& self) { auto* r = AsDynamicUnit(self.get()); return shared_tree_ptr<std::remove_pointer_t<decltype(r)>>(r, existing_obj{}); }
+template <typename T> inline auto AsCheckedUnit(const shared_tree_ptr<T>& self) { auto* r = AsCheckedUnit(self.get()); return shared_tree_ptr<std::remove_pointer_t<decltype(r)>>(r, existing_obj{}); }
+template <typename T> inline auto AsCertainUnit(const shared_tree_ptr<T>& self) { auto* r = AsCertainUnit(self.get()); return shared_tree_ptr<std::remove_pointer_t<decltype(r)>>(r, existing_obj{}); }
+
 
 #endif // !defined(__TIC_ABSTRUNIT_H)

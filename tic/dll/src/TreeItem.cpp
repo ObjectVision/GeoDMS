@@ -768,7 +768,7 @@ void TreeItem::SetDC(DataControllerRef newDC, const TreeItem* newRefItem) const
 	if (newDC)
 		newRI = newDC->MakeResult();
 	if (newRefItem)
-		newRI = newRefItem;
+		newRI = SharedTreeItem(newRefItem, existing_obj{});
 
 	if (newRI == this)
 	{
@@ -1593,7 +1593,7 @@ SharedTreeItem TreeItem::GetConstSubTreeItemByID(TokenID subItemID) const
 		}
 
 		if	(subItem->GetID() == subItemID)
-			return subItem;
+			return SharedTreeItem(subItem, existing_obj{});
 		subItem = subItem->GetNextItem();
 	}
 }
@@ -1614,7 +1614,7 @@ SharedTreeItem TreeItem::GetCurrSubTreeItemByID(TokenID subItemID) const
 		}
 
 		if (subItem->GetID() == subItemID)
-			return subItem;
+			return SharedTreeItem(subItem, existing_obj{});
 		subItem = subItem->GetNextItem();
 	}
 }
@@ -1668,7 +1668,7 @@ TreeItem* TreeItem::GetBestItem(CharPtrRange subItemNames)
 SharedTreeItem TreeItem::GetCurrItem(CharPtrRange subItemNames) const
 {
 	if (subItemNames.empty())
-		return this;
+		return SharedTreeItem(this, existing_obj{});
 
 	auto ids = NameTreeReg_GetParentAndBranchID(subItemNames);
 	if (ids.first.empty()) // subItemNames is an atomic token or parent = root
@@ -1678,7 +1678,7 @@ SharedTreeItem TreeItem::GetCurrItem(CharPtrRange subItemNames) const
 		return GetCurrSubTreeItemByID(GetTokenID(ids.second));
 	}
 	auto parent = GetCurrItem(ids.first);
-	return (parent) ? parent->GetCurrSubTreeItemByID(GetTokenID(ids.second)).get() : nullptr;
+	return parent ? parent->GetCurrSubTreeItemByID(GetTokenID(ids.second)) : SharedTreeItem{};
 }
 
 
@@ -1687,7 +1687,7 @@ SharedTreeItem TreeItem::FindItem(CharPtrRange subItemNames) const
 	assert(IsMetaThread());
 
 	if (subItemNames.empty())
-		return this;
+		return SharedTreeItem(this, existing_obj{});
 
 	auto ids = NameTreeReg_GetParentAndBranchID(subItemNames);
 	assert(ids.first.first == subItemNames.first);
@@ -1696,20 +1696,20 @@ SharedTreeItem TreeItem::FindItem(CharPtrRange subItemNames) const
 	{	
 		assert(!ids.second.empty());
 		if (ids.second.first[0] == '.')
-			return FollowDots(ids.second);
+			return SharedTreeItem(FollowDots(ids.second), existing_obj{});
 
 		UpdateMetaInfoIfNotAlready();
 
 		TokenID existingToken = GetExistingTokenID<mt_tag>(ids.second); //to be found token was already created if asserts hold
 		if (!IsDefined(existingToken))
 			return {};
-		return FindTreeItemByID(this, existingToken);
+		return SharedTreeItem(FindTreeItemByID(this, existingToken), existing_obj{});
 	}
 	SharedTreeItem parent = {};
 	if (ids.first.empty()) // We start at root.
 	{
 		MG_CHECK(!IsCacheItem());
-		parent = static_cast<const TreeItem*>(GetRoot());
+		parent = SharedTreeItem(static_cast<const TreeItem*>(GetRoot()), existing_obj{});
 	}
 	else
 		parent = FindItem(ids.first);
@@ -1741,7 +1741,7 @@ auto TreeItem::FindAndVisitItem(CharPtrRange subItemNames, SupplierVisitFlag svf
 			auto item = FollowDots(ids.second);
 			if (visitor.Visit(item) == AVS_SuspendedOrFailed)
 				return {};
-			return item;
+			return SharedTreeItem(item, existing_obj{});
 		}
 
 		UpdateMetaInfo();
@@ -1751,7 +1751,7 @@ auto TreeItem::FindAndVisitItem(CharPtrRange subItemNames, SupplierVisitFlag svf
 		auto item = FindTreeItemByID(this, existingToken);
 		if (visitor.Visit(item) == AVS_SuspendedOrFailed)
 			return {};
-		return item;
+		return SharedTreeItem(item, existing_obj{});
 	}
 	SharedTreeItem parent;
 	if (ids.first.empty()) // We start at root.
@@ -1785,14 +1785,14 @@ static auto FollowBestDots(const TreeItem* self, CharPtrRange dots) noexcept -> 
 	while (true)
 	{
 		if (*dots.first != '.')
-			return { self, SharedStr(dots.first MG_DEBUG_ALLOCATOR_SRC("FollowBestDots")) };
+			return { SharedTreeItem(self, existing_obj{}), SharedStr(dots.first MG_DEBUG_ALLOCATOR_SRC("FollowBestDots")) };
 		dots.first++;
 		if (dots.first == dots.second)
-			return { self, SharedStr(dots.first MG_DEBUG_ALLOCATOR_SRC("FollowBestDots")) };
+			return { SharedTreeItem(self, existing_obj{}), SharedStr(dots.first MG_DEBUG_ALLOCATOR_SRC("FollowBestDots")) };
 
 		auto parent = self->GetTreeParent();
 		if (!parent)
-			return { self, SharedStr(dots.first - 1 MG_DEBUG_ALLOCATOR_SRC("FollowBestDots")) };
+			return { SharedTreeItem(self, existing_obj{}), SharedStr(dots.first - 1 MG_DEBUG_ALLOCATOR_SRC("FollowBestDots")) };
 		self = parent.get();
 	}
 }
@@ -1801,7 +1801,7 @@ static auto FollowBestDots(const TreeItem* self, CharPtrRange dots) noexcept -> 
 auto TreeItem::FindBestItem(CharPtrRange subItemNames) const -> BestItemRef
 {
 	if (subItemNames.empty())
-		return { this, {} };
+		return { SharedTreeItem(this, existing_obj{}), {} };
 
 	auto ids = NameTreeReg_GetParentAndBranchID(subItemNames);
 	dms_assert(ids.first.first == subItemNames.first);
@@ -1817,9 +1817,9 @@ auto TreeItem::FindBestItem(CharPtrRange subItemNames) const -> BestItemRef
 		if (IsDefined(t)) {
 			auto result = FindTreeItemByID(this, t);
 			if (result)
-				return { result, {} };
+				return { SharedTreeItem(result, existing_obj{}), {} };
 		}
-		return { this, SharedStr(ids.second) };
+		return { SharedTreeItem(this, existing_obj{}), SharedStr(ids.second) };
 	}
 
 	if (ids.first.empty()) 
@@ -1849,7 +1849,7 @@ auto TreeItem::FindBestItem(CharPtrRange subItemNames) const -> BestItemRef
 
 	auto parentRef = FindBestItem(ids.first);
 	if (!parentRef.first)
-		return { this, SharedStr(subItemNames) };
+		return { SharedTreeItem(this, existing_obj{}), SharedStr(subItemNames) };
 
 	if (!parentRef.second.empty())
 		return { parentRef.first, parentRef.second + SharedStr(CharPtrRange(ids.first.second, ids.second.second)) };
@@ -2059,7 +2059,7 @@ static bool HasOwnCalculatorNow(TreeItem* result)
 	return (!result->GetExprMember().empty()) || (result->GetCalculatorMember() && result->GetCalculatorMember()->IsDataBlock());
 }
 
-OwningPtr<TreeItem> TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& copyContext) const
+SharedMutableTreeItem TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& copyContext) const
 {
 	const Class* cls = GetDynamicClass();
 
@@ -2194,7 +2194,7 @@ OwningPtr<TreeItem> TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& 
 	{
 		for (const TreeItem* subItem = GetCurrFirstSubItem(); subItem; subItem = subItem->GetNextItem())
 			if (!copyContext.InFenceOperator() || !subItem->IsTemplate())
-				subItem->Copy(result.get(), subItem->GetID(), copyContext).release();
+				subItem->Copy(result.get(), subItem->GetID(), copyContext); // copied item is owned by `result`; drop the returned co-owning temporary
 
 		// Now, copy from refItem; maybe more sub-items should be copied
 		if (copyContext.CopyReferredItems())
@@ -2219,7 +2219,7 @@ OwningPtr<TreeItem> TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& 
 					{
 						auto subID = subItem->GetID();
 						if (result->GetSubTreeItemByID(subID) == nullptr)
-							subItem->Copy(result.get(), subItem->GetID(), copyContext).release();
+							subItem->Copy(result.get(), subItem->GetID(), copyContext); // copied item is owned by `result`; drop the returned co-owning temporary
 					}
 				}
 				refItem = refItem->GetCurrRefItem();
@@ -2281,14 +2281,14 @@ void TreeItem::UpdateMetaInfoImpl() const
 			assert(foundItem);
 			if (foundItem->GetTSF(TSF_Depreciated))
 			{
-				SharedTreeItem prevItem = foundItem, refItem = prevItem->GetCurrRefItem();
+				SharedTreeItem prevItem(foundItem, existing_obj{}), refItem(prevItem->GetCurrRefItem(), existing_obj{});
 				MG_CHECK(refItem); // follows from TSF_Depreciated
-				SharedTreeItem refRefItem = refItem->GetCurrRefItem();
+				SharedTreeItem refRefItem(refItem->GetCurrRefItem(), existing_obj{});
 				while (refRefItem) {
 					prevItem = refItem;
 					refItem = refRefItem;
-					refRefItem = refItem->GetCurrRefItem();
-				} 
+					refRefItem = SharedTreeItem(refItem->GetCurrRefItem(), existing_obj{});
+				}
 				MG_CHECK(prevItem->GetID() != refItem->GetID());
 				
 				auto msg = mySSPrintF("'%s' refers by '%s' to '%s'\nReplace '%s' by '%s'."
@@ -2930,7 +2930,7 @@ ActorVisitState TreeItem::DoUpdate()
 						return AVS_SuspendedOrFailed;
 					}
 
-					SharedDataItem iCheckerResult = AsDynamicDataItem(iCheckerDC->GetOld());
+					SharedDataItem iCheckerResult(AsDynamicDataItem(iCheckerDC->GetOld()), existing_obj{});
 					if (iCheckerResult)
 					{
 						assert(iCheckerResult->GetInterestCount());
@@ -4767,7 +4767,7 @@ auto TreeItem_GetTemplateSource(const TreeItem* item) -> SharedTreeItem
 	auto calculator = item->GetCalculator();
 	assert(calculator);
 	if (calculator->HasTemplSource())
-		return calculator->GetTemplSource();
+		return SharedTreeItem(calculator->GetTemplSource(), existing_obj{});
 	// IsForEachTemplHolder() is true only when applyItem==nullptr,
 	// but GetForEachTemplSource() asserts applyItem!=nullptr — mutually exclusive.
 	// Skip holders that have not yet been instantiated.
@@ -4796,7 +4796,7 @@ auto TreeItem_FindItem_impl(template_set& visitedSet, const TreeItem* searchLoc,
 					break;
 
 				if (templItem->GetID() == id)
-					return templItem;
+					return SharedTreeItem(templItem, existing_obj{});
 			}
 		}
 	}
@@ -4807,7 +4807,7 @@ auto TreeItem_FindItem_impl(template_set& visitedSet, const TreeItem* searchLoc,
 		else if (!findNextMode)
 		{
 			if (subItem->GetID() == id)
-				return subItem;
+				return SharedTreeItem(subItem, existing_obj{});
 
 			if (auto result = TreeItem_FindItem_impl(visitedSet, subItem, id))
 				return result;
@@ -4839,7 +4839,7 @@ TIC_CALL auto TreeItem_FindItem(const TreeItem* searchLoc, TokenID id) -> Shared
 	while (auto parent = searchLoc->GetTreeParent().get())
 	{
 		if (!findNextMode && parent->GetID() == id)
-			return parent;
+			return SharedTreeItem(parent, existing_obj{});
 
 		if (auto result = TreeItem_FindItem_impl(alreadyVisited, parent, id, searchLoc, findNextMode))
 			return result;

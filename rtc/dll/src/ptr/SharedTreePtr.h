@@ -64,8 +64,12 @@ struct shared_tree_ptr : std::shared_ptr<T>
 	bool is_null()  const noexcept { return this->get() == nullptr; }
 	bool has_ptr()  const noexcept { return this->get() != nullptr; }
 
-	// comparison with a raw element pointer (C++20 synthesizes != from ==)
-	bool operator==(const T* rhs) const noexcept { return this->get() == rhs; }
+	// Comparison with a raw element pointer (C++20 synthesizes != and the reversed form). Constrained to
+	// genuine related pointer types and deliberately NOT matching std::nullptr_t, so `p == nullptr` routes
+	// unambiguously to std::shared_ptr's own nullptr_t overload instead of competing with this one.
+	template <typename U>
+		requires (std::is_convertible_v<U*, const T*> || std::is_convertible_v<const T*, U*>)
+	bool operator==(const U* rhs) const noexcept { return this->get() == static_cast<const T*>(rhs); }
 
 private:
 	static base_type dup_existing(T* p)

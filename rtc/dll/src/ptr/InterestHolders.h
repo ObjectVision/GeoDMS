@@ -17,6 +17,8 @@
 #include "act/garbage_can.h"
 #include "utl/swap.h"
 
+template <class T> struct shared_tree_ptr; // ptr/SharedTreePtr.h; only the template name is needed for the ctor signatures below
+
 
 //----------------------------------------------------------------------
 // class  : OptionalInterest
@@ -84,6 +86,20 @@ struct InterestPtr
 	template <typename T>
 	InterestPtr(const SharedPtr<T>& item)
 		: m_Item(item)
+	{
+		OptionalInterestInc<IVal>(get_ptr());
+	}
+
+	// std::shared_ptr-backed wrapper (shared_tree_ptr) overloads, mirroring the SharedPtr ones above.
+	template <typename T>
+	InterestPtr(const shared_tree_ptr<T>& item)
+		: m_Item(item)
+	{
+		OptionalInterestInc<IVal>(get_ptr());
+	}
+	template <typename T>
+	InterestPtr(shared_tree_ptr<T>&& item)
+		: m_Item(std::move(item))
 	{
 		OptionalInterestInc<IVal>(get_ptr());
 	}

@@ -341,7 +341,7 @@ public:
 //	Copying
 
 	// Deep copy into dest with specified id and context; CopyProps customizable.
-	TIC_CALL [[nodiscard]] OwningPtr<TreeItem> Copy(TreeItem* dest, TokenID id, CopyTreeContext& copyContext) const;
+	TIC_CALL [[nodiscard]] SharedMutableTreeItem Copy(TreeItem* dest, TokenID id, CopyTreeContext& copyContext) const;
 	void UpdateMetaInfoImpl2() const; // sort of const
 	TIC_CALL void UpdateMetaInfo() const noexcept override; // sort of const
 	TIC_CALL void UpdateMetaInfoIfNotAlready() const noexcept;
