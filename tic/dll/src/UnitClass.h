@@ -41,10 +41,10 @@ public:
 	~UnitClass();
 
     // Constructs a new Unit of the type indicated by this UnitClass in context with given name
-	TIC_CALL auto CreateUnit        (TreeItem* context, TokenID typeID) const -> OwningPtr<AbstrUnit>;
-	TIC_CALL auto CreateUnitFromPath(TreeItem* context, CharPtr path) const -> OwningPtr<AbstrUnit>;
-	TIC_CALL auto CreateResultUnit  (TreeItem* context) const -> OwningPtr<AbstrUnit>;
-	TIC_CALL auto CreateTmpUnit     (TreeItem* context) const -> OwningPtr<AbstrUnit>;;
+	TIC_CALL auto CreateUnit        (TreeItem* context, TokenID typeID) const -> SharedMutableUnit;
+	TIC_CALL auto CreateUnitFromPath(TreeItem* context, CharPtr path) const -> SharedMutableUnit;
+	TIC_CALL auto CreateResultUnit  (TreeItem* context) const -> SharedMutableUnit;
+	TIC_CALL auto CreateTmpUnit     (TreeItem* context) const -> SharedMutableUnit;
 
 	TIC_CALL const AbstrUnit* CreateDefault() const;
 	TIC_CALL void             DropDefault  () const;
@@ -52,11 +52,11 @@ public:
 	TIC_CALL static const AbstrUnit* GetUnitOrDefault(const TreeItem* context, TokenID id, ValueComposition* vcPtr);
 
 	TIC_CALL static const UnitClass* Find(const ValueClass*);
-	TIC_CALL static SharedPtr<SharedActor> CreateFromXml(Object* context, struct XmlElement& elem);
+	TIC_CALL static std::shared_ptr<SharedActor> CreateFromXml(Object* context, struct XmlElement& elem);
 
 private:
 	const ValueClass*            m_ValueType;
-	mutable SharedPtr<AbstrUnit> m_DefaultUnit;
+	mutable SharedMutableUnit    m_DefaultUnit; // std::shared_ptr owner of the lazily-created default unit
 
 	DECL_RTTI(TIC_CALL, MetaClass)
 };

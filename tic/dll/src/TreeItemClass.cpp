@@ -25,15 +25,15 @@ TreeItemClass::TreeItemClass(Constructor cFunc, const Class* baseCls, TokenID ty
 
 static TokenID nameTokenID = GetTokenID_st("name");
 
-SharedPtr<SharedActor> TreeItemClass::CreateFromXml(Object* context, struct XmlElement& elem)
+std::shared_ptr<SharedActor> TreeItemClass::CreateFromXml(Object* context, struct XmlElement& elem)
 {
 	CharPtr name = elem.GetAttrValue(nameTokenID);
 	if (!context)
-		return TreeItem::CreateConfigRoot(GetTokenID_mt(name)); // SharedMutableTreeItem -> owning SharedPtr<SharedActor>
+		return TreeItem::CreateConfigRoot(GetTokenID_mt(name)); // SharedMutableTreeItem -> owning std::shared_ptr<SharedActor>
 	CheckPtr(context, TreeItem::GetStaticClass(), "TreeItemClass::CreateFromXml");
 	TreeItem* container= debug_cast<TreeItem*>(context);
-	// the new child is already owned by its parent (AddItem AdoptRef); share that ownership instead of releasing it raw
-	return SharedPtr<SharedActor>(container->CreateItemFromPath(name).get_ptr(), existing_obj{});
+	// the new child is co-owned by its parent; return its std::shared_ptr (control block flows through)
+	return container->CreateItemFromPath(name);
 }
 
 

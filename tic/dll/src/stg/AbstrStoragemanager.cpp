@@ -873,14 +873,14 @@ void NonmappableStorageManager::StartInterest(const TreeItem* storageHolder, con
 	VisitSuppliers(SupplierVisitFlag::StartSupplInterest, visitor, storageHolder, self);
 
 	if (interestHolders.size())
-		m_InterestHolders[interest_holders_key(storageHolder, self)].swap(interestHolders);
+		m_InterestHolders[interest_holders_key(SharedTreeItem(storageHolder, existing_obj{}), SharedTreeItem(self, existing_obj{}))].swap(interestHolders);
 	else
 		StopInterest(storageHolder, self);
 }
 
 void NonmappableStorageManager::StopInterest(const TreeItem* storageHolder, const TreeItem* self) const noexcept
 {
-	m_InterestHolders.erase(interest_holders_key(storageHolder, self));
+	m_InterestHolders.erase(interest_holders_key(SharedTreeItem(storageHolder, existing_obj{}), SharedTreeItem(self, existing_obj{})));
 }
 
 // Wrapper functions for consistent calls to specific StorageManager overrides

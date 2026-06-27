@@ -445,7 +445,7 @@ auto UsingCache::FindItem(TokenID itemID) const -> SharedTreeItem
 		result = std::lower_bound(m_SortedItemCache.begin(), m_SortedItemCache.end(), itemID, cmp);
 	if (result == m_SortedItemCache.end() || cmp(itemID, *result))
 		return {};
-	return *result;
+	return SharedTreeItem(*result, existing_obj{});
 }
 
 void UsingCache::OnItemAdded(const TreeItem* child)

@@ -54,9 +54,9 @@ TIC_CALL AbstrDataItem* CreateAbstrDataItem(
 	TokenID          tValuesUnit,
 	ValueComposition vc)
 {
-	AbstrDataItem* 
+	AbstrDataItem*
 		result = debug_cast<AbstrDataItem*>(
-			parent->CreateItem(nameID, AbstrDataItem::GetStaticClass()).release()
+			parent->CreateItem(nameID, AbstrDataItem::GetStaticClass()).get() // item owned by parent; raw stays valid
 		);
 	dms_assert(result);
 	result->InitAbstrDataItem(tDomainUnit, tValuesUnit, vc);
@@ -71,11 +71,11 @@ TIC_CALL AbstrDataItem* CreateAbstrDataItemFromPath(
 	ValueComposition vc)
 {
 	auto result = debug_cast<AbstrDataItem*>(
-			parent->CreateItemFromPath(path, AbstrDataItem::GetStaticClass())
+			parent->CreateItemFromPath(path, AbstrDataItem::GetStaticClass()).get() // item owned by parent; raw stays valid
 		);
 	assert(result);
 	result->InitAbstrDataItem(tDomainUnit, tValuesUnit, vc);
-	return result.release();
+	return result;
 }
 
 // static
@@ -209,13 +209,14 @@ static TokenID domainUnitTokenID = GetTokenID_st("DomainUnit");
 static TokenID valuesUnitTokenID = GetTokenID_st("ValuesUnit");
 static TokenID featureTypeID = GetTokenID_st("ValueComposition");
 
-SharedPtr<SharedActor> DataItemClass::CreateFromXml(Object* context, XmlElement& elem)
+std::shared_ptr<SharedActor> DataItemClass::CreateFromXml(Object* context, XmlElement& elem)
 {
 	CheckPtr(context, TreeItem::GetStaticClass(), "DataItemClass::CreateFromXml");
 	TreeItem* container = debug_cast<TreeItem*>(context);
 
-	// the new data item is already owned by its parent container (AddItem AdoptRef); share that ownership
-	return SharedPtr<SharedActor>(CreateAbstrDataItem(container,
+	// the new data item is co-owned by its parent container; recover its std::shared_ptr control block
+	// (item is make_shared'd, so existing_obj borrows the std owner) and return it upcast to SharedActor.
+	return SharedMutableTreeItem(CreateAbstrDataItem(container,
 		GetTokenID_mt(elem.GetAttrValue(nameTokenID)),
 		GetTokenID_mt(elem.GetAttrValue(domainUnitTokenID)),
 		GetTokenID_mt(elem.GetAttrValue(valuesUnitTokenID)),

@@ -510,7 +510,7 @@ auto AbstrUnit::GetLabelAttr() const -> SharedDataItemInterestPtr
 			return di;
 		}
 	}
-	si = GetSourceItem();
+	si = SharedTreeItem(GetSourceItem(), existing_obj{});
 	if (si)
 		return AsUnit(si)->GetLabelAttr();
 	return {};

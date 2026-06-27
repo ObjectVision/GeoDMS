@@ -125,7 +125,7 @@ void SupplCache::BuildSet(const TreeItem* context) const
 				context->throwItemErrorF("ExplicitSupplier %s not found", SingleQuote(explicitSupplierName.first, explicitSupplierName.second));
 
 			assert(i<m_NrConfigured);
-			newSupplArray[i++] = suppl;
+			newSupplArray[i++] = ActorCRef(suppl.get(), existing_obj{}); // FIXME(std-ptr): intrusive Actor ref to std-managed TreeItem (double-free risk until Actor-level refs migrate)
 		}
 		if (iFirstEnd == iEnd)
 			break;

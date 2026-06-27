@@ -482,7 +482,7 @@ namespace Explain { // local defs
 			)
 			return;
 
-		m_StudyObject = studyObject;
+		m_StudyObject = SharedDataItem(studyObject, existing_obj{});
 		m_StudyIdx = studyIdx;
 		m_ExtraInfo = extraInfo;
 		m_ExprSeqNr = 0;

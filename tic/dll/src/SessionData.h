@@ -87,7 +87,7 @@ private:
 
 	void deactivateThis();
 
-	SharedPtr<const TreeItem>     m_ConfigRoot, m_ConfigSettings;
+	SharedTreeItem                m_ConfigRoot, m_ConfigSettings; // std::shared_ptr owners (SessionData owns the config root)
 	SharedStr                     m_ConfigLoadDir;
 	SharedStr                     m_ConfigSubDir;
 	SharedStr                     m_ConfigDir;

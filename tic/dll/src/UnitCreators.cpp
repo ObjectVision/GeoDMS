@@ -27,13 +27,13 @@ ConstUnitRef CastUnit(const UnitClass* uc, ConstUnitRef v)
 	if (v->IsKindOf(uc))
 		return v;
 
-	ConstUnitRef u = uc->CreateDefault();
+	ConstUnitRef u(uc->CreateDefault(), existing_obj{});
 
 	if (!v->UnifyValues(u.get(), "", "", UM_AllowTypeDiff))
 	{
 		auto newArg2 = uc->CreateTmpUnit(nullptr);
 		newArg2->DuplFrom(v.get());
-		u = newArg2.release();
+		u = newArg2;
 	}
 	assert(u);
 	return u;
@@ -91,7 +91,7 @@ ConstUnitRef unique_count_unit_creator(const AbstrDataItem* adi, const AbstrData
 		}
 	}
 	auto uc = UnitClass::Find(vcCrd); assert(uc);
-	return uc->CreateDefault();
+	return ConstUnitRef(uc->CreateDefault(), existing_obj{});
 }
 
 // *****************************************************************************
@@ -202,5 +202,5 @@ ConstUnitRef compatible_values_unit_creator_func(arg_index nrSkippedArgs, const 
 	}
 	MG_CHECK(!catUnit || (arg1_ValuesUnit && catUnit->UnifyDomain(arg1_ValuesUnit, "", "", UM_AllowDefaultRight)));
 
-	return arg1_ValuesUnit;
+	return ConstUnitRef(arg1_ValuesUnit, existing_obj{});
 }

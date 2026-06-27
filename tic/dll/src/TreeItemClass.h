@@ -26,7 +26,7 @@ private:
 public:
 	TIC_CALL TreeItemClass(Constructor cFunc, const Class* baseCls, TokenID typeID, SharedConstructor sFunc = nullptr);
 
-	static SharedPtr<SharedActor> CreateFromXml(Object* context, struct XmlElement& elem);
+	static std::shared_ptr<SharedActor> CreateFromXml(Object* context, struct XmlElement& elem);
 
 	DECL_RTTI(TIC_CALL, MetaClass)
 };

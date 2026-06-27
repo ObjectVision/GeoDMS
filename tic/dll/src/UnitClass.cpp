@@ -80,7 +80,7 @@ UnitClass::~UnitClass()
 	m_ValueType->m_UnitClass = nullptr;
 }
 
-auto UnitClass::CreateUnit(TreeItem* context, TokenID id) const -> OwningPtr<AbstrUnit>
+auto UnitClass::CreateUnit(TreeItem* context, TokenID id) const -> SharedMutableUnit
 {
 	if (ValueClass::FindByScriptName(id) )
 	{
@@ -92,7 +92,7 @@ auto UnitClass::CreateUnit(TreeItem* context, TokenID id) const -> OwningPtr<Abs
 	return AsUnit(TreeItem_CreateItem(context, id, this));
 }
 
-auto UnitClass::CreateUnitFromPath(TreeItem* context, CharPtr path) const ->  OwningPtr<AbstrUnit>
+auto UnitClass::CreateUnitFromPath(TreeItem* context, CharPtr path) const ->  SharedMutableUnit
 {
 	if (ValueClass::FindByScriptName(TokenID::GetExisting(path)))
 	{
@@ -104,17 +104,17 @@ auto UnitClass::CreateUnitFromPath(TreeItem* context, CharPtr path) const ->  Ow
 	return AsUnit(context->CreateItemFromPath(path, this));
 }
 
-auto UnitClass::CreateResultUnit(TreeItem* context) const -> OwningPtr<AbstrUnit>
+auto UnitClass::CreateResultUnit(TreeItem* context) const -> SharedMutableUnit
 {
 	if (context)
-		return AsUnit(context);
+		return SharedMutableUnit(AsUnit(context), existing_obj{}); // context is an existing (owned) tree item
 	auto result = CreateUnit(nullptr, TokenID::GetEmptyID());
 	result->SetPassor();
 	result->DisableStorage();
 	return result;
 }
 
-auto UnitClass::CreateTmpUnit(TreeItem* context) const -> OwningPtr<AbstrUnit>
+auto UnitClass::CreateTmpUnit(TreeItem* context) const -> SharedMutableUnit
 {
 	auto result = CreateResultUnit(context);
 	if (!context)
@@ -139,8 +139,8 @@ const AbstrUnit* UnitClass::CreateDefault() const
 			DemandManagement::IncInterestDetector incInterestLock("UnitClass::CreateDefault()");
 #endif // MG_DEBUG_INTERESTSOURCE
 
-			m_DefaultUnit = MakeSharedForNewlyCreatedObject( CreateTmpUnit(nullptr).release() );
-			assert(m_DefaultUnit); // m_DefaultUnit (SharedPtr) is now the sole owner; no auto-delete pin needed
+			m_DefaultUnit = CreateTmpUnit(nullptr); // std::shared_ptr sole owner from birth
+			assert(m_DefaultUnit);
 		}
 	}
 	return m_DefaultUnit.get();
@@ -193,7 +193,7 @@ const ValueClass* UnitClass::GetValueType(ValueComposition vc) const
 static TokenID nameTokenID = GetTokenID_st("name");
 static TokenID valueTypeID = GetTokenID_st("ValueType");
 
-SharedPtr<SharedActor> UnitClass::CreateFromXml(Object* context, struct XmlElement& elem)
+std::shared_ptr<SharedActor> UnitClass::CreateFromXml(Object* context, struct XmlElement& elem)
 {
 	CheckPtr(context, TreeItem::GetStaticClass(), "UnitClass::CreateFromXml");
 	TreeItem* container = debug_cast<TreeItem*>(context);
@@ -205,8 +205,8 @@ SharedPtr<SharedActor> UnitClass::CreateFromXml(Object* context, struct XmlEleme
 	if (!vc) throwDmsErrF("Unknown ValueType '%s' for Unit '%s'", valueTypeName, itemName);
 	const UnitClass* uc = UnitClass::Find(vc);
 	if (!uc) throwDmsErrF("UnitClass for found for ValueType %s", vc->GetName());
-	// the new unit is already owned by its parent container (AddItem AdoptRef); share that ownership
-	return SharedPtr<SharedActor>(uc->CreateUnit(container, GetTokenID_mt(itemName)).get_ptr(), existing_obj{});
+	// the new unit is co-owned by its parent container; return its std::shared_ptr (control block flows through)
+	return uc->CreateUnit(container, GetTokenID_mt(itemName));
 }
 
 //----------------------------------------------------------------------

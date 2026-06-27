@@ -494,7 +494,7 @@ ConstUnitRef AbstrOperGroup::CreateValuesUnit(const ArgSeqType& dataArgs) const
 	oper->CreateResultCaller(*resultRef, unitSeq, LispPtr());
 
 	dms_assert(resultRef->GetOld());
-	ConstUnitRef u = debug_cast<const AbstrUnit*>(resultRef->GetOld());
+	ConstUnitRef u(debug_cast<const AbstrUnit*>(resultRef->GetOld()), existing_obj{});
 	dms_assert(u);
 	return u;
 }

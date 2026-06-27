@@ -104,10 +104,10 @@ void XmlTreeParser::ReadAttrCallback(XmlElement& element)
 		// holder may drop. A brand-new root (created with no parent context) has no other owner yet, so
 		// retain it in m_RootHolder for the parse lifetime and hand it to ReadTree's caller.
 		bool isNewRoot = (m_CurrItem == nullptr);
-		SharedPtr<SharedActor> created = cls->CreateFromXml(m_CurrItem, element);
+		std::shared_ptr<SharedActor> created = cls->CreateFromXml(m_CurrItem, element);
 		thisItem = debug_cast<TreeItem*>(created.get());
 		if (thisItem && isNewRoot)
-			m_RootHolder = thisItem;
+			m_RootHolder = std::static_pointer_cast<TreeItem>(created); // capture the std owner of the brand-new root
 	}
 	if (thisItem)
 	{

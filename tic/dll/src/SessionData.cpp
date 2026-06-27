@@ -50,12 +50,12 @@ SessionData::~SessionData()
 {
 	if (m_ConfigRoot)
 	{
-		MG_ASSERT(m_ConfigRoot->IsOwned());
+		// m_ConfigRoot is now a std::shared_ptr owner; the truthy check is the liveness guarantee
+		// (the old intrusive IsOwned() check no longer applies).
 		m_ConfigRoot->m_State.Set(actor_flag_set::AFD_PivotElem);
 	}
 	if (m_ConfigSettings)
 	{
-		MG_ASSERT(m_ConfigSettings->IsOwned());
 		m_ConfigSettings->m_State.Set(actor_flag_set::AFD_PivotElem);
 	}
 }
@@ -131,7 +131,7 @@ SharedStr SessionData::GetConfigIniFile(CharPtr configDir)
 
 SharedTreeItem SessionData::GetConfigSettings() const
 {
-	return m_ConfigSettings.get();
+	return m_ConfigSettings;
 }
 
 SharedTreeItem SessionData::GetConfigSettings(CharPtr section, CharPtr key) const
@@ -198,11 +198,11 @@ static TokenID t_ConfigSettings = GetTokenID_st("ConfigSettings");
 void SessionData::Open(const TreeItem* configRoot)
 {
 	dms_assert(!m_ConfigRoot); // only open this once
-	m_ConfigRoot = configRoot;
+	m_ConfigRoot = SharedTreeItem(configRoot, existing_obj{}); // take co-ownership of the config root (held alive by the loader during Open)
 	m_ConfigLoadTS = UpdateMarker::GetLastTS();
 	auto configSettings = const_cast<TreeItem*>(configRoot)->CreateItem(t_ConfigSettings);
 	configSettings->SetIsHidden(true);
-	m_ConfigSettings = configSettings.release();
+	m_ConfigSettings = configSettings; // co-owned with configRoot (its parent)
 }
 
 std::shared_ptr<SessionData> SessionData::Curr()

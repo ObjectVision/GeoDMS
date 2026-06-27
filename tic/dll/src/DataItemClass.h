@@ -77,7 +77,7 @@ public:
 		const ValueClass* valuesType,
 		const TreeItem* context);
 
-	static SharedPtr<SharedActor> CreateFromXml(Object* context, struct XmlElement& elem);
+	static std::shared_ptr<SharedActor> CreateFromXml(Object* context, struct XmlElement& elem);
 
   private:
 	const ValueClass*   m_ValuesType;

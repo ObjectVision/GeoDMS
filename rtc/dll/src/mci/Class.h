@@ -119,7 +119,10 @@ public:
 	// The element type is SharedActor (= SharedObjWrap<Actor>): the nearest rtc-visible refcounted,
 	// polymorphic, Release()-providing base that every factory product (all TreeItem-derived) shares.
 	// (Object itself is deliberately non-refcounted; refcount lives in the SharedBase mixin.)
-	typedef SharedPtr<SharedActor> (*createFromXmlFuncType)(Object* currObj, struct XmlElement& elem);
+	// Returns the std::shared_ptr control block of the freshly created (make_shared'd) object, upcast to
+	// SharedActor. std ownership flows through here so a brand-new parentless root survives until the
+	// caller (XmlTreeParser) captures it -- replacing the old intrusive SharedPtr return (double-free risk).
+	typedef std::shared_ptr<SharedActor> (*createFromXmlFuncType)(Object* currObj, struct XmlElement& elem);
 
 	RTC_CALL MetaClass(
 		TokenID scriptID,
@@ -128,7 +131,7 @@ public:
 	RTC_CALL ~MetaClass();
 
 	RTC_CALL static MetaClass* Find(TokenID id);
-	RTC_CALL SharedPtr<SharedActor> CreateFromXml(Object* currObj, struct XmlElement& elem) const;
+	RTC_CALL std::shared_ptr<SharedActor> CreateFromXml(Object* currObj, struct XmlElement& elem) const;
 
 	DECL_RTTI(RTC_CALL, MetaClass)
 

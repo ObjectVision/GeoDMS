@@ -56,7 +56,7 @@ namespace { // local defs
 
 		source_seq_array_t     m_SourceSecArray;
 		source_seq_index_map_t m_IndexMap;
-		SharedPtr<const TreeItem> m_FirstErrorItem;
+		SharedTreeItem m_FirstErrorItem;
 	};
 
 

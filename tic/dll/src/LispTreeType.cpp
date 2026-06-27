@@ -221,7 +221,7 @@ LispRef CreateStorageSpec(const TreeItem* src)
 	auto storageManager = storageParent->GetStorageManager();
 	SharedStr storageName = storageManager ? storageManager->GetNameStr() : TreeItemPropertyValue(storageParent.get(), storageNamePropDefPtr);
 	TokenID   storageType = storageManager ? storageManager->GetDynamicClass()->GetID() : storageTypePropDefPtr->GetValue(storageParent.get());
-	auto sqlStringParent = MakeSharedFromBorrowedObjectPtr( src );
+	SharedTreeItem sqlStringParent(src, existing_obj{});
 	while (true)
 	{
 		if (sqlStringPropDefPtr->HasNonDefaultValue(sqlStringParent.get()))
