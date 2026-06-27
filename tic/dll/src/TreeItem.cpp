@@ -314,9 +314,10 @@ TreeItem::~TreeItem ()
 
 	SetKeepDataState(false); // StringDC en NumbDC cache items hebben ook KeepInterest
 
-	// Parent owns its sub-items: release (and possibly destroy) each child now.
-	// ReleaseSubItem clears each child's weak m_Parent before dropping the parent's ownership;
-	// iterating on m_FirstSub keeps the recursion bounded by tree depth (siblings are looped).
+	// Parent owns its sub-items (downward std::shared_ptr): drop each child now.
+	// ReleaseSubItem splices the first child out (m_FirstSub advances to the next sibling) and then
+	// drops the owning ptr; looping on m_FirstSub tears down the sibling chain iteratively (no stack
+	// growth per sibling), while each child's own subtree recurses via its dtor (bounded by depth).
 	while (_GetFirstSubItem())
 		ReleaseSubItem(_GetFirstSubItem());
 
@@ -456,41 +457,50 @@ void TreeItem::SetIsCacheItem() // does not call UpdateMetaInfo
 	} while(walker);
 }
 
-void TreeItem::InitTreeItem(TreeItem* parent, TokenID id)
+// Copy the template/cache/passor/keep-data flags down from parent into this freshly-linked child.
+void TreeItem::InheritParentState(TreeItem* parent)
 {
-	assert(m_State.GetProgress() < ProgressState::MetaInfo);
-	if (id) CheckTreeItemName( id.GetStr().c_str() );
-	m_ID = id;
+	m_StatusFlags.Set( parent->m_StatusFlags.GetBits(TSF_InTemplate | TSF_IsCacheItem | TSF_InHidden) );
 
-	assert(!_GetFirstSubItem()); // not allowed since the FullName of sub items would be corrupted
+	// special processing
+	if (parent->IsPassor())
+		SetPassor();
+	if (parent->GetKeepDataState())
+		SetKeepDataState(true);
+	if (parent->GetLazyCalculatedState())
+		SetLazyCalculatedState(true);
+	if (parent->GetFreeDataState())
+		SetFreeDataState(true);
+	if (parent->GetStoreDataState())
+		SetStoreDataState(true);
+}
+
+void InitTreeItem(TreeItem* parent, SharedMutableTreeItem subItem, TokenID id)
+{
+	assert(subItem);
+	TreeItem* self = subItem.get();
+
+	assert(self->m_State.GetProgress() < ProgressState::MetaInfo);
+	if (id) CheckTreeItemName( id.GetStr().c_str() );
+	self->m_ID = id;
+
+	assert(!self->_GetFirstSubItem()); // not allowed since the FullName of sub items would be corrupted
 
 	assert(IsMetaThread());
-	if (s_MakeEndoLockCount)
-		SetTSF(TSF_IsEndogenous);
-	if (parent) 
+	if (TreeItem::s_MakeEndoLockCount)
+		self->SetTSF(TSF_IsEndogenous);
+	if (parent)
 	{
 		MG_LOCKER_NO_UPDATEMETAINFO
 
-		parent->AddItem(this);
-		m_StatusFlags.Set( parent->m_StatusFlags.GetBits(TSF_InTemplate | TSF_IsCacheItem | TSF_InHidden) );
-
-		// special processing
-		if (parent->IsPassor())
-			SetPassor();
-		if (parent->GetKeepDataState())
-			SetKeepDataState(true);
-		if (parent->GetLazyCalculatedState())
-			SetLazyCalculatedState(true);
-		if (parent->GetFreeDataState())
-			SetFreeDataState(true); 
-		if (parent->GetStoreDataState())
-			SetStoreDataState(true);
+		parent->AddItem(std::move(subItem)); // transfers shared ownership; `self` stays valid (parent owns it)
+		self->InheritParentState(parent);
 		NotifyStateChange(parent, NC_NewSubItem);
 	}
 #if defined(MG_DEBUG_DATA)
-	md_FullName = GetFullName();
+	self->md_FullName = self->GetFullName();
 	if (parent)
-		md_FullName = parent->md_FullName + '/' + GetName().c_str();
+		self->md_FullName = parent->md_FullName + '/' + self->GetName().c_str();
 #endif
 }
 
@@ -571,31 +581,48 @@ const TreeItem* TreeItem::GetCurrFirstSubItem() const  noexcept
 }
 
 // Inlined sub-item list operations (was single_linked_tree<TreeItem>; see std-ptr-migration-plan.md §11).
-void TreeItem::AddSub(TreeItem* subItem)
+// Ownership is downward via std::shared_ptr: the parent owns m_FirstSub and each node owns m_Next.
+void TreeItem::AddSub(SharedMutableTreeItem subItem)
 {
 	dms_assert(subItem);
-	TreeItem** subPtrPtr = &m_FirstSub;
-	while (*subPtrPtr) subPtrPtr = &((*subPtrPtr)->m_Next);
-	*subPtrPtr = subItem;
-	subItem->m_Next = nullptr; // re-install end-of-list indicator
+	dms_assert(!subItem->m_Next); // a fresh node is not yet linked to a sibling
+	SharedMutableTreeItem* slot = &m_FirstSub;
+	while (*slot) slot = &((*slot)->m_Next);
+	*slot = std::move(subItem); // append, transferring ownership into the list
 }
 
-void TreeItem::DelSub(TreeItem* subItem)
+auto TreeItem::ExtractSub(TreeItem* subItem) -> SharedMutableTreeItem
 {
 	dms_assert(m_FirstSub); // subItem was once added, so this must have a firstSub
-	TreeItem** subPtrPtr = &m_FirstSub;
-	while (*subPtrPtr != subItem) subPtrPtr = &((*subPtrPtr)->m_Next);
-	*subPtrPtr = subItem->m_Next;
+	SharedMutableTreeItem* slot = &m_FirstSub;
+	while (slot->get() != subItem) { dms_assert(*slot); slot = &((*slot)->m_Next); }
+	// splice the node out: take its owning ptr, then reconnect predecessor to successor.
+	SharedMutableTreeItem extracted = std::move(*slot);     // *slot now empty; extracted owns node (+ its m_Next chain)
+	*slot = std::move(extracted->m_Next);                   // predecessor -> successor; extracted->m_Next cleared
+	return extracted;                                       // owns only `subItem` (and its own subtree); m_Next null
 }
 
 void TreeItem::Reorder(TreeItem** first, TreeItem** last)
 {
-	m_FirstSub = nullptr;
+	// Recover the owning shared_ptrs from the current list, keyed by raw pointer, then re-append
+	// in the requested order. (GraphicContainer::SaveOrder passes the children's raw pointers.)
+	std::vector<SharedMutableTreeItem> owned;
+	while (m_FirstSub)
+	{
+		SharedMutableTreeItem node = std::move(m_FirstSub);
+		m_FirstSub = std::move(node->m_Next); // advance, clearing node->m_Next
+		owned.push_back(std::move(node));
+	}
 	for (; first != last; ++first)
-		AddSub(*first);
+	{
+		auto i = std::find_if(owned.begin(), owned.end(),
+			[&](const SharedMutableTreeItem& p) { return p.get() == *first; });
+		dms_assert(i != owned.end() && *i);
+		AddSub(std::move(*i));
+	}
 }
 
-void TreeItem::AddItem(TreeItem* child)
+void TreeItem::AddItem(SharedMutableTreeItem child)
 {
 	assert(child);
 	assert(!child->m_Parent);
@@ -604,19 +631,18 @@ void TreeItem::AddItem(TreeItem* child)
 
 	assert(!child->GetInterestCount());
 
-	AddSub(child);            // structural link into the sub-item list (single_linked_tree)
-	child->AdoptRef();        // parent takes ownership of the sub-item (intrusive refcount)
-	child->m_Parent = this;   // non-owning weak back-pointer
+	TreeItem* childRaw = child.get();
+	childRaw->m_Parent = this;   // non-owning weak back-pointer (set before the move empties `child`)
+	AddSub(std::move(child));     // transfer ownership into the sub-item list
 
-	if (m_UsingCache)         m_UsingCache->OnItemAdded(child);
+	if (m_UsingCache)         m_UsingCache->OnItemAdded(childRaw);
 }
 
 void TreeItem::ReleaseSubItem(TreeItem* subItem) // detach a sub-item and release the parent's ownership of it
 {
-	DelSub(subItem);              // structural unlink from the sub-item list (single_linked_tree)
-	subItem->m_Parent = nullptr;  // clear the weak back-pointer before releasing ownership
-	if (!subItem->DecRef())       // release the parent's ownership (intrusive refcount)
-		subItem->Release();       // destroy when this was the last reference
+	SharedMutableTreeItem owned = ExtractSub(subItem); // unlink and take the owning ptr out of the list
+	subItem->m_Parent = nullptr;                       // clear the weak back-pointer before dropping ownership
+	// `owned` drops here: destroys subItem when this was the last owner (its dtor tears down its own subtree).
 }
 
 void TreeItem::RemoveItem(TreeItem* child)
@@ -1914,43 +1940,51 @@ TreeItem* CheckedAs(TreeItem* self, const Class* requiredClass)
 	return self; 
 }
 
-auto CreateAndInitItem(TreeItem* self, TokenID id, const Class* requiredClass) -> OwningPtr<TreeItem>
+auto CreateAndInitItem(TreeItem* self, TokenID id, const Class* requiredClass) -> SharedMutableTreeItem
 {
 	assert(requiredClass);
 
-	auto newSubItem = OwningPtr<TreeItem>(debug_cast<TreeItem*>(requiredClass->CreateObj()));
+	// TreeItem-family classes are created through std::make_shared (CreateSharedObj); the raw
+	// CreateObj() path remains as a fallback for any class without a shared creator registered.
+	SharedMutableTreeItem newSubItem;
+	if (requiredClass->HasSharedCreator())
+		newSubItem = std::static_pointer_cast<TreeItem>(requiredClass->CreateSharedObj());
+	else
+		newSubItem = SharedMutableTreeItem(debug_cast<TreeItem*>(requiredClass->CreateObj()), newly_obj{});
 	assert(newSubItem);
 
-	newSubItem->InitTreeItem(self, id);
+	// Pass a co-owning copy: InitTreeItem moves its copy into the parent's sub-item list (or drops it
+	// for a root); `newSubItem` retains a share so the node survives and is returned to the caller.
+	InitTreeItem(self, newSubItem, id);
 
 	return newSubItem;
 }
 
-auto TreeItem_CreateItem(TreeItem* self, TokenID id, const Class* requiredClass) -> OwningPtr<TreeItem>
+auto TreeItem_CreateItem(TreeItem* self, TokenID id, const Class* requiredClass) -> SharedMutableTreeItem
 {
 	assert(!requiredClass || requiredClass->IsDerivedFrom(TreeItem::GetStaticClass()));
 
 	if (self)
 	{
 		if (!id)
-			return CheckedAs(self, requiredClass);
+			return SharedMutableTreeItem(CheckedAs(self, requiredClass), existing_obj{}); // borrow an owning share of the existing item
 
 		// find foundSubItem according to firstSubItemName
 		TreeItem* foundSubItem = self->GetSubTreeItemByID(id);
 		if (foundSubItem)
-			return CheckedAs(foundSubItem, requiredClass);
+			return SharedMutableTreeItem(CheckedAs(foundSubItem, requiredClass), existing_obj{});
 	}
 
 	// create something
 	return CreateAndInitItem(self, id, (requiredClass) ? requiredClass : TreeItem::GetStaticClass());
 }
 
-auto TreeItem::CreateItem(TokenID id, const Class* requiredClass) -> OwningPtr<TreeItem>
+auto TreeItem::CreateItem(TokenID id, const Class* requiredClass) -> SharedMutableTreeItem
 {
 	return TreeItem_CreateItem(this, id, requiredClass);
 }
 
-auto TreeItem_CreateItemFromPath(TreeItem* self, CharPtr subItemNames, const Class* requiredClass) -> OwningPtr<TreeItem>
+auto TreeItem_CreateItemFromPath(TreeItem* self, CharPtr subItemNames, const Class* requiredClass) -> SharedMutableTreeItem
 {
 	if (!requiredClass)
 		requiredClass = TreeItem::GetStaticClass();
@@ -1961,7 +1995,7 @@ auto TreeItem_CreateItemFromPath(TreeItem* self, CharPtr subItemNames, const Cla
 	if (*subItemNames == 0) // all subItemNames are processed ??
 	{
 		if (self)
-			return CheckedAs(self, requiredClass);
+			return SharedMutableTreeItem(CheckedAs(self, requiredClass), existing_obj{});
 		else
 			return CreateAndInitItem(self, TokenID(), requiredClass);
 	}
@@ -1985,17 +2019,19 @@ auto TreeItem_CreateItemFromPath(TreeItem* self, CharPtr subItemNames, const Cla
 	if (self)
 		foundSubItem = self->GetSubTreeItemByID(firstSubItemID); // find foundSubItem according to firstSubItemName
 
+	SharedMutableTreeItem createdHolder; // keeps a freshly-created item alive across the recursion when no parent owns it (self==nullptr)
 	if (!foundSubItem) // create something
 	{
-		foundSubItem = CreateAndInitItem(self, firstSubItemID, (hasRestSubItems || !requiredClass) ? TreeItem::GetStaticClass() : requiredClass).release();
+		createdHolder = CreateAndInitItem(self, firstSubItemID, (hasRestSubItems || !requiredClass) ? TreeItem::GetStaticClass() : requiredClass);
+		foundSubItem  = createdHolder.get();
 		if (!hasRestSubItems)
-			return foundSubItem;
+			return createdHolder;
 	}
 	assert(foundSubItem);
 	return TreeItem_CreateItemFromPath(foundSubItem, restSubItemNames, requiredClass);
 }
 
-auto TreeItem::CreateItemFromPath(CharPtr subItemNames, const Class* requiredClass) -> OwningPtr<TreeItem>
+auto TreeItem::CreateItemFromPath(CharPtr subItemNames, const Class* requiredClass) -> SharedMutableTreeItem
 {
 	return TreeItem_CreateItemFromPath(this, subItemNames, requiredClass);
 }
@@ -2003,16 +2039,16 @@ auto TreeItem::CreateItemFromPath(CharPtr subItemNames, const Class* requiredCla
 SharedMutableTreeItem TreeItem::CreateConfigRoot(TokenID id) // static
 {
 	dms_assert(!s_MakeEndoLockCount);
-	SharedMutableTreeItem result = new TreeItem; // owned from birth (SharedPtr ctor AdoptRefs the refcount-0 object)
-	result->InitTreeItem(nullptr, id);
+	SharedMutableTreeItem result(new TreeItem, newly_obj{}); // sole owner from birth (fresh std control block, wires shared_from_this)
+	InitTreeItem(nullptr, result, id);
 	result->SetFreeDataState(true);
 	return result;
 }
 SharedMutableTreeItem TreeItem::CreateCacheRoot() // static
 {
 	dms_assert(s_MakeEndoLockCount);
-	SharedMutableTreeItem result = new TreeItem; // owned from birth (SharedPtr ctor AdoptRefs the refcount-0 object)
-	result->InitTreeItem(nullptr, TokenID::GetEmptyID());
+	SharedMutableTreeItem result(new TreeItem, newly_obj{}); // sole owner from birth (fresh std control block, wires shared_from_this)
+	InitTreeItem(nullptr, result, TokenID::GetEmptyID());
 	result->SetPassor();
 	return result;
 }

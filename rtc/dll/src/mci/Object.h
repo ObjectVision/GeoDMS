@@ -187,22 +187,21 @@ public:
 template <typename CLS> inline
 Object* CreateFunc() { return new CLS(); }
 
-//**********  dynamic creation via std::make_shared (migration (a), passkey form) **********
-// make_shared_enabler<CLS> derives from CLS, so its (public, perfectly-forwarding) ctor can reach CLS's
-// PROTECTED ctor the way any derived class can -- letting std::make_shared construct factory-only types
-// without granting std internals friendship and without per-subclass churn. The resulting object IS-A CLS
-// (GetDynamicClass() returns CLS's static class), held as a std::shared_ptr<Object>.
+//**********  dynamic creation via std::shared_ptr (migration (a)) **********
+// SharedCreateFunc<CLS>() builds a std::shared_ptr-managed instance for factory-only types. It reuses the
+// existing CreateFunc<CLS> friend (which can reach CLS's PRIVATE/PROTECTED ctor via `new CLS`), then wraps
+// the raw pointer in a std::shared_ptr. The pointer is handed to shared_ptr as CLS* (not Object*) so that,
+// when CLS derives std::enable_shared_from_this, the control block's weak-this gets wired -- a separate
+// control-block allocation (vs make_shared) is the deliberate price for reaching non-public ctors without
+// per-subclass friendship/churn.
 #include <memory>
 
-template <typename CLS>
-struct make_shared_enabler : CLS
-{
-	template <typename... Args>
-	explicit make_shared_enabler(Args&&... args) : CLS(std::forward<Args>(args)...) {}
-};
-
 template <typename CLS> inline
-std::shared_ptr<Object> SharedCreateFunc() { return std::make_shared<make_shared_enabler<CLS>>(); }
+std::shared_ptr<Object> SharedCreateFunc()
+{
+	CLS* p = static_cast<CLS*>(CreateFunc<CLS>()); // CreateFunc returns Object*; recover the concrete type
+	return std::shared_ptr<CLS>(p);                // wires enable_shared_from_this for CLS's base; upcasts to shared_ptr<Object>
+}
 
 
 #endif // __RTC_MCI_OBJECT_H

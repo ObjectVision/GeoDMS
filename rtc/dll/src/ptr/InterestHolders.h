@@ -128,8 +128,8 @@ struct InterestPtr
 		OptionalInterestDec<IVal>(get_ptr());
 	}
 
-	explicit operator bool() const { return m_Item; }
-	bool operator !() const { return !m_Item;  }
+	explicit operator bool() const { return get_ptr() != nullptr; }
+	bool operator !() const { return get_ptr() == nullptr;  }
 
 	operator IPtr() const requires(std::is_class_v<CPtr>) { return get_ptr(); }
 	operator CPtr() const { return m_Item; }

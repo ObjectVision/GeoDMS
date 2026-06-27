@@ -166,8 +166,8 @@ protected: // ctor / dtor
 public:
 //	ctor / dtor
 
-	// Initialize ID and link this item into parent's subitems (pre: GetParent()==0).
-	TIC_CALL void InitTreeItem(TreeItem* parent, TokenID id); // Set name and adds this to parent as child PRECONDITION: GetParent() == 0;
+	// Initialization happens through the free function InitTreeItem(parent, subItem, id) below,
+	// which transfers shared ownership of subItem into parent's sub-item list (pre: GetParent()==0).
 
 //	Meta Info
 	// User-visible description and expression (configuration-time).
@@ -234,10 +234,10 @@ public:
 
 	// Inlined single-linked sub-item list (was the single_linked_tree<TreeItem> base). Raw links for now;
 	// these become std::shared_ptr in the ownership migration (see doc/development/std-ptr-migration-plan.md).
-	      TreeItem* _GetFirstSubItem()       noexcept { return m_FirstSub; }
-	const TreeItem* _GetFirstSubItem() const noexcept { return m_FirstSub; }
-	      TreeItem* GetNextItem()            noexcept { return m_Next; }
-	const TreeItem* GetNextItem()      const noexcept { return m_Next; }
+	      TreeItem* _GetFirstSubItem()       noexcept { return m_FirstSub.get(); }
+	const TreeItem* _GetFirstSubItem() const noexcept { return m_FirstSub.get(); }
+	      TreeItem* GetNextItem()            noexcept { return m_Next.get(); }
+	const TreeItem* GetNextItem()      const noexcept { return m_Next.get(); }
 	TIC_CALL void Reorder(TreeItem** first, TreeItem** last); // exported: shv GraphicContainer::SaveOrder calls it
 
 	// GetFirstSubItem may return nullptr; Curr variants do not trigger UpdateMetaInfo.
@@ -291,8 +291,8 @@ public:
 // Creation
 
 	// Dynamic creation of items based on path or explicit id and class.
-	TIC_CALL auto CreateItemFromPath(CharPtr subItemNames, const Class* cls = 0) -> OwningPtr<TreeItem>;
-	TIC_CALL auto CreateItem        (TokenID id,           const Class* cls = 0) -> OwningPtr<TreeItem>;
+	TIC_CALL auto CreateItemFromPath(CharPtr subItemNames, const Class* cls = 0) -> SharedMutableTreeItem;
+	TIC_CALL auto CreateItem        (TokenID id,           const Class* cls = 0) -> SharedMutableTreeItem;
 
 	// Special roots for config and cache trees. Both own the root from birth (no auto-delete pin),
 	// so a parentless root is never exposed as a raw, unowned pointer.
@@ -509,9 +509,11 @@ public: // TODO G8: Re-encapsulate
 	const TreeItem* DetermineReferredItem(const AbstrCalculator* ac) const;
 
 	// Subtree mutation; preconditions enforced by assertions.
-	void AddItem   (TreeItem* child); // PRECONDITION: child->GetParent()==0;
+	void AddItem   (SharedMutableTreeItem child); // PRECONDITION: child->GetParent()==0; transfers ownership into the sub-item list
 	void RemoveItem(TreeItem* child); // PRECONDITION: child->GetParent()==this
 	void ReleaseSubItem(TreeItem* subItem); // detaches a sub-item and releases the parent's ownership of it
+	void InheritParentState(TreeItem* parent); // copy template/cache/passor/keep-data flags down from parent (called by InitTreeItem)
+	friend TIC_CALL void InitTreeItem(TreeItem* parent, SharedMutableTreeItem subItem, TokenID id);
 
 	// Storage IO entry points; ReadItem integrates with StorageReadHandle.
 	bool ReadItem(StorageReadHandle&& srh);
@@ -580,11 +582,14 @@ public:
 	// sub-items via the intrusive refcount (AddItem adopts a reference; ReleaseSubItem releases it).
 	WeakPtr<const TreeItem>        m_Parent;   // ro-access, NON-owning (parent owns child)
 
-	// Inlined sub-item links (was single_linked_tree<TreeItem>). Raw for now; -> std::shared_ptr in the migration.
-	TreeItem*                      m_FirstSub = nullptr; // owns first child (downward); migration: shared_ptr
-	TreeItem*                      m_Next     = nullptr; // owns next sibling (downward); migration: shared_ptr
-	void AddSub(TreeItem* subItem); // append to the sub-item list
-	void DelSub(TreeItem* subItem); // unlink from the sub-item list
+	// Inlined sub-item links (was single_linked_tree<TreeItem>). Downward ownership is via
+	// std::shared_ptr: the parent owns its first child (m_FirstSub) and each child owns its next
+	// sibling (m_Next). Teardown is iterative over siblings (see ~TreeItem) so a long sibling
+	// chain does not recurse the stack; depth recurses via the child dtor (bounded by tree depth).
+	SharedMutableTreeItem          m_FirstSub; // owns first child (downward)
+	SharedMutableTreeItem          m_Next;     // owns next sibling (downward)
+	void AddSub(SharedMutableTreeItem subItem);          // append to the sub-item list (takes ownership)
+	SharedMutableTreeItem ExtractSub(TreeItem* subItem); // unlink and return the extracted owning ptr (m_Next cleared)
 
 	// optional pointers to various services
 	mutable std::unique_ptr<SupplCache>  m_SupplCache;
@@ -642,9 +647,14 @@ private:
 	friend TIC_CALL const TreeItem* FindTreeItemByID(const TreeItem* searchLoc, TokenID subItemID);
 };
 
+// Initialize a freshly-created (make_shared'd) tree item: set its ID and transfer shared
+// ownership of subItem into parent's sub-item list (parent==nullptr for a root). Free function
+// so the caller's owning shared_ptr is moved in rather than recovered via shared_from_this.
+TIC_CALL void InitTreeItem(TreeItem* parent, SharedMutableTreeItem subItem, TokenID id);
+
 // Free function that allows self==nullptr (avoids UB from calling member on nullptr).
-TIC_CALL auto TreeItem_CreateItem(TreeItem* self, TokenID id, const Class* cls = nullptr) -> OwningPtr<TreeItem>;
-TIC_CALL auto TreeItem_CreateItemFromPath(TreeItem* self, CharPtr subItemNames, const Class* cls = nullptr) -> OwningPtr<TreeItem>;
+TIC_CALL auto TreeItem_CreateItem(TreeItem* self, TokenID id, const Class* cls = nullptr) -> SharedMutableTreeItem;
+TIC_CALL auto TreeItem_CreateItemFromPath(TreeItem* self, CharPtr subItemNames, const Class* cls = nullptr) -> SharedMutableTreeItem;
 TIC_CALL TreeItem* TreeItem_CheckCls(TreeItem* self, const Class* requiredClass);
 TIC_CALL const TreeItem* TreeItem_CheckObjCls(const TreeItem* self, const Class* requiredClass);
 
