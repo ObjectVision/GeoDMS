@@ -158,12 +158,15 @@ struct TreeItem : SharedActor, std::enable_shared_from_this<TreeItem>
 	mutable std::weak_ptr<OperationContext> m_Producer;
 	// END   integrated members of impl::treeitem_production_task
 
-protected: // ctor / dtor
+protected: // ctor
 	TIC_CALL TreeItem ();
-	TIC_CALL ~TreeItem ();
 	friend struct OwningPtr<TreeItem>;
 
 public:
+	// Public dtor: required so std::shared_ptr's deleter can destroy the object from namespace scope
+	// (Object.h SharedCreateFunc, shared_tree_ptr's newly_obj ctor). Construction stays factory-only.
+	TIC_CALL ~TreeItem ();
+
 //	ctor / dtor
 
 	// Initialization happens through the free function InitTreeItem(parent, subItem, id) below,
