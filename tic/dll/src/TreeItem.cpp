@@ -23,7 +23,6 @@
 #include "act/Waiter.h"
 #include "dbg/debug.h"
 #include "dbg/DmsCatch.h"
-#include "mci/SingleLinkedTree.inc"
 #include "mci/PropDef.h"
 #include "stg/AbstrStorageManager.h"
 #include "utl/Encodes.h"
@@ -569,6 +568,31 @@ const TreeItem* TreeItem::GetCurrFirstSubItem() const  noexcept
 {
 	assert(m_State.GetProgress() >= ProgressState::MetaInfo || WasFailed());
 	return _GetFirstSubItem();
+}
+
+// Inlined sub-item list operations (was single_linked_tree<TreeItem>; see std-ptr-migration-plan.md §11).
+void TreeItem::AddSub(TreeItem* subItem)
+{
+	dms_assert(subItem);
+	TreeItem** subPtrPtr = &m_FirstSub;
+	while (*subPtrPtr) subPtrPtr = &((*subPtrPtr)->m_Next);
+	*subPtrPtr = subItem;
+	subItem->m_Next = nullptr; // re-install end-of-list indicator
+}
+
+void TreeItem::DelSub(TreeItem* subItem)
+{
+	dms_assert(m_FirstSub); // subItem was once added, so this must have a firstSub
+	TreeItem** subPtrPtr = &m_FirstSub;
+	while (*subPtrPtr != subItem) subPtrPtr = &((*subPtrPtr)->m_Next);
+	*subPtrPtr = subItem->m_Next;
+}
+
+void TreeItem::Reorder(TreeItem** first, TreeItem** last)
+{
+	m_FirstSub = nullptr;
+	for (; first != last; ++first)
+		AddSub(*first);
 }
 
 void TreeItem::AddItem(TreeItem* child)

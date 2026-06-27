@@ -73,7 +73,7 @@ struct SupplCache;
 struct SourceLocation;
 
 class AbstrCalculator;
-using ItemTree = single_linked_tree<TreeItem>;
+// (single_linked_tree<TreeItem> is now inlined directly into TreeItem; see m_FirstSub/m_Next below)
 
 #if defined(MG_DEBUG)
 /*
@@ -144,7 +144,7 @@ Lifetime:
 - Parent is a SharedTreeItem to ensure safe upward traversal without immediate deletion of parents.
 */
 
-struct TreeItem : SharedActor, ItemTree
+struct TreeItem : SharedActor
 {
 	using base_type = SharedActor;
 
@@ -230,6 +230,14 @@ public:
 
 	TIC_CALL bool              HasSubItems   () const noexcept;                            // calls UpdateMetaInfo
 	TIC_CALL bool              _HasSubItems  ()  noexcept { return _GetFirstSubItem(); }    // doesn't call UpdateMetaInfo
+
+	// Inlined single-linked sub-item list (was the single_linked_tree<TreeItem> base). Raw links for now;
+	// these become std::shared_ptr in the ownership migration (see doc/development/std-ptr-migration-plan.md).
+	      TreeItem* _GetFirstSubItem()       noexcept { return m_FirstSub; }
+	const TreeItem* _GetFirstSubItem() const noexcept { return m_FirstSub; }
+	      TreeItem* GetNextItem()            noexcept { return m_Next; }
+	const TreeItem* GetNextItem()      const noexcept { return m_Next; }
+	TIC_CALL void Reorder(TreeItem** first, TreeItem** last); // exported: shv GraphicContainer::SaveOrder calls it
 
 	// GetFirstSubItem may return nullptr; Curr variants do not trigger UpdateMetaInfo.
 	TIC_CALL const TreeItem*   GetFirstSubItem() const  noexcept;
@@ -570,6 +578,12 @@ public:
 	// Non-owning weak back-pointer to the parent. Ownership is downward: the parent owns its
 	// sub-items via the intrusive refcount (AddItem adopts a reference; ReleaseSubItem releases it).
 	WeakPtr<const TreeItem>        m_Parent;   // ro-access, NON-owning (parent owns child)
+
+	// Inlined sub-item links (was single_linked_tree<TreeItem>). Raw for now; -> std::shared_ptr in the migration.
+	TreeItem*                      m_FirstSub = nullptr; // owns first child (downward); migration: shared_ptr
+	TreeItem*                      m_Next     = nullptr; // owns next sibling (downward); migration: shared_ptr
+	void AddSub(TreeItem* subItem); // append to the sub-item list
+	void DelSub(TreeItem* subItem); // unlink from the sub-item list
 
 	// optional pointers to various services
 	mutable std::unique_ptr<SupplCache>  m_SupplCache;
