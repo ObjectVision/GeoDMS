@@ -222,9 +222,28 @@ DataController  : TreeItemDualRef                  (so DCs are SharedActors too)
 - **`TreeItem` drops `SharedActor` → derives `Actor` directly + `std::enable_shared_from_this<TreeItem>`**;
   its lifetime is the `std::shared_ptr` control block. `SharedBase` is no longer in TreeItem's bases.
   `ItemTree` → `single_linked_shared_tree<TreeItem>`.
-- **`DataController`/`TreeItemDualRef` keep `SharedActor`** (intrusive). DCs are a *separate* hierarchy;
+- **`DataController`/`TreeItemDualRef` keep `SharedActor`** (intrusive) — **confirmed by the back-ref
+  audit in §14**: nothing holds a `std::weak_ptr` to a DC, so DCs never need a control block.
   `DataControllerRef` stays intrusive `SharedPtr<DataController>`; `mc_DC` (TreeItem→DC, intrusive) stays
   owning. The only TreeItem-boundary in the DC graph is `DC::m_Data` → the §4 variant of std:: pointers.
+- (`Actor` already had `SharedObj` factored out of it — TreeItem deriving `Actor` directly is the clean
+  continuation of that.)
+
+**Cross-boundary type — `SharedActorInterestPtr` must split.** `using SharedActorInterestPtr =
+InterestPtr<SharedPtr<const SharedActor>>` (`Actor.h:73`) and `Actor::GetInterestPtrOrNull()` couple the
+*interest* counter with intrusive *object* ownership over `SharedActor`. After TreeItem stops being a
+`SharedActor`, an interest-holder on a TreeItem can no longer be `SharedPtr<const SharedActor>`. Resolve
+by parameterising the holder on its ownership pointer: TreeItem interest → `InterestPtr<std::shared_ptr<
+const TreeItem>>` (a temp-locked `shared_ptr`, §2), DC interest → `InterestPtr<SharedPtr<const
+DataController>>` (intrusive). `GetInterestPtrOrNull` likewise splits or templatises. Used at
+`OperationContext::m_ResKeeper`, `SupplInterest`, `ItemSchemaView::m_AllItems`, storage
+`interest_holders_container` — all must follow the split. This is Phase-1 work, **not** a reason to
+migrate DCs.
+
+> **Follow-up cleanup (write-down, do later):** once stable, *flatten* `DataController` into
+> `TreeItemDualRef` and **drop `Actor` as a DC base** — a DC does no timestamping, no invalidation, and
+> doesn't implement `PersistentObject::GetID()/GetParent()`; it only needs interest + the result handle.
+> Removing the `Actor`/`SharedActor` base from DCs would let the interest holder for DCs shrink too.
 - **`Object`/`Class`** (and other `SharedObj = SharedObjWrap<Object>` users that are NOT TreeItems) are
   unaffected — `Class` singletons are static and were never `SharedBase`-managed for lifetime in a way
   that conflicts. Audit `SharedObjWrap<Object>` users (`rtc Class.h`, `persistent.cpp`) to confirm none
@@ -264,18 +283,32 @@ class sizes the work):
 source-compatible after the typedef switch; the churn is concentrated in the **construction/ownership**
 verbs above and in adding `.lock()` at weak-deref sites.
 
+> **Follow-up cleanup (write-down, do later):** if, after the migration, **no** `SharedObj`/`SharedBase`
+> object needs to support back-/weak-pointers any more (GraphicObjects already use
+> `enable_shared_from_this_base<GraphicObject>`; DCs keep only intrusive forward/registry refs), then the
+> whole in-repo intrusive smart-pointer toolkit (`SharedBase`, `SharedPtr`/`WeakPtr`, `newly_obj`/
+> `existing_obj`/`no_zombies`, `DuplRef`) — and this taxonomy — can be retired entirely. **First get
+> things working; this removal is a separate later pass.**
+
 ---
 
 ## 11. Code sketches (the load-bearing rewrites)
 
-**`single_linked_shared_tree<T>`** (replaces `single_linked_tree<T>`):
+**Tree links integrated directly into `TreeItem`** (not a separate `single_linked_shared_tree<T>` base —
+per review, move the members into `TreeItem` and merge the link member-functions in):
 ```cpp
-template<class T> struct single_linked_shared_tree {
-    std::shared_ptr<T> m_FirstSub;   // owns first child
-    std::shared_ptr<T> m_Next;       // owns next sibling
-    std::weak_ptr<T>   m_Parent;     // non-owning up-ref
+struct TreeItem : Actor, std::enable_shared_from_this<TreeItem> /*, …*/ {
+    // ... (was ItemTree = single_linked_tree<TreeItem>) now inline:
+    std::shared_ptr<TreeItem> m_FirstSub;   // owns first child
+    std::shared_ptr<TreeItem> m_Next;       // owns next sibling
+    std::weak_ptr<const TreeItem> m_Parent; // non-owning up-ref (lock at use)
+    // AddSub/DelSub/_GetFirstSubItem/GetNextItem/etc. fold into TreeItem methods.
 };
 ```
+NOTE: `single_linked_tree` was generic (also used by shv `dataview.cpp` view objects via `AddSub`/`DelSub`
+on `m_ParentView`) — so the *generic* template stays for those non-TreeItem users; only **TreeItem's** use
+is inlined and switched to `shared_ptr`. Audit the `AddSub`/`DelSub` call-sites to keep the view-object
+path on the old generic template.
 
 **`AddItem` (post-construction wiring only):**
 ```cpp
@@ -357,4 +390,36 @@ reference results** (peak commit + wall-clock).
   at the mutate boundaries (today's `const_cast<TreeItem*>` sites).
 - *DC/TreeItem boundary* — DCs stay intrusive; verify no remaining `SharedActor`-as-TreeItem assumption
   (e.g. `SharedActorInterestPtr` used on TreeItems must switch to the std:: InterestPtr).
+
+---
+
+## 14. Back-ref audit of the DataController family (justifies keeping DCs intrusive)
+
+Goal: confirm **nothing holds a `std::weak_ptr` to a DataController/`FuncDC`/`SymbDC`/… (or its ancestors/
+descendants)** — because a weak edge is the only thing that would force a DC to be `std::shared_ptr`-
+managed. Every back/side reference found is managed, transient, or an intrusive self-registry:
+
+| ref | where | kind | verdict |
+|---|---|---|---|
+| `OperationContext::m_FuncDC` | `OperationContext.h:311` (`WeakPtr<const FuncDC>`) | back-ref OC→FuncDC | **managed**: `FuncDC` owns the OC (`m_OperContext` is `shared_ptr<OperationContext>`, `MoreDataControllers.h:153`); the link is reset from **both** sides — `FuncDC::resetOperContextImpl` does `operContext->m_FuncDC.reset()` (`MoreDataControllers.cpp:204`), called by `~FuncDC → CancelOperContext` (`:170-172`) and by the OC's own end (`OperationContext.cpp:1698-1701`, `assert(!m_FuncDC)`). So `m_FuncDC` is nulled before the FuncDC dies even if a worker still holds the OC. Stays in-repo `WeakPtr`. |
+| `DataControllerContextHandle::m_DC` | `DataController.h:104` (`const DataController*`) | raw, RAII handle | stack-scoped; DC outlives the handle. Raw is fine. |
+| `OperatorContextHandle::m_FuncDC` | `OperationContext.cpp:541` (`const FuncDC*`) | raw, RAII handle | stack-scoped. Fine. |
+| `s_DcMap` | `DataController.cpp:344` (`map<key, const DataController*>`) | non-owning registry | intrusive self-managed: `~DataController` erases itself; weak→strong upgrade is the `DuplRef`/`MakeSharedFromWeakPtrInsideSync` CAS. Stays intrusive (DCs stay intrusive). |
+| `FuncDC::m_Args` (`DcRefListElem::m_DC`), `m_OtherSuppliers` | `MoreDataControllers.h` | owning **forward** ref (`DataControllerRef`) | not a back-ref; intrusive forward ownership. Fine. |
+| `TreeItem::m_Producer`, `WaiterSet`, `ItemWriteLock` ocb | `TreeItem.h:157`, `OperationContext.h:110`, `ItemLocks.h:71` | `std::weak_ptr<OperationContext>` | weak to the **OperationContext** (already `std::shared_ptr`-managed), **not** to a DC. Fine as-is. |
+
+**Conclusion:** no `weak_ptr`-to-DC anywhere → DataController/FuncDC/SymbDC/NumbDC/StringDC/UI64DC and their
+ancestors (`TreeItemDualRef`/`SharedActor`/`Actor`) **stay intrusive**. The migration boundary is exactly
+`DC::m_Data` (→ §4 variant) plus the `SharedActorInterestPtr` split (§9).
+
+---
+
+## 15. Consolidated follow-up cleanups (after the migration is green — do NOT do now)
+
+1. Flatten `DataController` into `TreeItemDualRef`; drop the `Actor`/`SharedActor` base from DCs (no
+   timestamp/invalidation/`GetID`/`GetParent` needed). (§9)
+2. If nothing left needs intrusive back-/weak-ptrs, retire the whole in-repo intrusive smart-pointer
+   toolkit (`SharedBase`, `SharedPtr`/`WeakPtr`, `newly_obj`/`existing_obj`/`no_zombies`, `DuplRef`) and
+   the §10 taxonomy. (§10)
+3. Remove all temp leak-hunt instrumentation (§8 / leak-doc inventory).
 
