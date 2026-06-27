@@ -24,7 +24,7 @@ struct TreeItemClass : Class
 private:
 	typedef Class base_type;
 public:
-	TIC_CALL TreeItemClass(Constructor cFunc, const Class* baseCls, TokenID typeID);
+	TIC_CALL TreeItemClass(Constructor cFunc, const Class* baseCls, TokenID typeID, SharedConstructor sFunc = nullptr);
 
 	static SharedPtr<SharedActor> CreateFromXml(Object* context, struct XmlElement& elem);
 
@@ -35,9 +35,9 @@ public:
 #define IMPL_TREEITEMCLASS(cls, typeName, CreateFunc) \
 	const TreeItemClass* cls::GetStaticClass() \
 	{ \
-		static TreeItemClass s_Cls(CreateFunc, base_type::GetStaticClass(), GetTokenID_st(typeName) ); \
+		static TreeItemClass s_Cls(CreateFunc, base_type::GetStaticClass(), GetTokenID_st(typeName), SharedCreateFunc<cls> ); \
 		return &s_Cls; \
-	} 
+	}
 
 #define IMPL_DYNC_TREEITEMCLASS(cls, typeName) IMPL_RTTI(cls, TreeItemClass) IMPL_TREEITEMCLASS(cls, typeName, CreateFunc<cls>)
 

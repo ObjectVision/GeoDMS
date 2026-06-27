@@ -426,6 +426,14 @@ ancestors (`TreeItemDualRef`/`SharedActor`/`Actor`) **stay intrusive**. The migr
    is the *only* consumer of `TreeItem::Reorder` (via shv `GraphicContainer::SaveOrder`) — the call that
    forced the `TIC_CALL` export of `Reorder` in Phase 1a. With `Sync` gone, `Reorder` (and its export)
    become dead and can be deleted too.
+6. Make sub-items an **optional `id -> std::shared_ptr<TreeItem>` map in the parent**, so the item's
+   `TokenID` is a *mapping key* rather than a `TreeItem` data member (drop `m_ID` from the node). Replaces
+   the inlined single-linked sibling list with a keyed container.
+7. **Separate `Class` from `TreeItemClass` — no inheritance.** Today `TreeItemClass : Class` (and
+   `UnitClass`/`DataItemClass : TreeItemClass`). Restructure to references rather than inheritance: only
+   `ValueClass : Class`; `UnitClass`/`DataItemClass` *refer to* their `TreeItemClass`, and a `UnitClass`
+   refers to its `DataItemClass` per `ValueComposition`. (Relationship: `ValueClass : Class` →
+   `UnitClass`-refers-to-`TreeItemClass` → `DataItemClass : TreeItemClass` per ValueComposition.)
 5. Factor out the thin `shared_tree_ptr`/`weak_tree_ptr` wrappers introduced for migration option B
    (they re-add the in-repo `get_ptr`/`is_null`/`has_ptr` + `newly_obj`/`existing_obj`/`no_zombies` API
    surface over `std::shared_ptr`/`std::weak_ptr` to avoid churning ~1000 call sites at once). Once the

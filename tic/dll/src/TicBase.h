@@ -21,6 +21,7 @@
 
 #include "RtcBase.h"
 #include "SymBase.h"
+#include "ptr/SharedTreePtr.h" // migration option B(a): shared_tree_ptr wrapper for the TreeItem-family typedefs
 
 #if !defined(_MSC_VER)
 #	define TIC_CALL
@@ -85,11 +86,11 @@ using prop_name_value = std::pair<prop_name, prop_value>;
 using level_propvalue = std::pair<prop_level, prop_name_value>;
 using prop_tables = std::vector<level_propvalue>;
 
-// SharedPtr
-using SharedTreeItem = SharedPtr<const TreeItem>;
-using SharedMutableTreeItem = SharedPtr<TreeItem>;
-using SharedDataItem = SharedPtr<const AbstrDataItem>;
-using SharedUnit     = SharedPtr<const AbstrUnit>;
+// SharedPtr  (migration (a): TreeItem family -> shared_tree_ptr over std::shared_ptr)
+using SharedTreeItem = shared_tree_ptr<const TreeItem>;
+using SharedMutableTreeItem = shared_tree_ptr<TreeItem>;
+using SharedDataItem = shared_tree_ptr<const AbstrDataItem>;
+using SharedUnit     = shared_tree_ptr<const AbstrUnit>;
 
 // InterestPtr
 template <typename CPtr> struct InterestPtr;
@@ -97,10 +98,10 @@ using SharedTreeItemInterestPtr = InterestPtr<SharedTreeItem>;
 using SharedDataItemInterestPtr = InterestPtr<SharedDataItem>;
 using SharedUnitInterestPtr     = InterestPtr<SharedUnit>;
 
-using SharedMutableDataItem = SharedPtr<AbstrDataItem>;
+using SharedMutableDataItem = shared_tree_ptr<AbstrDataItem>;
 using SharedMutableDataItemInterestPtr = InterestPtr<SharedMutableDataItem>  ;
 
-using SharedMutableUnit = SharedPtr<AbstrUnit>;
+using SharedMutableUnit = shared_tree_ptr<AbstrUnit>;
 using SharedMutableUnitInterestPtr = InterestPtr<SharedMutableUnit>;
 
 struct DataController;
@@ -138,7 +139,7 @@ class Operator;
 using ArgSeqType = std::vector<const TreeItem*>;
 struct  TreeItemDualRef;
 
-using ConstUnitRef = SharedPtr<const AbstrUnit>;
+using ConstUnitRef = shared_tree_ptr<const AbstrUnit>;
 class Operator;
 
 using arg_index = UInt32;
@@ -164,6 +165,13 @@ template <typename T> inline auto AsDataItem       (const SharedPtr<T>& self) { 
 template <typename T> inline auto AsDynamicDataItem(const SharedPtr<T>& self) { return MakeSharedFromBorrowedObjectPtr(AsDynamicDataItem(self.get())); }
 template <typename T> inline auto AsCheckedDataItem(const SharedPtr<T>& self) { return MakeSharedFromBorrowedObjectPtr(AsCheckedDataItem(self.get())); }
 template <typename T> inline auto AsCertainDataItem(const SharedPtr<T>& self) { return MakeSharedFromBorrowedObjectPtr(AsCertainDataItem(self.get())); }
+
+// migration (a): same helpers over the shared_tree_ptr family (result borrows via existing_obj)
+template <typename T> inline bool IsDataItem       (const shared_tree_ptr<T>& self) { return IsDataItem(self.get()); }
+template <typename T> inline auto AsDataItem       (const shared_tree_ptr<T>& self) { auto* r = AsDataItem(self.get());        return shared_tree_ptr<std::remove_pointer_t<decltype(r)>>(r, existing_obj{}); }
+template <typename T> inline auto AsDynamicDataItem(const shared_tree_ptr<T>& self) { auto* r = AsDynamicDataItem(self.get()); return shared_tree_ptr<std::remove_pointer_t<decltype(r)>>(r, existing_obj{}); }
+template <typename T> inline auto AsCheckedDataItem(const shared_tree_ptr<T>& self) { auto* r = AsCheckedDataItem(self.get()); return shared_tree_ptr<std::remove_pointer_t<decltype(r)>>(r, existing_obj{}); }
+template <typename T> inline auto AsCertainDataItem(const shared_tree_ptr<T>& self) { auto* r = AsCertainDataItem(self.get()); return shared_tree_ptr<std::remove_pointer_t<decltype(r)>>(r, existing_obj{}); }
 
 //----------------------------------------------------------------------
 // class  : TreeItemAdmLock, inherit from specific Adm's to ensure order of initialization

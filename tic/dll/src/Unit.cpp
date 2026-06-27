@@ -1297,7 +1297,8 @@ const UnitClass* Unit<T>::GetStaticClass()
 		CreateFunc<Unit<T> >
 	, 	GetUnitClassID<T>()
 //	, 	GetTokenID("Unit<" #T ">")
-	,	ValueWrap<T>::GetStaticClass());
+	,	ValueWrap<T>::GetStaticClass()
+	,	SharedCreateFunc<Unit<T> >);
 	return &s_Cls;\
 }
 

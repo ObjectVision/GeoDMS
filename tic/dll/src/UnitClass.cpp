@@ -58,8 +58,8 @@ namespace {
 	RegisterType g_UnitClassRegister;
 }
 
-UnitClass::UnitClass(Constructor cFunc, TokenID typeID, const ValueClass* valueType)
-	: 	Class(cFunc, AbstrUnit::GetStaticClass(), typeID)
+UnitClass::UnitClass(Constructor cFunc, TokenID typeID, const ValueClass* valueType, SharedConstructor sFunc)
+	: 	Class(cFunc, AbstrUnit::GetStaticClass(), typeID, sFunc)
 	,	m_ValueType(valueType)
 	,	m_DefaultUnit(0)
 {

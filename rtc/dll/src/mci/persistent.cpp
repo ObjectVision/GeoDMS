@@ -539,8 +539,8 @@ StaticRegister<const Class, TokenID, CompareLtItemIdPtrs<Class> > g_ClassKernel;
 
 /**********  Class CODE ********************/
 
-Class::Class(Constructor cFunc, const Class* baseCls, TokenID typeID)
-	: m_Constructor(cFunc), m_TypeID(typeID)
+Class::Class(Constructor cFunc, const Class* baseCls, TokenID typeID, SharedConstructor sFunc)
+	: m_Constructor(cFunc), m_SharedConstructor(sFunc), m_TypeID(typeID)
 	, m_BaseClass(baseCls), m_LastSubClass(0), m_PrevClass(0)
 	, m_LastPD(0) // DON'T INITIALIZE TWICE
 	, m_LastCopyablePD(0)
@@ -562,7 +562,14 @@ Object* Class::CreateObj() const
 {
 	if (!m_Constructor)
 		throwIllegalAbstract(MG_POS, "Class::Create()");
-	return m_Constructor(); 
+	return m_Constructor();
+}
+
+std::shared_ptr<Object> Class::CreateSharedObj() const // migration (a): TreeItem-family make_shared creator
+{
+	if (!m_SharedConstructor)
+		throwIllegalAbstract(MG_POS, "Class::CreateSharedObj()");
+	return m_SharedConstructor();
 }
 
 bool Class::IsDataObjType() const

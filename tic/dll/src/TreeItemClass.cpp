@@ -18,8 +18,8 @@
 // class  : TreeItemClass
 //----------------------------------------------------------------------
 
-TreeItemClass::TreeItemClass(Constructor cFunc, const Class* baseCls, TokenID typeID)
-	: 	Class(cFunc, baseCls, typeID)
+TreeItemClass::TreeItemClass(Constructor cFunc, const Class* baseCls, TokenID typeID, SharedConstructor sFunc)
+	: 	Class(cFunc, baseCls, typeID, sFunc)
 {
 }
 

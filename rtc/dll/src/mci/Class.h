@@ -46,13 +46,17 @@ class Class : public Object
 	using base_type = Object;
 
 public:
-	RTC_CALL Class(Constructor cFunc, const Class* baseCls, TokenID typeID);
+	// migration (a): TreeItem-family classes also carry a std::make_shared-based creator (sFunc); nullptr otherwise.
+	using SharedConstructor = std::shared_ptr<Object>(*)();
+	RTC_CALL Class(Constructor cFunc, const Class* baseCls, TokenID typeID, SharedConstructor sFunc = nullptr);
 	RTC_CALL ~Class();
 
 	RTC_CALL TokenID GetID() const override { return m_TypeID; }
 
 	RTC_CALL bool IsDerivedFrom(const Class* base) const;
 	RTC_CALL Object*         CreateObj() const;
+	RTC_CALL std::shared_ptr<Object> CreateSharedObj() const; // migration (a): make_shared-based; null if !HasSharedCreator
+	bool HasSharedCreator() const { return m_SharedConstructor != nullptr; }
 	RTC_CALL         bool    HasDefaultCreator() const;
 	RTC_CALL virtual bool    IsDataObjType() const;
 
@@ -79,6 +83,7 @@ private:
 	mutable AbstrPropDef* m_LastPD; friend class  AbstrPropDef;
 	mutable AbstrPropDef* m_LastCopyablePD; 
 	Constructor           m_Constructor;
+	SharedConstructor     m_SharedConstructor; // migration (a): make_shared creator for TreeItem-family; else nullptr
 	TokenID               m_TypeID;
 };
 

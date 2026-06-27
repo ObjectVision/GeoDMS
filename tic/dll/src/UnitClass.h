@@ -37,7 +37,7 @@ class UnitClass : public Class, private UnitClassRegComponentLock
 {
 	typedef Class base_type;
 public:
-	UnitClass(Constructor cFunc, TokenID typeID, const ValueClass* valueClass);
+	UnitClass(Constructor cFunc, TokenID typeID, const ValueClass* valueClass, SharedConstructor sFunc = nullptr);
 	~UnitClass();
 
     // Constructs a new Unit of the type indicated by this UnitClass in context with given name

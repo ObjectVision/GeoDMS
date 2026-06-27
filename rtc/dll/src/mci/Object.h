@@ -187,5 +187,22 @@ public:
 template <typename CLS> inline
 Object* CreateFunc() { return new CLS(); }
 
+//**********  dynamic creation via std::make_shared (migration (a), passkey form) **********
+// make_shared_enabler<CLS> derives from CLS, so its (public, perfectly-forwarding) ctor can reach CLS's
+// PROTECTED ctor the way any derived class can -- letting std::make_shared construct factory-only types
+// without granting std internals friendship and without per-subclass churn. The resulting object IS-A CLS
+// (GetDynamicClass() returns CLS's static class), held as a std::shared_ptr<Object>.
+#include <memory>
+
+template <typename CLS>
+struct make_shared_enabler : CLS
+{
+	template <typename... Args>
+	explicit make_shared_enabler(Args&&... args) : CLS(std::forward<Args>(args)...) {}
+};
+
+template <typename CLS> inline
+std::shared_ptr<Object> SharedCreateFunc() { return std::make_shared<make_shared_enabler<CLS>>(); }
+
 
 #endif // __RTC_MCI_OBJECT_H

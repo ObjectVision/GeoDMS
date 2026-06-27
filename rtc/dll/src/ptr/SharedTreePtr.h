@@ -13,6 +13,7 @@
 
 #include "RtcBase.h"
 #include "ptr/SharedPtr.h" // for the newly_obj / existing_obj / no_zombies tag types
+#include "ptr/WeakPtr.h"   // for the WeakPtr<U> borrow ctor
 
 //  -----------------------------------------------------------------------
 //  shared_tree_ptr<T> / weak_tree_ptr<T>
@@ -38,21 +39,33 @@ struct shared_tree_ptr : std::shared_ptr<T>
 	using base_type = std::shared_ptr<T>;
 	using element_type = T;
 
-	using base_type::base_type; // inherit std::shared_ptr ctors (nullptr, raw-adopt, copy/move, converting)
+	using base_type::base_type; // inherit std::shared_ptr ctors (nullptr, copy/move, converting from shared_ptr<U>)
 
 	constexpr shared_tree_ptr() noexcept = default;
 	shared_tree_ptr(const base_type& rhs) noexcept : base_type(rhs) {}
 	shared_tree_ptr(base_type&& rhs) noexcept : base_type(std::move(rhs)) {}
+
+	// NB: no implicit raw-pointer ctor. Raw<->shared conversion is explicit: use a construction tag
+	// (existing_obj / newly_obj / no_zombies) to build a shared_tree_ptr, and .get() to obtain a raw pointer.
 
 	// Construction-tag ctors mapping the intrusive semantics onto std:: ownership:
 	shared_tree_ptr(T* p, newly_obj) : base_type(p) {}                     // adopt a freshly created object
 	shared_tree_ptr(T* p, existing_obj) : base_type(dup_existing(p)) {}    // borrow an already-owned object
 	shared_tree_ptr(T* p, no_zombies)  : base_type(dup_no_zombies(p)) {}   // safe weak->strong (null if expiring)
 
+	// Transition aids: borrow from an in-repo intrusive SharedPtr<U> / WeakPtr<U> (existence implies owned).
+	template <typename U> requires std::is_convertible_v<U*, T*>
+	shared_tree_ptr(const SharedPtr<U>& sp) : base_type(dup_existing(static_cast<T*>(sp.get_ptr()))) {}
+	template <typename U> requires std::is_convertible_v<U*, T*>
+	shared_tree_ptr(const WeakPtr<U>& wp) : base_type(dup_no_zombies(static_cast<T*>(wp.get_ptr()))) {}
+
 	// in-repo SharedPtr API surface
 	T*   get_ptr()  const noexcept { return this->get(); }
 	bool is_null()  const noexcept { return this->get() == nullptr; }
 	bool has_ptr()  const noexcept { return this->get() != nullptr; }
+
+	// comparison with a raw element pointer (C++20 synthesizes != from ==)
+	bool operator==(const T* rhs) const noexcept { return this->get() == rhs; }
 
 private:
 	static base_type dup_existing(T* p)

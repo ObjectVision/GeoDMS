@@ -100,7 +100,7 @@ struct UpdateMetaInfoDetectionLock
 #endif
 
 // Convenience interest pointer type to hold a TreeItem with interest counting semantics
-using SharedTreeItemInterestPtr = InterestPtr<SharedPtr<const TreeItem> >;
+using SharedTreeItemInterestPtr = InterestPtr<shared_tree_ptr<const TreeItem> >;
 
 //----------------------------------------------------------------------
 // NameTreeReg
@@ -648,7 +648,7 @@ TIC_CALL auto TreeItem_CreateItemFromPath(TreeItem* self, CharPtr subItemNames, 
 TIC_CALL TreeItem* TreeItem_CheckCls(TreeItem* self, const Class* requiredClass);
 TIC_CALL const TreeItem* TreeItem_CheckObjCls(const TreeItem* self, const Class* requiredClass);
 
-using SharedTreeItem = SharedPtr<const TreeItem>;
+using SharedTreeItem = shared_tree_ptr<const TreeItem>;
 /*
 Utility to handle integrity check failures; iCheckerResult is expected from a checker calculator.
 checkStringGenerator delayed-evaluates error strings to avoid overhead when not needed.
