@@ -131,7 +131,7 @@ SharedTreeItem FindSubItem(const TreeItem* sourceItem, SharedStr relPath)
 	{
 		dms_assert(!sourceItem->IsCacheItem());
 		if (begin == end)
-			return sourceItem;
+			return SharedTreeItem(sourceItem, existing_obj{});
 		auto delimPos = begin;
 		while (delimPos != end && *delimPos != DELIMITER_CHAR)
 			++delimPos;
@@ -766,7 +766,7 @@ BestItemRef AbstrCalculator::FindErrorneousItem() const
 				{
 					if (miDcPtr->IsSourceRef())
 						if (auto si = miDcPtr->GetSourceItem())
-							for (auto ri = si; ri; ri = ri->GetCurrRefItem())
+							for (SharedTreeItem ri = si; ri; ri = SharedTreeItem(ri->GetCurrRefItem(), existing_obj{}))
 								if (WasInFailed(ri.get()))
 								{
 									errorneousItem = si.get();
@@ -787,7 +787,7 @@ BestItemRef AbstrCalculator::FindErrorneousItem() const
 	else
 		VisitSuppliers(SupplierVisitFlag::CalcErrorSearch, std::move(visitor));
 
-	return { errorneousItem, {} };
+	return { SharedTreeItem(errorneousItem, existing_obj{}), {} };
 }
 
 BestItemRef AbstrCalculator::FindPrimaryDataFailedItem() const
@@ -1054,7 +1054,7 @@ OArgRefs ApplyMetaFunc_GetArgs(TreeItem* holder, const AbstrCalculator* ac, cons
 			}
 			TokenID symbID = cursor.Left().GetSymbID();
 			if (auto vc = ValueClass::FindByScriptName(symbID))
-				argRef.emplace<SharedTreeItem>(UnitClass::Find(vc)->CreateDefault()); // unitName -> [UnitName []] ofwel unitName().
+				argRef.emplace<SharedTreeItem>(SharedTreeItem(UnitClass::Find(vc)->CreateDefault(), existing_obj{})); // unitName -> [UnitName []] ofwel unitName().
 			else
 			{
 				auto foundItem = ac->FindItem(symbID);
@@ -1280,11 +1280,11 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 				auto leftExpr = localExpr.Right().Left();
 				if (!leftExpr.IsSymb())
 					throwErrorF("ExprParser", "Scope operator: Left operand should be a name, but '%s' given.", AsFLispSharedStr(leftExpr, FormattingFlags::ThousandSeparator).c_str());
-				SharedPtr<const TreeItem> scopeItem = FindItem(leftExpr.GetSymbID());
+				SharedTreeItem scopeItem = FindItem(leftExpr.GetSymbID());
 				if (!scopeItem)
 					throwErrorF("ExprParser", "Scope operator: container '%s' not found", leftExpr.GetSymbID().GetStr().c_str());
 
-				tmp_swapper<SharedPtr<const TreeItem>> swap(m_SearchContext, scopeItem);
+				tmp_swapper<SharedTreeItem> swap(m_SearchContext, scopeItem);
 				SubstitutionBuffer localBuffer;
 				localBuffer.optionalVisitor = substBuff.optionalVisitor;
 				bufferValue = SubstituteExpr_impl(localBuffer, localExpr.Right().Right().Left(), mpf);
@@ -1323,7 +1323,7 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 				}
 				indexExpr = slSupplierExprImpl(substBuff, indexItem.get(), mpf); // now process left before re-assigning search context
 
-				tmp_swapper<SharedPtr<const TreeItem>> swap(m_SearchContext, avu);
+				tmp_swapper<SharedTreeItem> swap(m_SearchContext, SharedTreeItem(avu, existing_obj{}));
 				SubstitutionBuffer localBuffer; localBuffer.svf = substBuff.svf; localBuffer.optionalVisitor = substBuff.optionalVisitor;
 				auto arrowedExpr = SubstituteExpr_impl(localBuffer, localExpr.Right().Right().Left(), mpf);
 				if (localBuffer.avs == AVS_SuspendedOrFailed)
@@ -1505,14 +1505,14 @@ auto AbstrCalculator::GetMetaInfo() const -> MetaInfo
 			m_LispExprSubst = SubstituteExpr(substBuff, RewriteExpr(GetLispExprOrg()));
 
 			// process registered suppliers
-			TreeItemCRefArray supplierArrayCopy; supplierArrayCopy.swap(m_NamedSuppliers);
+			std::vector<SharedTreeItem> supplierArrayCopy; supplierArrayCopy.swap(m_NamedSuppliers);
 			UInt32 count = substBuff.m_SupplierSet.size();
 			m_NamedSuppliers.resize(count);
 			for (auto& tvPair : substBuff.m_SupplierSet)
 			{
 				assert(tvPair.second > 0);
 				assert(tvPair.second <= count);
-				m_NamedSuppliers[tvPair.second - 1] = tvPair.first;
+				m_NamedSuppliers[tvPair.second - 1] = SharedTreeItem(tvPair.first, existing_obj{});
 			}
 		}
 	}

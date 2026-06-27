@@ -202,7 +202,7 @@ public:
 
 	// GetResult
 	// Return the result TreeItem (shared interest), if any.
-	SharedPtr<const TreeItem> GetResult() const { return m_Result; }
+	SharedTreeItem GetResult() const { return m_Result; }
 
 	// GetStatus
 	// Synchronizing accessor to current status (may include acquire semantics in impl).

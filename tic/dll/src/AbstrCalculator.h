@@ -126,7 +126,7 @@ public:
 	TIC_CALL BestItemRef FindErrorneousItem() const;
 	TIC_CALL BestItemRef FindPrimaryDataFailedItem() const;
 
-	TIC_CALL auto GetSourceItem() const->SharedPtr<const TreeItem>;  // directly referred persistent object.
+	TIC_CALL auto GetSourceItem() const->SharedTreeItem;  // directly referred persistent object.
 
 	TIC_CALL virtual SharedStr GetExpr() const;
 	TIC_CALL virtual void      WriteHtmlExpr(OutStreamBase& stream) const;
