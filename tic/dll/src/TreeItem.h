@@ -23,6 +23,7 @@
 #include "ptr/OwningPtr.h"
 #include "ptr/SharedPtr.h"
 #include "ptr/SharedStr.h"
+#include "ptr/WeakPtr.h"
 #include "set/Token.h"
 
 #include "MetaInfo.h"
@@ -557,8 +558,13 @@ public:
 	// Identification token; assumed cheap-copy and stable.
 	TokenID                        m_ID;
 
-	// Only used by CacheRoots to refer back to a source/root.
-	mutable const TreeItem*        m_BackRef = nullptr; // only used by CacheRoots
+	// Non-owning back-pointer, only used by CacheRoots to refer back to the config item that
+	// (shared-)owns this cache item via its mc_RefItem. WeakPtr makes the non-owning intent
+	// explicit (it is a typed raw pointer: the intrusive scheme has no liveness detection).
+	// Safe to dereference because the owning config item clears this on disconnect
+	// (SetReferredItem nulls the old refItem's m_BackRef; ~TreeItem calls SetReferredItem(nullptr)),
+	// so it is always either valid or null and never dangles.
+	mutable WeakPtr<const TreeItem> m_BackRef; // only used by CacheRoots
 
 	// Subitems manage insertion in a non-refcounted set; child holds counted-ref to parent.
 	SharedTreeItem                 m_Parent;   // ro-access, counted-ref
