@@ -22,6 +22,7 @@
 #include "ptr/InterestHolders.h"
 #include "ptr/OwningPtr.h"
 #include "ptr/SharedPtr.h"
+#include "ptr/SharedTreePtr.h"
 #include "ptr/SharedStr.h"
 #include "ptr/WeakPtr.h"
 #include "set/Token.h"
@@ -144,7 +145,7 @@ Lifetime:
 - Parent is a SharedTreeItem to ensure safe upward traversal without immediate deletion of parents.
 */
 
-struct TreeItem : SharedActor
+struct TreeItem : SharedActor, std::enable_shared_from_this<TreeItem>
 {
 	using base_type = SharedActor;
 

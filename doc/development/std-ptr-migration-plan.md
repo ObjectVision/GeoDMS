@@ -426,4 +426,9 @@ ancestors (`TreeItemDualRef`/`SharedActor`/`Actor`) **stay intrusive**. The migr
    is the *only* consumer of `TreeItem::Reorder` (via shv `GraphicContainer::SaveOrder`) — the call that
    forced the `TIC_CALL` export of `Reorder` in Phase 1a. With `Sync` gone, `Reorder` (and its export)
    become dead and can be deleted too.
+5. Factor out the thin `shared_tree_ptr`/`weak_tree_ptr` wrappers introduced for migration option B
+   (they re-add the in-repo `get_ptr`/`is_null`/`has_ptr` + `newly_obj`/`existing_obj`/`no_zombies` API
+   surface over `std::shared_ptr`/`std::weak_ptr` to avoid churning ~1000 call sites at once). Once the
+   call sites are settled, slim the typedefs back toward **pure** `std::shared_ptr`/`std::weak_ptr`
+   (`.get()`/`== nullptr`/`make_shared`/`shared_from_this`/`weak.lock()`), then delete the wrappers.
 
