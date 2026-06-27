@@ -422,4 +422,8 @@ ancestors (`TreeItemDualRef`/`SharedActor`/`Actor`) **stay intrusive**. The migr
    toolkit (`SharedBase`, `SharedPtr`/`WeakPtr`, `newly_obj`/`existing_obj`/`no_zombies`, `DuplRef`) and
    the §10 taxonomy. (§10)
 3. Remove all temp leak-hunt instrumentation (§8 / leak-doc inventory).
+4. Remove GraphicObject serialisation/persistence onto a config-item tree (`GraphicObject::Sync`). That
+   is the *only* consumer of `TreeItem::Reorder` (via shv `GraphicContainer::SaveOrder`) — the call that
+   forced the `TIC_CALL` export of `Reorder` in Phase 1a. With `Sync` gone, `Reorder` (and its export)
+   become dead and can be deleted too.
 
