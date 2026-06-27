@@ -67,7 +67,7 @@ TIC_CALL TreeItem* DMS_CONV DMS_CreateTreeItem(TreeItem* context, CharPtr name)
 	DMS_CALL_BEGIN
 
 		CheckPtr(context, TreeItem::GetStaticClass(), "DMS_CreateTreeItem");
-		return context->CreateItemFromPath(name).release();
+		return context->CreateItemFromPath(name).get(); // item owned by context (parent); raw stays valid
 
 	DMS_CALL_END
 	return nullptr;
@@ -279,7 +279,7 @@ TIC_CALL TreeItem* DMS_CONV DMS_TreeItem_CreateItem(TreeItem* context, CharPtr p
 	DMS_CALL_BEGIN
 
 		TreeItemContextHandle checkPtr(context, TreeItem::GetStaticClass(), "DMS_TreeItem_CreateItem");
-		return context->CreateItemFromPath(path, requiredClass).release();
+		return context->CreateItemFromPath(path, requiredClass).get(); // item owned by context (parent); raw stays valid
 
 	DMS_CALL_END
 	return nullptr;
@@ -644,7 +644,7 @@ auto TreeUpdateOrReturnFailerImpl(const TreeItem* self, CharPtr context, SharedT
 {
 	for (const TreeItem* walker = self; walker; walker = self->WalkConstSubTree(walker))
 		if (!ItemUpdateImpl(walker, context, holder))
-			return walker;
+			return SharedTreeItem(walker, existing_obj{});
 
 	return {};
 }
@@ -808,7 +808,7 @@ TIC_CALL TreeItem* DMS_CONV DMS_TreeItem_Copy(TreeItem* dest, const TreeItem* sr
 		}
 
 		CopyTreeContext copyContext(dest, src, name, DataCopyMode::CopyExpr);
-		return copyContext.Apply().release();
+		return copyContext.Apply().get(); // copied item owned by dest (parent); raw stays valid
 
 	DMS_CALL_END
 	return dest;
@@ -960,7 +960,7 @@ static SharedTreeItem GetFencedErrorSource(const TreeItem* cacheItem)
 		if (!supplTI->IsCacheItem())
 		{
 			if (WasInFailed(supplTI))
-				return supplTI;
+				return SharedTreeItem(supplTI, existing_obj{});
 		}
 		else
 		{
@@ -978,7 +978,7 @@ TIC_CALL SharedTreeItem DataController_GetErrorSource(const DataController* dc, 
 	if (ti && !ti->IsCacheItem())
 	{
 		if (ti->WasFailed())
-			return ti;
+			return SharedTreeItem(ti, existing_obj{});
 		if (mustVisitSubTree)
 		{
 			TreeItemSet visitedSet;
@@ -989,7 +989,7 @@ TIC_CALL SharedTreeItem DataController_GetErrorSource(const DataController* dc, 
 					if (ti)
 						if (ti->WasFailed())
 						{
-							foundErrorSource = ti;
+							foundErrorSource = SharedTreeItem(ti, existing_obj{});
 							return false;
 						}
 					return true;
@@ -1103,14 +1103,14 @@ TIC_CALL BestItemRef TreeItem_GetErrorSource(const TreeItem* src, bool tryCalcSu
 	 // domain and values units ?
 	if (IsDataItem(src))
 	{
-		BestItemRef result = { AsDataItem(src)->GetAbstrDomainUnit(), {} };
+		BestItemRef result = { SharedTreeItem(AsDataItem(src)->GetAbstrDomainUnit(), existing_obj{}), {} };
 		if (!result.first)
 			result = src->FindBestItem(AsDataItem(src)->m_tDomainUnit.AsStrRange());
 
 		if (result.first && WasInFailed(result.first.get()))
 			return result;
 
-		result = { AsDataItem(src)->GetAbstrValuesUnit(), {} };
+		result = { SharedTreeItem(AsDataItem(src)->GetAbstrValuesUnit(), existing_obj{}), {} };
 		if (!result.first)
 			result = src->FindBestItem(AsDataItem(src)->m_tValuesUnit.AsStrRange());
 		if (result.first && WasInFailed(result.first.get()))
@@ -1143,7 +1143,7 @@ TIC_CALL BestItemRef TreeItem_GetErrorSource(const TreeItem* src, bool tryCalcSu
 	}
 
 	// SourceItem
-	SharedTreeItem sourceItem = src->GetCurrSourceItem();
+	SharedTreeItem sourceItem(src->GetCurrSourceItem(), existing_obj{});
 	if (sourceItem)
 	{
 		assert(!sourceItem->IsCacheItem());
@@ -1168,7 +1168,7 @@ TIC_CALL BestItemRef TreeItem_GetErrorSource(const TreeItem* src, bool tryCalcSu
 
 	src->VisitSuppliers(SupplierVisitFlag::CalcErrorSearch, std::move(visitor));
 	if (errorneousItem)
-		return { errorneousItem , {} };
+		return { SharedTreeItem(errorneousItem, existing_obj{}) , {} };
 
 	// if FailReason was > FR_Data, try finding a supplier that fails too when pressed.
 	if (tryCalcSuppliers && src->WasFailed(FailType::Data) && !src->WasFailed(FailType::MetaInfo))
