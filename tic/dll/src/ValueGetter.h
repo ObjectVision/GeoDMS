@@ -48,7 +48,7 @@ struct ValueGetterCreatorBase : UnitProcessor
 	{
 		m_Result = new ValueGetter<T, E>(const_array_cast<E>(m_Adi), m_TileID);
 	}
-	WeakPtr<const AbstrDataItem>         m_Adi;
+	weak_tree_ptr<const AbstrDataItem>         m_Adi;
 	tile_id                              m_TileID = no_tile;
 	mutable WeakPtr<AbstrValueGetter<T>> m_Result;
 };

@@ -45,6 +45,37 @@ granted by an additional written contract for support, assistance and/or develop
 #include "TreeItemContextHandle.h"
 
 //  -----------------------------------------------------------------------
+// m_Usings and m_SortedItemCache are now std::vector<std::weak_ptr<const TreeItem>> (non-owning, with
+// liveness): the tree owns these namespaces/items (parent-owns-child); an owning ref here would form a
+// retain cycle up to the config root (the teardown leak). The namespaces are alive during all cache
+// operations (they are tree-owned siblings/ancestors), so these helpers lock to a raw pointer for the
+// identity/ID comparisons the cache relies on. An entry that has expired locks to nullptr.
+
+using weak_ti = std::weak_ptr<const TreeItem>;
+
+static const TreeItem* lock_raw(const weak_ti& wp) noexcept { return wp.lock().get(); }
+static weak_ti make_weak(const TreeItem* p) { return p ? weak_ti(p->weak_from_this()) : weak_ti(); }
+
+// Comparator/equality over weak entries (and raw / TokenID keys), by item ID, locking each weak entry.
+struct CompareLtWeakItemId
+{
+	bool operator ()(const weak_ti& a, const weak_ti& b) const { return lock_raw(a)->GetID() <  lock_raw(b)->GetID(); }
+	bool operator ()(const weak_ti& a, TokenID bID)       const { return lock_raw(a)->GetID() <  bID; }
+	bool operator ()(TokenID aID, const weak_ti& b)       const { return aID <  lock_raw(b)->GetID(); }
+	bool operator ()(const weak_ti& a, const TreeItem* b) const { return lock_raw(a)->GetID() <  b->GetID(); }
+	bool operator ()(const TreeItem* a, const weak_ti& b) const { return a->GetID() <  lock_raw(b)->GetID(); }
+};
+
+// Find the first entry whose locked target == p (raw identity); returns index or size() if absent.
+static SizeT weak_find(const TreeItemCPtrArray& arr, const TreeItem* p)
+{
+	for (SizeT i = 0, n = arr.size(); i != n; ++i)
+		if (lock_raw(arr[i]) == p)
+			return i;
+	return arr.size();
+}
+
+//  -----------------------------------------------------------------------
 
 #if defined(MG_DEBUG)
 
@@ -56,11 +87,11 @@ bool TestOrder(
 {
 	if (b==e) return true;
 
-	TokenID lastID = (*b)->GetID();
+	TokenID lastID = lock_raw(*b)->GetID();
 	while (++b!=e)
 	{
-		dms_assert(lastID <  (*b)->GetID() );
-		lastID = (*b)->GetID();		
+		dms_assert(lastID <  lock_raw(*b)->GetID() );
+		lastID = lock_raw(*b)->GetID();
 	}
 	return true;
 }
@@ -96,7 +127,11 @@ UsingCache::~UsingCache()
 	{
 		UsingCache* incoming = m_Incoming.back();
 		m_Incoming.pop_back();
-		vector_erase(incoming->m_Usings, m_Context);
+		{
+			SizeT pos = weak_find(incoming->m_Usings, m_Context);
+			if (pos < incoming->m_Usings.size())
+				incoming->m_Usings.erase(incoming->m_Usings.begin() + pos);
+		}
 		incoming->SetDirty();
 	}
 
@@ -119,7 +154,7 @@ const TreeItem* UsingCache::GetUsing(UInt32 i) const
 {
 	assert(m_UsingUrls.empty());
 	MG_PRECONDITION(i < m_Usings.size());
-	return m_Usings[i];
+	return lock_raw(m_Usings[i]);
 }
 
 
@@ -159,7 +194,7 @@ void UsingCache::CheckSearchSpace(const TreeItem* nameSpace) const
 	TreeItemCPtrArray::const_iterator i = nameSpaceUsings.end();
 	TreeItemCPtrArray::const_iterator b = nameSpaceUsings.begin();
 	while (i != b)
-		CheckSearchSpace(*--i);
+		CheckSearchSpace(lock_raw(*--i));
 }
 
 
@@ -175,7 +210,7 @@ void UsingCache::ClearUsings(bool keepParent)
 	const_usings_iterator i = b;
 
 	while (i!=e)
-		(*i++)->GetUsingCache()->DelIncoming(this);
+		lock_raw(*i++)->GetUsingCache()->DelIncoming(this);
 
 	if (nrKeep)
 		m_Usings.erase(b, e);
@@ -190,7 +225,7 @@ bool UsingCache::AddUsingInternal(const TreeItem* nameSpace) const
 {
 	dms_assert(nameSpace);
 
-	SizeT prevPos = vector_find(m_Usings, nameSpace);
+	SizeT prevPos = weak_find(m_Usings, nameSpace);
 	if (prevPos >= m_Usings.size())
 	{
 		// TODO: test that the search space of the nameSpace does not include this
@@ -203,7 +238,7 @@ bool UsingCache::AddUsingInternal(const TreeItem* nameSpace) const
 			return false;
 		m_Usings.erase(m_Usings.begin() + prevPos);
 	}
-	m_Usings.emplace_back(nameSpace);
+	m_Usings.emplace_back(make_weak(nameSpace));
 	return true;
 }
 
@@ -220,14 +255,15 @@ void UsingCache::AddUsings(const TreeItem** firstNameSpace, const TreeItem** las
 
 	// look for overlapping range between end of current namespaces and begin of additional ones
 	usings_iterator end = m_Usings.end();
-	usings_iterator pos = std::find(m_Usings.begin(), end, *firstNameSpace); // requires nrToAdd>0
+	usings_iterator pos = m_Usings.begin();
+	while (pos != end && lock_raw(*pos) != *firstNameSpace) ++pos; // find *firstNameSpace by locked identity (requires nrToAdd>0)
 
 	assert(pos <= end);
 	if (UInt32(end - pos) <= nrToAdd) // overlapping range not possible
 	{
 		const TreeItem** i = firstNameSpace;
 		while (pos != end)
-			if (*i++ != *pos++)
+			if (*i++ != lock_raw(*pos++))
 				goto doAdd;
 		firstNameSpace = i; // skip starting range that is equal to end range of m_Usings
 	}
@@ -304,13 +340,13 @@ TreeItemCPtrArray MergeArrays(const TreeItemCPtrArray& tmpSrc, const TreeItemCPt
 {
 	TreeItemCPtrArray result;
 	result.clear();
-	result.resize(tmpSrc.size() + extra.size(), nullptr);
+	result.resize(tmpSrc.size() + extra.size()); // default-constructed (empty) weak entries
 	result.erase(
 		std::set_union(
 			tmpSrc.begin(), tmpSrc.end(),
 			extra.begin(),  extra.end(),
 			result.begin(),
-			CompareLtItemIdPtrs<TreeItem>()
+			CompareLtWeakItemId()
 		),
 		result.end()
 	);
@@ -355,7 +391,7 @@ void UsingCache::UpdateCache() const
 	UpdateUsings();
 	UInt32 nrUsings = m_Usings.size();
 	for (UInt32 i = nrUsings; i--; )
-		Update(m_Usings[i]);
+		Update(lock_raw(m_Usings[i]));
 
 #if defined(MG_DEBUG)
 	MG_LOCKER_NO_UPDATEMETAINFO
@@ -377,10 +413,10 @@ void UsingCache::UpdateCache() const
 		const TreeItem* subItem = refItem->_GetFirstSubItem(); // avoid UpdateMetaInfo
 		while (subItem)
 		{
-			tmpSubItems.emplace_back(subItem);
+			tmpSubItems.emplace_back(make_weak(subItem));
 			subItem = subItem->GetNextItem();
 		}
-		std::sort(tmpSubItems.begin(), tmpSubItems.end(), CompareLtItemIdPtrs<TreeItem>());
+		std::sort(tmpSubItems.begin(), tmpSubItems.end(), CompareLtWeakItemId());
 		MG_DEBUGCODE(dms_assert(TestOrder(tmpSubItems.begin(), tmpSubItems.end())); )
 		tmpNameSpace = MergeArrays(tmpNameSpace, tmpSubItems);
 		refItem = refItem->GetReferredItem();
@@ -391,7 +427,7 @@ void UsingCache::UpdateCache() const
 	MG_DEBUGCODE( dms_assert(TestOrder(tmpNameSpace.begin(), tmpNameSpace.end())); )
 
 	for (UInt32 i = nrUsings; i--; )
-		MergeCacheIntoArray(m_Usings[i]->GetUsingCache(), tmpNameSpace);
+		MergeCacheIntoArray(lock_raw(m_Usings[i])->GetUsingCache(), tmpNameSpace);
 
 	// sorted and no doubles in m_SortedItemCache?
 	MG_DEBUGCODE( dms_assert(TestOrder(tmpNameSpace.begin(), tmpNameSpace.end())); )
@@ -416,7 +452,7 @@ auto UsingCache::FindNamespace(TokenID url) const -> SharedTreeItem
 	}
 	while (n--)
 	{
-		auto foundItem = m_Usings[n]->FindItem(urlAsString); // TODO return 0 if firstName found somewhere
+		auto foundItem = lock_raw(m_Usings[n])->FindItem(urlAsString); // TODO return 0 if firstName found somewhere
 		if (foundItem)
 			return foundItem;
 	}
@@ -440,12 +476,11 @@ auto UsingCache::FindItem(TokenID itemID) const -> SharedTreeItem
 
 	MG_DEBUGCODE( dms_assert(TestOrder(m_SortedItemCache.begin(), m_SortedItemCache.end())); )
 
-	CompareLtItemIdPtrs<TreeItem> cmp = CompareLtItemIdPtrs<TreeItem>();
-	std::vector<const TreeItem*>::const_iterator
-		result = std::lower_bound(m_SortedItemCache.begin(), m_SortedItemCache.end(), itemID, cmp);
+	CompareLtWeakItemId cmp;
+	auto result = std::lower_bound(m_SortedItemCache.begin(), m_SortedItemCache.end(), itemID, cmp);
 	if (result == m_SortedItemCache.end() || cmp(itemID, *result))
 		return {};
-	return SharedTreeItem(*result, existing_obj{});
+	return SharedTreeItem(result->lock()); // lock the weak entry to an owning SharedTreeItem
 }
 
 void UsingCache::OnItemAdded(const TreeItem* child)
@@ -453,31 +488,30 @@ void UsingCache::OnItemAdded(const TreeItem* child)
 	if (!IsReady())
 		return;
 
-	CompareLtItemIdPtrs<TreeItem> cmp = CompareLtItemIdPtrs<TreeItem>();
-	std::vector<const TreeItem*>::iterator
-		ip = std::lower_bound(m_SortedItemCache.begin(), m_SortedItemCache.end(), child, cmp);
+	CompareLtWeakItemId cmp;
+	auto ip = std::lower_bound(m_SortedItemCache.begin(), m_SortedItemCache.end(), child, cmp);
 	if (ip == m_SortedItemCache.end() || cmp(child, *ip))
- 		m_SortedItemCache.insert(ip, child);
+ 		m_SortedItemCache.insert(ip, make_weak(child));
 	else // name already in cache, pointed at by ip.
 	{
-		dms_assert((*ip)->GetID() == child->GetID());
-		if (*ip == child) // as same item; no problem, maybe inserted though other incoming route
+		dms_assert(lock_raw(*ip)->GetID() == child->GetID());
+		if (lock_raw(*ip) == child) // as same item; no problem, maybe inserted though other incoming route
 			return;
 		if (child->GetTreeParent().get() != m_Context) // would have been new
 		{
-			if ((*ip)->GetTreeParent().get() == m_Context)  // *ip has best rights
+			if (lock_raw(*ip)->GetTreeParent().get() == m_Context)  // *ip has best rights
 				return;
 
 			// child was toegevoegd in 1 der usings; kijk of het niet overruled wordt door *ip
 			UInt32 n = m_Usings.size();
 			SharedTreeItem foundItem;
 			while (n-- && !foundItem)
-				foundItem = m_Usings[n]->GetUsingCache()->FindItem(child->GetID());
-			assert(foundItem && (foundItem == *ip || foundItem == child));
+				foundItem = lock_raw(m_Usings[n])->GetUsingCache()->FindItem(child->GetID());
+			assert(foundItem && (foundItem.get() == lock_raw(*ip) || foundItem.get() == child));
 			if (foundItem.get() != child)
 				return; // best rights for existing *ip
 		}
-		*ip = child; // overwrite
+		*ip = make_weak(child); // overwrite
 	}
 
 	MG_DEBUGCODE( dms_assert(TestOrder(m_SortedItemCache.begin(), m_SortedItemCache.end())); )

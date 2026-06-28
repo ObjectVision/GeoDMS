@@ -147,7 +147,7 @@ public:
 	TIC_CALL bool IsForEachTemplHolder () const;
 	TIC_CALL auto GetForEachTemplSource() const -> SharedTreeItem;
 
-	const TreeItem* GetHolder() const { return m_Holder; }
+	const TreeItem* GetHolder() const { return m_Holder.get(); }
 
 	TIC_CALL auto SearchContext() const -> SharedTreeItem;
 	TIC_CALL auto FindItem(TokenID itemRef) const -> SharedTreeItem;
@@ -163,7 +163,7 @@ public:
 	LispRef SubstituteArgs(SubstitutionBuffer& substBuff, LispPtr localArgs, const AbstrOperGroup* og, arg_index argNr, SharedStr firstArgValue) const;
 	LispRef SubstituteExpr_impl(SubstitutionBuffer& substBuff, LispRef localExpr, metainfo_policy_flags mpf) const;
 
-	mutable WeakPtr<const TreeItem>   m_Holder;
+	mutable weak_tree_ptr<const TreeItem>   m_Holder;
 	mutable SharedTreeItem            m_SearchContext; // parent of instantiatior in case of argument binding
 
 //protected:

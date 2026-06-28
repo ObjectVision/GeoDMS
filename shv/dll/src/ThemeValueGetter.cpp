@@ -9,6 +9,7 @@
 #endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "ptr/InterestHolders.h"
+#include "ptr/SharedTreePtr.h"
 
 #include "ThemeValueGetter.h"
 
@@ -304,7 +305,7 @@ struct LazyGetter : public AbstrThemeValueGetter
 	)
 		:	AbstrThemeValueGetter(paletteAttr)
 //		,	m_ThemeData(const_array_cast<V>(themeAttr))
-		,	m_ThemeAttr(themeAttr)
+		,	m_ThemeAttr(themeAttr, existing_obj{})
 		,	m_UltimateDomain(AsUnit(themeAttr->GetAbstrDomainUnit()->GetUltimateItem()))
 	{}
 
@@ -343,7 +344,7 @@ struct LazyGetter : public AbstrThemeValueGetter
 	const AbstrDataItem*  GetThemeAttr() const { return m_ThemeAttr.get_ptr(); }
 
 private:
-	SharedPtr<const AbstrDataItem>               m_ThemeAttr;
+	shared_tree_ptr<const AbstrDataItem>               m_ThemeAttr;
 	mutable typename DataArray<V>::locked_cseq_t m_ThemeDataTileLock;
 	mutable tile_id                              m_PrevTileID = no_tile;
 	const AbstrUnit*                             m_UltimateDomain = nullptr;

@@ -10,6 +10,7 @@
 #define __SHV_LAYERCONTROL_H
 
 #include "MovableContainer.h"
+#include "ptr/SharedTreePtr.h"
 #include "TableControl.h"
 #include "TextControl.h"
 #include "DisplayValue.h"
@@ -40,11 +41,11 @@ class LayerInfoControl : public TextControl
 public:
 	LayerInfoControl(MovableObject* owner);
 	bool MouseEvent(MouseEventDispatcher& med) override;
-	void SetExplainableValue(WeakStr text, SharedPtr<const AbstrDataItem> themeAttr, SizeT focusID);
+	void SetExplainableValue(WeakStr text, shared_tree_ptr<const AbstrDataItem> themeAttr, SizeT focusID);
 
 	void ExplainValue();
 
-	SharedPtr<const AbstrDataItem> m_ThemeAttr;
+	shared_tree_ptr<const AbstrDataItem> m_ThemeAttr;
 	SizeT                          m_FocusID = 0;
 };
 

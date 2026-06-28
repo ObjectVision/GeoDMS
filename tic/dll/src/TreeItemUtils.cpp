@@ -51,7 +51,7 @@ granted by an additional written contract for support, assistance and/or develop
 // functions 
 //----------------------------------------------------------------------
 
-const TreeItem* _GetHistoricUltimateItem(const TreeItem* ti) noexcept
+auto _GetHistoricUltimateItem(const TreeItem* ti) noexcept -> shared_tree_ptr<const TreeItem>
 {
 	assert(ti);
 
@@ -64,7 +64,7 @@ const TreeItem* _GetHistoricUltimateItem(const TreeItem* ti) noexcept
 	}
 }
 
-const TreeItem* _GetCurrUltimateItem(const TreeItem* ti) noexcept
+auto _GetCurrUltimateItem(const TreeItem* ti) noexcept -> shared_tree_ptr<const TreeItem>
 {
 	assert(ti);
 	dbg_assert(ti->CheckMetaInfoReadyOrPassor());

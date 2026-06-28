@@ -14,6 +14,7 @@
 //----------------------------------------------------------------------
 
 #include "ShvUtils.h"
+#include "ptr/SharedTreePtr.h"
 #include "stg/AbstrStorageManager.h"
 
 //----------------------------------------------------------------------
@@ -239,7 +240,7 @@ private:
 	friend class DataView;
 
 private:
-	SharedPtr<TreeItem> m_ViewContext;
+	shared_tree_ptr<TreeItem> m_ViewContext;
 	weakPtrGO m_Owner;
 	CrdRect   m_DrawnFullAbsRect; friend GraphDrawer; friend MovableObject;
 

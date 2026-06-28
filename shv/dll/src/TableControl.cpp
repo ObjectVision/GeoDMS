@@ -9,6 +9,7 @@
 #endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "TableControl.h"
+#include "ptr/SharedTreePtr.h"
 
 #include "act/ActorVisitor.h"
 #include "mci/Class.h"
@@ -1328,7 +1329,7 @@ void TableControl::CreateTableGroupBy(bool activate)
 		const auto* vc = m_Entity->GetUnitClass()->GetValueType();
 		const auto* resDomainCls = UnitClass::Find(vc->GetCrdClass());
 
-		SharedPtr<AbstrUnit> groupByEntity = resDomainCls->CreateUnit(GetContext(), GetTokenID_mt("GroupBy")).get();
+		shared_tree_ptr<AbstrUnit> groupByEntity(resDomainCls->CreateUnit(GetContext(), GetTokenID_mt("GroupBy")).get(), existing_obj{});
 		groupByEntity->DisableStorage();
 		auto keysMustBeDefined = m_State.Get(TCF_MustBeDefined);
 		auto uniqueExprFormat = keysMustBeDefined ? "unique(%s)" : "unique_with_null(%s)";

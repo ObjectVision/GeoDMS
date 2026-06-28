@@ -188,7 +188,7 @@ SequenceBoundingBoxCache<F>::SequenceBoundingBoxCache(const AbstrDataObject* fea
 
 template <typename ScalarType>
 std::shared_ptr<const SequenceBoundingBoxCache<ScalarType>>
-GetSequenceBoundingBoxCache(WeakPtr<const AbstrDataItem> featureAttr, bool mustPrepare)
+GetSequenceBoundingBoxCache(weak_tree_ptr<const AbstrDataItem> featureAttr, bool mustPrepare)
 {
 	assert(featureAttr);
 	leveled_critical_section::scoped_lock lock(cs_BB);
@@ -208,7 +208,7 @@ GetSequenceBoundingBoxCache(WeakPtr<const AbstrDataItem> featureAttr, bool mustP
 
 template <typename ScalarType>
 std::shared_ptr<const PointBoundingBoxCache<ScalarType>>
-GetPointBoundingBoxCache(WeakPtr<const AbstrDataItem> featureAttr, bool mustPrepare)
+GetPointBoundingBoxCache(weak_tree_ptr<const AbstrDataItem> featureAttr, bool mustPrepare)
 {
 	assert(featureAttr);
 	leveled_critical_section::scoped_lock lock(cs_BB);

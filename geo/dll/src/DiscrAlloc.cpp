@@ -713,7 +713,7 @@ const UInt32 stepFactor = 4;
 
 struct regions_meta_base
 {
-	SharedPtr<const AbstrDataItem> m_AtomicRegionMap;
+	shared_tree_ptr<const AbstrDataItem> m_AtomicRegionMap;
 };
 
 struct regions_info_base : regions_meta_base
@@ -896,8 +896,8 @@ struct regions_info_t<Void> : regions_info_base
 template <typename S>
 struct htp_meta_extra 
 {
-	WeakPtr<const AbstrUnit>   m_MapDomain;
-	SharedPtr<const Unit<S> >  m_PriceUnit;
+	weak_tree_ptr<const AbstrUnit>   m_MapDomain;
+	shared_tree_ptr<const Unit<S> >  m_PriceUnit;
 };
 
 template <typename S>

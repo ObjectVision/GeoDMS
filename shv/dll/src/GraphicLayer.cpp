@@ -9,6 +9,7 @@
 #endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "GraphicLayer.h"
+#include "ptr/SharedTreePtr.h"
 
 #include "act/ActorVisitor.h"
 #include "dbg/DebugCast.h"
@@ -224,7 +225,7 @@ struct ActivateUniqueValuesPaletteCmd : AbstrCmd
 {
 	ActivateUniqueValuesPaletteCmd(AspectNr a, const AbstrDataItem* themeAttr)
 		: m_AspectNr(a)
-		, m_ThemeAttr(themeAttr)
+		, m_ThemeAttr(themeAttr, existing_obj{})
 	{
 		dms_assert(themeAttr);
 	}
@@ -248,7 +249,7 @@ struct ActivateUniqueValuesPaletteCmd : AbstrCmd
 
 private:
 	AspectNr m_AspectNr;
-	SharedPtr<const AbstrDataItem> m_ThemeAttr;
+	shared_tree_ptr<const AbstrDataItem> m_ThemeAttr;
 };
 
 constexpr int MAX_NR_CANDIDATES = 64;
@@ -315,7 +316,7 @@ void GraphicLayer::FillLcMenu(MenuData& menuData)
 	if (GetThemeDisplayItem()) // false if ThemeSet has just been initialized
 		menuData.emplace_back(
 				"Show Statistics of " + GetThemeDisplayName(this), 
-				std::make_unique<RequestClientCmd>(GetThemeDisplayItem(), CC_ShowStatistics),
+				std::make_unique<RequestClientCmd>(shared_tree_ptr<const TreeItem>(GetThemeDisplayItem(), existing_obj{}), CC_ShowStatistics),
 				this
 		);
 

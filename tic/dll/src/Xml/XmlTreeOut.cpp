@@ -57,7 +57,7 @@ SharedStr GetStrRange(const AbstrUnit* unit)
 		bool singleDimensional = unit->GetNrDimensions() == 1;
 		if (singleDimensional && !unit->GetValueType()->IsNumeric())
 			return SharedStr("non numeric");
-		if (!CheckDataReady(unit->GetCurrRangeItem()))
+		if (!CheckDataReady(unit->GetCurrRangeItem().get()))
 			goto notCalculated;
 		if (singleDimensional)
 		{
@@ -90,7 +90,7 @@ SharedStr GetTileStrRange(const AbstrUnit* unit, tile_id t)
 		bool singleDimensional = unit->GetNrDimensions() == 1;
 		if (singleDimensional && !unit->GetValueType()->IsNumeric())
 			return SharedStr("non numeric");
-		if (!CheckDataReady(unit->GetCurrRangeItem()))
+		if (!CheckDataReady(unit->GetCurrRangeItem().get()))
 			goto notCalculated;
 		if (singleDimensional)
 		{
@@ -120,7 +120,7 @@ SharedStr GetStrCount(const AbstrUnit* unit)
 {
 	assert(unit->GetValueType()->IsCountable());
 	try {	
-		if (!CheckDataReady(unit->GetCurrRangeItem()))
+		if (!CheckDataReady(unit->GetCurrRangeItem().get()))
 			return SharedStr("Not Calculated");
 		return AsString(unit->GetPreparedCount(false));
 	}
@@ -135,7 +135,7 @@ SharedStr GetTileStrCount(const AbstrUnit* unit, tile_id t)
 	dms_assert(t != no_tile);
 	dms_assert(unit->GetValueType()->IsCountable());
 	try {
-		if (!CheckDataReady(unit->GetCurrRangeItem()))
+		if (!CheckDataReady(unit->GetCurrRangeItem().get()))
 			return SharedStr("Not Calculated");
 		return AsString(unit->GetPreparedTileCount(t));
 	}

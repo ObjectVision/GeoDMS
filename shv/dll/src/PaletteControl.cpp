@@ -9,6 +9,7 @@
 #endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "PaletteControl.h"
+#include "ptr/SharedTreePtr.h"
 
 #include "mci/ValueClass.h"
 #include "utl/mySPrintF.h"
@@ -46,7 +47,7 @@ PaletteControl::PaletteControl(MovableObject* owner, GraphicLayer* layer, bool h
 	auto activeTheme = GetActiveTheme();
 	if (activeTheme) {
 		m_BreakAttr = activeTheme->GetClassification();
-		m_PaletteDomain = activeTheme->GetPaletteDomain(); dms_assert(m_PaletteDomain);
+		m_PaletteDomain = shared_tree_ptr<const AbstrUnit>(activeTheme->GetPaletteDomain(), existing_obj{}); dms_assert(m_PaletteDomain);
 
 		m_ThemeAttr = activeTheme->GetThemeAttr();
 		m_PaletteAttr = activeTheme->GetPaletteAttr();
@@ -84,7 +85,7 @@ void PaletteControl::Init()
 	{
 		m_BreakAttr->UpdateMetaInfo();
 		if (!m_PaletteDomain)
-			m_PaletteDomain = m_BreakAttr->GetAbstrDomainUnit();
+			m_PaletteDomain = shared_tree_ptr<const AbstrUnit>(m_BreakAttr->GetAbstrDomainUnit(), existing_obj{});
 
 		dms_assert(m_PaletteDomain);
 	}
@@ -341,7 +342,7 @@ void PaletteControl::CreateColumnsImpl()
 
 	SharedStr exprStr = m_ThemeAttr ? m_ThemeAttr->GetFullName() : SharedStr();
 
-	SharedPtr<const AbstrUnit> classIds = m_ThemeAttr ? GetRealAbstrValuesUnit(m_ThemeAttr) : nullptr;
+	shared_tree_ptr<const AbstrUnit> classIds = m_ThemeAttr ? shared_tree_ptr<const AbstrUnit>(GetRealAbstrValuesUnit(m_ThemeAttr), existing_obj{}) : shared_tree_ptr<const AbstrUnit>();
 
 	//	=========================================	add Class boundaries
 	if (m_BreakAttr && (!classIds || classIds->UnifyValues(m_BreakAttr->GetAbstrValuesUnit(), "", "", UM_AllowDefaultRight)))
@@ -521,7 +522,7 @@ void PaletteControl::CreateSelCountColumn()
 	TreeItem* container = CreateDesktopContainer(dv->GetDesktopContext(), GetUltimateSourceItem(m_ThemeAttr.get_ptr()));
 	LispRef keyExpr = m_ThemeAttr->GetCheckedKeyExpr();
 	auto provisionalPaletteDomain = m_ThemeAttr->GetAbstrValuesUnit();
-	SharedPtr<const AbstrUnit> classIds = GetRealAbstrValuesUnit(m_ThemeAttr);
+	shared_tree_ptr<const AbstrUnit> classIds(GetRealAbstrValuesUnit(m_ThemeAttr), existing_obj{});
 
 	//	=========================================	add Class boundaries
 	if (m_BreakAttr && (!classIds || classIds->UnifyValues(m_BreakAttr->GetAbstrValuesUnit(), "", "", UM_AllowDefaultRight)))
@@ -597,7 +598,7 @@ void PaletteControl::Sync(TreeItem* viewContext, ShvSyncMode sm)
 		SyncRef(m_CountAttr, viewContext2, GetTokenID_mt("Count"), sm);
 	}
 	if (sm == SM_Load)
-		m_PaletteDomain = GetEntity();
+		m_PaletteDomain = shared_tree_ptr<const AbstrUnit>(GetEntity(), existing_obj{});
 }
 
 IMPL_RTTI_CLASS(PaletteControl)

@@ -12,6 +12,7 @@
 #include "parallel/dms_task.h"
 
 #include "GraphDataView.h"
+#include "ptr/SharedTreePtr.h"
 
 #include "mci/Class.h"
 #include "dbg/DmsCatch.h"
@@ -231,7 +232,7 @@ public:
 			{
 				dms_assert(m_Result->DetailsVisible());
 
-				SharedPtr<const AbstrUnit> paletteDomain = m_Result->GetActiveTheme()->GetPaletteDomain();
+				shared_tree_ptr<const AbstrUnit> paletteDomain(m_Result->GetActiveTheme()->GetPaletteDomain(), existing_obj{});
 
 				//TODO: Dit moet toch handiger kunnen 
 				dms_assert(!SuspendTrigger::DidSuspend());

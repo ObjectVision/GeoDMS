@@ -51,10 +51,10 @@ granted by an additional written contract for support, assistance and/or develop
 
 bool IsNewItem(const TreeItem* self, TreeItemSetType& doneItems)
 {
-	TreeItemSetType::iterator itemPtr = doneItems.lower_bound(self);
-	if (itemPtr != doneItems.end() && *itemPtr == self)
+	TreeItemSetType::iterator itemPtr = doneItems.lower_bound(shared_tree_ptr<const TreeItem>(self, existing_obj{}));
+	if (itemPtr != doneItems.end() && itemPtr->get() == self)
 		return false;
-	doneItems.insert(itemPtr, self);
+	doneItems.insert(itemPtr, shared_tree_ptr<const TreeItem>(self, existing_obj{}));
 	return true;
 }
 

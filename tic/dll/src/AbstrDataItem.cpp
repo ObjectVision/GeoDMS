@@ -83,7 +83,7 @@ AbstrDataItem::~AbstrDataItem() noexcept
 	}
 
 	if (!IsEndogenous())
-		if (m_DomainUnit) m_DomainUnit->DelDataItemOut(this);
+		if (auto du = m_DomainUnit.lock()) du->DelDataItemOut(this); // skip if the unit's owner already dropped it
 
 	m_DomainUnit.reset();
 	m_ValuesUnit.reset();
@@ -97,19 +97,19 @@ AbstrDataItem::~AbstrDataItem() noexcept
 
 auto AbstrDataItem::GetAbstrDomainUnit() const -> const AbstrUnit*
 { 
-	if (!m_DomainUnit && IsMetaThread())
+	if (m_DomainUnit.is_null() && IsMetaThread())
 		m_DomainUnit = SharedUnit(FindUnit(m_tDomainUnit, "Domain", nullptr), existing_obj{});
-	return m_DomainUnit.get();
+	return m_DomainUnit.lock().get(); // raw non-owning result: the unit is owned by the tree, outlives this call
 }
 
 auto AbstrDataItem::GetAbstrValuesUnit() const -> const AbstrUnit*
 { 
-	if (!m_ValuesUnit && IsMetaThread())
+	if (m_ValuesUnit.is_null() && IsMetaThread())
 	{
 		ValueComposition vc = GetValueComposition();
 		m_ValuesUnit = SharedUnit(FindUnit(m_tValuesUnit, "Values", &vc), existing_obj{});
 	}
-	return m_ValuesUnit.get();
+	return m_ValuesUnit.lock().get(); // raw non-owning result: the unit is owned by the tree, outlives this call
 }
 
 TIC_CALL auto AbstrDataItem::GetNonDefaultDomainUnit() const -> const AbstrUnit*
@@ -335,7 +335,7 @@ bool AbstrDataItem::DoWriteItem(StorageMetaInfoPtr&& smi) const
 
 	FencedInterestRetainContext irc("AbstrDataItem::DoWriteItem");
 	try {
-		SharedPtr<const TreeItem> storageHolder = smi->StorageHolder();
+		shared_tree_ptr<const TreeItem> storageHolder(smi->StorageHolder(), existing_obj{});
 		sm->ExportMetaInfo(storageHolder.get(), this);
 		if (!sm->WriteDataItem(std::move(smi)))
 			throwItemError("Failure during Writing");
@@ -1222,7 +1222,7 @@ struct InterestReporter : DebugReporter
 	using ActorSet = DemandManagement::ActorSet;
 	using ActorMap = std::map<ActorSet::value_type, interest_count_t>;
 
-	static void ReportTree(ActorSet& done, const SharedActor* focusItem, UInt32 level, CharPtr role)
+	static void ReportTree(ActorSet& done, const Actor* focusItem, UInt32 level, CharPtr role)
 	{
 		if (!focusItem)
 			return;

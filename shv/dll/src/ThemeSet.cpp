@@ -9,6 +9,7 @@
 #endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "ThemeSet.h"
+#include "ptr/SharedTreePtr.h"
 
 #include "act/ActorVisitor.h"
 #include "utl/IncrementalLock.h"
@@ -86,11 +87,11 @@ void ThemeSet::SyncThemes(TreeItem* viewContext, ShvSyncMode sm)
 
 	for (AspectNr aNr = AN_Feature; aNr < AN_AspectCount; aNr = AspectNr(aNr + 1))
 	{
-		SharedPtr<TreeItem> aspectContext = const_cast<TreeItem*>(
+		shared_tree_ptr<TreeItem> aspectContext(const_cast<TreeItem*>(
 			viewContext->GetConstSubTreeItemByID(
 				GetTokenID_mt(AspectArray[aNr].name)
 			).get()
-		);
+		), existing_obj{});
 		if (sm == SM_Load)
 		{
 			if (aspectContext)

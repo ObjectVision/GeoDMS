@@ -89,7 +89,7 @@ struct AbstrUnaryAttrOperator: UnaryOperator
 		return true;
 	}
 
-	virtual SharedPtr<const AbstrDataObject> CreateFutureTileFunctor(SharedPtr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, ArgFlags af MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr)) const = 0;
+	virtual SharedPtr<const AbstrDataObject> CreateFutureTileFunctor(shared_tree_ptr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, ArgFlags af MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr)) const = 0;
 	virtual void Calculate(AbstrDataObject* borrowedDataHandle, const AbstrDataItem* arg1A, ArgFlags af, tile_id t) const =0;
 
 private:
@@ -110,13 +110,13 @@ public:
 		: AbstrUnaryAttrOperator(gr, ResultType::GetStaticClass(), Arg1Type::GetStaticClass(), possibleArgFlags, ucp, vc)
 	{}
 
-	auto CreateFutureTileFunctor(SharedPtr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, ArgFlags af MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr)) const -> SharedPtr<const AbstrDataObject> override
+	auto CreateFutureTileFunctor(shared_tree_ptr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, ArgFlags af MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr)) const -> SharedPtr<const AbstrDataObject> override
 	{
 		auto tileRangeData = AsUnit(arg1A->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
 		auto valuesUnit = debug_cast<const Unit<field_of_t<ResultValueType>>*>(valuesUnitA);
 
 		auto arg1 = MakeSharedFromBorrowedObjectPtr(const_array_cast<Arg1ValueType>(arg1A)); assert(arg1);
-		auto arg1VU = MakeSharedFromBorrowedObjectPtr(arg1A->GetAbstrValuesUnit());
+		auto arg1VU = shared_tree_ptr<const AbstrUnit>(arg1A->GetAbstrValuesUnit(), existing_obj{});
 
 		using prepare_data = std::shared_ptr<typename Arg1Type::future_tile>;
 		auto futureTileFunctor = make_unique_FutureTileFunctor<ResultValueType, prepare_data, false>(resultAdi.get(), lazy, tileRangeData.get(), get_range_ptr_of_valuesunit(valuesUnit)

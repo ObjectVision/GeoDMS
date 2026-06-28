@@ -59,7 +59,7 @@ namespace {
 				reportF(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, "%s Leak: %s (%d,%d) %s",
 					m_ObjName,
 					ti->GetDynamicClass()->GetName(), 
-					ti->GetRefCount(), 
+					ti->weak_from_this().use_count(), 
 					ti->IsCacheItem(), 
 					ti->GetFullName().c_str());
 			}
@@ -86,6 +86,11 @@ namespace {
 // C style Interface functions to AddRef & Release
 //----------------------------------------------------------------------
 
+// External clients pin a TreeItem's lifetime through this C API. The intrusive refcount is gone (TreeItem is
+// std::shared_ptr-managed), so a pin is now an OWNING shared_tree_ptr held in this registry; Release drops one.
+static std::mutex                      s_ExtPinMutex;
+static std::multiset<SharedTreeItem>   s_ExtPins; // ordered by stored pointer (std::shared_ptr operator<)
+
 TIC_CALL void DMS_CONV DMS_TreeItem_AddRef(TreeItem* self)
 {
 	DMS_CALL_BEGIN
@@ -98,7 +103,10 @@ TIC_CALL void DMS_CONV DMS_TreeItem_AddRef(TreeItem* self)
 		dms_assert(refCountAdm);
 		refCountAdm->insert(self);
 #endif
-		self->IncRef();
+		{
+			std::lock_guard lock(s_ExtPinMutex);
+			s_ExtPins.insert(SharedTreeItem(self, existing_obj{})); // owning pin
+		}
 
 	DMS_CALL_END
 }
@@ -117,7 +125,12 @@ TIC_CALL void DMS_CONV DMS_TreeItem_Release(TreeItem* self)
 		dms_assert(p != refCountAdm->end());
 		refCountAdm->erase(p);
 #endif
-		self->Release();
+		{
+			std::lock_guard lock(s_ExtPinMutex);
+			auto it = s_ExtPins.find(SharedTreeItem(self, existing_obj{}));
+			if (it != s_ExtPins.end())
+				s_ExtPins.erase(it); // drop one owning pin
+		}
 
 	DMS_CALL_END
 }

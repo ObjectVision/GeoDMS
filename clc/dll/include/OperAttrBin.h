@@ -91,7 +91,7 @@ struct AbstrBinaryAttrOper : BinaryOperator
 		return true;
 	}
 
-	virtual SharedPtr<const AbstrDataObject> CreateFutureTileFunctor(SharedPtr<AbstrDataItem>, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A, ArgFlags af MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr)) const = 0;
+	virtual SharedPtr<const AbstrDataObject> CreateFutureTileFunctor(shared_tree_ptr<AbstrDataItem>, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A, ArgFlags af MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr)) const = 0;
 	virtual void Calculate(AbstrDataObject* borrowedDataHandle, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A,	ArgFlags af, tile_id t) const=0;
 
 private:
@@ -115,7 +115,7 @@ public:
 		)
 	{}
 
-	SharedPtr<const AbstrDataObject> CreateFutureTileFunctor(SharedPtr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A, ArgFlags af MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr)) const override
+	SharedPtr<const AbstrDataObject> CreateFutureTileFunctor(shared_tree_ptr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A, ArgFlags af MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr)) const override
 	{
 		auto rangedArg = (af & AF1_ISPARAM) ? arg2A : arg1A;
 		auto tileRangeData = AsUnit(rangedArg->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();

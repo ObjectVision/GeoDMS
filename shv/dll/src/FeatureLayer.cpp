@@ -9,6 +9,7 @@
 #endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "FeatureLayer.h"
+#include "ptr/SharedTreePtr.h"
 #include "LabelDrawer.h"
 
 #include "DrawPolygons.h"
@@ -1329,7 +1330,7 @@ template <typename ScalarType>
 bool DrawNetwork(
 	WeakPtr<const GraphicNetworkLayer> layer
 ,	const FeatureDrawer& fd
-,	WeakPtr<const AbstrDataItem>    featureItem
+,	weak_tree_ptr<const AbstrDataItem>    featureItem
 ,	        const PenIndexCache*    penIndices
 ,	WeakPtr<const AbstrThemeValueGetter> f1
 ,	WeakPtr<const AbstrThemeValueGetter> f2

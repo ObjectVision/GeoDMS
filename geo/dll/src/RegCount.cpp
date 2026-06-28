@@ -60,8 +60,8 @@ struct RegionMeta
 
 	RegionMeta(const RegionMeta&) noexcept = default;
 
-	SharedPtr<const AbstrDataItem>  m_Partition;
-	WeakPtr<AbstrDataItem>          m_Result;
+	shared_tree_ptr<const AbstrDataItem>  m_Partition;
+	weak_tree_ptr<AbstrDataItem>          m_Result;
 
 };
 
@@ -157,7 +157,7 @@ struct RegTileCounterBase : UnitProcessor
 		}
 	}
 	WeakPtr<RegionInfoArray> regionInfoArrayPtr;
-	WeakPtr<const AbstrDataItem>     arg1A;
+	weak_tree_ptr<const AbstrDataItem>     arg1A;
 };
 
 template <typename ActorType>

@@ -367,7 +367,7 @@ CLC_CALL bool NumericDataItem_GetStatistics(const TreeItem* item, vos_buffer_typ
 			return true;
 		}
 		assert(di->Was(ProgressState::MetaInfo)); // PRECONDITION
-		SharedUnitInterestPtr vu = SharedPtr<const AbstrUnit>(di->GetAbstrValuesUnit());
+		SharedUnitInterestPtr vu = shared_tree_ptr<const AbstrUnit>(di->GetAbstrValuesUnit(), existing_obj{});
 		assert(vu);
 		assert(vu->Was(ProgressState::MetaInfo)); // follows from PRECONDITION
 		bool isReady = vu->PrepareData(); // GetRange needed later

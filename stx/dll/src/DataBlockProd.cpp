@@ -76,8 +76,8 @@ inline void SafeSetValue(std::vector<T, A>& vec, typename std::vector<T, A>::siz
 
 void DataBlockProd::DoArrayAssignment()
 {
-	WeakPtr<AbstrDataItem> adi = CurrDI();
-	WeakPtr<const AbstrUnit> domain = adi->GetAbstrDomainUnit();
+	weak_tree_ptr<AbstrDataItem> adi = CurrDI();
+	weak_tree_ptr<const AbstrUnit> domain = adi->GetAbstrDomainUnit();
 
 	SizeT i = m_nIndexValue++;
 	if (i >= m_ElemCount)

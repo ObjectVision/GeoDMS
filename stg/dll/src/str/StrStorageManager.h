@@ -74,7 +74,7 @@ protected:
 
 private:
 	const AbstrDataItem* GetFileNameAttr(const TreeItem* storageHolder, const TreeItem* curr) const;
-	mutable SharedPtr<const AbstrDataItem> m_FileNameAttr;
+	mutable shared_tree_ptr<const AbstrDataItem> m_FileNameAttr;
 
 	DECL_RTTI(STGDLL_CALL,StorageClass)
 };

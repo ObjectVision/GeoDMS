@@ -44,7 +44,7 @@ struct DataReadLockAtom
 	const AbstrDataItem* GetItem() const { return m_Item.get(); }
 
 private:
-	SharedPtr<const AbstrDataItem> m_Item;
+	shared_tree_ptr<const AbstrDataItem> m_Item;
 };
 
 //----------------------------------------------------------------------
@@ -147,7 +147,7 @@ private:
 	DataWriteLock(const DataWriteLock&) = delete;
 	DataWriteLock& operator = (const DataWriteLock&) = delete;
 
-	SharedPtr<AbstrDataItem> m_adi;
+	shared_tree_ptr<AbstrDataItem> m_adi;
 };
 
 template<typename V> TileFunctor<V>*

@@ -229,7 +229,7 @@ template <typename T> inline const AbstrUnit* AsCertainUnit(const T* self) { ret
 template <typename T> inline       AbstrUnit* AsCertainUnit(      T* self) { return checked_valcast<      AbstrUnit*>(self); }
 
 template <typename T> inline       OwningPtr<AbstrUnit> AsUnit(OwningPtr<T> self) { return debug_cast<AbstrUnit*>(self.release()); }
-template <typename T> inline       SharedPtr<const AbstrUnit> AsUnit(const SharedPtr<const T>& self) { return MakeSharedFromBorrowedObjectPtr( debug_cast  <const AbstrUnit*>(self.get()) ); }
+template <typename T> inline       shared_tree_ptr<const AbstrUnit> AsUnit(const shared_tree_ptr<const T>& self) { return shared_tree_ptr<const AbstrUnit>( debug_cast  <const AbstrUnit*>(self.get()), existing_obj{} ); }
 
 
 template <typename T> inline bool IsUnit(const SharedPtr<T>& self) { return IsUnit(self.get()); }

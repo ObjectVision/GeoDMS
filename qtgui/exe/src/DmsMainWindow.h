@@ -29,6 +29,7 @@
 #include "DmsGuiParameters.h"
 
 #include "ptr/SharedPtr.h"
+#include "ptr/SharedTreePtr.h"
 #include "ShvUtils.h"
 #include "dataview.h"
 
@@ -278,8 +279,8 @@ private:
     static void OnViewAction(const TreeItem* tiContext, CharPtr sAction, Int32 nCode, Int32 x, Int32 y, bool doAddHistory, bool isUrl, bool mustOpenDetailsPage);
 
     SharedStr m_currConfigFileName;
-    SharedPtr<TreeItem> m_root;
-    SharedPtr<TreeItem> m_current_item;
+    shared_tree_ptr<TreeItem> m_root;
+    shared_tree_ptr<TreeItem> m_current_item;
 
 public: 
     // helper window docks

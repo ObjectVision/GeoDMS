@@ -235,7 +235,7 @@ DataView::DataView(TreeItem* viewContext)
 		m_hWnd(0)
 	,
 #endif
-		m_ViewContext(viewContext)
+		m_ViewContext(viewContext, existing_obj{})
 	,	m_CheckedTS(0)
 	,	m_ViewDeviceSize(0, 0)
 	,	m_FocusCaret(new FocusCaret)

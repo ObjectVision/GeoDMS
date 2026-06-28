@@ -149,9 +149,9 @@ struct StorageMetaInfo : std::enable_shared_from_this<StorageMetaInfo>
 	TIC_CALL virtual void OnOpenForRead(StorageReadHandle*);
 	TIC_CALL virtual void OnClose(StorageCloseHandle*);
 
-	TIC_CALL auto CurrRI() const -> SharedPtr<const TreeItem> { return m_Curr; }
-	TIC_CALL auto CurrRD() const -> SharedPtr<const AbstrDataItem>;
-	TIC_CALL auto CurrRU() const -> SharedPtr<const AbstrUnit>;
+	TIC_CALL auto CurrRI() const -> shared_tree_ptr<const TreeItem> { return m_Curr; }
+	TIC_CALL auto CurrRD() const -> shared_tree_ptr<const AbstrDataItem>;
+	TIC_CALL auto CurrRU() const -> shared_tree_ptr<const AbstrUnit>;
 	AbstrDataItem* CurrWD() const { return const_cast<AbstrDataItem*>(CurrRD().get()); }
 	AbstrUnit*     CurrWU() const { return const_cast<AbstrUnit*>(CurrRU().get()); }
 	TreeItem*      CurrWI() const { return const_cast<TreeItem*>(CurrRI().get()); }
@@ -161,7 +161,7 @@ struct StorageMetaInfo : std::enable_shared_from_this<StorageMetaInfo>
 
 protected:
 	SharedPtr<AbstrStorageManager> m_StorageManager;
-	SharedPtr<const TreeItem> m_StorageHolder, m_Curr;
+	shared_tree_ptr<const TreeItem> m_StorageHolder, m_Curr;
 public:
 	SharedStr m_RelativeName;
 	bool      m_MustRememberFailure :1 = true;

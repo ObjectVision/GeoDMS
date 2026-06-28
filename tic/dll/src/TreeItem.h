@@ -145,9 +145,9 @@ Lifetime:
 - Parent is a SharedTreeItem to ensure safe upward traversal without immediate deletion of parents.
 */
 
-struct TreeItem : SharedActor, std::enable_shared_from_this<TreeItem>
+struct TreeItem : Actor, std::enable_shared_from_this<TreeItem>
 {
-	using base_type = SharedActor;
+	using base_type = Actor;
 
 	friend Object* CreateFunc<TreeItem>();
 
@@ -166,13 +166,6 @@ public:
 	// Public dtor: required so std::shared_ptr's deleter can destroy the object from namespace scope
 	// (Object.h SharedCreateFunc, shared_tree_ptr's newly_obj ctor). Construction stays factory-only.
 	TIC_CALL ~TreeItem ();
-
-	// TreeItems are owned by std::shared_ptr (make_shared). The intrusive SharedBase refcount still
-	// exists (legacy SharedPtr<TreeItem>/SharedActor borrows and InterestPtr touch it), but it must
-	// NEVER delete the object: the std control block is the sole deleter. So the intrusive Release()
-	// is a no-op for TreeItems -- this makes std/intrusive coexistence safe (an intrusive ref hitting
-	// refcount 0 no longer `delete this`-es a live std-managed object).
-	void Release() const noexcept override {}
 
 //	ctor / dtor
 
@@ -384,11 +377,11 @@ public:
 	TIC_CALL auto GetSizeEstimator() const->AbstrCalculatorRef;
 
 	// Referred/ultimate item helpers; “Curr” variants avoid UpdateMetaInfo.
-	TIC_CALL const TreeItem* GetCurrUltimateItem() const noexcept;
-	TIC_CALL const TreeItem* GetCurrRangeItem() const  noexcept;
-	TIC_CALL const TreeItem* GetUltimateItem() const  noexcept;
-	TIC_CALL const TreeItem* GetCurrRefItem () const  noexcept;
-	TIC_CALL const TreeItem* GetReferredItem() const  noexcept;
+	TIC_CALL auto GetCurrUltimateItem() const noexcept -> shared_tree_ptr<const TreeItem>;
+	TIC_CALL auto GetCurrRangeItem() const  noexcept -> shared_tree_ptr<const TreeItem>;
+	TIC_CALL auto GetUltimateItem() const  noexcept -> shared_tree_ptr<const TreeItem>;
+	TIC_CALL auto GetCurrRefItem () const  noexcept -> shared_tree_ptr<const TreeItem>;
+	TIC_CALL auto GetReferredItem() const  noexcept -> shared_tree_ptr<const TreeItem>;
 	TIC_CALL virtual void Unify(const TreeItem* refItem, CharPtr leftRole, CharPtr rightRole) const;
 
 //	TIC_CALL MetaInfo GetMetaInfo(metainfo_policy_flags mpf) const;
@@ -465,6 +458,7 @@ public:
 	TIC_CALL void SetCalculator(AbstrCalculatorRef pr) const; // also called by DataController
 	TIC_CALL SharedTreeItemInterestPtr GetInterestPtrOrNull() const;
 	TIC_CALL SharedTreeItemInterestPtr GetInterestPtrOrCancel() const;
+	std::weak_ptr<const Actor> weak_from_actor() const override { return weak_from_this(); } // std-managed: real weak for the supplier-interest list
 
 //protected: // new callback functions
 	// Hooks for storage read/write and data (clear/copy/signature/result checks).
@@ -585,12 +579,12 @@ public:
 	// Safe to dereference because the owning config item clears this on disconnect
 	// (SetReferredItem nulls the old refItem's m_BackRef; ~TreeItem calls SetReferredItem(nullptr)),
 	// so it is always either valid or null and never dangles.
-	mutable WeakPtr<const TreeItem> m_BackRef; // only used by CacheRoots
+	mutable weak_tree_ptr<const TreeItem> m_BackRef; // only used by CacheRoots
 
 	// Subitems manage insertion in a non-refcounted set; child holds counted-ref to parent.
 	// Non-owning weak back-pointer to the parent. Ownership is downward: the parent owns its
 	// sub-items via the intrusive refcount (AddItem adopts a reference; ReleaseSubItem releases it).
-	WeakPtr<const TreeItem>        m_Parent;   // ro-access, NON-owning (parent owns child)
+	weak_tree_ptr<const TreeItem>        m_Parent;   // ro-access, NON-owning (parent owns child)
 
 	// Inlined sub-item links (was single_linked_tree<TreeItem>). Downward ownership is via
 	// std::shared_ptr: the parent owns its first child (m_FirstSub) and each child owns its next
@@ -638,7 +632,7 @@ public: // TODO G8: encapsulate and move config attr (aka mc_ ) into a separate 
 
 	// Pluggable behavior: data controller and referred/template-original items.
 	mutable DataControllerRef      mc_DC;
-	mutable SharedPtr<const TreeItem> mc_RefItem, mc_OrgItem;
+	mutable weak_tree_ptr<const TreeItem> mc_RefItem, mc_OrgItem;
 
 private:
 	// Optional source location tracking for diagnostics.

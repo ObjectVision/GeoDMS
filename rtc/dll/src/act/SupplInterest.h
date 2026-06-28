@@ -14,7 +14,19 @@
 
 #include <map>
 
+#include "act/Actor.h"           // Actor, weak_from_actor()
 #include "ptr/InterestHolders.h"
+
+//  -----------------------------------------------------------------------
+// The supplier-interest list holds a NON-owning, liveness-checked interest on each std-managed supplier
+// (TreeItems, via weak_from_actor()). DataController suppliers (intrusive SharedActor) are deliberately NOT
+// retained: their interest is already held by the ownership chain -- a TreeItem's StartInterest holds its
+// mc_DC (=GetDC()), and a FuncDC's StartInterest holds its arg DCs (=GetArgDC()); and FuncDC::VisitSuppliers
+// visits each arg DC's RESULT TreeItem too, so holding that result's interest re-holds the DC transitively.
+// They yield an empty weak from weak_from_actor() and are skipped by push_front.
+//  -----------------------------------------------------------------------
+
+using SupplierInterestPtr = InterestPtr<std::weak_ptr<const Actor> >;
 
 //  -----------------------------------------------------------------------
 // SupplInterestListElem
@@ -63,27 +75,33 @@ struct SupplInterestListPtr: private std::unique_ptr<SupplInterestListElem>
 
 struct SupplInterestListElem
 {
-	SupplInterestListElem(SharedActorInterestPtr&& value, SupplInterestListPtr&& next)
+	SupplInterestListElem(SupplierInterestPtr&& value, SupplInterestListPtr&& next)
 		:	m_NextPtr(next.release())
 		,	m_Value(std::move(value))
 	{
-		assert(m_Value); // class invariant
+		assert(m_Value); // invariant at insertion: push_front only inserts a live (non-expired) supplier
 	}
 	~SupplInterestListElem()
 	{
-		// provide assumptions to the optimizer of the member destructors
-		assert(m_Value);              // class invariant
+		// NB: m_Value is a non-owning weak interest; the supplier MAY have expired by now (the InterestPtr
+		// dtor decrements only if still live), so the "always non-null" invariant no longer holds here.
 	}
 
 	SupplInterestListElem* m_NextPtr;
-	SharedActorInterestPtr m_Value;
+	SupplierInterestPtr    m_Value;
 };
 
 //typedef SupplInterestListElem::first_ptr_type SupplInterestListPtr;
 
-inline void push_front(SupplInterestListPtr& self, const SharedActor* actor)
+// Retain a non-owning, liveness-checked interest on a std-managed supplier (TreeItem). DataControllers
+// yield an empty weak (not std-managed) and are skipped -- their interest rides on the ownership chain
+// (their result TreeItems, also visited). InterestPtr<std::weak_ptr> bumps/decrements the interest count.
+inline void push_front(SupplInterestListPtr& self, const Actor* actor)
 {
-	self = new SupplInterestListElem(SharedActorInterestPtr(actor, existing_obj{}), std::move(self));
+	auto w = actor ? actor->weak_from_actor() : std::weak_ptr<const Actor>{};
+	if (w.expired())
+		return;
+	self = new SupplInterestListElem(SupplierInterestPtr(w), std::move(self));
 };
 
 typedef std::map<const Actor*, SupplInterestListPtr > SupplTreeInterestType;

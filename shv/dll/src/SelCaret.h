@@ -12,6 +12,7 @@
 //----------------------------------------------------------------------
 
 #include "ShvBase.h"
+#include "ptr/SharedTreePtr.h"
 
 #include "LockedIndexCollectorPtr.h"
 
@@ -44,7 +45,7 @@ private:
 	std::weak_ptr<ViewPort>        m_Owner;	
 	WeakPtr<const IndexCollector>  m_EntityIndexCollectorPtr;
 	OptionalIndexCollectorAray     m_EntityIndexCollectorArray;
-	SharedPtr<const AbstrDataItem> m_SelAttr;
+	shared_tree_ptr<const AbstrDataItem> m_SelAttr;
 	GridCoordPtr                   m_GridCoords;
 	Region                         m_SelCaretRgn;
 	bool                           m_Ready;   // UpdateRgn was called after OnZoom of ctor, thus OnScroll should update incrementally

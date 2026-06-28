@@ -92,6 +92,11 @@ using SharedMutableTreeItem = shared_tree_ptr<TreeItem>;
 using SharedDataItem = shared_tree_ptr<const AbstrDataItem>;
 using SharedUnit     = shared_tree_ptr<const AbstrUnit>;
 
+// Non-owning std::weak_ptr-backed back-references to tree-owned units (a data item refers to its
+// domain/values units but does NOT own them; the config/cache tree owns them). Real weak liveness
+// via .lock() -- no dangling raw back-pointer when the unit's owner drops first.
+using WeakUnit       = weak_tree_ptr<const AbstrUnit>;
+
 // InterestPtr
 template <typename CPtr> struct InterestPtr;
 using SharedTreeItemInterestPtr = InterestPtr<SharedTreeItem>;

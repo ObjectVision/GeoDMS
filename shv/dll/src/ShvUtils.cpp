@@ -245,7 +245,7 @@ void SyncRefImpl(T& ptr, TreeItem* context, TokenID id, ShvSyncMode sm)
 			const TreeItem* refItem = GetDialogDataRef(subItem);
 			if (refItem)
 			{
-				ptr = checked_valcast<const A*>( refItem );
+				ptr = T(checked_valcast<const A*>( refItem ), existing_obj{});
 				return;
 			}
 		}
@@ -261,9 +261,9 @@ void SyncRefImpl(T& ptr, TreeItem* context, TokenID id, ShvSyncMode sm)
 	}
 }
 
-void SyncRef(SharedPtr<const TreeItem>& ptr, TreeItem* context, TokenID id, ShvSyncMode sm) { SyncRefImpl<TreeItem>(ptr, context, id, sm); }
+void SyncRef(shared_tree_ptr<const TreeItem>& ptr, TreeItem* context, TokenID id, ShvSyncMode sm) { SyncRefImpl<TreeItem>(ptr, context, id, sm); }
 void SyncRef(SharedDataItemInterestPtr& ptr, TreeItem* context, TokenID id, ShvSyncMode sm) { SyncRefImpl<AbstrDataItem>(ptr, context, id, sm); }
-void SyncRef(SharedPtr<const AbstrUnit>& ptr, TreeItem* context, TokenID id, ShvSyncMode sm) { SyncRefImpl<AbstrUnit>(ptr, context, id, sm); }
+void SyncRef(shared_tree_ptr<const AbstrUnit>& ptr, TreeItem* context, TokenID id, ShvSyncMode sm) { SyncRefImpl<AbstrUnit>(ptr, context, id, sm); }
 
 template <typename V>
 void SaveValue(TreeItem* context, TokenID nameID, typename param_type<V>::type value)
@@ -989,8 +989,8 @@ void CreateNonzeroJenksFisherBreakAttr(std::weak_ptr<DataView> dv_wptr, const Ab
 		thematicValuesRangeData = sortedUniqueValueCache.second;
 	}
 
-	SharedPtr<AbstrUnit> paletteDomain = const_cast<AbstrUnit*>(breakAttr->GetAbstrDomainUnit());
-	SharedPtr<AbstrDataItem> breakAttrPtr = breakAttr;
+	shared_tree_ptr<AbstrUnit> paletteDomain(const_cast<AbstrUnit*>(breakAttr->GetAbstrDomainUnit()), existing_obj{});
+	shared_tree_ptr<AbstrDataItem> breakAttrPtr(breakAttr, existing_obj{});
 
 	SizeT nrBreaks = Min<SizeT>(sortedUniqueValueCache.first.size(), DEFAULT_MAX_NR_BREAKS);
 	auto result = ClassifyJenksFisher(sortedUniqueValueCache.first, nrBreaks, true); // callsClassifyUniqueValues if breakAttr.size() >= sortedUniqueValueCache.size()

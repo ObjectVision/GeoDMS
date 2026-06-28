@@ -8,6 +8,9 @@
 #include "act/Actor.h"
 #include "ptr/WeakPtr.h"
 
+#include <memory>
+#include <variant>
+
 // *****************************************************************************
 // Section:     DataControllerFlags
 // stored in Actor::m_State (last real actor flag is AF_IsPassor = 0x0010)
@@ -27,6 +30,55 @@ enum DataControllerFlags
 };
 
 // *****************************************************************************
+// Section:     DcRef -- the IsNew/IsOld/IsTmp result holder (replaces m_Data WeakPtr + m_OwnedData)
+// *****************************************************************************
+
+// One member, a std::variant whose active arm encodes ownership (see doc/development/std-ptr-migration-plan.md
+// §4). Owning arms (cache results) keep the result alive exactly as the old m_OwnedData did; weak arms
+// (borrowed config item, tmp instantiation) are NON-owning and .lock()-checked, so a vanished item is
+// detected (null) instead of dereferenced blind -- the dangling-IsOld fix the raw WeakPtr could not give,
+// and it breaks the retain cycle (config item -> mc_DC -> DC graph -> m_Data -> ... -> root).
+struct DcRef
+{
+	std::variant<
+		std::monostate,                   // 0: empty
+		std::shared_ptr<TreeItem>,        // 1: IsNew  -- root cache result; DualRef is the primary owner
+		std::shared_ptr<const TreeItem>,  // 2: IsOld  -- cache sub-item; owned ("like new")
+		std::weak_ptr<const TreeItem>,    // 3: IsOld  -- config item; the tree owns it; .lock() to use
+		std::weak_ptr<TreeItem>           // 4: IsTmp  -- instantiation borrow at the calling site; .lock() to use
+	> m_Holder;
+
+	// THE accessor: lock to an OWNING snapshot. For the weak arms this keeps the target alive for the
+	// caller's whole use (no dangling raw from a dying temp -- that was the crash); for the owning arms it
+	// shares ownership. Empty shared_tree_ptr if the arm is empty or the weak target has expired. Callers
+	// MUST hold the result while using it: `if (auto p = m_Data.get()) p->...`.
+	shared_tree_ptr<const TreeItem> get() const
+	{
+		switch (m_Holder.index())
+		{
+		case 1: return std::static_pointer_cast<const TreeItem>(std::get<1>(m_Holder));
+		case 2: return std::get<2>(m_Holder);
+		case 3: return std::get<3>(m_Holder).lock();
+		case 4: return std::static_pointer_cast<const TreeItem>(std::get<4>(m_Holder).lock());
+		default: return {};
+		}
+	}
+	int             kind()       const noexcept { return int(m_Holder.index()); } // 0 empty,1 new,2 oldCache,3 oldConfig,4 tmp
+	void            clear()            noexcept { m_Holder.emplace<std::monostate>(); }
+
+	// std owner count of the OWNING arms (0 for weak/empty) -- replaces the old intrusive GetRefCount() check.
+	long use_count() const noexcept
+	{
+		switch (m_Holder.index())
+		{
+		case 1: return std::get<1>(m_Holder).use_count();
+		case 2: return std::get<2>(m_Holder).use_count();
+		default: return 0;
+		}
+	}
+};
+
+// *****************************************************************************
 // Section:     TreeItemDualRef Interface
 // *****************************************************************************
 
@@ -37,9 +89,14 @@ struct TreeItemDualRef : SharedActor
 	TreeItemDualRef(const TreeItemDualRef&) = delete;
 	TreeItemDualRef(TreeItemDualRef&&) = delete;
 
-	      TreeItem* GetNew()  const { dms_assert(!IsOld()); return const_cast<TreeItem*>(m_Data.get()); }
-	const TreeItem* GetOld()  const { return m_Data.get(); }
-	const TreeItem* GetUlt()  const { if (m_Data.is_null()) return nullptr;  return m_Data->GetCurrUltimateItem(); }
+	// The owning current-result snapshot -- the safe way to read & hold the result. Callers that need it
+	// alive across work MUST keep this: `if (auto p = dc.GetCurr()) p->...`.
+	shared_tree_ptr<const TreeItem> GetCurr() const { return m_Data.get(); }
+	// Raw borrows: valid only while an owner (the variant's owning arm, or the tree/caller for the weak arms)
+	// outlives the use. Prefer GetCurr() when holding across work.
+	      TreeItem* GetNew()  const { dms_assert(!IsOld()); return const_cast<TreeItem*>(m_Data.get().get()); }
+	const TreeItem* GetOld()  const { return m_Data.get().get(); }
+	const TreeItem* GetUlt()  const { if (auto p = m_Data.get()) return p->GetCurrUltimateItem(); return nullptr; }
 
 	virtual bool IsSymbDC() const { return false; }
 	virtual bool CanResultToConfigItem() const { return false; }
@@ -48,15 +105,16 @@ struct TreeItemDualRef : SharedActor
 	operator       TreeItem* () const { return GetNew(); }
 	operator const TreeItem* () const { return GetOld(); }
 
-	const TreeItem* operator ->() const { assert(m_Data.has_ptr()); return m_Data.get(); }
+	// "is an arm set" -- a non-transient state check (NOT a liveness probe; for liveness use GetCurr()).
+	explicit operator bool () const { return m_Data.kind() != 0; }
+	bool operator ! () const { return m_Data.kind() == 0; }
+	const TreeItem* operator ->() const { return GetOld(); } // raw borrow (see GetOld/GetCurr)
 
-	operator       bool      () const { return  m_Data.has_ptr(); }
-	bool operator  !         () const { return  m_Data.is_null(); }
-
-	bool IsNew() const { return m_Data.has_ptr() && !m_State.Get(DCF_IsOld|DCF_IsTmp); }
-	bool IsOld() const { return m_Data.has_ptr() &&  m_State.Get(DCF_IsOld); }
-	bool IsTmp() const { return m_Data.has_ptr() &&  m_State.Get(DCF_IsTmp); }
-	bool IsTransient() const { return m_State.Get(DCF_IsTmp|DCF_CanChange); };
+	// state predicates from the variant arm (kind), not a transient liveness probe.
+	bool IsNew() const { return m_Data.kind() == 1; }
+	bool IsOld() const { return m_Data.kind() == 2 || m_Data.kind() == 3; }
+	bool IsTmp() const { return m_Data.kind() == 4; }
+	bool IsTransient() const { return IsTmp() || m_State.Get(DCF_CanChange); };
 
 	void operator =(      TreeItem* rhs) { SetNew(rhs); }
 	void operator =(const TreeItem* rhs) { SetOld(rhs); }
@@ -70,8 +128,8 @@ struct TreeItemDualRef : SharedActor
 	TIC_CALL void SetOld(const TreeItem* oldTI);
 	TIC_CALL void SetTmp(      TreeItem* tmpTI);
 
-	bool HasBackRef() const { return m_Data.has_ptr() && m_Data->m_BackRef; }
-	SharedStr GetBackRefStr() const { return m_Data->m_BackRef->GetSourceName(); }
+	bool HasBackRef() const { auto p = m_Data.get(); return p && bool(p->m_BackRef); }
+	SharedStr GetBackRefStr() const { auto p = m_Data.get(); return p->m_BackRef->GetSourceName(); }
 
 protected:
 	void Set(const TreeItem* newTI, bool isNew);
@@ -88,13 +146,9 @@ protected:
 	friend struct data_swapper;
 	friend struct InterestReporter;
 
-	// m_Data is the non-owning current-result pointer used by every accessor. Object ownership lives in
-	// m_OwnedData, which is set only when this DualRef must keep the result alive: a freshly created cache
-	// result (isNew), a tmp result, or a borrowed CACHE item. A borrowed CONFIG item (isOld on a tree-owned
-	// item) is intentionally NOT owned here: owning it would form a retain cycle up to the config root
-	// (config item -> mc_DC -> DC supplier graph -> this m_Data -> ... -> root) — the teardown leak.
-	mutable WeakPtr<const TreeItem> m_Data;
-	mutable SharedTreeItem          m_OwnedData;
+	// The single result holder (variant): owning arms keep cache results alive; weak arms (config item,
+	// tmp) are non-owning + .lock()-checked. Replaces the old (m_Data WeakPtr + m_OwnedData SharedTreeItem).
+	mutable DcRef m_Data;
 };
 
 // *****************************************************************************

@@ -162,16 +162,16 @@ void ViewPort::InitWorldCrdUnit(const AbstrUnit* worldCrdUnit)
 	{
 		if (m_WorldCrdUnit)
 			m_WorldCrdUnit->UnifyValues(worldCrdUnit, "Already set WorldCrdUnit", "new WorldCrdUnit", UnifyMode(UM_AllowTypeDiff | UM_Throw | UM_AllowDefaultLeft)); // worldCrdUnit must not have less metrc/projection
-		m_WorldCrdUnit = worldCrdUnit;
+		m_WorldCrdUnit = shared_tree_ptr<const AbstrUnit>(worldCrdUnit, existing_obj{});
 	}
 	else
 	{
 		dms_assert(!m_WorldCrdUnit); // follows from not returning prematurely
-		m_WorldCrdUnit = 
+		m_WorldCrdUnit = shared_tree_ptr<const AbstrUnit>(
 				Unit<CrdPoint>::GetStaticClass()->CreateUnit(
-					context 
+					context
 				,	t_WCU
-				).get();
+				).get(), existing_obj{});
 	}
 	Invalidate();
 }

@@ -9,6 +9,7 @@
 #endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "DataItemColumn.h"
+#include "ptr/SharedTreePtr.h"
 
 #include "StgBase.h"
 
@@ -1587,7 +1588,7 @@ void DataItemColumn::FillMenu(MouseEventDispatcher& med)
 		med.m_MenuData.emplace_back(
 			mySSPrintF("Show Statistics of '%s'"
 		,	caption.c_str())
-		,	std::make_unique<RequestClientCmd>(sa, CC_ShowStatistics)
+		,	std::make_unique<RequestClientCmd>(shared_tree_ptr<const TreeItem>(sa, existing_obj{}), CC_ShowStatistics)
 		,	this
 		);
 
@@ -1651,7 +1652,7 @@ void DataItemColumn::FillMenu(MouseEventDispatcher& med)
 	med.m_MenuData.emplace_back(mySSPrintF("&Remove %s", caption.c_str()), make_MembFuncCmd(&DataItemColumn::Remove), this, (tc->NrEntries() > 1) ? MF_ENABLED : MF_GRAYED);
 
 //	Ramping
-	SharedPtr<const AbstrDataItem> activeAttr = GetActiveAttr();
+	shared_tree_ptr<const AbstrDataItem> activeAttr(GetActiveAttr(), existing_obj{});
 	if (activeAttr && activeAttr->GetAbstrValuesUnit()->GetValueType()->IsNumeric()
 		&&	tc->m_Cols.IsDefined()
 		&&	tc->GetActiveCol() == m_ColumnNr

@@ -38,6 +38,7 @@ granted by an additional written contract for support, assistance and/or develop
 //#include "StgImpl.h"
 #include "ptr/OwningPtr.h"
 #include "ptr/SharedPtr.h"
+#include "ptr/SharedTreePtr.h"
 
 /*****************************************************************************/
 //									CLASSES
@@ -67,7 +68,7 @@ private:
 //	hidden implementation which doesn't know about DMS structure
 	mutable SharedPtr<TNameSet>        m_NameSet;          // nameset cache
 	mutable const TreeItem*            m_NameSetStorageHolder = nullptr; // used to check for which storageHolder the nameset cache was made
-	mutable SharedPtr<const AbstrUnit> m_TableDomain;
+	mutable shared_tree_ptr<const AbstrUnit> m_TableDomain;
 
 	friend struct DbfMetaInfo;
 	DECL_RTTI(STGDLL_CALL,StorageClass)

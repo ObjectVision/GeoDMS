@@ -43,10 +43,10 @@ granted by an additional written contract for support, assistance and/or develop
 #include "TreeItem.h"
 #include "TreeItemProps.h"
 
-TIC_CALL const TreeItem* _GetHistoricUltimateItem(const TreeItem* ti) noexcept;
-TIC_CALL const TreeItem* _GetCurrUltimateItem(const TreeItem* ti) noexcept;
-TIC_CALL const TreeItem* _GetCurrRangeItem(const TreeItem* ti) noexcept;
-TIC_CALL const TreeItem* _GetUltimateItem(const TreeItem* ti) noexcept;
+TIC_CALL auto _GetHistoricUltimateItem(const TreeItem* ti) noexcept -> shared_tree_ptr<const TreeItem>;
+TIC_CALL auto _GetCurrUltimateItem(const TreeItem* ti) noexcept -> shared_tree_ptr<const TreeItem>;
+TIC_CALL auto _GetCurrRangeItem(const TreeItem* ti) noexcept -> shared_tree_ptr<const TreeItem>;
+TIC_CALL auto _GetUltimateItem(const TreeItem* ti) noexcept -> shared_tree_ptr<const TreeItem>;
 
 TIC_CALL bool HasVisibleSubItems(const TreeItem* refItem) noexcept;
 

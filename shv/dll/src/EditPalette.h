@@ -14,6 +14,7 @@
 #include "TableViewControl.h"
 #include "TextControl.h"
 #include "CalcClassBreaks.h"
+#include "ptr/SharedTreePtr.h"
 
 //----------------------------------------------------------------------
 // class  : NumericEditControl
@@ -55,7 +56,7 @@ protected:
 	SharedStr GetAsText() const;
 
 private:
-	WeakPtr<const AbstrUnit> m_PaletteDomain;
+	weak_tree_ptr<const AbstrUnit> m_PaletteDomain;
 };
 
 //----------------------------------------------------------------------

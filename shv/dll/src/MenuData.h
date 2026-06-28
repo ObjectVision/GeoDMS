@@ -12,6 +12,7 @@
 #include "ShvBase.h"
 
 #include "ptr/SharedPtr.h"
+#include "ptr/SharedTreePtr.h"
 
 #include "AbstrCmd.h"
 
@@ -113,12 +114,12 @@ struct MenuData : private std::vector<MenuItem>
 
 struct RequestClientCmd : public AbstrCmd
 {
-	RequestClientCmd(SharedPtr<const TreeItem> ti, NotificationCode nc) : m_TI(std::move(ti)), m_NC(nc) {}
+	RequestClientCmd(shared_tree_ptr<const TreeItem> ti, NotificationCode nc) : m_TI(std::move(ti)), m_NC(nc) {}
 
 	GraphVisitState Visit(GraphicObject* go) override;
 
 private:
-	SharedPtr<const TreeItem>  m_TI;
+	shared_tree_ptr<const TreeItem>  m_TI;
 	NotificationCode m_NC;
 };
 

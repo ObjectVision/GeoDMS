@@ -613,7 +613,7 @@ private:
 	const ValueClass*    m_InternalValueClass;
 	ODBCStorageManager*  m_ODBCStorageManager;
 	const OdbcMetaInfo*  m_OdbcInfo;
-	SharedPtr<TreeItem>  m_TableHolder; // Maybe we read all columns at once
+	shared_tree_ptr<TreeItem>  m_TableHolder; // Maybe we read all columns at once
 	std::vector<BYTE>    m_CharBuffer;
 };
 
@@ -732,7 +732,7 @@ FileResult ODBCStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObj
 	AbstrDataItem* adi = smi->CurrWD();
 	dms_assert(adi->GetDataObjLockCount() < 0); // DataWriteLock is already set
 
-	SharedPtr<TreeItem> tableHolder = const_cast<TreeItem*>(adi->GetTreeParent().get());
+	shared_tree_ptr<TreeItem> tableHolder = shared_tree_ptr<TreeItem>(const_cast<TreeItem*>(adi->GetTreeParent().get()), existing_obj{});
 
 	leveled_critical_section::scoped_lock lock(s_OdbcSection);
 	ODBCStorageReader ir(this, debug_cast<const OdbcMetaInfo*>(smi.get()), tableHolder.get(), adi->GetName().c_str(), adi);

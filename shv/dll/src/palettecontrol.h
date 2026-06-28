@@ -11,6 +11,7 @@
 
 #include "TableControl.h"
 #include "LayerInfo.h"
+#include "ptr/SharedTreePtr.h"
 class Theme;
 
 //----------------------------------------------------------------------
@@ -59,7 +60,7 @@ private:
 	SharedDataItemInterestPtr  m_PaletteAttr;
 	SharedDataItemInterestPtr  m_CountAttr, m_SelCountAttr;
 	SharedDataItemInterestPtr  m_AreaOrLengthAttr;
-	SharedPtr<const AbstrUnit> m_PaletteDomain;
+	shared_tree_ptr<const AbstrUnit> m_PaletteDomain;
 	SharedUnitInterestPtr      m_ThemeUnit;
 
 	DECL_RTTI(SHV_CALL, Class)

@@ -871,7 +871,7 @@ auto CreateAbstrHeapTileFunctor(const AbstrDataItem* adi, SharedPtr<const Shared
 	}
 	MG_CHECK(currTRD);
 
-	SharedPtr<const AbstrUnit> valuesUnit = AsUnit(adi->GetAbstrValuesUnit()->GetCurrRangeItem());
+	shared_tree_ptr<const AbstrUnit> valuesUnit(AsUnit(adi->GetAbstrValuesUnit()->GetCurrRangeItem()), existing_obj{});
 
 	// DEBUG: SEVERE TILING
 	if (currTRD->GetNrTiles() > 1 && !adi->IsCacheItem())

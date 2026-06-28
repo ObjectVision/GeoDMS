@@ -154,7 +154,7 @@ private:
 
 	TokenID                                  m_tDomainUnit = TokenID::GetUndefinedID(),
 	                                         m_tValuesUnit = TokenID::GetUndefinedID();
-	mutable SharedUnit                       m_DomainUnit, m_ValuesUnit; // std co-ownership of the data item's units (was intrusive SharedPtr, which dangled when the unit's std owner dropped first)
+	mutable WeakUnit                         m_DomainUnit, m_ValuesUnit; // NON-owning std::weak_ptr back-refs: a data item refers to but does not own its units (the tree owns them); .lock() gives real liveness
 
 public: // TODO G8: Re-encapsulate
 	mutable SharedPtr<const AbstrDataObject> m_DataObject;

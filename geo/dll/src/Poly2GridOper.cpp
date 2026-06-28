@@ -527,7 +527,7 @@ namespace poly2grid
 
 		// constant for all tiles
 		AbstrDataObject*                     m_ResObj;
-		WeakPtr<const AbstrDataItem>         m_PolyAttr;
+		weak_tree_ptr<const AbstrDataItem>   m_PolyAttr;
 		WeakPtr<const AbstrBoundingBoxCache> m_BoxesArrays;
 
 		// tile and sub-tile dependent
@@ -637,7 +637,7 @@ namespace poly2grid
 		{}
 
 
-		WeakPtr<const AbstrDataItem>   m_PolyAttr;
+		weak_tree_ptr<const AbstrDataItem>   m_PolyAttr;
 		ViewPortInfoEx<Int32>          m_ViewPortInfo;
 
 

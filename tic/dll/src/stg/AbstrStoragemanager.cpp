@@ -62,16 +62,16 @@ StorageMetaInfo::~StorageMetaInfo()
 	}
 }
 
-auto StorageMetaInfo::CurrRD() const -> SharedPtr<const AbstrDataItem> { return AsDataItem(m_Curr); }
-auto StorageMetaInfo::CurrRU() const -> SharedPtr<const AbstrUnit> { return AsUnit(m_Curr); }
+auto StorageMetaInfo::CurrRD() const -> shared_tree_ptr<const AbstrDataItem> { return AsDataItem(m_Curr); }
+auto StorageMetaInfo::CurrRU() const -> shared_tree_ptr<const AbstrUnit> { return AsUnit(m_Curr); }
 
 void StorageMetaInfo::PrepareReadDataOrSuspend()
 {
 	if (IsDataItem(m_Curr.get()))
 	{
-		SharedPtr<const AbstrUnit> adu = { CurrRD()->GetAbstrDomainUnit(), existing_obj{} };
+		shared_tree_ptr<const AbstrUnit> adu(CurrRD()->GetAbstrDomainUnit(), existing_obj{});
 		adu->GetCount(); // Prepare for later DataWriteLock->DoCreateMemoryStorage
-		SharedPtr<const AbstrUnit> avu = { CurrRD()->GetAbstrValuesUnit(), existing_obj{} };
+		shared_tree_ptr<const AbstrUnit> avu(CurrRD()->GetAbstrValuesUnit(), existing_obj{});
 		WaitForReadyOrSuspendTrigger(avu->GetCurrRangeItem());
 	}
 }

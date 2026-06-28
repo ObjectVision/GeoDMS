@@ -12,6 +12,7 @@
 #endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "ItemSchemaView.h"
+#include "ptr/SharedTreePtr.h"
 
 #include "act/ActorVisitor.h"
 #include "act/SupplierVisitFlag.h"
@@ -54,11 +55,11 @@ struct SubItemQuery
 	template <typename Action>
 	void operator()(Action&& action)
 	{
-		for(; m_Curr; m_Curr.reset( m_Curr->GetNextItem() ) )
-			action(m_Curr);
+		for(; m_Curr; m_Curr = m_Curr->GetNextItem() )
+			action(m_Curr.get_ptr());
 	}
 
-	WeakPtr<const TreeItem> m_Curr;
+	weak_tree_ptr<const TreeItem> m_Curr;
 };
 
 struct SeenActorSet: std::set<const Actor*>
@@ -121,7 +122,7 @@ struct UniqueSupplierQuery
 		dms_assert(res == AVS_Ready);
 	}
 
-	WeakPtr<const TreeItem> m_Curr;
+	weak_tree_ptr<const TreeItem> m_Curr;
 	SeenActorSet*           m_SAS;
 	SupplierVisitFlag       m_SVF;
 };

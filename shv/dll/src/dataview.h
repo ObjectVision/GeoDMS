@@ -21,6 +21,7 @@
 #include "mci/DoubleLinkedTree.h"
 #include "ptr/OwningPtr.h"
 #include "ptr/SharedPtr.h"
+#include "ptr/SharedTreePtr.h"
 
 
 #include "AbstrController.h"
@@ -366,7 +367,7 @@ public:
 protected:
 	caret_vector                   m_CaretVector;
 	std::shared_ptr<MovableObject> m_Contents;
-	SharedPtr<TreeItem>            m_ViewContext;
+	shared_tree_ptr<TreeItem>            m_ViewContext;
 
 	controller_vector             m_ControllerVector;
 

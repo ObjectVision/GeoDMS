@@ -232,6 +232,10 @@ public:
 	// Returns the shared interest handle for this actor if any (or null).
 	RTC_CALL SharedActorInterestPtr GetInterestPtrOrNull() const;
 
+	// Non-owning std::weak_ptr to this actor, for the weak supplier-interest list. Default empty (intrusive
+	// SharedActor actors such as DataController are not std-managed); TreeItem overrides via weak_from_this().
+	RTC_CALL virtual std::weak_ptr<const Actor> weak_from_actor() const;
+
 protected:
 	// Lifecycle hooks when interest starts/stops on this actor itself.
 	RTC_CALL virtual void StartInterest() const;

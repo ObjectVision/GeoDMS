@@ -211,7 +211,7 @@ bool InterestRetainContextBase::IsActive()
     return sc_RetainContextCount != 0;
 }
 
-void InterestRetainContextBase::Add(const SharedActor* actor)
+void InterestRetainContextBase::Add(const Actor* actor)
 {
 //  assert(IsActive()); // PRECONDITION
     if (IsActive() && actor) // else it will never be removed; REMOVE IF ASSERT IS PROVEN
@@ -486,7 +486,7 @@ ActorVisitState Actor::SuspendibleUpdate() const // returns false in case of fai
     }
 
     assert(m_LastGetStateTS == UpdateMarker::LastTS());
-    UpdateMarker::ChangeSourceLock changeStamp(dynamic_cast<const SharedActor*>(this),  "Update");
+    UpdateMarker::ChangeSourceLock changeStamp(this,  "Update");
 
 #if defined(MG_DEBUG_INTERESTSOURCE)
     DemandManagement::IncInterestDetector incInterestLock("Actor::SuspendibleUpdate()");
@@ -1280,9 +1280,11 @@ SupplInterestListPtr Actor::GetSupplInterest() const
     VisitSupplProcImpl(this, SupplierVisitFlag(SupplierVisitFlag::StartSupplInterest),
         [&supplInterestListPtr] (const Actor* supplier)
         {
+            // The visitor sees a raw const Actor*. std-managed suppliers (TreeItems) are retained in the
+            // weak interest list; intrusive SharedActor suppliers (DataControllers) yield an empty weak and
+            // are skipped here (locked locally during the visit; their interest is held via their owner).
             if (!supplier->IsPassor())
-				if (auto ps = dynamic_cast<SharedActor*>(const_cast<Actor*>(supplier)))
-                    push_front(supplInterestListPtr, ps);
+                push_front(supplInterestListPtr, supplier);
         }
     );
     return supplInterestListPtr;
@@ -1430,7 +1432,7 @@ SupplInterestListPtr::~SupplInterestListPtr()
     while (static_cast<bool>(get()))
     {
         // two step forwarding to prevent the creation of self-owned leaked SupplInterestListElem's
-        assert(get()->m_Value); // class invariant
+        // (m_Value is a non-owning weak interest; the supplier may have expired by teardown, so no assert)
         base_type::reset( release_ptr(get()->m_NextPtr) );  // acquire nextPtr and destroy currently owned SupplInterestListElem, which includes destructing its m_Value
     }
 }
@@ -1459,6 +1461,13 @@ SharedActorInterestPtr Actor::GetInterestPtrOrNull() const
     ++m_InterestCount;
 
     return SharedActorInterestPtr(std::move(result), already_incremented_tag{});
+}
+
+// Default: not std-managed (e.g. intrusive SharedActor like DataController) -> empty weak.
+// TreeItem overrides to return weak_from_this().
+std::weak_ptr<const Actor> Actor::weak_from_actor() const
+{
+    return {};
 }
 
 #if defined(MG_ITEMLEVEL)

@@ -15,6 +15,7 @@
 //----------------------------------------------------------------------
 
 #include "ShvBase.h"
+#include "ptr/SharedTreePtr.h"
 
 #include "ExportInfo.h"
 #include "ShvSignal.h"
@@ -194,7 +195,7 @@ private:
 	void UpdateScaleBar();
 	void InvalidateOverlapped();
 
-	SharedPtr<const AbstrUnit> m_WorldCrdUnit;
+	shared_tree_ptr<const AbstrUnit> m_WorldCrdUnit;
 	mutable SharedMutableDataItemInterestPtr   m_ROI_TL;   // AOI in world coordinates (TopLeft)
 	mutable SharedMutableDataItemInterestPtr   m_ROI_BR;   // AOI in world coordinates (BottomRight)
 	OrientationType            m_Orientation;

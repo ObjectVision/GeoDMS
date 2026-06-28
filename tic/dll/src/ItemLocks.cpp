@@ -460,7 +460,7 @@ ItemWriteLock::ItemWriteLock(TreeItem* item, std::weak_ptr<OperationContext> ocb
 		s_SessionUsageCounter.lock_shared();
 
 		treeitem_production_task::lock_unique(item, ocb);
-		m_ItemPtr = item;
+		m_ItemPtr = shared_tree_ptr<const TreeItem>(item, existing_obj{});
 
 #if defined(MG_DEBUG_DATASTORELOCK)
 		++sd_ItemWriteLockCounter;
@@ -473,7 +473,7 @@ ItemWriteLock::~ItemWriteLock()
 	if (!has_ptr())
 		return;
 
-	SharedPtr<const TreeItem> garbage = GetItem();
+	shared_tree_ptr<const TreeItem> garbage(GetItem(), existing_obj{});
 
 	treeitem_production_task::unlock_unique(m_ItemPtr.get());
 	s_SessionUsageCounter.unlock_shared();
@@ -685,12 +685,12 @@ bool IsCalculatingOrReady(const TreeItem* item)
 }
 
 
-static std::set< SharedPtr<const TreeItem>>  s_ActiveProducerSet;
+static std::set< shared_tree_ptr<const TreeItem>>  s_ActiveProducerSet;
 leveled_critical_section s_ActiveProducerSetMutex(item_level_type(0), ord_level_type::ActiveProducerSet, "ActiveProducerSet");
 std::atomic<bool> s_RunTaskActive = false;
 
 
-SharedPtr<const TreeItem> GetATask()
+shared_tree_ptr<const TreeItem> GetATask()
 {
 	leveled_critical_section::scoped_lock lock(s_ActiveProducerSetMutex);
 	if (s_ActiveProducerSet.empty())

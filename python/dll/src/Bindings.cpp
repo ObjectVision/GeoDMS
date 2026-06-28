@@ -73,26 +73,26 @@ namespace py_geodms
 	struct UnitItem
 	{
 		UnitItem(const AbstrUnit* au)
-			: m_au(au)
+			: m_au(au, existing_obj{})
 		{}
 		UnitItem(const MutableUnitItem& rhs);
 
-		SharedPtr<const AbstrUnit> m_au;
+		shared_tree_ptr<const AbstrUnit> m_au;
 	};
 
 	struct MutableUnitItem
 	{
 		MutableUnitItem(AbstrUnit* au)
-			: m_au(au)
+			: m_au(au, existing_obj{})
 		{}
 
 		UnitItem asConst() const { return UnitItem(m_au.get()); }
 
-		SharedPtr<AbstrUnit> m_au;
+		shared_tree_ptr<AbstrUnit> m_au;
 	};
 
 	inline UnitItem::UnitItem(const MutableUnitItem& rhs)
-		: m_au(rhs.m_au.get())
+		: m_au(rhs.m_au.get(), existing_obj{})
 	{}
 
 	//----------------------------------------------------------------------
@@ -101,7 +101,7 @@ namespace py_geodms
 	struct DataItem
 	{
 		DataItem(const AbstrDataItem* adi)
-			: m_adi(adi)
+			: m_adi(adi, existing_obj{})
 		{}
 
 		auto GetAbstrDomainUnit() -> UnitItem
@@ -121,13 +121,13 @@ namespace py_geodms
 			return m_adi->LockAndGetValue<SharedStr>(i).c_str();
 		}
 
-		SharedPtr<const AbstrDataItem> m_adi;
+		shared_tree_ptr<const AbstrDataItem> m_adi;
 	};
 
 	struct MutableDataItem
 	{
 		MutableDataItem(AbstrDataItem* adi)
-			: m_adi(adi)
+			: m_adi(adi, existing_obj{})
 		{}
 
 		DataItem asDataItem()
@@ -135,7 +135,7 @@ namespace py_geodms
 			return DataItem(m_adi.get_ptr());
 		}
 
-		SharedPtr<AbstrDataItem> m_adi;
+		shared_tree_ptr<AbstrDataItem> m_adi;
 	};
 
 	//----------------------------------------------------------------------

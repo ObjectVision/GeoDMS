@@ -1090,13 +1090,13 @@ bool TreeItem::CheckResultItem(const TreeItem* refItem) const
 
 // ============ GetRefItem
 
-const TreeItem* TreeItem::GetCurrRefItem() const noexcept
+auto TreeItem::GetCurrRefItem() const noexcept -> shared_tree_ptr<const TreeItem>
 {
 //	assert(Was(ProgressState::MetaInfo) || WasFailed() || IsPassor() || IsUnit(this) && AsUnit(this)->IsDefaultUnit());
-	return mc_RefItem.get();
+	return mc_RefItem.lock();
 }
 
-const TreeItem* TreeItem::GetReferredItem() const  noexcept
+auto TreeItem::GetReferredItem() const  noexcept -> shared_tree_ptr<const TreeItem>
 {
 	assert(!SuspendTrigger::DidSuspend());
 	if (m_Parent) 
@@ -1104,16 +1104,16 @@ const TreeItem* TreeItem::GetReferredItem() const  noexcept
 
 	if (!mc_RefItem && HasCalculator())
 		MakeCalculator();
-
-	return mc_RefItem.get();
+				
+	return mc_RefItem.lock();
 }
 
-const TreeItem* TreeItem::GetCurrUltimateItem() const noexcept
+auto TreeItem::GetCurrUltimateItem() const noexcept -> shared_tree_ptr<const TreeItem>
 {
 	return _GetCurrUltimateItem(this);
 }
 
-const TreeItem* TreeItem::GetCurrRangeItem() const noexcept
+auto TreeItem::GetCurrRangeItem() const noexcept -> shared_tree_ptr<const TreeItem>
 {
 	return _GetCurrRangeItem(this);
 }
@@ -1326,7 +1326,7 @@ void TreeItem::SetKeepDataState(bool value)
 			subItem->SetKeepDataState(value);
 		if (!value)
 		{
-			const TreeItem* uti = _GetHistoricUltimateItem(this);
+			auto uti = _GetHistoricUltimateItem(this);
 			actor_section_lock_map::ScopedLock specificSectionLock(MG_SOURCE_INFO_CODE("TreeItem::SetKeepDataState") sg_ActorLockMap, uti); // datalockcount 1->0 or drop of interest is 
 			uti->TryCleanupMem();
 		}
@@ -2935,7 +2935,7 @@ ActorVisitState TreeItem::DoUpdate()
 					{
 						assert(iCheckerResult->GetInterestCount());
 
-						SharedPtr<const TreeItem> adiCheckerResult = iCheckerResult->GetCurrUltimateItem();
+						shared_tree_ptr<const TreeItem> adiCheckerResult(iCheckerResult->GetCurrUltimateItem(), existing_obj{});
 						assert(adiCheckerResult->GetInterestCount());
 						if (!WaitForReadyOrSuspendTrigger(adiCheckerResult.get()))
 						{
@@ -2995,7 +2995,7 @@ ActorVisitState TreeItem::DoUpdate()
 
 		SetProgress(ProgressState::Committed);
 
-		const TreeItem* uti = _GetHistoricUltimateItem(this);
+		auto uti = _GetHistoricUltimateItem(this);
 		actor_section_lock_map::ScopedLock specificSectionLock(MG_SOURCE_INFO_CODE("TreeItem::CommitDataChanges") sg_ActorLockMap, uti);
 		uti->TryCleanupMem();
 
@@ -3596,7 +3596,7 @@ bool TreeItem::PrepareDataUsage(DrlType drlFlags) const
 
 enum class how_to_proceed { nothing, data_ready, failed, suspended, suspended_or_failed}; // return_suspended_or_failed, return_OK ;
 
-static how_to_proceed PrepareDataCalc(SharedPtr<const TreeItem> self, const TreeItem* refItem, DrlType drlFlags)
+static how_to_proceed PrepareDataCalc(shared_tree_ptr<const TreeItem> self, const TreeItem* refItem, DrlType drlFlags)
 {
 	dms_assert(!SuspendTrigger::DidSuspend() && !self->WasFailed(FailType::Determine)); // Postcondition when CreateResultingTreeItem returns a result
 
@@ -3667,7 +3667,7 @@ static how_to_proceed PrepareDataCalc(SharedPtr<const TreeItem> self, const Tree
 	return how_to_proceed::nothing;
 }
 
-static how_to_proceed PrepareDataRead(SharedPtr<const TreeItem> self, const TreeItem* refItem, DrlType drlFlags)
+static how_to_proceed PrepareDataRead(shared_tree_ptr<const TreeItem> self, const TreeItem* refItem, DrlType drlFlags)
 {
 	// PSEUDOCODE:
 	// - Ensure refItem is data-readable and not a cache item.
@@ -4560,7 +4560,7 @@ void TreeItem::StartInterest() const
 
 	auto undoActorInterest = make_releasable_scoped_exit([this]() { this->Actor::StopInterest();; });
 
-	SharedPtr<const TreeItem> refItem = mc_RefItem; // last call to UpdateMetaInfo
+	SharedTreeItem            refItem = mc_RefItem.lock(); // lock the weak back-ref to an owning ptr for the duration
 	SharedActorInterestPtr    calcHolder = mc_DC.get_ptr();
 	SharedTreeItemInterestPtr refItemHolder = refItem;
 

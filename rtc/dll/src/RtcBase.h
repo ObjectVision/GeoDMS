@@ -348,7 +348,9 @@ template <typename P> struct pointer_traits<InterestPtr<P>> : pointer_traits<P> 
 template <typename T> struct pointer_traits<std::shared_ptr<T>  > : pointer_traits_helper<T> {
 	static T* get_ptr(const std::shared_ptr<T>& ptr) { return ptr.get(); }
 };
-template <typename T> struct pointer_traits<std::weak_ptr<T>  > : pointer_traits_helper<T> {};
+template <typename T> struct pointer_traits<std::weak_ptr<T>  > : pointer_traits_helper<T> {
+	static T* get_ptr(const std::weak_ptr<T>& ptr) { return ptr.lock().get(); } // momentary lock; null if expired (enables InterestPtr<std::weak_ptr<T>>)
+};
 
 template <typename P> struct raw_ptr { using type = typename pointer_traits<P>::ptr_type; };
 

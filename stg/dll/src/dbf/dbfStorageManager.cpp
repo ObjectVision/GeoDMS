@@ -51,7 +51,7 @@ TNameSet* DbfStorageManager::BuildNameSet(const TreeItem* storageHolder)  const
 {
 	if (m_NameSet.is_null() || storageHolder != m_NameSetStorageHolder)
 	{
-		SharedPtr<const AbstrUnit> tableDomain = StorageHolder_GetTableDomain(storageHolder);
+		shared_tree_ptr<const AbstrUnit> tableDomain = shared_tree_ptr<const AbstrUnit>(StorageHolder_GetTableDomain(storageHolder), existing_obj{});
 
 		OwningPtr<TNameSet> nameset = new TNameSet(DBF_COLNAME_SIZE);
 

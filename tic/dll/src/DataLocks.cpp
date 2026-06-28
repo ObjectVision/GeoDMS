@@ -251,7 +251,7 @@ DataWriteLock::DataWriteLock(AbstrDataItem* adi, dms_rw_mode rwm, const SharedOb
 		DataLockError(adi, "Write");
 
 	bool mustClear = (rwm == dms_rw_mode::write_only_mustzero);
-	auto configItem = SharedPtr<const AbstrDataItem>((adi->m_BackRef && IsDataItem(adi->m_BackRef.get_ptr())) ? AsDataItem(adi->m_BackRef.get_ptr()) : adi);
+	auto configItem = shared_tree_ptr<const AbstrDataItem>((adi->m_BackRef && IsDataItem(adi->m_BackRef.get_ptr())) ? AsDataItem(adi->m_BackRef.get_ptr()) : adi, existing_obj{});
 	if (!configItem->IsCacheItem())
 	{
 		if (auto sp = configItem->GetCurrStorageParent(true))

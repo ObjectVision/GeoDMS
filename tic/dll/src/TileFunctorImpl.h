@@ -31,11 +31,11 @@ struct DelayedTileFunctor : TileFunctor<V>
 	// Non-owning back-ref to the owning result item, used only to propagate FR_Data failures. The result
 	// OWNS this functor (via its m_DataObject), so this back-ref must not own the result back (that self-cycle
 	// pinned both). Cleared by ImLosingIt() when the item releases this object (AbstrDataItem::ClearDataObject).
-	mutable WeakPtr<AbstrDataItem> m_ResultAdi;
+	mutable weak_tree_ptr<AbstrDataItem> m_ResultAdi; // std::weak_ptr-backed non-owning back-ref (lock at use)
 
-	DelayedTileFunctor(SharedPtr<AbstrDataItem> resultAdi, const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<field_of_t<V>> valueRangePtr MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr))
+	DelayedTileFunctor(SharedMutableDataItem resultAdi, const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<field_of_t<V>> valueRangePtr MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr))
 		: TileFunctor<V>(tiledDomainRangeData, valueRangePtr MG_DEBUG_ALLOCATOR_SRC_PARAM)
-		, m_ResultAdi(resultAdi.get_ptr())
+		, m_ResultAdi(resultAdi)
 		, m_ActiveTiles(std::make_unique<std::shared_ptr<future_tile>[]>(tiledDomainRangeData->GetNrTiles()))
 	{
 		MG_CHECK(tiledDomainRangeData);
@@ -51,11 +51,11 @@ struct DelayedTileFunctor : TileFunctor<V>
 		return m_ActiveTiles[t];
 	}
 	// m_ResultAdi is non-owning: if the item already let go of this object it is null -> nothing to report to.
-	void ImLosingIt() const override { m_ResultAdi = nullptr; }
+	void ImLosingIt() const override { m_ResultAdi.reset(); }
 	auto GetTile(tile_id t) const->locked_cseq_t override
 	{
-		if (m_ResultAdi && m_ResultAdi->WasFailed(FailType::Data))
-			m_ResultAdi->ThrowFail();
+		if (auto resultAdi = m_ResultAdi.lock(); resultAdi && resultAdi->WasFailed(FailType::Data))
+			resultAdi->ThrowFail();
 		try
 		{
 			assert(t < this->GetTiledRangeData()->GetNrTiles());
@@ -64,8 +64,8 @@ struct DelayedTileFunctor : TileFunctor<V>
 		}
 		catch (...)
 		{
-			if (m_ResultAdi)
-				m_ResultAdi->CatchFail(FailType::Data);
+			if (auto resultAdi = m_ResultAdi.lock())
+				resultAdi->CatchFail(FailType::Data);
 			throw;
 		}
 	}
@@ -115,7 +115,7 @@ struct FutureTileFunctor : DelayedTileFunctor<V>
 #endif
 	};
 
-	FutureTileFunctor(SharedPtr<AbstrDataItem> resultAdi, const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<field_of_t<V>> valueRangePtr
+	FutureTileFunctor(SharedMutableDataItem resultAdi, const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<field_of_t<V>> valueRangePtr
 	, PrepareFunc&& pFunc_, ApplyFunc&& aFunc_ MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr))
 	: DelayedTileFunctor<V>(resultAdi, tiledDomainRangeData, valueRangePtr MG_DEBUG_ALLOCATOR_SRC_PARAM)
 	, aFunc(aFunc_)
@@ -129,7 +129,7 @@ struct FutureTileFunctor : DelayedTileFunctor<V>
 };
 
 template <typename V, typename PrepareState, bool MustZero, typename PrepareFunc, typename ApplyFunc>
-auto make_unique_FutureTileFunctor(SharedPtr<AbstrDataItem> resultAdi, bool lazy, const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<field_of_t<V>> valueRangePtr, PrepareFunc&& pFunc, ApplyFunc&& aFunc MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr))
+auto make_unique_FutureTileFunctor(SharedMutableDataItem resultAdi, bool lazy, const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<field_of_t<V>> valueRangePtr, PrepareFunc&& pFunc, ApplyFunc&& aFunc MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr))
 -> std::unique_ptr<TileFunctor<V>>
 { 
 	if (lazy)
@@ -175,11 +175,11 @@ struct LazyTileFunctor : GeneratedTileFunctor<V>
 
 	using cache_t = std::unique_ptr<lazy_tile_record[]>;
 
-	LazyTileFunctor(SharedPtr<AbstrDataItem> resultAdi, const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<field_of_t<V>> valueRangePtr, ApplyFunc&& aFunc MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr))
+	LazyTileFunctor(SharedMutableDataItem resultAdi, const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<field_of_t<V>> valueRangePtr, ApplyFunc&& aFunc MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr))
 		: GeneratedTileFunctor<V>(tiledDomainRangeData, valueRangePtr MG_DEBUG_ALLOCATOR_SRC_PARAM)
 		, m_ApplyFunc(std::move(aFunc))
 		, m_ActiveTiles(std::make_unique<lazy_tile_record[]>(tiledDomainRangeData->GetNrTiles()))
-		, m_ResultAdi(resultAdi.get_ptr())
+		, m_ResultAdi(resultAdi)
 	{
 		assert(resultAdi);
 	}
@@ -188,16 +188,16 @@ struct LazyTileFunctor : GeneratedTileFunctor<V>
 	auto GetWritableTile(tile_id t, dms_rw_mode rwMode)->locked_seq_t override;
 	auto GetTile(tile_id t) const->locked_cseq_t override;
 	// m_ResultAdi is non-owning: cleared when the item releases this object (AbstrDataItem::ClearDataObject).
-	void ImLosingIt() const override { m_ResultAdi = nullptr; }
+	void ImLosingIt() const override { m_ResultAdi.reset(); }
 
 	ApplyFunc m_ApplyFunc;
 	mutable cache_t m_ActiveTiles;
 	// Non-owning back-ref to the owning result item (failure propagation only); see DelayedTileFunctor.
-	mutable WeakPtr<AbstrDataItem> m_ResultAdi;
+	mutable weak_tree_ptr<AbstrDataItem> m_ResultAdi; // std::weak_ptr-backed non-owning back-ref (lock at use)
 };
 
 template <typename V, typename ApplyFunc>
-auto make_unique_LazyTileFunctor(SharedPtr<AbstrDataItem> resultAdi, const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<field_of_t<V>> valueRangePtr, ApplyFunc&& aFunc MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr))
+auto make_unique_LazyTileFunctor(SharedMutableDataItem resultAdi, const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<field_of_t<V>> valueRangePtr, ApplyFunc&& aFunc MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr))
 {
 	return std::make_unique<LazyTileFunctor<V, ApplyFunc>>(resultAdi, tiledDomainRangeData, valueRangePtr, std::forward<ApplyFunc>(aFunc) MG_DEBUG_ALLOCATOR_SRC(std::move(srcStr)));
 }
@@ -225,8 +225,8 @@ auto LazyTileFunctor<V, ApplyFunc>::GetWritableTile(tile_id t, dms_rw_mode rwMod
 template <typename V, typename ApplyFunc>
 auto LazyTileFunctor<V, ApplyFunc>::GetTile(tile_id t) const -> locked_cseq_t
 {
-	if (m_ResultAdi && m_ResultAdi->WasFailed(FailType::Data))
-		m_ResultAdi->ThrowFail();
+	if (auto resultAdi = m_ResultAdi.lock(); resultAdi && resultAdi->WasFailed(FailType::Data))
+		resultAdi->ThrowFail();
 	try {
 		assert(t < this->GetTiledRangeData()->GetNrTiles());
 
@@ -249,8 +249,8 @@ auto LazyTileFunctor<V, ApplyFunc>::GetTile(tile_id t) const -> locked_cseq_t
 	}
 	catch (...)
 	{
-		if (m_ResultAdi)
-			m_ResultAdi->CatchFail(FailType::Data);
+		if (auto resultAdi = m_ResultAdi.lock())
+			resultAdi->CatchFail(FailType::Data);
 		throw;
 	}
 }

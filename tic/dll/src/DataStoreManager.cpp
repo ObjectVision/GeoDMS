@@ -56,7 +56,7 @@ void DSM::CancelIfOutOfInterest(const TreeItem* item)
  // ==== code analysis support: TreeItem_SetAnalysisSource
 #include "TicInterface.h"
 
-static SharedPtr<const TreeItem>      s_SourceItem; 
+static shared_tree_ptr<const TreeItem>      s_SourceItem;
 static std::map<const Actor*, supplier_level> s_SupplierLevels;
 
 supplier_level operator & (supplier_level lhs, supplier_level rhs) { return supplier_level(UInt32(lhs) & UInt32(rhs)); }

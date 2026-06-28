@@ -94,7 +94,7 @@ struct CplString
 	char* m_Text;
 };
 
-using WeakDataItemInterestPtr = InterestPtr<WeakPtr<const AbstrDataItem>>;
+using WeakDataItemInterestPtr = InterestPtr<weak_tree_ptr<const AbstrDataItem>>;
 
 struct FieldInfo
 {

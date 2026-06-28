@@ -29,7 +29,7 @@ SelCaret::SelCaret(ViewPort* owner,	const sel_caret_key& key, GridCoordPtr gridC
 	:	m_Owner(owner->shared_from_base<ViewPort>())
 	,	m_EntityIndexCollectorPtr(key.second)
 	,	m_EntityIndexCollectorArray(key.second, no_tile)
-	,	m_SelAttr(key.first)
+	,	m_SelAttr(key.first, existing_obj{})
 	,	m_GridCoords(gridCoord)
 	,	m_Ready(false)
 {}

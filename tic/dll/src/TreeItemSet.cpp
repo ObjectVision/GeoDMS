@@ -43,10 +43,11 @@ static void storeAllSuppliers(const TreeItem* self, SupplierVisitFlag svf, TreeI
 			const TreeItem* suppl = dynamic_cast<const TreeItem*>(supplier);
 			if (suppl)
 			{
-				TreeItemSetType::iterator i = itemSet.lower_bound(suppl);
-				if (i == itemSet.end() || (*i) != suppl)
+				shared_tree_ptr<const TreeItem> supplKey(suppl, existing_obj{});
+				TreeItemSetType::iterator i = itemSet.lower_bound(supplKey);
+				if (i == itemSet.end() || (*i) != supplKey)
 				{
-					itemSet.insert(i, suppl);
+					itemSet.insert(i, supplKey);
 					storeAllSuppliers(suppl, svf, itemSet);
 				}
 			}

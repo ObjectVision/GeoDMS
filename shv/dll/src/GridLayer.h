@@ -12,6 +12,7 @@
 //----------------------------------------------------------------------
 
 #include "GridLayerBase.h"
+#include "ptr/SharedTreePtr.h"
 
 template <typename T> struct AbstrRowProcessor;
 #ifdef _WIN32
@@ -97,7 +98,7 @@ private:
 	void CreateSelCaretInfo () const;
 	IRect CalcSelectedGeoRect()  const;
 
-	mutable SharedPtr<const AbstrUnit>    m_GeoCoordUnit;
+	mutable shared_tree_ptr<const AbstrUnit>    m_GeoCoordUnit;
 	mutable SelCaretPtr                   m_SelCaret;
 #ifdef _WIN32
 	mutable std::unique_ptr<PasteHandler> m_PasteHandler;

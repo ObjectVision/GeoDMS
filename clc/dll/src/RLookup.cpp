@@ -101,7 +101,7 @@ public:
 		return true;
 	}
 	virtual std::any MakeIndex(bool mustMakeIndex, const AbstrDataItem* arg2A, const AbstrUnit* arg2_DomainUnit) const = 0;
-	virtual auto CreateFutureTileIndexer(SharedPtr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* arg2Domain, const AbstrTileRangeData* arg2DomainRange, bool hasIndex, std::any index MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr)) const->SharedPtr<const AbstrDataObject> = 0;
+	virtual auto CreateFutureTileIndexer(shared_tree_ptr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* arg2Domain, const AbstrTileRangeData* arg2DomainRange, bool hasIndex, std::any index MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr)) const->SharedPtr<const AbstrDataObject> = 0;
 	virtual void Calculate(AbstrDataObject* resObj, const AbstrDataItem* arg1A, const AbstrUnit* arg2Domain, bool hasIndex, const std::any&, tile_id t) const =0;
 };
 
@@ -185,7 +185,7 @@ public:
 		}
 	}
 
-	auto CreateFutureTileIndexer(SharedPtr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* arg2DomainA, const AbstrTileRangeData* arg2DomainRange, bool hasIndex, std::any indexBox MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr)) const -> SharedPtr<const AbstrDataObject> override
+	auto CreateFutureTileIndexer(shared_tree_ptr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* arg2DomainA, const AbstrTileRangeData* arg2DomainRange, bool hasIndex, std::any indexBox MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr)) const -> SharedPtr<const AbstrDataObject> override
 	{
 		auto tileRangeData = AsUnit(arg1A->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
 //		auto valuesUnit = debug_cast<const Unit<field_of_t<ResultValueType>>*>(valuesUnitA);

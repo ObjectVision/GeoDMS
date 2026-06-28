@@ -113,6 +113,16 @@ struct InterestPtr
 		OptionalInterestInc<IVal>(get_ptr());
 	}
 
+	// std::weak_ptr-backed overload: store the weak handle and bump interest on the (momentarily locked)
+	// target. Used for the supplier-interest list (InterestPtr<std::weak_ptr<const Actor>>): non-owning,
+	// liveness-checked. get_ptr() locks; OptionalInterestDec at teardown is a no-op if the target expired.
+	template <typename T>
+	InterestPtr(const std::weak_ptr<T>& item)
+		: m_Item(item)
+	{
+		OptionalInterestInc<IVal>(get_ptr());
+	}
+
 	template <typename SrcPtr> requires std::is_constructible_v<CPtr, SrcPtr&&>
 	InterestPtr(InterestPtr<SrcPtr>&& rhs) noexcept
 		: m_Item(std::move(rhs.m_Item))

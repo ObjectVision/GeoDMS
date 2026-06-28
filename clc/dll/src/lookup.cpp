@@ -107,7 +107,7 @@ public:
 		return true;
 	}
 	virtual bool MustCheckRange(const AbstrDataItem* arg1A, const AbstrUnit* arg2Domain) const =0;
-	virtual auto CreateFutureTileFunctor(SharedPtr<AbstrDataItem> resultAdi, bool lazy, const AbstrDataItem* arg1A, DataCheckMode dcmArg1, const AbstrUnit* valuesA, const AbstrUnit* arg2DomainA, const std::any& wrappedValuesArray MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr)) const -> SharedPtr<const AbstrDataObject> = 0;
+	virtual auto CreateFutureTileFunctor(shared_tree_ptr<AbstrDataItem> resultAdi, bool lazy, const AbstrDataItem* arg1A, DataCheckMode dcmArg1, const AbstrUnit* valuesA, const AbstrUnit* arg2DomainA, const std::any& wrappedValuesArray MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr)) const -> SharedPtr<const AbstrDataObject> = 0;
 	virtual void Calculate(AbstrDataObject* res, const AbstrDataItem* arg1A, DataCheckMode dcmArg1, const AbstrUnit* arg2DomainA, const std::any& wrappedValuesArray, tile_id t) const =0;
 	virtual std::any MakeValuesArray(const AbstrDataItem* arg2A) const = 0;
 };
@@ -206,7 +206,7 @@ public:
 	}
 
 
-	auto CreateFutureTileFunctor(SharedPtr<AbstrDataItem> resultAdi, bool lazy, const AbstrDataItem* arg1A, DataCheckMode dcmArg1, const AbstrUnit* valuesA, const AbstrUnit* arg2DomainA, const std::any& wrappedValuesArray MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr)) const -> SharedPtr<const AbstrDataObject> override
+	auto CreateFutureTileFunctor(shared_tree_ptr<AbstrDataItem> resultAdi, bool lazy, const AbstrDataItem* arg1A, DataCheckMode dcmArg1, const AbstrUnit* valuesA, const AbstrUnit* arg2DomainA, const std::any& wrappedValuesArray MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr)) const -> SharedPtr<const AbstrDataObject> override
 	{
 		assert(valuesA);
 		assert(arg2DomainA);

@@ -11,6 +11,7 @@
 
 #include "ptr/SharedBase.h"
 #include "ptr/SharedPtr.h"
+#include "ptr/SharedTreePtr.h"
 #include "geo/Transform.h"
 
 // *****************************************************************************
@@ -45,7 +46,7 @@ public:
 	TIC_CALL auto GetUnitlabeledScalePair() const->UnitLabelScalePair;
 	
 private:
-	SharedPtr<const AbstrUnit> m_BaseUnit;
+	shared_tree_ptr<const AbstrUnit> m_BaseUnit;
 };
 
 FormattedOutStream& operator <<(FormattedOutStream& str, const UnitProjection& repr);

@@ -619,7 +619,7 @@ void WmsLayer::SetWorldCrdUnit(const AbstrUnit* WorldCrdUnit)
 void WmsLayer::SetSpecContainer(const TreeItem* specContainer)
 {
 	dms_assert(IsMainThread());
-	m_SpecContainer = specContainer;
+	m_SpecContainer = shared_tree_ptr<const TreeItem>(specContainer, existing_obj{});
 	float ScaleCorrection = 360.0;
 	SharedStr unit("");
 
@@ -679,7 +679,7 @@ void WmsLayer::SetSpecContainer(const TreeItem* specContainer)
 
 	SuspendTrigger::SilentBlocker block("WmsLayer::SetSpecContainer");
 
-	SharedPtr<const TreeItem> tileMatrices = specContainer->GetConstSubTreeItemByID(GetTokenID_mt("TileMatrix")).get();
+	shared_tree_ptr<const TreeItem> tileMatrices(specContainer->GetConstSubTreeItemByID(GetTokenID_mt("TileMatrix")).get(), existing_obj{});
 	MG_USERCHECK2(tileMatrices, "TileMatrix container not found");
 
 	Table tab(tileMatrices.get(), "name", "ScaleDenominator", "LeftCoord", "TopCoord", "TileWidth", "TileHeight", "MatrixWidth", "MatrixHeight");
@@ -1107,7 +1107,7 @@ void WmsLayer::Sync(TreeItem* viewContext, ShvSyncMode sm)
 	base_type::Sync(viewContext, sm);
 	if (sm == SM_Load)
 	{
-		SharedPtr<const TreeItem> specContainer;
+		shared_tree_ptr<const TreeItem> specContainer;
 		SyncRef(specContainer, viewContext, GetTokenID_mt("SpecContainer"), sm);
 		if (specContainer)
 			SetSpecContainer(specContainer.get());

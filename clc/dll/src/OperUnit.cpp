@@ -104,7 +104,7 @@ bool UnitCombine_impl(AbstrUnit* res, const ArgSeqType& args, bool mustCalc, boo
 		arg_index i = n;
 		while ((i > 0) && (productSize != 0))
 		{
-			SharedPtr<const AbstrUnit> ithUnit = AsCertainUnit(args[--i]);  // i gets decremented here
+			shared_tree_ptr<const AbstrUnit> ithUnit(AsCertainUnit(args[--i]), existing_obj{});  // i gets decremented here
 			SizeT unitCount = ithUnit->GetCount();
 			SizeT newProductSize = productSize * unitCount;
 			// SafeMul
@@ -130,7 +130,7 @@ bool UnitCombine_impl(AbstrUnit* res, const ArgSeqType& args, bool mustCalc, boo
 	};
 	for (; i; --i)
 	{
-		SharedPtr<const AbstrUnit> ithUnit = AsCertainUnit(args[i - 1]);
+		shared_tree_ptr<const AbstrUnit> ithUnit(AsCertainUnit(args[i - 1]), existing_obj{});
 		AbstrDataItem* resSub = CreateDataItem(res, subItemNameID[i-1], res, ithUnit.get()).get(); // owned by res
 		resSub->SetTSF(TSF_Categorical);
 

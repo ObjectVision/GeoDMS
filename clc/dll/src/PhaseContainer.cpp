@@ -35,7 +35,7 @@ SpecialOperGroup sog_PhaseContainer(token::PhaseContainer, 2, oap_Phase, oper_po
 
 using fence_member_pair = std::pair<SharedTreeItemInterestPtr, FutureData>;
 using fence_work_data = std::vector<fence_member_pair>;
-using phase_resource = std::pair<fence_work_data, SharedPtr<TreeItem>>;
+using phase_resource = std::pair<fence_work_data, shared_tree_ptr<TreeItem>>;
 
 struct PhaseContainerOperator : BinaryOperator
 {
@@ -70,7 +70,7 @@ struct PhaseContainerOperator : BinaryOperator
 			assert(sourceContainer->GetCurrPhaseNumber() < resultPhaseNumber);
 
 			auto resultRoot = resultHolder.GetNew();
-			for (SharedPtr<TreeItem> resWalker = resultRoot; resWalker; resWalker = resultRoot->WalkCurrSubTree(resWalker.get()))
+			for (shared_tree_ptr<TreeItem> resWalker(resultRoot, existing_obj{}); resWalker; resWalker = shared_tree_ptr<TreeItem>(resultRoot->WalkCurrSubTree(resWalker.get()), existing_obj{}))
 			{
 				auto srcItem = sourceContainer->FindItem(resWalker->GetRelativeName(resultHolder.GetNew()));
 				if (!srcItem)
@@ -148,7 +148,7 @@ struct PhaseContainerOperator : BinaryOperator
 		if (!resultRoot->m_ReadAssets.has_value())
 		{
 			resultRoot->m_ReadAssets.emplace<phase_resource>();
-			resultRoot->m_ReadAssets.Get<phase_resource>().second = resultRoot;
+			resultRoot->m_ReadAssets.Get<phase_resource>().second = shared_tree_ptr<TreeItem>(resultRoot, existing_obj{});
 		}
 		auto& futureDataContainer = resultRoot->m_ReadAssets.Get<phase_resource>().first;
 		auto& resWalker = resultRoot->m_ReadAssets.Get<phase_resource>().second;
@@ -158,7 +158,7 @@ struct PhaseContainerOperator : BinaryOperator
 		// this should be done before supplier Fences do this and after target collection and interest-setting of consuming Fences.
 		// so each Phase Calculation causes an avalange of interest in targets in higher fences and then their calculation before this calculation starts
 
-		for (; resWalker; resWalker = resultRoot->WalkCurrSubTree(resWalker.get()))
+		for (; resWalker; resWalker = shared_tree_ptr<TreeItem>(resultRoot->WalkCurrSubTree(resWalker.get()), existing_obj{}))
 		{
 			assert(resWalker->GetCurrPhaseNumber() == resultPhaseNumber);
 

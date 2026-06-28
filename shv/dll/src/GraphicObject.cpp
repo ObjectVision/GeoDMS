@@ -245,7 +245,7 @@ void GraphicObject::OnChildSizeChanged()
 #include "OperationContext.h"
 #include "parallel/dms_task.h"
 
-using UpdateActionType = std::pair<GraphicObject*, SharedPtr<const TreeItem>>;
+using UpdateActionType = std::pair<GraphicObject*, shared_tree_ptr<const TreeItem>>;
 
 static std::set<UpdateActionType> s_UpdateActionSet;
 leveled_critical_section sm_UAS(item_level_type(0), ord_level_type::UpdateActionSet, "UpdateActionSet");
@@ -269,8 +269,8 @@ struct PairRemover
 
 auto RegisterNew(GraphicObject* obj, const TreeItem* item) -> std::shared_ptr<PairRemover>
 {
-    // construct SharedPtr<const TreeItem> from raw pointer as a borrowed/existing object
-	UpdateActionType itemPair(obj, MakeSharedFromBorrowedObjectPtr<const TreeItem>(item));
+    // construct shared_tree_ptr<const TreeItem> from raw pointer as a borrowed/existing object
+	UpdateActionType itemPair(obj, shared_tree_ptr<const TreeItem>(item, existing_obj{}));
 
 	leveled_critical_section::scoped_lock lock(sm_UAS);
 	auto pos = s_UpdateActionSet.lower_bound(itemPair);
@@ -675,7 +675,7 @@ void GraphicObject::SetShowSelectedOnly(bool on)
 void GraphicObject::Sync(TreeItem* context, ShvSyncMode sm)
 {
 	dms_assert(context);
-	m_ViewContext = context;
+	m_ViewContext = shared_tree_ptr<TreeItem>(context, existing_obj{});
 
 	if (sm == SM_Save && TreeItem_GetDialogType(context) == TokenID::GetEmptyID() && HasShvCreator())
 		TreeItem_SetDialogType(context, GetDynamicClass()->GetID());
@@ -796,7 +796,7 @@ void GraphicObject::FillMenu(MouseEventDispatcher& med)
 			CharPtr eol = std::find(bol, eos, '\n');
 			auto txt = SharedStr(CharPtrRange(bol, eol));
 			if (item)
-				med.m_MenuData.push_back( MenuItem(txt, std::make_unique<RequestClientCmd>(item.get(), CC_Activate), this) );
+				med.m_MenuData.push_back( MenuItem(txt, std::make_unique<RequestClientCmd>(shared_tree_ptr<const TreeItem>(item.get(), existing_obj{}), CC_Activate), this) );
 			else
 				med.m_MenuData.push_back(MenuItem(txt));
 			if (eol == eos)

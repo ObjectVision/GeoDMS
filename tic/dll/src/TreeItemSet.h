@@ -18,14 +18,14 @@
 // TreeItem composites
 //----------------------------------------------------------------------
 
-using TreeItemCPtrArray = std::vector< const TreeItem* >;
-using TreeItemCRefArray = std::vector< SharedPtr<const TreeItem> >;
+using TreeItemCPtrArray = std::vector< std::weak_ptr<const TreeItem> >;
+using TreeItemCRefArray = std::vector< std::shared_ptr<const TreeItem> >;
 
 // *****************************************************************************
 // Section:     TreeItemSet
 // *****************************************************************************
 
-struct TreeItemSetType : std::set<const TreeItem*> { std::mutex critical_section;  };
+struct TreeItemSetType : std::set<std::shared_ptr<const TreeItem>> { std::mutex critical_section;  };
 struct TreeItemVectorType  : TreeItemCPtrArray              {};
 
 #endif //!defined(__TIC_TREEITEMSET_H)
