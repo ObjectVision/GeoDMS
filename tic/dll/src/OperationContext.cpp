@@ -734,19 +734,13 @@ TIC_CALL tg_maintainer::~tg_maintainer()
 		assert(s_ScheduledContextsMap.empty());
 		assert(s_RadioActives.empty());
 	}
-	void DBG_DumpDcMapSize(const char*); // TEMP
-	DBG_DumpDcMapSize("~tg_maintainer entry");
 
 	GetPortableTaskGroup().cancel();
 	GetPortableTaskGroup().wait();
 
-	DBG_DumpDcMapSize("~tg_maintainer after cancel+wait");
-
 	assert(sd_RunningOC.empty() || g_IsTerminating);
 
 	DestroyPortableTaskGroup();
-
-	DBG_DumpDcMapSize("~tg_maintainer after destroy pool");
 }
 
 // *****************************************************************************

@@ -97,7 +97,7 @@ struct TreeItemDualRef : SharedActor
 
 	// The owning current-result snapshot -- the safe way to read & hold the result. Callers that need it
 	// alive across work MUST keep this: `if (auto p = dc.GetCurr()) p->...`.
-	shared_tree_ptr<const TreeItem> GetCurr() const { return m_Data.get(); }
+	SharedTreeItem GetCurr() const { return m_Data.get(); }
 	// Raw borrows: valid only while an owner (the variant's owning arm, or the tree/caller for the weak arms)
 	// outlives the use. Prefer GetCurr() when holding across work.
 	      TreeItem* GetNew()  const { dms_assert(!IsOld()); return const_cast<TreeItem*>(m_Data.get().get()); }
@@ -107,9 +107,6 @@ struct TreeItemDualRef : SharedActor
 	virtual bool IsSymbDC() const { return false; }
 	virtual bool CanResultToConfigItem() const { return false; }
 
-
-	operator       TreeItem* () const { return GetNew(); }
-	operator const TreeItem* () const { return GetOld(); }
 
 	// "is an arm set" -- a non-transient state check (NOT a liveness probe; for liveness use GetCurr()).
 	explicit operator bool () const { return m_Data.kind() != 0; }

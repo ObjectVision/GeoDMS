@@ -342,13 +342,13 @@ TreeItem::~TreeItem() {
 
 **`TreeItemDualRef` accessors over the §4 variant:**
 ```cpp
-const TreeItem* GetOld() const {
+SharedTreeItem GetOld() const {
     return std::visit(overload{
-        [](std::monostate)                                  -> const TreeItem* { return nullptr; },
-        [](const std::shared_ptr<TreeItem>& p)              { return p.get(); },
-        [](const std::shared_ptr<const TreeItem>& p)        { return p.get(); },
-        [](const std::weak_ptr<const TreeItem>& w)          { return w.lock().get(); }, // temp lock
-        [](const std::weak_ptr<TreeItem>& w)                { return (const TreeItem*)w.lock().get(); },
+        [](std::monostate)                                  -> SharedTreeItem { return {}}; },
+        [](const std::shared_ptr<TreeItem>& p)              { return p; },
+        [](const std::shared_ptr<const TreeItem>& p)        { return p; },
+        [](const std::weak_ptr<const TreeItem>& w)          { return w.lock(); }, 
+        [](const std::weak_ptr<TreeItem>& w)                { return w.lock(); },
     }, m_Data);
 }
 ```

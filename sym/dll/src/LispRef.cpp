@@ -9,7 +9,6 @@
 #endif //defined(CC_PRAGMAHDRSTOP)
 
 #include <stack>
-#include <cstdlib> // TEMP: _set_error_mode/_set_abort_behavior for dialog-free teardown-leak diagnosis
 
 #include "LispRef.h"
 
@@ -513,12 +512,6 @@ struct LispCaches {
 			return;
 
 #if defined(MG_DEBUG)
-		// TEMP (teardown-leak diagnosis): the NumbObjCache leak is a Heisenbug that only reproduces in a
-		// plain (un-debugged) run; route the assertion/abort failure below to stderr instead of a modal
-		// MessageBox so the diagnostic run doesn't pop a blocking dialog. REMOVE with the rest of the instrumentation.
-		_set_error_mode(_OUT_TO_STDERR);
-		_set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT);
-
 		for (const auto& x : NumbObjCache.m_USet)
 		{
 			auto str = AsString(*x);
@@ -553,29 +546,6 @@ struct LispCaches {
 					reportD(SeverityTypeID::ST_Warning, str.c_str());
 				}
 		ProcessMainThreadOpers();
-		// TEMP INSTRUMENTATION (teardown-race diagnosis): capture the exact leaked Lisp objects that
-		// survive teardown, robustly to a file (reportD above is lost once the message system is gone).
-		// LIST/SYMB entries are the leaked DataController key-expressions -> they identify the source. REMOVE AFTER.
-		{
-			bool anyLeak = !NumbObjCache.empty() || !StrnObjCache.empty() || !SymbObjCache.empty()
-				|| !UI64ObjCache.empty() || !ListObjCache.empty() || nrActiveZeroSymbObj;
-			if (anyLeak)
-			{
-				FILE* f = fopen("C:\\dev\\GeoDMS_2026\\leaked_lisp.txt", "a");
-				if (f)
-				{
-					fprintf(f, "=== ~LispCaches leak: Numb=%llu Strn=%llu Symb=%llu UI64=%llu List=%llu Zero=%u ===\n",
-						(unsigned long long)NumbObjCache.m_USet.size(), (unsigned long long)StrnObjCache.m_USet.size(),
-						(unsigned long long)SymbObjCache.m_USet.size(), (unsigned long long)UI64ObjCache.m_USet.size(),
-						(unsigned long long)ListObjCache.m_USet.size(), (unsigned)nrActiveZeroSymbObj);
-					for (const auto& x : SymbObjCache.m_USet) { auto s = AsString(*x); fprintf(f, "  SYMB: %s\n", s.c_str()); }
-					for (const auto& x : ListObjCache.m_USet) { auto s = AsString(*x); fprintf(f, "  LIST[%d]: %s\n", (int)GetListLevel(x), s.c_str()); }
-					for (const auto& x : NumbObjCache.m_USet) { auto s = AsString(*x); fprintf(f, "  NUMB: %s\n", s.c_str()); }
-					for (const auto& x : StrnObjCache.m_USet) { auto s = AsString(*x); fprintf(f, "  STRN: %s\n", s.c_str()); }
-					fclose(f);
-				}
-			}
-		}
 		assert(NumbObjCache.empty());
 		assert(StrnObjCache.empty());
 		assert(SymbObjCache.empty());
