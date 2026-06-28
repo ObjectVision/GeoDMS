@@ -49,7 +49,7 @@ struct PhaseContainerOperator : BinaryOperator
 
 		MG_CHECK(IsMetaThread());
 
-		SharedTreeItem sourceContainer = GetItem(args[0]);
+		SharedTreeItem sourceContainer(GetItem(args[0]), existing_obj{});
 		if (!resultHolder)
 		{
 			MG_CHECK(resultHolder.m_PhaseNumber == 0);
@@ -58,7 +58,7 @@ struct PhaseContainerOperator : BinaryOperator
 				, DataCopyMode::MakeEndogenous | DataCopyMode::InFenceOperator | DataCopyMode::CopyReferredItems
 			);
 
-			resultHolder = context.Apply().release(); // might generate upstream FenceNumbers, hidden upstream
+			resultHolder = context.Apply(); // might generate upstream FenceNumbers, hidden upstream
 
 #if defined(MG_DEBUG)
 			resultHolder->m_State.Set(actor_flag_set::AFD_PivotElem);
@@ -138,7 +138,7 @@ struct PhaseContainerOperator : BinaryOperator
 	{
 		assert(args.size() == 2);
 
-		SharedTreeItem sourceContainer = GetItem(args[0]);
+		SharedTreeItem sourceContainer(GetItem(args[0]), existing_obj{});
 
 		auto resultPhaseNumber = resultHolder.m_PhaseNumber;
 		auto resultRoot = resultHolder.GetNew();
@@ -212,7 +212,7 @@ struct PhaseContainerOperator : BinaryOperator
 	{
 		assert(args.size() == 2);
 
-		SharedTreeItem sourceContainer = GetItem(args[0]);
+		SharedTreeItem sourceContainer(GetItem(args[0]), existing_obj{});
 
 		// first, copy ranges of units ?
 		auto resultRoot = resultHolder.GetNew();

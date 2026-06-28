@@ -66,7 +66,7 @@ public:
 
 		for (loop_count_t i=0; i!= maxNrIter; ++i)
 		{
-			TreeItem* iter = result->CreateItem(GetTokenID_mt(mySSPrintF("iter%d", i).c_str())).release();
+			TreeItem* iter = result->CreateItem(GetTokenID_mt(mySSPrintF("iter%d", i).c_str())).get();
 			dms_assert(iter);
 
 			SharedStr expr = SharedStr( loopContents->GetID() );
@@ -93,7 +93,7 @@ public:
 			}
 			lastIterName = SharedStr(iter->GetID());
 		}
-		TreeItem* lastIter = result->CreateItem(GetTokenID_mt("lastIter")).release();
+		TreeItem* lastIter = result->CreateItem(GetTokenID_mt("lastIter")).get();
 		lastIter->SetExpr(SharedStr(lastIterName));
 		result->SetIsInstantiated();
 
@@ -164,12 +164,10 @@ public:
 			if (currValue)
 				currValue->SetExpr(currValueExprStr);
 			currValueExprStr = iterName + "/nextValue";
-			iterItem.release();
 		}
 		auto lastIter = result->CreateItem(lastValueToken);
 		lastIter->SetExpr(currValueExprStr);
 		result->SetIsInstantiated();
-		lastIter.release();
 
 		return true;
 	}

@@ -56,7 +56,7 @@ public:
 		AbstrDataItem* resSubA = CreateDataItem(AB.get(), GetTokenID_mt("first_rel"), AB.get(), AsDataItem(args[0])->GetAbstrDomainUnit());
 		AbstrDataItem* resSubB = CreateDataItem(AB.get(), GetTokenID_mt("second_rel"), AB.get(), AsDataItem(args[1])->GetAbstrDomainUnit());
 		AbstrDataItem* resSubX = CreateDataItem(AB.get(), GetTokenID_mt("X_rel"), AB.get(), AsDataItem(args[0])->GetAbstrValuesUnit());
-		resultHolder = AB.release();
+		resultHolder = AB;
 	}
 };
 

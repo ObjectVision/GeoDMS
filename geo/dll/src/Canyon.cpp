@@ -133,7 +133,7 @@ public:
 			resultRef->MarkTS(resultHolder.GetLastChangeTS());
 
 			cog_div.FindOperByArgs(tmpArgs)->CreateResultCaller(*resultRef, tmpArgs);
-			ConstUnitRef rcUnit = debug_cast<const AbstrUnit*>(resultRef->GetOld()); assert(rcUnit);
+			ConstUnitRef rcUnit(debug_cast<const AbstrUnit*>(resultRef->GetOld()), existing_obj{}); assert(rcUnit);
 
 			CreateDataItem(resultHolder.GetNew(), s_RLoc, calcPointEntity, pointUnit);
 			CreateDataItem(resultHolder.GetNew(), s_RRC,  calcPointEntity, rcUnit.get());

@@ -388,7 +388,7 @@ inline ConstUnitRef GeoMeasure_DeriveResultUnit(const UnitClass* resUnitClass,
 	const UnitMetric* L = nullptr;
 	Float64 J = 1.0;
 	if (!GeoMeasure_GetCoordMetric(gr, coordUnit, nrDims, L, J) || IsEmpty(L))
-		return resUnitClass->CreateDefault();
+		return ConstUnitRef(resUnitClass->CreateDefault(), existing_obj{});
 
 	// D = L^nrDims (mirror UnitSqrtOperator's make_unique idiom; UnitMetric is not copy-assignable).
 	auto metric = std::make_unique<UnitMetric>(*L);
@@ -398,7 +398,7 @@ inline ConstUnitRef GeoMeasure_DeriveResultUnit(const UnitClass* resUnitClass,
 
 	auto tmp = resUnitClass->CreateTmpUnit(nullptr);
 	tmp->SetMetric(metric.release());
-	return tmp.release();
+	return tmp;
 }
 
 // Shared calc-phase tile loop: writes factor * raw-measure(geometry) into the result.
@@ -749,14 +749,14 @@ namespace {
 		return resultUnitClass;
 	}
 
-	AbstrUnit* CreateResultDomain(TreeItem* resultHolder, TableCreateFlags tcf)
+	SharedMutableUnit CreateResultDomain(TreeItem* resultHolder, TableCreateFlags tcf)
 	{
 		auto resultUnitClass = ResultDomainClass(tcf);
 
 		auto resDomain = resultUnitClass->CreateResultUnit(resultHolder);
 		assert(resDomain);
 		resDomain->SetTSF(TSF_Categorical);
-		return resDomain.release();
+		return resDomain;
 	}
 }	//	end of anonimous namespace
 
@@ -782,7 +782,7 @@ struct AbstrArcs2SegmentsOperator : public UnaryOperator
 		const AbstrUnit* polyEntity      = arg1A->GetAbstrDomainUnit();
 		const AbstrUnit* pointValuesUnit = arg1A->GetAbstrValuesUnit();
 
-		AbstrUnit* resDomain = CreateResultDomain(resultHolder, m_CreateFlags);
+		auto resDomain_owner = CreateResultDomain(resultHolder, m_CreateFlags); AbstrUnit* resDomain = resDomain_owner.get();
 		resultHolder = resDomain;
 
 		AbstrDataItem 
@@ -1022,7 +1022,7 @@ struct AbstrDynaPointOperator : public TernaryOperator
 		pointEntity->UnifyDomain(arg2A->GetAbstrDomainUnit(), "e1", "e2", UM_Throw);
 		Unit<Void>::GetStaticClass()->CreateDefault()->UnifyDomain(arg3A->GetAbstrDomainUnit(), "Unit<Void>", "e3", UM_Throw);
 
-		AbstrUnit* resDomain = CreateResultDomain(resultHolder, m_CreateFlags);
+		auto resDomain_owner = CreateResultDomain(resultHolder, m_CreateFlags); AbstrUnit* resDomain = resDomain_owner.get();
 		resultHolder = resDomain;
 
 		AbstrDataItem 
@@ -1904,7 +1904,7 @@ protected:
 
 		values1Unit->UnifyValues(values2Unit, "v1", "v2", UM_Throw);
 
-		AbstrUnit* res = Unit<UInt32>::GetStaticClass()->CreateResultUnit(resultHolder).release();
+		auto res_owner = Unit<UInt32>::GetStaticClass()->CreateResultUnit(resultHolder); AbstrUnit* res = res_owner.get();
 		resultHolder = res;
 
 		AbstrDataItem* res1 = e1IsVoid ? nullptr : CreateDataItem(res, s_tFR, res, domain1Unit);

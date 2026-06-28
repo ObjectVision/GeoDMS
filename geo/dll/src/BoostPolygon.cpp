@@ -172,7 +172,7 @@ protected:
 
 		values1Unit->UnifyValues(values2Unit, "v1", "v2", UM_Throw);
 
-		auto res = Unit<ResultingDomainType>::GetStaticClass()->CreateResultUnit(resultHolder).release();
+		auto res_owner = Unit<ResultingDomainType>::GetStaticClass()->CreateResultUnit(resultHolder); auto res = res_owner.get();
 		resultHolder = res;
 
 		AbstrDataItem* resG = (!m_MustCreateGeometries) ? nullptr : CreateDataItem(res, s_tGM, res, values1Unit, ValueComposition::Polygon);
@@ -833,7 +833,7 @@ protected:
 
 		if (m_Flags & PolygonFlags::F_DoSplit)
 		{
-			resUnit = Unit<UInt32>::GetStaticClass()->CreateResultUnit(resultHolder).release();
+			auto resUnit_owner = Unit<UInt32>::GetStaticClass()->CreateResultUnit(resultHolder); resUnit = resUnit_owner.get();
 			resUnit->SetTSF(TSF_Categorical);
 
 			resultHolder = resUnit;
@@ -1697,7 +1697,7 @@ protected:
 
 			Calculate(res.get(), resF1, resF2, arg1A, itemRef.c_str());
 		}
-		resultHolder = res.release();
+		resultHolder = res; // DualRef adopts the owning shared_tree_ptr
 		return true;
 	}
 	virtual void Calculate(AbstrUnit* res, AbstrDataItem* resF1, AbstrDataItem* resF2, const AbstrDataItem*arg1A, CharPtr itemRef = "") const=0;
@@ -1837,7 +1837,7 @@ protected:
 
 			Calculate(res.get(), resF1, resF2, arg1A, arg2A);
 		}
-		resultHolder = res.release();
+		resultHolder = res; // DualRef adopts the owning shared_tree_ptr
 		return true;
 	}
 	virtual void Calculate(AbstrUnit* res, AbstrDataItem* resF1, AbstrDataItem* resF2, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A) const = 0;

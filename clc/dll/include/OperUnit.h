@@ -87,7 +87,7 @@ public:
 		else
 		{
 
-			AbstrUnit* res = resultUnitClass->CreateTmpUnit(resultHolder).release();
+			auto res_owner = resultUnitClass->CreateTmpUnit(resultHolder); AbstrUnit* res = res_owner.get();
 			resultHolder = res;
 
 			dms_assert(res);
@@ -174,7 +174,7 @@ public:
 			,	adi->GetCurrRefObj()->GetValueAsFloat64(0)
 			)
 		);
-		resultHolder = result.release();
+		resultHolder = result;
 		return true;
 	}
 	MetricFunctor m_MetricFunctor;
@@ -258,7 +258,7 @@ public:
 
 		checked_domain<Void>(args[1], "a2");
 
-		AbstrUnit* result = arg1A->GetUnitClass()->CreateTmpUnit(resultHolder).release();
+		auto result_owner = arg1A->GetUnitClass()->CreateTmpUnit(resultHolder); AbstrUnit* result = result_owner.get();
 		resultHolder = result;
 
 		const UnitMetric* arg1SI = arg1A->GetMetric();
@@ -315,7 +315,7 @@ public:
 			resultHolder = ResultType::GetStaticClass()->CreateDefault();
 		else
 		{
-			AbstrUnit* result = ResultType::GetStaticClass()->CreateTmpUnit(resultHolder.GetNew()).release();
+			auto result_owner = ResultType::GetStaticClass()->CreateTmpUnit(resultHolder.GetNew()); AbstrUnit* result = result_owner.get();
 			resultHolder = result;
 
 			const UnitMetric* arg1SI = arg1->GetMetric();

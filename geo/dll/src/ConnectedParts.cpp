@@ -89,7 +89,7 @@ public:
 		MG_CHECK(checked_domain<LinkType>(arg1A, "a1") == checked_domain<LinkType>(arg2A, "a2"));
 		MG_CHECK(arg1A->GetAbstrValuesUnit() == arg2A->GetAbstrValuesUnit());
 
-		AbstrUnit* res = ResultUnitType::GetStaticClass()->CreateResultUnit(resultHolder).release();
+		auto res_owner = ResultUnitType::GetStaticClass()->CreateResultUnit(resultHolder); AbstrUnit* res = res_owner.get();
 		assert(res);
 		resultHolder = res;
 
@@ -382,7 +382,7 @@ public:
 		MG_CHECK(checked_domain<LinkType>(arg1A, "a1") == checked_domain<LinkType>(arg2A, "a2"));
 		MG_CHECK(arg1A->GetAbstrValuesUnit() == arg2A->GetAbstrValuesUnit());
 
-		AbstrUnit* res = ResultUnitType::GetStaticClass()->CreateResultUnit(resultHolder).release();
+		auto res_owner = ResultUnitType::GetStaticClass()->CreateResultUnit(resultHolder); AbstrUnit* res = res_owner.get();
 		assert(res);
 		resultHolder = res;
 
@@ -399,7 +399,7 @@ public:
 
 		MG_CHECK(resSub);
 
-		AbstrUnit* resSub2 = ResultSub2Type::GetStaticClass()->CreateUnit(res, s_PartLink).release(); // PartLinks
+		AbstrUnit* resSub2 = ResultSub2Type::GetStaticClass()->CreateUnit(res, s_PartLink).get(); // PartLinks
 		AbstrDataItem* resPartFrom = CreateDataItem(resSub2, s_PartFromRel, resSub2, res);
 		AbstrDataItem* resPartTo   = CreateDataItem(resSub2, s_PartToRel, resSub2, res);
 

@@ -436,11 +436,11 @@ public:
 			);
 
 
-		TreeItem* resShadowPriceContainer = 
-			resultHolder.GetNew()->CreateItem(GetTokenID_mt("shadow_prices")).release();
+		TreeItem* resShadowPriceContainer =
+			resultHolder.GetNew()->CreateItem(GetTokenID_mt("shadow_prices")).get();
 
-		TreeItem* resTotalAllocatedContainer = 
-			resultHolder.GetNew()->CreateItem(GetTokenID_mt("total_allocated")).release();
+		TreeItem* resTotalAllocatedContainer =
+			resultHolder.GetNew()->CreateItem(GetTokenID_mt("total_allocated")).get();
 
 //		htp_info_t<S> htpInfo;
 		SharedStr strStatus;

@@ -87,7 +87,7 @@ namespace {
 			// Create result data item if needed
 			if (!resultHolder)
 			{
-				SharedPtr<const AbstrUnit> resValuesUnit;
+				ConstUnitRef resValuesUnit;
 				if constexpr (std::is_same_v < ResultCountType, Undefined>)
 					resValuesUnit = count_unit_creator(args);
 				else
@@ -195,7 +195,7 @@ namespace {
 			// Create result data item if needed
 			if (!resultHolder)
 			{
-				SharedPtr<const AbstrUnit> resValuesUnit;
+				ConstUnitRef resValuesUnit;
 				resValuesUnit = default_unit_creator<Bool>();
 				resultHolder = CreateCacheDataItem(e1, resValuesUnit.get());
 			}

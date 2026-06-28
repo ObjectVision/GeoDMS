@@ -57,7 +57,7 @@ struct DistrictOperator : public UnaryOperator
 		if (domain->GetValueType()->GetNrDims() != 2)
 			throwErrorD("district", "domain of input grid-data is not a raster");
 
-		auto resUnit = ResultUnitType::GetStaticClass()->CreateResultUnit(resultHolder).release();
+		auto resUnit_owner = ResultUnitType::GetStaticClass()->CreateResultUnit(resultHolder); auto resUnit = resUnit_owner.get();
 		resUnit->SetTSF(TSF_Categorical);
 
 		assert(resUnit);

@@ -1544,7 +1544,7 @@ public:
 
 		if (flags(df & DijkstraFlag::OD))
 		{ 
-			mutableResultUnit = GetResultUnitClass(df)->CreateResultUnit(resultHolder).release()	;
+			auto mutableResultUnit_owner = GetResultUnitClass(df)->CreateResultUnit(resultHolder); mutableResultUnit = mutableResultUnit_owner.get();
 			mutableResultUnit->SetTSF(TSF_Categorical);
 			resultHolder = mutableResultUnit;
 			resultUnit = mutableResultUnit;

@@ -86,7 +86,7 @@ public:
 				currArg_ValuesUnit->UnifyValues(arg1_ValuesUnit, "Values of a next attribute wiht known values unit", "Values of the first attribute with known values unit", UnifyMode(UM_Throw | UM_AllowDefault));
 		}
 
-		AbstrUnit* resultDomain = debug_cast<const UnitClass*>(GetResultClass())->CreateResultUnit(resultHolder).release();
+		auto resultDomain_owner = debug_cast<const UnitClass*>(GetResultClass())->CreateResultUnit(resultHolder); AbstrUnit* resultDomain = resultDomain_owner.get();
 		assert(resultDomain);
 		resultHolder = resultDomain;
 
@@ -213,7 +213,7 @@ public:
    // Override Operator
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-		auto resultUnit = ResultType::GetStaticClass()->CreateResultUnit(resultHolder).release();
+		auto resultUnit_owner = ResultType::GetStaticClass()->CreateResultUnit(resultHolder); auto resultUnit = resultUnit_owner.get();
 		resultUnit->SetTSF(TSF_Categorical);
 		return UnionUnit_impl(resultHolder, resultUnit, args, mustCalc);
 	}

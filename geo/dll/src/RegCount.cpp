@@ -200,11 +200,11 @@ struct RegCountOperator : public QuaternaryOperator
 		actorTypeUnit->UnifyDomain(arg4A->GetAbstrDomainUnit(), "v1", "e4", UM_Throw);
 
 		RegionMetaArray regionMetaArray; regionMetaArray.reserve(n);
-		regionMetaArray.m_ResUnit = (m_CountUnitClass)
+		regionMetaArray.m_ResUnit = ConstUnitRef((m_CountUnitClass)
 			? (gridDomain->GetStaticClass() == m_CountUnitClass)
 			? gridDomain
 			: m_CountUnitClass->CreateDefault()
-			: count_unit_creator(GetItems(args)).get_ptr();
+			: count_unit_creator(GetItems(args)).get_ptr(), existing_obj{});
 		assert(regionMetaArray.m_ResUnit);
 
 		if (!resultHolder)
@@ -215,7 +215,7 @@ struct RegCountOperator : public QuaternaryOperator
 		for (ActorTypeIndex i = 0; i != n; ++i)
 		{
 			SharedStr partitionName = arg4A->GetValue<SharedStr>(i);
-			SharedPtr<const AbstrDataItem> partition;
+			SharedDataItem partition;
 			DataControllerRef partitionResultHolder;
 			if (!partitionName.empty())
 			{

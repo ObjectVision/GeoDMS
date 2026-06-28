@@ -346,7 +346,7 @@ public:
 		UInt32 p = ggPartSet->GetCount();
 		MG_CHECK(p < 256);
 
-		AbstrUnit* resAtomicRegions = Unit<ResID>::GetStaticClass()->CreateResultUnit(resultHolder).release();
+		auto resAtomicRegions_owner = Unit<ResID>::GetStaticClass()->CreateResultUnit(resultHolder); AbstrUnit* resAtomicRegions = resAtomicRegions_owner.get();
 		assert(resAtomicRegions);
 		resAtomicRegions->SetTSF(TSF_Categorical);
 
