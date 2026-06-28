@@ -126,8 +126,8 @@ public:
 			resultHolder = TreeItem::CreateCacheRoot();
 
 			ArgRefs tmpArgs; tmpArgs.reserve(2);
-			tmpArgs.emplace_back(std::in_place_type<SharedTreeItem>, heightUnit);
-			tmpArgs.emplace_back(std::in_place_type<SharedTreeItem>, distUnit);
+			tmpArgs.emplace_back(std::in_place_type<SharedTreeItem>, heightUnit, existing_obj{});
+			tmpArgs.emplace_back(std::in_place_type<SharedTreeItem>, distUnit, existing_obj{});
 
 			LifetimeProtector<TreeItemDualRef> resultRef;
 			resultRef->MarkTS(resultHolder.GetLastChangeTS());
