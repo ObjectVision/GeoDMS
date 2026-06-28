@@ -237,7 +237,7 @@ void ReadGeoRefFile(WeakStr geoRefFileName, AbstrUnit* uDomain, const AbstrUnit*
 	assert(factor.Y() < 0);
 
 	uBase->UpdateMetaInfo();
-	uDomain->SetProjection(new UnitProjection(AsUnit(uBase->GetCurrUltimateItem()), offset - 0.5 * factor, factor));
+	uDomain->SetProjection(new UnitProjection(AsUnit(uBase->GetCurrUltimateItem()).get(), offset - 0.5 * factor, factor));
 }
 
 SharedUnit FindProjectionRef(const TreeItem* storageHolder, const AbstrUnit* gridDataDomain)
@@ -300,7 +300,7 @@ SharedUnit FindProjectionBase(const TreeItem* storageHolder, const AbstrUnit* gr
 		uBase->UpdateMetaInfo();
 		auto uRef = uBase->GetCurrUltimateItem();
 		if (uRef)
-			uBase = SharedUnit(AsUnit(uRef), existing_obj{});
+			uBase = AsUnit(uRef);
  	}
 
 	return uBase;
@@ -689,7 +689,7 @@ ViewPortInfoEx<Int32> ViewPortInfoProvider::GetViewportInfoEx(tile_id tc, Storag
 	auto curr_range_unit = AsUnit(m_CurrDomain->GetCurrRangeItem());
 	auto grid_range_unit = AsUnit(m_GridDomain->GetCurrRangeItem());
 
-	return ViewPortInfoEx<Int32>(m_ADI.get(), curr_range_unit, tc, grid_range_unit, tg, smi, true, false, m_CountColor, m_QueryActualGridDomain);
+	return ViewPortInfoEx<Int32>(m_ADI.get(), curr_range_unit.get(), tc, grid_range_unit.get(), tg, smi, true, false, m_CountColor, m_QueryActualGridDomain);
 }
 
 template struct ViewPortInfoEx<Int32>;

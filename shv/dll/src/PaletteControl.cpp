@@ -353,7 +353,7 @@ void PaletteControl::CreateColumnsImpl()
 
 		auto column = make_shared_gr<DataItemColumn>(this, m_BreakAttr)();
 		InsertColumn(column.get());
-		classIds = m_BreakAttr->GetAbstrDomainUnit();
+		classIds = shared_tree_ptr<const AbstrUnit>(m_BreakAttr->GetAbstrDomainUnit(), existing_obj{});
 	}
 
 	//	=========================================	add Count
@@ -371,7 +371,7 @@ void PaletteControl::CreateColumnsImpl()
 		TreeItem* container = CreateDesktopContainer(dv->GetDesktopContext(), GetUltimateSourceItem(m_ThemeAttr.get_ptr()));
 		// there could be different counts for the same ThemeAttr due to different classifications; assume one classification per class entity
 		if (m_BreakAttr) 
-			container = CreateContainer(container, GetUltimateSourceItem(m_BreakAttr.get_ptr()) ).release();
+			container = CreateContainer(container, GetUltimateSourceItem(m_BreakAttr.get_ptr()) );
 
 		// Add Area or Length column based on layer type (before Count column)
 		try {

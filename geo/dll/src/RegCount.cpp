@@ -127,7 +127,7 @@ struct RegTileCounterBase : UnitProcessor
 		for (auto i=regionInfoArrayPtr->begin(), e=regionInfoArrayPtr->end(); i!=e; ++i)
 			countsArray.push_back(mutable_array_cast<CounterType>(i->m_WriteLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero));
 
-		DataReadLock arg1Lock(arg1A);
+		DataReadLock arg1Lock(arg1A.get());
 
 		const AbstrUnit* gridDomain = arg1A->GetAbstrDomainUnit();
 		typename Unit<ActorType>::range_t actorTypeRange = const_array_checked_cast<ActorType>(arg1A)->GetValueRangeData()->GetRange();
@@ -270,7 +270,7 @@ struct RegCountOperator : public QuaternaryOperator
 			RegionInfo& ri = regionInfoArray[i];
 			ri.m_NrParts  = ri.m_Partition ? ri.m_Partition->GetAbstrValuesUnit()->GetCount() : 1;
 			ri.m_ReadLock  = DataReadLock(ri.m_Partition.get());
-			ri.m_WriteLock = DataWriteLock(ri.m_Result, dms_rw_mode::write_only_mustzero);
+			ri.m_WriteLock = DataWriteLock(ri.m_Result.get(), dms_rw_mode::write_only_mustzero);
 		}
 
 		// ================ do calc

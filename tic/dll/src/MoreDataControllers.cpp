@@ -98,7 +98,7 @@ const TreeItem* GetItem(const ArgRef& ar)
 	return std::get<1>(ar).get_ptr();
 }
 
-const SharedActor* GetStatusActor(const ArgRef& ar)
+const Actor* GetStatusActor(const ArgRef& ar)
 {
 	if (ar.index() == 0)
 	{
@@ -300,7 +300,7 @@ SharedTreeItem FuncDC::MakeResult() const // produce signature
 #if defined(MG_DEBUG_DCDATA)
 	DBG_START("FuncDc::MakeResult", md_sKeyExpr.c_str(), MG_DEBUG_FUNCDC);
 
-	const TreeItem* dContext = m_Data.get();
+	const TreeItem* dContext = m_Data.get().get();
 
 	assert(IsMetaThread());
 #endif
@@ -325,10 +325,10 @@ SharedTreeItem FuncDC::MakeResult() const // produce signature
 		DBG_TRACE(("MakeResult completed well"));
 	}
 	assert(m_Data);
-	assert(!IsNew() || m_Data->IsCacheRoot());
+	assert(!IsNew() || m_Data.get()->IsCacheRoot());
 
-	if (m_Data && m_Data->WasFailed(FailType::MetaInfo))
-		Fail(m_Data.get());
+	if (m_Data && m_Data.get()->WasFailed(FailType::MetaInfo))
+		Fail(m_Data.get().get());
 
 	if (WasFailed(FailType::MetaInfo))
 		return {};
@@ -348,7 +348,7 @@ SharedTreeItem FuncDC::MakeResult() const // produce signature
 	{
 		assert(!DoesHaveSupplInterest());
 	}
-	return m_Data;
+	return m_Data.get();
 }
 
 auto FuncDC::CallCalcResult(std::shared_ptr<Explain::Context> context) const -> FutureData
@@ -356,7 +356,7 @@ auto FuncDC::CallCalcResult(std::shared_ptr<Explain::Context> context) const -> 
 #if defined(MG_DEBUG_DCDATA)
 	DBG_START("FuncDc::CallCalcResult", md_sKeyExpr.c_str(), MG_DEBUG_FUNCDC);
 
-	const TreeItem* dContext = m_Data.get();
+	const TreeItem* dContext = m_Data.get().get();
 
 	assert(IsMetaThread());
 	assert(!SuspendTrigger::DidSuspend());
@@ -392,10 +392,10 @@ auto FuncDC::CallCalcResult(std::shared_ptr<Explain::Context> context) const -> 
 		assert(m_Data);
 		DBG_TRACE(("MakeResult completed well"));
 	}
-	m_Data->UpdateMetaInfo();
+	m_Data.get()->UpdateMetaInfo();
 
-	if (m_Data->WasFailed(FailType::Data))
-		Fail(m_Data.get());
+	if (m_Data.get()->WasFailed(FailType::Data))
+		Fail(m_Data.get().get());
 
 	if ((WasFailed(FailType::Data) && !context) || WasFailed(FailType::MetaInfo))
 		return {};
@@ -414,7 +414,7 @@ auto FuncDC::CallCalcResult(std::shared_ptr<Explain::Context> context) const -> 
 		}
 	}
 	assert(GetInterestCount());
-	assert(m_Data->IsCacheItem() || m_Data->IsPassor()|| m_OperatorGroup->CanResultToConfigItem() );
+	assert(m_Data.get()->IsCacheItem() || m_Data.get()->IsPassor()|| m_OperatorGroup->CanResultToConfigItem() );
 
 	if (context)
 	{
@@ -435,14 +435,14 @@ auto FuncDC::CallCalcResult(std::shared_ptr<Explain::Context> context) const -> 
 	if (!mustStartCalc)
 	{
 		if (IsNew() && GetOperator()->CanRunParallel())
-			mustStartCalc = !IsAllInterestedCalculatingOrDataReady(m_Data.get());
+			mustStartCalc = !IsAllInterestedCalculatingOrDataReady(m_Data.get().get());
 		else
-			mustStartCalc = !IsAllDataCurrStandby(m_Data.get()); // condition required for operations such as parse_xml as first argument of a SubItem
+			mustStartCalc = !IsAllDataCurrStandby(m_Data.get().get()); // condition required for operations such as parse_xml as first argument of a SubItem
 	}
 
 	if (mustStartCalc)
 	{
-		assert(m_Data->GetInterestCount());
+		assert(m_Data.get()->GetInterestCount());
 
 		CallCalcResultImpl(context);
 		if (!m_Data || SuspendTrigger::DidSuspend())
@@ -451,7 +451,7 @@ auto FuncDC::CallCalcResult(std::shared_ptr<Explain::Context> context) const -> 
 			return {}; // maybe suspended or failed
 		}
 		assert(!SuspendTrigger::DidSuspend());
-		assert(m_OperContext || IsDataReady(m_Data.get()) || m_Data->WasFailed(FailType::Data) || SuspendTrigger::DidSuspend());
+		assert(m_OperContext || IsDataReady(m_Data.get().get()) || m_Data.get()->WasFailed(FailType::Data) || SuspendTrigger::DidSuspend());
 	}
 	return thisFutureResult;
 }
@@ -556,7 +556,7 @@ OArgRefs FuncDC::GetArgs(bool doUpdateMetaInfo, bool doCalcData) const
 			assert(!fd || argIter->m_DC->GetInterestCount());
 			if (SuspendTrigger::DidSuspend())
 				return {};
-			assert(!fd || CheckCalculatingOrReady(fd->GetOld()->GetCurrRangeItem()) || fd->WasFailed(FailType::Data) || fd->GetOld()->WasFailed(FailType::Data) 
+			assert(!fd || CheckCalculatingOrReady(fd->GetOld()->GetCurrRangeItem().get()) || fd->WasFailed(FailType::Data) || fd->GetOld()->WasFailed(FailType::Data)
 			|| dynamic_cast<const FuncDC*>(fd.get_ptr()) && dynamic_cast<const FuncDC*>(fd.get_ptr())->m_OperatorGroup->GetNameID() == token::subitem); // the latter can refer to a sub-items of a FenceContainer that has a upstream RangeItem
 			argRef.emplace<FutureData>(std::move(fd));
 			if (currArg == 0 && m_OperatorGroup->HasDynamicArgPolicies())
@@ -714,7 +714,7 @@ bool FuncDC::MakeResultImpl() const
 
 	assert(m_Data);
 	assert(!SuspendTrigger::DidSuspend() && !WasFailed(FailType::MetaInfo) );  // if we asked for MetaInfo and only DataProcesing failed, we should at least get a result
-	assert(m_Data->IsCacheItem() || m_Data->IsPassor() || m_OperatorGroup->CanResultToConfigItem() || IsTmp());
+	assert(m_Data.get()->IsCacheItem() || m_Data.get()->IsPassor() || m_OperatorGroup->CanResultToConfigItem() || IsTmp());
 
 	return true;
 }
@@ -754,7 +754,7 @@ void FuncDC::CallCalcResultImpl(std::shared_ptr<Explain::Context> context) const
 		auto argRefs= GetArgs(false, true);
 		if (!argRefs)
 		{
-			assert(m_Data->WasFailed(FailType::Data) || SuspendTrigger::DidSuspend());
+			assert(m_Data.get()->WasFailed(FailType::Data) || SuspendTrigger::DidSuspend());
 			return;
 		}
 		assert(!SuspendTrigger::DidSuspend());
@@ -792,7 +792,7 @@ void FuncDC::CallCalcResultImpl(std::shared_ptr<Explain::Context> context) const
 		if (result)
 			SuspendTrigger::MarkProgress();
 
-		assert(!result || operContext || CheckDataReady(m_Data.get()) || (!IsNew() && CheckCalculatingOrReady(GetCacheRoot(m_Data.get()))));
+		assert(!result || operContext || CheckDataReady(m_Data.get().get()) || (!IsNew() && CheckCalculatingOrReady(GetCacheRoot(m_Data.get().get()))));
 	}
 	catch (...)
 	{
@@ -809,7 +809,7 @@ void FuncDC::CallCalcResultImpl(std::shared_ptr<Explain::Context> context) const
 
 	assert(m_Data);
 	assert(!SuspendTrigger::DidSuspend() && !WasFailed(FailType::MetaInfo));  // if we asked for MetaInfo and only DataProcesing failed, we should at least get a result
-	assert(m_Data->IsCacheItem() || m_Data->IsPassor() || m_OperatorGroup->CanResultToConfigItem() || IsTmp());
+	assert(m_Data.get()->IsCacheItem() || m_Data.get()->IsPassor() || m_OperatorGroup->CanResultToConfigItem() || IsTmp());
 }
 
 // =========================================
@@ -884,7 +884,7 @@ SharedTreeItem StringDC::MakeResult() const
 
 	dms_assert(m_Data);
 
-	return m_Data;
+	return m_Data.get();
 }
 
 // *****************************************************************************
@@ -903,7 +903,7 @@ SharedTreeItem NumbDC::MakeResult() const
 		);
 
 	assert(m_Data);
-	return m_Data;
+	return m_Data.get();
 }
 
 // *****************************************************************************
@@ -922,7 +922,7 @@ SharedTreeItem UI64DC::MakeResult() const
 		);
 
 	assert(m_Data);
-	return m_Data;
+	return m_Data.get();
 }
 
 // *****************************************************************************
@@ -978,7 +978,7 @@ SharedTreeItem SymbDC::MakeResult() const
 	dms_assert(!IsTmp());
 
 	dms_assert( !SuspendTrigger::DidSuspend() );
-	return m_Data;
+	return m_Data.get();
 }
 
 auto SymbDC::CallCalcResult(std::shared_ptr<Explain::Context> context) const -> FutureData
@@ -1001,17 +1001,17 @@ auto SymbDC::CallCalcResult(std::shared_ptr<Explain::Context> context) const -> 
 	dms_assert(!SuspendTrigger::DidSuspend());
 	//		if (m_Data->m_State.GetTransState() < actor_flag_set::AF_Validating)
 	//			m_Data->SuspendibleUpdate();
-	bool suspended = !m_Data->PrepareDataUsage(DrlType::Suspendible);
+	bool suspended = !m_Data.get()->PrepareDataUsage(DrlType::Suspendible);
 
-	if (m_Data->WasFailed())
-		Fail(m_Data.get());
+	if (m_Data.get()->WasFailed())
+		Fail(m_Data.get().get());
 
 	if (suspended)
 	{
-		dms_assert(SuspendTrigger::DidSuspend() || m_Data->WasFailed());
+		dms_assert(SuspendTrigger::DidSuspend() || m_Data.get()->WasFailed());
 		return nullptr;
 	}
-	dms_assert(CheckCalculatingOrReady(m_Data->GetCurrRangeItem()));
+	dms_assert(CheckCalculatingOrReady(m_Data.get()->GetCurrRangeItem().get()));
 
 	dms_assert(!SuspendTrigger::DidSuspend());
 	return resultHolder;

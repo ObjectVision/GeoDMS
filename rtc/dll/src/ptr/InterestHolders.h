@@ -112,6 +112,15 @@ struct InterestPtr
 	{
 		OptionalInterestInc<IVal>(get_ptr());
 	}
+	// std::shared_ptr-backed counterpart of the SharedPtr already_incremented_tag ctor: adopt an owning
+	// shared_tree_ptr whose interest the caller has ALREADY incremented (e.g. under sg_CountSection), so do
+	// not increment again here.
+	template <typename T>
+	InterestPtr(shared_tree_ptr<T>&& item, already_incremented_tag)
+		: m_Item(std::move(item))
+	{
+		assert(get_ptr() != nullptr && get_ptr()->GetInterestCount() > 0);
+	}
 
 	// std::weak_ptr-backed overload: store the weak handle and bump interest on the (momentarily locked)
 	// target. Used for the supplier-interest list (InterestPtr<std::weak_ptr<const Actor>>): non-owning,

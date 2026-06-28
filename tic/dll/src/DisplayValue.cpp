@@ -57,7 +57,7 @@ SharedStr AsStrWithLabel(const AbstrUnit* au, const AbstrValue* valuePtr, bool u
 SharedStr DisplayValue(const AbstrDataItem* adi, SizeT index, bool useMetric, SharedDataItemInterestPtrTuple& ippHolders, streamsize_t maxLen, GuiReadLockPair& locks)
 {
 	ippHolders.m_ThemeAttr = adi;
-	if (adi->PrepareDataUsage(DrlType::Suspendible) && IsDataReady(adi->GetUltimateItem()))
+	if (adi->PrepareDataUsage(DrlType::Suspendible) && IsDataReady(adi->GetUltimateItem().get()))
 	{
 		assert(!adi->IsFailed(FailType::Data));
 		SharedStr result;

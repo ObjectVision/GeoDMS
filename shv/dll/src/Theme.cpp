@@ -415,7 +415,7 @@ std::shared_ptr<Theme> Theme::Create(AspectNr aNr, const AbstrDataItem* thematic
 				
 				if (!thematicAttr->PrepareDataUsage(DrlType::Certain)) // async
 					thematicAttr->ThrowFail();
-				dms_assert(CheckCalculatingOrReady(thematicAttr->GetCurrRangeItem()));
+				dms_assert(CheckCalculatingOrReady(thematicAttr->GetCurrRangeItem().get()));
 
 				mustScheduleBreakCalculator = true;
 

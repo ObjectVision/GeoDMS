@@ -756,7 +756,7 @@ BestItemRef AbstrCalculator::FindErrorneousItem() const
 			auto ti = dynamic_cast<const TreeItem*>(a);
 			if (ti && !ti->IsCacheItem())
 			{
-				for (auto ri = ti; ri; ri = ri->GetCurrRefItem())				
+				for (auto ri = ti; ri; ri = ri->GetCurrRefItem().get())
 					if (WasInFailed(ri))
 					{
 						errorneousItem = ti;
@@ -766,7 +766,7 @@ BestItemRef AbstrCalculator::FindErrorneousItem() const
 				{
 					if (miDcPtr->IsSourceRef())
 						if (auto si = miDcPtr->GetSourceItem())
-							for (SharedTreeItem ri = si; ri; ri = SharedTreeItem(ri->GetCurrRefItem(), existing_obj{}))
+							for (SharedTreeItem ri = si; ri; ri = ri->GetCurrRefItem())
 								if (WasInFailed(ri.get()))
 								{
 									errorneousItem = si.get();
@@ -1087,7 +1087,7 @@ OArgRefs ApplyMetaFunc_GetArgs(TreeItem* holder, const AbstrCalculator* ac, cons
 			FutureData fd = dc->CalcResultWithValuesUnits();
 			dms_assert(!fd || fd->GetInterestCount());
 			dms_assert(!SuspendTrigger::DidSuspend());
-			dms_assert(!fd || CheckCalculatingOrReady(fd->GetOld()->GetCurrRangeItem()) || fd->WasFailed(FailType::Data));
+			dms_assert(!fd || CheckCalculatingOrReady(fd->GetOld()->GetCurrRangeItem().get()) || fd->WasFailed(FailType::Data));
 			dms_assert(fd || dc->WasFailed(FailType::Data));
 			if (dc->WasFailed(FailType::Data))
 				holder->Fail(dc.get_ptr(), FailType::MetaInfo);

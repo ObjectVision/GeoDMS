@@ -114,15 +114,14 @@ class MetaClass : public Class
 {
 	typedef Class base_type;
 public:
-	// Factories own their freshly created product from birth and hand it back as an owning SharedPtr,
+	// Factories own their freshly created product from birth and hand it back as an owning shared_ptr,
 	// so no parentless item is ever exposed as a raw, unowned pointer (orphanage detected at the source).
-	// The element type is SharedActor (= SharedObjWrap<Actor>): the nearest rtc-visible refcounted,
-	// polymorphic, Release()-providing base that every factory product (all TreeItem-derived) shares.
-	// (Object itself is deliberately non-refcounted; refcount lives in the SharedBase mixin.)
-	// Returns the std::shared_ptr control block of the freshly created (make_shared'd) object, upcast to
-	// SharedActor. std ownership flows through here so a brand-new parentless root survives until the
-	// caller (XmlTreeParser) captures it -- replacing the old intrusive SharedPtr return (double-free risk).
-	typedef std::shared_ptr<SharedActor> (*createFromXmlFuncType)(Object* currObj, struct XmlElement& elem);
+	// The element type is Actor: every factory product is TreeItem-derived, and TreeItem now derives from
+	// Actor directly (the TreeItem family carries its own std control block via enable_shared_from_this; it
+	// is no longer a SharedObjWrap<Actor>/SharedActor). Returns the std::shared_ptr control block of the
+	// freshly created (make_shared'd) object, upcast to Actor. std ownership flows through here so a
+	// brand-new parentless root survives until the caller (XmlTreeParser) captures it.
+	typedef std::shared_ptr<Actor> (*createFromXmlFuncType)(Object* currObj, struct XmlElement& elem);
 
 	RTC_CALL MetaClass(
 		TokenID scriptID,
@@ -131,7 +130,7 @@ public:
 	RTC_CALL ~MetaClass();
 
 	RTC_CALL static MetaClass* Find(TokenID id);
-	RTC_CALL std::shared_ptr<SharedActor> CreateFromXml(Object* currObj, struct XmlElement& elem) const;
+	RTC_CALL std::shared_ptr<Actor> CreateFromXml(Object* currObj, struct XmlElement& elem) const;
 
 	DECL_RTTI(RTC_CALL, MetaClass)
 

@@ -126,6 +126,17 @@ struct weak_tree_ptr : std::weak_ptr<T>
 	bool operator==(const U* rhs) const noexcept { return this->lock().get() == static_cast<const T*>(rhs); }
 };
 
+// MakeSharedFromBorrowedObjectPtr for the TreeItem family: borrow an already-owned object as an OWNING
+// shared_tree_ptr (recovers the std control block via shared_from_this). This overload is constrained to
+// std::enable_shared_from_this-backed types (the TreeItem family), so it is MORE specialized than the
+// intrusive SharedPtr<T> overload in SharedPtr.h and is selected for those types; non-family (intrusive)
+// types lack shared_from_this and fall back to the SharedPtr<T> version. Same name/signature on purpose.
+template <typename T> requires requires(T* p) { p->shared_from_this(); }
+auto MakeSharedFromBorrowedObjectPtr(T* ptr) -> shared_tree_ptr<T>
+{
+	return shared_tree_ptr<T>(ptr, existing_obj{});
+}
+
 // pointer_traits so InterestPtr<shared_tree_ptr<T>> / weak_tree_ptr work (mirrors the std::shared_ptr/weak_ptr specializations in RtcBase.h)
 template <typename T> struct pointer_traits<shared_tree_ptr<T>> : pointer_traits_helper<T> {
 	static T* get_ptr(const shared_tree_ptr<T>& ptr) { return ptr.get(); }

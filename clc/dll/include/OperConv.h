@@ -739,7 +739,7 @@ public:
 		assert(arg1);
 
 		using prepare_data = std::shared_ptr<typename Arg1Type::future_tile>;
-		auto futureTileFunctor = make_unique_FutureTileFunctor<TR, prepare_data, false>(resultAdi.get(), lazy, tileRangeData.get(), get_range_ptr_of_valuesunit(valuesUnit)
+		auto futureTileFunctor = make_unique_FutureTileFunctor<TR, prepare_data, false>(resultAdi, lazy, tileRangeData.get(), get_range_ptr_of_valuesunit(valuesUnit)
 			, [arg1](tile_id t) { return arg1->GetFutureTile(t); }
 			, [srcUnit, dstUnit](typename sequence_traits<TR>::seq_t resData, prepare_data arg1FutureData)
 			{

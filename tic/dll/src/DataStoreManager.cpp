@@ -134,7 +134,7 @@ TIC_CALL void TreeItem_SetAnalysisSource(const TreeItem * ti)
 {
 	DMS_CALL_BEGIN
 
-		s_SourceItem = ti;
+		s_SourceItem = shared_tree_ptr<const TreeItem>(ti, existing_obj{});
 		TreeItem_SetAnalysisTarget(ti, true); // sends a refresh at cleaning
 
 	DMS_CALL_END

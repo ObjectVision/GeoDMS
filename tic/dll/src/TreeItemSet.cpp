@@ -152,7 +152,7 @@ static void createSimilarSet(const TreeItem* searchLoc, const TreeItem* pattern,
 	if (!(flags & CSS_MatchName) || (!stricmp( searchLoc->GetName().c_str(), pattern->GetName().c_str())))
 		if (isSimilar(searchLoc, pattern, CSS_FLAGS(flags | CSS_NoCaseParams)))
 		{
-			itemset.push_back(searchLoc);
+			itemset.push_back(weak_tree_ptr<const TreeItem>(searchLoc));
 			return;
 		}
 
@@ -237,7 +237,7 @@ TIC_CALL const TreeItem*    DMS_CONV DMS_TreeItemSet_GetItem   (const TreeItemVe
 		DBG_START("TreeItemSet", "GetItem", false);
 
 		MG_PRECONDITION(self);
-		return *(self->begin()+i);
+		return (self->begin()+i)->lock().get();
 
 	DMS_CALL_END
 	return nullptr;

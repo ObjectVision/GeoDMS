@@ -194,7 +194,11 @@ UInt32 TreeItem::s_ConfigReadLockCount   = 0;
 
 namespace {
 
-	static_ptr<TreeItemSetType> s_TreeItems;
+	// Debug leak registry: RAW identity keys (non-owning). Must be raw, not shared_ptr: items self-register
+	// via insert(this) in the TreeItem ctor (before any shared_ptr owns them, so shared_from_this is unusable)
+	// and self-deregister via erase(this) in the dtor, and the registry must NOT keep items alive.
+	struct TreeItemRegistryType : std::set<const TreeItem*> { std::mutex critical_section; };
+	static_ptr<TreeItemRegistryType> s_TreeItems;
 	UInt32                      s_nrTreeItemAdmLocks = 0;
 	TreeItemAdmLock             s_treeItemAdm;
 
@@ -208,7 +212,7 @@ static void ReportDataItem(const AbstrDataItem* di)
 	assert(ado);
 
 	reportF(MsgCategory::memory, SeverityTypeID::ST_MinorTrace, "RefCnt=%d; InterestCnt=%d; KE=%d; #DataLocks=%d, Name=%s",
-		di->GetRefCount(),
+		di->weak_from_this().use_count(),
 		di->GetInterestCount(),
 		di->GetKeepDataState(),
 		di->GetDataObjLockCount(),
@@ -251,7 +255,7 @@ TreeItemAdmLock::TreeItemAdmLock()
 		return;
 
 	dms_assert(!s_TreeItems);
-	s_TreeItems.assign( new TreeItemSetType );
+	s_TreeItems.assign( new TreeItemRegistryType );
 }
 
 TreeItemAdmLock::~TreeItemAdmLock()
@@ -277,15 +281,15 @@ void TreeItemAdmLock::Report()
 	{
 		reportF_without_cancellation_check(MsgCategory::memory, SeverityTypeID::ST_Error, "MemoryLeak of %d TreeItems. See EventLog for details.", n);
 
-		TreeItemSetType::iterator i = s_TreeItems->begin();
-		TreeItemSetType::iterator e = s_TreeItems->end();
+		auto i = s_TreeItems->begin();
+		auto e = s_TreeItems->end();
 		while (i!=e)
 		{
 			const TreeItem* ti = *i++;
 			reportF_without_cancellation_check(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, "MemoryLeak: %s (%d,%d) %s",
-				ti->GetDynamicClass()->GetName(), 
-				ti->GetRefCount(), 
-				ti->IsCacheItem(), 
+				ti->GetDynamicClass()->GetName(),
+				ti->weak_from_this().use_count(),
+				ti->IsCacheItem(),
 				ti->GetFullName().c_str());
 		}
 	}
@@ -312,6 +316,17 @@ TreeItem::~TreeItem ()
 
 	NotifyStateChange(this, NC_Deleting);
 
+	// An item may now be destroyed while consumers still hold interest in it: supplier interest is NON-owning
+	// (weak for std suppliers), so it does not keep its target alive, and the holders decrement only if the
+	// target is still live (they no-op on this dying item). Hence this item's own m_InterestCount can be > 0
+	// here. But we MUST undo our OWN supplier interest before vanishing -- otherwise the interest we placed on
+	// our suppliers leaks and our s_SupplTreeInterest[this] entry dangles. (StopInterest, the usual undo, only
+	// runs when our interest reaches 0, which never happened for an item destroyed with residual interest.)
+	if (DoesHaveSupplInterest())
+	{
+		garbage_can supplGarbage = StopSupplInterest(); // releases our suppliers' interest; destructs here
+	}
+
 	SetKeepDataState(false); // StringDC en NumbDC cache items hebben ook KeepInterest
 
 	// Parent owns its sub-items (downward std::shared_ptr): drop each child now.
@@ -324,8 +339,8 @@ TreeItem::~TreeItem ()
 	if (mc_RefItem)
 		SetReferredItem(nullptr);
 
-	dms_assert(!HasInterest());
-	dms_assert( !m_State.Get(actor_flag_set::AF_SupplInterest) );
+	// NB: !HasInterest() is no longer asserted -- residual non-owning interest may remain (see above).
+	dms_assert( !m_State.Get(actor_flag_set::AF_SupplInterest) ); // guaranteed: undone by StopSupplInterest above
 
 	// m_Parent is a non-owning weak back-pointer, already cleared by the owning parent's ReleaseSubItem.
 
@@ -403,35 +418,9 @@ void TreeItem::EnableAutoDelete() // does not call UpdateMetaInfo
 	ResetSubTreeConfigData(); // break supplier cycles so the tree can collapse by refcount
 
 	if (isConfigRoot)
-	{
-		// TEMP: is the config root actually unique-owned (so ReleaseIt destroys it) at teardown?
-		if (FILE* f = fopen("C:\\dev\\GeoDMS_2026\\dcmap_trace.txt", "a"))
-		{
-			fprintf(f, "configRoot BEFORE ReleaseIt: rootRc=%u\n", (unsigned)GetRefCount());
-			fclose(f);
-		}
-	}
-
-	if (isConfigRoot)
 		SessionData::ReleaseIt(this); // drop SessionData's owning ref -> cascade destroys the tree
-
-	if (isConfigRoot)
-	{
-		void DBG_DumpDcMapSize(const char*);  // TEMP
-		void DBG_DumpDcDetails(const char*);  // TEMP
-		void DBG_DropCacheResultData();       // TEMP
-		extern const TreeItem* g_DBG_ConfigRoot; // TEMP
-		g_DBG_ConfigRoot = this;
-		if (FILE* f = fopen("C:\\dev\\GeoDMS_2026\\dcmap_trace.txt", "a"))
-		{
-			fprintf(f, "configRoot AFTER ReleaseIt:  rootRc=%u\n", (unsigned)GetRefCount());
-			fclose(f);
-		}
-		DBG_DumpDcMapSize("after EnableAutoDelete(configRoot)");
-		DBG_DumpDcDetails("after EnableAutoDelete(configRoot)");
-		DBG_DropCacheResultData();
-		DBG_DumpDcMapSize("after DropCacheResultData");
-	}
+	// NB: do not touch `this` after ReleaseIt on a config root -- that drop may have been the last owning
+	// ref, in which case the root TreeItem is already destroyed here.
 }
 
 // MTA, 16-08-2004:
@@ -822,13 +811,19 @@ void TreeItem::SetCalculator(AbstrCalculatorRef pr) const
 	GetOrCreateConfigProperties().mc_Calculator = std::move(pr);
 }
 
-SharedTreeItemInterestPtr TreeItem::GetInterestPtrOrNull() const 
+SharedTreeItemInterestPtr TreeItem::GetInterestPtrOrNull() const
 {
-	auto actorIter = Actor::GetInterestPtrOrNull();
-	auto result = MakeSharedFromBorrowedObjectPtr( 
-		static_cast<const TreeItem*>(actorIter.get_ptr())
-		);
-	return result;
+	// TreeItem is now an Actor (no longer a SharedActor), so we cannot route through
+	// Actor::GetInterestPtrOrNull (which dynamic_casts to SharedActor). Build the interest ptr directly
+	// from this std-owned TreeItem, mirroring the base's lock + manual-increment + already_incremented flow
+	// to stay deadlock-free (IncInterestCount would re-take sg_CountSection).
+	leveled_std_section::scoped_lock globalSectionLock(sg_CountSection);
+	if (!m_InterestCount)
+		return {};
+
+	auto result = shared_tree_ptr<const TreeItem>(this, existing_obj{});
+	++m_InterestCount;
+	return SharedTreeItemInterestPtr(std::move(result), already_incremented_tag{});
 }
 
 bool TreeItem::HasCalculatorImpl() const  noexcept
@@ -1118,7 +1113,7 @@ auto TreeItem::GetCurrRangeItem() const noexcept -> shared_tree_ptr<const TreeIt
 	return _GetCurrRangeItem(this);
 }
 
-const TreeItem* TreeItem::GetUltimateItem() const noexcept
+auto TreeItem::GetUltimateItem() const noexcept -> shared_tree_ptr<const TreeItem>
 {
 	UpdateMetaInfo();
 	return _GetUltimateItem(this);
@@ -1129,7 +1124,7 @@ const TreeItem* TreeItem::GetSourceItem() const  noexcept
 	const TreeItem* sourceItem = this;
 	do
 	{
-		sourceItem = sourceItem->GetReferredItem();
+		sourceItem = sourceItem->GetReferredItem().get();
 	}
 	while (sourceItem && sourceItem->IsCacheItem());
 	assert(sourceItem != this);
@@ -1169,13 +1164,28 @@ const TreeItem* TreeItem::GetCurrUltimateSourceItem() const noexcept
 }
 
 // ============ SetRefItem
-struct OldRefDecrementer : SharedPtr<const SharedActor>
+// Holds the OLD referred TreeItem (now std-owned via shared_tree_ptr) and decrements its interest count
+// on destruction -- deferred settlement so the swap below can't drop interest mid-flight.
+struct OldRefDecrementer
 {
+	shared_tree_ptr<const TreeItem> m_Item;
+	OldRefDecrementer& operator=(shared_tree_ptr<const TreeItem> item) { m_Item = std::move(item); return *this; }
+	explicit operator bool() const { return bool(m_Item); }
+	const TreeItem* operator->() const { return m_Item.get(); }
 	~OldRefDecrementer() {
+		if (m_Item)
+			m_Item->DecInterestCount();
+	}
+};
+
+// Same deferred-settlement pattern for the OLD DataController (which stays an intrusive SharedActor).
+struct OldDcInterestDecrementer : SharedPtr<const DataController>
+{
+	using SharedPtr::operator=;
+	~OldDcInterestDecrementer() {
 		if (has_ptr())
 			get()->DecInterestCount();
 	}
-	using SharedPtr::operator=;
 };
 
 void TreeItem::SetReferredItem(const TreeItem* refItem) const
@@ -1241,13 +1251,13 @@ retry:
 				goto retry;
 			// point of certain return, prepare settlement upon destruction
 			newRefItemCounter.release();
-			oldRefItemCounter = mc_RefItem.get(); // decrement interest count upon destruction
+			oldRefItemCounter = mc_RefItem.lock_ptr(); // owning snapshot of the old ref; decrement interest count upon destruction
 		}
 		else
 			newRefItemCounter = nullptr; // decrease new interest if current interest has been released concurrently
 		// everything is OK now to do a swap of responsibilities
 
-		if (mc_RefItem && mc_RefItem != tmpRefItemHolder && mc_RefItem->m_BackRef == this)
+		if (mc_RefItem && mc_RefItem.get() != tmpRefItemHolder.get() && mc_RefItem->m_BackRef == this)
 			mc_RefItem->m_BackRef = nullptr;
 		mc_RefItem = std::move(tmpRefItemHolder);
 		if (mc_RefItem && mc_RefItem->IsCacheItem() && !mc_RefItem->m_BackRef)
@@ -1326,9 +1336,13 @@ void TreeItem::SetKeepDataState(bool value)
 			subItem->SetKeepDataState(value);
 		if (!value)
 		{
-			auto uti = _GetHistoricUltimateItem(this);
-			actor_section_lock_map::ScopedLock specificSectionLock(MG_SOURCE_INFO_CODE("TreeItem::SetKeepDataState") sg_ActorLockMap, uti); // datalockcount 1->0 or drop of interest is 
-			uti->TryCleanupMem();
+			// uti is empty when this item is mid-destruction (called from ~AbstrDataItem); the dtor frees its
+			// memory anyway, so only clean up when the ultimate is still live.
+			if (auto uti = _GetHistoricUltimateItem(this))
+			{
+				actor_section_lock_map::ScopedLock specificSectionLock(MG_SOURCE_INFO_CODE("TreeItem::SetKeepDataState") sg_ActorLockMap, uti.get()); // datalockcount 1->0 or drop of interest is
+				uti->TryCleanupMem();
+			}
 		}
 	}
 	if (value)
@@ -2199,9 +2213,9 @@ SharedMutableTreeItem TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext
 		// Now, copy from refItem; maybe more sub-items should be copied
 		if (copyContext.CopyReferredItems())
 		{
-			AnchestorStackGuard guard(copyContext, result.get(), this);
+			AnchestorStackGuard guard(copyContext, result, shared_tree_ptr<const TreeItem>(this, existing_obj{}));
 
-			const TreeItem* refItem = GetCurrRefItem();
+			const TreeItem* refItem = GetCurrRefItem().get();
 //			copyContext.m_Dcm = DataCopyMode(copyContext.GetDCM() | DataCopyMode::DontUpdateMetaInfo);
 			//		if (refItem)
 			//			CopyTreeContext(result, refItem, "", DataCopyMode(copyContext.GetDCM()|DataCopyMode::NoRoot) ).Apply();
@@ -2222,7 +2236,7 @@ SharedMutableTreeItem TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext
 							subItem->Copy(result.get(), subItem->GetID(), copyContext); // copied item is owned by `result`; drop the returned co-owning temporary
 					}
 				}
-				refItem = refItem->GetCurrRefItem();
+				refItem = refItem->GetCurrRefItem().get();
 			}
 
 		}
@@ -2281,13 +2295,13 @@ void TreeItem::UpdateMetaInfoImpl() const
 			assert(foundItem);
 			if (foundItem->GetTSF(TSF_Depreciated))
 			{
-				SharedTreeItem prevItem(foundItem, existing_obj{}), refItem(prevItem->GetCurrRefItem(), existing_obj{});
+				SharedTreeItem prevItem(foundItem, existing_obj{}), refItem(prevItem->GetCurrRefItem());
 				MG_CHECK(refItem); // follows from TSF_Depreciated
-				SharedTreeItem refRefItem(refItem->GetCurrRefItem(), existing_obj{});
+				SharedTreeItem refRefItem(refItem->GetCurrRefItem());
 				while (refRefItem) {
 					prevItem = refItem;
 					refItem = refRefItem;
-					refRefItem = SharedTreeItem(refItem->GetCurrRefItem(), existing_obj{});
+					refRefItem = refItem->GetCurrRefItem();
 				}
 				MG_CHECK(prevItem->GetID() != refItem->GetID());
 				
@@ -2351,7 +2365,7 @@ void TreeItem::UpdateMetaInfoImpl() const
 			}
 			if (!this->IsCacheItem())
 			{
-				SharedTreeItem cacheItem = mc_RefItem;
+				SharedTreeItem cacheItem = mc_RefItem.lock_ptr(); // weak -> owning snapshot (held for the use below)
 				if (HasVisibleSubItems(cacheItem.get()))
 					CopyTreeContext(const_cast<TreeItem*>(this), cacheItem.get(), "", DataCopyMode::NoRoot | DataCopyMode::MakeEndogenous | DataCopyMode::SetInheritFlag | DataCopyMode::MergeProps).Apply();
 			}
@@ -2640,7 +2654,7 @@ const TreeItem* TreeItem::GetBackRef() const
 {
 //	dms_assert(IsMetaThread());
 // TODO: SYNC on backref
-	return m_BackRef;
+	return m_BackRef.get();
 }
 
 auto TreeItem::GetFullCfgName() const -> SharedStr
@@ -2935,7 +2949,7 @@ ActorVisitState TreeItem::DoUpdate()
 					{
 						assert(iCheckerResult->GetInterestCount());
 
-						shared_tree_ptr<const TreeItem> adiCheckerResult(iCheckerResult->GetCurrUltimateItem(), existing_obj{});
+						shared_tree_ptr<const TreeItem> adiCheckerResult = iCheckerResult->GetCurrUltimateItem();
 						assert(adiCheckerResult->GetInterestCount());
 						if (!WaitForReadyOrSuspendTrigger(adiCheckerResult.get()))
 						{
@@ -2996,7 +3010,7 @@ ActorVisitState TreeItem::DoUpdate()
 		SetProgress(ProgressState::Committed);
 
 		auto uti = _GetHistoricUltimateItem(this);
-		actor_section_lock_map::ScopedLock specificSectionLock(MG_SOURCE_INFO_CODE("TreeItem::CommitDataChanges") sg_ActorLockMap, uti);
+		actor_section_lock_map::ScopedLock specificSectionLock(MG_SOURCE_INFO_CODE("TreeItem::CommitDataChanges") sg_ActorLockMap, uti.get());
 		uti->TryCleanupMem();
 
 		if (!result) 
@@ -3096,7 +3110,7 @@ auto TreeItem_VisitConstVisibleSubTree(const TreeItem * self, const ActorVisitor
 		// Advance past empty refItem-chain links until we find a subItem or run out.
 		while (!f.nextSubItem && f.refChain)
 		{
-			f.refChain = f.refChain->GetReferredItem();
+			f.refChain = f.refChain->GetReferredItem().get();
 			f.nextSubItem = f.refChain ? f.refChain->GetFirstSubItem() : nullptr;
 		}
 
@@ -3309,7 +3323,7 @@ void TreeItem_RemoveDC(const TreeItem* self)
 	if (!self->mc_DC)
 		return;
 
-	OldRefDecrementer oldDcInterestCounter;
+	OldDcInterestDecrementer oldDcInterestCounter;
 	DataControllerRef oldDC;
 	{
 		leveled_std_section::scoped_lock globalDataLockCountLock(sg_CountSection); // check and swap or try again
@@ -3864,13 +3878,13 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 
 		assert(!SuspendTrigger::DidSuspend());
 		assert(!WasFailed(FailType::Data));
-		assert(!IsDataItem(this) || HasConfigData() || CheckCalculatingOrReady(GetCurrUltimateItem()));
+		assert(!IsDataItem(this) || HasConfigData() || CheckCalculatingOrReady(GetCurrUltimateItem().get()));
 		goto data_ready;
 	}
 
 	if (m_State.IsDataFailed())  // may have been arranged in an alternative thread.
 		goto failed_norefitem;
-	refItem = GetCurrUltimateItem();
+	refItem = GetCurrUltimateItem().get();
 
 	assert(refItem->IsPassor() || HasConfigData() || refItem->m_State.GetProgress() >= ProgressState::MetaInfo || refItem->WasFailed(FailType::MetaInfo));
 	assert(GetInterestCount() || !IsDataItem(this)); // interest consistency
@@ -3969,7 +3983,7 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 				goto failed;
 
 			if ((drlType != DrlType::UpdateNever) && HasCalculator())
-				switch (PrepareDataCalc(this, refItem, drlFlags))
+				switch (PrepareDataCalc(shared_tree_ptr<const TreeItem>(this, existing_obj{}), refItem, drlFlags))
 				{
 				case how_to_proceed::nothing: break;
 				case how_to_proceed::data_ready: goto data_ready;
@@ -3985,7 +3999,7 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 			dms_assert(!SuspendTrigger::DidSuspend());
 
 			if (refItem->IsDataReadable()) // could be this (no calculator)
-				switch (PrepareDataRead(this, refItem, drlFlags))
+				switch (PrepareDataRead(shared_tree_ptr<const TreeItem>(this, existing_obj{}), refItem, drlFlags))
 				{
 				case how_to_proceed::nothing: break;
 				case how_to_proceed::data_ready: goto data_ready;
@@ -4087,13 +4101,13 @@ bool TreeItem::PrepareData() const
 	if (!PrepareDataUsage(DrlType::Suspendible))
 		return false;
 	auto ultItem = GetCurrUltimateItem();
-	if (!WaitForReadyOrSuspendTrigger(ultItem))
+	if (!WaitForReadyOrSuspendTrigger(ultItem.get()))
 	{
 		if (SuspendTrigger::DidSuspend())
 			return false;
 		assert(ultItem->WasFailed());
 		if (ultItem != this && ultItem->WasFailed())
-			this->Fail(ultItem);
+			this->Fail(ultItem.get());
 		return false;
 	}
 	return true;
@@ -4182,7 +4196,7 @@ bool FinalizeFailure(const TreeItem* self, FailReasonFunc&& func)
 	else
 	{
 		if (self->GetCurrRangeItem()->WasFailed(FailType::Committed))
-			self->Fail(self->GetCurrRangeItem());
+			self->Fail(self->GetCurrRangeItem().get());
 
 		if (!self->WasFailed(FailType::Committed))
 			self->Fail(func(), FailType::Committed);
@@ -4216,7 +4230,7 @@ bool TreeItem::CommitDataChanges() const
 
 	if (GetCurrRangeItem()->WasFailed(FailType::Committed))
 	{
-		Fail(GetCurrRangeItem());
+		Fail(GetCurrRangeItem().get());
 		return false;
 	}
 
@@ -4229,11 +4243,11 @@ bool TreeItem::CommitDataChanges() const
 	auto sm = storageHolder->GetStorageManager();
 	assert(sm); // guaranteed by IsStorable();
 
-	if ((!IsCalculatingOrReady(GetCurrRangeItem()) && !PrepareDataUsage(DrlType::Suspendible)) || GetCurrRangeItem()->WasFailed(FailType::Committed))
+	if ((!IsCalculatingOrReady(GetCurrRangeItem().get()) && !PrepareDataUsage(DrlType::Suspendible)) || GetCurrRangeItem()->WasFailed(FailType::Committed))
 		// can have failed just because PrepareDataUsage suspended or failed; 
 		return FinalizeFailure(this, [this]() { return mySSPrintF("Unable to start calculating data when trying to store it in %s", DMS_TreeItem_GetAssociatedFilename(this)); });
 
-	if (!WaitForReadyOrSuspendTrigger(GetCurrRangeItem()) || GetCurrRangeItem()->WasFailed(FailType::Committed))
+	if (!WaitForReadyOrSuspendTrigger(GetCurrRangeItem().get()) || GetCurrRangeItem()->WasFailed(FailType::Committed))
 		return FinalizeFailure(this, [this]() { return mySSPrintF("Unable to complete calculating data when trying to store it in %s", DMS_TreeItem_GetAssociatedFilename(this)); });
 
 	assert(!SuspendTrigger::DidSuspend());
@@ -4378,7 +4392,7 @@ void TreeItem::XML_Dump(OutStreamBase* xmlOutStr, bool notWritingDictionary) con
 	else if (IsUnit(this) && !notWritingDictionary)
 	{
 		auto au = AsUnit(this);
-		if (au->HasVarRange() && IsCalculatingOrReady(au->GetCurrRangeItem()))
+		if (au->HasVarRange() && IsCalculatingOrReady(au->GetCurrRangeItem().get()))
 		{
 			// when the dictionary is written at OpenForWrite time, the range of this unit may not have been
 			// calculated yet (issue #1130: we can be inside PrepareDataUsage of this very unit);

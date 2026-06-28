@@ -71,7 +71,7 @@ struct AbstrUnaryAttrOperator: UnaryOperator
 
 			auto valuesUnitA = AsUnit(res->GetAbstrValuesUnit()->GetCurrRangeItem());
 			if (IsMultiThreaded3() && (tn > 1) && !IsInMMD(res) && (LTF_ElementWeight(arg1A) <= LTF_ElementWeight(res)))
-				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileFunctor(res, res->GetLazyCalculatedState(), valuesUnitA, arg1A, af MG_DEBUG_ALLOCATOR_SRC(res->md_FullName + " := " + GetGroup()->GetNameStr()));
+				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileFunctor(SharedMutableDataItem(res, existing_obj{}), res->GetLazyCalculatedState(), valuesUnitA.get(), arg1A, af MG_DEBUG_ALLOCATOR_SRC(res->md_FullName + " := " + GetGroup()->GetNameStr()));
 			else
 			{
 				DataWriteLock resLock(res);
@@ -119,7 +119,7 @@ public:
 		auto arg1VU = shared_tree_ptr<const AbstrUnit>(arg1A->GetAbstrValuesUnit(), existing_obj{});
 
 		using prepare_data = std::shared_ptr<typename Arg1Type::future_tile>;
-		auto futureTileFunctor = make_unique_FutureTileFunctor<ResultValueType, prepare_data, false>(resultAdi.get(), lazy, tileRangeData.get(), get_range_ptr_of_valuesunit(valuesUnit)
+		auto futureTileFunctor = make_unique_FutureTileFunctor<ResultValueType, prepare_data, false>(resultAdi, lazy, tileRangeData.get(), get_range_ptr_of_valuesunit(valuesUnit)
 			, [arg1, af](tile_id t) { return arg1->GetFutureTile(t); }
 			, [this, arg1VU, af MG_DEBUG_ALLOCATOR_SRC_PARAM](sequence_traits<ResultValueType>::seq_t resData, prepare_data futureData)
 			{

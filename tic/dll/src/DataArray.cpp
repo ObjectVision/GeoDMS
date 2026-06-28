@@ -864,14 +864,14 @@ auto CreateAbstrHeapTileFunctor(const AbstrDataItem* adi, SharedPtr<const Shared
 	SharedPtr<const AbstrTileRangeData> currTRD = adu->GetTiledRangeData();
 	while (!currTRD)
 	{
-		adu = AsUnit(adu->GetCurrRefItem());
+		adu = AsUnit(adu->GetCurrRefItem()).get();
 		if (!adu)
 			adi->throwItemError("Domain has no defined range");
 		currTRD = adu->GetTiledRangeData();
 	}
 	MG_CHECK(currTRD);
 
-	shared_tree_ptr<const AbstrUnit> valuesUnit(AsUnit(adi->GetAbstrValuesUnit()->GetCurrRangeItem()), existing_obj{});
+	shared_tree_ptr<const AbstrUnit> valuesUnit = AsUnit(adi->GetAbstrValuesUnit()->GetCurrRangeItem());
 
 	// DEBUG: SEVERE TILING
 	if (currTRD->GetNrTiles() > 1 && !adi->IsCacheItem())
@@ -921,7 +921,7 @@ auto CreateFileTileArray(const AbstrDataItem* adi, const SharedObj* abstrValuesR
 	SharedPtr<const AbstrTileRangeData> currTRD = adu->GetTiledRangeData();
 	while (!currTRD)
 	{
-		adu = AsUnit(adu->GetCurrRefItem());
+		adu = AsUnit(adu->GetCurrRefItem()).get();
 		if (!adu)
 			adi->throwItemError("Domain has no defined range");
 		currTRD = adu->GetTiledRangeData();
@@ -931,7 +931,7 @@ auto CreateFileTileArray(const AbstrDataItem* adi, const SharedObj* abstrValuesR
 	auto avu = AsUnit(adi->GetAbstrValuesUnit()->GetCurrRangeItem());
 	std::unique_ptr<AbstrDataObject> resultHolder;
 	if (adi->GetValueComposition() != ValueComposition::Single)
-		visit<typelists::sequence_fields>(avu,
+		visit<typelists::sequence_fields>(avu.get(),
 			[&resultHolder, adi, currTRD, rwMode, filenameBase, isTmp] <typename value_type> (const Unit<value_type>*valuesUnitPtr)
 			{
 				using sequence_t = sequence_traits<value_type>::container_type;
@@ -943,7 +943,7 @@ auto CreateFileTileArray(const AbstrDataItem* adi, const SharedObj* abstrValuesR
 		);
 
 	else if (avu->GetDynamicClass() == Unit<SharedStr>::GetStaticClass())
-		visit<typelists::strings>(avu,
+		visit<typelists::strings>(avu.get(),
 			[&resultHolder, adi, currTRD, rwMode, filenameBase, isTmp] <typename value_type> (const Unit<value_type>*valuesUnitPtr)
 			{
 				auto newTileFunctor = std::make_unique<FileTileArray<value_type>>(currTRD.get(), filenameBase, rwMode, isTmp);
@@ -953,7 +953,7 @@ auto CreateFileTileArray(const AbstrDataItem* adi, const SharedObj* abstrValuesR
 		);
 
 	else if (avu->GetValueType()->IsSubByteElem())
-		visit<typelists::bints>(avu,
+		visit<typelists::bints>(avu.get(),
 			[&resultHolder, adi, currTRD, rwMode, filenameBase, isTmp] <typename value_type> (const Unit<value_type>*valuesUnitPtr)
 			{
 				auto newTileFunctor = std::make_unique<FileTileArray<value_type>>(currTRD.get(), filenameBase, rwMode, isTmp);
@@ -962,7 +962,7 @@ auto CreateFileTileArray(const AbstrDataItem* adi, const SharedObj* abstrValuesR
 			}
 		);
 	else
-		visit<typelists::sequence_fields>(avu,
+		visit<typelists::sequence_fields>(avu.get(),
 			[&resultHolder, adi, currTRD, rwMode, filenameBase, isTmp] <typename value_type> (const Unit<value_type>*valuesUnitPtr)
 			{
 				auto newTileFunctor = std::make_unique<FileTileArray<value_type>>(currTRD.get(), filenameBase, rwMode, isTmp);

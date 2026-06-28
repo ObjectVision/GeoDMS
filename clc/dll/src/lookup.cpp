@@ -91,7 +91,7 @@ public:
 			auto tn = domainA->GetNrTiles();
 			auto wrappedValuesArray = MakeValuesArray(arg2A);
 			if (IsMultiThreaded3() && (tn > 1) && !IsInMMD(res) && (LTF_ElementWeight(arg1A) <= LTF_ElementWeight(res)) && tn > arg2DomainA->GetNrTiles())
-				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileFunctor(res, res->GetLazyCalculatedState(), arg1A, dcmArg1, valuesA, arg2DomainA, wrappedValuesArray MG_DEBUG_ALLOCATOR_SRC(res->md_FullName + " := lookup"));
+				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileFunctor(SharedMutableDataItem(res, existing_obj{}), res->GetLazyCalculatedState(), arg1A, dcmArg1, valuesA, arg2DomainA, wrappedValuesArray MG_DEBUG_ALLOCATOR_SRC(res->md_FullName + " := lookup"));
 			else
 			{
 				DataWriteLock resLock(res);
@@ -212,11 +212,11 @@ public:
 		assert(arg2DomainA);
 
 		auto tileRangeData = AsUnit(arg1A->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
-		auto valuesUnit = debug_cast<const Unit<field_of_t<V>>*>(valuesA->GetCurrRangeItem());
+		auto valuesUnit = debug_cast<const Unit<field_of_t<V>>*>(valuesA->GetCurrRangeItem().get());
 
 		auto arg1 = MakeSharedFromBorrowedObjectPtr(const_array_cast<T>(arg1A)); assert(arg1);
 
-		auto arg2_DomainUnit = debug_cast<const Unit<T>*>(arg2DomainA->GetCurrRangeItem());
+		auto arg2_DomainUnit = debug_cast<const Unit<T>*>(arg2DomainA->GetCurrRangeItem().get());
 		assert(arg2_DomainUnit);
 		assert(arg2_DomainUnit->GetInterestCount());
 		Arg1RangeType actualIndexRange = arg2_DomainUnit->GetRange();

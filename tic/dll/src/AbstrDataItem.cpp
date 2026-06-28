@@ -66,7 +66,9 @@ AbstrDataItem::AbstrDataItem()
 
 AbstrDataItem::~AbstrDataItem() noexcept
 {
-	assert(!GetInterestCount());
+	// (was assert(!GetInterestCount())): an item may now be destroyed while consumers still hold non-owning
+	// (weak) supplier interest in it -- that interest does not keep it alive and is no-op-decremented once it
+	// is gone, so a residual count here is expected. Our own supplier interest is undone in ~TreeItem/~Actor.
 	// (was assert(!IsOwned()): see SharedBase::~SharedBase -- intrusive count is no longer a liveness gate
 	// for std::shared_ptr-managed TreeItems.)
 
@@ -120,7 +122,7 @@ TIC_CALL auto AbstrDataItem::GetNonDefaultDomainUnit() const -> const AbstrUnit*
 		assert(adu);
 		if (!adu->IsDefaultUnit())
 			return adu;
-		adi = AsDataItem(adi->GetReferredItem());
+		adi = AsDataItem(adi->GetReferredItem()).get();
 	} while (adi);
 	return GetAbstrDomainUnit();
 }
@@ -133,7 +135,7 @@ TIC_CALL auto AbstrDataItem::GetNonDefaultValuesUnit() const -> const AbstrUnit*
 		assert(avu);
 		if (!avu->IsDefaultUnit())
 			return avu;
-		adi = AsDataItem(adi->GetReferredItem());
+		adi = AsDataItem(adi->GetReferredItem()).get();
 	} while (adi);
 	return GetAbstrValuesUnit();
 }
@@ -143,7 +145,7 @@ auto AbstrDataItem::GetCurrRefObj() const ->SharedPtr<const AbstrDataObject>
 {
 	dbg_assert(CheckMetaInfoReadyOrPassor());
 
-	return debug_cast<const AbstrDataItem*>(GetCurrUltimateItem())->GetCurrDataObj();
+	return debug_cast<const AbstrDataItem*>(GetCurrUltimateItem().get())->GetCurrDataObj();
 }
 
 auto AbstrDataItem::GetRefObj() const -> SharedPtr<const AbstrDataObject>
@@ -151,7 +153,7 @@ auto AbstrDataItem::GetRefObj() const -> SharedPtr<const AbstrDataObject>
 	assert(IsMetaThread());
 	MG_SIGNAL_ON_UPDATEMETAINFO
 
-	return debug_cast<const AbstrDataItem*>(GetUltimateItem())->GetDataObj(); 
+	return debug_cast<const AbstrDataItem*>(GetUltimateItem().get())->GetDataObj();
 }
 
 Int32 AbstrDataItem::GetDataRefLockCount() const 
@@ -240,7 +242,7 @@ struct reader_clone_farm
 
 bool AbstrDataItem::DoReadItem(StorageMetaInfoPtr smi)
 {
-	assert(CheckCalculatingOrReady(GetAbstrDomainUnit()->GetCurrRangeItem()));
+	assert(CheckCalculatingOrReady(GetAbstrDomainUnit()->GetCurrRangeItem().get()));
 
 	auto* sm_ = smi->StorageManager();
 	assert(sm_);
@@ -288,8 +290,8 @@ bool AbstrDataItem::DoReadItem(StorageMetaInfoPtr smi)
 			MG_CHECK(tileRangeData);
 			if (true || sm->EasyRereadTiles())
 			{
-				visit<typelists::numerics>(rangeValuesUnit, [this, tileRangeData, &tileGenerator]<typename V>(const Unit<V>*valuesUnit) {
-					this->m_DataObject = make_unique_LazyTileFunctor<V>(this, tileRangeData.get(), valuesUnit->m_RangeDataPtr, std::move(tileGenerator)
+				visit<typelists::numerics>(rangeValuesUnit.get(), [this, tileRangeData, &tileGenerator]<typename V>(const Unit<V>*valuesUnit) {
+					this->m_DataObject = make_unique_LazyTileFunctor<V>(SharedMutableDataItem(this, existing_obj{}), tileRangeData.get(), valuesUnit->m_RangeDataPtr, std::move(tileGenerator)
 						MG_DEBUG_ALLOCATOR_SRC(md_FullName + ".AbstrDataItem::DoReadItem of random rereadable tiles")
 					).release();
 				});
@@ -322,7 +324,7 @@ bool AbstrDataItem::DoReadItem(StorageMetaInfoPtr smi)
 
 bool AbstrDataItem::DoWriteItem(StorageMetaInfoPtr&& smi) const
 {
-	assert(CheckDataReady(GetCurrUltimateItem()));
+	assert(CheckDataReady(GetCurrUltimateItem().get()));
 	dms_assert(IsMetaThread());
 
 	DataReadLock lockForSave(this);
@@ -406,7 +408,7 @@ void AbstrDataItem::Unify(const TreeItem* refItem, CharPtr leftRole, CharPtr rig
 {
 	const AbstrDataItem* refAsDi = AsDataItem(refItem);
 	GetAbstrDomainUnit()->UnifyDomain(refAsDi->GetAbstrDomainUnit(), leftRole, rightRole, UM_Throw);
-	while ((refItem = refAsDi->GetReferredItem()))
+	while ((refItem = refAsDi->GetReferredItem().get()))
 	{
 		Unify(refItem, leftRole, rightRole);
 		refAsDi = AsDataItem(refItem);
@@ -494,7 +496,7 @@ void AbstrDataItem::LoadBlobStream (const InpStreamBuff* f)
 
 	const AbstrUnit* adu = GetAbstrDomainUnit();
 	assert(adu && adu->GetInterestCount());
-	const AbstrUnit* adr = AsUnit(adu->GetCurrRangeItem());
+	const AbstrUnit* adr = AsUnit(adu->GetCurrRangeItem()).get();
 	assert(adr && adr->GetInterestCount());
 	assert(CheckDataReady(adr));
 
@@ -682,7 +684,7 @@ DataCheckMode AbstrDataItem::GetRawCheckMode() const
 	dbg_assert(CheckMetaInfoReadyOrPassor());
 	MG_LOCKER_NO_UPDATEMETAINFO
 
-	const AbstrDataItem* adi = debug_cast<const AbstrDataItem*>(GetCurrUltimateItem()); 
+	const AbstrDataItem* adi = debug_cast<const AbstrDataItem*>(GetCurrUltimateItem().get());
 	assert(adi);
 	assert(CheckDataReady(adi));
 
@@ -711,7 +713,7 @@ DataCheckMode AbstrDataItem::DetermineRawCheckMode() const
 	dbg_assert(CheckMetaInfoReadyOrPassor());
 	MG_LOCKER_NO_UPDATEMETAINFO
 	
-	const AbstrDataItem* adi = debug_cast<const AbstrDataItem*>(GetCurrUltimateItem());
+	const AbstrDataItem* adi = debug_cast<const AbstrDataItem*>(GetCurrUltimateItem().get());
 	assert(adi);
 	assert(CheckDataReady(adi));
 
@@ -1177,7 +1179,7 @@ const AbstrUnit* AbstrValuesUnit(const AbstrDataItem* adi)
 		auto au = adi->GetAbstrValuesUnit();
 		if (!au->IsDefaultUnit())
 			return au;
-		adi = AsDataItem(adi->GetCurrRefItem());
+		adi = AsDataItem(adi->GetCurrRefItem()).get();
 		if (!adi)
 			return nullptr;
 	}
@@ -1258,7 +1260,7 @@ struct InterestReporter : DebugReporter
 		{
 #if defined(MG_DEBUG_DCDATA)
 			if (tidr->m_State.Get(DCFD_DataCounted))
-				ReportTree(done, tidr->m_Data.get(), level, "CACHEDATA");
+				ReportTree(done, tidr->m_Data.get().get(), level, "CACHEDATA");
 #endif
 		}
 		if (ti)
@@ -1317,7 +1319,7 @@ struct InterestReporter : DebugReporter
 		if (tidr)
 		{
 			if (tidr->m_State.Get(DCFD_DataCounted))
-				ReduceInterest(interestRoots, tidr->m_Data.get());
+				ReduceInterest(interestRoots, tidr->m_Data.get().get());
 			return;
 		}
 

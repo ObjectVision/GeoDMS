@@ -182,7 +182,7 @@ FocusElemProvider::~FocusElemProvider()
 SizeT FocusElemProvider::GetIndex() const 
 {
 	if (IsMainThread()) m_IndexParam->UpdateMetaInfo();
-	if (!IsCalculatingOrReady(m_IndexParam->GetCurrUltimateItem()))
+	if (!IsCalculatingOrReady(m_IndexParam->GetCurrUltimateItem().get()))
 		return UNDEFINED_VALUE(SizeT);
 	DataReadLock lock(m_IndexParam); return m_IndexParam->GetValue<SizeT>(0); 
 }

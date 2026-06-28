@@ -131,10 +131,10 @@ bool AbstrStreamManager::WriteUnitRange(StorageMetaInfoPtr&& smi)
 	if (!f)
 		return false; // or throw since there seems to be a problem and not a suspension
 
-	const TreeItem* uti = storageHandle.MetaInfo()->CurrRI()->GetCurrRangeItem();
+	SharedTreeItem uti = storageHandle.MetaInfo()->CurrRI()->GetCurrRangeItem(); // TODO ownership: was raw const TreeItem*; held as shared to outlive the temporary across uses below
 	dms_assert(uti->GetInterestCount());
-	dms_assert(IsCalculatingOrReady(uti));
-	ItemReadLock lock(uti); // or return false when Wait is requested.
+	dms_assert(IsCalculatingOrReady(uti.get()));
+	ItemReadLock lock(uti.get()); // or return false when Wait is requested.
 	uti->StoreBlobStream( f.get() );
 	return true;
 }

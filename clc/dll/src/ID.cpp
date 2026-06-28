@@ -67,7 +67,7 @@ public:
 			resultHolder->m_StatusFlags.SetHasSortedValues(trd->HasSortedValues());
 
 			auto lazyFunctorCreator = [idOper, res, trd]<typename V>(const Unit<V>*domainUnit) {
-				auto lazyTileFunctor = make_unique_LazyTileFunctor<V>(res, trd.get(), domainUnit->m_RangeDataPtr
+				auto lazyTileFunctor = make_unique_LazyTileFunctor<V>(SharedMutableDataItem(res, existing_obj{}), trd.get(), domainUnit->m_RangeDataPtr
 				,	[idOper, res, trd](AbstrDataObject* self, tile_id t) {
 						idOper->Calculate(self, trd.get(), t); // write into the same tile.
 					}
@@ -76,7 +76,7 @@ public:
 				res->m_DataObject = lazyTileFunctor.release();
 			};
 
-			e1 = AsUnit(e1->GetCurrRangeItem());
+			e1 = AsUnit(e1->GetCurrRangeItem()).get();
 			visit<typelists::domain_elements>(e1, std::move(lazyFunctorCreator));
 		}
 		return true;

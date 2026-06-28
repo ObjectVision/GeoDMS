@@ -110,7 +110,7 @@ void GridLayer::SelectPoint(CrdPoint pnt, EventID eventID)
 	bool changed;
 	if ( IsIncluding(tr.Apply( Convert<CrdRect>(gridRect) ), pnt) )
 	{
-		if (!IsDataReady(GetActiveEntity()->GetCurrRangeItem()))
+		if (!IsDataReady(GetActiveEntity()->GetCurrRangeItem().get()))
 		{
 			reportD(SeverityTypeID::ST_MajorTrace, "GridLayer::SelectPoint cancelled... ActiveEntity not ready.");
 			MessageBeep(MB_ICONEXCLAMATION);

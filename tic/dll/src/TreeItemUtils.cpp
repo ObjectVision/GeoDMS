@@ -59,7 +59,7 @@ auto _GetHistoricUltimateItem(const TreeItem* ti) noexcept -> shared_tree_ptr<co
 	{
 		auto refItem = ti->mc_RefItem;
 		if (!refItem)
-			return ti;
+			return shared_tree_ptr<const TreeItem>(ti, no_zombies{}); // re-own the tree-managed item (no_zombies: empty if ti is mid-destruction, e.g. SetKeepDataState from ~AbstrDataItem -- existing_obj would throw bad_weak_ptr there)
 		ti = refItem.get();
 	}
 }
@@ -72,20 +72,20 @@ auto _GetCurrUltimateItem(const TreeItem* ti) noexcept -> shared_tree_ptr<const 
 	return _GetHistoricUltimateItem(ti);
 }
 
-const TreeItem* _GetCurrRangeItem(const TreeItem* ti)  noexcept
+auto _GetCurrRangeItem(const TreeItem* ti)  noexcept -> shared_tree_ptr<const TreeItem>
 {
 	return _GetCurrUltimateItem(ti);
 }
 
-const TreeItem* _GetUltimateItem(const TreeItem* ti)  noexcept
+auto _GetUltimateItem(const TreeItem* ti)  noexcept -> shared_tree_ptr<const TreeItem>
 {
 	assert(ti);
 	while (true)
 	{
-		const TreeItem* refItem = ti->GetReferredItem();
+		auto refItem = ti->GetReferredItem();
 		if (!refItem)
-			return ti;
-		ti = refItem;
+			return shared_tree_ptr<const TreeItem>(ti, no_zombies{}); // re-own the tree-managed item (no_zombies: empty if ti is mid-destruction; existing_obj would throw bad_weak_ptr)
+		ti = refItem.get();
 	}
 }
 
@@ -95,10 +95,10 @@ bool HasVisibleSubItems(const TreeItem* refItem)  noexcept
 	{
 		if (refItem->HasSubItems())
 			return true;
-		const TreeItem* ref2 = refItem->GetReferredItem();
+		auto ref2 = refItem->GetReferredItem();
 		if (!ref2)
 			return false;
-		refItem = ref2;
+		refItem = ref2.get();
 	}
 }
 
@@ -164,7 +164,7 @@ auto GetMappingItem(const TreeItem* ti) -> const TreeItem*
 		dms_assert(!SuspendTrigger::DidSuspend());
 		if (IsThisMappable(ti))
 			return ti;
-		ti = ti->GetReferredItem();
+		ti = ti->GetReferredItem().get();
 	} while (ti);
 	return nullptr;
 }

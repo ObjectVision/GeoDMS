@@ -74,7 +74,7 @@ struct AbstrBinaryAttrOper : BinaryOperator
 			auto tn = e->GetNrTiles();
 			auto valuesUnitA = AsUnit(res->GetAbstrValuesUnit()->GetCurrRangeItem());
 			if (IsMultiThreaded3() && (tn > 1) && !IsInMMD(res) && (LTF_ElementWeight(arg1A) + LTF_ElementWeight(arg2A) <= LTF_ElementWeight(res)))
-				res->m_DataObject = CreateFutureTileFunctor(res, res->GetLazyCalculatedState(), valuesUnitA, arg1A, arg2A, af MG_DEBUG_ALLOCATOR_SRC(res->md_FullName + " := "  + GetGroup()->GetNameStr()));
+				res->m_DataObject = CreateFutureTileFunctor(SharedMutableDataItem(res, existing_obj{}), res->GetLazyCalculatedState(), valuesUnitA.get(), arg1A, arg2A, af MG_DEBUG_ALLOCATOR_SRC(res->md_FullName + " := "  + GetGroup()->GetNameStr()));
 			else
 			{
 				DataWriteLock resLock(res);

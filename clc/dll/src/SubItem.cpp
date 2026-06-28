@@ -75,7 +75,7 @@ struct SubItemOperator: BinaryOperator
 			SharedStr subItemName = GetCurrValue<SharedStr>(args[1], 0);
 			const TreeItem* subItem = arg1->GetCurrItem(subItemName).get();
 			if (subItem && subItem->IsCacheItem())
-				subItem = subItem->GetCurrUltimateItem(); // "/nr_OrgEntity" -> "/org_rel"
+				subItem = subItem->GetCurrUltimateItem().get(); // "/nr_OrgEntity" -> "/org_rel"
 
 			if (!subItem)
 				GetGroup()->throwOperErrorF("Cannot find '%s' from '%s'",

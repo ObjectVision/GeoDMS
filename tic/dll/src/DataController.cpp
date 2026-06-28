@@ -161,7 +161,7 @@ void TreeItemDualRef::Clear()
 			if (GetInterestCount())
 				DecDataInterestCount();
 			if (!m_State.Get(DCF_IsOld))
-				const_cast<TreeItem*>(curr)->EnableAutoDelete();
+				const_cast<TreeItem*>(curr.get())->EnableAutoDelete();
 		}
 	}
 	m_Data.clear();       // release the variant arm (owning arms may destroy the result here)
@@ -190,14 +190,14 @@ void TreeItemDualRef::IncDataInterestCount() const
 	assert(IsMetaThread());
 	assert(m_Data);
 	dbg_assert(!m_State.Get(DCFD_DataCounted));
-	m_Data->IncInterestCount();
+	m_Data.get()->IncInterestCount();
 	MG_DEBUGCODE( m_State.Set(DCFD_DataCounted));
 }
 
 garbage_can TreeItemDualRef::DecDataInterestCount() const
 {
 	dbg_assert( m_State.Get(DCFD_DataCounted));
-	auto result = m_Data->DecInterestCount();
+	auto result = m_Data.get()->DecInterestCount();
 	MG_DEBUGCODE( m_State.Clear(DCFD_DataCounted));
 
 	return result;
@@ -374,7 +374,7 @@ DataController::DataController(LispPtr keyExpr)
 DataController::~DataController()
 {
 	dms_assert(GetInterestCount() == 0);
-	dms_assert(!IsNew() || m_Data->GetInterestCount() == 0 || (m_Data.use_count() > 1)); // std owner-count replaces intrusive GetRefCount
+	dms_assert(!IsNew() || m_Data.get()->GetInterestCount() == 0 || (m_Data.use_count() > 1)); // std owner-count replaces intrusive GetRefCount
 
 	std::lock_guard dcLock(sd_DataControllerMapCriticalSeciton);
 
@@ -609,7 +609,7 @@ ActorVisitState DataController::DoUpdate()
 
 bool DataController::IsCalculating() const
 {
-	return m_Data && ::IsCalculating(m_Data->GetCurrRangeItem());
+	return m_Data && ::IsCalculating(m_Data.get()->GetCurrRangeItem().get());
 }
 
 void DataController::DoInvalidate () const

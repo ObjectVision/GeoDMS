@@ -165,7 +165,7 @@ bool RefersToMappable(const TreeItem* ti)
 	do {
 		if (IsThisMappable(ti))
 			return true;
-		ti = ti->GetReferredItem();
+		ti = ti->GetReferredItem().get();
 	} while (ti);
 	return false;
 }
@@ -510,7 +510,7 @@ const AbstrUnit* GetRealAbstrValuesUnit(const AbstrDataItem* adi)
 		const AbstrUnit* result = adi->GetAbstrValuesUnit();
 		if (result && result != result->GetUnitClass()->CreateDefault())
 			return result;
-		adi = AsDataItem(adi->GetCurrRefItem());
+		adi = AsDataItem(adi->GetCurrRefItem()).get();
 		if (!adi)
 			return result;
 	}

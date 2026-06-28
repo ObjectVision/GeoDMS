@@ -18,12 +18,18 @@
 #include "ptr/InterestHolders.h"
 
 //  -----------------------------------------------------------------------
-// The supplier-interest list holds a NON-owning, liveness-checked interest on each std-managed supplier
-// (TreeItems, via weak_from_actor()). DataController suppliers (intrusive SharedActor) are deliberately NOT
-// retained: their interest is already held by the ownership chain -- a TreeItem's StartInterest holds its
-// mc_DC (=GetDC()), and a FuncDC's StartInterest holds its arg DCs (=GetArgDC()); and FuncDC::VisitSuppliers
-// visits each arg DC's RESULT TreeItem too, so holding that result's interest re-holds the DC transitively.
-// They yield an empty weak from weak_from_actor() and are skipped by push_front.
+// The supplier-interest list retains interest on each (non-passor) supplier for as long as the consumer
+// holds supplier interest. It holds suppliers in one of two ways, by ownership kind:
+//  - std-managed suppliers (TreeItems, weak_from_actor() returns a live weak): a NON-owning, liveness-checked
+//    weak interest. Non-owning is essential -- an owning ref here would recreate the config-root retain cycle
+//    (supplier -> ancestor -> ... -> root) that this migration removed.
+//  - intrusive suppliers (DataControllers; weak_from_actor() is empty because they are not std-managed): an
+//    OWNING intrusive interest (SharedActorInterestPtr), exactly as the pre-std-ptr design did for ALL
+//    suppliers. This is REQUIRED: a FuncDC's arg DC must have interest while its data is calculated
+//    (assert in FuncDC::GetArgs), and the transitive path "hold the arg's RESULT TreeItem ->
+//    result.StartInterest holds result.mc_DC" only re-holds the DC when the result is a cache item; for an
+//    arg that resolves to a CONFIG item the result has no mc_DC, so the DC would otherwise get no interest.
+//    DataControllers do not own the config tree, so this owning ref creates no root retain cycle.
 //  -----------------------------------------------------------------------
 
 using SupplierInterestPtr = InterestPtr<std::weak_ptr<const Actor> >;
@@ -75,33 +81,41 @@ struct SupplInterestListPtr: private std::unique_ptr<SupplInterestListElem>
 
 struct SupplInterestListElem
 {
-	SupplInterestListElem(SupplierInterestPtr&& value, SupplInterestListPtr&& next)
+	SupplInterestListElem(SupplierInterestPtr&& value, SharedActorInterestPtr&& dcValue, SupplInterestListPtr&& next)
 		:	m_NextPtr(next.release())
 		,	m_Value(std::move(value))
+		,	m_DcValue(std::move(dcValue))
 	{
-		assert(m_Value); // invariant at insertion: push_front only inserts a live (non-expired) supplier
+		assert(m_Value || m_DcValue); // invariant at insertion: a live supplier (weak std OR owning intrusive DC)
 	}
 	~SupplInterestListElem()
 	{
-		// NB: m_Value is a non-owning weak interest; the supplier MAY have expired by now (the InterestPtr
-		// dtor decrements only if still live), so the "always non-null" invariant no longer holds here.
+		// NB: m_Value is a non-owning weak interest; the std supplier MAY have expired by now (the InterestPtr
+		// dtor decrements only if still live). m_DcValue is an owning intrusive interest on a DataController
+		// supplier, so that DC is still alive here and its interest is safely decremented.
 	}
 
 	SupplInterestListElem* m_NextPtr;
-	SupplierInterestPtr    m_Value;
+	SupplierInterestPtr    m_Value;    // weak interest on a std-managed (TreeItem) supplier; empty for DC suppliers
+	SharedActorInterestPtr m_DcValue;  // owning intrusive interest on a DataController supplier; empty for std suppliers
 };
 
 //typedef SupplInterestListElem::first_ptr_type SupplInterestListPtr;
 
-// Retain a non-owning, liveness-checked interest on a std-managed supplier (TreeItem). DataControllers
-// yield an empty weak (not std-managed) and are skipped -- their interest rides on the ownership chain
-// (their result TreeItems, also visited). InterestPtr<std::weak_ptr> bumps/decrements the interest count.
+// Retain interest on a supplier for the consumer's supplier-interest lifetime. std-managed suppliers
+// (TreeItems) are held by a non-owning, liveness-checked weak interest; intrusive suppliers (DataControllers,
+// which yield an empty weak) are held by an OWNING intrusive interest (see the header comment above for why
+// the DC must be retained here and why owning it is safe).
 inline void push_front(SupplInterestListPtr& self, const Actor* actor)
 {
-	auto w = actor ? actor->weak_from_actor() : std::weak_ptr<const Actor>{};
-	if (w.expired())
+	if (!actor)
 		return;
-	self = new SupplInterestListElem(SupplierInterestPtr(w), std::move(self));
+	auto w = actor->weak_from_actor();
+	if (!w.expired())
+		self = new SupplInterestListElem(SupplierInterestPtr(w), SharedActorInterestPtr(), std::move(self));
+	else if (const auto* sa = dynamic_cast<const SharedActor*>(actor))
+		self = new SupplInterestListElem(SupplierInterestPtr(), SharedActorInterestPtr(sa), std::move(self));
+	// else: a non-std, non-SharedActor Actor (not expected as a supplier) -> nothing to retain.
 };
 
 typedef std::map<const Actor*, SupplInterestListPtr > SupplTreeInterestType;

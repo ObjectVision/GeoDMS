@@ -922,7 +922,7 @@ garbage_can OperationContext::disconnect_supplier(OperationContext* supplier)
 	{
 	case task_status::done:
 		assert(supplier->m_Result);
-		assert(IsDataReady(supplier->m_Result->GetCurrUltimateItem()) || m_Status >= task_status::running);
+		assert(IsDataReady(supplier->m_Result->GetCurrUltimateItem().get()) || m_Status >= task_status::running);
 		if (!m_Suppliers.empty())
 			break;
 
@@ -1798,7 +1798,7 @@ std::vector<ItemReadLock> OperationContext::SetReadLocks(const FutureSuppliers& 
 
 		auto supplierItem = futureSupplier->GetOld(); // can be reference to default unit
 		assert(supplierItem);
-		supplierItem = supplierItem->GetCurrRangeItem();
+		supplierItem = supplierItem->GetCurrRangeItem().get();
 		if (HandleFail(supplierItem))
 			return{};
 
@@ -1827,7 +1827,7 @@ bool OperationContext::connectArgs(const FutureSuppliers& allArgInterests)
 		if (funcSupplier)
 			supplOperationContext = funcSupplier->GetOperContext();
 		else
-			supplOperationContext = GetOperationContext(supplierInterest->GetOld()->GetCurrRangeItem());
+			supplOperationContext = GetOperationContext(supplierInterest->GetOld()->GetCurrRangeItem().get());
 
 		if (!supplOperationContext)
 			continue;
@@ -1889,18 +1889,32 @@ struct OC_CalcResultFunc {
 		assert(self->m_Status == task_status::running);
 		assert(!SuspendTrigger::DidSuspend());
 
-		std::vector<SharedPtr<const SharedActor>> statusActors; statusActors.reserve(argRefs.size());
+		// Keep the supplier args alive (owning, but WITHOUT adding interest) across RunOperator, so the
+		// post-run failureProcessor() below is safe even though argRefs is moved into RunOperator and cleared.
+		// TreeItem args are now Actors (std-owned via SharedTreeItem); DataController args stay intrusive
+		// (DataControllerRef). Copying the InterestPtr arm would re-add interest, so hold the owners directly.
+		using StatusOwner = std::variant<DataControllerRef, SharedTreeItem>;
+		std::vector<StatusOwner> statusActors; statusActors.reserve(argRefs.size());
 		for (const auto& argRef : argRefs)
-			statusActors.emplace_back(GetStatusActor(argRef));
+			if (argRef.index() == 0)
+				statusActors.emplace_back(std::in_place_type<DataControllerRef>, std::get<0>(argRef)); // intrusive owning copy (refcount, not interest)
+			else
+				statusActors.emplace_back(std::in_place_type<SharedTreeItem>, std::get<1>(argRef));     // std owning copy
+		auto statusActorOf = [](const StatusOwner& so) -> const Actor*
+			{
+				return so.index() == 0 ? static_cast<const Actor*>(std::get<0>(so).get_ptr())
+				                       : static_cast<const Actor*>(std::get<1>(so).get());
+			};
 
 		// Validate status/failure on supplier actors before and after running.
 		auto failureProcessor = [&]() -> bool
 			{
 				// forward FR_Validate and FR_Committed failures
-				for (const auto& statusActor : statusActors)
+				for (const auto& statusActorOwner : statusActors)
 				{
+					const Actor* statusActor = statusActorOf(statusActorOwner);
 					if (statusActor && statusActor->WasFailed())
-						funcDC->Fail(statusActor.get());
+						funcDC->Fail(statusActor);
 
 					if (funcDC->WasFailed(FailType::Data))
 						return true;
@@ -1921,7 +1935,7 @@ struct OC_CalcResultFunc {
 
 			failureProcessor();
 		}
-		assert(!self->m_FuncDC || IsDataCurrCompleted(self->m_Result->GetCurrUltimateItem()) || self->GetResult()->WasFailed(FailType::Data) || s_OcTaskGroupIsCanceling);
+		assert(!self->m_FuncDC || IsDataCurrCompleted(self->m_Result->GetCurrUltimateItem().get()) || self->GetResult()->WasFailed(FailType::Data) || s_OcTaskGroupIsCanceling);
 	}
 };
 
@@ -2062,7 +2076,7 @@ task_status OperationContext::JoinSupplOrSuspendTrigger()
 
 		task_status ocStatus = oc->Join();
 		assert(ocStatus > task_status::running);
-		assert(CheckDataReady(supplResult->GetCurrUltimateItem()) || m_Status == task_status::exception || supplResult->WasFailed(FailType::Data) || !supplResult->GetInterestCount() || SuspendTrigger::DidSuspend());
+		assert(CheckDataReady(supplResult->GetCurrUltimateItem().get()) || m_Status == task_status::exception || supplResult->WasFailed(FailType::Data) || !supplResult->GetInterestCount() || SuspendTrigger::DidSuspend());
 		switch (ocStatus)
 		{
 		case task_status::done:
@@ -2115,7 +2129,7 @@ void OperationContext::Run_with_catch(explain_context_ptr_t context) noexcept
 			taskFunc(this, context); // run the payload functor, set by ScheduleItemWriter
 		auto resultItem = GetResult();
 		assert(resultItem);
-		assert(!m_FuncDC || IsDataCurrCompleted(resultItem->GetCurrUltimateItem()) || resultItem->WasFailed(FailType::Data) || s_OcTaskGroupIsCanceling);
+		assert(!m_FuncDC || IsDataCurrCompleted(resultItem->GetCurrUltimateItem().get()) || resultItem->WasFailed(FailType::Data) || s_OcTaskGroupIsCanceling);
 		if (!resultItem->Was(ProgressState::Validated))
 			resultItem->SetProgress(ProgressState::Validated);
 	}
@@ -2132,7 +2146,7 @@ void OperationContext::Run_with_catch(explain_context_ptr_t context) noexcept
 	ItemWriteLock localWriteLock;
 	leveled_std_section::unique_lock lock(cs_ThreadMessing);
 
-	assert(!m_FuncDC || IsDataCurrCompleted(m_Result->GetCurrUltimateItem()) || s_OcTaskGroupIsCanceling || GetResult()->WasFailed(FailType::Data) || (getStatus() == task_status::cancelled));
+	assert(!m_FuncDC || IsDataCurrCompleted(m_Result->GetCurrUltimateItem().get()) || s_OcTaskGroupIsCanceling || GetResult()->WasFailed(FailType::Data) || (getStatus() == task_status::cancelled));
 
 	localWriteLock = std::move(m_WriteLock);
 	assert(!m_WriteLock);
@@ -2454,7 +2468,7 @@ task_status OperationContext::Join()
 exit:
 	auto status = GetStatus();
 	assert(status > task_status::running);
-	dbg_assert((m_Result->m_ItemCount < 0) || CheckDataReady(m_Result->GetCurrUltimateItem()) || status == task_status::cancelled || status == task_status::exception || !m_Result->GetInterestCount() || !m_FuncDC);
+	dbg_assert((m_Result->m_ItemCount < 0) || CheckDataReady(m_Result->GetCurrUltimateItem().get()) || status == task_status::cancelled || status == task_status::exception || !m_Result->GetInterestCount() || !m_FuncDC);
 	return status;
 }
 
@@ -2635,7 +2649,7 @@ void OperationContext::RunOperator(ArgRefs argRefs, std::vector<ItemReadLock> re
 		if (actualResult)
 		{
 #if defined(MG_DEBUG)
-			const TreeItem* ri = resultHolder.IsOld() ? resultHolder->GetCurrUltimateItem() : resultHolder.GetNew();
+			const TreeItem* ri = resultHolder.IsOld() ? resultHolder->GetCurrUltimateItem().get() : resultHolder.GetNew();
 			assert(ri);
 			assert(ri->GetIsInstantiated() || CheckCalculatingOrReady(ri) || resultHolder->WasFailed(FailType::Data));
 //			assert(CheckDataReady(ri) || resultHolder->WasFailed(FailType::Data));

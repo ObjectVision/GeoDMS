@@ -192,7 +192,7 @@ GetSequenceBoundingBoxCache(weak_tree_ptr<const AbstrDataItem> featureAttr, bool
 {
 	assert(featureAttr);
 	leveled_critical_section::scoped_lock lock(cs_BB);
-	DataReadLock readLock(featureAttr);
+	DataReadLock readLock(featureAttr.get());
 	assert(featureAttr->GetDataRefLockCount() > 0);
 
 	const AbstrDataObject* featureData = featureAttr->GetCurrRefObj().get();
@@ -212,7 +212,7 @@ GetPointBoundingBoxCache(weak_tree_ptr<const AbstrDataItem> featureAttr, bool mu
 {
 	assert(featureAttr);
 	leveled_critical_section::scoped_lock lock(cs_BB);
-	DataReadLock readLock(featureAttr);
+	DataReadLock readLock(featureAttr.get());
 	assert(featureAttr->GetDataRefLockCount() > 0);
 
 	const AbstrDataObject* featureData = featureAttr->GetCurrRefObj().get();

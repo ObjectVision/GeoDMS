@@ -558,7 +558,7 @@ SharedStr AbstrUnit::GetLabelAtIndex(SizeT index, SharedDataItemInterestPtr& ipH
 	}
 	else
 	{
-		if (!IsDataReady(ipHolder->GetCurrRangeItem()))
+		if (!IsDataReady(ipHolder->GetCurrRangeItem().get()))
 			return SharedStr();
 	}
 
@@ -645,7 +645,7 @@ void AbstrUnit::DuplFrom(const AbstrUnit* src)
 	{
 		const UnitProjection*  orgP = src->GetCurrProjection();
 		if (!orgP && !src->IsDefaultUnit())
-			orgP = new UnitProjection(AsUnit(src->GetCurrUltimateItem()));
+			orgP = new UnitProjection(AsUnit(src->GetCurrUltimateItem()).get());
 		SetProjection(orgP);
 	}
 	else

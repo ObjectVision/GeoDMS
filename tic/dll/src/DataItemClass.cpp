@@ -210,13 +210,13 @@ static TokenID domainUnitTokenID = GetTokenID_st("DomainUnit");
 static TokenID valuesUnitTokenID = GetTokenID_st("ValuesUnit");
 static TokenID featureTypeID = GetTokenID_st("ValueComposition");
 
-std::shared_ptr<SharedActor> DataItemClass::CreateFromXml(Object* context, XmlElement& elem)
+std::shared_ptr<Actor> DataItemClass::CreateFromXml(Object* context, XmlElement& elem)
 {
 	CheckPtr(context, TreeItem::GetStaticClass(), "DataItemClass::CreateFromXml");
 	TreeItem* container = debug_cast<TreeItem*>(context);
 
 	// CreateAbstrDataItem returns the owning std::shared_ptr (SharedMutableDataItem); return it upcast to
-	// SharedActor so the std control block flows through (co-owned with the parent container).
+	// Actor so the std control block flows through (co-owned with the parent container).
 	return CreateAbstrDataItem(container,
 		GetTokenID_mt(elem.GetAttrValue(nameTokenID)),
 		GetTokenID_mt(elem.GetAttrValue(domainUnitTokenID)),

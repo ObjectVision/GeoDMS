@@ -211,13 +211,13 @@ bool WriteUnitProps(XML_Table& xmlTable, const AbstrUnit* unit, bool allTileInfo
 	auto currRangeUnit = AsUnit(unit->GetCurrRangeItem());
 	assert(currRangeUnit->GetInterestCount());
 	assert(currRangeUnit == currRangeUnit->GetCurrRangeItem());
-	if (!CheckDataReady(currRangeUnit))
+	if (!CheckDataReady(currRangeUnit.get()))
 		return false;
 
 	ItemReadLock xx(currRangeUnit);
 
 	if (unit->GetValueType()->IsNumeric() || unit->GetNrDimensions() == 2)
-		xmlTable.EditableNameValueRow("Range", GetStrRange(currRangeUnit).c_str(), currRangeUnit);
+		xmlTable.EditableNameValueRow("Range", GetStrRange(currRangeUnit.get()).c_str(), currRangeUnit.get());
 	if (auto trd = currRangeUnit->GetTiledRangeData())
 		if (trd->HasSortedValues())
 			xmlTable.NameValueRow("HasSorteValues", "Yes");
@@ -228,7 +228,7 @@ bool WriteUnitProps(XML_Table& xmlTable, const AbstrUnit* unit, bool allTileInfo
 	WriteCdf(xmlTable, unit);
 
 
-	xmlTable.NameValueRow("NrElements", GetStrCount(currRangeUnit).c_str());
+	xmlTable.NameValueRow("NrElements", GetStrCount(currRangeUnit.get()).c_str());
 
 	if (!currRangeUnit->IsTiled())
 		return true;
@@ -259,9 +259,9 @@ bool WriteUnitProps(XML_Table& xmlTable, const AbstrUnit* unit, bool allTileInfo
 				NewLine(xmlTable.OutStream());
 				xmlTable.OutStream()
 					<< mySSPrintF("Tile %d", t).c_str()
-					<< GetTileStrRange(currRangeUnit, t).c_str()
+					<< GetTileStrRange(currRangeUnit.get(), t).c_str()
 					<< " = "
-					<< GetTileStrCount(currRangeUnit, t).c_str()
+					<< GetTileStrCount(currRangeUnit.get(), t).c_str()
 					<< " elements.";
 			}
 		}
@@ -816,7 +816,7 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 			}
 			WriteCdf(xmlTable, di->GetAbstrValuesUnit());
 
-			di = AsDataItem(di->GetReferredItem());
+			di = AsDataItem(di->GetReferredItem()).get(); // TODO ownership: borrowed transient loop local; item is tree-owned
 			title = "Derived ValuesUnit";
 		} while (di);
 
@@ -836,7 +836,7 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 				}
 				prevUnit = adu;
 			}
-			di = AsDataItem(di->GetReferredItem());
+			di = AsDataItem(di->GetReferredItem()).get(); // TODO ownership: borrowed transient loop local; item is tree-owned
 			title = "Derived DomainUnit";
 		} while (di);
 	}
@@ -1163,13 +1163,13 @@ void TreeItem_XML_DumpExploreThisAndParents_impl(const TreeItem* self, OutStream
 				ExploreCell(calledBy, xmlRow, true);
 		}
 
-		TreeItemSetType::iterator itemPtr = doneItems.lower_bound(self);
-		if (itemPtr != doneItems.end() && *itemPtr == self)
+		TreeItemSetType::iterator itemPtr = doneItems.lower_bound(shared_tree_ptr<const TreeItem>(self, existing_obj{}));
+		if (itemPtr != doneItems.end() && itemPtr->get() == self)
 		{
 			dms_assert(calledBy);
 			goto omit_repetition;
 		}
-		doneItems.insert(itemPtr, self);
+		doneItems.insert(itemPtr, shared_tree_ptr<const TreeItem>(self, existing_obj{}));
 
 		for (const TreeItem* subItem = self->GetFirstVisibleSubItem(); subItem; subItem = subItem->GetNextVisibleItem())
 			TreeItem_XML_DumpItem(subItem, xmlTable, viewHidden);

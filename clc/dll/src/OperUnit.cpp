@@ -145,7 +145,7 @@ bool UnitCombine_impl(AbstrUnit* res, const ArgSeqType& args, bool mustCalc, boo
 			[resSub, trd, groupSize, cycleSize, unitCount MG_DEBUG_ALLOCATOR_SRC(res)] <typename V> (const Unit<V>*valuesUnit)
 			{
 				auto conv = CountableValueConverter<V>(valuesUnit->m_RangeDataPtr);
-				auto lazyTileFunctor = make_unique_LazyTileFunctor<V>(resSub, trd.get(), valuesUnit->m_RangeDataPtr
+				auto lazyTileFunctor = make_unique_LazyTileFunctor<V>(SharedMutableDataItem(resSub, existing_obj{}), trd.get(), valuesUnit->m_RangeDataPtr
 					, [trd, groupSize, cycleSize, unitCount, conv](AbstrDataObject* self, tile_id t) {
 						tile_offset  tileSize = trd->GetTileSize(t);
 						SizeT tileStart = trd->GetFirstRowIndex(t);
@@ -287,7 +287,7 @@ public:
 			arg1Unit = arg1->GetAbstrDomainUnit();
 			if (! arg1Unit->IsDefaultUnit())
 				break;
-			arg1 = AsDataItem(arg1->GetReferredItem());
+			arg1 = AsDataItem(arg1->GetReferredItem()).get();
 		} while (arg1);
 
 		resultHolder = arg1Unit;
@@ -322,7 +322,7 @@ public:
 			arg1Unit = arg1->GetAbstrValuesUnit();
 			if (! arg1Unit->IsDefaultUnit())
 				break;
-			arg1 = AsDataItem(arg1->GetCurrRefItem());
+			arg1 = AsDataItem(arg1->GetCurrRefItem()).get();
 		} while (arg1);
 
 		resultHolder = arg1Unit;
@@ -484,7 +484,7 @@ public:
 		const UnitProjection* orgP = arg1->GetCurrProjection();
 		if (orgP)
 			trRel *= *orgP;
-		auto newP = std::make_unique<UnitProjection>((orgP ? orgP->GetBaseUnit() : AsUnit(arg1->GetCurrUltimateItem())), trRel.Offset(), trRel.Factor());
+		auto newP = std::make_unique<UnitProjection>((orgP ? orgP->GetBaseUnit() : AsUnit(arg1->GetCurrUltimateItem()).get()), trRel.Offset(), trRel.Factor());
 		result->SetProjection(newP.release());
 
 		if (mustCalc)

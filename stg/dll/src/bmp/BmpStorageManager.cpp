@@ -213,7 +213,7 @@ namespace Bmp
 		if (ado->GetTiledRangeData()->GetNrTiles() > 1)
 		{
 //* DEBUG
-			gridUnit = AsUnit(gridUnit->GetUltimateItem());
+			gridUnit = AsUnit(gridUnit->GetUltimateItem()).get();
 			SizeT rw = Cardinality(UPoint(w, h));
 			for (UInt32 r=h; r>0;)
 			{

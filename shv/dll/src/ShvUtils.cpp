@@ -718,7 +718,7 @@ TreeItem* GetViewDataContainer(TreeItem* desktopItem)
 	return result.get();
 }
 
-OwningPtr<TreeItem> CreateContainer_impl(TreeItem* container, const TreeItem* item)
+TreeItem* CreateContainer_impl(TreeItem* container, const TreeItem* item)
 {
 	assert(item);
 	if (!item->IsCacheItem())
@@ -741,13 +741,13 @@ OwningPtr<TreeItem> CreateContainer_impl(TreeItem* container, const TreeItem* it
 		}
 	}
 
-	item = item->GetUltimateItem();
+	item = item->GetUltimateItem().get();
 	assert(item);
 	auto name = std::format("I{:x}", std::size_t(item));
 	return container->CreateItem(GetTokenID(name.c_str())).get();
 }
 
-OwningPtr<TreeItem> CreateContainer(TreeItem* container, const TreeItem* item)
+TreeItem* CreateContainer(TreeItem* container, const TreeItem* item)
 {
 	auto result = CreateContainer_impl(container, item);
 	result->UpdateMetaInfo();
@@ -756,7 +756,7 @@ OwningPtr<TreeItem> CreateContainer(TreeItem* container, const TreeItem* item)
 
 TreeItem* CreateDesktopContainer(TreeItem* desktopItem, const TreeItem* item)
 {
-	return CreateContainer(GetViewDataContainer(desktopItem), item).release();
+	return CreateContainer(GetViewDataContainer(desktopItem), item);
 }
 
 static TokenID paletteDomainID = GetTokenID_st("PaletteDomain");

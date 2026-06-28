@@ -96,7 +96,7 @@ struct InheritedSet: AbstrItemSet
 			auto firstSubItem = focus->GetFirstSubItem();
 			if (firstSubItem)
 				return firstSubItem;
-			focus = focus->GetCurrRefItem();
+			focus = focus->GetCurrRefItem().get();
 		}
 		return nullptr;
 	}
@@ -107,7 +107,7 @@ struct InheritedSet: AbstrItemSet
 		m_CurrItem = m_CurrItem->GetNextItem();
 		if (!m_CurrItem)
 		{
-			m_Focus = m_Focus->GetCurrRefItem();
+			m_Focus = m_Focus->GetCurrRefItem().get();
 			m_CurrItem = GetFirstSubOrInheritedItem(m_Focus);
 		}
 	}

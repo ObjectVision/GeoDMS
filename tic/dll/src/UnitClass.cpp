@@ -193,7 +193,7 @@ const ValueClass* UnitClass::GetValueType(ValueComposition vc) const
 static TokenID nameTokenID = GetTokenID_st("name");
 static TokenID valueTypeID = GetTokenID_st("ValueType");
 
-std::shared_ptr<SharedActor> UnitClass::CreateFromXml(Object* context, struct XmlElement& elem)
+std::shared_ptr<Actor> UnitClass::CreateFromXml(Object* context, struct XmlElement& elem)
 {
 	CheckPtr(context, TreeItem::GetStaticClass(), "UnitClass::CreateFromXml");
 	TreeItem* container = debug_cast<TreeItem*>(context);

@@ -450,7 +450,7 @@ void TiffSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMod
 		uBase->UpdateMetaInfo();
 		DPoint factor = rowcol2dms_order<Float64>(pixel_to_world_transform[3], pixel_to_world_transform[0]);
 		DPoint offset = rowcol2dms_order<Float64>(pixel_to_world_transform[5], pixel_to_world_transform[4]);
-		gridDataDomainRW->SetProjection(new UnitProjection(AsUnit(uBase->GetCurrUltimateItem()), offset, factor));
+		gridDataDomainRW->SetProjection(new UnitProjection(AsUnit(uBase->GetCurrUltimateItem()).get(), offset, factor));
 		return;
 	}
 

@@ -403,7 +403,7 @@ void UsingCache::UpdateCache() const
 
 	TreeItemCPtrArray tmpSubItems, tmpNameSpace;
 
-	const TreeItem* refItem = m_Context;
+	SharedTreeItem refItem{ m_Context, existing_obj{} }; // TODO ownership: was raw const TreeItem*; held as shared so the GetReferredItem() chain outlives each loop iteration
 	while (true) {
 		assert(refItem->m_State.GetProgress() >= ProgressState::MetaInfo || (refItem->m_State.GetFailType() != FailType::None));
 

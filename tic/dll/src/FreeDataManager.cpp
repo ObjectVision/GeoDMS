@@ -75,7 +75,7 @@ bool MustStorePersistent(const TreeItem* ti)
 	if (ti->GetFreeDataState())
 		return false;
 	if (ti->IsPassor())
-		return ti->m_BackRef != nullptr;
+		return ti->m_BackRef.has_ptr();
 	else
 		return !ti->HasConfigData();
 }

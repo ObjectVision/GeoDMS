@@ -204,36 +204,52 @@ namespace cs_lock {
 	bool TryReadLock(const TreeItem* key);
 	void ReadFree(const TreeItem* key);
 
-	void PrepareReadAccess(const TreeItem* key) // only works for reader_writer_lock
+	// Approach A: a read on a cache item must not proceed while a cache ANCESTOR is being (re)produced (an
+	// ItemWriteLock on an ancestor rebuilds its whole subtree). Instead of read-LOCKING the ancestor chain (the
+	// old design, which relied on the now-reversed rule that subItems own their parents, and otherwise leaves an
+	// m_ItemCount on an unowned parent that then trips ~AbstrDataItem/ClearDataObject), we AWAIT any such write
+	// without locking: walk up via GetTreeParent (owning per step) and, for any write-locked ancestor (its
+	// m_ItemCount < 0), join its producer to drive it to completion, then re-scan. This is lifetime-safe: a
+	// write-locked ancestor is kept alive by its own ItemWriteLock, which owns the chain downward. New reads thus
+	// wait for ancestor production to finish; a read item's ancestors stay stable meanwhile via its interest.
+	void AwaitAncestorWrites(const TreeItem* key)
 	{
 		assert(key);
 		if (!key->IsCacheItem())
 			return;
-		auto parent = key->GetTreeParent();
-		if (!parent)
-			return;
-		ReadLock(parent.get()); // let assoc_ptr slip here; caller must call FreeReadAccess(key) that will calltreeitem_production_task::unlock(parent); (through ReadFree)
+	restart:
+		for (auto ancestor = key->GetTreeParent(); ancestor && ancestor->IsCacheItem(); ancestor = ancestor->GetTreeParent())
+		{
+			if (ancestor->m_ItemCount >= 0)
+				continue; // not being produced
+			std::shared_ptr<OperationContext> producer;
+			{
+				leveled_critical_section::scoped_lock lock(treeitem_production_task::cs_lockCounterUpdate);
+				producer = ancestor->m_Producer.lock();
+			}
+			if (producer)
+			{
+				SuspendTrigger::FencedBlocker block("AwaitAncestorWrites");
+				producer->Join();
+			}
+			else
+			{
+				leveled_critical_section::unique_lock lock(treeitem_production_task::cs_lockCounterUpdate);
+				treeitem_production_task::cv_lockrelease.wait_for(lock.m_BaseLock, std::chrono::milliseconds(500));
+			}
+			goto restart; // chain may have changed; re-scan from the top
+		}
 	}
 
-	bool TryPrepareReadAccess(const TreeItem* key) // only works for reader_writer_lock
+	// non-blocking variant: false if any cache ancestor is currently being produced.
+	bool TryAwaitAncestorWrites(const TreeItem* key)
 	{
 		assert(key);
-		if (!key->IsCacheItem())
-			return true;
-		auto parent = key->GetTreeParent();
-		if (!parent)
-			return true;
-		return TryReadLock(parent.get()); // let assoc_ptr slip here; caller must call FreeReadAccess(key) that will calltreeitem_production_task::unlock(parent); (through ReadFree)
-	}
-
-	void FreeReadAccess(const TreeItem* key)
-	{
-		assert(key);
-		if (!key->IsCacheItem())
-			return;
-		auto parent = key->GetTreeParent();
-		if (parent)
-			ReadFree(parent.get());
+		if (key->IsCacheItem())
+			for (auto ancestor = key->GetTreeParent(); ancestor && ancestor->IsCacheItem(); ancestor = ancestor->GetTreeParent())
+				if (ancestor->m_ItemCount < 0)
+					return false;
+		return true;
 	}
 
 	void ThrowIfNotReady(const TreeItem* item)
@@ -256,22 +272,9 @@ namespace cs_lock {
 //		if (IsDataItem(item))
 //			lockDomain.emplace(AsDataItem(item)->GetAbstrDomainUnit()->GetCurrRangeItem());
 
-		// acquire read lock of context first, to guarantee that no write lock active on anchestor 
-		// TODO: only when m_Count == 0 and then hold until lock is given or refused, see other TODO's
-		PrepareReadAccess(item); // acquire read lock of context first, to guarantee that no write lock active on anchestor
-		auto undoPrepare = make_releasable_scoped_exit([item]() { FreeReadAccess(item); });
-
-		// acquire read lock of item so that a write lock has been lifted due to completion, cancellation or failure
+		// await (don't lock) any in-progress production on a cache ancestor, then read-lock ONLY this item
+		AwaitAncestorWrites(item);
 		treeitem_production_task::lock_shared(item);
-/* REMOVE
-		if (loadData && !item->DataAllocated() && (IsDataItem(item) || IsUnit(item)))
-		{
-			treeitem_production_task::unlock_shared(item);
-			LoadItem(item);
-			treeitem_production_task::lock_shared(item);
-		}
-		*/
-		undoPrepare.release();
 	}
 
 	bool TryReadLock(const TreeItem* item) // only works for reader_writer_lock, caller must call ReadFree
@@ -283,31 +286,17 @@ namespace cs_lock {
 		//		if (IsDataItem(item))
 		//			lockDomain.emplace(AsDataItem(item)->GetAbstrDomainUnit()->GetCurrRangeItem());
 
-				// acquire read lock of context first, to guarantee that no write lock active on anchestor 
-				// TODO: only when m_Count == 0 and then hold until lock is given or refused, see other TODO's
-		if (!TryPrepareReadAccess(item)) // acquire read lock of context first, to guarantee that no write lock active on anchestor
+		// refuse if a cache ancestor is being produced, then try to read-lock ONLY this item
+		if (!TryAwaitAncestorWrites(item))
 			return false;
-		auto undoPrepare = make_releasable_scoped_exit([item]() { FreeReadAccess(item); });
-
-		// acquire read lock of item so that a write lock has been lifted due to completion, cancellation or failure
 		if (!treeitem_production_task::try_lock_shared(item))
 			return false;
-		/* REMOVE
-				if (loadData && !item->DataAllocated() && (IsDataItem(item) || IsUnit(item)))
-				{
-					treeitem_production_task::unlock_shared(item);
-					LoadItem(item);
-					treeitem_production_task::lock_shared(item);
-				}
-				*/
-		undoPrepare.release();
 		return true;
 	}
 
 	void ReadFree(const TreeItem* key) // only works for reader_writer_lock
 	{
-		treeitem_production_task::unlock_shared(key);
-		FreeReadAccess(key); // TODO: only if m_Count became 0, see other TODO's
+		treeitem_production_task::unlock_shared(key); // only this item was locked (Approach A)
 	}
 
 	void ReadLockInit(const TreeItem* item)
@@ -588,7 +577,7 @@ bool IsAllDataCurrStandby(const TreeItem* item)
 		return false;
 	if (item->IsCacheItem())
 		for (auto subItem = item->_GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
-			if (!IsAllDataCurrStandby(subItem->GetCurrUltimateItem()))
+			if (!IsAllDataCurrStandby(subItem->GetCurrUltimateItem().get()))
 				return false;
 	return true;
 }
@@ -614,7 +603,7 @@ bool IsAllInterestedDataReady_impl(const TreeItem* item)
 			return false;
 
 	for (auto subItem = item->_GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
-		if (!IsAllInterestedDataReady_impl(subItem->GetCurrUltimateItem()))
+		if (!IsAllInterestedDataReady_impl(subItem->GetCurrUltimateItem().get()))
 			return false;
 
 	return true;
@@ -633,9 +622,9 @@ bool IsAllInterestedCalculatingOrDataReady_impl(const TreeItem* item)
 		assert(ultimateCacheItem);
 		assert(ultimateCacheItem->IsCacheItem());
 
-		if (IsCalculating(ultimateCacheItem))
+		if (IsCalculating(ultimateCacheItem.get()))
 			return true;
-		if (!IsDataCurrReady(ultimateCacheItem))
+		if (!IsDataCurrReady(ultimateCacheItem.get()))
 		{
 			MG_CHECK(!s_IsDetectingIncInterest);
 			return false;
@@ -643,7 +632,7 @@ bool IsAllInterestedCalculatingOrDataReady_impl(const TreeItem* item)
 	}
 
 	for (auto subItem = item->_GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
-		if (!IsAllInterestedDataReady_impl(subItem->GetCurrUltimateItem()))
+		if (!IsAllInterestedDataReady_impl(subItem->GetCurrUltimateItem().get()))
 			return false;
 
 	return true;
@@ -717,13 +706,13 @@ bool RunTask(const TreeItem* item)
 	assert(item);
 	assert(item->HasInterest());
 
-	bool ready = IsDataReady(item->GetCurrUltimateItem());
+	bool ready = IsDataReady(item->GetCurrUltimateItem().get());
 	if (!ready)
 	{
 		if (IsMultiThreaded2()) {
 			leveled_critical_section::scoped_lock lock(s_ActiveProducerSetMutex);
 
-			s_ActiveProducerSet.insert(item);
+			s_ActiveProducerSet.insert(shared_tree_ptr<const TreeItem>(item, existing_obj{}));
 			if (!s_RunTaskActive)
 			{
 				s_RunTaskActive = true;

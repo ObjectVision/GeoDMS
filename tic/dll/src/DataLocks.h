@@ -66,6 +66,13 @@ struct DataReadLock : SharedPtr<const AbstrDataObject>
 	bool IsLocked() const { return m_DRLA.GetItem(); }
 
 private:
+	// Owns the locked item and is declared FIRST, so it is destructed LAST (after m_RefPtrLock and m_DRLA).
+	// This guarantees neither count-bearing lock is ever the item's last owner: m_DRLA (m_DataLockCount) and
+	// m_RefPtrLock (m_ItemCount) release their counts AND drop their owning refs first, and only then does this
+	// plain owner drop the final ref -- so when ~AbstrDataItem/ClearDataObject runs, both counts are already 0.
+	// Needed because ownership is now downward (parent->child): without this, a lock's count-holder could be the
+	// last owner and destroy the item while its own count was still held (tripping MG_CHECK(m_ItemCount==0)).
+	shared_tree_ptr<const AbstrDataItem> m_KeepItemAlive;
 	ItemReadLock                       m_RefPtrLock; // TODO G8: REMOVE
 	DataReadLockAtom                   m_DRLA;
 };

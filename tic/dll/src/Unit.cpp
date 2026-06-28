@@ -678,7 +678,7 @@ template <typename V>
 const UnitMetric*
 RangedUnit<V>::GetMetric() const
 {
-	const RangedUnit<V>* refItem = debug_cast<const RangedUnit<V>*>(this->GetReferredItem());
+	const RangedUnit<V>* refItem = debug_cast<const RangedUnit<V>*>(this->GetReferredItem().get());
 	if (refItem)
 		return refItem->GetMetric();
 
@@ -690,7 +690,7 @@ const UnitMetric*
 RangedUnit<V>::GetCurrMetric() const
 {
 	dbg_assert(this->CheckMetaInfoReadyOrPassor());
-	const RangedUnit<V>* refItem = debug_cast<const RangedUnit<V>*>(this->GetCurrRefItem());
+	const RangedUnit<V>* refItem = debug_cast<const RangedUnit<V>*>(this->GetCurrRefItem().get());
 	if (refItem)
 		return refItem->GetCurrMetric();
 
@@ -1020,7 +1020,7 @@ const UnitProjection* GeoUnitAdapter<U>::GetProjection() const
 {
 	dms_assert(this->GetNrDimensions() == 2);
 
-	const GeoUnitAdapter<U>* refItem = debug_cast<const GeoUnitAdapter<U>*>(this->GetReferredItem());
+	const GeoUnitAdapter<U>* refItem = debug_cast<const GeoUnitAdapter<U>*>(this->GetReferredItem().get());
 	if (refItem)
 		return refItem->GetProjection();
 
@@ -1035,7 +1035,7 @@ const UnitProjection* GeoUnitAdapter<U>::GetCurrProjection() const
 	dms_assert(this->GetNrDimensions() == 2);
 	dbg_assert(this->CheckMetaInfoReadyOrPassor()); // caused by call to GetReferredItem
 
-	const GeoUnitAdapter<U>* refItem = debug_cast<const GeoUnitAdapter<U>*>(this->GetCurrRefItem());
+	const GeoUnitAdapter<U>* refItem = debug_cast<const GeoUnitAdapter<U>*>(this->GetCurrRefItem().get());
 	if (refItem)
 		return refItem->GetCurrProjection();
 
@@ -1094,7 +1094,7 @@ auto RangedUnit<V>::GetCurrSegmInfo() const -> const range_data_t*
 	if (this->WasFailed(FailType::Data))
 		this->ThrowFail();
 
-	const RangedUnit<V>* ultimateCU = debug_cast<const RangedUnit<V>*>(this->GetCurrRangeItem());
+	const RangedUnit<V>* ultimateCU = debug_cast<const RangedUnit<V>*>(this->GetCurrRangeItem().get());
 	dbg_assert(ultimateCU->CheckMetaInfoReadyOrPassor());
 	dbg_assert(CheckCalculatingOrReady(ultimateCU) || ultimateCU->WasFailed(FailType::Data));
 

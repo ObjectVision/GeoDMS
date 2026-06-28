@@ -230,7 +230,7 @@ QVariant DmsModel::getTreeItemIcon(const QModelIndex& index) const {
 	if (!isInTemplate)
 	{
 		if (auto siti = ti->GetInterestPtrOrNull())
-			if (IsDataCurrReady(siti->GetCurrRangeItem()) && siti->m_State.GetProgress() != ProgressState::Committed)
+			if (IsDataCurrReady(siti->GetCurrRangeItem().get()) && siti->m_State.GetProgress() != ProgressState::Committed)
 			{
 				PostMainThreadTask(0, [siti](bool)->bool
 					{
@@ -304,11 +304,11 @@ static color_option getBackColorOption(const TreeItem* ti)
 		auto iLock = ti->GetInterestPtrOrNull();
 		if (iLock)
 		{
-			if (IsDataCurrReady(iLock->GetCurrRangeItem()))
+			if (IsDataCurrReady(iLock->GetCurrRangeItem().get()))
 				return color_option::st_valid;
 			return color_option::st_scheduled;
 		}
-		if(IsDataCurrStandby(ti->GetCurrRangeItem()))
+		if(IsDataCurrStandby(ti->GetCurrRangeItem().get()))
 			return color_option::st_standby;
 	}
 

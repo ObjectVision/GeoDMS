@@ -678,7 +678,7 @@ struct partitioning_info_t : partitioning_meta_t
 		auto pu = AsUnit(GetPartitioningUnit()->GetCurrRangeItem());
 		return mySSPrintF("%s %s",
 			GetName().c_str(),
-			DisplayValue(pu, regionID, false, m_ValuesLabelLock, MAX_TEXTOUT_SIZE, lock).c_str()
+			DisplayValue(pu.get(), regionID, false, m_ValuesLabelLock, MAX_TEXTOUT_SIZE, lock).c_str()
 		);
 	}
 
@@ -1694,7 +1694,7 @@ void CreateResultingItems(
 			FixedContextHandle priceUnitContext("processing the values unit of a suitability map as a unit of utility");
 			const Unit<S>* priceUnit = const_unit_checkedcast<S>(gg->m_diSuitabilityMap->GetAbstrValuesUnit());
 			if (!htpMeta.m_PriceUnit)
-				htpMeta.m_PriceUnit = priceUnit;
+				htpMeta.m_PriceUnit = shared_tree_ptr<const Unit<S> >(priceUnit, existing_obj{});
 			else
 				if (!htpMeta.m_PriceUnit->UnifyValues(priceUnit, "First non-default suitability values unit", "A subsequence suitability values unit", UnifyMode(), &resultMsg))
 					throwErrorF("discrete_alloc", "values of suitability map for %s incompatible with earlier suitability map values:\n%s", gg->m_NameID, resultMsg);
@@ -1760,8 +1760,8 @@ void PrepareClaims(htp_info_t<S, AR, AT>& htpInfo)
 	{
 		ggType_info_t<S>& gg = htpInfo.m_ggTypes[j];
 
-		dms_assert(IsDataReady(gg.m_diMinClaims->GetCurrUltimateItem()));
-		dms_assert(IsDataReady(gg.m_diMaxClaims->GetCurrUltimateItem()));
+		dms_assert(IsDataReady(gg.m_diMinClaims->GetCurrUltimateItem().get()));
+		dms_assert(IsDataReady(gg.m_diMaxClaims->GetCurrUltimateItem().get()));
 
 		DataReadLock lockClaimMin(gg.m_diMinClaims);
 		DataReadLock lockClaimMax(gg.m_diMaxClaims);
@@ -1810,7 +1810,7 @@ void PreparePartitionings(htp_info_t<S, AR, AT>& htpInfo, const AbstrUnit* alloc
 			htpInfo.m_NrUniqueRegions += nrRegions;
 		}
 		// collect atomicRegionCounts
-		htpInfo.m_AtomicRegionMap = atomicRegionMapA;
+		htpInfo.m_AtomicRegionMap = shared_tree_ptr<const AbstrDataItem>(atomicRegionMapA, existing_obj{});
 		htpInfo.m_AtomicRegionLock = DataReadLock(atomicRegionMapA);
 		assert(htpInfo.m_AtomicRegionLock.IsLocked());
 		htpInfo.m_AtomicRegionMapObj = const_array_cast<AR>(atomicRegionMapA);

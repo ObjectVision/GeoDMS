@@ -70,8 +70,8 @@ namespace Explain { // local defs
 		bool                                   m_IsExprOfExistingItem = false;
 		AbstrCalcExplanation(const AbstrDataItem* dataItem)
 			: m_DataItem(dataItem)
-			, m_UltimateDomainUnit(AsUnit(dataItem->GetAbstrDomainUnit()->GetUltimateItem()))
-			, m_UltimateValuesUnit(AsUnit(dataItem->GetAbstrValuesUnit()->GetUltimateItem()))
+			, m_UltimateDomainUnit(AsUnit(dataItem->GetAbstrDomainUnit()->GetUltimateItem()).get()) // TODO ownership: snapshot of tree-owned ultimate unit; consider weak_tree_ptr member
+			, m_UltimateValuesUnit(AsUnit(dataItem->GetAbstrValuesUnit()->GetUltimateItem()).get()) // TODO ownership: snapshot of tree-owned ultimate unit; consider weak_tree_ptr member
 		{}
 		virtual ~AbstrCalcExplanation()
 		{
@@ -533,7 +533,7 @@ namespace Explain { // local defs
 		leveled_critical_section::scoped_lock lock(scs_ExplainAccess);
 
 		dms_assert(domain);
-		domain = AsUnit(domain->GetCurrUltimateItem());
+		domain = AsUnit(domain->GetCurrUltimateItem()).get();
 		dms_assert(domain);
 		for (auto entryPtr = m_Queue.begin(); entryPtr != m_Queue.end(); ++entryPtr)
 			if (entryPtr->first == domain && entryPtr->second == index)
@@ -991,7 +991,7 @@ namespace Explain { // local defs
 			}
 			else
 			{
-				if (!WaitForReadyOrSuspendTrigger(resultData->GetCurrUltimateItem()))
+				if (!WaitForReadyOrSuspendTrigger(resultData->GetCurrUltimateItem().get()))
 					return nullptr;
 
 				DataReadLock dlr(AsDataItem(resultData));

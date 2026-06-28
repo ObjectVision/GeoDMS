@@ -662,8 +662,8 @@ void EditPaletteControl::UpdateNrClasses()
 		return;
 	if (!PrepareDataOrUpdateViewLater(domain))
 		return;
-	assert(IsDataReady(domain->GetUltimateItem()) || domain->WasFailed() || domain->GetUltimateItem()->WasFailed());
-	if (!IsDataReady(domain->GetUltimateItem()))
+	assert(IsDataReady(domain->GetUltimateItem().get()) || domain->WasFailed() || domain->GetUltimateItem()->WasFailed());
+	if (!IsDataReady(domain->GetUltimateItem().get()))
 		return;
 
 	m_numNrClasses->SetValue( domain->GetCount() );

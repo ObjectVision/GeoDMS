@@ -72,7 +72,7 @@ void StorageMetaInfo::PrepareReadDataOrSuspend()
 		shared_tree_ptr<const AbstrUnit> adu(CurrRD()->GetAbstrDomainUnit(), existing_obj{});
 		adu->GetCount(); // Prepare for later DataWriteLock->DoCreateMemoryStorage
 		shared_tree_ptr<const AbstrUnit> avu(CurrRD()->GetAbstrValuesUnit(), existing_obj{});
-		WaitForReadyOrSuspendTrigger(avu->GetCurrRangeItem());
+		WaitForReadyOrSuspendTrigger(avu->GetCurrRangeItem().get());
 	}
 }
 

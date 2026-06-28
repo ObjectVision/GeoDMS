@@ -677,7 +677,7 @@ UInt32 TreeItem_GetProgressState(const TreeItem* self)
 		if (treeitem_progress_state == ProgressState::Validated)
 			return NC2_Validated;
 
-		if (IsDataCurrStandby(self->GetCurrRangeItem()))
+		if (IsDataCurrStandby(self->GetCurrRangeItem().get()))
 			return NC2_DataReady;
 		
 		if (treeitem_progress_state == ProgressState::MetaInfo)

@@ -243,7 +243,15 @@ Actor::Actor ()
 
 Actor::~Actor ()
 {
-    assert(!m_InterestCount);
+    // (was assert(!m_InterestCount)): an actor may now be destroyed while consumers still hold non-owning
+    // (weak) interest in it; that residual count dies harmlessly with the object (the weak holders no-op-
+    // decrement a dead target). We MUST, however, undo any remaining supplier interest so our suppliers are
+    // released and our s_SupplTreeInterest[this] entry does not dangle. For TreeItems this was already done
+    // in ~TreeItem (so the guard is a no-op there); this covers non-TreeItem actors (e.g. DataControllers).
+    if (DoesHaveSupplInterest())
+    {
+        garbage_can supplGarbage = StopSupplInterest();
+    }
 
     ClearFail();
     #if defined(MG_DEBUG)
@@ -1280,9 +1288,9 @@ SupplInterestListPtr Actor::GetSupplInterest() const
     VisitSupplProcImpl(this, SupplierVisitFlag(SupplierVisitFlag::StartSupplInterest),
         [&supplInterestListPtr] (const Actor* supplier)
         {
-            // The visitor sees a raw const Actor*. std-managed suppliers (TreeItems) are retained in the
-            // weak interest list; intrusive SharedActor suppliers (DataControllers) yield an empty weak and
-            // are skipped here (locked locally during the visit; their interest is held via their owner).
+            // The visitor sees a raw const Actor*. push_front retains each non-passor supplier: std-managed
+            // suppliers (TreeItems) by a non-owning weak interest, intrusive SharedActor suppliers
+            // (DataControllers) by an owning intrusive interest (see SupplInterest.h for the why).
             if (!supplier->IsPassor())
                 push_front(supplInterestListPtr, supplier);
         }

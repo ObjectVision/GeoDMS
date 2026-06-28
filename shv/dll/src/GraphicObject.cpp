@@ -299,15 +299,15 @@ bool GraphicObject::PrepareDataOrUpdateViewLater(const TreeItem* item)
 	if (item->SuspendibleUpdate())
 	{
 		assert(!SuspendTrigger::DidSuspend());
-		if (IsDataReady(item->GetCurrRangeItem()))
+		if (IsDataReady(item->GetCurrRangeItem().get()))
 			return true;
 	}
 
 	if (item->m_State.GetProgress() < ProgressState::Committed)
 	{
-		return item->m_State.GetProgress() == ProgressState::Validated && item->WasFailed(FailType::Validate) && IsDataReady(item->GetCurrRangeItem());
+		return item->m_State.GetProgress() == ProgressState::Validated && item->WasFailed(FailType::Validate) && IsDataReady(item->GetCurrRangeItem().get());
 	}
-	if (IsDataReady(item->GetCurrRangeItem()))
+	if (IsDataReady(item->GetCurrRangeItem().get()))
 		return true;
 	if (itemHolder->WasFailed(FailType::Data))
 		return true;

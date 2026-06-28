@@ -306,7 +306,7 @@ struct LazyGetter : public AbstrThemeValueGetter
 		:	AbstrThemeValueGetter(paletteAttr)
 //		,	m_ThemeData(const_array_cast<V>(themeAttr))
 		,	m_ThemeAttr(themeAttr, existing_obj{})
-		,	m_UltimateDomain(AsUnit(themeAttr->GetAbstrDomainUnit()->GetUltimateItem()))
+		,	m_UltimateDomain(AsUnit(themeAttr->GetAbstrDomainUnit()->GetUltimateItem()).get())
 	{}
 
 	V GetThemeValue(entity_id entityID) const
@@ -496,7 +496,7 @@ struct IndirectGetterCreator : UnitProcessor
 	void VisitImpl(const Unit<V>* themeValuesUnit) const
 	{
 		m_ResultingGetter = new IndirectGetter<V>(
-			AsDataItem( m_ThemeAttr->GetUltimateItem() )
+			AsDataItem( m_ThemeAttr->GetUltimateItem() ).get()
 		,	themeValuesUnit->GetRange()
 		,	m_PaletteAttr
 		);

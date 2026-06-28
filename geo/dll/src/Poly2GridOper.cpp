@@ -519,7 +519,7 @@ namespace poly2grid
 			,	m_PolyAttr(polyAttr)
 			,	m_BoxesArrays(boxesArrays)
 			,	m_RasterTileId(tg)
-			,	m_ViewPortInfo(polyAttr, resDomain, tg, AsUnit(polyAttr->GetAbstrValuesUnit()->GetCurrRangeItem()), no_tile, nullptr, false, false, countcolor_t(-1), false)
+			,	m_ViewPortInfo(polyAttr, resDomain, tg, AsUnit(polyAttr->GetAbstrValuesUnit()->GetCurrRangeItem()).get(), no_tile, nullptr, false, false, countcolor_t(-1), false)
 		{
 			m_SequenceGetter.reset( CreateSequenceGetter(m_PolyAttr->GetAbstrValuesUnit()) );
 		}
@@ -549,7 +549,7 @@ namespace poly2grid
 			RasterSizeType size = m_ViewPortInfo.GetViewPortSize();
 			IPoint base = m_ViewPortInfo.GetViewPortOrigin();
 
-			const AbstrDataItem* polyAttr = m_PolyAttr;
+			const AbstrDataItem* polyAttr = m_PolyAttr.get();
 			const AbstrDataObject* polyData = polyAttr->GetCurrRefObj().get();
 			const AbstrUnit* abstrPolyDomain = polyAttr->GetAbstrDomainUnit(); // could be void domain.
 			MG_CHECK(abstrPolyDomain); // invariant: never null (the void domain is still a unit)
@@ -633,7 +633,7 @@ namespace poly2grid
 	{
 		p2ag_DispatcherTileData(const AbstrUnit* resDomain, const AbstrDataItem* polyAttr)
 			: m_PolyAttr(polyAttr)
-			, m_ViewPortInfo(polyAttr, resDomain, no_tile, AsUnit(polyAttr->GetAbstrValuesUnit()->GetCurrRangeItem()), no_tile, nullptr, false, false, countcolor_t(-1), false)
+			, m_ViewPortInfo(polyAttr, resDomain, no_tile, AsUnit(polyAttr->GetAbstrValuesUnit()->GetCurrRangeItem()).get(), no_tile, nullptr, false, false, countcolor_t(-1), false)
 		{}
 
 
@@ -648,7 +648,7 @@ namespace poly2grid
 			RasterSizeType size = m_ViewPortInfo.GetViewPortSize();
 			IPoint base = m_ViewPortInfo.GetViewPortOrigin();
 
-			const AbstrDataItem* polyAttr = m_PolyAttr;
+			const AbstrDataItem* polyAttr = m_PolyAttr.get();
 			const AbstrDataObject* polyData = polyAttr->GetCurrRefObj().get();
 			const AbstrUnit* abstrPolyDomain = polyAttr->GetAbstrDomainUnit(); // could be void domain.
 			MG_CHECK(abstrPolyDomain); // invariant: never null (the void domain is still a unit)
@@ -752,7 +752,7 @@ struct Poly2GridOperator : public BinaryOperator
 		if (!mustCalc)
 		{
 			// Validate transform compatibility early (no execution).
-			ViewPortInfoEx<Int32> viewPortInfoCheck(polyAttr, gridDomainUnit, no_tile, AsUnit(polyAttr->GetAbstrValuesUnit()->GetCurrRangeItem()), no_tile, nullptr, false, true, countcolor_t(-1), false);
+			ViewPortInfoEx<Int32> viewPortInfoCheck(polyAttr, gridDomainUnit, no_tile, AsUnit(polyAttr->GetAbstrValuesUnit()->GetCurrRangeItem()).get(), no_tile, nullptr, false, true, countcolor_t(-1), false);
 		}
 		else
 		{
@@ -845,7 +845,7 @@ struct Poly2AllGridsOperator : public BinaryOperator
 		if (!mustCalc)
 		{
 			// Validation only.
-			ViewPortInfoEx<Int32> viewPortInfoCheck(polyAttr, gridDomainUnit, no_tile, AsUnit(polyAttr->GetAbstrValuesUnit()->GetCurrRangeItem()), no_tile, nullptr, false, true, countcolor_t(-1), false);
+			ViewPortInfoEx<Int32> viewPortInfoCheck(polyAttr, gridDomainUnit, no_tile, AsUnit(polyAttr->GetAbstrValuesUnit()->GetCurrRangeItem()).get(), no_tile, nullptr, false, true, countcolor_t(-1), false);
 		}
 		else
 		{

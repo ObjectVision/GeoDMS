@@ -456,7 +456,7 @@ void MainWindow::setCurrentTreeItem(TreeItem* target_item, bool update_history)
             }
         }
 
-        m_current_item = target_item;
+        m_current_item = shared_tree_ptr<TreeItem>(target_item, existing_obj{});
 
         // update actions based on new current item
         updateActionsForNewCurrentItem();
@@ -1333,7 +1333,7 @@ bool MainWindow::LoadConfigImpl(CharPtr configFilePath) {
 
         auto newRoot = CreateTreeFromConfiguration(m_currConfigFileName.c_str());
 
-        m_root = newRoot;
+        m_root = shared_tree_ptr<TreeItem>(newRoot, existing_obj{});
         if (m_root) {
             SharedStr configFilePathStr = DelimitedConcat(ConvertDosFileName(GetCurrentDir()), ConvertDosFileName(m_currConfigFileName));
 #ifdef _WIN32
@@ -1880,10 +1880,10 @@ void MainWindow::updateViewMenu() const {
 }
 
 void MainWindow::updateToolsMenu() const {
-    m_code_analysis_add_target_action->setEnabled(m_current_item);
-    m_code_analysis_clr_targets_action->setEnabled(m_current_item);
-    m_code_analysis_set_source_action->setEnabled(m_current_item);
-    m_code_analysis_set_target_action->setEnabled(m_current_item);
+    m_code_analysis_add_target_action->setEnabled(bool(m_current_item));
+    m_code_analysis_clr_targets_action->setEnabled(bool(m_current_item));
+    m_code_analysis_set_source_action->setEnabled(bool(m_current_item));
+    m_code_analysis_set_target_action->setEnabled(bool(m_current_item));
 }
 
 void MainWindow::updateSettingsMenu() const {

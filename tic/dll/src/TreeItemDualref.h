@@ -66,6 +66,12 @@ struct DcRef
 	int             kind()       const noexcept { return int(m_Holder.index()); } // 0 empty,1 new,2 oldCache,3 oldConfig,4 tmp
 	void            clear()            noexcept { m_Holder.emplace<std::monostate>(); }
 
+	// Arm-set STATE check (is a result holder present) -- NOT a transient liveness probe. Mirrors
+	// TreeItemDualRef::operator bool/operator! exactly (kind()-based); for liveness you must hold get().
+	// (The transient raw-deref operators were removed on purpose; this is a pure state read.)
+	explicit operator bool() const noexcept { return kind() != 0; }
+	bool     operator!()     const noexcept { return kind() == 0; }
+
 	// std owner count of the OWNING arms (0 for weak/empty) -- replaces the old intrusive GetRefCount() check.
 	long use_count() const noexcept
 	{
@@ -96,7 +102,7 @@ struct TreeItemDualRef : SharedActor
 	// outlives the use. Prefer GetCurr() when holding across work.
 	      TreeItem* GetNew()  const { dms_assert(!IsOld()); return const_cast<TreeItem*>(m_Data.get().get()); }
 	const TreeItem* GetOld()  const { return m_Data.get().get(); }
-	const TreeItem* GetUlt()  const { if (auto p = m_Data.get()) return p->GetCurrUltimateItem(); return nullptr; }
+	const TreeItem* GetUlt()  const { if (auto p = m_Data.get()) return p->GetCurrUltimateItem().get(); return nullptr; }
 
 	virtual bool IsSymbDC() const { return false; }
 	virtual bool CanResultToConfigItem() const { return false; }

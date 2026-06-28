@@ -52,7 +52,7 @@ bool CheckCalculatingOrRangeKnown(const AbstrUnit* au)
 	dms_assert(au);
 	if (HasFixedRange(au->GetValueType()))
 		return true;
-	return CheckCalculatingOrReady(au->GetCurrRangeItem());
+	return CheckCalculatingOrReady(au->GetCurrRangeItem().get());
 }
 
 #endif
@@ -92,7 +92,7 @@ DataReadLockAtom::DataReadLockAtom(DataReadLockAtom&& rhs) noexcept
 }
 
 DataReadLockAtom::DataReadLockAtom(const AbstrDataItem* item)
-	:	m_Item(item)
+	:	m_Item(item, existing_obj{}) // share the item's REAL control block; a bare m_Item(item) used std::shared_ptr's inherited raw ctor -> a rogue control block whose delete-deleter destroyed the item out from under its other owners/locks
 {
 	if (!item) //  || (item->m_DataLockCount < 0 && !type))
 		return;
@@ -160,7 +160,8 @@ DataReadLockAtom::~DataReadLockAtom() noexcept
 //----------------------------------------------------------------------
 
 DataReadLock::DataReadLock(const AbstrDataItem* item)
-	:	m_RefPtrLock(item = (item ? AsDataItem(item->GetCurrUltimateItem()):nullptr))
+	:	m_KeepItemAlive(shared_tree_ptr<const AbstrDataItem>(item = (item ? AsDataItem(item->GetCurrUltimateItem()).get():nullptr), existing_obj{})) // owns the ultimate item; outlives both count-locks (see DataLocks.h)
+	,	m_RefPtrLock(item)
 	,	m_DRLA(item)
 {
 	assert(std::uncaught_exceptions() == 0);
@@ -301,7 +302,7 @@ afterReset:
 	--adi->m_DataLockCount;
 	dms_assert(adi->m_DataLockCount < 0);
 
-	m_adi = adi;
+	m_adi = shared_tree_ptr<AbstrDataItem>(adi, existing_obj{});
 }
 
 void DataWrite_Unlock(AbstrDataItem* adi)

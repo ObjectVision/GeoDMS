@@ -258,7 +258,7 @@ namespace Grid {
 						auto adu = viewPort2Grid.m_smi->CurrRD()->GetAbstrDomainUnit();
 						if (!adu)
 							return;
-						adu = AsUnit(adu->GetCurrRangeItem());
+						adu = AsUnit(adu->GetCurrRangeItem()).get();
 						MG_CHECK(adu);
 						if (!adu->GetTiledRangeData()->IsCovered())
 							return;

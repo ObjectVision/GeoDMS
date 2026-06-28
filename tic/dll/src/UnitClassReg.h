@@ -45,7 +45,7 @@ struct RangeProp : PropDef<Unit<T>, typename Unit<T>::range_t >
 	{
 		SharedUnitInterestPtr holder(u);
 		if (u->GetTSF(TSF_Categorical) == m_IsCategorical)
-			if (IsDataReady(u->GetCurrRangeItem()) || u->GetTSF(USF_HasConfigRange))
+			if (IsDataReady(u->GetCurrRangeItem().get()) || u->GetTSF(USF_HasConfigRange))
 			{
 				SuspendTrigger::FencedBlocker blockThis("RangeProp::GetValue");
 				u->PrepareDataUsage(DrlType::Suspendible);

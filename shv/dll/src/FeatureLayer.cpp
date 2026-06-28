@@ -2842,7 +2842,7 @@ bool FeatureLayer::GetTooltipText(TooltipCollector& ttc) const
 
 	const AbstrDataObject* ado = nullptr;
 	if (attrItem)
-		ado = debug_cast<const AbstrDataItem*>(attrItem->GetCurrUltimateItem())->m_DataObject.get();
+		ado = debug_cast<const AbstrDataItem*>(attrItem->GetCurrUltimateItem().get())->m_DataObject.get();
 	if (!ado)
 		return false;
 

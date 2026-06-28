@@ -88,7 +88,7 @@ void DataBlockProd::DoArrayAssignment()
 		adi->throwItemError(errMsg);
 	}
 	SizeT tileLocalIndex = i;
-	tile_loc currTileLocation = checked_cast<const AbstrUnit*>(domain->GetCurrUltimateItem())->GetTiledRangeData()->GetTiledLocation(tileLocalIndex);
+	tile_loc currTileLocation = checked_cast<const AbstrUnit*>(domain->GetCurrUltimateItem().get())->GetTiledRangeData()->GetTiledLocation(tileLocalIndex);
 	tile_id currTileID = currTileLocation.first;
 	if (currTileID == no_tile)
 	{

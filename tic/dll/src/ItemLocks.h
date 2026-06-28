@@ -61,6 +61,11 @@ struct ItemReadLock
 
 	bool has_ptr() const { return m_Ptr.has_ptr(); }
 
+	// Approach A (matches the reversed parent<-child ownership): a read lock locks ONLY the item to be read
+	// (so it never bumps m_ItemCount on an ancestor that this lock does not own). To still honor "do not read a
+	// descendant of an item being (re)produced", cs_lock::ReadLock AWAITS any in-progress write lock on a cache
+	// ancestor (joining its producer) without locking it -- a write-locked ancestor is kept alive by its own
+	// ItemWriteLock and owns the chain downward, so the await-walk is lifetime-safe.
 	SharedTreeItemInterestPtr m_Ptr;
 };
 

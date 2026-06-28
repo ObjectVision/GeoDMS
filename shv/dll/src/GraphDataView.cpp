@@ -88,10 +88,10 @@ redo_b:
 		return true;
 
 	if (!a->IsCacheItem())
-		a = AsUnit(a->GetUltimateItem());
+		a = AsUnit(a->GetUltimateItem()).get();
 
 	if (!b->IsCacheItem())
-		b = AsUnit(b->GetUltimateItem());
+		b = AsUnit(b->GetUltimateItem()).get();
 
 	return a == b;
 }
@@ -240,7 +240,7 @@ public:
 				{
 					SuspendTrigger::DoSuspend();
 					paletteDomain->PrepareData(); // wants to know GetCount();
-					assert(IsCalculatingOrReady(paletteDomain->GetCurrRangeItem()));
+					assert(IsCalculatingOrReady(paletteDomain->GetCurrRangeItem().get()));
 					SuspendTrigger::Resume();
 				}
 				else
@@ -249,7 +249,7 @@ public:
 					paletteDomain->PrepareData();
 				}
 #if defined(MG_DEBUG)
-				auto* ultimateCU = AsUnit(paletteDomain->GetCurrRangeItem());
+				const AbstrUnit* ultimateCU = AsUnit(paletteDomain->GetCurrRangeItem()).get();
 				dbg_assert(ultimateCU->CheckMetaInfoReadyOrPassor());
 				dbg_assert(CheckCalculatingOrReady(ultimateCU) || ultimateCU->WasFailed(FailType::Data));
 #endif

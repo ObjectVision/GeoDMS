@@ -80,7 +80,7 @@ struct AbstrRasterMergeOperator : public BinaryOperator
 		for (UInt32 a=2, nrArg=args.size(); a!=nrArg; ++a)
 			drlArgs.push_back(DataReadLock(AsDataItem(args[a])));
 
-		const AbstrUnit* e1_range = AsUnit(e1->GetCurrRangeItem());
+		const AbstrUnit* e1_range = AsUnit(e1->GetCurrRangeItem()).get();
 		for (tile_id t=0, tn=e1_range->GetNrTiles(); t!=tn; ++t)
 		{
 			InitTile(dwlReg.get(), t);
@@ -92,7 +92,7 @@ struct AbstrRasterMergeOperator : public BinaryOperator
 			{
 				const AbstrDataItem* argDi = AsDataItem(args[a]);
 				const AbstrUnit* argDU = argDi->GetAbstrDomainUnit();
-				const AbstrUnit* argDU_range = AsUnit(argDU->GetCurrRangeItem());
+				const AbstrUnit* argDU_range = AsUnit(argDU->GetCurrRangeItem()).get();
 
 				// m_IsIndexed ? "Domain of Index" : "First argument", "Domain of any subsequent attribute"
 				bool isSame = e1->UnifyDomain(argDU, "", "", UM_AllowVoidRight);
