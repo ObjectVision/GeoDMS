@@ -167,6 +167,13 @@ public:
 	// (Object.h SharedCreateFunc, shared_tree_ptr's newly_obj ctor). Construction stays factory-only.
 	TIC_CALL ~TreeItem ();
 
+	// TreeItems are owned by std::shared_ptr (make_shared). The intrusive SharedBase refcount still
+	// exists (legacy SharedPtr<TreeItem>/SharedActor borrows and InterestPtr touch it), but it must
+	// NEVER delete the object: the std control block is the sole deleter. So the intrusive Release()
+	// is a no-op for TreeItems -- this makes std/intrusive coexistence safe (an intrusive ref hitting
+	// refcount 0 no longer `delete this`-es a live std-managed object).
+	void Release() const noexcept override {}
+
 //	ctor / dtor
 
 	// Initialization happens through the free function InitTreeItem(parent, subItem, id) below,

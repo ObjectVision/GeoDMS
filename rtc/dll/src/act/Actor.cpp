@@ -1443,9 +1443,11 @@ SharedActorInterestPtr Actor::GetInterestPtrOrNull() const
 	auto psa = dynamic_cast<const SharedActor*>(this);
     assert(psa);
     if (!psa)
-		return {};  
+		return {};
 
-    assert(psa->IsOwned());
+    // (was assert(psa->IsOwned()): a std::shared_ptr-managed TreeItem has intrusive refcount 0 while
+    // alive, so IsOwned() no longer indicates liveness. The interest gate below (m_InterestCount) is the
+    // real precondition; lifetime is governed by the std control block.)
 
     leveled_std_section::scoped_lock globalSectionLock(sg_CountSection);
     if (!m_InterestCount)

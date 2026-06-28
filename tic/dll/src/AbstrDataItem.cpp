@@ -67,7 +67,8 @@ AbstrDataItem::AbstrDataItem()
 AbstrDataItem::~AbstrDataItem() noexcept
 {
 	assert(!GetInterestCount());
-	assert(!IsOwned());
+	// (was assert(!IsOwned()): see SharedBase::~SharedBase -- intrusive count is no longer a liveness gate
+	// for std::shared_ptr-managed TreeItems.)
 
 	if (m_StatusFlags.Get(DSF_CachedByStorageManager))
 		if (auto sp = GetStorageParent(false))
@@ -97,7 +98,7 @@ AbstrDataItem::~AbstrDataItem() noexcept
 auto AbstrDataItem::GetAbstrDomainUnit() const -> const AbstrUnit*
 { 
 	if (!m_DomainUnit && IsMetaThread())
-		m_DomainUnit = FindUnit(m_tDomainUnit, "Domain", nullptr);
+		m_DomainUnit = SharedUnit(FindUnit(m_tDomainUnit, "Domain", nullptr), existing_obj{});
 	return m_DomainUnit.get();
 }
 
@@ -106,7 +107,7 @@ auto AbstrDataItem::GetAbstrValuesUnit() const -> const AbstrUnit*
 	if (!m_ValuesUnit && IsMetaThread())
 	{
 		ValueComposition vc = GetValueComposition();
-		m_ValuesUnit = FindUnit(m_tValuesUnit, "Values", &vc);
+		m_ValuesUnit = SharedUnit(FindUnit(m_tValuesUnit, "Values", &vc), existing_obj{});
 	}
 	return m_ValuesUnit.get();
 }
@@ -435,8 +436,8 @@ void AbstrDataItem::CopyProps(TreeItem* result, const CopyTreeContext& copyConte
 	res->m_StatusFlags.SetValueComposition(GetValueComposition());
 	if (copyContext.InFenceOperator())
 	{
-		res->m_DomainUnit = GetAbstrDomainUnit();
-		res->m_ValuesUnit = GetAbstrValuesUnit();
+		res->m_DomainUnit = SharedUnit(GetAbstrDomainUnit(), existing_obj{});
+		res->m_ValuesUnit = SharedUnit(GetAbstrValuesUnit(), existing_obj{});
 		return;
 	}
 
@@ -583,8 +584,8 @@ const AbstrUnit* AbstrDataItem::FindUnit(TokenID t, CharPtr role, ValueCompositi
 void AbstrDataItem::InitDataItem(const AbstrUnit* du, const AbstrUnit* vu, const DataItemClass* dic)
 {
 	assert( m_StatusFlags.GetValueComposition() != ValueComposition::Unknown );
-	m_DomainUnit = du;
-	m_ValuesUnit = vu;
+	m_DomainUnit = SharedUnit(du, existing_obj{});
+	m_ValuesUnit = SharedUnit(vu, existing_obj{});
 }
 
 auto AbstrDataItem::GetDataObj() const -> SharedPtr<const AbstrDataObject>

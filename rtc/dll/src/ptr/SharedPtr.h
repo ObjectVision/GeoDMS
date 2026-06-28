@@ -62,8 +62,12 @@ struct SharedPtr
 	SharedPtr(U* rhs, existing_obj) noexcept
 		: m_Ptr(rhs)
 	{
-		assert(!rhs || rhs->IsOwned());
-		IncCount();
+		// AdoptRef (not IncRef) so this also works for std::shared_ptr-managed objects (TreeItems) whose
+		// intrusive refcount is parked at 0: the borrow is tracked via the intrusive count, but intrusive
+		// Release() is a no-op for such objects so the std control block stays the sole deleter. For genuinely
+		// intrusively-owned objects (count>0, e.g. DataController) this is equivalent to the old IncRef path.
+		if (rhs)
+			rhs->AdoptRef();
 	}
 
 	// use this constructor for borrowed existing objects, for which existing Shared Ownership cannot be be assumed, such as Cache back pointers or side pointers to objects for which abandonment might have been initited but not yet completed.

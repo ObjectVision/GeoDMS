@@ -154,7 +154,7 @@ private:
 
 	TokenID                                  m_tDomainUnit = TokenID::GetUndefinedID(),
 	                                         m_tValuesUnit = TokenID::GetUndefinedID();
-	mutable SharedPtr<const AbstrUnit>       m_DomainUnit, m_ValuesUnit;
+	mutable SharedUnit                       m_DomainUnit, m_ValuesUnit; // std co-ownership of the data item's units (was intrusive SharedPtr, which dangled when the unit's std owner dropped first)
 
 public: // TODO G8: Re-encapsulate
 	mutable SharedPtr<const AbstrDataObject> m_DataObject;

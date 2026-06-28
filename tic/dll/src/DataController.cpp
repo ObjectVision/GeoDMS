@@ -94,9 +94,10 @@ void TreeItemDualRef::Set(const TreeItem* ti, bool isNew)
 		bool ownIt = isNew || ti->IsCacheItem();
 		SharedTreeItem ownerHolder;
 		if (ownIt)
-			ownerHolder = isNew
-				? MakeSharedForNewlyCreatedObject( ti )
-				: MakeSharedFromBorrowedObjectPtr( ti );
+			// std co-ownership: ti is a make_shared'd TreeItem held alive by the caller's shared_ptr, so
+			// borrow another std ref via shared_from_this. (Was intrusive MakeSharedForNewlyCreatedObject /
+			// MakeSharedFromBorrowedObjectPtr, whose AdoptRef/Release roundtrip mis-managed the std object.)
+			ownerHolder = SharedTreeItem(ti, existing_obj{});
 
 		if (auto x = GetInterestPtrOrNull())
 		{
@@ -146,7 +147,7 @@ void TreeItemDualRef::SetTmp(TreeItem* res)
 	if (!m_Data)
 	{
 		assert(!m_State.Get(DCF_IsOld|DCF_IsTmp));
-		m_OwnedData = MakeSharedFromBorrowedObjectPtr( res ); // tmp: co-own the existing (owned) holder, as before
+		m_OwnedData = SharedTreeItem(res, existing_obj{}); // tmp: std co-own the existing (make_shared'd) holder
 		m_Data = res;
 		m_State.Set(DCF_IsTmp);
 	}

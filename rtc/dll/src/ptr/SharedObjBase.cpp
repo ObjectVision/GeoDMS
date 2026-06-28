@@ -25,20 +25,27 @@
 #include "act/Actor.h"
 #include "act/ActorEnums.h"
 
-#if defined(MG_DEBUG)
-#define MG_DEBUG_REFCOUNT
-#else
+// MG_DEBUG_REFCOUNT's dangling-object detector (Abandon() stamps a freed-refcount marker when the
+// intrusive count hits 0) is incompatible with the std::shared_ptr migration: TreeItems' intrusive
+// count now legitimately cycles through 0 (a refcount-0 std-managed item is alive, not dangling, and
+// its intrusive Release() is a no-op), so the marker would be set on a LIVE object and break the next
+// intrusive borrow. Disabled for now; the std control block is the authoritative lifetime owner.
+//#if defined(MG_DEBUG)
 //#define MG_DEBUG_REFCOUNT
-#endif
+//#else
+//#define MG_DEBUG_REFCOUNT
+//#endif
 
 #if defined(MG_DEBUG_REFCOUNT)
 	static const SharedBase::ref_count_t dangling_object_indicator = -1;
 #endif
 
 SharedBase::~SharedBase()
-{ 
-	assert(!IsOwned()); 
-
+{
+	// (was assert(!IsOwned()): std::shared_ptr-managed objects (TreeItems) are deleted by the std control
+	// block, at which point the intrusive refcount may still be >0 from non-owning intrusive borrows that
+	// outlive the std owner. Intrusive Release() is a no-op for such objects, so this is not a leak; the
+	// intrusive count no longer governs lifetime. For genuinely intrusively-owned objects the count is 0 here.)
 }
 
 auto SharedBase::GetRefCount() const noexcept -> ref_count_t

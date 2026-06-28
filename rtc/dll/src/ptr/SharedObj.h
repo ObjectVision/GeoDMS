@@ -36,7 +36,7 @@ struct SharedObjWrap : VBase, SharedBase
 
 	friend std::default_delete<this_type>;
 
-	void Release() const  noexcept // dtor of Object is virtual, so destructing from here is OK
+	virtual void Release() const  noexcept // dtor of Object is virtual, so destructing from here is OK
 	{
 		MG_CHECK(!IsOwned());
 		delete this;
