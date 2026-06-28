@@ -1056,7 +1056,7 @@ void MainWindow::createView(ViewStyle viewStyle, ChartKind chartKind) {
 
         SuspendTrigger::Resume();
 
-        auto dms_mdi_subwindow = std::make_unique<QDmsViewArea>(m_mdi_area.get(), viewContextItem.release(), currItem, viewStyle);
+        auto dms_mdi_subwindow = std::make_unique<QDmsViewArea>(m_mdi_area.get(), viewContextItem.get(), currItem, viewStyle); // viewContextItem owned by desktopItem (parent); DataView only borrows it
         dms_mdi_subwindow->setFocusPolicy(Qt::FocusPolicy::ClickFocus);
         connect(dms_mdi_subwindow.get(), &QDmsViewArea::windowStateChanged, dms_mdi_subwindow.get(), &QDmsViewArea::onWindowStateChanged);
 

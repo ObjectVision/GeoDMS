@@ -277,7 +277,7 @@ auto DoExportTableOrDatabase(const TreeItem* tableOrDatabaseItem, bool nativeFla
 
     if (CurrentItemCanBeExportedAsTable(tableOrDatabaseItem))
     {
-        vdc = avd->CreateItem(UniqueName(avd, exportTableID)).release();
+        vdc = avd->CreateItem(UniqueName(avd, exportTableID)).get(); // owned by avd (parent)
         DoExportTable(tableOrDatabaseItem, nativeShapeFile ? fn : SharedStr(), vdc);
     }
     else
@@ -285,14 +285,14 @@ auto DoExportTableOrDatabase(const TreeItem* tableOrDatabaseItem, bool nativeFla
         if (!CurrentItemCanBeExportedAsDatabase(tableOrDatabaseItem))
             return nullptr;
 
-        vdc = avd->CreateItem(UniqueName(avd, exportDbID)).release();
+        vdc = avd->CreateItem(UniqueName(avd, exportDbID)).get(); // owned by avd (parent)
         for (auto tableItem = tableOrDatabaseItem->GetFirstSubItem(); tableItem; tableItem = tableItem->GetNextItem())
             if (CurrentItemCanBeExportedAsTable(tableItem))
             {
                 SharedStr subFileName;
                 if (nativeShapeFile)
                     subFileName = DelimitedConcat(fn.c_str(), tableItem->GetName().c_str());
-                auto subContainer = vdc->CreateItem(UniqueName(vdc, dbTableID)).release();
+                auto subContainer = vdc->CreateItem(UniqueName(vdc, dbTableID)).get(); // owned by vdc (parent)
 
                 DoExportTable(tableItem, subFileName, subContainer);
             }
