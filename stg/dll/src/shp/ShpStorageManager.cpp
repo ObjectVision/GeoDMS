@@ -450,8 +450,8 @@ void ShpStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* cu
 	if (pData)
 		return;
 
-	AbstrUnit* u_size    = Unit<UInt32>::GetStaticClass()->CreateUnit(curr, SHAPEID_ID   ).release();
-	AbstrUnit* u_content = Unit<DPoint>::GetStaticClass()->CreateUnit(curr, SHAPERANGE_ID).release();
+	AbstrUnit* u_size    = Unit<UInt32>::GetStaticClass()->CreateUnit(curr, SHAPEID_ID   ).get(); // item owned by parent; raw stays valid
+	AbstrUnit* u_content = Unit<DPoint>::GetStaticClass()->CreateUnit(curr, SHAPERANGE_ID).get(); // item owned by parent; raw stays valid
 
 	assert(u_size);
 	assert(u_content);

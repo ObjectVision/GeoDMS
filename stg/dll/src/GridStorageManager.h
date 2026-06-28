@@ -99,7 +99,7 @@ public:
 	bool DoCheckFactorSimilarity(StorageMetaInfoPtr smi) const override;
 	bool DoCheck50PercentExtentOverlap(StorageMetaInfoPtr smi) const override;
 
-	SharedPtr<AbstrUnit> m_GridDomainUnit;
+	SharedMutableUnit m_GridDomainUnit; // std::shared_ptr owner (CreateResultUnit returns a sole-owning parentless unit)
 };
 
 struct GridStorageMetaInfo : GdalMetaInfo

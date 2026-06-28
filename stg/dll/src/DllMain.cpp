@@ -277,14 +277,14 @@ SharedUnit FindProjectionBase(const TreeItem* storageHolder, const AbstrUnit* gr
 	auto uBase = FindProjectionRef(storageHolder, gridDataDomain);
 	if (uBase == nullptr)
 	{
-		uBase = AsDynamicUnit(storageHolder);
+		uBase = SharedUnit(AsDynamicUnit(storageHolder), existing_obj{});
 		if (!uBase && IsDataItem(storageHolder))
-			uBase = AsDataItem(storageHolder)->GetAbstrDomainUnit();
+			uBase = SharedUnit(AsDataItem(storageHolder)->GetAbstrDomainUnit(), existing_obj{});
 		if (uBase)
 		{
 			const UnitProjection* prj = uBase->GetProjection();
 			if (prj)
-				uBase = prj->GetBaseUnit();
+				uBase = SharedUnit(prj->GetBaseUnit(), existing_obj{});
 			else
 				uBase = nullptr; // avoid self-referencing
 		}
@@ -300,7 +300,7 @@ SharedUnit FindProjectionBase(const TreeItem* storageHolder, const AbstrUnit* gr
 		uBase->UpdateMetaInfo();
 		auto uRef = uBase->GetCurrUltimateItem();
 		if (uRef)
-			uBase = AsUnit(uRef);
+			uBase = SharedUnit(AsUnit(uRef), existing_obj{});
  	}
 
 	return uBase;

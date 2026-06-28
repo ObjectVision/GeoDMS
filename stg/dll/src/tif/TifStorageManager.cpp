@@ -246,7 +246,7 @@ FileResult TiffSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 {
 	auto smi = smiHolder.get();
 	auto storageHolder = smi->StorageHolder();
-	SharedPtr<const AbstrDataItem> pd = GetPaletteData(storageHolder);
+	SharedDataItem pd = GetPaletteData(storageHolder);
 
 	InterestRetainContextBase irc;
 

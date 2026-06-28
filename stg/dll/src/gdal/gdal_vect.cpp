@@ -233,7 +233,7 @@ auto GetGeometry(const TreeItem* storageHolder, const AbstrUnit* layerDomain) ->
 		geometry_item = nullptr;
 
 	if (!geometry_item)
-		for (geometry_item = layerDomain->_GetFirstSubItem(); geometry_item; geometry_item = geometry_item->GetNextItem())
+		for (geometry_item = SharedTreeItem(layerDomain->_GetFirstSubItem(), existing_obj{}); geometry_item; geometry_item = SharedTreeItem(geometry_item->GetNextItem(), existing_obj{}))
 			if (IsValidGeometry(geometry_item.get(), true))
 				break;
 
@@ -2734,7 +2734,7 @@ auto GdalVectSM::CreateGeometryDataItemFromGdal(const TreeItem* storageHolder, c
 	// create default value unit from gdal_vc
 	SharedUnit vu;
 	if (gdal_vc == ValueComposition::Unknown)
-		vu = Unit<SharedStr>::GetStaticClass()->CreateDefault();
+		vu = SharedUnit(Unit<SharedStr>::GetStaticClass()->CreateDefault(), existing_obj{});
 	else
 		vu = FindProjectionRef(storageHolder, layerDomain);
 
@@ -2746,11 +2746,11 @@ auto GdalVectSM::CreateGeometryDataItemFromGdal(const TreeItem* storageHolder, c
 			vu_tmp->SetSpatialReference(GetTokenID_mt(wkt));
 			vu_tmp->DisableStorage(true); // used to avoid reentrance on DoUpdateTree
 			if (!vu)
-				vu = vu_tmp.release();
+				vu = vu_tmp; // shares ownership; unit also parented to layerDomain
 		}
 	}
 	else if (!vu) // default value
-		vu = Unit<DPoint>::GetStaticClass()->CreateDefault();
+		vu = SharedUnit(Unit<DPoint>::GetStaticClass()->CreateDefault(), existing_obj{});
 
 	// create missing geometry treeitem
 	if (gdal_vc == ValueComposition::Unknown)

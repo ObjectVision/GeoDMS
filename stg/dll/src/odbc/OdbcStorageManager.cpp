@@ -297,7 +297,7 @@ void CreateDatabaseTableColumnInfo(const ODBCStorageManager* self, const TreeIte
 	}
 	else
 	{
-		AbstrUnit* newTable = Unit<UInt32>::GetStaticClass()->CreateUnit(const_cast<TreeItem*>(storageHolder), GetTokenID_mt(tableName)).release();
+		AbstrUnit* newTable = Unit<UInt32>::GetStaticClass()->CreateUnit(const_cast<TreeItem*>(storageHolder), GetTokenID_mt(tableName)).get(); // item owned by parent; raw stays valid
 		tableHolder = newTable;
 		domainUnit = newTable;
 	}

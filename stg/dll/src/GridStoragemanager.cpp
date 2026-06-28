@@ -74,7 +74,7 @@ SharedDataItem GetPaletteData(const TreeItem * storageHolder)
 {
 	dms_assert(storageHolder);
 
-	return AsDynamicDataItem(storageHolder->GetConstSubTreeItemByID(PALETTE_DATA_ID).get());
+	return SharedDataItem(AsDynamicDataItem(storageHolder->GetConstSubTreeItemByID(PALETTE_DATA_ID).get()), existing_obj{});
 }
 
 // *****************************************************************************
@@ -90,7 +90,7 @@ AbstrUnit* AbstrGridStorageManager::CreateGridDataDomain(const TreeItem* storage
 {
 	if (!m_GridDomainUnit)
 	{
-		m_GridDomainUnit = Unit<IPoint>::GetStaticClass()->CreateResultUnit(nullptr).release();
+		m_GridDomainUnit = Unit<IPoint>::GetStaticClass()->CreateResultUnit(nullptr); // sole-owning parentless unit; keep the std::shared_ptr
 		try {
 			StorageReadHandle storageHandle(this, storageHolder, m_GridDomainUnit.get(), StorageAction::read, false);
 			ReadUnitRange(*storageHandle.MetaInfo());
@@ -322,8 +322,8 @@ SharedDataItem GetGridData(const TreeItem* storageHolder, bool projectionSpecsAv
 	{
 		if (!projectionSpecsAvailable || storageHolder->IsStorable() )
 		{
-			pData = AsDynamicDataItem(storageHolder);
-			if (pData && !GridDomain(pData.get())) 
+			pData = SharedDataItem(AsDynamicDataItem(storageHolder), existing_obj{});
+			if (pData && !GridDomain(pData.get()))
 				pData = nullptr;
 		}
 	}
@@ -337,7 +337,7 @@ SharedUnit GridDomain(const AbstrDataItem* adi)
 	assert(gridDomain);
 	if (!IsGridDomain(gridDomain))
 		return {};
-	return gridDomain;
+	return SharedUnit(gridDomain, existing_obj{});
 }
 
 SharedUnit CheckedGridDomain(const AbstrDataItem* adi)

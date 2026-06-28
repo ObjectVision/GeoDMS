@@ -46,9 +46,9 @@ ConfigProd::ConfigProd(TreeItem* context, bool rootIsFirstItem)
 	if (context)
 	{
 		if (rootIsFirstItem)
-			m_pCurrent = context;
+			m_pCurrent = SharedMutableTreeItem(context, existing_obj{}); // existing (owned) context item
 		else
-			m_stackContexts.push_back(context);
+			m_stackContexts.push_back(SharedMutableTreeItem(context, existing_obj{}));
 	}
 
 	ClearSignature();
@@ -110,7 +110,7 @@ void ConfigProd::DoInclude()
 	m_pCurrent =
 		AppendTreeFromConfiguration(
 			fileName.c_str()
-		,	CurrentIsRoot() 
+		,	CurrentIsRoot()
 				? m_pCurrent.get_ptr()
 				: GetContextItem()
 		,	false
@@ -231,7 +231,7 @@ void ConfigProd::CreateItem(TokenID nameID, const iterator_t& loc)
 		{
 			if (m_eSignatureType != SignatureType::TreeItem)
 				throwSemanticError("root of configuration tree must be a container");
-			m_pCurrent = TreeItem::CreateConfigRoot(nameID);
+			m_pCurrent = TreeItem::CreateConfigRoot(nameID); // sole-owning parentless root; keep the std::shared_ptr
 			goto setLocation;
 		}
 	}
@@ -286,7 +286,7 @@ void ConfigProd::CreateDataItem(TokenID nameID, TokenID domainUnit, TokenID valu
 		m_eParamVC = ValueComposition::Single;
 
 	auto contextItem = GetContextOrRootItem(nameID);
-	m_pCurrent = CreateAbstrDataItem(contextItem, nameID, domainUnit, valuesUnit, m_eParamVC);
+	m_pCurrent = SharedMutableTreeItem(CreateAbstrDataItem(contextItem, nameID, domainUnit, valuesUnit, m_eParamVC), existing_obj{}); // data item owned by contextItem (parent)
 }
 
 void ConfigProd::CreateContainer(TokenID nameID)
@@ -300,7 +300,7 @@ void ConfigProd::CreateContainer(TokenID nameID)
 		throwDmsErrD("Illegal domain-unit at container definition");
 
 	auto contextItem = GetContextOrRootItem(nameID);
-	m_pCurrent = contextItem->CreateItem(nameID).release();
+	m_pCurrent = contextItem->CreateItem(nameID); // co-owned with parent (contextItem); cursor keeps a std::shared_ptr
 }
 
 void ConfigProd::CreateTemplate(TokenID nameID)
@@ -330,7 +330,7 @@ void ConfigProd::CreateUnit(TokenID nameID)
 
 	const UnitClass* uc = UnitClass::Find(m_eValueClass);
 	dms_assert(m_eValueClass);
-	m_pCurrent = uc->CreateUnit(contextItem, nameID).release();
+	m_pCurrent = uc->CreateUnit(contextItem, nameID); // co-owned with parent (contextItem); cursor keeps a std::shared_ptr
 	assert(m_pCurrent);
 }
 

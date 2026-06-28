@@ -234,7 +234,7 @@ SharedMutableTreeItem AppendTreeFromConfiguration(CharPtr sourceFileName, TreeIt
 	else
 	{
 		ConfigProd cp(context, rootIsFirstItem);
-		result = cp.ParseFile(sourcePathNameStrFromCurrent.c_str());
+		result = SharedMutableTreeItem(cp.ParseFile(sourcePathNameStrFromCurrent.c_str()), existing_obj{});
 
 	}
 

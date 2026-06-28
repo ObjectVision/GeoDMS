@@ -38,7 +38,7 @@ struct ConfigProd : AbstrDataBlockProd, AbstrContextHandle
 	~ConfigProd();
 
 //	impl AbstrContextHandle
-	bool HasItemContext() const override { return m_pCurrent;  }
+	bool HasItemContext() const override { return m_pCurrent.has_ptr();  }
 	auto ItemAsStr() const->SharedStr override 
 	{ 
 		assert(HasItemContext());  return m_pCurrent->GetSourceName(); 
@@ -113,7 +113,7 @@ void                ClearPropData();
 
 	[[noreturn]] virtual void throwSemanticError(CharPtr msg) override;
 
-	using TreeItemRef = SharedPtr<TreeItem>;
+	using TreeItemRef = SharedMutableTreeItem; // std::shared_ptr cursor; owns a parentless config root (sole owner) during parse
 
 	MG_DEBUGCODE(bool                md_ContextWasGiven; )
 
