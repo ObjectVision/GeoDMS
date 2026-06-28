@@ -375,7 +375,7 @@ void DataItemColumn::UpdateTheme()
 		m_AggrMethod = aggrMethod;
 
 		auto aggrValuesSpec = ValuesUnitAndComposition(GetSrcAttr(), tc->m_GroupByRel, aggrMethod);
-		SharedPtr<AbstrDataItem> aggrAttr = CreateDataItem(GetContext(), UniqueName(GetContext(), aggrID), tc->m_GroupByEntity, aggrValuesSpec.first.get(), aggrValuesSpec.second);
+		SharedMutableDataItem aggrAttr = CreateDataItem(GetContext(), UniqueName(GetContext(), aggrID), tc->m_GroupByEntity, aggrValuesSpec.first.get(), aggrValuesSpec.second);
 		aggrAttr->SetKeepDataState(false);
 		aggrAttr->DisableStorage(true);
 		aggrAttr->SetExpr(OperExpr(GetSrcAttr(), tc->m_GroupByRel, aggrMethod));

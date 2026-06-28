@@ -184,7 +184,7 @@ void XdbStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* cu
 			dms_assert(vc);
 			const AbstrUnit * u_col = UnitClass::Find(vc)->CreateDefault();
 			// Data item
-			adi = CreateDataItem(curr, GetTokenID_mt(colName), u_row, u_col);
+			adi = CreateDataItem(curr, GetTokenID_mt(colName), u_row, u_col).get(); // owned by curr (parent)
 		}
 	}
 }

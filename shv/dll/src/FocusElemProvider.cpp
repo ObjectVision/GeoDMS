@@ -85,7 +85,7 @@ void SelThemeCreator::CreateSelectionsThemeInDesktop(DataView* dv, const AbstrUn
 
 	AbstrUnit* userValuesUnit = Unit<SelectionID>::GetStaticClass()->CreateUnit(desktopItem, valuesUnitID).get();
 
-	AbstrDataItem* newSelData = CreateDataItem(selectionParent, GetAspectNameID(AN_Selections), entity, userValuesUnit);
+	AbstrDataItem* newSelData = CreateDataItem(selectionParent, GetAspectNameID(AN_Selections), entity, userValuesUnit).get(); // owned by selectionParent (parent)
 	SharedDataItemInterestPtr newSelDataManager = newSelData;
 	SharedUnitInterestPtr newDomain = entity;
 	entity->GetCount();
@@ -147,9 +147,9 @@ AbstrDataItem* CreateFocusElemIndexParamInDesktop(const FocusElemKey& key)
 	if(!result)
 	{
 		result = CreateDataItem(parent, s_focusElemIndexID
-		,	Unit<Void >::GetStaticClass()->CreateDefault() 
+		,	Unit<Void >::GetStaticClass()->CreateDefault()
 		,	Unit<SizeT>::GetStaticClass()->CreateDefault()
-		);
+		).get(); // owned by parent
 		result->SetPassor();
 		result->DisableStorage(true);
 		result->UpdateMetaInfo();

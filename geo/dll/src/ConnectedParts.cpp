@@ -93,12 +93,12 @@ public:
 		assert(res);
 		resultHolder = res;
 
-		AbstrDataItem* resSub = CreateDataItem(res, s_PartRel, arg1A->GetAbstrValuesUnit(), res);
+		AbstrDataItem* resSub = CreateDataItem(res, s_PartRel, arg1A->GetAbstrValuesUnit(), res).get(); // owned by res
 		resSub->SetTSF(TSF_Categorical);
 
 		if (!mustCalc)
 		{
-			AbstrDataItem* resSub_depreciated = CreateDataItem(res, s_PartNr, arg1A->GetAbstrValuesUnit(), res);
+			AbstrDataItem* resSub_depreciated = CreateDataItem(res, s_PartNr, arg1A->GetAbstrValuesUnit(), res).get(); // owned by res
 			resSub_depreciated->SetReferredItem(resSub);
 			resSub_depreciated->SetTSF(TSF_Categorical);
 			resSub_depreciated->SetTSF(PartNrTSF());
@@ -386,12 +386,12 @@ public:
 		assert(res);
 		resultHolder = res;
 
-		AbstrDataItem* resSub = CreateDataItem(res, s_PartRel, arg1A->GetAbstrValuesUnit(), res);
+		AbstrDataItem* resSub = CreateDataItem(res, s_PartRel, arg1A->GetAbstrValuesUnit(), res).get(); // owned by res
 		resSub->SetTSF(TSF_Categorical);
 
 		if (!mustCalc)
 		{
-			AbstrDataItem* resSub_depreciated = CreateDataItem(res, s_PartNr, arg1A->GetAbstrValuesUnit(), res);
+			AbstrDataItem* resSub_depreciated = CreateDataItem(res, s_PartNr, arg1A->GetAbstrValuesUnit(), res).get(); // owned by res
 			resSub_depreciated->SetReferredItem(resSub);
 			resSub_depreciated->SetTSF(TSF_Categorical);
 			resSub_depreciated->SetTSF(PartNrTSF());
@@ -400,8 +400,8 @@ public:
 		MG_CHECK(resSub);
 
 		AbstrUnit* resSub2 = ResultSub2Type::GetStaticClass()->CreateUnit(res, s_PartLink).get(); // PartLinks
-		AbstrDataItem* resPartFrom = CreateDataItem(resSub2, s_PartFromRel, resSub2, res);
-		AbstrDataItem* resPartTo   = CreateDataItem(resSub2, s_PartToRel, resSub2, res);
+		AbstrDataItem* resPartFrom = CreateDataItem(resSub2, s_PartFromRel, resSub2, res).get(); // owned by resSub2
+		AbstrDataItem* resPartTo   = CreateDataItem(resSub2, s_PartToRel, resSub2, res).get(); // owned by resSub2
 
 		if (!mustCalc)
 			return true;

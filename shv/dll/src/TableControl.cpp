@@ -1168,7 +1168,7 @@ void TableControl::AddLayer(const TreeItem* viewCandidate, bool isDropped)
 	}
 }
 
-SharedPtr<AbstrDataItem> TableControl::CreateIdAttr(const AbstrUnit* domain, const AbstrDataItem* exampleAttr)
+SharedMutableDataItem TableControl::CreateIdAttr(const AbstrUnit* domain, const AbstrDataItem* exampleAttr)
 {
 	dms_assert(HasSortOptions());
 
@@ -1179,7 +1179,7 @@ SharedPtr<AbstrDataItem> TableControl::CreateIdAttr(const AbstrUnit* domain, con
 
 	auto dv = GetDataView().lock(); if (!dv) return {};
 
-	SharedPtr<AbstrDataItem> idAttr = CreateDataItem(
+	SharedMutableDataItem idAttr = CreateDataItem(
 		CreateDesktopContainer(dv->GetDesktopContext(), domain)
 	,	token::id	
 	,	domain 
@@ -1202,7 +1202,7 @@ SharedPtr<AbstrDataItem> TableControl::CreateIdAttr(const AbstrUnit* domain, con
 
 void TableControl::AddIdColumn(const AbstrUnit* domain, const AbstrDataItem* exampleAttr)
 {
-	SharedPtr<AbstrDataItem> idAttr = CreateIdAttr(domain, exampleAttr);
+	SharedMutableDataItem idAttr = CreateIdAttr(domain, exampleAttr);
 	if ( idAttr )
 	{
 		idAttr->UpdateMetaInfo();
@@ -1336,7 +1336,7 @@ void TableControl::CreateTableGroupBy(bool activate)
 
 		m_GroupByEntity = groupByEntity.get_ptr();
 
-		SharedPtr<AbstrDataItem> groupByRel = CreateDataItem(groupByEntity.get(), GetTokenID_mt("per_Row"), GetEntity(), m_GroupByEntity);
+		SharedMutableDataItem groupByRel = CreateDataItem(groupByEntity.get(), GetTokenID_mt("per_Row"), GetEntity(), m_GroupByEntity);
 		groupByRel->DisableStorage();
 		auto rlookupExprFormat = keysMustBeDefined ? "rlookup(%s, values)" : "rlookup_with_null(%s, values)";
 		groupByRel->SetExpr(mgFormat2SharedStr(rlookupExprFormat, expr));

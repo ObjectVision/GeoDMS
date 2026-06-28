@@ -381,7 +381,7 @@ void PaletteControl::CreateColumnsImpl()
 		auto countingUnitClass = UnitClass::Find(m_ThemeAttr->GetAbstrDomainUnit()->GetValueType()->GetCrdClass());
 		auto countingUnit = countingUnitClass->CreateDefault();
 
-		SharedPtr<AbstrDataItem> countAttr = CreateDataItem(container, GetTokenID_mt("Count"), m_PaletteDomain.get(), countingUnit);
+		SharedMutableDataItem countAttr = CreateDataItem(container, GetTokenID_mt("Count"), m_PaletteDomain.get(), countingUnit);
 		countAttr->SetKeepDataState(true);
 		countAttr->DisableStorage(true);
 		countAttr->SetExpr( mySSPrintF("pcount(%s)", exprStr.c_str() ) );
@@ -489,7 +489,7 @@ void PaletteControl::CreateAreaOrLengthColumn(TreeItem* container, SharedStr exp
 	// Create a Float64 unit for the area/length values
 	auto areaUnit = Unit<Float64>::GetStaticClass()->CreateDefault();
 
-	SharedPtr<AbstrDataItem> areaOrLengthAttr = CreateDataItem(container, GetTokenID_mt(attrName.c_str()), m_PaletteDomain.get(), areaUnit);
+	SharedMutableDataItem areaOrLengthAttr = CreateDataItem(container, GetTokenID_mt(attrName.c_str()), m_PaletteDomain.get(), areaUnit);
 	areaOrLengthAttr->SetDescr(attrLabel);
 
 	areaOrLengthAttr->SetKeepDataState(true);
@@ -543,7 +543,7 @@ void PaletteControl::CreateSelCountColumn()
 			auto countingUnitClass = UnitClass::Find(m_ThemeAttr->GetAbstrDomainUnit()->GetValueType()->GetCrdClass());
 			auto countingUnit = countingUnitClass->CreateDefault();
 
-			SharedPtr<AbstrDataItem> selCountAttr = CreateDataItem(container, GetTokenID_mt("SelCount"), m_PaletteDomain.get(), countingUnit);
+			SharedMutableDataItem selCountAttr = CreateDataItem(container, GetTokenID_mt("SelCount"), m_PaletteDomain.get(), countingUnit);
 			selCountAttr->SetKeepDataState(true);
 			selCountAttr->DisableStorage(true);
 

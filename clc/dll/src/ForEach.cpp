@@ -296,7 +296,7 @@ bool ForEach_CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args,
 			const AbstrUnit* du = FindUnitInContainer(optDuContext, optDuNames, i, "domain unit");
 			const AbstrUnit* vu = FindUnitInContainer(optVuContext, optVuNames, i, "values unit");
 
-			iter = CreateDataItemFromPath(resultHolder, subItemName.c_str(), du, vu, valueComposition);
+			iter = CreateDataItemFromPath(resultHolder, subItemName.c_str(), du, vu, valueComposition).get(); // owned by resultHolder
 		}
 		else if (optUnitContext)
 		{

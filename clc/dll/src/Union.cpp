@@ -90,7 +90,7 @@ public:
 		assert(resultDomain);
 		resultHolder = resultDomain;
 
-		AbstrDataItem* resSub = CreateDataItem(resultDomain, s_UnionData, resultDomain, arg1_ValuesUnit, vc );
+		AbstrDataItem* resSub = CreateDataItem(resultDomain, s_UnionData, resultDomain, arg1_ValuesUnit, vc ).get(); // owned by resultDomain
 		MG_PRECONDITION(resSub);
 
 		if (mustCalc)

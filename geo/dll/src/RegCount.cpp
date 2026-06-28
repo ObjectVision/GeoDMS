@@ -236,7 +236,7 @@ struct RegCountOperator : public QuaternaryOperator
 			const AbstrUnit* regionalDomain = partition ? partition->GetAbstrValuesUnit() : Unit<Void>::GetStaticClass()->CreateDefault();
 			auto resultItem = CreateDataItem(resultHolder, nameID, regionalDomain, regionMetaArray.m_ResUnit.get());
 			assert(resultItem);
-			regionMetaArray.emplace_back(partition.get(), resultItem);
+			regionMetaArray.emplace_back(partition.get(), resultItem.get()); // resultItem owned by resultHolder (parent)
 			if (partition)
 			{
 				debug_refcast<FuncDC&>(resultHolder).AddDependency(partition->GetCheckedDC().get()); // requires Meta info.

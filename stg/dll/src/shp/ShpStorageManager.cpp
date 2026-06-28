@@ -456,7 +456,7 @@ void ShpStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* cu
 	assert(u_size);
 	assert(u_content);
 
-	pData = CreateDataItem(curr, dataNameID, u_size, u_content, vc);
+	pData = CreateDataItem(curr, dataNameID, u_size, u_content, vc).get(); // owned by curr (parent)
 }
 
 

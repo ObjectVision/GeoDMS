@@ -786,8 +786,8 @@ struct AbstrArcs2SegmentsOperator : public UnaryOperator
 		resultHolder = resDomain;
 
 		AbstrDataItem 
-			*resSub1 = CreateDataItem(resDomain, s_Point, resDomain, pointValuesUnit),
-			*resSub2 = nullptr, 
+			*resSub1 = CreateDataItem(resDomain, s_Point, resDomain, pointValuesUnit).get(), // owned by resDomain
+			*resSub2 = nullptr,
 			*resSub3 = nullptr,
 			*resSub4 = nullptr;
 
@@ -795,20 +795,20 @@ struct AbstrArcs2SegmentsOperator : public UnaryOperator
 
 		if (m_CreateFlags & DoCreateNextPoint)
 		{
-			resSub2 = CreateDataItem(resDomain, s_NextPoint, resDomain, pointValuesUnit);
+			resSub2 = CreateDataItem(resDomain, s_NextPoint, resDomain, pointValuesUnit).get(); // owned by resDomain
 			MG_PRECONDITION(resSub2);
 		}
 
 		if (m_CreateFlags & DoCreateNrOrgEntity && polyEntity->GetUnitClass() != Unit<Void>::GetStaticClass() )
 		{
-			resSub3 = CreateDataItem(resDomain, token::sequence_rel, resDomain, polyEntity);
+			resSub3 = CreateDataItem(resDomain, token::sequence_rel, resDomain, polyEntity).get(); // owned by resDomain
 			MG_PRECONDITION(resSub3);
 			resSub3->SetTSF(TSF_Categorical);
 		}
 
 		if (m_CreateFlags & DoCreateOrdinal)
 		{
-			resSub4 = CreateDataItem(resDomain, token::ordinal, resDomain, Unit<UInt32>::GetStaticClass()->CreateDefault() );
+			resSub4 = CreateDataItem(resDomain, token::ordinal, resDomain, Unit<UInt32>::GetStaticClass()->CreateDefault() ).get(); // owned by resDomain
 			MG_PRECONDITION(resSub4);
 		}
 		
@@ -1026,7 +1026,7 @@ struct AbstrDynaPointOperator : public TernaryOperator
 		resultHolder = resDomain;
 
 		AbstrDataItem 
-			*resSub1 = CreateDataItem(resDomain, s_Point, resDomain, pointValuesUnit),
+			*resSub1 = CreateDataItem(resDomain, s_Point, resDomain, pointValuesUnit).get(), // owned by resDomain
 			*resSub2 = nullptr,
 			*resSub3 = nullptr,
 			*resSub4 = nullptr;
@@ -1035,20 +1035,20 @@ struct AbstrDynaPointOperator : public TernaryOperator
 
 		if (m_CreateFlags & DoCreateNextPoint)
 		{
-			resSub2 = CreateDataItem(resDomain, s_NextPoint, resDomain, pointValuesUnit);
+			resSub2 = CreateDataItem(resDomain, s_NextPoint, resDomain, pointValuesUnit).get(); // owned by resDomain
 			MG_PRECONDITION(resSub2);
 		}
 
 		if (m_CreateFlags & DoCreateNrOrgEntity && pointEntity->GetUnitClass() != Unit<Void>::GetStaticClass() )
 		{
-			resSub3 = CreateDataItem(resDomain, token::sequence_rel, resDomain, pointEntity);
+			resSub3 = CreateDataItem(resDomain, token::sequence_rel, resDomain, pointEntity).get(); // owned by resDomain
 			resSub3->SetTSF(TSF_Categorical);
 			MG_PRECONDITION(resSub3);
 		}
 
 		if (m_CreateFlags & DoCreateOrdinal)
 		{
-			resSub4 = CreateDataItem(resDomain, token::ordinal, resDomain, Unit<UInt32>::GetStaticClass()->CreateDefault() );
+			resSub4 = CreateDataItem(resDomain, token::ordinal, resDomain, Unit<UInt32>::GetStaticClass()->CreateDefault() ).get(); // owned by resDomain
 			resSub4->SetTSF(TSF_Categorical);
 			MG_PRECONDITION(resSub4);
 
@@ -1907,8 +1907,8 @@ protected:
 		auto res_owner = Unit<UInt32>::GetStaticClass()->CreateResultUnit(resultHolder); AbstrUnit* res = res_owner.get();
 		resultHolder = res;
 
-		AbstrDataItem* res1 = e1IsVoid ? nullptr : CreateDataItem(res, s_tFR, res, domain1Unit);
-		AbstrDataItem* res2 = e2IsVoid ? nullptr : CreateDataItem(res, s_tSR, res, domain2Unit);
+		AbstrDataItem* res1 = e1IsVoid ? nullptr : CreateDataItem(res, s_tFR, res, domain1Unit).get(); // owned by res
+		AbstrDataItem* res2 = e2IsVoid ? nullptr : CreateDataItem(res, s_tSR, res, domain2Unit).get(); // owned by res
 		if (res1) res1->SetTSF(TSF_Categorical);
 		if (res2) res2->SetTSF(TSF_Categorical);
 

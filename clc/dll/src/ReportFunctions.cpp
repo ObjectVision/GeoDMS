@@ -154,7 +154,7 @@ public:
 					,	GetTokenID_mt("name")
 					,	auTableTypes
 					,	Unit<SharedStr>::GetStaticClass()->CreateDefault()
-					);
+					).get(); // owned by auTableTypes
 
 				if (mustCalc)
 				{
@@ -183,8 +183,8 @@ public:
 //		table of OperGroups
 			AbstrUnit* auTableGroups = Unit<UInt32>::GetStaticClass()->CreateUnit(result, GetTokenID_mt("OperatorGroups")).get();
 			{
-				AbstrDataItem* adiGroupName = CreateDataItem(auTableGroups, GetTokenID_mt("name"       ), auTableGroups, Unit<SharedStr>::GetStaticClass()->CreateDefault());
-				AbstrDataItem* adiNrOper    = CreateDataItem(auTableGroups, GetTokenID_mt("NrOperators"), auTableGroups, Unit<UInt32>::GetStaticClass()->CreateDefault());
+				AbstrDataItem* adiGroupName = CreateDataItem(auTableGroups, GetTokenID_mt("name"       ), auTableGroups, Unit<SharedStr>::GetStaticClass()->CreateDefault()).get(); // owned by auTableGroups
+				AbstrDataItem* adiNrOper    = CreateDataItem(auTableGroups, GetTokenID_mt("NrOperators"), auTableGroups, Unit<UInt32>::GetStaticClass()->CreateDefault()).get(); // owned by auTableGroups
 
 				if (mustCalc)
 				{
@@ -214,8 +214,8 @@ public:
 			}
 			AbstrUnit* auTableFuncs = Unit<UInt32>::GetStaticClass()->CreateUnit(result, GetTokenID_mt("Operators")).get();
 			{
-				AbstrDataItem* adiNrGroup    = CreateDataItem(auTableFuncs, GetTokenID_mt("nr_Group"  ), auTableFuncs, auTableGroups);
-				AbstrDataItem* adiResultType = CreateDataItem(auTableFuncs, GetTokenID_mt("nr_ResType"), auTableFuncs, auTableTypes );
+				AbstrDataItem* adiNrGroup    = CreateDataItem(auTableFuncs, GetTokenID_mt("nr_Group"  ), auTableFuncs, auTableGroups).get(); // owned by auTableFuncs
+				AbstrDataItem* adiResultType = CreateDataItem(auTableFuncs, GetTokenID_mt("nr_ResType"), auTableFuncs, auTableTypes ).get(); // owned by auTableFuncs
 
 				if (mustCalc)
 				{
@@ -253,8 +253,8 @@ public:
 			}
 			AbstrUnit* auTableArgs = Unit<UInt32>::GetStaticClass()->CreateUnit(result, GetTokenID_mt("OperatorArgs")).get();
 			{
-				AbstrDataItem* adiNrOper = CreateDataItem(auTableArgs, GetTokenID_mt("nr_Operator"), auTableArgs, auTableFuncs);
-				AbstrDataItem* adiNrType = CreateDataItem(auTableArgs, GetTokenID_mt("nr_ArgType" ), auTableArgs, auTableTypes);
+				AbstrDataItem* adiNrOper = CreateDataItem(auTableArgs, GetTokenID_mt("nr_Operator"), auTableArgs, auTableFuncs).get(); // owned by auTableArgs
+				AbstrDataItem* adiNrType = CreateDataItem(auTableArgs, GetTokenID_mt("nr_ArgType" ), auTableArgs, auTableTypes).get(); // owned by auTableArgs
 
 				if (mustCalc)
 				{
@@ -344,7 +344,7 @@ public:
 				,	GetTokenID_mt("name")
 				,	auSmTypes
 				,	Unit<SharedStr>::GetStaticClass()->CreateDefault()
-				);
+				).get(); // owned by auSmTypes
 
 			if (mustCalc)
 			{

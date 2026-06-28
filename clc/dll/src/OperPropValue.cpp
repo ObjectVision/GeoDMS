@@ -163,10 +163,10 @@ struct PropValueOperator : public BinaryOperator
 				resultHolder.GetNew()->SetKeepDataState(true);
 				for (SizeT p=0, pe = argDomain->GetCount(); p!=pe; ++p)
 					AbstrDataItem* resAttr = CreateDataItem(
-						resultHolder.GetNew(), TokenID(GetValue<SharedStr>(arg2A, p)), 
-						AsUnit(resultHolder.GetNew()),  
+						resultHolder.GetNew(), TokenID(GetValue<SharedStr>(arg2A, p)),
+						AsUnit(resultHolder.GetNew()),
 						Unit<SharedStr>::GetStaticClass()->CreateDefault()
-					);
+					).get(); // owned by resultHolder
 			}
 			else
 				resultHolder = CreateCacheDataItem(argDomain, Unit<SharedStr>::GetStaticClass()->CreateDefault());

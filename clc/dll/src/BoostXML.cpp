@@ -376,7 +376,7 @@ struct RapidXmlOperator : public BinaryOperator
 		AbstrUnit* entityTable = Unit<UInt32>::GetStaticClass()->CreateUnit(resultHolder, GetTokens().entityTableID).get();
 		entityTable->SetCount(pc.m_EntityNames.size());
 
-		InterestPtr<SharedPtr<AbstrDataItem>> entityNames = CreateDataItem(entityTable, GetTokens().valuesID, entityTable,  Unit<SharedStr>::GetStaticClass()->CreateDefault());
+		InterestPtr<SharedPtr<AbstrDataItem>> entityNames = CreateDataItem(entityTable, GetTokens().valuesID, entityTable,  Unit<SharedStr>::GetStaticClass()->CreateDefault()).get(); // owned by entityTable (parent)
 		StoreValues<SharedStr>(entityNames, pc.m_EntityNames);
 
 		Entity defaultEntity;
@@ -405,19 +405,19 @@ struct RapidXmlOperator : public BinaryOperator
 				InterestPtr<SharedPtr<AbstrDataItem>> parentEntityTableRelAdi;
 				if (entityDomain->GetTreeParent() == resultHolder.GetNew())
 				{
-					parentEntityTableRelAdi = CreateDataItem(entityDomain, GetTokens().parentEntityTableRelID, entityDomain, entityTable);
+					parentEntityTableRelAdi = CreateDataItem(entityDomain, GetTokens().parentEntityTableRelID, entityDomain, entityTable).get(); // owned by entityDomain (parent)
 					StoreValues<entity_index>(parentEntityTableRelAdi, entity->m_ParentEntityTableRel);
 				}
-				InterestPtr<SharedPtr<AbstrDataItem>> parentRelAdi = CreateDataItem(entityDomain, GetTokens().parentRelID, entityDomain, Unit<entity_index>::GetStaticClass()->CreateDefault());
+				InterestPtr<SharedPtr<AbstrDataItem>> parentRelAdi = CreateDataItem(entityDomain, GetTokens().parentRelID, entityDomain, Unit<entity_index>::GetStaticClass()->CreateDefault()).get(); // owned by entityDomain (parent)
 				StoreValues<entity_index>(parentRelAdi, entity->m_ParentRel);
 
 				AbstrUnit* valueSet = Unit<entity_index>::GetStaticClass()->CreateUnit(entityDomain, GetTokens().valuesTableID).get();
 				valueSet->SetCount(entity ? entity->m_Values.size() : 0);
 
-					InterestPtr<SharedPtr<AbstrDataItem>> valuesIdAdi = CreateDataItem(valueSet, GetTokens().valuesID, valueSet, Unit<SharedStr>::GetStaticClass()->CreateDefault());
+					InterestPtr<SharedPtr<AbstrDataItem>> valuesIdAdi = CreateDataItem(valueSet, GetTokens().valuesID, valueSet, Unit<SharedStr>::GetStaticClass()->CreateDefault()).get(); // owned by valueSet (parent)
 					StoreValues<SharedStr>(valuesIdAdi, entity->m_Values.GetVec());
 
-					InterestPtr<SharedPtr<AbstrDataItem>> valueRelAdi = CreateDataItem(entityDomain, GetTokens().valueRelID, entityDomain, valueSet);
+					InterestPtr<SharedPtr<AbstrDataItem>> valueRelAdi = CreateDataItem(entityDomain, GetTokens().valueRelID, entityDomain, valueSet).get(); // owned by entityDomain (parent)
 					StoreValues<entity_index>(valueRelAdi, entity->m_ValueIndex);
 			}
 			else if (IsDataItem(walker) && !walker->HasCalculator())

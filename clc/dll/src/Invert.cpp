@@ -77,7 +77,7 @@ struct AbstrInvertOperator : public UnaryOperator
 		AbstrDataItem* resSub = nullptr;
 		if (m_All)
 		{
-			resSub = CreateDataItem(res, nextToken, entity, entity);
+			resSub = CreateDataItem(res, nextToken, entity, entity).get(); // owned by res
 		}
 
 		if (mustCalc)

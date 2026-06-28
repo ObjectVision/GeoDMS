@@ -1705,15 +1705,15 @@ void CreateResultingItems(
 					, gg->m_NameID
 					, partitioningUnit
 					, priceUnit
-				);
+				).get(); // owned by resShadowPriceContainer
 		}
-		gg->m_diResTotalAllocated = 
+		gg->m_diResTotalAllocated =
 			CreateDataItem(
 				resTotalAllocatedContainer
 			,	gg->m_NameID
 			,	partitioningUnit
 			,	Unit<land_unit_id>::GetStaticClass()->CreateDefault()
-			);
+			).get(); // owned by resTotalAllocatedContainer
 	}
 	if (atomicRegionMapA)
 	{
@@ -3308,7 +3308,7 @@ public:
 		TreeItem* res = resultHolder.GetNew();
 		assert(res);
 
-		AbstrDataItem* resLanduse = CreateDataItem(res, GetTokenID_mt("landuse"), allocUnit, ggTypeSet);
+		AbstrDataItem* resLanduse = CreateDataItem(res, GetTokenID_mt("landuse"), allocUnit, ggTypeSet).get(); // owned by res
 		resLanduse->SetTSF(TSF_Categorical);
 
 		AbstrDataItem* resStatus =
@@ -3317,7 +3317,7 @@ public:
 				, GetTokenID_mt("status")
 				, Unit<Void>  ::GetStaticClass()->CreateDefault()
 				, Unit<SharedStr>::GetStaticClass()->CreateDefault()
-			);
+			).get(); // owned by res
 		resStatus->SetKeepDataState(true);
 
 		AbstrDataItem* resStatusFlag =
@@ -3326,7 +3326,7 @@ public:
 				, GetTokenID_mt("statusFlag")
 				, Unit<Void>::GetStaticClass()->CreateDefault()
 				, Unit<Bool>::GetStaticClass()->CreateDefault()
-			);
+			).get(); // owned by res
 		resStatusFlag->SetKeepDataState(true);
 
 		TreeItem* resShadowPriceContainer = res->CreateItem(GetTokenID_mt("shadow_prices")).get();
@@ -3351,7 +3351,7 @@ public:
 
 		AbstrDataItem* resPrices = nullptr;
 		if (htpMeta.m_PriceUnit)
-			resPrices = CreateDataItem(res, GetTokenID_mt("bid_price"), allocUnit, htpMeta.m_PriceUnit.get());
+			resPrices = CreateDataItem(res, GetTokenID_mt("bid_price"), allocUnit, htpMeta.m_PriceUnit.get()).get(); // owned by res
 	}
 
 	bool CalcResult(TreeItemDualRef& resultHolder, const ArgRefs& args, std::vector<ItemReadLock> readLocks, Explain::Context* context) const override

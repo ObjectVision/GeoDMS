@@ -141,7 +141,7 @@ struct SubsetOperator: public UnaryOperator
 		if (m_ORCM != OrgRelCreationMode::none)
 		{
 			auto resSubName = ((m_ORCM == OrgRelCreationMode::org_rel) || (m_ORCM == OrgRelCreationMode::org_rel_and_use_it)) ? token::org_rel : token::nr_OrgEntity;
-			resSub = CreateDataItem(res, resSubName, res, arg1Domain);
+			resSub = CreateDataItem(res, resSubName, res, arg1Domain).get(); // owned by res
 			resSub->SetTSF(TSF_Categorical);
 
 			MG_PRECONDITION(resSub);

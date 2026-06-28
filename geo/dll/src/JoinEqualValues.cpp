@@ -53,9 +53,9 @@ public:
 
 		auto AB = static_cast<const UnitClass*>(GetResultClass())->CreateResultUnit(resultHolder);
 
-		AbstrDataItem* resSubA = CreateDataItem(AB.get(), GetTokenID_mt("first_rel"), AB.get(), AsDataItem(args[0])->GetAbstrDomainUnit());
-		AbstrDataItem* resSubB = CreateDataItem(AB.get(), GetTokenID_mt("second_rel"), AB.get(), AsDataItem(args[1])->GetAbstrDomainUnit());
-		AbstrDataItem* resSubX = CreateDataItem(AB.get(), GetTokenID_mt("X_rel"), AB.get(), AsDataItem(args[0])->GetAbstrValuesUnit());
+		AbstrDataItem* resSubA = CreateDataItem(AB.get(), GetTokenID_mt("first_rel"), AB.get(), AsDataItem(args[0])->GetAbstrDomainUnit()).get(); // owned by AB
+		AbstrDataItem* resSubB = CreateDataItem(AB.get(), GetTokenID_mt("second_rel"), AB.get(), AsDataItem(args[1])->GetAbstrDomainUnit()).get(); // owned by AB
+		AbstrDataItem* resSubX = CreateDataItem(AB.get(), GetTokenID_mt("X_rel"), AB.get(), AsDataItem(args[0])->GetAbstrValuesUnit()).get(); // owned by AB
 		resultHolder = AB;
 	}
 };
@@ -112,9 +112,9 @@ struct JoinEqualValuesOperator : AbstrJoinEqualValuesOperator
 		}
 		AB->SetCount(nr_AB);
 
-		AbstrDataItem* resSubA = CreateDataItem(AB, GetTokenID_mt("first_rel"), AB, AsDataItem(args[0])->GetAbstrDomainUnit());
-		AbstrDataItem* resSubB = CreateDataItem(AB, GetTokenID_mt("second_rel"), AB, AsDataItem(args[1])->GetAbstrDomainUnit());
-		AbstrDataItem* resSubX = CreateDataItem(AB, GetTokenID_mt("X_rel"), AB, AsDataItem(args[0])->GetAbstrValuesUnit());
+		AbstrDataItem* resSubA = CreateDataItem(AB, GetTokenID_mt("first_rel"), AB, AsDataItem(args[0])->GetAbstrDomainUnit()).get(); // owned by AB
+		AbstrDataItem* resSubB = CreateDataItem(AB, GetTokenID_mt("second_rel"), AB, AsDataItem(args[1])->GetAbstrDomainUnit()).get(); // owned by AB
+		AbstrDataItem* resSubX = CreateDataItem(AB, GetTokenID_mt("X_rel"), AB, AsDataItem(args[0])->GetAbstrValuesUnit()).get(); // owned by AB
 
 		DataWriteLock resSubALock(resSubA);
 

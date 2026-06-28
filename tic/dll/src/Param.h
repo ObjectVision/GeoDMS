@@ -39,7 +39,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "UnitClass.h"
 
 template <typename V>
-AbstrDataItem* CreateCacheParam()
+SharedMutableDataItem CreateCacheParam()
 {
 	return
 		CreateCacheDataItem(
@@ -52,13 +52,13 @@ AbstrDataItem* CreateCacheParam()
 /********** CreateConstParam            **********/
 
 template <typename T>
-SharedPtr<AbstrDataItem> 
+SharedMutableDataItem
 CreateConstParam(const T& value)
 {
 	typedef DataArray<T> DataObjectType;
 
 	StaticStIncrementalLock<TreeItem::s_MakeEndoLockCount> makeEndoLock;
-	SharedPtr<AbstrDataItem> dataItem = CreateCacheParam<T>();
+	SharedMutableDataItem dataItem = CreateCacheParam<T>();
 
 	UpdateMarker::ChangeSourceLock changeStamp( dataItem.get(), "CreateConstParam");
 	SuspendTrigger::FencedBlocker progressLock("CreateConstParam");

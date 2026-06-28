@@ -47,61 +47,62 @@ bool DataItemClass::IsDataObjType() const
 }
 
 // static
-TIC_CALL AbstrDataItem* CreateAbstrDataItem(
-	TreeItem*        parent, 
-	TokenID          nameID, 
+TIC_CALL SharedMutableDataItem CreateAbstrDataItem(
+	TreeItem*        parent,
+	TokenID          nameID,
 	TokenID          tDomainUnit,
 	TokenID          tValuesUnit,
 	ValueComposition vc)
 {
-	AbstrDataItem*
-		result = debug_cast<AbstrDataItem*>(
-			parent->CreateItem(nameID, AbstrDataItem::GetStaticClass()).get() // item owned by parent; raw stays valid
-		);
+	// Keep the owning std::shared_ptr: when parent==nullptr (cache items) it is the SOLE owner, so
+	// returning a raw pointer would free the item immediately (the old OwningPtr.release() left it in
+	// refcount-0 limbo; std::shared_ptr deletes deterministically). Callers that assign into a
+	// TreeItemDualRef adopt ownership via its owning operator=; parented callers may use .get().
+	SharedMutableTreeItem item = parent->CreateItem(nameID, AbstrDataItem::GetStaticClass());
+	auto* result = debug_cast<AbstrDataItem*>(item.get());
 	dms_assert(result);
 	result->InitAbstrDataItem(tDomainUnit, tValuesUnit, vc);
-	return result;
+	return SharedMutableDataItem(std::static_pointer_cast<AbstrDataItem>(std::move(item)));
 }
 
-TIC_CALL AbstrDataItem* CreateAbstrDataItemFromPath(
+TIC_CALL SharedMutableDataItem CreateAbstrDataItemFromPath(
 	TreeItem*        parent,
 	CharPtr          path,
 	TokenID          tDomainUnit,
 	TokenID          tValuesUnit,
 	ValueComposition vc)
 {
-	auto result = debug_cast<AbstrDataItem*>(
-			parent->CreateItemFromPath(path, AbstrDataItem::GetStaticClass()).get() // item owned by parent; raw stays valid
-		);
+	SharedMutableTreeItem item = parent->CreateItemFromPath(path, AbstrDataItem::GetStaticClass());
+	auto* result = debug_cast<AbstrDataItem*>(item.get());
 	assert(result);
 	result->InitAbstrDataItem(tDomainUnit, tValuesUnit, vc);
-	return result;
+	return SharedMutableDataItem(std::static_pointer_cast<AbstrDataItem>(std::move(item)));
 }
 
 // static
-TIC_CALL AbstrDataItem* CreateDataItem(
-	TreeItem*        context, 
-	TokenID          nameID, 
+TIC_CALL SharedMutableDataItem CreateDataItem(
+	TreeItem*        context,
+	TokenID          nameID,
 	const AbstrUnit* domainUnit,
 	const AbstrUnit* valuesUnit,
 	ValueComposition vc)
 {
 	dms_assert(valuesUnit);
 	dms_assert(vc != ValueComposition::Unknown);
-	return 
+	return
 		DataItemClass::FindCertain(
 			valuesUnit->GetValueType(vc)
 		,	context
 		)->CreateDataItem(
-				context 
-			,	nameID 
-			,	domainUnit 
+				context
+			,	nameID
+			,	domainUnit
 			,	valuesUnit
-			,	vc 
+			,	vc
 			);
 }
 
-TIC_CALL AbstrDataItem* CreateDataItemFromPath(
+TIC_CALL SharedMutableDataItem CreateDataItemFromPath(
 	TreeItem*        context,
 	CharPtr          path,
 	const AbstrUnit* domainUnit,
@@ -123,20 +124,20 @@ TIC_CALL AbstrDataItem* CreateDataItemFromPath(
 		);
 }
 
-AbstrDataItem* CreateCacheDataItem(
+SharedMutableDataItem CreateCacheDataItem(
 	const AbstrUnit* domainUnit,
 	const AbstrUnit* valuesUnit,
 	ValueComposition vc)
 {
-	AbstrDataItem* adi = CreateDataItem(nullptr, TokenID::GetEmptyID(), domainUnit, valuesUnit, vc);
+	SharedMutableDataItem adi = CreateDataItem(nullptr, TokenID::GetEmptyID(), domainUnit, valuesUnit, vc);
 	adi ->SetPassor();
 	return adi;
 }
 
 
-AbstrDataItem* DataItemClass::CreateDataItem(
-	TreeItem*        context, 
-	TokenID          nameID, 
+SharedMutableDataItem DataItemClass::CreateDataItem(
+	TreeItem*        context,
+	TokenID          nameID,
 	const AbstrUnit* domainUnit, // Default unit will be selected
 	const AbstrUnit* valuesUnit,
 	ValueComposition vc) const
@@ -144,11 +145,11 @@ AbstrDataItem* DataItemClass::CreateDataItem(
 	dms_assert(vc != ValueComposition::Unknown);
 	dms_assert((vc == ValueComposition::Single) == (GetValuesType()->GetValueComposition() == ValueComposition::Single));
 
-	AbstrDataItem* 
+	SharedMutableDataItem
 		result
 			=	CreateAbstrDataItem(
 					context
-				,	nameID 
+				,	nameID
 				,	TokenID::GetEmptyID()
 				,	TokenID::GetEmptyID()
 				,	vc
@@ -160,7 +161,7 @@ AbstrDataItem* DataItemClass::CreateDataItem(
 	return result;
 }
 
-AbstrDataItem* DataItemClass::CreateDataItemFromPath(
+SharedMutableDataItem DataItemClass::CreateDataItemFromPath(
 	TreeItem*        context,
 	CharPtr          path,
 	const AbstrUnit* domainUnit, // Default unit will be selected
@@ -170,7 +171,7 @@ AbstrDataItem* DataItemClass::CreateDataItemFromPath(
 	dms_assert(vc != ValueComposition::Unknown);
 	dms_assert((vc == ValueComposition::Single) == (GetValuesType()->GetValueComposition() == ValueComposition::Single));
 
-	AbstrDataItem* result = CreateAbstrDataItemFromPath(context, path
+	SharedMutableDataItem result = CreateAbstrDataItemFromPath(context, path
 			, TokenID::GetEmptyID()
 			, TokenID::GetEmptyID()
 			, vc
@@ -214,14 +215,14 @@ std::shared_ptr<SharedActor> DataItemClass::CreateFromXml(Object* context, XmlEl
 	CheckPtr(context, TreeItem::GetStaticClass(), "DataItemClass::CreateFromXml");
 	TreeItem* container = debug_cast<TreeItem*>(context);
 
-	// the new data item is co-owned by its parent container; recover its std::shared_ptr control block
-	// (item is make_shared'd, so existing_obj borrows the std owner) and return it upcast to SharedActor.
-	return SharedMutableTreeItem(CreateAbstrDataItem(container,
+	// CreateAbstrDataItem returns the owning std::shared_ptr (SharedMutableDataItem); return it upcast to
+	// SharedActor so the std control block flows through (co-owned with the parent container).
+	return CreateAbstrDataItem(container,
 		GetTokenID_mt(elem.GetAttrValue(nameTokenID)),
 		GetTokenID_mt(elem.GetAttrValue(domainUnitTokenID)),
 		GetTokenID_mt(elem.GetAttrValue(valuesUnitTokenID)),
 		DetermineValueComposition(elem.GetAttrValue(featureTypeID))
-	), existing_obj{});
+	);
 }
 
 //----------------------------------------------------------------------
@@ -284,11 +285,11 @@ TIC_CALL AbstrDataItem* DMS_CONV DMS_CreateDataItem(
 		dms_assert(domainUnit);
 
 		return CreateDataItem(
-			context, 
+			context,
 			GetTokenID_mt(name),
-			domainUnit, valuesUnit, 
+			domainUnit, valuesUnit,
 			vc
-		);
+		).get(); // item owned by context (parent); raw stays valid for the C-API caller
 
 	DMS_CALL_END
 	return 0;

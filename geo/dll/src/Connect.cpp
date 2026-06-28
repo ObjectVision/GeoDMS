@@ -671,12 +671,12 @@ public:
 		const SegmUnitType* segmUnit = OnlyDistResult ? nullptr : const_unit_cast<UInt32>( SegmUnitType::GetStaticClass()->CreateDefault() );
 
 
-		AbstrDataItem* resSub1 = OnlyDistResult ? AsDataItem(resultHolder.GetNew()) : CreateDataItem(resultHolder, s_Dist, pointEntity, distUnit);
-		AbstrDataItem* resSub2 = OnlyDistResult ? nullptr : CreateDataItem(resultHolder, token::arc_rel, pointEntity, polyEntity);
-		AbstrDataItem* resSub3 = OnlyDistResult ? nullptr : CreateDataItem(resultHolder, s_CutPoint, pointEntity, pointUnit );
-		AbstrDataItem* resSub4 = OnlyDistResult ? nullptr : CreateDataItem(resultHolder, s_InArc,    pointEntity, boolUnit  );
-		AbstrDataItem* resSub5 = OnlyDistResult ? nullptr : CreateDataItem(resultHolder, s_InSegm,   pointEntity, boolUnit  );
-		AbstrDataItem* resSub6 = OnlyDistResult ? nullptr : CreateDataItem(resultHolder, s_SegmID,   pointEntity, segmUnit  );
+		AbstrDataItem* resSub1 = OnlyDistResult ? AsDataItem(resultHolder.GetNew()) : CreateDataItem(resultHolder, s_Dist, pointEntity, distUnit).get(); // owned by resultHolder
+		AbstrDataItem* resSub2 = OnlyDistResult ? nullptr : CreateDataItem(resultHolder, token::arc_rel, pointEntity, polyEntity).get(); // owned by resultHolder
+		AbstrDataItem* resSub3 = OnlyDistResult ? nullptr : CreateDataItem(resultHolder, s_CutPoint, pointEntity, pointUnit ).get(); // owned by resultHolder
+		AbstrDataItem* resSub4 = OnlyDistResult ? nullptr : CreateDataItem(resultHolder, s_InArc,    pointEntity, boolUnit  ).get(); // owned by resultHolder
+		AbstrDataItem* resSub5 = OnlyDistResult ? nullptr : CreateDataItem(resultHolder, s_InSegm,   pointEntity, boolUnit  ).get(); // owned by resultHolder
+		AbstrDataItem* resSub6 = OnlyDistResult ? nullptr : CreateDataItem(resultHolder, s_SegmID,   pointEntity, segmUnit  ).get(); // owned by resultHolder
 
 		if (resSub2 && !mustCalc)
 		{
@@ -973,8 +973,8 @@ public:
 		bool createNewResult = !resultHolder;
 		resultHolder = resDomain;
 
-		AbstrDataItem* resSub   = CreateDataItem(resDomain, token::geometry, resDomain, polyUnit, ValueComposition::Sequence);
-		AbstrDataItem* resNrOrg = CreateDataItem(resDomain, token::arc_rel, resDomain, arg1A->GetAbstrDomainUnit());
+		AbstrDataItem* resSub   = CreateDataItem(resDomain, token::geometry, resDomain, polyUnit, ValueComposition::Sequence).get(); // owned by resDomain
+		AbstrDataItem* resNrOrg = CreateDataItem(resDomain, token::arc_rel, resDomain, arg1A->GetAbstrDomainUnit()).get(); // owned by resDomain
 
 		resNrOrg->SetTSF(TSF_Categorical);
 

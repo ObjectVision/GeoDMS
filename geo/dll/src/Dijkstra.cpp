@@ -1550,7 +1550,7 @@ public:
 			resultUnit = mutableResultUnit;
 			resultContext = resultHolder;
 			resDist = flags(df & DijkstraFlag::ProdOdImpedance)
-				? CreateDataItem(resultContext, GetTokenID_mt("impedance"), resultUnit, impUnit)
+				? CreateDataItem(resultContext, GetTokenID_mt("impedance"), resultUnit, impUnit).get() // owned by resultContext
 				: nullptr;
 		}
 		else
@@ -1567,21 +1567,21 @@ public:
 		if (flags(df & DijkstraFlag::ProdTraceBack))
 		{
 			dms_assert(!flags(df & DijkstraFlag::OD));
-			resTB = CreateDataItem(resultContext, GetTokenID_mt("TraceBack"), v, e);
+			resTB = CreateDataItem(resultContext, GetTokenID_mt("TraceBack"), v, e).get(); // owned by resultContext
 			resTB->SetTSF(TSF_Categorical);
 		}
 
 		AbstrDataItem* resLS = flags(df & DijkstraFlag::ProdOdLinkSet)
-			?	CreateDataItem(resultContext, GetTokenID_mt("LinkSet"), resultUnit, e, ValueComposition::Sequence)
+			?	CreateDataItem(resultContext, GetTokenID_mt("LinkSet"), resultUnit, e, ValueComposition::Sequence).get() // owned by resultContext
 			:	nullptr;
 		if (resLS) resLS->SetTSF(TSF_Categorical);
 
 		AbstrDataItem* resAltLinkImp = flags(df & DijkstraFlag::ProdOdAltImpedance)
-			? CreateDataItem(resultContext, GetTokenID_mt("alt_imp"), resultUnit, imp2Unit)
+			? CreateDataItem(resultContext, GetTokenID_mt("alt_imp"), resultUnit, imp2Unit).get() // owned by resultContext
 			:	nullptr;
 
 		AbstrDataItem* resLinkAttr = flags(df & DijkstraFlag::ProdOdLinkAttr)
-			? CreateDataItem(resultContext, GetTokenID_mt("LinkAttr"), resultUnit, linkAttrUnit)
+			? CreateDataItem(resultContext, GetTokenID_mt("LinkAttr"), resultUnit, linkAttrUnit).get() // owned by resultContext
 			: nullptr;
 
 		auto mijMassUnit = Unit<MassType>::GetStaticClass()->CreateDefault();
@@ -1589,54 +1589,54 @@ public:
 		auto dstMassUnit = adiDstMass ? adiDstMass->GetAbstrValuesUnit() : mijMassUnit;
 
 		AbstrDataItem* resOrgFactor = flags(df & DijkstraFlag::ProdOrgFactor)
-			? CreateDataItem(resultContext, GetTokenID_mt("D_i"), orgZonesOrVoid, dstMassUnit)
+			? CreateDataItem(resultContext, GetTokenID_mt("D_i"), orgZonesOrVoid, dstMassUnit).get() // owned by resultContext
 			: nullptr;
 		AbstrDataItem* resOrgDemand = flags(df & DijkstraFlag::ProdOrgDemand)
-			? CreateDataItem(resultContext, GetTokenID_mt("M_ix"), orgZonesOrVoid, mijMassUnit)
+			? CreateDataItem(resultContext, GetTokenID_mt("M_ix"), orgZonesOrVoid, mijMassUnit).get() // owned by resultContext
 			: nullptr;
 
 		AbstrDataItem* resDstFactor = flags(df & DijkstraFlag::ProdDstFactor)
-			? CreateDataItem(resultContext, GetTokenID_mt("C_j"), dstZones, orgMassUnit)
+			? CreateDataItem(resultContext, GetTokenID_mt("C_j"), dstZones, orgMassUnit).get() // owned by resultContext
 			: nullptr;
 		AbstrDataItem* resDstSupply = flags(df & DijkstraFlag::ProdDstSupply)
-			? CreateDataItem(resultContext, GetTokenID_mt("M_xj"), dstZones, mijMassUnit)
+			? CreateDataItem(resultContext, GetTokenID_mt("M_xj"), dstZones, mijMassUnit).get() // owned by resultContext
 			: nullptr;
 
 		AbstrDataItem* resOrgNrDstZones = flags(df & DijkstraFlag::ProdOrgNrDstZones)
-			? CreateDataItem(resultContext, GetTokenID_mt("OrgZone_NrDstZones"), orgZonesOrVoid, dstZones)
+			? CreateDataItem(resultContext, GetTokenID_mt("OrgZone_NrDstZones"), orgZonesOrVoid, dstZones).get() // owned by resultContext
 			: nullptr;
 
 		AbstrDataItem* resOrgSumImp = flags(df & DijkstraFlag::ProdOrgSumImp)
-			? CreateDataItem(resultContext, GetTokenID_mt("OrgZone_SumImp"), orgZonesOrVoid, imp2Unit)
+			? CreateDataItem(resultContext, GetTokenID_mt("OrgZone_SumImp"), orgZonesOrVoid, imp2Unit).get() // owned by resultContext
 			: nullptr;
 
 		AbstrDataItem* resOrgSumLinkAttr = flags(df & DijkstraFlag::ProdOrgSumLinkAttr)
-			? CreateDataItem(resultContext, GetTokenID_mt("OrgZone_SumLinkAttr"), orgZonesOrVoid, linkAttrUnit)
+			? CreateDataItem(resultContext, GetTokenID_mt("OrgZone_SumLinkAttr"), orgZonesOrVoid, linkAttrUnit).get() // owned by resultContext
 			: nullptr;
 
 		AbstrDataItem* resOrgMaxImp = flags(df & DijkstraFlag::ProdOrgMaxImp)
-			? CreateDataItem(resultContext, GetTokenID_mt("OrgZone_MaxImp"), orgZonesOrVoid, impUnit)
+			? CreateDataItem(resultContext, GetTokenID_mt("OrgZone_MaxImp"), orgZonesOrVoid, impUnit).get() // owned by resultContext
 			: nullptr;
 
 		AbstrDataItem* resLinkFlow = flags(df & DijkstraFlag::ProdLinkFlow)
-			? CreateDataItem(resultContext, GetTokenID_mt("Link_flow"), e, adiOrgMass->GetAbstrValuesUnit())
+			? CreateDataItem(resultContext, GetTokenID_mt("Link_flow"), e, adiOrgMass->GetAbstrValuesUnit()).get() // owned by resultContext
 			: nullptr;
 		AbstrDataItem* resSrcZone = flags(df & DijkstraFlag::ProdOdOrgZone_rel)
-			? CreateDataItem(resultContext, GetTokenID_mt("OrgZone_rel"), resultUnit, orgZonesOrVoid)
+			? CreateDataItem(resultContext, GetTokenID_mt("OrgZone_rel"), resultUnit, orgZonesOrVoid).get() // owned by resultContext
 			: nullptr;
 		if (resSrcZone) resSrcZone->SetTSF(TSF_Categorical);
 
 		AbstrDataItem* resDstZone = flags(df & DijkstraFlag::ProdOdDstZone_rel)
-			? CreateDataItem(resultContext, GetTokenID_mt("DstZone_rel"), resultUnit, dstZones)
+			? CreateDataItem(resultContext, GetTokenID_mt("DstZone_rel"), resultUnit, dstZones).get() // owned by resultContext
 			: nullptr;
 		if (resDstZone) resDstZone->SetTSF(TSF_Categorical);
 
 		AbstrDataItem* resStartPoint = flags(df & DijkstraFlag::ProdOdStartPoint_rel)
-			? CreateDataItem(resultContext, GetTokenID_mt("StartPoint_rel"), resultUnit, x)
+			? CreateDataItem(resultContext, GetTokenID_mt("StartPoint_rel"), resultUnit, x).get() // owned by resultContext
 			: nullptr;
 		if (resStartPoint) resStartPoint->SetTSF(TSF_Categorical);
 		AbstrDataItem* resEndPoint = flags(df & DijkstraFlag::ProdOdEndPoint_rel)
-			? CreateDataItem(resultContext, GetTokenID_mt("EndPoint_rel"), resultUnit, y)
+			? CreateDataItem(resultContext, GetTokenID_mt("EndPoint_rel"), resultUnit, y).get() // owned by resultContext
 			: nullptr;
 		if (resEndPoint) resEndPoint->SetTSF(TSF_Categorical);
 

@@ -839,8 +839,8 @@ struct Poly2AllGridsOperator : public BinaryOperator
 		auto resDomain = AsUnit(resultHolder.GetNew()); assert(resDomain);
 		AbstrDataItem* resPolyRelAttr = nullptr;
 		if (polyDomainUnit->GetValueType() != ValueWrap<Void>::GetStaticClass())
-			resPolyRelAttr = CreateDataItem(resDomain, s_PolygonRelTokenID, resDomain, polyDomainUnit, ValueComposition::Single);
-		AbstrDataItem* resGridRelAttr = CreateDataItem(resDomain, s_GridRelTokenID, resDomain, gridDomainUnit, ValueComposition::Single);
+			resPolyRelAttr = CreateDataItem(resDomain, s_PolygonRelTokenID, resDomain, polyDomainUnit, ValueComposition::Single).get(); // owned by resDomain
+		AbstrDataItem* resGridRelAttr = CreateDataItem(resDomain, s_GridRelTokenID, resDomain, gridDomainUnit, ValueComposition::Single).get(); // owned by resDomain
 
 		if (!mustCalc)
 		{

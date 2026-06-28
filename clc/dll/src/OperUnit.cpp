@@ -131,7 +131,7 @@ bool UnitCombine_impl(AbstrUnit* res, const ArgSeqType& args, bool mustCalc, boo
 	for (; i; --i)
 	{
 		SharedPtr<const AbstrUnit> ithUnit = AsCertainUnit(args[i - 1]);
-		AbstrDataItem* resSub = CreateDataItem(res, subItemNameID[i-1], res, ithUnit.get());
+		AbstrDataItem* resSub = CreateDataItem(res, subItemNameID[i-1], res, ithUnit.get()).get(); // owned by res
 		resSub->SetTSF(TSF_Categorical);
 
 		if (!mustCalc)

@@ -286,7 +286,7 @@ void ConfigProd::CreateDataItem(TokenID nameID, TokenID domainUnit, TokenID valu
 		m_eParamVC = ValueComposition::Single;
 
 	auto contextItem = GetContextOrRootItem(nameID);
-	m_pCurrent = SharedMutableTreeItem(CreateAbstrDataItem(contextItem, nameID, domainUnit, valuesUnit, m_eParamVC), existing_obj{}); // data item owned by contextItem (parent)
+	m_pCurrent = CreateAbstrDataItem(contextItem, nameID, domainUnit, valuesUnit, m_eParamVC); // SharedMutableDataItem -> cursor (co-owned with parent contextItem)
 }
 
 void ConfigProd::CreateContainer(TokenID nameID)

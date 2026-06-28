@@ -170,7 +170,7 @@ protected:
 	void SyncGroupBy    (ShvSyncMode sm);
 	void UpdateShowSelOnly() override;
 
-	SharedPtr<AbstrDataItem> CreateIdAttr(const AbstrUnit* domain, const AbstrDataItem* exampleAttr);
+	SharedMutableDataItem CreateIdAttr(const AbstrUnit* domain, const AbstrDataItem* exampleAttr);
 
 private:
 	void UpdateTableIndex();

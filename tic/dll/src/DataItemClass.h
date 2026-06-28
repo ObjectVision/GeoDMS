@@ -56,14 +56,14 @@ public:
 
 	TIC_CALL bool IsDataObjType() const override;
 	// Constructs a new DataItem of the type indicated by this DataItemClass
-	TIC_CALL AbstrDataItem* CreateDataItem(
-			TreeItem*         parent, 
-			TokenID           nameID, 
+	TIC_CALL SharedMutableDataItem CreateDataItem(
+			TreeItem*         parent,
+			TokenID           nameID,
 			const AbstrUnit*  domainUnit, // Default unit will be selected when 0
 			const AbstrUnit*  valuesUnit,
 			ValueComposition  vc) const;
 
-	TIC_CALL AbstrDataItem* CreateDataItemFromPath(
+	TIC_CALL SharedMutableDataItem CreateDataItemFromPath(
 		TreeItem*         parent,
 		CharPtr           path,
 		const AbstrUnit*  domainUnit, // Default unit will be selected when 0
@@ -85,30 +85,30 @@ public:
 	DECL_RTTI(TIC_CALL, MetaClass)
 };
 
-TIC_CALL AbstrDataItem* CreateAbstrDataItem(
-	TreeItem*        context, 
-	TokenID          nameID, 
+TIC_CALL SharedMutableDataItem CreateAbstrDataItem(
+	TreeItem*        context,
+	TokenID          nameID,
 	TokenID          tDomainUnit,
 	TokenID          tValuesUnit,
 	ValueComposition vc = ValueComposition::Single
 );
 
-TIC_CALL AbstrDataItem* CreateDataItem(
-	TreeItem*        context, 
-	TokenID          nameID, 
+TIC_CALL SharedMutableDataItem CreateDataItem(
+	TreeItem*        context,
+	TokenID          nameID,
 	const AbstrUnit* domainUnit,
 	const AbstrUnit* valuesUnit,
 	ValueComposition vc = ValueComposition::Single
 );
 
-TIC_CALL AbstrDataItem* CreateDataItemFromPath(
+TIC_CALL SharedMutableDataItem CreateDataItemFromPath(
 	TreeItem*        context,
 	CharPtr          path,
 	const AbstrUnit* domainUnit,
 	const AbstrUnit* valuesUnit,
 	ValueComposition vc);
 
-TIC_CALL AbstrDataItem* CreateCacheDataItem(
+TIC_CALL SharedMutableDataItem CreateCacheDataItem(
 	const AbstrUnit* domainUnit,
 	const AbstrUnit* valuesUnit,
 	ValueComposition vc = ValueComposition::Single

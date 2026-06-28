@@ -271,7 +271,7 @@ void SaveValue(TreeItem* context, TokenID nameID, typename param_type<V>::type v
 	if (!context)
 		return;
 
-	SharedPtr<AbstrDataItem> adi = const_cast<AbstrDataItem*>(AsDataItem(FindTreeItemByID(context, nameID)));
+	SharedMutableDataItem adi(const_cast<AbstrDataItem*>(AsDataItem(FindTreeItemByID(context, nameID))), existing_obj{});
 	if (!adi)
 		adi = CreateDataItem(context, nameID, Unit<Void>::GetStaticClass()->CreateDefault(), Unit<V>::GetStaticClass()->CreateDefault());
 
@@ -796,7 +796,7 @@ SharedDataItemInterestPtr CreateColorPalette(DataView* dv, const AbstrUnit* pale
 	TokenID name = GetAspectNameID(aNr);
 	SharedMutableDataItem result = SharedMutableDataItem(AsDynamicDataItem(paletteContainer->GetSubTreeItemByID(name)), existing_obj{});
 	if (!result)
-		result = SharedMutableDataItem(CreateDataItem(paletteContainer, name, paletteDomain, Unit<UInt32>::GetStaticClass()->CreateDefault()), existing_obj{});
+		result = CreateDataItem(paletteContainer, name, paletteDomain, Unit<UInt32>::GetStaticClass()->CreateDefault()); // owning shared (co-owned with paletteContainer)
 	dms_assert(result);
 
 	TreeItem_SetDialogType(result.get(), GetAspectNameID(aNr));
@@ -843,7 +843,7 @@ SharedDataItemInterestPtr CreateSystemColorPalette(DataView* dv, const AbstrUnit
 			auto uniqueNameStr = SharedStr(name);
 			name = UniqueName(paletteContainer, uniqueNameStr.c_str());
 		}
-		result = SharedMutableDataItem(CreateDataItem(paletteContainer, name, paletteDomain, Unit<UInt32>::GetStaticClass()->CreateDefault() ), existing_obj{});
+		result = CreateDataItem(paletteContainer, name, paletteDomain, Unit<UInt32>::GetStaticClass()->CreateDefault() ); // owning shared (co-owned with paletteContainer)
 		TreeItem_SetDialogType(result.get(), GetAspectNameID(aNr) );
 
 		result->DisableStorage();
@@ -900,7 +900,7 @@ SharedDataItemInterestPtr CreateSystemLabelPalette(DataView* dv, const AbstrUnit
 	if (always || !result)
 	{
 		SizeT n = paletteDomain->GetPreparedCount();
-		SharedMutableDataItem newResult = SharedMutableDataItem(CreateDataItem(paletteContainer, GetAspectNameID(aNr), paletteDomain, Unit<SharedStr>::GetStaticClass()->CreateDefault() ), existing_obj{});
+		SharedMutableDataItem newResult = CreateDataItem(paletteContainer, GetAspectNameID(aNr), paletteDomain, Unit<SharedStr>::GetStaticClass()->CreateDefault() ); // owning shared (co-owned with paletteContainer)
 		TreeItem_SetDialogType(newResult.get(), GetAspectNameID(aNr) );
 
 		newResult->DisableStorage();
@@ -1212,10 +1212,10 @@ void UpdateShowSelOnlyImpl(
 		newSelEntity->SetExpr(SharedStr(expr) );
 
 		AbstrDataItem* newSelIndexAttr = CreateDataItem(newSelEntity,
-					selID, 
-					newSelEntity, 
+					selID,
+					newSelEntity,
 					entity
-		);
+		).get(); // owned by newSelEntity (parent)
 		selIndexAttr = newSelIndexAttr; 
 		newSelIndexAttr->SetKeepDataState(false);
 		newSelIndexAttr->DisableStorage(true);

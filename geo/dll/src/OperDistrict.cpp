@@ -62,7 +62,7 @@ struct DistrictOperator : public UnaryOperator
 
 		assert(resUnit);
 
-		AbstrDataItem* resSub = CreateDataItem(resUnit, s_Districts, domain, resUnit);
+		AbstrDataItem* resSub = CreateDataItem(resUnit, s_Districts, domain, resUnit).get(); // owned by resUnit
 		assert(resSub);
 
 		assert(resSub->GetAbstrDomainUnit() == domain);

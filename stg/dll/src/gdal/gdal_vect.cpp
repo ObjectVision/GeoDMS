@@ -2761,7 +2761,7 @@ auto GdalVectSM::CreateGeometryDataItemFromGdal(const TreeItem* storageHolder, c
 		layerDomain, vu.get(), gdal_vc
 	);
 
-	return geometry;
+	return geometry.get(); // owned by layerDomain (parent)
 }
 
 void GdalVectSM::DoUpdateTableGeometry(const TreeItem* storageHolder, AbstrUnit* layerDomain, OGRLayer* layer) const 

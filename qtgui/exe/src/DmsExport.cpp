@@ -352,7 +352,7 @@ auto DoExportRasterOrMatrixData(const TreeItem* rasterItemOrDomain, bool nativeF
         if (baseGrid)
             expr = mySSPrintF("%s[%s]", expr.c_str(), baseGrid->GetFullName().c_str());
         vda->SetExpr(expr);
-        return vda;
+        return vda.get(); // owned by avd (parent)
     };
 
     AbstrDataItem* export_raster = nullptr;

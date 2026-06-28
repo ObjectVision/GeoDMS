@@ -116,7 +116,7 @@ struct ReadArrayOperator: public QuinaryOperator
 		AbstrDataItem* resReadPos = CreateDataItem(res, readPosToken
 		,	Unit<Void  >::GetStaticClass()->CreateDefault()
 		,	Unit<UInt32>::GetStaticClass()->CreateDefault()
-		);
+		).get(); // owned by res
 
 		if (!mustCalc)
 			return true;
@@ -206,7 +206,7 @@ struct ReadElemsOperator: public QuaternaryOperator
 		AbstrDataItem* resReadPos = CreateDataItem(res, readPosToken
 		,	adu
 		,	Unit<UInt32>::GetStaticClass()->CreateDefault()
-		);
+		).get(); // owned by res
 
 		if (!mustCalc)
 			return true;
@@ -317,7 +317,7 @@ struct ReadLinesOperator: public TernaryOperator
 		AbstrDataItem* resReadPos = CreateDataItem(res, readPosToken
 		,	Unit<Void  >::GetStaticClass()->CreateDefault()
 		,	Unit<ReadPosType>::GetStaticClass()->CreateDefault()
-		);
+		).get(); // owned by res
 		dms_assert(resReadPos->IsPassor());
 
 		if (!mustCalc)
@@ -397,11 +397,11 @@ struct SplitSequenceOperator : public UnaryOperator
 
 		auto adu = arg1->GetAbstrDomainUnit();
 		auto avu = arg1->GetAbstrValuesUnit();
-		auto resSequenceItem = CreateDataItem(res, token::geometry, res, avu, composition_of_v< SequenceValueType>);
+		auto resSequenceItem = CreateDataItem(res, token::geometry, res, avu, composition_of_v< SequenceValueType>).get(); // owned by res (parent)
 
 		AbstrDataItem* resOrgRelItem = nullptr;
 		if (!arg1->HasVoidDomainGuarantee())
-			resOrgRelItem = CreateDataItem(res, token::org_rel, res, adu);
+			resOrgRelItem = CreateDataItem(res, token::org_rel, res, adu).get(); // owned by res
 
 		if (!mustCalc)
 			return true;

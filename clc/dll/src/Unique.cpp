@@ -347,7 +347,7 @@ public:
 		res->SetTSF(TSF_Categorical);
 		resultHolder = res;
 
-		AbstrDataItem* resSub = CreateDataItem(res, s_Values, res, arg1Values, arg1->GetValueComposition() );
+		AbstrDataItem* resSub = CreateDataItem(res, s_Values, res, arg1Values, arg1->GetValueComposition() ).get(); // owned by res
 		MG_PRECONDITION(resSub);
 		resSub->m_StatusFlags.SetHasSortedValues();
 

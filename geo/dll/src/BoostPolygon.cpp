@@ -175,9 +175,9 @@ protected:
 		auto res_owner = Unit<ResultingDomainType>::GetStaticClass()->CreateResultUnit(resultHolder); auto res = res_owner.get();
 		resultHolder = res;
 
-		AbstrDataItem* resG = (!m_MustCreateGeometries) ? nullptr : CreateDataItem(res, s_tGM, res, values1Unit, ValueComposition::Polygon);
-		AbstrDataItem* res1 = e1IsVoid                  ? nullptr : CreateDataItem(res, s_tFR, res, domain1Unit);
-		AbstrDataItem* res2 = e2IsVoid                  ? nullptr : CreateDataItem(res, s_tSR, res, domain2Unit);
+		AbstrDataItem* resG = (!m_MustCreateGeometries) ? nullptr : CreateDataItem(res, s_tGM, res, values1Unit, ValueComposition::Polygon).get(); // owned by res
+		AbstrDataItem* res1 = e1IsVoid                  ? nullptr : CreateDataItem(res, s_tFR, res, domain1Unit).get(); // owned by res
+		AbstrDataItem* res2 = e2IsVoid                  ? nullptr : CreateDataItem(res, s_tSR, res, domain2Unit).get(); // owned by res
 
 		if (mustCalc)
 		{
@@ -837,10 +837,10 @@ protected:
 			resUnit->SetTSF(TSF_Categorical);
 
 			resultHolder = resUnit;
-			resGeometry = CreateDataItem(resUnit, token::geometry, resUnit, values1Unit, ValueComposition::Polygon);
+			resGeometry = CreateDataItem(resUnit, token::geometry, resUnit, values1Unit, ValueComposition::Polygon).get(); // owned by resUnit
 			if (!resDomain->IsKindOf(Unit<Void>::GetStaticClass()))
 			{
-				resNrOrgEntity = CreateDataItem(resUnit, argPart ? token::part_rel : token::polygon_rel, resUnit, resDomain, ValueComposition::Single);
+				resNrOrgEntity = CreateDataItem(resUnit, argPart ? token::part_rel : token::polygon_rel, resUnit, resDomain, ValueComposition::Single).get(); // owned by resUnit
 				resNrOrgEntity->SetTSF(TSF_Categorical);
 			}
 		}
@@ -1687,8 +1687,8 @@ protected:
 		res->SetTSF(TSF_Categorical);
 
 
-		AbstrDataItem* resF1 = CreateDataItem(res.get(), tF1, res.get(), domain1Unit);
-		AbstrDataItem* resF2 = CreateDataItem(res.get(), tF2, res.get(), domain1Unit);
+		AbstrDataItem* resF1 = CreateDataItem(res.get(), tF1, res.get(), domain1Unit).get(); // owned by res
+		AbstrDataItem* resF2 = CreateDataItem(res.get(), tF2, res.get(), domain1Unit).get(); // owned by res
 
 		if (mustCalc)
 		{
@@ -1827,8 +1827,8 @@ protected:
 		res->SetTSF(TSF_Categorical);
 
 
-		AbstrDataItem* resF1 = CreateDataItem(res.get(), tF1, res.get(), e);
-		AbstrDataItem* resF2 = CreateDataItem(res.get(), tF2, res.get(), e);
+		AbstrDataItem* resF1 = CreateDataItem(res.get(), tF1, res.get(), e).get(); // owned by res
+		AbstrDataItem* resF2 = CreateDataItem(res.get(), tF2, res.get(), e).get(); // owned by res
 
 		if (mustCalc)
 		{

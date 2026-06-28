@@ -420,20 +420,20 @@ public:
 			resultHolder = TreeItem::CreateCacheRoot();
 		dbg_assert(resultHolder);
 
-		AbstrDataItem* resLanduse = 
+		AbstrDataItem* resLanduse =
 			CreateDataItem(
-				resultHolder.GetNew(), 
-				GetTokenID_mt("landuse"), 
+				resultHolder.GetNew(),
+				GetTokenID_mt("landuse"),
 				gridDomain, ggTypeSet
-			);
+			).get(); // owned by resultHolder
 
-		AbstrDataItem* resStatus = 
+		AbstrDataItem* resStatus =
 			CreateDataItem(
 				resultHolder.GetNew()
 			,	GetTokenID_mt("status")
-			,	Unit<Void>  ::GetStaticClass()->CreateDefault() 
+			,	Unit<Void>  ::GetStaticClass()->CreateDefault()
 			,	Unit<SharedStr>::GetStaticClass()->CreateDefault()
-			);
+			).get(); // owned by resultHolder
 
 
 		TreeItem* resShadowPriceContainer =

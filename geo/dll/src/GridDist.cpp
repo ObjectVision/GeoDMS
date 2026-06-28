@@ -266,7 +266,7 @@ public:
 			resultHolder = CreateCacheDataItem(gridSet, impUnit);
 
 		AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
-		AbstrDataItem* trBck = CreateDataItem(res, GetTokenID_mt("TraceBack"), gridSet, Unit<LinkType>::GetStaticClass()->CreateDefault());
+		AbstrDataItem* trBck = CreateDataItem(res, GetTokenID_mt("TraceBack"), gridSet, Unit<LinkType>::GetStaticClass()->CreateDefault()).get(); // owned by res
 		MG_PRECONDITION(trBck);
 
 		if (!mustCalc)

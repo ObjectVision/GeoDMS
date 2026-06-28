@@ -352,7 +352,7 @@ public:
 
 		resultHolder = resAtomicRegions;
 
-		AbstrDataItem* resAtomicRegionGrid = CreateDataItem(resAtomicRegions, t_UnionData, gridDomain, resAtomicRegions);
+		AbstrDataItem* resAtomicRegionGrid = CreateDataItem(resAtomicRegions, t_UnionData, gridDomain, resAtomicRegions).get(); // owned by resAtomicRegions
 
 		overlay_partitioning_info_array partitionInfo;
 
@@ -375,12 +375,12 @@ public:
 			const AbstrDataItem* partitioningDI = AsCheckedDataItem(partitioningTI);
 			assert(partitioningDI);
 
-			AbstrDataItem* resPartitionRel = 
+			AbstrDataItem* resPartitionRel =
 				CreateDataItem(
-					resAtomicRegions, 
-					partNameID, 
+					resAtomicRegions,
+					partNameID,
 					resAtomicRegions, partitioningDI->GetAbstrValuesUnit()
-				);
+				).get(); // owned by resAtomicRegions
 
 			partitionInfo.push_back( 
 				overlay_partitioning_info_t(
