@@ -305,7 +305,23 @@ modal MessageBoxW dialog that HANGS headless Debug runs** (per CLAUDE.md) — so
 This is exactly the prior-session finding that "m_DomainUnit/m_ValuesUnit are load-bearing during compute and
 CANNOT be weakened" (weakening them crashed/asserted), now reproduced under the std migration. The std plan bet
 that tree-shared-ownership keeps units alive so the weak wouldn't expire — that bet FAILS for cache/instantiation
-result units. **DECISION NEEDED (architectural, user's call):** make `m_ValuesUnit` (and/or `m_DomainUnit`)
+result units.
+
+**DECISIVE EVIDENCE (cdb dump of the failing result item at the assert, categorical_unit):** the FindUnit call
+comes from `FuncDC_CreateResult` (MoreDataControllers.cpp:655) → `resultHolder->GetDynamicObjClass()` →
+`GetAbstrValuesUnit()` during `FuncDC::MakeResult`. The result item is a parentless, unnamed, no-backref
+operator result (m_Parent/m_BackRef/m_ID all null; held alive by `resultHolder`/DcRef). Its `m_tValuesUnit` and
+`m_tDomainUnit` tokens are **0 (empty — nothing to FindUnit-resolve)**, but `m_ValuesUnit` (and m_DomainUnit) are
+**SET yet EXPIRED**: `_Ptr`/`_Rep` non-null but strong use_count 0 → `is_null()` true. So the values unit was
+ASSIGNED at result creation, then DESTROYED during compute — the WEAK `m_ValuesUnit` could not keep it alive and
+it had NO other owner. The data item (held by DcRef) outlived its freshly-created values unit (which died with its
+container/cache root). `FindUnit(token=0)` is a doomed fallback (empty token → would `ThrowFail "Undefined Values
+unit"` even if GetTreeParent weren't null). **CONCLUSION: a lifetime bug, NOT "never set" and NOT cache-root-
+released-transiently — the result's endogenous units have no owner with the result's lifetime; weak m_ValuesUnit/
+m_DomainUnit are fundamentally insufficient for parentless operator-result units.** Fix = give those units an
+owner for the result's lifetime: make m_ValuesUnit owning (cycle-free — a values unit is not the item's parent),
+and/or have the DcRef/result hold its endogenous units; m_DomainUnit owning risks the table↔column cycle only when
+the domain is the item's own container. **DECISION NEEDED (architectural, user's call):** make `m_ValuesUnit` (and/or `m_DomainUnit`)
 OWNING `shared_tree_ptr` (m_ValuesUnit owning is cycle-free since the values unit is not the parent; m_DomainUnit
 owning reintroduces the table↔column cycle = a std::shared_ptr LEAK, not a crash), vs. keep weak + pin cache
 units another way (e.g. the result/DC holds its units), vs. a values-unit registry. The `role=Values` diagnostic

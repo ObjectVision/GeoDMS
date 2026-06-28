@@ -396,7 +396,8 @@ void UsingCache::UpdateCache() const
 	UpdateUsings();
 	UInt32 nrUsings = m_Usings.size();
 	for (UInt32 i = nrUsings; i--; )
-		Update(lock_raw(m_Usings[i]));
+		if (const TreeItem* u = lock_raw(m_Usings[i])) // never assume a weak using entry is still alive
+			Update(u);
 
 #if defined(MG_DEBUG)
 	MG_LOCKER_NO_UPDATEMETAINFO
@@ -432,7 +433,8 @@ void UsingCache::UpdateCache() const
 	MG_DEBUGCODE( dms_assert(TestOrder(tmpNameSpace.begin(), tmpNameSpace.end())); )
 
 	for (UInt32 i = nrUsings; i--; )
-		MergeCacheIntoArray(lock_raw(m_Usings[i])->GetUsingCache(), tmpNameSpace);
+		if (const TreeItem* u = lock_raw(m_Usings[i])) // never assume a weak using entry is still alive
+			MergeCacheIntoArray(u->GetUsingCache(), tmpNameSpace);
 
 	// sorted and no doubles in m_SortedItemCache?
 	MG_DEBUGCODE( dms_assert(TestOrder(tmpNameSpace.begin(), tmpNameSpace.end())); )
@@ -457,7 +459,10 @@ auto UsingCache::FindNamespace(TokenID url) const -> SharedTreeItem
 	}
 	while (n--)
 	{
-		auto foundItem = lock_raw(m_Usings[n])->FindItem(urlAsString); // TODO return 0 if firstName found somewhere
+		const TreeItem* u = lock_raw(m_Usings[n]); // never assume a weak using entry is still alive
+		if (!u)
+			continue;
+		auto foundItem = u->FindItem(urlAsString); // TODO return 0 if firstName found somewhere
 		if (foundItem)
 			return foundItem;
 	}
