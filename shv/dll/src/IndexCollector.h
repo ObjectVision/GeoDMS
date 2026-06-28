@@ -66,8 +66,8 @@ struct IndexCollector : public SharedBase
 	tile_id GetNrTiles() const;
 	tile_loc GetTileDataLocation(SizeT index) const;
 
-	bool HasExtKey() const { return m_ExtKeyAttr; }
-	bool HasGeoRel() const { return m_GeoRelAttr; }
+	bool HasExtKey() const { return m_ExtKeyAttr.has_ptr(); }
+	bool HasGeoRel() const { return m_GeoRelAttr.has_ptr(); }
 	auto GetGeoRel() const { return m_GeoRelAttr; }
 
 	void Release();

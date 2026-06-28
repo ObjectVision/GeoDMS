@@ -1328,7 +1328,7 @@ void TableControl::CreateTableGroupBy(bool activate)
 		const auto* vc = m_Entity->GetUnitClass()->GetValueType();
 		const auto* resDomainCls = UnitClass::Find(vc->GetCrdClass());
 
-		SharedPtr<AbstrUnit> groupByEntity = resDomainCls->CreateUnit(GetContext(), GetTokenID_mt("GroupBy")).release();
+		SharedPtr<AbstrUnit> groupByEntity = resDomainCls->CreateUnit(GetContext(), GetTokenID_mt("GroupBy")).get();
 		groupByEntity->DisableStorage();
 		auto keysMustBeDefined = m_State.Get(TCF_MustBeDefined);
 		auto uniqueExprFormat = keysMustBeDefined ? "unique(%s)" : "unique_with_null(%s)";

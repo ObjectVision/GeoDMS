@@ -679,7 +679,7 @@ void WmsLayer::SetSpecContainer(const TreeItem* specContainer)
 
 	SuspendTrigger::SilentBlocker block("WmsLayer::SetSpecContainer");
 
-	SharedPtr<const TreeItem> tileMatrices = specContainer->GetConstSubTreeItemByID(GetTokenID_mt("TileMatrix"));
+	SharedPtr<const TreeItem> tileMatrices = specContainer->GetConstSubTreeItemByID(GetTokenID_mt("TileMatrix")).get();
 	MG_USERCHECK2(tileMatrices, "TileMatrix container not found");
 
 	Table tab(tileMatrices.get(), "name", "ScaleDenominator", "LeftCoord", "TopCoord", "TileWidth", "TileHeight", "MatrixWidth", "MatrixHeight");

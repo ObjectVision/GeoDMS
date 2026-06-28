@@ -165,7 +165,7 @@ void ChartControl::Sync(TreeItem* context, ShvSyncMode sm)
 
 	SilentInterestRetainContext irc("ChartControl::Sync");
 
-	GetViewPort()->Sync( context->CreateItem(s_ChartViewPortTokenID).release(), sm );
+	GetViewPort()->Sync( context->CreateItem(s_ChartViewPortTokenID).get(), sm );
 
 	assert(GetViewPort  ()->GetOwner().lock().get() == this);
 	assert(GetScrollPort()->GetOwner().lock().get() == this);

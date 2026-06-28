@@ -190,7 +190,7 @@ SharedStr GetViewData(const TreeItem* item)         // look  at DialogData of su
 void SetViewData(TreeItem* item, CharPtr data) // store at DialogData of subItem "ViewData"
 {
 	dms_assert(item);
-	TreeItem_SetDialogData(item->CreateItem(GetTokenID_mt("ViewData")).release(), data);
+	TreeItem_SetDialogData(item->CreateItem(GetTokenID_mt("ViewData")).get(), data);
 }
 
 const TreeItem* GetNextDialogDataRef(const TreeItem* item, CharPtr& i, CharPtr e)
@@ -256,7 +256,7 @@ void SyncRefImpl(T& ptr, TreeItem* context, TokenID id, ShvSyncMode sm)
 	if(sm == SM_Save && (ptr || subItem) ) 
 	{
 		if (!subItem)
-			subItem = context->CreateItem(id).release();
+			subItem = context->CreateItem(id).get();
 		SetDialogDataRef(const_cast<TreeItem*>(subItem), ptr.get_ptr());
 	}
 }
@@ -670,7 +670,7 @@ COLORREF GetSelectedClr() { return CombineRGB(255, 255, 0); }
 // desktop data section
 //----------------------------------------------------------------------
 
-inline OwningPtr<TreeItem> SafeCreateItem(TreeItem* context, TokenID pathID)
+inline SharedMutableTreeItem SafeCreateItem(TreeItem* context, TokenID pathID)
 {
 	MG_DEBUGCODE(StaticMtIncrementalLock<gd_TokenCreationBlockCount> tokenCreationLock; )
 		auto result = context->CreateItem(pathID);
@@ -678,7 +678,7 @@ inline OwningPtr<TreeItem> SafeCreateItem(TreeItem* context, TokenID pathID)
 	return result;
 }
 
-inline OwningPtr<TreeItem> SafeCreateItemFromPath(TreeItem* context, CharPtr path)
+inline SharedMutableTreeItem SafeCreateItemFromPath(TreeItem* context, CharPtr path)
 {
 	MG_DEBUGCODE(StaticMtIncrementalLock<gd_TokenCreationBlockCount> tokenCreationLock; )
 	auto result = context->CreateItemFromPath(path);
@@ -699,7 +699,7 @@ TreeItem* GetDefaultDesktopContainer(const TreeItem* ti)
 	while ((pi = ti->GetTreeParent().get()))
 		ti = pi;
 	auto desktops = const_cast<TreeItem*>(ti)->CreateItem(desktopsID);
-	return desktops->CreateItem(defaultID).release();
+	return desktops->CreateItem(defaultID).get();
 }
 
 TreeItem* GetExportsContainer(TreeItem* desktopItem)
@@ -707,7 +707,7 @@ TreeItem* GetExportsContainer(TreeItem* desktopItem)
 	assert(desktopItem && !desktopItem->IsCacheItem());
 	auto result = desktopItem->CreateItem(exportsID);
 	assert(result && !result->IsCacheItem());
-	return result.release();
+	return result.get();
 }
 
 TreeItem* GetViewDataContainer(TreeItem* desktopItem)
@@ -715,7 +715,7 @@ TreeItem* GetViewDataContainer(TreeItem* desktopItem)
 	assert(desktopItem && !desktopItem->IsCacheItem());
 	auto result = desktopItem->CreateItem(viewDataID);
 	assert(result && !result->IsCacheItem());
-	return result.release();
+	return result.get();
 }
 
 OwningPtr<TreeItem> CreateContainer_impl(TreeItem* container, const TreeItem* item)
@@ -727,7 +727,7 @@ OwningPtr<TreeItem> CreateContainer_impl(TreeItem* container, const TreeItem* it
 		{
 			auto result = SafeCreateItem(container, AsUnit(item)->GetValueType()->GetID());
 			assert(result);
-			return result;
+			return result.get();
 		}
 
 		if (container->DoesContain(item))
@@ -737,14 +737,14 @@ OwningPtr<TreeItem> CreateContainer_impl(TreeItem* container, const TreeItem* it
 			auto configRoot = item->GetRoot();
 			auto result = SafeCreateItemFromPath(container, item->GetRelativeName(configRoot).c_str());
 			assert(result);
-			return result;
+			return result.get();
 		}
 	}
 
 	item = item->GetUltimateItem();
 	assert(item);
 	auto name = std::format("I{:x}", std::size_t(item));
-	return container->CreateItem(GetTokenID(name.c_str()));
+	return container->CreateItem(GetTokenID(name.c_str())).get();
 }
 
 OwningPtr<TreeItem> CreateContainer(TreeItem* container, const TreeItem* item)
@@ -763,7 +763,7 @@ static TokenID paletteDomainID = GetTokenID_st("PaletteDomain");
 
 SharedMutableUnitInterestPtr CreatePaletteDomain(TreeItem* themeContainer, SizeT n)
 {
-	SharedMutableUnit paletteDomain = Unit<UInt8>::GetStaticClass()->CreateUnit(themeContainer, paletteDomainID).release();
+	SharedMutableUnit paletteDomain = Unit<UInt8>::GetStaticClass()->CreateUnit(themeContainer, paletteDomainID);
 	ItemWriteLock  xx(paletteDomain.get_ptr());
 	if (!paletteDomain->GetTSF(USF_HasConfigRange))
 	{
@@ -794,9 +794,9 @@ SharedDataItemInterestPtr CreateColorPalette(DataView* dv, const AbstrUnit* pale
 {
 	TreeItem* paletteContainer = CreatePaletteContainer(dv, paletteDomain);
 	TokenID name = GetAspectNameID(aNr);
-	SharedMutableDataItem result = AsDynamicDataItem(paletteContainer->GetSubTreeItemByID(name));
+	SharedMutableDataItem result = SharedMutableDataItem(AsDynamicDataItem(paletteContainer->GetSubTreeItemByID(name)), existing_obj{});
 	if (!result)
-		result = CreateDataItem(paletteContainer, name, paletteDomain, Unit<UInt32>::GetStaticClass()->CreateDefault());
+		result = SharedMutableDataItem(CreateDataItem(paletteContainer, name, paletteDomain, Unit<UInt32>::GetStaticClass()->CreateDefault()), existing_obj{});
 	dms_assert(result);
 
 	TreeItem_SetDialogType(result.get(), GetAspectNameID(aNr));
@@ -834,7 +834,7 @@ SharedDataItemInterestPtr CreateSystemColorPalette(DataView* dv, const AbstrUnit
 		}
 	}
 	TreeItem* paletteContainer = CreatePaletteContainer(dv, paletteDomain);
-	SharedMutableDataItem result = AsDynamicDataItem(paletteContainer->GetSubTreeItemByID(GetAspectNameID(aNr)));
+	SharedMutableDataItem result = SharedMutableDataItem(AsDynamicDataItem(paletteContainer->GetSubTreeItemByID(GetAspectNameID(aNr))), existing_obj{});
 	TokenID name = GetAspectNameID(aNr);
 	if (always || !result)
 	{
@@ -843,7 +843,7 @@ SharedDataItemInterestPtr CreateSystemColorPalette(DataView* dv, const AbstrUnit
 			auto uniqueNameStr = SharedStr(name);
 			name = UniqueName(paletteContainer, uniqueNameStr.c_str());
 		}
-		result = CreateDataItem(paletteContainer, name, paletteDomain, Unit<UInt32>::GetStaticClass()->CreateDefault() );
+		result = SharedMutableDataItem(CreateDataItem(paletteContainer, name, paletteDomain, Unit<UInt32>::GetStaticClass()->CreateDefault() ), existing_obj{});
 		TreeItem_SetDialogType(result.get(), GetAspectNameID(aNr) );
 
 		result->DisableStorage();
@@ -900,7 +900,7 @@ SharedDataItemInterestPtr CreateSystemLabelPalette(DataView* dv, const AbstrUnit
 	if (always || !result)
 	{
 		SizeT n = paletteDomain->GetPreparedCount();
-		SharedMutableDataItem newResult = CreateDataItem(paletteContainer, GetAspectNameID(aNr), paletteDomain, Unit<SharedStr>::GetStaticClass()->CreateDefault() );
+		SharedMutableDataItem newResult = SharedMutableDataItem(CreateDataItem(paletteContainer, GetAspectNameID(aNr), paletteDomain, Unit<SharedStr>::GetStaticClass()->CreateDefault() ), existing_obj{});
 		TreeItem_SetDialogType(newResult.get(), GetAspectNameID(aNr) );
 
 		newResult->DisableStorage();
@@ -1206,7 +1206,8 @@ void UpdateShowSelOnlyImpl(
 		const UnitClass*  resDomainCls = UnitClass::Find(vc->GetCrdClass());
 
 
-		AbstrUnit* newSelEntity = resDomainCls->CreateUnit(self->GetContext(), selSetID).release();
+		auto newSelEntity_owner = resDomainCls->CreateUnit(self->GetContext(), selSetID);
+		AbstrUnit* newSelEntity = newSelEntity_owner.get();
 		selEntity = newSelEntity;
 		newSelEntity->SetExpr(SharedStr(expr) );
 

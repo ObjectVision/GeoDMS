@@ -721,7 +721,7 @@ void CreateEditPaletteMdiChild(GraphicLayer* layer, const AbstrDataItem* themeAt
 		std::shared_ptr<GraphicLayer> layer = layer_wp.lock(); if (!layer) return;
 		auto dv = layer->GetDataView().lock(); if (!dv) return;
 		TreeItem* desktopItem = dv->GetDesktopContext();
-		TreeItem* viewContext = desktopItem->CreateItem(UniqueName(desktopItem, EditPaletteView::GetStaticClass())).release();
+		TreeItem* viewContext = desktopItem->CreateItem(UniqueName(desktopItem, EditPaletteView::GetStaticClass())).get();
 		dms_assert(viewContext);
 
 		auto editPaletteView = std::make_shared<EditPaletteView>(viewContext, layer.get(), themeAttrSPtr.get());
@@ -766,7 +766,7 @@ const AbstrDataItem* DMS_CONV SHV_EditPaletteView_Create(TreeItem* desktopItem, 
 		dms_assert(desktopItem);
 		dms_assert(themeAttr || classAttr || themeUnit);
 
-		TreeItem* viewContext = desktopItem->CreateItem(UniqueName(desktopItem, EditPaletteView::GetStaticClass())).release();
+		TreeItem* viewContext = desktopItem->CreateItem(UniqueName(desktopItem, EditPaletteView::GetStaticClass())).get();
 		dms_assert(viewContext);
 
 		std::shared_ptr<EditPaletteView> editPaletteView = std::make_shared<EditPaletteView>(viewContext, classAttr, themeAttr, themeUnit, SM_Save);

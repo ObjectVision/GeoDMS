@@ -199,12 +199,12 @@ static std::pair<ConstUnitRef, ValueComposition> ValuesUnitAndComposition(const 
 	const ValueClass* vc = avu->GetValueType();
 	switch (am) {
 		case AggrMethod::bounding_box:
-			return {Unit<SharedStr>::GetStaticClass()->CreateDefault(), ValueComposition::String };
+			return { ConstUnitRef(Unit<SharedStr>::GetStaticClass()->CreateDefault(), existing_obj{}), ValueComposition::String };
 
 		case AggrMethod::entropy:
 		case AggrMethod::average_entropy:
 		case AggrMethod::sum:
-			return { Unit<Float64>::GetStaticClass()->CreateDefault(), ValueComposition::Single };
+			return { ConstUnitRef(Unit<Float64>::GetStaticClass()->CreateDefault(), existing_obj{}), ValueComposition::Single };
 
 		case AggrMethod::count:
 		case AggrMethod::nr_undefined_values:
@@ -214,12 +214,12 @@ static std::pair<ConstUnitRef, ValueComposition> ValuesUnitAndComposition(const 
 		case AggrMethod::frequency_table:
 		case AggrMethod::frequency_table_with_null:
 			if (vc->GetValueClassID() == ValueClassID::VT_String)
-				return {avu, ValueComposition::String };
-			return { Unit<SharedStr>::GetStaticClass()->CreateDefault(), ValueComposition::String };
+				return { ConstUnitRef(avu, existing_obj{}), ValueComposition::String };
+			return { ConstUnitRef(Unit<SharedStr>::GetStaticClass()->CreateDefault(), existing_obj{}), ValueComposition::String };
 
 		case AggrMethod::first:
 		case AggrMethod::last:
-			return { avu, adi->GetValueComposition() };
+			return { ConstUnitRef(avu, existing_obj{}), adi->GetValueComposition() };
 
 		case AggrMethod::modus_count:
 			return { count_unit_creator(adi), ValueComposition::Single };
@@ -228,7 +228,7 @@ static std::pair<ConstUnitRef, ValueComposition> ValuesUnitAndComposition(const 
 			return { unique_count_unit_creator(adi, groupByRel), ValueComposition::Single };
 
 	}
-	return { avu, ValueComposition::Single };
+	return { ConstUnitRef(avu, existing_obj{}), ValueComposition::Single };
 }
 
 static CharPtr SelectCardinality(const AbstrUnit* au, CharPtr oper8, CharPtr oper16, CharPtr oper32, CharPtr oper64)
@@ -995,7 +995,7 @@ WCHAR DataItemColumn::GetSymbol(SizeT recNo) const
 
 TextInfo DataItemColumn::GetText(SizeT recNo, SizeT maxLen, GuiReadLockPair& locks) const
 {
-	SharedDataItem activeTextAttr = GetActiveTextAttr();
+	SharedDataItem activeTextAttr = SharedDataItem(GetActiveTextAttr(), existing_obj{});
 	if (!activeTextAttr)
 	{
 		auto theme = GetEnabledTheme(AN_LabelText);

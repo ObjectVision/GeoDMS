@@ -106,8 +106,8 @@ bool GraphDataView::CanContain(const TreeItem* viewCandidate) const
 		return false;
 	assert(!res.IsAspect());
 
-	SharedUnit resCrdUnit = res.GetWorldCrdUnit();
-	SharedUnit vpCrdUnit = GetContents()->GetViewPort()->GetWorldCrdUnit();
+	SharedUnit resCrdUnit = SharedUnit(res.GetWorldCrdUnit(), existing_obj{});
+	SharedUnit vpCrdUnit = SharedUnit(GetContents()->GetViewPort()->GetWorldCrdUnit(), existing_obj{});
 
 	return CompatibleCrds(resCrdUnit.get(), vpCrdUnit.get());
 }

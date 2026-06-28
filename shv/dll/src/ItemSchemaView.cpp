@@ -349,8 +349,8 @@ void ItemSchemaView::SetContents(std::shared_ptr<MovableObject> contents, ShvSyn
 		TreeItem* gnlContext = gnl->GetContext();
 		dms_assert(gnlContext);
 		StaticStIncrementalLock<TreeItem::s_MakeEndoLockCount> makeEndoLock;
-		m_SchemaNodes    = Unit<UInt32>::GetStaticClass()->CreateUnit(gnlContext, GetTokenID_mt("Nodes")).release();
-		m_SchemaLinks    = Unit<UInt32>::GetStaticClass()->CreateUnit(gnlContext, GetTokenID_mt("Links")).release();
+		m_SchemaNodes    = Unit<UInt32>::GetStaticClass()->CreateUnit(gnlContext, GetTokenID_mt("Nodes")).get();
+		m_SchemaLinks    = Unit<UInt32>::GetStaticClass()->CreateUnit(gnlContext, GetTokenID_mt("Links")).get();
 
 		m_SchemaLocation = CreateDataItem(m_SchemaNodes.get_ptr(), GetTokenID_mt("Location") , m_SchemaNodes, Unit<SPoint   >::GetStaticClass()->CreateDefault());
 		m_SchemaLabelText= CreateDataItem(m_SchemaNodes.get_ptr(), GetTokenID_mt("LabelText"), m_SchemaNodes, Unit<SharedStr>::GetStaticClass()->CreateDefault());

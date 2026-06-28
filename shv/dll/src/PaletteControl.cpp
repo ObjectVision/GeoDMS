@@ -590,7 +590,7 @@ void PaletteControl::Sync(TreeItem* viewContext, ShvSyncMode sm)
 	if (viewContext2 || sm == SM_Save)
 	{
 		if (!viewContext2)
-			viewContext2 = viewContext->CreateItem(paletteCtrlID).release();
+			viewContext2 = viewContext->CreateItem(paletteCtrlID).get();
 		SyncRef(m_ThemeAttr, viewContext2, GetTokenID_mt("ThemeAttr"), sm);
 		SyncRef(m_BreakAttr, viewContext2, GetTokenID_mt("ClassBreaks"), sm);
 		SyncRef(m_PaletteAttr, viewContext2, GetTokenID_mt("PaletteAttr"), sm);

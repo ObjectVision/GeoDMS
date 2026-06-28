@@ -796,7 +796,7 @@ void GraphicObject::FillMenu(MouseEventDispatcher& med)
 			CharPtr eol = std::find(bol, eos, '\n');
 			auto txt = SharedStr(CharPtrRange(bol, eol));
 			if (item)
-				med.m_MenuData.push_back( MenuItem(txt, std::make_unique<RequestClientCmd>(item, CC_Activate), this) );
+				med.m_MenuData.push_back( MenuItem(txt, std::make_unique<RequestClientCmd>(item.get(), CC_Activate), this) );
 			else
 				med.m_MenuData.push_back(MenuItem(txt));
 			if (eol == eos)
