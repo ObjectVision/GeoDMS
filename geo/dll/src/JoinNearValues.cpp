@@ -57,7 +57,7 @@ public:
 		if (!sqrDistParameter->HasVoidDomainGuarantee())
 			sqrDistParameter->throwItemError("Should have a void domain");
 
-		auto AB = static_cast<const UnitClass*>(GetResultClass())->CreateResultUnit(resultHolder);
+		auto AB = static_cast<const UnitClass*>(GetResultClass())->CreateResultUnit(resultHolder.GetNew());
 
 		AbstrDataItem* resSubA = CreateDataItem(AB.get(), GetTokenID_mt("first_rel"), AB.get(), AsDataItem(args[0])->GetAbstrDomainUnit()).get(); // owned by AB
 		AbstrDataItem* resSubB = CreateDataItem(AB.get(), GetTokenID_mt("second_rel"), AB.get(), AsDataItem(args[1])->GetAbstrDomainUnit()).get(); // owned by AB

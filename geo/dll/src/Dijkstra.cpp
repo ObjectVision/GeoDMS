@@ -1544,11 +1544,11 @@ public:
 
 		if (flags(df & DijkstraFlag::OD))
 		{ 
-			auto mutableResultUnit_owner = GetResultUnitClass(df)->CreateResultUnit(resultHolder); mutableResultUnit = mutableResultUnit_owner.get();
+			auto mutableResultUnit_owner = GetResultUnitClass(df)->CreateResultUnit(resultHolder.GetNew()); mutableResultUnit = mutableResultUnit_owner.get();
 			mutableResultUnit->SetTSF(TSF_Categorical);
 			resultHolder = mutableResultUnit;
 			resultUnit = mutableResultUnit;
-			resultContext = resultHolder;
+			resultContext = resultHolder.GetNew();
 			resDist = flags(df & DijkstraFlag::ProdOdImpedance)
 				? CreateDataItem(resultContext, GetTokenID_mt("impedance"), resultUnit, impUnit).get() // owned by resultContext
 				: nullptr;

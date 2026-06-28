@@ -199,7 +199,7 @@ public:
 		if (!resultHolder)
 		{
 			assert(!mustCalc);
-			resultHolder = ResultType::GetStaticClass()->CreateResultUnit(resultHolder);
+			resultHolder = ResultType::GetStaticClass()->CreateResultUnit(resultHolder.GetNew());
 		}
 		auto resUnit = AsUnit(resultHolder.GetNew());
 		assert(resUnit);
@@ -248,7 +248,7 @@ bool CastUnitOperatorBase::CreateResult(TreeItemDualRef& resultHolder, const Arg
 	if (!resultHolder)
 	{
 		assert(!mustCalc);
-		resultHolder = m_ResultUnitClass->CreateTmpUnit(resultHolder);
+		resultHolder = m_ResultUnitClass->CreateTmpUnit(resultHolder.GetNew());
 		auto resUnit = AsUnit(resultHolder.GetNew());
 		dms_assert(resUnit);
 		resUnit->DuplFrom(arg1);
@@ -369,7 +369,7 @@ public:
 		checked_domain<Void>(args[0], "a1");
 
 		SharedStr baseUnitName = GetCurrValue<Arg1Type::value_type>(args[0], 0);
-		auto result_owner = arg2->GetUnitClass()->CreateTmpUnit(resultHolder); AbstrUnit* result = result_owner.get();
+		auto result_owner = arg2->GetUnitClass()->CreateTmpUnit(resultHolder.GetNew()); AbstrUnit* result = result_owner.get();
 		resultHolder = result;
 
 		if (baseUnitName.empty())
@@ -461,7 +461,7 @@ public:
 		if (!resultHolder)
 		{
 			dms_assert(!mustCalc);
-			auto result_owner = AsUnit(args[3])->GetUnitClass()->CreateResultUnit(resultHolder); AbstrUnit* result = result_owner.get();
+			auto result_owner = AsUnit(args[3])->GetUnitClass()->CreateResultUnit(resultHolder.GetNew()); AbstrUnit* result = result_owner.get();
 			dms_assert(result);
 			resultHolder = result;
 		}
@@ -555,7 +555,7 @@ bool CreateRangeUnit(TreeItemDualRef& resultHolder, const AbstrOperGroup* whoCal
 		checked_domain<Void>(ubItem, "UpperBound");
 
 		assert(!mustCalc);
-		auto result_owner = Unit<T>::GetStaticClass()->CreateResultUnit(resultHolder);
+		auto result_owner = Unit<T>::GetStaticClass()->CreateResultUnit(resultHolder.GetNew());
 		auto result = mutable_unit_cast<T>(result_owner.get());
 		assert(result);
 		resultHolder = result;
@@ -1028,7 +1028,7 @@ struct AbstrTiledUnitOper: BinaryOperator
 		if (!resultHolder)
 		{
 			assert(!mustCalc);
-			auto result_owner = debug_cast<const UnitClass*>(GetResultClass())->CreateResultUnit(resultHolder); AbstrUnit* result = result_owner.get();
+			auto result_owner = debug_cast<const UnitClass*>(GetResultClass())->CreateResultUnit(resultHolder.GetNew()); AbstrUnit* result = result_owner.get();
 			assert(result);
 			result->SetTSF(TSF_Categorical);
 
@@ -1106,7 +1106,7 @@ struct AbstrTiledUnitFromSizeOper: UnaryOperator
 		if (!resultHolder)
 		{
 			assert(!mustCalc);
-			auto result_owner = debug_cast<const UnitClass*>(GetResultClass())->CreateResultUnit(resultHolder); AbstrUnit* result = result_owner.get();
+			auto result_owner = debug_cast<const UnitClass*>(GetResultClass())->CreateResultUnit(resultHolder.GetNew()); AbstrUnit* result = result_owner.get();
 			assert(result);
 			result->SetTSF(TSF_Categorical);
 

@@ -626,7 +626,7 @@ void ViewPortInfoEx<Int>::SetWritability(AbstrDataItem* adi) const
 }
 
 ViewPortInfoProvider::ViewPortInfoProvider(const TreeItem * storageHolder, const AbstrDataItem* adi, bool mayCreateDomain, bool queryActualRange)
-	: m_ADI(adi)
+	: m_ADI(adi, existing_obj{}) // borrow the tree-owned data item (co-own its real control block)
 	, m_QueryActualGridDomain(queryActualRange)
 {
 	// PRECONDIDION

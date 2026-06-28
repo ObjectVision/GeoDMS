@@ -209,8 +209,13 @@ void UsingCache::ClearUsings(bool keepParent)
 	usings_iterator e = m_Usings.end();
 	const_usings_iterator i = b;
 
+	// m_Usings entries are non-owning weak refs. During teardown a used namespace may already be gone
+	// (expired weak -> lock_raw null) or be mid-destruction without a cache; in either case there is no
+	// incoming registration of `this` left to remove, so skip it (don't deref null / don't create a cache).
 	while (i!=e)
-		lock_raw(*i++)->GetUsingCache()->DelIncoming(this);
+		if (const TreeItem* ns = lock_raw(*i++))
+			if (ns->CurrHasUsingCache())
+				ns->GetUsingCache()->DelIncoming(this);
 
 	if (nrKeep)
 		m_Usings.erase(b, e);

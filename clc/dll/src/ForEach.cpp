@@ -288,7 +288,7 @@ bool ForEach_CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args,
 					domainUnit->GetFullName().c_str()
 				);
 
-			iter = CopyTreeContext(resultHolder, templ, subItemName.c_str(), DataCopyMode::CopyExpr).Apply().get();
+			iter = CopyTreeContext(resultHolder.GetNew(), templ, subItemName.c_str(), DataCopyMode::CopyExpr).Apply().get();
 		}
 		else if (optDuContext)
 		{
@@ -296,13 +296,13 @@ bool ForEach_CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args,
 			const AbstrUnit* du = FindUnitInContainer(optDuContext, optDuNames, i, "domain unit");
 			const AbstrUnit* vu = FindUnitInContainer(optVuContext, optVuNames, i, "values unit");
 
-			iter = CreateDataItemFromPath(resultHolder, subItemName.c_str(), du, vu, valueComposition).get(); // owned by resultHolder
+			iter = CreateDataItemFromPath(resultHolder.GetNew(), subItemName.c_str(), du, vu, valueComposition).get(); // owned by resultHolder
 		}
 		else if (optUnitContext)
 		{
 			const AbstrUnit* unit = FindUnitInContainer(optUnitContext, optUnitNames, i, "unit");
 
-			iter = unit->GetUnitClass()->CreateUnitFromPath(resultHolder, subItemName.c_str()).get();
+			iter = unit->GetUnitClass()->CreateUnitFromPath(resultHolder.GetNew(), subItemName.c_str()).get();
 		}
 		else
 		{

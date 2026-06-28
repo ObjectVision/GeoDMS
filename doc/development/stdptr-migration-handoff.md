@@ -259,16 +259,81 @@ Investigation leads: (a) does `StartSupplInterest()` actually visit + IncInteres
 IncDataInterestCount();` with the new kind-based `operator bool`) still fire for arg DCs? (d) the
 `OldRefDecrementer`/`GetInterestPtrOrNull` reworks. Confirm against `teardown-leak-and-ownership-cycles.md`.
 
+## ★ SESSION 3 (2026-06-29) — teardown UAF FIXED, canonical `=delete`, rogue-ctor + DualRef cascade
+
+**1. Teardown UAF (the 0xC0000005) was NOT an ownership bug — it was the leftover TEMP instrumentation.**
+The std-ptr migration's real weak liveness already resolves the cycles (`s_DcMap` drains to 0, no leaked Lisp,
+`configRoot rootRc=1` → `ReleaseIt` cleanly destroys the root). The fault was `EnableAutoDelete` reading the
+config root (`weak_from_this()`, `DBG_*` dumps, `g_DBG_ConfigRoot`) AFTER `SessionData::ReleaseIt` freed it.
+Removed those blocks (do NOT touch `this` after ReleaseIt on a config root). **`reverse.dms /test_log` →
+exit 0** (clean compute + clean teardown). Committed `ae5fecde`.
+
+**2. All temp teardown-leak instrumentation removed** (DataController `DBG_*`/`g_DBG_ConfigRoot`,
+OperationContext `~tg_maintainer` calls, MoreDataControllers `DBG_GetOtherSuppliers`, LispRef `~LispCaches`
+restored to pristine — dropped `_set_error_mode/_set_abort_behavior` + `leaked_lisp.txt`). Committed `bae0848c`.
+
+**3. "Remove all `SharedPtr<TreeItem-family>`" — ALREADY COMPLETE.** Every family typedef is `shared_tree_ptr`;
+no lingering intrusive `SharedPtr<family>`/`WeakPtr<family>` members.
+
+**4. Canonical `=delete` of the inherited raw ctor** (user decision, see [[project_stdptr_delete_raw_ctor]]):
+`template <class Y> shared_tree_ptr(Y*) = delete;` in `SharedTreePtr.h`. shared_tree_ptr<T> is now a strict
+`std::shared_ptr<T>` — no auto raw conversion (use `.get()`), construct only via make_shared Creators /
+weak_ptr::lock() / interim tags. This surfaced 7 genuine rogue-control-block sites (a raw-ptr ctor builds a
+SEPARATE control block w/ delete-deleter → double-free at teardown — the reg_count teardown AV was exactly
+this), all fixed with `(rawptr, existing_obj{})`: RegCount.cpp:57 (RegionMeta m_Partition — **fixed a real
+teardown AV; reg_count now passes**), Explain.cpp:848 (m_StudyObject) + 142 (ArgRef in_place), stg
+DllMain.cpp:629 (m_ADI) + OdbcStorageManager.cpp:364 (m_TableHolder), shv IndexCollector.cpp:54/55.
+
+**5. `TreeItemDualRef → TreeItem*` implicit conversion removed (user)** → ~50 operator sites fixed: pass
+`resultHolder.GetNew()` (the new result being built; the universal case here) instead of bare `resultHolder`
+as the `TreeItem*` parent/context to `Create{Result,Tmp,}Unit/CreateDataItem[FromPath]/CreateUnitFromPath/
+CreateResultDomain/CopyTreeContext`. (`OperPolygon.cpp:756` `resultHolder` is a raw `TreeItem*` param — left.)
+
+**Full all22.sln Debug x64 builds GREEN with all of the above** (`build_debug_stdptr48.log`). UNCOMMITTED beyond
+`bae0848c` as of this writing → commit the green stepping stone.
+
+### ⚠ OPEN — `FindUnit` GetTreeParent assert (the ~13 unit-sweep failures) = weak `m_ValuesUnit`/`m_DomainUnit`
+A headless sweep of the operator/unit/other/integrity configs (mirrors `tst/batch/Unit/Instance.bat`:
+`GeoDmsRun /S1 /S2 /S3 <cfg> <item>`) shows reverse/subitem/connect/reg_count/etc PASS, but ~13
+template/select/union/namespace configs FAIL. Root-caused (temp diagnostics in FindUnit + AddItem, since removed):
+`AbstrDataItem::GetAbstrValuesUnit()` (AbstrDataItem.cpp:109) — `m_ValuesUnit`/`m_DomainUnit` are
+**`weak_tree_ptr`** now; when the weak EXPIRES (the values/domain unit is a parentless cache unit not pinned by
+the config tree) it falls back to `FindUnit(token)`, which asserts `GetTreeParent()` because the item is a
+parentless **cache root** (`isCache=1 isEndo=1 name='' m_Parent.has_ptr=0`). `AddItem` never fails to capture
+m_Parent (verified) — the parent simply doesn't exist for these cache roots. **A failed CRT `assert` pops a
+modal MessageBoxW dialog that HANGS headless Debug runs** (per CLAUDE.md) — so these configs hang, not exit.
+This is exactly the prior-session finding that "m_DomainUnit/m_ValuesUnit are load-bearing during compute and
+CANNOT be weakened" (weakening them crashed/asserted), now reproduced under the std migration. The std plan bet
+that tree-shared-ownership keeps units alive so the weak wouldn't expire — that bet FAILS for cache/instantiation
+result units. **DECISION NEEDED (architectural, user's call):** make `m_ValuesUnit` (and/or `m_DomainUnit`)
+OWNING `shared_tree_ptr` (m_ValuesUnit owning is cycle-free since the values unit is not the parent; m_DomainUnit
+owning reintroduces the table↔column cycle = a std::shared_ptr LEAK, not a crash), vs. keep weak + pin cache
+units another way (e.g. the result/DC holds its units), vs. a values-unit registry. The `role=Values` diagnostic
+suggests m_ValuesUnit is the one expiring here.
+
+### ⚠ OPEN — `centroid_or_mid_complex` teardown-order assert (`AbstrUnit.cpp:57` `DataItemRefContainer ~ !size()`)
+The per-unit DataItemsOut registry (`m_DataItemsAssocPtr`) is an **AbstrUnit member**, so it is destroyed BEFORE
+the `~TreeItem` base dtor destroys the unit's sub-item attributes (which are still registered in it) — a
+parent-owns-child destruction-order problem. Fix candidates: relax the assert (registered items are sub-items
+about to die), or clear/deregister in `~AbstrUnit` before members are destroyed, or make `~AbstrDataItem`'s
+`DelDataItemOut` robust when its domain unit is mid-destruction.
+
+### ✓ FIXED this session — `UsingCache::ClearUsings` teardown null-deref (ComplexNamespaces etc.)
+`lock_raw(*i)->GetUsingCache()` deref'd a using-namespace already destroyed during teardown (expired weak →
+null). Guarded: `if (const TreeItem* ns = lock_raw(*i++)) if (ns->CurrHasUsingCache()) ns->GetUsingCache()->
+DelIncoming(this);`. (ComplexNamespaces no longer AVs there, but now hangs on the FindUnit assert above.)
+
 ## Remaining steps
 
-1. Root-cause + fix the arg-DC interest regression above; re-run `reverse.dms /test_log` to clean exit.
-2. Then watch for the prior config-teardown heap-corruption (memory `project_stdptr_cascade_triage.md`).
-3. Run `batch/TestDebugUnit.bat` to green.
-3. Review the agents' `// TODO ownership:` stopgaps (a handful in Explain.cpp m_UltimateDomain/ValuesUnit,
-   XmlTreeOut.cpp di, AbstrStreamManager/UsingCache held-vs-borrow) for whether they should be
-   `weak_tree_ptr` members rather than `.get()` borrows.
-4. Remove the temp teardown instrumentation (dcmap_trace/g_DBG_ConfigRoot in TreeItem.cpp ~line 410+) once
-   the teardown leak is settled. Then commit.
+1. **Resolve the weak `m_ValuesUnit`/`m_DomainUnit` decision** (above) — the dominant unit-sweep failure.
+2. Fix the `centroid` DataItemRefContainer teardown-order assert.
+3. Run `batch/TestDebugUnit.bat` to green (needs 1+2; note Debug asserts hang headless via MessageBoxW —
+   every assert must be eliminated, OR route the CRT report mode to non-interactive for batch runs).
+4. Review the agents' `// TODO ownership:` stopgaps (Explain.cpp m_UltimateDomain/ValuesUnit raw borrows kept
+   alive by m_DataItem interest — acceptable; AbstrStreamManager/UsingCache locals owning — fine).
+
+Headless unit-sweep driver (mirrors the harness, exit-code-checked, per-config `timeout -s KILL`) is in the
+session scratchpad (`unit_sweep.sh`).
 
 ## Constraints
 

@@ -361,7 +361,7 @@ public:
 	ODBCStorageReader(ODBCStorageManager* odbcstoragemanager, const OdbcMetaInfo* smi, TreeItem* tableHolder, CharPtr columnName, AbstrDataItem* colItem)
 		:	m_ODBCStorageManager(odbcstoragemanager)
 		,	m_OdbcInfo(smi)
-		,	m_TableHolder(tableHolder)
+		,	m_TableHolder(tableHolder, existing_obj{}) // borrow the tree-owned table holder (co-own its real control block)
 		,	m_Name(columnName)
 		,	m_ColItem(colItem)
 		,	m_RecordCount(-1)

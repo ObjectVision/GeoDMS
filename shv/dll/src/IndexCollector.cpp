@@ -51,8 +51,8 @@ SharedPtr<IndexCollector> IndexCollector::Create(const Theme* featureTheme)
 
 
 IndexCollector::IndexCollector(index_collector_key key)
-	:	m_ExtKeyAttr   ( key.first  ) // = featureTheme->GetClassification() = Feature -> ExtKey
-	,	m_GeoRelAttr   ( key.second ) // = featureTheme->GetThemeAttr()      = Entity  -> ExtKey
+	:	m_ExtKeyAttr   ( key.first , existing_obj{} ) // = featureTheme->GetClassification() = Feature -> ExtKey (borrow tree-owned attr)
+	,	m_GeoRelAttr   ( key.second, existing_obj{} ) // = featureTheme->GetThemeAttr()      = Entity  -> ExtKey (borrow tree-owned attr)
 {
 	assert(key.first || key.second);
 	PreparedDataReadLock lck1(key.first , "IndexCollector::ctor");

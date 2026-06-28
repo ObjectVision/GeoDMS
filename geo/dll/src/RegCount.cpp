@@ -54,7 +54,7 @@ typedef SizeT  PartitionIndex;
 struct RegionMeta
 {
 	RegionMeta(const AbstrDataItem* partition, AbstrDataItem* result)
-		:	m_Partition(partition)
+		:	m_Partition(partition, existing_obj{}) // borrow the tree-owned partition arg (co-own its real control block)
 		,	m_Result  (result)
 	{}
 
@@ -234,7 +234,7 @@ struct RegCountOperator : public QuaternaryOperator
 			TokenID nameID = GetTokenID_mt(className.c_str());
 			assert(nameID);
 			const AbstrUnit* regionalDomain = partition ? partition->GetAbstrValuesUnit() : Unit<Void>::GetStaticClass()->CreateDefault();
-			auto resultItem = CreateDataItem(resultHolder, nameID, regionalDomain, regionMetaArray.m_ResUnit.get());
+			auto resultItem = CreateDataItem(resultHolder.GetNew(), nameID, regionalDomain, regionMetaArray.m_ResUnit.get());
 			assert(resultItem);
 			regionMetaArray.emplace_back(partition.get(), resultItem.get()); // resultItem owned by resultHolder (parent)
 			if (partition)

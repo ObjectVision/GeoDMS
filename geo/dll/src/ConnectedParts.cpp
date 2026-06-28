@@ -89,7 +89,7 @@ public:
 		MG_CHECK(checked_domain<LinkType>(arg1A, "a1") == checked_domain<LinkType>(arg2A, "a2"));
 		MG_CHECK(arg1A->GetAbstrValuesUnit() == arg2A->GetAbstrValuesUnit());
 
-		auto res_owner = ResultUnitType::GetStaticClass()->CreateResultUnit(resultHolder); AbstrUnit* res = res_owner.get();
+		auto res_owner = ResultUnitType::GetStaticClass()->CreateResultUnit(resultHolder.GetNew()); AbstrUnit* res = res_owner.get();
 		assert(res);
 		resultHolder = res;
 
@@ -382,7 +382,7 @@ public:
 		MG_CHECK(checked_domain<LinkType>(arg1A, "a1") == checked_domain<LinkType>(arg2A, "a2"));
 		MG_CHECK(arg1A->GetAbstrValuesUnit() == arg2A->GetAbstrValuesUnit());
 
-		auto res_owner = ResultUnitType::GetStaticClass()->CreateResultUnit(resultHolder); AbstrUnit* res = res_owner.get();
+		auto res_owner = ResultUnitType::GetStaticClass()->CreateResultUnit(resultHolder.GetNew()); AbstrUnit* res = res_owner.get();
 		assert(res);
 		resultHolder = res;
 

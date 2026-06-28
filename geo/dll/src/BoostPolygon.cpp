@@ -172,7 +172,7 @@ protected:
 
 		values1Unit->UnifyValues(values2Unit, "v1", "v2", UM_Throw);
 
-		auto res_owner = Unit<ResultingDomainType>::GetStaticClass()->CreateResultUnit(resultHolder); auto res = res_owner.get();
+		auto res_owner = Unit<ResultingDomainType>::GetStaticClass()->CreateResultUnit(resultHolder.GetNew()); auto res = res_owner.get();
 		resultHolder = res;
 
 		AbstrDataItem* resG = (!m_MustCreateGeometries) ? nullptr : CreateDataItem(res, s_tGM, res, values1Unit, ValueComposition::Polygon).get(); // owned by res
@@ -833,7 +833,7 @@ protected:
 
 		if (m_Flags & PolygonFlags::F_DoSplit)
 		{
-			auto resUnit_owner = Unit<UInt32>::GetStaticClass()->CreateResultUnit(resultHolder); resUnit = resUnit_owner.get();
+			auto resUnit_owner = Unit<UInt32>::GetStaticClass()->CreateResultUnit(resultHolder.GetNew()); resUnit = resUnit_owner.get();
 			resUnit->SetTSF(TSF_Categorical);
 
 			resultHolder = resUnit;
@@ -1683,7 +1683,7 @@ protected:
 
 		const AbstrUnit* domain1Unit = arg1A->GetAbstrDomainUnit();
 
-		auto res = Unit<ResultingDomainType>::GetStaticClass()->CreateResultUnit(resultHolder);
+		auto res = Unit<ResultingDomainType>::GetStaticClass()->CreateResultUnit(resultHolder.GetNew());
 		res->SetTSF(TSF_Categorical);
 
 
@@ -1823,7 +1823,7 @@ protected:
 			e->UnifyDomain(arg2A->GetAbstrDomainUnit(), "e1", "e2", UM_Throw);
 
 
-		auto res = Unit<ResultingDomainType>::GetStaticClass()->CreateResultUnit(resultHolder);
+		auto res = Unit<ResultingDomainType>::GetStaticClass()->CreateResultUnit(resultHolder.GetNew());
 		res->SetTSF(TSF_Categorical);
 
 

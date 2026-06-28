@@ -53,7 +53,7 @@ public:
 		if (!resultHolder)
 			resultHolder = TreeItem::CreateCacheRoot();
 
-		TreeItem* result = resultHolder;
+		TreeItem* result = resultHolder.GetNew();
 		dms_assert(result);
 
 		SharedStr lastIterName = SharedStr(loopContents->GetID());
@@ -145,15 +145,15 @@ public:
 		if (!resultHolder)
 			resultHolder = TreeItem::CreateCacheRoot();
 
-		TreeItem* result = resultHolder;
+		TreeItem* result = resultHolder.GetNew();
 		dms_assert(result);
 
 		for (row_id i=0; i!= nrIter; ++i)
 		{
 			SharedStr iterName = iterNames->GetValue<SharedStr>(i);
 			CopyTreeContext ctc(
-				resultHolder, 
-				loopContents, 
+				resultHolder.GetNew(),
+				loopContents,
 				iterName.c_str(), 
 				DataCopyMode::CopyExpr
 			);

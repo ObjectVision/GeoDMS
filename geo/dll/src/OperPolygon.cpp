@@ -782,7 +782,7 @@ struct AbstrArcs2SegmentsOperator : public UnaryOperator
 		const AbstrUnit* polyEntity      = arg1A->GetAbstrDomainUnit();
 		const AbstrUnit* pointValuesUnit = arg1A->GetAbstrValuesUnit();
 
-		auto resDomain_owner = CreateResultDomain(resultHolder, m_CreateFlags); AbstrUnit* resDomain = resDomain_owner.get();
+		auto resDomain_owner = CreateResultDomain(resultHolder.GetNew(), m_CreateFlags); AbstrUnit* resDomain = resDomain_owner.get();
 		resultHolder = resDomain;
 
 		AbstrDataItem 
@@ -1022,7 +1022,7 @@ struct AbstrDynaPointOperator : public TernaryOperator
 		pointEntity->UnifyDomain(arg2A->GetAbstrDomainUnit(), "e1", "e2", UM_Throw);
 		Unit<Void>::GetStaticClass()->CreateDefault()->UnifyDomain(arg3A->GetAbstrDomainUnit(), "Unit<Void>", "e3", UM_Throw);
 
-		auto resDomain_owner = CreateResultDomain(resultHolder, m_CreateFlags); AbstrUnit* resDomain = resDomain_owner.get();
+		auto resDomain_owner = CreateResultDomain(resultHolder.GetNew(), m_CreateFlags); AbstrUnit* resDomain = resDomain_owner.get();
 		resultHolder = resDomain;
 
 		AbstrDataItem 
@@ -1904,7 +1904,7 @@ protected:
 
 		values1Unit->UnifyValues(values2Unit, "v1", "v2", UM_Throw);
 
-		auto res_owner = Unit<UInt32>::GetStaticClass()->CreateResultUnit(resultHolder); AbstrUnit* res = res_owner.get();
+		auto res_owner = Unit<UInt32>::GetStaticClass()->CreateResultUnit(resultHolder.GetNew()); AbstrUnit* res = res_owner.get();
 		resultHolder = res;
 
 		AbstrDataItem* res1 = e1IsVoid ? nullptr : CreateDataItem(res, s_tFR, res, domain1Unit).get(); // owned by res

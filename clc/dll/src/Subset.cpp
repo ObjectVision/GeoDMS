@@ -131,7 +131,7 @@ struct SubsetOperator: public UnaryOperator
 		if (!resDomainCls)
 			resDomainCls = UnitClass::Find(vc->GetCrdClass());
 
-		auto res_owner = resDomainCls->CreateResultUnit(resultHolder); AbstrUnit* res = res_owner.get();
+		auto res_owner = resDomainCls->CreateResultUnit(resultHolder.GetNew()); AbstrUnit* res = res_owner.get();
 		assert(res);
 		res->SetTSF(TSF_Categorical);
 
@@ -265,7 +265,7 @@ struct SelectMetaOperator : public BinaryOperator
 		if (!resDomainCls)
 			resDomainCls = UnitClass::Find(vc->GetCrdClass());
 
-		auto res_owner = resDomainCls->CreateResultUnit(resultHolder); AbstrUnit* res = res_owner.get(); // does this set result to Failed when
+		auto res_owner = resDomainCls->CreateResultUnit(resultHolder.GetNew()); AbstrUnit* res = res_owner.get(); // does this set result to Failed when
 		assert(res);
 		auto resExpr = ExprList(m_SelectOper, conditionKeyExpr);
 		assert(!resExpr.EndP());
@@ -519,7 +519,7 @@ struct CollectWithAttrOperator : public BinaryOperator
 					);
 				continue;
 			}
-			auto resSub = CreateDataItem(resultHolder, subDataID, domainA, subDataItem->GetAbstrValuesUnit(), subDataItem->GetValueComposition());
+			auto resSub = CreateDataItem(resultHolder.GetNew(), subDataID, domainA, subDataItem->GetAbstrValuesUnit(), subDataItem->GetValueComposition());
 
 			SharedStr collectExpr;
 			if (m_CollectMode == collect_mode::org_rel)

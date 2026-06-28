@@ -142,7 +142,7 @@ public:
 		if (!resultHolder)
 			resultHolder = TreeItem::CreateCacheRoot();
 
-		TreeItem* result = resultHolder;
+		TreeItem* result = resultHolder.GetNew();
 
 //		table of ObjectTypes
 		std::map<ClassCPtr, UInt32> classNrs;
@@ -333,7 +333,7 @@ public:
 		if (!resultHolder)
 			resultHolder = TreeItem::CreateCacheRoot();
 
-		TreeItem* result = resultHolder;
+		TreeItem* result = resultHolder.GetNew();
 
 	//	table of StorageManagers
 		{

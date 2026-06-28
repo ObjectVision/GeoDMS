@@ -51,7 +51,7 @@ public:
 
 		arg1A->GetAbstrValuesUnit()->UnifyValues(AsDataItem(args[1])->GetAbstrValuesUnit(), "v1", "v2", UnifyMode(UM_Throw));
 
-		auto AB = static_cast<const UnitClass*>(GetResultClass())->CreateResultUnit(resultHolder);
+		auto AB = static_cast<const UnitClass*>(GetResultClass())->CreateResultUnit(resultHolder.GetNew());
 
 		AbstrDataItem* resSubA = CreateDataItem(AB.get(), GetTokenID_mt("first_rel"), AB.get(), AsDataItem(args[0])->GetAbstrDomainUnit()).get(); // owned by AB
 		AbstrDataItem* resSubB = CreateDataItem(AB.get(), GetTokenID_mt("second_rel"), AB.get(), AsDataItem(args[1])->GetAbstrDomainUnit()).get(); // owned by AB

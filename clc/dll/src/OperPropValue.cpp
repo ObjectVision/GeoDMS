@@ -157,7 +157,7 @@ struct PropValueOperator : public BinaryOperator
 		{
 			if (m_ItemSetProvider)
 			{
-				resultHolder = Unit<UInt32>::GetStaticClass()->CreateResultUnit(resultHolder); // count subitems.
+				resultHolder = Unit<UInt32>::GetStaticClass()->CreateResultUnit(resultHolder.GetNew()); // count subitems.
 				resultHolder->SetTSF(TSF_Categorical);
 
 				resultHolder.GetNew()->SetKeepDataState(true);

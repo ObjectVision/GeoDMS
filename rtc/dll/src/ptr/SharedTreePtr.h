@@ -47,6 +47,12 @@ struct shared_tree_ptr : std::shared_ptr<T>
 
 	// NB: no implicit raw-pointer ctor. Raw<->shared conversion is explicit: use a construction tag
 	// (existing_obj / newly_obj / no_zombies) to build a shared_tree_ptr, and .get() to obtain a raw pointer.
+	// The inherited std::shared_ptr `template<class Y> explicit shared_ptr(Y*)` ctor (pulled in by the
+	// `using base_type::base_type;` above) is DELETED here: constructing from a bare raw pointer would build a
+	// SEPARATE control block with a delete-deleter, silently double-managing a tree-owned object (a rogue
+	// control block that frees the item out from under its real owners at teardown -- a real UAF class). The
+	// =delete makes every such accidental site a compile error; classify it with a tag instead.
+	template <class Y> shared_tree_ptr(Y*) = delete;
 
 	// Construction-tag ctors mapping the intrusive semantics onto std:: ownership:
 	shared_tree_ptr(T* p, newly_obj) : base_type(p) {}                     // adopt a freshly created object

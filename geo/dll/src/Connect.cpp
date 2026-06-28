@@ -671,17 +671,17 @@ public:
 		const SegmUnitType* segmUnit = OnlyDistResult ? nullptr : const_unit_cast<UInt32>( SegmUnitType::GetStaticClass()->CreateDefault() );
 
 
-		AbstrDataItem* resSub1 = OnlyDistResult ? AsDataItem(resultHolder.GetNew()) : CreateDataItem(resultHolder, s_Dist, pointEntity, distUnit).get(); // owned by resultHolder
-		AbstrDataItem* resSub2 = OnlyDistResult ? nullptr : CreateDataItem(resultHolder, token::arc_rel, pointEntity, polyEntity).get(); // owned by resultHolder
-		AbstrDataItem* resSub3 = OnlyDistResult ? nullptr : CreateDataItem(resultHolder, s_CutPoint, pointEntity, pointUnit ).get(); // owned by resultHolder
-		AbstrDataItem* resSub4 = OnlyDistResult ? nullptr : CreateDataItem(resultHolder, s_InArc,    pointEntity, boolUnit  ).get(); // owned by resultHolder
-		AbstrDataItem* resSub5 = OnlyDistResult ? nullptr : CreateDataItem(resultHolder, s_InSegm,   pointEntity, boolUnit  ).get(); // owned by resultHolder
-		AbstrDataItem* resSub6 = OnlyDistResult ? nullptr : CreateDataItem(resultHolder, s_SegmID,   pointEntity, segmUnit  ).get(); // owned by resultHolder
+		AbstrDataItem* resSub1 = OnlyDistResult ? AsDataItem(resultHolder.GetNew()) : CreateDataItem(resultHolder.GetNew(), s_Dist, pointEntity, distUnit).get(); // owned by resultHolder
+		AbstrDataItem* resSub2 = OnlyDistResult ? nullptr : CreateDataItem(resultHolder.GetNew(), token::arc_rel, pointEntity, polyEntity).get(); // owned by resultHolder
+		AbstrDataItem* resSub3 = OnlyDistResult ? nullptr : CreateDataItem(resultHolder.GetNew(), s_CutPoint, pointEntity, pointUnit ).get(); // owned by resultHolder
+		AbstrDataItem* resSub4 = OnlyDistResult ? nullptr : CreateDataItem(resultHolder.GetNew(), s_InArc,    pointEntity, boolUnit  ).get(); // owned by resultHolder
+		AbstrDataItem* resSub5 = OnlyDistResult ? nullptr : CreateDataItem(resultHolder.GetNew(), s_InSegm,   pointEntity, boolUnit  ).get(); // owned by resultHolder
+		AbstrDataItem* resSub6 = OnlyDistResult ? nullptr : CreateDataItem(resultHolder.GetNew(), s_SegmID,   pointEntity, segmUnit  ).get(); // owned by resultHolder
 
 		if (resSub2 && !mustCalc)
 		{
 			resSub2->SetTSF(TSF_Categorical);
-			auto resNrOrg_depreciated = CreateDataItem(resultHolder, s_ArcID, pointEntity, polyEntity);
+			auto resNrOrg_depreciated = CreateDataItem(resultHolder.GetNew(), s_ArcID, pointEntity, polyEntity);
 			resNrOrg_depreciated->SetTSF(TSF_Categorical);
 			resNrOrg_depreciated->SetTSF(TSF_Depreciated);
 			resNrOrg_depreciated->SetReferredItem(resSub2);
@@ -967,7 +967,7 @@ public:
 		bool hasNonVoidMinDist = HasMinDist && !(argMinDist->HasVoidDomainGuarantee());
 		bool hasNonVoidMaxDist = HasMaxDist && !(argMaxDist->HasVoidDomainGuarantee());
 
-		auto resDomain_owner = ResultUnitType::GetStaticClass()->CreateResultUnit(resultHolder);
+		auto resDomain_owner = ResultUnitType::GetStaticClass()->CreateResultUnit(resultHolder.GetNew());
 		ResultUnitType* resDomain = mutable_unit_cast<R>(resDomain_owner.get());
 		dms_assert(resDomain);
 		bool createNewResult = !resultHolder;

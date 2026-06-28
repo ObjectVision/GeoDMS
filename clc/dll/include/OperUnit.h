@@ -87,7 +87,7 @@ public:
 		else
 		{
 
-			auto res_owner = resultUnitClass->CreateTmpUnit(resultHolder); AbstrUnit* res = res_owner.get();
+			auto res_owner = resultUnitClass->CreateTmpUnit(resultHolder.GetNew()); AbstrUnit* res = res_owner.get();
 			resultHolder = res;
 
 			dms_assert(res);
@@ -161,7 +161,7 @@ public:
 		dms_assert(arg2A->GetUnitClass() == GetArgClass(1));
 		dms_assert(arg2A->GetUnitClass() == GetResultClass());
 
-		auto result = arg2A->GetUnitClass()->CreateTmpUnit(resultHolder);
+		auto result = arg2A->GetUnitClass()->CreateTmpUnit(resultHolder.GetNew());
 		dms_assert(result);
 
 		InterestPtr<const TreeItem*> hackToFixFuncDcMakeResultDueToUnderspecifiedOperatorgroup(adi); // REMOVE, FIX
@@ -258,7 +258,7 @@ public:
 
 		checked_domain<Void>(args[1], "a2");
 
-		auto result_owner = arg1A->GetUnitClass()->CreateTmpUnit(resultHolder); AbstrUnit* result = result_owner.get();
+		auto result_owner = arg1A->GetUnitClass()->CreateTmpUnit(resultHolder.GetNew()); AbstrUnit* result = result_owner.get();
 		resultHolder = result;
 
 		const UnitMetric* arg1SI = arg1A->GetMetric();

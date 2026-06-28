@@ -139,7 +139,7 @@ namespace Explain { // local defs
 			:	AbstrCalcExplanation(dataItem)
 		{}
 
-		ArgRef GetCalcDataItem(std::shared_ptr<Explain::Context> context) const override { return ArgRef(std::in_place_type<SharedTreeItem>, m_DataItem.get_ptr()); }
+		ArgRef GetCalcDataItem(std::shared_ptr<Explain::Context> context) const override { return ArgRef(std::in_place_type<SharedTreeItem>, m_DataItem.get_ptr(), existing_obj{}); } // borrow the interest-held data item
 
 		void GetDescrImpl(CalcExplImpl* self, OutStreamBase& stream, bool isFirst, bool showHidden) const override;
 
@@ -845,7 +845,7 @@ namespace Explain { // local defs
 	NonStaticCalcExplanations::NonStaticCalcExplanations(OutStreamBase& xmlOutStr, const AbstrDataItem* studyObject, SizeT index, CharPtr extraInfo)
 		: m_Impl(std::make_unique<CalcExplImpl>())
 		, m_Interface(std::make_unique<CalcExplanations>(xmlOutStr, true, m_Impl.get()))
-		, m_StudyObject(studyObject)
+		, m_StudyObject(studyObject, existing_obj{}) // borrow the tree-owned study object (co-own its real control block)
 	{
 		m_Impl->Init(studyObject, index, extraInfo);
 	}

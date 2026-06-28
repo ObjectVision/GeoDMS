@@ -242,7 +242,7 @@ public:
 			assert(rect.first.first  <= rect.second.first);
 			assert(rect.first.second <= rect.second.second);
 
-			TreeItem* res = resultHolder;
+			TreeItem* res = resultHolder.GetNew();
 			DataWriteLock resLock(debug_cast<AbstrDataItem*>(res));
 			auto resultData =  mutable_array_cast<UInt32>(resLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
 			dms_assert(resultData.size() == size);

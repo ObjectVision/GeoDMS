@@ -322,7 +322,7 @@ struct RapidXmlOperator : public BinaryOperator
 		InstantiateTemplate(resultHolder.GetNew(), args[1], metaCallArgs.Right().Right()); // GetArgList()->m_Next->m_Next) is the remainder of the nul-terminated left-right list after taking the first two elements out
 //		TemplDC::Instantiate(resultHolder, args[1], debug_cast<FuncDC*>(&resultHolder)->GetArgList()->m_Next->m_Next);
 
-		AbstrUnit* entityTable = Unit<UInt32>::GetStaticClass()->CreateUnit(resultHolder, GetTokens().entityTableID).get();
+		AbstrUnit* entityTable = Unit<UInt32>::GetStaticClass()->CreateUnit(resultHolder.GetNew(), GetTokens().entityTableID).get();
 		CreateDataItem(entityTable, GetTokens().valuesID, entityTable, Unit<SharedStr>::GetStaticClass()->CreateDefault());
 
 		TreeItem* walkRoot = resultHolder.GetNew();
@@ -373,7 +373,7 @@ struct RapidXmlOperator : public BinaryOperator
 			pc.ProcessNode(&doc, nullptr, entity_id(UNDEFINED_VALUE(SizeT), UNDEFINED_VALUE(SizeT)));
 		}
 		// =========== store results
-		AbstrUnit* entityTable = Unit<UInt32>::GetStaticClass()->CreateUnit(resultHolder, GetTokens().entityTableID).get();
+		AbstrUnit* entityTable = Unit<UInt32>::GetStaticClass()->CreateUnit(resultHolder.GetNew(), GetTokens().entityTableID).get();
 		entityTable->SetCount(pc.m_EntityNames.size());
 
 		InterestPtr<shared_tree_ptr<AbstrDataItem>> entityNames = CreateDataItem(entityTable, GetTokens().valuesID, entityTable,  Unit<SharedStr>::GetStaticClass()->CreateDefault()).get(); // owned by entityTable (parent)
