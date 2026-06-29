@@ -457,7 +457,7 @@ ItemWriteLock::ItemWriteLock(TreeItem* item, std::weak_ptr<OperationContext> ocb
 	}
 }
 
-ItemWriteLock::~ItemWriteLock()
+void ItemWriteLock::releaseHeldLock() noexcept
 {
 	if (!has_ptr())
 		return;
@@ -469,6 +469,22 @@ ItemWriteLock::~ItemWriteLock()
 #if defined(MG_DEBUG_DATASTORELOCK)
 	--sd_ItemWriteLockCounter;
 #endif
+	m_ItemPtr = {};
+}
+
+ItemWriteLock::~ItemWriteLock()
+{
+	releaseHeldLock();
+}
+
+ItemWriteLock& ItemWriteLock::operator =(ItemWriteLock&& rhs) noexcept
+{
+	if (this != &rhs)
+	{
+		releaseHeldLock();                  // release the lock we currently hold (a defaulted move would leak it)
+		m_ItemPtr = std::move(rhs.m_ItemPtr); // adopt rhs's lock; rhs becomes empty so its dtor is a no-op
+	}
+	return *this;
 }
 
 Int32 GetItemLockCount(const TreeItem* item)

@@ -77,7 +77,11 @@ struct ItemWriteLock // held by creator to manage its unreadyness to prevent oth
 	TIC_CALL ~ItemWriteLock() noexcept;
 
 	ItemWriteLock(ItemWriteLock&& rhs) = default;
-	ItemWriteLock& operator = (ItemWriteLock&& rhs) = default;
+	// NOT '= default': the write-lock release (treeitem_production_task::unlock_unique) lives in ~ItemWriteLock,
+	// so a defaulted move-assignment would only overwrite m_ItemPtr and LEAK the lock it replaces (m_ItemCount
+	// stays < 0). Callers rely on `lock = ItemWriteLock()` / `lock = std::move(other)` to RELEASE the prior lock
+	// (e.g. ShvUtils CreateNonzeroJenksFisherBreakAttr releasing the palette-domain write lock). Release first.
+	TIC_CALL ItemWriteLock& operator = (ItemWriteLock&& rhs) noexcept;
 
 	// don't calll these
 	ItemWriteLock(const ItemWriteLock&) = delete;
@@ -96,6 +100,7 @@ struct ItemWriteLock // held by creator to manage its unreadyness to prevent oth
 
 private:
 	bool has_ptr() const { return m_ItemPtr.has_ptr(); }
+	void releaseHeldLock() noexcept; // shared by ~ItemWriteLock and move-assignment
 
 	shared_tree_ptr<const TreeItem> m_ItemPtr;
 };
