@@ -329,6 +329,16 @@ TreeItem::~TreeItem ()
 
 	SetKeepDataState(false); // StringDC en NumbDC cache items hebben ook KeepInterest
 
+	// Tear down our UsingCache BEFORE releasing sub-items. A child cache registers itself in its
+	// parent's m_Incoming (UsingCache::AddParent); the symmetric deregistration in a child's
+	// ~UsingCache walks its WEAK m_Usings parent entry, which has already expired once the parent's
+	// shared refcount hit 0 (we are inside the parent's ~TreeItem). That skips DelIncoming and would
+	// leave a DANGLING child UsingCache* in our m_Incoming, which our own ~UsingCache then derefs
+	// (SetDirty) -> UAF. Destroying our cache first detaches us from every still-live child's m_Usings
+	// (and from used sibling/ancestor namespaces) top-down, so no child ever references a dead parent
+	// cache and no dead child is left in any m_Incoming. reset() is a no-op when the cache is absent.
+	m_UsingCache.reset();
+
 	// Parent owns its sub-items (downward std::shared_ptr): drop each child now.
 	// ReleaseSubItem splices the first child out (m_FirstSub advances to the next sibling) and then
 	// drops the owning ptr; looping on m_FirstSub tears down the sibling chain iteratively (no stack
