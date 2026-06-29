@@ -339,9 +339,42 @@ about to die), or clear/deregister in `~AbstrUnit` before members are destroyed,
 null). Guarded: `if (const TreeItem* ns = lock_raw(*i++)) if (ns->CurrHasUsingCache()) ns->GetUsingCache()->
 DelIncoming(this);`. (ComplexNamespaces no longer AVs there, but now hangs on the FindUnit assert above.)
 
+### ◐ IN PROGRESS — DcRef kind-1/kind-2 redesign (cache result units kept alive by the DcRef, not the items)
+
+Per the user's design (memory [[project_stdptr_cache_unit_ownership]]): `m_DomainUnit`/`m_ValuesUnit` stay
+uniformly WEAK; the DcRef that owns a cache result owns unit-liveness. Implemented in `TreeItemDualref.h`/
+`DataController.cpp`:
+- **kind 1 (IsNew)** = `NewResult{ std::vector<std::shared_ptr<const TreeItem>> m_Owned }`: `[0]` = cache root
+  result; `[1..]` = owning refs to the result subtree's cache items' domain/values units (collected at SetNew by
+  `KeepResultUnitsAlive`/`CollectCacheUnitsToKeepAlive`, while the operator's unit locals are still alive; config
+  units skipped to avoid the config-root retain cycle). TODO: split into 1a/1b/1c/1d to drop the vector.
+- **kind 2 (IsOld cache)** = `OldCacheSubItem{ std::shared_ptr<const TreeItem> m_Root; const TreeItem* m_SubItem }`:
+  owns the sub-item's cache ROOT (keeps the subtree + the sub-item's ancestor domain unit alive) + a borrowed
+  ptr to the sub-item. `m_DomainUnit`/`m_ValuesUnit` now `WeakUnit` everywhere; added non-resolving
+  `AbstrDataItem::GetCurrDomainUnit()/GetCurrValuesUnit()`.
+
+**Result: unit sweep 34→38 pass** (categorical_unit, select_with_attr_by_org_rel_nested, reg_count, … fixed;
+reverse/subset still clean). **Remaining 9 failures** are the **sub-attribute / lazy-resolution timing gap**: a
+cache result's units that are SET AFTER SetNew (operator adds sub-attrs after `CreateResultUnit`, e.g.
+select/union/template) — or resolved lazily in GetAbstrValuesUnit — are not captured by the SetNew subtree walk,
+so they still expire (xml_parse, centroid, merge_indirect, operator.dms, ComplexNamespaces, TemplDefinition;
++ 2 AVs DoubleInstantiation/GridFromTemplate). TWO open follow-ups: (a) capture sub-attr units when the sub-attr
+is created/assigned (via the thread-local `s_CurrTreeItemDualRef` set at OperationContext.cpp:2606, or a root-side
+keep-alive list); (b) the **kind-2 reachability gap** — kind-2 owns the root OBJECT but the root's external units
+live in the root's *separate* kind-1 DcRef vector (not reachable by owning the root) — so a kind-2 reference to a
+sub-item whose external VALUES unit must stay alive isn't covered; a root-side keep-alive list (reachable by
+owning the root) resolves both (a) and (b) but moves the list off the kind-1 DcRef.
+
+**GOTCHA that cost time:** a parked Debug **assert MessageBox** process holds `Tic.dll` and silently SKIPS the
+next link (build reports 0 errors but Tic.dll is stale → you test the OLD binary). ALWAYS verify `Tic.dll`
+mtime after building, and kill parked procs first. `taskkill`/`Stop-Process` can't kill them (JIT debug port);
+use `cdb -p <pid> -c ".kill;q"`. Run asserting configs under `cdb -cf {sxd *; bu USER32!MessageBoxW ".kill;q"; g}`
+so they die cleanly at the assert (no parked dialog, no DLL lock).
+
 ## Remaining steps
 
-1. **Resolve the weak `m_ValuesUnit`/`m_DomainUnit` decision** (above) — the dominant unit-sweep failure.
+1. **Finish the DcRef redesign**: capture sub-attr/lazy-resolved cache units (the 9 remaining sweep failures) —
+   follow-ups (a)/(b) above. Then re-run the sweep.
 2. Fix the `centroid` DataItemRefContainer teardown-order assert.
 3. Run `batch/TestDebugUnit.bat` to green (needs 1+2; note Debug asserts hang headless via MessageBoxW —
    every assert must be eliminated, OR route the CRT report mode to non-interactive for batch runs).

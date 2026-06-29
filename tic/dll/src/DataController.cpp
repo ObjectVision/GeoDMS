@@ -15,6 +15,8 @@
 #include "LispRef.h"
 
 #include "AbstrCalculator.h"
+#include "AbstrDataItem.h" // for IsDataItem/AsDataItem + GetCurrDomainUnit/GetCurrValuesUnit in KeepResultUnitsAlive
+#include "AbstrUnit.h"     // complete AbstrUnit for the unit->TreeItem upcast + IsCacheItem in KeepResultUnitsAlive
 #include "DataStoreManagerCaller.h"
 #include "ItemLocks.h"
 #include "LispTreeType.h"
@@ -68,6 +70,31 @@ TreeItemDualRef::~TreeItemDualRef()
 	dbg_assert(!m_State.Get(DCFD_DataCounted));
 }
 
+// Walk a freshly-created cache RESULT subtree and append owning refs to its cache items' domain/values units
+// to the kind-1 holder, so those units (parentless cache results with no other owner once the operator's unit
+// locals drop) stay alive while the result is referenced. Config units (IsCacheItem()==false) are tree-owned
+// and skipped (owning one would re-form the config-root retain cycle); the root itself is skipped.
+static void CollectCacheUnitsToKeepAlive(const TreeItem* root, const TreeItem* item, DcRef& dc)
+{
+	if (IsDataItem(item))
+	{
+		const AbstrDataItem* adi = AsDataItem(item);
+		if (auto du = adi->GetCurrDomainUnit())
+			if (const TreeItem* dut = du.get(); dut != root && dut->IsCacheItem())
+				dc.keepAlive(du);
+		if (auto vu = adi->GetCurrValuesUnit())
+			if (const TreeItem* vut = vu.get(); vut != root && vut->IsCacheItem())
+				dc.keepAlive(vu);
+	}
+	for (const TreeItem* sub = item->_GetFirstSubItem(); sub; sub = sub->GetNextItem())
+		CollectCacheUnitsToKeepAlive(root, sub, dc);
+}
+
+void TreeItemDualRef::KeepResultUnitsAlive(const TreeItem* root)
+{
+	CollectCacheUnitsToKeepAlive(root, root, m_Data);
+}
+
 void TreeItemDualRef::Set(const TreeItem* ti, bool isNew)
 {
 	assert(ti);
@@ -90,13 +117,24 @@ void TreeItemDualRef::Set(const TreeItem* ti, bool isNew)
 		//  - isOld borrowing CACHE -> arm 2 std::shared_ptr<const TreeItem> (co-own; transient cache result)
 		//  - isOld borrowing CONFIG-> arm 3 std::weak_ptr<const TreeItem>   (tree owns it; owning here = the
 		//    config-root retain cycle / teardown leak — so keep it NON-owning and .lock()-checked)
-		bool ownIt = isNew || ti->IsCacheItem();
 		auto setArm = [&]() // std co-ownership via shared_from_this/weak_from_this (ti is a make_shared'd TreeItem)
 		{
 			if (isNew)
-				m_Data.m_Holder = std::shared_ptr<TreeItem>(const_cast<TreeItem*>(ti)->shared_from_this());
-			else if (ownIt)
-				m_Data.m_Holder = std::shared_ptr<const TreeItem>(ti->shared_from_this());
+			{
+				DcRef::NewResult nr;
+				nr.m_Owned.push_back(const_cast<TreeItem*>(ti)->shared_from_this()); // [0] = cache root result
+				m_Data.m_Holder = std::move(nr);
+				KeepResultUnitsAlive(ti); // own the result subtree's cache units while they are still alive
+			}
+			else if (ti->IsCacheItem())
+			{
+				DcRef::OldCacheSubItem o;
+				const TreeItem* root = ti;
+				while (auto p = root->GetTreeParent()) root = p.get(); // walk up to the cache root
+				o.m_Root = root->shared_from_this();
+				o.m_SubItem = ti;
+				m_Data.m_Holder = std::move(o);
+			}
 			else
 				m_Data.m_Holder = std::weak_ptr<const TreeItem>(ti->weak_from_this());
 		};

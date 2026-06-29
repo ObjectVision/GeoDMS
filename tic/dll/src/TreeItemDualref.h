@@ -40,10 +40,32 @@ enum DataControllerFlags
 // and it breaks the retain cycle (config item -> mc_DC -> DC graph -> m_Data -> ... -> root).
 struct DcRef
 {
+	// kind 1: IsNew -- the DualRef is the primary owner of a freshly created cache RESULT. Element [0] is the
+	// cache root result; the following elements own the domain/value units of the result's cache items that
+	// must be kept alive (the weak m_DomainUnit/m_ValuesUnit on cache result items would otherwise expire once
+	// the operator's unit locals drop -- those units have no other owner). The DcRef owns unit-liveness, not
+	// the cache items themselves.
+	// TODO: split kind 1 into 1a (single value), 1b (specific domain + default values unit),
+	//       1c ({attribute, domain unit, value unit}) and 1d (generic: multiple attributes/units) so the
+	//       common cases avoid the vector allocation.
+	struct NewResult
+	{
+		std::vector<std::shared_ptr<const TreeItem>> m_Owned; // [0] = cache root result; [1..] = kept-alive units
+		const TreeItem* root() const noexcept { return m_Owned.empty() ? nullptr : m_Owned.front().get(); }
+	};
+	// kind 2: IsOld -- a reference to a cache SUB-ITEM. Owns the sub-item's cache ROOT (which owns the whole
+	// subtree via parent-owns-child, so the sub-item AND its ancestor domain unit stay alive) plus a borrowed
+	// pointer to the sub-item itself (kept alive by m_Root).
+	struct OldCacheSubItem
+	{
+		std::shared_ptr<const TreeItem> m_Root;              // owning: keeps the cache subtree (and its units) alive
+		const TreeItem*                 m_SubItem = nullptr; // non-owning: the referenced sub-item (alive via m_Root)
+	};
+
 	std::variant<
 		std::monostate,                   // 0: empty
-		std::shared_ptr<TreeItem>,        // 1: IsNew  -- root cache result; DualRef is the primary owner
-		std::shared_ptr<const TreeItem>,  // 2: IsOld  -- cache sub-item; owned ("like new")
+		NewResult,                        // 1: IsNew  -- cache root result + kept-alive units
+		OldCacheSubItem,                  // 2: IsOld  -- cache sub-item; owns its cache root
 		std::weak_ptr<const TreeItem>,    // 3: IsOld  -- config item; the tree owns it; .lock() to use
 		std::weak_ptr<TreeItem>           // 4: IsTmp  -- instantiation borrow at the calling site; .lock() to use
 	> m_Holder;
@@ -56,8 +78,8 @@ struct DcRef
 	{
 		switch (m_Holder.index())
 		{
-		case 1: return std::static_pointer_cast<const TreeItem>(std::get<1>(m_Holder));
-		case 2: return std::get<2>(m_Holder);
+		case 1: { auto& nr = std::get<1>(m_Holder); return nr.m_Owned.empty() ? shared_tree_ptr<const TreeItem>{} : shared_tree_ptr<const TreeItem>(nr.m_Owned.front()); }
+		case 2: { auto& o = std::get<2>(m_Holder); return o.m_SubItem ? shared_tree_ptr<const TreeItem>(o.m_SubItem, existing_obj{}) : shared_tree_ptr<const TreeItem>{}; }
 		case 3: return std::get<3>(m_Holder).lock();
 		case 4: return std::static_pointer_cast<const TreeItem>(std::get<4>(m_Holder).lock());
 		default: return {};
@@ -65,6 +87,13 @@ struct DcRef
 	}
 	int             kind()       const noexcept { return int(m_Holder.index()); } // 0 empty,1 new,2 oldCache,3 oldConfig,4 tmp
 	void            clear()            noexcept { m_Holder.emplace<std::monostate>(); }
+
+	// Append an owning ref to a unit (or other component) that the kind-1 cache result must keep alive.
+	void keepAlive(std::shared_ptr<const TreeItem> comp)
+	{
+		if (comp && m_Holder.index() == 1)
+			std::get<1>(m_Holder).m_Owned.push_back(std::move(comp));
+	}
 
 	// Arm-set STATE check (is a result holder present) -- NOT a transient liveness probe. Mirrors
 	// TreeItemDualRef::operator bool/operator! exactly (kind()-based); for liveness you must hold get().
@@ -77,8 +106,8 @@ struct DcRef
 	{
 		switch (m_Holder.index())
 		{
-		case 1: return std::get<1>(m_Holder).use_count();
-		case 2: return std::get<2>(m_Holder).use_count();
+		case 1: { auto& nr = std::get<1>(m_Holder); return nr.m_Owned.empty() ? 0 : nr.m_Owned.front().use_count(); }
+		case 2: return std::get<2>(m_Holder).m_Root.use_count();
 		default: return 0;
 		}
 	}
@@ -136,6 +165,7 @@ struct TreeItemDualRef : SharedActor
 
 protected:
 	void Set(const TreeItem* newTI, bool isNew);
+	void KeepResultUnitsAlive(const TreeItem* root); // kind 1: own the result subtree's cache units (liveness)
 
 //	override Actor virtuals
 	void StartInterest() const override;
