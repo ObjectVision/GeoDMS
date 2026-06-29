@@ -353,17 +353,26 @@ uniformly WEAK; the DcRef that owns a cache result owns unit-liveness. Implement
   ptr to the sub-item. `m_DomainUnit`/`m_ValuesUnit` now `WeakUnit` everywhere; added non-resolving
   `AbstrDataItem::GetCurrDomainUnit()/GetCurrValuesUnit()`.
 
-**Result: unit sweep 34→38 pass** (categorical_unit, select_with_attr_by_org_rel_nested, reg_count, … fixed;
-reverse/subset still clean). **Remaining 9 failures** are the **sub-attribute / lazy-resolution timing gap**: a
-cache result's units that are SET AFTER SetNew (operator adds sub-attrs after `CreateResultUnit`, e.g.
-select/union/template) — or resolved lazily in GetAbstrValuesUnit — are not captured by the SetNew subtree walk,
-so they still expire (xml_parse, centroid, merge_indirect, operator.dms, ComplexNamespaces, TemplDefinition;
-+ 2 AVs DoubleInstantiation/GridFromTemplate). TWO open follow-ups: (a) capture sub-attr units when the sub-attr
-is created/assigned (via the thread-local `s_CurrTreeItemDualRef` set at OperationContext.cpp:2606, or a root-side
-keep-alive list); (b) the **kind-2 reachability gap** — kind-2 owns the root OBJECT but the root's external units
-live in the root's *separate* kind-1 DcRef vector (not reachable by owning the root) — so a kind-2 reference to a
-sub-item whose external VALUES unit must stay alive isn't covered; a root-side keep-alive list (reachable by
-owning the root) resolves both (a) and (b) but moves the list off the kind-1 DcRef.
+Units are captured at TWO points (deduplicated, `DcRef::keepAlive`): at **SetNew** (universal/immediate, the
+root's directly-set units) AND from **`FuncDC_CreateResult` right after `oper->CreateResultCaller`** via
+`TreeItemDualRef::CaptureResultUnits()` (user's instruction #1 — by then the subtree is complete and the units are
+still alive as sub-items of the cache root or held by `*args`).
+
+**Result: unit sweep 34 → 39 pass** (categorical_unit, select_with_attr_by_org_rel_nested, reg_count,
+**merge_indirect**, … now compute; reverse/subset clean). ⚠ NOTE: the headless sweep's per-config timeout MASKS
+passes — Debug raster computations are slow; **merge_indirect passes in 46s** (rc=0) but looked like a hang at a
+25s cap. Use a generous timeout (90s+) and distinguish "slow-pass" from genuine FindUnit (the `fu2.txt` diagnostic
+confirms which configs actually hit the assert).
+
+**Remaining 8 genuine failures** (verified still hit FindUnit, `vuExpired=1`, parentless cache result `isCache=1
+isEndo=1 hasBackRef=0 name=''`): xml_parse, centroid, operator.dms, spoint_to_tiff, ComplexNamespaces,
+TemplDefinition (FindUnit/values-unit) + 2 AVs (DoubleInstantiation, GridFromTemplate). These cache results are
+created via **non-FuncDC paths** (template instantiation `CopyTreeContext`/`InstantiateTemplate`, namespaces) so
+`CaptureResultUnits` (FuncDC-only) never runs for them, and their values unit still expires. NEXT: hook the
+unit-capture into those result-creation paths too (or, per the kind-2/root-side discussion, a root-side keep-alive
+list reachable by any owner). Also still open: **#2 kind-2 owns the producing DC** (`DataControllerRef`) of the
+cache root instead of the root object — so kind-2 reaches the root's kind-1 unit vector — NOT yet implemented
+(kind-2 via `SymbDC::SetOld` resolves config items today, so it's not the current blocker).
 
 **GOTCHA that cost time:** a parked Debug **assert MessageBox** process holds `Tic.dll` and silently SKIPS the
 next link (build reports 0 errors but Tic.dll is stale → you test the OLD binary). ALWAYS verify `Tic.dll`
