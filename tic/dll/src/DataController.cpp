@@ -95,6 +95,16 @@ void TreeItemDualRef::KeepResultUnitsAlive(const TreeItem* root)
 	CollectCacheUnitsToKeepAlive(root, root, m_Data);
 }
 
+// Called from FuncDC_CreateResult right after the operator finished building the result subtree: walk the
+// (now complete) cache result and have the kind-1 holder own its cache items' domain/value units, which are
+// still alive at this point (they are sub-items of the cache root, or held by the operator's args).
+void TreeItemDualRef::CaptureResultUnits()
+{
+	if (m_Data.kind() == 1)
+		if (auto root = m_Data.get())
+			KeepResultUnitsAlive(root.get());
+}
+
 void TreeItemDualRef::Set(const TreeItem* ti, bool isNew)
 {
 	assert(ti);
@@ -124,7 +134,8 @@ void TreeItemDualRef::Set(const TreeItem* ti, bool isNew)
 				DcRef::NewResult nr;
 				nr.m_Owned.push_back(const_cast<TreeItem*>(ti)->shared_from_this()); // [0] = cache root result
 				m_Data.m_Holder = std::move(nr);
-				KeepResultUnitsAlive(ti); // own the result subtree's cache units while they are still alive
+				KeepResultUnitsAlive(ti); // capture the units known now (root's own units); FuncDC_CreateResult
+				                          // re-captures (CaptureResultUnits) once sub-attributes are added.
 			}
 			else if (ti->IsCacheItem())
 			{

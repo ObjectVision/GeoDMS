@@ -639,6 +639,12 @@ bool FuncDC_CreateResult(const FuncDC* funcDC)
 		assert(!SuspendTrigger::DidSuspend());
 
 		oper->CreateResultCaller(resultHolder, *args, funcDC->GetLispRef().Right()); // may set the fence number of funcDC
+
+		// The result subtree is now complete and all the units it references are still alive (sub-items of the
+		// cache root, or held by *args). Have the kind-1 holder take owning refs to them so the weak
+		// m_DomainUnit/m_ValuesUnit of the cache result items do not expire once *args / the operator locals drop.
+		if (resultHolder.IsNew())
+			resultHolder.CaptureResultUnits();
 	}
 	catch (...)
 	{

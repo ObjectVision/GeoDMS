@@ -89,10 +89,18 @@ struct DcRef
 	void            clear()            noexcept { m_Holder.emplace<std::monostate>(); }
 
 	// Append an owning ref to a unit (or other component) that the kind-1 cache result must keep alive.
+	// Deduplicated: KeepResultUnitsAlive runs both at SetNew and (re-)from FuncDC_CreateResult once the
+	// subtree is complete, so the same unit may be offered twice.
 	void keepAlive(std::shared_ptr<const TreeItem> comp)
 	{
 		if (comp && m_Holder.index() == 1)
-			std::get<1>(m_Holder).m_Owned.push_back(std::move(comp));
+		{
+			auto& owned = std::get<1>(m_Holder).m_Owned;
+			for (const auto& e : owned)
+				if (e == comp)
+					return;
+			owned.push_back(std::move(comp));
+		}
 	}
 
 	// Arm-set STATE check (is a result holder present) -- NOT a transient liveness probe. Mirrors
@@ -162,6 +170,9 @@ struct TreeItemDualRef : SharedActor
 
 	bool HasBackRef() const { auto p = m_Data.get(); return p && bool(p->m_BackRef); }
 	SharedStr GetBackRefStr() const { auto p = m_Data.get(); return p->m_BackRef->GetSourceName(); }
+
+	// kind 1: own the result subtree's cache units (called after the operator finished building the result).
+	TIC_CALL void CaptureResultUnits();
 
 protected:
 	void Set(const TreeItem* newTI, bool isNew);
