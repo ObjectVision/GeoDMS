@@ -775,7 +775,6 @@ void TreeItem::SetDC(DataControllerRef newDC, const TreeItem* newRefItem) const
 		newRI = nullptr;
 	}
 	InterestPtr<DataControllerRef> oldDC;
-	SharedTreeItemInterestPtr oldRefItem;
 
 	// TODO G8: re-evaluate for thread and exception safety: set up private and commit in nothrow critical section or lock-free OK.
 	auto interestCopy = GetInterestPtrOrNull();
@@ -794,15 +793,12 @@ void TreeItem::SetDC(DataControllerRef newDC, const TreeItem* newRefItem) const
 			oldDC->DecInterestCount();
 			dbg_assert(oldDC->GetInterestCount() == dcIC);
 		}
-		if (mc_RefItem)
-		{
-			MG_DEBUGCODE(auto refIC = mc_RefItem->GetInterestCount());
-			dbg_assert(refIC >= 1);
-			oldRefItem = std::move(mc_RefItem);
-			assert(!mc_RefItem);
-			oldRefItem->DecInterestCount();
-			dbg_assert(oldRefItem->GetInterestCount() == refIC);
-		}
+		// NB: the old referred-item interest is NO LONGER released here. mc_RefItem is now a weak_tree_ptr
+		// (non-owning), so `oldRefItem = std::move(mc_RefItem)` could neither clear it (std::move of a weak
+		// binds InterestPtr's std::weak_ptr ctor, which locks without moving -> assert(!mc_RefItem) tripped)
+		// nor was it correct: SetReferredItem(newRI.get()) below already snapshots the old mc_RefItem into an
+		// OldRefDecrementer (lock_ptr) and decrements its interest on settlement. Doing it here too
+		// double-decremented the old referred item's interest. Let SetReferredItem own that responsibility.
 	}
 	mc_DC = std::move(newDC);
 	SetReferredItem(newRI.get());
