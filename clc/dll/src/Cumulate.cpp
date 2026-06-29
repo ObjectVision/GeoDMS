@@ -43,11 +43,15 @@ namespace Cumulate
 			assert(arg1A);
 
 			if (!resultHolder)
+			{
+				auto v = (*m_UnitCreatorPtr)(GetGroup(), args); // hold the UnitCreator's unit (kept alive below)
 				resultHolder = CreateCacheDataItem(
 					arg1A->GetAbstrDomainUnit(),
-					(*m_UnitCreatorPtr)(GetGroup(), args).get(),
+					v.get(),
 					m_ValueComposition
 				);
+				resultHolder.KeepAlive(v); // the kind-1 result must own it (stored only weakly as m_ValuesUnit)
+			}
 
 			if (mustCalc)
 			{
@@ -152,11 +156,15 @@ namespace Cumulate
 			e2->UnifyDomain(e1, "e2", "e1", UM_Throw);
 
 			if (!resultHolder)
+			{
+				auto v = (*m_UnitCreatorPtr)(GetGroup(), args); // hold the UnitCreator's unit (kept alive below)
 				resultHolder = CreateCacheDataItem(
 					arg1A->GetAbstrDomainUnit(),
-					(*m_UnitCreatorPtr)(GetGroup(), args).get(),
+					v.get(),
 					m_ValueComposition
 				);
+				resultHolder.KeepAlive(v); // the kind-1 result must own it (stored only weakly as m_ValuesUnit)
+			}
 
 			if (mustCalc)
 			{

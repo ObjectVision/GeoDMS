@@ -49,11 +49,15 @@ struct AbstrOperAccTotBin : public BinaryOperator
 		assert(arg2A);
 
 		if (!resultHolder)
+		{
+			auto v = (*m_UnitCreatorPtr)(GetGroup(), args); // hold the UnitCreator's unit (kept alive below)
 			resultHolder = CreateCacheDataItem(
-				Unit<Void>::GetStaticClass()->CreateDefault(), 
-				(*m_UnitCreatorPtr)(GetGroup(), args).get(),
+				Unit<Void>::GetStaticClass()->CreateDefault(),
+				v.get(),
 				m_ValueComposition
 			);
+			resultHolder.KeepAlive(v); // the kind-1 result must own it (stored only weakly as m_ValuesUnit)
+		}
 
 		if (mustCalc)
 		{		
@@ -162,12 +166,16 @@ struct AbstrOperAccPartBin: TernaryOperator
 		assert(p3);
 
 		if (!resultHolder)
+		{
+			auto v = (*m_UnitCreatorPtr)(GetGroup(), args); // hold the UnitCreator's unit (kept alive below)
 			resultHolder
 				=	CreateCacheDataItem(
 						p3,
-						(*m_UnitCreatorPtr)(GetGroup(), args).get(),
+						v.get(),
 						m_ValueComposition
 					);
+			resultHolder.KeepAlive(v); // the kind-1 result must own it (stored only weakly as m_ValuesUnit)
+		}
 
 		if (mustCalc)
 		{

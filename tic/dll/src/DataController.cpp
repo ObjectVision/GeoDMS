@@ -134,8 +134,10 @@ void TreeItemDualRef::Set(const TreeItem* ti, bool isNew)
 				DcRef::NewResult nr;
 				nr.m_Owned.push_back(const_cast<TreeItem*>(ti)->shared_from_this()); // [0] = cache root result
 				m_Data.m_Holder = std::move(nr);
-				KeepResultUnitsAlive(ti); // capture the units known now (root's own units); FuncDC_CreateResult
-				                          // re-captures (CaptureResultUnits) once sub-attributes are added.
+				// The cache result's domain/values units are kept alive by their producer: each UnitCreator site
+				// calls resultHolder.KeepAlive(v) on the unit it makes (else it is ownerless -- stored only weakly
+				// as m_DomainUnit/m_ValuesUnit), and FuncDC_CreateResult calls CaptureResultUnits() for the rest.
+				// (Non-FuncDC NumbDC/StringDC param results have void/default units owned statically by the unit class.)
 			}
 			else if (ti->IsCacheItem())
 			{

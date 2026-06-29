@@ -380,10 +380,41 @@ mtime after building, and kill parked procs first. `taskkill`/`Stop-Process` can
 use `cdb -p <pid> -c ".kill;q"`. Run asserting configs under `cdb -cf {sxd *; bu USER32!MessageBoxW ".kill;q"; g}`
 so they die cleanly at the assert (no parked dialog, no DLL lock).
 
+### ✅ ROOT FIX — UnitCreator-produced units were ownerless (user-diagnosed)
+
+The dominant FindUnit/values-unit-expiry class was root-caused to a precise bug (via the FuncDC-result + FindUnit
+unit-state dump): in operator `CreateResult`, the values unit produced by a **UnitCreator** was constructed and
+dropped in the SAME statement:
+```
+resultHolder = CreateCacheDataItem(e, (*m_UnitCreatorPtr)(GetGroup(), args).get(), m_ValueComposition);
+```
+`CreateCacheDataItem` stores that unit only WEAKLY (`m_ValuesUnit`), and the UnitCreator's owning temporary dies at
+the end of the statement -> the metric unit is **ownerless** and expires before the result is used (it dies WITHIN
+the operator, which is why the during-operator SetNew capture masked it but the after-operator
+`FuncDC_CreateResult` capture did not). Concrete repro: `categorical_unit.dms` `src/E := 1 * A`
+(`mul(1u64, rlookup(...))`), values unit `[[/Kwartalen]]` = the `cat_range(...)` cache unit.
+
+FIX (user-directed) at EVERY `m_UnitCreatorPtr` site: hold the unit, then have the kind-1 result own it:
+```
+auto v = (*m_UnitCreatorPtr)(GetGroup(), args);
+resultHolder = CreateCacheDataItem(e, v.get(), m_ValueComposition);
+resultHolder.KeepAlive(v); // TreeItemDualRef::KeepAlive -> DcRef::keepAlive (append to kind-1 vector)
+```
+Applied to all 8 sites: clc `OperAttrBin.h`, `OperAttrUni.h`, `OperAttrTer.h`, `OperAccBin.h` (x2),
+`OperAccUni.h` (x2), `Cumulate.cpp` (x2). Added public `TreeItemDualRef::KeepAlive(shared_ptr<const TreeItem>)`.
+
+**Result: the entire unit-expiry class is FIXED.** `categorical_unit`, `select_with_attr_by_org_rel_nested`,
+`xml_parse`, `merge_indirect` etc. no longer hit FindUnit -- verified with the **SetNew capture REMOVED** (the
+explicit KeepAlive replaces it; non-FuncDC NumbDC/StringDC params have statically unit-class-owned void/default
+units, nothing to keep). `CaptureResultUnits()` at `FuncDC_CreateResult` is kept for non-UnitCreator result units.
+Remaining sweep failures are now DIFFERENT classes: `ComplexNamespaces` = the teardown `NumbObjCache.empty()` Lisp
+leak (namespace teardown cycle); `xml_parse` = rc=5 deprecation (poly/arc ValueComposition, pre-existing); a couple
+of AVs (DoubleInstantiation/GridFromTemplate). NEXT: look for any non-`m_UnitCreatorPtr` ownerless-unit patterns,
+then tackle the namespace teardown leak.
+
 ## Remaining steps
 
-1. **Finish the DcRef redesign**: capture sub-attr/lazy-resolved cache units (the 9 remaining sweep failures) —
-   follow-ups (a)/(b) above. Then re-run the sweep.
+1. **Done: UnitCreator KeepAlive fix** (above) — the unit-expiry/FindUnit class. Re-run the full sweep for the count.
 2. Fix the `centroid` DataItemRefContainer teardown-order assert.
 3. Run `batch/TestDebugUnit.bat` to green (needs 1+2; note Debug asserts hang headless via MessageBoxW —
    every assert must be eliminated, OR route the CRT report mode to non-interactive for batch runs).

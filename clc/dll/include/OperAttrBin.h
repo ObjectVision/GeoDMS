@@ -59,7 +59,9 @@ struct AbstrBinaryAttrOper : BinaryOperator
 		if (!resultHolder)
 		{
 			assert(!mustCalc);
-			resultHolder = CreateCacheDataItem(e, (*m_UnitCreatorPtr)(GetGroup(), args).get(), m_ValueComposition);
+			auto v = (*m_UnitCreatorPtr)(GetGroup(), args); // hold the UnitCreator's unit: CreateCacheDataItem
+			resultHolder = CreateCacheDataItem(e, v.get(), m_ValueComposition); // stores it only weakly (m_ValuesUnit)
+			resultHolder.KeepAlive(v); // -> the kind-1 result must own it, else it is ownerless and expires
 		}
 		if (mustCalc)
 		{

@@ -60,7 +60,11 @@ struct AbstrTernaryAttrOper : TernaryOperator
 		if (!e3Void && e!=e3) e->UnifyDomain(e3, "e0", "e3", UM_Throw);
 
 		if (!resultHolder)
-			resultHolder = CreateCacheDataItem(e, (*m_UnitCreatorPtr)(GetGroup(), args).get(), m_ValueComposition);
+		{
+			auto v = (*m_UnitCreatorPtr)(GetGroup(), args); // hold the UnitCreator's unit (kept alive below)
+			resultHolder = CreateCacheDataItem(e, v.get(), m_ValueComposition);
+			resultHolder.KeepAlive(v); // the kind-1 result must own it (stored only weakly as m_ValuesUnit)
+		}
 
 		if (mustCalc)
 		{

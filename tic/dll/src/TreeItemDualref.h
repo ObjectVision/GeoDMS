@@ -174,6 +174,10 @@ struct TreeItemDualRef : SharedActor
 	// kind 1: own the result subtree's cache units (called after the operator finished building the result).
 	TIC_CALL void CaptureResultUnits();
 
+	// Have this (kind-1) cache result take an owning ref to a component it references only weakly (e.g. a
+	// UnitCreator-produced domain/values unit) that would otherwise be ownerless once the operator's local drops.
+	void KeepAlive(std::shared_ptr<const TreeItem> comp) { m_Data.keepAlive(std::move(comp)); }
+
 protected:
 	void Set(const TreeItem* newTI, bool isNew);
 	void KeepResultUnitsAlive(const TreeItem* root); // kind 1: own the result subtree's cache units (liveness)

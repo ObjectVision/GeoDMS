@@ -47,11 +47,13 @@ struct AbstrOperAccTotUni: UnaryOperator
 		assert(arg1A);
 
 		auto argSeq = GetItems(args);
+		auto v = (*m_UnitCreatorPtr)(GetGroup(), argSeq); // hold the UnitCreator's unit (kept alive below)
 		resultHolder = CreateCacheDataItem(
 			Unit<Void>::GetStaticClass()->CreateDefault(),
-			(*m_UnitCreatorPtr)(GetGroup(), argSeq).get(),
+			v.get(),
 			m_ValueComposition
 		);
+		resultHolder.KeepAlive(v); // the kind-1 result must own it (stored only weakly as m_ValuesUnit)
 	}
 
 	bool CalcResult(TreeItemDualRef& resultHolder, const ArgRefs& args, std::vector<ItemReadLock> readLocks, Explain::Context* context) const override
@@ -151,7 +153,9 @@ struct AbstrOperAccPartUni: BinaryOperator
 		MG_PRECONDITION(p2);
 
 		auto argSeq = GetItems(args);
-		resultHolder = CreateCacheDataItem(p2, (*m_UnitCreatorPtr)(GetGroup(), argSeq).get(), m_ValueComposition);
+		auto v = (*m_UnitCreatorPtr)(GetGroup(), argSeq); // hold the UnitCreator's unit (kept alive below)
+		resultHolder = CreateCacheDataItem(p2, v.get(), m_ValueComposition);
+		resultHolder.KeepAlive(v); // the kind-1 result must own it (stored only weakly as m_ValuesUnit)
 	}
 
 	bool CalcResult(TreeItemDualRef& resultHolder, const ArgRefs& args, std::vector<ItemReadLock> readLocks, Explain::Context* context) const override
