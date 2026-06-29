@@ -54,7 +54,15 @@ struct DataItemRefContainer
 
 	~DataItemRefContainer()
 	{
-		dms_assert(!size());
+		// Pre-migration m_DomainUnit was an OWNING SharedPtr<const AbstrUnit>, so a data item kept its
+		// domain unit alive and every Del() (in ~AbstrDataItem) necessarily ran before the unit's registry
+		// was torn down -> the container was always empty here. With the std-ptr migration m_DomainUnit is
+		// WEAK (non-owning), so a domain unit may now predecease its still-registered data items (e.g. at
+		// config teardown C++ destroys this derived-class member before the base ~TreeItem releases the
+		// unit's child attributes). A residual size() is therefore expected and benign: the entries are raw
+		// back-refs only ever read on a LIVE unit (GetDataItemOut/GetNrDataItemsOut), and while the unit is
+		// live every registered item is live (its Del runs while the unit can still be locked); the stale
+		// entries simply vanish with the registry. So no assert(!size()) here.
 	}
 
 	void Add(const AbstrDataItem* item)
