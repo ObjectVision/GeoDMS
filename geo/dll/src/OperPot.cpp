@@ -164,7 +164,11 @@ struct AbstrDirectPotentialOperator : public BinaryOperator
 
         // Lazy creation of result cache item (same domain, value unit derived via mul2_unit_creator)
         if (!resultHolder)
-            resultHolder = CreateCacheDataItem(resDomainUnit, mul2_unit_creator(GetGroup(), args).get());
+        {
+            auto v = mul2_unit_creator(GetGroup(), args); // hold the creator's values unit
+            resultHolder = CreateCacheDataItem(resDomainUnit, v.get());
+            resultHolder.KeepAlive(v); // kind-1 result must own it (stored only weakly as m_ValuesUnit)
+        }
 
         if (mustCalc)
         {

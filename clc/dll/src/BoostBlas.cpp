@@ -68,6 +68,7 @@ protected:
 		{
 			ConstUnitRef resValuesUnit = mulx_unit_creator(GetGroup(), args);
 			resultHolder = CreateCacheDataItem(resDomainUnit, resValuesUnit.get());
+			resultHolder.KeepAlive(resValuesUnit); // kind-1 result must own it (stored only weakly as m_ValuesUnit)
 		}
 
 		if (mustCalc)
@@ -171,6 +172,7 @@ protected:
 		{
 			ConstUnitRef resValuesUnit = square_unit_creator(GetGroup(), args);
 			resultHolder = CreateCacheDataItem(resDomainUnit, resValuesUnit.get());
+			resultHolder.KeepAlive(resValuesUnit); // kind-1 result must own it (stored only weakly as m_ValuesUnit)
 		}
 
 		if (mustCalc)
@@ -263,6 +265,7 @@ protected:
 
 			ConstUnitRef resValuesUnit = inv_unit_creator(GetGroup(), args);
 			resultHolder = CreateCacheDataItem(domain1Unit, resValuesUnit.get());
+			resultHolder.KeepAlive(resValuesUnit); // kind-1 result must own it (stored only weakly as m_ValuesUnit)
 		}
 
 		if (mustCalc)

@@ -139,6 +139,7 @@ public:
 			CreateDataItem(resultHolder.GetNew(), s_RRC,  calcPointEntity, rcUnit.get());
 			CreateDataItem(resultHolder.GetNew(), s_LLoc, calcPointEntity, pointUnit);
 			CreateDataItem(resultHolder.GetNew(), s_LRC,  calcPointEntity, rcUnit.get());
+			resultHolder.KeepAlive(rcUnit); // kind-1 result must own the cog_div cache unit (stored only weakly as m_ValuesUnit of s_RRC/s_LRC)
 		}
 		if (mustCalc)
 		{

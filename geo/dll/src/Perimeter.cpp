@@ -47,7 +47,10 @@ public:
 		auto resUnit = count_unit_creator(args);
 		assert(resUnit);
 		if (!resultHolder)
+		{
 			resultHolder = CreateCacheDataItem(regionsUnit, resUnit.get());
+			resultHolder.KeepAlive(resUnit); // kind-1 result must own it (stored only weakly as m_ValuesUnit)
+		}
 
 		if (mustCalc)
 		{

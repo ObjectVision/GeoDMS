@@ -93,6 +93,7 @@ namespace {
 				else
 					resValuesUnit = default_unit_creator< ResultCountType>();
 				resultHolder = CreateCacheDataItem(e1, resValuesUnit.get());
+				resultHolder.KeepAlive(resValuesUnit); // kind-1 result must own it (stored only weakly as m_ValuesUnit)
 			}
 
 			// Perform calculation if requested
@@ -198,6 +199,7 @@ namespace {
 				ConstUnitRef resValuesUnit;
 				resValuesUnit = default_unit_creator<Bool>();
 				resultHolder = CreateCacheDataItem(e1, resValuesUnit.get());
+				resultHolder.KeepAlive(resValuesUnit); // kind-1 result must own it (stored only weakly as m_ValuesUnit)
 			}
 
 			// Perform calculation if requested
