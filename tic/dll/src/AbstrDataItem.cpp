@@ -68,7 +68,7 @@ AbstrDataItem::~AbstrDataItem() noexcept
 {
 	// (was assert(!GetInterestCount())): an item may now be destroyed while consumers still hold non-owning
 	// (weak) supplier interest in it -- that interest does not keep it alive and is no-op-decremented once it
-	// is gone, so a residual count here is expected. Our own supplier interest is undone in ~TreeItem/~Actor.
+	// is gone, so a residual count here is expected.
 	// (was assert(!IsOwned()): see SharedBase::~SharedBase -- intrusive count is no longer a liveness gate
 	// for std::shared_ptr-managed TreeItems.)
 
@@ -78,10 +78,29 @@ AbstrDataItem::~AbstrDataItem() noexcept
 				sm->OnTerminalDataItem(this);
 
 	SetKeepDataState(false);
+
+	// Discard our data BEFORE releasing interest. A dying item's data must be dropped, not spilled to the disk
+	// cache (which is what StopInterest -> TryCleanupMem would otherwise attempt); freeing it first also makes
+	// that TryCleanupMem a no-op (no m_DataObject left to clean).
 	if (m_DataObject)
 	{
 		garbage_can garbageCan;
 		ClearDataObject(garbageCan); // releases m_DataObject (and calls ImLosingIt) so a non-owning functor back-ref can't dangle
+	}
+
+	// Release our own residual interest accounting when destroyed while still of interest. Consumer supplier
+	// interest is non-owning (weak) now, so it does not keep us alive: m_InterestCount can be > 0 here while
+	// StopInterest -- normally run by DecInterestCount on the 1->0 edge -- never fired. That would leak our
+	// s_SessionUsageCounter share and the interest we placed on our own suppliers (domain/values units, DC, ...).
+	// This MUST run in ~AbstrDataItem: virtual StopInterest must dispatch to AbstrDataItem::StopInterest (which
+	// releases domain/values-unit interest); ~TreeItem's vtable can no longer reach it. KeepData was dropped
+	// above, so HasInterest() now reflects only GetInterestCount(); zeroing the count first satisfies
+	// StopInterest's precondition and makes ~TreeItem's symmetric guard a no-op. Done before the units are reset
+	// below so GetAbstrDomainUnit()/GetAbstrValuesUnit() are still resolvable.
+	if (GetInterestCount())
+	{
+		m_InterestCount = 0;
+		garbage_can interestGarbage = StopInterest();
 	}
 
 	if (!IsEndogenous())
@@ -156,9 +175,12 @@ auto AbstrDataItem::GetRefObj() const -> SharedPtr<const AbstrDataObject>
 	return debug_cast<const AbstrDataItem*>(GetUltimateItem().get())->GetDataObj();
 }
 
-Int32 AbstrDataItem::GetDataRefLockCount() const 
-{ 
-	return AsDataItem(_GetHistoricUltimateItem(this))->GetDataObjLockCount();
+Int32 AbstrDataItem::GetDataRefLockCount() const
+{
+	auto ult = _GetHistoricUltimateItem(this);
+	if (!ult)
+		return 0; // this is mid-destruction (weak_from_this expired -> empty ultimate, see _GetHistoricUltimateItem); no live data object to have a lock
+	return AsDataItem(ult.get())->GetDataObjLockCount();
 }
 
 //----------------------------------------------------------------------

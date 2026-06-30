@@ -329,6 +329,18 @@ TreeItem::~TreeItem ()
 
 	SetKeepDataState(false); // StringDC en NumbDC cache items hebben ook KeepInterest
 
+	// Symmetric to ~AbstrDataItem: an item may be destroyed while still of interest (consumer interest is
+	// non-owning/weak), so m_InterestCount can be > 0 here while StopInterest never ran. Release our interest
+	// accounting (our s_SessionUsageCounter share + the interest we placed on our suppliers) by mirroring the
+	// final 1->0 transition. KeepData was dropped just above, so the guard is purely on residual interest count.
+	// For an AbstrDataItem this already ran in ~AbstrDataItem (count is 0 here -> no-op); this covers plain
+	// TreeItems and AbstrUnits, whose StopInterest IS TreeItem::StopInterest (reachable from ~TreeItem).
+	if (GetInterestCount())
+	{
+		m_InterestCount = 0;
+		garbage_can interestGarbage = StopInterest();
+	}
+
 	// Tear down our UsingCache BEFORE releasing sub-items. A child cache registers itself in its
 	// parent's m_Incoming (UsingCache::AddParent); the symmetric deregistration in a child's
 	// ~UsingCache walks its WEAK m_Usings parent entry, which has already expired once the parent's
