@@ -1344,6 +1344,19 @@ template auto RangedUnit<Float64>::GetCurrSegmInfo() const -> const range_data_t
 template auto RangedUnit<FPoint>::GetCurrSegmInfo() const -> const range_data_t*;
 template auto RangedUnit<DPoint>::GetCurrSegmInfo() const -> const range_data_t*;
 
+// GetRange — same cross-module (DmGeo/DmClc) need as GetCurrSegmInfo above. The base RangedUnit member
+// is defined in this .cpp and is NOT emitted by `template class Unit<T>` on GCC, so DmGeo/DmClc were
+// left with undefined references to RangedUnit<float|double|Point<double>>::GetRange(); instantiate it
+// here explicitly (harmless on MSVC, which dll-exports it via Unit<T>).
+template auto RangedUnit<UInt8>::GetRange() const -> range_t;
+template auto RangedUnit<Int8>::GetRange() const -> range_t;
+template auto RangedUnit<UInt16>::GetRange() const -> range_t;
+template auto RangedUnit<Int16>::GetRange() const -> range_t;
+template auto RangedUnit<Float32>::GetRange() const -> range_t;
+template auto RangedUnit<Float64>::GetRange() const -> range_t;
+template auto RangedUnit<FPoint>::GetRange() const -> range_t;
+template auto RangedUnit<DPoint>::GetRange() const -> range_t;
+
 template auto CountableUnitBase<Int32>::GetTileRange(tile_id t) const->range_t;
 template auto CountableUnitBase<Int64>::GetTileRange(tile_id t) const->range_t;
 template auto CountableUnitBase<Int16>::GetTileRange(tile_id t) const->range_t;
