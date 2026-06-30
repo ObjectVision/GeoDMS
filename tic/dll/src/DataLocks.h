@@ -39,11 +39,16 @@ struct DataReadLockAtom
 	TIC_CALL DataReadLockAtom(const AbstrDataItem* item);
 	TIC_CALL ~DataReadLockAtom() noexcept;
 
-	DataReadLockAtom& operator = (DataReadLockAtom&& rhs) noexcept = default;
+	// NOT '= default': the data-lock-count release lives in ~DataReadLockAtom. A defaulted move-assignment
+	// reset-moves m_Item (shared_tree_ptr = std reset-not-swap) and LEAKS the count it replaces. (The old
+	// intrusive SharedPtr move-assignment was swap-based, so '= default' used to route the old lock through
+	// the moved-from temporary's dtor; std::shared_ptr semantics broke that.) Release first.
+	TIC_CALL DataReadLockAtom& operator = (DataReadLockAtom&& rhs) noexcept;
 
 	const AbstrDataItem* GetItem() const { return m_Item.get(); }
 
 private:
+	void release() noexcept; // shared by ~DataReadLockAtom and move-assignment
 	shared_tree_ptr<const AbstrDataItem> m_Item;
 };
 
@@ -144,7 +149,10 @@ struct DataWriteLock : SharedPtr<AbstrDataObject>
 	TIC_CALL DataWriteLock(DataWriteLock&&) noexcept = default;
 	TIC_CALL ~DataWriteLock();
 
-	DataWriteLock& operator =(DataWriteLock&& rhs) noexcept = default;
+	// NOT '= default': DataWrite_Unlock lives in ~DataWriteLock, keyed on m_adi. A defaulted move-assignment
+	// reset-moves m_adi (std shared_tree_ptr) and LEAKS the write lock it replaces (the old intrusive SharedPtr
+	// move was swap-based, routing the old lock through the moved-from temporary's dtor). Release first.
+	TIC_CALL DataWriteLock& operator =(DataWriteLock&& rhs) noexcept;
 	bool IsLocked() const { return get() != nullptr; }
 	AbstrDataItem* GetItem() { return m_adi.get(); } // TODO G8: REMOVE
 
@@ -154,6 +162,7 @@ private:
 	DataWriteLock(const DataWriteLock&) = delete;
 	DataWriteLock& operator = (const DataWriteLock&) = delete;
 
+	void release() noexcept; // shared by ~DataWriteLock and move-assignment
 	shared_tree_ptr<AbstrDataItem> m_adi;
 };
 

@@ -131,7 +131,7 @@ DataReadLockAtom::DataReadLockAtom(const AbstrDataItem* item)
 	dms_assert(m_Item->m_DataLockCount);
 }
 
-DataReadLockAtom::~DataReadLockAtom() noexcept
+void DataReadLockAtom::release() noexcept
 {
 	if (!m_Item) // destruction from stack unwinding from throw in DataReadLock (before point of no return)
 		return;
@@ -144,7 +144,7 @@ DataReadLockAtom::~DataReadLockAtom() noexcept
 		}
 	}
 
-	actor_section_lock_map::ScopedLock specificSectionLock(MG_SOURCE_INFO_CODE("DataReadLockAtom::dtor") sg_ActorLockMap, m_Item.get()); // datalockcount 1->0 or drop of interest is 
+	actor_section_lock_map::ScopedLock specificSectionLock(MG_SOURCE_INFO_CODE("DataReadLockAtom::release") sg_ActorLockMap, m_Item.get()); // datalockcount 1->0 or drop of interest is
 	dms_assert(m_Item->m_DataLockCount > 0);
 	{
 		leveled_std_section::scoped_lock globalDataLockCountLock(sg_CountSection);
@@ -153,6 +153,21 @@ DataReadLockAtom::~DataReadLockAtom() noexcept
 
 	if (m_Item->m_DataLockCount == 0 && !m_Item->PartOfInterest())
 		m_Item->TryCleanupMem();
+}
+
+DataReadLockAtom::~DataReadLockAtom() noexcept
+{
+	release();
+}
+
+DataReadLockAtom& DataReadLockAtom::operator =(DataReadLockAtom&& rhs) noexcept
+{
+	if (this != &rhs)
+	{
+		release();                       // release the count we currently hold (a defaulted reset-move would leak it)
+		m_Item = std::move(rhs.m_Item);  // adopt rhs's item; rhs becomes empty so its dtor is a no-op
+	}
+	return *this;
 }
 
 //----------------------------------------------------------------------
@@ -313,11 +328,27 @@ void DataWrite_Unlock(AbstrDataItem* adi)
 	dms_assert(adi->m_DataLockCount == 0);
 }
 
-DataWriteLock::~DataWriteLock()
+void DataWriteLock::release() noexcept
 {
 	if (!m_adi)
 		return;
 	DataWrite_Unlock(m_adi.get());
+}
+
+DataWriteLock::~DataWriteLock()
+{
+	release();
+}
+
+DataWriteLock& DataWriteLock::operator =(DataWriteLock&& rhs) noexcept
+{
+	if (this != &rhs)
+	{
+		release();                                                                              // release our current write lock (a defaulted reset-move of m_adi would leak it)
+		SharedPtr<AbstrDataObject>::operator=(std::move(static_cast<SharedPtr<AbstrDataObject>&>(rhs))); // move the data-object ptr (base)
+		m_adi = std::move(rhs.m_adi);                                                            // adopt rhs's item; rhs.m_adi -> empty
+	}
+	return *this;
 }
 
 SharedStr incompletedWriteTransactionMsg("Exception occured during generating operation.");
