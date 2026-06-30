@@ -13,4 +13,14 @@ if [[ ! -d "$TST_BATCH" ]]; then
 fi
 
 export GEODMS_ROOT="$SCRIPT_DIR"
+
+# Keep the GUI unit tests ON SCREEN (the WSLg display) but render via software GL.
+# WSLg's GPU path (Mesa ZINK/d3d12) flakily blocks during EGL init -- the GeoDmsGuiQt
+# test then hangs and gets SIGKILLed (exit 137), failing the whole suite even though
+# every other test passes. Forcing llvmpipe avoids that GPU init while still drawing
+# to the on-screen window. The GUI tests score computed text (value-info/
+# classification), not pixels, so software vs GPU rendering give identical output.
+# (Deliberately NOT QT_QPA_PLATFORM=offscreen -- that would render headless.)
+export LIBGL_ALWAYS_SOFTWARE=1
+
 bash "$TST_BATCH/unit_linux.sh" linux-x64-release
