@@ -54,10 +54,19 @@ struct shared_tree_ptr : std::shared_ptr<T>
 	// =delete makes every such accidental site a compile error; classify it with a tag instead.
 	template <class Y> shared_tree_ptr(Y*) = delete;
 
-	// Construction-tag ctors mapping the intrusive semantics onto std:: ownership:
-	shared_tree_ptr(T* p, newly_obj) : base_type(p) {}                     // adopt a freshly created object
-	shared_tree_ptr(T* p, existing_obj) : base_type(dup_existing(p)) {}    // borrow an already-owned object
-	shared_tree_ptr(T* p, no_zombies)  : base_type(dup_no_zombies(p)) {}   // safe weak->strong (null if expiring)
+	// Construction-tag ctors mapping the intrusive semantics onto std:: ownership.
+	// Templated on the (possibly derived) source pointer so they are an EXACT match for a derived raw
+	// pointer (e.g. AbstrUnit* -> shared_tree_ptr<const TreeItem>). A non-templated (T* p, tag) ctor would
+	// need a derived->base conversion and so LOSE overload resolution to the inherited std::shared_ptr
+	// (Y*, Deleter) ctor (pulled in by `using base_type::base_type;`); libstdc++ then HARD-errors there
+	// (the tag is not an invocable deleter) instead of SFINAE-falling-back the way MSVC's STL does. Being
+	// templated with a fixed tag parameter, partial ordering prefers these over std's deduced-Deleter ctor.
+	template <class Y> requires std::is_convertible_v<Y*, T*>
+	shared_tree_ptr(Y* p, newly_obj)   : base_type(static_cast<T*>(p)) {}                  // adopt a freshly created object
+	template <class Y> requires std::is_convertible_v<Y*, T*>
+	shared_tree_ptr(Y* p, existing_obj): base_type(dup_existing(static_cast<T*>(p))) {}    // borrow an already-owned object
+	template <class Y> requires std::is_convertible_v<Y*, T*>
+	shared_tree_ptr(Y* p, no_zombies)  : base_type(dup_no_zombies(static_cast<T*>(p))) {}  // safe weak->strong (null if expiring)
 
 	// Transition aids: borrow from an in-repo intrusive SharedPtr<U> / WeakPtr<U> (existence implies owned).
 	template <typename U> requires std::is_convertible_v<U*, T*>
