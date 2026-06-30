@@ -31,6 +31,42 @@
 #include <windows.h>
 #endif
 
+#if defined(_MSC_VER) && defined(_DEBUG)
+#include <crtdbg.h>
+#include <cstdlib>
+#include <cstdio>
+
+// Headless-run assertion handling. By default a failed Debug assert (or abort()) pops a modal
+// Retry/Ignore/"abort() has been called" dialog, which silently stalls any automated/headless run
+// (unit suite, /T script driver) forever. This hook routes the CRT assert/error text to stderr (where
+// the run log captures it via 2>&1) and terminates the process, so the driver continues with the next
+// test and the failure is visible in the log instead of blocking on a dialog. Installed ONLY when no
+// debugger is attached -- when running under cdb/VS, IsDebuggerPresent() is true and we keep the normal
+// break-into-debugger behaviour so the assertion's stack can be inspected.
+static int DmsHeadlessCrtReportHook(int reportType, char* message, int* returnValue)
+{
+	if (returnValue)
+		*returnValue = 0;
+	if (reportType == _CRT_WARN)
+		return FALSE; // leave warnings to the default (debug output); they don't dialog
+	if (message)
+		std::fputs(message, stderr);
+	std::fflush(stderr);
+	std::fflush(stdout);
+	_exit(3); // 3 == abort-like; ends THIS process so an automated driver proceeds to the next test
+	return TRUE; // unreached
+}
+
+static void InstallHeadlessAssertHandlerIfNoDebugger()
+{
+	if (IsDebuggerPresent())
+		return; // keep modal break-into-debugger when a debugger is attached
+	_CrtSetReportHook(DmsHeadlessCrtReportHook);
+	_set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT); // no abort() message box / Watson
+	SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX); // no critical-error / GPF dialogs
+}
+#endif
+
 // ============== Main
 
 enum class itemCmd { commit, statistics, histogram, list, file };
@@ -310,6 +346,10 @@ int main(int argc, char** argv)
 	// RunDllProc) so a planted DLL in CWD or PATH cannot hijack the process.
 	::SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
 	::SetDllDirectoryW(L"");
+#endif
+
+#if defined(_MSC_VER) && defined(_DEBUG)
+	InstallHeadlessAssertHandlerIfNoDebugger(); // don't stall automated runs on a modal assert/abort() dialog
 #endif
 
 	s_argcOrg = argc;
