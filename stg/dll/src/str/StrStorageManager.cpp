@@ -190,14 +190,12 @@ SizeT StrFilesStorageManager::GetNrFiles (const TreeItem* storageHolder, const T
 	return GetFileNameAttr(storageHolder, curr)->GetAbstrDomainUnit()->GetCount();
 }
 
-StorageMetaInfoPtr StrFilesStorageManager::GetMetaInfo(const TreeItem* storageHolder, TreeItem* curr, StorageAction sa) const
-{
-	dms_assert(storageHolder == curr);
-	dms_assert(IsDataItem(curr));
-	if (!IsDataItem(curr) || !GetFileNameAttr(storageHolder, curr)->PrepareDataUsage(DrlType::Certain))
-		return{};
-	return base_type::GetMetaInfo(storageHolder, curr, sa);
-}
+// No GetMetaInfo override: the file-list supplier (FileName) is now arranged generically -- PrepareDataRead
+// adds it (via StrFilesStorageManager::VisitSuppliers under the Calc flag) to the read OperationContext's
+// future suppliers, and ReadDataItem/WriteDataItem each hold a (Prepared)DataReadLock on FileName for the
+// operation. The former override only synchronously PrepareDataUsage'd FileName, which is now redundant (and
+// asserted when FileName's transient SupplInterest had been dropped before a re-read). base_type::GetMetaInfo
+// (NonmappableStorageManager) merely builds the StorageMetaInfo and needs nothing from FileName.
 
 FileResult StrFilesStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
 {

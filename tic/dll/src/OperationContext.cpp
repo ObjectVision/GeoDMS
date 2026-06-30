@@ -1426,6 +1426,27 @@ task_status OperationContext::Schedule(TreeItem* item, const FutureSuppliers& al
 
 	bool connectedArgs = (!allArgInterest.empty()) && OperationContext_ConnectArgs(this, allArgInterest);
 
+	// Item-writer (storage read/write) path: retain the arg suppliers for this OC's whole lifetime.
+	// connectArgs only wires waiter/supplier OC edges; it does not keep the suppliers of-interest or
+	// their data resident. Without this, a supplier whose OC finishes before this (waiting) OC runs
+	// could have its (cache / FreeData) data freed in the gap, tripping disconnect_supplier's
+	// IsDataReady assert. Keep the DC futures of-interest, and -- per the read path needing the item
+	// itself, not just its DC -- also hold an interest on each supplier's result item to keep its data
+	// ready. Released in ~OperationContext, after this OC has fully ended and disconnected.
+	if (!allArgInterest.empty())
+	{
+		m_KeptArgInterests = allArgInterest; // copy bumps DC interest; balanced on ~OperationContext
+		for (const auto& fut : allArgInterest)
+		{
+			if (!fut)
+				continue;
+			auto supplierItem = fut->GetOld();
+			if (supplierItem)
+				if (auto itemInterest = supplierItem->GetCurrRangeItem()->GetInterestPtrOrNull())
+					m_KeptArgItems.emplace_back(std::move(itemInterest));
+		}
+	}
+
 	return OperationContext_ScheduleThis(this, runDirect, context);
 }
 

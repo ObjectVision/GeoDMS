@@ -315,6 +315,16 @@ public:
 
 	// Waiters that depend on this context (weak references to avoid cycles).
 	WaiterSet             m_Waiters;
+
+	// Item-writer (storage read/write) path only: keep the argument suppliers of-interest -- and
+	// their result data ready -- for this OC's whole lifetime. The calc path keeps its args alive via
+	// the FuncDC's SupplInterest and OC_CalcResultFunc::allInterests; the storage-read path
+	// (CreateItemWriter) had no such holder, so its arg futures were dropped the moment PrepareDataRead
+	// returned. A supplier that became 'done' before this waiter ran could then have its (cache /
+	// FreeData) data freed in the gap, tripping disconnect_supplier's IsDataReady assert. Retaining the
+	// DC futures keeps the suppliers of-interest; retaining an item interest keeps their data resident.
+	FutureSuppliers                        m_KeptArgInterests; // arg DCs of-interest for our lifetime
+	std::vector<SharedTreeItemInterestPtr> m_KeptArgItems;     // arg result items: keep data ready
 };
 
 // GetNextPhaseNumber

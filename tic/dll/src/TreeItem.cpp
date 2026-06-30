@@ -3717,16 +3717,28 @@ static how_to_proceed PrepareDataRead(shared_tree_ptr<const TreeItem> self, cons
 	MG_DEBUGCODE(dms_assert(!refItem->HasCalculatorImpl())); // implied by IsDataReadable
 	dms_assert(!refItem->IsCacheItem());        // how else to derive data
 
-	auto supplResult = VisitSupplBoolImpl(self.get(), SupplierVisitFlag::Calc, [self, drlFlags](auto a) -> bool
+	// Collect this read's future suppliers. Declared before the visit so the visited Calc-suppliers -- which for
+	// a storage read include the storage manager's own data suppliers (e.g. strfiles FileName, via
+	// StrFilesStorageManager::VisitSuppliers) -- are added as futures here. Each future keeps its supplier
+	// calculated and of-interest from now, through GetMetaInfo below, and (once moved into the read
+	// OperationContext) across the read. This closes the gap where a storage supplier's SupplInterest was dropped
+	// on data-generation before a (re)read still needed it: a read OC keeps its suppliers of-interest, but only
+	// the ones it is told about. Domain/values units are NOT visited under the Calc flag, so their futures are
+	// still added explicitly below.
+	FutureSuppliers futureSuppliers;
+
+	auto supplResult = VisitSupplBoolImpl(self.get(), SupplierVisitFlag::Calc, [&futureSuppliers](auto a) -> bool
 		{
 			auto t = dynamic_cast<const TreeItem*>(a);
-			if (t && !t->PrepareDataUsage(drlFlags))
-			{
-				if (t->WasFailed(FailType::Data))
-					self->Fail(t);
-				return false;
-			}
-			dms_assert(!SuspendTrigger::DidSuspend());
+			if (t)
+				if (auto dc = t->GetCheckedDC())
+				{
+					FutureData tmpFut = dc; // hold interest while obtaining the future (the DC might not yet have interest)
+					if (auto fut = dc->CallCalcResult())
+						futureSuppliers.emplace_back(std::move(fut));
+					else if (SuspendTrigger::DidSuspend())
+						return false;
+				}
 			return true;
 		}
 	);
@@ -3773,10 +3785,8 @@ static how_to_proceed PrepareDataRead(shared_tree_ptr<const TreeItem> self, cons
 			using OcPtr = std::atomic<std::shared_ptr<OperationContext>>;
 			std::shared_ptr<OcPtr> ocPtrPtr = std::make_shared<OcPtr>();
 
-			// Collect future suppliers that must run before/with this read operation.
-			FutureSuppliers futureSuppliers;
-
-			// If refItem is a DataItem, ensure its domain and values calculation (if any) are dependencies
+			// futureSuppliers was started by the Calc-supplier visit above (storage data suppliers like FileName).
+			// Domain/values units are visited under the DomainValues flag, not Calc, so add their futures here too.
 			dms_check(refItem->GetInterestCount());
 			if (IsDataItem(refItem))
 			{

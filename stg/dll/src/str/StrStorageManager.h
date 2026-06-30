@@ -62,7 +62,6 @@ class StrFilesStorageManager : public StrStorageManager
 public:
 	void DoUpdateTree (const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const override;
 
-	StorageMetaInfoPtr GetMetaInfo(const TreeItem* storageHolder, TreeItem* adi, StorageAction) const override;
 	FileResult ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) override;
 	FileResult WriteDataItem(StorageMetaInfoPtr&& smiHolder) override;
 
