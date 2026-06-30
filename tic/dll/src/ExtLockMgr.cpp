@@ -21,6 +21,8 @@
 #include "TreeItemClass.h"
 #include "TreeItemContextHandle.h"
 
+#include <set> // s_ExtPins (std::multiset) is used unconditionally; <set> otherwise only reached via the MG_DEBUG path
+
 //----------------------------------------------------------------------
 // DMS interface functions
 //----------------------------------------------------------------------
