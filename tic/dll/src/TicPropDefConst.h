@@ -72,7 +72,7 @@
 #define	CASEDIR_NAME            "CaseDir"
 
 // PropDefs in AbstrUnit.cpp
-#define	FORMAT_NAME              "Format"
+// FORMAT_NAME ("Format") removed in v21 (obsolete unit property; use SpatialReference).
 #define	SR_NAME                  "SpatialReference"
 #define METRIC_NAME              "Metric"
 #define PROJECTION_NAME          "Projection"

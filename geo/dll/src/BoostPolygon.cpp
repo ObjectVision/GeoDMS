@@ -1933,20 +1933,11 @@ namespace
 {
 	struct BpPolyOperatorGroup : CommonOperGroup
 	{
-		BpPolyOperatorGroup(CharPtr name, PolygonFlags flags, bool isDepreciated)
+		BpPolyOperatorGroup(CharPtr name, PolygonFlags flags)
 			: CommonOperGroup(name)
 			, m_Instances(this, flags)
 		{
 			SetBetterNotInMetaScripting();
-			if (isDepreciated)
-			{
-				if (DMS_GetMajorVersionNumber() >= 21)
-					throwDmsErrD("The obsolte unprefixed boost::polygon operations should be removed from v21");
-				if (DMS_GetMajorVersionNumber() >= 20)
-					m_Policy = oper_policy(m_Policy | oper_policy::obsolete);
-				else
-					m_Policy = oper_policy(m_Policy | oper_policy::depreciated);
-			}
 		}
 
 		tl_oper::inst_tuple_templ<typelists::sint_points, BpPolygonOperator>
@@ -2018,7 +2009,7 @@ namespace
 			SetBetterNotInMetaScripting();
 		}
 
-		tl_oper::inst_tuple_templ<typelists::seq_points, GEOS_PolygonOperator>
+		tl_oper::inst_tuple_templ<tl::type_list<DPoint>, GEOS_PolygonOperator> // v21: GEOS restricted to DPoint (non-DPoint geos-code removed)
 			m_Instances;
 	};
 
@@ -2028,28 +2019,18 @@ namespace
 			: m_Instances(cog, flags)
 		{}
 
-		tl_oper::inst_tuple_templ<typelists::seq_points, GEOS_PolygonOperator>
+		tl_oper::inst_tuple_templ<tl::type_list<DPoint>, GEOS_PolygonOperator> // v21: GEOS restricted to DPoint (non-DPoint geos-code removed)
 			m_Instances;
 	};
 
-	struct PolyOperatorGroups
-	{
-		BpPolyOperatorGroup simplePO, unionPO, partitionedPO;
-
-		PolyOperatorGroups(WeakStr nameTempl, PolygonFlags flags)
-			: simplePO(mySSPrintF(nameTempl.c_str(), "").c_str(), flags, true)
-			, unionPO(mySSPrintF(nameTempl.c_str(), "union_").c_str(), PolygonFlags(flags | PolygonFlags::F_DoUnion), true)
-			, partitionedPO(mySSPrintF(nameTempl.c_str(), "partitioned_union_").c_str(), PolygonFlags(flags | PolygonFlags::F_DoPartUnion), true)
-		{}
-	};
 	struct BpPolyOperatorGroups
 	{
 		BpPolyOperatorGroup simplePO, unionPO;
 		BpPartionedAlternatives partitionedPO;
 
 		BpPolyOperatorGroups(WeakStr nameTempl, PolygonFlags flags)
-			: simplePO(mySSPrintF(nameTempl.c_str(), "").c_str(), flags, false)
-			, unionPO(mySSPrintF(nameTempl.c_str(), "union_").c_str(), PolygonFlags(flags | PolygonFlags::F_DoUnion), false)
+			: simplePO(mySSPrintF(nameTempl.c_str(), "").c_str(), flags)
+			, unionPO(mySSPrintF(nameTempl.c_str(), "union_").c_str(), PolygonFlags(flags | PolygonFlags::F_DoUnion))
 			, partitionedPO(&unionPO, PolygonFlags(flags | PolygonFlags::F_DoPartUnion))
 		{}
 	};
@@ -2086,14 +2067,6 @@ namespace
 			, partitionedPO(&unionPO, PolygonFlags(flags | PolygonFlags::F_DoPartUnion))
 		{}
 	};
-	struct PolyOperatorGroupss
-	{
-		PolyOperatorGroups simple, split;
-		PolyOperatorGroupss(CharPtr suffix, PolygonFlags flags)
-			: simple(SharedStr("%spolygon") + suffix, flags)
-			, split(SharedStr("split_%spolygon") + suffix, PolygonFlags(flags | PolygonFlags::F_DoSplit))
-		{}
-	};
 	struct BpPolyOperatorGroupss
 	{
 		BpPolyOperatorGroups simple, split;
@@ -2125,30 +2098,6 @@ namespace
 			;
 	};
 
-
-	struct PolyOperatorGroupsss
-	{
-		PolyOperatorGroupss f1, f2, f3, f4, f5, f6, f7, f8, f9, fa, fb, fc, fd, fe, ff;
-
-		PolyOperatorGroupsss(WeakStr s2, PolygonFlags f)
-			: f1(("_filtered" + s2).c_str(), PolygonFlags(f | PolygonFlags::F_Filter1))
-			, f2(("_inflated" + s2).c_str(), PolygonFlags(f | PolygonFlags::F_Inflate1))
-			, f3(("_deflated" + s2).c_str(), PolygonFlags(f | PolygonFlags::F_Deflate1))
-			, f4(("_i4HV" + s2).c_str(), PolygonFlags(f | PolygonFlags::F_I4HV1))
-			, f5(("_i4D" + s2).c_str(), PolygonFlags(f | PolygonFlags::F_I4D1))
-			, f6(("_i8D" + s2).c_str(), PolygonFlags(f | PolygonFlags::F_I8D1))
-			, f7(("_i16D" + s2).c_str(), PolygonFlags(f | PolygonFlags::F_I16D1))
-			, f8(("_iXHV" + s2).c_str(), PolygonFlags(f | PolygonFlags::F_IXHV1))
-			, f9(("_iXD" + s2).c_str(), PolygonFlags(f | PolygonFlags::F_IXD1))
-			, fa(("_d4HV" + s2).c_str(), PolygonFlags(f | PolygonFlags::F_D4HV1))
-			, fb(("_d4D" + s2).c_str(), PolygonFlags(f | PolygonFlags::F_D4D1))
-			, fc(("_d8D" + s2).c_str(), PolygonFlags(f | PolygonFlags::F_D8D1))
-			, fd(("_d16D" + s2).c_str(), PolygonFlags(f | PolygonFlags::F_D16D1))
-			, fe(("_dXHV" + s2).c_str(), PolygonFlags(f | PolygonFlags::F_DXHV1))
-			, ff(("_dXD" + s2).c_str(), PolygonFlags(f | PolygonFlags::F_DXD1))
-		{}
-	};
-
 	//static CommonOperGroup grOverlayPolygon("overlay_polygon", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
 	static CommonOperGroup grBgOverlayPolygon("bg_overlay_polygon", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
 	static CommonOperGroup grBpOverlayPolygon("bp_overlay_polygon", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
@@ -2174,7 +2123,7 @@ namespace
 //	tl_oper::inst_tuple_templ<typelists::float_points, BoostGeometryOverlayOperator> boostGeometryOverlayOperators  (grOverlayPolygon, false);
 	tl_oper::inst_tuple_templ<typelists::points      , BoostGeometryOverlayOperator> boostGeometryBgOverlayOperators(grBgOverlayPolygon, false);
 	tl_oper::inst_tuple_templ<typelists::points,       CGAL_OverlayOperator> cgalOverlayOperators(grCGALOverlayPolygon, false);
-	tl_oper::inst_tuple_templ<typelists::points,       GEOS_OverlayOperator> geosOverlayOperators(grGEOSOverlayPolygon, false);
+	tl_oper::inst_tuple_templ<tl::type_list<DPoint>, GEOS_OverlayOperator> geosOverlayOperators(grGEOSOverlayPolygon, false); // v21: GEOS DPoint-only
 
 	tl_oper::inst_tuple_templ<typelists::sint_points, PolygonConnectivityOperator>	polygonConnectivityOperators;
 	tl_oper::inst_tuple_templ<typelists::points,      BoxConnectivityOperator>	    boxConnectivityOperators;
@@ -2187,14 +2136,15 @@ namespace
 	tl_oper::inst_tuple_templ<typelists::sint_points, BoostPolygonOverlayOperator> boostPolygonBpOverlay1Operators(grBpOverlayPolygon, true);
 	tl_oper::inst_tuple_templ<typelists::points, BoostGeometryOverlayOperator> boostGeometryBgOverlay1Operators(grBgOverlayPolygon, true);
 	tl_oper::inst_tuple_templ<typelists::points, CGAL_OverlayOperator> cgalOverlay1Operators(grCGALOverlayPolygon, true);
-	tl_oper::inst_tuple_templ<typelists::points, GEOS_OverlayOperator> geosOverlay1Operators(grGEOSOverlayPolygon, true);
+	tl_oper::inst_tuple_templ<tl::type_list<DPoint>, GEOS_OverlayOperator> geosOverlay1Operators(grGEOSOverlayPolygon, true); // v21: GEOS DPoint-only
 	tl_oper::inst_tuple_templ<typelists::sint_points, BoostPolygonConnectivityOperator> boostPolygonConnectivity1Operators(grBpPolygonConnectivity, true);
 	tl_oper::inst_tuple_templ<typelists::points, BoostGeometryConnectivityOperator> boostGeometryConnectivity1Operators(grBgPolygonConnectivity, true);
 	tl_oper::inst_tuple_templ<typelists::points, CGAL_ConnectivityOperator> cgalConnectivity1Operators(grCGALPolygonConnectivity, true);
 	tl_oper::inst_tuple_templ<typelists::points, GEOS_ConnectivityOperator> geosConnectivity1Operators(grGEOSPolygonConnectivity, true);
 
 
-	PolyOperatorGroupss simple("", PolygonFlags());
+	// The obsolete UNPREFIXED boost::polygon operators were removed in v21 (they were depreciated in
+	// v20). Use the bp_/bg_/cgal_/geos_ prefixed variants below. (was: PolyOperatorGroupss simple)
 
 	BpPolyOperatorGroupss bp_simple("", PolygonFlags());
 	BpPolyOperatorGroupss bp_f1("_filtered", PolygonFlags::F_Filter1);
@@ -2217,22 +2167,8 @@ namespace
 	CGAL_PolyOperatorGroupss cgal_simple;
 	GEOS_PolyOperatorGroupss geos_simple;
 
-	PolyOperatorGroupsss f2 (SharedStr(""),          PolygonFlags());
-	PolyOperatorGroupsss f21(SharedStr("_filtered"), PolygonFlags::F_Filter2);
-	PolyOperatorGroupsss f22(SharedStr("_inflated"), PolygonFlags::F_Inflate2);
-	PolyOperatorGroupsss f23(SharedStr("_deflated"), PolygonFlags::F_Deflate2);
-	PolyOperatorGroupsss f24(SharedStr("_i4HV"), PolygonFlags::F_I4HV2);
-	PolyOperatorGroupsss f25(SharedStr("_i4D"), PolygonFlags::F_I4D2);
-	PolyOperatorGroupsss f26(SharedStr("_i8D"), PolygonFlags::F_I8D2);
-	PolyOperatorGroupsss f27(SharedStr("_i16D"), PolygonFlags::F_I16D2);
-	PolyOperatorGroupsss f28(SharedStr("_iXHV"), PolygonFlags::F_IXHV2);
-	PolyOperatorGroupsss f29(SharedStr("_iXD"), PolygonFlags::F_IXD2);
-	PolyOperatorGroupsss f2a(SharedStr("_d4HV"), PolygonFlags::F_D4HV2);
-	PolyOperatorGroupsss f2b(SharedStr("_d4D"), PolygonFlags::F_D4D2);
-	PolyOperatorGroupsss f2c(SharedStr("_d8D"), PolygonFlags::F_D8D2);
-	PolyOperatorGroupsss f2d(SharedStr("_d16D"), PolygonFlags::F_D16D2);
-	PolyOperatorGroupsss f2e(SharedStr("_dXHV"), PolygonFlags::F_DXHV2);
-	PolyOperatorGroupsss f2f(SharedStr("_dXD"), PolygonFlags::F_DXD2);
+	// The obsolete UNPREFIXED filtered/inflated/deflated boost::polygon operators (PolyOperatorGroupsss
+	// f2..f2f) were removed in v21 (depreciated in v20). Use the bp_*/bg_*/cgal_*/geos_* variants above.
 }
 
 /******************************************************************************/

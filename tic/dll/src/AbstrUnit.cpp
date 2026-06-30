@@ -993,36 +993,6 @@ IMPL_CLASS(AbstrUnit, nullptr)
 #include "mci/PropdefEnums.h"
 
 namespace {
-class FormatPropDef : public PropDef<AbstrUnit, TokenID>
-{
-  public:
-	FormatPropDef()
-		:	PropDef<AbstrUnit, TokenID>(FORMAT_NAME, set_mode::optional, xml_mode::none, cpy_mode::none, chg_mode::none, false, true, false)
-	{
-		SetDepreciated();
-		if (DMS_GetMajorVersionNumber() >= 21)
-			throwDmsErrD("obsolete use of the format property.\nRemove this code from the GeoDms, as well as FORMAT_NAME");
-	}
-
-	// override base class
-	ApiType GetValue(const AbstrUnit* item) const override 
-	{ 
-		if (DMS_GetMajorVersionNumber() >= 20)
-		{
-			static auto obsMsg = GetTokenID_mt("Format Property is Obsolete");
-			return obsMsg;
-		}
-		reportD(SeverityTypeID::ST_Warning, "Depreciated use oft the Format propertyobsolete specification of the format property.");
-		return item->GetSpatialReference();
-	}
-	void SetValue(AbstrUnit* item, ParamType val) override
-	{ 
-		if (DMS_GetMajorVersionNumber() >= 20)
-			throwDmsErrF("obsolete specification of the format property.\nReplace by: SpatialReference=\"%s\"", val);
-		reportF(SeverityTypeID::ST_Warning, "Depreciated use oft the Format propertyobsolete specification of the format property.\nReplace by: SpatialReference=\"%s\"", val);
-	}
-};
-
 class SpatialReferencePropDef : public PropDef<AbstrUnit, TokenID>
 {
 public:
@@ -1063,7 +1033,6 @@ struct ValueTypePropDef : ReadOnlyPropDef<AbstrUnit, TokenID>
 	ApiType GetValue(const AbstrUnit* item) const override{ return item->GetValueType()->GetID();	}
 };
 
-FormatPropDef formatPropDef;
 SpatialReferencePropDef srPropDef;
 MetricPropDef metricPropDef;
 ProjectionPropDef projectionPropDef;
