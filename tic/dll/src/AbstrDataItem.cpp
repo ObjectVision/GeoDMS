@@ -196,7 +196,6 @@ void AbstrDataItem::ClearDataObject(garbage_can& garbage) const
 {
 	MG_CHECK(GetDataObjLockCount() == 0);
 	MG_CHECK(m_ItemCount == 0);
-	MG_CHECK(m_InterestCount == 0);
 
 	if (m_DataObject)
 		m_DataObject->ImLosingIt(); // clear any non-owning back-ref into this item (e.g. a tile functor's m_ResultAdi) before (deferred) destruction
