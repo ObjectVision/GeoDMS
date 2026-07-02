@@ -73,7 +73,9 @@ struct AbstrUnaryAttrOperator: UnaryOperator
 				af = ArgFlags(af | AF1_HASUNDEFINED);
 			auto tn = e->GetNrTiles();
 
-			auto valuesUnitA = AsUnit(res->GetAbstrValuesUnit()->GetCurrRangeItem());
+			auto resValuesUnit = res->GetValuesUnitOrThrow(); // owning, non-null; raw accessor can be null off the meta thread
+			auto valuesUnitA = AsUnit(resValuesUnit->GetCurrRangeItem());
+			MG_CHECK(valuesUnitA); // can be empty for a mid-destruction item
 			if (IsMultiThreaded3() && (tn > 1) && !IsInMMD(res) && (LTF_ElementWeight(arg1A) <= LTF_ElementWeight(res)))
 				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileFunctor(make_shared_tree(res, existing_obj{}), res->GetLazyCalculatedState(), valuesUnitA.get(), arg1A, af MG_DEBUG_ALLOCATOR_SRC(res->md_FullName + " := " + GetGroup()->GetNameStr()));
 			else

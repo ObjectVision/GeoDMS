@@ -14,6 +14,7 @@
 //----------------------------------------------------------------------
 
 #include "AbstrDataItem.h"
+#include "dbg/Check.h"
 #include "ptr/InterestHolders.h"
 #include "ser/FileCreationMode.h"
 #include "ItemLocks.h"
@@ -72,6 +73,12 @@ struct DataReadLock : SharedPtr<const AbstrDataObject>
 	TIC_CALL DataReadLock& operator = (DataReadLock&& rhs)  noexcept;
 
 	const AbstrDataObject* GetRefObj () const { return get(); }
+
+	// A DataReadLock constructed on a null/expired item is EMPTY (tolerated by design). Use these at points
+	// that require the lock to actually hold data, so a raced-away item fails the operation (MG_CHECK throw)
+	// instead of deferring a null deref to first use.
+	const AbstrDataObject* GetRefObjOrThrow() const { auto refObj = get(); MG_CHECK(refObj); return refObj; }
+	const AbstrDataItem*   GetItemOrThrow  () const { auto item = m_DRLA.GetItem(); MG_CHECK(item); return item; }
 
 	bool IsLocked() const { return m_DRLA.GetItem(); }
 
@@ -160,6 +167,10 @@ struct DataWriteLock : SharedPtr<AbstrDataObject>
 	TIC_CALL DataWriteLock& operator =(DataWriteLock&& rhs) noexcept;
 	bool IsLocked() const { return get() != nullptr; }
 	AbstrDataItem* GetItem() { return m_adi.get(); } // TODO G8: REMOVE
+
+	// See DataReadLock::GetRefObjOrThrow: an empty lock (null item at construction) fails here, not at deref.
+	AbstrDataObject* GetRefObjOrThrow() const { auto refObj = get(); MG_CHECK(refObj); return refObj; }
+	AbstrDataItem*   GetItemOrThrow  () const { auto item = m_adi.get(); MG_CHECK(item); return item; }
 
 	TIC_CALL void Commit();
 

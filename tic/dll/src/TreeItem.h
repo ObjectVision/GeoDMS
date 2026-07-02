@@ -566,7 +566,7 @@ public:
 
 
 	// BackRef for special cache-root wiring; FullCfgName materialization.
-	TIC_CALL auto GetBackRef() const -> const TreeItem*;
+	TIC_CALL auto GetBackRef() const -> SharedTreeItem; // owning snapshot of the weak back-ref (null if unset/expired)
 	TIC_CALL auto GetFullCfgName() const -> SharedStr override;
 //private: // TODO G8: encapsulate
 

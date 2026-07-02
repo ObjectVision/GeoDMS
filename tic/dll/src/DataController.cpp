@@ -132,7 +132,7 @@ void TreeItemDualRef::Set(const TreeItem* ti, bool isNew)
 			if (isNew)
 			{
 				DcRef::NewResult nr;
-				nr.m_Owned.push_back(const_cast<TreeItem*>(ti)->shared_from_this()); // [0] = cache root result
+				nr.m_Root = std::static_pointer_cast<TreeItem>(const_cast<TreeItem*>(ti)->shared_from_this()); // the cache root result
 				m_Data.m_Holder = std::move(nr);
 				// The cache result's domain/values units are kept alive by their producer: each UnitCreator site
 				// calls resultHolder.KeepAlive(v) on the unit it makes (else it is ownerless -- stored only weakly

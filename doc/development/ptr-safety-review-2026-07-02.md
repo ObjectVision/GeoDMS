@@ -17,6 +17,25 @@ FuncDC/SymbDC/DataController/Checker/OperationContext; `TreeItemDualRef::GetOwne
 `OperationContext::m_KeptResultUnits` close the invalidate/cancel unit-liveness window; `InterestPtr`
 inc/dec now hold the weak lock across the count mutation; `GetBackRefStr()` is self-guarding.
 
+**FOLLOW-UP 2026-07-03 (second commit): the open design decisions were RESOLVED and implemented**
+(build + TestDebugUnit green again, result file identical to the baseline):
+- item 6 → `AbstrDataItem::GetDomainUnitOrThrow()/GetValuesUnitOrThrow()` (guaranteed non-null owning
+  `SharedUnit` or item error); adopted at the flagged compute-path sites (ValueGetter, DataArray,
+  TreeItem::SetReferredItem/UpdateMetaInfoImpl, XmlTreeOut null-skip, OperAttr{Uni,Bin,Ter}.h,
+  CastedUnaryAttrOper.h, RegCount, DataWriteLock::Commit).
+- item 7 → `DataReadLock/DataWriteLock::GetRefObjOrThrow()/GetItemOrThrow()` (empty lock fails at use,
+  not at deref); adopted at RegCount VisitImpl, OperPropValue, Commit MG_CHECKs.
+- item 8 → `GetNew()` is MG_CHECK(!IsOld())-enforced in release and const_cast-free: `DcRef::NewResult`
+  now stores the root as `std::shared_ptr<TreeItem>` (`m_Root`) + `m_KeptUnits`. (Strict IsNew() was NOT
+  used: null-on-monostate and the IsTmp borrow are legitimate GetNew states — the create-parentless-root
+  pattern and template instantiation rely on them.)
+- item 9 → Explain.cpp `m_UltimateDomainUnit/m_UltimateValuesUnit` + queue-entry units are
+  `std::weak_ptr<const AbstrUnit>`, lock-at-use, soft-fail in render paths.
+- quick wins: expiry-tolerant `UsingCache::TestOrder`; `DiscrAlloc::GetPartitioningUnit()` returns owning
+  `SharedUnit`; DataWriteLock-ctor configItem re-own via `no_zombies` (graceful teardown degrade);
+  `TreeItem::GetBackRef()` returns owning `SharedTreeItem` (loop callers hold it);
+  `tools/check-ptr-discipline.ps1` = the standing audit (rogue raw-ctor grep FAILs, check-then-lock WARNs).
+
 Severity legend: **HIGH** = reachable null/dangling deref in normal operation; **MEDIUM** = reachable under
 teardown / cancellation / concurrent destruction (exactly the windows the recent drain-hang work exercised);
 **LOW** = assert-only, debug-only, or theoretical.

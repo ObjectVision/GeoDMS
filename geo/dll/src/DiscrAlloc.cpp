@@ -630,9 +630,9 @@ struct partitioning_meta_t
 			: lock_or_cancel(m_PartitioningUnit)->GetName();
 	}
 
-	// Momentary lock; throws task_canceled if the config unit has been torn down. The result is valid for the
-	// immediate use (the unit stays owned by the tree / of-interest during compute) -- matching weak_tree_ptr::get().
-	const AbstrUnit* GetPartitioningUnit() const { return lock_or_cancel(m_PartitioningUnit).get(); }
+	// Owning lock; throws task_canceled if the config unit has been torn down. Returned shared so the caller
+	// holds the unit for the duration of its use (no raw escaping the momentary lock).
+	SharedUnit GetPartitioningUnit() const { return lock_or_cancel(m_PartitioningUnit); }
 };
 
 template <typename AR>
@@ -1635,6 +1635,7 @@ void CreateResultingItems(
 		funcDC.AddDependency(maxClaims->GetCheckedDC().get());
 
 		const AbstrUnit* partitioningUnit = nullptr;
+		SharedUnit partitioningUnitHolder; // owns a locked partitioning unit for this iteration
 		if (hasPartitionings)
 		{
 			partitioning_id partitioningID = 0;
@@ -1649,7 +1650,8 @@ void CreateResultingItems(
 
 			gg->m_PartitioningID = partitioningID;
 
-			partitioningUnit = htpMeta.m_PartitioningMetas[gg->m_PartitioningID].GetPartitioningUnit();
+			partitioningUnitHolder = htpMeta.m_PartitioningMetas[gg->m_PartitioningID].GetPartitioningUnit();
+			partitioningUnit = partitioningUnitHolder.get();
 			assert(partitioningUnit);
 
 			if (ggTypes2partitioningsA && partitioningNamesA)
@@ -1790,7 +1792,7 @@ void PrepareClaims(htp_info_t<S, AR, AT>& htpInfo)
 			gg.m_NrClaims = 1;
 		else
 		{
-			const AbstrUnit* partitioningUnit = htpInfo.m_Partitionings[gg.m_PartitioningID].GetPartitioningUnit();
+			auto partitioningUnit = htpInfo.m_Partitionings[gg.m_PartitioningID].GetPartitioningUnit();
 			assert(partitioningUnit);
 			gg.m_NrClaims = partitioningUnit->GetCount();
 		}

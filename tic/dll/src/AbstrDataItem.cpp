@@ -124,13 +124,29 @@ auto AbstrDataItem::GetAbstrDomainUnit() const -> const AbstrUnit*
 }
 
 auto AbstrDataItem::GetAbstrValuesUnit() const -> const AbstrUnit*
-{ 
+{
 	if (m_ValuesUnit.expired() && IsMetaThread())
 	{
 		ValueComposition vc = GetValueComposition();
 		m_ValuesUnit = make_shared_tree(FindUnit(m_tValuesUnit, "Values", &vc), existing_obj{});
 	}
 	return m_ValuesUnit.lock().get(); // raw non-owning result: the unit is owned by the tree, outlives this call
+}
+
+auto AbstrDataItem::GetDomainUnitOrThrow() const -> SharedUnit
+{
+	GetAbstrDomainUnit(); // meta-thread re-resolve of an expired/unset weak member (no-op otherwise)
+	if (auto du = m_DomainUnit.lock())
+		return du;
+	throwItemError("Domain unit is no longer available");
+}
+
+auto AbstrDataItem::GetValuesUnitOrThrow() const -> SharedUnit
+{
+	GetAbstrValuesUnit(); // meta-thread re-resolve of an expired/unset weak member (no-op otherwise)
+	if (auto vu = m_ValuesUnit.lock())
+		return vu;
+	throwItemError("Values unit is no longer available");
 }
 
 TIC_CALL auto AbstrDataItem::GetNonDefaultDomainUnit() const -> const AbstrUnit*

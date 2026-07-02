@@ -124,7 +124,7 @@ struct RegTileCounterBase : UnitProcessor
 		std::vector<counts_tile_t> countsArray;
 		countsArray.reserve(n);
 		for (auto i=regionInfoArrayPtr->begin(), e=regionInfoArrayPtr->end(); i!=e; ++i)
-			countsArray.push_back(mutable_array_cast<CounterType>(i->m_WriteLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero));
+			countsArray.push_back(debug_valcast<TileFunctor<CounterType>*>(i->m_WriteLock.GetRefObjOrThrow())->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero)); // empty lock (raced-away result) fails here, not as a null deref
 
 		auto arg1ALock = lock_or_cancel(arg1A); // owning for this scope; throws if torn down
 		DataReadLock arg1Lock(arg1ALock.get());
@@ -268,7 +268,7 @@ struct RegCountOperator : public QuaternaryOperator
 		for (ActorTypeIndex i=0; i!=n; ++i)
 		{
 			RegionInfo& ri = regionInfoArray[i];
-			ri.m_NrParts  = ri.m_Partition ? ri.m_Partition->GetAbstrValuesUnit()->GetCount() : 1;
+			ri.m_NrParts  = ri.m_Partition ? ri.m_Partition->GetValuesUnitOrThrow()->GetCount() : 1;
 			ri.m_ReadLock  = DataReadLock(ri.m_Partition.get());
 			auto res = lock_or_cancel(ri.m_Result); // owning for the DataWriteLock construction; throws if torn down
 			ri.m_WriteLock = DataWriteLock(res.get(), dms_rw_mode::write_only_mustzero);

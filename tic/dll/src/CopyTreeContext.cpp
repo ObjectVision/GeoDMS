@@ -40,12 +40,14 @@ TokenID CopyTreeContext::GetAbsOrRelUnitID(const AbstrUnit* sourceUnit, const Ab
 		if (m_SrcRoot->DoesContain(currUnit))
 			return TokenID(srcADI->GetTreeParent()->GetFindableName(currUnit));
 
+		SharedTreeItem backHolder; // owns the current back-ref target while walking
 		while (true)
 		{
 			if (!currUnit->IsCacheItem() && currUnit->GetTreeParent())
 				return TokenID( currUnit->GetFullName() );
 
-			currUnit = AsUnit(currUnit->GetBackRef());
+			backHolder = currUnit->GetBackRef();
+			currUnit = AsUnit(backHolder.get());
 			if (!currUnit)
 			{
 //				if (isDomain)
@@ -65,9 +67,11 @@ TokenID CopyTreeContext::GetAbsOrRelNameID(const TreeItem* si, const TreeItem* s
 		return TokenID(srcTI->GetTreeParent()->GetFindableName(si));
 
 	assert(si);
+	SharedTreeItem backHolder; // owns the current back-ref target while walking
 	while (si->IsCacheItem())
 	{
-		si = si->GetBackRef();
+		backHolder = si->GetBackRef();
+		si = backHolder.get();
 		if (!si)
 			dstTI->throwItemErrorF("Cannot create a findable name");
 	}

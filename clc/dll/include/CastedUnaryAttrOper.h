@@ -68,7 +68,8 @@ public:
 			bool createPipelinedCaster = IsMultiThreaded3() && (nrTiles > 1) && !IsInMMD(res) && !res->GetKeepDataState() && (LTF_ElementWeight(argDataA) <= LTF_ElementWeight(res));
 			if (createPipelinedCaster)
 			{
-				auto valuesUnitA = AsUnit(res->GetAbstrValuesUnit()->GetCurrRangeItem());
+				auto valuesUnitA = AsUnit(res->GetValuesUnitOrThrow()->GetCurrRangeItem());
+				MG_CHECK(valuesUnitA);
 				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileCaster(make_shared_tree(res, existing_obj{}), res->GetLazyCalculatedState(), valuesUnitA.get(), argDataA, argUnitA MG_DEBUG_ALLOCATOR_SRC(res->md_FullName + " := "  + GetGroup()->GetNameStr()));
 			}
 			else
@@ -133,8 +134,11 @@ public:
 			{
 				auto binaryOper = this;
 
-				auto tileRangeData = AsUnit(res->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
-				auto valuesUnit = AsUnit(res->GetAbstrValuesUnit()->GetCurrRangeItem());
+				auto resDomainRange = res->GetDomainUnitOrThrow()->GetCurrRangeItem();
+				MG_CHECK(resDomainRange);
+				auto tileRangeData = AsUnit(resDomainRange)->GetTiledRangeData();
+				auto valuesUnit = AsUnit(res->GetValuesUnitOrThrow()->GetCurrRangeItem());
+				MG_CHECK(valuesUnit);
 				visit<typelists::fields>(valuesUnit.get(), [binaryOper, res, argDomainUnit, argValuesUnit, tileRangeData]<typename V>(const Unit<V>*valuesUnit) {
 					SharedUnitInterestPtr retainedArgDomainUnit = argDomainUnit;
 					SharedUnitInterestPtr retainedArgValuesUnit = argValuesUnit;

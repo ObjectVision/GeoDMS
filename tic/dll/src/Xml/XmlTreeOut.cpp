@@ -799,9 +799,9 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 		CharPtr title = "ValuesUnit";
 		SharedDataItem referredItem;
 		do {
-			auto avu = di->GetAbstrValuesUnit();
+			auto avu = di->GetAbstrValuesUnit(); // can be null (expired/unresolvable); skip gracefully, don't throw in a dump
 			vc = di->GetValueComposition();
-			if (prevUnit != avu || prevVC != vc)
+			if (avu && (prevUnit != avu || prevVC != vc))
 			{
 				if (!WriteUnitInfo(xmlTable, title, avu))
 				{
@@ -816,7 +816,8 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 				prevUnit = avu;
 				prevVC = vc;
 			}
-			WriteCdf(xmlTable, di->GetAbstrValuesUnit());
+			if (avu)
+				WriteCdf(xmlTable, avu);
 
 			referredItem = AsDataItem(di->GetReferredItem());
 			di = referredItem.get();
@@ -827,8 +828,8 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 		di = AsDataItem(self);
 		prevUnit = nullptr;
 		do {
-			auto adu = di->GetAbstrDomainUnit();
-			if (prevUnit != adu)
+			auto adu = di->GetAbstrDomainUnit(); // can be null; skip gracefully, don't throw in a dump
+			if (adu && prevUnit != adu)
 			{
 				if (!WriteUnitInfo(xmlTable, title, adu))
 				{

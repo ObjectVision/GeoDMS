@@ -289,8 +289,9 @@ DataWriteLock::DataWriteLock(AbstrDataItem* adi, dms_rw_mode rwm, const SharedOb
 		DataLockError(adi, "Write");
 
 	bool mustClear = (rwm == dms_rw_mode::write_only_mustzero);
-	auto configItem = make_shared_tree((!adi->m_BackRef.expired() && IsDataItem(adi->m_BackRef.lock().get())) ? AsDataItem(adi->m_BackRef.lock().get()) : adi, existing_obj{});
-	if (!configItem->IsCacheItem())
+	auto backRef = adi->m_BackRef.lock();
+	auto configItem = make_shared_tree((backRef && IsDataItem(backRef.get())) ? AsDataItem(backRef.get()) : adi, no_zombies{}); // no_zombies: empty (not bad_weak_ptr) if the item is mid-destruction, e.g. during the storage-write teardown drain
+	if (configItem && !configItem->IsCacheItem())
 	{
 		if (auto sp = configItem->GetCurrStorageParent(true))
 		{
@@ -377,9 +378,9 @@ SharedStr incompletedWriteTransactionMsg("Exception occured during generating op
 
 TIC_CALL void DataWriteLock::Commit()
 {
-	assert(IsLocked());
+	MG_CHECK(IsLocked()); // committing an empty lock (null/expired item at construction) is a caller bug: throw, don't defer a null deref
 	auto adi = std::move(m_adi);
-	assert(adi);
+	MG_CHECK(adi);
 	assert(!m_adi);
 
 	adi->m_DataObject = std::move(*this); // move from Writable to const
@@ -400,7 +401,7 @@ TIC_CALL void DataWriteLock::Commit()
 	DataWrite_Unlock(adi.get());
 	adi->MarkTS(UpdateMarker::GetActiveTS(MG_DEBUG_TS_SOURCE_CODE("DataWriteLock::Commit")));
 	if (!adi->IsEndogenous())
-		adi->GetAbstrDomainUnit()->AddDataItemOut(adi.get());
+		adi->GetDomainUnitOrThrow()->AddDataItemOut(adi.get());
 }
 
 //----------------------------------------------------------------------

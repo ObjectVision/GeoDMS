@@ -199,7 +199,7 @@ struct PropValueOperator : public BinaryOperator
 				resLock = DataWriteLock(res);
 				lockedRes = res;
 			}
-			ResultType* result = mutable_array_cast<SharedStr>(resLock);
+			ResultType* result = debug_valcast<ResultType*>(resLock.GetRefObjOrThrow()); // res from a name lookup can miss -> empty lock; fail here
 			assert(result);
 
 			auto resData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);

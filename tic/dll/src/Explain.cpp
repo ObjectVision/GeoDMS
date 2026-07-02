@@ -62,16 +62,16 @@ namespace Explain { // local defs
 	struct AbstrCalcExplanation
 	{
 		SharedDataItemInterestPtr              m_DataItem;
-		const AbstrUnit*                       m_UltimateDomainUnit;
-		const AbstrUnit*                       m_UltimateValuesUnit;
+		std::weak_ptr<const AbstrUnit>         m_UltimateDomainUnit;
+		std::weak_ptr<const AbstrUnit>         m_UltimateValuesUnit;
 		CoordinateCollectionType               m_Coordinates;
 		mutable SharedDataItemInterestPtrTuple m_Interests;
 		mutable GuiReadLockPair                m_UnitLabelLocks;
 		bool                                   m_IsExprOfExistingItem = false;
 		AbstrCalcExplanation(const AbstrDataItem* dataItem)
 			: m_DataItem(dataItem)
-			, m_UltimateDomainUnit(AsUnit(dataItem->GetAbstrDomainUnit()->GetUltimateItem()).get()) // TODO ownership: snapshot of tree-owned ultimate unit; consider weak_tree_ptr member
-			, m_UltimateValuesUnit(AsUnit(dataItem->GetAbstrValuesUnit()->GetUltimateItem()).get()) // TODO ownership: snapshot of tree-owned ultimate unit; consider weak_tree_ptr member
+			, m_UltimateDomainUnit(AsUnit(dataItem->GetAbstrDomainUnit()->GetUltimateItem()))
+			, m_UltimateValuesUnit(AsUnit(dataItem->GetAbstrValuesUnit()->GetUltimateItem()))
 		{}
 		virtual ~AbstrCalcExplanation()
 		{
@@ -389,7 +389,7 @@ namespace Explain { // local defs
 	*/
 
 	
-	using QueueEntry        = std::pair<const AbstrUnit*, SizeT>;
+	using QueueEntry        = std::pair<std::weak_ptr<const AbstrUnit>, SizeT>;
 	using ExplArrayEntry    = std::unique_ptr<AbstrCalcExplanation>;
 	using ExplArray         = std::vector<ExplArrayEntry>;
 	using ItemInterestArray = std::vector<SharedTreeItemInterestPtr>;
@@ -513,7 +513,8 @@ namespace Explain { // local defs
 			AddExplanations();
 
 			if (m_ExtraInfo.empty())
-				AddQueueEntry(m_Expl[0]->m_UltimateDomainUnit, studyIdx);
+				if (auto ultimateDomainUnit = m_Expl[0]->m_UltimateDomainUnit.lock())
+					AddQueueEntry(ultimateDomainUnit.get(), studyIdx);
 			AddQueueEntry(Unit<Void>::GetStaticClass()->CreateDefault(), 0);
 		}
 	}
@@ -533,14 +534,14 @@ namespace Explain { // local defs
 		leveled_critical_section::scoped_lock lock(scs_ExplainAccess);
 
 		dms_assert(domain);
-		domain = AsUnit(domain->GetCurrUltimateItem()).get();
-		dms_assert(domain);
+		auto ultimateDomain = AsUnit(domain->GetCurrUltimateItem()); // owning local; the queue only stores a weak ref
+		dms_assert(ultimateDomain);
 		for (auto entryPtr = m_Queue.begin(); entryPtr != m_Queue.end(); ++entryPtr)
-			if (entryPtr->first == domain && entryPtr->second == index)
+			if (entryPtr->first.lock() == ultimateDomain && entryPtr->second == index)
 				return;
 
-		if (IsExplainable(domain, index))
-			m_Queue.push_back(QueueEntry(domain, index));
+		if (IsExplainable(ultimateDomain.get(), index))
+			m_Queue.push_back(QueueEntry(ultimateDomain, index));
 	}
 
 	bool CalcExplImpl::ProcessQueue() // returns false if suspended
@@ -548,11 +549,12 @@ namespace Explain { // local defs
 		while (m_DoneQueueEntries < m_Queue.size())
 		{
 			QueueEntry entry = m_Queue[m_DoneQueueEntries];
-			for (; m_DoneExpl < m_Expl.size(); ++m_DoneExpl)
+			auto entryDomain = entry.first.lock(); // expired: the domain unit is gone, skip this entry
+			for (; entryDomain && m_DoneExpl < m_Expl.size(); ++m_DoneExpl)
 			{
 				AbstrCalcExplanation* explanation = m_Expl[m_DoneExpl].get();
 
-				if (entry.first != explanation->m_UltimateDomainUnit)
+				if (entryDomain != explanation->m_UltimateDomainUnit.lock())
 					continue;
 
 				CoordinateType* coordPtr = explanation->AddIndex(entry.second);
@@ -560,14 +562,14 @@ namespace Explain { // local defs
 					continue;
 				assert(!coordPtr->second); // we don't expect to process the same entry twice
 
-				auto context = std::make_shared<Context>( this, entry.first, coordPtr );
+				auto context = std::make_shared<Context>( this, entryDomain.get(), coordPtr );
 
 				const AbstrValue* value = explanation->CalcValue(context);
 				if (!value)
 					return false; // suspend or NULL
 
-				const AbstrUnit* valuesUnit = explanation->m_UltimateValuesUnit;
-				if (!value->IsNull() && (value->GetValueClass() != ValueWrap<SharedStr>::GetStaticClass()) && IsKnownDomain(valuesUnit))
+				auto valuesUnit = explanation->m_UltimateValuesUnit.lock(); // expired: skip the follow-up queue entry
+				if (valuesUnit && !value->IsNull() && (value->GetValueClass() != ValueWrap<SharedStr>::GetStaticClass()) && IsKnownDomain(valuesUnit.get()))
 				{
 					if (!valuesUnit->PrepareDataUsage(DrlType::Suspendible))
 					{
@@ -576,7 +578,7 @@ namespace Explain { // local defs
 						dms_assert(SuspendTrigger::DidSuspend());
 						return false;
 					}
-					AddQueueEntry(valuesUnit, valuesUnit->GetIndexForAbstrValue(*value));
+					AddQueueEntry(valuesUnit.get(), valuesUnit->GetIndexForAbstrValue(*value));
 				}
 			}
 
@@ -663,7 +665,8 @@ namespace Explain { // local defs
 			m_Expl.push_back(ExplArrayEntry(newExplPtr));
 			m_CalcInterests.push_back(dc);
 			if (matchInfo == match_status::full)
-				AddQueueEntry(newExplPtr->m_UltimateDomainUnit, m_ExprLocationIdx);
+				if (auto ultimateDomainUnit = newExplPtr->m_UltimateDomainUnit.lock())
+					AddQueueEntry(ultimateDomainUnit.get(), m_ExprLocationIdx);
 		}
 		catch (const DmsException&)
 		{
@@ -707,7 +710,7 @@ namespace Explain { // local defs
 	bool CalcExplImpl::IsKnownDomain(const AbstrUnit* valuesUnit)
 	{
 		for (const auto& expl : m_Expl)
-			if (expl->m_UltimateDomainUnit == valuesUnit)
+			if (expl->m_UltimateDomainUnit.lock().get() == valuesUnit)
 				return true;
 		return false;
 	}
@@ -716,7 +719,7 @@ namespace Explain { // local defs
 	{
 		bool result = false;
 		for (const auto& expl : m_Expl)
-			if (expl->m_UltimateDomainUnit == valuesUnit)
+			if (expl->m_UltimateDomainUnit.lock().get() == valuesUnit)
 				if (expl->AddIndex(index))
 					result = true;
 
@@ -957,7 +960,7 @@ namespace Explain { // local defs
 	{
 		dms_assert(context);
 		dms_assert(context->m_CalcExpl);
-		dms_assert(context->m_Domain == m_UltimateDomainUnit);
+		dms_assert(context->m_Domain == m_UltimateDomainUnit.lock().get());
 		CoordinateType* crd = context->m_Coordinate;
 		dms_assert(crd);
 		dms_assert(!crd->second);
@@ -1150,13 +1153,19 @@ namespace Explain { // local defs
 		stream << ": "; stream.WriteTrimmed(m_CalcPtr->GetAsFLispExprOrg(FormattingFlags::ThousandSeparator).c_str());
 		NewLine(stream);
 
-		GetDescrBase(self, stream, isFirst, m_UltimateDomainUnit, m_UltimateValuesUnit);
+		auto ultimateDomainUnit = m_UltimateDomainUnit.lock();
+		auto ultimateValuesUnit = m_UltimateValuesUnit.lock();
+		if (!ultimateDomainUnit || !ultimateValuesUnit)
+			return; // a unit expired: skip the value table
+		GetDescrBase(self, stream, isFirst, ultimateDomainUnit.get(), ultimateValuesUnit.get());
 	}
 
 	void AbstrCalcExplanation::DescrValue(OutStreamBase& stream) const
 	{
-		auto domain = m_UltimateDomainUnit;
-		assert(domain);
+		auto domainHolder = m_UltimateDomainUnit.lock();
+		if (!domainHolder)
+			return; // domain unit expired: skip this value description
+		const AbstrUnit* domain = domainHolder.get();
 		if (domain->IsKindOf(Unit<Void>::GetStaticClass()))
 			domain = nullptr;
 
@@ -1172,8 +1181,9 @@ namespace Explain { // local defs
 
 		SharedStr valStr;
 		const AbstrValue* valuesValue = m_Coordinates[0].second.get();
-		if (valuesValue)
-			valStr = DisplayValue(m_UltimateValuesUnit, valuesValue, true, m_Interests.m_valuesLabel, MAX_TEXTOUT_SIZE, m_UnitLabelLocks.second);
+		auto valuesUnit = m_UltimateValuesUnit.lock();
+		if (valuesValue && valuesUnit)
+			valStr = DisplayValue(valuesUnit.get(), valuesValue, true, m_Interests.m_valuesLabel, MAX_TEXTOUT_SIZE, m_UnitLabelLocks.second);
 		else
 		{
 			static auto calculatingStr = SharedStr("being calculated...");

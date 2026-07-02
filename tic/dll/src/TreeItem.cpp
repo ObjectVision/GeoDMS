@@ -1246,7 +1246,7 @@ void TreeItem::SetReferredItem(const TreeItem* refItem) const
 			if (auto mmd = dynamic_cast<MmdStorageManager*>(sm))
 			{
 				// hack to get a cache item instead of a config-item in order to connect the DaraArray to the mmd storage
-				auto keyExpr = ExprList(token::convert, refItem->GetCheckedKeyExpr(), AsDataItem(refItem)->GetAbstrValuesUnit()->GetCheckedKeyExpr());
+				auto keyExpr = ExprList(token::convert, refItem->GetCheckedKeyExpr(), AsDataItem(refItem)->GetValuesUnitOrThrow()->GetCheckedKeyExpr());
 				SetDC(GetOrCreateDataController(keyExpr));
 				return;
 			}
@@ -2347,10 +2347,12 @@ void TreeItem::UpdateMetaInfoImpl() const
 		const AbstrDataItem* thisAdi = AsDataItem(this);
 
 		// what is it?
-		dbg_assert(thisAdi->GetAbstrDomainUnit()->CheckMetaInfoReadyOrPassor());
-		dbg_assert(thisAdi->GetAbstrValuesUnit()->CheckMetaInfoReadyOrPassor());
-		thisAdi->GetAbstrDomainUnit()->UpdateMetaInfo();
-		thisAdi->GetAbstrValuesUnit()->UpdateMetaInfo();
+		auto adu = thisAdi->GetDomainUnitOrThrow(); // owning, non-null or reported item error
+		auto avu = thisAdi->GetValuesUnitOrThrow();
+		dbg_assert(adu->CheckMetaInfoReadyOrPassor());
+		dbg_assert(avu->CheckMetaInfoReadyOrPassor());
+		adu->UpdateMetaInfo();
+		avu->UpdateMetaInfo();
 	}
 
 	if (GetCalculatorMember() && !GetCalculatorMember()->IsDataBlock())
@@ -2670,22 +2672,22 @@ bool TreeItem::CheckMetaInfoReadyOrPassor() const
 
 #endif
 
-const TreeItem* TreeItem::GetBackRef() const 
+auto TreeItem::GetBackRef() const -> SharedTreeItem
 {
 //	dms_assert(IsMetaThread());
-// TODO: SYNC on backref
-	return m_BackRef.lock().get();
+	return m_BackRef.lock();
 }
 
 auto TreeItem::GetFullCfgName() const -> SharedStr
 {
-	auto cfgItem = this;
+	const TreeItem* cfgItem = this;
+	SharedTreeItem backHolder; // owns the current back-ref target while walking
 	while (cfgItem->IsCacheRoot())
 	{
-		auto backItem = cfgItem->GetBackRef();
-		if (!backItem)
+		backHolder = cfgItem->GetBackRef();
+		if (!backHolder)
 			break;
-		cfgItem = backItem;
+		cfgItem = backHolder.get();
 	}
 	return cfgItem->GetFullName();
 }

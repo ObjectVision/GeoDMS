@@ -6,6 +6,7 @@
 #include "TicBase.h"
 
 #include "act/Actor.h"
+#include "dbg/Check.h"
 #include "ptr/WeakPtr.h"
 
 #include <memory>
@@ -50,8 +51,9 @@ struct DcRef
 	//       common cases avoid the vector allocation.
 	struct NewResult
 	{
-		std::vector<std::shared_ptr<const TreeItem>> m_Owned; // [0] = cache root result; [1..] = kept-alive units
-		const TreeItem* root() const noexcept { return m_Owned.empty() ? nullptr : m_Owned.front().get(); }
+		std::shared_ptr<TreeItem> m_Root; // the cache root result; mutable: freshly created, primary-owned here
+		std::vector<std::shared_ptr<const TreeItem>> m_KeptUnits; // kept-alive domain/values units
+		const TreeItem* root() const noexcept { return m_Root.get(); }
 	};
 	// kind 2: IsOld -- a reference to a cache SUB-ITEM. Owns the sub-item's cache ROOT (which owns the whole
 	// subtree via parent-owns-child, so the sub-item AND its ancestor domain unit stay alive) plus a borrowed
@@ -78,7 +80,7 @@ struct DcRef
 	{
 		switch (m_Holder.index())
 		{
-		case 1: { auto& nr = std::get<1>(m_Holder); return nr.m_Owned.empty() ? std::shared_ptr<const TreeItem>{} : std::shared_ptr<const TreeItem>(nr.m_Owned.front()); }
+		case 1: return std::get<1>(m_Holder).m_Root;
 		case 2: { auto& o = std::get<2>(m_Holder); return o.m_SubItem ? make_shared_tree(o.m_SubItem, existing_obj{}) : std::shared_ptr<const TreeItem>{}; }
 		case 3: return std::get<3>(m_Holder).lock();
 		case 4: return std::static_pointer_cast<const TreeItem>(std::get<4>(m_Holder).lock());
@@ -95,11 +97,13 @@ struct DcRef
 	{
 		if (comp && m_Holder.index() == 1)
 		{
-			auto& owned = std::get<1>(m_Holder).m_Owned;
-			for (const auto& e : owned)
+			auto& nr = std::get<1>(m_Holder);
+			if (comp == nr.m_Root)
+				return;
+			for (const auto& e : nr.m_KeptUnits)
 				if (e == comp)
 					return;
-			owned.push_back(std::move(comp));
+			nr.m_KeptUnits.push_back(std::move(comp));
 		}
 	}
 
@@ -114,7 +118,7 @@ struct DcRef
 	{
 		switch (m_Holder.index())
 		{
-		case 1: { auto& nr = std::get<1>(m_Holder); return nr.m_Owned.empty() ? 0 : nr.m_Owned.front().use_count(); }
+		case 1: return std::get<1>(m_Holder).m_Root.use_count();
 		case 2: return std::get<2>(m_Holder).m_Root.use_count();
 		default: return 0;
 		}
@@ -137,7 +141,20 @@ struct TreeItemDualRef : SharedActor
 	SharedTreeItem GetCurr() const { return m_Data.get(); }
 	// Raw borrows: valid only while an owner (the variant's owning arm, or the tree/caller for the weak arms)
 	// outlives the use. Prefer GetCurr() when holding across work.
-	      TreeItem* GetNew()  const { dms_assert(!IsOld()); return const_cast<TreeItem*>(m_Data.get().get()); }
+	// GetNew: mutable borrow of the result being built -- legal on kind 1 (root, primary-owned here), kind 4
+	// (tmp borrow) and the empty holder (null: "no context yet" = create a parentless cache root).
+	// MG_CHECK-enforced also in release: a kind-2/3 holder references a SHARED cache/config item that must
+	// never be handed out mutably.
+	TreeItem* GetNew() const
+	{
+		MG_CHECK(!IsOld());
+		switch (m_Data.kind())
+		{
+		case 1: return std::get<1>(m_Data.m_Holder).m_Root.get();
+		case 4: return std::get<4>(m_Data.m_Holder).lock().get();
+		default: return nullptr;
+		}
+	}
 	const TreeItem* GetOld()  const { return m_Data.get().get(); }
 	const TreeItem* GetUlt()  const { if (auto p = m_Data.get()) return p->GetCurrUltimateItem().get(); return nullptr; }
 
@@ -184,9 +201,14 @@ struct TreeItemDualRef : SharedActor
 	// DoInvalidate->Clear() cannot free them while a worker still computes with raw borrows.
 	auto GetOwnedSnapshot() const -> std::vector<std::shared_ptr<const TreeItem>>
 	{
-		if (m_Data.kind() == 1)
-			return std::get<1>(m_Data.m_Holder).m_Owned;
-		return {};
+		if (m_Data.kind() != 1)
+			return {};
+		auto& nr = std::get<1>(m_Data.m_Holder);
+		std::vector<std::shared_ptr<const TreeItem>> result;
+		result.reserve(1 + nr.m_KeptUnits.size());
+		result.push_back(nr.m_Root);
+		result.insert(result.end(), nr.m_KeptUnits.begin(), nr.m_KeptUnits.end());
+		return result;
 	}
 
 	// Have this (kind-1) cache result take an owning ref to a component it references only weakly (e.g. a

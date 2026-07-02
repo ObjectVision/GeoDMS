@@ -63,7 +63,7 @@ struct ValueGetterCreator : tl::fold_t<TL, ValueGetterCreatorBase<T>, UnitVisito
 	}
 	AbstrValueGetter<T>* Create()
 	{
-		this->m_Adi->GetAbstrValuesUnit()->InviteUnitProcessor(*this);
+		this->m_Adi->GetValuesUnitOrThrow()->InviteUnitProcessor(*this);
 		return this->m_Result.get_ptr();
 	}
 	static AbstrValueGetter<T>* Create(const AbstrDataItem* adi, tile_id t = no_tile)

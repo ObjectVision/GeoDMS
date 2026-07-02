@@ -71,6 +71,11 @@ public:
 	// snapshot of the weak member (empty if unset/expired). Used to keep a cache result's units alive.
 	SharedUnit GetCurrDomainUnit() const { return m_DomainUnit.lock(); }
 	SharedUnit GetCurrValuesUnit() const { return m_ValuesUnit.lock(); }
+	// Guaranteed non-null OWNING unit or throw. The safe accessors for compute paths: GetAbstrDomainUnit/
+	// GetAbstrValuesUnit return a null raw when the weak member expired off the meta thread (no re-resolve
+	// there) or when FindUnit yields null InTemplate; these convert that state into a reportable item error.
+	TIC_CALL SharedUnit GetDomainUnitOrThrow() const;
+	TIC_CALL SharedUnit GetValuesUnitOrThrow() const;
 	TIC_CALL auto CreateAbstrValue() const -> std::unique_ptr<AbstrValue>;
 
 	TIC_CALL auto GetNonDefaultDomainUnit() const -> const AbstrUnit*;

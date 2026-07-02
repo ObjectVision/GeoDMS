@@ -84,16 +84,20 @@ static SizeT weak_find(const TreeItemCPtrArray& arr, const TreeItem* p)
 static UInt32 sd_NrInstances = 0;
 
 bool TestOrder(
-	UsingCache::const_item_array_iterator b, 
+	UsingCache::const_item_array_iterator b,
 	UsingCache::const_item_array_iterator e)
 {
-	if (b==e) return true;
-
-	TokenID lastID = lock_raw(*b)->GetID();
-	while (++b!=e)
+	// Entries may have expired in place since the container was ordered; CompareLtWeakItemId treats an
+	// expired entry as ordering before (and equivalent to) any other expired entry, so an expired entry
+	// carries no ID to check against. Only require strictly increasing IDs over the live entries.
+	std::shared_ptr<const TreeItem> lastItem;
+	for (; b!=e; ++b)
 	{
-		dms_assert(lastID <  lock_raw(*b)->GetID() );
-		lastID = lock_raw(*b)->GetID();
+		auto currItem = b->lock();
+		if (!currItem)
+			continue;
+		dms_assert(!lastItem || lastItem->GetID() < currItem->GetID());
+		lastItem = std::move(currItem);
 	}
 	return true;
 }

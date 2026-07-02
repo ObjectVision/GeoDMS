@@ -856,9 +856,9 @@ TIC_CALL auto CreateHeapTileArrayV(const AbstrTileRangeData* tdr, const range_or
 auto CreateAbstrHeapTileFunctor(const AbstrDataItem* adi, SharedPtr<const SharedObj> abstrValuesRangeData, const bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG) -> std::unique_ptr<AbstrDataObject>
 {
 	MG_CHECK(adi->GetAbstrDomainUnit());
-	MG_CHECK(adi->GetAbstrValuesUnit());
+	auto avu = adi->GetValuesUnitOrThrow(); // owning, non-null; each GetAbstrValuesUnit() re-lock can expire off the meta thread
 	dbg_assert(adi->GetAbstrDomainUnit()->CheckMetaInfoReadyOrPassor());
-	dbg_assert(adi->GetAbstrValuesUnit()->CheckMetaInfoReadyOrPassor());
+	dbg_assert(avu->CheckMetaInfoReadyOrPassor());
 
 	auto adu = adi->GetAbstrDomainUnit();   MG_CHECK(adu);
 	SharedPtr<const AbstrTileRangeData> currTRD = adu->GetTiledRangeData();
@@ -871,14 +871,14 @@ auto CreateAbstrHeapTileFunctor(const AbstrDataItem* adi, SharedPtr<const Shared
 	}
 	MG_CHECK(currTRD);
 
-	std::shared_ptr<const AbstrUnit> valuesUnit = AsUnit(adi->GetAbstrValuesUnit()->GetCurrRangeItem());
+	std::shared_ptr<const AbstrUnit> valuesUnit = AsUnit(avu->GetCurrRangeItem());
 
 	// DEBUG: SEVERE TILING
 	if (currTRD->GetNrTiles() > 1 && !adi->IsCacheItem())
-		reportF(MsgCategory::other, SeverityTypeID::ST_MinorTrace, "CreateAbstrHeapTileFunctor(attribute<%s> %s(%d tiles))", adi->GetAbstrValuesUnit()->GetValueType()->GetName(), adi->GetFullName().c_str(), currTRD->GetNrTiles());
+		reportF(MsgCategory::other, SeverityTypeID::ST_MinorTrace, "CreateAbstrHeapTileFunctor(attribute<%s> %s(%d tiles))", avu->GetValueType()->GetName(), adi->GetFullName().c_str(), currTRD->GetNrTiles());
 
 	if (!abstrValuesRangeData)
-		abstrValuesRangeData = AsUnit(adi->GetAbstrValuesUnit()->GetCurrRangeItem())->GetTiledRangeData();
+		abstrValuesRangeData = AsUnit(avu->GetCurrRangeItem())->GetTiledRangeData();
 
 	std::unique_ptr<AbstrDataObject> resultHolder;
 	switch (adi->GetValueComposition())
@@ -928,7 +928,7 @@ auto CreateFileTileArray(const AbstrDataItem* adi, const SharedObj* abstrValuesR
 	}
 	MG_CHECK(currTRD);
 
-	auto avu = AsUnit(adi->GetAbstrValuesUnit()->GetCurrRangeItem());
+	auto avu = AsUnit(adi->GetValuesUnitOrThrow()->GetCurrRangeItem());
 	std::unique_ptr<AbstrDataObject> resultHolder;
 	if (adi->GetValueComposition() != ValueComposition::Single)
 		visit<typelists::sequence_fields>(avu.get(),
