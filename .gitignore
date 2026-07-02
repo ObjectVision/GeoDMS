@@ -41,3 +41,7 @@ todo*.txt
 /qtgui/exe/bin
 /.claude
 /profiler/__pycache__
+
+# Claude/diagnostic scratch space: cdb dumps, single-test logs, instrumentation output.
+# Keep such files OUT of the repo root -- see CLAUDE.md.
+/scratch/

@@ -1,5 +1,14 @@
 # GeoDMS — Claude project instructions and repo notes
 
+## Scratch files go in `scratch/`, never in the repo root
+
+Diagnostic artifacts that must live inside the repo tree — cdb stack dumps, single-test
+run logs, instrumentation output, watcher outputs, redirected tool output — go in the
+gitignored **`scratch/`** folder at the repo root (create it if absent), NOT loose in the
+repo root. Purely session-local temp files should use the session scratchpad directory
+outside the repo instead. The repo root once accumulated 51 loose `cdb_*.txt`/`*.out`
+diag files; don't let that happen again.
+
 ## Build & setup policy — do NOT improvise
 
 Build ONLY through the committed solution / preset files, using **msbuild** or **CMake**.
