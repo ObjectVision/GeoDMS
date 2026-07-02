@@ -27,6 +27,7 @@
 #include "attrUniStructNum.h"
 
 #include <fftw3.h>
+#include <cstdlib> // std::atexit (fftw_cleanup at process exit)
 #include <limits>
 #include <map>
 #include <mutex>
@@ -78,6 +79,14 @@ struct FftwPlanSet {
 		return planFwd && planInv;
 	}
 };
+
+// FFTW keeps an internal planner/solver registry that fftw_destroy_plan does NOT release; only
+// fftw_cleanup() frees it (without it, every run that used a Fourier operator reports hundreds of
+// fftw-internal blocks in the Debug CRT leak dump). fftw_cleanup invalidates any still-existing
+// plans, so it must run AFTER ~g_planCache. Registering the atexit BEFORE g_planCache is
+// constructed (same TU, declaration order) guarantees that: the exit stack is LIFO, so
+// ~g_planCache (registered later) runs first, then fftw_cleanup.
+static int s_FftwCleanupRegistrar = (std::atexit([] { fftw_cleanup(); }), 0);
 
 // Global cache of FFTW plans keyed by FFT length.
 // Uses shared_mutex for read-heavy access pattern.

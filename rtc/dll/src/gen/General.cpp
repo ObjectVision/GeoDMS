@@ -128,16 +128,24 @@ RTC_CALL CharPtr DMS_CONV DMS_GetVersion()
 #include "VersionComponent.h"
 #include "set/VectorFunc.h"
 
-std::vector<const AbstrVersionComponent*> s_VersionComponents;
+// Function-local static (Meyers singleton): components register from OTHER translation units' static
+// initializers (e.g. Environment.cpp's s_ExeComponent), whose order relative to this TU is unspecified.
+// A namespace-scope vector could be pushed into BEFORE its own constructor ran; the constructor then
+// re-zeroed it, leaking the first heap buffer (the unit suite's per-test 8-byte CRT leak {&s_ExeComponent}).
+static std::vector<const AbstrVersionComponent*>& GetVersionComponents()
+{
+	static std::vector<const AbstrVersionComponent*> s_VersionComponents;
+	return s_VersionComponents;
+}
 
 AbstrVersionComponent::AbstrVersionComponent()
 {
-	s_VersionComponents.push_back(this);
+	GetVersionComponents().push_back(this);
 }
 
 AbstrVersionComponent::~AbstrVersionComponent()
 {
-	vector_erase(s_VersionComponents, this);
+	vector_erase(GetVersionComponents(), this);
 }
 
 VersionComponent::VersionComponent(CharPtr name)
@@ -156,7 +164,7 @@ void VersionComponent::Visit(ClientHandle cHandle, VersionComponentCallbackFunc 
 
 void DMS_CONV DMS_VisitVersionComponents(ClientHandle clientHandle, VersionComponentCallbackFunc callBack)
 {
-	for (auto c: s_VersionComponents)
+	for (auto c: GetVersionComponents())
 		c->Visit(clientHandle, callBack, 1);
 }
 

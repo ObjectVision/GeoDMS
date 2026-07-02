@@ -8,6 +8,7 @@
 #pragma hdrstop
 #endif //defined(CC_PRAGMAHDRSTOP)
 
+#include <cstdlib> // std::atexit (gdalCleanup at process exit)
 #include <numbers>
 
 // *****************************************************************************
@@ -609,6 +610,15 @@ gdalComponent::gdalComponent()
 		assert(gdalComponentImpl::s_OldErrorHandler == nullptr);
 		assert(gdalComponentImpl::s_HookedFilesPtr == nullptr);
 		initializeGDAL();
+		// Cleanup ONCE at process exit. Per-component cleanup is disabled (see ~gdalComponent: cleanup
+		// followed by re-initialization crashed, issue 169); an atexit cleanup cannot be followed by a
+		// re-init, so it is safe AND releases the driver manager / CPL state before the Debug CRT
+		// leak dump (which otherwise reports thousands of GDAL-internal blocks in every gdal test).
+		// GDALDestroy is GDAL's sanctioned final teardown (driver manager + OGR + CPL TLS + master
+		// mutex; the unix build runs it as a library destructor, the Windows DLL never does) -- the
+		// piecemeal gdalCleanup calls alone leave (and even re-create) CPL mutex/TLS registry blocks.
+		// This 0->1 branch runs at most once per process: s_ComponentCount never decrements.
+		std::atexit([] { gdalCleanup(); GDALDestroy(); });
 		try {
 
 			gdalComponentImpl::s_HookedFilesPtr = new std::map<SharedStr, SharedStr>; // can throw
@@ -656,7 +666,7 @@ bool gdalComponent::isActive()
 gdalComponent::~gdalComponent()
 {
 	leveled_critical_section::scoped_lock lock(gdalComponentImpl::gdalSection);
-	return; // MEMORY LEAK, prevent issue 169
+	return; // no per-component cleanup: cleanup + later re-init crashed (issue 169); gdalCleanup now runs once via atexit (registered at first init)
 	if (!--gdalComponentImpl::s_ComponentCount)
 	{
 		//		proj_context_set_file_finder(nullptr, nullptr, nullptr);
