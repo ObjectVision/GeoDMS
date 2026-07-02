@@ -356,5 +356,9 @@ template <typename P> struct raw_ptr { using type = typename pointer_traits<P>::
 
 extern bool RTC_CALL g_IsTerminating;
 
+// Throw the task cancellation object (task_canceled). Declared here (light) so lock_or_cancel in SharedTreePtr.h can
+// throw it without pulling in the heavy parallel/ppl headers that define task_canceled; defined in portable_task_group.cpp.
+[[noreturn]] RTC_CALL void throwTaskCanceled();
+
 
 #endif // __RTC_BASE_H

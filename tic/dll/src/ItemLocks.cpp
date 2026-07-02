@@ -418,7 +418,7 @@ ItemReadLock::ItemReadLock(ItemReadLock&& rhs) noexcept
 	:	m_Ptr(std::move(rhs.m_Ptr))
 {}
 
-ItemReadLock::~ItemReadLock()
+void ItemReadLock::releaseHeldLock() noexcept
 {
 	if (!m_Ptr.has_ptr())
 		return;
@@ -429,6 +429,22 @@ ItemReadLock::~ItemReadLock()
 #if defined(MG_DEBUG_DATASTORELOCK)
 	--sd_ItemReadLockCounter;
 #endif
+	m_Ptr = {}; // clear so a subsequent move-adopt (or the dtor) never double-releases
+}
+
+ItemReadLock::~ItemReadLock()
+{
+	releaseHeldLock();
+}
+
+ItemReadLock& ItemReadLock::operator =(ItemReadLock&& rhs) noexcept
+{
+	if (this != &rhs)
+	{
+		releaseHeldLock();               // release the lock we currently hold (a defaulted reset-move would leak it)
+		m_Ptr = std::move(rhs.m_Ptr);    // adopt rhs's lock; rhs becomes empty so its dtor is a no-op
+	}
+	return *this;
 }
 
 //----------------------------------------------------------------------

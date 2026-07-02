@@ -42,8 +42,12 @@ typedef UInt32 TreeItemStatusFlags;
 typedef TreeItemStatusFlags DataItemStatusFlags;
 typedef TreeItemStatusFlags UnitItemStatusFlags;
 
-// 0x0001 free (was TSF_IsAutoDeleteDisabled; the auto-delete pin was removed when TreeItem ownership
-// became downward: the parent owns its sub-items and roots are held by their SharedPtr owners).
+// 0x0001 was TSF_IsAutoDeleteDisabled (removed when TreeItem ownership became downward); reused below.
+// Marks an INTEREST-SCOPED m_ReadAssets payload (a parked read OperationContext, or a PhaseContainer
+// phase_resource) that TreeItem::StopInterest must release when the item goes out of interest -- as opposed to
+// the PERSISTENT operator calc-metainfo (DiscrAlloc htp_meta, Overlay info, ...) also cached in m_ReadAssets,
+// which is kept across interest cycles for recalc. Set where such a payload is stored; cleared on release.
+const TreeItemStatusFlags TSF_ReadAssetsInterestScoped    = 0x0001;
 const TreeItemStatusFlags TSF_DataInMem                   = 0x0002;
 const TreeItemStatusFlags TSF_IsCacheItem                 = 0x0004;
 const TreeItemStatusFlags TSF_IsEndogenous                = 0x0008;

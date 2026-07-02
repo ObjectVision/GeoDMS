@@ -25,9 +25,9 @@ public:
 	CrdPoint GetLogicalSize() const;
 	CrdRect DetermineBoundingBox(const MovableObject* owner, CrdPoint subPixelFactors) const;
 
-protected: 
+protected:
 	const ViewPort*  m_ViewPort = nullptr;
-	const AbstrUnit* m_CrdUnit  = nullptr;
+	weak_tree_ptr<const AbstrUnit> m_CrdUnit; // weak cache-validity token for the viewport's world-crd unit (compared to detect change; derefs use the live local currCrdUnit)
 	CrdType          m_Factor = 0, m_MeasureSize = 0;
 	CrdType          m_BaseFactor = 0;
 	Float64          m_MeasureValue = 0;

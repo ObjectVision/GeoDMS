@@ -37,6 +37,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "StgBase.h"
 #include "odbc/ODBCImp.h"
 #include "ptr/OwningPtr.h"
+#include "ptr/SharedTreePtr.h"
 
 #include <map>
 
@@ -83,7 +84,7 @@ private:
 	}
 
 	mutable std::unique_ptr<TDatabase>  m_Database;
-	mutable const TreeItem*             m_TiDatabase;
+	mutable weak_tree_ptr<const TreeItem> m_TiDatabase; // weak cache-validity token for m_Database's configured storageHolder (compared, never dereferenced)
 	mutable std::map<TreeItem*, TRecordSetRef> m_RecordSets;
 	bool                                m_HasAccessSysObjectsCopy;
 	TTableTimestampCacheType            m_TableTimestampCache;

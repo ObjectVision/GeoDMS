@@ -149,6 +149,7 @@ struct PhaseContainerOperator : BinaryOperator
 		{
 			resultRoot->m_ReadAssets.emplace<phase_resource>();
 			resultRoot->m_ReadAssets.Get<phase_resource>().second = shared_tree_ptr<TreeItem>(resultRoot, existing_obj{});
+			resultRoot->SetTSF(TSF_ReadAssetsInterestScoped); // interest-scoped: StopInterest releases the phase_resource if the phase is abandoned before CalcResult completes
 		}
 		auto& futureDataContainer = resultRoot->m_ReadAssets.Get<phase_resource>().first;
 		auto& resWalker = resultRoot->m_ReadAssets.Get<phase_resource>().second;
@@ -280,6 +281,7 @@ struct PhaseContainerOperator : BinaryOperator
 		resultHolder->StopSupplInterest();
 		futureDataContainer.clear();
 		resultRoot->m_ReadAssets.Clear();
+		resultRoot->ClearTSF(TSF_ReadAssetsInterestScoped); // phase_resource consumed; keep the marker in sync
 
 		return true;
 	}

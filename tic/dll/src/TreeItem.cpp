@@ -3371,6 +3371,7 @@ void TreeItem::DoInvalidate() const
 
 	if (m_ReadAssets.has_value())
 		m_ReadAssets.Clear();
+	ClearTSF(TSF_ReadAssetsInterestScoped); // keep the interest-scoped marker in sync with m_ReadAssets
 
 	m_State.Clear(ASF_WasLoaded);
 	m_StatusFlags.Clear(TSF_DataInMem);
@@ -3849,7 +3850,10 @@ static how_to_proceed PrepareDataRead(shared_tree_ptr<const TreeItem> self, cons
 
 			if (auto loadedPtr = ocPtrPtr->load())
 				if (loadedPtr->GetStatus() < task_status::running)
+				{
 					self->m_ReadAssets.emplace<std::shared_ptr<OcPtr>>(ocPtrPtr);
+					self->SetTSF(TSF_ReadAssetsInterestScoped); // interest-scoped: StopInterest releases it when refItem goes out of interest
+				}
 
 			readInfoPtr.reset();
 			assert(CheckCalculatingOrReady(refItem) || refItem->WasFailed(FailType::Data) || SuspendTrigger::DidSuspend());
@@ -4646,8 +4650,21 @@ garbage_can TreeItem::StopInterest() const noexcept
 	else
 		garbage |= TryCleanupMem();
 
-//	if (m_ReadAssets.has_value())
-//		garbage |= std::move(m_ReadAssets);
+	// Release an INTEREST-SCOPED m_ReadAssets payload -- a parked read OperationContext (PrepareDataRead) or a
+	// PhaseContainer phase_resource -- now that this item is out of interest, so an abandoned scheduled read/phase
+	// does not survive to deadlock the config-root teardown drain (StartInterest is a precondition of the read, see
+	// PrepareDataUsageImpl; PhaseContainer re-installs its phase_resource in PreCalcUpdate). The TSF flag (set at the
+	// store sites) distinguishes these from PERSISTENT operator calc-metainfo (DiscrAlloc htp_meta, Overlay info,
+	// ...) that MUST be kept across interest cycles for recalc -- and lets StopInterest (tic) release clc/geo-defined
+	// payloads without naming their types. Move into the garbage_can (deferred): the payload's destruction may
+	// recurse into StopInterest on its kept arg-suppliers, so it must not run inside this StopInterest. Safe even if
+	// a read is mid-run: while scheduled the parked ref is the OC's only strong owner (releasing it cancels the
+	// abandoned read); while running the worker holds its own strong ref (see StealOneTask), so this is a ref drop.
+	if (GetTSF(TSF_ReadAssetsInterestScoped))
+	{
+		garbage |= std::move(m_ReadAssets);
+		ClearTSF(TSF_ReadAssetsInterestScoped);
+	}
 
 	s_SessionUsageCounter.unlock_shared();
 

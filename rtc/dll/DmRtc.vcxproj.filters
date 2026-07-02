@@ -850,6 +850,9 @@
     <ClInclude Include="src\parallel\portable_task_group.h" />
     <ClInclude Include="src\parallel\dms_task.h" />
     <ClInclude Include="src\parallel\dms_combinable.h" />
+    <ClInclude Include="src\ptr\SharedTreePtr.h">
+      <Filter>Smart Pointers</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\act\Actor.cpp">

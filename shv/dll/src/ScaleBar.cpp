@@ -120,12 +120,12 @@ bool ScaleBarBase::DoUpdateViewImpl(CrdPoint scaleFactor)
 	if (m_Factor == currFactor && m_CrdUnit == currCrdUnit)
 		return false;
 	m_Factor  = currFactor;  assert(IsDefined(m_Factor));
-	m_CrdUnit = currCrdUnit; assert(m_CrdUnit);
+	m_CrdUnit = currCrdUnit; assert(currCrdUnit);
 
 	if (m_BaseLabel.empty()) // only do once
 	{
 		m_BaseFactor = 1.0;
-		const UnitMetric* metric = m_CrdUnit->GetMetric();
+		const UnitMetric* metric = currCrdUnit->GetMetric();
 		if (metric)
 		{
 			m_BaseFactor = metric->m_Factor;
@@ -146,7 +146,7 @@ bool ScaleBarBase::DoUpdateViewImpl(CrdPoint scaleFactor)
 		}
 		if (m_BaseLabel.empty())
 		{
-			m_BaseFactor = GetUnitSizeInMeters(m_CrdUnit);
+			m_BaseFactor = GetUnitSizeInMeters(currCrdUnit);
 			m_BaseLabel = "m";
 		}
 		else if (m_BaseLabel != "m")

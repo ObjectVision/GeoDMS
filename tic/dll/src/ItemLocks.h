@@ -54,12 +54,22 @@ struct ItemReadLock
 	TIC_CALL ItemReadLock(ItemReadLock&& rhs)  noexcept;
 	TIC_CALL ~ItemReadLock() noexcept;
 
-	ItemReadLock& operator = (ItemReadLock&& rhs) noexcept = default;
+	// NOT '= default': the read-lock release (cs_lock::ReadFree + s_SessionUsageCounter.unlock_shared) lives in
+	// ~ItemReadLock, so a defaulted move-assignment would only reset-move m_Ptr (SharedTreeItemInterestPtr =
+	// std reset-not-swap) and LEAK the shared usage lock it replaces (s_SessionUsageCounter.m_Count stays > 0,
+	// which then hangs the EnableAutoDelete worker-drain at teardown). The old intrusive SharedPtr move-assign
+	// was swap-based, so '= default' used to route the old lock through the moved-from temporary's dtor; std
+	// semantics broke that. Release first. (Same fix as ItemWriteLock / DataReadLockAtom / DataWriteLock.)
+	TIC_CALL ItemReadLock& operator = (ItemReadLock&& rhs) noexcept;
 
 	ItemReadLock(const ItemReadLock& rhs) = delete;
 	void operator = (const ItemReadLock& rhs) = delete;
 
 	bool has_ptr() const { return m_Ptr.has_ptr(); }
+
+private:
+	void releaseHeldLock() noexcept; // shared by ~ItemReadLock and move-assignment
+public:
 
 	// Approach A (matches the reversed parent<-child ownership): a read lock locks ONLY the item to be read
 	// (so it never bumps m_ItemCount on an ancestor that this lock does not own). To still honor "do not read a

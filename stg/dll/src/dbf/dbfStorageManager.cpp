@@ -49,7 +49,7 @@ struct DbfImplRead : DbfImpl
 
 TNameSet* DbfStorageManager::BuildNameSet(const TreeItem* storageHolder)  const
 {
-	if (m_NameSet.is_null() || storageHolder != m_NameSetStorageHolder)
+	if (m_NameSet.is_null() || m_NameSetStorageHolder != storageHolder)
 	{
 		shared_tree_ptr<const AbstrUnit> tableDomain = shared_tree_ptr<const AbstrUnit>(StorageHolder_GetTableDomain(storageHolder), existing_obj{});
 

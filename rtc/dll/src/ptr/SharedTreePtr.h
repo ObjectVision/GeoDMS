@@ -68,11 +68,13 @@ struct shared_tree_ptr : std::shared_ptr<T>
 	template <class Y> requires std::is_convertible_v<Y*, T*>
 	shared_tree_ptr(Y* p, no_zombies)  : base_type(dup_no_zombies(static_cast<T*>(p))) {}  // safe weak->strong (null if expiring)
 
+	/* REMOVE
 	// Transition aids: borrow from an in-repo intrusive SharedPtr<U> / WeakPtr<U> (existence implies owned).
 	template <typename U> requires std::is_convertible_v<U*, T*>
 	shared_tree_ptr(const SharedPtr<U>& sp) : base_type(dup_existing(static_cast<T*>(sp.get_ptr()))) {}
 	template <typename U> requires std::is_convertible_v<U*, T*>
 	shared_tree_ptr(const WeakPtr<U>& wp) : base_type(dup_no_zombies(static_cast<T*>(wp.get_ptr()))) {}
+	*/
 
 	// in-repo SharedPtr API surface
 	T*   get_ptr()  const noexcept { return this->get(); }
@@ -159,5 +161,19 @@ template <typename T> struct pointer_traits<shared_tree_ptr<T>> : pointer_traits
 template <typename T> struct pointer_traits<weak_tree_ptr<T>> : pointer_traits_helper<T> {
 	static T* get_ptr(const weak_tree_ptr<T>& ptr) { return ptr.lock().get(); } // momentary lock; null if expired
 };
+
+// Lock a STORED weak_tree_ptr for use and return an owning shared_tree_ptr valid for the immediate operation.
+// Policy: every pointer to a TreeItem-family object STORED beyond a stack frame is a weak_tree_ptr; on use it must be
+// lock()ed and checked. An expired target means the config tree is being (or has been) destroyed, so the current
+// operation can no longer complete -> throw the task cancellation object (caught by the enclosing OC/CalcResult
+// CancelableFrame). Do NOT use for transient (stack-local) borrows -- those stay raw.
+template <class T>
+shared_tree_ptr<T> lock_or_cancel(const weak_tree_ptr<T>& w)
+{
+	auto p = w.lock();
+	if (!p)
+		throwTaskCanceled();
+	return shared_tree_ptr<T>(std::move(p));
+}
 
 #endif // __RTC_PTR_SHAREDTREEPTR_H

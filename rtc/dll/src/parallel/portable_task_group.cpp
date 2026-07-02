@@ -103,3 +103,8 @@ void DestroyPortableTaskGroup()
 	delete s_thePortableTaskGroup;
 	s_thePortableTaskGroup = nullptr;
 }
+
+[[noreturn]] RTC_CALL void throwTaskCanceled()
+{
+	throw task_canceled{};
+}

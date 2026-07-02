@@ -628,7 +628,7 @@ StorageMetaInfoPtr ODBCStorageManager::GetMetaInfo(const TreeItem* storageHolder
 
 ODBCStorageManager::ODBCStorageManager()
 {
-	m_TiDatabase              = NULL;
+	m_TiDatabase              = nullptr;
 	m_HasAccessSysObjectsCopy = false;
 }
 
@@ -647,7 +647,7 @@ TDatabase* ODBCStorageManager::DatabaseInstance(const TreeItem* storageHolder) c
 	if (!m_Database)
 	{
 		m_Database = std::make_unique<TDatabase>(SessionData::Curr()->GetConfigLoadDir().c_str());
-		m_TiDatabase= NULL;
+		m_TiDatabase= nullptr;
 	}
 	if(m_TiDatabase != storageHolder)
 	{

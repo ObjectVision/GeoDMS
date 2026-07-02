@@ -67,7 +67,7 @@ private:
 
 //	hidden implementation which doesn't know about DMS structure
 	mutable SharedPtr<TNameSet>        m_NameSet;          // nameset cache
-	mutable const TreeItem*            m_NameSetStorageHolder = nullptr; // used to check for which storageHolder the nameset cache was made
+	mutable weak_tree_ptr<const TreeItem> m_NameSetStorageHolder; // weak cache-validity token: which storageHolder the nameset cache was made for. Weak so a destroyed-then-reallocated holder at the same address cannot alias into a false cache-hit (an expired weak compares unequal -> rebuild).
 	mutable shared_tree_ptr<const AbstrUnit> m_TableDomain;
 
 	friend struct DbfMetaInfo;

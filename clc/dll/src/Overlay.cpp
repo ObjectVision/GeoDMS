@@ -59,8 +59,8 @@ struct overlay_partitioning_info_t
 
 	TokenStr GetName() const { return m_DataItem->GetName(); }
 
-	const AbstrDataItem*          m_DataItem;
-	AbstrDataItem*                m_ResPartRel;
+	weak_tree_ptr<const AbstrDataItem> m_DataItem; // weak: cached in m_ReadAssets, must not dangle nor hold interest
+	weak_tree_ptr<AbstrDataItem>  m_ResPartRel;  // weak: also cached in m_ReadAssets; used only during compute (lock_or_cancel)
 };
 
 using overlay_partitioning_info_array = std::vector<overlay_partitioning_info_t>;
@@ -80,7 +80,7 @@ struct OverlayLayerVisitorBase : UnitProcessor
 	template <typename E>
 	void VisitImpl(const Unit<E>* regionUnit) const
 	{
-		const DataArray<E>* dataArray = const_array_cast<E>(m_PartitioningInfo->m_DataItem);
+		const DataArray<E>* dataArray = const_array_cast<E>(m_PartitioningInfo->m_DataItem.get_ptr());
 		MG_CHECK(dataArray);
 
 		if (regionUnit->GetRange().first)
@@ -90,7 +90,7 @@ struct OverlayLayerVisitorBase : UnitProcessor
 		m_RecodeInfo->m_NrRegions          = nrRegions;
 		m_RecodeInfo->m_AtomicRegionFactor = m_AtomicRegionFactor;
 
-		DataReadLock partitionLock(m_PartitioningInfo->m_DataItem); 
+		DataReadLock partitionLock(m_PartitioningInfo->m_DataItem.get_ptr());
 		dms_assert(partitionLock.IsLocked());
 
 		if (m_PartitioningInfo->m_DataItem->GetRawCheckMode() != DCM_None)
@@ -290,9 +290,8 @@ void DoOverlay(AbstrDataItem* resAtomicRegionGrid, IterRange<const overlay_parti
 			regionFactor = rPtr->m_AtomicRegionFactor,
 			nrRegions    = rPtr->m_NrRegions;
 
-		DataWriteLock regionLock(pPtr->m_ResPartRel);
-
-//		AbstrDataObject* resPartRelObj = pPtr->m_ResPartRel->GetDataObj();
+		auto resPartRelLock = lock_or_cancel(pPtr->m_ResPartRel); // owning for this scope; throws if torn down
+		DataWriteLock regionLock(resPartRelLock.get());
 
 		std::vector<atomic_region_count_t>::const_iterator
 			arPtr = atomicRegions.begin(),

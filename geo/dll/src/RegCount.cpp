@@ -62,7 +62,6 @@ struct RegionMeta
 
 	shared_tree_ptr<const AbstrDataItem>  m_Partition;
 	weak_tree_ptr<AbstrDataItem>          m_Result;
-
 };
 
 struct RegionInfo : RegionMeta

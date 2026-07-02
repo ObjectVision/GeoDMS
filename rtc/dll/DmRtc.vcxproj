@@ -166,6 +166,7 @@
     <ClInclude Include="src\ptr\Resource.h" />
     <ClInclude Include="src\ptr\ResourceArray.h" />
     <ClInclude Include="src\ptr\SharedObj.h" />
+    <ClInclude Include="src\ptr\SharedTreePtr.h" />
     <ClInclude Include="src\RtcGeneratedVersion.h" />
     <ClInclude Include="src\ser\DebugOutStream.h" />
     <ClInclude Include="src\ser\format.h" />

@@ -492,12 +492,16 @@ struct ggType_meta_t
 	TokenID                       m_NameID;
 	UInt32                        m_PartitioningID = 0;
 
-	const AbstrDataItem* m_diMinClaims = nullptr;
-	const AbstrDataItem* m_diMaxClaims = nullptr;
+	// Raw-ptr hygiene (migration §weak-sweep): these point to config args / result sub-items but live in the
+	// persistent htp_meta (m_ReadAssets), which outlives a single computation and can survive into config teardown.
+	// Held weak so a deref after the target is destroyed is caught (lock_or_cancel throws task_canceled) instead of
+	// dangling. Kept of-interest during compute via funcDC.AddDependency on their DCs (see CreateResultingItems).
+	weak_tree_ptr<const AbstrDataItem> m_diMinClaims;
+	weak_tree_ptr<const AbstrDataItem> m_diMaxClaims;
 
-	const AbstrDataItem* m_diSuitabilityMap = nullptr;
-	AbstrDataItem* m_diResShadowPrices = nullptr;
-	AbstrDataItem* m_diResTotalAllocated = nullptr;
+	weak_tree_ptr<const AbstrDataItem> m_diSuitabilityMap;
+	weak_tree_ptr<AbstrDataItem> m_diResShadowPrices;
+	weak_tree_ptr<AbstrDataItem> m_diResTotalAllocated;
 
 };
 
@@ -579,21 +583,41 @@ struct ggType_info_t : ggType_meta_t
 
 struct partitioning_meta_t
 {
-	const AbstrDataItem* m_AtomicRegionPartitioningDI = nullptr; // Optional AR->region mapping source
-	const AbstrUnit* m_PartitioningUnit = nullptr;               // Region id unit
-	mutable SharedDataItemInterestPtr m_ValuesLabelLock;         // Label cache lock
+	// Raw-ptr hygiene (migration §weak-sweep): both point to config items but live in the persistent htp_meta
+	// (m_ReadAssets), so held weak to catch a post-teardown deref (lock_or_cancel) rather than dangle. The hot
+	// per-atomic-region GetRegionID discriminates on the populated m_AtomicRegionPartitioningData array, not on
+	// this weak handle, so the hot loop stays free of any weak-lock atomic load.
+	weak_tree_ptr<const AbstrDataItem> m_AtomicRegionPartitioningDI; // Optional AR->region mapping source
+	weak_tree_ptr<const AbstrUnit> m_PartitioningUnit;              // Region id unit
+	// Held interest on the region-Label attr, resolved on the meta-thread so GetRegionStr's DisplayValue (called
+	// from worker threads for error messages) needs neither a FindItem nor a worker-side StartInterest (which
+	// would try to create the label DC off the meta-thread -> Check IsMetaThread()||!mayCreate fails). This meta
+	// lives in the result's m_ReadAssets; to keep this held interest from being "uncaused" at config-root
+	// teardown, the whole htp_meta is marked TSF_ReadAssetsInterestScoped and released by StopInterest -- safe
+	// because CalcResult (the only reader of htp_meta besides its creation) never runs without MakeResult first
+	// re-creating it (FuncDC::MakeResult re-runs MakeResultImpl when !m_Data).
+	// Weak handle to the region-Label attr (resolved on the meta-thread). NOT a held interest: this lives in the
+	// persistent htp_meta, so a held interest would be "uncaused" and deadlock the teardown drain, and #968/#1020
+	// forbid clearing htp_meta at StopInterest. Kept of-interest during compute via funcDC.AddDependency on its DC
+	// (see CreateResultingItems). Only used for region-name error messages in GetRegionStr, which lock()s it and
+	// degrades to the region id if it is not currently available/of-interest (never forces interest on a worker).
+	mutable weak_tree_ptr<const AbstrDataItem> m_ValuesLabelLock;
+
+	bool m_HasPartitioningDI = false; // structural: was this constructed from a DI mapping (vs identity)? Distinct from
+	                                  // "m_AtomicRegionPartitioningDI has expired", so discriminators never conflate the two.
 
 	explicit partitioning_meta_t(const AbstrDataItem* atomicRegionPartitioning)
 		: m_AtomicRegionPartitioningDI(atomicRegionPartitioning)
 		, m_PartitioningUnit(atomicRegionPartitioning->GetAbstrValuesUnit())
+		, m_HasPartitioningDI(true)
 	{
-		m_ValuesLabelLock = GetPartitioningUnit()->GetLabelAttr();
+		m_ValuesLabelLock = GetPartitioningUnit()->GetLabelAttr().get_ptr(); // store weak; transient interest released here (creates the DC on the meta-thread; AddDependency keeps it of-interest during compute)
 	}
 
 	explicit partitioning_meta_t(const AbstrUnit* atomicRegions)
 		: m_PartitioningUnit(atomicRegions)
 	{
-		m_ValuesLabelLock = GetPartitioningUnit()->GetLabelAttr();
+		m_ValuesLabelLock = GetPartitioningUnit()->GetLabelAttr().get_ptr(); // store weak; transient interest released here (creates the DC on the meta-thread; AddDependency keeps it of-interest during compute)
 	}
 
 
@@ -601,12 +625,14 @@ struct partitioning_meta_t
 
 	TokenStr GetName() const
 	{
-		return m_AtomicRegionPartitioningDI
-			? m_AtomicRegionPartitioningDI->GetName()
-			: m_PartitioningUnit->GetName();
+		return m_HasPartitioningDI
+			? lock_or_cancel(m_AtomicRegionPartitioningDI)->GetName()
+			: lock_or_cancel(m_PartitioningUnit)->GetName();
 	}
 
-	const AbstrUnit* GetPartitioningUnit() const { return m_PartitioningUnit; }
+	// Momentary lock; throws task_canceled if the config unit has been torn down. The result is valid for the
+	// immediate use (the unit stays owned by the tree / of-interest during compute) -- matching weak_tree_ptr::get().
+	const AbstrUnit* GetPartitioningUnit() const { return lock_or_cancel(m_PartitioningUnit).get(); }
 };
 
 template <typename AR>
@@ -628,25 +654,26 @@ struct partitioning_info_t : partitioning_meta_t
 	// For identity mappings (no data item) only debug counts are recorded.
 	void GetData()
 	{
-		if (m_AtomicRegionPartitioningDI)
+		if (m_HasPartitioningDI)
 		{
-			DataReadLock lock(m_AtomicRegionPartitioningDI);
-			auto nrAtomicRegions = m_AtomicRegionPartitioningDI->GetCurrRefObj()->GetNrFeaturesNow();
+			auto diLock = lock_or_cancel(m_AtomicRegionPartitioningDI); // owning for this scope; throws if torn down
+			const AbstrDataItem* di = diLock.get();
+			DataReadLock lock(di);
+			auto nrAtomicRegions = di->GetCurrRefObj()->GetNrFeaturesNow();
 			MG_DEBUGCODE(md_NrAtomicRegions = nrAtomicRegions);
 			m_AtomicRegionPartitioningData = OwningPtrSizedArray<UInt32>(
 				nrAtomicRegions,
 				dont_initialize MG_DEBUG_ALLOCATOR_SRC("DiscrAlloc: m_AtomicRegionPartitioningData")
 			);
-			m_AtomicRegionPartitioningDI->GetCurrRefObj()->GetValuesAsUInt32Array(
+			di->GetCurrRefObj()->GetValuesAsUInt32Array(
 				tile_loc(0, 0),
 				nrAtomicRegions,
 				m_AtomicRegionPartitioningData.begin()
 			);
 		}
-		else 
+		else
 		{
-			assert(m_PartitioningUnit);
-			auto nrAtomicRegions = m_PartitioningUnit->GetCount();
+			auto nrAtomicRegions = lock_or_cancel(m_PartitioningUnit)->GetCount(); // throws if torn down
 			MG_DEBUGCODE(md_NrAtomicRegions = nrAtomicRegions);
 		}
 	}
@@ -658,7 +685,9 @@ struct partitioning_info_t : partitioning_meta_t
 	UInt32 GetRegionID(atomic_region_id ar) const
 	{
 		dbg_assert(ar < md_NrAtomicRegions);
-		return m_AtomicRegionPartitioningDI
+		// Hot path: discriminate on the populated mapping array (filled by GetData when a DI mapping exists),
+		// NOT on the weak m_AtomicRegionPartitioningDI -- avoids a per-atomic-region weak-lock atomic load.
+		return m_AtomicRegionPartitioningData.begin()
 			? m_AtomicRegionPartitioningData[ar]
 			: ar;
 	}
@@ -676,10 +705,19 @@ struct partitioning_info_t : partitioning_meta_t
 	{
 		GuiReadLock lock;
 		auto pu = AsUnit(GetPartitioningUnit()->GetCurrRangeItem());
-		return mySSPrintF("%s %s",
-			GetName().c_str(),
-			DisplayValue(pu.get(), regionID, false, m_ValuesLabelLock, MAX_TEXTOUT_SIZE, lock).c_str()
-		);
+		// Region-name display for error messages, called on worker threads. Use the weak label ONLY if it is
+		// already of-interest (its data is available): seeding a fresh interest on a not-of-interest label from a
+		// worker would StartInterest 0->1 -> create the label DC off the meta-thread -> IsMetaThread()||!mayCreate.
+		// So lock() it, and only when it is already of-interest pass it (a mere bump, no create); otherwise degrade
+		// to the raw region id. During Solve the label is normally of-interest via funcDC.AddDependency on its DC.
+		if (auto labelItem = m_ValuesLabelLock.lock())
+			if (labelItem->GetInterestCount())
+			{
+				SharedDataItemInterestPtr labelHolder = labelItem.get(); // bump only (already of-interest) -> no DC create
+				return mySSPrintF("%s %s", GetName().c_str(),
+					DisplayValue(pu.get(), regionID, false, labelHolder, MAX_TEXTOUT_SIZE, lock).c_str());
+			}
+		return mySSPrintF("%s %u", GetName().c_str(), regionID);
 	}
 
 	// Human-readable label for an atomic region (resolved to its region id).
@@ -897,7 +935,7 @@ template <typename S>
 struct htp_meta_extra 
 {
 	weak_tree_ptr<const AbstrUnit>   m_MapDomain;
-	shared_tree_ptr<const Unit<S> >  m_PriceUnit;
+	weak_tree_ptr<const Unit<S> >    m_PriceUnit; // weak: cached in htp_meta (persistent); the unit is of-interest (a suitability-map supplier) whenever used, so lock() at use and fail Calc if it ever fails
 };
 
 template <typename S>
@@ -1538,10 +1576,9 @@ void CreateResultingItems(
 			else
 				htpMeta.m_PartitioningMetas.emplace_back(atomicRegionUnit);
 
-			if (htpMeta.m_PartitioningMetas.back().m_ValuesLabelLock)
-			{
-				funcDC.AddDependency(htpMeta.m_PartitioningMetas.back().m_ValuesLabelLock->GetCheckedDC().get());
-			}
+			if (auto labelItem = htpMeta.m_PartitioningMetas.back().m_ValuesLabelLock.lock()) // meta-thread: label alive here
+				if (auto labelDC = labelItem->GetCheckedDC())
+					funcDC.AddDependency(labelDC.get()); // keeps the label of-interest during compute (m_OtherSuppliers)
 		}
 		assert(htpMeta.m_PartitioningMetas.size() == P);
 	}
@@ -1617,31 +1654,31 @@ void CreateResultingItems(
 
 			if (ggTypes2partitioningsA && partitioningNamesA)
 			{
-				if (gg->m_diMinClaims && !partitioningUnit->UnifyDomain(gg->m_diMinClaims->GetAbstrDomainUnit(), "Partitioning", "Domain of Minimum Claim attribute", UnifyMode(), &resultMsg))
+				if (minClaims && !partitioningUnit->UnifyDomain(minClaims->GetAbstrDomainUnit(), "Partitioning", "Domain of Minimum Claim attribute", UnifyMode(), &resultMsg))
 					throwErrorF("discrete_alloc", "values of partitioning %s in AtomicRegions (6th argument):\n%s\nand domain of minimum claim for %s (8th argument):\n%s\nincompatible: %s"
 						, htpMeta.m_PartitioningMetas[partitioningID].GetName()
-						, htpMeta.m_PartitioningMetas[partitioningID].m_AtomicRegionPartitioningDI->GetSourceName()
-						, gg->m_NameID, gg->m_diMinClaims->GetSourceName()
+						, lock_or_cancel(htpMeta.m_PartitioningMetas[partitioningID].m_AtomicRegionPartitioningDI)->GetSourceName()
+						, gg->m_NameID, minClaims->GetSourceName()
 						, resultMsg
 					);
-				if (gg->m_diMaxClaims && !partitioningUnit->UnifyDomain(gg->m_diMaxClaims->GetAbstrDomainUnit(), "Partitioning", "Domain of Maximum Claim attribute", UnifyMode(), &resultMsg))
+				if (maxClaims && !partitioningUnit->UnifyDomain(maxClaims->GetAbstrDomainUnit(), "Partitioning", "Domain of Maximum Claim attribute", UnifyMode(), &resultMsg))
 					throwErrorF("discrete_alloc", "values of partitioning %s in AtomicRegions (6th argument):\n%s\nand domain of maximum claim for %s (9th argument):\n%s\nincompatible: %s"
 						, htpMeta.m_PartitioningMetas[partitioningID].GetName()
-						, htpMeta.m_PartitioningMetas[partitioningID].m_AtomicRegionPartitioningDI->GetSourceName()
-						, gg->m_NameID, gg->m_diMaxClaims->GetSourceName()
+						, lock_or_cancel(htpMeta.m_PartitioningMetas[partitioningID].m_AtomicRegionPartitioningDI)->GetSourceName()
+						, gg->m_NameID, maxClaims->GetSourceName()
 						, resultMsg
 					);
 			}
 			else
 			{
-				if (gg->m_diMinClaims && !partitioningUnit->UnifyDomain(gg->m_diMinClaims->GetAbstrDomainUnit(), "Partitioning", "Domain of Minimum Claim attribute", UnifyMode(), &resultMsg))
+				if (minClaims && !partitioningUnit->UnifyDomain(minClaims->GetAbstrDomainUnit(), "Partitioning", "Domain of Minimum Claim attribute", UnifyMode(), &resultMsg))
 					throwErrorF("discrete_alloc", "Regions (4th argument)\nand domain of minimum claim for %s (6th argument):\n%s\nincompatible: %s"
-						, gg->m_NameID, gg->m_diMinClaims->GetSourceName()
+						, gg->m_NameID, minClaims->GetSourceName()
 						, resultMsg
 					);
-				if (gg->m_diMaxClaims && !partitioningUnit->UnifyDomain(gg->m_diMaxClaims->GetAbstrDomainUnit(), "Partitioning", "Domain of Maximum Claim attribute", UnifyMode(), &resultMsg))
+				if (maxClaims && !partitioningUnit->UnifyDomain(maxClaims->GetAbstrDomainUnit(), "Partitioning", "Domain of Maximum Claim attribute", UnifyMode(), &resultMsg))
 					throwErrorF("discrete_alloc", "Regions (4th argument):\nand domain of maximum claim for %s (7th argument):\n%s\nincompatible: %s"
-						, gg->m_NameID, gg->m_diMaxClaims->GetSourceName()
+						, gg->m_NameID, maxClaims->GetSourceName()
 						, resultMsg
 					);
 			}
@@ -1653,15 +1690,15 @@ void CreateResultingItems(
 
 			gg->m_PartitioningID = 0;
 
-			if (gg->m_diMinClaims && !gg->m_diMinClaims->HasVoidDomainGuarantee())
+			if (minClaims && !minClaims->HasVoidDomainGuarantee())
 				throwErrorF("discrete_alloc", "domain of minimum claim for %s not allowed for unpartitioned allocation, define claim as parameter and not as attribute.\n%s"
 					, gg->m_NameID
-					, gg->m_diMinClaims->GetSourceName()
+					, minClaims->GetSourceName()
 				);
-			if (gg->m_diMaxClaims && !gg->m_diMaxClaims->HasVoidDomainGuarantee())
+			if (maxClaims && !maxClaims->HasVoidDomainGuarantee())
 				throwErrorF("discrete_alloc", "domain of maximum claim for %s not allowed for unpartitioned allocation, define claim as parameter and not as attribute.\n%s"
 					, gg->m_NameID
-					, gg->m_diMaxClaims->GetSourceName()
+					, maxClaims->GetSourceName()
 				);
 		}
 
@@ -1674,30 +1711,36 @@ void CreateResultingItems(
 			if (!IsDataItem(subItem))
 				subItem->throwItemError("is expected to be a DataItem,  a.k.a. attribute");
 
-			gg->m_diSuitabilityMap = AsCertainDataItem(subItem.get());
-			gg->m_diSuitabilityMap->UpdateMetaInfo();
+			const AbstrDataItem* suitMap = AsCertainDataItem(subItem.get());
+			gg->m_diSuitabilityMap = suitMap;
+			suitMap->UpdateMetaInfo();
 		}
-		auto suitMapDc = gg->m_diSuitabilityMap->GetCheckedDC();
+		const AbstrDataItem* suitMap = gg->m_diSuitabilityMap.get(); // momentary; still owned by suitabilitySet during this setup
+		auto suitMapDc = suitMap->GetCheckedDC();
 		if (!suitMapDc)
-			if (gg->m_diSuitabilityMap->WasFailed(FailType::MetaInfo))
-				gg->m_diSuitabilityMap->ThrowFail();
+			if (suitMap->WasFailed(FailType::MetaInfo))
+				suitMap->ThrowFail();
 		MG_CHECK(suitMapDc);
 		funcDC.AddDependency(suitMapDc.get());
 
-		if (!allocUnit->UnifyDomain(gg->m_diSuitabilityMap->GetAbstrDomainUnit(), "AllocUnit (second argument)", "Domain of suitability map", UnifyMode(), &resultMsg))
+		if (!allocUnit->UnifyDomain(suitMap->GetAbstrDomainUnit(), "AllocUnit (second argument)", "Domain of suitability map", UnifyMode(), &resultMsg))
 			throwErrorF("discrete_alloc", "Domain of suitability map for %s:\n%s\n %s and allocUnit (arg2) incompatible: %s"
-				,	gg->m_NameID, gg->m_diSuitabilityMap->GetSourceName()
+				,	gg->m_NameID, suitMap->GetSourceName()
 				,	allocUnit->GetSourceName()
 				,	resultMsg
 			);
 		{
 			FixedContextHandle priceUnitContext("processing the values unit of a suitability map as a unit of utility");
-			const Unit<S>* priceUnit = const_unit_checkedcast<S>(gg->m_diSuitabilityMap->GetAbstrValuesUnit());
+			const Unit<S>* priceUnit = const_unit_checkedcast<S>(suitMap->GetAbstrValuesUnit());
 			if (!htpMeta.m_PriceUnit)
-				htpMeta.m_PriceUnit = shared_tree_ptr<const Unit<S> >(priceUnit, existing_obj{});
-			else
-				if (!htpMeta.m_PriceUnit->UnifyValues(priceUnit, "First non-default suitability values unit", "A subsequence suitability values unit", UnifyMode(), &resultMsg))
+				htpMeta.m_PriceUnit = priceUnit; // weak borrow; kept of-interest as a supplier during compute
+			else if (auto priceUnitLock = htpMeta.m_PriceUnit.lock())
+			{
+				if (!priceUnitLock->UnifyValues(priceUnit, "First non-default suitability values unit", "A subsequence suitability values unit", UnifyMode(), &resultMsg))
 					throwErrorF("discrete_alloc", "values of suitability map for %s incompatible with earlier suitability map values:\n%s", gg->m_NameID, resultMsg);
+			}
+			else
+				throwErrorF("discrete_alloc", "price unit expired while processing suitability map for %s", gg->m_NameID);
 
 			if (mustAdjust)
 				gg->m_diResShadowPrices = CreateDataItem(
@@ -1760,20 +1803,25 @@ void PrepareClaims(htp_info_t<S, AR, AT>& htpInfo)
 	{
 		ggType_info_t<S>& gg = htpInfo.m_ggTypes[j];
 
-		dms_assert(IsDataReady(gg.m_diMinClaims->GetCurrUltimateItem().get()));
-		dms_assert(IsDataReady(gg.m_diMaxClaims->GetCurrUltimateItem().get()));
+		auto minClaimsLock = lock_or_cancel(gg.m_diMinClaims); // owning for this scope; throws if torn down
+		auto maxClaimsLock = lock_or_cancel(gg.m_diMaxClaims);
+		const AbstrDataItem* minClaimsDI = minClaimsLock.get();
+		const AbstrDataItem* maxClaimsDI = maxClaimsLock.get();
 
-		DataReadLock lockClaimMin(gg.m_diMinClaims);
-		DataReadLock lockClaimMax(gg.m_diMaxClaims);
+		dms_assert(IsDataReady(minClaimsDI->GetCurrUltimateItem().get()));
+		dms_assert(IsDataReady(maxClaimsDI->GetCurrUltimateItem().get()));
+
+		DataReadLock lockClaimMin(minClaimsDI);
+		DataReadLock lockClaimMax(maxClaimsDI);
 
 		for (UInt32 r = 0; r != gg.m_NrClaims; ++r)
 		{
 			htpInfo.m_Claims.push_back(
 				claim<S>(
-					j, r, 
+					j, r,
 					claim_range(
-						const_array_cast<claim_type>(gg.m_diMinClaims)->GetIndexedValue(r),
-						const_array_cast<claim_type>(gg.m_diMaxClaims)->GetIndexedValue(r)
+						const_array_cast<claim_type>(minClaimsDI)->GetIndexedValue(r),
+						const_array_cast<claim_type>(maxClaimsDI)->GetIndexedValue(r)
 					)
 				)
 			);
@@ -1867,7 +1915,8 @@ void DataReadLockSuitabilities(htp_info_t<S, AR, AT>& htpInfo)
 	for (UInt32 j=0; j!=K; ++j)
 	{
 		ggType_info_t<S>& gg = htpInfo.m_ggTypes[j];
-		gg.m_SuitabilityDataLock = DataReadLock(gg.m_diSuitabilityMap);
+		auto suitMapLock = lock_or_cancel(gg.m_diSuitabilityMap); // owning for this scope; throws if torn down
+		gg.m_SuitabilityDataLock = DataReadLock(suitMapLock.get());
 		dms_assert(gg.m_SuitabilityDataLock.IsLocked());
 
 		gg.m_Suitabilities = const_array_cast<S>(gg.m_SuitabilityDataLock.get_ptr())->GetDataRead();
@@ -1900,7 +1949,7 @@ void PrepareTileLock(htp_info_t<S, AR, AT>& htpInfo)
 	for (UInt32 j=0; j!=K; ++j)
 	{
 		ggType_info_t<S>& gg = htpInfo.m_ggTypes[j];
-		gg.m_Suitabilities = const_array_checked_cast<S>(gg.m_diSuitabilityMap)->GetDataRead();
+		gg.m_Suitabilities = const_array_checked_cast<S>(lock_or_cancel(gg.m_diSuitabilityMap).get())->GetDataRead();
 		htpInfo.PreparePermutation(gg.m_Suitabilities.size());
 	}
 
@@ -3133,8 +3182,10 @@ void StoreLanduseTypeInfo(htp_info_t<S, AR, AT>& htpInfo, bool isFeasible)
 	{
 		ggType_info_t<S>& ggTypeInfo = htpInfo.m_ggTypes[j];
 
-		DataWriteLock spLock(ggTypeInfo.m_diResShadowPrices  , dms_rw_mode::write_only_all);
-		DataWriteLock taLock(ggTypeInfo.m_diResTotalAllocated, dms_rw_mode::write_only_all);
+		auto resSPLock = lock_or_cancel(ggTypeInfo.m_diResShadowPrices);   // owning for this scope; throws if torn down
+		auto resTALock = lock_or_cancel(ggTypeInfo.m_diResTotalAllocated);
+		DataWriteLock spLock(resSPLock.get()  , dms_rw_mode::write_only_all);
+		DataWriteLock taLock(resTALock.get(), dms_rw_mode::write_only_all);
 
 		DataArray<S           >* doResSP = mutable_array_checkedcast<S>(spLock);
 		DataArray<land_unit_id>* doResTA = mutable_array_checkedcast<land_unit_id>(taLock);
@@ -3332,6 +3383,9 @@ public:
 		TreeItem* resShadowPriceContainer = res->CreateItem(GetTokenID_mt("shadow_prices")).get();
 		TreeItem* resTotalAllocatedContainer = res->CreateItem(GetTokenID_mt("total_allocated")).get();
 
+		// htp_meta is made ONCE here (persistent, only rebuilt by MakeResult when the result is invalidated), so it
+		// must NOT be cleared at StopInterest (that is what #968/#1020 disabled). Instead its cached-meta members
+		// are weak (below) so it holds no interest/ownership -> no "uncaused" interest to deadlock the teardown drain.
 		resultHolder->m_ReadAssets.emplace<htp_meta_type>();
 		htp_meta_type& htpMeta = *rtc::any::any_cast<htp_meta_type>(&resultHolder->m_ReadAssets);
 
@@ -3350,8 +3404,8 @@ public:
 		);
 
 		AbstrDataItem* resPrices = nullptr;
-		if (htpMeta.m_PriceUnit)
-			resPrices = CreateDataItem(res, GetTokenID_mt("bid_price"), allocUnit, htpMeta.m_PriceUnit.get()).get(); // owned by res
+		if (auto priceUnitLock = htpMeta.m_PriceUnit.lock())
+			resPrices = CreateDataItem(res, GetTokenID_mt("bid_price"), allocUnit, priceUnitLock.get()).get(); // owned by res
 	}
 
 	bool CalcResult(TreeItemDualRef& resultHolder, const ArgRefs& args, std::vector<ItemReadLock> readLocks, Explain::Context* context) const override

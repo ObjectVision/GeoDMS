@@ -64,7 +64,12 @@ struct DataReadLock : SharedPtr<const AbstrDataObject>
 
 	TIC_CALL DataReadLock(const AbstrDataItem* item);  // prepare only true when called from PreparedDataLock
 
-	DataReadLock& operator = (DataReadLock&& rhs)  noexcept = default;
+	// NOT '= default': a defaulted memberwise reset-move (a) leaks the count-bearing members' locks
+	// (m_RefPtrLock -> m_ItemCount + s_SessionUsageCounter share; the read-lock members were swap-based
+	// pre-migration) AND (b) would reset m_KeepItemAlive FIRST (declaration order), possibly freeing the
+	// item while m_RefPtrLock / m_DRLA counts are still held. Release counts-before-owner (matching the
+	// member-ordering note below and ~DataReadLock), then adopt rhs. See ItemReadLock for the shared-lock leak.
+	TIC_CALL DataReadLock& operator = (DataReadLock&& rhs)  noexcept;
 
 	const AbstrDataObject* GetRefObj () const { return get(); }
 
