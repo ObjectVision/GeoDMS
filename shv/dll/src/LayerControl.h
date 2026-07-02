@@ -41,11 +41,11 @@ class LayerInfoControl : public TextControl
 public:
 	LayerInfoControl(MovableObject* owner);
 	bool MouseEvent(MouseEventDispatcher& med) override;
-	void SetExplainableValue(WeakStr text, shared_tree_ptr<const AbstrDataItem> themeAttr, SizeT focusID);
+	void SetExplainableValue(WeakStr text, std::shared_ptr<const AbstrDataItem> themeAttr, SizeT focusID);
 
 	void ExplainValue();
 
-	shared_tree_ptr<const AbstrDataItem> m_ThemeAttr;
+	std::shared_ptr<const AbstrDataItem> m_ThemeAttr;
 	SizeT                          m_FocusID = 0;
 };
 

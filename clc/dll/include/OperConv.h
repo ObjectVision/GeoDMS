@@ -676,13 +676,13 @@ public:
 		)
 	{}
 
-	auto CreateFutureTileCaster(shared_tree_ptr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* argUnitA MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr)) const -> SharedPtr<const AbstrDataObject> override
+	auto CreateFutureTileCaster(std::shared_ptr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* argUnitA MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr)) const -> SharedPtr<const AbstrDataObject> override
 	{
 		auto tileRangeData = AsUnit(arg1A->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
 		auto valuesUnit = debug_cast<const Unit<field_of_t<TR>>*>(valuesUnitA);
 
 		auto arg1 = MakeSharedFromBorrowedObjectPtr(const_array_cast<TA>(arg1A));
-		auto arg2 = shared_tree_ptr<const Arg2Type>(debug_cast<const Arg2Type*>(argUnitA), existing_obj{});
+		auto arg2 = make_shared_tree(debug_cast<const Arg2Type*>(argUnitA), existing_obj{});
 		assert(arg1);
 
 		using prepare_data = std::shared_ptr<typename Arg1Type::future_tile>;
@@ -728,14 +728,14 @@ public:
 		)
 	{}
 
-	auto CreateFutureTileCaster(shared_tree_ptr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* argUnitA MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr)) const -> SharedPtr<const AbstrDataObject> override
+	auto CreateFutureTileCaster(std::shared_ptr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* argUnitA MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr)) const -> SharedPtr<const AbstrDataObject> override
 	{
 		auto tileRangeData = AsUnit(arg1A->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
 		auto valuesUnit = debug_cast<const Unit<field_of_t<TR>>*>(valuesUnitA);
 
 		auto arg1 = const_array_cast<TA>(arg1A);
-		auto dstUnit = shared_tree_ptr<const Arg2Type>(debug_cast<const Arg2Type*>(argUnitA), existing_obj{});
-		auto srcUnit = shared_tree_ptr<const AbstrUnit>(arg1A->GetAbstrValuesUnit(), existing_obj{});
+		auto dstUnit = make_shared_tree(debug_cast<const Arg2Type*>(argUnitA), existing_obj{});
+		auto srcUnit = make_shared_tree(arg1A->GetAbstrValuesUnit(), existing_obj{});
 		assert(arg1);
 
 		using prepare_data = std::shared_ptr<typename Arg1Type::future_tile>;

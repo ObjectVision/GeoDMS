@@ -49,7 +49,7 @@ bool DataReadLockContainer::Add(const AbstrDataItem* adi, DrlType drlType)
 	if (!adi->PrepareDataUsage(drlType))
 		return false;
 
-	SharedTreeItem adiCurrItem(adi->GetCurrUltimateItem().get(), existing_obj{});
+	SharedTreeItem adiCurrItem = make_shared_tree(adi->GetCurrUltimateItem().get(), existing_obj{});
 	assert(adiCurrItem->GetInterestCount());
 	if (!WaitForReadyOrSuspendTrigger(adiCurrItem.get()))
 		return false;

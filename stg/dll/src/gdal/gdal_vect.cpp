@@ -233,7 +233,7 @@ auto GetGeometry(const TreeItem* storageHolder, const AbstrUnit* layerDomain) ->
 		geometry_item = nullptr;
 
 	if (!geometry_item)
-		for (geometry_item = SharedTreeItem(layerDomain->_GetFirstSubItem(), existing_obj{}); geometry_item; geometry_item = SharedTreeItem(geometry_item->GetNextItem(), existing_obj{}))
+		for (geometry_item = make_shared_tree(layerDomain->_GetFirstSubItem(), existing_obj{}); geometry_item; geometry_item = make_shared_tree(geometry_item->GetNextItem(), existing_obj{}))
 			if (IsValidGeometry(geometry_item.get(), true))
 				break;
 
@@ -2193,7 +2193,7 @@ std::vector<DataReadLock> ReadableDataHandles(TokenID layer_id, DataItemsWriteSt
 		if (not writableField.second.doWrite)
 			continue;
 
-		auto adi_n = SharedDataItem(writableField.second.m_DataHolder.get_ptr(), no_zombies{});
+		auto adi_n = make_shared_tree(writableField.second.m_DataHolder.get_ptr(), no_zombies{});
 		dataReadLocks.emplace_back(adi_n.get());
 	}
 	return dataReadLocks;
@@ -2555,7 +2555,7 @@ void GdalVectSM::WriteLayer(TokenID layer_id, const GdalMetaInfo& gmi)
 				if (not writableField.second.doWrite)
 					continue;
 
-				auto adi_n = SharedDataItem(writableField.second.m_DataHolder.get_ptr(), no_zombies{});
+				auto adi_n = make_shared_tree(writableField.second.m_DataHolder.get_ptr(), no_zombies{});
 				if (writableField.second.isGeometry)
 					WriteGeometryElement(adi_n.get(), curFeature, t, tileFeatureIndex);
 				else
@@ -2734,7 +2734,7 @@ auto GdalVectSM::CreateGeometryDataItemFromGdal(const TreeItem* storageHolder, c
 	// create default value unit from gdal_vc
 	SharedUnit vu;
 	if (gdal_vc == ValueComposition::Unknown)
-		vu = SharedUnit(Unit<SharedStr>::GetStaticClass()->CreateDefault(), existing_obj{});
+		vu = make_shared_tree(Unit<SharedStr>::GetStaticClass()->CreateDefault(), existing_obj{});
 	else
 		vu = FindProjectionRef(storageHolder, layerDomain);
 
@@ -2750,7 +2750,7 @@ auto GdalVectSM::CreateGeometryDataItemFromGdal(const TreeItem* storageHolder, c
 		}
 	}
 	else if (!vu) // default value
-		vu = SharedUnit(Unit<DPoint>::GetStaticClass()->CreateDefault(), existing_obj{});
+		vu = make_shared_tree(Unit<DPoint>::GetStaticClass()->CreateDefault(), existing_obj{});
 
 	// create missing geometry treeitem
 	if (gdal_vc == ValueComposition::Unknown)

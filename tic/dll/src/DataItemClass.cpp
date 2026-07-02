@@ -156,8 +156,8 @@ SharedMutableDataItem DataItemClass::CreateDataItem(
 				);
 
 	dms_assert(result);
-	result->m_DomainUnit = SharedUnit( domainUnit, existing_obj{} ); // store as weak back-ref (unit owned by tree)
-	result->m_ValuesUnit = SharedUnit( valuesUnit, existing_obj{} );
+	result->m_DomainUnit = make_shared_tree(domainUnit, existing_obj{}); // store as weak back-ref (unit owned by tree)
+	result->m_ValuesUnit = make_shared_tree(valuesUnit, existing_obj{});
 	return result;
 }
 
@@ -178,8 +178,8 @@ SharedMutableDataItem DataItemClass::CreateDataItemFromPath(
 		);
 
 	dms_assert(result);
-	result->m_DomainUnit = SharedUnit( domainUnit, existing_obj{} ); // store as weak back-ref (unit owned by tree)
-	result->m_ValuesUnit = SharedUnit( valuesUnit, existing_obj{} );
+	result->m_DomainUnit = make_shared_tree(domainUnit, existing_obj{}); // store as weak back-ref (unit owned by tree)
+	result->m_ValuesUnit = make_shared_tree(valuesUnit, existing_obj{});
 	return result;
 }
 

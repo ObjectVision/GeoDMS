@@ -198,7 +198,7 @@ static TokenID t_ConfigSettings = GetTokenID_st("ConfigSettings");
 void SessionData::Open(const TreeItem* configRoot)
 {
 	dms_assert(!m_ConfigRoot); // only open this once
-	m_ConfigRoot = SharedTreeItem(configRoot, existing_obj{}); // take co-ownership of the config root (held alive by the loader during Open)
+	m_ConfigRoot = make_shared_tree(configRoot, existing_obj{}); // take co-ownership of the config root (held alive by the loader during Open)
 	m_ConfigLoadTS = UpdateMarker::GetLastTS();
 	auto configSettings = const_cast<TreeItem*>(configRoot)->CreateItem(t_ConfigSettings);
 	configSettings->SetIsHidden(true);
@@ -221,7 +221,7 @@ void SessionData::ReleaseCurr()
 
 void SessionData::activateIt(const TreeItem* configRoot) // for now, assume session to be a singleton
 {
-	assert(s_CurrSD && (s_CurrSD->GetConfigRoot() == configRoot || s_CurrSD->m_ConfigRoot.is_null()));
+	assert(s_CurrSD && (s_CurrSD->GetConfigRoot().get() == configRoot || s_CurrSD->m_ConfigRoot == nullptr));
 }
 
 std::shared_ptr<SessionData> SessionData::GetIt(const TreeItem* configRoot)

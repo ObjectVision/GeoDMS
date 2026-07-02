@@ -405,13 +405,13 @@ std::shared_ptr<Theme> Theme::Create(AspectNr aNr, const AbstrDataItem* thematic
 
 	if (!layerInfo.IsComplete())
 	{
-		paletteDomain = SharedUnit(layerInfo.GetPaletteDomain(), existing_obj{});
+		paletteDomain = make_shared_tree(layerInfo.GetPaletteDomain(), existing_obj{});
 		switch (layerInfo.m_State) {
 			case LayerInfo::ClassificationMissing:
 				nbai = CreateBreakAttr(dv, thematicAttr->GetAbstrValuesUnit(), thematicAttr, DEFAULT_MAX_NR_BREAKS);
 				dms_assert(nbai.breakAttr);
 				layerInfo.m_diClassBreaksOrExtKey = nbai.breakAttr.get_ptr();
-				paletteDomain = SharedUnit(nbai.paletteDomain.get_ptr(), existing_obj{});
+				paletteDomain = make_shared_tree(nbai.paletteDomain.get_ptr(), existing_obj{});
 				
 				if (!thematicAttr->PrepareDataUsage(DrlType::Certain)) // async
 					thematicAttr->ThrowFail();

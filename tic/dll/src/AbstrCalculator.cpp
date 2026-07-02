@@ -131,7 +131,7 @@ SharedTreeItem FindSubItem(const TreeItem* sourceItem, SharedStr relPath)
 	{
 		dms_assert(!sourceItem->IsCacheItem());
 		if (begin == end)
-			return SharedTreeItem(sourceItem, existing_obj{});
+			return make_shared_tree(sourceItem, existing_obj{});
 		auto delimPos = begin;
 		while (delimPos != end && *delimPos != DELIMITER_CHAR)
 			++delimPos;
@@ -271,7 +271,7 @@ LispRef GetAsLispRef(const MetaInfo& metaInfo)
 //----------------------------------------------------------------------
 
 AbstrCalculator::AbstrCalculator(const TreeItem* context, CalcRole cr)
-	:	m_Holder(context)
+	:	m_Holder(make_weak_tree(context))
 	,	m_CalcRole(cr)
 {
 	if (context)
@@ -283,7 +283,7 @@ AbstrCalculator::AbstrCalculator(const TreeItem* context, CalcRole cr)
 }
 
 AbstrCalculator::AbstrCalculator(const TreeItem* context, LispPtr lispRefOrg, CalcRole cr)
-	: m_Holder(context)
+	: m_Holder(make_weak_tree(context))
 	, m_LispExprOrg(lispRefOrg)
 	, m_CalcRole(cr)
 	, m_HasParsed(true)
@@ -322,12 +322,12 @@ static TokenID thisToken = GetTokenID_st("this");
 auto AbstrCalculator::FindItem(TokenID itemRef) const -> SharedTreeItem
 {
 	assert(!itemRef.empty());
-	assert(m_Holder);
+	assert(!m_Holder.expired());
 
 	MG_SIGNAL_ON_UPDATEMETAINFO
 
 	if (itemRef == thisToken)
-		return { m_Holder.get(), existing_obj{}};
+		return m_Holder.lock();
 
 	SharedStr itemRefStr(itemRef.AsStrRange());
 	return SearchContext()->FindItem(itemRefStr);
@@ -351,7 +351,7 @@ auto AbstrCalculator::FindOrVisitItem(SubstitutionBuffer& buff, TokenID itemRef)
 BestItemRef AbstrCalculator::FindBestItem(TokenID itemRef) const
 {
 	assert(!itemRef.empty());
-	assert(m_Holder);
+	assert(!m_Holder.expired());
 
 	MG_SIGNAL_ON_UPDATEMETAINFO
 
@@ -787,7 +787,7 @@ BestItemRef AbstrCalculator::FindErrorneousItem() const
 	else
 		VisitSuppliers(SupplierVisitFlag::CalcErrorSearch, std::move(visitor));
 
-	return { SharedTreeItem(errorneousItem, existing_obj{}), {} };
+	return { make_shared_tree(errorneousItem, existing_obj{}), {} };
 }
 
 BestItemRef AbstrCalculator::FindPrimaryDataFailedItem() const
@@ -874,7 +874,7 @@ LispRef AbstrCalculator::slSupplierExpr(SubstitutionBuffer& substBuff, LispPtr s
 				m_BestGuessErrorSuppl = x;
 
 			auto errMsg = MakeUnknownIdentifierErrorMsg(supplRefID.AsSharedStr(), x);
-			m_Holder->Fail(errMsg, FailType::MetaInfo);
+			GetHolder()->Fail(errMsg, FailType::MetaInfo);
 		}
 		return supplRef;
 	}
@@ -901,26 +901,26 @@ LispRef AbstrCalculator::slSupplierExprImpl(SubstitutionBuffer& substBuff, const
 	//	DBG_TRACE(("supplRef %s", AsString(supplRef).c_str()) );
 
 	dms_assert(supplier); // PRECONDITION
-	if (m_Holder->DoesContain(supplier))
+	if (GetHolder()->DoesContain(supplier))
 	{
-		if (m_CalcRole == CalcRole::Calculator || supplier != m_Holder)
-			m_Holder->ThrowFail("Calulation rule would create a circular dependency", FailType::MetaInfo);
+		if (m_CalcRole == CalcRole::Calculator || supplier != GetHolder())
+			GetHolder()->ThrowFail("Calulation rule would create a circular dependency", FailType::MetaInfo);
 	}
 	else
 		supplier->UpdateMetaInfo();
 	if (supplier->InTemplate() && !(mpf & metainfo_policy_flags::subst_never))
 	{
 		auto msg = mySSPrintF("Calulation rule would create a dependency on %s which is (part of) a template", supplier->GetFullName());
-		m_Holder->ThrowFail(msg, FailType::MetaInfo);
+		GetHolder()->ThrowFail(msg, FailType::MetaInfo);
 	}
 
-	if (m_Holder != supplier)
+	if (GetHolder() != supplier)
 		registerSupplier(substBuff, supplier);
 
 	if (mpf & metainfo_policy_flags::subst_never || (!supplier->IsPassor() && !supplier->HasCalculator() && !IsDataItem(supplier) && !IsUnit(supplier)))
 		return CreateLispTree(supplier, mpf & metainfo_policy_flags::suppl_tree);
 
-	LispRef result = (m_CalcRole == CalcRole::Checker && m_Holder == supplier) ? supplier->GetKeyExprImpl() : supplier->GetCheckedKeyExpr();
+	LispRef result = (m_CalcRole == CalcRole::Checker && GetHolder() == supplier) ? supplier->GetKeyExprImpl() : supplier->GetCheckedKeyExpr();
 
 #if defined(MG_DEBUG_LISP_TREE)
 	reportF(SeverityTypeID::ST_MinorTrace, "result=%s", AsString(result).c_str());
@@ -1054,7 +1054,7 @@ OArgRefs ApplyMetaFunc_GetArgs(TreeItem* holder, const AbstrCalculator* ac, cons
 			}
 			TokenID symbID = cursor.Left().GetSymbID();
 			if (auto vc = ValueClass::FindByScriptName(symbID))
-				argRef.emplace<SharedTreeItem>(SharedTreeItem(UnitClass::Find(vc)->CreateDefault(), existing_obj{})); // unitName -> [UnitName []] ofwel unitName().
+				argRef.emplace<SharedTreeItem>(make_shared_tree(UnitClass::Find(vc)->CreateDefault(), existing_obj{})); // unitName -> [UnitName []] ofwel unitName().
 			else
 			{
 				auto foundItem = ac->FindItem(symbID);
@@ -1066,7 +1066,7 @@ OArgRefs ApplyMetaFunc_GetArgs(TreeItem* holder, const AbstrCalculator* ac, cons
 				else
 					argRef.emplace<SharedTreeItem>(foundItem);
 			}
-			dms_assert((argRef.index() == 1 && std::get<1>(argRef).has_ptr()) || holder->WasFailed(FailType::MetaInfo));
+			dms_assert((argRef.index() == 1 && (std::get<1>(argRef) != nullptr)) || holder->WasFailed(FailType::MetaInfo));
 			dms_assert(!SuspendTrigger::DidSuspend()); // POSTCONDITION of argIter->m_DC->MakeResult();
 		}
 		else
@@ -1323,7 +1323,7 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 				}
 				indexExpr = slSupplierExprImpl(substBuff, indexItem.get(), mpf); // now process left before re-assigning search context
 
-				tmp_swapper<SharedTreeItem> swap(m_SearchContext, SharedTreeItem(avu, existing_obj{}));
+				tmp_swapper<SharedTreeItem> swap(m_SearchContext, make_shared_tree(avu, existing_obj{}));
 				SubstitutionBuffer localBuffer; localBuffer.svf = substBuff.svf; localBuffer.optionalVisitor = substBuff.optionalVisitor;
 				auto arrowedExpr = SubstituteExpr_impl(localBuffer, localExpr.Right().Right().Left(), mpf);
 				if (localBuffer.avs == AVS_SuspendedOrFailed)
@@ -1410,7 +1410,7 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 				if (!supplier)
 				{
 					dms_assert(dc->WasFailed(FailType::MetaInfo));
-					m_Holder->ThrowFail(dc.get());
+					GetHolder()->ThrowFail(dc.get());
 				}
 
 				if (!supplier->IsCacheItem())
@@ -1512,7 +1512,7 @@ auto AbstrCalculator::GetMetaInfo() const -> MetaInfo
 			{
 				assert(tvPair.second > 0);
 				assert(tvPair.second <= count);
-				m_NamedSuppliers[tvPair.second - 1] = SharedTreeItem(tvPair.first, existing_obj{});
+				m_NamedSuppliers[tvPair.second - 1] = make_shared_tree(tvPair.first, existing_obj{});
 			}
 		}
 	}

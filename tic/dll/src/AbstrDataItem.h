@@ -69,8 +69,8 @@ public:
 	TIC_CALL auto GetAbstrValuesUnit() const -> const AbstrUnit*;
 	// Current (already-resolved) domain/values unit WITHOUT triggering a FindUnit re-resolve -- an owning
 	// snapshot of the weak member (empty if unset/expired). Used to keep a cache result's units alive.
-	SharedUnit GetCurrDomainUnit() const { return m_DomainUnit.lock_ptr(); }
-	SharedUnit GetCurrValuesUnit() const { return m_ValuesUnit.lock_ptr(); }
+	SharedUnit GetCurrDomainUnit() const { return m_DomainUnit.lock(); }
+	SharedUnit GetCurrValuesUnit() const { return m_ValuesUnit.lock(); }
 	TIC_CALL auto CreateAbstrValue() const -> std::unique_ptr<AbstrValue>;
 
 	TIC_CALL auto GetNonDefaultDomainUnit() const -> const AbstrUnit*;

@@ -277,14 +277,14 @@ SharedUnit FindProjectionBase(const TreeItem* storageHolder, const AbstrUnit* gr
 	auto uBase = FindProjectionRef(storageHolder, gridDataDomain);
 	if (uBase == nullptr)
 	{
-		uBase = SharedUnit(AsDynamicUnit(storageHolder), existing_obj{});
+		uBase = make_shared_tree(AsDynamicUnit(storageHolder), existing_obj{});
 		if (!uBase && IsDataItem(storageHolder))
-			uBase = SharedUnit(AsDataItem(storageHolder)->GetAbstrDomainUnit(), existing_obj{});
+			uBase = make_shared_tree(AsDataItem(storageHolder)->GetAbstrDomainUnit(), existing_obj{});
 		if (uBase)
 		{
 			const UnitProjection* prj = uBase->GetProjection();
 			if (prj)
-				uBase = SharedUnit(prj->GetBaseUnit(), existing_obj{});
+				uBase = make_shared_tree(prj->GetBaseUnit(), existing_obj{});
 			else
 				uBase = nullptr; // avoid self-referencing
 		}
@@ -539,8 +539,8 @@ template <typename Int>
 ViewPortInfoEx<Int>::ViewPortInfoEx(const TreeItem* context, const AbstrUnit* currDomain, tile_id tc, const AbstrUnit* gridDomain, tile_id tg, StorageMetaInfoPtr smi, bool correctGridOffset, bool mustCheck, countcolor_t cc, bool queryActualGridDomain)
 {
 	assert(queryActualGridDomain || !IsDefined(tg));
-	assert(!gridDomain || gridDomain == gridDomain->GetCurrRangeItem());
-	assert(!currDomain || currDomain == currDomain->GetCurrRangeItem());
+	assert(!gridDomain || gridDomain == gridDomain->GetCurrRangeItem().get());
+	assert(!currDomain || currDomain == currDomain->GetCurrRangeItem().get());
 	assert(queryActualGridDomain || !correctGridOffset);
 	assert(queryActualGridDomain || tg == no_tile);
 	assert(!correctGridOffset || queryActualGridDomain);
@@ -626,7 +626,7 @@ void ViewPortInfoEx<Int>::SetWritability(AbstrDataItem* adi) const
 }
 
 ViewPortInfoProvider::ViewPortInfoProvider(const TreeItem * storageHolder, const AbstrDataItem* adi, bool mayCreateDomain, bool queryActualRange)
-	: m_ADI(adi, existing_obj{}) // borrow the tree-owned data item (co-own its real control block)
+	: m_ADI(make_shared_tree(adi, existing_obj{})) // borrow the tree-owned data item (co-own its real control block)
 	, m_QueryActualGridDomain(queryActualRange)
 {
 	// PRECONDIDION

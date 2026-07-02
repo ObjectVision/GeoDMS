@@ -49,7 +49,7 @@ struct DataReadLockAtom
 
 private:
 	void release() noexcept; // shared by ~DataReadLockAtom and move-assignment
-	shared_tree_ptr<const AbstrDataItem> m_Item;
+	std::shared_ptr<const AbstrDataItem> m_Item;
 };
 
 //----------------------------------------------------------------------
@@ -82,7 +82,7 @@ private:
 	// plain owner drop the final ref -- so when ~AbstrDataItem/ClearDataObject runs, both counts are already 0.
 	// Needed because ownership is now downward (parent->child): without this, a lock's count-holder could be the
 	// last owner and destroy the item while its own count was still held (tripping MG_CHECK(m_ItemCount==0)).
-	shared_tree_ptr<const AbstrDataItem> m_KeepItemAlive;
+	std::shared_ptr<const AbstrDataItem> m_KeepItemAlive;
 	ItemReadLock                       m_RefPtrLock; // TODO G8: REMOVE
 	DataReadLockAtom                   m_DRLA;
 };
@@ -168,7 +168,7 @@ private:
 	DataWriteLock& operator = (const DataWriteLock&) = delete;
 
 	void release() noexcept; // shared by ~DataWriteLock and move-assignment
-	shared_tree_ptr<AbstrDataItem> m_adi;
+	std::shared_ptr<AbstrDataItem> m_adi;
 };
 
 template<typename V> TileFunctor<V>*

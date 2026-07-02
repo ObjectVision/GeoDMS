@@ -43,7 +43,7 @@ static void storeAllSuppliers(const TreeItem* self, SupplierVisitFlag svf, TreeI
 			const TreeItem* suppl = dynamic_cast<const TreeItem*>(supplier);
 			if (suppl)
 			{
-				shared_tree_ptr<const TreeItem> supplKey(suppl, existing_obj{});
+				std::shared_ptr<const TreeItem> supplKey = make_shared_tree(suppl, existing_obj{});
 				TreeItemSetType::iterator i = itemSet.lower_bound(supplKey);
 				if (i == itemSet.end() || (*i) != supplKey)
 				{
@@ -152,7 +152,7 @@ static void createSimilarSet(const TreeItem* searchLoc, const TreeItem* pattern,
 	if (!(flags & CSS_MatchName) || (!stricmp( searchLoc->GetName().c_str(), pattern->GetName().c_str())))
 		if (isSimilar(searchLoc, pattern, CSS_FLAGS(flags | CSS_NoCaseParams)))
 		{
-			itemset.push_back(weak_tree_ptr<const TreeItem>(searchLoc));
+			itemset.push_back(make_weak_tree(searchLoc));
 			return;
 		}
 

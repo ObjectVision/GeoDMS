@@ -107,7 +107,7 @@ auto UnitClass::CreateUnitFromPath(TreeItem* context, CharPtr path) const ->  Sh
 auto UnitClass::CreateResultUnit(TreeItem* context) const -> SharedMutableUnit
 {
 	if (context)
-		return SharedMutableUnit(AsUnit(context), existing_obj{}); // context is an existing (owned) tree item
+		return make_shared_tree(AsUnit(context), existing_obj{}); // context is an existing (owned) tree item
 	auto result = CreateUnit(nullptr, TokenID::GetEmptyID());
 	result->SetPassor();
 	result->DisableStorage();

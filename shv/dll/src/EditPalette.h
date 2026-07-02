@@ -56,7 +56,7 @@ protected:
 	SharedStr GetAsText() const;
 
 private:
-	weak_tree_ptr<const AbstrUnit> m_PaletteDomain;
+	std::weak_ptr<const AbstrUnit> m_PaletteDomain;
 };
 
 //----------------------------------------------------------------------

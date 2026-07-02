@@ -367,7 +367,7 @@ public:
 protected:
 	caret_vector                   m_CaretVector;
 	std::shared_ptr<MovableObject> m_Contents;
-	shared_tree_ptr<TreeItem>            m_ViewContext;
+	std::shared_ptr<TreeItem>            m_ViewContext;
 
 	controller_vector             m_ControllerVector;
 

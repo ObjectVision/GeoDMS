@@ -126,14 +126,14 @@ public:
 			resultHolder = TreeItem::CreateCacheRoot();
 
 			ArgRefs tmpArgs; tmpArgs.reserve(2);
-			tmpArgs.emplace_back(std::in_place_type<SharedTreeItem>, heightUnit, existing_obj{});
-			tmpArgs.emplace_back(std::in_place_type<SharedTreeItem>, distUnit, existing_obj{});
+			tmpArgs.emplace_back(std::in_place_type<SharedTreeItem>, make_shared_tree(heightUnit, existing_obj{}));
+			tmpArgs.emplace_back(std::in_place_type<SharedTreeItem>, make_shared_tree(distUnit, existing_obj{}));
 
 			LifetimeProtector<TreeItemDualRef> resultRef;
 			resultRef->MarkTS(resultHolder.GetLastChangeTS());
 
 			cog_div.FindOperByArgs(tmpArgs)->CreateResultCaller(*resultRef, tmpArgs);
-			ConstUnitRef rcUnit(debug_cast<const AbstrUnit*>(resultRef->GetOld()), existing_obj{}); assert(rcUnit);
+			ConstUnitRef rcUnit = make_shared_tree(debug_cast<const AbstrUnit*>(resultRef->GetOld()), existing_obj{}); assert(rcUnit);
 
 			CreateDataItem(resultHolder.GetNew(), s_RLoc, calcPointEntity, pointUnit);
 			CreateDataItem(resultHolder.GetNew(), s_RRC,  calcPointEntity, rcUnit.get());

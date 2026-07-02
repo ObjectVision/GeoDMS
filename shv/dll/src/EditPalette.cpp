@@ -107,7 +107,7 @@ const TPoint editPaletteButtonClientSize = shp2dms_order<TType>(DEF_TEXT_PIX_WID
 
 PaletteButton::PaletteButton(MovableObject* owner,const AbstrUnit* paletteDomain)
 	:	TextControl(owner, editPaletteButtonClientSize.X(), editPaletteButtonClientSize.Y(),  "")
-	,	m_PaletteDomain(nullptr)
+	,	m_PaletteDomain()
 {
 	if(paletteDomain)
 		OnSetDomain(paletteDomain);
@@ -115,8 +115,8 @@ PaletteButton::PaletteButton(MovableObject* owner,const AbstrUnit* paletteDomain
 
 void PaletteButton::OnSetDomain(const AbstrUnit* newDomain)
 {
-	m_PaletteDomain = newDomain;
-	SetText(m_PaletteDomain->GetDisplayName());
+	m_PaletteDomain = make_weak_tree(newDomain);
+	SetText(m_PaletteDomain.lock()->GetDisplayName());
 }
 
 //----------------------------------------------------------------------
@@ -717,7 +717,7 @@ void CreateEditPaletteMdiChild(GraphicLayer* layer, const AbstrDataItem* themeAt
 
 	auto dv = layer->GetDataView().lock(); if (!dv) return;
 	std::weak_ptr<GraphicLayer> layer_wp = layer->shared_from_base<GraphicLayer>();
-	shared_tree_ptr<const AbstrDataItem> themeAttrSPtr(themeAttr, existing_obj{});
+	std::shared_ptr<const AbstrDataItem> themeAttrSPtr = make_shared_tree(themeAttr, existing_obj{});
 	dv->PostGuiOper([layer_wp, themeAttrSPtr]() {
 		std::shared_ptr<GraphicLayer> layer = layer_wp.lock(); if (!layer) return;
 		auto dv = layer->GetDataView().lock(); if (!dv) return;

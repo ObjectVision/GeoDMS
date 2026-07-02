@@ -312,7 +312,7 @@ namespace cs_lock {
 		}
 		auto unlockDsmUsageCounter = make_releasable_scoped_exit([]() { s_SessionUsageCounter.unlock_shared(); });
 
-		assert(item == item->GetCurrRangeItem());
+		assert(item == item->GetCurrRangeItem().get());
 		dbg_assert(item->CheckMetaInfoReadyOrPassor());
 
 		// may wait for the completion of ItemWriteLock from a generating operation that was started by PrepareDataUsage.
@@ -336,7 +336,7 @@ namespace cs_lock {
 		}
 		auto unlockDsmUsageCounter = make_releasable_scoped_exit([]() { s_SessionUsageCounter.unlock_shared(); });
 
-		assert(item == item->GetCurrRangeItem());
+		assert(item == item->GetCurrRangeItem().get());
 		dbg_assert(item->CheckMetaInfoReadyOrPassor());
 
 		// may wait for the completion of ItemWriteLock from a generating operation that was started by PrepareDataUsage.
@@ -465,7 +465,7 @@ ItemWriteLock::ItemWriteLock(TreeItem* item, std::weak_ptr<OperationContext> ocb
 		s_SessionUsageCounter.lock_shared();
 
 		treeitem_production_task::lock_unique(item, ocb);
-		m_ItemPtr = shared_tree_ptr<const TreeItem>(item, existing_obj{});
+		m_ItemPtr = make_shared_tree(item, existing_obj{});
 
 #if defined(MG_DEBUG_DATASTORELOCK)
 		++sd_ItemWriteLockCounter;
@@ -478,7 +478,7 @@ void ItemWriteLock::releaseHeldLock() noexcept
 	if (!has_ptr())
 		return;
 
-	shared_tree_ptr<const TreeItem> garbage(GetItem(), existing_obj{});
+	std::shared_ptr<const TreeItem> garbage = make_shared_tree(GetItem(), existing_obj{});
 
 	treeitem_production_task::unlock_unique(m_ItemPtr.get());
 	s_SessionUsageCounter.unlock_shared();
@@ -512,7 +512,7 @@ Int32 GetItemLockCount(const TreeItem* item)
 bool IsCalculating(const TreeItem* item)
 {
 	assert(item);
-	assert(item == item->GetCurrRangeItem());
+	assert(item == item->GetCurrRangeItem().get());
 
 	assert(item);
 	do {
@@ -535,7 +535,7 @@ bool IsCalculating(const TreeItem* item)
 bool IsDataCurrCompleted(const TreeItem* item)
 {
 	assert(item);
-	assert(item->GetCurrRangeItem() == item);
+	assert(item->GetCurrRangeItem().get() == item);
 	assert(item->HasInterest()); // or else result would be volatile
 
 	if (IsDataItem(item))
@@ -578,7 +578,7 @@ bool IsDataCurrReady(const TreeItem* item)
 bool IsDataCurrStandby(const TreeItem* item)
 {
 	assert(item);
-	assert(item->GetCurrRangeItem() == item);
+	assert(item->GetCurrRangeItem().get() == item);
 
 	if (IsDataItem(item))
 	{
@@ -628,7 +628,7 @@ bool IsAllInterestedDataReady_impl(const TreeItem* item)
 {
 	MGD_PRECONDITION(item);
 	MGD_PRECONDITION(item->IsCacheItem());
-	MGD_PRECONDITION(item == item->GetCurrUltimateItem());
+	MGD_PRECONDITION(item == item->GetCurrUltimateItem().get());
 
 	if (item->GetInterestCount())
 		if (!IsDataCurrReady(item))
@@ -706,12 +706,12 @@ bool IsCalculatingOrReady(const TreeItem* item)
 }
 
 
-static std::set< shared_tree_ptr<const TreeItem>>  s_ActiveProducerSet;
+static std::set< std::shared_ptr<const TreeItem>>  s_ActiveProducerSet;
 leveled_critical_section s_ActiveProducerSetMutex(item_level_type(0), ord_level_type::ActiveProducerSet, "ActiveProducerSet");
 std::atomic<bool> s_RunTaskActive = false;
 
 
-shared_tree_ptr<const TreeItem> GetATask()
+std::shared_ptr<const TreeItem> GetATask()
 {
 	leveled_critical_section::scoped_lock lock(s_ActiveProducerSetMutex);
 	if (s_ActiveProducerSet.empty())
@@ -744,7 +744,7 @@ bool RunTask(const TreeItem* item)
 		if (IsMultiThreaded2()) {
 			leveled_critical_section::scoped_lock lock(s_ActiveProducerSetMutex);
 
-			s_ActiveProducerSet.insert(shared_tree_ptr<const TreeItem>(item, existing_obj{}));
+			s_ActiveProducerSet.insert(make_shared_tree(item, existing_obj{}));
 			if (!s_RunTaskActive)
 			{
 				s_RunTaskActive = true;
@@ -764,7 +764,7 @@ GetPortableTaskGroup().run(RunTasks);
 bool CheckCalculatingOrReady(const TreeItem* item)
 {
 	assert(item);
-	assert(item == item->GetCurrRangeItem());
+	assert(item == item->GetCurrRangeItem().get());
 
 //	if (item->DataAllocated())
 //		return true;
@@ -813,7 +813,7 @@ bool IsInWriteLock(const TreeItem* item)
 bool WaitForReadyOrSuspendTrigger(const TreeItem* item)
 {
 	assert(item);
-	assert(item == item->GetCurrRangeItem());
+	assert(item == item->GetCurrRangeItem().get());
 
 	assert(!SuspendTrigger::DidSuspend()); // PRECONDITION
 
@@ -867,7 +867,7 @@ bool WaitForReadyOrSuspendTrigger(const TreeItem* item)
 bool WaitReady(const TreeItem* item)
 {
 	assert(item);
-	assert(item == item->GetCurrRangeItem());
+	assert(item == item->GetCurrRangeItem().get());
 	assert(CheckCalculatingOrReady(item) || item->WasFailed());
 	if (IsDataReady(item))
 		return true;

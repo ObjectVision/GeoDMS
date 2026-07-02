@@ -171,7 +171,7 @@ const AbstrDataItem* StrFilesStorageManager::GetFileNameAttr(const TreeItem* sto
 		auto fileNameItem = storageHolder->FindItem("FileName");
 		if (!fileNameItem)
 			storageHolder->throwItemError("StrFilesStorageManager requires an attribute<string> FileName with the same domain as this to be in its parent namespace");
-		m_FileNameAttr = shared_tree_ptr<const AbstrDataItem>(AsCheckedDataItem(fileNameItem).get(), existing_obj{});
+		m_FileNameAttr = make_shared_tree(AsCheckedDataItem(fileNameItem).get(), existing_obj{});
 	}
 	return m_FileNameAttr.get();
 }

@@ -54,14 +54,14 @@ typedef SizeT  PartitionIndex;
 struct RegionMeta
 {
 	RegionMeta(const AbstrDataItem* partition, AbstrDataItem* result)
-		:	m_Partition(partition, existing_obj{}) // borrow the tree-owned partition arg (co-own its real control block)
-		,	m_Result  (result)
+		:	m_Partition(make_shared_tree(partition, existing_obj{})) // borrow the tree-owned partition arg (co-own its real control block)
+		,	m_Result  (make_weak_tree(result))
 	{}
 
 	RegionMeta(const RegionMeta&) noexcept = default;
 
-	shared_tree_ptr<const AbstrDataItem>  m_Partition;
-	weak_tree_ptr<AbstrDataItem>          m_Result;
+	std::shared_ptr<const AbstrDataItem>  m_Partition;
+	std::weak_ptr<AbstrDataItem>          m_Result;
 };
 
 struct RegionInfo : RegionMeta
@@ -126,15 +126,16 @@ struct RegTileCounterBase : UnitProcessor
 		for (auto i=regionInfoArrayPtr->begin(), e=regionInfoArrayPtr->end(); i!=e; ++i)
 			countsArray.push_back(mutable_array_cast<CounterType>(i->m_WriteLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero));
 
-		DataReadLock arg1Lock(arg1A.get());
+		auto arg1ALock = lock_or_cancel(arg1A); // owning for this scope; throws if torn down
+		DataReadLock arg1Lock(arg1ALock.get());
 
-		const AbstrUnit* gridDomain = arg1A->GetAbstrDomainUnit();
-		typename Unit<ActorType>::range_t actorTypeRange = const_array_checked_cast<ActorType>(arg1A)->GetValueRangeData()->GetRange();
+		const AbstrUnit* gridDomain = arg1ALock->GetAbstrDomainUnit();
+		typename Unit<ActorType>::range_t actorTypeRange = const_array_checked_cast<ActorType>(arg1ALock.get())->GetValueRangeData()->GetRange();
 
 		tile_id te = gridDomain->GetNrTiles();
 		for (tile_id t=0; t!=te; ++t)
 		{
-			auto arg1Data = const_array_cast<ActorType>(arg1A)->GetDataRead(t);
+			auto arg1Data = const_array_cast<ActorType>(arg1ALock.get())->GetDataRead(t);
 			PrepareTile(regionInfoArrayPtr, t);
 
 			SizeT c = 0;
@@ -156,7 +157,7 @@ struct RegTileCounterBase : UnitProcessor
 		}
 	}
 	WeakPtr<RegionInfoArray> regionInfoArrayPtr;
-	weak_tree_ptr<const AbstrDataItem>     arg1A;
+	std::weak_ptr<const AbstrDataItem>     arg1A;
 };
 
 template <typename ActorType>
@@ -199,11 +200,11 @@ struct RegCountOperator : public QuaternaryOperator
 		actorTypeUnit->UnifyDomain(arg4A->GetAbstrDomainUnit(), "v1", "e4", UM_Throw);
 
 		RegionMetaArray regionMetaArray; regionMetaArray.reserve(n);
-		regionMetaArray.m_ResUnit = ConstUnitRef((m_CountUnitClass)
+		regionMetaArray.m_ResUnit = make_shared_tree((m_CountUnitClass)
 			? (gridDomain->GetStaticClass() == m_CountUnitClass)
 			? gridDomain
 			: m_CountUnitClass->CreateDefault()
-			: count_unit_creator(GetItems(args)).get_ptr(), existing_obj{});
+			: count_unit_creator(GetItems(args)).get(), existing_obj{});
 		assert(regionMetaArray.m_ResUnit);
 
 		if (!resultHolder)
@@ -257,7 +258,7 @@ struct RegCountOperator : public QuaternaryOperator
 		const TreeItem*      partitionContainer = GetItem(args[2]); assert(partitionContainer);
 		const AbstrDataItem* arg4A = AsDataItem(args[3]); assert(arg4A);
 
-		auto actorTypeRange = const_array_cast<ActorType>(arg1A)->GetValueRangeData(); // LANDUSE CLASSES
+		auto actorTypeRange = const_array_cast<ActorType>(arg1A)->GetValueRangeData(); // LANDUSE CLASSES (raw local)
 		assert(actorTypeRange);
 		ActorTypeIndex n = Cardinality(actorTypeRange->GetRange());
 		MG_CHECK(regionInfoArray.size() == n);
@@ -269,14 +270,14 @@ struct RegCountOperator : public QuaternaryOperator
 			RegionInfo& ri = regionInfoArray[i];
 			ri.m_NrParts  = ri.m_Partition ? ri.m_Partition->GetAbstrValuesUnit()->GetCount() : 1;
 			ri.m_ReadLock  = DataReadLock(ri.m_Partition.get());
-			ri.m_WriteLock = DataWriteLock(ri.m_Result.get(), dms_rw_mode::write_only_mustzero);
+			ri.m_WriteLock = DataWriteLock(ri.m_Result.lock().get(), dms_rw_mode::write_only_mustzero);
 		}
 
 		// ================ do calc
 
 		RegTileCounter<ActorType> regTileCounter;
 		regTileCounter.regionInfoArrayPtr = &regionInfoArray;
-		regTileCounter.arg1A = arg1A;
+		regTileCounter.arg1A = make_weak_tree(arg1A);
 
 		regionInfoArray.m_ResUnit->InviteUnitProcessor(regTileCounter);
 

@@ -496,12 +496,12 @@ struct ggType_meta_t
 	// persistent htp_meta (m_ReadAssets), which outlives a single computation and can survive into config teardown.
 	// Held weak so a deref after the target is destroyed is caught (lock_or_cancel throws task_canceled) instead of
 	// dangling. Kept of-interest during compute via funcDC.AddDependency on their DCs (see CreateResultingItems).
-	weak_tree_ptr<const AbstrDataItem> m_diMinClaims;
-	weak_tree_ptr<const AbstrDataItem> m_diMaxClaims;
+	std::weak_ptr<const AbstrDataItem> m_diMinClaims;
+	std::weak_ptr<const AbstrDataItem> m_diMaxClaims;
 
-	weak_tree_ptr<const AbstrDataItem> m_diSuitabilityMap;
-	weak_tree_ptr<AbstrDataItem> m_diResShadowPrices;
-	weak_tree_ptr<AbstrDataItem> m_diResTotalAllocated;
+	std::weak_ptr<const AbstrDataItem> m_diSuitabilityMap;
+	std::weak_ptr<AbstrDataItem> m_diResShadowPrices;
+	std::weak_ptr<AbstrDataItem> m_diResTotalAllocated;
 
 };
 
@@ -587,8 +587,8 @@ struct partitioning_meta_t
 	// (m_ReadAssets), so held weak to catch a post-teardown deref (lock_or_cancel) rather than dangle. The hot
 	// per-atomic-region GetRegionID discriminates on the populated m_AtomicRegionPartitioningData array, not on
 	// this weak handle, so the hot loop stays free of any weak-lock atomic load.
-	weak_tree_ptr<const AbstrDataItem> m_AtomicRegionPartitioningDI; // Optional AR->region mapping source
-	weak_tree_ptr<const AbstrUnit> m_PartitioningUnit;              // Region id unit
+	std::weak_ptr<const AbstrDataItem> m_AtomicRegionPartitioningDI; // Optional AR->region mapping source
+	std::weak_ptr<const AbstrUnit> m_PartitioningUnit;              // Region id unit
 	// Held interest on the region-Label attr, resolved on the meta-thread so GetRegionStr's DisplayValue (called
 	// from worker threads for error messages) needs neither a FindItem nor a worker-side StartInterest (which
 	// would try to create the label DC off the meta-thread -> Check IsMetaThread()||!mayCreate fails). This meta
@@ -601,23 +601,23 @@ struct partitioning_meta_t
 	// forbid clearing htp_meta at StopInterest. Kept of-interest during compute via funcDC.AddDependency on its DC
 	// (see CreateResultingItems). Only used for region-name error messages in GetRegionStr, which lock()s it and
 	// degrades to the region id if it is not currently available/of-interest (never forces interest on a worker).
-	mutable weak_tree_ptr<const AbstrDataItem> m_ValuesLabelLock;
+	mutable std::weak_ptr<const AbstrDataItem> m_ValuesLabelLock;
 
 	bool m_HasPartitioningDI = false; // structural: was this constructed from a DI mapping (vs identity)? Distinct from
 	                                  // "m_AtomicRegionPartitioningDI has expired", so discriminators never conflate the two.
 
 	explicit partitioning_meta_t(const AbstrDataItem* atomicRegionPartitioning)
-		: m_AtomicRegionPartitioningDI(atomicRegionPartitioning)
-		, m_PartitioningUnit(atomicRegionPartitioning->GetAbstrValuesUnit())
+		: m_AtomicRegionPartitioningDI(make_weak_tree(atomicRegionPartitioning))
+		, m_PartitioningUnit(make_weak_tree(atomicRegionPartitioning->GetAbstrValuesUnit()))
 		, m_HasPartitioningDI(true)
 	{
-		m_ValuesLabelLock = GetPartitioningUnit()->GetLabelAttr().get_ptr(); // store weak; transient interest released here (creates the DC on the meta-thread; AddDependency keeps it of-interest during compute)
+		m_ValuesLabelLock = make_weak_tree(GetPartitioningUnit()->GetLabelAttr().get_ptr()); // store weak; transient interest released here (creates the DC on the meta-thread; AddDependency keeps it of-interest during compute)
 	}
 
 	explicit partitioning_meta_t(const AbstrUnit* atomicRegions)
-		: m_PartitioningUnit(atomicRegions)
+		: m_PartitioningUnit(make_weak_tree(atomicRegions))
 	{
-		m_ValuesLabelLock = GetPartitioningUnit()->GetLabelAttr().get_ptr(); // store weak; transient interest released here (creates the DC on the meta-thread; AddDependency keeps it of-interest during compute)
+		m_ValuesLabelLock = make_weak_tree(GetPartitioningUnit()->GetLabelAttr().get_ptr()); // store weak; transient interest released here (creates the DC on the meta-thread; AddDependency keeps it of-interest during compute)
 	}
 
 
@@ -751,7 +751,7 @@ const UInt32 stepFactor = 4;
 
 struct regions_meta_base
 {
-	shared_tree_ptr<const AbstrDataItem> m_AtomicRegionMap;
+	std::shared_ptr<const AbstrDataItem> m_AtomicRegionMap;
 };
 
 struct regions_info_base : regions_meta_base
@@ -934,8 +934,8 @@ struct regions_info_t<Void> : regions_info_base
 template <typename S>
 struct htp_meta_extra 
 {
-	weak_tree_ptr<const AbstrUnit>   m_MapDomain;
-	weak_tree_ptr<const Unit<S> >    m_PriceUnit; // weak: cached in htp_meta (persistent); the unit is of-interest (a suitability-map supplier) whenever used, so lock() at use and fail Calc if it ever fails
+	std::weak_ptr<const AbstrUnit>   m_MapDomain;
+	std::weak_ptr<const Unit<S> >    m_PriceUnit; // weak: cached in htp_meta (persistent); the unit is of-interest (a suitability-map supplier) whenever used, so lock() at use and fail Calc if it ever fails
 };
 
 template <typename S>
@@ -1528,7 +1528,7 @@ void CreateResultingItems(
 )
 {
 	// init elementary data members
-	htpMeta.m_MapDomain = allocUnit;
+	htpMeta.m_MapDomain = make_weak_tree(allocUnit);
 	//	dms_assert(atomicRegionUnit);
 	assert(minClaimSet);
 	assert(maxClaimSet);
@@ -1625,8 +1625,8 @@ void CreateResultingItems(
 		gg->m_NameID = GetTokenID_mt(gg->m_strName.begin(), gg->m_strName.send());
 		auto minClaims = GetClaimAttr(minClaimSet, gg->m_NameID);
 		auto maxClaims = GetClaimAttr(maxClaimSet, gg->m_NameID);
-		gg->m_diMinClaims = minClaims;
-		gg->m_diMaxClaims = maxClaims;
+		gg->m_diMinClaims = make_weak_tree(minClaims);
+		gg->m_diMaxClaims = make_weak_tree(maxClaims);
 
 		if (minClaims->WasFailed(FailType::Data)) minClaims->ThrowFail();
 		if (maxClaims->WasFailed(FailType::Data)) maxClaims->ThrowFail();
@@ -1712,10 +1712,10 @@ void CreateResultingItems(
 				subItem->throwItemError("is expected to be a DataItem,  a.k.a. attribute");
 
 			const AbstrDataItem* suitMap = AsCertainDataItem(subItem.get());
-			gg->m_diSuitabilityMap = suitMap;
+			gg->m_diSuitabilityMap = make_weak_tree(suitMap);
 			suitMap->UpdateMetaInfo();
 		}
-		const AbstrDataItem* suitMap = gg->m_diSuitabilityMap.get(); // momentary; still owned by suitabilitySet during this setup
+		const AbstrDataItem* suitMap = gg->m_diSuitabilityMap.lock().get(); // momentary; still owned by suitabilitySet during this setup
 		auto suitMapDc = suitMap->GetCheckedDC();
 		if (!suitMapDc)
 			if (suitMap->WasFailed(FailType::MetaInfo))
@@ -1732,8 +1732,8 @@ void CreateResultingItems(
 		{
 			FixedContextHandle priceUnitContext("processing the values unit of a suitability map as a unit of utility");
 			const Unit<S>* priceUnit = const_unit_checkedcast<S>(suitMap->GetAbstrValuesUnit());
-			if (!htpMeta.m_PriceUnit)
-				htpMeta.m_PriceUnit = priceUnit; // weak borrow; kept of-interest as a supplier during compute
+			if (htpMeta.m_PriceUnit.expired())
+				htpMeta.m_PriceUnit = make_weak_tree(priceUnit); // weak borrow; kept of-interest as a supplier during compute
 			else if (auto priceUnitLock = htpMeta.m_PriceUnit.lock())
 			{
 				if (!priceUnitLock->UnifyValues(priceUnit, "First non-default suitability values unit", "A subsequence suitability values unit", UnifyMode(), &resultMsg))
@@ -1743,20 +1743,20 @@ void CreateResultingItems(
 				throwErrorF("discrete_alloc", "price unit expired while processing suitability map for %s", gg->m_NameID);
 
 			if (mustAdjust)
-				gg->m_diResShadowPrices = CreateDataItem(
+				gg->m_diResShadowPrices = make_weak_tree(CreateDataItem(
 					resShadowPriceContainer
 					, gg->m_NameID
 					, partitioningUnit
 					, priceUnit
-				).get(); // owned by resShadowPriceContainer
+				).get()); // owned by resShadowPriceContainer
 		}
 		gg->m_diResTotalAllocated =
-			CreateDataItem(
+			make_weak_tree(CreateDataItem(
 				resTotalAllocatedContainer
 			,	gg->m_NameID
 			,	partitioningUnit
 			,	Unit<land_unit_id>::GetStaticClass()->CreateDefault()
-			).get(); // owned by resTotalAllocatedContainer
+			).get()); // owned by resTotalAllocatedContainer
 	}
 	if (atomicRegionMapA)
 	{
@@ -1858,7 +1858,7 @@ void PreparePartitionings(htp_info_t<S, AR, AT>& htpInfo, const AbstrUnit* alloc
 			htpInfo.m_NrUniqueRegions += nrRegions;
 		}
 		// collect atomicRegionCounts
-		htpInfo.m_AtomicRegionMap = shared_tree_ptr<const AbstrDataItem>(atomicRegionMapA, existing_obj{});
+		htpInfo.m_AtomicRegionMap = make_shared_tree(atomicRegionMapA, existing_obj{});
 		htpInfo.m_AtomicRegionLock = DataReadLock(atomicRegionMapA);
 		assert(htpInfo.m_AtomicRegionLock.IsLocked());
 		htpInfo.m_AtomicRegionMapObj = const_array_cast<AR>(atomicRegionMapA);
@@ -1892,7 +1892,7 @@ void PreparePartitionings(htp_info_t<S, AR, AT>& htpInfo, const AbstrUnit* alloc
 			);
 		}
 		if (nrLandUnits != n)
-			htpInfo.m_MapDomain->throwItemErrorF(
+			lock_or_cancel(htpInfo.m_MapDomain)->throwItemErrorF(
 				"Land Unit set had %u elements, but total nr of elements in tiles is %u. Use a land unit set with a completely covering tiling",
 				n,
 				nrLandUnits
@@ -2700,7 +2700,7 @@ struct DistFromOpt
 		,	nrDueToBelowThreshold()
 		,	totalSuit()
 		,	totalDistFromOpt()
-		,	tn( htpInfo.m_MapDomain->GetNrTiles() )
+		,	tn( lock_or_cancel(htpInfo.m_MapDomain)->GetNrTiles() )
 	{
 		UInt32 K = htpInfo.GetK();
 
@@ -3422,7 +3422,7 @@ public:
 		AbstrDataItem* resLanduse = AsDataItem(res->GetSubTreeItemByID(GetTokenID_mt("landuse")));
 
 		AbstrDataItem* resPrices = nullptr;
-		if (htpInfo.m_PriceUnit)
+		if (!htpInfo.m_PriceUnit.expired())
 			resPrices = AsDataItem(res->GetSubTreeItemByID(GetTokenID_mt("bid_price")));
 
 		AbstrDataItem* resStatus     = AsDataItem(res->GetSubTreeItemByID(GetTokenID_mt("status")));
@@ -3431,7 +3431,7 @@ public:
 		SharedStr strStatus;
 		bool isFeasible;
 
-		if (!htpInfo.m_PriceUnit)
+		if (htpInfo.m_PriceUnit.expired())
 		{
 			res->Fail("No suitability maps", FailType::Data);
 			isFeasible = false;

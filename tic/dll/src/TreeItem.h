@@ -100,7 +100,7 @@ struct UpdateMetaInfoDetectionLock
 #endif
 
 // Convenience interest pointer type to hold a TreeItem with interest counting semantics
-using SharedTreeItemInterestPtr = InterestPtr<shared_tree_ptr<const TreeItem> >;
+using SharedTreeItemInterestPtr = InterestPtr<std::shared_ptr<const TreeItem> >;
 
 //----------------------------------------------------------------------
 // NameTreeReg
@@ -263,7 +263,7 @@ public:
 
 	// Parent access (PersistentSharedObj override) and storage parent resolution (for R/W).
 	TIC_CALL [[nodiscard]] const PersistentObject* GetParent () const noexcept override;       // override PersistentSharedObj
-          SharedTreeItem GetTreeParent   () const   { return SharedTreeItem(m_Parent.get(), no_zombies{}); } // safe weak->shared upgrade (parent owns child; m_Parent is non-owning)
+          SharedTreeItem GetTreeParent   () const   { return m_Parent.lock(); } // safe weak->shared upgrade (parent owns child; m_Parent is non-owning)
 	TIC_CALL SharedTreeItem GetStorageParent(bool alsoForWrite) const;
 	TIC_CALL SharedTreeItem GetCurrStorageParent(bool alsoForWrite) const;
 
@@ -377,11 +377,11 @@ public:
 	TIC_CALL auto GetSizeEstimator() const->AbstrCalculatorRef;
 
 	// Referred/ultimate item helpers; “Curr” variants avoid UpdateMetaInfo.
-	TIC_CALL auto GetCurrUltimateItem() const noexcept -> shared_tree_ptr<const TreeItem>;
-	TIC_CALL auto GetCurrRangeItem() const  noexcept -> shared_tree_ptr<const TreeItem>;
-	TIC_CALL auto GetUltimateItem() const  noexcept -> shared_tree_ptr<const TreeItem>;
-	TIC_CALL auto GetCurrRefItem () const  noexcept -> shared_tree_ptr<const TreeItem>;
-	TIC_CALL auto GetReferredItem() const  noexcept -> shared_tree_ptr<const TreeItem>;
+	TIC_CALL auto GetCurrUltimateItem() const noexcept -> std::shared_ptr<const TreeItem>;
+	TIC_CALL auto GetCurrRangeItem() const  noexcept -> std::shared_ptr<const TreeItem>;
+	TIC_CALL auto GetUltimateItem() const  noexcept -> std::shared_ptr<const TreeItem>;
+	TIC_CALL auto GetCurrRefItem () const  noexcept -> std::shared_ptr<const TreeItem>;
+	TIC_CALL auto GetReferredItem() const  noexcept -> std::shared_ptr<const TreeItem>;
 	TIC_CALL virtual void Unify(const TreeItem* refItem, CharPtr leftRole, CharPtr rightRole) const;
 
 //	TIC_CALL MetaInfo GetMetaInfo(metainfo_policy_flags mpf) const;
@@ -579,12 +579,12 @@ public:
 	// Safe to dereference because the owning config item clears this on disconnect
 	// (SetReferredItem nulls the old refItem's m_BackRef; ~TreeItem calls SetReferredItem(nullptr)),
 	// so it is always either valid or null and never dangles.
-	mutable weak_tree_ptr<const TreeItem> m_BackRef; // only used by CacheRoots
+	mutable std::weak_ptr<const TreeItem> m_BackRef; // only used by CacheRoots
 
 	// Subitems manage insertion in a non-refcounted set; child holds counted-ref to parent.
 	// Non-owning weak back-pointer to the parent. Ownership is downward: the parent owns its
 	// sub-items via the intrusive refcount (AddItem adopts a reference; ReleaseSubItem releases it).
-	weak_tree_ptr<const TreeItem>        m_Parent;   // ro-access, NON-owning (parent owns child)
+	std::weak_ptr<const TreeItem>        m_Parent;   // ro-access, NON-owning (parent owns child)
 
 	// Inlined sub-item links (was single_linked_tree<TreeItem>). Downward ownership is via
 	// std::shared_ptr: the parent owns its first child (m_FirstSub) and each child owns its next
@@ -632,7 +632,7 @@ public: // TODO G8: encapsulate and move config attr (aka mc_ ) into a separate 
 
 	// Pluggable behavior: data controller and referred/template-original items.
 	mutable DataControllerRef      mc_DC;
-	mutable weak_tree_ptr<const TreeItem> mc_RefItem, mc_OrgItem;
+	mutable std::weak_ptr<const TreeItem> mc_RefItem, mc_OrgItem;
 
 private:
 	// Optional source location tracking for diagnostics.
@@ -662,7 +662,7 @@ TIC_CALL auto TreeItem_CreateItemFromPath(TreeItem* self, CharPtr subItemNames, 
 TIC_CALL TreeItem* TreeItem_CheckCls(TreeItem* self, const Class* requiredClass);
 TIC_CALL const TreeItem* TreeItem_CheckObjCls(const TreeItem* self, const Class* requiredClass);
 
-using SharedTreeItem = shared_tree_ptr<const TreeItem>;
+using SharedTreeItem = std::shared_ptr<const TreeItem>;
 /*
 Utility to handle integrity check failures; iCheckerResult is expected from a checker calculator.
 checkStringGenerator delayed-evaluates error strings to avoid overhead when not needed.

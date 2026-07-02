@@ -104,7 +104,7 @@ bool UnitCombine_impl(AbstrUnit* res, const ArgSeqType& args, bool mustCalc, boo
 		arg_index i = n;
 		while ((i > 0) && (productSize != 0))
 		{
-			shared_tree_ptr<const AbstrUnit> ithUnit(AsCertainUnit(args[--i]), existing_obj{});  // i gets decremented here
+			std::shared_ptr<const AbstrUnit> ithUnit = make_shared_tree(AsCertainUnit(args[--i]), existing_obj{});  // i gets decremented here
 			SizeT unitCount = ithUnit->GetCount();
 			SizeT newProductSize = productSize * unitCount;
 			// SafeMul
@@ -130,7 +130,7 @@ bool UnitCombine_impl(AbstrUnit* res, const ArgSeqType& args, bool mustCalc, boo
 	};
 	for (; i; --i)
 	{
-		shared_tree_ptr<const AbstrUnit> ithUnit(AsCertainUnit(args[i - 1]), existing_obj{});
+		std::shared_ptr<const AbstrUnit> ithUnit = make_shared_tree(AsCertainUnit(args[i - 1]), existing_obj{});
 		AbstrDataItem* resSub = CreateDataItem(res, subItemNameID[i-1], res, ithUnit.get()).get(); // owned by res
 		resSub->SetTSF(TSF_Categorical);
 
@@ -145,7 +145,7 @@ bool UnitCombine_impl(AbstrUnit* res, const ArgSeqType& args, bool mustCalc, boo
 			[resSub, trd, groupSize, cycleSize, unitCount MG_DEBUG_ALLOCATOR_SRC(res)] <typename V> (const Unit<V>*valuesUnit)
 			{
 				auto conv = CountableValueConverter<V>(valuesUnit->m_RangeDataPtr);
-				auto lazyTileFunctor = make_unique_LazyTileFunctor<V>(SharedMutableDataItem(resSub, existing_obj{}), trd.get(), valuesUnit->m_RangeDataPtr
+				auto lazyTileFunctor = make_unique_LazyTileFunctor<V>(make_shared_tree(resSub, existing_obj{}), trd.get(), valuesUnit->m_RangeDataPtr
 					, [trd, groupSize, cycleSize, unitCount, conv](AbstrDataObject* self, tile_id t) {
 						tile_offset  tileSize = trd->GetTileSize(t);
 						SizeT tileStart = trd->GetFirstRowIndex(t);

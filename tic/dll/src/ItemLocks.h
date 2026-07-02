@@ -109,10 +109,10 @@ struct ItemWriteLock // held by creator to manage its unreadyness to prevent oth
 
 
 private:
-	bool has_ptr() const { return m_ItemPtr.has_ptr(); }
+	bool has_ptr() const { return m_ItemPtr != nullptr; }
 	void releaseHeldLock() noexcept; // shared by ~ItemWriteLock and move-assignment
 
-	shared_tree_ptr<const TreeItem> m_ItemPtr;
+	std::shared_ptr<const TreeItem> m_ItemPtr;
 };
 
 TIC_CALL Int32 GetItemLockCount(const TreeItem* item);

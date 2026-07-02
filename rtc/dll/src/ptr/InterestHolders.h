@@ -15,9 +15,17 @@
 
 #include "RtcBase.h"
 #include "act/garbage_can.h"
+#include "ptr/SharedTreePtr.h" // make_shared_tree + construction tags for the TreeItem-family (std::shared_ptr) overloads
 #include "utl/swap.h"
 
-template <class T> struct shared_tree_ptr; // ptr/SharedTreePtr.h; only the template name is needed for the ctor signatures below
+// discriminates the TreeItem-family CPtr case: std::shared_ptr must recover the EXISTING control
+// block via make_shared_tree (a raw-pointer std::shared_ptr ctor would create a rogue second one).
+template <typename P> struct is_std_shared_ptr : std::false_type {};
+template <typename T> struct is_std_shared_ptr<std::shared_ptr<T>> : std::true_type {};
+template <typename P> constexpr bool is_std_shared_ptr_v = is_std_shared_ptr<P>::value;
+template <typename P> struct is_std_weak_ptr : std::false_type {};
+template <typename T> struct is_std_weak_ptr<std::weak_ptr<T>> : std::true_type {};
+template <typename P> constexpr bool is_std_weak_ptr_v = is_std_weak_ptr<P>::value;
 
 
 //----------------------------------------------------------------------
@@ -62,10 +70,13 @@ struct InterestPtr
 	{
 		if (ptr)
 		{
-			// CPtr may be a raw pointer, an intrusive SharedPtr, or a std::shared_ptr-backed
-			// shared_tree_ptr. Only the latter needs a construction tag to recover its control block.
-			if constexpr (requires { CPtr(ptr, existing_obj{}); })
-				m_Item = CPtr(ptr, existing_obj{});
+			// CPtr may be a raw pointer, an intrusive SharedPtr, or a std::shared_ptr (TreeItem family).
+			// The latter must recover the EXISTING control block (make_shared_tree/shared_from_this);
+			// std::shared_ptr's own raw-pointer ctor would create a rogue second control block.
+			if constexpr (is_std_shared_ptr_v<CPtr>)
+				m_Item = make_shared_tree(ptr, existing_obj{});
+			else if constexpr (is_std_weak_ptr_v<CPtr>)
+				m_Item = make_weak_tree(ptr);
 			else
 				m_Item = CPtr(ptr);
 		}
@@ -74,8 +85,14 @@ struct InterestPtr
 
 	template <typename T, typename OwnershipTag>
 	InterestPtr(T* ptr, OwnershipTag tag)
-		: m_Item(ptr, tag)
+		: m_Item()
 	{
+		if constexpr (is_std_shared_ptr_v<CPtr>)
+			m_Item = make_shared_tree(ptr, tag);
+		else if constexpr (is_std_weak_ptr_v<CPtr>)
+			m_Item = make_weak_tree(ptr); // weak borrow; the ownership tag is only meaningful for owning targets
+		else
+			m_Item = CPtr(ptr, tag);
 		OptionalInterestInc<IVal>(get_ptr());
 	}
 	template <typename T>
@@ -99,24 +116,24 @@ struct InterestPtr
 		OptionalInterestInc<IVal>(get_ptr());
 	}
 
-	// std::shared_ptr-backed wrapper (shared_tree_ptr) overloads, mirroring the SharedPtr ones above.
+	// std::shared_ptr (TreeItem family) overloads, mirroring the SharedPtr ones above.
 	template <typename T>
-	InterestPtr(const shared_tree_ptr<T>& item)
+	InterestPtr(const std::shared_ptr<T>& item)
 		: m_Item(item)
 	{
 		OptionalInterestInc<IVal>(get_ptr());
 	}
 	template <typename T>
-	InterestPtr(shared_tree_ptr<T>&& item)
+	InterestPtr(std::shared_ptr<T>&& item)
 		: m_Item(std::move(item))
 	{
 		OptionalInterestInc<IVal>(get_ptr());
 	}
 	// std::shared_ptr-backed counterpart of the SharedPtr already_incremented_tag ctor: adopt an owning
-	// shared_tree_ptr whose interest the caller has ALREADY incremented (e.g. under sg_CountSection), so do
+	// std::shared_ptr whose interest the caller has ALREADY incremented (e.g. under sg_CountSection), so do
 	// not increment again here.
 	template <typename T>
-	InterestPtr(shared_tree_ptr<T>&& item, already_incremented_tag)
+	InterestPtr(std::shared_ptr<T>&& item, already_incremented_tag)
 		: m_Item(std::move(item))
 	{
 		assert(get_ptr() != nullptr && get_ptr()->GetInterestCount() > 0);

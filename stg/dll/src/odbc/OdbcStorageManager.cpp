@@ -361,7 +361,7 @@ public:
 	ODBCStorageReader(ODBCStorageManager* odbcstoragemanager, const OdbcMetaInfo* smi, TreeItem* tableHolder, CharPtr columnName, AbstrDataItem* colItem)
 		:	m_ODBCStorageManager(odbcstoragemanager)
 		,	m_OdbcInfo(smi)
-		,	m_TableHolder(tableHolder, existing_obj{}) // borrow the tree-owned table holder (co-own its real control block)
+		,	m_TableHolder(make_shared_tree(tableHolder, existing_obj{})) // borrow the tree-owned table holder (co-own its real control block)
 		,	m_Name(columnName)
 		,	m_ColItem(colItem)
 		,	m_RecordCount(-1)
@@ -613,7 +613,7 @@ private:
 	const ValueClass*    m_InternalValueClass;
 	ODBCStorageManager*  m_ODBCStorageManager;
 	const OdbcMetaInfo*  m_OdbcInfo;
-	shared_tree_ptr<TreeItem>  m_TableHolder; // Maybe we read all columns at once
+	std::shared_ptr<TreeItem>  m_TableHolder; // Maybe we read all columns at once
 	std::vector<BYTE>    m_CharBuffer;
 };
 
@@ -628,7 +628,7 @@ StorageMetaInfoPtr ODBCStorageManager::GetMetaInfo(const TreeItem* storageHolder
 
 ODBCStorageManager::ODBCStorageManager()
 {
-	m_TiDatabase              = nullptr;
+	m_TiDatabase.reset();
 	m_HasAccessSysObjectsCopy = false;
 }
 
@@ -647,13 +647,13 @@ TDatabase* ODBCStorageManager::DatabaseInstance(const TreeItem* storageHolder) c
 	if (!m_Database)
 	{
 		m_Database = std::make_unique<TDatabase>(SessionData::Curr()->GetConfigLoadDir().c_str());
-		m_TiDatabase= nullptr;
+		m_TiDatabase.reset();
 	}
-	if(m_TiDatabase != storageHolder)
+	if(m_TiDatabase.lock().get() != storageHolder)
 	{
-		m_TiDatabase = nullptr;
+		m_TiDatabase.reset();
 		GetDatabaseLocationArguments(this, *m_Database);
-		m_TiDatabase = storageHolder;
+		m_TiDatabase = make_weak_tree(storageHolder);
 	}
 	return m_Database.get();
 }
@@ -732,7 +732,7 @@ FileResult ODBCStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObj
 	AbstrDataItem* adi = smi->CurrWD();
 	dms_assert(adi->GetDataObjLockCount() < 0); // DataWriteLock is already set
 
-	shared_tree_ptr<TreeItem> tableHolder = shared_tree_ptr<TreeItem>(const_cast<TreeItem*>(adi->GetTreeParent().get()), existing_obj{});
+	std::shared_ptr<TreeItem> tableHolder = make_shared_tree(const_cast<TreeItem*>(adi->GetTreeParent().get()), existing_obj{});
 
 	leveled_critical_section::scoped_lock lock(s_OdbcSection);
 	ODBCStorageReader ir(this, debug_cast<const OdbcMetaInfo*>(smi.get()), tableHolder.get(), adi->GetName().c_str(), adi);

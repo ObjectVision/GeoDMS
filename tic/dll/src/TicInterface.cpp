@@ -644,7 +644,7 @@ auto TreeUpdateOrReturnFailerImpl(const TreeItem* self, CharPtr context, SharedT
 {
 	for (const TreeItem* walker = self; walker; walker = self->WalkConstSubTree(walker))
 		if (!ItemUpdateImpl(walker, context, holder))
-			return SharedTreeItem(walker, existing_obj{});
+			return make_shared_tree(walker, existing_obj{});
 
 	return {};
 }
@@ -960,7 +960,7 @@ static SharedTreeItem GetFencedErrorSource(const TreeItem* cacheItem)
 		if (!supplTI->IsCacheItem())
 		{
 			if (WasInFailed(supplTI))
-				return SharedTreeItem(supplTI, existing_obj{});
+				return make_shared_tree(supplTI, existing_obj{});
 		}
 		else
 		{
@@ -978,7 +978,7 @@ TIC_CALL SharedTreeItem DataController_GetErrorSource(const DataController* dc, 
 	if (ti && !ti->IsCacheItem())
 	{
 		if (ti->WasFailed())
-			return SharedTreeItem(ti, existing_obj{});
+			return make_shared_tree(ti, existing_obj{});
 		if (mustVisitSubTree)
 		{
 			TreeItemSet visitedSet;
@@ -989,7 +989,7 @@ TIC_CALL SharedTreeItem DataController_GetErrorSource(const DataController* dc, 
 					if (ti)
 						if (ti->WasFailed())
 						{
-							foundErrorSource = SharedTreeItem(ti, existing_obj{});
+							foundErrorSource = make_shared_tree(ti, existing_obj{});
 							return false;
 						}
 					return true;
@@ -1103,14 +1103,14 @@ TIC_CALL BestItemRef TreeItem_GetErrorSource(const TreeItem* src, bool tryCalcSu
 	 // domain and values units ?
 	if (IsDataItem(src))
 	{
-		BestItemRef result = { SharedTreeItem(AsDataItem(src)->GetAbstrDomainUnit(), existing_obj{}), {} };
+		BestItemRef result = { make_shared_tree(AsDataItem(src)->GetAbstrDomainUnit(), existing_obj{}), {} };
 		if (!result.first)
 			result = src->FindBestItem(AsDataItem(src)->m_tDomainUnit.AsStrRange());
 
 		if (result.first && WasInFailed(result.first.get()))
 			return result;
 
-		result = { SharedTreeItem(AsDataItem(src)->GetAbstrValuesUnit(), existing_obj{}), {} };
+		result = { make_shared_tree(AsDataItem(src)->GetAbstrValuesUnit(), existing_obj{}), {} };
 		if (!result.first)
 			result = src->FindBestItem(AsDataItem(src)->m_tValuesUnit.AsStrRange());
 		if (result.first && WasInFailed(result.first.get()))
@@ -1143,11 +1143,11 @@ TIC_CALL BestItemRef TreeItem_GetErrorSource(const TreeItem* src, bool tryCalcSu
 	}
 
 	// SourceItem
-	SharedTreeItem sourceItem(src->GetCurrSourceItem(), existing_obj{});
+	SharedTreeItem sourceItem = make_shared_tree(src->GetCurrSourceItem(), existing_obj{});
 	if (sourceItem)
 	{
 		assert(!sourceItem->IsCacheItem());
-		assert(sourceItem != src);
+		assert(sourceItem.get() != src);
 		if (WasInFailed(sourceItem.get()))
 			return { sourceItem, {} };
 	}
@@ -1168,7 +1168,7 @@ TIC_CALL BestItemRef TreeItem_GetErrorSource(const TreeItem* src, bool tryCalcSu
 
 	src->VisitSuppliers(SupplierVisitFlag::CalcErrorSearch, std::move(visitor));
 	if (errorneousItem)
-		return { SharedTreeItem(errorneousItem, existing_obj{}) , {} };
+		return { make_shared_tree(errorneousItem, existing_obj{}) , {} };
 
 	// if FailReason was > FR_Data, try finding a supplier that fails too when pressed.
 	if (tryCalcSuppliers && src->WasFailed(FailType::Data) && !src->WasFailed(FailType::MetaInfo))

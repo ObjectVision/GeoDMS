@@ -139,8 +139,8 @@ struct StorageMetaInfo : std::enable_shared_from_this<StorageMetaInfo>
 
 	StorageMetaInfo(const TreeItem* storageHolder, const TreeItem* curr)
 		: m_StorageManager(storageHolder->GetStorageManager(), existing_obj{})
-		, m_StorageHolder(storageHolder, existing_obj{})
-		, m_Curr(curr, existing_obj{})
+		, m_StorageHolder(make_shared_tree(storageHolder, existing_obj{}))
+		, m_Curr(make_shared_tree(curr, existing_obj{}))
 		, m_RelativeName(storageHolder->DoesContain(curr) ? curr->GetRelativeName(storageHolder) : curr->GetFullName())
 	{
 	}
@@ -149,9 +149,9 @@ struct StorageMetaInfo : std::enable_shared_from_this<StorageMetaInfo>
 	TIC_CALL virtual void OnOpenForRead(StorageReadHandle*);
 	TIC_CALL virtual void OnClose(StorageCloseHandle*);
 
-	TIC_CALL auto CurrRI() const -> shared_tree_ptr<const TreeItem> { return m_Curr; }
-	TIC_CALL auto CurrRD() const -> shared_tree_ptr<const AbstrDataItem>;
-	TIC_CALL auto CurrRU() const -> shared_tree_ptr<const AbstrUnit>;
+	TIC_CALL auto CurrRI() const -> std::shared_ptr<const TreeItem> { return m_Curr; }
+	TIC_CALL auto CurrRD() const -> std::shared_ptr<const AbstrDataItem>;
+	TIC_CALL auto CurrRU() const -> std::shared_ptr<const AbstrUnit>;
 	AbstrDataItem* CurrWD() const { return const_cast<AbstrDataItem*>(CurrRD().get()); }
 	AbstrUnit*     CurrWU() const { return const_cast<AbstrUnit*>(CurrRU().get()); }
 	TreeItem*      CurrWI() const { return const_cast<TreeItem*>(CurrRI().get()); }
@@ -161,7 +161,7 @@ struct StorageMetaInfo : std::enable_shared_from_this<StorageMetaInfo>
 
 protected:
 	SharedPtr<AbstrStorageManager> m_StorageManager;
-	shared_tree_ptr<const TreeItem> m_StorageHolder, m_Curr;
+	std::shared_ptr<const TreeItem> m_StorageHolder, m_Curr;
 public:
 	SharedStr m_RelativeName;
 	bool      m_MustRememberFailure :1 = true;

@@ -51,20 +51,20 @@ granted by an additional written contract for support, assistance and/or develop
 // functions 
 //----------------------------------------------------------------------
 
-auto _GetHistoricUltimateItem(const TreeItem* ti) noexcept -> shared_tree_ptr<const TreeItem>
+auto _GetHistoricUltimateItem(const TreeItem* ti) noexcept -> std::shared_ptr<const TreeItem>
 {
 	assert(ti);
 
 	while (true)
 	{
-		auto refItem = ti->mc_RefItem;
+		auto refItem = ti->mc_RefItem.lock();
 		if (!refItem)
-			return shared_tree_ptr<const TreeItem>(ti, no_zombies{}); // re-own the tree-managed item (no_zombies: empty if ti is mid-destruction, e.g. SetKeepDataState from ~AbstrDataItem -- existing_obj would throw bad_weak_ptr there)
+			return make_shared_tree(ti, no_zombies{}); // re-own the tree-managed item (no_zombies: empty if ti is mid-destruction, e.g. SetKeepDataState from ~AbstrDataItem -- existing_obj would throw bad_weak_ptr there)
 		ti = refItem.get();
 	}
 }
 
-auto _GetCurrUltimateItem(const TreeItem* ti) noexcept -> shared_tree_ptr<const TreeItem>
+auto _GetCurrUltimateItem(const TreeItem* ti) noexcept -> std::shared_ptr<const TreeItem>
 {
 	assert(ti);
 	dbg_assert(ti->CheckMetaInfoReadyOrPassor());
@@ -72,19 +72,19 @@ auto _GetCurrUltimateItem(const TreeItem* ti) noexcept -> shared_tree_ptr<const 
 	return _GetHistoricUltimateItem(ti);
 }
 
-auto _GetCurrRangeItem(const TreeItem* ti)  noexcept -> shared_tree_ptr<const TreeItem>
+auto _GetCurrRangeItem(const TreeItem* ti)  noexcept -> std::shared_ptr<const TreeItem>
 {
 	return _GetCurrUltimateItem(ti);
 }
 
-auto _GetUltimateItem(const TreeItem* ti)  noexcept -> shared_tree_ptr<const TreeItem>
+auto _GetUltimateItem(const TreeItem* ti)  noexcept -> std::shared_ptr<const TreeItem>
 {
 	assert(ti);
 	while (true)
 	{
 		auto refItem = ti->GetReferredItem();
 		if (!refItem)
-			return shared_tree_ptr<const TreeItem>(ti, no_zombies{}); // re-own the tree-managed item (no_zombies: empty if ti is mid-destruction; existing_obj would throw bad_weak_ptr)
+			return make_shared_tree(ti, no_zombies{}); // re-own the tree-managed item (no_zombies: empty if ti is mid-destruction; existing_obj would throw bad_weak_ptr)
 		ti = refItem.get();
 	}
 }

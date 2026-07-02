@@ -46,9 +46,9 @@ ConfigProd::ConfigProd(TreeItem* context, bool rootIsFirstItem)
 	if (context)
 	{
 		if (rootIsFirstItem)
-			m_pCurrent = SharedMutableTreeItem(context, existing_obj{}); // existing (owned) context item
+			m_pCurrent = make_shared_tree(context, existing_obj{}); // existing (owned) context item
 		else
-			m_stackContexts.push_back(SharedMutableTreeItem(context, existing_obj{}));
+			m_stackContexts.push_back(make_shared_tree(context, existing_obj{}));
 	}
 
 	ClearSignature();
@@ -111,7 +111,7 @@ void ConfigProd::DoInclude()
 		AppendTreeFromConfiguration(
 			fileName.c_str()
 		,	CurrentIsRoot()
-				? m_pCurrent.get_ptr()
+				? m_pCurrent.get()
 				: GetContextItem()
 		,	false
 		);
@@ -440,7 +440,7 @@ void ConfigProd::SetVC (ValueComposition    vc)
 void ConfigProd::DoUnitRangeProp(bool isCategorical)
 {
 	assert(m_pCurrent);
-	AbstrUnit* unit = AsCheckedUnit(m_pCurrent.get_ptr());
+	AbstrUnit* unit = AsCheckedUnit(m_pCurrent.get());
 	dms_assert(unit);
 	const ValueClass* vc = unit->GetValueType();
 	dms_assert(vc);
@@ -547,7 +547,7 @@ void ConfigProd::DoNrOfRowsProp()
 	assert(m_eValueType == ValueClassID::VT_UInt64);
 	assert(m_pCurrent);
 
-	AbstrUnit* unit = AsCheckedUnit(m_pCurrent.get_ptr());
+	AbstrUnit* unit = AsCheckedUnit(m_pCurrent.get());
 	assert(unit);
 	const ValueClass* vc = unit->GetValueType();
 	assert(vc);

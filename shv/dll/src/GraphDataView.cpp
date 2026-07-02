@@ -107,8 +107,8 @@ bool GraphDataView::CanContain(const TreeItem* viewCandidate) const
 		return false;
 	assert(!res.IsAspect());
 
-	SharedUnit resCrdUnit = SharedUnit(res.GetWorldCrdUnit(), existing_obj{});
-	SharedUnit vpCrdUnit = SharedUnit(GetContents()->GetViewPort()->GetWorldCrdUnit(), existing_obj{});
+	SharedUnit resCrdUnit = make_shared_tree(res.GetWorldCrdUnit(), existing_obj{});
+	SharedUnit vpCrdUnit = make_shared_tree(GetContents()->GetViewPort()->GetWorldCrdUnit(), existing_obj{});
 
 	return CompatibleCrds(resCrdUnit.get(), vpCrdUnit.get());
 }
@@ -232,7 +232,7 @@ public:
 			{
 				dms_assert(m_Result->DetailsVisible());
 
-				shared_tree_ptr<const AbstrUnit> paletteDomain(m_Result->GetActiveTheme()->GetPaletteDomain(), existing_obj{});
+				std::shared_ptr<const AbstrUnit> paletteDomain = make_shared_tree(m_Result->GetActiveTheme()->GetPaletteDomain(), existing_obj{});
 
 				//TODO: Dit moet toch handiger kunnen 
 				dms_assert(!SuspendTrigger::DidSuspend());

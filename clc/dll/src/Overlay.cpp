@@ -53,14 +53,14 @@ struct overlay_partitioning_info_t
 	overlay_partitioning_info_t(
 		const AbstrDataItem* adi,
 		AbstrDataItem* resPartRel)
-			:	m_DataItem(adi)
-			,	m_ResPartRel(resPartRel)
+			:	m_DataItem(make_weak_tree(adi))
+			,	m_ResPartRel(make_weak_tree(resPartRel))
 	{}
 
-	TokenStr GetName() const { return m_DataItem->GetName(); }
+	TokenStr GetName() const { return lock_or_cancel(m_DataItem)->GetName(); }
 
-	weak_tree_ptr<const AbstrDataItem> m_DataItem; // weak: cached in m_ReadAssets, must not dangle nor hold interest
-	weak_tree_ptr<AbstrDataItem>  m_ResPartRel;  // weak: also cached in m_ReadAssets; used only during compute (lock_or_cancel)
+	std::weak_ptr<const AbstrDataItem> m_DataItem; // weak: cached in m_ReadAssets, must not dangle nor hold interest
+	std::weak_ptr<AbstrDataItem>  m_ResPartRel;  // weak: also cached in m_ReadAssets; used only during compute (lock_or_cancel)
 };
 
 using overlay_partitioning_info_array = std::vector<overlay_partitioning_info_t>;
@@ -80,7 +80,8 @@ struct OverlayLayerVisitorBase : UnitProcessor
 	template <typename E>
 	void VisitImpl(const Unit<E>* regionUnit) const
 	{
-		const DataArray<E>* dataArray = const_array_cast<E>(m_PartitioningInfo->m_DataItem.get_ptr());
+		auto dataItemLock = lock_or_cancel(m_PartitioningInfo->m_DataItem); // owning for this scope; throws if torn down
+		const DataArray<E>* dataArray = const_array_cast<E>(dataItemLock.get());
 		MG_CHECK(dataArray);
 
 		if (regionUnit->GetRange().first)
@@ -90,10 +91,10 @@ struct OverlayLayerVisitorBase : UnitProcessor
 		m_RecodeInfo->m_NrRegions          = nrRegions;
 		m_RecodeInfo->m_AtomicRegionFactor = m_AtomicRegionFactor;
 
-		DataReadLock partitionLock(m_PartitioningInfo->m_DataItem.get_ptr());
+		DataReadLock partitionLock(dataItemLock.get());
 		dms_assert(partitionLock.IsLocked());
 
-		if (m_PartitioningInfo->m_DataItem->GetRawCheckMode() != DCM_None)
+		if (dataItemLock->GetRawCheckMode() != DCM_None)
 			m_CanContainNulls = true;
 
 		for (tile_id t = 0; t != m_NrTiles; ++t)
@@ -197,7 +198,7 @@ void DoOverlay(AbstrDataItem* resAtomicRegionGrid, IterRange<const overlay_parti
 	{
 		visitor.m_PartitioningInfo = &( partitioningInfo[j] );
 		visitor.m_RecodeInfo       = &( recodeFactors   [j] );
-		visitor.m_PartitioningInfo->m_DataItem->GetAbstrValuesUnit()->InviteUnitProcessor(visitor);
+		lock_or_cancel(visitor.m_PartitioningInfo->m_DataItem)->GetAbstrValuesUnit()->InviteUnitProcessor(visitor);
 	}
 	else
 	{

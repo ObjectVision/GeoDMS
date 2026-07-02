@@ -47,7 +47,7 @@ PaletteControl::PaletteControl(MovableObject* owner, GraphicLayer* layer, bool h
 	auto activeTheme = GetActiveTheme();
 	if (activeTheme) {
 		m_BreakAttr = activeTheme->GetClassification();
-		m_PaletteDomain = shared_tree_ptr<const AbstrUnit>(activeTheme->GetPaletteDomain(), existing_obj{}); dms_assert(m_PaletteDomain);
+		m_PaletteDomain = make_shared_tree(activeTheme->GetPaletteDomain(), existing_obj{}); dms_assert(m_PaletteDomain);
 
 		m_ThemeAttr = activeTheme->GetThemeAttr();
 		m_PaletteAttr = activeTheme->GetPaletteAttr();
@@ -85,7 +85,7 @@ void PaletteControl::Init()
 	{
 		m_BreakAttr->UpdateMetaInfo();
 		if (!m_PaletteDomain)
-			m_PaletteDomain = shared_tree_ptr<const AbstrUnit>(m_BreakAttr->GetAbstrDomainUnit(), existing_obj{});
+			m_PaletteDomain = make_shared_tree(m_BreakAttr->GetAbstrDomainUnit(), existing_obj{});
 
 		dms_assert(m_PaletteDomain);
 	}
@@ -342,18 +342,18 @@ void PaletteControl::CreateColumnsImpl()
 
 	SharedStr exprStr = m_ThemeAttr ? m_ThemeAttr->GetFullName() : SharedStr();
 
-	shared_tree_ptr<const AbstrUnit> classIds = m_ThemeAttr ? shared_tree_ptr<const AbstrUnit>(GetRealAbstrValuesUnit(m_ThemeAttr), existing_obj{}) : shared_tree_ptr<const AbstrUnit>();
+	std::shared_ptr<const AbstrUnit> classIds = m_ThemeAttr ? make_shared_tree(GetRealAbstrValuesUnit(m_ThemeAttr), existing_obj{}) : std::shared_ptr<const AbstrUnit>();
 
 	//	=========================================	add Class boundaries
 	if (m_BreakAttr && (!classIds || classIds->UnifyValues(m_BreakAttr->GetAbstrValuesUnit(), "", "", UM_AllowDefaultRight)))
 	{
-		assert(m_BreakAttr->GetAbstrDomainUnit() == m_PaletteDomain);
+		assert(m_BreakAttr->GetAbstrDomainUnit() == m_PaletteDomain.get());
 		if (m_ThemeAttr)
 			exprStr = mySSPrintF("classify(%s, %s)", exprStr.c_str(), m_BreakAttr->GetFullName().c_str());
 
 		auto column = make_shared_gr<DataItemColumn>(this, m_BreakAttr)();
 		InsertColumn(column.get());
-		classIds = shared_tree_ptr<const AbstrUnit>(m_BreakAttr->GetAbstrDomainUnit(), existing_obj{});
+		classIds = make_shared_tree(m_BreakAttr->GetAbstrDomainUnit(), existing_obj{});
 	}
 
 	//	=========================================	add Count
@@ -386,7 +386,7 @@ void PaletteControl::CreateColumnsImpl()
 		countAttr->SetKeepDataState(true);
 		countAttr->DisableStorage(true);
 		countAttr->SetExpr( mySSPrintF("pcount(%s)", exprStr.c_str() ) );
-		m_CountAttr = countAttr.get_ptr();
+		m_CountAttr = countAttr.get();
 		auto countColumn = make_shared_gr<DataItemColumn>(this, m_CountAttr)();
 		InsertColumn(countColumn.get());
 	}
@@ -496,7 +496,7 @@ void PaletteControl::CreateAreaOrLengthColumn(TreeItem* container, SharedStr exp
 	areaOrLengthAttr->SetKeepDataState(true);
 	areaOrLengthAttr->DisableStorage(true);
 	areaOrLengthAttr->SetExpr(funcExpr);
-	m_AreaOrLengthAttr = areaOrLengthAttr.get_ptr();
+	m_AreaOrLengthAttr = areaOrLengthAttr.get();
 	auto areaOrLengthColumn = make_shared_gr<DataItemColumn>(this, m_AreaOrLengthAttr)();
 	InsertColumn(areaOrLengthColumn.get());
 }
@@ -522,12 +522,12 @@ void PaletteControl::CreateSelCountColumn()
 	TreeItem* container = CreateDesktopContainer(dv->GetDesktopContext(), GetUltimateSourceItem(m_ThemeAttr.get_ptr()));
 	LispRef keyExpr = m_ThemeAttr->GetCheckedKeyExpr();
 	auto provisionalPaletteDomain = m_ThemeAttr->GetAbstrValuesUnit();
-	shared_tree_ptr<const AbstrUnit> classIds(GetRealAbstrValuesUnit(m_ThemeAttr), existing_obj{});
+	std::shared_ptr<const AbstrUnit> classIds = make_shared_tree(GetRealAbstrValuesUnit(m_ThemeAttr), existing_obj{});
 
 	//	=========================================	add Class boundaries
 	if (m_BreakAttr && (!classIds || classIds->UnifyValues(m_BreakAttr->GetAbstrValuesUnit(), "", "", UM_AllowDefaultRight)))
 	{
-		assert(m_BreakAttr->GetAbstrDomainUnit() == m_PaletteDomain);
+		assert(m_BreakAttr->GetAbstrDomainUnit() == m_PaletteDomain.get());
 		assert(m_BreakAttr->GetAbstrValuesUnit() == provisionalPaletteDomain);
 		provisionalPaletteDomain = m_BreakAttr->GetAbstrDomainUnit();
 		if (m_ThemeAttr)
@@ -554,7 +554,7 @@ void PaletteControl::CreateSelCountColumn()
 			keyExpr = ExprList(GetTokenID_mt(aggrMethodName.c_str()), selAttrRef, keyExpr);
 			selCountAttr->SetCalculator(AbstrCalculator::ConstructFromLispRef(selCountAttr.get(), keyExpr, CalcRole::Calculator));
 
-			m_SelCountAttr = selCountAttr.get_ptr();
+			m_SelCountAttr = selCountAttr.get();
 			auto selCountColumn = make_shared_gr<DataItemColumn>(this, m_SelCountAttr)();
 			InsertColumn(selCountColumn.get());
 		}
@@ -598,7 +598,7 @@ void PaletteControl::Sync(TreeItem* viewContext, ShvSyncMode sm)
 		SyncRef(m_CountAttr, viewContext2, GetTokenID_mt("Count"), sm);
 	}
 	if (sm == SM_Load)
-		m_PaletteDomain = shared_tree_ptr<const AbstrUnit>(GetEntity(), existing_obj{});
+		m_PaletteDomain = make_shared_tree(GetEntity(), existing_obj{});
 }
 
 IMPL_RTTI_CLASS(PaletteControl)

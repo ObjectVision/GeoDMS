@@ -305,7 +305,7 @@ struct LazyGetter : public AbstrThemeValueGetter
 	)
 		:	AbstrThemeValueGetter(paletteAttr)
 //		,	m_ThemeData(const_array_cast<V>(themeAttr))
-		,	m_ThemeAttr(themeAttr, existing_obj{})
+		,	m_ThemeAttr(make_shared_tree(themeAttr, existing_obj{}))
 		,	m_UltimateDomain(AsUnit(themeAttr->GetAbstrDomainUnit()->GetUltimateItem()).get())
 	{}
 
@@ -341,10 +341,10 @@ struct LazyGetter : public AbstrThemeValueGetter
 		return m_ThemeAttr->GetCurrRefObj()->GetTiledRangeData()->GetRangeSize();
 	}
 
-	const AbstrDataItem*  GetThemeAttr() const { return m_ThemeAttr.get_ptr(); }
+	const AbstrDataItem*  GetThemeAttr() const { return m_ThemeAttr.get(); }
 
 private:
-	shared_tree_ptr<const AbstrDataItem>               m_ThemeAttr;
+	std::shared_ptr<const AbstrDataItem>               m_ThemeAttr;
 	mutable typename DataArray<V>::locked_cseq_t m_ThemeDataTileLock;
 	mutable tile_id                              m_PrevTileID = no_tile;
 	const AbstrUnit*                             m_UltimateDomain = nullptr;

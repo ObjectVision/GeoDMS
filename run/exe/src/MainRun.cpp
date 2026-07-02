@@ -160,7 +160,7 @@ int main2_without_SE(int argc, char** argv)
 			ProcessMainThreadOpers();
 
 			for (const TreeItem* walker = item; walker; walker = item->WalkConstSubTree(walker))
-				items.push_back(itemCmdPair(currCmd, shared_tree_ptr<const TreeItem>(walker, existing_obj{})));
+				items.push_back(itemCmdPair(currCmd, make_shared_tree(walker, existing_obj{})));
 		}
 	}
 	std::ostream* dataOut = &std::cout;

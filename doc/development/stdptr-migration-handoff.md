@@ -438,3 +438,26 @@ to verify.** Keep the intricate, cross-cutting pieces (DcRef/SupplInterest/inter
 `weak_tree_ptr` edits in leaf operator/storage/gui files. Tell agents: read `build_debug_stdptr<N>.log`,
 grep for their files, apply the rules, do NOT build, mark anything ambiguous `// TODO ownership:` + `.get()`
 stopgap, and never touch `*InterestPtr` typedefs or non-family pointers.
+
+## 2026-07-02: shared_tree_ptr / weak_tree_ptr wrappers REMOVED (migration §15.5 executed)
+
+User decision: reduce smart-pointer surprises by using the standard types directly. New canonical state:
+
+- `SharedTreeItem` / `SharedMutableTreeItem` / `SharedDataItem` / `SharedUnit` / `SharedMutable*` /
+  `ConstUnitRef` are now plain `std::shared_ptr<...>`; `WeakUnit` is `std::weak_ptr<const AbstrUnit>` (TicBase.h).
+- `rtc/dll/src/ptr/SharedTreePtr.h` no longer defines wrapper types; it holds only free construction helpers:
+  - `make_shared_tree(p, newly_obj{})` — adopt a freshly created object (first owner);
+  - `make_shared_tree(p, existing_obj{})` — borrow an already-owned object (shared_from_this; throws bad_weak_ptr);
+  - `make_shared_tree(p, no_zombies{})` — safe weak->strong, null if expiring;
+  - `make_weak_tree(p)` — weak borrow from a raw pointer;
+  - `MakeSharedFromBorrowedObjectPtr` (retargeted) and `lock_or_cancel(std::weak_ptr)` (throws task_canceled).
+- All weak sugar (`operator->`, `get()/get_ptr()`, `operator bool`, `== raw`, `= raw`) is spelled out at call
+  sites with `.lock()` / `.expired()` / `make_weak_tree(...)` — a hidden momentary lock no longer exists.
+- `InterestPtr` (InterestHolders.h) routes raw-`T*` construction through `make_shared_tree` when `CPtr` is a
+  `std::shared_ptr` (`is_std_shared_ptr_v`), never through `std::shared_ptr`'s raw ctor.
+
+⚠ REGRESSION IN GUARDRAILS: the wrapper's `= delete` raw ctor used to make every rogue-control-block site
+(`std::shared_ptr<T>(rawPtr)` double-managing a tree-owned object) a compile error. That guard is gone.
+Discipline is now convention: NEVER construct a `std::shared_ptr` for a TreeItem-family object from a raw
+pointer directly — always classify via `make_shared_tree`. Audit periodically:
+`grep -nE "std::shared_ptr<(const )?(TreeItem|Abstr\w+|Unit<)[^>]*>\s*\(\s*[a-z_]\w*\s*\)" ...`

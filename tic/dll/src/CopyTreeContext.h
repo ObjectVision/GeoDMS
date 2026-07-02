@@ -94,7 +94,7 @@ struct CopyTreeContext
 	LispPtr              m_ArgList;
 //	phase_number         m_PhaseNumber = 0;
 	DataCopyMode         m_Dcm;
-	using copy_pair = std::pair<shared_tree_ptr<TreeItem>, shared_tree_ptr<const TreeItem> >;
+	using copy_pair = std::pair<std::shared_ptr<TreeItem>, std::shared_ptr<const TreeItem> >;
 	std::vector<copy_pair> m_AnchestorStack;
 
  private:
@@ -103,7 +103,7 @@ struct CopyTreeContext
 
 struct AnchestorStackGuard
 {
-	TIC_CALL AnchestorStackGuard(CopyTreeContext& ctc, shared_tree_ptr<TreeItem> dst, shared_tree_ptr<const TreeItem> src)
+	TIC_CALL AnchestorStackGuard(CopyTreeContext& ctc, std::shared_ptr<TreeItem> dst, std::shared_ptr<const TreeItem> src)
 		: m_CTC(ctc)
 	{
 		m_CTC.m_AnchestorStack.emplace_back(dst, src);

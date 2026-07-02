@@ -38,7 +38,7 @@ struct ConfigProd : AbstrDataBlockProd, AbstrContextHandle
 	~ConfigProd();
 
 //	impl AbstrContextHandle
-	bool HasItemContext() const override { return m_pCurrent.has_ptr();  }
+	bool HasItemContext() const override { return m_pCurrent != nullptr;  }
 	auto ItemAsStr() const->SharedStr override 
 	{ 
 		assert(HasItemContext());  return m_pCurrent->GetSourceName(); 

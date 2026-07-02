@@ -188,11 +188,11 @@ SequenceBoundingBoxCache<F>::SequenceBoundingBoxCache(const AbstrDataObject* fea
 
 template <typename ScalarType>
 std::shared_ptr<const SequenceBoundingBoxCache<ScalarType>>
-GetSequenceBoundingBoxCache(weak_tree_ptr<const AbstrDataItem> featureAttr, bool mustPrepare)
+GetSequenceBoundingBoxCache(const AbstrDataItem* featureAttr, bool mustPrepare)
 {
 	assert(featureAttr);
 	leveled_critical_section::scoped_lock lock(cs_BB);
-	DataReadLock readLock(featureAttr.get());
+	DataReadLock readLock(featureAttr);
 	assert(featureAttr->GetDataRefLockCount() > 0);
 
 	const AbstrDataObject* featureData = featureAttr->GetCurrRefObj().get();
@@ -208,11 +208,11 @@ GetSequenceBoundingBoxCache(weak_tree_ptr<const AbstrDataItem> featureAttr, bool
 
 template <typename ScalarType>
 std::shared_ptr<const PointBoundingBoxCache<ScalarType>>
-GetPointBoundingBoxCache(weak_tree_ptr<const AbstrDataItem> featureAttr, bool mustPrepare)
+GetPointBoundingBoxCache(const AbstrDataItem* featureAttr, bool mustPrepare)
 {
 	assert(featureAttr);
 	leveled_critical_section::scoped_lock lock(cs_BB);
-	DataReadLock readLock(featureAttr.get());
+	DataReadLock readLock(featureAttr);
 	assert(featureAttr->GetDataRefLockCount() > 0);
 
 	const AbstrDataObject* featureData = featureAttr->GetCurrRefObj().get();

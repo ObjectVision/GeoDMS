@@ -107,7 +107,7 @@ TIC_CALL void DMS_CONV DMS_TreeItem_AddRef(TreeItem* self)
 #endif
 		{
 			std::lock_guard lock(s_ExtPinMutex);
-			s_ExtPins.insert(SharedTreeItem(self, existing_obj{})); // owning pin
+			s_ExtPins.insert(make_shared_tree(self, existing_obj{})); // owning pin
 		}
 
 	DMS_CALL_END
@@ -129,7 +129,7 @@ TIC_CALL void DMS_CONV DMS_TreeItem_Release(TreeItem* self)
 #endif
 		{
 			std::lock_guard lock(s_ExtPinMutex);
-			auto it = s_ExtPins.find(SharedTreeItem(self, existing_obj{}));
+			auto it = s_ExtPins.find(make_shared_tree(self, existing_obj{}));
 			if (it != s_ExtPins.end())
 				s_ExtPins.erase(it); // drop one owning pin
 		}

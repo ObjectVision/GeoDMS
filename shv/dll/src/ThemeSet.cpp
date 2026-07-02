@@ -87,7 +87,7 @@ void ThemeSet::SyncThemes(TreeItem* viewContext, ShvSyncMode sm)
 
 	for (AspectNr aNr = AN_Feature; aNr < AN_AspectCount; aNr = AspectNr(aNr + 1))
 	{
-		shared_tree_ptr<TreeItem> aspectContext(const_cast<TreeItem*>(
+		auto aspectContext = make_shared_tree(const_cast<TreeItem*>(
 			viewContext->GetConstSubTreeItemByID(
 				GetTokenID_mt(AspectArray[aNr].name)
 			).get()

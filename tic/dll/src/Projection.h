@@ -46,7 +46,7 @@ public:
 	TIC_CALL auto GetUnitlabeledScalePair() const->UnitLabelScalePair;
 	
 private:
-	shared_tree_ptr<const AbstrUnit> m_BaseUnit;
+	std::shared_ptr<const AbstrUnit> m_BaseUnit;
 };
 
 FormattedOutStream& operator <<(FormattedOutStream& str, const UnitProjection& repr);

@@ -46,9 +46,9 @@ struct ValueGetterCreatorBase : UnitProcessor
 	template <typename E>
 	void VisitImpl(const Unit<E>* inviter) const
 	{
-		m_Result = new ValueGetter<T, E>(const_array_cast<E>(m_Adi), m_TileID);
+		m_Result = new ValueGetter<T, E>(const_array_cast<E>(m_Adi.lock().get()), m_TileID);
 	}
-	weak_tree_ptr<const AbstrDataItem>         m_Adi;
+	std::weak_ptr<const AbstrDataItem>         m_Adi;
 	tile_id                              m_TileID = no_tile;
 	mutable WeakPtr<AbstrValueGetter<T>> m_Result;
 };
@@ -58,12 +58,12 @@ struct ValueGetterCreator : tl::fold_t<TL, ValueGetterCreatorBase<T>, UnitVisito
 {
 	ValueGetterCreator(const AbstrDataItem* adi, tile_id t)
 	{
-		this->m_Adi    = adi;
+		this->m_Adi    = make_weak_tree(adi);
 		this->m_TileID = t;
 	}
 	AbstrValueGetter<T>* Create()
 	{
-		this->m_Adi->GetAbstrValuesUnit()->InviteUnitProcessor(*this);
+		this->m_Adi.lock()->GetAbstrValuesUnit()->InviteUnitProcessor(*this);
 		return this->m_Result.get_ptr();
 	}
 	static AbstrValueGetter<T>* Create(const AbstrDataItem* adi, tile_id t = no_tile)

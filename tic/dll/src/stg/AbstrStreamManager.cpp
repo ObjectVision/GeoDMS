@@ -84,7 +84,7 @@ FileResult AbstrStreamManager::WriteDataItem(StorageMetaInfoPtr&& smi)
 	auto sm = smi->StorageManager();
 	StorageWriteHandle hnd(checked_cast<NonmappableStorageManager*>(sm), std::move(smi));
 
-	shared_tree_ptr<const AbstrDataItem> adi = hnd.MetaInfo()->CurrRD();
+	std::shared_ptr<const AbstrDataItem> adi = hnd.MetaInfo()->CurrRD();
 	MG_CHECK(adi);
 
 	SharedPtr<const AbstrDataObject> ado = adi->GetRefObj();
@@ -115,7 +115,7 @@ bool AbstrStreamManager::ReadUnitRange(const StorageMetaInfo& smi) const
 	auto f = OpenInpStream(smi, ::GetRelativeName(&smi).c_str() );
 	if ( !f )
 		return false;
-	assert(smi.CurrRI().get() == smi.CurrRI()->GetCurrUltimateItem());
+	assert(smi.CurrRI().get() == smi.CurrRI()->GetCurrUltimateItem().get());
 	const_cast<TreeItem*>(smi.CurrRI().get())->LoadBlobStream( f.get() );
 	return true;
 }

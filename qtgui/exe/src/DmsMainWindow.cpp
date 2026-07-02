@@ -456,7 +456,7 @@ void MainWindow::setCurrentTreeItem(TreeItem* target_item, bool update_history)
             }
         }
 
-        m_current_item = shared_tree_ptr<TreeItem>(target_item, existing_obj{});
+        m_current_item = make_shared_tree(target_item, existing_obj{});
 
         // update actions based on new current item
         updateActionsForNewCurrentItem();
@@ -1333,7 +1333,7 @@ bool MainWindow::LoadConfigImpl(CharPtr configFilePath) {
 
         auto newRoot = CreateTreeFromConfiguration(m_currConfigFileName.c_str());
 
-        m_root = shared_tree_ptr<TreeItem>(newRoot, existing_obj{});
+        m_root = make_shared_tree(newRoot, existing_obj{});
         if (m_root) {
             SharedStr configFilePathStr = DelimitedConcat(ConvertDosFileName(GetCurrentDir()), ConvertDosFileName(m_currConfigFileName));
 #ifdef _WIN32
@@ -1865,8 +1865,8 @@ void MainWindow::updateViewMenu() const {
     m_tableview_action->setDisabled(ti_is_or_is_in_template);
     m_mapview_action->setDisabled(ti_is_or_is_in_template);
     m_statistics_action->setDisabled(ti_is_or_is_in_template);
-    m_expand_all_action->setEnabled(m_root.has_ptr());
-    m_open_root_config_file_action->setEnabled(m_root.has_ptr());
+    m_expand_all_action->setEnabled((m_root != nullptr));
+    m_open_root_config_file_action->setEnabled((m_root != nullptr));
 
     m_toggle_treeview_action->setChecked(m_treeview->isVisible());
     m_toggle_detailpage_action->setChecked(m_detail_pages->isVisible());

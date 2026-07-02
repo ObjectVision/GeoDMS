@@ -388,7 +388,7 @@ inline ConstUnitRef GeoMeasure_DeriveResultUnit(const UnitClass* resUnitClass,
 	const UnitMetric* L = nullptr;
 	Float64 J = 1.0;
 	if (!GeoMeasure_GetCoordMetric(gr, coordUnit, nrDims, L, J) || IsEmpty(L))
-		return ConstUnitRef(resUnitClass->CreateDefault(), existing_obj{});
+		return make_shared_tree(resUnitClass->CreateDefault(), existing_obj{});
 
 	// D = L^nrDims (mirror UnitSqrtOperator's make_unique idiom; UnitMetric is not copy-assignable).
 	auto metric = std::make_unique<UnitMetric>(*L);

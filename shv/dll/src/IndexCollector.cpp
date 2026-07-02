@@ -51,8 +51,8 @@ SharedPtr<IndexCollector> IndexCollector::Create(const Theme* featureTheme)
 
 
 IndexCollector::IndexCollector(index_collector_key key)
-	:	m_ExtKeyAttr   ( key.first , existing_obj{} ) // = featureTheme->GetClassification() = Feature -> ExtKey (borrow tree-owned attr)
-	,	m_GeoRelAttr   ( key.second, existing_obj{} ) // = featureTheme->GetThemeAttr()      = Entity  -> ExtKey (borrow tree-owned attr)
+	:	m_ExtKeyAttr(make_shared_tree(key.first, existing_obj{})) // = featureTheme->GetClassification() = Feature -> ExtKey (borrow tree-owned attr)
+	,	m_GeoRelAttr(make_shared_tree(key.second, existing_obj{})) // = featureTheme->GetThemeAttr()      = Entity  -> ExtKey (borrow tree-owned attr)
 {
 	assert(key.first || key.second);
 	PreparedDataReadLock lck1(key.first , "IndexCollector::ctor");
@@ -84,7 +84,7 @@ IndexCollector::IndexCollector(index_collector_key key)
 
 	const AbstrDataItem* adi;
 	if (HasGeoRel())
-		adi = AsDataItem(m_DC->MakeResult().get_ptr());
+		adi = AsDataItem(m_DC->MakeResult().get());
 	else
 		adi = m_ExtKeyAttr.get();
 	assert(adi);

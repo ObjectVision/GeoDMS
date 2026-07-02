@@ -27,7 +27,7 @@ ConstUnitRef CastUnit(const UnitClass* uc, ConstUnitRef v)
 	if (v->IsKindOf(uc))
 		return v;
 
-	ConstUnitRef u(uc->CreateDefault(), existing_obj{});
+	ConstUnitRef u = make_shared_tree(uc->CreateDefault(), existing_obj{});
 
 	if (!v->UnifyValues(u.get(), "", "", UM_AllowTypeDiff))
 	{
@@ -42,7 +42,7 @@ ConstUnitRef CastUnit(const UnitClass* uc, ConstUnitRef v)
 ConstUnitRef CastUnit(const UnitClass* uc, const ArgSeqType& args)
 {
 	assert(args.size() >= 1);
-	return CastUnit(uc, {AsDataItem(args[0])->GetAbstrValuesUnit(), existing_obj{}}	);
+	return CastUnit(uc, make_shared_tree(AsDataItem(args[0])->GetAbstrValuesUnit(), existing_obj{}));
 }
 
 
@@ -57,7 +57,7 @@ ConstUnitRef count_unit_creator(const AbstrDataItem* adi)
 	const ValueClass* vc = adu->GetValueType(); assert(vc);
 	const ValueClass* vcCrd = vc->GetCrdClass(); assert(vcCrd);
 	auto uc = UnitClass::Find(vcCrd); assert(uc);
-	return { uc->CreateDefault(), existing_obj{} };
+	return make_shared_tree(uc->CreateDefault(), existing_obj{});
 }
 
 ConstUnitRef unique_count_unit_creator(const AbstrDataItem* adi, const AbstrDataItem* groupBy_rel)
@@ -91,7 +91,7 @@ ConstUnitRef unique_count_unit_creator(const AbstrDataItem* adi, const AbstrData
 		}
 	}
 	auto uc = UnitClass::Find(vcCrd); assert(uc);
-	return ConstUnitRef(uc->CreateDefault(), existing_obj{});
+	return make_shared_tree(uc->CreateDefault(), existing_obj{});
 }
 
 // *****************************************************************************
@@ -202,5 +202,5 @@ ConstUnitRef compatible_values_unit_creator_func(arg_index nrSkippedArgs, const 
 	}
 	MG_CHECK(!catUnit || (arg1_ValuesUnit && catUnit->UnifyDomain(arg1_ValuesUnit, "", "", UM_AllowDefaultRight)));
 
-	return ConstUnitRef(arg1_ValuesUnit, existing_obj{});
+	return make_shared_tree(arg1_ValuesUnit, existing_obj{});
 }

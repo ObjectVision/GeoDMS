@@ -90,9 +90,9 @@ SHV_CALL bool RefersToMappable(const TreeItem* ti);
 // section : Sync & Save
 //----------------------------------------------------------------------
 
-void SyncRef(shared_tree_ptr<const TreeItem>& ptr, TreeItem* context, TokenID id, ShvSyncMode sm);
+void SyncRef(std::shared_ptr<const TreeItem>& ptr, TreeItem* context, TokenID id, ShvSyncMode sm);
 void SyncRef(SharedDataItemInterestPtr& ptr, TreeItem* context, TokenID id, ShvSyncMode sm);
-void SyncRef(shared_tree_ptr<const AbstrUnit>& ptr, TreeItem* context, TokenID id, ShvSyncMode sm);
+void SyncRef(std::shared_ptr<const AbstrUnit>& ptr, TreeItem* context, TokenID id, ShvSyncMode sm);
 
 template <typename T>
 T LoadValue(const TreeItem* context, TokenID nameID, typename param_type<T>::type defaultValue = UNDEFINED_VALUE(T) );

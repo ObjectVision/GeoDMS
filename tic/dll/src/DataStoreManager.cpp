@@ -56,7 +56,7 @@ void DSM::CancelIfOutOfInterest(const TreeItem* item)
  // ==== code analysis support: TreeItem_SetAnalysisSource
 #include "TicInterface.h"
 
-static shared_tree_ptr<const TreeItem>      s_SourceItem;
+static std::shared_ptr<const TreeItem>      s_SourceItem;
 static std::map<const Actor*, supplier_level> s_SupplierLevels;
 
 supplier_level operator & (supplier_level lhs, supplier_level rhs) { return supplier_level(UInt32(lhs) & UInt32(rhs)); }
@@ -67,7 +67,7 @@ static void ProcessDeletion(ClientHandle clientHandle, const TreeItem* self, Not
 	return;
 	if (notificationCode == NC_Deleting)
 	{
-		assert(self != s_SourceItem); // s_SouceItem is reference counted
+		assert(self != s_SourceItem.get()); // s_SourceItem is reference counted
 		s_SupplierLevels.erase(self); // supplier level register is not reference counted.
 	}
 }
@@ -75,7 +75,7 @@ static void ProcessDeletion(ClientHandle clientHandle, const TreeItem* self, Not
 bool MarkSources(const Actor* a, supplier_level level)
 {
 	assert(a);
-	SharedTreeItem ti(dynamic_cast<const TreeItem*>(a), existing_obj{}); // block a from deletion when in process
+	SharedTreeItem ti = make_shared_tree(dynamic_cast<const TreeItem*>(a), existing_obj{}); // block a from deletion when in process
 	if (a->IsPassor())
 		if (!ti || ti->IsCacheItem())
 			return false;
@@ -134,7 +134,7 @@ TIC_CALL void TreeItem_SetAnalysisSource(const TreeItem * ti)
 {
 	DMS_CALL_BEGIN
 
-		s_SourceItem = shared_tree_ptr<const TreeItem>(ti, existing_obj{});
+		s_SourceItem = make_shared_tree(ti, existing_obj{});
 		TreeItem_SetAnalysisTarget(ti, true); // sends a refresh at cleaning
 
 	DMS_CALL_END

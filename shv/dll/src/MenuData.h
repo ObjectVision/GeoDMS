@@ -114,12 +114,12 @@ struct MenuData : private std::vector<MenuItem>
 
 struct RequestClientCmd : public AbstrCmd
 {
-	RequestClientCmd(shared_tree_ptr<const TreeItem> ti, NotificationCode nc) : m_TI(std::move(ti)), m_NC(nc) {}
+	RequestClientCmd(std::shared_ptr<const TreeItem> ti, NotificationCode nc) : m_TI(std::move(ti)), m_NC(nc) {}
 
 	GraphVisitState Visit(GraphicObject* go) override;
 
 private:
-	shared_tree_ptr<const TreeItem>  m_TI;
+	std::shared_ptr<const TreeItem>  m_TI;
 	NotificationCode m_NC;
 };
 

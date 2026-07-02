@@ -279,8 +279,8 @@ private:
     static void OnViewAction(const TreeItem* tiContext, CharPtr sAction, Int32 nCode, Int32 x, Int32 y, bool doAddHistory, bool isUrl, bool mustOpenDetailsPage);
 
     SharedStr m_currConfigFileName;
-    shared_tree_ptr<TreeItem> m_root;
-    shared_tree_ptr<TreeItem> m_current_item;
+    std::shared_ptr<TreeItem> m_root;
+    std::shared_ptr<TreeItem> m_current_item;
 
 public: 
     // helper window docks

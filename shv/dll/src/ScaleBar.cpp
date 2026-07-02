@@ -108,7 +108,7 @@ bool ScaleBarBase::MustUpdateView() const
 	CrdType          currFactor  = m_ViewPort->GetCurrWorldToDeviceZoomLevel();
 	const AbstrUnit* currCrdUnit = m_ViewPort->GetWorldCrdUnit();
 
-	return m_Factor != currFactor || m_CrdUnit != currCrdUnit;
+	return m_Factor != currFactor || m_CrdUnit.lock().get() != currCrdUnit;
 }
 
 bool ScaleBarBase::DoUpdateViewImpl(CrdPoint scaleFactor)
@@ -117,10 +117,10 @@ bool ScaleBarBase::DoUpdateViewImpl(CrdPoint scaleFactor)
 	CrdType          currFactor  = m_ViewPort->GetCurrWorldToDeviceZoomLevel();
 	const AbstrUnit* currCrdUnit = m_ViewPort->GetWorldCrdUnit();
 
-	if (m_Factor == currFactor && m_CrdUnit == currCrdUnit)
+	if (m_Factor == currFactor && m_CrdUnit.lock().get() == currCrdUnit)
 		return false;
 	m_Factor  = currFactor;  assert(IsDefined(m_Factor));
-	m_CrdUnit = currCrdUnit; assert(currCrdUnit);
+	m_CrdUnit = make_weak_tree(currCrdUnit); assert(currCrdUnit);
 
 	if (m_BaseLabel.empty()) // only do once
 	{

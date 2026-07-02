@@ -116,7 +116,7 @@ public:
 		auto tn = entity1->GetNrTiles();
 
 		if (IsMultiThreaded3() && (tn > 1) && !IsInMMD(res) && (LTF_ElementWeight(arg1A) + LTF_ElementWeight(arg2A) <= LTF_ElementWeight(res)))
-			res->m_DataObject = CreateFutureTileFunctor(shared_tree_ptr<AbstrDataItem>(res, existing_obj{}), res->GetLazyCalculatedState(), res->GetAbstrValuesUnit(), arg1A, arg2A MG_DEBUG_ALLOCATOR_SRC(res->md_FullName + " := Convert(...)"));
+			res->m_DataObject = CreateFutureTileFunctor(make_shared_tree(res, existing_obj{}), res->GetLazyCalculatedState(), res->GetAbstrValuesUnit(), arg1A, arg2A MG_DEBUG_ALLOCATOR_SRC(res->md_FullName + " := Convert(...)"));
 		else
 		{
 			DataWriteLock resLock(res);
@@ -138,7 +138,7 @@ public:
 		return true;
 	}
 
-	auto CreateFutureTileFunctor(shared_tree_ptr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr)) const -> SharedPtr<const AbstrDataObject>
+	auto CreateFutureTileFunctor(std::shared_ptr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr)) const -> SharedPtr<const AbstrDataObject>
 	{
 		auto tileRangeData = AsUnit(arg1A->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
 		auto valuesUnit = debug_cast<const Unit<PointType>*>(valuesUnitA);

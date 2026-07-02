@@ -118,17 +118,17 @@ AbstrDataItem::~AbstrDataItem() noexcept
 
 auto AbstrDataItem::GetAbstrDomainUnit() const -> const AbstrUnit*
 { 
-	if (m_DomainUnit.is_null() && IsMetaThread())
-		m_DomainUnit = SharedUnit(FindUnit(m_tDomainUnit, "Domain", nullptr), existing_obj{});
+	if (m_DomainUnit.expired() && IsMetaThread())
+		m_DomainUnit = make_shared_tree(FindUnit(m_tDomainUnit, "Domain", nullptr), existing_obj{});
 	return m_DomainUnit.lock().get(); // raw non-owning result: the unit is owned by the tree, outlives this call
 }
 
 auto AbstrDataItem::GetAbstrValuesUnit() const -> const AbstrUnit*
 { 
-	if (m_ValuesUnit.is_null() && IsMetaThread())
+	if (m_ValuesUnit.expired() && IsMetaThread())
 	{
 		ValueComposition vc = GetValueComposition();
-		m_ValuesUnit = SharedUnit(FindUnit(m_tValuesUnit, "Values", &vc), existing_obj{});
+		m_ValuesUnit = make_shared_tree(FindUnit(m_tValuesUnit, "Values", &vc), existing_obj{});
 	}
 	return m_ValuesUnit.lock().get(); // raw non-owning result: the unit is owned by the tree, outlives this call
 }
@@ -312,7 +312,7 @@ bool AbstrDataItem::DoReadItem(StorageMetaInfoPtr smi)
 			if (true || sm->EasyRereadTiles())
 			{
 				visit<typelists::numerics>(rangeValuesUnit.get(), [this, tileRangeData, &tileGenerator]<typename V>(const Unit<V>*valuesUnit) {
-					this->m_DataObject = make_unique_LazyTileFunctor<V>(SharedMutableDataItem(this, existing_obj{}), tileRangeData.get(), valuesUnit->m_RangeDataPtr, std::move(tileGenerator)
+					this->m_DataObject = make_unique_LazyTileFunctor<V>(make_shared_tree(this, existing_obj{}), tileRangeData.get(), valuesUnit->m_RangeDataPtr, std::move(tileGenerator)
 						MG_DEBUG_ALLOCATOR_SRC(md_FullName + ".AbstrDataItem::DoReadItem of random rereadable tiles")
 					).release();
 				});
@@ -358,7 +358,7 @@ bool AbstrDataItem::DoWriteItem(StorageMetaInfoPtr&& smi) const
 
 	FencedInterestRetainContext irc("AbstrDataItem::DoWriteItem");
 	try {
-		shared_tree_ptr<const TreeItem> storageHolder(smi->StorageHolder(), existing_obj{});
+		std::shared_ptr<const TreeItem> storageHolder = make_shared_tree(smi->StorageHolder(), existing_obj{});
 		sm->ExportMetaInfo(storageHolder.get(), this);
 		if (!sm->WriteDataItem(std::move(smi)))
 			throwItemError("Failure during Writing");
@@ -459,8 +459,8 @@ void AbstrDataItem::CopyProps(TreeItem* result, const CopyTreeContext& copyConte
 	res->m_StatusFlags.SetValueComposition(GetValueComposition());
 	if (copyContext.InFenceOperator())
 	{
-		res->m_DomainUnit = SharedUnit(GetAbstrDomainUnit(), existing_obj{});
-		res->m_ValuesUnit = SharedUnit(GetAbstrValuesUnit(), existing_obj{});
+		res->m_DomainUnit = make_shared_tree(GetAbstrDomainUnit(), existing_obj{});
+		res->m_ValuesUnit = make_shared_tree(GetAbstrValuesUnit(), existing_obj{});
 		return;
 	}
 
@@ -607,8 +607,8 @@ const AbstrUnit* AbstrDataItem::FindUnit(TokenID t, CharPtr role, ValueCompositi
 void AbstrDataItem::InitDataItem(const AbstrUnit* du, const AbstrUnit* vu, const DataItemClass* dic)
 {
 	assert( m_StatusFlags.GetValueComposition() != ValueComposition::Unknown );
-	m_DomainUnit = SharedUnit(du, existing_obj{});
-	m_ValuesUnit = SharedUnit(vu, existing_obj{});
+	m_DomainUnit = make_shared_tree(du, existing_obj{});
+	m_ValuesUnit = make_shared_tree(vu, existing_obj{});
 }
 
 auto AbstrDataItem::GetDataObj() const -> SharedPtr<const AbstrDataObject>
@@ -1289,7 +1289,7 @@ struct InterestReporter : DebugReporter
 
 			if (ti->IsCacheItem())
 				ReportTree(done, ti->GetTreeParent().get(), level, "PARENT");
-			ReportTree(done, ti->mc_RefItem.get(), level, "REF_ITEM");
+			ReportTree(done, ti->mc_RefItem.lock().get(), level, "REF_ITEM");
 			ReportTree(done, ti->mc_DC.get(), level, "CALC");
 	
 
@@ -1349,7 +1349,7 @@ struct InterestReporter : DebugReporter
 			return;
 //		if (ti->IsCacheItem())
 		ReduceInterest(interestRoots, ti->GetTreeParent().get());
-		ReduceInterest(interestRoots, ti->mc_RefItem.get());
+		ReduceInterest(interestRoots, ti->mc_RefItem.lock().get());
 		ReduceInterest(interestRoots, ti->mc_DC.get());
 //		ReduceInterest(interestRoots, ti->mc_IntegrityChecker);
 

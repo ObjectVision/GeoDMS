@@ -240,7 +240,7 @@ private:
 	friend class DataView;
 
 private:
-	shared_tree_ptr<TreeItem> m_ViewContext;
+	std::shared_ptr<TreeItem> m_ViewContext;
 	weakPtrGO m_Owner;
 	CrdRect   m_DrawnFullAbsRect; friend GraphDrawer; friend MovableObject;
 

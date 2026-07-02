@@ -1009,7 +1009,7 @@ bool DataItemsWriteStatusInfo::LayerHasBeenWritten(TokenID layerID)
 auto DataItemsWriteStatusInfo::GetExampleAdiFromLayerID(TokenID layerID) -> SharedDataItem
 {
 	for (auto& fieldInfo : m_LayerAndFieldIDMapping[layerID])
-		if (auto dh = SharedDataItem(fieldInfo.second.m_DataHolder.get_ptr(), no_zombies{}))
+		if (auto dh = make_shared_tree(fieldInfo.second.m_DataHolder.get_ptr(), no_zombies{}))
 			return dh;
 
 	return {};

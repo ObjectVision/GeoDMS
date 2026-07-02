@@ -108,7 +108,7 @@ void TreeItemDualRef::CaptureResultUnits()
 void TreeItemDualRef::Set(const TreeItem* ti, bool isNew)
 {
 	assert(ti);
-	if (m_Data.get() != ti)
+	if (m_Data.get().get() != ti)
 	{
 		assert(IsMetaThread());
 		assert(!m_State.Get(DCF_IsOld|DCF_IsTmp));

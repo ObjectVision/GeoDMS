@@ -358,7 +358,7 @@ TreeItem::~TreeItem ()
 	while (_GetFirstSubItem())
 		ReleaseSubItem(_GetFirstSubItem());
 
-	if (mc_RefItem)
+	if (!mc_RefItem.expired())
 		SetReferredItem(nullptr);
 
 	// NB: !HasInterest() is no longer asserted -- residual non-owning interest may remain (see above).
@@ -383,8 +383,8 @@ static void ResetAllKeepInterest(TreeItem* item)
 	do
 	{
 		walker->SetKeepDataState(false); 
-		if (walker->mc_RefItem)
-			const_cast<TreeItem*>(walker->mc_RefItem.get())->SetKeepDataState(false); 
+		if (!walker->mc_RefItem.expired())
+			const_cast<TreeItem*>(walker->mc_RefItem.lock().get())->SetKeepDataState(false); 
 		walker = item->WalkCurrSubTree(walker);
 	} while (walker);
 }
@@ -536,7 +536,7 @@ auto NameTreeReg_GetParentAndBranchID(CharPtrRange subItemNames) -> name_pair_t
 
 TokenID TreeItem::GetID () const
 {
-	assert(m_ID || !m_Parent.has_ptr()); // All SubItems must have a name
+	assert(m_ID || !(!m_Parent.expired())); // All SubItems must have a name
 	return m_ID;
 }
 
@@ -636,14 +636,14 @@ void TreeItem::Reorder(TreeItem** first, TreeItem** last)
 void TreeItem::AddItem(SharedMutableTreeItem child)
 {
 	assert(child);
-	assert(!child->m_Parent);
+	assert(child->m_Parent.expired());
 
 	assert(!GetSubTreeItemByID(child->GetID()));
 
 	assert(!child->GetInterestCount());
 
 	TreeItem* childRaw = child.get();
-	childRaw->m_Parent = this;   // non-owning weak back-pointer (set before the move empties `child`)
+	childRaw->m_Parent = make_weak_tree(this);   // non-owning weak back-pointer (set before the move empties `child`)
 	AddSub(std::move(child));     // transfer ownership into the sub-item list
 
 	if (m_UsingCache)         m_UsingCache->OnItemAdded(childRaw);
@@ -652,14 +652,14 @@ void TreeItem::AddItem(SharedMutableTreeItem child)
 void TreeItem::ReleaseSubItem(TreeItem* subItem) // detach a sub-item and release the parent's ownership of it
 {
 	SharedMutableTreeItem owned = ExtractSub(subItem); // unlink and take the owning ptr out of the list
-	subItem->m_Parent = nullptr;                       // clear the weak back-pointer before dropping ownership
+	subItem->m_Parent.reset();                       // clear the weak back-pointer before dropping ownership
 	// `owned` drops here: destroys subItem when this was the last owner (its dtor tears down its own subtree).
 }
 
 void TreeItem::RemoveItem(TreeItem* child)
 {
 	MGD_PRECONDITION(child);
-	dms_assert(child->m_Parent == this);
+	dms_assert(child->m_Parent.lock().get() == this);
 
 	if (m_UsingCache) m_UsingCache->OnItemRemoved(child);
 
@@ -738,8 +738,8 @@ SharedStr TreeItem::GetDisplayName() const
 
 SharedStr TreeItem::GetExpr() const
 {
-	if (m_Parent)
-		m_Parent->UpdateMetaInfo();
+	if (!m_Parent.expired())
+		m_Parent.lock()->UpdateMetaInfo();
 	return GetExprMember();
 }
 
@@ -772,16 +772,16 @@ void TreeItem::SetDC(DataControllerRef newDC, const TreeItem* newRefItem) const
 {
 	dms_assert(!InTemplate() || (!newDC && !newRefItem));
 
-	if (mc_DC == newDC && (!newRefItem || newRefItem == mc_RefItem))
+	if (mc_DC == newDC && (!newRefItem || newRefItem == mc_RefItem.lock().get()))
 		return;
 
 	SharedTreeItem newRI;
 	if (newDC)
 		newRI = newDC->MakeResult();
 	if (newRefItem)
-		newRI = SharedTreeItem(newRefItem, existing_obj{});
+		newRI = make_shared_tree(newRefItem, existing_obj{});
 
-	if (newRI == this)
+	if (newRI.get() == this)
 	{
 //		newDC = nullptr; // TODO G8: avoid construction of SourceDescr(...) at this phase
 		newRI = nullptr;
@@ -839,7 +839,7 @@ SharedTreeItemInterestPtr TreeItem::GetInterestPtrOrNull() const
 	if (!m_InterestCount)
 		return {};
 
-	auto result = shared_tree_ptr<const TreeItem>(this, existing_obj{});
+	auto result = make_shared_tree(this, existing_obj{});
 	++m_InterestCount;
 	return SharedTreeItemInterestPtr(std::move(result), already_incremented_tag{});
 }
@@ -849,7 +849,7 @@ bool TreeItem::HasCalculatorImpl() const  noexcept
 // true if not in template and (has expr or creator) or this is cache-result
 // in which case mc_Calculator has already been set by DataController to a DC_BackPtr
 {
-	dbg_assert(IsPassor() || !m_Parent || m_Parent->CheckMetaInfoReady() || s_MakeEndoLockCount);
+	dbg_assert(IsPassor() || m_Parent.expired() || m_Parent.lock()->CheckMetaInfoReady() || s_MakeEndoLockCount);
 	if (GetCalculatorMember())
 		return true;
 	// items in templates never have calculators
@@ -872,8 +872,8 @@ bool TreeItem::HasCalculator() const noexcept
 {
 	dms_check_not_debugonly; 
 
-	if (!IsPassor() && m_Parent && !m_Parent->Was(ProgressState::MetaInfo))
-		m_Parent->UpdateMetaInfo();
+	if (!IsPassor() && !m_Parent.expired() && !m_Parent.lock()->Was(ProgressState::MetaInfo))
+		m_Parent.lock()->UpdateMetaInfo();
 
 	return HasCalculatorImpl();
 }
@@ -977,7 +977,7 @@ void TreeItem::MakeCalculator() const noexcept
 
 	if (GetTreeParent() && GetTreeParent()->m_State.GetProgress() < ProgressState::MetaInfo && !GetTreeParent()->WasFailed(FailType::MetaInfo))
 		GetTreeParent()->UpdateMetaInfo();
-	dms_assert(!m_Parent || (m_Parent->m_State.GetProgress() >= ProgressState::MetaInfo) || m_Parent->WasFailed(FailType::MetaInfo));
+	dms_assert(m_Parent.expired() || (m_Parent.lock()->m_State.GetProgress() >= ProgressState::MetaInfo) || m_Parent.lock()->WasFailed(FailType::MetaInfo));
 
 	//	may only be called after HasCalculator (would) return(ed) true
 //	dms_assert(!InTemplate() || (mc_Calculator && mc_Calculator->DelayDataControllerAccess()));
@@ -1103,35 +1103,35 @@ bool TreeItem::CheckResultItem(const TreeItem* refItem) const
 
 // ============ GetRefItem
 
-auto TreeItem::GetCurrRefItem() const noexcept -> shared_tree_ptr<const TreeItem>
+auto TreeItem::GetCurrRefItem() const noexcept -> std::shared_ptr<const TreeItem>
 {
 //	assert(Was(ProgressState::MetaInfo) || WasFailed() || IsPassor() || IsUnit(this) && AsUnit(this)->IsDefaultUnit());
 	return mc_RefItem.lock();
 }
 
-auto TreeItem::GetReferredItem() const  noexcept -> shared_tree_ptr<const TreeItem>
+auto TreeItem::GetReferredItem() const  noexcept -> std::shared_ptr<const TreeItem>
 {
 	assert(!SuspendTrigger::DidSuspend());
-	if (m_Parent) 
-		m_Parent->UpdateMetaInfo();
+	if (!m_Parent.expired()) 
+		m_Parent.lock()->UpdateMetaInfo();
 
-	if (!mc_RefItem && HasCalculator())
+	if (!!mc_RefItem.expired() && HasCalculator())
 		MakeCalculator();
 				
 	return mc_RefItem.lock();
 }
 
-auto TreeItem::GetCurrUltimateItem() const noexcept -> shared_tree_ptr<const TreeItem>
+auto TreeItem::GetCurrUltimateItem() const noexcept -> std::shared_ptr<const TreeItem>
 {
 	return _GetCurrUltimateItem(this);
 }
 
-auto TreeItem::GetCurrRangeItem() const noexcept -> shared_tree_ptr<const TreeItem>
+auto TreeItem::GetCurrRangeItem() const noexcept -> std::shared_ptr<const TreeItem>
 {
 	return _GetCurrRangeItem(this);
 }
 
-auto TreeItem::GetUltimateItem() const noexcept -> shared_tree_ptr<const TreeItem>
+auto TreeItem::GetUltimateItem() const noexcept -> std::shared_ptr<const TreeItem>
 {
 	UpdateMetaInfo();
 	return _GetUltimateItem(this);
@@ -1164,7 +1164,7 @@ const TreeItem* TreeItem::GetCurrSourceItem() const noexcept
 	const TreeItem* sourceItem = this;
 	do
 	{
-		sourceItem = sourceItem->mc_RefItem.get();
+		sourceItem = sourceItem->mc_RefItem.lock().get();
 	}
 	while (sourceItem && sourceItem->IsCacheItem());
 
@@ -1186,8 +1186,8 @@ const TreeItem* TreeItem::GetCurrUltimateSourceItem() const noexcept
 // on destruction -- deferred settlement so the swap below can't drop interest mid-flight.
 struct OldRefDecrementer
 {
-	shared_tree_ptr<const TreeItem> m_Item;
-	OldRefDecrementer& operator=(shared_tree_ptr<const TreeItem> item) { m_Item = std::move(item); return *this; }
+	std::shared_ptr<const TreeItem> m_Item;
+	OldRefDecrementer& operator=(std::shared_ptr<const TreeItem> item) { m_Item = std::move(item); return *this; }
 	explicit operator bool() const { return bool(m_Item); }
 	const TreeItem* operator->() const { return m_Item.get(); }
 	~OldRefDecrementer() {
@@ -1214,7 +1214,7 @@ void TreeItem::SetReferredItem(const TreeItem* refItem) const
 
 	assert(refItem != this);
 	assert(!refItem || !refItem->InTemplate());
-	if (mc_RefItem.get() == refItem)
+	if (mc_RefItem.lock().get() == refItem)
 		return;
 
 #if defined(MG_DEBUG_INTERESTSOURCE_LOGGING)
@@ -1224,7 +1224,7 @@ void TreeItem::SetReferredItem(const TreeItem* refItem) const
 		while (curr) // propagate PivotElem to the ultimate item
 		{
 			curr->m_State.Set(actor_flag_set::AFD_PivotElem);
-			curr = curr->mc_RefItem.get();
+			curr = curr->mc_RefItem.lock().get();
 		}
 	}
 	if (refItem && refItem->m_State.Get(actor_flag_set::AFD_PivotElem))
@@ -1269,32 +1269,32 @@ retry:
 				goto retry;
 			// point of certain return, prepare settlement upon destruction
 			newRefItemCounter.release();
-			oldRefItemCounter = mc_RefItem.lock_ptr(); // owning snapshot of the old ref; decrement interest count upon destruction
+			oldRefItemCounter = mc_RefItem.lock(); // owning snapshot of the old ref; decrement interest count upon destruction
 		}
 		else
 			newRefItemCounter = nullptr; // decrease new interest if current interest has been released concurrently
 		// everything is OK now to do a swap of responsibilities
 
-		if (mc_RefItem && mc_RefItem.get() != tmpRefItemHolder.get() && mc_RefItem->m_BackRef == this)
-			mc_RefItem->m_BackRef = nullptr;
+		if (!mc_RefItem.expired() && mc_RefItem.lock().get() != tmpRefItemHolder.get() && mc_RefItem.lock()->m_BackRef.lock().get() == this)
+			mc_RefItem.lock()->m_BackRef.reset();
 		mc_RefItem = std::move(tmpRefItemHolder);
-		if (mc_RefItem && mc_RefItem->IsCacheItem() && !mc_RefItem->m_BackRef)
-			mc_RefItem->m_BackRef = this;
+		if (!mc_RefItem.expired() && mc_RefItem.lock()->IsCacheItem() && mc_RefItem.lock()->m_BackRef.expired())
+			mc_RefItem.lock()->m_BackRef = make_weak_tree(this);
 	}
 
 	assert(!oldRefItemCounter || oldRefItemCounter->GetInterestCount()); // will retain interest up to destruction, now privately owned.
 
-	if (!mc_RefItem)
+	if (mc_RefItem.expired())
 		return;
 
-	mc_RefItem->DetermineState();
+	mc_RefItem.lock()->DetermineState();
 	if (GetKeepDataState()) 
-		const_cast<TreeItem*>(mc_RefItem.get())->SetKeepDataState(true); // LET OP: State is niet weggehaald bij vorige refItem (want er zijn misschien nog andere keepers)
+		const_cast<TreeItem*>(mc_RefItem.lock().get())->SetKeepDataState(true); // LET OP: State is niet weggehaald bij vorige refItem (want er zijn misschien nog andere keepers)
 	if (GetLazyCalculatedState())
-		const_cast<TreeItem*>(mc_RefItem.get())->SetLazyCalculatedState(true); // LET OP: State is niet weggehaald bij vorige refItem (want er zijn misschien nog andere keepers)
+		const_cast<TreeItem*>(mc_RefItem.lock().get())->SetLazyCalculatedState(true); // LET OP: State is niet weggehaald bij vorige refItem (want er zijn misschien nog andere keepers)
 
 	const UInt32 inheritedFlags = TSF_Depreciated | TSF_Categorical;
-	m_StatusFlags.SetBits(inheritedFlags, mc_RefItem->m_StatusFlags.GetBits(inheritedFlags));
+	m_StatusFlags.SetBits(inheritedFlags, mc_RefItem.lock()->m_StatusFlags.GetBits(inheritedFlags));
 }
 
 // ============ GetParent
@@ -1364,8 +1364,8 @@ void TreeItem::SetKeepDataState(bool value)
 		}
 	}
 	if (value)
-		if (mc_RefItem)
-			const_cast<TreeItem*>(mc_RefItem.get())->SetKeepDataState(true);
+		if (!mc_RefItem.expired())
+			const_cast<TreeItem*>(mc_RefItem.lock().get())->SetKeepDataState(true);
 }
 
 void TreeItem::SetLazyCalculatedState(bool value)
@@ -1377,8 +1377,8 @@ void TreeItem::SetLazyCalculatedState(bool value)
 			subItem->SetLazyCalculatedState(value);
 	}
 	if (value)
-		if (mc_RefItem)
-			const_cast<TreeItem*>(mc_RefItem.get())->SetLazyCalculatedState(true);
+		if (!mc_RefItem.expired())
+			const_cast<TreeItem*>(mc_RefItem.lock().get())->SetLazyCalculatedState(true);
 }
 
 void TreeItem::SetStoreDataState(bool value)
@@ -1417,7 +1417,7 @@ SharedTreeItem TreeItem::GetStorageParent (bool alsoForWrite) const
 				return {};
 			return MakeSharedFromBorrowedObjectPtr( storageParent );
 		}
-		storageParent = storageParent->m_Parent.get();
+		storageParent = storageParent->m_Parent.lock().get();
 	} while (storageParent);
 	return {};
 }
@@ -1437,7 +1437,7 @@ SharedTreeItem TreeItem::GetCurrStorageParent(bool alsoForWrite) const
 				return {};
 			return MakeSharedFromBorrowedObjectPtr(storageParent);
 		}
-		storageParent = storageParent->m_Parent.get();
+		storageParent = storageParent->m_Parent.lock().get();
 	} while (storageParent);
 	return {};
 }
@@ -1473,7 +1473,7 @@ bool TreeItem::IsLoadableAndExists() const
 
 bool TreeItem::IsCurrLoadable() const
 {
-	assert(!m_Parent || m_Parent->Was(ProgressState::MetaInfo) || m_Parent->WasFailed());
+	assert(m_Parent.expired() || m_Parent.lock()->Was(ProgressState::MetaInfo) || m_Parent.lock()->WasFailed());
 	if (!IsDataItem(this) && !IsUnit(this))
 		return false;
 
@@ -1499,7 +1499,7 @@ bool TreeItem::IsStorable() const
 	{
 		if (storageReadOnlyPropDefPtr->GetValue(self))
 			return false;
-		if (self == storageParent)
+		if (self == storageParent.get())
 			return true;
 		self = self->GetTreeParent().get();
 		assert(self);
@@ -1616,16 +1616,16 @@ SharedTreeItem TreeItem::GetConstSubTreeItemByID(TokenID subItemID) const
 	{
 		if (!subItem)
 		{
-			if (mc_RefItem)
+			if (!mc_RefItem.expired())
 			{
-				assert(mc_RefItem != this);
-				return mc_RefItem->GetConstSubTreeItemByID(subItemID);
+				assert(mc_RefItem.lock().get() != this);
+				return mc_RefItem.lock()->GetConstSubTreeItemByID(subItemID);
 			}
 			return {};
 		}
 
 		if	(subItem->GetID() == subItemID)
-			return SharedTreeItem(subItem, existing_obj{});
+			return make_shared_tree(subItem, existing_obj{});
 		subItem = subItem->GetNextItem();
 	}
 }
@@ -1637,16 +1637,16 @@ SharedTreeItem TreeItem::GetCurrSubTreeItemByID(TokenID subItemID) const
 	{
 		if (!subItem)
 		{
-			if (mc_RefItem)
+			if (!mc_RefItem.expired())
 			{
-				assert(mc_RefItem != this);
-				return mc_RefItem->GetCurrSubTreeItemByID(subItemID);
+				assert(mc_RefItem.lock().get() != this);
+				return mc_RefItem.lock()->GetCurrSubTreeItemByID(subItemID);
 			}
 			return {};
 		}
 
 		if (subItem->GetID() == subItemID)
-			return SharedTreeItem(subItem, existing_obj{});
+			return make_shared_tree(subItem, existing_obj{});
 		subItem = subItem->GetNextItem();
 	}
 }
@@ -1700,7 +1700,7 @@ TreeItem* TreeItem::GetBestItem(CharPtrRange subItemNames)
 SharedTreeItem TreeItem::GetCurrItem(CharPtrRange subItemNames) const
 {
 	if (subItemNames.empty())
-		return SharedTreeItem(this, existing_obj{});
+		return make_shared_tree(this, existing_obj{});
 
 	auto ids = NameTreeReg_GetParentAndBranchID(subItemNames);
 	if (ids.first.empty()) // subItemNames is an atomic token or parent = root
@@ -1719,7 +1719,7 @@ SharedTreeItem TreeItem::FindItem(CharPtrRange subItemNames) const
 	assert(IsMetaThread());
 
 	if (subItemNames.empty())
-		return SharedTreeItem(this, existing_obj{});
+		return make_shared_tree(this, existing_obj{});
 
 	auto ids = NameTreeReg_GetParentAndBranchID(subItemNames);
 	assert(ids.first.first == subItemNames.first);
@@ -1728,20 +1728,20 @@ SharedTreeItem TreeItem::FindItem(CharPtrRange subItemNames) const
 	{	
 		assert(!ids.second.empty());
 		if (ids.second.first[0] == '.')
-			return SharedTreeItem(FollowDots(ids.second), existing_obj{});
+			return make_shared_tree(FollowDots(ids.second), existing_obj{});
 
 		UpdateMetaInfoIfNotAlready();
 
 		TokenID existingToken = GetExistingTokenID<mt_tag>(ids.second); //to be found token was already created if asserts hold
 		if (!IsDefined(existingToken))
 			return {};
-		return SharedTreeItem(FindTreeItemByID(this, existingToken), existing_obj{});
+		return make_shared_tree(FindTreeItemByID(this, existingToken), existing_obj{});
 	}
 	SharedTreeItem parent = {};
 	if (ids.first.empty()) // We start at root.
 	{
 		MG_CHECK(!IsCacheItem());
-		parent = SharedTreeItem(static_cast<const TreeItem*>(GetRoot()), existing_obj{});
+		parent = make_shared_tree(static_cast<const TreeItem*>(GetRoot()), existing_obj{});
 	}
 	else
 		parent = FindItem(ids.first);
@@ -1773,7 +1773,7 @@ auto TreeItem::FindAndVisitItem(CharPtrRange subItemNames, SupplierVisitFlag svf
 			auto item = FollowDots(ids.second);
 			if (visitor.Visit(item) == AVS_SuspendedOrFailed)
 				return {};
-			return SharedTreeItem(item, existing_obj{});
+			return make_shared_tree(item, existing_obj{});
 		}
 
 		UpdateMetaInfo();
@@ -1783,7 +1783,7 @@ auto TreeItem::FindAndVisitItem(CharPtrRange subItemNames, SupplierVisitFlag svf
 		auto item = FindTreeItemByID(this, existingToken);
 		if (visitor.Visit(item) == AVS_SuspendedOrFailed)
 			return {};
-		return SharedTreeItem(item, existing_obj{});
+		return make_shared_tree(item, existing_obj{});
 	}
 	SharedTreeItem parent;
 	if (ids.first.empty()) // We start at root.
@@ -1817,14 +1817,14 @@ static auto FollowBestDots(const TreeItem* self, CharPtrRange dots) noexcept -> 
 	while (true)
 	{
 		if (*dots.first != '.')
-			return { SharedTreeItem(self, existing_obj{}), SharedStr(dots.first MG_DEBUG_ALLOCATOR_SRC("FollowBestDots")) };
+			return { make_shared_tree(self, existing_obj{}), SharedStr(dots.first MG_DEBUG_ALLOCATOR_SRC("FollowBestDots")) };
 		dots.first++;
 		if (dots.first == dots.second)
-			return { SharedTreeItem(self, existing_obj{}), SharedStr(dots.first MG_DEBUG_ALLOCATOR_SRC("FollowBestDots")) };
+			return { make_shared_tree(self, existing_obj{}), SharedStr(dots.first MG_DEBUG_ALLOCATOR_SRC("FollowBestDots")) };
 
 		auto parent = self->GetTreeParent();
 		if (!parent)
-			return { SharedTreeItem(self, existing_obj{}), SharedStr(dots.first - 1 MG_DEBUG_ALLOCATOR_SRC("FollowBestDots")) };
+			return { make_shared_tree(self, existing_obj{}), SharedStr(dots.first - 1 MG_DEBUG_ALLOCATOR_SRC("FollowBestDots")) };
 		self = parent.get();
 	}
 }
@@ -1833,7 +1833,7 @@ static auto FollowBestDots(const TreeItem* self, CharPtrRange dots) noexcept -> 
 auto TreeItem::FindBestItem(CharPtrRange subItemNames) const -> BestItemRef
 {
 	if (subItemNames.empty())
-		return { SharedTreeItem(this, existing_obj{}), {} };
+		return { make_shared_tree(this, existing_obj{}), {} };
 
 	auto ids = NameTreeReg_GetParentAndBranchID(subItemNames);
 	dms_assert(ids.first.first == subItemNames.first);
@@ -1849,9 +1849,9 @@ auto TreeItem::FindBestItem(CharPtrRange subItemNames) const -> BestItemRef
 		if (IsDefined(t)) {
 			auto result = FindTreeItemByID(this, t);
 			if (result)
-				return { SharedTreeItem(result, existing_obj{}), {} };
+				return { make_shared_tree(result, existing_obj{}), {} };
 		}
-		return { SharedTreeItem(this, existing_obj{}), SharedStr(ids.second) };
+		return { make_shared_tree(this, existing_obj{}), SharedStr(ids.second) };
 	}
 
 	if (ids.first.empty()) 
@@ -1881,7 +1881,7 @@ auto TreeItem::FindBestItem(CharPtrRange subItemNames) const -> BestItemRef
 
 	auto parentRef = FindBestItem(ids.first);
 	if (!parentRef.first)
-		return { SharedTreeItem(this, existing_obj{}), SharedStr(subItemNames) };
+		return { make_shared_tree(this, existing_obj{}), SharedStr(subItemNames) };
 
 	if (!parentRef.second.empty())
 		return { parentRef.first, parentRef.second + SharedStr(CharPtrRange(ids.first.second, ids.second.second)) };
@@ -1982,7 +1982,7 @@ auto CreateAndInitItem(TreeItem* self, TokenID id, const Class* requiredClass) -
 	if (requiredClass->HasSharedCreator())
 		newSubItem = std::static_pointer_cast<TreeItem>(requiredClass->CreateSharedObj());
 	else
-		newSubItem = SharedMutableTreeItem(debug_cast<TreeItem*>(requiredClass->CreateObj()), newly_obj{});
+		newSubItem = make_shared_tree(debug_cast<TreeItem*>(requiredClass->CreateObj()), newly_obj{});
 	assert(newSubItem);
 
 	// Pass a co-owning copy: InitTreeItem moves its copy into the parent's sub-item list (or drops it
@@ -1999,12 +1999,12 @@ auto TreeItem_CreateItem(TreeItem* self, TokenID id, const Class* requiredClass)
 	if (self)
 	{
 		if (!id)
-			return SharedMutableTreeItem(CheckedAs(self, requiredClass), existing_obj{}); // borrow an owning share of the existing item
+			return make_shared_tree(CheckedAs(self, requiredClass), existing_obj{}); // borrow an owning share of the existing item
 
 		// find foundSubItem according to firstSubItemName
 		TreeItem* foundSubItem = self->GetSubTreeItemByID(id);
 		if (foundSubItem)
-			return SharedMutableTreeItem(CheckedAs(foundSubItem, requiredClass), existing_obj{});
+			return make_shared_tree(CheckedAs(foundSubItem, requiredClass), existing_obj{});
 	}
 
 	// create something
@@ -2027,7 +2027,7 @@ auto TreeItem_CreateItemFromPath(TreeItem* self, CharPtr subItemNames, const Cla
 	if (*subItemNames == 0) // all subItemNames are processed ??
 	{
 		if (self)
-			return SharedMutableTreeItem(CheckedAs(self, requiredClass), existing_obj{});
+			return make_shared_tree(CheckedAs(self, requiredClass), existing_obj{});
 		else
 			return CreateAndInitItem(self, TokenID(), requiredClass);
 	}
@@ -2071,7 +2071,7 @@ auto TreeItem::CreateItemFromPath(CharPtr subItemNames, const Class* requiredCla
 SharedMutableTreeItem TreeItem::CreateConfigRoot(TokenID id) // static
 {
 	dms_assert(!s_MakeEndoLockCount);
-	SharedMutableTreeItem result(new TreeItem, newly_obj{}); // sole owner from birth (fresh std control block, wires shared_from_this)
+	SharedMutableTreeItem result = make_shared_tree(new TreeItem, newly_obj{}); // sole owner from birth (fresh std control block, wires shared_from_this)
 	InitTreeItem(nullptr, result, id);
 	result->SetFreeDataState(true);
 	return result;
@@ -2079,7 +2079,7 @@ SharedMutableTreeItem TreeItem::CreateConfigRoot(TokenID id) // static
 SharedMutableTreeItem TreeItem::CreateCacheRoot() // static
 {
 	dms_assert(s_MakeEndoLockCount);
-	SharedMutableTreeItem result(new TreeItem, newly_obj{}); // sole owner from birth (fresh std control block, wires shared_from_this)
+	SharedMutableTreeItem result = make_shared_tree(new TreeItem, newly_obj{}); // sole owner from birth (fresh std control block, wires shared_from_this)
 	InitTreeItem(nullptr, result, TokenID::GetEmptyID());
 	result->SetPassor();
 	return result;
@@ -2114,7 +2114,7 @@ SharedMutableTreeItem TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext
 
 	assert(copyContext.m_SrcRoot);
 	bool isArg = (copyContext.m_ArgList)
-		&& (GetTreeParent() == copyContext.m_SrcRoot);
+		&& (GetTreeParent().get() == copyContext.m_SrcRoot);
 
 	if (dstIsRoot)
 	{
@@ -2146,7 +2146,7 @@ SharedMutableTreeItem TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext
 			for (UInt32 i1 =0; i1 != nrNameSpaces; ++i1)
 			{
 				const TreeItem* sns = GetNamespaceUsage(i1);
-				if (sns && sns != GetTreeParent() && !sns->DoesContain(this) )
+				if (sns && sns != GetTreeParent().get() && !sns->DoesContain(this) )
 				{
 					if (nameSpaceBuffer.CurrPos())
 						nameSpaceStream << ';';
@@ -2163,7 +2163,7 @@ SharedMutableTreeItem TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext
 		}
 	}
 	if (InTemplate())
-		result->mc_OrgItem = this;
+		result->mc_OrgItem = make_weak_tree(this);
 	//	Now, call the virtual CopyProps func to let the derived class do some work
 
 	assert(mustCopyProps || dstIsRoot || !copyContext.InFenceOperator());
@@ -2186,7 +2186,7 @@ SharedMutableTreeItem TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext
 
 			result->SetCalculator(AbstrCalculator::ConstructFromLispRef(result.get(), copyContext.m_ArgList.Left(), CalcRole::ArgCalc));
 			result->SetIsHidden(true);
-			assert(result != copyContext.m_DstRoot);
+			assert(result.get() != copyContext.m_DstRoot);
 			assert(copyContext.m_DstRoot != nullptr);
 			copyContext.m_ArgList = copyContext.m_ArgList.Right();
 			return result; // don't copy subItems from this to result (take them from arg)
@@ -2231,7 +2231,7 @@ SharedMutableTreeItem TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext
 		// Now, copy from refItem; maybe more sub-items should be copied
 		if (copyContext.CopyReferredItems())
 		{
-			AnchestorStackGuard guard(copyContext, result, shared_tree_ptr<const TreeItem>(this, existing_obj{}));
+			AnchestorStackGuard guard(copyContext, result, make_shared_tree(this, existing_obj{}));
 
 			const TreeItem* refItem = GetCurrRefItem().get();
 //			copyContext.m_Dcm = DataCopyMode(copyContext.GetDCM() | DataCopyMode::DontUpdateMetaInfo);
@@ -2313,7 +2313,7 @@ void TreeItem::UpdateMetaInfoImpl() const
 			assert(foundItem);
 			if (foundItem->GetTSF(TSF_Depreciated))
 			{
-				SharedTreeItem prevItem(foundItem, existing_obj{}), refItem(prevItem->GetCurrRefItem());
+				SharedTreeItem prevItem = make_shared_tree(foundItem, existing_obj{}), refItem(prevItem->GetCurrRefItem());
 				MG_CHECK(refItem); // follows from TSF_Depreciated
 				SharedTreeItem refRefItem(refItem->GetCurrRefItem());
 				while (refRefItem) {
@@ -2364,26 +2364,26 @@ void TreeItem::UpdateMetaInfoImpl() const
 	if (HasConfigData() && GetCalculatorMember() && GetCalculatorMember()->IsDataBlock())
 		return;
 
-	if (mc_RefItem)
+	if (!mc_RefItem.expired())
 	{
-		mc_RefItem->UpdateMetaInfo();
-		if (mc_RefItem->IsCacheRoot())
+		mc_RefItem.lock()->UpdateMetaInfo();
+		if (mc_RefItem.lock()->IsCacheRoot())
 		{
 			if (mc_DC && mc_DC->IsNew())
 			{
-				if (!mc_RefItem->GetTSF(TSF_HasPseudonym)) // can have another pseudonym
+				if (!mc_RefItem.lock()->GetTSF(TSF_HasPseudonym)) // can have another pseudonym
 				{
-					mc_RefItem->SetTSF(TSF_HasPseudonym);
+					mc_RefItem.lock()->SetTSF(TSF_HasPseudonym);
 #if defined(MG_DEBUG_DATA)
-					mc_RefItem->md_FullName = md_FullName;
+					mc_RefItem.lock()->md_FullName = md_FullName;
 #endif
 				}
 				if (!GetFreeDataState() && !mc_DC->IsTransient())
-					const_cast<TreeItem*>(mc_RefItem.get_ptr())->SetFreeDataState(false);
+					const_cast<TreeItem*>(mc_RefItem.lock().get())->SetFreeDataState(false);
 			}
 			if (!this->IsCacheItem())
 			{
-				SharedTreeItem cacheItem = mc_RefItem.lock_ptr(); // weak -> owning snapshot (held for the use below)
+				SharedTreeItem cacheItem = mc_RefItem.lock(); // weak -> owning snapshot (held for the use below)
 				if (HasVisibleSubItems(cacheItem.get()))
 					CopyTreeContext(const_cast<TreeItem*>(this), cacheItem.get(), "", DataCopyMode::NoRoot | DataCopyMode::MakeEndogenous | DataCopyMode::SetInheritFlag | DataCopyMode::MergeProps).Apply();
 			}
@@ -2463,9 +2463,9 @@ LispRef TreeItem::GetBaseKeyExpr() const
 	{
 		auto& sourceItem = std::get<SharedTreeItem>(metaInfo);
 		assert(!sourceItem->IsCacheItem());
-		if (sourceItem == this) // avoid direct self reference
+		if (sourceItem.get() == this) // avoid direct self reference
 			throwItemError("Invalid self reference");
-		if (sourceItem != this)
+		if (sourceItem.get() != this)
 		{
 			thread_local std::unordered_set<const TreeItem*> s_VisitingItems;
 			if (!s_VisitingItems.insert(this).second)
@@ -2557,7 +2557,7 @@ static auto TreeItem_CreateCheckedExpr(LispPtr resultExpr, const TreeItem* self)
 
 void TreeItem::UpdateDC() const
 {
-	if (mc_DC || mc_RefItem || WasFailed(FailType::MetaInfo) || InTemplate() || IsCacheItem() || IsPassor())
+	if (mc_DC || !mc_RefItem.expired() || WasFailed(FailType::MetaInfo) || InTemplate() || IsCacheItem() || IsPassor())
 		return;
 
 	auto [resultDC, srcItem] = GetOrgDC();
@@ -2599,10 +2599,10 @@ auto TreeItem::GetCheckedDC() const->DataControllerRef
 	auto resultDC = TreeItem_GetCheckedDC_impl(this);
 	if (resultDC)
 		return resultDC;
-	if (mc_RefItem)
+	if (!mc_RefItem.expired())
 	{
-		assert(!mc_RefItem->IsCacheItem());
-		return mc_RefItem->GetCheckedDC();
+		assert(!mc_RefItem.lock()->IsCacheItem());
+		return mc_RefItem.lock()->GetCheckedDC();
 	}
 	if (IsCurrLoadable() && !GetTSF(USF_HasConfigRange))
 		return GetOrCreateDataController(CreateLispTree(this, false));
@@ -2672,7 +2672,7 @@ const TreeItem* TreeItem::GetBackRef() const
 {
 //	dms_assert(IsMetaThread());
 // TODO: SYNC on backref
-	return m_BackRef.get();
+	return m_BackRef.lock().get();
 }
 
 auto TreeItem::GetFullCfgName() const -> SharedStr
@@ -2962,12 +2962,12 @@ ActorVisitState TreeItem::DoUpdate()
 						return AVS_SuspendedOrFailed;
 					}
 
-					SharedDataItem iCheckerResult(AsDynamicDataItem(iCheckerDC->GetOld()), existing_obj{});
+					SharedDataItem iCheckerResult = make_shared_tree(AsDynamicDataItem(iCheckerDC->GetOld()), existing_obj{});
 					if (iCheckerResult)
 					{
 						assert(iCheckerResult->GetInterestCount());
 
-						shared_tree_ptr<const TreeItem> adiCheckerResult = iCheckerResult->GetCurrUltimateItem();
+						std::shared_ptr<const TreeItem> adiCheckerResult = iCheckerResult->GetCurrUltimateItem();
 						assert(adiCheckerResult->GetInterestCount());
 						if (!WaitForReadyOrSuspendTrigger(adiCheckerResult.get()))
 						{
@@ -3064,21 +3064,21 @@ void TreeItem::SetProgress(ProgressState ps) const
 const TreeItem* TreeItem::GetFirstVisibleSubItem() const noexcept
 {
 	const TreeItem* subItem = GetFirstSubItem(); // calls UpdateMetaInfo
-	if (subItem || !mc_RefItem)
+	if (subItem || mc_RefItem.expired())
 		return subItem;
-	return mc_RefItem->GetFirstVisibleSubItem();
+	return mc_RefItem.lock()->GetFirstVisibleSubItem();
 }
 
 
 const TreeItem* TreeItem::GetNextVisibleItem() const noexcept
 {
-	dms_assert(m_Parent);
+	dms_assert(!m_Parent.expired());
 
 	const TreeItem* nextItem = GetNextItem();
 	if (nextItem)
 		return nextItem;
-	nextItem = m_Parent->mc_RefItem.get();
-	dms_assert(nextItem != m_Parent);
+	nextItem = m_Parent.lock()->mc_RefItem.lock().get();
+	dms_assert(nextItem != m_Parent.lock().get());
 	if (!nextItem)
 		return nullptr;
 	return nextItem->GetFirstVisibleSubItem();
@@ -3207,9 +3207,9 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 
 	// =============== TemplateOrg
 
-	if (Test(svf,  SupplierVisitFlag::TemplateOrg) && mc_OrgItem)
+	if (Test(svf,  SupplierVisitFlag::TemplateOrg) && !mc_OrgItem.expired())
 	{
-		if (visitor(mc_OrgItem.get()) == AVS_SuspendedOrFailed)
+		if (visitor(mc_OrgItem.lock().get()) == AVS_SuspendedOrFailed)
 			return AVS_SuspendedOrFailed;
 	}
 
@@ -3289,10 +3289,10 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 				return AVS_SuspendedOrFailed;
 		}
 	}
-	if (mc_RefItem)
+	if (!mc_RefItem.expired())
 	{
 		if (Test(svf, SupplierVisitFlag::SourceData))
-			if (visitor(mc_RefItem.get()) != AVS_Ready)
+			if (visitor(mc_RefItem.lock().get()) != AVS_Ready)
 				return AVS_SuspendedOrFailed;
 	}
 
@@ -3629,7 +3629,7 @@ bool TreeItem::PrepareDataUsage(DrlType drlFlags) const
 
 enum class how_to_proceed { nothing, data_ready, failed, suspended, suspended_or_failed}; // return_suspended_or_failed, return_OK ;
 
-static how_to_proceed PrepareDataCalc(shared_tree_ptr<const TreeItem> self, const TreeItem* refItem, DrlType drlFlags)
+static how_to_proceed PrepareDataCalc(std::shared_ptr<const TreeItem> self, const TreeItem* refItem, DrlType drlFlags)
 {
 	dms_assert(!SuspendTrigger::DidSuspend() && !self->WasFailed(FailType::Determine)); // Postcondition when CreateResultingTreeItem returns a result
 
@@ -3681,7 +3681,7 @@ static how_to_proceed PrepareDataCalc(shared_tree_ptr<const TreeItem> self, cons
 	}
 	dms_assert(!SuspendTrigger::DidSuspend()); // Postcondition when CreateResultingTreeItem returns a result
 
-	if (dc && dc->GetOld() != self && !dc->GetOld()->IsCacheItem()) // could be config item that can be read from external source
+	if (dc && dc->GetOld() != self.get() && !dc->GetOld()->IsCacheItem()) // could be config item that can be read from external source
 	{
 		bool res = dc->GetOld()->PrepareDataUsageImpl(drlFlags);
 		if (dc->GetOld()->IsFailed())
@@ -3700,7 +3700,7 @@ static how_to_proceed PrepareDataCalc(shared_tree_ptr<const TreeItem> self, cons
 	return how_to_proceed::nothing;
 }
 
-static how_to_proceed PrepareDataRead(shared_tree_ptr<const TreeItem> self, const TreeItem* refItem, DrlType drlFlags)
+static how_to_proceed PrepareDataRead(std::shared_ptr<const TreeItem> self, const TreeItem* refItem, DrlType drlFlags)
 {
 	// PSEUDOCODE:
 	// - Ensure refItem is data-readable and not a cache item.
@@ -3862,7 +3862,7 @@ static how_to_proceed PrepareDataRead(shared_tree_ptr<const TreeItem> self, cons
 
 	if (refItem->IsFailed())
 	{
-		if (refItem != self)
+		if (refItem != self.get())
 			self->Fail(refItem);
 		return how_to_proceed::failed;
 	}
@@ -4015,7 +4015,7 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 				goto failed;
 
 			if ((drlType != DrlType::UpdateNever) && HasCalculator())
-				switch (PrepareDataCalc(shared_tree_ptr<const TreeItem>(this, existing_obj{}), refItem, drlFlags))
+				switch (PrepareDataCalc(make_shared_tree(this, existing_obj{}), refItem, drlFlags))
 				{
 				case how_to_proceed::nothing: break;
 				case how_to_proceed::data_ready: goto data_ready;
@@ -4031,7 +4031,7 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 			dms_assert(!SuspendTrigger::DidSuspend());
 
 			if (refItem->IsDataReadable()) // could be this (no calculator)
-				switch (PrepareDataRead(shared_tree_ptr<const TreeItem>(this, existing_obj{}), refItem, drlFlags))
+				switch (PrepareDataRead(make_shared_tree(this, existing_obj{}), refItem, drlFlags))
 				{
 				case how_to_proceed::nothing: break;
 				case how_to_proceed::data_ready: goto data_ready;
@@ -4138,7 +4138,7 @@ bool TreeItem::PrepareData() const
 		if (SuspendTrigger::DidSuspend())
 			return false;
 		assert(ultItem->WasFailed());
-		if (ultItem != this && ultItem->WasFailed())
+		if (ultItem.get() != this && ultItem->WasFailed())
 			this->Fail(ultItem.get());
 		return false;
 	}
@@ -4645,8 +4645,8 @@ garbage_can TreeItem::StopInterest() const noexcept
 	if (mc_DC)
 		garbage |= mc_DC->DecInterestCount();
 
-	if (mc_RefItem)
-		garbage |= mc_RefItem->DecInterestCount();
+	if (!mc_RefItem.expired())
+		garbage |= mc_RefItem.lock()->DecInterestCount();
 	else
 		garbage |= TryCleanupMem();
 
@@ -4778,8 +4778,8 @@ SharedStr TreeItem::GetConfigFileName() const
 {
 	if (m_Location)
 		return m_Location->m_ConfigFileDescr->GetFileName();
-	if (m_Parent)
-		return m_Parent->GetConfigFileName();
+	if (!m_Parent.expired())
+		return m_Parent.lock()->GetConfigFileName();
 	return SharedStr();
 }
 
@@ -4787,8 +4787,8 @@ UInt32  TreeItem::GetConfigFileLineNr() const
 {
 	return (m_Location)
 		? m_Location->m_ConfigFileLineNr
-		: (m_Parent)
-		? m_Parent->GetConfigFileLineNr()
+		: (!m_Parent.expired())
+		? m_Parent.lock()->GetConfigFileLineNr()
 		: 0;
 }
 
@@ -4796,8 +4796,8 @@ UInt32  TreeItem::GetConfigFileColNr() const
 {
 	return (m_Location)
 		? m_Location->m_ConfigFileColNr
-		: (m_Parent)
-		? m_Parent->GetConfigFileColNr()
+		: (!m_Parent.expired())
+		? m_Parent.lock()->GetConfigFileColNr()
 		: 0;
 }
 
@@ -4826,7 +4826,7 @@ auto TreeItem_GetTemplateSource(const TreeItem* item) -> SharedTreeItem
 	auto calculator = item->GetCalculator();
 	assert(calculator);
 	if (calculator->HasTemplSource())
-		return SharedTreeItem(calculator->GetTemplSource(), existing_obj{});
+		return make_shared_tree(calculator->GetTemplSource(), existing_obj{});
 	// IsForEachTemplHolder() is true only when applyItem==nullptr,
 	// but GetForEachTemplSource() asserts applyItem!=nullptr — mutually exclusive.
 	// Skip holders that have not yet been instantiated.
@@ -4855,7 +4855,7 @@ auto TreeItem_FindItem_impl(template_set& visitedSet, const TreeItem* searchLoc,
 					break;
 
 				if (templItem->GetID() == id)
-					return SharedTreeItem(templItem, existing_obj{});
+					return make_shared_tree(templItem, existing_obj{});
 			}
 		}
 	}
@@ -4866,7 +4866,7 @@ auto TreeItem_FindItem_impl(template_set& visitedSet, const TreeItem* searchLoc,
 		else if (!findNextMode)
 		{
 			if (subItem->GetID() == id)
-				return SharedTreeItem(subItem, existing_obj{});
+				return make_shared_tree(subItem, existing_obj{});
 
 			if (auto result = TreeItem_FindItem_impl(visitedSet, subItem, id))
 				return result;
@@ -4898,7 +4898,7 @@ TIC_CALL auto TreeItem_FindItem(const TreeItem* searchLoc, TokenID id) -> Shared
 	while (auto parent = searchLoc->GetTreeParent().get())
 	{
 		if (!findNextMode && parent->GetID() == id)
-			return SharedTreeItem(parent, existing_obj{});
+			return make_shared_tree(parent, existing_obj{});
 
 		if (auto result = TreeItem_FindItem_impl(alreadyVisited, parent, id, searchLoc, findNextMode))
 			return result;

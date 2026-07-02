@@ -200,12 +200,12 @@ static std::pair<ConstUnitRef, ValueComposition> ValuesUnitAndComposition(const 
 	const ValueClass* vc = avu->GetValueType();
 	switch (am) {
 		case AggrMethod::bounding_box:
-			return { ConstUnitRef(Unit<SharedStr>::GetStaticClass()->CreateDefault(), existing_obj{}), ValueComposition::String };
+			return { make_shared_tree(Unit<SharedStr>::GetStaticClass()->CreateDefault(), existing_obj{}), ValueComposition::String };
 
 		case AggrMethod::entropy:
 		case AggrMethod::average_entropy:
 		case AggrMethod::sum:
-			return { ConstUnitRef(Unit<Float64>::GetStaticClass()->CreateDefault(), existing_obj{}), ValueComposition::Single };
+			return { make_shared_tree(Unit<Float64>::GetStaticClass()->CreateDefault(), existing_obj{}), ValueComposition::Single };
 
 		case AggrMethod::count:
 		case AggrMethod::nr_undefined_values:
@@ -215,12 +215,12 @@ static std::pair<ConstUnitRef, ValueComposition> ValuesUnitAndComposition(const 
 		case AggrMethod::frequency_table:
 		case AggrMethod::frequency_table_with_null:
 			if (vc->GetValueClassID() == ValueClassID::VT_String)
-				return { ConstUnitRef(avu, existing_obj{}), ValueComposition::String };
-			return { ConstUnitRef(Unit<SharedStr>::GetStaticClass()->CreateDefault(), existing_obj{}), ValueComposition::String };
+				return { make_shared_tree(avu, existing_obj{}), ValueComposition::String };
+			return { make_shared_tree(Unit<SharedStr>::GetStaticClass()->CreateDefault(), existing_obj{}), ValueComposition::String };
 
 		case AggrMethod::first:
 		case AggrMethod::last:
-			return { ConstUnitRef(avu, existing_obj{}), adi->GetValueComposition() };
+			return { make_shared_tree(avu, existing_obj{}), adi->GetValueComposition() };
 
 		case AggrMethod::modus_count:
 			return { count_unit_creator(adi), ValueComposition::Single };
@@ -229,7 +229,7 @@ static std::pair<ConstUnitRef, ValueComposition> ValuesUnitAndComposition(const 
 			return { unique_count_unit_creator(adi, groupByRel), ValueComposition::Single };
 
 	}
-	return { ConstUnitRef(avu, existing_obj{}), ValueComposition::Single };
+	return { make_shared_tree(avu, existing_obj{}), ValueComposition::Single };
 }
 
 static CharPtr SelectCardinality(const AbstrUnit* au, CharPtr oper8, CharPtr oper16, CharPtr oper32, CharPtr oper64)
@@ -381,7 +381,7 @@ void DataItemColumn::UpdateTheme()
 		aggrAttr->DisableStorage(true);
 		aggrAttr->SetExpr(OperExpr(GetSrcAttr(), tc->m_GroupByRel, aggrMethod));
 
-		m_FutureAggrAttr = aggrAttr.get_ptr();
+		m_FutureAggrAttr = aggrAttr.get();
 		attr = aggrAttr.get();
 	}
 	else
@@ -996,7 +996,7 @@ WCHAR DataItemColumn::GetSymbol(SizeT recNo) const
 
 TextInfo DataItemColumn::GetText(SizeT recNo, SizeT maxLen, GuiReadLockPair& locks) const
 {
-	SharedDataItem activeTextAttr = SharedDataItem(GetActiveTextAttr(), existing_obj{});
+	SharedDataItem activeTextAttr = make_shared_tree(GetActiveTextAttr(), existing_obj{});
 	if (!activeTextAttr)
 	{
 		auto theme = GetEnabledTheme(AN_LabelText);
@@ -1588,7 +1588,7 @@ void DataItemColumn::FillMenu(MouseEventDispatcher& med)
 		med.m_MenuData.emplace_back(
 			mySSPrintF("Show Statistics of '%s'"
 		,	caption.c_str())
-		,	std::make_unique<RequestClientCmd>(shared_tree_ptr<const TreeItem>(sa, existing_obj{}), CC_ShowStatistics)
+		,	std::make_unique<RequestClientCmd>(make_shared_tree(sa, existing_obj{}), CC_ShowStatistics)
 		,	this
 		);
 
@@ -1652,7 +1652,7 @@ void DataItemColumn::FillMenu(MouseEventDispatcher& med)
 	med.m_MenuData.emplace_back(mySSPrintF("&Remove %s", caption.c_str()), make_MembFuncCmd(&DataItemColumn::Remove), this, (tc->NrEntries() > 1) ? MF_ENABLED : MF_GRAYED);
 
 //	Ramping
-	shared_tree_ptr<const AbstrDataItem> activeAttr(GetActiveAttr(), existing_obj{});
+	std::shared_ptr<const AbstrDataItem> activeAttr = make_shared_tree(GetActiveAttr(), existing_obj{});
 	if (activeAttr && activeAttr->GetAbstrValuesUnit()->GetValueType()->IsNumeric()
 		&&	tc->m_Cols.IsDefined()
 		&&	tc->GetActiveCol() == m_ColumnNr

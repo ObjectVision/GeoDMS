@@ -139,7 +139,7 @@ namespace Explain { // local defs
 			:	AbstrCalcExplanation(dataItem)
 		{}
 
-		ArgRef GetCalcDataItem(std::shared_ptr<Explain::Context> context) const override { return ArgRef(std::in_place_type<SharedTreeItem>, m_DataItem.get_ptr(), existing_obj{}); } // borrow the interest-held data item
+		ArgRef GetCalcDataItem(std::shared_ptr<Explain::Context> context) const override { return ArgRef(std::in_place_type<SharedTreeItem>, make_shared_tree(m_DataItem.get_ptr(), existing_obj{})); } // borrow the interest-held data item
 
 		void GetDescrImpl(CalcExplImpl* self, OutStreamBase& stream, bool isFirst, bool showHidden) const override;
 
@@ -475,14 +475,14 @@ namespace Explain { // local defs
 		if (!extraInfo)
 			extraInfo = "";
 
-		if (studyObject == m_StudyObject
+		if (studyObject == m_StudyObject.get()
 			&& studyIdx == m_StudyIdx
 			&& (strcmp(extraInfo, m_ExtraInfo.c_str()) == 0)
 			&& (!studyObject || studyObject->GetLastChangeTS() == m_LastChange)
 			)
 			return;
 
-		m_StudyObject = SharedDataItem(studyObject, existing_obj{});
+		m_StudyObject = make_shared_tree(studyObject, existing_obj{});
 		m_StudyIdx = studyIdx;
 		m_ExtraInfo = extraInfo;
 		m_ExprSeqNr = 0;
@@ -524,8 +524,8 @@ namespace Explain { // local defs
 		assert(m_Expl.empty());
 		assert(m_ItemInterests.empty());
 		assert(m_CalcInterests.empty());
-		assert(m_StudyObject.is_null());
-		return m_Expl.empty() && m_Queue.empty() && m_ItemInterests.empty() && m_CalcInterests.empty() && m_StudyObject.is_null();
+		assert(m_StudyObject == nullptr);
+		return m_Expl.empty() && m_Queue.empty() && m_ItemInterests.empty() && m_CalcInterests.empty() && m_StudyObject == nullptr;
 	}
 
 	void CalcExplImpl::AddQueueEntry(const AbstrUnit* domain, SizeT index)
@@ -624,7 +624,7 @@ namespace Explain { // local defs
 			if (!dc)
 				return;
 			auto res = dc->MakeResult();
-			if (!IsDataItem(res.get_ptr()))
+			if (!IsDataItem(res.get()))
 				return;
 
 			bool mustCalcNextLevel = true;
@@ -697,7 +697,7 @@ namespace Explain { // local defs
 			//				AddLispExplanation(keyExpr, 0, nullptr, ++m_ExprSeqNr);
 			auto metaInfo = m_StudyObject->GetCurrMetaInfo({});
 			if (metaInfo.index() == 2)
-				AddExplanation(AsDataItem(std::get<SharedTreeItem>(metaInfo).get_ptr()));
+				AddExplanation(AsDataItem(std::get<SharedTreeItem>(metaInfo).get()));
 			if (metaInfo.index() == 1)
 				AddLispExplanation(std::get<LispRef>(metaInfo), 0, nullptr, ++m_ExprSeqNr);
 		}
@@ -845,7 +845,7 @@ namespace Explain { // local defs
 	NonStaticCalcExplanations::NonStaticCalcExplanations(OutStreamBase& xmlOutStr, const AbstrDataItem* studyObject, SizeT index, CharPtr extraInfo)
 		: m_Impl(std::make_unique<CalcExplImpl>())
 		, m_Interface(std::make_unique<CalcExplanations>(xmlOutStr, true, m_Impl.get()))
-		, m_StudyObject(studyObject, existing_obj{}) // borrow the tree-owned study object (co-own its real control block)
+		, m_StudyObject(make_shared_tree(studyObject, existing_obj{})) // borrow the tree-owned study object (co-own its real control block)
 	{
 		m_Impl->Init(studyObject, index, extraInfo);
 	}

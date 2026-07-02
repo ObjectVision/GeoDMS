@@ -245,7 +245,7 @@ void SyncRefImpl(T& ptr, TreeItem* context, TokenID id, ShvSyncMode sm)
 			const TreeItem* refItem = GetDialogDataRef(subItem);
 			if (refItem)
 			{
-				ptr = T(checked_valcast<const A*>( refItem ), existing_obj{});
+				ptr = make_shared_tree(checked_valcast<const A*>(refItem), existing_obj{});
 				return;
 			}
 		}
@@ -257,13 +257,13 @@ void SyncRefImpl(T& ptr, TreeItem* context, TokenID id, ShvSyncMode sm)
 	{
 		if (!subItem)
 			subItem = context->CreateItem(id).get();
-		SetDialogDataRef(const_cast<TreeItem*>(subItem), ptr.get_ptr());
+		SetDialogDataRef(const_cast<TreeItem*>(subItem), ptr ? &*ptr : nullptr); // T is std::shared_ptr or InterestPtr; both deref
 	}
 }
 
-void SyncRef(shared_tree_ptr<const TreeItem>& ptr, TreeItem* context, TokenID id, ShvSyncMode sm) { SyncRefImpl<TreeItem>(ptr, context, id, sm); }
+void SyncRef(std::shared_ptr<const TreeItem>& ptr, TreeItem* context, TokenID id, ShvSyncMode sm) { SyncRefImpl<TreeItem>(ptr, context, id, sm); }
 void SyncRef(SharedDataItemInterestPtr& ptr, TreeItem* context, TokenID id, ShvSyncMode sm) { SyncRefImpl<AbstrDataItem>(ptr, context, id, sm); }
-void SyncRef(shared_tree_ptr<const AbstrUnit>& ptr, TreeItem* context, TokenID id, ShvSyncMode sm) { SyncRefImpl<AbstrUnit>(ptr, context, id, sm); }
+void SyncRef(std::shared_ptr<const AbstrUnit>& ptr, TreeItem* context, TokenID id, ShvSyncMode sm) { SyncRefImpl<AbstrUnit>(ptr, context, id, sm); }
 
 template <typename V>
 void SaveValue(TreeItem* context, TokenID nameID, typename param_type<V>::type value)
@@ -271,7 +271,7 @@ void SaveValue(TreeItem* context, TokenID nameID, typename param_type<V>::type v
 	if (!context)
 		return;
 
-	SharedMutableDataItem adi(const_cast<AbstrDataItem*>(AsDataItem(FindTreeItemByID(context, nameID))), existing_obj{});
+	SharedMutableDataItem adi = make_shared_tree(const_cast<AbstrDataItem*>(AsDataItem(FindTreeItemByID(context, nameID))), existing_obj{});
 	if (!adi)
 		adi = CreateDataItem(context, nameID, Unit<Void>::GetStaticClass()->CreateDefault(), Unit<V>::GetStaticClass()->CreateDefault());
 
@@ -764,7 +764,7 @@ static TokenID paletteDomainID = GetTokenID_st("PaletteDomain");
 SharedMutableUnitInterestPtr CreatePaletteDomain(TreeItem* themeContainer, SizeT n)
 {
 	SharedMutableUnit paletteDomain = Unit<UInt8>::GetStaticClass()->CreateUnit(themeContainer, paletteDomainID);
-	ItemWriteLock  xx(paletteDomain.get_ptr());
+	ItemWriteLock  xx(paletteDomain.get());
 	if (!paletteDomain->GetTSF(USF_HasConfigRange))
 	{
 		paletteDomain->SetTSF(USF_HasConfigRange);
@@ -794,7 +794,7 @@ SharedDataItemInterestPtr CreateColorPalette(DataView* dv, const AbstrUnit* pale
 {
 	TreeItem* paletteContainer = CreatePaletteContainer(dv, paletteDomain);
 	TokenID name = GetAspectNameID(aNr);
-	SharedMutableDataItem result = SharedMutableDataItem(AsDynamicDataItem(paletteContainer->GetSubTreeItemByID(name)), existing_obj{});
+	SharedMutableDataItem result = make_shared_tree(AsDynamicDataItem(paletteContainer->GetSubTreeItemByID(name)), existing_obj{});
 	if (!result)
 		result = CreateDataItem(paletteContainer, name, paletteDomain, Unit<UInt32>::GetStaticClass()->CreateDefault()); // owning shared (co-owned with paletteContainer)
 	dms_assert(result);
@@ -812,7 +812,7 @@ SharedDataItemInterestPtr CreateColorPalette(DataView* dv, const AbstrUnit* pale
 	lock.Commit();
 	dms_assert(result->HasConfigData());
 
-	return result.get_ptr();
+	return result.get();
 }
 SharedDataItemInterestPtr CreateSystemColorPalette(DataView* dv, const AbstrUnit* paletteDomain, AspectNr aNr, bool ramp, bool always, bool unique, const Float64* first, const Float64* last)
 {
@@ -834,7 +834,7 @@ SharedDataItemInterestPtr CreateSystemColorPalette(DataView* dv, const AbstrUnit
 		}
 	}
 	TreeItem* paletteContainer = CreatePaletteContainer(dv, paletteDomain);
-	SharedMutableDataItem result = SharedMutableDataItem(AsDynamicDataItem(paletteContainer->GetSubTreeItemByID(GetAspectNameID(aNr))), existing_obj{});
+	SharedMutableDataItem result = make_shared_tree(AsDynamicDataItem(paletteContainer->GetSubTreeItemByID(GetAspectNameID(aNr))), existing_obj{});
 	TokenID name = GetAspectNameID(aNr);
 	if (always || !result)
 	{
@@ -888,7 +888,7 @@ SharedDataItemInterestPtr CreateSystemColorPalette(DataView* dv, const AbstrUnit
 		lock.Commit();
 		dms_assert(result->HasConfigData());
 	}
-	return result.get_ptr();
+	return result.get();
 }
 
 SharedDataItemInterestPtr CreateSystemLabelPalette(DataView* dv, const AbstrUnit* paletteDomain, AspectNr aNr, bool always)
@@ -906,7 +906,7 @@ SharedDataItemInterestPtr CreateSystemLabelPalette(DataView* dv, const AbstrUnit
 		newResult->DisableStorage();
 //			newResult->SetConfigData();
 		newResult->UpdateMetaInfo();
-		result = newResult.get_ptr();
+		result = newResult.get();
 		DataWriteLock lock(newResult.get());
 		auto resultData = mutable_array_cast<SharedStr>(lock)->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
 
@@ -989,8 +989,8 @@ void CreateNonzeroJenksFisherBreakAttr(std::weak_ptr<DataView> dv_wptr, const Ab
 		thematicValuesRangeData = sortedUniqueValueCache.second;
 	}
 
-	shared_tree_ptr<AbstrUnit> paletteDomain(const_cast<AbstrUnit*>(breakAttr->GetAbstrDomainUnit()), existing_obj{});
-	shared_tree_ptr<AbstrDataItem> breakAttrPtr(breakAttr, existing_obj{});
+	std::shared_ptr<AbstrUnit> paletteDomain = make_shared_tree(const_cast<AbstrUnit*>(breakAttr->GetAbstrDomainUnit()), existing_obj{});
+	std::shared_ptr<AbstrDataItem> breakAttrPtr = make_shared_tree(breakAttr, existing_obj{});
 
 	SizeT nrBreaks = Min<SizeT>(sortedUniqueValueCache.first.size(), DEFAULT_MAX_NR_BREAKS);
 	auto result = ClassifyJenksFisher(sortedUniqueValueCache.first, nrBreaks, true); // callsClassifyUniqueValues if breakAttr.size() >= sortedUniqueValueCache.size()

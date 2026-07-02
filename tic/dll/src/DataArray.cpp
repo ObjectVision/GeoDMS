@@ -834,7 +834,7 @@ TIC_CALL auto CreateHeapTileArray_impl(const AbstrTileRangeData* tdr, bool mustC
 template<typename V>
 TIC_CALL auto CreateHeapTileArrayU(const AbstrTileRangeData* tdr, const Unit<field_of_t<V>>* valuesUnitPtr, bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG)->std::unique_ptr<TileFunctor<V>>
 {
-	dms_assert(!valuesUnitPtr || valuesUnitPtr->GetCurrRangeItem() == valuesUnitPtr);
+	dms_assert(!valuesUnitPtr || valuesUnitPtr->GetCurrRangeItem().get() == valuesUnitPtr);
 	auto newTileFunctor = CreateHeapTileArray_impl<V>(tdr, mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM);
 
 	newTileFunctor->InitValueRangeData(get_range_ptr_of_valuesunit(valuesUnitPtr));
@@ -871,7 +871,7 @@ auto CreateAbstrHeapTileFunctor(const AbstrDataItem* adi, SharedPtr<const Shared
 	}
 	MG_CHECK(currTRD);
 
-	shared_tree_ptr<const AbstrUnit> valuesUnit = AsUnit(adi->GetAbstrValuesUnit()->GetCurrRangeItem());
+	std::shared_ptr<const AbstrUnit> valuesUnit = AsUnit(adi->GetAbstrValuesUnit()->GetCurrRangeItem());
 
 	// DEBUG: SEVERE TILING
 	if (currTRD->GetNrTiles() > 1 && !adi->IsCacheItem())

@@ -35,7 +35,7 @@ SpecialOperGroup sog_PhaseContainer(token::PhaseContainer, 2, oap_Phase, oper_po
 
 using fence_member_pair = std::pair<SharedTreeItemInterestPtr, FutureData>;
 using fence_work_data = std::vector<fence_member_pair>;
-using phase_resource = std::pair<fence_work_data, shared_tree_ptr<TreeItem>>;
+using phase_resource = std::pair<fence_work_data, std::shared_ptr<TreeItem>>;
 
 struct PhaseContainerOperator : BinaryOperator
 {
@@ -49,7 +49,7 @@ struct PhaseContainerOperator : BinaryOperator
 
 		MG_CHECK(IsMetaThread());
 
-		SharedTreeItem sourceContainer(GetItem(args[0]), existing_obj{});
+		SharedTreeItem sourceContainer = make_shared_tree(GetItem(args[0]), existing_obj{});
 		if (!resultHolder)
 		{
 			MG_CHECK(resultHolder.m_PhaseNumber == 0);
@@ -70,7 +70,7 @@ struct PhaseContainerOperator : BinaryOperator
 			assert(sourceContainer->GetCurrPhaseNumber() < resultPhaseNumber);
 
 			auto resultRoot = resultHolder.GetNew();
-			for (shared_tree_ptr<TreeItem> resWalker(resultRoot, existing_obj{}); resWalker; resWalker = shared_tree_ptr<TreeItem>(resultRoot->WalkCurrSubTree(resWalker.get()), existing_obj{}))
+			for (std::shared_ptr<TreeItem> resWalker = make_shared_tree(resultRoot, existing_obj{}); resWalker; resWalker = make_shared_tree(resultRoot->WalkCurrSubTree(resWalker.get()), existing_obj{}))
 			{
 				auto srcItem = sourceContainer->FindItem(resWalker->GetRelativeName(resultHolder.GetNew()));
 				if (!srcItem)
@@ -85,7 +85,7 @@ struct PhaseContainerOperator : BinaryOperator
 				auto srcPhaseNumber = srcItem->GetPhaseNumber();
 				MG_CHECK(srcPhaseNumber < resultPhaseNumber);
 
-				if (resWalker != resultRoot) 
+				if (resWalker.get() != resultRoot) 
 				{
 					resWalker->GetOrCreateSupplCache()->InitAt(srcItem.get());
 					/*
@@ -138,7 +138,7 @@ struct PhaseContainerOperator : BinaryOperator
 	{
 		assert(args.size() == 2);
 
-		SharedTreeItem sourceContainer(GetItem(args[0]), existing_obj{});
+		SharedTreeItem sourceContainer = make_shared_tree(GetItem(args[0]), existing_obj{});
 
 		auto resultPhaseNumber = resultHolder.m_PhaseNumber;
 		auto resultRoot = resultHolder.GetNew();
@@ -148,7 +148,7 @@ struct PhaseContainerOperator : BinaryOperator
 		if (!resultRoot->m_ReadAssets.has_value())
 		{
 			resultRoot->m_ReadAssets.emplace<phase_resource>();
-			resultRoot->m_ReadAssets.Get<phase_resource>().second = shared_tree_ptr<TreeItem>(resultRoot, existing_obj{});
+			resultRoot->m_ReadAssets.Get<phase_resource>().second = make_shared_tree(resultRoot, existing_obj{});
 			resultRoot->SetTSF(TSF_ReadAssetsInterestScoped); // interest-scoped: StopInterest releases the phase_resource if the phase is abandoned before CalcResult completes
 		}
 		auto& futureDataContainer = resultRoot->m_ReadAssets.Get<phase_resource>().first;
@@ -159,7 +159,7 @@ struct PhaseContainerOperator : BinaryOperator
 		// this should be done before supplier Fences do this and after target collection and interest-setting of consuming Fences.
 		// so each Phase Calculation causes an avalange of interest in targets in higher fences and then their calculation before this calculation starts
 
-		for (; resWalker; resWalker = shared_tree_ptr<TreeItem>(resultRoot->WalkCurrSubTree(resWalker.get()), existing_obj{}))
+		for (; resWalker; resWalker = make_shared_tree(resultRoot->WalkCurrSubTree(resWalker.get()), existing_obj{}))
 		{
 			assert(resWalker->GetCurrPhaseNumber() == resultPhaseNumber);
 
@@ -201,7 +201,7 @@ struct PhaseContainerOperator : BinaryOperator
 					continue; // defer processing and StopSupplInterest in WorkerThread below
 				}
 			}
-			if (resWalker != resultRoot)
+			if (resWalker.get() != resultRoot)
 				resWalker->StopSupplInterest();
 		}
 		assert(!SuspendTrigger::DidSuspend());
@@ -213,7 +213,7 @@ struct PhaseContainerOperator : BinaryOperator
 	{
 		assert(args.size() == 2);
 
-		SharedTreeItem sourceContainer(GetItem(args[0]), existing_obj{});
+		SharedTreeItem sourceContainer = make_shared_tree(GetItem(args[0]), existing_obj{});
 
 		// first, copy ranges of units ?
 		auto resultRoot = resultHolder.GetNew();

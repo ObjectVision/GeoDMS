@@ -195,7 +195,7 @@ private:
 	void UpdateScaleBar();
 	void InvalidateOverlapped();
 
-	shared_tree_ptr<const AbstrUnit> m_WorldCrdUnit;
+	std::shared_ptr<const AbstrUnit> m_WorldCrdUnit;
 	mutable SharedMutableDataItemInterestPtr   m_ROI_TL;   // AOI in world coordinates (TopLeft)
 	mutable SharedMutableDataItemInterestPtr   m_ROI_BR;   // AOI in world coordinates (BottomRight)
 	OrientationType            m_Orientation;

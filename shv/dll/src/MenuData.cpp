@@ -122,7 +122,7 @@ void InsertItemRequests(MenuData& menuData, const TreeItem* item, GraphicObject*
 		menuData.push_back(
 			MenuItem(
 				item->GetFullName(),
-				std::make_unique<RequestClientCmd>(shared_tree_ptr<const TreeItem>(item, existing_obj{}), CC_Activate),
+				std::make_unique<RequestClientCmd>(make_shared_tree(item, existing_obj{}), CC_Activate),
 				host
 			) 
 		);

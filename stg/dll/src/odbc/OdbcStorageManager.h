@@ -84,7 +84,7 @@ private:
 	}
 
 	mutable std::unique_ptr<TDatabase>  m_Database;
-	mutable weak_tree_ptr<const TreeItem> m_TiDatabase; // weak cache-validity token for m_Database's configured storageHolder (compared, never dereferenced)
+	mutable std::weak_ptr<const TreeItem> m_TiDatabase; // weak cache-validity token for m_Database's configured storageHolder (compared, never dereferenced)
 	mutable std::map<TreeItem*, TRecordSetRef> m_RecordSets;
 	bool                                m_HasAccessSysObjectsCopy;
 	TTableTimestampCacheType            m_TableTimestampCache;

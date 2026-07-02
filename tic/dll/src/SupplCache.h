@@ -23,7 +23,7 @@
 // All suppliers cached here are TreeItems (configured suppliers found via FindItem / the fenced source),
 // which are now Actors carrying their own std control block -- so the cache owns them as shared_tree_ptr,
 // not the old intrusive SharedPtr<const SharedActor> (TreeItem is no longer a SharedActor).
-using ActorCRef = shared_tree_ptr<const TreeItem>;
+using ActorCRef = std::shared_ptr<const TreeItem>;
 using ActorCRefArray = std::unique_ptr<ActorCRef[]>;
 
  // CHECK AND OPTIMIZE ON INVARIANT: all configured suppliers are TreeItems; all implied suppliers are AbstrCalculators

@@ -76,8 +76,8 @@ inline void SafeSetValue(std::vector<T, A>& vec, typename std::vector<T, A>::siz
 
 void DataBlockProd::DoArrayAssignment()
 {
-	weak_tree_ptr<AbstrDataItem> adi = CurrDI();
-	weak_tree_ptr<const AbstrUnit> domain = adi->GetAbstrDomainUnit();
+	AbstrDataItem* adi = CurrDI(); // stack-local borrow; kept alive by m_Lock
+	const AbstrUnit* domain = adi->GetAbstrDomainUnit();
 
 	SizeT i = m_nIndexValue++;
 	if (i >= m_ElemCount)
@@ -179,13 +179,13 @@ void ConfigProd::DoArrayAssignment()
 
 void ConfigProd::DataBlockCompleted(iterator_t first, iterator_t last)
 {
-	if (!IsDataItem(m_pCurrent.get_ptr()) )
+	if (!IsDataItem(m_pCurrent.get()) )
 		m_pCurrent->throwItemError("DataBlockAssignment: assignee must be a DataItem");
 	dms_assert(!m_pCurrent->GetInterestCount());
 
 	m_pCurrent->GetOrCreateConfigProperties().mc_Calculator =
 		new DataBlockTask(
-			AsDataItem(m_pCurrent.get_ptr()), 
+			AsDataItem(m_pCurrent.get()), 
 			&*first, &*last, 
 			m_nIndexValue
 		);

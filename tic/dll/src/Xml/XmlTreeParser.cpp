@@ -84,7 +84,7 @@ SharedMutableTreeItem XmlTreeParser::ReadTree(TreeItem* root, bool rootIsFirstIt
 		return m_RootHolder;
 	}
 	// appended into an existing tree: that tree's owner keeps it alive (share its existing ownership)
-	return SharedMutableTreeItem(root, existing_obj{});
+	return make_shared_tree(root, existing_obj{});
 }
 
 static TokenID nameTokenID = GetTokenID_st("name");

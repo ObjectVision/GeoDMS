@@ -60,7 +60,7 @@ private:
 	SharedDataItemInterestPtr  m_PaletteAttr;
 	SharedDataItemInterestPtr  m_CountAttr, m_SelCountAttr;
 	SharedDataItemInterestPtr  m_AreaOrLengthAttr;
-	shared_tree_ptr<const AbstrUnit> m_PaletteDomain;
+	std::shared_ptr<const AbstrUnit> m_PaletteDomain;
 	SharedUnitInterestPtr      m_ThemeUnit;
 
 	DECL_RTTI(SHV_CALL, Class)

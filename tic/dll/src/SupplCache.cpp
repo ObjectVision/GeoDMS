@@ -69,7 +69,7 @@ void SupplCache::InitAt(const TreeItem* fencedSource)
 	m_NrConfigured = 1;
 	m_IsDirty = false;
 	m_SupplArray.reset(new ActorCRef[1]);
-	m_SupplArray[0] = ActorCRef(fencedSource, existing_obj{});
+	m_SupplArray[0] = make_shared_tree(fencedSource, existing_obj{});
 }
 
 void SupplCache::InitAt(const ActorCRef* first, const ActorCRef* last)
@@ -125,7 +125,7 @@ void SupplCache::BuildSet(const TreeItem* context) const
 				context->throwItemErrorF("ExplicitSupplier %s not found", SingleQuote(explicitSupplierName.first, explicitSupplierName.second));
 
 			assert(i<m_NrConfigured);
-			newSupplArray[i++] = ActorCRef(suppl.get(), existing_obj{}); // owning std borrow of the already-tree-owned supplier TreeItem
+			newSupplArray[i++] = make_shared_tree(suppl.get(), existing_obj{}); // owning std borrow of the already-tree-owned supplier TreeItem
 		}
 		if (iFirstEnd == iEnd)
 			break;

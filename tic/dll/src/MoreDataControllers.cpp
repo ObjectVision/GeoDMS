@@ -95,7 +95,7 @@ const TreeItem* GetItem(const ArgRef& ar)
 			return nullptr;
 		return fd->GetOld();
 	}
-	return std::get<1>(ar).get_ptr();
+	return std::get<1>(ar).get();
 }
 
 const Actor* GetStatusActor(const ArgRef& ar)
@@ -104,7 +104,7 @@ const Actor* GetStatusActor(const ArgRef& ar)
 	{
 		return std::get<0>(ar).get_ptr();
 	}
-	return std::get<1>(ar).get_ptr();
+	return std::get<1>(ar).get();
 }
 
 ArgSeqType GetItems(const ArgRefs& ar)
@@ -884,7 +884,7 @@ SharedTreeItem StringDC::MakeResult() const
 		const_cast<StringDC*>(this)->SetNew( 
 			CreateConstParam<SharedStr>(
 				SharedStr(CharPtrRange( keyExpr.GetStrnBeg(),  keyExpr.GetStrnEnd() ))
-			).get_ptr()
+			).get()
 		);
 	}
 
@@ -905,7 +905,7 @@ SharedTreeItem NumbDC::MakeResult() const
 		const_cast<NumbDC*>(this)->SetNew( 
 			CreateConstParam<Float64>(
 				GetLispRef().GetNumbVal().m_Value
-			).get_ptr() 
+			).get()
 		);
 
 	assert(m_Data);
@@ -924,7 +924,7 @@ SharedTreeItem UI64DC::MakeResult() const
 		const_cast<UI64DC*>(this)->SetNew(
 			CreateConstParam<UInt64>(
 				GetLispRef().GetUI64Val()
-				).get_ptr()
+				).get()
 		);
 
 	assert(m_Data);

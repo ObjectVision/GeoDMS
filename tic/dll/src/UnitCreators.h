@@ -37,7 +37,7 @@ inline ConstUnitRef operated_unit_creator(const AbstrOperGroup* gr, const ArgSeq
 template<typename T>
 inline ConstUnitRef default_unit_creator()
 {
-	return ConstUnitRef(Unit<field_of_t<T>>::GetStaticClass()->CreateDefault(), existing_obj{});  // metric = unitary.
+	return make_shared_tree(Unit<field_of_t<T>>::GetStaticClass()->CreateDefault(), existing_obj{});  // metric = unitary.
 }
 
 template<typename T>
@@ -107,7 +107,7 @@ inline ConstUnitRef square_unit_creator(const AbstrOperGroup* gr, const ArgSeqTy
 inline ConstUnitRef arg1_values_unit(const ArgSeqType& args)
 {
 	assert(args.size() >=1 && IsDataItem(args[0])); // PRECONDITION
-	return { AsDataItem(args[0])->GetAbstrValuesUnit(), existing_obj{} };
+	return make_shared_tree(AsDataItem(args[0])->GetAbstrValuesUnit(), existing_obj{});
 }
 
 inline ConstUnitRef arg1_values_unit(const AbstrOperGroup* gr, const ArgSeqType& args)

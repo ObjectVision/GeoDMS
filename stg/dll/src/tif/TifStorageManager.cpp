@@ -252,7 +252,7 @@ FileResult TiffSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 
 	auto current_writable_dataitem = smi->CurrWD();
 	auto number_of_dims = current_writable_dataitem->GetAbstrDomainUnit()->GetValueType()->GetNrDims();
-	if (pd.is_null() && number_of_dims != 2)
+	if (pd == nullptr && number_of_dims != 2)
 	{
 		current_writable_dataitem->throwItemError("Domain should be 2-dimensional.");
 		return {};

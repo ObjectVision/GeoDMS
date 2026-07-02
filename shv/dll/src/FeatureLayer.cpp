@@ -1330,7 +1330,7 @@ template <typename ScalarType>
 bool DrawNetwork(
 	WeakPtr<const GraphicNetworkLayer> layer
 ,	const FeatureDrawer& fd
-,	weak_tree_ptr<const AbstrDataItem>    featureItem
+,	const AbstrDataItem*    featureItem
 ,	        const PenIndexCache*    penIndices
 ,	WeakPtr<const AbstrThemeValueGetter> f1
 ,	WeakPtr<const AbstrThemeValueGetter> f2
@@ -1344,7 +1344,7 @@ bool DrawNetwork(
 
 	const GraphDrawer& d = fd.m_Drawer;
 
-	auto data = const_array_cast<PointType>(featureItem.get_ptr())->GetLockedDataRead();
+	auto data = const_array_cast<PointType>(featureItem)->GetLockedDataRead();
 	auto pointDataBegin = data.begin();
 
 	CrdTransformation transformer = d.GetTransformation();

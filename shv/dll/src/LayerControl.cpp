@@ -81,7 +81,7 @@ bool LayerInfoControl::MouseEvent(MouseEventDispatcher& med)
 	return TextControl::MouseEvent(med);
 }
 
-void LayerInfoControl::SetExplainableValue(WeakStr text, shared_tree_ptr<const AbstrDataItem> themeAttr, SizeT focusID)
+void LayerInfoControl::SetExplainableValue(WeakStr text, std::shared_ptr<const AbstrDataItem> themeAttr, SizeT focusID)
 {
 	TextControl::SetText(text);
 	m_ThemeAttr = themeAttr;
@@ -527,14 +527,14 @@ ActorVisitState LayerControl::DoUpdate()
 		:	m_Layer->GetFocusElemIndex();
 
 	SharedStr text;
-	shared_tree_ptr<const AbstrDataItem> themeAttr;
+	std::shared_ptr<const AbstrDataItem> themeAttr;
 	if (IsDefined(selectedID))
 	{
 		text = AsString(selectedID) + ": ";
 		auto activeTheme = m_Layer->GetActiveTheme();
 		if (activeTheme && !activeTheme->IsAspectParameter())
 		{
-			themeAttr = shared_tree_ptr<const AbstrDataItem>(activeTheme->GetThemeOrPaletteAttr(), existing_obj{});
+			themeAttr = make_shared_tree(activeTheme->GetThemeOrPaletteAttr(), existing_obj{});
 			if (themeAttr)
 			{
 				themeAttr->PrepareDataUsage(DrlType::Suspendible);

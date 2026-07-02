@@ -96,7 +96,7 @@ private:
 
 	void RunTileLoads(bool maySuspend) const;
 
-	shared_tree_ptr<const TreeItem> m_SpecContainer;
+	std::shared_ptr<const TreeItem> m_SpecContainer;
 	wms::tile_matrix_set m_TMS;
 	std::unique_ptr<wms::TileCache> m_TileCache;
 	mutable std::atomic<SizeT> m_ZoomLevel = 0;

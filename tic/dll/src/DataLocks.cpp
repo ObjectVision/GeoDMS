@@ -83,7 +83,7 @@ bool CheckCalculatingOrRangeKnown(const AbstrUnit* au)
 DataReadLockAtom::DataReadLockAtom(DataReadLockAtom&& rhs) noexcept
 	:	m_Item(std::move(rhs.m_Item))
 {
-	assert(rhs.m_Item.is_null());
+	assert(rhs.m_Item == nullptr);
 	if (!m_Item)
 		return;
 
@@ -92,7 +92,7 @@ DataReadLockAtom::DataReadLockAtom(DataReadLockAtom&& rhs) noexcept
 }
 
 DataReadLockAtom::DataReadLockAtom(const AbstrDataItem* item)
-	:	m_Item(item, existing_obj{}) // share the item's REAL control block; a bare m_Item(item) used std::shared_ptr's inherited raw ctor -> a rogue control block whose delete-deleter destroyed the item out from under its other owners/locks
+	:	m_Item(make_shared_tree(item, existing_obj{})) // share the item's REAL control block; a bare m_Item(item) used std::shared_ptr's inherited raw ctor -> a rogue control block whose delete-deleter destroyed the item out from under its other owners/locks
 {
 	if (!item) //  || (item->m_DataLockCount < 0 && !type))
 		return;
@@ -137,7 +137,7 @@ void DataReadLockAtom::release() noexcept
 		return;
 	{
 		leveled_std_section::scoped_lock globalDataLockCountLock(sg_CountSection);
-		if (m_Item->mc_RefItem || m_Item->m_DataLockCount > 1 || m_Item->PartOfInterest())
+		if (!m_Item->mc_RefItem.expired() || m_Item->m_DataLockCount > 1 || m_Item->PartOfInterest())
 		{
 			--m_Item->m_DataLockCount;
 			return;
@@ -175,7 +175,7 @@ DataReadLockAtom& DataReadLockAtom::operator =(DataReadLockAtom&& rhs) noexcept
 //----------------------------------------------------------------------
 
 DataReadLock::DataReadLock(const AbstrDataItem* item)
-	:	m_KeepItemAlive(shared_tree_ptr<const AbstrDataItem>(item = (item ? AsDataItem(item->GetCurrUltimateItem()).get():nullptr), existing_obj{})) // owns the ultimate item; outlives both count-locks (see DataLocks.h)
+	:	m_KeepItemAlive(make_shared_tree(item = (item ? AsDataItem(item->GetCurrUltimateItem()).get():nullptr), existing_obj{})) // owns the ultimate item; outlives both count-locks (see DataLocks.h)
 	,	m_RefPtrLock(item)
 	,	m_DRLA(item)
 {
@@ -289,7 +289,7 @@ DataWriteLock::DataWriteLock(AbstrDataItem* adi, dms_rw_mode rwm, const SharedOb
 		DataLockError(adi, "Write");
 
 	bool mustClear = (rwm == dms_rw_mode::write_only_mustzero);
-	auto configItem = shared_tree_ptr<const AbstrDataItem>((adi->m_BackRef && IsDataItem(adi->m_BackRef.get_ptr())) ? AsDataItem(adi->m_BackRef.get_ptr()) : adi, existing_obj{});
+	auto configItem = make_shared_tree((!adi->m_BackRef.expired() && IsDataItem(adi->m_BackRef.lock().get())) ? AsDataItem(adi->m_BackRef.lock().get()) : adi, existing_obj{});
 	if (!configItem->IsCacheItem())
 	{
 		if (auto sp = configItem->GetCurrStorageParent(true))
@@ -339,7 +339,7 @@ afterReset:
 	--adi->m_DataLockCount;
 	dms_assert(adi->m_DataLockCount < 0);
 
-	m_adi = shared_tree_ptr<AbstrDataItem>(adi, existing_obj{});
+	m_adi = make_shared_tree(adi, existing_obj{});
 }
 
 void DataWrite_Unlock(AbstrDataItem* adi)

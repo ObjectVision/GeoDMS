@@ -516,18 +516,18 @@ namespace poly2grid
 	{
 		p2g_DispatcherTileData(AbstrDataObject* resObj, const AbstrUnit* resDomain, const AbstrDataItem* polyAttr, WeakPtr<const AbstrBoundingBoxCache> boxesArrays, tile_id tg)
 			:	m_ResObj(resObj)
-			,	m_PolyAttr(polyAttr)
+			,	m_PolyAttr(make_weak_tree(polyAttr))
 			,	m_BoxesArrays(boxesArrays)
 			,	m_RasterTileId(tg)
 			,	m_ViewPortInfo(polyAttr, resDomain, tg, AsUnit(polyAttr->GetAbstrValuesUnit()->GetCurrRangeItem()).get(), no_tile, nullptr, false, false, countcolor_t(-1), false)
 		{
-			m_SequenceGetter.reset( CreateSequenceGetter(m_PolyAttr->GetAbstrValuesUnit()) );
+			m_SequenceGetter.reset( CreateSequenceGetter(m_PolyAttr.lock()->GetAbstrValuesUnit()) );
 		}
 
 
 		// constant for all tiles
 		AbstrDataObject*                     m_ResObj;
-		weak_tree_ptr<const AbstrDataItem>   m_PolyAttr;
+		std::weak_ptr<const AbstrDataItem>   m_PolyAttr;
 		WeakPtr<const AbstrBoundingBoxCache> m_BoxesArrays;
 
 		// tile and sub-tile dependent
@@ -549,7 +549,7 @@ namespace poly2grid
 			RasterSizeType size = m_ViewPortInfo.GetViewPortSize();
 			IPoint base = m_ViewPortInfo.GetViewPortOrigin();
 
-			const AbstrDataItem* polyAttr = m_PolyAttr.get();
+			const AbstrDataItem* polyAttr = m_PolyAttr.lock().get();
 			const AbstrDataObject* polyData = polyAttr->GetCurrRefObj().get();
 			const AbstrUnit* abstrPolyDomain = polyAttr->GetAbstrDomainUnit(); // could be void domain.
 			MG_CHECK(abstrPolyDomain); // invariant: never null (the void domain is still a unit)
@@ -632,12 +632,12 @@ namespace poly2grid
 	struct p2ag_DispatcherTileData
 	{
 		p2ag_DispatcherTileData(const AbstrUnit* resDomain, const AbstrDataItem* polyAttr)
-			: m_PolyAttr(polyAttr)
+			: m_PolyAttr(make_weak_tree(polyAttr))
 			, m_ViewPortInfo(polyAttr, resDomain, no_tile, AsUnit(polyAttr->GetAbstrValuesUnit()->GetCurrRangeItem()).get(), no_tile, nullptr, false, false, countcolor_t(-1), false)
 		{}
 
 
-		weak_tree_ptr<const AbstrDataItem>   m_PolyAttr;
+		std::weak_ptr<const AbstrDataItem>   m_PolyAttr;
 		ViewPortInfoEx<Int32>          m_ViewPortInfo;
 
 
@@ -648,7 +648,7 @@ namespace poly2grid
 			RasterSizeType size = m_ViewPortInfo.GetViewPortSize();
 			IPoint base = m_ViewPortInfo.GetViewPortOrigin();
 
-			const AbstrDataItem* polyAttr = m_PolyAttr.get();
+			const AbstrDataItem* polyAttr = m_PolyAttr.lock().get();
 			const AbstrDataObject* polyData = polyAttr->GetCurrRefObj().get();
 			const AbstrUnit* abstrPolyDomain = polyAttr->GetAbstrDomainUnit(); // could be void domain.
 			MG_CHECK(abstrPolyDomain); // invariant: never null (the void domain is still a unit)
@@ -665,7 +665,7 @@ namespace poly2grid
 			auto rleInfo = RLE_Info<scalar_of_t<RT>>(Convert<RasterSizeType>(size));
 
 			// Per-tile sequence getter.
-			auto sg = std::unique_ptr<AbstrSequenceGetter>( CreateSequenceGetter(m_PolyAttr->GetAbstrValuesUnit()) );
+			auto sg = std::unique_ptr<AbstrSequenceGetter>( CreateSequenceGetter(m_PolyAttr.lock()->GetAbstrValuesUnit()) );
 			assert(sg);
 			sg->OpenTile(polyData, tp);
 

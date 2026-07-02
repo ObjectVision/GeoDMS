@@ -22,7 +22,7 @@ using IndexGetter = AbstrValueGetter<SizeT> ;
 
 struct adi_tile_getter
 {
-	shared_tree_ptr<const AbstrDataItem> m_Adi;
+	std::shared_ptr<const AbstrDataItem> m_Adi;
 	tile_id                        m_TileID = no_tile;
 
 	template <typename E>

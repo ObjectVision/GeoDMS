@@ -716,7 +716,7 @@ const AbstrUnit* GridLayer::GetGeoCrdUnit() const
 	{
 		const AbstrDataItem* basisGrid = GetGridAttr();
 		dms_assert(basisGrid && HasGridDomain(basisGrid)); // POSTCONDITION of GetGridAttr()
-		m_GeoCoordUnit = shared_tree_ptr<const AbstrUnit>(basisGrid->GetAbstrDomainUnit(), existing_obj{});
+		m_GeoCoordUnit = make_shared_tree(basisGrid->GetAbstrDomainUnit(), existing_obj{});
 		MG_CHECK(m_GeoCoordUnit && IsGridDomain(m_GeoCoordUnit.get()));
 		dms_assert(m_GeoCoordUnit);
 	}

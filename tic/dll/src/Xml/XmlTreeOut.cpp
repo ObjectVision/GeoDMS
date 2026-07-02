@@ -350,7 +350,7 @@ void XML_Table::NameErrRow(CharPtr propName, const ErrMsg& err, const TreeItem* 
 		OutStream() << err;
 	}
 	auto errSrc = TreeItem_GetErrorSource(self, false);
-	if (errSrc.first && errSrc.first != self)
+	if (errSrc.first && errSrc.first.get() != self)
 	{
 		Row row(*this);
 		{
@@ -637,7 +637,7 @@ void TraceConfigSource(const TreeItem* self, XML_Table& xmlTable)
 	if (!self)
 		return;
 	xmlTable.NamedItemRow("Instantiated from", self);
-	TraceConfigSource(self->mc_OrgItem.get(), xmlTable);
+	TraceConfigSource(self->mc_OrgItem.lock().get(), xmlTable);
 }
 
 // *****************************************************************************
@@ -670,7 +670,7 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 
 	if (IsInDebugMode() && !self->InTemplate())
 	{
-		for( auto refItem = self; refItem; refItem = refItem->mc_RefItem.get())
+		for( auto refItem = self; refItem; refItem = refItem->mc_RefItem.lock().get())
 		{
 			MG_DEBUGCODE( assert(!DebugOnlyLock::IsLocked()) ); // PRECONDITION
 			auto nc = TreeItem_GetProgressState(refItem);
@@ -738,7 +738,7 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 			return false;
 	}
 
-	TraceConfigSource(self->mc_OrgItem.get(), xmlTable);
+	TraceConfigSource(self->mc_OrgItem.lock().get(), xmlTable);
 
 	// ==================== Calculation rule and/or Storage description
 	xmlTable.LinedRow();
@@ -1163,13 +1163,13 @@ void TreeItem_XML_DumpExploreThisAndParents_impl(const TreeItem* self, OutStream
 				ExploreCell(calledBy, xmlRow, true);
 		}
 
-		TreeItemSetType::iterator itemPtr = doneItems.lower_bound(shared_tree_ptr<const TreeItem>(self, existing_obj{}));
+		TreeItemSetType::iterator itemPtr = doneItems.lower_bound(make_shared_tree(self, existing_obj{}));
 		if (itemPtr != doneItems.end() && itemPtr->get() == self)
 		{
 			dms_assert(calledBy);
 			goto omit_repetition;
 		}
-		doneItems.insert(itemPtr, shared_tree_ptr<const TreeItem>(self, existing_obj{}));
+		doneItems.insert(itemPtr, make_shared_tree(self, existing_obj{}));
 
 		for (const TreeItem* subItem = self->GetFirstVisibleSubItem(); subItem; subItem = subItem->GetNextVisibleItem())
 			TreeItem_XML_DumpItem(subItem, xmlTable, viewHidden);
@@ -1189,7 +1189,7 @@ void TreeItem_XML_DumpExploreThisAndParents_impl(const TreeItem* self, OutStream
 			if (!us)
 				continue;
 			CharPtr role = "is used by";
-			if (us == self->GetTreeParent())
+			if (us == self->GetTreeParent().get())
 			{
 				role = "is parent of";
 				if (i)

@@ -31,7 +31,7 @@ struct DelayedTileFunctor : TileFunctor<V>
 	// Non-owning back-ref to the owning result item, used only to propagate FR_Data failures. The result
 	// OWNS this functor (via its m_DataObject), so this back-ref must not own the result back (that self-cycle
 	// pinned both). Cleared by ImLosingIt() when the item releases this object (AbstrDataItem::ClearDataObject).
-	mutable weak_tree_ptr<AbstrDataItem> m_ResultAdi; // std::weak_ptr-backed non-owning back-ref (lock at use)
+	mutable std::weak_ptr<AbstrDataItem> m_ResultAdi; // std::weak_ptr-backed non-owning back-ref (lock at use)
 
 	DelayedTileFunctor(SharedMutableDataItem resultAdi, const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<field_of_t<V>> valueRangePtr MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr))
 		: TileFunctor<V>(tiledDomainRangeData, valueRangePtr MG_DEBUG_ALLOCATOR_SRC_PARAM)
@@ -193,7 +193,7 @@ struct LazyTileFunctor : GeneratedTileFunctor<V>
 	ApplyFunc m_ApplyFunc;
 	mutable cache_t m_ActiveTiles;
 	// Non-owning back-ref to the owning result item (failure propagation only); see DelayedTileFunctor.
-	mutable weak_tree_ptr<AbstrDataItem> m_ResultAdi; // std::weak_ptr-backed non-owning back-ref (lock at use)
+	mutable std::weak_ptr<AbstrDataItem> m_ResultAdi; // std::weak_ptr-backed non-owning back-ref (lock at use)
 };
 
 template <typename V, typename ApplyFunc>

@@ -49,9 +49,9 @@ struct DbfImplRead : DbfImpl
 
 TNameSet* DbfStorageManager::BuildNameSet(const TreeItem* storageHolder)  const
 {
-	if (m_NameSet.is_null() || m_NameSetStorageHolder != storageHolder)
+	if (m_NameSet.is_null() || m_NameSetStorageHolder.lock().get() != storageHolder)
 	{
-		shared_tree_ptr<const AbstrUnit> tableDomain = shared_tree_ptr<const AbstrUnit>(StorageHolder_GetTableDomain(storageHolder), existing_obj{});
+		std::shared_ptr<const AbstrUnit> tableDomain = make_shared_tree(StorageHolder_GetTableDomain(storageHolder), existing_obj{});
 
 		OwningPtr<TNameSet> nameset = new TNameSet(DBF_COLNAME_SIZE);
 
@@ -61,7 +61,7 @@ TNameSet* DbfStorageManager::BuildNameSet(const TreeItem* storageHolder)  const
 
 		m_TableDomain          = tableDomain;
 		m_NameSet              = nameset.release();
-		m_NameSetStorageHolder = storageHolder;
+		m_NameSetStorageHolder = make_weak_tree(storageHolder);
 	}
 	dms_assert(m_NameSet); // POSTCONDITION
 	dms_assert(m_TableDomain);

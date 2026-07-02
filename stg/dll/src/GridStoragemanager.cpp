@@ -74,7 +74,7 @@ SharedDataItem GetPaletteData(const TreeItem * storageHolder)
 {
 	dms_assert(storageHolder);
 
-	return SharedDataItem(AsDynamicDataItem(storageHolder->GetConstSubTreeItemByID(PALETTE_DATA_ID).get()), existing_obj{});
+	return make_shared_tree(AsDynamicDataItem(storageHolder->GetConstSubTreeItemByID(PALETTE_DATA_ID).get()), existing_obj{});
 }
 
 // *****************************************************************************
@@ -322,7 +322,7 @@ SharedDataItem GetGridData(const TreeItem* storageHolder, bool projectionSpecsAv
 	{
 		if (!projectionSpecsAvailable || storageHolder->IsStorable() )
 		{
-			pData = SharedDataItem(AsDynamicDataItem(storageHolder), existing_obj{});
+			pData = make_shared_tree(AsDynamicDataItem(storageHolder), existing_obj{});
 			if (pData && !GridDomain(pData.get()))
 				pData = nullptr;
 		}
@@ -337,7 +337,7 @@ SharedUnit GridDomain(const AbstrDataItem* adi)
 	assert(gridDomain);
 	if (!IsGridDomain(gridDomain))
 		return {};
-	return SharedUnit(gridDomain, existing_obj{});
+	return make_shared_tree(gridDomain, existing_obj{});
 }
 
 SharedUnit CheckedGridDomain(const AbstrDataItem* adi)

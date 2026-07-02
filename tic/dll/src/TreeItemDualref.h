@@ -74,12 +74,12 @@ struct DcRef
 	// caller's whole use (no dangling raw from a dying temp -- that was the crash); for the owning arms it
 	// shares ownership. Empty shared_tree_ptr if the arm is empty or the weak target has expired. Callers
 	// MUST hold the result while using it: `if (auto p = m_Data.get()) p->...`.
-	shared_tree_ptr<const TreeItem> get() const
+	std::shared_ptr<const TreeItem> get() const
 	{
 		switch (m_Holder.index())
 		{
-		case 1: { auto& nr = std::get<1>(m_Holder); return nr.m_Owned.empty() ? shared_tree_ptr<const TreeItem>{} : shared_tree_ptr<const TreeItem>(nr.m_Owned.front()); }
-		case 2: { auto& o = std::get<2>(m_Holder); return o.m_SubItem ? shared_tree_ptr<const TreeItem>(o.m_SubItem, existing_obj{}) : shared_tree_ptr<const TreeItem>{}; }
+		case 1: { auto& nr = std::get<1>(m_Holder); return nr.m_Owned.empty() ? std::shared_ptr<const TreeItem>{} : std::shared_ptr<const TreeItem>(nr.m_Owned.front()); }
+		case 2: { auto& o = std::get<2>(m_Holder); return o.m_SubItem ? make_shared_tree(o.m_SubItem, existing_obj{}) : std::shared_ptr<const TreeItem>{}; }
 		case 3: return std::get<3>(m_Holder).lock();
 		case 4: return std::static_pointer_cast<const TreeItem>(std::get<4>(m_Holder).lock());
 		default: return {};
@@ -168,8 +168,8 @@ struct TreeItemDualRef : SharedActor
 	TIC_CALL void SetOld(const TreeItem* oldTI);
 	TIC_CALL void SetTmp(      TreeItem* tmpTI);
 
-	bool HasBackRef() const { auto p = m_Data.get(); return p && bool(p->m_BackRef); }
-	SharedStr GetBackRefStr() const { auto p = m_Data.get(); return p->m_BackRef->GetSourceName(); }
+	bool HasBackRef() const { auto p = m_Data.get(); return p && !p->m_BackRef.expired(); }
+	SharedStr GetBackRefStr() const { auto p = m_Data.get(); return p->m_BackRef.lock()->GetSourceName(); }
 
 	// kind 1: own the result subtree's cache units (called after the operator finished building the result).
 	TIC_CALL void CaptureResultUnits();

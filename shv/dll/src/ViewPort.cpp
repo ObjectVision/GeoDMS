@@ -154,7 +154,7 @@ void ViewPort::InitWorldCrdUnit(const AbstrUnit* worldCrdUnit)
 	dms_assert(!SuspendTrigger::DidSuspend());
 	worldCrdUnit = GetWorldCrdUnitFromGeoUnit(worldCrdUnit);
 	if (m_WorldCrdUnit)
-		if (m_WorldCrdUnit == worldCrdUnit || !worldCrdUnit)
+		if (m_WorldCrdUnit.get() == worldCrdUnit || !worldCrdUnit)
 			return;
 
 	TreeItem* context = GetContext();
@@ -162,12 +162,12 @@ void ViewPort::InitWorldCrdUnit(const AbstrUnit* worldCrdUnit)
 	{
 		if (m_WorldCrdUnit)
 			m_WorldCrdUnit->UnifyValues(worldCrdUnit, "Already set WorldCrdUnit", "new WorldCrdUnit", UnifyMode(UM_AllowTypeDiff | UM_Throw | UM_AllowDefaultLeft)); // worldCrdUnit must not have less metrc/projection
-		m_WorldCrdUnit = shared_tree_ptr<const AbstrUnit>(worldCrdUnit, existing_obj{});
+		m_WorldCrdUnit = make_shared_tree(worldCrdUnit, existing_obj{});
 	}
 	else
 	{
 		dms_assert(!m_WorldCrdUnit); // follows from not returning prematurely
-		m_WorldCrdUnit = shared_tree_ptr<const AbstrUnit>(
+		m_WorldCrdUnit = make_shared_tree(
 				Unit<CrdPoint>::GetStaticClass()->CreateUnit(
 					context
 				,	t_WCU

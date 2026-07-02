@@ -49,17 +49,17 @@ struct SubItemQuery
 	typedef EmptyState GlobalState;
 	typedef const TreeItem* pointer;
 
-	SubItemQuery(const TreeItem* self, GlobalState*) : m_Curr(self->GetFirstSubItem())
+	SubItemQuery(const TreeItem* self, GlobalState*) : m_Curr(make_weak_tree(self->GetFirstSubItem()))
 	{}
 
 	template <typename Action>
 	void operator()(Action&& action)
 	{
-		for(; m_Curr; m_Curr = m_Curr->GetNextItem() )
-			action(m_Curr.get_ptr());
+		for (auto curr = m_Curr.lock(); curr; curr = make_shared_tree(curr->GetNextItem(), no_zombies{}))
+			action(curr.get());
 	}
 
-	weak_tree_ptr<const TreeItem> m_Curr;
+	std::weak_ptr<const TreeItem> m_Curr;
 };
 
 struct SeenActorSet: std::set<const Actor*>
@@ -105,7 +105,7 @@ struct UniqueSupplierQuery
 	typedef SeenActorSet GlobalState;
 
 	UniqueSupplierQuery(pointer self, GlobalState* sas)
-		:	m_Curr(self)
+		:	m_Curr(make_weak_tree(self))
 		,	m_SAS(sas)
 		,	m_SVF(SupplierVisitFlag::InspectAll)
 	{
@@ -116,13 +116,13 @@ struct UniqueSupplierQuery
 	template <typename Action>
 	void operator()(const Action& action)
 	{
-		assert(m_Curr);
-		m_Curr->UpdateMetaInfo();
-		ActorVisitState res = m_Curr->VisitSuppliers(m_SVF, RecurseTreeItem<Action>(action, m_SAS));
+		assert(!m_Curr.expired());
+		m_Curr.lock()->UpdateMetaInfo();
+		ActorVisitState res = m_Curr.lock()->VisitSuppliers(m_SVF, RecurseTreeItem<Action>(action, m_SAS));
 		dms_assert(res == AVS_Ready);
 	}
 
-	weak_tree_ptr<const TreeItem> m_Curr;
+	std::weak_ptr<const TreeItem> m_Curr;
 	SeenActorSet*           m_SAS;
 	SupplierVisitFlag       m_SVF;
 };

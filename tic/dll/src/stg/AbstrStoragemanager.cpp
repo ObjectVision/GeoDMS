@@ -62,16 +62,16 @@ StorageMetaInfo::~StorageMetaInfo()
 	}
 }
 
-auto StorageMetaInfo::CurrRD() const -> shared_tree_ptr<const AbstrDataItem> { return AsDataItem(m_Curr); }
-auto StorageMetaInfo::CurrRU() const -> shared_tree_ptr<const AbstrUnit> { return AsUnit(m_Curr); }
+auto StorageMetaInfo::CurrRD() const -> std::shared_ptr<const AbstrDataItem> { return AsDataItem(m_Curr); }
+auto StorageMetaInfo::CurrRU() const -> std::shared_ptr<const AbstrUnit> { return AsUnit(m_Curr); }
 
 void StorageMetaInfo::PrepareReadDataOrSuspend()
 {
 	if (IsDataItem(m_Curr.get()))
 	{
-		shared_tree_ptr<const AbstrUnit> adu(CurrRD()->GetAbstrDomainUnit(), existing_obj{});
+		std::shared_ptr<const AbstrUnit> adu = make_shared_tree(CurrRD()->GetAbstrDomainUnit(), existing_obj{});
 		adu->GetCount(); // Prepare for later DataWriteLock->DoCreateMemoryStorage
-		shared_tree_ptr<const AbstrUnit> avu(CurrRD()->GetAbstrValuesUnit(), existing_obj{});
+		std::shared_ptr<const AbstrUnit> avu = make_shared_tree(CurrRD()->GetAbstrValuesUnit(), existing_obj{});
 		WaitForReadyOrSuspendTrigger(avu->GetCurrRangeItem().get());
 	}
 }
@@ -249,7 +249,7 @@ SharedStr GetCaseDir(const TreeItem* configStore)
 		configStore = configStore->GetTreeParent().get();
 	}
 	dms_assert(configRoot);
-	dms_assert(SessionData::Curr() && SessionData::Curr()->GetConfigRoot() == configRoot);
+	dms_assert(SessionData::Curr() && SessionData::Curr()->GetConfigRoot().get() == configRoot);
 
 	dms_assert(!IsAbsolutePath(caseDir.c_str()));
 	return DelimitedConcat(SessionData::Curr()->GetConfigLoadDir().c_str(), caseDir.c_str());
@@ -873,14 +873,14 @@ void NonmappableStorageManager::StartInterest(const TreeItem* storageHolder, con
 	VisitSuppliers(SupplierVisitFlag::StartSupplInterest, visitor, storageHolder, self);
 
 	if (interestHolders.size())
-		m_InterestHolders[interest_holders_key(SharedTreeItem(storageHolder, existing_obj{}), SharedTreeItem(self, existing_obj{}))].swap(interestHolders);
+		m_InterestHolders[interest_holders_key(make_shared_tree(storageHolder, existing_obj{}), make_shared_tree(self, existing_obj{}))].swap(interestHolders);
 	else
 		StopInterest(storageHolder, self);
 }
 
 void NonmappableStorageManager::StopInterest(const TreeItem* storageHolder, const TreeItem* self) const noexcept
 {
-	m_InterestHolders.erase(interest_holders_key(SharedTreeItem(storageHolder, existing_obj{}), SharedTreeItem(self, existing_obj{})));
+	m_InterestHolders.erase(interest_holders_key(make_shared_tree(storageHolder, existing_obj{}), make_shared_tree(self, existing_obj{})));
 }
 
 // Wrapper functions for consistent calls to specific StorageManager overrides

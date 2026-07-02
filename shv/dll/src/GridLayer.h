@@ -98,7 +98,7 @@ private:
 	void CreateSelCaretInfo () const;
 	IRect CalcSelectedGeoRect()  const;
 
-	mutable shared_tree_ptr<const AbstrUnit>    m_GeoCoordUnit;
+	mutable std::shared_ptr<const AbstrUnit>    m_GeoCoordUnit;
 	mutable SelCaretPtr                   m_SelCaret;
 #ifdef _WIN32
 	mutable std::unique_ptr<PasteHandler> m_PasteHandler;
