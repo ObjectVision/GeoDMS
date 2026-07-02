@@ -116,9 +116,12 @@ struct UniqueSupplierQuery
 	template <typename Action>
 	void operator()(const Action& action)
 	{
-		assert(!m_Curr.expired());
-		m_Curr.lock()->UpdateMetaInfo();
-		ActorVisitState res = m_Curr.lock()->VisitSuppliers(m_SVF, RecurseTreeItem<Action>(action, m_SAS));
+		auto curr = m_Curr.lock();
+		assert(curr);
+		if (!curr)
+			return;
+		curr->UpdateMetaInfo();
+		ActorVisitState res = curr->VisitSuppliers(m_SVF, RecurseTreeItem<Action>(action, m_SAS));
 		dms_assert(res == AVS_Ready);
 	}
 

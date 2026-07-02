@@ -846,6 +846,8 @@ void GraphicObject::ClearOwner()
 
 bool GraphicObject::IsOwnerOf(GraphicObject* obj) const
 {
+	if (!obj)
+		return false;
 	auto ownedObj = obj->shared_from_this();
 	while (ownedObj)
 	{

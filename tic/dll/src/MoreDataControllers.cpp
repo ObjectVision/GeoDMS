@@ -325,10 +325,13 @@ SharedTreeItem FuncDC::MakeResult() const // produce signature
 		DBG_TRACE(("MakeResult completed well"));
 	}
 	assert(m_Data);
-	assert(!IsNew() || m_Data.get()->IsCacheRoot());
+	auto curr = GetCurr(); // owning snapshot; null if a weak arm (config item) expired
+	if (!curr)
+		return {};
+	assert(!IsNew() || curr->IsCacheRoot());
 
-	if (m_Data && m_Data.get()->WasFailed(FailType::MetaInfo))
-		Fail(m_Data.get().get());
+	if (curr->WasFailed(FailType::MetaInfo))
+		Fail(curr.get());
 
 	if (WasFailed(FailType::MetaInfo))
 		return {};
@@ -348,7 +351,7 @@ SharedTreeItem FuncDC::MakeResult() const // produce signature
 	{
 		assert(!DoesHaveSupplInterest());
 	}
-	return m_Data.get();
+	return curr;
 }
 
 auto FuncDC::CallCalcResult(std::shared_ptr<Explain::Context> context) const -> FutureData
@@ -392,10 +395,13 @@ auto FuncDC::CallCalcResult(std::shared_ptr<Explain::Context> context) const -> 
 		assert(m_Data);
 		DBG_TRACE(("MakeResult completed well"));
 	}
-	m_Data.get()->UpdateMetaInfo();
+	auto curr = GetCurr(); // owning snapshot; null if a weak arm (config item) expired
+	if (!curr)
+		return {};
+	curr->UpdateMetaInfo();
 
-	if (m_Data.get()->WasFailed(FailType::Data))
-		Fail(m_Data.get().get());
+	if (curr->WasFailed(FailType::Data))
+		Fail(curr.get());
 
 	if ((WasFailed(FailType::Data) && !context) || WasFailed(FailType::MetaInfo))
 		return {};
@@ -414,7 +420,7 @@ auto FuncDC::CallCalcResult(std::shared_ptr<Explain::Context> context) const -> 
 		}
 	}
 	assert(GetInterestCount());
-	assert(m_Data.get()->IsCacheItem() || m_Data.get()->IsPassor()|| m_OperatorGroup->CanResultToConfigItem() );
+	assert(curr->IsCacheItem() || curr->IsPassor()|| m_OperatorGroup->CanResultToConfigItem() );
 
 	if (context)
 	{
@@ -435,14 +441,14 @@ auto FuncDC::CallCalcResult(std::shared_ptr<Explain::Context> context) const -> 
 	if (!mustStartCalc)
 	{
 		if (IsNew() && GetOperator()->CanRunParallel())
-			mustStartCalc = !IsAllInterestedCalculatingOrDataReady(m_Data.get().get());
+			mustStartCalc = !IsAllInterestedCalculatingOrDataReady(curr.get());
 		else
-			mustStartCalc = !IsAllDataCurrStandby(m_Data.get().get()); // condition required for operations such as parse_xml as first argument of a SubItem
+			mustStartCalc = !IsAllDataCurrStandby(curr.get()); // condition required for operations such as parse_xml as first argument of a SubItem
 	}
 
 	if (mustStartCalc)
 	{
-		assert(m_Data.get()->GetInterestCount());
+		assert(curr->GetInterestCount());
 
 		CallCalcResultImpl(context);
 		if (!m_Data || SuspendTrigger::DidSuspend())
@@ -451,7 +457,7 @@ auto FuncDC::CallCalcResult(std::shared_ptr<Explain::Context> context) const -> 
 			return {}; // maybe suspended or failed
 		}
 		assert(!SuspendTrigger::DidSuspend());
-		assert(m_OperContext || IsDataReady(m_Data.get().get()) || m_Data.get()->WasFailed(FailType::Data) || SuspendTrigger::DidSuspend());
+		assert(m_OperContext || IsDataReady(curr.get()) || curr->WasFailed(FailType::Data) || SuspendTrigger::DidSuspend());
 	}
 	return thisFutureResult;
 }
@@ -656,20 +662,20 @@ bool FuncDC_CreateResult(const FuncDC* funcDC)
 	bool resultingFlag = !resultHolder.WasFailed(FailType::MetaInfo);
 	MarkCacheItems(funcDC);
 
-	if (resultHolder)
+	if (auto resultItem = resultHolder.GetCurr())
 	{
-		if (!resultHolder->GetDynamicObjClass()->IsDerivedFrom(funcDC->m_Operator->GetResultClass()))
+		if (!resultItem->GetDynamicObjClass()->IsDerivedFrom(funcDC->m_Operator->GetResultClass()))
 		{
 			auto msg = mySSPrintF("result of %s is of type %s, expected type: %s"
 				, funcDC->m_OperatorGroup->GetName()
-				, resultHolder->GetCurrentObjClass()->GetName()
+				, resultItem->GetCurrentObjClass()->GetName()
 				, funcDC->m_Operator->GetResultClass()->GetName()
 			);
-			resultHolder->Fail(msg, FailType::MetaInfo);
+			resultItem->Fail(msg, FailType::MetaInfo);
 		}
-		if (resultHolder->WasFailed(FailType::MetaInfo))
+		if (resultItem->WasFailed(FailType::MetaInfo))
 		{
-			resultHolder.Fail(resultHolder.GetOld(), FailType::MetaInfo);
+			resultHolder.Fail(resultItem.get(), FailType::MetaInfo);
 			resultingFlag = false;
 		}
 	}
@@ -807,8 +813,8 @@ void FuncDC::CallCalcResultImpl(std::shared_ptr<Explain::Context> context) const
 	}
 	if (!result)
 	{
-		if (GetOld()->WasFailed())
-			Fail(GetOld());
+		if (auto curr = GetCurr(); curr && curr->WasFailed())
+			Fail(curr.get());
 		assert(SuspendTrigger::DidSuspend() || WasFailed(FailType::Data));  // if we asked for MetaInfo and only DataProcesing failed, we should at least get a result
 		return;
 	}
@@ -984,7 +990,14 @@ SharedTreeItem SymbDC::MakeResult() const
 	dms_assert(!IsTmp());
 
 	dms_assert( !SuspendTrigger::DidSuspend() );
-	return m_Data.get();
+	auto result = GetCurr(); // owning snapshot; null if the config item expired since SetOld
+	if (!result)
+	{
+		auto msg = mySSPrintF("Item %s no longer exists", m_FullNameID.GetStr());
+		Fail(msg, FailType::MetaInfo);
+		return {};
+	}
+	return result;
 }
 
 auto SymbDC::CallCalcResult(std::shared_ptr<Explain::Context> context) const -> FutureData
@@ -1005,19 +1018,22 @@ auto SymbDC::CallCalcResult(std::shared_ptr<Explain::Context> context) const -> 
 
 	FutureData resultHolder( this );
 	dms_assert(!SuspendTrigger::DidSuspend());
+	auto curr = GetCurr(); // owning snapshot; null if the config item expired
+	if (!curr)
+		return nullptr;
 	//		if (m_Data->m_State.GetTransState() < actor_flag_set::AF_Validating)
 	//			m_Data->SuspendibleUpdate();
-	bool suspended = !m_Data.get()->PrepareDataUsage(DrlType::Suspendible);
+	bool suspended = !curr->PrepareDataUsage(DrlType::Suspendible);
 
-	if (m_Data.get()->WasFailed())
-		Fail(m_Data.get().get());
+	if (curr->WasFailed())
+		Fail(curr.get());
 
 	if (suspended)
 	{
-		dms_assert(SuspendTrigger::DidSuspend() || m_Data.get()->WasFailed());
+		dms_assert(SuspendTrigger::DidSuspend() || curr->WasFailed());
 		return nullptr;
 	}
-	dms_assert(CheckCalculatingOrReady(m_Data.get()->GetCurrRangeItem().get()));
+	dms_assert(CheckCalculatingOrReady(curr->GetCurrRangeItem().get()));
 
 	dms_assert(!SuspendTrigger::DidSuspend());
 	return resultHolder;

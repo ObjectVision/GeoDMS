@@ -1411,7 +1411,8 @@ task_status OperationContext::Schedule(TreeItem* item, const FutureSuppliers& al
 		m_Result = item;
 	else
 		m_Result = m_FuncDC->GetOld();
-	assert(m_Result && m_Result->HasInterest());
+	MG_CHECK(m_Result); // a null result (expired weak DcRef arm) must fail the schedule, not crash a worker later
+	assert(m_Result->HasInterest());
 
 	if (!runDirect && !IsMultiThreaded2())
 		runDirect = true;
@@ -1440,10 +1441,11 @@ task_status OperationContext::Schedule(TreeItem* item, const FutureSuppliers& al
 		{
 			if (!fut)
 				continue;
-			auto supplierItem = fut->GetOld();
+			auto supplierItem = fut->GetCurr();
 			if (supplierItem)
-				if (auto itemInterest = supplierItem->GetCurrRangeItem()->GetInterestPtrOrNull())
-					m_KeptArgItems.emplace_back(std::move(itemInterest));
+				if (auto supplierRangeItem = supplierItem->GetCurrRangeItem())
+					if (auto itemInterest = supplierRangeItem->GetInterestPtrOrNull())
+						m_KeptArgItems.emplace_back(std::move(itemInterest));
 		}
 	}
 
@@ -1811,13 +1813,15 @@ std::vector<ItemReadLock> OperationContext::SetReadLocks(const FutureSuppliers& 
 		if (!futureSupplier)
 			continue;
 
-		auto supplierItem = futureSupplier->GetOld(); // can be reference to default unit
-		assert(supplierItem);
-		supplierItem = supplierItem->GetCurrRangeItem().get();
-		if (HandleFail(supplierItem))
+		auto supplierCurr = futureSupplier->GetCurr(); // can be reference to default unit
+		assert(supplierCurr);
+		if (!supplierCurr)
+			return {}; // supplier's result died between scheduling and execution
+		auto supplierRangeItem = supplierCurr->GetCurrRangeItem();
+		if (HandleFail(supplierRangeItem.get()))
 			return{};
 
-		if (!SetReadLock(locks, supplierItem))
+		if (!SetReadLock(locks, supplierRangeItem.get()))
 			return {};
 
 	}
@@ -1842,7 +1846,15 @@ bool OperationContext::connectArgs(const FutureSuppliers& allArgInterests)
 		if (funcSupplier)
 			supplOperationContext = funcSupplier->GetOperContext();
 		else
-			supplOperationContext = GetOperationContext(supplierInterest->GetOld()->GetCurrRangeItem().get());
+		{
+			auto supplierCurr = supplierInterest->GetCurr();
+			if (!supplierCurr)
+				continue;
+			auto supplierRangeItem = supplierCurr->GetCurrRangeItem();
+			if (!supplierRangeItem)
+				continue;
+			supplOperationContext = GetOperationContext(supplierRangeItem.get());
+		}
 
 		if (!supplOperationContext)
 			continue;
@@ -1981,7 +1993,8 @@ bool OperationContext::ScheduleCalcResult(ArgRefs&& argRefs, explain_context_ptr
 
 	bool doASync = GetOperator()->CanRunParallel() && resultHolder.DoesHaveSupplInterest() && !context;
 
-	assert(m_Result);
+	MG_CHECK(m_Result);
+	m_KeptResultUnits = resultHolder.GetOwnedSnapshot();
 
 	if (m_Result->WasFailed(FailType::Data))
 	{
@@ -2043,12 +2056,15 @@ bool OperationContext::ScheduleCalcResult(ArgRefs&& argRefs, explain_context_ptr
 		dbg_assert(!resultHolder || resultHolder->GetDynamicObjClass()->IsDerivedFrom(oper->GetResultClass()));
 		MG_DEBUGCODE(assert(resultHolder.GetOld() == oldItem));
 
-		if (resultHolder && resultHolder->WasFailed())
-			resultHolder.Fail(resultHolder.GetOld());
+		if (auto rhCurr = resultHolder.GetCurr(); rhCurr && rhCurr->WasFailed())
+			resultHolder.Fail(rhCurr.get());
 	}
 	if (resultHolder.WasFailed(FailType::Data))
 	{
-		m_Result->Fail(resultHolder.GetOld());
+		if (auto rhCurr = resultHolder.GetCurr())
+			m_Result->Fail(rhCurr.get());
+		else
+			m_Result->Fail(&resultHolder); // result item gone (expired arm): propagate the holder's own failure
 		assert(m_Status >= task_status::running);
 		OnException();
 		resultStatus = task_status::exception;

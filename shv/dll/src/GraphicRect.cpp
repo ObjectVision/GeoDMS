@@ -103,6 +103,8 @@ void GraphicRect::DoUpdateView()
 	UpdateExtents();
 
 	auto targetVP = GetTargetVP().lock();
+	if (!targetVP)
+		return;
 	targetVP->m_Tracker = this;
 	targetVP->InvalidateView();
 }

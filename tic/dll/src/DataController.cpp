@@ -241,14 +241,17 @@ void TreeItemDualRef::IncDataInterestCount() const
 	assert(IsMetaThread());
 	assert(m_Data);
 	dbg_assert(!m_State.Get(DCFD_DataCounted));
-	m_Data.get()->IncInterestCount();
+	if (auto curr = m_Data.get()) // weak arms can have expired; skipped Inc is balanced by the skipped Dec on the same dead item
+		curr->IncInterestCount();
 	MG_DEBUGCODE( m_State.Set(DCFD_DataCounted));
 }
 
 garbage_can TreeItemDualRef::DecDataInterestCount() const
 {
 	dbg_assert( m_State.Get(DCFD_DataCounted));
-	auto result = m_Data.get()->DecInterestCount();
+	garbage_can result;
+	if (auto curr = m_Data.get())
+		result = curr->DecInterestCount();
 	MG_DEBUGCODE( m_State.Clear(DCFD_DataCounted));
 
 	return result;
@@ -556,7 +559,11 @@ ActorVisitState DataController::DoUpdate()
 
 bool DataController::IsCalculating() const
 {
-	return m_Data && ::IsCalculating(m_Data.get()->GetCurrRangeItem().get());
+	auto curr = GetCurr();
+	if (!curr)
+		return false;
+	auto rangeItem = curr->GetCurrRangeItem();
+	return rangeItem && ::IsCalculating(rangeItem.get());
 }
 
 void DataController::DoInvalidate () const

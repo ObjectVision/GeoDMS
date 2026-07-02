@@ -527,7 +527,8 @@ void DataItemColumn::SetActiveRow(SizeT row)
 		return;
 	if (IsActive())
 	{
-		dv->m_TextEditController.CloseCurr();
+		if (dv)
+			dv->m_TextEditController.CloseCurr();
 		InvalidateDrawnActiveElement();
 	}
 	dbg_assert( row != UNDEFINED_VALUE(UInt32) ); // DEBUG, REMOVE
@@ -1339,7 +1340,7 @@ void DataItemColumn::FindNextValue(SharedStr searchText)
 
 void DataItemColumn::SetFocusRect()
 {
-	auto dv = GetDataView().lock();
+	auto dv = GetDataView().lock(); if (!dv) return;
 	if (IsActive())
 	{
 		auto elemAbsRect = ScaleCrdRect( GetElemFullRelLogicalRect(GetActiveRow()) + GetCurrClientAbsLogicalPos(), GetScaleFactors() );

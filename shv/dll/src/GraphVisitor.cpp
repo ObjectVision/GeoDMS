@@ -473,12 +473,12 @@ GraphObjLocator::GraphObjLocator(GPoint pnt, CrdPoint scaleFactor)
 	:	GraphVisitor(SelectPoint2Rect(pnt), scaleFactor) 
 {}
 
-MovableObject* GraphObjLocator::Locate(DataView* dv, GPoint pnt)
+std::shared_ptr<MovableObject> GraphObjLocator::Locate(DataView* dv, GPoint pnt)
 {
 	assert(dv);
 	GraphObjLocator locator(pnt, dv->GetScaleFactors());
 	locator.Visit(dv->GetContents().get());
-	return locator.m_TheOne.lock().get();
+	return locator.m_TheOne.lock();
 }
 
 GraphVisitState GraphObjLocator::DoMovable(MovableObject* obj)
@@ -725,7 +725,8 @@ GraphVisitState GraphDrawer::DoDataItemColumn(DataItemColumn* dic)
 	if (SuspendTrigger::DidSuspend())
 		return GVS_Handled; // suspended: break  or failed: continue with the next column
 
-	const AbstrDataItem* indexAttr= dic->GetTableControl().lock().get()->GetIndexAttr();
+	auto tc = dic->GetTableControl().lock(); if (!tc) return GVS_Continue;
+	const AbstrDataItem* indexAttr= tc->GetIndexAttr();
 
 	ThemeReadLocks trl; bool tryLater = false;
 	if (!PrepareData(trl, dic, indexAttr, &tryLater))
@@ -898,7 +899,7 @@ GraphVisitState MouseEventDispatcher::DoObject(GraphicObject* go)
 		if (r_EventInfo.m_EventID & EventID::LBUTTONDOWN && !IsActivating() && ! go->IgnoreActivation())
 		{
 			auto owner = m_Owner.lock();
-			if (owner->m_ActivationInfo.ActiveChild().get() != go)
+			if (owner && owner->m_ActivationInfo.ActiveChild().get() != go)
 				r_EventInfo.m_EventID |= EventID::ACTIVATE;
 		}
 

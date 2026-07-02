@@ -288,6 +288,8 @@ void ScrollPort::SetScrollY(bool verScroll)
 		if (!m_VerScroll)
 		{
 			auto dv = GetDataView().lock();
+			if (!dv)
+				return;
 			dv->SetScrollEventsReceiver(this);
 			HWND hWnd = dv->GetHWnd();
 			m_VerScroll = CreateWindowExW(

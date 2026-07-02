@@ -73,6 +73,8 @@ void PaletteControl::Init()
 		if (m_ThemeAttr)
 		{
 			auto dv = GetDataView().lock();
+			if (!dv)
+				return;
 			auto [paletteDomain, breakAttr] = CreateBreakAttr(dv.get(), m_ThemeAttr->GetAbstrValuesUnit(), m_ThemeAttr.get_ptr(), 0);
 			m_BreakAttr = breakAttr.get_ptr();
 			m_ThemeAttr->PrepareDataUsage(DrlType::Certain);

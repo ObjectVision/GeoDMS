@@ -164,7 +164,9 @@ auto AbstrDataItem::GetCurrRefObj() const ->SharedPtr<const AbstrDataObject>
 {
 	dbg_assert(CheckMetaInfoReadyOrPassor());
 
-	return debug_cast<const AbstrDataItem*>(GetCurrUltimateItem().get())->GetCurrDataObj();
+	auto ultimateItem = GetCurrUltimateItem();
+	MG_CHECK(ultimateItem);
+	return debug_cast<const AbstrDataItem*>(ultimateItem.get())->GetCurrDataObj();
 }
 
 auto AbstrDataItem::GetRefObj() const -> SharedPtr<const AbstrDataObject>
@@ -172,7 +174,9 @@ auto AbstrDataItem::GetRefObj() const -> SharedPtr<const AbstrDataObject>
 	assert(IsMetaThread());
 	MG_SIGNAL_ON_UPDATEMETAINFO
 
-	return debug_cast<const AbstrDataItem*>(GetUltimateItem().get())->GetDataObj();
+	auto ultimateItem = GetUltimateItem();
+	MG_CHECK(ultimateItem);
+	return debug_cast<const AbstrDataItem*>(ultimateItem.get())->GetDataObj();
 }
 
 Int32 AbstrDataItem::GetDataRefLockCount() const
@@ -705,7 +709,9 @@ DataCheckMode AbstrDataItem::GetRawCheckMode() const
 	dbg_assert(CheckMetaInfoReadyOrPassor());
 	MG_LOCKER_NO_UPDATEMETAINFO
 
-	const AbstrDataItem* adi = debug_cast<const AbstrDataItem*>(GetCurrUltimateItem().get());
+	auto ultimateItem = GetCurrUltimateItem();
+	MG_CHECK(ultimateItem);
+	const AbstrDataItem* adi = debug_cast<const AbstrDataItem*>(ultimateItem.get());
 	assert(adi);
 	assert(CheckDataReady(adi));
 
@@ -733,8 +739,10 @@ DataCheckMode AbstrDataItem::DetermineRawCheckMode() const
 {
 	dbg_assert(CheckMetaInfoReadyOrPassor());
 	MG_LOCKER_NO_UPDATEMETAINFO
-	
-	const AbstrDataItem* adi = debug_cast<const AbstrDataItem*>(GetCurrUltimateItem().get());
+
+	auto ultimateItem = GetCurrUltimateItem();
+	MG_CHECK(ultimateItem);
+	const AbstrDataItem* adi = debug_cast<const AbstrDataItem*>(ultimateItem.get());
 	assert(adi);
 	assert(CheckDataReady(adi));
 

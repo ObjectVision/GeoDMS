@@ -670,10 +670,10 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 
 	if (IsInDebugMode() && !self->InTemplate())
 	{
-		for( auto refItem = self; refItem; refItem = refItem->mc_RefItem.lock().get())
+		for( auto refItem = make_shared_tree(self, no_zombies{}); refItem; refItem = refItem->mc_RefItem.lock())
 		{
 			MG_DEBUGCODE( assert(!DebugOnlyLock::IsLocked()) ); // PRECONDITION
-			auto nc = TreeItem_GetProgressState(refItem);
+			auto nc = TreeItem_GetProgressState(refItem.get());
 			xmlTable.NameValueRow(
 				"ProgressState",
 				mySSPrintF("%s at %d for Phase %d with interest %d%s%s, checked at %d for %s"
@@ -726,8 +726,9 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 			xmlTable.NameValueRow("ValueComposition", GetValueCompositionID(vc).GetStr().c_str());
 		if (di->GetTSF(TSF_Categorical))
 			xmlTable.NameValueRow("Categorical", "Yes");
-		if (AsDataItem(di->GetUltimateItem())->m_StatusFlags.HasSortedValues())
-			xmlTable.NameValueRow("HasSortedValues", "Yes");
+		if (auto ultimateItem = di->GetUltimateItem())
+			if (AsDataItem(ultimateItem.get())->m_StatusFlags.HasSortedValues())
+				xmlTable.NameValueRow("HasSortedValues", "Yes");
 
 		WriteCdf(xmlTable, di);
 	}
@@ -796,6 +797,7 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 		auto prevVC = vc;
 		const AbstrDataItem* di = AsDataItem(self);
 		CharPtr title = "ValuesUnit";
+		SharedDataItem referredItem;
 		do {
 			auto avu = di->GetAbstrValuesUnit();
 			vc = di->GetValueComposition();
@@ -816,7 +818,8 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 			}
 			WriteCdf(xmlTable, di->GetAbstrValuesUnit());
 
-			di = AsDataItem(di->GetReferredItem()).get(); // TODO ownership: borrowed transient loop local; item is tree-owned
+			referredItem = AsDataItem(di->GetReferredItem());
+			di = referredItem.get();
 			title = "Derived ValuesUnit";
 		} while (di);
 
@@ -836,7 +839,8 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 				}
 				prevUnit = adu;
 			}
-			di = AsDataItem(di->GetReferredItem()).get(); // TODO ownership: borrowed transient loop local; item is tree-owned
+			referredItem = AsDataItem(di->GetReferredItem());
+			di = referredItem.get();
 			title = "Derived DomainUnit";
 		} while (di);
 	}

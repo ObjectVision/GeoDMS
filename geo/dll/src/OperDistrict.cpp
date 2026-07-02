@@ -153,10 +153,9 @@ public:
 
 		if (mustCalc)
 		{
+			DataReadLock arg1Lock(inputGridA);
 			const Arg1Type* inputGrid = debug_cast<const Arg1Type*>(inputGridA->GetCurrRefObj().get());
 			assert(inputGrid);
-
-			DataReadLock arg1Lock(inputGridA);
 
 			AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
 			DataWriteLock resLock(res);

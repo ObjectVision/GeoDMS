@@ -169,10 +169,25 @@ struct TreeItemDualRef : SharedActor
 	TIC_CALL void SetTmp(      TreeItem* tmpTI);
 
 	bool HasBackRef() const { auto p = m_Data.get(); return p && !p->m_BackRef.expired(); }
-	SharedStr GetBackRefStr() const { auto p = m_Data.get(); return p->m_BackRef.lock()->GetSourceName(); }
+	SharedStr GetBackRefStr() const // null-tolerant: m_BackRef can be reset concurrently after HasBackRef()
+	{
+		auto p = m_Data.get();
+		auto backRef = p ? p->m_BackRef.lock() : nullptr;
+		return backRef ? backRef->GetSourceName() : SharedStr();
+	}
 
 	// kind 1: own the result subtree's cache units (called after the operator finished building the result).
 	TIC_CALL void CaptureResultUnits();
+
+	// Snapshot of the kind-1 owned refs ([0]=root, [1..]=kept-alive units); empty for other kinds. Lets a
+	// scheduled OperationContext co-own the result units for its whole run, so a meta-thread
+	// DoInvalidate->Clear() cannot free them while a worker still computes with raw borrows.
+	auto GetOwnedSnapshot() const -> std::vector<std::shared_ptr<const TreeItem>>
+	{
+		if (m_Data.kind() == 1)
+			return std::get<1>(m_Data.m_Holder).m_Owned;
+		return {};
+	}
 
 	// Have this (kind-1) cache result take an owning ref to a component it references only weakly (e.g. a
 	// UnitCreator-produced domain/values unit) that would otherwise be ownerless once the operator's local drops.

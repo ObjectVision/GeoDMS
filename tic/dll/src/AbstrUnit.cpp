@@ -653,7 +653,11 @@ void AbstrUnit::DuplFrom(const AbstrUnit* src)
 	{
 		const UnitProjection*  orgP = src->GetCurrProjection();
 		if (!orgP && !src->IsDefaultUnit())
-			orgP = new UnitProjection(AsUnit(src->GetCurrUltimateItem()).get());
+		{
+			auto srcUltimateUnit = AsUnit(src->GetCurrUltimateItem());
+			MG_CHECK(srcUltimateUnit);
+			orgP = new UnitProjection(srcUltimateUnit.get());
+		}
 		SetProjection(orgP);
 	}
 	else
@@ -795,7 +799,9 @@ row_id AbstrUnit::GetEstimatedCount() const
 
 void AbstrUnit::ValidateCount(SizeT supposedCount) const
 {
-	auto sm = AsUnit(this->GetCurrRangeItem())->GetTiledRangeData();
+	auto range_item = this->GetCurrRangeItem();
+	MG_CHECK(range_item);
+	auto sm = AsUnit(range_item)->GetTiledRangeData();
 	if (!sm)
 		throwItemErrorF("ValidateCount(%d) failed because this unit has no segment info", supposedCount);
 
@@ -838,9 +844,10 @@ I64Rect AbstrUnit::GetTileSizeAsI64Rect(tile_id t) const // asssume 1D; GeoUnitA
 	return AsI64Rect(Range<SizeT>(fi, fi + sz));
 }
 
-row_id  AbstrUnit::GetTileFirstIndex(tile_id t) const 
-{ 
+row_id  AbstrUnit::GetTileFirstIndex(tile_id t) const
+{
 	auto range_item = this->GetCurrRangeItem();
+	MG_CHECK(range_item);
 	auto si = AsUnit(range_item)->GetTiledRangeData();
 	MG_CHECK(si);
 	return si->GetFirstRowIndex(t);
@@ -848,7 +855,9 @@ row_id  AbstrUnit::GetTileFirstIndex(tile_id t) const
 
 row_id  AbstrUnit::GetTileIndex(tile_id t, tile_offset tileOffset) const 
 { 
-	auto si = AsUnit(this->GetCurrRangeItem())->GetTiledRangeData();
+	auto range_item = this->GetCurrRangeItem();
+	MG_CHECK(range_item);
+	auto si = AsUnit(range_item)->GetTiledRangeData();
 	MG_CHECK(si);
 	return si->GetRowIndex(t, tileOffset);
 }
@@ -856,6 +865,7 @@ row_id  AbstrUnit::GetTileIndex(tile_id t, tile_offset tileOffset) const
 tile_id AbstrUnit::GetNrTiles() const
 {
 	auto range_item = this->GetCurrRangeItem();
+	MG_CHECK(range_item);
 	auto si = AsUnit(range_item)->GetTiledRangeData();
 	MG_CHECK(si);
 	return si->GetNrTiles();

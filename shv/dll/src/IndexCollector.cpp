@@ -82,14 +82,22 @@ IndexCollector::IndexCollector(index_collector_key key)
 	
 	m_DC = GetOrCreateDataController(expr);
 
+	SharedTreeItem resultHolder; // keeps the MakeResult item alive for the rest of this ctor
 	const AbstrDataItem* adi;
 	if (HasGeoRel())
-		adi = AsDataItem(m_DC->MakeResult().get());
+	{
+		resultHolder = m_DC->MakeResult();
+		adi = AsDataItem(resultHolder.get());
+	}
 	else
 		adi = m_ExtKeyAttr.get();
-	assert(adi);
+	MG_CHECK(adi);
 
-	m_TileData = AsUnit(adi->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
+	auto adu = adi->GetAbstrDomainUnit();
+	MG_CHECK(adu);
+	auto rangeItem = adu->GetCurrRangeItem();
+	MG_CHECK(rangeItem);
+	m_TileData = AsUnit(rangeItem.get())->GetTiledRangeData();
 	MG_CHECK(m_TileData);
 }
 
@@ -106,7 +114,11 @@ void IndexCollector::Release()
 DataReadLock IndexCollector::GetDataItemReadLock() const
 {
 	auto res = m_DC->CallCalcResult();
-	PreparedDataReadLock lock(AsDataItem(res->GetOld()), "IndexCollector::GetDataItemReadLock");
+	if (!res)
+		throwErrorF("IndexCollector", "Cannot calculate data for %s", AsString(m_DC->GetLispRef()).c_str());
+	auto item = res->GetCurr();
+	MG_CHECK(item);
+	PreparedDataReadLock lock(AsDataItem(item.get()), "IndexCollector::GetDataItemReadLock");
 
 	return lock;
 }

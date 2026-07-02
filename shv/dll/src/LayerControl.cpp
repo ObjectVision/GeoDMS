@@ -243,7 +243,7 @@ protected:
 		dms_assert(m_Caret);
 		auto dv = GetOwner().lock(); if (!dv) return true;
 		auto to = GetTargetObject().lock(); if (!to) return true;
-		std::shared_ptr<MovableObject> hooverObj = GraphObjLocator::Locate(dv.get(), eventInfo.m_Point)->shared_from_this();
+		std::shared_ptr<MovableObject> hooverObj = GraphObjLocator::Locate(dv.get(), eventInfo.m_Point);
 		while	(	hooverObj 
 				&&	(	!dynamic_cast<LayerControlBase*>(hooverObj.get())
 					||	to->IsOwnerOf(hooverObj->GetOwner().lock().get())
@@ -284,6 +284,8 @@ protected:
 		//	insert m_TargetObj as last of the main LayerControlSet
 		std::shared_ptr<ScalableObject> srcLayer = debug_cast<LayerControlBase*>(to.get())->GetLayerSetElem()->shared_from_base<ScalableObject>();
 		std::shared_ptr<LayerSet>       srcOwner = std::static_pointer_cast<LayerSet>      (srcLayer->GetOwner().lock());
+		if (!srcOwner)
+			return true; // layer was detached from its set during the drag
 
 		if (m_HooverObj)
 		{
@@ -291,6 +293,8 @@ protected:
 			if (dstLayer == srcLayer.get())
 				return false;
 			auto dstOwner = std::static_pointer_cast<LayerSet>( dstLayer->GetOwner().lock());
+			if (!dstOwner)
+				return false;
 			dms_assert(!srcLayer->IsOwnerOf(dstOwner.get()));
 			srcOwner->MoveEntry(srcLayer.get(), dstOwner.get(), dstOwner->GetEntryPos(dstLayer) + (m_Above ? 1 : 0));
 		}
@@ -329,6 +333,8 @@ bool LayerControlBase::MouseEvent(MouseEventDispatcher& med)
 	else if (med.GetEventInfo().m_EventID & EventID::LBUTTONDOWN)
 	{
 		auto medOwner = med.GetOwner().lock();
+		if (!medOwner)
+			return true;
 		medOwner->InsertController(
 			new DualPointCaretController(medOwner.get(), new BoundaryCaret(this)
 			,	this, med.GetEventInfo().m_Point

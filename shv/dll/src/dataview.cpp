@@ -1582,6 +1582,8 @@ void ChangeActivation(MovableObject*  oldAct, MovableObject* newAct)
 void DataView::Activate(MovableObject* src)
 {
 	assert(src);
+	if (!src)
+		return;
 	if (m_ActivationInfo.get() == src)
 		return;
 

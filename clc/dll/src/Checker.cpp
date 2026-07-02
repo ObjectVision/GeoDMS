@@ -48,12 +48,14 @@ struct CheckOperator : public BinaryOperator
 
 		if (mustCalc)
 		{
+			auto curr = resultHolder.GetCurr(); // owning snapshot; weak arm (config item) can expire
+			MG_CHECK(curr);
 			auto arg2A = AsDataItem(args[1]);
 			assert(CheckDataReady(arg2A));
-			assert(CheckDataReady(resultHolder.GetOld()));
+			assert(CheckDataReady(curr.get()));
 			DataReadLock arg2Lock(arg2A);
 
-			IntegrityCheckFailure(resultHolder.GetOld(), arg2A, [&resultHolder]() -> SharedStr
+			IntegrityCheckFailure(curr.get(), arg2A, [&resultHolder]() -> SharedStr
 				{
 					auto funcDC = dynamic_cast<FuncDC*>(&resultHolder);
 					MG_CHECK(funcDC);
@@ -63,8 +65,8 @@ struct CheckOperator : public BinaryOperator
 					return AsFLispSharedStr(condDC->GetLispRef(), FormattingFlags::None);
 				}
 			);
-			if (resultHolder->WasFailed())
-				resultHolder.Fail(resultHolder.GetOld());
+			if (curr->WasFailed())
+				resultHolder.Fail(curr.get());
 			resultHolder.SetProgress(ProgressState::Validated);
 		}
 		return true;

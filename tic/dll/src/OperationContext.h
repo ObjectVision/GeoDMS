@@ -325,6 +325,12 @@ public:
 	// DC futures keeps the suppliers of-interest; retaining an item interest keeps their data resident.
 	FutureSuppliers                        m_KeptArgInterests; // arg DCs of-interest for our lifetime
 	std::vector<SharedTreeItemInterestPtr> m_KeptArgItems;     // arg result items: keep data ready
+
+	// Calc path: co-own the FuncDC's kind-1 owned refs (cache root + kept-alive units) for this OC's
+	// whole run. m_Result owns only the root; without this, a meta-thread DoInvalidate->Clear() during
+	// the calculation frees the kept-alive units while a worker still reaches them through weak
+	// m_DomainUnit/m_ValuesUnit members (which then lock null).
+	std::vector<std::shared_ptr<const TreeItem>> m_KeptResultUnits;
 };
 
 // GetNextPhaseNumber

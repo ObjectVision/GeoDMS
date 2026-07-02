@@ -138,7 +138,7 @@ bool ColumnHeaderDragger::Move(EventInfo& eventInfo)
 	auto dv = GetOwner().lock(); if (!dv) return true;
 	auto to = GetTargetObject().lock(); if (!to) return true;
 	dms_assert(m_Caret);
-	std::shared_ptr<MovableObject> hooverObj = GraphObjLocator::Locate(dv.get(), eventInfo.m_Point)->shared_from_this();
+	std::shared_ptr<MovableObject> hooverObj = GraphObjLocator::Locate(dv.get(), eventInfo.m_Point);
 	while	(	hooverObj 
 			&&	(	!dynamic_cast<ColumnHeaderControl*>(hooverObj.get())
 				||	to->IsOwnerOf(hooverObj->GetOwner().lock().get())
@@ -172,19 +172,26 @@ bool ColumnHeaderDragger::Move(EventInfo& eventInfo)
 
 bool ColumnHeaderDragger::Exec(EventInfo& eventInfo)
 {
-	if (!m_Activated || m_HooverObj == GetTargetObject().lock())
+	auto to = GetTargetObject().lock();
+	if (!m_Activated || !to || m_HooverObj == to)
 		return false;
 
 	//	insert m_TargetObj as last of the main LayerControlSet
-	auto srcLayer = debug_cast<ColumnHeaderControl*>(GetTargetObject().lock().get())->GetDic();
+	auto srcLayer = debug_cast<ColumnHeaderControl*>(to.get())->GetDic();
+	if (!srcLayer)
+		return false;
 	auto srcOwner = srcLayer->GetOwner().lock();
 
 	if (m_HooverObj && srcOwner)
 	{
 		DataItemColumn* dstLayer = m_HooverObj->GetDic().get();
-		TableControl*   dstOwner = dstLayer->GetTableControl().lock().get();
-		dms_assert(!srcLayer->IsOwnerOf(dstOwner));
-		debug_cast<TableControl*>(srcOwner.get())->MoveEntry(srcLayer.get(), dstOwner, dstOwner->GetEntryPos(dstLayer) + (m_Before ? 0 : 1));
+		if (!dstLayer)
+			return false;
+		auto dstOwner = dstLayer->GetTableControl().lock();
+		if (!dstOwner)
+			return false;
+		dms_assert(!srcLayer->IsOwnerOf(dstOwner.get()));
+		debug_cast<TableControl*>(srcOwner.get())->MoveEntry(srcLayer.get(), dstOwner.get(), dstOwner->GetEntryPos(dstLayer) + (m_Before ? 0 : 1));
 	}
 	return true;
 }

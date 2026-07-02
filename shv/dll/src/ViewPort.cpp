@@ -268,7 +268,8 @@ void ViewPort::DoUpdateView()
 	w2dTr *= CrdTransformation(CrdPoint(0.0, 0.0), sf);
 
 	for (auto& gc: m_GridCoordMap)
-		gc.second.lock()->Init(CrdPoint2GPoint(deviceSize), w2dTr);
+		if (auto gridCoord = gc.second.lock())
+			gridCoord->Init(CrdPoint2GPoint(deviceSize), w2dTr);
 
 	for (auto& sc: m_SelCaretMap)
 	{
@@ -1228,7 +1229,8 @@ CommandStatus ViewPort::OnCommandEnable(ToolButtonID id) const
 			return CommandStatus::DISABLED;
 	}
 
-	if (GetDataView().lock()->m_ControllerID == id)
+	auto dv = GetDataView().lock();
+	if (dv && dv->m_ControllerID == id)
 		return CommandStatus::DOWN;
 
 	return base_type::OnCommandEnable(id);
@@ -1391,10 +1393,12 @@ void ViewPort::ScrollDevice(GPoint delta)
 	DBG_TRACE(("viewExtents %s", AsString(deviceExtents).c_str()));
 
 	for (auto& gc: m_GridCoordMap)
-		gc.second.lock()->OnDeviceScroll(delta);
+		if (auto gridCoord = gc.second.lock())
+			gridCoord->OnDeviceScroll(delta);
 
 	for (auto& sc: m_SelCaretMap)
-		sc.second.lock()->OnDeviceScroll(delta);
+		if (auto selCaret = sc.second.lock())
+			selCaret->OnDeviceScroll(delta);
 }
 
 void ViewPort::InvalidateWorldRect(CrdRect rect, TRect borderExtents) const

@@ -270,7 +270,8 @@ struct RegCountOperator : public QuaternaryOperator
 			RegionInfo& ri = regionInfoArray[i];
 			ri.m_NrParts  = ri.m_Partition ? ri.m_Partition->GetAbstrValuesUnit()->GetCount() : 1;
 			ri.m_ReadLock  = DataReadLock(ri.m_Partition.get());
-			ri.m_WriteLock = DataWriteLock(ri.m_Result.lock().get(), dms_rw_mode::write_only_mustzero);
+			auto res = lock_or_cancel(ri.m_Result); // owning for the DataWriteLock construction; throws if torn down
+			ri.m_WriteLock = DataWriteLock(res.get(), dms_rw_mode::write_only_mustzero);
 		}
 
 		// ================ do calc

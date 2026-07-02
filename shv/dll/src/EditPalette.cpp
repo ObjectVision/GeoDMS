@@ -116,7 +116,8 @@ PaletteButton::PaletteButton(MovableObject* owner,const AbstrUnit* paletteDomain
 void PaletteButton::OnSetDomain(const AbstrUnit* newDomain)
 {
 	m_PaletteDomain = make_weak_tree(newDomain);
-	SetText(m_PaletteDomain.lock()->GetDisplayName());
+	if (auto pd = m_PaletteDomain.lock())
+		SetText(pd->GetDisplayName());
 }
 
 //----------------------------------------------------------------------

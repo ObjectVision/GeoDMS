@@ -161,7 +161,7 @@ class GraphObjLocator : public GraphVisitor
 public:
 	GraphObjLocator(GPoint pnt, CrdPoint scaleFactor);
 
-	static MovableObject* Locate(DataView* view, GPoint pnt);
+	static std::shared_ptr<MovableObject> Locate(DataView* view, GPoint pnt);
 
 protected:
   	GraphVisitState DoMovable(MovableObject* obj) override;

@@ -1019,8 +1019,11 @@ bool DataItemsWriteStatusInfo::LayerHasBeenWritten(TokenID layerID)
 auto DataItemsWriteStatusInfo::GetExampleAdiFromLayerID(TokenID layerID) -> SharedDataItem
 {
 	for (auto& fieldInfo : m_LayerAndFieldIDMapping[layerID])
-		if (auto dh = make_shared_tree(fieldInfo.second.m_DataHolder.get_ptr(), no_zombies{}))
+	{
+		std::weak_ptr<const AbstrDataItem> dh_w = fieldInfo.second.m_DataHolder;
+		if (auto dh = dh_w.lock())
 			return dh;
+	}
 
 	return {};
 }

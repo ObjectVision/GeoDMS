@@ -874,7 +874,10 @@ LispRef AbstrCalculator::slSupplierExpr(SubstitutionBuffer& substBuff, LispPtr s
 				m_BestGuessErrorSuppl = x;
 
 			auto errMsg = MakeUnknownIdentifierErrorMsg(supplRefID.AsSharedStr(), x);
-			GetHolder()->Fail(errMsg, FailType::MetaInfo);
+			auto holder = m_Holder.lock();
+			if (!holder)
+				throwTaskCanceled();
+			holder->Fail(errMsg, FailType::MetaInfo);
 		}
 		return supplRef;
 	}
@@ -901,26 +904,29 @@ LispRef AbstrCalculator::slSupplierExprImpl(SubstitutionBuffer& substBuff, const
 	//	DBG_TRACE(("supplRef %s", AsString(supplRef).c_str()) );
 
 	dms_assert(supplier); // PRECONDITION
-	if (GetHolder()->DoesContain(supplier))
+	auto holder = m_Holder.lock();
+	if (!holder)
+		throwTaskCanceled();
+	if (holder->DoesContain(supplier))
 	{
-		if (m_CalcRole == CalcRole::Calculator || supplier != GetHolder())
-			GetHolder()->ThrowFail("Calulation rule would create a circular dependency", FailType::MetaInfo);
+		if (m_CalcRole == CalcRole::Calculator || supplier != holder.get())
+			holder->ThrowFail("Calulation rule would create a circular dependency", FailType::MetaInfo);
 	}
 	else
 		supplier->UpdateMetaInfo();
 	if (supplier->InTemplate() && !(mpf & metainfo_policy_flags::subst_never))
 	{
 		auto msg = mySSPrintF("Calulation rule would create a dependency on %s which is (part of) a template", supplier->GetFullName());
-		GetHolder()->ThrowFail(msg, FailType::MetaInfo);
+		holder->ThrowFail(msg, FailType::MetaInfo);
 	}
 
-	if (GetHolder() != supplier)
+	if (holder.get() != supplier)
 		registerSupplier(substBuff, supplier);
 
 	if (mpf & metainfo_policy_flags::subst_never || (!supplier->IsPassor() && !supplier->HasCalculator() && !IsDataItem(supplier) && !IsUnit(supplier)))
 		return CreateLispTree(supplier, mpf & metainfo_policy_flags::suppl_tree);
 
-	LispRef result = (m_CalcRole == CalcRole::Checker && GetHolder() == supplier) ? supplier->GetKeyExprImpl() : supplier->GetCheckedKeyExpr();
+	LispRef result = (m_CalcRole == CalcRole::Checker && holder.get() == supplier) ? supplier->GetKeyExprImpl() : supplier->GetCheckedKeyExpr();
 
 #if defined(MG_DEBUG_LISP_TREE)
 	reportF(SeverityTypeID::ST_MinorTrace, "result=%s", AsString(result).c_str());
@@ -1249,7 +1255,10 @@ auto DeriveSubItem(const AbstrCalculator* ac, SubstitutionBuffer& substBuff, Lis
 	registerSupplier(substBuff, container.get());
 
 	auto subItemNameExpr = subItemExprTail.Right().Left();
-	AbstrCalculatorRef calculator = AbstrCalculator::ConstructFromLispRef(ac->GetHolder(), subItemNameExpr, CalcRole::Other);
+	auto holder = ac->m_Holder.lock();
+	if (!holder)
+		throwTaskCanceled();
+	AbstrCalculatorRef calculator = AbstrCalculator::ConstructFromLispRef(holder.get(), subItemNameExpr, CalcRole::Other);
 	auto res = CalledCalcHandle(calculator.get(), DataArray<SharedStr>::GetStaticClass());
 	auto subItemPath = GetCurrValue<SharedStr>(AsDataItem(res), 0);
 	auto subItem = FindSubItem(container.get(), subItemPath);
@@ -1410,7 +1419,10 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 				if (!supplier)
 				{
 					dms_assert(dc->WasFailed(FailType::MetaInfo));
-					GetHolder()->ThrowFail(dc.get());
+					auto holder = m_Holder.lock();
+					if (!holder)
+						throwTaskCanceled();
+					holder->ThrowFail(dc.get());
 				}
 
 				if (!supplier->IsCacheItem())

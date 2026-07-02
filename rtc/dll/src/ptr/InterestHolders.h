@@ -61,7 +61,7 @@ struct InterestPtr
 	InterestPtr(const InterestPtr& src) noexcept
 		: m_Item(src.m_Item)
 	{
-		OptionalInterestInc<IVal>(get_ptr());
+		inc_interest();
 	}
 
 	template <typename T>
@@ -80,7 +80,7 @@ struct InterestPtr
 			else
 				m_Item = CPtr(ptr);
 		}
-		OptionalInterestInc<IVal>(get_ptr());
+		inc_interest();
 	}
 
 	template <typename T, typename OwnershipTag>
@@ -93,13 +93,13 @@ struct InterestPtr
 			m_Item = make_weak_tree(ptr); // weak borrow; the ownership tag is only meaningful for owning targets
 		else
 			m_Item = CPtr(ptr, tag);
-		OptionalInterestInc<IVal>(get_ptr());
+		inc_interest();
 	}
 	template <typename T>
 	InterestPtr(SharedPtr<T>&& item)
 		: m_Item(std::move(item))
 	{
-		OptionalInterestInc<IVal>(get_ptr());
+		inc_interest();
 	}
 
 	template <typename T>
@@ -113,7 +113,7 @@ struct InterestPtr
 	InterestPtr(const SharedPtr<T>& item)
 		: m_Item(item)
 	{
-		OptionalInterestInc<IVal>(get_ptr());
+		inc_interest();
 	}
 
 	// std::shared_ptr (TreeItem family) overloads, mirroring the SharedPtr ones above.
@@ -121,13 +121,13 @@ struct InterestPtr
 	InterestPtr(const std::shared_ptr<T>& item)
 		: m_Item(item)
 	{
-		OptionalInterestInc<IVal>(get_ptr());
+		inc_interest();
 	}
 	template <typename T>
 	InterestPtr(std::shared_ptr<T>&& item)
 		: m_Item(std::move(item))
 	{
-		OptionalInterestInc<IVal>(get_ptr());
+		inc_interest();
 	}
 	// std::shared_ptr-backed counterpart of the SharedPtr already_incremented_tag ctor: adopt an owning
 	// std::shared_ptr whose interest the caller has ALREADY incremented (e.g. under sg_CountSection), so do
@@ -146,7 +146,7 @@ struct InterestPtr
 	InterestPtr(const std::weak_ptr<T>& item)
 		: m_Item(item)
 	{
-		OptionalInterestInc<IVal>(get_ptr());
+		inc_interest();
 	}
 
 	template <typename SrcPtr> requires std::is_constructible_v<CPtr, SrcPtr&&>
@@ -159,7 +159,7 @@ struct InterestPtr
 	InterestPtr(const InterestPtr<SrcPtr>& rhs) noexcept
 		: m_Item(rhs.m_Item)
 	{
-		OptionalInterestInc<IVal>(get_ptr());
+		inc_interest();
 	}
 
 	InterestPtr& operator =(InterestPtr&& rhs) noexcept
@@ -186,7 +186,7 @@ struct InterestPtr
 
 	~InterestPtr() noexcept
 	{
-		OptionalInterestDec<IVal>(get_ptr());
+		dec_interest();
 	}
 
 	explicit operator bool() const { return get_ptr() != nullptr; }
@@ -209,6 +209,29 @@ struct InterestPtr
 	void swap(InterestPtr& rhs) { omni::swap(m_Item, rhs.m_Item); }
 
 private:
+	// For a weak CPtr the target must stay owned ACROSS the count mutation: get_ptr()'s momentary
+	// lock dies before the Inc/Dec call, leaving an unowned raw. Expired targets are skipped.
+	void inc_interest() const
+	{
+		if constexpr (is_std_weak_ptr_v<CPtr>)
+		{
+			if (auto p = m_Item.lock())
+				OptionalInterestInc<IVal>(p.get());
+		}
+		else
+			OptionalInterestInc<IVal>(get_ptr());
+	}
+	void dec_interest() const noexcept
+	{
+		if constexpr (is_std_weak_ptr_v<CPtr>)
+		{
+			if (auto p = m_Item.lock())
+				OptionalInterestDec<IVal>(p.get());
+		}
+		else
+			OptionalInterestDec<IVal>(get_ptr());
+	}
+
 	CPtr m_Item;
 	template<typename SrcPtr> friend struct InterestPtr;
 };

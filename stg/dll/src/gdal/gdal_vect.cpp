@@ -2193,7 +2193,10 @@ std::vector<DataReadLock> ReadableDataHandles(TokenID layer_id, DataItemsWriteSt
 		if (not writableField.second.doWrite)
 			continue;
 
-		auto adi_n = make_shared_tree(writableField.second.m_DataHolder.get_ptr(), no_zombies{});
+		std::weak_ptr<const AbstrDataItem> adi_w = writableField.second.m_DataHolder;
+		auto adi_n = adi_w.lock();
+		if (!adi_n)
+			throwTaskCanceled();
 		dataReadLocks.emplace_back(adi_n.get());
 	}
 	return dataReadLocks;
@@ -2555,7 +2558,10 @@ void GdalVectSM::WriteLayer(TokenID layer_id, const GdalMetaInfo& gmi)
 				if (not writableField.second.doWrite)
 					continue;
 
-				auto adi_n = make_shared_tree(writableField.second.m_DataHolder.get_ptr(), no_zombies{});
+				std::weak_ptr<const AbstrDataItem> adi_w = writableField.second.m_DataHolder;
+				auto adi_n = adi_w.lock();
+				if (!adi_n)
+					throwTaskCanceled();
 				if (writableField.second.isGeometry)
 					WriteGeometryElement(adi_n.get(), curFeature, t, tileFeatureIndex);
 				else

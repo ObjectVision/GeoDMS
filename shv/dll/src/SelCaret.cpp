@@ -49,7 +49,9 @@ std::weak_ptr<ViewPort> SelCaret::GetOwner() const
 
 void SelCaret::ForwardDiff(const Region& diff)
 {
-	GetOwner().lock()->GetDataView().lock()->XOrSelCaret(diff);
+	auto owner = GetOwner().lock(); if (!owner) return;
+	auto dv = owner->GetDataView().lock(); if (!dv) return;
+	dv->XOrSelCaret(diff);
 }
 
 void SelCaret::SetSelCaretRgn(Region&& selCaretRgn)

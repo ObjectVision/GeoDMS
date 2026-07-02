@@ -123,7 +123,8 @@ void GraphicLayer::SetActive(bool newState)
 		if (newState)
 		{
 			auto dv = GetDataView().lock();
-			dv->OnCaptionChanged();
+			if (dv)
+				dv->OnCaptionChanged();
 		}
 	}
 }
