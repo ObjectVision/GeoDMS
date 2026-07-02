@@ -4,6 +4,38 @@ Branch: `refactor_ownership`. This continues the migration of the TreeItem famil
 `SharedPtr<T>`/`WeakPtr<T>` onto std ownership. Read this together with
 `doc/development/std-ptr-migration-plan.md` (§4 = the `DcRef` variant) and `CLAUDE.md` (build rules).
 
+## ★★ CURRENT STATE (2026-07-02, session 4) — MIGRATION FUNCTIONALLY COMPLETE ★★
+
+Everything below this banner is the chronological work log; several of its "REMAINING / ⚠ OPEN"
+sections are now CLOSED. Authoritative current status:
+
+- **Wrappers removed** (commit `70c3f942`): `shared_tree_ptr`/`weak_tree_ptr` are gone — the codebase
+  now uses plain `std::shared_ptr`/`std::weak_ptr` (`SharedTreeItem`, `WeakUnit`, … typedefs) plus the
+  `make_shared_tree(p, newly_obj{}|existing_obj{}|no_zombies{})` / `make_weak_tree` / `lock_or_cancel`
+  helpers in `SharedTreePtr.h`. See the "2026-07-02: wrappers REMOVED" section at the very bottom.
+- **Debug unit suite GREEN** (HEAD `cc60a08f`, build 19:32): `batch/TestDebugUnit.bat` → `unit_flagged.bat`
+  ran **61 configs across every section + both python-binding tests, 0 failures, 0 hangs**
+  (`GeoDMSTestResults/unit/vD64.on_02-07-2026_19-32-46.70.txt`). This CLOSES the old open items:
+  FindUnit/weak-values-unit expiry class, `centroid` teardown-order assert (assert removed, `AbstrUnit.cpp:55`),
+  `ComplexNamespaces` namespace-teardown, `DoubleInstantiation`/`GridFromTemplate` AVs, `TemplDefinition`,
+  `select_with_attr_by_org_rel_nested` — all now pass.
+- **All 3 Release `.m` regression teardown hangs FIXED + verified** (see memory `project_206m_regression_hangs`):
+  t611 (15.5s, n_diff=0), t810 (266s), t641_2 storage-write drain (clean, 14/14 indicators match). Report cells `ok`.
+  Fixed by commit `2bbef28c` "fix 3 teardown drain hangs".
+- **Rogue-control-block audit CLEAN**: `grep -nE "std::shared_ptr<(const )?(TreeItem|Abstr\w+|Unit<)[^>]*>\s*\(\s*[a-z_]\w*\s*\)"`
+  (excl. `existing_obj`/`newly_obj`/`no_zombies`) → **0 sites**.
+
+**Remaining = cleanup / hardening (non-blocking) + housekeeping:**
+1. Broader confidence (optional): full `.m`/`.c`/`.l` regression re-baseline on current HEAD (Linux + cmake parity + perf).
+2. Exit-leak residuals: commit `aac99d3c` fixed the Debug exit leaks; memory `project_debug_unit_leaks` says only
+   third-party (gdald/Qt6d detach, pybind11) remain — believed closed, one confirming glance if desired.
+3. DcRef kind-1 `m_Owned` `std::vector` → split into 1a/1b/1c/1d (`TreeItemDualref.h:53`); DcRef #2 (kind-2 owns
+   the producing DC) deferred, not a blocker.
+4. 6 `// TODO ownership:` stopgaps: `Explain.cpp:73/74`, `AbstrStreamManager.cpp:134`, `UsingCache.cpp:412`,
+   `XmlTreeOut.cpp:819/839` — review to resolve or formally accept.
+5. Guardrail is now **convention-only** (the `=delete` raw-ctor compile guard died with the wrappers) — keep the
+   audit grep above (a lint/CI check would be ideal). Next hardening candidate: `TreeItemDualRef::GetNew()/GetOld()/operator->` raw borrows.
+
 ## Goal & invariants
 
 The point of the operation is to **harden ownership**: no dangling raw pointers, no transient
