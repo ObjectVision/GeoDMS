@@ -514,6 +514,31 @@ void MustCoalesceHeap(SizeT size)
 // and de-installed (DumpMemoryLeaks) after all destructions
 
 
+#ifdef MG_CRTLOG
+#include <cstdio>   // std::fputs/std::fflush for the headless report hook
+#include <cstdlib>  // _exit
+extern "C" __declspec(dllimport) int __stdcall IsDebuggerPresent(); // avoid windows.h (must not precede cpc/CompChar.h)
+
+// Headless Debug-run report handling, installed for EVERY exe that loads Rtc (GeoDmsRun, GeoDmsGuiQt,
+// TicTst): a failed assert or abort() would pop a modal Retry/Ignore dialog that silently stalls any
+// automated run (the unit suite's GUI /T tests hung exactly this way). Route the text to stderr and
+// _exit(3) so the driving batch proceeds to the next test with a visible failure. Only when no
+// debugger is attached -- under cdb/VS the normal break-into-debugger behaviour is kept.
+static int DmsHeadlessCrtReportHook(int reportType, char* message, int* returnValue)
+{
+	if (returnValue)
+		*returnValue = 0;
+	if (reportType == _CRT_WARN)
+		return 0; // FALSE: continue default processing (routed to stderr below); warnings don't dialog
+	if (message)
+		std::fputs(message, stderr);
+	std::fflush(stderr);
+	std::fflush(stdout);
+	_exit(3); // 3 == abort-like; ends THIS process so an automated driver proceeds to the next test
+	return 1; // TRUE: unreached
+}
+#endif //  MG_CRTLOG
+
 RtcStreamLock::RtcStreamLock()
 {
 	if (!s_nrRtcStreamLocks++)
@@ -521,6 +546,16 @@ RtcStreamLock::RtcStreamLock()
 		SetMainThreadID();
 #ifdef MG_CRTLOG
 		_CrtSetDbgFlag(_CRTDBG_LEAK_CHECK_DF|_CRTDBG_ALLOC_MEM_DF /*| _CRTDBG_CHECK_CRT_DF*/ );
+		if (!IsDebuggerPresent())
+		{
+			// Route _CRT_WARN reports to stderr for HEADLESS Debug runs: the at-exit heap-leak dump
+			// (_CRTDBG_LEAK_CHECK_DF) and ReportExistingObjects' "Memory Leak of N Objects" arrive as
+			// _CRT_WARN, which by default goes only to the debugger output channel -- a redirected
+			// unit-suite run would never see them. With a debugger attached keep the Output window.
+			_CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
+			_CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDERR);
+			_CrtSetReportHook(DmsHeadlessCrtReportHook);
+		}
 #endif //  MG_CRTLOG
 
 		g_DebugStreamBuff.assign( new DebugOutStreamBuff);

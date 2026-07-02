@@ -39,7 +39,7 @@
 
 namespace AbstrOperGroupRegImpl {
 
-	const UInt32 REG_SIZE = 4000;
+	const UInt32 REG_SIZE = 3000; // sanity band for the nr of registered operator groups; was 4000, lowered after the v20.6 deprecated-operator removals (actual count 2026-07: ~2310)
 
 	typedef std::vector<AbstrOperGroup*> RegType;
 	typedef RegType::const_iterator     const_iterator;

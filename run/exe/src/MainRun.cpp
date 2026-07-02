@@ -48,7 +48,7 @@ static int DmsHeadlessCrtReportHook(int reportType, char* message, int* returnVa
 	if (returnValue)
 		*returnValue = 0;
 	if (reportType == _CRT_WARN)
-		return FALSE; // leave warnings to the default (debug output); they don't dialog
+		return FALSE; // continue default processing (RtcStreamLock routes _CRT_WARN to stderr when headless); warnings don't dialog
 	if (message)
 		std::fputs(message, stderr);
 	std::fflush(stderr);
@@ -341,6 +341,10 @@ void DMS_CONV reportMsg(CharPtr msg)
 
 int main(int argc, char** argv)
 {
+#if defined(_MSC_VER) && defined(_DEBUG)
+	if (auto breakAllocStr = std::getenv("DMS_CRT_BREAK_ALLOC")) // diag aid: break on CRT allocation #N (leak hunting under cdb)
+		_CrtSetBreakAlloc(std::atol(breakAllocStr));
+#endif
 #ifdef _WIN32
 	// Lock the DLL search path before any LoadLibrary call (GDAL drivers,
 	// RunDllProc) so a planted DLL in CWD or PATH cannot hijack the process.
