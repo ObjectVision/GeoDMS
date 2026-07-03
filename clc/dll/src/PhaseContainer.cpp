@@ -80,7 +80,8 @@ struct PhaseContainerOperator : BinaryOperator
 				if (srcItem->GetTSF(TSF_Categorical))
 					resWalker->SetTSF(TSF_Categorical);
 
-				resWalker->m_StatusFlags.SetHasSortedValues(srcItem->GetCurrUltimateItem()->m_StatusFlags.HasSortedValues());
+				if (auto srcUlt = srcItem->GetCurrUltimateItem())
+					resWalker->m_StatusFlags.SetHasSortedValues(srcUlt->m_StatusFlags.HasSortedValues());
 
 				auto srcPhaseNumber = srcItem->GetPhaseNumber();
 				MG_CHECK(srcPhaseNumber < resultPhaseNumber);
@@ -241,27 +242,34 @@ struct PhaseContainerOperator : BinaryOperator
 					resItem->Fail(dc.get_ptr());
 				else
 				{
-					WaitReady(dc->GetUlt());
-					if (dc->WasFailed(FailType::Data))
-						resItem->Fail(dc.get_ptr());
+					// hold the source result and its ultimate item: interest does not block a meta-thread
+					// DoInvalidate->Clear() on the source DC mid-phase, so an unowned GetUlt() raw can go null/dangle
+					auto srcCurr = dc->GetCurr();
+					auto srcUltItem = srcCurr ? srcCurr->GetCurrUltimateItem() : SharedTreeItem();
+					if (!srcUltItem)
+						resItem->Fail(mySSPrintF("PhaseContainer(%d): source result of %s is no longer available", resultPhaseNumber, resItem->GetSourceName()).c_str(), FailType::Data);
 					else
 					{
-						auto srcUltItem = dc->GetUlt();
-						assert(srcUltItem);
-						assert(CheckDataReady(srcUltItem));
-						if (IsDataItem(resItem))
-							AsDataItem(resItem)->m_DataObject = AsDataItem(srcUltItem)->m_DataObject;
+						WaitReady(srcUltItem.get());
+						if (dc->WasFailed(FailType::Data))
+							resItem->Fail(dc.get_ptr());
 						else
 						{
-							assert(IsUnit(srcUltItem));
-							visit<typelists::all_unit_types>(AsUnit(srcUltItem),
-								[&resItem]<typename V>(const Unit<V>*srcUltUnit) { checked_valcast<Unit<V>*>(resItem)->m_RangeDataPtr = srcUltUnit->m_RangeDataPtr; }
-							);
+							assert(CheckDataReady(srcUltItem.get()));
+							if (IsDataItem(resItem))
+								AsDataItem(resItem)->m_DataObject = AsDataItem(srcUltItem.get())->m_DataObject;
+							else
+							{
+								assert(IsUnit(srcUltItem.get()));
+								visit<typelists::all_unit_types>(AsUnit(srcUltItem.get()),
+									[&resItem]<typename V>(const Unit<V>*srcUltUnit) { checked_valcast<Unit<V>*>(resItem)->m_RangeDataPtr = srcUltUnit->m_RangeDataPtr; }
+								);
+							}
+							if (dc->WasFailed())
+								resItem->Fail(dc.get_ptr());
+							if (srcUltItem->WasFailed())
+								resItem->Fail(srcUltItem.get());
 						}
-						if (dc->WasFailed())
-							resItem->Fail(dc.get_ptr());
-						if (srcUltItem->WasFailed())
-							resItem->Fail(srcUltItem);
 					}
 //					resItem->SetIsInstantiated();
 				}

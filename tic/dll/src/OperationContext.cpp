@@ -1714,6 +1714,14 @@ garbage_can OperationContext::separateResources(task_status status)
 	assert(!m_WriteLock || status == task_status::cancelled || status == task_status::exception); // all other routes go through Run_with_cleanup, which alwayws release the writeLock on completion
 	m_WriteLock = ItemWriteLock();
 
+	// release the kept supplier/result holders at the final state (not at ~OperationContext): work has
+	// ended, so nothing may be retained past this point, and the deferred releaseBin keeps last-owner
+	// TreeItem destruction on the controlled release path outside cs_ThreadMessing.
+	releaseBin |= std::move(m_KeptArgInterests);
+	releaseBin |= std::move(m_KeptArgItems);
+	releaseBin |= std::move(m_KeptResultUnits);
+	releaseBin |= std::move(m_KeptArgUnits);
+
 	if (m_FuncDC)
 		releaseBin |= m_FuncDC->resetOperContextImplAndStopSupplInterest();
 
