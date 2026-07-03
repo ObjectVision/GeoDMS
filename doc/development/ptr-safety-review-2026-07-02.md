@@ -36,6 +36,44 @@ inc/dec now hold the weak lock across the count mutation; `GetBackRefStr()` is s
   `TreeItem::GetBackRef()` returns owning `SharedTreeItem` (loop callers hold it);
   `tools/check-ptr-discipline.ps1` = the standing audit (rogue raw-ctor grep FAILs, check-then-lock WARNs).
 
+## VERIFICATION ROUND 2026-07-03 (third commit) — "are all derefs now known valid?"
+
+Four independent read-only verifiers re-audited HEAD (residual `.lock().get()` 42 sites; the ~290-site
+`GetAbstr*Unit()->` population; adversarial review of the two fix commits; `GetOld()`/empty-getter
+residuals ~75 sites). Verdict: every audited class verifies site-by-site or rests on a NAMED, PROVEN
+invariant. The named invariants (documented here as the validity basis):
+1. Same-full-expression pinning: a `.lock()` temporary pins its target to the end of the statement.
+2. Parent-owns-child: a live item implies live ancestors; destruction is top-down on the meta thread.
+3. Kind-1 owning arm: `resultHolder->`/`GetNew()` derefs after `SetNew` cannot expire; `Clear()` empties
+   the kind (so `if (!resultHolder)` re-arms), it never leaves a dangling arm.
+4. Fresh-arm-per-call: `CanResultToConfigItem` operators re-arm from live args each call (verified per
+   operator) or never deref the arm in mustCalc.
+5. OC unit snapshots: `m_KeptResultUnits` AND (new this round) `m_KeptArgUnits` co-own the kind-1
+   kept-alive units of the result and of every ARG DC for the OC's whole run — closing the confirmed
+   meta-thread `DoInvalidate->Clear()` mid-compute window for args (the invalidation path is not
+   consumer-aware: DetermineState->InvalidateAt->DoInvalidate->Clear has no guard against running OCs).
+6. Cancel-on-expiry: worker-side dead weak = `throwTaskCanceled()` / `Fail(...)`, never a silent skip.
+
+Fixes this round (all verifier findings):
+- FuncDC::MakeResult/CallCalcResult now `Fail("result item no longer exists")` before returning empty
+  (callers rely on "null => WasFailed or DidSuspend"; SymbDC already did this).
+- SetReadLocks/connectArgs dead-supplier paths `throwTaskCanceled()` instead of success-shaped
+  empty-return/skip (which would have run the operator without read locks / waiter ordering).
+- `HandleFail(null)` transitions the OC to exception (was: unconditional deref).
+- `TreeItem::DoWriteItem` null-checks the `CalledCalcHandle` result (suspend path).
+- `m_KeptArgUnits` (OperationContext) — the LEG-2 arg-unit snapshot, symmetric to `m_KeptResultUnits`.
+- Guarded the two nullable-`GetUsing()` callers (DedicatedAttrs.cpp, TreeItemProps.cpp); UsingCache
+  OnItemAdded all-usings-expired now overwrites instead of silently dropping the new child.
+- Poly2GridOper vpi-ctor unit fetch via OrThrow; dormant MG_DEBUG_OPERATIONS TOCTOU fixed.
+
+Remaining known-and-accepted (NOT migration debt):
+- C-API (`attr_Interface.cpp`) has no InTemplate guard — a null-deref on API misuse; pre-existing.
+- `GetNew()` kind()-then-`std::get` under a concurrent meta-thread `Clear()` is a (pre-existing-class)
+  data race; the new code fails safer (bad_variant_access into the OC boundary vs a dangling raw).
+- Debug-only asserts that deref momentary locks (compiled out in release).
+
+Verified: Debug all22.sln green; TestDebugUnit result file identical to the green baseline (3rd time).
+
 Severity legend: **HIGH** = reachable null/dangling deref in normal operation; **MEDIUM** = reachable under
 teardown / cancellation / concurrent destruction (exactly the windows the recent drain-hang work exercised);
 **LOW** = assert-only, debug-only, or theoretical.

@@ -519,9 +519,9 @@ namespace poly2grid
 			,	m_PolyAttr(make_weak_tree(polyAttr))
 			,	m_BoxesArrays(boxesArrays)
 			,	m_RasterTileId(tg)
-			,	m_ViewPortInfo(polyAttr, resDomain, tg, AsUnit(polyAttr->GetAbstrValuesUnit()->GetCurrRangeItem()).get(), no_tile, nullptr, false, false, countcolor_t(-1), false)
+			,	m_ViewPortInfo(polyAttr, resDomain, tg, AsUnit(polyAttr->GetValuesUnitOrThrow()->GetCurrRangeItem()).get(), no_tile, nullptr, false, false, countcolor_t(-1), false)
 		{
-			m_SequenceGetter.reset( CreateSequenceGetter(polyAttr->GetAbstrValuesUnit()) );
+			m_SequenceGetter.reset( CreateSequenceGetter(polyAttr->GetValuesUnitOrThrow().get()) );
 		}
 
 

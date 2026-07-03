@@ -3587,6 +3587,11 @@ bool TreeItem::DoWriteItem(StorageMetaInfoPtr&&) const
 			return true;
 		}
 		auto result = CalledCalcHandle(apr.get(), GetDynamicObjClass());
+		if (!result)
+		{
+			dms_assert(SuspendTrigger::DidSuspend() || WasFailed());
+			return false;
+		}
 		if (result->IsFailed())
 		{
 			Fail(result.get_ptr());

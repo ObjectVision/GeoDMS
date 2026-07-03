@@ -1441,6 +1441,8 @@ task_status OperationContext::Schedule(TreeItem* item, const FutureSuppliers& al
 		{
 			if (!fut)
 				continue;
+			auto argUnits = fut->GetOwnedSnapshot(); // co-own each arg's kind-1 root + kept-alive units (see m_KeptArgUnits)
+			m_KeptArgUnits.insert(m_KeptArgUnits.end(), std::make_move_iterator(argUnits.begin()), std::make_move_iterator(argUnits.end()));
 			auto supplierItem = fut->GetCurr();
 			if (supplierItem)
 				if (auto supplierRangeItem = supplierItem->GetCurrRangeItem())
@@ -1749,7 +1751,10 @@ bool OperationContext::HandleFail(const TreeItem* item)
 	if (transientStatus >= task_status::cancelled)
 		return false;
 
-	if (!item->WasFailed(FailType::Data)) // this precheck filters out most calls without needing a lock on cs_ThreadMessing
+	// null item = mid-destruction result/range item: the operation cannot proceed; fall through to the
+	// exception transition below (a bare 'return true' would leave the status unchanged and the caller's
+	// empty return would look like success).
+	if (item && !item->WasFailed(FailType::Data)) // this precheck filters out most calls without needing a lock on cs_ThreadMessing
 		return false;
 
 	RequestMainThreadOperProcessingBlocker letTheNotificationsComeAfter;
@@ -1764,7 +1769,10 @@ bool OperationContext::HandleFail(const TreeItem* item)
 	if (recheckedStatus >= task_status::cancelled) // ignore this Fail if Context is already canceled or done.
 		return false; 
 
-	m_Result->Fail(item);
+	if (item)
+		m_Result->Fail(item);
+	else
+		m_Result->Fail(SharedStr("supplier or result item no longer exists"), FailType::Data);
 	assert(m_Result->WasFailed(FailType::Data));
 	separatedResources = separateResources(task_status::exception);
 	assert(!m_ResKeeper);
@@ -1816,7 +1824,7 @@ std::vector<ItemReadLock> OperationContext::SetReadLocks(const FutureSuppliers& 
 		auto supplierCurr = futureSupplier->GetCurr(); // can be reference to default unit
 		assert(supplierCurr);
 		if (!supplierCurr)
-			return {}; // supplier's result died between scheduling and execution
+			throwTaskCanceled(); // supplier's result died between scheduling and execution; an empty return would look like success and run the operator without read locks
 		auto supplierRangeItem = supplierCurr->GetCurrRangeItem();
 		if (HandleFail(supplierRangeItem.get()))
 			return{};
@@ -1849,10 +1857,10 @@ bool OperationContext::connectArgs(const FutureSuppliers& allArgInterests)
 		{
 			auto supplierCurr = supplierInterest->GetCurr();
 			if (!supplierCurr)
-				continue;
+				throwTaskCanceled(); // dead supplier: skipping would drop the waiter ordering and let this OC run before/without it
 			auto supplierRangeItem = supplierCurr->GetCurrRangeItem();
 			if (!supplierRangeItem)
-				continue;
+				throwTaskCanceled();
 			supplOperationContext = GetOperationContext(supplierRangeItem.get());
 		}
 
@@ -1901,11 +1909,12 @@ struct OC_CalcResultFunc {
 		auto funcDC = self->GetFuncDC();
 
 #if defined(MG_DEBUG_OPERATIONS)
-		if (self->m_Result && !self->m_Result->m_BackRef.expired() && !self->m_Result->m_BackRef.lock()->IsCacheItem() && IsDataItem(self->m_Result.get()) && AsDataItem(self->m_Result.get())->GetAbstrDomainUnit()->GetNrTiles() > 1)
-			reportF(ST_MinorTrace, "Starting calculation of %s with KeyExpr %s"
-				, self->m_Result->m_BackRef.lock()->GetFullName().c_str()
-				, funcDC ? AsFLispSharedStr(funcDC->GetLispRef(), FormattingFlags::ThousandSeparator).c_str() : "(null)"
-			);
+		if (self->m_Result)
+			if (auto backRef = self->m_Result->m_BackRef.lock(); backRef && !backRef->IsCacheItem() && IsDataItem(self->m_Result.get()) && AsDataItem(self->m_Result.get())->GetDomainUnitOrThrow()->GetNrTiles() > 1)
+				reportF(ST_MinorTrace, "Starting calculation of %s with KeyExpr %s"
+					, backRef->GetFullName().c_str()
+					, funcDC ? AsFLispSharedStr(funcDC->GetLispRef(), FormattingFlags::ThousandSeparator).c_str() : "(null)"
+				);
 #endif //defined(MG_DEBUG_OPERATIONS)
 
 		if (!funcDC)

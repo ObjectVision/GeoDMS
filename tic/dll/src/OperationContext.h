@@ -331,6 +331,11 @@ public:
 	// the calculation frees the kept-alive units while a worker still reaches them through weak
 	// m_DomainUnit/m_ValuesUnit members (which then lock null).
 	std::vector<std::shared_ptr<const TreeItem>> m_KeptResultUnits;
+
+	// Same window for the ARG DCs: m_KeptArgInterests owns the DC objects (and their interest) but a
+	// meta-thread DoInvalidate->Clear() on an arg DC still drops its kind-1 kept-alive units mid-compute
+	// (nothing on the invalidation path is consumer-aware). Snapshot each arg's owned refs too.
+	std::vector<std::shared_ptr<const TreeItem>> m_KeptArgUnits;
 };
 
 // GetNextPhaseNumber

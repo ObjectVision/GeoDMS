@@ -85,7 +85,8 @@ void VisitAllVisibleSubItems(const TreeItem* context, Func f, TreeItemSetType& d
 				assert(!context->GetTreeParent() || context->GetTreeParent().get() == uc->GetUsing(0));
 				break;
 			}
-			VisitAllVisibleSubItems<Func>(uc->GetUsing(i), f, doneItems);
+			if (const TreeItem* usingItem = uc->GetUsing(i)) // null for an expired using entry
+				VisitAllVisibleSubItems<Func>(usingItem, f, doneItems);
 		}
 	}
 	auto parent = context->GetTreeParent();

@@ -327,7 +327,10 @@ SharedTreeItem FuncDC::MakeResult() const // produce signature
 	assert(m_Data);
 	auto curr = GetCurr(); // owning snapshot; null if a weak arm (config item) expired
 	if (!curr)
+	{
+		Fail(SharedStr("result item no longer exists"), FailType::MetaInfo); // callers rely on: null result => WasFailed or DidSuspend
 		return {};
+	}
 	assert(!IsNew() || curr->IsCacheRoot());
 
 	if (curr->WasFailed(FailType::MetaInfo))
@@ -397,7 +400,10 @@ auto FuncDC::CallCalcResult(std::shared_ptr<Explain::Context> context) const -> 
 	}
 	auto curr = GetCurr(); // owning snapshot; null if a weak arm (config item) expired
 	if (!curr)
+	{
+		Fail(SharedStr("result item no longer exists"), FailType::MetaInfo); // callers rely on: null result => WasFailed or DidSuspend
 		return {};
+	}
 	curr->UpdateMetaInfo();
 
 	if (curr->WasFailed(FailType::Data))
