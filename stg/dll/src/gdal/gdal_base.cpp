@@ -1468,6 +1468,12 @@ bool DriverSupportsUpdate(std::string_view dataset_file_name, const CPLStringLis
 	if (std::strcmp(driver_short_name, "MVT")==0)
 		return false;
 
+	// GML cannot be opened for update: Gdal_DoOpenStorage recreates a GML dataset on
+	// every write-open, so incremental per-field writes would each start from an empty
+	// file and only the last written field would survive.
+	if (std::strcmp(driver_short_name, "GML") == 0)
+		return false;
+
 	return true;
 }
 
