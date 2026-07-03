@@ -526,9 +526,10 @@ void UsingCache::OnItemAdded(const TreeItem* child)
 				while (n-- && !foundItem)
 					if (auto u = m_Usings[n].lock()) // never assume a weak using entry is still alive
 						foundItem = u->GetUsingCache()->FindItem(child->GetID());
-				assert(foundItem && (foundItem.get() == cachedItem.get() || foundItem.get() == child));
-				if (foundItem.get() != child)
+				assert(!foundItem || foundItem.get() == cachedItem.get() || foundItem.get() == child);
+				if (foundItem && foundItem.get() != child)
 					return; // best rights for existing *ip
+				// null foundItem (all usings expired): child is the only live candidate -> overwrite
 			}
 		}
 		*ip = make_weak(child); // overwrite

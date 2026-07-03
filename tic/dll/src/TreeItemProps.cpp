@@ -657,8 +657,8 @@ namespace { // local defs
 			UInt32 i = 0;
 			while (i!=n)
 			{
-				const TreeItem* ns = item->GetNamespaceUsage(i++);
-				if (!ns->DoesContain(item))
+				const TreeItem* ns = item->GetNamespaceUsage(i++); // null for an expired using entry
+				if (ns && !ns->DoesContain(item))
 				{
 					if (result.ssize() > 0)
 						result += ';';
