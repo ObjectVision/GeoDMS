@@ -1114,7 +1114,7 @@ static TokenID contentsID = GetTokenID_st("Contents");
 static TokenID fileNameID = GetTokenID_st("FileName");
 static TokenID fileTypeID = GetTokenID_st("FileType");
 
-void ExportMetaInfoToFileImpl(const TreeItem* curr)
+void ExportMetaInfoToFileImpl(const TreeItem* curr, CharPtr datasetName)
 {
 	FencedInterestRetainContext holdCalcResultsHere("ExportMetaInfoToFile");
 
@@ -1139,6 +1139,21 @@ void ExportMetaInfoToFileImpl(const TreeItem* curr)
 	if (fileNamePattern.empty())
 		return;
 	SharedStr fileName = AbstrStorageManager::Expand(curr, fileNamePattern);
+
+	// #1124: when the expanded sidecar name collides with the dataset itself (e.g. primary
+	// data exported to <stem>.xml with the conventional FileName = '%storageBaseName%.xml'),
+	// writing both to the same path silently destroys one of them. Divert the sidecar to
+	// <stem>.meta.<ext>; that name is also outside GDAL's <stem>.xml metadata convention (#1140).
+	if (datasetName && *datasetName
+		&& !stricmp(ConvertDosFileName(fileName).c_str(), ConvertDosFileName(SharedStr(datasetName)).c_str()))
+	{
+		auto extension = getFileNameExtension(fileName.c_str());
+		fileName = getFileNameBase(fileName.c_str()) + ".meta." + extension;
+		reportF(MsgCategory::storage_write, SeverityTypeID::ST_Warning,
+			"MetaInfo sidecar name collides with the exported dataset %s; the sidecar is written to %s instead",
+			datasetName, fileName.c_str());
+	}
+
 	if (isXml)
 	{
 		XmlPropWriter writer(fileName);
@@ -1153,5 +1168,5 @@ void ExportMetaInfoToFileImpl(const TreeItem* curr)
 
 void AbstrStorageManager::ExportMetaInfo(const TreeItem* storageHolder, const TreeItem* curr)
 {
-	ExportMetaInfoToFileImpl(curr);
+	ExportMetaInfoToFileImpl(curr, GetNameStr().c_str());
 }
