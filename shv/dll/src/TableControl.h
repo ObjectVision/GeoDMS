@@ -123,6 +123,7 @@ public:
 
 	bool  InSelRange(SizeT row, gr_elem_index col) const { return m_Cols.IsInRange(col) && m_Rows.IsInRange(row); }
 	void  Export() const;
+	TreeItem* CreateExportViewDataConfigTable() const;
 	void  TableCopy();
 	void  FocusCopy();
 	void  WholeTableCopy();

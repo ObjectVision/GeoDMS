@@ -1027,10 +1027,17 @@ void MainWindow::reportErrorAndTryReload(ErrMsgPtr error_message_ptr) {
 }
 
 void MainWindow::exportPrimaryData() {
+    openExportPrimaryDataDialog(getCurrentTreeItem());
+}
+
+void MainWindow::openExportPrimaryDataDialog(const TreeItem* exportItem) {
+    if (!exportItem)
+        return;
+
     if (!m_export_window)
         m_export_window = new DmsExportWindow(this);
 
-    m_export_window->prepare();
+    m_export_window->prepare(exportItem);
     m_export_window->show();
 }
 

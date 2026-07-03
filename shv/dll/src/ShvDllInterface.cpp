@@ -134,6 +134,18 @@ void DMS_CONV SHV_DataView_StoreDesktopData(DataView* dv)
 	DMS_CALL_END
 }
 
+auto DMS_CONV SHV_DataView_CreateViewDataConfigTable(DataView* dv) -> TreeItem*
+{
+	DMS_CALL_BEGIN
+
+		assert(dv);
+		if (auto tdv = dynamic_cast<TableDataView*>(dv))
+			return tdv->GetTableControl()->CreateExportViewDataConfigTable();
+
+	DMS_CALL_END
+	return nullptr;
+}
+
 bool DMS_CONV SHV_DataView_CanContain(DataView* dv, const TreeItem* viewCandidate)
 {
 	DMS_CALL_BEGIN

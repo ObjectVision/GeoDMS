@@ -3,6 +3,7 @@
 #include "DmsViewArea.h"
 #include "DmsToolbar.h"
 #include "dbg/DmsCatch.h"
+#include "ShvDllInterface.h"
 
 void clearToolbarUpToDetailPagesTools();
 auto getAvailableTableviewButtonIds() -> std::vector<ToolButtonID>;
@@ -112,7 +113,22 @@ void DmsToolbuttonAction::onToolbuttonPressed() {
             onGlobalButtonPressed(dms_view_area);
 
         if (m_data.ids[0] == ToolButtonID::TB_Export)
+        {
+            // issue #411: the floppy of a table view opens the Export Primary Data dialog on a
+            // Desktops/../ViewData config table that references the thematic attributes of all
+            // DataItemColumns, instead of dumping a csv in a fixed folder.
+            auto dv = dms_view_area->getDataView();
+            if (dv && dv->GetViewType() == tvsTableView)
+            {
+                SuspendTrigger::Resume();
+                if (auto view_data_table = SHV_DataView_CreateViewDataConfigTable(dv.get()))
+                {
+                    MainWindow::TheOne()->openExportPrimaryDataDialog(view_data_table);
+                    return;
+                }
+            }
             onExportButtonPressed(dms_view_area);
+        }
 
         SuspendTrigger::Resume();
         if (auto dv = dms_view_area->getDataView())
@@ -169,7 +185,7 @@ auto getAvailableChartviewButtonIds() -> std::vector<ToolButtonID> {
 
 auto getToolbarButtonData(ToolButtonID button_id) -> ToolbarButtonData {
     switch (button_id) {
-    case TB_Export: return { TB_Export, {"Save to file as semicolon delimited text", "Export the viewport data to bitmaps file(s) using the export settings and the current ROI"}, {TB_Export}, {":/res/images/TB_save.bmp"} };
+    case TB_Export: return { TB_Export, {"Export the table columns with the Export Primary Data dialog", "Export the viewport data to bitmaps file(s) using the export settings and the current ROI"}, {TB_Export}, {":/res/images/TB_save.bmp"} };
     case TB_TableCopy: return { TB_TableCopy, {"Copy as semicolon delimited text to Clipboard",""}, {TB_TableCopy}, {":/res/images/TB_copy.bmp"} };
     case TB_Copy: return { TB_Copy, {"Copy the visible contents as image to Clipboard","Copy the visible contents of the viewport to the Clipboard"}, {TB_Copy}, {":/res/images/TB_vcopy.bmp"} };
     case TB_CopyLC: return { TB_CopyLC, {"","Copy the full contents of the LayerControlList to the Clipboard"}, {TB_CopyLC}, {":/res/images/TB_copy.bmp"} };

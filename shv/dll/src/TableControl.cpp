@@ -1099,6 +1099,44 @@ void TableControl::Export() const
 	TableControl_SaveTo(this, &buff, TableCopyMode::WholeTable);
 }
 
+// issue #411: build a config table under Desktops/Default/ViewData whose attributes
+// reference the thematic attribute of each DataItemColumn of this table. The columns
+// are all related to the row domain but not necessarily sub-items of one container;
+// this constructed container is, so the Export Primary Data machinery can process it.
+TreeItem* TableControl::CreateExportViewDataConfigTable() const
+{
+	auto dv = GetDataView().lock(); if (!dv) return nullptr;
+
+	auto viewDataContainer = GetViewDataContainer(dv->GetDesktopContext());
+	TokenID nameBase = (m_Entity && !m_Entity->IsCacheItem()) ? m_Entity->GetID() : GetTokenID_mt("TableData");
+	auto vdc = viewDataContainer->CreateItem(UniqueName(viewDataContainer, nameBase));
+
+	for (SizeT j = 0, n = NrEntries(); j != n; ++j)
+	{
+		const DataItemColumn* dic = GetConstColumn(j);
+		if (!dic)
+			continue;
+		const AbstrDataItem* adi = dic->GetActiveTextAttr();
+		if (!adi)
+			continue;
+
+		auto activeTheme = dic->GetActiveTheme();
+		TokenID columnName = (activeTheme && activeTheme->GetThemeAttr()) ? activeTheme->GetThemeAttr()->GetID() : adi->GetID();
+		auto vda = CreateDataItem(vdc.get(), UniqueName(vdc.get(), columnName), adi->GetAbstrDomainUnit(), adi->GetAbstrValuesUnit(), adi->GetValueComposition());
+		vda->DisableStorage(true);
+		if (adi->IsCacheItem())
+			vda->SetDC(GetOrCreateDataController(adi->GetCheckedKeyExpr()));
+		else
+			vda->SetExpr(adi->GetFullName());
+		// parse the expr now, from a lock-free context; a lazy parse during the export
+		// dialog's viewstyle checks would take the token-registry lock under the
+		// supplier-visitation lock, tripping the debug lock-level checker.
+		vda->UpdateMetaInfo();
+	}
+	vdc->UpdateMetaInfo();
+	return vdc.get();
+}
+
 void TableControl::SetRowHeight(UInt16 height)
 {
 	SizeT n = NrEntries(); 

@@ -26,6 +26,11 @@ SHV_CALL bool SHV_DataView_CanContain(DataView*, const TreeItem* viewCandidate);
 SHV_CALL bool SHV_DataView_AddItem(DataView*, const TreeItem* viewItem, bool isDropped);
 SHV_CALL void SHV_DataView_Destroy(DataView*);
 
+// issue #411: for a table view, create a config table under Desktops/Default/ViewData
+// that references the thematic attributes of all its DataItemColumns, to be used as
+// subject of the Export Primary Data dialog. Returns nullptr for other view types.
+SHV_CALL auto SHV_DataView_CreateViewDataConfigTable(DataView*) -> TreeItem*;
+
 #ifdef _WIN32
 SHV_CALL MsgResult SHV_DataView_DispatchMessage(DataView*, HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 #endif

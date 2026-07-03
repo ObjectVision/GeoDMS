@@ -188,6 +188,7 @@ public slots:
     void openConfigSource();
     void openConfigRootSource();
     void exportPrimaryData();
+    void openExportPrimaryDataDialog(const TreeItem* exportItem);
     void saveValueInfo();
 
     void gui_options();

@@ -79,22 +79,29 @@ protected:
 private:
     auto createFinalFileNameText() -> QString;
     void repopulateDriverSelection();
+
+    DmsExportWindow* m_export_window = nullptr;
 };
 
 class DmsExportWindow : public QDialog
 {
     Q_OBJECT
 public:
-    void prepare();
+    void prepare(const TreeItem* exportItem);
     DmsExportWindow(QWidget* parent = nullptr);
+
+    // the subject of the export: the current tree item or a constructed
+    // Desktops/../ViewData config table of a table view (issue #411)
+    const TreeItem* exportItem() const { return m_export_item; }
 
 public slots:
     void exportActiveTabInfoOrCloseAfterExport();
     void resetExportDialog();
 
 private:
-    void exportImpl();
+    bool exportImpl(); // true: data was exported; false: reported failure in an error box (#872)
 
+    const TreeItem*       m_export_item = nullptr;
     int m_vector_tab_index;
     int m_raster_tab_index;
     QPointer<QTabWidget>  m_tabs;

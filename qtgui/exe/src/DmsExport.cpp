@@ -23,10 +23,12 @@
 
 #include "ItemUpdate.h"
 #include "dbg/DmsCatch.h"
+#include "ptr/InterestHolders.h"
 
 #include "mci/ValueClass.h"
 
 #include <QCheckBox>
+#include <QMessageBox>
 #include <QPushButton>
 #include <QSlider>
 #include <QLabel>
@@ -110,32 +112,28 @@ bool CurrentItemCanBeExportedAsTableOrDatabase(const TreeItem* item)
     return CurrentItemCanBeExportedAsDatabase(item);
 }
 
-bool isCurrentItemGeometry()
+bool isGeometryItem(const TreeItem* item)
 {
-    auto current_item = MainWindow::TheOne()->getCurrentTreeItem();
-    if (!IsDataItem(current_item))
+    if (!IsDataItem(item))
         return false;
-    auto adi = AsDataItem(current_item);
+    auto adi = AsDataItem(item);
     auto vc = adi->GetValueComposition();
     auto vci = adi->GetAbstrValuesUnit()->GetValueType()->GetValueClassID();
     return vc <= ValueComposition::Sequence && (vci >= ValueClassID::VT_SPoint && vci < ValueClassID::VT_FirstAfterPolygon);
 }
 
-bool isCurrentItemMappable()
+bool isItemMappable(const TreeItem* item)
 {
-    auto current_item = MainWindow::TheOne()->getCurrentTreeItem();
-    auto vsflags = SHV_GetViewStyleFlags(current_item);
+    auto vsflags = SHV_GetViewStyleFlags(item);
     return vsflags & ViewStyleFlags::vsfMapView;
 }
 
-bool isCurrentItemOrItsSubItemsMappable()
+bool isItemOrItsSubItemsMappable(const TreeItem* item)
 {
-    auto current_item = MainWindow::TheOne()->getCurrentTreeItem();
-    auto current_item_is_mappable = isCurrentItemMappable();
-    if (current_item_is_mappable)
-        return current_item_is_mappable;
+    if (isItemMappable(item))
+        return true;
 
-    auto next_sub_item = current_item->GetFirstSubItem();
+    auto next_sub_item = item->GetFirstSubItem();
     while (next_sub_item)
     {
         ViewStyleFlags vsflags = SHV_GetViewStyleFlags(next_sub_item); //TODO: may throw
@@ -199,7 +197,7 @@ void DoExportTable(const TreeItem* ti, SharedStr fn, TreeItem* vdc)
 
     const AbstrDataItem* adiGeometry = nullptr;
     // find geometry, if any.
-    if (isCurrentItemGeometry())
+    if (isGeometryItem(ti))
         adiGeometry = AsDataItem(ti);
 
     if (!adiGeometry && RefersToMappable(auCommon)) {
@@ -474,6 +472,7 @@ auto getAvailableDrivers() -> std::vector<gdal_driver_id>
     available_drivers.emplace_back("ESRI Shapefile", "ESRI Shapefile", "shp", std::vector<CharPtr>{".shp", ".shx", ".dbf", ".prj"}, driver_characteristics::disable_with_no_geometry | driver_characteristics::tableset_is_folder);
     available_drivers.emplace_back("GPKG", "GeoPackage vector (*.gpkg)", nullptr, std::vector<CharPtr>{".gpkg"}, driver_characteristics::disable_with_no_geometry);
     available_drivers.emplace_back("GML", "Geography Markup Language (*.GML)", nullptr, std::vector<CharPtr>{".gml"}, driver_characteristics::disable_with_no_geometry);
+    available_drivers.emplace_back("GML", "XML (*.xml)", nullptr, std::vector<CharPtr>{".xml", ".xsd"}, driver_characteristics::none);
     available_drivers.emplace_back("GeoJSON", "GeoJSON", nullptr, std::vector<CharPtr>{".json"}, driver_characteristics::disable_with_no_geometry);
     available_drivers.emplace_back("ESRI Shapefile", "DBF", "DBF", std::vector<CharPtr>{".dbf" }, driver_characteristics::tableset_is_folder | driver_characteristics::disable_with_geometry);
     available_drivers.emplace_back("GTiff", "GeoTIFF File Format", "tif", std::vector<CharPtr>{".tif", ".tfw"}, driver_characteristics::is_raster | driver_characteristics::tableset_is_folder);
@@ -491,7 +490,7 @@ void ExportTab::setNativeDriverCheckbox()
     m_native_driver_checkbox->setChecked(driver_has_native_version);
     // #1141: GDAL cannot write sub-byte raster types (Bool/UInt2/UInt4); force the native driver.
     bool require_native = m_is_raster && driver_has_native_version
-        && rasterItemRequiresNativeDriver(MainWindow::TheOne()->getCurrentTreeItem());
+        && rasterItemRequiresNativeDriver(m_export_window->exportItem());
     m_native_driver_checkbox->setEnabled(driver_has_native_version && !require_native);
 }
 
@@ -554,6 +553,7 @@ ExportTab::ExportTab(bool is_raster, DmsExportWindow* exportWindow)
 	: QWidget(nullptr)
 {
 	m_is_raster = is_raster;
+	m_export_window = exportWindow;
 
     // tab form
     auto grid_layout_box = new QGridLayout(this);
@@ -618,7 +618,7 @@ ExportTab::ExportTab(bool is_raster, DmsExportWindow* exportWindow)
 
 #include <QStandardItemModel>
 
-auto convertFullNameToFoldernameExtension(TreeItem* current_item) -> QString
+auto convertFullNameToFoldernameExtension(const TreeItem* current_item) -> QString
 {
     auto parent_item = current_item->GetParent();
     return QString(parent_item->GetFullName().c_str());
@@ -627,12 +627,14 @@ auto convertFullNameToFoldernameExtension(TreeItem* current_item) -> QString
 void ExportTab::showEvent(QShowEvent* event)
 {
     // Qt calls this when the tab becomes visible; the TreeItem queries below
-    // (GetFullFolderNameBase, GetName, isCurrentItemOrItsSubItemsMappable) can throw.
+    // (GetFullFolderNameBase, GetName, isItemOrItsSubItemsMappable) can throw.
     try {
         const auto& currDriver = m_available_drivers.at(m_driver_selection->currentIndex());
         auto driver_has_native_version = currDriver.HasNativeVersion();
 
-        auto current_item = MainWindow::TheOne()->getCurrentTreeItem();
+        auto current_item = m_export_window->exportItem();
+        if (!current_item)
+            return;
         bool require_native = m_is_raster && driver_has_native_version && rasterItemRequiresNativeDriver(current_item); // #1141
 
         m_native_driver_checkbox->setEnabled(driver_has_native_version);
@@ -658,7 +660,7 @@ void ExportTab::showEvent(QShowEvent* event)
             return;
 
     //    auto vsflags = SHV_GetViewStyleFlags(current_item);
-        auto is_mappable = isCurrentItemOrItsSubItemsMappable();
+        auto is_mappable = isItemOrItsSubItemsMappable(current_item);
 
         if (!m_is_raster && is_mappable)
             m_driver_selection->setCurrentIndex(1); // ESRI Shapefile
@@ -669,9 +671,9 @@ void ExportTab::showEvent(QShowEvent* event)
         {
             auto* item = model->item(i);
             const auto& otherDriver = m_available_drivers.at(i);
-            if (!isCurrentItemOrItsSubItemsMappable() && (otherDriver.m_driver_characteristics & driver_characteristics::disable_with_no_geometry))
+            if (!is_mappable && (otherDriver.m_driver_characteristics & driver_characteristics::disable_with_no_geometry))
                 item->setEnabled(false);
-            else if (isCurrentItemOrItsSubItemsMappable() && (otherDriver.m_driver_characteristics & driver_characteristics::disable_with_geometry))
+            else if (is_mappable && (otherDriver.m_driver_characteristics & driver_characteristics::disable_with_geometry))
                 item->setEnabled(false);
             else
                 item->setEnabled(true);
@@ -682,12 +684,13 @@ void ExportTab::showEvent(QShowEvent* event)
     }
 }
 
-void DmsExportWindow::prepare()
+void DmsExportWindow::prepare(const TreeItem* exportItem)
 {
     try {
         SuspendTrigger::Resume();
 
-        auto current_item = MainWindow::TheOne()->getCurrentTreeItem();
+        m_export_item = exportItem;
+        auto current_item = m_export_item;
         setWindowTitle(QString("Export ") + current_item->GetFullName().c_str());
 
         bool can_be_exported_to_vector = currentItemCanBeExportedToVector(current_item);
@@ -712,9 +715,17 @@ void DmsExportWindow::resetExportDialog()
     m_export_ready = false;
 }
 
-void DmsExportWindow::exportImpl()
+// #872: bring export failures to the user's attention immediately, instead of leaving
+// them waiting for an export that already failed with only an event-log trace.
+static void reportExportError(QWidget* parent, CharPtr why)
 {
-    auto current_export_item = MainWindow::TheOne()->getCurrentTreeItem();
+    reportF(SeverityTypeID::ST_Error, "%s", why);
+    QMessageBox::critical(parent, QObject::tr("Export failed"), QString::fromUtf8(why));
+}
+
+bool DmsExportWindow::exportImpl()
+{
+    auto current_export_item = m_export_item;
     ObjectMsgGenerator thisMsgGenerator(current_export_item, "Export");
     Waiter logWaitingtime(&thisMsgGenerator);
 
@@ -732,7 +743,7 @@ void DmsExportWindow::exportImpl()
         if (!stricmp(storageTypeName, "CSV"))
         {
             DoExportTableorDatabaseToCSV(current_export_item, filename);
-            return;
+            return true;
         }
     }
     else
@@ -750,22 +761,41 @@ void DmsExportWindow::exportImpl()
     else
         exportConfig = DoExportTableOrDatabase(current_export_item, use_native_driver, filename, storageTypeName, driverName, "");
 
-    if (exportConfig)
+    if (!exportConfig)
     {
-        SuspendTrigger::Resume();
-        if (auto failedItem = Tree_Update_Or_Return_Failer(exportConfig, "Export"))
-        {
-            MG_CHECK(!SuspendTrigger::DidSuspend());
-            auto errMsgPtr = failedItem->GetFailReason();
-            if (errMsgPtr)
-            {
-                reportF(SeverityTypeID::ST_Error, errMsgPtr->m_Why.c_str());
-                m_export_button->setText("Error (see tooltip)");
-                m_export_button->setStatusTip(errMsgPtr->m_Why.c_str());
-            }
-        }
-        return;
+        auto msg = mySSPrintF("no exportable data found in %s for driver %s"
+            , current_export_item->GetFullName().c_str()
+            , driver.Caption());
+        reportExportError(this, msg.c_str());
+        return false;
     }
+
+    SuspendTrigger::Resume();
+
+    // Hold interest in all storable data items of the export config during the whole
+    // update: Tree_Update_Or_Return_Failer updates and commits the items one by one,
+    // and gdalwrite.vect only writes a layer once all fields-of-interest have their
+    // data. Without this collective interest each field is written in a separate
+    // session, which loses the previous fields for recreate-only drivers (GML/XML).
+    std::vector<SharedTreeItemInterestPtr> exportInterests;
+    for (auto si = exportConfig->WalkConstSubTree(nullptr); si; si = exportConfig->WalkConstSubTree(si))
+        if (IsDataItem(si) && si->IsStorable())
+        {
+            si->UpdateMetaInfo();
+            exportInterests.emplace_back(si);
+        }
+
+    auto failedItem = Tree_Update_Or_Return_Failer(exportConfig, "Export");
+    if (!failedItem)
+        return true;
+
+    MG_CHECK(!SuspendTrigger::DidSuspend());
+    auto errMsgPtr = failedItem->GetFailReason();
+    auto msg = errMsgPtr
+        ? errMsgPtr->m_Why
+        : mySSPrintF("export of %s failed without a fail reason", failedItem->GetFullName().c_str());
+    reportExportError(this, msg.c_str());
+    return false;
 }
 
 void DmsExportWindow::exportActiveTabInfoOrCloseAfterExport()
@@ -789,16 +819,20 @@ void DmsExportWindow::exportActiveTabInfoOrCloseAfterExport()
     }
 
     try {
-        exportImpl();
-        m_export_button->setText("Export ready, close dialog");
-        m_export_button->setStatusTip("");
-        m_export_ready = true;
+        if (exportImpl())
+        {
+            m_export_button->setText("Export ready, close dialog");
+            m_export_button->setStatusTip("");
+            m_export_ready = true;
+        }
+        else // failure was already shown in an error box (#872); allow a retry with adjusted settings
+            resetExportDialog();
     }
     catch (...)
     {
         auto errMsgPtr = catchAndReportException();
-        m_export_button->setText(errMsgPtr->m_Why.c_str());
-        m_export_button->setStatusTip(errMsgPtr->m_Why.c_str());
+        QMessageBox::critical(this, tr("Export failed"), QString::fromUtf8(errMsgPtr->m_Why.c_str()));
+        resetExportDialog();
     }
 }
 
