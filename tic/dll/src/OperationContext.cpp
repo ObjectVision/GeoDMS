@@ -548,7 +548,7 @@ void OperatorContextHandle::GenerateDescription()
 	UInt32 c = 0;
 	auto operID= m_FuncDC->m_OperatorGroup->GetNameID();
 
-	SharedStr msg = mySSPrintF("while operator %s is %s\n",
+	SharedStr msg = mySSPrintF("while operator {} is {}\n",
 		GetTokenStr(operID).c_str(),
 		(m_MustCalc
 			? "calculating data"
@@ -558,7 +558,7 @@ void OperatorContextHandle::GenerateDescription()
 	{
 		auto arg = argi->m_DC->GetOld();
 		msg += mySSPrintF(
-			"arg%u: %s of type %s\n",
+			"arg{}: {} of type {}\n",
 			++c,
 			arg ? arg->GetName().c_str() : "<nullptr>",
 			arg ? arg->GetClsName().c_str() : "<nullptr>"
@@ -677,7 +677,7 @@ void CheckNumberOfRunningOCConsistency()
 void reportOC(CharPtr source, OperationContext* ocPtr)
 {
 	auto item = ocPtr->GetResult();
-	reportF_without_cancellation_check(MsgCategory::other, SeverityTypeID::ST_MajorTrace, "OperationContext %s %d: %s"
+	reportF_without_cancellation_check(MsgCategory::other, SeverityTypeID::ST_MajorTrace, "OperationContext {} {}: {}"
 		, source
 		, int(ocPtr->GetStatus())
 		, item ? item->GetFullName().c_str() : ""
@@ -814,14 +814,14 @@ std::string AsText(OperationContext* ptr)
 	assert(ptr);
 
 	auto funcDC = ptr->GetFuncDC();
-	return mgFormat2string("status=%x %s", (int)ptr->getStatus(), funcDC ? funcDC->md_sKeyExpr.c_str(): "(leeg)");
+	return mgFormat2string("status={:x} {}", (int)ptr->getStatus(), funcDC ? funcDC->md_sKeyExpr.c_str(): "(leeg)");
 }
 
 template <typename T>
 std::string AsText(std::shared_ptr<T> xPtr)
 {
 	auto uc = xPtr.use_count();
-	return mgFormat2string("share_ptr %x %x %s", xPtr.get(), uc, AsText(xPtr.get()));
+	return mgFormat2string("share_ptr {} {:x} {}", xPtr.get(), uc, AsText(xPtr.get()));
 }
 
 template <typename T>
@@ -831,7 +831,7 @@ std::string AsText(std::weak_ptr<T> xPtr)
 	if (xShr)
 		return AsText(xShr);
 	auto uc = xPtr.use_count();
-	return mgFormat2string("expired weakPtr with uc=%s", uc);
+	return mgFormat2string("expired weakPtr with uc={}", uc);
 }
 
 #endif
@@ -840,8 +840,8 @@ std::string AsText(std::weak_ptr<T> xPtr)
 void connect(OperationContext* waiter, OperationContextSPtr supplier)
 {
 	DBG_START("OperationContextPtr", "connect", MG_DEBUGCONNECTIONS);
-	DBG_TRACE(("waiter   = %s", AsText(waiter)));
-	DBG_TRACE(("supplier = %s", AsText(supplier)));
+	DBG_TRACE(("waiter   = {}", AsText(waiter)));
+	DBG_TRACE(("supplier = {}", AsText(supplier)));
 
 	assert(!cs_ThreadMessing.try_lock());
 	if (isSupplier(waiter, supplier))
@@ -964,7 +964,7 @@ garbage_can OperationContext::disconnect_supplier(OperationContext* supplier)
 garbage_can OperationContext::disconnect_waiters()
 {
 	DBG_START("OperationContextPtr", "disconnect_waiters", MG_DEBUGCONNECTIONS);
-	DBG_TRACE(("this = %s", AsText(this)))
+	DBG_TRACE(("this = {}", AsText(this)))
 
 	assert(cs_ThreadMessing.isLocked());
 
@@ -1263,7 +1263,7 @@ void OperationContext::releaseStorageLockIfHeld() noexcept
 OperationContext::~OperationContext()
 {
 	DBG_START("OperationContext", "DTor", MG_DEBUG_FUNCCONTEXT);
-	DBG_TRACE(("FuncDC: %s", m_FuncDC ? m_FuncDC->md_sKeyExpr.c_str() : "(leeg)"));
+	DBG_TRACE(("FuncDC: {}", m_FuncDC ? m_FuncDC->md_sKeyExpr.c_str() : "(leeg)"));
 
 	assert(!m_FuncDC || !m_FuncDC->m_OperContext);
 
@@ -1850,7 +1850,7 @@ bool OperationContext::connectArgs(const FutureSuppliers& allArgInterests)
 	assert(cs_ThreadMessing.isLocked());
 
 	DBG_START("OperationContext", "connectArgs", MG_DEBUG_FUNCCONTEXT);
-	DBG_TRACE(("FuncDC: %s", m_FuncDC ? m_FuncDC->md_sKeyExpr : SharedStr()));
+	DBG_TRACE(("FuncDC: {}", m_FuncDC ? m_FuncDC->md_sKeyExpr : SharedStr()));
 
 	bool connected = false;
 	for (const auto& supplierInterest: allArgInterests)
@@ -1919,7 +1919,7 @@ struct OC_CalcResultFunc {
 #if defined(MG_DEBUG_OPERATIONS)
 		if (self->m_Result)
 			if (auto backRef = self->m_Result->m_BackRef.lock(); backRef && !backRef->IsCacheItem() && IsDataItem(self->m_Result.get()) && AsDataItem(self->m_Result.get())->GetDomainUnitOrThrow()->GetNrTiles() > 1)
-				reportF(ST_MinorTrace, "Starting calculation of %s with KeyExpr %s"
+				reportF(ST_MinorTrace, "Starting calculation of {} with KeyExpr {}"
 					, backRef->GetFullName().c_str()
 					, funcDC ? AsFLispSharedStr(funcDC->GetLispRef(), FormattingFlags::ThousandSeparator).c_str() : "(null)"
 				);
@@ -1992,7 +1992,7 @@ bool OperationContext::ScheduleCalcResult(ArgRefs&& argRefs, explain_context_ptr
 	assert(!SuspendTrigger::DidSuspend());
 
 	DBG_START("OperationContext", "ScheduleCalcResult", MG_DEBUG_FUNCCONTEXT);
-	DBG_TRACE(("FuncDC: %s", funcDC->md_sKeyExpr));
+	DBG_TRACE(("FuncDC: {}", funcDC->md_sKeyExpr));
 
 
 	OperatorContextHandle operContext(true, funcDC.get());
@@ -2395,13 +2395,13 @@ task_status OperationContext::Join()
 
 	if (CurrActiveTaskHasRunCount())
 	{
-		reportF(MsgCategory::other, SeverityTypeID::ST_MinorTrace, "OperationContext(%s)::Join called from Active Context %s"
+		reportF(MsgCategory::other, SeverityTypeID::ST_MinorTrace, "OperationContext({})::Join called from Active Context {}"
 			, GetResult()->GetFullName()
 			, CancelableFrame::CurrActive()->GetResult()->GetFullName()
 		);
 	}
 	if (IsMetaThread() && s_CurrBlockedPhaseNumber && s_CurrBlockedPhaseNumber <= m_PhaseNumber)
-		throwErrorF("PhaseContainer", "Invalid Recursion, OperationContext(%s)::Join called from updating %s for %s"
+		throwErrorF("PhaseContainer", "Invalid Recursion, OperationContext({})::Join called from updating {} for {}"
 		,	GetResult()->GetFullName()
 		,	s_CurrBlockedPhaseItem->GetFullName()
 		,	s_CurrPhaseContainer->GetFullName()
@@ -2494,7 +2494,7 @@ task_status OperationContext::Join()
 					break;
 
 				if (recursionCount++ > sd_OcCount)
-					throwErrorF("OperationContext", "Invalid Recursion detected on OperationContext(%s)::Join"
+					throwErrorF("OperationContext", "Invalid Recursion detected on OperationContext({})::Join"
 						, GetResult()->GetFullName()
 					);
 
@@ -2688,9 +2688,9 @@ void OperationContext::RunOperator(ArgRefs argRefs, std::vector<ItemReadLock> re
 			resultHolder.CatchFail(FailType::Data); // Now done by TreeItemDualRef::DoFail
 			auto errPtr = resultHolder.GetFailReason();
 			if (m_FuncDC)
-				errPtr->TellExtraF("in function %s", GetOperGroup()->GetName());
+				errPtr->TellExtraF("in function {}", GetOperGroup()->GetName());
 			if (resultHolder.HasBackRef())
-				errPtr->TellExtraF("while calculating %s", resultHolder.GetBackRefStr());
+				errPtr->TellExtraF("while calculating {}", resultHolder.GetBackRefStr());
 			HandleFail(resultHolder.GetOld()); // raw borrow of the current result item (implicit DualRef->TreeItem* conversion was removed)
 		}
 		assert(!resultHolder.IsNew() || resultHolder->m_LastChangeTS == resultHolder.m_LastChangeTS); // further changes in the resulting data must have caused resultHolder to invalidate, as IsNew results are passive

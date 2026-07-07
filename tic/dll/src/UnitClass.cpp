@@ -84,7 +84,7 @@ auto UnitClass::CreateUnit(TreeItem* context, TokenID id) const -> SharedMutable
 {
 	if (ValueClass::FindByScriptName(id) )
 	{
-		throwErrorF("UnitClass", "Cannot create a %s with the name '%s', since this name indicates a basic type"
+		throwErrorF("UnitClass", "Cannot create a {} with the name '{}', since this name indicates a basic type"
 		,	GetName().c_str()
 		,	GetTokenStr(id).c_str()
 		);
@@ -96,7 +96,7 @@ auto UnitClass::CreateUnitFromPath(TreeItem* context, CharPtr path) const ->  Sh
 {
 	if (ValueClass::FindByScriptName(TokenID::GetExisting(path)))
 	{
-		throwErrorF("UnitClass", "Cannot create a %s with the name '%s', since this name indicates a basic type"
+		throwErrorF("UnitClass", "Cannot create a {} with the name '{}', since this name indicates a basic type"
 			, GetName().c_str()
 			, path
 		);
@@ -162,7 +162,7 @@ const AbstrUnit* UnitClass::GetUnitOrDefault(const TreeItem* context, TokenID id
 		if (IsAcceptableValuesComposition(vc->m_ValueComposition) && vcPtr)
 		{
 			if (*vcPtr != ValueComposition::Single)
-				throwDmsErrF("cannot combine ValueClass %s and composition specifier %s", vc->GetName(), GetValueCompositionID(*vcPtr));
+				throwDmsErrF("cannot combine ValueClass {} and composition specifier {}", vc->GetName(), GetValueCompositionID(*vcPtr));
 			*vcPtr = vc->m_ValueComposition;
 			vc = vc->m_FieldClass;
 		}
@@ -202,9 +202,9 @@ std::shared_ptr<Actor> UnitClass::CreateFromXml(Object* context, struct XmlEleme
 	CharPtr valueTypeName = elem.GetAttrValue(valueTypeID);
 
 	const ValueClass* vc = ValueClass::FindByScriptName(GetTokenID_mt(valueTypeName) );
-	if (!vc) throwDmsErrF("Unknown ValueType '%s' for Unit '%s'", valueTypeName, itemName);
+	if (!vc) throwDmsErrF("Unknown ValueType '{}' for Unit '{}'", valueTypeName, itemName);
 	const UnitClass* uc = UnitClass::Find(vc);
-	if (!uc) throwDmsErrF("UnitClass for found for ValueType %s", vc->GetName());
+	if (!uc) throwDmsErrF("UnitClass for found for ValueType {}", vc->GetName());
 	// the new unit is co-owned by its parent container; return its std::shared_ptr (control block flows through)
 	return uc->CreateUnit(container, GetTokenID_mt(itemName));
 }
@@ -265,7 +265,7 @@ TIC_CALL const UnitClass* DMS_CONV DMS_UnitClass_Find(const ValueClass* valueCla
 		const UnitClass* uc = UnitClass::Find(valueClass);
 		if (!uc)
 			throwErrorF("DMS_UnitClass_Find", 
-				"UnitClass not found for ValueType %s", 
+				"UnitClass not found for ValueType {}", 
 				valueClass->GetName()
 			);
 

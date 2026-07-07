@@ -133,13 +133,13 @@ FuncDC::FuncDC(LispPtr keyExpr,	const AbstrOperGroup* og)
 	dms_assert(og && (og->MustCacheResult() || !og->CanResultToConfigItem()));
 
 	DBG_START("FuncDC", "ctor", false);
-	DBG_TRACE(("keyExpr = %s", AsFLispSharedStr(keyExpr, FormattingFlags::ThousandSeparator).c_str()));
+	DBG_TRACE(("keyExpr = {}", AsFLispSharedStr(keyExpr, FormattingFlags::ThousandSeparator).c_str()));
 
 	if (og->IsDepreciated())
-		reportF(SeverityTypeID::ST_Warning, "depreciated operator %s used: %s.", og->GetName(), og->GetObsoleteMsg());
+		reportF(SeverityTypeID::ST_Warning, "depreciated operator {} used: {}.", og->GetName(), og->GetObsoleteMsg());
 
 	if (og->IsObsolete())
-		throwErrorF("FuncDC", "obsolete operator %s used: %s.", og->GetName(), og->GetObsoleteMsg());
+		throwErrorF("FuncDC", "obsolete operator {} used: {}.", og->GetName(), og->GetObsoleteMsg());
 
 	assert(GetLispRef().IsRealList());    // no EndP allowed
 	assert(GetLispRef().Left().IsSymb()); // operator or calculation scheme call
@@ -153,7 +153,7 @@ FuncDC::FuncDC(LispPtr keyExpr,	const AbstrOperGroup* og)
 	std::unique_ptr<DcRefListElem>* nextArgPtr = &m_Args;
 	for (LispPtr tailPtr = keyExpr.Right(); !tailPtr.EndP(); tailPtr = tailPtr.Right()) 
 	{
-		DBG_TRACE(("arg = %s", AsFLispSharedStr(tailPtr->Left(), FormattingFlags::ThousandSeparator).c_str()));
+		DBG_TRACE(("arg = {}", AsFLispSharedStr(tailPtr->Left(), FormattingFlags::ThousandSeparator).c_str()));
 		DcRefListElem* dcRef = new DcRefListElem;
 		nextArgPtr->reset(dcRef);
 		MG_CHECK(tailPtr->IsOwned());
@@ -310,7 +310,7 @@ SharedTreeItem FuncDC::MakeResult() const // produce signature
 		return {};
 
 	static UInt32 debug_counter = 0;
-	DBG_TRACE(("%s m_Data %s m_OperContext %s", debug_counter++, bool(m_Data), bool(m_OperContext)));
+	DBG_TRACE(("{} m_Data {} m_OperContext {}", debug_counter++, bool(m_Data), bool(m_OperContext)));
 
 	if (!m_Data) 
 	{
@@ -384,7 +384,7 @@ auto FuncDC::CallCalcResult(std::shared_ptr<Explain::Context> context) const -> 
 //	dms_assert(m_InterestCount);
 
 	static UInt32 debug_counter = 0;
-	DBG_TRACE(("%s m_Data %s m_OperContext %s context %s ", debug_counter++, bool(m_Data), bool(m_OperContext), bool(context)));
+	DBG_TRACE(("{} m_Data {} m_OperContext {} context {} ", debug_counter++, bool(m_Data), bool(m_OperContext), bool(context)));
 
 	if (!m_Data)
 	{
@@ -419,7 +419,7 @@ auto FuncDC::CallCalcResult(std::shared_ptr<Explain::Context> context) const -> 
 		{
 			auto blockingActionContext = SuspendTrigger::BlockerBase::GetCurrBlockingAction();
 			if (blockingActionContext && *blockingActionContext != '@')
-				reportF(SeverityTypeID::ST_Warning, "operator %s is not suitable for processing %s"
+				reportF(SeverityTypeID::ST_Warning, "operator {} is not suitable for processing {}"
 					, m_OperatorGroup->GetName()
 					, blockingActionContext
 				);
@@ -617,7 +617,7 @@ void MarkCacheItems(const FuncDC* funcDC)
 bool FuncDC_CreateResult(const FuncDC* funcDC)
 {
 	DBG_START("FuncDC", "CreateResult", MG_DEBUG_FUNCDC);
-	DBG_TRACE(("FuncDC: %s", funcDC->md_sKeyExpr));
+	DBG_TRACE(("FuncDC: {}", funcDC->md_sKeyExpr));
 
 	assert(IsMetaThread());
 	assert(funcDC);
@@ -672,7 +672,7 @@ bool FuncDC_CreateResult(const FuncDC* funcDC)
 	{
 		if (!resultItem->GetDynamicObjClass()->IsDerivedFrom(funcDC->m_Operator->GetResultClass()))
 		{
-			auto msg = mySSPrintF("result of %s is of type %s, expected type: %s"
+			auto msg = mySSPrintF("result of {} is of type {}, expected type: {}"
 				, funcDC->m_OperatorGroup->GetName()
 				, resultItem->GetCurrentObjClass()->GetName()
 				, funcDC->m_Operator->GetResultClass()->GetName()
@@ -986,7 +986,7 @@ SharedTreeItem SymbDC::MakeResult() const
 
 	if (!m_Data)
 	{
-		auto msg = mySSPrintF("Cannot find Item %s", m_FullNameID.GetStr());
+		auto msg = mySSPrintF("Cannot find Item {}", m_FullNameID.GetStr());
 		Fail(msg, FailType::MetaInfo);
 		return {};
 	}
@@ -999,7 +999,7 @@ SharedTreeItem SymbDC::MakeResult() const
 	auto result = GetCurr(); // owning snapshot; null if the config item expired since SetOld
 	if (!result)
 	{
-		auto msg = mySSPrintF("Item %s no longer exists", m_FullNameID.GetStr());
+		auto msg = mySSPrintF("Item {} no longer exists", m_FullNameID.GetStr());
 		Fail(msg, FailType::MetaInfo);
 		return {};
 	}

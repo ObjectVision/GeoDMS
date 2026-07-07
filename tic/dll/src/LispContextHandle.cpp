@@ -56,14 +56,14 @@ LispContextHandle::LispContextHandle(CharPtr expr, LispPtr ref)
 #if defined(MG_DEBUG_LISPCONTEXT)
 	++s_NrLispContexts;
 	GetDescription();
-//	reportF(ST_MinorTrace, "LCH::CTOR %d(%s)", s_NrLispContexts, GetDescription());
+//	reportF(ST_MinorTrace, "LCH::CTOR {}({})", s_NrLispContexts, GetDescription());
 #endif
 }
 
 LispContextHandle::~LispContextHandle()
 {
 #if defined(MG_DEBUG_LISPCONTEXT)
-//	reportF(ST_MinorTrace, "LCH::DTOR %d(%s)", s_NrLispContexts, GetDescription());
+//	reportF(ST_MinorTrace, "LCH::DTOR {}({})", s_NrLispContexts, GetDescription());
 	s_NrLispContexts--;
 #endif
 }
@@ -72,7 +72,7 @@ LispContextHandle::~LispContextHandle()
 void LispContextHandle::GenerateDescription()
 {
 	SetText(
-		mySSPrintF("Expression=%s;\nLocal Lisp Tree=%s.", 
+		mySSPrintF("Expression={};\nLocal Lisp Tree={}.", 
 			m_Expr, 
 			AsString(m_Ref).c_str()
 		)

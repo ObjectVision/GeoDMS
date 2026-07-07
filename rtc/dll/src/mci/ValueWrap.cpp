@@ -47,7 +47,7 @@ void Unify(ValueComposition& vc, ValueComposition rhs)
 	{
 		auto vc1Str = SharedStr(GetValueCompositionID(vc));
 		auto vc2Str = SharedStr(GetValueCompositionID(rhs));
-		throwDmsErrF("Value Composition %s incompatible with %s", vc1Str, vc2Str);
+		throwDmsErrF("Value Composition {} incompatible with {}", vc1Str, vc2Str);
 	}
 	if (rhs == ValueComposition::Single)
 	{

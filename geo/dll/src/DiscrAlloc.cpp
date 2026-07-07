@@ -714,10 +714,10 @@ struct partitioning_info_t : partitioning_meta_t
 			if (labelItem->GetInterestCount())
 			{
 				SharedDataItemInterestPtr labelHolder = labelItem.get(); // bump only (already of-interest) -> no DC create
-				return mySSPrintF("%s %s", GetName().c_str(),
+				return mySSPrintF("{} {}", GetName().c_str(),
 					DisplayValue(pu.get(), regionID, false, labelHolder, MAX_TEXTOUT_SIZE, lock).c_str());
 			}
-		return mySSPrintF("%s %u", GetName().c_str(), regionID);
+		return mySSPrintF("{} {}", GetName().c_str(), regionID);
 	}
 
 	// Human-readable label for an atomic region (resolved to its region id).
@@ -854,7 +854,7 @@ struct regions_info_t : regions_info_base
 
 	SharedStr UniqueRegionStr(atomic_region_id ur) const
 	{
-		SharedStr result = mySSPrintF("Region %u ", ur);
+		SharedStr result = mySSPrintF("Region {} ", ur);
 		UInt32 p;
 
 		for (p = 0; p != GetNrPartitionings(); ++p)
@@ -868,7 +868,7 @@ struct regions_info_t : regions_info_base
 
 	SharedStr AtomicRegionStr(atomic_region_id ar) const
 	{
-		SharedStr result = mySSPrintF("Atomic Region %u", ar);
+		SharedStr result = mySSPrintF("Atomic Region {}", ar);
 
 		for (UInt32 p = 0; p != GetNrPartitionings(); ++p)
 		{
@@ -1008,7 +1008,7 @@ struct htp_info_t : regions_info_t<AR>, htp_meta_extra<S>
 			regionStr = this->m_Partitionings[m_ggTypes[ggTypeID].m_PartitioningID].GetRegionStr(cl.m_RegionID);
 
 		return
-			mySSPrintF("ClaimRange(type %u (%s), %s) = [min %u, max %u]",
+			mySSPrintF("ClaimRange(type {} ({}), {}) = [min {}, max {}]",
 				ggTypeID, m_ggTypes[ggTypeID].m_strName.c_str(),
 				regionStr.c_str(),
 				cl.m_ClaimRange.first, cl.m_ClaimRange.second
@@ -1161,13 +1161,13 @@ void CheckSolution(
 		UInt32 totalFlow = SumFlow<dir_forward_tag>(gr, srcNode, lnkAllocated);
 
 		if (srcMinCapacity[srcNode] > totalFlow)
-			throwErrorF("CheckSolution", "atomic region %u was assigned totalFlow %u, but has at least %u cells",
+			throwErrorF("CheckSolution", "atomic region {} was assigned totalFlow {}, but has at least {} cells",
 				srcNode, 
 				totalFlow, 
 				srcMinCapacity[srcNode]
 			);
 		if (srcMaxCapacity[srcNode] < totalFlow)
-			throwErrorF("CheckSolution", "atomic region %u was assigned totalFlow %u, but has at most %u cells",
+			throwErrorF("CheckSolution", "atomic region {} was assigned totalFlow {}, but has at most {} cells",
 				srcNode, 
 				totalFlow, 
 				srcMaxCapacity[srcNode]
@@ -1178,13 +1178,13 @@ void CheckSolution(
 		UInt32 totalFlow = SumFlow<dir_backward_tag>(gr, dstNode, lnkAllocated);
 
 		if (dstMinClaims[dstNode] > totalFlow)
-			throwErrorF("CheckSolution", "unique region %u was assigned totalFlow %u, but its total minimum claim is %u cells",
+			throwErrorF("CheckSolution", "unique region {} was assigned totalFlow {}, but its total minimum claim is {} cells",
 				dstNode, 
 				totalFlow, 
 				dstMinClaims[dstNode]
 			);
 		if (dstMaxClaims[dstNode] < totalFlow)
-			throwErrorF("CheckSolution", "unique region %u was assigned totalFlow %u, but its total maximum claim is %u cells",
+			throwErrorF("CheckSolution", "unique region {} was assigned totalFlow {}, but its total maximum claim is {} cells",
 				dstNode, 
 				totalFlow, 
 				dstMaxClaims[dstNode]
@@ -1244,7 +1244,7 @@ bool IsFeasible(
 			if (dstMinClaims[dstNode] > dstMaxClaims[dstNode])
 			{
 				strStatus += mySSPrintF(
-					"%s has minimum %u and maximum %u; ",
+					"{} has minimum {} and maximum {}; ",
 					regInfo.UniqueRegionStr(dstNode).c_str(), 
 					dstMinClaims[dstNode],
 					dstMaxClaims[dstNode]
@@ -1266,7 +1266,7 @@ bool IsFeasible(
 		if (totalMaxCapacity < totalMinClaim)
 		{
 			strStatus += mySSPrintF(
-				"total of the minimum claims is %u while there are only %u allocatable cells, total minimum claims should be decreased with at least %u cells; ",
+				"total of the minimum claims is {} while there are only {} allocatable cells, total minimum claims should be decreased with at least {} cells; ",
 				totalMinClaim,
 				totalMaxCapacity,
 				totalMinClaim - totalMaxCapacity
@@ -1286,7 +1286,7 @@ bool IsFeasible(
 		if (totalMinCapacity > totalMaxClaim)
 		{
 			strStatus += mySSPrintF(
-				"there are %u cells that should be allocated while the total of the maximum claims is only %u, total maximum claims should be increased with at least %u cells; ",
+				"there are {} cells that should be allocated while the total of the maximum claims is only {}, total maximum claims should be increased with at least {} cells; ",
 				totalMinCapacity,
 				totalMaxClaim,
 				totalMinCapacity - totalMaxClaim
@@ -1308,7 +1308,7 @@ bool IsFeasible(
 		if (maxCapacity < dstMinClaims[dstNode])
 		{
 			strStatus += mySSPrintF(
-				"total minimum claim for %s is %u while it has only %u allocatable cells, total minimum claims for that region should be decreased with at least %u cells; ",
+				"total minimum claim for {} is {} while it has only {} allocatable cells, total minimum claims for that region should be decreased with at least {} cells; ",
 				regInfo.UniqueRegionStr(dstNode).c_str(),
 				dstMinClaims[dstNode],
 				maxCapacity,
@@ -1333,7 +1333,7 @@ bool IsFeasible(
 		if (maxClaim < srcMinCapacity[srcNode])
 		{
 			strStatus += mySSPrintF(
-				"total maximum claim for %s is %u while it has %u cells that should be allocated, total maximum claims for that region should be increased with at least %u cells; ",
+				"total maximum claim for {} is {} while it has {} cells that should be allocated, total maximum claims for that region should be increased with at least {} cells; ",
 				regInfo.AtomicRegionStr(srcNode).c_str(),
 				maxClaim,
 				srcMinCapacity[srcNode],
@@ -1363,7 +1363,7 @@ bool IsFeasible(
 		if (excess != 0)
 		{
 			strStatus += mySSPrintF(
-				"from the total minimum claim of %u cells for %s, %u cannot be allocated (insufficient cells); ",
+				"from the total minimum claim of {} cells for {}, {} cannot be allocated (insufficient cells); ",
 				minClaim,
 				regInfo.UniqueRegionStr(dstNode).c_str(),
 				excess
@@ -1391,7 +1391,7 @@ bool IsFeasible(
 			if (excess != 0)
 			{
 				strStatus += mySSPrintF(
-					"from %u allocatable cells in %s; %u cannot be matched to claims (maximum claims too low); ",
+					"from {} allocatable cells in {}; {} cannot be matched to claims (maximum claims too low); ",
 					minCapacity,
 					regInfo.AtomicRegionStr(srcNode).c_str(),
 					excess
@@ -1441,7 +1441,7 @@ bool FeasibilityTest(const htp_info_t<S, AR, AT>& htpInfo, SharedStr& strStatus)
 		{
 			if (claimIter->m_ClaimRange.first > claimIter->m_ClaimRange.second)
 			{
-				strStatus += mySSPrintF("%s: minimum > maximum; ", htpInfo.GetClaimRangeStr(*claimIter).c_str());
+				strStatus += mySSPrintF("{}: minimum > maximum; ", htpInfo.GetClaimRangeStr(*claimIter).c_str());
 				ok = false;
 			}
 			*aggrMinClaimIter++ += claimIter->m_ClaimRange.first;
@@ -1500,7 +1500,7 @@ auto GetClaimAttr(const TreeItem* claimSet, TokenID nameID) -> const AbstrDataIt
 	auto result = AsDynamicDataItem(claimSet->GetConstSubTreeItemByID(nameID));
 
 	if (!result)
-		claimSet->throwItemErrorF("Claimset should contain an attribute for %s", nameID.GetStr().c_str());
+		claimSet->throwItemErrorF("Claimset should contain an attribute for {}", nameID.GetStr().c_str());
 
 	result->UpdateMetaInfo();
 
@@ -1559,13 +1559,13 @@ void CreateResultingItems(
 			{
 				regioRefDI = AsCheckedDataItem(atomicRegionUnit->GetConstSubTreeItemByID(GetTokenID_mt(partitioningName.c_str())).get());
 				if (!regioRefDI)
-					atomicRegionUnit->throwItemErrorF("SubItem expected with the name %s", partitioningName.c_str());
+					atomicRegionUnit->throwItemErrorF("SubItem expected with the name {}", partitioningName.c_str());
 				regioRefDI->UpdateMetaInfo();
 				funcDC.AddDependency(regioRefDI->GetCheckedDC().get());
 			}
 
 			if (regioRefDI && !atomicRegionUnit->UnifyDomain(regioRefDI->GetAbstrDomainUnit(), "atomicRegionUnit", "Domain of regional partitioning thereof", UnifyMode(), &resultMsg))
-				throwErrorF("discrete_alloc", "unification of domain of partitoning %d(%s):\n%s\n with atomic region\n%s\n resulted in\n%s"
+				throwErrorF("discrete_alloc", "unification of domain of partitoning {}({}):\n{}\n with atomic region\n{}\n resulted in\n{}"
 					, p, partitioningName, regioRefDI->GetSourceName()
 					, atomicRegionUnit->GetSourceName()
 					, resultMsg
@@ -1599,14 +1599,14 @@ void CreateResultingItems(
 		ggTypes2partitionings = const_array_cast<partitioning_id>(ggTypes2partitioningsA);
 
 			if (!ggTypes2partitioningsA->GetAbstrDomainUnit()->UnifyDomain(ggTypeNamesA->GetAbstrDomainUnit(), "Domain of AllocationType partitioning (4th) attribute", "Domain of AllocationType name (1st) attribute", UnifyMode(), &resultMsg))
-				throwErrorF("discrete_alloc", "domains of Type->Name mapping (arg1):\n%s\nand Type->Partitioning mapping (arg4):\n%s\nincompatible: %s"
+				throwErrorF("discrete_alloc", "domains of Type->Name mapping (arg1):\n{}\nand Type->Partitioning mapping (arg4):\n{}\nincompatible: {}"
 					, ggTypeNamesA->GetSourceName()
 					, ggTypes2partitioningsA->GetSourceName()
 					, resultMsg
 				);
 
 			if (!ggTypes2partitioningsA->GetAbstrValuesUnit()->UnifyDomain(partitioningNamesA->GetAbstrDomainUnit(), "Values of AllocationType partitioning (4th) attribute", "Domain of Partition names (5th) attribute", UnifyMode(), &resultMsg))
-				throwErrorF("discrete_alloc", "values of Type->Partitioning mapping (arg4):\n%s\nand Partition->Names mapping (arg5):\n%s\nincompatible: %s"
+				throwErrorF("discrete_alloc", "values of Type->Partitioning mapping (arg4):\n{}\nand Partition->Names mapping (arg5):\n{}\nincompatible: {}"
 					, ggTypes2partitioningsA->GetSourceName()
 					, partitioningNamesA->GetSourceName()
 					, resultMsg
@@ -1645,7 +1645,7 @@ void CreateResultingItems(
 			{
 				MG_CHECK(partitioningNamesA);
 				if (partitioningNamesA)
-					throwErrorF("discrete_alloc", "Partitioning reference %d for Type %s is not a valid index in %s", partitioningID, gg->m_NameID, partitioningNamesA->GetSourceName());
+					throwErrorF("discrete_alloc", "Partitioning reference {} for Type {} is not a valid index in {}", partitioningID, gg->m_NameID, partitioningNamesA->GetSourceName());
 			}
 
 			gg->m_PartitioningID = partitioningID;
@@ -1657,14 +1657,14 @@ void CreateResultingItems(
 			if (ggTypes2partitioningsA && partitioningNamesA)
 			{
 				if (minClaims && !partitioningUnit->UnifyDomain(minClaims->GetAbstrDomainUnit(), "Partitioning", "Domain of Minimum Claim attribute", UnifyMode(), &resultMsg))
-					throwErrorF("discrete_alloc", "values of partitioning %s in AtomicRegions (6th argument):\n%s\nand domain of minimum claim for %s (8th argument):\n%s\nincompatible: %s"
+					throwErrorF("discrete_alloc", "values of partitioning {} in AtomicRegions (6th argument):\n{}\nand domain of minimum claim for {} (8th argument):\n{}\nincompatible: {}"
 						, htpMeta.m_PartitioningMetas[partitioningID].GetName()
 						, lock_or_cancel(htpMeta.m_PartitioningMetas[partitioningID].m_AtomicRegionPartitioningDI)->GetSourceName()
 						, gg->m_NameID, minClaims->GetSourceName()
 						, resultMsg
 					);
 				if (maxClaims && !partitioningUnit->UnifyDomain(maxClaims->GetAbstrDomainUnit(), "Partitioning", "Domain of Maximum Claim attribute", UnifyMode(), &resultMsg))
-					throwErrorF("discrete_alloc", "values of partitioning %s in AtomicRegions (6th argument):\n%s\nand domain of maximum claim for %s (9th argument):\n%s\nincompatible: %s"
+					throwErrorF("discrete_alloc", "values of partitioning {} in AtomicRegions (6th argument):\n{}\nand domain of maximum claim for {} (9th argument):\n{}\nincompatible: {}"
 						, htpMeta.m_PartitioningMetas[partitioningID].GetName()
 						, lock_or_cancel(htpMeta.m_PartitioningMetas[partitioningID].m_AtomicRegionPartitioningDI)->GetSourceName()
 						, gg->m_NameID, maxClaims->GetSourceName()
@@ -1674,12 +1674,12 @@ void CreateResultingItems(
 			else
 			{
 				if (minClaims && !partitioningUnit->UnifyDomain(minClaims->GetAbstrDomainUnit(), "Partitioning", "Domain of Minimum Claim attribute", UnifyMode(), &resultMsg))
-					throwErrorF("discrete_alloc", "Regions (4th argument)\nand domain of minimum claim for %s (6th argument):\n%s\nincompatible: %s"
+					throwErrorF("discrete_alloc", "Regions (4th argument)\nand domain of minimum claim for {} (6th argument):\n{}\nincompatible: {}"
 						, gg->m_NameID, minClaims->GetSourceName()
 						, resultMsg
 					);
 				if (maxClaims && !partitioningUnit->UnifyDomain(maxClaims->GetAbstrDomainUnit(), "Partitioning", "Domain of Maximum Claim attribute", UnifyMode(), &resultMsg))
-					throwErrorF("discrete_alloc", "Regions (4th argument):\nand domain of maximum claim for %s (7th argument):\n%s\nincompatible: %s"
+					throwErrorF("discrete_alloc", "Regions (4th argument):\nand domain of maximum claim for {} (7th argument):\n{}\nincompatible: {}"
 						, gg->m_NameID, maxClaims->GetSourceName()
 						, resultMsg
 					);
@@ -1693,12 +1693,12 @@ void CreateResultingItems(
 			gg->m_PartitioningID = 0;
 
 			if (minClaims && !minClaims->HasVoidDomainGuarantee())
-				throwErrorF("discrete_alloc", "domain of minimum claim for %s not allowed for unpartitioned allocation, define claim as parameter and not as attribute.\n%s"
+				throwErrorF("discrete_alloc", "domain of minimum claim for {} not allowed for unpartitioned allocation, define claim as parameter and not as attribute.\n{}"
 					, gg->m_NameID
 					, minClaims->GetSourceName()
 				);
 			if (maxClaims && !maxClaims->HasVoidDomainGuarantee())
-				throwErrorF("discrete_alloc", "domain of maximum claim for %s not allowed for unpartitioned allocation, define claim as parameter and not as attribute.\n%s"
+				throwErrorF("discrete_alloc", "domain of maximum claim for {} not allowed for unpartitioned allocation, define claim as parameter and not as attribute.\n{}"
 					, gg->m_NameID
 					, maxClaims->GetSourceName()
 				);
@@ -1709,7 +1709,7 @@ void CreateResultingItems(
 
 			auto subItem = suitabilitySet->GetConstSubTreeItemByID(gg->m_NameID);
 			if (!subItem)
-				throwErrorF("discrete_alloc", "cannot find %s in container %s", gg->m_NameID, suitabilitySet->GetFullName());
+				throwErrorF("discrete_alloc", "cannot find {} in container {}", gg->m_NameID, suitabilitySet->GetFullName());
 			if (!IsDataItem(subItem))
 				subItem->throwItemError("is expected to be a DataItem,  a.k.a. attribute");
 
@@ -1726,7 +1726,7 @@ void CreateResultingItems(
 		funcDC.AddDependency(suitMapDc.get());
 
 		if (!allocUnit->UnifyDomain(suitMap->GetAbstrDomainUnit(), "AllocUnit (second argument)", "Domain of suitability map", UnifyMode(), &resultMsg))
-			throwErrorF("discrete_alloc", "Domain of suitability map for %s:\n%s\n %s and allocUnit (arg2) incompatible: %s"
+			throwErrorF("discrete_alloc", "Domain of suitability map for {}:\n{}\n {} and allocUnit (arg2) incompatible: {}"
 				,	gg->m_NameID, suitMap->GetSourceName()
 				,	allocUnit->GetSourceName()
 				,	resultMsg
@@ -1739,10 +1739,10 @@ void CreateResultingItems(
 			else if (auto priceUnitLock = htpMeta.m_PriceUnit.lock())
 			{
 				if (!priceUnitLock->UnifyValues(priceUnit, "First non-default suitability values unit", "A subsequence suitability values unit", UnifyMode(), &resultMsg))
-					throwErrorF("discrete_alloc", "values of suitability map for %s incompatible with earlier suitability map values:\n%s", gg->m_NameID, resultMsg);
+					throwErrorF("discrete_alloc", "values of suitability map for {} incompatible with earlier suitability map values:\n{}", gg->m_NameID, resultMsg);
 			}
 			else
-				throwErrorF("discrete_alloc", "price unit expired while processing suitability map for %s", gg->m_NameID);
+				throwErrorF("discrete_alloc", "price unit expired while processing suitability map for {}", gg->m_NameID);
 
 			if (mustAdjust)
 				gg->m_diResShadowPrices = make_weak_tree(CreateDataItem(
@@ -1763,7 +1763,7 @@ void CreateResultingItems(
 	if (atomicRegionMapA)
 	{
 		if (!allocUnit->UnifyDomain(atomicRegionMapA->GetAbstrDomainUnit(), "second argument", "Domain of the AtomicRegions attribute", UnifyMode(), &resultMsg))
-			throwErrorF("discrete_alloc", "Domain of atomic region map:\n%s\nand allocUnit (arg2):\n%s incompatible:\n%s"
+			throwErrorF("discrete_alloc", "Domain of atomic region map:\n{}\nand allocUnit (arg2):\n{} incompatible:\n{}"
 				, atomicRegionMapA->GetSourceName()
 				, allocUnit->GetSourceName()
 				, resultMsg
@@ -1895,7 +1895,7 @@ void PreparePartitionings(htp_info_t<S, AR, AT>& htpInfo, const AbstrUnit* alloc
 		}
 		if (nrLandUnits != n)
 			lock_or_cancel(htpInfo.m_MapDomain)->throwItemErrorF(
-				"Land Unit set had %u elements, but total nr of elements in tiles is %u. Use a land unit set with a completely covering tiling",
+				"Land Unit set had {} elements, but total nr of elements in tiles is {}. Use a land unit set with a completely covering tiling",
 				n,
 				nrLandUnits
 			);
@@ -2019,8 +2019,8 @@ template <typename S, typename AR, typename AT>
 void PrepareReport(htp_info_t<S, AR, AT>& htpInfo)
 {
 	reportF(SeverityTypeID::ST_MajorTrace, "DiscrAlloc: Prepare created alloc structs for "
-		"%u cells, %u landuse types, %u (min-max) claims, %u unique partitionings, "
-		"%u atomic regions, %u unique regions, and %u priority queues",
+		"{} cells, {} landuse types, {} (min-max) claims, {} unique partitionings, "
+		"{} atomic regions, {} unique regions, and {} priority queues",
 		htpInfo.GetN(), 
 		htpInfo.GetK(), 
 		htpInfo.GetNrNodes(), 
@@ -2111,7 +2111,7 @@ void InsertWinnerInResultAndReallocQueues(
 		{
 			DBG_START("DiscrAlloc", "InsertWinnerInResultAndReallocQueues", true);
 			reportF(SeverityTypeID::ST_Warning,
-				"Problem defending cell %u from %s$%s against %s$%s ",
+				"Problem defending cell {} from {}${} against {}${} ",
 					i,
 					htpInfo.GetClaimRangeStr( htpInfo.m_Claims[currNode] ).c_str(), AsString(ph.m_SourceClaim->m_ShadowPrice).c_str(),
 					htpInfo.GetClaimRangeStr( htpInfo.m_Claims[popNode ] ).c_str(), AsString(ph.m_TargetClaim->m_ShadowPrice).c_str()
@@ -2123,7 +2123,7 @@ void InsertWinnerInResultAndReallocQueues(
 			while (claimIdPtr != claimIdEnd)
 			{
 				UInt32 facetID = htpInfo.m_TreeBuilder.get_traceback(*claimIdPtr).Link();
-				DBG_TRACE(("%s$%s, reached by Link[%u](%s,%s) was incremented by $%s",
+				DBG_TRACE(("{}${}, reached by Link[{}]({},{}) was incremented by ${}",
 						htpInfo.GetClaimRangeStr(htpInfo.m_Claims[*claimIdPtr]).c_str(), AsString(htpInfo.m_Claims[*claimIdPtr].m_ShadowPrice).c_str(),
 						facetID,
 						htpInfo.GetClaimRangeStr(htpInfo.m_Claims[htpInfo.GetSrcNode(facetID, dir_forward_tag())]).c_str(),
@@ -2137,7 +2137,7 @@ void InsertWinnerInResultAndReallocQueues(
 
 			for (UInt32 jj=0; jj!=K; ++jj)
 			{
-				DBG_TRACE(("Suitability at cell %u AT %u[%u] = %d",
+				DBG_TRACE(("Suitability at cell {} AT {}[{}] = {}",
 					i, jj,
 					&(htpInfo.GetClaim(ar, jj)) - begin_ptr( htpInfo.m_Claims ),
 					htpInfo.m_ggTypes[jj].m_Suitabilities[i]
@@ -2183,7 +2183,7 @@ UInt32 FindMstDown(
 #if defined(MG_DEBUG)
 	if (htpInfo.m_TreeBuilder.empty() && htpInfo.CanReportFindMstDown() )
 	{
-		reportF(SeverityTypeID::ST_MajorTrace, "FindMstDown: no adjustments possible for %s",
+		reportF(SeverityTypeID::ST_MajorTrace, "FindMstDown: no adjustments possible for {}",
 				htpInfo.GetClaimRangeStr( htpInfo.m_Claims[rootClaimID] ) .c_str()
 		);
 	}
@@ -2203,7 +2203,7 @@ UInt32 FindMstDown(
 
 		UInt32 currLink = currElem.Link();
 		auto   linkCost = currElem.Cost(); //cost until dst of link; thus including GetLinkCost(currLink)
-		DBG_TRACE(( "currLink %u with linkCost %s", currLink, AsString(linkCost).c_str() ));
+		DBG_TRACE(( "currLink {} with linkCost {}", currLink, AsString(linkCost).c_str() ));
 
 		const claim<S>* targetClaim = htpInfo.m_Facets[currLink].m_TargetClaim;
 
@@ -2218,14 +2218,14 @@ UInt32 FindMstDown(
 		}
 		if (linkCost > minLinkCost)
 		{
-			DBG_TRACE(("FindMstDown returns free lowerbound at link %u at cost %s", minLink, AsString(minLinkCost).c_str()));
+			DBG_TRACE(("FindMstDown returns free lowerbound at link {} at cost {}", minLink, AsString(minLinkCost).c_str()));
 			return minLink;
 		}
 
 		UInt32 dstNode = targetClaim - begin_ptr( htpInfo.m_Claims );
 		if (!atMax)
 		{
-			DBG_TRACE(("FindMstDown signals target claim %u(%u, %u) of Facet %u as vacant", 
+			DBG_TRACE(("FindMstDown signals target claim {}({}, {}) of Facet {} as vacant", 
 				dstNode, targetClaim->m_ggTypeID, targetClaim->m_RegionID,
 				currLink)
 			);
@@ -2245,12 +2245,12 @@ UInt32 FindMstDown(
 #if defined MG_DEBUG
 		if ( targetClaim->Overflow() )
 		{
-			DBG_TRACE(("FindMstDown: TargetClaim (%u, %u) has overflow", 
+			DBG_TRACE(("FindMstDown: TargetClaim ({}, {}) has overflow", 
 				targetClaim->m_ggTypeID, targetClaim->m_RegionID
 			));
 		}
 #endif
-		DBG_TRACE(("FindMstDown fixes link to target claim %u(%u, %u) of Facet %u at cost %s", 
+		DBG_TRACE(("FindMstDown fixes link to target claim {}({}, {}) of Facet {} at cost {}", 
 			dstNode, targetClaim->m_ggTypeID, targetClaim->m_RegionID,
 			currLink,
 			AsString(linkCost).c_str()
@@ -2280,7 +2280,7 @@ UInt32 FindMstUp(
 #if defined(MG_DEBUG)
 	if (htpInfo.m_TreeBuilder.empty())
 	{
-		reportF(SeverityTypeID::ST_MajorTrace, "FindMstUp: no adjustments possible for %s",
+		reportF(SeverityTypeID::ST_MajorTrace, "FindMstUp: no adjustments possible for {}",
 				htpInfo.GetClaimRangeStr( htpInfo.m_Claims[rootClaimID] ).c_str()
 		);
 	}
@@ -2300,7 +2300,7 @@ UInt32 FindMstUp(
 
 		UInt32 currLink = currElem.Link();
 		auto   linkCost = currElem.Cost(); //cost until dst of link; thus including GetLinkCost(currLink)
-		DBG_TRACE(( "currLink %u with linkCost %s", currLink, AsString(linkCost).c_str() ));
+		DBG_TRACE(( "currLink {} with linkCost {}", currLink, AsString(linkCost).c_str() ));
 
 		const claim<S>* sourceClaim = htpInfo.m_Facets[currLink].m_SourceClaim;
 
@@ -2316,14 +2316,14 @@ UInt32 FindMstUp(
 		}
 		if (linkCost > minLinkCost)
 		{
-			DBG_TRACE(("FindMstUp returns free lowerbound at link %u at cost %s", minLink, AsString(minLinkCost).c_str()));
+			DBG_TRACE(("FindMstUp returns free lowerbound at link {} at cost {}", minLink, AsString(minLinkCost).c_str()));
 			return minLink;
 		}
 
 		UInt32 srcNode = sourceClaim - begin_ptr( htpInfo.m_Claims );
 		if (!atMin)
 		{
-			DBG_TRACE(("FindMstUp signals source claim %u(%u, %u) of Facet %u as vacant", 
+			DBG_TRACE(("FindMstUp signals source claim {}({}, {}) of Facet {} as vacant", 
 				srcNode, sourceClaim->m_ggTypeID, sourceClaim->m_RegionID,
 				currLink)
 			);
@@ -2343,13 +2343,13 @@ UInt32 FindMstUp(
 #if defined MG_DEBUG
 		if ( sourceClaim->Overflow() )
 		{
-			DBG_TRACE(("FindMstUp: SourceClaim %u(%u, %u) has overflow", 
+			DBG_TRACE(("FindMstUp: SourceClaim {}({}, {}) has overflow", 
 				srcNode, sourceClaim->m_ggTypeID, sourceClaim->m_RegionID
 			));
 		}
 #endif
 
-		DBG_TRACE(("FindMstUp fixes link to source claim (%u, %u) of Facet %u at cost %s", 
+		DBG_TRACE(("FindMstUp fixes link to source claim ({}, {}) of Facet {} at cost {}", 
 			sourceClaim->m_ggTypeID, sourceClaim->m_RegionID,
 			currLink,
 			AsString(linkCost).c_str()
@@ -2373,7 +2373,7 @@ bool UpdateSplitterDown(htp_info_t<S, AR, AT>& htpInfo, claim<S>& root)
 	UInt32 rootClaimID = &root - begin_ptr( htpInfo.m_Claims );
 	dms_assert(rootClaimID < htpInfo.GetNrNodes());
 
-	DBG_TRACE(("SrcClaim %u(%u, %u) with claimrange [%d,%d] and price %s has %u assignees", 
+	DBG_TRACE(("SrcClaim {}({}, {}) with claimrange [{},{}] and price {} has {} assignees", 
 		rootClaimID, root.m_ggTypeID, root.m_RegionID, 
 		root.m_ClaimRange.first, root.m_ClaimRange.second, 
 		AsString(root.m_ShadowPrice).c_str(),
@@ -2395,7 +2395,7 @@ bool UpdateSplitterDown(htp_info_t<S, AR, AT>& htpInfo, claim<S>& root)
 	if (freeClaimCost == MAX_VALUE(shadow_price<S>))
 		return false;
 
-	DBG_TRACE(("FindMstDown returned FreeLink %u at cost %s", freeLink, AsString(freeClaimCost).c_str() ));
+	DBG_TRACE(("FindMstDown returned FreeLink {} at cost {}", freeLink, AsString(freeClaimCost).c_str() ));
 	// adjust G such that transport from root to nearest free claim becomes a free lunch
 
 	root.m_ShadowPrice -= freeClaimCost;
@@ -2445,7 +2445,7 @@ bool UpdateSplitterDown(htp_info_t<S, AR, AT>& htpInfo, claim<S>& root)
 		priority_heap<S>& ph = htpInfo.m_Facets[freeLink];
 		land_unit_id i = ph.top(); 
 		DBG_TRACE(
-			(	"Relax Facet %u: (%u, %u)->(%u, %u) with cell %u", 
+			(	"Relax Facet {}: ({}, {})->({}, {}) with cell {}", 
 				freeLink, 
 				ph.m_SourceClaim->m_ggTypeID,
 				ph.m_SourceClaim->m_RegionID,
@@ -2489,14 +2489,14 @@ bool UpdateSplitterDown(htp_info_t<S, AR, AT>& htpInfo, claim<S>& root)
 #if defined(MG_DEBUG)
 		if (ph.m_TargetClaim->Overflow())
 		{
-			reportF(SeverityTypeID::ST_MajorTrace, "UpdateSplitterDown: Realloc.Target %s has overflow",
+			reportF(SeverityTypeID::ST_MajorTrace, "UpdateSplitterDown: Realloc.Target {} has overflow",
 				htpInfo.GetClaimRangeStr( *ph.m_TargetClaim ).c_str()
 			);
 		}
 
 		if (ph.m_SourceClaim->Overflow())
 		{
-			reportF(SeverityTypeID::ST_MajorTrace, "UpdateSplitterDown: Realloc.Source %s has overflow",
+			reportF(SeverityTypeID::ST_MajorTrace, "UpdateSplitterDown: Realloc.Source {} has overflow",
 				htpInfo.GetClaimRangeStr( *ph.m_SourceClaim ).c_str()
 			);
 		}
@@ -2519,7 +2519,7 @@ bool UpdateSplitterUp(htp_info_t<S, AR, AT>& htpInfo, claim<S>& root)
 	UInt32 rootClaimID = &root - begin_ptr( htpInfo.m_Claims );
 	dms_assert(rootClaimID < htpInfo.GetNrNodes());
 
-	DBG_TRACE(("SrcClaim %u(%u, %u) with claimrange [%d,%d] and price %s has %u assignees", 
+	DBG_TRACE(("SrcClaim {}({}, {}) with claimrange [{},{}] and price {} has {} assignees", 
 		rootClaimID, root.m_ggTypeID, root.m_RegionID, 
 		root.m_ClaimRange.first, root.m_ClaimRange.second, AsString(root.m_ShadowPrice).c_str(),
 		root.m_Count
@@ -2539,7 +2539,7 @@ bool UpdateSplitterUp(htp_info_t<S, AR, AT>& htpInfo, claim<S>& root)
 	if (freeClaimCost == MAX_VALUE(shadow_price<S>))
 		return false;
 
-	DBG_TRACE(("FindMstUp returned FreeLink %u at cost %s", freeLink, AsString(freeClaimCost).c_str() ));
+	DBG_TRACE(("FindMstUp returned FreeLink {} at cost {}", freeLink, AsString(freeClaimCost).c_str() ));
 	// adjust G such that transport from root to nearest free claim becomes a free lunch
 
 	root.m_ShadowPrice += freeClaimCost;
@@ -2595,7 +2595,7 @@ bool UpdateSplitterUp(htp_info_t<S, AR, AT>& htpInfo, claim<S>& root)
 		SizeT i = ph.top(); 
 
 		DBG_TRACE(
-			(	"Pull Facet %u: (%u, %u)->(%u, %u) with cell %u", 
+			(	"Pull Facet {}: ({}, {})->({}, {}) with cell {}", 
 				freeLink, 
 				ph.m_SourceClaim->m_ggTypeID,
 				ph.m_SourceClaim->m_RegionID,
@@ -2640,7 +2640,7 @@ bool UpdateSplitterUp(htp_info_t<S, AR, AT>& htpInfo, claim<S>& root)
 #if defined(MG_DEBUG)
 		if (ph.m_SourceClaim->Overflow())
 		{
-			reportF(SeverityTypeID::ST_MajorTrace, "UpdateSplitterUp: Realloc.Source %s has overflow",
+			reportF(SeverityTypeID::ST_MajorTrace, "UpdateSplitterUp: Realloc.Source {} has overflow",
 				htpInfo.GetClaimRangeStr( *ph.m_SourceClaim ).c_str()
 			);
 		}
@@ -2783,13 +2783,13 @@ bool CheckAllClaims(const htp_info_t<S, AR, AT>& htpInfo, SharedStr* resultPtr)
 		{
 			isAllOK = false;
 			SharedStr claimResult = 
-				mySSPrintF("%s; %u allocated for price %s; ",
+				mySSPrintF("{}; {} allocated for price {}; ",
 					htpInfo.GetClaimRangeStr(*claimIter).c_str(),
 					claimIter->m_Count, 
 					AsString(claimIter->m_ShadowPrice).c_str()
 				);
 			
-			reportF(SeverityTypeID::ST_MajorTrace, "CheckAllClaims failed: %s", claimResult.c_str());
+			reportF(SeverityTypeID::ST_MajorTrace, "CheckAllClaims failed: {}", claimResult.c_str());
 			if (resultPtr)
 				(*resultPtr) += claimResult;
 		}
@@ -2812,7 +2812,7 @@ void DiscrAllocCellsBegin(htp_info_t<S, AR, AT>& htpInfo, UInt32 nextI)
 
 		++claimIter;
 	}
-	reportF(SeverityTypeID::ST_MajorTrace, "DiscrAlloc %u: claims for %u cells: min=%u; max=%u",
+	reportF(SeverityTypeID::ST_MajorTrace, "DiscrAlloc {}: claims for {} cells: min={}; max={}",
 		htpInfo.GetN(), nextI,
 		sumMinClaim,
 		sumMaxClaim
@@ -2837,7 +2837,7 @@ void DiscrAllocEnd(htp_info_t<S, AR, AT>& htpInfo, UInt32 currI)
 
 		++claimIter;
 	}
-	reportF(SeverityTypeID::ST_MajorTrace, "DiscrAllocCells %u:  %u cells completed: price adjustments range from %s to %s",
+	reportF(SeverityTypeID::ST_MajorTrace, "DiscrAllocCells {}:  {} cells completed: price adjustments range from {} to {}",
 		htpInfo.GetN(), currI,
 		AsString(minPriceDiff).c_str(),
 		AsString(maxPriceDiff).c_str()
@@ -2893,7 +2893,7 @@ void DiscrAllocCells(htp_info_t<S, AR, AT>& htpInfo, UInt32 currI, UInt32 nextI)
 		{
 			++htpInfo.m_NrBelowThreshold;
 			if (htpInfo.m_NrBelowThreshold <= NR_BELOW_THRESHOLD_NOTIFICATIONS)
-				reportF(SeverityTypeID::ST_MajorTrace, "DiscrAllocCells: all suitabilities of cell %u are below the threshold %d",
+				reportF(SeverityTypeID::ST_MajorTrace, "DiscrAllocCells: all suitabilities of cell {} are below the threshold {}",
 					htpInfo.m_CurrPI, htpInfo.m_Threshold
 				); 
 			htpInfo.m_ResultArray[htpInfo.m_CurrPI] = UNDEFINED_VALUE(AT);
@@ -2917,7 +2917,7 @@ void DiscrAllocCells(htp_info_t<S, AR, AT>& htpInfo, UInt32 currI, UInt32 nextI)
 				SizeT excess = claim.m_Count - claim.m_ClaimRange.second;
 				if (PowerOf2(excess)) // only report power of 2 excess to limit quadratic behaviour of event log listbox and errors after 1000000 lines
 					reportF(SeverityTypeID::ST_MajorTrace,
-						"DiscrAlloc Warning: UpdateSplitterDown(%s) failed; now %u allocated",
+						"DiscrAlloc Warning: UpdateSplitterDown({}) failed; now {} allocated",
 						htpInfo.GetClaimRangeStr( claim ).c_str(),
 						claim.m_Count
 				); 
@@ -2930,13 +2930,13 @@ void DiscrAllocCells(htp_info_t<S, AR, AT>& htpInfo, UInt32 currI, UInt32 nextI)
 
 		if (currI % rapFreq==0) 
 			reportF(SeverityTypeID::ST_MajorTrace,
-				"DiscrAllocCells %u: Progress %u/%u; %u calls to UpdateSplitterDown",
+				"DiscrAllocCells {}: Progress {}/{}; {} calls to UpdateSplitterDown",
 				N, currI, nextI, d_nrSplits
 			); 
 	}
 	dms_assert(htpInfo.m_CurrPI >= htpInfo.m_N);
 	reportF(SeverityTypeID::ST_MajorTrace,
-		"DiscrAllocCells %u: %u cells completed with %u calls to UpdateSplitterDown",
+		"DiscrAllocCells {}: {} cells completed with {} calls to UpdateSplitterDown",
 		N, currI, d_nrSplits
 	); 
 }
@@ -2959,7 +2959,7 @@ void DiscrAllocMinClaims(htp_info_t<S, AR, AT>& htpInfo)
 		}
 		if (!ok)
 			reportF(SeverityTypeID::ST_MajorTrace,
-				"DiscrAlloc Warning: UpdateSplitterUp(%s) failed; only %u allocated",
+				"DiscrAlloc Warning: UpdateSplitterUp({}) failed; only {} allocated",
 				htpInfo.GetClaimRangeStr( *claimIter ).c_str(),
 				claimIter->m_Count
 			); 
@@ -2967,7 +2967,7 @@ void DiscrAllocMinClaims(htp_info_t<S, AR, AT>& htpInfo)
 	}
 
 	reportF(SeverityTypeID::ST_MajorTrace,
-		"DiscrAllocMinClaims completed with %u calls to UpdateSplitterUp",
+		"DiscrAllocMinClaims completed with {} calls to UpdateSplitterUp",
 		count
 	); 
 }
@@ -3105,7 +3105,7 @@ void IncrementAtomicRegionCount(std::vector<claim_type>& atomicRegionCount, cons
 		AR ar = regionInfo.GetAtomicRegionID(regionInfo.m_CurrPI);
 		if (ar >= atomicRegionCount.size())
 			regionInfo.m_AtomicRegionMap->GetAbstrValuesUnit()->throwItemErrorF(
-					"Value %u%s out of range of valid Atomic Regions"
+					"Value {}{} out of range of valid Atomic Regions"
 				,	ar
 				,	IsDefined(ar) ? "" : " (a.k.a. null-value)"
 			);
@@ -3143,7 +3143,7 @@ void Solve(htp_info_t<S, AR, AT>& htpInfo, S threshold, AbstrDataObject* resPric
 	UInt32* atomicRegionCountPtr = begin_ptr(atomicRegionCount);
 	while (htpInfo.m_StepSize > 1)
 	{
-		reportF(SeverityTypeID::ST_MajorTrace, "DiscrAlloc: SolveScaled per %u cells", htpInfo.m_StepSize);
+		reportF(SeverityTypeID::ST_MajorTrace, "DiscrAlloc: SolveScaled per {} cells", htpInfo.m_StepSize);
 
 		UInt32 nextI = htpInfo.GetNrSteps();
 		
@@ -3483,7 +3483,7 @@ public:
 
 				if (htpInfo.m_NrBelowThreshold > 0)
 				{
-					reportF(SeverityTypeID::ST_MajorTrace, "%d units%s with suitability for all categories below the threshold of %s and therefore unallocated"
+					reportF(SeverityTypeID::ST_MajorTrace, "{} units{} with suitability for all categories below the threshold of {} and therefore unallocated"
 						, htpInfo.m_NrBelowThreshold
 						, htpInfo.m_NrBelowThreshold > NR_BELOW_THRESHOLD_NOTIFICATIONS ? ", of which only the first 5 were reported," : ""
 						, AsString(threshold)
@@ -3498,39 +3498,39 @@ public:
 					strStatus = "DiscrAlloc completed";
 
 					if (distData.tn > 1)
-						strStatus += mySSPrintF(" for %u tiles", distData.tn);
+						strStatus += mySSPrintF(" for {} tiles", distData.tn);
 
-					strStatus += mySSPrintF(" with a total magnified suitability of %s over %u land units", 
+					strStatus += mySSPrintF(" with a total magnified suitability of {} over {} land units", 
 						AsString(distData.totalSuit.first).c_str(), 
 						distData.nrLandUnits
 					);
 					if (distData.nrLandUnits)
-						strStatus += mySSPrintF(" = %lf per land unit", 
+						strStatus += mySSPrintF(" = {:f} per land unit", 
 							Float64(distData.totalSuit.first) / Float64(distData.nrLandUnits)
 						);
 
 					if (distData.nrSubOptimal)
 					{
-						strStatus += mySSPrintF(" with at most %s from optimum due to %u(=%lf%%) better options", 
+						strStatus += mySSPrintF(" with at most {} from optimum due to {}(={:f}%) better options", 
 							AsString(distData.totalDistFromOpt.first).c_str(), 
 							distData.nrSubOptimal, 100.0 * Float64(distData.nrSubOptimal) / Float64(distData.nrLandUnits)
 						);
 						if (distData.nrLandUnits)
-							strStatus += mySSPrintF(" = %lf per land unit", 
+							strStatus += mySSPrintF(" = {:f} per land unit", 
 								Float64(distData.totalDistFromOpt.first) / Float64(distData.nrLandUnits)
 							);
 
 						if (distData.nrDueToBelowThreshold)
 						{
 							if (distData.nrSubOptimal > distData.nrDueToBelowThreshold)
-								strStatus += mySSPrintF(" of which %u", distData.nrDueToBelowThreshold);
+								strStatus += mySSPrintF(" of which {}", distData.nrDueToBelowThreshold);
 							strStatus += " due to the threshold blocking effective shadow price adjustments";
 						}
 
 						if (distData.nrSubOptimal > distData.nrDueToBelowThreshold)
 						{
 							if ( distData.nrDueToBelowThreshold)
-								strStatus +=  mySSPrintF(" and the remaining %u options", distData.nrSubOptimal - distData.nrDueToBelowThreshold);
+								strStatus +=  mySSPrintF(" and the remaining {} options", distData.nrSubOptimal - distData.nrDueToBelowThreshold);
 							if (distData.tn > 1)
 								strStatus += " possibly due to shadow price variations between tiles";
 							else

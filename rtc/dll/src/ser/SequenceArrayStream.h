@@ -29,7 +29,7 @@ BinaryInpStream& operator >> (BinaryInpStream& ar, IterRange<Iter> seq)
 	{
 
 		if (len != seq.size())
-			throwErrorF("ReadSequence", "the GeoDms is trying to read %u bytes of data, which does not match the expected size of %u bytes"
+			throwErrorF("ReadSequence", "the GeoDms is trying to read {} bytes of data, which does not match the expected size of {} bytes"
 				, len
 				, seq.size()
 			);
@@ -60,7 +60,7 @@ BinaryInpStream& operator >> (BinaryInpStream& ar, bit_sequence<N, Block> seq)
 	ar >> len;
 	MG_CHECK(IsDefined(len));
 	if (len != seq.size())
-			throwErrorF("ReadSequence", "stream size %u conflicts with internal size %u"
+			throwErrorF("ReadSequence", "stream size {} conflicts with internal size {}"
 			,	len
 			,	seq.size()
 			);

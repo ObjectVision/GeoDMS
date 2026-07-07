@@ -321,7 +321,7 @@ public:
 			auto errCode = sr.SetFromUserInput(SharedStr(srToken).c_str());
 			errorFrame.ThrowUpWhateverCameUp();
 			if (errCode != OGRERR_NONE)
-				throwErrorF(SharedStr(GetGroup()->GetNameID()).c_str(), "The spatial reference of the domain of the first argument cannot be interpreted; ErrorCode=%d", errCode);
+				throwErrorF(SharedStr(GetGroup()->GetNameID()).c_str(), "The spatial reference of the domain of the first argument cannot be interpreted; ErrorCode={}", errCode);
 
 			if (not(sr.IsGeographic()))
 				throwErrorD(SharedStr(GetGroup()->GetNameID()).c_str(), "The spatial reference of the domain of the first argument must be geographic");
@@ -638,7 +638,7 @@ public:
 			for (auto i=itMap.begin(), e=itMap.end(); i!=e; ++i)
 				numBorderCases += i->m_NumBorderCases;
 
-			reportF(SeverityTypeID::ST_MajorTrace, "%sGridDist completed iteration %d; %d of the %d tiles need reprocessing for %d border cases (%d extra)", itemRef.c_str(), ++nrIterations, nrTilesRemaining, tn, numBorderCases, numBorderCases - nrPrevBorderCases);
+			reportF(SeverityTypeID::ST_MajorTrace, "{}GridDist completed iteration {}; {} of the {} tiles need reprocessing for {} border cases ({} extra)", itemRef.c_str(), ++nrIterations, nrTilesRemaining, tn, numBorderCases, numBorderCases - nrPrevBorderCases);
 			nrPrevBorderCases = numBorderCases;
 		}	// next iteration 
 		resLock.Commit();

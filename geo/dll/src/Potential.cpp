@@ -245,8 +245,8 @@ inline void CheckConvResult(ConvStatus status, CharPtr func, CharPtr file, int l
 		return;
 
 	throwErrorF("FFTW Convolution Error",
-		"%s(%s,%d)\n"
-		"function: %s\n",
+		"{}({},{})\n"
+		"function: {}\n",
 		(status == ConvStatus::MemAllocErr) ? "Memory allocation failed" : "Convolution error",
 		file, line,
 		func ? func : "<unknown>"
@@ -609,7 +609,7 @@ TileSize PotentialFftwRaw(potential_context<A>& context, UPoint& zeroInfo, const
 
 	CheckConvResult(result, "FftwConvolve", MG_POS);	
 	if (result != ConvStatus::NoErr)
-		DmsException::throwMsgF("Convolution failed with code %d", static_cast<int>(result));
+		DmsException::throwMsgF("Convolution failed with code {}", static_cast<int>(result));
 
 	return outputSize;
 }

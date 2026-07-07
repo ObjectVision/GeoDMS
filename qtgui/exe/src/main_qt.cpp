@@ -97,10 +97,10 @@ std::any interpret_command_line_parameters(CmdLineSetttings& settingsFrame) {
         // it as a config-file name.
 #ifdef _WIN32
         if ((*argv)[0] == '/')
-            throw CmdLineException(mySSPrintF("Unknown command-line option %s. Known options: /L<log>, /T<test>, /S<X>/C<X> status flags, /noconfig.", *argv));
+            throw CmdLineException(mySSPrintF("Unknown command-line option {}. Known options: /L<log>, /T<test>, /S<X>/C<X> status flags, /noconfig.", *argv));
 #else
         if ((*argv)[0] == '-' && (*argv)[1] != '\0')
-            throw CmdLineException(mySSPrintF("Unknown command-line option %s. Known options: /L<log>, /T<test>, /S<X>/C<X> status flags, /noconfig.", *argv));
+            throw CmdLineException(mySSPrintF("Unknown command-line option {}. Known options: /L<log>, /T<test>, /S<X>/C<X> status flags, /noconfig.", *argv));
 #endif
 
         settingsFrame.m_ConfigFileName = SharedStr(*argv);
@@ -156,7 +156,7 @@ void SaveDetailPage(CharPtr fileName) {
     auto dmsFileName = ConvertDosFileName(SharedStr(fileName));
     auto expandedFilename = AbstrStorageManager::Expand(currItem, dmsFileName);
 
-    reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "SaveDetailPage %s", DoubleQuote(expandedFilename.c_str()));
+    reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "SaveDetailPage {}", DoubleQuote(expandedFilename.c_str()));
 
     auto htmlSource = MainWindow::TheOne()->m_detail_pages->toHtml();
     auto htmlSourceAsUtf8 = htmlSource.toUtf8();

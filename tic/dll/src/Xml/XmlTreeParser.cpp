@@ -51,7 +51,7 @@ struct XmlContextHandle : AbstrContextHandle
 		int lineNr = m_Xml->GetLineNr();  
 		int offset = m_Xml->GetColNr();
 
-		m_Msg = mgFormat2SharedStr("%1%(%2%, %3%): parsing '%4%'"
+		m_Msg = mgFormat2SharedStr("{0}({1}, {2}): parsing '{3}'"
 			, m_Xml->Buffer().FileName() , lineNr , offset
 			, (m_Xml->m_CurrItem ? m_Xml->m_CurrItem->GetFullName().c_str() : "XML")
 		);
@@ -124,7 +124,7 @@ void XmlTreeParser::ReadAttrCallback(XmlElement& element)
 			AbstrPropDef* propDef = thisCls->FindPropDef((*avIter).first);
 			if (!propDef)
 			{
-				throwErrorF("XML", "%s(%d, %d): Unknown XML attribute %s for %s: %s",
+				throwErrorF("XML", "{}({}, {}): Unknown XML attribute {} for {}: {}",
 					Buffer().FileName(), GetLineNr(), GetColNr(), 
 					GetTokenStr((*avIter).first), 
 					thisItem->GetName(),
@@ -134,7 +134,7 @@ void XmlTreeParser::ReadAttrCallback(XmlElement& element)
 			else if (propDef->GetXmlMode() == xml_mode::element)
 			{
 				throwErrorF("XML",
-					"%s(%d, %d): XML Element property %s seen as attribute for %s: %s",
+					"{}({}, {}): XML Element property {} seen as attribute for {}: {}",
 					Buffer().FileName(), GetLineNr(), GetColNr(), 
 					GetTokenStr((*avIter).first), 
 					thisItem->GetName(), 
@@ -165,7 +165,7 @@ bool XmlTreeParser::ReadElemCallback(XmlElement& element)
 		AbstrPropDef* propDef = cls->FindPropDef(element.m_NameID);
 		if (!propDef)
 		{
-			throwErrorF("XML", "%s(%d, %d): Unknown XML element %s for %s: %s",
+			throwErrorF("XML", "{}({}, {}): Unknown XML element {} for {}: {}",
 				Buffer().FileName(), GetLineNr(), GetColNr(), 
 				GetTokenStr(element.m_NameID), 
 				m_CurrItem->GetName(), 
@@ -174,7 +174,7 @@ bool XmlTreeParser::ReadElemCallback(XmlElement& element)
 		}
 		else if (propDef->GetXmlMode() == xml_mode::attribute)
 		{
-			throwErrorF("XML", "%s(%d, %d): XML Attribute property %s seen as element for %s: %s",
+			throwErrorF("XML", "{}({}, {}): XML Attribute property {} seen as element for {}: {}",
 				Buffer().FileName(), GetLineNr(), GetColNr(), 
 				GetTokenStr(element.m_NameID),
 				m_CurrItem->GetName(), 

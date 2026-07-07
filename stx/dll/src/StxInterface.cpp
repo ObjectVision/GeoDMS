@@ -216,7 +216,7 @@ SharedMutableTreeItem AppendTreeFromConfiguration(CharPtr sourceFileName, TreeIt
 	ConfigurationFilenameLock reserveThisName(sourcePathNameStr, relPath);
 	SharedStr sourcePathNameStrFromCurrent = DelimitedConcat(ConfigurationFilenameContainer::GetConfigLoadDirFromCurrentDir().c_str(), sourcePathName);
 	if (!IsFileOrDirAccessible(sourcePathNameStrFromCurrent))
-		throwErrorF("File Open", "Cannot open configuration file '%s'.\nCWD: %s%s"
+		throwErrorF("File Open", "Cannot open configuration file '{}'.\nCWD: {}{}"
 			, sourcePathName
 			, GetCurrentDir().c_str()
 			, context ? "\nNote that #include statements are relative to the subdir that accompanies the referent" : "");

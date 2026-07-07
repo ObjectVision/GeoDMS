@@ -71,8 +71,8 @@ void DmsToolbuttonAction::onGlobalButtonPressed(QDmsViewArea* dms_view_area) {
 void DmsToolbuttonAction::onExportButtonPressed(QDmsViewArea* dms_view_area) {
     auto dv = dms_view_area->getDataView();
     auto export_info = dv->GetExportInfo();
-    dv->GetViewType() == tvsMapView ? reportF(SeverityTypeID::ST_MajorTrace, "Exporting current viewport to bitmap in %s", export_info.m_FullFileNameBase)
-                                    : reportF(SeverityTypeID::ST_MajorTrace, "Exporting current table to csv in %s", export_info.m_FullFileNameBase);
+    dv->GetViewType() == tvsMapView ? reportF(SeverityTypeID::ST_MajorTrace, "Exporting current viewport to bitmap in {}", export_info.m_FullFileNameBase)
+                                    : reportF(SeverityTypeID::ST_MajorTrace, "Exporting current table to csv in {}", export_info.m_FullFileNameBase);
 }
 
 auto getActiveDmsViewArea() -> QDmsViewArea* {

@@ -207,7 +207,7 @@ bool AbstrGridStorageManager::DoCheckFactorSimilarity(StorageMetaInfoPtr smi) co
 	auto curr_factor = curr_projection->Factor();
 	if (grid_factor != curr_factor)
 	{
-		reportF(MsgCategory::storage_read, SeverityTypeID::ST_Warning, "Factor difference encountered between item %s: [%d,%d] and storage %s: [%d,%d]",
+		reportF(MsgCategory::storage_read, SeverityTypeID::ST_Warning, "Factor difference encountered between item {}: [{},{}] and storage {}: [{},{}]",
 			GetSourceName().c_str()
 			, curr_factor.X()
 			, curr_factor.Y()
@@ -253,7 +253,7 @@ bool AbstrGridStorageManager::DoCheck50PercentExtentOverlap(StorageMetaInfoPtr s
 	auto intersect = grid_extent_in_world_coordinates & curr_extent_in_world_coordinates;
 	if (intersect.empty())
 	{
-		reportF(MsgCategory::storage_read, SeverityTypeID::ST_Warning, "Extent of domain of item %s and storage %s don't overlap",
+		reportF(MsgCategory::storage_read, SeverityTypeID::ST_Warning, "Extent of domain of item {} and storage {} don't overlap",
 			GetSourceName().c_str()
 			, GetNameStr().c_str()
 		);
@@ -266,7 +266,7 @@ bool AbstrGridStorageManager::DoCheck50PercentExtentOverlap(StorageMetaInfoPtr s
 	auto intersection_faction = intersection_area / read_area;
 	if (intersection_faction < 0.5)
 	{
-		reportF(MsgCategory::storage_read, SeverityTypeID::ST_Warning, "Extent of domain of item %s and storage %s overlap for only %d percent",
+		reportF(MsgCategory::storage_read, SeverityTypeID::ST_Warning, "Extent of domain of item {} and storage {} overlap for only {} percent",
 			GetSourceName().c_str()
 			, GetNameStr().c_str()
 			, intersection_faction * 100
@@ -346,7 +346,7 @@ SharedUnit CheckedGridDomain(const AbstrDataItem* adi)
 	auto gridDomain = GridDomain(adi);
 	if (!gridDomain)
 		adi->throwItemErrorF(
-			"ViewPortInfo expected a GridDataItem but the domain of this DataItem is %s"
+			"ViewPortInfo expected a GridDataItem but the domain of this DataItem is {}"
 		,	adi->GetAbstrDomainUnit()->GetSourceName().c_str()
 		);
 	return gridDomain;

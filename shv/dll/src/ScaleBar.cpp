@@ -77,7 +77,7 @@ bool ScaleBarBase::Draw(DrawContext& dc, CrdRect devAbsRect) const
 			dc.FillRect(bottomRect, white);
 
 			botVal += m_MeasureValue * m_MeasureGroupCount;
-			auto text = mySSPrintF("%1.0lf%s", botVal, m_UnitLabel.c_str());
+			auto text = mySSPrintF("{:1.0f}{}", botVal, m_UnitLabel.c_str());
 			dc.DrawText(bottomRect, text.c_str(), -1, 0x0001|0x0004|0x0020, black); // DT_CENTER|DT_VCENTER|DT_SINGLELINE
 		}
 		{
@@ -89,7 +89,7 @@ bool ScaleBarBase::Draw(DrawContext& dc, CrdRect devAbsRect) const
 				topRect.Shrink(1);
 				dc.FillRect(topRect, white);
 				topVal += m_MeasureValue;
-				auto text = mySSPrintF("%1.0lf", topVal);
+				auto text = mySSPrintF("{:1.0f}", topVal);
 				dc.DrawText(topRect, text.c_str(), -1, 0x0001|0x0004|0x0020, black); // DT_CENTER|DT_VCENTER|DT_SINGLELINE
 
 				dc.FillRect(GRect(left, top, right, mid   ) + topLeft, fillColor1);

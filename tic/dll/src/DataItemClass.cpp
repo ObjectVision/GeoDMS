@@ -197,7 +197,7 @@ const DataItemClass* DataItemClass::FindCertain(
 	const DataItemClass* dic = Find(valuesType);
 	if (!dic)
 		context->throwItemErrorF(
-			"Cannot find DataItemClass for ValuesType %s"
+			"Cannot find DataItemClass for ValuesType {}"
 		,	valuesType->GetName().c_str()
 		);
 	return dic;
@@ -267,7 +267,7 @@ TIC_CALL AbstrDataItem* DMS_CONV DMS_CreateDataItem(
 
 		if (!valuesUnit)
 			context->throwItemErrorF(
-				"DMS_CreateDataItem('%s') called without ValuesUnit", 
+				"DMS_CreateDataItem('{}') called without ValuesUnit", 
 				name
 			);
 
@@ -281,7 +281,7 @@ TIC_CALL AbstrDataItem* DMS_CONV DMS_CreateDataItem(
 		else if (IsDataItem(context))
 			domainUnit = AsDataItem(context)->GetAbstrValuesUnit();
 		else
-			throwDmsErrF("DMS_CreateDataItem [%s] called without DomainUnit", name);
+			throwDmsErrF("DMS_CreateDataItem [{}] called without DomainUnit", name);
 		dms_assert(domainUnit);
 
 		return CreateDataItem(

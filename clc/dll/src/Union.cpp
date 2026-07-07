@@ -184,7 +184,7 @@ bool UnionUnit_impl(TreeItemDualRef& resultHolder, AbstrUnit* result, const ArgS
 		{
 			const AbstrUnit* adu = dynamic_cast<const AbstrUnit*>(args[i]);
 			if (!adu)
-				throwErrorF(cog_unionUnit.GetName().c_str(), "argument %d is not a Unit", i+1);
+				throwErrorF(cog_unionUnit.GetName().c_str(), "argument {} is not a Unit", i+1);
 			for (tile_id t = 0, tn = adu->GetNrTiles(); t != tn; ++t)
 			{
 				auto tileCount = adu->GetTileCount(t);
@@ -255,7 +255,7 @@ public:
 		catch (const DmsException& x)
 		{
 			constUnitRef = compatible_values_unit_creator_func(1, &cog_unionData, GetItems(args), false);
-			reportF(SeverityTypeID::ST_Warning, "Depreciated usage of Union_data: %s"
+			reportF(SeverityTypeID::ST_Warning, "Depreciated usage of Union_data: {}"
 				, x.AsErrMsg()->Why().c_str()
 			);
 			hadToTryWithoutCategoricalCheck = true;

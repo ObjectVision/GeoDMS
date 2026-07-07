@@ -301,7 +301,7 @@ void OutStream_XmlBase::WriteValueWithConfigSourceDecorations(CharPtr data)
 
 					auto currEnd = currPos + round_bracked_close_pos + 1;
 					auto ecfRef = CharPtrRange(data + currPos, data + currEnd);
-					auto ecsURL = mySSPrintF("editConfigSource:%s", ecfRef);
+					auto ecsURL = mySSPrintF("editConfigSource:{}", ecfRef);
 
 					XML_hRef hRef(*this, ecsURL.AsRange());
 					CloseAttrList();

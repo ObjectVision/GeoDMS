@@ -211,7 +211,7 @@ static void ReportDataItem(const AbstrDataItem* di)
 	auto ado = di->GetDataObj();
 	assert(ado);
 
-	reportF(MsgCategory::memory, SeverityTypeID::ST_MinorTrace, "RefCnt=%d; InterestCnt=%d; KE=%d; #DataLocks=%d, Name=%s",
+	reportF(MsgCategory::memory, SeverityTypeID::ST_MinorTrace, "RefCnt={}; InterestCnt={}; KE={}; #DataLocks={}, Name={}",
 		di->weak_from_this().use_count(),
 		di->GetInterestCount(),
 		di->GetKeepDataState(),
@@ -279,14 +279,14 @@ void TreeItemAdmLock::Report()
 	SizeT n = s_TreeItems->size();
 	if(n)
 	{
-		reportF_without_cancellation_check(MsgCategory::memory, SeverityTypeID::ST_Error, "MemoryLeak of %d TreeItems. See EventLog for details.", n);
+		reportF_without_cancellation_check(MsgCategory::memory, SeverityTypeID::ST_Error, "MemoryLeak of {} TreeItems. See EventLog for details.", n);
 
 		auto i = s_TreeItems->begin();
 		auto e = s_TreeItems->end();
 		while (i!=e)
 		{
 			const TreeItem* ti = *i++;
-			reportF_without_cancellation_check(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, "MemoryLeak: %s (%d,%d) %s",
+			reportF_without_cancellation_check(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, "MemoryLeak: {} ({},{}) {}",
 				ti->GetDynamicClass()->GetName(),
 				ti->weak_from_this().use_count(),
 				ti->IsCacheItem(),
@@ -753,7 +753,7 @@ void TreeItem::SetExpr(WeakStr expr)
 	if (IsInInherited())
 	{
 		SharedStr exprStr(expr);
-		throwItemErrorF("SetExpr(%s) not allowed since Calculator is set by parent", SingleQuote( exprStr.begin(), exprStr.send() ).c_str());
+		throwItemErrorF("SetExpr({}) not allowed since Calculator is set by parent", SingleQuote( exprStr.begin(), exprStr.send() ).c_str());
 	}
 
 	if (GetExprMember() != expr)
@@ -925,7 +925,7 @@ void TreeItem::AssertPropChangeRights(CharPtr changeWhat) const
 	if ((! IsEndogenous()) || s_MakeEndoLockCount)
 		return;
 	if (! UpdateMarker::HasActiveChangeSource() )
-		throwItemErrorF("Illegal attempt to change the %s of an endogenous item", changeWhat);
+		throwItemErrorF("Illegal attempt to change the {} of an endogenous item", changeWhat);
 }
 
 void TreeItem::AssertDataChangeRights(CharPtr changeWhat) const
@@ -935,11 +935,11 @@ void TreeItem::AssertDataChangeRights(CharPtr changeWhat) const
 	dms_assert(!IsCacheItem()); // PRECONDITION
 
 	if (!HasConfigData())
-		throwItemErrorF("Illegal attempt to change the %s of a calculatable item", changeWhat);
+		throwItemErrorF("Illegal attempt to change the {} of a calculatable item", changeWhat);
 	if (IsStorable())
 		return;
 	if (IsLoadable()) // data is not derivable
-		throwItemErrorF("Illegal attempt to change the %s of a loadable item", changeWhat);
+		throwItemErrorF("Illegal attempt to change the {} of a loadable item", changeWhat);
 	dms_assert(!IsDerivable()); // implied by !IsLoadable() && !HasCalculator() || HasConfigData, but MUTATING through HasCalculator
 //	dms_assert(HasConfigSource()); // implied by !IsDerivable && !IsCacheItem(), but MUTATING through HasCalculator
 
@@ -949,7 +949,7 @@ void TreeItem::AssertDataChangeRights(CharPtr changeWhat) const
 	if ((! IsEndogenous()) || s_MakeEndoLockCount)
 		return;
 	if (! UpdateMarker::HasActiveChangeSource() )
-		reportF(SeverityTypeID::ST_Warning, "Changing the %s of endogenous item %s", changeWhat, GetSourceName().c_str());
+		reportF(SeverityTypeID::ST_Warning, "Changing the {} of endogenous item {}", changeWhat, GetSourceName().c_str());
 }
 
 SharedPtr<const AbstrCalculator> TreeItem::GetCalculator() const
@@ -1016,7 +1016,7 @@ void TreeItem::MakeCalculator() const noexcept
 
 static void ReportItemType(const TreeItem* self, const TreeItem* refItem)
 {
-	auto msg = mySSPrintF("%s: ItemType %s is incompatible with the result of the calculation which is of type %s"
+	auto msg = mySSPrintF("{}: ItemType {} is incompatible with the result of the calculation which is of type {}"
 		, self->GetFullName().c_str()
 		, self->GetDynamicObjClass()->GetName().c_str()
 		, refItem->GetDynamicObjClass()->GetName().c_str()
@@ -1027,7 +1027,7 @@ static void ReportItemType(const TreeItem* self, const TreeItem* refItem)
 
 static void FailItemType(const TreeItem* self, const TreeItem* refItem)
 {
-	auto msg = mySSPrintF("ItemType %s is incompatible with the result of the calculation which is of type %s"
+	auto msg = mySSPrintF("ItemType {} is incompatible with the result of the calculation which is of type {}"
 	,	self->GetDynamicObjClass()->GetName().c_str()
 	,	refItem->GetDynamicObjClass()->GetName().c_str()
 	);
@@ -1043,7 +1043,7 @@ static void FailItemType(const TreeItem* self, const TreeItem* refItem)
 static void ReportResultCompositionDeprecation(const TreeItem* self, const AbstrDataItem* selfDi, const AbstrDataItem* refDi)
 {
 	auto msg = mySSPrintF(
-		"%s: Depreciated: the declared ValueComposition '%s' differs from the '%s' of the calculation result.\n"
+		"{}: Depreciated: the declared ValueComposition '{}' differs from the '{}' of the calculation result.\n"
 		"Make the configuration explicit about the intended composition "
 		"(use points2sequence for arc and points2polygon for poly). "
 		"This will become an error in a future GeoDms major version."
@@ -1906,7 +1906,7 @@ const TreeItem* TreeItem_CheckObjCls(const TreeItem* self, const Class* required
 			:	self->GetDynamicClass();
 
 	if	(!	thisClass->IsDerivedFrom(requiredClass))
-		self->throwItemErrorF("Cannot cast to the requested type: %s", 
+		self->throwItemErrorF("Cannot cast to the requested type: {}", 
 			requiredClass->GetName()
 		);
 	return self;
@@ -1929,7 +1929,7 @@ TreeItem* TreeItem_CheckCls(TreeItem* self, const Class* requiredClass)
 
 	if (!	thisClass->IsDerivedFrom(requiredClass))
 		self->throwItemErrorF(
-			"Cannot cast to the requested type: %s", 
+			"Cannot cast to the requested type: {}", 
 			requiredClass->GetName()
 		);
 	return self;
@@ -1970,7 +1970,7 @@ TreeItem* CheckedAs(TreeItem* self, const Class* requiredClass)
 {
 	// check on type of this and return
 	if (requiredClass && !self->IsKindOf(requiredClass) )
-		self->throwItemErrorF("CreateItem('%s') failed since it is already created as '%s'",
+		self->throwItemErrorF("CreateItem('{}') failed since it is already created as '{}'",
 			requiredClass->GetName(), self->GetDynamicClass()->GetName());
 	return self; 
 }
@@ -2046,7 +2046,7 @@ auto TreeItem_CreateItemFromPath(TreeItem* self, CharPtr subItemNames, const Cla
 	if (firstSubItemName.empty() || firstSubItemName[0] == '.')
 		// subItemNames started with a '/': traversing an absolute path is not allowed for locating a new object
 		// traversing outside the specified namespace is not allowed for locating a new object
-		throwItemErrorF(self, "CreateItemFromPath(%s): Cannot create new items outside creation context", subItemNames);
+		throwItemErrorF(self, "CreateItemFromPath({}): Cannot create new items outside creation context", subItemNames);
 
 	TokenID   firstSubItemID = GetTokenID_mt(firstSubItemName.c_str());
 	dms_assert(!firstSubItemID.empty());
@@ -2326,7 +2326,7 @@ void TreeItem::UpdateMetaInfoImpl() const
 				}
 				MG_CHECK(prevItem->GetID() != refItem->GetID());
 				
-				auto msg = mySSPrintF("'%s' refers by '%s' to '%s'\nReplace '%s' by '%s'."
+				auto msg = mySSPrintF("'{}' refers by '{}' to '{}'\nReplace '{}' by '{}'."
 				,	this->GetFullName()
 				,	foundItem->GetFullName()
 				,	prevItem->GetID()
@@ -2735,7 +2735,7 @@ void TreeItem::UpdateMetaInfoImpl2() const
 		MG_SIGNAL_ON_UPDATEMETAINFO
 
 		DBG_START("TreeItem", "UpdateMetaInfo", MG_DEBUG_UPDATEMETAINFO && false);
-		DBG_TRACE(("fullname = %s", GetFullName().c_str()));
+		DBG_TRACE(("fullname = {}", GetFullName().c_str()));
 
 		TreeItemContextHandle tdc(this, "UpdateMetaInfo");
 		auto waiter = Waiter(&tdc);
@@ -2853,7 +2853,7 @@ bool IntegrityCheckFailure(const TreeItem* self, const AbstrDataItem* iCheckerRe
 		SizeT oxfordComma = nrFailures >= 3;
 		if (nrFailures > 1)
 		{
-			helperText = mySSPrintF("%d elements of %s are not true, at row %d"
+			helperText = mySSPrintF("{} elements of {} are not true, at row {}"
 				, nrFailures
 				, helperText
 				, failurePos
@@ -2865,7 +2865,7 @@ bool IntegrityCheckFailure(const TreeItem* self, const AbstrDataItem* iCheckerRe
 				if (!IsDefined(failurePos))
 					break;
 
-				CharPtr format = nrFailures ? ", %d" : oxfordComma ? ", and %d" : " and %d";
+				CharPtr format = nrFailures ? ", {}" : oxfordComma ? ", and {}" : " and {}";
 				helperText += mySSPrintF(format, failurePos);
 
 			}
@@ -2874,12 +2874,12 @@ bool IntegrityCheckFailure(const TreeItem* self, const AbstrDataItem* iCheckerRe
 		}
 		else
 		{
-			helperText += mySSPrintF(" is not true at row %d", failurePos);
+			helperText += mySSPrintF(" is not true at row {}", failurePos);
 		}
 	}
 
 	// will be caught by SuspendibleUpdate who will Fail this.
-	self->Fail(mySSPrintF("%s : %s", ICHECK_NAME, helperText), FailType::Validate); // will be caught by SuspendibleUpdate who will Fail this.
+	self->Fail(mySSPrintF("{} : {}", ICHECK_NAME, helperText), FailType::Validate); // will be caught by SuspendibleUpdate who will Fail this.
 
 	assert(self->WasFailed(FailType::Validate));
 	return true;
@@ -2888,7 +2888,7 @@ bool IntegrityCheckFailure(const TreeItem* self, const AbstrDataItem* iCheckerRe
 ActorVisitState TreeItem::DoUpdate()
 {
 	DBG_START("TreeItem", "DoUpdate", MG_DEBUG_UPDATEMETAINFO && false);
-	DBG_TRACE(("fullname = %s", GetFullName().c_str()));
+	DBG_TRACE(("fullname = {}", GetFullName().c_str()));
 
 	assert(m_State.GetProgress() >= ProgressState::MetaInfo); //UpdateMetaInfo();
 
@@ -3419,7 +3419,7 @@ void TreeItem::SetDataChanged()
 #if defined(MG_DEBUG_TS_SOURCE)
 	UpdateMarker::ChangeSourceLock::CheckActivation(m_LastChangeTS, "SetDataChanged");
 #endif
-	SetProgressAt(ProgressState::MetaInfo, UpdateMarker::GetActiveTS(MG_DEBUG_TS_SOURCE_CODE(mySSPrintF("SetDataChanged(%s)", GetFullName().c_str()).c_str()) ) );  // new data not validated nor committed
+	SetProgressAt(ProgressState::MetaInfo, UpdateMarker::GetActiveTS(MG_DEBUG_TS_SOURCE_CODE(mySSPrintF("SetDataChanged({})", GetFullName().c_str()).c_str()) ) );  // new data not validated nor committed
 }
 
 garbage_can TreeItem::DropValue()
@@ -3484,7 +3484,7 @@ SharedStr TreeItem::GetSourceName() const
 //	if (!GetConfigFileLineNr())
 	return inhSN;
 /*
-	return mySSPrintF("%s(%u,%u): %s"
+	return mySSPrintF("{}({},{}): {}"
 	,	ConvertDmsFileNameAlways(GetConfigFileName())
 	,	GetConfigFileLineNr()
 	,	GetConfigFileColNr()
@@ -3543,7 +3543,7 @@ bool TreeItem::ReadItem(StorageReadHandle&& srh) // TODO: Make this a method of 
 
 	try
 	{
-		auto progressMsg = mySSPrintF("Read %s from %s"
+		auto progressMsg = mySSPrintF("Read {} from {}"
 			, GetName()
 			, storageParent->GetStorageManager()->GetNameStr()
 		);
@@ -3562,7 +3562,7 @@ bool TreeItem::ReadItem(StorageReadHandle&& srh) // TODO: Make this a method of 
 
 		if (!WasFailed(FailType::Data)) {
 			auto err = catchException(true);
-			err->TellExtraF("while reading data from %s", DMS_TreeItem_GetAssociatedFilename(this));
+			err->TellExtraF("while reading data from {}", DMS_TreeItem_GetAssociatedFilename(this));
 			DoFailCaller(err, FailType::Data);
 		}
 	}
@@ -4280,7 +4280,7 @@ bool TreeItem::CommitDataChanges() const
 	}
 
 	DBG_START("TreeItem", "CommitDataChanges", false);
-	DBG_TRACE(("self = %s", GetSourceName().c_str()));
+	DBG_TRACE(("self = {}", GetSourceName().c_str()));
 
 	auto interestHolder = GetInterestPtrOrNull();
 	assert(interestHolder); // Commit is Called from DoUpdate
@@ -4290,10 +4290,10 @@ bool TreeItem::CommitDataChanges() const
 
 	if ((!IsCalculatingOrReady(GetCurrRangeItem().get()) && !PrepareDataUsage(DrlType::Suspendible)) || GetCurrRangeItem()->WasFailed(FailType::Committed))
 		// can have failed just because PrepareDataUsage suspended or failed; 
-		return FinalizeFailure(this, [this]() { return mySSPrintF("Unable to start calculating data when trying to store it in %s", DMS_TreeItem_GetAssociatedFilename(this)); });
+		return FinalizeFailure(this, [this]() { return mySSPrintF("Unable to start calculating data when trying to store it in {}", DMS_TreeItem_GetAssociatedFilename(this)); });
 
 	if (!WaitForReadyOrSuspendTrigger(GetCurrRangeItem().get()) || GetCurrRangeItem()->WasFailed(FailType::Committed))
-		return FinalizeFailure(this, [this]() { return mySSPrintF("Unable to complete calculating data when trying to store it in %s", DMS_TreeItem_GetAssociatedFilename(this)); });
+		return FinalizeFailure(this, [this]() { return mySSPrintF("Unable to complete calculating data when trying to store it in {}", DMS_TreeItem_GetAssociatedFilename(this)); });
 
 	assert(!SuspendTrigger::DidSuspend());
 
@@ -4314,7 +4314,7 @@ bool TreeItem::CommitDataChanges() const
 
 	if (!DoWriteItem(nmsm->GetMetaInfo(storageHolder.get(), const_cast<TreeItem*>(this), StorageAction::write))
 		|| GetCurrRangeItem()->WasFailed(FailType::Committed))
-		return FinalizeFailure(this, [this]() { return mySSPrintF("Unable to write data to storage %s", DMS_TreeItem_GetAssociatedFilename(this)); });
+		return FinalizeFailure(this, [this]() { return mySSPrintF("Unable to write data to storage {}", DMS_TreeItem_GetAssociatedFilename(this)); });
 
 	return !WasFailed(FailType::Committed);
 }
@@ -4490,7 +4490,7 @@ void TreeItem::SetStorageManager(AbstrStorageManager* storageManager)
 		return;
 	if (!GetTreeParent())
 		throwItemErrorF(
-			"StorageManager '%s' on root item is not allowed;\n"
+			"StorageManager '{}' on root item is not allowed;\n"
 			"move StorageName property to the relevant subItems",
 			storageManager->GetName()
 		);

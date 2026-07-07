@@ -132,7 +132,7 @@ SizeT UrlDecodeSize(WeakStr urlStr)
 				throwErrorD("UrlDecode", "invalid escape code");
 		}
 	//		else if (!url::IsSafeChar(*chPtr))
-	//			throwErrorF("UrlDecode", "invalid character '%c'", *chPtr);
+	//			throwErrorF("UrlDecode", "invalid character '{}'", *chPtr);
 	assert(3 * c <= urlStr.ssize());
 	return urlStr.ssize() - 2 * c;
 }
@@ -289,14 +289,14 @@ void CheckTreeItemName(CharPtr name)
 {
 	CharPtr charPtr = ParseTreeItemName(name);
 	if (*charPtr)
-		throwErrorF("CheckTreeItemName", "Illegal character '%c' in item-name '%s'", *charPtr, name);
+		throwErrorF("CheckTreeItemName", "Illegal character '{}' in item-name '{}'", *charPtr, name);
 }
 
 void CheckTreeItemPath(CharPtr name)
 {
 	auto charPtr = ParseTreeItemPath(name);
 	if (*charPtr)
-		throwErrorF("CheckTreeItemPath", "Illegal character '%c' in item-path '%s'", *charPtr, name);
+		throwErrorF("CheckTreeItemPath", "Illegal character '{}' in item-path '{}'", *charPtr, name);
 }
 
 

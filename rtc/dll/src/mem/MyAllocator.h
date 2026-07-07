@@ -58,7 +58,7 @@ size_t safe_size_n(size_t n)
 		constexpr size_t sz = nrBits / 8;
 		constexpr size_t max = static_cast<size_t>(-1) / sz;
 		if (n > max)
-			throwDmsErrF("Cannot represent the size of %d elements of %d bytes each as a size_t, a.k.a. a %d bit unsigned integer", n, sz, 8 * sizeof(size_t));
+			throwDmsErrF("Cannot represent the size of {} elements of {} bytes each as a size_t, a.k.a. a {} bit unsigned integer", n, sz, 8 * sizeof(size_t));
 
 		return n * sz;
 	}

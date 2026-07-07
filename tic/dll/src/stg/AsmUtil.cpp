@@ -95,7 +95,7 @@ SharedStr asm_state_string(ASM_STATE state, CharPtr storageName)
 		msg = "unknown storage type";
 		break;
 	}
-	return mySSPrintF("Storage Exception %s: %s", storageName, msg);
+	return mySSPrintF("Storage Exception {}: {}", storageName, msg);
 }
 
 /*

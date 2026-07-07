@@ -454,7 +454,7 @@ TIC_CALL void DMS_CONV DMS_TreeItem_DisableStorage(TreeItem* self)
 
 		DBG_START("DMS_TreeItem", "DisableStorage", true);
 		TreeItemContextHandle checkPtr(self, TreeItem::GetStaticClass(), "DMS_TreeItem_DisableStorage");
-		DBG_TRACE(("self = %s", self->GetName().c_str()));
+		DBG_TRACE(("self = {}", self->GetName().c_str()));
 
 		self->DisableStorage();
 
@@ -492,8 +492,8 @@ TIC_CALL void        DMS_CONV DMS_TreeItem_SetExpr(TreeItem* self, CharPtr expre
 
 		DBG_START("DMS_TreeItem", "SetExpr", false);
 		TreeItemContextHandle checkPtr(self, TreeItem::GetStaticClass(), "DMS_TreeItem_SetExpr");
-		DBG_TRACE(("self = %s", self->GetName().c_str()));
-		DBG_TRACE(("expr = %s", expression));
+		DBG_TRACE(("self = {}", self->GetName().c_str()));
+		DBG_TRACE(("expr = {}", expression));
 
 		self->SetExpr(SharedStr(expression MG_DEBUG_ALLOCATOR_SRC("DMS_TreeItem_SetExpr")));
 
@@ -507,7 +507,7 @@ TIC_CALL IStringHandle DMS_CONV DMS_TreeItem_GetStoredNameAsIString(const TreeIt
 
 		DBG_START("DMS_TreeItem", "GetStoredNameAsIString", true);
 		TreeItemContextHandle checkPtr(self, TreeItem::GetStaticClass(), "DMS_TreeItem_GetStoredNameAsIString");
-		DBG_TRACE(("self = %s", self->GetName().c_str()));
+		DBG_TRACE(("self = {}", self->GetName().c_str()));
 		
 		auto parent = self->GetStorageParent(false);
 		return IString::Create(parent ? self->GetRelativeName(parent.get()).c_str() : "");
@@ -522,7 +522,7 @@ TIC_CALL IStringHandle DMS_CONV DMS_TreeItem_GetSourceNameAsIString(const TreeIt
 
 		DBG_START("DMS_TreeItem", "GetSourceNameAsIString", true);
 		TreeItemContextHandle checkPtr(self, TreeItem::GetStaticClass(), "DMS_TreeItem_GetSourceNameAsIString");
-		DBG_TRACE(("self = %s", self->GetName().c_str()));
+		DBG_TRACE(("self = {}", self->GetName().c_str()));
 		
 		return IString::Create(self->GetSourceName());
 
@@ -536,7 +536,7 @@ TIC_CALL CharPtr DMS_CONV DMS_TreeItem_GetAssociatedFilename(const TreeItem* sel
 
 		DBG_START("DMS_TreeItem", "GetAssociatedFilename", false);
 		TreeItemContextHandle checkPtr(self, TreeItem::GetStaticClass(), "DMS_TreeItem_GetAssociatedFilename");
-		DBG_TRACE(("self = %s", self->GetName().c_str()));
+		DBG_TRACE(("self = {}", self->GetName().c_str()));
 
 		auto storageParent = self->GetStorageParent(false);
 		if (storageParent)
@@ -558,7 +558,7 @@ TIC_CALL CharPtr DMS_CONV DMS_TreeItem_GetAssociatedFiletype(const TreeItem* sel
 
 		DBG_START("DMS_TreeItem", "GetAssociatedFileType", false);
 		TreeItemContextHandle checkPtr(self, TreeItem::GetStaticClass(), "DMS_TreeItem_GetAssociatedFiletype");
-		DBG_TRACE(("self = %s", self->GetName().c_str()));
+		DBG_TRACE(("self = {}", self->GetName().c_str()));
 
 		auto storageParent = self->GetStorageParent(false);
 		if (storageParent && storageParent->GetStorageManager())
@@ -574,7 +574,7 @@ TIC_CALL AbstrStorageManager* DMS_CONV DMS_TreeItem_GetStorageManager(const Tree
 
 		DBG_START("DMS_TreeItem", "GetStorageManager", false);
 		TreeItemContextHandle checkPtr(self, TreeItem::GetStaticClass(), "DMS_TreeItem_GetStorageManager");
-		DBG_TRACE(("self = %s", self->GetName().c_str()));
+		DBG_TRACE(("self = {}", self->GetName().c_str()));
 
 		return self->GetStorageManager();
 
@@ -587,7 +587,7 @@ TIC_CALL const TreeItem* DMS_CONV DMS_TreeItem_GetStorageParent (const TreeItem*
 	DMS_CALL_BEGIN
 		DBG_START("DMS_TreeItem", "GetStorageParent", false);
 		TreeItemContextHandle checkPtr(self, TreeItem::GetStaticClass(), "DMS_TreeItem_GetStorageParent");
-		DBG_TRACE(("self = %s", self->GetName().c_str()));
+		DBG_TRACE(("self = {}", self->GetName().c_str()));
 
 		return self->GetStorageParent(false).get();
 
@@ -601,7 +601,7 @@ TIC_CALL void DMS_CONV DMS_TreeItem_Invalidate(TreeItem* self)
 
 		DBG_START("DMS_TreeItem", "Invalidate", false);
 		TreeItemContextHandle checkPtr(self, TreeItem::GetStaticClass(), "DMS_TreeItem_Invalidate");
-		DBG_TRACE(("self = %s", self->GetFullName().c_str()));
+		DBG_TRACE(("self = {}", self->GetFullName().c_str()));
 		
 		self->Invalidate();
 
@@ -748,7 +748,7 @@ TIC_CALL IStringHandle DMS_CONV DMS_TreeItem_GetFailReasonAsIString(const TreeIt
 
 		DBG_START("DMS_TreeItem", "GetFailedReason", false);
 		TreeItemContextHandle checkPtr(self, TreeItem::GetStaticClass(), "DMS_TreeItem_GetFailReason");
-		DBG_TRACE(("self = %s", self->GetName().c_str()));
+		DBG_TRACE(("self = {}", self->GetName().c_str()));
 		
 		return IString::Create(self->GetFailReason()->Why());
 
@@ -763,7 +763,7 @@ TIC_CALL void DMS_CONV DMS_TreeItem_ThrowFailReason(const TreeItem* self)
 		DBG_START("DMS_TreeItem", "ThrowFailedReason", false);
 
 		TreeItemContextHandle checkPtr(self, TreeItem::GetStaticClass(), "DMS_TreeItem_ThrowFailReason");
-		DBG_TRACE(("self = %s", self->GetName().c_str()));
+		DBG_TRACE(("self = {}", self->GetName().c_str()));
 		
 		if (self->WasFailed())
 			self->ThrowFail();

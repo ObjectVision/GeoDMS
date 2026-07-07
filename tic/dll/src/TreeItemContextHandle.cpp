@@ -82,7 +82,7 @@ void TreeItemContextHandle::GenerateDescription()
 	{
 		SharedStr objNameStr = m_Obj->GetFullName();
 		SetText(
-			mgFormat2SharedStr("while in %1%( %2%: %3% )"
+			mgFormat2SharedStr("while in {0}( {1}: {2} )"
 				,	role
 				,	objNameStr.empty() ? m_Obj->GetName().c_str() : objNameStr.c_str()
 				,	m_Obj->GetClsName()
@@ -115,7 +115,7 @@ void GenerateSystemInfo(AbstrPropWriter& apw, const TreeItem* curr)
 	apw.WriteKey("SessionStartTime", GetSessionStartTimeStr());
 	apw.WriteKey("CurrentTime", GetCurrentTimeStr());
 	apw.WriteKey("StatusFlags",
-		mySSPrintF("0x%x = %s%s%s%s%s%s%s%s%s%s%s%s"
+		mySSPrintF("0x{:x} = {}{}{}{}{}{}{}{}{}{}{}{}"
 			, GetRegStatusFlags()
 			, (GetRegStatusFlags() & RSF_AdminMode) ? "AdminMode " : ""
 			, (GetRegStatusFlags() & RSF_DebugMode) ? "DebugMode " : ""

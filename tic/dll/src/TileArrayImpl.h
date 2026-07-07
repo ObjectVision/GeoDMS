@@ -264,7 +264,7 @@ SharedStr TileSuffix(tile_id t)
 	dms_assert(t > 0);
 	while (t)
 	{
-		result += mySSPrintF("/t%x.", t % 0x100);
+		result += mySSPrintF("/t{:x}.", t % 0x100);
 		t /= 0x100;
 	}
 	return result;

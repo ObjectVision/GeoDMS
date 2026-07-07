@@ -316,10 +316,10 @@ HBITMAP MovableObject::GetAsDDBitmap(DataView* dv, CrdType subPixelFactor, Movab
 	auto scaleFactors = GetScaleFactors();
 	auto devSize = ScaleCrdPoint(CalcClientSize(), scaleFactors);
 	auto intSize = CrdPoint2GPoint(devSize);
-	SharedStrContextHandle context(mySSPrintF("while Copying %d x % u pixels to a Device Dependent Bitmap (DDB)", intSize.x, intSize.y));
+	SharedStrContextHandle context(mySSPrintF("while Copying {} x {: } pixels to a Device Dependent Bitmap (DDB)", intSize.x, intSize.y));
 
 	if (intSize.x >= 0x8000 || intSize.y >= 0x8000)
-		throwErrorF("GDI Error", "FullExtents %s of this Graphic are above the GeoDms limit of 0x8000 rows and 0x8000 colums; consider tiling", 
+		throwErrorF("GDI Error", "FullExtents {} of this Graphic are above the GeoDms limit of 0x8000 rows and 0x8000 colums; consider tiling", 
 			AsString(intSize).c_str()
 		);
 

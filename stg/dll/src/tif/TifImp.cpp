@@ -9,6 +9,7 @@
 #pragma hdrstop
 #endif //defined(CC_PRAGMAHDRSTOP)
 
+#include <boost/config/helper_macros.hpp> // BOOST_STRINGIZE; was transitively provided by boost/format via the prelude
 #include "TifImp.h"
 
 #include "cpc/EndianConversions.h"
@@ -540,7 +541,7 @@ void TifImp::UnpackCheck(UInt32 nrDmsBitsPerPixel, UInt32 nrRasterBitsPerPixel, 
 	if (nrRasterBitsPerPixel == 24 && nrDmsBitsPerPixel == 32) // UnpackStrip(UInt32* ...) can process this
 		return;
 
-	throwErrorF(functionName, "TifImp cannot convert %d bits raster data of %s %s %d bits DMS data"
+	throwErrorF(functionName, "TifImp cannot convert {} bits raster data of {} {} {} bits DMS data"
 		, nrRasterBitsPerPixel, dataSourceName, direction, nrDmsBitsPerPixel
 	);
 }

@@ -9,6 +9,7 @@
 #endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "GridDrawer.h"
+#include <boost/core/enable_if.hpp> // boost::enable_if_c; was transitively provided by boost/format via the prelude
 
 #include "dbg/DebugCast.h"
 #include "mci/ValueClass.h"

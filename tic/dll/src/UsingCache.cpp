@@ -338,7 +338,7 @@ void UsingCache::UpdateUsings() const
 		TokenID url = *i;
 		auto ns = FindNamespace(url);
 	   	if (!ns)
-			throwErrorF("UsingCache", "Cannot find reference in Using = \"%s\"\n%s"
+			throwErrorF("UsingCache", "Cannot find reference in Using = \"{}\"\n{}"
 			,	GetTokenStr(url).c_str()
 			,	m_Context->GetSourceName().c_str()
 			);

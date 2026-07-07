@@ -116,7 +116,7 @@ void ConfigProd::DoInclude()
 		,	false
 		);
 	if (!m_pCurrent)
-		throwSemanticError(mgFormat2string("Parse error in included config file %s", GetTokenStr(m_strIdentifierID)).c_str());
+		throwSemanticError(mgFormat2string("Parse error in included config file {}", GetTokenStr(m_strIdentifierID)).c_str());
 	dms_assert(m_pCurrent);
 //	dbg_assert(!CurrentIsTop());
 }
@@ -203,7 +203,7 @@ void CheckIsNew(TreeItem* context, TokenID nameID)
 	if (context->GetSubTreeItemByID(nameID))
 	{
 		auto name = SharedStr(GetTokenStr(nameID));
-		context->throwItemErrorF("SubItem '%s' is already defined", name);
+		context->throwItemErrorF("SubItem '{}' is already defined", name);
 	}
 }
 
@@ -220,7 +220,7 @@ void ConfigProd::CreateItem(TokenID nameID, const iterator_t& loc)
 				if (!m_MergeIntoExisting)
 					throwDmsErrD("Illegal 2nd item after root of configuration tree.");
 				reportF(MsgCategory::storage_read, SeverityTypeID::ST_Warning
-					, "Configuration file %s: root item '%s' was already provided with name '%s'"
+					, "Configuration file {}: root item '{}' was already provided with name '{}'"
 					, ConfigurationFilenameLock::GetCurrentFileDescrFromConfigLoadDir()->GetFileName().c_str()
 					, AsString(m_pCurrent->GetID()).c_str()
 					, AsString(nameID).c_str()
@@ -364,7 +364,7 @@ static TokenID t_Void = GetTokenID_st("Void");
 void ConfigProd::CreateParameter(TokenID nameID)
 {
 	if (m_pParamEntity && m_pParamEntity != t_Void)
-		throwDmsErrF("Illegal domain-unit %s at parameter definition", m_pParamEntity);
+		throwDmsErrF("Illegal domain-unit {} at parameter definition", m_pParamEntity);
 
 
 	assert(GetContextItem() || m_MergeIntoExisting);
@@ -446,11 +446,11 @@ void ConfigProd::DoUnitRangeProp(bool isCategorical)
 	dms_assert(vc);
 	UInt32 nrDims = vc->GetNrDims();
 	if (nrDims != 2 && !vc->IsNumeric())
-		throwSemanticError(mgFormat2string("DoUnitRangeProp: this unit does not allow range assignment because its ValueType is %s", vc->GetName()).c_str());
+		throwSemanticError(mgFormat2string("DoUnitRangeProp: this unit does not allow range assignment because its ValueType is {}", vc->GetName()).c_str());
 
 	const ValueClass* ic = ValueClass::FindByValueClassID(m_eAssignmentDomainType);
 	if (ic->GetNrDims() != nrDims || (nrDims == 1 && !ic->IsNumeric()))
-		throwSemanticError(mgFormat2string("DoUnitRangeProp: the provided range is incompatible with the ValueType %s of this unit", vc->GetName()).c_str());
+		throwSemanticError(mgFormat2string("DoUnitRangeProp: the provided range is incompatible with the ValueType {} of this unit", vc->GetName()).c_str());
 
 	switch (nrDims) {
 		case 1:
@@ -466,7 +466,7 @@ void ConfigProd::DoUnitRangeProp(bool isCategorical)
 			break;
 
 		default:
-			throwDmsErrF("DoUnitRangeProp: cannot set range of units with ValueType %s ", vc->GetName().c_str());
+			throwDmsErrF("DoUnitRangeProp: cannot set range of units with ValueType {} ", vc->GetName().c_str());
 	}
 	unit->SetTSF(USF_HasConfigRange);
 }
@@ -518,7 +518,7 @@ void ConfigProd::DoAnyProp()
 	AbstrPropDef* pd = m_pCurrent->GetDynamicClass()->FindPropDef(m_strIdentifierID);
 	if (!pd) 
 		m_pCurrent->throwItemErrorF(
-			"Unknown property '%s'", 
+			"Unknown property '{}'", 
 			GetTokenStr(m_strIdentifierID).c_str()
 		);
 	pd->SetValueAsCharRange(m_pCurrent.get(), m_StringVal.begin(), m_StringVal.send());
@@ -553,7 +553,7 @@ void ConfigProd::DoNrOfRowsProp()
 	assert(vc);
 
 	if (!vc->IsNumeric())
-		throwSemanticError(mgFormat2string("DoUnitRangeProp: the provided range is incompatible with the ValueType %s of this unit", vc->GetName()).c_str());
+		throwSemanticError(mgFormat2string("DoUnitRangeProp: the provided range is incompatible with the ValueType {} of this unit", vc->GetName()).c_str());
 
 	unit->SetTSF(USF_HasConfigRange | TSF_Categorical);
 	unit->SetRangeAsUInt64(0, m_IntValAsUInt64);
@@ -566,5 +566,5 @@ void ConfigProd::throwSemanticError(CharPtr msg)
 	while (!curr && i--)
 		curr = m_stackContexts[i].get();
 
-	throwItemErrorF(curr, "Semantic error %s", msg);
+	throwItemErrorF(curr, "Semantic error {}", msg);
 }

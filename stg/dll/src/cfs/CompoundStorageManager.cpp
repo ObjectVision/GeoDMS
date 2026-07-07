@@ -120,7 +120,7 @@ inline void CompoundStorageManager::CheckResult(UInt32 result, CharPtr funcName,
 {
 	if (FAILED(result))
 	{
-		SharedStr errText = mySSPrintF("%s(%s)", funcName, GetNameStr().c_str() );
+		SharedStr errText = mySSPrintF("{}({})", funcName, GetNameStr().c_str() );
 		if (path) errText = errText + ": "+ path;
 		throwStorageError(ASMRESULT(result), errText.c_str());
 	}
@@ -251,7 +251,7 @@ void CompoundStorageManager::DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mo
 	dms_assert( ! ( intentionToWrite && m_IsReadOnly ) );
 
 	DBG_START("CompoundStorageManager", "OpenStorage", false);
-	DBG_TRACE(("filename= %s", GetNameStr().c_str()));
+	DBG_TRACE(("filename= {}", GetNameStr().c_str()));
 
 	HRESULT result;
 	
@@ -286,7 +286,7 @@ void CompoundStorageManager::DoCloseStorage(bool mustCommit) const
 	dms_assert(IsOpen());
 
 	DBG_START("CompoundStorageManager", "DoCloseStorage", false);
-	DBG_TRACE(("filename=  %s", GetNameStr().c_str()));
+	DBG_TRACE(("filename=  {}", GetNameStr().c_str()));
 
 	if (mustCommit) 
 		m_Root->Commit(STGC_DEFAULT);
@@ -298,7 +298,7 @@ std::unique_ptr<OutStreamBuff> CompoundStorageManager::DoOpenOutStream(const Sto
 	dms_assert(!m_IsReadOnly);
 	dms_assert(DoesExist(smi.StorageHolder()));
 
-	reportF(MsgCategory::storage_write, SeverityTypeID::ST_MajorTrace, "Write cfs(%s,%s)", GetNameStr().c_str(), path);
+	reportF(MsgCategory::storage_write, SeverityTypeID::ST_MajorTrace, "Write cfs({},{})", GetNameStr().c_str(), path);
 
 	// create new Compound storage file
 	SharedPtr<cfsptr<IStream> > stream(GetStream(path, true));
@@ -462,7 +462,7 @@ IStorage* CompoundStorageManager::OpenSubStorage(IStorage* p_parent, CharPtr nam
 	IStorage* p_child = NULL;
 
 	if (StrLen(name) >= 32)
-		throwErrorF("CompoundStorageManager", "Compound file %s: name of storage '%s' is longer than the allowed 31 chars", GetNameStr().c_str(), name);
+		throwErrorF("CompoundStorageManager", "Compound file {}: name of storage '{}' is longer than the allowed 31 chars", GetNameStr().c_str(), name);
 
 	// open or create child storage and store in p_child
 	auto streamName = Utf8_2_wchar(name);

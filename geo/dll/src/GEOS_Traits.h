@@ -211,7 +211,7 @@ auto geos_create_polygons(SA_ConstReference<DmsPointType> polyRef, bool mustInse
 						}
 
 						if (boost::geometry::overlaps(currPolygon->outer(), helperPolygon.outer()))
-							throwDmsErrF("OuterPolygon: unexpected overlap of two outer rings in %s", AsString(polyRef).c_str());
+							throwDmsErrF("OuterPolygon: unexpected overlap of two outer rings in {}", AsString(polyRef).c_str());
 
 						// a combination of touching outer rings such as in an 8 shape is 
 					}
@@ -481,7 +481,7 @@ auto geos_write_geometry(E&& ref, const geos::geom::Geometry* geometry) -> std::
 	if (auto lr = dynamic_cast<const geos::geom::LineString*>(geometry))
 		return {};
 
-	throwDmsErrF("geos_write_geometry: unsupported geometry type: %s", geometry->toText().c_str());
+	throwDmsErrF("geos_write_geometry: unsupported geometry type: {}", geometry->toText().c_str());
 }
 
 template <typename E>
@@ -547,7 +547,7 @@ bool geos_write_multi_linestring(E&& ref, const geos::geom::Geometry* geometry, 
 		return true;
 	}
 
-	throwDmsErrF("geos_write_multi_linestring: unsupported geometry type: %s", geometry->toText().c_str());
+	throwDmsErrF("geos_write_multi_linestring: unsupported geometry type: {}", geometry->toText().c_str());
 }
 
 template <typename E>
@@ -635,7 +635,7 @@ auto geos_split_write_geometry(RI resIter, const geos::geom::Geometry* geometry)
 		return resIter;
 
 	if (geometry)
-		reportF(SeverityTypeID::ST_Warning, "geos_split_write_geometry: unsupported geometry type: %s", geometry->toText().c_str());
+		reportF(SeverityTypeID::ST_Warning, "geos_split_write_geometry: unsupported geometry type: {}", geometry->toText().c_str());
 
 	return resIter;
 }
@@ -719,7 +719,7 @@ inline void checkAndReportValidity(const geos::geom::Geometry* input)
 	if (!err)
 		return;
 	auto coord = err->getCoordinate();
-	reportF(SeverityTypeID::ST_Warning, "GEOS fix failed. fail-reason=\"%s\" at (%f, %f)."
+	reportF(SeverityTypeID::ST_Warning, "GEOS fix failed. fail-reason=\"{}\" at ({:f}, {:f})."
 		, err->getMessage(), coord.x, coord.y);
 }
 

@@ -112,8 +112,8 @@ CaretHider::CaretHider(DataView* view, HDC hdc)
 	, m_WasVisible(view->m_State.Get(DVF_CaretsVisible)) 
 { 
 	DBG_START("CaretHider", "CONSTRUCTOR", MG_DEBUG_CARET);
-	DBG_TRACE(("WasVisible %d", m_WasVisible));
-	DBG_TRACE(("HDC        %x", hdc));
+	DBG_TRACE(("WasVisible {}", m_WasVisible));
+	DBG_TRACE(("HDC        {:x}", hdc));
 
 	view->SetCaretsVisible(false, hdc); 
 }
@@ -184,8 +184,8 @@ DcClipRegionSelector::DcClipRegionSelector(DrawContext* dc, Region& currClipRegi
 	,	m_OrgRegionCopy(currClipRegion.Clone() )
 {
 	DBG_START("DcClipRegionSelector", "ctor", MG_DEBUG_REGION);
-	DBG_TRACE(("NewRect    %s", AsString(   newClipRect).c_str()));
-	DBG_TRACE(("CurrRegion %s", currClipRegion.AsString().c_str()));
+	DBG_TRACE(("NewRect    {}", AsString(   newClipRect).c_str()));
+	DBG_TRACE(("CurrRegion {}", currClipRegion.AsString().c_str()));
 
 	dms_assert(! m_OrgRegionCopy.Empty() ); // else we shoudn't get here at all
 

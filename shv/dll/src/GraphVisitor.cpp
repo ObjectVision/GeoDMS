@@ -174,8 +174,8 @@ GraphVisitor::GraphVisitor(const GRect& clipDeviceRect, DPoint scaleFactors)
 GraphVisitState GraphVisitor::Visit(GraphicObject* obj)
 {
 	DBG_START(typeid(*this).name(), "Visit", MG_DEBUG_VIEWINVALIDATE);
-	DBG_TRACE(("%s %x: %x", obj->GetDynamicClass()->GetName().c_str(), obj, &*(obj->GetOwner().lock())));
-	DBG_TRACE(("Cliprect     : %s", AsString(m_ClipDeviceRect).c_str()));
+	DBG_TRACE(("{} {:x}: {:x}", obj->GetDynamicClass()->GetName().c_str(), obj, &*(obj->GetOwner().lock())));
+	DBG_TRACE(("Cliprect     : {}", AsString(m_ClipDeviceRect).c_str()));
 
 	assert(obj);
 	assert(obj->AllVisible());
@@ -376,7 +376,7 @@ GraphVisitState GraphVisitor::DoScrollPort(ScrollPort* sp)
 		auto absNettLogicalRect = sp->GetCurrNettAbsLogicalRect(*this);
 		auto absNettDeviceRect = m_Transformation.Apply(absNettLogicalRect);
 		VisitorDeviceRectSelector clipper( this, CrdRect2GRect(absNettDeviceRect));
-		DBG_TRACE(("clipperEmpty: %d", clipper.empty()));
+		DBG_TRACE(("clipperEmpty: {}", clipper.empty()));
 
 		if (clipper.empty()) 
 			return GVS_UnHandled;
@@ -530,8 +530,8 @@ GraphDrawer::GraphDrawer(DrawContext* dc, const Region&  rgn, DataView* dv, GdMo
 GraphVisitState GraphDrawer::Visit(GraphicObject* go)
 {
 	DBG_START("GraphDrawer", "Visit", MG_DEBUG_VIEWINVALIDATE);
-	DBG_TRACE(("%s %x: %x", go->GetDynamicClass()->GetName().c_str(), go, &*(go->GetOwner().lock())));
-	DBG_TRACE(("ClipRect     : %s", AsString(m_ClipDeviceRect).c_str()));
+	DBG_TRACE(("{} {:x}: {:x}", go->GetDynamicClass()->GetName().c_str(), go, &*(go->GetOwner().lock())));
+	DBG_TRACE(("ClipRect     : {}", AsString(m_ClipDeviceRect).c_str()));
 
 	bool suspendible = IsSuspendible();
 

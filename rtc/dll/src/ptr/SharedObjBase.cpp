@@ -114,7 +114,7 @@ void SharedBase::Abandon() const noexcept
 	auto result = m_RefCount.exchange(dangling_object_indicator);
 	if (result)
 	{
-		reportF(SeverityTypeID::ST_Error, "Unexepcted RefCount %d at object with ptr %x", result, this);
+		reportF(SeverityTypeID::ST_Error, "Unexepcted RefCount {} at object with ptr {}", result, this);
 		MG_CHECK(!result);
 	}
 

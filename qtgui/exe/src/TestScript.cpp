@@ -39,13 +39,13 @@ UInt32 str2int(CharPtr str)
 		{
 			UInt32 newValue = value * 10 + nextNum;
 			if (newValue < value)
-				throw stx_error(mgFormat2string("numeric overflow at %1%", str).c_str());
+				throw stx_error(mgFormat2string("numeric overflow at {0}", str).c_str());
 			value = newValue;
 		}
 		if (!str[i] || isspace(str[i]))
 			return value;
 	}
-	throw stx_error(mgFormat2string("numeric value expected at %1%", str).c_str());
+	throw stx_error(mgFormat2string("numeric value expected at {0}", str).c_str());
 }
 
 int PassMsg(int argc, char* argv[])
@@ -85,7 +85,7 @@ int PassMsg(int argc, char* argv[])
 				for (int j = 0; j != size; ++j)
 				{
 					if (argc <= ++i)
-						throw stx_error(mgFormat2string("%1% DWORDs expected after SEND command", size).c_str());
+						throw stx_error(mgFormat2string("{0} DWORDs expected after SEND command", size).c_str());
 					buffer.emplace_back(str2int(argv[i]));
 				}
 			}
@@ -204,7 +204,7 @@ int PassMsg(int argc, char* argv[])
 
 		}
 		else
-			reportErr(mgFormat2string("Unrecognized keyword: %1%", argv[i]).c_str());
+			reportErr(mgFormat2string("Unrecognized keyword: {0}", argv[i]).c_str());
 
 			auto mainWindow = MainWindow::TheOne(); assert(mainWindow);
 			auto hwDispatch = (HWND)(mainWindow->winId());
@@ -342,12 +342,12 @@ int PassMsg(int argc, char* argv[])
 				break;
 			}
 			default:
-				reportErr(mgFormat2string("SEND code %1% not implemented on Linux", code).c_str());
+				reportErr(mgFormat2string("SEND code {0} not implemented on Linux", code).c_str());
 				break;
 			}
 		}
 		else
-			reportErr(mgFormat2string("Unrecognized keyword (Linux): %1%", argv[i]).c_str());
+			reportErr(mgFormat2string("Unrecognized keyword (Linux): {0}", argv[i]).c_str());
 	}
 #endif // Q_OS_WIN
 	return 0;

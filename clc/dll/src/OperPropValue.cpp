@@ -220,7 +220,7 @@ struct PropValueOperator : public BinaryOperator
 
 				SharedStr value;
 				if (!propDef)
-					value = mySSPrintF("%s::%s unknown"
+					value = mySSPrintF("{}::{} unknown"
 					,	item->GetCurrentObjClass()->GetName()
 					,	propName
 					);

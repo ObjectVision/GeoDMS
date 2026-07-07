@@ -158,7 +158,7 @@ namespace { // DebugOutStreamBuff is local
 			else
 			{
 				if (minorSkipCount || majorSkipCount) {
-					auto skipMsg = mySSPrintF("... skipped %I64u minor and %I64u major trace lines", UInt64(minorSkipCount), UInt64(majorSkipCount));
+					auto skipMsg = mySSPrintF("... skipped {} minor and {} major trace lines", UInt64(minorSkipCount), UInt64(majorSkipCount));
 					auto summaryData = MsgData{
 						majorSkipCount ? SeverityTypeID::ST_MajorTrace : SeverityTypeID::ST_MinorTrace
 					,	msgCat
@@ -482,7 +482,7 @@ namespace { // local defs
 
 		reportD(SeverityTypeID::ST_Warning, buf);
 		if (!CoalesceHeap(size, g_MyNewExceptionHandlerCount-1))
-			throwErrorF("Memory", "allocation failed for %I64u bytes and no heap cleanup possible.", (UInt64)size);
+			throwErrorF("Memory", "allocation failed for {} bytes and no heap cleanup possible.", (UInt64)size);
 		reportD(SeverityTypeID::ST_MajorTrace, "Try again after heap cleanup");
 		return true;
 	}
@@ -650,7 +650,7 @@ SharedStr DatedName(WeakStr fileName)
 	year = int(ymd.year());
 	month = unsigned(ymd.month());
 	day_of_month = unsigned(ymd.day());
-	return mySSPrintF("%s_%04d-%02d-%02d%s", CharPtrRange(nameStart, nameEnd), year, month, day_of_month, nameEnd);
+	return mySSPrintF("{}_{:04}-{:02}-{:02}{}", CharPtrRange(nameStart, nameEnd), year, month, day_of_month, nameEnd);
 }
 
 CDebugLog::CDebugLog(WeakStr name)

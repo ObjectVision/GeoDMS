@@ -174,7 +174,7 @@ void ValueInfoBrowser::updateNavigationButtons()
 
 void ValueInfoBrowser::updateWindowTitle()
 {
-    auto title = mySSPrintF("%s row %d", m_history.currentStudyObject()->GetFullName(), m_history.currentIndex());
+    auto title = mySSPrintF("{} row {}", m_history.currentStudyObject()->GetFullName(), m_history.currentIndex());
     if (!parent())
         return;
     

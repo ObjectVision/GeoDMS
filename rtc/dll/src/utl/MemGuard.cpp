@@ -174,8 +174,8 @@ void WaitForAvailableMemory(std::size_t requestedSize)
 
 	do {
 		if (waitTime >= minReportTime)
-			reportF(ST_MajorTrace, "Waiting %u.%03u[s] to allow system to flush modified data before requesting a new page view of %u[kiB]. "
-					"PhysicalMemoryLoad would go from %u%% to %u%%; target %u%%", 
+			reportF(ST_MajorTrace, "Waiting {}.{:03}[s] to allow system to flush modified data before requesting a new page view of {}[kiB]. "
+					"PhysicalMemoryLoad would go from {}% to {}%; target {}%", 
 				waitTime / 1000, waitTime % 1000, requestedSize / 1024,
 				currPhysicalMemoryLoad, expectedPhysicalMemoryLoad, info.MaxPhysMemoryLoad()
 			);
@@ -206,7 +206,7 @@ void WaitForAvailableMemory(std::size_t requestedSize)
 		if (expectedPhysicalMemoryLoad <= info.MaxPhysMemoryLoad())
 			goto exit;
 
-		reportF(ST_MajorTrace, "Waiting %u[s] to allow system to flush modified data.", maxWaitTime / 1000);
+		reportF(ST_MajorTrace, "Waiting {}[s] to allow system to flush modified data.", maxWaitTime / 1000);
 
 		Wait(maxWaitTime); cumulWaitTime += maxWaitTime;
 		memory_info newInfo;
@@ -215,8 +215,8 @@ void WaitForAvailableMemory(std::size_t requestedSize)
 	}
 	reportD(ST_MajorTrace, "Resuming anyway, hoping the System page file might save the system to provide sufficient resources.");
 exit:
-	reportF(ST_MajorTrace, "Waited %u.%03u[s] to allow modified data to be flushed before requesting a new page view of %u[kiB]. "
-			"PhysicalMemoryLoad went from %u%% to %u%% and is expected to go to %u%%.", 
+	reportF(ST_MajorTrace, "Waited {}.{:03}[s] to allow modified data to be flushed before requesting a new page view of {}[kiB]. "
+			"PhysicalMemoryLoad went from {}% to {}% and is expected to go to {}%.", 
 		UInt32(cumulWaitTime / 1000), UInt32(cumulWaitTime % 1000), UInt32(requestedSize / 1024),
 		firstLoad, currPhysicalMemoryLoad, expectedPhysicalMemoryLoad
 	);

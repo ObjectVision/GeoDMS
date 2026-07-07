@@ -58,7 +58,7 @@ namespace {
 			while (i!=e)
 			{
 				const TreeItem* ti = *i++;
-				reportF(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, "%s Leak: %s (%d,%d) %s",
+				reportF(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, "{} Leak: {} ({},{}) {}",
 					m_ObjName,
 					ti->GetDynamicClass()->GetName(), 
 					ti->weak_from_this().use_count(), 
@@ -66,7 +66,7 @@ namespace {
 					ti->GetFullName().c_str());
 			}
 
-			reportF(SeverityTypeID::ST_Error, "%s Leak of %d TreeItems. See EventLog for details.",
+			reportF(SeverityTypeID::ST_Error, "{} Leak of {} TreeItems. See EventLog for details.",
 				m_ObjName,
 				n
 			);
@@ -99,7 +99,7 @@ TIC_CALL void DMS_CONV DMS_TreeItem_AddRef(TreeItem* self)
 
 		DBG_START("DMS_TreeItem", "AddRef", false);
 		TreeItemContextHandle checkPtr(self, TreeItem::GetStaticClass(), "DMS_TreeItem_AddRef");
-		DBG_TRACE(("self = %s", self->GetName().c_str()));
+		DBG_TRACE(("self = {}", self->GetName().c_str()));
 
 #if defined(MG_DEBUG)
 		dms_assert(refCountAdm);
@@ -119,7 +119,7 @@ TIC_CALL void DMS_CONV DMS_TreeItem_Release(TreeItem* self)
 
 		DBG_START("DMS_TreeItem", "Release", false);
 		TreeItemContextHandle checkPtr(self, TreeItem::GetStaticClass(), "DMS_TreeItem_Release");
-		DBG_TRACE(("self = %s", self->GetName().c_str()));
+		DBG_TRACE(("self = {}", self->GetName().c_str()));
 
 #if defined(MG_DEBUG)
 		dms_assert(refCountAdm);

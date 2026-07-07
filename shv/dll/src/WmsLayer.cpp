@@ -134,7 +134,7 @@ namespace wms {
 			catch (...)
 			{
 				auto result = catchException(false);
-				reportF(MsgCategory::background_layer_connection, SeverityTypeID::ST_Error, "Unable to resolve host: %s", hostName); //result->GetAsText().c_str()
+				reportF(MsgCategory::background_layer_connection, SeverityTypeID::ST_Error, "Unable to resolve host: {}", hostName); //result->GetAsText().c_str()
 			}
 		}
 
@@ -370,7 +370,7 @@ namespace wms {
 				{
 					info.m_Status = image_status::ready;
 					reportF(MsgCategory::background_layer_request, SeverityTypeID::ST_MinorTrace
-						, "Read from cache: %s"
+						, "Read from cache: {}"
 						, info.m_FileName.c_str()
 					);
 					return true;
@@ -515,7 +515,7 @@ namespace wms {
 			if (res.result() != http::status::ok)
 			{
 				reportF(MsgCategory::background_layer_request, SeverityTypeID::ST_Warning
-					, "Legend fetch https://%s%s returned HTTP status %d"
+					, "Legend fetch https://{}{} returned HTTP status {}"
 					, hostName.c_str(), target.c_str(), int(res.result_int()));
 				return false;
 			}
@@ -585,7 +585,7 @@ struct TableEntry
 		: m_Ptr(AsDynamicDataItem(container->GetConstSubTreeItemByID(GetTokenID_mt(subItemName))))
 		, m_Lock((m_Ptr->PrepareData(), m_Ptr))
 	{
-		MG_CHECK2(m_Ptr, mySSPrintF("%s not found", subItemName).c_str());
+		MG_CHECK2(m_Ptr, mySSPrintF("{} not found", subItemName).c_str());
 	}
 	SharedDataItemInterestPtr m_Ptr;
 	DataReadLock m_Lock;

@@ -44,7 +44,7 @@ void FileSystemStorageManager::DropStream(const TreeItem* item, CharPtr path)
 {
 	assert(item);
 
-	reportF(SeverityTypeID::ST_MajorTrace, "Drop  fss(%s,%s)", GetNameStr().c_str(), path);
+	reportF(SeverityTypeID::ST_MajorTrace, "Drop  fss({},{})", GetNameStr().c_str(), path);
 
 	KillFileOrDir(GetFullFileName(path));
 }
@@ -68,7 +68,7 @@ std::unique_ptr<OutStreamBuff> FileSystemStorageManager::DoOpenOutStream(const S
 
 	assert(!m_IsReadOnly);
 
-//	reportF(MsgCategory::storage_write, SeverityTypeID::ST_MajorTrace, "Write fss(%s,%s)", GetNameStr().c_str(), path);
+//	reportF(MsgCategory::storage_write, SeverityTypeID::ST_MajorTrace, "Write fss({},{})", GetNameStr().c_str(), path);
 
 	SharedStr fullName = GetFullFileName(path); 
 	if (adi)
@@ -84,7 +84,7 @@ std::unique_ptr<OutStreamBuff> FileSystemStorageManager::DoOpenOutStream(const S
 
 std::unique_ptr<InpStreamBuff> FileSystemStorageManager::DoOpenInpStream(const StorageMetaInfo& smi, CharPtr path) const
 {
-//	reportF(MsgCategory::storage_read, SeverityTypeID::ST_MajorTrace, "Read  fss(%s,%s)", GetNameStr().c_str(), path);
+//	reportF(MsgCategory::storage_read, SeverityTypeID::ST_MajorTrace, "Read  fss({},{})", GetNameStr().c_str(), path);
 
 	assert(IsOpen());
 

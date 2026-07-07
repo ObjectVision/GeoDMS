@@ -109,7 +109,7 @@ struct ArgMinMaxOper : UnaryOperator
 			for (arg_index i = 1; i != args.size(); ++i)
 			{
 				if (!IsDataItem(args[i]))
-					GetGroup()->throwOperErrorF("argument %d is not an attribute", i);
+					GetGroup()->throwOperErrorF("argument {} is not an attribute", i);
 
 				auto argA = AsDataItem(args[i]);
 				auto e = argA->GetAbstrDomainUnit();

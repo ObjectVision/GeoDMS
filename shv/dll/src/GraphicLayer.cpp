@@ -155,7 +155,7 @@ SharedStr GraphicLayer::GetCaption() const
 	SizeT nrRecs = dv && const_cast<GraphicLayer*>(this)->PrepareDataOrUpdateViewLater(domain) ? domain->GetCount() : UNDEFINED_VALUE(SizeT);
 
 	SharedStr domainName = SharedStr(domain->GetID());
-	return mgFormat2SharedStr("Active layer: %s (#%s = %s)"
+	return mgFormat2SharedStr("Active layer: {} (#{} = {})"
 		, GetThemeDisplayName(this)
 		, domainName
 		, IsDefined(nrRecs) ? AsString(nrRecs, FormattingFlags::ThousandSeparator).c_str() : "..."
@@ -267,7 +267,7 @@ void AddClassificationMenu(MenuData& menuData, AspectNr a, Theme* classifiedThem
 		return;
 
 	menuData.push_back(
-		MenuItem(mySSPrintF("Unique Values of %s", themeAttr->GetFullName())
+		MenuItem(mySSPrintF("Unique Values of {}", themeAttr->GetFullName())
 			, std::make_unique<ActivateUniqueValuesPaletteCmd>(a, themeAttr)
 		,	layer
 		,	0
@@ -301,7 +301,7 @@ void AddClassificationMenu(MenuData& menuData, AspectNr a, Theme* classifiedThem
 
 	DMS_DataItem_VisitClassBreakCandidates(themeAttr, funcWrapper.Callback, funcWrapper.Handle());
 	if (tooManyCandidates)
-		reportF(SeverityTypeID::ST_Warning, "AddClassificationMenu tried to add %d Class-Break-Candidates for %s of %s; only the first %d are shown"
+		reportF(SeverityTypeID::ST_Warning, "AddClassificationMenu tried to add {} Class-Break-Candidates for {} of {}; only the first {} are shown"
 			, candidateCounter
 			, GetAspectName(a)
 			, themeAttr->GetSourceName()

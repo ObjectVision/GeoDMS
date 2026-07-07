@@ -139,7 +139,7 @@ struct ReadArrayOperator: public QuinaryOperator
 		Arg1Type::const_reference dataValues = readArrayData[0];
 
 		if (readPos > dataValues.size())
-			throwErrorF("ReadArray", "readPos %d is larger than dataArraySize %d"
+			throwErrorF("ReadArray", "readPos {} is larger than dataArraySize {}"
 			,	readPos
 			,	dataValues.size()
 			);
@@ -244,7 +244,7 @@ struct ReadElemsOperator: public QuaternaryOperator
 				ReadElemsOperator::Arg1Type::const_reference dataValueStr = dataValueArray[i];
 				UInt32 readPos = readPosArray[i];
 				if (readPos > dataValueStr.size())
-					throwErrorF("ReadElems", "Elem %d: readPos %d is larger than dataArraySize %d",
+					throwErrorF("ReadElems", "Elem {}: readPos {} is larger than dataArraySize {}",
 						i,
 						readPos,
 						dataValueStr.size()
@@ -333,7 +333,7 @@ struct ReadLinesOperator: public TernaryOperator
 		Arg1Type::const_reference dataValues = const_array_cast<SharedStr>(args[0])->GetDataRead()[0];
 
 		if (readPos > dataValues.size())
-			throwErrorF("ReadLines", "readPos %d is larger than dataArraySize %d",
+			throwErrorF("ReadLines", "readPos {} is larger than dataArraySize {}",
 				readPos,
 				dataValues.size()
 			);

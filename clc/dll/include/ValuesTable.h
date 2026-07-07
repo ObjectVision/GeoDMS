@@ -464,7 +464,7 @@ auto GetWallCountsAsArray(WallCountsAsArrayInfo<V>& info, tile_id t, tile_id te,
 			if constexpr (has_undefines_v<V>)
 			{
 				if (i >= localInfo.vCount)
-					throwErrorF("Range Error", "Value %s not in expected range from %d till %d", *valuesIter, localInfo.valuesRange.first, localInfo.valuesRange.second);
+					throwErrorF("Range Error", "Value {} not in expected range from {} till {}", *valuesIter, localInfo.valuesRange.first, localInfo.valuesRange.second);
 			}
 			SafeIncrementCounter(bufferB[i]);
 		}

@@ -84,7 +84,7 @@ static bool GuardedDispatchMouseEvent(DataView* dv, EventID eventID, UINT modKey
 #ifdef _WIN32
 LRESULT CALLBACK DataViewWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     DBG_START("DataViewWndProc", "", MG_DEBUG_WNDPROC);
-    DBG_TRACE(("msg: %x(%x, %x)", uMsg, wParam, lParam));
+    DBG_TRACE(("msg: {:x}({:x}, {:x})", uMsg, wParam, lParam));
 
     if (uMsg == WM_CREATE) {
         LPVOID lpCreateParams = ((LPCREATESTRUCT)lParam)->lpCreateParams;
@@ -297,7 +297,7 @@ QDmsViewArea::QDmsViewArea(QMdiArea* parent, TreeItem* viewContext, const TreeIt
 	m_DataView = SHV_DataView_Create(viewContext, viewStyle, ShvSyncMode::SM_Load);
 	auto dv = m_DataView.lock();
 	if (!dv)
-		throwErrorF("CreateView", "Cannot create view with style %s with context '%s'"
+		throwErrorF("CreateView", "Cannot create view with style {} with context '{}'"
 			, GetViewStyleName(viewStyle)
 			, viewContext->GetFullName().c_str()
 		);
@@ -312,9 +312,9 @@ QDmsViewArea::QDmsViewArea(QMdiArea* parent, TreeItem* viewContext, const TreeIt
 		auto current_item = MainWindow::TheOne()->getCurrentTreeItem();
 		dv->AddLayer(currItem, false);
 		if (dv->GetViewType()== ViewStyle::tvsMapView)
-			reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "Add layer for item %s in %s", current_item->GetFullName(), dv->GetCaption());
+			reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "Add layer for item {} in {}", current_item->GetFullName(), dv->GetCaption());
 		else
-			reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "Add column for item %s in %s('%s')"
+			reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "Add column for item {} in {}('{}')"
 				, current_item->GetFullName()
 				, GetViewStyleName(viewStyle)
 				, dv->GetCaption()
@@ -529,7 +529,7 @@ void QDmsViewArea::dropEvent(QDropEvent* event) {
         if (dv->CanContain(current_item))
             SHV_DataView_AddItem(dv.get(), MainWindow::TheOne()->getCurrentTreeItem(), true); // isDropped: allow duplicate column on drag-and-drop (#1122)
         else
-            reportF(MsgCategory::commands, SeverityTypeID::ST_Error, "Item %s is incompatible with view: %s", current_item->GetFullName(), dv->GetCaption());
+            reportF(MsgCategory::commands, SeverityTypeID::ST_Error, "Item {} is incompatible with view: {}", current_item->GetFullName(), dv->GetCaption());
     }
     catch (...) {
         catchAndReportException();

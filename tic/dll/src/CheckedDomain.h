@@ -71,7 +71,7 @@ const Unit<D>* checked_domain(const TreeItem* ti, CharPtr role)
 	dms_assert(au);
 	const Unit<D>* u = const_unit_dynacast<D>(au);
 	if (!u) 
-		ti->throwItemErrorF("%s attribute with Domain of type %s expected, but Domain is of type %s"
+		ti->throwItemErrorF("{} attribute with Domain of type {} expected, but Domain is of type {}"
 		,	ExpandRole(role)
 		,	Unit<D>::GetStaticClass()->GetName().c_str()
 		,	au->GetClsName().c_str()

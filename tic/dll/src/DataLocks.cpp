@@ -68,7 +68,7 @@ bool CheckCalculatingOrRangeKnown(const AbstrUnit* au)
 	bool hasReadLocks = (item->GetDataObjLockCount() > 0);
 	UInt32 nrLocks = hasReadLocks ? item->GetDataObjLockCount() : -item->GetDataObjLockCount();
 
-	item->throwItemErrorF("Cannot obtain a %s Lock because there %s %u %s Lock%s on this data",
+	item->throwItemErrorF("Cannot obtain a {} Lock because there {} {} {} Lock{} on this data",
 		lockType,
 		(nrLocks == 1) ? "is" : "are",
 		nrLocks,
@@ -190,7 +190,7 @@ DataReadLock::DataReadLock(const AbstrDataItem* item)
 	MG_CHECK(item->m_DataObject);
 	
 	DBG_START("DataReadLock", "CreateFromItem", MG_DEBUG_DATALOCKS);
-	DBG_TRACE(("item = %s", item ? item->GetFullName().c_str() : "<null>"));
+	DBG_TRACE(("item = {}", item ? item->GetFullName().c_str() : "<null>"));
 
 	actor_section_lock_map::ScopedLock localDataOpenLock(MG_SOURCE_INFO_CODE("DataReadLock::ctor") sg_ActorLockMap, item);
 
@@ -274,7 +274,7 @@ DataWriteLock::DataWriteLock(AbstrDataItem* adi, dms_rw_mode rwm, const SharedOb
 	assert(std::uncaught_exceptions() == 0);
 
 	DBG_START("DataWriteLock", "CreateFromItem", MG_DEBUG_DATALOCKS);
-	DBG_TRACE(("adi = %s", adi ? adi->GetFullName().c_str() : "<null>" ));
+	DBG_TRACE(("adi = {}", adi ? adi->GetFullName().c_str() : "<null>" ));
 
 	dms_check_not_debugonly; 
 

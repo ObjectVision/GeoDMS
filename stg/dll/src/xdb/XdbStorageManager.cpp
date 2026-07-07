@@ -172,11 +172,11 @@ void XdbStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* cu
 			adi = checked_cast<AbstrDataItem*>(di);
 			dms_assert(adi);
 			if (adi->GetAbstrDomainUnit() != u_row)
-				throwItemErrorF("Column %s is configured with an inconsistent domain unit", colName);
+				throwItemErrorF("Column {} is configured with an inconsistent domain unit", colName);
 			if (!OverlappingTypes(
 					adi->GetDynamicObjClass()->GetValuesType(), 
 					ValueClass::FindByValueClassID(imp.ColType(i))))
-				throwItemErrorF("Column %s is configured with a unit type that is incompatible with the xdb type %d", colName, int(imp.ColType(i)));
+				throwItemErrorF("Column {} is configured with a unit type that is incompatible with the xdb type {}", colName, int(imp.ColType(i)));
 		}
 		else if (sm != SyncMode::None)
 		{
@@ -208,7 +208,7 @@ void SyncItem(XdbStorageManager* self, XdbImp& imp, bool saveColInfo, const Tree
 
 	// Get domain range
 	long range = du->GetCount();
-	DBG_TRACE(("range: %d", range));
+	DBG_TRACE(("range: {}", range));
 
 	// Get value type
 	long col_size = 0;
@@ -220,10 +220,10 @@ void SyncItem(XdbStorageManager* self, XdbImp& imp, bool saveColInfo, const Tree
 		case ValueClassID::VT_Int32:   col_size = 12;  break;
 		case ValueClassID::VT_Float32: col_size = 16; break;
 		case ValueClassID::VT_Float64: col_size = 25; break;
-		default: self->throwItemErrorF("xdb: unsupported value-type %s", vu->GetValueType()->GetName());
+		default: self->throwItemErrorF("xdb: unsupported value-type {}", vu->GetValueType()->GetName());
 	}
-	DBG_TRACE(("col_type = %d", int(vid)));
-	DBG_TRACE(("col_size = %d", col_size));
+	DBG_TRACE(("col_type = {}", int(vid)));
+	DBG_TRACE(("col_size = {}", col_size));
 
 	// Write dummy content to disk (if the column doesn't exist yet)
 	auto result = imp.AppendColumn(curdi->GetName().c_str(), col_size, vid, range, saveColInfo);

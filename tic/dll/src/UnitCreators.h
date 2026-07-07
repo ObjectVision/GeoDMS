@@ -57,7 +57,7 @@ inline ConstUnitRef default_unit_creator_and_check_input(const AbstrOperGroup* g
 			auto metric = AsDataItem(arg)->GetAbstrValuesUnit()->GetMetric();
 			if (metric && !metric->Empty())
 			{
-				auto diagnostic = mySSPrintF("value(s) of operator %s have metric %s but are expected to be without metric. Consider dividing the argument by a unit-value with the same metric. Note that for non-integer exponents a^b and pow(a,b) are evaluated as exp(b*log(a)), which requires a dimensionless base."
+				auto diagnostic = mySSPrintF("value(s) of operator {} have metric {} but are expected to be without metric. Consider dividing the argument by a unit-value with the same metric. Note that for non-integer exponents a^b and pow(a,b) are evaluated as exp(b*log(a)), which requires a dimensionless base."
 					, gr->GetName()
 					, metric->AsString(FormattingFlags::ThousandSeparator)
 				);

@@ -128,7 +128,7 @@ namespace UpdateLockFuncs
         assert(! afsPtr->IsPassor() || (ts <= actor_flag_set::AF_ChangingInterest));
         actor_flag_set::TransState oldTransState = afsPtr->GetTransState();
         if (!(ts > oldTransState)) // requirement of strict monotounous increasing progress 
-            throwDmsErrF("Cannot start %s while doing %s; check for recursive dependencies"
+            throwDmsErrF("Cannot start {} while doing {}; check for recursive dependencies"
             ,   GetActorFlagName(ts)
             ,   GetActorFlagName(oldTransState)
             );
@@ -269,7 +269,7 @@ Actor::~Actor ()
 void Actor::MarkTS(TimeStamp ts) const
 {
     DBG_START("Actor", "MarkTS", sd_DebugInvalidations);
-    DBG_TRACE(("time = %u", ts));
+    DBG_TRACE(("time = {}", ts));
 
     dms_assert(ts >= UpdateMarker::tsBereshit) ;
 
@@ -295,7 +295,7 @@ void Actor::SetProgressAt(ProgressState ps, TimeStamp ts) const
 void Actor::InvalidateAt (TimeStamp invalidate_ts) const
 {
     DBG_START("Actor", "InvalidateAt", sd_DebugInvalidations);
-    DBG_TRACE(("time = %u", invalidate_ts));
+    DBG_TRACE(("time = {}", invalidate_ts));
 
     assert(!m_State.IsValidatingAndCommitting());
     assert(!m_State.IsCalculatingData());
@@ -959,7 +959,7 @@ bool Actor::DoFail(ErrMsgPtr msg, FailType ft) const
 #if defined(MG_DEBUG_INTERESTSOURCE_LOGGING)
 
     if (m_State.Get(actor_flag_set::AFD_PivotElem))
-        reportF(SeverityTypeID::ST_MajorTrace, "DoFail(%d) %s", int(ft), msg->Why());
+        reportF(SeverityTypeID::ST_MajorTrace, "DoFail({}) {}", int(ft), msg->Why());
 
 #endif
 
@@ -985,7 +985,7 @@ bool Actor::DoFail(ErrMsgPtr msg, FailType ft) const
                 if (msg->m_FullName.empty())
                     reportD(st, msg->m_Why.c_str());
                 else
-                    reportF(st, "[[%s]] %s", msg->m_FullName, msg->m_Why);
+                    reportF(st, "[[{}]] {}", msg->m_FullName, msg->m_Why);
             }
         }
         catch (...)
@@ -1110,7 +1110,7 @@ void Actor::IncInterestCount() const // NO UpdateMetaInfo, Just work on existing
 #if defined(MG_DEBUG_INTERESTSOURCE_LOGGING)
     bool isPivotedForLogging = m_State.Get(actor_flag_set::AFD_PivotElem);
     if (isPivotedForLogging)
-        reportF(SeverityTypeID::ST_MajorTrace, "IncInterestCount %s", GetInterestCount());
+        reportF(SeverityTypeID::ST_MajorTrace, "IncInterestCount {}", GetInterestCount());
 #endif
     dbg_assert( !SuspendTrigger::DidSuspend() );
     {
@@ -1127,7 +1127,7 @@ void Actor::IncInterestCount() const // NO UpdateMetaInfo, Just work on existing
 
 #if defined(MG_DEBUG_INTERESTSOURCE_LOGGING)
     DBG_START("IncInterestCount", "Actor", MG_DEBUG_INTERESTSOURCE_VALUE);
-    DBG_TRACE(("Ptr %x Inc %d HasSuppl %d", this, GetInterestCount(), DoesHaveSupplInterest()));
+    DBG_TRACE(("Ptr {:x} Inc {} HasSuppl {}", this, GetInterestCount(), DoesHaveSupplInterest()));
     dbg_assert(!sd_DecInterestCount);
 #endif
 
@@ -1200,7 +1200,7 @@ garbage_can Actor::DecInterestCount() const noexcept // nothrow, JUST LIKE destr
     DynamicIncrementalLock<> incInterestCountDetector(sd_DecInterestCount);
     bool isPivotedForLogging = m_State.Get(actor_flag_set::AFD_PivotElem);
     if (isPivotedForLogging)
-        reportF(SeverityTypeID::ST_MajorTrace, "DecInterestCount %s", GetInterestCount());
+        reportF(SeverityTypeID::ST_MajorTrace, "DecInterestCount {}", GetInterestCount());
 #endif
 
     assert(m_InterestCount);
@@ -1213,7 +1213,7 @@ garbage_can Actor::DecInterestCount() const noexcept // nothrow, JUST LIKE destr
 
 #if defined(MG_DEBUG_INTERESTSOURCE_LOGGING)
     DBG_START("DecInterestCount", "Actor", MG_DEBUG_INTERESTSOURCE_VALUE);
-    DBG_TRACE(("Ptr %x Dec %d HasSuppl %d", this, GetInterestCount(), DoesHaveSupplInterest()));
+    DBG_TRACE(("Ptr {:x} Dec {} HasSuppl {}", this, GetInterestCount(), DoesHaveSupplInterest()));
 #endif
 
     garbage_can garbage;

@@ -51,13 +51,13 @@
 	{
 		assert(g_ObjectRegister);
 		if (!item)
-			throwErrorF("CheckPtr", "function %s: Invalid NULL pointer supplied", dmsFunc);
+			throwErrorF("CheckPtr", "function {}: Invalid NULL pointer supplied", dmsFunc);
 		if (!IsObjectRegistered(item)) 
-			throwErrorF("CheckPtr", "function %s: Invalid pointer %lx supplied", dmsFunc, item);
+			throwErrorF("CheckPtr", "function {}: Invalid pointer {} supplied", dmsFunc, item);
 		if (cls)
 		{
 			if (!item->IsKindOf(cls) && !item->GetDynamicObjClass()->IsDerivedFrom(cls))
-				throwErrorF("CheckPtr", "function %s requires an item of type %s", 
+				throwErrorF("CheckPtr", "function {} requires an item of type {}", 
 					dmsFunc, cls->GetName()
 				);
 		}
@@ -118,10 +118,10 @@
 	void CheckPtr(const Object* item, const Class* cls, CharPtr dmsFunc)
 	{
 		if (!item) 
-			throwErrorF("CheckPtr", "Invalid Null Pointer in %s", dmsFunc);
+			throwErrorF("CheckPtr", "Invalid Null Pointer in {}", dmsFunc);
 
 		if (cls && !item->IsKindOf(cls) && !item->GetDynamicObjClass()->IsDerivedFrom(cls))
-			throwErrorF("CheckPtr", "Invalid Item in %s; %s expected" , dmsFunc, cls->GetName().c_str());
+			throwErrorF("CheckPtr", "Invalid Item in {}; {} expected" , dmsFunc, cls->GetName().c_str());
 	}
 	static std::atomic<UInt32> g_NrPersistentObjects = 0;
 	
@@ -443,10 +443,10 @@ SharedStr PersistentObject::GetSourceName() const
 	auto fullCfgName = GetFullCfgName();
 	if (!fullCfgName.empty())
 		return
-			mySSPrintF("[[%s]]", fullCfgName.c_str());
+			mySSPrintF("[[{}]]", fullCfgName.c_str());
 	TokenStr nameID = GetName();
 	return 
-		mySSPrintF("%s: %s"
+		mySSPrintF("{}: {}"
 		,	nameID.c_str()
 		,	GetClsName().c_str()
 		);

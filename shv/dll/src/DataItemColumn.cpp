@@ -350,7 +350,7 @@ SharedStr DataItemColumn::Caption() const
 	if (!tc->m_GroupByEntity || IsDefined(m_GroupByIndex))
 		return name;
 
-	return mgFormat2SharedStr("%1%(%2%)", OperName(GetSrcAttr(), m_AggrMethod), name);
+	return mgFormat2SharedStr("{0}({1})", OperName(GetSrcAttr(), m_AggrMethod), name);
 }
 
 void DataItemColumn::UpdateTheme()
@@ -718,7 +718,7 @@ void DataItemColumn::MakeVisibleRow()
 	std::shared_ptr<MovableObject> obj = shared_from_this();
 	do
 	{
-		DBG_TRACE(("RelElemRect: %s", AsString(elemRect).c_str()));
+		DBG_TRACE(("RelElemRect: {}", AsString(elemRect).c_str()));
 
 		ScrollPort* sp = dynamic_cast< ScrollPort* > ( obj.get());
 		if (sp)
@@ -1190,7 +1190,7 @@ TextInfo DataItemColumn::GetText(SizeT recNo, SizeT maxLen, GuiReadLockPair& loc
 		if (total != 0)
 		{
 			Float64 relValue = refObj->GetValueAsFloat64(recNo) /  total;
-			return TextInfo{ mySSPrintF("%lg %%", 100.0 * relValue), false };
+			return TextInfo{ mySSPrintF("{:g} %", 100.0 * relValue), false };
 		}
 	}
 	return TextInfo{ DisplayValue(activeTextAttr.get(), recNo, false, m_DisplayInterest, maxLen, locks), false };
@@ -1409,7 +1409,7 @@ void DataItemColumn::GotoRow(SizeT row)
 	auto tc = GetTableControl().lock(); if (!tc) return;
 	if (row >= tc->NrRows())
 	{
-		reportF(SeverityTypeID::ST_Warning, "ViewColumn.GotoRow: row %s not available", row);
+		reportF(SeverityTypeID::ST_Warning, "ViewColumn.GotoRow: row {} not available", row);
 		return;
 	}
 	SelChangeInvalidator sci(tc.get());
@@ -1449,12 +1449,12 @@ namespace {
 void DataItemColumn::FindNextValue(SharedStr searchText)
 {
 	auto tc = GetTableControl().lock(); if (!tc) return;
-	reportF(SeverityTypeID::ST_Warning, "ViewColumn.FindNext %.80s", searchText);
+	reportF(SeverityTypeID::ST_Warning, "ViewColumn.FindNext {:.80}", searchText);
 	auto aa = this->GetActiveAttr();
 	DataReadLock lock(aa);
 	auto active_text_attr = GetActiveTextAttr();
 	if (!active_text_attr)
-		return reportF(SeverityTypeID::ST_Warning, "ViewColumn.FindNext: failed finding value %.80s, no active text attribute found.", searchText);
+		return reportF(SeverityTypeID::ST_Warning, "ViewColumn.FindNext: failed finding value {:.80}, no active text attribute found.", searchText);
 	
 	auto vu = active_text_attr->GetAbstrValuesUnit();
 	visit<typelists::fields>(vu,
@@ -1497,7 +1497,7 @@ void DataItemColumn::FindNextValue(SharedStr searchText)
 				} while (row != currRow);
 			}
 
-			reportF(SeverityTypeID::ST_Warning, "ViewColumn.FindNext: failed finding value %.80s", AsString(searchValue));
+			reportF(SeverityTypeID::ST_Warning, "ViewColumn.FindNext: failed finding value {:.80}", AsString(searchValue));
 		}
 	);
 }
@@ -1775,7 +1775,7 @@ void DataItemColumn::FillMenu(MouseEventDispatcher& med)
 	if (sa)
 	{
 		med.m_MenuData.emplace_back(
-			mySSPrintF("Show Statistics of '%s'"
+			mySSPrintF("Show Statistics of '{}'"
 		,	caption.c_str())
 		,	std::make_unique<RequestClientCmd>(make_shared_tree(sa, existing_obj{}), CC_ShowStatistics)
 		,	this
@@ -1831,14 +1831,14 @@ void DataItemColumn::FillMenu(MouseEventDispatcher& med)
 		SizeT rowNr = relClientPos.Y() / height;
 		if (rowNr <= tc->NrRows())
 		{
-			med.m_MenuData.emplace_back(mySSPrintF("&Value info for row %d of '%s'", rowNr, caption.c_str())
+			med.m_MenuData.emplace_back(mySSPrintF("&Value info for row {} of '{}'", rowNr, caption.c_str())
 			, make_LambdaCmd([this, tc, rowNr]() { CreateViewValueAction(this->GetActiveAttr(), tc->GetRecNo(rowNr), true); })
 			, this
 			);
 		}
 	}
 //	Remove DIC
-	med.m_MenuData.emplace_back(mySSPrintF("&Remove %s", caption.c_str()), make_MembFuncCmd(&DataItemColumn::Remove), this, (tc->NrEntries() > 1) ? MF_ENABLED : MF_GRAYED);
+	med.m_MenuData.emplace_back(mySSPrintF("&Remove {}", caption.c_str()), make_MembFuncCmd(&DataItemColumn::Remove), this, (tc->NrEntries() > 1) ? MF_ENABLED : MF_GRAYED);
 
 //	Ramping
 	std::shared_ptr<const AbstrDataItem> activeAttr = make_shared_tree(GetActiveAttr(), existing_obj{});

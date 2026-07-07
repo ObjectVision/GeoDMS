@@ -104,7 +104,7 @@ void CreateViewAction(
 void CreateViewValueAction(const TreeItem* tiContext, SizeT index, bool mustOpenDetailsPage)
 {
 	if (IsDefined(index))
-		CreateViewAction(tiContext, mySSPrintF("dp.vi.attr!%d", index).c_str(), -1, -1, -1, true, false, mustOpenDetailsPage);
+		CreateViewAction(tiContext, mySSPrintF("dp.vi.attr!{}", index).c_str(), -1, -1, -1, true, false, mustOpenDetailsPage);
 }
 
 void CreateGotoAction(const TreeItem* tiContext)
@@ -212,7 +212,7 @@ const TreeItem* GetDialogDataRef(const TreeItem* item)
 	CharPtr i = dd.begin();
 	const TreeItem* result = GetNextDialogDataRef(item, i, dd.send() );
 	if (!result)
-		item->throwItemErrorF("Cannot find DialogData reference '%s'", dd.c_str());
+		item->throwItemErrorF("Cannot find DialogData reference '{}'", dd.c_str());
 	return result;
 }
 
@@ -402,7 +402,7 @@ TokenID UniqueName(TreeItem* context, CharPtr nameBase)
 	assert(context);
 	UInt32 i = 0;
 	while (true) {
-		SharedStr nameStr = mySSPrintF("%s%d", nameBase, i++);
+		SharedStr nameStr = mySSPrintF("{}{}", nameBase, i++);
 		TokenID result = GetTokenID_mt(nameStr.c_str());
 		if (!context->GetConstSubTreeItemByID(result))
 			return result;
@@ -417,7 +417,7 @@ TokenID UniqueName(TreeItem* context, TokenID nameBaseID)
 	{
 		UInt32 i = 0;
 		do {
-			SharedStr nameStr = mySSPrintF("%s%d", nameBaseID, ++i);
+			SharedStr nameStr = mySSPrintF("{}{}", nameBaseID, ++i);
 			result = GetTokenID_mt(nameStr.c_str());
 		} while (context->GetConstSubTreeItemByID(result));
 	}
@@ -439,7 +439,7 @@ TokenID CopyName(TreeItem* context, TokenID orgNameID)
 	if (orgName.ssize() > 4 && substr(orgName, orgName.ssize()-4, 4) == "Copy")
 		orgName = substr(orgName, 0, orgName.ssize()-4);
 
-	return UniqueName(context, mySSPrintF("%sCopy", orgName.c_str()).c_str());
+	return UniqueName(context, mySSPrintF("{}Copy", orgName.c_str()).c_str());
 }
 
 std::shared_ptr<GraphicObject> CreateFromContext(TreeItem* context, GraphicObject* owner)
@@ -1199,8 +1199,8 @@ void UpdateShowSelOnlyImpl(
 
 		SharedStr expr = selAttr->GetFullName();
 		if (indexAttr)
-			expr = mySSPrintF("lookup(%s, %s)", indexAttr->GetFullName().c_str(), expr.c_str());
-		expr = mySSPrintF("select_with_org_rel(%s)", expr.c_str());
+			expr = mySSPrintF("lookup({}, {})", indexAttr->GetFullName().c_str(), expr.c_str());
+		expr = mySSPrintF("select_with_org_rel({})", expr.c_str());
 
 		const ValueClass* vc           = entity->GetValueType();
 		const UnitClass*  resDomainCls = UnitClass::Find(vc->GetCrdClass());
@@ -1222,7 +1222,7 @@ void UpdateShowSelOnlyImpl(
 
 
 		if (indexAttr)
-			expr = mySSPrintF("lookup(org_rel, %s)", indexAttr->GetFullName().c_str());
+			expr = mySSPrintF("lookup(org_rel, {})", indexAttr->GetFullName().c_str());
 		else
 			expr = "org_rel";
 

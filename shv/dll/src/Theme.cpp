@@ -429,7 +429,7 @@ std::shared_ptr<Theme> Theme::Create(AspectNr aNr, const AbstrDataItem* thematic
 			default:
 				if (!doThrow)
 					return std::shared_ptr<Theme>();
-				thematicAttr->throwItemErrorF("Cannot create Theme with Aspect %s because\n%s",
+				thematicAttr->throwItemErrorF("Cannot create Theme with Aspect {} because\n{}",
 					AspectArray[aNr].name, 
 					layerInfo.m_Descr.c_str()
 				);

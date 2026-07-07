@@ -78,7 +78,7 @@ namespace AbstrOperGroupRegImpl {
 				std::stable_sort(b, e, OperGroupCompare());
 				auto check = check_order(b, e, OperGroupCompare());
 				if (!check.first)
-					throwDmsErrF("OperatorGroupReg has unordered elements: %s", (*check.second)->GetNameStr());
+					throwDmsErrF("OperatorGroupReg has unordered elements: {}", (*check.second)->GetNameStr());
 			}
 			s_OperGroupRegDirty = false;
 		}
@@ -183,7 +183,7 @@ void AbstrOperGroup::Init()
 	if (op != oper_policy::none)
 	{
 		// TODO WIKI
-		reportF(SeverityTypeID::ST_MinorTrace, "OperGroup %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s "
+		reportF(SeverityTypeID::ST_MinorTrace, "OperGroup {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} "
 			, m_OperName.c_str()
 			, op & oper_policy::dont_cache_result ? "dont_cache_result" : ""
 			, op & oper_policy::existing ? "existing" : ""
@@ -277,7 +277,7 @@ SpecialOperGroup::SpecialOperGroup(TokenID operNameID, arg_index maxNrArgs, oper
 		{
 			auto oap = argPolicyArray[i];
 			dms_assert(oap <= oper_arg_policy::calc_at_subitem);
-			DBG_TRACE(("arg %d calc %s", i, calcability[int(oap)]));
+			DBG_TRACE(("arg {} calc {}", i, calcability[int(oap)]));
 		}
 	}
 #endif
@@ -333,7 +333,7 @@ SharedStr GenerateArgClsDescription(arg_index nrArgs, const ClassCPtr* args)
 	while (nrArgs--)
 	{
 		msg += mySSPrintF(
-			"arg%d of type %s\n", 
+			"arg{} of type {}\n", 
 				++c, 
 				(*args)->GetName().c_str()
 		);
@@ -361,7 +361,7 @@ const Operator* AbstrOperGroup::FindOper(arg_index nrArgs, const ClassCPtr* argT
 	if (!b)
 	{
 		auto nameStr = SharedStr(GetName());
-		throwDmsErrF("There is no implemented operator for operator name '%s'. This operator name name might have been reserved for future implementation or might be obsolete."
+		throwDmsErrF("There is no implemented operator for operator name '{}'. This operator name name might have been reserved for future implementation or might be obsolete."
 			, nameStr);
 	}
 
@@ -414,17 +414,17 @@ const Operator* AbstrOperGroup::FindOper(arg_index nrArgs, const ClassCPtr* argT
 	}
 	auto nameStr = SharedStr(GetName());
 	throwErrorF(nameStr.c_str(), "Cannot find operator for these arguments:\n"
-		"%s"
+		"{}"
 		"Possible cause: argument type mismatch. Check the types of the used arguments.\n"
-		"\nThere are %d operators registered for the %s operator-group."
-		"\n%d operator%s correspond%s with these arguments for the first %d argument%s, %s the following signature:\n"
-		"%s%s%s"
+		"\nThere are {} operators registered for the {} operator-group."
+		"\n{} operator{} correspond{} with these arguments for the first {} argument{}, {} the following signature:\n"
+		"{}{}{}"
 		, GenerateArgClsDescription(nrArgs, argTypes).c_str()
 		, GetNrMembers(), nameStr.c_str()
 		, nr_best_match, (nr_best_match==1 ? "": "s"), (nr_best_match == 1 ? "s" : ""), best_count, (best_count == 1 ? "" : "s"), (nr_best_match == 1 ? "with" : "of which the first operator has")
 		, GenerateArgClsDescription(best_oper->NrSpecifiedArgs(), best_oper->m_ArgClassesBegin).c_str()
 		, AllowExtraArgs() ? "\nand supplemental args" : ""
-		, HasAnnotation() ? mySSPrintF("\n\n%s", GetAnnotation()).c_str() : ""
+		, HasAnnotation() ? mySSPrintF("\n\n{}", GetAnnotation()).c_str() : ""
 	);
 
 	return nullptr;
@@ -504,7 +504,7 @@ ConstUnitRef AbstrOperGroup::CreateValuesUnit(const ArgSeqType& dataArgs) const
 
 [[noreturn]] void AbstrOperGroup::throwOperError(CharPtr msg) const
 {
-	auto errMsg = mySSPrintF("Operator %s", GetName().c_str());
+	auto errMsg = mySSPrintF("Operator {}", GetName().c_str());
 	throwErrorD(errMsg.c_str(), msg);
 }
 

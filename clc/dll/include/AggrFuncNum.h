@@ -36,7 +36,7 @@ template<typename R> void SafeIncrement(R& assignee) // see the similarity with 
 		if constexpr (is_signed_v<R>)
 		{
 			if (assignee == MAX_VALUE(R))
-				throwErrorF("SafeIncrement", "non-representable numerical overflow when incrementing %s", AsString(assignee));
+				throwErrorF("SafeIncrement", "non-representable numerical overflow when incrementing {}", AsString(assignee));
 		}
 	}
 
@@ -91,7 +91,7 @@ struct unary_assign_inc : unary_assign<I, T>
 template<typename R, typename T> 
 [[noreturn]] void throwNonRepresentableNumericalOverflowInAccumulation(R& assignee, T arg) // see the similarity with safe_plus
 {
-	throwErrorF("SafeAccumulate", "non-representable numerical overflow in accumulation of %s with %s", AsString(assignee), AsString(arg));
+	throwErrorF("SafeAccumulate", "non-representable numerical overflow in accumulation of {} with {}", AsString(assignee), AsString(arg));
 }
 
 template<typename R, typename T> void SafeAccumulate(R& assignee, T arg) // see the similarity with safe_plus

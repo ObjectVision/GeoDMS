@@ -61,27 +61,27 @@ namespace treeitem_production_task
 
 //		assert(!self->m_ItemCount); // TODO: Check that earlier lock_unique is from the same thread
 		--self->m_ItemCount;
-		DBG_TRACE(("count=%d", self->m_ItemCount));
+		DBG_TRACE(("count={}", self->m_ItemCount));
 		self->m_Producer = oc;
 	}
 
 	void lock_unique(const TreeItem* self)
 	{
 		DBG_START("treeitem_production_task", "lock_unique", MG_DEBUG_TPT_LOCKS(self));
-		DBG_TRACE(("count=%d, producer = %s", self->m_ItemCount, self->m_Producer.lock() ? "available" : "null"));
+		DBG_TRACE(("count={}, producer = {}", self->m_ItemCount, self->m_Producer.lock() ? "available" : "null"));
 
 		leveled_critical_section::unique_lock lock(cs_lockCounterUpdate);
 		cv_lockrelease.wait(lock.m_BaseLock, [self]() {return self->m_ItemCount == 0; });
 
 		assert(self->m_Producer.expired()); // was cleaned up by producers task
 		--self->m_ItemCount;
-		DBG_TRACE(("count=%d", self->m_ItemCount));
+		DBG_TRACE(("count={}", self->m_ItemCount));
 	}
 
 	void lock_shared(const TreeItem* self)
 	{
 		DBG_START("treeitem_production_task", "lock_shared", MG_DEBUG_TPT_LOCKS(self));
-		DBG_TRACE(("count=%d, producer = %s", self->m_ItemCount, self->m_Producer.lock() ? "available" : "null"));
+		DBG_TRACE(("count={}, producer = {}", self->m_ItemCount, self->m_Producer.lock() ? "available" : "null"));
 
 		if (self->m_ItemCount < 0)
 		{
@@ -118,7 +118,7 @@ namespace treeitem_production_task
 		assert(self->m_Producer.expired()); // was cleaned up by producers task
 		assert(self->m_ItemCount >= 0);
 		++self->m_ItemCount;
-		DBG_TRACE(("count=%d", self->m_ItemCount));
+		DBG_TRACE(("count={}", self->m_ItemCount));
 	}
 
 	bool try_lock_unique(const TreeItem* self)
@@ -127,14 +127,14 @@ namespace treeitem_production_task
 
 		leveled_critical_section::scoped_lock lock(cs_lockCounterUpdate);
 
-		DBG_TRACE(("count=%d, producer = %s", self->m_ItemCount, self->m_Producer.lock() ? "available" : "null"));
+		DBG_TRACE(("count={}, producer = {}", self->m_ItemCount, self->m_Producer.lock() ? "available" : "null"));
 
 		if (self->m_ItemCount != 0)
 			return false;
 
 		--self->m_ItemCount;
 		assert(self->m_ItemCount == -1);
-		DBG_TRACE(("count=%d", self->m_ItemCount));
+		DBG_TRACE(("count={}", self->m_ItemCount));
 		return true;
 	}
 	bool try_lock_shared(const TreeItem* self)
@@ -143,12 +143,12 @@ namespace treeitem_production_task
 
 		leveled_critical_section::scoped_lock lock(cs_lockCounterUpdate);
 
-		DBG_TRACE(("count=%d", self->m_ItemCount));
+		DBG_TRACE(("count={}", self->m_ItemCount));
 		if (self->m_ItemCount < 0)
 			return false;
 
 		++self->m_ItemCount;
-		DBG_TRACE(("count=%d", self->m_ItemCount));
+		DBG_TRACE(("count={}", self->m_ItemCount));
 		return true;
 	}
 
@@ -158,11 +158,11 @@ namespace treeitem_production_task
 
 		leveled_critical_section::scoped_lock lock(cs_lockCounterUpdate);
 
-		DBG_TRACE(("count=%d, producer = %s", self->m_ItemCount, self->m_Producer.lock() ? "available" : "null"));
+		DBG_TRACE(("count={}, producer = {}", self->m_ItemCount, self->m_Producer.lock() ? "available" : "null"));
 
 		assert(self->m_ItemCount < 0);
 		auto newCount = ++self->m_ItemCount;
-		DBG_TRACE(("count=%d", self->m_ItemCount));
+		DBG_TRACE(("count={}", self->m_ItemCount));
 		if (newCount < 0)
 			return;
 
@@ -176,13 +176,13 @@ namespace treeitem_production_task
 
 		leveled_critical_section::scoped_lock lock(cs_lockCounterUpdate);
 
-		DBG_TRACE(("count=%d, producer = %s", self->m_ItemCount, self->m_Producer.lock() ? "available" : "null"));
+		DBG_TRACE(("count={}, producer = {}", self->m_ItemCount, self->m_Producer.lock() ? "available" : "null"));
 
 		assert(self->m_ItemCount > 0);
 		assert(self->m_Producer.expired());
 		if (!--self->m_ItemCount)
 			cv_lockrelease.notify_all();
-		DBG_TRACE(("count=%d", self->m_ItemCount));
+		DBG_TRACE(("count={}", self->m_ItemCount));
 	}
 /*  REMOVE
 	void unlock(const TreeItem* self) noexcept
@@ -266,7 +266,7 @@ namespace cs_lock {
 	void ReadLock(const TreeItem* item) // only works for reader_writer_lock, caller must call ReadFree
 	{
 		DBG_START("cs_lock", "ReadLock", MG_DEBUG_LOCKS);
-		DBG_TRACE(("key=%s", AsString(item).c_str()));
+		DBG_TRACE(("key={}", AsString(item).c_str()));
 
 //		std::optional < ItemReadLock > lockDomain;
 //		if (IsDataItem(item))
@@ -280,7 +280,7 @@ namespace cs_lock {
 	bool TryReadLock(const TreeItem* item) // only works for reader_writer_lock, caller must call ReadFree
 	{
 		DBG_START("cs_lock", "ReadLock", MG_DEBUG_LOCKS);
-		DBG_TRACE(("key=%s", AsString(item).c_str()));
+		DBG_TRACE(("key={}", AsString(item).c_str()));
 
 		//		std::optional < ItemReadLock > lockDomain;
 		//		if (IsDataItem(item))

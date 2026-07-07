@@ -85,7 +85,7 @@ struct OverlayLayerVisitorBase : UnitProcessor
 		MG_CHECK(dataArray);
 
 		if (regionUnit->GetRange().first)
-			throwErrorF("Overlay", "ValuesUnit of %s is not zero based", m_PartitioningInfo->GetName());
+			throwErrorF("Overlay", "ValuesUnit of {} is not zero based", m_PartitioningInfo->GetName());
 
 		UInt32 nrRegions = regionUnit->GetCount();
 		m_RecodeInfo->m_NrRegions          = nrRegions;
@@ -371,7 +371,7 @@ public:
 
 			const TreeItem* partitioningTI = GetItem(args[2])->GetConstSubTreeItemByID(partNameID).get();
 			if (!partitioningTI)
-				throwErrorF("Overlay", "%s not found in %s", partNameID.GetStr().c_str(), GetItem(args[2])->GetSourceName().c_str());
+				throwErrorF("Overlay", "{} not found in {}", partNameID.GetStr().c_str(), GetItem(args[2])->GetSourceName().c_str());
 			const AbstrDataItem* partitioningDI = AsCheckedDataItem(partitioningTI);
 			assert(partitioningDI);
 

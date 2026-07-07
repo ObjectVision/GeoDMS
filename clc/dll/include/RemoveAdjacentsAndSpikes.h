@@ -28,7 +28,7 @@ Iter remove_adjacents_and_spikes(Iter first, Iter last)
 	for (auto iter = first; iter != last; ++iter)
 		if (!IsDefined(*iter))
 			throwErrorF("remove_adjacents_and_spikes"
-				, "unexpected null or separator found in point sequence at pos %d.\n"
+				, "unexpected null or separator found in point sequence at pos {}.\n"
 				  "A polygon operation likely received arc (linestring) or multipoint geometry, "
 				  "whose null separators are not valid inside a polygon ring.\n"
 				  "For arc geometry use a *_linestring variant (e.g. geos_buffer_linestring); "

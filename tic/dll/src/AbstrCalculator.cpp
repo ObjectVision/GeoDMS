@@ -85,7 +85,7 @@ void AbstrCalculator::WriteHtmlExpr(OutStreamBase& stream) const
 
 SharedStr MakeUnknownIdentifierErrorMsg(SharedStr supplRefStr, BestItemRef bestItemRef)
 {
-	auto errMsg = mySSPrintF("Unknown identifier '%s'", supplRefStr);
+	auto errMsg = mySSPrintF("Unknown identifier '{}'", supplRefStr);
 	if (bestItemRef.first)
 	{
 		auto supplRefStrSize = supplRefStr.AsRange().size();
@@ -94,7 +94,7 @@ SharedStr MakeUnknownIdentifierErrorMsg(SharedStr supplRefStr, BestItemRef bestI
 		{
 			auto bestFullName = bestItemRef.first->GetFullName();
 			if (!bestFullName.empty())
-				errMsg += mySSPrintF("\nDid you mean '%s' that refers to [[%s]]?\nThe '%s' part was not found there."
+				errMsg += mySSPrintF("\nDid you mean '{}' that refers to [[{}]]?\nThe '{}' part was not found there."
 					, CharPtrRange(supplRefStr.begin(), supplRefStrSize - notFoundPartSize)
 					, bestFullName.c_str()
 					, bestItemRef.second
@@ -137,7 +137,7 @@ SharedTreeItem FindSubItem(const TreeItem* sourceItem, SharedStr relPath)
 			++delimPos;
 		auto subItem = sourceItem->GetConstSubTreeItemByID(GetTokenID_mt(begin, delimPos));
 		if (!subItem)
-			throwErrorF("FindSubItem", "Cannot find %s from %s", SharedStr(CharPtrRange(begin, delimPos)), sourceItem->GetFullName().c_str());
+			throwErrorF("FindSubItem", "Cannot find {} from {}", SharedStr(CharPtrRange(begin, delimPos)), sourceItem->GetFullName().c_str());
 		MG_CHECK(!subItem->IsCacheItem());
 		sourceItem = subItem.get();
 		begin = delimPos;
@@ -163,7 +163,7 @@ TIC_CALL auto GetDC(const AbstrCalculator* calculator)->DataControllerRef
 {
 	auto metaInfo = calculator->GetMetaInfo();
 	if (metaInfo.index() == 0)
-		throwErrorF("GetDC", "KeyExpr expected but called with: %s\nMeta functions and template instantiations are not supported here."
+		throwErrorF("GetDC", "KeyExpr expected but called with: {}\nMeta functions and template instantiations are not supported here."
 			, AsFLispSharedStr(std::get<0>(metaInfo).GetAsLispRef(), FormattingFlags::ThousandSeparator).c_str()
 		);
 	if (metaInfo.index() == 2) // follow source
@@ -228,7 +228,7 @@ void CheckResultingTreeItem(const TreeItem* refItem, const Class* desiredResulti
 
 	if (desiredResultingClass && !refItem->GetDynamicObjClass()->IsDerivedFrom(desiredResultingClass))
 	{
-		throwErrorF("CheckResult", "calculation will result in a %s, which is not castable to the type %s of the result item",
+		throwErrorF("CheckResult", "calculation will result in a {}, which is not castable to the type {} of the result item",
 			refItem->GetDynamicObjClass()->GetName().c_str(),
 			desiredResultingClass->GetName().c_str()
 		);
@@ -501,7 +501,7 @@ AbstrCalculatorRef AbstrCalculator::ConstructFromDirectStr(const TreeItem* conte
 AbstrCalculatorRef AbstrCalculator::ConstructFromLispRef(const TreeItem* context, LispPtr lispExpr, CalcRole cr)
 {
 	DBG_START("AbstrCalculator", "ConstructFromLispRef", false);
-	DBG_TRACE(("lispExpr %s", AsFLispSharedStr(lispExpr, FormattingFlags::ThousandSeparator).c_str()));
+	DBG_TRACE(("lispExpr {}", AsFLispSharedStr(lispExpr, FormattingFlags::ThousandSeparator).c_str()));
 
 	return new DC_Ptr(context, lispExpr, cr);
 }
@@ -900,8 +900,8 @@ void registerSupplier(SubstitutionBuffer& substBuff, const TreeItem* supplier)
 LispRef AbstrCalculator::slSupplierExprImpl(SubstitutionBuffer& substBuff, const TreeItem* supplier, metainfo_policy_flags mpf) const
 {
 	DBG_START("ExprCalculator", "slSupplierExprImpl", false);
-	//	DBG_TRACE(("expr     %s", m_Expression.c_str()));
-	//	DBG_TRACE(("supplRef %s", AsString(supplRef).c_str()) );
+	//	DBG_TRACE(("expr     {}", m_Expression.c_str()));
+	//	DBG_TRACE(("supplRef {}", AsString(supplRef).c_str()) );
 
 	dms_assert(supplier); // PRECONDITION
 	auto holder = m_Holder.lock();
@@ -916,7 +916,7 @@ LispRef AbstrCalculator::slSupplierExprImpl(SubstitutionBuffer& substBuff, const
 		supplier->UpdateMetaInfo();
 	if (supplier->InTemplate() && !(mpf & metainfo_policy_flags::subst_never))
 	{
-		auto msg = mySSPrintF("Calulation rule would create a dependency on %s which is (part of) a template", supplier->GetFullName());
+		auto msg = mySSPrintF("Calulation rule would create a dependency on {} which is (part of) a template", supplier->GetFullName());
 		holder->ThrowFail(msg, FailType::MetaInfo);
 	}
 
@@ -929,7 +929,7 @@ LispRef AbstrCalculator::slSupplierExprImpl(SubstitutionBuffer& substBuff, const
 	LispRef result = (m_CalcRole == CalcRole::Checker && holder.get() == supplier) ? supplier->GetKeyExprImpl() : supplier->GetCheckedKeyExpr();
 
 #if defined(MG_DEBUG_LISP_TREE)
-	reportF(SeverityTypeID::ST_MinorTrace, "result=%s", AsString(result).c_str());
+	reportF(SeverityTypeID::ST_MinorTrace, "result={}", AsString(result).c_str());
 	dms_assert(IsExpr(result));
 #endif
 	if (result.EndP())
@@ -1049,8 +1049,8 @@ OArgRefs ApplyMetaFunc_GetArgs(TreeItem* holder, const AbstrCalculator* ac, cons
 			if (!argExpr.IsSymb())
 			{
 				auto errMsgTxt = mySSPrintF(
-					"meta-function %s expects an item reference as argument %d, but an expression was given.\n"
-					"Consider defining and using a separate item as %s"
+					"meta-function {} expects an item reference as argument {}, but an expression was given.\n"
+					"Consider defining and using a separate item as {}"
 					, og->GetName()
 					, currArg + 1
 					, AsFLispSharedStr(argExpr, FormattingFlags::ThousandSeparator)
@@ -1067,7 +1067,7 @@ OArgRefs ApplyMetaFunc_GetArgs(TreeItem* holder, const AbstrCalculator* ac, cons
 				if (!foundItem)
 				{
 					auto msg = SharedStr(symbID.AsStrRange());
-					holder->Fail(mySSPrintF("Cannot find %s", msg), FailType::MetaInfo);
+					holder->Fail(mySSPrintF("Cannot find {}", msg), FailType::MetaInfo);
 				}
 				else
 					argRef.emplace<SharedTreeItem>(foundItem);
@@ -1080,12 +1080,12 @@ OArgRefs ApplyMetaFunc_GetArgs(TreeItem* holder, const AbstrCalculator* ac, cons
 			assert(mustCalcArg);
 			auto substResult = ac->SubstituteExpr(substBuff, cursor.Left());
 			if (substResult.index() == 0)
-				throwDmsErrF("in ApplyMetaFunc_GetArgs the sub expression '%s' is a MetaFunc('%s') and cannot be substituted"
+				throwDmsErrF("in ApplyMetaFunc_GetArgs the sub expression '{}' is a MetaFunc('{}') and cannot be substituted"
 					, AsString(cursor.Left().AsLispPtr())
 					, AsString(std::get<0>(substResult).GetAsLispRef().AsLispPtr())
 				);
 			if (substResult.index() == 2)
-				throwDmsErrF("in ApplyMetaFunc_GetArgs the sub expression %s is a SourceItem reference that cannot be substituted", AsString(cursor.Left()));
+				throwDmsErrF("in ApplyMetaFunc_GetArgs the sub expression {} is a SourceItem reference that cannot be substituted", AsString(cursor.Left()));
 			MG_CHECK(substResult.index() == 1);
 
 			FutureData dc = GetOrCreateDataController(std::get<1>(substResult)); // what about non-substitited stuff?
@@ -1148,7 +1148,7 @@ bool ApplyMetaFunc_impl(TreeItem* holder, const AbstrCalculator* ac, const Abstr
 
 		if (!holder->GetDynamicObjClass()->IsDerivedFrom(oper->GetResultClass()))
 		{
-			auto msg = mySSPrintF("result of %s is of type %s, expected type: %s"
+			auto msg = mySSPrintF("result of {} is of type {}, expected type: {}"
 				, og->GetName()
 				, resultHolder->GetCurrentObjClass()->GetName()
 				, oper->GetResultClass()->GetName()
@@ -1199,7 +1199,7 @@ void ApplyAsMetaFunction(TreeItem* holder, const AbstrCalculator* ac, const Abst
 
 #if defined(MG_DEBUG_DCDATA)
 	DBG_START("ApplyMetaFunc_impl", "", false);
-	DBG_TRACE(("metaCallExpr=%s", AsFLispSharedStr(metaCallArgs, FormattingFlags::ThousandSeparator)));
+	DBG_TRACE(("metaCallExpr={}", AsFLispSharedStr(metaCallArgs, FormattingFlags::ThousandSeparator)));
 #endif
 
 	StaticStIncrementalLock<TreeItem::s_MakeEndoLockCount> makeEndoLock;
@@ -1288,10 +1288,10 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 			{
 				auto leftExpr = localExpr.Right().Left();
 				if (!leftExpr.IsSymb())
-					throwErrorF("ExprParser", "Scope operator: Left operand should be a name, but '%s' given.", AsFLispSharedStr(leftExpr, FormattingFlags::ThousandSeparator).c_str());
+					throwErrorF("ExprParser", "Scope operator: Left operand should be a name, but '{}' given.", AsFLispSharedStr(leftExpr, FormattingFlags::ThousandSeparator).c_str());
 				SharedTreeItem scopeItem = FindItem(leftExpr.GetSymbID());
 				if (!scopeItem)
-					throwErrorF("ExprParser", "Scope operator: container '%s' not found", leftExpr.GetSymbID().GetStr().c_str());
+					throwErrorF("ExprParser", "Scope operator: container '{}' not found", leftExpr.GetSymbID().GetStr().c_str());
 
 				tmp_swapper<SharedTreeItem> swap(m_SearchContext, scopeItem);
 				SubstitutionBuffer localBuffer;
@@ -1303,7 +1303,7 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 			{
 				LispRef indexExpr = localExpr.Right().Left();
 				if (!indexExpr.IsSymb())
-					throwErrorF("Calculation Rule Parser", "named DataItem expected as left operand of the arrow operator: try defining an attribute with calculation rule '%s'"
+					throwErrorF("Calculation Rule Parser", "named DataItem expected as left operand of the arrow operator: try defining an attribute with calculation rule '{}'"
 					, AsString(indexExpr.AsLispPtr())
 					);
 
@@ -1311,11 +1311,11 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 				if (substBuff.avs == AVS_SuspendedOrFailed)
 					return {};
 				if (!indexItem.get())
-					throwErrorF("Calculation Rule Parser", "reference '%s' not found (as left operand of the arrow operator)"
+					throwErrorF("Calculation Rule Parser", "reference '{}' not found (as left operand of the arrow operator)"
 					, AsString(indexExpr.GetSymbID())
 					);
 				if (!IsDataItem(indexItem.get()))
-					throwErrorF("Calculation Rule Parser", "DataItem expected as left operand of the arrow operator; '%s' refers to a %s"
+					throwErrorF("Calculation Rule Parser", "DataItem expected as left operand of the arrow operator; '{}' refers to a {}"
 					, AsString(indexExpr.GetSymbID())
 					, AsString(indexItem->GetDynamicClass()->GetID())
 					);
@@ -1326,7 +1326,7 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 					auto formalDomainUnit = SharedStr(AsDataItem(indexItem.get())->DomainUnitToken());
 					auto formalValuesUnit = SharedStr(AsDataItem(indexItem.get())->ValuesUnitToken());
 					throwErrorF("Calculation Rule Parser", "DataItem with a specified formal domain and values-unit expected as left operand of the arrow operator."
-						"\nHint: '%s' is specified with formal domain '%s' and values-unit '%s'. Check that these refer to unit definitions seen from the current context."
+						"\nHint: '{}' is specified with formal domain '{}' and values-unit '{}'. Check that these refer to unit definitions seen from the current context."
 						, AsString(indexExpr.GetSymbID()), formalDomainUnit.c_str(), formalValuesUnit.c_str()
 					);
 				}
@@ -1378,24 +1378,24 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 					return {};
 
 				if (!templateItem)
-					throwErrorF("ExprParser", "'%s': unknown function"
+					throwErrorF("ExprParser", "'{}': unknown function"
 						, head.GetSymbStr().c_str()
 					);
 
 				if (!templateItem->IsTemplate())
-					throwErrorF("ExprParser", "'%s': found item '%s' is not defined as template"
+					throwErrorF("ExprParser", "'{}': found item '{}' is not defined as template"
 						, head.GetSymbStr().c_str()
 						, templateItem->GetFullName().c_str()
 					);
 
-				throwErrorF("ExprParser", "'%s': template instantiations (of '%s') not allowed as sub-expressions"
+				throwErrorF("ExprParser", "'{}': template instantiations (of '{}') not allowed as sub-expressions"
 					, head.GetSymbStr().c_str()
 					, templateItem->GetFullName().c_str()
 				);
 			}
 			if (!og->MustCacheResult())
 			{
-				throwErrorF("ExprParser", "'%s': meta function call not allowed as sub-expressions"
+				throwErrorF("ExprParser", "'{}': meta function call not allowed as sub-expressions"
 					, head.GetSymbStr().c_str()
 				);
 			}
@@ -1451,7 +1451,7 @@ exit:
 MetaInfo AbstrCalculator::SubstituteExpr(SubstitutionBuffer& substBuff, LispPtr localExpr) const
 {
 	DBG_START("ExprCalculator", "SubstituteExpr", false);
-	DBG_TRACE(("localExpr = %s", AsString(localExpr).c_str()));
+	DBG_TRACE(("localExpr = {}", AsString(localExpr).c_str()));
 
 	if (localExpr.IsRealList()) // operator call or calculation scheme instantiation
 	{
@@ -1471,12 +1471,12 @@ MetaInfo AbstrCalculator::SubstituteExpr(SubstitutionBuffer& substBuff, LispPtr 
 				return {};
 
 			if (!templateItem)
-				throwErrorF("ExprParser", "'%s': unknown operator and no template or function was found with this name"
+				throwErrorF("ExprParser", "'{}': unknown operator and no template or function was found with this name"
 					, head.GetSymbStr().c_str()
 				);
 
 			if (!templateItem->IsTemplate())
-				throwErrorF("ExprParser", "'%s': found item '%s' is not defined as template"
+				throwErrorF("ExprParser", "'{}': found item '{}' is not defined as template"
 					, head.GetSymbStr().c_str()
 					, templateItem->GetFullName().c_str()
 				);

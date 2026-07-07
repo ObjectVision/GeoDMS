@@ -6,6 +6,7 @@
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#include <boost/config/helper_macros.hpp> // BOOST_STRINGIZE; was transitively provided by boost/format via the prelude
 #endif
 
 #include <numbers>
@@ -217,7 +218,7 @@ protected:
 						}
 					}
 				);
-				reportF(SeverityTypeID::ST_MajorTrace, "%s%s with %s tiles of first argument and after matching %s / %s tiles of second argument, %s intersecting tiles were processed."
+				reportF(SeverityTypeID::ST_MajorTrace, "{}{} with {} tiles of first argument and after matching {} / {} tiles of second argument, {} intersecting tiles were processed."
 					, itemRef.c_str()
 					, GetGroup()->GetNameStr()
 					, AsString(domain1Unit->GetNrTiles())
@@ -321,8 +322,8 @@ public:
 		if constexpr (GL == geometry_library::geos && (!std::is_floating_point_v<scalar_of_t<P> > || sizeof(scalar_of_t<P>) < 8))
 		{
 			if (GetGeosNonDPointDepreciationFlag() == oper_policy::obsolete)
-				throwDmsErrF("PolygonOverlayOperator", "GEOS-based polygon operation %s are no longer supported for non-double-precision point types", this->GetGroup()->GetNameStr());
-			reportF(SeverityTypeID::ST_Warning, "GEOS-based polygon operation %s are no longer supported for non-double-precision point types", this->GetGroup()->GetNameStr());
+				throwDmsErrF("PolygonOverlayOperator", "GEOS-based polygon operation {} are no longer supported for non-double-precision point types", this->GetGroup()->GetNameStr());
+			reportF(SeverityTypeID::ST_Warning, "GEOS-based polygon operation {} are no longer supported for non-double-precision point types", this->GetGroup()->GetNameStr());
 		}
 		auto poly1Data = const_array_cast<PolygonType>(poly1DataA);
 		auto poly2Data = const_array_cast<PolygonType>(poly2DataA);
@@ -501,7 +502,7 @@ public:
 			catch (...)
 			{
 				auto errMsg = catchException(true);
-				errMsg->TellExtraF("while processing intersection of row %d with row %d", orgRels.first, orgRels.second);
+				errMsg->TellExtraF("while processing intersection of row {} with row {}", orgRels.first, orgRels.second);
 				throw DmsException(errMsg);
 			}
 		});
@@ -641,7 +642,7 @@ void dms_insert(bp::polygon_set_data<C>& lvalue, const GT2& rvalue)
 		typename traits_t::point_type mp(-x(p), -y(p));
 		bp::convolve(bpRect, mp);
 		if (coords_using_more_than_25_bits(bpRect))
-			throwErrorF("boost::polygon::insert", "extent of objects is %s after moving it with %s, which requires more than 25 bits for coordinates"
+			throwErrorF("boost::polygon::insert", "extent of objects is {} after moving it with {}, which requires more than 25 bits for coordinates"
 				, AsString(bpRect)
 				, AsString(mp)
 			);
@@ -710,7 +711,7 @@ void UnionPolygon(ResourceArrayHandle& r, SizeT n, const AbstrDataItem* polyData
 				{
 					if (!IsDefined(ri))
 						continue;
-					throwErrorF("Polygon", "Unexpected partion index %d at row %d", ri, i);
+					throwErrorF("Polygon", "Unexpected partion index {} at row {}", ri, i);
 				}
 				i = ri;
 			}
@@ -723,7 +724,7 @@ void UnionPolygon(ResourceArrayHandle& r, SizeT n, const AbstrDataItem* polyData
 
 		if (processTimer.PassedSecs())
 		{
-			reportF(SeverityTypeID::ST_MajorTrace, "%s%s: processed %s / %s sequences of tile %s / %s"
+			reportF(SeverityTypeID::ST_MajorTrace, "{}{}: processed {} / {} sequences of tile {} / {}"
 				, itemRef
 				, whosCalling->GetNameStr()
 				, AsString(pi - pb), AsString(pe - pb)
@@ -799,7 +800,7 @@ protected:
 		DBG_START("AbstrPolygon", "CreateResult", true);
 		for (arg_index i = 0; i != args.size(); ++i)
 		{
-			DBG_TRACE(("arg %d: %s", i, args[i]->GetName().c_str()));
+			DBG_TRACE(("arg {}: {}", i, args[i]->GetName().c_str()));
 		}
 #endif
 		MG_CHECK(args.size() == CalcNrArgs(m_Flags));
@@ -913,16 +914,16 @@ protected:
 
 		switch (f) {
 			case PolygonFlags::F_Inflate1:
-				reportF(SeverityTypeID::ST_MajorTrace, "%s%s.Inflate tile %d", itemRef, GetGroup()->GetNameStr(), t);
+				reportF(SeverityTypeID::ST_MajorTrace, "{}{}.Inflate tile {}", itemRef, GetGroup()->GetNameStr(), t);
 				break;
 			case PolygonFlags::F_Deflate1:
-				reportF(SeverityTypeID::ST_MajorTrace, "%s%s.Deflate tile %d", itemRef, GetGroup()->GetNameStr(), t);
+				reportF(SeverityTypeID::ST_MajorTrace, "{}{}.Deflate tile {}", itemRef, GetGroup()->GetNameStr(), t);
 				break;
 			case PolygonFlags::F_Filter1:
-				reportF(SeverityTypeID::ST_MajorTrace, "%s%s.Filter tile %d", itemRef, GetGroup()->GetNameStr(), t);
+				reportF(SeverityTypeID::ST_MajorTrace, "{}{}.Filter tile {}", itemRef, GetGroup()->GetNameStr(), t);
 				break;
 			default:
-				reportF(SeverityTypeID::ST_MajorTrace, "%s%s.Operation %d tile %d", itemRef, GetGroup()->GetNameStr(), int(f) / int(PolygonFlags::F_Inflate1), t); // DEBUG
+				reportF(SeverityTypeID::ST_MajorTrace, "{}{}.Operation {} tile {}", itemRef, GetGroup()->GetNameStr(), int(f) / int(PolygonFlags::F_Inflate1), t); // DEBUG
 				break;
 		}
 
@@ -937,7 +938,7 @@ protected:
 			ProcessNumOper(r, argNum2, t, tn, PolygonFlags((int(m_Flags) & int(PolygonFlags::F_Mask2)) / mask_ratio), processTimer, itemRef);
 		}
 #if defined(MG_DEBUG_POLYGON)
-		reportF(ST_MajorTrace, "UnionPolygon.Store %d", t);
+		reportF(ST_MajorTrace, "UnionPolygon.Store {}", t);
 #endif //defined(MG_DEBUG_POLYGON)
 		StoreImpl(resUnit, resGeometry, resGeometryHandle, resNrOrgEntity, t, r);
 	}
@@ -1068,7 +1069,7 @@ struct union_bp_polygonsets
 				typename traits_t::point_type mp(-x(p), -y(p));
 				bp::convolve(bpRect, mp);
 				if (coords_using_more_than_25_bits(bpRect))
-					throwErrorF("union_bp_polygonsets", "extent of objects is %s after moving it with %s, which requires more than 25 bits for coordinates"
+					throwErrorF("union_bp_polygonsets", "extent of objects is {} after moving it with {}, which requires more than 25 bits for coordinates"
 						, AsString(bpRect)
 						, AsString(mp)
 					);
@@ -1168,7 +1169,7 @@ public:
 				typename traits_t::point_type mp(-x(p), -y(p));
 				bp::convolve(rectangle, mp);
 				if (coords_using_more_than_25_bits(rectangle))
-					throwErrorF("boost::polygon::ProcessSuffix", "extent of object is %s after moving it with %s, which requires more than 25 bits for coordinates"
+					throwErrorF("boost::polygon::ProcessSuffix", "extent of object is {} after moving it with {}, which requires more than 25 bits for coordinates"
 						, AsString(rectangle)
 						, AsString(mp)
 					);
@@ -1206,7 +1207,7 @@ public:
 
 			if (processTimer.PassedSecs())
 			{
-				reportF(SeverityTypeID::ST_MajorTrace, "%s%s: processed %s / %s sequences of tile %s / %s"
+				reportF(SeverityTypeID::ST_MajorTrace, "{}{}: processed {} / {} sequences of tile {} / {}"
 					, itemRef
 					, GetGroup()->GetName()
 					, AsString(i), AsString(domainCount)
@@ -1314,7 +1315,7 @@ struct union_bg_multi_polygon
 			{
 				auto tooMuch = arear - (area1 + area2);
 				if (tooMuch > 0.1)
-					reportF(SeverityTypeID::ST_MinorTrace, "%d union_bg_multi_polygon(%f, %f) -> %f: resulting area %f too big "
+					reportF(SeverityTypeID::ST_MinorTrace, "{} union_bg_multi_polygon({:f}, {:f}) -> {:f}: resulting area {:f} too big "
 						, callCounter++
 						, area1, area2, arear
 						, tooMuch
@@ -1324,7 +1325,7 @@ struct union_bg_multi_polygon
 			{
 				auto missing = max(area1, area2) - arear;
 				if (missing > 0.1)
-					reportF(SeverityTypeID::ST_MinorTrace, "%d union_bg_multi_polygon(%f, %f) -> %f: resulting area %f too small "
+					reportF(SeverityTypeID::ST_MinorTrace, "{} union_bg_multi_polygon({:f}, {:f}) -> {:f}: resulting area {:f} too small "
 						, callCounter++
 						, area1, area2, arear
 						, missing
@@ -1581,8 +1582,8 @@ public:
 		if constexpr (!std::is_floating_point_v<scalar_of_t<P> > || sizeof(scalar_of_t<P>) < 8)
 		{
 			if (GetGeosNonDPointDepreciationFlag() == oper_policy::obsolete)
-				throwErrorF("GEOS_PolygonOperator", "GEOS-based polygon operation %s is no longer supported for non-double-precision point types", this->GetGroup()->GetNameStr());
-			reportF(SeverityTypeID::ST_Warning, "GEOS-based polygon operation %s is no longer supported for non-double-precision point types", this->GetGroup()->GetNameStr());
+				throwErrorF("GEOS_PolygonOperator", "GEOS-based polygon operation {} is no longer supported for non-double-precision point types", this->GetGroup()->GetNameStr());
+			reportF(SeverityTypeID::ST_Warning, "GEOS-based polygon operation {} is no longer supported for non-double-precision point types", this->GetGroup()->GetNameStr());
 		}
 		UnionPolygon<P, SequenceType, MultiPolygonTower>(r, domainCount, polyDataA, partitionDataA, t, GetGroup(), processTimer, itemRef);
 	}
@@ -1743,7 +1744,7 @@ public:
 					domain_rel.emplace_back(i);
 				}
 				if (processTimer.PassedSecs())
-					reportF(SeverityTypeID::ST_MajorTrace, "%s%s: inserted %s / %s sequences"
+					reportF(SeverityTypeID::ST_MajorTrace, "{}{}: inserted {} / {} sequences"
 						, itemRef
 						, GetGroup()->GetNameStr()
 						, AsString(i), AsString(nrVertices)
@@ -1783,7 +1784,7 @@ public:
 					++e;
 				}
 			if (processTimer.PassedSecs())
-				reportF(SeverityTypeID::ST_MajorTrace, "%s%s: extracted %s / %s sequences"
+				reportF(SeverityTypeID::ST_MajorTrace, "{}{}: extracted {} / {} sequences"
 					, itemRef
 					, GetGroup()->GetNameStr()
 					, AsString(gi - graph.begin()), AsString(graph.size())
@@ -2072,29 +2073,29 @@ namespace
 		BpPolyOperatorGroups simple, split;
 
 		BpPolyOperatorGroupss(CharPtr suffix, PolygonFlags flags)
-			: simple( BpPolyOperatorGroups(SharedStr("bp_%spolygon")+ suffix, flags) )
-			, split( BpPolyOperatorGroups(SharedStr("bp_split_%spolygon") + suffix, flags | PolygonFlags::F_DoSplit) )
+			: simple( BpPolyOperatorGroups(SharedStr("bp_{}polygon")+ suffix, flags) )
+			, split( BpPolyOperatorGroups(SharedStr("bp_split_{}polygon") + suffix, flags | PolygonFlags::F_DoSplit) )
 		{}
 	};
 	struct BgPolyOperatorGroupss
 	{
 		BgPolyOperatorGroups
-			simple = BgPolyOperatorGroups(SharedStr("bg_%spolygon"), PolygonFlags())
-		,	split = BgPolyOperatorGroups(SharedStr("bg_split_%spolygon"), PolygonFlags::F_DoSplit)
+			simple = BgPolyOperatorGroups(SharedStr("bg_{}polygon"), PolygonFlags())
+		,	split = BgPolyOperatorGroups(SharedStr("bg_split_{}polygon"), PolygonFlags::F_DoSplit)
 		;
 	};
 	struct CGAL_PolyOperatorGroupss
 	{
 		CGAL_PolyOperatorGroups
-			simple = CGAL_PolyOperatorGroups(SharedStr("cgal_%spolygon"), PolygonFlags())
-			, split = CGAL_PolyOperatorGroups(SharedStr("cgal_split_%spolygon"), PolygonFlags::F_DoSplit)
+			simple = CGAL_PolyOperatorGroups(SharedStr("cgal_{}polygon"), PolygonFlags())
+			, split = CGAL_PolyOperatorGroups(SharedStr("cgal_split_{}polygon"), PolygonFlags::F_DoSplit)
 			;
 	};
 	struct GEOS_PolyOperatorGroupss
 	{
 		GEOS_PolyOperatorGroups
-			simple = GEOS_PolyOperatorGroups(SharedStr("geos_%spolygon"), PolygonFlags())
-			, split = GEOS_PolyOperatorGroups(SharedStr("geos_split_%spolygon"), PolygonFlags::F_DoSplit)
+			simple = GEOS_PolyOperatorGroups(SharedStr("geos_{}polygon"), PolygonFlags())
+			, split = GEOS_PolyOperatorGroups(SharedStr("geos_split_{}polygon"), PolygonFlags::F_DoSplit)
 			;
 	};
 

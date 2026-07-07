@@ -238,7 +238,7 @@ SharedStr UnitDisplayStr(const AbstrUnit* valuesUnit)
 {
 	if (!valuesUnit)
 		return SharedStr();
-	return mySSPrintF("[%s]", valuesUnit->GetDisplayName().c_str() );
+	return mySSPrintF("[{}]", valuesUnit->GetDisplayName().c_str() );
 }
 
 #include "TreeItemUtils.h"

@@ -238,26 +238,26 @@ LispRef ShortEvalCondList(LispPtr condList)
 LispRef ApplySubstList(LispPtr expr, AssocListPtr substList)
 {
 	DBG_START("LispEval", "ApplySubstList", false);
-	DBG_TRACE(("expr  = %s", AsString(expr).c_str()));
+	DBG_TRACE(("expr  = {}", AsString(expr).c_str()));
 
 	while (!substList.IsEmpty())
 	{
 		AssocPtr subst  = substList.Head();   // a substitution rule
 		LispPtr  header = subst.Key();   // header part
-		DBG_TRACE(("header = %s", AsString(header).c_str()));
+		DBG_TRACE(("header = {}", AsString(header).c_str()));
 		AssocList assocList = Match(AssocList(), header, expr);
 		if (!assocList.IsFailed())
 		{
 /*
 			DBG_START("LispEval", "ApplySubstList", false);
-			DBG_TRACE(("expr   = %s", AsString(expr).c_str()));
-			DBG_TRACE(("subst  = %s", AsString(subst).c_str()));
-			DBG_TRACE(("unifier= %s", AsString(assocList).c_str()));
+			DBG_TRACE(("expr   = {}", AsString(expr).c_str()));
+			DBG_TRACE(("subst  = {}", AsString(subst).c_str()));
+			DBG_TRACE(("unifier= {}", AsString(assocList).c_str()));
 */
 			dms_assert(expr == assocList.ApplyOnce(subst.Key()));
 			LispRef result = assocList.ApplyOnce(subst.Val());
 
-			DBG_TRACE(("result = %s", AsString(result.AsLispPtr()).c_str()));
+			DBG_TRACE(("result = {}", AsString(result.AsLispPtr()).c_str()));
 
 //	 		dms_assert(!HasAnyVar(result));
 			return result;
@@ -365,7 +365,7 @@ LispRef Eval(LispPtr expr, AssocListPtr env)
 	IncrementalLock levelLock(gd_Level);
 	dms_assert(gd_Level <= MaxAllowedLevel);
 #endif
-//	reportF(ST_MinorTrace, "Eval: %s", AsString(expr).c_str()); // DEBUG
+//	reportF(ST_MinorTrace, "Eval: {}", AsString(expr).c_str()); // DEBUG
 
 	return g_evalCache(Assoc(expr, env))
 	return result;
@@ -374,7 +374,7 @@ LispRef Eval(LispPtr expr, AssocListPtr env)
 LispRef RepeatedEval(LispPtr expr, AssocListPtr env)
 {
 	DBG_START("LispEval", "RepeatedEval", false);
-	DBG_TRACE(("expr  = %s", AsString(expr).c_str()));
+	DBG_TRACE(("expr  = {}", AsString(expr).c_str()));
 
 	LispRef result=expr;
 	LispRef prevResult;
@@ -424,7 +424,7 @@ LispRef Apply(LispPtr expr, AssocListPtr env)
 	StaticMtIncrementalLock<gd_LispEvalLevel> levelLock;
 	dms_assert(gd_LispEvalLevel <= MaxAllowedLevel);
 #endif
-//	reportF(ST_MinorTrace, "Apply: %s", AsString(expr).c_str()); // DEBUG
+//	reportF(ST_MinorTrace, "Apply: {}", AsString(expr).c_str()); // DEBUG
 
 	return g_applyCache.apply(cache_key_t(expr, env));
 }
@@ -432,7 +432,7 @@ LispRef Apply(LispPtr expr, AssocListPtr env)
 LispRef RepeatedApply(LispPtr expr, AssocListPtr env)
 {
 	DBG_START("LispEval", "RepeatedApply", false);
-	DBG_TRACE(("expr  = %s", AsString(expr).c_str()));
+	DBG_TRACE(("expr  = {}", AsString(expr).c_str()));
 
 	LispRef result=expr;
 	while (true)
@@ -460,7 +460,7 @@ LispRef AssocList_RepApplyTopEnv(AssocListPtr unifier, LispPtr templExpr); // fo
 LispRef AssocList_RepApplyTopEnvList(AssocListPtr unifier, LispPtr templExprPtr)
 {
 	DBG_START("AssocList", "RepApplyTopEnvList", MG_TRACE_LISP);
-	DBG_TRACE(("templExprList   = %s", AsString(templExprPtr).c_str()));
+	DBG_TRACE(("templExprList   = {}", AsString(templExprPtr).c_str()));
 
 	// Iterate the list right-spine instead of tail-recursing on .Right(); each
 	// processed Left() is collected and the result is folded right-to-left.
@@ -503,7 +503,7 @@ LispRef AssocList_RepApplyTopEnvList(AssocListPtr unifier, LispPtr templExprPtr)
 LispRef AssocList_RepApplyTopEnv(AssocListPtr unifier, LispPtr templExpr)
 {
 	DBG_START("AssocList", "RepApplyTopEnv", MG_TRACE_LISP);
-	DBG_TRACE(("templExpr   = %s", AsString(templExpr).c_str()));
+	DBG_TRACE(("templExpr   = {}", AsString(templExpr).c_str()));
 
 	if (templExpr.IsVar())
 	{
@@ -532,7 +532,7 @@ struct ApplyTopEnvFunc
 	LispRef operator ()(LispPtr expr) const
 	{
 		DBG_START("LispEval", "ApplyEnv", MG_TRACE_LISP);
-		DBG_TRACE(("expr   = %s", AsString(expr).c_str()));
+		DBG_TRACE(("expr   = {}", AsString(expr).c_str()));
 
 		LispPtr head = expr.Left(); // caller (= ApplyTopEnv) guarantees exp.IsRealList()
 
@@ -551,16 +551,16 @@ struct ApplyTopEnvFunc
 			{
 /*
 				DBG_START("LispEval", "ApplyEnv", MG_TRACE_LISP);
-				DBG_TRACE(("expr     = %s", AsString(expr).c_str()));
-				DBG_TRACE(("pattern  = %s", AsString(rewriteRulePtr->Key()).c_str()));
-				DBG_TRACE(("unifier  = %s", AsString(unifier).c_str()));
-				DBG_TRACE(("templExpr= %s", AsString(rewriteRulePtr->Val()).c_str()));
+				DBG_TRACE(("expr     = {}", AsString(expr).c_str()));
+				DBG_TRACE(("pattern  = {}", AsString(rewriteRulePtr->Key()).c_str()));
+				DBG_TRACE(("unifier  = {}", AsString(unifier).c_str()));
+				DBG_TRACE(("templExpr= {}", AsString(rewriteRulePtr->Val()).c_str()));
 */
 //				dms_assert(expr == unifier.ApplyOnce(pattern)); POST_CONDITION, but MUTATING through LispRef coy-ctor
 
 				LispRef result = AssocList_RepApplyTopEnv(unifier, rewriteRulePtr->Val());
 
-				DBG_TRACE(("result = %s", AsString(result.AsLispPtr()).c_str()));
+				DBG_TRACE(("result = {}", AsString(result.AsLispPtr()).c_str()));
 
 				return result;
 			}

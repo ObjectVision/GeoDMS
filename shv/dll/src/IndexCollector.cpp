@@ -115,7 +115,7 @@ DataReadLock IndexCollector::GetDataItemReadLock() const
 {
 	auto res = m_DC->CallCalcResult();
 	if (!res)
-		throwErrorF("IndexCollector", "Cannot calculate data for %s", AsString(m_DC->GetLispRef()).c_str());
+		throwErrorF("IndexCollector", "Cannot calculate data for {}", AsString(m_DC->GetLispRef()).c_str());
 	auto item = res->GetCurr();
 	MG_CHECK(item);
 	PreparedDataReadLock lock(AsDataItem(item.get()), "IndexCollector::GetDataItemReadLock");
@@ -128,7 +128,7 @@ auto IndexCollector::GetDataRead(tile_id t) const -> DataArray<entity_id>::locke
 	auto lock = GetDataItemReadLock();
 
 	if (!lock.GetRefObj())
-		throwErrorF("IndexCollector", "Cannot create data for %s", AsString(m_DC->GetLispRef()).c_str());
+		throwErrorF("IndexCollector", "Cannot create data for {}", AsString(m_DC->GetLispRef()).c_str());
 	return const_array_checked_cast<entity_id>(lock.GetRefObj())->GetDataRead(t);
 }
 

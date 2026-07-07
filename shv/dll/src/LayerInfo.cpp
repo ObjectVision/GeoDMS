@@ -378,7 +378,7 @@ extern "C" SHV_CALL const AbstrDataItem* SHV_DataItem_FindClassification(const A
 const CharPtr TXT_NOT_MAPPABLE   = " is not mappable (DialogType property is not \"map\")";
 const CharPtr TXT_MAPPABLE       = " is mappable (DialogType property is \"map\")";
 const CharPtr TXT_DIALOGDATA_ERR = "\nbut its DialogData property does not refer to an existing DataItem";
-const CharPtr TXT_DIALOGDATA_REF = "\nof which the DialogData property refers to DataItem %s";
+const CharPtr TXT_DIALOGDATA_REF = "\nof which the DialogData property refers to DataItem {}";
 const CharPtr TXT_DOMAIN_ERR     = "\nthat has an incompatible Domain\n";
 const CharPtr TXT_VALUES_ERR     = "\nthat has an incompatible ValuesUnit\n";
 const CharPtr TXT_GRIDDATA_ERR   = "\nwhich contains GridData with an incompatible ValuesUnit\n";
@@ -407,10 +407,10 @@ LayerInfo GetLayerInfo(const AbstrDataItem* adi)
 
 	const TreeItem* mappingItem = GetMappingItem(adi);
 	if (mappingItem)
-		infoTxt = mySSPrintF("the selected '%s'", mappingItem->GetFullName().c_str());
+		infoTxt = mySSPrintF("the selected '{}'", mappingItem->GetFullName().c_str());
 	else
 	{
-		infoTxt = mySSPrintF("the DomainUnit '%s'", adu->GetFullName().c_str());
+		infoTxt = mySSPrintF("the DomainUnit '{}'", adu->GetFullName().c_str());
 		mappingItem = GetMappingItem(adu);
 	}
 	if (!mappingItem)
@@ -455,7 +455,7 @@ LayerInfo GetLayerInfo(const AbstrDataItem* adi)
 			); 
 
 		// only remaining alternatives: mapItem is relation to (external key values of) shapes
-		const AbstrUnit* avu = mapItem->GetAbstrValuesUnit(); infoTxt += mySSPrintF("\nwith ValuesUnit %s", avu->GetFullName().c_str());
+		const AbstrUnit* avu = mapItem->GetAbstrValuesUnit(); infoTxt += mySSPrintF("\nwith ValuesUnit {}", avu->GetFullName().c_str());
 
 		if (!GetMappingItem(avu))
 			return LayerInfo(infoTxt + " which is not mappable (it was expected to be the set [of ExternalKeys] of Features)");
@@ -481,7 +481,7 @@ LayerInfo GetLayerInfo(const AbstrDataItem* adi)
 			return LayerInfo(infoTxt + TXT_VALUES_ERR + resultMsg);
 	}
 	// adi: E->V; mapItem: E->EK; mapItem2: P->EK
-	const AbstrUnit* adu3 = mapItem2->GetAbstrDomainUnit(); infoTxt += mySSPrintF("\nwith Domain %s", adu3->GetFullName().c_str());
+	const AbstrUnit* adu3 = mapItem2->GetAbstrDomainUnit(); infoTxt += mySSPrintF("\nwith Domain {}", adu3->GetFullName().c_str());
 	if (!GetMappingItem(adu3))
 		return LayerInfo(infoTxt + "\nwhich is not mappable (it was expected to be the Feature Entity)");
 
@@ -538,7 +538,7 @@ LayerInfo GetAspectInfo(AspectNr aNr, const AbstrDataItem* adi, const LayerInfo&
 	if (allowParameter)  res = FindAspectParam(aNr, avu, layerClass);      
 	if (res) goto returnAspectParam;
 	else {
-		infoTxt = mgFormat2SharedStr("thematic attribute %s has ValuesUnit %s of type %s",
+		infoTxt = mgFormat2SharedStr("thematic attribute {} has ValuesUnit {} of type {}",
 			adi->GetFullName().c_str(),
 			avu->GetFullName().c_str(),
 			avu->GetValueType()->GetName()
@@ -573,12 +573,12 @@ LayerInfo GetAspectInfo(AspectNr aNr, const AbstrDataItem* adi, const LayerInfo&
 		if (mapItem2)
 		{
 			SharedStr resultMsg;
-			infoTxt += mySSPrintF("\nwhich has DataItem %s as associated Classification item", mapItem2->GetFullName().c_str());
+			infoTxt += mySSPrintF("\nwhich has DataItem {} as associated Classification item", mapItem2->GetFullName().c_str());
 			if (!avu->UnifyValues(mapItem2->GetAbstrValuesUnit(), "Values of thematic attribute", "Values of MapItem2", UM_AllowDefault, &resultMsg))
 				return LayerInfo(infoTxt + TXT_VALUES_ERR + resultMsg);
 
 			classIdUnit = mapItem2->GetAbstrDomainUnit();
-			infoTxt += mySSPrintF("\nwith DomainUnit %s", classIdUnit->GetFullName().c_str());
+			infoTxt += mySSPrintF("\nwith DomainUnit {}", classIdUnit->GetFullName().c_str());
 
 			res = FindAspectAttr(aNr, adi, classIdUnit, layerClass); if (res) return LayerInfo(LayerInfo::Aspect, res, mapItem2, adi);
 			res = FindAspectAttr(aNr, mapItem2, classIdUnit, layerClass); if (res) return LayerInfo(LayerInfo::Aspect, res, mapItem2, adi);
@@ -591,7 +591,7 @@ LayerInfo GetAspectInfo(AspectNr aNr, const AbstrDataItem* adi, const LayerInfo&
 			if (allowParameter)
 				res = FindAspectParam(aNr, classIdUnit, layerClass);
 			if (res) goto returnAspectParam;
-			infoTxt += mySSPrintF("\nbut no %s attribute found for the ClassEntity %s\nStart the palette editor for this ClassEntity."
+			infoTxt += mySSPrintF("\nbut no {} attribute found for the ClassEntity {}\nStart the palette editor for this ClassEntity."
 				, AspectArray[aNr].name
 				, classIdUnit->GetFullName().c_str()
 			);
@@ -660,7 +660,7 @@ LayerInfo GetAspectInfo(AspectNr aNr, const AbstrDataItem* adi, const LayerInfo&
 		// Bad luck, return error
 
 		infoTxt += mySSPrintF(
-			"\nNo related DataItem found with the DialogType property indicating the requested %s aspect;"
+			"\nNo related DataItem found with the DialogType property indicating the requested {} aspect;"
 			"\nconfigure the requested subItem or start the palette editor",
 			AspectArray[aNr].name
 		);

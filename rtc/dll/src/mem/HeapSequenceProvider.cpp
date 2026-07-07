@@ -16,8 +16,8 @@ void throwInsertError(SizeT seqSize, SizeT n)
 {
 	throwErrorF(" heap_sequence", 
 		seqSize == 0
-		?	"cannot insert %I64u elements to an empty heap_sequence" 
-		:	"cannot insert %I64u elements to a heap_sequence that already contained %I64u elements"
+		?	"cannot insert {} elements to an empty heap_sequence" 
+		:	"cannot insert {} elements to a heap_sequence that already contained {} elements"
 	,	(UInt64)n
 	,	(UInt64)seqSize
 	);

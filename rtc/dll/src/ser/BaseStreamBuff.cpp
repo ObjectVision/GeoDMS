@@ -24,7 +24,7 @@
 
 [[noreturn]] void throwStreamException(CharPtr name, CharPtr msg)
 {
-	throwErrorF("Stream","Stream %s has exception '%s'", name, msg);
+	throwErrorF("Stream","Stream {} has exception '{}'", name, msg);
 }
 
 [[noreturn]] void throwEndsException(CharPtr name)

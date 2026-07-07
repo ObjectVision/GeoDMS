@@ -112,7 +112,7 @@ void NotifyRemainingTargetCount(UInt32 nrCount, UInt32 maxCount)
 		}
 		// END  notification filtering policy
 
-		ProgressNotifyMsg(myFixedBufferAsCString(s_buff, BUFFER_SIZE, "%u/%u active DataItems", nrCount, maxCount));
+		ProgressNotifyMsg(myFixedBufferAsCString(s_buff, BUFFER_SIZE, "{}/{} active DataItems", nrCount, maxCount));
 	}
 	else if (nrCount)
 		ProgressNotifyMsg("1 active DataItem");
@@ -225,7 +225,7 @@ namespace DemandManagement {
 		dms_assert(s_CurrFence == this);
 		for (auto i = m_TempTargets.begin(), e=m_TempTargets.end(); i!=e; ++i)
 		{
-			reportF(SeverityTypeID::ST_MajorTrace, "IncInterest %u broke through Fence %s", i->second, i->first->GetSourceName().c_str());
+			reportF(SeverityTypeID::ST_MajorTrace, "IncInterest {} broke through Fence {}", i->second, i->first->GetSourceName().c_str());
 		}
 		leveled_critical_section::scoped_lock lock(sd_UpdatingInterestSet);
 		s_CurrFence = m_PrevFence;
@@ -434,7 +434,7 @@ namespace SuspendTrigger {
 		SizeT oldErrorCount = s_ReportedErrorCount;
 		s_ReportedErrorCount = 0;
 		if (oldErrorCount > s_MaxReportedErrorCount)
-			reportF(SeverityTypeID::ST_MajorTrace, "Skipped %I64u warnings.....", UInt64(oldErrorCount - s_MaxReportedErrorCount));
+			reportF(SeverityTypeID::ST_MajorTrace, "Skipped {} warnings.....", UInt64(oldErrorCount - s_MaxReportedErrorCount));
 	}
 
 	void DoSuspend() noexcept

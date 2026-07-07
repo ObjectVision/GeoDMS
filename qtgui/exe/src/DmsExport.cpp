@@ -328,7 +328,7 @@ auto DoExportRasterOrMatrixData(const TreeItem* rasterItemOrDomain, bool nativeF
     auto avd = GetExportsContainer(GetDefaultDesktopContainer(rasterItemOrDomain));
     TokenID t_gdal_grid_driver_options = GetTokenID_mt("GDAL_Options");
     auto gdal_driver_options = CreateDataItem(avd, UniqueName(avd, t_gdal_grid_driver_options), Unit<Void>::GetStaticClass()->CreateDefault(), Unit<SharedStr>::GetStaticClass()->CreateDefault(), ValueComposition::Void);
-    SharedStr gdal_driver_options_expr("'TFW=YES'");// mySSPrintF("%s[%s]", expr.c_str(), baseGrid->GetFullName().c_str());
+    SharedStr gdal_driver_options_expr("'TFW=YES'");// mySSPrintF("{}[{}]", expr.c_str(), baseGrid->GetFullName().c_str());
     gdal_driver_options->SetExpr(gdal_driver_options_expr);
 
     auto adu = IsUnit(rasterItemOrDomain) ? AsUnit(rasterItemOrDomain) : AsDataItem(rasterItemOrDomain)->GetAbstrDomainUnit();
@@ -348,7 +348,7 @@ auto DoExportRasterOrMatrixData(const TreeItem* rasterItemOrDomain, bool nativeF
         auto vda = CreateDataItem(avd, UniqueName(avd, adi->GetID()), rasterDomain, adi->GetAbstrValuesUnit(), adi->GetValueComposition());
         auto expr = adi->GetFullName();
         if (baseGrid)
-            expr = mySSPrintF("%s[%s]", expr.c_str(), baseGrid->GetFullName().c_str());
+            expr = mySSPrintF("{}[{}]", expr.c_str(), baseGrid->GetFullName().c_str());
         vda->SetExpr(expr);
         return vda.get(); // owned by avd (parent)
     };
@@ -719,7 +719,7 @@ void DmsExportWindow::resetExportDialog()
 // them waiting for an export that already failed with only an event-log trace.
 static void reportExportError(QWidget* parent, CharPtr why)
 {
-    reportF(SeverityTypeID::ST_Error, "%s", why);
+    reportF(SeverityTypeID::ST_Error, "{}", why);
     QMessageBox::critical(parent, QObject::tr("Export failed"), QString::fromUtf8(why));
 }
 
@@ -763,7 +763,7 @@ bool DmsExportWindow::exportImpl()
 
     if (!exportConfig)
     {
-        auto msg = mySSPrintF("no exportable data found in %s for driver %s"
+        auto msg = mySSPrintF("no exportable data found in {} for driver {}"
             , current_export_item->GetFullName().c_str()
             , driver.Caption());
         reportExportError(this, msg.c_str());
@@ -793,7 +793,7 @@ bool DmsExportWindow::exportImpl()
     auto errMsgPtr = failedItem->GetFailReason();
     auto msg = errMsgPtr
         ? errMsgPtr->m_Why
-        : mySSPrintF("export of %s failed without a fail reason", failedItem->GetFullName().c_str());
+        : mySSPrintF("export of {} failed without a fail reason", failedItem->GetFullName().c_str());
     reportExportError(this, msg.c_str());
     return false;
 }

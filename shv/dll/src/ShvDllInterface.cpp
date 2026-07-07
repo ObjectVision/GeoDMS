@@ -198,11 +198,11 @@ MsgResult DMS_CONV SHV_DataView_DispatchMessage(DataView* dv, HWND hWnd, UINT ms
 
 		DBG_START("SHV_DataView","DispatchMessage", false);
 
-		DBG_TRACE(("msg = %x",  msg));
-		DBG_TRACE(("WP  = %x",  wParam));
-		DBG_TRACE(("LP  = %x",  lParam));
-		DBG_TRACE(("dv  = %x",  dv));
-		DBG_TRACE(("hWnd= %x",  hWnd));
+		DBG_TRACE(("msg = {:x}",  msg));
+		DBG_TRACE(("WP  = {:x}",  wParam));
+		DBG_TRACE(("LP  = {:x}",  lParam));
+		DBG_TRACE(("dv  = {:x}",  dv));
+		DBG_TRACE(("hWnd= {:x}",  hWnd));
 
 		assert(hWnd != 0);
 
@@ -263,7 +263,7 @@ MsgResult DMS_CONV SHV_DataView_DispatchMessage(DataView* dv, HWND hWnd, UINT ms
 			}
 			auto r = MsgStruct(dv, msg, wParam, lParam).Send();
 
-			DBG_TRACE(("res= %d", r.result));
+			DBG_TRACE(("res= {}", r.result));
 			return r;
 		}
 

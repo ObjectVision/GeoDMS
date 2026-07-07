@@ -53,7 +53,7 @@ FileDescr::FileDescr(WeakStr str, FileDateTime fdt, UInt32 loadNumber)
 	,	m_LoadNumber(loadNumber)
 	,	m_FileName(str)
 {
-	reportF(MsgCategory::other, SeverityTypeID::ST_MinorTrace, "load %s", str);
+	reportF(MsgCategory::other, SeverityTypeID::ST_MinorTrace, "load {}", str);
 
 	auto lock = std::scoped_lock(cs_FDS);
 	s_FDS.emplace_back(this);
@@ -61,7 +61,7 @@ FileDescr::FileDescr(WeakStr str, FileDateTime fdt, UInt32 loadNumber)
 
 FileDescr::~FileDescr()
 {
-//	reportF(MsgCategory::other, SeverityTypeID::ST_MinorTrace, "unload %s", GetFileName());
+//	reportF(MsgCategory::other, SeverityTypeID::ST_MinorTrace, "unload {}", GetFileName());
 
 	auto lock = std::scoped_lock(cs_FDS);
 	auto pos = std::find(s_FDS.begin(), s_FDS.end(), this);
@@ -174,7 +174,7 @@ void SourceLocation::Release() const //most descendant dtor visible from here
 
 SharedStr SourceLocation::AsText() const
 {
-	return mgFormat2SharedStr("%s(%u,%u)"
+	return mgFormat2SharedStr("{}({},{})"
 		, ConvertDmsFileNameAlways(m_ConfigFileDescr->GetFileName())
 		, m_ConfigFileLineNr
 		, m_ConfigFileColNr
@@ -184,7 +184,7 @@ SharedStr SourceLocation::AsText() const
 SharedStr SourceLocation::GetSourceName(WeakStr fullName, const Class* cls) const
 {
 	dms_assert(cls);
-	return mgFormat2SharedStr("%s(%u,%u): %s: %s"
+	return mgFormat2SharedStr("{}({},{}): {}: {}"
 		, ConvertDmsFileNameAlways(m_ConfigFileDescr->GetFileName())
 		, m_ConfigFileLineNr
 		, m_ConfigFileColNr

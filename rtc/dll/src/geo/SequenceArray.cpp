@@ -793,7 +793,7 @@ void sequence_array<T>::StreamIn (BinaryInpStream& ar, bool mayResize)
 		if (mayResize)
 			m_Indices.resizeSO(s, false MG_DEBUG_ALLOCATOR_SRC_SA);
 		else
-			throwErrorF("StreamIn", "provided input stream notifies %d index elements but sequence_array has %d index elements",
+			throwErrorF("StreamIn", "provided input stream notifies {} index elements but sequence_array has {} index elements",
 				s, m_Indices.size()
 			);
 	}

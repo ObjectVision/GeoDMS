@@ -661,7 +661,7 @@ bool SelectRectController::Move(EventInfo& eventInfo)
 	CrdType dst = sqrt(Norm<CrdType>(deltaPoint));
 	CrdType dst2 = CrdType(deltaPoint.first) * CrdType(deltaPoint.second);
 
-	SendStatusText("Diagonal: % 10.2f[% s]; Area: % 10.2f[% s ^ 2]", dst, dst2);
+	SendStatusText("Diagonal: {: 10.2f}[{}]; Area: {: 10.2f}[{} ^ 2]", dst, dst2);
 	eventInfo.m_EventID |= EventID::TEXTSENT;
 
 	return result;
@@ -708,7 +708,7 @@ bool SelectCircleController::Move(EventInfo& eventInfo)
 	CrdType dst2 = SqrDist<CrdType>(orgPoint, dstPoint);
 	CrdType dst = sqrt(dst2);
 
-	SendStatusText("Radius: % 10.2f[%s]; Area: % 10.2f[%s^2]", dst, std::numbers::pi_v<Float64> *dst2);
+	SendStatusText("Radius: {: 10.2f}[{}]; Area: {: 10.2f}[{}^2]", dst, std::numbers::pi_v<Float64> *dst2);
 	eventInfo.m_EventID |= EventID::TEXTSENT;
 
 	return result;
@@ -851,7 +851,7 @@ bool DrawPolygonController::Move(EventInfo& eventInfo)
 		CrdType dst2 = SqrDist<CrdType>(basePoint, currPoint);
 		CrdType dst = sqrt(dst2);
 
-		SendStatusText("Distance: % 10.2f[%s]; Area: % 10.2f[%s^2]", dst, 0.0);
+		SendStatusText("Distance: {: 10.2f}[{}]; Area: {: 10.2f}[{}^2]", dst, 0.0);
 	}
 	else
 	{
@@ -864,7 +864,7 @@ bool DrawPolygonController::Move(EventInfo& eventInfo)
 		auto perimeter = ArcLength<Float64>(worldPoints.begin(), worldPoints.end());
 		auto area = Area<Float64>(worldPoints.begin(), worldPoints.end());
 
-		SendStatusText("Perimeter: % 10.2f[%s]; Area: % 10.2f[%s^2]", perimeter, area);
+		SendStatusText("Perimeter: {: 10.2f}[{}]; Area: {: 10.2f}[{}^2]", perimeter, area);
 	}
 
 	eventInfo.m_EventID |= EventID::TEXTSENT;

@@ -283,7 +283,7 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings) {
             }
             else if (!regPath.empty())
                 reportF(MsgCategory::commands, SeverityTypeID::ST_Warning,
-                    "Ignoring registry %s value '%s': not a regular local file. Use File->Open or --config to load.",
+                    "Ignoring registry {} value '{}': not a regular local file. Use File->Open or --config to load.",
                     dms_params::reg_key_LastConfigFile, regPath.c_str());
         }
         else {
@@ -447,7 +447,7 @@ void MainWindow::setCurrentTreeItem(TreeItem* target_item, bool update_history)
                 const TreeItem* visible_parent = target_item;
                 while (visible_parent && visible_parent->GetTSF(TSF_InHidden))
                     visible_parent = visible_parent->GetTreeParent().get();
-                reportF(MsgCategory::other, SeverityTypeID::ST_Warning, "cannnot set '%1%' as Current Item, as it is a hidden sub-item of '%2%'"
+                reportF(MsgCategory::other, SeverityTypeID::ST_Warning, "cannnot set '{0}' as Current Item, as it is a hidden sub-item of '{1}'"
                     "\nHint: you can make hidden items visible in the Settings->GUI Options Dialog"
                     , target_item->GetFullName().c_str()
                     , visible_parent ? visible_parent->GetFullName().c_str() : "a hidden root"
@@ -474,7 +474,7 @@ void MainWindow::setCurrentTreeItem(TreeItem* target_item, bool update_history)
         m_treeview->setNewCurrentItem(target_item);
         m_treeview->scrollTo(m_treeview->currentIndex(), QAbstractItemView::ScrollHint::EnsureVisible);
         emit currentItemChanged();
-        reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "ActivateItem %s", m_current_item->GetFullName());
+        reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "ActivateItem {}", m_current_item->GetFullName());
     }
     catch (...) {
         catchAndReportException();
@@ -1101,12 +1101,12 @@ void MainWindow::defaultView() {
     if (!currItem)
         return;
 
-    reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "defaultView // for item %s", currItem->GetFullName());
+    reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "defaultView // for item {}", currItem->GetFullName());
     auto default_view_style = SHV_GetDefaultViewStyle(m_current_item.get());
     if (default_view_style == ViewStyle::tvsPaletteEdit)
         default_view_style = ViewStyle::tvsTableView;
     if (default_view_style == ViewStyle::tvsDefault) {
-        reportF(MsgCategory::other, SeverityTypeID::ST_Error, "Unable to deduce viewstyle for item %s, no view created.", currItem->GetFullName());
+        reportF(MsgCategory::other, SeverityTypeID::ST_Error, "Unable to deduce viewstyle for item {}, no view created.", currItem->GetFullName());
         return;
     }
     createView(default_view_style);
@@ -1116,7 +1116,7 @@ void MainWindow::mapView() {
     auto currItem = getCurrentTreeItem();
     if (!currItem)
         return;
-    reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "mapview // for item %s", currItem->GetFullName());
+    reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "mapview // for item {}", currItem->GetFullName());
     createView(ViewStyle::tvsMapView);
 }
 
@@ -1124,7 +1124,7 @@ void MainWindow::tableView() {
     auto currItem = getCurrentTreeItem();
     if (!currItem)
         return;
-    reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "tableView // for item %s", currItem->GetFullName());
+    reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "tableView // for item {}", currItem->GetFullName());
     createView(ViewStyle::tvsTableView);
 }
 
@@ -1132,7 +1132,7 @@ void MainWindow::histogramChartView() {
     auto currItem = getCurrentTreeItem();
     if (!currItem)
         return;
-    reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "histogramChartView // for item %s", currItem->GetFullName());
+    reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "histogramChartView // for item {}", currItem->GetFullName());
     createView(ViewStyle::tvsHistogram, ChartKind::Histogram);
 }
 
@@ -1140,7 +1140,7 @@ void MainWindow::scatterChartView() {
     auto currItem = getCurrentTreeItem();
     if (!currItem)
         return;
-    reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "scatterChartView // for item %s", currItem->GetFullName());
+    reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "scatterChartView // for item {}", currItem->GetFullName());
     createView(ViewStyle::tvsHistogram, ChartKind::Scatter);
 }
 
@@ -1148,7 +1148,7 @@ void MainWindow::lineChartView() {
     auto currItem = getCurrentTreeItem();
     if (!currItem)
         return;
-    reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "lineChartView // for item %s", currItem->GetFullName());
+    reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "lineChartView // for item {}", currItem->GetFullName());
     createView(ViewStyle::tvsHistogram, ChartKind::Line);
 }
 
@@ -1156,7 +1156,7 @@ void MainWindow::barChartView() {
     auto currItem = getCurrentTreeItem();
     if (!currItem)
         return;
-    reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "barChartView // for item %s", currItem->GetFullName());
+    reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "barChartView // for item {}", currItem->GetFullName());
     createView(ViewStyle::tvsHistogram, ChartKind::Bar);
 }
 
@@ -1273,7 +1273,7 @@ void MainWindow::removeRecentFileAtIndex(size_t index) {
     if (!rf_action)
         return;
 
-    auto msgTxt = mySSPrintF("Remove %s from the list of recent files ?", rf_action->m_cfg_file_path);
+    auto msgTxt = mySSPrintF("Remove {} from the list of recent files ?", rf_action->m_cfg_file_path);
     if (QMessageBox::question(this, "Confirmation Request",
             QString::fromStdString(std::string(msgTxt.c_str())),
             QMessageBox::Yes | QMessageBox::No) == QMessageBox::Yes) {
@@ -1390,7 +1390,7 @@ void MainWindow::showStatisticsDirectly(const TreeItem* tiContext) {
         return;
 
     if (!IsDataItem(tiContext)) {
-        reportF(MsgCategory::commands, SeverityTypeID::ST_Warning, "Cannot show statistics window for items that are not of type dataitem: [[%s]]", tiContext->GetFullName());
+        reportF(MsgCategory::commands, SeverityTypeID::ST_Warning, "Cannot show statistics window for items that are not of type dataitem: [[{}]]", tiContext->GetFullName());
         return;
     }
 
@@ -1446,7 +1446,7 @@ SharedStr passed_time_str(CharPtr preFix, time_t passedTime) {
         passedTime %= seconds_in_a_day;
     }
     assert(passedTime <= (seconds_in_a_day));
-    result = mySSPrintF("%s%s%02d:%02d:%02d "
+    result = mySSPrintF("{}{}{:02}:{:02}:{:02} "
         , preFix
         , result.c_str()
         , passedTime / seconds_in_hour
@@ -2022,7 +2022,7 @@ CharPtrRange myAscTime(const struct tm* timeptr) {
 
     static char result[26];
 
-    return myFixedBufferAsCharPtrRange(result, 26, "%.3s %.3s%3d %02d:%02d:%02d %d",
+    return myFixedBufferAsCharPtrRange(result, 26, "{:.3} {:.3}{:3} {:02}:{:02}:{:02} {}",
         wday_name[timeptr->tm_wday],
         mon_name[timeptr->tm_mon],
         timeptr->tm_mday, timeptr->tm_hour,

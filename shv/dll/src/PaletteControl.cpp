@@ -351,7 +351,7 @@ void PaletteControl::CreateColumnsImpl()
 	{
 		assert(m_BreakAttr->GetAbstrDomainUnit() == m_PaletteDomain.get());
 		if (m_ThemeAttr)
-			exprStr = mySSPrintF("classify(%s, %s)", exprStr.c_str(), m_BreakAttr->GetFullName().c_str());
+			exprStr = mySSPrintF("classify({}, {})", exprStr.c_str(), m_BreakAttr->GetFullName().c_str());
 
 		auto column = make_shared_gr<DataItemColumn>(this, m_BreakAttr)();
 		InsertColumn(column.get());
@@ -387,7 +387,7 @@ void PaletteControl::CreateColumnsImpl()
 		SharedMutableDataItem countAttr = CreateDataItem(container, GetTokenID_mt("Count"), m_PaletteDomain.get(), countingUnit);
 		countAttr->SetKeepDataState(true);
 		countAttr->DisableStorage(true);
-		countAttr->SetExpr( mySSPrintF("pcount(%s)", exprStr.c_str() ) );
+		countAttr->SetExpr( mySSPrintF("pcount({})", exprStr.c_str() ) );
 		m_CountAttr = countAttr.get();
 		auto countColumn = make_shared_gr<DataItemColumn>(this, m_CountAttr)();
 		InsertColumn(countColumn.get());
@@ -437,7 +437,7 @@ void PaletteControl::CreateAreaOrLengthColumn(TreeItem* container, SharedStr exp
 		}
 		else
 			attrLabel = attrName;
-		funcExpr = mySSPrintF("Float64(pcount(%s)) * Float64(%g)", exprStr.c_str(), cellArea);
+		funcExpr = mySSPrintF("Float64(pcount({})) * Float64({:g})", exprStr.c_str(), cellArea);
 	}
 	else 
 	{
@@ -451,7 +451,7 @@ void PaletteControl::CreateAreaOrLengthColumn(TreeItem* container, SharedStr exp
 		{
 			// For PolygonLayers: Area = sum(area(geometry), classification)
 			attrName = "Area";
-			funcExpr = mySSPrintF("sum(Float64(area(%s, %s)), %s)"
+			funcExpr = mySSPrintF("sum(Float64(area({}, {})), {})"
 				, featureAttr->GetFullName().c_str()
 				, featureAttr->GetAbstrValuesUnit()->GetValueType()->GetScalarClass()->GetID()
 				, exprStr.c_str()
@@ -468,7 +468,7 @@ void PaletteControl::CreateAreaOrLengthColumn(TreeItem* container, SharedStr exp
 			// The arc_length unit-conversion argument (issue #1119) must match the geometry's
 			// scalar field type, so derive it from the feature values unit (e.g. float32 for FPolygon).
 			attrName = "Length";
-			funcExpr = mySSPrintF("sum(Float64(arc_length(%s, %s)), %s)"
+			funcExpr = mySSPrintF("sum(Float64(arc_length({}, {})), {})"
 				, featureAttr->GetFullName().c_str()
 				, featureAttr->GetAbstrValuesUnit()->GetValueType()->GetScalarClass()->GetID()
 				, exprStr.c_str()
@@ -483,7 +483,7 @@ void PaletteControl::CreateAreaOrLengthColumn(TreeItem* container, SharedStr exp
 		{
 			// For MultiPointLayers: PointCount = sum(sequence_element_count(geometry), classification)
 			attrName = "PointCount";
-			funcExpr = mySSPrintF("sum_float64(sequence_element_count(%s), %s)", featureAttr->GetFullName().c_str(), exprStr.c_str());
+			funcExpr = mySSPrintF("sum_float64(sequence_element_count({}), {})", featureAttr->GetFullName().c_str(), exprStr.c_str());
 		}
 		else
 			return; // Other layer types: no area or length column
@@ -551,7 +551,7 @@ void PaletteControl::CreateSelCountColumn()
 			selCountAttr->DisableStorage(true);
 
 			auto clsName = SharedStr(countingUnitClass->GetValueType()->GetID());
-			auto aggrMethodName = mySSPrintF("sum_%s", clsName);
+			auto aggrMethodName = mySSPrintF("sum_{}", clsName);
 			auto selAttrRef = CreateLispTree(selectionAttr, false);
 			keyExpr = ExprList(GetTokenID_mt(aggrMethodName.c_str()), selAttrRef, keyExpr);
 			selCountAttr->SetCalculator(AbstrCalculator::ConstructFromLispRef(selCountAttr.get(), keyExpr, CalcRole::Calculator));

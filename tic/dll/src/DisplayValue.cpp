@@ -46,7 +46,7 @@ SharedStr AsStrWithLabel(const AbstrUnit* au, const AbstrValue* valuePtr, bool u
 	SizeT i = au->GetIndexForAbstrValue(*valuePtr);
 	if (!IsDefined(i))
 		return result;
-	return mySSPrintF("%s (%s)",
+	return mySSPrintF("{} ({})",
 		result.c_str(),
 		(i < au->GetCount())
 			? au->GetLabelAtIndex(i, ipHolder, maxLen, lock).c_str()

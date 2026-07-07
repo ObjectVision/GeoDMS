@@ -183,8 +183,8 @@ FileResult XdbImp::Create(WeakStr name, CharPtr datExtension, bool saveColInfo)
 bool XdbImp::ReadColumn(void * buf, recno_t cnt, column_index col_index)
 {
 	DBG_START("XdbImp", "ReadColumn", MG_DEBUG_XDB);
-	DBG_TRACE(("cnt		  : %ld", cnt));
-	DBG_TRACE(("nRecPos   : %ld", nRecPos));
+	DBG_TRACE(("cnt		  : {}", cnt));
+	DBG_TRACE(("nRecPos   : {}", nRecPos));
 
 	// Must be open
 	if (! m_FHD.IsUsable() ) 
@@ -198,13 +198,13 @@ bool XdbImp::ReadColumn(void * buf, recno_t cnt, column_index col_index)
 	long width  = RecSize();
 	long offset = headersize + ColDescriptions[col_index].m_Offset;
 	long colWidth = ColWidth(col_index);
-    DBG_TRACE(("width, offset: %d %d", width, offset));
+    DBG_TRACE(("width, offset: {} {}", width, offset));
 	
 	// Clip
 	long stripped = nRecPos + cnt - NrOfRows();
 	if (stripped < 0) stripped = 0;
 	if (stripped > 0) cnt = cnt - stripped;
-    DBG_TRACE(("stripped  : %ld", stripped));
+    DBG_TRACE(("stripped  : {}", stripped));
 
 	// Read
 	CharPtr dataPtr = m_FHD.DataBegin() + SizeT(nRecPos) * width + offset;
@@ -248,8 +248,8 @@ bool XdbImp::ReadColumn(void * buf, recno_t cnt, column_index col_index)
 FileResult XdbImp::WriteColumn(const void * buf, recno_t cnt, column_index col_index)
 {
 	DBG_START("XdbImp", "WriteColumn", MG_DEBUG_XDB);
-	DBG_TRACE(("cnt		  : %ld", cnt));
-	DBG_TRACE(("nRecPos   : %ld", nRecPos));
+	DBG_TRACE(("cnt		  : {}", cnt));
+	DBG_TRACE(("nRecPos   : {}", nRecPos));
 
 	throwErrorD("Xdb", "XdbWriteColumn::Temporary Disabled Due To Maintenance");
 	// Must be open
@@ -261,12 +261,12 @@ FileResult XdbImp::WriteColumn(const void * buf, recno_t cnt, column_index col_i
 	long width  = RecSize();
 	long offset = headersize + ColDescriptions[col_index].m_Offset;
 	long colwidth = ColWidth(col_index);
-    DBG_TRACE(("width, offset: %d %d", width, offset));
+    DBG_TRACE(("width, offset: {} {}", width, offset));
 
 	long stripped = nRecPos + cnt -  NrOfRows();
 	if (stripped < 0) stripped = 0;
 	if (stripped > 0) cnt = cnt - stripped;
-    DBG_TRACE(("stripped  : %ld", stripped));
+    DBG_TRACE(("stripped  : {}", stripped));
 	// Done
 	return {};
 }
@@ -300,8 +300,8 @@ bool XdbImp::ReadHeader()
 	auto nrFieldsRead = fscanf(*this, "%u %u", &nrows, &nrheaderlines);
 	MG_CHECK(nrFieldsRead == 2);
 
-	DBG_TRACE(("nrows:         %u", nrows));
-	DBG_TRACE(("nrheaderlines: %u", nrheaderlines));
+	DBG_TRACE(("nrows:         {}", nrows));
+	DBG_TRACE(("nrheaderlines: {}", nrheaderlines));
 	
 	// Read structs until end of file
 	ColDescriptions.reserve(100);
@@ -317,7 +317,7 @@ bool XdbImp::ReadHeader()
 		auto type = ValueClassID(int_type);
 		MG_CHECK(StrLen(fldName) < 400);
 
-		DBG_TRACE(("name, len: %s, %d", fldName, len));
+		DBG_TRACE(("name, len: {}, {}", fldName, len));
 		ColDescriptions.resize(ColDescriptions.size()+1);
 
 
@@ -327,7 +327,7 @@ bool XdbImp::ReadHeader()
 		ColDescriptions[ColDescriptions.size()-1].m_Type = type;
 	}
 	m_RecSize = offset;
-	DBG_TRACE(("nrecsize: %d", m_RecSize ));
+	DBG_TRACE(("nrecsize: {}", m_RecSize ));
 
 	headersize = nrheaderlines * RecSize();
 
@@ -391,7 +391,7 @@ bool XdbImp::SetFileName(WeakStr src, CharPtr datExtension, bool saveColInfo)
 	m_DatFileName = SharedStr(CharPtrRange(m_FileName.c_str(), fileNameExtension)) + datExtension;
 	if (!saveColInfo)
 		m_FileName = "";
-	DBG_TRACE(("Names: %s %s", m_FileName.c_str(), m_DatFileName.c_str()));
+	DBG_TRACE(("Names: {} {}", m_FileName.c_str(), m_DatFileName.c_str()));
 	return true;
 }
 
@@ -531,7 +531,7 @@ FileResult XdbImp::AppendColumn
 			for (; bufPtr != bufEnd; ++bufPtr)
 				*bufPtr = fgetc(src);
 			*bufEnd = 0;
-			//DBG_TRACE(("rec: %s", buf));
+			//DBG_TRACE(("rec: {}", buf));
 
 			// Write line + padding to new dat-file
 			fputs(reinterpret_cast<CharPtr>( &* buf.begin() ), dst);
@@ -575,7 +575,7 @@ FileResult XdbImp::AppendColumn
 	{
 		remove(m_DatFileName.c_str());
 		if (rename(tmpDatFile.c_str(), m_DatFileName.c_str()))
-			return std::unexpected(mySSPrintF("unable to rename %s to %s", tmpDatFile.c_str(), m_DatFileName.c_str()));
+			return std::unexpected(mySSPrintF("unable to rename {} to {}", tmpDatFile.c_str(), m_DatFileName.c_str()));
 	}
 
 	// Reopen

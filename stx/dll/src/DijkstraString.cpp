@@ -214,7 +214,7 @@ DijkstraFlag ParseDijkstraString(CharPtr str)
 		SharedStr strAtProblemLoc = problemlocAsString(str, str+StrLen(str), info.stop);
 
 		throwErrorF("parse dijkstra options",
-			"syntax error at\n%s",
+			"syntax error at\n{}",
 			strAtProblemLoc.c_str()
 		);
 	}

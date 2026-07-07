@@ -40,7 +40,7 @@ void TForm::Init(RadiusType radius, bool isCircle)
 			m_CirclePoint[i] = RadiusType( sqrt(sqrRadiusAsF64 - Float64(i)*Float64(i)) );
 	}
 	
-	DBG_TRACE(("m_Radius %d, m_IsCircle %d", m_Radius, m_IsCircle));
+	DBG_TRACE(("m_Radius {}, m_IsCircle {}", m_Radius, m_IsCircle));
 }
 
 bool TForm::Contains (UGridPoint p)
@@ -221,7 +221,7 @@ void DiversityCalculator<T>::DiversityCountVertical(DivCountGridType output, IGr
 
 	IGridPoint prevPoint = point; prevPoint.Row()--;
 
-	DBG_TRACE(("isFirstRow %d", isFirstRow));
+	DBG_TRACE(("isFirstRow {}", isFirstRow));
 
 	output.GetDataPtr()[this->Pos(point)] =
 		(
@@ -269,7 +269,7 @@ DiversityCalculator<T>::DiversityCountAll(UGridPoint center, DivVectorType& divV
 			
 				divVector[val]++;
 				if (divVector[val] == 0)
-					throwErrorF("Diversity", "Numeric overflow in counting diversity around location %s", AsString(point).c_str());
+					throwErrorF("Diversity", "Numeric overflow in counting diversity around location {}", AsString(point).c_str());
 			}
 		}
 	}
@@ -300,7 +300,7 @@ DiversityCalculator<T>::DiversityDifference(UGridPoint center, DivVectorType& di
 
 					divVector[val]++;
 					if (divVector[val] == 0)
-						throwErrorF("Diversity", "Numeric overflow in counting diversity around location %s", AsString(point).c_str());
+						throwErrorF("Diversity", "Numeric overflow in counting diversity around location {}", AsString(point).c_str());
 				}
 			}
 		}

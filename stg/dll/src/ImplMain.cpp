@@ -96,9 +96,9 @@ FileResult FilePtrHandle::OpenFH(WeakStr name, FileCreationMode fcm, bool transl
 #if defined(_MSC_VER)
 	if (fileName.ssize() > _MAX_PATH)
 		hint = " Note that the filename is longer than _MAX_PATH, which is 260 characters";
-	auto errMsg = mySSPrintF("_fsopen('%s', '%s')\nreturned error %d: %s.%s"
+	auto errMsg = mySSPrintF("_fsopen('{}', '{}')\nreturned error {}: {}.{}"
 #else
-	auto errMsg = mySSPrintF("fopen('%s', '%s')\nreturned error %d: %s.%s"
+	auto errMsg = mySSPrintF("fopen('{}', '{}')\nreturned error {}: {}.{}"
 #endif
 		, fileName.c_str(), mode
 		, errno, strerror(errno)

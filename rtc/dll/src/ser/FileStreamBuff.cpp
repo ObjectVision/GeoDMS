@@ -172,7 +172,7 @@ MappedFileOutStreamBuff::MappedFileOutStreamBuff(WeakStr fileName, streamsize_t 
 	dms_assert(nrBytes);
 	m_Curr = m_FileView.DataBegin();
 	if (!IsOpen())
-		throwErrorF("MappedFileOutStream", "Cannot open file %s for writing", fileName);
+		throwErrorF("MappedFileOutStream", "Cannot open file {} for writing", fileName);
 }
 
 MappedFileOutStreamBuff::~MappedFileOutStreamBuff()
@@ -182,7 +182,7 @@ void MappedFileOutStreamBuff::WriteBytes(const Byte* data, streamsize_t size)
 {
 	streamsize_t restSize = m_FileView.DataEnd() - m_Curr;
 	if (restSize < size)
-		throwErrorF("MappedFileOutStream", "Cannot write %s bytes to %s after pos %s since it has size %s",
+		throwErrorF("MappedFileOutStream", "Cannot write {} bytes to {} after pos {} since it has size {}",
 			AsString(size).c_str(), m_FileName.c_str(), 
 			AsString(m_Curr - m_FileView.DataBegin()).c_str(), 
 			AsString(m_FileView.GetViewCapacity()).c_str()

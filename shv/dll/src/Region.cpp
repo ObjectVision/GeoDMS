@@ -207,7 +207,7 @@ void Region::ScrollDevice(GPoint delta, const GRect& scrollRect, const Region& c
 {
 	DBG_START("Region", "Scroll", MG_DEBUG_SCROLL);
 
-	DBG_TRACE( ("OrgRegion : %s",  AsString().c_str() ) );
+	DBG_TRACE( ("OrgRegion : {}",  AsString().c_str() ) );
 
 	dms_assert( IsIntersecting(clipRgn) ); // guaranteed by caller
 
@@ -216,10 +216,10 @@ void Region::ScrollDevice(GPoint delta, const GRect& scrollRect, const Region& c
 		DBG_TRACE(("Simple Scrolling: region is bounded by ScrollRect") );
 
 		*this += delta;
-		DBG_TRACE( ("After Offfsetting: %s",  AsString().c_str()) );
+		DBG_TRACE( ("After Offfsetting: {}",  AsString().c_str()) );
 
 		*this &= clipRgn;
-		DBG_TRACE( ("After Clipping   : %s",  AsString().c_str()) );
+		DBG_TRACE( ("After Clipping   : {}",  AsString().c_str()) );
 	}
 	else
 	{
@@ -228,30 +228,30 @@ void Region::ScrollDevice(GPoint delta, const GRect& scrollRect, const Region& c
 			DBG_TRACE(("Complex Scrolling: region is not bounded by ScrollRect") );
 
 			Region scrolledRegion = Clone();
-			DBG_TRACE( ("After Cloning    : %s",  AsString().c_str()) );
-			DBG_TRACE( ("      Copy       : %s",  scrolledRegion.AsString().c_str()) );
+			DBG_TRACE( ("After Cloning    : {}",  AsString().c_str()) );
+			DBG_TRACE( ("      Copy       : {}",  scrolledRegion.AsString().c_str()) );
 
 
 			scrolledRegion &= scrollRect;
 			scrolledRegion &= clipRgn;
-			DBG_TRACE( ("After Clipping   : %s",  scrolledRegion.AsString().c_str()) );
+			DBG_TRACE( ("After Clipping   : {}",  scrolledRegion.AsString().c_str()) );
 
 			scrolledRegion += delta;
-			DBG_TRACE( ("After Offfsetting: %s",  scrolledRegion.AsString().c_str()) );
+			DBG_TRACE( ("After Offfsetting: {}",  scrolledRegion.AsString().c_str()) );
 
 			scrolledRegion &= clipRgn;
-			DBG_TRACE( ("After Clipping   : %s",  scrolledRegion.AsString().c_str()) );
+			DBG_TRACE( ("After Clipping   : {}",  scrolledRegion.AsString().c_str()) );
 
 			*this -= Region(clipRgn.GetQRegion().intersected(Region(scrollRect        ).GetQRegion()));
 			*this -= Region(clipRgn.GetQRegion().intersected(Region(scrollRect + delta).GetQRegion()));
-			DBG_TRACE( ("SR removed       : %s",  AsString().c_str()) );
+			DBG_TRACE( ("SR removed       : {}",  AsString().c_str()) );
 
 			*this |= scrolledRegion;
-			DBG_TRACE( ("After Merging    : %s",  AsString().c_str()) );
+			DBG_TRACE( ("After Merging    : {}",  AsString().c_str()) );
 		}
 	}
 
-	DBG_TRACE( ("ResRegion : %s",  AsString().c_str()) );
+	DBG_TRACE( ("ResRegion : {}",  AsString().c_str()) );
 }
 
 void Region::FillRectArray(RectArray& ra) const
@@ -297,8 +297,8 @@ DcClipRegionSelector::DcClipRegionSelector(DrawContext* dc, Region& currClipRegi
 	,	m_OrgRegionCopy(currClipRegion.Clone() )
 {
 	DBG_START("DcClipRegionSelector", "ctor", MG_DEBUG_REGION);
-	DBG_TRACE(("NewRect    %s", AsString(   newClipRect).c_str()));
-	DBG_TRACE(("CurrRegion %s", currClipRegion.AsString().c_str()));
+	DBG_TRACE(("NewRect    {}", AsString(   newClipRect).c_str()));
+	DBG_TRACE(("CurrRegion {}", currClipRegion.AsString().c_str()));
 
 	dms_assert(! m_OrgRegionCopy.Empty() ); // else we shoudn't get here at all
 

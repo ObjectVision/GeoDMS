@@ -333,7 +333,7 @@ LispRef CreateLispSubTree(const TreeItem* self, bool inclSubTree)
 	result = LispRef(LispRef(token::SigAndSub), result); // TOOD G8: move to token::
 
 #if defined(MG_DEBUG_LISP_TREE)
-	reportF(SeverityTypeID::ST_MinorTrace,"CreateLispSubTree %d %s",  inclSubTree, AsFLispSharedStr(result, FormattingFlags::ThousandSeparator).c_str());
+	reportF(SeverityTypeID::ST_MinorTrace,"CreateLispSubTree {} {}",  inclSubTree, AsFLispSharedStr(result, FormattingFlags::ThousandSeparator).c_str());
 	dms_assert(IsExpr(result));
 #endif
 
@@ -354,7 +354,7 @@ LispRef CreateLispTree(const TreeItem* self, bool inclSubTree)
 	,	CreateLispSubTree(self, inclSubTree)
 	);
 #if defined(MG_DEBUG_LISP_TREE)
-	reportF(SeverityTypeID::ST_MinorTrace, "CreateLispTree: %d %s", inclSubTree, AsFLispSharedStr(result, FormattingFlags::ThousandSeparator).c_str());
+	reportF(SeverityTypeID::ST_MinorTrace, "CreateLispTree: {} {}", inclSubTree, AsFLispSharedStr(result, FormattingFlags::ThousandSeparator).c_str());
 	dms_assert(IsExpr(result));
 #endif
 	return result;

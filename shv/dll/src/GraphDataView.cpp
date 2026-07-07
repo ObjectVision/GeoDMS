@@ -465,7 +465,7 @@ LayerInfo GraphDataView::GetCompleteLayerInfoOrThrow(const TreeItem* viewItem) c
 
 	LayerInfo res = GetLayerInfo(AsDynamicDataItem(viewItem));
 	if (!res.IsComplete())
-		viewItem->throwItemErrorF("Cannot Display this as Layer because %s", res.m_Descr.c_str());
+		viewItem->throwItemErrorF("Cannot Display this as Layer because {}", res.m_Descr.c_str());
 	return res;
 }
 

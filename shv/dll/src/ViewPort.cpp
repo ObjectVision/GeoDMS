@@ -70,7 +70,7 @@ bool ViewPoint::WriteAsString(char* buffer, SizeT len, FormattingFlags flags)
 	auto streamWrap = SilentMemoOutStreamBuff(ByteRange(buffer, len));
 	//FormattedOutStream out(&streamWrap, flags);
 
-	static SharedStr format = SharedStr("X= % 10.2f; Y= % 10.2f; ZL= % 10.2f");
+	static SharedStr format = SharedStr("X= {: 10.2f}; Y= {: 10.2f}; ZL= {: 10.2f}");
 
 	auto nrBytesWritten = myFixedBufferWrite(buffer, len, format.c_str(), center.Col(), center.Row(), zoomLevel);
 	buffer[nrBytesWritten] = char(0); // truncate
@@ -956,12 +956,12 @@ void ViewPort::Export()
 
 			if (isBmp)
 			{
-				SharedStr fileName = mySSPrintF("%s_%d_%d.bmp", info.m_FullFileNameBase.c_str(), rowFromTop, col);
+				SharedStr fileName = mySSPrintF("{}_{}_{}.bmp", info.m_FullFileNameBase.c_str(), rowFromTop, col);
 				SaveBitmap(fileName, bitmap);
 			}
 			else
 			{
-	//				TifImp fh; fh.Open(mySSPrintF("%s_%d_%d.tif", fullFileNameBase.c_str(), row, col).c_str(), TIF_WRITE);  // NYI
+	//				TifImp fh; fh.Open(mySSPrintF("{}_{}_{}.tif", fullFileNameBase.c_str(), row, col).c_str(), TIF_WRITE);  // NYI
 			}
 		}
 	}
@@ -1389,8 +1389,8 @@ void ViewPort::ScrollDevice(GPoint delta)
 
 	m_BrushOrg += delta;
 
-	DBG_TRACE(("delta %s",       AsString(delta).c_str()));
-	DBG_TRACE(("viewExtents %s", AsString(deviceExtents).c_str()));
+	DBG_TRACE(("delta {}",       AsString(delta).c_str()));
+	DBG_TRACE(("viewExtents {}", AsString(deviceExtents).c_str()));
 
 	for (auto& gc: m_GridCoordMap)
 		if (auto gridCoord = gc.second.lock())
@@ -1462,7 +1462,7 @@ static bool SanitizeRoi(CrdRect& rr, const AbstrUnit* worldCrdUnit, CrdType minS
 {
 	if (rr.inverted() || !IsDefined(rr.first) || !IsDefined(rr.second))
 	{
-		reportF(SeverityTypeID::ST_MinorTrace, "ViewPort::SanitizeRoi rejected inverted/undefined ROI %s", AsString(rr).c_str());
+		reportF(SeverityTypeID::ST_MinorTrace, "ViewPort::SanitizeRoi rejected inverted/undefined ROI {}", AsString(rr).c_str());
 		return false;
 	}
 	if (!worldCrdUnit)
@@ -1478,7 +1478,7 @@ static bool SanitizeRoi(CrdRect& rr, const AbstrUnit* worldCrdUnit, CrdType minS
 	if (Abs(rr.first .Row()) > maxSize || Abs(rr.second.Row()) > maxSize
 	 || Abs(rr.first .Col()) > maxSize || Abs(rr.second.Col()) > maxSize)
 	{
-		reportF(SeverityTypeID::ST_MinorTrace, "ViewPort::SanitizeRoi rejected out-of-envelope ROI %s (maxSize=%g)", AsString(rr).c_str(), maxSize);
+		reportF(SeverityTypeID::ST_MinorTrace, "ViewPort::SanitizeRoi rejected out-of-envelope ROI {} (maxSize={:g})", AsString(rr).c_str(), maxSize);
 		return false;
 	}
 
@@ -1491,7 +1491,7 @@ void ViewPort::SetROI(const CrdRect& r)
 {
 	DBG_START("ViewPort", "SetROI", MG_DEBUG_SCROLL);
 
-	DBG_TRACE(("NewRect : %s", AsString(r).c_str() ));
+	DBG_TRACE(("NewRect : {}", AsString(r).c_str() ));
 
 	if (m_ROI == r)
 		return;
@@ -1506,17 +1506,17 @@ void ViewPort::SetROI(const CrdRect& r)
 	bool tlIsNew = CreatePointParam(m_ROI_TL, this, t_RoiTL);
 	bool brIsNew = CreatePointParam(m_ROI_BR, this, t_RoiBR);
 
-	DBG_TRACE(("IsNew : %d", tlIsNew || brIsNew ));
-	DBG_TRACE(("TlChanged: %d", GetContext() ? m_ROI_TL->GetLastChangeTS() : 0 ));
-	DBG_TRACE(("BrChanged: %d", GetContext() ? m_ROI_BR->GetLastChangeTS() : 0 ));
+	DBG_TRACE(("IsNew : {}", tlIsNew || brIsNew ));
+	DBG_TRACE(("TlChanged: {}", GetContext() ? m_ROI_TL->GetLastChangeTS() : 0 ));
+	DBG_TRACE(("BrChanged: {}", GetContext() ? m_ROI_BR->GetLastChangeTS() : 0 ));
 
 	ChangePoint(m_ROI_TL, rr.first , tlIsNew);
 	ChangePoint(m_ROI_BR, rr.second, brIsNew);
 	CertainUpdate("ViewPort::SetROI()");
 	m_ROI = rr;
 
-	DBG_TRACE(("TlChanged: %d", GetContext() ? m_ROI_TL->GetLastChangeTS() : 0 ));
-	DBG_TRACE(("BrChanged: %d", GetContext() ? m_ROI_BR->GetLastChangeTS() : 0 ));
+	DBG_TRACE(("TlChanged: {}", GetContext() ? m_ROI_TL->GetLastChangeTS() : 0 ));
+	DBG_TRACE(("BrChanged: {}", GetContext() ? m_ROI_BR->GetLastChangeTS() : 0 ));
 //	DoUpdateView();
 	InvalidateView();
 	UpdateScaleBar();

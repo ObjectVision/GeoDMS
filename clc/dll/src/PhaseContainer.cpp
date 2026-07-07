@@ -191,7 +191,7 @@ struct PhaseContainerOperator : BinaryOperator
 			{
 				auto dc = srcItem->mc_DC;
 				if (!dc)
-					resWalker->Fail(mySSPrintF("PhaseContainer: Source %s has no calculation rule so its data cannot be collected", srcItem->GetSourceName()).c_str(), FailType::Data);
+					resWalker->Fail(mySSPrintF("PhaseContainer: Source {} has no calculation rule so its data cannot be collected", srcItem->GetSourceName()).c_str(), FailType::Data);
 				else
 				{
 					auto fd = dc->CallCalcResult();
@@ -247,7 +247,7 @@ struct PhaseContainerOperator : BinaryOperator
 					auto srcCurr = dc->GetCurr();
 					auto srcUltItem = srcCurr ? srcCurr->GetCurrUltimateItem() : SharedTreeItem();
 					if (!srcUltItem)
-						resItem->Fail(mySSPrintF("PhaseContainer(%d): source result of %s is no longer available", resultPhaseNumber, resItem->GetSourceName()).c_str(), FailType::Data);
+						resItem->Fail(mySSPrintF("PhaseContainer({}): source result of {} is no longer available", resultPhaseNumber, resItem->GetSourceName()).c_str(), FailType::Data);
 					else
 					{
 						WaitReady(srcUltItem.get());
@@ -283,7 +283,7 @@ struct PhaseContainerOperator : BinaryOperator
 
 		if (msgData.size() != 1 || !msgData[0].empty())
 			for (auto msg: msgData)
-				reportF(SeverityTypeID::ST_MajorTrace, "PhaseContainer(%d): %s", resultPhaseNumber, SharedStr(msg));
+				reportF(SeverityTypeID::ST_MajorTrace, "PhaseContainer({}): {}", resultPhaseNumber, SharedStr(msg));
 
 		resultHolder->SetIsInstantiated();
 		resultHolder->StopSupplInterest();

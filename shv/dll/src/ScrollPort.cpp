@@ -424,7 +424,7 @@ void ScrollPort::ScrollLogicalTo(CrdPoint newClientPos)
 void ScrollPort::ScrollLogical(CrdPoint delta)
 {
 	DBG_START("ScrollPort", "Scroll", MG_DEBUG_SCROLL);
-	DBG_TRACE(("org delta = %s", AsString(delta).c_str()));
+	DBG_TRACE(("org delta = {}", AsString(delta).c_str()));
 
 	if (!GetContents())
 		return;
@@ -435,10 +435,10 @@ void ScrollPort::ScrollLogical(CrdPoint delta)
 
 		auto viewBase = GetCurrClientAbsLogicalPos();
 		auto viewExtents = CrdRect(viewBase, viewBase + m_NettSize);
-		DBG_TRACE(("viewExtents = %s", AsString(viewExtents).c_str()));
+		DBG_TRACE(("viewExtents = {}", AsString(viewExtents).c_str()));
 
 		auto contentExtents = GetContents()->GetCurrClientRelLogicalRect();
-		DBG_TRACE(("contentExtents = %s", AsString(contentExtents).c_str()));
+		DBG_TRACE(("contentExtents = {}", AsString(contentExtents).c_str()));
 
 		// positive delta increases contentBase, thus scrols towards left/up.
 		// positive delta can cause empty space at end, which is to be avoided; limit delta to not creating such space
@@ -450,7 +450,7 @@ void ScrollPort::ScrollLogical(CrdPoint delta)
 		MakeMax(delta.Y(), Height(viewExtents) - contentExtents.second.Y());
 		MakeMin(delta.Y(), 0                    - contentExtents.first .Y());
 
-		DBG_TRACE(("new delta = %s", AsString(delta).c_str()));
+		DBG_TRACE(("new delta = {}", AsString(delta).c_str()));
 
 
 		if (!(delta == Point<CrdType>(0,0)))

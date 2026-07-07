@@ -100,7 +100,7 @@ static HGLOBAL CheckedGlobalAlloc(UINT uFlags, SIZE_T dwBytes)
 {
 	auto result = GlobalAlloc(uFlags, dwBytes);
 	if (!result)
-		throwLastSystemError("CheckedGlobalAlloc(%s, %s bytes)", uFlags, dwBytes);
+		throwLastSystemError("CheckedGlobalAlloc({}, {} bytes)", uFlags, dwBytes);
 	return result;
 }
 

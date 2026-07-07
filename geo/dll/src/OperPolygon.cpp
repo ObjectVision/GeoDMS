@@ -269,7 +269,7 @@ inline bool GeoMeasure_GetCoordMetric(const AbstrOperGroup* gr, const AbstrUnit*
 		else
 		{
 			if (f.X() != f.Y())
-				gr->throwOperErrorF("the coordinate unit has an anisotropic projection (X-scale %g != Y-scale %g); arc_length cannot be expressed as a single scalar unit"
+				gr->throwOperErrorF("the coordinate unit has an anisotropic projection (X-scale {:g} != Y-scale {:g}); arc_length cannot be expressed as a single scalar unit"
 					, f.X(), f.Y());
 			outJ = std::abs(f.X());
 		}
@@ -349,7 +349,7 @@ inline void GeoMeasure_ValidateAndWarn(const AbstrOperGroup* gr,
 		SharedStr coordMetricStr = (L && !IsEmpty(L)) ? L->AsString(FormattingFlags::ThousandSeparator)
 		                                              : SharedStr("<none>");
 		reportF(SeverityTypeID::ST_Warning
-			, "%s: the requested result unit %s is not compatible with the coordinate metric (%s)^%u; "
+			, "{}: the requested result unit {} is not compatible with the coordinate metric ({})^{}; "
 			  "the second argument is accepted as a label only (deprecated, issue #1119). "
 			  "This will become an error once CRS coordinate units carry a proper linear metric."
 			, gr->GetName().c_str()
@@ -362,7 +362,7 @@ inline void GeoMeasure_ValidateAndWarn(const AbstrOperGroup* gr,
 	Float64 factor = J * natFactor / tgt->m_Factor;
 	if (factor != 1.0)
 		reportF(SeverityTypeID::ST_Warning
-			, "%s: the result is now converted to %s (factor %g); the second argument previously acted as a label only (issue #1119)"
+			, "{}: the result is now converted to {} (factor {:g}); the second argument previously acted as a label only (issue #1119)"
 			, gr->GetName().c_str()
 			, targetUnit->GetMetricStr(FormattingFlags::ThousandSeparator).c_str()
 			, factor);
@@ -713,7 +713,7 @@ public:
 					UInt32 orderNr = (arg3) ? b3[i] : currOrdinals[polyNr]++;
 
 					if (orderNr >= nrPointsPerSeq[polyNr])
-						this->GetGroup()->throwOperErrorF("unexpected orderNr %d for sequence %d which has %d elements", orderNr, polyNr, nrPointsPerSeq[polyNr]);
+						this->GetGroup()->throwOperErrorF("unexpected orderNr {} for sequence {} which has {} elements", orderNr, polyNr, nrPointsPerSeq[polyNr]);
 					typename ResultType::reference polygon = *(br + polyNr);
 					polygon[orderNr] = b1[i];
 				}
@@ -1952,7 +1952,7 @@ protected:
 					}
 				);
 
-				reportF(SeverityTypeID::ST_MajorTrace, "%spoint_in_all_polygons with %d point tiles after processing %d/%d polygon tiles resulted in %d matches"
+				reportF(SeverityTypeID::ST_MajorTrace, "{}point_in_all_polygons with {} point tiles after processing {}/{} polygon tiles resulted in {} matches"
 					, itemRef.c_str()
 					, domain1Unit->GetNrTiles()
 					, u+1, ue

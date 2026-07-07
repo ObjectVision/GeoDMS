@@ -53,7 +53,7 @@ inline FormattedOutStream& operator <<(FormattedOutStream& output, const LispObj
 
 void LispError(CharPtr msg, LispPtr ref)
 {
-	throwErrorF("Lisp", "%s with:\n%s", msg, AsString(ref).c_str());
+	throwErrorF("Lisp", "{} with:\n{}", msg, AsString(ref).c_str());
 }
 
 /****************** class LispObj                  *******************/

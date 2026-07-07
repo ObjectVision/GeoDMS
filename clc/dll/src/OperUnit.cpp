@@ -44,13 +44,13 @@ const UnitClass* GetUnitClass(TokenID valueTypeID)
 	const ValueClass* vc = ValueClass::FindByScriptName(valueTypeID);
 	if (!vc)
 		throwErrorF("UnitClass", 
-			"'%s' is not recognized as a valid type indicator",
+			"'{}' is not recognized as a valid type indicator",
 			GetTokenStr(valueTypeID)
 		);
 	const UnitClass* uc = UnitClass::Find(vc);
 	if (!uc)
 		throwErrorF("UnitClass", 
-			"'%s' is not a valid type for defining a unit",
+			"'{}' is not a valid type for defining a unit",
 			GetTokenStr(valueTypeID)
 		);
 	return uc;
@@ -89,7 +89,7 @@ bool UnitCombine_impl(AbstrUnit* res, const ArgSeqType& args, bool mustCalc, boo
 		if (!IsUnit(args[i]))
 		{
 			auto clsName = SharedStr(args[i]->GetDynamicClass()->GetName());
-			throwErrorF("combine_unit", "ranged units expected, but argument %d is a %s", i + 1, clsName.c_str());
+			throwErrorF("combine_unit", "ranged units expected, but argument {} is a {}", i + 1, clsName.c_str());
 		}
 
 	if (n > 16)
@@ -592,7 +592,7 @@ bool CreateRangeUnit(TreeItemDualRef& resultHolder, const AbstrOperGroup* whoCal
 					if (bounds != orgBounds)
 					{
 						reportF(SeverityTypeID::ST_Warning,
-							"%s: The specified range %s is limited by range %s of the given base unit resulting in range %s"
+							"{}: The specified range {} is limited by range {} of the given base unit resulting in range {}"
 						,	whoCalled->GetNameStr()
 						,	AsString(orgBounds), AsString(arg1Range), AsString(bounds)
 						);

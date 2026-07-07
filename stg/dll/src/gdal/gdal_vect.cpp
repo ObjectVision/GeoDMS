@@ -323,7 +323,7 @@ void GdalVectlMetaInfo::OnOpenForRead(StorageReadHandle* self)
 
 		if (gdal_error_frame.HasError())
 		{
-			throwErrorF("gdal.vect", "cannot find layer with name %s, invalid sql string %s,\n%s"
+			throwErrorF("gdal.vect", "cannot find layer with name {}, invalid sql string {},\n{}"
 			,	m_NameID.GetStr().c_str()
 			,	m_SqlString.c_str()
 			,	gdal_error_frame.GetMsgAndReleaseError().c_str()
@@ -347,7 +347,7 @@ void GdalVectlMetaInfo::OnOpenForRead(StorageReadHandle* self)
 		{
 			auto is_container = !IsDataItem(CurrRI()) && !IsUnit(CurrRI());
 			if (!is_container)
-				throwErrorF("gdal.vect", "cannot find layer with name %s in dataset.\n", m_NameID.GetStr().c_str());
+				throwErrorF("gdal.vect", "cannot find layer with name {} in dataset.\n", m_NameID.GetStr().c_str());
 		}
 
 		gdv->m_IsOwner = false;
@@ -413,7 +413,7 @@ void GdalVectSM::DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwMode) c
 	assert(m_hDS == nullptr);
 
 	if (rwMode != dms_rw_mode::read_only && !IsWritableGDAL())
-		throwErrorF("gdal.vect", "Cannot use storage manager %s with readonly type %s for writing data"
+		throwErrorF("gdal.vect", "Cannot use storage manager {} with readonly type {} for writing data"
 			,	smi.StorageManager()->GetFullName().c_str()
 			,	smi.StorageManager()->GetClsName().c_str()
 			);
@@ -727,7 +727,7 @@ void ReadPointData(typename sequence_traits<PointType>::seq_t data, OGRLayer* la
 	
 	SizeT i=0;
 	auto lch = MakeLCH(
-		[firstIndex, &i]() -> SharedStr { return mySSPrintF("Reading Point Feature %d", i + firstIndex); }
+		[firstIndex, &i]() -> SharedStr { return mySSPrintF("Reading Point Feature {}", i + firstIndex); }
 	);
 
 	for (; i!=size; ++i)
@@ -760,7 +760,7 @@ void ReadPointZM(typename sequence_traits<T>::seq_t data, OGRLayer* layer, SizeT
 
 	SizeT i = 0;
 	auto lch = MakeLCH(
-		[firstIndex, &i, isZ]() -> SharedStr { return mySSPrintF("Reading %s coordinate of Point Feature %d", isZ ? "Z" : "M", i + firstIndex); }
+		[firstIndex, &i, isZ]() -> SharedStr { return mySSPrintF("Reading {} coordinate of Point Feature {}", isZ ? "Z" : "M", i + firstIndex); }
 	);
 
 	for (; i != size; ++i)
@@ -787,7 +787,7 @@ void ReadPolyData(typename sequence_traits<PolygonType>::seq_t dataArray, OGRLay
 
 	DBG_START("ReadPolyData", typeid(PolygonType).name(), true);
 
-	DBG_TRACE(("firstIndex %d, size %d", firstIndex, size));
+	DBG_TRACE(("firstIndex {}, size {}", firstIndex, size));
 
 	using dataBufType = typename sequence_traits<PolygonType>::container_type;
 	dataBufType& data = MakeAs<dataBufType>(readBuffer);
@@ -795,7 +795,7 @@ void ReadPolyData(typename sequence_traits<PolygonType>::seq_t dataArray, OGRLay
 
 	SizeT i=0;
 	auto lch = MakeLCH(
-		[firstIndex, &i]() -> SharedStr { return mySSPrintF("reading Points of Feature %d", i + firstIndex); }
+		[firstIndex, &i]() -> SharedStr { return mySSPrintF("reading Points of Feature {}", i + firstIndex); }
 	);
 
 	for (; i!=size; ++i)
@@ -818,7 +818,7 @@ void ReadPolyData(typename sequence_traits<PolygonType>::seq_t dataArray, OGRLay
 		case OGRwkbGeometryType::wkbPoint25D:
 		case OGRwkbGeometryType::wkbPointM:
 		case OGRwkbGeometryType::wkbPointZM:
-			reportF(SeverityTypeID::ST_Warning, "Feature %d is a Point and skipped as only Surfaces, aka (Multi)Polygons, are read.\n"
+			reportF(SeverityTypeID::ST_Warning, "Feature {} is a Point and skipped as only Surfaces, aka (Multi)Polygons, are read.\n"
 				"Hint: Configure another attribute without ValueComposition to read separate points."
 				, i + firstIndex
 			);
@@ -829,7 +829,7 @@ void ReadPolyData(typename sequence_traits<PolygonType>::seq_t dataArray, OGRLay
 		case OGRwkbGeometryType::wkbMultiPoint25D:
 		case OGRwkbGeometryType::wkbMultiPointM:
 		case OGRwkbGeometryType::wkbMultiPointZM:
-			reportF(SeverityTypeID::ST_Warning, "Feature %d is a MultiPoint and skipped as only Surfaces, aka (Multi)Polygons, are read.\n"
+			reportF(SeverityTypeID::ST_Warning, "Feature {} is a MultiPoint and skipped as only Surfaces, aka (Multi)Polygons, are read.\n"
 				"Hint: Configure another attribute with ValueComposition=sequence to read MultiPoints."
 				, i + firstIndex);
 			Assign(dataElemRef, Undefined());
@@ -839,21 +839,21 @@ void ReadPolyData(typename sequence_traits<PolygonType>::seq_t dataArray, OGRLay
 		case OGRwkbGeometryType::wkbLineString25D:
 		case OGRwkbGeometryType::wkbLineStringM:
 		case OGRwkbGeometryType::wkbLineStringZM:
-			reportF(SeverityTypeID::ST_Warning, "Feature %d is a Linestring and skipped as only Surfaces, aka (Multi)Polygons, are read.\n"
+			reportF(SeverityTypeID::ST_Warning, "Feature {} is a Linestring and skipped as only Surfaces, aka (Multi)Polygons, are read.\n"
 				"Hint: Configure another attribute with ValueComposition=sequence to read Linestrings."
 				, i + firstIndex);
 			Assign(dataElemRef, Undefined());
 			break;
 
 		case OGRwkbGeometryType::wkbCircularString: 
-			reportF(SeverityTypeID::ST_Warning, "Feature %d is a CircularString and skipped as only Surfaces, aka (Multi)Polygons, are read.\n"
+			reportF(SeverityTypeID::ST_Warning, "Feature {} is a CircularString and skipped as only Surfaces, aka (Multi)Polygons, are read.\n"
 				"Hint: Configure another attribute with ValueComposition=sequence to read it as Linestring."
 				, i + firstIndex);
 			Assign(dataElemRef, Undefined());
 			break;
 
 		case OGRwkbGeometryType::wkbCompoundCurve:
-			reportF(SeverityTypeID::ST_Warning, "Feature %d is a CompoundCurve and skipped as only Surfaces, aka (Multi)Polygons, are read.\n"
+			reportF(SeverityTypeID::ST_Warning, "Feature {} is a CompoundCurve and skipped as only Surfaces, aka (Multi)Polygons, are read.\n"
 				"Hint: Configure another attribute with ValueComposition=sequence to read it as Linestring."
 				, i + firstIndex);
 			Assign(dataElemRef, Undefined());
@@ -877,7 +877,7 @@ void ReadPolyData(typename sequence_traits<PolygonType>::seq_t dataArray, OGRLay
 			AddMultiPolygon<PolygonType>(dataElemRef, geo->toMultiPolygon()); break;
 
 		case OGRwkbGeometryType::wkbMultiLineString: 
-			reportF(SeverityTypeID::ST_Warning, "Feature %d is a MultiLineString and skipped as only Surfaces, aka (Multi)Polygons, are read.\n"
+			reportF(SeverityTypeID::ST_Warning, "Feature {} is a MultiLineString and skipped as only Surfaces, aka (Multi)Polygons, are read.\n"
 				"Hint: Configure another attribute with ValueComposition=sequence to read it as Linestring."
 				, i + firstIndex);
 			Assign(dataElemRef, Undefined());
@@ -887,7 +887,7 @@ void ReadPolyData(typename sequence_traits<PolygonType>::seq_t dataArray, OGRLay
 			AddMultiPolygon<PolygonType>(dataElemRef, geo->getLinearGeometry()->toMultiPolygon()); break;
 
 		default: 
-			reportF(SeverityTypeID::ST_Warning, "Feature %d has type %s, which cannot be represented as GeoDMS Polygon.\n"
+			reportF(SeverityTypeID::ST_Warning, "Feature {} has type {}, which cannot be represented as GeoDMS Polygon.\n"
 				"Hint: Configure a geometry attribute with ValueType=string and no ValueComposition to read the features as WKTs."
 				, i + firstIndex, OGRGeometryTypeToName(geometry_type));
 			Assign(dataElemRef, Undefined()); 
@@ -911,7 +911,7 @@ void ReadMultiPointData(typename sequence_traits<PolygonType>::seq_t dataArray, 
 
 	DBG_START("ReadPolyData", typeid(PolygonType).name(), true);
 
-	DBG_TRACE(("firstIndex %d, size %d", firstIndex, size));
+	DBG_TRACE(("firstIndex {}, size {}", firstIndex, size));
 
 	using dataBufType = typename sequence_traits<PolygonType>::container_type;
 	dataBufType& data = MakeAs<dataBufType>(readBuffer);
@@ -919,7 +919,7 @@ void ReadMultiPointData(typename sequence_traits<PolygonType>::seq_t dataArray, 
 
 	SizeT i = 0;
 	auto lch = MakeLCH(
-		[firstIndex, &i]() -> SharedStr { return mySSPrintF("reading Points of Feature %d", i + firstIndex); }
+		[firstIndex, &i]() -> SharedStr { return mySSPrintF("reading Points of Feature {}", i + firstIndex); }
 	);
 
 	for (; i != size; ++i)
@@ -996,7 +996,7 @@ void ReadMultiPointData(typename sequence_traits<PolygonType>::seq_t dataArray, 
 				break;
 
 			default:
-				reportF(SeverityTypeID::ST_Warning, "Feature %d has type %s, which cannot be represented as GeoDMS MultiPoint.\n"
+				reportF(SeverityTypeID::ST_Warning, "Feature {} has type {}, which cannot be represented as GeoDMS MultiPoint.\n"
 					"Hint: Configure a geometry attribute with ValueType=string and no ValueComposition to read the features as WKTs."
 					, i + firstIndex, OGRGeometryTypeToName(geometry_type));
 				Assign(dataElemRef, Undefined());
@@ -1020,7 +1020,7 @@ void ReadPolyZM(typename sequence_traits<SeqType>::seq_t dataArray, OGRLayer* la
 
 	DBG_START("ReadPolyZM", typeid(SeqType).name(), true);
 
-	DBG_TRACE(("firstIndex %d, size %d", firstIndex, size));
+	DBG_TRACE(("firstIndex {}, size {}", firstIndex, size));
 
 	using dataBufType = typename sequence_traits<SeqType>::container_type;
 	dataBufType& data = MakeAs<dataBufType>(readBuffer);
@@ -1028,7 +1028,7 @@ void ReadPolyZM(typename sequence_traits<SeqType>::seq_t dataArray, OGRLayer* la
 
 	SizeT i = 0;
 	auto lch = MakeLCH(
-		[firstIndex, &i, isZ]() -> SharedStr { return mySSPrintF("reading %s coordinates of Feature %d", isZ ? "Z": "M", i + firstIndex); }
+		[firstIndex, &i, isZ]() -> SharedStr { return mySSPrintF("reading {} coordinates of Feature {}", isZ ? "Z": "M", i + firstIndex); }
 	);
 
 	for (; i != size; ++i)
@@ -1051,7 +1051,7 @@ void ReadPolyZM(typename sequence_traits<SeqType>::seq_t dataArray, OGRLayer* la
 		case OGRwkbGeometryType::wkbPoint25D:
 		case OGRwkbGeometryType::wkbPointM:
 		case OGRwkbGeometryType::wkbPointZM:
-			reportF(SeverityTypeID::ST_Warning, "Feature %d is a Point and skipped as only Surfaces, aka (Multi)Polygons, are read.\n"
+			reportF(SeverityTypeID::ST_Warning, "Feature {} is a Point and skipped as only Surfaces, aka (Multi)Polygons, are read.\n"
 				"Hint: Configure another attribute without ValueComposition to read separate points."
 				, i + firstIndex
 			);
@@ -1062,7 +1062,7 @@ void ReadPolyZM(typename sequence_traits<SeqType>::seq_t dataArray, OGRLayer* la
 		case OGRwkbGeometryType::wkbMultiPoint25D:
 		case OGRwkbGeometryType::wkbMultiPointM:
 		case OGRwkbGeometryType::wkbMultiPointZM:
-			reportF(SeverityTypeID::ST_Warning, "Feature %d is a MultiPoint and skipped as only Surfaces, aka (Multi)Polygons, are read.\n"
+			reportF(SeverityTypeID::ST_Warning, "Feature {} is a MultiPoint and skipped as only Surfaces, aka (Multi)Polygons, are read.\n"
 				"Hint: Configure another attribute with ValueComposition=sequence to read MultiPoints."
 				, i + firstIndex);
 			Assign(dataElemRef, Undefined());
@@ -1072,21 +1072,21 @@ void ReadPolyZM(typename sequence_traits<SeqType>::seq_t dataArray, OGRLayer* la
 		case OGRwkbGeometryType::wkbLineString25D:
 		case OGRwkbGeometryType::wkbLineStringM:
 		case OGRwkbGeometryType::wkbLineStringZM:
-			reportF(SeverityTypeID::ST_Warning, "Feature %d is a Linestring and skipped as only Surfaces, aka (Multi)Polygons, are read.\n"
+			reportF(SeverityTypeID::ST_Warning, "Feature {} is a Linestring and skipped as only Surfaces, aka (Multi)Polygons, are read.\n"
 				"Hint: Configure another attribute with ValueComposition=sequence to read Linestrings."
 				, i + firstIndex);
 			Assign(dataElemRef, Undefined());
 			break;
 
 		case OGRwkbGeometryType::wkbCircularString:
-			reportF(SeverityTypeID::ST_Warning, "Feature %d is a CircularString and skipped as only Surfaces, aka (Multi)Polygons, are read.\n"
+			reportF(SeverityTypeID::ST_Warning, "Feature {} is a CircularString and skipped as only Surfaces, aka (Multi)Polygons, are read.\n"
 				"Hint: Configure another attribute with ValueComposition=sequence to read it as Linestring."
 				, i + firstIndex);
 			Assign(dataElemRef, Undefined());
 			break;
 
 		case OGRwkbGeometryType::wkbCompoundCurve:
-			reportF(SeverityTypeID::ST_Warning, "Feature %d is a CompoundCurve and skipped as only Surfaces, aka (Multi)Polygons, are read.\n"
+			reportF(SeverityTypeID::ST_Warning, "Feature {} is a CompoundCurve and skipped as only Surfaces, aka (Multi)Polygons, are read.\n"
 				"Hint: Configure another attribute with ValueComposition=sequence to read it as Linestring."
 				, i + firstIndex);
 			Assign(dataElemRef, Undefined());
@@ -1110,7 +1110,7 @@ void ReadPolyZM(typename sequence_traits<SeqType>::seq_t dataArray, OGRLayer* la
 			AddMultiPolygonZM<SeqType>(dataElemRef, geo->toMultiPolygon(), isZ); break;
 
 		case OGRwkbGeometryType::wkbMultiLineString:
-			reportF(SeverityTypeID::ST_Warning, "Feature %d is a MultiLineString and skipped as only Surfaces, aka (Multi)Polygons, are read.\n"
+			reportF(SeverityTypeID::ST_Warning, "Feature {} is a MultiLineString and skipped as only Surfaces, aka (Multi)Polygons, are read.\n"
 				"Hint: Configure another attribute with ValueComposition=sequence to read it as Linestring."
 				, i + firstIndex);
 			Assign(dataElemRef, Undefined());
@@ -1120,7 +1120,7 @@ void ReadPolyZM(typename sequence_traits<SeqType>::seq_t dataArray, OGRLayer* la
 			AddMultiPolygonZM<SeqType>(dataElemRef, geo->getLinearGeometry()->toMultiPolygon(), isZ); break;
 
 		default:
-			reportF(SeverityTypeID::ST_Warning, "Feature %d has type %s, which cannot be represented as GeoDMS Polygon.\n"
+			reportF(SeverityTypeID::ST_Warning, "Feature {} has type {}, which cannot be represented as GeoDMS Polygon.\n"
 				"Hint: Configure a geometry attribute with ValueType=string and no ValueComposition to read the features as WKTs."
 				, i + firstIndex, OGRGeometryTypeToName(geometry_type));
 			Assign(dataElemRef, Undefined());
@@ -1144,7 +1144,7 @@ void ReadLinestringData(typename sequence_traits<PolygonType>::seq_t dataArray, 
 
 	DBG_START("ReadLinestringData", typeid(PolygonType).name(), true);
 
-	DBG_TRACE(("firstIndex %d, size %d", firstIndex, size));
+	DBG_TRACE(("firstIndex {}, size {}", firstIndex, size));
 
 	using dataBufType = typename sequence_traits<PolygonType>::container_type;
 
@@ -1153,7 +1153,7 @@ void ReadLinestringData(typename sequence_traits<PolygonType>::seq_t dataArray, 
 
 	SizeT i = 0;
 	auto lch = MakeLCH(
-		[firstIndex, &i]() -> SharedStr { return mySSPrintF("reading Points of Feature %d", i + firstIndex); }
+		[firstIndex, &i]() -> SharedStr { return mySSPrintF("reading Points of Feature {}", i + firstIndex); }
 	);
 
 	for (; i != size; ++i)
@@ -1198,7 +1198,7 @@ void ReadLinestringData(typename sequence_traits<PolygonType>::seq_t dataArray, 
 		case OGRwkbGeometryType::wkbPolygonM:
 		case OGRwkbGeometryType::wkbPolygonZM:
 		case OGRwkbGeometryType::wkbPolygon25D:
-			reportF(SeverityTypeID::ST_Warning, "Feature %d is a Polygon and skipped as only Curves, aka (Multi)Linestrings, and (sequences of) Points are read.\n"
+			reportF(SeverityTypeID::ST_Warning, "Feature {} is a Polygon and skipped as only Curves, aka (Multi)Linestrings, and (sequences of) Points are read.\n"
 				"Hint: Configure another attribute with ValueComposition=polygon to read it."
 				, i + firstIndex);
 			Assign(dataElemRef, Undefined());
@@ -1207,7 +1207,7 @@ void ReadLinestringData(typename sequence_traits<PolygonType>::seq_t dataArray, 
 		case OGRwkbGeometryType::wkbCurvePolygon:
 		case OGRwkbGeometryType::wkbCurvePolygonM:
 		case OGRwkbGeometryType::wkbCurvePolygonZM:
-			reportF(SeverityTypeID::ST_Warning, "Feature %d is a CurvePolygon and skipped as only Curves, aka (Multi)Linestrings, and (sequences of) Points are read.\n"
+			reportF(SeverityTypeID::ST_Warning, "Feature {} is a CurvePolygon and skipped as only Curves, aka (Multi)Linestrings, and (sequences of) Points are read.\n"
 				"Hint: Configure another attribute with ValueComposition=polygon to read it as Polygon."
 				, i + firstIndex);
 			Assign(dataElemRef, Undefined());
@@ -1217,7 +1217,7 @@ void ReadLinestringData(typename sequence_traits<PolygonType>::seq_t dataArray, 
 		case OGRwkbGeometryType::wkbMultiPolygon25D:
 		case OGRwkbGeometryType::wkbMultiPolygonM:
 		case OGRwkbGeometryType::wkbMultiPolygonZM:
-			reportF(SeverityTypeID::ST_Warning, "Feature %d is a MultiPolygon and skipped as only Curves, aka (Multi)Linestrings, and (sequences of) Points are read.\n"
+			reportF(SeverityTypeID::ST_Warning, "Feature {} is a MultiPolygon and skipped as only Curves, aka (Multi)Linestrings, and (sequences of) Points are read.\n"
 				"Hint: Configure another attribute with ValueComposition=polygon to read it."
 				, i + firstIndex);
 			Assign(dataElemRef, Undefined());
@@ -1230,14 +1230,14 @@ void ReadLinestringData(typename sequence_traits<PolygonType>::seq_t dataArray, 
 			AddMultiLineString<PolygonType>(dataElemRef, geo->toMultiLineString()); break;
 
 		case OGRwkbGeometryType::wkbMultiSurface:
-			reportF(SeverityTypeID::ST_Warning, "Feature %d is a MultiSurface and skipped as only Curves, aka (Multi)Linestrings, and (sequences of) Points are read.\n"
+			reportF(SeverityTypeID::ST_Warning, "Feature {} is a MultiSurface and skipped as only Curves, aka (Multi)Linestrings, and (sequences of) Points are read.\n"
 				"Hint: Configure another attribute with ValueComposition=polygon to read it as MultiPolygon."
 				, i + firstIndex);
 			Assign(dataElemRef, Undefined());
 			break;
 
 		default:
-			reportF(SeverityTypeID::ST_Warning, "Feature %d has type %s, which cannot be represented as GeoDMS Point Sequence.\n"
+			reportF(SeverityTypeID::ST_Warning, "Feature {} has type {}, which cannot be represented as GeoDMS Point Sequence.\n"
 				"Hint: Configure a geometry attribute with ValueType=string and no ValueComposition to read the features as WKTs."
 				, i + firstIndex, OGRGeometryTypeToName(geometry_type));
 			Assign(dataElemRef, Undefined());
@@ -1261,7 +1261,7 @@ void ReadLinestringZM(typename sequence_traits<SeqType>::seq_t dataArray, OGRLay
 
 	DBG_START("ReadLinestringData", typeid(SeqType).name(), false);
 
-	DBG_TRACE(("firstIndex %d, size %d", firstIndex, size));
+	DBG_TRACE(("firstIndex {}, size {}", firstIndex, size));
 
 	using dataBufType = typename sequence_traits<SeqType>::container_type;
 
@@ -1270,7 +1270,7 @@ void ReadLinestringZM(typename sequence_traits<SeqType>::seq_t dataArray, OGRLay
 
 	SizeT i = 0;
 	auto lch = MakeLCH(
-		[firstIndex, &i, isZ]() -> SharedStr { return mySSPrintF("reading %s coordinates of Feature %d", isZ ? "Z": "M", i + firstIndex); }
+		[firstIndex, &i, isZ]() -> SharedStr { return mySSPrintF("reading {} coordinates of Feature {}", isZ ? "Z": "M", i + firstIndex); }
 	);
 
 	for (; i != size; ++i)
@@ -1315,7 +1315,7 @@ void ReadLinestringZM(typename sequence_traits<SeqType>::seq_t dataArray, OGRLay
 		case OGRwkbGeometryType::wkbPolygonM:
 		case OGRwkbGeometryType::wkbPolygonZM:
 		case OGRwkbGeometryType::wkbPolygon25D:
-			reportF(SeverityTypeID::ST_Warning, "Feature %d is a Polygon and skipped as only Curves, aka (Multi)Linestrings, and (sequences of) Points are read.\n"
+			reportF(SeverityTypeID::ST_Warning, "Feature {} is a Polygon and skipped as only Curves, aka (Multi)Linestrings, and (sequences of) Points are read.\n"
 				"Hint: Configure another attribute with ValueComposition=polygon to read it."
 				, i + firstIndex);
 			Assign(dataElemRef, Undefined());
@@ -1324,7 +1324,7 @@ void ReadLinestringZM(typename sequence_traits<SeqType>::seq_t dataArray, OGRLay
 		case OGRwkbGeometryType::wkbCurvePolygon:
 		case OGRwkbGeometryType::wkbCurvePolygonM:
 		case OGRwkbGeometryType::wkbCurvePolygonZM:
-			reportF(SeverityTypeID::ST_Warning, "Feature %d is a CurvePolygon and skipped as only Curves, aka (Multi)Linestrings, and (sequences of) Points are read.\n"
+			reportF(SeverityTypeID::ST_Warning, "Feature {} is a CurvePolygon and skipped as only Curves, aka (Multi)Linestrings, and (sequences of) Points are read.\n"
 				"Hint: Configure another attribute with ValueComposition=polygon to read it as Polygon."
 				, i + firstIndex);
 			Assign(dataElemRef, Undefined());
@@ -1334,7 +1334,7 @@ void ReadLinestringZM(typename sequence_traits<SeqType>::seq_t dataArray, OGRLay
 		case OGRwkbGeometryType::wkbMultiPolygon25D:
 		case OGRwkbGeometryType::wkbMultiPolygonM:
 		case OGRwkbGeometryType::wkbMultiPolygonZM:
-			reportF(SeverityTypeID::ST_Warning, "Feature %d is a MultiPolygon and skipped as only Curves, aka (Multi)Linestrings, and (sequences of) Points are read.\n"
+			reportF(SeverityTypeID::ST_Warning, "Feature {} is a MultiPolygon and skipped as only Curves, aka (Multi)Linestrings, and (sequences of) Points are read.\n"
 				"Hint: Configure another attribute with ValueComposition=polygon to read it."
 				, i + firstIndex);
 			Assign(dataElemRef, Undefined());
@@ -1347,14 +1347,14 @@ void ReadLinestringZM(typename sequence_traits<SeqType>::seq_t dataArray, OGRLay
 			AddMultiLineStringZM<SeqType>(dataElemRef, geo->toMultiLineString(), isZ); break;
 
 		case OGRwkbGeometryType::wkbMultiSurface:
-			reportF(SeverityTypeID::ST_Warning, "Feature %d is a MultiSurface and skipped as only Curves, aka (Multi)Linestrings, and (sequences of) Points are read.\n"
+			reportF(SeverityTypeID::ST_Warning, "Feature {} is a MultiSurface and skipped as only Curves, aka (Multi)Linestrings, and (sequences of) Points are read.\n"
 				"Hint: Configure another attribute with ValueComposition=polygon to read it as MultiPolygon."
 				, i + firstIndex);
 			Assign(dataElemRef, Undefined());
 			break;
 
 		default:
-			reportF(SeverityTypeID::ST_Warning, "Feature %d has type %s, which cannot be represented as GeoDMS Point Sequence.\n"
+			reportF(SeverityTypeID::ST_Warning, "Feature {} has type {}, which cannot be represented as GeoDMS Point Sequence.\n"
 				"Hint: Configure a geometry attribute with ValueType=string and no ValueComposition to read the features as WKTs."
 				, i + firstIndex, OGRGeometryTypeToName(geometry_type));
 			Assign(dataElemRef, Undefined());
@@ -1377,7 +1377,7 @@ void ReadStringData(sequence_traits<SharedStr>::seq_t dataArray, OGRLayer* layer
 
 	DBG_START("ReadStringData", "", true);
 
-	DBG_TRACE(("firstIndex %d, size %d", firstIndex, size));
+	DBG_TRACE(("firstIndex {}, size {}", firstIndex, size));
 
 	SizeT numChars = 0;
 	typedef sequence_traits<SharedStr>::container_type dataBufType;
@@ -1386,7 +1386,7 @@ void ReadStringData(sequence_traits<SharedStr>::seq_t dataArray, OGRLayer* layer
 
 	SizeT i=0;
 	auto lch = MakeLCH(
-		[firstIndex, &i]() -> SharedStr { return mySSPrintF("Reading String Element %d", i + firstIndex); }
+		[firstIndex, &i]() -> SharedStr { return mySSPrintF("Reading String Element {}", i + firstIndex); }
 	);
 
 	for (i=0; i!=size; ++i)
@@ -1528,7 +1528,7 @@ bool GdalVectSM::ReadGeometryZM(const GdalVectlMetaInfo* br, AbstrDataObject* ad
 
 	default:
 		ado->throwItemErrorF(
-			"GdalVectSM::ReadGeometryZM not implemented for DataItems with ValuesUnitType: %s",
+			"GdalVectSM::ReadGeometryZM not implemented for DataItems with ValuesUnitType: {}",
 			vc->GetName()
 		);
 	}
@@ -1589,7 +1589,7 @@ bool GdalVectSM::ReadGeometry(const GdalVectlMetaInfo* br, AbstrDataObject* ado,
 		case ValueClassID::VT_SharedStr: ReadStringData(mutable_array_cast<SharedStr>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS); break;
 	default:
 			ado->throwItemErrorF(
-				"GdalVectSM::ReadDataItem not implemented for DataItems with ValuesUnitType: %s", 
+				"GdalVectSM::ReadDataItem not implemented for DataItems with ValuesUnitType: {}", 
 				vc->GetName()
 			);
 	}
@@ -1603,7 +1603,7 @@ void ReadStrAttrData(OGRLayer* layer, SizeT currFieldIndex, sequence_traits<Shar
 {
 	SizeT i=0;
 	auto lch = MakeLCH(
-		[firstIndex, &i]() -> SharedStr { return mySSPrintF("Reading String Field %d", i + firstIndex); }
+		[firstIndex, &i]() -> SharedStr { return mySSPrintF("Reading String Field {}", i + firstIndex); }
 	);
 
 	for (; i!=size; ++i)
@@ -1674,7 +1674,7 @@ void ReadInt32AttrData(OGRLayer* layer, SizeT currFieldIndex, typename sequence_
 {
 	SizeT i=0;
 	auto lch = MakeLCH(
-		[firstIndex, &i]() -> SharedStr { return mySSPrintF("Reading Int32 Field %d", i + firstIndex); }
+		[firstIndex, &i]() -> SharedStr { return mySSPrintF("Reading Int32 Field {}", i + firstIndex); }
 	);
 
 	if (hDS->TestCapability(ODsCRandomLayerRead))
@@ -1710,7 +1710,7 @@ void ReadInt64AttrData(OGRLayer* layer, SizeT currFieldIndex, typename sequence_
 {
 	SizeT i = 0;
 	auto lch = MakeLCH(
-		[firstIndex, &i]() -> SharedStr { return mySSPrintF("Reading Int64 Field %d", i + firstIndex); }
+		[firstIndex, &i]() -> SharedStr { return mySSPrintF("Reading Int64 Field {}", i + firstIndex); }
 	);
 
 	if (hDS->TestCapability(ODsCRandomLayerRead)) {
@@ -1746,7 +1746,7 @@ void ReadDoubleAttrData(OGRLayer* layer, SizeT currFieldIndex, typename sequence
 {
 	SizeT i=0;
 	auto lch = MakeLCH(
-		[firstIndex, &i]() -> SharedStr { return mySSPrintF("Reading Float64 Field %d", i + firstIndex); }
+		[firstIndex, &i]() -> SharedStr { return mySSPrintF("Reading Float64 Field {}", i + firstIndex); }
 	);
 
 	if (hDS->TestCapability(ODsCRandomLayerRead)) {
@@ -1782,7 +1782,7 @@ OGRLayer* GdalVectSM::Layer(const GdalVectlMetaInfo* br) const
 	assert(m_hDS);
 
 	if (!m_Layer)
-		throwErrorF("gdal.vect","cannot open layer %s%s", br->m_NameID.GetStr().c_str(), (m_hDS->GetLayerCount() == 1) ? "" : ", multiple layers available");
+		throwErrorF("gdal.vect","cannot open layer {}{}", br->m_NameID.GetStr().c_str(), (m_hDS->GetLayerCount() == 1) ? "" : ", multiple layers available");
 	return m_Layer;
 }
 
@@ -1799,7 +1799,7 @@ bool GdalVectSM::ReadAttrData(const GdalVectlMetaInfo* br, AbstrDataObject * ado
 		auto adi = br->CurrWD();
 		m_CurrFieldIndex = LayerFieldEnable(layer, adi->GetName().c_str(), adi); // only set once
 		if (m_CurrFieldIndex == SizeT(-1))
-			throwErrorF("GdalVectSM::ReadAttrData", "No column '%s' available in datasource", br->m_RelativeName);
+			throwErrorF("GdalVectSM::ReadAttrData", "No column '{}' available in datasource", br->m_RelativeName);
 	}
 	assert(m_CurrFieldIndex != SizeT(-1));
 
@@ -1886,7 +1886,7 @@ ready:
 	m_CurrFeatureIndex += size;
 	return true;
 typeConflict:
-	throwErrorF("gdal.vect", "Cannot read attribute data of type %d into attribute of type %d", int(ft), int(at));
+	throwErrorF("gdal.vect", "Cannot read attribute data of type {} into attribute of type {}", int(ft), int(at));
 }
 
 void GdalVectSM::SetCurrFeatureIndex(SizeT firstFeatureIndex) const
@@ -2505,7 +2505,7 @@ void GdalVectSM::WriteLayer(TokenID layer_id, const GdalMetaInfo& gmi)
 		layer_handle = InitializeLayer(storage_holder, unit_item, this->m_hDS, layer_id, layer_option_array, m_DataItemsStatusInfo);
 
 	if (not layer_handle)
-		throwErrorF("gdal.vect", "cannot find layer: %s in GDALDataset for writing.", layer_id.AsStdString());
+		throwErrorF("gdal.vect", "cannot find layer: {} in GDALDataset for writing.", layer_id.AsStdString());
 
 	if (not layer_handle->GetLayerDefn()->GetFieldCount()) // geosjon: fields uninitialized at this point
 		SetFeatureDefnForOGRLayerFromLayerHolder(unit_item, layer_handle, layer_id, m_DataItemsStatusInfo);
@@ -2516,7 +2516,7 @@ void GdalVectSM::WriteLayer(TokenID layer_id, const GdalMetaInfo& gmi)
 	for (tile_id t = 0, te = adu->GetNrTiles(); t != te; ++t)
 	{
 		if (t + 1 == te)
-			reportF(MsgCategory::storage_write, SeverityTypeID::ST_MajorTrace, "gdalwrite.vect, written %u tiles of layer %s",
+			reportF(MsgCategory::storage_write, SeverityTypeID::ST_MajorTrace, "gdalwrite.vect, written {} tiles of layer {}",
 				adu->GetNrTiles(), layer_id.AsStdString());
 
 		GDAL_TransactionFrame transaction_frame(this->m_hDS);
@@ -2709,7 +2709,7 @@ void GdalVectSM::CompareConfiguredGeometryWithGdal(AbstrDataItem* geometry, OGRL
 	if (configured_vc == gdal_vc)
 		return;
 
-	auto fail_reason = mySSPrintF("Value composition is \"%s\", which is incompatible with GDAL's geometry type \"%s\""
+	auto fail_reason = mySSPrintF("Value composition is \"{}\", which is incompatible with GDAL's geometry type \"{}\""
 		, AsString(GetValueCompositionID(configured_vc))
 		, OGRGeometryTypeToName(layer_geometry_type)
 	);
@@ -2889,7 +2889,7 @@ void GdalVectSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 			if (curr != storageHolder)
 				return;
 			SharedStr currFullName = curr->GetFullName();
-			reportF(SeverityTypeID::ST_Warning, "'%s' has a calculation rule and has a configured data source. If related attributes should be read from '%s', consider reading it as a separate table and use rjoin on a primary-key to obtain the read attribute values."
+			reportF(SeverityTypeID::ST_Warning, "'{}' has a calculation rule and has a configured data source. If related attributes should be read from '{}', consider reading it as a separate table and use rjoin on a primary-key to obtain the read attribute values."
 				, currFullName.c_str()
 				, GetNameStr().c_str()
 			);

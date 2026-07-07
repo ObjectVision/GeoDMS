@@ -34,7 +34,7 @@ class PropertyContextHandle : ObjectContextHandle
 		assert(m_Obj);
 
 		this->SetText(
-			mySSPrintF("while evaluating '%s' for property %s"
+			mySSPrintF("while evaluating '{}' for property {}"
 				, m_Role
 				, m_Obj->GetName().c_str()
 			)

@@ -119,12 +119,12 @@ auto FindName(const TreeItem* context, const SharedStrArray* nameArray, arg_inde
 		auto contextName = SharedStr(context->GetName());
 		if (!result)
 			context->throwItemErrorF(
-				"%d-th %s '%s' cannot be found in container '%s'",
+				"{}-th {} '{}' cannot be found in container '{}'",
 				i, role, itemName.c_str(), contextName.c_str()
 			);
 
 		context->throwItemErrorF(
-			"%d-th %s '%s', found in container '%s', is not a unit-item as required",
+			"{}-th {} '{}', found in container '{}', is not a unit-item as required",
 			i, role, itemName.c_str(), contextName.c_str()
 		);
 	}
@@ -280,8 +280,8 @@ bool ForEach_CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args,
 			const TreeItem* templ = FindName(optTempl, optTemplNames, i, "template", false);
 			if (optExprs && !templ->_GetExprStr().empty())
 				reportF(SeverityTypeID::ST_Warning,
-					"%s: this template has calculation rule '%s'\n"
-					"which conflicts with the explicit given expressions for the item domain set %s;\n"
+					"{}: this template has calculation rule '{}'\n"
+					"which conflicts with the explicit given expressions for the item domain set {};\n"
 					"this is considered as a potential error",
 					groupNameID.GetStr().c_str(),
 					templ->_GetExprStr().c_str(),
@@ -316,7 +316,7 @@ bool ForEach_CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args,
 			{
 				if (!oldStr.empty() && newStr != oldStr)
 				{
-					auto msg = mySSPrintF("Cannot set '%s'  to '%s' of item  '%s' as it is already defined as '%s'"
+					auto msg = mySSPrintF("Cannot set '{}'  to '{}' of item  '{}' as it is already defined as '{}'"
 						, propName, newStr, iter->GetName(), oldStr);
 					throwErrorD(groupNameID, msg.c_str());
 				}
@@ -401,7 +401,7 @@ static field_spec ScanFirstArg(const AbstrOperGroup* og, CharPtr argSpecPtr)
 
 parseEnd:
 	if (*argSpecPtr)
-		og->throwOperErrorF("argument specification, unexpected token(s): '%s' in %s", argSpecPtr, argSpecBegin);
+		og->throwOperErrorF("argument specification, unexpected token(s): '{}' in {}", argSpecPtr, argSpecBegin);
 	return field_spec(fs);
 }
 
@@ -421,7 +421,7 @@ public:
 		auto nrExpectedArgs = CalcNrArgs(fs) + 1;
 		if (args.size() != nrExpectedArgs)
 			throwDmsErrF(
-				"number of given arguments doesn't match the specification '%s': %d arguments given (including the specification), but %d expected"
+				"number of given arguments doesn't match the specification '{}': {} arguments given (including the specification), but {} expected"
 				, argSpec.c_str()
 				, args.size()
 				, nrExpectedArgs
@@ -487,7 +487,7 @@ public:
 		if (m_FS & (FS_STORAGENAME | FS_STORAGETYPE | FS_SQLSTRING | FS_DESCR | FS_LABEL))
 		{
 			reportF(ST_Warning, 
-				"use of obsolete %s, replace by for_each_ind, see: http://www.objectvision.nl/geodms/operators-a-functions/metascript/for-each-indirect", 
+				"use of obsolete {}, replace by for_each_ind, see: http://www.objectvision.nl/geodms/operators-a-functions/metascript/for-each-indirect", 
 				GetGroup()->GetName()
 			);
 		}

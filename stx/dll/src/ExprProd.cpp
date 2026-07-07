@@ -123,7 +123,7 @@ void ExprProd::ProdUInt32WithoutSuffix()
 	dms_assert(m_Result.back().IsUI64());
 	auto value = m_Result.First().GetUI64Val();
 	if (value > UInt32(-1))
-		throwErrorF("ExprProd", "Cannot convert %u to UInt32, consider adding the suffix u64 or i64", value);
+		throwErrorF("ExprProd", "Cannot convert {} to UInt32, consider adding the suffix u64 or i64", value);
 	static LispRef uint32Head(t_uint32);
 	m_Result.repl_back1(
 			List2<LispRef>(

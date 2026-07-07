@@ -227,7 +227,7 @@ void GraphicObject::OnVisibilityChanged()
 void GraphicObject::OnSizeChanged()
 {
 	DBG_START("GraphObject", "OnSizeChanged", MG_DEBUG_VIEWINVALIDATE);
-	DBG_TRACE(("%s %x: %x", GetDynamicClass()->GetName().c_str(), this, &*(GetOwner().lock())));
+	DBG_TRACE(("{} {:x}: {:x}", GetDynamicClass()->GetName().c_str(), this, &*(GetOwner().lock())));
 
 	assert(!m_State.HasInvalidationBlock());
 
@@ -640,7 +640,7 @@ void GraphicObject::SetActive(bool newState)
 {
 #if defined(MG_DEBUG)
 	if (newState == IsActive())
-		reportF(SeverityTypeID::ST_MinorTrace, "SetActive(%d) called on %sactive object", newState, IsActive() ? "" : "non-");
+		reportF(SeverityTypeID::ST_MinorTrace, "SetActive({}) called on {}active object", newState, IsActive() ? "" : "non-");
 #endif
 
 	m_State.Set(GOF_Active, newState);
@@ -783,7 +783,7 @@ void GraphicObject::FillMenu(MouseEventDispatcher& med)
 		auto ft = GetFailType();
 		auto fr = GetFailReason(); if (!fr) return;
 
-		SubMenu subMenu(med.m_MenuData, mySSPrintF("%s of %s", FailStateName(ft), GetDynamicClass()->GetName().c_str()));
+		SubMenu subMenu(med.m_MenuData, mySSPrintF("{} of {}", FailStateName(ft), GetDynamicClass()->GetName().c_str()));
 		SharedStr failReason = fr->GetAsText();
 		CharPtr
 			bol = failReason.begin(),

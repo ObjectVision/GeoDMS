@@ -32,7 +32,7 @@ static void launchDetached(const QString& program, const QStringList& args, cons
         reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, full.toStdString().c_str());
     else
         reportF(MsgCategory::commands, SeverityTypeID::ST_Warning,
-                "Unable to start %s: %s", logLabel, full.toStdString().c_str());
+                "Unable to start {}: {}", logLabel, full.toStdString().c_str());
 }
 
 // ---------------------------------------------------------------------------

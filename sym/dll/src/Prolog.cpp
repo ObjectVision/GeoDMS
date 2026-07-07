@@ -101,9 +101,9 @@ AssocList UnifyRobinson(LispPtr t1, LispPtr t2, AssocListPtr s = AssocList())
 	//	See: [Boizumault93], p.17
 {
 	DBG_START("UnifyRobinson", "", false);
-	DBG_TRACE(("t1   :%s", AsString(t1).c_str()));
-	DBG_TRACE(("t2   :%s", AsString(t2).c_str()));
-	DBG_TRACE(("Assoc:%s", AsString(s).c_str()));
+	DBG_TRACE(("t1   :{}", AsString(t1).c_str()));
+	DBG_TRACE(("t2   :{}", AsString(t2).c_str()));
+	DBG_TRACE(("Assoc:{}", AsString(s).c_str()));
 	if (t1.IsVar() || t2.IsVar())
 	{
 		if (t1==t2)
@@ -230,7 +230,7 @@ AnswerList Prove(
 #endif MG_DEBUG_PROLOG
 
 #if MG_DEBUG_PROLOG > 2
-	DBG_TRACE(("Goal-list  = %s", AsString(gl).c_str()));
+	DBG_TRACE(("Goal-list  = {}", AsString(gl).c_str()));
 #endif MG_DEBUG_PROLOG > 2
 	Predicate::ptr_type     g = gl.Head(); // current goal
 	PredicateList::ptr_type r = gl.Tail(); // remaining goals
@@ -238,9 +238,9 @@ AnswerList Prove(
 	RuleList p = SelectRules(ruleBase, g, chr);    // RuleBase, Renumbered at chr
 
 #if MG_DEBUG_PROLOG > 2
-	DBG_TRACE(("Goal       = %s", AsString(g).c_str()));
-	DBG_TRACE(("Remaining  = %s", AsString(r).c_str()));
-	DBG_TRACE(("Env        = %s", AsString(e).c_str()));
+	DBG_TRACE(("Goal       = {}", AsString(g).c_str()));
+	DBG_TRACE(("Remaining  = {}", AsString(r).c_str()));
+	DBG_TRACE(("Env        = {}", AsString(e).c_str()));
 #endif MG_DEBUG_PROLOG > 2
 
 	AnswerList sol = AnswerList();
@@ -252,16 +252,16 @@ AnswerList Prove(
 		if (!uni.IsFailed())
 		{
 #ifdef MG_DEBUG_PROLOG
-			DBG_TRACE(("Unified at : %s", AsString(chr).c_str()));
-			DBG_TRACE(("Predicate  : %s", AsString(rule.Head()).c_str()));
-			DBG_TRACE(("Goal       : %s", AsString(g).c_str()));
-			DBG_TRACE(("Unification: %s", AsString(uni.AsLispPtr()).c_str()));
-			DBG_TRACE(("Conditions : %s", AsString(rule.Tail().AsLispPtr()).c_str()));
+			DBG_TRACE(("Unified at : {}", AsString(chr).c_str()));
+			DBG_TRACE(("Predicate  : {}", AsString(rule.Head()).c_str()));
+			DBG_TRACE(("Goal       : {}", AsString(g).c_str()));
+			DBG_TRACE(("Unification: {}", AsString(uni.AsLispPtr()).c_str()));
+			DBG_TRACE(("Conditions : {}", AsString(rule.Tail().AsLispPtr()).c_str()));
 #endif
 			sol = Prove(ruleBase, rule.Tail().Concat(r), uni, chr+1).Concat(sol);
 #ifdef MG_DEBUG_PROLOG
-			DBG_TRACE(("Solved level: %s", AsString(chr).c_str()));
-			DBG_TRACE(("Solutions   : %s", AsString(sol.AsLispPtr()).c_str()));
+			DBG_TRACE(("Solved level: {}", AsString(chr).c_str()));
+			DBG_TRACE(("Solutions   : {}", AsString(sol.AsLispPtr()).c_str()));
 #endif
 		}
 		p = p.Tail();

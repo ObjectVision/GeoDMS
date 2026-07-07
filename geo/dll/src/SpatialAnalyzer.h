@@ -250,7 +250,7 @@ D Districter<T, D>::GetDistricts(UGrid<D> output, bool rule8)
 	for (; FindFirstNotProcessedPoint(point); ++resNrDistricts)
 	{
 		if (!resNrDistricts && !isFirstDistrict)
-			throwErrorF("district", "number of found districts exceeds the maximum of the chosen district operator that stores only %d bytes per cell", sizeof(D));
+			throwErrorF("district", "number of found districts exceeds the maximum of the chosen district operator that stores only {} bytes per cell", sizeof(D));
 
 		GetDistrict(output.GetDataPtr(), point, resNrDistricts, rule8);
 		isFirstDistrict = false;

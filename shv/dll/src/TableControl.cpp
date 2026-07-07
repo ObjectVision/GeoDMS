@@ -504,14 +504,14 @@ SharedStr TableControl::GetCaption() const
 		SizeT nrRecs = const_cast<TableControl*>(this)->PrepareDataOrUpdateViewLater(domain) ? domain->GetDataCount() : UNDEFINED_VALUE(SizeT);
 
 		if (m_GroupByEntity)
-			return mgFormat2SharedStr("#%s = %s, grouped to %d rows by %s", domainName, AsString(nrRecs), nrRows, m_GroupByEntity->GetExpr());
+			return mgFormat2SharedStr("#{} = {}, grouped to {} rows by {}", domainName, AsString(nrRecs), nrRows, m_GroupByEntity->GetExpr());
 		if (nrRows == nrRecs)
-			return mgFormat2SharedStr("#%s = %s", domainName, AsString(nrRecs));
-		return mgFormat2SharedStr("#%s = %s, %s selected", domainName, AsString(nrRecs), AsString(nrRows));
+			return mgFormat2SharedStr("#{} = {}", domainName, AsString(nrRecs));
+		return mgFormat2SharedStr("#{} = {}, {} selected", domainName, AsString(nrRecs), AsString(nrRows));
 	}
 	catch (...)
 	{
-		return mgFormat2SharedStr("#%s Could not be determined", domainName);
+		return mgFormat2SharedStr("#{} Could not be determined", domainName);
 	}
 }
 
@@ -1093,7 +1093,7 @@ void TableControl::Export() const
 {
 	ExportInfo info = GetExportInfo();
 	
-	SharedStr fileName = mySSPrintF("%s.csv", info.m_FullFileNameBase.c_str());
+	SharedStr fileName = mySSPrintF("{}.csv", info.m_FullFileNameBase.c_str());
 
 	FileOutStreamBuff buff(fileName, true);
 	TableControl_SaveTo(this, &buff, TableCopyMode::WholeTable);
@@ -1235,7 +1235,7 @@ SharedMutableDataItem TableControl::CreateIdAttr(const AbstrUnit* domain, const 
 		idAttr->SetDC(GetOrCreateDataController(keyExpr));
 	}
 	else
-		idAttr->SetExpr( mySSPrintF("id(%s)", domain->GetScriptName(idAttr.get()).c_str() ) );
+		idAttr->SetExpr( mySSPrintF("id({})", domain->GetScriptName(idAttr.get()).c_str() ) );
 	return idAttr;
 }
 
@@ -1353,12 +1353,12 @@ void TableControl::CreateTableGroupBy(bool activate)
 		SharedStr expr = dic->m_FutureSrcAttr->GetFullName();
 		if (m_Cols.m_Begin < m_Cols.m_End)
 		{
-			expr = mgFormat2SharedStr("String(%s)", expr);
+			expr = mgFormat2SharedStr("String({})", expr);
 			for (SizeT i = m_Cols.m_Begin + 1; i <= m_Cols.m_End; ++i)
 			{
 				auto dic2 = GetColumn(i);
 				dic2->m_GroupByIndex = i - m_Cols.m_Begin;
-				expr = mgFormat2SharedStr("%s + '_' + String(%s)"
+				expr = mgFormat2SharedStr("{} + '_' + String({})"
 					, expr
 					, dic2->m_FutureSrcAttr->GetFullName()
 				);
@@ -1370,14 +1370,14 @@ void TableControl::CreateTableGroupBy(bool activate)
 		std::shared_ptr<AbstrUnit> groupByEntity = make_shared_tree(resDomainCls->CreateUnit(GetContext(), GetTokenID_mt("GroupBy")).get(), existing_obj{});
 		groupByEntity->DisableStorage();
 		auto keysMustBeDefined = m_State.Get(TCF_MustBeDefined);
-		auto uniqueExprFormat = keysMustBeDefined ? "unique(%s)" : "unique_with_null(%s)";
+		auto uniqueExprFormat = keysMustBeDefined ? "unique({})" : "unique_with_null({})";
 		groupByEntity->SetExpr(mgFormat2SharedStr(uniqueExprFormat, expr));
 
 		m_GroupByEntity = groupByEntity.get();
 
 		SharedMutableDataItem groupByRel = CreateDataItem(groupByEntity.get(), GetTokenID_mt("per_Row"), GetEntity(), m_GroupByEntity);
 		groupByRel->DisableStorage();
-		auto rlookupExprFormat = keysMustBeDefined ? "rlookup(%s, values)" : "rlookup_with_null(%s, values)";
+		auto rlookupExprFormat = keysMustBeDefined ? "rlookup({}, values)" : "rlookup_with_null({}, values)";
 		groupByRel->SetExpr(mgFormat2SharedStr(rlookupExprFormat, expr));
 		m_GroupByRel = groupByRel.get();
 

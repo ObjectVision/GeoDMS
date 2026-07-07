@@ -869,7 +869,7 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 					{
 						MG_CHECK(flags(df & DijkstraFlag::PrecalculatedNrDstZones));
 						if (zonalResultCount > givenZonalResultCount)
-							throwDmsErrF("orgZone %1%: zonalResultCount %2% != givenZonalResultCount %3%", orgZone, zonalResultCount, givenZonalResultCount);
+							throwDmsErrF("orgZone {0}: zonalResultCount {1} != givenZonalResultCount {2}", orgZone, zonalResultCount, givenZonalResultCount);
 					}
 				}
 			}
@@ -1178,7 +1178,7 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 
 			zoneCount++;
 			if (processTimer.PassedSecs())
-				reportF(SeverityTypeID::ST_MajorTrace, "%simpedance_matrix %s %s of %s sources: resulted in %s od-pairs"
+				reportF(SeverityTypeID::ST_MajorTrace, "{}impedance_matrix {} {} of {} sources: resulted in {} od-pairs"
 					, itemRef
 					, actionMsg
 					, AsString(zoneCount), AsString(ni.nrOrgZones), AsString(resultCount));
@@ -1199,7 +1199,7 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 	if (CancelableFrame::CurrActiveCanceled())
 		return UNDEFINED_VALUE(SizeT);
 
-	reportF(SeverityTypeID::ST_MajorTrace, "%simpedance_matrix %s all %d sources: resulted in %s od-pairs"
+	reportF(SeverityTypeID::ST_MajorTrace, "{}impedance_matrix {} all {} sources: resulted in {} od-pairs"
 		, itemRef
 		, actionMsg
 		, AsString(ni.nrOrgZones), AsString(resultCount));
@@ -1330,7 +1330,7 @@ public:
 
 		if (args.size() != CalcNrArgs(df))
 			throwDmsErrF(
-				"number of given arguments doesn't match the specification '%s': %d arguments given (including the specification), but %d expected"
+				"number of given arguments doesn't match the specification '{}': {} arguments given (including the specification), but {} expected"
 			,	paramSpec.c_str()
 			,	args.size()
 			,	CalcNrArgs(df)

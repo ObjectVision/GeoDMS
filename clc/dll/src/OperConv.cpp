@@ -98,7 +98,7 @@ void OGRCheck(OGRSpatialReference* ref, OGRErr result, CharPtr format, const Abs
 	case OGRERR_INVALID_HANDLE: errMsg = "Invalid Handle";                        break;
 	default: errMsg = "Error code not defined in ogr_code.h";                                break;
 	}
-	auto errMsgTxt = mySSPrintF("Cannot make a SpatialRefBlock from %s. OGRCheck code %d: %s"
+	auto errMsgTxt = mySSPrintF("Cannot make a SpatialRefBlock from {}. OGRCheck code {}: {}"
 		, format
 		, result
 		, errMsg);

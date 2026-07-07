@@ -236,7 +236,7 @@ template <class V>
 inline auto Range_GetValue_or_throw(const Range<V>& range, SizeT index) -> V
 {
 	if (index >= Cardinality(range))
-		throwErrorF("Range", "index %d out of bouds for range %s", index, AsString(range));
+		throwErrorF("Range", "index {} out of bouds for range {}", index, AsString(range));
 
 	return Range_GetValue_naked(range, index);
 }

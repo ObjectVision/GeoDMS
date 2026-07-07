@@ -142,8 +142,8 @@ inline void CheckAllocSize(UInt32 n, UInt32 objSize, CharPtr context)
 {
 	if (n > (DBG_MAX_ALLOC / objSize))
 		throwErrorF(
-			"Memory","%s: Operation requested the allocation of %u elements of %u bytes,\n"
-			"which exceeds the allocation limit of %I64u bytes.",
+			"Memory","{}: Operation requested the allocation of {} elements of {} bytes,\n"
+			"which exceeds the allocation limit of {} bytes.",
 			context, n, objSize, 
 			(UInt64)DBG_MAX_ALLOC
 		);

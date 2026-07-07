@@ -50,7 +50,7 @@ void CheckValueCount(CharPtr loc, Iter iter, SizeT sz)
 		if (*iter++ != std::iterator_traits<Iter>::value_type())
 			count++;
 	}
-	reportF(SeverityTypeID::ST_MajorTrace, "CheckValueCount(%1%): %2%/%3%", loc, count, szCopy);
+	reportF(SeverityTypeID::ST_MajorTrace, "CheckValueCount({0}): {1}/{2}", loc, count, szCopy);
 }
 #else
 
@@ -273,7 +273,7 @@ namespace Grid {
 						if (tileSize.X() % fileTileSize.X() || tileSize.Y() % fileTileSize.Y())
 						{
 							reportF(SeverityTypeID::ST_Warning
-								, "GridStorageManager: Tilesize mismatch between data source %s of item %s: %d,%d and GeoDMS tiling: %d,%d"
+								, "GridStorageManager: Tilesize mismatch between data source {} of item {}: {},{} and GeoDMS tiling: {},{}"
 								, dataSourceName
 								, viewPort2Grid.m_smi->CurrRI()->GetFullName()
 								, fileTileSize.X(), fileTileSize.Y()
@@ -283,7 +283,7 @@ namespace Grid {
 						if (Int64(viewPort2Grid.Offset().X()) % fileTileSize.X() || Int64(viewPort2Grid.Offset().Y()) % fileTileSize.Y())
 						{
 							reportF(SeverityTypeID::ST_Warning
-								, "GridStorageManager: Offset mismatch between data source %s of item %s: %d,%d and GeoDMS offset: %d,%d"
+								, "GridStorageManager: Offset mismatch between data source {} of item {}: {},{} and GeoDMS offset: {},{}"
 								, dataSourceName
 								, viewPort2Grid.m_smi->CurrRI()->GetFullName()
 								, fileTileSize.X(), fileTileSize.Y()
@@ -408,7 +408,7 @@ namespace Grid {
 		case 64: ReadData<Float64>(imp, vpi, Undef64(streamTypeID), reinterpret_cast<Float64*>(dataPtr), dataSourceName); return;
 		}
 		auto streamTypeName = SharedStr(streamType->GetName());
-		throwErrorF("GRID::ReadGridData", "Cannot read raster data as elements of type %s", streamTypeName);
+		throwErrorF("GRID::ReadGridData", "Cannot read raster data as elements of type {}", streamTypeName);
 	}
 
 	template <typename CountType, typename ColorType, typename Imp>
@@ -488,7 +488,7 @@ namespace Grid {
 		case 16: CountDataImpl<CountType, UInt16>(imp, viewPort2tiff, pixels, dataSourceName); return;
 		case 32: CountDataImpl<CountType, UInt32>(imp, viewPort2tiff, pixels, dataSourceName); return;
 		}
-		throwErrorF("GRID::CountData", "reading %d bits per pixel not supported", bpp);
+		throwErrorF("GRID::CountData", "reading {} bits per pixel not supported", bpp);
 	}
 
 	template <typename Imp>
@@ -505,7 +505,7 @@ namespace Grid {
 		case 32: CountData<UInt32>(imp, vpi, reinterpret_cast<UInt32*>(ado->GetDataWriteBegin(t, dms_rw_mode::write_only_all).get_ptr()), dataSourceName); return;
 		}
 		auto streamTypeName = SharedStr(GetStreamType(ado)->GetName());
-		throwErrorF("GRID::ReadGridCounts", "Cannot count raster data into elements of type %s", streamTypeName);
+		throwErrorF("GRID::ReadGridCounts", "Cannot count raster data into elements of type {}", streamTypeName);
 	}
 
 
@@ -640,7 +640,7 @@ namespace Grid {
 		case ValueClassID::VT_UInt64:  WriteTiles<Float64>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, reinterpret_cast<const TileFunctor<Float64>*>(const_array_cast<UInt64>(ado)), dataSourceName); return;
 		}
 		auto streamTypeName = SharedStr(streamType->GetName());
-		throwErrorF("GRID::WriteGridData", "cannot store %s elements as raster data ", streamTypeName);
+		throwErrorF("GRID::WriteGridData", "cannot store {} elements as raster data ", streamTypeName);
 	}
 
 } // namespace Grid

@@ -148,12 +148,12 @@ int main2_without_SE(int argc, char** argv)
 		}
 		else
 		{
-			reportF(SeverityTypeID::ST_MajorTrace, "Item %s", *argv);
+			reportF(SeverityTypeID::ST_MajorTrace, "Item {}", *argv);
 			CheckTreeItemPath(*argv);
 			const TreeItem* item = DMS_TreeItem_GetItem(cfg, *argv);
 			if (!item)
 			{
-				reportF(SeverityTypeID::ST_Error, "ErrorLevel up to 1 because the specified item '%s' was not found.", *argv);
+				reportF(SeverityTypeID::ST_Error, "ErrorLevel up to 1 because the specified item '{}' was not found.", *argv);
 				std::cerr << std::endl << "Item " << *argv << " not found" << std::endl;
 				result = 1;
 			}
@@ -195,7 +195,7 @@ int main2_without_SE(int argc, char** argv)
 			auto fr = item->GetFailReason();
 			if (fr)
 			{
-				reportF(SeverityTypeID::ST_Error, "ErrorLevel up to 1 due to failure: %s", fr->GetAsText().c_str()); ProcessMainThreadOpers();
+				reportF(SeverityTypeID::ST_Error, "ErrorLevel up to 1 due to failure: {}", fr->GetAsText().c_str()); ProcessMainThreadOpers();
 				std::cerr << std::endl << "Failure: " << fr->GetAsText() << std::endl;
 			}
 			result = 1;
@@ -247,7 +247,7 @@ void logCommandLine(const char* msg)
 
 	reportF(SeverityTypeID::ST_MajorTrace, msg);
 	for (auto argc = 0; argc != s_argcOrg; ++argc, ++argv)
-		reportF(SeverityTypeID::ST_MajorTrace, "%d:%s", argc, *argv);
+		reportF(SeverityTypeID::ST_MajorTrace, "{}:{}", argc, *argv);
 	 
 	ProcessMainThreadOpers(); // flush
 }
@@ -322,7 +322,7 @@ int main_with_error_report(int argc, char** argv)
 	auto result = main_with_catch(argc, argv);
 	if (result != 0)
 	{
-		reportF(SeverityTypeID::ST_FatalError, "GeoDmsRun failed with code %d", result);
+		reportF(SeverityTypeID::ST_FatalError, "GeoDmsRun failed with code {}", result);
 		assert(s_argvOrg);
 		printCommandLine();
 	}

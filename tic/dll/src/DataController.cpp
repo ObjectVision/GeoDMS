@@ -313,7 +313,7 @@ auto TreeItemDualRefContextHandle::GetBackRefStr() ->SharedStr
 void TreeItemDualRefContextHandle::GenerateDescription()
 {
 	if (HasBackRef())
-		SetText(mySSPrintF("while processing result for %s", GetBackRefStr().c_str()));
+		SetText(mySSPrintF("while processing result for {}", GetBackRefStr().c_str()));
 }
 
 /********** DataControllerContextHandle **********/
@@ -321,7 +321,7 @@ void TreeItemDualRefContextHandle::GenerateDescription()
 void DataControllerContextHandle::GenerateDescription()
 {
 	SetText(
-		mySSPrintF("Called from the DataController for (in sLisp): %s",
+		mySSPrintF("Called from the DataController for (in sLisp): {}",
 			AsString(m_DC->GetLispRef()).c_str()
 		)
 	);
@@ -357,7 +357,7 @@ namespace {
 			{
 				head = keyExpr.Right().Left();
 #if defined(MG_DEBUG_LISP_TREE)
-				reportF(SeverityTypeID::ST_MinorTrace, "head=%s", AsString(head).c_str());
+				reportF(SeverityTypeID::ST_MinorTrace, "head={}", AsString(head).c_str());
 #endif
 				assert(head.IsSymb());
 
@@ -535,7 +535,7 @@ FutureData DataController::CalcCertainResult()  const
 SharedStr DataController::GetSourceName() const
 {
 	auto keyStr = AsFLispSharedStr(m_Key, FormattingFlags::None);
-	return mySSPrintF("%s: %s"
+	return mySSPrintF("{}: {}"
 		,	keyStr.c_str()
 		,	GetClsName().c_str()
 	);

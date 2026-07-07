@@ -115,7 +115,7 @@ SQLSMALLINT	ValueClassID2CType(ValueClassID vid)
 		case ValueClassID::VT_Float32:return SQL_C_FLOAT;
 
 	}
-	throwErrorF("ODBC", "ValueType %s has no equivalent SQL_C type",
+	throwErrorF("ODBC", "ValueType {} has no equivalent SQL_C type",
 		ValueClass::FindByValueClassID(vid)->GetName());
 }
 
@@ -199,7 +199,7 @@ SharedStr GetOrCreateSqlString(const TreeItem* tableHolder)
 {
 	SharedStr result = GetSqlString(tableHolder);
 	if (result.empty())
-		result = mySSPrintF("SELECT * FROM %s", tableHolder->GetName());
+		result = mySSPrintF("SELECT * FROM {}", tableHolder->GetName());
 	return result;
 }
 
@@ -372,9 +372,9 @@ public:
 	{
 		DBG_START("ODBCStorageReader", "Constructor", false);
 		dms_assert(odbcstoragemanager);
-		DBG_TRACE(("manager = %s", odbcstoragemanager->GetNameStr().c_str()));
-		DBG_TRACE(("table   = %s", tableHolder->GetName().c_str()));
-		DBG_TRACE(("column  = %s", columnName));
+		DBG_TRACE(("manager = {}", odbcstoragemanager->GetNameStr().c_str()));
+		DBG_TRACE(("table   = {}", tableHolder->GetName().c_str()));
+		DBG_TRACE(("column  = {}", columnName));
 
 		SizeT fileNamePos = getFileName(m_Name.begin(), m_Name.send()) - m_Name.begin();
 		if (fileNamePos)
@@ -429,13 +429,13 @@ public:
 		if (m_ColIndex == 0)
 		{
 			if ( !GetOpenRecordSet()->Columns().FindByName(m_Name.c_str(), &m_ColIndex) )
-				throwErrorF("ODBC", "Cannot Find Column with Name = '%s' in table '%s'", m_Name.c_str(), m_ColItem->GetParent()->GetFullName().c_str());
+				throwErrorF("ODBC", "Cannot Find Column with Name = '{}' in table '{}'", m_Name.c_str(), m_ColItem->GetParent()->GetFullName().c_str());
 
 			const ValueClass* dc = CType2ValueClass(m_RecordSet->Columns()[m_ColIndex-1].CType() );
 			const ValueClass* ic = GetInternalValueClass();
 			if (!CompatibleTypes(ic, dc))
 				throwErrorF(
-					"ODBC","inconsistent ValueTypes; table: %s, column: %s has configured type '%s', but odbc type '%s'", 
+					"ODBC","inconsistent ValueTypes; table: {}, column: {} has configured type '{}', but odbc type '{}'", 
 						m_ColItem->GetParent()->GetFullName().c_str(), m_Name.c_str(),
 						ic->GetName().c_str(),
 						dc->GetName().c_str()
@@ -595,7 +595,7 @@ public:
 				else
 				{
 					if (ThrowingConvert<unsigned_type<SQLLEN>::type>(actualSize) > buffElemSize)
-						m_ODBCStorageManager->throwItemErrorF("ReadStrings cannot read %d chars for row %d with a buffersize of only %d bytes", actualSize, recordsRead, buffElemSize);
+						m_ODBCStorageManager->throwItemErrorF("ReadStrings cannot read {} chars for row {} with a buffersize of only {} bytes", actualSize, recordsRead, buffElemSize);
 					(*stringPtr).assign( buffPtr, buffPtr+actualSize MG_DEBUG_ALLOCATOR_SRC("ODBC.ReadStrings"));
 				}
 				++stringPtr;
@@ -749,7 +749,7 @@ FileResult ODBCStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObj
 #undef INSTANTIATE
 
 		default	:
-			return std::unexpected(mySSPrintF("OdbcStorageManager::ReadDataItem not implemented for odbc data with ValuesUnitType: %s",	borrowedReadResultHolder->GetValuesType()->GetName()));
+			return std::unexpected(mySSPrintF("OdbcStorageManager::ReadDataItem not implemented for odbc data with ValuesUnitType: {}",	borrowedReadResultHolder->GetValuesType()->GetName()));
 	} // switch
 	return {};
 }
@@ -826,7 +826,7 @@ TIMESTAMP_STRUCT ODBCStorageManager::AccessTableLastUpdate(const TreeItem* stora
 		// 2. retrieve DATEUPDATE from MSYSOBJECTS_COPY via ODBC for the current tiTable
 		// PAS OP DUBBELE Namen!
 		TRecordSet updateinfo(OpenDatabaseInstance(storageHolder));
-		updateinfo.CreateRecordSet(mySSPrintF("SELECT DATEUPDATE FROM MSYSOBJECTS_COPY WHERE NAME = '%s'", tableHolder->GetName()).c_str());
+		updateinfo.CreateRecordSet(mySSPrintF("SELECT DATEUPDATE FROM MSYSOBJECTS_COPY WHERE NAME = '{}'", tableHolder->GetName()).c_str());
 		
 //ODBCTIME	}
 	TRecordSetOpenLock uiLock(&updateinfo);

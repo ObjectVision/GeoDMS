@@ -38,7 +38,7 @@ SizeT StrLen(CharPtr str)
 
 SharedStr AsRgbStr(UInt32 v) 
 { 
-	return mySSPrintF("rgb(%d,%d,%d)"
+	return mySSPrintF("rgb({},{},{})"
 		,	GetRed  (v)
 		,	GetGreen(v)
 		,	GetBlue (v)
@@ -81,7 +81,7 @@ IStringComponentLock::~IStringComponentLock()
 	std::size_t n = s_AllocatedStrings->size();
 	if (n)
 	{
-		reportF(SeverityTypeID::ST_MajorTrace, "Memory Leak of %I64u IStrings", (UInt64)n);
+		reportF(SeverityTypeID::ST_MajorTrace, "Memory Leak of {} IStrings", (UInt64)n);
 
 		IStringSet::iterator i = s_AllocatedStrings->begin();
 		IStringSet::iterator e = s_AllocatedStrings->end();

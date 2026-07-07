@@ -116,7 +116,7 @@ ConstUnitRef inv_unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args)
 	CharPtr val2
 )
 {
-	gr->throwOperErrorF("Arguments must have compatible units, but arg%d has %s %s and arg%d has %s %s"
+	gr->throwOperErrorF("Arguments must have compatible units, but arg{} has {} {} and arg{} has {} {}"
 	,	nrSkippedArgs+1, aspectStr, val1
 	,	i+1,             aspectStr, val2
 	);
@@ -168,8 +168,8 @@ ConstUnitRef compatible_values_unit_creator_func(arg_index nrSkippedArgs, const 
 
 		if (catUnit && currArg_ValuesUnit != catUnit && !catUnit->UnifyDomain(currArg_ValuesUnit, "", "", UM_AllowDefaultRight))
 		{
-			auto leftRole = mySSPrintF("Values of argument %d", cat_unit_index + 1);
-			auto rightRole = mySSPrintF("Values of argument %d", i + 1);
+			auto leftRole = mySSPrintF("Values of argument {}", cat_unit_index + 1);
+			auto rightRole = mySSPrintF("Values of argument {}", i + 1);
 			catUnit->UnifyDomain(currArg_ValuesUnit, leftRole.c_str(), rightRole.c_str(), UnifyMode(UM_AllowDefaultRight|UM_Throw));
 		}
 

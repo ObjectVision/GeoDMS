@@ -27,15 +27,15 @@ template <typename T>
 	if (alternativeValueClass)
 		acName = AsString(alternativeValueClass->GetID());
 
-	auto primaryMsg = mySSPrintF("Numeric overflow when %1% %2% values %3% %4% %5%."
+	auto primaryMsg = mySSPrintF("Numeric overflow when {0} {1} values {2} {3} {4}."
 		, opName, vcName.c_str(), AsString(a), preposition, AsString(b)
 	);
 
 	if (!suggestAlternative)
 		throwDmsErrD(primaryMsg.c_str());
 
-	throwDmsErrF("%1%"
-		"\nConsider using %2% if your model deals with overflow as null values%3%%4%."
+	throwDmsErrF("{0}"
+		"\nConsider using {1} if your model deals with overflow as null values{2}{3}."
 		, primaryMsg
 		, alternativeFunc
 		, alternativeValueClass ? " or consider converting the arguments to " : ""

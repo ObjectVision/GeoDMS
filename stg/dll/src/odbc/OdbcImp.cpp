@@ -83,19 +83,19 @@ char* TimeStampToString(TIMESTAMP_STRUCT *timestamp, char *s)
 
 SharedStr TDatabase::DiagnosticString() const
 {
-	return mySSPrintF("\nDatabase : %s", DatasourceName());
+	return mySSPrintF("\nDatabase : {}", DatasourceName());
 }
 
 SharedStr TRecordSet::DiagnosticString() const
 {
-	return mySSPrintF("\nRecordSet(%s): %s", 
+	return mySSPrintF("\nRecordSet({}): {}", 
 			ExecTypeName(),
 			SQL());
 }
 
 SharedStr TColumn::DiagnosticString() const
 {
-	return mySSPrintF("\nColumn(%s): %s", CTypeName(), Name());
+	return mySSPrintF("\nColumn({}): {}", CTypeName(), Name());
 }
 
 static SharedStr DiagnosticString(const TDatabase* db, const TRecordSet* rs, const TColumn* col)
@@ -114,7 +114,7 @@ static SharedStr DiagnosticString(const TDatabase* db, const TRecordSet* rs, con
 	if (db) 
 		inDB = db->DiagnosticString();
 
-	return mySSPrintF("%s%s%s", inCol.c_str(), inRS.c_str(), inDB.c_str());
+	return mySSPrintF("{}{}{}", inCol.c_str(), inRS.c_str(), inDB.c_str());
 }
 
 static void Diagnostics(const SQLRETURN ret, const SQLSMALLINT handletype, const SQLHANDLE handle, TDatabase* db, TRecordSet* rs, TColumn* col)
@@ -132,7 +132,7 @@ static void Diagnostics(const SQLRETURN ret, const SQLSMALLINT handletype, const
 
 	MG_CHECK(diagRet == SQL_SUCCESS || diagRet == SQL_SUCCESS_WITH_INFO);
 	SharedStr msg = 
-		mySSPrintF("ODBC %s: %s, %s%s", 
+		mySSPrintF("ODBC {}: {}, {}{}", 
 			level,
 			sqlstate, 
 			message, 
@@ -140,7 +140,7 @@ static void Diagnostics(const SQLRETURN ret, const SQLSMALLINT handletype, const
 		);
 	if (ret != SQL_SUCCESS_WITH_INFO || strcmp((char*)sqlstate, "IM006"))
 	{
-		MGD_TRACE(("%s", msg.c_str()));
+		MGD_TRACE(("{}", msg.c_str()));
 	}
 	if (ret != SQL_SUCCESS_WITH_INFO)
 		::throwErrorD("ODBC", msg.c_str());
@@ -634,7 +634,7 @@ void TDatabase::SetMonade(TRecordSet *recordset, const TExecType rse)
 	if (s_MonadicRecordSet != recordset && s_MonadicRecordSet != nullptr)
 	{
 		if (s_MonadicRecordSet->IsLocked()) 
-			throwErrorF("ODBC", "SetMonade failed for:%s\nBecause the following RecordSet is currently locking that database:%s"
+			throwErrorF("ODBC", "SetMonade failed for:{}\nBecause the following RecordSet is currently locking that database:{}"
 			,	::DiagnosticString(0, recordset, 0).c_str()
 			,	s_MonadicRecordSet->DiagnosticString().c_str()
 			);

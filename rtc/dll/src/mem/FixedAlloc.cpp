@@ -355,7 +355,7 @@ struct FreeStackAllocator
 		}
 
 		#if defined(MG_DEBUG_ALLOCATOR)
-		reportF(MsgCategory::memory, SeverityTypeID::ST_MinorTrace, "Block size: %d; pagecount: %d; alloc: %d; freed: %d; uncommitted: %d; total bytes: %d[MB] allocbytes = %d[MB]",
+		reportF(MsgCategory::memory, SeverityTypeID::ST_MinorTrace, "Block size: {}; pagecount: {}; alloc: {}; freed: {}; uncommitted: {}; total bytes: {}[MB] allocbytes = {}[MB]",
 			inner.objectStoreSize, pageCount, nrAllocated, nrFreed, nrUncommitted, totalBytes >> 20, nrAllocatedBytes >> 20);
 		#endif
 
@@ -768,7 +768,7 @@ RTC_CALL auto UpdateFixedAllocStatus() -> FreeStackAllocSummary
 
 RTC_CALL auto GetFixedAllocStatus(const FreeStackAllocSummary& cumulBytes) -> SharedStr
 {
-	return mySSPrintF("Reserved in Blocks %d[MB]; allocated: %d[MB]; freed: %d[MB]; uncommitted: %d[MB]; CommitCharge: %d[MB]"
+	return mySSPrintF("Reserved in Blocks {}[MB]; allocated: {}[MB]; freed: {}[MB]; uncommitted: {}[MB]; CommitCharge: {}[MB]"
 		, std::get<0>(cumulBytes) >> 20
 		, std::get<1>(cumulBytes) >> 20
 		, std::get<2>(cumulBytes) >> 20
@@ -782,7 +782,7 @@ RTC_CALL auto GetMemoryStatus() -> SharedStr
 #if defined(WIN32)
 	PROCESS_MEMORY_COUNTERS processInfo;
 	GetProcessMemoryInfo(GetCurrentProcess(), &processInfo, sizeof(PROCESS_MEMORY_COUNTERS));
-	return mySSPrintF("%d[MB] committed of peak %d[MB]"
+	return mySSPrintF("{}[MB] committed of peak {}[MB]"
 		, processInfo.PagefileUsage >> 20
 		, processInfo.PeakPagefileUsage >> 20
 	);
@@ -797,7 +797,7 @@ RTC_CALL auto GetMemoryStatus() -> SharedStr
 		else if (line.compare(0, 7, "VmPeak:") == 0)
 			std::sscanf(line.c_str(), "VmPeak: %zu", &vmPeak);
 	}
-	return mySSPrintF("%zu[MB] committed of peak %zu[MB]", vmRSS / 1024, vmPeak / 1024);
+	return mySSPrintF("{}[MB] committed of peak {}[MB]", vmRSS / 1024, vmPeak / 1024);
 #endif
 }
 
@@ -820,7 +820,7 @@ RTC_CALL auto UpdateAndGetFixedAllocFinalSummary() -> SharedStr
 {
 	auto cumulBytes = maxCumulBytes;
 
-	return mySSPrintF( "Highest Reserved in Blocks %d[MB]; Highest allocated: %d[MB]; Highest freed: %d[MB]; Highest uncommitted: %d[MB]; Highest CommitCharge: %d[MB]"
+	return mySSPrintF( "Highest Reserved in Blocks {}[MB]; Highest allocated: {}[MB]; Highest freed: {}[MB]; Highest uncommitted: {}[MB]; Highest CommitCharge: {}[MB]"
 		, std::get<0>(cumulBytes) >> 20
 		, std::get<1>(cumulBytes) >> 20
 		, std::get<2>(cumulBytes) >> 20
@@ -991,7 +991,7 @@ void ReportAllocs()
 	{
 		auto aspects = registeredAlloc.second;
 		SizeT sz = aspects.second;
-//		reportF(SeverityTypeID::ST_MajorTrace, "Alloc %d size %x src %s", i++, sz, registeredAlloc.second.first);
+//		reportF(SeverityTypeID::ST_MajorTrace, "Alloc {} size {:x} src {}", i++, sz, registeredAlloc.second.first);
 		fequencyCounts[aspects]++;
 	}
 
@@ -1006,7 +1006,7 @@ void ReportAllocs()
 		SizeT cnt = freq.second;
 		SizeT totalSz = sz * cnt;
 		if (totalSz > 1000000)
-			reportF(SeverityTypeID::ST_MajorTrace, "#%.5d;%d;%d;%d;'%s'", i++, sz, cnt, totalSz, txt);
+			reportF(SeverityTypeID::ST_MajorTrace, "#{:05};{};{};{};'{}'", i++, sz, cnt, totalSz, txt);
 		else
 		{
 			otherCount++;
@@ -1014,9 +1014,9 @@ void ReportAllocs()
 		}
 		cumulSize += totalSz;
 	}
-	reportF(SeverityTypeID::ST_MajorTrace, "Other count = %d", otherCount);
-	reportF(SeverityTypeID::ST_MajorTrace, "Other size = %d", otherSize);
-	reportF(SeverityTypeID::ST_MajorTrace, "Total Size = %d", cumulSize);
+	reportF(SeverityTypeID::ST_MajorTrace, "Other count = {}", otherCount);
+	reportF(SeverityTypeID::ST_MajorTrace, "Other size = {}", otherSize);
+	reportF(SeverityTypeID::ST_MajorTrace, "Total Size = {}", cumulSize);
 
 	ReportFixedAllocStatus();
 //	PostReporting(); // Warning: allocSection can be locked, so don't call ReportFixedAllocStatus() here.

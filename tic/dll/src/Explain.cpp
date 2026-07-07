@@ -742,7 +742,7 @@ namespace Explain { // local defs
 	{
 		auto fullPath = SharedStr(m_StudyObject->GetFullName());
 		auto relExprPath = expl->RelativeExprPath();
-		return mySSPrintF("dms:dp.vi.attr!%d:%s?%s:%d", m_StudyIdx, fullPath.c_str(), relExprPath.c_str(), recNo);
+		return mySSPrintF("dms:dp.vi.attr!{}:{}?{}:{}", m_StudyIdx, fullPath.c_str(), relExprPath.c_str(), recNo);
 	}
 
 
@@ -1094,7 +1094,7 @@ namespace Explain { // local defs
 					explainUrl = self->URL(lispExpr, recno);
 			}
 			else
-				explainUrl = mySSPrintF("dms:dp.vi.attr!%d:%s", recno, m_DataItem->GetFullName().c_str());
+				explainUrl = mySSPrintF("dms:dp.vi.attr!{}:{}", recno, m_DataItem->GetFullName().c_str());
 			if (domainUnit)
 				row.ClickableCell(locStr.c_str(), explainUrl.c_str());
 			row.ClickableCell(valStr.c_str(), explainUrl.c_str());
@@ -1203,9 +1203,9 @@ namespace Explain { // local defs
 
 		XML_OutElement paragraph(stream, "P", "", ClosePolicy::nonPairedElement);
 		if (m_Expr.size() == 1)
-			stream << mySSPrintF("Summary of values of %d factors", m_Expr[0].second.size()).c_str();
+			stream << mySSPrintF("Summary of values of {} factors", m_Expr[0].second.size()).c_str();
 		else
-			stream << mySSPrintF("Summary of values of %d terms ", m_Expr.size()).c_str();
+			stream << mySSPrintF("Summary of values of {} terms ", m_Expr.size()).c_str();
 
 		stream << " of ";
 		PrintSeqNr(stream);
@@ -1258,9 +1258,9 @@ namespace Explain { // local defs
 
 		XML_OutElement paragraph(stream, "P", "", ClosePolicy::nonPairedElement);
 		if (m_Expr.size()==1)
-			stream << mySSPrintF("Summary of %d conjunctions of boolean values", m_Expr[0].size()).c_str();
+			stream << mySSPrintF("Summary of {} conjunctions of boolean values", m_Expr[0].size()).c_str();
 		else
-			stream << mySSPrintF("Summary of %d disjuctions of (conjuncted) boolean values", m_Expr.size()).c_str();
+			stream << mySSPrintF("Summary of {} disjuctions of (conjuncted) boolean values", m_Expr.size()).c_str();
 
 		stream << " of ";
 		PrintSeqNr(stream);

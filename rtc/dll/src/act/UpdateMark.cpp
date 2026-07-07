@@ -81,7 +81,7 @@ namespace UpdateMarker {
 
 	void  ReportActiveContext(CharPtr callerFunc)
 	{
-		reportF(SeverityTypeID::ST_MajorTrace, "%s called during %s(%s) for TimeFrame %u and DetermineChangeLockCount %u (Last %s TimeFrame = %u)",
+		reportF(SeverityTypeID::ST_MajorTrace, "{} called during {}({}) for TimeFrame {} and DetermineChangeLockCount {} (Last {} TimeFrame = {})",
 			callerFunc,
 			g_CurrChangedContext,
 			g_CurrChangedActor ? g_CurrChangedActor->GetSourceName().c_str() : "",
@@ -92,7 +92,7 @@ namespace UpdateMarker {
 		);
 
 		for (auto& changeSource: s_ChangeSources)
-			reportF(SeverityTypeID::ST_MinorTrace, "ts %d was caused by %s", changeSource.first, changeSource.second);
+			reportF(SeverityTypeID::ST_MinorTrace, "ts {} was caused by {}", changeSource.first, changeSource.second);
 //		dms_check(0);
 	}
 
@@ -132,7 +132,7 @@ namespace UpdateMarker {
 		if (ts <= impl::tsActive)
 			return;
 
-		ReportActiveContext(mySSPrintF("Activation of TimeFrame %u from %s", ts, contextDescr).c_str());
+		ReportActiveContext(mySSPrintF("Activation of TimeFrame {} from {}", ts, contextDescr).c_str());
 	}
 
 	void ChangeSourceLock::CheckDetermineState()
@@ -218,7 +218,7 @@ ChangeSourceLock::~ChangeSourceLock()
 
 			MG_DEBUG_TS_SOURCE_CODE(
 				s_ChangeSources[impl::tsLast] = cause;
-				reportF(SeverityTypeID::ST_MinorTrace, "ts %d is caused by %s", impl::tsLast.load(), cause);
+				reportF(SeverityTypeID::ST_MinorTrace, "ts {} is caused by {}", impl::tsLast.load(), cause);
 			)
 		}
 	}
@@ -257,7 +257,7 @@ ChangeSourceLock::~ChangeSourceLock()
 			{
 				++impl::tsLast;
 				curr = **first;
-				DBG_TRACE(("%u -> %u", curr, impl::tsLast.load()));
+				DBG_TRACE(("{} -> {}", curr, impl::tsLast.load()));
 			}
 			**first = impl::tsLast;
 		}

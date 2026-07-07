@@ -246,7 +246,7 @@ void AbstrUnit::UnifyError(const AbstrUnit* cu, CharPtr reason, CharPtr leftRole
 	auto leftPair = Relabel(leftRole);
 	auto rightPair = Relabel(rightRole);
 
-	SharedStr msg = mgFormat2SharedStr("%s mismatch between %s%s (%s %s: %s) and %s%s (%s %s: %s)%s"
+	SharedStr msg = mgFormat2SharedStr("{} mismatch between {}{} ({} {}: {}) and {}{} ({} {}: {}){}"
 		,	isDomain ? "Domain" : "Values"
 		,	leftPair.first, leftPair.second, 	GetFullName(),     GetProjMetrString(),     GetValueType()->GetName()
 		,	rightPair.first, rightPair.second, cu->GetFullName(), cu->GetProjMetrString(), cu->GetValueType()->GetName()
@@ -445,7 +445,7 @@ auto AbstrUnit_GetMetricStr(const AbstrUnit* u, const UnitMetric* m, FormattingF
 		{
 			if (labelStr.empty())
 				return metricStr;
-			return mySSPrintF("%s: %s", labelStr, metricStr);
+			return mySSPrintF("{}: {}", labelStr, metricStr);
 		}
 	}
 	return labelStr;
@@ -467,7 +467,7 @@ SharedStr AbstrUnit::GetFormattedMetricStr () const
 	if (!result.empty())
 	{
 		if (result != "%")
-			result = mySSPrintF(" [%s]", result.c_str());
+			result = mySSPrintF(" [{}]", result.c_str());
 	}
 	return result;
 }
@@ -781,12 +781,12 @@ row_id AbstrUnit::GetEstimatedCount() const
 		auto ri = fd->MakeResult();
 
 		if (!ri || !IsDataItem(ri))
-			throwDmsErrF("SizeEstimator must define a numeric result, but is defined as %s"
+			throwDmsErrF("SizeEstimator must define a numeric result, but is defined as {}"
 				, se->GetExpr()
 				);
 		auto ari = AsDataItem(ri);
 		if (!ari->HasVoidDomainGuarantee())
-			throwDmsErrF("SizeEstimator must define a single result, but is defined as %s"
+			throwDmsErrF("SizeEstimator must define a single result, but is defined as {}"
 				, se->GetExpr()
 			);
 		DataReadLock drl(ari.get());
@@ -803,12 +803,12 @@ void AbstrUnit::ValidateCount(SizeT supposedCount) const
 	MG_CHECK(range_item);
 	auto sm = AsUnit(range_item)->GetTiledRangeData();
 	if (!sm)
-		throwItemErrorF("ValidateCount(%d) failed because this unit has no segment info", supposedCount);
+		throwItemErrorF("ValidateCount({}) failed because this unit has no segment info", supposedCount);
 
 	row_id count = sm->GetElemCount();
 
 	if (supposedCount != count)
-		throwItemErrorF("ValidateCount(%d) failed because this unit has count %d"
+		throwItemErrorF("ValidateCount({}) failed because this unit has count {}"
 			, supposedCount, count
 		);
 }
@@ -904,7 +904,7 @@ Range<row_id> AbstrUnit::GetTileIndexRange(tile_id t) const
 void CheckNrTiles(SizeT nrTiles)
 {
 	if (nrTiles > MAX_VALUE(tile_id))
-		throwErrorF("Tiles", "The requested number of %u tiles exceeds the GeoDms limit of %u", 
+		throwErrorF("Tiles", "The requested number of {} tiles exceeds the GeoDms limit of {}", 
 			nrTiles,
 			MAX_NR_TILES
 		); 

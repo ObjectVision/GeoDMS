@@ -145,7 +145,7 @@ void AbstrDataBlockProd::DoFirstIntervalValue()
 		case ValueClassID::VT_SharedStr:
 		default:
 		{
-			throwDmsErrF("DoFirstIntervalValue: value type %s not supported as Interval Type", 
+			throwDmsErrF("DoFirstIntervalValue: value type {} not supported as Interval Type", 
 				GetValueTypeName(m_eValueType));
 		}
 	}
@@ -168,7 +168,7 @@ void AbstrDataBlockProd::DoSecondIntervalValue()
 	}
 
 	if ( (m_eAssignmentDomainType <= ValueClassID::VT_Float64) != (m_eValueType <= ValueClassID::VT_Float64))
-		throwDmsErrF("Incompatible value types '%s' and '%s' in Interval",
+		throwDmsErrF("Incompatible value types '{}' and '{}' in Interval",
 			GetValueTypeName(m_eAssignmentDomainType), 
 			GetValueTypeName(m_eValueType));
 	MakeMax(m_eAssignmentDomainType, m_eValueType);
@@ -188,7 +188,7 @@ void AbstrDataBlockProd::DoSecondIntervalValue()
 			break;
 		default:
 		{
-			throwDmsErrF("DoSecondIntervalValue: value type %s not supported as Interval Type", 
+			throwDmsErrF("DoSecondIntervalValue: value type {} not supported as Interval Type", 
 				GetValueTypeName(m_eValueType));
 		}
 	}

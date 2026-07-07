@@ -118,9 +118,9 @@ ConfigurationFilenameLock::ConfigurationFilenameLock(WeakStr sourceFileName, Wea
 	for (const ConfigurationFilenameLockBase* i = s_LastFileNameLock->m_PrevFilenameLock; i; i = i->m_PrevFilenameLock)
 	{
 		if (!FilePathCompare(i->m_SourceFileRef->GetFileName().c_str(), sourceFileName.c_str()))
-			throwErrorF("CFG", "recursive inclusion of configuration file %s", sourceFileName.c_str());
+			throwErrorF("CFG", "recursive inclusion of configuration file {}", sourceFileName.c_str());
 		if (++depth > kMaxIncludeDepth)
-			throwErrorF("CFG", "configuration #include nesting depth exceeds maximum (%d) while processing %s"
+			throwErrorF("CFG", "configuration #include nesting depth exceeds maximum ({}) while processing {}"
 				, kMaxIncludeDepth, sourceFileName.c_str());
 	}
 }

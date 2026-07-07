@@ -590,8 +590,8 @@ struct ClassifiedGetterCreator : UnitProcessor
 	void CreateBufferedClassGetter() const
 	{
 		DBG_START("ClassifiedGetterCreator", "CreateBufferedClassGetter", MG_DEBUG_VALUEGETTER);
-		DBG_TRACE(("Theme %s", m_ThemeClassPair.first ->GetFullName().c_str())); 
-		DBG_TRACE(("Clsfn %s", m_ThemeClassPair.second->GetFullName().c_str())); 
+		DBG_TRACE(("Theme {}", m_ThemeClassPair.first ->GetFullName().c_str())); 
+		DBG_TRACE(("Clsfn {}", m_ThemeClassPair.second->GetFullName().c_str())); 
 
 		SharedArrayPtr<typename sequence_traits<ClassIdType>::value_type>& arrayPtrRef = ArrayValueGetter<ClassIdType>::s_ArrayMap[m_ThemeClassPair];
 		if (!arrayPtrRef)
@@ -607,7 +607,7 @@ struct ClassifiedGetterCreator : UnitProcessor
 			DBG_TRACE(("Old Classification re-used"));
 		}
 
-		DBG_TRACE(("Count %d", arrayPtrRef->GetRefCount())); 
+		DBG_TRACE(("Count {}", arrayPtrRef->GetRefCount())); 
 
 		auto resultingGetter = std::make_unique<ArrayValueGetter<ClassIdType>>( m_PaletteAttr);
 
@@ -620,8 +620,8 @@ struct ClassifiedGetterCreator : UnitProcessor
 	void CreateLazyClassifyGetter() const
 	{
 		DBG_START("ClassifiedGetterCreator", "CreateLazyClassifyGetter", MG_DEBUG_VALUEGETTER);
-		DBG_TRACE(("Theme %s", m_ThemeClassPair.first ->GetFullName().c_str())); 
-		DBG_TRACE(("Clsfn %s", m_ThemeClassPair.second->GetFullName().c_str())); 
+		DBG_TRACE(("Theme {}", m_ThemeClassPair.first ->GetFullName().c_str())); 
+		DBG_TRACE(("Clsfn {}", m_ThemeClassPair.second->GetFullName().c_str())); 
 
 		LazyClassifyGetterCreator<ClassIdType> classifyCreator(m_ThemeClassPair, m_PaletteAttr);
 		m_ThemeClassPair.first->GetAbstrValuesUnit()->InviteUnitProcessor(classifyCreator);
@@ -682,7 +682,7 @@ WeakPtr<const AbstrThemeValueGetter> Theme::GetValueGetter() const
 					).GetResultingGetter()
 				);
 			else
-				throwErrorF("Theme", "OrderedValueGetter NYI: Cannot make valueGetter for a Theme without ThematicAttr and with a Classification (%s)", GetClassification()->GetFullName().c_str());
+				throwErrorF("Theme", "OrderedValueGetter NYI: Cannot make valueGetter for a Theme without ThematicAttr and with a Classification ({})", GetClassification()->GetFullName().c_str());
 		}
 		else
 		{

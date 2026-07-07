@@ -90,7 +90,7 @@ TokenID::TokenID(CharPtr tokenStr, mt_tag*, existing_tag*)
 	dms_assert(tokenStr);
 	m_ID = (tokenStr && *tokenStr) ? s_TokenListPtr->GetExisting_mt(tokenStr) : 0;
 	if (!IsDefined(m_ID))
-		throwErrorF("TOKEN", "%s is not registered as token");
+		throwErrorF("TOKEN", "{} is not registered as token", tokenStr);
 	dms_assert(m_ID < s_TokenListPtr->size());
 	dbg_assert(s_TokenListPtr->size() == c);
 }
@@ -131,7 +131,7 @@ TokenID::TokenID(CharPtr first, CharPtr last, mt_tag*, existing_tag*)
 		?	s_TokenListPtr->GetExisting_mt(first, last)
 		:	0;
 	if (!IsDefined(m_ID))
-		throwErrorF("TOKEN", "%s is not registered as token");
+		throwErrorF("TOKEN", "{} is not registered as token", CharPtrRange(first, last));
 	dms_assert(m_ID < s_TokenListPtr->size());
 	dbg_assert(s_TokenListPtr->size() == c);
 }

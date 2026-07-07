@@ -542,10 +542,10 @@ auto DataView::OnCommandEnable(ToolButtonID id) const->CommandStatus
 void DataView::SetCaretsVisible(bool visibility, HDC dc)
 {
 	DBG_START("DataView", "SetCaretsVisible", MG_DEBUG_CARET);
-	DBG_TRACE(("Curr %d", m_State.Get(DVF_CaretsVisible)));
-	DBG_TRACE(("Req  %d", visibility));
-	DBG_TRACE(("HDC  %x", dc));
-	DBG_TRACE(("HWND %x", m_hWnd));
+	DBG_TRACE(("Curr {}", m_State.Get(DVF_CaretsVisible)));
+	DBG_TRACE(("Req  {}", visibility));
+	DBG_TRACE(("HDC  {:x}", dc));
+	DBG_TRACE(("HWND {:x}", m_hWnd));
 
 	if (m_State.Get(DVF_CaretsVisible) != visibility)
 	{
@@ -647,7 +647,7 @@ auto IsTooltipKiller(UINT msg) -> bool
 MsgResult DataView::DispatchMsg(const MsgStruct& msg)
 {
 	DBG_START("DataView", "DispatchMsg", MG_DEBUG_WNDPROC);
-		DBG_TRACE(("msg: %x(%x, %x)", msg.m_Msg, msg.m_wParam, msg.m_lParam));
+		DBG_TRACE(("msg: {:x}({:x}, {:x})", msg.m_Msg, msg.m_wParam, msg.m_lParam));
 
 	if (IsTooltipKiller(msg.m_Msg))
 		HideActiveTooltip();
@@ -1300,9 +1300,9 @@ ActorVisitState UpdateChildViews(DataViewTree* dvl)
 void DataView::ScrollDevice(GPoint delta, GRect rcScroll, GRect rcClip, const MovableObject* src)
 {
 	DBG_START("DataView", "Scroll", MG_DEBUG_SCROLL);
-	DBG_TRACE(("dx = %d, dy=%d", delta.x, delta.y));
-	DBG_TRACE(("rect = %s", AsString(rcScroll).c_str()));
-	DBG_TRACE(("clip = %s", AsString(rcClip  ).c_str()));
+	DBG_TRACE(("dx = {}, dy={}", delta.x, delta.y));
+	DBG_TRACE(("rect = {}", AsString(rcScroll).c_str()));
+	DBG_TRACE(("clip = {}", AsString(rcClip  ).c_str()));
 
 	dbg_assert( md_InvalidateDrawLock == 0);
 	assert(src);
@@ -1344,7 +1344,7 @@ void DataView::ScrollDevice(GPoint delta, GRect rcScroll, GRect rcClip, const Mo
 		Region invalidRgn;
 #endif
 
-		DBG_TRACE(("invr = %s", invalidRgn.AsString().c_str()));
+		DBG_TRACE(("invr = {}", invalidRgn.AsString().c_str()));
 
 		GRect validRect = (rcClippedScroll + delta) & rcClip; // dest region of scroll
 		if (!validRect.empty())
@@ -1716,7 +1716,7 @@ void DataView::OnEraseBkgnd(HDC dc)
 	if (clipStatus == ERROR)
 		throwLastSystemError("DataView::OnEraseBkgnd");
 
-	DBG_TRACE(("FillRect [(%d,%d)-(%d,%d)]", rect.left, rect.top, rect.right, rect.bottom));
+	DBG_TRACE(("FillRect [({},{})-({},{})]", rect.left, rect.top, rect.right, rect.bottom));
 
 	FillRect(dc, &AsRECT(rect), (HBRUSH) (COLOR_WINDOW+1) );
 }
@@ -1774,7 +1774,7 @@ void DataView::OnPaint()
 
 	m_DoneGraphics.AddDrawRegion( std::move(rgn) );
 
-	DBG_TRACE(("PaintDc must erase %d", paintDC.MustEraseBkgnd()));
+	DBG_TRACE(("PaintDc must erase {}", paintDC.MustEraseBkgnd()));
 
 	if (caretsActive)
 	{
@@ -1859,7 +1859,7 @@ void DataView::OnActivate(bool becomeActive)
 void DataView::OnSize(WPARAM nType, GPoint deviceSize)
 {
 	DBG_START(GetClsName().c_str(), "OnSize", MG_DEBUG_CARET || MG_DEBUG_REGION || MG_DEBUG_SIZE);
-	DBG_TRACE(("NewSize=(%d,%d)", deviceSize.x, deviceSize.y));
+	DBG_TRACE(("NewSize=({},{})", deviceSize.x, deviceSize.y));
 	auto hWnd = GetHWnd();
 	assert(hWnd);
 	auto currScaleFactors = GetWindowDip2PixFactors(hWnd);
@@ -2145,7 +2145,7 @@ void OnControlActivate(DataView* self, const UInt32* first, const UInt32* last)
 	while (first != last)
 	{
 		UInt32 i = *first++;
-		reportF(SeverityTypeID::ST_MajorTrace, "At %s %s go to item %s"
+		reportF(SeverityTypeID::ST_MajorTrace, "At {} {} go to item {}"
 			, mo->GetDynamicClass()->GetName()
 			, mo->GetFullCfgName()
 			, i
@@ -2155,7 +2155,7 @@ void OnControlActivate(DataView* self, const UInt32* first, const UInt32* last)
 		auto n = mo->NrEntries();
 		if (i > n)
 		{
-			reportF(SeverityTypeID::ST_MajorTrace, "exit because object has only %s sub-objects", n);
+			reportF(SeverityTypeID::ST_MajorTrace, "exit because object has only {} sub-objects", n);
 			return;
 		}
 		auto sgo = mo->GetEntry(--i);
@@ -2168,7 +2168,7 @@ void OnControlActivate(DataView* self, const UInt32* first, const UInt32* last)
 		}
 		mo = smo->shared_from_this();
 	}
-	reportF(SeverityTypeID::ST_MajorTrace, "Activate %s %s!"
+	reportF(SeverityTypeID::ST_MajorTrace, "Activate {} {}!"
 		, mo->GetDynamicClass()->GetName()
 		, mo->GetFullCfgName()
 	);
@@ -2205,7 +2205,7 @@ void OnPopupMenuActivate(DataView* self, const UInt32* first, const UInt32* last
 
 		UInt32 level = menuData[result].m_Level;
 
-		reportF(SeverityTypeID::ST_MajorTrace, "At %s with level %s go to  the %s-th item", menuData[result].m_Caption, level, i);
+		reportF(SeverityTypeID::ST_MajorTrace, "At {} with level {} go to  the {}-th item", menuData[result].m_Caption, level, i);
 
 		while (--i)
 		{
@@ -2243,7 +2243,7 @@ void OnPopupMenuActivate(DataView* self, const UInt32* first, const UInt32* last
 			}
 		}
 	}
-	reportF(SeverityTypeID::ST_MajorTrace, "Execute %s", menuData[result].m_Caption);
+	reportF(SeverityTypeID::ST_MajorTrace, "Execute {}", menuData[result].m_Caption);
 	menuData[result].Execute();
 }
 
@@ -2251,7 +2251,7 @@ void OnPopupMenuActivate(DataView* self, const UInt32* first, const UInt32* last
 
 void DataView::OnCopyData(UINT cmd, const UInt32* first, const UInt32* last)
 {
-	reportF(SeverityTypeID::ST_MajorTrace, "OnCopyDataPost with cmd %d", cmd);
+	reportF(SeverityTypeID::ST_MajorTrace, "OnCopyDataPost with cmd {}", cmd);
 
 	switch (cmd)
 	{

@@ -86,7 +86,7 @@ UInt32 RegistryHandle::GetDataSize(CharPtr name) const
 	auto nameW = Utf8_2_wchar(name);
 	DWORD dataSize;
 	if (RegQueryValueExW(m_Key, nameW.get(), NULL, NULL, NULL, &dataSize) != ERROR_SUCCESS)
-		throwLastSystemError("GetDataSize failed for RegKey '%s'", name);
+		throwLastSystemError("GetDataSize failed for RegKey '{}'", name);
 	return dataSize;
 }
 
@@ -95,7 +95,7 @@ RegDataType RegistryHandle::GetDataType(CharPtr name) const
 	DWORD dataType;
 	auto nameW = Utf8_2_wchar(name);
 	if (RegQueryValueExW(m_Key, nameW.get(), NULL, &dataType, NULL, NULL) != ERROR_SUCCESS)
-		throwLastSystemError("GetDataType failed for RegKey '%s'", name);
+		throwLastSystemError("GetDataType failed for RegKey '{}'", name);
 	return DataTypeToRegData(dataType);
 }
 
@@ -104,7 +104,7 @@ UInt32 RegistryHandle::GetDataW(CharPtr name, BYTE* buffer, DWORD bufSize, RegDa
 	DWORD dataType = REG_NONE;
 	auto nameW = Utf8_2_wchar(name);
 	if (RegQueryValueExW(m_Key, nameW.get(), NULL, &dataType, buffer, &bufSize) != ERROR_SUCCESS)
-		throwLastSystemError("GetData failed for RegKey '%s'", name);
+		throwLastSystemError("GetData failed for RegKey '{}'", name);
 	regDataType = DataTypeToRegData(dataType);
 	return bufSize;
 }
@@ -131,7 +131,7 @@ SharedStr RegistryHandle::ReadString(CharPtr name) const
 	RegDataType regDataType;
     GetDataW(name, reinterpret_cast<BYTE*>(wcharResult.get()), len, regDataType);
 	if ((regDataType != RegDataType::String) && (regDataType != RegDataType::ExpandString))
-		throwErrorF("RegistryHandle.ReadString", "key '%s' has a non string type", name);
+		throwErrorF("RegistryHandle.ReadString", "key '{}' has a non string type", name);
 	--nr_wchars;
 	assert(wcharResult.get()[nr_wchars] == wchar_t(0));
 	auto utf8Str = wchar_2_Utf8Str(wcharResult.get(), nr_wchars);
@@ -167,7 +167,7 @@ auto RegistryHandle::ReadMultiString(CharPtr name) const -> std::vector<SharedSt
 
 	GetDataW(name, reinterpret_cast<BYTE*>(wcharResult.get()), len, regDataType);
 	if (regDataType != RegDataType::MultiString)
-		throwErrorF("RegistryHandle.ReadMultiString", "key '%s' has a non multi string type", name);
+		throwErrorF("RegistryHandle.ReadMultiString", "key '{}' has a non multi string type", name);
 
 	// separate strings
 	std::vector<SharedStr> result;
@@ -213,7 +213,7 @@ DWORD RegistryHandle::ReadDWORD(CharPtr name) const
 	RegDataType regDataType;
 	DWORD       regData;
     if ((GetDataW(name, reinterpret_cast<BYTE*>(&regData), sizeof(DWORD), regDataType) != sizeof(DWORD)) || (regDataType != RegDataType::DWORD))
-		throwErrorF("RegistryHandle.ReadDWORD", "key '%s' has a non DWORD type", name);
+		throwErrorF("RegistryHandle.ReadDWORD", "key '{}' has a non DWORD type", name);
 	return regData;
 }
 

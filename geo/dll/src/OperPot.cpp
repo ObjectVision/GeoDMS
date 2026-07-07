@@ -186,7 +186,7 @@ struct AbstrDirectPotentialOperator : public BinaryOperator
             IRect     weightRect = weightDomain->GetRangeAsIRect();
             SharedStr strWeightRect = AsString(weightRect);
 
-            reportF(SeverityTypeID::ST_MinorTrace, "%s %s", GetGroup()->GetNameStr(), strWeightRect.c_str());
+            reportF(SeverityTypeID::ST_MinorTrace, "{} {}", GetGroup()->GetNameStr(), strWeightRect.c_str());
 
             // Flags for undefined handling
             ArgFlags af = dataGridA->HasUndefinedValues() ? AF1_HASUNDEFINED : ArgFlags();

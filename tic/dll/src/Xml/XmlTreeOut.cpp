@@ -64,14 +64,14 @@ SharedStr GetStrRange(const AbstrUnit* unit)
 			auto [b, e] = unit->GetRangeAsFloat64();
 			if (b > e)
 				goto unbounded;
-			return mySSPrintF("From %s to %s", AsString(b).c_str(), AsString(e).c_str());
+			return mySSPrintF("From {} to {}", AsString(b).c_str(), AsString(e).c_str());
 		}
 		dms_assert(unit->GetNrDimensions() == 2);
 
 		auto [from, to_] = unit->GetRangeAsDRect();
 		if (!IsLowerBound(from, to_))
 			goto unbounded;
-		return mySSPrintF("From %s to %s", AsString(DPoint(from.Row(), from.Col())).c_str(), AsString(DPoint(to_.Row(), to_.Col())).c_str());
+		return mySSPrintF("From {} to {}", AsString(DPoint(from.Row(), from.Col())).c_str(), AsString(DPoint(to_.Row(), to_.Col())).c_str());
 	}
 	catch (const DmsException& x)
 	{
@@ -97,14 +97,14 @@ SharedStr GetTileStrRange(const AbstrUnit* unit, tile_id t)
 			auto [b, e] = unit->GetTileIndexRange(t);
 			if (b > e)
 				goto unbounded;
-			return mySSPrintF("From %s to %s", AsString(b).c_str(), AsString(e).c_str());
+			return mySSPrintF("From {} to {}", AsString(b).c_str(), AsString(e).c_str());
 		}
 		dms_assert(unit->GetNrDimensions() == 2);
 
 		auto [from, to_] = unit->GetTileRangeAsIRect(t);
 		if (!IsLowerBound(from, to_))
 			goto unbounded;
-		return mySSPrintF("From %s to %s", AsString(DPoint(from.Row(), from.Col())).c_str(), AsString(DPoint(to_.Row(), to_.Col())).c_str());
+		return mySSPrintF("From {} to {}", AsString(DPoint(from.Row(), from.Col())).c_str(), AsString(DPoint(to_.Row(), to_.Col())).c_str());
 	}
 	catch (const DmsException& x)
 	{
@@ -258,7 +258,7 @@ bool WriteUnitProps(XML_Table& xmlTable, const AbstrUnit* unit, bool allTileInfo
 			{
 				NewLine(xmlTable.OutStream());
 				xmlTable.OutStream()
-					<< mySSPrintF("Tile %d", t).c_str()
+					<< mySSPrintF("Tile {}", t).c_str()
 					<< GetTileStrRange(currRangeUnit.get(), t).c_str()
 					<< " = "
 					<< GetTileStrCount(currRangeUnit.get(), t).c_str()
@@ -393,8 +393,8 @@ void XML_Table::Row::EditablePropCell(CharPtr propName, CharPtr propLabel /*= ""
 	else
 	{
 		/*SharedStr editUrl = (item)
-			?	mySSPrintF("dms:edit!%s:%s", propName, item->GetFullName().c_str())
-			:	mySSPrintF("dms:edit!%s", propName);*/
+			?	mySSPrintF("dms:edit!{}:{}", propName, item->GetFullName().c_str())
+			:	mySSPrintF("dms:edit!{}", propName);*/
 
 		//ClickableCell(propLabel, editUrl.c_str());
 
@@ -676,7 +676,7 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 			auto nc = TreeItem_GetProgressState(refItem.get());
 			xmlTable.NameValueRow(
 				"ProgressState",
-				mySSPrintF("%s at %d for Phase %d with interest %d%s%s, checked at %d for %s"
+				mySSPrintF("{} at {} for Phase {} with interest {}{}{}, checked at {} for {}"
 				,	UpdateStateName(nc)
 				,	refItem->LastChangeTS()
 				,	refItem->m_PhaseNumber
@@ -1106,7 +1106,7 @@ void ExploreCell(const TreeItem* subItem, XML_Table::Row& xmlRow, bool showFullP
 {
 	xmlRow.ClickableCell(
 		showFullPath ? subItem->GetFullName().c_str() : subItem->GetName().c_str(),
-		mySSPrintF("dms:dp.explore:%s", subItem->GetFullName().c_str()).c_str()
+		mySSPrintF("dms:dp.explore:{}", subItem->GetFullName().c_str()).c_str()
 	);
 }
 
@@ -1120,21 +1120,21 @@ void TreeItem_XML_DumpItem(const TreeItem* subItem, XML_Table& xmlTable, bool vi
 		XML_Table::Row xmlRow(xmlTable);
 			ExploreCell(subItem, xmlRow);
 			if (parent->GetTreeParent())
-				xmlRow.ValueCell( mySSPrintF("in %s", parent->GetFullName()).c_str());
+				xmlRow.ValueCell( mySSPrintF("in {}", parent->GetFullName()).c_str());
 			try {
 				if (IsDataItem(subItem))
 				{
 					auto adi = AsDataItem(subItem);
 					if (adi->HasVoidDomainGuarantee())
 						xmlRow.ValueCell(
-							mySSPrintF("param: %s %s"
+							mySSPrintF("param: {} {}"
 								, adi->GetAbstrValuesUnit()->GetDisplayName()
 								, adi->GetAbstrValuesUnit()->GetFormattedMetricStr()
 							).c_str()
 						);
 					else
 						xmlRow.ValueCell( 
-							mySSPrintF("attr: %s -> %s %s"
+							mySSPrintF("attr: {} -> {} {}"
 								, adi->GetAbstrDomainUnit()->GetDisplayName()
 								, adi->GetAbstrValuesUnit()->GetDisplayName()
 								, adi->GetAbstrValuesUnit()->GetFormattedMetricStr()
@@ -1145,7 +1145,7 @@ void TreeItem_XML_DumpItem(const TreeItem* subItem, XML_Table& xmlTable, bool vi
 				{
 					auto au = AsUnit(subItem);
 					xmlRow.ValueCell(
-						mySSPrintF("unit<%s> %s"
+						mySSPrintF("unit<{}> {}"
 							, au->GetValueType()->GetName()
 							, au->GetFormattedMetricStr()
 						).c_str()
@@ -1339,7 +1339,7 @@ void ItemSave(const TreeItem* self, CharPtr fileName, bool copyDir)
 	OutStreamBase::SyntaxType syntax = GetSyntaxTypeFromExt(fileExt);
 
 	if (syntax == OutStreamBase::ST_Unknown)
-		throwErrorF("XML", "ItemSave(%s,%s): cannot write configuration data to the unknown format '%s'",
+		throwErrorF("XML", "ItemSave({},{}): cannot write configuration data to the unknown format '{}'",
 				self->GetName(), fileName, fileExt);
 
 	SharedStr fileNameStr    = DelimitedConcat(s_gDumpFolder.c_str(), fileName);
@@ -1372,7 +1372,7 @@ void ItemSave(const TreeItem* self, CharPtr fileName, bool copyDir)
 			commentedHeader = SharedStr(CharPtrRange(vectOut.GetData(), vectOut.GetDataEnd()));
 		}
 		else
-			commentedHeader = mySSPrintF("// DMS ConfigDataDump version %s\n", DMS_GetVersion());
+			commentedHeader = mySSPrintF("// DMS ConfigDataDump version {}\n", DMS_GetVersion());
 	}
 
 	FileOutStreamBuff fileOut(fileNameStr, true);

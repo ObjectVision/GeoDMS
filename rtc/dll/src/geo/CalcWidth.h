@@ -43,8 +43,8 @@ ScalarType CalcWidth(ConstPointIter polyBegin, ConstPointIter polyEnd, Point<Sca
 		++polyBegin;
 		if	(thisPositive != prevPositive)
 		{
-			DBG_TRACE(("thisPoint %s, %d", AsString(thisPoint).c_str(), thisPositive));
-			DBG_TRACE(("prevPoint %s, %d", AsString(prevPoint).c_str(), prevPositive));
+			DBG_TRACE(("thisPoint {}, {}", AsString(thisPoint).c_str(), thisPositive));
+			DBG_TRACE(("prevPoint {}, {}", AsString(prevPoint).c_str(), prevPositive));
 
 			/*		Afleiding van conditie dat snijpunt (P,T) met x-as strict rechts van oorsprong ligt
 					0 < TX - TY / RC[T->P]
@@ -66,7 +66,7 @@ ScalarType CalcWidth(ConstPointIter polyBegin, ConstPointIter polyEnd, Point<Sca
 			else
 				cols.push_back(0);
 
-			DBG_TRACE(("back %s", AsString(cols.back()).c_str()));
+			DBG_TRACE(("back {}", AsString(cols.back()).c_str()));
 
 		}
 		prevPoint    = thisPoint;

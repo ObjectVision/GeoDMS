@@ -498,8 +498,8 @@ void GridLayer::SelectDistrict(CrdPoint pnt, EventID eventID)
 
 	dms_assert(IsIncluding(gridRect, gridLoc));
 
-	DBG_TRACE(("gridLoc = %s", AsString(gridLoc).c_str()));
-	DBG_TRACE(("gridIdx = %d", Range_GetIndex_naked(gridRect, gridLoc)));
+	DBG_TRACE(("gridLoc = {}", AsString(gridLoc).c_str()));
+	DBG_TRACE(("gridIdx = {}", Range_GetIndex_naked(gridRect, gridLoc)));
 
 	const AbstrDataItem* themeAttr = GetActiveTheme()->GetThemeAttr();
 	      AbstrDataItem* selAttr   = GetEditAttr();
@@ -1008,7 +1008,7 @@ bool GridLayer::DrawAllRects(GraphDrawer& d, const GridColorPalette& colorPalett
 	}
 
 	// =========== Get Data
-	DBG_TRACE(("Region  : %s", d.GetAbsClipRegion().AsString().c_str()));
+	DBG_TRACE(("Region  : {}", d.GetAbsClipRegion().AsString().c_str()));
 
 	GridCoordPtr drawGridCoords = GetGridCoordInfo(d.GetViewPortPtr() );
 	drawGridCoords->UpdateToScale(d.GetSubPixelFactors());
@@ -1100,7 +1100,7 @@ static bool ExpandBufferTo32bpp(const GridDrawer& drawer, const GridColorPalette
 		if (bitCount != 32)
 		{
 			static bool reported = false;
-			if (!reported) { reported = true; reportF(SeverityTypeID::ST_Warning, "GridLayer rotated blit: unsupported direct bit depth %d; tile skipped", bitCount); }
+			if (!reported) { reported = true; reportF(SeverityTypeID::ST_Warning, "GridLayer rotated blit: unsupported direct bit depth {}; tile skipped", bitCount); }
 			return false;
 		}
 		for (int r = 0; r != H; ++r)
@@ -1119,7 +1119,7 @@ static bool ExpandBufferTo32bpp(const GridDrawer& drawer, const GridColorPalette
 	if (pal.empty() || bitCount > 8)
 	{
 		static bool reported = false;
-		if (!reported) { reported = true; reportF(SeverityTypeID::ST_Warning, "GridLayer rotated blit: unsupported indirect bit depth %d; tile skipped", bitCount); }
+		if (!reported) { reported = true; reportF(SeverityTypeID::ST_Warning, "GridLayer rotated blit: unsupported indirect bit depth {}; tile skipped", bitCount); }
 		return false;
 	}
 	UInt32 mask     = (1u << bitCount) - 1;

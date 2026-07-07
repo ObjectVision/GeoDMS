@@ -403,7 +403,7 @@ struct ConnectPointOperator : AbstrConnectPointOperator
 
 		auto reporter = [&processTimer, point2Begin, point2End, t, tn = arg2A->GetAbstrDomainUnit()->GetNrTiles(), itemRef](auto i) {
 			if (processTimer.PassedSecs())
-				reportF(SeverityTypeID::ST_MajorTrace, "%sConnect %s / %s points of tile %s / %s done"
+				reportF(SeverityTypeID::ST_MajorTrace, "{}Connect {} / {} points of tile {} / {} done"
 					, itemRef
 					, AsString(i), AsString(point2End - point2Begin)
 					, AsString(t), AsString(tn));
@@ -850,7 +850,7 @@ public:
 							{
 								nrArg2 += nrUnreportedPoints;
 								nrUnreportedPoints = 0;
-								reportF(SeverityTypeID::ST_MajorTrace, "%s%s %s / %s points done"
+								reportF(SeverityTypeID::ST_MajorTrace, "{}{} {} / {} points done"
 									, itemRef.c_str()
 									, this->GetGroup()->GetName()
 									, AsString(nrArg2), AsString(arg2Count));
@@ -1143,7 +1143,7 @@ public:
 
 					if (processTimer.PassedSecs())
 					{
-						reportF(SeverityTypeID::ST_MajorTrace, "%sConnect discovery: %s / %s points done"
+						reportF(SeverityTypeID::ST_MajorTrace, "{}Connect discovery: {} / {} points done"
 							, itemRef.c_str()
 							, AsString(nrProcessedPoints.load()), AsString(arg2Count));
 					}

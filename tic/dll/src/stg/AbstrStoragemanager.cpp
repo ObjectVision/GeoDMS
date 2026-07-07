@@ -6,6 +6,7 @@
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#include <boost/config/helper_macros.hpp> // BOOST_STRINGIZE; was transitively provided by boost/format via the prelude
 #endif //defined(CC_PRAGMAHDRSTOP)
 
 #include <iostream> // DEBUG
@@ -301,7 +302,7 @@ SharedStr GetProjDir(CharPtr configDir)
 				}
 			} while(s_proj_dir[p] == '.');
 
-			DBG_TRACE(("GoUp %d times on %s", cc, configLoadDir.c_str()));
+			DBG_TRACE(("GoUp {} times on {}", cc, configLoadDir.c_str()));
 
 			while (cc)
 			{
@@ -309,11 +310,11 @@ SharedStr GetProjDir(CharPtr configDir)
 				--cc;
 			}
 
-			DBG_TRACE(("GoUp %d times on %s", cc, configLoadDir.c_str()));
+			DBG_TRACE(("GoUp {} times on {}", cc, configLoadDir.c_str()));
 
 			s_proj_dir = DelimitedConcat(configLoadDir.c_str(), SharedStr(CharPtrRange(s_proj_dir.cbegin()+p, s_proj_dir.csend())).c_str());
 
-			DBG_TRACE(("result after GoUp %s", s_proj_dir.c_str()));
+			DBG_TRACE(("result after GoUp {}", s_proj_dir.c_str()));
 		}
 		s_prevConfigDir = configDir;
 	}
@@ -422,7 +423,7 @@ SharedStr GetPlaceholderValue(const TreeItem* configStore, CharPtr placeHolder)
 	if (!result.empty())
 		return result;
 
-	reportF(MsgCategory::progress, SeverityTypeID::ST_Warning, "Unable to find placeholder: %%%s%%.", placeHolder);
+	reportF(MsgCategory::progress, SeverityTypeID::ST_Warning, "Unable to find placeholder: %{}%.", placeHolder);
 	return SharedStr(placeHolder MG_DEBUG_ALLOCATOR_SRC("GetPlaceholderValue.placeHolder"));
 }
 
@@ -447,17 +448,17 @@ SharedStr ExpandImpl(const auto* placeHolderRoot, SharedStr orgStorageName)
 		if (pSize > maxLength)
 		{
 			if (nrSubstitutions == 0)
-				throwDmsErrF("AbstrStorageManager::Expand(): length of storage name is %d; anything larger than %d characters is assumed to be faulty."
-					"\nStorage name: '%s'"
+				throwDmsErrF("AbstrStorageManager::Expand(): length of storage name is {}; anything larger than {} characters is assumed to be faulty."
+					"\nStorage name: '{}'"
 					, pSize
 					, maxLength
 					, orgStorageName
 				);
 			else
-				throwDmsErrF("AbstrStorageManager::Expand(): length of intermediate name during substitution is %d; anything larger than %d characters is assumed to be faulty."
-					"\nNumber of completed substitutions: %d"
-					"\nStorage name                     : '%s'"
-					"\nCurent substitution result       : '%s'"
+				throwDmsErrF("AbstrStorageManager::Expand(): length of intermediate name during substitution is {}; anything larger than {} characters is assumed to be faulty."
+					"\nNumber of completed substitutions: {}"
+					"\nStorage name                     : '{}'"
+					"\nCurent substitution result       : '{}'"
 					, pSize
 					, maxLength
 					, nrSubstitutions
@@ -476,16 +477,16 @@ SharedStr ExpandImpl(const auto* placeHolderRoot, SharedStr orgStorageName)
 		if (p2 == pEnd)
 		{
 			if (nrSubstitutions == 0)
-				throwDmsErrF("AbstrStorageManager::Expand(): unbalanced placeholder delimiter (%%) at position %d."
-					"\nStorage name                     : '%s'"
+				throwDmsErrF("AbstrStorageManager::Expand(): unbalanced placeholder delimiter (%) at position {}."
+					"\nStorage name                     : '{}'"
 					, lengthWithoutDelimiters
 					, orgStorageName
 				);
 			else
-				throwDmsErrF("AbstrStorageManager::Expand(): unbalanced placeholder delimiter (%%) at position %d."
-					"\nNumber of completed substitutions: %d"
-					"\nStorage name                     : '%s'"
-					"\nCurent substitution result       : '%s'"
+				throwDmsErrF("AbstrStorageManager::Expand(): unbalanced placeholder delimiter (%) at position {}."
+					"\nNumber of completed substitutions: {}"
+					"\nStorage name                     : '{}'"
+					"\nCurent substitution result       : '{}'"
 					, lengthWithoutDelimiters
 					, nrSubstitutions
 					, orgStorageName
@@ -495,9 +496,9 @@ SharedStr ExpandImpl(const auto* placeHolderRoot, SharedStr orgStorageName)
 
 		if (++nrSubstitutions >= maxSubstitutions)
 			throwDmsErrF("AbstrStorageManager::Expand(): substitution aborted after too many substitutions. Resursion suspected."
-				"\nNumber of completed substitutions: %d"
-				"\nStorage name                     : '%s'"
-				"\nCurent substitution result       : '%s'"
+				"\nNumber of completed substitutions: {}"
+				"\nStorage name                     : '{}'"
+				"\nCurent substitution result       : '{}'"
 				, nrSubstitutions
 				, orgStorageName
 				, storageName
@@ -644,7 +645,7 @@ AbstrStorageManagerRef AbstrStorageManager::Construct(CharPtr storageName, Token
 	{
 		if (!throwOnFailure)
 			return {};
-		throwDmsErrF("Cannot derive storage type for storage '%s'", storageName);
+		throwDmsErrF("Cannot derive storage type for storage '{}'", storageName);
 	}
 	bool readOnly = false;
 	if (typeID == s_mdbToken)
@@ -661,8 +662,8 @@ AbstrStorageManagerRef AbstrStorageManager::Construct(CharPtr storageName, Token
 	else if (typeID == s_gdalGridToken || typeID == s_gdalVectToken)
 	{
 		if (readOnlySetting == StorageReadOnlySetting::ReadWrite)
-			throwDmsErrF("The gdal.%s storage type does not allow for writing, yet StorageReadOnly is specified as false.\n"
-				"Consider removing the StorageReadOnly property or set the StorageType to gdalwrite.%s"
+			throwDmsErrF("The gdal.{} storage type does not allow for writing, yet StorageReadOnly is specified as false.\n"
+				"Consider removing the StorageReadOnly property or set the StorageType to gdalwrite.{}"
 				, typeID == s_gdalGridToken ? "grid" : "vect"
 				, typeID == s_gdalGridToken ? "grid" : "vect"
 			);
@@ -671,8 +672,8 @@ AbstrStorageManagerRef AbstrStorageManager::Construct(CharPtr storageName, Token
 	else if (typeID == s_gdalWriteGridToken || typeID == s_gdalWriteVectToken)
 	{
 		if (readOnlySetting == StorageReadOnlySetting::ReadOnly)
-			throwDmsErrF("The gdalwrite.%s storage type does not allow for writing, yet StorageReadOnly is specified as true.\n"
-				"Consider removing the StorageReadOnly property or set the StorageType to gdal.%s"
+			throwDmsErrF("The gdalwrite.{} storage type does not allow for writing, yet StorageReadOnly is specified as true.\n"
+				"Consider removing the StorageReadOnly property or set the StorageType to gdal.{}"
 				, typeID == s_gdalGridToken ? "grid" : "vect"
 				, typeID == s_gdalGridToken ? "grid" : "vect"
 			);
@@ -839,7 +840,7 @@ ActorVisitState AbstrStorageManager::VisitSuppliers(SupplierVisitFlag svf, const
 				{
 					if (a == self)
 						self->throwItemErrorF(
-							"This storable item is (transitively) referenced by the export-meta description %s, "
+							"This storable item is (transitively) referenced by the export-meta description {}, "
 							"so producing that sidecar requires this item, whose storage in turn requires the sidecar.\n"
 							"Remedy: override the global ExportSettings/MetaInfo with a local, lighter one in an "
 							"enclosing container, or drop StorageName and keep the result with KeepData = \"True\".",
@@ -1150,7 +1151,7 @@ void ExportMetaInfoToFileImpl(const TreeItem* curr, CharPtr datasetName)
 		auto extension = getFileNameExtension(fileName.c_str());
 		fileName = getFileNameBase(fileName.c_str()) + ".meta." + extension;
 		reportF(MsgCategory::storage_write, SeverityTypeID::ST_Warning,
-			"MetaInfo sidecar name collides with the exported dataset %s; the sidecar is written to %s instead",
+			"MetaInfo sidecar name collides with the exported dataset {}; the sidecar is written to {} instead",
 			datasetName, fileName.c_str());
 	}
 

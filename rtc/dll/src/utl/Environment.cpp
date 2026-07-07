@@ -122,7 +122,7 @@ bool ManageSystemError(UInt32& retryCounter, CharPtr format, CharPtr fileName, b
 				break;
 			UInt32 nrWaitSecs = (1 << retryCounter);
 			reportF(SeverityTypeID::ST_MajorTrace,
-				"WindowsSystem Error %s:\nErrorCode %d: %s\nWaiting %d seconds before retry #%d", 
+				"WindowsSystem Error {}:\nErrorCode {}: {}\nWaiting {} seconds before retry #{}", 
 				mySSPrintF(format, fileName).c_str(),
 				lastErr, 
 				platform::GetSystemErrorText(lastErr).c_str(),
@@ -212,7 +212,7 @@ void AddFontResourceExA_checked(_In_ LPCSTR name, _In_ DWORD fl, _Reserved_ PVOI
 			break;
 		// MessageBoxW: the message contains the font filename (UTF-8) which
 		// would mojibake under ANSI MessageBoxA for non-ASCII paths.
-		auto msg     = mySSPrintF("Failed to load FontResource %s", name);
+		auto msg     = mySSPrintF("Failed to load FontResource {}", name);
 		auto msgW    = Utf8_2_wchar(msg.c_str());
 		auto userResponse = MessageBoxW(nullptr, msgW.get(), L"Warning", MB_ABORTRETRYIGNORE | MB_ICONWARNING);
 		switch (userResponse)
@@ -587,10 +587,10 @@ extern "C" RTC_CALL bool DMS_CONV RTC_ParseRegStatusFlag(const char* param)
 		case 'H': SetCachedStatusFlag(RSF_ShowThousandSeparator, newValue); break;
 		case 'W': SetCachedStatusFlag(RSF_EventLog_HideDepreciated, !newValue); break; // the command line option is /SW to Show (not hide) deprecated events, but the flag is HideDepreciated, so invert the value
 		default:
-			reportF(SeverityTypeID::ST_Warning, "Unrecognised command line %s option %s",  (newValue ? "Set" : "Clear"), param);
+			reportF(SeverityTypeID::ST_Warning, "Unrecognised command line {} option {}",  (newValue ? "Set" : "Clear"), param);
 			return true;
 	}
-//	reportF(SeverityTypeID::ST_MinorTrace, "Recognised command line option %s %s", (newValue ? "Set" : "Clear"), param[2]);
+//	reportF(SeverityTypeID::ST_MinorTrace, "Recognised command line option {} {}", (newValue ? "Set" : "Clear"), param[2]);
 	return true;
 }
 
@@ -672,7 +672,7 @@ void MakeDir(WeakStr dirName)
 	{
 		if (GetLastError() == ERROR_ALREADY_EXISTS)
 			return;
-		throwLastSystemError("MakeDir('%s')", dirName.c_str());
+		throwLastSystemError("MakeDir('{}')", dirName.c_str());
 	}
 }
 
@@ -685,7 +685,7 @@ bool IsDosDir(WeakStr dosFileName, CharPtr dmsFileName)
 	// See #1101 for the original symptom.
 	DWORD attr = GetFileAttributesW(Utf8_2_wchar(dosFileName.c_str()).get());
 	if (attr == INVALID_FILE_ATTRIBUTES)
-		throwLastSystemError("IsDir(%s)", dmsFileName);
+		throwLastSystemError("IsDir({})", dmsFileName);
 	return (attr & FILE_ATTRIBUTE_DIRECTORY);
 }
 
@@ -919,7 +919,7 @@ auto AsDateTimeString(FileDateTime t64) -> SharedStr
 	SYSTEMTIME stCreate;
 	FileTimeToSystemTime(&lft2, &stCreate);
 
-	return mySSPrintF("%04d/%02d/%02d  %02d:%02d:%02d",
+	return mySSPrintF("{:04}/{:02}/{:02}  {:02}:{:02}:{:02}",
 		stCreate.wYear, stCreate.wMonth, stCreate.wDay,
 		stCreate.wHour, stCreate.wMinute, stCreate.wSecond
 	);
@@ -946,7 +946,7 @@ void CopyAllInDir(CharPtr srcDirName, CharPtr destDirName)
 	if (GetLastError() == ERROR_NO_MORE_FILES) 
 		return;
 error:
-	throwLastSystemError("CopyAllInDir(%s, %s)", srcDirName, destDirName);
+	throwLastSystemError("CopyAllInDir({}, {})", srcDirName, destDirName);
 }
 
 void SetWritable(CharPtr dosFileName)
@@ -981,8 +981,8 @@ bool CopyOrMoveFileOrDirImpl(CharPtr srcFileOrDirName, CharPtr destFileOrDirName
 	{
 		dms_assert(fullDst.ssize() > fullSrcSize);
 		if (fullDst[fullSrcSize] == '/')
-			throwErrorF("FileSystem", "CopyOrMoveFileOrDirImpl(%s, %s):\n"
-				"Cannot %s to a subdir from source because this would result in infinite recursion.", 
+			throwErrorF("FileSystem", "CopyOrMoveFileOrDirImpl({}, {}):\n"
+				"Cannot {} to a subdir from source because this would result in infinite recursion.", 
 				srcFileOrDirName, destFileOrDirName,
 				mustCopy ? "copy" : "move"
 			);
@@ -1002,14 +1002,14 @@ bool CopyOrMoveFileOrDirImpl(CharPtr srcFileOrDirName, CharPtr destFileOrDirName
 		{
 			if (GetLastError() != 2 || !mayBeMissing)
 				return false;
-			throwLastSystemError("MoveFileOrDir(%s, %s)", srcFileOrDirName, destFileOrDirName);
+			throwLastSystemError("MoveFileOrDir({}, {})", srcFileOrDirName, destFileOrDirName);
 		}
 	}
 	else
 	{
 		DWORD attr = GetFileAttributesW(wideSrc.get());
 		if (attr == INVALID_FILE_ATTRIBUTES)
-			throwLastSystemError("CopyFileOrDir(%s, %s)", srcFileOrDirName, destFileOrDirName);
+			throwLastSystemError("CopyFileOrDir({}, {})", srcFileOrDirName, destFileOrDirName);
 
 		if (attr & FILE_ATTRIBUTE_DIRECTORY)
 		{
@@ -1019,7 +1019,7 @@ bool CopyOrMoveFileOrDirImpl(CharPtr srcFileOrDirName, CharPtr destFileOrDirName
 		else
 		{
 			if (!CopyFileW(wideSrc.get(), wideDst.get(), FALSE))
-				throwLastSystemError("CopyFile(%s, %s)", srcFileOrDirName, destFileOrDirName);
+				throwLastSystemError("CopyFile({}, {})", srcFileOrDirName, destFileOrDirName);
 			SetWritable(fullDstDOS.c_str());
 		}
 	}
@@ -1055,7 +1055,7 @@ bool KillAllInDir(CharPtr dirName)
 		return result;
 
 error:
-	throwLastSystemError("KillAllInDir(%s)", dirName);
+	throwLastSystemError("KillAllInDir({})", dirName);
 }
 
 bool BreakingReport(CharPtr funcStr, CharPtr fileName)
@@ -1065,14 +1065,14 @@ bool BreakingReport(CharPtr funcStr, CharPtr fileName)
 	bool mustBreak = (lastError != 32 && lastError != 5);
 	if (mustBreak)
 	{
-		reportF(SeverityTypeID::ST_MajorTrace, "Failure in %s(%s) because %s"
+		reportF(SeverityTypeID::ST_MajorTrace, "Failure in {}({}) because {}"
 		,	funcStr
 		,	fileName
 		,	platform::GetSystemErrorText(lastError).c_str()
 		);
 		return true;
 	}
-	reportF(SeverityTypeID::ST_MajorTrace, "Retry %s(%s) after waiting 1 sec because %s"
+	reportF(SeverityTypeID::ST_MajorTrace, "Retry {}({}) after waiting 1 sec because {}"
 	,	funcStr
 	,	fileName
 	,	platform::GetSystemErrorText(lastError).c_str()
@@ -1113,7 +1113,7 @@ bool KillFileOrDir(WeakStr fileOrDirName, bool canBeDir)
 		&&	stricmp(ext, "old")
 		)
 			throwErrorF("FileSystem", 
-				"Suspected call to KillFileOrDir('%s').\n"
+				"Suspected call to KillFileOrDir('{}').\n"
 				"Only .dmsdata, .tmp or .old extensions are allowed now.", fileOrDirName.c_str()
 			);
 
@@ -1147,7 +1147,7 @@ void GetWritePermission(WeakStr fileName)
 	if (IsFileOrDirAccessible(fileName))
 	{
 		if (!IsFileOrDirWritable(fileName))
-			throwErrorF("FileSystem", "Write permission for '%s' denied", fileName);
+			throwErrorF("FileSystem", "Write permission for '{}' denied", fileName);
 	}
 	else
 		MakeDirsForFile(fileName);
@@ -1331,7 +1331,7 @@ start_process_result_t StartChildProcess(CharPtr moduleName, Char* cmdLine)
 	);  // receives PROCESS_INFORMATION 
 
 	if (!res)
-		throwLastSystemError("ExecuteChildProcess(%s, %s) failed", moduleName?moduleName:"NULL", cmdLine);
+		throwLastSystemError("ExecuteChildProcess({}, {}) failed", moduleName?moduleName:"NULL", cmdLine);
 
 	return { piProcInfo.hProcess, piProcInfo.hThread };
 }
@@ -1349,7 +1349,7 @@ DWORD ExecuteChildProcess(CharPtr moduleName, Char * cmdLine)
 	DWORD exitCode;
 	BOOL res = GetExitCodeProcess(childProcess.first, &exitCode);
 	if (!res)
-		throwLastSystemError("ExecuteChildProcess(%s, %s) failed to return an exitcode", moduleName, cmdLine);
+		throwLastSystemError("ExecuteChildProcess({}, {}) failed to return an exitcode", moduleName, cmdLine);
 
 	CloseHandle(childProcess.second);
 	CloseHandle(childProcess.first);
@@ -1464,7 +1464,7 @@ namespace PlatformInfo
 	}
 	RTC_CALL bool GetEnvString(CharPtr section, CharPtr key, SharedStr& result)
 	{
-		SharedStr varName = mySSPrintF("GEODMS_%s_%s", section, key);
+		SharedStr varName = mySSPrintF("GEODMS_{}_{}", section, key);
 		return GetEnv(varName.c_str(), result);
 	}
 
@@ -1486,8 +1486,8 @@ struct WindowsComponent : AbstrVersionComponent {
 		char localeName_utf8[LOCALE_NAME_MAX_LENGTH * 3];
 		WideCharToMultiByte(utf8CP, 0, localeName_utf16, sz, localeName_utf8, LOCALE_NAME_MAX_LENGTH * 3, nullptr, nullptr);
 
-		callBack(clientHandle, componentLevel, mgFormat2string("GetUserDefaultLocaleName(Win32) '%1%'", localeName_utf8).c_str());
-		callBack(clientHandle, componentLevel, mgFormat2string("std::locale(\"\"): '%1%'", std::locale("").name().c_str()).c_str());
+		callBack(clientHandle, componentLevel, mgFormat2string("GetUserDefaultLocaleName(Win32) '{0}'", localeName_utf8).c_str());
+		callBack(clientHandle, componentLevel, mgFormat2string("std::locale(\"\"): '{0}'", std::locale("").name().c_str()).c_str());
 	}
 };
 
@@ -1622,7 +1622,7 @@ bool ManageSystemError(UInt32& retryCounter, CharPtr format, CharPtr fileName, b
 		{
 			UInt32 nrWaitSecs = (1 << retryCounter);
 			reportF(SeverityTypeID::ST_MajorTrace,
-				"System Error %s:\nErrorCode %d: %s\nWaiting %d seconds before retry #%d",
+				"System Error {}:\nErrorCode {}: {}\nWaiting {} seconds before retry #{}",
 				mySSPrintF(format, fileName).c_str(),
 				lastErr,
 				strerror(lastErr),
@@ -1808,7 +1808,7 @@ void MakeDir(WeakStr dirName)
 	{
 		if (errno == EEXIST)
 			return;
-		throwLastSystemError("MakeDir('%s')", dirName.c_str());
+		throwLastSystemError("MakeDir('{}')", dirName.c_str());
 	}
 }
 
@@ -1852,7 +1852,7 @@ void GetWritePermission(WeakStr fileName)
 	if (IsFileOrDirAccessible(fileName))
 	{
 		if (!IsFileOrDirWritable(fileName))
-			throwErrorF("FileSystem", "Write permission for '%s' denied", fileName);
+			throwErrorF("FileSystem", "Write permission for '{}' denied", fileName);
 	}
 	else
 		MakeDirsForFile(fileName);
@@ -1996,7 +1996,7 @@ SharedStr AsDateTimeString(FileDateTime t64)
 	time_t unixTime = (t64 - 116444736000000000ULL) / 10000000ULL;
 	struct tm tm;
 	localtime_r(&unixTime, &tm);
-	return mySSPrintF("%04d/%02d/%02d  %02d:%02d:%02d",
+	return mySSPrintF("{:04}/{:02}/{:02}  {:02}:{:02}:{:02}",
 		tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
 		tm.tm_hour, tm.tm_min, tm.tm_sec
 	);
@@ -2013,7 +2013,7 @@ void CopyFileOrDir(CharPtr srcFileOrDirName, CharPtr destFileOrDirName, bool may
 			std::filesystem::copy_options::recursive | std::filesystem::copy_options::overwrite_existing);
 	} catch (const std::filesystem::filesystem_error& e) {
 		if (!mayBeMissing)
-			throwErrorF("FileSystem", "CopyFileOrDir(%s, %s) failed: %s", srcFileOrDirName, destFileOrDirName, e.what());
+			throwErrorF("FileSystem", "CopyFileOrDir({}, {}) failed: {}", srcFileOrDirName, destFileOrDirName, e.what());
 	}
 }
 
@@ -2024,7 +2024,7 @@ bool MoveFileOrDir(CharPtr srcFileOrDirName, CharPtr destFileOrDirName, bool may
 	if (ec)
 	{
 		if (!mayBeMissing)
-			throwErrorF("FileSystem", "MoveFileOrDir(%s, %s) failed: %s", srcFileOrDirName, destFileOrDirName, ec.message().c_str());
+			throwErrorF("FileSystem", "MoveFileOrDir({}, {}) failed: {}", srcFileOrDirName, destFileOrDirName, ec.message().c_str());
 		return false;
 	}
 	return true;
@@ -2084,14 +2084,14 @@ start_process_result_t StartChildProcess(CharPtr moduleName, Char* cmdLine)
 		char* argv[] = { const_cast<char*>(shell), const_cast<char*>("-c"), const_cast<char*>(shellCmd), nullptr };
 		status = posix_spawn(&pid, shell, nullptr, nullptr, argv, environ);
 		if (status != 0)
-			throwErrorF("Environment", "posix_spawn(%s -c '%s') failed: %s", shell, shellCmd, strerror(status));
+			throwErrorF("Environment", "posix_spawn({} -c '{}') failed: {}", shell, shellCmd, strerror(status));
 	}
 	else
 	{
 		char* argv[] = { const_cast<char*>(moduleName), cmdLine, nullptr };
 		status = posix_spawn(&pid, moduleName, nullptr, nullptr, argv, environ);
 		if (status != 0)
-			throwErrorF("Environment", "posix_spawn(%s) failed: %s", moduleName, strerror(status));
+			throwErrorF("Environment", "posix_spawn({}) failed: {}", moduleName, strerror(status));
 	}
 
 	// Return pid in the HANDLE pair (process, thread=0 on Linux)
@@ -2127,7 +2127,7 @@ static std::mutex s_SessionLocalMutex;
 static SharedStr GetGeoDmsConfigDir()
 {
     const char* xdg = getenv("XDG_CONFIG_HOME");
-    SharedStr base = xdg && *xdg ? SharedStr(xdg) : mySSPrintF("%s/.config", getenv("HOME") ? getenv("HOME") : "/tmp");
+    SharedStr base = xdg && *xdg ? SharedStr(xdg) : mySSPrintF("{}/.config", getenv("HOME") ? getenv("HOME") : "/tmp");
     return base + "/geodms";
 }
 
@@ -2475,7 +2475,7 @@ extern "C" RTC_CALL bool DMS_CONV RTC_ParseRegStatusFlag(const char* param)
 		case 'H': SetCachedStatusFlag(RSF_ShowThousandSeparator, newValue); break;
 		case 'W': SetCachedStatusFlag(RSF_EventLog_HideDepreciated, !newValue); break;
 		default:
-			reportF(SeverityTypeID::ST_Warning, "Unrecognised command line %s option %s", (newValue ? "Set" : "Clear"), param);
+			reportF(SeverityTypeID::ST_Warning, "Unrecognised command line {} option {}", (newValue ? "Set" : "Clear"), param);
 			return true;
 	}
 	return true;
@@ -2583,7 +2583,7 @@ namespace PlatformInfo
 	{
 		struct utsname buf;
 		if (uname(&buf) == 0)
-			return mySSPrintF("Linux %s %s", buf.release, buf.machine);
+			return mySSPrintF("Linux {} {}", buf.release, buf.machine);
 		return SharedStr("Linux (unknown version)");
 	}
 
@@ -2633,7 +2633,7 @@ namespace PlatformInfo
 
 	RTC_CALL bool GetEnvString(CharPtr section, CharPtr key, SharedStr& result)
 	{
-		SharedStr varName = mySSPrintF("GEODMS_%s_%s", section, key);
+		SharedStr varName = mySSPrintF("GEODMS_{}_{}", section, key);
 		return GetEnv(varName.c_str(), result);
 	}
 
@@ -2740,8 +2740,8 @@ struct ExeComponent : AbstrVersionComponent {
 	void Visit(ClientHandle clientHandle, VersionComponentCallbackFunc callBack, UInt32 componentLevel) const override {
 		SharedStr exePath = GetExeFullPath();
 		if (!exePath.empty())
-			callBack(clientHandle, componentLevel, mySSPrintF("Executable: %s", exePath.c_str()).c_str());
-		callBack(clientHandle, componentLevel, mySSPrintF("GeoDms Exe Folder: %s", GetExeDir().c_str()).c_str());
+			callBack(clientHandle, componentLevel, mySSPrintF("Executable: {}", exePath.c_str()).c_str());
+		callBack(clientHandle, componentLevel, mySSPrintF("GeoDms Exe Folder: {}", GetExeDir().c_str()).c_str());
 	}
 };
 

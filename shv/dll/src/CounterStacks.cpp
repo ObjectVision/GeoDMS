@@ -129,8 +129,8 @@ void CounterStacks::ScrollDevice(GPoint delta, const GRect& scrollRect, const GR
 {
 	DBG_START("CounterStacks", "Scroll", MG_DEBUG_COUNTERSTACKS);
 
-	DBG_TRACE(("Delta     : (x=%d, y=%d)",  delta.x, delta.y) );
-	DBG_TRACE(("ScrollRect: %s", AsString(scrollRect).c_str() ) );
+	DBG_TRACE(("Delta     : (x={}, y={})",  delta.x, delta.y) );
+	DBG_TRACE(("ScrollRect: {}", AsString(scrollRect).c_str() ) );
 
 	dms_assert(NoActiveCounters());
 	dms_assert(!DidBreak());
@@ -314,7 +314,7 @@ bool CounterStacks::HasBreakingStackSize() const
 				stackEnd = m_Stacks.end  ();
 			while (stackPtr != stackEnd)
 			{
-				DBG_TRACE(("Rects: %s", stackPtr->m_DrawRegion.AsString().c_str() ) );
+				DBG_TRACE(("Rects: {}", stackPtr->m_DrawRegion.AsString().c_str() ) );
 				++stackPtr;
 			}
 		}

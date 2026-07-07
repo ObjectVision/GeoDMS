@@ -39,7 +39,7 @@ inline DerivedPtr checked_cast(Base* basePtr)
 	{
 		assert(basePtr);
 		assert(!result);
-		throwErrorF("checked_cast", "object of type %s cannot be casted to type %s"
+		throwErrorF("checked_cast", "object of type {} cannot be casted to type {}"
 			, typeid(*basePtr).name()
 			, typeid(std::remove_pointer_t<DerivedPtr>).name()
 		);

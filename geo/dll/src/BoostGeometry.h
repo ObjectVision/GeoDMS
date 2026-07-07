@@ -455,7 +455,7 @@ void assign_multi_polygon(bg_multi_polygon_t& resMP, SA_ConstReference<DmsPointT
 						}
 
 						if (boost::geometry::overlaps(currPolygon->outer(), helperPolygon.outer()))
-							throwDmsErrF("OuterPolygon: unexpected overlap of two outer rings in %s", AsString(polyRef).c_str());
+							throwDmsErrF("OuterPolygon: unexpected overlap of two outer rings in {}", AsString(polyRef).c_str());
 
 						// a combination of touching outer rings such as in an 8 shape is 
 					}
@@ -530,13 +530,13 @@ bg_multi_polygon_t clean_bg_geometry(Geometry&& input)
 	if (boost::geometry::is_valid(input, reason))
 		return input;
 
-	reportF(SeverityTypeID::ST_Warning, "clean bg geometry with GEOS because \"%s\".", reason);
+	reportF(SeverityTypeID::ST_Warning, "clean bg geometry with GEOS because \"{}\".", reason);
 
 	auto output = fix_bg_polygons_with_GEOS(std::move(input));
 
 	std::string reason2;
 	if (!boost::geometry::is_valid(output, reason2))
-		reportF(SeverityTypeID::ST_Warning, "fix_bg_polygons_with_GEOS failed because \"%s\".", reason2);
+		reportF(SeverityTypeID::ST_Warning, "fix_bg_polygons_with_GEOS failed because \"{}\".", reason2);
 
 	return output;
 }
@@ -547,16 +547,16 @@ inline void checkWindingOrders(const bg_multi_polygon_t& mp)
 	{
 		auto outerArea = boost::geometry::area(polygon.outer());
 		if (outerArea < 0)
-			reportF(SeverityTypeID::ST_Warning, "checkWindingOrders: outer ring has negative area %f", outerArea);
+			reportF(SeverityTypeID::ST_Warning, "checkWindingOrders: outer ring has negative area {:f}", outerArea);
 		for (const auto& inner : polygon.inners())
 		{
 			auto innerArea = boost::geometry::area(inner);
 			if (innerArea > 0)
-				reportF(SeverityTypeID::ST_Warning, "checkWindingOrders: inner ring has positive area %f", innerArea);
+				reportF(SeverityTypeID::ST_Warning, "checkWindingOrders: inner ring has positive area {:f}", innerArea);
 			outerArea -= innerArea;
 		}
 		if (outerArea < 0)
-			reportF(SeverityTypeID::ST_Warning, "checkWindingOrders: innner rings sum up to more than the outer ring with %f", outerArea);
+			reportF(SeverityTypeID::ST_Warning, "checkWindingOrders: innner rings sum up to more than the outer ring with {:f}", outerArea);
 	}
 }
 
@@ -568,7 +568,7 @@ inline void fixWindingOrders(bg_multi_polygon_t& mp)
 		auto outerArea = boost::geometry::area(polygon.outer());
 		if (outerArea < 0)
 		{
-			reportF(SeverityTypeID::ST_Warning, "fixWindingOrders: outer ring had negative area %f", outerArea);
+			reportF(SeverityTypeID::ST_Warning, "fixWindingOrders: outer ring had negative area {:f}", outerArea);
 			std::reverse(polygon.outer().begin(), polygon.outer().end());
 		}
 		for (auto& inner : polygon.inners())
@@ -576,14 +576,14 @@ inline void fixWindingOrders(bg_multi_polygon_t& mp)
 			auto innerArea = boost::geometry::area(inner);
 			if (innerArea > 0)
 			{
-				reportF(SeverityTypeID::ST_Warning, "fixWindingOrders: inner ring had positive area %f", innerArea);
+				reportF(SeverityTypeID::ST_Warning, "fixWindingOrders: inner ring had positive area {:f}", innerArea);
 				std::reverse(inner.begin(), inner.end());
 			}
 			outerArea -= innerArea;
 		}
 		if (outerArea < 0)
 		{
-			reportF(SeverityTypeID::ST_Warning, "checkWindingOrders: innner rings sum up to more than the outer ring with %f", outerArea);
+			reportF(SeverityTypeID::ST_Warning, "checkWindingOrders: innner rings sum up to more than the outer ring with {:f}", outerArea);
 			mustRemovePolygons = true;
 			polygon = {};
 		}
@@ -672,7 +672,7 @@ inline void CheckGeometryArgComposition(const AbstrOperGroup* gr, const AbstrDat
 
 	auto argName = argA->GetFullName();
 	reportF(SeverityTypeID::ST_Warning
-		, "%s: Depreciated: the geometry argument%s%s has ValueComposition '%s' but %s is meant for '%s' geometry.\n"
+		, "{}: Depreciated: the geometry argument{}{} has ValueComposition '{}' but {} is meant for '{}' geometry.\n"
 		  "Configure the argument with the matching composition (points2sequence for arc, points2polygon for poly). "
 		  "This will become an error in a future GeoDms major version."
 		, gr->GetNameStr()

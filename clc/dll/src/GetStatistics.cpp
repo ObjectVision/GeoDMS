@@ -226,7 +226,7 @@ void WriteNumericAccuData(PostLinkedTable& table, const f64_accumulator& accu, c
 {
 	auto vu = di->GetAbstrValuesUnit();
 	auto metricPtr = vu->GetMetric();
-	table.AddRow(mySSPrintF("Formal Range %s",  vu->GetName().c_str()).c_str(), di->GetAbstrValuesUnit()->GetRangeAsStr(FormattingFlags::ThousandSeparator).c_str());
+	table.AddRow(mySSPrintF("Formal Range {}",  vu->GetName().c_str()).c_str(), di->GetAbstrValuesUnit()->GetRangeAsStr(FormattingFlags::ThousandSeparator).c_str());
 	if (metricPtr)
 		table.AddRow("Metric Units", metricPtr->AsString(FormattingFlags::ThousandSeparator).c_str());
 
@@ -296,7 +296,7 @@ void WritePointAccuData(PostLinkedTable& table, const point64_accumulator& accu,
 {
 	auto vu = di->GetAbstrValuesUnit();
 	auto metricPtr = vu->GetMetric();
-	table.AddRow(mySSPrintF("Formal Range %s", vu->GetName().c_str()).c_str(), di->GetAbstrValuesUnit()->GetRangeAsStr(FormattingFlags::ThousandSeparator).c_str());
+	table.AddRow(mySSPrintF("Formal Range {}", vu->GetName().c_str()).c_str(), di->GetAbstrValuesUnit()->GetRangeAsStr(FormattingFlags::ThousandSeparator).c_str());
 	if (metricPtr)
 		table.AddRow("Metric Units", metricPtr->AsString(FormattingFlags::ThousandSeparator).c_str());
 

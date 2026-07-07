@@ -167,7 +167,7 @@ LispRef UnitBase<V>::GetKeyExprImpl() const
 	}
 
 #if defined(MG_DEBUG_LISP_TREE)
-	reportF(SeverityTypeID::ST_MinorTrace, "AbstrUnit::GetAsLispRef -> %s", AsString(result.AsLispPtr()).c_str());
+	reportF(SeverityTypeID::ST_MinorTrace, "AbstrUnit::GetAsLispRef -> {}", AsString(result.AsLispPtr()).c_str());
 	dms_assert(IsExpr(result));
 #endif
 	// add range or tile spec to keyExpr
@@ -175,7 +175,7 @@ LispRef UnitBase<V>::GetKeyExprImpl() const
 		result = GetRangeDataAsLispRef(m_RangeDataPtr, GetTSF(TSF_Categorical), result); // enforce [expr(x) == expr(y)] => [range(x) == range(y)];
 
 #if defined(MG_DEBUG_LISP_TREE)
-	reportF(SeverityTypeID::ST_MinorTrace, "-> %s", AsString(result.AsLispPtr()).c_str());
+	reportF(SeverityTypeID::ST_MinorTrace, "-> {}", AsString(result.AsLispPtr()).c_str());
 	dms_assert(IsExpr(result));
 #endif
 
@@ -201,7 +201,7 @@ void RangedUnit<V>::ValidateRange (const range_t& range) const
 	{
 		const ValueClass* cls = this->GetValueType();
 		dms_assert(cls);
-		throwItemErr("ValidateRange(%s) failed because current range is %s"
+		throwItemErr("ValidateRange({}) failed because current range is {}"
 		,	AsString(range).c_str()
 		,	AsString(currRange).c_str()
 		);
@@ -1286,7 +1286,7 @@ void Unit<V>::InviteUnitProcessor(const UnitProcessor& visitor) const
 template <typename T>
 TokenID GetUnitClassID()
 {
-	static TokenID result = GetTokenID_st(myArrayPrintF<100>("Unit<%s>", ValueWrap<T>::GetStaticClass()->GetID().c_str_st()));
+	static TokenID result = GetTokenID_st(myArrayPrintF<100>("Unit<{}>", ValueWrap<T>::GetStaticClass()->GetID().c_str_st()));
 	return result;
 }
 

@@ -122,7 +122,7 @@ void SupplCache::BuildSet(const TreeItem* context) const
 			Trim(explicitSupplierName);
 			auto suppl = context->FindItem(explicitSupplierName);
 			if (!suppl)
-				context->throwItemErrorF("ExplicitSupplier %s not found", SingleQuote(explicitSupplierName.first, explicitSupplierName.second));
+				context->throwItemErrorF("ExplicitSupplier {} not found", SingleQuote(explicitSupplierName.first, explicitSupplierName.second));
 
 			assert(i<m_NrConfigured);
 			newSupplArray[i++] = make_shared_tree(suppl.get(), existing_obj{}); // owning std borrow of the already-tree-owned supplier TreeItem

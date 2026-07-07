@@ -169,7 +169,7 @@ std::size_t ShpImp::OpenAndReadHeader(WeakStr name)
 	if (!Open(name, false, false))
 		return 0;
 
-	DBG_TRACE(("Opened: %s", name.c_str()));
+	DBG_TRACE(("Opened: {}", name.c_str()));
 
 
 	// Read header
@@ -177,7 +177,7 @@ std::size_t ShpImp::OpenAndReadHeader(WeakStr name)
 	std::size_t postFileHeaderPos = head.Read(m_FH);
 
 	if (!IsKnown(head.m_ShapeType))
-		throwErrorF("Shp", "ShapeType %d in ShapeFile '%s' is not supported",
+		throwErrorF("Shp", "ShapeType {} in ShapeFile '{}' is not supported",
 			int(head.m_ShapeType), name.c_str());
 	SetShapeType(head.m_ShapeType);
 
@@ -240,7 +240,7 @@ bool ShpImp::Read(WeakStr name)
 			else
 			{
 				if (!IsPoint(shapeType))
-					throwErrorF("Shape", "Unsupported type %d at record %d in shapefile %s\n"
+					throwErrorF("Shape", "Unsupported type {} at record {} in shapefile {}\n"
 						"Expected shapetype: ST_Point", 
 						int(shapeType), rhead.RecordNumber, name.c_str());
 				pos += ::Read(m_Points.back(), m_FH);
@@ -278,7 +278,7 @@ bool ShpImp::Read(WeakStr name)
 		assert(m_SeqParts .size() == m_NrRecs);
 	}
 	// Done
-	DBG_TRACE(("pos = %d (expected %d)", pos, m_FileLength));
+	DBG_TRACE(("pos = {} (expected {})", pos, m_FileLength));
 	Close();
 	return true;
 }
@@ -363,7 +363,7 @@ bool ShpImp::Write(WeakStr name, SharedStr wktPrjStr)
 	}
 
 	// Done
-	DBG_TRACE(("pos = %d (expected %d)", pos, head.m_FileLength * 2));
+	DBG_TRACE(("pos = {} (expected {})", pos, head.m_FileLength * 2));
 	return true;
 }
 
@@ -376,7 +376,7 @@ UInt32 ShpImp::CalcNrWordsInShx() const
 		?	m_Points.size()
 		:	m_Polygons.size(); 
 
-	DBG_TRACE(("size: %d recs", nrRecs));
+	DBG_TRACE(("size: {} recs", nrRecs));
 	return 
 		4*nrRecs  // 8 bytes per rec in shx
 	+	50;       // 100 bytes header
@@ -408,7 +408,7 @@ UInt32 ShpImp::CalcNrWordsInFile()
 			+ (*i).CalcNrWordsInRecord();    // record
 	}
 
-	DBG_TRACE(("size: %d", result));
+	DBG_TRACE(("size: {}", result));
 	return result;
 }
 
@@ -468,7 +468,7 @@ bool ShpImp::CalcBox()
 void ShpImp::CheckShapeType() const
 {
 	if (!IsKnown(m_ShapeType))
-		throwErrorF("ShpImp", "unsupported m_ShapeType %d", int(m_ShapeType));
+		throwErrorF("ShpImp", "unsupported m_ShapeType {}", int(m_ShapeType));
 }
 
 #if defined(MG_DEBUG)
@@ -503,23 +503,23 @@ std::size_t ShpHeader::Read(FILE * fp)
 	ConvertLittleEndian(m_ZRange);
 	ConvertLittleEndian(m_MRange);
 
-	DBG_TRACE(("FileCode   = %d", m_FileCode));
-	DBG_TRACE(("Unused1    = %d", m_Unused1));
-	DBG_TRACE(("Unused2    = %d", m_Unused2));
-	DBG_TRACE(("Unused3    = %d", m_Unused3));
-	DBG_TRACE(("Unused4    = %d", m_Unused4));
-	DBG_TRACE(("Unused5    = %d", m_Unused5));
-	DBG_TRACE(("FileLength = %d", m_FileLength));
-	DBG_TRACE(("Version    = %d", m_Version));
-	DBG_TRACE(("ShapeType  = %d", int(m_ShapeType)));
-	DBG_TRACE(("Xmin       = %E", m_Box.first.first ));
-	DBG_TRACE(("Ymin       = %E", m_Box.first.second));
-	DBG_TRACE(("Xmax       = %E", m_Box.second.first));
-	DBG_TRACE(("Ymax       = %E", m_Box.second.second));
-	DBG_TRACE(("Zmin       = %E", m_ZRange.first));
-	DBG_TRACE(("Zmax       = %E", m_ZRange.second));
-	DBG_TRACE(("Mmin       = %E", m_MRange.first));
-	DBG_TRACE(("Mmax       = %E", m_MRange.second));
+	DBG_TRACE(("FileCode   = {}", m_FileCode));
+	DBG_TRACE(("Unused1    = {}", m_Unused1));
+	DBG_TRACE(("Unused2    = {}", m_Unused2));
+	DBG_TRACE(("Unused3    = {}", m_Unused3));
+	DBG_TRACE(("Unused4    = {}", m_Unused4));
+	DBG_TRACE(("Unused5    = {}", m_Unused5));
+	DBG_TRACE(("FileLength = {}", m_FileLength));
+	DBG_TRACE(("Version    = {}", m_Version));
+	DBG_TRACE(("ShapeType  = {}", int(m_ShapeType)));
+	DBG_TRACE(("Xmin       = {:E}", m_Box.first.first ));
+	DBG_TRACE(("Ymin       = {:E}", m_Box.first.second));
+	DBG_TRACE(("Xmax       = {:E}", m_Box.second.first));
+	DBG_TRACE(("Ymax       = {:E}", m_Box.second.second));
+	DBG_TRACE(("Zmin       = {:E}", m_ZRange.first));
+	DBG_TRACE(("Zmax       = {:E}", m_ZRange.second));
+	DBG_TRACE(("Mmin       = {:E}", m_MRange.first));
+	DBG_TRACE(("Mmax       = {:E}", m_MRange.second));
 
 	// Number of bytes read
 	return pos;
@@ -546,23 +546,23 @@ std::size_t ShpHeader::Write(FILE * fp) const
 	pos += WriteLittleEndian(fp, m_ZRange);
 	pos += WriteLittleEndian(fp, m_MRange);
 
-	DBG_TRACE(("FileCode   = %d", m_FileCode));
-	DBG_TRACE(("Unused1    = %d", m_Unused1));
-	DBG_TRACE(("Unused2    = %d", m_Unused2));
-	DBG_TRACE(("Unused3    = %d", m_Unused3));
-	DBG_TRACE(("Unused4    = %d", m_Unused4));
-	DBG_TRACE(("Unused5    = %d", m_Unused5));
-	DBG_TRACE(("FileLength = %d", m_FileLength));
-	DBG_TRACE(("Version    = %d", m_Version));
-	DBG_TRACE(("ShapeType  = %d", int(m_ShapeType)));
-	DBG_TRACE(("Xmin       = %E", m_Box.first.first ));
-	DBG_TRACE(("Ymin       = %E", m_Box.first.second));
-	DBG_TRACE(("Xmax       = %E", m_Box.second.first));
-	DBG_TRACE(("Ymax       = %E", m_Box.second.second));
-	DBG_TRACE(("Zmin       = %E", m_ZRange.first));
-	DBG_TRACE(("Zmax       = %E", m_ZRange.second));
-	DBG_TRACE(("Mmin       = %E", m_MRange.first));
-	DBG_TRACE(("Mmax       = %E", m_MRange.second));
+	DBG_TRACE(("FileCode   = {}", m_FileCode));
+	DBG_TRACE(("Unused1    = {}", m_Unused1));
+	DBG_TRACE(("Unused2    = {}", m_Unused2));
+	DBG_TRACE(("Unused3    = {}", m_Unused3));
+	DBG_TRACE(("Unused4    = {}", m_Unused4));
+	DBG_TRACE(("Unused5    = {}", m_Unused5));
+	DBG_TRACE(("FileLength = {}", m_FileLength));
+	DBG_TRACE(("Version    = {}", m_Version));
+	DBG_TRACE(("ShapeType  = {}", int(m_ShapeType)));
+	DBG_TRACE(("Xmin       = {:E}", m_Box.first.first ));
+	DBG_TRACE(("Ymin       = {:E}", m_Box.first.second));
+	DBG_TRACE(("Xmax       = {:E}", m_Box.second.first));
+	DBG_TRACE(("Ymax       = {:E}", m_Box.second.second));
+	DBG_TRACE(("Zmin       = {:E}", m_ZRange.first));
+	DBG_TRACE(("Zmax       = {:E}", m_ZRange.second));
+	DBG_TRACE(("Mmin       = {:E}", m_MRange.first));
+	DBG_TRACE(("Mmax       = {:E}", m_MRange.second));
 
 	// Number of bytes read
 	return pos;
@@ -579,8 +579,8 @@ std::size_t ShpRecordHeader::Read(FILE * fp)
 	ConvertBigEndian(RecordNumber);
 	ConvertBigEndian(ContentLength);
 
-	DBG_TRACE(("RecordNumber   = %d", RecordNumber));
-	DBG_TRACE(("ContentLength  = %d", ContentLength));
+	DBG_TRACE(("RecordNumber   = {}", RecordNumber));
+	DBG_TRACE(("ContentLength  = {}", ContentLength));
 
 	// Number of bytes read
 	return pos;
@@ -596,8 +596,8 @@ std::size_t ShpRecordHeader::Write(FILE * fp)
 	std::size_t pos = WriteBigEndian(fp, RecordNumber);
 	pos += WriteBigEndian(fp, ContentLength);
 
-	DBG_TRACE(("RecordNumber   = %d", RecordNumber));
-	DBG_TRACE(("ContentLength  = %d", ContentLength));
+	DBG_TRACE(("RecordNumber   = {}", RecordNumber));
+	DBG_TRACE(("ContentLength  = {}", ContentLength));
 
 	// Number of bytes written
 	return pos;
@@ -622,13 +622,13 @@ std::size_t ShpPolygonHeader::Read(FILE * fp)
 		m_NumParts = 1;
 	pos      += fread(&m_NumPoints, 1, sizeof(m_NumPoints), fp);  ConvertLittleEndian(m_NumPoints);
 
-	DBG_TRACE(("ShapeType      = %d", m_ShapeType));
-	DBG_TRACE(("Xmin           = %E", m_Box.first.first));
-	DBG_TRACE(("Ymin           = %E", m_Box.first.second));
-	DBG_TRACE(("Xmax           = %E", m_Box.second.first));
-	DBG_TRACE(("Ymax           = %E", m_Box.second.second));
-	DBG_TRACE(("NumParts       = %d", m_NumParts));
-	DBG_TRACE(("NumPoints      = %d", m_NumPoints));
+	DBG_TRACE(("ShapeType      = {}", m_ShapeType));
+	DBG_TRACE(("Xmin           = {:E}", m_Box.first.first));
+	DBG_TRACE(("Ymin           = {:E}", m_Box.first.second));
+	DBG_TRACE(("Xmax           = {:E}", m_Box.second.first));
+	DBG_TRACE(("Ymax           = {:E}", m_Box.second.second));
+	DBG_TRACE(("NumParts       = {}", m_NumParts));
+	DBG_TRACE(("NumPoints      = {}", m_NumPoints));
 
 	// Number of bytes read
 	return pos;
@@ -697,7 +697,7 @@ std::size_t ShpParts::Write(FILE * fp) const
 	for (int i=0; i<size(); i++)
 	{
 		pos += WriteLittleEndian(fp, (*this)[i]);
-		DBG_TRACE(("[%d] = %d", i, (*this)[i]));
+		DBG_TRACE(("[{}] = {}", i, (*this)[i]));
 	}
 
 	// Number of bytes written

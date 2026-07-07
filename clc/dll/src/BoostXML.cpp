@@ -123,7 +123,7 @@ struct Attribute : Element
 		assert(parentID.second == entityCount - 1);
 
 		if (currCount >= entityCount)
-			m_Attr->throwItemErrorF("Too many occurences of attribute %s in entity %s #%I64u", GetNameStr(), m_Parent->GetNameStr(), UInt64(entityCount));
+			m_Attr->throwItemErrorF("Too many occurences of attribute {} in entity {} #{}", GetNameStr(), m_Parent->GetNameStr(), UInt64(entityCount));
 		for (SizeT i= entityCount - currCount - 1; i;--i)
 			m_Data.push_back(Undefined() MG_DEBUG_ALLOCATOR_SRC("XML::Attribute.AddUndefined"));
 		m_Data.push_back_seq(begin, end MG_DEBUG_ALLOCATOR_SRC("XML::Attribute.AddValue"));
@@ -190,7 +190,7 @@ struct ParseContext
 		if (iter == m_Map.end() || iter->first != key)
 		{
 			iter = m_Map.insert(iter, entity_map::value_type(key, CreateElement(m_ResultHolder, context, id, name, nameEnd, m_EntityNames.size())));
-			SharedStr elementName = mySSPrintF("%s.%s", ns.GetStr().c_str(), id.GetStr().c_str());
+			SharedStr elementName = mySSPrintF("{}.{}", ns.GetStr().c_str(), id.GetStr().c_str());
 			m_EntityNames.push_back_seq(elementName.cbegin(), elementName.csend() MG_DEBUG_ALLOCATOR_SRC("BoostXML::EntityNames"));
 			if (!iter->second->m_DmsFullName.empty())
 				m_KnownEntities.insert(std::make_pair(iter->second->m_DmsFullName, iter->second.get_ptr()));
@@ -331,7 +331,7 @@ struct RapidXmlOperator : public BinaryOperator
 		{
 			if (walker != walkRoot && walker->HasCalculatorImpl())
 			{
-				GetGroup()->throwOperErrorF("illegal calculation rule in xml schema at %s", walker->GetFullName());
+				GetGroup()->throwOperErrorF("illegal calculation rule in xml schema at {}", walker->GetFullName());
 			}
 			AbstrUnit* entityDomain = AsDynamicUnit(walker);
 			if (entityDomain)

@@ -102,7 +102,7 @@ struct const_file_view : file_view_base<T, ConstFileViewHandle>
 			nrElems = IsDefined(fileSize) ? size_calculator<T>().max_elems(fileSize) : 0;
 		}
 		if (this->GetFileSize() != size_calculator<T>().nr_bytes(nrElems))
-			throwErrorF("const_file_view", "FileSize of %u expected but file %s has a size of %u bytes"
+			throwErrorF("const_file_view", "FileSize of {} expected but file {} has a size of {} bytes"
 			,	size_calculator<T>().nr_bytes(nrElems)
 			,	fileName.c_str()
 			, this->GetFileSize()
@@ -157,7 +157,7 @@ struct rw_file_view : file_view_base<T, FileViewHandle>
 			|| size_calculator<T>().nr_blocks(nrElems) != this->GetFileSize() / sizeof(sequence_traits<T>::block_type)) // catches overflow error on nrBytes calculation
 		{
 			base_type::CloseFVB();
-			throwErrorF("rw_file_view", "FileSize of %u expected but file %s has a size of %u for %u elements"
+			throwErrorF("rw_file_view", "FileSize of {} expected but file {} has a size of {} for {} elements"
 			,	size_calculator<T>().nr_bytes(nrElems)
 			,	fileName.c_str()
 			, this->GetFileSize()

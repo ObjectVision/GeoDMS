@@ -6,6 +6,7 @@
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#include <boost/config/helper_macros.hpp> // BOOST_STRINGIZE; was transitively provided by boost/format via the prelude
 #endif //defined(CC_PRAGMAHDRSTOP)
 
 #include <cstdlib> // std::atexit (gdalCleanup at process exit)
@@ -116,11 +117,11 @@ namespace gdalComponentImpl
 			fullFileName = ConvertDmsFileNameAlways(DelimitedConcat(GetExeDir().c_str(), DelimitedConcat(subFolder, fileName).c_str()));
 
 			MG_DEBUGCODE(
-				reportF_without_cancellation_check(MsgCategory::other, SeverityTypeID::ST_MajorTrace, "Hook to GDAL file: %s", fullFileName.c_str());
+				reportF_without_cancellation_check(MsgCategory::other, SeverityTypeID::ST_MajorTrace, "Hook to GDAL file: {}", fullFileName.c_str());
 
 			)
 				if (!IsFileOrDirAccessible(fullFileName))
-					reportF_without_cancellation_check(MsgCategory::other, SeverityTypeID::ST_Warning, "Hook to unknown GDAL file: %s", fullFileName.c_str());
+					reportF_without_cancellation_check(MsgCategory::other, SeverityTypeID::ST_Warning, "Hook to unknown GDAL file: {}", fullFileName.c_str());
 		}
 		return fullFileName.c_str();
 	}
@@ -143,7 +144,7 @@ namespace gdalComponentImpl
 	void ErrorHandlerImpl(CPLErr eErrClass, int err_no, const char* msg)
 	{
 		if (eErrClass >= CE_Failure)
-			throwErrorF("gdal", "error(%d): %s", err_no, msg);
+			throwErrorF("gdal", "error({}): {}", err_no, msg);
 	}
 
 	void CPL_STDCALL ErrorHandler(CPLErr eErrClass, int err_no, const char* msg)
@@ -152,7 +153,7 @@ namespace gdalComponentImpl
 		SeverityTypeID st = gdalSeverity(eErrClass);
 		MakeMin(st, SeverityTypeID::ST_Warning); // downplay gdal errors for now.
 
-		reportF(st, "gdal %s(%d): %s "
+		reportF(st, "gdal {}({}): {} "
 			, gdal2CharPtr(eErrClass)
 			, err_no
 			, msg
@@ -199,7 +200,7 @@ void GDAL_ErrorFrame::ThrowUpWhateverCameUp()
 	m_prev_proj_err_no = projErrNo; // avoid repeated calling from the nearing destructor.
 	auto pjCtx = GetProjectionContext();
 	auto projErrStr = SharedStr(proj_context_errno_string(pjCtx, projErrNo));
-	throwErrorF("proj", "error(%d): %s", projErrNo, projErrStr.c_str());
+	throwErrorF("proj", "error({}): {}", projErrNo, projErrStr.c_str());
 }
 
 GDAL_ErrorFrame::~GDAL_ErrorFrame()  noexcept(false)
@@ -223,7 +224,7 @@ void GDAL_ErrorFrame::RegisterError(CPLErr eErrClass, int err_no, const char* ms
 	if (projErrStr.empty())
 		return;
 
-	m_msg += mySSPrintF("\n%s", projErrStr.c_str());
+	m_msg += mySSPrintF("\n{}", projErrStr.c_str());
 }
 
 pj_ctx* GDAL_ErrorFrame::GetProjectionContext()
@@ -249,7 +250,7 @@ SharedStr GDAL_ErrorFrame::GetProjectionContextErrorString()
 	if (!pjErrno)
 		return {};
 
-	return mySSPrintF("Proj(%d): %s"
+	return mySSPrintF("Proj({}): {}"
 		, pjErrno
 		, proj_context_errno_string(pjCtx, pjErrno)
 	);
@@ -298,7 +299,7 @@ void ValidateSpatialReferenceFromWkt(OGRSpatialReference* ogrSR, CharPtr wkt_prj
 	CplString pszEsriwkt;
 	ogrSR->exportToWkt(&pszEsriwkt.m_Text);
 	if (std::strlen(wkt_prj_str) > 20 && strcmp(pszEsriwkt.m_Text, wkt_prj_str)) // TODO: replace hardcoded 20 characters to get past strings that are ie. EPSG:XXXX
-		reportF(SeverityTypeID::ST_MinorTrace, "PROJ reinterpreted user input wkt projection definition: %s", wkt_prj_str);
+		reportF(SeverityTypeID::ST_MinorTrace, "PROJ reinterpreted user input wkt projection definition: {}", wkt_prj_str);
 }
 
 void GDALDatasetHandle::UpdateBaseProjection(const TreeItem* treeitem, const AbstrUnit* uBase) const
@@ -499,7 +500,7 @@ void SpatialReferencesAreCompatibile(const TreeItem* treeitem, const OGRSpatialR
 	}
 
 	SharedStr projection_mismatch_error_message = mySSPrintF(
-		"GDAL: item [[%s]] spatial reference (%s:%s) differs from the spatial reference (%s:%s) obtained from the dataset"
+		"GDAL: item [[{}]] spatial reference ({}:{}) differs from the spatial reference ({}:{}) obtained from the dataset"
 		, treeitem->GetFullName().c_str()
 		, gdal_name, gdal_code
 		, config_name, config_code);
@@ -529,7 +530,7 @@ void CheckSpatialReference(std::optional<OGRSpatialReference>& ogrSR, const Tree
 	if (spOrErr.second != OGRERR_NONE)
 	{
 		auto fullName = SharedStr(uBase->GetFullName());
-		reportF(SeverityTypeID::ST_Warning, "BaseProjection unit %s has projection with error %d", fullName, spOrErr.second);
+		reportF(SeverityTypeID::ST_Warning, "BaseProjection unit {} has projection with error {}", fullName, spOrErr.second);
 	}
 	if (ogrSR)
 	{
@@ -780,7 +781,7 @@ SharedStr GDALDriverDescr(GDALDriverH h)
 	auto longName = GDALGetDriverLongName(h);
 	if (!longName || !*longName || (strcmp(shortName, longName) == 0))
 		return SharedStr(shortName);
-	return mySSPrintF("%s: %s", shortName, longName);
+	return mySSPrintF("{}: {}", shortName, longName);
 }
 
 #include "VersionComponent.h"
@@ -1075,7 +1076,7 @@ auto GetUnitSizeInMetersFromAngularProjection(std::pair<CharPtr, Float64>& angul
 	if (stricmp(angular_unit.first, "radian")==0) {
 		return angular_unit.second *= (40000.0 / (2.0 * std::numbers::pi_v<Float64>)) * 1000.0;
 	}
-	throwErrorF("GetUnitSizeInMetersFromAngularProjection", "unknown OGRSpatialReference unitName: '%s'", angular_unit.first);
+	throwErrorF("GetUnitSizeInMetersFromAngularProjection", "unknown OGRSpatialReference unitName: '{}'", angular_unit.first);
 }
 
 auto GetUnitSizeInMetersFromLinearProjection(std::pair<CharPtr, Float64>& linear_unit) -> Float64
@@ -1084,7 +1085,7 @@ auto GetUnitSizeInMetersFromLinearProjection(std::pair<CharPtr, Float64>& linear
 		return linear_unit.second *= 1000.0;
 	if (!strcmp(linear_unit.first, "m") || strcmp(linear_unit.first, "meter")==0 || strcmp(linear_unit.first, "metre")==0)
 		return linear_unit.second;
-	throwErrorF("GetUnitSizeInMetersFromLinearProjection", "unknown OGRSpatialReference unitName: '%s'", linear_unit.first);
+	throwErrorF("GetUnitSizeInMetersFromLinearProjection", "unknown OGRSpatialReference unitName: '{}'", linear_unit.first);
 }
 
 auto GetUnitSizeInMeters(const OGRSpatialReference* sr) -> Float64
@@ -1523,7 +1524,7 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 				domainUnit = gridData->GetAbstrDomainUnit();
 		}
 		if (!domainUnit || !domainUnit->UnifyDomain(smi.CurrRD()->GetAbstrDomainUnit()))
-			throwErrorF("GDAL", "Cannot determine domain %s", data_source_name.c_str());
+			throwErrorF("GDAL", "Cannot determine domain {}", data_source_name.c_str());
 
 		if (domainUnit->GetNrDimensions() == 2)
 		{
@@ -1554,7 +1555,7 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 		{
 			auto driver_short_name = driver_array[i];
 			if (!driver_short_name || !*driver_short_name)
-				throwErrorF("GDAL", "cannot register user specified gdal driver from GDAL_Driver array: %s", driver_array[i]);
+				throwErrorF("GDAL", "cannot register user specified gdal driver from GDAL_Driver array: {}", driver_array[i]);
 			GDALRegisterTrustedDriverFromKnownDriverShortName(driver_short_name);
 		}
 
@@ -1622,18 +1623,18 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 
 		if (gdal_error_frame.HasError())
 		{
-			throwErrorF("GDAL", "cannot open dataset %s \n\t%s"
+			throwErrorF("GDAL", "cannot open dataset {} \n\t{}"
 				, data_source_name.c_str()
 				, gdal_error_frame.GetMsgAndReleaseError().c_str()
 			);
 		}
 		if (result == nullptr)
-			throwErrorF("GDAL", "Failed to open %s for reading", data_source_name.c_str());
+			throwErrorF("GDAL", "Failed to open {} for reading", data_source_name.c_str());
 		return result;
 	}
 
 	if (rwMode <= dms_rw_mode::read_write || rwMode == dms_rw_mode::unspecified)
-		throwErrorF("GDAL", "Unsupported rwMode %d for %s", int(rwMode), data_source_name.c_str());
+		throwErrorF("GDAL", "Unsupported rwMode {} for {}", int(rwMode), data_source_name.c_str());
 
 	auto path = SharedStr(CPLGetPath(data_source_name.c_str())); // some GDAL drivers cannot create when there is no folder present (ie GPKG)
 	// path is UTF-8; std::filesystem::* (const char*) on MSVC interprets it as
@@ -1645,7 +1646,7 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 	auto fsPath = std::filesystem::path(path.c_str());
 #endif
 	if (!std::filesystem::is_directory(fsPath) && !std::filesystem::create_directories(fsPath))
-		throwErrorF("GDAL", "Unable to create directories: %s", path);
+		throwErrorF("GDAL", "Unable to create directories: {}", path);
 
 	auto driver_short_name = GetDriverShortNameFromDataSourceNameOrDriverArray(data_source_name.c_str(), driver_array);
 	GDALRegisterTrustedDriverFromKnownDriverShortName(driver_short_name);
@@ -1655,7 +1656,7 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 		driver = GetGDALDriverManager()->GetDriverByName(driver_short_name);
 	}
 	if (!driver)
-		throwErrorF("GDAL", "Cannot find driver for %s", data_source_name);
+		throwErrorF("GDAL", "Cannot find driver for {}", data_source_name);
 
 	GDALDatasetHandle result = nullptr;
 
@@ -1674,7 +1675,7 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 		if (!(smi.CurrRI()->GetID() == token::geometry) && !Gdal_DriverSupportsDmsValueType(gdalOpenFlags, valuesTypeID, value_composition, driver))
 		{
 			auto dms_value_type_token_str = smi.CurrRD()->GetAbstrValuesUnit()->GetValueType()->GetID().GetStr();
-			throwErrorF("GDAL", "driver %s does not support writing of values type %s", driver_short_name, dms_value_type_token_str.c_str());
+			throwErrorF("GDAL", "driver {} does not support writing of values type {}", driver_short_name, dms_value_type_token_str.c_str());
 		}
 
 		result = driver->Create(data_source_name.c_str(), nXSize, nYSize, nBands, eType, option_array);
@@ -1703,9 +1704,9 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 			}
 
 			if (gdalOpenFlags & GDAL_OF_VECTOR)
-				throwErrorF("GDAL", "driver %s does not have vector capabilities did you use gdalwrite.vect instead of gdalwrite.grid?", driver_short_name);
+				throwErrorF("GDAL", "driver {} does not have vector capabilities did you use gdalwrite.vect instead of gdalwrite.grid?", driver_short_name);
 			else
-				throwErrorF("GDAL", "driver %s does not have raster capabilities did you use gdalwrite.grid instead of gdalwrite.vect?", driver_short_name);
+				throwErrorF("GDAL", "driver {} does not have raster capabilities did you use gdalwrite.grid instead of gdalwrite.vect?", driver_short_name);
 
 		}
 
@@ -1717,13 +1718,13 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 
 	if (gdal_error_frame.HasError())
 	{
-		throwErrorF("GDAL", "cannot open dataset %s\n %s"
+		throwErrorF("GDAL", "cannot open dataset {}\n {}"
 			, data_source_name.c_str()
 			, gdal_error_frame.GetMsgAndReleaseError().c_str()
 		);
 	}
 	if (result == nullptr)
-		throwErrorF("GDAL", "Failed to open %s for writing", data_source_name.c_str());
+		throwErrorF("GDAL", "Failed to open {} for writing", data_source_name.c_str());
 
 	return result;
 }

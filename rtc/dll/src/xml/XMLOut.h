@@ -284,7 +284,7 @@ class Class;
 
 inline SharedStr ItemUrl(CharPtr itemName)
 {
-	return mySSPrintF("dms:dp.general:%s", *itemName ? itemName : "/");
+	return mySSPrintF("dms:dp.general:{}", *itemName ? itemName : "/");
 }
 
 
@@ -293,7 +293,7 @@ inline SharedStr ItemUrl(CharPtrRange itemName)
 	if (!itemName.size())
 		return ItemUrl("");
 
-	return mySSPrintF("dms:dp.general:%s", itemName);
+	return mySSPrintF("dms:dp.general:{}", itemName);
 }
 
 //----------------------------------------------------------------------

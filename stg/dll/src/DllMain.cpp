@@ -248,7 +248,7 @@ SharedUnit FindProjectionRef(const TreeItem* storageHolder, const AbstrUnit* gri
 	{
 		auto coordItem = gridDataDomain->FindItem(coordRef);
 		if (!coordItem && !HasMapType(gridDataDomain))
-			gridDataDomain->throwItemErrorF("Cannot find DialogData reference '%s'", coordRef.c_str());
+			gridDataDomain->throwItemErrorF("Cannot find DialogData reference '{}'", coordRef.c_str());
 		if (IsUnit(coordItem))
 			uBase = AsUnit(coordItem);
 	}
@@ -259,7 +259,7 @@ SharedUnit FindProjectionRef(const TreeItem* storageHolder, const AbstrUnit* gri
 		{
 			auto coordItem = storageHolder->FindItem(coordRef);
 			if (!coordItem && !HasMapType(storageHolder))
-				storageHolder->throwItemErrorF("Cannot find DialogData reference '%s'", coordRef.c_str());
+				storageHolder->throwItemErrorF("Cannot find DialogData reference '{}'", coordRef.c_str());
 			if (IsUnit(coordItem))
 				uBase = AsUnit(coordItem);
 		}
@@ -293,7 +293,7 @@ SharedUnit FindProjectionBase(const TreeItem* storageHolder, const AbstrUnit* gr
 	if (uBase && uBase->GetNrDimensions() != 2)
 	{
 		auto coordItemName = SharedStr(uBase->GetFullName());
-		storageHolder->throwItemErrorF("Found coordinate base '%s' is not a geometric domain",  coordItemName.c_str());
+		storageHolder->throwItemErrorF("Found coordinate base '{}' is not a geometric domain",  coordItemName.c_str());
 	}
 	if (uBase)
 	{
@@ -442,14 +442,14 @@ SharedStr TNameSet::FieldNameToItemName(CharPtr fieldName) const
 	for (auto& mapping : m_Mappings)
 		if (EqualName(mapping.second.first.c_str(), mappedName.c_str()))
 			return mapping.first;
-	throwErrorF("TNameSet", "unknown MappedName %1% for FieldName %2%", mappedName, fieldName);
+	throwErrorF("TNameSet", "unknown MappedName {0} for FieldName {1}", mappedName, fieldName);
 }
 
 SharedStr TNameSet::ItemNameToFieldName(CharPtr itemName) const
 {
 	auto posIter = m_Mappings.find(itemName);
 	if (posIter == m_Mappings.end())
-		throwErrorF("TNameSet", "unknown ItemName %1%", itemName);
+		throwErrorF("TNameSet", "unknown ItemName {0}", itemName);
 	return posIter->second.second;
 }
 
@@ -466,7 +466,7 @@ SharedStr TNameSet::InsertFieldName(CharPtr fieldName)
 	SharedStr mappedName = FieldNameToMappedName(fieldName);
 	if (HasMappedName(mappedName.c_str()))
 	{
-		throwErrorF("TNameSet", "NameConflict between %1% and FieldName %2%", mappedName, fieldName);
+		throwErrorF("TNameSet", "NameConflict between {0} and FieldName {1}", mappedName, fieldName);
 	}
 	m_Mappings[mappedName] = Couple<SharedStr>(mappedName, SharedStr(fieldName));
 	return mappedName;
@@ -516,7 +516,7 @@ bool CreateTreeItemColumnInfo(TreeItem* tiTable, CharPtr colName, const AbstrUni
 		bool res = CompatibleTypes(dbValuesClass, vCls);
 		if (!res)
 		{
-			auto msg = mySSPrintF("StorageManager: inconsistent value types; table: %s, column: %s, configured type: %s, database type: %s",
+			auto msg = mySSPrintF("StorageManager: inconsistent value types; table: {}, column: {}, configured type: {}, database type: {}",
 				tiTable->GetFullName(),
 				colName,
 				vCls->GetName(),
@@ -562,7 +562,7 @@ ViewPortInfoEx<Int>::ViewPortInfoEx(const TreeItem* context, const AbstrUnit* cu
 			MG_CHECK(currDomain);
 			MG_CHECK(gridDomain);
 
-			context->throwItemErrorF("ProjectionBase %s of %s incompatible with ProjectionBase %s of %s."
+			context->throwItemErrorF("ProjectionBase {} of {} incompatible with ProjectionBase {} of {}."
 				, currBase->GetName().c_str()
 				, currDomain->GetName().c_str()
 				, gridBase->GetName().c_str()
@@ -606,7 +606,7 @@ ViewPortInfoEx<Int>::ViewPortInfoEx(const TreeItem* context, const AbstrUnit* cu
 		{
 			auto err = catchException(true)->Why();
 			err = GetFirstLine(err);
-			auto msg = mySSPrintF("ViewPortInfo failure of tile %d: %s\nCheck the definition of the target domain"
+			auto msg = mySSPrintF("ViewPortInfo failure of tile {}: {}\nCheck the definition of the target domain"
 				, tc, err
 			);
 			currDomain->throwItemError(msg);
@@ -657,7 +657,7 @@ ViewPortInfoProvider::ViewPortInfoProvider(const TreeItem * storageHolder, const
 		auto sr1 = currBase->GetSpatialReference();
 		auto sr2 = gridBase->GetSpatialReference();
 		if (sr1 && sr2 && sr1 != sr2)
-			adi->throwItemErrorF("SpatialReference %s of %s incompatible with SpatialReference %s of %s."
+			adi->throwItemErrorF("SpatialReference {} of {} incompatible with SpatialReference {} of {}."
 			, sr1, currDomain->GetName().c_str()
 			, sr2, gridDomain->GetName().c_str()
 			);

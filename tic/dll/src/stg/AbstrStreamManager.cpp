@@ -61,7 +61,7 @@ SharedStr GetRelativeName(const StorageMetaInfo* smi, tile_id t)
 {
 	SharedStr result = GetRelativeName(smi);
 	if (t && t!=no_tile)
-		result += myArrayPrintF<10>(".%d", t);
+		result += myArrayPrintF<10>(".{}", t);
 	return result;
 }
 
@@ -71,7 +71,7 @@ FileResult AbstrStreamManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObj
 	assert( DoesExist(smi->StorageHolder()) );
 	auto f = OpenInpStream(*smi, ::GetRelativeName(smi.get(), t).c_str() );
 	if (! f )
-		return std::unexpected(mySSPrintF("Cannot open Input Stream for tile %d in %s", t, GetNameStr().c_str()));
+		return std::unexpected(mySSPrintF("Cannot open Input Stream for tile {} in {}", t, GetNameStr().c_str()));
 
 	BinaryInpStream ar(f.get()); 
 	borrowedReadResultHolder->DoReadData(ar, t);
@@ -95,7 +95,7 @@ FileResult AbstrStreamManager::WriteDataItem(StorageMetaInfoPtr&& smi)
 		auto ft = ado->GetFutureAbstrTile(t); // hold on to resource to avoid calculating twice
 		auto f( OpenOutStream(*hnd.MetaInfo(), ::GetRelativeName(hnd.MetaInfo().get(), t).c_str(), t) );
 		if (!f)
-			return std::unexpected(mySSPrintF("Cannot open Output Stream for tile %d in %s", t, GetNameStr().c_str()));
+			return std::unexpected(mySSPrintF("Cannot open Output Stream for tile {} in {}", t, GetNameStr().c_str()));
 			
 		BinaryOutStream ar( f.get() ); 
 		ado->DoWriteData(ar, t);

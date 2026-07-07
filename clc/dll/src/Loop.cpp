@@ -66,16 +66,16 @@ public:
 
 		for (loop_count_t i=0; i!= maxNrIter; ++i)
 		{
-			TreeItem* iter = result->CreateItem(GetTokenID_mt(mySSPrintF("iter%d", i).c_str())).get();
+			TreeItem* iter = result->CreateItem(GetTokenID_mt(mySSPrintF("iter{}", i).c_str())).get();
 			dms_assert(iter);
 
 			SharedStr expr = SharedStr( loopContents->GetID() );
 			expr += "(";
-			expr += mySSPrintF("UInt16(%d)", i);
+			expr += mySSPrintF("UInt16({})", i);
 			if (i>0)
 			{
 				expr += ",";
-				expr += mySSPrintF("iter%d/nextValue", i-1);
+				expr += mySSPrintF("iter{}/nextValue", i-1);
 			}
 			expr += ")";
 
@@ -159,7 +159,7 @@ public:
 			);
 			auto iterItem = ctc.Apply();
 			if (!iterItem)
-				throwErrorF("Iterate", "Failed to instantiate %s", loopContents->GetSourceName().c_str());
+				throwErrorF("Iterate", "Failed to instantiate {}", loopContents->GetSourceName().c_str());
 			TreeItem* currValue = iterItem->_GetFirstSubItem();
 			if (currValue)
 				currValue->SetExpr(currValueExprStr);

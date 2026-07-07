@@ -179,7 +179,7 @@ namespace Bmp
 		const AbstrUnit* gridUnit = gridData->GetAbstrDomainUnit();
 		
 		if (!gridUnit || gridUnit->GetNrDimensions() != 2)
-			self->throwItemErrorF("%s has no grid domain ", gridData->GetFullName().c_str() );
+			self->throwItemErrorF("{} has no grid domain ", gridData->GetFullName().c_str() );
 
 		auto geoRefFileResult = WriteGeoRefFile(gridData, replaceFileExtension(self->GetNameStr().c_str(), "bmpw") );
 		if (!geoRefFileResult)
@@ -369,7 +369,7 @@ FileResult BmpPalStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 			return {};
 		}
 	}
-	return std::unexpected(mySSPrintF("Cannot create DataHandler for %s", adi->GetFullName().c_str()));
+	return std::unexpected(mySSPrintF("Cannot create DataHandler for {}", adi->GetFullName().c_str()));
 }
 
 bool BmpPalStorageManager::ReadUnitRange(const StorageMetaInfo& smi) const

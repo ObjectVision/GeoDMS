@@ -786,7 +786,7 @@ template <class V> const Class* TileFunctor<V>::GetDynamicClass() const { return
 template <typename T>
 TokenID GetDataItemClassID()
 {
-	return GetTokenID_st(myArrayPrintF<100>("DataItem<%s>", ValueWrap<T>::GetStaticClass()->GetID().c_str_st()));
+	return GetTokenID_st(myArrayPrintF<100>("DataItem<{}>", ValueWrap<T>::GetStaticClass()->GetID().c_str_st()));
 }
 
 template <typename T>
@@ -875,7 +875,7 @@ auto CreateAbstrHeapTileFunctor(const AbstrDataItem* adi, SharedPtr<const Shared
 
 	// DEBUG: SEVERE TILING
 	if (currTRD->GetNrTiles() > 1 && !adi->IsCacheItem())
-		reportF(MsgCategory::other, SeverityTypeID::ST_MinorTrace, "CreateAbstrHeapTileFunctor(attribute<%s> %s(%d tiles))", avu->GetValueType()->GetName(), adi->GetFullName().c_str(), currTRD->GetNrTiles());
+		reportF(MsgCategory::other, SeverityTypeID::ST_MinorTrace, "CreateAbstrHeapTileFunctor(attribute<{}> {}({} tiles))", avu->GetValueType()->GetName(), adi->GetFullName().c_str(), currTRD->GetNrTiles());
 
 	if (!abstrValuesRangeData)
 		abstrValuesRangeData = AsUnit(avu->GetCurrRangeItem())->GetTiledRangeData();

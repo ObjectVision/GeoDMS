@@ -58,10 +58,10 @@ struct AbstrRasterMergeOperator : public BinaryOperator
 		for (arg_index a=2, nrArg=args.size(); a!=nrArg; ++a)
 		{
 			if (!IsDataItem(args[a]))
-				resultHolder.throwItemErrorF("DataItem expected at arg %d", a);
+				resultHolder.throwItemErrorF("DataItem expected at arg {}", a);
 			const AbstrDataItem* argDi = AsDataItem(args[a]);
 			if (m_IsRasterMerge && argDi->GetAbstrDomainUnit()->GetNrDimensions() != 2 && !(m_IsIndexed && argDi->HasVoidDomainGuarantee()))
-				resultHolder.throwItemErrorF("Raster data expected at arg %d", a);
+				resultHolder.throwItemErrorF("Raster data expected at arg {}", a);
 			v1->UnifyValues(argDi->GetAbstrValuesUnit(), "v1", "Values of a subsequent attribute", UnifyMode(UM_AllowVoidRight | UM_Throw));
 		}
 
@@ -111,7 +111,7 @@ struct AbstrRasterMergeOperator : public BinaryOperator
 					{
 						ViewPortInfoEx<Int64> arg2AllProj(res, argDU_range, u, e1_range, t);
 						if (!arg2AllProj.IsNonScaling())
-							res->throwItemErrorF("RasterMerge: Scale or projection of argument %d incompatible with the %s, which determined teh domain of the resulting attribute"
+							res->throwItemErrorF("RasterMerge: Scale or projection of argument {} incompatible with the {}, which determined teh domain of the resulting attribute"
 								, a
 								, m_IsIndexed ? "Domain of the first attribute" : "First argument"
 							);

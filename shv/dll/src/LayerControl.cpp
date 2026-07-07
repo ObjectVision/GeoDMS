@@ -173,7 +173,7 @@ private:
 
 void FillFontMenu(MenuData& md, LayerControlBase* self)
 {
-	SubMenu subMenu(md, mySSPrintF("Set %s &Font", self->GetDynamicClass()->GetName().c_str()));
+	SubMenu subMenu(md, mySSPrintF("Set {} &Font", self->GetDynamicClass()->GetName().c_str()));
 	for (UInt32 i = 0; i != static_cast<int>(FontSizeCategory::COUNT); ++i)
 	{
 		md.push_back(
@@ -200,7 +200,7 @@ void LayerControlBase::FillMenu(MouseEventDispatcher& med)
 
 	med.m_MenuData.push_back(
 		MenuItem(
-			mySSPrintF("Hide %s for %s"
+			mySSPrintF("Hide {} for {}"
 			,	GetDynamicClass()->GetName().c_str()
 			,	GetCaption()
 			)

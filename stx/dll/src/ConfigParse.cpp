@@ -256,7 +256,7 @@ TreeItem* ConfigProd::ParseString(CharPtr configString)
 		SharedStr strAtProblemLoc = problemlocAsString(configString, configStringEnd, &*problem.where);
 
 		position_t  problemLoc = problem.where.get_position();
-		auto fullDescr = mySSPrintF("%s\n%s(%d,%d) at\n%s"
+		auto fullDescr = mySSPrintF("{}\n{}({},{}) at\n{}"
 			,	problem.descriptor
 			,	"ConfigParse FromString", problemLoc.line, problemLoc.column
 			,	strAtProblemLoc.c_str()
@@ -299,7 +299,7 @@ TreeItem* ConfigProd::ParseFile(CharPtr fileName)
 //		fv.CloseMCFMH(); // enable user to change and save the file from error display and the press Reload
 
 		position_t  problemLoc = problem.where.get_position();
-		auto fullDescr = mySSPrintF("%s\n%s(%d,%d) at\n%s"
+		auto fullDescr = mySSPrintF("{}\n{}({},{}) at\n{}"
 		,	problem.descriptor
 		,	fileName, problemLoc.line, problemLoc.column
 		,	strAtProblemLoc.c_str()

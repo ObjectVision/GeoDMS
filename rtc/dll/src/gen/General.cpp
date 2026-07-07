@@ -170,8 +170,8 @@ void DMS_CONV DMS_VisitVersionComponents(ClientHandle clientHandle, VersionCompo
 
 VersionComponent s_Compiler  (CC_COMPILER_NAME " ( _MSC_VER = " BOOST_STRINGIZE(_MSC_VER) " ) ");
 VersionComponent s_Platform("Platform : " BOOST_PLATFORM);
-static SharedStr s_PtrSizeC = mySSPrintF("ptr size : %d bits", sizeof(void*)*8);
-static SharedStr s_IntSizeC = mySSPrintF("int size : %d bits", sizeof(int  )*8);
+static SharedStr s_PtrSizeC = mySSPrintF("ptr size : {} bits", sizeof(void*)*8);
+static SharedStr s_IntSizeC = mySSPrintF("int size : {} bits", sizeof(int  )*8);
 VersionComponent s_PtrSize(s_PtrSizeC.c_str());
 VersionComponent s_IntSize(s_IntSizeC.c_str());
 

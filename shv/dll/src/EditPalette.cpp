@@ -161,7 +161,7 @@ void EditPaletteControl::AddBreakColumn(AbstrDataItem* classAttr, const AbstrDat
 }
 SharedStr EditPaletteControl::GetCaption() const
 {
-	return mySSPrintF("PaletteEditor for %s (%s)"
+	return mySSPrintF("PaletteEditor for {} ({})"
 		,	m_ThemeAttr ? m_ThemeAttr->GetDisplayName() : SharedStr()
 		,	m_PaletteControl ? m_PaletteControl->GetCaption() : SharedStr()
 		);
@@ -378,7 +378,7 @@ void EditPaletteControl::ClassifyUniqueValues ()
 	dms_assert(m); // PRECONDITION FOR MenuItem
 	if (m && (m-1) > maxK)
 		GetDomain()->throwItemErrorF(
-			"#Unique values = %d, which is too many for the palette domain of type %s which allows a maximum of %d classes",
+			"#Unique values = {}, which is too many for the palette domain of type {} which allows a maximum of {} classes",
 			m, 
 			GetDomain()->GetValueType()->GetName(), 
 			maxK

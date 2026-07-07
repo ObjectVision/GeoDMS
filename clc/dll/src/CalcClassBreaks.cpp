@@ -491,14 +491,14 @@ struct JenksFisher
 
 			if (i < m_BufSize)
 				m_PrevSSM[i] = cwv * cwv / cw; // prepare SSM for first class, last m_K values can be omitted since they never belong to the first class
-			DBG_TRACE(("m_PrevSSM[%d]=%f", i, Float32(m_PrevSSM[i])));
+			DBG_TRACE(("m_PrevSSM[{}]={:f}", i, Float32(m_PrevSSM[i])));
 		}
 	}
 
 #if defined(MG_REPORT_SSM_COUNT)
 	~JenksFisher()
 	{
-		reportF(ST_MajorTrace, "JenksFisher SsmCounter=%I64u", (UInt64)md_SsmCounter);
+		reportF(ST_MajorTrace, "JenksFisher SsmCounter={}", (UInt64)md_SsmCounter);
 	}
 #endif
 	Float64 GetW(SizeT b, SizeT e)
@@ -532,7 +532,7 @@ struct JenksFisher
 	auto FindMaxBreakIndex(SizeT i, SizeT bp, SizeT ep) -> std::pair<SizeT, Float64>
 	{
 		DBG_START("JenksFisher", "FindMinBreakIndex", MG_DEBUG_CLASSBREAKS);
-		DBG_TRACE(("i=%d bp=%d ep-%d", i, bp, ep));
+		DBG_TRACE(("i={} bp={} ep-{}", i, bp, ep));
 		assert(bp < ep);
 		assert(bp <= i);
 		assert(ep <= i+1);
@@ -540,7 +540,7 @@ struct JenksFisher
 		assert(ep <= m_BufSize);
 
 		Float64 minSSM = m_PrevSSM[bp] + GetSSM(bp+m_NrCompletedRows, i+m_NrCompletedRows);
-		DBG_TRACE(("%f = prevSSM[%d] + GetSSM(%d) = %f + %f", Float32(minSSM), bp, i-bp, Float32(m_PrevSSM[bp]), Float32(minSSM-m_PrevSSM[bp])));
+		DBG_TRACE(("{:f} = prevSSM[{}] + GetSSM({}) = {:f} + {:f}", Float32(minSSM), bp, i-bp, Float32(m_PrevSSM[bp]), Float32(minSSM-m_PrevSSM[bp])));
 
 #if defined(MG_ASSUME_CB_INC)
 		if (m_NrCompletedRows>1 && (i+1 < m_BufSize))
@@ -556,10 +556,10 @@ struct JenksFisher
 		while (++bp < ep)
 		{
 			Float64 currSSM = m_PrevSSM[bp] + GetSSM(bp+m_NrCompletedRows, i+m_NrCompletedRows);
-			DBG_TRACE(("%f = prevSSM[%d] + GetSSM(%d) = %f + %f", Float32(currSSM), bp, i-bp, Float32(m_PrevSSM[bp]), Float32(currSSM-m_PrevSSM[bp])));
+			DBG_TRACE(("{:f} = prevSSM[{}] + GetSSM({}) = {:f} + {:f}", Float32(currSSM), bp, i-bp, Float32(m_PrevSSM[bp]), Float32(currSSM-m_PrevSSM[bp])));
 			if (currSSM > minSSM)
 			{
-				DBG_TRACE(("foundP=%d increases from %f to %f", bp, Float32(minSSM), Float32(currSSM)));
+				DBG_TRACE(("foundP={} increases from {:f} to {:f}", bp, Float32(minSSM), Float32(currSSM)));
 
 				minSSM = currSSM;
 				foundP = bp;
@@ -571,7 +571,7 @@ struct JenksFisher
 	void CalcRange(SizeT bi, SizeT ei, SizeT bp, SizeT ep)
 	{
 		DBG_START("JenksFisher", "CalcRange", MG_DEBUG_CLASSBREAKS);
-		DBG_TRACE(("bi=%d ei=%d bp=%d ep=%d", bi, ei, bp, ep));
+		DBG_TRACE(("bi={} ei={} bp={} ep={}", bi, ei, bp, ep));
 
 		assert(bi <= ei);
 
@@ -606,7 +606,7 @@ struct JenksFisher
 			m_CBPtr = m_CB.get();
 			for (m_NrCompletedRows=1; m_NrCompletedRows<m_K-1; ++m_NrCompletedRows)
 			{
-				DBG_TRACE(("m_NrCompletedRows=%d", m_NrCompletedRows));
+				DBG_TRACE(("m_NrCompletedRows={}", m_NrCompletedRows));
 
 				assert(std::find(m_PrevSSM.get(), m_PrevSSM.get() + m_BufSize, -9999.0 ) == m_PrevSSM.get() + m_BufSize);
 
@@ -637,7 +637,7 @@ struct JenksFisher
 			while (--k)
 			{
 				assert(k);
-				//			DBG_TRACE(("Break[%d]=vcpc[%d]=%f", k, lastClassBreakIndex+k, Float32(vcpc[lastClassBreakIndex+k].first)));
+				//			DBG_TRACE(("Break[{}]=vcpc[{}]={:f}", k, lastClassBreakIndex+k, Float32(vcpc[lastClassBreakIndex+k].first)));
 				result[k] = vcpc[lastClassBreakIndex + k].first;
 				assert(lastClassBreakIndex < m_BufSize);
 				if (k > 1)

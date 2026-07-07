@@ -43,7 +43,7 @@ struct DbfImplRead : DbfImpl
 	DbfImplRead(WeakStr filename, const TreeItem* storageHolder)
 	{
 		if (! OpenForRead(filename) )
-			throwErrorF("DBF", "Cannot open %s for read (%d: %s)", filename.c_str(), errno, strerror(errno) );
+			throwErrorF("DBF", "Cannot open {} for read ({}: {})", filename.c_str(), errno, strerror(errno) );
 	}
 };
 
@@ -85,7 +85,7 @@ void DbfStorageManager::TestDomain(const AbstrDataItem* adi) const
 	dms_assert(adi);
 	if (!TableDomain_IsAttr(m_TableDomain.get(), adi))
 		adi->throwItemErrorF(
-			"DataItem %s has a domain that is incompatible with the table domain %s", 
+			"DataItem {} has a domain that is incompatible with the table domain {}", 
 			adi->GetName().c_str(), 
 			m_TableDomain->GetFullName().c_str()
 		);
@@ -141,7 +141,7 @@ void DbfStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* cu
 			dms_assert(adi);
 			if (ti->IsDisabledStorage())
 				ti->throwItemErrorF(
-					"DisableStorage not expected because of Dbf Column %s", 
+					"DisableStorage not expected because of Dbf Column {}", 
 					mappedName
 				);
 			
@@ -155,7 +155,7 @@ void DbfStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* cu
 					)
 				)
 				ti->throwItemErrorF(
-					"Type of ValuesUnit is incompatible with the Dbf column compatible type %s"
+					"Type of ValuesUnit is incompatible with the Dbf column compatible type {}"
 				,	ValueClass::FindByValueClassID(dbf.ColumnType(i))->GetName()
 				);
 		} else
@@ -164,7 +164,7 @@ void DbfStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* cu
 			TreeItem* ti = curr->GetSubTreeItemByID(GetTokenID_mt(mappedName));
 			if (ti)
 				ti->throwItemErrorF(
-					"A valid column expected because of Dbf Column %s"
+					"A valid column expected because of Dbf Column {}"
 				,	mappedName
 				);
 			
@@ -220,7 +220,7 @@ FileResult DbfStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObje
 
 		default:
 			return std::unexpected(mySSPrintF(
-				"DbfStorageManager::ReadDataItem not implemented for DataItem with ValuesUnitType: %s"
+				"DbfStorageManager::ReadDataItem not implemented for DataItem with ValuesUnitType: {}"
 			,	vc->GetName().c_str()
 			));
 	} // switch
@@ -253,7 +253,7 @@ FileResult DbfStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 		INSTANTIATE_OTHER
 #undef INSTANTIATE
 		default:
-			throwItemErrorF("WriteDataItem not implemented for dbf data with ValuesUnitType: %s", vc->GetName());
+			throwItemErrorF("WriteDataItem not implemented for dbf data with ValuesUnitType: {}", vc->GetName());
 	}
 }
 

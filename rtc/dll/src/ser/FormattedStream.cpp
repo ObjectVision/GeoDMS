@@ -548,9 +548,9 @@ RTC_CALL FormattedInpStream& operator >>(FormattedInpStream& str, CharPtr value)
 		if (valCh !=inCh)
 		{
 			if (inCh)
-				throwErrorF("FormattedInpStream","expected '%c' but got '%c'", valCh, inCh);
+				throwErrorF("FormattedInpStream","expected '{}' but got '{}'", valCh, inCh);
 			else
-				throwErrorF("FormattedInpStream","expected '%c' at end of string", valCh);
+				throwErrorF("FormattedInpStream","expected '{}' at end of string", valCh);
 		}
 		valCh = *++value;
 		if (!valCh) 

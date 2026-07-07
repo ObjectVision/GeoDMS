@@ -617,7 +617,7 @@ namespace poly2grid
 					}
 					catch (DmsException& x)
 					{
-						x.AsErrMsg()->TellExtraF("\nin poly2grid at tile %d and index %d", tp, i);
+						x.AsErrMsg()->TellExtraF("\nin poly2grid at tile {} and index {}", tp, i);
 						throw;
 					}
 				}
@@ -696,7 +696,7 @@ namespace poly2grid
 			}
 			catch (DmsException& x)
 			{
-				x.AsErrMsg()->TellExtraF("\nin poly2allgrids at tile %d and index %d", tp, i);
+				x.AsErrMsg()->TellExtraF("\nin poly2allgrids at tile {} and index {}", tp, i);
 				throw;
 			}
 			return result;

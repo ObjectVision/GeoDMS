@@ -143,7 +143,7 @@ HANDLE CreateFileHandleForRwView(WeakStr fileName, FileCreationMode fcm, bool is
 			,	NULL                                  // handle to template file
 			);
 		assert(fileHandle);
-	}	while ((fileHandle == INVALID_HANDLE_VALUE) && ManageSystemError(retryCounter, "CreateFileHandleForRwView(%s)", fileName.c_str(), true, doRetry));
+	}	while ((fileHandle == INVALID_HANDLE_VALUE) && ManageSystemError(retryCounter, "CreateFileHandleForRwView({})", fileName.c_str(), true, doRetry));
 	return fileHandle;
 }
 
@@ -231,7 +231,7 @@ void FileHandle::OpenForRead(WeakStr fileName, bool throwOnError, bool doRetry, 
 	//		|	FILE_FLAG_RANDOM_ACCESS
 			,	NULL                                    // handle to template file
 		);
-	}	while ((fileHandle == INVALID_HANDLE_VALUE) && ManageSystemError(retryCounter, "FileMapHandle(%s).OpenForRead", fileName.c_str(), throwOnError, doRetry));
+	}	while ((fileHandle == INVALID_HANDLE_VALUE) && ManageSystemError(retryCounter, "FileMapHandle({}).OpenForRead", fileName.c_str(), throwOnError, doRetry));
 
 	if (fileHandle == INVALID_HANDLE_VALUE)
 	{
@@ -266,7 +266,7 @@ void FileHandle::ReadFileSize(CharPtr handleName)
 {
 	LARGE_INTEGER fileSize;
 	if (!GetFileSizeEx(m_hFile, &fileSize))
-		throwSystemError(GetLastError(), "GetFileSize(%S)", handleName);
+		throwSystemError(GetLastError(), "GetFileSize({})", handleName);
 	m_FileSize = fileSize.QuadPart;
 	dbg_assert(m_FileSize <= sd_MaxFileSize);
 }
@@ -382,11 +382,11 @@ void MappedFileHandle::MapFile(bool alsoWrite)
 {
 	m_hFileMapping = WinHandle();
 	if (!m_hFile)
-		throwErrorF("CreateFileMapping", "%s('%s') failed"
+		throwErrorF("CreateFileMapping", "{}('{}') failed"
 			, alsoWrite ? "CreateFile" : "OpenFile", m_FileName);
 
 	if (m_FileSize == UNDEFINED_FILE_SIZE)
-		throwErrorF("CreateFileMapping", "%s('%s') failed because MappingSize is undefined"
+		throwErrorF("CreateFileMapping", "{}('{}') failed because MappingSize is undefined"
 			, alsoWrite ? "CreateFile" : "OpenFile", m_FileName);
 
 	WinHandle fileMapping =
@@ -398,7 +398,7 @@ void MappedFileHandle::MapFile(bool alsoWrite)
 			nullptr                            // Name of mapping object. 
 		);
 	if (fileMapping == nullptr)
-		throwLastSystemError("FileMapHandle('%s').CreateFileMapping(%I64u)", m_FileName.c_str(), (UInt64)m_FileSize);
+		throwLastSystemError("FileMapHandle('{}').CreateFileMapping({})", m_FileName.c_str(), (UInt64)m_FileSize);
 
 	m_hFileMapping = std::move(fileMapping);
 }
@@ -462,7 +462,7 @@ ViewData::ViewData(MappedFileHandle* mappedFile, DWORD desiredAccess, dms::files
 
 		DWORD lastErr = GetLastError();
 		if (lastErr != ERROR_NOT_ENOUGH_MEMORY || !DMS_CoalesceHeap(viewCapacity))
-			throwSystemError(lastErr, "FileMapHandle('%s').MapViewOfFile(%I64u)", mappedFile->GetFileName().c_str(), (UInt64)viewCapacity);
+			throwSystemError(lastErr, "FileMapHandle('{}').MapViewOfFile({})", mappedFile->GetFileName().c_str(), (UInt64)viewCapacity);
 	};
 }
 
@@ -899,7 +899,7 @@ void FileHandle::OpenRw(WeakStr fileName, dms::filesize_t requiredNrBytes, dms_r
 	UInt32 retryCounter = 0;
 	do {
 		fd = ::open(path.c_str(), flags, 0644);
-	} while (fd < 0 && ManageSystemError(retryCounter, "FileHandle::OpenRw(%s)", fileName.c_str(), true, doRetry));
+	} while (fd < 0 && ManageSystemError(retryCounter, "FileHandle::OpenRw({})", fileName.c_str(), true, doRetry));
 
 	m_hFile = WinHandle(FdToHandle(fd));
 	m_FileName = fileName;
@@ -921,7 +921,7 @@ void FileHandle::SetFileSize(dms::filesize_t requiredNrBytes)
 	m_FileSize = requiredNrBytes;
 	int fd = HandleToFd(m_hFile);
 	if (ftruncate(fd, requiredNrBytes) != 0)
-		throwLastSystemError("ftruncate(%s, %llu)", m_FileName.c_str(), (unsigned long long)requiredNrBytes);
+		throwLastSystemError("ftruncate({}, {})", m_FileName.c_str(), (unsigned long long)requiredNrBytes);
 }
 
 void FileHandle::OpenForRead(WeakStr fileName, bool throwOnError, bool doRetry, bool mayBeEmpty)
@@ -933,7 +933,7 @@ void FileHandle::OpenForRead(WeakStr fileName, bool throwOnError, bool doRetry, 
 	UInt32 retryCounter = 0;
 	do {
 		fd = ::open(path.c_str(), mayBeEmpty ? (O_RDONLY | O_CREAT) : O_RDONLY, 0644);
-	} while (fd < 0 && ManageSystemError(retryCounter, "FileHandle::OpenForRead(%s)", fileName.c_str(), throwOnError, doRetry));
+	} while (fd < 0 && ManageSystemError(retryCounter, "FileHandle::OpenForRead({})", fileName.c_str(), throwOnError, doRetry));
 
 	if (fd < 0)
 	{
@@ -962,7 +962,7 @@ void FileHandle::ReadFileSize(CharPtr handleName)
 	int fd = HandleToFd(m_hFile);
 	struct stat st;
 	if (fstat(fd, &st) != 0)
-		throwLastSystemError("fstat(%s)", handleName);
+		throwLastSystemError("fstat({})", handleName);
 	m_FileSize = st.st_size;
 	dbg_assert(m_FileSize <= sd_MaxFileSize);
 }
@@ -1055,7 +1055,7 @@ ViewData::ViewData(MappedFileHandle* mappedFile, DWORD desiredAccess, dms::files
 		auto path = ConvertDmsFileName(mappedFile->GetFileName());
 		fd = ::open(path.c_str(), wantWrite ? O_RDWR : O_RDONLY);
 		if (fd < 0)
-			throwLastSystemError("ViewData open(%s)", mappedFile->GetFileName().c_str());
+			throwLastSystemError("ViewData open({})", mappedFile->GetFileName().c_str());
 	}
 	int prot = PROT_READ;
 	if (wantWrite)
@@ -1063,7 +1063,7 @@ ViewData::ViewData(MappedFileHandle* mappedFile, DWORD desiredAccess, dms::files
 
 	void* addr = mmap(nullptr, viewCapacity, prot, MAP_SHARED, fd, viewOffset);
 	if (addr == MAP_FAILED)
-		throwLastSystemError("mmap(%s, offset=%llu, size=%llu)",
+		throwLastSystemError("mmap({}, offset={}, size={})",
 			mappedFile->GetFileName().c_str(),
 			(unsigned long long)viewOffset, (unsigned long long)viewCapacity);
 

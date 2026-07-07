@@ -293,7 +293,7 @@ bool AbstrDataItem::DoReadItem(StorageMetaInfoPtr smi)
 	assert(!sm->m_CriticalSection.try_acquire());
 
 	if (!sm->DoesExist(smi->StorageHolder()))
-		throwItemErrorF( "Storage %s does not exist", sm->GetNameStr().c_str() );
+		throwItemErrorF( "Storage {} does not exist", sm->GetNameStr().c_str() );
 
 	try {
 		MG_DEBUGCODE(TimeStamp currTS = LastChangeTS(); )
@@ -382,7 +382,7 @@ bool AbstrDataItem::DoWriteItem(StorageMetaInfoPtr&& smi) const
 		sm->ExportMetaInfo(storageHolder.get(), this);
 		if (!sm->WriteDataItem(std::move(smi)))
 			throwItemError("Failure during Writing");
-		reportF(MsgCategory::storage_write, SeverityTypeID::ST_MajorTrace, "Writing to %s", sm->GetNameStr().c_str());
+		reportF(MsgCategory::storage_write, SeverityTypeID::ST_MajorTrace, "Writing to {}", sm->GetNameStr().c_str());
 	}
 	catch (const DmsException& x)
 	{
@@ -431,7 +431,7 @@ const DataItemClass* AbstrDataItem::GetDynamicObjClass() const
 		assert(vtSingle);
 		auto vtSingleStr = vtSingle->GetID().AsSharedStr();
 
-		throwDmsErrF("No ValueType for %s composition of %s values", vcStr.c_str(), vtSingleStr.c_str());
+		throwDmsErrF("No ValueType for {} composition of {} values", vcStr.c_str(), vtSingleStr.c_str());
 	}
 	MG_CHECK(vt);
 	auto dic = DataItemClass::FindCertain(vt, this);
@@ -461,7 +461,7 @@ void AbstrDataItem::Unify(const TreeItem* refItem, CharPtr leftRole, CharPtr rig
 	{
 		SharedStr resultMsg;
 		if (!GetAbstrValuesUnit()->UnifyDomain(refAsDi->GetAbstrValuesUnit(), UnifyMode(UM_AllowDefaultLeft), &resultMsg))
-			reportF(SeverityTypeID::ST_Warning, "%s: DomainUnification of categorical calculation result: %s"
+			reportF(SeverityTypeID::ST_Warning, "{}: DomainUnification of categorical calculation result: {}"
 			,	GetFullName()
 			,	resultMsg
 			);
@@ -614,11 +614,11 @@ const AbstrUnit* AbstrDataItem::FindUnit(TokenID t, CharPtr role, ValueCompositi
 {
 	assert(GetTreeParent());
 	if (t == TokenID::GetUndefinedID())
-		ThrowFail(mySSPrintF("Undefined %s unit", role), FailType::MetaInfo);
+		ThrowFail(mySSPrintF("Undefined {} unit", role), FailType::MetaInfo);
 	const AbstrUnit* result = UnitClass::GetUnitOrDefault(GetTreeParent().get(), t, vcPtr);
 	if (!result && !InTemplate())
 	{
-		auto msg = mySSPrintF("Cannot find %s unit %s", role, GetTokenStr(t));
+		auto msg = mySSPrintF("Cannot find {} unit {}", role, GetTokenStr(t));
 		ThrowFail(msg, FailType::MetaInfo);
 	}
 	return result;
@@ -1284,7 +1284,7 @@ struct InterestReporter : DebugReporter
 
 #if defined(MG_DEBUG_DCDATA)
 		auto dc = dynamic_cast<const DataController*>(focusItem);
-		reportF(MsgCategory::other, SeverityTypeID::ST_MinorTrace, "%x LVL %d IC %d KD %s SI %s; %s %s %s: %s", focusItem,  level,
+		reportF(MsgCategory::other, SeverityTypeID::ST_MinorTrace, "{} LVL {} IC {} KD {} SI {}; {} {} {}: {}", focusItem,  level,
 			focusItem->GetInterestCount(),
 			YesNo(ti ? ti->GetKeepDataState() : false),
 			YesNo(focusItem->DoesHaveSupplInterest()),
@@ -1439,10 +1439,10 @@ struct InterestReporter : DebugReporter
 				reducedInterestCount += ii.second;
 			}
 
-		reportF(SeverityTypeID::ST_MajorTrace, "#Items with interest: %d", DemandManagement::sd_InterestSet.size());
-		reportF(SeverityTypeID::ST_MajorTrace, "sum #Interest:        %d", totalInterestCount);
-		reportF(SeverityTypeID::ST_MajorTrace, "#reduced interest:    %d", reducedInterest);
-		reportF(SeverityTypeID::ST_MajorTrace, "sum reduced #Interest:%d", reducedInterestCount);
+		reportF(SeverityTypeID::ST_MajorTrace, "#Items with interest: {}", DemandManagement::sd_InterestSet.size());
+		reportF(SeverityTypeID::ST_MajorTrace, "sum #Interest:        {}", totalInterestCount);
+		reportF(SeverityTypeID::ST_MajorTrace, "#reduced interest:    {}", reducedInterest);
+		reportF(SeverityTypeID::ST_MajorTrace, "sum reduced #Interest:{}", reducedInterestCount);
 
 /* Too much, leave it for now
 * 
@@ -1450,7 +1450,7 @@ struct InterestReporter : DebugReporter
 		for (const auto& ii: interestRoots)
 			if (ii.second)
 				ReportTree(done, ii.first, 0,  "ROOT");
-		DMS_TRACE(("%d done", done.size()));
+		DMS_TRACE(("{} done", done.size()));
 
 */
 	}

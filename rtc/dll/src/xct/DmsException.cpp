@@ -126,7 +126,7 @@ void ErrMsg::TellExtra(CharPtrRange msg)
 	if (m_Context.empty())
 		m_Context = SharedStr(msg);
 	else
-		m_Context = mySSPrintF("%s\n%s", m_Context, msg);
+		m_Context = mySSPrintF("{}\n{}", m_Context, msg);
 }
 
 void ErrMsg::TellWhere(const Object* ptr)
@@ -144,7 +144,7 @@ void ErrMsg::TellWhere(const Object* ptr)
 
 SharedStr ErrMsg::GetAsText() const
 {
-	return mgFormat2SharedStr("%s\n%s\n%s"
+	return mgFormat2SharedStr("{}\n{}\n{}"
 		, m_Why
 		, m_FullName
 		, m_Context
@@ -201,7 +201,7 @@ RTC_CALL const char* DmsException::what() const noexcept
 {
 #if defined(MG_COUNT_EXCEPTIONS)
 	sd_ThrowItemErrorCount++;
-//	reportF(ST_MajorTrace, "Logging throwItemError %d: %s", sd_ThrowItemErrorCount, msg.Why());
+//	reportF(ST_MajorTrace, "Logging throwItemError {}: {}", sd_ThrowItemErrorCount, msg.Why());
 #endif
 
 	throw DmsException(msg);
@@ -316,7 +316,7 @@ SharedStr ErrLoc(CharPtr sourceFile, int line, bool isInternal)
 {
 	SharedStr result;
 	if (sourceFile && *sourceFile)
-		result = mySSPrintF("%s(%d):\n", sourceFile, line);
+		result = mySSPrintF("{}({}):\n", sourceFile, line);
 	if (isInternal)
 		result += "\nThis seems to be a GeoDms internal error; contact Object Vision or report this as issue at https://github.com/ObjectVision/GeoDMS/issues";
 	return result;
@@ -327,7 +327,7 @@ SharedStr ErrLoc(CharPtr sourceFile, int line, bool isInternal)
 [[noreturn]] RTC_CALL void throwErrorD(CharPtr type, CharPtr msg)
 {
 	dms_assert(type && *type && (strncmp(type, msg, StrLen(type)) || strncmp(ERR_TXT, msg + StrLen(type), sizeof(ERR_TXT) - 1)));
-	DmsException::throwMsgF("%s" ERR_TXT "%s", type, msg);
+	DmsException::throwMsgF("{}" ERR_TXT "{}", type, msg);
 }
 
 [[noreturn]] RTC_CALL void throwErrorD(TokenID type, CharPtr msg)
@@ -339,36 +339,36 @@ SharedStr ErrLoc(CharPtr sourceFile, int line, bool isInternal)
 
 [[noreturn]] RTC_CALL void  throwDmsErrD(CharPtr msg)
 {
-	DmsException::throwMsgF("Error: %s", msg);
+	DmsException::throwMsgF("Error: {}", msg);
 }
 
 [[noreturn]] RTC_CALL void throwIllegalAbstract(CharPtr sourceFile, int line, const Object* obj, CharPtr method)
 {
 	assert(0);
-	obj->throwItemErrorF("Illegal Abstract %s called.\n%s", method, ErrLoc(sourceFile, line, true));
+	obj->throwItemErrorF("Illegal Abstract {} called.\n{}", method, ErrLoc(sourceFile, line, true));
 }
 
 [[noreturn]] RTC_CALL void throwIllegalAbstract(CharPtr sourceFile, int line, CharPtr method)
 {
 	assert(0);
-	throwErrorF("Illegal Abstract", "%s called.\n%s", method, ErrLoc(sourceFile, line, true));
+	throwErrorF("Illegal Abstract", "{} called.\n{}", method, ErrLoc(sourceFile, line, true));
 }
 
 [[noreturn]] RTC_CALL void throwNYI(CharPtr sourceFile, int line, CharPtr method)
 {
-	throwErrorF("NYI", "Function %s is not yet implemented\n%s", method, ErrLoc(sourceFile, line, true));
+	throwErrorF("NYI", "Function {} is not yet implemented\n{}", method, ErrLoc(sourceFile, line, true));
 }
 
 [[noreturn]] RTC_CALL void  throwPreconditionFailed(CharPtr sourceFile, int line, CharPtr msg)
 {
 	assert(0);
-	throwErrorF("Precondition Exception", "%s\n%s", msg, ErrLoc(sourceFile, line, true));
+	throwErrorF("Precondition Exception", "{}\n{}", msg, ErrLoc(sourceFile, line, true));
 }
 
 [[noreturn]] RTC_CALL void throwCheckFailed(CharPtr sourceFile, int line, CharPtr msg)
 {
 	assert(0);
-	throwErrorF("Check Failed", "%s\n%s", msg, ErrLoc(sourceFile, line, true));
+	throwErrorF("Check Failed", "{}\n{}", msg, ErrLoc(sourceFile, line, true));
 }
 
 //----------------------------------------------------------------------
@@ -505,7 +505,7 @@ SharedStr GetExceptionText(unsigned int exceptionCode, _EXCEPTION_POINTERS* pExp
 			break;
 		case EXCEPTION_ACCESS_VIOLATION:
 			if (pExp && pExp->ExceptionRecord &&  pExp->ExceptionRecord->NumberParameters >= 2)
-				return mySSPrintF("The thread tried to %s virtual address 0x%X for which it does not have the appropriate access.",
+				return mySSPrintF("The thread tried to {} virtual address 0x{:X} for which it does not have the appropriate access.",
 				(pExp->ExceptionRecord->ExceptionInformation[0]
 					? "write to"
 					: "read from"),
@@ -632,7 +632,7 @@ int signalHandling(unsigned int u, _EXCEPTION_POINTERS* pExp, bool passBorlandEx
 		StartChildProcess(nullptr, msgBuffer);
 		ExitProcess(GetLastExceptionCode());
 	}
-	DmsException::throwMsgF( "%s Structured Exception: 0x%X raised:\n%s"
+	DmsException::throwMsgF( "{} Structured Exception: 0x{:X} raised:\n{}"
 	,	(u == EXCEPTION_BORLAND_ERROR) ? "Borland" : "OS"
 	,	u
 	,	exceptionText.c_str()
@@ -725,7 +725,7 @@ void debugBreak()
 
 RTC_CALL void dms_check_failed(CharPtr msg, CharPtr fileName, unsigned line)
 {
-	reportF_without_cancellation_check(SeverityTypeID::ST_MajorTrace, "check failure: %s\n%s(%u)", msg, fileName, line);
+	reportF_without_cancellation_check(SeverityTypeID::ST_MajorTrace, "check failure: {}\n{}({})", msg, fileName, line);
 
 #if defined(MG_DEBUG)
 	debugBreak();
@@ -767,6 +767,6 @@ RTC_CALL SharedStr GetFirstLine(WeakStr msg)
 	if (this->has_value())
 		throwErrorF(context, "Operation succeeded but was expected to fail");
 	else
-		throwErrorF(context, "Operation failed with error: %s", this->error().c_str());
+		throwErrorF(context, "Operation failed with error: {}", this->error().c_str());
 }
 

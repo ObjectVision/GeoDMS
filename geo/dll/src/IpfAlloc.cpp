@@ -212,7 +212,7 @@ UInt32 Solve(htp_info_t<S>& htpInfo)
 
 	for (UInt32 iter=0; iter!=MAX_ITER; ++iter)
 	{
-		reportF(ST_MajorTrace, "DiscreteAlloc iter %d/%d", iter, MAX_ITER);
+		reportF(ST_MajorTrace, "DiscreteAlloc iter {}/{}", iter, MAX_ITER);
 
 		InitalAlloc(htpInfo); // recount every time just to be sure
 
@@ -231,7 +231,7 @@ UInt32 Solve(htp_info_t<S>& htpInfo)
 				totalClaimDeviation += (currQ - claimInfo.m_ClaimRange.second);
 		}
 
-		reportF(ST_MajorTrace, "DiscreteAlloc deviation %d", totalClaimDeviation);
+		reportF(ST_MajorTrace, "DiscreteAlloc deviation {}", totalClaimDeviation);
 
 		if (iter == MAX_ITER)
 			return totalClaimDeviation;

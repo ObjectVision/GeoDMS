@@ -15,6 +15,7 @@
 #endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "DbfImpl.h"
+#include <boost/core/addressof.hpp> // boost::addressof; was transitively provided by boost/format via the prelude
 
 #include "dbg/debug.h"
 #include "geo/BaseBounds.h"
@@ -196,7 +197,7 @@ void CommitFile(WeakStr srcName, WeakStr tmpFile)
 	auto r = remove(dosFileName.c_str());
 	r = rename(ConvertDmsFileName(tmpFile).c_str(), dosFileName.c_str());
 	if (r)
-		throwErrorF("std", "%d (%s) in CommitFile.rename working filename to intended filename", r, strerror(r));
+		throwErrorF("std", "{} ({}) in CommitFile.rename working filename to intended filename", r, strerror(r));
 }
 
 /*****************************************************************************/
@@ -449,9 +450,9 @@ FileResult DbfImpl::ReadHeader()
 	MG_CHECK(fread(&m_RecordCount, sizeof(m_RecordCount), 1, fp) == 1);
 	MG_CHECK(fread(&m_HeaderSize, sizeof(m_HeaderSize), 1, fp) == 1);
 	MG_CHECK(fread(&m_RecordSize, sizeof(m_RecordSize), 1, fp) == 1);
-	DBG_TRACE(("m_HeaderSize  : %d", m_HeaderSize));
-	DBG_TRACE(("m_RecordSize  : %d", m_RecordSize));
-	DBG_TRACE(("m_RecordCount : %d", m_RecordCount));
+	DBG_TRACE(("m_HeaderSize  : {}", m_HeaderSize));
+	DBG_TRACE(("m_RecordSize  : {}", m_RecordSize));
+	DBG_TRACE(("m_RecordCount : {}", m_RecordCount));
 
 	// 2. read column info
 	MG_CHECK(m_HeaderSize > DBF_HEADER_BLOCK_SIZE);
@@ -607,42 +608,32 @@ bool DbfImpl::WriteHeader()
 
 void FormatSpecification(ValueClassID vc, UInt8 colwidth, UInt8 deccount, bool read, SharedStr& formatspec)
 {
-	char	s[10];
-
-	formatspec	=	"%";
-	sprintf(s, "%hu", colwidth);
-	formatspec	+=	s;
+	// Build a std::format spec applied by WriteDataElement via the myFixedBuffer* helpers.
+	// ReadDataElement parses the field numerically and ignores this spec. Numbers are
+	// right-aligned by default, matching the former printf "%<width>d" / "%<width>.<dec>f".
+	char s[24];
 
 	switch (vc)
 	{
-		case ValueClassID::VT_SharedStr:
-		case ValueClassID::VT_Bool   : formatspec	+=	"c"; break;
-		case ValueClassID::VT_Int8   :
-		case ValueClassID::VT_Int16  : formatspec	+= "hd"; break;
-		case ValueClassID::VT_Int32  : formatspec	+= "d";  break;
-		case ValueClassID::VT_UInt16 : 
-		case ValueClassID::VT_UInt8  : formatspec	+= "hu"; break;
-		case ValueClassID::VT_UInt32 : formatspec	+= "u";  break;
-		case ValueClassID::VT_Float32:	
-		case ValueClassID::VT_Float64: 
-			if (! read)
-			{
-				sprintf(s, "%hd", Int16(deccount));
-				formatspec	+=	".";
-				formatspec	+=	s;
-			} 
-			if (vc == ValueClassID::VT_Float64)
-				formatspec += "l";
-			formatspec += "f";
+		case ValueClassID::VT_Float32:
+		case ValueClassID::VT_Float64:
+			if (!read)
+				snprintf(s, sizeof(s), "{:%hu.%huf}", UInt16(colwidth), UInt16(deccount));
+			else
+				snprintf(s, sizeof(s), "{:%huf}", UInt16(colwidth));
+			break;
+		default:
+			snprintf(s, sizeof(s), "{:%hu}", UInt16(colwidth));
 			break;
 	} // switch
+	formatspec = s;
 } // FormatSpecification
 
 Float64 ReadAsFloat64(CharPtr fieldBuffer, CharPtr filedBufferEnd)
 {
 	Float64 tmp = ReadValueAfterSpace<Float64>(fieldBuffer, filedBufferEnd);
 	if (!IsDefined(tmp))
-		throwErrorF("DBF", "unexpected character in parsing '%s' as numeric"
+		throwErrorF("DBF", "unexpected character in parsing '{}' as numeric"
 			, SharedStr(CharPtrRange(fieldBuffer, filedBufferEnd)).c_str()
 		);
 	return tmp;
@@ -740,7 +731,7 @@ bool DbfImpl::WriteDataElement(const void *data, UInt32 recordindex, UInt32 colu
 	} // switch
 	UInt32 sz = strRange.size();
 	if (sz > len)
-		throwErrorF("DBF", "Writing column %s of record %d failed because '%s' exceeds the field length %d",
+		throwErrorF("DBF", "Writing column {} of record {} failed because '{}' exceeds the field length {}",
 			ColumnIndexToName(columnindex),
 			recordindex,
 			strRange.begin(),

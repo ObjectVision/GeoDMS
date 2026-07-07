@@ -138,7 +138,7 @@ bool AxisControl::Draw(GraphDrawer& d) const
 			: shp2dms_order<CrdType>(roi.first.X(), t);
 		CrdPoint vpLogical = w2v.Apply(worldPnt);
 
-		SharedStr label = mySSPrintF("%.6g", t);
+		SharedStr label = mySSPrintF("{:.6g}", t);
 		if (isHor)
 		{
 			GType devX = GType(vpAbsDevicePos.X() + vpLogical.X() * sf.X());

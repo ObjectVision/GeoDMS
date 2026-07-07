@@ -1230,7 +1230,7 @@ struct BufferMultiPolygonOperator : public AbstrBufferOperator
 
 					if (processTimer.PassedSecs())
 					{
-						reportF(SeverityTypeID::ST_MajorTrace, "%s%s: processed %s / %s sequences of tile %s / %s"
+						reportF(SeverityTypeID::ST_MajorTrace, "{}{}: processed {} / {} sequences of tile {} / {}"
 							, itemRef
 							, GetGroup()->GetNameStr()
 							, AsString(i), AsString(n)
@@ -1252,7 +1252,7 @@ struct BufferMultiPolygonOperator : public AbstrBufferOperator
 				}
 				if (processTimer.PassedSecs())
 				{
-					reportF(SeverityTypeID::ST_MajorTrace, "%s%s: processed %s / %s sequences of tile %s / %s"
+					reportF(SeverityTypeID::ST_MajorTrace, "{}{}: processed {} / {} sequences of tile {} / {}"
 						, itemRef
 						, GetGroup()->GetNameStr()
 						, AsString(i), AsString(n)
@@ -1334,7 +1334,7 @@ struct BufferSinglePolygonOperator : public AbstrBufferOperator
 			}
 			catch (DmsException& e)
 			{
-				e.AsErrMsg()->TellExtraF("BufferSinglePolygonOperator::Calculate tile %d, offset %d", t, i);
+				e.AsErrMsg()->TellExtraF("BufferSinglePolygonOperator::Calculate tile {}, offset {}", t, i);
 				throw;
 			}
 		}
@@ -1374,7 +1374,7 @@ struct GeosBufferOperator : public AbstrBufferOperator
 		ValueComposition vc = polyItem->GetValueComposition();
 		if (vc != ValueComposition::Polygon && vc != ValueComposition::Sequence && vc != ValueComposition::MultiPoint)
 			GetGroup()->throwOperErrorF(
-				"geos_buffer: unsupported ValueComposition '%s' of the first argument; expected polygon, arc or multipoint geometry"
+				"geos_buffer: unsupported ValueComposition '{}' of the first argument; expected polygon, arc or multipoint geometry"
 				, GetValueCompositionID(vc).AsSharedStr().c_str());
 
 		SizeT i = 0, n = polyData.size(); if (!n) return;
@@ -1427,7 +1427,7 @@ struct GeosBufferOperator : public AbstrBufferOperator
 
 			if (processTimer.PassedSecs())
 			{
-				reportF(SeverityTypeID::ST_MajorTrace, "%s%s: processed %s / %s sequences of tile %s / %s"
+				reportF(SeverityTypeID::ST_MajorTrace, "{}{}: processed {} / {} sequences of tile {} / {}"
 					, itemRef
 					, GetGroup()->GetNameStr()
 					, AsString(i), AsString(n)
@@ -1555,7 +1555,7 @@ struct OuterSinglePolygonOperator : public AbstrOuterOperator
 			}
 			catch (DmsException& e)
 			{
-				e.AsErrMsg()->TellExtraF("OuterSinglePolygonOperator::Calculate tile %d, offset %d", t, i);
+				e.AsErrMsg()->TellExtraF("OuterSinglePolygonOperator::Calculate tile {}, offset {}", t, i);
 				throw;
 			}
 

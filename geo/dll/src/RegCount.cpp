@@ -152,7 +152,7 @@ struct RegTileCounterBase : UnitProcessor
 					continue;
 				++(counts[j]);
 				if (!counts[j])
-					throwErrorF("RegCount", "Overflow in count for region %d of class %d", j, lu);
+					throwErrorF("RegCount", "Overflow in count for region {} of class {}", j, lu);
 			}
 		}
 	}
@@ -221,7 +221,7 @@ struct RegCountOperator : public QuaternaryOperator
 			{
 				partition = AsDynamicDataItem(partitionContainer->FindItem(partitionName));
 				if (!partition)
-					GetGroup()->throwOperErrorF("Partition %s not found in partition container %s",
+					GetGroup()->throwOperErrorF("Partition {} not found in partition container {}",
 						partitionName.c_str(),
 						partitionContainer->GetFullName().c_str()
 					);
@@ -230,7 +230,7 @@ struct RegCountOperator : public QuaternaryOperator
 			}
 			auto className = arg2A->GetValue<SharedStr>(i);
 			if (className.empty())
-				throwErrorF("RegCount", "no ItemName for row %d of 2nd argument", i);
+				throwErrorF("RegCount", "no ItemName for row {} of 2nd argument", i);
 			TokenID nameID = GetTokenID_mt(className.c_str());
 			assert(nameID);
 			const AbstrUnit* regionalDomain = partition ? partition->GetAbstrValuesUnit() : Unit<Void>::GetStaticClass()->CreateDefault();

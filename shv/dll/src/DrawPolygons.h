@@ -293,7 +293,7 @@ bool DrawPolygonInterior(
 				{
 					UInt32 bufferOffset = ii->first;
 
-					reportF(ST_MinorTrace, "bufferOffset %d", bufferOffset);
+					reportF(ST_MinorTrace, "bufferOffset {}", bufferOffset);
 
 					dms_assert(Area<Float64>(i->begin()+ii->first, i->begin()+ ii->second) >= 0);
 					++ii;

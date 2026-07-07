@@ -196,14 +196,14 @@ void ObjectContextPolicy<Base>::GenerateDescription()
 	{
 		auto name = m_Obj->GetFullName();
 		this->SetText(
-			mySSPrintF("while in %s for %s"
+			mySSPrintF("while in {} for {}"
 				, m_Role
 				, name.c_str()
 			)
 		);
 	}
 	else
-		this->SetText(mySSPrintF("while in %s('null')", m_Role));
+		this->SetText(mySSPrintF("while in {}('null')", m_Role));
 }
 
 template <typename Base>
@@ -217,7 +217,7 @@ template struct ObjectContextPolicy<ContextHandle>;
 
 void ObjectIdContextHandle::GenerateDescription()
 {
-	SharedStr role = mySSPrintF("%s('%s')", m_Role, m_ID.GetStr().c_str());
+	SharedStr role = mySSPrintF("{}('{}')", m_Role, m_ID.GetStr().c_str());
 
 	tmp_swapper<CharPtr> swapper(m_Role, role.c_str());
 	ObjectContextHandle::GenerateDescription();
@@ -270,7 +270,7 @@ CDebugContextHandle::~CDebugContextHandle()
 
 void CDebugContextHandle::GenerateDescription()
 {
-	SetText(mySSPrintF("while in %s::%s", m_ClassName, m_FuncName));
+	SetText(mySSPrintF("while in {}::{}", m_ClassName, m_FuncName));
 }
 
 double CDebugContextHandle::RunningTime() const
@@ -301,7 +301,7 @@ void DMS_CONV DBG_TraceStr(CharPtr msg)
 
 bool DMS_Test(CharPtr name, CharPtr condStr, bool cond)
 {
-	MG_TRACE("%32s: %s", name, (cond) ? "OK" : condStr); 
+	MG_TRACE("{:>32}: {}", name, (cond) ? "OK" : condStr); 
 	return cond;
 }
 

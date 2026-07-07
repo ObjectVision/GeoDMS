@@ -198,7 +198,7 @@ DllHandle* GetDllChecked(CharPtr dllName)
 	DllHandle* result = RTC_GetDll(dllName);
 	dms_assert(result);
 	if (!result->IsLoaded())
-      throwErrorF("DllLoad", "Cannot load dll [%s]", dllName);
+      throwErrorF("DllLoad", "Cannot load dll [{}]", dllName);
 
 	return result;
 }
@@ -213,7 +213,7 @@ void* GetProcChecked(CharPtr dllName, CharPtr procName)
 {
 	void* result = RTC_GetProc(GetDllChecked(dllName), procName);
 	if (!result)
-      throwErrorF("DllLoad", "Cannot find proc [%s] in dll [%s]", procName, dllName);
+      throwErrorF("DllLoad", "Cannot find proc [{}] in dll [{}]", procName, dllName);
 	return result;
 }
 

@@ -27,7 +27,7 @@ bool isCharPtrAndExceeds_MAX_PATH(const T& xFileName) { return false;  }
 template<typename ...Args>
 [[noreturn]] void throwSystemError(DWORD lastErr, CharPtr format, Args&&... args)
 {
-	throwErrorF("WindowsSystem", "%s:\nErrorCode %d: %s%s"
+	throwErrorF("WindowsSystem", "{}:\nErrorCode {}: {}{}"
 	,	mgFormat2string<Args...>(format, std::forward<Args>(args)...).c_str()
 	,	lastErr
 	,	::platform::GetSystemErrorText(lastErr).c_str()

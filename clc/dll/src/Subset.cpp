@@ -299,12 +299,12 @@ struct SelectMetaOperator : public BinaryOperator
 
 			SharedStr selectExpr;
 			if (m_ORCM == OrgRelCreationMode::org_rel_and_use_it)
-				selectExpr = mySSPrintF("collect_by_org_rel(org_rel, scope(.., %s/%s))"
+				selectExpr = mySSPrintF("collect_by_org_rel(org_rel, scope(.., {}/{}))"
 				,	containerExpr.GetSymbID()
 				,	subDataID
 				);
 			else
-				selectExpr = mySSPrintF("collect_by_cond(., scope(.., %s), scope(.., %s/%s))"
+				selectExpr = mySSPrintF("collect_by_cond(., scope(.., {}), scope(.., {}/{}))"
 				,	conditionExprStr
 				,	containerExpr.GetSymbID()
 				,	subDataID
@@ -312,14 +312,14 @@ struct SelectMetaOperator : public BinaryOperator
 			auto oldExpr = resSub->GetExprMember();
 			if (!oldExpr.empty() && oldExpr != selectExpr)
 			{
-				auto msg = mySSPrintF("Cannot set calculation rule '%s' to selected attribute '%s' as it is already defined as '%s'", selectExpr, subDataID, oldExpr);
+				auto msg = mySSPrintF("Cannot set calculation rule '{}' to selected attribute '{}' as it is already defined as '{}'", selectExpr, subDataID, oldExpr);
 				throwErrorD(GetGroup()->GetNameID(), msg.c_str());
 			}
 			resSub->SetExpr(selectExpr);
 			++foundSubItems;
 		}
 		if (!foundSubItems)
-			reportF(SeverityTypeID::ST_Warning, "%s: no sub-items found with a domain that is compatible with the domain of the given condition", GetGroup()->GetNameStr());
+			reportF(SeverityTypeID::ST_Warning, "{}: no sub-items found with a domain that is compatible with the domain of the given condition", GetGroup()->GetNameStr());
 		res->SetIsInstantiated();
 	}
 };
@@ -504,14 +504,14 @@ struct CollectWithAttrOperator : public BinaryOperator
 			if (!sourceDomain->UnifyDomain(subDataItem->GetAbstrDomainUnit()))
 			{
 				if (m_CollectMode == collect_mode::org_rel)
-					reportF(SeverityTypeID::ST_Warning, "%s: image of org_rel is %s, which is incompatible with the domain of attribute %s, which is %s"
+					reportF(SeverityTypeID::ST_Warning, "{}: image of org_rel is {}, which is incompatible with the domain of attribute {}, which is {}"
 					,	GetGroup()->GetNameStr()
 					,	sourceDomain->GetFullCfgName().c_str()
 					,	subDataItem->GetFullName().c_str()
 					,	subDataItem->GetAbstrDomainUnit()->GetFullCfgName().c_str()
 					);
 				else
-					reportF(SeverityTypeID::ST_Warning, "%s: domain of condition is %s, which is incompatible with the domain of attribute %s, which is %s"
+					reportF(SeverityTypeID::ST_Warning, "{}: domain of condition is {}, which is incompatible with the domain of attribute {}, which is {}"
 					,	GetGroup()->GetNameStr()
 					,	sourceDomain->GetFullCfgName().c_str()
 					,	subDataItem->GetFullName().c_str()
@@ -523,13 +523,13 @@ struct CollectWithAttrOperator : public BinaryOperator
 
 			SharedStr collectExpr;
 			if (m_CollectMode == collect_mode::org_rel)
-				collectExpr = mySSPrintF("scope(.., lookup(%s, %s/%s))"
+				collectExpr = mySSPrintF("scope(.., lookup({}, {}/{}))"
 					, condOrOrgRelExprStr
 					, containerExpr.GetSymbID()
 					, subDataID
 				);
 			else
-				collectExpr = mySSPrintF("scope(.., collect_by_cond(%s, %s, %s/%s))"
+				collectExpr = mySSPrintF("scope(.., collect_by_cond({}, {}, {}/{}))"
 					, subsetDomainExprStr
 					, condOrOrgRelExprStr
 					, containerExpr.GetSymbID()
@@ -539,7 +539,7 @@ struct CollectWithAttrOperator : public BinaryOperator
 			auto oldExpr = resSub->GetExprMember();
 			if (!oldExpr.empty() && oldExpr != collectExpr)
 			{
-				auto msg = mySSPrintF("Cannot set calculation rule '%s' to collected attribute '%s' as it is already defined as '%s'", collectExpr, subDataID, oldExpr);
+				auto msg = mySSPrintF("Cannot set calculation rule '{}' to collected attribute '{}' as it is already defined as '{}'", collectExpr, subDataID, oldExpr);
 				throwErrorD(GetGroup()->GetNameID(), msg.c_str());
 			}
 			resSub->SetExpr(collectExpr);
@@ -571,7 +571,7 @@ struct AbstrRecollectByCondOperator : BinaryOperator
 			fillA = AsDynamicDataItem(args[2]);
 			MG_USERCHECK2(fillA, "recollect_by_cond: third argument is expected to be an attribute or parameter");
 			if (dataA->GetValueComposition() != fillA->GetValueComposition())
-				reportF(SeverityTypeID::ST_Warning, "%s: value composition %s of the 2nd argument differs from value composition %s of the 3rd argument; the result takes the value composition of the 2nd argument"
+				reportF(SeverityTypeID::ST_Warning, "{}: value composition {} of the 2nd argument differs from value composition {} of the 3rd argument; the result takes the value composition of the 2nd argument"
 					, GetGroup()->GetNameStr()
 					, SharedStr(GetValueCompositionID(dataA->GetValueComposition()))
 					, SharedStr(GetValueCompositionID(fillA->GetValueComposition())));

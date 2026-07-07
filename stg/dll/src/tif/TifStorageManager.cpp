@@ -72,7 +72,7 @@ void TiffSM::DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwMode) const
 	dms_assert(!IsOpen());
 	assert(rwMode != dms_rw_mode::unspecified);
 
-	DBG_TRACE(("storageName =  %s", GetNameStr().c_str()));
+	DBG_TRACE(("storageName =  {}", GetNameStr().c_str()));
 
 	assert(!m_pImp);
 
@@ -81,7 +81,7 @@ void TiffSM::DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwMode) const
 	{
 		if (!GetGridData(smi.StorageHolder(), false))
 			if (!smi.CurrRD() || !GetGridData(smi.CurrRD().get(), false))
-				smi.StorageHolder()->throwItemErrorF("TiffSM %s has no GridData sub item of the expected type and domain", GetNameStr().c_str());
+				smi.StorageHolder()->throwItemErrorF("TiffSM {} has no GridData sub item of the expected type and domain", GetNameStr().c_str());
 		if (!imp->Open(GetNameStr(), TifFileMode::WRITE) )
 			throwItemError("Unable to open for Write");
 	}
@@ -138,7 +138,7 @@ void TiffSM::DoCloseStorage(bool mustCommit) const
 	dms_assert(IsOpen());
 	assert(m_pImp);
 
-	DBG_TRACE(("storageName=  %s", GetNameStr().c_str()));
+	DBG_TRACE(("storageName=  {}", GetNameStr().c_str()));
 
 	m_pImp.reset();
 	assert(!m_pImp);
@@ -202,14 +202,14 @@ void TiffSM::ReadGridData(const StgViewPortInfo& vpi, AbstrDataItem* adi, AbstrD
 	if (!vc_tiff)
 		adi->throwItemErrorF("Uknown tiff pixel value type");
 	if (vc_ado->GetBitSize() != vc_tiff->GetBitSize())
-		adi->throwItemErrorF("Mismatch in number of bits between user specified value type: '%s' and tiff pixel value type: '%s'."
+		adi->throwItemErrorF("Mismatch in number of bits between user specified value type: '{}' and tiff pixel value type: '{}'."
 		, AsString(vc_ado->GetID())
 		, AsString(vc_tiff->GetID())
 		);
 
 	if (vcid_ado != vcid_tiff)
 		if (t == 0 || t == no_tile) // don't repeat this message for each tile
-			reportF(MsgCategory::storage_read, SeverityTypeID::ST_Warning, "Mismatch between user specified value type: '%s' and tiff pixel value type: '%s' for item %s."
+			reportF(MsgCategory::storage_read, SeverityTypeID::ST_Warning, "Mismatch between user specified value type: '{}' and tiff pixel value type: '{}' for item {}."
 				, AsString(vc_ado->GetID())
 				, AsString(vc_tiff->GetID())
 				, adi->GetFullName()
@@ -420,7 +420,7 @@ void TiffSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMod
 	const AbstrDataItem* paletteData = GetPaletteData(storageHolder).get();
 
 	//if (!gridData || !paletteData)
-	//	storageHolder->throwItemErrorF("No user defined GridData or PaletteData attribute found for storage item %s.", storageHolder->GetFullName().c_str());
+	//	storageHolder->throwItemErrorF("No user defined GridData or PaletteData attribute found for storage item {}.", storageHolder->GetFullName().c_str());
 	MG_CHECK( !gridData || !paletteData || gridData->GetAbstrValuesUnit()->UnifyDomain(paletteData->GetAbstrDomainUnit()) );
 	
 	if (gridData && gridData->HasCalculatorImpl())

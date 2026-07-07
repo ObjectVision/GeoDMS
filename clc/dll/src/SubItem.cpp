@@ -78,7 +78,7 @@ struct SubItemOperator: BinaryOperator
 				subItem = subItem->GetCurrUltimateItem().get(); // "/nr_OrgEntity" -> "/org_rel"
 
 			if (!subItem)
-				GetGroup()->throwOperErrorF("Cannot find '%s' from '%s'",
+				GetGroup()->throwOperErrorF("Cannot find '{}' from '{}'",
 					subItemName.c_str(),
 					arg1->GetFullName().c_str()
 				);

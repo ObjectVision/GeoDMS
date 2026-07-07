@@ -337,7 +337,7 @@ void WriteSequences(const AbstrDataObject* ado, ShpImp* pImp, WeakStr nameStr, c
 	auto wktPrjStr = GetWktProjectionFromValuesUnit(adi);
 
 	if (!pImp->Write( nameStr, wktPrjStr) )
-		adi->throwItemErrorF("ShpStorage error: Cannot write to %s", nameStr.c_str());
+		adi->throwItemErrorF("ShpStorage error: Cannot write to {}", nameStr.c_str());
 }
 
 
@@ -361,7 +361,7 @@ void WriteArray(const AbstrDataObject* ado, ShpImp* pImp, WeakStr nameStr, const
 	auto wktPrjStr = GetWktProjectionFromValuesUnit(adi);
 
 	if (!pImp->Write( nameStr, wktPrjStr) )
-		adi->throwItemErrorF("ShpStorage error: Cannot write to %s", nameStr.c_str());
+		adi->throwItemErrorF("ShpStorage error: Cannot write to {}", nameStr.c_str());
 }
 
 FileResult ShpStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
@@ -444,7 +444,7 @@ void ShpStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* cu
 		case ShapeTypes::ST_Polyline: vc = ValueComposition::Sequence; pData = GetPolyData(storageHolder); dataNameID = POLYGON_DATA_ID; break;
 		case ShapeTypes::ST_Polygon:  vc = ValueComposition::Polygon;  pData = GetPolyData(storageHolder); dataNameID = POLYGON_DATA_ID; break;
 		case ShapeTypes::ST_Point:    pData=GetPointData(storageHolder);dataNameID = POINT_DATA_ID;   break;
-		default: throwItemErrorF("ShapeType %d is not supported", int(shapeType));
+		default: throwItemErrorF("ShapeType {} is not supported", int(shapeType));
 	}
 
 	if (pData)

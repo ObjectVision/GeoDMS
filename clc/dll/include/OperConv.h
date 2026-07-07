@@ -306,14 +306,14 @@ struct Type2DConversion : unary_func<TR, TA>
 				if (!AuthorityCodeIsValidCrs(srcFormatStr.c_str()))
 				{
 					reportF(MsgCategory::progress, SeverityTypeID::ST_Error,
-						"The 'src' unit in projection conversion from 'src' unit %s to res unit %s is not a valid projection.",
+						"The 'src' unit in projection conversion from 'src' unit {} to res unit {} is not a valid projection.",
 						srcUnit->GetFullName(), resUnit->GetFullName());
 				}
 
 				if (!AuthorityCodeIsValidCrs(resFormatStr.c_str()))
 				{
 					reportF(MsgCategory::progress, SeverityTypeID::ST_Error,
-						"The 'res' unit in projection conversion from src unit %s to 'res' unit %s is not a valid projection.",
+						"The 'res' unit in projection conversion from src unit {} to 'res' unit {} is not a valid projection.",
 						srcUnit->GetFullName(), resUnit->GetFullName());
 				}
 

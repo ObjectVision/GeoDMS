@@ -1487,5 +1487,5 @@ Boolean BmpImp::SetInchResolution (Float xres, Float yres)
 		CloseHandle(m_FH); 
 		m_FH = INVALID_HANDLE_VALUE;
 	}
-	throwErrorF("Bitmap", "%s: %s", action, problem);
+	throwErrorF("Bitmap", "{}: {}", action, problem);
 }

@@ -333,7 +333,7 @@ public:
 				while (b1 != e1)
 				{
 					if ((*b1).second % 2 != 0)
-						GetGroup()->throwOperErrorF("argument %s has a non-square metric", arg1->GetFullName().c_str());
+						GetGroup()->throwOperErrorF("argument {} has a non-square metric", arg1->GetFullName().c_str());
 					(*b1++).second /= 2;
 				}
 				result->SetMetric(metric.release());

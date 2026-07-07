@@ -70,7 +70,7 @@ template <typename T, typename A>
 inline void SafeSetValue(std::vector<T, A>& vec, typename std::vector<T, A>::size_type i, const T& value)
 {
 	if (vec.size() <= i)
-		throwErrorF("DataBlockAssignment", "Index %d out of range", i);
+		throwErrorF("DataBlockAssignment", "Index {} out of range", i);
 	vec[i] = value;
 }
 
@@ -82,7 +82,7 @@ void DataBlockProd::DoArrayAssignment()
 	SizeT i = m_nIndexValue++;
 	if (i >= m_ElemCount)
 	{
-		auto errMsg = mySSPrintF("DoArrayAssignment: Index %d out of range of domain %s.\n"
+		auto errMsg = mySSPrintF("DoArrayAssignment: Index {} out of range of domain {}.\n"
 			"Remove values from the array or consider adjusting the domain"
 			, i, domain->GetName().c_str());
 		adi->throwItemError(errMsg);
@@ -94,7 +94,7 @@ void DataBlockProd::DoArrayAssignment()
 	{
 		if (m_eValueType == ValueClassID::VT_Unknown)
 			return; // OK to have undefined values for untiled area 
-		adi->throwItemErrorF("DoArrayAssignment: Index %d is not part of any tile. Untiled area's cannot be assigned, this index should have a null value", m_nIndexValue);
+		adi->throwItemErrorF("DoArrayAssignment: Index {} is not part of any tile. Untiled area's cannot be assigned, this index should have a null value", m_nIndexValue);
 	}
 
 	switch (m_eValueType) 
@@ -137,7 +137,7 @@ void DataBlockProd::DoArrayAssignment()
 			break;
 
 		default:
-			adi->throwItemErrorF("DoArrayAssignment: DataItem cannot contain values of type %s, or value type not supported in ArrayAssignment",
+			adi->throwItemErrorF("DoArrayAssignment: DataItem cannot contain values of type {}, or value type not supported in ArrayAssignment",
 				ValueClass::FindByValueClassID(m_eValueType)->GetName() .c_str()
 			);
 	}
@@ -147,8 +147,8 @@ void DataBlockProd::Commit()
 { 
 	if (m_nIndexValue < m_ElemCount)
 	{
-		auto errMsg = mySSPrintF("DoArrayAssignment: Only %d values were provided, but domain %s has %d values. Since GeoDMS version 17.0.0, incomplete value arrays are diagnosed as errors.\n"
-			"Provide %d values to fix this or consider adjusting the domain"
+		auto errMsg = mySSPrintF("DoArrayAssignment: Only {} values were provided, but domain {} has {} values. Since GeoDMS version 17.0.0, incomplete value arrays are diagnosed as errors.\n"
+			"Provide {} values to fix this or consider adjusting the domain"
 			, m_nIndexValue
 			, CurrDI()->GetAbstrDomainUnit()->GetName().c_str()
 			, m_ElemCount
@@ -164,7 +164,7 @@ void DataBlockProd::Commit()
 
 void DataBlockProd::throwSemanticError(CharPtr msg)
 {
-	throwItemErrorF(CurrDI(), "DataBlockAssignment error %s", msg);
+	throwItemErrorF(CurrDI(), "DataBlockAssignment error {}", msg);
 }
 
 // ============================= ConfigProd

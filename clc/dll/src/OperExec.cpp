@@ -53,7 +53,7 @@ namespace {
 	{
 //		DMS_ReduceResources();
 		Wait(100);
-		reportF(SeverityTypeID::ST_MinorTrace, "exec_ec: %s %s", moduleName ? moduleName : "", cmdLine.c_str());
+		reportF(SeverityTypeID::ST_MinorTrace, "exec_ec: {} {}", moduleName ? moduleName : "", cmdLine.c_str());
 		auto errorCode = ExecuteChildProcess(moduleName, cmdLine.begin());
 
 		if constexpr (returnValue)
@@ -201,7 +201,7 @@ UInt32 execDll_func(CharPtr dllName, CharPtr procName, SizeT nrArgs, std::vector
 		case 2: return RunDllProc2(dllName, procName, args[0].c_str(), args[1].c_str());
 		case 3: return RunDllProc3(dllName, procName, args[0].c_str(), args[1].c_str(), args[2].c_str());
 	}
-	throwErrorF("Exec", "Proc %s in dll %s called with %d arguments: Not supported", procName, dllName, nrArgs);
+	throwErrorF("Exec", "Proc {} in dll {} called with {} arguments: Not supported", procName, dllName, nrArgs);
 	return 0;
 }
 

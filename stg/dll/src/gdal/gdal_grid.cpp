@@ -63,7 +63,7 @@ void GdalGridSM::DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwMode) c
 	DBG_START("GdalGridSM", "OpenStorage", true);
 	dms_assert(m_hDS == nullptr);
 	if (rwMode != dms_rw_mode::read_only && !IsWritableGDAL())
-		throwErrorF("gdal.grid", "Cannot use storage manager %s with readonly type %s for writing data"
+		throwErrorF("gdal.grid", "Cannot use storage manager {} with readonly type {} for writing data"
 			, smi.StorageManager()->GetFullName().c_str()
 			, smi.StorageManager()->GetClsName().c_str()
 		);
@@ -198,7 +198,7 @@ GDalGridImp::GDalGridImp(GDALDataset* hDS, const AbstrDataObject* ado, UPoint vi
 				return;
 			s_IssuedWarnings.insert(warningKey);
 
-			reportF(SeverityTypeID::ST_Warning, "gdal.grid: different value types. Storage contains %s values while GeoDms expects %s values"
+			reportF(SeverityTypeID::ST_Warning, "gdal.grid: different value types. Storage contains {} values while GeoDms expects {} values"
 				, GDALGetDataTypeName(rasterDataType)
 				, valueClass->GetName()
 			);
@@ -398,7 +398,7 @@ void GDalGridImp::UnpackCheck(UInt32 nrDmsBitsPerPixel, UInt32 nrRasterBitsPerPi
 		return;
 	if (nrDmsBitsPerPixel == 4 && nrRasterBitsPerPixel == 8)
 		return;
-	throwErrorF(functionName, "TifImp cannot convert %d bits DMS data %s %d bits raster data of %s"
+	throwErrorF(functionName, "TifImp cannot convert {} bits DMS data {} {} bits raster data of {}"
 		, nrDmsBitsPerPixel, direction, nrRasterBitsPerPixel
 		, dataSourceName
 	);
@@ -635,7 +635,7 @@ SizeT stripDimFromStr(std::string subDatasetItem, int dim)
 			word = "";
 		}
 	}
-	throwErrorF("GDAL", "Unable to find size indication for dimension %d in dimension string '%s' in identification '%s'", dim, value, subDatasetItem);
+	throwErrorF("GDAL", "Unable to find size indication for dimension {} in dimension string '{}' in identification '{}'", dim, value, subDatasetItem);
 }
 
 netCDFSubdatasetInfo GetNetCDFSubdatasetInfo(std::string subDatasetItem)
@@ -714,7 +714,7 @@ void GdalGridSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 				case GDT_Int64: vu = Unit<Int64>::GetStaticClass()->CreateDefault(); break;
 				case GDT_Float32: vu = Unit<Float32>::GetStaticClass()->CreateDefault(); break;
 				case GDT_Float64: vu = Unit<Float64>::GetStaticClass()->CreateDefault(); break;
-				default: throwErrorF("gdal.grid", "Cannot convert raster GDALDataType %d to GeoDMS values unit.", first_band_datatype); return;
+				default: throwErrorF("gdal.grid", "Cannot convert raster GDALDataType {} to GeoDMS values unit.", first_band_datatype); return;
 				}
 			}
 			auto gdal_vc = ValueComposition::Single;
