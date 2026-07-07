@@ -1478,9 +1478,10 @@ ActorVisitState TableControl::VisitSuppliers(SupplierVisitFlag svf, const ActorV
 
 bool TableControl::MouseEvent(MouseEventDispatcher& med)
 {
-	if ((med.GetEventInfo().m_EventID & EventID::LBUTTONDOWN)  && med.m_FoundObject.get() ==  this)
+	if ((med.GetEventInfo().m_EventID & (EventID::LBUTTONDOWN | EventID::SETCURSOR)) && med.m_FoundObject.get() ==  this)
 	{
-		// find child that is left of position
+		// find the child whose far edge (along the stacking axis) borders the position
+		DataItemColumn* gapEntry = nullptr;
 		for (SizeT i=0, n=NrEntries(); i!=n; ++i)
 		{
 			MovableObject* chc = GetEntry(i);
@@ -1490,7 +1491,7 @@ bool TableControl::MouseEvent(MouseEventDispatcher& med)
 				auto x = chc->GetCurrFullAbsLogicalRect().second.X();
 				if ((x <= curX) && (curX < x + m_SepSize))
 				{
-					debug_cast<DataItemColumn*>(chc)->StartResize(med);
+					gapEntry = debug_cast<DataItemColumn*>(chc);
 					break;
 				}
 			}
@@ -1500,11 +1501,20 @@ bool TableControl::MouseEvent(MouseEventDispatcher& med)
 				auto y = chc->GetCurrFullAbsLogicalRect().second.Y();
 				if ((y <= curY) && (curY < y + m_SepSize))
 				{
-					debug_cast<DataItemColumn*>(chc)->StartResize(med);
+					gapEntry = debug_cast<DataItemColumn*>(chc);
 					break;
 				}
 			}
 		}
+		if (med.GetEventInfo().m_EventID & EventID::SETCURSOR)
+		{
+			// a click in the gap resizes gapEntry; show the matching cursor there and
+			// reset to the arrow elsewhere so no resize cursor sticks (issue #1150)
+			SetCursor(LoadCursor(NULL, gapEntry ? (IsColOriented() ? IDC_SIZEWE : IDC_SIZENS) : IDC_ARROW));
+			return true;
+		}
+		if (gapEntry)
+			gapEntry->StartResize(med, IsColOriented());
 	}
 	return base_type::MouseEvent(med);
 }

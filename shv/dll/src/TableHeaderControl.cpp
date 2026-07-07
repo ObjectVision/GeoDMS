@@ -20,6 +20,7 @@
 #include "MouseEventDispatcher.h"
 #include "ShvUtils.h"
 #include "TableControl.h"
+#include "TableViewControl.h"
 #include "TextControl.h"
 
 //----------------------------------------------------------------------
@@ -207,20 +208,49 @@ bool ColumnHeaderControl::MouseEvent(MouseEventDispatcher& med)
 	auto tc = m_Dic->GetTableControl().lock(); if (!tc) return false;
 	bool isColOriented = tc->IsColOriented();
 
+	if (!isColOriented && (med.GetEventInfo().m_EventID & (EventID::SETCURSOR | EventID::LBUTTONDOWN)))
+	{
+		// row-oriented: the header strip's right edge adjusts the name-column width (issue #1150)
+		if (GetControlDeviceRegion(med.GetEventInfo().m_Point.x, true) == RG_RIGHT)
+		{
+			if (med.GetEventInfo().m_EventID & EventID::LBUTTONDOWN)
+			{
+				auto headerStrip = std::dynamic_pointer_cast<TableHeaderControl>(GetOwner().lock());
+				if (headerStrip)
+				{
+					headerStrip->StartStripResize(med);
+					return true;
+				}
+			}
+			else
+			{
+				SetCursor(LoadCursor(NULL, IDC_SIZEWE));
+				return true;
+			}
+		}
+	}
+
+	// hit-test along the stacking axis: the border between column headers
+	// (col-oriented, x) resp. band headers (row-oriented, y - issue #1150)
 	if ((med.GetEventInfo().m_EventID & EventID::SETCURSOR ))
 	{
-		if (GetControlDeviceRegion(med.GetEventInfo().m_Point.x, isColOriented) != RG_MIDDLE )
+		if (GetControlDeviceRegion(med.GetEventInfo().m_Point.FlippableX(isColOriented), isColOriented) != RG_MIDDLE )
 		{
-			SetCursor(LoadCursor(NULL, IDC_SIZEWE));
+			SetCursor(LoadCursor(NULL, isColOriented ? IDC_SIZEWE : IDC_SIZENS));
 			return true;
 		}
+
+		// reset to the arrow explicitly, or a resize cursor set at a border
+		// would stick to the whole header area (issue #1150)
+		SetCursor(LoadCursor(NULL, IDC_ARROW));
+		return true;
 	}
 
 	if ((med.GetEventInfo().m_EventID & EventID::LBUTTONDOWN) && m_Dic)
 	{
 		GPoint mousePoint = med.GetEventInfo().m_Point;
 
-		if (GetControlDeviceRegion(mousePoint.x, isColOriented) != RG_MIDDLE)
+		if (GetControlDeviceRegion(mousePoint.FlippableX(isColOriented), isColOriented) != RG_MIDDLE)
 			return m_Dic->MouseEvent(med);
 
 		//	Controls for columnn ordering
@@ -317,10 +347,12 @@ void TableHeaderControl::DoUpdateView()
 			columnHeader->SetDic( dic->shared_from_base<DataItemColumn>() );
 		}
 		columnHeader->SetText(dic->Caption());
-		auto headerWidth = dic->CalcClientSize().FlippableX(isColOriented) 
-			+ Size(dic->GetBorderLogicalExtents()).FlippableX(isColOriented) 
+		auto headerWidth = dic->CalcClientSize().FlippableX(isColOriented)
+			+ Size(dic->GetBorderLogicalExtents()).FlippableX(isColOriented)
 			- Size(columnHeader->GetBorderLogicalExtents()).FlippableX(isColOriented);
-		auto headerSize = prj2dms_order<TType>(headerWidth, isColOriented ? GetDefaultRowHeightDIP(GetFontSizeCategory()) : DEF_TEXT_PIX_WIDTH, isColOriented);
+		// cross size follows the (user-adjustable, issue #1150) strip size; GetMaxSize
+		// includes the entry border, set in the ctor and TableViewControl
+		auto headerSize = prj2dms_order<TType>(headerWidth, GetMaxSize() - DOUBLE_BORDERSIZE, isColOriented);
 		columnHeader->SetClientSize(headerSize);
 		columnHeader->SetIsInverted(m_TableControl->m_Cols.IsInRange(i));
 		if (activeDic == dic)
@@ -335,10 +367,11 @@ void TableHeaderControl::DoUpdateView()
 
 bool TableHeaderControl::MouseEvent(MouseEventDispatcher& med)
 {
-	if ((med.GetEventInfo().m_EventID & EventID::LBUTTONDOWN)  && med.m_FoundObject.get() ==  this)
+	if ((med.GetEventInfo().m_EventID & (EventID::LBUTTONDOWN | EventID::SETCURSOR)) && med.m_FoundObject.get() ==  this)
 	{
 		auto sf = med.GetSubPixelFactors();
-		// find child that is left of position
+		// find the child whose far edge (along the stacking axis) borders the position
+		std::shared_ptr<DataItemColumn> gapDic;
 		for (UInt32 i=0, n=NrEntries(); i!=n; ++i)
 		{
 			MovableObject* chc = GetEntry(i);
@@ -348,10 +381,8 @@ bool TableHeaderControl::MouseEvent(MouseEventDispatcher& med)
 				auto x = chc->GetCurrFullAbsLogicalRect().second.X();
 				if ((x <= curX) && (curX < x + CrdType(m_SepSize)))
 				{
-					auto dic = debug_cast<ColumnHeaderControl*>(chc)->GetDic();
-					if (dic)
-						dic->StartResize(med);
-					return true;
+					gapDic = debug_cast<ColumnHeaderControl*>(chc)->GetDic();
+					break;
 				}
 			}
 			else
@@ -360,14 +391,23 @@ bool TableHeaderControl::MouseEvent(MouseEventDispatcher& med)
 				auto y = chc->GetCurrFullAbsLogicalRect().second.Y();
 				if ((y <= curY) && (curY < y + CrdType(m_SepSize)))
 				{
-					auto dic = debug_cast<ColumnHeaderControl*>(chc)->GetDic();
-					if (dic)
-						dic->StartResize(med);
-					return true;
+					gapDic = debug_cast<ColumnHeaderControl*>(chc)->GetDic();
+					break;
 				}
 			}
 		}
-
+		if (med.GetEventInfo().m_EventID & EventID::SETCURSOR)
+		{
+			// a click in the gap resizes gapDic; show the matching cursor there and
+			// reset to the arrow elsewhere so no resize cursor sticks (issue #1150)
+			SetCursor(LoadCursor(NULL, gapDic ? (IsColOriented() ? IDC_SIZEWE : IDC_SIZENS) : IDC_ARROW));
+			return true;
+		}
+		if (gapDic)
+		{
+			gapDic->StartResize(med, IsColOriented());
+			return true;
+		}
 	}
 	return base_type::MouseEvent(med);
 }
@@ -375,5 +415,70 @@ bool TableHeaderControl::MouseEvent(MouseEventDispatcher& med)
 bool TableHeaderControl::OnKeyDown(UInt32 virtKey)
 {
 	return m_TableControl->OnKeyDown(virtKey);
+}
+
+//----------------------------------------------------------------------
+// header strip resize (issue #1150): in a row-oriented (transposed) table the
+// attribute names live in a vertical strip at the left; dragging the strip's
+// right edge adjusts the name-column width.
+//----------------------------------------------------------------------
+
+namespace {
+
+class HeaderStripSizerDragger : public AbstrController
+{
+	typedef AbstrController base_type;
+public:
+	HeaderStripSizerDragger(DataView* owner, TableHeaderControl* target)
+		: AbstrController(owner, target
+			, EventID::NONE
+			, EventID::MOUSEDRAG | EventID::LBUTTONUP
+			, EventID::CLOSE_EVENTS - EventID::SCROLLED
+			, ToolButtonID::TB_Undefined
+		)
+	{}
+
+protected:
+	bool Exec(EventInfo& eventInfo) override
+	{
+		auto to = GetTargetObject().lock(); if (!to) return true;
+		auto* header = debug_cast<TableHeaderControl*>(to.get());
+		header->StripResizeDragTo(eventInfo.m_Point.x / header->GetScaleFactors().first);
+		return true;
+	}
+};
+
+} // anonymous namespace
+
+void TableHeaderControl::StartStripResize(MouseEventDispatcher& med)
+{
+	auto dv = GetDataView().lock(); if (!dv) return;
+	auto medOwner = med.GetOwner().lock(); if (!medOwner) return;
+
+	auto sf = med.GetSubPixelFactors();
+	CrdType stripAbsLeft = GetCurrClientAbsLogicalRect().first.X();
+
+	GPoint& mousePoint = med.GetEventInfo().m_Point;
+	mousePoint.x = CrdType2GType((stripAbsLeft + GetMaxSize()) * sf.first);
+	dv->SetCursorPos(mousePoint);
+
+	GType tieLeft = CrdType2GType((stripAbsLeft + MIN_COL_ELEM_WIDTH + DOUBLE_BORDERSIZE) * sf.first);
+	medOwner->InsertController(
+		new TieCursorController(medOwner.get(), this
+			, GRect(tieLeft, mousePoint.y, MaxValue<GType>(), mousePoint.y + 1)
+			, EventID::MOUSEDRAG, EventID::CLOSE_EVENTS - EventID::SCROLLED
+		)
+	);
+	medOwner->InsertController(
+		new HeaderStripSizerDragger(medOwner.get(), this)
+	);
+}
+
+void TableHeaderControl::StripResizeDragTo(CrdType mouseLogicalX)
+{
+	auto* tableView = m_TableControl->m_TableView.get_ptr();
+	if (!tableView)
+		return;
+	tableView->SetHeaderStripSize(mouseLogicalX - GetCurrClientAbsLogicalRect().first.X());
 }
 

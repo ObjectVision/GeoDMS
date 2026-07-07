@@ -46,6 +46,8 @@
 #include "DcHandle.h"
 #include "FontIndexCache.h"
 #include "IdleTimer.h"
+#include "Carets.h"
+#include "Controllers.h"
 #include "KeyFlags.h"
 #include "MouseEventDispatcher.h"
 #include "ScrollPort.h"
@@ -424,6 +426,17 @@ void MovableObject::SetElemWidth(UInt16 width)
 	assert(GetCurrClientSize().X() == colWidth);
 }
 
+void MovableObject::SetElemHeight(UInt16 height)
+{
+	TType colHeight = height; if (HasElemBorder()) colHeight += DOUBLE_BORDERSIZE;
+
+	TType currClientHeight = GetCurrClientSize().Y();
+
+	GrowVer(colHeight - currClientHeight, currClientHeight);
+
+	assert(GetCurrClientSize().Y() == colHeight);
+}
+
 void DataItemColumn::SetElemWidth(UInt16 width)
 {
 	if (width == m_ElemSize.X())
@@ -446,6 +459,31 @@ void DataItemColumn::SetElemWidth(UInt16 width)
 	assert(m_ElemSize.X()          == width);
 }
 
+// Row-oriented counterpart of SetElemWidth: the dragged bottom border of a band
+// (transposed column) sets the element height; the client height is
+// elem height (+ borders), and GrowVer shifts the bands below (issue #1150).
+void DataItemColumn::SetElemHeight(UInt16 height)
+{
+	if (height == m_ElemSize.Y())
+		return;
+
+	TType colHeight = height; if (HasElemBorder()) colHeight += DOUBLE_BORDERSIZE;
+
+	if (GetEnabledTheme(AN_SymbolIndex))
+		InvalidateDraw();
+
+	TType currClientHeight = GetCurrClientSize().Y();
+	assert(m_ElemSize.Y() + (colHeight-height) == currClientHeight);
+	GType relPosY = m_ElemSize.Y(); if (HasElemBorder()) relPosY += BORDERSIZE;
+
+	MakeMin(m_ElemSize.Y(), height);
+	GrowVer(colHeight - currClientHeight, relPosY);
+	MakeMax(m_ElemSize.Y(), height);
+
+	assert(GetCurrClientSize().Y() == colHeight);
+	assert(m_ElemSize.Y()          == height);
+}
+
 bool DataItemColumn::IsInMultiColSelection() const
 {
 	auto tc = GetTableControl().lock();
@@ -461,6 +499,9 @@ bool DataItemColumn::GetPooledResizeGeometry(SizeT& spannedCount, CrdType& ancho
 		return false; // single-column / non-pooled resize
 
 	auto tc = GetTableControl().lock();
+	if (!tc->IsColOriented())
+		return false; // pooled geometry is X-based; row-oriented band resize is per-band (issue #1150)
+
 	const SelRange& cols = tc->SelCols();
 	auto* firstCol = tc->GetConstColumn(cols.m_Begin);
 	if (!firstCol)
@@ -518,6 +559,129 @@ GType DataItemColumn::ResizeTieLeftDevice(CrdPoint subPixelFactors) const
 	CrdType minFull = MIN_COL_ELEM_WIDTH + (HasElemBorder() ? DOUBLE_BORDERSIZE : 0);
 	CrdType minBorderLogical = anchorLeft + CrdType(spannedCount) * minFull;
 	return CrdType2GType(minBorderLogical * subPixelFactors.first);
+}
+
+//----------------------------------------------------------------------
+// record-column width resize in a row-oriented (transposed) table (issue #1150):
+// records run horizontally, one cell per band; dragging a vertical cell border
+// sets the width of all record columns (uniform over the bands, so the record
+// columns stay aligned). cellCount = the number of cells left of the dragged
+// border; the layout pitch is cell width (+ elem borders) + separator, with a
+// leading separator, so border k sits at k*pitch from the band's client left.
+//----------------------------------------------------------------------
+
+namespace {
+
+class RecordWidthSizerDragger : public AbstrController
+{
+	typedef AbstrController base_type;
+public:
+	RecordWidthSizerDragger(DataView* owner, DataItemColumn* target, SizeT cellCount)
+		: AbstrController(owner, target
+			, EventID::NONE
+			, EventID::MOUSEDRAG | EventID::LBUTTONUP
+			, EventID::CLOSE_EVENTS - EventID::SCROLLED
+			, ToolButtonID::TB_Undefined
+		)
+		, m_CellCount(cellCount)
+	{}
+
+protected:
+	bool Exec(EventInfo& eventInfo) override
+	{
+		auto to = GetTargetObject().lock(); if (!to) return true;
+		auto* target = debug_cast<DataItemColumn*>(to.get());
+		target->RecordWidthDragTo(eventInfo.m_Point.x / target->GetScaleFactors().first, m_CellCount);
+		return true;
+	}
+
+private:
+	SizeT m_CellCount;
+};
+
+} // anonymous namespace
+
+bool DataItemColumn::FindRecordCellBorder(CrdType absLogicalX, SizeT& cellCount) const
+{
+	auto tc = GetTableControl().lock(); if (!tc) return false;
+	assert(!tc->IsColOriented());
+
+	SizeT n = tc->NrRows(); if (!IsDefined(n)) n = 8;
+	if (!n)
+		return false;
+
+	CrdType pitch = m_ElemSize.X() + (HasElemBorder() ? DOUBLE_BORDERSIZE : 0) + RowSepHeight();
+	if (pitch <= 0)
+		return false;
+
+	CrdType relX = absLogicalX - GetCurrClientAbsLogicalRect().first.X();
+	if (relX <= 0)
+		return false;
+	SizeT k = SizeT(relX / pitch + 0.5); // nearest border index
+	if (k < 1 || k > n)
+		return false;
+
+	constexpr CrdType margin = 4;
+	if (relX < CrdType(k) * pitch - margin || relX > CrdType(k) * pitch + margin)
+		return false;
+
+	cellCount = k;
+	return true;
+}
+
+void DataItemColumn::StartRecordWidthResize(MouseEventDispatcher& med, SizeT cellCount)
+{
+	assert(cellCount);
+	auto dv = GetDataView().lock(); if (!dv) return;
+	auto medOwner = med.GetOwner().lock(); if (!medOwner) return;
+
+	auto sf = med.GetSubPixelFactors();
+	CrdType clientAbsLeft = GetCurrClientAbsLogicalRect().first.X();
+	CrdType pitch = m_ElemSize.X() + (HasElemBorder() ? DOUBLE_BORDERSIZE : 0) + RowSepHeight();
+
+	GPoint& mousePoint = med.GetEventInfo().m_Point;
+	mousePoint.x = CrdType2GType((clientAbsLeft + CrdType(cellCount) * pitch) * sf.first);
+	dv->SetCursorPos(mousePoint);
+
+	CrdType minPitch = MIN_COL_ELEM_WIDTH + (HasElemBorder() ? DOUBLE_BORDERSIZE : 0) + RowSepHeight();
+	GType tieLeft = CrdType2GType((clientAbsLeft + CrdType(cellCount) * minPitch) * sf.first);
+	medOwner->InsertController(
+		new TieCursorController(medOwner.get(), GetOwner().lock().get()
+			, GRect(tieLeft, mousePoint.y, MaxValue<GType>(), mousePoint.y + 1)
+			, EventID::MOUSEDRAG, EventID::CLOSE_EVENTS - EventID::SCROLLED
+		)
+	);
+
+	auto currIntRect = CrdRect2GRect(ScaleCrdRect(GetCurrFullAbsLogicalRect(), sf));
+	medOwner->InsertController(
+		new DualPointCaretController(medOwner.get()
+			, new MovableRectCaret(GRect(mousePoint.x - 2, currIntRect.Top(), mousePoint.x + 3, currIntRect.Bottom()))
+			, this, mousePoint
+			, EventID::MOUSEDRAG, EventID::NONE, EventID::CLOSE_EVENTS - EventID::SCROLLED
+			, ToolButtonID::TB_Undefined
+		)
+	);
+
+	medOwner->InsertController(
+		new RecordWidthSizerDragger(medOwner.get(), this, cellCount)
+	);
+}
+
+void DataItemColumn::RecordWidthDragTo(CrdType mouseLogicalX, SizeT cellCount)
+{
+	assert(cellCount);
+	auto tc = GetTableControl().lock(); if (!tc) return;
+
+	CrdType newPitch = (mouseLogicalX - GetCurrClientAbsLogicalRect().first.X()) / CrdType(cellCount);
+	CrdType newWidth = newPitch - RowSepHeight() - (HasElemBorder() ? DOUBLE_BORDERSIZE : 0);
+	MakeMax(newWidth, MIN_COL_ELEM_WIDTH);
+	UInt16 elemWidth = TType2GType(newWidth);
+
+	for (gr_elem_index i = 0, n = tc->NrEntries(); i != n; ++i)
+		if (auto* col = tc->GetColumn(i))
+			col->SetElemSize(WPoint(elemWidth, col->ElemSize().Y()));
+
+	InvalidateResizedCaret();
 }
 
 void DataItemColumn::SetActiveRow(SizeT row)
@@ -1386,6 +1550,8 @@ bool DataItemColumn::MouseEvent(MouseEventDispatcher& med)
 	bool isColOriented = tc->IsColOriented();
 	if (med.GetEventInfo().m_EventID & EventID::LBUTTONDOWN)
 	{
+		// hit-test along the stacking axis: the border between columns (col-oriented)
+		// resp. bands (row-oriented, dragged vertically - issue #1150)
 		switch (GetControlDeviceRegion(med.GetEventInfo().m_Point.FlippableX(isColOriented), isColOriented))
 		{
 			case RG_LEFT:
@@ -1397,7 +1563,7 @@ bool DataItemColumn::MouseEvent(MouseEventDispatcher& med)
 					// all of it; only (re)select when resizing a non-pooled column.
 					if (!prevHeader->IsInMultiColSelection())
 						prevHeader->SelectCol();
-					prevHeader->StartResize(med);
+					prevHeader->StartResize(med, isColOriented);
 				}
 				return true;
 			}
@@ -1405,9 +1571,23 @@ bool DataItemColumn::MouseEvent(MouseEventDispatcher& med)
 			{
 				if (!IsInMultiColSelection())
 					SelectCol();
-				StartResize(med);
+				StartResize(med, isColOriented);
 				return true;
 			}
+		}
+	}
+
+	if (!isColOriented && (med.GetEventInfo().m_EventID & (EventID::SETCURSOR | EventID::LBUTTONDOWN)))
+	{
+		// row-oriented: vertical borders between record cells adjust the record-column width (issue #1150)
+		SizeT cellCount;
+		if (FindRecordCellBorder(med.GetEventInfo().m_Point.x / GetScaleFactors().first, cellCount))
+		{
+			if (med.GetEventInfo().m_EventID & EventID::LBUTTONDOWN)
+				StartRecordWidthResize(med, cellCount);
+			else
+				SetCursor(LoadCursor(NULL, IDC_SIZEWE));
+			return true;
 		}
 	}
 
@@ -1435,12 +1615,15 @@ bool DataItemColumn::MouseEvent(MouseEventDispatcher& med)
 
 	if ((med.GetEventInfo().m_EventID & EventID::SETCURSOR ))
 	{
-		if (GetControlDeviceRegion(med.GetEventInfo().m_Point.x, isColOriented) != RG_MIDDLE )
+		// same stacking-axis hit-test as the LBUTTONDOWN resize above (issue #1150:
+		// testing m_Point.x against the band's y-range showed a stuck resize cursor
+		// everywhere after Toggle Rows and Cols)
+		if (GetControlDeviceRegion(med.GetEventInfo().m_Point.FlippableX(isColOriented), isColOriented) != RG_MIDDLE )
 		{
-			SetCursor(LoadCursor(NULL, IDC_SIZEWE));
+			SetCursor(LoadCursor(NULL, isColOriented ? IDC_SIZEWE : IDC_SIZENS));
 			return true;
 		}
-			
+
 		if (IsEditable(AN_LabelText))
 		{
 			auto dv = GetDataView().lock();
@@ -1452,6 +1635,11 @@ bool DataItemColumn::MouseEvent(MouseEventDispatcher& med)
 #endif
 			return true;
 		}
+
+		// no border or editable cell under the cursor: reset to the arrow explicitly,
+		// or a resize cursor set at a border would stick to the whole cell area (issue #1150)
+		SetCursor(LoadCursor(NULL, IDC_ARROW));
+		return true;
 	}
 
 	if ((med.GetEventInfo().m_EventID & (EventID::LBUTTONDOWN|EventID::LBUTTONDBLCLK) ) && !IgnoreActivation())

@@ -710,23 +710,27 @@ class ColumnSizerDragger : public AbstrController
 {
 	typedef AbstrController base_type;
 public:
-	ColumnSizerDragger(DataView* owner, MovableObject* target);
+	ColumnSizerDragger(DataView* owner, MovableObject* target, bool alongX);
 
 protected:
 	bool Exec(EventInfo& eventInfo) override;
+
+private:
+	bool m_AlongX;
 };
 
 //----------------------------------------------------------------------
 // class  : ColumnSizerDragger implementation
 //----------------------------------------------------------------------
 
-ColumnSizerDragger::ColumnSizerDragger(DataView* owner, MovableObject* target)
+ColumnSizerDragger::ColumnSizerDragger(DataView* owner, MovableObject* target, bool alongX)
 	: AbstrController(owner, target
 		, EventID::NONE
 		, EventID::MOUSEDRAG | EventID::LBUTTONUP
 		, EventID::CLOSE_EVENTS - EventID::SCROLLED
 		, ToolButtonID::TB_Undefined
 	)
+	, m_AlongX(alongX)
 {}
 
 bool ColumnSizerDragger::Exec(EventInfo& eventInfo)
@@ -734,7 +738,10 @@ bool ColumnSizerDragger::Exec(EventInfo& eventInfo)
 	auto to = GetTargetObject().lock(); if (!to) return true;
 	MovableObject* target = debug_cast<MovableObject*>(to.get());
 	assert(target);
-	target->ResizeDragTo(eventInfo.m_Point.x / target->GetScaleFactors().first);
+	if (m_AlongX)
+		target->ResizeDragTo(eventInfo.m_Point.x / target->GetScaleFactors().first);
+	else
+		target->ResizeDragToVer(eventInfo.m_Point.y / target->GetScaleFactors().second);
 	return true;
 }
 
@@ -748,12 +755,29 @@ void MovableObject::ResizeDragTo(CrdType mouseLogicalX)
 	InvalidateResizedCaret();
 }
 
+void MovableObject::ResizeDragToVer(CrdType mouseLogicalY)
+{
+	auto newHeight = mouseLogicalY - GetCurrClientAbsLogicalPos().Y();
+	if (HasElemBorder())
+		newHeight -= DOUBLE_BORDERSIZE;
+	MakeMax(newHeight, MIN_COL_ELEM_WIDTH);
+	SetElemHeight(TType2GType(newHeight));
+	InvalidateResizedCaret();
+}
+
 GType MovableObject::ResizeTieLeftDevice(CrdPoint subPixelFactors) const
 {
 	// Left bound for the resize cursor-tie: the dragged border may not move left of
 	// this column's left edge (+6 device px epsilon to avoid an inverted column).
 	auto fullDevRect = CrdRect2GRect(ScaleCrdRect(GetCurrFullAbsLogicalRect(), subPixelFactors));
 	return fullDevRect.left + 6;
+}
+
+GType MovableObject::ResizeTieTopDevice(CrdPoint subPixelFactors) const
+{
+	// Top bound for a vertical resize cursor-tie (row-oriented tables, issue #1150).
+	auto fullDevRect = CrdRect2GRect(ScaleCrdRect(GetCurrFullAbsLogicalRect(), subPixelFactors));
+	return fullDevRect.top + 6;
 }
 
 void MovableObject::InvalidateResizedCaret()
@@ -769,13 +793,14 @@ void MovableObject::InvalidateResizedCaret()
 	if (auto dv = GetDataView().lock())
 	{
 		auto colDevRect = CrdRect2GRect(GetCurrFullAbsDeviceRect());
-		colDevRect.right += 10;
+		colDevRect.right  += 10;
+		colDevRect.bottom += 10; // same caret-wipe buffer for a vertical (row-oriented) resize
 		dv->InvalidateDeviceRect(colDevRect);
 	}
 }
 
 //==========================================================================
-void MovableObject::StartResize(MouseEventDispatcher& med)
+void MovableObject::StartResize(MouseEventDispatcher& med, bool alongX)
 {
 	auto dv = GetDataView().lock(); if (!dv) return;
 	auto owner = GetOwner().lock(); if (!owner) return;
@@ -784,35 +809,49 @@ void MovableObject::StartResize(MouseEventDispatcher& med)
 	auto currIntRect = CrdRect2GRect(currAbsRect);
 	GPoint& mousePoint = med.GetEventInfo().m_Point;
 
-	mousePoint.x = currIntRect.Right();
+	// warp the cursor onto the dragged border: the right edge for a horizontal
+	// (column-oriented) resize, the bottom edge for a vertical (row-oriented) one
+	if (alongX)
+		mousePoint.x = currIntRect.Right();
+	else
+		mousePoint.y = currIntRect.Bottom();
 	dv->SetCursorPos(mousePoint);
 
+	GRect tieRect = alongX
+		? GRect(ResizeTieLeftDevice(med.GetSubPixelFactors()), mousePoint.y, MaxValue<GType>(), mousePoint.y + 1)
+		: GRect(mousePoint.x, ResizeTieTopDevice(med.GetSubPixelFactors()), mousePoint.x + 1, MaxValue<GType>());
 	medOwner->InsertController(
 		new TieCursorController(medOwner.get(), owner.get()
-			, GRect(ResizeTieLeftDevice(med.GetSubPixelFactors()), mousePoint.y, MaxValue<GType>(), mousePoint.y + 1)
+			, tieRect
 			, EventID::MOUSEDRAG, EventID::CLOSE_EVENTS - EventID::SCROLLED
 		)
 	);
 
+	GRect outerCaretRect = alongX
+		? GRect(currIntRect.Right() - 4, currIntRect.Top(), currIntRect.Right() + 5, currIntRect.Bottom())
+		: GRect(currIntRect.Left(), currIntRect.Bottom() - 4, currIntRect.Right(), currIntRect.Bottom() + 5);
 	medOwner->InsertController(
 		new DualPointCaretController(medOwner.get()
-			, new MovableRectCaret(GRect(currIntRect.Right() - 4, currIntRect.Top(), currIntRect.Right() + 5, currIntRect.Bottom()))
+			, new MovableRectCaret(outerCaretRect)
 			, this, mousePoint
 			, EventID::MOUSEDRAG, EventID::NONE, EventID::CLOSE_EVENTS - EventID::SCROLLED
 			, ToolButtonID::TB_Undefined
 		)
 	);
 
+	GRect innerCaretRect = alongX
+		? GRect(currIntRect.Right() - 2, currIntRect.Top(), currIntRect.Right() + 3, currIntRect.Bottom())
+		: GRect(currIntRect.Left(), currIntRect.Bottom() - 2, currIntRect.Right(), currIntRect.Bottom() + 3);
 	medOwner->InsertController(
 		new DualPointCaretController(medOwner.get()
-			, new MovableRectCaret(GRect(currIntRect.Right() - 2, currIntRect.Top(), currIntRect.Right() + 3, currIntRect.Bottom()))
+			, new MovableRectCaret(innerCaretRect)
 			, this, mousePoint
 			, EventID::MOUSEDRAG, EventID::NONE, EventID::CLOSE_EVENTS - EventID::SCROLLED
 			, ToolButtonID::TB_Undefined
 		)
 	);
 	medOwner->InsertController(
-		new ColumnSizerDragger(medOwner.get(), this)
+		new ColumnSizerDragger(medOwner.get(), this, alongX)
 	);
 }
 

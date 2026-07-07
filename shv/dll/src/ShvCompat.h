@@ -119,6 +119,7 @@ using HCURSOR = void*;
 #define IDC_IBEAM       ((HCURSOR)(uintptr_t)32513)
 #define IDC_WAIT        ((HCURSOR)(uintptr_t)32514)
 #define IDC_SIZEWE      ((HCURSOR)(uintptr_t)32644)
+#define IDC_SIZENS      ((HCURSOR)(uintptr_t)32645)
 #define IDC_HAND        ((HCURSOR)(uintptr_t)32649)
 #endif
 

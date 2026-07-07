@@ -42,6 +42,10 @@ public:
 	void ToggleTableOrientation();
 	void ToggleGroupByNullValues();
 
+	// set the size of the header strip perpendicular to the table's stacking axis
+	// (its width when row-oriented); interactive via a header-edge drag (issue #1150)
+	void SetHeaderStripSize(TType stripSize);
+
 	      TableControl* GetTableControl()       { return m_TableControl.get(); }
 	const TableControl* GetTableControl() const { return m_TableControl.get(); }
 	ScrollPort* GetTableScrollPort() { return m_TableScrollPort.get(); }

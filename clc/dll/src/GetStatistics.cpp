@@ -51,8 +51,10 @@ SharedStr ReplaceChar(SharedStr src, char ch, char esc)
 		buff.WriteBytes(cursor, pos - cursor);
 		buff.WriteByte('\\');
 		buff.WriteByte(esc);
-		pos = std::find(src.begin(), src.end(), ch);
+		cursor = pos + 1;
+		pos = std::find(cursor, src.end(), ch);
 	}
+	buff.WriteBytes(cursor, src.end() - cursor);
 	return SharedStr{ CharPtrRange(buff.GetData(), buff.GetDataEnd()) };
 }
 
@@ -64,6 +66,11 @@ SharedStr Tablelize(SharedStr src)
 	return src;
 }
 
+// Collects name-value rows as tab-separated text and, on destruction, writes a
+// "copy-to-clipboard-as-tab-separated-values" hyperlink with that text as "clipboard:..." href
+// to the html stream; clicking the link in the GUI puts the payload on the clipboard
+// (see MainWindow::onInternalLinkClick). "Post": the link is emitted after the content it
+// belongs to, when this object goes out of scope.
 struct PostLinker
 {
 	VectorOutStreamBuff buff;
@@ -80,7 +87,8 @@ struct PostLinker
 		hRefWithText(os, "copy-to-clipboard-as-tab-separated-values", buff.GetData());
 	}
 
-	void NameValueRow(CharPtr propName, CharPtr propValue)
+	// adds a row to the clipboard payload only; it does not appear in the html output
+	void AddClipboardRow(CharPtr propName, CharPtr propValue)
 	{
 		fout
 			<< Tablelize(SharedStr(propName)) << "\t"
@@ -89,17 +97,22 @@ struct PostLinker
 	}
 };
 
-struct PostLinkedTable : PostLinker // hRefWithText will be written after Table-element closure
+// A visible html table whose rows are also collected into a copy-to-clipboard link:
+// AddRow writes a row to both the table and the clipboard payload; use the inherited
+// AddClipboardRow for payload-only rows (e.g. the item path, which the visible page
+// already presents in its header). The link lands just below the table: member `table`
+// is destructed (closing the Table element) before the ~PostLinker base emits the link.
+struct PostLinkedTable : PostLinker
 {
 	PostLinkedTable(OutStreamBase& os_)
 		: PostLinker(os_)
 		, table(os_)
 	{}
 
-	void NameValueRow(CharPtr propName, CharPtr propValue)
+	void AddRow(CharPtr propName, CharPtr propValue)
 	{
 		table.NameValueRow(propName, propValue);
-		PostLinker::NameValueRow(propName, propValue);
+		AddClipboardRow(propName, propValue);
 	}
 
 private:
@@ -213,13 +226,13 @@ void WriteNumericAccuData(PostLinkedTable& table, const f64_accumulator& accu, c
 {
 	auto vu = di->GetAbstrValuesUnit();
 	auto metricPtr = vu->GetMetric();
-	table.NameValueRow(mySSPrintF("Formal Range %s",  vu->GetName().c_str()).c_str(), di->GetAbstrValuesUnit()->GetRangeAsStr(FormattingFlags::ThousandSeparator).c_str());
+	table.AddRow(mySSPrintF("Formal Range %s",  vu->GetName().c_str()).c_str(), di->GetAbstrValuesUnit()->GetRangeAsStr(FormattingFlags::ThousandSeparator).c_str());
 	if (metricPtr)
-		table.NameValueRow("Metric Units", metricPtr->AsString(FormattingFlags::ThousandSeparator).c_str());
+		table.AddRow("Metric Units", metricPtr->AsString(FormattingFlags::ThousandSeparator).c_str());
 
-	table.NameValueRow("Minimum", AsString(accu.min).c_str());
-	table.NameValueRow("Maximum", AsString(accu.max).c_str());
-	table.NameValueRow("Sum", AsString(accu.s).c_str());
+	table.AddRow("Minimum", AsString(accu.min).c_str());
+	table.AddRow("Maximum", AsString(accu.max).c_str());
+	table.AddRow("Sum", AsString(accu.s).c_str());
 
 	if (accu.d) // there is actual data?
 	{
@@ -228,11 +241,11 @@ void WriteNumericAccuData(PostLinkedTable& table, const f64_accumulator& accu, c
 			sumXtimesErr = Max<Float64>(accu.s2 - accu.s * mean, 0.0);
 
 
-		table.NameValueRow("Average", AsString(mean).c_str());
-		table.NameValueRow("Variance", AsString(sumXtimesErr / accu.d).c_str());
+		table.AddRow("Average", AsString(mean).c_str());
+		table.AddRow("Variance", AsString(sumXtimesErr / accu.d).c_str());
 
 		if (accu.d > 1)
-			table.NameValueRow("StdDev", AsString(sqrt(sumXtimesErr / (accu.d - 1))).c_str());
+			table.AddRow("StdDev", AsString(sqrt(sumXtimesErr / (accu.d - 1))).c_str());
 	}
 }
 
@@ -283,12 +296,12 @@ void WritePointAccuData(PostLinkedTable& table, const point64_accumulator& accu,
 {
 	auto vu = di->GetAbstrValuesUnit();
 	auto metricPtr = vu->GetMetric();
-	table.NameValueRow(mySSPrintF("Formal Range %s", vu->GetName().c_str()).c_str(), di->GetAbstrValuesUnit()->GetRangeAsStr(FormattingFlags::ThousandSeparator).c_str());
+	table.AddRow(mySSPrintF("Formal Range %s", vu->GetName().c_str()).c_str(), di->GetAbstrValuesUnit()->GetRangeAsStr(FormattingFlags::ThousandSeparator).c_str());
 	if (metricPtr)
-		table.NameValueRow("Metric Units", metricPtr->AsString(FormattingFlags::ThousandSeparator).c_str());
+		table.AddRow("Metric Units", metricPtr->AsString(FormattingFlags::ThousandSeparator).c_str());
 
-	table.NameValueRow("Minimum", AsString(accu.min).c_str());
-	table.NameValueRow("Maximum", AsString(accu.max).c_str());
+	table.AddRow("Minimum", AsString(accu.min).c_str());
+	table.AddRow("Maximum", AsString(accu.max).c_str());
 
 	if (accu.nrPoints) // there is actual data?
 	{
@@ -296,14 +309,15 @@ void WritePointAccuData(PostLinkedTable& table, const point64_accumulator& accu,
 		mean.first  /= accu.nrPoints;
 		mean.second /= accu.nrPoints;
 
-		table.NameValueRow("Average", AsString(mean).c_str());
+		table.AddRow("Average", AsString(mean).c_str());
 	}
 }
 
 void WriteAsTable(OutStreamBase& os, const bin_count_type& binCounts, const AbstrDataItem* di)
 {
 	PostLinkedTable table(os);
-	table.NameValueRow("Value", "Count");
+	table.AddClipboardRow("Item name", di->GetFullName().c_str());
+	table.AddRow("Value", "Count");
 
 	auto vu = di->GetAbstrValuesUnit();
 	bool useMetric = false;
@@ -314,7 +328,7 @@ void WriteAsTable(OutStreamBase& os, const bin_count_type& binCounts, const Abst
 	for (SizeT i = 0; i != binCounts.size(); ++i)
 	{
 		if (binCounts[i])
-			table.NameValueRow(DisplayValue(vu, i, useMetric, ipHolder, maxLen, guiLock).c_str()
+			table.AddRow(DisplayValue(vu, i, useMetric, ipHolder, maxLen, guiLock).c_str()
 				, AsString(binCounts[i]).c_str()
 			);
 	}
@@ -378,10 +392,11 @@ CLC_CALL bool NumericDataItem_GetStatistics(const TreeItem* item, vos_buffer_typ
 		auto vt = di->GetAbstrValuesUnit()->GetValueType();
 		{
 			PostLinkedTable table(os);
+			table.AddClipboardRow("Item name", item->GetFullName().c_str()); // #1149: the visible header already shows the path
 			SharedStr metricStr = vu->GetCurrMetricStr(os.GetFormattingFlags());
 			if (!metricStr.empty())
-				table.NameValueRow("ValuesMetric", metricStr.c_str());
-			table.NameValueRow("ValuesType", vt->GetID().GetStr().c_str());
+				table.AddRow("ValuesMetric", metricStr.c_str());
+			table.AddRow("ValuesType", vt->GetID().GetStr().c_str());
 
 			assert(!SuspendTrigger::DidSuspend() || !isReady);
 			if (isReady)
@@ -408,10 +423,10 @@ CLC_CALL bool NumericDataItem_GetStatistics(const TreeItem* item, vos_buffer_typ
 			SizeT    n = domain->GetCount();
 			SizeT   irr_n = n;
 			tile_id tn = domain->GetNrTiles();
-			table.NameValueRow("Count", AsString(n).c_str());
+			table.AddRow("Count", AsString(n).c_str());
 			if (tn != 1)
 			{
-				table.NameValueRow("#Tiles", AsString(tn).c_str());
+				table.AddRow("#Tiles", AsString(tn).c_str());
 			}
 			if (!domain->IsCovered())
 			{
@@ -425,8 +440,8 @@ CLC_CALL bool NumericDataItem_GetStatistics(const TreeItem* item, vos_buffer_typ
 
 			if (irr_n != n)
 			{
-				table.NameValueRow("Count inside tiles", AsString(irr_n).c_str());
-				table.NameValueRow("Count outside tiles", AsString(n - irr_n).c_str());
+				table.AddRow("Count inside tiles", AsString(irr_n).c_str());
+				table.AddRow("Count outside tiles", AsString(n - irr_n).c_str());
 			}
 
 			DataReadLock lock(di);
@@ -453,16 +468,16 @@ CLC_CALL bool NumericDataItem_GetStatistics(const TreeItem* item, vos_buffer_typ
 			}
 
 			if (irr_n == n)
-				table.NameValueRow("#Nulls", AsString(irr_n - d).c_str());
+				table.AddRow("#Nulls", AsString(irr_n - d).c_str());
 			else
-				table.NameValueRow("#Nulls inside tiles", AsString(irr_n - d).c_str());
-			table.NameValueRow("#Values", AsString(d).c_str());
+				table.AddRow("#Nulls inside tiles", AsString(irr_n - d).c_str());
+			table.AddRow("#Values", AsString(d).c_str());
 
 			if (di->GetAbstrValuesUnit()->GetValueType()->GetValueClassID() == ValueClassID::VT_String)
 			{
 				auto da = const_array_cast<SharedStr>(di)->GetDataRead();
-				table.NameValueRow("# actual   bytes in strings", AsString(da.get_sa().actual_data_size()).c_str());
-				table.NameValueRow("# reserved bytes in strings", AsString(da.get_sa().data_size()).c_str());
+				table.AddRow("# actual   bytes in strings", AsString(da.get_sa().actual_data_size()).c_str());
+				table.AddRow("# reserved bytes in strings", AsString(da.get_sa().data_size()).c_str());
 			}
 			if (di->GetValueComposition() != ValueComposition::Single)
 			{
@@ -473,9 +488,9 @@ CLC_CALL bool NumericDataItem_GetStatistics(const TreeItem* item, vos_buffer_typ
 
 					auto da = const_array_cast<a_seq>(di)->GetDataRead();
 					if (nrPoints)
-						table.NameValueRow("# counted  elements in values", AsString(nrPoints).c_str());
-					table.NameValueRow("# actual   elements in values", AsString(da.get_sa().actual_data_size()).c_str());
-					table.NameValueRow("# reserved elements in values", AsString(da.get_sa().data_size()).c_str());
+						table.AddRow("# counted  elements in values", AsString(nrPoints).c_str());
+					table.AddRow("# actual   elements in values", AsString(da.get_sa().actual_data_size()).c_str());
+					table.AddRow("# reserved elements in values", AsString(da.get_sa().data_size()).c_str());
 				}
 				);
 			}
