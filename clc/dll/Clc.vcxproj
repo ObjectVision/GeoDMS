@@ -55,7 +55,13 @@
       <DelayLoadDLLs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">gdal.dll</DelayLoadDLLs>
     </Link>
   </ItemDefinitionGroup>
+  <PropertyGroup>
+    <DmsPchHeader>ClcPCH.h</DmsPchHeader>
+  </PropertyGroup>
   <ItemGroup>
+    <ClCompile Include="src\ClcPCH.cpp">
+      <PrecompiledHeader>Create</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="src\AnyAll.cpp" />
     <ClCompile Include="src\CalcClassBreaks.cpp" />
     <ClCompile Include="src\CalcFactory.cpp" />

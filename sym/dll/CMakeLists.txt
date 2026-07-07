@@ -3,6 +3,7 @@ file(GLOB_RECURSE SYM_SOURCES CONFIGURE_DEPENDS src/*.cpp)
 file(GLOB_RECURSE SYM_HEADERS CONFIGURE_DEPENDS src/*.h)
 
 add_library(DmSym SHARED ${SYM_SOURCES} ${SYM_HEADERS})
+target_precompile_headers(DmSym PRIVATE src/SymPCH.h)
 
 target_include_directories(DmSym
     PUBLIC  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>

@@ -52,7 +52,13 @@
       <AdditionalLibraryDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\Cicada\dev\geodms\branches\geodms_gdal\bin\Debug\x64\</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
+  <PropertyGroup>
+    <DmsPchHeader>StoragePch.h</DmsPchHeader>
+  </PropertyGroup>
   <ItemGroup>
+    <ClCompile Include="src\StoragePch.cpp">
+      <PrecompiledHeader>Create</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="src\bmp\BmpStorageManager.cpp" />
     <ClCompile Include="src\gdal\gdal_base.cpp" />
     <ClCompile Include="src\gdal\gdal_grid.cpp" />

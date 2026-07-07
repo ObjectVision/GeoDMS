@@ -97,7 +97,7 @@ struct LastFunc : Sequence2PointFunc<P>
 	}
 };
 
-#include "geo/CentroidOrMid.h"
+#include "CentroidOrMid.h"
 
 template <class P>
 struct CentroidFunc : Sequence2PointFunc<P>

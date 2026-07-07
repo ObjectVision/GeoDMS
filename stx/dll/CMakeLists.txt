@@ -3,6 +3,7 @@ file(GLOB_RECURSE STX_SOURCES CONFIGURE_DEPENDS src/*.cpp)
 file(GLOB_RECURSE STX_HEADERS CONFIGURE_DEPENDS src/*.h)
 
 add_library(DmStx SHARED ${STX_SOURCES} ${STX_HEADERS})
+target_precompile_headers(DmStx PRIVATE src/StxPch.h)
 
 target_include_directories(DmStx
     PUBLIC  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>

@@ -17,7 +17,7 @@
 // The code uses various utility functions and types for locking, parallelism, and type dispatch.
 // It is designed for extensibility and efficient execution on large tiled datasets.
 
-#include "ClcPch.h"
+#include "ClcPCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop

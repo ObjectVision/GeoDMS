@@ -3,6 +3,7 @@ file(GLOB_RECURSE GEO_SOURCES CONFIGURE_DEPENDS src/*.cpp)
 file(GLOB_RECURSE GEO_HEADERS CONFIGURE_DEPENDS src/*.h)
 
 add_library(DmGeo SHARED ${GEO_SOURCES} ${GEO_HEADERS})
+target_precompile_headers(DmGeo PRIVATE src/GeoPCH.h)
 
 target_include_directories(DmGeo
     PUBLIC  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>

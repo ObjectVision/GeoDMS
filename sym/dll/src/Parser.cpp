@@ -26,7 +26,7 @@ General Public License for more details. However, specific warranties might be
 granted by an additional written contract for support, assistance and/or development
 */
 //</HEADER>
-#include "SymPch.h"
+#include "SymPCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop

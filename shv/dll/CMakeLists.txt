@@ -8,6 +8,10 @@ if(NOT WIN32)
 endif()
 
 add_library(DmShv SHARED ${SHV_SOURCES} ${SHV_HEADERS})
+target_precompile_headers(DmShv PRIVATE src/ShvDllPch.h)
+# WmsLayer.cpp must include boost/asio before any windows.h; a force-included PCH would
+# break that ordering, so keep it PCH-free (matches the NotUsing entry in ShvDLL.vcxproj).
+set_source_files_properties(src/WmsLayer.cpp PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
 
 target_include_directories(DmShv
     PUBLIC  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>

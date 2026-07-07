@@ -2,7 +2,7 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
-#include "ClcPch.h"
+#include "ClcPCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop

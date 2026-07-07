@@ -10,7 +10,7 @@
 #if !defined(__CLC_OPERCONV_H)
 #define __CLC_OPERCONV_H
 
-#include "ClcPch.h"
+#include "ClcPCH.h"
 
 #include "geo/CheckedCalc.h"
 #include "geo/Conversions.h"

@@ -221,7 +221,6 @@
     <ClInclude Include="src\geo\BitValue.h" />
     <ClInclude Include="src\geo\CalcWidth.h" />
     <ClInclude Include="src\geo\Centroid.h" />
-    <ClInclude Include="src\geo\CentroidOrMid.h" />
     <ClInclude Include="src\geo\color.h" />
     <ClInclude Include="src\geo\ConversionBase.h" />
     <ClInclude Include="src\geo\Conversions.h" />
@@ -244,7 +243,6 @@
     <ClInclude Include="src\geo\Range.h" />
     <ClInclude Include="src\geo\RangeIndex.h" />
     <ClInclude Include="src\geo\Round.h" />
-    <ClInclude Include="src\geo\SelectPoint.h" />
     <ClInclude Include="src\geo\SequenceArray.h" />
     <ClInclude Include="src\geo\SequenceTraits.h" />
     <ClInclude Include="src\geo\SizeCalculator.h" />
@@ -330,7 +328,13 @@
     <ClInclude Include="src\mci\DoubleLinkedTree.inc" />
     <ClInclude Include="src\mem\HeapSequenceProvider.ipp" />
   </ItemGroup>
+  <PropertyGroup>
+    <DmsPchHeader>RtcPCH.h</DmsPchHeader>
+  </PropertyGroup>
   <ItemGroup>
+    <ClCompile Include="src\RtcPCH.cpp">
+      <PrecompiledHeader>Create</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="src\act\ActorEnums.cpp" />
     <ClCompile Include="src\act\garbage_can.cpp" />
     <ClCompile Include="src\act\MainThread.cpp" />

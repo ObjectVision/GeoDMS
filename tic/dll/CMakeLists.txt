@@ -3,6 +3,7 @@ file(GLOB_RECURSE TIC_SOURCES CONFIGURE_DEPENDS src/*.cpp)
 file(GLOB_RECURSE TIC_HEADERS CONFIGURE_DEPENDS src/*.h)
 
 add_library(DmTic SHARED ${TIC_SOURCES} ${TIC_HEADERS})
+target_precompile_headers(DmTic PRIVATE src/TicPCH.h)
 
 target_include_directories(DmTic
     PUBLIC  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>

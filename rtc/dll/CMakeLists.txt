@@ -3,6 +3,7 @@ file(GLOB_RECURSE RTC_SOURCES CONFIGURE_DEPENDS src/*.cpp)
 file(GLOB_RECURSE RTC_HEADERS CONFIGURE_DEPENDS src/*.h src/*.hpp src/*.ipp)
 
 add_library(DmRtc SHARED ${RTC_SOURCES} ${RTC_HEADERS})
+target_precompile_headers(DmRtc PRIVATE src/RtcPCH.h)
 
 target_include_directories(DmRtc
     PUBLIC  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>

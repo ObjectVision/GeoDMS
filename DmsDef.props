@@ -34,10 +34,22 @@
       <SuppressStartupBanner>true</SuppressStartupBanner>
     </Bscmake>
     <ClCompile>
-      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;BOOST_SPIRIT_USE_OLD_NAMESPACE;BOOST_SPIRIT_THREADSAFE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <!-- _CRT_NONSTDC_NO_WARNINGS: the POSIX-name deprecations (stricmp/strnicmp, C4996)
+           were silenced by a #pragma warning(disable:4996) in cpc/CompChar.h, but pragma
+           state does not survive the precompiled-header boundary under /sdl; the macro
+           removes the deprecation from the CRT declarations themselves. -->
+      <!-- _SILENCE_CXX17_STRSTREAM_DEPRECATION_WARNING: utl/mySPrintF.h still uses
+           std::ostrstream (see its TODO); same pragma-vs-PCH story as above. -->
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;_SILENCE_CXX17_STRSTREAM_DEPRECATION_WARNING;BOOST_SPIRIT_USE_OLD_NAMESPACE;BOOST_SPIRIT_THREADSAFE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ExceptionHandling>Sync</ExceptionHandling>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
-      <PrecompiledHeader></PrecompiledHeader>
+      <!-- Projects opt in to a real precompiled header by setting the DmsPchHeader property
+           to their PCH header name (e.g. <DmsPchHeader>TicPCH.h</DmsPchHeader>). Every .cpp of
+           such a project must #include exactly that header first (or set
+           PrecompiledHeader=NotUsing per file); the PCH itself is created by the project's
+           <Mod>PCH.cpp, marked PrecompiledHeader=Create. -->
+      <PrecompiledHeader Condition="'$(DmsPchHeader)' != ''">Use</PrecompiledHeader>
+      <PrecompiledHeaderFile Condition="'$(DmsPchHeader)' != ''">$(DmsPchHeader)</PrecompiledHeaderFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard>stdcpplatest</LanguageStandard>

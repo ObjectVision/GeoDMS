@@ -2,7 +2,7 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
-#include "SymPch.h"
+#include "SymPCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop

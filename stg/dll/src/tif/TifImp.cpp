@@ -132,14 +132,14 @@ bool TifImp::Close()
 
 bool TifImp::IsTrueColorImage()
 {
-	uint16 result;
+	uint16_t result;
 	return (TIFFGetField(m_TiffHandle, TIFFTAG_PHOTOMETRIC, &result) ==  1)
 		&& (result == PHOTOMETRIC_RGB);
 }
 
 bool TifImp::IsPalettedImage()
 {
-	uint16 result;
+	uint16_t result;
 	return (TIFFGetField(m_TiffHandle, TIFFTAG_PHOTOMETRIC, &result) == 1)
 		&& (result == PHOTOMETRIC_PALETTE);
 }
@@ -246,7 +246,7 @@ STGIMPL_CALL std::vector<Float64> TifImp::GetImageToWorldTransform() const
 bool TifImp::HasColorTable() const
 {
 	dms_assert(m_TiffHandle);
-	uint16* rcmap, * gcmap, * bcmap;
+	uint16_t* rcmap, * gcmap, * bcmap;
 	return
 		(GetNrBitsPerPixel() <= MAX_BITS_PAL)
 		&& (TIFFGetField(m_TiffHandle, TIFFTAG_COLORMAP, &rcmap, &gcmap, &bcmap));
@@ -254,9 +254,9 @@ bool TifImp::HasColorTable() const
 
 ValueClassID TifImp::GetValueClassFromTiffDataTypeTag()
 {
-	uint16 sample_format = 0;
-	uint16 bits_per_sample = 0;
-	uint16 samples_per_pixel = 0;
+	uint16_t sample_format = 0;
+	uint16_t bits_per_sample = 0;
+	uint16_t samples_per_pixel = 0;
 	if (!TIFFGetField(m_TiffHandle, TIFFTAG_SAMPLEFORMAT, &sample_format))
 		return ValueClassID::VT_Unknown;
 
@@ -318,8 +318,8 @@ void TifImp::GetColor(PALETTE_SIZE index, UByte &r, UByte &g, UByte &b) const
 	dms_assert(m_TiffHandle);
 
 //		td->td_samplesperpixel - td->td_extrasamples == 3
-//		uint16 * td->td_transferfunction[3] ?? 
-	uint16* rcmap, * gcmap, * bcmap;
+//		uint16_t * td->td_transferfunction[3] ?? 
+	uint16_t* rcmap, * gcmap, * bcmap;
 	TIFFGetField(m_TiffHandle, TIFFTAG_COLORMAP, &rcmap, &gcmap, &bcmap);
 	r = rcmap[index] / 256;
 	g = gcmap[index] / 256;
@@ -337,10 +337,10 @@ DmsColor TifImp::GetColor(PALETTE_SIZE index) const
 
 	//TIFFDirectory *td = &m_TiffHandle->tif_dir;
 	dms_assert(m_TiffHandle);
-	uint16* rcmap, * gcmap, * bcmap;
+	uint16_t* rcmap, * gcmap, * bcmap;
 	TIFFGetField(m_TiffHandle, TIFFTAG_COLORMAP, &rcmap, &gcmap, &bcmap);
 //		td->td_samplesperpixel - td->td_extrasamples == 3
-//		uint16 * td->td_transferfunction[3] ?? 
+//		uint16_t * td->td_transferfunction[3] ?? 
 
 	return CombineRGB(
 		rcmap[index] / 256,//td->td_colormap[0][index] / 256,
@@ -593,7 +593,7 @@ void TifImp::UnpackStrip(UInt32* pixelData, void* stripBuff, UInt32 nrBitsPerPix
 	}
 	else if (nrBitsPerPixel == 32)
 	{
-		uint16 sampleFormat;
+		uint16_t sampleFormat;
 		if (!TIFFGetField(m_TiffHandle, TIFFTAG_SAMPLEFORMAT, &sampleFormat))
 			return;
 		if (sampleFormat == SAMPLEFORMAT_UINT)

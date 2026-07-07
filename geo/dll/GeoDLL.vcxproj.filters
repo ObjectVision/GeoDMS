@@ -13,6 +13,12 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\CentroidOrMid.h">
+      <Filter>Geo Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\SelectPoint.h">
+      <Filter>Geo Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="src\bi_graph.h">
       <Filter>Geo Header Files</Filter>
     </ClInclude>

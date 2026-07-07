@@ -10,7 +10,7 @@
 // - OperConvMapping.cpp   : Mapping operators
 // - OperConvTransform.cpp : RD2LatLong transformations
 
-#include "ClcPch.h"
+#include "ClcPCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop

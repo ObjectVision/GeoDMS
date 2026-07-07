@@ -5,7 +5,7 @@
 // OperConvPoint.cpp - Point type conversion operator instantiations
 // Split from OperConv.cpp for parallel compilation
 
-#include "ClcPch.h"
+#include "ClcPCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop

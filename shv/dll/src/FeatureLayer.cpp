@@ -25,7 +25,7 @@
 #include "geo/Area.h"
 #include "geo/IsInside.h"
 #include "geo/PointOrder.h"
-#include "geo/CentroidOrMid.h"
+#include "CentroidOrMid.h"
 #include "geo/MinMax.h"
 #include "ser/StringStream.h"
 #include "utl/IncrementalLock.h"
@@ -2590,7 +2590,7 @@ IMPL_DYNC_LAYERCLASS(GraphicArcLayer, ASE_Feature|ASE_OrderBy|ASE_Label|ASE_Pen|
 //----------------------------------------------------------------------
 
 #include "geo/Centroid.h"
-#include "geo/SelectPoint.h"
+#include "SelectPoint.h"
 #include "geo/IsInside.h"
 
 template <typename ScalarType>

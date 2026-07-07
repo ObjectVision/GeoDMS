@@ -27,6 +27,7 @@ set(STG_SOURCES
 file(GLOB_RECURSE STG_HEADERS CONFIGURE_DEPENDS src/*.h)
 
 add_library(DmStg SHARED ${STG_SOURCES} ${STG_HEADERS})
+target_precompile_headers(DmStg PRIVATE src/StoragePch.h)
 
 target_include_directories(DmStg
     PUBLIC  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>

@@ -81,6 +81,8 @@
   <ItemGroup>
     <ClInclude Include="..\..\rtc\dll\src\ipolygon\polygon.hpp" />
     <ClInclude Include="src\AbstrBoundingBoxCache.h" />
+    <ClInclude Include="src\CentroidOrMid.h" />
+    <ClInclude Include="src\SelectPoint.h" />
     <ClInclude Include="src\bi_graph.h" />
     <ClInclude Include="src\BoostGeometry.h" />
     <ClInclude Include="src\BoundingBoxCache.h" />
@@ -100,7 +102,13 @@
     <ClInclude Include="src\SpatialInterface.h" />
     <ClInclude Include="src\TreeBuilder.h" />
   </ItemGroup>
+  <PropertyGroup>
+    <DmsPchHeader>GeoPCH.h</DmsPchHeader>
+  </PropertyGroup>
   <ItemGroup>
+    <ClCompile Include="src\GeoPCH.cpp">
+      <PrecompiledHeader>Create</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="src\AbstrBoundingBoxCache.cpp" />
     <ClCompile Include="src\BoostGeometry.cpp" />
     <ClCompile Include="src\BoostPolygon.cpp" />

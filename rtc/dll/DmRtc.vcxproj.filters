@@ -137,9 +137,6 @@
     <ClInclude Include="src\geo\Centroid.h">
       <Filter>Geometry</Filter>
     </ClInclude>
-    <ClInclude Include="src\geo\CentroidOrMid.h">
-      <Filter>Geometry</Filter>
-    </ClInclude>
     <ClInclude Include="src\geo\color.h">
       <Filter>Geometry</Filter>
     </ClInclude>
@@ -204,9 +201,6 @@
       <Filter>Geometry</Filter>
     </ClInclude>
     <ClInclude Include="src\geo\Round.h">
-      <Filter>Geometry</Filter>
-    </ClInclude>
-    <ClInclude Include="src\geo\SelectPoint.h">
       <Filter>Geometry</Filter>
     </ClInclude>
     <ClInclude Include="src\geo\SequenceArray.h">

@@ -3,6 +3,7 @@ file(GLOB_RECURSE CLC_SOURCES CONFIGURE_DEPENDS src/*.cpp)
 file(GLOB_RECURSE CLC_HEADERS CONFIGURE_DEPENDS src/*.h include/*.h)
 
 add_library(DmClc SHARED ${CLC_SOURCES} ${CLC_HEADERS})
+target_precompile_headers(DmClc PRIVATE include/ClcPCH.h)
 
 target_include_directories(DmClc
     PUBLIC  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>

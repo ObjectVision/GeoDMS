@@ -2,7 +2,7 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
-#include "StxPCH.h"
+#include "StxPch.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop

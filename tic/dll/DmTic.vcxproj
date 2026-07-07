@@ -51,8 +51,16 @@
       <DelayLoadDLLs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" />
     </Link>
   </ItemDefinitionGroup>
+  <PropertyGroup>
+    <DmsPchHeader>TicPCH.h</DmsPchHeader>
+  </PropertyGroup>
   <ItemGroup>
-    <ClCompile Include="FileName.cpp" />
+    <ClCompile Include="src\TicPCH.cpp">
+      <PrecompiledHeader>Create</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="FileName.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="src\Aspect.cpp" />
     <ClCompile Include="src\DedicatedAttrs.cpp" />
     <ClCompile Include="src\ExprRewrite.cpp" />

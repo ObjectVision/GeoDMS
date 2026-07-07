@@ -51,7 +51,13 @@
       <DelayLoadDLLs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" />
     </Link>
   </ItemDefinitionGroup>
+  <PropertyGroup>
+    <DmsPchHeader>SymPCH.h</DmsPchHeader>
+  </PropertyGroup>
   <ItemGroup>
+    <ClCompile Include="src\SymPCH.cpp">
+      <PrecompiledHeader>Create</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="src\Assoc.cpp" />
     <ClCompile Include="src\Lispeval.cpp" />
     <ClCompile Include="src\LispRef.cpp" />
