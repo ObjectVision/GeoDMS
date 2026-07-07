@@ -51,8 +51,10 @@ SharedStr ReplaceChar(SharedStr src, char ch, char esc)
 		buff.WriteBytes(cursor, pos - cursor);
 		buff.WriteByte('\\');
 		buff.WriteByte(esc);
-		pos = std::find(src.begin(), src.end(), ch);
+		cursor = pos + 1;
+		pos = std::find(cursor, src.end(), ch);
 	}
+	buff.WriteBytes(cursor, src.end() - cursor);
 	return SharedStr{ CharPtrRange(buff.GetData(), buff.GetDataEnd()) };
 }
 
@@ -99,6 +101,12 @@ struct PostLinkedTable : PostLinker // hRefWithText will be written after Table-
 	void NameValueRow(CharPtr propName, CharPtr propValue)
 	{
 		table.NameValueRow(propName, propValue);
+		PostLinker::NameValueRow(propName, propValue);
+	}
+
+	// row that only goes into the copy-to-clipboard payload, not into the visible table
+	void ClipboardOnlyNameValueRow(CharPtr propName, CharPtr propValue)
+	{
 		PostLinker::NameValueRow(propName, propValue);
 	}
 
@@ -303,6 +311,7 @@ void WritePointAccuData(PostLinkedTable& table, const point64_accumulator& accu,
 void WriteAsTable(OutStreamBase& os, const bin_count_type& binCounts, const AbstrDataItem* di)
 {
 	PostLinkedTable table(os);
+	table.ClipboardOnlyNameValueRow("Item name", di->GetFullName().c_str());
 	table.NameValueRow("Value", "Count");
 
 	auto vu = di->GetAbstrValuesUnit();
@@ -378,6 +387,7 @@ CLC_CALL bool NumericDataItem_GetStatistics(const TreeItem* item, vos_buffer_typ
 		auto vt = di->GetAbstrValuesUnit()->GetValueType();
 		{
 			PostLinkedTable table(os);
+			table.ClipboardOnlyNameValueRow("Item name", item->GetFullName().c_str()); // #1149: the visible header already shows the path
 			SharedStr metricStr = vu->GetCurrMetricStr(os.GetFormattingFlags());
 			if (!metricStr.empty())
 				table.NameValueRow("ValuesMetric", metricStr.c_str());
