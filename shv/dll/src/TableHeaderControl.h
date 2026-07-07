@@ -29,6 +29,11 @@ public:
 	bool MouseEvent(MouseEventDispatcher& med) override;
 	bool OnKeyDown(UInt32 virtKey) override;
 
+	// row-oriented (transposed) table: interactive resize of the header strip
+	// (the attribute-name column) by dragging its right edge (issue #1150)
+	void StartStripResize(MouseEventDispatcher& med);
+	void StripResizeDragTo(CrdType mouseLogicalX);
+
 private:
 	TableControl*    m_TableControl;
 

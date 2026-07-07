@@ -41,18 +41,22 @@ public:
 	virtual void MoveTo(CrdPoint newClientRelPos); // SetClientRelPos
 	virtual void SetClientSize(CrdPoint newRelPos);
 	virtual void SetElemWidth(UInt16 width);
+	virtual void SetElemHeight(UInt16 height); // vertical counterpart, used for row-oriented tables (issue #1150)
 
 	// Apply an interactive border-resize drag whose pointer is at logical X.
 	// The default resizes this single element to fit the pointer. DataItemColumn
 	// overrides it so that, when the dragged column is part of a multi-column
 	// selection, all selected columns adopt the same width (issue #1121).
 	virtual void ResizeDragTo(CrdType mouseLogicalX);
+	// Vertical counterpart: applied when a row-oriented table's band boundary is dragged (issue #1150).
+	virtual void ResizeDragToVer(CrdType mouseLogicalY);
 	// Device-space left bound for the resize cursor-tie (how far left the dragged
 	// border may travel). DataItemColumn widens it for a pooled multi-column drag
 	// so the whole block can shrink to count*MIN_COL_ELEM_WIDTH from the leftmost
 	// selected column's edge (issue #1121).
 	virtual GType ResizeTieLeftDevice(CrdPoint subPixelFactors) const;
-	void InvalidateResizedCaret(); // wipe the resize-caret XOR artifact at the column's right edge
+	GType ResizeTieTopDevice(CrdPoint subPixelFactors) const; // vertical counterpart (issue #1150)
+	void InvalidateResizedCaret(); // wipe the resize-caret XOR artifact at the column's right/bottom edge
 
 	void SetClientRect(CrdRect r);
 	void SetFullRelRect(CrdRect r);
@@ -127,7 +131,10 @@ public:
 #endif
 
 	friend class AutoSizeContainer;
-	void StartResize(MouseEventDispatcher& med);
+	// Start an interactive border-resize drag. alongX = true drags the right edge
+	// horizontally (column-oriented tables); alongX = false drags the bottom edge
+	// vertically (row-oriented tables, issue #1150).
+	void StartResize(MouseEventDispatcher& med, bool alongX = true);
 	void SetElemBorder(bool hasBorder) { m_State.Set(DIC_HasElemBorder, hasBorder); }
 	bool HasElemBorder() const { return m_State.Get(DIC_HasElemBorder); }
 

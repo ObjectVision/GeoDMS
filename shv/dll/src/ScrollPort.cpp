@@ -513,6 +513,14 @@ void ScrollPort::ScrollLogical(CrdPoint delta)
 
 bool ScrollPort::MouseEvent(MouseEventDispatcher& med)
 {
+	if ((med.GetEventInfo().m_EventID & EventID::SETCURSOR) && med.m_FoundObject.get() == this)
+	{
+		// announce the RG_LEFT resize gesture below; reset to the arrow elsewhere
+		// so no resize cursor of a contained table sticks here (issue #1150)
+		bool nearLeftEdge = GetControlDeviceRegion(med.GetEventInfo().m_Point.FlippableX(true), true) == RG_LEFT;
+		SetCursor(LoadCursor(NULL, nearLeftEdge ? IDC_SIZEWE : IDC_ARROW));
+		return true;
+	}
 	if ((med.GetEventInfo().m_EventID & EventID::LBUTTONDOWN) && med.m_FoundObject.get() == this)
 	{
 //		bool isColOriented = tc->IsColOriented();

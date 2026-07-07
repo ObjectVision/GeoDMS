@@ -18,6 +18,7 @@
 #include "AbstrUnit.h"
 
 #include "AbstrCmd.h"
+#include "DataItemColumn.h"
 #include "DataView.h"
 #include "MenuData.h"
 #include "MouseEventDispatcher.h"
@@ -69,10 +70,14 @@ TableViewControl::~TableViewControl()
 	SetTableControl(nullptr);
 }
 
-void TableViewControl::ProcessSize(CrdPoint newSize) 
+void TableViewControl::ProcessSize(CrdPoint newSize)
 {
 	bool isColOriented = (m_TableControl) ? m_TableControl->IsColOriented(): true;
-	TType  headerHeight = TType(isColOriented ? GetDefaultRowHeightDIP(GetFontSizeCategory()) : DEF_TEXT_PIX_WIDTH) + DOUBLE_BORDERSIZE;
+	// the header strip size follows m_TableHeader's max size, which the user can
+	// adjust by dragging the strip's edge in row-oriented mode (issue #1150)
+	TType  headerHeight = m_TableHeader
+		? m_TableHeader->GetMaxSize()
+		: TType(isColOriented ? GetDefaultRowHeightDIP(GetFontSizeCategory()) : DEF_TEXT_PIX_WIDTH) + DOUBLE_BORDERSIZE;
 	MakeMin(headerHeight, newSize.FlippableY(isColOriented));
 
 	m_TableScrollPort->SetClientRect(CrdRect( prj2dms_order<CrdType>(0, headerHeight, isColOriented), newSize) );
@@ -131,7 +136,38 @@ void TableViewControl::ToggleTableOrientation()
 	m_TableHeader->ToggleOrientation();
 	m_TableHeader->SetMaxSize((m_TableHeader->IsColOriented() ? GetDefaultRowHeightDIP(GetFontSizeCategory()) : DEF_TEXT_PIX_WIDTH) + DOUBLE_BORDERSIZE);
 
+	// the element axis shared by all attributes must be uniform, or the records
+	// misalign: the row height when col-oriented, the record-column width when
+	// row-oriented; per-attribute resizes of the other axis (issue #1150) may
+	// have diversified it, so unify to the maximum
+	bool isColOriented = m_TableControl->IsColOriented();
+	UInt16 sharedSize = 0;
+	gr_elem_index n = m_TableControl->NrEntries();
+	for (gr_elem_index i = 0; i != n; ++i)
+		if (auto* col = m_TableControl->GetColumn(i))
+			MakeMax(sharedSize, isColOriented ? col->ElemSize().Y() : col->ElemSize().X());
+	if (sharedSize)
+		for (gr_elem_index i = 0; i != n; ++i)
+			if (auto* col = m_TableControl->GetColumn(i))
+				col->SetElemSize(isColOriented
+					? WPoint(col->ElemSize().X(), sharedSize)
+					: WPoint(sharedSize, col->ElemSize().Y()));
+
 	ProcessSize(GetCurrClientSize());
+}
+
+void TableViewControl::SetHeaderStripSize(TType stripSize)
+{
+	if (!m_TableHeader)
+		return;
+	MakeMax(stripSize, TType(MIN_COL_ELEM_WIDTH) + DOUBLE_BORDERSIZE);
+	if (stripSize == m_TableHeader->GetMaxSize())
+		return;
+
+	m_TableHeader->SetMaxSize(stripSize);
+	m_TableHeader->InvalidateView(); // entry sizes follow GetMaxSize in TableHeaderControl::DoUpdateView
+	ProcessSize(GetCurrClientSize());
+	InvalidateDraw();
 }
 
 void TableViewControl::ToggleGroupByNullValues()

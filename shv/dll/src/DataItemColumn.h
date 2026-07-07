@@ -84,9 +84,16 @@ public:
 
 	SharedStr Caption() const;
 	void SetElemWidth(UInt16 width) override;
+	void SetElemHeight(UInt16 height) override;
 	void ResizeDragTo(CrdType mouseLogicalX) override;
 	GType ResizeTieLeftDevice(CrdPoint subPixelFactors) const override;
 	void SetElemSize(WPoint size);
+
+	// row-oriented (transposed) table: the vertical borders between record cells
+	// adjust the record-column width, uniform over all bands (issue #1150)
+	bool FindRecordCellBorder(CrdType absLogicalX, SizeT& cellCount) const;
+	void StartRecordWidthResize(MouseEventDispatcher& med, SizeT cellCount);
+	void RecordWidthDragTo(CrdType mouseLogicalX, SizeT cellCount);
 
 	UInt32 ColumnNr() const    { dms_assert(IsDefined(m_ColumnNr)); return m_ColumnNr; }
 	void SetColumnNr(SizeT nr) { dms_assert(IsDefined(nr)); m_ColumnNr = nr; }

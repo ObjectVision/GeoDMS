@@ -44,6 +44,7 @@ public:
 
 	void SetMaxSize(TType  maxSize);
 	void SetSepSize(UInt32 sepSize);
+	TType GetMaxSize() const { return m_MaxSize; }
 
 	void ToggleOrientation();
 	bool IsColOriented() const { return m_Orientation == MC_Orientation::Cols; }
