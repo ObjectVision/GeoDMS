@@ -213,7 +213,7 @@ ChangeSourceLock::~ChangeSourceLock()
 		if (impl::bCommitted)
 		{
 			++impl::tsLast;
-			assert(impl::tsLast); // we assume no overflow
+			MG_USERCHECK2(impl::tsLast, "TimeStamp overflow, restart the application"); // we assume no overflow
 			impl::bCommitted = false;
 
 			MG_DEBUG_TS_SOURCE_CODE(
