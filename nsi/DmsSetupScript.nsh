@@ -42,8 +42,6 @@ Section "GeoDMS Program Folder" ;No components page, name is not important
   File ..\bin\Release\${GeoDmsPlatform}\Shv.dll
   File ..\bin\Release\${GeoDmsPlatform}\Stg.dll
   File ..\bin\Release\${GeoDmsPlatform}\Stx.dll
-  File ..\bin\Release\${GeoDmsPlatform}\Sym.dll
-  File ..\bin\Release\${GeoDmsPlatform}\Tic.dll
   File ..\bin\Release\${GeoDmsPlatform}\Clc.dll
   File ..\bin\Release\${GeoDmsPlatform}\Geo.dll
 

@@ -30,7 +30,7 @@ if(GDAL_FOUND)
     target_include_directories(DmShv SYSTEM PRIVATE ${GDAL_INCLUDE_DIRS})
 endif()
 target_link_libraries(DmShv PUBLIC
-    DmRtc DmSym DmTic DmStx DmStg DmClc DmGeo
+    DmRtc DmStx DmStg DmClc DmGeo
     Qt6::Core Qt6::Gui
     OpenSSL::SSL OpenSSL::Crypto
 )

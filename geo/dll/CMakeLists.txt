@@ -19,7 +19,7 @@ find_package(GEOS CONFIG)
 find_package(GDAL)
 find_package(PROJ CONFIG)
 
-target_link_libraries(DmGeo PUBLIC DmRtc DmSym DmTic DmStx DmStg DmClc)
+target_link_libraries(DmGeo PUBLIC DmRtc DmStx DmStg DmClc)
 if(FFTW3_FOUND)
     target_link_libraries(DmGeo PRIVATE FFTW3::fftw3)
 else()

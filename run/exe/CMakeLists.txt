@@ -4,7 +4,7 @@ add_executable(GeoDmsRun src/MainRun.cpp)
 target_include_directories(GeoDmsRun PRIVATE src)
 
 target_link_libraries(GeoDmsRun PRIVATE
-    DmRtc DmSym DmTic DmStx DmStg DmClc DmGeo
+    DmRtc DmStx DmStg DmClc DmGeo
 )
 
 if(WIN32)

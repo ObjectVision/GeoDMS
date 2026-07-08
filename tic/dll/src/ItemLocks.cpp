@@ -641,7 +641,7 @@ bool IsAllInterestedDataReady_impl(const TreeItem* item)
 	return true;
 }
 
-RTC_CALL bool s_IsDetectingIncInterest;
+extern RTC_CALL bool s_IsDetectingIncInterest; // defined in rtc act/Actor.cpp
 
 bool IsAllInterestedCalculatingOrDataReady_impl(const TreeItem* item)
 {

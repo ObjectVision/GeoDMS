@@ -13,5 +13,5 @@ target_include_directories(DmStx
 target_compile_definitions(DmStx PRIVATE DMSTX_EXPORTS)
 
 find_package(Boost REQUIRED COMPONENTS thread)
-target_link_libraries(DmStx PUBLIC DmRtc DmSym DmTic)
+target_link_libraries(DmStx PUBLIC DmRtc)
 target_link_libraries(DmStx PRIVATE Boost::thread)

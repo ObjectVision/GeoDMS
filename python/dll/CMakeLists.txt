@@ -63,5 +63,5 @@ target_include_directories(geodms PRIVATE
 target_link_libraries(geodms PRIVATE
     pybind11::headers
     ${_py3_lib}
-    DmRtc DmSym DmTic DmStx DmStg DmClc DmGeo DmShv
+    DmRtc DmStx DmStg DmClc DmGeo DmShv
 )

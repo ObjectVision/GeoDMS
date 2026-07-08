@@ -51,7 +51,7 @@ target_include_directories(DmStg
 find_package(GDAL)
 find_package(TIFF)
 find_package(PROJ CONFIG)
-target_link_libraries(DmStg PUBLIC DmRtc DmTic)
+target_link_libraries(DmStg PUBLIC DmRtc)
 if(GDAL_FOUND)
     target_link_libraries(DmStg PRIVATE GDAL::GDAL)
 else()

@@ -23,7 +23,7 @@ target_include_directories(GeoDmsGuiQt PRIVATE
 )
 
 target_link_libraries(GeoDmsGuiQt PRIVATE
-    DmRtc DmSym DmTic DmStx DmStg DmClc DmGeo DmShv
+    DmRtc DmStx DmStg DmClc DmGeo DmShv
     Qt6::Core Qt6::Gui Qt6::Widgets
 )
 

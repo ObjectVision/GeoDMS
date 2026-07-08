@@ -58,8 +58,6 @@ Section "GeoDMS Program Folder"
   File ${CMakeBinDir}\DmShv.dll
   File ${CMakeBinDir}\DmStg.dll
   File ${CMakeBinDir}\DmStx.dll
-  File ${CMakeBinDir}\DmSym.dll
-  File ${CMakeBinDir}\DmTic.dll
   File ${CMakeBinDir}\DmClc.dll
   File ${CMakeBinDir}\DmGeo.dll
 

@@ -23,7 +23,7 @@ endif()
 find_package(GDAL)
 find_package(PROJ CONFIG)
 
-target_link_libraries(DmClc PUBLIC DmRtc DmSym DmTic DmStx DmStg)
+target_link_libraries(DmClc PUBLIC DmRtc DmStx DmStg)
 if(GDAL_FOUND)
     target_link_libraries(DmClc PRIVATE GDAL::GDAL)
 endif()
