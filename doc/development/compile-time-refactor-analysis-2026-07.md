@@ -176,19 +176,49 @@ Observations and options, in rough payoff order:
 
 ## Prioritized plan
 
-*Status 2026-07-07: #1 is DONE (verified full Release build; fallout: pragma-warning state
-does not survive the PCH boundary under /sdl, fixed via `_CRT_NONSTDC_NO_WARNINGS`,
-`_SILENCE_CXX17_STRSTREAM_DEPRECATION_WARNING`, and libtiff `uint16`→`uint16_t` in
-TifImp.cpp). The SelectPoint.h layering violation is fixed: SelectPoint.h and
-CentroidOrMid.h moved from rtc/dll/src/geo/ to geo/dll/src/. The std::format part of #4 is
-analysed in `boost-format-to-std-format-migration.md`.*
+*Status 2026-07-08: #1, #3, and the bulk of #4 are DONE and committed; #2 (the clc TU splits)
+is now in progress. See the per-row notes below and the sibling docs
+`boost-format-to-std-format-migration.md` (std::format) and the merge/StaticTokenID commits.*
 
-| # | change | effort | risk | expected effect |
-|---|--------|-------|------|-----------------|
-| 1 | ✅ Enable PCH (msbuild `/Yc`/`/Yu` + CMake `target_precompile_headers`), normalize PCH name casing | small, config-only | low | ≥8 CPU-min/full build; every cpp-edit rebuild ~1.6 s/TU faster; foundation for #2/#4 |
-| 2 | Split clc/geo TUs with >80 MB objs (RLookup, lookup, OperConvNumeric, OperConvSequence, OperAttrBin, BoostGeometry/Polygon if separable) | medium, mechanical | low | removes `/MP` stragglers; the actual #462 ask |
-| 3 | Merge rtc+sym+tic+stx into one DLL (define all four `*_EXPORTS`; keep macros; review static-init order) | medium | medium (init order) | fewer stage barriers + one shared PCH + smaller export surface; 1 DLL instead of 4 |
-| 4 | Prelude hygiene: `std::format` migration, SelectPoint.h relocation, enrich PCHs, slim TreeItem.h/DataArray.h fan-in | incremental | low-medium | smaller PCHs; faster header-edit turnaround |
+| # | change | status | expected effect |
+|---|--------|--------|-----------------|
+| 1 | Enable PCH (msbuild `/Yc`/`/Yu` + CMake `target_precompile_headers`), normalize PCH name casing | ✅ **done** (`b4ded866`) | ≥8 CPU-min/full build; every cpp-edit rebuild ~1.6 s/TU faster; foundation for #2/#4 |
+| 2 | Split clc TUs with >80 MB objs (RLookup, lookup, OperConvNumeric, OperConvSequence, …) into value-type-specific sub-units | 🚧 **in progress** | removes `/MP` stragglers; the actual #462 ask |
+| 3 | Merge rtc+sym+tic into one DLL | ✅ **done** (`089ebc9f`) | fewer stage barriers + one merged DLL + ~2000 internalized cross-DLL exports |
+| 4 | Prelude hygiene: `std::format` migration, SelectPoint.h relocation, boost reduction | ✅ **mostly done** (`38820f35`, `e881ee4e`, move) | smaller PCHs; Boost.Format + random/locale/tuple/mpl removed from the prelude |
+
+Notes on the completed items:
+
+- **#1 PCH.** Fallout: pragma-warning state does not survive the PCH boundary under `/sdl`, fixed
+  via `_CRT_NONSTDC_NO_WARNINGS`, `_SILENCE_CXX17_STRSTREAM_DEPRECATION_WARNING`, and libtiff
+  `uint16`→`uint16_t` in TifImp.cpp. The `SelectPoint.h`/`CentroidOrMid.h` layering violation is
+  fixed (moved to `geo/dll/src/`).
+- **#3 Merge — scope was rtc+sym+tic (not +stx).** stx was left out: it sits beside stg in the
+  DAG and adding it buys little extra parallelism. Static-init order was handled *before* the
+  merge: all namespace-scope `TokenID` statics that used the direct ctor became `StaticTokenID`
+  (`TokenComponent` base guarantees subsystem init first), and a full tic/sym audit confirmed
+  every other registration static (PropDefs, class metaobjects, operator groups, locks,
+  SharedStr) is already order-safe via Meyers singletons (`GetTokenID_st`, `GetStaticClass`,
+  `GetFreeStackAllocatorArray`). One dup-symbol the merge surfaced (`s_IsDetectingIncInterest`,
+  a tentative definition in tic/ItemLocks.cpp that stopped being a mere `dllimport` declaration
+  once RTC_CALL became `dllexport` in one DLL) was fixed with `extern`. msbuild + CMake + the
+  solution + 9 downstream projects + the NSIS installers were all repointed; `dumpbin` confirms
+  downstream now depends only on `Rtc.dll`, and TestDebugUnit passes with `Sym.dll`/`Tic.dll`
+  deleted from `bin`.
+- **#4 Prelude hygiene.** `boost/format.hpp` replaced by `std::format` throughout (~1150 format
+  literals rewritten); a follow-up commit removed boost random/locale/tuple/mpl (and
+  core/cast/preprocessor) in favour of std/native. Not yet done: enriching PCHs with the *de
+  facto* shared set (`DataArray.h`/`Unit.h`/`AttrBinStruct.h`) and slimming `TreeItem.h`/
+  `DataArray.h` fan-in.
+
+**New follow-up surfaced by the merge — reduce the export surface.** Now that rtc/sym/tic share
+one DLL, `dumpbin` shows **2441 of `Rtc.dll`'s 5617 exports (43%) are never imported by any
+downstream binary** — pure internal-only exports. ~1328 belong to 304 *entirely-dead*
+identifiers (classes `XmlElement`/`XmlParser`/`FindFileBlock`/`AbstrPropDef`/…, templates
+`CreateHeapTileArray_impl`/`AsCharArray`/…, and the tic PropDef-pointer globals) that are safe
+to de-export wholesale; ~946 belong to 118 partially-dead identifiers needing per-overload care.
+De-exporting must be driven by the binary import list (header-inclusion heuristics are unsafe
+because of transitive inclusion) and verified by rebuild. Deferred as a dedicated pass.
 
 One more observation, deliberately left as a user decision: `DmsDef.props` sets
 `RunCodeAnalysis=true` + `EnablePREfast=true` for **every** build (Debug and Release), i.e.
