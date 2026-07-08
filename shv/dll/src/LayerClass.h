@@ -47,7 +47,7 @@ class GraphicLayer;
 //----------------------------------------------------------------------
 // ShvClass
 //----------------------------------------------------------------------
-#include <boost/cast.hpp>
+#include "dbg/DebugCast.h" // checked_cast
 
 typedef std::shared_ptr<GraphicObject>(*ShvCreateFunc)(GraphicObject*);
 
@@ -74,7 +74,7 @@ private:
 template <typename CLS, typename OWN>
 std::shared_ptr<GraphicObject> CreateShvFunc(GraphicObject* owner)
 {
-	return std::make_shared<CLS>(boost::polymorphic_cast<OWN*>(owner)); 
+	return std::make_shared<CLS>(checked_cast<OWN*>(owner));
 }
 
 #define IMPL_SHVCLASS(CLS, CF) \
@@ -84,10 +84,10 @@ std::shared_ptr<GraphicObject> CreateShvFunc(GraphicObject* owner)
 		return &s_Cls; \
 	} 
 
-#include  <boost/preprocessor/punctuation/comma.hpp> 
+#define SHV_COMMA() , // defer a comma inside a macro argument (was boost's BOOST_PP_COMMA)
 
 #define IMPL_RTTI_SHVCLASS(OBJ)     IMPL_RTTI (OBJ, ShvClass) IMPL_SHVCLASS(OBJ, nullptr)
-#define IMPL_DYNC_SHVCLASS(OBJ,OWN) IMPL_RTTI(OBJ, ShvClass)  IMPL_SHVCLASS(OBJ, CreateShvFunc<OBJ BOOST_PP_COMMA() OWN>)
+#define IMPL_DYNC_SHVCLASS(OBJ,OWN) IMPL_RTTI(OBJ, ShvClass)  IMPL_SHVCLASS(OBJ, CreateShvFunc<OBJ SHV_COMMA() OWN>)
 
 //----------------------------------------------------------------------
 // class  : LayerClass
@@ -127,7 +127,7 @@ private:
 	} 
 
 #define IMPL_DYNC_LAYERCLASS(CLS, ASPECTSET, MAINASPECT, NR_DIMS) \
-	IMPL_RTTI(CLS, LayerClass) IMPL_LAYERCLASS(CLS, CreateShvFunc<CLS BOOST_PP_COMMA() GraphicObject>, ASPECTSET, MAINASPECT, NR_DIMS)
+	IMPL_RTTI(CLS, LayerClass) IMPL_LAYERCLASS(CLS, CreateShvFunc<CLS SHV_COMMA() GraphicObject>, ASPECTSET, MAINASPECT, NR_DIMS)
 
 
 #endif // __SHV_GRAPHICCLASS_H

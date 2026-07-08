@@ -19,8 +19,6 @@
 #include "Theme.h"
 #include "ThemeValueGetter.h"
 
-#include <boost/tuple/tuple_comparison.hpp>
-
 //----------------------------------------------------------------------
 // struct  : FontIndexCache
 //----------------------------------------------------------------------
@@ -213,7 +211,7 @@ void FontIndexCache::AddUndefinedKey() const
 Int32 FontIndexCache::GetMaxFontSize() const
 {
 	dms_assert(m_Keys.size() > 0);
-	return m_Keys.back().get<0>();
+	return std::get<0>(m_Keys.back());
 }
 
 //----------------------------------------------------------------------
@@ -253,15 +251,15 @@ FontArray::FontArray(const FontIndexCache* indexCache, bool sizesAreCellHeights)
 
 	for (auto i = indexCache->m_Keys.begin(), e = indexCache->m_Keys.end(); i!=e; ++i)
 	{
-		Int32  fontSize  = i->get<0>();
-		i->get<0>();
-		
+		Int32  fontSize  = std::get<0>(*i);
+		std::get<0>(*i);
+
 		if (fontSize == 0)
 			m_FontArray.push_back( GdiHandle<HFONT>() ); // add handle without resource
 		else
 		{
-			UInt16  fontAngle = i->get<2>();
-			CharPtr fontName  = GetTokenStr(i->get<1>()).c_str();
+			UInt16  fontAngle = std::get<2>(*i);
+			CharPtr fontName  = GetTokenStr(std::get<1>(*i)).c_str();
 			// Font name is UTF-8; convert to wide for the -W font API (LOGFONTW).
 			MultiByteToWideChar(CP_UTF8, 0, fontName, -1, fontInfo.lfFaceName, LF_FACESIZE);
 			fontInfo.lfFaceName[LF_FACESIZE-1] = 0;

@@ -15,8 +15,6 @@
 
 #include "ExprCalculator.h"
 #include "ExprRewrite.h"
-#include <boost/tuple/tuple.hpp>
-#include <boost/tuple/tuple_comparison.hpp>
 
 
 //----------------------------------------------------------------------

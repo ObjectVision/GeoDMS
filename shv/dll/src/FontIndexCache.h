@@ -9,14 +9,14 @@
 
 #include "set/Token.h"
 
+#include <tuple>
 #include <utility>
-#include <boost/tuple/tuple.hpp>
 
 //----------------------------------------------------------------------
 // struct  : FontIndexCache
 //----------------------------------------------------------------------
 
-using FontKeyType = boost::tuple<Int32, TokenID, UInt16>; // first == Int32Height of Characters in Pixels; second == TokenID van FontName; third == UInt16 is angle in tenths of degrees counter-clockwise from x-basis
+using FontKeyType = std::tuple<Int32, TokenID, UInt16>; // get<0> == Int32Height of Characters in Pixels; get<1> == TokenID van FontName; get<2> == UInt16 is angle in tenths of degrees counter-clockwise from x-basis
 template <> constexpr bool has_undefines_v<FontKeyType> = false;
 
 struct FontIndexCache : ResourceIndexCache
@@ -40,9 +40,9 @@ struct FontIndexCache : ResourceIndexCache
 	Float64 GetLastSubPixelFactor() const { return m_LastSubPixelFactor; }
 
 	const FontKeyType& GetFontKey(UInt32 keyIndex) const { return m_Keys[keyIndex]; }
-	Int32   GetFontHeight(UInt32 keyIndex) const { return m_Keys[keyIndex].get<0>(); }
-	TokenID GetFontNameId(UInt32 keyIndex) const { return m_Keys[keyIndex].get<1>(); }
-	UInt16  GetFontAngle (UInt32 keyIndex) const { return m_Keys[keyIndex].get<2>(); }
+	Int32   GetFontHeight(UInt32 keyIndex) const { return std::get<0>(m_Keys[keyIndex]); }
+	TokenID GetFontNameId(UInt32 keyIndex) const { return std::get<1>(m_Keys[keyIndex]); }
+	UInt16  GetFontAngle (UInt32 keyIndex) const { return std::get<2>(m_Keys[keyIndex]); }
 	SizeT   GetNrKeys() const { return m_Keys.size(); }
 
 #if defined(MG_DEBUG)

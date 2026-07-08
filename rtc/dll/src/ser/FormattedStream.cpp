@@ -367,7 +367,6 @@ returnEOF:
 }
 
 /********** FormattedOutStream Interface **********/
-#include <boost/locale.hpp>
 
 int process_uint(char* charBuf, char* decPtr, UInt32 bufLen, int numCount)
 {

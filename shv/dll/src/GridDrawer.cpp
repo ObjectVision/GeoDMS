@@ -9,7 +9,7 @@
 #endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "GridDrawer.h"
-#include <boost/core/enable_if.hpp> // boost::enable_if_c; was transitively provided by boost/format via the prelude
+#include <type_traits> // std::enable_if_t
 
 #include "dbg/DebugCast.h"
 #include "mci/ValueClass.h"
@@ -344,7 +344,7 @@ void GridDrawer::FillDirect(const UInt32* classIdArray, SizeT classIdArraySize, 
 		);
 }
 
-template <typename ClassIdType> typename boost::enable_if_c<sizeof(ClassIdType) == 4>::type
+template <typename ClassIdType> std::enable_if_t<sizeof(ClassIdType) == 4>
 GridDrawer_VisitImplDirect(
 		const GridDrawer* self
 	,	const Unit<ClassIdType>* classIdUnit
@@ -360,7 +360,7 @@ GridDrawer_VisitImplDirect(
 		self->FillTrueColor(classIdUnit, classIdArray, classIdArraySize, isLastRun);
 }
 
-template <typename ClassIdType> typename boost::enable_if_c<sizeof(ClassIdType) != 4>::type
+template <typename ClassIdType> std::enable_if_t<sizeof(ClassIdType) != 4>
 GridDrawer_VisitImplDirect(
 		const GridDrawer* self
 	,	const Unit<ClassIdType>* classIdUnit

@@ -165,7 +165,6 @@ template <>             struct nrbits_of<Void>         : std::integral_constant<
 
 template <typename T> const std::size_t nrbits_of_v = nrbits_of<T>::value;
 
-//template <typename T>   struct nrvalbits_of: boost::mpl::eval_if<is_signed<T>, boost::mpl::minus<nrbits_of<T>, std::integral_constant<std::size_t,1> >, nrbits_of<T> > {};
 template <typename T>   struct nrvalbits_of: std::conditional<is_signed<T>::value, std::integral_constant<std::size_t,nrbits_of<T>::value - 1>, nrbits_of<T> >::type {};
 template <>             struct nrvalbits_of<Float32> : std::integral_constant<std::size_t, (1<< 7) > {};
 template <>             struct nrvalbits_of<Float64> : std::integral_constant<std::size_t, (1<<10) > {};

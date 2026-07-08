@@ -42,17 +42,6 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include <string>
 
-#include <boost/locale.hpp>
-
-//================= size funcs
-
-const auto& GetCp1250Locale()
-{
-	static boost::locale::generator gen;
-	static auto usLocale = gen("cp1250");
-	return usLocale;
-}
-
 namespace url
 {
 
@@ -164,18 +153,60 @@ SharedStr UrlDecode(WeakStr urlStr)
 	return resultStr;
 }
 
+// Windows-1250 (Central European) single byte -> Unicode code point, for the
+// upper half 0x80..0xFF (the lower half 0x00..0x7F maps to itself). 0xFFFD marks
+// the five byte positions that are undefined in CP1250. This static table
+// replaces boost::locale::conv::to_utf<char>(..., "cp1250").
+static const unsigned cp1250_to_unicode[128] = {
+	/*80*/ 0x20AC,0xFFFD,0x201A,0xFFFD,0x201E,0x2026,0x2020,0x2021,
+	/*88*/ 0xFFFD,0x2030,0x0160,0x2039,0x015A,0x0164,0x017D,0x0179,
+	/*90*/ 0xFFFD,0x2018,0x2019,0x201C,0x201D,0x2022,0x2013,0x2014,
+	/*98*/ 0xFFFD,0x2122,0x0161,0x203A,0x015B,0x0165,0x017E,0x017A,
+	/*A0*/ 0x00A0,0x02C7,0x02D8,0x0141,0x00A4,0x0104,0x00A6,0x00A7,
+	/*A8*/ 0x00A8,0x00A9,0x015E,0x00AB,0x00AC,0x00AD,0x00AE,0x017B,
+	/*B0*/ 0x00B0,0x00B1,0x02DB,0x0142,0x00B4,0x00B5,0x00B6,0x00B7,
+	/*B8*/ 0x00B8,0x0105,0x015F,0x00BB,0x013D,0x02DD,0x013E,0x017C,
+	/*C0*/ 0x0154,0x00C1,0x00C2,0x0102,0x00C4,0x0139,0x0106,0x00C7,
+	/*C8*/ 0x010C,0x00C9,0x0118,0x00CB,0x011A,0x00CD,0x00CE,0x010E,
+	/*D0*/ 0x0110,0x0143,0x0147,0x00D3,0x00D4,0x0150,0x00D6,0x00D7,
+	/*D8*/ 0x0158,0x016E,0x00DA,0x0170,0x00DC,0x00DD,0x0162,0x00DF,
+	/*E0*/ 0x0155,0x00E1,0x00E2,0x0103,0x00E4,0x013A,0x0107,0x00E7,
+	/*E8*/ 0x010D,0x00E9,0x0119,0x00EB,0x011B,0x00ED,0x00EE,0x010F,
+	/*F0*/ 0x0111,0x0144,0x0148,0x00F3,0x00F4,0x0151,0x00F6,0x00F7,
+	/*F8*/ 0x0159,0x016F,0x00FA,0x0171,0x00FC,0x00FD,0x0163,0x02D9,
+};
+
+static void append_utf8(std::string& out, unsigned cp)
+{
+	if (cp < 0x80)
+		out += static_cast<char>(cp);
+	else if (cp < 0x800) {
+		out += static_cast<char>(0xC0 | (cp >> 6));
+		out += static_cast<char>(0x80 | (cp & 0x3F));
+	} else { // all CP1250 code points are in the BMP (max U+20AC)
+		out += static_cast<char>(0xE0 | (cp >> 12));
+		out += static_cast<char>(0x80 | ((cp >> 6) & 0x3F));
+		out += static_cast<char>(0x80 | (cp & 0x3F));
+	}
+}
+
 SharedStr to_utf(CharPtr first, CharPtr last)
 {
-	std::string result = boost::locale::conv::to_utf<char>(first, last, GetCp1250Locale()); //  s_to_utf_locale); // , boost::locale::conv::default_method);
+	std::string result;
+	result.reserve(last - first);
+	for (CharPtr p = first; p != last; ++p) {
+		unsigned char b = static_cast<unsigned char>(*p);
+		append_utf8(result, b < 0x80 ? unsigned(b) : cp1250_to_unicode[b - 0x80]);
+	}
 	return SharedStr(result.c_str() MG_DEBUG_ALLOCATOR_SRC("to_utf"));
 }
 
-#ifndef _WIN32
 // Map each UTF-8 accented Latin codepoint to its ASCII base character, matching
 // the Windows WinAPI CP1250 best-fit mapping: exactly one output byte per input codepoint.
 // Covers Latin-1 Supplement (U+00C0–U+00FF) and Œ/œ (U+0152–U+0153).
-// Used instead of iconv(ASCII//TRANSLIT): glibc's built-in iconv has no transliteration
-// tables for these characters and produces '?' for each one.
+// This is the from_utf transliteration used on all platforms (previously only on
+// Linux; Windows formerly used boost::locale, which produced the same result for
+// these characters).
 static std::string strip_to_ascii(const char* first, const char* last)
 {
 	// Indexed by (second_byte - 0x80) for 0xC3-prefixed 2-byte sequences (U+00C0–U+00FF).
@@ -227,16 +258,10 @@ static std::string strip_to_ascii(const char* first, const char* last)
 	}
 	return out;
 }
-#endif
 
 SharedStr from_utf(CharPtr first, CharPtr last)
 {
-#ifdef _WIN32
-	std::string result = boost::locale::conv::from_utf<char>(first, last, GetCp1250Locale());
-	return SharedStr(result.c_str() MG_DEBUG_ALLOCATOR_SRC("from_utf"));
-#else
 	return SharedStr(strip_to_ascii(first, last).c_str() MG_DEBUG_ALLOCATOR_SRC("from_utf"));
-#endif
 }
 
 bool itemName_test(CharPtr p)

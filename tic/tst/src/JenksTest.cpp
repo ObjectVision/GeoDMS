@@ -344,22 +344,19 @@ void ClassifyJenksFisherFromValueCountPairs(LimitsContainer<ClassBreakValueType>
 
 // test code
 
-#include <boost/random.hpp>
+#include <iostream>
+#include <random>
 
 
-int main(int c, char** argv) 
-{ 
-	const double rangeMin = 0.0; 
-	const double rangeMax = 10.0; 
-	typedef boost::uniform_real<double> NumberDistribution; 
-	typedef boost::mt19937 RandomNumberGenerator; 
-	typedef boost::variate_generator<RandomNumberGenerator&, NumberDistribution> Generator; 
+int main(int c, char** argv)
+{
+	const double rangeMin = 0.0;
+	const double rangeMax = 10.0;
+	std::uniform_real_distribution<double> distribution(rangeMin, rangeMax);
+	std::mt19937 generator;
+	generator.seed(0); // seed with the current time
+	auto numberGenerator = [&] { return distribution(generator); };
 
-	NumberDistribution distribution(rangeMin, rangeMax); 
-	RandomNumberGenerator generator; 
-	generator.seed(0); // seed with the current time 
-	Generator numberGenerator(generator, distribution); 
- 
 	const int n = 1000000;
 	const int k = 10;
 

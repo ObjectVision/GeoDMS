@@ -111,9 +111,6 @@
 #if !defined(WIN32)
 #	define WIN32
 #endif
-//  boost parameterization
-
-#	define BOOST_FALLTHROUGH [[fallthrough]]
 
 #endif
 
@@ -192,7 +189,7 @@
 // #undef CC_COMPILER_NAME
 
 //----------------------------------------------------------------------
-// End of Compiler capabilities, now the STD capabilities based on boost/confdig
+// End of Compiler capabilities, now the STD capabilities
 //----------------------------------------------------------------------
 
 #if defined(_DEBUG)

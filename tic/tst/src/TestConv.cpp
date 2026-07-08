@@ -9,11 +9,6 @@
 #include <algorithm>
 */
 //#include <vector>
-/*
-#include <boost/random/mersenne_twister.hpp>
-#include <boost/random/uniform_real.hpp>
-#include <boost/random/uniform_01.hpp>
-*/
 
 // ============== TestConv
 

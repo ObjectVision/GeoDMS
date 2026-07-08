@@ -28,11 +28,187 @@
 #include <algorithm>
 
 #include <random>
+#include <limits>
+#include <type_traits>
 
-#include <boost/random/uniform_real.hpp>
-#include <boost/random/uniform_01.hpp>
-#include <boost/random/uniform_int.hpp>
-#include <boost/random/uniform_smallint.hpp>
+// *****************************************************************************
+//   Local, boost-free reimplementations of the boost::random distributions
+//   formerly used here (boost/random/uniform_real, uniform_int,
+//   uniform_smallint). The algorithms are reproduced from Boost.Random
+//   (Copyright Jens Maurer 2000-2001, Steven Watanabe 2011; Boost Software
+//   License 1.0) so that rnd_uniform / rnd_permutation keep producing
+//   bit-for-bit identical, cross-platform-reproducible sequences on top of
+//   std::mt19937. std::uniform_*_distribution is deliberately NOT used: its
+//   output is unspecified and differs across standard-library implementations
+//   (MSVC STL vs libstdc++), which would break Windows/Linux reproducibility.
+// *****************************************************************************
+
+namespace rnd_detail
+{
+	// ---- boost/random/detail/signed_unsigned_tools.hpp : subtract (x >= y) ----
+	template <class T> std::make_unsigned_t<T> subtract(T x, T y)
+	{
+		using UT = std::make_unsigned_t<T>;
+		if constexpr (std::numeric_limits<T>::is_signed)
+		{
+			if (y >= 0)   return UT(x) - UT(y);
+			if (x >= 0)   return UT(x) + UT(-(y + 1)) + 1;
+			return UT(x - y);
+		}
+		else
+			return x - y;
+	}
+
+	// ---- boost/random/detail/signed_unsigned_tools.hpp : add (x unsigned) ----
+	template <class T1, class T2> T2 add(T1 x, T2 y)
+	{
+		if constexpr (std::numeric_limits<T2>::is_signed
+			&& (std::numeric_limits<T1>::digits >= std::numeric_limits<T2>::digits))
+		{
+			if (y >= 0) return T2(x) + y;
+			if (x > T1(-(y + 1))) return T2(x - T1(-(y + 1)) - 1);
+			return T2(x) + y;
+		}
+		else
+			return T2(x) + y;
+	}
+
+	// ---- boost/random/uniform_real_distribution.hpp (integral-engine branch) ----
+	template <class RealType>
+	struct uniform_real
+	{
+		RealType _min, _max;
+		uniform_real(RealType mn, RealType mx) : _min(mn), _max(mx) {}
+
+		template <class Engine>
+		RealType operator ()(Engine& eng) const { return generate(eng, _min, _max); }
+
+	private:
+		template <class Engine>
+		static RealType generate(Engine& eng, RealType min_value, RealType max_value)
+		{
+			if (max_value / 2 - min_value / 2 > (std::numeric_limits<RealType>::max)() / 2)
+				return 2 * generate(eng, RealType(min_value / 2), RealType(max_value / 2));
+			using base_result = typename Engine::result_type; // std::mt19937 : integral
+			for (;;)
+			{
+				RealType numerator = static_cast<RealType>(subtract<base_result>(eng(), (eng.min)()));
+				RealType divisor = static_cast<RealType>(subtract<base_result>((eng.max)(), (eng.min)())) + 1;
+				RealType result = numerator / divisor * (max_value - min_value) + min_value;
+				if (result < max_value) return result;
+			}
+		}
+	};
+
+	// ---- boost/random/uniform_int_distribution.hpp (integral-engine branch) ----
+	template <class Engine, class T>
+	T generate_uniform_int(Engine& eng, T min_value, T max_value)
+	{
+		using result_type = T;
+		using range_type = std::make_unsigned_t<T>;
+		using base_result = typename Engine::result_type;
+		using base_unsigned = std::make_unsigned_t<base_result>;
+		const range_type range = subtract<result_type>(max_value, min_value);
+		const base_result bmin = (eng.min)();
+		const base_unsigned brange = subtract<base_result>((eng.max)(), (eng.min)());
+
+		if (range == 0)
+			return min_value;
+		else if (brange == range)
+		{
+			base_unsigned v = subtract<base_result>(eng(), bmin);
+			return add<base_unsigned, result_type>(v, min_value);
+		}
+		else if (brange < range)
+		{
+			for (;;)
+			{
+				range_type limit;
+				if (range == (std::numeric_limits<range_type>::max)())
+				{
+					limit = range / (range_type(brange) + 1);
+					if (range % (range_type(brange) + 1) == range_type(brange))
+						++limit;
+				}
+				else
+					limit = (range + 1) / (range_type(brange) + 1);
+
+				range_type result = range_type(0);
+				range_type mult = range_type(1);
+				while (mult <= limit)
+				{
+					result += static_cast<range_type>(static_cast<range_type>(subtract<base_result>(eng(), bmin)) * mult);
+					if (mult * range_type(brange) == range - mult + 1)
+						return static_cast<result_type>(result);
+					mult *= range_type(brange) + range_type(1);
+				}
+				range_type result_increment = generate_uniform_int(eng, static_cast<range_type>(0), static_cast<range_type>(range / mult));
+				if (std::numeric_limits<range_type>::is_bounded && ((std::numeric_limits<range_type>::max)() / mult < result_increment))
+					continue;
+				result_increment *= mult;
+				result += result_increment;
+				if (result < result_increment) continue;
+				if (result > range) continue;
+				return add<range_type, result_type>(result, min_value);
+			}
+		}
+		else // brange > range
+		{
+			using mixed_range_type = base_unsigned;
+			mixed_range_type bucket_size;
+			if (brange == (std::numeric_limits<base_unsigned>::max)())
+			{
+				bucket_size = static_cast<mixed_range_type>(brange) / (static_cast<mixed_range_type>(range) + 1);
+				if (static_cast<mixed_range_type>(brange) % (static_cast<mixed_range_type>(range) + 1) == static_cast<mixed_range_type>(range))
+					++bucket_size;
+			}
+			else
+				bucket_size = static_cast<mixed_range_type>(brange + 1) / (static_cast<mixed_range_type>(range) + 1);
+			for (;;)
+			{
+				mixed_range_type result = subtract<base_result>(eng(), bmin);
+				result /= bucket_size;
+				if (result <= static_cast<mixed_range_type>(range))
+					return add<mixed_range_type, result_type>(result, min_value);
+			}
+		}
+	}
+
+	template <class T>
+	struct uniform_int
+	{
+		T _min, _max;
+		uniform_int(T mn, T mx) : _min(mn), _max(mx) {}
+
+		template <class Engine>
+		T operator ()(Engine& eng) const { return generate_uniform_int(eng, _min, _max); }
+	};
+
+	// ---- boost/random/uniform_smallint.hpp (integral-engine branch) ----
+	template <class IntType>
+	struct uniform_smallint
+	{
+		IntType _min, _max;
+		uniform_smallint(IntType mn, IntType mx) : _min(mn), _max(mx) {}
+
+		template <class Engine>
+		IntType operator ()(Engine& eng) const
+		{
+			using base_result = typename Engine::result_type;
+			using base_unsigned = std::make_unsigned_t<base_result>;
+			using range_type = std::make_unsigned_t<IntType>;
+			using mixed_range_type = base_unsigned;
+			range_type range = subtract<IntType>(_max, _min);
+			base_unsigned base_range = subtract<base_result>((eng.max)(), (eng.min)());
+			base_unsigned val = subtract<base_result>(eng(), (eng.min)());
+			if (range >= base_range)
+				return add<range_type, IntType>(static_cast<range_type>(val), _min);
+			mixed_range_type modulus = static_cast<mixed_range_type>(range) + 1;
+			return add<range_type, IntType>(static_cast<mixed_range_type>(val) % modulus, _min);
+		}
+	};
+
+} // namespace rnd_detail
 
 // *****************************************************************************
 //											CLASSES
@@ -56,8 +232,8 @@ struct uniform_engine_real
 	{
 	}
 
-	uniform_engine_t       m_Engine;
-	boost::uniform_real<T> m_Distr;
+	uniform_engine_t            m_Engine;
+	rnd_detail::uniform_real<T> m_Distr;
 };
 
 
@@ -75,8 +251,8 @@ struct uniform_engine_int
 	}
 
 
-	uniform_engine_t      m_Engine;
-	boost::uniform_int<T> m_Distr;
+	uniform_engine_t           m_Engine;
+	rnd_detail::uniform_int<T> m_Distr;
 };
 
 
@@ -91,15 +267,6 @@ struct uniform_engine_real_f
 {
 	using  type = uniform_engine_real<T>;
 };
-
-/* 
-template <>
-struct uniform_engine_int<UInt8>
-{
-	typedef boost::uniform_smallint< UInt8> distribution_type;
-//	typedef boost::uniform_smallint< uniform_engine_t, T> type;
-};
-*/
 
 template <typename T>
 struct uniform_engine
@@ -352,7 +519,7 @@ public:
 
 SizeT selectRnd(uniform_engine_t& engine, SizeT first, SizeT last)
 {
-	return boost::uniform_smallint<SizeT>(first, last)(engine); // REMOVE TODO COMMENT: this is biased a bit to first elems, which can be filtered out later
+	return rnd_detail::uniform_smallint<SizeT>(first, last)(engine); // NB: biased a bit to first elems, which can be filtered out later
 }
 
 template <class E>

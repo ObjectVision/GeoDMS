@@ -3,23 +3,42 @@
 #include "geo/BaseBounds.h"
 #include "ptr/OwningPtrSizedArray.h"
 
-#include <boost/random/mersenne_twister.hpp>
-#include <boost/random/uniform_real.hpp>
-#include <boost/random/uniform_01.hpp>
+#include <algorithm>
+#include <iostream>
+#include <iterator>
+#include <limits>
+#include <random>
 
 
 // ============== RandomFill
+
+// Boost-free equivalent of boost::uniform_01<std::mt19937, RealType>: a nullary
+// generator yielding RealType in [0,1). Reproduced from Boost.Random's
+// new_uniform_01 (BSL-1.0) so the generated test data stays equivalent.
+template <typename RealType>
+struct uniform_01_engine
+{
+	std::mt19937 m_Engine;
+	explicit uniform_01_engine(std::mt19937::result_type seed) : m_Engine(seed) {}
+
+	RealType operator ()()
+	{
+		using base_result = std::mt19937::result_type;
+		for (;;)
+		{
+			RealType factor = RealType(1) / (RealType(base_result((m_Engine.max)() - (m_Engine.min)())) + RealType(1));
+			RealType result = RealType(base_result(m_Engine() - (m_Engine.min)())) * factor;
+			if (result < RealType(1)) return result;
+		}
+	}
+};
 
 template <typename Iter>
 void random_uniform_fill(Iter first, Iter last, UInt32 seed)
 {
 	typedef typename std::iterator_traits<Iter>::value_type value_type;
 
-	boost::mt19937::result_type randomSeed = seed;
-	boost::uniform_01< boost::mt19937, value_type> uniformEngine =
-		boost::uniform_01< boost::mt19937,  value_type>( boost::mt19937(randomSeed) );
-//	boost::uniform_01< boost::mt19937, value_type> uniformEngine( boost::mt19937(randomSeed) );
-
+	uniform_01_engine<value_type> uniformEngine(seed);
 	std::generate(first, last, uniformEngine);
 }
 
@@ -28,10 +47,7 @@ void random_discrete_fill(Iter first, Iter last, UInt32 ub, UInt32 seed)
 {
 	typedef typename std::iterator_traits<Iter>::value_type value_type;
 
-	boost::mt19937::result_type randomSeed = seed;
-	boost::uniform_01< boost::mt19937,  double> uniformEngine =
-		boost::uniform_01< boost::mt19937,  double>( boost::mt19937(randomSeed) );
-//	boost::uniform_01< boost::mt19937,  double> uniformEngine( boost::mt19937(randomSeed) );
+	uniform_01_engine<double> uniformEngine(seed);
 
 	for (; first != last; ++first)
 		*first = uniformEngine() * ub;

@@ -15,7 +15,7 @@
 #endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "DbfImpl.h"
-#include <boost/core/addressof.hpp> // boost::addressof; was transitively provided by boost/format via the prelude
+#include <memory> // std::addressof
 
 #include "dbg/debug.h"
 #include "geo/BaseBounds.h"
@@ -772,7 +772,7 @@ template<class T> FileResult DbfImplStub<T>::ReadData(VecType vec, CharPtr colum
 	for (UInt32 recordindex = 0; recordindex != nrRecs; ++recordindex)
 	{
 		typename VecType::reference ref = vec[recordindex];
-		m_DbfImpl->ReadDataElement(boost::addressof(ref), recordindex, columnindex, vc, formatspecCharPtr);
+		m_DbfImpl->ReadDataElement(std::addressof(ref), recordindex, columnindex, vc, formatspecCharPtr);
 	}
 
 	return {};
@@ -799,7 +799,7 @@ template<class T> FileResult DbfImplStub<T>::WriteDataOverwrite(WeakStr filename
 	{
 		fseek(m_DbfImpl->GetFP(), m_DbfImpl->ActualPosition(recordindex, columnindex), 0);
 		typename CVecType::const_reference ref = vec[recordindex];
-		auto r = FileResult::require(m_DbfImpl->WriteDataElement(boost::addressof(ref), recordindex, columnindex, vc, formatspecCharPtr, width), "WriteDataElemet failed");
+		auto r = FileResult::require(m_DbfImpl->WriteDataElement(std::addressof(ref), recordindex, columnindex, vc, formatspecCharPtr, width), "WriteDataElemet failed");
 		if (!r)
 			return r;
 	}
@@ -853,7 +853,7 @@ template<class T> FileResult DbfImplStub<T>::WriteDataReplace(WeakStr filename, 
 		typename CVecType::const_reference ref = vec[recordindex];
 		if (auto r = FileResult::require(fread(buf, sizeof(char), buflen, m_DbfImpl->GetFP()) == buflen, "fread(buflen) failed"); !r) return r;
 		if (auto r = FileResult::require(fwrite(buf, sizeof(char), offset, dbftarget.GetFP()) == offset, "fwrite(offset) failed"); !r) return r;
-		if (auto r = FileResult::require(dbftarget.WriteDataElement(boost::addressof(ref), recordindex, columnindex, vc, formatspecCharPtr, len), "WriteDataElement failed"); !r) return r;
+		if (auto r = FileResult::require(dbftarget.WriteDataElement(std::addressof(ref), recordindex, columnindex, vc, formatspecCharPtr, len), "WriteDataElement failed"); !r) return r;
 		if (auto r = FileResult::require(fwrite(buf + nextoffset, sizeof(char), restwidth, dbftarget.GetFP()) == restwidth, "fwrite(restwidth) failed"); !r) return r;
 	}
 
@@ -862,7 +862,7 @@ template<class T> FileResult DbfImplStub<T>::WriteDataReplace(WeakStr filename, 
 	{
 		typename CVecType::const_reference ref = vec[recordindex];
 		if (auto r = FileResult::require(fwrite(buf, sizeof(char), offset, dbftarget.GetFP()) == offset, "fwrite(offset) failed"); !r) return r;
-		if (auto r = FileResult::require(dbftarget.WriteDataElement(boost::addressof(ref), recordindex, columnindex, vc, formatspecCharPtr, len), "WriteDataElement failed"); !r) return r;
+		if (auto r = FileResult::require(dbftarget.WriteDataElement(std::addressof(ref), recordindex, columnindex, vc, formatspecCharPtr, len), "WriteDataElement failed"); !r) return r;
 		if (auto r = FileResult::require(fwrite(buf + nextoffset, sizeof(char), restwidth, dbftarget.GetFP()) == restwidth, "fwrite(restwidth) failed"); !r) return r;
 	}
 
@@ -918,7 +918,7 @@ template<class T> FileResult DbfImplStub<T>::WriteDataAppend(WeakStr filename, C
 		typename CVecType::const_reference ref = vec[recordindex];
 		if (auto r = FileResult::require(fread(buf, 1, buflen, m_DbfImpl->GetFP()) == buflen, "fread failed"); !r) return r;
 		if (auto r = FileResult::require(fwrite(buf, 1, buflen, dbftarget.GetFP()) == buflen, "fwrite failed"); !r) return r;
-		if (auto r = FileResult::require(dbftarget.WriteDataElement(boost::addressof(ref), recordindex, columnindex, vc, formatspecCharPtr, len), "WriteDataElement failed"); !r) return r;
+		if (auto r = FileResult::require(dbftarget.WriteDataElement(std::addressof(ref), recordindex, columnindex, vc, formatspecCharPtr, len), "WriteDataElement failed"); !r) return r;
 
 	}
 
@@ -927,7 +927,7 @@ template<class T> FileResult DbfImplStub<T>::WriteDataAppend(WeakStr filename, C
 	{
 		typename CVecType::const_reference ref = vec[recordindex];
 		if (auto r = FileResult::require(fwrite(buf, sizeof(char), buflen, dbftarget.GetFP()) == buflen, "fwrite failed"); !r) return r;
-		if (auto r = FileResult::require(dbftarget.WriteDataElement(boost::addressof(ref), recordindex, columnindex, vc, formatspecCharPtr, len), "WriteDataElement failed"); !r) return r;	
+		if (auto r = FileResult::require(dbftarget.WriteDataElement(std::addressof(ref), recordindex, columnindex, vc, formatspecCharPtr, len), "WriteDataElement failed"); !r) return r;	
 	}
 
 	m_DbfImpl->Close();
