@@ -94,6 +94,35 @@ phase when its slowest TU finishes, and a 372 MB-obj TU takes minutes while the 
 idle. Splitting each >80 MB TU into per-value-type-group TUs (as was done earlier for other
 clc units) directly shortens the critical path.
 
+### Update 2026-07-08 — the four largest clc TUs are split
+
+All four are now split by value-type group, one group per TU. `RLookup.cpp` and `lookup.cpp`
+each grew a shared implementation header (`RLookupImpl.h` / `lookupImpl.h`) holding the operator
+templates plus a single **`inline` operator-group object** (`cog_rlookup`/`cog_classify`,
+`cog_lookup`/`cog_collect_by_org_rel`); each sub-TU only instantiates
+`inst_tuple_templ<value-type-chunk, …>`. Cross-TU operator registration keeps working because
+`AbstrOperGroup::m_FirstMember` is zero-initialized and its ctor deliberately does not reset it,
+so members register into the group regardless of static-init order across TUs. `OperConv*`
+already funneled through `OperConv.h`, so those two just partition the outer typelist across
+sibling TUs. Value-type chunks form an exact partition of the original typelist (no gaps, no
+overlaps → no lost or duplicate operators), verified by TestDebugUnit.
+
+Effect on the per-TU straggler (Debug `.obj`, ≈3.3× the Release sizes tabled above; the ~80 MB
+Release ceiling ≈ ~260 MB Debug):
+
+| source TU | before (1 obj) | after (max of N objs) | N |
+|-----------|---------------:|----------------------:|--:|
+| RLookup.cpp        | ~1.2 GB | 239 MB | 7 |
+| lookup.cpp         | 719 MB  | 205 MB | 6 |
+| OperConvNumeric.cpp| 505 MB  | 235 MB | 4 |
+| OperConvSequence.cpp| 467 MB | 116 MB | 5 |
+
+Every resulting sub-TU is under the ~260 MB Debug straggler ceiling, and — more to the point —
+each source file's compile work now spreads across 4–7 cores under `/MP` instead of blocking the
+clc compile phase on one multi-minute TU. (RLookup's string+point group was refined a second time:
+`points` split into `int_points` and `strings`+`float_points` to pull its 284 MB outlier down to
+165/126 MB.)
+
 ## Finding 3 — merging rtc + sym + tic + stx: worthwhile, but for different reasons than #462 discussed
 
 Copilot's "wouldn't yield much" is correct about *total CPU compile time* — merging DLLs
@@ -176,14 +205,16 @@ Observations and options, in rough payoff order:
 
 ## Prioritized plan
 
-*Status 2026-07-08: #1, #3, and the bulk of #4 are DONE and committed; #2 (the clc TU splits)
-is now in progress. See the per-row notes below and the sibling docs
-`boost-format-to-std-format-migration.md` (std::format) and the merge/StaticTokenID commits.*
+*Status 2026-07-08: #1, #2, #3, and the bulk of #4 are DONE. The four largest clc TUs
+(RLookup, lookup, OperConvNumeric, OperConvSequence) have been split into per-value-type
+sub-units (see the Finding 2 update below); Debug build + TestDebugUnit green. See the per-row
+notes below and the sibling docs `boost-format-to-std-format-migration.md` (std::format) and
+the merge/StaticTokenID commits.*
 
 | # | change | status | expected effect |
 |---|--------|--------|-----------------|
 | 1 | Enable PCH (msbuild `/Yc`/`/Yu` + CMake `target_precompile_headers`), normalize PCH name casing | ✅ **done** (`b4ded866`) | ≥8 CPU-min/full build; every cpp-edit rebuild ~1.6 s/TU faster; foundation for #2/#4 |
-| 2 | Split clc TUs with >80 MB objs (RLookup, lookup, OperConvNumeric, OperConvSequence, …) into value-type-specific sub-units | 🚧 **in progress** | removes `/MP` stragglers; the actual #462 ask |
+| 2 | Split clc TUs with >80 MB objs (RLookup, lookup, OperConvNumeric, OperConvSequence, …) into value-type-specific sub-units | ✅ **done** (2026-07-08) | removes `/MP` stragglers; the actual #462 ask |
 | 3 | Merge rtc+sym+tic into one DLL | ✅ **done** (`089ebc9f`) | fewer stage barriers + one merged DLL + ~2000 internalized cross-DLL exports |
 | 4 | Prelude hygiene: `std::format` migration, SelectPoint.h relocation, boost reduction | ✅ **mostly done** (`38820f35`, `e881ee4e`, move) | smaller PCHs; Boost.Format + random/locale/tuple/mpl removed from the prelude |
 

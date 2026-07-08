@@ -77,6 +77,11 @@
     <ClCompile Include="src\Index.cpp" />
     <ClCompile Include="src\Invert.cpp" />
     <ClCompile Include="src\lookup.cpp" />
+    <ClCompile Include="src\lookup_sint.cpp" />
+    <ClCompile Include="src\lookup_float.cpp" />
+    <ClCompile Include="src\lookup_strpoint.cpp" />
+    <ClCompile Include="src\lookup_numseq.cpp" />
+    <ClCompile Include="src\lookup_pntseq.cpp" />
     <ClCompile Include="src\Loop.cpp" />
     <ClCompile Include="src\Modus.cpp" />
     <ClCompile Include="src\Overlay.cpp" />
@@ -86,6 +91,12 @@
     <ClCompile Include="src\random.cpp" />
     <ClCompile Include="src\ReadData.cpp" />
     <ClCompile Include="src\RLookup.cpp" />
+    <ClCompile Include="src\RLookup_sint.cpp" />
+    <ClCompile Include="src\RLookup_float.cpp" />
+    <ClCompile Include="src\RLookup_strpoint.cpp" />
+    <ClCompile Include="src\RLookup_intpoint.cpp" />
+    <ClCompile Include="src\RLookup_numseq.cpp" />
+    <ClCompile Include="src\RLookup_pntseq.cpp" />
     <ClCompile Include="src\Sort.cpp" />
     <ClCompile Include="src\SubItem.cpp" />
     <ClCompile Include="src\Subset.cpp" />
@@ -111,8 +122,15 @@
     <ClCompile Include="src\regex.cpp" />
     <ClCompile Include="src\ReportFunctions.cpp" />
     <ClCompile Include="src\OperConvNumeric.cpp" />
+    <ClCompile Include="src\OperConvNumeric_sint.cpp" />
+    <ClCompile Include="src\OperConvNumeric_float.cpp" />
+    <ClCompile Include="src\OperConvNumeric_str.cpp" />
     <ClCompile Include="src\OperConvPoint.cpp" />
     <ClCompile Include="src\OperConvSequence.cpp" />
+    <ClCompile Include="src\OperConvSequence_sintseq.cpp" />
+    <ClCompile Include="src\OperConvSequence_floatseq.cpp" />
+    <ClCompile Include="src\OperConvSequence_pntseq.cpp" />
+    <ClCompile Include="src\OperConvSequence_str.cpp" />
     <ClCompile Include="src\OperConvMapping.cpp" />
     <ClCompile Include="src\OperConvTransform.cpp" />
   </ItemGroup>

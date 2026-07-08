@@ -2,7 +2,7 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
-// OperConvSequence.cpp - unsigned-integer sequence source conversions
+// OperConvNumeric_sint.cpp - signed integer + bit source conversions
 // Split from OperConv.cpp / OperConv{Numeric,Sequence}.cpp for parallel compilation
 
 #include "ClcPCH.h"
@@ -14,6 +14,6 @@
 #include "OperConv.h"
 
 namespace {
-	tl_oper::inst_tuple_templ<typelists::uint_sequences, convertAndCastOpers<typelists::numeric_sequences>::apply_TA > numericSequenceConvertAndCastOpers_uint;
+	tl_oper::inst_tuple_templ<typelists::jv2_t<typelists::sints, typelists::bints>, convertAndCastOpers<typelists::numerics>::apply_TA > numericConvertAndCastOpers_sint;
 
 } // end anonymous namespace

@@ -2,7 +2,7 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
-// OperConvSequence.cpp - unsigned-integer sequence source conversions
+// OperConvSequence_str.cpp - sequence-to-string + cast-from-string conversions
 // Split from OperConv.cpp / OperConv{Numeric,Sequence}.cpp for parallel compilation
 
 #include "ClcPCH.h"
@@ -14,6 +14,7 @@
 #include "OperConv.h"
 
 namespace {
-	tl_oper::inst_tuple_templ<typelists::uint_sequences, convertAndCastOpers<typelists::numeric_sequences>::apply_TA > numericSequenceConvertAndCastOpers_uint;
+	tl_oper::inst_tuple_templ<typelists::sequences, convertAndCastOpers<typelists::strings>::apply_TA > seq2stringConvertAndCastOpers;
+	tl_oper::inst_tuple<typelists::sequences, tl::bind_placeholders<NamedCastAttrOper, ph::_1, SharedStr> > castSequenceOpers;
 
 } // end anonymous namespace
