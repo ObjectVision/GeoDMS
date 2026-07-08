@@ -17,6 +17,7 @@
 #include "geo/Undefined.h"
 #include "Parallel.h"
 #include "geo/CharPtrRange.h"
+#include "RtcComponents.h" // ElemAllocComponent / IndexedStringsComponent / TokenComponent (StaticTokenID base)
 
 using IndexedString_critical_section = leveled_counted_section;
 struct IndexedString_shared_lock : RequestMainThreadOperProcessingBlocker, leveled_counted_section::shared_lock { using leveled_counted_section::shared_lock::shared_lock; };
@@ -175,6 +176,16 @@ private:
 #if defined(MG_DEBUG)
 RTC_CALL extern std::atomic<UInt32> gd_TokenCreationBlockCount;
 #endif
+
+// A TokenID with static storage duration must guarantee the token subsystem is up before it
+// registers its string. Deriving from TokenComponent (constructed first, as a base) does exactly
+// that, making the object safe regardless of cross-TU static-init order within a single DLL.
+// Use StaticTokenID for every namespace-scope / file-static / class-static TokenID.
+struct StaticTokenID : TokenComponent, TokenID
+{
+	StaticTokenID(CharPtr tokenStr) : TokenID(tokenStr, single_threading_tag_v) {}
+	StaticTokenID(CharPtr first, CharPtr last) : TokenID(first, last, single_threading_tag_v) {}
+};
 
 inline constexpr TokenID UndefinedValue(const TokenID*) { return TokenID(Undefined()); }
 

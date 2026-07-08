@@ -57,8 +57,8 @@ TIC_CALL LispRef slSubItemCall(LispPtr baseExpr, CharPtrRange relPath)
 // domainSpec ::= unitSpec
 // valuesSpec ::= unitSpec
 
-static TokenID readSqlID = GetTokenID_st("readSql");
-static TokenID readID = GetTokenID_st("read");
+static StaticTokenID readSqlID("readSql");
+static StaticTokenID readID("read");
 
 namespace token {
 	TIC_CALL TokenID add = GetTokenID_st("add");
@@ -250,10 +250,10 @@ LispRef CreateStorageSpec(const TreeItem* src)
 	);
 }
 
-static TokenID paramID = GetTokenID_st("Param");
-static TokenID attrID = GetTokenID_st("Attr");
-static TokenID unitID = GetTokenID_st("Unit");
-static TokenID itemID = GetTokenID_st("Item");
+static StaticTokenID paramID("Param");
+static StaticTokenID attrID("Attr");
+static StaticTokenID unitID("Unit");
+static StaticTokenID itemID("Item");
 
 LispRef CreateLispSubTree(const TreeItem* self, bool inclSubTree);
 

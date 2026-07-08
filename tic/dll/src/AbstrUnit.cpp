@@ -501,7 +501,7 @@ const UnitProjection* AbstrUnit::GetCurrProjection() const
 }
 
 
-static TokenID s_LabelID = GetTokenID_st("Label"), s_LabelTextID = GetTokenID_st("LabelText");
+static StaticTokenID s_LabelID("Label"), s_LabelTextID("LabelText");
 
 auto AbstrUnit::GetLabelAttr() const -> SharedDataItemInterestPtr
 {
@@ -595,7 +595,7 @@ ActorVisitState AbstrUnit::VisitLabelAttr(const ActorVisitor& visitor, SharedDat
 	return visitor.Visit(labelLock.get_ptr());
 }
 
-static TokenID s_MissingValueLabelID = GetTokenID_st("MissingValueLabel");
+static StaticTokenID s_MissingValueLabelID("MissingValueLabel");
 
 SharedStr AbstrUnit::GetMissingValueLabel() const
 {

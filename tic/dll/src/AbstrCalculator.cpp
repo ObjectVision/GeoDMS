@@ -317,7 +317,7 @@ SharedTreeItem AbstrCalculator::SearchContext() const
 	return searchContext;
 }
 
-static TokenID thisToken = GetTokenID_st("this");
+static StaticTokenID thisToken("this");
 
 auto AbstrCalculator::FindItem(TokenID itemRef) const -> SharedTreeItem
 {

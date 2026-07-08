@@ -21,13 +21,11 @@
 
 //----------------------------------------------------------------------
 // RtcLock
+//
+// ElemAllocComponent / IndexedStringsComponent / TokenComponent and StaticTokenID moved to
+// RtcComponents.h resp. set/Token.h (both included via dbg/Check.h -> set/Token.h above) so that
+// tic/sym can derive their static objects from the exported components ahead of the DLL merge.
 //----------------------------------------------------------------------
-
-struct ElemAllocComponent
-{
-	ElemAllocComponent();
-	~ElemAllocComponent();
-};
 
 struct RtcStreamLock : ElemAllocComponent
 {
@@ -35,28 +33,10 @@ struct RtcStreamLock : ElemAllocComponent
 	~RtcStreamLock();
 };
 
-struct IndexedStringsComponent: ElemAllocComponent
-{
-	IndexedStringsComponent();
-   ~IndexedStringsComponent();
-};
-
-struct TokenComponent : IndexedStringsComponent
-{
-	TokenComponent();
-   ~TokenComponent();
-};
-
 struct RtcReportLock : RtcStreamLock, TokenComponent
 {
 	RtcReportLock();
    ~RtcReportLock();
-};
-
-struct StaticTokenID : TokenComponent, TokenID
-{
-	StaticTokenID(CharPtr tokenStr) : TokenID(tokenStr, single_threading_tag_v) {}
-	StaticTokenID(CharPtr first, CharPtr last) : TokenID(first, last, single_threading_tag_v) {}
 };
 
 //----------------------------------------------------------------------

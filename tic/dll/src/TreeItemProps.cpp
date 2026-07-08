@@ -124,7 +124,7 @@ SharedStr TreeItem_GetViewAction(const TreeItem* self)
 //----------------------------------------------------------------------
 
 //TokenID classificationDialogTypeID = GetTokenID_st("classification"); // OBSOLETE
-TokenID classBreaksDialogTypeID = GetTokenID_st("class_breaks");
+StaticTokenID classBreaksDialogTypeID("class_breaks");
 
 bool IsClassBreakAttr(const TreeItem* adi)
 {

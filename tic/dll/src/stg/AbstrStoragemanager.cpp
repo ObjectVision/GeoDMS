@@ -170,7 +170,7 @@ SharedStr GetConfigIniFileName(CharPtr configDir)
 }
 
 #define OVERRIDABLE_NAME "Overridable"
-static TokenID t_Overridable = GetTokenID_st(OVERRIDABLE_NAME);
+static StaticTokenID t_Overridable(OVERRIDABLE_NAME);
 
 SharedStr GetRegConfigSetting(const TreeItem* configRoot, CharPtr key, CharPtr defaultValue)
 {
@@ -564,9 +564,9 @@ SharedStr AbstrStorageManager::GetFullStorageName(CharPtr subDirName, CharPtr st
 		:	DelimitedConcat(subDirName, storageName.c_str());
 }
 
-static TokenID st_AllTables = GetTokenID_st("AllTables");
-static TokenID st_AttrOnly = GetTokenID_st("AttrOnly");
-static TokenID st_None = GetTokenID_st("None");
+static StaticTokenID st_AllTables("AllTables");
+static StaticTokenID st_AttrOnly("AttrOnly");
+static StaticTokenID st_None("None");
 
 SyncMode AbstrStorageManager::GetSyncMode(const TreeItem* storageHolder)
 {
@@ -620,14 +620,14 @@ AbstrStorageManager::Construct(const TreeItem* holder, SharedStr relStorageName,
 	return Construct(AbstrStorageManager::GetFullStorageName(holder, relStorageName).c_str(), typeID, readOnly, throwOnFail);
 }
 
-static TokenID s_mdbToken = GetTokenID_st("mdb");
-static TokenID s_odbcToken = GetTokenID_st("odbc");
-static TokenID s_shpToken = GetTokenID_st("shp");
-static TokenID s_tifToken = GetTokenID_st("tif");
-static TokenID s_gdalVectToken = GetTokenID_st("gdal.vect");
-static TokenID s_gdalGridToken = GetTokenID_st("gdal.grid");
-static TokenID s_gdalWriteVectToken = GetTokenID_st("gdalwrite.vect");
-static TokenID s_gdalWriteGridToken = GetTokenID_st("gdalwrite.grid");
+static StaticTokenID s_mdbToken("mdb");
+static StaticTokenID s_odbcToken("odbc");
+static StaticTokenID s_shpToken("shp");
+static StaticTokenID s_tifToken("tif");
+static StaticTokenID s_gdalVectToken("gdal.vect");
+static StaticTokenID s_gdalGridToken("gdal.grid");
+static StaticTokenID s_gdalWriteVectToken("gdalwrite.vect");
+static StaticTokenID s_gdalWriteGridToken("gdalwrite.grid");
 
 AbstrStorageManagerRef AbstrStorageManager::Construct(CharPtr storageName, TokenID typeID, StorageReadOnlySetting readOnlySetting, bool throwOnFailure)
 {
@@ -1111,9 +1111,9 @@ void GenerateMetaInfo(AbstrPropWriter& apw, const TreeItem* curr, const TreeItem
 	}
 }
 
-static TokenID contentsID = GetTokenID_st("Contents");
-static TokenID fileNameID = GetTokenID_st("FileName");
-static TokenID fileTypeID = GetTokenID_st("FileType");
+static StaticTokenID contentsID("Contents");
+static StaticTokenID fileNameID("FileName");
+static StaticTokenID fileTypeID("FileType");
 
 void ExportMetaInfoToFileImpl(const TreeItem* curr, CharPtr datasetName)
 {

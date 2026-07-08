@@ -193,7 +193,7 @@ std::shared_ptr<SessionData> SessionData::Create(CharPtr configLoadDir, CharPtr 
 	return s_CurrSD;
 }
 
-static TokenID t_ConfigSettings = GetTokenID_st("ConfigSettings");
+static StaticTokenID t_ConfigSettings("ConfigSettings");
 
 void SessionData::Open(const TreeItem* configRoot)
 {

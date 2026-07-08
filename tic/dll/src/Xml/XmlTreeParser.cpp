@@ -87,9 +87,9 @@ SharedMutableTreeItem XmlTreeParser::ReadTree(TreeItem* root, bool rootIsFirstIt
 	return make_shared_tree(root, existing_obj{});
 }
 
-static TokenID nameTokenID = GetTokenID_st("name");
-static TokenID storageTypeID = GetTokenID_st("StorageType");
-static TokenID storageNameID = GetTokenID_st("StorageName");
+static StaticTokenID nameTokenID("name");
+static StaticTokenID storageTypeID("StorageType");
+static StaticTokenID storageNameID("StorageName");
 
 // called when all attributes of elem has been read
 void XmlTreeParser::ReadAttrCallback(XmlElement& element)

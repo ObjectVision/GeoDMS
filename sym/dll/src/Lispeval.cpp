@@ -69,8 +69,6 @@ const TokenID T_ProMod= GetTokenID_st("ProMod");
 const TokenID T_Renum = GetTokenID_st("Renum");
 const TokenID T_GetEnv= GetTokenID_st("GetEnv");
 
-const TokenID T_MaxNrDefTokens = 20;
-
 const LispRef ZeroElem(Number(0));
 const LispRef  OneElem(Number(1));
 
@@ -306,8 +304,6 @@ LispRef EvalStep(LispPtr expr, AssocListPtr env)
 		{
 			const LispRefList& tail=exprList.Tail();
 			TokenID t = functor.GetSymbID();
-//			if (t < T_MaxNrDefTokens)
-//			{
 			if (t == T_Cond ) return EvalClauseList(expr.Right(), env);
 			if (t == T_Let  ) return EvalLet       (expr.Right(), env);
 

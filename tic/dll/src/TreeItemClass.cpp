@@ -23,7 +23,7 @@ TreeItemClass::TreeItemClass(Constructor cFunc, const Class* baseCls, TokenID ty
 {
 }
 
-static TokenID nameTokenID = GetTokenID_st("name");
+static StaticTokenID nameTokenID("name");
 
 std::shared_ptr<Actor> TreeItemClass::CreateFromXml(Object* context, struct XmlElement& elem)
 {

@@ -190,8 +190,8 @@ const ValueClass* UnitClass::GetValueType(ValueComposition vc) const
 
 #include "xml/XmlParser.h"
 
-static TokenID nameTokenID = GetTokenID_st("name");
-static TokenID valueTypeID = GetTokenID_st("ValueType");
+static StaticTokenID nameTokenID("name");
+static StaticTokenID valueTypeID("ValueType");
 
 std::shared_ptr<Actor> UnitClass::CreateFromXml(Object* context, struct XmlElement& elem)
 {

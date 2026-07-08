@@ -96,7 +96,7 @@ void XmlElement::Inc(AttrValuesConstIterator& iter)
 
 // *****************************************************************************
 
-static TokenID t_xml = GetTokenID_st("xml");
+static StaticTokenID t_xml("xml");
 
 XmlParser::XmlParser(InpStreamBuff* inpBuff)
 	: FormattedInpStream(inpBuff) 

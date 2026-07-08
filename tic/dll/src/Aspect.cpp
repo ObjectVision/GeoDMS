@@ -79,7 +79,7 @@ TokenID GetAspectNameID(AspectNr aNr)
 	return g_AspectIds[aNr];
 }
 
-static TokenID stPalette("Palette", (st_tag*)nullptr);
+static StaticTokenID stPalette("Palette");
 
 bool IsColorAspectNameID(TokenID id)
 {

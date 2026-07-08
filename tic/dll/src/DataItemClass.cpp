@@ -205,10 +205,10 @@ const DataItemClass* DataItemClass::FindCertain(
 
 #include "xml/XmlParser.h"
 
-static TokenID nameTokenID = GetTokenID_st("name");
-static TokenID domainUnitTokenID = GetTokenID_st("DomainUnit");
-static TokenID valuesUnitTokenID = GetTokenID_st("ValuesUnit");
-static TokenID featureTypeID = GetTokenID_st("ValueComposition");
+static StaticTokenID nameTokenID("name");
+static StaticTokenID domainUnitTokenID("DomainUnit");
+static StaticTokenID valuesUnitTokenID("ValuesUnit");
+static StaticTokenID featureTypeID("ValueComposition");
 
 std::shared_ptr<Actor> DataItemClass::CreateFromXml(Object* context, XmlElement& elem)
 {
