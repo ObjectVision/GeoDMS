@@ -260,3 +260,48 @@ configuration or CI job is likely the single largest remaining wall-clock lever 
 A useful follow-up measurement once #1 is in: `msbuild all22.sln ... /p:CL_MPCount /bl` with
 the MSBuild binary log viewer, comparing before/after wall-clock and per-project timelines to
 validate #2/#3 priorities against real numbers.
+
+## Finding 5 — re-examining the prelude for "move rarely-needed components out" (2026-07-09)
+
+Direct question revisited after PCH landed: *can we shrink the often-included headers by moving
+out components not needed everywhere?* The full inclusion graph was rebuilt (319 `.cpp` TUs, 575
+project headers) and the top candidates were tested with five independent methods — transitive
+fan-in, symbol-level true-need (with the header cut from every include path), single-edge and
+all-paths blast-radius, and a "pure-win edge" scan (edges whose removal drops a header from some
+TUs' prelude while **zero** of those TUs use its symbols). **Result: no safe, beneficial
+component/header move is available. The prelude is genuinely cohesive.** Every plausible
+candidate is either needed nearly everywhere or load-bearing:
+
+| candidate (heavy prelude header) | why it can't leave the prelude |
+|---|---|
+| `set/BitVector.h` (768 LOC, fan-in 319) | `bit_value<N>` / `sequence_traits<bool>` are the bit/Bool value type — used by **291/319** TUs. Sole prelude edge is `ptr/PtrBase.h` (which itself needs only `sequence_traits`), but cutting it breaks 291 TUs. |
+| `xml/XMLOut.h` (fan-in 256) | XML/HTML/DMS reporting streams referenced by **248/319** TUs (widely used for dumps/value-info). TreeItem.h already fwd-decls `XML_OutElement`, but the type is needed downstream. |
+| `sym/LispRef.h` (206 LOC, closure ~9 k LOC) | the calculation-expression handle; needed by **282** TUs and multiply-reachable — cutting TreeItem.h's edge changes no closure. |
+| `act/any.h` | `TreeItem` embeds `rtc::any::Any m_ReadAssets` **by value** (TreeItem.h:602) → complete type required wherever TreeItem is complete = the whole tic prelude. |
+| `geo/CheckedCalc.h`, `utl/Environment.h`, `utl/IncrementalLock.h` | the pure-win scan flagged these (`need==0`), but that was a **symbol-extraction artifact**: their APIs are template-inline / util free functions the heuristic missed. Re-checked with hand-picked symbols, every losing TU uses them (`need == lose`: 64/64, 42/42, 15/15, 2/2). |
+
+**Why moving-out is the wrong direction now that PCH is on.** A header in a PCH is parsed *once*
+per DLL when the PCH is built. Removing a header used by *N* TUs from the prelude converts that
+one parse into *N* per-TU parses — strictly more front-end work for any N≥2. Prelude-trimming
+therefore only helps by (a) shrinking the PCH file marginally and (b) shrinking the
+*invalidation blast radius* when the header is **edited**. Benefit (b) matters only for
+frequently-edited headers.
+
+**Where the real incremental-build cost actually is.** The churny hot headers of this branch —
+`DataArray.h` (29 of last 200 commits), `Unit.h` (26), `TiledRangeData.h`, `AttrBinStruct.h`
+(18) — are the ones whose edits hurt. `Unit.h`/`AttrBinStruct.h` are correctly **outside** every
+PCH; but `DataArray.h` sits inside `ClcPCH` **and** `GeoPCH`, so each edit to it invalidates
+those PCHs and recompiles all clc + geo TUs. That PCH-membership (not any rarely-needed
+component) is the lever worth pulling — and the fix is an interface/impl split of `DataArray.h`
+(hive the churny inline/template bodies into an `.ipp` included only where instantiated so the
+PCH-resident interface stops changing), **not** removing headers from the prelude. This is real,
+risky work best done deliberately, so it is left as an explicit follow-up rather than bundled
+here.
+
+Method caveat for anyone re-running this: automated symbol-reach **undercounts** template-inline
+and utility headers (`set/rangefuncs.h`, `geo/CheckedCalc.h`, `geo/Round.h`) because their API
+is not `XXX_CALL`-decorated, producing false "rarely used" positives; and it **overcounts**
+headers with short/common type names. Always re-verify a candidate with hand-picked distinctive
+symbols *and* a by-value-member/base-class check before cutting an edge — and confirm with a
+build, which is the only ground truth for forward-declarability. (Scripts:
+`scratchpad/{incgraph2,edges,blast2,trueneed,precise,purewin,verify_cc}.py`.)
