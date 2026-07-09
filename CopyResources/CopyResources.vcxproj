@@ -42,10 +42,14 @@
     <DisableFastUpToDateCheck>true</DisableFastUpToDateCheck>
     <NMakeBuildCommandLine>
 echo copying files to $(OutDir)
-robocopy "$(SolutionDir)library" "$(OutDir)library" /E /NJH /NJS /NP /XO
-robocopy "$(SolutionDir)examples" "$(OutDir)examples" /E /NJH /NJS /NP /XO
-robocopy "$(_VcpkgRuntimeBin)" "$(OutDir.TrimEnd('\'))" *.dll /NJH /NJS /NP /XO
-if %errorlevel% LSS 8 exit 0 else exit %errorlevel%
+robocopy "$(SolutionDir)library" "$(OutDir)library" /E /NJH /NJS /NP /R:2 /W:2 /XO
+if errorlevel 8 ( echo *** CopyResources: robocopy library FAILED *** &amp; exit /b 1 )
+robocopy "$(SolutionDir)examples" "$(OutDir)examples" /E /NJH /NJS /NP /R:2 /W:2 /XO
+if errorlevel 8 ( echo *** CopyResources: robocopy examples FAILED *** &amp; exit /b 1 )
+if not exist "$(_VcpkgRuntimeBin)\*.dll" ( echo *** CopyResources: vcpkg runtime bin not found or empty - "$(_VcpkgRuntimeBin)" *** &amp; exit /b 1 )
+robocopy "$(_VcpkgRuntimeBin)" "$(OutDir.TrimEnd('\'))" *.dll /NJH /NJS /NP /R:2 /W:2 /XO
+if errorlevel 8 ( echo *** CopyResources: robocopy vcpkg runtime DLLs FAILED *** &amp; exit /b 1 )
+exit /b 0
     </NMakeBuildCommandLine>
     <CopyCppRuntimeToOutputDir>false</CopyCppRuntimeToOutputDir>
   </PropertyGroup>
