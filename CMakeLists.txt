@@ -37,7 +37,11 @@ set(CMAKE_COLOR_DIAGNOSTICS ON)
 add_compile_definitions(
     _CRT_SECURE_NO_WARNINGS
     BOOST_SPIRIT_USE_OLD_NAMESPACE
-    BOOST_SPIRIT_THREADSAFE
+    # NB: BOOST_SPIRIT_THREADSAFE intentionally NOT defined. Spirit Classic parsing is
+    # serialized via GetSpiritGrammarMutex() (stx/dll/src/SpiritTools.h) instead, so stx
+    # does not pull boost::thread_specific_ptr / the boost_thread runtime lib. MUST stay in
+    # sync with DmsDef.props, which also dropped it -- otherwise the CMake (.c/.l) build links
+    # boost_thread while the installer no longer ships it -> STATUS_DLL_NOT_FOUND at launch.
     # Marker so DMS_PLATFORM (rtc/dll/src/gen/General.cpp) can distinguish
     # cmake builds from msbuild builds in the GUI title bar.
     DMS_TOOLSET_CMAKE
