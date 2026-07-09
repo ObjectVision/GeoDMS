@@ -12,6 +12,7 @@
 
 #include "Param.h"
 #include "UnitClass.h"
+#include "DataArrayValue.h"
 
 // *****************************************************************************
 //											Mandelbrot Operator

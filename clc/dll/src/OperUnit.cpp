@@ -35,6 +35,7 @@
 
 #include "OperGroups.h"
 #include "TiledUnit.h"
+#include "DataArrayValue.h"
 
 
 // *****************************************************************************

@@ -16,6 +16,7 @@
 /********** PropDef Interface **********/
 
 #include "mci/AbstrValue.h"
+#include "DataArrayValue.h"
 
 AbstrPropDef::AbstrPropDef(CharPtr propName, 
 		const Class* pc, const ValueClass* vt, 

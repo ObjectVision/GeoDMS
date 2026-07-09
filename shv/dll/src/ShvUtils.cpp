@@ -29,6 +29,7 @@
 #include "AbstrDataObject.h"
 #include "AbstrUnit.h"
 #include "DataArray.h"
+#include "DataArrayValue.h"
 #include "DataItemClass.h"
 #include "DataLocks.h"
 #include "Projection.h"

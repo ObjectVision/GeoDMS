@@ -20,6 +20,7 @@
 #include "UnitClass.h"
 #include "CopyTreeContext.h"
 #include "TreeItemProps.h"
+#include "DataArrayValue.h"
 
 enum param_t { 
 	pt_excluded    = 0, 

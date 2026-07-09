@@ -19,6 +19,7 @@
 #include "OperGroups.h"
 #include "ParallelTiles.h"
 #include "TreeItemClass.h"
+#include "DataArrayValue.h"
 
 // *****************************************************************************
 //										SubItemOperator

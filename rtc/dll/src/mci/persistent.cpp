@@ -36,6 +36,7 @@
 	#endif
 
 	#include <set>
+#include "DataArrayValue.h"
 	typedef std::set<const Object*> objectRegisterType;
 	leveled_std_section cs_ORT(item_level_type(0), ord_level_type::ObjectRegister, "ObjectRegister");
 

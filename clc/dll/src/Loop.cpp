@@ -16,6 +16,7 @@
 #include "DataItemClass.h"
 #include "MoreDataControllers.h"
 #include "TreeItemClass.h"
+#include "DataArrayValue.h"
 
 // *****************************************************************************
 //									Loop operator

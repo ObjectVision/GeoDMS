@@ -56,6 +56,7 @@
 #include "DataStoreManagerCaller.h"
 
 #include "stg/AbstrStorageManager.h"
+#include "DataArrayValue.h"
 
 //  -----------------------------------------------------------------------
 //  Class  : AbstrDataItem

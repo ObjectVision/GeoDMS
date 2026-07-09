@@ -54,6 +54,7 @@
 
 #include "ViewPortInfoEx.h"
 #include "RemoveAdjacentsAndSpikes.h"
+#include "DataArrayValue.h"
 
 /************************************************************************/
 /*                       dllImageFilledPolygon()                        */

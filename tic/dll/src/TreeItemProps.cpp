@@ -88,6 +88,7 @@ bool TreeItemHasPropertyValue(const TreeItem* ti, const AbstrPropDef* pd)
 //----------------------------------------------------------------------
 
 #include "PropFuncs.h"
+#include "DataArrayValue.h"
 
 TokenID TreeItem_GetDialogType(const TreeItem* self) 
 { 

@@ -16,6 +16,7 @@
 
 #include "bi_graph.h"
 #include "dbg/SeverityType.h"
+#include "DataArrayValue.h"
 
 /*
 IPF<S> takes the following arguments:

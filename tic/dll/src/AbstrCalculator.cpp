@@ -47,6 +47,7 @@
 #include "TreeItemContextHandle.h"
 #include "TreeItemClass.h"
 #include "MoreDataControllers.h"
+#include "DataArrayValue.h"
 
 // *****************************************************************************
 // Section:    to be located into following code

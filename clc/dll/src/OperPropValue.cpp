@@ -22,6 +22,7 @@
 #include "DataItemClass.h"
 #include "TreeItemClass.h"
 #include "AbstrCalculator.h"
+#include "DataArrayValue.h"
 
 struct AbstrItemSet
 {

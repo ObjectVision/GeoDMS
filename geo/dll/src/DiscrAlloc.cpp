@@ -25,6 +25,7 @@
 
 #include "bi_graph.h" // used to apply Dijkstra on a bi_graph, needed for finding an shortest route through a graph of facets when adjusting the splitter.
 #include "PCount.h"
+#include "DataArrayValue.h"
 
 /*
 	discrete allocation, O(n*k), see:

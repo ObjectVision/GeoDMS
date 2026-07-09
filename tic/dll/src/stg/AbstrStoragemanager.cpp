@@ -38,6 +38,7 @@
 #include "TreeItemContextHandle.h"
 #include "TreeItemProps.h"
 #include "stg/StorageClass.h"
+#include "DataArrayValue.h"
 
 
 #if defined(MG_DEBUG)

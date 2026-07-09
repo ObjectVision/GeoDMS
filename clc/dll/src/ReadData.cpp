@@ -26,6 +26,7 @@ static TokenID readPosToken = GetTokenID_st("ReadPos");
 
 #include "MoreDataControllers.h"
 #include "UnitProcessor.h"
+#include "DataArrayValue.h"
 
 struct NumberReaderBase : UnitProcessor
 {

@@ -117,6 +117,7 @@ struct RampLinearFunc
 };
 
 #include "geo/color.h"
+#include "DataArrayValue.h"
 
 struct RampRgbFunc
 {

@@ -29,6 +29,7 @@
 #include <functional>
 #include <iterator>
 #include <algorithm>
+#include "DataArrayValue.h"
 
 
 // *****************************************************************************

@@ -26,6 +26,7 @@
 #include "Unit.h"
 #include "UnitProcessor.h"
 #include "RtcTypeLists.h"
+#include "DataArrayValue.h"
 
 // *****************************************************************************
 // join_near_values: (A->P, B->P, D2): AB { ->A, ->B }

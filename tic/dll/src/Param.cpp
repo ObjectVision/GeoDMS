@@ -53,6 +53,7 @@ granted by an additional written contract for support, assistance and/or develop
 //----------------------------------------------------------------------
 
 #include "TicInterface.h"
+#include "DataArrayValue.h"
 
 TIC_CALL Float64 DMS_CONV DMS_NumericParam_GetValueAsFloat64(const AbstrParam* self)
 {

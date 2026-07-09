@@ -22,6 +22,7 @@
 #include "DataArray.h"
 #include "Unit.h"
 #include "UnitClass.h"
+#include "DataArrayValue.h"
 
 // *****************************************************************************
 //											DistrictOperator

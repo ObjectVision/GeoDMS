@@ -30,6 +30,7 @@
 #include <random>
 #include <limits>
 #include <type_traits>
+#include "DataArrayValue.h"
 
 // *****************************************************************************
 //   Local, boost-free reimplementations of the boost::random distributions

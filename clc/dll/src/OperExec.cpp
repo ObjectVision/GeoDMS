@@ -20,6 +20,7 @@
 #include "DataItemClass.h"
 #include "DataLocks.h"
 #include "TreeItemClass.h"
+#include "DataArrayValue.h"
 
 //#define OPER_EXECDLL
 

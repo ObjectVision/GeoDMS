@@ -25,6 +25,7 @@
 #include "stg/AbstrStorageManager.h"
 
 #include "OperAttrUni.h"
+#include "DataArrayValue.h"
 
 // *****************************************************************************
 //									RELATIONAL FUNCTIONS

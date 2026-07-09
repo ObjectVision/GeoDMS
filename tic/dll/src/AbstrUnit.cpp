@@ -40,6 +40,7 @@
 #include "UnitClass.h"
 
 #include "stg/AbstrStorageManager.h"
+#include "DataArrayValue.h"
 
 //----------------------------------------------------------------------
 // Supporting structures

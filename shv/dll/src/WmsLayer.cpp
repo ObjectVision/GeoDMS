@@ -48,6 +48,7 @@
 
 #include "gdal/gdal_base.h"
 #include "gdal/gdal_grid.h"
+#include "DataArrayValue.h"
 
 #if defined(MG_DEBUG)
 #define MG_DEBUG_WMS
