@@ -89,11 +89,18 @@ public:
 	GType ResizeTieLeftDevice(CrdPoint subPixelFactors) const override;
 	void SetElemSize(WPoint size);
 
-	// row-oriented (transposed) table: the vertical borders between record cells
-	// adjust the record-column width, uniform over all bands (issue #1150)
-	bool FindRecordCellBorder(CrdType absLogicalX, SizeT& cellCount) const;
-	void StartRecordWidthResize(MouseEventDispatcher& med, SizeT cellCount);
-	void RecordWidthDragTo(CrdType mouseLogicalX, SizeT cellCount);
+	// Shared cell-axis resize (issue #1150): the extent of the cells *within* a column
+	// along the cell-repeat axis - row height when column-oriented, record width when
+	// row-oriented (transposed) - is shared by all columns so rows/records stay aligned.
+	// Dragging a separator between cells resizes that shared extent: the dragged border
+	// stays glued to the mouse, the space between the viewport near-edge and the border
+	// is distributed evenly over the cells above/left of it, and the viewport is
+	// re-anchored so the first visible cell keeps its on-screen position. cellIndex is
+	// the absolute index of the cell whose far border is dragged (border at
+	// (cellIndex+1)*pitch from the column client origin along the cell axis).
+	bool FindSharedCellBorder(CrdType absLogicalC, bool isColOriented, SizeT& cellIndex) const;
+	void StartSharedCellResize(MouseEventDispatcher& med, bool isColOriented, SizeT cellIndex);
+	void SharedCellDragTo(CrdType mouseLogicalC, bool isColOriented, SizeT cellIndex);
 
 	UInt32 ColumnNr() const    { dms_assert(IsDefined(m_ColumnNr)); return m_ColumnNr; }
 	void SetColumnNr(SizeT nr) { dms_assert(IsDefined(nr)); m_ColumnNr = nr; }

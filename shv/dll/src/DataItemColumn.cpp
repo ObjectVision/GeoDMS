@@ -52,6 +52,7 @@
 #include "MouseEventDispatcher.h"
 #include "ScrollPort.h"
 #include "TableControl.h"
+#include "TableViewControl.h"
 #include "Theme.h"
 #include "ThemeReadLocks.h"
 #include "ThemeValueGetter.h"
@@ -562,28 +563,34 @@ GType DataItemColumn::ResizeTieLeftDevice(CrdPoint subPixelFactors) const
 }
 
 //----------------------------------------------------------------------
-// record-column width resize in a row-oriented (transposed) table (issue #1150):
-// records run horizontally, one cell per band; dragging a vertical cell border
-// sets the width of all record columns (uniform over the bands, so the record
-// columns stay aligned). cellCount = the number of cells left of the dragged
-// border; the layout pitch is cell width (+ elem borders) + separator, with a
-// leading separator, so border k sits at k*pitch from the band's client left.
+// Shared cell-axis resize (issue #1150). The cell-repeat axis is the axis along
+// which the cells of one column repeat: Y (rows) when column-oriented, X (records)
+// when row-oriented (transposed). All columns share the cell extent along it so
+// rows/records stay aligned, so this gesture sets it on every column at once.
+//
+// The far border of cell j sits at (j+1)*pitch from the column client origin along
+// the cell axis, with pitch = cellExtent (+ elem borders) + separator. The dragged
+// border stays glued to the mouse; the gap between the viewport near-edge and the
+// border is distributed evenly over the (j+1 - firstVisibleCell) cells above/left of
+// it; and the viewport is re-anchored so the first visible cell keeps its position
+// (least surprise: viewport near-edge .. dragged border stay put).
 //----------------------------------------------------------------------
 
 namespace {
 
-class RecordWidthSizerDragger : public AbstrController
+class SharedCellSizerDragger : public AbstrController
 {
 	typedef AbstrController base_type;
 public:
-	RecordWidthSizerDragger(DataView* owner, DataItemColumn* target, SizeT cellCount)
+	SharedCellSizerDragger(DataView* owner, DataItemColumn* target, bool isColOriented, SizeT cellIndex)
 		: AbstrController(owner, target
 			, EventID::NONE
 			, EventID::MOUSEDRAG | EventID::LBUTTONUP
 			, EventID::CLOSE_EVENTS - EventID::SCROLLED
 			, ToolButtonID::TB_Undefined
 		)
-		, m_CellCount(cellCount)
+		, m_IsColOriented(isColOriented)
+		, m_CellIndex(cellIndex)
 	{}
 
 protected:
@@ -591,95 +598,155 @@ protected:
 	{
 		auto to = GetTargetObject().lock(); if (!to) return true;
 		auto* target = debug_cast<DataItemColumn*>(to.get());
-		target->RecordWidthDragTo(eventInfo.m_Point.x / target->GetScaleFactors().first, m_CellCount);
+		CrdType mouseLogicalC = eventInfo.m_Point.FlippableY(m_IsColOriented) / target->GetScaleFactors().FlippableY(m_IsColOriented);
+		target->SharedCellDragTo(mouseLogicalC, m_IsColOriented, m_CellIndex);
 		return true;
 	}
 
 private:
-	SizeT m_CellCount;
+	bool  m_IsColOriented;
+	SizeT m_CellIndex;
 };
 
 } // anonymous namespace
 
-bool DataItemColumn::FindRecordCellBorder(CrdType absLogicalX, SizeT& cellCount) const
+bool DataItemColumn::FindSharedCellBorder(CrdType absLogicalC, bool isColOriented, SizeT& cellIndex) const
 {
 	auto tc = GetTableControl().lock(); if (!tc) return false;
-	assert(!tc->IsColOriented());
 
-	SizeT n = tc->NrRows(); if (!IsDefined(n)) n = 8;
+	SizeT n = tc->NrRows(); if (!IsDefined(n)) n = 8; // cells along the cell-repeat axis
 	if (!n)
 		return false;
 
-	CrdType pitch = m_ElemSize.X() + (HasElemBorder() ? DOUBLE_BORDERSIZE : 0) + RowSepHeight();
+	CrdType cellFull = m_ElemSize.FlippableY(isColOriented) + (HasElemBorder() ? DOUBLE_BORDERSIZE : 0);
+	CrdType pitch = cellFull + RowSepHeight();
 	if (pitch <= 0)
 		return false;
 
-	CrdType relX = absLogicalX - GetCurrClientAbsLogicalRect().first.X();
-	if (relX <= 0)
-		return false;
-	SizeT k = SizeT(relX / pitch + 0.5); // nearest border index
-	if (k < 1 || k > n)
+	CrdType relC = absLogicalC - GetCurrClientAbsLogicalRect().first.FlippableY(isColOriented);
+	if (relC <= 0)
 		return false;
 
-	constexpr CrdType margin = 4;
-	if (relX < CrdType(k) * pitch - margin || relX > CrdType(k) * pitch + margin)
+	SizeT b = SizeT(relC / pitch + 0.5); // nearest border index; far border of cell (b-1) is at b*pitch
+	if (b < 1 || b > n)
 		return false;
 
-	cellCount = k;
+	// keep the cell interior clickable: a small margin, never more than a quarter pitch
+	CrdType margin = std::min<CrdType>(4.0, pitch * 0.25);
+	if (relC < CrdType(b) * pitch - margin || relC > CrdType(b) * pitch + margin)
+		return false;
+
+	cellIndex = b - 1;
 	return true;
 }
 
-void DataItemColumn::StartRecordWidthResize(MouseEventDispatcher& med, SizeT cellCount)
+void DataItemColumn::StartSharedCellResize(MouseEventDispatcher& med, bool isColOriented, SizeT cellIndex)
 {
-	assert(cellCount);
 	auto dv = GetDataView().lock(); if (!dv) return;
 	auto medOwner = med.GetOwner().lock(); if (!medOwner) return;
+	auto tc = GetTableControl().lock(); if (!tc) return;
 
 	auto sf = med.GetSubPixelFactors();
-	CrdType clientAbsLeft = GetCurrClientAbsLogicalRect().first.X();
-	CrdType pitch = m_ElemSize.X() + (HasElemBorder() ? DOUBLE_BORDERSIZE : 0) + RowSepHeight();
+	CrdType sC = sf.FlippableY(isColOriented);
+	CrdType clientOriginC = GetCurrClientAbsLogicalRect().first.FlippableY(isColOriented);
+	CrdType cellFull = m_ElemSize.FlippableY(isColOriented) + (HasElemBorder() ? DOUBLE_BORDERSIZE : 0);
+	CrdType pitch = cellFull + RowSepHeight();
 
+	ScrollPort* sp = tc->m_TableView.get_ptr() ? tc->m_TableView->GetTableScrollPort() : nullptr;
+	CrdType viewEdgeAbsC = sp ? sp->GetCurrClientAbsLogicalPos().FlippableY(isColOriented) : clientOriginC;
+	SizeT r0 = (viewEdgeAbsC > clientOriginC && pitch > 0) ? SizeT((viewEdgeAbsC - clientOriginC) / pitch) : 0;
+
+	// warp the cursor onto the dragged border along the cell axis
 	GPoint& mousePoint = med.GetEventInfo().m_Point;
-	mousePoint.x = CrdType2GType((clientAbsLeft + CrdType(cellCount) * pitch) * sf.first);
+	CrdType borderAbsC = clientOriginC + CrdType(cellIndex + 1) * pitch;
+	GType borderDevC = CrdType2GType(borderAbsC * sC);
+	(isColOriented ? mousePoint.y : mousePoint.x) = borderDevC;
 	dv->SetCursorPos(mousePoint);
 
+	// cursor-tie along the cell axis: the border may move outward freely but not past the
+	// minimum block extent measured from the viewport near-edge (avoids an inverted block)
 	CrdType minPitch = MIN_COL_ELEM_WIDTH + (HasElemBorder() ? DOUBLE_BORDERSIZE : 0) + RowSepHeight();
-	GType tieLeft = CrdType2GType((clientAbsLeft + CrdType(cellCount) * minPitch) * sf.first);
+	GType tieMinDevC = CrdType2GType((viewEdgeAbsC + CrdType(cellIndex + 1 - r0) * minPitch) * sC);
+
+	// stack-axis extent of the drag caret: span the whole viewport so the dragged
+	// separator reads as a full-width (resp. full-height) line across the table
+	GRect spRectDev = CrdRect2GRect(ScaleCrdRect(sp ? sp->GetCurrClientAbsLogicalRect() : GetCurrFullAbsLogicalRect(), sf));
+
+	GRect tieRect, caretRect;
+	if (isColOriented) // cell axis = Y, stack axis = X
+	{
+		tieRect   = GRect(mousePoint.x, tieMinDevC, mousePoint.x + 1, MaxValue<GType>());
+		caretRect = GRect(spRectDev.left, mousePoint.y - 2, spRectDev.right, mousePoint.y + 3);
+	}
+	else               // cell axis = X, stack axis = Y
+	{
+		tieRect   = GRect(tieMinDevC, mousePoint.y, MaxValue<GType>(), mousePoint.y + 1);
+		caretRect = GRect(mousePoint.x - 2, spRectDev.top, mousePoint.x + 3, spRectDev.bottom);
+	}
+
 	medOwner->InsertController(
 		new TieCursorController(medOwner.get(), GetOwner().lock().get()
-			, GRect(tieLeft, mousePoint.y, MaxValue<GType>(), mousePoint.y + 1)
-			, EventID::MOUSEDRAG, EventID::CLOSE_EVENTS - EventID::SCROLLED
+			, tieRect, EventID::MOUSEDRAG, EventID::CLOSE_EVENTS - EventID::SCROLLED
 		)
 	);
-
-	auto currIntRect = CrdRect2GRect(ScaleCrdRect(GetCurrFullAbsLogicalRect(), sf));
 	medOwner->InsertController(
 		new DualPointCaretController(medOwner.get()
-			, new MovableRectCaret(GRect(mousePoint.x - 2, currIntRect.Top(), mousePoint.x + 3, currIntRect.Bottom()))
+			, new MovableRectCaret(caretRect)
 			, this, mousePoint
 			, EventID::MOUSEDRAG, EventID::NONE, EventID::CLOSE_EVENTS - EventID::SCROLLED
 			, ToolButtonID::TB_Undefined
 		)
 	);
-
 	medOwner->InsertController(
-		new RecordWidthSizerDragger(medOwner.get(), this, cellCount)
+		new SharedCellSizerDragger(medOwner.get(), this, isColOriented, cellIndex)
 	);
 }
 
-void DataItemColumn::RecordWidthDragTo(CrdType mouseLogicalX, SizeT cellCount)
+void DataItemColumn::SharedCellDragTo(CrdType mouseLogicalC, bool isColOriented, SizeT cellIndex)
 {
-	assert(cellCount);
 	auto tc = GetTableControl().lock(); if (!tc) return;
 
-	CrdType newPitch = (mouseLogicalX - GetCurrClientAbsLogicalRect().first.X()) / CrdType(cellCount);
-	CrdType newWidth = newPitch - RowSepHeight() - (HasElemBorder() ? DOUBLE_BORDERSIZE : 0);
-	MakeMax(newWidth, MIN_COL_ELEM_WIDTH);
-	UInt16 elemWidth = TType2GType(newWidth);
+	CrdType clientOriginC = GetCurrClientAbsLogicalRect().first.FlippableY(isColOriented);
+	CrdType cellFull = m_ElemSize.FlippableY(isColOriented) + (HasElemBorder() ? DOUBLE_BORDERSIZE : 0);
+	CrdType pitchOld = cellFull + RowSepHeight();
+	if (pitchOld <= 0)
+		return;
+
+	CrdType oldRelC = tc->GetCurrClientRelPos().FlippableY(isColOriented);
+	CrdType contentCatEdge = -oldRelC; if (contentCatEdge < 0) contentCatEdge = 0; // content-C at the viewport near-edge
+	SizeT r0 = SizeT(contentCatEdge / pitchOld);                                   // first visible cell
+	if (cellIndex + 1 <= r0)
+		return; // dragged border is above the viewport (can't happen for a visible border)
+
+	CrdType viewEdgeAbsC = clientOriginC + contentCatEdge;
+	CrdType dTarget = mouseLogicalC - viewEdgeAbsC;             // logical distance near-edge -> mouse
+	CrdType nAbove = CrdType(cellIndex + 1 - r0);              // cells sharing the distributed space
+
+	// pitch such that border (cellIndex) lands under the mouse while cell r0 stays pinned:
+	//   border-from-edge = pitch*(cellIndex+1 - r0) + (pitchOld*r0 - contentCatEdge) == dTarget
+	CrdType pitchNew = (dTarget + contentCatEdge - pitchOld * CrdType(r0)) / nAbove;
+	CrdType elemNew = pitchNew - RowSepHeight() - (HasElemBorder() ? DOUBLE_BORDERSIZE : 0);
+	MakeMax(elemNew, MIN_COL_ELEM_WIDTH);
+	UInt16 elemC = TType2GType(elemNew);
+	pitchNew = CrdType(elemC) + (HasElemBorder() ? DOUBLE_BORDERSIZE : 0) + RowSepHeight(); // after clamp
 
 	for (gr_elem_index i = 0, n = tc->NrEntries(); i != n; ++i)
 		if (auto* col = tc->GetColumn(i))
-			col->SetElemSize(WPoint(elemWidth, col->ElemSize().Y()));
+		{
+			WPoint sz = col->ElemSize();
+			sz.FlippableY(isColOriented) = elemC;
+			col->SetElemSize(sz);
+			col->UpdateView(); // refresh client size so the scroll re-anchor below sees fresh geometry
+		}
+
+	// re-anchor: keep the first visible cell pinned; when unscrolled (r0==0) nothing moves
+	if (r0 && tc->m_TableView.get_ptr())
+		if (ScrollPort* sp = tc->m_TableView->GetTableScrollPort())
+		{
+			CrdPoint newRelPos = tc->GetCurrClientRelPos();
+			newRelPos.FlippableY(isColOriented) = oldRelC - (pitchNew - pitchOld) * CrdType(r0);
+			sp->ScrollLogicalTo(newRelPos);
+		}
 
 	InvalidateResizedCaret();
 }
@@ -1577,16 +1644,19 @@ bool DataItemColumn::MouseEvent(MouseEventDispatcher& med)
 		}
 	}
 
-	if (!isColOriented && (med.GetEventInfo().m_EventID & (EventID::SETCURSOR | EventID::LBUTTONDOWN)))
+	if (med.GetEventInfo().m_EventID & (EventID::SETCURSOR | EventID::LBUTTONDOWN))
 	{
-		// row-oriented: vertical borders between record cells adjust the record-column width (issue #1150)
-		SizeT cellCount;
-		if (FindRecordCellBorder(med.GetEventInfo().m_Point.x / GetScaleFactors().first, cellCount))
+		// borders between cells along the cell-repeat axis resize the shared cell extent:
+		// row height (col-oriented, horizontal separators) resp. record width
+		// (row-oriented, vertical separators) (issue #1150)
+		CrdType mouseC = med.GetEventInfo().m_Point.FlippableY(isColOriented) / GetScaleFactors().FlippableY(isColOriented);
+		SizeT cellIndex;
+		if (FindSharedCellBorder(mouseC, isColOriented, cellIndex))
 		{
 			if (med.GetEventInfo().m_EventID & EventID::LBUTTONDOWN)
-				StartRecordWidthResize(med, cellCount);
+				StartSharedCellResize(med, isColOriented, cellIndex);
 			else
-				SetCursor(LoadCursor(NULL, IDC_SIZEWE));
+				SetCursor(LoadCursor(NULL, isColOriented ? IDC_SIZENS : IDC_SIZEWE));
 			return true;
 		}
 	}
