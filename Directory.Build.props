@@ -44,6 +44,23 @@
     -->
     <VcpkgRoot>$(MSBuildThisFileDirectory)vcpkg</VcpkgRoot>
     <VcpkgHostTriplet>x64-windows-v145</VcpkgHostTriplet>
+
+    <!--
+      Neutralise any machine-wide `vcpkg integrate install` (a VS-bundled vcpkg) so ONLY the
+      pinned ./vcpkg integration imported below is active. Such a stray integration leaves
+      %LOCALAPPDATA%\vcpkg\vcpkg.user.props/targets that import a SECOND vcpkg on top of ours.
+      The VcpkgPropsImported guard on the props Import (below) blocks the duplicate PROPS, but
+      the user-wide vcpkg.user.TARGETS still slips the other vcpkg.targets in, and its old
+      applocal.ps1 overrides our AppLocalFromInstalled (plus its IncrementalClean-safe Preserve
+      companion). The two applocal mechanisms disagree on FileWrites bookkeeping, so runtime
+      DLLs (gdal, geos, proj_9, netcdf, tinyxml2, ...) get cleaned from bin as "orphans" before
+      packaging, intermittently (depending on project build order), which surfaces downstream as
+      the NSIS "tinyxml2.dll no files found" error. Both vcpkg.user.props and vcpkg.user.targets
+      are guarded on VCPkgLocalAppDataDisabled being empty, so setting it here makes both skip.
+      The machine-wide files are left untouched; this only disables them for GeoDMS builds.
+      See memory project_copyresources_vcpkg_deploy / feedback_follow_claude_md.
+    -->
+    <VCPkgLocalAppDataDisabled>true</VCPkgLocalAppDataDisabled>
   </PropertyGroup>
 
   <!--
