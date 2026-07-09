@@ -27,7 +27,6 @@
       <OmitFramePointers>true</OmitFramePointers>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <WholeProgramOptimization>true</WholeProgramOptimization>
-      <EnablePREfast>true</EnablePREfast>
       <BrowseInformation>false</BrowseInformation>
     </ClCompile>
     <ResourceCompile>

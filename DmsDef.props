@@ -65,7 +65,8 @@
       <ConformanceMode>true</ConformanceMode>
 	  <ControlFlowGuard>Guard</ControlFlowGuard>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-    </ClCompile>
+	  <EnablePREfast>false</EnablePREfast>
+	</ClCompile>
     <Link>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <LargeAddressAware>true</LargeAddressAware>
