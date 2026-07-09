@@ -28,12 +28,23 @@
   <ImportGroup Condition="'$(Configuration)'=='Debug'" Label="PropertySheets">
     <Import Project="$(SolutionDir)DmsDebug.props" />
   </ImportGroup>
+  <!-- vcpkg runtime-DLL source per config: the app needs the whole gdal/geos/proj/netcdf/
+       tinyxml2/... stack at runtime, and vcpkg's applocal does not reliably repopulate them
+       into $(OutDir) on incremental builds. Copy them here so bin\<cfg>\x64 is always complete
+       (and the NSIS installers find them). VcpkgInstalledDir/VcpkgTriplet come from DmsDef.props. -->
+  <PropertyGroup Condition="'$(Configuration)'=='Release'">
+    <_VcpkgRuntimeBin>$(VcpkgInstalledDir)$(VcpkgTriplet)\bin</_VcpkgRuntimeBin>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='Debug'">
+    <_VcpkgRuntimeBin>$(VcpkgInstalledDir)$(VcpkgTriplet)\debug\bin</_VcpkgRuntimeBin>
+  </PropertyGroup>
   <PropertyGroup>
     <DisableFastUpToDateCheck>true</DisableFastUpToDateCheck>
     <NMakeBuildCommandLine>
 echo copying files to $(OutDir)
 robocopy "$(SolutionDir)library" "$(OutDir)library" /E /NJH /NJS /NP /XO
 robocopy "$(SolutionDir)examples" "$(OutDir)examples" /E /NJH /NJS /NP /XO
+robocopy "$(_VcpkgRuntimeBin)" "$(OutDir.TrimEnd('\'))" *.dll /NJH /NJS /NP /XO
 if %errorlevel% LSS 8 exit 0 else exit %errorlevel%
     </NMakeBuildCommandLine>
     <CopyCppRuntimeToOutputDir>false</CopyCppRuntimeToOutputDir>
