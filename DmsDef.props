@@ -5,9 +5,15 @@
     <_PropertySheetDisplayName>Dms</_PropertySheetDisplayName>
     <OutDir>$(SolutionDir)bin\$(Configuration)\$(Platform)\</OutDir>
     <IntDir>$(SolutionDir)obj\$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
-    <RunCodeAnalysis>true</RunCodeAnalysis>
+    <RunCodeAnalysis>false</RunCodeAnalysis>
 	<CAExcludePath>c:\SourceData\ext\boost;$(CAExcludePath)</CAExcludePath>
 	<Platforms>x64;x86</Platforms>
+	<!-- /analyze:stacksize raises the C6262 (excessive-stack) warning threshold; it is an
+	     /analyze: sub-option and is only valid while Code Analysis runs. Emit it ONLY when
+	     analysis is on (RunCodeAnalysis=true, e.g. analyze.bat). Normal builds now pass
+	     /analyze- via EnablePREfast=false; a leftover /analyze: option there triggers
+	     warning D9025 and silently re-enables analysis, so keep it out of normal builds. -->
+	<DmsAnalyzeStackOpt Condition="'$(RunCodeAnalysis)' == 'true'">/analyze:stacksize32768 </DmsAnalyzeStackOpt>
   </PropertyGroup>
   <!--
     Configuration-time settings (PlatformToolset, CharacterSet, PreferredToolArchitecture,
@@ -58,7 +64,7 @@
       <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
       <DisableAnalyzeExternal>true</DisableAnalyzeExternal>
       <AnalyzeExternalRuleset>BasicCorrectnessRules.ruleset</AnalyzeExternalRuleset>
-      <AdditionalOptions>/utf-8 /bigobj /analyze:stacksize 32768 /w14388 /w14389 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/utf-8 /bigobj $(DmsAnalyzeStackOpt)/w14388 /w14389 %(AdditionalOptions)</AdditionalOptions>
       <SDLCheck>true</SDLCheck>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
