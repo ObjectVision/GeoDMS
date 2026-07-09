@@ -68,6 +68,8 @@ auto AssignFlags(DijkstraFlag& result, DijkstraFlag extra)
 DijkstraFlag ParseDijkstraString(CharPtr str)
 {
 	DijkstraFlag result = DijkstraFlag(); // start with no flags set
+	
+	std::lock_guard<std::recursive_mutex> spiritLock(GetSpiritGrammarMutex()); // serialize Spirit grammar use (replaces BOOST_SPIRIT_THREADSAFE)
 
 	using boost::spirit::strlit;
 	using boost::spirit::chlit;

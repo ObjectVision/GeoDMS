@@ -64,8 +64,6 @@ Section "GeoDMS Program Folder" ;No components page, name is not important
   File ..\bin\Release\${GeoDmsPlatform}\msvcp140_atomic_wait.dll
   File ..\bin\Release\${GeoDmsPlatform}\msvcp140_codecvt_ids.dll
 
-  File ..\bin\Release\${GeoDmsPlatform}\boost_locale-vc145-mt-x64-1_91.dll
-  File ..\bin\Release\${GeoDmsPlatform}\boost_thread-vc145-mt-x64-1_91.dll
 
   File ..\bin\Release\${GeoDmsPlatform}\fftw3.dll
   File ..\bin\Release\${GeoDmsPlatform}\gdal.dll

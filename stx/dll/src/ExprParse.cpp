@@ -38,6 +38,8 @@ LispRef parseExpr(CharPtr exprBegin, CharPtr exprEnd)
 	StaticMtIncrementalLock<sd_ParseExprReentrantCheck> reentrantLock;
 #endif
 
+	std::lock_guard<std::recursive_mutex> spiritLock(GetSpiritGrammarMutex()); // serialize Spirit grammar use (replaces BOOST_SPIRIT_THREADSAFE)
+	
 	ExprProd prod;
 	expr_grammar<ExprProd> p(prod);
 
@@ -84,6 +86,8 @@ SYNTAX_CALL void annotateExpr(OutStreamBase& outStream, const TreeItem* searchCo
 {
 	assert(IsMetaThread());
 
+	std::lock_guard<std::recursive_mutex> spiritLock(GetSpiritGrammarMutex()); // serialize Spirit grammar use (replaces BOOST_SPIRIT_THREADSAFE)
+	
 	HtmlProd prod(outStream, searchContext, expr);
 	expr_grammar<HtmlProd> p(prod);
 

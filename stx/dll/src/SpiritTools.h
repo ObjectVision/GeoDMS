@@ -18,7 +18,34 @@
 
 #include <boost/spirit/include/classic_symbols.hpp>
 
+#include <mutex>
+
 #pragma warning( disable : 4761 ) // boost/spirit/core/scanner/impl/skipper.ipp(136) has an integral size mismatch in argument.
+
+///////////////////////////////////////////////////////////////////////////////
+//
+//  GetSpiritGrammarMutex
+//
+//  Boost.Spirit Classic's grammar machinery (the per-grammar-type definition helper and the
+//  process-global object-id registry) is not thread-safe. Rather than define
+//  BOOST_SPIRIT_THREADSAFE -- which made Spirit use boost::thread_specific_ptr and pulled in the
+//  boost_thread runtime lib -- ALL Spirit grammar construction and parse() calls in stx are
+//  serialized behind this one process-wide recursive mutex, so parsing is effectively
+//  single-threaded regardless of which worker thread drives a DataBlock/dijkstra parse.
+//
+//  Hold it for the FULL lifetime of any local grammar/rule objects: both their ctor and dtor
+//  touch the shared registry, so declare the lock BEFORE the first Spirit object and let it
+//  outlive the last one. Scope it TIGHTLY around the pure-CPU parse work only -- never across a
+//  DataReadLock/DataWriteLock or a wait on the worker pool, or you can deadlock. It is recursive
+//  so a parse whose semantic action starts another parse on the same thread does not self-deadlock.
+//
+///////////////////////////////////////////////////////////////////////////////
+
+inline std::recursive_mutex& GetSpiritGrammarMutex()
+{
+	static std::recursive_mutex s_mutex;
+	return s_mutex;
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 //

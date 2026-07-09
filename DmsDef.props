@@ -46,7 +46,7 @@
            removes the deprecation from the CRT declarations themselves. -->
       <!-- _SILENCE_CXX17_STRSTREAM_DEPRECATION_WARNING: utl/mySPrintF.h still uses
            std::ostrstream (see its TODO); same pragma-vs-PCH story as above. -->
-      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;_SILENCE_CXX17_STRSTREAM_DEPRECATION_WARNING;BOOST_SPIRIT_USE_OLD_NAMESPACE;BOOST_SPIRIT_THREADSAFE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;_SILENCE_CXX17_STRSTREAM_DEPRECATION_WARNING;BOOST_SPIRIT_USE_OLD_NAMESPACE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ExceptionHandling>Sync</ExceptionHandling>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
       <!-- Projects opt in to a real precompiled header by setting the DmsPchHeader property
@@ -87,7 +87,7 @@
       <SuppressStartupBanner>true</SuppressStartupBanner>
     </Midl>
     <ResourceCompile>
-      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;BOOST_SPIRIT_USE_OLD_NAMESPACE;BOOST_SPIRIT_THREADSAFE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;BOOST_SPIRIT_USE_OLD_NAMESPACE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <Culture>0x0409</Culture>
     </ResourceCompile>
   </ItemDefinitionGroup>

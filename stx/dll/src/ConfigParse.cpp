@@ -239,6 +239,8 @@ TreeItem* ConfigProd::ParseString(CharPtr configString)
 	CharPtr configStringEnd = configString + StrLen(configString);
 	try {
 
+		std::lock_guard<std::recursive_mutex> spiritLock(GetSpiritGrammarMutex()); // serialize Spirit grammar use (replaces BOOST_SPIRIT_THREADSAFE)
+		
 		parse_info_t info
 			=	boost::spirit::parse(
 					iterator_t(configString, configStringEnd, position_t())
@@ -280,6 +282,8 @@ TreeItem* ConfigProd::ParseFile(CharPtr fileName)
 	fv.MapView();
 	try {
 
+		std::lock_guard<std::recursive_mutex> spiritLock(GetSpiritGrammarMutex()); // serialize Spirit grammar use (replaces BOOST_SPIRIT_THREADSAFE)
+		
 		parse_info_t info
 			=	boost::spirit::parse(
 					iterator_t(fv.DataBegin(), fv.DataEnd(), position_t())

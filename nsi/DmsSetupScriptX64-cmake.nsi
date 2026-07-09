@@ -68,8 +68,6 @@ Section "GeoDMS Program Folder"
   File ${CMakeBinDir}\tinyxml2.dll
 
   ; vcpkg third-party DLLs
-  File ${CMakeBinDir}\boost_locale-vc145-mt-x64-1_91.dll
-  File ${CMakeBinDir}\boost_thread-vc145-mt-x64-1_91.dll
   File ${CMakeBinDir}\fftw3.dll
   File ${CMakeBinDir}\gdal.dll
   File ${CMakeBinDir}\tiff.dll

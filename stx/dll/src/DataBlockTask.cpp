@@ -80,6 +80,8 @@ struct DataArrayOperator : TernaryOperator
 
 		DataBlockProd prod(resultAttr, domain->GetCount());
 		try {
+			std::lock_guard<std::recursive_mutex> spiritLock(GetSpiritGrammarMutex()); // serialize Spirit grammar use (replaces BOOST_SPIRIT_THREADSAFE)
+			
 			parse_info_t info
 				=	boost::spirit::parse(
 						iterator_t(dataBlock.begin(), dataBlock.end(), position_t())
