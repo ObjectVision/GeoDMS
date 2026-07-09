@@ -251,11 +251,31 @@ to de-export wholesale; ~946 belong to 118 partially-dead identifiers needing pe
 De-exporting must be driven by the binary import list (header-inclusion heuristics are unsafe
 because of transitive inclusion) and verified by rebuild. Deferred as a dedicated pass.
 
-One more observation, deliberately left as a user decision: `DmsDef.props` sets
-`RunCodeAnalysis=true` + `EnablePREfast=true` for **every** build (Debug and Release), i.e.
-full `/analyze` static analysis on each compile — typically a 1.5–3× compile-time
-multiplier. If analysis-on-every-build is not intentional, moving it to a dedicated
-configuration or CI job is likely the single largest remaining wall-clock lever after PCH.
+### `/analyze` (PREfast) runs on every build — measured 2026-07-09
+
+Confirmed empirically, not just from the props: `obj/Debug/x64/**/*.nativecodeanalysis.xml`
+(418 files, one per TU) are regenerated on **every** Debug build with timestamps matching the
+latest `.obj`s — i.e. the `/analyze` static-analysis pass runs on every compile. It is driven by
+`EnablePREfast=true`, set in **both** `DmsDebug.props:23` and `DmsRelease.props:30`; the base
+`DmsDef.props:8` `RunCodeAnalysis=true` is overridden to `false` only in Debug — but that does
+**not** stop the compile-time `/analyze` pass, it only suppresses surfacing its warnings. Net
+result in Debug: the full analysis cost is paid on every TU while **zero** PREfast warnings reach
+the build output (verified across ~40 build logs: 0 `C6xxx/C26xxx/C28xxx`), even though the pass
+does find defects (they are written to the unread `.xml` files). Debug is thus the worst case —
+full cost, zero visible benefit.
+
+`/analyze` is a second data-flow pass over every function; typical overhead is ~1.5–3× per-TU
+compile time. **Recommendation:**
+1. Turn it **off for routine dev + the `.m/.c/.l` setup builds**: set `EnablePREfast=false` (and
+   keep `RunCodeAnalysis=false`) in Debug and Release. This is the single largest remaining
+   wall-clock lever after PCH.
+2. Preserve the quality signal in a **dedicated pass**, not on every build — a separate "Analyze"
+   configuration or a CI/nightly job invoked with
+   `msbuild all22.sln /p:Configuration=Release /p:EnablePREfast=true /p:RunCodeAnalysis=true`,
+   where `RunCodeAnalysis=true` actually surfaces the warnings so they get triaged (unlike Debug
+   today, which hides them).
+3. Whatever is chosen, fix the Debug inconsistency: either turn analysis off (speed) or set
+   `RunCodeAnalysis=true` there so the findings are visible instead of paying for hidden `.xml`.
 
 A useful follow-up measurement once #1 is in: `msbuild all22.sln ... /p:CL_MPCount /bl` with
 the MSBuild binary log viewer, comparing before/after wall-clock and per-project timelines to
