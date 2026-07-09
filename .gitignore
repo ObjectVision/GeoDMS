@@ -45,3 +45,6 @@ todo*.txt
 # Claude/diagnostic scratch space: cdb dumps, single-test logs, instrumentation output.
 # Keep such files OUT of the repo root -- see CLAUDE.md.
 /scratch/
+
+analyze_*.warnings.log
+analyze.log
