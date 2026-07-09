@@ -178,6 +178,13 @@ public:
 	WeakPtr<RoiTracker> m_Tracker;
 	auto FindBackgroundWmsLayer() -> WmsLayer*;
 
+	// Upper bound on how far this viewport may zoom out (issue #515): the extent of the background
+	// layer when it can be determined (a WMS layer knows its tile-matrix-set coverage), else the
+	// domain of the world coordinate system (the world-crd-unit's range of valid coordinates).
+	// Returns an empty rect when neither is available, meaning 'no cap'. Used by the overview so it
+	// never zooms out past the data (or, for an RD/PDOK basemap, past the NL bounding box).
+	CrdRect CalcMaxWorldRect();
+
 	CmdSignal m_cmdTransformChanged; // fired by DoUpdateView when m_w2vTr changed; observed by chart AxisControls
 
 private:

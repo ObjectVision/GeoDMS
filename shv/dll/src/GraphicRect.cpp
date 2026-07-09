@@ -150,11 +150,32 @@ void GraphicRect::AdjustTargetVieport()
 		wrc = center;
 	}
 	CrdRect trr = Inflate(wrc, wrs*CrdType(2));  // overview ROI: factor 2, not 4 (issue #1107)
-	if (!IsNearlyEqual(tr, trr))
+
+	// issue #515: cap the overview so it never zooms out past the background layer's extent, or - when
+	// that cannot be determined - past the domain of the world coordinate system. Intersecting keeps
+	// the source rect wr covered (wr lies inside the cap) while bounding the zoom-out. We compare tr
+	// against the capped target so that, once clamped, steady state converges (tr == trrTarget) instead
+	// of re-clamping every repaint.
+	CrdRect cap = targetVP->CalcMaxWorldRect();
+	CrdRect trrTarget = trr;
+	if (!cap.empty())
 	{
-		targetVP->SetROI(trr);
+		CrdRect capped = trr & cap;
+		if (!capped.empty())
+			trrTarget = capped;
+	}
+
+	if (!IsNearlyEqual(tr, trrTarget))
+	{
+		targetVP->SetROI(trr); // set the uncapped extent first so the WMS layer selects the matching tile matrix
 		auto wmsLayer = targetVP->FindBackgroundWmsLayer();
 		if (wmsLayer) wmsLayer->ZoomOut(targetVP.get(), true);
+		if (!cap.empty())
+		{
+			CrdRect capped = targetVP->GetROI() & cap; // ZoomOut snaps to a coarser tile level and may overshoot the cap
+			if (!capped.empty())
+				targetVP->SetROI(capped);
+		}
 		UpdateExtents();
 	}
 }
