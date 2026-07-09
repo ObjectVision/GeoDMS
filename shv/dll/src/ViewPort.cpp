@@ -581,6 +581,36 @@ auto ViewPort::FindBackgroundWmsLayer() -> WmsLayer*
 	return FindWmsLayer(ls);
 }
 
+CrdRect ViewPort::CalcMaxWorldRect()
+{
+	// issue #515: the overview must not obtain a scale smaller than what is needed to completely
+	// show the extent of the background layer, or - when that cannot be determined - the domain of
+	// the world coordinate system.
+
+	// 1. extent of the background layer, when determinable. A WMS layer's world-client-rect is the
+	//    union of its tile-matrix-set extents; for an RD/PDOK basemap that is the NL bounding box,
+	//    for a web-mercator/latlong basemap it is that projection's world envelope.
+	if (auto* wms = FindBackgroundWmsLayer())
+	{
+		CrdRect wmsRect = wms->GetCurrWorldClientRect(); // cached union of tile-matrix extents; empty until the TMS loads, then we fall through to (2)
+		if (!wmsRect.inverted() && !wmsRect.empty() && !wmsRect.is_max())
+			return wmsRect;
+	}
+
+	// 2. else: the domain of the world coordinate system, i.e. the range of valid coordinates of the
+	//    world-crd-unit as set by the range function (rdc_meter e.g. carries both a SpatialReference
+	//    and such a range). A default-created world-crd-unit has no range, giving no cap.
+	InitWorldCrdUnit(0);
+	if (m_WorldCrdUnit && m_WorldCrdUnit->HasVarRangeData())
+	{
+		CrdRect crsRect = m_WorldCrdUnit->GetRangeAsDRect();
+		if (!crsRect.inverted() && !crsRect.empty() && !crsRect.is_max())
+			return crsRect;
+	}
+
+	return CrdRect(); // empty (inverted): no determinable cap, keep the uncapped extent
+}
+
 void ViewPort::ZoomIn1()
 {
 	auto layer = FindBackgroundWmsLayer();
