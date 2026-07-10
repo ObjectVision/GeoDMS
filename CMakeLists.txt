@@ -95,7 +95,7 @@ endif()
 find_package(Boost REQUIRED)
 
 # Library projects (dependency order)
-# rtc/dll is the merged runtime-core DLL (rtc + sym + tic); sym/dll and tic/dll are no longer built separately.
+# rtc/dll is the merged runtime-core DLL (rtc + sym + tic); the sym/tic sources live under rtc/dll/src/{sym,tic}.
 add_subdirectory(rtc/dll)
 add_subdirectory(stx/dll)
 add_subdirectory(stg/dll)

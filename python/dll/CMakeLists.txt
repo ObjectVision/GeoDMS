@@ -50,8 +50,8 @@ set_target_properties(geodms PROPERTIES
 target_include_directories(geodms PRIVATE
     ${_py3_inc}
     ${CMAKE_CURRENT_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/sym/dll/src
-    ${CMAKE_SOURCE_DIR}/tic/dll/src
+    ${CMAKE_SOURCE_DIR}/rtc/dll/src/sym
+    ${CMAKE_SOURCE_DIR}/rtc/dll/src/tic
     ${CMAKE_SOURCE_DIR}/rtc/dll/src
     ${CMAKE_SOURCE_DIR}/geo/dll/src
     ${CMAKE_SOURCE_DIR}/clc/dll/include

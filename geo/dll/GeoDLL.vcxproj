@@ -45,7 +45,7 @@
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>../../clc/dll/include;../../rtc/dll/src;../../stx/dll/src;../../tic/dll/src;../../stg/dll/src;../../sym/dll/src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../../clc/dll/include;../../rtc/dll/src;../../stx/dll/src;../../rtc/dll/src/tic;../../stg/dll/src;../../rtc/dll/src/sym;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <AdditionalDependencies>fftw3.lib;%(AdditionalDependencies)</AdditionalDependencies>

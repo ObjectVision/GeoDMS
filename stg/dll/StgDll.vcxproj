@@ -39,7 +39,7 @@
   </ImportGroup>
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>./src;../../sym/dll/src;../../stgimpl/dll/src;../../rtc/dll/src;../../tic/dll/src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>./src;../../rtc/dll/src/sym;../../stgimpl/dll/src;../../rtc/dll/src;../../rtc/dll/src/tic;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <AdditionalDependencies>odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>

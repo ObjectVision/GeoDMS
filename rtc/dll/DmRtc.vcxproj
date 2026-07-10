@@ -44,7 +44,7 @@
   </ImportGroup>
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>./src;../../sym/dll/src;../../tic/dll/src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>./src;src/sym;src/tic;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>DMRTC_EXPORTS;DMSYM_EXPORTS;DMTIC_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link />
@@ -394,346 +394,347 @@
   <ItemGroup>
     <Text Include="CMakeLists.txt" />
   </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="NatvisFile.natvis" />
+    <None Include="cpp.hint" />
+  </ItemGroup>
   <!-- ==== merged-in Sym sources (was DmSym.vcxproj) ==== -->
   <ItemGroup>
-    <ClCompile Include="..\..\sym\dll\src\SymPCH.cpp">
+    <ClCompile Include="src\sym\SymPCH.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
       <PrecompiledHeaderFile>SymPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Sym.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\sym\dll\src\Assoc.cpp">
+    <ClCompile Include="src\sym\Assoc.cpp">
       <PrecompiledHeaderFile>SymPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Sym.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\sym\dll\src\Lispeval.cpp">
+    <ClCompile Include="src\sym\Lispeval.cpp">
       <PrecompiledHeaderFile>SymPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Sym.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\sym\dll\src\LispRef.cpp">
+    <ClCompile Include="src\sym\LispRef.cpp">
       <PrecompiledHeaderFile>SymPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Sym.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\sym\dll\src\Parser.cpp">
+    <ClCompile Include="src\sym\Parser.cpp">
       <PrecompiledHeaderFile>SymPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Sym.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\sym\dll\src\Prolog.cpp">
+    <ClCompile Include="src\sym\Prolog.cpp">
       <PrecompiledHeaderFile>SymPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Sym.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
   </ItemGroup>
   <!-- ==== merged-in Tic sources (was DmTic.vcxproj) ==== -->
   <ItemGroup>
-    <ClCompile Include="..\..\tic\dll\src\TicPCH.cpp">
+    <ClCompile Include="src\tic\TicPCH.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\tic\dll\FileName.cpp">
-      <PrecompiledHeader>NotUsing</PrecompiledHeader>
-    </ClCompile>
-    <ClCompile Include="..\..\tic\dll\src\Aspect.cpp">
+    <ClCompile Include="src\tic\Aspect.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\tic\dll\src\DedicatedAttrs.cpp">
+    <ClCompile Include="src\tic\DedicatedAttrs.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\tic\dll\src\ExprRewrite.cpp">
+    <ClCompile Include="src\tic\ExprRewrite.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\tic\dll\src\IndexGetterCreator.cpp">
+    <ClCompile Include="src\tic\IndexGetterCreator.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\tic\dll\src\ItemLocks.cpp">
+    <ClCompile Include="src\tic\ItemLocks.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\tic\dll\src\LispContextHandle.cpp">
+    <ClCompile Include="src\tic\LispContextHandle.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\tic\dll\src\OperationContext.cpp">
+    <ClCompile Include="src\tic\OperationContext.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\tic\dll\src\SessionData.cpp">
+    <ClCompile Include="src\tic\SessionData.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\tic\dll\src\stg\AbstrStoragemanager.cpp">
+    <ClCompile Include="src\tic\stg\AbstrStoragemanager.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\tic\dll\src\stg\AbstrStreamManager.cpp">
+    <ClCompile Include="src\tic\stg\AbstrStreamManager.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\tic\dll\src\stg\AsmUtil.cpp">
+    <ClCompile Include="src\tic\stg\AsmUtil.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\tic\dll\src\stg\MemoryMappedDataStorageManager.cpp">
+    <ClCompile Include="src\tic\stg\MemoryMappedDataStorageManager.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\tic\dll\src\stg\StorageClass.cpp">
+    <ClCompile Include="src\tic\stg\StorageClass.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\tic\dll\src\stg\StorageInterface.cpp">
+    <ClCompile Include="src\tic\stg\StorageInterface.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\tic\dll\src\AbstrCalculator.cpp">
+    <ClCompile Include="src\tic\AbstrCalculator.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\tic\dll\src\AbstrDataItem.cpp">
+    <ClCompile Include="src\tic\AbstrDataItem.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\tic\dll\src\AbstrDataObject.cpp">
+    <ClCompile Include="src\tic\AbstrDataObject.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\tic\dll\src\AbstrUnit.cpp">
+    <ClCompile Include="src\tic\AbstrUnit.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\tic\dll\src\attr_Interface.cpp">
+    <ClCompile Include="src\tic\attr_Interface.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\tic\dll\src\CopyTreeContext.cpp">
+    <ClCompile Include="src\tic\CopyTreeContext.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\tic\dll\src\DataArray.cpp">
+    <ClCompile Include="src\tic\DataArray.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\tic\dll\src\DataController.cpp">
+    <ClCompile Include="src\tic\DataController.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\tic\dll\src\DataItemClass.cpp">
+    <ClCompile Include="src\tic\DataItemClass.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\tic\dll\src\DataLockContainers.cpp">
+    <ClCompile Include="src\tic\DataLockContainers.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\tic\dll\src\DataLocks.cpp">
+    <ClCompile Include="src\tic\DataLocks.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\tic\dll\src\DataStoreManager.cpp">
+    <ClCompile Include="src\tic\DataStoreManager.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\tic\dll\src\DisplayValue.cpp">
+    <ClCompile Include="src\tic\DisplayValue.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\tic\dll\src\Explain.cpp">
+    <ClCompile Include="src\tic\Explain.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\tic\dll\src\ExtLockMgr.cpp">
+    <ClCompile Include="src\tic\ExtLockMgr.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\tic\dll\src\FreeDataManager.cpp">
+    <ClCompile Include="src\tic\FreeDataManager.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\tic\dll\src\LispTreeType.cpp">
+    <ClCompile Include="src\tic\LispTreeType.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\tic\dll\src\Metric.cpp">
+    <ClCompile Include="src\tic\Metric.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\tic\dll\src\MoreDataControllers.cpp">
+    <ClCompile Include="src\tic\MoreDataControllers.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\tic\dll\src\Operator.cpp">
+    <ClCompile Include="src\tic\Operator.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\tic\dll\src\OperGroups.cpp">
+    <ClCompile Include="src\tic\OperGroups.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\tic\dll\src\Param.cpp">
+    <ClCompile Include="src\tic\Param.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\tic\dll\src\SourceDescr.cpp">
+    <ClCompile Include="src\tic\SourceDescr.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\tic\dll\src\StateChangeNotification.cpp">
+    <ClCompile Include="src\tic\StateChangeNotification.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\tic\dll\src\SupplCache.cpp">
+    <ClCompile Include="src\tic\SupplCache.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\tic\dll\src\TicInterface.cpp">
+    <ClCompile Include="src\tic\TicInterface.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\tic\dll\src\TreeItem.cpp">
+    <ClCompile Include="src\tic\TreeItem.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\tic\dll\src\TreeItemClass.cpp">
+    <ClCompile Include="src\tic\TreeItemClass.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\tic\dll\src\TreeItemContextHandle.cpp">
+    <ClCompile Include="src\tic\TreeItemContextHandle.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\tic\dll\src\TreeItemProps.cpp">
+    <ClCompile Include="src\tic\TreeItemProps.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\tic\dll\src\TreeItemSet.cpp">
+    <ClCompile Include="src\tic\TreeItemSet.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\tic\dll\src\TreeItemUtils.cpp">
+    <ClCompile Include="src\tic\TreeItemUtils.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\tic\dll\src\Unit.cpp">
+    <ClCompile Include="src\tic\Unit.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\tic\dll\src\UnitClass.cpp">
+    <ClCompile Include="src\tic\UnitClass.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\tic\dll\src\UnitCreators.cpp">
+    <ClCompile Include="src\tic\UnitCreators.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\tic\dll\src\UsingCache.cpp">
+    <ClCompile Include="src\tic\UsingCache.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\tic\dll\src\Xml\XmlTreeOut.cpp">
+    <ClCompile Include="src\tic\Xml\XmlTreeOut.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="..\..\tic\dll\src\Xml\XmlTreeParser.cpp">
+    <ClCompile Include="src\tic\Xml\XmlTreeParser.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\sym\dll\src\Assoc.h" />
-    <ClInclude Include="..\..\sym\dll\src\Lispeval.h" />
-    <ClInclude Include="..\..\sym\dll\src\LispList.h" />
-    <ClInclude Include="..\..\sym\dll\src\LispRef.h" />
-    <ClInclude Include="..\..\sym\dll\src\Parser.h" />
-    <ClInclude Include="..\..\sym\dll\src\Prolog.h" />
-    <ClInclude Include="..\..\sym\dll\src\RewriteRules.h" />
-    <ClInclude Include="..\..\sym\dll\src\SymBase.h" />
-    <ClInclude Include="..\..\sym\dll\src\SymInterface.h" />
-    <ClInclude Include="..\..\sym\dll\src\SymPCH.h" />
+    <ClInclude Include="src\sym\Assoc.h" />
+    <ClInclude Include="src\sym\Lispeval.h" />
+    <ClInclude Include="src\sym\LispList.h" />
+    <ClInclude Include="src\sym\LispRef.h" />
+    <ClInclude Include="src\sym\Parser.h" />
+    <ClInclude Include="src\sym\Prolog.h" />
+    <ClInclude Include="src\sym\RewriteRules.h" />
+    <ClInclude Include="src\sym\SymBase.h" />
+    <ClInclude Include="src\sym\SymInterface.h" />
+    <ClInclude Include="src\sym\SymPCH.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\tic\dll\src\aspect.h" />
-    <ClInclude Include="..\..\tic\dll\src\dedicatedattrs.h" />
-    <ClInclude Include="..\..\tic\dll\src\Explain.h" />
-    <ClInclude Include="..\..\tic\dll\src\ExprRewrite.h" />
-    <ClInclude Include="..\..\tic\dll\src\FutureTileArray.h" />
-    <ClInclude Include="..\..\tic\dll\src\IndexGetterCreator.h" />
-    <ClInclude Include="..\..\tic\dll\src\ItemLocks.h" />
-    <ClInclude Include="..\..\tic\dll\src\LispContextHandle.h" />
-    <ClInclude Include="..\..\tic\dll\src\MetaInfo.h" />
-    <ClInclude Include="..\..\tic\dll\src\OperationContext.h" />
-    <ClInclude Include="..\..\tic\dll\src\ParallelTiles.h" />
-    <ClInclude Include="..\..\tic\dll\src\Projection.h" />
-    <ClInclude Include="..\..\tic\dll\src\propfuncs.h" />
-    <ClInclude Include="..\..\tic\dll\src\stg\AbstrStorageManager.h" />
-    <ClInclude Include="..\..\tic\dll\src\stg\AsmUtil.h" />
-    <ClInclude Include="..\..\tic\dll\src\stg\MemoryMappeddataStorageManager.h" />
-    <ClInclude Include="..\..\tic\dll\src\stg\StorageClass.h" />
-    <ClInclude Include="..\..\tic\dll\src\stg\StorageInterface.h" />
-    <ClInclude Include="..\..\tic\dll\src\AbstrCalculator.h" />
-    <ClInclude Include="..\..\tic\dll\src\AbstrDataItem.h" />
-    <ClInclude Include="..\..\tic\dll\src\AbstrDataObject.h" />
-    <ClInclude Include="..\..\tic\dll\src\stg\AbstrStreamManager.h" />
-    <ClInclude Include="..\..\tic\dll\src\AbstrUnit.h" />
-    <ClInclude Include="..\..\tic\dll\src\CheckedDomain.h" />
-    <ClInclude Include="..\..\tic\dll\src\CopyTreeContext.h" />
-    <ClInclude Include="..\..\tic\dll\src\DataArray.h" />
-    <ClInclude Include="..\..\tic\dll\src\DataCheckMode.h" />
-    <ClInclude Include="..\..\tic\dll\src\DataController.h" />
-    <ClInclude Include="..\..\tic\dll\src\DataItemClass.h" />
-    <ClInclude Include="..\..\tic\dll\src\DataLockContainers.h" />
-    <ClInclude Include="..\..\tic\dll\src\DataLocks.h" />
-    <ClInclude Include="..\..\tic\dll\src\datastoremanager.h" />
-    <ClInclude Include="..\..\tic\dll\src\DataStoreManagerCaller.h" />
-    <ClInclude Include="..\..\tic\dll\src\DC_Ptr.h" />
-    <ClInclude Include="..\..\tic\dll\src\DisplayValue.h" />
-    <ClInclude Include="..\..\tic\dll\src\FreeDataManager.h" />
-    <ClInclude Include="..\..\tic\dll\src\ItemUpdate.h" />
-    <ClInclude Include="..\..\tic\dll\src\LispTreeType.h" />
-    <ClInclude Include="..\..\tic\dll\src\Metric.h" />
-    <ClInclude Include="..\..\tic\dll\src\MoreDataControllers.h" />
-    <ClInclude Include="..\..\tic\dll\src\OperArgPolicy.h" />
-    <ClInclude Include="..\..\tic\dll\src\Operator.h" />
-    <ClInclude Include="..\..\tic\dll\src\OperGroups.h" />
-    <ClInclude Include="..\..\tic\dll\src\OperPolicy.h" />
-    <ClInclude Include="..\..\tic\dll\src\Param.h" />
-    <ClInclude Include="..\..\tic\dll\src\SessionData.h" />
-    <ClInclude Include="..\..\tic\dll\src\StateChangeNotification.h" />
-    <ClInclude Include="..\..\tic\dll\src\StoredPropDef.h" />
-    <ClInclude Include="..\..\tic\dll\src\SupplCache.h" />
-    <ClInclude Include="..\..\tic\dll\src\TicBase.h" />
-    <ClInclude Include="..\..\tic\dll\src\TicInterface.h" />
-    <ClInclude Include="..\..\tic\dll\src\TicPCH.h" />
-    <ClInclude Include="..\..\tic\dll\src\TicPropDefConst.h" />
-    <ClInclude Include="..\..\tic\dll\src\TileAccess.h" />
-    <ClInclude Include="..\..\tic\dll\src\TileArrayImpl.h" />
-    <ClInclude Include="..\..\tic\dll\src\tilechannel.h" />
-    <ClInclude Include="..\..\tic\dll\src\TiledRangeData.h" />
-    <ClInclude Include="..\..\tic\dll\src\TiledRangeDataImpl.h" />
-    <ClInclude Include="..\..\tic\dll\src\TiledUnit.h" />
-    <ClInclude Include="..\..\tic\dll\src\TileFunctorImpl.h" />
-    <ClInclude Include="..\..\tic\dll\src\TileIter.h" />
-    <ClInclude Include="..\..\tic\dll\src\TreeItem.h" />
-    <ClInclude Include="..\..\tic\dll\src\TreeItemClass.h" />
-    <ClInclude Include="..\..\tic\dll\src\TreeItemContextHandle.h" />
-    <ClInclude Include="..\..\tic\dll\src\TreeItemDualref.h" />
-    <ClInclude Include="..\..\tic\dll\src\treeitemflags.h" />
-    <ClInclude Include="..\..\tic\dll\src\TreeItemProps.h" />
-    <ClInclude Include="..\..\tic\dll\src\TreeItemSet.h" />
-    <ClInclude Include="..\..\tic\dll\src\treeitemutils.h" />
-    <ClInclude Include="..\..\tic\dll\src\Unit.h" />
-    <ClInclude Include="..\..\tic\dll\src\UnitClass.h" />
-    <ClInclude Include="..\..\tic\dll\src\UnitClassReg.h" />
-    <ClInclude Include="..\..\tic\dll\src\UnitCreators.h" />
-    <ClInclude Include="..\..\tic\dll\src\UnitProcessor.h" />
-    <ClInclude Include="..\..\tic\dll\src\UsingCache.h" />
-    <ClInclude Include="..\..\tic\dll\src\valuefiller.h" />
-    <ClInclude Include="..\..\tic\dll\src\ValueGetter.h" />
-    <ClInclude Include="..\..\tic\dll\src\Xml\XmlTreeOut.h" />
-    <ClInclude Include="..\..\tic\dll\src\Xml\XmlTreeParser.h" />
-    <ClInclude Include="..\..\tic\dll\src\TileLock.h" />
+    <ClInclude Include="src\tic\aspect.h" />
+    <ClInclude Include="src\tic\dedicatedattrs.h" />
+    <ClInclude Include="src\tic\Explain.h" />
+    <ClInclude Include="src\tic\ExprRewrite.h" />
+    <ClInclude Include="src\tic\FutureTileArray.h" />
+    <ClInclude Include="src\tic\IndexGetterCreator.h" />
+    <ClInclude Include="src\tic\ItemLocks.h" />
+    <ClInclude Include="src\tic\LispContextHandle.h" />
+    <ClInclude Include="src\tic\MetaInfo.h" />
+    <ClInclude Include="src\tic\OperationContext.h" />
+    <ClInclude Include="src\tic\ParallelTiles.h" />
+    <ClInclude Include="src\tic\Projection.h" />
+    <ClInclude Include="src\tic\propfuncs.h" />
+    <ClInclude Include="src\tic\stg\AbstrStorageManager.h" />
+    <ClInclude Include="src\tic\stg\AsmUtil.h" />
+    <ClInclude Include="src\tic\stg\MemoryMappeddataStorageManager.h" />
+    <ClInclude Include="src\tic\stg\StorageClass.h" />
+    <ClInclude Include="src\tic\stg\StorageInterface.h" />
+    <ClInclude Include="src\tic\AbstrCalculator.h" />
+    <ClInclude Include="src\tic\AbstrDataItem.h" />
+    <ClInclude Include="src\tic\AbstrDataObject.h" />
+    <ClInclude Include="src\tic\stg\AbstrStreamManager.h" />
+    <ClInclude Include="src\tic\AbstrUnit.h" />
+    <ClInclude Include="src\tic\CheckedDomain.h" />
+    <ClInclude Include="src\tic\CopyTreeContext.h" />
+    <ClInclude Include="src\tic\DataArray.h" />
+    <ClInclude Include="src\tic\DataCheckMode.h" />
+    <ClInclude Include="src\tic\DataController.h" />
+    <ClInclude Include="src\tic\DataItemClass.h" />
+    <ClInclude Include="src\tic\DataLockContainers.h" />
+    <ClInclude Include="src\tic\DataLocks.h" />
+    <ClInclude Include="src\tic\datastoremanager.h" />
+    <ClInclude Include="src\tic\DataStoreManagerCaller.h" />
+    <ClInclude Include="src\tic\DC_Ptr.h" />
+    <ClInclude Include="src\tic\DisplayValue.h" />
+    <ClInclude Include="src\tic\FreeDataManager.h" />
+    <ClInclude Include="src\tic\ItemUpdate.h" />
+    <ClInclude Include="src\tic\LispTreeType.h" />
+    <ClInclude Include="src\tic\Metric.h" />
+    <ClInclude Include="src\tic\MoreDataControllers.h" />
+    <ClInclude Include="src\tic\OperArgPolicy.h" />
+    <ClInclude Include="src\tic\Operator.h" />
+    <ClInclude Include="src\tic\OperGroups.h" />
+    <ClInclude Include="src\tic\OperPolicy.h" />
+    <ClInclude Include="src\tic\Param.h" />
+    <ClInclude Include="src\tic\SessionData.h" />
+    <ClInclude Include="src\tic\StateChangeNotification.h" />
+    <ClInclude Include="src\tic\StoredPropDef.h" />
+    <ClInclude Include="src\tic\SupplCache.h" />
+    <ClInclude Include="src\tic\TicBase.h" />
+    <ClInclude Include="src\tic\TicInterface.h" />
+    <ClInclude Include="src\tic\TicPCH.h" />
+    <ClInclude Include="src\tic\TicPropDefConst.h" />
+    <ClInclude Include="src\tic\TileAccess.h" />
+    <ClInclude Include="src\tic\TileArrayImpl.h" />
+    <ClInclude Include="src\tic\tilechannel.h" />
+    <ClInclude Include="src\tic\TiledRangeData.h" />
+    <ClInclude Include="src\tic\TiledRangeDataImpl.h" />
+    <ClInclude Include="src\tic\TiledUnit.h" />
+    <ClInclude Include="src\tic\TileFunctorImpl.h" />
+    <ClInclude Include="src\tic\TileIter.h" />
+    <ClInclude Include="src\tic\TreeItem.h" />
+    <ClInclude Include="src\tic\TreeItemClass.h" />
+    <ClInclude Include="src\tic\TreeItemContextHandle.h" />
+    <ClInclude Include="src\tic\TreeItemDualref.h" />
+    <ClInclude Include="src\tic\treeitemflags.h" />
+    <ClInclude Include="src\tic\TreeItemProps.h" />
+    <ClInclude Include="src\tic\TreeItemSet.h" />
+    <ClInclude Include="src\tic\treeitemutils.h" />
+    <ClInclude Include="src\tic\Unit.h" />
+    <ClInclude Include="src\tic\UnitClass.h" />
+    <ClInclude Include="src\tic\UnitClassReg.h" />
+    <ClInclude Include="src\tic\UnitCreators.h" />
+    <ClInclude Include="src\tic\UnitProcessor.h" />
+    <ClInclude Include="src\tic\UsingCache.h" />
+    <ClInclude Include="src\tic\valuefiller.h" />
+    <ClInclude Include="src\tic\ValueGetter.h" />
+    <ClInclude Include="src\tic\Xml\XmlTreeOut.h" />
+    <ClInclude Include="src\tic\Xml\XmlTreeParser.h" />
+    <ClInclude Include="src\tic\TileLock.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

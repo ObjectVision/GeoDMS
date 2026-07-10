@@ -20,10 +20,6 @@ todo*.txt
 /build/
 /rtc/dll/bin
 /rtc/dll/obj
-/sym/dll/bin
-/sym/dll/obj
-/tic/dll/obj
-/tic/dll/bin
 /shv/dll/bin
 /shv/dll/obj
 /clc/dll/bin

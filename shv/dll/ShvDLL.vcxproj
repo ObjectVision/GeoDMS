@@ -59,7 +59,7 @@
   </ImportGroup>
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>./src;../../rtc/dll/src;../../sym/dll/src;../../tic/dll/src;../../stgimpl/dll/src;../../stg/dll/src;../../clc/dll/include;../../geo/dll/src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>./src;../../rtc/dll/src;../../rtc/dll/src/sym;../../rtc/dll/src/tic;../../stgimpl/dll/src;../../stg/dll/src;../../clc/dll/include;../../geo/dll/src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>SHVDLL_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <CustomBuildStep>

@@ -26,7 +26,7 @@ into `bin\Release\x64`.
   Build the solution **`all22.sln`**, or run
   `batch\BuildSignAndCreateSetup.bat` (or `Build.bat` at the repo root to do all three
   flavors m/c/l in sequence). Do **not** build individual `*.vcxproj` projects standalone
-  (e.g. `DmTic.vcxproj`, `DmRtc.vcxproj`). A standalone project build makes `$(SolutionDir)`
+  (e.g. `DmRtc.vcxproj`, `Clc.vcxproj`). A standalone project build makes `$(SolutionDir)`
   resolve to that module's `dll\` folder, which scatters `vcpkg_installed`, `vc_archives`, and
   `vc_downloads` into the module folder (this is what contaminated `rtc\dll`). All vcpkg
   caches must stay at the **repo root**.
