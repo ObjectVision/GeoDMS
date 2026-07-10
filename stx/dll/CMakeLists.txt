@@ -12,6 +12,8 @@ target_include_directories(DmStx
 
 target_compile_definitions(DmStx PRIVATE DMSTX_EXPORTS)
 
-find_package(Boost REQUIRED COMPONENTS thread)
+# Spirit parsing is header-only and serialized via GetSpiritGrammarMutex() -> no boost_thread.
+# Boost headers come transitively from DmRtc's PUBLIC Boost::boost (header-only umbrella),
+# so DmStx needs no boost find_package / link of its own. (Was: COMPONENTS thread + Boost::thread,
+# a leftover from before boost_thread was eliminated -- it also broke narrowing the boost manifest.)
 target_link_libraries(DmStx PUBLIC DmRtc)
-target_link_libraries(DmStx PRIVATE Boost::thread)

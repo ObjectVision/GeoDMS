@@ -7,7 +7,7 @@
 @REM after this call.
 
 set DMS_VERSION_MAJOR=20
-set DMS_VERSION_MINOR=7
+set DMS_VERSION_MINOR=8
 set DMS_VERSION_PATCH=0
 
 REM Refresh the generated version + buildstamp headers -- but only ONCE per
