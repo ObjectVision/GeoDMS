@@ -4,12 +4,13 @@
 .vs
 *.user
 *.log
+*.aps
+UpgradeLog*.htm
 build*.ps1
 Thumbs.db
 /filelist*.txt
 todo*.txt
 /msbuild_linux/obj
-/rtc/dll/obj
 /vcpkg_installed
 /vc_archives
 /vc_downloads
