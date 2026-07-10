@@ -14,6 +14,8 @@
 #include "geo/IterTraits.h"
 #include "utl/swap.h"
 
+#include <cstring> // memcpy / memmove / memset used below: self-sufficient include (MSVC provides these transitively, GCC/libstdc++ does not)
+
 #define MG_DEBUG_RANGEFUNCS
 
 template <typename T>
