@@ -15,7 +15,8 @@ REM
 REM Prereqs:
 REM   - WSL2 with Ubuntu 24.04 (or similar) installed
 REM   - cmake, ninja, gcc-13, vcpkg available inside WSL
-REM   - Linux build tree: build/linux-x64-release/  (configured separately)
+REM   - Linux build tree build/linux-x64-release/ is auto-configured on first run
+REM     (cmake --preset linux-x64-release) if its CMakeCache.txt is absent
 REM   - dpkg-deb available in WSL (for .deb creation)
 REM
 REM Run from the repo root:  <repo-root>>BuildSignAndCreateSetupLinux.bat
@@ -45,6 +46,20 @@ REM binary. cmake exits 0 even when the dep tracker decided nothing needed
 REM rebuilding -- which silently ships stale binaries inside the .deb.
 REM -5s fudge to absorb any clock skew between WSL filesystem and Windows.
 for /f "delims=" %%T in ('powershell -NoProfile -Command "[DateTime]::Now.AddSeconds(-5).ToString('o')"') do set BUILD_GATE_TIME=%%T
+
+REM Configure the Linux build tree if it isn't configured yet (mirrors the
+REM windows-x64-release configure guard in BuildSignAndCreateSetupCmake.bat). Without
+REM this, a fresh checkout or a wiped build/ makes `cmake --build` fail cryptically with
+REM "build/linux-x64-release is not a directory". The committed preset
+REM (CMakePresets.json > linux-x64-release) sets Ninja + Release + triplet x64-linux + the
+REM in-repo ./vcpkg toolchain (tools/vcpkg-toolchain.cmake); no extra -D flags are needed
+REM (the Windows preset's VCPKG_INSTALLED_DIR / Qt CMAKE_PREFIX_PATH overrides are
+REM Windows-only). The FIRST configure triggers a full vcpkg install of the Linux deps --
+REM long unless vc_archives already holds matching gcc entries (shared via
+REM VCPKG_BINARY_SOURCES, same as the build + package steps).
+echo --- configuring linux-x64-release (skipped if already configured) ---
+wsl bash -c "export VCPKG_BINARY_SOURCES='clear;files,%geodms_wsldir%/vc_archives,readwrite' && cd %geodms_wsldir% && if [ ! -f build/linux-x64-release/CMakeCache.txt ]; then cmake --preset linux-x64-release; fi"
+if errorlevel 1 goto :build_failed
 
 echo --- building linux-x64-release in WSL ---
 REM Share the vc_archives binary cache with the msbuild (.m) and cmake (.c)
