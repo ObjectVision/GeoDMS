@@ -18,6 +18,8 @@
 #include "ser/AsString.h"
 #include "set/VectorFunc.h"
 
+#include <cstring> // std::memcpy (self-sufficient; MSVC provides it transitively, GCC/libstdc++ does not)
+
 #include "CheckedDomain.h"
 #include "DataArray.h"
 #include "DataItemClass.h"

@@ -12,6 +12,8 @@
 #include "set/Token.h"
 #include "utl/noncopyable.h"
 
+#include <cstring> // strcmp (self-sufficient; MSVC provides it transitively, GCC/libstdc++ does not)
+
 template <typename ItemType>
 struct CompareLtItemIdPtrs
 {
