@@ -8,6 +8,8 @@
 #pragma hdrstop
 #endif //defined(CC_PRAGMAHDRSTOP)
 
+#include <boost/config/helper_macros.hpp> // BOOST_STRINGIZE (needed by MSVC and GCC; boost/format no longer provides it transitively)
+
 #include "ser/FormattedStream.h"
 #include "ser/MoreStreamBuff.h"
 #include "utl/Environment.h"

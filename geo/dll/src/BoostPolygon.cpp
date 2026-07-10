@@ -6,8 +6,9 @@
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#include <boost/config/helper_macros.hpp> // BOOST_STRINGIZE; was transitively provided by boost/format via the prelude
 #endif
+
+#include <boost/config/helper_macros.hpp> // BOOST_STRINGIZE (needed by MSVC and GCC; boost/format no longer provides it transitively)
 
 #include <numbers>
 
