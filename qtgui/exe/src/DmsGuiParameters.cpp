@@ -31,7 +31,23 @@ const char* dms_params::reg_key_LastConfigFile = "LastConfigFile";
 const char* dms_params::reg_key_RecentFiles = "RecentFiles";
 
 // stylesheets
-const char* dms_params::stylesheet_main_window = "QMainWindow::separator{ width: 5px; height: 5px; }";
+
+// The TreeView, DetailPages, EventLog and ValueInfo docks are all children of
+// the same QMainWindow, so every resize "slider" between them is a QMainWindow
+// separator. Qt derives the separator's geometry, its drawn strip and its mouse
+// hit-region from one value (QStyle::PM_DockWidgetSeparatorExtent, exposed to
+// the stylesheet as the ::separator width/height), so the clickable area and the
+// visible gap are the same rectangle: widening the grab necessarily widens the
+// gap by the same amount (see issue #1151).
+//
+// We widen it from 5px to 8px so the split cursor snaps a little earlier and the
+// handle is easier to grab, keep the strip transparent so it adds no extra ink
+// of its own, and light it up on hover so the (now wider) grab band is
+// discoverable. To retune, change both 8px values (width for the vertical
+// TreeView/DetailPages separators, height for the horizontal EventLog one).
+const char* dms_params::stylesheet_main_window =
+    "QMainWindow::separator { background: transparent; width: 8px; height: 8px; }\n"
+    "QMainWindow::separator:hover { background: rgba(128, 128, 128, 96); }\n";
 const char* dms_params::stylesheet_treeitem_visit_history = "QComboBox QAbstractItemView {\n"
 "min-width:400px;"
 "}\n"
