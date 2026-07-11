@@ -1171,11 +1171,29 @@ void geoDMSContextMessage(ClientHandle clientHandle, CharPtr msg) {
 bool MainWindow::CloseConfig() {
     TreeItem_SetAnalysisSource(nullptr); // clears all code-analysis coding
 
-    // close all dms views
+    // Close AND destroy all dms views and value-info windows BEFORE the EnableAutoDelete()
+    // drain below. These are WA_DeleteOnClose widgets whose destructors release the item
+    // interest they hold (DataView themes/columns, value-info study objects) — and each
+    // of-interest item holds a share of s_SessionUsageCounter, which the drain waits on.
+    // close() alone only schedules a DEFERRED delete; on the app-exit path CloseConfig runs
+    // after the event loop ended, so nothing would ever process those deletions and the drain
+    // deadlocks. (Seen hanging the Linux GUI unit tests; on Windows the native DmsView HWND
+    // teardown happened to release the DataView early, masking the ordering.) Deleting the
+    // closed widgets synchronously makes teardown deterministic on both platforms; a pending
+    // deleteLater for them is purged by ~QObject.
     bool has_active_dms_views = false;
     if (m_mdi_area) {
-        has_active_dms_views = m_mdi_area->subWindowList().size();
-        m_mdi_area->closeAllSubWindows();
+        const auto subWindows = m_mdi_area->subWindowList();
+        has_active_dms_views = subWindows.size();
+        for (auto* subWindow : subWindows)
+            if (subWindow->close())
+                delete subWindow;
+    }
+    const auto direct_children = this->findChildren<QWidget*>(Qt::FindDirectChildrenOnly);
+    for (auto* widget : direct_children) {
+        if (dynamic_cast<ValueInfoWindow*>(widget))
+            if (widget->close())
+                delete widget;
     }
 
     CancelMainThreadTasks();
@@ -1201,12 +1219,6 @@ bool MainWindow::CloseConfig() {
         m_current_item = nullptr;
     }
 
-    // close all active value info windows
-    QList<QWidget*> value_info_windows = this->findChildren<QWidget*>(Qt::FindDirectChildrenOnly);
-    for (auto* widget : value_info_windows) {
-        if (dynamic_cast<ValueInfoWindow*>(widget))
-            widget->close();
-    }
     SessionData::ReleaseCurr();
     scheduleUpdateToolbar();
     return has_active_dms_views;
