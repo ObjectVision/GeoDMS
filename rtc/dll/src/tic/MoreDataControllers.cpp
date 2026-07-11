@@ -1039,7 +1039,16 @@ auto SymbDC::CallCalcResult(std::shared_ptr<Explain::Context> context) const -> 
 		dms_assert(SuspendTrigger::DidSuspend() || curr->WasFailed());
 		return nullptr;
 	}
-	dms_assert(CheckCalculatingOrReady(curr->GetCurrRangeItem().get()));
+
+	if (!CheckCalculatingOrReady(curr->GetCurrRangeItem().get()))
+	{
+		// #1152: PrepareDataUsage returned true without making curr calculating-or-ready and without
+		// failing it; enforce the postcondition here so consumers (GetArgs) see a failed DC instead
+		// of running an operator on an argument without data. Fail only this DC, not the referent.
+		if (!WasFailed(FailType::Data))
+			Fail(mySSPrintF("no data available for {}", curr->GetFullName()), FailType::Data);
+		return nullptr;
+	}
 
 	dms_assert(!SuspendTrigger::DidSuspend());
 	return resultHolder;

@@ -3883,11 +3883,23 @@ static how_to_proceed PrepareDataRead(std::shared_ptr<const TreeItem> self, cons
 	if (SuspendTrigger::DidSuspend())
 		return how_to_proceed::suspended;
 
-	dms_assert(CheckCalculatingOrReady(refItem));
+	if (!CheckCalculatingOrReady(refItem))
+	{
+		// #1152: no read was scheduled; a mappable storage manager (.mmd) serves data items by file
+		// mapping in PrepareDataUsageImpl and unit ranges from the dictionary's Range subtag, so
+		// reaching this point means the storage holds no primary data for this item, e.g. a
+		// half-written .mmd whose dictionary lacks this unit's Range and that has no data folder for
+		// it. Fail rather than report readiness: PrepareDataUsage's contract is that a true return
+		// leaves the item calculating-or-ready or failed, and from a not-ready, not-failed state every
+		// consumer breaks (ItemReadLock's WasFailed check, operators dereferencing GetTiledRangeData()).
+		self->Fail(mySSPrintF("no primary data found in storage {} for {}"
+			, sm->GetNameStr(), refItem->GetFullName()), FailType::Data);
+		return how_to_proceed::failed;
+	}
 	return how_to_proceed::data_ready;
 }
 
-bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const 
+bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 // returns false when 
 //	- failed without data or 
 //	- suspendend or 

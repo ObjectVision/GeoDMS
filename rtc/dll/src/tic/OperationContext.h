@@ -49,6 +49,7 @@ Diagnostics:
 #include "ItemLocks.h"
 #include "MoreDataControllers.h"
 
+#include <expected>
 #include <optional>
 
 class NonmappableStorageManager; // #933
@@ -284,11 +285,13 @@ public:
 
 	// SetReadLocks
 	// Acquire read locks for all suppliers as needed for consistent reads.
-	std::vector<ItemReadLock> SetReadLocks(const FutureSuppliers& allInterests);
+	// #1152: returns the (possibly empty) locks on success, or the reason why the dependent
+	// operation must not run; an empty lock set is a valid success value, not a failure signal.
+	[[nodiscard]] auto SetReadLocks(const FutureSuppliers& allInterests) -> std::expected<std::vector<ItemReadLock>, ErrMsgPtr>;
 
 	// SetReadLock
 	// Helper to insert a single read lock for 'si' into 'locks'.
-	bool SetReadLock(std::vector<ItemReadLock>& locks, const TreeItem* si);
+	[[nodiscard]] auto SetReadLock(std::vector<ItemReadLock>& locks, const TreeItem* si) -> std::expected<void, ErrMsgPtr>;
 
 	// MustCalcArg
 	// Query operator policy to decide if argument 'i' must be (re)calculated based on policy and firstArgValue.

@@ -1788,17 +1788,21 @@ bool OperationContext::HandleFail(const TreeItem* item)
 	return true;
 }
 
-// Try to set a read lock for a supplier 'si'. On failure or cancellation,
-// transitions state appropriately and/or propagates failure.
-bool OperationContext::SetReadLock(std::vector<ItemReadLock>& locks, const TreeItem* si) 
+// Try to set a read lock for a supplier 'si'. On failure, returns the reason why the dependent
+// operation must not run (#1152); cancellation propagates as task_canceled.
+auto OperationContext::SetReadLock(std::vector<ItemReadLock>& locks, const TreeItem* si) -> std::expected<void, ErrMsgPtr>
 {
 	assert(m_PhaseNumber >= si->GetCurrPhaseNumber());
 
 	assert(si);
 	assert(si->HasInterest());
 
-	assert(IsCalculatingOrReady(si));
-
+	if (!IsCalculatingOrReady(si) && !si->WasFailed())
+		// #1152: was assert(IsCalculatingOrReady(si)); enforce it: an ItemReadLock on a not-ready,
+		// not-failed item cannot wait for anything and has no failure to rethrow.
+		return std::unexpected(std::make_shared<ErrMsg>(mySSPrintF(
+			"{} is neither calculating nor ready nor failed; no read lock can be set on it"
+			, si->GetFullName())));
 
 	try {
 		locks.emplace_back(si);
@@ -1810,16 +1814,16 @@ bool OperationContext::SetReadLock(std::vector<ItemReadLock>& locks, const TreeI
 	}
 	catch (...)
 	{
-		auto hasError = HandleFail(si);
-		assert(hasError);
-		return false;
+		HandleFail(si); // copies a real failure of si to m_Result; no-op if si isn't failed
+		return std::unexpected(catchException(true));
 	}
-	return true;
+	return {};
 }
 
 // Acquire read locks for all suppliers declared in allInterests.
-// Returns empty on failure or cancellation.
-std::vector<ItemReadLock> OperationContext::SetReadLocks(const FutureSuppliers& allInterests)
+// #1152: returns the (possibly empty) locks on success, or the reason why the dependent
+// operation must not run; an empty lock set is a valid success value, not a failure signal.
+auto OperationContext::SetReadLocks(const FutureSuppliers& allInterests) -> std::expected<std::vector<ItemReadLock>, ErrMsgPtr>
 {
 	std::vector<ItemReadLock> locks; locks.reserve(allInterests.size());
 
@@ -1832,14 +1836,18 @@ std::vector<ItemReadLock> OperationContext::SetReadLocks(const FutureSuppliers& 
 		auto supplierCurr = futureSupplier->GetCurr(); // can be reference to default unit
 		assert(supplierCurr);
 		if (!supplierCurr)
-			throwTaskCanceled(); // supplier's result died between scheduling and execution; an empty return would look like success and run the operator without read locks
+			throwTaskCanceled(); // supplier's result died between scheduling and execution; ending this task by cancellation, not by failing the DC
 		auto supplierRangeItem = supplierCurr->GetCurrRangeItem();
 		if (HandleFail(supplierRangeItem.get()))
-			return{};
+		{
+			if (supplierRangeItem->WasFailed())
+				return std::unexpected(supplierRangeItem->GetFailReason());
+			return std::unexpected(std::make_shared<ErrMsg>("the operation was already marked as failed or cancelled"));
+		}
 
-		if (!SetReadLock(locks, supplierRangeItem.get()))
-			return {};
-
+		auto lockResult = SetReadLock(locks, supplierRangeItem.get());
+		if (!lockResult)
+			return std::unexpected(std::move(lockResult).error());
 	}
 	return locks;
 }
@@ -1968,13 +1976,41 @@ struct OC_CalcResultFunc {
 
 		if (!failureProcessor())
 		{
+			// #1152: a SharedTreeItem-armed argument gets no read lock and no supplier join (only
+			// FutureData args are collected into allInterests), so enforce here that any such argument
+			// whose policy requires calculated data is calculating-or-ready (or failed) before the
+			// operator runs; a violation would otherwise surface as a crash inside the operator
+			// (e.g. on a null GetTiledRangeData()).
+			if (!funcDC->m_OperatorGroup->HasDynamicArgPolicies())
+			{
+				arg_index argNr = 0;
+				for (const auto& argRef : argRefs)
+				{
+					if (argRef.index() == 1 && funcDC->MustCalcArg(argNr, true, nullptr))
+						if (const auto& argItem = std::get<SharedTreeItem>(argRef))
+							if (auto argRangeItem = argItem->GetCurrRangeItem(); argRangeItem && !argRangeItem->WasFailed() && !IsCalculatingOrReady(argRangeItem.get()))
+							{
+								funcDC->Fail(mySSPrintF("argument {} of operator {}: {} is neither calculating nor ready nor failed"
+									, argNr + 1, funcDC->m_OperatorGroup->GetName(), argRangeItem->GetFullName()), FailType::Data);
+								return;
+							}
+					++argNr;
+				}
+			}
 
 			// Acquire read locks for suppliers and stop suppl interest on the FuncDC.
 			auto readLocks = self->SetReadLocks(allInterests);
 			allInterests.clear();
+			if (!readLocks)
+			{
+				// #1152: fail only the DC (TreeItemDualRef::DoFail forwards to its own cache result
+				// when it has one); never the supplier item.
+				funcDC->DoFailCaller(readLocks.error(), FailType::Data);
+				return;
+			}
 
 			funcDC->StopSupplInterest();
-			self->RunOperator(std::move(argRefs), std::move(readLocks), context); // RunImpl() may destroy this and make m_FuncDC inaccessible // CONTEXT
+			self->RunOperator(std::move(argRefs), std::move(*readLocks), context); // RunImpl() may destroy this and make m_FuncDC inaccessible // CONTEXT
 			argRefs.clear();
 
 			failureProcessor();
