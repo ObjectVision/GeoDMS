@@ -3,8 +3,11 @@ setlocal
 
 REM BuildSignAndCreateSetupLinux.bat
 REM Builds the linux (l) flavor of GeoDMS via WSL2 (CMake), then runs
-REM nsi/CreateLinuxSetup.sh to package + sign, then optionally installs the
-REM .deb via dpkg inside WSL so it can be tested via:
+REM nsi/CreateLinuxSetup.sh to package + sign (that script stages ONCE on the
+REM WSL-native fs, builds .deb and .tar.gz from the same tree, and FAILS if
+REM their payloads diverge or a critical runtime file -- e.g. the profiler/
+REM sampler scripts the .l regression needs -- is missing), then optionally
+REM installs the .deb via dpkg inside WSL so it can be tested via:
 REM    python full.py -version <ver>l
 REM (the linux flavor of full.py invokes the binary via `wsl --` — see
 REM the linux-handling extension in full.py's _resolve_local_build).

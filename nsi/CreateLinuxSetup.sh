@@ -1,11 +1,19 @@
 #!/usr/bin/env bash
 # CreateLinuxSetup.sh
-# Creates a distributable package for GeoDMS Linux x64 from the CMake release build.
+# Creates the distributable packages for GeoDMS Linux x64 from the CMake release build.
 # Source: build/linux-x64-release/bin  (relative to repo root)
-# Output: distr/GeoDms<version>-linux-x64.tar.gz          (tarball)
-#         distr/GeoDms<version>-linux-x64.tar.gz.sha256   (checksum)
-#         distr/GeoDms<version>-linux-x64.tar.gz.p7s      (CMS/PKCS#7 signature, if cert present)
-#         distr/GeoDms<version>-linux-x64.deb             (if dpkg-deb is available)
+# Output: distr/GeoDms<version>.<flavor>-linux-x64.tar.gz          (tarball)
+#         distr/GeoDms<version>.<flavor>-linux-x64.tar.gz.sha256   (checksum)
+#         distr/GeoDms<version>.<flavor>-linux-x64.tar.gz.sha256.p7s (CMS/PKCS#7 signature, if cert present)
+#         distr/GeoDms<version>.<flavor>-linux-x64.deb             (if dpkg-deb is available)
+#
+# The .deb and the .tar.gz are assembled from ONE staged tree in the same run
+# and carry the identical install payload under /opt/ObjectVision/GeoDms<ver>.<flavor>/;
+# a verification step diffs the two file lists and asserts the critical runtime
+# files are present, failing the build otherwise. The only intended difference:
+# the tarball additionally contains <pkg>/VERIFY.md (signature-verification
+# instructions -- meaningful next to the tarball, pointless inside the .deb,
+# which used to install it as /VERIFY.md at the filesystem root).
 #
 # Usage (from repo root or nsi/ directory):
 #   export GeoDmsVersion=19.5.0
@@ -52,7 +60,6 @@ GeoDmsFlavor="${GeoDmsFlavor:-l}"
 SRC="${REPO_ROOT}/build/linux-x64-release/bin"
 DISTR="${REPO_ROOT}/distr"
 PKG_NAME="GeoDms${GeoDmsVersion}.${GeoDmsFlavor}-linux-x64"
-STAGE="${DISTR}/${PKG_NAME}"
 INSTALL_PREFIX="/opt/ObjectVision/GeoDms${GeoDmsVersion}.${GeoDmsFlavor}"
 
 # Signing — Object Vision GlobalSign EV Code Signing certificate
@@ -61,8 +68,11 @@ INSTALL_PREFIX="/opt/ObjectVision/GeoDms${GeoDmsVersion}.${GeoDmsFlavor}"
 # token through the Windows CNG/CSP layer — no key export required.
 #
 # Override the certificate thumbprint via GEODMS_SIGN_THUMBPRINT, or set it
-# to the empty string to skip signing.
-SIGN_THUMBPRINT="${GEODMS_SIGN_THUMBPRINT:-E6E0FE67472C3A0DB879E19F8C797DB61645D9DE}"
+# to the empty string to skip signing. Note the colon-less ${VAR-default}:
+# with ${VAR:-default} an exported-but-EMPTY value would fall back to the
+# default thumbprint too, making the documented opt-out drive the SafeNet
+# token (and pop its PIN dialog) anyway.
+SIGN_THUMBPRINT="${GEODMS_SIGN_THUMBPRINT-E6E0FE67472C3A0DB879E19F8C797DB61645D9DE}"
 
 # NOTE: the GlobalSign Code Signing Root R45 is NOT distributed with the release.
 # Recipients must fetch it independently from GlobalSign to prevent a compromised
@@ -78,14 +88,34 @@ fi
 mkdir -p "${DISTR}"
 
 # ---------------------------------------------------------------------------
-# Stage files
+# Single authoritative staging tree — on the WSL-NATIVE filesystem.
+#
+# Both the .tar.gz and the .deb are assembled from THIS one tree, in this one
+# run, and verified against each other below. Rationale (the 20.7.0 profiler/
+# incident): the tree used to be staged under distr/ on the Windows drvfs
+# mount (/mnt/c) and the .deb was then built from a SECOND, later copy of it
+# (cp -a into /tmp — needed because chmod does not work on drvfs). Under
+# heavy IO load the 9p/drvfs layer can return truncated directory listings
+# WITHOUT reporting an error, so that second copy silently dropped the whole
+# profiler/ dir from the .deb while the tarball — created minutes earlier,
+# before the load — was complete. Every .l regression test then failed with
+# return_code 127 because <install>/profiler/run_with_sampler.sh was missing.
+# Staging natively removes the second lossy hop (dpkg-deb builds directly
+# from the stage), and the verify step fails the build if the two payloads
+# ever diverge or a critical file is missing.
 # ---------------------------------------------------------------------------
+PKG_TMP=$(mktemp -d /tmp/geodms-pkg-XXXXXX)
+trap 'rm -rf "${PKG_TMP}"' EXIT
+STAGE="${PKG_TMP}/${PKG_NAME}"
+DST="${STAGE}${INSTALL_PREFIX}"
+
+# Older script versions staged under distr/<pkg-name>/ on the Windows mount.
+# Remove any leftover so a stale tree cannot be mistaken for the content of
+# the current packages (the tarball itself is the inspectable stage now).
+rm -rf "${DISTR:?}/${PKG_NAME}"
 
 echo "Staging files to ${STAGE}..."
-rm -rf "${STAGE}"
-mkdir -p "${STAGE}${INSTALL_PREFIX}"
-
-DST="${STAGE}${INSTALL_PREFIX}"
+mkdir -p "${DST}"
 
 # Executables
 install -m 755 "${SRC}/GeoDmsGuiQt"   "${DST}/"
@@ -114,34 +144,42 @@ for _lib in ${_qt_libs}; do
     fi
 done
 
-# Scripts
+# Runtime scripts. NOTE: the root-level profiler.py / regression.py that the
+# WINDOWS installer ships (DmsSetupScript.nsh; the Windows test-harness entry
+# points read <install>/profiler.py) are deliberately NOT packaged here: the
+# linux flavor of the tst harness (full.py) always uses its own bundled copies
+# of the report scripts, and nothing else reads them from the install prefix.
 install -m 644 "${SRC}/RewriteExpr.lsp" "${DST}/"
-[[ -f "${SRC}/profiler.py"   ]] && install -m 644 "${SRC}/profiler.py"   "${DST}/"
-[[ -f "${SRC}/regression.py" ]] && install -m 644 "${SRC}/regression.py" "${DST}/"
 
 # Linux-side performance sampler (issue #1104). When the Windows-side
 # profiler.py spots a `wsl --` invocation it splices run_with_sampler.sh
 # in front of the GeoDmsRun command; the wrapper then forks
 # linux_sampler.py against the exact GeoDmsRun PID so the Bokeh series
 # show real CPU/memory/IO from inside the WSL VM instead of zeros.
+# These two files are REQUIRED by the .l regression harness — their absence
+# from the installed .deb is exactly what broke every 20.7.0.l test (rc=127).
 PROFILER_SRC="${REPO_ROOT}/profiler"
-mkdir -p "${DST}/profiler"
-if [[ -f "${PROFILER_SRC}/run_with_sampler.sh" ]]; then
-    install -m 755 "${PROFILER_SRC}/run_with_sampler.sh" "${DST}/profiler/"
-fi
-if [[ -f "${PROFILER_SRC}/linux_sampler.py" ]]; then
-    install -m 755 "${PROFILER_SRC}/linux_sampler.py" "${DST}/profiler/"
-fi
+install -m 755 -D "${PROFILER_SRC}/run_with_sampler.sh" "${DST}/profiler/run_with_sampler.sh"
+install -m 755 -D "${PROFILER_SRC}/linux_sampler.py"    "${DST}/profiler/linux_sampler.py"
 
-# Geographic data
+# Geographic data — required at runtime by GDAL and PROJ.
 cp -r "${SRC}/gdaldata"   "${DST}/"
 cp -r "${SRC}/proj4data"  "${DST}/"
+# The vcpkg share/ trees these are deployed from carry CMake package-config
+# machinery (top-level *.cmake plus whole helper dirs like gdaldata/3.20/,
+# packages/, thirdparty/); build-system metadata, never read at runtime —
+# drop it by pattern and sweep the then-empty dirs.
+find "${DST}/gdaldata" "${DST}/proj4data" -type f \
+     \( -name '*.cmake' -o -name '*.cmake.in' -o -name '*.props.in' \) -delete
+find "${DST}/gdaldata" "${DST}/proj4data" -type d -empty -delete
 
-# DMS library scripts and examples
+# DMS library scripts (referenced by user configurations at runtime) and the
+# two tiny demo configurations in examples/ (end-user content, also shipped
+# by the Windows installer — kept for flavor parity, ~8 KiB).
 cp -r "${SRC}/library"    "${DST}/"
 cp -r "${SRC}/examples"   "${DST}/"
 
-# Fonts
+# Fonts (misc/fonts/dms*.ttf — used by the GUI renderer)
 cp -r "${SRC}/misc"       "${DST}/"
 
 # Qt plugins
@@ -212,18 +250,168 @@ Categories=Science;Education;
 EOF
 
 # ---------------------------------------------------------------------------
-# Verification instructions — shipped inside the tarball
+# Normalize permissions. The sources live on the Windows drvfs mount, where
+# every file reports mode 0777; the cp -r'd trees (gdaldata, library, plugins,
+# ...) inherit that, which used to make the whole dpkg -i result world-
+# writable. The stage is on ext4 here, so chmod actually sticks.
+# ---------------------------------------------------------------------------
+find "${STAGE}" -type d -exec chmod 755 {} +
+find "${STAGE}" -type f -exec chmod 644 {} +
+chmod 755 "${DST}/GeoDmsGuiQt" "${DST}/GeoDmsRun" "${DST}/geodms" \
+          "${DST}/profiler/run_with_sampler.sh" "${DST}/profiler/linux_sampler.py" \
+          "${DST}"/*.so* "${DST}"/*/*.so
+
+# ---------------------------------------------------------------------------
+# Create tarball (in the native tmpdir; published to distr/ after verification)
+#
+# VERIFY.md is a tarball-only extra: it explains how to verify the tarball's
+# signature, so it belongs next to the extracted content. It is removed again
+# before the .deb is built — the old .deb installed it as /VERIFY.md at the
+# filesystem root.
 # ---------------------------------------------------------------------------
 sed "s/<ver>/${GeoDmsVersion}/g" "${SCRIPT_DIR}/VERIFY-LINUX.md" \
     > "${STAGE}/VERIFY.md"
 
+TARBALL_TMP="${PKG_TMP}/${PKG_NAME}.tar.gz"
+echo "Creating tarball ${PKG_NAME}.tar.gz..."
+tar --owner=0 --group=0 --numeric-owner -czf "${TARBALL_TMP}" -C "${PKG_TMP}" "${PKG_NAME}"
+
+rm "${STAGE}/VERIFY.md"
+
 # ---------------------------------------------------------------------------
-# Create tarball
+# Create .deb package (if dpkg-deb is available) — from the SAME stage,
+# by adding DEBIAN/ control metadata in place. dpkg-deb's data archive
+# excludes the DEBIAN/ dir itself, so the payload equals the tarball's.
+# ---------------------------------------------------------------------------
+DEB_TMP_FILE="${PKG_TMP}/${PKG_NAME}.deb"
+HAVE_DEB=0
+if command -v dpkg-deb &>/dev/null; then
+    echo "Creating .deb package..."
+
+    DEBIAN_DIR="${STAGE}/DEBIAN"
+    mkdir -p "${DEBIAN_DIR}"
+    INSTALLED_SIZE=$(du -sk "${DST}" | cut -f1)
+
+    cat > "${DEBIAN_DIR}/control" <<EOF
+Package: geodms
+Version: ${GeoDmsVersion}
+Architecture: amd64
+Maintainer: Object Vision B.V. <info@objectvision.nl>
+Installed-Size: ${INSTALLED_SIZE}
+Depends: libxcb-xinerama0, libxcb-icccm4, libxcb-image0, libxcb-keysyms1, libxcb-randr0, libxcb-render-util0, libxcb-xkb1, libxkbcommon-x11-0, python3, python3-psutil
+Description: GeoDMS ${GeoDmsVersion} -- Geographic Data & Model Software
+ GeoDMS is a software environment for the specification and calculation
+ of geographic data models. This package contains the GUI and runtime.
+EOF
+
+    # --root-owner-group: payload owned root:root instead of the build user
+    dpkg-deb --build --root-owner-group "${STAGE}" "${DEB_TMP_FILE}"
+    rm -rf "${DEBIAN_DIR}"
+    HAVE_DEB=1
+else
+    echo "  dpkg-deb not found — skipping .deb creation (tarball only)"
+fi
+
+# ---------------------------------------------------------------------------
+# Verify the packages BEFORE publishing/signing.
+#
+# 1. The .deb payload file list must equal the .tar.gz file list; the only
+#    permitted difference is the tarball-only VERIFY.md. Guards against any
+#    future re-divergence of the two assembly paths.
+# 2. The critical runtime files must be present, and the data dirs must be
+#    non-trivially populated — a truncated drvfs/9p directory read during
+#    staging (cp -r exits 0 on it!) would otherwise ship silently.
+# ---------------------------------------------------------------------------
+echo "Verifying package contents..."
+VERIFY_FAILED=0
+
+# Normalized file list of the tarball: strip the <pkg-name>/ wrapper dir and
+# trailing / on directory entries.
+TAR_LIST="${PKG_TMP}/tar.lst"
+tar -tzf "${TARBALL_TMP}" | sed -e "s|^${PKG_NAME}/||" -e 's|/$||' | grep -v '^$' | sort > "${TAR_LIST}"
+
+if [[ "${HAVE_DEB}" -eq 1 ]]; then
+    # Normalized file list of the .deb data archive: paths are ./-rooted.
+    DEB_LIST="${PKG_TMP}/deb.lst"
+    dpkg-deb -c "${DEB_TMP_FILE}" | awk '{print $6}' | sed -e 's|^\./||' -e 's|/$||' | grep -v '^$' | sort > "${DEB_LIST}"
+
+    if ! diff -u <(grep -Fxv 'VERIFY.md' "${TAR_LIST}") "${DEB_LIST}" > "${PKG_TMP}/payload.diff"; then
+        echo "ERROR: .deb payload differs from .tar.gz payload:"
+        cat "${PKG_TMP}/payload.diff"
+        VERIFY_FAILED=1
+    fi
+fi
+
+# Critical runtime files (paths relative to the package root). Update this
+# list consciously when a component is added/renamed — a mismatch fails the
+# build, which is the point: better a loud packaging failure than a .deb
+# that installs but cannot run or cannot be regression-tested.
+PAYLOAD_PREFIX="${INSTALL_PREFIX#/}"
+CRITICAL_FILES=(
+    GeoDmsRun
+    GeoDmsGuiQt
+    geodms
+    qt.conf
+    RewriteExpr.lsp
+    libDmRtc.so libDmStx.so libDmStg.so libDmClc.so libDmGeo.so libDmShv.so
+    libQt6Core.so.6 libQt6Gui.so.6 libQt6Widgets.so.6
+    platforms/libqxcb.so
+    profiler/run_with_sampler.sh
+    profiler/linux_sampler.py
+    proj4data/proj.db
+    library/Units.dms
+    misc/fonts/dms.ttf
+)
+for _f in "${CRITICAL_FILES[@]}"; do
+    if ! grep -Fxq "${PAYLOAD_PREFIX}/${_f}" "${TAR_LIST}"; then
+        echo "ERROR: critical file missing from package: ${_f}"
+        VERIFY_FAILED=1
+    fi
+done
+
+# Data dirs that must be non-trivially populated (minimum entry counts are
+# deliberately below the current values — gdaldata ~230, proj4data ~30 — to
+# tolerate upstream variation while still catching a truncated copy).
+for _spec in gdaldata:150 proj4data:20 library:5 imageformats:3 misc:2; do
+    _dir="${_spec%%:*}"; _min="${_spec##*:}"
+    _n=$(grep -c "^${PAYLOAD_PREFIX}/${_dir}/" "${TAR_LIST}" || true)
+    if [[ "${_n}" -lt "${_min}" ]]; then
+        echo "ERROR: ${_dir}/ holds only ${_n} entries (expected >= ${_min}) — truncated staging copy?"
+        VERIFY_FAILED=1
+    fi
+done
+
+if [[ "${VERIFY_FAILED}" -ne 0 ]]; then
+    echo "*** Package verification FAILED — nothing published to ${DISTR}. ***"
+    exit 1
+fi
+echo "  package contents verified: .deb == .tar.gz payload, all critical files present"
+
+# ---------------------------------------------------------------------------
+# Publish to distr/ — and prove the copies over the 9p mount are intact by
+# comparing checksums against the native artifacts (a loaded /mnt/c transfer
+# must not be trusted blindly; that is what broke 20.7.0).
 # ---------------------------------------------------------------------------
 TARBALL="${DISTR}/${PKG_NAME}.tar.gz"
-echo "Creating tarball ${TARBALL}..."
-tar -czf "${TARBALL}" -C "${DISTR}" "${PKG_NAME}"
-echo "  -> ${TARBALL}"
+DEB="${DISTR}/${PKG_NAME}.deb"
+
+publish_checked() {  # publish_checked <native-file> <distr-file>
+    cp -f "$1" "$2"
+    local sha_native sha_copy
+    sha_native=$(sha256sum "$1" | awk '{print $1}')
+    sha_copy=$(sha256sum "$2" | awk '{print $1}')
+    if [[ "${sha_native}" != "${sha_copy}" ]]; then
+        echo "ERROR: copy to $2 is corrupt (sha256 mismatch after transfer to /mnt)"
+        exit 1
+    fi
+    echo "  -> $2"
+}
+
+echo "Publishing packages to ${DISTR}..."
+publish_checked "${TARBALL_TMP}" "${TARBALL}"
+if [[ "${HAVE_DEB}" -eq 1 ]]; then
+    publish_checked "${DEB_TMP_FILE}" "${DEB}"
+fi
 
 # ---------------------------------------------------------------------------
 # SHA256 checksum
@@ -298,46 +486,8 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Create .deb package (if dpkg-deb is available)
-# ---------------------------------------------------------------------------
-if command -v dpkg-deb &>/dev/null; then
-    echo ""
-    echo "Creating .deb package..."
-
-    # dpkg-deb requires the DEBIAN control directory to have permissions <=0775.
-    # When the staging tree lives on a Windows-mounted filesystem (/mnt/...) the
-    # NTFS driver ignores chmod, so we copy the staged tree to a native Linux
-    # tmpdir before building.
-    DEB_TMP=$(mktemp -d /tmp/geodms-deb-XXXXXX)
-    cp -a "${STAGE}/." "${DEB_TMP}/"
-
-    DEBIAN_DIR="${DEB_TMP}/DEBIAN"
-    mkdir -p "${DEBIAN_DIR}"
-    INSTALLED_SIZE=$(du -sk "${DST}" | cut -f1)
-
-    cat > "${DEBIAN_DIR}/control" <<EOF
-Package: geodms
-Version: ${GeoDmsVersion}
-Architecture: amd64
-Maintainer: Object Vision B.V. <info@objectvision.nl>
-Installed-Size: ${INSTALLED_SIZE}
-Depends: libxcb-xinerama0, libxcb-icccm4, libxcb-image0, libxcb-keysyms1, libxcb-randr0, libxcb-render-util0, libxcb-xkb1, libxkbcommon-x11-0, python3, python3-psutil
-Description: GeoDMS ${GeoDmsVersion} -- Geographic Data & Model Software
- GeoDMS is a software environment for the specification and calculation
- of geographic data models. This package contains the GUI and runtime.
-EOF
-
-    DEB="${DISTR}/${PKG_NAME}.deb"
-    dpkg-deb --build "${DEB_TMP}" "${DEB}"
-    rm -rf "${DEB_TMP}"
-    echo "  -> ${DEB}"
-else
-    echo "  dpkg-deb not found — skipping .deb creation (tarball only)"
-fi
-
-# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 echo ""
 echo "Done. Packages in ${DISTR}/"
-ls -lh "${DISTR}/${PKG_NAME}"* 2>/dev/null
+ls -lh "${DISTR}/${PKG_NAME}".* 2>/dev/null
