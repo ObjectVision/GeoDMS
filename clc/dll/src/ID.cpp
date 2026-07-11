@@ -63,7 +63,7 @@ public:
 
 			const AbstrIDOperator* idOper = this;
 			auto trd = e1->GetTiledRangeData();
-			assert(trd);
+			MG_CHECK(trd);
 			resultHolder->m_StatusFlags.SetHasSortedValues(trd->HasSortedValues());
 
 			auto lazyFunctorCreator = [idOper, res, trd]<typename V>(const Unit<V>*domainUnit) {
