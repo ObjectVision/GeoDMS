@@ -620,7 +620,20 @@ gdalComponent::gdalComponent()
 		// mutex; the unix build runs it as a library destructor, the Windows DLL never does) -- the
 		// piecemeal gdalCleanup calls alone leave (and even re-create) CPL mutex/TLS registry blocks.
 		// This 0->1 branch runs at most once per process: s_ComponentCount never decrements.
+#if defined(_WIN32)
+		// WINDOWS ONLY. On Windows GDAL is a separate DLL: DmStg's atexit table runs at DmStg
+		// unload, before gdal.dll unloads, so this cleanup runs while GDAL's statics are alive.
 		std::atexit([] { gdalCleanup(); GDALDestroy(); });
+#else
+		// On unix GDAL is linked INTO DmGeo.so and its own __attribute__((destructor)) already
+		// runs GDALDestroy in _dl_fini, AFTER all C++ static destructors -- the only safe moment.
+		// An additional std::atexit here is registered at first GDAL use, i.e. BEFORE the
+		// destructors of GDAL's lazily-created singletons (VSI file manager, CPL mutex/TLS,
+		// VSICurl caches) in the single process-wide reverse-registration __cxa_atexit list;
+		// it then tears down the driver manager over already-destroyed state -> glibc
+		// "malloc_consolidate(): unaligned fastbin chunk detected" abort at exit (SIGABRT,
+		// rc=134) in every gdalwrite test (t050/t060/t405.1/t410/t720) on the .l flavor.
+#endif
 		try {
 
 			gdalComponentImpl::s_HookedFilesPtr = new std::map<SharedStr, SharedStr>; // can throw
