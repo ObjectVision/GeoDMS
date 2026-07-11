@@ -57,6 +57,42 @@
     (Windows) or $ORIGIN rpath + setup bundling (Linux) and don't hit IncrementalClean
     reaping, so they need no equivalent here.
   -->
+  <!--
+    Close the IncrementalClean orphan-reaping hole in the vcpkg applocal integration
+    (the recurring NSIS "tinyxml2.dll -> no files found" failure, reproduced+binlogged
+    2026-07-11). The two vcpkg.targets applocal targets register the copied runtime
+    DLLs in FileWrites ASYMMETRICALLY: on a link-skipped build,
+    AppLocalFromInstalledPreserve adds them (so they get recorded in that build's
+    FileListAbsolute.txt), but on a relinking build AppLocalFromInstalled does NOT
+    (ReferenceCopyLocalPaths only). So any relink build that follows a link-skipped
+    build finds the DLLs claimed in the prior file list but absent from current
+    FileWrites, and IncrementalClean deletes the whole gdal/geos/proj/... set from
+    bin\<cfg>\x64 as orphan outputs - in EVERY project with a vcpkg.applocal.log
+    (StgDll, Geo, GeoDmsGuiQt, DmsPython, ...). The per-exe DmsDeployVcpkgDeps
+    refill below cannot save the day: the last poisoned project (DmsPython) builds
+    after the last exe deploy and strips bin again.
+
+    Fix: register the applocal log into FileWrites on EVERY build - relinked or
+    skipped - so consecutive file lists always agree and IncrementalClean never sees
+    the DLLs as orphans. When dependencies genuinely change, the next relink rewrites
+    vcpkg.applocal.log and truly obsolete DLLs are cleaned exactly once - correct.
+    Hooked BeforeTargets=_CleanGetCurrentAndPriorFileWrites: in time for both the
+    orphan computation and _CleanRecordFileWrites. Defined after the vcpkg.targets
+    import above, so on link-skipped builds it runs alongside the upstream preserve
+    target (duplicate FileWrites entries are deduplicated by MSBuild).
+  -->
+  <Target Name="DmsRegisterAppLocalFileWrites"
+          AfterTargets="CopyFilesToOutputDirectory"
+          BeforeTargets="_CleanGetCurrentAndPriorFileWrites"
+          Condition="'@(Link)' != '' and Exists('$(IntDir)vcpkg.applocal.log')">
+    <ReadLinesFromFile File="$(IntDir)vcpkg.applocal.log">
+      <Output TaskParameter="Lines" ItemName="_DmsAppLocalDLLs" />
+    </ReadLinesFromFile>
+    <ItemGroup>
+      <FileWrites Include="@(_DmsAppLocalDLLs -> '$(OutDir)%(Filename)%(Extension)')" />
+    </ItemGroup>
+  </Target>
+
   <Target Name="DmsDeployVcpkgDeps"
           AfterTargets="Build"
           Condition="'$(ConfigurationType)' == 'Application' and '$(VcpkgInstalledDir)' != '' and '$(VcpkgTriplet)' != ''">
