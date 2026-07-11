@@ -5,6 +5,11 @@ relates to data readiness and failure, and the invariants the calculation /
 locking machinery relies on. Derived from the analysis and fix of issue #1144
 (GeoDMS_2026, Jun 2026).
 
+Companion note: [interest-and-futures.md](interest-and-futures.md) (Jul 2026) refines the
+"interest == shared_future" framing below into *subscription* (interest) vs *evaluation
+round* (`FutureData`), and analyses whether `PrepareDataUsage` should be the only way to
+become interesting.
+
 ## TL;DR — the interest contract
 
 An **InterestHolder** (`SharedTreeItemInterestPtr` / a non-zero
