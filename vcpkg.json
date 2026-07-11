@@ -9,7 +9,6 @@
     "boost-polygon",
     "boost-property-tree",
     "boost-regex",
-    "boost-signals2",
     "boost-spirit",
     "boost-ublas",
     "cgal",
