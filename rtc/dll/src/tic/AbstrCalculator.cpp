@@ -247,9 +247,13 @@ void CheckResultingTreeItem(const TreeItem* refItem, const Class* desiredResulti
 //----------------------------------------------------------------------
 
 
+void InstantiateMap(TreeItem* holder, const AbstrCalculator* ac, LispPtr mapExpr); // fwd (defined below, uses FunctionApplication)
+
 void MetaFuncCurry::operator ()(TreeItem* target, const AbstrCalculator* ac) const
 {
-	if (applyItem)
+	if (isMapCall)
+		InstantiateMap(target, ac, fullLispExpr);
+	else if (applyItem)
 		InstantiateTemplate(target, applyItem, fullLispExpr.Right());
 	else if (og)
 		ApplyAsMetaFunction(target, ac, og, fullLispExpr.Right());
@@ -1014,6 +1018,7 @@ LispRef AbstrCalculator::SubstituteArgs(SubstitutionBuffer& substBuff, LispPtr l
 namespace {
 
 	static TokenID t_Hole = GetTokenID_st("_"); // partial-application placeholder
+	static TokenID t_Map  = GetTokenID_st("map"); // built-in map(function, container) metafunction
 
 	struct FunctionBinding;
 
@@ -1649,6 +1654,58 @@ void InstantiateTemplate(TreeItem* holder, const TreeItem* applyItem, LispPtr te
 	holder->SetIsInstantiated();
 }
 
+// WP3.3: map(function, container) — populate `holder` with one child per data-item /
+// unit child of the source container, each computed as function(child). The mapped
+// function must take exactly one parameter (the element); its result type follows from
+// the reduction. A first-order for_each replacement.
+void InstantiateMap(TreeItem* holder, const AbstrCalculator* ac, LispPtr mapExpr)
+{
+	dms_assert(holder);
+	if (holder->WasFailed(FailType::MetaInfo))
+		return;
+	if (holder->GetIsInstantiated())
+		return;
+
+	LispPtr args = mapExpr.Right();
+	if (args.EndP() || args.Right().EndP() || !args.Right().Right().EndP())
+		holder->throwItemError("map expects exactly two arguments: map(function, container)");
+	LispPtr fExpr = args.Left();
+	LispPtr srcExpr = args.Right().Left();
+	if (!fExpr.IsSymb())
+		holder->throwItemError("map: the first argument must be the name of a function");
+	if (!srcExpr.IsSymb())
+		holder->throwItemError("map: the second argument must be the name of a container");
+
+	auto funcItem = ac->FindItem(fExpr.GetSymbID());
+	if (!funcItem || !funcItem->IsFunctionItem())
+		holder->throwItemErrorF("map: '{}' is not a function", fExpr.GetSymbID().GetStr().c_str());
+	if (TreeItem_GetFunctionParamCount(funcItem.get()) != 1)
+		holder->throwItemErrorF("map: function '{}' must take exactly one parameter to be mapped over a container"
+			, funcItem->GetFullName().c_str());
+
+	auto srcItem = ac->FindItem(srcExpr.GetSymbID());
+	if (!srcItem)
+		holder->throwItemErrorF("map: source '{}' not found", srcExpr.GetSymbID().GetStr().c_str());
+	srcItem->UpdateMetaInfo();
+
+	SharedTreeItem errorHolder = make_shared_tree(holder, existing_obj{});
+	for (const TreeItem* c = srcItem->_GetFirstSubItem(); c; c = c->GetNextItem())
+	{
+		if (!IsDataItem(c) && !IsUnit(c))
+			continue;
+		FunctionApplication appl;
+		appl.m_FuncItem = funcItem.get();
+		appl.m_ErrorHolder = errorHolder;
+		CallArg a; a.key = c->GetCheckedKeyExpr(); a.item = make_shared_tree(c, existing_obj{});
+		appl.PushArg(a);
+		LispRef key = appl.Reduce();
+
+		auto child = holder->CreateItem(c->GetID());
+		child->SetCalculator(AbstrCalculator::ConstructFromLispRef(child.get(), key, CalcRole::Calculator));
+	}
+	holder->SetIsInstantiated();
+}
+
 #include "Operator.h"
 #include "MoreDataControllers.h"
 
@@ -2009,6 +2066,9 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 			assert(og);
 			if (og->IsTemplateCall())
 			{
+				if (head.GetSymbID() == t_Map)
+					throwErrorF("ExprParser", "map(function, container) produces a container and can only appear as a whole calculation rule (e.g. 'container out := map(F, src);'), not as a sub-expression");
+
 				auto templateItem = FindOrVisitItem(substBuff, head.GetSymbID());
 				if (substBuff.avs == AVS_SuspendedOrFailed)
 					return {};
@@ -2143,6 +2203,27 @@ MetaInfo AbstrCalculator::SubstituteExpr(SubstitutionBuffer& substBuff, LispPtr 
 		assert(og);
 		if (og->IsTemplateCall())
 		{
+			if (exprHeadID == t_Map)
+			{
+				// map(function, container): register the function and source as suppliers,
+				// then defer to InstantiateMap (populates the holder container)
+				auto mapHolder = m_Holder.lock();
+				if (mapHolder && (IsDataItem(mapHolder.get()) || IsUnit(mapHolder.get())))
+					throwErrorF("ExprParser", "map(function, container) produces a container; bind it to a container item (e.g. 'container out := map(F, src);')");
+				LispPtr margs = localExpr.Right();
+				if (!margs.EndP() && margs.Left().IsSymb())
+					if (auto f = FindOrVisitItem(substBuff, margs.Left().GetSymbID()))
+						registerSupplier(substBuff, f.get());
+				if (!margs.EndP() && !margs.Right().EndP() && margs.Right().Left().IsSymb())
+					if (auto s = FindOrVisitItem(substBuff, margs.Right().Left().GetSymbID()))
+						registerSupplier(substBuff, s.get());
+				if (substBuff.avs == AVS_SuspendedOrFailed)
+					return {};
+				if (substBuff.optionalVisitor)
+					return {};
+				return MetaFuncCurry{ .fullLispExpr = localExpr, .isMapCall = true };
+			}
+
 			auto templateItem = FindOrVisitItem(substBuff, head.GetSymbID());
 			if (substBuff.avs == AVS_SuspendedOrFailed)
 				return {};

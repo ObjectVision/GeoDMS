@@ -48,6 +48,7 @@ struct MetaFuncCurry
 
 	const TreeItem* applyItem = nullptr;
 	const AbstrOperGroup* og = nullptr;
+	bool isMapCall = false; // built-in 'map(function, container)' metafunction (WP3.3)
 
 	void operator ()(TreeItem* target, const AbstrCalculator* ac) const;
 	LispRef GetAsLispRef() const;

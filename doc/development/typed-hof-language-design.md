@@ -1060,25 +1060,24 @@ reduced expression for residual `IsVar()` leaves / `lambda` heads before any
 by the disabled evaluator) if per-variable renaming maps are needed. R10 (capture,
 memo confusion, self-aliasing) is addressed exactly by fresh-chromosome renaming.
 
-**WP3.3 — Typed `map` over containers (for_each replacement, first combinator).**
-*Goal:* `container out := map(F, src);` creates one child per data-item child of
-`src`, each calculated as `F(child)` (inline-reduced). *Design:* root-level-only
-metafunction, dispatched where template/function calls are recognized in
-`AbstrCalculator::SubstituteExpr` (the `og->IsTemplateCall()` branch): reserve the
-head name (verify it is free via `AbstrOperGroup::FindName` at startup; fall back to
-`map_items` on collision). Resolve arg1 to a function/binding (as in the function
-branch), arg2 to a container item (`FindItem`). Return
-`MetaFuncCurry`-style deferred work; implement `InstantiateMap(holder, binding,
-srcItem)` next to `InstantiateTemplate` (`tic/AbstrCalculator.cpp:996-1015`): for each
-data-item child `c` of `srcItem` (walk `_GetFirstSubItem`/`GetNextItem`): reduce the
-application `F(c)` (construct a `FunctionApplication` with argKey =
-`c->GetCheckedKeyExpr()`, argItem = c) and create a child of `holder` named
-`c->GetID()` with `SetCalculator(ConstructFromLispRef(child, reducedExpr,
-CalcRole::Calculator))` (pre-substituted; the `ForEach_CreateResult` pattern,
-`clc/dll/src/ForEach.cpp:141-340`, is the reference for holder handling +
-`SetIsInstantiated`). *Tests:* map a Halve-like function over a container of two
-attributes; value checks; template regression. `filter`/`fold` follow the same
-pattern later.
+**WP3.3 — Typed `map` over containers — IMPLEMENTED in 20.9.0.**
+`container out := map(F, src);` creates one child per data-item / unit child of `src`,
+each computed as `F(child)`. `map` is a reserved metafunction head
+(`t_Map = GetTokenID_st("map")`); it is intercepted in the root
+`AbstrCalculator::SubstituteExpr` `og->IsTemplateCall()` branch (before item lookup),
+requires a container holder, registers the function and source as suppliers, and
+returns `MetaFuncCurry{ isMapCall = true }`. `MetaFuncCurry::operator()` dispatches to
+`InstantiateMap` (next to `InstantiateTemplate`): F must be a one-parameter function;
+for each data-item/unit child `c` of the source it reduces `F(c)` via a
+`FunctionApplication` (argKey = `c->GetCheckedKeyExpr()`, argItem = `c`) and creates a
+child of the holder named `c->GetID()` with `SetCalculator(ConstructFromLispRef(child,
+reducedKey, CalcRole::Calculator))` — a plain holder child that follows the reduced
+data result. Nested/sub-expression use is rejected (map yields a container).
+Generic mapped functions work (the per-child value class is derived and constraint-
+checked in the reduction). Verified by `scratch/fn_test_map.dms` (a `Halve` function
+and a generic `DoubleG` mapped over a two-attribute container). Not yet: partial-
+application F (`map(Scale(k,_), src)`), `filter`/`fold` (same pattern), and `for_each`
+deprecation.
 
 **WP3.4 — Definition-time checking (deferred from P1).**
 *Goal:* a function body is scope- and shape-checked once, at its first *reference*
