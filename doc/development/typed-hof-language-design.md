@@ -508,9 +508,23 @@ domain must be an item reference, so unit results are landed in a named unit
 (`unit<uint32> S := SelectWith(City, cond);`) before use as a declared domain — exactly
 as with `unique` now.
 
-### 5.5 Higher-order functions (P3)
+### 5.5 Higher-order functions (P3) — core IMPLEMENTED in 20.9.0
 
-Function-typed parameters and function-valued expressions:
+**Implementation status: function-valued parameters work** through the inline
+reduction path. A parameter declared `f: function` binds a function reference passed
+as an argument (`ApplyTwice(Road, lib/Halve, Road/flow)`); the body applies it
+(`f(D, f(D, x))`) or passes it onward to another function; a function reachable
+through the strict scope (import) can likewise be passed from inside a body. Misuse
+as a value (`f + 1.0`) and member access through a function-valued parameter are
+rejected with dedicated diagnostics. Bindings are meta-stage only — by DC time every
+application is reduced away, so the erasure guarantee (§5.6) holds. Verified by
+`scratch/fn_test_p3.dms` (apply-twice, two-parameter composition, body-level
+pass-through) and a value-misuse negative test. Not yet: declared function *types*
+(signatures `(T)->R` on parameters — currently any function binds, arity-checked at
+application), lambdas/partial application, and the typed `map`/`filter` container
+combinators below.
+
+Function-typed parameters and function-valued expressions (the full design):
 
 ```
 function apply_twice(

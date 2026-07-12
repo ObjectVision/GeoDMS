@@ -1121,14 +1121,30 @@ namespace {
 			assert(og);
 			if (og->IsTemplateCall())
 			{
-				// nested application of another function, resolved in the function's strict scope
-				auto callee = m_FuncItem->FindItem(SharedStr(headID.AsStrRange()));
+				// a function-valued parameter applied by name?
+				SharedTreeItem callee;
+				if (auto headChild = m_FuncItem->GetConstSubTreeItemByID(headID))
+					for (UInt32 i = 0, n = m_Params.size(); i != n; ++i)
+						if (m_Params[i] == headChild.get())
+						{
+							callee = m_ArgItems[i];
+							if (!callee || !callee->IsFunctionItem())
+								throwErrorF("ExprParser", "'{}': parameter is applied as a function but the corresponding argument is not a function reference"
+									, headID.GetStr().c_str());
+							break;
+						}
+
+				// else: another function, resolved in the function's strict scope
 				if (!callee)
-					throwErrorF("ExprParser", "'{}': unknown operator or function in body of function '{}'"
-						, headID.GetStr().c_str(), m_FuncItem->GetFullName().c_str());
-				if (!callee->IsFunctionItem())
-					throwErrorF("ExprParser", "'{}': template instantiations are not supported inside function bodies"
-						, headID.GetStr().c_str());
+				{
+					callee = m_FuncItem->FindItem(SharedStr(headID.AsStrRange()));
+					if (!callee)
+						throwErrorF("ExprParser", "'{}': unknown operator or function in body of function '{}'"
+							, headID.GetStr().c_str(), m_FuncItem->GetFullName().c_str());
+					if (!callee->IsFunctionItem())
+						throwErrorF("ExprParser", "'{}': template instantiations are not supported inside function bodies"
+							, headID.GetStr().c_str());
+				}
 
 				FunctionApplication nested;
 				nested.m_FuncItem = callee.get();
@@ -1216,8 +1232,12 @@ namespace {
 				for (UInt32 i = 0, n = m_Params.size(); i != n; ++i)
 					if (m_Params[i] == child.get())
 					{
+						bool boundToFunction = m_ArgItems[i] && m_ArgItems[i]->IsFunctionItem();
 						if (slash == e)
 						{
+							if (boundToFunction && !foundItemPtr)
+								throwErrorF("ExprParser", "'{}': a function-valued parameter can only be applied or passed on as an argument"
+									, fullStr.c_str());
 							if (foundItemPtr)
 								*foundItemPtr = m_ArgItems[i];
 							return m_ArgKeys[i];
@@ -1228,6 +1248,9 @@ namespace {
 						if (!argItem)
 							throwErrorF("ExprParser", "'{}': member access through parameter '{}' requires the corresponding argument to be a direct item reference"
 								, fullStr.c_str(), firstTok.GetStr().c_str());
+						if (boundToFunction)
+							throwErrorF("ExprParser", "'{}': member access through a function-valued parameter is not supported"
+								, fullStr.c_str());
 						auto member = FindSubItem(argItem.get(), SharedStr(CharPtrRange(slash + 1, e)));
 						if (!member)
 							throwErrorF("ExprParser", "'{}': the argument '{}' bound to parameter '{}' has no member '{}'"
@@ -1263,6 +1286,18 @@ namespace {
 		if (!found)
 			throwErrorF("ExprParser", "'{}': unknown identifier in body of function '{}' (visible are: parameters, local items, and 'using' imports)"
 				, fullStr.c_str(), m_FuncItem->GetFullName().c_str());
+		if (found->IsFunctionItem())
+		{
+			if (foundItemPtr)
+			{
+				if (m_SubstBuff)
+					registerSupplier(*m_SubstBuff, found.get());
+				*foundItemPtr = found; // function passed on as an argument: binding only, no key expression
+				return {};
+			}
+			throwErrorF("ExprParser", "'{}': a function can only be applied or passed on as an argument"
+				, fullStr.c_str());
+		}
 		if (found->InTemplate())
 			throwErrorF("ExprParser", "'{}': reference to (part of) a template or function from body of function '{}'"
 				, fullStr.c_str(), m_FuncItem->GetFullName().c_str());
@@ -1682,9 +1717,15 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 							&& !ValueClass::FindByScriptName(argExpr.GetSymbID())
 							&& !substBuff.optionalVisitor)
 							argItem = FindItem(argExpr.GetSymbID()); // enables member access through structured parameters
-						LispRef argKey = SubstituteExpr_impl(substBuff, LispRef(argExpr), metainfo_policy_flags::subst_allowed);
-						if (substBuff.avs == AVS_SuspendedOrFailed)
-							return {};
+						LispRef argKey;
+						if (argItem && argItem->IsFunctionItem())
+							registerSupplier(substBuff, argItem.get()); // function-valued argument: bound for application only, no key expression
+						else
+						{
+							argKey = SubstituteExpr_impl(substBuff, LispRef(argExpr), metainfo_policy_flags::subst_allowed);
+							if (substBuff.avs == AVS_SuspendedOrFailed)
+								return {};
+						}
 						appl.m_ArgKeys.push_back(std::move(argKey));
 						appl.m_ArgItems.push_back(std::move(argItem));
 					}
