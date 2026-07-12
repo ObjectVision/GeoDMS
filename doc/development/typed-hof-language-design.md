@@ -986,12 +986,32 @@ plan below remains the design for the boundary-keyed variant:
 
 ### P2 — polymorphism, overloading, declarative signatures
 
-Class-constrained parameters (∀V over typelist classes) with definition-time checking
-per finite class instantiation; `variant` blocks with specificity ordering and
-definition-time disjointness (§5.7); reify built-in operator signatures (ClassCPtr
-array ⊕ UnitCreator name ⊕ domain-unify pattern) into TypeSpecs; signature browser.
-Variadic `switch` and optional-argument adoption unlock retirement of rewrite
-categories B/C/E (§8.2).
+**Implementation status (v20.9.0): value-type polymorphism is IMPLEMENTED.**
+`function f<V: numerics>(unit<uint32> D; attribute<V> x (D)) -> attribute<V> (D)` —
+class-constrained type variables over the closed 𝕍 universe. Constraint vocabulary:
+`any, numerics, integers, floats, uints, domains, points`
+(`MatchesGenericConstraint` in `tic/TreeItem.cpp`, built on ValueClass predicates).
+`attribute<V>`/`parameter<V>` positions record the variable per parameter in the
+function spec; `unit<V>` parameters (and `-> unit<V>` results) become plain binders
+whose types follow from the arguments. Checking happens at application time in the
+reducer: each generic argument's value class is derived from its key expression's
+DataController result, checked against the constraint, and checked for *consistency*
+per variable across parameters — with dedicated diagnostics ("does not satisfy
+'V: numerics'", "inconsistent instantiation of type variable 'V': Float64 (parameter
+'a') vs UInt32 (parameter 'b')"). Since the reducer is type-agnostic, one definition
+serves every instantiation (no per-value-type expansion needed); generic *locals* in
+bodies come free. Also implemented: **dependent-position checks in declared function
+signatures** (closing the §5.8 gap): domain/values references that name a parameter
+must name the positionally same parameter on both sides (alpha-invariant, `#j`
+normalization), other references compare literally, and value compositions must
+match. Verified by `scratch/fn_test_p2.dms` (+2 negatives).
+
+Remaining P2 work: `variant` blocks with specificity ordering and definition-time
+disjointness (§5.7); reify built-in operator signatures (ClassCPtr array ⊕ UnitCreator
+name ⊕ domain-unify pattern) into TypeSpecs; signature browser. Variadic `switch` and
+optional-argument adoption unlock retirement of rewrite categories B/C/E (§8.2).
+Type-variable clauses on signature aliases are not yet parsed (function declarations
+only).
 
 ### P3 — higher order
 

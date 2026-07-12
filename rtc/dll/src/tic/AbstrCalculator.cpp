@@ -1041,6 +1041,21 @@ namespace {
 				, boundFn->GetFullName().c_str(), paramName
 				, nrFnParams, sigExemplar->GetFullName().c_str(), nrSigParams);
 
+		// a domain/values reference that names a parameter must name the positionally
+		// same parameter on both sides (alpha-invariant); other references must match
+		// literally
+		auto normalizeUnitRef = [](const TreeItem* fn, TokenID unitRef) -> SharedStr
+		{
+			if (unitRef)
+			{
+				const TreeItem* param = fn->_GetFirstSubItem();
+				for (UInt32 j = 0, n = TreeItem_GetFunctionParamCount(fn); j != n && param; ++j, param = param->GetNextItem())
+					if (param->GetID() == unitRef)
+						return mySSPrintF("#{}", j);
+			}
+			return SharedStr(unitRef);
+		};
+
 		const TreeItem* sigParam = sigExemplar->_GetFirstSubItem();
 		const TreeItem* fnParam = boundFn->_GetFirstSubItem();
 		for (UInt32 i = 0; i != nrSigParams; ++i, sigParam = sigParam->GetNextItem(), fnParam = fnParam->GetNextItem())
@@ -1055,6 +1070,23 @@ namespace {
 					, fnParam->GetDynamicClass()->GetName().c_str()
 					, sigExemplar->GetFullName().c_str()
 					, sigCls->GetName().c_str());
+			if (IsDataItem(sigParam))
+			{
+				auto sigADI = AsDataItem(sigParam);
+				auto fnADI = AsDataItem(fnParam);
+				if (sigADI->GetValueComposition() != fnADI->GetValueComposition())
+					throwErrorF("ExprParser", "function '{}' bound to parameter '{}': parameter {} differs in value composition from its declared signature '{}'"
+						, boundFn->GetFullName().c_str(), paramName, i + 1
+						, sigExemplar->GetFullName().c_str());
+				if (normalizeUnitRef(sigExemplar, sigADI->DomainUnitToken()) != normalizeUnitRef(boundFn, fnADI->DomainUnitToken()))
+					throwErrorF("ExprParser", "function '{}' bound to parameter '{}': the domain of parameter {} does not match the domain relationship required by signature '{}'"
+						, boundFn->GetFullName().c_str(), paramName, i + 1
+						, sigExemplar->GetFullName().c_str());
+				if (normalizeUnitRef(sigExemplar, sigADI->ValuesUnitToken()) != normalizeUnitRef(boundFn, fnADI->ValuesUnitToken()))
+					throwErrorF("ExprParser", "function '{}' bound to parameter '{}': the values unit of parameter {} does not match signature '{}'"
+						, boundFn->GetFullName().c_str(), paramName, i + 1
+						, sigExemplar->GetFullName().c_str());
+			}
 		}
 
 		auto sigResult = sigExemplar->GetConstSubTreeItemByID(TreeItem_GetFunctionResultName(sigExemplar));
@@ -1100,6 +1132,50 @@ namespace {
 						, declaredSig->GetFullName().c_str());
 				CheckFunctionSignature(m_ArgItems[i].get(), declaredSig.get(), child->GetID().GetStr().c_str());
 			}
+		}
+
+		// generic type variables: check constraint satisfaction and per-variable
+		// consistency of the actual arguments' value classes
+		std::map<TokenID, std::pair<const ValueClass*, const TreeItem*>> varBindings;
+		UInt32 seqNr = 0, gpIndex; TokenID gpVar, gpConstraint;
+		while (TreeItem_GetFunctionGenericParam(m_FuncItem, seqNr++, &gpIndex, &gpVar, &gpConstraint))
+		{
+			MG_CHECK(gpIndex < nrParams);
+			const TreeItem* gpParam = m_Params[gpIndex];
+			if (m_ArgKeys[gpIndex].EndP())
+				throwErrorF("ExprParser", "'{}': parameter '{}' requires an attribute or unit argument"
+					, m_FuncItem->GetFullName().c_str(), gpParam->GetID().GetStr().c_str());
+
+			auto dc = GetOrCreateDataController(m_ArgKeys[gpIndex]);
+			auto argResult = dc->MakeResult();
+			if (!argResult)
+			{
+				dms_assert(dc->WasFailed(FailType::MetaInfo));
+				m_ErrorHolder->ThrowFail(dc.get());
+			}
+			const ValueClass* vt = nullptr;
+			if (IsDataItem(argResult.get()))
+				vt = AsDataItem(argResult.get())->GetAbstrValuesUnit()->GetValueType();
+			else if (IsUnit(argResult.get()))
+				vt = AsUnit(argResult.get())->GetValueType();
+			if (!vt)
+				throwErrorF("ExprParser", "'{}': parameter '{}' requires an attribute or unit argument"
+					, m_FuncItem->GetFullName().c_str(), gpParam->GetID().GetStr().c_str());
+			if (!MatchesGenericConstraint(vt, gpConstraint))
+				throwErrorF("ExprParser", "'{}': argument of type {} for parameter '{}' does not satisfy '{}: {}'"
+					, m_FuncItem->GetFullName().c_str()
+					, vt->GetName().c_str()
+					, gpParam->GetID().GetStr().c_str()
+					, gpVar.GetStr().c_str(), gpConstraint.GetStr().c_str());
+			auto& binding = varBindings[gpVar];
+			if (binding.first && binding.first != vt)
+				throwErrorF("ExprParser", "'{}': inconsistent instantiation of type variable '{}': {} (parameter '{}') vs {} (parameter '{}')"
+					, m_FuncItem->GetFullName().c_str()
+					, gpVar.GetStr().c_str()
+					, binding.first->GetName().c_str(), binding.second->GetID().GetStr().c_str()
+					, vt->GetName().c_str(), gpParam->GetID().GetStr().c_str());
+			if (!binding.first)
+				binding = { vt, gpParam };
 		}
 
 		TokenID resultName = TreeItem_GetFunctionResultName(m_FuncItem);

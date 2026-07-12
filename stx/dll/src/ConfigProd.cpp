@@ -159,10 +159,32 @@ void ConfigProd::DoItemHeading(iterator_t first, iterator_t last)
 	m_LastDeclNameCount = 1;
 	m_LastDeclSiblings.clear();
 
+	TokenID genericVar = ConsumeGenericParamMarker();
+
 	CreateItem(m_ItemNameID, first);
+	if (genericVar && !m_FuncStates.empty() && m_FuncStates.back().inParamList)
+		m_FuncStates.back().genericParams.emplace_back(m_FuncStates.back().paramCount, genericVar, FindActiveTypeVarConstraint(genericVar));
 
 	ClearSignature();
 	ClearPropData();
+}
+
+TokenID ConfigProd::ConsumeGenericParamMarker()
+{
+	// unit<V>: DoBasicType left the variable pending; the item becomes a plain binder
+	if (m_PendingGenericUnitVar)
+	{
+		TokenID genericVar = m_PendingGenericUnitVar;
+		m_PendingGenericUnitVar = TokenID::GetEmptyID();
+		SetSignature(SignatureType::TreeItem);
+		return genericVar;
+	}
+	// attribute<V> / parameter<V>: the values-unit reference names a type variable;
+	// the declaration stays as-is (the token is never resolved on inert definitions)
+	if (m_eSignatureType == SignatureType::Attribute || m_eSignatureType == SignatureType::Parameter)
+		if (FindActiveTypeVarConstraint(m_pSignatureUnit))
+			return m_pSignatureUnit;
+	return TokenID::GetEmptyID();
 }
 
 void ConfigProd::SetSignature(SignatureType type)
@@ -427,7 +449,36 @@ void ConfigProd::DoBasicType()
 {
 	m_eValueClass = ValueClass::FindByScriptName(m_strIdentifierID);
 	if (!m_eValueClass)
+	{
+		if (FindActiveTypeVarConstraint(m_strIdentifierID))
+		{
+			m_PendingGenericUnitVar = m_strIdentifierID; // unit<V> with V a generic type variable
+			return;
+		}
 		throwErrorD( "ConfigProd::DoBasicType: Unknown ValueType", m_strIdentifierID.GetStr().c_str());
+	}
+}
+
+TokenID ConfigProd::FindActiveTypeVarConstraint(TokenID varName) const
+{
+	if (varName && !m_FuncStates.empty())
+		for (const auto& typeVar : m_FuncStates.back().typeVars)
+			if (typeVar.first == varName)
+				return typeVar.second;
+	return TokenID::GetEmptyID();
+}
+
+void ConfigProd::OnTypeVarName()
+{
+	m_PendingTypeVarName = m_strIdentifierID;
+}
+
+void ConfigProd::OnTypeVarConstraint()
+{
+	if (!IsKnownGenericConstraint(m_strIdentifierID))
+		throwSemanticError(mgFormat2string("unknown type-variable constraint '{}'; known constraints: any, numerics, integers, floats, uints, domains, points"
+			, GetTokenStr(m_strIdentifierID)).c_str());
+	m_PendingTypeVars.emplace_back(m_PendingTypeVarName, m_strIdentifierID);
 }
 
 TokenID st_Arc        = GetTokenID_st("arc");
@@ -669,6 +720,8 @@ void ConfigProd::DoColonItemHeading(iterator_t first, iterator_t last)
 	m_LastDeclSiblings.clear();
 	if (m_PendingFunctionParamSig && (m_FuncStates.empty() || !m_FuncStates.back().inParamList))
 		throwSemanticError("a function-signature type is only supported for function parameters");
+	TokenID genericVar = ConsumeGenericParamMarker();
+	bool recordGenerics = genericVar && !m_FuncStates.empty() && m_FuncStates.back().inParamList;
 	for (SizeT i = 0; i != m_PendingNames.size(); ++i)
 	{
 		CreateItem(m_PendingNames[i], first);
@@ -676,6 +729,8 @@ void ConfigProd::DoColonItemHeading(iterator_t first, iterator_t last)
 			m_LastDeclSiblings.push_back(m_pCurrent); // all but the last; props/expr also apply to these
 		if (m_PendingFunctionParamSig)
 			m_FuncStates.back().paramSigs.emplace_back(m_FuncStates.back().paramCount + i, m_PendingFunctionParamSig);
+		if (recordGenerics)
+			m_FuncStates.back().genericParams.emplace_back(m_FuncStates.back().paramCount + i, genericVar, FindActiveTypeVarConstraint(genericVar));
 	}
 	m_PendingNames.clear();
 	m_PendingFunctionParamSig = nullptr;
@@ -711,7 +766,8 @@ void ConfigProd::DoAliasDecl(iterator_t first, iterator_t last)
 
 void ConfigProd::OnFunctionHeading(iterator_t first)
 {
-	DoItemName(); // the identifier following the 'function' keyword
+	// the function name was captured by the identifier action (m_ItemNameID);
+	// a type-variable clause may have overwritten m_strIdentifierID since
 
 	m_LastDeclNameCount = 1;
 	m_LastDeclSiblings.clear();
@@ -724,6 +780,8 @@ void ConfigProd::OnFunctionHeading(iterator_t first)
 	m_FuncStates.emplace_back();
 	m_FuncStates.back().funcItem = m_pCurrent;
 	m_FuncStates.back().inParamList = true;
+	m_FuncStates.back().typeVars = std::move(m_PendingTypeVars);
+	m_PendingTypeVars.clear();
 }
 
 void ConfigProd::OnFunctionSigHeading(iterator_t first)
@@ -741,6 +799,8 @@ void ConfigProd::OnFunctionSigHeading(iterator_t first)
 	m_FuncStates.back().funcItem = m_pCurrent;
 	m_FuncStates.back().signatureOnly = true;
 	m_FuncStates.back().inParamList = true;
+	m_FuncStates.back().typeVars = std::move(m_PendingTypeVars);
+	m_PendingTypeVars.clear();
 }
 
 void ConfigProd::OnEndFunctionParams()
@@ -770,6 +830,13 @@ void ConfigProd::DoFunctionResultName()
 void ConfigProd::OnFunctionResultSig()
 {
 	dms_assert(!m_FuncStates.empty());
+	if (m_PendingGenericUnitVar)
+	{
+		// '-> unit<V>' generic-unit result: declare as plain item; the computed type
+		// follows from the reduced expression
+		m_PendingGenericUnitVar = TokenID::GetEmptyID();
+		SetSignature(SignatureType::TreeItem);
+	}
 	auto& fs = m_FuncStates.back();
 	fs.resultSig           = m_eSignatureType;
 	fs.resultValueClass    = m_eValueClass;
@@ -867,6 +934,8 @@ void ConfigProd::OnFunctionDeclEnd(iterator_t first)
 	TreeItem_SetFunctionSpec(func, fs.paramCount, designated);
 	for (const auto& paramSig : fs.paramSigs)
 		TreeItem_AddFunctionParamSignature(func, paramSig.first, paramSig.second);
+	for (const auto& genericParam : fs.genericParams)
+		TreeItem_AddFunctionGenericParam(func, std::get<0>(genericParam), std::get<1>(genericParam), std::get<2>(genericParam));
 	TreeItem_MakeStrictScope(func); // definition-side strictness: inline reduction resolves through this scope
 	m_FuncStates.pop_back();
 

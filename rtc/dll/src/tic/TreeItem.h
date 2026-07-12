@@ -681,6 +681,13 @@ TIC_CALL void    TreeItem_AddFunctionParamSignature(const TreeItem* functionItem
 TIC_CALL auto    TreeItem_GetFunctionParamSignature(const TreeItem* functionItem, UInt32 paramIndex) -> SharedTreeItem;
 TIC_CALL void    TreeItem_CopyFunctionSpec(const TreeItem* dstFunctionItem, const TreeItem* srcFunctionItem);
 
+// generic type variables on function parameters: function f<V: numerics>(... attribute<V> x ...)
+class ValueClass;
+TIC_CALL void    TreeItem_AddFunctionGenericParam(const TreeItem* functionItem, UInt32 paramIndex, TokenID varName, TokenID constraintName);
+TIC_CALL bool    TreeItem_GetFunctionGenericParam(const TreeItem* functionItem, UInt32 seqNr, UInt32* paramIndex, TokenID* varName, TokenID* constraintName);
+TIC_CALL bool    IsKnownGenericConstraint(TokenID constraintName);
+TIC_CALL bool    MatchesGenericConstraint(const ValueClass* vc, TokenID constraintName);
+
 // enforce strict scoping on a function definition: name resolution from within stops at
 // the item (own sub-items + explicit 'using' imports); relative import urls still
 // resolve against the definition scope.

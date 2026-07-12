@@ -18,6 +18,7 @@
 #include "DataBlockProd.h"
 #include "ExprProd.h"
 
+#include <tuple>
 #include <vector>
 
 
@@ -93,6 +94,8 @@ struct ConfigProd : AbstrDataBlockProd, AbstrContextHandle
 	void DoAliasDecl(iterator_t first, iterator_t last);
 
 //	function declarations (and function-signature type aliases)
+	void OnTypeVarName();
+	void OnTypeVarConstraint();
 	void OnFunctionHeading(iterator_t first);
 	void OnFunctionSigHeading(iterator_t first);
 	void OnEndFunctionParams();
@@ -167,6 +170,13 @@ void                ClearPropData();
 	TokenID                          m_AliasNameID;
 	const TreeItem*                  m_PendingFunctionParamSig = nullptr; // function-signature exemplar awaiting item creation
 
+	// generic type variable support: function f<V: numerics>(...)
+	TokenID FindActiveTypeVarConstraint(TokenID varName) const; // empty when varName is no active type variable
+	TokenID ConsumeGenericParamMarker(); // detects unit<V>/attribute<V> declarations; adjusts the signature for generic units
+	TokenID                          m_PendingTypeVarName;
+	std::vector<std::pair<TokenID, TokenID>> m_PendingTypeVars;   // (var, constraint) collected before the function item exists
+	TokenID                          m_PendingGenericUnitVar;     // set by DoBasicType for unit<V>
+
 	// function declaration support (stack: function declarations may nest in bodies)
 	struct FuncProdState
 	{
@@ -182,6 +192,8 @@ void                ClearPropData();
 		ValueComposition          resultVC = ValueComposition::Unknown;
 		SharedStr                 resultExpr;
 		std::vector<std::pair<UInt32, const TreeItem*>> paramSigs; // (param index, signature exemplar)
+		std::vector<std::pair<TokenID, TokenID>> typeVars;         // (var, constraint)
+		std::vector<std::tuple<UInt32, TokenID, TokenID>> genericParams; // (param index, var, constraint)
 	};
 	std::vector<FuncProdState>       m_FuncStates;
 

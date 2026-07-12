@@ -158,8 +158,23 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 			// ==== FUNCTION DECL
 			// function F(<param decls>) -> [name:] <result type> := <result expr> [;] [{ <body items> }]
 
+			// generic type variables: function f<V: numerics>(...)
+			chlit<> LANGLE('<');
+			chlit<> RANGLE('>');
+			typeParamsClause =
+				LANGLE
+				>> (identifier[([&cp](...) { cp.OnTypeVarName();})]
+					>> COLON
+					>> assert_d("type-variable constraint expected after ':'")[identifier]
+					)[([&cp](...) { cp.OnTypeVarConstraint();})]
+				>> *( ',' >> (identifier[([&cp](...) { cp.OnTypeVarName();})]
+					>> COLON
+					>> assert_d("type-variable constraint expected after ':'")[identifier]
+					)[([&cp](...) { cp.OnTypeVarConstraint();})] )
+				>> assert_d("'>' expected after type-variable declarations")[RANGLE];
+
 			functionDecl =
-				( (as_lower_d[FUNCTION] >> identifier >> LPAREN)
+				( (as_lower_d[FUNCTION] >> identifier[([&cp](...) { cp.DoItemName();})] >> !typeParamsClause >> LPAREN)
 					[([&cp](auto _1, auto) { cp.OnFunctionHeading(_1); cp.DoBeginBlock();})]
 				>> !(functionParamItem >> *(SEMICOLON >> !functionParamItem))
 				>> assert_d("')' expected after function parameter declarations")[RPAREN]
@@ -310,7 +325,7 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 			preprocStatement,
 			itemDecl, itemHeading, itemSignature, colonHeading,
 			functionDecl, functionParamItem, functionResultType, functionResultSpec,
-			aliasFunctionSig, aliasPlain,
+			typeParamsClause, aliasFunctionSig, aliasPlain,
 			itemParam, unitIdentifier, basicType,
 			itemProp, anyPropImpl, anyProp, storageProp, usingProp, entityNrOfRowsProp, dataBlock, directExpr,
 			itemRef, fileRef, identifier;

@@ -14,6 +14,8 @@
 //----------------------------------------------------------------------
 
 #include "RtcInterface.h"
+#include "mci/ValueClass.h"
+#include "mci/ValueComposition.h"
 #include "act/ActorLock.h"
 #include "act/ActorVisitor.h"
 #include "act/InterestRetainContext.h"
@@ -77,9 +79,43 @@ namespace {
 		UInt32 nrParams = 0;
 		TokenID resultName;
 		std::vector<std::pair<UInt32, std::weak_ptr<const TreeItem>>> paramSigs;
+		std::vector<std::tuple<UInt32, TokenID, TokenID>> genericParams; // (param index, type variable, constraint)
 	};
-	bool IsDefaultValue(const FunctionSpecData& v) { return v.nrParams == 0 && !v.resultName && v.paramSigs.empty(); }
+	bool IsDefaultValue(const FunctionSpecData& v) { return v.nrParams == 0 && !v.resultName && v.paramSigs.empty() && v.genericParams.empty(); }
 	static_quick_assoc<const TreeItem*, FunctionSpecData> s_FunctionSpecAssoc;
+
+	static TokenID t_gcAny      = GetTokenID_st("any");
+	static TokenID t_gcNumerics = GetTokenID_st("numerics");
+	static TokenID t_gcIntegers = GetTokenID_st("integers");
+	static TokenID t_gcFloats   = GetTokenID_st("floats");
+	static TokenID t_gcUInts    = GetTokenID_st("uints");
+	static TokenID t_gcDomains  = GetTokenID_st("domains");
+	static TokenID t_gcPoints   = GetTokenID_st("points");
+}
+
+TIC_CALL bool IsKnownGenericConstraint(TokenID constraintName)
+{
+	return constraintName == t_gcAny
+		|| constraintName == t_gcNumerics
+		|| constraintName == t_gcIntegers
+		|| constraintName == t_gcFloats
+		|| constraintName == t_gcUInts
+		|| constraintName == t_gcDomains
+		|| constraintName == t_gcPoints;
+}
+
+TIC_CALL bool MatchesGenericConstraint(const ValueClass* vc, TokenID constraintName)
+{
+	if (!vc)
+		return false;
+	if (constraintName == t_gcAny)      return true;
+	if (constraintName == t_gcNumerics) return vc->IsNumeric();
+	if (constraintName == t_gcIntegers) return vc->IsIntegral();
+	if (constraintName == t_gcFloats)   return vc->IsNumeric() && !vc->IsIntegral();
+	if (constraintName == t_gcUInts)    return vc->IsIntegral() && !vc->IsSigned();
+	if (constraintName == t_gcDomains)  return vc->IsCountable();
+	if (constraintName == t_gcPoints)   return vc->GetNrDims() == 2 && vc->GetValueComposition() == ValueComposition::Single;
+	return false;
 }
 
 using TreeItemInterestPtr = InterestPtr<const TreeItem*>;
@@ -1409,6 +1445,24 @@ TIC_CALL void TreeItem_CopyFunctionSpec(const TreeItem* dstFunctionItem, const T
 	auto specPtr = s_FunctionSpecAssoc.get_value_ptr(srcFunctionItem);
 	if (specPtr)
 		s_FunctionSpecAssoc.assoc(dstFunctionItem, *specPtr);
+}
+
+TIC_CALL void TreeItem_AddFunctionGenericParam(const TreeItem* functionItem, UInt32 paramIndex, TokenID varName, TokenID constraintName)
+{
+	assert(functionItem && functionItem->IsFunctionItem());
+	s_FunctionSpecAssoc[functionItem].genericParams.emplace_back(paramIndex, varName, constraintName);
+}
+
+TIC_CALL bool TreeItem_GetFunctionGenericParam(const TreeItem* functionItem, UInt32 seqNr, UInt32* paramIndex, TokenID* varName, TokenID* constraintName)
+{
+	auto specPtr = s_FunctionSpecAssoc.get_value_ptr(functionItem);
+	if (!specPtr || seqNr >= specPtr->genericParams.size())
+		return false;
+	const auto& genericParam = specPtr->genericParams[seqNr];
+	if (paramIndex)     *paramIndex     = std::get<0>(genericParam);
+	if (varName)        *varName        = std::get<1>(genericParam);
+	if (constraintName) *constraintName = std::get<2>(genericParam);
+	return true;
 }
 
 TIC_CALL UInt32 TreeItem_GetFunctionParamCount(const TreeItem* functionItem)
