@@ -84,13 +84,17 @@ namespace {
 	bool IsDefaultValue(const FunctionSpecData& v) { return v.nrParams == 0 && !v.resultName && v.paramSigs.empty() && v.genericParams.empty(); }
 	static_quick_assoc<const TreeItem*, FunctionSpecData> s_FunctionSpecAssoc;
 
-	static TokenID t_gcAny      = GetTokenID_st("any");
-	static TokenID t_gcNumerics = GetTokenID_st("numerics");
-	static TokenID t_gcIntegers = GetTokenID_st("integers");
-	static TokenID t_gcFloats   = GetTokenID_st("floats");
-	static TokenID t_gcUInts    = GetTokenID_st("uints");
-	static TokenID t_gcDomains  = GetTokenID_st("domains");
-	static TokenID t_gcPoints   = GetTokenID_st("points");
+	static TokenID t_gcAny          = GetTokenID_st("any");
+	static TokenID t_gcNumerics     = GetTokenID_st("numerics");
+	static TokenID t_gcIntegers     = GetTokenID_st("integers");
+	static TokenID t_gcFloats       = GetTokenID_st("floats");
+	static TokenID t_gcUInts        = GetTokenID_st("uints");
+	static TokenID t_gcUnsignedInts = GetTokenID_st("unsigned_ints");
+	static TokenID t_gcSInts        = GetTokenID_st("sints");
+	static TokenID t_gcSignedInts   = GetTokenID_st("signed_ints");
+	static TokenID t_gcDomains      = GetTokenID_st("domains");
+	static TokenID t_gcPoints       = GetTokenID_st("points");
+	static TokenID t_gcDomainPoints = GetTokenID_st("domain_points");
 }
 
 TIC_CALL bool IsKnownGenericConstraint(TokenID constraintName)
@@ -100,8 +104,12 @@ TIC_CALL bool IsKnownGenericConstraint(TokenID constraintName)
 		|| constraintName == t_gcIntegers
 		|| constraintName == t_gcFloats
 		|| constraintName == t_gcUInts
+		|| constraintName == t_gcUnsignedInts
+		|| constraintName == t_gcSInts
+		|| constraintName == t_gcSignedInts
 		|| constraintName == t_gcDomains
-		|| constraintName == t_gcPoints;
+		|| constraintName == t_gcPoints
+		|| constraintName == t_gcDomainPoints;
 }
 
 TIC_CALL bool MatchesGenericConstraint(const ValueClass* vc, TokenID constraintName)
@@ -112,9 +120,14 @@ TIC_CALL bool MatchesGenericConstraint(const ValueClass* vc, TokenID constraintN
 	if (constraintName == t_gcNumerics) return vc->IsNumeric();
 	if (constraintName == t_gcIntegers) return vc->IsIntegral();
 	if (constraintName == t_gcFloats)   return vc->IsNumeric() && !vc->IsIntegral();
-	if (constraintName == t_gcUInts)    return vc->IsIntegral() && !vc->IsSigned();
+	if (constraintName == t_gcUInts || constraintName == t_gcUnsignedInts)
+		return vc->IsIntegral() && !vc->IsSigned();
+	if (constraintName == t_gcSInts || constraintName == t_gcSignedInts)
+		return vc->IsIntegral() && vc->IsSigned();
 	if (constraintName == t_gcDomains)  return vc->IsCountable();
 	if (constraintName == t_gcPoints)   return vc->GetNrDims() == 2 && vc->GetValueComposition() == ValueComposition::Single;
+	if (constraintName == t_gcDomainPoints)
+		return vc->GetNrDims() == 2 && vc->GetValueComposition() == ValueComposition::Single && vc->IsCountable();
 	return false;
 }
 

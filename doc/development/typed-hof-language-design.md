@@ -989,8 +989,11 @@ plan below remains the design for the boundary-keyed variant:
 **Implementation status (v20.9.0): value-type polymorphism is IMPLEMENTED.**
 `function f<V: numerics>(unit<uint32> D; attribute<V> x (D)) -> attribute<V> (D)` —
 class-constrained type variables over the closed 𝕍 universe. Constraint vocabulary:
-`any, numerics, integers, floats, uints, domains, points`
-(`MatchesGenericConstraint` in `tic/TreeItem.cpp`, built on ValueClass predicates).
+`any, numerics, integers, floats, uints/unsigned_ints, sints/signed_ints, domains,
+points, domain_points`
+(`MatchesGenericConstraint` in `tic/TreeItem.cpp`, built on ValueClass predicates;
+`domain_points` = 2-dimensional, single composition, countable coordinates — the
+point types eligible as grid domains).
 `attribute<V>`/`parameter<V>` positions record the variable per parameter in the
 function spec; `unit<V>` parameters (and `-> unit<V>` results) become plain binders
 whose types follow from the arguments. Checking happens at application time in the
@@ -1013,22 +1016,149 @@ optional-argument adoption unlock retirement of rewrite categories B/C/E (§8.2)
 Type-variable clauses on signature aliases are not yet parsed (function declarations
 only).
 
-### P3 — higher order
+### P3 — higher order: remaining work packages (implementation-ready, see §15 for conventions)
 
-`lambda` terms with ChroID variables; β-reduction in C++ at the function-application
-step (NOT through `ApplyTopEnv`/RewriteExpr.lsp — that engine has a global memo cache
-and no binder concept); fresh-ChroID alpha-renaming per reduction step; the §5.6
-post-condition scan. Typed `map`/`filter` over containers; deprecate `for_each`.
-P1 stays strictly first-order and capture-free by construction (its "variables" are
-absolute config paths).
+The P3 core (function-valued parameters) is implemented. The remaining P3 work,
+specified for direct implementation:
 
-### P4 — refinements and rewrite end-state
+**WP3.1 — Partial application (function values with pre-bound arguments).**
+*Goal:* `F(a, _)` in any argument position yields a function value with `a` bound and
+one hole. *Design:* generalize the binding representation. Today a function argument is
+carried as a bare `SharedTreeItem` in `FunctionApplication::m_ArgItems`
+(`tic/AbstrCalculator.cpp`); replace with
+`struct FunctionBinding { SharedTreeItem funcItem; std::vector<LispRef> boundKeys; std::vector<SharedTreeItem> boundItems; std::vector<bool> isHole; }`
+(a plain reference = binding with all-holes). `_` parses as an ordinary identifier
+token; detect it (token compare against a static `GetTokenID_st("_")`) in the two
+places arguments are collected: the caller-side loop in `SubstituteExpr_impl`'s
+function branch, and the nested-call loop in
+`FunctionApplication::SubstituteBodyExpr`. A call expression containing a hole does
+NOT reduce; it constructs a binding (callee + per-position keys/holes) and is only
+legal in argument positions (elsewhere: error "a partial application can only be
+passed as an argument"). Application of a binding: `Reduce` fills holes left-to-right
+with the provided arguments; arity check compares the number of *holes*.
+*Steps:* (1) introduce FunctionBinding and mechanically replace the
+`m_ArgItems[i]->IsFunctionItem()` tests; (2) hole detection + binding construction in
+both argument loops; (3) merge logic in `Reduce`; (4) signature checking
+(`CheckFunctionSignature`) applies to the *residual* signature (unbound positions
+only) — v1 may simply skip signature checks on partial bindings with a documented
+warning. *Tests:* `Add2(x,y):=x+y; twice_add3 := ...` — bind `Add2(3.0, _)` passed to
+an applier; value-checked; negatives: hole in value position, wrong residual arity.
 
-`range(a,b)` refinement checks unified with IntegrityChecks (lazy, data-stage);
-metric-aware printable signatures; optionally declared metric constraints on
-parameters. RewriteExpr.lsp reaches empty and is removed together with the
-rule-head name validation; the compiled-in typed simplifier (category D) remains as the
-only rewriting, now running with typing information (§8.4).
+**WP3.2 — Lambdas (optional; machinery notes).**
+Named functions + partial application cover the practical space; full lambdas are
+optional. If wanted: represent as `(lambda (formals…) bodyExpr)` LispRef terms with
+formals as ChroID variables (`LispRef(token, chroId)`; `SymbObj::IsVar`,
+`sym/LispRef.cpp`). **Alpha-renaming is a solved problem in this codebase**: the
+Prolog processor (`sym/Prolog.cpp`, re-included, working) contains
+`Renum(LispPtr, TTimeStamp)` (line ~59): stamps every variable in a term with a
+chromosome — hash-consed, O(size). Use the `Solve` pattern (Prolog.cpp:196-208): a
+monotonically increasing chromosome counter; at each β-step, `Renum` the lambda term
+with a fresh chromosome, then substitute via `Add(assoc, Assoc(var, argKey))` +
+`AssocList::ApplyOnce`. β-reduction runs in C++ at the function-application step —
+NOT through `ApplyTopEnv`/RewriteExpr.lsp (global memo cache keyed on interned
+pointers, no binder concept). Enforce the §5.6 erasure post-condition: scan the final
+reduced expression for residual `IsVar()` leaves / `lambda` heads before any
+`GetOrCreateDataController` call. There is a second, assoc-threading
+`Renum(assocList, expr, int& nextFreeVarNum)` in `sym/Lispeval.cpp` (~line 670, used
+by the disabled evaluator) if per-variable renaming maps are needed. R10 (capture,
+memo confusion, self-aliasing) is addressed exactly by fresh-chromosome renaming.
+
+**WP3.3 — Typed `map` over containers (for_each replacement, first combinator).**
+*Goal:* `container out := map(F, src);` creates one child per data-item child of
+`src`, each calculated as `F(child)` (inline-reduced). *Design:* root-level-only
+metafunction, dispatched where template/function calls are recognized in
+`AbstrCalculator::SubstituteExpr` (the `og->IsTemplateCall()` branch): reserve the
+head name (verify it is free via `AbstrOperGroup::FindName` at startup; fall back to
+`map_items` on collision). Resolve arg1 to a function/binding (as in the function
+branch), arg2 to a container item (`FindItem`). Return
+`MetaFuncCurry`-style deferred work; implement `InstantiateMap(holder, binding,
+srcItem)` next to `InstantiateTemplate` (`tic/AbstrCalculator.cpp:996-1015`): for each
+data-item child `c` of `srcItem` (walk `_GetFirstSubItem`/`GetNextItem`): reduce the
+application `F(c)` (construct a `FunctionApplication` with argKey =
+`c->GetCheckedKeyExpr()`, argItem = c) and create a child of `holder` named
+`c->GetID()` with `SetCalculator(ConstructFromLispRef(child, reducedExpr,
+CalcRole::Calculator))` (pre-substituted; the `ForEach_CreateResult` pattern,
+`clc/dll/src/ForEach.cpp:141-340`, is the reference for holder handling +
+`SetIsInstantiated`). *Tests:* map a Halve-like function over a container of two
+attributes; value checks; template regression. `filter`/`fold` follow the same
+pattern later.
+
+**WP3.4 — Definition-time checking (deferred from P1).**
+*Goal:* a function body is scope- and shape-checked once, at its first *reference*
+(lazily — parse-order independence!), instead of failing only inside the first
+application. *Design:* a check-only reduction mode: add `bool m_CheckOnly` to
+`FunctionApplication`; params bind placeholder marker keys (e.g.
+`ExprList(token-of("checkArg"), Number(i))`); `ResolveBodySymbol` member-access
+through parameters returns a marker instead of throwing; externals resolve fully
+(catching unknown identifiers and strict-scope violations); operator heads are
+validated via `FindName` exactly as now; SKIP the `CanResultToConfigItem` block
+(markers inside the expression must never reach `GetOrCreateDataController`); the
+result is discarded. *Trigger:* in both dispatch sites (root `SubstituteExpr` and
+`SubstituteExpr_impl` function branches), after `FindOrVisitItem` resolves the
+function: if a `checked` flag in `FunctionSpecData` is not yet set, run the check-only
+reduction over the designated result, set the flag, and on failure
+`func->Fail(msg, FailType::MetaInfo)` so every later reference reports the definition
+error. *Limits (document):* generic constraints and member existence still check per
+application; `calc_always` sub-expressions containing markers are skipped.
+
+### P4 — unifier, boundary keys, refinements, rewrite end-state (implementation-ready)
+
+**WP4.1 — TypeSpec unifier on Robinson unification (unlocks variants + operator
+signatures).** The resurrected Prolog processor provides the algorithm:
+`UnifyRobinson(t1, t2, assoc)` (`sym/Prolog.cpp:100-133`, occurs-check included,
+returns an `AssocList` substitution or `failed()`), plus the iterative
+Martelli-Montanari-style `Unify` via `ReduceCaneghem` (`:148-191`) as an alternative.
+**Known defect to fix first**: `Occur` (`Prolog.cpp:93-98`) combines the recursive
+branches with `&&`; an occurs-check must use `||` — fix and unit-test before relying
+on it. *Design:* encode signatures as LispRef TypeSpecs (§7) where unit/value-type
+positions are ChroID variables; per candidate (overload variant, operator signature),
+`Renum` the spec with a fresh chromosome (Prolog.cpp:59) and `UnifyRobinson` it
+against the argument TypeSpec vector; constraint variables verify their binding via
+`MatchesGenericConstraint` (`tic/TreeItem.cpp`) after unification. Variant selection:
+unify against every variant of the set; exactly one success — or the most
+specific of several (concrete beats variable) — else ambiguity error. Operator
+signature reification stays mechanical: ClassCPtr array ⊕ UnitCreator name ⊕
+domain-unify pattern (§6) generated per registered `Operator`, opt-in per group;
+first consumers are call diagnostics and WP3.4 (upgrading it from shape checks to
+full checks against operator signatures).
+
+**WP4.2 — `applyF` boundary keys (R6/R7, opt-in).** Inline reduction stays the
+default (it preserves rewrite-rule key identity, §8.3). For very large bodies or
+better error attribution, add per-function opt-out: property `inline = "false"` on
+the function item → applications produce `(applyF "/path/F" argKey_1 …)` with a new
+`token::applyF` and a `FuncApplDC` whose `MakeResult` forwards to
+`GetOrCreateDataController(reducedExpr)` (result-DC chaining exists,
+`tic/DataController.cpp` `CallCalcResult`). Container-shaped results keep the
+copy-instantiating form; do NOT attempt per-member DC trees (risk R5) until a
+concrete need arises.
+
+**WP4.3 — Refinements as checked aliases.** Extend plain-type aliases with a
+refinement clause: `frac = attribute<float64>, IntegrityCheck = "frac >= 0.0 && frac <= 1.0";`
+— the exemplar stores the property; `x: frac` clones it onto the declared item
+(ordinary IntegrityCheck semantics: lazy, data-stage, exactly the §2 staging rule).
+`range = [lo, hi]` sugar can generate the check string. No new checking machinery.
+
+**WP4.4 — Metric constraints via aliases (mostly free).** An alias whose exemplar
+references a concrete values *unit* (`speed = attribute</units/m_s>;`) already pins
+the metric: the cloned values-unit token re-resolves at the use site and
+`UnifyValues` enforces metric equality at calc time. Document this as the idiom;
+remaining work is only *surfacing* (printable signatures include the metric, WP4.1's
+TypeSpecs carry it as `metric(μ)` terms).
+
+**WP4.5 — RewriteExpr.lsp retirement, first tranche.** Prerequisites are now in
+place: inline reduction reproduces rule keys byte-identically (a prelude
+`function sqr<V: numerics>(unit<uint32> D; attribute<V> x (D)) -> attribute<V> (D) := x * x;`
+reduces `sqr(a)` to `(mul aKey aKey)` — the same interned key the rewrite rule
+produces today, so cache identity and cross-spelling unit unification are preserved).
+*Steps:* (1) ship `res/prelude.dms` with the definitional rules of §8.2 category A
+that are pure compositions (predicate family `*_or_*_null`, `order`, `isOverlapping`,
+`neighbourhood`, `float/point_isNearby`, `median`, `plogp`, `sqr`, `rescale`,
+`normalize`, `distribute`, `scalesum`); (2) configs opt in via
+`#include <%exeDir%/prelude.dms>` (auto-inclusion can follow once trusted);
+(3) delete each rule only after a key-identity regression (two spellings of a unit
+expression must still unify) passes with the prelude replacement; (4) `claim_*` rules
+move to RuimteScanner configs; (5) categories B/C/E wait for variadic/optional-arg
+operator work; category D stays engine-side (§8.4).
 
 ## 11. Honest limits of definition-time checking
 
@@ -1105,3 +1235,114 @@ definitional half of RewriteExpr.lsp (`inline` functions preserving today's cach
 unit identities), variadic/optional-argument operator features absorb its
 normalizations, a compiled-in typed pass keeps its simplifications — and higher-order
 functions arrive as a meta-stage-only extension that the tiled engine never sees.
+
+## 15. Implementation handoff (state as of v20.9.0)
+
+For the implementer of the §10 P3/P4 work packages. Everything below is committed on
+`refactor_ownership` (`e6df2a3b`, `4b858327`, `7acfe341`, `73058e5e` + constraint
+extension).
+
+### 15.1 Inventory — what exists and where
+
+- **stx/dll/src/ConfigParse.cpp** (Spirit classic `config_grammar`): rules
+  `functionDecl`, `functionParamItem`, `functionResultType`, `functionResultSpec`,
+  `typeParamsClause`, `aliasFunctionSig`, `aliasPlain`, `colonHeading` (name:type +
+  multi-name declarations). `itemDecl = (itemHeading | colonHeading) >> ...`;
+  `item = functionDecl | aliasFunctionSig | aliasPlain | itemDecl... | #include`.
+- **stx/dll/src/ConfigProd.{h,cpp}**: `FuncProdState` stack (paramCount,
+  signatureOnly, inParamList, result-signature capture, resultExpr, paramSigs,
+  typeVars, genericParams); `OnFunctionHeading/SigHeading/DeclEnd`,
+  `OnFunctionParamDecl`, `OnFunctionResultSig/Expr`, `DoFunctionUsing`,
+  `DoColonItemHeading`, `DoAliasDecl`, `DoRefTypeSignature` (type-by-example cloning),
+  `ResolveTypeRef` (parse-time, parent-chain only), `ConsumeGenericParamMarker`,
+  `OnTypeVarName/Constraint`. Aliases create inert exemplars (`SetIsTemplate`).
+- **rtc/dll/src/tic/TreeItem.{h,cpp}**: `TSF_IsFunctionItem` (0x01000000),
+  `SetIsFunction` (= `SetIsTemplate` + flag), `s_FunctionSpecAssoc`
+  (`FunctionSpecData`: nrParams, resultName, paramSigs (weak exemplars),
+  genericParams) with `TreeItem_Set/CopyFunctionSpec`,
+  `TreeItem_Get/AddFunctionParamSignature`, `TreeItem_Add/GetFunctionGenericParam`,
+  `TreeItem_MakeStrictScope`; `IsKnownGenericConstraint` /
+  `MatchesGenericConstraint` (vocabulary: any, numerics, integers, floats,
+  uints/unsigned_ints, sints/signed_ints, domains, points, domain_points; built on
+  ValueClass predicates). `TreeItem::Copy`: function scopes keep ALL imports (skip
+  guard bypassed), stream them absolute, `RemoveParentUsing`; nested function copies
+  keep flag+spec+strict scope.
+- **rtc/dll/src/tic/UsingCache.{h,cpp}**: `RemoveParentUsing` + `m_ParentIsHidden`;
+  `FindNamespace(url, mayResolveViaHiddenParent)` — hidden-parent fallback only for
+  `using`-url resolution, absolute urls resolve from the tree root.
+- **rtc/dll/src/tic/AbstrCalculator.cpp**: the reducer — anonymous-namespace
+  `FunctionApplication` { m_FuncItem, m_Parent (recursion chain), m_SubstBuff
+  (supplier registration), m_ErrorHolder, m_ArgKeys/m_ArgItems, m_Params,
+  m_Reductions/m_InProgress; `Reduce`, `ReduceBodyItem`, `SubstituteBodyExpr(refScope,
+  expr)` (nearest-scope), `ResolveBodySymbol` } and `CheckFunctionSignature`
+  (classes + value composition + alpha-invariant `#j` domain/values-token
+  normalization). Dispatch: `SubstituteExpr` root (typed holder → inline via
+  `goto skipTemplInst`; container holder → `MetaFuncCurry` copy-instantiation; arity
+  check) and `SubstituteExpr_impl` (function branch before the template throw:
+  argument substitution with `metainfo_policy_flags::subst_allowed`, function-valued
+  arguments bind without key substitution).
+- **sym/Prolog.cpp** (re-included, working): `Renum` (variable stamping by
+  chromosome), `UnifyRobinson` (occurs-check; **fix `Occur`'s `&&`→`||` first**),
+  `ReduceCaneghem`/`Unify`, `Solve` (fresh-chromosome-per-step pattern).
+  `sym/Lispeval.cpp` has a second assoc-threading `Renum` (~line 670) and the
+  commented-out applicative evaluator.
+- **Tests** (session-local, `scratch/`, gitignored — recreate as needed):
+  `fn_test.dms` (P0 forms), `fn_test_p1.dms` (inline/nested/applicative, 9 checks),
+  `fn_test_p3.dms` (HOF), `fn_test_sig.dms` (aliases+signatures), `fn_test_p2.dms`
+  (generics incl. sints/uints), negatives `fn_test_{arity,scope,p1_rec,p3_neg,
+  sig_neg,p2_neg1,p2_neg2}.dms`; committed example: `examples/function.dms`.
+
+### 15.2 Pitfalls (each cost a debugging round — read before editing)
+
+1. **Spirit classic actions fire on partial matches and are NOT undone by
+   backtracking.** Attach creation actions to sequences that cannot be a prefix of
+   something else (e.g. `(kw >> identifier >> LPAREN)`), and make state-capture
+   actions idempotent/re-startable (`StartPendingNames` clears).
+2. **`m_strIdentifierID` is a single slot** overwritten by every identifier match —
+   capture names into dedicated fields at the earliest action (function name capture
+   moved into the identifier action because type-variable clauses overwrite it).
+3. **A bare `char` inside `assert_d[...]` breaks Spirit** (`composite.hpp` C2825
+   errors) — wrap in `chlit<>`.
+4. **Never pass `theTemplGroup` to `SubstituteArgs`**: `TemplOperGroup::GetArgPolicy`
+   returns `calc_never` → `subst_never` → sourceDescr trees instead of key
+   expressions. Substitute function-call arguments directly with `subst_allowed`.
+5. **UsingCache's constructor calls `AddParent`** — every cache implicitly contains
+   the tree parent as fallback namespace. Strictness requires `RemoveParentUsing`
+   AND forcing the cache into existence (delegation-stops-the-walk only if a cache
+   exists).
+6. **`TreeItem::Copy`'s namespace loop skips `sns == parent` and ancestors** because
+   template instances get the parent injected separately; function scopes get no
+   parent → keep all their imports (already fixed; preserve when touching Copy).
+7. **Item names collide case-insensitively** (`Nested` vs `nested` → "SubItem already
+   defined") — in configs and tests.
+8. **Body items are `InTemplate`**: never acquire calculators, `GetCheckedKeyExpr`
+   yields stable nominal leaves, `slSupplierExprImpl` throws on references INTO them
+   from outside (function-item references are exempted for pass-on positions).
+9. **`ExprCalculator::GetLispExprOrg()` parses lazily** — `ConstructFromStr` +
+   `GetLispExprOrg` is the side-effect-free parse of a body expression.
+10. **No new source files** without editing `*.vcxproj` (msbuild lists files
+    explicitly; CMake globs). All function machinery deliberately lives in existing
+    files.
+11. **Recursion detection must follow the nested-application parent chain**, not a
+    thread-global stack — `UpdateMetaInfo` of externals re-enters the reducer for
+    unrelated applications (false positives otherwise).
+12. **Member lookups through parameters must descend only** (`FindSubItem`);
+    `FindItem` walks ancestors and silently binds call-site items.
+13. **`static_quick_assoc` values need an `IsDefaultValue` overload** (ADL) when the
+    value type has no `operator==` (weak_ptr members).
+14. **GeoDmsRun needs absolute config paths**; verify values with
+    `IntegrityCheck = "item == expected"` (wrong values then fail the run); expected
+    error tests assert exit 1 + the diagnostic text.
+
+### 15.3 Build & verify recipe
+
+```powershell
+& 'C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Current\Bin\amd64\MSBuild.exe' `
+    all22.sln -p:Configuration=Release -p:Platform=x64 -m
+& bin\Release\x64\GeoDmsRun.exe /L<abs>\run.log <abs>\config.dms /checks
+```
+
+Always build the whole solution (VS18 msbuild, toolset v145 — see CLAUDE.md); after
+any change to the function machinery, re-run the full battery of §15.1's test configs
+plus a classic-template regression (definition-scope reference through the implicit
+namespace must keep working) before committing.

@@ -476,7 +476,7 @@ void ConfigProd::OnTypeVarName()
 void ConfigProd::OnTypeVarConstraint()
 {
 	if (!IsKnownGenericConstraint(m_strIdentifierID))
-		throwSemanticError(mgFormat2string("unknown type-variable constraint '{}'; known constraints: any, numerics, integers, floats, uints, domains, points"
+		throwSemanticError(mgFormat2string("unknown type-variable constraint '{}'; known constraints: any, numerics, integers, floats, uints/unsigned_ints, sints/signed_ints, domains, points, domain_points"
 			, GetTokenStr(m_strIdentifierID)).c_str());
 	m_PendingTypeVars.emplace_back(m_PendingTypeVarName, m_strIdentifierID);
 }
