@@ -1132,11 +1132,19 @@ the function item → applications produce `(applyF "/path/F" argKey_1 …)` wit
 copy-instantiating form; do NOT attempt per-member DC trees (risk R5) until a
 concrete need arises.
 
-**WP4.3 — Refinements as checked aliases.** Extend plain-type aliases with a
-refinement clause: `frac = attribute<float64>, IntegrityCheck = "frac >= 0.0 && frac <= 1.0";`
-— the exemplar stores the property; `x: frac` clones it onto the declared item
-(ordinary IntegrityCheck semantics: lazy, data-stage, exactly the §2 staging rule).
-`range = [lo, hi]` sugar can generate the check string. No new checking machinery.
+**WP4.3 — Refinements as checked aliases — IMPLEMENTED in 20.9.0.** A plain-type alias
+may carry a refinement clause:
+`frac = parameter<float64>, IntegrityCheck = "frac >= 0.0 && frac <= 1.0";`. The
+`aliasPlain` grammar now accepts `, itemProp` after the type; the exemplar stores the
+property. When an item is declared with the alias (`good: frac := 0.75;`),
+`ConfigProd::CloneAliasRefinement` copies the exemplar's `IntegrityCheck` onto the new
+item, rebinding the reference to the value by whole-identifier substitution of the alias
+name with the item's name (`frac >= 0.0` → `good >= 0.0` /
+`SubstituteWholeIdentifier`). Alias-of-refined-alias inherits and re-rebinds. The check
+is an ordinary IntegrityCheck (lazy, data-stage — §2 staging). No new checking
+machinery. Verified: `good`/`good2` (via `ratio = frac`) pass; `bad: frac := 1.5` fails
+`'bad >= 0.0 && bad <= 1.0' is not true` (`scratch/fn_test_refine{,_neg}.dms`). A
+`range = [lo, hi]` sugar generating the check string can follow.
 
 **WP4.4 — Metric constraints via aliases — VERIFIED in 20.9.0 (no code change).**
 An alias whose exemplar references a concrete values *unit* pins the metric: the cloned

@@ -225,6 +225,7 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 				[([&cp](auto _1, auto) { cp.OnFunctionDeclEnd(_1);})];
 
 			// plain type alias: alias = unit<vt>; | attribute<vu> [(domain)]; | previously declared item;
+			// with optional refinement properties (e.g. ', IntegrityCheck = "...")
 			aliasPlain =
 				( (identifier >> EQUAL)[([&cp](...) { cp.OnAliasName();})]
 				>> ( itemSignature
@@ -232,6 +233,7 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 				>> !(LPAREN >> itemParam >> *(',' >> itemParam) >> RPAREN)
 				)
 				[([&cp](auto _1, auto _2) { cp.DoAliasDecl(_1, _2);})]
+				>> !(',' >> itemProp >> *(',' >> itemProp))
 				>> assert_d("';' expected after type alias")[SEMICOLON];
 
 			// ==== ==== ITEM HEADING

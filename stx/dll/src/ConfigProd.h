@@ -92,6 +92,7 @@ struct ConfigProd : AbstrDataBlockProd, AbstrContextHandle
 //	type aliases: alias = type;
 	void OnAliasName();
 	void DoAliasDecl(iterator_t first, iterator_t last);
+	void CloneAliasRefinement(); // copy an exemplar's IntegrityCheck onto m_pCurrent (with name substitution)
 
 //	function declarations (and function-signature type aliases)
 	void OnTypeVarName();
@@ -169,6 +170,7 @@ void                ClearPropData();
 	const TreeItem* ResolveTypeRef(TokenID refID) const; // parse-time, declared-before-use, no using-directives
 	TokenID                          m_AliasNameID;
 	const TreeItem*                  m_PendingFunctionParamSig = nullptr; // function-signature exemplar awaiting item creation
+	const TreeItem*                  m_PendingTypeExemplar = nullptr; // type-by-example / alias source, for refinement (IntegrityCheck) cloning
 
 	// generic type variable support: function f<V: numerics>(...)
 	TokenID FindActiveTypeVarConstraint(TokenID varName) const; // empty when varName is no active type variable

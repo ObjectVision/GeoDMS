@@ -30,7 +30,9 @@
 #include "Unit.h"
 #include "UnitClass.h"
 
+#include <algorithm>
 #include <cctype>
+#include <string>
 
 #include <stdarg.h>
 
@@ -205,6 +207,7 @@ void ConfigProd::ClearSignature()
 {
 	m_eValueClass    = 0;
 	m_pSignatureUnit = TokenID::GetEmptyID();
+	m_PendingTypeExemplar = nullptr;
 }
 
 void ConfigProd::DoAttrSignature()
@@ -287,15 +290,17 @@ void ConfigProd::CreateItem(TokenID nameID, const iterator_t& loc)
 
 setLocation:
 	assert(m_pCurrent);
-	position_t const& pos = loc.get_position(); 
+	position_t const& pos = loc.get_position();
 
 	m_pCurrent->SetLocation(
 		new SourceLocation(
-			ConfigurationFilenameLock::GetCurrentFileDescrFromConfigLoadDir(), 
-			pos.line, 
+			ConfigurationFilenameLock::GetCurrentFileDescrFromConfigLoadDir(),
+			pos.line,
 			pos.column
 		)
 	);
+
+	CloneAliasRefinement(); // if declared as 'name: refined_alias', clone the alias's IntegrityCheck
 }
 
 void ConfigProd::ClearPropData()
@@ -679,6 +684,7 @@ void ConfigProd::DoRefTypeSignature()
 		{
 			SetSignature(SignatureType::Unit);
 			m_eValueClass = AsUnit(exemplar)->GetValueType();
+			m_PendingTypeExemplar = exemplar; // clone its refinement (IntegrityCheck) onto the new item
 			return;
 		}
 		if (IsDataItem(exemplar))
@@ -690,6 +696,7 @@ void ConfigProd::DoRefTypeSignature()
 			auto vc = adi->GetValueComposition();
 			if (vc != ValueComposition::Single)
 				m_eParamVC = vc;
+			m_PendingTypeExemplar = exemplar; // clone its refinement (IntegrityCheck) onto the new item
 			return;
 		}
 		if (exemplar->IsFunctionItem())
@@ -760,6 +767,57 @@ void ConfigProd::DoAliasDecl(iterator_t first, iterator_t last)
 
 	ClearSignature();
 	ClearPropData();
+}
+
+static bool IsIdentChar(char c) { return std::isalnum((unsigned char)c) || c == '_'; }
+
+// replace every complete-identifier occurrence of [fb,fe) in [sb,se) with [tb,te)
+static SharedStr SubstituteWholeIdentifier(CharPtr sb, CharPtr se, CharPtr fb, CharPtr fe, CharPtr tb, CharPtr te)
+{
+	std::string out;
+	SizeT fromLen = fe - fb;
+	for (CharPtr p = sb; p != se; )
+	{
+		if (fromLen != 0 && SizeT(se - p) >= fromLen && std::equal(fb, fe, p)
+			&& (p == sb || !IsIdentChar(p[-1]))
+			&& (p + fromLen == se || !IsIdentChar(p[fromLen])))
+		{
+			out.append(tb, te);
+			p += fromLen;
+		}
+		else
+		{
+			out.push_back(*p);
+			++p;
+		}
+	}
+	return SharedStr(out.c_str());
+}
+
+void ConfigProd::CloneAliasRefinement()
+{
+	if (!m_PendingTypeExemplar || !m_pCurrent)
+		return;
+	static TokenID t_IntegrityCheck = GetTokenID_st("IntegrityCheck");
+	auto srcPd = m_PendingTypeExemplar->GetDynamicClass()->FindPropDef(t_IntegrityCheck);
+	if (!srcPd)
+		return;
+	SharedStr check = srcPd->GetValueAsSharedStr(m_PendingTypeExemplar);
+	if (check.empty())
+		return;
+
+	// the exemplar's IntegrityCheck references the value by the alias's own name;
+	// rebind it to the new item's name
+	SharedStr fromName(m_PendingTypeExemplar->GetID());
+	SharedStr toName(m_pCurrent->GetID());
+	SharedStr renamed = SubstituteWholeIdentifier(
+		check.begin(), check.send(),
+		fromName.begin(), fromName.send(),
+		toName.begin(), toName.send());
+
+	auto dstPd = m_pCurrent->GetDynamicClass()->FindPropDef(t_IntegrityCheck);
+	if (dstPd)
+		dstPd->SetValueAsCharRange(m_pCurrent.get(), renamed.begin(), renamed.send());
 }
 
 // ============================= function declarations
