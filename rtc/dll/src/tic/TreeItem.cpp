@@ -80,8 +80,9 @@ namespace {
 		TokenID resultName;
 		std::vector<std::pair<UInt32, std::weak_ptr<const TreeItem>>> paramSigs;
 		std::vector<std::tuple<UInt32, TokenID, TokenID>> genericParams; // (param index, type variable, constraint)
+		bool definitionChecked = false; // WP3.4: body scope/shape validated once
 	};
-	bool IsDefaultValue(const FunctionSpecData& v) { return v.nrParams == 0 && !v.resultName && v.paramSigs.empty() && v.genericParams.empty(); }
+	bool IsDefaultValue(const FunctionSpecData& v) { return v.nrParams == 0 && !v.resultName && v.paramSigs.empty() && v.genericParams.empty() && !v.definitionChecked; }
 	static_quick_assoc<const TreeItem*, FunctionSpecData> s_FunctionSpecAssoc;
 
 	static TokenID t_gcAny          = GetTokenID_st("any");
@@ -1476,6 +1477,18 @@ TIC_CALL bool TreeItem_GetFunctionGenericParam(const TreeItem* functionItem, UIn
 	if (varName)        *varName        = std::get<1>(genericParam);
 	if (constraintName) *constraintName = std::get<2>(genericParam);
 	return true;
+}
+
+TIC_CALL bool TreeItem_IsFunctionDefinitionChecked(const TreeItem* functionItem)
+{
+	auto specPtr = s_FunctionSpecAssoc.get_value_ptr(functionItem);
+	return specPtr && specPtr->definitionChecked;
+}
+
+TIC_CALL void TreeItem_SetFunctionDefinitionChecked(const TreeItem* functionItem)
+{
+	assert(functionItem && functionItem->IsFunctionItem());
+	s_FunctionSpecAssoc[functionItem].definitionChecked = true;
 }
 
 TIC_CALL UInt32 TreeItem_GetFunctionParamCount(const TreeItem* functionItem)

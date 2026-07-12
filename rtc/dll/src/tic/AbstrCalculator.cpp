@@ -1631,6 +1631,172 @@ namespace {
 		CallArg a; a.key = SubstituteBodyExpr(refScope, argExpr); return a;
 	}
 
+	// WP3.4: definition-time scope/shape validation. A lightweight, argument-independent
+	// walk of the body reachable from the designated result: every identifier must
+	// resolve (parameter, local, or import), operator/function heads must be known, and
+	// direct function calls must have the right arity. It deliberately does NOT check
+	// types/units/metrics/generics or member existence (those need actual arguments and
+	// are verified per application by the reduction). Runs once per function.
+	struct FunctionChecker
+	{
+		const TreeItem*              m_FuncItem = nullptr;
+		std::vector<const TreeItem*> m_Params;
+		std::set<const TreeItem*>    m_InProgress;
+
+		void CheckBodyItem(const TreeItem* refItem);
+		void CheckExpr(const TreeItem* refScope, LispPtr expr);
+		// 0=parameter, 1=local (via *local), 2=import/external; throws on unknown
+		int ResolveName(const TreeItem* refScope, TokenID sym, const TreeItem** local);
+	};
+
+	int FunctionChecker::ResolveName(const TreeItem* refScope, TokenID sym, const TreeItem** local)
+	{
+		if (local) *local = nullptr;
+		SharedStr fullStr(sym.AsStrRange());
+		CharPtr b = fullStr.begin(), e = fullStr.send();
+		if (b != e && (*b == '.' || *b == '/'))
+			throwErrorF("ExprParser", "'{}': dot-relative and absolute references are not supported inside function bodies"
+				, fullStr.c_str());
+		CharPtr slash = std::find(b, e, '/');
+		TokenID firstTok = (slash == e) ? sym : GetTokenID_mt(b, slash);
+
+		for (const TreeItem* scope = refScope; scope; scope = scope->GetTreeParent().get())
+		{
+			bool atFuncRoot = (scope == m_FuncItem);
+			auto child = scope->GetConstSubTreeItemByID(firstTok);
+			if (child)
+			{
+				for (auto p : m_Params)
+					if (p == child.get())
+						return 0; // parameter (member access is not verified at definition time)
+				const TreeItem* target = child.get();
+				if (slash != e)
+				{
+					auto t = FindSubItem(child.get(), SharedStr(CharPtrRange(slash + 1, e)));
+					if (!t)
+						throwErrorF("ExprParser", "'{}': not found in body of function '{}'"
+							, fullStr.c_str(), m_FuncItem->GetFullName().c_str());
+					target = t.get();
+				}
+				if (local) *local = target;
+				return 1;
+			}
+			if (atFuncRoot)
+				break;
+		}
+
+		auto found = m_FuncItem->FindItem(fullStr);
+		if (!found)
+			throwErrorF("ExprParser", "'{}': unknown identifier in body of function '{}' (visible are: parameters, local items, and 'using' imports)"
+				, fullStr.c_str(), m_FuncItem->GetFullName().c_str());
+		if (!found->IsFunctionItem() && found->InTemplate())
+			throwErrorF("ExprParser", "'{}': reference to (part of) a template or function from body of function '{}'"
+				, fullStr.c_str(), m_FuncItem->GetFullName().c_str());
+		return 2;
+	}
+
+	void FunctionChecker::CheckExpr(const TreeItem* refScope, LispPtr expr)
+	{
+		if (expr.EndP())
+			return;
+		if (!expr.IsRealList())
+		{
+			if (expr.IsSymb())
+			{
+				TokenID sym = expr.GetSymbID();
+				if (sym == t_Hole || token::isConst(sym) || ValueClass::FindByScriptName(sym))
+					return;
+				const TreeItem* local = nullptr;
+				if (ResolveName(refScope, sym, &local) == 1 && local)
+					CheckBodyItem(local);
+			}
+			return; // numeric / string / uint literals
+		}
+
+		TokenID headID = expr.Left().GetSymbID();
+		if (headID == token::sourceDescr)
+		{
+			CheckExpr(refScope, expr.Right().Left());
+			return;
+		}
+		if (headID == token::arrow || headID == token::scope || headID == token::subitem)
+			throwErrorF("ExprParser", "the '{}' construct is not yet supported inside inlined function bodies"
+				"; bind the function application to a container to use the instantiating form"
+				, headID.GetStr().c_str());
+
+		const AbstrOperGroup* og = AbstrOperGroup::FindName(headID);
+		if (og->IsTemplateCall() && !ValueClass::FindByScriptName(headID)) // value-type heads (float64(x)) are conversions, not function calls
+		{
+			if (headID == t_Map)
+				throwErrorF("ExprParser", "map(...) can only appear as a whole calculation rule, not as a sub-expression");
+			bool isParam = false;
+			for (auto p : m_Params)
+				if (p->GetID() == headID) { isParam = true; break; }
+			if (!isParam)
+			{
+				// a direct function/import call: validate that it is a function of the right arity
+				auto callee = m_FuncItem->FindItem(SharedStr(headID.AsStrRange()));
+				if (!callee)
+					throwErrorF("ExprParser", "'{}': unknown operator or function in body of function '{}'"
+						, headID.GetStr().c_str(), m_FuncItem->GetFullName().c_str());
+				if (!callee->IsFunctionItem())
+					throwErrorF("ExprParser", "'{}': template instantiations are not supported inside function bodies"
+						, headID.GetStr().c_str());
+				UInt32 nrArgs = 0; bool anyHole = false;
+				for (LispPtr a = expr.Right(); !a.EndP(); a = a.Right())
+				{
+					++nrArgs;
+					if (a.Left().IsSymb() && a.Left().GetSymbID() == t_Hole) anyHole = true;
+				}
+				UInt32 nrCalleeParams = TreeItem_GetFunctionParamCount(callee.get());
+				if (!anyHole && nrArgs != nrCalleeParams)
+					throwErrorF("ExprParser", "'{}': function '{}' expects {} argument(s); {} provided"
+						, headID.GetStr().c_str(), callee->GetFullName().c_str(), nrCalleeParams, nrArgs);
+			}
+		}
+		for (LispPtr a = expr.Right(); !a.EndP(); a = a.Right())
+			CheckExpr(refScope, a.Left());
+	}
+
+	void FunctionChecker::CheckBodyItem(const TreeItem* refItem)
+	{
+		if (!m_InProgress.insert(refItem).second)
+			return; // cycle guard; true circularity is caught by the reduction
+		SharedStr exprStr = refItem->GetExpr();
+		if (!exprStr.empty())
+		{
+			if (AbstrCalculator::MustEvaluate(exprStr.c_str()))
+				throwErrorF("ExprParser", "'{}': leading-'=' string indirection is not supported inside function bodies"
+					, refItem->GetFullName().c_str());
+			auto calc = AbstrCalculator::ConstructFromStr(refItem, exprStr, CalcRole::Calculator);
+			auto refScope = refItem->GetTreeParent();
+			CheckExpr(refScope.get(), RewriteExpr(calc->GetLispExprOrg()));
+		}
+		m_InProgress.erase(refItem);
+	}
+
+	void CheckFunctionDefinition(const TreeItem* funcItem)
+	{
+		if (TreeItem_IsFunctionDefinitionChecked(funcItem))
+			return;
+		TokenID resultName = TreeItem_GetFunctionResultName(funcItem);
+		auto resultChild = funcItem->GetConstSubTreeItemByID(resultName);
+		if (!resultChild)
+			throwErrorF("ExprParser", "'{}': designated result '{}' not found"
+				, funcItem->GetFullName().c_str(), resultName.GetStr().c_str());
+		if (!resultChild->GetExpr().empty()) // signature-only functions have no body to check
+		{
+			FunctionChecker chk;
+			chk.m_FuncItem = funcItem;
+			UInt32 nrParams = TreeItem_GetFunctionParamCount(funcItem);
+			const TreeItem* p = funcItem->_GetFirstSubItem();
+			for (UInt32 i = 0; i < nrParams && p; ++i, p = p->GetNextItem())
+				chk.m_Params.push_back(p);
+			chk.CheckBodyItem(resultChild.get());
+		}
+		TreeItem_SetFunctionDefinitionChecked(funcItem);
+	}
+
 } // anonymous namespace
 
 void InstantiateTemplate(TreeItem* holder, const TreeItem* applyItem, LispPtr templCallArgList)
@@ -2100,6 +2266,7 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 					if (!holder)
 						throwTaskCanceled();
 
+					CheckFunctionDefinition(templateItem.get()); // WP3.4: validate the body once, before applying
 					auto resolveData = [&](LispPtr e) { return SubstituteExpr_impl(substBuff, LispRef(e), metainfo_policy_flags::subst_allowed); };
 					auto findItem = [&](TokenID t) -> SharedTreeItem { return FindItem(t); };
 

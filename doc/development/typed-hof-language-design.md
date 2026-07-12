@@ -1079,23 +1079,26 @@ and a generic `DoubleG` mapped over a two-attribute container). Not yet: partial
 application F (`map(Scale(k,_), src)`), `filter`/`fold` (same pattern), and `for_each`
 deprecation.
 
-**WP3.4 — Definition-time checking (deferred from P1).**
-*Goal:* a function body is scope- and shape-checked once, at its first *reference*
-(lazily — parse-order independence!), instead of failing only inside the first
-application. *Design:* a check-only reduction mode: add `bool m_CheckOnly` to
-`FunctionApplication`; params bind placeholder marker keys (e.g.
-`ExprList(token-of("checkArg"), Number(i))`); `ResolveBodySymbol` member-access
-through parameters returns a marker instead of throwing; externals resolve fully
-(catching unknown identifiers and strict-scope violations); operator heads are
-validated via `FindName` exactly as now; SKIP the `CanResultToConfigItem` block
-(markers inside the expression must never reach `GetOrCreateDataController`); the
-result is discarded. *Trigger:* in both dispatch sites (root `SubstituteExpr` and
-`SubstituteExpr_impl` function branches), after `FindOrVisitItem` resolves the
-function: if a `checked` flag in `FunctionSpecData` is not yet set, run the check-only
-reduction over the designated result, set the flag, and on failure
-`func->Fail(msg, FailType::MetaInfo)` so every later reference reports the definition
-error. *Limits (document):* generic constraints and member existence still check per
-application; `calc_always` sub-expressions containing markers are skipped.
+**WP3.4 — Definition-time checking — IMPLEMENTED in 20.9.0.**
+A function body is scope- and shape-checked once, at its first *reference*, instead of
+only failing inside the reduction. Implemented as a standalone, argument-independent
+walker (`FunctionChecker` in `tic/AbstrCalculator.cpp`) rather than a check-only
+reduction mode, so it cannot destabilise the working reducer: it walks the body
+reachable from the designated result and validates that every identifier resolves
+(parameter / local / import — nearest-scope, same rules as the reducer), that
+operator/function heads are known, that dot-relative/absolute refs and
+arrow/scope/subitem/leading-`=` are rejected, and that *direct* function calls have the
+right arity. It deliberately skips everything argument-dependent: types, units,
+metrics, generic constraints, member existence, and the application of function-valued
+parameters (all still verified per application by the reduction). Value-type heads
+(`float64(x)`) are recognised as conversions, not calls. Triggered from the inline
+dispatch (`SubstituteExpr_impl` function branch) via `CheckFunctionDefinition`, guarded
+by a `definitionChecked` flag in `FunctionSpecData` so it runs once; a failure re-runs
+next time (consistent errors) while success caches. Verified: an unresolved-identifier
+body errors with function-level attribution (`unknown identifier in body of function
+'/Bad'`); no false positives across the generic/member/HOF/map test suite. Not yet:
+checking of *never-referenced* functions (needs a config-load sweep) and full type
+checking.
 
 ### P4 — unifier, boundary keys, refinements, rewrite end-state (implementation-ready)
 
