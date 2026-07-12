@@ -94,7 +94,9 @@ bool Occur(LispPtr x, LispPtr t)
 {
 	if (x==t) return true;
 	if (!t.IsRealList()) return false;
-	return (Occur(x,t.Left()) && Occur(x,t.Right()));
+	// occurs-check: x occurs in t if it occurs in EITHER subtree (was '&&', which only
+	// detected an occurrence present in both branches -- too weak, admitting cyclic bindings)
+	return (Occur(x,t.Left()) || Occur(x,t.Right()));
 }
 
 AssocList UnifyRobinson(LispPtr t1, LispPtr t2, AssocListPtr s = AssocList())

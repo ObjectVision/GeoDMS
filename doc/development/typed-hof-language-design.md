@@ -1107,9 +1107,10 @@ signatures).** The resurrected Prolog processor provides the algorithm:
 `UnifyRobinson(t1, t2, assoc)` (`sym/Prolog.cpp:100-133`, occurs-check included,
 returns an `AssocList` substitution or `failed()`), plus the iterative
 Martelli-Montanari-style `Unify` via `ReduceCaneghem` (`:148-191`) as an alternative.
-**Known defect to fix first**: `Occur` (`Prolog.cpp:93-98`) combines the recursive
-branches with `&&`; an occurs-check must use `||` — fix and unit-test before relying
-on it. *Design:* encode signatures as LispRef TypeSpecs (§7) where unit/value-type
+**The `Occur` occurs-check defect is FIXED in 20.9.0** (`Prolog.cpp:93-99` now uses
+`||`, not `&&`, so the check detects an occurrence in either subtree). The unifier and
+its variant/operator-signature consumers remain to build. *Design:* encode signatures
+as LispRef TypeSpecs (§7) where unit/value-type
 positions are ChroID variables; per candidate (overload variant, operator signature),
 `Renum` the spec with a fresh chromosome (Prolog.cpp:59) and `UnifyRobinson` it
 against the argument TypeSpec vector; constraint variables verify their binding via
@@ -1137,12 +1138,16 @@ refinement clause: `frac = attribute<float64>, IntegrityCheck = "frac >= 0.0 && 
 (ordinary IntegrityCheck semantics: lazy, data-stage, exactly the §2 staging rule).
 `range = [lo, hi]` sugar can generate the check string. No new checking machinery.
 
-**WP4.4 — Metric constraints via aliases (mostly free).** An alias whose exemplar
-references a concrete values *unit* (`speed = attribute</units/m_s>;`) already pins
-the metric: the cloned values-unit token re-resolves at the use site and
-`UnifyValues` enforces metric equality at calc time. Document this as the idiom;
-remaining work is only *surfacing* (printable signatures include the metric, WP4.1's
-TypeSpecs carry it as `metric(μ)` terms).
+**WP4.4 — Metric constraints via aliases — VERIFIED in 20.9.0 (no code change).**
+An alias whose exemplar references a concrete values *unit* pins the metric: the cloned
+values-unit token re-resolves at the use site and `UnifyValues` enforces metric
+equality at calc time. Verified by `scratch/fn_test_metric.dms` —
+`length = parameter<meter>; duration = parameter<second>;` (with
+`meter := BaseUnit('m', float64)`): two `length` values add (same metric), and
+`length + duration` errors with *"Arguments must have compatible units, but arg1 has
+Metric m and arg2 has Metric s"*. This is the idiom; remaining work is only *surfacing*
+(printable signatures include the metric; WP4.1's TypeSpecs carry it as `metric(μ)`
+terms).
 
 **WP4.5 — RewriteExpr.lsp retirement, first tranche.** Prerequisites are now in
 place: inline reduction reproduces rule keys byte-identically (a prelude
