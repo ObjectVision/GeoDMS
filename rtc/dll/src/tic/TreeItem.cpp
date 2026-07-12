@@ -63,7 +63,22 @@
 #include "UsingCache.h"
 #include "stg/MemoryMappeddataStorageManager.h"
 
+#include "set/StaticQuickAssoc.h"
+
 #include <unordered_set>
+
+// user-defined function items: declared parameter count + designated result sub-item,
+// kept in a side-assoc keyed by the function definition item (set by the config parser,
+// read at call dispatch; erased in ~TreeItem).
+namespace {
+	struct FunctionSpecData
+	{
+		UInt32 nrParams = 0;
+		TokenID resultName;
+		bool operator ==(const FunctionSpecData&) const = default;
+	};
+	static_quick_assoc<const TreeItem*, FunctionSpecData> s_FunctionSpecAssoc;
+}
 
 using TreeItemInterestPtr = InterestPtr<const TreeItem*>;
 
@@ -313,6 +328,9 @@ TreeItem::~TreeItem ()
 	DisableStorage();
 
 	MG_LOCKER_NO_UPDATEMETAINFO
+
+	if (IsFunctionItem())
+		s_FunctionSpecAssoc.erase(this);
 
 	NotifyStateChange(this, NC_Deleting);
 
@@ -1348,6 +1366,42 @@ void TreeItem::SetIsTemplate()
 	}
 }
 
+//----------------------------------------------------------------------
+// user-defined function items ('function' keyword): template-like inert body
+// plus a declared parameter count and a designated result sub-item, kept in a
+// side-assoc (set by the config parser, read at call dispatch).
+//----------------------------------------------------------------------
+
+void TreeItem::SetIsFunction()
+{
+	SetIsTemplate(); // function bodies are inert like template bodies; evaluation happens per instantiation
+	SetTSF(TSF_IsFunctionItem);
+}
+
+TIC_CALL void TreeItem_SetFunctionSpec(const TreeItem* functionItem, UInt32 nrParams, TokenID resultName)
+{
+	assert(functionItem && functionItem->IsFunctionItem());
+	s_FunctionSpecAssoc.assoc(functionItem, FunctionSpecData{ nrParams, resultName });
+}
+
+TIC_CALL UInt32 TreeItem_GetFunctionParamCount(const TreeItem* functionItem)
+{
+	auto specPtr = s_FunctionSpecAssoc.get_value_ptr(functionItem);
+	return specPtr ? specPtr->nrParams : 0;
+}
+
+TIC_CALL TokenID TreeItem_GetFunctionResultName(const TreeItem* functionItem)
+{
+	auto specPtr = s_FunctionSpecAssoc.get_value_ptr(functionItem);
+	return specPtr ? specPtr->resultName : TokenID::GetEmptyID();
+}
+
+TIC_CALL void TreeItem_MakeStrictScope(TreeItem* functionItem)
+{
+	assert(functionItem && functionItem->IsFunctionItem());
+	functionItem->GetUsingCache()->RemoveParentUsing();
+}
+
 void TreeItem::SetKeepDataState(bool value)
 { 
 	if (GetTSF(TSF_KeepData) != value)
@@ -2132,8 +2186,16 @@ SharedMutableTreeItem TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext
 		result->AssertPropChangeRights(USING_NAME);
 		result->ClearNamespaceUsage();
 
+		// strict function scoping: an instantiated (or copied) function scope sees only
+		// its own sub-items (bound arguments, locals, result) plus the function's
+		// explicitly imported namespaces (frozen to absolute paths below); no parent
+		// namespace is injected and the implicit parent namespace (= call-site or
+		// copy-site scope) is removed. This applies to instance roots AND to function
+		// definitions copied as part of a larger subtree.
+		bool srcIsFunction = IsFunctionItem();
+
 		UInt32 nrNameSpaces = GetNrNamespaceUsages();
-		bool addParentAsNamespace = dstIsRoot && GetTreeParent();
+		bool addParentAsNamespace = dstIsRoot && GetTreeParent() && !srcIsFunction;
 		if (nrNameSpaces || addParentAsNamespace)
 		{
 			VectorOutStreamBuff nameSpaceBuffer;
@@ -2142,18 +2204,25 @@ SharedMutableTreeItem TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext
 			if (addParentAsNamespace)
 				nameSpaceStream << GetTreeParent()->GetFullName();
 
-			//	Now, copy all namespaces. 
+			//	Now, copy all namespaces.
 			//	Note that namespaces may not be circular (requirement of FindItem)
 			//	GetItem follows a relative or absolute path directly
 			//	FindItem calls GetItem on this and throws in case of failure
 			for (UInt32 i1 =0; i1 != nrNameSpaces; ++i1)
 			{
 				const TreeItem* sns = GetNamespaceUsage(i1);
-				if (sns && sns != GetTreeParent().get() && !sns->DoesContain(this) )
+				// the parent/ancestor skips exist because template instances reach ancestors
+				// through the injected parent namespace; function scopes get NO parent
+				// namespace, so their explicit imports must be kept even when they equal
+				// the definition parent or an ancestor
+				if (sns && (srcIsFunction || (sns != GetTreeParent().get() && !sns->DoesContain(this))))
 				{
 					if (nameSpaceBuffer.CurrPos())
 						nameSpaceStream << ';';
-					nameSpaceStream << copyContext.GetAbsOrRelNameID(sns, this, dest).GetStr().c_str();
+					if (srcIsFunction)
+						nameSpaceStream << sns->GetFullName(); // freeze imports absolute: resolved at the definition site
+					else
+						nameSpaceStream << copyContext.GetAbsOrRelNameID(sns, this, dest).GetStr().c_str();
 					assert(nameSpaceBuffer.GetData()[nameSpaceBuffer.CurrPos()-1] != ';');
 				}
 			}
@@ -2164,9 +2233,22 @@ SharedMutableTreeItem TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext
 				result->AddUsingUrls(dataBegin, dataBegin+nameSpaceBuffer.CurrPos());
 			}
 		}
+		if (srcIsFunction)
+			result->GetUsingCache()->RemoveParentUsing(); // also forces the cache into existence: name resolution delegates-and-stops here
 	}
 	if (InTemplate())
 		result->mc_OrgItem = make_weak_tree(this);
+
+	if (IsFunctionItem() && !dstIsRoot)
+	{
+		// a function definition copied as part of a larger subtree (e.g. inside an
+		// instantiated template) stays a function: flag, declared spec, strict scope
+		result->SetIsFunction();
+		TreeItem_SetFunctionSpec(result.get()
+			, TreeItem_GetFunctionParamCount(this)
+			, TreeItem_GetFunctionResultName(this));
+		result->GetUsingCache()->RemoveParentUsing();
+	}
 	//	Now, call the virtual CopyProps func to let the derived class do some work
 
 	assert(mustCopyProps || dstIsRoot || !copyContext.InFenceOperator());

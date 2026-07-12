@@ -84,10 +84,13 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 
 			strlit<> CONTAINER("container");
 			strlit<> TEMPLATE("template");
+			strlit<> FUNCTION("function");
 			strlit<> ATTRIBUTE("attribute");
 			strlit<> PARAMETER("parameter");
 			strlit<> UNIT("unit");
 			strlit<> ENTITY("entity");
+			strlit<> USING("using");
+			strlit<> ARROW("->");
 			strlit<> UTF8_BOM("\xEF\xBB\xBF");
 
 			// ==== ITEM
@@ -98,9 +101,10 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 				= (! UTF8_BOM ) >> dms_guard_d(+item); // multiple item declarations are only allowed in #included sub-configurations
 
 			//<item> ::=
-			//	<item decl> <item block> | include file
+			//	<function decl> | <item decl> <item block> | include file
 			item
-				= (
+				= functionDecl
+				| (
 					itemDecl
 					>> assert_d("item terminator ';' expected after item definition")[
 						SEMICOLON
@@ -131,10 +135,60 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 
 			// ==== ITEM DECL
 
-			itemDecl = (itemHeading
+			itemDecl = ((itemHeading | colonHeading)
 				>> !(COLON >> itemProp >> *(',' >> itemProp)))
 				//[ ([&cp](auto,auto) { cp.OnItemDecl(); }) ];
 				[([&cp](...) { cp.OnItemDecl();})];
+
+			// name:type declaration style: 'name1, name2 : <type>' where <type> is a
+			// classic signature (unit<vt>, attribute<vu>, parameter<vu>, container, ...)
+			// or, inside function declarations, an item reference to a composite type
+			colonHeading =
+				( identifier[([&cp](...) { cp.StartPendingNames();})]
+					>> *( ',' >> identifier[([&cp](...) { cp.AddPendingName();})] )
+					>> COLON
+					>> ( itemSignature
+					   | itemRef[([&cp](...) { cp.DoRefTypeSignature();})] )
+					>> !(LPAREN >> itemParam >> *(',' >> itemParam) >> RPAREN)
+				)
+				[([&cp](auto _1, auto _2) { cp.DoColonItemHeading(_1, _2);})];
+
+			// ==== FUNCTION DECL
+			// function F(<param decls>) -> [name:] <result type> := <result expr> [;] [{ <body items> }]
+
+			functionDecl =
+				( (as_lower_d[FUNCTION] >> identifier >> LPAREN)
+					[([&cp](auto _1, auto) { cp.OnFunctionHeading(_1); cp.DoBeginBlock();})]
+				>> !(functionParamItem >> *(SEMICOLON >> !functionParamItem))
+				>> assert_d("')' expected after function parameter declarations")[RPAREN]
+				>> *( ',' >> as_lower_d[USING] >> EQUAL
+						>> assert_d("namespace reference expected after 'using ='")[
+							itemRef[([&cp](...) { cp.DoFunctionUsing();})] ] )
+				>> assert_d("'->' and result specification expected after function parameter list")[ARROW]
+				>> functionResultSpec
+				>> !SEMICOLON
+				>> !( LBRACE
+						>> *item
+						>> assert_d("item definition or function-body terminator '}' expected")[RBRACE] )
+				)
+				[([&cp](auto _1, auto) { cp.OnFunctionDeclEnd(_1);})];
+
+			functionParamItem =
+				itemDecl[([&cp](...) { cp.OnFunctionParamDecl();})] // count BEFORE the member block: declarations inside it overwrite the multi-name count
+				>> !itemBlock;
+
+			functionResultType =
+				( ( itemSignature
+				  | itemRef[([&cp](...) { cp.DoRefTypeSignature();})] )
+					>> !(LPAREN >> itemParam >> *(',' >> itemParam) >> RPAREN)
+				)
+				[([&cp](...) { cp.OnFunctionResultSig();})];
+
+			functionResultSpec =
+				!( (identifier >> COLON)[([&cp](...) { cp.DoFunctionResultName();})] )
+				>> assert_d("function result type expected after '->'")[functionResultType]
+				>> assert_d("':=' and result expression expected in function result specification")[COLON >> EQUAL]
+				>> m_ExprDef.start()[([&cp](auto _1, auto _2) { cp.OnFunctionResultExpr(_1, _2);})];
 
 			// ==== ==== ITEM HEADING
 
@@ -223,9 +277,10 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 
 		boost::spirit::rule<ScannerT> const& start() const { return main; }
 
-		boost::spirit::rule<ScannerT> main, item, itemBlock, 
+		boost::spirit::rule<ScannerT> main, item, itemBlock,
 			preprocStatement,
-			itemDecl, itemHeading, itemSignature, 
+			itemDecl, itemHeading, itemSignature, colonHeading,
+			functionDecl, functionParamItem, functionResultType, functionResultSpec,
 			itemParam, unitIdentifier, basicType,
 			itemProp, anyPropImpl, anyProp, storageProp, usingProp, entityNrOfRowsProp, dataBlock, directExpr,
 			itemRef, fileRef, identifier;

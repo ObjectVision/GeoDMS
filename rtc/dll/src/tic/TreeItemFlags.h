@@ -75,6 +75,7 @@ const TreeItemStatusFlags TSF_Categorical                 = 0x00100000;
 const TreeItemStatusFlags TSF_LazyCalculated              = 0x00200000;
 const TreeItemStatusFlags TSF_StoreData                   = 0x00400000; // Also use CalcCache when data is below the data-size threshold
 const TreeItemStatusFlags TSF_Depreciated                 = 0x00800000; // unallocated bit
+const TreeItemStatusFlags TSF_IsFunctionItem              = 0x01000000; // 'function' definition: template-like (body inert via TSF_In/IsTemplate) + typed telescope, designated result, strict scope
 
 // Unit flags can overlap with Data flags as a TreeItem is never both.
 const UnitItemStatusFlags USF_HasSpatialReference         = 0x02000000;

@@ -49,6 +49,10 @@
 #include "MoreDataControllers.h"
 #include "DataArrayValue.h"
 
+#include <algorithm>
+#include <map>
+#include <set>
+
 // *****************************************************************************
 // Section:    to be located into following code
 // *****************************************************************************
@@ -993,10 +997,289 @@ LispRef AbstrCalculator::SubstituteArgs(SubstitutionBuffer& substBuff, LispPtr l
 	return right;
 }
 
+// *****************************************************************************
+// user-defined function application: meta-time beta-reduction (inline path)
+//
+// A function call that is used as an expression (nested, or bound to a typed
+// holder) is reduced to a self-contained key expression: parameter references
+// become the substituted argument key expressions, body-item references become
+// their recursively reduced calculation rules, and imports/externals resolve
+// through the function's strict search space (own sub-items + explicit usings).
+// The tiled engine only ever sees the resulting first-order operator expression;
+// identical applications intern to identical keys (applicative semantics).
+// *****************************************************************************
+
+namespace {
+
+	struct FunctionApplication
+	{
+		const TreeItem*                m_FuncItem = nullptr;
+		const FunctionApplication*     m_Parent = nullptr; // enclosing application (nested calls only): recursion detection follows THIS chain, so unrelated re-entry through UpdateMetaInfo of externals cannot raise false 'recursive' errors
+		SubstitutionBuffer*            m_SubstBuff = nullptr; // caller's buffer: body-resolved externals register as suppliers of the calling item
+		SharedTreeItem                 m_ErrorHolder; // caller item, for failure attribution
+		std::vector<LispRef>           m_ArgKeys;
+		std::vector<SharedTreeItem>    m_ArgItems;    // per arg: the referenced item iff the argument was a plain reference (enables member access), else null
+		std::vector<const TreeItem*>   m_Params;      // the first N sub-items of m_FuncItem
+		std::map<const TreeItem*, LispRef> m_Reductions;
+		std::set<const TreeItem*>      m_InProgress;
+
+		LispRef Reduce();
+		LispRef ReduceBodyItem(const TreeItem* bodyItem);
+		LispRef SubstituteBodyExpr(const TreeItem* refScope, LispPtr expr);
+		LispRef ResolveBodySymbol(const TreeItem* refScope, TokenID symbID, SharedTreeItem* foundItemPtr);
+	};
+
+	LispRef FunctionApplication::Reduce()
+	{
+		assert(m_FuncItem && m_FuncItem->IsFunctionItem());
+		assert(m_ErrorHolder);
+
+		for (const FunctionApplication* ancestor = m_Parent; ancestor; ancestor = ancestor->m_Parent)
+			if (ancestor->m_FuncItem == m_FuncItem)
+				throwErrorF("ExprParser", "'{}': recursive function application is not supported"
+					, m_FuncItem->GetFullName().c_str());
+
+		UInt32 nrParams = TreeItem_GetFunctionParamCount(m_FuncItem);
+		if (m_ArgKeys.size() != nrParams)
+			throwErrorF("ExprParser", "'{}': function expects {} argument(s); {} provided"
+				, m_FuncItem->GetFullName().c_str(), nrParams, m_ArgKeys.size());
+
+		m_Params.clear(); m_Params.reserve(nrParams);
+		const TreeItem* child = m_FuncItem->_GetFirstSubItem();
+		for (UInt32 i = 0; i != nrParams; ++i, child = child->GetNextItem())
+		{
+			MG_CHECK(child); // guaranteed by the parser: params are the first nrParams sub-items
+			m_Params.push_back(child);
+			m_Reductions[child] = m_ArgKeys[i];
+		}
+
+		TokenID resultName = TreeItem_GetFunctionResultName(m_FuncItem);
+		auto resultChild = m_FuncItem->GetConstSubTreeItemByID(resultName);
+		if (!resultChild)
+			throwErrorF("ExprParser", "'{}': designated result '{}' not found"
+				, m_FuncItem->GetFullName().c_str(), resultName.GetStr().c_str());
+
+		return ReduceBodyItem(resultChild.get());
+	}
+
+	LispRef FunctionApplication::ReduceBodyItem(const TreeItem* bodyItem)
+	{
+		auto memo = m_Reductions.find(bodyItem);
+		if (memo != m_Reductions.end())
+			return memo->second;
+
+		if (!m_InProgress.insert(bodyItem).second)
+			throwErrorF("ExprParser", "'{}': circular reference in function body"
+				, bodyItem->GetFullName().c_str());
+
+		LispRef result;
+		SharedStr exprStr = bodyItem->GetExpr();
+		if (exprStr.empty())
+		{
+			if (IsUnit(bodyItem))
+				result = bodyItem->GetCheckedKeyExpr(); // local base unit: nominal identity, shared by all applications
+			else
+				throwErrorF("ExprParser", "'{}': local item without calculation rule cannot be used in an inlined function application"
+					, bodyItem->GetFullName().c_str());
+		}
+		else
+		{
+			if (AbstrCalculator::MustEvaluate(exprStr.c_str()))
+				throwErrorF("ExprParser", "'{}': leading-'=' string indirection is not supported inside function bodies"
+					, bodyItem->GetFullName().c_str());
+			auto bodyCalc = AbstrCalculator::ConstructFromStr(bodyItem, exprStr, CalcRole::Calculator);
+			auto refScope = bodyItem->GetTreeParent(); // names resolve from the referencing item's own scope outward, as in instantiated form
+			MG_CHECK(refScope);
+			result = SubstituteBodyExpr(refScope.get(), RewriteExpr(bodyCalc->GetLispExprOrg()));
+		}
+
+		m_InProgress.erase(bodyItem);
+		m_Reductions[bodyItem] = result;
+		return result;
+	}
+
+	LispRef FunctionApplication::SubstituteBodyExpr(const TreeItem* refScope, LispPtr expr)
+	{
+		if (expr.EndP())
+			return expr;
+
+		if (expr.IsRealList())
+		{
+			MG_CHECK(expr.Left().IsSymb());
+			LispRef head = expr.Left();
+			TokenID headID = head.GetSymbID();
+
+			if (headID == token::sourceDescr)
+				return ResolveBodySymbol(refScope, expr.Right().Left().GetSymbID(), nullptr);
+
+			if (headID == token::arrow || headID == token::scope || headID == token::subitem)
+				throwErrorF("ExprParser", "the '{}' construct is not yet supported inside inlined function bodies"
+					"; bind the function application to a container to use the instantiating form"
+					, headID.GetStr().c_str());
+
+			const AbstrOperGroup* og = AbstrOperGroup::FindName(headID);
+			assert(og);
+			if (og->IsTemplateCall())
+			{
+				// nested application of another function, resolved in the function's strict scope
+				auto callee = m_FuncItem->FindItem(SharedStr(headID.AsStrRange()));
+				if (!callee)
+					throwErrorF("ExprParser", "'{}': unknown operator or function in body of function '{}'"
+						, headID.GetStr().c_str(), m_FuncItem->GetFullName().c_str());
+				if (!callee->IsFunctionItem())
+					throwErrorF("ExprParser", "'{}': template instantiations are not supported inside function bodies"
+						, headID.GetStr().c_str());
+
+				FunctionApplication nested;
+				nested.m_FuncItem = callee.get();
+				nested.m_Parent = this;
+				nested.m_SubstBuff = m_SubstBuff;
+				nested.m_ErrorHolder = m_ErrorHolder;
+				for (LispPtr argPtr = expr.Right(); !argPtr.EndP(); argPtr = argPtr.Right())
+				{
+					LispPtr argExpr = argPtr.Left();
+					SharedTreeItem argItem;
+					LispRef argKey;
+					if (argExpr.IsSymb() && !token::isConst(argExpr.GetSymbID()) && !ValueClass::FindByScriptName(argExpr.GetSymbID()))
+						argKey = ResolveBodySymbol(refScope, argExpr.GetSymbID(), &argItem);
+					else
+						argKey = SubstituteBodyExpr(refScope, argExpr);
+					nested.m_ArgKeys.push_back(std::move(argKey));
+					nested.m_ArgItems.push_back(std::move(argItem));
+				}
+				return nested.Reduce();
+			}
+			if (!og->MustCacheResult())
+				throwErrorF("ExprParser", "'{}': meta function call is not supported inside function bodies"
+					, headID.GetStr().c_str());
+
+			// ordinary operator application: substitute the arguments
+			std::vector<LispRef> substArgs;
+			for (LispPtr argPtr = expr.Right(); !argPtr.EndP(); argPtr = argPtr.Right())
+				substArgs.push_back(SubstituteBodyExpr(refScope, argPtr.Left()));
+
+			LispRef argList;
+			for (auto ri = substArgs.rbegin(); ri != substArgs.rend(); ++ri)
+				argList = LispRef(*ri, argList);
+
+			LispRef result = RewriteExprTop(LispRef(head, std::move(argList)));
+
+			if (og->CanResultToConfigItem())
+			{
+				DataControllerRef dc = GetOrCreateDataController(result);
+				auto supplier = dc->MakeResult();
+				if (!supplier)
+				{
+					dms_assert(dc->WasFailed(FailType::MetaInfo));
+					m_ErrorHolder->ThrowFail(dc.get());
+				}
+				if (!supplier->IsCacheItem())
+					result = supplier->GetCheckedKeyExpr();
+			}
+			return result;
+		}
+
+		if (expr.IsSymb())
+		{
+			TokenID symbID = expr.GetSymbID();
+			if (token::isConst(symbID))
+				return ExprList(symbID);
+			if (ValueClass::FindByScriptName(symbID))
+				return List(LispRef(expr)); // unitName -> [UnitName []], i.e. unitName()
+			return ResolveBodySymbol(refScope, symbID, nullptr);
+		}
+
+		return expr; // numeric, string and UInt64 literals
+	}
+
+	LispRef FunctionApplication::ResolveBodySymbol(const TreeItem* refScope, TokenID symbID, SharedTreeItem* foundItemPtr)
+	{
+		SharedStr fullStr(symbID.AsStrRange());
+		CharPtr b = fullStr.begin(), e = fullStr.send();
+
+		if (b != e && (*b == '.' || *b == '/'))
+			throwErrorF("ExprParser", "'{}': dot-relative and absolute references are not supported inside function bodies"
+				, fullStr.c_str());
+
+		CharPtr slash = std::find(b, e, '/');
+		TokenID firstTok = (slash == e) ? symbID : GetTokenID_mt(b, slash);
+
+		// nearest-scope resolution: from the referencing item's scope outward, up to and
+		// including the function item — matching the resolution order of the instantiated form
+		for (const TreeItem* scope = refScope; scope; scope = scope->GetTreeParent().get())
+		{
+			bool atFuncRoot = (scope == m_FuncItem);
+			auto child = scope->GetConstSubTreeItemByID(firstTok);
+			if (child)
+			{
+				// parameter?
+				for (UInt32 i = 0, n = m_Params.size(); i != n; ++i)
+					if (m_Params[i] == child.get())
+					{
+						if (slash == e)
+						{
+							if (foundItemPtr)
+								*foundItemPtr = m_ArgItems[i];
+							return m_ArgKeys[i];
+						}
+						// member access through a (structured or composite-typed) parameter:
+						// descend into the actual argument only (never its ancestors)
+						auto argItem = m_ArgItems[i];
+						if (!argItem)
+							throwErrorF("ExprParser", "'{}': member access through parameter '{}' requires the corresponding argument to be a direct item reference"
+								, fullStr.c_str(), firstTok.GetStr().c_str());
+						auto member = FindSubItem(argItem.get(), SharedStr(CharPtrRange(slash + 1, e)));
+						if (!member)
+							throwErrorF("ExprParser", "'{}': the argument '{}' bound to parameter '{}' has no member '{}'"
+								, fullStr.c_str(), argItem->GetFullName().c_str(), firstTok.GetStr().c_str()
+								, SharedStr(CharPtrRange(slash + 1, e)).c_str());
+						member->UpdateMetaInfo();
+						if (m_SubstBuff)
+							registerSupplier(*m_SubstBuff, member.get());
+						if (foundItemPtr)
+							*foundItemPtr = member;
+						return member->GetCheckedKeyExpr();
+					}
+
+				// local body item (possibly a nested path into it)
+				SharedTreeItem target = child;
+				if (slash != e)
+				{
+					target = FindSubItem(child.get(), SharedStr(CharPtrRange(slash + 1, e)));
+					if (!target)
+						throwErrorF("ExprParser", "'{}': not found in body of function '{}'"
+							, fullStr.c_str(), m_FuncItem->GetFullName().c_str());
+				}
+				if (foundItemPtr)
+					*foundItemPtr = nullptr; // reduced local: no item identity to bind member access to
+				return ReduceBodyItem(target.get());
+			}
+			if (atFuncRoot)
+				break;
+		}
+
+		// imports and externals: resolve through the function's strict search space
+		auto found = m_FuncItem->FindItem(fullStr);
+		if (!found)
+			throwErrorF("ExprParser", "'{}': unknown identifier in body of function '{}' (visible are: parameters, local items, and 'using' imports)"
+				, fullStr.c_str(), m_FuncItem->GetFullName().c_str());
+		if (found->InTemplate())
+			throwErrorF("ExprParser", "'{}': reference to (part of) a template or function from body of function '{}'"
+				, fullStr.c_str(), m_FuncItem->GetFullName().c_str());
+		found->UpdateMetaInfo();
+		if (m_SubstBuff)
+			registerSupplier(*m_SubstBuff, found.get());
+		if (foundItemPtr)
+			*foundItemPtr = found;
+		return found->GetCheckedKeyExpr();
+	}
+
+} // anonymous namespace
+
 void InstantiateTemplate(TreeItem* holder, const TreeItem* applyItem, LispPtr templCallArgList)
 {
 	// only config items can become template instantiations
-	dms_assert(holder); 
+	dms_assert(holder);
 
 	if (holder->WasFailed(FailType::MetaInfo))
 		return;
@@ -1370,7 +1653,7 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 			}
 
 			// following code duplicates partly the code in AbstrCalculator::SubstituteExpr
-			const AbstrOperGroup* og = AbstrOperGroup::FindName(head.GetSymbID()); 
+			const AbstrOperGroup* og = AbstrOperGroup::FindName(head.GetSymbID());
 			assert(og);
 			if (og->IsTemplateCall())
 			{
@@ -1382,6 +1665,39 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 					throwErrorF("ExprParser", "'{}': unknown function"
 						, head.GetSymbStr().c_str()
 					);
+
+				if (templateItem->IsFunctionItem())
+				{
+					// function application as an expression: substitute the arguments in
+					// the caller's scope, then beta-reduce the function body around them
+					registerSupplier(substBuff, templateItem.get());
+
+					FunctionApplication appl;
+					appl.m_FuncItem = templateItem.get();
+					for (LispPtr argPtr = localExpr.Right(); !argPtr.EndP(); argPtr = argPtr.Right())
+					{
+						LispPtr argExpr = argPtr.Left();
+						SharedTreeItem argItem;
+						if (argExpr.IsSymb() && !token::isConst(argExpr.GetSymbID())
+							&& !ValueClass::FindByScriptName(argExpr.GetSymbID())
+							&& !substBuff.optionalVisitor)
+							argItem = FindItem(argExpr.GetSymbID()); // enables member access through structured parameters
+						LispRef argKey = SubstituteExpr_impl(substBuff, LispRef(argExpr), metainfo_policy_flags::subst_allowed);
+						if (substBuff.avs == AVS_SuspendedOrFailed)
+							return {};
+						appl.m_ArgKeys.push_back(std::move(argKey));
+						appl.m_ArgItems.push_back(std::move(argItem));
+					}
+					if (substBuff.optionalVisitor)
+						return {};
+
+					appl.m_SubstBuff = &substBuff;
+					appl.m_ErrorHolder = m_Holder.lock();
+					if (!appl.m_ErrorHolder)
+						throwTaskCanceled();
+					bufferValue = appl.Reduce();
+					goto exit;
+				}
 
 				if (!templateItem->IsTemplate())
 					throwErrorF("ExprParser", "'{}': found item '{}' is not defined as template"
@@ -1481,6 +1797,29 @@ MetaInfo AbstrCalculator::SubstituteExpr(SubstitutionBuffer& substBuff, LispPtr 
 					, head.GetSymbStr().c_str()
 					, templateItem->GetFullName().c_str()
 				);
+
+			if (templateItem->IsFunctionItem())
+			{
+				UInt32 nrDeclaredParams = TreeItem_GetFunctionParamCount(templateItem.get());
+				UInt32 nrProvidedArgs = 0;
+				for (LispPtr argPtr = localExpr.Right(); argPtr.IsRealList(); argPtr = argPtr.Right())
+					++nrProvidedArgs;
+				if (nrProvidedArgs != nrDeclaredParams)
+					throwErrorF("ExprParser", "'{}': function '{}' expects {} argument(s); {} provided"
+						, head.GetSymbStr().c_str()
+						, templateItem->GetFullName().c_str()
+						, nrDeclaredParams
+						, nrProvidedArgs
+					);
+
+				// a function application bound to a typed holder (attribute/parameter/unit)
+				// is an expression: inline it by beta-reduction. Binding to a container
+				// keeps the instantiating (template-like) form, giving access to all
+				// body items of the instance.
+				auto holder = m_Holder.lock();
+				if (holder && (IsDataItem(holder.get()) || IsUnit(holder.get())))
+					goto skipTemplInst;
+			}
 
 			// calculation scheme: isTempl, dont-subst templ
 			registerSupplier(substBuff, templateItem.get());

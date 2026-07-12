@@ -419,6 +419,7 @@ public:
 	// Visibility/template flags and data retention policies.
 	TIC_CALL void SetIsHidden(bool v);
 	TIC_CALL void SetIsTemplate();
+	TIC_CALL void SetIsFunction();
 
 	TIC_CALL void SetKeepDataState(bool value);
           bool GetKeepDataState () const { return GetTSF(TSF_KeepData); }
@@ -432,6 +433,7 @@ public:
           bool GetFreeDataState() const { return GetTSF(TSF_FreeData); }
 	bool IsTemplate() const { return GetTSF(TSF_IsTemplate); }
 	bool InTemplate() const { return GetTSF(TSF_InTemplate); }
+	bool IsFunctionItem() const { return GetTSF(TSF_IsFunctionItem); }
 	bool IsEndogenous() const { return GetTSF(TSF_IsEndogenous); }
 
 	// Mark data as changed to trigger downstream invalidation/updates.
@@ -668,5 +670,16 @@ Utility to handle integrity check failures; iCheckerResult is expected from a ch
 checkStringGenerator delayed-evaluates error strings to avoid overhead when not needed.
 */
 TIC_CALL bool IntegrityCheckFailure(const TreeItem* self, const AbstrDataItem* iCheckerResult, std::function<SharedStr()> checkStringGenerator);
+
+// user-defined function items (declared with the 'function' keyword): declared parameter
+// count (= the number of leading sub-items that a call binds) and the designated result sub-item.
+TIC_CALL void    TreeItem_SetFunctionSpec(const TreeItem* functionItem, UInt32 nrParams, TokenID resultName);
+TIC_CALL UInt32  TreeItem_GetFunctionParamCount(const TreeItem* functionItem);
+TIC_CALL TokenID TreeItem_GetFunctionResultName(const TreeItem* functionItem);
+
+// enforce strict scoping on a function definition: name resolution from within stops at
+// the item (own sub-items + explicit 'using' imports); relative import urls still
+// resolve against the definition scope.
+TIC_CALL void    TreeItem_MakeStrictScope(TreeItem* functionItem);
 
 #endif // __TREEITEM_H

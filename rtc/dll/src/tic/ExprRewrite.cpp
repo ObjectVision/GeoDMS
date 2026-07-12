@@ -134,3 +134,17 @@ LispRef RewriteExprTop(LispPtr org)
 	return ApplyTopEnv(org);
 }
 
+bool HasRewriteRuleForHead(TokenID headID)
+{
+	AssocListPtr cursor = GetEnv();
+	while (!cursor.IsEmpty())
+	{
+		AssocPtr a = cursor.First();
+		LispPtr key = a.Key();
+		if (key.IsRealList() && key.Left().IsSymb() && key.Left().GetSymbID() == headID)
+			return true;
+		cursor = cursor.Tail();
+	}
+	return false;
+}
+

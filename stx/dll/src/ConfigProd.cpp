@@ -23,10 +23,14 @@
 #include "AbstrDataItem.h"
 #include "AbstrUnit.h"
 #include "DataItemClass.h"
+#include "ExprRewrite.h"
+#include "OperGroups.h"
 #include "PropDefInterface.h"
 #include "TreeItemClass.h"
 #include "Unit.h"
 #include "UnitClass.h"
+
+#include <cctype>
 
 #include <stdarg.h>
 
@@ -128,6 +132,9 @@ void ConfigProd::DoInclude()
 
 void ConfigProd::DoBeginBlock()
 {
+	if (m_LastDeclNameCount > 1)
+		throwSemanticError("an item block cannot follow a multi-name declaration");
+
 	m_stackContexts.push_back(m_pCurrent);
 
 	m_pCurrent = nullptr;
@@ -149,6 +156,9 @@ void ConfigProd::DoEndBlock()
 
 void ConfigProd::DoItemHeading(iterator_t first, iterator_t last)
 {
+	m_LastDeclNameCount = 1;
+	m_LastDeclSiblings.clear();
+
 	CreateItem(m_ItemNameID, first);
 
 	ClearSignature();
@@ -246,6 +256,7 @@ void ConfigProd::CreateItem(TokenID nameID, const iterator_t& loc)
 	switch (m_eSignatureType) {
 		case SignatureType::TreeItem: CreateContainer(nameID); break;
 		case SignatureType::Template: CreateTemplate (nameID); break;
+		case SignatureType::Function: CreateFunction (nameID); break;
 		case SignatureType::Unit:     CreateUnit     (nameID); break;
 		case SignatureType::Attribute:CreateAttribute(nameID); break;
 		case SignatureType::Parameter:CreateParameter(nameID); break;
@@ -307,6 +318,22 @@ void ConfigProd::CreateTemplate(TokenID nameID)
 {
 	CreateContainer(nameID);
 	m_pCurrent->SetIsTemplate();
+}
+
+void ConfigProd::CreateFunction(TokenID nameID)
+{
+	// function names join the operator namespace at call sites; reject names that a
+	// built-in operator or a RewriteExpr.lsp rule head would capture before dispatch
+	auto og = AbstrOperGroup::FindName(nameID);
+	if (og && !og->IsTemplateCall())
+		throwSemanticError(mgFormat2string("function name '{}' collides with a built-in operator"
+			, GetTokenStr(nameID)).c_str());
+	if (HasRewriteRuleForHead(nameID))
+		throwSemanticError(mgFormat2string("function name '{}' collides with a RewriteExpr.lsp rule head; calls would be rewritten before this function is found"
+			, GetTokenStr(nameID)).c_str());
+
+	CreateContainer(nameID);
+	m_pCurrent->SetIsFunction();
 }
 
 void ConfigProd::CreateUnit(TokenID nameID)
@@ -528,7 +555,10 @@ void ConfigProd::DoExprProp(iterator_t first, iterator_t last)
 {
 	dms_assert(m_pCurrent);
 
-	m_pCurrent->SetExpr(SharedStr(CharPtrRange(&*first, &*last)));
+	SharedStr exprStr(CharPtrRange(&*first, &*last));
+	m_pCurrent->SetExpr(exprStr);
+	for (auto& sibling : m_LastDeclSiblings) // multi-name declaration: all names share the calculation rule
+		sibling->SetExpr(exprStr);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -540,6 +570,184 @@ void ConfigProd::DoExprProp(iterator_t first, iterator_t last)
 void ConfigProd::DoItemName()
 {
 	m_ItemNameID = m_strIdentifierID;
+}
+
+// ============================= name:type declaration style
+
+void ConfigProd::StartPendingNames()
+{
+	m_PendingNames.clear();
+	m_PendingNames.push_back(m_strIdentifierID);
+}
+
+void ConfigProd::AddPendingName()
+{
+	m_PendingNames.push_back(m_strIdentifierID);
+}
+
+void ConfigProd::DoRefTypeSignature()
+{
+	if (m_FuncStates.empty())
+		throwSemanticError("an item reference as type is only supported for function parameters and results");
+	SetSignature(SignatureType::TreeItem); // P0: composite-typed parameter binds by reference; member checking follows later
+}
+
+void ConfigProd::DoColonItemHeading(iterator_t first, iterator_t last)
+{
+	if (m_PendingNames.empty())
+		throwSemanticError("declaration without name");
+
+	m_LastDeclNameCount = m_PendingNames.size();
+	m_LastDeclSiblings.clear();
+	for (SizeT i = 0; i != m_PendingNames.size(); ++i)
+	{
+		CreateItem(m_PendingNames[i], first);
+		if (i + 1 != m_PendingNames.size())
+			m_LastDeclSiblings.push_back(m_pCurrent); // all but the last; props/expr also apply to these
+	}
+	m_PendingNames.clear();
+
+	ClearSignature();
+	ClearPropData();
+}
+
+// ============================= function declarations
+
+void ConfigProd::OnFunctionHeading(iterator_t first)
+{
+	DoItemName(); // the identifier following the 'function' keyword
+
+	m_LastDeclNameCount = 1;
+	m_LastDeclSiblings.clear();
+
+	SetSignature(SignatureType::Function);
+	CreateItem(m_ItemNameID, first);
+	ClearSignature();
+	ClearPropData();
+
+	m_FuncStates.emplace_back();
+	m_FuncStates.back().funcItem = m_pCurrent;
+}
+
+void ConfigProd::OnFunctionParamDecl()
+{
+	dms_assert(!m_FuncStates.empty());
+	m_FuncStates.back().paramCount += m_LastDeclNameCount;
+}
+
+void ConfigProd::DoFunctionUsing()
+{
+	dms_assert(!m_FuncStates.empty());
+	m_FuncStates.back().funcItem->AddUsingUrl(m_strIdentifierID);
+}
+
+void ConfigProd::DoFunctionResultName()
+{
+	dms_assert(!m_FuncStates.empty());
+	m_FuncStates.back().resultName = m_strIdentifierID;
+}
+
+void ConfigProd::OnFunctionResultSig()
+{
+	dms_assert(!m_FuncStates.empty());
+	auto& fs = m_FuncStates.back();
+	fs.resultSig           = m_eSignatureType;
+	fs.resultValueClass    = m_eValueClass;
+	fs.resultSignatureUnit = m_pSignatureUnit;
+	fs.resultParamEntity   = m_pParamEntity;
+	fs.resultVC            = m_eParamVC;
+
+	// reset signature state: body items are parsed before the result item is created
+	ClearSignature();
+	m_eSignatureType = SignatureType::Undefined;
+	m_pParamEntity   = TokenID::GetEmptyID();
+	m_eParamVC       = ValueComposition::Unknown;
+}
+
+void ConfigProd::OnFunctionResultExpr(iterator_t first, iterator_t last)
+{
+	dms_assert(!m_FuncStates.empty());
+	m_FuncStates.back().resultExpr = SharedStr(CharPtrRange(&*first, &*last));
+}
+
+static TokenID t_Result = GetTokenID_st("result");
+
+void ConfigProd::OnFunctionDeclEnd(iterator_t first)
+{
+	dms_assert(!m_FuncStates.empty());
+	auto& fs = m_FuncStates.back();
+	TreeItem* func = fs.funcItem.get();
+	dms_assert(func);
+
+	// designation: a result expression that is just the name of a function sub-item
+	// designates that item as the result instead of creating a new one
+	TokenID designated;
+	CharPtr b = fs.resultExpr.begin(), e = fs.resultExpr.send();
+	while (b != e && std::isspace((unsigned char)*b)) ++b;
+	while (e != b && std::isspace((unsigned char)e[-1])) --e;
+	bool simpleName = (b != e) && (std::isalpha((unsigned char)*b) || *b == '_');
+	for (CharPtr p = b + 1; simpleName && p != e; ++p)
+		if (!std::isalnum((unsigned char)*p) && *p != '_')
+			simpleName = false;
+	if (simpleName)
+	{
+		TokenID exprTok = GetTokenID_mt(b, e);
+		if (func->GetSubTreeItemByID(exprTok))
+			designated = exprTok;
+		else
+		{	// allow case-insensitive designation (':= Result' designating sub-item 'result')
+			auto equalsCI = [](CharPtr a, CharPtr aEnd, CharPtr b, CharPtr bEnd) {
+				if (aEnd - a != bEnd - b)
+					return false;
+				for (; a != aEnd; ++a, ++b)
+					if (std::tolower((unsigned char)*a) != std::tolower((unsigned char)*b))
+						return false;
+				return true;
+			};
+			const TreeItem* uniqueMatch = nullptr;
+			for (const TreeItem* sub = func->_GetFirstSubItem(); sub; sub = sub->GetNextItem())
+			{
+				SharedStr subName = SharedStr(sub->GetID());
+				if (equalsCI(subName.begin(), subName.send(), b, e))
+				{
+					if (uniqueMatch)
+						throwSemanticError(mgFormat2string("function result '{}' matches multiple sub-items case-insensitively"
+							, SharedStr(CharPtrRange(b, e))).c_str());
+					uniqueMatch = sub;
+				}
+			}
+			if (uniqueMatch)
+				designated = uniqueMatch->GetID();
+		}
+	}
+
+	if (!designated)
+	{
+		if (fs.resultSig == SignatureType::Undefined)
+			throwSemanticError("function result type expected");
+		if (fs.resultExpr.empty())
+			throwSemanticError("function result expression expected after ':='");
+
+		m_eSignatureType = fs.resultSig;
+		m_eValueClass    = fs.resultValueClass;
+		m_pSignatureUnit = fs.resultSignatureUnit;
+		m_pParamEntity   = fs.resultParamEntity;
+		m_eParamVC       = fs.resultVC;
+
+		TokenID resultName = fs.resultName ? fs.resultName : t_Result;
+		CreateItem(resultName, first);
+		m_pCurrent->SetExpr(fs.resultExpr);
+
+		ClearSignature();
+		ClearPropData();
+		designated = resultName;
+	}
+
+	TreeItem_SetFunctionSpec(func, fs.paramCount, designated);
+	TreeItem_MakeStrictScope(func); // definition-side strictness: inline reduction resolves through this scope
+	m_FuncStates.pop_back();
+
+	DoEndBlock(); // close the frame opened at '('; m_pCurrent = the function item
 }
 
 void ConfigProd::DoNrOfRowsProp()

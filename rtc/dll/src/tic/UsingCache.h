@@ -31,6 +31,12 @@ struct UsingCache
 
 	void ClearUsings(bool keepParent);
 
+	// strict function scoping: drop the implicit parent namespace that the constructor
+	// added (AddParent), so resolution sees only the context's own sub-items and the
+	// explicitly imported namespaces. Relative 'using' urls still resolve against the
+	// (hidden) parent, i.e. the definition scope (see FindNamespace).
+	void RemoveParentUsing();
+
 	UInt32 GetNrUsings() const;
 	const TreeItem* GetUsing(UInt32 i) const;
 
@@ -61,13 +67,14 @@ private:
 	void DelIncoming(UsingCache* incoming) const;
 	void AddParent();
 
-	SharedTreeItem FindNamespace(TokenID url) const;
+	SharedTreeItem FindNamespace(TokenID url, bool mayResolveViaHiddenParent) const;
 	bool AddUsingInternal(const TreeItem* ns) const;
 	bool IsDirty() const { return m_CacheState == CacheStateType::DIRTY; }
 	bool IsReady() const { return m_CacheState == CacheStateType::READY; }
 	static void Update(const TreeItem* item);
 
 	mutable CacheStateType               m_CacheState = CacheStateType::DIRTY;
+	bool                                 m_ParentIsHidden = false; // set by RemoveParentUsing
 
 #if defined(MG_DEBUG_DATA)
 	mutable CacheStateType               md_PrevState = CacheStateType::UNDEFINED;

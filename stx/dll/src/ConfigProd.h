@@ -18,6 +18,8 @@
 #include "DataBlockProd.h"
 #include "ExprProd.h"
 
+#include <vector>
+
 
 enum class SignatureType {
 	Undefined,
@@ -80,6 +82,21 @@ struct ConfigProd : AbstrDataBlockProd, AbstrContextHandle
 	void DoUnitRangeProp(bool isCategorical);
 	void DoNrOfRowsProp();
 
+//	name:type declaration style (single or comma-separated multi-name)
+	void StartPendingNames();
+	void AddPendingName();
+	void DoRefTypeSignature();
+	void DoColonItemHeading(iterator_t first, iterator_t last);
+
+//	function declarations
+	void OnFunctionHeading(iterator_t first);
+	void OnFunctionParamDecl();
+	void DoFunctionUsing();
+	void DoFunctionResultName();
+	void OnFunctionResultSig();
+	void OnFunctionResultExpr(iterator_t first, iterator_t last);
+	void OnFunctionDeclEnd(iterator_t first);
+
 	void DoArrayAssignment   () override;
 	void DataBlockCompleted(iterator_t first, iterator_t last);
 
@@ -103,6 +120,7 @@ private:
 	void CreateDataItem (TokenID nameID, TokenID domainUnit, TokenID valuesUnit);
 	void CreateContainer(TokenID nameID);
 	void CreateTemplate (TokenID nameID);
+	void CreateFunction (TokenID nameID);
 	void CreateUnit     (TokenID nameID);
 	void CreateAttribute(TokenID nameID);
 	void CreateParameter(TokenID nameID);
@@ -132,6 +150,26 @@ void                ClearPropData();
 	// param support
 	TokenID                          m_pParamEntity;
 	ValueComposition                 m_eParamVC = ValueComposition::Unknown;
+
+	// name:type declaration support
+	std::vector<TokenID>             m_PendingNames;
+	std::vector<SharedMutableTreeItem> m_LastDeclSiblings; // multi-name decl: all created items except the last (m_pCurrent)
+	UInt32                           m_LastDeclNameCount = 1;
+
+	// function declaration support (stack: function declarations may nest in bodies)
+	struct FuncProdState
+	{
+		SharedMutableTreeItem     funcItem;
+		UInt32                    paramCount = 0;
+		TokenID                   resultName;
+		SignatureType             resultSig = SignatureType::Undefined;
+		WeakPtr<const ValueClass> resultValueClass;
+		TokenID                   resultSignatureUnit;
+		TokenID                   resultParamEntity;
+		ValueComposition          resultVC = ValueComposition::Unknown;
+		SharedStr                 resultExpr;
+	};
+	std::vector<FuncProdState>       m_FuncStates;
 
 	// property support
 	TokenID                          m_sPropFileTypeID;

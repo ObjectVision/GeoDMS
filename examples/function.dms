@@ -1,0 +1,76 @@
+//////////////////////////////////////////////////////////////////////////////
+// Self-contained example of a user-defined function (GeoDms >= 20.9.0).
+//
+// A function is declared with a typed parameter list, a '->' result
+// specification, and a result expression after ':='. Its body sees ONLY:
+//   - its parameters,
+//   - its own local items,
+//   - namespaces it explicitly imports with a 'using =' clause.
+// It does NOT see the scope of the call site, nor (unlike a template) the
+// scope of its definition. This makes a function a self-contained, reusable,
+// checkable unit of calculation.
+//
+// Run headless with:
+//   GeoDmsRun.exe C:\...\examples\function.dms /checks
+//////////////////////////////////////////////////////////////////////////////
+
+container function_example
+{
+	// ------------------------------------------------------------------ data
+
+	unit<uint32> Road : nrofrows = 4
+	{
+		attribute<float64> flow     : [ 100.0, 200.0,  50.0, 400.0 ];
+		attribute<float64> capacity : [ 200.0, 100.0, 100.0, 300.0 ];
+	}
+
+	// -------------------------------------------------- function definition
+	//
+	// CongestionRatio takes a domain unit with the two attributes it needs
+	// (a structured, table-typed parameter) and yields the flow/capacity
+	// ratio, capped at 1. The body computes an intermediate ('raw'); the
+	// result expression after ':=' designates which item is the result.
+
+	function CongestionRatio(
+		unit<uint32> Network {
+			attribute<float64> flow;
+			attribute<float64> capacity;
+		}
+	)
+	-> attribute<float64> (Network) := result
+	{
+		attribute<float64> raw    (Network) := Network/flow / Network/capacity;
+		attribute<float64> result (Network) := min_elem(raw, 1.0);
+	}
+
+	// ----------------------------------------------------- instantiation(s)
+	//
+	// A call binds the arguments to the parameters and instantiates the
+	// function; the designated result is available as a sub-item.
+
+	container morning := CongestionRatio(Road);
+
+	attribute<float64> congestion (Road) := morning/result;
+
+	// The same function can be applied to any other table that provides the
+	// declared attributes; each instantiation is independent.
+
+	unit<uint32> Rail : nrofrows = 2
+	{
+		attribute<float64> flow     : [ 30.0, 90.0 ];
+		attribute<float64> capacity : [ 60.0, 45.0 ];
+	}
+
+	container rail_load := CongestionRatio(Rail);
+
+	// ------------------------------------------------------------- checks
+	//
+	// congestion         = min_elem([0.5, 2.0, 0.5, 4/3], 1) = [0.5, 1, 0.5, 1]
+	// rail_load/result   = min_elem([0.5, 2.0        ], 1) = [0.5, 1]
+
+	container checks
+	{
+		parameter<float64> road_sum := sum(congestion),        IntegrityCheck = "road_sum == 3.0";
+		parameter<float64> rail_sum := sum(rail_load/result),  IntegrityCheck = "rail_sum == 1.5";
+	}
+}

@@ -280,17 +280,22 @@ units through key-expression comparison. What applicative *function application*
 is: no per-call subtree copy (memory, meta-time, duplicated tree/UI entries), one check
 instead of N, and sharing that is structural rather than emergent.
 
-### 4.6 Scoping: strict args-only by default, explicit imports *(decided)*
+### 4.6 Scoping: strict args-only by default, explicit imports *(decided; implemented in 20.9.0)*
 
-Verification overturned an assumption worth recording: **templates are already
-definition-scoped, not call-site-captured.** The instantiated root receives an injected
-`using` namespace pointing at the template's definition parent (`TreeItem::Copy`,
-`tic/TreeItem.cpp:2130-2166`), and name resolution *delegates-and-stops* at any level
-owning a `UsingCache` (`FindTreeItemByID`, `tic/TreeItem.cpp:4573-4590`) — the walk
-never falls through to the call site. One hole exists: a **parentless root-level
-template** gets no injected `using`, so call-site capture is possible there.
+Precision matters here — implementation corrected an earlier overstatement. Template
+instance roots receive an injected `using` namespace pointing at the template's
+definition parent (`TreeItem::Copy`, `tic/TreeItem.cpp:2130-2166`), and name resolution
+*delegates-and-stops* at any level owning a `UsingCache` (`FindTreeItemByID`,
+`tic/TreeItem.cpp:4573-4590`) — **but the UsingCache constructor implicitly adds the
+context's tree parent as a namespace** (`AddParent`, `tic/UsingCache.cpp:113-123,
+147-152`). For a template instance that tree parent is the *call-site* container: the
+injected definition namespace takes precedence, yet unshadowed call-site names remain
+reachable as a fallback. Template bodies are therefore definition-scoped *with
+call-site fallback*, not hygienic.
 
-Functions go one step stricter than templates:
+Functions go strictly further (implemented: `UsingCache::RemoveParentUsing` +
+forced cache existence on function instance roots; absolute `using` paths resolve from
+the configuration root, `UsingCache::FindNamespace`):
 
 - a body sees (a) its formal parameters, (b) its own local items, and (c) **only
   namespaces it explicitly imports** via the existing `using` property, resolved
@@ -361,42 +366,81 @@ preserved.
 
 ## 5. The `function` construct
 
-### 5.1 Surface syntax
+### 5.1 Surface syntax *(as implemented in 20.9.0)*
 
 Parameters are ordinary declarations forming a telescope (later parameters may
-reference earlier ones); the result is the designated subitem named `result`, with an
-optional result annotation after the parameter list that is checked against it:
+reference earlier ones). The result specification follows `->`: an optional name, a
+type, and a **result expression** after `:=` that relates the result to the body. The
+body block is optional; three forms:
 
 ```
+// form a: result expression designates a body item by name
 function CongestionRatio(
-    unit<uint32>       Road;
-    attribute<float64> flow (Road);
-    attribute<float64> cap  (Road))
-:   attribute<float64> (Road)
-,   using = "/classifications"
+    unit<uint32>       Road {
+        attribute<float64> flow;
+        attribute<float64> cap;
+    }
+)
+-> attribute<float64> (Road) := Result
 {
-    attribute<float64> raw    (Road) := flow / cap;
+    attribute<float64> raw    (Road) := Road/flow / Road/cap;
     attribute<float64> result (Road) := min_elem(raw, 1.0);
 }
+
+// form b: the result expression IS the result's calculation rule, over body items
+function CongestionRatio2(unit<uint32> Rd; attribute<float64> flow (Rd); attribute<float64> cap (Rd))
+-> attribute<float64> (Rd) := min_elem(raw, 1.0);
+{
+    attribute<float64> raw (Rd) := flow / cap;
+}
+
+// form c: expression-only, no body block
+function CongestionRatio3(unit<uint32> Rd { attribute<float64> flow; attribute<float64> cap; })
+-> attribute<float64> (Rd) := min_elem(Rd/flow / Rd/cap, 1.0);
+
+// name:type declaration style, composite type by example, named result
+network_links: unit<uint32> { nodeset: unit<uint32>; F1, F2: attribute<nodeset>; }
+function connectedness( nw: network_links )
+-> link_counts: attribute<uint32> (nw/nodeset) := pcount(nw/F1) + pcount(nw/F2);
+
+// explicit imports (strict scope otherwise)
+function Capped(unit<uint32> Rd; attribute<float64> x (Rd)), using = shared
+-> attribute<float64> (Rd) := min_elem(x, limit);
 ```
 
-Call sites are ordinary expressions, nestable once P1 lands (§10):
+P0 call sites instantiate like templates (container holder + result access):
 
 ```
-attribute<float64> pressure (Road) := CongestionRatio(Road, am_flow, capacity) * peak_factor;
+container cr := CongestionRatio(Road);
+attribute<float64> congestion (Road) := cr/result;
 ```
+
+P1 makes `F(args)` an expression of the result type, nestable (§10).
 
 Notes on the notation:
 
-- The familiar "`:=`" surface form is untouched — it is not one token but the item
-  heading's `:` followed by `directExpr = '=' >> expr`
-  (`stx/dll/src/ConfigParse.cpp:134-137, 220`).
-- The function-type arrow in *declaration* position does not collide with the
-  expression operator `->` (relational dereference): declarations and expressions are
-  separate Spirit grammars. Documentation must still address the double meaning.
-- Imports use the existing `using` property (usingProp,
-  `stx/dll/src/ConfigParse.cpp:209-212`) — syntax comes free; paths are resolved at the
-  definition site and frozen absolute.
+- **`->` introduces the result specification**; it does not collide with the expression
+  operator `->` (relational dereference): declarations and expressions are separate
+  Spirit grammars.
+- The result expression after `:=` either *designates* an existing body item (a plain
+  name; matched case-exactly, else case-insensitively-unique) or becomes the
+  calculation rule of a synthesized result item (named per the spec, default `result`).
+- **Structured parameters**: a `unit` parameter may carry a member block declaring the
+  attributes the argument table must provide; body references go through the parameter
+  (`Road/flow`). Members are declared interface — at instantiation the parameter binds
+  by reference to the actual argument (case-parameter bodies are not copied).
+- **Composite types by example**: a parameter may be typed by an item reference
+  (`nw: network_links`); P0 binds it as a plain item (class/member checking follows in
+  P2 with the signature machinery).
+- **name:type declarations** (`Road: unit<uint32>`, `F1, F2: attribute<nodeset>;`) are
+  accepted everywhere item declarations are; multi-name declarations share one
+  calculation rule; a block may not follow a multi-name declaration.
+- The familiar "`:=`" surface form is untouched — it is not one token but `:` followed
+  by `directExpr = '=' >> expr` (`stx/dll/src/ConfigParse.cpp:134-137, 220`).
+- Imports use the `using` clause after the parameter list; import paths are resolved at
+  the definition site and frozen to absolute paths at instantiation.
+- Function names are validated at parse time against operator names and RewriteExpr.lsp
+  rule heads (§8.2).
 
 ### 5.2 What `function` adds over `template` (verified deltas)
 
@@ -406,7 +450,7 @@ Notes on the notation:
 | checking | body never evaluated until instantiation (`TSF_InTemplate` suppresses calculators, `tic/TreeItem.cpp:854-857`); every call site re-checks independently | typechecked **once at definition** against the parameter types |
 | composability | barred as sub-expression (`tic/AbstrCalculator.cpp:1375-1396` throws) | `F(args)` is an expression of type R, nestable |
 | instantiation | deep tree copy into the holder (`InstantiateTemplate` → `CopyTreeContext`, `tic/AbstrCalculator.cpp:996-1015`) | applicative DC keyed by (F, argument keys); no copy — or full inlining for `inline` functions (§8.3) |
-| scoping | implicit lexical: the whole definition-ancestor chain via injected `using`; hole for root-level templates | closed: formals + locals + explicit `using` imports only; boundary total by construction |
+| scoping | definition scope takes precedence via injected `using`, but the implicit parent namespace keeps call-site names reachable as fallback (§4.6) | closed: formals + locals + explicit `using` imports only; parent namespace removed, boundary total |
 | result | conventionally some subitem; untyped | designated `result` with checked annotation; the item has type `(A_i) -> R` |
 | overloading | none (one body per name) | typed variants resolved by argument types (§5.7) |
 
@@ -751,11 +795,31 @@ typed successor, with a lint path template→function where bodies qualify.
 
 ## 10. Implementation plan
 
-### P0 — typed, closed, checked functions (still copy-instantiated)
+### P0 — typed, closed functions (still copy-instantiated) — **IMPLEMENTED in 20.9.0**
 
 Calls behave exactly like template calls (root-level only, `InstantiateTemplate` deep
-copy). New: the typed telescope, mandatory `result`, closed scope, arity check, and the
-one-time definition check.
+copy). New: the typed telescope, designated result, closed scope, arity check.
+
+**Implementation status (v20.9.0):** grammar per §5.1 (three declaration forms, `->`
+result specs with `:=` result expressions, name:type and multi-name declarations,
+structured and composite-typed parameters, `using` clauses) in
+`stx/dll/src/ConfigParse.cpp` + `ConfigProd.{h,cpp}`; `TSF_IsFunctionItem` +
+`TreeItem::SetIsFunction` (rides template inertness) + function-spec side-assoc
+(arity, result name) in `tic/TreeItem.{h,cpp}`; arity check at call dispatch in
+`tic/AbstrCalculator.cpp` (SubstituteExpr template branch); strict scoping via
+`UsingCache::RemoveParentUsing` + forced cache on function instance roots + absolute
+import resolution in `UsingCache::FindNamespace` + absolute-frozen import copying in
+`TreeItem::Copy`; name-collision validation via `AbstrOperGroup::FindName` +
+`HasRewriteRuleForHead` (`tic/ExprRewrite.{h,cpp}`). Functional tests in
+`scratch/fn_test*.dms` (value-checked positive suite incl. structured/composite params,
+designation, imports, multi-name; arity + strict-scope negative tests). NOT yet in P0:
+definition-time body checking (bodies stay template-inert; checks run per
+instantiation) — moved to P1 alongside the applicative DC, since both need the meta
+pass over function bodies. Composite-typed parameters bind as plain items (a benign
+class warning appears when binding a unit argument); member checking follows with P2
+signatures.
+
+Remaining design detail for the original P0 scope:
 
 1. **stx**: `strlit<> FUNCTION("function")` as an `itemSignature` alternative,
    completing the reserved `SignatureType::Function` stub; `CreateFunction` =
@@ -797,6 +861,44 @@ one-time definition check.
    operator names), acceptance cases, template regression cases.
 
 ### P1 — applicative application + nested calls + `inline`
+
+**Implementation status (v20.9.0): the inline half of P1 is IMPLEMENTED.** Function
+applications used as *expressions* — nested inside larger expressions, or bound to a
+typed holder (attribute/parameter/unit) — are meta-time β-reduced into self-contained
+key expressions by a dedicated body resolver (`FunctionApplication` in
+`tic/AbstrCalculator.cpp`, dispatched from `SubstituteExpr`/`SubstituteExpr_impl`):
+parameter references become the substituted argument keys, body items reduce
+recursively (memoized, cycle-guarded), member access through structured/composite
+parameters resolves against the actual argument item, imports/externals resolve through
+the function's strict search space (function definitions also get a strict UsingCache
+with hidden-parent `using`-url resolution). Binding a call to a **container** keeps the
+P0 instantiating form (access to all instance items). This *is* the "pure inlining"
+alternative from the design (§8.3's `inline` behavior, applied as the default for
+expression positions): identical applications intern to identical keys, so applicative
+identity — including unit-returning functions unifying across call sites — comes free,
+with **no new DC class and no R5 teardown risk**. Verified by
+`scratch/fn_test_p1.dms` (nested calls, direct typed calls, function-calling-function
+via `using = /lib`, unit-returning select function, cross-binding domain unification,
+container-bound calls with imports equal to the definition parent, nested body
+containers with sibling references, structured parameters with multi-name member
+declarations, functions defined inside template bodies) and the recursion negative
+test. An adversarial multi-agent review of the implementation confirmed and led to
+fixes for: import loss on container-bound instantiation when the import equals the
+definition parent/ancestor; body-symbol resolution now walks from the referencing
+item's scope outward (nearest-scope, matching instantiated semantics) instead of only
+the function root; recursion detection follows the nested-application parent chain
+(not a thread-global stack), so re-entry through `UpdateMetaInfo` of externals cannot
+raise false positives; parameter-member lookups descend into the argument only
+(`FindSubItem`) instead of `FindItem`'s ancestor walk; dot-relative and absolute paths
+are rejected inside bodies; arity counting reads the declaration before its member
+block; function definitions copied inside larger subtrees keep flag/spec/strict scope;
+the hidden-parent `using`-url fallback is gated so BUSY-window identifier lookups
+cannot escape strict scope; body-resolved externals register as suppliers of the
+calling item. Not yet: the `applyF` boundary form below (error
+attribution, memoization of very large bodies — R6/R7), definition-time checking,
+`arrow`/`scope`/`subitem` constructs inside inlined bodies (currently rejected with a
+pointer to the container form), and function-typed parameters (P3). The original P1
+plan below remains the design for the boundary-keyed variant:
 
 1. **Key form**: new `token::applyF`; key `(applyF "/path/F" <variantTok> argKey_1 …
    argKey_n)` — the F-path keeps keys small; body edits invalidate through supplier

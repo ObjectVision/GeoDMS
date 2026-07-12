@@ -147,8 +147,23 @@ UsingCache::~UsingCache()
 void UsingCache::AddParent()
 {
 	auto contextParent = m_Context->GetTreeParent();
-	if (contextParent) 
+	if (contextParent)
 		AddUsingInternal(contextParent.get());
+}
+
+void UsingCache::RemoveParentUsing()
+{
+	auto contextParent = m_Context->GetTreeParent();
+	if (!contextParent)
+		return;
+	m_ParentIsHidden = true;
+	SizeT pos = weak_find(m_Usings, contextParent.get());
+	if (pos >= m_Usings.size())
+		return;
+	if (contextParent->CurrHasUsingCache())
+		contextParent->GetUsingCache()->DelIncoming(this);
+	m_Usings.erase(m_Usings.begin() + pos);
+	SetDirty();
 }
 
 UInt32 UsingCache::GetNrUsings() const
@@ -206,7 +221,7 @@ void UsingCache::CheckSearchSpace(const TreeItem* nameSpace) const
 
 void UsingCache::ClearUsings(bool keepParent)
 {
-	UInt32 nrKeep = (keepParent && m_Context->GetTreeParent())
+	UInt32 nrKeep = (keepParent && m_Context->GetTreeParent() && !m_ParentIsHidden)
 		? 1
 		: 0;
 	dms_assert(m_Usings.begin()+nrKeep <= m_Usings.end());
@@ -336,7 +351,7 @@ void UsingCache::UpdateUsings() const
 	for (auto i = m_UsingUrls.begin(), e = m_UsingUrls.end(); i!=e; ++i)
 	{
 		TokenID url = *i;
-		auto ns = FindNamespace(url);
+		auto ns = FindNamespace(url, true); // 'using' url resolution: definition scope reachable via hidden parent
 	   	if (!ns)
 			throwErrorF("UsingCache", "Cannot find reference in Using = \"{}\"\n{}"
 			,	GetTokenStr(url).c_str()
@@ -450,16 +465,37 @@ void UsingCache::UpdateCache() const
 	m_SortedItemCache.insert(m_SortedItemCache.begin(), tmpNameSpace.begin(), tmpNameSpace.end());
 }
 
-auto UsingCache::FindNamespace(TokenID url) const -> SharedTreeItem
+auto UsingCache::FindNamespace(TokenID url, bool mayResolveViaHiddenParent) const -> SharedTreeItem
 {
 	UInt32 n = m_Usings.size();
 	SharedStr urlAsString = SharedStr(url);
+	if (mayResolveViaHiddenParent && !urlAsString.empty() && *urlAsString.begin() == '/')
+	{
+		// absolute 'using' urls resolve from the root, independent of the usings list;
+		// required for strict function-instance scopes whose usings hold no parent to
+		// route through
+		if (!m_Context->GetTreeParent() && m_Context->IsCacheItem())
+			return SessionData::Curr()->GetConfigRoot()->FindItem(urlAsString); // context ref of instantiated template in cache
+		const TreeItem* root = m_Context;
+		while (auto parent = root->GetTreeParent())
+			root = parent.get();
+		if (!root->IsCacheItem())
+			return root->FindItem(urlAsString);
+	}
 	if (!n)
 	{
+		if (m_ParentIsHidden && mayResolveViaHiddenParent)
+		{
+			// strict function scope: relative 'using' urls still resolve against the
+			// (hidden) parent, i.e. the definition scope
+			if (auto contextParent = m_Context->GetTreeParent())
+				return contextParent->FindItem(urlAsString);
+		}
 		if (!m_Context->GetTreeParent() && !m_Context->IsCacheItem())
 			return {};
+		if (m_Context->GetTreeParent())
+			return {}; // strict scope with hidden parent: plain identifiers do not fall back
 		// we look for context ref of instantiated template in cache
-		dms_assert(!m_Context->GetTreeParent());
 		dms_assert(url.GetStr().c_str()[0] == '/');
 		return SessionData::Curr()->GetConfigRoot()->FindItem(urlAsString);
 	}
@@ -471,6 +507,13 @@ auto UsingCache::FindNamespace(TokenID url) const -> SharedTreeItem
 		auto foundItem = u->FindItem(urlAsString); // TODO return 0 if firstName found somewhere
 		if (foundItem)
 			return foundItem;
+	}
+	if (m_ParentIsHidden && mayResolveViaHiddenParent)
+	{
+		// strict function scope: relative 'using' urls still resolve against the
+		// (hidden) parent, i.e. the definition scope
+		if (auto contextParent = m_Context->GetTreeParent())
+			return contextParent->FindItem(urlAsString);
 	}
 	return {};
 }
@@ -484,7 +527,7 @@ auto UsingCache::FindItem(TokenID itemID) const -> SharedTreeItem
 		auto ti = m_Context->GetConstSubTreeItemByID(itemID);
 		if (ti) 
 			return ti;
-		return FindNamespace(itemID);
+		return FindNamespace(itemID, false); // BUSY-window identifier lookup: strict scopes must not fall back to the hidden parent
 	}
 
  	UpdateCache();

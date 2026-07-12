@@ -42,6 +42,10 @@ granted by an additional written contract for support, assistance and/or develop
 TIC_CALL LispRef RewriteExpr(LispPtr org);
 TIC_CALL LispRef RewriteExprTop(LispPtr org);
 
+// true iff RewriteExpr.lsp contains a rule whose pattern head is headID; such names are
+// reserved: rewriting runs before head dispatch and would capture a user-defined function.
+TIC_CALL bool HasRewriteRuleForHead(TokenID headID);
+
 inline LispPtr RewriteExprTop_InParse(LispPtr org) { return org; }
 
 #endif // !defined(__TIC_EXPR_REWRITE_H)
