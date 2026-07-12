@@ -1021,28 +1021,25 @@ only).
 The P3 core (function-valued parameters) is implemented. The remaining P3 work,
 specified for direct implementation:
 
-**WP3.1 — Partial application (function values with pre-bound arguments).**
-*Goal:* `F(a, _)` in any argument position yields a function value with `a` bound and
-one hole. *Design:* generalize the binding representation. Today a function argument is
-carried as a bare `SharedTreeItem` in `FunctionApplication::m_ArgItems`
-(`tic/AbstrCalculator.cpp`); replace with
-`struct FunctionBinding { SharedTreeItem funcItem; std::vector<LispRef> boundKeys; std::vector<SharedTreeItem> boundItems; std::vector<bool> isHole; }`
-(a plain reference = binding with all-holes). `_` parses as an ordinary identifier
-token; detect it (token compare against a static `GetTokenID_st("_")`) in the two
-places arguments are collected: the caller-side loop in `SubstituteExpr_impl`'s
-function branch, and the nested-call loop in
-`FunctionApplication::SubstituteBodyExpr`. A call expression containing a hole does
-NOT reduce; it constructs a binding (callee + per-position keys/holes) and is only
-legal in argument positions (elsewhere: error "a partial application can only be
-passed as an argument"). Application of a binding: `Reduce` fills holes left-to-right
-with the provided arguments; arity check compares the number of *holes*.
-*Steps:* (1) introduce FunctionBinding and mechanically replace the
-`m_ArgItems[i]->IsFunctionItem()` tests; (2) hole detection + binding construction in
-both argument loops; (3) merge logic in `Reduce`; (4) signature checking
-(`CheckFunctionSignature`) applies to the *residual* signature (unbound positions
-only) — v1 may simply skip signature checks on partial bindings with a documented
-warning. *Tests:* `Add2(x,y):=x+y; twice_add3 := ...` — bind `Add2(3.0, _)` passed to
-an applier; value-checked; negatives: hole in value position, wrong residual arity.
+**WP3.1 — Partial application — IMPLEMENTED in 20.9.0.**
+`F(a, _)` in any argument position yields a function value with `a` bound and one hole.
+A function argument (and a function-valued parameter's binding) is carried as a
+`std::shared_ptr<FunctionBinding>` — `{ SharedTreeItem funcItem; std::vector<CallArg>
+slots; }` where a `CallArg` is one of {data key + plain-ref item, nested binding, hole}
+and a slot with `isHole` is unbound (`tic/AbstrCalculator.cpp`, anonymous namespace).
+A plain function reference is `MakeAllHoles` (every slot a hole). `_` is a plain symbol
+(`t_Hole = GetTokenID_st("_")`, unaffected by RewriteExpr — `MakeVarsOfUnderscores`
+only runs on rule loading). Argument resolution is unified through `ResolveCallerArg`
+(caller side, with `resolveData`/`findItem` callbacks) and
+`FunctionApplication::ResolveBodyArg` (body side): a function-head call whose arguments
+contain a hole `MergeBinding`s into a partial binding; a full one is `ReduceMerged` to
+a data key. `MergeBinding` fills holes left-to-right and arity-checks against the number
+of holes. A residual (partial) binding may only be passed as an argument — binding one
+to an item errors ("a partial application can only be passed as an argument"). Signature
+checking (`CheckFunctionSignature`) runs the full structural check on plain bindings and
+a residual-arity check on partial ones. Verified by `scratch/fn_test_partial.dms`
+(partial passed to a higher-order applier, applied twice: `Scale(Road,3.0,_)` → ×9;
+`Add2(Road,_,_)` → doubler) and a negative test.
 
 **WP3.2 — Lambdas (optional; machinery notes).**
 Named functions + partial application cover the practical space; full lambdas are

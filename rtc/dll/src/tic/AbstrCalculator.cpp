@@ -50,7 +50,9 @@
 #include "DataArrayValue.h"
 
 #include <algorithm>
+#include <functional>
 #include <map>
+#include <memory>
 #include <set>
 
 // *****************************************************************************
@@ -1011,23 +1013,140 @@ LispRef AbstrCalculator::SubstituteArgs(SubstitutionBuffer& substBuff, LispPtr l
 
 namespace {
 
+	static TokenID t_Hole = GetTokenID_st("_"); // partial-application placeholder
+
+	struct FunctionBinding;
+
+	// one resolved argument to a function application: either a data/unit value
+	// (key + optional plain-reference item), a function value (binding), or a hole
+	struct CallArg
+	{
+		LispRef                          key;             // data/unit argument (empty otherwise)
+		SharedTreeItem                   item;            // plain-reference item (member access), else null
+		std::shared_ptr<FunctionBinding> binding;         // function value (plain ref or partial application), else null
+		bool                             isHole = false;  // '_' placeholder
+		bool IsFunctionValue() const { return binding != nullptr; }
+	};
+
+	// a function value: the function plus one slot per declared parameter. A slot with
+	// isHole is unbound; applying the binding fills the holes left-to-right.
+	struct FunctionBinding
+	{
+		SharedTreeItem       funcItem;
+		std::vector<CallArg> slots;
+		UInt32 NrHoles() const { UInt32 n = 0; for (const auto& s : slots) if (s.isHole) ++n; return n; }
+	};
+
 	struct FunctionApplication
 	{
 		const TreeItem*                m_FuncItem = nullptr;
 		const FunctionApplication*     m_Parent = nullptr; // enclosing application (nested calls only): recursion detection follows THIS chain, so unrelated re-entry through UpdateMetaInfo of externals cannot raise false 'recursive' errors
 		SubstitutionBuffer*            m_SubstBuff = nullptr; // caller's buffer: body-resolved externals register as suppliers of the calling item
 		SharedTreeItem                 m_ErrorHolder; // caller item, for failure attribution
-		std::vector<LispRef>           m_ArgKeys;
-		std::vector<SharedTreeItem>    m_ArgItems;    // per arg: the referenced item iff the argument was a plain reference (enables member access), else null
+		std::vector<LispRef>           m_ArgKeys;     // per param: data/unit key (empty for function-valued params)
+		std::vector<SharedTreeItem>    m_ArgItems;    // per param: the referenced item iff the argument was a plain reference (enables member access), else null
+		std::vector<std::shared_ptr<FunctionBinding>> m_ArgBindings; // per param: the bound function value iff the argument is a function, else null
 		std::vector<const TreeItem*>   m_Params;      // the first N sub-items of m_FuncItem
 		std::map<const TreeItem*, LispRef> m_Reductions;
 		std::set<const TreeItem*>      m_InProgress;
+
+		void PushArg(const CallArg& a) { m_ArgKeys.push_back(a.key); m_ArgItems.push_back(a.item); m_ArgBindings.push_back(a.binding); }
 
 		LispRef Reduce();
 		LispRef ReduceBodyItem(const TreeItem* bodyItem);
 		LispRef SubstituteBodyExpr(const TreeItem* refScope, LispPtr expr);
 		LispRef ResolveBodySymbol(const TreeItem* refScope, TokenID symbID, SharedTreeItem* foundItemPtr);
+		CallArg ResolveBodyArg(const TreeItem* refScope, LispPtr argExpr);
+		SharedTreeItem ResolveBodyHeadFunction(const TreeItem* refScope, TokenID headID, std::shared_ptr<FunctionBinding>* paramBinding);
 	};
+
+	// a plain function reference is a binding with every slot a hole
+	std::shared_ptr<FunctionBinding> MakeAllHoles(SharedTreeItem func)
+	{
+		auto b = std::make_shared<FunctionBinding>();
+		b->funcItem = func;
+		UInt32 n = TreeItem_GetFunctionParamCount(func.get());
+		b->slots.resize(n);
+		for (auto& s : b->slots) s.isHole = true;
+		return b;
+	}
+
+	// fill the holes of `b` with `holeFills` left-to-right; the counts must match
+	FunctionBinding MergeBinding(const FunctionBinding& b, const std::vector<CallArg>& holeFills)
+	{
+		if (holeFills.size() != b.NrHoles())
+			throwErrorF("ExprParser", "'{}': function expects {} argument(s); {} provided"
+				, b.funcItem->GetFullName().c_str(), b.NrHoles(), holeFills.size());
+		FunctionBinding r; r.funcItem = b.funcItem;
+		UInt32 c = 0;
+		for (const auto& slot : b.slots)
+			r.slots.push_back(slot.isHole ? holeFills[c++] : slot);
+		return r;
+	}
+
+	LispRef ReduceMerged(const FunctionBinding& merged, const FunctionApplication* parent, SubstitutionBuffer* substBuff, SharedTreeItem errorHolder)
+	{
+		FunctionApplication appl;
+		appl.m_FuncItem = merged.funcItem.get();
+		appl.m_Parent = parent;
+		appl.m_SubstBuff = substBuff;
+		appl.m_ErrorHolder = errorHolder;
+		for (const auto& slot : merged.slots)
+			appl.PushArg(slot);
+		return appl.Reduce();
+	}
+
+	// caller-side (non-body) argument resolution: build a CallArg from a caller-scope
+	// expression. `resolveData` substitutes an ordinary data expression to its key;
+	// `findItem` resolves a bare symbol to its item (null if absent). A function
+	// application with holes yields a partial binding; a full one is reduced to data.
+	CallArg ResolveCallerArg(LispPtr argExpr,
+		const std::function<LispRef(LispPtr)>& resolveData,
+		const std::function<SharedTreeItem(TokenID)>& findItem,
+		SubstitutionBuffer* substBuff, SharedTreeItem errorHolder)
+	{
+		if (argExpr.IsSymb())
+		{
+			TokenID sym = argExpr.GetSymbID();
+			if (sym == t_Hole)
+			{
+				CallArg a; a.isHole = true; return a;
+			}
+			if (!token::isConst(sym) && !ValueClass::FindByScriptName(sym))
+			{
+				SharedTreeItem item = findItem(sym); // plain-reference item (member access) + function detection
+				if (item && item->IsFunctionItem())
+				{
+					if (substBuff) registerSupplier(*substBuff, item.get());
+					CallArg a; a.binding = MakeAllHoles(item); return a;
+				}
+				CallArg a; a.key = resolveData(argExpr); a.item = item; return a;
+			}
+		}
+		if (argExpr.IsRealList() && argExpr.Left().IsSymb())
+		{
+			TokenID headID = argExpr.Left().GetSymbID();
+			const AbstrOperGroup* og = AbstrOperGroup::FindName(headID);
+			if (og->IsTemplateCall())
+			{
+				auto callee = findItem(headID);
+				if (callee && callee->IsFunctionItem())
+				{
+					if (substBuff) registerSupplier(*substBuff, callee.get());
+					std::vector<CallArg> sub;
+					for (LispPtr a = argExpr.Right(); !a.EndP(); a = a.Right())
+						sub.push_back(ResolveCallerArg(a.Left(), resolveData, findItem, substBuff, errorHolder));
+					FunctionBinding merged = MergeBinding(*MakeAllHoles(callee), sub);
+					if (merged.NrHoles() == 0)
+					{
+						CallArg a; a.key = ReduceMerged(merged, nullptr, substBuff, errorHolder); return a;
+					}
+					CallArg a; a.binding = std::make_shared<FunctionBinding>(std::move(merged)); return a;
+				}
+			}
+		}
+		CallArg a; a.key = resolveData(argExpr); return a;
+	}
 
 	// structural compatibility of a bound function against a declared signature
 	// exemplar: same arity, per-parameter and result item classes equal (a plain
@@ -1125,12 +1244,21 @@ namespace {
 
 			if (auto declaredSig = TreeItem_GetFunctionParamSignature(m_FuncItem, i))
 			{
-				if (!m_ArgItems[i] || !m_ArgItems[i]->IsFunctionItem())
+				if (!m_ArgBindings[i])
 					throwErrorF("ExprParser", "'{}': parameter '{}' requires a function argument matching signature '{}'"
 						, m_FuncItem->GetFullName().c_str()
 						, child->GetID().GetStr().c_str()
 						, declaredSig->GetFullName().c_str());
-				CheckFunctionSignature(m_ArgItems[i].get(), declaredSig.get(), child->GetID().GetStr().c_str());
+				// a partial application's residual arity must match; the full structural
+				// check applies only to plain (all-holes) function references (WP3.1 v1)
+				UInt32 residualArity = m_ArgBindings[i]->NrHoles();
+				UInt32 requiredArity = TreeItem_GetFunctionParamCount(declaredSig.get());
+				if (residualArity == TreeItem_GetFunctionParamCount(m_ArgBindings[i]->funcItem.get()))
+					CheckFunctionSignature(m_ArgBindings[i]->funcItem.get(), declaredSig.get(), child->GetID().GetStr().c_str());
+				else if (residualArity != requiredArity)
+					throwErrorF("ExprParser", "'{}': partial application bound to parameter '{}' has {} remaining argument(s); signature '{}' requires {}"
+						, m_FuncItem->GetFullName().c_str(), child->GetID().GetStr().c_str()
+						, residualArity, declaredSig->GetFullName().c_str(), requiredArity);
 			}
 		}
 
@@ -1249,49 +1377,23 @@ namespace {
 			assert(og);
 			if (og->IsTemplateCall())
 			{
-				// a function-valued parameter applied by name?
-				SharedTreeItem callee;
-				if (auto headChild = m_FuncItem->GetConstSubTreeItemByID(headID))
-					for (UInt32 i = 0, n = m_Params.size(); i != n; ++i)
-						if (m_Params[i] == headChild.get())
-						{
-							callee = m_ArgItems[i];
-							if (!callee || !callee->IsFunctionItem())
-								throwErrorF("ExprParser", "'{}': parameter is applied as a function but the corresponding argument is not a function reference"
-									, headID.GetStr().c_str());
-							break;
-						}
+				// a function application in a data (body-expression) position: resolve the
+				// head to a function value (a function-valued parameter's binding, or a
+				// plain import), fill its holes with the call arguments, and reduce; a
+				// residual (partially applied) result cannot stand in a data position.
+				std::shared_ptr<FunctionBinding> paramBinding;
+				auto headFn = ResolveBodyHeadFunction(refScope, headID, &paramBinding);
+				FunctionBinding calleeBinding = paramBinding ? *paramBinding : *MakeAllHoles(headFn);
 
-				// else: another function, resolved in the function's strict scope
-				if (!callee)
-				{
-					callee = m_FuncItem->FindItem(SharedStr(headID.AsStrRange()));
-					if (!callee)
-						throwErrorF("ExprParser", "'{}': unknown operator or function in body of function '{}'"
-							, headID.GetStr().c_str(), m_FuncItem->GetFullName().c_str());
-					if (!callee->IsFunctionItem())
-						throwErrorF("ExprParser", "'{}': template instantiations are not supported inside function bodies"
-							, headID.GetStr().c_str());
-				}
-
-				FunctionApplication nested;
-				nested.m_FuncItem = callee.get();
-				nested.m_Parent = this;
-				nested.m_SubstBuff = m_SubstBuff;
-				nested.m_ErrorHolder = m_ErrorHolder;
+				std::vector<CallArg> holeFills;
 				for (LispPtr argPtr = expr.Right(); !argPtr.EndP(); argPtr = argPtr.Right())
-				{
-					LispPtr argExpr = argPtr.Left();
-					SharedTreeItem argItem;
-					LispRef argKey;
-					if (argExpr.IsSymb() && !token::isConst(argExpr.GetSymbID()) && !ValueClass::FindByScriptName(argExpr.GetSymbID()))
-						argKey = ResolveBodySymbol(refScope, argExpr.GetSymbID(), &argItem);
-					else
-						argKey = SubstituteBodyExpr(refScope, argExpr);
-					nested.m_ArgKeys.push_back(std::move(argKey));
-					nested.m_ArgItems.push_back(std::move(argItem));
-				}
-				return nested.Reduce();
+					holeFills.push_back(ResolveBodyArg(refScope, argPtr.Left()));
+
+				FunctionBinding merged = MergeBinding(calleeBinding, holeFills);
+				if (merged.NrHoles() != 0)
+					throwErrorF("ExprParser", "'{}': a partial application can only be passed as an argument, not used as a value"
+						, headID.GetStr().c_str());
+				return ReduceMerged(merged, this, m_SubstBuff, m_ErrorHolder);
 			}
 			if (!og->MustCacheResult())
 				throwErrorF("ExprParser", "'{}': meta function call is not supported inside function bodies"
@@ -1360,10 +1462,10 @@ namespace {
 				for (UInt32 i = 0, n = m_Params.size(); i != n; ++i)
 					if (m_Params[i] == child.get())
 					{
-						bool boundToFunction = m_ArgItems[i] && m_ArgItems[i]->IsFunctionItem();
+						bool boundToFunction = (m_ArgBindings[i] != nullptr);
 						if (slash == e)
 						{
-							if (boundToFunction && !foundItemPtr)
+							if (boundToFunction)
 								throwErrorF("ExprParser", "'{}': a function-valued parameter can only be applied or passed on as an argument"
 									, fullStr.c_str());
 							if (foundItemPtr)
@@ -1435,6 +1537,93 @@ namespace {
 		if (foundItemPtr)
 			*foundItemPtr = found;
 		return found->GetCheckedKeyExpr();
+	}
+
+	// resolve a body-call head to the function being applied; sets *paramBinding when the
+	// head is a function-valued parameter (so its pre-bound slots participate).
+	SharedTreeItem FunctionApplication::ResolveBodyHeadFunction(const TreeItem* /*refScope*/, TokenID headID, std::shared_ptr<FunctionBinding>* paramBinding)
+	{
+		if (paramBinding) *paramBinding = nullptr;
+
+		if (auto headChild = m_FuncItem->GetConstSubTreeItemByID(headID))
+			for (UInt32 i = 0, n = m_Params.size(); i != n; ++i)
+				if (m_Params[i] == headChild.get())
+				{
+					if (!m_ArgBindings[i])
+						throwErrorF("ExprParser", "'{}': parameter is applied as a function but the corresponding argument is not a function reference"
+							, headID.GetStr().c_str());
+					if (paramBinding) *paramBinding = m_ArgBindings[i];
+					return m_ArgBindings[i]->funcItem;
+				}
+
+		auto callee = m_FuncItem->FindItem(SharedStr(headID.AsStrRange()));
+		if (!callee)
+			throwErrorF("ExprParser", "'{}': unknown operator or function in body of function '{}'"
+				, headID.GetStr().c_str(), m_FuncItem->GetFullName().c_str());
+		if (!callee->IsFunctionItem())
+			throwErrorF("ExprParser", "'{}': template instantiations are not supported inside function bodies"
+				, headID.GetStr().c_str());
+		if (m_SubstBuff)
+			registerSupplier(*m_SubstBuff, callee.get());
+		return callee;
+	}
+
+	// resolve one argument of a body-level function application to a CallArg (which may be
+	// a data key, a function value / partial binding, or a hole).
+	CallArg FunctionApplication::ResolveBodyArg(const TreeItem* refScope, LispPtr argExpr)
+	{
+		if (argExpr.IsSymb())
+		{
+			TokenID sym = argExpr.GetSymbID();
+			if (sym == t_Hole)
+			{
+				CallArg a; a.isHole = true; return a;
+			}
+			if (!token::isConst(sym) && !ValueClass::FindByScriptName(sym))
+			{
+				SharedStr s(sym.AsStrRange());
+				bool bare = std::find(s.begin(), s.send(), '/') == s.send();
+				if (bare)
+				{
+					// function-valued parameter?
+					if (auto headChild = m_FuncItem->GetConstSubTreeItemByID(sym))
+						for (UInt32 i = 0, n = m_Params.size(); i != n; ++i)
+							if (m_Params[i] == headChild.get() && m_ArgBindings[i])
+							{
+								CallArg a; a.binding = m_ArgBindings[i]; return a;
+							}
+					// import function?
+					auto callee = m_FuncItem->FindItem(s);
+					if (callee && callee->IsFunctionItem())
+					{
+						if (m_SubstBuff) registerSupplier(*m_SubstBuff, callee.get());
+						CallArg a; a.binding = MakeAllHoles(callee); return a;
+					}
+				}
+				CallArg a; a.key = ResolveBodySymbol(refScope, sym, &a.item); return a;
+			}
+		}
+		if (argExpr.IsRealList() && argExpr.Left().IsSymb())
+		{
+			TokenID headID = argExpr.Left().GetSymbID();
+			const AbstrOperGroup* og = AbstrOperGroup::FindName(headID);
+			if (og->IsTemplateCall())
+			{
+				std::shared_ptr<FunctionBinding> pb;
+				auto headFn = ResolveBodyHeadFunction(refScope, headID, &pb);
+				FunctionBinding calleeBinding = pb ? *pb : *MakeAllHoles(headFn);
+				std::vector<CallArg> sub;
+				for (LispPtr a = argExpr.Right(); !a.EndP(); a = a.Right())
+					sub.push_back(ResolveBodyArg(refScope, a.Left()));
+				FunctionBinding merged = MergeBinding(calleeBinding, sub);
+				if (merged.NrHoles() == 0)
+				{
+					CallArg a; a.key = ReduceMerged(merged, this, m_SubstBuff, m_ErrorHolder); return a;
+				}
+				CallArg a; a.binding = std::make_shared<FunctionBinding>(std::move(merged)); return a;
+			}
+		}
+		CallArg a; a.key = SubstituteBodyExpr(refScope, argExpr); return a;
 	}
 
 } // anonymous namespace
@@ -1835,36 +2024,38 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 					// the caller's scope, then beta-reduce the function body around them
 					registerSupplier(substBuff, templateItem.get());
 
-					FunctionApplication appl;
-					appl.m_FuncItem = templateItem.get();
-					for (LispPtr argPtr = localExpr.Right(); !argPtr.EndP(); argPtr = argPtr.Right())
+					if (substBuff.optionalVisitor)
 					{
-						LispPtr argExpr = argPtr.Left();
-						SharedTreeItem argItem;
-						if (argExpr.IsSymb() && !token::isConst(argExpr.GetSymbID())
-							&& !ValueClass::FindByScriptName(argExpr.GetSymbID())
-							&& !substBuff.optionalVisitor)
-							argItem = FindItem(argExpr.GetSymbID()); // enables member access through structured parameters
-						LispRef argKey;
-						if (argItem && argItem->IsFunctionItem())
-							registerSupplier(substBuff, argItem.get()); // function-valued argument: bound for application only, no key expression
-						else
+						// visit-only pass: record the argument suppliers, discard the result
+						for (LispPtr argPtr = localExpr.Right(); !argPtr.EndP(); argPtr = argPtr.Right())
 						{
-							argKey = SubstituteExpr_impl(substBuff, LispRef(argExpr), metainfo_policy_flags::subst_allowed);
+							SubstituteExpr_impl(substBuff, LispRef(argPtr.Left()), metainfo_policy_flags::subst_allowed);
 							if (substBuff.avs == AVS_SuspendedOrFailed)
 								return {};
 						}
-						appl.m_ArgKeys.push_back(std::move(argKey));
-						appl.m_ArgItems.push_back(std::move(argItem));
-					}
-					if (substBuff.optionalVisitor)
 						return {};
+					}
 
-					appl.m_SubstBuff = &substBuff;
-					appl.m_ErrorHolder = m_Holder.lock();
-					if (!appl.m_ErrorHolder)
+					auto holder = m_Holder.lock();
+					if (!holder)
 						throwTaskCanceled();
-					bufferValue = appl.Reduce();
+
+					auto resolveData = [&](LispPtr e) { return SubstituteExpr_impl(substBuff, LispRef(e), metainfo_policy_flags::subst_allowed); };
+					auto findItem = [&](TokenID t) -> SharedTreeItem { return FindItem(t); };
+
+					std::vector<CallArg> callArgs;
+					for (LispPtr argPtr = localExpr.Right(); !argPtr.EndP(); argPtr = argPtr.Right())
+					{
+						callArgs.push_back(ResolveCallerArg(argPtr.Left(), resolveData, findItem, &substBuff, holder));
+						if (substBuff.avs == AVS_SuspendedOrFailed)
+							return {};
+					}
+
+					FunctionBinding merged = MergeBinding(*MakeAllHoles(templateItem), callArgs);
+					if (merged.NrHoles() != 0)
+						throwErrorF("ExprParser", "'{}': a partial application can only be passed as an argument, not bound to an item"
+							, head.GetSymbStr().c_str());
+					bufferValue = ReduceMerged(merged, nullptr, &substBuff, holder);
 					goto exit;
 				}
 
