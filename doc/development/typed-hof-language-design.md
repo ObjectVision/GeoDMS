@@ -1,8 +1,27 @@
 # GeoDMS as a typed higher-order function language — design
 
-*Status: design proposal, 2026-07-11. No code changes; the P0 section is written to be
-directly actionable as a follow-up task. All file:line references were verified against
-the current `refactor_ownership` tree.*
+*Status: design + implementation log. Started 2026-07-11 as a design proposal; the bulk
+of it is now implemented on branch `refactor_ownership` (v20.9.0). All file:line
+references were verified against that tree.*
+
+**Implementation status (v20.9.0).** Done and tested end-to-end:
+- **P0** — `function` keyword, typed parameter telescope, designated `result`, strict
+  args-plus-imports scoping, arity + name-collision checks (§5).
+- **P1** — function applications as expressions via meta-time β-reduction; applicative
+  identity (identical calls intern to identical keys) with no new DataController (§10 P1).
+- **P2** — value-type polymorphism (`function f<V: numerics>`), dependent-position
+  signature checks, and **variants** (`function name { variant … }`, §5.7).
+- **P3** — function-valued parameters, partial application (`F(a, _)`, WP3.1), typed
+  `map` over containers (WP3.3), definition-time scope/shape checking (WP3.4).
+- **Types** — `alias = type;`, declared function signatures, refinement aliases
+  (`alias = type, IntegrityCheck = …`, WP4.3), metric-via-alias (WP4.4).
+- **Groundwork** — the Prolog `Occur` occurs-check fix (WP4.1 prerequisite).
+
+Not yet implemented (specs below remain actionable): lambdas (WP3.2, optional — partial
+application covers the space), the opt-in `applyF` boundary DataController (WP4.2), the
+full Robinson TypeSpec unifier + operator-signature reification (WP4.1), and the
+RewriteExpr.lsp retirement tranche (WP4.5). Verification configs live in the gitignored
+`scratch/fn_test*.dms`; the shipped example is `examples/function.dms`.
 
 ## 1. Motivation and scope
 
