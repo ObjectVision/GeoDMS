@@ -1029,6 +1029,45 @@ namespace {
 		LispRef ResolveBodySymbol(const TreeItem* refScope, TokenID symbID, SharedTreeItem* foundItemPtr);
 	};
 
+	// structural compatibility of a bound function against a declared signature
+	// exemplar: same arity, per-parameter and result item classes equal (a plain
+	// TreeItem-classed signature position is a wildcard)
+	void CheckFunctionSignature(const TreeItem* boundFn, const TreeItem* sigExemplar, CharPtr paramName)
+	{
+		UInt32 nrSigParams = TreeItem_GetFunctionParamCount(sigExemplar);
+		UInt32 nrFnParams = TreeItem_GetFunctionParamCount(boundFn);
+		if (nrSigParams != nrFnParams)
+			throwErrorF("ExprParser", "function '{}' bound to parameter '{}' has {} parameter(s); its declared signature '{}' requires {}"
+				, boundFn->GetFullName().c_str(), paramName
+				, nrFnParams, sigExemplar->GetFullName().c_str(), nrSigParams);
+
+		const TreeItem* sigParam = sigExemplar->_GetFirstSubItem();
+		const TreeItem* fnParam = boundFn->_GetFirstSubItem();
+		for (UInt32 i = 0; i != nrSigParams; ++i, sigParam = sigParam->GetNextItem(), fnParam = fnParam->GetNextItem())
+		{
+			MG_CHECK(sigParam && fnParam);
+			auto sigCls = sigParam->GetDynamicClass();
+			if (sigCls == TreeItem::GetStaticClass())
+				continue; // wildcard position
+			if (fnParam->GetDynamicClass() != sigCls)
+				throwErrorF("ExprParser", "function '{}' bound to parameter '{}': parameter {} is a {} but its declared signature '{}' requires a {}"
+					, boundFn->GetFullName().c_str(), paramName, i + 1
+					, fnParam->GetDynamicClass()->GetName().c_str()
+					, sigExemplar->GetFullName().c_str()
+					, sigCls->GetName().c_str());
+		}
+
+		auto sigResult = sigExemplar->GetConstSubTreeItemByID(TreeItem_GetFunctionResultName(sigExemplar));
+		auto fnResult = boundFn->GetConstSubTreeItemByID(TreeItem_GetFunctionResultName(boundFn));
+		if (sigResult && fnResult && sigResult->GetDynamicClass() != TreeItem::GetStaticClass()
+			&& fnResult->GetDynamicClass() != sigResult->GetDynamicClass())
+			throwErrorF("ExprParser", "function '{}' bound to parameter '{}': its result is a {} but the declared signature '{}' requires a {}"
+				, boundFn->GetFullName().c_str(), paramName
+				, fnResult->GetDynamicClass()->GetName().c_str()
+				, sigExemplar->GetFullName().c_str()
+				, sigResult->GetDynamicClass()->GetName().c_str());
+	}
+
 	LispRef FunctionApplication::Reduce()
 	{
 		assert(m_FuncItem && m_FuncItem->IsFunctionItem());
@@ -1051,6 +1090,16 @@ namespace {
 			MG_CHECK(child); // guaranteed by the parser: params are the first nrParams sub-items
 			m_Params.push_back(child);
 			m_Reductions[child] = m_ArgKeys[i];
+
+			if (auto declaredSig = TreeItem_GetFunctionParamSignature(m_FuncItem, i))
+			{
+				if (!m_ArgItems[i] || !m_ArgItems[i]->IsFunctionItem())
+					throwErrorF("ExprParser", "'{}': parameter '{}' requires a function argument matching signature '{}'"
+						, m_FuncItem->GetFullName().c_str()
+						, child->GetID().GetStr().c_str()
+						, declaredSig->GetFullName().c_str());
+				CheckFunctionSignature(m_ArgItems[i].get(), declaredSig.get(), child->GetID().GetStr().c_str());
+			}
 		}
 
 		TokenID resultName = TreeItem_GetFunctionResultName(m_FuncItem);
@@ -1058,6 +1107,9 @@ namespace {
 		if (!resultChild)
 			throwErrorF("ExprParser", "'{}': designated result '{}' not found"
 				, m_FuncItem->GetFullName().c_str(), resultName.GetStr().c_str());
+		if (resultChild->GetExpr().empty())
+			throwErrorF("ExprParser", "'{}' is a function signature without implementation and cannot be applied"
+				, m_FuncItem->GetFullName().c_str());
 
 		return ReduceBodyItem(resultChild.get());
 	}

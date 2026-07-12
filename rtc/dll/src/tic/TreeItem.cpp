@@ -67,16 +67,18 @@
 
 #include <unordered_set>
 
-// user-defined function items: declared parameter count + designated result sub-item,
-// kept in a side-assoc keyed by the function definition item (set by the config parser,
-// read at call dispatch; erased in ~TreeItem).
+// user-defined function items: declared parameter count + designated result sub-item
+// + optional per-parameter function-signature exemplars, kept in a side-assoc keyed by
+// the function definition item (set by the config parser, read at call dispatch;
+// erased in ~TreeItem).
 namespace {
 	struct FunctionSpecData
 	{
 		UInt32 nrParams = 0;
 		TokenID resultName;
-		bool operator ==(const FunctionSpecData&) const = default;
+		std::vector<std::pair<UInt32, std::weak_ptr<const TreeItem>>> paramSigs;
 	};
+	bool IsDefaultValue(const FunctionSpecData& v) { return v.nrParams == 0 && !v.resultName && v.paramSigs.empty(); }
 	static_quick_assoc<const TreeItem*, FunctionSpecData> s_FunctionSpecAssoc;
 }
 
@@ -1381,7 +1383,32 @@ void TreeItem::SetIsFunction()
 TIC_CALL void TreeItem_SetFunctionSpec(const TreeItem* functionItem, UInt32 nrParams, TokenID resultName)
 {
 	assert(functionItem && functionItem->IsFunctionItem());
-	s_FunctionSpecAssoc.assoc(functionItem, FunctionSpecData{ nrParams, resultName });
+	s_FunctionSpecAssoc.assoc(functionItem, FunctionSpecData{ nrParams, resultName, {} });
+}
+
+TIC_CALL void TreeItem_AddFunctionParamSignature(const TreeItem* functionItem, UInt32 paramIndex, const TreeItem* signatureExemplar)
+{
+	assert(functionItem && functionItem->IsFunctionItem());
+	assert(signatureExemplar && signatureExemplar->IsFunctionItem());
+	s_FunctionSpecAssoc[functionItem].paramSigs.emplace_back(paramIndex, signatureExemplar->weak_from_this());
+}
+
+TIC_CALL SharedTreeItem TreeItem_GetFunctionParamSignature(const TreeItem* functionItem, UInt32 paramIndex)
+{
+	auto specPtr = s_FunctionSpecAssoc.get_value_ptr(functionItem);
+	if (specPtr)
+		for (const auto& paramSig : specPtr->paramSigs)
+			if (paramSig.first == paramIndex)
+				return SharedTreeItem(paramSig.second.lock());
+	return {};
+}
+
+TIC_CALL void TreeItem_CopyFunctionSpec(const TreeItem* dstFunctionItem, const TreeItem* srcFunctionItem)
+{
+	assert(dstFunctionItem && dstFunctionItem->IsFunctionItem());
+	auto specPtr = s_FunctionSpecAssoc.get_value_ptr(srcFunctionItem);
+	if (specPtr)
+		s_FunctionSpecAssoc.assoc(dstFunctionItem, *specPtr);
 }
 
 TIC_CALL UInt32 TreeItem_GetFunctionParamCount(const TreeItem* functionItem)
@@ -2244,9 +2271,7 @@ SharedMutableTreeItem TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext
 		// a function definition copied as part of a larger subtree (e.g. inside an
 		// instantiated template) stays a function: flag, declared spec, strict scope
 		result->SetIsFunction();
-		TreeItem_SetFunctionSpec(result.get()
-			, TreeItem_GetFunctionParamCount(this)
-			, TreeItem_GetFunctionResultName(this));
+		TreeItem_CopyFunctionSpec(result.get(), this);
 		result->GetUsingCache()->RemoveParentUsing();
 	}
 	//	Now, call the virtual CopyProps func to let the derived class do some work

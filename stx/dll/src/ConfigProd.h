@@ -88,8 +88,14 @@ struct ConfigProd : AbstrDataBlockProd, AbstrContextHandle
 	void DoRefTypeSignature();
 	void DoColonItemHeading(iterator_t first, iterator_t last);
 
-//	function declarations
+//	type aliases: alias = type;
+	void OnAliasName();
+	void DoAliasDecl(iterator_t first, iterator_t last);
+
+//	function declarations (and function-signature type aliases)
 	void OnFunctionHeading(iterator_t first);
+	void OnFunctionSigHeading(iterator_t first);
+	void OnEndFunctionParams();
 	void OnFunctionParamDecl();
 	void DoFunctionUsing();
 	void DoFunctionResultName();
@@ -156,11 +162,18 @@ void                ClearPropData();
 	std::vector<SharedMutableTreeItem> m_LastDeclSiblings; // multi-name decl: all created items except the last (m_pCurrent)
 	UInt32                           m_LastDeclNameCount = 1;
 
+	// type alias support
+	const TreeItem* ResolveTypeRef(TokenID refID) const; // parse-time, declared-before-use, no using-directives
+	TokenID                          m_AliasNameID;
+	const TreeItem*                  m_PendingFunctionParamSig = nullptr; // function-signature exemplar awaiting item creation
+
 	// function declaration support (stack: function declarations may nest in bodies)
 	struct FuncProdState
 	{
 		SharedMutableTreeItem     funcItem;
 		UInt32                    paramCount = 0;
+		bool                      signatureOnly = false; // function-signature type alias: no result expression, no body
+		bool                      inParamList = false;
 		TokenID                   resultName;
 		SignatureType             resultSig = SignatureType::Undefined;
 		WeakPtr<const ValueClass> resultValueClass;
@@ -168,6 +181,7 @@ void                ClearPropData();
 		TokenID                   resultParamEntity;
 		ValueComposition          resultVC = ValueComposition::Unknown;
 		SharedStr                 resultExpr;
+		std::vector<std::pair<UInt32, const TreeItem*>> paramSigs; // (param index, signature exemplar)
 	};
 	std::vector<FuncProdState>       m_FuncStates;
 

@@ -633,6 +633,47 @@ Applicative keys name the *resolved* variant — `(applyF "/path/F" <variantTok>
 argKey_1 …)` — so keys are self-contained and resolution changes cannot silently
 re-route cached results.
 
+### 5.8 Type aliases and declared function signatures — IMPLEMENTED in 20.9.0
+
+`alias = type;` declares a **type alias**, deliberately distinguished from
+`name : type;` (which declares an *item* of that type):
+
+```
+flt      = attribute<float64>;                 // plain type alias
+dom      = unit<uint32>;
+dom2     = dom;                                // alias of alias / type by example
+unary_fn = (unit<uint32> D; attribute<float64> v (D)) -> attribute<float64> (D);
+
+x1: flt (Road) := Road/flow * 1.0;             // aliases usable wherever types are
+D2: dom2 : nrofrows = 2;
+
+function ApplyTwiceT(unit<uint32> D; f: unary_fn; attribute<float64> x (D))
+-> attribute<float64> (D) := f(D, f(D, x));    // f's bindings are CHECKED against unary_fn
+```
+
+Semantics and implementation:
+
+- An alias creates a hidden, inert **exemplar item** of the aliased type in the tree
+  (`SetIsTemplate` inertness), so aliases scope lexically, survive `#include`
+  boundaries, and unify with the existing composite-type-by-example mechanism: *any*
+  previously declared item can serve as a type (`nw: network_links` now clones the
+  exemplar's class — unit refs re-resolve at the use site, which is exactly the
+  telescope behavior wanted in signatures).
+- Plain-type aliases **expand at parse time** (`ConfigProd::ResolveTypeRef`:
+  declared-before-use, parent-chain resolution, no using-directives) — no runtime
+  representation needed.
+- A **function-signature alias** `(params) -> resultType;` becomes a signature-only
+  function item (no result expression, no body; applying one is an error). A parameter
+  declared with it (`f: unary_fn`) records the exemplar in the function spec, and
+  every binding is checked at application time (`CheckFunctionSignature` in
+  `tic/AbstrCalculator.cpp`): arity, per-parameter item classes (a plain-item
+  signature position is a wildcard), and result class. Unit *relationships* between
+  signature positions (the dependent part) are not yet compared — that is P2 unifier
+  territory.
+- Verified by `scratch/fn_test_sig.dms` (aliases, alias-of-alias, alias with explicit
+  domain, signature-checked higher-order application) and an arity-mismatch negative
+  test with a dedicated diagnostic.
+
 ## 6. Verified mechanism inventory
 
 Facts the design rests on, all verified in the current tree:

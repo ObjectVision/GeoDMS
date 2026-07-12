@@ -672,10 +672,14 @@ checkStringGenerator delayed-evaluates error strings to avoid overhead when not 
 TIC_CALL bool IntegrityCheckFailure(const TreeItem* self, const AbstrDataItem* iCheckerResult, std::function<SharedStr()> checkStringGenerator);
 
 // user-defined function items (declared with the 'function' keyword): declared parameter
-// count (= the number of leading sub-items that a call binds) and the designated result sub-item.
+// count (= the number of leading sub-items that a call binds), the designated result
+// sub-item, and optional per-parameter function-signature exemplars.
 TIC_CALL void    TreeItem_SetFunctionSpec(const TreeItem* functionItem, UInt32 nrParams, TokenID resultName);
 TIC_CALL UInt32  TreeItem_GetFunctionParamCount(const TreeItem* functionItem);
 TIC_CALL TokenID TreeItem_GetFunctionResultName(const TreeItem* functionItem);
+TIC_CALL void    TreeItem_AddFunctionParamSignature(const TreeItem* functionItem, UInt32 paramIndex, const TreeItem* signatureExemplar);
+TIC_CALL auto    TreeItem_GetFunctionParamSignature(const TreeItem* functionItem, UInt32 paramIndex) -> SharedTreeItem;
+TIC_CALL void    TreeItem_CopyFunctionSpec(const TreeItem* dstFunctionItem, const TreeItem* srcFunctionItem);
 
 // enforce strict scoping on a function definition: name resolution from within stops at
 // the item (own sub-items + explicit 'using' imports); relative import urls still

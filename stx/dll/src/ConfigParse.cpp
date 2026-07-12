@@ -101,9 +101,11 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 				= (! UTF8_BOM ) >> dms_guard_d(+item); // multiple item declarations are only allowed in #included sub-configurations
 
 			//<item> ::=
-			//	<function decl> | <item decl> <item block> | include file
+			//	<function decl> | <alias decl> | <item decl> <item block> | include file
 			item
 				= functionDecl
+				| aliasFunctionSig
+				| aliasPlain
 				| (
 					itemDecl
 					>> assert_d("item terminator ';' expected after item definition")[
@@ -161,6 +163,7 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 					[([&cp](auto _1, auto) { cp.OnFunctionHeading(_1); cp.DoBeginBlock();})]
 				>> !(functionParamItem >> *(SEMICOLON >> !functionParamItem))
 				>> assert_d("')' expected after function parameter declarations")[RPAREN]
+					[([&cp](...) { cp.OnEndFunctionParams();})]
 				>> *( ',' >> as_lower_d[USING] >> EQUAL
 						>> assert_d("namespace reference expected after 'using ='")[
 							itemRef[([&cp](...) { cp.DoFunctionUsing();})] ] )
@@ -189,6 +192,32 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 				>> assert_d("function result type expected after '->'")[functionResultType]
 				>> assert_d("':=' and result expression expected in function result specification")[COLON >> EQUAL]
 				>> m_ExprDef.start()[([&cp](auto _1, auto _2) { cp.OnFunctionResultExpr(_1, _2);})];
+
+			// ==== TYPE ALIASES: alias = type;   (vs. 'name : type;' which declares an item)
+
+			// function-signature alias: alias = (params) -> resultType;
+			aliasFunctionSig =
+				( (identifier >> EQUAL >> LPAREN)
+					[([&cp](auto _1, auto) { cp.OnAliasName(); cp.OnFunctionSigHeading(_1); cp.DoBeginBlock();})]
+				>> !(functionParamItem >> *(SEMICOLON >> !functionParamItem))
+				>> assert_d("')' expected after signature parameter declarations")[RPAREN]
+					[([&cp](...) { cp.OnEndFunctionParams();})]
+				>> assert_d("'->' and result type expected in a function-signature alias")[ARROW]
+				>> !( (identifier >> COLON)[([&cp](...) { cp.DoFunctionResultName();})] )
+				>> assert_d("result type expected after '->'")[functionResultType]
+				>> assert_d("';' expected after function-signature alias")[SEMICOLON]
+				)
+				[([&cp](auto _1, auto) { cp.OnFunctionDeclEnd(_1);})];
+
+			// plain type alias: alias = unit<vt>; | attribute<vu> [(domain)]; | previously declared item;
+			aliasPlain =
+				( (identifier >> EQUAL)[([&cp](...) { cp.OnAliasName();})]
+				>> ( itemSignature
+				   | itemRef[([&cp](...) { cp.DoRefTypeSignature();})] )
+				>> !(LPAREN >> itemParam >> *(',' >> itemParam) >> RPAREN)
+				)
+				[([&cp](auto _1, auto _2) { cp.DoAliasDecl(_1, _2);})]
+				>> assert_d("';' expected after type alias")[SEMICOLON];
 
 			// ==== ==== ITEM HEADING
 
@@ -281,6 +310,7 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 			preprocStatement,
 			itemDecl, itemHeading, itemSignature, colonHeading,
 			functionDecl, functionParamItem, functionResultType, functionResultSpec,
+			aliasFunctionSig, aliasPlain,
 			itemParam, unitIdentifier, basicType,
 			itemProp, anyPropImpl, anyProp, storageProp, usingProp, entityNrOfRowsProp, dataBlock, directExpr,
 			itemRef, fileRef, identifier;

@@ -585,11 +585,79 @@ void ConfigProd::AddPendingName()
 	m_PendingNames.push_back(m_strIdentifierID);
 }
 
+const TreeItem* ConfigProd::ResolveTypeRef(TokenID refID) const
+{
+	// parse-time type resolution: declared-before-use, walking the parent chain of the
+	// current context; using-directives are deliberately not consulted (their lazy
+	// resolution must not be forced mid-parse)
+	SharedStr refStr(GetTokenStr(refID));
+	CharPtr b = refStr.begin(), e = refStr.send();
+	if (b == e || *b == '.' || *b == '/')
+		return nullptr;
+
+	CharPtr slash = std::find(b, e, '/');
+	TokenID firstTok = (slash == e) ? refID : GetTokenID_mt(b, slash);
+
+	for (const TreeItem* scope = GetContextItem(); scope; scope = scope->GetTreeParent().get())
+	{
+		auto found = scope->GetConstSubTreeItemByID(firstTok);
+		if (!found)
+			continue;
+		CharPtr segBegin = slash;
+		const TreeItem* cursor = found.get();
+		while (cursor && segBegin != e)
+		{
+			++segBegin; // skip '/'
+			CharPtr segEnd = std::find(segBegin, e, '/');
+			cursor = cursor->GetConstSubTreeItemByID(GetTokenID_mt(segBegin, segEnd)).get();
+			segBegin = segEnd;
+		}
+		return cursor; // nearest scope wins; no fall-through on partial resolution
+	}
+	return nullptr;
+}
+
 void ConfigProd::DoRefTypeSignature()
 {
+	m_PendingFunctionParamSig = nullptr;
+
+	if (auto exemplar = ResolveTypeRef(m_strIdentifierID))
+	{
+		// type by example / type alias: declare the new item with the exemplar's type
+		if (IsUnit(exemplar))
+		{
+			SetSignature(SignatureType::Unit);
+			m_eValueClass = AsUnit(exemplar)->GetValueType();
+			return;
+		}
+		if (IsDataItem(exemplar))
+		{
+			auto adi = AsDataItem(exemplar);
+			SetSignature(SignatureType::Attribute);
+			m_pSignatureUnit = adi->ValuesUnitToken();
+			m_pParamEntity   = adi->DomainUnitToken();
+			auto vc = adi->GetValueComposition();
+			if (vc != ValueComposition::Single)
+				m_eParamVC = vc;
+			return;
+		}
+		if (exemplar->IsFunctionItem())
+		{
+			if (m_FuncStates.empty() || !m_FuncStates.back().inParamList)
+				throwSemanticError("a function-signature type is only supported for function parameters");
+			SetSignature(SignatureType::TreeItem);
+			m_PendingFunctionParamSig = exemplar;
+			return;
+		}
+		SetSignature(SignatureType::TreeItem); // container-like exemplar: plain item
+		return;
+	}
+
+	// unresolved reference: allowed inside function declarations only (binds by
+	// reference, e.g. 'f: function' or a composite type declared further down)
 	if (m_FuncStates.empty())
-		throwSemanticError("an item reference as type is only supported for function parameters and results");
-	SetSignature(SignatureType::TreeItem); // P0: composite-typed parameter binds by reference; member checking follows later
+		throwSemanticError("unknown type: an item reference used as type must resolve to a previously declared item (outside function declarations)");
+	SetSignature(SignatureType::TreeItem);
 }
 
 void ConfigProd::DoColonItemHeading(iterator_t first, iterator_t last)
@@ -599,13 +667,41 @@ void ConfigProd::DoColonItemHeading(iterator_t first, iterator_t last)
 
 	m_LastDeclNameCount = m_PendingNames.size();
 	m_LastDeclSiblings.clear();
+	if (m_PendingFunctionParamSig && (m_FuncStates.empty() || !m_FuncStates.back().inParamList))
+		throwSemanticError("a function-signature type is only supported for function parameters");
 	for (SizeT i = 0; i != m_PendingNames.size(); ++i)
 	{
 		CreateItem(m_PendingNames[i], first);
 		if (i + 1 != m_PendingNames.size())
 			m_LastDeclSiblings.push_back(m_pCurrent); // all but the last; props/expr also apply to these
+		if (m_PendingFunctionParamSig)
+			m_FuncStates.back().paramSigs.emplace_back(m_FuncStates.back().paramCount + i, m_PendingFunctionParamSig);
 	}
 	m_PendingNames.clear();
+	m_PendingFunctionParamSig = nullptr;
+
+	ClearSignature();
+	ClearPropData();
+}
+
+// ============================= type aliases: alias = type;
+
+void ConfigProd::OnAliasName()
+{
+	m_AliasNameID = m_strIdentifierID;
+}
+
+void ConfigProd::DoAliasDecl(iterator_t first, iterator_t last)
+{
+	// an alias declares a hidden, inert exemplar item of the aliased type; later
+	// 'name: alias' declarations clone its type (DoRefTypeSignature)
+	m_LastDeclNameCount = 1;
+	m_LastDeclSiblings.clear();
+	if (m_PendingFunctionParamSig)
+		throwSemanticError("a function-signature type cannot alias another one via '='; declare it directly as 'alias = (params) -> result;'");
+
+	CreateItem(m_AliasNameID, first);
+	m_pCurrent->SetIsTemplate(); // inert: an exemplar is a type, not a calculatable item
 
 	ClearSignature();
 	ClearPropData();
@@ -627,6 +723,30 @@ void ConfigProd::OnFunctionHeading(iterator_t first)
 
 	m_FuncStates.emplace_back();
 	m_FuncStates.back().funcItem = m_pCurrent;
+	m_FuncStates.back().inParamList = true;
+}
+
+void ConfigProd::OnFunctionSigHeading(iterator_t first)
+{
+	// 'alias = (params) -> resultType;' — a signature-only function item
+	m_LastDeclNameCount = 1;
+	m_LastDeclSiblings.clear();
+
+	SetSignature(SignatureType::Function);
+	CreateItem(m_AliasNameID, first);
+	ClearSignature();
+	ClearPropData();
+
+	m_FuncStates.emplace_back();
+	m_FuncStates.back().funcItem = m_pCurrent;
+	m_FuncStates.back().signatureOnly = true;
+	m_FuncStates.back().inParamList = true;
+}
+
+void ConfigProd::OnEndFunctionParams()
+{
+	dms_assert(!m_FuncStates.empty());
+	m_FuncStates.back().inParamList = false;
 }
 
 void ConfigProd::OnFunctionParamDecl()
@@ -725,7 +845,7 @@ void ConfigProd::OnFunctionDeclEnd(iterator_t first)
 	{
 		if (fs.resultSig == SignatureType::Undefined)
 			throwSemanticError("function result type expected");
-		if (fs.resultExpr.empty())
+		if (fs.resultExpr.empty() && !fs.signatureOnly)
 			throwSemanticError("function result expression expected after ':='");
 
 		m_eSignatureType = fs.resultSig;
@@ -736,7 +856,8 @@ void ConfigProd::OnFunctionDeclEnd(iterator_t first)
 
 		TokenID resultName = fs.resultName ? fs.resultName : t_Result;
 		CreateItem(resultName, first);
-		m_pCurrent->SetExpr(fs.resultExpr);
+		if (!fs.resultExpr.empty())
+			m_pCurrent->SetExpr(fs.resultExpr);
 
 		ClearSignature();
 		ClearPropData();
@@ -744,6 +865,8 @@ void ConfigProd::OnFunctionDeclEnd(iterator_t first)
 	}
 
 	TreeItem_SetFunctionSpec(func, fs.paramCount, designated);
+	for (const auto& paramSig : fs.paramSigs)
+		TreeItem_AddFunctionParamSignature(func, paramSig.first, paramSig.second);
 	TreeItem_MakeStrictScope(func); // definition-side strictness: inline reduction resolves through this scope
 	m_FuncStates.pop_back();
 
