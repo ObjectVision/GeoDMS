@@ -164,7 +164,7 @@ void ConfigProd::DoItemHeading(iterator_t first, iterator_t last)
 	TokenID genericVar = ConsumeGenericParamMarker();
 
 	CreateItem(m_ItemNameID, first);
-	if (genericVar && !m_FuncStates.empty() && m_FuncStates.back().inParamList)
+	if (genericVar && !m_FuncStates.empty() && m_FuncStates.back().inParamList && IsTopLevelFunctionParam())
 		m_FuncStates.back().genericParams.emplace_back(m_FuncStates.back().paramCount, genericVar, FindActiveTypeVarConstraint(genericVar));
 
 	ClearSignature();
@@ -464,6 +464,15 @@ void ConfigProd::DoBasicType()
 	}
 }
 
+bool ConfigProd::IsTopLevelFunctionParam() const
+{
+	// a top-level parameter is a direct child of the function item; a member of a
+	// structured parameter (e.g. 'attribute<V> flow' inside 'unit<uint32> Net { ... }')
+	// is one level deeper and must not be recorded as a parameter-indexed generic/signature
+	return !m_FuncStates.empty() && m_pCurrent
+		&& m_pCurrent->GetTreeParent().get() == m_FuncStates.back().funcItem.get();
+}
+
 TokenID ConfigProd::FindActiveTypeVarConstraint(TokenID varName) const
 {
 	if (varName && !m_FuncStates.empty())
@@ -734,9 +743,10 @@ void ConfigProd::DoColonItemHeading(iterator_t first, iterator_t last)
 		CreateItem(m_PendingNames[i], first);
 		if (i + 1 != m_PendingNames.size())
 			m_LastDeclSiblings.push_back(m_pCurrent); // all but the last; props/expr also apply to these
-		if (m_PendingFunctionParamSig)
+		bool topLevel = IsTopLevelFunctionParam();
+		if (m_PendingFunctionParamSig && topLevel)
 			m_FuncStates.back().paramSigs.emplace_back(m_FuncStates.back().paramCount + i, m_PendingFunctionParamSig);
-		if (recordGenerics)
+		if (recordGenerics && topLevel)
 			m_FuncStates.back().genericParams.emplace_back(m_FuncStates.back().paramCount + i, genericVar, FindActiveTypeVarConstraint(genericVar));
 	}
 	m_PendingNames.clear();

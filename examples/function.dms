@@ -31,10 +31,10 @@ container function_example
 	// ratio, capped at 1. The body computes an intermediate ('raw'); the
 	// result expression after ':=' designates which item is the result.
 
-	function CongestionRatio(
+	function CongestionRatio<V: numerics>(
 		unit<uint32> Network {
-			attribute<float64> flow;
-			attribute<float64> capacity;
+			attribute<V> flow;
+			attribute<V> capacity;
 		}
 	)
 	-> attribute<float64> (Network) := result

@@ -179,6 +179,7 @@ void                ClearPropData();
 	// generic type variable support: function f<V: numerics>(...)
 	TokenID FindActiveTypeVarConstraint(TokenID varName) const; // empty when varName is no active type variable
 	TokenID ConsumeGenericParamMarker(); // detects unit<V>/attribute<V> declarations; adjusts the signature for generic units
+	bool    IsTopLevelFunctionParam() const; // m_pCurrent is a direct parameter of the function (not a member of a structured parameter)
 	TokenID                          m_PendingTypeVarName;
 	std::vector<std::pair<TokenID, TokenID>> m_PendingTypeVars;   // (var, constraint) collected before the function item exists
 	TokenID                          m_PendingGenericUnitVar;     // set by DoBasicType for unit<V>

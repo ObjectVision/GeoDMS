@@ -745,55 +745,75 @@ can be refactored into a function (or back) without touching call sites that use
 explicit forms. `apply T(…)` is the adoption lever: existing template libraries become
 usable in value position without migration.
 
-**Container literals.** `x := { … }` (only as the entire rhs of `:=` on a
-container-classed item; expressions never start with `{`, so the grammar stays
-unambiguous and out of the shared expression grammar):
+**Container literals are expressions** *(refined 2026-07-12)*. `{ … }` is an anonymous
+container **value**, usable anywhere a value is expected — including as a function
+argument, which is the point:
 
-- `{ X(args) }` — exactly one lone call: the instantiation form above;
-- `{ a := F(x); b := 2.0 * G(y); }` — named assignments: an anonymous container whose
-  members are *type-derived* items; `a` gets F's **result value** (consistent with the
-  bare-call rule, not a special case). Prefix keywords compose per member:
-  `{ a := instantiate F(x); }` puts a step-container under `a`.
-- Either one lone call or a list of named assignments — mixing, or multiple lone calls,
-  is an error (two instantiations into one container would collide member names).
-- Trailing semicolons optional. Growth path: literals as composite *values* (records,
-  §3.2) usable as function arguments/results.
+```
+CongestionRatio( range(0,10) { flow: float64(ID(.)); cap: 2.0; } )  // literal as argument
+```
 
-Decisions recommended pending confirmation:
+So `{ … }` joins the expression grammar (an expression can now start with `{`; there is
+no ambiguity because a bare `{` in value position is always a literal). Forms:
 
-1. **Bare `container x := F(args)` becomes a hard error** with a fix-it message
-   ("use `instantiate F(…)` or `{ F(…) }` for the calculation steps") — breaking
-   vs the v20.9.0 behavior; only this repo's tests and `examples/function.dms` are
-   affected, and silently following the result would reintroduce holder-driven magic.
+- `{ X(args) }` — exactly one lone call: the instantiation form (all steps as members);
+- `{ flow: float64(ID(.)); cap: 2.0; }` or `{ a := F(x); b := 2.0 * G(y); }` — named
+  members: an anonymous container whose members are *type-derived*; `a`/`flow` get the
+  **result value** of their rhs (consistent with the bare-call rule). A member may be
+  written `name: type-expr` (a domain-carrying attribute, as in the argument example) or
+  `name := expr`. Prefix keywords compose per member (`{ a := instantiate F(x); }`).
+- A literal is *either* one lone call *or* a list of named members — mixing, or multiple
+  lone calls, is an error (two instantiations would collide member names).
+- Trailing semicolons optional. This is the composite-value / record mechanism (§3.2):
+  a literal argument like `range(0,10) { flow: …; cap: … }` builds an anonymous table on
+  the fly to satisfy a structured parameter, without a named container.
+
+Decisions *(confirmed 2026-07-12)*:
+
+1. **Bare `container x := F(args)` is a hard error** with a fix-it message ("use
+   `instantiate F(…)` or `{ F(…) }` for the calculation steps") — no holder-driven
+   magic. Breaking vs v20.9.0; only this repo's tests and `examples/function.dms` are
+   affected.
 2. **`apply T(args)` is root-only** (the whole calculation rule), like template
-   instantiation today: nested `2.0 * apply T(R)` needs an anonymous holder per
-   occurrence and has no applicative identity (two identical nested applies would be
-   two instantiations). Error text should point at "convert to a function for inline
-   composition". `apply F(…)` composes anywhere.
-3. **`apply T(args)` result convention**: the case-insensitively-unique sub-item named
-   `result` (reuse the function-result designation logic); error if absent. The
-   instantiation materializes as a *hidden endogenous sub-item of the holder*
-   (attributes can carry sub-items) and the holder follows `…/result` via the existing
-   follow-source mechanism — standard ownership/invalidation, and the steps remain
-   GUI-inspectable under the holder.
-4. **Contextual keywords**: `apply`/`instantiate` are recognized only in rule-prefix
+   instantiation today. Nested `2.0 * apply T(R)` is *not* allowed: two identical
+   nested template applies would (if allowed) instantiate once as a shared cache item,
+   but templates can capture call-site-visible names, so identifying them is unsound —
+   keep it disallowed for simplicity. Error text: "convert to a function for inline
+   composition". `apply F(…)` composes anywhere (a function call is already a value).
+3. **`apply T(args)` = cache-instantiate T, take its `result` sub-item.** T(args) is
+   instantiated as a **cache item** (as `PhaseContainer` and function applications
+   already are), and the holder follows the case-insensitively-unique sub-item named
+   `result` (reuse the function-result designation; error if absent). *Identity keys on
+   the instantiation context as an extra parameter* — because a template body may read
+   names visible (and different) at each call site, two `apply T(args)` with identical
+   arguments at different sites must NOT be merged. So template result-value semantics
+   are "function application with the call-site context as an implicit extra argument",
+   which both preserves template scoping and gives correct, non-shared instances. (This
+   supersedes the earlier hidden-endogenous-holder idea, which would have made the value
+   depend on hidden sub-item results.)
+4. **Contextual keywords**: `apply`/`instantiate` recognized only in rule-prefix
    position followed by `identifier(…)`; `apply(x)` stays a call of an item named
-   `apply` (verify no operator-group collision at implementation, as `CreateFunction`
-   does for function names).
+   `apply` (verify no operator-group collision, as `CreateFunction` does).
 5. `apply` on a partial application or signature-only alias: error. `instantiate` on a
    variant set: resolve the variant from the arguments first, then copy that variant.
 
-Note on identity: `instantiate F(args)` twice yields two instances with distinct tree
-items (like templates), but their expressions substitute to identical DC keys — data is
-shared and units unify across instances. Materialization is a presentation choice, not
-a semantic fork.
+Note on identity: a **function** application has applicative identity — args only, so
+`instantiate F(args)` twice yields two instances with distinct tree items but expressions
+that substitute to identical DC keys (data shared, units unify; materialization is a
+presentation choice). A **template** application via `apply`/`instantiate` is
+context-dependent — the call site is part of the key (decision 3), matching the existing
+template rule that domain identity takes the full instantiation path. Explicitly
+instantiated functions inherit this full-path domain identity, which is acceptable.
 
-Implementation sketch: `directExpr` gains the two contextual prefix keywords and the
-container-literal alternative (config grammar only); `SubstituteExpr`'s function branch
-drops the holder-class test in favor of the explicit marker; `apply T(…)` = a
-`MetaFuncCurry` variant that instantiates into a hidden endogenous child and sets the
-holder's follow-source; migration updates `scratch/fn_test*.dms` and
-`examples/function.dms` (which currently use the holder-driven container form).
+Implementation sketch: `directExpr` gains the two contextual prefix keywords; the
+**expression grammar** (`ExprParse.h`) gains the container-literal `{ … }` production
+(so literals nest as arguments); `SubstituteExpr`'s function branch drops the
+holder-class test in favor of the explicit marker; `apply T(…)` = a `MetaFuncCurry`
+variant that cache-instantiates `T` keyed by the call-site context (decision 3) and sets
+the holder's follow-source to the instance's `result`; a container literal reduces to an
+anonymous container value (a `CreateCacheRoot` populated from its members, à la
+`InstantiateMap`) usable as an argument. Migration updates `scratch/fn_test*.dms` and
+`examples/function.dms` (bare `container := F(args)` becomes `instantiate F(args)`).
 
 GUI inspection of inline applications (no materialized steps): the Value-Info /
 explain-value trace already walks the reduced DC graph per operator node; an
