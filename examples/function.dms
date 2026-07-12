@@ -49,6 +49,7 @@ container function_example
 	// function; the designated result is available as a sub-item.
 
 	container morning := CongestionRatio(Road);
+	attribute<float64> evening(Road) := 2.0 * CongestionRatio(Road);
 
 	attribute<float64> congestion (Road) := morning/result;
 

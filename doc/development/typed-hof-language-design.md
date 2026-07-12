@@ -17,11 +17,14 @@ references were verified against that tree.*
   (`alias = type, IntegrityCheck = …`, WP4.3), metric-via-alias (WP4.4).
 - **Groundwork** — the Prolog `Occur` occurs-check fix (WP4.1 prerequisite).
 
-Not yet implemented (specs below remain actionable): lambdas (WP3.2, optional — partial
-application covers the space), the opt-in `applyF` boundary DataController (WP4.2), the
-full Robinson TypeSpec unifier + operator-signature reification (WP4.1), and the
-RewriteExpr.lsp retirement tranche (WP4.5). Verification configs live in the gitignored
-`scratch/fn_test*.dms`; the shipped example is `examples/function.dms`.
+Not yet implemented (specs below remain actionable): the explicit
+`apply`/`instantiate`/container-literal application forms (§5.9, spec agreed
+2026-07-12 — supersedes the holder-driven instantiate-vs-inline rule), lambdas (WP3.2,
+optional — partial application covers the space), the opt-in `applyF` boundary
+DataController (WP4.2), the full Robinson TypeSpec unifier + operator-signature
+reification (WP4.1), and the RewriteExpr.lsp retirement tranche (WP4.5). Verification
+configs live in the gitignored `scratch/fn_test*.dms`; the shipped example is
+`examples/function.dms`.
 
 ## 1. Motivation and scope
 
@@ -427,14 +430,11 @@ function Capped(unit<uint32> Rd; attribute<float64> x (Rd)), using = shared
 -> attribute<float64> (Rd) := min_elem(x, limit);
 ```
 
-P0 call sites instantiate like templates (container holder + result access):
-
-```
-container cr := CongestionRatio(Road);
-attribute<float64> congestion (Road) := cr/result;
-```
-
-P1 makes `F(args)` an expression of the result type, nestable (§10).
+P1 makes `F(args)` an expression of the result type, nestable (§10). *Historical
+note:* in the first implementation the holder type selected the semantics — a
+container holder silently instantiated (`container cr := CongestionRatio(Road);` +
+`cr/result`), a typed holder inlined. That holder-driven rule is superseded by the
+explicit `apply`/`instantiate`/container-literal forms of §5.9.
 
 Notes on the notation:
 
@@ -707,6 +707,100 @@ Semantics and implementation:
   domain, signature-checked higher-order application) and an arity-mismatch negative
   test with a dedicated diagnostic.
 
+### 5.9 Application vs instantiation: `apply`, `instantiate`, container literals *(spec agreed 2026-07-12; to implement)*
+
+The first implementation let the *holder type* select the semantics of a call
+(container holder → copy-instantiate the body; typed holder → inline the result).
+That rule is replaced: **the call site says what you get**, independently of the
+holder. Two optional, kind-independent prefix keywords plus a container-literal form:
+
+```
+// functions: a call IS a value (default); instantiation is explicit
+attribute<float64> morning  (Road) := CongestionRatio(Road);            // result value
+attribute<float64> morning2 (Road) := apply CongestionRatio(Road);      // same (explicit)
+attribute<float64> evening  (Road) := 2.0 * CongestionRatio(Road);      // nestable
+container morning_calc_steps  := instantiate CongestionRatio(Road);     // all steps as items
+container morning_calc_stepsB := { CongestionRatio(Road) };             // same (literal form)
+
+// templates: instantiation is the (unchanged) default; the value form is explicit
+container steps2 := CongestionRatioT(Road);                             // as always
+container steps3 := instantiate CongestionRatioT(Road);                 // same (explicit)
+container steps4 := { CongestionRatioT(Road); }                         // same (literal form)
+attribute<float64> m3 (Road) := apply CongestionRatioT(Road);           // its 'result' sub-item
+```
+
+Semantics matrix:
+
+| form | function F | template T |
+|---|---|---|
+| bare `X(args)` | result value (inline reduction) | instantiate into holder (**unchanged**) |
+| `apply X(args)` | result value (synonym of bare) | instantiate (hidden) + follow the `result` sub-item |
+| `instantiate X(args)` | copy-instantiate all body items into the holder | instantiate (synonym of bare) |
+| `{ X(args) }` | = `instantiate` | = `instantiate` |
+
+Design rationale: the asymmetric *defaults* (function→value, template→instantiate)
+are the price of template backward compatibility; the explicit keywords neutralize it —
+`apply X(…)` / `instantiate X(…)` mean the same regardless of X's kind, so a template
+can be refactored into a function (or back) without touching call sites that use the
+explicit forms. `apply T(…)` is the adoption lever: existing template libraries become
+usable in value position without migration.
+
+**Container literals.** `x := { … }` (only as the entire rhs of `:=` on a
+container-classed item; expressions never start with `{`, so the grammar stays
+unambiguous and out of the shared expression grammar):
+
+- `{ X(args) }` — exactly one lone call: the instantiation form above;
+- `{ a := F(x); b := 2.0 * G(y); }` — named assignments: an anonymous container whose
+  members are *type-derived* items; `a` gets F's **result value** (consistent with the
+  bare-call rule, not a special case). Prefix keywords compose per member:
+  `{ a := instantiate F(x); }` puts a step-container under `a`.
+- Either one lone call or a list of named assignments — mixing, or multiple lone calls,
+  is an error (two instantiations into one container would collide member names).
+- Trailing semicolons optional. Growth path: literals as composite *values* (records,
+  §3.2) usable as function arguments/results.
+
+Decisions recommended pending confirmation:
+
+1. **Bare `container x := F(args)` becomes a hard error** with a fix-it message
+   ("use `instantiate F(…)` or `{ F(…) }` for the calculation steps") — breaking
+   vs the v20.9.0 behavior; only this repo's tests and `examples/function.dms` are
+   affected, and silently following the result would reintroduce holder-driven magic.
+2. **`apply T(args)` is root-only** (the whole calculation rule), like template
+   instantiation today: nested `2.0 * apply T(R)` needs an anonymous holder per
+   occurrence and has no applicative identity (two identical nested applies would be
+   two instantiations). Error text should point at "convert to a function for inline
+   composition". `apply F(…)` composes anywhere.
+3. **`apply T(args)` result convention**: the case-insensitively-unique sub-item named
+   `result` (reuse the function-result designation logic); error if absent. The
+   instantiation materializes as a *hidden endogenous sub-item of the holder*
+   (attributes can carry sub-items) and the holder follows `…/result` via the existing
+   follow-source mechanism — standard ownership/invalidation, and the steps remain
+   GUI-inspectable under the holder.
+4. **Contextual keywords**: `apply`/`instantiate` are recognized only in rule-prefix
+   position followed by `identifier(…)`; `apply(x)` stays a call of an item named
+   `apply` (verify no operator-group collision at implementation, as `CreateFunction`
+   does for function names).
+5. `apply` on a partial application or signature-only alias: error. `instantiate` on a
+   variant set: resolve the variant from the arguments first, then copy that variant.
+
+Note on identity: `instantiate F(args)` twice yields two instances with distinct tree
+items (like templates), but their expressions substitute to identical DC keys — data is
+shared and units unify across instances. Materialization is a presentation choice, not
+a semantic fork.
+
+Implementation sketch: `directExpr` gains the two contextual prefix keywords and the
+container-literal alternative (config grammar only); `SubstituteExpr`'s function branch
+drops the holder-class test in favor of the explicit marker; `apply T(…)` = a
+`MetaFuncCurry` variant that instantiates into a hidden endogenous child and sets the
+holder's follow-source; migration updates `scratch/fn_test*.dms` and
+`examples/function.dms` (which currently use the holder-driven container form).
+
+GUI inspection of inline applications (no materialized steps): the Value-Info /
+explain-value trace already walks the reduced DC graph per operator node; an
+"expand steps" detail action (re-run the reduction in instantiating mode on demand)
+and showing the function body source with arguments substituted are the candidate
+additions.
+
 ## 6. Verified mechanism inventory
 
 Facts the design rests on, all verified in the current tree:
@@ -960,7 +1054,8 @@ recursively (memoized, cycle-guarded), member access through structured/composit
 parameters resolves against the actual argument item, imports/externals resolve through
 the function's strict search space (function definitions also get a strict UsingCache
 with hidden-parent `using`-url resolution). Binding a call to a **container** keeps the
-P0 instantiating form (access to all instance items). This *is* the "pure inlining"
+P0 instantiating form (access to all instance items) — a holder-driven rule that §5.9's
+explicit `apply`/`instantiate` forms supersede. This *is* the "pure inlining"
 alternative from the design (§8.3's `inline` behavior, applied as the default for
 expression positions): identical applications intern to identical keys, so applicative
 identity — including unit-returning functions unifying across call sites — comes free,
