@@ -43,15 +43,15 @@ container function_example
 		attribute<float64> result (Network) := min_elem(raw, 1.0);
 	}
 
-	// ----------------------------------------------------- instantiation(s)
+	// ----------------------------------------------------- application forms (§5.9)
 	//
-	// A call binds the arguments to the parameters and instantiates the
-	// function; the designated result is available as a sub-item.
+	// A bare function call is its RESULT value; use 'instantiate' to materialize the
+	// whole computation (all intermediate steps) as browsable sub-items.
 
-	container morning := CongestionRatio(Road);
-	attribute<float64> evening(Road) := 2.0 * CongestionRatio(Road);
+	container          morning       := instantiate CongestionRatio(Road);  // all steps as items
+	attribute<float64> evening (Road) := 2.0 * CongestionRatio(Road);        // just the result value
 
-	attribute<float64> congestion (Road) := morning/result;
+	attribute<float64> congestion (Road) := morning/result;                 // the instantiated result
 
 	// The same function can be applied to any other table that provides the
 	// declared attributes; each instantiation is independent.
@@ -62,7 +62,7 @@ container function_example
 		attribute<float64> capacity : [ 60.0, 45.0 ];
 	}
 
-	container rail_load := CongestionRatio(Rail);
+	container rail_load := instantiate CongestionRatio(Rail);
 
 	// ------------------------------------------------------------- checks
 	//

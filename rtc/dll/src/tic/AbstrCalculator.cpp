@@ -1019,6 +1019,8 @@ namespace {
 
 	static TokenID t_Hole = GetTokenID_st("_"); // partial-application placeholder
 	static TokenID t_Map  = GetTokenID_st("map"); // built-in map(function, container) metafunction
+	static TokenID t_ApplyItem       = GetTokenID_st("apply_item");       // §5.9 'apply X(args)' marker head
+	static TokenID t_InstantiateItem = GetTokenID_st("instantiate_item"); // §5.9 'instantiate X(args)' marker head
 
 	struct FunctionBinding;
 
@@ -2305,6 +2307,24 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 				goto exit;
 			}
 
+			// §5.9: 'apply F(args)' as a sub-expression == the bare call (a value); unwrap.
+			// 'instantiate' / 'apply T' produce/instantiate a container and are root-only.
+			if (head.GetSymbID() == t_ApplyItem || head.GetSymbID() == t_InstantiateItem)
+			{
+				LispRef innerCall = localExpr.Right().Left();
+				MG_CHECK(innerCall.IsRealList() && innerCall.Left().IsSymb());
+				if (head.GetSymbID() == t_InstantiateItem)
+					throwErrorF("ExprParser", "'instantiate' produces a container and can only appear as a whole calculation rule, not as a sub-expression");
+				auto callee = FindOrVisitItem(substBuff, innerCall.Left().GetSymbID());
+				if (substBuff.avs == AVS_SuspendedOrFailed)
+					return {};
+				if (!callee || !callee->IsFunctionItem())
+					throwErrorF("ExprParser", "'apply' on a template can only appear as a whole calculation rule; '{}' is not a function"
+						, innerCall.Left().GetSymbID().GetStr().c_str());
+				bufferValue = SubstituteExpr_impl(substBuff, innerCall, mpf); // apply F == bare F
+				goto exit;
+			}
+
 			// following code duplicates partly the code in AbstrCalculator::SubstituteExpr
 			const AbstrOperGroup* og = AbstrOperGroup::FindName(head.GetSymbID());
 			assert(og);
@@ -2456,6 +2476,35 @@ MetaInfo AbstrCalculator::SubstituteExpr(SubstitutionBuffer& substBuff, LispPtr 
 		if (exprHeadID == token::arrow || exprHeadID == token::scope)
 			goto skipTemplInst;
 
+		// §5.9 explicit application forms
+		if (exprHeadID == t_InstantiateItem || exprHeadID == t_ApplyItem)
+		{
+			LispRef innerCall = localExpr.Right().Left(); // (X args)
+			MG_CHECK(innerCall.IsRealList() && innerCall.Left().IsSymb());
+			TokenID calleeID = innerCall.Left().GetSymbID();
+			auto callee = FindOrVisitItem(substBuff, calleeID);
+			if (substBuff.avs == AVS_SuspendedOrFailed)
+				return {};
+			if (!callee || !callee->IsTemplate()) // functions are IsTemplate too
+				throwErrorF("ExprParser", "'{}': '{}' is not a function or template"
+					, exprHeadID == t_ApplyItem ? "apply" : "instantiate", calleeID.GetStr().c_str());
+
+			if (exprHeadID == t_InstantiateItem)
+			{
+				// materialize all body items into the holder (copy-instantiation)
+				registerSupplier(substBuff, callee.get());
+				return MetaFuncCurry{ .fullLispExpr = innerCall, .applyItem = callee.get() };
+			}
+			// apply: the result value. For a function this is the bare call (inline);
+			// for a template, the context-keyed cache instantiation is not yet built.
+			if (!callee->IsFunctionItem())
+				throwErrorF("ExprParser", "'apply' on template '{}' is not yet implemented; use 'instantiate {}(…)' for the steps, or convert it to a function"
+					, callee->GetFullName().c_str(), calleeID.GetStr().c_str());
+			localExpr = innerCall;
+			head = localExpr.Left();
+			exprHeadID = head.GetSymbID();
+		}
+
 		const AbstrOperGroup* og = AbstrOperGroup::FindName(exprHeadID);
 		assert(og);
 		if (og->IsTemplateCall())
@@ -2513,13 +2562,17 @@ MetaInfo AbstrCalculator::SubstituteExpr(SubstitutionBuffer& substBuff, LispPtr 
 						, nrProvidedArgs
 					);
 
-				// a function application bound to a typed holder (attribute/parameter/unit)
-				// is an expression: inline it by beta-reduction. Binding to a container
-				// keeps the instantiating (template-like) form, giving access to all
-				// body items of the instance.
-				auto holder = m_Holder.lock();
-				if (holder && (IsDataItem(holder.get()) || IsUnit(holder.get())))
-					goto skipTemplInst;
+				// §5.9: a function application is always a value — inline it by
+				// beta-reduction, regardless of the holder. Binding to a container holder
+				// is an error (no holder-driven instantiation): use 'instantiate F(…)' to
+				// materialize the calculation steps, or bind to a typed item for the value.
+				{
+					auto holder = m_Holder.lock();
+					if (holder && !IsDataItem(holder.get()) && !IsUnit(holder.get()) && !holder->IsCacheItem())
+						throwErrorF("ExprParser", "'{}': a function application yields its result value; bind it to an attribute/parameter/unit, or use 'instantiate {}(…)' to materialize the calculation steps as items"
+							, head.GetSymbStr().c_str(), head.GetSymbStr().c_str());
+				}
+				goto skipTemplInst;
 			}
 
 			// calculation scheme: isTempl, dont-subst templ

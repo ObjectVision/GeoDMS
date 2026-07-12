@@ -134,9 +134,30 @@ struct expr_grammar : public boost::spirit::grammar<expr_grammar<Prod>>
 			//-----------------------------------------------------------------
 			//  Start grammar definition
 			//-----------------------------------------------------------------
+			// §5.9 application forms: 'apply X(args)' / 'instantiate X(args)'. Contextual
+			// keywords — matched only immediately before a function-call (identifier '(');
+			// 'apply'/'instantiate' used as a plain item or a call (apply(x)) are unaffected
+			// (functionCallReq fails without parens and the alternative backtracks).
+			TokenID applyItemToken       = GetTokenID_mt("apply_item");
+			TokenID instantiateItemToken = GetTokenID_mt("instantiate_item");
+
+			// require trailing whitespace so the keyword is a complete word: 'ApplyBin'
+			// (identifier) and 'apply(x)' (a call of an item named apply) are NOT the keyword
 			expression
-				= (P_EQ >> exprL0)[([&](...) { cp.ProdUnaryOper(token::eval);})]
+				= (lexeme_d[as_lower_d[strlit<>("apply")] >> epsilon_p(space_p)]
+					>> functionCallReq)[([&, applyItemToken](...) { cp.ProdUnaryOper(applyItemToken);})]
+				| (lexeme_d[as_lower_d[strlit<>("instantiate")] >> epsilon_p(space_p)]
+					>> functionCallReq)[([&, instantiateItemToken](...) { cp.ProdUnaryOper(instantiateItemToken);})]
+				| (P_EQ >> exprL0)[([&](...) { cp.ProdUnaryOper(token::eval);})]
 				|	exprL0;
+
+			// a function call with mandatory parentheses (identifier '(' args ')')
+			functionCallReq
+				= (identifier
+					>> LPAREN
+					>> exprList
+					>> assert_d("')' or ',' expected after argument-list of function-call")[RPAREN]
+					)[([&](...) { cp.ProdFunctionCall();})];
 
 			exprLW = exprL1
 				>> !(C_ELSE >> expression)[([&](...) { cp.ProdBinaryOper(token::scope); })];
@@ -287,7 +308,7 @@ struct expr_grammar : public boost::spirit::grammar<expr_grammar<Prod>>
 			element, numericValueElement, suffix, stringValueElement,
 			exprList,
 			nonEmptyExprList,
-			scopeCall, functionCallOrIdentifier, identifier, // dots, 
+			scopeCall, functionCallOrIdentifier, functionCallReq, identifier, // dots,
 			unsignedInteger, unsignedReal;
 	};
 };

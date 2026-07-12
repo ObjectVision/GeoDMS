@@ -707,7 +707,19 @@ Semantics and implementation:
   domain, signature-checked higher-order application) and an arity-mismatch negative
   test with a dedicated diagnostic.
 
-### 5.9 Application vs instantiation: `apply`, `instantiate`, container literals *(spec agreed 2026-07-12; to implement)*
+### 5.9 Application vs instantiation: `apply`, `instantiate`, container literals *(Phase A implemented 2026-07-12; container literals pending)*
+
+**Implementation status:** the `apply`/`instantiate` keywords and the no-holder-magic
+rule are implemented. A bare function call is always its result value (inline); binding
+one to a *container* holder is an error pointing at `instantiate`. `instantiate X(args)`
+copy-instantiates the body into the holder (function or template); bare template calls
+are unchanged. `apply X(args)` = the value: for a function it is the bare call, for a
+template it errors "not yet implemented" (the context-keyed cache instantiation of
+decision 3 is the remaining piece). The keywords are contextual — matched only as a
+complete word before a call, so `ApplyBin(x)` (identifier) and `apply(x)` (a call of an
+item named `apply`) are unaffected (`stx/dll/src/ExprParse.h`: `lexeme_d[strlit >>
+epsilon_p(space_p)] >> functionCallReq`; marker heads `apply_item`/`instantiate_item`
+dispatched in `tic/AbstrCalculator.cpp`). **Container literals remain to implement.**
 
 The first implementation let the *holder type* select the semantics of a call
 (container holder → copy-instantiate the body; typed holder → inline the result).
