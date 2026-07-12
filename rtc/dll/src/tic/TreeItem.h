@@ -687,6 +687,8 @@ TIC_CALL void    TreeItem_AddFunctionGenericParam(const TreeItem* functionItem, 
 TIC_CALL bool    TreeItem_GetFunctionGenericParam(const TreeItem* functionItem, UInt32 seqNr, UInt32* paramIndex, TokenID* varName, TokenID* constraintName);
 TIC_CALL bool    TreeItem_IsFunctionDefinitionChecked(const TreeItem* functionItem);
 TIC_CALL void    TreeItem_SetFunctionDefinitionChecked(const TreeItem* functionItem);
+TIC_CALL void    TreeItem_SetFunctionVariantSet(const TreeItem* functionItem);
+TIC_CALL bool    TreeItem_IsFunctionVariantSet(const TreeItem* functionItem);
 TIC_CALL bool    IsKnownGenericConstraint(TokenID constraintName);
 TIC_CALL bool    MatchesGenericConstraint(const ValueClass* vc, TokenID constraintName);
 

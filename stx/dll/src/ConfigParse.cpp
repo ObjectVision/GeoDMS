@@ -85,6 +85,7 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 			strlit<> CONTAINER("container");
 			strlit<> TEMPLATE("template");
 			strlit<> FUNCTION("function");
+			strlit<> VARIANT("variant");
 			strlit<> ATTRIBUTE("attribute");
 			strlit<> PARAMETER("parameter");
 			strlit<> UNIT("unit");
@@ -174,7 +175,12 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 				>> assert_d("'>' expected after type-variable declarations")[RANGLE];
 
 			functionDecl =
-				( (as_lower_d[FUNCTION] >> identifier[([&cp](...) { cp.DoItemName();})] >> !typeParamsClause >> LPAREN)
+				(as_lower_d[FUNCTION] >> identifier[([&cp](auto _1, auto) { cp.DoItemName(); cp.SetPendingNameLoc(_1);})])
+				>> ( functionBody | variantSet );
+
+			// single function: function name[<typevars>](params) -> result := expr [;] [{ body }]
+			functionBody =
+				( (!typeParamsClause >> LPAREN)
 					[([&cp](auto _1, auto) { cp.OnFunctionHeading(_1); cp.DoBeginBlock();})]
 				>> !(functionParamItem >> *(SEMICOLON >> !functionParamItem))
 				>> assert_d("')' expected after function parameter declarations")[RPAREN]
@@ -188,6 +194,32 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 				>> !( LBRACE
 						>> *item
 						>> assert_d("item definition or function-body terminator '}' expected")[RBRACE] )
+				)
+				[([&cp](auto _1, auto) { cp.OnFunctionDeclEnd(_1);})];
+
+			// variant set: function name { variant v1(params) -> R := expr; variant v2(...) ... }
+			// dispatches to the matching variant by argument type (§5.7)
+			variantSet =
+				LBRACE[([&cp](...) { cp.OnVariantSetHeading(); cp.DoBeginBlock();})]
+				>> assert_d("at least one 'variant' declaration expected")[+variantDecl]
+				>> assert_d("'variant' or '}' expected in variant set")[RBRACE]
+					[([&cp](...) { cp.OnVariantSetEnd();})];
+
+			variantDecl =
+				( (as_lower_d[VARIANT] >> identifier[([&cp](...) { cp.DoItemName();})] >> LPAREN)
+					[([&cp](auto _1, auto) { cp.OnFunctionHeading(_1); cp.DoBeginBlock();})]
+				>> !(functionParamItem >> *(SEMICOLON >> !functionParamItem))
+				>> assert_d("')' expected after variant parameter declarations")[RPAREN]
+					[([&cp](...) { cp.OnEndFunctionParams();})]
+				>> *( ',' >> as_lower_d[USING] >> EQUAL
+						>> assert_d("namespace reference expected after 'using ='")[
+							itemRef[([&cp](...) { cp.DoFunctionUsing();})] ] )
+				>> assert_d("'->' and result specification expected after variant parameter list")[ARROW]
+				>> functionResultSpec
+				>> !SEMICOLON
+				>> !( LBRACE
+						>> *item
+						>> assert_d("item definition or variant-body terminator '}' expected")[RBRACE] )
 				)
 				[([&cp](auto _1, auto) { cp.OnFunctionDeclEnd(_1);})];
 
@@ -326,7 +358,8 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 		boost::spirit::rule<ScannerT> main, item, itemBlock,
 			preprocStatement,
 			itemDecl, itemHeading, itemSignature, colonHeading,
-			functionDecl, functionParamItem, functionResultType, functionResultSpec,
+			functionDecl, functionBody, variantSet, variantDecl,
+			functionParamItem, functionResultType, functionResultSpec,
 			typeParamsClause, aliasFunctionSig, aliasPlain,
 			itemParam, unitIdentifier, basicType,
 			itemProp, anyPropImpl, anyProp, storageProp, usingProp, entityNrOfRowsProp, dataBlock, directExpr,

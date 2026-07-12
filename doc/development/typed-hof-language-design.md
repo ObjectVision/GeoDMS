@@ -577,23 +577,37 @@ dispatch on argument *form* — `collect_by_cond` has one rule per `select_*` fl
    function sqr<V: numerics>(attribute<V> x (D)) { attribute<...> result (D) := x * x; }
    ```
 
-2. **Variants** for genuinely type-dependent behavior — one function item containing
-   named variant blocks, each with its own telescope and body:
+2. **Variants** for genuinely type-dependent behavior — **IMPLEMENTED in 20.9.0**. One
+   function item contains named variant blocks, each a full function (params, `->`
+   result, `:=` expression, optional body):
 
    ```
-   function dist
+   function describe
    {
-       variant f32 (unit<uint32> D; attribute<fpoint> a (D); attribute<fpoint> b (D))
-       :   attribute<float32> (D)  { … }
-       variant f64 (unit<uint32> D; attribute<dpoint> a (D); attribute<dpoint> b (D))
-       :   attribute<float64> (D)  { … }
+       variant asFloat(attribute<float64> x (D)) -> attribute<float64> (D) := x * 100.0;
+       variant asInt  (attribute<int32>   x (D)) -> attribute<int32>   (D) := x + x;
    }
+   attribute<float64> df (D) := describe(D/f);   // dispatches to asFloat
+   attribute<int32>   di (D) := describe(D/i);   // dispatches to asInt
    ```
 
    Variants live *inside one item* deliberately: TreeItem containers require unique
    subitem names, so same-name sibling functions are not representable — and keeping
    the overload set in one place makes it checkable as a whole. This mirrors how one
    OperatorGroup holds many Operators.
+
+   *Implementation:* `function name { variant v(...) ... }` parses via a `variantSet`
+   grammar branch (`functionDecl = FUNCTION identifier (functionBody | variantSet)`);
+   the set item is flagged (`TreeItem_SetFunctionVariantSet`) and each variant is an
+   ordinary function sub-item. At a call, `ResolveVariant` (`tic/AbstrCalculator.cpp`)
+   materialises each argument's value class and selects the variant whose parameter
+   value classes all match (an untyped/wildcard parameter position matches anything);
+   the chosen variant is then reduced like a normal function. Ambiguous matches and
+   no-match both error with the variant list. Verified by `scratch/fn_test_variant.dms`
+   (float64→asFloat, int32→asInt) and a no-match negative (string). Current v1 limits:
+   dispatch is by exact value class (no specificity ordering / definition-time
+   disjointness yet — an ambiguous overlap errors at the call), variant-set calls are
+   always inline (data/unit holder), and variant `using` imports are per-variant.
 
 **Resolution.** Name resolution finds the function item by the normal scope rules
 (nearest declaring scope; no cross-scope merging of overload sets). Within the item,

@@ -97,6 +97,9 @@ struct ConfigProd : AbstrDataBlockProd, AbstrContextHandle
 //	function declarations (and function-signature type aliases)
 	void OnTypeVarName();
 	void OnTypeVarConstraint();
+	void SetPendingNameLoc(iterator_t loc) { m_PendingNameLoc = loc; }
+	void OnVariantSetHeading();
+	void OnVariantSetEnd();
 	void OnFunctionHeading(iterator_t first);
 	void OnFunctionSigHeading(iterator_t first);
 	void OnEndFunctionParams();
@@ -169,6 +172,7 @@ void                ClearPropData();
 	// type alias support
 	const TreeItem* ResolveTypeRef(TokenID refID) const; // parse-time, declared-before-use, no using-directives
 	TokenID                          m_AliasNameID;
+	iterator_t                       m_PendingNameLoc; // source location captured at a function/variant-set name
 	const TreeItem*                  m_PendingFunctionParamSig = nullptr; // function-signature exemplar awaiting item creation
 	const TreeItem*                  m_PendingTypeExemplar = nullptr; // type-by-example / alias source, for refinement (IntegrityCheck) cloning
 

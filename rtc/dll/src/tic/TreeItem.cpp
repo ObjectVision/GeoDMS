@@ -81,8 +81,9 @@ namespace {
 		std::vector<std::pair<UInt32, std::weak_ptr<const TreeItem>>> paramSigs;
 		std::vector<std::tuple<UInt32, TokenID, TokenID>> genericParams; // (param index, type variable, constraint)
 		bool definitionChecked = false; // WP3.4: body scope/shape validated once
+		bool isVariantSet = false;      // §5.7: a function that dispatches to variant sub-functions by argument type
 	};
-	bool IsDefaultValue(const FunctionSpecData& v) { return v.nrParams == 0 && !v.resultName && v.paramSigs.empty() && v.genericParams.empty() && !v.definitionChecked; }
+	bool IsDefaultValue(const FunctionSpecData& v) { return v.nrParams == 0 && !v.resultName && v.paramSigs.empty() && v.genericParams.empty() && !v.definitionChecked && !v.isVariantSet; }
 	static_quick_assoc<const TreeItem*, FunctionSpecData> s_FunctionSpecAssoc;
 
 	static TokenID t_gcAny          = GetTokenID_st("any");
@@ -1489,6 +1490,18 @@ TIC_CALL void TreeItem_SetFunctionDefinitionChecked(const TreeItem* functionItem
 {
 	assert(functionItem && functionItem->IsFunctionItem());
 	s_FunctionSpecAssoc[functionItem].definitionChecked = true;
+}
+
+TIC_CALL void TreeItem_SetFunctionVariantSet(const TreeItem* functionItem)
+{
+	assert(functionItem && functionItem->IsFunctionItem());
+	s_FunctionSpecAssoc[functionItem].isVariantSet = true;
+}
+
+TIC_CALL bool TreeItem_IsFunctionVariantSet(const TreeItem* functionItem)
+{
+	auto specPtr = s_FunctionSpecAssoc.get_value_ptr(functionItem);
+	return specPtr && specPtr->isVariantSet;
 }
 
 TIC_CALL UInt32 TreeItem_GetFunctionParamCount(const TreeItem* functionItem)

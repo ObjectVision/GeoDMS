@@ -842,6 +842,29 @@ void ConfigProd::OnFunctionHeading(iterator_t first)
 	m_PendingTypeVars.clear();
 }
 
+void ConfigProd::OnVariantSetHeading()
+{
+	// 'function name { variant ... }' — a set that dispatches to variant sub-functions
+	// by argument type. The set item has no parameters or body of its own.
+	m_LastDeclNameCount = 1;
+	m_LastDeclSiblings.clear();
+
+	SetSignature(SignatureType::Function);
+	CreateItem(m_ItemNameID, m_PendingNameLoc); // CreateFunction validates the name + flags IsFunctionItem
+	ClearSignature();
+	ClearPropData();
+
+	TreeItem_SetFunctionSpec(m_pCurrent.get(), 0, TokenID::GetEmptyID());
+	TreeItem_SetFunctionVariantSet(m_pCurrent.get());
+	// no FuncState is pushed for the set; each 'variant' pushes its own
+}
+
+void ConfigProd::OnVariantSetEnd()
+{
+	// the set container is closed; the variants have already been finalized
+	DoEndBlock(); // pop the set container opened by DoBeginBlock after OnVariantSetHeading
+}
+
 void ConfigProd::OnFunctionSigHeading(iterator_t first)
 {
 	// 'alias = (params) -> resultType;' — a signature-only function item

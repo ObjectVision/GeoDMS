@@ -1153,6 +1153,84 @@ namespace {
 		CallArg a; a.key = resolveData(argExpr); return a;
 	}
 
+	// §5.7 variant dispatch: value class of a reduced argument key
+	const ValueClass* ArgValueClass(LispRef key, SharedTreeItem errorHolder)
+	{
+		if (key.EndP())
+			return nullptr;
+		auto dc = GetOrCreateDataController(key);
+		auto res = dc->MakeResult();
+		if (!res)
+		{
+			dms_assert(dc->WasFailed(FailType::MetaInfo));
+			errorHolder->ThrowFail(dc.get());
+		}
+		if (IsDataItem(res.get()))
+			return AsDataItem(res.get())->GetAbstrValuesUnit()->GetValueType();
+		if (IsUnit(res.get()))
+			return AsUnit(res.get())->GetValueType();
+		return nullptr;
+	}
+
+	// declared value class of a variant parameter (params are inert, so prefer the
+	// declared values-unit token — a value-type name — over resolving the unit)
+	const ValueClass* ParamValueClass(const TreeItem* param)
+	{
+		if (IsDataItem(param))
+		{
+			if (auto vc = ValueClass::FindByScriptName(AsDataItem(param)->ValuesUnitToken()))
+				return vc;
+			auto vu = AsDataItem(param)->GetAbstrValuesUnit();
+			return vu ? vu->GetValueType() : nullptr;
+		}
+		if (IsUnit(param))
+			return AsUnit(param)->GetValueType();
+		return nullptr;
+	}
+
+	// select the variant sub-function of `setItem` whose parameter value classes match the
+	// argument value classes; a plain-item (untyped) parameter position is a wildcard
+	const TreeItem* ResolveVariant(const TreeItem* setItem, const std::vector<CallArg>& callArgs, SharedTreeItem errorHolder)
+	{
+		std::vector<const ValueClass*> argVCs;
+		argVCs.reserve(callArgs.size());
+		for (const auto& a : callArgs)
+			argVCs.push_back(ArgValueClass(a.key, errorHolder));
+
+		const TreeItem* match = nullptr;
+		SharedStr candidates;
+		for (const TreeItem* v = setItem->_GetFirstSubItem(); v; v = v->GetNextItem())
+		{
+			if (!v->IsFunctionItem())
+				continue;
+			if (!candidates.empty())
+				candidates = candidates + SharedStr(", ");
+			candidates = candidates + SharedStr(v->GetID());
+
+			UInt32 np = TreeItem_GetFunctionParamCount(v);
+			if (np != callArgs.size())
+				continue;
+			bool ok = true;
+			const TreeItem* param = v->_GetFirstSubItem();
+			for (UInt32 i = 0; i < np && param; ++i, param = param->GetNextItem())
+			{
+				auto pvc = ParamValueClass(param);
+				if (pvc && pvc != argVCs[i]) { ok = false; break; } // pvc==null: wildcard/function param -> matches
+			}
+			if (ok)
+			{
+				if (match)
+					throwErrorF("ExprParser", "call to variant set '{}': the arguments match more than one variant ('{}' and '{}')"
+						, setItem->GetFullName().c_str(), match->GetID().GetStr().c_str(), v->GetID().GetStr().c_str());
+				match = v;
+			}
+		}
+		if (!match)
+			throwErrorF("ExprParser", "call to variant set '{}': no variant matches the argument types (variants: {})"
+				, setItem->GetFullName().c_str(), candidates.c_str());
+		return match;
+	}
+
 	// structural compatibility of a bound function against a declared signature
 	// exemplar: same arity, per-parameter and result item classes equal (a plain
 	// TreeItem-classed signature position is a wildcard)
@@ -2266,7 +2344,8 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 					if (!holder)
 						throwTaskCanceled();
 
-					CheckFunctionDefinition(templateItem.get()); // WP3.4: validate the body once, before applying
+					// WP3.4 definition-time check runs after variant resolution (a variant set
+					// itself has no body); see below.
 					auto resolveData = [&](LispPtr e) { return SubstituteExpr_impl(substBuff, LispRef(e), metainfo_policy_flags::subst_allowed); };
 					auto findItem = [&](TokenID t) -> SharedTreeItem { return FindItem(t); };
 
@@ -2278,7 +2357,18 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 							return {};
 					}
 
-					FunctionBinding merged = MergeBinding(*MakeAllHoles(templateItem), callArgs);
+					// §5.7: a variant set dispatches to the matching variant by argument type
+					SharedTreeItem callee = templateItem;
+					if (TreeItem_IsFunctionVariantSet(templateItem.get()))
+					{
+						auto variant = ResolveVariant(templateItem.get(), callArgs, holder);
+						callee = make_shared_tree(variant, existing_obj{});
+						registerSupplier(substBuff, variant);
+					}
+
+					CheckFunctionDefinition(callee.get()); // validate the (chosen) function body once
+
+					FunctionBinding merged = MergeBinding(*MakeAllHoles(callee), callArgs);
 					if (merged.NrHoles() != 0)
 						throwErrorF("ExprParser", "'{}': a partial application can only be passed as an argument, not bound to an item"
 							, head.GetSymbStr().c_str());
@@ -2408,6 +2498,9 @@ MetaInfo AbstrCalculator::SubstituteExpr(SubstitutionBuffer& substBuff, LispPtr 
 
 			if (templateItem->IsFunctionItem())
 			{
+				if (TreeItem_IsFunctionVariantSet(templateItem.get()))
+					goto skipTemplInst; // a variant set has no own params; arity is checked per variant at dispatch
+
 				UInt32 nrDeclaredParams = TreeItem_GetFunctionParamCount(templateItem.get());
 				UInt32 nrProvidedArgs = 0;
 				for (LispPtr argPtr = localExpr.Right(); argPtr.IsRealList(); argPtr = argPtr.Right())
