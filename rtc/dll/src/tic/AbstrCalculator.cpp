@@ -1021,6 +1021,55 @@ namespace {
 	static TokenID t_Map  = GetTokenID_st("map"); // built-in map(function, container) metafunction
 	static TokenID t_ApplyItem       = GetTokenID_st("apply_item");       // §5.9 'apply X(args)' marker head
 	static TokenID t_InstantiateItem = GetTokenID_st("instantiate_item"); // §5.9 'instantiate X(args)' marker head
+	static TokenID t_ContainerLiteral = GetTokenID_st("container_literal"); // §5.9 '{ m: e; … }' argument literal
+	static TokenID t_Member           = GetTokenID_st("member");            // §5.9 '(member name value)'
+	static TokenID t_NoDomain         = GetTokenID_st("no_domain");         // §5.9 domain-less literal marker
+	static TokenID t_Dot              = GetTokenID_st(".");                 // §5.9 current-domain reference in members
+
+	// a destructured container-literal argument: the domain (if any) and its named members,
+	// all already resolved to keys in the caller scope; bound to a structured parameter and
+	// consumed member-by-member during body substitution (no anonymous item is materialized).
+	struct ContainerLiteralArg
+	{
+		bool                                     hasDomain = false;
+		LispRef                                  domainKey; // resolved domain unit key
+		std::vector<std::pair<TokenID, LispRef>> members;   // member name -> resolved value key
+	};
+
+	// replace every bare '.' symbol (the current-domain reference) in a container-literal
+	// member expression with the literal's domain expression, before caller-scope resolution
+	LispRef ReplaceDot(LispPtr expr, LispPtr domainExpr)
+	{
+		if (expr.EndP())
+			return expr;
+		if (expr.IsSymb())
+			return (expr.GetSymbID() == t_Dot) ? LispRef(domainExpr) : LispRef(expr);
+		if (expr.IsRealList())
+			return LispRef(ReplaceDot(expr.Left(), domainExpr), ReplaceDot(expr.Right(), domainExpr));
+		return LispRef(expr);
+	}
+
+	// build a destructured container-literal argument from
+	// (container_literal <domain|no_domain> (member name value)…), resolving the domain and
+	// each member value (with '.' rebound to the domain) through `resolve` (caller or body scope)
+	std::shared_ptr<ContainerLiteralArg> BuildContainerLiteral(LispPtr litExpr, const std::function<LispRef(LispPtr)>& resolve)
+	{
+		auto lit = std::make_shared<ContainerLiteralArg>();
+		LispPtr domainExpr = litExpr.Right().Left();
+		if (!(domainExpr.IsSymb() && domainExpr.GetSymbID() == t_NoDomain))
+		{
+			lit->hasDomain = true;
+			lit->domainKey = resolve(domainExpr);
+		}
+		for (LispPtr m = litExpr.Right().Right(); !m.EndP(); m = m.Right())
+		{
+			LispPtr member = m.Left(); // (member name value)
+			TokenID name    = member.Right().Left().GetSymbID();
+			LispRef value   = ReplaceDot(member.Right().Right().Left(), domainExpr);
+			lit->members.emplace_back(name, resolve(value));
+		}
+		return lit;
+	}
 
 	struct FunctionBinding;
 
@@ -1031,6 +1080,7 @@ namespace {
 		LispRef                          key;             // data/unit argument (empty otherwise)
 		SharedTreeItem                   item;            // plain-reference item (member access), else null
 		std::shared_ptr<FunctionBinding> binding;         // function value (plain ref or partial application), else null
+		std::shared_ptr<ContainerLiteralArg> literal;     // §5.9 container-literal argument, else null
 		bool                             isHole = false;  // '_' placeholder
 		bool IsFunctionValue() const { return binding != nullptr; }
 	};
@@ -1053,11 +1103,12 @@ namespace {
 		std::vector<LispRef>           m_ArgKeys;     // per param: data/unit key (empty for function-valued params)
 		std::vector<SharedTreeItem>    m_ArgItems;    // per param: the referenced item iff the argument was a plain reference (enables member access), else null
 		std::vector<std::shared_ptr<FunctionBinding>> m_ArgBindings; // per param: the bound function value iff the argument is a function, else null
+		std::vector<std::shared_ptr<ContainerLiteralArg>> m_ArgLiterals; // per param: the container-literal argument, else null
 		std::vector<const TreeItem*>   m_Params;      // the first N sub-items of m_FuncItem
 		std::map<const TreeItem*, LispRef> m_Reductions;
 		std::set<const TreeItem*>      m_InProgress;
 
-		void PushArg(const CallArg& a) { m_ArgKeys.push_back(a.key); m_ArgItems.push_back(a.item); m_ArgBindings.push_back(a.binding); }
+		void PushArg(const CallArg& a) { m_ArgKeys.push_back(a.key); m_ArgItems.push_back(a.item); m_ArgBindings.push_back(a.binding); m_ArgLiterals.push_back(a.literal); }
 
 		LispRef Reduce();
 		LispRef ReduceBodyItem(const TreeItem* bodyItem);
@@ -1133,6 +1184,13 @@ namespace {
 		if (argExpr.IsRealList() && argExpr.Left().IsSymb())
 		{
 			TokenID headID = argExpr.Left().GetSymbID();
+
+			// §5.9 container literal: resolve domain + members in caller scope ('.' -> domain)
+			if (headID == t_ContainerLiteral)
+			{
+				CallArg a; a.literal = BuildContainerLiteral(argExpr, resolveData); return a;
+			}
+
 			const AbstrOperGroup* og = AbstrOperGroup::FindName(headID);
 			if (og->IsTemplateCall())
 			{
@@ -1547,6 +1605,28 @@ namespace {
 				for (UInt32 i = 0, n = m_Params.size(); i != n; ++i)
 					if (m_Params[i] == child.get())
 					{
+						// §5.9 parameter bound to a container literal: reduce a bare use to the
+						// domain and 'param/member' to the named member value — no arg item exists
+						if (m_ArgLiterals[i])
+						{
+							const auto& lit = *m_ArgLiterals[i];
+							if (foundItemPtr)
+								*foundItemPtr = nullptr;
+							if (slash == e)
+							{
+								if (!lit.hasDomain)
+									throwErrorF("ExprParser", "'{}': the container literal bound to parameter '{}' has no domain unit and cannot be used as a unit"
+										, fullStr.c_str(), firstTok.GetStr().c_str());
+								return lit.domainKey;
+							}
+							TokenID memberName = GetTokenID_mt(slash + 1, e);
+							for (const auto& mv : lit.members)
+								if (mv.first == memberName)
+									return mv.second;
+							throwErrorF("ExprParser", "'{}': the container literal bound to parameter '{}' has no member '{}'"
+								, fullStr.c_str(), firstTok.GetStr().c_str(), SharedStr(CharPtrRange(slash + 1, e)).c_str());
+						}
+
 						bool boundToFunction = (m_ArgBindings[i] != nullptr);
 						if (slash == e)
 						{
@@ -1691,6 +1771,15 @@ namespace {
 		if (argExpr.IsRealList() && argExpr.Left().IsSymb())
 		{
 			TokenID headID = argExpr.Left().GetSymbID();
+
+			// §5.9 container literal passed to a nested call: resolve in body scope ('.' -> domain)
+			if (headID == t_ContainerLiteral)
+			{
+				CallArg a; a.literal = BuildContainerLiteral(argExpr,
+					[&](LispPtr e) { return SubstituteBodyExpr(refScope, e); });
+				return a;
+			}
+
 			const AbstrOperGroup* og = AbstrOperGroup::FindName(headID);
 			if (og->IsTemplateCall())
 			{
@@ -2323,6 +2412,27 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 						, innerCall.Left().GetSymbID().GetStr().c_str());
 				bufferValue = SubstituteExpr_impl(substBuff, innerCall, mpf); // apply F == bare F
 				goto exit;
+			}
+
+			// §5.9: a container literal only exists as a function argument, destructured by
+			// ResolveCallerArg. It reaches here only on the visit-only supplier walk: recurse
+			// into the domain and member values (with '.' rebound to the domain) to register
+			// their suppliers, then yield nothing (the literal itself materializes no item).
+			if (head.GetSymbID() == t_ContainerLiteral)
+			{
+				LispPtr domainExpr = localExpr.Right().Left();
+				if (!(domainExpr.IsSymb() && domainExpr.GetSymbID() == t_NoDomain))
+				{
+					SubstituteExpr_impl(substBuff, LispRef(domainExpr), mpf);
+					if (substBuff.avs == AVS_SuspendedOrFailed) return {};
+				}
+				for (LispPtr m = localExpr.Right().Right(); !m.EndP(); m = m.Right())
+				{
+					LispRef value = ReplaceDot(m.Left().Right().Right().Left(), domainExpr);
+					SubstituteExpr_impl(substBuff, value, mpf);
+					if (substBuff.avs == AVS_SuspendedOrFailed) return {};
+				}
+				goto exit; // bufferValue stays empty
 			}
 
 			// following code duplicates partly the code in AbstrCalculator::SubstituteExpr

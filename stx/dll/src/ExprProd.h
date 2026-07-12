@@ -29,6 +29,8 @@ struct ExprProd
 	void ProdUnaryOper(TokenID id);
 	void ProdStringValue();
 	void ProdFunctionCall();
+	void ProdContainerMember();          // §5.9: (member <name> <value>)
+	void ProdContainerLiteral(bool hasDomain); // §5.9: (container_literal <domain|no_domain> <member>...)
 	void ProdIdentifier(iterator_t first, iterator_t last);
 	void ProdUInt64(UInt64 n);
 	void ProdFloat64(Float64 x);
@@ -61,6 +63,8 @@ struct ExprProdBase
 //	void ProdNullaryOper(TokenID id) {}
 	void ProdStringValue() {}
 	void ProdFunctionCall() {}
+	void ProdContainerMember() {}
+	void ProdContainerLiteral(bool hasDomain) {}
 	void ProdUInt64(UInt64 n) {}
 	void ProdFloat64(Float64 x) {}
 	void ProdUInt32WithoutSuffix() {}

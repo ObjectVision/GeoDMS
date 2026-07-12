@@ -64,14 +64,27 @@ container function_example
 
 	container rail_load := instantiate CongestionRatio(Rail);
 
+	// -------------------------------------------------- container literal (§5.9)
+	//
+	// The structured argument can also be built inline as a container literal —
+	// 'domain { member: value; … }' — without a named unit. Inside the literal, '.'
+	// refers to the literal's own domain unit. Here a 5-segment road is built on the
+	// fly with flow = 100·index and a constant capacity of 200.
+
+	unit<uint32> segment : nrofrows = 5;
+	attribute<float64> inline_load (segment) :=
+		CongestionRatio( segment { flow: 100.0 * float64(id(.)); capacity: 200.0; } );
+
 	// ------------------------------------------------------------- checks
 	//
 	// congestion         = min_elem([0.5, 2.0, 0.5, 4/3], 1) = [0.5, 1, 0.5, 1]
 	// rail_load/result   = min_elem([0.5, 2.0        ], 1) = [0.5, 1]
+	// inline_load        = min_elem([0, .5, 1, 1.5, 2  ], 1) = [0, .5, 1, 1, 1]
 
 	container checks
 	{
-		parameter<float64> road_sum := sum(congestion),        IntegrityCheck = "road_sum == 3.0";
-		parameter<float64> rail_sum := sum(rail_load/result),  IntegrityCheck = "rail_sum == 1.5";
+		parameter<float64> road_sum   := sum(congestion),        IntegrityCheck = "road_sum == 3.0";
+		parameter<float64> rail_sum   := sum(rail_load/result),  IntegrityCheck = "rail_sum == 1.5";
+		parameter<float64> inline_sum := sum(inline_load),       IntegrityCheck = "inline_sum == 3.5";
 	}
 }

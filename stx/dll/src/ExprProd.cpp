@@ -115,6 +115,37 @@ void ExprProd::ProdIdentifier(iterator_t first, iterator_t last)
 	m_Result.push_back(LispRef(GetTokenID_mt(&*first, &*last)));
 }
 
+static TokenID t_member            = GetTokenID_st("member");
+static TokenID t_container_literal = GetTokenID_st("container_literal");
+static TokenID t_no_domain         = GetTokenID_st("no_domain");
+
+void ExprProd::ProdContainerMember()
+{
+	// container_member -> name ( ':' | ':=' ) value
+	// (value, name, tail) -> ((member name value), tail)
+	static LispRef memberHead(t_member);
+	m_Result.repl_back2(
+		List3<LispRef>(
+			memberHead,
+			m_Result.Second(),
+			m_Result.First()
+		)
+	);
+}
+
+void ExprProd::ProdContainerLiteral(bool hasDomain)
+{
+	// with domain:  (members, domain, tail) -> ((container_literal domain m1 m2 …), tail)
+	// no domain:    (members, tail)         -> ((container_literal no_domain m1 m2 …), tail)
+	static LispRef litHead(t_container_literal);
+	static LispRef noDomain(t_no_domain);
+	LispRef members = m_Result.First();
+	if (hasDomain)
+		m_Result.repl_back2(LispRef(litHead, LispRef(m_Result.Second(), members)));
+	else
+		m_Result.repl_back1(LispRef(litHead, LispRef(noDomain, members)));
+}
+
 static TokenID t_uint32 = GetTokenID_st("UInt32");
 
 void ExprProd::ProdUInt32WithoutSuffix()

@@ -16,15 +16,17 @@ references were verified against that tree.*
 - **Types** — `alias = type;`, declared function signatures, refinement aliases
   (`alias = type, IntegrityCheck = …`, WP4.3), metric-via-alias (WP4.4).
 - **Groundwork** — the Prolog `Occur` occurs-check fix (WP4.1 prerequisite).
+- **§5.9 application forms** — the explicit `apply`/`instantiate` keywords with the
+  no-holder-magic rule (Phase A), and container literals `domain { m: e; … }` in
+  argument position, destructured at β-reduction (Phase B). See §5.9.
 
-Not yet implemented (specs below remain actionable): the explicit
-`apply`/`instantiate`/container-literal application forms (§5.9, spec agreed
-2026-07-12 — supersedes the holder-driven instantiate-vs-inline rule), lambdas (WP3.2,
-optional — partial application covers the space), the opt-in `applyF` boundary
-DataController (WP4.2), the full Robinson TypeSpec unifier + operator-signature
-reification (WP4.1), and the RewriteExpr.lsp retirement tranche (WP4.5). Verification
-configs live in the gitignored `scratch/fn_test*.dms`; the shipped example is
-`examples/function.dms`.
+Not yet implemented (specs below remain actionable): `apply T(args)` context-keyed cache
+instantiation for templates and the redundant top-level `{ X(args) }` sugar (§5.9
+deferred list), lambdas (WP3.2, optional — partial application covers the space), the
+opt-in `applyF` boundary DataController (WP4.2), the full Robinson TypeSpec unifier +
+operator-signature reification (WP4.1), and the RewriteExpr.lsp retirement tranche
+(WP4.5). Verification configs live in the gitignored `scratch/fn_test*.dms`; the shipped
+example is `examples/function.dms`.
 
 ## 1. Motivation and scope
 
@@ -707,19 +709,42 @@ Semantics and implementation:
   domain, signature-checked higher-order application) and an arity-mismatch negative
   test with a dedicated diagnostic.
 
-### 5.9 Application vs instantiation: `apply`, `instantiate`, container literals *(Phase A implemented 2026-07-12; container literals pending)*
+### 5.9 Application vs instantiation: `apply`, `instantiate`, container literals *(implemented 2026-07-12)*
 
-**Implementation status:** the `apply`/`instantiate` keywords and the no-holder-magic
-rule are implemented. A bare function call is always its result value (inline); binding
-one to a *container* holder is an error pointing at `instantiate`. `instantiate X(args)`
-copy-instantiates the body into the holder (function or template); bare template calls
-are unchanged. `apply X(args)` = the value: for a function it is the bare call, for a
-template it errors "not yet implemented" (the context-keyed cache instantiation of
-decision 3 is the remaining piece). The keywords are contextual — matched only as a
-complete word before a call, so `ApplyBin(x)` (identifier) and `apply(x)` (a call of an
-item named `apply`) are unaffected (`stx/dll/src/ExprParse.h`: `lexeme_d[strlit >>
-epsilon_p(space_p)] >> functionCallReq`; marker heads `apply_item`/`instantiate_item`
-dispatched in `tic/AbstrCalculator.cpp`). **Container literals remain to implement.**
+**Implementation status (Phase A).** The `apply`/`instantiate` keywords and the
+no-holder-magic rule are implemented. A bare function call is always its result value
+(inline); binding one to a *container* holder is an error pointing at `instantiate`.
+`instantiate X(args)` copy-instantiates the body into the holder (function or template);
+bare template calls are unchanged. `apply X(args)` = the value: for a function it is the
+bare call, for a template it errors "not yet implemented" (the context-keyed cache
+instantiation of decision 3 is the remaining piece). The keywords are contextual —
+matched only as a complete word before a call, so `ApplyBin(x)` (identifier) and
+`apply(x)` (a call of an item named `apply`) are unaffected (`stx/dll/src/ExprParse.h`:
+`lexeme_d[strlit >> epsilon_p(space_p)] >> functionCallReq`; marker heads
+`apply_item`/`instantiate_item` dispatched in `tic/AbstrCalculator.cpp`).
+
+**Implementation status (Phase B — container literals).** `domain { m: e; … }` and
+`{ m: e; … }` are accepted **in function-argument position** and are destructured at
+β-reduction — the literal materializes **no item**. Each member's value and the domain
+resolve in the caller scope, with `.` inside a member rebound to the literal's domain
+unit; a parameter bound to a literal reduces `P` to the domain and `P/member` to the
+member value (`stx/dll/src/ExprParse.h` `argument`/`memberList`/`containerMember` →
+`(container_literal <domain|no_domain> (member name value)…)`; built by
+`ProdContainerLiteral`/`ProdContainerMember`; consumed in `tic/AbstrCalculator.cpp` via
+`ContainerLiteralArg` + `BuildContainerLiteral` + `ReplaceDot`, with member-access
+resolution in `ResolveBodySymbol` and a visit-only supplier walk in
+`SubstituteExpr_impl`). Both `name: value` and `name := value` are accepted. Confining
+literals to argument position is deliberate: it avoids any clash with an item-body
+`{ … }` following a whole calculation rule (`directExpr` runs the same expression grammar
+to find the rule's extent). Verified: `CongestionRatio( range(0,10) { flow:
+float64(id(.)); cap: 2.0; } )` and `examples/function.dms` `inline_load`.
+
+**Deferred (redundant or context-keyed):** the top-level lone-call sugar `{ X(args) }`
+(equivalent to the already-working `instantiate X(args)`); general sub-expression
+literals (e.g. `2.0 * X{…}`); a value-type variable inferred *through* a literal member
+(a type var used only inside a structured parameter is already unconstrained after the
+member-generic fix, so the generic `CongestionRatio<V>` accepts a literal); and
+`apply T(args)` cache-instantiation with call-site context (decision 3).
 
 The first implementation let the *holder type* select the semantics of a call
 (container holder → copy-instantiate the body; typed holder → inline the result).

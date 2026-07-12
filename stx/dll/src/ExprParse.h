@@ -88,6 +88,9 @@ struct expr_grammar : public boost::spirit::grammar<expr_grammar<Prod>>
 
 			chlit<>     LBRACK('[');
 			chlit<>     RBRACK(']');
+			chlit<>     LBRACE('{');
+			chlit<>     RBRACE('}');
+			chlit<>     SEMI(';');
 			chlit<>     DOT('.');
 			chlit<>     EXCLAIM('!');
 			chlit<>     FENCE('#');
@@ -266,7 +269,29 @@ struct expr_grammar : public boost::spirit::grammar<expr_grammar<Prod>>
 				>> epsilon_p[([&](...) { cp.CloseExprList();})];
 			
 			nonEmptyExprList
-				=	expression % COMMA;
+				=	argument % COMMA;
+
+			// §5.9 container literal in argument position: 'domain { m: e; ... }' or '{ m: e; ... }'
+			// builds an anonymous record value destructured at beta-reduction (no item is created).
+			// Confined to argument position so it can never absorb a following item-body '{ … }'
+			// after a whole calculation rule.
+			argument
+				= (LBRACE >> memberList >> assert_d("'}' expected to close container literal")[RBRACE])
+					[([&](...) { cp.ProdContainerLiteral(false); })]
+				| (expression
+					>> !( (LBRACE >> memberList >> assert_d("'}' expected to close container literal")[RBRACE])
+						[([&](...) { cp.ProdContainerLiteral(true); })] ));
+
+			memberList
+				= epsilon_p[([&](...) { cp.StartExprList(); })]
+				>> containerMember >> *( SEMI >> containerMember ) >> !SEMI
+				>> epsilon_p[([&](...) { cp.CloseExprList(); })];
+
+			// name ( ':' | ':=' ) value-expression  ->  (member <name> <value>)
+			containerMember
+				= ( identifier >> lexeme_d[C_ELSE >> !P_EQ]
+					>> assert_d("member value expression expected after ':'")[expression]
+					)[([&](...) { cp.ProdContainerMember(); })];
 
 //			if (mustScanScope)
 				scopeCall 
@@ -309,6 +334,7 @@ struct expr_grammar : public boost::spirit::grammar<expr_grammar<Prod>>
 			exprList,
 			nonEmptyExprList,
 			scopeCall, functionCallOrIdentifier, functionCallReq, identifier, // dots,
+			argument, memberList, containerMember,
 			unsignedInteger, unsignedReal;
 	};
 };
