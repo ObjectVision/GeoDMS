@@ -382,7 +382,24 @@ void sequence_array<T>::Lock(dms_rw_mode rwMode) const  // thread safe operation
 		if (!m_ActualDataSize)
 		{
 			m_ActualDataSize = calcActualDataSize(); // no throw operation ?
-			MG_CHECK(m_ActualDataSize <= m_Values.size());
+			if (m_ActualDataSize > m_Values.size())
+			{
+				// The summed sequence-index ranges reference more elements than the value pool holds.
+				// For a file-backed sequence (fss/mmd tile) this almost always means the stored cache was
+				// written with a different element type/size than the current config's values-unit expects
+				// (e.g. after a values-unit changed from fpoint to dpoint), so the value bytes get reinterpreted
+				// at the wrong stride. Report an actionable storage error naming the file instead of the cryptic
+				// internal check failure. A heap-backed sequence hitting this is a genuine internal invariant
+				// violation, so keep MG_CHECK for that case. See GitHub issue #1154.
+				if (!m_Values.IsHeapAllocated())
+					throwErrorF("SequenceArray"
+					,	"stored sequence data in '{}' is inconsistent: its indices reference {} elements but the value pool holds only {}."
+						"\nThis usually means the cache was written with a different element type or size than the current configuration expects"
+						" (e.g. after changing a values-unit from fpoint to dpoint); delete the storage so it gets regenerated."
+					,	GetFileName().c_str(), m_ActualDataSize, m_Values.size()
+					);
+				MG_CHECK(m_ActualDataSize <= m_Values.size());
+			}
 		}
 	}
 	else
