@@ -650,6 +650,16 @@ void ConfigProd::AddPendingName()
 	m_PendingNames.push_back(m_strIdentifierID);
 }
 
+// raw (non-updating) child lookup: parse-time code runs under the
+// no-UpdateMetaInfo lock, so the updating GetConstSubTreeItemByID is off-limits
+static const TreeItem* FindSubItemRaw(const TreeItem* parent, TokenID id)
+{
+	for (const TreeItem* c = parent->_GetFirstSubItem(); c; c = c->GetNextItem())
+		if (c->GetID() == id)
+			return c;
+	return nullptr;
+}
+
 const TreeItem* ConfigProd::ResolveTypeRef(TokenID refID) const
 {
 	// parse-time type resolution: declared-before-use, walking the parent chain of the
@@ -665,16 +675,16 @@ const TreeItem* ConfigProd::ResolveTypeRef(TokenID refID) const
 
 	for (const TreeItem* scope = GetContextItem(); scope; scope = scope->GetTreeParent().get())
 	{
-		auto found = scope->GetConstSubTreeItemByID(firstTok);
+		const TreeItem* found = FindSubItemRaw(scope, firstTok);
 		if (!found)
 			continue;
 		CharPtr segBegin = slash;
-		const TreeItem* cursor = found.get();
+		const TreeItem* cursor = found;
 		while (cursor && segBegin != e)
 		{
 			++segBegin; // skip '/'
 			CharPtr segEnd = std::find(segBegin, e, '/');
-			cursor = cursor->GetConstSubTreeItemByID(GetTokenID_mt(segBegin, segEnd)).get();
+			cursor = FindSubItemRaw(cursor, GetTokenID_mt(segBegin, segEnd));
 			segBegin = segEnd;
 		}
 		return cursor; // nearest scope wins; no fall-through on partial resolution
