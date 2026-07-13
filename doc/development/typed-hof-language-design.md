@@ -1052,6 +1052,23 @@ coordination), categories B/C/D/E per the plan below. A config using a retired h
 without the prelude gets "'sqr': unknown operator and no template or function was
 found with this name".
 
+**Tranche 2 implemented (2026-07-13).** The multi-arity `rescale` (1/3/4 args),
+`normalize` (1/2/3), `scalesum` (2/3) and `distribute` (2/3) families retired
+(10 rules) as **variant sets dispatching on arity** — `ResolveVariant` already skips
+variants whose parameter count differs, so arity overloading came free. Enabling
+grammar change: `variantDecl` accepts a `<V: constraint>` type-params clause
+(`stx/dll/src/ConfigParse.cpp`; the heading handler already moved the pending type
+vars). The partition parameter is declared `container P` — a plain-item parameter
+whose null value class acts as a dispatch wildcard, so any partition value type
+matches. Bodies are fixpoint-faithful *including* the D-rule collapses the 1-arg
+forms used to undergo (`rescale(x)` keys as
+`(div (sub x (min x)) (sub (max x) (min x)))`, `normalize(x)` as
+`(div (sub x (mean x)) (sd x))` — the raw-literal `0`/`1` of the arity-completion
+resolvents triggered `add _X 0`/`mul _X (div 1 _Y)`, which explicit config literals
+never did, so only the 1-arg forms collapse). Note: `rescale`'s `min`/`max` (and
+`normalize`'s `e`/`s`) are scalars, as in the retired rules — the trailing
+`+ mn` broadcasts void into the data domain.
+
 1. Rules retire **per category, gated on their typed replacement**: E needs
    optional-arg + overload support; B/C need variadic registrations; A needs P0/P1
    functions + the prelude; D needs the compiled-in simplifier. Each retirement notes

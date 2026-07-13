@@ -206,7 +206,7 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 					[([&cp](...) { cp.OnVariantSetEnd();})];
 
 			variantDecl =
-				( (as_lower_d[VARIANT] >> identifier[([&cp](...) { cp.DoItemName();})] >> LPAREN)
+				( (as_lower_d[VARIANT] >> identifier[([&cp](...) { cp.DoItemName();})] >> !typeParamsClause >> LPAREN)
 					[([&cp](auto _1, auto) { cp.OnFunctionHeading(_1); cp.DoBeginBlock();})]
 				>> !(functionParamItem >> *(SEMICOLON >> !functionParamItem))
 				>> assert_d("')' expected after variant parameter declarations")[RPAREN]

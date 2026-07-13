@@ -28,6 +28,52 @@ function llpart<F: floats>(attribute<F> lc; attribute<F> xc; attribute<F> oc)
 function ll1<F: floats>(attribute<F> lc; attribute<F> xc; attribute<F> oc)
 -> attribute<F> := (oc * log(xc) - log(lc)) + ((lc - oc) * log(lc - xc) - log(lc));
 
+// ---------------------------------------------------------------- rescaling
+// multi-arity forms dispatch by argument count; P (a partition relation) is a
+// plain parameter so any partition value type matches.
+
+function scalesum
+{
+	variant total<V: numerics>(attribute<V> x; attribute<V> s)
+	-> attribute<V> := isZero(s) ? s : x * (s / sum(x));
+
+	variant partitioned<V: numerics>(attribute<V> x; container P; attribute<V> s)
+	-> attribute<V> := isZero(lookup(P, s)) ? lookup(P, s) : x * lookup(P, s / sum(x, P));
+}
+
+function distribute
+{
+	variant total<V: numerics>(attribute<V> s; attribute<V> x)
+	-> attribute<V> := isZero(s) ? s : x * (s / sum(x));
+
+	variant partitioned<V: numerics>(attribute<V> s; attribute<V> x; container P)
+	-> attribute<V> := isZero(lookup(P, s)) ? lookup(P, s) : x * lookup(P, s / sum(x, P));
+}
+
+function rescale
+{
+	variant unit_range<V: numerics>(attribute<V> x)
+	-> attribute<V> := (x - min(x)) / (max(x) - min(x));
+
+	variant to_range<V: numerics>(attribute<V> x; attribute<V> mn; attribute<V> mx)
+	-> attribute<V> := (x - min(x)) * ((mx - mn) / (max(x) - min(x))) + mn;
+
+	variant partitioned<V: numerics>(attribute<V> x; container P; attribute<V> mn; attribute<V> mx)
+	-> attribute<V> := (x - lookup(P, min(x, P))) * lookup(P, (mx - mn) / (max(x, P) - min(x, P))) + mn;
+}
+
+function normalize
+{
+	variant standard<V: numerics>(attribute<V> x)
+	-> attribute<V> := (x - mean(x)) / sd(x);
+
+	variant shifted<V: numerics>(attribute<V> x; attribute<V> e)
+	-> attribute<V> := (x - mean(x)) / sd(x) + e;
+
+	variant scaled<V: numerics>(attribute<V> x; attribute<V> e; attribute<V> s)
+	-> attribute<V> := (x - mean(x)) * (s / sd(x)) + e;
+}
+
 // ------------------------------------------------- null-aware predicates
 // null-transparent comparisons: the *_or_lhs_null forms treat a null left
 // operand as satisfying the relation; *_or_rhs_null mirror them.

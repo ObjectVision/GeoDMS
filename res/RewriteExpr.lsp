@@ -158,37 +158,8 @@
 
 /*********** Rescale functions *********/
 
-[(distribute _s _X   )      (scalesum _X    _s)]
-[(distribute _s _X _P)      (scalesum _X _P _s)]
-
-[(scalesum _X    _s)        (iif (isZero     _s) _s (mul _X            (div _s (sum _X   )) ))]
-[(scalesum _X _P _s)        (iif (isZero     (lookup _P _s)) (lookup _P _s) (mul _X (lookup _P (div _s (sum _X _P)))))]
-//[(scalesum _X    _s)        (mul _X            (div _s (sum _X   )) )]
-//[(scalesum _X _P _s)        (mul _X (lookup _P (div _s (sum _X _P))))]
-
-[(rescale  _X)              (rescale _X 0 1)] /* is rewritten to (div (sub _X (min _X)) (sub (max _X)(min _X))) */
-[(rescale  _X    _min _max) 
-                     (add (mul 
-                        (sub _X (min _X))
-                        (div 
-                           (sub _max _min) 
-                           (sub (max _X)(min _X))
-                        )
-                     ) _min)]
-[(rescale  _X _P _min _max) 
-                     (add (mul 
-                        (sub _X (lookup _P (min _X _P)))
-                        (lookup _P 
-                           (div 
-                              (sub _max _min) 
-                              (sub (max _X _P)(min _X _P))
-                           )
-                        )
-                     ) _min)]
-
-[(normalize _X )           (normalize _X  0 1 )] /* is rewritten to: (div (sub _X  (mean _X )) (sd   _X )) */
-[(normalize _X _E )        (normalize _X _E 1 )] /* is rewritten to: (add (div (sub _X  (mean _X )) (sd   _X )) _E) */
-[(normalize _X _E _SD)     (add (mul (sub _X  (mean _X )) (div _SD (sd   _X ))) _E)]
+/* distribute, scalesum, rescale and normalize retired to the typed prelude
+   (res/prelude.dms, WP4.5 tranche 2): multi-arity forms dispatch via variant sets */
 
 /*********** Remove symbolic constants from rescale & normalize *********/
 
