@@ -91,12 +91,50 @@ container function_example
 
 	attribute<float64> evening2 (Road) := apply CongestionRatioT(Road, Road/flow, Road/capacity);
 
+	// ------------------------------------------------ a named composite type
+	//
+	// Any inert item can serve as a named type (type-by-example): 'network'
+	// describes a domain of links carrying a flow and a capacity. A parameter
+	// declared 'nw: network' accepts any table that provides those members —
+	// no need to repeat an inline member block at every function.
+
+	unit<uint32> network
+	{
+		attribute<float64> flow;
+		attribute<float64> capacity;
+	}
+
+	function TotalLoad(nw: network)
+	-> parameter<float64> := sum(min_elem(nw/flow / nw/capacity, 1.0));
+
+	parameter<float64> road_total := TotalLoad(Road);   // 0.5+1+0.5+1   = 3.0
+	parameter<float64> rail_total := TotalLoad(Rail);   // 0.5+1         = 1.5
+
+	// ------------------------------------------ function composition (higher order)
+	//
+	// compose takes two unary functions as VALUES and applies g after f: g(f(x)).
+	// pow4 = sqr-after-sqr, with sqr taken from the auto-imported standard prelude;
+	// its reduced key is mul(mul(x,x), mul(x,x)) — identical to pow(x, 4).
+
+	container hof
+	{
+		function compose<V: numerics>(f: function; g: function; attribute<V> x)
+		-> attribute<V> := g(f(x));
+
+		function pow4<V: numerics>(attribute<V> x), using = /hof
+		-> attribute<V> := compose(sqr, sqr, x);
+	}
+
+	attribute<float64> flow4  (Road) := hof/pow4(Road/flow);
+	attribute<float64> flow4b (Road) := hof/compose(sqr, sqr, Road/flow); // same, spelled directly
+
 	// ------------------------------------------------------------- checks
 	//
 	// congestion         = min_elem([0.5, 2.0, 0.5, 4/3], 1) = [0.5, 1, 0.5, 1]
 	// rail_load/result   = min_elem([0.5, 2.0        ], 1) = [0.5, 1]
 	// inline_load        = min_elem([0, .5, 1, 1.5, 2  ], 1) = [0, .5, 1, 1, 1]
 	// evening2           = congestion
+	// flow4              = flow^4 = [1e8, 1.6e9, 6.25e6, 2.56e10]; sum = 27306250000
 
 	container checks
 	{
@@ -104,5 +142,9 @@ container function_example
 		parameter<float64> rail_sum   := sum(rail_load/result),  IntegrityCheck = "rail_sum == 1.5";
 		parameter<float64> inline_sum := sum(inline_load),       IntegrityCheck = "inline_sum == 3.5";
 		parameter<float64> road_sum2  := sum(evening2),          IntegrityCheck = "road_sum2 == 3.0";
+		parameter<float64> pow4_sum   := sum(flow4),             IntegrityCheck = "pow4_sum == 27306250000.0";
+		parameter<float64> pow4_sumb  := sum(flow4b),            IntegrityCheck = "pow4_sumb == 27306250000.0";
+		parameter<float64> road_tot   := road_total,             IntegrityCheck = "road_tot == 3.0";
+		parameter<float64> rail_tot   := rail_total,             IntegrityCheck = "rail_tot == 1.5";
 	}
 }

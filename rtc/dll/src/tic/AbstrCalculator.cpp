@@ -1196,6 +1196,9 @@ namespace {
 			if (!token::isConst(sym) && !ValueClass::FindByScriptName(sym))
 			{
 				SharedTreeItem item = findItem(sym); // plain-reference item (member access) + function detection
+				if (!item)
+					if (auto pf = FindPreludeFunction(sym); pf && pf->IsFunctionItem())
+						item = pf; // prelude: implicit outermost namespace, also for function references
 				if (item && item->IsFunctionItem())
 				{
 					if (substBuff) registerSupplier(*substBuff, item.get());
@@ -1823,6 +1826,9 @@ namespace {
 							}
 					// import function?
 					auto callee = m_FuncItem->FindItem(s);
+					if (!callee)
+						if (auto pf = FindPreludeFunction(sym); pf && pf->IsFunctionItem())
+							callee = pf; // prelude: implicit outermost namespace, also for function references
 					if (callee && callee->IsFunctionItem())
 					{
 						if (m_SubstBuff) registerSupplier(*m_SubstBuff, callee.get());
@@ -1919,6 +1925,9 @@ namespace {
 		}
 
 		auto found = m_FuncItem->FindItem(fullStr);
+		if (!found && slash == e)
+			if (auto pf = FindPreludeFunction(sym); pf && pf->IsFunctionItem())
+				return 2; // prelude: implicit outermost namespace, also for function references
 		if (!found)
 			throwErrorF("ExprParser", "'{}': unknown identifier in body of function '{}' (visible are: parameters, local items, and 'using' imports)"
 				, fullStr.c_str(), m_FuncItem->GetFullName().c_str());
