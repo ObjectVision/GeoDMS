@@ -17,16 +17,16 @@ references were verified against that tree.*
   (`alias = type, IntegrityCheck = …`, WP4.3), metric-via-alias (WP4.4).
 - **Groundwork** — the Prolog `Occur` occurs-check fix (WP4.1 prerequisite).
 - **§5.9 application forms** — the explicit `apply`/`instantiate` keywords with the
-  no-holder-magic rule (Phase A), and container literals `domain { m: e; … }` in
-  argument position, destructured at β-reduction (Phase B). See §5.9.
+  no-holder-magic rule (Phase A), container literals `domain { m: e; … }` in
+  argument position, destructured at β-reduction (Phase B), and `apply T(args)` for
+  templates via β-reduction of the CI-unique `result` sub-item (Phase C). See §5.9.
 
-Not yet implemented (specs below remain actionable): `apply T(args)` context-keyed cache
-instantiation for templates and the redundant top-level `{ X(args) }` sugar (§5.9
-deferred list), lambdas (WP3.2, optional — partial application covers the space), the
-opt-in `applyF` boundary DataController (WP4.2), the full Robinson TypeSpec unifier +
-operator-signature reification (WP4.1), and the RewriteExpr.lsp retirement tranche
-(WP4.5). Verification configs live in the gitignored `scratch/fn_test*.dms`; the shipped
-example is `examples/function.dms`.
+Not yet implemented (specs below remain actionable): the redundant top-level
+`{ X(args) }` sugar (§5.9 deferred list), lambdas (WP3.2, optional — partial
+application covers the space), the opt-in `applyF` boundary DataController (WP4.2), the
+full Robinson TypeSpec unifier + operator-signature reification (WP4.1), and the
+RewriteExpr.lsp retirement tranche (WP4.5). Verification configs live in the gitignored
+`scratch/fn_test*.dms`; the shipped example is `examples/function.dms`.
 
 ## 1. Motivation and scope
 
@@ -739,12 +739,39 @@ literals to argument position is deliberate: it avoids any clash with an item-bo
 to find the rule's extent). Verified: `CongestionRatio( range(0,10) { flow:
 float64(id(.)); cap: 2.0; } )` and `examples/function.dms` `inline_load`.
 
-**Deferred (redundant or context-keyed):** the top-level lone-call sugar `{ X(args) }`
+**Implementation status (Phase C — `apply T(args)` for templates, 2026-07-13).**
+Implemented as **β-reduction of the template's CI-unique `result` sub-item**: the
+provided arguments bind to T's first N sub-items (the template binding rule), and the
+`result` member's expression reduces through the same `FunctionApplication` machinery
+functions use — nearest-scope within the template, then the template's own scope
+(definition scope, ancestors included). Clear errors when `result` is absent/ambiguous
+or has no calculation rule, or when more arguments than sub-items are provided.
+`examples/function.dms` `evening2` demonstrates the adoption lever.
+
+*Mechanism note — deviation from decision 3's sketch, same semantics.* The
+cache-copy-instantiation route (a PhaseContainer-style operator around
+`CreateCacheRoot` + `InstantiateTemplate`) was built first and hit two structural
+walls, both verified empirically: members of a rootless cache root are **passors**
+(`MakeCalculator` refuses them by design), and expr-string resolution inside a
+parentless cache tree does not treat the instance as a config-like scope (keys came
+out as name-trees or unresolved symbols; declared holder domains failed
+`UnifyDomain` with "different CheckedKeyExpr"). The β-reduction route sidesteps all
+of it and is *semantically equivalent for the cases the cache route could have
+served*: a parentless cache instance has no call-site fallback either, so resolution
+is definition-scoped in both designs. Identity comes out finer-grained than the
+planned context-string discriminator: two applies merge exactly iff their substituted
+keys coincide — which, with definition-scope resolution, is precisely when they
+denote the same computation. Restriction inherited from the reducer: the body slice
+reachable from `result` must be expression-only (no storage/dot-relative/absolute
+refs), with clear errors otherwise — same contract as functions.
+
+**Deferred (redundant):** the top-level lone-call sugar `{ X(args) }`
 (equivalent to the already-working `instantiate X(args)`); general sub-expression
 literals (e.g. `2.0 * X{…}`); a value-type variable inferred *through* a literal member
 (a type var used only inside a structured parameter is already unconstrained after the
-member-generic fix, so the generic `CongestionRatio<V>` accepts a literal); and
-`apply T(args)` cache-instantiation with call-site context (decision 3).
+member-generic fix, so the generic `CongestionRatio<V>` accepts a literal); nested
+`apply T(…)` in sub-expressions (decision 2: root-only; convert to a function for
+inline composition).
 
 The first implementation let the *holder type* select the semantics of a call
 (container holder → copy-instantiate the body; typed holder → inline the result).

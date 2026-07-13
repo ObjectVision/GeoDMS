@@ -75,16 +75,34 @@ container function_example
 	attribute<float64> inline_load (segment) :=
 		CongestionRatio( segment { flow: 100.0 * float64(id(.)); capacity: 200.0; } );
 
+	// -------------------------------------------- templates in value position (§5.9)
+	//
+	// An existing template with a 'result' sub-item can be applied as a value too:
+	// 'apply T(args)' binds the arguments to T's leading sub-items and yields its
+	// 'result' — the adoption path for template libraries, without migration.
+
+	template CongestionRatioT
+	{
+		unit<uint32>       Net;
+		attribute<float64> flow     (Net);
+		attribute<float64> capacity (Net);
+		attribute<float64> result   (Net) := min_elem(flow / capacity, 1.0);
+	}
+
+	attribute<float64> evening2 (Road) := apply CongestionRatioT(Road, Road/flow, Road/capacity);
+
 	// ------------------------------------------------------------- checks
 	//
 	// congestion         = min_elem([0.5, 2.0, 0.5, 4/3], 1) = [0.5, 1, 0.5, 1]
 	// rail_load/result   = min_elem([0.5, 2.0        ], 1) = [0.5, 1]
 	// inline_load        = min_elem([0, .5, 1, 1.5, 2  ], 1) = [0, .5, 1, 1, 1]
+	// evening2           = congestion
 
 	container checks
 	{
 		parameter<float64> road_sum   := sum(congestion),        IntegrityCheck = "road_sum == 3.0";
 		parameter<float64> rail_sum   := sum(rail_load/result),  IntegrityCheck = "rail_sum == 1.5";
 		parameter<float64> inline_sum := sum(inline_load),       IntegrityCheck = "inline_sum == 3.5";
+		parameter<float64> road_sum2  := sum(evening2),          IntegrityCheck = "road_sum2 == 3.0";
 	}
 }

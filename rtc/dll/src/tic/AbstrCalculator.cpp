@@ -1364,7 +1364,7 @@ namespace {
 
 	LispRef FunctionApplication::Reduce()
 	{
-		assert(m_FuncItem && m_FuncItem->IsFunctionItem());
+		assert(m_FuncItem && m_FuncItem->IsTemplate()); // functions are IsTemplate too
 		assert(m_ErrorHolder);
 
 		for (const FunctionApplication* ancestor = m_Parent; ancestor; ancestor = ancestor->m_Parent)
@@ -1372,10 +1372,24 @@ namespace {
 				throwErrorF("ExprParser", "'{}': recursive function application is not supported"
 					, m_FuncItem->GetFullName().c_str());
 
-		UInt32 nrParams = TreeItem_GetFunctionParamCount(m_FuncItem);
+		// §5.9 'apply T(args)': a plain template applied as an ad-hoc function — its params
+		// are its first N sub-items with N = the number of provided arguments (the template
+		// binding rule), and its designated result is the CI-unique 'result' sub-item
+		bool isPlainTemplate = !m_FuncItem->IsFunctionItem();
+
+		UInt32 nrParams = isPlainTemplate ? m_ArgKeys.size() : TreeItem_GetFunctionParamCount(m_FuncItem);
 		if (m_ArgKeys.size() != nrParams)
 			throwErrorF("ExprParser", "'{}': function expects {} argument(s); {} provided"
 				, m_FuncItem->GetFullName().c_str(), nrParams, m_ArgKeys.size());
+		if (isPlainTemplate)
+		{
+			UInt32 nrChildren = 0;
+			for (const TreeItem* c = m_FuncItem->_GetFirstSubItem(); c; c = c->GetNextItem())
+				++nrChildren;
+			if (nrChildren < nrParams)
+				throwErrorF("ExprParser", "'apply' on template '{}': {} argument(s) provided but the template has only {} sub-item(s)"
+					, m_FuncItem->GetFullName().c_str(), nrParams, nrChildren);
+		}
 
 		m_Params.clear(); m_Params.reserve(nrParams);
 		const TreeItem* child = m_FuncItem->_GetFirstSubItem();
@@ -1449,14 +1463,36 @@ namespace {
 				binding = { vt, gpParam };
 		}
 
-		TokenID resultName = TreeItem_GetFunctionResultName(m_FuncItem);
-		auto resultChild = m_FuncItem->GetConstSubTreeItemByID(resultName);
-		if (!resultChild)
-			throwErrorF("ExprParser", "'{}': designated result '{}' not found"
-				, m_FuncItem->GetFullName().c_str(), resultName.GetStr().c_str());
-		if (resultChild->GetExpr().empty())
-			throwErrorF("ExprParser", "'{}' is a function signature without implementation and cannot be applied"
-				, m_FuncItem->GetFullName().c_str());
+		SharedTreeItem resultChild;
+		if (isPlainTemplate)
+		{
+			// CI-unique 'result' sub-item designates the value of an applied template
+			for (const TreeItem* c = m_FuncItem->_GetFirstSubItem(); c; c = c->GetNextItem())
+				if (!stricmp(c->GetID().GetStr().c_str(), "result"))
+				{
+					if (resultChild)
+						throwErrorF("ExprParser", "'apply' on template '{}': multiple sub-items named 'result'"
+							, m_FuncItem->GetFullName().c_str());
+					resultChild = make_shared_tree(c, existing_obj{});
+				}
+			if (!resultChild)
+				throwErrorF("ExprParser", "'apply' on template '{}': no 'result' sub-item to take as the value; use 'instantiate {}(…)' for the steps"
+					, m_FuncItem->GetFullName().c_str(), m_FuncItem->GetID().GetStr().c_str());
+			if (resultChild->GetExpr().empty())
+				throwErrorF("ExprParser", "'apply' on template '{}': the 'result' sub-item has no calculation rule"
+					, m_FuncItem->GetFullName().c_str());
+		}
+		else
+		{
+			TokenID resultName = TreeItem_GetFunctionResultName(m_FuncItem);
+			resultChild = m_FuncItem->GetConstSubTreeItemByID(resultName);
+			if (!resultChild)
+				throwErrorF("ExprParser", "'{}': designated result '{}' not found"
+					, m_FuncItem->GetFullName().c_str(), resultName.GetStr().c_str());
+			if (resultChild->GetExpr().empty())
+				throwErrorF("ExprParser", "'{}' is a function signature without implementation and cannot be applied"
+					, m_FuncItem->GetFullName().c_str());
+		}
 
 		return ReduceBodyItem(resultChild.get());
 	}
@@ -2605,11 +2641,49 @@ MetaInfo AbstrCalculator::SubstituteExpr(SubstitutionBuffer& substBuff, LispPtr 
 				registerSupplier(substBuff, callee.get());
 				return MetaFuncCurry{ .fullLispExpr = innerCall, .applyItem = callee.get() };
 			}
-			// apply: the result value. For a function this is the bare call (inline);
-			// for a template, the context-keyed cache instantiation is not yet built.
+			// apply: the result value. For a function this is the bare call (inline).
+			// For a template (decision 3): apply the template as an ad-hoc function — bind
+			// the provided arguments to its first N sub-items and beta-reduce its CI-unique
+			// 'result' sub-item. Body names resolve nearest-scope within the template, then
+			// through the template's own scope (definition scope, ancestors included) —
+			// matching what a copy-instantiation without call-site fallback would see. Two
+			// applies merge exactly iff their substituted keys coincide, so a body that
+			// captures definition-scope names keys on what it captured.
 			if (!callee->IsFunctionItem())
-				throwErrorF("ExprParser", "'apply' on template '{}' is not yet implemented; use 'instantiate {}(…)' for the steps, or convert it to a function"
-					, callee->GetFullName().c_str(), calleeID.GetStr().c_str());
+			{
+				registerSupplier(substBuff, callee.get());
+
+				if (substBuff.optionalVisitor)
+				{
+					// visit-only pass: record the argument suppliers, discard the result
+					for (LispPtr a = innerCall.Right(); !a.EndP(); a = a.Right())
+					{
+						SubstituteExpr_impl(substBuff, LispRef(a.Left()), metainfo_policy_flags::subst_allowed);
+						if (substBuff.avs == AVS_SuspendedOrFailed)
+							return {};
+					}
+					return {};
+				}
+
+				auto holder = m_Holder.lock();
+				if (!holder)
+					throwTaskCanceled();
+
+				auto resolveData = [&](LispPtr e) { return SubstituteExpr_impl(substBuff, LispRef(e), metainfo_policy_flags::subst_allowed); };
+				auto findItem = [&](TokenID t) -> SharedTreeItem { return FindItem(t); };
+
+				FunctionApplication appl;
+				appl.m_FuncItem = callee.get();
+				appl.m_SubstBuff = &substBuff;
+				appl.m_ErrorHolder = holder;
+				for (LispPtr a = innerCall.Right(); !a.EndP(); a = a.Right())
+				{
+					appl.PushArg(ResolveCallerArg(a.Left(), resolveData, findItem, &substBuff, holder));
+					if (substBuff.avs == AVS_SuspendedOrFailed)
+						return {};
+				}
+				return appl.Reduce();
+			}
 			localExpr = innerCall;
 			head = localExpr.Left();
 			exprHeadID = head.GetSymbID();
