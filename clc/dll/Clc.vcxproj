@@ -141,6 +141,12 @@
       <Message>Copying RewriteExpr.lsp into Target Folder</Message>
       <Outputs>$(TargetDir)%(Filename)%(Extension)</Outputs>
     </CustomBuild>
+    <CustomBuild Include="..\..\res\prelude.dms">
+      <FileType>Document</FileType>
+      <Command>COPY %(Identity) "$(TargetDir)"</Command>
+      <Message>Copying prelude.dms into Target Folder</Message>
+      <Outputs>$(TargetDir)%(Filename)%(Extension)</Outputs>
+    </CustomBuild>
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\rtc\dll\DmRtc.vcxproj">

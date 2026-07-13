@@ -1032,6 +1032,26 @@ documentation and diffs. All category-A prelude replacements are declared `inlin
 
 ### 8.4 Transition plan
 
+**Tranche 1 implemented (2026-07-13).** `res/prelude.dms` ships next to the exe
+(deployed by the `Clc.vcxproj` CustomBuild copy and `tools/DeployResources.cmake`,
+same mechanism as the .lsp); configs opt in with `#include <%exeDir%/prelude.dms>`.
+Retired (14 rules): `sqr`, `plogp`, `llpart`, `ll1`, and the ten `*_or_*_null`
+predicates. Every prelude body is the exact fixpoint expansion of its retired rule, so
+keys are byte-identical (verified: `range(uint32,0,sqr(p))` and `range(uint32,0,p*p)`
+intern to one domain key — the R13 regression in `scratch/fn_test_prelude.dms`).
+Retained rules whose resolvents referenced retired heads carry the expansions inline
+(`pow 2/3/4/6` → `mul` chains; `isOverlapping` → expanded `le_or_lhs_null`), keeping
+their output keys unchanged. Not retired, with reasons: `order` (its
+`(interval …)`-producing role feeds the *pattern-matching* rules `isOverlapping`,
+`median`-on-interval, which destructure syntactic `interval` nodes — a function
+application would hide the node from the pattern), `median`/`isOverlapping`/
+`float_isNearby`/`point_isNearby` (destructuring patterns), `abs` (kept with them for
+now), multi-arity `rescale`/`normalize`/`distribute`/`scalesum` (tranche 2: arity
+dispatch via variant sets), `claim_*` (moves to RuimteScanner configs — needs
+coordination), categories B/C/D/E per the plan below. A config using a retired head
+without the prelude gets "'sqr': unknown operator and no template or function was
+found with this name".
+
 1. Rules retire **per category, gated on their typed replacement**: E needs
    optional-arg + overload support; B/C need variadic registrations; A needs P0/P1
    functions + the prelude; D needs the compiled-in simplifier. Each retirement notes

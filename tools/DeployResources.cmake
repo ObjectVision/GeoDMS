@@ -22,6 +22,10 @@
 # Expression-rewrite rules, required for expression parsing at runtime.
 file(COPY ${SRC_DIR}/res/RewriteExpr.lsp DESTINATION ${RUNTIME_DIR})
 
+# Typed standard prelude: replacements for retired rewrite rules (WP4.5);
+# configs opt in with '#include <%exeDir%/prelude.dms>'.
+file(COPY ${SRC_DIR}/res/prelude.dms DESTINATION ${RUNTIME_DIR})
+
 # GDAL and PROJ geographic data files (needed at runtime by DmStg via GDAL/PROJ).
 if(VCPKG_SHARE AND IS_DIRECTORY ${VCPKG_SHARE})
     if(IS_DIRECTORY ${VCPKG_SHARE}/gdal)

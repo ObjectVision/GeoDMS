@@ -1,0 +1,63 @@
+//////////////////////////////////////////////////////////////////////////////
+// GeoDms standard prelude (GeoDms >= 20.9.0)
+//
+// Typed replacements for retired RewriteExpr.lsp definitional rules (WP4.5,
+// doc/development/typed-hof-language-design.md section 8). Include with:
+//
+//   #include <%exeDir%/prelude.dms>
+//
+// KEY-IDENTITY CONTRACT: every function body below is written as the exact
+// fixpoint expansion its retired rewrite rule used to produce, and function
+// applications beta-reduce fully into the surrounding key expression. Hence
+// e.g. sqr(x) keys as (mul xKey xKey) — byte-identical to the old rule — so
+// CalcCache entries and cross-spelling unit unification are preserved.
+// Changing a body here changes cache identity: treat bodies as interface.
+//////////////////////////////////////////////////////////////////////////////
+
+// ---------------------------------------------------------------- elementary
+
+function sqr<V: numerics>(attribute<V> x) -> attribute<V> := x * x;
+
+function plogp<F: floats>(attribute<F> x) -> attribute<F> := MakeDefined(x * log(x), 0.0);
+
+// ---------------------------------------------------------------- logit
+
+function llpart<F: floats>(attribute<F> lc; attribute<F> xc; attribute<F> oc)
+-> attribute<F> := oc * log(xc) - log(lc);
+
+function ll1<F: floats>(attribute<F> lc; attribute<F> xc; attribute<F> oc)
+-> attribute<F> := (oc * log(xc) - log(lc)) + ((lc - oc) * log(lc - xc) - log(lc));
+
+// ------------------------------------------------- null-aware predicates
+// null-transparent comparisons: the *_or_lhs_null forms treat a null left
+// operand as satisfying the relation; *_or_rhs_null mirror them.
+
+function eq_or_both_null<T: any>(attribute<T> a; attribute<T> b)
+-> attribute<bool> := (a == b) || (IsNull(a) && IsNull(b));
+
+function ne_or_one_null<T: any>(attribute<T> a; attribute<T> b)
+-> attribute<bool> := !((a == b) || (IsNull(a) && IsNull(b)));
+
+function lt_or_lhs_null<T: any>(attribute<T> a; attribute<T> b)
+-> attribute<bool> := (a < b) || (IsNull(a) && !IsNull(b));
+
+function gt_or_lhs_null<T: any>(attribute<T> a; attribute<T> b)
+-> attribute<bool> := (a > b) || (IsNull(a) && !IsNull(b));
+
+function le_or_lhs_null<T: any>(attribute<T> a; attribute<T> b)
+-> attribute<bool> := (a <= b) || IsNull(a);
+
+function ge_or_lhs_null<T: any>(attribute<T> a; attribute<T> b)
+-> attribute<bool> := (a >= b) || IsNull(a);
+
+function lt_or_rhs_null<T: any>(attribute<T> a; attribute<T> b)
+-> attribute<bool> := (b > a) || (IsNull(b) && !IsNull(a));
+
+function gt_or_rhs_null<T: any>(attribute<T> a; attribute<T> b)
+-> attribute<bool> := (b < a) || (IsNull(b) && !IsNull(a));
+
+function le_or_rhs_null<T: any>(attribute<T> a; attribute<T> b)
+-> attribute<bool> := (b >= a) || IsNull(b);
+
+function ge_or_rhs_null<T: any>(attribute<T> a; attribute<T> b)
+-> attribute<bool> := (b <= a) || IsNull(b);

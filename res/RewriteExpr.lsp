@@ -44,14 +44,14 @@
 /*********** Elementary funcs  *********/
 
 [(log _X _Y)                (div (log _X) (log _Y))]
-[(plogp _X)                 (MakeDefined (mul _X (log _X)) 0.0)]
-[(sqr _X)                   (mul _X _X)]
+/* plogp and sqr retired to the typed prelude (res/prelude.dms, WP4.5); the pow
+   resolvents below carry their expansions inline so pow keys are unchanged. */
 [(abs _X)                   (iif (isNegative _X) (neg _X) _X)]
-[(pow _X 2)                 (sqr _X)]
-[(pow _X 3)                 (mul _X (sqr _X))]
-[(pow _X 4)                 (sqr (sqr _X))]
+[(pow _X 2)                 (mul _X _X)]
+[(pow _X 3)                 (mul _X (mul _X _X))]
+[(pow _X 4)                 (mul (mul _X _X) (mul _X _X))]
 [(pow _X 5)                 (mul _X (pow _X 4))]
-[(pow _X 6)                 (mul (sqr _X) (pow _X 4))]
+[(pow _X 6)                 (mul (mul _X _X) (pow _X 4))]
 /* These integer-literal fast paths keep unit-aware exact powers (e.g. length^2 -> length^2).
    All other a^b cases (float/runtime/fractional exponents) are handled by the first-class
    pow operator (issue #839, clc/OperAttrBin.cpp); the old catch-all rewrite
@@ -122,10 +122,11 @@
 
 [(order _a _b) (interval (min_elem _a _b) (max_elem _a _b))]
 
+/* resolvent carries the retired le_or_lhs_null expansion inline (WP4.5): keys unchanged */
 [(isOverlapping (interval _a1 _a2)(interval _B1 _B2))
 	(and
-		(le_or_lhs_null _B1 _a2)
-		(le_or_lhs_null _a1 _B2)
+		(or (le _B1 _a2) (IsNull _B1))
+		(or (le _a1 _B2) (IsNull _a1))
 	)
 ]
 
@@ -149,16 +150,7 @@
 		(min_elem _a _c)
 	)
 ]
-[(eq_or_both_null _a _b) (or (eq _a _b) (and (IsNull _a) (IsNull _b)))]
-[(lt_or_lhs_null  _a _b) (or (lt _a _b) (and (IsNull _a) (not (IsNull _b))))]
-[(gt_or_lhs_null  _a _b) (or (gt _a _b) (and (IsNull _a) (not (IsNull _b))))]
-[(le_or_lhs_null  _a _b) (or (le _a _b) (IsNull _a))]
-[(ge_or_lhs_null  _a _b) (or (ge _a _b) (IsNull _a))]
-[(lt_or_rhs_null  _a _b) (gt_or_lhs_null _b _a)]
-[(gt_or_rhs_null  _a _b) (lt_or_lhs_null _b _a)]
-[(ge_or_rhs_null  _a _b) (le_or_lhs_null _b _a)]
-[(le_or_rhs_null  _a _b) (ge_or_lhs_null _b _a)]
-[(ne_or_one_null  _a _b) (not (eq_or_both_null _a _b))]
+/* the *_or_*_null predicate family retired to the typed prelude (res/prelude.dms, WP4.5) */
 
 /*********** Default arguments *********/
 
@@ -236,8 +228,7 @@
 
 /*********** Logit funcs       *********/
 
-[(llpart _lc _xc _oc)       (sub (mul _oc (log _xc)) (log _lc))]
-[(ll1    _lc _xc _oc)       (add (llpart _lc _xc _oc) (llpart _lc (sub _lc _xc) (sub _lc _oc)))]
+/* llpart and ll1 retired to the typed prelude (res/prelude.dms, WP4.5) */
 
 /*********** Relational funcs ***********/
 
