@@ -95,7 +95,16 @@ SYNTAX_CALL TreeItem* CreateTreeFromConfiguration(CharPtr sourceFilename)
 			{
 				static TokenID t_Prelude = GetTokenID_st("prelude");
 				SharedStr preludePath = DelimitedConcat(GetExeDir().c_str(), "prelude.dms");
-				if (IsFileOrDirAccessible(preludePath) && !res->GetConstSubTreeItemByID(t_Prelude))
+				// raw child scan: the updating GetConstSubTreeItemByID would call
+				// UpdateMetaInfo, forbidden inside this MG_LOCKER_NO_UPDATEMETAINFO scope
+				bool rootHasPreludeChild = false;
+				for (const TreeItem* c = res->_GetFirstSubItem(); c; c = c->GetNextItem())
+					if (c->GetID() == t_Prelude)
+					{
+						rootHasPreludeChild = true;
+						break;
+					}
+				if (IsFileOrDirAccessible(preludePath) && !rootHasPreludeChild)
 				{
 					auto preludeContainer = res->CreateItem(t_Prelude);
 					AppendTreeFromConfiguration(preludePath.c_str(), preludeContainer.get(), false);
