@@ -84,6 +84,25 @@ SYNTAX_CALL TreeItem* CreateTreeFromConfiguration(CharPtr sourceFilename)
 			DemandManagement::IncInterestDetector incInterestLock("DMS_CreateTreeFromConfiguration()");
 #endif // MG_DEBUG_INTERESTSOURCE
 			res = AppendTreeFromConfiguration(fileName, nullptr, false);
+
+			// WP4.5: auto-import the standard prelude (typed replacements for retired
+			// RewriteExpr.lsp rules) as a hidden endogenous 'prelude' container under the
+			// config root. Call-head resolution falls back to it as the implicit
+			// outermost namespace (FindPreludeFunction in tic/AbstrCalculator.cpp) — a
+			// root 'using' cannot point at its own descendant (circularity check) — so
+			// user definitions shadow prelude names by the normal nearest-scope rules.
+			if (res)
+			{
+				static TokenID t_Prelude = GetTokenID_st("prelude");
+				SharedStr preludePath = DelimitedConcat(GetExeDir().c_str(), "prelude.dms");
+				if (IsFileOrDirAccessible(preludePath) && !res->GetConstSubTreeItemByID(t_Prelude))
+				{
+					auto preludeContainer = res->CreateItem(t_Prelude);
+					AppendTreeFromConfiguration(preludePath.c_str(), preludeContainer.get(), false);
+					preludeContainer->SetIsHidden(true);
+					preludeContainer->SetTSF(TSF_IsEndogenous); // never saved back into user configs
+				}
+			}
 		}
 		currSession->Open(res.get()); // SessionData::m_ConfigRoot now owns it
 		auto fts = UpdateMarker::GetFreshTS(MG_DEBUG_TS_SOURCE_CODE("CreateTreeFromConfiguration"));

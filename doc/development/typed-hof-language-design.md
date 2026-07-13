@@ -1069,6 +1069,23 @@ never did, so only the 1-arg forms collapse). Note: `rescale`'s `min`/`max` (and
 `normalize`'s `e`/`s`) are scalars, as in the retired rules — the trailing
 `+ mn` broadcasts void into the data domain.
 
+**Auto-import implemented (2026-07-13).** The prelude is auto-imported at config load
+(`stx/dll/src/StxInterface.cpp`, `CreateTreeFromConfiguration`): parsed into a hidden,
+endogenous `prelude` container under the config root. A root `using` cannot point at
+its own descendant (circularity check), so visibility is instead a resolution rule in
+`tic/AbstrCalculator.cpp` (`FindPreludeFunction`): **the prelude is the implicit
+outermost namespace for call heads** — consulted when normal lookup finds nothing, when
+it finds a *non-callable* item (a documentation container named `sqr`/`rescale` does
+not capture a call head — the tst Operator suite has exactly those), and inside strict
+function scopes (body heads see params → locals → imports → prelude). User definitions
+shadow prelude names by the normal nearest-scope rules; only *callable* nearer items
+capture. Verified against the unmodified tst suite: `Operator.dms` `/Rescale` (scalesum
+2/3-arg, rescale, normalize inside self-named doc containers) and `/Arithmetics`
+(`sqr(5)` inside `container sqr`, pow 2..6, abs), and `MicroTst.dms`
+`parameter<meter2> gridsize_sqr := sqr(gridsize)` (metric derivation through the
+prelude function). Configs need no edits; `#include <%exeDir%/prelude.dms>` remains
+valid and simply shadows the auto-imported copy at nearer scope.
+
 1. Rules retire **per category, gated on their typed replacement**: E needs
    optional-arg + overload support; B/C need variadic registrations; A needs P0/P1
    functions + the prelude; D needs the compiled-in simplifier. Each retirement notes

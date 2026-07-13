@@ -1019,6 +1019,29 @@ namespace {
 
 	static TokenID t_Hole = GetTokenID_st("_"); // partial-application placeholder
 	static TokenID t_Map  = GetTokenID_st("map"); // built-in map(function, container) metafunction
+
+	// WP4.5: the auto-imported standard prelude ('prelude' container under the config
+	// root). A call head that resolves to a NON-callable item (e.g. a documentation
+	// container that happens to carry an operator-like name) does not capture the call:
+	// the prelude binding applies instead. Also the fallback for call heads inside
+	// strict function scopes, which do not see the root's namespace usage.
+	SharedTreeItem FindPreludeFunction(TokenID nameID)
+	{
+		static TokenID t_PreludeContainer = GetTokenID_st("prelude");
+		auto sd = SessionData::Curr();
+		if (!sd)
+			return {};
+		auto root = sd->GetConfigRoot();
+		if (!root)
+			return {};
+		auto pre = root->GetConstSubTreeItemByID(t_PreludeContainer);
+		if (!pre)
+			return {};
+		auto f = pre->GetConstSubTreeItemByID(nameID);
+		if (!f || !f->IsTemplate())
+			return {};
+		return f;
+	}
 	static TokenID t_ApplyItem       = GetTokenID_st("apply_item");       // §5.9 'apply X(args)' marker head
 	static TokenID t_InstantiateItem = GetTokenID_st("instantiate_item"); // §5.9 'instantiate X(args)' marker head
 	static TokenID t_ContainerLiteral = GetTokenID_st("container_literal"); // §5.9 '{ m: e; … }' argument literal
@@ -1758,6 +1781,11 @@ namespace {
 				}
 
 		auto callee = m_FuncItem->FindItem(SharedStr(headID.AsStrRange()));
+		if (!callee || !callee->IsFunctionItem())
+			// strict function scopes do not see the root's namespace usage: the
+			// auto-imported prelude is the implicit last resort for call heads
+			if (auto pf = FindPreludeFunction(headID); pf && pf->IsFunctionItem())
+				callee = pf;
 		if (!callee)
 			throwErrorF("ExprParser", "'{}': unknown operator or function in body of function '{}'"
 				, headID.GetStr().c_str(), m_FuncItem->GetFullName().c_str());
@@ -1941,6 +1969,9 @@ namespace {
 			{
 				// a direct function/import call: validate that it is a function of the right arity
 				auto callee = m_FuncItem->FindItem(SharedStr(headID.AsStrRange()));
+				if (!callee || !callee->IsFunctionItem())
+					if (auto pf = FindPreludeFunction(headID); pf && pf->IsFunctionItem())
+						callee = pf; // prelude: implicit last resort in strict function scopes
 				if (!callee)
 					throwErrorF("ExprParser", "'{}': unknown operator or function in body of function '{}'"
 						, headID.GetStr().c_str(), m_FuncItem->GetFullName().c_str());
@@ -2483,6 +2514,12 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 				if (substBuff.avs == AVS_SuspendedOrFailed)
 					return {};
 
+				// the prelude is the implicit outermost namespace for call heads; a
+				// non-callable shadow does not capture a call head either
+				if (!templateItem || !templateItem->IsTemplate())
+					if (auto pf = FindPreludeFunction(head.GetSymbID()))
+						templateItem = pf;
+
 				if (!templateItem)
 					throwErrorF("ExprParser", "'{}': unknown function"
 						, head.GetSymbStr().c_str()
@@ -2717,6 +2754,12 @@ MetaInfo AbstrCalculator::SubstituteExpr(SubstitutionBuffer& substBuff, LispPtr 
 			auto templateItem = FindOrVisitItem(substBuff, head.GetSymbID());
 			if (substBuff.avs == AVS_SuspendedOrFailed)
 				return {};
+
+			// the prelude is the implicit outermost namespace for call heads; a
+			// non-callable shadow does not capture a call head either
+			if (!templateItem || !templateItem->IsTemplate())
+				if (auto pf = FindPreludeFunction(head.GetSymbID()))
+					templateItem = pf;
 
 			if (!templateItem)
 				throwErrorF("ExprParser", "'{}': unknown operator and no template or function was found with this name"
