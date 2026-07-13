@@ -267,12 +267,16 @@ Notes / follow-ups:
   shared suppliers this is super-linear and pegs the UI thread for minutes
   (distinct `Actor*` per level — a perf pathology, not a cycle/hang).
 
-- **MMD dictionary timing (#1130 family).** `MmdStorageManager::DoWriteTree`
-  (`tic/dll/src/stg/MemoryMappedDataStorageManager.cpp`) runs at `OpenForWrite`
-  and serializes each unit's range; for a var-range unit the range may not be
-  calculated yet. Deferring the dictionary write to `StorageManager` close is
-  unsafe as-is (the manager can outlive sub-items of its storage holder) — buffer
-  each unit's range string as the unit finishes, emit the dictionary at close.
+- **MMD dictionary timing (#1130 family, fixed as #1155).** `MmdStorageManager::
+  DoWriteTree` (`tic/dll/src/stg/MemoryMappedDataStorageManager.cpp`) runs at
+  `OpenForWrite` and serializes each unit's range; for a var-range unit the range
+  may not be calculated yet, and its `Range` subtag was silently skipped — leaving
+  subunits that are their own domain unreadable (`no primary data found in
+  storage`, #1152). Deferring the dictionary write to `StorageManager` close is
+  unsafe (the manager can outlive sub-items of its storage holder); instead
+  `MmdStorageManager::UpdateDictionary` re-emits the dictionary from the mmd
+  branch of `TreeItem::CommitDataChanges`, right after the unit's `GetCount()` —
+  the range is then ready and the config tree guaranteed alive.
 
 ## Debugging methodology (for reproducing engine-state bugs)
 

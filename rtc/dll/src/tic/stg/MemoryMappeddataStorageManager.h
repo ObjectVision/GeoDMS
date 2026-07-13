@@ -29,6 +29,10 @@ public:
 
 	TIC_CALL SharedStr GetFullFileName(CharPtr name) const;
 
+	// #1155: re-emit the dictionary once a var-range unit's range has become available;
+	// the dictionary written at OpenForWrite time lacks the Range of units not calculated yet
+	TIC_CALL void UpdateDictionary(const TreeItem* storageHolder);
+
 protected:
 //	implement AbstrStorageManager interface
 //	void DropStream(const TreeItem* item, CharPtr path) override;
