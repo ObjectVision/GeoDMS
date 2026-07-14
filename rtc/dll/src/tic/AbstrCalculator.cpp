@@ -17,6 +17,7 @@
 #include "dbg/debug.h"
 #include "dbg/DmsCatch.h"
 #include "mci/ValueClass.h"
+#include "mci/ValueClassID.h"
 #include "ptr/LifetimeProtector.h"
 #include "ser/AsString.h"
 #include "set/StackUtil.h"
@@ -1363,6 +1364,18 @@ namespace {
 	// structural compatibility of a bound function against a declared signature
 	// exemplar: same arity, per-parameter and result item classes equal (a plain
 	// TreeItem-classed signature position is a wildcard)
+	// §5.10 Stage 2: does `tok` name a generic type/domain variable of `fn`?
+	bool IsGenericVarOf(const TreeItem* fn, TokenID tok)
+	{
+		if (!tok)
+			return false;
+		UInt32 seqNr = 0, idx; TokenID var, cons; bool isDom;
+		while (TreeItem_GetFunctionGenericParam(fn, seqNr++, &idx, &var, &cons, &isDom))
+			if (var == tok)
+				return true;
+		return false;
+	}
+
 	void CheckFunctionSignature(const TreeItem* boundFn, const TreeItem* sigExemplar, CharPtr paramName)
 	{
 		UInt32 nrSigParams = TreeItem_GetFunctionParamCount(sigExemplar);
@@ -1409,11 +1422,15 @@ namespace {
 					throwErrorF("ExprParser", "function '{}' bound to parameter '{}': parameter {} differs in value composition from its declared signature '{}'"
 						, boundFn->GetFullName().c_str(), paramName, i + 1
 						, sigExemplar->GetFullName().c_str());
-				if (normalizeUnitRef(sigExemplar, sigADI->DomainUnitToken()) != normalizeUnitRef(boundFn, fnADI->DomainUnitToken()))
+				// a signature-side reference naming one of the signature's generic
+				// variables is a wildcard position in v1 (kind-level checking, §5.10)
+				if (!IsGenericVarOf(sigExemplar, sigADI->DomainUnitToken())
+					&& normalizeUnitRef(sigExemplar, sigADI->DomainUnitToken()) != normalizeUnitRef(boundFn, fnADI->DomainUnitToken()))
 					throwErrorF("ExprParser", "function '{}' bound to parameter '{}': the domain of parameter {} does not match the domain relationship required by signature '{}'"
 						, boundFn->GetFullName().c_str(), paramName, i + 1
 						, sigExemplar->GetFullName().c_str());
-				if (normalizeUnitRef(sigExemplar, sigADI->ValuesUnitToken()) != normalizeUnitRef(boundFn, fnADI->ValuesUnitToken()))
+				if (!IsGenericVarOf(sigExemplar, sigADI->ValuesUnitToken())
+					&& normalizeUnitRef(sigExemplar, sigADI->ValuesUnitToken()) != normalizeUnitRef(boundFn, fnADI->ValuesUnitToken()))
 					throwErrorF("ExprParser", "function '{}' bound to parameter '{}': the values unit of parameter {} does not match signature '{}'"
 						, boundFn->GetFullName().c_str(), paramName, i + 1
 						, sigExemplar->GetFullName().c_str());
@@ -1500,10 +1517,12 @@ namespace {
 		}
 
 		// generic type variables: check constraint satisfaction and per-variable
-		// consistency of the actual arguments' value classes
+		// consistency of the actual arguments' value classes; §5.10 Stage 2: domain
+		// variables bind the arguments' DOMAIN UNITS and must agree across parameters
 		std::map<TokenID, std::pair<const ValueClass*, const TreeItem*>> varBindings;
-		UInt32 seqNr = 0, gpIndex; TokenID gpVar, gpConstraint;
-		while (TreeItem_GetFunctionGenericParam(m_FuncItem, seqNr++, &gpIndex, &gpVar, &gpConstraint))
+		std::map<TokenID, std::tuple<SharedTreeItem, const AbstrUnit*, const TreeItem*>> domainBindings; // keep-alive, unit, first param
+		UInt32 seqNr = 0, gpIndex; TokenID gpVar, gpConstraint; bool gpIsDomain;
+		while (TreeItem_GetFunctionGenericParam(m_FuncItem, seqNr++, &gpIndex, &gpVar, &gpConstraint, &gpIsDomain))
 		{
 			MG_CHECK(gpIndex < nrParams);
 			const TreeItem* gpParam = m_Params[gpIndex];
@@ -1517,6 +1536,29 @@ namespace {
 			{
 				dms_assert(dc->WasFailed(FailType::MetaInfo));
 				m_ErrorHolder->ThrowFail(dc.get());
+			}
+
+			if (gpIsDomain)
+			{
+				// bind the domain variable from the argument's domain unit; a void
+				// domain broadcasts into any D (the language's single implicit coercion)
+				const AbstrUnit* du = IsDataItem(argResult.get()) ? AsDataItem(argResult.get())->GetAbstrDomainUnit() : nullptr;
+				if (!du)
+					throwErrorF("ExprParser", "'{}': parameter '{}' requires an attribute argument (its domain binds '{}')"
+						, m_FuncItem->GetFullName().c_str(), gpParam->GetID().GetStr().c_str(), gpVar.GetStr().c_str());
+				if (du->GetValueType()->GetValueClassID() == ValueClassID::VT_Void)
+				{ /* void broadcasts into any D and does not constrain it */ }
+				else
+				{
+					auto& db = domainBindings[gpVar];
+					if (std::get<1>(db) && !std::get<1>(db)->UnifyDomain(du, "", "", UnifyMode(UM_AllowVoidRight)))
+						throwErrorF("ExprParser", "'{}': inconsistent instantiation of domain variable '{}': the domains of the arguments for parameters '{}' and '{}' differ"
+							, m_FuncItem->GetFullName().c_str(), gpVar.GetStr().c_str()
+							, std::get<2>(db)->GetID().GetStr().c_str(), gpParam->GetID().GetStr().c_str());
+					if (!std::get<1>(db))
+						db = { argResult, du, gpParam };
+				}
+				continue;
 			}
 			const ValueClass* vt = nullptr;
 			if (IsDataItem(argResult.get()))

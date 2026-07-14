@@ -62,6 +62,7 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 			using boost::spirit::alnum_p;
 			using boost::spirit::pizza_p;
 			using boost::spirit::assign;
+			using boost::spirit::epsilon_p;
 
 			// ==== Some Tokens
 
@@ -151,7 +152,7 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 					>> *( ',' >> identifier[([&cp](...) { cp.AddPendingName();})] )
 					>> COLON
 					>> ( itemSignature
-					   | itemRef[([&cp](...) { cp.DoRefTypeSignature();})] )
+					   | (itemRef[([&cp](...) { cp.DoRefTypeSignature();})] >> typeArgsOpt) )
 					>> !(LPAREN >> itemParam >> *(',' >> itemParam) >> RPAREN)
 				)
 				[([&cp](auto _1, auto _2) { cp.DoColonItemHeading(_1, _2);})];
@@ -173,6 +174,14 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 					>> assert_d("type-variable constraint expected after ':'")[identifier]
 					)[([&cp](...) { cp.OnTypeVarConstraint();})] )
 				>> assert_d("'>' expected after type-variable declarations")[RANGLE];
+
+			// type application: 'sig<V, D>' — each argument must name an active type
+			// variable (documentation-level in v1, §5.10 Stage 2)
+			typeArgsOpt =
+				!( LANGLE
+					>> identifier[([&cp](...) { cp.OnParamSigTypeArg();})]
+					>> *( ',' >> identifier[([&cp](...) { cp.OnParamSigTypeArg();})] )
+					>> assert_d("'>' expected after type-application arguments")[RANGLE] );
 
 			functionDecl =
 				(as_lower_d[FUNCTION] >> identifier[([&cp](auto _1, auto) { cp.DoItemName(); cp.SetPendingNameLoc(_1);})])
@@ -230,7 +239,7 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 			functionResultType =
 				( ( as_lower_d[FUNCTION][([&cp](...) { cp.OnFunctionResultIsFunction();})] // §5.10 function-valued result
 				  | itemSignature
-				  | itemRef[([&cp](...) { cp.DoRefTypeSignature();})] )
+				  | (itemRef[([&cp](...) { cp.DoRefTypeSignature();})] >> typeArgsOpt) )
 					>> !(LPAREN >> itemParam >> *(',' >> itemParam) >> RPAREN)
 				)
 				[([&cp](...) { cp.OnFunctionResultSig();})];
@@ -246,11 +255,14 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 
 			// ==== TYPE ALIASES: alias = type;   (vs. 'name : type;' which declares an item)
 
-			// function-signature alias: alias = (params) -> resultType;
+			// function-signature alias: alias = [function[<typeVars>]] (params) -> resultType;
+			// parameters may be anonymous type specs (a positional name is synthesized)
 			aliasFunctionSig =
-				( (identifier >> EQUAL >> LPAREN)
-					[([&cp](auto _1, auto) { cp.OnAliasName(); cp.OnFunctionSigHeading(_1); cp.DoBeginBlock();})]
-				>> !(functionParamItem >> *(SEMICOLON >> !functionParamItem))
+				( (identifier >> EQUAL)[([&cp](...) { cp.OnAliasName();})] // capture the name BEFORE typeParamsClause overwrites m_strIdentifierID
+				>> !(as_lower_d[FUNCTION] >> !typeParamsClause)
+				>> (LPAREN >> epsilon_p)
+					[([&cp](auto _1, auto) { cp.OnFunctionSigHeading(_1); cp.DoBeginBlock();})]
+				>> !(functionSigParamItem >> *(SEMICOLON >> !functionSigParamItem))
 				>> assert_d("')' expected after signature parameter declarations")[RPAREN]
 					[([&cp](...) { cp.OnEndFunctionParams();})]
 				>> assert_d("'->' and result type expected in a function-signature alias")[ARROW]
@@ -259,6 +271,14 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 				>> assert_d("';' expected after function-signature alias")[SEMICOLON]
 				)
 				[([&cp](auto _1, auto) { cp.OnFunctionDeclEnd(_1);})];
+
+			// a signature parameter: a named declaration, or an anonymous type spec
+			functionSigParamItem =
+				functionParamItem
+				| ( ( itemSignature
+					  | itemRef[([&cp](...) { cp.DoRefTypeSignature();})] )
+					>> !(LPAREN >> itemParam >> *(',' >> itemParam) >> RPAREN)
+				  )[([&cp](auto _1, auto) { cp.OnAnonSigParam(_1);})];
 
 			// plain type alias: alias = unit<vt>; | attribute<vu> [(domain)]; | previously declared item;
 			// with optional refinement properties (e.g. ', IntegrityCheck = "...")
@@ -363,7 +383,7 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 			preprocStatement,
 			itemDecl, itemHeading, itemSignature, colonHeading,
 			functionDecl, functionBody, variantSet, variantDecl,
-			functionParamItem, functionResultType, functionResultSpec,
+			functionParamItem, functionSigParamItem, functionResultType, functionResultSpec, typeArgsOpt,
 			typeParamsClause, aliasFunctionSig, aliasPlain,
 			itemParam, unitIdentifier, basicType,
 			itemProp, anyPropImpl, anyProp, storageProp, usingProp, entityNrOfRowsProp, dataBlock, directExpr,

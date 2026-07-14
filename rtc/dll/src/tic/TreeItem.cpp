@@ -79,7 +79,7 @@ namespace {
 		UInt32 nrParams = 0;
 		TokenID resultName;
 		std::vector<std::pair<UInt32, std::weak_ptr<const TreeItem>>> paramSigs;
-		std::vector<std::tuple<UInt32, TokenID, TokenID>> genericParams; // (param index, type variable, constraint)
+		std::vector<std::tuple<UInt32, TokenID, TokenID, bool>> genericParams; // (param index, type variable, constraint, isDomainVar)
 		bool definitionChecked = false; // WP3.4: body scope/shape validated once
 		bool isVariantSet = false;      // §5.7: a function that dispatches to variant sub-functions by argument type
 	};
@@ -1462,13 +1462,13 @@ TIC_CALL void TreeItem_CopyFunctionSpec(const TreeItem* dstFunctionItem, const T
 		s_FunctionSpecAssoc.assoc(dstFunctionItem, *specPtr);
 }
 
-TIC_CALL void TreeItem_AddFunctionGenericParam(const TreeItem* functionItem, UInt32 paramIndex, TokenID varName, TokenID constraintName)
+TIC_CALL void TreeItem_AddFunctionGenericParam(const TreeItem* functionItem, UInt32 paramIndex, TokenID varName, TokenID constraintName, bool isDomainVar)
 {
 	assert(functionItem && functionItem->IsFunctionItem());
-	s_FunctionSpecAssoc[functionItem].genericParams.emplace_back(paramIndex, varName, constraintName);
+	s_FunctionSpecAssoc[functionItem].genericParams.emplace_back(paramIndex, varName, constraintName, isDomainVar);
 }
 
-TIC_CALL bool TreeItem_GetFunctionGenericParam(const TreeItem* functionItem, UInt32 seqNr, UInt32* paramIndex, TokenID* varName, TokenID* constraintName)
+TIC_CALL bool TreeItem_GetFunctionGenericParam(const TreeItem* functionItem, UInt32 seqNr, UInt32* paramIndex, TokenID* varName, TokenID* constraintName, bool* isDomainVar)
 {
 	auto specPtr = s_FunctionSpecAssoc.get_value_ptr(functionItem);
 	if (!specPtr || seqNr >= specPtr->genericParams.size())
@@ -1477,6 +1477,7 @@ TIC_CALL bool TreeItem_GetFunctionGenericParam(const TreeItem* functionItem, UIn
 	if (paramIndex)     *paramIndex     = std::get<0>(genericParam);
 	if (varName)        *varName        = std::get<1>(genericParam);
 	if (constraintName) *constraintName = std::get<2>(genericParam);
+	if (isDomainVar)    *isDomainVar    = std::get<3>(genericParam);
 	return true;
 }
 

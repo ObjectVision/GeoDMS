@@ -108,6 +108,8 @@ struct ConfigProd : AbstrDataBlockProd, AbstrContextHandle
 	void DoFunctionResultName();
 	void OnFunctionResultSig();
 	void OnFunctionResultIsFunction(); // §5.10 '-> function'
+	void OnAnonSigParam(iterator_t first); // §5.10 Stage 2: anonymous signature-alias parameter
+	void OnParamSigTypeArg(); // §5.10 Stage 2: type application 'sig<V, D>' argument
 	void OnFunctionResultExpr(iterator_t first, iterator_t last);
 	void OnFunctionDeclEnd(iterator_t first);
 
@@ -202,7 +204,7 @@ void                ClearPropData();
 		SharedStr                 resultExpr;
 		std::vector<std::pair<UInt32, const TreeItem*>> paramSigs; // (param index, signature exemplar)
 		std::vector<std::pair<TokenID, TokenID>> typeVars;         // (var, constraint)
-		std::vector<std::tuple<UInt32, TokenID, TokenID>> genericParams; // (param index, var, constraint)
+		std::vector<std::tuple<UInt32, TokenID, TokenID, bool>> genericParams; // (param index, var, constraint, isDomainVar)
 	};
 	std::vector<FuncProdState>       m_FuncStates;
 

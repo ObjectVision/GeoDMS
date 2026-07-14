@@ -896,7 +896,7 @@ explain-value trace already walks the reduced DC graph per operator node; an
 and showing the function body source with arguments substituted are the candidate
 additions.
 
-### 5.10 Function-valued results, closures, applied call results *(Stage 1 implemented 2026-07-14)*
+### 5.10 Function-valued results, closures, applied call results *(Stages 1+2 implemented 2026-07-14)*
 
 **Implementation status (Stage 1).** All three pieces below are implemented and
 verified (`scratch/fn_test_closure.dms`, `examples/function.dms` `hof2`): grammar =
@@ -962,12 +962,33 @@ argument, or (c) returned as a result. It cannot be bound to a data item or hold
 same rule as partial applications today. `pow4(a)` reduces through the closure to
 `(mul (mul aK aK) (mul aK aK))` — key identity with `pow(a, 4)` preserved end-to-end.
 
-**Stage 2 (typing, deferred):** generic function-signature aliases
-(`numeric_unary_function = function<V: numerics, D: domains>(attribute<V>(D)) ->
-attribute<V>(D);`), type application `numeric_unary_function<V, D>` in parameter and
-result positions, and domain type-variables `<D: domains>` bound by inference from
-argument domains with cross-parameter consistency — upgrading the untyped `function`
-markers above to checked signatures.
+**Stage 2 implemented (2026-07-14).** The typed form runs
+(`examples/function.dms` `hof2`, `scratch/fn_test_gsig.dms`, `fn_test_domvar.dms`):
+
+- **Generic signature aliases**: `nuf = function<V: numerics, D: domains>
+  (attribute<V> (D)) -> attribute<V> (D);` — the `function` keyword and type-params
+  clause on the alias form, and anonymous parameters (a positional name `_1, _2, …`
+  is synthesized). Pitfall re-found: the alias name must be captured on its own
+  identifier action — the type-params clause overwrites `m_strIdentifierID` (the same
+  bug P2 fixed for `functionDecl`).
+- **Type application**: `f: nuf<V, D>` on parameters and `-> nuf<V, D>` as result
+  type. Arguments must name active type variables (typo check); the binding is
+  documentation-level in v1 — signature checks stay kind-level (arity, item class,
+  value composition, and the alpha-invariant positional domain/values relationships,
+  with signature-side *generic-variable* positions acting as wildcards). A
+  signature-typed result implies a function-valued result (`-> function` semantics).
+- **Domain type-variables**: a parameter domain `(D)` with `D: domains` in the
+  type-params clause binds D to the argument's domain unit at each application;
+  parameters sharing D must agree (`UnifyDomain`), with a clear error naming both
+  parameters; a void domain broadcasts into any D (the language's single implicit
+  coercion) and does not constrain it. Type variables are lexically visible to
+  nested function declarations (the constraint lookup walks the enclosing
+  declaration stack).
+
+Deviations from the sketch, accepted: parameters use the `name: type` form with `;`
+separators (not type-first with commas). Deferred to WP4.1 (full unifier): inferring
+V/D through generic function-valued arguments and enforcing the type-application
+bindings across parameters.
 
 ## 6. Verified mechanism inventory
 

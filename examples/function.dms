@@ -127,35 +127,23 @@ container function_example
 		function pow4<V: numerics>(attribute<V> x)
 		-> attribute<V> := compose(sqr, sqr, x);
 	}
-	/* TARGET (WP3.2 Stage 2, typed form — see doc section 5.10; Stage 1 below):
+	// WP3.2 Stage 2 (typed form): a generic function-signature alias types the
+	// function-valued parameters and result; D is a domain variable, bound from the
+	// argument's domain and checked for consistency at each application. The nested
+	// 'result' closes over f and g (captured by value); a call result is applied
+	// with a further '(args)' suffix.
 	container hof2
 	{
-		numeric_unary_function = function<V: numerics, D: domains>(attribute<V>(D)) -> attribute<V>(D);
-		function compose<V: numerics, D: domains>(numeric_unary_function<V, D> f, numeric_unary_function<V, D> g) -> numeric_unary_function<V, D>
+		numeric_unary_function = function<V: numerics, D: domains>(attribute<V> (D)) -> attribute<V> (D);
+
+		function compose<V: numerics, D: domains>(f: numeric_unary_function<V, D>; g: numeric_unary_function<V, D>)
+		-> numeric_unary_function<V, D>
 		{
-			function result(attribute<V> x(D))->attribute<V>(D)
-			{
-				attribute<V> result(D) := f(g(x));
-			}
+			function result(attribute<V> x (D)) -> attribute<V> (D) := f(g(x));
 		}
 
-		function pow4<V: numerics, D: domains>(attribute<V> x(D))
-		-> attribute<V>(D) := compose(sqr, sqr)(x);
-	}
-	*/
-
-	// WP3.2 Stage 1 (implemented): compose returns a FUNCTION — the nested 'result'
-	// closes over f and g (captured by value from the enclosing application); a call
-	// result is applied with a further '(args)' suffix.
-	container hof2
-	{
-		function compose(f: function; g: function) -> function
-		{
-			function result<V: numerics>(attribute<V> x) -> attribute<V> := f(g(x));
-		}
-
-		function pow4<V: numerics>(attribute<V> x)
-		-> attribute<V> := compose(sqr, sqr)(x);
+		function pow4<V: numerics, D: domains>(attribute<V> x (D))
+		-> attribute<V> (D) := compose(sqr, sqr)(x);
 	}
 
 	attribute<float64> flow4c (Road) := hof2/pow4(Road/flow);

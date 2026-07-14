@@ -161,11 +161,20 @@ void ConfigProd::DoItemHeading(iterator_t first, iterator_t last)
 	m_LastDeclNameCount = 1;
 	m_LastDeclSiblings.clear();
 
+	// §5.10 Stage 2: a domain spec '(D)' naming a type variable makes D a domain
+	// variable, bound from the argument's domain at reduction (capture before
+	// ConsumeGenericParamMarker, which may reset the signature state)
+	TokenID domainVar = FindActiveTypeVarConstraint(m_pParamEntity) ? m_pParamEntity : TokenID::GetEmptyID();
 	TokenID genericVar = ConsumeGenericParamMarker();
 
 	CreateItem(m_ItemNameID, first);
-	if (genericVar && !m_FuncStates.empty() && m_FuncStates.back().inParamList && IsTopLevelFunctionParam())
-		m_FuncStates.back().genericParams.emplace_back(m_FuncStates.back().paramCount, genericVar, FindActiveTypeVarConstraint(genericVar));
+	if (!m_FuncStates.empty() && m_FuncStates.back().inParamList && IsTopLevelFunctionParam())
+	{
+		if (genericVar)
+			m_FuncStates.back().genericParams.emplace_back(m_FuncStates.back().paramCount, genericVar, FindActiveTypeVarConstraint(genericVar), false);
+		if (domainVar)
+			m_FuncStates.back().genericParams.emplace_back(m_FuncStates.back().paramCount, domainVar, FindActiveTypeVarConstraint(domainVar), true);
+	}
 
 	ClearSignature();
 	ClearPropData();
@@ -475,10 +484,13 @@ bool ConfigProd::IsTopLevelFunctionParam() const
 
 TokenID ConfigProd::FindActiveTypeVarConstraint(TokenID varName) const
 {
-	if (varName && !m_FuncStates.empty())
-		for (const auto& typeVar : m_FuncStates.back().typeVars)
-			if (typeVar.first == varName)
-				return typeVar.second;
+	// lexical: a nested function sees the type variables of its enclosing function
+	// declarations, nearest first (§4.6/§5.10)
+	if (varName)
+		for (auto fsIt = m_FuncStates.rbegin(); fsIt != m_FuncStates.rend(); ++fsIt)
+			for (const auto& typeVar : fsIt->typeVars)
+				if (typeVar.first == varName)
+					return typeVar.second;
 	return TokenID::GetEmptyID();
 }
 
@@ -720,8 +732,10 @@ void ConfigProd::DoRefTypeSignature()
 		}
 		if (exemplar->IsFunctionItem())
 		{
-			if (m_FuncStates.empty() || !m_FuncStates.back().inParamList)
-				throwSemanticError("a function-signature type is only supported for function parameters");
+			// legal in function PARAMETER position and (§5.10 Stage 2) as a function
+			// RESULT type; OnFunctionResultSig converts the pending sig accordingly
+			if (m_FuncStates.empty())
+				throwSemanticError("a function-signature type is only supported for function parameters and results");
 			SetSignature(SignatureType::TreeItem);
 			m_PendingFunctionParamSig = exemplar;
 			return;
@@ -746,18 +760,21 @@ void ConfigProd::DoColonItemHeading(iterator_t first, iterator_t last)
 	m_LastDeclSiblings.clear();
 	if (m_PendingFunctionParamSig && (m_FuncStates.empty() || !m_FuncStates.back().inParamList))
 		throwSemanticError("a function-signature type is only supported for function parameters");
+	TokenID domainVar = FindActiveTypeVarConstraint(m_pParamEntity) ? m_pParamEntity : TokenID::GetEmptyID(); // §5.10 Stage 2
 	TokenID genericVar = ConsumeGenericParamMarker();
-	bool recordGenerics = genericVar && !m_FuncStates.empty() && m_FuncStates.back().inParamList;
+	bool inParams = !m_FuncStates.empty() && m_FuncStates.back().inParamList;
 	for (SizeT i = 0; i != m_PendingNames.size(); ++i)
 	{
 		CreateItem(m_PendingNames[i], first);
 		if (i + 1 != m_PendingNames.size())
 			m_LastDeclSiblings.push_back(m_pCurrent); // all but the last; props/expr also apply to these
-		bool topLevel = IsTopLevelFunctionParam();
+		bool topLevel = inParams && IsTopLevelFunctionParam();
 		if (m_PendingFunctionParamSig && topLevel)
 			m_FuncStates.back().paramSigs.emplace_back(m_FuncStates.back().paramCount + i, m_PendingFunctionParamSig);
-		if (recordGenerics && topLevel)
-			m_FuncStates.back().genericParams.emplace_back(m_FuncStates.back().paramCount + i, genericVar, FindActiveTypeVarConstraint(genericVar));
+		if (genericVar && topLevel)
+			m_FuncStates.back().genericParams.emplace_back(m_FuncStates.back().paramCount + i, genericVar, FindActiveTypeVarConstraint(genericVar), false);
+		if (domainVar && topLevel)
+			m_FuncStates.back().genericParams.emplace_back(m_FuncStates.back().paramCount + i, domainVar, FindActiveTypeVarConstraint(domainVar), true);
 	}
 	m_PendingNames.clear();
 	m_PendingFunctionParamSig = nullptr;
@@ -916,6 +933,28 @@ void ConfigProd::OnFunctionParamDecl()
 	m_FuncStates.back().paramCount += m_LastDeclNameCount;
 }
 
+void ConfigProd::OnAnonSigParam(iterator_t first)
+{
+	// §5.10 Stage 2: anonymous parameter in a signature alias, e.g.
+	// 'nuf = function<V: numerics, D: domains>(attribute<V>(D)) -> ...;'
+	// synthesize a positional name; the signature/domain state set by the type
+	// productions applies as for a named declaration
+	dms_assert(!m_FuncStates.empty());
+	m_ItemNameID = GetTokenID_mt(mgFormat2string("_{}", m_FuncStates.back().paramCount + 1).c_str());
+	DoItemHeading(first, first);
+	OnFunctionParamDecl();
+}
+
+void ConfigProd::OnParamSigTypeArg()
+{
+	// §5.10 Stage 2: an argument of a type application 'sig<V, D>' must name an
+	// active type variable; the binding is documentation in v1 (checks stay
+	// kind-level until the WP4.1 unifier)
+	if (!FindActiveTypeVarConstraint(m_strIdentifierID))
+		throwSemanticError(mgFormat2string("'{}': type application argument must name a type variable of the enclosing declaration"
+			, GetTokenStr(m_strIdentifierID)).c_str());
+}
+
 void ConfigProd::DoFunctionUsing()
 {
 	dms_assert(!m_FuncStates.empty());
@@ -937,6 +976,13 @@ void ConfigProd::OnFunctionResultSig()
 		// follows from the reduced expression
 		m_PendingGenericUnitVar = TokenID::GetEmptyID();
 		SetSignature(SignatureType::TreeItem);
+	}
+	if (m_PendingFunctionParamSig)
+	{
+		// §5.10 Stage 2: '-> some_signature_alias[<V, D>]' — a function-valued result;
+		// v1 records the function-ness (shape checks against the alias stay kind-level)
+		m_PendingFunctionParamSig = nullptr;
+		m_FuncStates.back().resultIsFunction = true;
 	}
 	auto& fs = m_FuncStates.back();
 	fs.resultSig           = m_eSignatureType;
@@ -1058,7 +1104,7 @@ void ConfigProd::OnFunctionDeclEnd(iterator_t first)
 	for (const auto& paramSig : fs.paramSigs)
 		TreeItem_AddFunctionParamSignature(func, paramSig.first, paramSig.second);
 	for (const auto& genericParam : fs.genericParams)
-		TreeItem_AddFunctionGenericParam(func, std::get<0>(genericParam), std::get<1>(genericParam), std::get<2>(genericParam));
+		TreeItem_AddFunctionGenericParam(func, std::get<0>(genericParam), std::get<1>(genericParam), std::get<2>(genericParam), std::get<3>(genericParam));
 	TreeItem_MakeStrictScope(func); // definition-side strictness: inline reduction resolves through this scope
 	m_FuncStates.pop_back();
 

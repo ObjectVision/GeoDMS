@@ -683,8 +683,8 @@ TIC_CALL void    TreeItem_CopyFunctionSpec(const TreeItem* dstFunctionItem, cons
 
 // generic type variables on function parameters: function f<V: numerics>(... attribute<V> x ...)
 class ValueClass;
-TIC_CALL void    TreeItem_AddFunctionGenericParam(const TreeItem* functionItem, UInt32 paramIndex, TokenID varName, TokenID constraintName);
-TIC_CALL bool    TreeItem_GetFunctionGenericParam(const TreeItem* functionItem, UInt32 seqNr, UInt32* paramIndex, TokenID* varName, TokenID* constraintName);
+TIC_CALL void    TreeItem_AddFunctionGenericParam(const TreeItem* functionItem, UInt32 paramIndex, TokenID varName, TokenID constraintName, bool isDomainVar = false);
+TIC_CALL bool    TreeItem_GetFunctionGenericParam(const TreeItem* functionItem, UInt32 seqNr, UInt32* paramIndex, TokenID* varName, TokenID* constraintName, bool* isDomainVar = nullptr);
 TIC_CALL bool    TreeItem_IsFunctionDefinitionChecked(const TreeItem* functionItem);
 TIC_CALL void    TreeItem_SetFunctionDefinitionChecked(const TreeItem* functionItem);
 TIC_CALL void    TreeItem_SetFunctionVariantSet(const TreeItem* functionItem);
