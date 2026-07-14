@@ -759,6 +759,20 @@ void ConfigProd::DoItemName()
 	m_ItemNameID = m_strIdentifierID;
 }
 
+void ConfigProd::OnBareExprHeading(iterator_t first)
+{
+	// §5.12 'name := expr;' — an auto-typed plain item: class and domain follow
+	// from the calculation (the DC layer derives them; the definition-time walker
+	// infers them inside function bodies)
+	m_LastDeclNameCount = 1;
+	m_LastDeclSiblings.clear();
+	DoItemName();
+	SetSignature(SignatureType::TreeItem);
+	CreateItem(m_ItemNameID, first);
+	ClearSignature();
+	ClearPropData();
+}
+
 // ============================= name:type declaration style
 
 void ConfigProd::StartPendingNames()

@@ -1161,9 +1161,43 @@ signature's own lexical world (never the checked function's variables).
 the definition scope past a sub-container-local shadower — such tokens now defer
 (`HasBodyShadower`, `fn_test_shadow.dms`).
 
-Still open in WP4.1:
-operator-signature reification (§10 P2), which upgrades the deferred operator
-positions to full inference — and with it auto type derivation (`a := mul(b, c)`).
+**WP4.1 operator signatures, batch 1 + §5.12 auto-typed declarations (implemented
+2026-07-14).** The typed walker's operator branch now consults a hand-curated
+signature registry (`FindOperatorSignature`/`InferOperator`,
+`tic/AbstrCalculator.cpp`): each signatured application instantiates an implicit
+generic signature — one fresh value node and one fresh domain node shared by all
+positions and (per kind) the result — exactly like a generic callee, so the
+existing unification (rigid ∀-semantics, void broadcast through the shared domain
+node) does all the reasoning. Batch 1, chosen strictly for kinds-level certainty:
+`add sub mul neg min_elem max_elem MakeDefined` (same value class in and out —
+metric products differ at the unit level, which stays per-application per §11;
+`+` on strings is covered by the unconstrained variable), `eq ne lt le gt ge`
+(→ bool over the shared domain), `and or not` (bool), `sqrt exp log sin cos tan`
+(floats-constrained — so `bad<V: numerics>(x) := sqrt(x)` is now a definition
+error: *"type variable 'V' must satisfy 'sqrt: floats' (operator 'sqrt') for
+every instantiation"*, and `x + boolattr` pins V and errors likewise). An arity
+outside the recorded range simply DEFERS, so signatures can only add judgments,
+never new arity rejections; unsignatured operators keep deferring. The remaining
+operator zoo can be added gradually (mechanical derivation from ClassCPtr ⊕
+UnitCreator ⊕ domain pattern stays the path for bulk adoption).
+
+**§5.12 auto-typed declarations**: `name := expr;` declares a PLAIN item whose
+class and domain follow from its calculation — the DC layer derives them at meta
+time (the `map`-children precedent), and inside function bodies the typed walker
+infers them (`raw := x * y;` is typed V[D] via the mul signature with no
+declaration). This also makes an untyped `result := …;` body item valid, so
+`-> restype { result := …; }` works without a typed result declaration. Grammar:
+`bareExprDecl` ordered after `anonFnDecl` (which claims `:= function` literals);
+`OnBareExprHeading` creates a SignatureType::TreeItem item. Limit: a direct
+FUNCTION-application rule on a bare item still requires a typed holder (the §5.9
+container-holder guard, with its existing instructive error); operator and
+data rules work. Tests `scratch/fn_test_opsig{,_neg1,_neg2}.dms`; all prelude
+bodies re-validated under typed operator positions (battery + tst /Rescale +
+/Arithmetics).
+
+Still open in WP4.1: growing the signature registry toward the full operator zoo
+(mechanical derivation), aggregations (result-domain changes: sum/mean/…), and
+lifting the function-application-into-bare-item restriction.
 
 ### 5.11 Anonymous functions and the brace-disambiguation rule *(tier A implemented 2026-07-14)*
 

@@ -1424,6 +1424,8 @@ namespace {
 	// generic-parameter records (which carry the same `<var: constraint>` pairs)
 	TokenID DeclaredConstraintOf(const TreeItem* fn, TokenID var)
 	{
+		if (!fn)
+			return TokenID(); // operator-signature variables have no owning function
 		if (auto tvs = TreeItem_GetFunctionTypeVars(fn))
 			for (const auto& tv : *tvs)
 				if (tv.first == var)
@@ -2517,6 +2519,7 @@ namespace {
 		DefType InferExpr(const TreeItem* refScope, LispPtr expr);
 		DefType InferArg(const TreeItem* refScope, LispPtr argExpr);
 		DefType InferApplication(const TreeItem* refScope, const DefType& fnVal, LispPtr argsList, CharPtr headName);
+		DefType InferOperator(const struct OperSig& sig, TokenID headID, const TreeItem* refScope, LispPtr argsList); // WP4.1 op-sig batch 1
 		DefType ParamType(UInt32 idx);
 		DefType DeclaredItemType(const TreeItem* item);
 		DefType PositionType(const TreeItem* posItem, const TreeItem* fnDef, UInt32 instance,
@@ -2994,6 +2997,101 @@ namespace {
 		return InferExpr(refScope, argExpr);
 	}
 
+	// ---- WP4.1 operator signatures, batch 1 (hand-curated) ----
+	//
+	// Kinds-level signature templates over ONE implicit value variable per
+	// application, instantiated exactly like an implicit generic callee: fresh
+	// unifier nodes per application; the void domain broadcasts through the shared
+	// domain node; metrics/counts stay per-application (§11). An application whose
+	// arity falls outside the recorded range simply DEFERS (variadic and
+	// optional-argument forms keep their per-application checking), so a signature
+	// can only ADD judgments, never new arity rejections.
+	enum class OperSigKind : UInt8
+	{
+		SameUnit,   // (V[D], V[D]) -> V[D] (or unary): add sub mul min_elem max_elem neg MakeDefined
+		Compare,    // (V[D], V[D]) -> bool[D]: eq ne lt le gt ge
+		Logical,    // (bool[D], ...) -> bool[D]: and or not
+		FloatFunc,  // (F[D]) -> F[D], F: floats — sqrt exp log sin cos tan
+	};
+	struct OperSig { OperSigKind kind; UInt32 minArgs, maxArgs; };
+
+	const OperSig* FindOperatorSignature(TokenID headID)
+	{
+		static const std::map<TokenID, OperSig> s_Sigs = []
+		{
+			std::map<TokenID, OperSig> m;
+			auto reg = [&m](CharPtr name, OperSigKind k, UInt32 lo, UInt32 hi)
+				{ m[GetTokenID_mt(name)] = OperSig{ k, lo, hi }; };
+			reg("add", OperSigKind::SameUnit, 2, 2); // '+' concatenates strings too: the constraint stays 'any'
+			reg("sub", OperSigKind::SameUnit, 2, 2);
+			reg("mul", OperSigKind::SameUnit, 2, 2); // metric products differ, value CLASSES agree (kinds level)
+			reg("neg", OperSigKind::SameUnit, 1, 1);
+			reg("min_elem", OperSigKind::SameUnit, 2, 4);
+			reg("max_elem", OperSigKind::SameUnit, 2, 4);
+			reg("MakeDefined", OperSigKind::SameUnit, 2, 2);
+			reg("eq", OperSigKind::Compare, 2, 2);
+			reg("ne", OperSigKind::Compare, 2, 2);
+			reg("lt", OperSigKind::Compare, 2, 2);
+			reg("le", OperSigKind::Compare, 2, 2);
+			reg("gt", OperSigKind::Compare, 2, 2);
+			reg("ge", OperSigKind::Compare, 2, 2);
+			reg("and", OperSigKind::Logical, 2, 2);
+			reg("or",  OperSigKind::Logical, 2, 2);
+			reg("not", OperSigKind::Logical, 1, 1);
+			reg("sqrt", OperSigKind::FloatFunc, 1, 1);
+			reg("exp",  OperSigKind::FloatFunc, 1, 1);
+			reg("log",  OperSigKind::FloatFunc, 1, 1);
+			reg("sin",  OperSigKind::FloatFunc, 1, 1);
+			reg("cos",  OperSigKind::FloatFunc, 1, 1);
+			reg("tan",  OperSigKind::FloatFunc, 1, 1);
+			return m;
+		}();
+		auto it = s_Sigs.find(headID);
+		return it == s_Sigs.end() ? nullptr : &it->second;
+	}
+
+	static TokenID t_gcFloatsTok = GetTokenID_st("floats");
+
+	DefType FunctionChecker::InferOperator(const OperSig& sig, TokenID headID, const TreeItem* refScope, LispPtr argsList)
+	{
+		std::vector<DefType> argTerms;
+		for (LispPtr a = argsList; !a.EndP(); a = a.Right())
+			argTerms.push_back(InferExpr(refScope, a.Left()));
+		if (argTerms.size() < sig.minArgs || argTerms.size() > sig.maxArgs)
+			return {}; // arity outside the recorded signature: defer (variadic/optional forms)
+
+		SharedStr headName(headID.AsStrRange()); // materialized: no TokenStr may span the unification calls
+		SharedStr src = mySSPrintF("operator '{}'", headName.c_str());
+
+		static const ValueClass* boolCls = ValueClass::FindByScriptName(GetTokenID_mt("bool"));
+		UInt32 inst = m_NextInstance++;
+
+		// the implicit signature: one value node, one domain node, shared by all
+		// positions and (per kind) the result
+		DefType posT; posT.kind = DefType::Kind::Data;
+		if (sig.kind == OperSigKind::Logical)
+			posT.vc = boolCls;
+		else
+			posT.vNode = m_Unifier.ValueVar(nullptr, inst, headID, src, false
+				, sig.kind == OperSigKind::FloatFunc ? t_gcFloatsTok : TokenID());
+		posT.dom = DefType::Dom::Node;
+		posT.dNode = m_Unifier.DomainVar(nullptr, inst, headID);
+
+		for (SizeT k = 0; k != argTerms.size(); ++k)
+		{
+			SharedStr argSrc = mySSPrintF("argument {} of operator '{}'", k + 1, headName.c_str());
+			UnifyData(argTerms[k], posT, argSrc, src);
+		}
+
+		DefType r = posT;
+		if (sig.kind == OperSigKind::Compare)
+		{
+			r.vNode = NO_TYPE_VAR;
+			r.vc = boolCls;
+		}
+		return r;
+	}
+
 	DefType FunctionChecker::InferExpr(const TreeItem* refScope, LispPtr expr)
 	{
 		if (expr.EndP())
@@ -3093,8 +3191,10 @@ namespace {
 			return r;
 		}
 
-		// built-in operator: arguments are still walked (nested calls get typed); the
-		// result stays deferred until operator signatures are reified (WP4.1 rest)
+		// built-in operator: a reified signature (batch 1) types the application;
+		// unsignatured operators keep walking their arguments and defer the result
+		if (auto sig = FindOperatorSignature(headID))
+			return InferOperator(*sig, headID, refScope, expr.Right());
 		for (LispPtr a = expr.Right(); !a.EndP(); a = a.Right())
 			InferExpr(refScope, a.Left());
 		return {};

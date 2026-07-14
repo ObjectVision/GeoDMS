@@ -109,6 +109,7 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 				| aliasFunctionSig
 				| aliasPlain
 				| anonFnDecl
+				| bareExprDecl
 				| (
 					itemDecl
 					>> assert_d("item terminator ';' expected after item definition")[
@@ -196,6 +197,16 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 					[([&cp](auto _1, auto) { cp.DoItemName(); cp.SetPendingNameLoc(_1);})]
 				>> as_lower_d[FUNCTION]
 				>> functionBody );
+
+			// §5.12 auto-typed declaration: name := expr; — a plain item whose type
+			// follows from its calculation (the DC layer derives class and domain;
+			// inside function bodies the definition-time walker infers it). Ordered
+			// AFTER anonFnDecl, which claims ':= function' literals.
+			bareExprDecl =
+				( (identifier >> COLON >> EQUAL)
+					[([&cp](auto _1, auto) { cp.OnBareExprHeading(_1); })]
+				>> m_ExprDef.start()[([&cp](auto _1, auto _2) { cp.DoExprProp(_1, _2);})]
+				>> assert_d("';' expected after auto-typed item definition")[SEMICOLON] );
 
 			// header through result spec, shared by the named, anonymous and
 			// result-position forms; OnFunctionDeclEnd placement differs (it must run
@@ -414,7 +425,7 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 		boost::spirit::rule<ScannerT> main, item, itemBlock,
 			preprocStatement,
 			itemDecl, itemHeading, itemSignature, colonHeading,
-			functionDecl, functionBody, functionSigAndResult, anonFnDecl, anonResultFunction, variantSet, variantDecl,
+			functionDecl, functionBody, functionSigAndResult, anonFnDecl, anonResultFunction, bareExprDecl, variantSet, variantDecl,
 			functionParamItem, functionSigParamItem, functionResultType, functionResultSpec, typeArgsOpt,
 			typeParamsClause, aliasFunctionSig, aliasPlain,
 			itemParam, unitIdentifier, basicType,
