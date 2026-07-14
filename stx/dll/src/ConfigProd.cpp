@@ -958,6 +958,15 @@ void ConfigProd::OnFunctionResultExpr(iterator_t first, iterator_t last)
 	m_FuncStates.back().resultExpr = SharedStr(CharPtrRange(&*first, &*last));
 }
 
+void ConfigProd::OnFunctionResultIsFunction()
+{
+	// §5.10 '-> function': the result is a nested function, designated by name
+	// (default 'result') from the body block; no data signature applies
+	dms_assert(!m_FuncStates.empty());
+	m_FuncStates.back().resultIsFunction = true;
+	SetSignature(SignatureType::TreeItem); // benign placeholder for OnFunctionResultSig
+}
+
 static TokenID t_Result = GetTokenID_st("result");
 
 void ConfigProd::OnFunctionDeclEnd(iterator_t first)
@@ -966,6 +975,10 @@ void ConfigProd::OnFunctionDeclEnd(iterator_t first)
 	auto& fs = m_FuncStates.back();
 	TreeItem* func = fs.funcItem.get();
 	dms_assert(func);
+
+	// §5.10 '-> function' without ':=': implicitly designate the nested function 'result'
+	if (fs.resultIsFunction && fs.resultExpr.empty())
+		fs.resultExpr = SharedStr("result");
 
 	// designation: a result expression that is just the name of a function sub-item
 	// designates that item as the result instead of creating a new one
@@ -1007,6 +1020,15 @@ void ConfigProd::OnFunctionDeclEnd(iterator_t first)
 			if (uniqueMatch)
 				designated = uniqueMatch->GetID();
 		}
+	}
+
+	if (fs.resultIsFunction)
+	{
+		if (!designated)
+			throwSemanticError("'-> function' requires a nested function named 'result' (or a ':= name' designation) in the body");
+		auto resultChild = func->GetSubTreeItemByID(designated);
+		if (!resultChild || !resultChild->IsFunctionItem())
+			throwSemanticError("'-> function': the designated result must be a nested function");
 	}
 
 	if (!designated)

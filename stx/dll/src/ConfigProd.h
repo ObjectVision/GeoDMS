@@ -107,6 +107,7 @@ struct ConfigProd : AbstrDataBlockProd, AbstrContextHandle
 	void DoFunctionUsing();
 	void DoFunctionResultName();
 	void OnFunctionResultSig();
+	void OnFunctionResultIsFunction(); // §5.10 '-> function'
 	void OnFunctionResultExpr(iterator_t first, iterator_t last);
 	void OnFunctionDeclEnd(iterator_t first);
 
@@ -190,6 +191,7 @@ void                ClearPropData();
 		SharedMutableTreeItem     funcItem;
 		UInt32                    paramCount = 0;
 		bool                      signatureOnly = false; // function-signature type alias: no result expression, no body
+		bool                      resultIsFunction = false; // §5.10 '-> function': result is a nested function
 		bool                      inParamList = false;
 		TokenID                   resultName;
 		SignatureType             resultSig = SignatureType::Undefined;

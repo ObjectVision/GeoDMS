@@ -896,7 +896,26 @@ explain-value trace already walks the reduced DC graph per operator node; an
 and showing the function body source with arguments substituted are the candidate
 additions.
 
-### 5.10 Function-valued results, closures, applied call results *(spec agreed 2026-07-13; WP3.2 Stage 1)*
+### 5.10 Function-valued results, closures, applied call results *(Stage 1 implemented 2026-07-14)*
+
+**Implementation status (Stage 1).** All three pieces below are implemented and
+verified (`scratch/fn_test_closure.dms`, `examples/function.dms` `hof2`): grammar =
+call-suffix chain in `functionCallOrIdentifier` + `apply_value` marker emission in
+`ProdFunctionCall` (list-valued head) + `-> function` result type with implicit
+designation of a nested function named `result` (`':=' now grammar-optional, enforced
+semantically for data results); reducer = `ReduceValue`/`ReduceMergedValue` return a
+`CallArg` (data key OR closure binding), closures = `ClosureEnv` {enclosing function,
+bound args by value, `next` chain} consulted by body symbol/head/arg resolution before
+imports and definition scope, `apply_value` dispatched at all five expression
+positions (root, sub-expression, body-data, body-arg, caller-arg) plus the
+definition-time checker. The recursion guard now keys on (function, environment):
+distinct closures of one nested function may stack in a single reduction chain
+(`compose(compose(double, inc), inc)(x)` works); genuine self-application still
+errors. Retired along the way: the dead `(result _T)` unwrap rule in RewriteExpr.lsp
+(no config calls `result(…)` in expression position; the head collided with nested
+`result` functions). v1 limitation: a closure captures the enclosing application's
+*parameters*; referencing an enclosing function's *locals* from a nested body errors
+("reference to (part of) a template or function") — lift on demand.
 
 Target (user sketch, typing layer elided to Stage 2):
 

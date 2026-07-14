@@ -144,6 +144,23 @@ container function_example
 	}
 	*/
 
+	// WP3.2 Stage 1 (implemented): compose returns a FUNCTION — the nested 'result'
+	// closes over f and g (captured by value from the enclosing application); a call
+	// result is applied with a further '(args)' suffix.
+	container hof2
+	{
+		function compose(f: function; g: function) -> function
+		{
+			function result<V: numerics>(attribute<V> x) -> attribute<V> := f(g(x));
+		}
+
+		function pow4<V: numerics>(attribute<V> x)
+		-> attribute<V> := compose(sqr, sqr)(x);
+	}
+
+	attribute<float64> flow4c (Road) := hof2/pow4(Road/flow);
+	attribute<float64> flow4d (Road) := hof2/compose(sqr, sqr)(Road/flow); // applied directly
+
 	attribute<float64> flow4  (Road) := hof/pow4(Road/flow);
 	attribute<float64> flow4b (Road) := hof/compose(sqr, sqr, Road/flow); // same, spelled directly
 
@@ -165,5 +182,7 @@ container function_example
 		parameter<float64> pow4_sumb  := sum(flow4b),            IntegrityCheck = "pow4_sumb == 27306250000.0";
 		parameter<float64> road_tot   := road_total,             IntegrityCheck = "road_tot == 3.0";
 		parameter<float64> rail_tot   := rail_total,             IntegrityCheck = "rail_tot == 1.5";
+		parameter<float64> pow4_sumc  := sum(flow4c),            IntegrityCheck = "pow4_sumc == 27306250000.0";
+		parameter<float64> pow4_sumd  := sum(flow4d),            IntegrityCheck = "pow4_sumd == 27306250000.0";
 	}
 }

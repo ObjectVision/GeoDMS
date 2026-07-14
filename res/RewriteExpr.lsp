@@ -174,8 +174,9 @@
 [(Expr   _T)       (PropValue _T "Expr" )]
 [(Label  _T)       (PropValue _T "Label")]
 [(STORAGE _T)      (PropValue _T "StorageName")]
-[(EK _T)           (PropValue _T "ExternalKeyData")]	
-[(result _T)       (_T) ]
+[(EK _T)           (PropValue _T "ExternalKeyData")]
+/* the '(result _T)' unwrap rule is retired (WP4.5): no config calls result(...) in
+   expression position, and the head collided with nested 'result' functions (§5.10) */
 
 /*********** Missing values    *********/
 

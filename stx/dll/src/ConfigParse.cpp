@@ -228,17 +228,21 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 				>> !itemBlock;
 
 			functionResultType =
-				( ( itemSignature
+				( ( as_lower_d[FUNCTION][([&cp](...) { cp.OnFunctionResultIsFunction();})] // §5.10 function-valued result
+				  | itemSignature
 				  | itemRef[([&cp](...) { cp.DoRefTypeSignature();})] )
 					>> !(LPAREN >> itemParam >> *(',' >> itemParam) >> RPAREN)
 				)
 				[([&cp](...) { cp.OnFunctionResultSig();})];
 
+			// ':= expr' is optional in the grammar (a '-> function' result may designate a
+			// nested function named 'result' from the body block); OnFunctionDeclEnd
+			// enforces its presence for data results
 			functionResultSpec =
 				!( (identifier >> COLON)[([&cp](...) { cp.DoFunctionResultName();})] )
 				>> assert_d("function result type expected after '->'")[functionResultType]
-				>> assert_d("':=' and result expression expected in function result specification")[COLON >> EQUAL]
-				>> m_ExprDef.start()[([&cp](auto _1, auto _2) { cp.OnFunctionResultExpr(_1, _2);})];
+				>> !( (COLON >> EQUAL)
+					>> m_ExprDef.start()[([&cp](auto _1, auto _2) { cp.OnFunctionResultExpr(_1, _2);})] );
 
 			// ==== TYPE ALIASES: alias = type;   (vs. 'name : type;' which declares an item)
 

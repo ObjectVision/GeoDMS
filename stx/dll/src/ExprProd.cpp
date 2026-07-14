@@ -95,18 +95,25 @@ void ExprProd::ProdStringValue()
 	);
 }
 
+static TokenID t_apply_value = GetTokenID_st("apply_value");
+
 void ExprProd::ProdFunctionCall()
 {
-	// function_call -> function_name ( list ) 
-	// (arg_list, (function_name, tail)) -> ((function_name, arg_list), tail)
-	m_Result.repl_back2(
-		RewriteExprTop_InParse(
-			LispRefList(
-				m_Result.Second().AsLispPtr()
-			,	m_Result.First().AsLispPtr()
-			)
-		)
-	);
+	// function_call -> head ( list )
+	// (arg_list, (head, tail)) -> ((head, arg_list), tail)
+	// §5.10: when the head is itself a call (a chained suffix like f(a)(b)), every
+	// expression head must stay a plain symbol, so emit a marker form instead:
+	// (apply_value (innerCall) arg...)
+	LispRef head = m_Result.Second();
+	LispRef call;
+	if (head.IsRealList())
+	{
+		static LispRef applyValueHead(t_apply_value);
+		call = LispRef(applyValueHead, LispRef(head, m_Result.First()));
+	}
+	else
+		call = LispRefList(head.AsLispPtr(), m_Result.First().AsLispPtr());
+	m_Result.repl_back2(RewriteExprTop_InParse(call));
 }
 
 void ExprProd::ProdIdentifier(iterator_t first, iterator_t last)

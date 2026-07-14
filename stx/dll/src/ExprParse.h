@@ -300,11 +300,14 @@ struct expr_grammar : public boost::spirit::grammar<expr_grammar<Prod>>
 					>> COMMA  >> expression
 					>> RPAREN [([&](...) { cp.ProdScope(); })];
 
+			// §5.10: call suffixes chain — each further '(args)' applies the RESULT of
+			// the previous call (compose(sqr, sqr)(x)); ProdFunctionCall emits an
+			// apply_value marker when the head is a call rather than an identifier
 			functionCallOrIdentifier
-				 = identifier 
-				 >> ! 
-					( LPAREN 
-						>> exprList 
+				 = identifier
+				 >> *
+					( LPAREN
+						>> exprList
 						>> assert_d("')' or ',' expected after argument-list of function-call")[RPAREN]
 						)[([&](...) { cp.ProdFunctionCall();})];
 					

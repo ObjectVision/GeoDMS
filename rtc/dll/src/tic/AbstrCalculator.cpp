@@ -1044,6 +1044,7 @@ namespace {
 	}
 	static TokenID t_ApplyItem       = GetTokenID_st("apply_item");       // §5.9 'apply X(args)' marker head
 	static TokenID t_InstantiateItem = GetTokenID_st("instantiate_item"); // §5.9 'instantiate X(args)' marker head
+	static TokenID t_ApplyValue      = GetTokenID_st("apply_value");      // §5.10 '(args)' applied to a call result
 	static TokenID t_ContainerLiteral = GetTokenID_st("container_literal"); // §5.9 '{ m: e; … }' argument literal
 	static TokenID t_Member           = GetTokenID_st("member");            // §5.9 '(member name value)'
 	static TokenID t_NoDomain         = GetTokenID_st("no_domain");         // §5.9 domain-less literal marker
@@ -1108,12 +1109,26 @@ namespace {
 		bool IsFunctionValue() const { return binding != nullptr; }
 	};
 
+	// §5.10 closure environment: the enclosing application's parameters and their bound
+	// values, captured BY VALUE (already-substituted keys/items/bindings) when a nested
+	// function is returned as a result. `next` chains the enclosing function's own
+	// environment (nested closures). Because captured values are concrete interned
+	// keys — never unresolved symbols — capture is hygienic by construction.
+	struct ClosureEnv
+	{
+		const TreeItem*              funcItem = nullptr; // the enclosing function definition
+		std::vector<CallArg>         args;               // its bound arguments, positionally
+		std::shared_ptr<ClosureEnv>  next;               // the enclosing application's own env
+	};
+
 	// a function value: the function plus one slot per declared parameter. A slot with
-	// isHole is unbound; applying the binding fills the holes left-to-right.
+	// isHole is unbound; applying the binding fills the holes left-to-right. `env` is
+	// the captured closure environment when the function was returned as a result.
 	struct FunctionBinding
 	{
 		SharedTreeItem       funcItem;
 		std::vector<CallArg> slots;
+		std::shared_ptr<ClosureEnv> env;
 		UInt32 NrHoles() const { UInt32 n = 0; for (const auto& s : slots) if (s.isHole) ++n; return n; }
 	};
 
@@ -1127,6 +1142,7 @@ namespace {
 		std::vector<SharedTreeItem>    m_ArgItems;    // per param: the referenced item iff the argument was a plain reference (enables member access), else null
 		std::vector<std::shared_ptr<FunctionBinding>> m_ArgBindings; // per param: the bound function value iff the argument is a function, else null
 		std::vector<std::shared_ptr<ContainerLiteralArg>> m_ArgLiterals; // per param: the container-literal argument, else null
+		std::shared_ptr<ClosureEnv>    m_Env;         // §5.10: closure environment of the applied function, else null
 		std::vector<const TreeItem*>   m_Params;      // the first N sub-items of m_FuncItem
 		std::map<const TreeItem*, LispRef> m_Reductions;
 		std::set<const TreeItem*>      m_InProgress;
@@ -1134,6 +1150,8 @@ namespace {
 		void PushArg(const CallArg& a) { m_ArgKeys.push_back(a.key); m_ArgItems.push_back(a.item); m_ArgBindings.push_back(a.binding); m_ArgLiterals.push_back(a.literal); }
 
 		LispRef Reduce();
+		CallArg ReduceValue(); // §5.10: like Reduce, but a function-typed result yields a closure binding
+		bool ResolveEnvSymbol(TokenID symbID, SharedTreeItem* foundItemPtr, LispRef* keyPtr, std::shared_ptr<FunctionBinding>* bindingPtr); // §5.10 closure-env lookup
 		LispRef ReduceBodyItem(const TreeItem* bodyItem);
 		LispRef SubstituteBodyExpr(const TreeItem* refScope, LispPtr expr);
 		LispRef ResolveBodySymbol(const TreeItem* refScope, TokenID symbID, SharedTreeItem* foundItemPtr);
@@ -1158,23 +1176,35 @@ namespace {
 		if (holeFills.size() != b.NrHoles())
 			throwErrorF("ExprParser", "'{}': function expects {} argument(s); {} provided"
 				, b.funcItem->GetFullName().c_str(), b.NrHoles(), holeFills.size());
-		FunctionBinding r; r.funcItem = b.funcItem;
+		FunctionBinding r; r.funcItem = b.funcItem; r.env = b.env;
 		UInt32 c = 0;
 		for (const auto& slot : b.slots)
 			r.slots.push_back(slot.isHole ? holeFills[c++] : slot);
 		return r;
 	}
 
-	LispRef ReduceMerged(const FunctionBinding& merged, const FunctionApplication* parent, SubstitutionBuffer* substBuff, SharedTreeItem errorHolder)
+	// §5.10: reduce a fully-bound application to its VALUE — a data key, or a closure
+	// binding when the applied function has a function-typed result
+	CallArg ReduceMergedValue(const FunctionBinding& merged, const FunctionApplication* parent, SubstitutionBuffer* substBuff, SharedTreeItem errorHolder)
 	{
 		FunctionApplication appl;
 		appl.m_FuncItem = merged.funcItem.get();
 		appl.m_Parent = parent;
 		appl.m_SubstBuff = substBuff;
 		appl.m_ErrorHolder = errorHolder;
+		appl.m_Env = merged.env;
 		for (const auto& slot : merged.slots)
 			appl.PushArg(slot);
-		return appl.Reduce();
+		return appl.ReduceValue();
+	}
+
+	LispRef ReduceMerged(const FunctionBinding& merged, const FunctionApplication* parent, SubstitutionBuffer* substBuff, SharedTreeItem errorHolder)
+	{
+		CallArg r = ReduceMergedValue(merged, parent, substBuff, errorHolder);
+		if (r.binding)
+			throwErrorF("ExprParser", "'{}': a function value can only be applied with '(...)', passed as an argument, or returned as a result"
+				, merged.funcItem->GetFullName().c_str());
+		return r.key;
 	}
 
 	// caller-side (non-body) argument resolution: build a CallArg from a caller-scope
@@ -1217,6 +1247,21 @@ namespace {
 				CallArg a; a.literal = BuildContainerLiteral(argExpr, resolveData); return a;
 			}
 
+			// §5.10 applied call result as an argument: value or residual binding
+			if (headID == t_ApplyValue)
+			{
+				CallArg fnVal = ResolveCallerArg(argExpr.Right().Left(), resolveData, findItem, substBuff, errorHolder);
+				if (!fnVal.binding)
+					throwErrorF("ExprParser", "'(...)' applied to an expression that is not a function value");
+				std::vector<CallArg> outer;
+				for (LispPtr a = argExpr.Right().Right(); !a.EndP(); a = a.Right())
+					outer.push_back(ResolveCallerArg(a.Left(), resolveData, findItem, substBuff, errorHolder));
+				FunctionBinding merged = MergeBinding(*fnVal.binding, outer);
+				if (merged.NrHoles() == 0)
+					return ReduceMergedValue(merged, nullptr, substBuff, errorHolder);
+				CallArg a; a.binding = std::make_shared<FunctionBinding>(std::move(merged)); return a;
+			}
+
 			const AbstrOperGroup* og = AbstrOperGroup::FindName(headID);
 			if (og->IsTemplateCall())
 			{
@@ -1229,9 +1274,7 @@ namespace {
 						sub.push_back(ResolveCallerArg(a.Left(), resolveData, findItem, substBuff, errorHolder));
 					FunctionBinding merged = MergeBinding(*MakeAllHoles(callee), sub);
 					if (merged.NrHoles() == 0)
-					{
-						CallArg a; a.key = ReduceMerged(merged, nullptr, substBuff, errorHolder); return a;
-					}
+						return ReduceMergedValue(merged, nullptr, substBuff, errorHolder); // §5.10: data key OR closure binding
 					CallArg a; a.binding = std::make_shared<FunctionBinding>(std::move(merged)); return a;
 				}
 			}
@@ -1390,11 +1433,22 @@ namespace {
 
 	LispRef FunctionApplication::Reduce()
 	{
+		CallArg r = ReduceValue();
+		if (r.binding)
+			throwErrorF("ExprParser", "'{}': a function value can only be applied with '(...)', passed as an argument, or returned as a result"
+				, m_FuncItem->GetFullName().c_str());
+		return r.key;
+	}
+
+	CallArg FunctionApplication::ReduceValue()
+	{
 		assert(m_FuncItem && m_FuncItem->IsTemplate()); // functions are IsTemplate too
 		assert(m_ErrorHolder);
 
 		for (const FunctionApplication* ancestor = m_Parent; ancestor; ancestor = ancestor->m_Parent)
-			if (ancestor->m_FuncItem == m_FuncItem)
+			if (ancestor->m_FuncItem == m_FuncItem && ancestor->m_Env == m_Env)
+				// same function AND same closure environment: §5.10 allows distinct
+				// closures of one nested function within a single reduction chain
 				throwErrorF("ExprParser", "'{}': recursive function application is not supported"
 					, m_FuncItem->GetFullName().c_str());
 
@@ -1515,12 +1569,41 @@ namespace {
 			if (!resultChild)
 				throwErrorF("ExprParser", "'{}': designated result '{}' not found"
 					, m_FuncItem->GetFullName().c_str(), resultName.GetStr().c_str());
-			if (resultChild->GetExpr().empty())
-				throwErrorF("ExprParser", "'{}' is a function signature without implementation and cannot be applied"
-					, m_FuncItem->GetFullName().c_str());
 		}
 
-		return ReduceBodyItem(resultChild.get());
+		// §5.10: a function-typed result yields a closure — the nested function plus
+		// this application's bound parameters, captured by value
+		if (resultChild->IsFunctionItem())
+		{
+			auto env = std::make_shared<ClosureEnv>();
+			env->funcItem = m_FuncItem;
+			env->args.reserve(nrParams);
+			for (UInt32 i = 0; i != nrParams; ++i)
+			{
+				CallArg a;
+				a.key = m_ArgKeys[i]; a.item = m_ArgItems[i];
+				a.binding = m_ArgBindings[i]; a.literal = m_ArgLiterals[i];
+				env->args.push_back(std::move(a));
+			}
+			env->next = m_Env;
+
+			CallArg r;
+			r.binding = std::make_shared<FunctionBinding>();
+			r.binding->funcItem = resultChild;
+			r.binding->slots.resize(TreeItem_GetFunctionParamCount(resultChild.get()));
+			for (auto& s : r.binding->slots)
+				s.isHole = true;
+			r.binding->env = std::move(env);
+			return r;
+		}
+
+		if (resultChild->GetExpr().empty())
+			throwErrorF("ExprParser", "'{}' is a function signature without implementation and cannot be applied"
+				, m_FuncItem->GetFullName().c_str());
+
+		CallArg r;
+		r.key = ReduceBodyItem(resultChild.get());
+		return r;
 	}
 
 	LispRef FunctionApplication::ReduceBodyItem(const TreeItem* bodyItem)
@@ -1577,6 +1660,15 @@ namespace {
 				throwErrorF("ExprParser", "the '{}' construct is not yet supported inside inlined function bodies"
 					"; bind the function application to a container to use the instantiating form"
 					, headID.GetStr().c_str());
+
+			// §5.10 applied call result in a data position: must reduce all the way to data
+			if (headID == t_ApplyValue)
+			{
+				CallArg r = ResolveBodyArg(refScope, expr);
+				if (r.binding)
+					throwErrorF("ExprParser", "a function value can only be applied with '(...)', passed as an argument, or returned as a result");
+				return r.key;
+			}
 
 			const AbstrOperGroup* og = AbstrOperGroup::FindName(headID);
 			assert(og);
@@ -1641,6 +1733,26 @@ namespace {
 		}
 
 		return expr; // numeric, string and UInt64 literals
+	}
+
+	// §5.10: look a name up in the captured closure environment(s): the enclosing
+	// applications' parameters, nearest enclosure first. Returns true when bound.
+	bool FunctionApplication::ResolveEnvSymbol(TokenID symbID, SharedTreeItem* foundItemPtr, LispRef* keyPtr, std::shared_ptr<FunctionBinding>* bindingPtr)
+	{
+		for (auto env = m_Env; env; env = env->next)
+		{
+			UInt32 i = 0;
+			for (const TreeItem* c = env->funcItem->_GetFirstSubItem(); c && i < env->args.size(); c = c->GetNextItem(), ++i)
+				if (c->GetID() == symbID)
+				{
+					const CallArg& a = env->args[i];
+					if (foundItemPtr) *foundItemPtr = a.item;
+					if (keyPtr)       *keyPtr = a.key;
+					if (bindingPtr)   *bindingPtr = a.binding;
+					return true;
+				}
+		}
+		return false;
 	}
 
 	LispRef FunctionApplication::ResolveBodySymbol(const TreeItem* refScope, TokenID symbID, SharedTreeItem* foundItemPtr)
@@ -1738,6 +1850,40 @@ namespace {
 				break;
 		}
 
+		// §5.10: the captured closure environment — the enclosing applications' bound
+		// parameters — is lexically nearer than any import or definition-scope item
+		if (m_Env)
+		{
+			SharedTreeItem envItem; LispRef envKey; std::shared_ptr<FunctionBinding> envBnd;
+			if (ResolveEnvSymbol(firstTok, &envItem, &envKey, &envBnd))
+			{
+				if (envBnd)
+					throwErrorF("ExprParser", "'{}': a captured function value can only be applied or passed on as an argument"
+						, fullStr.c_str());
+				if (slash == e)
+				{
+					if (foundItemPtr)
+						*foundItemPtr = envItem;
+					return envKey;
+				}
+				// member access through a captured structured value: descend into the
+				// argument item, as for a directly bound parameter
+				if (!envItem)
+					throwErrorF("ExprParser", "'{}': member access through captured '{}' requires the corresponding argument to be a direct item reference"
+						, fullStr.c_str(), firstTok.GetStr().c_str());
+				auto member = FindSubItem(envItem.get(), SharedStr(CharPtrRange(slash + 1, e)));
+				if (!member)
+					throwErrorF("ExprParser", "'{}': the argument captured as '{}' has no member '{}'"
+						, fullStr.c_str(), firstTok.GetStr().c_str(), SharedStr(CharPtrRange(slash + 1, e)).c_str());
+				member->UpdateMetaInfo();
+				if (m_SubstBuff)
+					registerSupplier(*m_SubstBuff, member.get());
+				if (foundItemPtr)
+					*foundItemPtr = member;
+				return member->GetCheckedKeyExpr();
+			}
+		}
+
 		// imports and externals: own scope + explicit imports first, then the lexical
 		// definition scope (§4.6 revision 2026-07-13: identifiers resolve to what is
 		// visible from the point of definition; the call site stays invisible)
@@ -1788,6 +1934,20 @@ namespace {
 					return m_ArgBindings[i]->funcItem;
 				}
 
+		// §5.10: a captured function value from the closure environment
+		if (m_Env)
+		{
+			SharedTreeItem envItem; LispRef envKey; std::shared_ptr<FunctionBinding> envBnd;
+			if (ResolveEnvSymbol(headID, &envItem, &envKey, &envBnd))
+			{
+				if (!envBnd)
+					throwErrorF("ExprParser", "'{}': captured value is applied as a function but is not a function reference"
+						, headID.GetStr().c_str());
+				if (paramBinding) *paramBinding = envBnd;
+				return envBnd->funcItem;
+			}
+		}
+
 		auto callee = m_FuncItem->FindItem(SharedStr(headID.AsStrRange()));
 		if (!callee || !callee->IsFunctionItem())
 			if (auto defParent = m_FuncItem->GetTreeParent()) // lexical definition scope (§4.6)
@@ -1832,6 +1992,13 @@ namespace {
 							{
 								CallArg a; a.binding = m_ArgBindings[i]; return a;
 							}
+					// §5.10: a captured value from the closure environment
+					if (m_Env)
+					{
+						CallArg a;
+						if (ResolveEnvSymbol(sym, &a.item, &a.key, &a.binding))
+							return a;
+					}
 					// import or lexically visible function?
 					auto callee = m_FuncItem->FindItem(s);
 					if (!callee || !callee->IsFunctionItem())
@@ -1862,6 +2029,22 @@ namespace {
 				return a;
 			}
 
+			// §5.10 applied call result: reduce the inner expression to a function value,
+			// bind the outer arguments; the result may again be a value or a binding
+			if (headID == t_ApplyValue)
+			{
+				CallArg fnVal = ResolveBodyArg(refScope, argExpr.Right().Left());
+				if (!fnVal.binding)
+					throwErrorF("ExprParser", "'(...)' applied to an expression that is not a function value");
+				std::vector<CallArg> outer;
+				for (LispPtr a = argExpr.Right().Right(); !a.EndP(); a = a.Right())
+					outer.push_back(ResolveBodyArg(refScope, a.Left()));
+				FunctionBinding merged = MergeBinding(*fnVal.binding, outer);
+				if (merged.NrHoles() == 0)
+					return ReduceMergedValue(merged, this, m_SubstBuff, m_ErrorHolder);
+				CallArg a; a.binding = std::make_shared<FunctionBinding>(std::move(merged)); return a;
+			}
+
 			const AbstrOperGroup* og = AbstrOperGroup::FindName(headID);
 			if (og->IsTemplateCall())
 			{
@@ -1873,9 +2056,7 @@ namespace {
 					sub.push_back(ResolveBodyArg(refScope, a.Left()));
 				FunctionBinding merged = MergeBinding(calleeBinding, sub);
 				if (merged.NrHoles() == 0)
-				{
-					CallArg a; a.key = ReduceMerged(merged, this, m_SubstBuff, m_ErrorHolder); return a;
-				}
+					return ReduceMergedValue(merged, this, m_SubstBuff, m_ErrorHolder); // §5.10: data key OR closure binding
 				CallArg a; a.binding = std::make_shared<FunctionBinding>(std::move(merged)); return a;
 			}
 		}
@@ -1980,6 +2161,15 @@ namespace {
 			throwErrorF("ExprParser", "the '{}' construct is not yet supported inside inlined function bodies"
 				"; bind the function application to a container to use the instantiating form"
 				, headID.GetStr().c_str());
+
+		// §5.10 applied call result: check the sub-expressions; arity of the application
+		// is argument-dependent (the inner value's residual params) — verified at reduction
+		if (headID == t_ApplyValue)
+		{
+			for (LispPtr a = expr.Right(); !a.EndP(); a = a.Right())
+				CheckExpr(refScope, a.Left());
+			return;
+		}
 
 		const AbstrOperGroup* og = AbstrOperGroup::FindName(headID);
 		if (og->IsTemplateCall() && !ValueClass::FindByScriptName(headID)) // value-type heads (float64(x)) are conversions, not function calls
@@ -2509,6 +2699,37 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 				goto exit;
 			}
 
+			// §5.10 applied call result: reduce the inner expression to a function value and
+			// bind the outer arguments; the final result must be data in this position
+			if (head.GetSymbID() == t_ApplyValue)
+			{
+				if (substBuff.optionalVisitor)
+				{
+					// visit-only pass: record the suppliers of the sub-expressions
+					for (LispPtr a = localExpr.Right(); !a.EndP(); a = a.Right())
+					{
+						SubstituteExpr_impl(substBuff, LispRef(a.Left()), metainfo_policy_flags::subst_allowed);
+						if (substBuff.avs == AVS_SuspendedOrFailed)
+							return {};
+					}
+					goto exit; // bufferValue stays empty
+				}
+				{
+					auto avHolder = m_Holder.lock();
+					if (!avHolder)
+						throwTaskCanceled();
+					auto avResolveData = [&](LispPtr e) { return SubstituteExpr_impl(substBuff, LispRef(e), metainfo_policy_flags::subst_allowed); };
+					auto avFindItem = [&](TokenID t) -> SharedTreeItem { return FindItem(t); };
+					CallArg r = ResolveCallerArg(localExpr, avResolveData, avFindItem, &substBuff, avHolder);
+					if (substBuff.avs == AVS_SuspendedOrFailed)
+						return {};
+					if (r.binding)
+						throwErrorF("ExprParser", "a function value can only be applied with '(...)', passed as an argument, or returned as a result");
+					bufferValue = r.key;
+				}
+				goto exit;
+			}
+
 			// §5.9: a container literal only exists as a function argument, destructured by
 			// ResolveCallerArg. It reaches here only on the visit-only supplier walk: recurse
 			// into the domain and member values (with '.' rebound to the domain) to register
@@ -2684,7 +2905,7 @@ MetaInfo AbstrCalculator::SubstituteExpr(SubstitutionBuffer& substBuff, LispPtr 
 
 		LispRef head = localExpr.Left();
 		TokenID exprHeadID = head.GetSymbID();
-		if (exprHeadID == token::arrow || exprHeadID == token::scope)
+		if (exprHeadID == token::arrow || exprHeadID == token::scope || exprHeadID == t_ApplyValue)
 			goto skipTemplInst;
 
 		// §5.9 explicit application forms
