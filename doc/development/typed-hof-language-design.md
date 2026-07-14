@@ -1,7 +1,7 @@
 # GeoDMS as a typed higher-order function language — design
 
 *Status: design + implementation log. Started 2026-07-11 as a design proposal; the bulk
-of it is now implemented on branch `refactor_ownership` (v20.9.0). All file:line
+of it is now implemented on branch `hof_syntax` (v20.9.0). All file:line
 references were verified against that tree.*
 
 **Implementation status (v20.9.0).** Done and tested end-to-end:
@@ -20,12 +20,25 @@ references were verified against that tree.*
   no-holder-magic rule (Phase A), container literals `domain { m: e; … }` in
   argument position, destructured at β-reduction (Phase B), and `apply T(args)` for
   templates via β-reduction of the CI-unique `result` sub-item (Phase C). See §5.9.
+- **WP4.5 prelude** — `res/prelude.dms` auto-imported as the implicit outermost
+  namespace; 25 RewriteExpr.lsp rules retired as typed functions (§8.4).
+- **§4.6 revision** — lexical definition-scope for function bodies (call-site
+  isolation kept); no `using` needed to see siblings of the definition.
+- **WP3.2 / §5.10** — function-valued results, closures (capture-by-value,
+  hygienic), applied call results `f(g)(x)`, generic signature aliases
+  (`nuf = function<V: numerics, D: domains>(…) -> …`), type application
+  (`f: nuf<V, D>`), domain type-variables.
+- **§5.7 v2** — variant specificity (most-specific dispatch over constraint
+  acceptance sets) + definition-time disjointness of variant sets.
+- **WP4.1 t1+t2** — type-application binding enforcement, then full application-time
+  unification with variable-variable links and constraint-set intersection (§5.10
+  status block).
 
 Not yet implemented (specs below remain actionable): the redundant top-level
-`{ X(args) }` sugar (§5.9 deferred list), lambdas (WP3.2, optional — partial
-application covers the space), the opt-in `applyF` boundary DataController (WP4.2), the
-full Robinson TypeSpec unifier + operator-signature reification (WP4.1), and the
-RewriteExpr.lsp retirement tranche (WP4.5). Verification configs live in the gitignored
+`{ X(args) }` sugar (§5.9 deferred list), the opt-in `applyF` boundary
+DataController (WP4.2), operator-signature reification + the definition-time typed
+body walker (WP4.1 remainder, §10 P2), and the WP4.5 tranche-3 heads (variadic /
+optional-argument rules). Verification configs live in the gitignored
 `scratch/fn_test*.dms`; the shipped example is `examples/function.dms`.
 
 ## 1. Motivation and scope
@@ -1022,10 +1035,51 @@ Mechanism: the ordered `<var: constraint>` list and per-parameter type-applicati
 arguments persist in the function spec (`TreeItem_SetFunctionTypeVars`,
 `TreeItem_GetFunctionParamSigTypeArgs`); `ReduceValue` maps signature variables to
 applied variables positionally and merges per-position constraints
-(`SigConstraint` pass in `tic/AbstrCalculator.cpp`). Still open in WP4.1: full
-Robinson unification over TypeSpec terms (variable-variable links, occurs check via
-sym/Prolog), operator-signature reification (§10 P2), and variant
-specificity/disjointness.
+(`SigConstraint` pass in `tic/AbstrCalculator.cpp`).
+
+**WP4.1 tranche 2 implemented (2026-07-14): Robinson unification with
+variable-variable links.** The per-application bind-or-conflict maps are replaced by
+a unification store (`TypeUnifier`, `tic/AbstrCalculator.cpp`): type and domain
+variables — identified by *(owner function, name)* — live in union-find equivalence
+classes; a class carries at most one concrete binding (a value class, resp. a domain
+unit merged via `UnifyDomain`) and, for value variables, the **intersection** of all
+member constraints as an acceptance set over the closed value-class universe (the
+§5.7 v2 bitset mechanism). A `sig<V, D>`-typed parameter now propagates the bound
+function's **generic** positions too: a position naming the bound function's own
+variable `W` links `W ≡ V` (tranche 1 skipped these — "generic positions constrain
+nothing"). Consequences, each attributed:
+
+- a constraint reaches an applied variable *through a link*: `ap(fhalf, int_data)`
+  with `fhalf<W: floats>` bound to `f: nuf<V, D>` errors *"Int32 (parameter 'x')
+  does not satisfy 'W: floats' (function '/fhalf' bound to parameter 'f')"* — at
+  `ap`'s application, instead of deep inside `fhalf`'s later one;
+- an **empty constraint intersection** errors with no concrete anchor anywhere:
+  `ap2(fhalf, uinc)` with `uinc<U: uints>` → *"no value type can instantiate type
+  variable 'V': 'W: floats' (function '/fhalf' bound to parameter 'f') conflicts
+  with 'U: uints' (function '/uinc' bound to parameter 'g')"* — pure
+  variable-variable reasoning, invisible to tranche 1;
+- a bound function using **one** variable in two signature positions forces the
+  mapped applied variables equal (`A ≡ W ≡ B`), so conflicting data arguments are
+  caught transitively (*"inconsistent instantiation of type variable 'B': Int32
+  (parameter 'y') vs Float64 (parameter 'x')"*).
+
+The occurs check is trivially satisfied at application time: §5 type terms are
+shallow (concrete units are opaque, compared by key identity per §2). Composite
+parameter types — a network table with `node_rel`s and an impedance attribute — do
+not change that: record/table types enter the unifier as one-level field-wise terms,
+and the only self-reference (a member attribute's domain being the enclosing unit)
+is a *binder*, not a free variable, so no cyclic substitution can arise; structural
+member checks remain per-application until the definition-time walker types them.
+Tranche-1 message wording was unified under the store's source attribution:
+`compose(fhalf, iinc)` now reads *"inconsistent instantiation of type variable 'V':
+Float64 (function '/fhalf' bound to parameter 'f') vs Int32 (function '/iinc' bound
+to parameter 'g')"*, and `mixap(road_only, Rail/flow)` *"… the domain bound via
+parameter 'y' differs from the domain bound by function '/road_only' (bound to
+parameter 'h')"*. The store is per-application and monotonic; the definition-time
+checker will reuse it with rigid (skolem) variables. Tests
+`scratch/fn_test_vv{,_neg1,_neg2,_neg3}.dms`. Still open in WP4.1:
+operator-signature reification (§10 P2) and the definition-time typed body walker
+(the WP3.4 upgrade).
 
 ## 6. Verified mechanism inventory
 
@@ -1510,25 +1564,31 @@ checking.
 
 ### P4 — unifier, boundary keys, refinements, rewrite end-state (implementation-ready)
 
-**WP4.1 — TypeSpec unifier on Robinson unification (unlocks variants + operator
-signatures).** The resurrected Prolog processor provides the algorithm:
-`UnifyRobinson(t1, t2, assoc)` (`sym/Prolog.cpp:100-133`, occurs-check included,
-returns an `AssocList` substitution or `failed()`), plus the iterative
-Martelli-Montanari-style `Unify` via `ReduceCaneghem` (`:148-191`) as an alternative.
-**The `Occur` occurs-check defect is FIXED in 20.9.0** (`Prolog.cpp:93-99` now uses
-`||`, not `&&`, so the check detects an occurrence in either subtree). The unifier and
-its variant/operator-signature consumers remain to build. *Design:* encode signatures
-as LispRef TypeSpecs (§7) where unit/value-type
-positions are ChroID variables; per candidate (overload variant, operator signature),
-`Renum` the spec with a fresh chromosome (Prolog.cpp:59) and `UnifyRobinson` it
-against the argument TypeSpec vector; constraint variables verify their binding via
-`MatchesGenericConstraint` (`tic/TreeItem.cpp`) after unification. Variant selection:
-unify against every variant of the set; exactly one success — or the most
-specific of several (concrete beats variable) — else ambiguity error. Operator
-signature reification stays mechanical: ClassCPtr array ⊕ UnitCreator name ⊕
-domain-unify pattern (§6) generated per registered `Operator`, opt-in per group;
-first consumers are call diagnostics and WP3.4 (upgrading it from shape checks to
-full checks against operator signatures).
+**WP4.1 — TypeSpec unifier on Robinson unification. Core IMPLEMENTED in 20.9.0
+(tranches 1+2, §5.10 status); operator signatures + definition-time walker remain.**
+Application-time checking runs on a dedicated union-find store (`TypeUnifier`,
+`tic/AbstrCalculator.cpp`) over value-class and domain variables, with
+variable-variable links, constraint-set intersection (§5.7 v2 acceptance-set
+bitsets), concrete bindings via value-class identity resp. `UnifyDomain`, and
+per-source attribution — a Robinson unifier specialized to §5's shallow type terms,
+where the occurs check is trivially satisfied (concrete units are opaque key-identity
+atoms; record/table self-reference is a binder, §5.10). Variant selection shipped
+separately on the same acceptance-set mechanism (§5.7 v2 specificity), not on
+unification. The Prolog machinery (`UnifyRobinson`, `sym/Prolog.cpp:100-133`,
+occurs-check `Occur` FIXED to `||` in 20.9.0; `Renum` :59) remains the design anchor
+for the *remaining* consumers, where terms become genuinely recursive: encode
+operator signatures and inferred body types as LispRef TypeSpecs (§7) with ChroID
+variables; per candidate, `Renum` with a fresh chromosome and unify against the
+argument TypeSpec vector; constraint variables verify via `MatchesGenericConstraint`
+(or intersect acceptance sets, as the store already does). Composite parameter types
+(tables/records, e.g. a network with `node_rel`s and an impedance attribute) unify
+field-wise with width subtyping (§II.4). Operator signature reification stays
+mechanical: ClassCPtr array ⊕ UnitCreator name ⊕ domain-unify pattern (§6) generated
+per registered `Operator`, opt-in per group — unsignatured operators defer to
+per-application checking, so adoption is gradual; first consumers are call
+diagnostics and the WP3.4 upgrade from shape checks to full definition-time type
+checks (rigid variables for the function's own `<V, D>`, the unification store for
+everything the body derives).
 
 **WP4.2 — `applyF` boundary keys (R6/R7, opt-in).** Inline reduction stays the
 default (it preserves rewrite-rule key identity, §8.3). For very large bodies or

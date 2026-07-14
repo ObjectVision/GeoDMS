@@ -51,6 +51,7 @@
 #include "DataArrayValue.h"
 
 #include <algorithm>
+#include <bitset>
 #include <functional>
 #include <map>
 #include <memory>
@@ -1376,6 +1377,208 @@ namespace {
 		return false;
 	}
 
+	// ---- WP4.1 tranche 2: unification store over an application's type variables ----
+	//
+	// Robinson unification specialized to the shallow type terms of §5: value-class
+	// variables and domain variables (concrete units are opaque, compared by
+	// UnifyDomain — key identity, §2). Variables are identified by (owner function,
+	// name), so a signature-typed parameter can LINK the bound generic function's OWN
+	// variable to one of the applied function's variables — a genuine
+	// variable-variable link, kept as a union-find equivalence class. Every class
+	// carries at most one concrete binding and, for value variables, the intersection
+	// of all member constraints as an acceptance set over the closed value-class
+	// universe (the §5.7 v2 mechanism), so conflicts surface at the application that
+	// creates them — with attribution — even when no member of the class is ever
+	// bound concretely.
+
+	using ValueClassSet = std::bitset<UInt32(ValueClassID::VT_Count)>;
+
+	ValueClassSet GenericConstraintSet(TokenID constraintName)
+	{
+		ValueClassSet r;
+		for (UInt32 v = 0; v != UInt32(ValueClassID::VT_Count); ++v)
+			if (auto vc = ValueClass::FindByValueClassID(ValueClassID(v)))
+				if (MatchesGenericConstraint(vc, constraintName))
+					r.set(v);
+		return r;
+	}
+
+	// the declared constraint of `var`: fn's ordered type-variable list, else the
+	// generic-parameter records (which carry the same `<var: constraint>` pairs)
+	TokenID DeclaredConstraintOf(const TreeItem* fn, TokenID var)
+	{
+		if (auto tvs = TreeItem_GetFunctionTypeVars(fn))
+			for (const auto& tv : *tvs)
+				if (tv.first == var)
+					return tv.second;
+		UInt32 seqNr = 0, idx; TokenID gv, cons; bool isDom;
+		while (TreeItem_GetFunctionGenericParam(fn, seqNr++, &idx, &gv, &cons, &isDom))
+			if (gv == var)
+				return cons;
+		return TokenID();
+	}
+
+	struct TypeUnifier
+	{
+		const TreeItem* m_ApplItem; // the applied function, for error attribution
+
+		struct ConstraintRec { TokenID name, constraint; SharedStr source; ValueClassSet set; };
+		struct ValueNode
+		{
+			SizeT parent; // union-find: parent == own index at a root
+			TokenID name; // the user-visible variable name (roots keep the outer one)
+			const ValueClass* bound = nullptr;
+			SharedStr boundSource;
+			ValueClassSet feasible; // invariant: the intersection of all constraint sets
+			std::vector<ConstraintRec> constraints;
+		};
+		struct DomainNode
+		{
+			SizeT parent;
+			TokenID name;
+			SharedTreeItem keepAlive; // owns the liveness of `bound`
+			const AbstrUnit* bound = nullptr;
+			SharedStr boundSource;
+		};
+		std::vector<ValueNode>  m_ValueNodes;
+		std::vector<DomainNode> m_DomainNodes;
+		std::map<std::pair<const TreeItem*, TokenID>, SizeT> m_ValueVarIndex, m_DomainVarIndex;
+
+		SizeT FindV(SizeT i) { while (m_ValueNodes[i].parent != i) i = m_ValueNodes[i].parent = m_ValueNodes[m_ValueNodes[i].parent].parent; return i; }
+		SizeT FindD(SizeT i) { while (m_DomainNodes[i].parent != i) i = m_DomainNodes[i].parent = m_DomainNodes[m_DomainNodes[i].parent].parent; return i; }
+
+		// get-or-create the node for owner's variable; a freshly created node seeds its
+		// acceptance set from the variable's declared constraint, attributed to `declSource`
+		SizeT ValueVar(const TreeItem* owner, TokenID name, const SharedStr& declSource)
+		{
+			auto [it, isNew] = m_ValueVarIndex.try_emplace(std::make_pair(owner, name), m_ValueNodes.size());
+			if (isNew)
+			{
+				ValueNode n; n.parent = m_ValueNodes.size(); n.name = name;
+				n.feasible.set();
+				if (TokenID cons = DeclaredConstraintOf(owner, name))
+				{
+					ConstraintRec rec{ name, cons, declSource, GenericConstraintSet(cons) };
+					n.feasible = rec.set;
+					n.constraints.push_back(std::move(rec));
+				}
+				m_ValueNodes.push_back(std::move(n));
+			}
+			return it->second;
+		}
+		SizeT DomainVar(const TreeItem* owner, TokenID name)
+		{
+			auto [it, isNew] = m_DomainVarIndex.try_emplace(std::make_pair(owner, name), m_DomainNodes.size());
+			if (isNew)
+			{
+				DomainNode n; n.parent = m_DomainNodes.size(); n.name = name;
+				m_DomainNodes.push_back(std::move(n));
+			}
+			return it->second;
+		}
+
+		void CheckFeasible(const ValueNode& n, const ValueClass* vt, const SharedStr& source)
+		{
+			if (n.feasible.test(UInt32(vt->GetValueClassID())))
+				return;
+			for (const auto& rec : n.constraints)
+				if (!rec.set.test(UInt32(vt->GetValueClassID())))
+					throwErrorF("ExprParser", "'{}': {} ({}) does not satisfy '{}: {}' ({})"
+						, m_ApplItem->GetFullName().c_str()
+						, vt->GetName().c_str(), source.c_str()
+						, rec.name.GetStr().c_str(), rec.constraint.GetStr().c_str(), rec.source.c_str());
+			throwErrorF("ExprParser", "'{}': {} ({}) does not satisfy the combined constraints on type variable '{}'"
+				, m_ApplItem->GetFullName().c_str(), vt->GetName().c_str(), source.c_str(), n.name.GetStr().c_str());
+		}
+
+		void BindValue(SizeT i, const ValueClass* vt, const SharedStr& source)
+		{
+			auto& n = m_ValueNodes[FindV(i)];
+			if (n.bound)
+			{
+				if (n.bound != vt)
+					throwErrorF("ExprParser", "'{}': inconsistent instantiation of type variable '{}': {} ({}) vs {} ({})"
+						, m_ApplItem->GetFullName().c_str(), n.name.GetStr().c_str()
+						, n.bound->GetName().c_str(), n.boundSource.c_str()
+						, vt->GetName().c_str(), source.c_str());
+				return;
+			}
+			CheckFeasible(n, vt, source);
+			n.bound = vt; n.boundSource = source;
+		}
+
+		void LinkValue(SizeT a, SizeT b)
+		{
+			SizeT ra = FindV(a), rb = FindV(b);
+			if (ra == rb)
+				return;
+			auto& na = m_ValueNodes[ra];
+			auto& nb = m_ValueNodes[rb];
+			if (na.bound && nb.bound && na.bound != nb.bound)
+				throwErrorF("ExprParser", "'{}': inconsistent instantiation of type variable '{}': {} ({}) vs {} ({})"
+					, m_ApplItem->GetFullName().c_str(), na.name.GetStr().c_str()
+					, na.bound->GetName().c_str(), na.boundSource.c_str()
+					, nb.bound->GetName().c_str(), nb.boundSource.c_str());
+			if (na.bound && !nb.bound)
+				CheckFeasible(nb, na.bound, na.boundSource);
+			if (!na.bound && nb.bound)
+				CheckFeasible(na, nb.bound, nb.boundSource);
+			if (!na.bound && !nb.bound && (na.feasible & nb.feasible).none())
+			{
+				// attribute a mutually exclusive pair when one exists
+				for (const auto& recA : na.constraints)
+					for (const auto& recB : nb.constraints)
+						if ((recA.set & recB.set).none())
+							throwErrorF("ExprParser", "'{}': no value type can instantiate type variable '{}': '{}: {}' ({}) conflicts with '{}: {}' ({})"
+								, m_ApplItem->GetFullName().c_str(), na.name.GetStr().c_str()
+								, recA.name.GetStr().c_str(), recA.constraint.GetStr().c_str(), recA.source.c_str()
+								, recB.name.GetStr().c_str(), recB.constraint.GetStr().c_str(), recB.source.c_str());
+				throwErrorF("ExprParser", "'{}': no value type satisfies the combined constraints on type variable '{}'"
+					, m_ApplItem->GetFullName().c_str(), na.name.GetStr().c_str());
+			}
+			// merge rb into ra: ra keeps its (outer) name; payload and constraints unite
+			if (!na.bound && nb.bound)
+			{
+				na.bound = nb.bound; na.boundSource = nb.boundSource;
+			}
+			na.feasible &= nb.feasible;
+			na.constraints.insert(na.constraints.end(), nb.constraints.begin(), nb.constraints.end());
+			nb.parent = ra;
+		}
+
+		void BindDomain(SizeT i, SharedTreeItem keepAlive, const AbstrUnit* du, const SharedStr& source)
+		{
+			auto& n = m_DomainNodes[FindD(i)];
+			if (n.bound)
+			{
+				if (!n.bound->UnifyDomain(du, "", "", UnifyMode(UM_AllowVoidRight)))
+					throwErrorF("ExprParser", "'{}': inconsistent instantiation of domain variable '{}': the domain bound {} differs from the domain bound {}"
+						, m_ApplItem->GetFullName().c_str(), n.name.GetStr().c_str()
+						, n.boundSource.c_str(), source.c_str());
+				return;
+			}
+			n.keepAlive = std::move(keepAlive); n.bound = du; n.boundSource = source;
+		}
+
+		void LinkDomain(SizeT a, SizeT b)
+		{
+			SizeT ra = FindD(a), rb = FindD(b);
+			if (ra == rb)
+				return;
+			auto& na = m_DomainNodes[ra];
+			auto& nb = m_DomainNodes[rb];
+			if (na.bound && nb.bound && !na.bound->UnifyDomain(nb.bound, "", "", UnifyMode(UM_AllowVoidRight)))
+				throwErrorF("ExprParser", "'{}': inconsistent instantiation of domain variable '{}': the domain bound {} differs from the domain bound {}"
+					, m_ApplItem->GetFullName().c_str(), na.name.GetStr().c_str()
+					, na.boundSource.c_str(), nb.boundSource.c_str());
+			if (!na.bound && nb.bound)
+			{
+				na.keepAlive = nb.keepAlive; na.bound = nb.bound; na.boundSource = nb.boundSource;
+			}
+			nb.parent = ra;
+		}
+	};
+
 	void CheckFunctionSignature(const TreeItem* boundFn, const TreeItem* sigExemplar, CharPtr paramName)
 	{
 		UInt32 nrSigParams = TreeItem_GetFunctionParamCount(sigExemplar);
@@ -1535,11 +1738,13 @@ namespace {
 			}
 		}
 
-		// generic type variables: check constraint satisfaction and per-variable
-		// consistency of the actual arguments' value classes; §5.10 Stage 2: domain
-		// variables bind the arguments' DOMAIN UNITS and must agree across parameters
-		std::map<TokenID, std::pair<const ValueClass*, const TreeItem*>> varBindings;
-		std::map<TokenID, std::tuple<SharedTreeItem, const AbstrUnit*, const TreeItem*>> domainBindings; // keep-alive, unit, first param
+		// generic type variables: bind each variable from the actual arguments' value
+		// classes / domain units into the unification store (WP4.1 tranche 2), which
+		// also receives variable-variable links from the signature-typed parameters
+		// below — consistency and constraint satisfaction are checked per equivalence
+		// class, with attribution
+		TypeUnifier unifier{ m_FuncItem };
+		SharedStr declSource = mySSPrintF("declared by function '{}'", m_FuncItem->GetFullName().c_str());
 		UInt32 seqNr = 0, gpIndex; TokenID gpVar, gpConstraint; bool gpIsDomain;
 		while (TreeItem_GetFunctionGenericParam(m_FuncItem, seqNr++, &gpIndex, &gpVar, &gpConstraint, &gpIsDomain))
 		{
@@ -1568,15 +1773,8 @@ namespace {
 				if (du->GetValueType()->GetValueClassID() == ValueClassID::VT_Void)
 				{ /* void broadcasts into any D and does not constrain it */ }
 				else
-				{
-					auto& db = domainBindings[gpVar];
-					if (std::get<1>(db) && !std::get<1>(db)->UnifyDomain(du, "", "", UnifyMode(UM_AllowVoidRight)))
-						throwErrorF("ExprParser", "'{}': inconsistent instantiation of domain variable '{}': the domains of the arguments for parameters '{}' and '{}' differ"
-							, m_FuncItem->GetFullName().c_str(), gpVar.GetStr().c_str()
-							, std::get<2>(db)->GetID().GetStr().c_str(), gpParam->GetID().GetStr().c_str());
-					if (!std::get<1>(db))
-						db = { argResult, du, gpParam };
-				}
+					unifier.BindDomain(unifier.DomainVar(m_FuncItem, gpVar), argResult, du
+						, mySSPrintF("via parameter '{}'", gpParam->GetID().GetStr().c_str()));
 				continue;
 			}
 			const ValueClass* vt = nullptr;
@@ -1587,28 +1785,17 @@ namespace {
 			if (!vt)
 				throwErrorF("ExprParser", "'{}': parameter '{}' requires an attribute or unit argument"
 					, m_FuncItem->GetFullName().c_str(), gpParam->GetID().GetStr().c_str());
-			if (!MatchesGenericConstraint(vt, gpConstraint))
-				throwErrorF("ExprParser", "'{}': argument of type {} for parameter '{}' does not satisfy '{}: {}'"
-					, m_FuncItem->GetFullName().c_str()
-					, vt->GetName().c_str()
-					, gpParam->GetID().GetStr().c_str()
-					, gpVar.GetStr().c_str(), gpConstraint.GetStr().c_str());
-			auto& binding = varBindings[gpVar];
-			if (binding.first && binding.first != vt)
-				throwErrorF("ExprParser", "'{}': inconsistent instantiation of type variable '{}': {} (parameter '{}') vs {} (parameter '{}')"
-					, m_FuncItem->GetFullName().c_str()
-					, gpVar.GetStr().c_str()
-					, binding.first->GetName().c_str(), binding.second->GetID().GetStr().c_str()
-					, vt->GetName().c_str(), gpParam->GetID().GetStr().c_str());
-			if (!binding.first)
-				binding = { vt, gpParam };
+			unifier.BindValue(unifier.ValueVar(m_FuncItem, gpVar, declSource), vt
+				, mySSPrintF("parameter '{}'", gpParam->GetID().GetStr().c_str()));
 		}
 
 		// WP4.1: merge signature-instantiation constraints — for each 'sig<V, D>'-typed
-		// parameter, the bound function's CONCRETE positions (declared value classes,
-		// resolvable declared domains) instantiate the applied variables; generic
-		// positions of the bound function constrain nothing
-		auto outerVars = TreeItem_GetFunctionTypeVars(m_FuncItem);
+		// parameter, the bound function's positions instantiate or LINK the applied
+		// variables: a concrete position BINDS the mapped variable; a position naming
+		// the bound function's OWN generic variable LINKS that variable to the mapped
+		// one (variable-variable unification: the constraint sets intersect, and a
+		// concrete binding of either variable propagates to the whole equivalence
+		// class — tranche 2)
 		for (const auto& sc : sigConstraints)
 		{
 			std::map<TokenID, TokenID> sig2outer;
@@ -1616,6 +1803,8 @@ namespace {
 				sig2outer[(*sc.sigVars)[k].first] = (*sc.typeArgs)[k];
 
 			const TreeItem* viaParam = m_Params[sc.paramIndex];
+			SharedStr sigSource = mySSPrintF("function '{}' bound to parameter '{}'"
+				, sc.boundFn->GetFullName().c_str(), viaParam->GetID().GetStr().c_str());
 			auto constrainPos = [&](const TreeItem* sigPos, const TreeItem* fnPos)
 			{
 				if (!sigPos || !fnPos || !IsDataItem(sigPos) || !IsDataItem(fnPos))
@@ -1623,42 +1812,30 @@ namespace {
 
 				auto itV = sig2outer.find(AsDataItem(sigPos)->ValuesUnitToken());
 				if (itV != sig2outer.end())
-					if (auto vc = ParamValueClass(fnPos))
-					{
-						if (outerVars)
-							for (const auto& ov : *outerVars)
-								if (ov.first == itV->second && !MatchesGenericConstraint(vc, ov.second))
-									throwErrorF("ExprParser", "'{}': function '{}' bound to parameter '{}' instantiates '{}' as {}, which does not satisfy '{}: {}'"
-										, m_FuncItem->GetFullName().c_str(), sc.boundFn->GetFullName().c_str()
-										, viaParam->GetID().GetStr().c_str(), itV->second.GetStr().c_str()
-										, vc->GetName().c_str(), itV->second.GetStr().c_str(), ov.second.GetStr().c_str());
-						auto& b = varBindings[itV->second];
-						if (b.first && b.first != vc)
-							throwErrorF("ExprParser", "'{}': inconsistent instantiation of type variable '{}': {} (from function '{}' bound to parameter '{}') vs {} (via parameter '{}')"
-								, m_FuncItem->GetFullName().c_str(), itV->second.GetStr().c_str()
-								, vc->GetName().c_str(), sc.boundFn->GetFullName().c_str(), viaParam->GetID().GetStr().c_str()
-								, b.first->GetName().c_str(), b.second->GetID().GetStr().c_str());
-						if (!b.first)
-							b = { vc, viaParam };
-					}
+				{
+					TokenID fnVU = AsDataItem(fnPos)->ValuesUnitToken();
+					if (fnVU && IsGenericVarOf(sc.boundFn.get(), fnVU))
+						unifier.LinkValue(
+							unifier.ValueVar(m_FuncItem, itV->second, declSource),
+							unifier.ValueVar(sc.boundFn.get(), fnVU, sigSource));
+					else if (auto vc = ParamValueClass(fnPos))
+						unifier.BindValue(unifier.ValueVar(m_FuncItem, itV->second, declSource), vc, sigSource);
+				}
 
 				auto itD = sig2outer.find(AsDataItem(sigPos)->DomainUnitToken());
 				if (itD != sig2outer.end())
 				{
 					TokenID fnDU = AsDataItem(fnPos)->DomainUnitToken();
-					if (fnDU && !IsGenericVarOf(sc.boundFn.get(), fnDU))
+					if (fnDU && IsGenericVarOf(sc.boundFn.get(), fnDU))
+						unifier.LinkDomain(
+							unifier.DomainVar(m_FuncItem, itD->second),
+							unifier.DomainVar(sc.boundFn.get(), fnDU));
+					else if (fnDU)
 						if (auto defP = sc.boundFn->GetTreeParent())
 							if (auto u = defP->FindItem(SharedStr(fnDU.AsStrRange())); u && IsUnit(u.get()))
-							{
-								auto& db = domainBindings[itD->second];
-								if (std::get<1>(db) && !std::get<1>(db)->UnifyDomain(AsUnit(u.get()), "", "", UnifyMode(UM_AllowVoidRight)))
-									throwErrorF("ExprParser", "'{}': inconsistent instantiation of domain variable '{}': the domain declared by function '{}' (bound to parameter '{}') differs from the domain bound via parameter '{}'"
-										, m_FuncItem->GetFullName().c_str(), itD->second.GetStr().c_str()
-										, sc.boundFn->GetFullName().c_str(), viaParam->GetID().GetStr().c_str()
-										, std::get<2>(db)->GetID().GetStr().c_str());
-								if (!std::get<1>(db))
-									db = { u, AsUnit(u.get()), viaParam };
-							}
+								unifier.BindDomain(unifier.DomainVar(m_FuncItem, itD->second), u, AsUnit(u.get())
+									, mySSPrintF("by function '{}' (bound to parameter '{}')"
+										, sc.boundFn->GetFullName().c_str(), viaParam->GetID().GetStr().c_str()));
 				}
 			};
 
