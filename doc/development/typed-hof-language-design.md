@@ -1509,10 +1509,41 @@ exposed by `reversed_id`). Still in the .lsp, with reasons: `order`/`isOverlappi
 tranche-3 bodies), 3-arg `median` and 2-arg `log` (their heads shadow retained
 rules/operators — need arity-aware head dispatch or optional args), `concat`/
 `switch`/`index`/`subindex`/`combine_data`/`replace(_value)` chains (variadic — B/C),
-accessors (`Value`/`const`/`collect_by_*`/`PropValue` — E), bool/pseudo-aggregation
-simplifications (D — stay by design as the future compiled-in pass), `rjoin`
-(self-join collapse rule), `ReadValue` (optional args), `claim_*` (RuimteScanner
-model logic — coordination).
+accessors (`Value`/`const`/`collect_by_*` — E), the property accessors
+`name`/`Descr`/`Expr`/`Label`/`STORAGE`/`EK` (one-argument `PropValue` aliases that
+*look* retirable but are not — see below), bool/pseudo-aggregation simplifications
+(D — stay by design as the future compiled-in pass), `rjoin` (self-join collapse
+rule, below), `ReadValue` (optional args), `claim_*` (RuimteScanner model logic —
+coordination).
+
+**Two negative findings (2026-07-14), both about *why* a rule cannot become a
+prelude function — the boundary of the technique:**
+
+- **`rjoin` (and any rule whose output re-triggers rewriting).** `RewriteExpr` runs
+  on the original expression *before* `SubstituteExpr` β-reduces function
+  applications (`tic/AbstrCalculator.cpp:695`), and a body is itself rewritten before
+  substitution (`:2039`) — but the β-reduction *output* is never re-rewritten. So a
+  function is key-safe only when the retained rules that would fire on its result are
+  either inlined into the body or fire during the body's own pre-substitution rewrite
+  (the tranche-3 `order`/`isOverlapping` case). `rjoin(a,b,c) → lookup(rlookup(a,b),
+  c)` is fine on its own, but the *separate* self-join collapse `lookup(rlookup(a,a),
+  c) → c` fires only when the two `rlookup` args are structurally identical, which
+  only becomes true *after* substitution (`a` and `b` both bind the same key). A
+  prelude `rjoin` would therefore key `rjoin(x, x, c)` as `lookup(rlookup(x,x), c)`
+  instead of the old `c` — a key-identity break. Stays.
+
+- **The property accessors need a *meta-reference* argument, which functions don't
+  pass.** `PropValue` is a `calc_requires_metainfo` operator: its item argument must
+  reach it as a raw reference to the config item, not as a data expression. The
+  rewrite rule `[(name _T) (PropValue _T "name")]` keeps `_T` syntactic, so PropValue
+  sees the reference. A prelude `name(container t) := PropValue(t, 'name')` instead
+  resolves the argument through the ordinary *data* path, so `t` becomes the
+  argument's data key — a unit's range expression, an attribute's calc rule — and
+  PropValue reads the *computed item's* metadata, not the config item's. Verified
+  empirically: `name(container)` works (a container has no data key, so the reference
+  survives), but `name(unit)` and `name(attribute)` return the wrong value. Retiring
+  these needs a meta-reference parameter kind in the function machinery (a parameter
+  that substitutes as the item reference, like the member-access path already does).
 
 **Auto-import implemented (2026-07-13).** The prelude is auto-imported at config load
 (`stx/dll/src/StxInterface.cpp`, `CreateTreeFromConfiguration`): parsed into a hidden,

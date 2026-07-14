@@ -167,8 +167,14 @@
 [(Label  _T)       (PropValue _T "Label")]
 [(STORAGE _T)      (PropValue _T "StorageName")]
 [(EK _T)           (PropValue _T "ExternalKeyData")]
-/* the '(result _T)' unwrap rule is retired (WP4.5): no config calls result(...) in
-   expression position, and the head collided with nested 'result' functions (§5.10) */
+/* These stay as rewrite rules: PropValue is a calc_requires_metainfo operator whose
+   item argument must remain a raw meta-reference. The rewrite keeps _T syntactic, but
+   a prelude function would resolve the argument to its DATA key (a unit's range
+   expression, an attribute's calc rule), so PropValue would read the wrong item's
+   metadata — verified: name(container) works, name(unit)/name(attr) do not. Retiring
+   these needs meta-reference parameter support in the function machinery.
+   The '(result _T)' unwrap rule is retired (WP4.5): no config calls result(...) in
+   expression position, and the head collided with nested 'result' functions (§5.10). */
 
 /*********** Missing values    *********/
 
