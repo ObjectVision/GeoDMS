@@ -901,6 +901,10 @@ void ConfigProd::OnVariantSetEnd()
 {
 	// the set container is closed; the variants have already been finalized
 	DoEndBlock(); // pop the set container opened by DoBeginBlock after OnVariantSetHeading
+
+	// §5.7 v2: definition-time disjointness — overlapping variants must be
+	// specificity-ordered (token-based match sets; parse-safe)
+	TreeItem_CheckVariantSetDisjointness(m_pCurrent.get());
 }
 
 void ConfigProd::OnFunctionSigHeading(iterator_t first)

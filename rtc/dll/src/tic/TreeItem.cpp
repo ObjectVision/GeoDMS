@@ -15,6 +15,7 @@
 
 #include "RtcInterface.h"
 #include "mci/ValueClass.h"
+#include "mci/ValueClassID.h"
 #include "mci/ValueComposition.h"
 #include "act/ActorLock.h"
 #include "act/ActorVisitor.h"
@@ -67,6 +68,7 @@
 
 #include "set/StaticQuickAssoc.h"
 
+#include <bitset>
 #include <unordered_set>
 
 // user-defined function items: declared parameter count + designated result sub-item
@@ -1477,6 +1479,145 @@ TIC_CALL const std::vector<std::pair<TokenID, TokenID>>* TreeItem_GetFunctionTyp
 	if (specPtr && !specPtr->typeVars.empty())
 		return &specPtr->typeVars;
 	return nullptr;
+}
+
+// ===================================== §5.7 v2: variant specificity / disjointness
+
+namespace {
+
+	using VariantParamSet = std::bitset<UInt32(ValueClassID::VT_Count)>;
+
+	// the set of value classes a variant parameter accepts, over the CLOSED value-class
+	// universe: a generic values-variable -> its constraint's subset; a concrete
+	// script-named class -> singleton; anything else (plain items, composite types,
+	// function-typed parameters, item-spec units) -> everything ("soft" wildcard).
+	// Token-based only: safe at parse time (no meta machinery).
+	VariantParamSet VariantParamMatchSet(const TreeItem* variant, UInt32 paramIndex, const TreeItem* param, bool* isHard)
+	{
+		VariantParamSet s;
+		UInt32 seqNr = 0, idx; TokenID var, cons; bool isDom;
+		while (TreeItem_GetFunctionGenericParam(variant, seqNr++, &idx, &var, &cons, &isDom))
+			if (idx == paramIndex && !isDom)
+			{
+				for (UInt32 v = 0; v != UInt32(ValueClassID::VT_Count); ++v)
+					if (auto vc = ValueClass::FindByValueClassID(ValueClassID(v)))
+						if (MatchesGenericConstraint(vc, cons))
+							s.set(v);
+				if (isHard) *isHard = true;
+				return s;
+			}
+		const ValueClass* vc = nullptr;
+		if (IsDataItem(param))
+			vc = ValueClass::FindByScriptName(AsDataItem(param)->ValuesUnitToken());
+		else if (IsUnit(param))
+			vc = AsUnit(param)->GetValueType();
+		if (vc)
+		{
+			s.set(UInt32(vc->GetValueClassID()));
+			if (isHard) *isHard = true;
+			return s;
+		}
+		s.set(); // wildcard
+		if (isHard) *isHard = false;
+		return s;
+	}
+
+	struct VariantMatchInfo
+	{
+		const TreeItem*              variant = nullptr;
+		std::vector<VariantParamSet> sets;
+		bool                         allHard = true;
+	};
+
+	VariantMatchInfo GetVariantMatchInfo(const TreeItem* variant)
+	{
+		VariantMatchInfo r;
+		r.variant = variant;
+		UInt32 np = TreeItem_GetFunctionParamCount(variant);
+		r.sets.reserve(np);
+		const TreeItem* param = variant->_GetFirstSubItem();
+		for (UInt32 i = 0; i != np && param; ++i, param = param->GetNextItem())
+		{
+			bool hard = false;
+			r.sets.push_back(VariantParamMatchSet(variant, i, param, &hard));
+			r.allHard = r.allHard && hard;
+		}
+		return r;
+	}
+
+	// -1: a strictly more specific than b; +1: b strictly more specific; 0: identical
+	// coverage; 2: incomparable. Requires equal arity.
+	int CompareVariantInfo(const VariantMatchInfo& a, const VariantMatchInfo& b)
+	{
+		bool aLEb = true, bLEa = true;
+		for (SizeT i = 0; i != a.sets.size(); ++i)
+		{
+			if ((a.sets[i] & ~b.sets[i]).any()) aLEb = false;
+			if ((b.sets[i] & ~a.sets[i]).any()) bLEa = false;
+		}
+		if (aLEb && bLEa) return 0;
+		if (aLEb) return -1;
+		if (bLEa) return +1;
+		return 2;
+	}
+
+} // anonymous namespace
+
+TIC_CALL bool TreeItem_VariantMatches(const TreeItem* variant, const std::vector<const ValueClass*>& argVCs)
+{
+	if (TreeItem_GetFunctionParamCount(variant) != argVCs.size())
+		return false;
+	auto info = GetVariantMatchInfo(variant);
+	for (SizeT i = 0; i != argVCs.size(); ++i)
+	{
+		if (!argVCs[i])
+		{
+			if (!info.sets[i].all())
+				return false; // a non-class argument (function value, literal) only matches a wildcard position
+			continue;
+		}
+		if (!info.sets[i].test(UInt32(argVCs[i]->GetValueClassID())))
+			return false;
+	}
+	return true;
+}
+
+TIC_CALL int TreeItem_CompareVariantSpecificity(const TreeItem* a, const TreeItem* b)
+{
+	return CompareVariantInfo(GetVariantMatchInfo(a), GetVariantMatchInfo(b));
+}
+
+TIC_CALL void TreeItem_CheckVariantSetDisjointness(const TreeItem* setItem)
+{
+	// definition-time (§5.7 v2): two variants whose acceptance sets overlap must be
+	// specificity-ordered — identical or incomparable overlapping coverage is an
+	// error now instead of a per-call ambiguity later. Pairs with a "soft" position
+	// (unresolvable/wildcard type) are left to the call-time ambiguity guard.
+	std::vector<VariantMatchInfo> infos;
+	for (const TreeItem* v = setItem->_GetFirstSubItem(); v; v = v->GetNextItem())
+		if (v->IsFunctionItem())
+			infos.push_back(GetVariantMatchInfo(v));
+
+	for (SizeT i = 0; i != infos.size(); ++i)
+		for (SizeT j = i + 1; j != infos.size(); ++j)
+		{
+			const auto& a = infos[i]; const auto& b = infos[j];
+			if (a.sets.size() != b.sets.size() || !a.allHard || !b.allHard)
+				continue;
+			bool overlap = true;
+			for (SizeT k = 0; k != a.sets.size() && overlap; ++k)
+				if (!(a.sets[k] & b.sets[k]).any())
+					overlap = false;
+			if (!overlap)
+				continue;
+			int cmp = CompareVariantInfo(a, b);
+			if (cmp == 0)
+				throwDmsErrF("variant set '{}': variants '{}' and '{}' accept identical argument types"
+					, setItem->GetFullName().c_str(), a.variant->GetID().GetStr().c_str(), b.variant->GetID().GetStr().c_str());
+			if (cmp == 2)
+				throwDmsErrF("variant set '{}': variants '{}' and '{}' overlap without one being more specific than the other; split their parameter types"
+					, setItem->GetFullName().c_str(), a.variant->GetID().GetStr().c_str(), b.variant->GetID().GetStr().c_str());
+		}
 }
 
 TIC_CALL void TreeItem_CopyFunctionSpec(const TreeItem* dstFunctionItem, const TreeItem* srcFunctionItem)

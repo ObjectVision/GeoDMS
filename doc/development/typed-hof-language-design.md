@@ -636,10 +636,26 @@ dispatch on argument *form* — `collect_by_cond` has one rule per `select_*` fl
    value classes all match (an untyped/wildcard parameter position matches anything);
    the chosen variant is then reduced like a normal function. Ambiguous matches and
    no-match both error with the variant list. Verified by `scratch/fn_test_variant.dms`
-   (float64→asFloat, int32→asInt) and a no-match negative (string). Current v1 limits:
-   dispatch is by exact value class (no specificity ordering / definition-time
-   disjointness yet — an ambiguous overlap errors at the call), variant-set calls are
-   always inline (data/unit holder), and variant `using` imports are per-variant.
+   (float64→asFloat, int32→asInt) and a no-match negative (string).
+
+   **v2 implemented (2026-07-14): specificity ordering + definition-time
+   disjointness.** Each variant parameter denotes an *acceptance set* over the closed
+   value-class universe (`std::bitset<VT_Count>`): a concrete script-named class → a
+   singleton; a generic values-variable → its constraint's subset (so matching is now
+   constraint-aware: a `<V: floats>` variant no longer swallows integer arguments); a
+   plain/composite/function-typed/item-spec position → everything (a "soft"
+   wildcard). Dispatch (`ResolveVariant`) collects all matching variants and picks
+   the unique most specific one by per-parameter subset comparison
+   (`TreeItem_CompareVariantSpecificity`), so `exact float32 > <V: floats> >
+   <V: numerics>` layers dispatch as expected (`scratch/fn_test_variant2.dms`).
+   At definition (`OnVariantSetEnd` → `TreeItem_CheckVariantSetDisjointness`,
+   token-based and parse-safe), two same-arity variants whose acceptance sets overlap
+   must be strictly specificity-ordered; identical or incomparable overlapping
+   coverage — e.g. `(numerics, float64)` vs `(float64, numerics)` — is rejected
+   immediately: *"variants 'a' and 'b' overlap without one being more specific than
+   the other"* (`fn_test_variant2_neg.dms`). Pairs involving a soft position are left
+   to the call-time ambiguity guard. Remaining v1 limits: variant-set calls are
+   always inline (data/unit holder) and variant `using` imports are per-variant.
 
 **Resolution.** Name resolution finds the function item by the normal scope rules
 (nearest declaring scope; no cross-scope merging of overload sets). Within the item,

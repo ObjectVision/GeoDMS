@@ -1318,8 +1318,12 @@ namespace {
 		return nullptr;
 	}
 
-	// select the variant sub-function of `setItem` whose parameter value classes match the
-	// argument value classes; a plain-item (untyped) parameter position is a wildcard
+	// §5.7 v2: select the variant of `setItem` whose acceptance set matches the argument
+	// value classes, taking the MOST SPECIFIC match (per-parameter subset comparison over
+	// the closed value-class universe); a fully generic or plain position accepts more
+	// than a concrete or tighter-constrained one. Definition-time disjointness
+	// (TreeItem_CheckVariantSetDisjointness) guarantees overlapping variants are
+	// specificity-ordered, so the most specific match is unique.
 	const TreeItem* ResolveVariant(const TreeItem* setItem, const std::vector<CallArg>& callArgs, SharedTreeItem errorHolder)
 	{
 		std::vector<const ValueClass*> argVCs;
@@ -1327,7 +1331,7 @@ namespace {
 		for (const auto& a : callArgs)
 			argVCs.push_back(ArgValueClass(a.key, errorHolder));
 
-		const TreeItem* match = nullptr;
+		const TreeItem* best = nullptr;
 		SharedStr candidates;
 		for (const TreeItem* v = setItem->_GetFirstSubItem(); v; v = v->GetNextItem())
 		{
@@ -1337,28 +1341,24 @@ namespace {
 				candidates = candidates + SharedStr(", ");
 			candidates = candidates + SharedStr(v->GetID());
 
-			UInt32 np = TreeItem_GetFunctionParamCount(v);
-			if (np != callArgs.size())
+			if (!TreeItem_VariantMatches(v, argVCs))
 				continue;
-			bool ok = true;
-			const TreeItem* param = v->_GetFirstSubItem();
-			for (UInt32 i = 0; i < np && param; ++i, param = param->GetNextItem())
+			if (!best)
 			{
-				auto pvc = ParamValueClass(param);
-				if (pvc && pvc != argVCs[i]) { ok = false; break; } // pvc==null: wildcard/function param -> matches
+				best = v;
+				continue;
 			}
-			if (ok)
-			{
-				if (match)
-					throwErrorF("ExprParser", "call to variant set '{}': the arguments match more than one variant ('{}' and '{}')"
-						, setItem->GetFullName().c_str(), match->GetID().GetStr().c_str(), v->GetID().GetStr().c_str());
-				match = v;
-			}
+			int cmp = TreeItem_CompareVariantSpecificity(v, best);
+			if (cmp == -1)
+				best = v;
+			else if (cmp != +1)
+				throwErrorF("ExprParser", "call to variant set '{}': the arguments match variants '{}' and '{}' and neither is more specific"
+					, setItem->GetFullName().c_str(), best->GetID().GetStr().c_str(), v->GetID().GetStr().c_str());
 		}
-		if (!match)
+		if (!best)
 			throwErrorF("ExprParser", "call to variant set '{}': no variant matches the argument types (variants: {})"
 				, setItem->GetFullName().c_str(), candidates.c_str());
-		return match;
+		return best;
 	}
 
 	// structural compatibility of a bound function against a declared signature

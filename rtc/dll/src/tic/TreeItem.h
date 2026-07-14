@@ -695,6 +695,11 @@ TIC_CALL bool    TreeItem_IsFunctionVariantSet(const TreeItem* functionItem);
 TIC_CALL bool    IsKnownGenericConstraint(TokenID constraintName);
 TIC_CALL bool    MatchesGenericConstraint(const ValueClass* vc, TokenID constraintName);
 
+// §5.7 v2: variant match sets over the closed value-class universe
+TIC_CALL bool    TreeItem_VariantMatches(const TreeItem* variant, const std::vector<const ValueClass*>& argVCs);
+TIC_CALL int     TreeItem_CompareVariantSpecificity(const TreeItem* a, const TreeItem* b); // -1/+1: strictly more specific side; 0: identical; 2: incomparable
+TIC_CALL void    TreeItem_CheckVariantSetDisjointness(const TreeItem* setItem); // throws on identical/incomparable overlapping coverage
+
 // enforce strict scoping on a function definition: name resolution from within stops at
 // the item (own sub-items + explicit 'using' imports); relative import urls still
 // resolve against the definition scope.
