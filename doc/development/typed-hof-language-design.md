@@ -35,6 +35,11 @@ references were verified against that tree.*
   definition-time typed body walker with rigid (skolem) variables — a generic body
   is now rejected at first reference when it does not hold for EVERY instantiation
   (§5.10 status block).
+- **§5.11 tier A** — the brace-disambiguation rule (unbracketed `{` after a rule =
+  sub-item block; braces are expression content only inside parentheses), anonymous
+  whole-rule functions (`value := function(…) …`), designation-by-name
+  (`-> restype { result := …; }`), and anonymous result-position functions
+  (`:= function(…) -> T := e;` replacing the nested `function result` idiom).
 
 Not yet implemented (specs below remain actionable): the redundant top-level
 `{ X(args) }` sugar (§5.9 deferred list), the opt-in `applyF` boundary
@@ -1159,6 +1164,64 @@ the definition scope past a sub-container-local shadower — such tokens now def
 Still open in WP4.1:
 operator-signature reification (§10 P2), which upgrades the deferred operator
 positions to full inference — and with it auto type derivation (`a := mul(b, c)`).
+
+### 5.11 Anonymous functions and the brace-disambiguation rule *(tier A implemented 2026-07-14)*
+
+**The disambiguation rule** (user decision 2026-07-14). `:= expr { … }` is ambiguous:
+is the brace block part of the expression (a literal's body) or the declared item's
+sub-item block? Resolution, adopted as a language principle:
+
+> **An unbracketed `{` following a calculation rule always opens the declared item's
+> sub-item block. Braces are expression content only when enclosed — directly or
+> transitively — in parentheses** (a call's argument list, or an explicitly
+> parenthesized expression).
+
+This generalizes the existing container-literal restriction (§5.9 B: argument
+position only — which *is* inside parentheses), keeps the rule-extent finder trivial
+(no lookahead: an expression ends at any top-level `{`), matches the JavaScript
+precedent for `{` at statement start, and is backward compatible (no existing
+expression contains a top-level `{`). It also charts the path for the deferred
+sub-expression container literals: `2.0 * (X { m: e; })`.
+
+**Anonymous functions** need no new runtime machinery — every reduction-side
+mechanism operates on function *items*, so nameless functions are a parse-time
+feature. Implemented forms (tier A, stx only):
+
+- **A1 — whole-rule literal**: `value := function[<typevars>](params) -> restype …;`
+  reroutes at `:= function` into the `functionDecl` productions with `value` as the
+  function's name (`anonFnDecl`; the group action fires only after a
+  `function (`/`function <` lookahead confirms, so no action pollution on other
+  `name := …` forms — note bare `name := expr` is not otherwise a legal item
+  declaration, so the form is unambiguous). The declared item IS the function, so a
+  following unbracketed block is simultaneously its body and its sub-item block —
+  no ambiguity, no parentheses needed. A `;` after the block is tolerated (the form
+  reads like an assignment).
+- **A2 — designation by name without `:=`**: `-> restype { … result … }` (named and
+  anonymous forms alike). `OnFunctionDeclEnd` now attempts implicit designation for
+  ANY missing result expression — the result name (default `result`) must name a
+  body item (parameters excluded, per the 8a34df56 rule); if none exists the error
+  says so. Previously implicit designation existed only for `-> function`.
+- **A3 — result-position literal**: `-> sig<V, D> := function(params) -> T := e;`
+  declares the anonymous function under the enclosing result name and designates it
+  — byte-for-byte the semantics of the nested `function result(…)` idiom, without
+  the magic name. Requires a `-> function` or signature-typed result (a data result
+  type with a function value is rejected at parse). Per the disambiguation rule the
+  result-position literal takes no brace tail of its own (an unbracketed `{` after
+  it is the ENCLOSING function's body block; the literal's locals live there).
+  Grammar: `anonResultFunction` as an alternative inside `functionResultSpec`;
+  the shared `functionSigAndResult` rule factors the header for all forms, and the
+  rule recursion (result spec → literal → result spec) permits nested anonymous
+  results.
+
+Still open (tier B): function literals in argument position and
+immediately-applied parenthesized literals, via parse-time lambda lifting — the
+config-side expression capture recognizes a `function`-anchored balanced extent,
+hoists it as a hidden endogenous sibling (`_lambda_<n>`, reserved prefix) exactly
+where the literal appears (lexical scope and capture-by-value hygiene come free),
+and splices the synthesized name over the literal in the stored rule string.
+Applying two textually identical lambdas to the same arguments still β-reduces to
+the same interned key, so applicative identity is preserved at the data level.
+Tests `scratch/fn_test_anon{,_neg1,_neg2}.dms`.
 
 ## 6. Verified mechanism inventory
 

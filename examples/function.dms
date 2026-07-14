@@ -145,9 +145,23 @@ container function_example
 		function pow4<V: numerics, D: domains>(attribute<V> x (D))
 		-> attribute<V> (D) := compose(sqr, sqr)(x);
 	}
+	// §5.11 anonymous functions: the declared item IS the function ('value := function ...'),
+	// and a function-typed result may be an anonymous function — no 'result' magic name.
+	container hof3
+	{
+		nuf_type = function<V: numerics, D: domains>(attribute<V> (D)) -> attribute<V> (D);
+
+		twice := function<V: numerics, D: domains>(attribute<V> x (D)) -> attribute<V> (D) := x + x;
+
+		function compose<V: numerics, D: domains>(f: nuf_type<V, D>; g: nuf_type<V, D>)
+		-> nuf_type<V, D>
+			:= function(attribute<V> x (D)) -> attribute<V> (D) := f(g(x));
+	}
 
 	attribute<float64> flow4c (Road) := hof2/pow4(Road/flow);
 	attribute<float64> flow4d (Road) := hof2/compose(sqr, sqr)(Road/flow); // applied directly
+	attribute<float64> flow4e (Road) := hof3/compose(sqr, sqr)(Road/flow); // anonymous result form
+	attribute<float64> flow2  (Road) := hof3/twice(Road/flow);             // anonymous whole-rule form
 
 	attribute<float64> flow4  (Road) := hof/pow4(Road/flow);
 	attribute<float64> flow4b (Road) := hof/compose(sqr, sqr, Road/flow); // same, spelled directly
@@ -172,5 +186,7 @@ container function_example
 		parameter<float64> rail_tot   := rail_total,             IntegrityCheck = "rail_tot == 1.5";
 		parameter<float64> pow4_sumc  := sum(flow4c),            IntegrityCheck = "pow4_sumc == 27306250000.0";
 		parameter<float64> pow4_sumd  := sum(flow4d),            IntegrityCheck = "pow4_sumd == 27306250000.0";
+		parameter<float64> pow4_sume  := sum(flow4e),            IntegrityCheck = "pow4_sume == 27306250000.0";
+		parameter<float64> twice_sum  := sum(flow2),             IntegrityCheck = "twice_sum == 1500.0";
 	}
 }

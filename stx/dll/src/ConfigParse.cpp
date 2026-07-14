@@ -103,11 +103,12 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 				= (! UTF8_BOM ) >> dms_guard_d(+item); // multiple item declarations are only allowed in #included sub-configurations
 
 			//<item> ::=
-			//	<function decl> | <alias decl> | <item decl> <item block> | include file
+			//	<function decl> | <alias decl> | <anonymous fn decl> | <item decl> <item block> | include file
 			item
 				= functionDecl
 				| aliasFunctionSig
 				| aliasPlain
+				| anonFnDecl
 				| (
 					itemDecl
 					>> assert_d("item terminator ';' expected after item definition")[
@@ -187,9 +188,20 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 				(as_lower_d[FUNCTION] >> identifier[([&cp](auto _1, auto) { cp.DoItemName(); cp.SetPendingNameLoc(_1);})])
 				>> ( functionBody | variantSet );
 
-			// single function: function name[<typevars>](params) -> result := expr [;] [{ body }]
-			functionBody =
-				( (!typeParamsClause >> LPAREN)
+			// §5.11 anonymous whole-rule function: value := function[<typevars>](params) ...
+			// — the declared item IS the function (identical to 'function value(params) ...'),
+			// so a following unbracketed block is unambiguously its body/sub-item block
+			anonFnDecl =
+				( (identifier >> COLON >> EQUAL >> epsilon_p(as_lower_d[FUNCTION] >> (LANGLE | LPAREN)))
+					[([&cp](auto _1, auto) { cp.DoItemName(); cp.SetPendingNameLoc(_1);})]
+				>> as_lower_d[FUNCTION]
+				>> functionBody );
+
+			// header through result spec, shared by the named, anonymous and
+			// result-position forms; OnFunctionDeclEnd placement differs (it must run
+			// AFTER an optional body block, so the block's items can be designated)
+			functionSigAndResult =
+				(!typeParamsClause >> LPAREN)
 					[([&cp](auto _1, auto) { cp.OnFunctionHeading(_1); cp.DoBeginBlock();})]
 				>> !(functionParamItem >> *(SEMICOLON >> !functionParamItem))
 				>> assert_d("')' expected after function parameter declarations")[RPAREN]
@@ -198,11 +210,29 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 						>> assert_d("namespace reference expected after 'using ='")[
 							itemRef[([&cp](...) { cp.DoFunctionUsing();})] ] )
 				>> assert_d("'->' and result specification expected after function parameter list")[ARROW]
-				>> functionResultSpec
+				>> functionResultSpec;
+
+			// single function: function name[<typevars>](params) -> result := expr [;] [{ body }] [;]
+			functionBody =
+				( functionSigAndResult
 				>> !SEMICOLON
 				>> !( LBRACE
 						>> *item
 						>> assert_d("item definition or function-body terminator '}' expected")[RBRACE] )
+				>> !SEMICOLON // tolerated after the block: the anonymous form reads like an assignment
+				)
+				[([&cp](auto _1, auto) { cp.OnFunctionDeclEnd(_1);})];
+
+			// §5.11 result-position anonymous function (':= function(params) -> T := e;'):
+			// declares the nested function under the enclosing function's result name.
+			// No brace tail here — per the disambiguation rule, an unbracketed '{' after
+			// the rule belongs to the ENCLOSING function's body block; the literal's
+			// locals live there.
+			anonResultFunction =
+				( (as_lower_d[FUNCTION] >> epsilon_p(LANGLE | LPAREN))
+					[([&cp](auto _1, auto) { cp.OnAnonResultFunction(); cp.SetPendingNameLoc(_1);})]
+				>> functionSigAndResult
+				>> !SEMICOLON
 				)
 				[([&cp](auto _1, auto) { cp.OnFunctionDeclEnd(_1);})];
 
@@ -244,14 +274,16 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 				)
 				[([&cp](...) { cp.OnFunctionResultSig();})];
 
-			// ':= expr' is optional in the grammar (a '-> function' result may designate a
-			// nested function named 'result' from the body block); OnFunctionDeclEnd
-			// enforces its presence for data results
+			// ':= expr' is optional in the grammar: without it, OnFunctionDeclEnd
+			// designates a body item by the result name (default 'result') — for
+			// '-> function' AND for data results followed by a body block (§5.11).
+			// ':= function(...)' declares an anonymous result-position function.
 			functionResultSpec =
 				!( (identifier >> COLON)[([&cp](...) { cp.DoFunctionResultName();})] )
 				>> assert_d("function result type expected after '->'")[functionResultType]
 				>> !( (COLON >> EQUAL)
-					>> m_ExprDef.start()[([&cp](auto _1, auto _2) { cp.OnFunctionResultExpr(_1, _2);})] );
+					>> ( anonResultFunction
+					   | m_ExprDef.start()[([&cp](auto _1, auto _2) { cp.OnFunctionResultExpr(_1, _2);})] ) );
 
 			// ==== TYPE ALIASES: alias = type;   (vs. 'name : type;' which declares an item)
 
@@ -382,7 +414,7 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 		boost::spirit::rule<ScannerT> main, item, itemBlock,
 			preprocStatement,
 			itemDecl, itemHeading, itemSignature, colonHeading,
-			functionDecl, functionBody, variantSet, variantDecl,
+			functionDecl, functionBody, functionSigAndResult, anonFnDecl, anonResultFunction, variantSet, variantDecl,
 			functionParamItem, functionSigParamItem, functionResultType, functionResultSpec, typeArgsOpt,
 			typeParamsClause, aliasFunctionSig, aliasPlain,
 			itemParam, unitIdentifier, basicType,

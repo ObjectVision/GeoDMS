@@ -1020,6 +1020,18 @@ void ConfigProd::OnFunctionResultIsFunction()
 
 static TokenID t_Result = GetTokenID_st("result");
 
+void ConfigProd::OnAnonResultFunction()
+{
+	// §5.11 ':= function(params) -> T := e;' — the result is an ANONYMOUS nested
+	// function, declared under the enclosing function's result name (default
+	// 'result'); the enclosing declaration then designates it implicitly
+	dms_assert(!m_FuncStates.empty());
+	auto& fs = m_FuncStates.back();
+	if (!fs.resultIsFunction)
+		throwSemanticError("an anonymous function result requires a '-> function' or signature-typed result specification");
+	m_ItemNameID = fs.resultName ? fs.resultName : t_Result;
+}
+
 void ConfigProd::OnFunctionDeclEnd(iterator_t first)
 {
 	dms_assert(!m_FuncStates.empty());
@@ -1027,9 +1039,13 @@ void ConfigProd::OnFunctionDeclEnd(iterator_t first)
 	TreeItem* func = fs.funcItem.get();
 	dms_assert(func);
 
-	// §5.10 '-> function' without ':=': implicitly designate the nested function 'result'
-	if (fs.resultIsFunction && fs.resultExpr.empty())
-		fs.resultExpr = SharedStr("result");
+	// implicit designation (§5.10/§5.11): without ':= expr', the result name
+	// (default 'result') designates a body item — a nested function for
+	// '-> function', or a declared body item for a data result type followed by
+	// a body block ('-> restype { ... result ... }')
+	bool implicitDesignation = fs.resultExpr.empty() && !fs.signatureOnly;
+	if (implicitDesignation)
+		fs.resultExpr = SharedStr(fs.resultName ? fs.resultName : t_Result);
 
 	// designation: a result expression that is just the name of a function sub-item
 	// designates that item as the result instead of creating a new one
@@ -1096,6 +1112,8 @@ void ConfigProd::OnFunctionDeclEnd(iterator_t first)
 	{
 		if (fs.resultSig == SignatureType::Undefined)
 			throwSemanticError("function result type expected");
+		if (implicitDesignation)
+			throwSemanticError("function result expression expected after ':=', or a body item named 'result' (or the declared result name) to designate");
 		if (fs.resultExpr.empty() && !fs.signatureOnly)
 			throwSemanticError("function result expression expected after ':='");
 

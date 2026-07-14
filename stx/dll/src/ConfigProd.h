@@ -108,6 +108,7 @@ struct ConfigProd : AbstrDataBlockProd, AbstrContextHandle
 	void DoFunctionResultName();
 	void OnFunctionResultSig();
 	void OnFunctionResultIsFunction(); // §5.10 '-> function'
+	void OnAnonResultFunction(); // §5.11: ':= function(params) ...' — anonymous result-position function
 	void OnAnonSigParam(iterator_t first); // §5.10 Stage 2: anonymous signature-alias parameter
 	void OnParamSigTypeArg(); // §5.10 Stage 2: type application 'sig<V, D>' argument
 	void OnFunctionResultExpr(iterator_t first, iterator_t last);
