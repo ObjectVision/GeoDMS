@@ -1738,10 +1738,15 @@ namespace {
 				break;
 		}
 
-		// imports and externals: resolve through the function's strict search space
+		// imports and externals: own scope + explicit imports first, then the lexical
+		// definition scope (§4.6 revision 2026-07-13: identifiers resolve to what is
+		// visible from the point of definition; the call site stays invisible)
 		auto found = m_FuncItem->FindItem(fullStr);
 		if (!found)
-			throwErrorF("ExprParser", "'{}': unknown identifier in body of function '{}' (visible are: parameters, local items, and 'using' imports)"
+			if (auto defParent = m_FuncItem->GetTreeParent())
+				found = defParent->FindItem(fullStr);
+		if (!found)
+			throwErrorF("ExprParser", "'{}': unknown identifier in body of function '{}' (visible are: parameters, local items, 'using' imports, and the definition scope)"
 				, fullStr.c_str(), m_FuncItem->GetFullName().c_str());
 		if (found->IsFunctionItem())
 		{
@@ -1785,8 +1790,11 @@ namespace {
 
 		auto callee = m_FuncItem->FindItem(SharedStr(headID.AsStrRange()));
 		if (!callee || !callee->IsFunctionItem())
-			// strict function scopes do not see the root's namespace usage: the
-			// auto-imported prelude is the implicit last resort for call heads
+			if (auto defParent = m_FuncItem->GetTreeParent()) // lexical definition scope (§4.6)
+				if (auto lex = defParent->FindItem(SharedStr(headID.AsStrRange())); lex && lex->IsFunctionItem())
+					callee = lex;
+		if (!callee || !callee->IsFunctionItem())
+			// the auto-imported prelude is the implicit outermost namespace for call heads
 			if (auto pf = FindPreludeFunction(headID); pf && pf->IsFunctionItem())
 				callee = pf;
 		if (!callee)
@@ -1824,8 +1832,12 @@ namespace {
 							{
 								CallArg a; a.binding = m_ArgBindings[i]; return a;
 							}
-					// import function?
+					// import or lexically visible function?
 					auto callee = m_FuncItem->FindItem(s);
+					if (!callee || !callee->IsFunctionItem())
+						if (auto defParent = m_FuncItem->GetTreeParent()) // lexical definition scope (§4.6)
+							if (auto lex = defParent->FindItem(s); lex && lex->IsFunctionItem())
+								callee = lex;
 					if (!callee)
 						if (auto pf = FindPreludeFunction(sym); pf && pf->IsFunctionItem())
 							callee = pf; // prelude: implicit outermost namespace, also for function references
@@ -1925,11 +1937,14 @@ namespace {
 		}
 
 		auto found = m_FuncItem->FindItem(fullStr);
+		if (!found)
+			if (auto defParent = m_FuncItem->GetTreeParent()) // lexical definition scope (§4.6)
+				found = defParent->FindItem(fullStr);
 		if (!found && slash == e)
 			if (auto pf = FindPreludeFunction(sym); pf && pf->IsFunctionItem())
 				return 2; // prelude: implicit outermost namespace, also for function references
 		if (!found)
-			throwErrorF("ExprParser", "'{}': unknown identifier in body of function '{}' (visible are: parameters, local items, and 'using' imports)"
+			throwErrorF("ExprParser", "'{}': unknown identifier in body of function '{}' (visible are: parameters, local items, 'using' imports, and the definition scope)"
 				, fullStr.c_str(), m_FuncItem->GetFullName().c_str());
 		if (!found->IsFunctionItem() && found->InTemplate())
 			throwErrorF("ExprParser", "'{}': reference to (part of) a template or function from body of function '{}'"
@@ -1979,8 +1994,12 @@ namespace {
 				// a direct function/import call: validate that it is a function of the right arity
 				auto callee = m_FuncItem->FindItem(SharedStr(headID.AsStrRange()));
 				if (!callee || !callee->IsFunctionItem())
+					if (auto defParent = m_FuncItem->GetTreeParent()) // lexical definition scope (§4.6)
+						if (auto lex = defParent->FindItem(SharedStr(headID.AsStrRange())); lex && lex->IsFunctionItem())
+							callee = lex;
+				if (!callee || !callee->IsFunctionItem())
 					if (auto pf = FindPreludeFunction(headID); pf && pf->IsFunctionItem())
-						callee = pf; // prelude: implicit last resort in strict function scopes
+						callee = pf; // prelude: implicit outermost namespace for call heads
 				if (!callee)
 					throwErrorF("ExprParser", "'{}': unknown operator or function in body of function '{}'"
 						, headID.GetStr().c_str(), m_FuncItem->GetFullName().c_str());

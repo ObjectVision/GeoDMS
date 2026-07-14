@@ -2,13 +2,15 @@
 // Self-contained example of a user-defined function (GeoDms >= 20.9.0).
 //
 // A function is declared with a typed parameter list, a '->' result
-// specification, and a result expression after ':='. Its body sees ONLY:
+// specification, and a result expression after ':='. Its body sees:
 //   - its parameters,
 //   - its own local items,
-//   - namespaces it explicitly imports with a 'using =' clause.
-// It does NOT see the scope of the call site, nor (unlike a template) the
-// scope of its definition. This makes a function a self-contained, reusable,
-// checkable unit of calculation.
+//   - namespaces it explicitly imports with a 'using =' clause,
+//   - the lexical scope of its DEFINITION (as any expression written there),
+//   - the auto-imported standard prelude.
+// It does NOT see the scope of the call site: the only channels from the
+// caller are the argument expressions, resolved in the caller's scope. This
+// makes a function a reusable, checkable unit of calculation.
 //
 // Run headless with:
 //   GeoDmsRun.exe C:\...\examples\function.dms /checks
@@ -121,9 +123,26 @@ container function_example
 		function compose<V: numerics>(f: function; g: function; attribute<V> x)
 		-> attribute<V> := g(f(x));
 
-		function pow4<V: numerics>(attribute<V> x), using = /hof
+		// 'compose' is visible from pow4's definition point (lexical scope, §4.6)
+		function pow4<V: numerics>(attribute<V> x)
 		-> attribute<V> := compose(sqr, sqr, x);
 	}
+	/* TARGET (WP3.2 Stage 2, typed form — see doc section 5.10; Stage 1 below):
+	container hof2
+	{
+		numeric_unary_function = function<V: numerics, D: domains>(attribute<V>(D)) -> attribute<V>(D);
+		function compose<V: numerics, D: domains>(numeric_unary_function<V, D> f, numeric_unary_function<V, D> g) -> numeric_unary_function<V, D>
+		{
+			function result(attribute<V> x(D))->attribute<V>(D)
+			{
+				attribute<V> result(D) := f(g(x));
+			}
+		}
+
+		function pow4<V: numerics, D: domains>(attribute<V> x(D))
+		-> attribute<V>(D) := compose(sqr, sqr)(x);
+	}
+	*/
 
 	attribute<float64> flow4  (Road) := hof/pow4(Road/flow);
 	attribute<float64> flow4b (Road) := hof/compose(sqr, sqr, Road/flow); // same, spelled directly

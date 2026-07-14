@@ -51,8 +51,10 @@ The starting sketch to complete and correct:
 
 Decisions fixed up front:
 
-1. **Function scoping is strict args-only by default, with explicit `using` imports**
-   (§4.6) — stricter than templates, with the closure visible in the function header.
+1. **Function scoping** — originally strict args-only with explicit `using` imports;
+   **revised 2026-07-13 to lexical definition-scope with call-site isolation** (§4.6):
+   identifiers in a definition's expressions resolve to what is visible at the
+   definition point, as everywhere else in the language.
 2. **RewriteExpr.lsp is to be phased out** (§8): its definitional rules become typed
    functions with argument-type-specific result-type *derivation* (§5.7), its
    normalizations become variadic/optional-argument operator features, and its
@@ -304,37 +306,46 @@ units through key-expression comparison. What applicative *function application*
 is: no per-call subtree copy (memory, meta-time, duplicated tree/UI entries), one check
 instead of N, and sharing that is structural rather than emergent.
 
-### 4.6 Scoping: strict args-only by default, explicit imports *(decided; implemented in 20.9.0)*
+### 4.6 Scoping: lexical definition-scope, call-site isolation *(revised 2026-07-13)*
 
-Precision matters here — implementation corrected an earlier overstatement. Template
-instance roots receive an injected `using` namespace pointing at the template's
-definition parent (`TreeItem::Copy`, `tic/TreeItem.cpp:2130-2166`), and name resolution
-*delegates-and-stops* at any level owning a `UsingCache` (`FindTreeItemByID`,
-`tic/TreeItem.cpp:4573-4590`) — **but the UsingCache constructor implicitly adds the
-context's tree parent as a namespace** (`AddParent`, `tic/UsingCache.cpp:113-123,
-147-152`). For a template instance that tree parent is the *call-site* container: the
-injected definition namespace takes precedence, yet unshadowed call-site names remain
-reachable as a fallback. Template bodies are therefore definition-scoped *with
-call-site fallback*, not hygienic.
+**Revision (user decision 2026-07-13).** The original decision (strict args-plus-
+explicit-imports) is relaxed to the general language rule: *in each expression of a
+definition, identifiers resolve to the items that are visible from the point of
+definition*. A function body therefore sees, in order:
 
-Functions go strictly further (implemented: `UsingCache::RemoveParentUsing` +
-forced cache existence on function instance roots; absolute `using` paths resolve from
-the configuration root, `UsingCache::FindNamespace`):
+1. its formal parameters,
+2. its own local items (nearest enclosing body scope first),
+3. namespaces it explicitly imports via `using` (unchanged, now additive),
+4. **the lexical scope of its definition** — the definition parent and its ancestors,
+   with their `using` directives, exactly as any ordinary calculation rule at that
+   spot would see them,
+5. the auto-imported prelude as the implicit outermost namespace (§8.4).
 
-- a body sees (a) its formal parameters, (b) its own local items, and (c) **only
-  namespaces it explicitly imports** via the existing `using` property, resolved
-  against the definition scope and frozen to absolute paths;
-- mechanism: a function definition (and any instance root) *always* owns a
-  `UsingCache` = own subitems + declared imports. Since resolution stops at a
-  `UsingCache`, the ancestor walk never happens, and the parentless-capture hole
-  disappears by construction.
+What does NOT change: **call-site isolation**. A body never sees the call site; the
+only channels from the caller are the argument expressions, which are resolved in the
+*caller's* scope (`ArgCalc` grandparent search context). This remains the crucial
+difference from templates, whose instances retain an unshadowed call-site fallback
+through the UsingCache constructor's implicit `AddParent` (see history below).
 
-Consequences: the closure is visible in the function header (auditable); bodies
-typecheck in complete isolation; shared units (`/geography/…`) are imported once per
-function instead of threaded through every call. Call-site items remain invisible in
-all cases — the only channels from the caller are the argument expressions, which are
-(correctly) resolved in the *caller's* scope, exactly as template arguments are today
-(`ArgCalc` grandparent search context, `tic/AbstrCalculator.cpp:736-747`).
+Rationale for the revision: uniformity — a sibling function `compose` or a shared
+parameter `factor` is visible to every ordinary expression written at the same spot,
+and requiring `using = /hof` on a function to see its own sibling was an anomaly. It
+also makes closure capture (§5.10) *just lexical scoping applied to nested functions*:
+a nested function's body references its enclosing function's parameters because those
+are visible at its definition point. The costs, accepted: the closure is no longer
+enumerable from the function header alone, and definition-time checking validates
+against the definition environment rather than in complete isolation.
+
+*History (pre-revision, implemented in 20.9.0 and now superseded):* template instance
+roots receive an injected `using` namespace pointing at the template's definition
+parent (`TreeItem::Copy`), and name resolution delegates-and-stops at any level owning
+a `UsingCache` — but the UsingCache constructor implicitly adds the context's tree
+parent (`AddParent`), so template bodies are definition-scoped *with call-site
+fallback*, not hygienic. Functions went strictly further: `RemoveParentUsing` + forced
+cache = params, locals and explicit imports only. The revision keeps the
+`RemoveParentUsing` mechanism on *instance roots* (call-site isolation) and injects
+the definition parent as a namespace (as template copies do), while inline reduction
+resolves externals through the definition-parent chain.
 
 ### 4.7 `attribute<float64>` vs `attribute<meter>`
 
@@ -884,6 +895,60 @@ explain-value trace already walks the reduced DC graph per operator node; an
 "expand steps" detail action (re-run the reduction in instantiating mode on demand)
 and showing the function body source with arguments substituted are the candidate
 additions.
+
+### 5.10 Function-valued results, closures, applied call results *(spec agreed 2026-07-13; WP3.2 Stage 1)*
+
+Target (user sketch, typing layer elided to Stage 2):
+
+```
+container hof2
+{
+	function compose(f: function; g: function) -> function
+	{
+		function result<V: numerics>(attribute<V> x) -> attribute<V> := f(g(x));
+	}
+
+	function pow4<V: numerics>(attribute<V> x) -> attribute<V> := compose(sqr, sqr)(x);
+}
+```
+
+Three pieces:
+
+1. **Function-valued results.** A function may declare `-> function` and designate a
+   *nested function* named `result` as its result. Reducing a call to such a function
+   yields a **function value**, not a data key.
+2. **Closures = lexical scoping applied to nested functions (§4.6).** The nested
+   `result` references `f` and `g` because they are visible at its definition point —
+   the enclosing function's parameters. Operationally the returned value is the nested
+   function item plus the enclosing application's parameter environment, captured **by
+   value** (the already-substituted `CallArg`s: keys, items, or bindings). Because the
+   captured environment consists of concrete interned keys — never unresolved symbols —
+   capture is hygienic by construction; the alpha-renaming machinery feared in R10 is
+   not needed on this path. Identity remains purely applicative: two closures from
+   identical calls carry identical environments and reduce any application to identical
+   keys.
+3. **Applied call results.** The call grammar chains: `identifier (args)* ` — each
+   further `(args)` applies the *result* of the previous call. Since every expression
+   head must remain a plain symbol (a FuncDC/rewriter invariant), the production emits
+   a marker form rather than a list-headed call: `compose(sqr, sqr)(x)` parses to
+   `(apply_value (compose sqr sqr) x)` (pattern of the §5.9 `apply_item` markers). The
+   reducer dispatches `apply_value` by reducing the inner expression to a function
+   value — a closure, a plain function reference, or a partial application — then
+   binding the outer arguments and beta-reducing. NO over-application: extra arguments
+   to a call are an arity error, as before; application of a result is always written
+   explicitly.
+
+Placement rules: a function value can be (a) applied via `(args)`, (b) passed as an
+argument, or (c) returned as a result. It cannot be bound to a data item or holder —
+same rule as partial applications today. `pow4(a)` reduces through the closure to
+`(mul (mul aK aK) (mul aK aK))` — key identity with `pow(a, 4)` preserved end-to-end.
+
+**Stage 2 (typing, deferred):** generic function-signature aliases
+(`numeric_unary_function = function<V: numerics, D: domains>(attribute<V>(D)) ->
+attribute<V>(D);`), type application `numeric_unary_function<V, D>` in parameter and
+result positions, and domain type-variables `<D: domains>` bound by inference from
+argument domains with cross-parameter consistency — upgrading the untyped `function`
+markers above to checked signatures.
 
 ## 6. Verified mechanism inventory
 

@@ -2306,16 +2306,17 @@ SharedMutableTreeItem TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext
 		result->AssertPropChangeRights(USING_NAME);
 		result->ClearNamespaceUsage();
 
-		// strict function scoping: an instantiated (or copied) function scope sees only
-		// its own sub-items (bound arguments, locals, result) plus the function's
-		// explicitly imported namespaces (frozen to absolute paths below); no parent
-		// namespace is injected and the implicit parent namespace (= call-site or
-		// copy-site scope) is removed. This applies to instance roots AND to function
-		// definitions copied as part of a larger subtree.
+		// function scoping (§4.6, revised 2026-07-13: lexical definition scope with
+		// call-site isolation): an instantiated (or copied) function scope sees its own
+		// sub-items (bound arguments, locals, result), the function's explicitly
+		// imported namespaces (frozen to absolute paths below), and the DEFINITION
+		// parent, injected as an absolute namespace like template instances get —
+		// while the implicit tree-parent namespace (= call-site or copy-site scope) is
+		// removed below, so call-site names stay invisible.
 		bool srcIsFunction = IsFunctionItem();
 
 		UInt32 nrNameSpaces = GetNrNamespaceUsages();
-		bool addParentAsNamespace = dstIsRoot && GetTreeParent() && !srcIsFunction;
+		bool addParentAsNamespace = dstIsRoot && GetTreeParent();
 		if (nrNameSpaces || addParentAsNamespace)
 		{
 			VectorOutStreamBuff nameSpaceBuffer;
@@ -2331,10 +2332,9 @@ SharedMutableTreeItem TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext
 			for (UInt32 i1 =0; i1 != nrNameSpaces; ++i1)
 			{
 				const TreeItem* sns = GetNamespaceUsage(i1);
-				// the parent/ancestor skips exist because template instances reach ancestors
-				// through the injected parent namespace; function scopes get NO parent
-				// namespace, so their explicit imports must be kept even when they equal
-				// the definition parent or an ancestor
+				// the parent/ancestor skips exist because instances reach ancestors through
+				// the injected definition-parent namespace; function imports are kept
+				// verbatim (frozen absolute) — a redundant entry is harmless
 				if (sns && (srcIsFunction || (sns != GetTreeParent().get() && !sns->DoesContain(this))))
 				{
 					if (nameSpaceBuffer.CurrPos())
