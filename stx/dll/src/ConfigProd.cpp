@@ -1044,9 +1044,19 @@ void ConfigProd::OnFunctionDeclEnd(iterator_t first)
 	if (simpleName)
 	{
 		TokenID exprTok = GetTokenID_mt(b, e);
-		if (func->GetSubTreeItemByID(exprTok))
-			designated = exprTok;
-		else
+		// designation targets BODY items only; the first paramCount sub-items are the
+		// parameters, and a bare parameter name (e.g. the identity ':= x') must become
+		// the result's calculation rule, not designate the expression-less parameter
+		const TreeItem* firstBodyItem = func->_GetFirstSubItem();
+		for (UInt32 k = fs.paramCount; k && firstBodyItem; --k)
+			firstBodyItem = firstBodyItem->GetNextItem();
+		for (const TreeItem* sub = firstBodyItem; sub; sub = sub->GetNextItem())
+			if (sub->GetID() == exprTok)
+			{
+				designated = exprTok;
+				break;
+			}
+		if (!designated)
 		{	// allow case-insensitive designation (':= Result' designating sub-item 'result')
 			auto equalsCI = [](CharPtr a, CharPtr aEnd, CharPtr b, CharPtr bEnd) {
 				if (aEnd - a != bEnd - b)
@@ -1057,7 +1067,7 @@ void ConfigProd::OnFunctionDeclEnd(iterator_t first)
 				return true;
 			};
 			const TreeItem* uniqueMatch = nullptr;
-			for (const TreeItem* sub = func->_GetFirstSubItem(); sub; sub = sub->GetNextItem())
+			for (const TreeItem* sub = firstBodyItem; sub; sub = sub->GetNextItem())
 			{
 				SharedStr subName = SharedStr(sub->GetID());
 				if (equalsCI(subName.begin(), subName.send(), b, e))
