@@ -38,11 +38,13 @@ struct memory_info {
 
 		SizeT max_phycical_memory = RTC_GetRegDWord(RegDWordEnum::MemoryRAM_MAX_GB);
 		max_phycical_memory *= (1024 * 1024 * 1024); // GB -> # bytes
-		if (memStat.ullTotalPhys > max_phycical_memory)
+		if (max_phycical_memory && memStat.ullTotalPhys > max_phycical_memory) // 0 means: don't simulate a smaller machine
 		{
 			auto reduction = memStat.ullTotalPhys - max_phycical_memory;
 			memStat.ullTotalPhys -= reduction;
-			memStat.ullAvailPhys -= reduction;
+			// ullAvailPhys is machine-wide free RAM and can be less than the reduction; unsigned wrap here
+			// would report a bogus memory load.
+			memStat.ullAvailPhys = (memStat.ullAvailPhys > reduction) ? memStat.ullAvailPhys - reduction : 0;
 		}
 	}
 
@@ -122,6 +124,28 @@ bool IsLowOnFreeRAM() {
 
 std::atomic<SizeT> s_CumulativeMemoryAllocCount = 0;
 
+#if defined(WIN32)
+
+// EmptyWorkingSet moves our pages to the standby list but cannot lower our committed private
+// bytes, so when the shortage is caused by our own commit the trigger condition stays true and
+// each next 100MB of allocation trims again. It trims the *whole* process, including the GUI
+// thread's stack and message pump, so an unthrottled retry starves the very thread that has to
+// stay responsive. Once per second is enough to reach the standby list.
+static const UInt64 c_MinFlushIntervalMSec = 1000;
+static std::atomic<UInt64> s_LastFlushTicks = 0;
+
+static bool ClaimFlushSlot()
+{
+	auto now = GetTickCount64();
+	auto last = s_LastFlushTicks.load(std::memory_order_relaxed);
+	while (now - last >= c_MinFlushIntervalMSec)
+		if (s_LastFlushTicks.compare_exchange_weak(last, now, std::memory_order_relaxed))
+			return true;
+	return false;
+}
+
+#endif //defined(WIN32)
+
 void ConsiderMakingFreeSpace(SizeT sz)
 {
 #if defined(WIN32)
@@ -130,7 +154,7 @@ void ConsiderMakingFreeSpace(SizeT sz)
 	{
 		s_CumulativeMemoryAllocCount = 0;
 
-		if (!SufficientFreeSpace(sz))
+		if (!SufficientFreeSpace(sz) && ClaimFlushSlot())
 		{
 			// TODO, SEE FROM http://msdn.microsoft.com/query/dev10.query?appId=Dev10IDEF1&l=EN-US&k=k(EMPTYWORKINGSET);k(DevLang-%22C%2B%2B%22);k(TargetOS-WINDOWS)&rd=true
 			// Programs that must run on earlier versions of Windows as well as Windows 7 and later versions should always call this function as K32EmptyWorkingSet. 
