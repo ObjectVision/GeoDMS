@@ -30,16 +30,19 @@ references were verified against that tree.*
   (`f: nuf<V, D>`), domain type-variables.
 - **§5.7 v2** — variant specificity (most-specific dispatch over constraint
   acceptance sets) + definition-time disjointness of variant sets.
-- **WP4.1 t1+t2** — type-application binding enforcement, then full application-time
-  unification with variable-variable links and constraint-set intersection (§5.10
-  status block).
+- **WP4.1 t1+t2+t3** — type-application binding enforcement; full application-time
+  unification with variable-variable links and constraint-set intersection; the
+  definition-time typed body walker with rigid (skolem) variables — a generic body
+  is now rejected at first reference when it does not hold for EVERY instantiation
+  (§5.10 status block).
 
 Not yet implemented (specs below remain actionable): the redundant top-level
 `{ X(args) }` sugar (§5.9 deferred list), the opt-in `applyF` boundary
-DataController (WP4.2), operator-signature reification + the definition-time typed
-body walker (WP4.1 remainder, §10 P2), and the WP4.5 tranche-3 heads (variadic /
-optional-argument rules). Verification configs live in the gitignored
-`scratch/fn_test*.dms`; the shipped example is `examples/function.dms`.
+DataController (WP4.2), operator-signature reification (WP4.1 remainder, §10 P2 —
+unlocks typed operator positions and auto type derivation `a := mul(b, c)`), and
+the WP4.5 tranche-3 heads (variadic / optional-argument rules). Verification
+configs live in the gitignored `scratch/fn_test*.dms`; the shipped example is
+`examples/function.dms`.
 
 ## 1. Motivation and scope
 
@@ -1074,12 +1077,88 @@ Tranche-1 message wording was unified under the store's source attribution:
 `compose(fhalf, iinc)` now reads *"inconsistent instantiation of type variable 'V':
 Float64 (function '/fhalf' bound to parameter 'f') vs Int32 (function '/iinc' bound
 to parameter 'g')"*, and `mixap(road_only, Rail/flow)` *"… the domain bound via
-parameter 'y' differs from the domain bound by function '/road_only' (bound to
-parameter 'h')"*. The store is per-application and monotonic; the definition-time
-checker will reuse it with rigid (skolem) variables. Tests
-`scratch/fn_test_vv{,_neg1,_neg2,_neg3}.dms`. Still open in WP4.1:
-operator-signature reification (§10 P2) and the definition-time typed body walker
-(the WP3.4 upgrade).
+parameter 'y' differs from the domain bound by function '/road_only' bound to
+parameter 'h'"* (tranche-3 wording — the shared LinkSignatureBinding helper builds
+the source). The store is per-application and monotonic. Tests
+`scratch/fn_test_vv{,_neg1,_neg2,_neg3}.dms`.
+
+**WP4.1 tranche 3 implemented (2026-07-14): the definition-time typed body walker.**
+The WP3.4 checker now derives TYPES: the function's own type/domain variables (and
+its unit parameters) enter the unification store as **rigid** (skolem) variables —
+the body must be well-typed for *every* instantiation, so pinning one to a concrete
+type/unit, forcing two of them equal, or narrowing one below its declared constraint
+is a definition error, caught at the first reference without any application
+evidence. Inference is bottom-up over the body reachable from the result
+(`DefType` terms: value = concrete class | unifier node | unknown; domain
+additionally knows `void`; function values carry the item whose declared signature
+types their application). Each callee instantiates its declared signature under a
+fresh variable instance; dependent positions (a parameter's declared domain naming
+another parameter) share the callee's per-instantiation identity node, so passing a
+unit parameter plus an attribute over a *different* domain fails definitionally.
+Signature-typed parameters and sig-typed results type HOF plumbing end-to-end
+(`compose(sqr, sqr)(x)` in a body is fully checked); declared annotations on locals
+and the result unify against the inferred types. Deliberately DEFERRED (type
+Unknown, still per-application): built-in operators (signature reification is the
+remaining tranche), externals, variant selections, partial applications,
+member/container accesses, and names captured from an *enclosing* function (closure
+environment — resolved at reduction). Definition-rejection examples, all with a
+single valid-looking call site that application-time checking would accept:
+
+- `bad<V: numerics>(x) := fonly(x)` with `fonly<W: floats>` → *"the definition of
+  '/bad': type variable 'V' must satisfy 'W: floats' (function '/fonly') for every
+  instantiation, which its declaration does not guarantee"*;
+- `both<A, B>(x, y) := pick(x, y)` with `pick<W>(p, q)` → *"the body requires type
+  variables 'B' and 'A' to be equal (parameter 'q' of function '/pick'), but they
+  are independent generic parameters of the definition"*;
+- `bad<V>(x) := float64(gid(x))` declared `-> attribute<V>` → *"the body requires
+  type variable 'V' to be Float64 (the calculation rule of 'result'), but 'V' must
+  remain generic in the definition"* (conversions type as their class, preserving
+  the argument's domain);
+- the domain analog via a shared callee domain variable → *"the body requires
+  domains 'D2' and 'D1' to be equal …, but they are independent in the definition"*.
+
+`CheckFunctionDefinition` now also runs at every application entry (`ReduceValue`,
+once per function via the `definitionChecked` flag), so closures, prelude functions
+and variant members are covered uniformly — previously only direct call heads were
+checked. The same tranche fixed a tranche-2 defect: variables are now additionally
+keyed by an **instance** number, so two independent bindings of the same generic
+function no longer link through a shared node (binding `gid` to both `f: nuf<A, D>`
+and `g: nuf<B, E>` must not force `A ≡ B`; regression `scratch/fn_test_vv4.dms`).
+A parser defect found in the same round is fixed: a bare-identifier result `:= x;`
+naming a *parameter* was captured by the designation scan (parameters are sub-items
+too) and designated the expression-less parameter item, so the applied function had
+no calculation rule ("function signature without implementation"); designation now
+skips the first `paramCount` sub-items, matching §5.1 ("designates an existing
+**body** item"), and a bare parameter name becomes the result's calculation rule
+(regression `scratch/fn_test_bareid.dms`, incl. exact-case and case-insensitive
+body-item designation guards). Tests
+`scratch/fn_test_dt{,_neg1,_neg2,_neg3,_neg4}.dms`.
+
+*Adversarial review round (4 dimensions, 13 agents, findings verified against the
+built binaries with live repros) confirmed five walker defects, all fixed before
+landing:*
+(1) **data-capturing closures** were rejected — `FindItem` ascends the parent chain,
+so an enclosing function's data/unit parameter was "found" and hit the
+reference-into-template error before the closure-capture deferral could fire; the
+deferral now also guards that throw (`fn_test_closure2.dms`, the canonical `adder`).
+(2) **argument-position parameter matching by name** bypassed body-local shadowing
+that the reducer honors — `InferArg` now short-circuits only function-typed
+parameters (mirroring `ResolveBodyArg`) and resolves data names by the
+nearest-scope walk (`fn_test_shadow.dms`).
+(3) **rigid variables lexically owned by an enclosing function** (named only in a
+type application) were seeded with an all-set acceptance set, making the for-all
+check spuriously strict — the seed now falls back to the enclosing declaration's
+constraint (`fn_test_encl.dms`).
+(4) **token-resolution precedence**: an own `<…>` clause now shadows the origin's
+variables, and unmapped tokens of a type application resolve only in the
+signature's own lexical world (never the checked function's variables).
+(5) **declared-type tokens of body items** could resolve to a same-named unit in
+the definition scope past a sub-container-local shadower — such tokens now defer
+(`HasBodyShadower`, `fn_test_shadow.dms`).
+
+Still open in WP4.1:
+operator-signature reification (§10 P2), which upgrades the deferred operator
+positions to full inference — and with it auto type derivation (`a := mul(b, c)`).
 
 ## 6. Verified mechanism inventory
 
@@ -1558,14 +1637,18 @@ dispatch (`SubstituteExpr_impl` function branch) via `CheckFunctionDefinition`, 
 by a `definitionChecked` flag in `FunctionSpecData` so it runs once; a failure re-runs
 next time (consistent errors) while success caches. Verified: an unresolved-identifier
 body errors with function-level attribution (`unknown identifier in body of function
-'/Bad'`); no false positives across the generic/member/HOF/map test suite. Not yet:
-checking of *never-referenced* functions (needs a config-load sweep) and full type
-checking.
+'/Bad'`); no false positives across the generic/member/HOF/map test suite.
+**Upgraded by WP4.1 tranche 3 (2026-07-14)**: the walker now performs full
+definition-time TYPE checking with rigid variables — see the §5.10 status block —
+and is additionally triggered at every application entry (`ReduceValue`), covering
+closures, prelude functions and variant members. Not yet: checking of
+*never-referenced* functions (needs a config-load sweep) and typed operator
+positions (WP4.1 operator-signature reification).
 
 ### P4 — unifier, boundary keys, refinements, rewrite end-state (implementation-ready)
 
-**WP4.1 — TypeSpec unifier on Robinson unification. Core IMPLEMENTED in 20.9.0
-(tranches 1+2, §5.10 status); operator signatures + definition-time walker remain.**
+**WP4.1 — TypeSpec unifier on Robinson unification. Core + definition-time walker
+IMPLEMENTED in 20.9.0 (tranches 1-3, §5.10 status); operator signatures remain.**
 Application-time checking runs on a dedicated union-find store (`TypeUnifier`,
 `tic/AbstrCalculator.cpp`) over value-class and domain variables, with
 variable-variable links, constraint-set intersection (§5.7 v2 acceptance-set
@@ -1585,10 +1668,10 @@ argument TypeSpec vector; constraint variables verify via `MatchesGenericConstra
 field-wise with width subtyping (§II.4). Operator signature reification stays
 mechanical: ClassCPtr array ⊕ UnitCreator name ⊕ domain-unify pattern (§6) generated
 per registered `Operator`, opt-in per group — unsignatured operators defer to
-per-application checking, so adoption is gradual; first consumers are call
-diagnostics and the WP3.4 upgrade from shape checks to full definition-time type
-checks (rigid variables for the function's own `<V, D>`, the unification store for
-everything the body derives).
+per-application checking, so adoption is gradual. The consumer is already in place:
+the tranche-3 typed walker types operator positions as Unknown today; reified
+signatures drop into `InferExpr`'s operator branch, upgrading definition-time
+inference body-wide and enabling auto type derivation (`a := mul(b, c)`).
 
 **WP4.2 — `applyF` boundary keys (R6/R7, opt-in).** Inline reduction stays the
 default (it preserves rewrite-rule key identity, §8.3). For very large bodies or

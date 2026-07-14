@@ -53,6 +53,7 @@
 #include <algorithm>
 #include <bitset>
 #include <functional>
+#include <tuple>
 #include <map>
 #include <memory>
 #include <set>
@@ -1161,6 +1162,8 @@ namespace {
 		SharedTreeItem ResolveBodyHeadFunction(const TreeItem* refScope, TokenID headID, std::shared_ptr<FunctionBinding>* paramBinding);
 	};
 
+	void CheckFunctionDefinition(const TreeItem* funcItem); // WP3.4 + tranche 3 typed walker, defined below
+
 	// a plain function reference is a binding with every slot a hole
 	std::shared_ptr<FunctionBinding> MakeAllHoles(SharedTreeItem func)
 	{
@@ -1377,6 +1380,20 @@ namespace {
 		return false;
 	}
 
+	// does `tok` appear in fn's OWN <...> type-parameter clause? (genericParams also
+	// record lexically inherited enclosing variables; the ordered typeVars list holds
+	// only the function's own declarations, so an own clause shadows the origin's)
+	bool IsOwnDeclaredVar(const TreeItem* fn, TokenID tok)
+	{
+		if (!tok)
+			return false;
+		if (auto tvs = TreeItem_GetFunctionTypeVars(fn))
+			for (const auto& tv : *tvs)
+				if (tv.first == tok)
+					return true;
+		return false;
+	}
+
 	// ---- WP4.1 tranche 2: unification store over an application's type variables ----
 	//
 	// Robinson unification specialized to the shallow type terms of §5: value-class
@@ -1420,13 +1437,23 @@ namespace {
 
 	struct TypeUnifier
 	{
-		const TreeItem* m_ApplItem; // the applied function, for error attribution
+		// tranche 3: variables are additionally keyed by an INSTANCE number, so every
+		// binding/instantiation of a generic function gets its own copies of that
+		// function's variables (two independent bindings of one generic function must
+		// not link through a shared node). Instance 0 with owner == the checked
+		// function marks that function's own variables; the definition-time walker
+		// creates those as RIGID (skolem) variables: a rigid variable must hold for
+		// EVERY instantiation, so it can never be bound to a concrete type, forced
+		// equal to another rigid variable, or narrowed below its declared constraint.
+		const TreeItem* m_ApplItem = nullptr; // the applied/checked function, for error attribution
+		CharPtr m_Phase = "";                 // "" at application; "the definition of " at definition time
 
 		struct ConstraintRec { TokenID name, constraint; SharedStr source; ValueClassSet set; };
 		struct ValueNode
 		{
 			SizeT parent; // union-find: parent == own index at a root
-			TokenID name; // the user-visible variable name (roots keep the outer one)
+			TokenID name; // the user-visible variable name (roots keep the rigid/outer one)
+			bool rigid = false;
 			const ValueClass* bound = nullptr;
 			SharedStr boundSource;
 			ValueClassSet feasible; // invariant: the intersection of all constraint sets
@@ -1436,27 +1463,36 @@ namespace {
 		{
 			SizeT parent;
 			TokenID name;
+			bool rigid = false;
 			SharedTreeItem keepAlive; // owns the liveness of `bound`
 			const AbstrUnit* bound = nullptr;
 			SharedStr boundSource;
 		};
 		std::vector<ValueNode>  m_ValueNodes;
 		std::vector<DomainNode> m_DomainNodes;
-		std::map<std::pair<const TreeItem*, TokenID>, SizeT> m_ValueVarIndex, m_DomainVarIndex;
+		using VarKey = std::tuple<const TreeItem*, UInt32, TokenID>;
+		std::map<VarKey, SizeT> m_ValueVarIndex, m_DomainVarIndex;
 
 		SizeT FindV(SizeT i) { while (m_ValueNodes[i].parent != i) i = m_ValueNodes[i].parent = m_ValueNodes[m_ValueNodes[i].parent].parent; return i; }
 		SizeT FindD(SizeT i) { while (m_DomainNodes[i].parent != i) i = m_DomainNodes[i].parent = m_DomainNodes[m_DomainNodes[i].parent].parent; return i; }
 
+		SharedStr FullName() const { return mySSPrintF("{}'{}'", m_Phase, m_ApplItem->GetFullName().c_str()); }
+
 		// get-or-create the node for owner's variable; a freshly created node seeds its
-		// acceptance set from the variable's declared constraint, attributed to `declSource`
-		SizeT ValueVar(const TreeItem* owner, TokenID name, const SharedStr& declSource)
+		// acceptance set from the variable's declared constraint, attributed to
+		// `declSource`; `fallbackConstraint` covers variables declared by an ENCLOSING
+		// function (lexically visible, not in owner's own lists)
+		SizeT ValueVar(const TreeItem* owner, UInt32 instance, TokenID name, const SharedStr& declSource, bool rigid = false, TokenID fallbackConstraint = TokenID())
 		{
-			auto [it, isNew] = m_ValueVarIndex.try_emplace(std::make_pair(owner, name), m_ValueNodes.size());
+			auto [it, isNew] = m_ValueVarIndex.try_emplace(VarKey{ owner, instance, name }, m_ValueNodes.size());
 			if (isNew)
 			{
-				ValueNode n; n.parent = m_ValueNodes.size(); n.name = name;
+				ValueNode n; n.parent = m_ValueNodes.size(); n.name = name; n.rigid = rigid;
 				n.feasible.set();
-				if (TokenID cons = DeclaredConstraintOf(owner, name))
+				TokenID cons = DeclaredConstraintOf(owner, name);
+				if (!cons)
+					cons = fallbackConstraint;
+				if (cons)
 				{
 					ConstraintRec rec{ name, cons, declSource, GenericConstraintSet(cons) };
 					n.feasible = rec.set;
@@ -1466,12 +1502,12 @@ namespace {
 			}
 			return it->second;
 		}
-		SizeT DomainVar(const TreeItem* owner, TokenID name)
+		SizeT DomainVar(const TreeItem* owner, UInt32 instance, TokenID name, bool rigid = false)
 		{
-			auto [it, isNew] = m_DomainVarIndex.try_emplace(std::make_pair(owner, name), m_DomainNodes.size());
+			auto [it, isNew] = m_DomainVarIndex.try_emplace(VarKey{ owner, instance, name }, m_DomainNodes.size());
 			if (isNew)
 			{
-				DomainNode n; n.parent = m_DomainNodes.size(); n.name = name;
+				DomainNode n; n.parent = m_DomainNodes.size(); n.name = name; n.rigid = rigid;
 				m_DomainNodes.push_back(std::move(n));
 			}
 			return it->second;
@@ -1483,22 +1519,26 @@ namespace {
 				return;
 			for (const auto& rec : n.constraints)
 				if (!rec.set.test(UInt32(vt->GetValueClassID())))
-					throwErrorF("ExprParser", "'{}': {} ({}) does not satisfy '{}: {}' ({})"
-						, m_ApplItem->GetFullName().c_str()
+					throwErrorF("ExprParser", "{}: {} ({}) does not satisfy '{}: {}' ({})"
+						, FullName().c_str()
 						, vt->GetName().c_str(), source.c_str()
 						, rec.name.GetStr().c_str(), rec.constraint.GetStr().c_str(), rec.source.c_str());
-			throwErrorF("ExprParser", "'{}': {} ({}) does not satisfy the combined constraints on type variable '{}'"
-				, m_ApplItem->GetFullName().c_str(), vt->GetName().c_str(), source.c_str(), n.name.GetStr().c_str());
+			throwErrorF("ExprParser", "{}: {} ({}) does not satisfy the combined constraints on type variable '{}'"
+				, FullName().c_str(), vt->GetName().c_str(), source.c_str(), n.name.GetStr().c_str());
 		}
 
 		void BindValue(SizeT i, const ValueClass* vt, const SharedStr& source)
 		{
 			auto& n = m_ValueNodes[FindV(i)];
+			if (n.rigid)
+				throwErrorF("ExprParser", "{}: the body requires type variable '{}' to be {} ({}), but '{}' must remain generic in the definition"
+					, FullName().c_str(), n.name.GetStr().c_str()
+					, vt->GetName().c_str(), source.c_str(), n.name.GetStr().c_str());
 			if (n.bound)
 			{
 				if (n.bound != vt)
-					throwErrorF("ExprParser", "'{}': inconsistent instantiation of type variable '{}': {} ({}) vs {} ({})"
-						, m_ApplItem->GetFullName().c_str(), n.name.GetStr().c_str()
+					throwErrorF("ExprParser", "{}: inconsistent instantiation of type variable '{}': {} ({}) vs {} ({})"
+						, FullName().c_str(), n.name.GetStr().c_str()
 						, n.bound->GetName().c_str(), n.boundSource.c_str()
 						, vt->GetName().c_str(), source.c_str());
 				return;
@@ -1507,16 +1547,37 @@ namespace {
 			n.bound = vt; n.boundSource = source;
 		}
 
-		void LinkValue(SizeT a, SizeT b)
+		void LinkValue(SizeT a, SizeT b, const SharedStr& source)
 		{
 			SizeT ra = FindV(a), rb = FindV(b);
 			if (ra == rb)
 				return;
+			if (m_ValueNodes[rb].rigid && !m_ValueNodes[ra].rigid)
+				std::swap(ra, rb); // the rigid (or first) side survives as the class representative
 			auto& na = m_ValueNodes[ra];
 			auto& nb = m_ValueNodes[rb];
+			if (na.rigid && nb.rigid)
+				throwErrorF("ExprParser", "{}: the body requires type variables '{}' and '{}' to be equal ({}), but they are independent generic parameters of the definition"
+					, FullName().c_str(), na.name.GetStr().c_str(), nb.name.GetStr().c_str(), source.c_str());
+			if (na.rigid)
+			{
+				assert(!na.bound); // rigid variables never carry a concrete binding
+				if (nb.bound)
+					throwErrorF("ExprParser", "{}: the body requires type variable '{}' to be {} ({}), but '{}' must remain generic in the definition"
+						, FullName().c_str(), na.name.GetStr().c_str()
+						, nb.bound->GetName().c_str(), nb.boundSource.c_str(), na.name.GetStr().c_str());
+				// FOR-ALL semantics: every instantiation allowed for the rigid variable
+				// must be accepted by the other side's constraints
+				if ((na.feasible & ~nb.feasible).any())
+					for (const auto& rec : nb.constraints)
+						if ((na.feasible & ~rec.set).any())
+							throwErrorF("ExprParser", "{}: type variable '{}' must satisfy '{}: {}' ({}) for every instantiation, which its declaration does not guarantee"
+								, FullName().c_str(), na.name.GetStr().c_str()
+								, rec.name.GetStr().c_str(), rec.constraint.GetStr().c_str(), rec.source.c_str());
+			}
 			if (na.bound && nb.bound && na.bound != nb.bound)
-				throwErrorF("ExprParser", "'{}': inconsistent instantiation of type variable '{}': {} ({}) vs {} ({})"
-					, m_ApplItem->GetFullName().c_str(), na.name.GetStr().c_str()
+				throwErrorF("ExprParser", "{}: inconsistent instantiation of type variable '{}': {} ({}) vs {} ({})"
+					, FullName().c_str(), na.name.GetStr().c_str()
 					, na.bound->GetName().c_str(), na.boundSource.c_str()
 					, nb.bound->GetName().c_str(), nb.boundSource.c_str());
 			if (na.bound && !nb.bound)
@@ -1529,14 +1590,14 @@ namespace {
 				for (const auto& recA : na.constraints)
 					for (const auto& recB : nb.constraints)
 						if ((recA.set & recB.set).none())
-							throwErrorF("ExprParser", "'{}': no value type can instantiate type variable '{}': '{}: {}' ({}) conflicts with '{}: {}' ({})"
-								, m_ApplItem->GetFullName().c_str(), na.name.GetStr().c_str()
+							throwErrorF("ExprParser", "{}: no value type can instantiate type variable '{}': '{}: {}' ({}) conflicts with '{}: {}' ({})"
+								, FullName().c_str(), na.name.GetStr().c_str()
 								, recA.name.GetStr().c_str(), recA.constraint.GetStr().c_str(), recA.source.c_str()
 								, recB.name.GetStr().c_str(), recB.constraint.GetStr().c_str(), recB.source.c_str());
-				throwErrorF("ExprParser", "'{}': no value type satisfies the combined constraints on type variable '{}'"
-					, m_ApplItem->GetFullName().c_str(), na.name.GetStr().c_str());
+				throwErrorF("ExprParser", "{}: no value type satisfies the combined constraints on type variable '{}'"
+					, FullName().c_str(), na.name.GetStr().c_str());
 			}
-			// merge rb into ra: ra keeps its (outer) name; payload and constraints unite
+			// merge rb into ra: ra keeps its (rigid/outer) name; payload and constraints unite
 			if (!na.bound && nb.bound)
 			{
 				na.bound = nb.bound; na.boundSource = nb.boundSource;
@@ -1549,27 +1610,38 @@ namespace {
 		void BindDomain(SizeT i, SharedTreeItem keepAlive, const AbstrUnit* du, const SharedStr& source)
 		{
 			auto& n = m_DomainNodes[FindD(i)];
+			if (n.rigid)
+				throwErrorF("ExprParser", "{}: the body pins domain '{}' to a specific unit ({}); it must remain generic in the definition"
+					, FullName().c_str(), n.name.GetStr().c_str(), source.c_str());
 			if (n.bound)
 			{
 				if (!n.bound->UnifyDomain(du, "", "", UnifyMode(UM_AllowVoidRight)))
-					throwErrorF("ExprParser", "'{}': inconsistent instantiation of domain variable '{}': the domain bound {} differs from the domain bound {}"
-						, m_ApplItem->GetFullName().c_str(), n.name.GetStr().c_str()
+					throwErrorF("ExprParser", "{}: inconsistent instantiation of domain variable '{}': the domain bound {} differs from the domain bound {}"
+						, FullName().c_str(), n.name.GetStr().c_str()
 						, n.boundSource.c_str(), source.c_str());
 				return;
 			}
 			n.keepAlive = std::move(keepAlive); n.bound = du; n.boundSource = source;
 		}
 
-		void LinkDomain(SizeT a, SizeT b)
+		void LinkDomain(SizeT a, SizeT b, const SharedStr& source)
 		{
 			SizeT ra = FindD(a), rb = FindD(b);
 			if (ra == rb)
 				return;
+			if (m_DomainNodes[rb].rigid && !m_DomainNodes[ra].rigid)
+				std::swap(ra, rb);
 			auto& na = m_DomainNodes[ra];
 			auto& nb = m_DomainNodes[rb];
+			if (na.rigid && nb.rigid)
+				throwErrorF("ExprParser", "{}: the body requires domains '{}' and '{}' to be equal ({}), but they are independent in the definition"
+					, FullName().c_str(), na.name.GetStr().c_str(), nb.name.GetStr().c_str(), source.c_str());
+			if (na.rigid && nb.bound)
+				throwErrorF("ExprParser", "{}: the body pins domain '{}' to a specific unit ({}); it must remain generic in the definition"
+					, FullName().c_str(), na.name.GetStr().c_str(), nb.boundSource.c_str());
 			if (na.bound && nb.bound && !na.bound->UnifyDomain(nb.bound, "", "", UnifyMode(UM_AllowVoidRight)))
-				throwErrorF("ExprParser", "'{}': inconsistent instantiation of domain variable '{}': the domain bound {} differs from the domain bound {}"
-					, m_ApplItem->GetFullName().c_str(), na.name.GetStr().c_str()
+				throwErrorF("ExprParser", "{}: inconsistent instantiation of domain variable '{}': the domain bound {} differs from the domain bound {}"
+					, FullName().c_str(), na.name.GetStr().c_str()
 					, na.boundSource.c_str(), nb.boundSource.c_str());
 			if (!na.bound && nb.bound)
 			{
@@ -1578,6 +1650,66 @@ namespace {
 			nb.parent = ra;
 		}
 	};
+
+	constexpr SizeT NO_TYPE_VAR = SizeT(-1);
+
+	// WP4.1: enforce one 'sig<...>'-typed binding — the bound function's positions
+	// instantiate or LINK the target variables named by the type application: a
+	// concrete position BINDS the mapped variable; a position naming the bound
+	// function's OWN generic variable LINKS that variable (under its own fresh
+	// `boundInstance`) to the mapped one. The target nodes come from callbacks so the
+	// same pass serves application-time checking (targets = the applied function's
+	// variables, instance 0) and the definition-time walker (targets resolved per
+	// type-application argument; NO_TYPE_VAR skips a position).
+	void LinkSignatureBinding(TypeUnifier& u, const TreeItem* sig, const TreeItem* boundFn,
+		const std::vector<std::pair<TokenID, TokenID>>* sigVars, const std::vector<TokenID>* typeArgs,
+		const std::function<SizeT(TokenID)>& targetValueNode,
+		const std::function<SizeT(TokenID)>& targetDomainNode,
+		UInt32 boundInstance, const SharedStr& bindSource)
+	{
+		std::map<TokenID, TokenID> sig2target;
+		for (SizeT k = 0; k != sigVars->size(); ++k)
+			sig2target[(*sigVars)[k].first] = (*typeArgs)[k];
+
+		auto constrainPos = [&](const TreeItem* sigPos, const TreeItem* fnPos)
+		{
+			if (!sigPos || !fnPos || !IsDataItem(sigPos) || !IsDataItem(fnPos))
+				return;
+
+			auto itV = sig2target.find(AsDataItem(sigPos)->ValuesUnitToken());
+			if (itV != sig2target.end())
+				if (SizeT target = targetValueNode(itV->second); target != NO_TYPE_VAR)
+				{
+					TokenID fnVU = AsDataItem(fnPos)->ValuesUnitToken();
+					if (fnVU && IsGenericVarOf(boundFn, fnVU))
+						u.LinkValue(target, u.ValueVar(boundFn, boundInstance, fnVU, bindSource), bindSource);
+					else if (auto vc = ParamValueClass(fnPos))
+						u.BindValue(target, vc, bindSource);
+				}
+
+			auto itD = sig2target.find(AsDataItem(sigPos)->DomainUnitToken());
+			if (itD != sig2target.end())
+				if (SizeT target = targetDomainNode(itD->second); target != NO_TYPE_VAR)
+				{
+					TokenID fnDU = AsDataItem(fnPos)->DomainUnitToken();
+					if (fnDU && IsGenericVarOf(boundFn, fnDU))
+						u.LinkDomain(target, u.DomainVar(boundFn, boundInstance, fnDU), bindSource);
+					else if (fnDU)
+						if (auto defP = boundFn->GetTreeParent())
+							if (auto unitItem = defP->FindItem(SharedStr(fnDU.AsStrRange())); unitItem && IsUnit(unitItem.get()))
+								u.BindDomain(target, unitItem, AsUnit(unitItem.get())
+									, mySSPrintF("by {}", bindSource.c_str()));
+				}
+		};
+
+		const TreeItem* sp = sig->_GetFirstSubItem();
+		const TreeItem* fp = boundFn->_GetFirstSubItem();
+		for (UInt32 k = 0, n = TreeItem_GetFunctionParamCount(sig); k != n && sp && fp; ++k, sp = sp->GetNextItem(), fp = fp->GetNextItem())
+			constrainPos(sp, fp);
+		constrainPos(
+			sig->GetConstSubTreeItemByID(TreeItem_GetFunctionResultName(sig)).get(),
+			boundFn->GetConstSubTreeItemByID(TreeItem_GetFunctionResultName(boundFn)).get());
+	}
 
 	void CheckFunctionSignature(const TreeItem* boundFn, const TreeItem* sigExemplar, CharPtr paramName)
 	{
@@ -1690,6 +1822,11 @@ namespace {
 				throwErrorF("ExprParser", "'apply' on template '{}': {} argument(s) provided but the template has only {} sub-item(s)"
 					, m_FuncItem->GetFullName().c_str(), nrParams, nrChildren);
 		}
+		else
+			// tranche 3: definition-time check at every application entry (once per
+			// function) — uniformly covers closures, prelude functions and variant
+			// members, which do not all pass through the direct-call substitution site
+			CheckFunctionDefinition(m_FuncItem);
 
 		// WP4.1: signature-instantiation constraints collected from 'sig<V, D>'-typed
 		// parameters, merged into the type/domain variable bindings after the data
@@ -1773,7 +1910,7 @@ namespace {
 				if (du->GetValueType()->GetValueClassID() == ValueClassID::VT_Void)
 				{ /* void broadcasts into any D and does not constrain it */ }
 				else
-					unifier.BindDomain(unifier.DomainVar(m_FuncItem, gpVar), argResult, du
+					unifier.BindDomain(unifier.DomainVar(m_FuncItem, 0, gpVar), argResult, du
 						, mySSPrintF("via parameter '{}'", gpParam->GetID().GetStr().c_str()));
 				continue;
 			}
@@ -1785,67 +1922,25 @@ namespace {
 			if (!vt)
 				throwErrorF("ExprParser", "'{}': parameter '{}' requires an attribute or unit argument"
 					, m_FuncItem->GetFullName().c_str(), gpParam->GetID().GetStr().c_str());
-			unifier.BindValue(unifier.ValueVar(m_FuncItem, gpVar, declSource), vt
+			unifier.BindValue(unifier.ValueVar(m_FuncItem, 0, gpVar, declSource), vt
 				, mySSPrintF("parameter '{}'", gpParam->GetID().GetStr().c_str()));
 		}
 
 		// WP4.1: merge signature-instantiation constraints — for each 'sig<V, D>'-typed
 		// parameter, the bound function's positions instantiate or LINK the applied
-		// variables: a concrete position BINDS the mapped variable; a position naming
-		// the bound function's OWN generic variable LINKS that variable to the mapped
-		// one (variable-variable unification: the constraint sets intersect, and a
-		// concrete binding of either variable propagates to the whole equivalence
-		// class — tranche 2)
+		// variables (LinkSignatureBinding). Each binding gets its OWN instance of the
+		// bound function's variables: two independent bindings of the same generic
+		// function must not link through a shared node (tranche 3 fix).
+		UInt32 bindingInstance = 0;
 		for (const auto& sc : sigConstraints)
 		{
-			std::map<TokenID, TokenID> sig2outer;
-			for (SizeT k = 0; k != sc.sigVars->size(); ++k)
-				sig2outer[(*sc.sigVars)[k].first] = (*sc.typeArgs)[k];
-
 			const TreeItem* viaParam = m_Params[sc.paramIndex];
 			SharedStr sigSource = mySSPrintF("function '{}' bound to parameter '{}'"
 				, sc.boundFn->GetFullName().c_str(), viaParam->GetID().GetStr().c_str());
-			auto constrainPos = [&](const TreeItem* sigPos, const TreeItem* fnPos)
-			{
-				if (!sigPos || !fnPos || !IsDataItem(sigPos) || !IsDataItem(fnPos))
-					return;
-
-				auto itV = sig2outer.find(AsDataItem(sigPos)->ValuesUnitToken());
-				if (itV != sig2outer.end())
-				{
-					TokenID fnVU = AsDataItem(fnPos)->ValuesUnitToken();
-					if (fnVU && IsGenericVarOf(sc.boundFn.get(), fnVU))
-						unifier.LinkValue(
-							unifier.ValueVar(m_FuncItem, itV->second, declSource),
-							unifier.ValueVar(sc.boundFn.get(), fnVU, sigSource));
-					else if (auto vc = ParamValueClass(fnPos))
-						unifier.BindValue(unifier.ValueVar(m_FuncItem, itV->second, declSource), vc, sigSource);
-				}
-
-				auto itD = sig2outer.find(AsDataItem(sigPos)->DomainUnitToken());
-				if (itD != sig2outer.end())
-				{
-					TokenID fnDU = AsDataItem(fnPos)->DomainUnitToken();
-					if (fnDU && IsGenericVarOf(sc.boundFn.get(), fnDU))
-						unifier.LinkDomain(
-							unifier.DomainVar(m_FuncItem, itD->second),
-							unifier.DomainVar(sc.boundFn.get(), fnDU));
-					else if (fnDU)
-						if (auto defP = sc.boundFn->GetTreeParent())
-							if (auto u = defP->FindItem(SharedStr(fnDU.AsStrRange())); u && IsUnit(u.get()))
-								unifier.BindDomain(unifier.DomainVar(m_FuncItem, itD->second), u, AsUnit(u.get())
-									, mySSPrintF("by function '{}' (bound to parameter '{}')"
-										, sc.boundFn->GetFullName().c_str(), viaParam->GetID().GetStr().c_str()));
-				}
-			};
-
-			const TreeItem* sp = sc.sig->_GetFirstSubItem();
-			const TreeItem* fp = sc.boundFn->_GetFirstSubItem();
-			for (UInt32 k = 0, n = TreeItem_GetFunctionParamCount(sc.sig.get()); k != n && sp && fp; ++k, sp = sp->GetNextItem(), fp = fp->GetNextItem())
-				constrainPos(sp, fp);
-			constrainPos(
-				sc.sig->GetConstSubTreeItemByID(TreeItem_GetFunctionResultName(sc.sig.get())).get(),
-				sc.boundFn->GetConstSubTreeItemByID(TreeItem_GetFunctionResultName(sc.boundFn.get())).get());
+			LinkSignatureBinding(unifier, sc.sig.get(), sc.boundFn.get(), sc.sigVars, sc.typeArgs
+				, [&](TokenID t) { return unifier.ValueVar(m_FuncItem, 0, t, declSource); }
+				, [&](TokenID t) { return unifier.DomainVar(m_FuncItem, 0, t); }
+				, ++bindingInstance, sigSource);
 		}
 
 		SharedTreeItem resultChild;
@@ -2368,25 +2463,130 @@ namespace {
 		CallArg a; a.key = SubstituteBodyExpr(refScope, argExpr); return a;
 	}
 
-	// WP3.4: definition-time scope/shape validation. A lightweight, argument-independent
-	// walk of the body reachable from the designated result: every identifier must
-	// resolve (parameter, local, or import), operator/function heads must be known, and
-	// direct function calls must have the right arity. It deliberately does NOT check
-	// types/units/metrics/generics or member existence (those need actual arguments and
-	// are verified per application by the reduction). Runs once per function.
+	// WP3.4 + WP4.1 tranche 3: definition-time validation of a function body — the
+	// scope/shape walk (every identifier must resolve; operator/function heads must be
+	// known; direct calls have the right arity) now also derives TYPES, bottom-up over
+	// the body reachable from the designated result. The function's own type/domain
+	// variables (and its unit parameters) are RIGID: the body must be well-typed for
+	// EVERY instantiation, so anything that would pin them to a concrete type/unit,
+	// force two of them equal, or narrow them below their declared constraints is a
+	// definition error — caught here once, without any application. Each callee
+	// instantiates its declared signature under a fresh variable instance. Built-in
+	// operators, externals, variant selections, partial applications and
+	// member/container accesses stay DEFERRED (type Unknown) and remain checked per
+	// application by the reduction — operator signatures are the next tranche.
+
+	// the definition-time type of a body expression (kinds-level, §5 terms)
+	struct DefType
+	{
+		enum class Kind : UInt8 { Unknown, Data, UnitVal, Func } kind = Kind::Unknown;
+
+		// value position (Data: the values class; UnitVal: the unit's class):
+		// concrete class XOR unifier node XOR unknown
+		const ValueClass* vc = nullptr;
+		SizeT vNode = NO_TYPE_VAR;
+
+		// domain position (Data: the domain; UnitVal: the unit's own identity)
+		enum class Dom : UInt8 { Unknown, Void, Concrete, Node } dom = Dom::Unknown;
+		const AbstrUnit* domUnit = nullptr; SharedTreeItem domKeep; // Concrete
+		SizeT dNode = NO_TYPE_VAR;                                  // Node
+
+		// Func: the function or signature item whose declared positions type an
+		// application of this value; tokens naming varsOwner's generic variables
+		// resolve to (varsOwner, instance) nodes; tok2owner adds the type-application
+		// translation (sig var -> varsOwner var)
+		const TreeItem* fn = nullptr;
+		const TreeItem* varsOwner = nullptr;
+		UInt32 instance = 0;
+		std::shared_ptr<std::map<TokenID, TokenID>> tok2owner;
+	};
+
 	struct FunctionChecker
 	{
 		const TreeItem*              m_FuncItem = nullptr;
 		std::vector<const TreeItem*> m_Params;
 		std::set<const TreeItem*>    m_InProgress;
 
-		void CheckBodyItem(const TreeItem* refItem);
-		void CheckExpr(const TreeItem* refScope, LispPtr expr);
-		// 0=parameter, 1=local (via *local), 2=import/external; throws on unknown
-		int ResolveName(const TreeItem* refScope, TokenID sym, const TreeItem** local);
+		TypeUnifier                  m_Unifier;
+		SharedStr                    m_DeclSource;
+		UInt32                       m_NextInstance = 1; // 0 = the checked function's own (rigid) variables
+		std::map<const TreeItem*, DefType> m_ItemTypes;  // memoized body-item types
+		std::vector<SharedTreeItem>  m_Keep;             // liveness of resolved callees
+
+		DefType InferBodyItem(const TreeItem* refItem);
+		DefType InferExpr(const TreeItem* refScope, LispPtr expr);
+		DefType InferArg(const TreeItem* refScope, LispPtr argExpr);
+		DefType InferApplication(const TreeItem* refScope, const DefType& fnVal, LispPtr argsList, CharPtr headName);
+		DefType ParamType(UInt32 idx);
+		DefType DeclaredItemType(const TreeItem* item);
+		DefType PositionType(const TreeItem* posItem, const TreeItem* fnDef, UInt32 instance,
+			const TreeItem* ownerFn, UInt32 ownerInstance, const std::map<TokenID, TokenID>* tok2owner,
+			const TreeItem* itemScope = nullptr);
+		void UnifyData(const DefType& a, const DefType& b, const SharedStr& srcA, const SharedStr& srcB);
+
+		// unifier nodes; the checked function's own variables (instance 0) are rigid.
+		// A rigid variable may lexically belong to an ENCLOSING function (nested
+		// declarations see the enclosing type-parameter clause) — seed its constraint
+		// from that declaration when the checked function's own lists lack it.
+		SizeT ValNode(const TreeItem* owner, UInt32 inst, TokenID tok)
+		{
+			bool rigid = owner == m_FuncItem && inst == 0;
+			TokenID fallback;
+			if (rigid && !DeclaredConstraintOf(m_FuncItem, tok))
+				for (auto enc = m_FuncItem->GetTreeParent(); enc && enc->IsFunctionItem(); enc = enc->GetTreeParent())
+					if (TokenID c = DeclaredConstraintOf(enc.get(), tok))
+					{
+						fallback = c;
+						break;
+					}
+			return m_Unifier.ValueVar(owner, inst, tok
+				, rigid ? m_DeclSource : mySSPrintF("function '{}'", owner->GetFullName().c_str()), rigid, fallback);
+		}
+		SizeT DomNode(const TreeItem* owner, UInt32 inst, TokenID tok)
+		{
+			return m_Unifier.DomainVar(owner, inst, tok, owner == m_FuncItem && inst == 0);
+		}
+		SharedTreeItem ResolveUnitInScope(TokenID tok, const TreeItem* fnDef)
+		{
+			SharedStr s(tok.AsStrRange());
+			auto u = fnDef->FindItem(s);
+			if (!u || !IsUnit(u.get()))
+				if (auto defP = fnDef->GetTreeParent()) // lexical definition scope (§4.6)
+					u = defP->FindItem(s);
+			if (u && IsUnit(u.get()) && !u->InTemplate()) // body-local units stay deferred (their meta info is not available here)
+				return u;
+			return {};
+		}
+		// a nested function's body may reference the ENCLOSING function's parameters
+		// and locals; those are bound through the closure environment at reduction and
+		// have no definition-time value here — resolve them only to defer them
+		SharedTreeItem FindEnclosingFunctionMember(TokenID tok)
+		{
+			for (auto enc = m_FuncItem->GetTreeParent(); enc && enc->IsFunctionItem(); enc = enc->GetTreeParent())
+				if (auto c = enc->GetConstSubTreeItemByID(tok))
+					return c;
+			return {};
+		}
+		// a body-local declaration in a sub-container between the declaring item and
+		// the function root shadows outer names at reduction; its meta info is not
+		// available at definition time, so such declared-type tokens must defer
+		bool HasBodyShadower(TokenID tok, const TreeItem* fromScope)
+		{
+			for (const TreeItem* scope = fromScope; scope; scope = scope->GetTreeParent().get())
+			{
+				if (scope == m_FuncItem)
+					return false; // direct children are seen (and deferred) by ResolveUnitInScope
+				if (scope->GetConstSubTreeItemByID(tok))
+					return true;
+			}
+			return false;
+		}
+
+		// 0=parameter (index via *paramIdx), 1=local (via *local), 2=import/external; throws on unknown
+		int ResolveName(const TreeItem* refScope, TokenID sym, const TreeItem** local, UInt32* paramIdx = nullptr);
 	};
 
-	int FunctionChecker::ResolveName(const TreeItem* refScope, TokenID sym, const TreeItem** local)
+	int FunctionChecker::ResolveName(const TreeItem* refScope, TokenID sym, const TreeItem** local, UInt32* paramIdx)
 	{
 		if (local) *local = nullptr;
 		SharedStr fullStr(sym.AsStrRange());
@@ -2403,9 +2603,13 @@ namespace {
 			auto child = scope->GetConstSubTreeItemByID(firstTok);
 			if (child)
 			{
-				for (auto p : m_Params)
-					if (p == child.get())
-						return 0; // parameter (member access is not verified at definition time)
+				for (UInt32 i = 0, n = m_Params.size(); i != n; ++i)
+					if (m_Params[i] == child.get())
+					{
+						if (paramIdx) *paramIdx = i;
+						if (slash != e) return 2; // parameter member access is not verified/typed at definition time
+						return 0;
+					}
 				const TreeItem* target = child.get();
 				if (slash != e)
 				{
@@ -2429,51 +2633,403 @@ namespace {
 		if (!found && slash == e)
 			if (auto pf = FindPreludeFunction(sym); pf && pf->IsFunctionItem())
 				return 2; // prelude: implicit outermost namespace, also for function references
+		if (!found && FindEnclosingFunctionMember(firstTok))
+			return 2; // captured through the closure environment; typed per application
 		if (!found)
 			throwErrorF("ExprParser", "'{}': unknown identifier in body of function '{}' (visible are: parameters, local items, 'using' imports, and the definition scope)"
 				, fullStr.c_str(), m_FuncItem->GetFullName().c_str());
 		if (!found->IsFunctionItem() && found->InTemplate())
+		{
+			// FindItem ascends the parent chain, so an ENCLOSING function's data/unit
+			// parameter or local is 'found' here — those are §5.10 closure captures,
+			// bound through the environment at reduction: defer, don't reject
+			if (FindEnclosingFunctionMember(firstTok))
+				return 2;
 			throwErrorF("ExprParser", "'{}': reference to (part of) a template or function from body of function '{}'"
 				, fullStr.c_str(), m_FuncItem->GetFullName().c_str());
+		}
 		return 2;
 	}
 
-	void FunctionChecker::CheckExpr(const TreeItem* refScope, LispPtr expr)
+	// the declared type of parameter idx: rigid variables for generic positions, a
+	// rigid identity for unit parameters, a Func value for signature-typed parameters
+	DefType FunctionChecker::ParamType(UInt32 idx)
+	{
+		const TreeItem* p = m_Params[idx];
+		if (auto sig = TreeItem_GetFunctionParamSignature(m_FuncItem, idx))
+		{
+			DefType r; r.kind = DefType::Kind::Func; r.fn = sig.get();
+			m_Keep.push_back(sig);
+			auto sigVars = TreeItem_GetFunctionTypeVars(sig.get());
+			auto typeArgs = TreeItem_GetFunctionParamSigTypeArgs(m_FuncItem, idx);
+			if (sigVars && typeArgs && typeArgs->size() == sigVars->size())
+			{
+				r.varsOwner = m_FuncItem; r.instance = 0;
+				r.tok2owner = std::make_shared<std::map<TokenID, TokenID>>();
+				for (SizeT k = 0; k != sigVars->size(); ++k)
+					(*r.tok2owner)[(*sigVars)[k].first] = (*typeArgs)[k];
+			}
+			return r;
+		}
+		if (IsUnit(p))
+		{
+			DefType r; r.kind = DefType::Kind::UnitVal;
+			r.vc = AsUnit(p)->GetValueType();
+			r.dom = DefType::Dom::Node;
+			r.dNode = DomNode(m_FuncItem, 0, p->GetID()); // rigid: the unit bound at application
+			return r;
+		}
+		if (IsDataItem(p))
+			return PositionType(p, m_FuncItem, 0, nullptr, 0, nullptr);
+		if (p->IsFunctionItem())
+		{
+			DefType r; r.kind = DefType::Kind::Func; r.fn = p; // bare 'name: function' / cloned exemplar
+			return r;
+		}
+		return {}; // container / typed-by-example parameters: deferred
+	}
+
+	// the declared annotation of a body item (or result); Unknown when undeclared
+	DefType FunctionChecker::DeclaredItemType(const TreeItem* item)
+	{
+		if (IsDataItem(item))
+			return PositionType(item, m_FuncItem, 0, nullptr, 0, nullptr, item->GetTreeParent().get());
+		return {}; // units, containers, nested functions: no data annotation to check
+	}
+
+	// the declared type of one position (parameter or result declaration) of fnDef,
+	// instantiated for one application under `instance`. Token resolution order:
+	// the type-application translation (tok2owner -> varsOwner's variables), the
+	// varsOwner's own variables (nested results reference their origin's variables),
+	// fnDef's own generic variables, fnDef's unit parameters (per-instantiation
+	// identity), and finally fnDef's definition scope (concrete units).
+	DefType FunctionChecker::PositionType(const TreeItem* posItem, const TreeItem* fnDef, UInt32 instance,
+		const TreeItem* ownerFn, UInt32 ownerInstance, const std::map<TokenID, TokenID>* tok2owner,
+		const TreeItem* itemScope)
+	{
+		DefType r;
+		if (!posItem)
+			return r;
+		if (IsUnit(posItem))
+		{
+			r.kind = DefType::Kind::UnitVal;
+			r.vc = AsUnit(posItem)->GetValueType();
+			r.dom = DefType::Dom::Node;
+			r.dNode = DomNode(fnDef, instance, posItem->GetID());
+			return r;
+		}
+		if (!IsDataItem(posItem))
+			return r; // container/typed-by-example positions: deferred
+
+		r.kind = DefType::Kind::Data;
+		auto adi = AsDataItem(posItem);
+
+		if (TokenID vTok = adi->ValuesUnitToken())
+		{
+			if (tok2owner)
+				if (auto it = tok2owner->find(vTok); it != tok2owner->end())
+					vTok = it->second, r.vNode = ValNode(ownerFn, ownerInstance, vTok);
+			if (r.vNode == NO_TYPE_VAR)
+			{
+				// an own <...> clause shadows the origin's variables; unmapped tokens
+				// of a type application (tok2owner set) belong to fnDef's own lexical
+				// world and never resolve to the origin's variables
+				if (IsOwnDeclaredVar(fnDef, vTok))
+					r.vNode = ValNode(fnDef, instance, vTok);
+				else if (!tok2owner && ownerFn && IsGenericVarOf(ownerFn, vTok))
+					r.vNode = ValNode(ownerFn, ownerInstance, vTok);
+				else if (IsGenericVarOf(fnDef, vTok))
+					r.vNode = ValNode(fnDef, instance, vTok);
+				else if (auto vc = ValueClass::FindByScriptName(vTok))
+					r.vc = vc;
+				else if (itemScope && HasBodyShadower(vTok, itemScope))
+					; // a body-local declaration shadows the outer name: defer
+				else if (auto u = ResolveUnitInScope(vTok, fnDef))
+					r.vc = AsUnit(u.get())->GetValueType(); // a values-unit reference: kinds-level class
+				// else: unknown values class (checked per application)
+			}
+		}
+
+		if (TokenID dTok = adi->DomainUnitToken())
+		{
+			if (tok2owner)
+				if (auto it = tok2owner->find(dTok); it != tok2owner->end())
+					dTok = it->second, r.dom = DefType::Dom::Node, r.dNode = DomNode(ownerFn, ownerInstance, dTok);
+			if (r.dom == DefType::Dom::Unknown)
+			{
+				if (IsOwnDeclaredVar(fnDef, dTok))
+				{
+					r.dom = DefType::Dom::Node; r.dNode = DomNode(fnDef, instance, dTok);
+				}
+				else if (!tok2owner && ownerFn && IsGenericVarOf(ownerFn, dTok))
+				{
+					r.dom = DefType::Dom::Node; r.dNode = DomNode(ownerFn, ownerInstance, dTok);
+				}
+				else if (IsGenericVarOf(fnDef, dTok))
+				{
+					r.dom = DefType::Dom::Node; r.dNode = DomNode(fnDef, instance, dTok);
+				}
+				else if (itemScope && HasBodyShadower(dTok, itemScope))
+				{ /* a body-local declaration shadows the outer name: defer */ }
+				else
+				{
+					// a unit parameter of fnDef: its per-instantiation identity
+					const TreeItem* q = fnDef->_GetFirstSubItem();
+					for (UInt32 j = 0, n = TreeItem_GetFunctionParamCount(fnDef); j != n && q; ++j, q = q->GetNextItem())
+						if (q->GetID() == dTok && IsUnit(q))
+						{
+							r.dom = DefType::Dom::Node; r.dNode = DomNode(fnDef, instance, dTok);
+							break;
+						}
+					if (r.dom == DefType::Dom::Unknown)
+						if (auto u = ResolveUnitInScope(dTok, fnDef))
+						{
+							if (AsUnit(u.get())->GetValueType()->GetValueClassID() == ValueClassID::VT_Void)
+								r.dom = DefType::Dom::Void;
+							else
+							{
+								r.dom = DefType::Dom::Concrete; r.domKeep = u; r.domUnit = AsUnit(u.get());
+							}
+						}
+				}
+			}
+		}
+		return r;
+	}
+
+	void FunctionChecker::UnifyData(const DefType& a, const DefType& b, const SharedStr& srcA, const SharedStr& srcB)
+	{
+		if (a.kind == DefType::Kind::Unknown || b.kind == DefType::Kind::Unknown)
+			return; // deferred to per-application checking
+		if (a.kind != b.kind || a.kind == DefType::Kind::Func)
+			return; // kind confusion and function-value conformance are handled at binding sites
+
+		// value positions
+		if (a.vNode != NO_TYPE_VAR && b.vNode != NO_TYPE_VAR)
+			m_Unifier.LinkValue(a.vNode, b.vNode, srcB);
+		else if (a.vNode != NO_TYPE_VAR && b.vc)
+			m_Unifier.BindValue(a.vNode, b.vc, srcB);
+		else if (b.vNode != NO_TYPE_VAR && a.vc)
+			m_Unifier.BindValue(b.vNode, a.vc, srcA);
+		else if (a.vc && b.vc && a.vc != b.vc)
+			throwErrorF("ExprParser", "the definition of '{}': {} ({}) does not match {} ({})"
+				, m_FuncItem->GetFullName().c_str()
+				, a.vc->GetName().c_str(), srcA.c_str(), b.vc->GetName().c_str(), srcB.c_str());
+
+		// domain positions (void broadcasts; unknown defers)
+		using Dom = DefType::Dom;
+		if (a.dom == Dom::Unknown || b.dom == Dom::Unknown || a.dom == Dom::Void || b.dom == Dom::Void)
+			return;
+		if (a.dom == Dom::Node && b.dom == Dom::Node)
+			m_Unifier.LinkDomain(a.dNode, b.dNode, srcB);
+		else if (a.dom == Dom::Node && b.dom == Dom::Concrete)
+			m_Unifier.BindDomain(a.dNode, b.domKeep, b.domUnit, srcB);
+		else if (b.dom == Dom::Node && a.dom == Dom::Concrete)
+			m_Unifier.BindDomain(b.dNode, a.domKeep, a.domUnit, srcA);
+		else if (a.dom == Dom::Concrete && b.dom == Dom::Concrete)
+			if (!a.domUnit->UnifyDomain(b.domUnit, "", "", UnifyMode(UM_AllowVoidRight))
+				&& !b.domUnit->UnifyDomain(a.domUnit, "", "", UnifyMode(UM_AllowVoidRight)))
+				throwErrorF("ExprParser", "the definition of '{}': the domain of {} differs from the domain of {}"
+					, m_FuncItem->GetFullName().c_str(), srcA.c_str(), srcB.c_str());
+	}
+
+	// type one application: infer/validate all arguments, unify them against the
+	// applied function's declared parameters under a fresh instance, and return the
+	// declared result type under that instance
+	DefType FunctionChecker::InferApplication(const TreeItem* refScope, const DefType& fnVal, LispPtr argsList, CharPtr headName)
+	{
+		std::vector<DefType> argTerms;
+		UInt32 nrArgs = 0; bool anyHole = false;
+		for (LispPtr a = argsList; !a.EndP(); a = a.Right())
+		{
+			bool hole = a.Left().IsSymb() && a.Left().GetSymbID() == t_Hole;
+			anyHole |= hole;
+			argTerms.push_back(hole ? DefType{} : InferArg(refScope, a.Left()));
+			++nrArgs;
+		}
+		if (fnVal.kind != DefType::Kind::Func || !fnVal.fn)
+			return {};
+		const TreeItem* fnDef = fnVal.fn;
+		if (TreeItem_IsFunctionVariantSet(fnDef))
+			return {}; // variant selection is argument-class-dependent: per application
+		if (!TreeItem_GetFunctionResultName(fnDef))
+			return {}; // no declared signature (bare 'name: function' values): per application
+		UInt32 nrParams = TreeItem_GetFunctionParamCount(fnDef);
+		if (!anyHole && nrArgs != nrParams)
+			throwErrorF("ExprParser", "'{}': function '{}' expects {} argument(s); {} provided"
+				, headName, fnDef->GetFullName().c_str(), nrParams, nrArgs);
+		if (anyHole)
+			return {}; // partial application: residual arity and types per application
+
+		UInt32 instance = m_NextInstance++;
+		const TreeItem* ownerFn = fnVal.varsOwner;
+		UInt32 ownerInstance = fnVal.instance;
+		const std::map<TokenID, TokenID>* t2o = fnVal.tok2owner.get();
+
+		const TreeItem* p = fnDef->_GetFirstSubItem();
+		for (UInt32 k = 0; k != nrParams && p; ++k, p = p->GetNextItem())
+		{
+			SharedStr pName(p->GetID().AsStrRange()); // materialized: TokenStr temporaries must not span nested walks (token-registry lock)
+			if (auto declaredSig = TreeItem_GetFunctionParamSignature(fnDef, k))
+			{
+				// signature-typed parameter: a plain function reference with a declared
+				// signature is checked and linked here; passed-through values without
+				// one (bare 'name: function') and partial bindings defer
+				if (argTerms[k].kind == DefType::Kind::Func && argTerms[k].fn && !argTerms[k].varsOwner
+					&& argTerms[k].fn->IsFunctionItem() && TreeItem_GetFunctionResultName(argTerms[k].fn))
+				{
+					const TreeItem* bound = argTerms[k].fn;
+					CheckFunctionSignature(bound, declaredSig.get(), pName.c_str());
+					auto sigVars = TreeItem_GetFunctionTypeVars(declaredSig.get());
+					auto typeArgs = TreeItem_GetFunctionParamSigTypeArgs(fnDef, k);
+					if (sigVars && typeArgs && typeArgs->size() == sigVars->size())
+					{
+						SharedStr bindSource = mySSPrintF("function '{}' bound to parameter '{}' of '{}'"
+							, bound->GetFullName().c_str(), pName.c_str(), fnDef->GetFullName().c_str());
+						// per type-application argument, the target variable may belong to
+						// fnDef (fresh instance) or, through the value's origin, to ownerFn
+						auto targetV = [&](TokenID t) -> SizeT
+						{
+							if (t2o) if (auto it = t2o->find(t); it != t2o->end()) return ValNode(ownerFn, ownerInstance, it->second);
+							if (IsOwnDeclaredVar(fnDef, t)) return ValNode(fnDef, instance, t);
+							if (!t2o && ownerFn && IsGenericVarOf(ownerFn, t)) return ValNode(ownerFn, ownerInstance, t);
+							if (IsGenericVarOf(fnDef, t)) return ValNode(fnDef, instance, t);
+							return NO_TYPE_VAR;
+						};
+						auto targetD = [&](TokenID t) -> SizeT
+						{
+							if (t2o) if (auto it = t2o->find(t); it != t2o->end()) return DomNode(ownerFn, ownerInstance, it->second);
+							if (IsOwnDeclaredVar(fnDef, t)) return DomNode(fnDef, instance, t);
+							if (!t2o && ownerFn && IsGenericVarOf(ownerFn, t)) return DomNode(ownerFn, ownerInstance, t);
+							if (IsGenericVarOf(fnDef, t)) return DomNode(fnDef, instance, t);
+							return NO_TYPE_VAR;
+						};
+						LinkSignatureBinding(m_Unifier, declaredSig.get(), bound, sigVars, typeArgs
+							, targetV, targetD, m_NextInstance++, bindSource);
+					}
+				}
+				else if (argTerms[k].kind != DefType::Kind::Unknown && argTerms[k].kind != DefType::Kind::Func)
+					throwErrorF("ExprParser", "the definition of '{}': parameter '{}' of function '{}' requires a function argument"
+						, m_FuncItem->GetFullName().c_str(), pName.c_str(), fnDef->GetFullName().c_str());
+				continue;
+			}
+			DefType pT = PositionType(p, fnDef, instance, ownerFn, ownerInstance, t2o);
+			SharedStr argSrc = mySSPrintF("argument {} of '{}'", k + 1, headName);
+			SharedStr parSrc = mySSPrintF("parameter '{}' of function '{}'", pName.c_str(), fnDef->GetFullName().c_str());
+			UnifyData(argTerms[k], pT, argSrc, parSrc);
+		}
+
+		auto resultChild = fnDef->GetConstSubTreeItemByID(TreeItem_GetFunctionResultName(fnDef));
+		if (!resultChild)
+			return {};
+		if (resultChild->IsFunctionItem())
+		{
+			if (t2o || ownerFn)
+				return {}; // deeper chains of function-valued results: per application
+			DefType r; r.kind = DefType::Kind::Func; r.fn = resultChild.get();
+			r.varsOwner = fnDef; r.instance = instance; // its positions reference fnDef's variables
+			m_Keep.push_back(resultChild);
+			return r;
+		}
+		return PositionType(resultChild.get(), fnDef, instance, ownerFn, ownerInstance, t2o);
+	}
+
+	// argument-position inference: function references become Func values (mirroring
+	// ResolveBodyArg); container literals defer; everything else infers as expression
+	DefType FunctionChecker::InferArg(const TreeItem* refScope, LispPtr argExpr)
+	{
+		if (argExpr.IsSymb())
+		{
+			TokenID sym = argExpr.GetSymbID();
+			if (sym == t_Hole || token::isConst(sym) || ValueClass::FindByScriptName(sym))
+				return {};
+			SharedStr s(sym.AsStrRange());
+			if (std::find(s.begin(), s.send(), '/') == s.send())
+			{
+				// function-typed parameters short-circuit by name (mirroring the
+				// reducer's binding lookup in ResolveBodyArg); DATA parameters do
+				// NOT — a nearer body local may shadow them (nearest-scope, exactly
+				// like ResolveBodySymbol resolves the argument at reduction)
+				if (auto headChild = m_FuncItem->GetConstSubTreeItemByID(sym))
+					for (UInt32 i = 0, n = m_Params.size(); i != n; ++i)
+						if (m_Params[i] == headChild.get()
+							&& (TreeItem_GetFunctionParamSignature(m_FuncItem, i) || m_Params[i]->IsFunctionItem()))
+							return ParamType(i);
+				for (const TreeItem* scope = refScope; scope; scope = scope->GetTreeParent().get())
+				{
+					if (auto child = scope->GetConstSubTreeItemByID(sym))
+					{
+						for (UInt32 i = 0, n = m_Params.size(); i != n; ++i)
+							if (m_Params[i] == child.get())
+								return ParamType(i);
+						if (child->IsFunctionItem())
+						{
+							DefType r; r.kind = DefType::Kind::Func; r.fn = child.get();
+							m_Keep.push_back(child);
+							return r;
+						}
+						return InferBodyItem(child.get());
+					}
+					if (scope == m_FuncItem)
+						break;
+				}
+				auto fnRef = m_FuncItem->FindItem(s);
+				if (!fnRef || !fnRef->IsFunctionItem())
+					if (auto defParent = m_FuncItem->GetTreeParent()) // lexical definition scope (§4.6)
+						if (auto lex = defParent->FindItem(s); lex && lex->IsFunctionItem())
+							fnRef = lex;
+				if (!fnRef || !fnRef->IsFunctionItem())
+					if (auto pf = FindPreludeFunction(sym); pf && pf->IsFunctionItem())
+						fnRef = pf;
+				if (fnRef && fnRef->IsFunctionItem())
+				{
+					DefType r; r.kind = DefType::Kind::Func; r.fn = fnRef.get();
+					m_Keep.push_back(fnRef);
+					return r;
+				}
+			}
+		}
+		if (argExpr.IsRealList() && argExpr.Left().IsSymb() && argExpr.Left().GetSymbID() == t_ContainerLiteral)
+			return {}; // §5.9 literal: members ('.'-rebound) are resolved and checked at reduction
+		return InferExpr(refScope, argExpr);
+	}
+
+	DefType FunctionChecker::InferExpr(const TreeItem* refScope, LispPtr expr)
 	{
 		if (expr.EndP())
-			return;
+			return {};
 		if (!expr.IsRealList())
 		{
 			if (expr.IsSymb())
 			{
 				TokenID sym = expr.GetSymbID();
 				if (sym == t_Hole || token::isConst(sym) || ValueClass::FindByScriptName(sym))
-					return;
-				const TreeItem* local = nullptr;
-				if (ResolveName(refScope, sym, &local) == 1 && local)
-					CheckBodyItem(local);
+					return {};
+				const TreeItem* local = nullptr; UInt32 paramIdx = 0;
+				switch (ResolveName(refScope, sym, &local, &paramIdx))
+				{
+				case 0: return ParamType(paramIdx);
+				case 1: return local ? InferBodyItem(local) : DefType{};
+				default: return {}; // imports/externals: their types are checked per application
+				}
 			}
-			return; // numeric / string / uint literals
+			return {}; // numeric / string literals: void-domain constants, class per application
 		}
 
 		TokenID headID = expr.Left().GetSymbID();
 		if (headID == token::sourceDescr)
-		{
-			CheckExpr(refScope, expr.Right().Left());
-			return;
-		}
+			return InferExpr(refScope, expr.Right().Left());
 		if (headID == token::arrow || headID == token::scope || headID == token::subitem)
 			throwErrorF("ExprParser", "the '{}' construct is not yet supported inside inlined function bodies"
 				"; bind the function application to a container to use the instantiating form"
 				, headID.GetStr().c_str());
 
-		// §5.10 applied call result: check the sub-expressions; arity of the application
-		// is argument-dependent (the inner value's residual params) — verified at reduction
+		// §5.10 applied call result: type the application when the inner value's
+		// signature is known; residual arity is verified at reduction
 		if (headID == t_ApplyValue)
 		{
-			for (LispPtr a = expr.Right(); !a.EndP(); a = a.Right())
-				CheckExpr(refScope, a.Left());
-			return;
+			DefType fnVal = InferArg(refScope, expr.Right().Left());
+			return InferApplication(refScope, fnVal, expr.Right().Right(), "(...)");
 		}
 
 		const AbstrOperGroup* og = AbstrOperGroup::FindName(headID);
@@ -2481,46 +3037,76 @@ namespace {
 		{
 			if (headID == t_Map)
 				throwErrorF("ExprParser", "map(...) can only appear as a whole calculation rule, not as a sub-expression");
-			bool isParam = false;
-			for (auto p : m_Params)
-				if (p->GetID() == headID) { isParam = true; break; }
-			if (!isParam)
-			{
-				// a direct function/import call: validate that it is a function of the right arity
-				auto callee = m_FuncItem->FindItem(SharedStr(headID.AsStrRange()));
-				if (!callee || !callee->IsFunctionItem())
-					if (auto defParent = m_FuncItem->GetTreeParent()) // lexical definition scope (§4.6)
-						if (auto lex = defParent->FindItem(SharedStr(headID.AsStrRange())); lex && lex->IsFunctionItem())
-							callee = lex;
-				if (!callee || !callee->IsFunctionItem())
-					if (auto pf = FindPreludeFunction(headID); pf && pf->IsFunctionItem())
-						callee = pf; // prelude: implicit outermost namespace for call heads
-				if (!callee)
-					throwErrorF("ExprParser", "'{}': unknown operator or function in body of function '{}'"
-						, headID.GetStr().c_str(), m_FuncItem->GetFullName().c_str());
-				if (!callee->IsFunctionItem())
-					throwErrorF("ExprParser", "'{}': template instantiations are not supported inside function bodies"
-						, headID.GetStr().c_str());
-				UInt32 nrArgs = 0; bool anyHole = false;
-				for (LispPtr a = expr.Right(); !a.EndP(); a = a.Right())
+			// the head name is materialized BEFORE the recursive walk: a TokenStr
+			// temporary holds the token registry's shared lock, and the walk below
+			// parses body expressions (token creation needs the exclusive lock)
+			SharedStr headName(headID.AsStrRange());
+			for (UInt32 i = 0, n = m_Params.size(); i != n; ++i)
+				if (m_Params[i]->GetID() == headID)
+					return InferApplication(refScope, ParamType(i), expr.Right(), headName.c_str());
+
+			// a direct function/import call: resolve, then type the application
+			auto callee = m_FuncItem->FindItem(SharedStr(headID.AsStrRange()));
+			if (!callee || !callee->IsFunctionItem())
+				if (auto defParent = m_FuncItem->GetTreeParent()) // lexical definition scope (§4.6)
+					if (auto lex = defParent->FindItem(SharedStr(headID.AsStrRange())); lex && lex->IsFunctionItem())
+						callee = lex;
+			if (!callee || !callee->IsFunctionItem())
+				if (auto pf = FindPreludeFunction(headID); pf && pf->IsFunctionItem())
+					callee = pf; // prelude: implicit outermost namespace for call heads
+			if (!callee)
+				if (auto env = FindEnclosingFunctionMember(headID))
 				{
-					++nrArgs;
-					if (a.Left().IsSymb() && a.Left().GetSymbID() == t_Hole) anyHole = true;
+					// an enclosing function's parameter or local applied as a function:
+					// bound through the closure environment at reduction; a declared
+					// signature (an exemplar-cloned parameter) still types the call
+					DefType envVal; envVal.kind = DefType::Kind::Func;
+					envVal.fn = env->IsFunctionItem() ? env.get() : nullptr;
+					m_Keep.push_back(env);
+					return InferApplication(refScope, envVal, expr.Right(), headName.c_str());
 				}
-				UInt32 nrCalleeParams = TreeItem_GetFunctionParamCount(callee.get());
-				if (!anyHole && nrArgs != nrCalleeParams)
-					throwErrorF("ExprParser", "'{}': function '{}' expects {} argument(s); {} provided"
-						, headID.GetStr().c_str(), callee->GetFullName().c_str(), nrCalleeParams, nrArgs);
-			}
+			if (!callee)
+				throwErrorF("ExprParser", "'{}': unknown operator or function in body of function '{}'"
+					, headName.c_str(), m_FuncItem->GetFullName().c_str());
+			if (!callee->IsFunctionItem())
+				throwErrorF("ExprParser", "'{}': template instantiations are not supported inside function bodies"
+					, headName.c_str());
+			DefType calleeVal; calleeVal.kind = DefType::Kind::Func; calleeVal.fn = callee.get();
+			m_Keep.push_back(callee);
+			return InferApplication(refScope, calleeVal, expr.Right(), headName.c_str());
 		}
+
+		// a value-class head is a conversion: the class is the head's, the domain
+		// follows the (single) argument
+		if (auto convVC = ValueClass::FindByScriptName(headID))
+		{
+			DefType argT; UInt32 n = 0;
+			for (LispPtr a = expr.Right(); !a.EndP(); a = a.Right(), ++n)
+				argT = InferExpr(refScope, a.Left());
+			if (n != 1)
+				return {};
+			DefType r; r.kind = DefType::Kind::Data; r.vc = convVC;
+			if (argT.kind == DefType::Kind::Data)
+			{
+				r.dom = argT.dom; r.domUnit = argT.domUnit; r.domKeep = argT.domKeep; r.dNode = argT.dNode;
+			}
+			return r;
+		}
+
+		// built-in operator: arguments are still walked (nested calls get typed); the
+		// result stays deferred until operator signatures are reified (WP4.1 rest)
 		for (LispPtr a = expr.Right(); !a.EndP(); a = a.Right())
-			CheckExpr(refScope, a.Left());
+			InferExpr(refScope, a.Left());
+		return {};
 	}
 
-	void FunctionChecker::CheckBodyItem(const TreeItem* refItem)
+	DefType FunctionChecker::InferBodyItem(const TreeItem* refItem)
 	{
+		if (auto it = m_ItemTypes.find(refItem); it != m_ItemTypes.end())
+			return it->second;
 		if (!m_InProgress.insert(refItem).second)
-			return; // cycle guard; true circularity is caught by the reduction
+			return {}; // cycle guard; true circularity is caught by the reduction
+		DefType inferred;
 		SharedStr exprStr = refItem->GetExpr();
 		if (!exprStr.empty())
 		{
@@ -2529,29 +3115,45 @@ namespace {
 					, refItem->GetFullName().c_str());
 			auto calc = AbstrCalculator::ConstructFromStr(refItem, exprStr, CalcRole::Calculator);
 			auto refScope = refItem->GetTreeParent();
-			CheckExpr(refScope.get(), RewriteExpr(calc->GetLispExprOrg()));
+			inferred = InferExpr(refScope.get(), RewriteExpr(calc->GetLispExprOrg()));
 		}
+		DefType declared = DeclaredItemType(refItem);
+		if (declared.kind != DefType::Kind::Unknown && inferred.kind != DefType::Kind::Unknown)
+		{
+			SharedStr itemName(refItem->GetID().AsStrRange()); // TokenStr must not span UnifyData (token-registry lock)
+			SharedStr ruleSrc = mySSPrintF("the calculation rule of '{}'", itemName.c_str());
+			SharedStr declSrc = mySSPrintF("the declared type of '{}'", itemName.c_str());
+			UnifyData(inferred, declared, ruleSrc, declSrc);
+		}
+		DefType itemType = declared.kind != DefType::Kind::Unknown ? declared : inferred;
 		m_InProgress.erase(refItem);
+		m_ItemTypes[refItem] = itemType;
+		return itemType;
 	}
 
 	void CheckFunctionDefinition(const TreeItem* funcItem)
 	{
 		if (TreeItem_IsFunctionDefinitionChecked(funcItem))
 			return;
+		if (TreeItem_IsFunctionVariantSet(funcItem))
+			return; // each variant is checked at its own application
 		TokenID resultName = TreeItem_GetFunctionResultName(funcItem);
 		auto resultChild = funcItem->GetConstSubTreeItemByID(resultName);
 		if (!resultChild)
 			throwErrorF("ExprParser", "'{}': designated result '{}' not found"
 				, funcItem->GetFullName().c_str(), resultName.GetStr().c_str());
-		if (!resultChild->GetExpr().empty()) // signature-only functions have no body to check
+		if (!resultChild->GetExpr().empty()) // signature-only functions and nested-function results have no body expression here
 		{
 			FunctionChecker chk;
 			chk.m_FuncItem = funcItem;
+			chk.m_Unifier.m_ApplItem = funcItem;
+			chk.m_Unifier.m_Phase = "the definition of ";
+			chk.m_DeclSource = mySSPrintF("declared by function '{}'", funcItem->GetFullName().c_str());
 			UInt32 nrParams = TreeItem_GetFunctionParamCount(funcItem);
 			const TreeItem* p = funcItem->_GetFirstSubItem();
 			for (UInt32 i = 0; i < nrParams && p; ++i, p = p->GetNextItem())
 				chk.m_Params.push_back(p);
-			chk.CheckBodyItem(resultChild.get());
+			chk.InferBodyItem(resultChild.get());
 		}
 		TreeItem_SetFunctionDefinitionChecked(funcItem);
 	}
