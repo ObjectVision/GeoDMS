@@ -1488,6 +1488,18 @@ namespace {
 					, m_FuncItem->GetFullName().c_str(), nrParams, nrChildren);
 		}
 
+		// WP4.1: signature-instantiation constraints collected from 'sig<V, D>'-typed
+		// parameters, merged into the type/domain variable bindings after the data
+		// arguments have been processed
+		struct SigConstraint
+		{
+			UInt32 paramIndex;
+			SharedTreeItem sig, boundFn;
+			const std::vector<std::pair<TokenID, TokenID>>* sigVars;
+			const std::vector<TokenID>* typeArgs;
+		};
+		std::vector<SigConstraint> sigConstraints;
+
 		m_Params.clear(); m_Params.reserve(nrParams);
 		const TreeItem* child = m_FuncItem->_GetFirstSubItem();
 		for (UInt32 i = 0; i != nrParams; ++i, child = child->GetNextItem())
@@ -1513,6 +1525,13 @@ namespace {
 					throwErrorF("ExprParser", "'{}': partial application bound to parameter '{}' has {} remaining argument(s); signature '{}' requires {}"
 						, m_FuncItem->GetFullName().c_str(), child->GetID().GetStr().c_str()
 						, residualArity, declaredSig->GetFullName().c_str(), requiredArity);
+
+				// WP4.1: enforce the type application 'sig<V, D>' — the bound function's
+				// CONCRETE positions constrain this application's type variables, shared
+				// with (and checked against) the data-argument bindings below
+				if (auto sigTypeArgs = TreeItem_GetFunctionParamSigTypeArgs(m_FuncItem, i))
+					if (auto sigVars = TreeItem_GetFunctionTypeVars(declaredSig.get()); sigVars && sigTypeArgs->size() == sigVars->size())
+						sigConstraints.push_back({ i, declaredSig, m_ArgBindings[i]->funcItem, sigVars, sigTypeArgs });
 			}
 		}
 
@@ -1583,6 +1602,73 @@ namespace {
 					, vt->GetName().c_str(), gpParam->GetID().GetStr().c_str());
 			if (!binding.first)
 				binding = { vt, gpParam };
+		}
+
+		// WP4.1: merge signature-instantiation constraints — for each 'sig<V, D>'-typed
+		// parameter, the bound function's CONCRETE positions (declared value classes,
+		// resolvable declared domains) instantiate the applied variables; generic
+		// positions of the bound function constrain nothing
+		auto outerVars = TreeItem_GetFunctionTypeVars(m_FuncItem);
+		for (const auto& sc : sigConstraints)
+		{
+			std::map<TokenID, TokenID> sig2outer;
+			for (SizeT k = 0; k != sc.sigVars->size(); ++k)
+				sig2outer[(*sc.sigVars)[k].first] = (*sc.typeArgs)[k];
+
+			const TreeItem* viaParam = m_Params[sc.paramIndex];
+			auto constrainPos = [&](const TreeItem* sigPos, const TreeItem* fnPos)
+			{
+				if (!sigPos || !fnPos || !IsDataItem(sigPos) || !IsDataItem(fnPos))
+					return;
+
+				auto itV = sig2outer.find(AsDataItem(sigPos)->ValuesUnitToken());
+				if (itV != sig2outer.end())
+					if (auto vc = ParamValueClass(fnPos))
+					{
+						if (outerVars)
+							for (const auto& ov : *outerVars)
+								if (ov.first == itV->second && !MatchesGenericConstraint(vc, ov.second))
+									throwErrorF("ExprParser", "'{}': function '{}' bound to parameter '{}' instantiates '{}' as {}, which does not satisfy '{}: {}'"
+										, m_FuncItem->GetFullName().c_str(), sc.boundFn->GetFullName().c_str()
+										, viaParam->GetID().GetStr().c_str(), itV->second.GetStr().c_str()
+										, vc->GetName().c_str(), itV->second.GetStr().c_str(), ov.second.GetStr().c_str());
+						auto& b = varBindings[itV->second];
+						if (b.first && b.first != vc)
+							throwErrorF("ExprParser", "'{}': inconsistent instantiation of type variable '{}': {} (from function '{}' bound to parameter '{}') vs {} (via parameter '{}')"
+								, m_FuncItem->GetFullName().c_str(), itV->second.GetStr().c_str()
+								, vc->GetName().c_str(), sc.boundFn->GetFullName().c_str(), viaParam->GetID().GetStr().c_str()
+								, b.first->GetName().c_str(), b.second->GetID().GetStr().c_str());
+						if (!b.first)
+							b = { vc, viaParam };
+					}
+
+				auto itD = sig2outer.find(AsDataItem(sigPos)->DomainUnitToken());
+				if (itD != sig2outer.end())
+				{
+					TokenID fnDU = AsDataItem(fnPos)->DomainUnitToken();
+					if (fnDU && !IsGenericVarOf(sc.boundFn.get(), fnDU))
+						if (auto defP = sc.boundFn->GetTreeParent())
+							if (auto u = defP->FindItem(SharedStr(fnDU.AsStrRange())); u && IsUnit(u.get()))
+							{
+								auto& db = domainBindings[itD->second];
+								if (std::get<1>(db) && !std::get<1>(db)->UnifyDomain(AsUnit(u.get()), "", "", UnifyMode(UM_AllowVoidRight)))
+									throwErrorF("ExprParser", "'{}': inconsistent instantiation of domain variable '{}': the domain declared by function '{}' (bound to parameter '{}') differs from the domain bound via parameter '{}'"
+										, m_FuncItem->GetFullName().c_str(), itD->second.GetStr().c_str()
+										, sc.boundFn->GetFullName().c_str(), viaParam->GetID().GetStr().c_str()
+										, std::get<2>(db)->GetID().GetStr().c_str());
+								if (!std::get<1>(db))
+									db = { u, AsUnit(u.get()), viaParam };
+							}
+				}
+			};
+
+			const TreeItem* sp = sc.sig->_GetFirstSubItem();
+			const TreeItem* fp = sc.boundFn->_GetFirstSubItem();
+			for (UInt32 k = 0, n = TreeItem_GetFunctionParamCount(sc.sig.get()); k != n && sp && fp; ++k, sp = sp->GetNextItem(), fp = fp->GetNextItem())
+				constrainPos(sp, fp);
+			constrainPos(
+				sc.sig->GetConstSubTreeItemByID(TreeItem_GetFunctionResultName(sc.sig.get())).get(),
+				sc.boundFn->GetConstSubTreeItemByID(TreeItem_GetFunctionResultName(sc.boundFn.get())).get());
 		}
 
 		SharedTreeItem resultChild;

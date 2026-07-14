@@ -707,6 +707,7 @@ const TreeItem* ConfigProd::ResolveTypeRef(TokenID refID) const
 void ConfigProd::DoRefTypeSignature()
 {
 	m_PendingFunctionParamSig = nullptr;
+	m_PendingTypeArgs.clear(); // a fresh typeref: type-application args follow, if any
 
 	if (auto exemplar = ResolveTypeRef(m_strIdentifierID))
 	{
@@ -770,7 +771,7 @@ void ConfigProd::DoColonItemHeading(iterator_t first, iterator_t last)
 			m_LastDeclSiblings.push_back(m_pCurrent); // all but the last; props/expr also apply to these
 		bool topLevel = inParams && IsTopLevelFunctionParam();
 		if (m_PendingFunctionParamSig && topLevel)
-			m_FuncStates.back().paramSigs.emplace_back(m_FuncStates.back().paramCount + i, m_PendingFunctionParamSig);
+			m_FuncStates.back().paramSigs.emplace_back(m_FuncStates.back().paramCount + i, m_PendingFunctionParamSig, m_PendingTypeArgs);
 		if (genericVar && topLevel)
 			m_FuncStates.back().genericParams.emplace_back(m_FuncStates.back().paramCount + i, genericVar, FindActiveTypeVarConstraint(genericVar), false);
 		if (domainVar && topLevel)
@@ -947,12 +948,12 @@ void ConfigProd::OnAnonSigParam(iterator_t first)
 
 void ConfigProd::OnParamSigTypeArg()
 {
-	// §5.10 Stage 2: an argument of a type application 'sig<V, D>' must name an
-	// active type variable; the binding is documentation in v1 (checks stay
-	// kind-level until the WP4.1 unifier)
+	// §5.10 Stage 2 / WP4.1: an argument of a type application 'sig<V, D>' must name
+	// an active type variable; collected for binding enforcement at reduction
 	if (!FindActiveTypeVarConstraint(m_strIdentifierID))
 		throwSemanticError(mgFormat2string("'{}': type application argument must name a type variable of the enclosing declaration"
 			, GetTokenStr(m_strIdentifierID)).c_str());
+	m_PendingTypeArgs.push_back(m_strIdentifierID);
 }
 
 void ConfigProd::DoFunctionUsing()
@@ -1102,9 +1103,11 @@ void ConfigProd::OnFunctionDeclEnd(iterator_t first)
 
 	TreeItem_SetFunctionSpec(func, fs.paramCount, designated);
 	for (const auto& paramSig : fs.paramSigs)
-		TreeItem_AddFunctionParamSignature(func, paramSig.first, paramSig.second);
+		TreeItem_AddFunctionParamSignature(func, std::get<0>(paramSig), std::get<1>(paramSig), std::get<2>(paramSig));
 	for (const auto& genericParam : fs.genericParams)
 		TreeItem_AddFunctionGenericParam(func, std::get<0>(genericParam), std::get<1>(genericParam), std::get<2>(genericParam), std::get<3>(genericParam));
+	if (!fs.typeVars.empty())
+		TreeItem_SetFunctionTypeVars(func, fs.typeVars); // WP4.1: ordered <var: constraint> list
 	TreeItem_MakeStrictScope(func); // definition-side strictness: inline reduction resolves through this scope
 	m_FuncStates.pop_back();
 

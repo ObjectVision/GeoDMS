@@ -986,9 +986,30 @@ same rule as partial applications today. `pow4(a)` reduces through the closure t
   declaration stack).
 
 Deviations from the sketch, accepted: parameters use the `name: type` form with `;`
-separators (not type-first with commas). Deferred to WP4.1 (full unifier): inferring
-V/D through generic function-valued arguments and enforcing the type-application
-bindings across parameters.
+separators (not type-first with commas).
+
+**WP4.1 tranche 1 implemented (2026-07-14): type-application binding enforcement.**
+The `sig<V, D>` bindings are no longer documentation: at each application, every
+`sig<V, D>`-typed parameter contributes the bound function's **concrete** positions
+(declared value classes; declared domains resolvable in the bound function's
+definition scope) as instantiation constraints on the applied variables, merged into
+the same variable-binding maps the data arguments populate — so conflicts are caught
+across function arguments, between function and data arguments, and against the
+variables' declared constraints, each with precise attribution:
+`compose(fhalf, iinc)` → *"inconsistent instantiation of type variable 'V': Int32
+(from function 'iinc' bound to parameter 'g') vs Float64 (via parameter 'f')"*;
+`mixap(road_only, Rail/flow)` → *"inconsistent instantiation of domain variable 'd':
+the domain declared by function 'road_only' (bound to parameter 'h') differs from
+the domain bound via parameter 'y'"*. Generic positions of a bound function
+constrain nothing (a fully generic `sqr` remains bindable to any instantiation).
+Mechanism: the ordered `<var: constraint>` list and per-parameter type-application
+arguments persist in the function spec (`TreeItem_SetFunctionTypeVars`,
+`TreeItem_GetFunctionParamSigTypeArgs`); `ReduceValue` maps signature variables to
+applied variables positionally and merges per-position constraints
+(`SigConstraint` pass in `tic/AbstrCalculator.cpp`). Still open in WP4.1: full
+Robinson unification over TypeSpec terms (variable-variable links, occurs check via
+sym/Prolog), operator-signature reification (§10 P2), and variant
+specificity/disjointness.
 
 ## 6. Verified mechanism inventory
 

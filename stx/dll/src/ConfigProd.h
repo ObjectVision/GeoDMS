@@ -177,6 +177,7 @@ void                ClearPropData();
 	TokenID                          m_AliasNameID;
 	iterator_t                       m_PendingNameLoc; // source location captured at a function/variant-set name
 	const TreeItem*                  m_PendingFunctionParamSig = nullptr; // function-signature exemplar awaiting item creation
+	std::vector<TokenID>             m_PendingTypeArgs; // WP4.1: 'sig<V, D>' type-application arguments of the pending typeref
 	const TreeItem*                  m_PendingTypeExemplar = nullptr; // type-by-example / alias source, for refinement (IntegrityCheck) cloning
 
 	// generic type variable support: function f<V: numerics>(...)
@@ -202,7 +203,7 @@ void                ClearPropData();
 		TokenID                   resultParamEntity;
 		ValueComposition          resultVC = ValueComposition::Unknown;
 		SharedStr                 resultExpr;
-		std::vector<std::pair<UInt32, const TreeItem*>> paramSigs; // (param index, signature exemplar)
+		std::vector<std::tuple<UInt32, const TreeItem*, std::vector<TokenID>>> paramSigs; // (param index, signature exemplar, type-application args)
 		std::vector<std::pair<TokenID, TokenID>> typeVars;         // (var, constraint)
 		std::vector<std::tuple<UInt32, TokenID, TokenID, bool>> genericParams; // (param index, var, constraint, isDomainVar)
 	};

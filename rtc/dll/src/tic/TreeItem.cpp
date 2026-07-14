@@ -78,12 +78,13 @@ namespace {
 	{
 		UInt32 nrParams = 0;
 		TokenID resultName;
-		std::vector<std::pair<UInt32, std::weak_ptr<const TreeItem>>> paramSigs;
+		std::vector<std::tuple<UInt32, std::weak_ptr<const TreeItem>, std::vector<TokenID>>> paramSigs; // (param index, signature exemplar, type-application args)
 		std::vector<std::tuple<UInt32, TokenID, TokenID, bool>> genericParams; // (param index, type variable, constraint, isDomainVar)
+		std::vector<std::pair<TokenID, TokenID>> typeVars; // the declaration's own ordered <var: constraint> list (WP4.1)
 		bool definitionChecked = false; // WP3.4: body scope/shape validated once
 		bool isVariantSet = false;      // §5.7: a function that dispatches to variant sub-functions by argument type
 	};
-	bool IsDefaultValue(const FunctionSpecData& v) { return v.nrParams == 0 && !v.resultName && v.paramSigs.empty() && v.genericParams.empty() && !v.definitionChecked && !v.isVariantSet; }
+	bool IsDefaultValue(const FunctionSpecData& v) { return v.nrParams == 0 && !v.resultName && v.paramSigs.empty() && v.genericParams.empty() && v.typeVars.empty() && !v.definitionChecked && !v.isVariantSet; }
 	static_quick_assoc<const TreeItem*, FunctionSpecData> s_FunctionSpecAssoc;
 
 	static TokenID t_gcAny          = GetTokenID_st("any");
@@ -1437,11 +1438,11 @@ TIC_CALL void TreeItem_SetFunctionSpec(const TreeItem* functionItem, UInt32 nrPa
 	s_FunctionSpecAssoc.assoc(functionItem, FunctionSpecData{ nrParams, resultName, {} });
 }
 
-TIC_CALL void TreeItem_AddFunctionParamSignature(const TreeItem* functionItem, UInt32 paramIndex, const TreeItem* signatureExemplar)
+TIC_CALL void TreeItem_AddFunctionParamSignature(const TreeItem* functionItem, UInt32 paramIndex, const TreeItem* signatureExemplar, std::vector<TokenID> typeArgs)
 {
 	assert(functionItem && functionItem->IsFunctionItem());
 	assert(signatureExemplar && signatureExemplar->IsFunctionItem());
-	s_FunctionSpecAssoc[functionItem].paramSigs.emplace_back(paramIndex, signatureExemplar->weak_from_this());
+	s_FunctionSpecAssoc[functionItem].paramSigs.emplace_back(paramIndex, signatureExemplar->weak_from_this(), std::move(typeArgs));
 }
 
 TIC_CALL SharedTreeItem TreeItem_GetFunctionParamSignature(const TreeItem* functionItem, UInt32 paramIndex)
@@ -1449,9 +1450,33 @@ TIC_CALL SharedTreeItem TreeItem_GetFunctionParamSignature(const TreeItem* funct
 	auto specPtr = s_FunctionSpecAssoc.get_value_ptr(functionItem);
 	if (specPtr)
 		for (const auto& paramSig : specPtr->paramSigs)
-			if (paramSig.first == paramIndex)
-				return SharedTreeItem(paramSig.second.lock());
+			if (std::get<0>(paramSig) == paramIndex)
+				return SharedTreeItem(std::get<1>(paramSig).lock());
 	return {};
+}
+
+TIC_CALL const std::vector<TokenID>* TreeItem_GetFunctionParamSigTypeArgs(const TreeItem* functionItem, UInt32 paramIndex)
+{
+	auto specPtr = s_FunctionSpecAssoc.get_value_ptr(functionItem);
+	if (specPtr)
+		for (const auto& paramSig : specPtr->paramSigs)
+			if (std::get<0>(paramSig) == paramIndex && !std::get<2>(paramSig).empty())
+				return &std::get<2>(paramSig);
+	return nullptr;
+}
+
+TIC_CALL void TreeItem_SetFunctionTypeVars(const TreeItem* functionItem, std::vector<std::pair<TokenID, TokenID>> typeVars)
+{
+	assert(functionItem && functionItem->IsFunctionItem());
+	s_FunctionSpecAssoc[functionItem].typeVars = std::move(typeVars);
+}
+
+TIC_CALL const std::vector<std::pair<TokenID, TokenID>>* TreeItem_GetFunctionTypeVars(const TreeItem* functionItem)
+{
+	auto specPtr = s_FunctionSpecAssoc.get_value_ptr(functionItem);
+	if (specPtr && !specPtr->typeVars.empty())
+		return &specPtr->typeVars;
+	return nullptr;
 }
 
 TIC_CALL void TreeItem_CopyFunctionSpec(const TreeItem* dstFunctionItem, const TreeItem* srcFunctionItem)

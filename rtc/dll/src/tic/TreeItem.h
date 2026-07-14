@@ -677,8 +677,11 @@ TIC_CALL bool IntegrityCheckFailure(const TreeItem* self, const AbstrDataItem* i
 TIC_CALL void    TreeItem_SetFunctionSpec(const TreeItem* functionItem, UInt32 nrParams, TokenID resultName);
 TIC_CALL UInt32  TreeItem_GetFunctionParamCount(const TreeItem* functionItem);
 TIC_CALL TokenID TreeItem_GetFunctionResultName(const TreeItem* functionItem);
-TIC_CALL void    TreeItem_AddFunctionParamSignature(const TreeItem* functionItem, UInt32 paramIndex, const TreeItem* signatureExemplar);
+TIC_CALL void    TreeItem_AddFunctionParamSignature(const TreeItem* functionItem, UInt32 paramIndex, const TreeItem* signatureExemplar, std::vector<TokenID> typeArgs = {});
 TIC_CALL auto    TreeItem_GetFunctionParamSignature(const TreeItem* functionItem, UInt32 paramIndex) -> SharedTreeItem;
+TIC_CALL const std::vector<TokenID>* TreeItem_GetFunctionParamSigTypeArgs(const TreeItem* functionItem, UInt32 paramIndex); // WP4.1: 'sig<V, D>' arguments
+TIC_CALL void    TreeItem_SetFunctionTypeVars(const TreeItem* functionItem, std::vector<std::pair<TokenID, TokenID>> typeVars); // WP4.1: ordered <var: constraint> list
+TIC_CALL const std::vector<std::pair<TokenID, TokenID>>* TreeItem_GetFunctionTypeVars(const TreeItem* functionItem);
 TIC_CALL void    TreeItem_CopyFunctionSpec(const TreeItem* dstFunctionItem, const TreeItem* srcFunctionItem);
 
 // generic type variables on function parameters: function f<V: numerics>(... attribute<V> x ...)
