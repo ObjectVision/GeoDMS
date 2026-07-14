@@ -134,10 +134,10 @@ container function_example
 	// with a further '(args)' suffix.
 	container hof2
 	{
-		numeric_unary_function = function<V: numerics, D: domains>(attribute<V> (D)) -> attribute<V> (D);
+		nuf_type = function<V: numerics, D: domains>(attribute<V> (D)) -> attribute<V> (D);  // nuf_type
 
-		function compose<V: numerics, D: domains>(f: numeric_unary_function<V, D>; g: numeric_unary_function<V, D>)
-		-> numeric_unary_function<V, D>
+		function compose<V: numerics, D: domains>(f: nuf_type<V, D>; g: nuf_type<V, D>)
+		-> nuf_type<V, D>
 		{
 			function result(attribute<V> x (D)) -> attribute<V> (D) := f(g(x));
 		}
