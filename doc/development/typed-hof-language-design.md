@@ -1489,6 +1489,31 @@ never did, so only the 1-arg forms collapse). Note: `rescale`'s `min`/`max` (and
 `normalize`'s `e`/`s`) are scalars, as in the retired rules — the trailing
 `+ mn` broadcasts void into the data domain.
 
+**Tranche 3 implemented (2026-07-14).** Seven more rules retired: `abs`
+(`isNegative(x) ? -x : x` — exact old resolvent), `sort_str`
+(`lookup(index(x), x)`), `reversed_id` (a `container D` plain parameter binds any
+domain unit; body is the exact `UpperBound/LowerBound/id/convert` expansion),
+`reverse<T: any>` (points and strings included — `lookup(reversed_id(DomainUnit(x)),
+x)`, the sibling call β-reduces to the old fixpoint), and the proximity family
+`neighbourhood`/`float_isNearby`/`point_isNearby` — the key insight being that their
+bodies SPELL `order(…)`/`isOverlapping(…)` calls, on which the two **retained**
+pattern-matching rules still fire at body-parse fixpoint, so the reduced keys equal
+the old rule chain without hand-expanding anything. Key identity re-proven by a
+range-domain unification probe (`range(uint32,0,uint32(abs(pp)))` from both
+spellings; `scratch/fn_test_wp45t3.dms`) and by the unmodified tst `/Arithmetics`
+(its `abs` and four `float_isNearby` tests). Enabling grammar fix: the optional
+result NAME (`-> name: type`) must not claim the `:` of `:=` — a not-`=` lookahead
+after the colon (`-> container := …` previously mis-parsed; latent since P0, first
+exposed by `reversed_id`). Still in the .lsp, with reasons: `order`/`isOverlapping`/
+`median`-on-interval (destructuring patterns — and now also load-bearing for the
+tranche-3 bodies), 3-arg `median` and 2-arg `log` (their heads shadow retained
+rules/operators — need arity-aware head dispatch or optional args), `concat`/
+`switch`/`index`/`subindex`/`combine_data`/`replace(_value)` chains (variadic — B/C),
+accessors (`Value`/`const`/`collect_by_*`/`PropValue` — E), bool/pseudo-aggregation
+simplifications (D — stay by design as the future compiled-in pass), `rjoin`
+(self-join collapse rule), `ReadValue` (optional args), `claim_*` (RuimteScanner
+model logic — coordination).
+
 **Auto-import implemented (2026-07-13).** The prelude is auto-imported at config load
 (`stx/dll/src/StxInterface.cpp`, `CreateTreeFromConfiguration`): parsed into a hidden,
 endogenous `prelude` container under the config root. A root `using` cannot point at

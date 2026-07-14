@@ -290,7 +290,10 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 			// '-> function' AND for data results followed by a body block (§5.11).
 			// ':= function(...)' declares an anonymous result-position function.
 			functionResultSpec =
-				!( (identifier >> COLON)[([&cp](...) { cp.DoFunctionResultName();})] )
+				// the optional result NAME ('-> name: type') must not claim the ':' of
+				// ':=' (e.g. '-> container := expr'): a type follows the name's colon
+				!( (identifier >> COLON >> epsilon_p(boost::spirit::anychar_p - EQUAL))
+					[([&cp](...) { cp.DoFunctionResultName();})] )
 				>> assert_d("function result type expected after '->'")[functionResultType]
 				>> !( (COLON >> EQUAL)
 					>> ( anonResultFunction
@@ -309,7 +312,8 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 				>> assert_d("')' expected after signature parameter declarations")[RPAREN]
 					[([&cp](...) { cp.OnEndFunctionParams();})]
 				>> assert_d("'->' and result type expected in a function-signature alias")[ARROW]
-				>> !( (identifier >> COLON)[([&cp](...) { cp.DoFunctionResultName();})] )
+				>> !( (identifier >> COLON >> epsilon_p(boost::spirit::anychar_p - EQUAL))
+					[([&cp](...) { cp.DoFunctionResultName();})] )
 				>> assert_d("result type expected after '->'")[functionResultType]
 				>> assert_d("';' expected after function-signature alias")[SEMICOLON]
 				)

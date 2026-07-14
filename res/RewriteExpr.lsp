@@ -44,9 +44,8 @@
 /*********** Elementary funcs  *********/
 
 [(log _X _Y)                (div (log _X) (log _Y))]
-/* plogp and sqr retired to the typed prelude (res/prelude.dms, WP4.5); the pow
-   resolvents below carry their expansions inline so pow keys are unchanged. */
-[(abs _X)                   (iif (isNegative _X) (neg _X) _X)]
+/* plogp, sqr and abs retired to the typed prelude (res/prelude.dms, WP4.5); the
+   pow resolvents below carry the sqr expansion inline so pow keys are unchanged. */
 [(pow _X 2)                 (mul _X _X)]
 [(pow _X 3)                 (mul _X (mul _X _X))]
 [(pow _X 4)                 (mul (mul _X _X) (mul _X _X))]
@@ -130,17 +129,10 @@
 	)
 ]
 
-[(neighbourhood _X _Factor) (order _X (mul _Factor _X) )]
-
-[(float_isNearby _a _b _Factor)
-	(isOverlapping (neighbourhood _a _Factor) (neighbourhood _b _Factor))]
-   
-[(point_isNearby _a _b _Factor)
-	(and
-		(float_isNearby (pointrow _a) (pointrow _b) _Factor)
-		(float_isNearby (pointcol _a) (pointcol _b) _Factor)
-	)
-]
+/* neighbourhood, float_isNearby and point_isNearby retired to the typed prelude
+   (res/prelude.dms, WP4.5 tranche 3): their bodies spell order/isOverlapping
+   calls, on which the two retained rules above still fire at body parse, so the
+   reduced keys equal the old rule chain. */
 
 [(median _a _b _c) (median _a (order _b _c)) ]
 
@@ -206,9 +198,8 @@
 
 [(rjoin _a _b _c)            (lookup (rlookup _a _b) _c)]
 [(lookup (rlookup _a _a) _c) _c]
-[(sort_str _a)            (lookup (index _a) _a)]
-[(reversed_id _D)         (sub (sub  (add (UpperBound _D) (LowerBound _D) ) (id _D)) (convert 1 _D))]
-[(reverse _a)             (lookup (reversed_id (DomainUnit _a)) _a)]
+/* sort_str, reversed_id and reverse retired to the typed prelude
+   (res/prelude.dms, WP4.5 tranche 3) */
 [[index [_a [_b _R]]]     [subindex [(index _a) [(rank_sorted (index_a) _a) [_b _R]]]] ]
 
 [[subindex [_I [_O [_b [_c _R]]]]] 

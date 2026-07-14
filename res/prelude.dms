@@ -20,6 +20,29 @@ function sqr<V: numerics>(attribute<V> x) -> attribute<V> := x * x;
 
 function plogp<F: floats>(attribute<F> x) -> attribute<F> := MakeDefined(x * log(x), 0.0);
 
+function abs<V: numerics>(attribute<V> x) -> attribute<V> := isNegative(x) ? -x : x;
+
+// ---------------------------------------------------------------- ordering (WP4.5 tranche 3)
+
+function sort_str(attribute<string> x) -> attribute<string> := lookup(index(x), x);
+
+// D is a plain parameter binding any domain unit; the result ranges over D
+function reversed_id(container D) -> container := (UpperBound(D) + LowerBound(D) - id(D)) - convert(1, D);
+
+function reverse<T: any>(attribute<T> x) -> attribute<T> := lookup(reversed_id(DomainUnit(x)), x);
+
+// ---------------------------------------------------------------- proximity (WP4.5 tranche 3)
+// the retained 'order' and 'isOverlapping' rewrite rules fire at body-parse
+// fixpoint on these spellings, so the reduced keys equal the old rule chain
+
+function neighbourhood<V: numerics>(attribute<V> x; attribute<V> f) -> container := order(x, f * x);
+
+function float_isNearby<V: numerics>(attribute<V> a; attribute<V> b; attribute<V> f)
+-> attribute<bool> := isOverlapping(order(a, f * a), order(b, f * b));
+
+function point_isNearby<P: points, V: numerics>(attribute<P> a; attribute<P> b; attribute<V> f)
+-> attribute<bool> := float_isNearby(pointrow(a), pointrow(b), f) && float_isNearby(pointcol(a), pointcol(b), f);
+
 // ---------------------------------------------------------------- logit
 
 function llpart<F: floats>(attribute<F> lc; attribute<F> xc; attribute<F> oc)
