@@ -1213,15 +1213,63 @@ feature. Implemented forms (tier A, stx only):
   rule recursion (result spec → literal → result spec) permits nested anonymous
   results.
 
-Still open (tier B): function literals in argument position and
-immediately-applied parenthesized literals, via parse-time lambda lifting — the
-config-side expression capture recognizes a `function`-anchored balanced extent,
-hoists it as a hidden endogenous sibling (`_lambda_<n>`, reserved prefix) exactly
-where the literal appears (lexical scope and capture-by-value hygiene come free),
-and splices the synthesized name over the literal in the stored rule string.
-Applying two textually identical lambdas to the same arguments still β-reduces to
-the same interned key, so applicative identity is preserved at the data level.
-Tests `scratch/fn_test_anon{,_neg1,_neg2}.dms`.
+**Tier B implemented (2026-07-14): function literals in parenthesized expression
+positions, via parse-time lambda lifting.** Two placements, per the brace rule:
+argument position (`compose(function<W: numerics, E: domains>(attribute<W> y (E))
+-> attribute<W> (E) := y + 1.0, sqr)`) and an explicitly parenthesized group with
+call suffixes (`(function(…) -> … := 3.0 * z)(Road/flow)`). Mechanism: the
+expression grammar recognizes a `function`-anchored **balanced extent** only
+(`functionLiteral` + `balancedParens`/`balancedBraces` scanners in `ExprParse.h`;
+string literals skipped atomically; the `:=` tail uses the full expression rule, so
+strings and nested literals are handled); the config-side capture
+(`EmptyExprProd` → `FunctionLiteralSink`) records the extent, and at rule-storage
+time (`DoExprProp` / `OnFunctionResultExpr`) each outermost literal is
+**hoisted**: `ConfigProd::HoistFunctionLiteral` re-parses
+`function _lambda_<n> <literal-tail>` as a nested declaration
+(`ParseNestedDeclaration`, re-entrant under the recursive Spirit mutex) into the
+CURRENT context — a hidden sibling of the declared item, or a body item of the
+function whose result expression contains it — exactly the literal's lexical
+position, so §4.6 scoping and capture-by-value hygiene come free, and enclosing
+type variables (`(D)` in a literal inside a generic function) resolve through the
+live `FuncProdState` stack. The synthesized name is then **spliced** over the
+literal in the stored rule text; for the parenthesized-group form the splice
+swallows the parentheses, so `(function …)(x)` re-parses as the ordinary suffixed
+call `_lambda_n(x)`. Nested literals are dropped from the pending list when an
+enclosing literal completes (the enclosing hoist's own parse re-lifts them in the
+right inner context). The hooks are templated over the scanner's iterator type
+(the expression grammar is instantiated with position iterators AND plain
+`CharPtr` for HTML rendering). Applying two textually identical lambdas to the
+same arguments β-reduces to the same interned key, so applicative identity is
+preserved at the data level.
+
+*Adversarial review round (2 dimensions, 13 agents, empirical repros against the
+built binaries) confirmed 11 defects; the substantive ones fixed before landing:*
+(1) the speculative extent scan captured legacy `function(args) -> item` arrow
+expressions on items literally named `function` (they exist in real tst configs) —
+the literal now REQUIRES an implementation (`:= expr` and/or `{ body }`), which no
+legacy text contains, and the result-type position backtracks instead of asserting;
+(2) the angle scans were unbounded (could swallow `< … >` across expression
+boundaries) — now bounded to type-clause content; (3) extents fired by
+backtracked speculative branches were hoisted anyway — identical re-captures now
+dedup, and a divergent stale extent yields a clear "ambiguous function-literal
+capture" error instead of a garbage declaration; (4) a literal in a PARAMETER
+declaration would land the hidden item between the parameters, breaking the
+params-are-the-first-N binding — now rejected with a dedicated message; (5) the
+`_lambda_<n>` counter was per-parse-session (`#include` collisions) and the prefix
+reservation unenforced — the hoist now PROBES for a free name against the target
+container (also collision-proof against user items); (6) a literal beside the
+configuration root gave a misleading error — now a dedicated message; (7) a bare
+parenthesized literal as the whole result expression under a DATA result type
+silently designated the function — now rejected (a `-> function`/signature-typed
+result is required), the inverse of the existing `'-> function'` designation guard.
+Accepted limits (v1): literals carry no `using` clause and no named result;
+hoisted items record the synthesized declaration's line-1 source location (GUI
+go-to-source lands at the file top for `_lambda_` items); a literal reaching the
+calculation-time parser (only possible through leading-`=` string evaluation)
+errors cleanly; the GUI shows the spliced name in calculation rules. Tests
+`scratch/fn_test_anon{,_neg1,_neg2}.dms`, `scratch/fn_test_lambda{,_neg}.dms`,
+`scratch/fn_test_lambda2.dms` (legacy `function`-named items, bounded angle scan,
+name-probe collision).
 
 ## 6. Verified mechanism inventory
 

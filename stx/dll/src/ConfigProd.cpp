@@ -48,6 +48,7 @@ ConfigProd::ConfigProd(TreeItem* context, bool rootIsFirstItem)
 
 {
 	m_MergeIntoExisting = rootIsFirstItem;
+	m_ExprProd.m_LiteralSink = this; // §5.11 tier B: lambda lifting of function literals
 
 	if (context)
 	{
@@ -632,10 +633,119 @@ void ConfigProd::DoExprProp(iterator_t first, iterator_t last)
 {
 	dms_assert(m_pCurrent);
 
-	SharedStr exprStr(CharPtrRange(&*first, &*last));
+	SharedStr exprStr = MaterializePendingLambdas(&*first, &*last); // §5.11 tier B
 	m_pCurrent->SetExpr(exprStr);
 	for (auto& sibling : m_LastDeclSiblings) // multi-name declaration: all names share the calculation rule
 		sibling->SetExpr(exprStr);
+}
+
+// ============================= §5.11 tier B: lambda lifting
+
+static const TreeItem* FindSubItemRaw(const TreeItem* parent, TokenID id); // defined below (raw, parse-safe)
+
+void ConfigProd::OnExprFunctionLiteral(CharPtr first, CharPtr last)
+{
+	// a backtracked-and-reparsed context may fire the same literal twice: dedup
+	for (const auto& p : m_PendingLambdas)
+		if (p.litFirst == first && p.litLast == last)
+			return;
+	// a literal nested inside an enclosing literal is re-parsed (and lifted) by the
+	// enclosing literal's own declaration parse: keep outermost extents only
+	while (!m_PendingLambdas.empty()
+		&& m_PendingLambdas.back().spliceFirst >= first && m_PendingLambdas.back().spliceLast <= last)
+		m_PendingLambdas.pop_back();
+	m_PendingLambdas.push_back(PendingLambda{ first, last, first, last });
+}
+
+void ConfigProd::OnWidenFunctionLiteral(CharPtr first, CharPtr last)
+{
+	// '(function ...)' as a parenthesized group: the splice swallows the parentheses,
+	// so the lifted name can take call suffixes ('(function ...)(x)' -> '_lambda_n(x)')
+	dms_assert(!m_PendingLambdas.empty());
+	auto& e = m_PendingLambdas.back();
+	dms_assert(first <= e.spliceFirst && e.spliceLast <= last);
+	e.spliceFirst = first;
+	e.spliceLast = last;
+}
+
+SharedStr ConfigProd::MaterializePendingLambdas(CharPtr first, CharPtr last)
+{
+	if (m_PendingLambdas.empty())
+		return SharedStr(CharPtrRange(first, last));
+
+	// lifting a literal from a PARAMETER declaration would insert the hidden item
+	// between the parameters, breaking the params-are-the-first-N-sub-items binding
+	if (!m_FuncStates.empty() && m_FuncStates.back().inParamList)
+		throwSemanticError("a function literal is not supported in a parameter declaration");
+
+	auto lambdas = std::move(m_PendingLambdas);
+	m_PendingLambdas.clear();
+
+	std::string acc;
+	acc.reserve(last - first);
+	CharPtr cursor = first;
+	for (const auto& p : lambdas)
+	{
+		if (p.spliceFirst < cursor || p.spliceLast > last)
+			throwSemanticError("ambiguous function-literal capture in this calculation rule; parenthesize the literal or simplify the expression");
+		SharedStr name = HoistFunctionLiteral(p.litFirst, p.litLast);
+		acc.append(cursor, p.spliceFirst);
+		acc.append(name.begin(), name.send());
+		cursor = p.spliceLast;
+	}
+	acc.append(cursor, last);
+	return SharedStr(acc.c_str());
+}
+
+SharedStr ConfigProd::HoistFunctionLiteral(CharPtr litFirst, CharPtr litLast)
+{
+	// synthesize a hidden declaration at the literal's lexical position:
+	// 'function _lambda_<n> <literal-after-keyword>' — the keyword is 8 chars
+	dms_assert(litLast - litFirst > 8);
+	TreeItem* context = GetContextItem();
+	if (!context)
+		throwSemanticError("a function literal cannot be lifted beside the configuration root; declare the rule inside a container");
+	// probe for a free synthesized name: collision-proof against user items, other
+	// (#include'd) parse sessions, and earlier lambdas in the same container
+	SharedStr name;
+	for (;;)
+	{
+		name = mySSPrintF("_lambda_{}", ++m_LambdaCounter);
+		if (!FindSubItemRaw(context, GetTokenID_mt(name.c_str())))
+			break;
+	}
+	SharedStr declStr = mySSPrintF("function {} {}", name.c_str()
+		, SharedStr(CharPtrRange(litFirst + 8, litLast)).c_str());
+
+	// the nested declaration parse creates the item under the CURRENT block context
+	// (a sibling of the item under construction; a body item inside a function):
+	// save the members that parse clobbers
+	auto savedCurrent   = m_pCurrent;
+	auto savedNameID    = m_ItemNameID;
+	auto savedDeclCount = m_LastDeclNameCount;
+	auto savedSiblings  = std::move(m_LastDeclSiblings);
+	m_LastDeclSiblings.clear();
+	m_pCurrent = nullptr; // block-content position
+
+	try
+	{
+		ParseNestedDeclaration(declStr.c_str());
+		if (m_pCurrent)
+			m_pCurrent->SetIsHidden(true); // an endogenous helper, not part of the authored tree
+	}
+	catch (...)
+	{
+		m_pCurrent = savedCurrent;
+		m_ItemNameID = savedNameID;
+		m_LastDeclNameCount = savedDeclCount;
+		m_LastDeclSiblings = std::move(savedSiblings);
+		throw;
+	}
+	m_pCurrent = savedCurrent;
+	m_ItemNameID = savedNameID;
+	m_LastDeclNameCount = savedDeclCount;
+	m_LastDeclSiblings = std::move(savedSiblings);
+	return name;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1006,7 +1116,9 @@ void ConfigProd::OnFunctionResultSig()
 void ConfigProd::OnFunctionResultExpr(iterator_t first, iterator_t last)
 {
 	dms_assert(!m_FuncStates.empty());
-	m_FuncStates.back().resultExpr = SharedStr(CharPtrRange(&*first, &*last));
+	// §5.11 tier B: literals lifted here become body items of the function under
+	// construction (the context stack top), lexically where they appear
+	m_FuncStates.back().resultExpr = MaterializePendingLambdas(&*first, &*last);
 }
 
 void ConfigProd::OnFunctionResultIsFunction()
@@ -1106,6 +1218,14 @@ void ConfigProd::OnFunctionDeclEnd(iterator_t first)
 		auto resultChild = func->GetSubTreeItemByID(designated);
 		if (!resultChild || !resultChild->IsFunctionItem())
 			throwSemanticError("'-> function': the designated result must be a nested function");
+	}
+	else if (designated)
+	{
+		// the inverse guard: a DATA result type must not silently designate a
+		// function (e.g. ':= (function ...)' lifted to a bare '_lambda_n' name)
+		auto resultChild = func->GetSubTreeItemByID(designated);
+		if (resultChild && resultChild->IsFunctionItem())
+			throwSemanticError("the designated result is a function; declare a '-> function' or signature-typed result");
 	}
 
 	if (!designated)

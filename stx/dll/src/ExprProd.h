@@ -20,6 +20,14 @@
 #include "StringProd.h"
 #include "TextPosition.h"
 
+// §5.11 tier B: receiver of function-literal extents found during the config-side
+// expression capture; implemented by ConfigProd (lambda lifting)
+struct FunctionLiteralSink
+{
+	virtual void OnExprFunctionLiteral(CharPtr first, CharPtr last) = 0;
+	virtual void OnWidenFunctionLiteral(CharPtr first, CharPtr last) = 0;
+};
+
 struct ExprProd
 {
 	void ProdIIF();
@@ -31,6 +39,11 @@ struct ExprProd
 	void ProdFunctionCall();
 	void ProdContainerMember();          // §5.9: (member <name> <value>)
 	void ProdContainerLiteral(bool hasDomain); // §5.9: (container_literal <domain|no_domain> <member>...)
+	// §5.11: literals are lifted at config parse; reaching this parser is an error.
+	// Templated: the expression grammar is instantiated with several scanner types.
+	[[noreturn]] void throwFunctionLiteralError();
+	template <typename Iter> void ProdFunctionLiteral(Iter, Iter) { throwFunctionLiteralError(); }
+	template <typename Iter> void WidenFunctionLiteral(Iter, Iter) {}
 	void ProdIdentifier(iterator_t first, iterator_t last);
 	void ProdUInt64(UInt64 n);
 	void ProdFloat64(Float64 x);
@@ -65,6 +78,8 @@ struct ExprProdBase
 	void ProdFunctionCall() {}
 	void ProdContainerMember() {}
 	void ProdContainerLiteral(bool hasDomain) {}
+	template <typename Iter> void ProdFunctionLiteral(Iter, Iter) {}
+	template <typename Iter> void WidenFunctionLiteral(Iter, Iter) {}
 	void ProdUInt64(UInt64 n) {}
 	void ProdFloat64(Float64 x) {}
 	void ProdUInt32WithoutSuffix() {}
@@ -84,6 +99,21 @@ struct EmptyExprProd : ExprProdBase
 	void RefocusAfterScope() {}
 	void ProdArrow() {}
 	void ProdScope() {}
+
+	// §5.11 tier B: the config-side capture lifts function literals via the sink.
+	// Templated: the expression grammar is instantiated with several scanner types;
+	// '&*it' yields the underlying CharPtr for each of them.
+	FunctionLiteralSink* m_LiteralSink = nullptr;
+	template <typename Iter> void ProdFunctionLiteral(Iter first, Iter last)
+	{
+		if (m_LiteralSink)
+			m_LiteralSink->OnExprFunctionLiteral(&*first, &*last);
+	}
+	template <typename Iter> void WidenFunctionLiteral(Iter first, Iter last)
+	{
+		if (m_LiteralSink)
+			m_LiteralSink->OnWidenFunctionLiteral(&*first, &*last);
+	}
 };
 
 struct HtmlProd : ExprProdBase

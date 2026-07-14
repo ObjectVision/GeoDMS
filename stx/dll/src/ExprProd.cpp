@@ -153,6 +153,15 @@ void ExprProd::ProdContainerLiteral(bool hasDomain)
 		m_Result.repl_back1(LispRef(litHead, LispRef(noDomain, members)));
 }
 
+void ExprProd::throwFunctionLiteralError()
+{
+	// §5.11: function literals are lifted into hidden declarations at configuration
+	// parse; an unlifted literal can only reach this parser through leading-'='
+	// string evaluation, which is not supported
+	throwErrorD("ExprProd", "a function literal is only supported in configuration calculation rules"
+		"; it cannot appear in string-evaluated expressions");
+}
+
 static TokenID t_uint32 = GetTokenID_st("UInt32");
 
 void ExprProd::ProdUInt32WithoutSuffix()

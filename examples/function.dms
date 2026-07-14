@@ -162,6 +162,11 @@ container function_example
 	attribute<float64> flow4d (Road) := hof2/compose(sqr, sqr)(Road/flow); // applied directly
 	attribute<float64> flow4e (Road) := hof3/compose(sqr, sqr)(Road/flow); // anonymous result form
 	attribute<float64> flow2  (Road) := hof3/twice(Road/flow);             // anonymous whole-rule form
+	// §5.11 tier B: a function literal as an ARGUMENT (lifted at parse time)
+	attribute<float64> flow2b (Road)
+		:= hof3/compose(function<V: numerics, D: domains>(attribute<V> x (D)) -> attribute<V> (D) := x + x,
+		                function<V: numerics, D: domains>(attribute<V> x (D)) -> attribute<V> (D) := x / 2.0)(Road/flow);
+	// compose: f(g(x)) = twice(half(x)) = x -> identity
 
 	attribute<float64> flow4  (Road) := hof/pow4(Road/flow);
 	attribute<float64> flow4b (Road) := hof/compose(sqr, sqr, Road/flow); // same, spelled directly
@@ -188,5 +193,6 @@ container function_example
 		parameter<float64> pow4_sumd  := sum(flow4d),            IntegrityCheck = "pow4_sumd == 27306250000.0";
 		parameter<float64> pow4_sume  := sum(flow4e),            IntegrityCheck = "pow4_sume == 27306250000.0";
 		parameter<float64> twice_sum  := sum(flow2),             IntegrityCheck = "twice_sum == 1500.0";
+		parameter<float64> ident_sum  := sum(flow2b),            IntegrityCheck = "ident_sum == 750.0";
 	}
 }

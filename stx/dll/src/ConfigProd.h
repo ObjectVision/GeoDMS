@@ -33,12 +33,16 @@ enum class SignatureType {
 };
 
 
-struct ConfigProd : AbstrDataBlockProd, AbstrContextHandle
+struct ConfigProd : AbstrDataBlockProd, AbstrContextHandle, FunctionLiteralSink
 {
 	EmptyExprProd m_ExprProd = {};
 
 	ConfigProd(TreeItem* context, bool rootIsFirstItem);
 	~ConfigProd();
+
+//	§5.11 tier B: lambda lifting — function literals in parenthesized expression positions
+	void OnExprFunctionLiteral(CharPtr first, CharPtr last) override;
+	void OnWidenFunctionLiteral(CharPtr first, CharPtr last) override;
 
 //	impl AbstrContextHandle
 	bool HasItemContext() const override { return m_pCurrent != nullptr;  }
@@ -188,6 +192,16 @@ void                ClearPropData();
 	TokenID                          m_PendingTypeVarName;
 	std::vector<std::pair<TokenID, TokenID>> m_PendingTypeVars;   // (var, constraint) collected before the function item exists
 	TokenID                          m_PendingGenericUnitVar;     // set by DoBasicType for unit<V>
+
+	// §5.11 tier B lambda-lifting support: pending literal extents within the rule
+	// text under capture (outermost only; nested literals are re-lifted by the
+	// enclosing literal's own declaration parse)
+	struct PendingLambda { CharPtr spliceFirst, spliceLast, litFirst, litLast; };
+	std::vector<PendingLambda>       m_PendingLambdas;
+	UInt32                           m_LambdaCounter = 0;
+	SharedStr MaterializePendingLambdas(CharPtr first, CharPtr last); // hoist + splice; returns the stored rule text
+	SharedStr HoistFunctionLiteral(CharPtr litFirst, CharPtr litLast); // nested declaration parse; returns the synthesized name
+	void      ParseNestedDeclaration(CharPtr declString); // in ConfigParse.cpp (needs the grammar)
 
 	// function declaration support (stack: function declarations may nest in bodies)
 	struct FuncProdState

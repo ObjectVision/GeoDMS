@@ -463,6 +463,37 @@ TreeItem* ConfigProd::ParseString(CharPtr configString)
 	return m_pCurrent.get();
 }
 
+void ConfigProd::ParseNestedDeclaration(CharPtr declString)
+{
+	// §5.11 tier B lambda lifting: parse ONE synthesized function declaration into
+	// the current context. Re-entrant: the caller is itself inside a config parse
+	// (the Spirit mutex is recursive); the nested functionDecl pushes and pops its
+	// own state frames, and the caller saves/restores what item declarations clobber.
+	CharPtr declStringEnd = declString + StrLen(declString);
+	try {
+
+		std::lock_guard<std::recursive_mutex> spiritLock(GetSpiritGrammarMutex());
+
+		parse_info_t info
+			=	boost::spirit::parse(
+					iterator_t(declString, declStringEnd, position_t())
+				,	iterator_t()
+				,	config_grammar(*this) >> boost::spirit::end_p
+				,	comment_skipper()
+				);
+		CheckInfo(info);
+	}
+	catch (const parser_error_t& problem)
+	{
+		SharedStr strAtProblemLoc = problemlocAsString(declString, declStringEnd, &*problem.where);
+		auto fullDescr = mySSPrintF("{}\nin anonymous function\n{}"
+			,	problem.descriptor
+			,	strAtProblemLoc.c_str()
+			);
+		DmsException::throwMsgD(fullDescr);
+	}
+}
+
 TreeItem* ConfigProd::ParseFile(CharPtr fileName)
 {
 	AuthErrorDisplayLock recursionLock;

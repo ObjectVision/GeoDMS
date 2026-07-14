@@ -72,6 +72,7 @@ struct expr_grammar : public boost::spirit::grammar<expr_grammar<Prod>>
 			using boost::spirit::space_p;
 			using boost::spirit::alpha_p;
 			using boost::spirit::alnum_p;
+			using boost::spirit::anychar_p;
 			using boost::spirit::as_lower_d;
 			using boost::spirit::uint_p;
 			using boost::spirit::hex_p;
@@ -241,6 +242,17 @@ struct expr_grammar : public boost::spirit::grammar<expr_grammar<Prod>>
 				| functionCallOrIdentifier // expr5
 				//				|	dots
 				| (LBRACK >> exprList >> RBRACK)[syntaxError("value-array syntax in expression NYI")]
+				// §5.11 tier B: '(function ...)' as a parenthesized group — the splice
+				// swallows the parentheses, so the lifted name can take call suffixes
+				// ('(function ...)(x)' is stored as '_lambda_n(x)' and re-parses as an
+				// ordinary suffixed call); the suffix chain is consumed here like in
+				// functionCallOrIdentifier
+				| ( (LPAREN >> functionLiteral >> RPAREN)
+						[([&](auto _1, auto _2) { cp.WidenFunctionLiteral(_1, _2); })]
+					>> *( ( LPAREN
+							>> exprList
+							>> assert_d("')' or ',' expected after argument-list of function-call")[RPAREN]
+							)[([&](...) { cp.ProdFunctionCall();})] ) )
 				| (LPAREN
 					>> assert_d("sub-expression expected after '('")[expression]
 					>> assert_d("')' expected after sub-expresion after '('")[RPAREN]
@@ -276,11 +288,46 @@ struct expr_grammar : public boost::spirit::grammar<expr_grammar<Prod>>
 			// Confined to argument position so it can never absorb a following item-body '{ … }'
 			// after a whole calculation rule.
 			argument
-				= (LBRACE >> memberList >> assert_d("'}' expected to close container literal")[RBRACE])
+				= functionLiteral // §5.11 tier B: a function literal as an argument
+				| (LBRACE >> memberList >> assert_d("'}' expected to close container literal")[RBRACE])
 					[([&](...) { cp.ProdContainerLiteral(false); })]
 				| (expression
 					>> !( (LBRACE >> memberList >> assert_d("'}' expected to close container literal")[RBRACE])
 						[([&](...) { cp.ProdContainerLiteral(true); })] ));
+
+			// §5.11 tier B: a function literal in a parenthesized context (argument
+			// position or an explicitly parenthesized group — the brace rule confines
+			// literal braces to parentheses). Recognized here as a BALANCED EXTENT only;
+			// the config-side capture lifts it into a hidden '_lambda_<n>' declaration
+			// at its lexical position and splices that name into the stored rule text
+			// (lambda lifting), so a literal never reaches calculation-time parsing.
+			functionLiteral =
+				( lexeme_d[as_lower_d[strlit<>("function")]] >> epsilon_p(C_LT | LPAREN)
+				// angle scans are bounded to type-clause content so they can never
+				// cross an expression boundary (an item named 'function' compared
+				// with '<' is legacy text, not a literal)
+				>> !( C_LT >> *(anychar_p - C_GT - SEMI - LPAREN - RPAREN - LBRACE - RBRACE) >> C_GT )
+				>> balancedParens                                          // (params)
+				>> ARROW
+				>> lexeme_d[itemName_p] // plain failure -> backtrack: this may be a legacy '->' dereference expression
+				>> !( C_LT >> *(anychar_p - C_GT - SEMI - LPAREN - RPAREN - LBRACE - RBRACE) >> C_GT )
+				>> !balancedParens                                         // (domain)
+				// an IMPLEMENTATION is required — ':= expr' and/or '{ body }': this is
+				// what distinguishes a literal from legacy 'call(args) -> item' text,
+				// so speculative matches cannot capture pre-existing expressions
+				>> ( ( lexeme_d[C_ELSE >> P_EQ] >> expression >> !balancedBraces )
+				   | balancedBraces )
+				)
+				[([&](auto _1, auto _2) { cp.ProdFunctionLiteral(_1, _2); })];
+
+			// balanced-extent scanners for a literal's parameter list and body block;
+			// string literals are skipped atomically so brackets inside them don't count
+			balancedParens =
+				LPAREN >> *( balancedParens | balancedBraces | m_StringDef.string_value
+				           | (anychar_p - LPAREN - RPAREN - LBRACE - RBRACE) ) >> RPAREN;
+			balancedBraces =
+				LBRACE >> *( balancedParens | balancedBraces | m_StringDef.string_value
+				           | (anychar_p - LPAREN - RPAREN - LBRACE - RBRACE) ) >> RBRACE;
 
 			memberList
 				= epsilon_p[([&](...) { cp.StartExprList(); })]
@@ -338,6 +385,7 @@ struct expr_grammar : public boost::spirit::grammar<expr_grammar<Prod>>
 			nonEmptyExprList,
 			scopeCall, functionCallOrIdentifier, functionCallReq, identifier, // dots,
 			argument, memberList, containerMember,
+			functionLiteral, balancedParens, balancedBraces,
 			unsignedInteger, unsignedReal;
 	};
 };
