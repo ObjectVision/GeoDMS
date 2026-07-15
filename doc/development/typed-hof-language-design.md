@@ -43,8 +43,10 @@ references were verified against that tree.*
 
 Not yet implemented (specs below remain actionable): the redundant top-level
 `{ X(args) }` sugar (§5.9 deferred list), the opt-in `applyF` boundary
-DataController (WP4.2), operator-signature reification (WP4.1 remainder, §10 P2 —
-unlocks typed operator positions and auto type derivation `a := mul(b, c)`), and
+DataController (WP4.2), the declarative operator-signature interface (WP4.1
+remainder, §10 P2 — designed in `operator-signature-interface.md`: operators
+describe their unit constraints through a virtual, unlocking the relational and
+composite families that the interim `OperSigKind` registry cannot express), and
 the WP4.5 tranche-3 heads (variadic / optional-argument rules). Verification
 configs live in the gitignored `scratch/fn_test*.dms`; the shipped example is
 `examples/function.dms`.
@@ -1177,9 +1179,21 @@ metric products differ at the unit level, which stays per-application per §11;
 error: *"type variable 'V' must satisfy 'sqrt: floats' (operator 'sqrt') for
 every instantiation"*, and `x + boolattr` pins V and errors likewise). An arity
 outside the recorded range simply DEFERS, so signatures can only add judgments,
-never new arity rejections; unsignatured operators keep deferring. The remaining
-operator zoo can be added gradually (mechanical derivation from ClassCPtr ⊕
-UnitCreator ⊕ domain pattern stays the path for bulk adoption).
+never new arity rejections; unsignatured operators keep deferring.
+
+**Batch 1 is an interim.** `OperSigKind`'s expressive ceiling is "all positions
+share one unit", which covers the arithmetic core and nothing else: the whole
+relational family (`lookup`, `rlookup`, `index`, `invert`), the aggregations
+(result domain = the partitioning attribute's *values* unit) and the composites
+(`discrete_alloc`, `impedance_matrix`) impose constraints it cannot state — above
+all *values-of-A == domain-of-B*, which is additionally blocked by the walker's
+value/domain node split (`DefType`'s value side carries a ValueClass, never a
+unit identity). The successor design — operators presenting their unit
+constraints through a virtual `Operator::DescribeSignature(AbstrSignatureBuilder&)`,
+consumed by the unifier, a signature printer, overload selection, and a debug
+drift-verifier — is specified in **`operator-signature-interface.md`**, together
+with the `DomainNode`→`UnitNode` generalization that unblocks the relational
+family. That design retires this registry in its batch A.
 
 **§5.12 auto-typed declarations**: `name := expr;` declares a PLAIN item whose
 class and domain follow from its calculation — the DC layer derives them at meta
@@ -1195,9 +1209,11 @@ data rules work. Tests `scratch/fn_test_opsig{,_neg1,_neg2}.dms`; all prelude
 bodies re-validated under typed operator positions (battery + tst /Rescale +
 /Arithmetics).
 
-Still open in WP4.1: growing the signature registry toward the full operator zoo
-(mechanical derivation), aggregations (result-domain changes: sum/mean/…), and
-lifting the function-application-into-bare-item restriction.
+Still open in WP4.1: the declarative signature interface that replaces this
+registry and reaches the relational/composite operators
+(`operator-signature-interface.md`; its batch A retires `OperSigKind`, batch U
+generalizes domain nodes to unit nodes, batch B lands `lookup` & co), and lifting
+the function-application-into-bare-item restriction.
 
 ### 5.11 Anonymous functions and the brace-disambiguation rule *(tier A implemented 2026-07-14)*
 
@@ -1752,8 +1768,10 @@ normalization), other references compare literally, and value compositions must
 match. Verified by `scratch/fn_test_p2.dms` (+2 negatives).
 
 Remaining P2 work: `variant` blocks with specificity ordering and definition-time
-disjointness (§5.7); reify built-in operator signatures (ClassCPtr array ⊕ UnitCreator
-name ⊕ domain-unify pattern) into TypeSpecs; signature browser. Variadic `switch` and
+disjointness (§5.7); the declarative operator-signature interface (the ClassCPtr array
+⊕ UnitCreator ⊕ domain-unify pattern, presented by each operator through a virtual —
+designed in `operator-signature-interface.md`, which also covers the signature browser
+and the printable-signature machinery it needs). Variadic `switch` and
 optional-argument adoption unlock retirement of rewrite categories B/C/E (§8.2).
 Type-variable clauses on signature aliases are not yet parsed (function declarations
 only).
@@ -1844,12 +1862,14 @@ definition-time TYPE checking with rigid variables — see the §5.10 status blo
 and is additionally triggered at every application entry (`ReduceValue`), covering
 closures, prelude functions and variant members. Not yet: checking of
 *never-referenced* functions (needs a config-load sweep) and typed operator
-positions (WP4.1 operator-signature reification).
+positions beyond the interim `OperSigKind` batch 1 (the declarative signature
+interface — `operator-signature-interface.md`).
 
 ### P4 — unifier, boundary keys, refinements, rewrite end-state (implementation-ready)
 
 **WP4.1 — TypeSpec unifier on Robinson unification. Core + definition-time walker
-IMPLEMENTED in 20.9.0 (tranches 1-3, §5.10 status); operator signatures remain.**
+IMPLEMENTED in 20.9.0 (tranches 1-3, §5.10 status); operator signatures remain —
+interim registry shipped, successor designed in `operator-signature-interface.md`.**
 Application-time checking runs on a dedicated union-find store (`TypeUnifier`,
 `tic/AbstrCalculator.cpp`) over value-class and domain variables, with
 variable-variable links, constraint-set intersection (§5.7 v2 acceptance-set
