@@ -1,8 +1,10 @@
 # Operator unit-constraint signatures via a virtual interface
 
-**Status: DESIGN — not implemented. Companion to `typed-hof-language-design.md`
-(WP4.1 "operator signature reification"), which this document supersedes for
-everything beyond its interim batch 1.**
+**Status: DESIGN — the description layer is not yet implemented (the one shipped piece
+is the §8/S11 `DomainsUnify` prerequisite fix, 2026-07-16). Companion to
+`typed-hof-language-design.md` (WP4.1 "operator signature reification"), which this
+document supersedes for everything beyond its interim batch 1. Read §1.1 and Part II
+(§16–§20) first — the 2026-07-16 staging ruling governs how §2–§15 are read.**
 
 ## 1. Purpose
 
@@ -27,6 +29,40 @@ DataController behavior, or to application-time `FindOper` selection. This is a
 *checking and description* layer. It is designed so that application-time selection
 could later adopt it, but that adoption is out of scope.
 
+### 1.1 The staging contract (governing ruling, 2026-07-16)
+
+Everything below serves one architectural decision that must be read first, because it
+sets the boundary between what the description layer does at definition time and what it
+leaves to instantiation:
+
+> **Definition time is symbolic.** A generic formal's units are *placeholders* — the
+> existing rigid/skolem unifier variables, **never materialized as `AbstrUnit`s**. At
+> definition time the walker does the free-fragment structural checks (unit *identity*
+> relations: "the K2 thing for `sum`, `rlookup`") and nothing else. It does **not** run
+> `CreateResultCaller`, the operator's own `CreateResult` unit machinery, `UnifyValues`,
+> or metric derivation. Composite operators (`discrete_alloc`, `impedance_matrix`) are
+> **opaque** — their result is ⊤ ("something"), and a declared result type is trusted.
+>
+> **Instantiation is concrete.** All placeholders are gone; every argument has an actual
+> unit, metric and unifiability, and `FuncDC_CreateResult` → `CreateResultCaller`
+> (`MoreDataControllers.cpp:627-653`) runs the full concrete semantics exactly as today.
+> This is where declared-type contracts are discharged and where the composites are
+> actually checked.
+
+Two consequences fixed on 2026-07-16: **concrete stays concrete** — placeholders arise
+*only* where the formal's type is generic; a signature naming a real config unit keeps
+that unit and the walker's own symbolic comparison on it stays (so the exclusion list
+means precisely "the operator's `CreateResult` is not invoked at definition time", not
+"the walker ignores units"). And an **underdetermined bare §5.12 intermediate warns and
+defers, never errors** (the S1 rule: never error where deferring succeeded).
+
+This ruling is why the naive alternative — fabricating placeholder units and probing the
+operator with them — is not merely unnecessary but unsound; see §19. The staging model is
+developed in §16, the declared-type inference boundary in §17, the class-selection oracle
+that *does* survive the exclusion list in §18, probing's proper home in §19, and the
+type-theoretic account in §20. The sections §2–§15 describe the description layer's
+mechanism; read them through the lens of §16.
+
 ## 2. What exists today
 
 ### 2.1 The class layer — real, but only half a signature
@@ -41,8 +77,11 @@ A `ClassCPtr` is a `Class*` (a `DataItemClass`/`UnitClass`): it identifies the *
 type** and, for data items, the **value composition**. It carries no domain unit, no
 values-unit identity, and no metric. This layer exists to drive overload selection:
 `AbstrOperGroup::FindOper(nrArgs, argTypes)` walks the group's member list and matches
-positions with `IsDerivedFrom`, first-match-wins (`OperGroups.cpp:355-431`);
-`FuncDC::GetOperator` feeds it the argument DCs' result *classes*
+positions with `IsDerivedFrom`, first-match-wins over that list (`OperGroups.cpp:355-431`).
+The list is in **reverse registration order** — `Register` *prepends* (`OperGroups.cpp:213-217`)
+— and registration order is static-init order across TUs, so "first match" is
+link-order-dependent; a def-time reuse of `FindOper` inherits this identically (which is
+exactly what makes it exact, §18). `FuncDC::GetOperator` feeds it the argument DCs' result *classes*
 (`MoreDataControllers.cpp:494-522`) — classes only; no units are available at that point.
 
 ### 2.2 The unit layer — real, but imperative and unreadable
@@ -298,11 +337,18 @@ then upgrade registration sites from `mul2_unit_creator` to `uc_mul2()` at leisu
 
 ### 5.5 ∀-families: per-member description + congruence-gated merge
 
+> **Demoted by §18.** The exact ∀-selector is *enumeration of the closed value-class
+> universe against the real `FindOper`* (§18) — that is what carries soundness. The
+> per-member merge described here survives only to derive the printable feasible sets
+> for diagnostics and the signature browser; it is no longer soundness-critical. Read
+> this section as "how the printer learns a family's accepted classes", not "how the
+> walker decides an application".
+
 An instantiated `BinaryAttrOper<Float32,Float32,Float32>` does not know its family ranges
 over `numerics` — that fact lives in the registration typelist
 (`BinaryInstantiation<TL,…>`). Conversely, a hand-written family-level constraint set can
-silently disagree with what was actually instantiated, which would make the walker
-**unsound**.
+silently disagree with what was actually instantiated, which would make a merge-based
+selector **unsound** — the reason enumeration (§18), not the merge, is the selector.
 
 **Decision:** each member describes *structure* with shared unit variables and binds its
 *own concrete classes* via `MemberValueClass`. Generic tic code then:
@@ -511,7 +557,7 @@ See §9.
 | K7 | `CompatibleValues(a,b)` | class equality; metric/projection deferred |
 | K8 | shared var | full |
 | K9 | `unit_creator_spec` kind → builder calls | per kind; `Opaque` ⇒ result values deferred |
-| K10 | `MetricProduct/Quotient/Power`, `Dimensionless` | **declared-deferred** (metrics are per-application by decree, hof doc §11); printer + verifier consume |
+| K10 | `MetricProduct/Quotient/Power`, `Dimensionless` | **declared-deferred, but *vacuous* not intractable** (see §20: the metric algebra is a decidable free abelian group; it defers only because a formal has no declarable metric today — hof §11, P4/v2); printer + verifier consume |
 | K11 | `ArgContainer(i, prose, sharedDomain)` — **v1 diagnostics-only**, the domain var is recorded but not linked | deferred |
 | K12 | `DeferredRelation(note)` | deferred; printed |
 | K13 | `ArgMetaValue` (per arg) / `DynamicShape` (whole signature) | application defers; args still walked |
@@ -570,11 +616,12 @@ the whole K2 story rests on. Class-sorted vars keep producing `vNode` as today.
 
 **`UnifyData`** gains a values-identity block mirroring the domain block, with one crucial
 difference: **concrete-concrete conflicts error only if permissive `UnifyDomain` fails in
-both directions** — exactly the shape already used for domains at `:2833-2834`. Rationale:
+both directions** — exactly the shape already used for domains at `:2846-2848`. Rationale:
 runtime values-side relations run under operator-specific modes (lookup's
-`UM_AllowDefaultLeft` borrowing, `lookupImpl.h:74`) and **metrics are per-application by
-decree**, so def-time identity comparison must be key-identity/default-borrowing tolerant
-and must never call `UnifyValues`-with-metric. When in doubt the block returns (defers).
+`UM_AllowDefaultLeft` borrowing, `lookupImpl.h:74`) and **metrics are deferred at
+definition time** (§20: vacuous, not intractable), so def-time identity comparison must be
+key-identity/default-borrowing tolerant and must never call `UnifyValues`-with-metric.
+When in doubt the block returns (defers).
 
 **Touch points** (the full list): `TypeUnifier` node/type/index renames and
 `DomainVar/BindDomain/LinkDomain` → unit-role-neutral names; `DefType`; `PositionType`;
@@ -590,6 +637,24 @@ already broken at reduction. Regardless: **land the UnitNode tranche dark** (int
 ignores `valuesIdentity`; no operator sets it), run the full battery, and only then let
 the relational batch turn it on. Two-step landing isolates any surprise to one of the two
 diffs.
+
+**Hard prerequisite before this tranche — fixed 2026-07-16 (commit alongside this doc).**
+`AbstrUnit::UnifyDomain` is *directional*: it interns the **left** operand's
+DataController (`GetOrCreateDataController`, `AbstrUnit.cpp:302`) but only **looks up** the
+right's (`GetExistingDataController`, `:311`), so `a.UnifyDomain(b)` can fail where
+`b.UnifyDomain(a)` succeeds, purely by DC-interning order. `UnifyData`'s concrete-concrete
+case already guarded against this with a two-direction retry, but the unifier's own
+`BindDomain` and `LinkDomain` did **not** — they compared one direction only, so a domain
+variable bound to two value-equal units in the adverse interning order could throw a false
+*"inconsistent instantiation of domain variable"* at definition time (risk S1). All three
+sites now route through one `TypeUnifier::DomainsUnify(a,b) = a→b || b→a` helper
+(`AbstrCalculator.cpp:1619`; callers at `:1633` `BindDomain`, `:1657` `LinkDomain`, `:2846`
+`UnifyData`). This must be in place before the
+UnitNode pool widens the surface to values-side identity. (Verified by the full
+`scratch/fn_test*` battery — 70/70 — plus tst Operator `/Rescale` `/Arithmetics`; a
+triggering config was not constructed, so the fix rests on the directional inconsistency
+being demonstrable in code and on the change being a strict *widening* of the accept
+condition. See risk S11.)
 
 ## 9. `CreateResult` stays authoritative; drift defenses
 
@@ -719,8 +784,8 @@ demonstration that the same config already fails at reduction on `main`.
 | **B** | relational: `lookup`, `rlookup`, `index`, `invert`, `collect_by_cond` | `valuesIdentity`, cross-role units, result values identity | med / **very high** — the headline payoff: join-key errors caught at definition. Specific risk: **borrowing** (lookup runs `UM_AllowDefaultLeft`), so ship an explicit regression config with a default-metric values unit against a named domain |
 | **C** | aggregations (`AbstrOperAccTotUni`, `AbstrOperAccPartUni` + Num/Str variants) | K5, K15, accumulator sets | med / high. Negative test: declaring the result over the *data* domain instead of the partition set — a classic user error, now caught at definition |
 | **D** | fresh-unit family: `unique`, `select`/`subset`, `union` | K6 generative nodes | low / modest (ranked by description simplicity + printer value, not unification power) |
-| **E** | `discrete_alloc` partial + `connect` family | `ArgContainer`, `DeferredRelation`, K16 | low / diagnostics + docs |
-| **F** | `impedance_matrix` / dijkstra | `DynamicShape` | low / docs. Do last |
+| **E** | `discrete_alloc` partial + `connect` family | `ArgContainer`, `DeferredRelation`, K16 | low / **diagnostics + docs only**. By the §16 ruling these are **opaque at definition** (result ⊤) and checked at concrete instances; the description exists purely so the printer (§6.3) can state their contracts and a declared result type is what the def-time check trusts (§17) |
+| **F** | `impedance_matrix` / dijkstra | `DynamicShape` | low / **docs only**. Opaque at definition (K13 shape-from-value); a `DynamicShape` record only feeds the printer. Do last |
 
 ## 13. Risk register
 
@@ -736,6 +801,7 @@ demonstration that the same config already fails at reduction on `main`.
 | S8 | meta-thread / token-registry deadlock (the known `TokenStr` pitfall) | Med | materialize `SharedStr` before unifier/trial calls (pattern at `:3063`); summaries built under a once-guard |
 | S9 | def-time cost at config load | Low | once-per-function memo, once-per-group summary, trials only for mixed groups; the trail mechanism stays in reserve |
 | S10 | negative-test message churn | Low | keep message *shapes*; where roles improve wording, update tests deliberately in the same commit |
+| S11 | **`BindDomain`/`LinkDomain` inherited `UnifyDomain`'s directional DC-interning asymmetry** — a one-way compare could throw a false *"inconsistent instantiation of domain variable"* at definition (an S1 instance) | High | **Fixed 2026-07-16**: all three sites (`BindDomain:1633`, `LinkDomain:1657`, `UnifyData:2846`) route through one `TypeUnifier::DomainsUnify` helper (`:1619`, `a→b\|\|b→a`). Strict widening of the accept condition; validated by 70/70 battery + tst. A triggering config was not constructed (the asymmetry needs two value-equal, distinct-ultimate-item domains in the adverse interning order); the fix rests on the code-level inconsistency and the widening property, not on a repro |
 
 ## 14. Rejected alternatives
 
@@ -766,6 +832,19 @@ demonstration that the same config already fails at reduction on `main`.
   attractive "single source of truth", but converts a checking-layer change into a
   behavior-adjacent edit across ~200 operators. The debug verifier keeps the two aligned
   instead.
+- **Probing operators with fabricated placeholder units at definition time** (§19) — the
+  tempting reading of "just call `CreateResultCaller` for the hard cases". Rejected as a
+  *typing* technique on two independent grounds: (1) fabricating placeholder units is
+  **unsound** — two parentless fresh units share `GetFullName()==""`, hence one hash-consed
+  key, hence one DataController, hence `UnifyDomain` returns true, so a probe would silently
+  accept ill-typed code; (2) the composite operators it would be *for* (`discrete_alloc`,
+  `impedance_matrix`) block the probe structurally (throwing, silently-empty, or mutating —
+  §19). Retained only where it already lives: the concrete-unit metric oracle
+  (`CreateValuesUnit`) and the §9 debug verifier.
+- **Residuation / constraint-propagation framing** (§20) — over-poetic and factually
+  wrong: there is no shared constraint store between the def-time unifier (state discarded
+  at end of check) and reduction (`FuncDC_CreateResult` re-derives imperatively under a
+  `FencedBlocker`). The staged-abstract-interpretation framing (§20) is used instead.
 
 ## 15. Open questions for review
 
@@ -775,6 +854,324 @@ demonstration that the same config already fails at reduction on `main`.
    subsumes the class array *and* the unit relations). Is replacing first-match-wins
    `IsDerivedFrom` selection a goal, or does it stay a checking layer indefinitely?
 3. **The `generative` tightening** for K6 (§6.1): ship after batch D soaks, or never?
-4. **Metric constraints (K10)**: currently declared-deferred at def-time per hof doc §11.
-   If declared metric constraints on function parameters ever land (that doc's v2 option),
-   the vocabulary already carries the relations and could start enforcing them.
+4. **Metric constraints (K10)** — now understood as *vacuous, not intractable* (§20): the
+   metric algebra is a decidable free abelian group, and metrics defer only because a formal
+   `unit<float64>` has no declarable metric today. If declared metric constraints on
+   parameters land (hof P4/v2), the vocabulary already carries the relations (`MetricProduct`
+   etc.) and def-time enforcement becomes a matter of un-deferring them — is that a wanted
+   direction, or do metrics stay an instantiation-only concern by policy?
+
+---
+
+# Part II — the staging model (added 2026-07-16)
+
+*Sections §16–§20 record the governing ruling of §1.1 and the analysis behind it. They
+answer the question that prompted them — "how about calling `CreateResultCaller` for
+ambiguous or complex cases, and how does that connect to definition-time checking and
+Robinson unification?" — and they take precedence over §5–§14 wherever the two could be
+read to disagree (§5.5's selector, §7's K10 rationale, the batch E/F scope).*
+
+## 16. The staging contract in full
+
+### 16.1 Two stages, two type systems
+
+GeoDMS type checking splits along the boundary between a function's **definition** and its
+**instantiation**, and the split is not a pragmatic convenience — it is where the type
+system changes character.
+
+**Definition time — symbolic.** A generic formal (`attribute<V>(D)`, `unit<uint32> Rd`)
+introduces *placeholders*: the rigid/skolem variables the `TypeUnifier` already carries.
+A placeholder is **never** turned into an `AbstrUnit`. The walker reasons about *structure*
+— which positions share a unit variable, which value classes a variable may take — and
+about the *free fragment* of the theory: unit **identity** relations that hold for every
+instantiation. This is exactly what `DescribeSignature` publishes for the well-behaved
+operators: `lookup`'s `E2`-in-both-roles (K2), `sum`'s result-domain-is-the-partition
+(K5), the arithmetic same-domain/same-class shapes (K1/K9-class-part).
+
+The walker does **not**, at definition time, do any of:
+- `CreateResultCaller` or the operator's own `CreateResult` unit machinery,
+- `UnifyValues` (values-side *metric/projection* comparison),
+- metric derivation (`operated_unit_creator` and its `cog_mul`/`cog_div` probes),
+- any check of a *composite/opaque* operator's internal argument constraints.
+
+**Instantiation time — concrete.** Every placeholder is now a real unit; every expression
+has an actual type, metric, and unifiability. `FuncDC_CreateResult` →
+`CreateResultCaller` (`MoreDataControllers.cpp:627-653`) runs the full concrete semantics,
+identical to today. This is where `UnifyValues`, metric algebra, counts, ranges, and the
+composite operators' `CreateResult` preambles all fire, and where a declared result type
+(§17) is discharged against the computed one.
+
+### 16.2 Why the exclusion list is principled, not pragmatic
+
+The three excluded classes of work are excluded because at definition time they are either
+**ill-posed** or **vacuous** on placeholders — not merely expensive:
+
+- **`CreateResultCaller` / composite `CreateResult`** — ill-posed. These read argument
+  *values* or *ranges* (a spec string that decides arity, a `GetCount()` that sizes a
+  loop, a container's member names); on a placeholder there is no value to read. §19
+  shows the concrete failure modes.
+- **`UnifyValues` metric/projection** — vacuous. A placeholder values unit has an empty
+  metric and null projection; the comparison always succeeds and constrains nothing (§20).
+- **Metric derivation** — vacuous for the same reason; the derived result metric is a
+  fresh empty metric that no def-time obligation can contradict.
+
+What remains — unit **identity** (`UnifyDomain`, nominal) — is the one fragment that is
+both **well-posed on placeholders** (identity is structural, needs no value) and
+**non-vacuous** (two placeholders are provably distinct *as variables* under union-find,
+even though they would be indistinguishable as fabricated `AbstrUnit`s — see §19). That is
+why the def-time checker is precisely a *Robinson unifier over unit identity*, and nothing
+more (§20).
+
+### 16.3 Concrete stays concrete
+
+Placeholders arise **only** where a formal's type is generic. A signature that names a real
+config unit — `attribute<float64> x (Road)`, `Road` resolved by `ResolveUnitInScope`
+(`AbstrCalculator.cpp:2565`) — keeps that unit, and the walker's own symbolic
+comparison on it (`UnifyData`'s `Dom::Concrete` case) stays. So the exclusion list means
+"the operator's `CreateResult` is not *invoked* at definition time", **not** "the walker is
+blind to units": concrete-domain mismatches inside a body (passing a `Road` attribute where
+a `Region` domain is declared) are still caught at definition, exactly as the `fn_test_dt`
+battery already exercises.
+
+## 17. Declared types as the inference boundary
+
+Because complex expressions are opaque at definition time, the language leans on
+**declarations as the inference boundary** — the same discipline the user stated:
+
+```
+land_use : attribute<LandUseType>(CompactedDomain) := discr_alloc/landuse;
+```
+
+Here `discr_alloc/landuse` is a member of an opaque composite result: its inferred type is
+**⊤ ("something")**. The rule is `infer(expr) ⊑ declaration`, and **⊤ conforms to any
+declaration vacuously** — "something which could match". The declaration is *assumed* at
+definition and *discharged* at instantiation, where `discr_alloc`'s real `CreateResult`
+runs and the actual result units are checked against the declared ones.
+
+This is not new machinery: the existing `TreeItem_CreateConvertedExpr`
+(`TreeItem.cpp:2880-2905`) already performs exactly this declared-vs-computed check at
+instantiation via `CheckResultItem` (`UnifyDomain`/`UnifyValues`), and it even **inserts a
+`convert(...)` coercion** when the declared and computed values units differ but are
+compatible (`:2899-2903`). Crucially it is **skipped inside templates** (`InTemplate()` at
+`:2931`) — which is precisely the definition-time gap the placeholder model formalizes:
+templates/functions are checked structurally at definition and concretely at instantiation,
+and `TreeItem_CreateConvertedExpr` is the instantiation half. A def-time checker must
+therefore **not** claim to model the coercion insertion — it only checks conformance up to
+⊤; the coercion is the instantiation stage's business.
+
+**Underdetermined intermediates — warn and defer, never error.** A bare §5.12 item
+(`x := <expr>;`, no declared type) whose expression is opaque has inferred type ⊤. It does
+not error (that would violate S1 — never error where deferring succeeded); its type stays ⊤
+and propagates as unknown, and the walker emits a **definition-time warning** listing the
+underdetermined spots ("cannot infer the type of `x` at definition; it will be checked at
+each instantiation — add a declaration to check it here"). This can only affect the *new*
+§5.12 bare-declaration form: a classic `attribute<V>(D) x := …` already carries a full
+declared type, so no legacy config can reach the warning. The declaration is thus the lever
+the author pulls to *move* a check from instantiation-time back to definition-time.
+
+## 18. The one oracle that survives: `FindOper` for selection
+
+The exclusion list removes `CreateResultCaller`, but it leaves the **selection** oracle
+fully available, because operator selection is a different thing from unit checking and is
+already unit-free.
+
+### 18.1 Why `FindOper` is none of the excluded things
+
+`AbstrOperGroup::FindOper(nrArgs, ClassCPtr[])` (`OperGroups.cpp:355-431`) is pure class
+dispatch: it walks the member list matching argument **classes** with `IsDerivedFrom`. It
+touches no units, no data, no metrics; it allocates nothing and takes no lock on the happy
+path. And it is *the very function reduction uses* — `FuncDC::GetOperator` feeds it
+`argDC->GetResultCls()` (`MoreDataControllers.cpp:512-518`). A def-time selector that calls
+the same `FindOper` on the same argument classes is therefore **exact by construction**: it
+inherits whatever the first-match-wins-over-reverse-registration-order (§2.1) resolves to,
+identically to reduction, with zero risk of a hand-written model drifting from it.
+
+### 18.2 Synthesizing the argument classes item-free
+
+The walker has, for a well-typed position, a concrete `ValueClass` (and, once §18.4 lands,
+a `ValueComposition`). The class is derivable with no item, no unit, no data:
+
+```cpp
+// OperSignature.h — pure field reads, all item-free
+inline ClassCPtr ClassOfAttr(const ValueClass* vc, ValueComposition comp) {
+    auto uc = UnitClass::Find(vc);            if (!uc) return nullptr;   // UnitClass.cpp:177
+    auto vt = uc->GetValueType(comp);         if (!vt) return nullptr;   // UnitClass.cpp:183
+    return DataItemClass::Find(vt);           // DataItemClass.cpp:186 — nullptr-safe
+}
+inline ClassCPtr ClassOfUnit(const ValueClass* vc) { return UnitClass::Find(vc); }
+```
+
+**Use `Find`, never `FindCertain`** — `DataItemClass::FindCertain` (`:192-204`) calls
+`context->throwItemErrorF(...)` on a miss and **null-derefs a null `context`**. Note also
+that composition is **not** a separate enumeration axis: `UnitClass::GetValueType`
+(`UnitClass.cpp:183-189`) folds Polygon/Sequence/MultiPoint into one `GetSequenceClass()`,
+so `DataItemClass` is keyed on the `ValueClass` alone.
+
+### 18.3 Enumeration is the exact ∀-selector
+
+For a rigid ∀-variable with a declared constraint (`<V: numerics>`), the walker enumerates
+the **witness classes** and calls `FindOper` per witness. This is exact, not sampled,
+because the value-class universe is **closed and finite**: `VT_Count = 69`
+(`ValueClassID.h:121`), enumerable via `ValueClass::FindByValueClassID`, and
+`MatchesGenericConstraint` (`TreeItem.cpp:120-137`) is a pure predicate, so a constraint's
+witness set is computed by a 69-iteration loop rather than hand-written (this is what §5.5's
+merge approximates; enumeration makes it exact and demotes the merge to a printing aid).
+
+Units cannot be enumerated this way — they are an **open** universe — which is the deep
+reason the two sides of a type are treated so differently: **value classes are discharged
+by enumeration; unit identity is discharged by symbolic unification (§20).**
+
+Bounds and rules that keep this cheap and sound:
+- **Defer if any position's class is unknown.** `FindOper` takes a full `ClassCPtr[]` with
+  no holes; enumerating an unknown position over all 69 classes (× ~95 `cog_mul` members ×
+  the throw cost) is a non-starter. Enumerate only the constraint-bounded ∀-variables; a
+  2-arg operator over `numerics` (~12 classes) is ≤144 calls, cached per
+  `(group, arity, constraint-tuple)` behind the `Register` generation counter (§2.1).
+- **Wildcard arg positions** — registrations using `TreeItem`, `AbstrUnit`, `AbstrDataItem`,
+  or **`AbstrDataObject`** (the fourth wildcard, via `AbstrDataObject.h`'s `using base_type
+  = AbstrDataItem;`) as an arg class match *every* witness, so enumeration returns the same
+  member for all witnesses → trivially congruent → sound.
+- **Congruence check** replaces "did they all pick the same member?": if every witness
+  selects a structurally congruent member, the ∀ is well-typed; if witnesses split across
+  incongruent members (a genuinely heterogeneous group like `cog_mul`), **defer**.
+
+### 18.4 Small additive changes required
+
+- `TryFindOper` — a `noexcept`, nullptr-returning twin of `FindOper`; make
+  `FindOper = TryFindOper + throw`. (Enumeration would otherwise pay a thrown exception per
+  non-matching witness, and `FindOper` also **derefs each arg class with no null check** at
+  `:398`, so the caller must null-check anyway.)
+- Guard `IsTemplateCall()` before calling (the walker already branches user functions to the
+  function path at `:3133`, so this is belt-and-suspenders).
+- `DefType` gains a `ValueComposition` field — it carries none today (`:2495-2517`), and
+  `PositionType` already holds the item (`:2722`) so `GetValueComposition()` is one line.
+
+## 19. Probing: where it legitimately lives (and where it does not)
+
+The instinct behind "call `CreateResultCaller` for the hard cases" is sound enough that the
+tree **already does it** — but only under conditions the definition-time walker cannot meet.
+
+### 19.1 The existing precedent
+
+`AbstrOperGroup::CreateValuesUnit` (`OperGroups.cpp:457-500`) is a production type oracle:
+it hand-builds an `ArgRefs` of **concrete** units, stack-constructs a
+`LifetimeProtector<TreeItemDualRef>`, calls `FindOperByArgs` + `CreateResultCaller(*ref,
+unitSeq, LispPtr())`, reads `resultRef->GetOld()` as the answer, and discards the probe.
+It runs on every `mul`/`div`/`sqrt` metric derivation (via `operated_unit_creator`,
+`UnitCreators.h:32`), and `Canyon.cpp:128-142` nests the same idiom. So probing is a
+legitimate, load-bearing technique — for the **metric algebra**, on **ground** units.
+
+### 19.2 Why it cannot type a function definition
+
+Two independent walls.
+
+**(a) Fabricated placeholder units are unsound.** To probe an operator for a *generic*
+formal, the walker would have to fabricate a stand-in unit. But two parentless fresh units
+have `GetFullName() == ""` (`persistent.cpp:323-354`), so `Unit<V>::GetKeyExprImpl`
+(`Unit.cpp:122-167`) brands both with the identical key `BaseUnit(left("", uint32(0)), VT)`;
+LispRefs are hash-consed (`LispRef.cpp:494`), so both resolve to **one** DataController,
+so `AbstrUnit::UnifyDomain` returns **true** (`AbstrUnit.cpp:316`) for two units that
+should be distinct. A probe built on fabricated placeholders would therefore **silently
+accept ill-typed code** — the worst possible failure. (The escape hatches — a unique
+`FullName` under a parent, or `IsCacheItem()` status, which skips the DC path at
+`:300/:309` — are what production uses, but they require real tree/cache context the def-time
+walker has no reason to build.) The staging ruling *dissolves* this: with formals kept as
+**union-find variables, not units**, two placeholders are distinct *as variables*, and no
+fabrication ever happens.
+
+**(b) The composites block the probe structurally** — and these are exactly the operators
+the question was about:
+- `discrete_alloc` fails **three** ways: `ggTypeSet->GetCount()` (`DiscrAlloc.cpp:3330`)
+  **silently returns 0** on a passor domain → the probe "succeeds" with a structurally empty
+  answer (worse than throwing); `DataReadLock` (`:1589`) **throws**;
+  `debug_refcast<FuncDC&>(resultHolder)` (`:3405`) **throws** — `MG_CHECK` is release-active
+  (`Check.h:180/183`, outside the `MG_DEBUG` guard), so the `debug_` prefix is a misnomer.
+- `impedance_matrix` reads its spec string at meta time —
+  `const_array_cast<SharedStr>(paramStrA)->GetIndexedValue(0)` (`Dijkstra.cpp:1327`) —
+  which **throws** on a dataless arg, and the string's value *decides the arity* (K13), so a
+  probe cannot even determine the argument count.
+- Whole classes are off-limits: value-reading operators (ForEach/Loop/Overlay/SubItem/
+  OperPropValue), `has_external_effects`/`calc_requires_metainfo` (a probe would touch the
+  filesystem), and `Checker.cpp:43-45` which **mutates its argument**. And every probe
+  passes `LispPtr()` for `metaCallArgs` where reduction passes
+  `funcDC->GetLispRef().Right()` (`MoreDataControllers.cpp:653`) — consumed by
+  `Subset.cpp:231/453`, `BoostXML.cpp:314` — so a probe **silently diverges** from reduction
+  even when it does not throw.
+
+### 19.3 The general law, and probing's real home
+
+**Probing's value scales with argument groundness, and definition time is definitionally
+non-ground.** Where the walker has concrete units, a probe is redundant with what reduction
+will do anyway; where it has placeholders, a probe returns fabricated-unit answers that
+teach nothing (or silently mislead). So probing is **not** a definition-time typing
+technique. Its two legitimate homes are both ground: the concrete-unit metric oracle
+(`CreateValuesUnit`, §19.1), and the **§9 debug drift-verifier**, which runs *after* a real
+`CreateResultCaller` at instantiation, where the units are ground and the probe returns
+ground truth to check the description against. That verifier is the right and only place a
+`CreateResultCaller`-based check belongs.
+
+## 20. The type theory, precisely
+
+The staging model has a clean theoretical reading, and getting it right matters because two
+tempting framings are wrong.
+
+### 20.1 Three fragments
+
+1. **Free fragment — unit identity.** `UnifyDomain` is nominal (identity of the defining
+   expression), so unit identity is an *uninterpreted* theory: units are opaque constants,
+   equality is syntactic. Over this fragment, **Robinson unification applies directly**, and
+   the `TypeUnifier`'s union-find is the standard implementation. Soundness needs `UnifyDomain`
+   restricted-to-the-unifier's-mode to be an equivalence relation, which it is: Void is
+   excluded at all three entry points (`PositionType:2790-2791` → `Dom::Void`; `UnifyData`
+   early-out; the arg binder's `VT_Void` skip), so it never reaches a node and cannot break
+   transitivity; and `IsKindOf` (`AbstrUnit.cpp:283`) forces same-value-type, making
+   `HasFixedValues` a genuine equivalence class. (Corollary: the `UM_AllowVoidRight` flag on
+   the unifier's `UnifyDomain` calls is **vestigial** — kept only to mirror `UnifyData`
+   verbatim; no Void unit ever reaches those sites. And the *directional* asymmetry in
+   `UnifyDomain` itself — `GetOrCreate` left, `GetExisting` right — is why all identity
+   comparisons must be two-directional; §8's S11 fix.)
+
+2. **Interpreted fragment — metrics.** `UnitMetric` is a scale factor plus a
+   `map<TokenID, Int32>` of base-unit exponents; `SetProduct`/`SetQuotient`
+   (`Metric.cpp:243-311`) are pointwise exponent add/**subtract**. This is a **free abelian
+   group** — every element is invertible, `r = a·b` *is* solvable for `b` as `r·a⁻¹` — i.e.
+   Kennedy's units-of-measure, which is a **decidable, finitary** unification theory. So
+   metrics are **not** out of algebraic reach. They defer at definition time for a different
+   reason: they are **vacuous** there. A formal `unit<float64>` has an empty metric and there
+   is no surface syntax to declare one, so every metric relation a body induces merely
+   *defines* a fresh metric variable rather than constraining anything. *Nothing to check ≠
+   can't check.* Hof §11's "by decree" is the right policy; the rationale is "no declarable
+   parameter metric yet" (hof P4/v2), not "undecidable". **Do not write that metric
+   unification is intractable — it is the opposite.**
+
+3. **Genuinely staged fragment — value-dependent shape, counts, ranges.** K13
+   (a spec string decides arity/roles), counts, and ranges are not equational relations at
+   all: they are *functions of data* that only exist once arguments are ground. No unification
+   theory, decidable or otherwise, applies; these are correctly and permanently
+   instantiation-only.
+
+### 20.2 Not residuation — staged abstract interpretation
+
+It is tempting to call the deferral "residuation" (a constraint suspends at definition and
+*wakes* at instantiation). That framing is **wrong**: residuation needs one shared constraint
+store, and there is none. The def-time unifier's state is **discarded** when the check ends;
+`FuncDC_CreateResult` (`MoreDataControllers.cpp:627-653`) re-derives every unit relation
+**imperatively** from ground units under a `FencedBlocker`, consulting no def-time state.
+Nothing wakes; nothing propagates back.
+
+The correct framing is **staged abstract interpretation**. The description layer is a sound
+**over-approximation** of `CreateResult`'s unit behaviour; a deferred/⊤ result is the lattice
+**top**; "defer, never error" is the statement that the abstraction is *sound* (it never
+concludes false where the concrete would succeed). The §9 debug verifier is then exactly a
+check of the **abstraction relation** — α(concrete result) ⊑ described result — run on every
+real reduction. This is not decoration: it names the actual proof obligation the whole design
+must meet, and it explains defer-by-default as a lattice property (⊤ is always sound) rather
+than a hand-wavy hedge.
+
+### 20.3 One-line summary
+
+*Definition-time checking is Robinson unification over the free fragment (unit identity) with
+value classes discharged by finite enumeration; the interpreted fragment (metrics) is
+decidable but vacuous for want of parameter-metric syntax; and the value-dependent fragment
+is genuinely instantiation-only. The whole is a sound abstract interpretation of
+`CreateResult`, with `⊤` = defer and the §9 verifier checking the abstraction relation.*

@@ -1207,7 +1207,15 @@ FUNCTION-application rule on a bare item still requires a typed holder (the §5.
 container-holder guard, with its existing instructive error); operator and
 data rules work. Tests `scratch/fn_test_opsig{,_neg1,_neg2}.dms`; all prelude
 bodies re-validated under typed operator positions (battery + tst /Rescale +
-/Arithmetics).
+/Arithmetics). **Staging semantics for the underdetermined case** (ruling
+2026-07-16, `operator-signature-interface.md` §17): a bare item whose expression
+is *opaque* at definition (a call into a composite/unsignatured operator, e.g.
+`land_use := discr_alloc/landuse;`) has inferred type ⊤ — it does **not** error;
+its type stays unknown, propagates as such, and a definition-time **warning** lists
+the underdetermined spots ("add a declaration to check it here"). Only the new bare
+form can reach this (a classic `attribute<V>(D) x := …` already carries a full
+declared type), so no legacy config is affected. The declaration is thus the lever
+that moves a check from instantiation-time back to definition-time.
 
 Still open in WP4.1: the declarative signature interface that replaces this
 registry and reaches the relational/composite operators
@@ -1955,7 +1963,13 @@ operator work; category D stays engine-side (§8.4).
   definition; operators that constrain metrics re-check per application. Definition
   checking is sound for kinds/domains/arity — not for metrics (P4/v2: declared metric
   constraints on parameters). Result *units* are always derived per application
-  (§5.7), which is a feature, not a gap.
+  (§5.7), which is a feature, not a gap. **Note the deferral is *vacuity*, not
+  intractability** — the metric algebra is a decidable free abelian group (`SetProduct`/
+  `SetQuotient` are invertible; Kennedy units-of-measure), so metrics defer only because
+  a formal has no *declarable* metric to constrain, not because metric unification is hard.
+  See `operator-signature-interface.md` §20 for the full free/interpreted/staged-fragment
+  account and the staging contract (definition = placeholders + structural checks;
+  instantiation = full concrete `CreateResult` semantics).
 - **Counts, ranges, tiles**: inherently data-stage; never part of static checking.
 - **Leading-`=` string-eval** is incompatible with once-checking unless the indirection
   string is parameter-independent — restrict it inside function bodies.
