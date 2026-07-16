@@ -1609,6 +1609,19 @@ namespace {
 			nb.parent = ra;
 		}
 
+		// AbstrUnit::UnifyDomain is directional: it interns the LEFT operand's DataController
+		// (GetOrCreateDataController, AbstrUnit.cpp) but only LOOKS UP the right's
+		// (GetExistingDataController), so a.UnifyDomain(b) can fail where b.UnifyDomain(a)
+		// succeeds, purely by DC-interning order. Compare both directions, exactly as
+		// UnifyData does for two Concrete domains. (UM_AllowVoidRight is vestigial here: Void
+		// units never reach a DomainNode -- they are turned into Dom::Void at PositionType and
+		// short-circuited in UnifyData -- but it is kept to mirror UnifyData verbatim.)
+		static bool DomainsUnify(const AbstrUnit* a, const AbstrUnit* b)
+		{
+			return a->UnifyDomain(b, "", "", UnifyMode(UM_AllowVoidRight))
+				|| b->UnifyDomain(a, "", "", UnifyMode(UM_AllowVoidRight));
+		}
+
 		void BindDomain(SizeT i, SharedTreeItem keepAlive, const AbstrUnit* du, const SharedStr& source)
 		{
 			auto& n = m_DomainNodes[FindD(i)];
@@ -1617,7 +1630,7 @@ namespace {
 					, FullName().c_str(), n.name.GetStr().c_str(), source.c_str());
 			if (n.bound)
 			{
-				if (!n.bound->UnifyDomain(du, "", "", UnifyMode(UM_AllowVoidRight)))
+				if (!DomainsUnify(n.bound, du))
 					throwErrorF("ExprParser", "{}: inconsistent instantiation of domain variable '{}': the domain bound {} differs from the domain bound {}"
 						, FullName().c_str(), n.name.GetStr().c_str()
 						, n.boundSource.c_str(), source.c_str());
@@ -1641,7 +1654,7 @@ namespace {
 			if (na.rigid && nb.bound)
 				throwErrorF("ExprParser", "{}: the body pins domain '{}' to a specific unit ({}); it must remain generic in the definition"
 					, FullName().c_str(), na.name.GetStr().c_str(), nb.boundSource.c_str());
-			if (na.bound && nb.bound && !na.bound->UnifyDomain(nb.bound, "", "", UnifyMode(UM_AllowVoidRight)))
+			if (na.bound && nb.bound && !DomainsUnify(na.bound, nb.bound))
 				throwErrorF("ExprParser", "{}: inconsistent instantiation of domain variable '{}': the domain bound {} differs from the domain bound {}"
 					, FullName().c_str(), na.name.GetStr().c_str()
 					, na.boundSource.c_str(), nb.boundSource.c_str());
@@ -2830,8 +2843,7 @@ namespace {
 		else if (b.dom == Dom::Node && a.dom == Dom::Concrete)
 			m_Unifier.BindDomain(b.dNode, a.domKeep, a.domUnit, srcA);
 		else if (a.dom == Dom::Concrete && b.dom == Dom::Concrete)
-			if (!a.domUnit->UnifyDomain(b.domUnit, "", "", UnifyMode(UM_AllowVoidRight))
-				&& !b.domUnit->UnifyDomain(a.domUnit, "", "", UnifyMode(UM_AllowVoidRight)))
+			if (!TypeUnifier::DomainsUnify(a.domUnit, b.domUnit))
 				throwErrorF("ExprParser", "the definition of '{}': the domain of {} differs from the domain of {}"
 					, m_FuncItem->GetFullName().c_str(), srcA.c_str(), srcB.c_str());
 	}
