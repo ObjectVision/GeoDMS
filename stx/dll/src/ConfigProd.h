@@ -29,7 +29,8 @@ enum class SignatureType {
 	Function,
 	Unit,
 	Attribute,
-	Parameter
+	Parameter,
+	MetaRef    // 'item x' function parameter: the argument binds as a raw item reference
 };
 
 
@@ -222,6 +223,7 @@ void                ClearPropData();
 		std::vector<std::tuple<UInt32, const TreeItem*, std::vector<TokenID>>> paramSigs; // (param index, signature exemplar, type-application args)
 		std::vector<std::pair<TokenID, TokenID>> typeVars;         // (var, constraint)
 		std::vector<std::tuple<UInt32, TokenID, TokenID, bool>> genericParams; // (param index, var, constraint, isDomainVar)
+		std::vector<UInt32> metaRefParams;                         // 'item x' parameters (raw item-reference binding)
 	};
 	std::vector<FuncProdState>       m_FuncStates;
 

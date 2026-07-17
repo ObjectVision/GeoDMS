@@ -83,10 +83,11 @@ namespace {
 		std::vector<std::tuple<UInt32, std::weak_ptr<const TreeItem>, std::vector<TokenID>>> paramSigs; // (param index, signature exemplar, type-application args)
 		std::vector<std::tuple<UInt32, TokenID, TokenID, bool>> genericParams; // (param index, type variable, constraint, isDomainVar)
 		std::vector<std::pair<TokenID, TokenID>> typeVars; // the declaration's own ordered <var: constraint> list (WP4.1)
+		std::vector<UInt32> metaRefParams; // 'item x' parameters: bound as raw item references (sourceDescr), not calculation keys
 		bool definitionChecked = false; // WP3.4: body scope/shape validated once
 		bool isVariantSet = false;      // §5.7: a function that dispatches to variant sub-functions by argument type
 	};
-	bool IsDefaultValue(const FunctionSpecData& v) { return v.nrParams == 0 && !v.resultName && v.paramSigs.empty() && v.genericParams.empty() && v.typeVars.empty() && !v.definitionChecked && !v.isVariantSet; }
+	bool IsDefaultValue(const FunctionSpecData& v) { return v.nrParams == 0 && !v.resultName && v.paramSigs.empty() && v.genericParams.empty() && v.typeVars.empty() && v.metaRefParams.empty() && !v.definitionChecked && !v.isVariantSet; }
 	static_quick_assoc<const TreeItem*, FunctionSpecData> s_FunctionSpecAssoc;
 
 	static TokenID t_gcAny          = GetTokenID_st("any");
@@ -1455,6 +1456,22 @@ TIC_CALL SharedTreeItem TreeItem_GetFunctionParamSignature(const TreeItem* funct
 			if (std::get<0>(paramSig) == paramIndex)
 				return SharedTreeItem(std::get<1>(paramSig).lock());
 	return {};
+}
+
+TIC_CALL void TreeItem_AddFunctionMetaRefParam(const TreeItem* functionItem, UInt32 paramIndex)
+{
+	assert(functionItem && functionItem->IsFunctionItem());
+	s_FunctionSpecAssoc[functionItem].metaRefParams.push_back(paramIndex);
+}
+
+TIC_CALL bool TreeItem_IsFunctionMetaRefParam(const TreeItem* functionItem, UInt32 paramIndex)
+{
+	auto specPtr = s_FunctionSpecAssoc.get_value_ptr(functionItem);
+	if (specPtr)
+		for (UInt32 idx : specPtr->metaRefParams)
+			if (idx == paramIndex)
+				return true;
+	return false;
 }
 
 TIC_CALL const std::vector<TokenID>* TreeItem_GetFunctionParamSigTypeArgs(const TreeItem* functionItem, UInt32 paramIndex)

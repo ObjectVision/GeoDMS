@@ -43,6 +43,19 @@ function float_isNearby<V: numerics>(attribute<V> a; attribute<V> b; attribute<V
 function point_isNearby<P: points, V: numerics>(attribute<P> a; attribute<P> b; attribute<V> f)
 -> attribute<bool> := float_isNearby(pointrow(a), pointrow(b), f) && float_isNearby(pointcol(a), pointcol(b), f);
 
+// ---------------------------------------------------------------- property accessors
+// 'item' parameters are meta-references: the argument binds as a raw item reference
+// (never its calculation/range key), so PropValue reads the CONFIG item's metadata —
+// for containers, units and attributes alike — and each application keys identically
+// to the direct PropValue call.
+
+function name   (item t) -> parameter<string> := PropValue(t, 'name');
+function Descr  (item t) -> parameter<string> := PropValue(t, 'Descr');
+function Expr   (item t) -> parameter<string> := PropValue(t, 'Expr');
+function Label  (item t) -> parameter<string> := PropValue(t, 'Label');
+function STORAGE(item t) -> parameter<string> := PropValue(t, 'StorageName');
+function EK     (item t) -> parameter<string> := PropValue(t, 'ExternalKeyData');
+
 // ---------------------------------------------------------------- logit
 
 function llpart<F: floats>(attribute<F> lc; attribute<F> xc; attribute<F> oc)

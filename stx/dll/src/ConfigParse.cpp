@@ -84,6 +84,7 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 			chlit<> EQUAL('=');
 
 			strlit<> CONTAINER("container");
+			strlit<> ITEM("item");
 			strlit<> TEMPLATE("template");
 			strlit<> FUNCTION("function");
 			strlit<> VARIANT("variant");
@@ -350,6 +351,13 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 
 			itemSignature =
 				as_lower_d[CONTAINER][([&cp](...) { cp.SetSignature(SignatureType::TreeItem);})]
+				// 'item x': meta-reference function parameter. Guards: (a) word boundary
+				// (lexeme: no alnum/'_' may follow, so 'items' stays an identifier);
+				// (b) not followed by ':' or '=', so 'item := expr;' stays a bare decl
+				// and 'item : type' declares an item NAMED item
+				| (lexeme_d[as_lower_d[ITEM] >> epsilon_p(boost::spirit::anychar_p - alnum_p - '_')]
+					>> epsilon_p(boost::spirit::anychar_p - COLON - EQUAL))
+					[([&cp](...) { cp.SetSignature(SignatureType::MetaRef);})]
 				| as_lower_d[TEMPLATE][([&cp](...) { cp.SetSignature(SignatureType::Template);})]
 				| (as_lower_d[ATTRIBUTE] >> '<' >> unitIdentifier >> '>')[([&cp](...) { cp.DoAttrSignature();})]
 				| (as_lower_d[PARAMETER] >> '<' >> unitIdentifier >> '>')[([&cp](...) { cp.SetSignature(SignatureType::Parameter);})]

@@ -40,6 +40,10 @@ references were verified against that tree.*
   whole-rule functions (`value := function(…) …`), designation-by-name
   (`-> restype { result := …; }`), and anonymous result-position functions
   (`:= function(…) -> T := e;` replacing the nested `function result` idiom).
+- **§5.13 meta-reference parameters** (`item x`, 2026-07-17) — the argument binds as
+  a raw item reference (the `sourceDescr` form), unlocking the retirement of the six
+  `PropValue` property-accessor rewrite rules to prelude functions with
+  alias≡direct key identity for containers, units and attributes.
 
 Not yet implemented (specs below remain actionable): the redundant top-level
 `{ X(args) }` sugar (§5.9 deferred list), the opt-in `applyF` boundary
@@ -1454,7 +1458,7 @@ exact powers (comment at lines 55-59). The phase-out below generalizes that patt
 | **B. Variadic normalization** — unary collapse + fold-left chains | `(add _a1)→_a1` etc. (62-70); n-ary `add/mul/or/and/MakeDefined/union` folds (72-77); `concat` (79-81); `replace_value`/`replace`/`combine_data`/`index`/`subindex` chains (223-259) | ~20 | **variadic operator registration** (`VariadicOperator` exists, `tic/Operator.h:316-329`) or parser-level canonicalization; with P3, expressible as `fold` |
 | **C. Control-flow sugar** | `switch`/`case` unrolling to `iif` chains incl. constant short-circuits (85-91) | 4 | **real variadic `switch` operator** with typed checking (all case values unify; conditions bool over one domain) |
 | **D. Simplification/optimization** — not definitions | boolean/constant algebra (95-113); `add _X 0`, `mul _X (div 1 _Y)` (203-205); `MakeDefined` idempotence (219); self-join elimination `lookup(rlookup a a)` (245); pseudo-aggregation eliminations incl. the type-unsafe `mean/sum/modus _X (id _E)` (266-277) | ~25 | **compiled-in typed simplifier pass** owned by the engine (not a user-editable data file); each rule fires only after its typing precondition (e.g. `UnifyDomain`) verifies — fixing the unsafe ones |
-| **E. Argument completion / bridging** | `Value→convert` (24); `const` reorder (25); `ReadValue→ReadArray` default (165); `collect_by_cond` per-`select_*` arg injection (29-42); property accessors `name/Descr/…→PropValue` (209-215); `BaseUnit` fixups (116-119) | ~15 | **optional/default arguments** (`m_NrOptionalArgs` exists) + **typed overloads** (§5.7) — `collect_by_cond` dispatching on the select flavor is precisely overload resolution on a Σ-result type |
+| **E. Argument completion / bridging** | `Value→convert` (24); `const` reorder (25); `ReadValue→ReadArray` default (165); `collect_by_cond` per-`select_*` arg injection (29-42); ~~property accessors `name/Descr/…→PropValue`~~ (retired 2026-07-17 via §5.13 `item` parameters); `BaseUnit` fixups (116-119) | ~15 | **optional/default arguments** (`m_NrOptionalArgs` exists) + **typed overloads** (§5.7) — `collect_by_cond` dispatching on the select flavor is precisely overload resolution on a Σ-result type |
 
 ### 8.3 The key-identity hazard, and `inline` functions
 
@@ -1533,15 +1537,15 @@ exposed by `reversed_id`). Still in the .lsp, with reasons: `order`/`isOverlappi
 tranche-3 bodies), 3-arg `median` and 2-arg `log` (their heads shadow retained
 rules/operators — need arity-aware head dispatch or optional args), `concat`/
 `switch`/`index`/`subindex`/`combine_data`/`replace(_value)` chains (variadic — B/C),
-accessors (`Value`/`const`/`collect_by_*` — E), the property accessors
-`name`/`Descr`/`Expr`/`Label`/`STORAGE`/`EK` (one-argument `PropValue` aliases that
-*look* retirable but are not — see below), bool/pseudo-aggregation simplifications
-(D — stay by design as the future compiled-in pass), `rjoin` (self-join collapse
-rule, below), `ReadValue` (optional args), `claim_*` (RuimteScanner model logic —
-coordination).
+accessors (`Value`/`const`/`collect_by_*` — E), bool/pseudo-aggregation
+simplifications (D — stay by design as the future compiled-in pass), `rjoin`
+(self-join collapse rule, below), `ReadValue` (optional args), `claim_*`
+(RuimteScanner model logic — coordination). The six property accessors
+`name`/`Descr`/`Expr`/`Label`/`STORAGE`/`EK` were retired 2026-07-17 via the
+meta-reference parameter kind — see §5.13 below.
 
-**Two negative findings (2026-07-14), both about *why* a rule cannot become a
-prelude function — the boundary of the technique:**
+**Two negative findings (2026-07-14), on *why* a rule cannot become a prelude
+function — the boundary of the technique. The second is RESOLVED (§5.13):**
 
 - **`rjoin` (and any rule whose output re-triggers rewriting).** `RewriteExpr` runs
   on the original expression *before* `SubstituteExpr` β-reduces function
@@ -1556,18 +1560,54 @@ prelude function — the boundary of the technique:**
   prelude `rjoin` would therefore key `rjoin(x, x, c)` as `lookup(rlookup(x,x), c)`
   instead of the old `c` — a key-identity break. Stays.
 
-- **The property accessors need a *meta-reference* argument, which functions don't
-  pass.** `PropValue` is a `calc_requires_metainfo` operator: its item argument must
-  reach it as a raw reference to the config item, not as a data expression. The
-  rewrite rule `[(name _T) (PropValue _T "name")]` keeps `_T` syntactic, so PropValue
-  sees the reference. A prelude `name(container t) := PropValue(t, 'name')` instead
-  resolves the argument through the ordinary *data* path, so `t` becomes the
-  argument's data key — a unit's range expression, an attribute's calc rule — and
-  PropValue reads the *computed item's* metadata, not the config item's. Verified
-  empirically: `name(container)` works (a container has no data key, so the reference
-  survives), but `name(unit)` and `name(attribute)` return the wrong value. Retiring
-  these needs a meta-reference parameter kind in the function machinery (a parameter
-  that substitutes as the item reference, like the member-access path already does).
+- **The property accessors need a *meta-reference* argument, which plain parameters
+  don't pass** *(RESOLVED 2026-07-17 by §5.13's `item` parameter kind)*. `PropValue`
+  is a `calc_requires_metainfo` operator: its item argument must reach it as a raw
+  reference to the config item, not as a data expression. The rewrite rule
+  `[(name _T) (PropValue _T "name")]` kept `_T` syntactic, so PropValue saw the
+  reference; a prelude `name(container t) := PropValue(t, 'name')` instead resolved
+  the argument through the ordinary *data* path (`t` → a unit's range expression, an
+  attribute's calc rule), so PropValue read the *computed item's* metadata. Verified
+  at the time: `name(container)` worked (no data key), `name(unit)`/`name(attribute)`
+  returned the wrong value. The `item` parameter kind removes exactly this limit.
+
+### 5.13 Meta-reference parameters: `item x` *(implemented 2026-07-17)*
+
+A function parameter declared with the new `item` keyword is a **meta-reference
+parameter**: its argument binds as a *raw item reference* — the very `sourceDescr`
+key form (`CreateLispTree(argItem, false)`, `rtc/dll/src/tic/LispTreeType.cpp`) that
+a `subst_never` operator argument gets in a direct call — never as the argument's
+calculation/range key. `PropValue` & co consequently read the CONFIG item's metadata
+for containers, units and attributes alike, and each application keys **identically**
+to the direct call (`name(Road)` ≡ `PropValue(Road, 'name')` as interned LispRefs;
+the `sourceDescr` token is the argument's *absolute* full name, so the key is
+caller-scope-independent).
+
+Mechanics: `SignatureType::MetaRef` (stx) parses `item x` in the parameter telescope;
+the guard `lexeme_d[ITEM >> ¬(alnum|'_')] >> ¬(':'|'=')` keeps `items`, `item := …;`
+(§5.12 bare decls) and `item : type` (an item *named* item) parsing as before —
+`item` is only a keyword where a parameter type can stand. The parameter item itself
+is a plain TreeItem; the kind is recorded per index in `FunctionSpecData
+::metaRefParams` (`tic/TreeItem.cpp`, rides along `TreeItem_CopyFunctionSpec` for
+closures/variants). At β-reduction (`FunctionApplication::ReduceValue` param loop),
+a meta-ref parameter requires the argument to be an item reference (`m_ArgItems[i]`;
+a calculated expression is rejected with a dedicated error) and rebinds
+`m_ArgKeys[i] = CreateLispTree(argItem)` — one binding site; body occurrences and
+`m_Reductions` then substitute the raw reference uniformly. No walker change: the
+parameter is opaque (⊤) like a `container` parameter, and `sourceDescr` nodes already
+round-trip through reducer, walker and DC layer (`SymbDC` resolves them back to the
+config item by absolute `FindItem`).
+
+With this, the six accessors are prelude functions
+(`function name(item t) -> parameter<string> := PropValue(t, 'name');` etc.) and
+their rewrite rules are retired. Tests: `scratch/fn_test_props.dms` (alias values +
+alias≡direct key-identity probes for a container, a **unit** and an **attribute**,
+plus a user function with an `item` parameter), `fn_test_props_neg1` (calculated
+expression into an `item` parameter → clean error), `fn_test_itemname` (keyword
+guards: `items`, bare `item := …;`, colon-typed `item : alias := …;` all parse
+unchanged). Deferred: member access *through* a meta-ref parameter beyond what
+container parameters already support, and `item` in result position (rejected with
+the parameter-only error).
 
 **Auto-import implemented (2026-07-13).** The prelude is auto-imported at config load
 (`stx/dll/src/StxInterface.cpp`, `CreateTreeFromConfiguration`): parsed into a hidden,

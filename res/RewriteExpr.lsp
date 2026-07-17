@@ -161,18 +161,12 @@
 
 /*********** Properties        *********/
 
-[(name   _T)       (PropValue _T "name" )]
-[(Descr  _T)       (PropValue _T "Descr")]
-[(Expr   _T)       (PropValue _T "Expr" )]
-[(Label  _T)       (PropValue _T "Label")]
-[(STORAGE _T)      (PropValue _T "StorageName")]
-[(EK _T)           (PropValue _T "ExternalKeyData")]
-/* These stay as rewrite rules: PropValue is a calc_requires_metainfo operator whose
-   item argument must remain a raw meta-reference. The rewrite keeps _T syntactic, but
-   a prelude function would resolve the argument to its DATA key (a unit's range
-   expression, an attribute's calc rule), so PropValue would read the wrong item's
-   metadata — verified: name(container) works, name(unit)/name(attr) do not. Retiring
-   these needs meta-reference parameter support in the function machinery.
+/* The six property accessors (name/Descr/Expr/Label/STORAGE/EK -> PropValue) are
+   RETIRED to prelude.dms functions with meta-reference ('item') parameters: the
+   argument now binds as a raw item reference (the same sourceDescr form PropValue's
+   calc_never argument gets in a direct call), so PropValue reads the CONFIG item's
+   metadata for containers, units and attributes alike, and the reduced key equals
+   the direct call's key.
    The '(result _T)' unwrap rule is retired (WP4.5): no config calls result(...) in
    expression position, and the head collided with nested 'result' functions (§5.10). */
 

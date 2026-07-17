@@ -1857,6 +1857,19 @@ namespace {
 		{
 			MG_CHECK(child); // guaranteed by the parser: params are the first nrParams sub-items
 			m_Params.push_back(child);
+
+			// meta-reference parameter ('item x'): bind the RAW item reference (the same
+			// sourceDescr form PropValue's subst_never argument gets in a direct call),
+			// never the argument's calculation/range key — so PropValue & co read the
+			// CONFIG item's metadata, and the reduced key equals the direct call's key
+			if (TreeItem_IsFunctionMetaRefParam(m_FuncItem, i))
+			{
+				if (!m_ArgItems[i])
+					throwErrorF("ExprParser", "'{}': parameter '{}' is an item (meta-reference) parameter; its argument must be a reference to a config item, not a calculated expression"
+						, m_FuncItem->GetFullName().c_str()
+						, child->GetID().GetStr().c_str());
+				m_ArgKeys[i] = CreateLispTree(m_ArgItems[i].get(), false);
+			}
 			m_Reductions[child] = m_ArgKeys[i];
 
 			if (auto declaredSig = TreeItem_GetFunctionParamSignature(m_FuncItem, i))

@@ -175,6 +175,8 @@ void ConfigProd::DoItemHeading(iterator_t first, iterator_t last)
 			m_FuncStates.back().genericParams.emplace_back(m_FuncStates.back().paramCount, genericVar, FindActiveTypeVarConstraint(genericVar), false);
 		if (domainVar)
 			m_FuncStates.back().genericParams.emplace_back(m_FuncStates.back().paramCount, domainVar, FindActiveTypeVarConstraint(domainVar), true);
+		if (m_eSignatureType == SignatureType::MetaRef)
+			m_FuncStates.back().metaRefParams.push_back(m_FuncStates.back().paramCount);
 	}
 
 	ClearSignature();
@@ -295,6 +297,15 @@ void ConfigProd::CreateItem(TokenID nameID, const iterator_t& loc)
 		case SignatureType::Unit:     CreateUnit     (nameID); break;
 		case SignatureType::Attribute:CreateAttribute(nameID); break;
 		case SignatureType::Parameter:CreateParameter(nameID); break;
+		case SignatureType::MetaRef:
+			// 'item x': a meta-reference parameter — the argument binds as a raw item
+			// reference (like PropValue's item argument), never as a calculation key.
+			// Validate AFTER creation: IsTopLevelFunctionParam tests m_pCurrent, which
+			// only becomes the declared item once CreateContainer ran
+			CreateContainer(nameID);
+			if (m_FuncStates.empty() || !m_FuncStates.back().inParamList || !IsTopLevelFunctionParam())
+				throwSemanticError("an 'item' (meta-reference) declaration is only supported as a function parameter");
+			break;
 		default: dms_assert(0); // syntax only produces CreateItem with valid signature types
 	}
 
@@ -900,6 +911,8 @@ void ConfigProd::DoColonItemHeading(iterator_t first, iterator_t last)
 			m_FuncStates.back().genericParams.emplace_back(m_FuncStates.back().paramCount + i, genericVar, FindActiveTypeVarConstraint(genericVar), false);
 		if (domainVar && topLevel)
 			m_FuncStates.back().genericParams.emplace_back(m_FuncStates.back().paramCount + i, domainVar, FindActiveTypeVarConstraint(domainVar), true);
+		if (m_eSignatureType == SignatureType::MetaRef && topLevel)
+			m_FuncStates.back().metaRefParams.push_back(m_FuncStates.back().paramCount + i);
 	}
 	m_PendingNames.clear();
 	m_PendingFunctionParamSig = nullptr;
@@ -1272,6 +1285,8 @@ void ConfigProd::OnFunctionDeclEnd(iterator_t first)
 		TreeItem_AddFunctionParamSignature(func, std::get<0>(paramSig), std::get<1>(paramSig), std::get<2>(paramSig));
 	for (const auto& genericParam : fs.genericParams)
 		TreeItem_AddFunctionGenericParam(func, std::get<0>(genericParam), std::get<1>(genericParam), std::get<2>(genericParam), std::get<3>(genericParam));
+	for (UInt32 metaRefIdx : fs.metaRefParams)
+		TreeItem_AddFunctionMetaRefParam(func, metaRefIdx);
 	if (!fs.typeVars.empty())
 		TreeItem_SetFunctionTypeVars(func, fs.typeVars); // WP4.1: ordered <var: constraint> list
 	TreeItem_MakeStrictScope(func); // definition-side strictness: inline reduction resolves through this scope
