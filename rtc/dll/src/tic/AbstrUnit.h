@@ -58,16 +58,28 @@ const UInt32 MAX_TILE_SIZE = 0x10000;
 //----------------------------------------------------------------------
 
 enum UnifyMode {
-	UM_AllowDefaultLeft  =  1, 
+	UM_AllowDefaultLeft  =  1,
 	UM_AllowDefaultRight =  2,
-	UM_AllowDefault      =  UM_AllowDefaultLeft|UM_AllowDefaultRight, 
-	UM_AllowTypeDiff     =  4, 
-	UM_Throw             =  8, 
+	UM_AllowDefault      =  UM_AllowDefaultLeft|UM_AllowDefaultRight,
+	UM_AllowTypeDiff     =  4,
+	UM_Throw             =  8,
 	UM_AllowVoidRight    = 16,
 	UM_AllowAllEqualCount= 32,
+
+	// UnifyDomain only: allow interning (GetOrCreateDataController) of the RIGHT
+	// operand's checked-key DC, making the comparison total and symmetric. Without
+	// it the right side is looked up only (GetExistingDataController, the #361 fix:
+	// DC creation is meta-thread-only), so a->UnifyDomain(b) can be false where
+	// b->UnifyDomain(a) is true, depending on DC-interning order. Callers passing
+	// this flag MUST run on the meta thread; GetOrCreateDataController enforces
+	// that with a release-active MG_CHECK. Do not test IsMetaThread() to decide:
+	// worker tasks can incidentally execute on the meta thread, which would make
+	// the verdict scheduling-dependent — the flag is a caller CONTRACT, not a
+	// runtime probe.
+	UM_AllowRightExpansion = 64,
 };
 
-inline auto operator | (UnifyMode lhs, UnifyMode rhs) { return UnifyMode(int(lhs) | int(rhs)); }
+constexpr auto operator | (UnifyMode lhs, UnifyMode rhs) { return UnifyMode(int(lhs) | int(rhs)); }
 
 class AbstrUnit : public TreeItem
 {

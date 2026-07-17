@@ -1,7 +1,7 @@
 # Operator unit-constraint signatures via a virtual interface
 
 **Status: DESIGN — the description layer is not yet implemented (the one shipped piece
-is the §8/S11 `DomainsUnify` prerequisite fix, 2026-07-16). Companion to
+is the §8/S11 `UM_AllowRightExpansion` prerequisite, 2026-07-17). Companion to
 `typed-hof-language-design.md` (WP4.1 "operator signature reification"), which this
 document supersedes for everything beyond its interim batch 1. Read §1.1 and Part II
 (§16–§20) first — the 2026-07-16 staging ruling governs how §2–§15 are read.**
@@ -638,23 +638,33 @@ ignores `valuesIdentity`; no operator sets it), run the full battery, and only t
 the relational batch turn it on. Two-step landing isolates any surprise to one of the two
 diffs.
 
-**Hard prerequisite before this tranche — fixed 2026-07-16 (commit alongside this doc).**
+**Hard prerequisite before this tranche — resolved 2026-07-17 with `UM_AllowRightExpansion`.**
 `AbstrUnit::UnifyDomain` is *directional*: it interns the **left** operand's
-DataController (`GetOrCreateDataController`, `AbstrUnit.cpp:302`) but only **looks up** the
-right's (`GetExistingDataController`, `:311`), so `a.UnifyDomain(b)` can fail where
-`b.UnifyDomain(a)` succeeds, purely by DC-interning order. `UnifyData`'s concrete-concrete
-case already guarded against this with a two-direction retry, but the unifier's own
-`BindDomain` and `LinkDomain` did **not** — they compared one direction only, so a domain
-variable bound to two value-equal units in the adverse interning order could throw a false
-*"inconsistent instantiation of domain variable"* at definition time (risk S1). All three
-sites now route through one `TypeUnifier::DomainsUnify(a,b) = a→b || b→a` helper
-(`AbstrCalculator.cpp:1619`; callers at `:1633` `BindDomain`, `:1657` `LinkDomain`, `:2846`
-`UnifyData`). This must be in place before the
-UnitNode pool widens the surface to values-side identity. (Verified by the full
-`scratch/fn_test*` battery — 70/70 — plus tst Operator `/Rescale` `/Arithmetics`; a
-triggering config was not constructed, so the fix rests on the directional inconsistency
-being demonstrable in code and on the change being a strict *widening* of the accept
-condition. See risk S11.)
+DataController (`GetOrCreateDataController`) but by default only **looks up** the right's
+(`GetExistingDataController`), so `a.UnifyDomain(b)` can fail where `b.UnifyDomain(a)`
+succeeds, purely by DC-interning order. Archaeology showed the asymmetry is
+**intentional**: commit `766848c9` (2023-08, issue #361) demoted the right side from
+`GetOrCreate` to `GetExisting` because operator arg-shape guards re-run at `CalcResult`
+time on **worker threads**, and DC *creation* is meta-thread-only (the same commit relaxed
+`GetDataControllerImpl`'s gate to `MG_CHECK(IsMainThread() || !mayCreate)`); its TODO —
+"prevent UnifyXXX() to be called from WorkerThreads" — is still open.
+
+The resolution keeps that fix intact and makes the capability an explicit caller
+contract: a new `UnifyMode` flag **`UM_AllowRightExpansion = 64`** (`AbstrUnit.h`) lets a
+caller that *guarantees* meta-thread execution allow interning of the right operand's DC
+too, making the comparison **total and symmetric** for that caller.
+(`IsMetaThread()` inside the primitive was considered and rejected: a worker task can
+incidentally execute on the meta thread, which would make the verdict
+scheduling-dependent — the flag is a caller contract, not a runtime probe.) The
+release-active `MG_CHECK` inside `GetOrCreateDataController` enforces the contract; a
+debug assert at the flag's use site documents it. The def-time checker — always
+meta-thread — passes the flag at its three unit-identity sites (`BindDomain`,
+`LinkDomain`, `UnifyData`'s concrete-concrete case, via `TypeUnifier::s_CheckerUM`),
+replacing the interim two-direction `DomainsUnify` retry helper with plain
+single-direction calls. Verified by the full `scratch/fn_test*` battery (70/70), tst
+Operator `/Rescale` `/Arithmetics`, and `examples/function.dms`. This must be in place
+before the UnitNode pool widens the comparison surface to values-side identity; the
+values-identity block (above) should use the same flag. See risk S11.
 
 ## 9. `CreateResult` stays authoritative; drift defenses
 
@@ -796,12 +806,12 @@ demonstration that the same config already fails at reduction on `main`.
 | S3 | merged summary over-claims correlation when a group gains a heterogeneous member (other DLL) | High | congruence check over *all* current members; `Register` generation counter invalidates the cache; `cog_mul` sentinel test in batch A |
 | S4 | trial-state leakage from speculation | Med | copy-trial-adopt makes leakage structurally impossible; the harness catches only `ExprParser` throws, only inside the loop |
 | S5 | UnitNode surgery destabilizes existing domain checking | Med | dark landing (batch U); rename-dominated diff; class-node invariant confined to `BindUnit`/`LinkUnit`; battery gate before any operator uses it |
-| S6 | values-identity checks collide with metric/borrowing semantics | Med | identity compared only via two-direction permissive `UnifyDomain` (never `UnifyValues`); explicit default-borrowing regression config in batch B |
+| S6 | values-identity checks collide with metric/borrowing semantics | Med | identity compared only via permissive `UnifyDomain` with `UM_AllowRightExpansion` (never `UnifyValues`); explicit default-borrowing regression config in batch B |
 | S7 | arity errors contradicting `FindOper`'s widening | Med | arity mismatch always defers (§6.2); revisit only with a `FindOper`-mirroring predicate + tests |
 | S8 | meta-thread / token-registry deadlock (the known `TokenStr` pitfall) | Med | materialize `SharedStr` before unifier/trial calls (pattern at `:3063`); summaries built under a once-guard |
 | S9 | def-time cost at config load | Low | once-per-function memo, once-per-group summary, trials only for mixed groups; the trail mechanism stays in reserve |
 | S10 | negative-test message churn | Low | keep message *shapes*; where roles improve wording, update tests deliberately in the same commit |
-| S11 | **`BindDomain`/`LinkDomain` inherited `UnifyDomain`'s directional DC-interning asymmetry** — a one-way compare could throw a false *"inconsistent instantiation of domain variable"* at definition (an S1 instance) | High | **Fixed 2026-07-16**: all three sites (`BindDomain:1633`, `LinkDomain:1657`, `UnifyData:2846`) route through one `TypeUnifier::DomainsUnify` helper (`:1619`, `a→b\|\|b→a`). Strict widening of the accept condition; validated by 70/70 battery + tst. A triggering config was not constructed (the asymmetry needs two value-equal, distinct-ultimate-item domains in the adverse interning order); the fix rests on the code-level inconsistency and the widening property, not on a repro |
+| S11 | **`BindDomain`/`LinkDomain` inherited `UnifyDomain`'s directional DC-interning asymmetry** — a one-way compare could throw a false *"inconsistent instantiation of domain variable"* at definition (an S1 instance). The asymmetry itself is **intentional** (commit `766848c9`, issue #361: worker-thread re-checks must not create DCs) | High | **Resolved 2026-07-17**: `UnifyMode` gains `UM_AllowRightExpansion = 64` — an explicit caller contract allowing right-side DC interning, valid only on the meta thread (enforced by `GetOrCreateDataController`'s release-active `MG_CHECK`). The checker's three sites (`BindDomain`, `LinkDomain`, `UnifyData` concrete-concrete) pass it via `TypeUnifier::s_CheckerUM`, making the compare total and symmetric there; the interim `DomainsUnify` two-direction helper is retired. Worker-thread behavior byte-identical (#361 fix preserved). Validated by 70/70 battery + tst + examples. A triggering config was never constructed; the fix rests on the demonstrated code-level inconsistency |
 
 ## 14. Rejected alternatives
 
@@ -1126,10 +1136,12 @@ tempting framings are wrong.
    early-out; the arg binder's `VT_Void` skip), so it never reaches a node and cannot break
    transitivity; and `IsKindOf` (`AbstrUnit.cpp:283`) forces same-value-type, making
    `HasFixedValues` a genuine equivalence class. (Corollary: the `UM_AllowVoidRight` flag on
-   the unifier's `UnifyDomain` calls is **vestigial** — kept only to mirror `UnifyData`
-   verbatim; no Void unit ever reaches those sites. And the *directional* asymmetry in
-   `UnifyDomain` itself — `GetOrCreate` left, `GetExisting` right — is why all identity
-   comparisons must be two-directional; §8's S11 fix.)
+   the unifier's `UnifyDomain` calls is **vestigial** — kept defensively; no Void unit ever
+   reaches those sites. And the *directional* default of `UnifyDomain` itself —
+   `GetOrCreate` left, `GetExisting` right, the intentional #361 worker-thread fix — is
+   neutralized for the checker by `UM_AllowRightExpansion` (§8's S11 resolution), which
+   makes the comparison total and symmetric under the checker's meta-thread contract, so
+   union-find over it is a genuine equivalence.)
 
 2. **Interpreted fragment — metrics.** `UnitMetric` is a scale factor plus a
    `map<TokenID, Int32>` of base-unit exponents; `SetProduct`/`SetQuotient`

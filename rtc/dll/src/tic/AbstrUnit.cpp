@@ -308,7 +308,14 @@ bool AbstrUnit::UnifyDomain(const AbstrUnit* cu, CharPtr leftRole, CharPtr right
 			SharedTreeItem thatRepresentation = make_shared_tree(cu, existing_obj{});
 			if (!cu->IsCacheItem())
 			{
-				auto thatDC = GetExistingDataController(cu->GetCheckedKeyExpr());
+				// UM_AllowRightExpansion (meta-thread callers only, see AbstrUnit.h):
+				// intern the right key too, so the comparison is total and symmetric.
+				// Default: lookup only (the #361 fix; worker-thread re-checks must
+				// not create DCs) — a missing DC then reads as a mismatch.
+				assert(!(um & UM_AllowRightExpansion) || IsMetaThread());
+				auto thatDC = (um & UM_AllowRightExpansion)
+					? GetOrCreateDataController(cu->GetCheckedKeyExpr())
+					: GetExistingDataController(cu->GetCheckedKeyExpr());
 				if (!thatDC)
 					goto error;
 				thatRepresentation = thatDC->MakeResult();
