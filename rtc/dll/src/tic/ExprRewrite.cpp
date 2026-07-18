@@ -134,6 +134,30 @@ LispRef RewriteExprTop(LispPtr org)
 	return ApplyTopEnv(org);
 }
 
+namespace {
+	// a rule CAPTURES generic calls of its head iff every argument position of its
+	// pattern is a plain variable (including a variable tail such as _T): any call
+	// spelling then matches, so a same-named function would never be reached. A rule
+	// with a structural or literal argument fires only on specific spellings and
+	// COMPOSES with a same-named function (e.g. the retained MakeDefined idempotence
+	// collapse and the median-interval destructuring rule: they normalize the source,
+	// and their output resolves to the prelude function).
+	bool IsCapturingPattern(LispPtr key)
+	{
+		LispPtr cursor = key.Right();
+		while (true)
+		{
+			if (cursor.EndP())
+				return true;
+			if (!cursor.IsRealList())
+				return cursor.IsVar(); // variable tail = generic; a structural tail is specific
+			if (!cursor.Left().IsVar())
+				return false;
+			cursor = cursor.Right();
+		}
+	}
+}
+
 bool HasRewriteRuleForHead(TokenID headID)
 {
 	AssocListPtr cursor = GetEnv();
@@ -141,7 +165,8 @@ bool HasRewriteRuleForHead(TokenID headID)
 	{
 		AssocPtr a = cursor.First();
 		LispPtr key = a.Key();
-		if (key.IsRealList() && key.Left().IsSymb() && key.Left().GetSymbID() == headID)
+		if (key.IsRealList() && key.Left().IsSymb() && key.Left().GetSymbID() == headID
+			&& IsCapturingPattern(key))
 			return true;
 		cursor = cursor.Tail();
 	}

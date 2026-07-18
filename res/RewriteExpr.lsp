@@ -62,7 +62,6 @@
 [(mul _a1)                    _a1]
 [(or  _a1)                    _a1]
 [(and _a1)                    _a1]
-[(MakeDefined _a1)            _a1]
 [(min_elem _a1)               _a1]
 [(max_elem _a1)               _a1]
 [(min_elem_fast _a1)          _a1]
@@ -72,8 +71,14 @@
 [[mul [_a1 [_a2 [_a3 _T]]]]  [mul [(mul _a1 _a2) [_a3 _T]]] ]
 [[or  [_a1 [_a2 [_a3 _T]]]]  [or  [(or  _a1 _a2) [_a3 _T]]] ]
 [[and [_a1 [_a2 [_a3 _T]]]]  [and [(and _a1 _a2) [_a3 _T]]] ]
-[[MakeDefined [_a1 [_a2 [_a3 _T]]]]  [MakeDefined [(MakeDefined _a1 _a2) [_a3 _T]]] ]
-[[union [_a1 [_a2 [_a3 _T]]]]  [union [(SubItem (union _a1 _a2) "UnionData") [_a3 _T]]] ]
+/* the MakeDefined unary/2-arg/fold rules are RETIRED to a prelude variadic function
+   (see the Missing values section); the add/mul/or/and collapses and folds above
+   await arity-aware head dispatch (registered operator heads).
+   The union fold rule is REMOVED (2026-07-18, Maarten's ruling): the union operator
+   itself is variadic (cog_union, allow_extra_args) and implements the same; the
+   chained SubItem(union(a,b),'UnionData') spelling is not used by the release tests --
+   the precise idiom is union_unit + union_data. Multi-argument union(...) now keys
+   FLAT (the operator's own semantics) instead of as a nested chain. */
 
 /* concat is RETIRED to a prelude variadic function ('...rest' fold): the variant
    bodies spell the exact resolvents (MakeDefined wrap + right add-fold), so the
@@ -134,7 +139,10 @@
    calls, on which the two retained rules above still fire at body parse, so the
    reduced keys equal the old rule chain. */
 
-[(median _a _b _c) (median _a (order _b _c)) ]
+/* the 3-arg median entry rule is RETIRED to a prelude function (a pure rule head: no
+   registered operator): three(a,b,c) = median(a, order(b, c)) -- the retained order
+   rule and the interval-destructuring rule below fire at body parse, so the stored
+   body equals this rule chain's fixpoint. The destructuring rule stays (retained). */
 
 [(median _a (interval _b _c)) // use guarantee that _b <= _c
 	(iif (le _a _b) 
@@ -172,8 +180,15 @@
 
 /*********** Missing values    *********/
 
+/* MakeDefined is RETIRED to a prelude variadic function (a pure rule head: no
+   registered operator): one(a) = a, two(x,y) = iif(IsDefined(x), x, y),
+   more(x,y,...rest) = MakeDefined(MakeDefined(x,y), rest). Only the structural
+   idempotence collapse below stays: it destructures its ARGUMENT (a function
+   cannot), fires at parse as a syntactic normalizer, and its 2-arg output then
+   resolves to the prelude function -- rule and function compose, and the
+   collapse-corner keys are preserved. It does not match the prelude fold body
+   (the pattern requires the same _Y twice). */
 [(MakeDefined (MakeDefined _X _Y) _Y) (MakeDefined _X _Y)]
-[(MakeDefined _X _Y)            (iif (IsDefined _X) _X _Y)]
 
 /* replace_value is RETIRED to a prelude variadic function: base = iif(eq(x,v),w,x),
    fold = replace_value(replace_value(x,v,w), rest) -- the exact resolvents. */

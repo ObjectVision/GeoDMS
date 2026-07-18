@@ -88,6 +88,24 @@ function combine_data
 	:=	combine_data(V, combine_data(combine_unit(ValuesUnit(a1), ValuesUnit(a2)), a1, a2), rest);
 }
 
+// MakeDefined: a pure rule head (no registered operator) — retired at ALL arities.
+// The structural idempotence collapse MakeDefined(MakeDefined(x,y),y) -> MakeDefined(x,y)
+// stays a rewrite rule (it destructures its argument); it normalizes the SOURCE and its
+// output resolves to this function, so rule and function compose key-identically.
+function MakeDefined
+{
+	variant one (container a) -> container := a;
+	variant two (container x; container y) -> container := iif(IsDefined(x), x, y);
+	variant more(container x; container y; ...rest) -> container := MakeDefined(MakeDefined(x, y), rest);
+}
+
+// median-of-3: the retained order + median-interval destructuring rules fire on this
+// body at parse, so the stored body equals the old rule chain's fixpoint
+function median
+{
+	variant three(container a; container b; container c) -> container := median(a, order(b, c));
+}
+
 // ---------------------------------------------------------------- logit
 
 function llpart<F: floats>(attribute<F> lc; attribute<F> xc; attribute<F> oc)
