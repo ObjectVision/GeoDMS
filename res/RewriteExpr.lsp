@@ -192,7 +192,10 @@
 /* replace_value is RETIRED to a prelude variadic function: base = iif(eq(x,v),w,x),
    fold = replace_value(replace_value(x,v,w), rest) -- the exact resolvents. */
 
-[[replace [_X [_V1 [_W1 [_V2 _T]]]]]  [replace [(replace _X _V1 _W1) [_V2 _T]]] ]
+/* the 5+-arg replace fold is RETIRED to a prelude variadic function (arity-aware
+   head dispatch: the registered replace operator is ternary): more(x,v,w,...rest) =
+   replace(replace(x,v,w), rest) -- the exact pairwise left-fold resolvent, with the
+   3-arg operator as the recursion's base case. */
 
 /*********** RuimteScanner specifics *********/
 

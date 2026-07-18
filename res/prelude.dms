@@ -120,6 +120,9 @@ function and { variant one(container a) -> container := a; variant more(containe
 // 2-arg log (the registered log operator is unary)
 function log { variant two(container x; container b) -> container := log(x) / log(b); }
 
+// 5+-arg replace: pairwise (v,w) left fold; the ternary replace OPERATOR is the base case
+function replace { variant more(container x; container v; container w; ...rest) -> container := replace(replace(x, v, w), rest); }
+
 // ---------------------------------------------------------------- logit
 
 function llpart<F: floats>(attribute<F> lc; attribute<F> xc; attribute<F> oc)

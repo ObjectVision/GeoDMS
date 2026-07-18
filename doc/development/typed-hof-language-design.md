@@ -1541,8 +1541,7 @@ exposed by `reversed_id`). Still in the .lsp, with reasons: `order`/`isOverlappi
 `median`-on-interval (destructuring patterns — and now also load-bearing for the
 tranche-3 bodies), 3-arg `median` and 2-arg `log` (their heads shadow retained
 rules/operators — need arity-aware head dispatch or optional args), `concat`/
-`switch` (case-destructuring — pattern parameters), `replace` 5+ (registered head;
-retirable now via §5.15 dispatch — left for a follow-up), accessors
+`switch` (case-destructuring — pattern parameters), accessors
 (`Value`/`const`/`collect_by_*` — E), bool/pseudo-aggregation simplifications (D —
 stay by design as the future compiled-in pass), the `min_elem`/`max_elem`(`_fast`)
 unary collapses (allow_extra_args groups — dispatch cannot fire), `rjoin` (self-join
@@ -1551,8 +1550,9 @@ logic — coordination). Retired meanwhile: the six property accessors via
 meta-reference parameters (§5.13, 2026-07-17); `concat`/`replace_value`/
 `combine_data` via rest parameters (§5.14, 2026-07-18); `MakeDefined` (all arities;
 the structural collapse rule stays as a composing normalizer) and 3-arg `median`
-(pure rule heads); the `add`/`mul`/`or`/`and` collapses+folds and 2-arg `log` via
-arity-aware head dispatch (§5.15, 2026-07-18). The `union` fold rule was REMOVED by
+(pure rule heads); the `add`/`mul`/`or`/`and` collapses+folds, 2-arg `log` and
+5+-arg `replace` via arity-aware head dispatch (§5.15, 2026-07-18). The `union`
+fold rule was REMOVED by
 ruling (the variadic operator is authoritative; multi-arg `union` now keys flat) and
 the dead multi-arg `index`/`subindex` rules were deleted.
 
@@ -1722,9 +1722,10 @@ rule-head guard was refined in the same tranche to reserve only *capturing* rule
 all-variable patterns — so structural rules like the MakeDefined collapse and the
 median-interval destructurer compose with same-named functions).
 
-**Retired**: the `add`/`mul`/`or`/`and` unary collapses and N-ary left folds and the
-2-arg `log` rule (`two(x,b) := log(x)/log(b)`), as prelude functions with
-key-identical reductions. **Stays**: the `min_elem`/`max_elem`(`_fast`) unary
+**Retired**: the `add`/`mul`/`or`/`and` unary collapses and N-ary left folds, the
+2-arg `log` rule (`two(x,b) := log(x)/log(b)`), and the 5+-arg `replace` pairwise
+fold (`more(x,v,w,...rest) := replace(replace(x,v,w), rest)` — the ternary replace
+operator is the base case), as prelude functions with key-identical reductions. **Stays**: the `min_elem`/`max_elem`(`_fast`) unary
 collapses — their groups are `allow_extra_args`, so the operator claims every arity ≥
 its minimum and dispatch can never fire (the union situation). **Deleted**: the dead
 multi-argument `index`/`subindex` fold rules (`(index_a)` typo + undefined
