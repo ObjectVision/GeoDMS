@@ -1541,17 +1541,20 @@ exposed by `reversed_id`). Still in the .lsp, with reasons: `order`/`isOverlappi
 `median`-on-interval (destructuring patterns — and now also load-bearing for the
 tranche-3 bodies), 3-arg `median` and 2-arg `log` (their heads shadow retained
 rules/operators — need arity-aware head dispatch or optional args), `concat`/
-`switch` (case-destructuring — pattern parameters), `index`/`subindex`/`replace`
-(registered operator heads — need arity-aware head dispatch, §5.14), accessors
+`switch` (case-destructuring — pattern parameters), `replace` 5+ (registered head;
+retirable now via §5.15 dispatch — left for a follow-up), accessors
 (`Value`/`const`/`collect_by_*` — E), bool/pseudo-aggregation simplifications (D —
-stay by design as the future compiled-in pass), `rjoin` (self-join collapse rule,
-below), `ReadValue` (optional args), `claim_*` (RuimteScanner model logic —
-coordination), and the N-ary fold-left chains for *registered* binary heads
-(`add`/`mul`/`or`/`and`/`MakeDefined`/`union` — same arity-dispatch blocker). The six
-property accessors `name`/`Descr`/`Expr`/`Label`/`STORAGE`/`EK` were retired
-2026-07-17 via the meta-reference parameter kind (§5.13); the `concat`,
-`replace_value` and `combine_data` variadic chains were retired 2026-07-18 via rest
-parameters (§5.14).
+stay by design as the future compiled-in pass), the `min_elem`/`max_elem`(`_fast`)
+unary collapses (allow_extra_args groups — dispatch cannot fire), `rjoin` (self-join
+collapse rule, below), `ReadValue` (optional args), `claim_*` (RuimteScanner model
+logic — coordination). Retired meanwhile: the six property accessors via
+meta-reference parameters (§5.13, 2026-07-17); `concat`/`replace_value`/
+`combine_data` via rest parameters (§5.14, 2026-07-18); `MakeDefined` (all arities;
+the structural collapse rule stays as a composing normalizer) and 3-arg `median`
+(pure rule heads); the `add`/`mul`/`or`/`and` collapses+folds and 2-arg `log` via
+arity-aware head dispatch (§5.15, 2026-07-18). The `union` fold rule was REMOVED by
+ruling (the variadic operator is authoritative; multi-arg `union` now keys flat) and
+the dead multi-arg `index`/`subindex` rules were deleted.
 
 **Two negative findings (2026-07-14), on *why* a rule cannot become a prelude
 function — the boundary of the technique. The second is RESOLVED (§5.13):**
@@ -1681,8 +1684,55 @@ multi-argument `index`/`subindex` chains appear to be dead as written.
 Tests: `fn_test_variadic.dms` (concat 1–3 args over parameters and attributes;
 replace_value base + fold; combine_data base + fold with value checks; rescale from a
 body), `fn_test_variadic_neg1` (rest not last → parse error), `fn_test_variadic_neg2`
-(rest used as a scalar → application error). The same-arity recursion negative
+(rest used as a bare value → application error). The same-arity recursion negative
 (`p1_rec`) still fails as before.
+
+### 5.15 Arity-aware head dispatch *(implemented 2026-07-18)*
+
+A registered operator group owns its head for the arities its members accept — and
+**only** those. `AbstrOperGroup::AcceptsArity(n)` (cached member-arity envelope
+`[minRequired, maxSpecified]`, invalidated by `Register` for late-loading DLLs;
+non-caching groups and counts ≥ min for `allow_extra_args` groups always accept)
+answers conservatively: **false guarantees `FindOper` would throw**. On such an arity
+miss, head resolution falls back to a same-named function (scope, then prelude) — a
+strict conversion of errors into function calls, so no working config changes
+behavior. Two dispatch sites (the direct-call substitution and the body-expression
+substitution; nested-argument positions reach them by fallthrough).
+
+The dispatch count is the **effective** arity: a trailing `...x` rest symbol expands
+to its captured argument count. This composes with §5.14 into the elegant fold shape
+— **the operator is the base case**:
+
+```
+function add { variant one(container a) -> container := a;
+               variant more(container a; container b; ...rest) -> container := add(add(a, b), rest); }
+```
+
+Arity 2 never reaches the function; the body's inner `add(a,b)` resolves to the
+operator; the recursive call's effective arity shrinks until the last step (`rest` =
+1 element) resolves to the binary operator. Rest symbols may consequently trail
+**operator** calls too (spliced as keys; `a + rest` inside a fold body is legal and
+folds).
+
+Coexistence is validated arity-aware at declaration: a function may share an
+operator's name iff **none of its (variants') arity ranges** intersects the group's
+envelope — per-variant, so `add`'s `{1} ∪ [3,∞)` legally skips the operator's `[2,2]`
+(`ValidateFunctionArityVsOperator`, replacing the flat name-collision rejection; the
+rule-head guard was refined in the same tranche to reserve only *capturing* rules —
+all-variable patterns — so structural rules like the MakeDefined collapse and the
+median-interval destructurer compose with same-named functions).
+
+**Retired**: the `add`/`mul`/`or`/`and` unary collapses and N-ary left folds and the
+2-arg `log` rule (`two(x,b) := log(x)/log(b)`), as prelude functions with
+key-identical reductions. **Stays**: the `min_elem`/`max_elem`(`_fast`) unary
+collapses — their groups are `allow_extra_args`, so the operator claims every arity ≥
+its minimum and dispatch can never fire (the union situation). **Deleted**: the dead
+multi-argument `index`/`subindex` fold rules (`(index_a)` typo + undefined
+`rank_sorted`/`sub_rank_sorted` heads — any use already errored).
+
+Tests: `fn_test_aritydisp.dms` (add 1/3/4-arg, mul/or/and 3-arg, log 2-arg, dispatch
+from inside a function body incl. the folds' recursion), `fn_test_aritydisp_neg1`
+(user `function add(a;b)` at the operator's own arity → declaration error).
 
 **Auto-import implemented (2026-07-13).** The prelude is auto-imported at config load
 (`stx/dll/src/StxInterface.cpp`, `CreateTreeFromConfiguration`): parsed into a hidden,

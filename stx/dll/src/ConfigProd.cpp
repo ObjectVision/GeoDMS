@@ -371,17 +371,53 @@ void ConfigProd::CreateTemplate(TokenID nameID)
 void ConfigProd::CreateFunction(TokenID nameID)
 {
 	// function names join the operator namespace at call sites; reject names that a
-	// built-in operator or a RewriteExpr.lsp rule head would capture before dispatch
-	auto og = AbstrOperGroup::FindName(nameID);
-	if (og && !og->IsTemplateCall())
-		throwSemanticError(mgFormat2string("function name '{}' collides with a built-in operator"
-			, GetTokenStr(nameID)).c_str());
+	// RewriteExpr.lsp rule head would capture before dispatch. Built-in operator
+	// names are validated ARITY-AWARE at declaration end (ValidateFunctionArityVsOperator):
+	// a same-named function may serve argument counts the operator rejects.
 	if (HasRewriteRuleForHead(nameID))
 		throwSemanticError(mgFormat2string("function name '{}' collides with a RewriteExpr.lsp rule head; calls would be rewritten before this function is found"
 			, GetTokenStr(nameID)).c_str());
 
 	CreateContainer(nameID);
 	m_pCurrent->SetIsFunction();
+}
+
+void ConfigProd::ValidateFunctionArityVsOperator(const TreeItem* func)
+{
+	// arity-aware coexistence (§5.14 successor): a function may share a built-in
+	// operator's name iff it only declares argument counts NO operator member accepts;
+	// arity-aware head dispatch then routes exactly those counts to the function
+	auto og = AbstrOperGroup::FindName(func->GetID());
+	if (!og || og->IsTemplateCall())
+		return;
+
+	arg_index gMin, gMax;
+	bool acceptsEverything = !og->GetArityEnvelope(gMin, gMax);
+
+	// per-declaration ranges: a variant set covers the UNION of its members' ranges
+	// (possibly gappy: {1} + [3,inf) leaves 2 to the operator), so test each member
+	auto overlaps = [&](const TreeItem* f) -> bool
+	{
+		if (acceptsEverything)
+			return true;
+		UInt32 lo = TreeItem_GetFunctionParamCount(f);
+		UInt32 hi = TreeItem_HasFunctionRestParam(f) ? std::numeric_limits<UInt32>::max() : lo;
+		return lo <= gMax && gMin <= hi;
+	};
+
+	bool collision = false;
+	if (TreeItem_IsFunctionVariantSet(func))
+	{
+		for (const TreeItem* v = func->_GetFirstSubItem(); v && !collision; v = v->GetNextItem())
+			if (v->IsFunctionItem())
+				collision = overlaps(v);
+	}
+	else
+		collision = overlaps(func);
+
+	if (collision)
+		throwSemanticError(mgFormat2string("function name '{}' collides with a built-in operator: it declares an argument count the operator also accepts; only argument counts the operator rejects may be served by a same-named function"
+			, GetTokenStr(func->GetID())).c_str());
 }
 
 void ConfigProd::CreateUnit(TokenID nameID)
@@ -1042,6 +1078,9 @@ void ConfigProd::OnVariantSetEnd()
 	// §5.7 v2: definition-time disjointness — overlapping variants must be
 	// specificity-ordered (token-based match sets; parse-safe)
 	TreeItem_CheckVariantSetDisjointness(m_pCurrent.get());
+
+	// arity-aware operator-name coexistence: validated over the members' arity ranges
+	ValidateFunctionArityVsOperator(m_pCurrent.get());
 }
 
 void ConfigProd::OnFunctionSigHeading(iterator_t first)
@@ -1316,6 +1355,10 @@ void ConfigProd::OnFunctionDeclEnd(iterator_t first)
 		TreeItem_AddFunctionMetaRefParam(func, metaRefIdx);
 	if (fs.hasRestParam)
 		TreeItem_SetFunctionRestParam(func);
+	// arity-aware operator-name coexistence check (variant members are not call heads;
+	// their SET is validated at OnVariantSetEnd)
+	if (!(func->GetTreeParent() && TreeItem_IsFunctionVariantSet(func->GetTreeParent().get())))
+		ValidateFunctionArityVsOperator(func);
 	if (!fs.typeVars.empty())
 		TreeItem_SetFunctionTypeVars(func, fs.typeVars); // WP4.1: ordered <var: constraint> list
 	TreeItem_MakeStrictScope(func); // definition-side strictness: inline reduction resolves through this scope

@@ -1171,7 +1171,7 @@ namespace {
 		LispRef SubstituteBodyExpr(const TreeItem* refScope, LispPtr expr);
 		LispRef ResolveBodySymbol(const TreeItem* refScope, TokenID symbID, SharedTreeItem* foundItemPtr);
 		CallArg ResolveBodyArg(const TreeItem* refScope, LispPtr argExpr);
-		SharedTreeItem ResolveBodyHeadFunction(const TreeItem* refScope, TokenID headID, std::shared_ptr<FunctionBinding>* paramBinding);
+		SharedTreeItem ResolveBodyHeadFunction(const TreeItem* refScope, TokenID headID, std::shared_ptr<FunctionBinding>* paramBinding, bool mayFail = false);
 	};
 
 	void CheckFunctionDefinition(const TreeItem* funcItem); // WP3.4 + tranche 3 typed walker, defined below
@@ -2133,46 +2133,72 @@ namespace {
 
 			const AbstrOperGroup* og = AbstrOperGroup::FindName(headID);
 			assert(og);
-			if (og->IsTemplateCall())
+			// arity-aware head dispatch: an argument count no operator member accepts may
+			// be served by a same-named function (prelude folds, log(x,base), ...).
+			// The count is the EFFECTIVE arity: a trailing '...x' rest symbol expands to
+			// its captured argument count — this is what lets a fold body's recursive
+			// call resolve to the binary OPERATOR on the last step (rest = 1 element)
+			// and back to the function while more remain
+			bool arityFallback = false;
+			if (!og->IsTemplateCall())
+			{
+				UInt32 nrCallArgs = 0;
+				for (LispPtr argPtr = expr.Right(); argPtr.IsRealList(); argPtr = argPtr.Right())
+				{
+					LispPtr a = argPtr.Left();
+					if (a.IsSymb() && IsRestParamSymbol(a.GetSymbID()) && argPtr.Right().EndP())
+					{
+						nrCallArgs += m_ArgKeys.size() - (TreeItem_GetFunctionParamCount(m_FuncItem) - 1);
+						break;
+					}
+					++nrCallArgs;
+				}
+				arityFallback = !og->AcceptsArity(nrCallArgs);
+			}
+			if (og->IsTemplateCall() || arityFallback)
 			{
 				// a function application in a data (body-expression) position: resolve the
 				// head to a function value (a function-valued parameter's binding, or a
 				// plain import), fill its holes with the call arguments, and reduce; a
 				// residual (partially applied) result cannot stand in a data position.
 				std::shared_ptr<FunctionBinding> paramBinding;
-				auto headFn = ResolveBodyHeadFunction(refScope, headID, &paramBinding);
-
-				std::vector<CallArg> holeFills;
-				for (LispPtr argPtr = expr.Right(); !argPtr.EndP(); argPtr = argPtr.Right())
+				auto headFn = ResolveBodyHeadFunction(refScope, headID, &paramBinding, /*mayFail*/ arityFallback);
+				if (headFn)
 				{
-					LispPtr a = argPtr.Left();
-					if (a.IsSymb() && IsRestParamSymbol(a.GetSymbID()))
+					std::vector<CallArg> holeFills;
+					for (LispPtr argPtr = expr.Right(); !argPtr.EndP(); argPtr = argPtr.Right())
 					{
-						if (!argPtr.Right().EndP())
-							throwErrorF("ExprParser", "'{}': rest parameter '{}' must be the trailing argument of the call"
-								, m_FuncItem->GetFullName().c_str(), a.GetSymbStr().c_str());
-						SpliceRestArgs(holeFills); // '...x' passed on: splice the captured tail
-						break;
+						LispPtr a = argPtr.Left();
+						if (a.IsSymb() && IsRestParamSymbol(a.GetSymbID()))
+						{
+							if (!argPtr.Right().EndP())
+								throwErrorF("ExprParser", "'{}': rest parameter '{}' must be the trailing argument of the call"
+									, m_FuncItem->GetFullName().c_str(), a.GetSymbStr().c_str());
+							SpliceRestArgs(holeFills); // '...x' passed on: splice the captured tail
+							break;
+						}
+						holeFills.push_back(ResolveBodyArg(refScope, a));
 					}
-					holeFills.push_back(ResolveBodyArg(refScope, a));
-				}
 
-				// §5.7: a variant set called from a body dispatches by argument type, exactly
-				// like the direct-call site (also reached by '...x' recursive fold steps)
-				if (!paramBinding && TreeItem_IsFunctionVariantSet(headFn.get()))
-				{
-					auto variant = ResolveVariant(headFn.get(), holeFills, m_ErrorHolder);
-					headFn = make_shared_tree(variant, existing_obj{});
-					if (m_SubstBuff) registerSupplier(*m_SubstBuff, variant);
-					CheckFunctionDefinition(variant);
-				}
-				FunctionBinding calleeBinding = paramBinding ? *paramBinding : *MakeAllHoles(headFn);
+					// §5.7: a variant set called from a body dispatches by argument type, exactly
+					// like the direct-call site (also reached by '...x' recursive fold steps)
+					if (!paramBinding && TreeItem_IsFunctionVariantSet(headFn.get()))
+					{
+						auto variant = ResolveVariant(headFn.get(), holeFills, m_ErrorHolder);
+						headFn = make_shared_tree(variant, existing_obj{});
+						if (m_SubstBuff) registerSupplier(*m_SubstBuff, variant);
+						CheckFunctionDefinition(variant);
+					}
+					FunctionBinding calleeBinding = paramBinding ? *paramBinding : *MakeAllHoles(headFn);
 
-				FunctionBinding merged = MergeBinding(calleeBinding, holeFills);
-				if (merged.NrHoles() != 0)
-					throwErrorF("ExprParser", "'{}': a partial application can only be passed as an argument, not used as a value"
-						, headID.GetStr().c_str());
-				return ReduceMerged(merged, this, m_SubstBuff, m_ErrorHolder);
+					FunctionBinding merged = MergeBinding(calleeBinding, holeFills);
+					if (merged.NrHoles() != 0)
+						throwErrorF("ExprParser", "'{}': a partial application can only be passed as an argument, not used as a value"
+							, headID.GetStr().c_str());
+					return ReduceMerged(merged, this, m_SubstBuff, m_ErrorHolder);
+				}
+				// arity-fallback probe found no function: fall through to the operator path,
+				// whose FindOper reports the arity error
 			}
 			if (!og->MustCacheResult())
 				throwErrorF("ExprParser", "'{}': meta function call is not supported inside function bodies"
@@ -2181,7 +2207,27 @@ namespace {
 			// ordinary operator application: substitute the arguments
 			std::vector<LispRef> substArgs;
 			for (LispPtr argPtr = expr.Right(); !argPtr.EndP(); argPtr = argPtr.Right())
-				substArgs.push_back(SubstituteBodyExpr(refScope, argPtr.Left()));
+			{
+				LispPtr a = argPtr.Left();
+				if (a.IsSymb() && IsRestParamSymbol(a.GetSymbID()))
+				{
+					// trailing '...x' into an OPERATOR call: splice the captured argument
+					// keys (a fold body's last recursive step lands here: rest = 1 element
+					// -> the binary operator)
+					if (!argPtr.Right().EndP())
+						throwErrorF("ExprParser", "'{}': rest parameter '{}' must be the trailing argument of the call"
+							, m_FuncItem->GetFullName().c_str(), a.GetSymbStr().c_str());
+					for (UInt32 k = TreeItem_GetFunctionParamCount(m_FuncItem) - 1; k != m_ArgKeys.size(); ++k)
+					{
+						if (m_ArgBindings[k] || m_ArgLiterals[k])
+							throwErrorF("ExprParser", "'{}': a function value or container literal in '...{}' cannot be passed to operator '{}'"
+								, m_FuncItem->GetFullName().c_str(), a.GetSymbStr().c_str(), headID.GetStr().c_str());
+						substArgs.push_back(m_ArgKeys[k]);
+					}
+					break;
+				}
+				substArgs.push_back(SubstituteBodyExpr(refScope, a));
+			}
 
 			LispRef argList;
 			for (auto ri = substArgs.rbegin(); ri != substArgs.rend(); ++ri)
@@ -2404,7 +2450,9 @@ namespace {
 
 	// resolve a body-call head to the function being applied; sets *paramBinding when the
 	// head is a function-valued parameter (so its pre-bound slots participate).
-	SharedTreeItem FunctionApplication::ResolveBodyHeadFunction(const TreeItem* /*refScope*/, TokenID headID, std::shared_ptr<FunctionBinding>* paramBinding)
+	// mayFail: arity-fallback probe — return null instead of throwing when no function
+	// is found (the caller then falls through to the operator path).
+	SharedTreeItem FunctionApplication::ResolveBodyHeadFunction(const TreeItem* /*refScope*/, TokenID headID, std::shared_ptr<FunctionBinding>* paramBinding, bool mayFail)
 	{
 		if (paramBinding) *paramBinding = nullptr;
 
@@ -2442,12 +2490,16 @@ namespace {
 			// the auto-imported prelude is the implicit outermost namespace for call heads
 			if (auto pf = FindPreludeFunction(headID); pf && pf->IsFunctionItem())
 				callee = pf;
-		if (!callee)
-			throwErrorF("ExprParser", "'{}': unknown operator or function in body of function '{}'"
-				, headID.GetStr().c_str(), m_FuncItem->GetFullName().c_str());
-		if (!callee->IsFunctionItem())
+		if (!callee || !callee->IsFunctionItem())
+		{
+			if (mayFail) // arity-aware head dispatch probe: no function -> operator path reports
+				return {};
+			if (!callee)
+				throwErrorF("ExprParser", "'{}': unknown operator or function in body of function '{}'"
+					, headID.GetStr().c_str(), m_FuncItem->GetFullName().c_str());
 			throwErrorF("ExprParser", "'{}': template instantiations are not supported inside function bodies"
 				, headID.GetStr().c_str());
+		}
 		if (m_SubstBuff)
 			registerSupplier(*m_SubstBuff, callee.get());
 		return callee;
@@ -3864,7 +3916,28 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 			// following code duplicates partly the code in AbstrCalculator::SubstituteExpr
 			const AbstrOperGroup* og = AbstrOperGroup::FindName(head.GetSymbID());
 			assert(og);
-			if (og->IsTemplateCall())
+
+			// arity-aware head dispatch: when NO operator member can accept this argument
+			// count (FindOper would throw), a same-named function may serve the foreign
+			// arity (prelude add/mul/or/and folds, log(x,base), median(a,b,c), ...)
+			bool arityFallback = false;
+			if (!og->IsTemplateCall())
+			{
+				UInt32 nrCallArgs = 0;
+				for (LispPtr argPtr = localExpr.Right(); argPtr.IsRealList(); argPtr = argPtr.Right())
+					++nrCallArgs;
+				if (!og->AcceptsArity(nrCallArgs))
+				{
+					auto fnProbe = FindOrVisitItem(substBuff, head.GetSymbID());
+					if (substBuff.avs == AVS_SuspendedOrFailed)
+						return {};
+					if (!fnProbe || !fnProbe->IsFunctionItem())
+						if (auto pf = FindPreludeFunction(head.GetSymbID()))
+							fnProbe = pf;
+					arityFallback = fnProbe && fnProbe->IsFunctionItem();
+				}
+			}
+			if (og->IsTemplateCall() || arityFallback)
 			{
 				if (head.GetSymbID() == t_Map)
 					throwErrorF("ExprParser", "map(function, container) produces a container and can only appear as a whole calculation rule (e.g. 'container out := map(F, src);'), not as a sub-expression");

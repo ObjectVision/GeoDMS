@@ -43,7 +43,8 @@
 
 /*********** Elementary funcs  *********/
 
-[(log _X _Y)                (div (log _X) (log _Y))]
+/* the 2-arg log rule is RETIRED to a prelude function (arity-aware head dispatch:
+   the registered log operator is unary): two(x,b) = log(x) / log(b). */
 /* plogp, sqr and abs retired to the typed prelude (res/prelude.dms, WP4.5); the
    pow resolvents below carry the sqr expansion inline so pow keys are unchanged. */
 [(pow _X 2)                 (mul _X _X)]
@@ -58,27 +59,25 @@
    non-positive base (e.g. 0f^2f). */
 /*********** Associative Binary functions *********/
 
-[(add _a1)                    _a1]
-[(mul _a1)                    _a1]
-[(or  _a1)                    _a1]
-[(and _a1)                    _a1]
-[(min_elem _a1)               _a1]
-[(max_elem _a1)               _a1]
-[(min_elem_fast _a1)          _a1]
-[(max_elem_fast _a1)          _a1]
-
-[[add [_a1 [_a2 [_a3 _T]]]]  [add [(add _a1 _a2) [_a3 _T]]] ]
-[[mul [_a1 [_a2 [_a3 _T]]]]  [mul [(mul _a1 _a2) [_a3 _T]]] ]
-[[or  [_a1 [_a2 [_a3 _T]]]]  [or  [(or  _a1 _a2) [_a3 _T]]] ]
-[[and [_a1 [_a2 [_a3 _T]]]]  [and [(and _a1 _a2) [_a3 _T]]] ]
-/* the MakeDefined unary/2-arg/fold rules are RETIRED to a prelude variadic function
-   (see the Missing values section); the add/mul/or/and collapses and folds above
-   await arity-aware head dispatch (registered operator heads).
+/* the add/mul/or/and unary collapses and N-ary left folds are RETIRED to prelude
+   variadic functions, reachable via ARITY-AWARE HEAD DISPATCH: the binary operators
+   keep arity 2; argument counts no operator member accepts (1 and >=3) route to the
+   same-named prelude function, whose fold bodies spell these rules' exact resolvents.
+   The min_elem/max_elem(_fast) unary collapses below STAY: their groups are
+   allow_extra_args, so the operator claims every arity >= its minimum and dispatch
+   can never fire for them.
    The union fold rule is REMOVED (2026-07-18, Maarten's ruling): the union operator
    itself is variadic (cog_union, allow_extra_args) and implements the same; the
    chained SubItem(union(a,b),'UnionData') spelling is not used by the release tests --
    the precise idiom is union_unit + union_data. Multi-argument union(...) now keys
-   FLAT (the operator's own semantics) instead of as a nested chain. */
+   FLAT (the operator's own semantics) instead of as a nested chain.
+   The MakeDefined unary/2-arg/fold rules are RETIRED to a prelude variadic function
+   (see the Missing values section). */
+
+[(min_elem _a1)               _a1]
+[(max_elem _a1)               _a1]
+[(min_elem_fast _a1)          _a1]
+[(max_elem_fast _a1)          _a1]
 
 /* concat is RETIRED to a prelude variadic function ('...rest' fold): the variant
    bodies spell the exact resolvents (MakeDefined wrap + right add-fold), so the
@@ -215,13 +214,13 @@
 [(lookup (rlookup _a _a) _c) _c]
 /* sort_str, reversed_id and reverse retired to the typed prelude
    (res/prelude.dms, WP4.5 tranche 3) */
-[[index [_a [_b _R]]]     [subindex [(index _a) [(rank_sorted (index_a) _a) [_b _R]]]] ]
-
-[[subindex [_I [_O [_b [_c _R]]]]] 
-    [subindex 
-	[(subindex _I _O _b)
-	[(sub_rank_sorted (subindex _I _O _b) _O _b)
-	[_c _R]]]]]
+/* the multi-argument index and subindex fold rules are DELETED (2026-07-18): they
+   were dead as written -- the index resolvent referenced (index_a) as ONE symbol
+   (a typo for (index _a)) and both expanded into rank_sorted / sub_rank_sorted
+   heads that no rule or operator defines, so any multi-argument use errored at
+   reduction anyway. Multi-argument index/subindex now report a clean operator
+   arity error (or reach a same-named function via arity-aware head dispatch,
+   should one ever be defined). */
 
 /* combine_data is RETIRED to a prelude variadic function: base = the Value(...)
    linearization formula, fold = combine_data(V, combine_data(combine_unit(...),

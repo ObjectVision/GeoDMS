@@ -215,6 +215,43 @@ void AbstrOperGroup::Register(Operator* member)
 	dms_assert(member && (member->m_Group == this));
 	member->m_NextGroupMember = m_FirstMember;
 	m_FirstMember = member;
+	m_ArityEnvelopeValid = false; // members may register late (other DLLs, e.g. geo into clc groups)
+}
+
+bool AbstrOperGroup::GetArityEnvelope(arg_index& minRequired, arg_index& maxSpecified) const
+{
+	if (!MustCacheResult())
+		return false; // non-caching (meta/template) groups: fluid effective arity (trailing calc_as_result drop)
+	if (!m_ArityEnvelopeValid)
+	{
+		arg_index minReq = std::numeric_limits<arg_index>::max(), maxSpec = 0;
+		for (const Operator* m = GetFirstMember(); m; m = m->GetNextGroupMember())
+		{
+			arg_index ns = m->NrSpecifiedArgs();
+			MakeMin(minReq, ns - m->NrOptionalArgs());
+			MakeMax(maxSpec, ns);
+		}
+		if (minReq == std::numeric_limits<arg_index>::max())
+		{	// no members (yet): accept everything, leave the diagnosis to FindOper
+			minReq = 0; maxSpec = std::numeric_limits<arg_index>::max();
+		}
+		m_MinReqArgs = minReq; m_MaxSpecArgs = maxSpec;
+		m_ArityEnvelopeValid = true;
+	}
+	minRequired  = m_MinReqArgs;
+	maxSpecified = AllowExtraArgs() ? std::numeric_limits<arg_index>::max() : m_MaxSpecArgs;
+	return true;
+}
+
+bool AbstrOperGroup::AcceptsArity(arg_index nrArgs) const
+{
+	arg_index minReq, maxSpec;
+	if (!GetArityEnvelope(minReq, maxSpec))
+		return true;
+	// conservative ENVELOPE: a group with gappy member arities (e.g. 1-arg and 3-arg
+	// members only) accepts the gap values too — no fallback there, FindOper reports.
+	// False therefore guarantees that FindOper would throw for nrArgs.
+	return minReq <= nrArgs && nrArgs <= maxSpec;
 }
 
 const AbstrOperGroup* AbstrOperGroup::FindName(TokenID operID)

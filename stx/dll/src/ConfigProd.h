@@ -110,6 +110,7 @@ struct ConfigProd : AbstrDataBlockProd, AbstrContextHandle, FunctionLiteralSink
 	void OnEndFunctionParams();
 	void OnFunctionParamDecl();
 	void OnRestParamDecl(iterator_t first); // '...x': variadic rest parameter (must be last)
+	void ValidateFunctionArityVsOperator(const TreeItem* func); // arity-aware operator-name coexistence
 	void DoFunctionUsing();
 	void DoFunctionResultName();
 	void OnFunctionResultSig();

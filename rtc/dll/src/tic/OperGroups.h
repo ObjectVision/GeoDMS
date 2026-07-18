@@ -108,6 +108,17 @@ struct AbstrOperGroup
 	const Operator* FindOper      (arg_index nrArgs, const ClassCPtr* argType) const;
 	TIC_CALL const Operator* FindOperByArgs(const ArgRefs& args) const;
 
+	// arity-aware head dispatch (§5.14 successor): false ONLY when no member's arity
+	// range can cover nrArgs — FindOper is then guaranteed to throw, and a same-named
+	// function (scope/prelude) may serve the foreign arity. Conservative: non-caching
+	// groups (fluid effective arity: the trailing calc_as_result drop) always accept;
+	// allow_extra_args groups accept any count >= their minimum required.
+	TIC_CALL bool AcceptsArity(arg_index nrArgs) const;
+	// the cached member-arity envelope [minRequired, maxSpecified]; false when the
+	// group effectively accepts everything (non-caching). allow_extra_args groups
+	// report maxSpecified = the arg_index maximum.
+	TIC_CALL bool GetArityEnvelope(arg_index& minRequired, arg_index& maxSpecified) const;
+
 	[[noreturn]] TIC_CALL void throwOperError (CharPtr msg) const;
 	template <class ...Args>
 	[[noreturn]] void throwOperErrorF(CharPtr fmt, Args&& ...args) const { throwOperError(mgFormat2SharedStr(fmt, std::forward<Args>(args)...).c_str()); }
@@ -123,6 +134,8 @@ private:
 	SharedStr       m_OperName;
 	TokenID         m_OperNameID;
 	const Operator* m_FirstMember;
+	mutable arg_index m_MinReqArgs = 0, m_MaxSpecArgs = 0; // cached member-arity envelope
+	mutable bool      m_ArityEnvelopeValid = false;        // invalidated by Register (late-loading DLLs)
 
 protected:
 	oper_policy     m_Policy;

@@ -106,6 +106,20 @@ function median
 	variant three(container a; container b; container c) -> container := median(a, order(b, c));
 }
 
+// ---------------------------------------------------- arity-dispatched operator folds
+// These serve ONLY argument counts the registered binary operators reject (1 and >=3):
+// arity-aware head dispatch routes those counts here; arity 2 -- and the fold bodies'
+// own binary inner calls -- always resolve to the OPERATOR. Bodies spell the retired
+// fold rules' exact resolvents, so reduced keys equal the old chains.
+
+function add { variant one(container a) -> container := a; variant more(container a; container b; ...rest) -> container := add(add(a, b), rest); }
+function mul { variant one(container a) -> container := a; variant more(container a; container b; ...rest) -> container := mul(mul(a, b), rest); }
+function or  { variant one(container a) -> container := a; variant more(container a; container b; ...rest) -> container := or(or(a, b), rest); }
+function and { variant one(container a) -> container := a; variant more(container a; container b; ...rest) -> container := and(and(a, b), rest); }
+
+// 2-arg log (the registered log operator is unary)
+function log { variant two(container x; container b) -> container := log(x) / log(b); }
+
 // ---------------------------------------------------------------- logit
 
 function llpart<F: floats>(attribute<F> lc; attribute<F> xc; attribute<F> oc)
