@@ -4720,7 +4720,10 @@ bool TreeItem::CommitDataChanges() const
 	if (mmd)
 	{
 		if (IsUnit(this))
+		{
 			AsUnit(this)->GetCount();
+			mmd->UpdateDictionary(storageHolder.get()); // #1155: the dictionary emitted at OpenForWrite lacked this unit's Range
+		}
 		if (IsDataItem(this))
 			DataReadLock lock(AsDataItem(this)); // make sure data is calculated and stored
 		return true;

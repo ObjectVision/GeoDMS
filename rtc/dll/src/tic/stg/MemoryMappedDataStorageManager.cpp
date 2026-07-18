@@ -14,6 +14,7 @@
 
 #include "stg/MemoryMappedDataStorageManager.h"
 
+#include "act/TriggerOperator.h"
 #include "dbg/debug.h"
 #include "dbg/SeverityType.h"
 #include "mci/ValueClass.h"
@@ -95,6 +96,20 @@ void MmdStorageManager::DoWriteTree(const TreeItem* storageHolder)
 
 	auto fsb = FileOutStreamBuff(dictFileName, true);
 	fsb.WriteBytes(osb.GetData(), osb.CurrPos());
+}
+
+void MmdStorageManager::UpdateDictionary(const TreeItem* storageHolder)
+{
+	// #1155: called when a unit under this storage commits, i.e. when its range has just
+	// become ready. The dictionary emitted at OpenForWrite time skipped the Range subtag
+	// of units that were not calculated yet (see the var-range branch of TreeItem::XML_Dump,
+	// #1130); re-emitting it here completes the dictionary before the write session ends.
+	auto lock = lock_t(m_CriticalSection);
+	if (!m_IsOpen || !m_IsOpenedForWrite)
+		return; // nothing emitted yet: OpenForWrite will dump the dictionary with this unit's now-ready range
+
+	SuspendTrigger::FencedBlocker blockSuspension("MmdStorageManager::UpdateDictionary");
+	DoWriteTree(storageHolder);
 }
 
 bool IsInMMD(const AbstrDataItem* cacheItem)
