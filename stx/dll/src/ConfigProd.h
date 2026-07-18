@@ -109,6 +109,7 @@ struct ConfigProd : AbstrDataBlockProd, AbstrContextHandle, FunctionLiteralSink
 	void OnFunctionSigHeading(iterator_t first);
 	void OnEndFunctionParams();
 	void OnFunctionParamDecl();
+	void OnRestParamDecl(iterator_t first); // '...x': variadic rest parameter (must be last)
 	void DoFunctionUsing();
 	void DoFunctionResultName();
 	void OnFunctionResultSig();
@@ -224,6 +225,7 @@ void                ClearPropData();
 		std::vector<std::pair<TokenID, TokenID>> typeVars;         // (var, constraint)
 		std::vector<std::tuple<UInt32, TokenID, TokenID, bool>> genericParams; // (param index, var, constraint, isDomainVar)
 		std::vector<UInt32> metaRefParams;                         // 'item x' parameters (raw item-reference binding)
+		bool hasRestParam = false;                                 // '...x' rest parameter (must be the last param)
 	};
 	std::vector<FuncProdState>       m_FuncStates;
 

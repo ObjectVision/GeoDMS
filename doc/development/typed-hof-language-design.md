@@ -44,6 +44,11 @@ references were verified against that tree.*
   a raw item reference (the `sourceDescr` form), unlocking the retirement of the six
   `PropValue` property-accessor rewrite rules to prelude functions with
   alias≡direct key identity for containers, units and attributes.
+- **§5.14 variadic rest parameters** (`...x`, 2026-07-18) — a function's last
+  parameter may bind the argument TAIL (one or more); recursive folds with strictly
+  decreasing arity are permitted; variant sets now also dispatch on body-nested and
+  argument-nested calls. Retires the `concat`, `replace_value` and `combine_data`
+  rewrite chains to prelude variadic functions.
 
 Not yet implemented (specs below remain actionable): the redundant top-level
 `{ X(args) }` sugar (§5.9 deferred list), the opt-in `applyF` boundary
@@ -1536,13 +1541,17 @@ exposed by `reversed_id`). Still in the .lsp, with reasons: `order`/`isOverlappi
 `median`-on-interval (destructuring patterns — and now also load-bearing for the
 tranche-3 bodies), 3-arg `median` and 2-arg `log` (their heads shadow retained
 rules/operators — need arity-aware head dispatch or optional args), `concat`/
-`switch`/`index`/`subindex`/`combine_data`/`replace(_value)` chains (variadic — B/C),
-accessors (`Value`/`const`/`collect_by_*` — E), bool/pseudo-aggregation
-simplifications (D — stay by design as the future compiled-in pass), `rjoin`
-(self-join collapse rule, below), `ReadValue` (optional args), `claim_*`
-(RuimteScanner model logic — coordination). The six property accessors
-`name`/`Descr`/`Expr`/`Label`/`STORAGE`/`EK` were retired 2026-07-17 via the
-meta-reference parameter kind — see §5.13 below.
+`switch` (case-destructuring — pattern parameters), `index`/`subindex`/`replace`
+(registered operator heads — need arity-aware head dispatch, §5.14), accessors
+(`Value`/`const`/`collect_by_*` — E), bool/pseudo-aggregation simplifications (D —
+stay by design as the future compiled-in pass), `rjoin` (self-join collapse rule,
+below), `ReadValue` (optional args), `claim_*` (RuimteScanner model logic —
+coordination), and the N-ary fold-left chains for *registered* binary heads
+(`add`/`mul`/`or`/`and`/`MakeDefined`/`union` — same arity-dispatch blocker). The six
+property accessors `name`/`Descr`/`Expr`/`Label`/`STORAGE`/`EK` were retired
+2026-07-17 via the meta-reference parameter kind (§5.13); the `concat`,
+`replace_value` and `combine_data` variadic chains were retired 2026-07-18 via rest
+parameters (§5.14).
 
 **Two negative findings (2026-07-14), on *why* a rule cannot become a prelude
 function — the boundary of the technique. The second is RESOLVED (§5.13):**
@@ -1608,6 +1617,72 @@ guards: `items`, bare `item := …;`, colon-typed `item : alias := …;` all par
 unchanged). Deferred: member access *through* a meta-ref parameter beyond what
 container parameters already support, and `item` in result position (rejected with
 the parameter-only error).
+
+### 5.14 Variadic rest parameters: `...x` *(implemented 2026-07-18)*
+
+A function's **last** parameter may be declared `...x`: a **rest parameter**, binding
+**one or more** trailing arguments. In the body, `x` may appear only as the **trailing
+argument of a function call**, where it splices the captured argument tail — no list
+values enter the language; the mechanism is purely capture-and-splice. Combined with
+arity-dispatched `variant` sets, this expresses the classic N-ary folds as structural
+recursion:
+
+```
+function concat
+{
+    variant none() -> parameter<string> := '';
+    variant one(attribute<string> a) -> attribute<string> := MakeDefined(a, '');
+    variant more(attribute<string> a; ...rest) -> attribute<string> := MakeDefined(a, '') + concat(rest);
+}
+```
+
+Mechanics (all in `tic/AbstrCalculator.cpp` + `tic/TreeItem.cpp` + stx):
+- `FunctionSpecData::hasRestParam`; stx parses `... identifier` as a
+  `functionParamItem` alternative (plain-TreeItem param item; must be last, at most
+  one, not in signature aliases — validated at parse).
+- Arity checks become `argCount >= nrParams` for rest functions (reducer, root
+  pre-check, `MergeBinding` — whose last hole absorbs all surplus fills); the binder
+  records the rest param and leaves `m_ArgKeys[nrParams-1 ..)` as the spliceable tail.
+- **Recursion**: the parent-chain guard now permits a self-application with **strictly
+  fewer arguments** (well-founded on the chain); equal-or-more arguments still error.
+  Each fold step consumes at least one argument and the base variant has fixed arity,
+  so termination is structural.
+- **Variant dispatch on nested calls** (a fix beyond variadics): `ResolveVariant` used
+  to run only at the direct-call substitution site, so calling a variant set
+  (`rescale`, `scalesum`, …) from *inside* another function body — or as a nested
+  argument — failed with a spurious arity error. Both nested paths now dispatch,
+  which the recursive fold steps also rely on. Test: `rescale` applied inside a
+  user function body (`fn_test_variadic.dms`).
+- Variant matching: a rest variant matches `argCount >= nrParams` with the tail
+  matched against the rest param's (wildcard) acceptance set; across different
+  declared arities, the variant with more declared params is more specific. The
+  def-time walker defers rest-function applications (per-application checking, like
+  variant sets).
+
+**Retired to the prelude** (bodies spell the exact rule resolvents; retained rules
+`MakeDefined→iif` and `Value→convert` fire at body parse, so reduced keys equal the
+old fixpoints): `concat` (right add-fold with `MakeDefined(_,'')` wrap, incl. the
+0-arg and 1-arg base cases), `replace_value` (pairwise left fold onto
+`iif(x==v,w,x)`), `combine_data` (left fold with `combine_unit` accumulator onto the
+`Value(...)` linearization formula — its `ValuesUnit`/`LowerBound`/`NrOfRows`
+arguments are `calc_as_result`/`subst_allowed`, so body parameters substitute
+identically to the rule's syntactic `_a`/`_b`).
+
+**Still in the .lsp, with reasons sharpened by this tranche:** `switch`/`case`
+destructure `case(c,v)` wrappers — pattern parameters, a separate feature; `index`/
+`subindex`/`replace` fold onto **registered operator heads**, so a prelude function
+cannot capture the name — they need arity-aware head dispatch (an operator-group miss
+by arity falling back to a same-named function), the same feature `median`/2-arg
+`log` need. Also observed: the multi-arg `index` rule's resolvent references
+`(index_a)` (one symbol, likely a typo for `(index _a)`) and expands into
+`rank_sorted`/`sub_rank_sorted` heads that no rule or operator defines — the
+multi-argument `index`/`subindex` chains appear to be dead as written.
+
+Tests: `fn_test_variadic.dms` (concat 1–3 args over parameters and attributes;
+replace_value base + fold; combine_data base + fold with value checks; rescale from a
+body), `fn_test_variadic_neg1` (rest not last → parse error), `fn_test_variadic_neg2`
+(rest used as a scalar → application error). The same-arity recursion negative
+(`p1_rec`) still fails as before.
 
 **Auto-import implemented (2026-07-13).** The prelude is auto-imported at config load
 (`stx/dll/src/StxInterface.cpp`, `CreateTreeFromConfiguration`): parsed into a hidden,

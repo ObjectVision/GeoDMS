@@ -75,9 +75,9 @@
 [[MakeDefined [_a1 [_a2 [_a3 _T]]]]  [MakeDefined [(MakeDefined _a1 _a2) [_a3 _T]]] ]
 [[union [_a1 [_a2 [_a3 _T]]]]  [union [(SubItem (union _a1 _a2) "UnionData") [_a3 _T]]] ]
 
-[(concat _a1) (MakeDefined _a1 "")]
-[[concat [_a1 _T]] (add (MakeDefined _a1 "") [concat _T] ) ]
-[(concat) ""]
+/* concat is RETIRED to a prelude variadic function ('...rest' fold): the variant
+   bodies spell the exact resolvents (MakeDefined wrap + right add-fold), so the
+   reduced keys equal this rule chain's fixpoint. */
 
 /*********** switch case   *********/
 
@@ -175,8 +175,8 @@
 [(MakeDefined (MakeDefined _X _Y) _Y) (MakeDefined _X _Y)]
 [(MakeDefined _X _Y)            (iif (IsDefined _X) _X _Y)]
 
-[(replace_value _X _V _W) (iif (eq _X _V) _W _X)]
-[[replace_value [_X [_V1 [_W1 [_V2 _T]]]]]  [replace_value [(replace_value _X _V1 _W1) [_V2 _T]]] ]
+/* replace_value is RETIRED to a prelude variadic function: base = iif(eq(x,v),w,x),
+   fold = replace_value(replace_value(x,v,w), rest) -- the exact resolvents. */
 
 [[replace [_X [_V1 [_W1 [_V2 _T]]]]]  [replace [(replace _X _V1 _W1) [_V2 _T]]] ]
 
@@ -208,9 +208,11 @@
 	[(sub_rank_sorted (subindex _I _O _b) _O _b)
 	[_c _R]]]]]
 
-[(combine_data _V _a _b) (Value (add (mul (sub (Int64 _a) (Int64 (LowerBound (ValuesUnit _a)))) (Int64 (NrOfRows (ValuesUnit _b)))) (sub (Int64 _b)(Int64 (LowerBound (ValuesUnit _b))))) _V)]
-
-[[combine_data [_V [_a1 [_a2 [_a3 _T]]]]]  [combine_data [_V [(combine_data (combine_unit (ValuesUnit _a1) (ValuesUnit _a2) ) _a1 _a2) [_a3 _T]]]] ]
+/* combine_data is RETIRED to a prelude variadic function: base = the Value(...)
+   linearization formula, fold = combine_data(V, combine_data(combine_unit(...),
+   a1, a2), rest) -- the exact resolvents; ValuesUnit/LowerBound/NrOfRows args are
+   calc_as_result (subst_allowed), so body params substitute identically to the
+   syntactic _a/_b of this rule. */
 
 
 // [(invert _X)              (rlookup (id (ValuesUnit _X)) _X)]

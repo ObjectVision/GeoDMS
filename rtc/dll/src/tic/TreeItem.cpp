@@ -84,10 +84,11 @@ namespace {
 		std::vector<std::tuple<UInt32, TokenID, TokenID, bool>> genericParams; // (param index, type variable, constraint, isDomainVar)
 		std::vector<std::pair<TokenID, TokenID>> typeVars; // the declaration's own ordered <var: constraint> list (WP4.1)
 		std::vector<UInt32> metaRefParams; // 'item x' parameters: bound as raw item references (sourceDescr), not calculation keys
+		bool hasRestParam = false;      // '...x' rest parameter (always the LAST param): binds ONE OR MORE trailing arguments
 		bool definitionChecked = false; // WP3.4: body scope/shape validated once
 		bool isVariantSet = false;      // §5.7: a function that dispatches to variant sub-functions by argument type
 	};
-	bool IsDefaultValue(const FunctionSpecData& v) { return v.nrParams == 0 && !v.resultName && v.paramSigs.empty() && v.genericParams.empty() && v.typeVars.empty() && v.metaRefParams.empty() && !v.definitionChecked && !v.isVariantSet; }
+	bool IsDefaultValue(const FunctionSpecData& v) { return v.nrParams == 0 && !v.resultName && v.paramSigs.empty() && v.genericParams.empty() && v.typeVars.empty() && v.metaRefParams.empty() && !v.hasRestParam && !v.definitionChecked && !v.isVariantSet; }
 	static_quick_assoc<const TreeItem*, FunctionSpecData> s_FunctionSpecAssoc;
 
 	static TokenID t_gcAny          = GetTokenID_st("any");
@@ -1458,6 +1459,18 @@ TIC_CALL SharedTreeItem TreeItem_GetFunctionParamSignature(const TreeItem* funct
 	return {};
 }
 
+TIC_CALL void TreeItem_SetFunctionRestParam(const TreeItem* functionItem)
+{
+	assert(functionItem && functionItem->IsFunctionItem());
+	s_FunctionSpecAssoc[functionItem].hasRestParam = true;
+}
+
+TIC_CALL bool TreeItem_HasFunctionRestParam(const TreeItem* functionItem)
+{
+	auto specPtr = s_FunctionSpecAssoc.get_value_ptr(functionItem);
+	return specPtr && specPtr->hasRestParam;
+}
+
 TIC_CALL void TreeItem_AddFunctionMetaRefParam(const TreeItem* functionItem, UInt32 paramIndex)
 {
 	assert(functionItem && functionItem->IsFunctionItem());
@@ -1582,18 +1595,23 @@ namespace {
 
 TIC_CALL bool TreeItem_VariantMatches(const TreeItem* variant, const std::vector<const ValueClass*>& argVCs)
 {
-	if (TreeItem_GetFunctionParamCount(variant) != argVCs.size())
+	UInt32 np = TreeItem_GetFunctionParamCount(variant);
+	// a '...x' rest variant binds one-or-more trailing arguments through its LAST
+	// param: it matches any argument count >= its declared param count
+	bool hasRest = TreeItem_HasFunctionRestParam(variant);
+	if (hasRest ? argVCs.size() < np : argVCs.size() != np)
 		return false;
 	auto info = GetVariantMatchInfo(variant);
 	for (SizeT i = 0; i != argVCs.size(); ++i)
 	{
+		const auto& acceptSet = info.sets[std::min<SizeT>(i, info.sets.size() - 1)]; // rest tail: the last param's set
 		if (!argVCs[i])
 		{
-			if (!info.sets[i].all())
+			if (!acceptSet.all())
 				return false; // a non-class argument (function value, literal) only matches a wildcard position
 			continue;
 		}
-		if (!info.sets[i].test(UInt32(argVCs[i]->GetValueClassID())))
+		if (!acceptSet.test(UInt32(argVCs[i]->GetValueClassID())))
 			return false;
 	}
 	return true;
@@ -1601,7 +1619,12 @@ TIC_CALL bool TreeItem_VariantMatches(const TreeItem* variant, const std::vector
 
 TIC_CALL int TreeItem_CompareVariantSpecificity(const TreeItem* a, const TreeItem* b)
 {
-	return CompareVariantInfo(GetVariantMatchInfo(a), GetVariantMatchInfo(b));
+	auto ia = GetVariantMatchInfo(a), ib = GetVariantMatchInfo(b);
+	// unequal declared arity (possible when a rest variant and a fixed/longer variant
+	// both match one call): the variant with MORE declared params is more specific
+	if (ia.sets.size() != ib.sets.size())
+		return ia.sets.size() > ib.sets.size() ? -1 : +1;
+	return CompareVariantInfo(ia, ib);
 }
 
 TIC_CALL void TreeItem_CheckVariantSetDisjointness(const TreeItem* setItem)

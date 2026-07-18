@@ -1072,7 +1072,34 @@ void ConfigProd::OnEndFunctionParams()
 void ConfigProd::OnFunctionParamDecl()
 {
 	dms_assert(!m_FuncStates.empty());
+	if (m_FuncStates.back().hasRestParam)
+		throwSemanticError("a '...' rest parameter must be the last parameter");
 	m_FuncStates.back().paramCount += m_LastDeclNameCount;
+}
+
+void ConfigProd::OnRestParamDecl(iterator_t first)
+{
+	// '...x': a variadic rest parameter — binds ONE OR MORE trailing arguments; in the
+	// body it may only be passed on as the trailing argument of a (typically recursive)
+	// function call, where it splices the captured arguments
+	if (m_FuncStates.empty() || !m_FuncStates.back().inParamList)
+		throwSemanticError("a '...' rest parameter is only supported in a function parameter list");
+	if (m_FuncStates.back().signatureOnly)
+		throwSemanticError("a '...' rest parameter is not supported in a function-signature type");
+	if (m_FuncStates.back().hasRestParam)
+		throwSemanticError("only one '...' rest parameter is allowed and it must be the last parameter");
+
+	SetSignature(SignatureType::TreeItem); // the rest param item is a plain TreeItem (like a container param)
+	CreateItem(m_ItemNameID, first);
+	if (!IsTopLevelFunctionParam())
+		throwSemanticError("a '...' rest parameter is only supported as a direct function parameter");
+	ClearSignature();
+	ClearPropData();
+
+	m_LastDeclNameCount = 1;
+	m_LastDeclSiblings.clear();
+	m_FuncStates.back().paramCount += 1;
+	m_FuncStates.back().hasRestParam = true;
 }
 
 void ConfigProd::OnAnonSigParam(iterator_t first)
@@ -1287,6 +1314,8 @@ void ConfigProd::OnFunctionDeclEnd(iterator_t first)
 		TreeItem_AddFunctionGenericParam(func, std::get<0>(genericParam), std::get<1>(genericParam), std::get<2>(genericParam), std::get<3>(genericParam));
 	for (UInt32 metaRefIdx : fs.metaRefParams)
 		TreeItem_AddFunctionMetaRefParam(func, metaRefIdx);
+	if (fs.hasRestParam)
+		TreeItem_SetFunctionRestParam(func);
 	if (!fs.typeVars.empty())
 		TreeItem_SetFunctionTypeVars(func, fs.typeVars); // WP4.1: ordered <var: constraint> list
 	TreeItem_MakeStrictScope(func); // definition-side strictness: inline reduction resolves through this scope

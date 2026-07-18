@@ -94,6 +94,7 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 			strlit<> ENTITY("entity");
 			strlit<> USING("using");
 			strlit<> ARROW("->");
+			strlit<> ELLIPSIS("...");
 			strlit<> UTF8_BOM("\xEF\xBB\xBF");
 
 			// ==== ITEM
@@ -275,8 +276,10 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 				[([&cp](auto _1, auto) { cp.OnFunctionDeclEnd(_1);})];
 
 			functionParamItem =
-				itemDecl[([&cp](...) { cp.OnFunctionParamDecl();})] // count BEFORE the member block: declarations inside it overwrite the multi-name count
-				>> !itemBlock;
+				(ELLIPSIS >> identifier[([&cp](...) { cp.DoItemName();})])
+					[([&cp](auto _1, auto) { cp.OnRestParamDecl(_1);})] // '...x': variadic rest parameter (must be last)
+				| (itemDecl[([&cp](...) { cp.OnFunctionParamDecl();})] // count BEFORE the member block: declarations inside it overwrite the multi-name count
+					>> !itemBlock);
 
 			functionResultType =
 				( ( as_lower_d[FUNCTION][([&cp](...) { cp.OnFunctionResultIsFunction();})] // §5.10 function-valued result

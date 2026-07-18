@@ -1147,10 +1147,22 @@ namespace {
 		std::vector<std::shared_ptr<ContainerLiteralArg>> m_ArgLiterals; // per param: the container-literal argument, else null
 		std::shared_ptr<ClosureEnv>    m_Env;         // §5.10: closure environment of the applied function, else null
 		std::vector<const TreeItem*>   m_Params;      // the first N sub-items of m_FuncItem
+		const TreeItem*                m_RestParam = nullptr; // '...x' rest param (the last param); binds m_ArgKeys[nrParams-1 .. end)
 		std::map<const TreeItem*, LispRef> m_Reductions;
 		std::set<const TreeItem*>      m_InProgress;
 
 		void PushArg(const CallArg& a) { m_ArgKeys.push_back(a.key); m_ArgItems.push_back(a.item); m_ArgBindings.push_back(a.binding); m_ArgLiterals.push_back(a.literal); }
+
+		bool IsRestParamSymbol(TokenID sym) const { return m_RestParam && m_RestParam->GetID() == sym; }
+		void SpliceRestArgs(std::vector<CallArg>& out) const
+		{
+			assert(m_RestParam);
+			for (UInt32 k = TreeItem_GetFunctionParamCount(m_FuncItem) - 1; k != m_ArgKeys.size(); ++k)
+			{
+				CallArg a; a.key = m_ArgKeys[k]; a.item = m_ArgItems[k]; a.binding = m_ArgBindings[k]; a.literal = m_ArgLiterals[k];
+				out.push_back(std::move(a));
+			}
+		}
 
 		LispRef Reduce();
 		CallArg ReduceValue(); // §5.10: like Reduce, but a function-typed result yields a closure binding
@@ -1163,6 +1175,7 @@ namespace {
 	};
 
 	void CheckFunctionDefinition(const TreeItem* funcItem); // WP3.4 + tranche 3 typed walker, defined below
+	const TreeItem* ResolveVariant(const TreeItem* setItem, const std::vector<CallArg>& callArgs, SharedTreeItem errorHolder); // §5.7, defined below
 
 	// a plain function reference is a binding with every slot a hole
 	std::shared_ptr<FunctionBinding> MakeAllHoles(SharedTreeItem func)
@@ -1175,16 +1188,20 @@ namespace {
 		return b;
 	}
 
-	// fill the holes of `b` with `holeFills` left-to-right; the counts must match
+	// fill the holes of `b` with `holeFills` left-to-right; the counts must match —
+	// except for a '...x' rest function, whose LAST hole absorbs all surplus fills
 	FunctionBinding MergeBinding(const FunctionBinding& b, const std::vector<CallArg>& holeFills)
 	{
-		if (holeFills.size() != b.NrHoles())
-			throwErrorF("ExprParser", "'{}': function expects {} argument(s); {} provided"
-				, b.funcItem->GetFullName().c_str(), b.NrHoles(), holeFills.size());
+		bool hasRest = b.funcItem && b.funcItem->IsFunctionItem() && TreeItem_HasFunctionRestParam(b.funcItem.get());
+		if (hasRest ? holeFills.size() < b.NrHoles() : holeFills.size() != b.NrHoles())
+			throwErrorF("ExprParser", "'{}': function expects {}{} argument(s); {} provided"
+				, b.funcItem->GetFullName().c_str(), b.NrHoles(), hasRest ? " or more" : "", holeFills.size());
 		FunctionBinding r; r.funcItem = b.funcItem; r.env = b.env;
 		UInt32 c = 0;
 		for (const auto& slot : b.slots)
 			r.slots.push_back(slot.isHole ? holeFills[c++] : slot);
+		while (c < holeFills.size()) // rest surplus (guarded: non-rest counts are equal above)
+			r.slots.push_back(holeFills[c++]);
 		return r;
 	}
 
@@ -1277,6 +1294,14 @@ namespace {
 					std::vector<CallArg> sub;
 					for (LispPtr a = argExpr.Right(); !a.EndP(); a = a.Right())
 						sub.push_back(ResolveCallerArg(a.Left(), resolveData, findItem, substBuff, errorHolder));
+					// §5.7: variant sets dispatch by argument type on nested calls too
+					if (TreeItem_IsFunctionVariantSet(callee.get()))
+					{
+						auto variant = ResolveVariant(callee.get(), sub, errorHolder);
+						callee = make_shared_tree(variant, existing_obj{});
+						if (substBuff) registerSupplier(*substBuff, variant);
+						CheckFunctionDefinition(variant);
+					}
 					FunctionBinding merged = MergeBinding(*MakeAllHoles(callee), sub);
 					if (merged.NrHoles() == 0)
 						return ReduceMergedValue(merged, nullptr, substBuff, errorHolder); // §5.10: data key OR closure binding
@@ -1809,9 +1834,12 @@ namespace {
 		assert(m_ErrorHolder);
 
 		for (const FunctionApplication* ancestor = m_Parent; ancestor; ancestor = ancestor->m_Parent)
-			if (ancestor->m_FuncItem == m_FuncItem && ancestor->m_Env == m_Env)
+			if (ancestor->m_FuncItem == m_FuncItem && ancestor->m_Env == m_Env
 				// same function AND same closure environment: §5.10 allows distinct
-				// closures of one nested function within a single reduction chain
+				// closures of one nested function within a single reduction chain.
+				// '...x' rest folds recurse with STRICTLY FEWER arguments — well-founded
+				// on the parent chain, so permitted; equal-or-more args = true recursion
+				&& m_ArgKeys.size() >= ancestor->m_ArgKeys.size())
 				throwErrorF("ExprParser", "'{}': recursive function application is not supported"
 					, m_FuncItem->GetFullName().c_str());
 
@@ -1821,9 +1849,10 @@ namespace {
 		bool isPlainTemplate = !m_FuncItem->IsFunctionItem();
 
 		UInt32 nrParams = isPlainTemplate ? m_ArgKeys.size() : TreeItem_GetFunctionParamCount(m_FuncItem);
-		if (m_ArgKeys.size() != nrParams)
-			throwErrorF("ExprParser", "'{}': function expects {} argument(s); {} provided"
-				, m_FuncItem->GetFullName().c_str(), nrParams, m_ArgKeys.size());
+		bool hasRest = !isPlainTemplate && TreeItem_HasFunctionRestParam(m_FuncItem);
+		if (hasRest ? m_ArgKeys.size() < nrParams : m_ArgKeys.size() != nrParams)
+			throwErrorF("ExprParser", "'{}': function expects {}{} argument(s); {} provided"
+				, m_FuncItem->GetFullName().c_str(), nrParams, hasRest ? " or more" : "", m_ArgKeys.size());
 		if (isPlainTemplate)
 		{
 			UInt32 nrChildren = 0;
@@ -1857,6 +1886,14 @@ namespace {
 		{
 			MG_CHECK(child); // guaranteed by the parser: params are the first nrParams sub-items
 			m_Params.push_back(child);
+
+			// '...x' rest parameter (always last): binds the argument TAIL m_ArgKeys[i..end),
+			// spliced where the body passes it as a trailing call argument — never a scalar
+			if (hasRest && i == nrParams - 1)
+			{
+				m_RestParam = child;
+				continue;
+			}
 
 			// meta-reference parameter ('item x'): bind the RAW item reference (the same
 			// sourceDescr form PropValue's subst_never argument gets in a direct call),
@@ -2104,11 +2141,32 @@ namespace {
 				// residual (partially applied) result cannot stand in a data position.
 				std::shared_ptr<FunctionBinding> paramBinding;
 				auto headFn = ResolveBodyHeadFunction(refScope, headID, &paramBinding);
-				FunctionBinding calleeBinding = paramBinding ? *paramBinding : *MakeAllHoles(headFn);
 
 				std::vector<CallArg> holeFills;
 				for (LispPtr argPtr = expr.Right(); !argPtr.EndP(); argPtr = argPtr.Right())
-					holeFills.push_back(ResolveBodyArg(refScope, argPtr.Left()));
+				{
+					LispPtr a = argPtr.Left();
+					if (a.IsSymb() && IsRestParamSymbol(a.GetSymbID()))
+					{
+						if (!argPtr.Right().EndP())
+							throwErrorF("ExprParser", "'{}': rest parameter '{}' must be the trailing argument of the call"
+								, m_FuncItem->GetFullName().c_str(), a.GetSymbStr().c_str());
+						SpliceRestArgs(holeFills); // '...x' passed on: splice the captured tail
+						break;
+					}
+					holeFills.push_back(ResolveBodyArg(refScope, a));
+				}
+
+				// §5.7: a variant set called from a body dispatches by argument type, exactly
+				// like the direct-call site (also reached by '...x' recursive fold steps)
+				if (!paramBinding && TreeItem_IsFunctionVariantSet(headFn.get()))
+				{
+					auto variant = ResolveVariant(headFn.get(), holeFills, m_ErrorHolder);
+					headFn = make_shared_tree(variant, existing_obj{});
+					if (m_SubstBuff) registerSupplier(*m_SubstBuff, variant);
+					CheckFunctionDefinition(variant);
+				}
+				FunctionBinding calleeBinding = paramBinding ? *paramBinding : *MakeAllHoles(headFn);
 
 				FunctionBinding merged = MergeBinding(calleeBinding, holeFills);
 				if (merged.NrHoles() != 0)
@@ -2203,6 +2261,9 @@ namespace {
 				for (UInt32 i = 0, n = m_Params.size(); i != n; ++i)
 					if (m_Params[i] == child.get())
 					{
+						if (child.get() == m_RestParam)
+							throwErrorF("ExprParser", "'{}': parameter '{}' is a '...' rest parameter; it can only be passed on as the trailing argument of a function call"
+								, m_FuncItem->GetFullName().c_str(), child->GetID().GetStr().c_str());
 						// §5.9 parameter bound to a container literal: reduce a bare use to the
 						// domain and 'param/member' to the named member value — no arg item exists
 						if (m_ArgLiterals[i])
@@ -2474,10 +2535,29 @@ namespace {
 			{
 				std::shared_ptr<FunctionBinding> pb;
 				auto headFn = ResolveBodyHeadFunction(refScope, headID, &pb);
-				FunctionBinding calleeBinding = pb ? *pb : *MakeAllHoles(headFn);
 				std::vector<CallArg> sub;
 				for (LispPtr a = argExpr.Right(); !a.EndP(); a = a.Right())
-					sub.push_back(ResolveBodyArg(refScope, a.Left()));
+				{
+					LispPtr ae = a.Left();
+					if (ae.IsSymb() && IsRestParamSymbol(ae.GetSymbID()))
+					{
+						if (!a.Right().EndP())
+							throwErrorF("ExprParser", "'{}': rest parameter '{}' must be the trailing argument of the call"
+								, m_FuncItem->GetFullName().c_str(), ae.GetSymbStr().c_str());
+						SpliceRestArgs(sub); // '...x' passed on: splice the captured tail
+						break;
+					}
+					sub.push_back(ResolveBodyArg(refScope, ae));
+				}
+				// §5.7: variant sets dispatch by argument type on nested calls too
+				if (!pb && TreeItem_IsFunctionVariantSet(headFn.get()))
+				{
+					auto variant = ResolveVariant(headFn.get(), sub, m_ErrorHolder);
+					headFn = make_shared_tree(variant, existing_obj{});
+					if (m_SubstBuff) registerSupplier(*m_SubstBuff, variant);
+					CheckFunctionDefinition(variant);
+				}
+				FunctionBinding calleeBinding = pb ? *pb : *MakeAllHoles(headFn);
 				FunctionBinding merged = MergeBinding(calleeBinding, sub);
 				if (merged.NrHoles() == 0)
 					return ReduceMergedValue(merged, this, m_SubstBuff, m_ErrorHolder); // §5.10: data key OR closure binding
@@ -2876,6 +2956,8 @@ namespace {
 		const TreeItem* fnDef = fnVal.fn;
 		if (TreeItem_IsFunctionVariantSet(fnDef))
 			return {}; // variant selection is argument-class-dependent: per application
+		if (TreeItem_HasFunctionRestParam(fnDef))
+			return {}; // '...x' variadic: the rest binding is per application (splice + fold)
 		if (!TreeItem_GetFunctionResultName(fnDef))
 			return {}; // no declared signature (bare 'name: function' values): per application
 		UInt32 nrParams = TreeItem_GetFunctionParamCount(fnDef);
@@ -4055,14 +4137,16 @@ MetaInfo AbstrCalculator::SubstituteExpr(SubstitutionBuffer& substBuff, LispPtr 
 					goto skipTemplInst; // a variant set has no own params; arity is checked per variant at dispatch
 
 				UInt32 nrDeclaredParams = TreeItem_GetFunctionParamCount(templateItem.get());
+				bool hasRestP = TreeItem_HasFunctionRestParam(templateItem.get());
 				UInt32 nrProvidedArgs = 0;
 				for (LispPtr argPtr = localExpr.Right(); argPtr.IsRealList(); argPtr = argPtr.Right())
 					++nrProvidedArgs;
-				if (nrProvidedArgs != nrDeclaredParams)
-					throwErrorF("ExprParser", "'{}': function '{}' expects {} argument(s); {} provided"
+				if (hasRestP ? nrProvidedArgs < nrDeclaredParams : nrProvidedArgs != nrDeclaredParams)
+					throwErrorF("ExprParser", "'{}': function '{}' expects {}{} argument(s); {} provided"
 						, head.GetSymbStr().c_str()
 						, templateItem->GetFullName().c_str()
 						, nrDeclaredParams
+						, hasRestP ? " or more" : ""
 						, nrProvidedArgs
 					);
 

@@ -683,6 +683,10 @@ TIC_CALL void    TreeItem_AddFunctionParamSignature(const TreeItem* functionItem
 // argument's calculation/range key
 TIC_CALL void    TreeItem_AddFunctionMetaRefParam(const TreeItem* functionItem, UInt32 paramIndex);
 TIC_CALL bool    TreeItem_IsFunctionMetaRefParam(const TreeItem* functionItem, UInt32 paramIndex);
+// '...x' rest parameter (always the LAST param): binds ONE OR MORE trailing arguments;
+// in the body it may only be passed on as the trailing argument of a function call
+TIC_CALL void    TreeItem_SetFunctionRestParam(const TreeItem* functionItem);
+TIC_CALL bool    TreeItem_HasFunctionRestParam(const TreeItem* functionItem);
 TIC_CALL auto    TreeItem_GetFunctionParamSignature(const TreeItem* functionItem, UInt32 paramIndex) -> SharedTreeItem;
 TIC_CALL const std::vector<TokenID>* TreeItem_GetFunctionParamSigTypeArgs(const TreeItem* functionItem, UInt32 paramIndex); // WP4.1: 'sig<V, D>' arguments
 TIC_CALL void    TreeItem_SetFunctionTypeVars(const TreeItem* functionItem, std::vector<std::pair<TokenID, TokenID>> typeVars); // WP4.1: ordered <var: constraint> list

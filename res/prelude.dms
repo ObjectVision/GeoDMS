@@ -56,6 +56,38 @@ function Label  (item t) -> parameter<string> := PropValue(t, 'Label');
 function STORAGE(item t) -> parameter<string> := PropValue(t, 'StorageName');
 function EK     (item t) -> parameter<string> := PropValue(t, 'ExternalKeyData');
 
+// ---------------------------------------------------------------- variadic folds
+// '...rest' parameters bind the argument tail; each recursive step consumes one
+// (or one group of) leading argument(s), so the fold terminates structurally.
+// KEY IDENTITY: each body spells the exact resolvent of the retired rewrite rule;
+// the retained rules (MakeDefined -> iif, Value -> convert) fire at body parse,
+// so the fully reduced keys equal the old rule-chain fixpoints byte for byte.
+
+function concat
+{
+	variant none() -> parameter<string> := '';
+	variant one(attribute<string> a) -> attribute<string> := MakeDefined(a, '');
+	variant more(attribute<string> a; ...rest) -> attribute<string> := MakeDefined(a, '') + concat(rest);
+}
+
+function replace_value
+{
+	variant base(container x; container v; container w) -> container := iif(x == v, w, x);
+	variant more(container x; container v; container w; ...rest) -> container
+	:=	replace_value(replace_value(x, v, w), rest);
+}
+
+function combine_data
+{
+	variant base(container V; container a; container b) -> container
+	:=	Value(
+			(Int64(a) - Int64(LowerBound(ValuesUnit(a)))) * Int64(NrOfRows(ValuesUnit(b)))
+			+ (Int64(b) - Int64(LowerBound(ValuesUnit(b))))
+		,	V);
+	variant more(container V; container a1; container a2; ...rest) -> container
+	:=	combine_data(V, combine_data(combine_unit(ValuesUnit(a1), ValuesUnit(a2)), a1, a2), rest);
+}
+
 // ---------------------------------------------------------------- logit
 
 function llpart<F: floats>(attribute<F> lc; attribute<F> xc; attribute<F> oc)
