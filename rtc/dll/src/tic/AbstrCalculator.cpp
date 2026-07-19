@@ -1407,6 +1407,20 @@ namespace {
 		return false;
 	}
 
+	// is `tok` a DOMAIN-sorted generic (`<D: domains>`) of fn? Only those carry a
+	// unit IDENTITY; value-sorted generics range over classes. (isDom rides the
+	// generic-parameter records, not the typeVars pair list.)
+	bool IsDomainSortedVarOf(const TreeItem* fn, TokenID tok)
+	{
+		if (!tok)
+			return false;
+		UInt32 seqNr = 0, idx; TokenID var, cons; bool isDom;
+		while (TreeItem_GetFunctionGenericParam(fn, seqNr++, &idx, &var, &cons, &isDom))
+			if (var == tok)
+				return isDom;
+		return false;
+	}
+
 	// does `tok` appear in fn's OWN <...> type-parameter clause? (genericParams also
 	// record lexically inherited enclosing variables; the ordered typeVars list holds
 	// only the function's own declarations, so an own clause shadows the origin's)
@@ -1464,6 +1478,8 @@ namespace {
 		return TokenID();
 	}
 
+	constexpr SizeT NO_TYPE_VAR = SizeT(-1);
+
 	struct TypeUnifier
 	{
 		// tranche 3: variables are additionally keyed by an INSTANCE number, so every
@@ -1495,7 +1511,16 @@ namespace {
 			ValueClassSet feasible; // invariant: the intersection of all constraint sets
 			std::vector<ConstraintRec> constraints;
 		};
-		struct DomainNode
+		// batch U (§8): the former DomainNode, generalized to ONE pool of unit-
+		// identity nodes serving BOTH roles a unit can play — the domain of a data
+		// term AND (new) the values-unit identity of a data term. A unit variable
+		// (unit parameter, domain-sorted generic) used in a values position of one
+		// signature slot and a domain position of another therefore flows through a
+		// single node — the K2 bridge. Every unit node carries a companion CLASS
+		// node (the ValueNode keyed by the same (owner, instance, name), so all
+		// existing class-side resolution converges on it); the BindUnit/LinkUnit
+		// invariant keeps unit identity and class reasoning consistent.
+		struct UnitNode
 		{
 			SizeT parent;
 			TokenID name;
@@ -1503,14 +1528,15 @@ namespace {
 			SharedTreeItem keepAlive; // owns the liveness of `bound`
 			const AbstrUnit* bound = nullptr;
 			SharedStr boundSource;
+			SizeT classNode = NO_TYPE_VAR; // companion ValueNode: class-of(this unit)
 		};
-		std::vector<ValueNode>  m_ValueNodes;
-		std::vector<DomainNode> m_DomainNodes;
+		std::vector<ValueNode> m_ValueNodes;
+		std::vector<UnitNode>  m_UnitNodes;
 		using VarKey = std::tuple<const TreeItem*, UInt32, TokenID>;
-		std::map<VarKey, SizeT> m_ValueVarIndex, m_DomainVarIndex;
+		std::map<VarKey, SizeT> m_ValueVarIndex, m_UnitVarIndex;
 
 		SizeT FindV(SizeT i) { while (m_ValueNodes[i].parent != i) i = m_ValueNodes[i].parent = m_ValueNodes[m_ValueNodes[i].parent].parent; return i; }
-		SizeT FindD(SizeT i) { while (m_DomainNodes[i].parent != i) i = m_DomainNodes[i].parent = m_DomainNodes[m_DomainNodes[i].parent].parent; return i; }
+		SizeT FindU(SizeT i) { while (m_UnitNodes[i].parent != i) i = m_UnitNodes[i].parent = m_UnitNodes[m_UnitNodes[i].parent].parent; return i; }
 
 		SharedStr FullName() const { return mySSPrintF("{}'{}'", m_Phase, m_ApplItem->GetFullName().c_str()); }
 
@@ -1538,15 +1564,54 @@ namespace {
 			}
 			return it->second;
 		}
-		SizeT DomainVar(const TreeItem* owner, UInt32 instance, TokenID name, bool rigid = false)
+		// get-or-create the unit-identity node for owner's variable, with its
+		// companion class node created eagerly under the SAME (owner, instance,
+		// name) key — the one moment the key is known — so any class-side path
+		// (ValNode, signature bindings) resolves to the same node. `declaredCls`
+		// is the DECLARED value class of a unit parameter (`unit<uint32> U`): the
+		// identity varies per instantiation (rigid), but the class is pinned by
+		// the declaration itself, so the companion binds concretely instead of
+		// staying rigid; without it the companion follows the unit node's rigidity
+		// and seeds from the variable's declared constraint (e.g. '<D: domains>').
+		SizeT UnitVar(const TreeItem* owner, UInt32 instance, TokenID name, bool rigid = false, const ValueClass* declaredCls = nullptr, TokenID fallbackConstraint = TokenID())
 		{
-			auto [it, isNew] = m_DomainVarIndex.try_emplace(VarKey{ owner, instance, name }, m_DomainNodes.size());
+			auto [it, isNew] = m_UnitVarIndex.try_emplace(VarKey{ owner, instance, name }, m_UnitNodes.size());
 			if (isNew)
 			{
-				DomainNode n; n.parent = m_DomainNodes.size(); n.name = name; n.rigid = rigid;
-				m_DomainNodes.push_back(std::move(n));
+				// push the node BEFORE anything that can throw (the companion's
+				// declared-class bind may): the index entry must never dangle
+				SizeT idx = it->second;
+				UnitNode n; n.parent = idx; n.name = name; n.rigid = rigid;
+				m_UnitNodes.push_back(std::move(n));
+				SharedStr declSource = mySSPrintF("the declaration of '{}'", name.GetStr().c_str());
+				SizeT comp = ValueVar(owner, instance, name, declSource, rigid && !declaredCls, fallbackConstraint);
+				m_UnitNodes[idx].classNode = comp;
+				if (declaredCls)
+					BindDeclaredClass(comp, declaredCls, declSource);
+			}
+			else if (declaredCls)
+			{
+				// a later caller may know the declared class the creating path did
+				// not (get-or-create runs once; type applications and sig bindings
+				// can reach a unit parameter's node before ParamType does) —
+				// reconcile rather than silently drop the pin
+				SizeT comp = m_UnitNodes[FindU(it->second)].classNode;
+				if (comp != NO_TYPE_VAR)
+					BindDeclaredClass(comp, declaredCls
+						, mySSPrintF("the declaration of '{}'", name.GetStr().c_str()));
 			}
 			return it->second;
+		}
+
+		// bind a companion class node to a DECLARED class, but never onto a rigid
+		// or already-bound node: a same-named type variable may legitimately own
+		// the key (pathological shadowing) and an existing binding is either
+		// already consistent or a conflict the unit side reports better — defer
+		void BindDeclaredClass(SizeT comp, const ValueClass* declaredCls, const SharedStr& declSource)
+		{
+			auto& cn = m_ValueNodes[FindV(comp)];
+			if (!cn.rigid && !cn.bound)
+				BindValue(comp, declaredCls, declSource);
 		}
 
 		void CheckFeasible(const ValueNode& n, const ValueClass* vt, const SharedStr& source)
@@ -1679,46 +1744,57 @@ namespace {
 		// during meta-info construction), so UnifyDomain may intern the right
 		// operand's DC too, which makes the comparison total and symmetric — no
 		// two-direction retry needed. (UM_AllowVoidRight is vestigial here: Void
-		// units never reach a DomainNode — they become Dom::Void at PositionType and
+		// units never reach a UnitNode — they become Dom::Void at PositionType and
 		// short-circuit in UnifyData — but it is kept defensively.)
 		static constexpr UnifyMode s_CheckerUM = UnifyMode(UM_AllowVoidRight | UM_AllowRightExpansion);
 
-		void BindDomain(SizeT i, SharedTreeItem keepAlive, const AbstrUnit* du, const SharedStr& source)
+		// the batch-U invariant, confined to BindUnit/LinkUnit: binding a unit also
+		// binds its companion class node to the unit's value class; linking two
+		// unit nodes also links their companions. No caller ordering can then
+		// desynchronize unit identity from class reasoning. The unit-side checks
+		// run FIRST, so their (older, role-specific) diagnostics keep precedence.
+
+		void BindUnit(SizeT i, SharedTreeItem keepAlive, const AbstrUnit* du, const SharedStr& source)
 		{
-			auto& n = m_DomainNodes[FindD(i)];
+			auto& n = m_UnitNodes[FindU(i)];
 			if (n.rigid)
-				throwErrorF("ExprParser", "{}: the body pins domain '{}' to a specific unit ({}); it must remain generic in the definition"
+				throwErrorF("ExprParser", "{}: the body pins unit variable '{}' to a specific unit ({}); it must remain generic in the definition"
 					, FullName().c_str(), n.name.GetStr().c_str(), source.c_str());
 			if (n.bound)
 			{
 				if (!n.bound->UnifyDomain(du, "", "", s_CheckerUM))
-					throwErrorF("ExprParser", "{}: inconsistent instantiation of domain variable '{}': the domain bound {} differs from the domain bound {}"
+					throwErrorF("ExprParser", "{}: inconsistent instantiation of unit variable '{}': the unit bound {} differs from the unit bound {}"
 						, FullName().c_str(), n.name.GetStr().c_str()
 						, n.boundSource.c_str(), source.c_str());
 				return;
 			}
 			n.keepAlive = std::move(keepAlive); n.bound = du; n.boundSource = source;
+			if (n.classNode != NO_TYPE_VAR)
+				if (auto vt = du->GetValueType())
+					BindValue(n.classNode, vt, source);
 		}
 
-		void LinkDomain(SizeT a, SizeT b, const SharedStr& source)
+		void LinkUnit(SizeT a, SizeT b, const SharedStr& source)
 		{
-			SizeT ra = FindD(a), rb = FindD(b);
+			SizeT ra = FindU(a), rb = FindU(b);
 			if (ra == rb)
 				return;
-			if (m_DomainNodes[rb].rigid && !m_DomainNodes[ra].rigid)
+			if (m_UnitNodes[rb].rigid && !m_UnitNodes[ra].rigid)
 				std::swap(ra, rb);
-			auto& na = m_DomainNodes[ra];
-			auto& nb = m_DomainNodes[rb];
+			auto& na = m_UnitNodes[ra];
+			auto& nb = m_UnitNodes[rb];
 			if (na.rigid && nb.rigid)
-				throwErrorF("ExprParser", "{}: the body requires domains '{}' and '{}' to be equal ({}), but they are independent in the definition"
+				throwErrorF("ExprParser", "{}: the body requires unit variables '{}' and '{}' to be equal ({}), but they are independent in the definition"
 					, FullName().c_str(), na.name.GetStr().c_str(), nb.name.GetStr().c_str(), source.c_str());
 			if (na.rigid && nb.bound)
-				throwErrorF("ExprParser", "{}: the body pins domain '{}' to a specific unit ({}); it must remain generic in the definition"
+				throwErrorF("ExprParser", "{}: the body pins unit variable '{}' to a specific unit ({}); it must remain generic in the definition"
 					, FullName().c_str(), na.name.GetStr().c_str(), nb.boundSource.c_str());
 			if (na.bound && nb.bound && !na.bound->UnifyDomain(nb.bound, "", "", s_CheckerUM))
-				throwErrorF("ExprParser", "{}: inconsistent instantiation of domain variable '{}': the domain bound {} differs from the domain bound {}"
+				throwErrorF("ExprParser", "{}: inconsistent instantiation of unit variable '{}': the unit bound {} differs from the unit bound {}"
 					, FullName().c_str(), na.name.GetStr().c_str()
 					, na.boundSource.c_str(), nb.boundSource.c_str());
+			if (na.classNode != NO_TYPE_VAR && nb.classNode != NO_TYPE_VAR)
+				LinkValue(na.classNode, nb.classNode, source);
 			if (!na.bound && nb.bound)
 			{
 				na.keepAlive = nb.keepAlive; na.bound = nb.bound; na.boundSource = nb.boundSource;
@@ -1726,8 +1802,6 @@ namespace {
 			nb.parent = ra;
 		}
 	};
-
-	constexpr SizeT NO_TYPE_VAR = SizeT(-1);
 
 	// WP4.1: enforce one 'sig<...>'-typed binding — the bound function's positions
 	// instantiate or LINK the target variables named by the type application: a
@@ -1740,7 +1814,7 @@ namespace {
 	void LinkSignatureBinding(TypeUnifier& u, const TreeItem* sig, const TreeItem* boundFn,
 		const std::vector<std::pair<TokenID, TokenID>>* sigVars, const std::vector<TokenID>* typeArgs,
 		const std::function<SizeT(TokenID)>& targetValueNode,
-		const std::function<SizeT(TokenID)>& targetDomainNode,
+		const std::function<SizeT(TokenID)>& targetUnitNode,
 		UInt32 boundInstance, const SharedStr& bindSource)
 	{
 		std::map<TokenID, TokenID> sig2target;
@@ -1765,16 +1839,19 @@ namespace {
 
 			auto itD = sig2target.find(AsDataItem(sigPos)->DomainUnitToken());
 			if (itD != sig2target.end())
-				if (SizeT target = targetDomainNode(itD->second); target != NO_TYPE_VAR)
+				if (SizeT target = targetUnitNode(itD->second); target != NO_TYPE_VAR)
 				{
 					TokenID fnDU = AsDataItem(fnPos)->DomainUnitToken();
 					if (fnDU && IsGenericVarOf(boundFn, fnDU))
-						u.LinkDomain(target, u.DomainVar(boundFn, boundInstance, fnDU), bindSource);
+						u.LinkUnit(target, u.UnitVar(boundFn, boundInstance, fnDU), bindSource);
 					else if (fnDU)
 						if (auto defP = boundFn->GetTreeParent())
-							if (auto unitItem = defP->FindItem(SharedStr(fnDU.AsStrRange())); unitItem && IsUnit(unitItem.get()))
-								u.BindDomain(target, unitItem, AsUnit(unitItem.get())
+						{
+							SharedStr fnDUName(fnDU.AsStrRange()); // materialized: a TokenStr must not span FindItem (parse-capable, token-registry lock)
+							if (auto unitItem = defP->FindItem(fnDUName); unitItem && IsUnit(unitItem.get()))
+								u.BindUnit(target, unitItem, AsUnit(unitItem.get())
 									, mySSPrintF("by {}", bindSource.c_str()));
+						}
 				}
 		};
 
@@ -2011,7 +2088,7 @@ namespace {
 				if (du->GetValueType()->GetValueClassID() == ValueClassID::VT_Void)
 				{ /* void broadcasts into any D and does not constrain it */ }
 				else
-					unifier.BindDomain(unifier.DomainVar(m_FuncItem, 0, gpVar), argResult, du
+					unifier.BindUnit(unifier.UnitVar(m_FuncItem, 0, gpVar), argResult, du
 						, mySSPrintF("via parameter '{}'", gpParam->GetID().GetStr().c_str()));
 				continue;
 			}
@@ -2040,7 +2117,7 @@ namespace {
 				, sc.boundFn->GetFullName().c_str(), viaParam->GetID().GetStr().c_str());
 			LinkSignatureBinding(unifier, sc.sig.get(), sc.boundFn.get(), sc.sigVars, sc.typeArgs
 				, [&](TokenID t) { return unifier.ValueVar(m_FuncItem, 0, t, declSource); }
-				, [&](TokenID t) { return unifier.DomainVar(m_FuncItem, 0, t); }
+				, [&](TokenID t) { return unifier.UnitVar(m_FuncItem, 0, t); }
 				, ++bindingInstance, sigSource);
 		}
 
@@ -2687,6 +2764,15 @@ namespace {
 		// cannot serve a sequence-registered member and vice versa)
 		ValueComposition vcomp = ValueComposition::Unknown;
 
+		// values-unit IDENTITY of a Data term (batch U, §8): a unit node when the
+		// declared values token names a unit parameter or domain-sorted generic
+		// (the function-signature K2 bridge — the SAME node its domain role uses),
+		// or the concrete scope unit it resolves to. Class reasoning stays on
+		// vc/vNode; identity is compared by UnifyData's values-identity block.
+		// Neither set = no identity claim (defers)
+		SizeT vuNode = NO_TYPE_VAR;
+		const AbstrUnit* vUnit = nullptr; SharedTreeItem vKeep;
+
 		// domain position (Data: the domain; UnitVal: the unit's own identity)
 		enum class Dom : UInt8 { Unknown, Void, Concrete, Node } dom = Dom::Unknown;
 		const AbstrUnit* domUnit = nullptr; SharedTreeItem domKeep; // Concrete
@@ -2745,9 +2831,39 @@ namespace {
 			return m_Unifier.ValueVar(owner, inst, tok
 				, rigid ? m_DeclSource : mySSPrintF("function '{}'", owner->GetFullName().c_str()), rigid, fallback);
 		}
-		SizeT DomNode(const TreeItem* owner, UInt32 inst, TokenID tok)
+		SizeT UNode(const TreeItem* owner, UInt32 inst, TokenID tok, const ValueClass* declaredCls = nullptr)
 		{
-			return m_Unifier.DomainVar(owner, inst, tok, owner == m_FuncItem && inst == 0);
+			// the token may name a unit PARAMETER of the owner whose declared class
+			// must pin the companion regardless of WHICH path creates the node
+			// first — type applications and sig bindings reach here before
+			// ParamType does, and creation is get-or-create-once (review finding:
+			// an unpinned first creation froze the companion rigid/unconstrained,
+			// making the verdict depend on the body's reference order)
+			if (!declaredCls && owner && owner->IsFunctionItem())
+			{
+				const TreeItem* q = owner->_GetFirstSubItem();
+				for (UInt32 j = 0, n = TreeItem_GetFunctionParamCount(owner); j != n && q; ++j, q = q->GetNextItem())
+					if (q->GetID() == tok && IsUnit(q))
+					{
+						declaredCls = AsUnit(q)->GetValueType();
+						break;
+					}
+			}
+			// the companion class node needs the SAME enclosing-declaration
+			// constraint fallback as ValNode: a rigid domain variable lexically
+			// belonging to an ENCLOSING function (named here only through a type
+			// application) must not seed an all-set acceptance — the t3 defect-#3
+			// rule, re-applied to the batch-U companions
+			bool rigid = owner == m_FuncItem && inst == 0;
+			TokenID fallback;
+			if (rigid && !declaredCls && !DeclaredConstraintOf(m_FuncItem, tok))
+				for (auto enc = m_FuncItem->GetTreeParent(); enc && enc->IsFunctionItem(); enc = enc->GetTreeParent())
+					if (TokenID c = DeclaredConstraintOf(enc.get(), tok))
+					{
+						fallback = c;
+						break;
+					}
+			return m_Unifier.UnitVar(owner, inst, tok, rigid, declaredCls, fallback);
 		}
 		SharedTreeItem ResolveUnitInScope(TokenID tok, const TreeItem* fnDef)
 		{
@@ -2879,7 +2995,9 @@ namespace {
 			DefType r; r.kind = DefType::Kind::UnitVal;
 			r.vc = AsUnit(p)->GetValueType();
 			r.dom = DefType::Dom::Node;
-			r.dNode = DomNode(m_FuncItem, 0, p->GetID()); // rigid: the unit bound at application
+			// rigid identity (the unit bound at application); the declared class
+			// pins the companion class node concretely (batch U)
+			r.dNode = UNode(m_FuncItem, 0, p->GetID(), r.vc);
 			return r;
 		}
 		if (IsDataItem(p))
@@ -2918,7 +3036,7 @@ namespace {
 			r.kind = DefType::Kind::UnitVal;
 			r.vc = AsUnit(posItem)->GetValueType();
 			r.dom = DefType::Dom::Node;
-			r.dNode = DomNode(fnDef, instance, posItem->GetID());
+			r.dNode = UNode(fnDef, instance, posItem->GetID(), r.vc);
 			return r;
 		}
 		if (!IsDataItem(posItem))
@@ -2932,25 +3050,62 @@ namespace {
 		{
 			if (tok2owner)
 				if (auto it = tok2owner->find(vTok); it != tok2owner->end())
+				{
 					vTok = it->second, r.vNode = ValNode(ownerFn, ownerInstance, vTok);
+					if (IsDomainSortedVarOf(ownerFn, vTok))
+						r.vuNode = UNode(ownerFn, ownerInstance, vTok); // K2 identity through the sig binding too
+				}
 			if (r.vNode == NO_TYPE_VAR)
 			{
 				// an own <...> clause shadows the origin's variables; unmapped tokens
 				// of a type application (tok2owner set) belong to fnDef's own lexical
-				// world and never resolve to the origin's variables
+				// world and never resolve to the origin's variables.
+				// batch U: a values token naming a DOMAIN-SORTED generic or a unit
+				// PARAMETER additionally carries the unit's IDENTITY (vuNode) — the
+				// SAME node its domain role uses, which is the K2 bridge; a token
+				// resolving to a concrete scope unit carries that unit (vUnit)
 				if (IsOwnDeclaredVar(fnDef, vTok))
+				{
 					r.vNode = ValNode(fnDef, instance, vTok);
+					if (IsDomainSortedVarOf(fnDef, vTok))
+						r.vuNode = UNode(fnDef, instance, vTok);
+				}
 				else if (!tok2owner && ownerFn && IsGenericVarOf(ownerFn, vTok))
+				{
 					r.vNode = ValNode(ownerFn, ownerInstance, vTok);
+					if (IsDomainSortedVarOf(ownerFn, vTok))
+						r.vuNode = UNode(ownerFn, ownerInstance, vTok);
+				}
 				else if (IsGenericVarOf(fnDef, vTok))
+				{
 					r.vNode = ValNode(fnDef, instance, vTok);
+					if (IsDomainSortedVarOf(fnDef, vTok))
+						r.vuNode = UNode(fnDef, instance, vTok);
+				}
 				else if (auto vc = ValueClass::FindByScriptName(vTok))
 					r.vc = vc;
 				else if (itemScope && HasBodyShadower(vTok, itemScope))
 					; // a body-local declaration shadows the outer name: defer
-				else if (auto u = ResolveUnitInScope(vTok, fnDef))
-					r.vc = AsUnit(u.get())->GetValueType(); // a values-unit reference: kinds-level class
-				// else: unknown values class (checked per application)
+				else
+				{
+					// a unit parameter of fnDef in the VALUES role: per-instantiation
+					// identity + the class its declaration pins (`unit<uint32> U`)
+					const TreeItem* q = fnDef->_GetFirstSubItem();
+					for (UInt32 j = 0, n = TreeItem_GetFunctionParamCount(fnDef); j != n && q; ++j, q = q->GetNextItem())
+						if (q->GetID() == vTok && IsUnit(q))
+						{
+							r.vc = AsUnit(q)->GetValueType();
+							r.vuNode = UNode(fnDef, instance, vTok, r.vc);
+							break;
+						}
+					if (r.vuNode == NO_TYPE_VAR && r.vc == nullptr)
+						if (auto u = ResolveUnitInScope(vTok, fnDef))
+						{
+							r.vc = AsUnit(u.get())->GetValueType(); // kinds-level class
+							r.vKeep = u; r.vUnit = AsUnit(u.get()); // + identity (batch U)
+						}
+					// else: unknown values class (checked per application)
+				}
 			}
 		}
 
@@ -2958,20 +3113,20 @@ namespace {
 		{
 			if (tok2owner)
 				if (auto it = tok2owner->find(dTok); it != tok2owner->end())
-					dTok = it->second, r.dom = DefType::Dom::Node, r.dNode = DomNode(ownerFn, ownerInstance, dTok);
+					dTok = it->second, r.dom = DefType::Dom::Node, r.dNode = UNode(ownerFn, ownerInstance, dTok);
 			if (r.dom == DefType::Dom::Unknown)
 			{
 				if (IsOwnDeclaredVar(fnDef, dTok))
 				{
-					r.dom = DefType::Dom::Node; r.dNode = DomNode(fnDef, instance, dTok);
+					r.dom = DefType::Dom::Node; r.dNode = UNode(fnDef, instance, dTok);
 				}
 				else if (!tok2owner && ownerFn && IsGenericVarOf(ownerFn, dTok))
 				{
-					r.dom = DefType::Dom::Node; r.dNode = DomNode(ownerFn, ownerInstance, dTok);
+					r.dom = DefType::Dom::Node; r.dNode = UNode(ownerFn, ownerInstance, dTok);
 				}
 				else if (IsGenericVarOf(fnDef, dTok))
 				{
-					r.dom = DefType::Dom::Node; r.dNode = DomNode(fnDef, instance, dTok);
+					r.dom = DefType::Dom::Node; r.dNode = UNode(fnDef, instance, dTok);
 				}
 				else if (itemScope && HasBodyShadower(dTok, itemScope))
 				{ /* a body-local declaration shadows the outer name: defer */ }
@@ -2982,7 +3137,7 @@ namespace {
 					for (UInt32 j = 0, n = TreeItem_GetFunctionParamCount(fnDef); j != n && q; ++j, q = q->GetNextItem())
 						if (q->GetID() == dTok && IsUnit(q))
 						{
-							r.dom = DefType::Dom::Node; r.dNode = DomNode(fnDef, instance, dTok);
+							r.dom = DefType::Dom::Node; r.dNode = UNode(fnDef, instance, dTok, AsUnit(q)->GetValueType());
 							break;
 						}
 					if (r.dom == DefType::Dom::Unknown)
@@ -3020,16 +3175,38 @@ namespace {
 				, m_FuncItem->GetFullName().c_str()
 				, a.vc->GetName().c_str(), srcA.c_str(), b.vc->GetName().c_str(), srcB.c_str());
 
+		// values-unit IDENTITY (batch U): declared identities through unit
+		// parameters and domain-sorted generics — the function-signature K2
+		// bridge (`attribute<E> rel (D); attribute<V> vals (E)` flows both roles
+		// of E through ONE unit node). Terms without identity information defer;
+		// concrete pairs compare by defining-expression identity under the
+		// checker's total-symmetric mode, exactly like domains below
+		if (a.kind == DefType::Kind::Data && b.kind == DefType::Kind::Data)
+		{
+			if (a.vuNode != NO_TYPE_VAR && b.vuNode != NO_TYPE_VAR)
+				m_Unifier.LinkUnit(a.vuNode, b.vuNode, srcB);
+			else if (a.vuNode != NO_TYPE_VAR && b.vUnit)
+				m_Unifier.BindUnit(a.vuNode, b.vKeep, b.vUnit, srcB);
+			else if (b.vuNode != NO_TYPE_VAR && a.vUnit)
+				m_Unifier.BindUnit(b.vuNode, a.vKeep, a.vUnit, srcA);
+			// concrete-vs-concrete deliberately DEFERS (S1, review finding): reduction
+			// checks values units by UnifyValues (class + metric, AllowDefaultLeft) —
+			// two key-distinct metric-less units of one class unify there, so a
+			// key-identity error here would reject configs that reduce fine. Identity
+			// is enforced only through a declared unit-variable contract (the arms
+			// above), a surface that did not resolve before batch U.
+		}
+
 		// domain positions (void broadcasts; unknown defers)
 		using Dom = DefType::Dom;
 		if (a.dom == Dom::Unknown || b.dom == Dom::Unknown || a.dom == Dom::Void || b.dom == Dom::Void)
 			return;
 		if (a.dom == Dom::Node && b.dom == Dom::Node)
-			m_Unifier.LinkDomain(a.dNode, b.dNode, srcB);
+			m_Unifier.LinkUnit(a.dNode, b.dNode, srcB);
 		else if (a.dom == Dom::Node && b.dom == Dom::Concrete)
-			m_Unifier.BindDomain(a.dNode, b.domKeep, b.domUnit, srcB);
+			m_Unifier.BindUnit(a.dNode, b.domKeep, b.domUnit, srcB);
 		else if (b.dom == Dom::Node && a.dom == Dom::Concrete)
-			m_Unifier.BindDomain(b.dNode, a.domKeep, a.domUnit, srcA);
+			m_Unifier.BindUnit(b.dNode, a.domKeep, a.domUnit, srcA);
 		else if (a.dom == Dom::Concrete && b.dom == Dom::Concrete)
 			if (!a.domUnit->UnifyDomain(b.domUnit, "", "", TypeUnifier::s_CheckerUM))
 				throwErrorF("ExprParser", "the definition of '{}': the domain of {} differs from the domain of {}"
@@ -3103,10 +3280,10 @@ namespace {
 						};
 						auto targetD = [&](TokenID t) -> SizeT
 						{
-							if (t2o) if (auto it = t2o->find(t); it != t2o->end()) return DomNode(ownerFn, ownerInstance, it->second);
-							if (IsOwnDeclaredVar(fnDef, t)) return DomNode(fnDef, instance, t);
-							if (!t2o && ownerFn && IsGenericVarOf(ownerFn, t)) return DomNode(ownerFn, ownerInstance, t);
-							if (IsGenericVarOf(fnDef, t)) return DomNode(fnDef, instance, t);
+							if (t2o) if (auto it = t2o->find(t); it != t2o->end()) return UNode(ownerFn, ownerInstance, it->second);
+							if (IsOwnDeclaredVar(fnDef, t)) return UNode(fnDef, instance, t);
+							if (!t2o && ownerFn && IsGenericVarOf(ownerFn, t)) return UNode(ownerFn, ownerInstance, t);
+							if (IsGenericVarOf(fnDef, t)) return UNode(fnDef, instance, t);
 							return NO_TYPE_VAR;
 						};
 						LinkSignatureBinding(m_Unifier, declaredSig.get(), bound, sigVars, typeArgs
@@ -3367,7 +3544,7 @@ namespace {
 		auto DN = [&](sig_var v) -> SizeT
 		{
 			if (domNode[v] == NO_TYPE_VAR)
-				domNode[v] = m_Unifier.DomainVar(nullptr, inst, roleTok[v]);
+				domNode[v] = m_Unifier.UnitVar(nullptr, inst, roleTok[v]);
 			return domNode[v];
 		};
 

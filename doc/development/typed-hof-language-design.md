@@ -1245,9 +1245,27 @@ sequence-registered members. Coverage widened from ~22 hand-listed names to ever
 group with described members (`iif`, `div`, `mod`, `pow`, string ops, predicates,
 rounding, `convert` …), with `and`/`or`/`not` no longer falsely pinned to bool.
 
-Still open in WP4.1: batch U (`DomainNode`→`UnitNode`, unlocking K2), batch B
-(`lookup` & co), batches C–F, and lifting the
-function-application-into-bare-item restriction.
+**Batch U SHIPPED (2026-07-19)** — the `DomainNode`→`UnitNode` generalization
+(`operator-signature-interface.md` §8): one unit-identity pool serving both the
+domain role and (new) the values-unit identity of a data term, each unit node
+carrying an eagerly created companion class node keyed like `ValueVar` so class
+reasoning and unit identity stay consistent through the `BindUnit`/`LinkUnit`
+invariant. The K2 join-key contract is now expressible and checked in FUNCTION
+signatures: `unit<uint32> E; attribute<E> rel (D); attribute<V> vals (E)` flows
+both roles of `E` through one node — inconsistent instantiations (even between
+units sharing a value class, where only identity distinguishes them) error at
+the definition's first reference (`fn_test_unitnode{,_neg1,_neg2}.dms`).
+Operator records still claim no values identity (dark; batch B turns it on).
+Adversarial review before landing corrected two S1 hazards: concrete-vs-concrete
+values units DEFER (reduction compares values units by `UnifyValues`
+class+metric, under which key-distinct metric-less units unify — key-identity
+errors would reject working configs), and a unit parameter's companion class
+node is pinned to its declared class regardless of which resolution path
+creates the node first (`UNode` scans the owner's parameters;
+`UnitVar` reconciles a later-supplied declared class).
+
+Still open in WP4.1: batch B (`lookup` & co, on the shipped UnitNode pool),
+batches C–F, and lifting the function-application-into-bare-item restriction.
 
 ### 5.11 Anonymous functions and the brace-disambiguation rule *(tier A implemented 2026-07-14)*
 

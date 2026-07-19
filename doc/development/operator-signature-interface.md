@@ -582,6 +582,46 @@ show the checking would pay.
 
 ## 8. Prerequisite: the UnitNode generalization
 
+**Status: SHIPPED 2026-07-19 (batch U), dark for operators.** As-shipped deviations from
+the sketch below: (1) the companion class node is created **eagerly at unit-node
+creation** under the SAME `(owner, instance, name)` key as `ValueVar` — not lazily — so
+every existing class-side path (`ValNode`, signature bindings) converges on the same
+node by construction; a `declaredCls` argument (`unit<uint32> U`: the identity is rigid
+per-instantiation but the class is pinned by the declaration) makes the companion
+**bound non-rigid** instead of rigid. (2) The `generative`/`genOrigin` K6 fields are
+deferred to batch D. (3) The concrete-concrete values compare is single-direction under
+`s_CheckerUM` (total and symmetric per S11) rather than the pre-S11 two-direction retry.
+(4) Beyond the "dark" floor, the tranche activates the K2 bridge for **function
+signatures**: a values-position token naming a unit parameter or domain-sorted generic
+resolves to the same unit node its domain role uses, values tokens resolving to concrete
+scope units carry the unit (`DefType::vUnit`), and `UnifyData`'s values-identity block
+enforces the declared relationships (`fn_test_unitnode{,_neg1,_neg2}.dms` — the join-key
+contract `unit<uint32> E; attribute<E> rel (D); attribute<V> vals (E)` is now checked at
+definition/first-reference). Operator records still make no values-identity claims —
+that is batch B. Unit-side diagnostics now say "unit variable" rather than "domain
+variable" (role-neutral wording; S10 deliberate).
+
+**Adversarial-review corrections (2026-07-19, pre-landing).** (a) The sketch below says
+concrete-concrete values conflicts "error only if permissive `UnifyDomain` fails in both
+directions" and that such configs are "already broken at reduction" — **both wrong for
+values units**: reduction checks values units by `UnifyValues` (class + metric,
+`UM_AllowDefaultLeft`, `AbstrDataItem.cpp:592`), under which two key-distinct metric-less
+units of one class UNIFY; `UnifyDomain`-on-values runs only for categorical items. A
+key-identity error would therefore reject configs that reduce fine (S1). As shipped, the
+**concrete-vs-concrete arm defers**; values-unit identity is enforced only through a
+declared unit-variable contract (the `vuNode` arms) — a surface that did not resolve at
+all before this tranche, so no legacy config can be affected. (b) A unit parameter's
+node can be created FIRST by a type-application/sig-binding path that does not know the
+declared class; the companion then froze rigid/unconstrained and the verdict depended on
+the body's reference order. Fixed centrally: `UNode` scans the owner's parameters for a
+unit item of that name, and `UnitVar` reconciles a later-supplied declared class onto an
+unbound non-rigid companion instead of dropping it. (c) The tok2owner values-role branch
+now carries `vuNode` for domain-sorted targets like its siblings (the sig-typed-parameter
+path no longer severs the K2 identity). (d) A pre-existing TokenStr-over-`FindItem`
+self-deadlock hazard in `LinkSignatureBinding`'s concrete-domain fallback (confirmed
+reachable via a path-formed domain reference on a bound function) is fixed by
+materializing the `SharedStr` first.
+
 **Change: `DomainNode` → `UnitNode` (one pool), layered over the existing class sort.**
 
 ```cpp
