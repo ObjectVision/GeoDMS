@@ -1282,7 +1282,19 @@ batch A's latent sequence-`iif` variant); the borrowing regression
 (default-metric rel values against a named domain) ships as a positive in
 `fn_test_opsigB.dms`.
 
-Still open in WP4.1: batches C–F (aggregations, fresh-unit family,
+**Batch C SHIPPED (2026-07-19)** — the aggregations
+(`operator-signature-interface.md` §12.3): total (K15 void results) and
+partitioned (K1 shared domain + K5: the result ranges over the PARTITIONING
+argument's VALUES unit) unary/binary families plus `pcount`. The classic error
+— declaring a partitioned aggregation's result over the data domain instead of
+the partition set — now fails at the definition's first reference
+(`fn_test_opsigC_neg1`). Wildcard (AbstrDataItem) argument classes — the
+partitioning position, weighted-modus weights — leave their variables
+member-unconstrained rather than suppressing the description (the first
+describe bailed on them; the batch's own negative caught it, and the review
+caught the weight variant).
+
+Still open in WP4.1: batches D–F (fresh-unit family + LispPtr memoization,
 composite printers), and lifting the function-application-into-bare-item
 restriction.
 

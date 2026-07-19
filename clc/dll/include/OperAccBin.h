@@ -14,6 +14,8 @@
 #include "TreeItemClass.h"
 #include "Unit.h"
 #include "UnitClass.h"
+#include "DataItemClass.h"
+#include "OperSignature.h"
 
 #include "AggrUniStruct.h"
 #include "IndexGetterCreator.h"
@@ -30,11 +32,41 @@ struct AbstrOperAccTotBin : public BinaryOperator
 	AbstrOperAccTotBin(AbstrOperGroup* gr
 	,	ClassCPtr resultCls, ClassCPtr arg1Cls, ClassCPtr arg2Cls
 	,	UnitCreatorPtr ucp, ValueComposition vc
-	)	:	BinaryOperator(gr, resultCls, arg1Cls, arg2Cls) 
+	)	:	BinaryOperator(gr, resultCls, arg1Cls, arg2Cls)
 		,	m_UnitCreatorPtr(std::move(ucp))
 		,	m_ValueComposition(vc)
 	{
 		gr->SetBetterNotInMetaScripting();
+	}
+
+	// mirrors CreateResult below: two data arguments, VOID-domain result (K15).
+	// NB deliberately SEPARATE domain variables: this CreateResult does NOT
+	// unify the argument domains, so no shared-domain claim would be honest.
+	// A wildcard (AbstrDataItem) argument class — the weighted-modus weight
+	// vector — leaves its variable member-unconstrained (review finding)
+	bool DescribeSignature(AbstrSignatureBuilder& sb) const override
+	{
+		auto resCls = dynamic_cast<const DataItemClass*>(GetResultClass());
+		if (!resCls)
+			return false;
+		sig_var D1 = sb.UnitVar("D1"), D2 = sb.UnitVar("D2");
+		sig_var V1 = sb.UnitVar("V1"), V2 = sb.UnitVar("V2"), R = sb.UnitVar("R");
+		ValueComposition vc1 = ValueComposition::Single, vc2 = ValueComposition::Single;
+		if (auto arg1Cls = dynamic_cast<const DataItemClass*>(GetArgClass(0)))
+		{
+			sb.MemberValueClass(V1, arg1Cls->GetValuesType());
+			vc1 = arg1Cls->GetValuesType()->GetValueComposition();
+		}
+		if (auto arg2Cls = dynamic_cast<const DataItemClass*>(GetArgClass(1)))
+		{
+			sb.MemberValueClass(V2, arg2Cls->GetValuesType());
+			vc2 = arg2Cls->GetValuesType()->GetValueComposition();
+		}
+		sb.MemberValueClass(R, resCls->GetValuesType());
+		sb.ArgAttr(0, V1, D1, vc1);
+		sb.ArgAttr(1, V2, D2, vc2);
+		sb.ResultAttr(R, sb.VoidDomain(), m_ValueComposition);
+		return true;
 	}
 
 	// Override Operator
@@ -143,6 +175,40 @@ struct AbstrOperAccPartBin: TernaryOperator
 		,	m_UnitCreatorPtr(std::move(ucp))
 	{
 		gr->SetBetterNotInMetaScripting();
+	}
+
+	// mirrors CreateResult below: all three arguments share one domain (K1,
+	// e3->UnifyDomain(e1) and (e2)); the result ranges over the PARTITIONING
+	// argument's VALUES unit (K5) — one variable P in arg3's values role and
+	// the result's domain role
+	bool DescribeSignature(AbstrSignatureBuilder& sb) const override
+	{
+		auto resCls = dynamic_cast<const DataItemClass*>(GetResultClass());
+		if (!resCls)
+			return false;
+		sig_var D = sb.UnitVar("D"), V1 = sb.UnitVar("V1"), V2 = sb.UnitVar("V2"), P = sb.UnitVar("P"), R = sb.UnitVar("R");
+		// wildcard (AbstrDataItem) argument classes — the weighted-modus weight
+		// vector and the partitioning position — leave their variables
+		// member-unconstrained (review finding)
+		ValueComposition vc1 = ValueComposition::Single, vc2 = ValueComposition::Single;
+		if (auto arg1Cls = dynamic_cast<const DataItemClass*>(GetArgClass(0)))
+		{
+			sb.MemberValueClass(V1, arg1Cls->GetValuesType());
+			vc1 = arg1Cls->GetValuesType()->GetValueComposition();
+		}
+		if (auto arg2Cls = dynamic_cast<const DataItemClass*>(GetArgClass(1)))
+		{
+			sb.MemberValueClass(V2, arg2Cls->GetValuesType());
+			vc2 = arg2Cls->GetValuesType()->GetValueComposition();
+		}
+		if (auto arg3Cls = dynamic_cast<const DataItemClass*>(GetArgClass(2)))
+			sb.MemberValueClass(P, arg3Cls->GetValuesType());
+		sb.MemberValueClass(R, resCls->GetValuesType());
+		sb.ArgAttr(0, V1, D, vc1);
+		sb.ArgAttr(1, V2, D, vc2);
+		sb.ArgName(2, "partitioning"); sb.ArgAttr(2, P, D, ValueComposition::Single);
+		sb.ResultAttr(R, P, m_ValueComposition);
+		return true;
 	}
 
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override

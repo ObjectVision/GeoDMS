@@ -943,6 +943,38 @@ catch against the declared result. (Debug note: neg2 exits 3 in Debug via the
 pre-existing reduce-side-error teardown artifact — TreeItem leak + `NumbObjCache`
 assert — identical to `fn_test_unify_neg2` since the bare-id fix; Release shows the
 clean intended message.)
+
+### 12.3 Batch C as shipped (2026-07-19) — the aggregations
+
+Implemented: `DescribeSignature` on `AbstrOperAccTotUni` (total: one data argument,
+VOID-domain result — K15; the result class is the member's accumulator class, which may
+widen, carried by the tuples), `AbstrOperAccPartUni` (partitioned: both arguments share
+one domain — K1, mirrored from `e2->UnifyDomain(e1)` — and the result ranges over the
+PARTITIONING argument's VALUES unit — K5: one variable `P` in arg2's values role and the
+result's domain role), `AbstrOperAccTotBin` (**deliberately separate domain variables**:
+its `CreateResult` does not unify the argument domains, so no shared-domain claim would
+be honest), `AbstrOperAccPartBin` (shared `D` + `P` as PartUni), and the
+`PartCountOperator` template (pcount: `P[D] → R[P]`, count class fixed for the typed
+`pcount_uintN` groups and unconstrained for the dynamic form). Covers
+sum/mean/min/max/sd/var/count/first/last/modus/… and the typed `sum_*`/`pcount_*`
+variants through the same bases.
+
+**The classic catch is live** (`fn_test_opsigC_neg1`): declaring a partitioned sum's
+result over the DATA domain instead of the partition set errors at the definition's
+first reference — *"inconsistent instantiation of unit variable 'P': the unit bound
+argument 2 of operator 'sum' differs from the unit bound the declared type of
+'result'"* — exactly the §12 batch-table promise. Reduction-honest: the declared result
+DOMAIN discharges via `CheckResultItem`'s domain `UnifyDomain`.
+
+**Wildcard argument classes (two rounds).** The partitioned members register their
+partitioning argument with the WILDCARD `AbstrDataItem` class (any partition class
+serves) — a describe that `dynamic_cast`s and bails made every partitioned member
+silently undescribed (caught by the batch's own negative test failing on the wrong
+side). The adversarial review then found the same pattern once more: `modus_weighted`
+registers its WEIGHT vector as the wildcard too. Rule now applied uniformly: a wildcard
+argument class leaves its variable **member-unconstrained** (no `MemberValueClass`,
+composition Single) instead of suppressing the description — matching §18.3's wildcard
+observation. Only the RESULT class remains a hard requirement for describing.
 | **D** | fresh-unit family: `unique`, `select`/`subset`, `union` | K6 generative nodes | low / modest (ranked by description simplicity + printer value, not unification power) |
 | **E** | `discrete_alloc` partial + `connect` family | `ArgContainer`, `DeferredRelation`, K16 | low / **diagnostics + docs only**. By the §16 ruling these are **opaque at definition** (result ⊤) and checked at concrete instances; the description exists purely so the printer (§6.3) can state their contracts and a declared result type is what the def-time check trusts (§17) |
 | **F** | `impedance_matrix` / dijkstra | `DynamicShape` | low / **docs only**. Opaque at definition (K13 shape-from-value); a `DynamicShape` record only feeds the printer. Do last |

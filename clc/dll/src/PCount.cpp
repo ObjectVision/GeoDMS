@@ -32,6 +32,8 @@
 #include "ParallelTiles.h"
 #include "TreeItemClass.h"
 
+#include "DataItemClass.h"
+#include "OperSignature.h"
 #include "UnitCreators.h"
 
 #include "AggrFuncNum.h"
@@ -67,11 +69,27 @@ namespace {
 	public:
 		// Constructor: registers operator with operator group and argument/result types
 		PartCountOperator(AbstrOperGroup& og)
-			:	UnaryOperator(&og, 
-					ResultType::GetStaticClass(), 
+			:	UnaryOperator(&og,
+					ResultType::GetStaticClass(),
 					Arg1Type::GetStaticClass()
-				) 
+				)
 		{}
+
+		// mirrors CreateResult below: pcount(rel: P[D]) -> R[P] — the result
+		// ranges over the argument's VALUES unit (K5); the count class is either
+		// fixed (typed pcount_uintN groups) or chosen at runtime from the domain
+		// count (the dynamic cog_pcount form: R stays unconstrained)
+		bool DescribeSignature(AbstrSignatureBuilder& sb) const override
+		{
+			sig_var D = sb.UnitVar("D"), P = sb.UnitVar("P"), R = sb.UnitVar("R");
+			sb.MemberValueClass(P, Arg1Type::GetStaticClass()->GetValuesType());
+			if constexpr (!std::is_same_v<ResultCountType, Undefined>)
+				sb.MemberValueClass(R, DataArray<ResultCountType>::GetStaticClass()->GetValuesType());
+			sb.ArgName(0, "partitioning");
+			sb.ArgAttr(0, P, D, ValueComposition::Single);
+			sb.ResultAttr(R, P, ValueComposition::Single);
+			return true;
+		}
 
 		// Main calculation function: creates and fills the result data item
 		bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override

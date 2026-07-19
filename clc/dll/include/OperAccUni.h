@@ -11,6 +11,8 @@
 
 
 #include "UnitClass.h"
+#include "DataItemClass.h"
+#include "OperSignature.h"
 
 #include "AggrUniStruct.h"
 #include "AggrUniStructString.h"
@@ -34,6 +36,25 @@ struct AbstrOperAccTotUni: UnaryOperator
 		,   m_ValueMustBeDefined(valueMustBeDefined)
 	{
 		gr->SetCanExplainValue();
+	}
+
+	// mirrors CreateResultCaller below: a total aggregation takes one data
+	// argument and yields a VOID-domain result (K15); the result class is the
+	// member's accumulator class (may widen: sum(uint8) -> uint32), carried by
+	// the tuples — no cross-position identity is claimed
+	bool DescribeSignature(AbstrSignatureBuilder& sb) const override
+	{
+		auto argCls = dynamic_cast<const DataItemClass*>(GetArgClass(0));
+		auto resCls = dynamic_cast<const DataItemClass*>(GetResultClass());
+		if (!argCls || !resCls)
+			return false;
+		sig_var D = sb.UnitVar("D"), V = sb.UnitVar("V"), R = sb.UnitVar("R");
+		sb.MemberValueClass(V, argCls->GetValuesType());
+		sb.MemberValueClass(R, resCls->GetValuesType());
+		sb.ArgName(0, "values");
+		sb.ArgAttr(0, V, D, argCls->GetValuesType()->GetValueComposition());
+		sb.ResultAttr(R, sb.VoidDomain(), m_ValueComposition);
+		return true;
 	}
 
 	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, LispPtr) const override
@@ -131,6 +152,30 @@ struct AbstrOperAccPartUni: BinaryOperator
 		assert(gr);
 		gr->SetCanExplainValue();
 
+	}
+
+	// mirrors CreateResultCaller below: both arguments share one domain (K1,
+	// e2->UnifyDomain(e1)), and the result ranges over the PARTITIONING
+	// argument's VALUES unit (K5) — one variable P in arg2's values role and
+	// the result's domain role, so the classic error of declaring the result
+	// over the DATA domain instead of the partition set is caught at definition
+	bool DescribeSignature(AbstrSignatureBuilder& sb) const override
+	{
+		auto arg1Cls = dynamic_cast<const DataItemClass*>(GetArgClass(0));
+		auto resCls  = dynamic_cast<const DataItemClass*>(GetResultClass());
+		if (!arg1Cls || !resCls)
+			return false;
+		sig_var D = sb.UnitVar("D"), V = sb.UnitVar("V"), P = sb.UnitVar("P"), R = sb.UnitVar("R");
+		sb.MemberValueClass(V, arg1Cls->GetValuesType());
+		// the partitioning argument is registered with the WILDCARD AbstrDataItem
+		// class (any partition class serves): P stays member-unconstrained
+		if (auto arg2Cls = dynamic_cast<const DataItemClass*>(GetArgClass(1)))
+			sb.MemberValueClass(P, arg2Cls->GetValuesType());
+		sb.MemberValueClass(R, resCls->GetValuesType());
+		sb.ArgName(0, "values");       sb.ArgAttr(0, V, D, arg1Cls->GetValuesType()->GetValueComposition());
+		sb.ArgName(1, "partitioning"); sb.ArgAttr(1, P, D, ValueComposition::Single);
+		sb.ResultAttr(R, P, m_ValueComposition);
+		return true;
 	}
 
 	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, LispPtr) const override
