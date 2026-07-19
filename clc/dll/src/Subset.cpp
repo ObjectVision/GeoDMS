@@ -22,6 +22,8 @@
 #include "UnitClass.h"
 #include "UnitProcessor.h"
 
+#include "OperSignature.h"
+
 // *****************************************************************************
 //                         count_selected
 // *****************************************************************************
@@ -115,6 +117,29 @@ struct SubsetOperator: public UnaryOperator
 		: UnaryOperator(&cog, resDomainClass, DataArray<Bool>::GetStaticClass())
 		, m_ORCM(orcm)
 	{}
+
+	// K6: select(condition: attribute<bool>(D)) -> a FRESH subset unit U [new].
+	// The condition's Bool class is the checkable argument constraint (member
+	// elimination already rejects a non-bool concrete condition); the result is
+	// an existential unit whose value class is crd(D) — fixed for the typed
+	// select_uintN groups, unconstrained for the dynamic-result-class select.
+	// An org_rel / nr_OrgEntity sub-item (attribute<D>(U)) is a container member,
+	// deferred (K11)
+	bool DescribeSignature(AbstrSignatureBuilder& sb) const override
+	{
+		auto argCls = dynamic_cast<const DataItemClass*>(GetArgClass(0));
+		if (!argCls)
+			return false;
+		sig_var B = sb.UnitVar("B"), D = sb.UnitVar("D"), U = sb.GeneratedUnit("U");
+		sb.MemberValueClass(B, argCls->GetValuesType());
+		if (auto resCls = dynamic_cast<const UnitClass*>(GetResultClass()))
+			if (auto rvt = resCls->GetValueType())
+				sb.MemberValueClass(U, rvt);
+		sb.ArgName(0, "condition");
+		sb.ArgAttr(0, B, D, ValueComposition::Single);
+		sb.ResultUnit(U);
+		return true;
+	}
 
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
@@ -333,6 +358,30 @@ struct AbstrCollectByCondOperator : TernaryOperator
 	AbstrCollectByCondOperator(AbstrOperGroup& aog, ClassCPtr dataClass)
 		: TernaryOperator(&aog, dataClass, AbstrUnit::GetStaticClass(), DataArray<Bool>::GetStaticClass(), dataClass)
 	{}
+
+	// collect_by_cond(subset: S; condition: attribute<bool>(D); data: attribute<V>(D))
+	// -> attribute<V>(S). K1: the condition and data domains are unified
+	// (UnifyDomain below) — the single variable D catches a domain mismatch at
+	// the definition's first reference (the batch-D headline). The result ranges
+	// over the passed subset unit S (its arg0 identity) and borrows the data's
+	// value class V (values-only, so class-level per the batch-B identity rule).
+	// This was deferred from batch B (the fresh subset domain travels in arg0)
+	bool DescribeSignature(AbstrSignatureBuilder& sb) const override
+	{
+		auto condCls = dynamic_cast<const DataItemClass*>(GetArgClass(1));
+		auto dataCls = dynamic_cast<const DataItemClass*>(GetArgClass(2));
+		if (!condCls || !dataCls)
+			return false;
+		sig_var S = sb.UnitVar("S"), D = sb.UnitVar("D"), B = sb.UnitVar("B"), V = sb.UnitVar("V");
+		sb.MemberValueClass(B, condCls->GetValuesType());
+		sb.MemberValueClass(V, dataCls->GetValuesType());
+		auto vc = dataCls->GetValuesType()->GetValueComposition();
+		sb.ArgName(0, "subset");    sb.ArgUnit(0, S);
+		sb.ArgName(1, "condition"); sb.ArgAttr(1, B, D, ValueComposition::Single);
+		sb.ArgName(2, "data");      sb.ArgAttr(2, V, D, vc);
+		sb.ResultAttr(V, S, vc);
+		return true;
+	}
 
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{

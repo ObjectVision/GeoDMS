@@ -2798,6 +2798,15 @@ namespace {
 		SharedStr                    m_DeclSource;
 		UInt32                       m_NextInstance = 1; // 0 = the checked function's own (rigid) variables
 		std::map<const TreeItem*, DefType> m_ItemTypes;  // memoized body-item types
+		// batch D (§6.1): memoize operator-application results per (refScope,
+		// hash-consed application expr). LispRefs are interned, so two textually
+		// identical applications share one LispObj; keying on it makes repeated
+		// subexpressions denote ONE result node — a K6 SOUNDNESS prerequisite (two
+		// `unique(a)`/`select(c)` occurrences reduce to a single DataController, so
+		// their fresh existential units must be the same node), and a diagnostics
+		// de-duplicator for every repeated subexpression as a bonus. refScope is in
+		// the key because symbol resolution inside the application depends on it.
+		std::map<std::pair<const TreeItem*, const LispObj*>, DefType> m_ApplTypes;
 		std::vector<SharedTreeItem>  m_Keep;             // liveness of resolved callees
 
 		DefType InferBodyItem(const TreeItem* refItem);
@@ -3899,8 +3908,17 @@ namespace {
 
 		// built-in operator: the group's described signature records (batch A)
 		// type the application; groups without described members walk their
-		// arguments and defer the result
-		return InferOperatorApplication(og, headID, refScope, expr.Right());
+		// arguments and defer the result. Memoized per (refScope, interned expr)
+		// so repeated applications — crucially fresh-unit ones like unique(a) /
+		// select(c) — share ONE result node (batch D, §6.1). An error throws
+		// (never cached); a cache hit skips re-walking the (identical) arguments,
+		// whose own checks already ran on the first occurrence
+		auto memoKey = std::make_pair(refScope, expr.get());
+		if (auto it = m_ApplTypes.find(memoKey); it != m_ApplTypes.end())
+			return it->second;
+		DefType applResult = InferOperatorApplication(og, headID, refScope, expr.Right());
+		m_ApplTypes.emplace(memoKey, applResult);
+		return applResult;
 	}
 
 	DefType FunctionChecker::InferBodyItem(const TreeItem* refItem)

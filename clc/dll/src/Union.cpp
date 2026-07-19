@@ -27,6 +27,8 @@
 #include "Unit.h"
 #include "UnitClass.h"
 
+#include "OperSignature.h"
+
 #include "OperRelUni.h"
 #include "lookup.h"
 #include "UnitProcessor.h"
@@ -60,6 +62,34 @@ public:
 		: UnaryOperator(&cog_union, resCls, arg1Cls)
 		,	m_VC(arg1Cls->GetValuesType()->GetValueComposition())
 	{}
+
+	// K6: union(a: attribute<V>(D0); b: …; …) -> a FRESH unit U [new] whose
+	// UnionData sub-item borrows V. Only the existential result and its value
+	// class (Unit<UInt32> == uint32, produced UNCONDITIONALLY at metainfo) are
+	// stated. The arguments must share ONE value class END-TO-END (const_array_cast<V>
+	// in UnionCopy at CALC time), but that is NOT claimed here: adversarial review
+	// (2026-07-19) showed CreateResult's *metainfo* cross-arg check is skipped when
+	// arg0 carries the DEFAULT values unit — `if (arg1_ValuesUnit->IsDefaultUnit())
+	// arg1_ValuesUnit = currArg_ValuesUnit;` adopts the next arg's unit of ANY class
+	// without UnifyValues — so a hard shared-values-var claim would reject a
+	// definition whose metainfo succeeds (the batch-U default-unit S1 mirror).
+	// The arguments therefore stay class-independent (deferred); only arg0's own
+	// class is recorded, for the printer and member selection
+	bool DescribeSignature(AbstrSignatureBuilder& sb) const override
+	{
+		auto argCls = dynamic_cast<const DataItemClass*>(GetArgClass(0));
+		if (!argCls)
+			return false;
+		sig_var V = sb.UnitVar("V"), U = sb.GeneratedUnit("U");
+		sb.MemberValueClass(V, argCls->GetValuesType()); // V is arg0-only: no cross-arg link
+		if (auto resCls = dynamic_cast<const UnitClass*>(GetResultClass()))
+			if (auto rvt = resCls->GetValueType())
+				sb.MemberValueClass(U, rvt);
+		sb.ArgName(0, "first");
+		sb.ArgAttr(0, V, no_sig_var, m_VC);       // domain unconstrained; subsequent args deferred
+		sb.ResultUnit(U);
+		return true;
+	}
 
 	// Override Operator
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
@@ -209,6 +239,22 @@ public:
    UnionUnitOperator(AbstrOperGroup& cog)
 	   : UnaryOperator(&cog, ResultType::GetStaticClass(), ArgType::GetStaticClass())
 	{}
+
+	// K6: union_unit(a: unit; b: unit; ...) -> a FRESH unit U [new] of the
+	// group's fixed class (uint32 / uint8 / ...). The arguments are units to
+	// concatenate with no cross-constraint; only the existential result and its
+	// value class are stated (printer + a typed unit result at definition)
+	bool DescribeSignature(AbstrSignatureBuilder& sb) const override
+	{
+		sig_var S = sb.UnitVar("S"), U = sb.GeneratedUnit("U");
+		if (auto resCls = dynamic_cast<const UnitClass*>(GetResultClass()))
+			if (auto rvt = resCls->GetValueType())
+				sb.MemberValueClass(U, rvt);
+		sb.ArgName(0, "first");
+		sb.ArgUnit(0, S);
+		sb.ResultUnit(U);
+		return true;
+	}
 
    // Override Operator
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override

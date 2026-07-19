@@ -804,8 +804,14 @@ appears in arg 2's *values* role and the result's *domain* role (needs §8); `R`
 
 **`unique` (K6)** — mirrors `Unique.cpp:345-352`:
 `unique(values: attribute<V>(D)) -> unit<crd(D)> U [new] { Values: attribute<V>(U) }`;
-v1 records `GeneratedUnit("U")` and `ResultDeferred` for the container-shaped result (the
-`crd(D)` class relation, `Unique.cpp:341-343`, is a printable annotation in v1).
+as shipped (batch D) records `GeneratedUnit("U")` and — refining the earlier "ResultDeferred"
+sketch — `ResultUnit(U)`, so the application denotes a *typed unit* (the expression `unique(a)`
+IS the fresh unit, which the walker can bind to a declared `unit<…>`): the walker's `posType`
+Unit branch gives it a fresh **flexible** node with no extra applier code. The `Values` sub-item
+(`attribute<V>(U)`) is a container member, accessed as `unique(a)/Values` — a subitem reference
+the walker already declines inside bodies — so it stays deferred (K11). `U`'s value class is
+`crd(D)`: bound only for the typed `unique_uintN` groups (`m_ResDomainClass` fixed),
+member-unconstrained for the dynamic-result-class `unique`.
 
 **`discrete_alloc` (partial)** — mirrors `DiscrAlloc.cpp:1514` ff.: `typeNames:
 ArgMetaValue(string, "names the allocation types")`, `allocUnit: ArgUnit(A)`,
@@ -975,7 +981,97 @@ registers its WEIGHT vector as the wildcard too. Rule now applied uniformly: a w
 argument class leaves its variable **member-unconstrained** (no `MemberValueClass`,
 composition Single) instead of suppressing the description — matching §18.3's wildcard
 observation. Only the RESULT class remains a hard requirement for describing.
-| **D** | fresh-unit family: `unique`, `select`/`subset`, `union` | K6 generative nodes | low / modest (ranked by description simplicity + printer value, not unification power) |
+
+### 12.4 Batch D as shipped (2026-07-19) — the fresh-unit family
+
+Implemented: `DescribeSignature` on `AbstrUniqueOperator` (`Unique.cpp`), `SubsetOperator`
+(`Subset.cpp`: `select`/`select_with_org_rel`/the obsolete `subset`),
+`AbstrCollectByCondOperator` (`Subset.cpp`: `collect_by_cond`, deferred from batch B),
+`AbstrUnionOperator` and `UnionUnitOperator` (`Union.cpp`) — plus the **LispPtr application-result
+memoization** in the walker (`FunctionChecker::m_ApplTypes`, `AbstrCalculator.cpp`).
+
+1. **K6 needed NO new applier code.** A `GeneratedUnit("U")` var appears only in a `ResultUnit(U)`
+   result; the walker's existing `posType` Unit branch already produces a `DefType::Kind::UnitVal`
+   whose identity is `DN(U)` — a fresh node created by `UnitVar(nullptr, inst, …)`, i.e.
+   **flexible** (never rigid: signature nodes are always non-rigid, §6.1). Since a generated var
+   is referenced by no argument position, that node is genuinely fresh, and the pre-unification
+   `LinkValue` loop and post-narrowing propagation only touch *value* (class) nodes, so the unit
+   identity stays isolated. The doc's §6.1 K6 story therefore realizes as "give the result var a
+   `GeneratedUnit` and let the existing Unit-result path mint the fresh flexible node" — no
+   `generative`/`genOrigin` fields were needed for this batch (§8 deferred them; they remain the
+   optional later tightening, open question §15.3).
+
+2. **LispPtr memoization** (`m_ApplTypes`, keyed by `(refScope, expr.get())`). LispRefs are
+   interned, so two textually identical applications share one `LispObj`; the key makes both
+   occurrences denote **one** result node. This is the K6 soundness prerequisite (two `unique(a)`
+   reduce to one DataController, so their fresh units must be one node), and it de-duplicates
+   diagnostics for every repeated subexpression. It is sound in both directions: an error throws
+   (never cached); a cache hit skips re-walking the *identical* arguments, whose own checks already
+   ran on the first occurrence; and sharing one result node across two occurrences only *adds*
+   constraints that reduction (which passes the single DC's result to both contexts) must satisfy
+   anyway — so it can catch a real error earlier but never invent a false one (S1). `FunctionChecker`
+   is one-per-`CheckFunctionDefinition`, so the cached node indices never outlive their unifier.
+
+3. **The headline catch is `collect_by_cond`** (`fn_test_opsigD_neg1`): its `CreateResult` runs
+   `condA->GetAbstrDomainUnit()->UnifyDomain(dataA->GetAbstrDomainUnit(), UM_Throw)` (K1), so the
+   description threads the condition and data domains through ONE variable `D`. Declaring the
+   condition over `D1` and the data over `D2` — independent domain generics — errors at the
+   definition's first reference: *"the body requires unit variables 'D2' and 'D1' to be equal
+   (operator 'collect_by_cond'), but they are independent in the definition"*. The result ranges
+   over the passed subset unit `S` (arg0's identity) and borrows the data's value class `V`
+   (values-only ⇒ class-level, per the batch-B identity rule — honest, since the cache result's
+   values unit is later checked by `UnifyValues`).
+
+4. **`union` claims only its fresh result unit — the cross-argument class check is DEFERRED**
+   (adversarial-review correction, 2026-07-19). Every argument must share one value class
+   *end-to-end* (`const_array_cast<V>` in `UnionCopy` at **calc** time), and the first draft
+   threaded all arguments through one values variable `V` (arg0 + a `RepeatArgs` tail) to catch a
+   mismatch at definition. The review confirmed this is an **S1 false-error under the metainfo
+   honesty bar** (the batch-U default-unit mirror): `AbstrUnionOperator::CreateResult`'s only
+   metainfo cross-arg check —
+   `currArg_ValuesUnit->UnifyValues(arg1_ValuesUnit, UM_Throw | UM_AllowDefault)` — is **skipped
+   entirely** when the running reference unit is a DEFAULT unit (`if
+   (arg1_ValuesUnit->IsDefaultUnit()) arg1_ValuesUnit = currArg_ValuesUnit;` adopts the next arg's
+   unit of any class without a check), and a bare `attribute<V>` argument carries the default
+   values unit — so `union(default-float32, float64)`'s metainfo succeeds while the hard `V`-share
+   would reject the definition. (One verifier held the config is "genuinely ill-typed" since no
+   *computable* mismatched-class union exists — the cast crashes at calc — but a metadata-only use
+   succeeds at metainfo, so the conservative, batch-U-consistent choice is to defer.) As shipped,
+   `union` shares no values variable across arguments: it records arg0's own class (printer +
+   member selection) and the fresh **`Unit<UInt32>`** result (`class uint32`, produced
+   unconditionally). The result-class claim IS honest — `unit<uint16> u := union(…)` still errors,
+   since union's metainfo result is `Unit<UInt32>` and the declared `uint16` domain conflicts.
+
+5. **Result-class binding is guarded** exactly as batch C: `MemberValueClass(U, …)` is emitted only
+   when the group fixes a concrete result unit class — `dynamic_cast<const UnitClass*>(GetResultClass())`
+   / `m_ResDomainClass` non-null (the typed `select_uintN`/`unique_uintN`/`union_unit_uintN`
+   groups) — and left member-unconstrained for the dynamic-result-class `select`/`unique`. `select`'s
+   Bool condition and `union_unit`'s unit arguments are described; the wildcard `AbstrUnit` positions
+   (`collect_by_cond` arg0, `union_unit` arg0) use `ArgUnit` and take no class constraint (the batch-C
+   wildcard rule).
+
+Tests: `fn_test_opsigD{,_neg1,_neg2}.dms` — `neg1` is the `collect_by_cond` K1 domain-mismatch
+catch, `neg2` a non-Bool `select` condition (the described `SubsetOperator` member is eliminated at
+definition; honest at metainfo too — `FindOper(cog_select, [uint32])` finds no member and throws).
+Validation: 92/92 battery, tst Operator `/Rescale` + `/Arithmetics` (prelude functions exercise the
+walker + memoization), `examples/function.dms`, both flavors rebuilt, Debug sweep clean (the
+negatives error cleanly at definition — exit 1, not the reduce-side teardown artifact). The tst
+Operator config has **no** `function` items, so its reduction (incl. the pre-existing `/Relational`
+`union_data`/`combine_data` failures) is provably untouched — the describes are consumed only
+during function-body checking.
+
+**Adversarial review (2026-07-19, workflow `wf_17dbf3b1`, 3 dimensions + verify).** One S1 finding
+CONFIRMED and fixed pre-landing: union's cross-argument class-equality (point 4 above). Two findings
+REFUTED on verification: (a) a claim that the LispPtr memo keys dangle — refuted because
+`RewriteExpr`→`ApplyTopEnv` unconditionally interns every walked tree into the process-global,
+never-evicted `g_applyTopEnvCache` (strong `LispRef`s), which transitively pins the whole subtree
+for the run, so the `const LispObj*` keys stay live and stable (and cross-body-item identical
+subexpressions correctly share one node — the memo is *positively* sound for K6); (b) a claim that
+the memo hides errors — refuted because a memo hit can only *suppress* checking (errors throw and
+are never cached), which moves the checker toward fewer errors, the opposite of an S1 violation, and
+a suppressed diagnostic still fails at reduction (a sound deferral).
+
+| **D** ✅ | fresh-unit family: `unique`, `select`/`subset`, `union` + `collect_by_cond` (deferred from B) | K6 generative nodes + LispPtr memoization | SHIPPED 2026-07-19 — §12.4 |
 | **E** | `discrete_alloc` partial + `connect` family | `ArgContainer`, `DeferredRelation`, K16 | low / **diagnostics + docs only**. By the §16 ruling these are **opaque at definition** (result ⊤) and checked at concrete instances; the description exists purely so the printer (§6.3) can state their contracts and a declared result type is what the def-time check trusts (§17) |
 | **F** | `impedance_matrix` / dijkstra | `DynamicShape` | low / **docs only**. Opaque at definition (K13 shape-from-value); a `DynamicShape` record only feeds the printer. Do last |
 

@@ -23,6 +23,8 @@
 #include "UnitClass.h"
 #include "UnitProcessor.h"
 
+#include "OperSignature.h"
+
 #include "rlookup.h"
 
 template <typename V> const UInt32 BUFFER_SIZE = 4096 / sizeof(V);
@@ -326,6 +328,29 @@ public:
 		, m_ResDomainClass(resDomainCls)
 		, m_MustBeDefined(mustBeDefined)
 	{}
+
+	// K6: unique(values: attribute<V>(D)) -> a FRESH unit U [new]. The unit's
+	// own identity is existential (GeneratedUnit -> a fresh flexible node per
+	// application, deduplicated across repeated occurrences by the walker's
+	// LispPtr memo); its value class is crd(D), knowable at definition only for
+	// the typed unique_uintN groups (m_ResDomainClass fixed), unconstrained for
+	// the dynamic-result-class cog_unique. The Values sub-item (attribute<V>(U))
+	// is a container member — accessed as unique(x)/Values, deferred (K11)
+	bool DescribeSignature(AbstrSignatureBuilder& sb) const override
+	{
+		auto argCls = dynamic_cast<const DataItemClass*>(GetArgClass(0));
+		if (!argCls)
+			return false;
+		sig_var V = sb.UnitVar("V"), D = sb.UnitVar("D"), U = sb.GeneratedUnit("U");
+		sb.MemberValueClass(V, argCls->GetValuesType());
+		if (m_ResDomainClass)
+			if (auto rvt = m_ResDomainClass->GetValueType())
+				sb.MemberValueClass(U, rvt);
+		sb.ArgName(0, "values");
+		sb.ArgAttr(0, V, D, argCls->GetValuesType()->GetValueComposition());
+		sb.ResultUnit(U);
+		return true;
+	}
 
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
