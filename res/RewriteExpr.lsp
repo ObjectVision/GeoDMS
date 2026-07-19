@@ -22,7 +22,10 @@
 /*********** Const function    *********/
 
 [(Value _P _VU)                  (convert _P _VU)]
-[(const _P _E _VU)               (const (Value _P _VU) _E)]
+/* the 3-arg const completion is RETIRED to a prelude function (arity-aware head
+   dispatch: the registered const operator is binary): three(p,e,vu) =
+   const(Value(p,vu), e) -- the Value rule above fires at body parse, so the stored
+   body equals this rule's fixpoint. */
 
 /*********** selection Functions *********/
 
@@ -153,7 +156,9 @@
 
 /*********** Default arguments *********/
 
-[(ReadValue _STRING _ValuesUnit _ReadPos) (ReadArray _STRING Void _ValuesUnit _ReadPos)]
+/* ReadValue is RETIRED to a prelude function (a pure rule head: no registered
+   operator): ReadValue(s, vu, pos) = ReadArray(s, Void, vu, pos) -- the exact
+   resolvent, the Void symbol passing through as the value-type reference. */
 
 /*********** Rescale functions *********/
 

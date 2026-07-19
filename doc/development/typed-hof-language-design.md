@@ -1541,18 +1541,27 @@ exposed by `reversed_id`). Still in the .lsp, with reasons: `order`/`isOverlappi
 `median`-on-interval (destructuring patterns — and now also load-bearing for the
 tranche-3 bodies), 3-arg `median` and 2-arg `log` (their heads shadow retained
 rules/operators — need arity-aware head dispatch or optional args), `concat`/
-`switch` (case-destructuring — pattern parameters), accessors
-(`Value`/`const`/`collect_by_*` — E), bool/pseudo-aggregation simplifications (D —
-stay by design as the future compiled-in pass), the `min_elem`/`max_elem`(`_fast`)
-unary collapses (allow_extra_args groups — dispatch cannot fire), `rjoin` (self-join
-collapse rule, below), `ReadValue` (optional args), `claim_*` (RuimteScanner model
-logic — coordination). Retired meanwhile: the six property accessors via
+**The .lsp end-state (Maarten's ruling, 2026-07-18): the rewrite file legitimately
+KEEPS simplifying rewrites (boolean shortcuts, the pseudo-aggregations over `id(x)`
+as partitioning, symbolic-constant removals, the MakeDefined collapse, the pow
+integer fast paths) and pseudo-functions (`switch`/`case`, `interval` with its
+`order`/`isOverlapping`/`median` destructurers).** Also staying, each with a
+structural reason: the `collect_by_cond`/`select` injections (they destructure the
+select argument; the eventual replacement is overload resolution on the select
+result type — an operator-signature matter), `Value→convert` (a coercion alias the
+retained-rule technique itself leans on), the `min_elem`/`max_elem`(`_fast`) unary
+collapses (allow_extra_args groups — dispatch cannot fire), the NlLater
+`BaseUnit`/`convert` fixups (data compat), and `rjoin` (self-join collapse rule,
+below). `claim_divF32`/`claim_corrF32` are RuimteScanner model logic whose resolvent
+bakes in the absolute path `/Classifications/OperatorType` — a prelude function
+cannot reference it (strict scope); the right home is a user `function` in the
+RuimteScanner configuration itself (needs coordination with that model's owners). Retired meanwhile: the six property accessors via
 meta-reference parameters (§5.13, 2026-07-17); `concat`/`replace_value`/
 `combine_data` via rest parameters (§5.14, 2026-07-18); `MakeDefined` (all arities;
-the structural collapse rule stays as a composing normalizer) and 3-arg `median`
-(pure rule heads); the `add`/`mul`/`or`/`and` collapses+folds, 2-arg `log` and
-5+-arg `replace` via arity-aware head dispatch (§5.15, 2026-07-18). The `union`
-fold rule was REMOVED by
+the structural collapse rule stays as a composing normalizer), 3-arg `median` and
+`ReadValue` (pure rule heads); the `add`/`mul`/`or`/`and` collapses+folds, 2-arg
+`log`, 5+-arg `replace` and 3-arg `const` via arity-aware head dispatch (§5.15,
+2026-07-18). The `union` fold rule was REMOVED by
 ruling (the variadic operator is authoritative; multi-arg `union` now keys flat) and
 the dead multi-arg `index`/`subindex` rules were deleted.
 

@@ -123,6 +123,14 @@ function log { variant two(container x; container b) -> container := log(x) / lo
 // 5+-arg replace: pairwise (v,w) left fold; the ternary replace OPERATOR is the base case
 function replace { variant more(container x; container v; container w; ...rest) -> container := replace(replace(x, v, w), rest); }
 
+// ---------------------------------------------------- argument-completion aliases
+// 3-arg const(v, domain, valuesUnit) completes into the binary const operator
+// (arity-aware dispatch; the retained Value->convert rule fires at body parse)
+function const { variant three(container p; container e; container vu) -> container := const(Value(p, vu), e); }
+
+// ReadValue = ReadArray with the void domain (a single value at the read position)
+function ReadValue(container s; container vu; container pos) -> container := ReadArray(s, Void, vu, pos);
+
 // ---------------------------------------------------------------- logit
 
 function llpart<F: floats>(attribute<F> lc; attribute<F> xc; attribute<F> oc)
