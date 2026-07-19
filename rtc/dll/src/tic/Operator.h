@@ -95,6 +95,12 @@ public:
 	TIC_CALL virtual oper_arg_policy GetArgPolicy(arg_index argNr, CharPtr firstArgValue) const;
 	TIC_CALL oper_policy GetOperPolicy() const { return GetGroup()->m_Policy; }
 
+	// Describe this operator's unit constraints declaratively (OperSignature.h).
+	// Returns false (the default) when undescribed: every consumer then defers.
+	// Family bases override this ONCE for all their instantiations; the description
+	// must mirror the member's CreateResult (the §9 drift defenses guard the pair).
+	TIC_CALL virtual bool DescribeSignature(struct AbstrSignatureBuilder& sb) const;
+
 	inline bool HasRegisteredResultClass() const { return !(GetOperPolicy() & oper_policy::dynamic_result_class); }
 	inline bool CalcRequiresMetaInfo()     const { return GetOperPolicy() & oper_policy::calc_requires_metainfo; }
 	inline bool CanRunParallel()           const { return !(GetGroup()->HasExternalEffects() ||  CalcRequiresMetaInfo()); }

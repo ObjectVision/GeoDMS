@@ -1,7 +1,11 @@
 # Operator unit-constraint signatures via a virtual interface
 
-**Status: DESIGN — the description layer is not yet implemented (the one shipped piece
-is the §8/S11 `UM_AllowRightExpansion` prerequisite, 2026-07-17). Companion to
+**Status: batches 0 + A SHIPPED (2026-07-19) — `OperSignature.h/.cpp` infrastructure,
+the `DescribeSignature` vtable slot, the group signature cache, the clc attribute-family
+descriptions, and the walker's record applier are implemented; the interim `OperSigKind`
+registry is retired. See §12.1 for the as-shipped decisions, which refine §5.5/§6
+(member-class TUPLES, soft support sets, no trial harness in v1). The §8/S11
+`UM_AllowRightExpansion` prerequisite shipped 2026-07-17. Companion to
 `typed-hof-language-design.md` (WP4.1 "operator signature reification"), which this
 document supersedes for everything beyond its interim batch 1. Read §1.1 and Part II
 (§16–§20) first — the 2026-07-16 staging ruling governs how §2–§15 are read.**
@@ -793,6 +797,65 @@ demonstration that the same config already fails at reduction on `main`.
 | **U** | the UnitNode tranche (§8), landed **dark** | — | med / enabling. `fn_test_unitnode.dms` exercising unit-parameters in values positions through *function* signatures (no operators needed) |
 | **B** | relational: `lookup`, `rlookup`, `index`, `invert`, `collect_by_cond` | `valuesIdentity`, cross-role units, result values identity | med / **very high** — the headline payoff: join-key errors caught at definition. Specific risk: **borrowing** (lookup runs `UM_AllowDefaultLeft`), so ship an explicit regression config with a default-metric values unit against a named domain |
 | **C** | aggregations (`AbstrOperAccTotUni`, `AbstrOperAccPartUni` + Num/Str variants) | K5, K15, accumulator sets | med / high. Negative test: declaring the result over the *data* domain instead of the partition set — a classic user error, now caught at definition |
+
+### 12.1 Batches 0 + A as shipped (2026-07-19) — deviations and refinements
+
+Implemented: `rtc/dll/src/tic/OperSignature.h/.cpp` (builder interface, `SignatureRecord`,
+`SignatureRecorder`, shape-equality merge, `OperGroupSignatures` cache on
+`AbstrOperGroup::GetSignatures()` with `Register` invalidation, printer
+`RenderMergedSignature`), the `Operator::DescribeSignature` vtable slot (default
+`return false`), family descriptions on `AbstrUnaryAttrOperator`, `AbstrBinaryAttrOper`,
+`AbstrTernaryAttrOper`, `AbstrCastedUnaryAttrOperator` (convert/value) **plus**
+`ArgMinMaxOper` (the `min_elem`/`max_elem`/`argmin*` allow-extra-args family, via
+`RepeatArgs` — added to batch A to keep the retired registry's `min_elem` coverage), and
+the walker's `InferOperatorApplication`/`ApplyOperRecord` replacing
+`FindOperatorSignature`/`InferOperator`. Decisions that refine the design above:
+
+1. **Member class TUPLES supersede the §5.5 union-only merge.** A merged record keeps
+   each congruent member's per-variable class vector. Cross-position co-variance is then
+   *derived*: variable pairs on which **all** tuples agree are **linked hard** (exactly
+   the old shared-node semantics — `mul(x:V, y:W)` with independent rigids still errors
+   rigid-rigid), and variables all tuples pin to one class are **bound** — but never onto
+   a rigid ∀-variable. After argument unification the tuple set is narrowed by the bound
+   classes (empty ⇒ definition-time error: reduction's `FindOper` is bound to fail) and
+   agreement is re-derived on the remainder. This removes the need for any per-kind
+   emission at the class level: the family overrides publish only structure (shared
+   domain, positions) plus `MemberValueClass` per position — nothing hand-written.
+2. **Derived support sets are SOFT (new rule, S1-driven).** A `ConstraintRec` gained a
+   `soft` flag: support sets error when a **concrete** class binds outside them, but they
+   neither narrow a rigid variable's `feasible` set nor fire the rigid ∀-subset check.
+   Driving counter-example: the prelude's `<T: any>` null-aware predicates apply `eq`
+   (registered over `fields`) and `lt` (over `scalars`) to variables whose constraint
+   'any' spans **all** value classes — a hard derived set would reject the prelude
+   itself. The old batch-1 registry avoided this only by *under-claiming* (Compare
+   carried no constraint). Consequence: the batch-1 `sqrt: floats` ∀-error is retired —
+   it was also factually **wrong**: sqrt is registered over `num_objects`, not floats
+   (the hand-written table over-claimed; the derived set cannot). `fn_test_opsig_neg1`
+   is rewritten to a concrete violation (`sin` on a string attribute).
+3. **Candidate selection = registered-class elimination, described or not.** Witnesses
+   per argument: a concrete class, a node's binding, or the node's (hard) feasible set —
+   each an over-approximation of what any successful reduction can present, so
+   elimination is sound. §18.4's `DefType::vcomp` (`ValueComposition`) shipped with this
+   batch: a Single-composition argument eliminates sequence-registered members (iif over
+   `value_elements` would otherwise always stay mixed). The **no-overload error** fires
+   only when the elimination rested exclusively on concrete witnesses; feasible-driven
+   elimination defers (the soft-support principle again). Multi-record survivors,
+   undescribed survivors, arity mismatches, and non-caching groups all defer.
+4. **`unit_creator_spec` did NOT ship** — deliberately deferred to batch U. At the class
+   level the registrations + tuples carry everything batch A needs, and unit-level
+   claims (Mul2 vs CompatibleValues vs Default) only become consumable when the UnitNode
+   pool exists. The family overrides therefore use distinct per-position variables and
+   never claim unit identity (mul's result var is not its argument var).
+5. **No trial harness in v1** (§6.2's copy-trial-adopt): ambiguity defers instead of
+   speculating. **No LispPtr memoization yet**: it exists for K6 generative nodes, and
+   no shipped description emits `GeneratedUnit` — lands with batch D.
+
+Net coverage: every group with members from the four families + `ArgMinMaxOper` is now
+described — arithmetic, compare, logical, trig/float functions, rounding, predicates
+(IsNull/IsDefined/isZero/...), string ops, `iif`, `mod`, `pow`, `dist`, bit-ops,
+`convert`/`value`, `min_elem`/`argmin` families — and typed at definition wherever the
+surviving membership is unambiguous, with `and`/`or`/`not` no longer falsely pinned to
+bool (they are registered over all-ints) and div/iif checked for the first time.
 | **D** | fresh-unit family: `unique`, `select`/`subset`, `union` | K6 generative nodes | low / modest (ranked by description simplicity + printer value, not unification power) |
 | **E** | `discrete_alloc` partial + `connect` family | `ArgContainer`, `DeferredRelation`, K16 | low / **diagnostics + docs only**. By the §16 ruling these are **opaque at definition** (result ⊤) and checked at concrete instances; the description exists purely so the printer (§6.3) can state their contracts and a declared result type is what the def-time check trusts (§17) |
 | **F** | `impedance_matrix` / dijkstra | `DynamicShape` | low / **docs only**. Opaque at definition (K13 shape-from-value); a `DynamicShape` record only feeds the printer. Do last |

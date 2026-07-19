@@ -11,6 +11,7 @@
 
 #include "AbstrUnit.h"
 #include "DataItemClass.h"
+#include "OperSignature.h"
 #include "ParallelTiles.h"
 #include "TileFunctorImpl.h"
 #include "UnitCreators.h"
@@ -109,6 +110,29 @@ struct AbstrTernaryAttrOper : TernaryOperator
 	}
 	virtual auto CreateFutureTileFunctor(std::shared_ptr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A, const AbstrDataItem* arg3A, ArgFlags af MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr)) const -> SharedPtr<const AbstrDataObject> =0;
 	virtual void Calculate(AbstrDataObject* borrowedDataHandle,	const AbstrDataItem* arg1A,	const AbstrDataItem* arg2A,	const AbstrDataItem* arg3A,	ArgFlags af, tile_id t) const =0;
+
+	// mirrors CreateResult above: all three data arguments share one domain (void
+	// broadcasts); the result ranges over it; per-position class vars, with the
+	// cross-position relation (e.g. iif's V2==V3==R, V1==bool) in the member tuples
+	bool DescribeSignature(AbstrSignatureBuilder& sb) const override
+	{
+		auto arg1Cls = dynamic_cast<const DataItemClass*>(GetArgClass(0));
+		auto arg2Cls = dynamic_cast<const DataItemClass*>(GetArgClass(1));
+		auto arg3Cls = dynamic_cast<const DataItemClass*>(GetArgClass(2));
+		auto resCls  = dynamic_cast<const DataItemClass*>(GetResultClass());
+		if (!arg1Cls || !arg2Cls || !arg3Cls || !resCls)
+			return false;
+		sig_var D = sb.UnitVar("D"), V1 = sb.UnitVar("V1"), V2 = sb.UnitVar("V2"), V3 = sb.UnitVar("V3"), R = sb.UnitVar("R");
+		sb.MemberValueClass(V1, arg1Cls->GetValuesType());
+		sb.MemberValueClass(V2, arg2Cls->GetValuesType());
+		sb.MemberValueClass(V3, arg3Cls->GetValuesType());
+		sb.MemberValueClass(R, resCls->GetValuesType());
+		sb.ArgAttr(0, V1, D, m_ValueComposition);
+		sb.ArgAttr(1, V2, D, m_ValueComposition);
+		sb.ArgAttr(2, V3, D, m_ValueComposition);
+		sb.ResultAttr(R, D, m_ValueComposition);
+		return true;
+	}
 
 private:
 	UnitCreatorPtr   m_UnitCreatorPtr;

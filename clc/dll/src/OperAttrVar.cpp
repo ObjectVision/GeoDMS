@@ -15,7 +15,9 @@
 #include "UnitClass.h"
 
 #include "AttrBinStruct.h"
+#include "DataItemClass.h"
 #include "Operator.h"
+#include "OperSignature.h"
 #include "OperUnit.h"
 #include "UnitCreators.h"
 
@@ -94,6 +96,20 @@ struct ArgMinMaxOper : UnaryOperator
 	ArgMinMaxOper(AbstrOperGroup& gr)
 		: UnaryOperator(&gr, DataArray<ResValue>::GetStaticClass(), DataArray<ArgValue>::GetStaticClass())
 	{}
+
+	// mirrors CreateResult below: any number of attributes over one shared domain
+	// (void broadcasts) with one shared values class; min_elem/max_elem return that
+	// class, the argmin family returns its index class (per-member tuples carry it)
+	bool DescribeSignature(AbstrSignatureBuilder& sb) const override
+	{
+		sig_var D = sb.UnitVar("D"), V = sb.UnitVar("V"), R = sb.UnitVar("R");
+		sb.MemberValueClass(V, DataArray<ArgValue>::GetStaticClass()->GetValuesType());
+		sb.MemberValueClass(R, DataArray<ResValue>::GetStaticClass()->GetValuesType());
+		sb.ArgAttr(0, V, D, ValueComposition::Single);
+		sb.RepeatArgs(1, V, D, ValueComposition::Single);
+		sb.ResultAttr(R, D, ValueComposition::Single);
+		return true;
+	}
 
 	// Override Operator
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override

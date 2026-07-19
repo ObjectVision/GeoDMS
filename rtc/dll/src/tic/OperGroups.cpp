@@ -10,6 +10,7 @@
 
 #include "OperGroups.h"
 #include "Operator.h"
+#include "OperSignature.h" // complete OperGroupSignatures for ~AbstrOperGroup's unique_ptr member
 
 #include "act/TriggerOperator.h"
 #include "dbg/DebugCast.h"
@@ -216,6 +217,7 @@ void AbstrOperGroup::Register(Operator* member)
 	member->m_NextGroupMember = m_FirstMember;
 	m_FirstMember = member;
 	m_ArityEnvelopeValid = false; // members may register late (other DLLs, e.g. geo into clc groups)
+	m_SignaturesValid = false;    // idem: the signature merge must see the new member
 }
 
 bool AbstrOperGroup::GetArityEnvelope(arg_index& minRequired, arg_index& maxSpecified) const

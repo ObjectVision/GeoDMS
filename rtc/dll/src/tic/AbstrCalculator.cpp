@@ -40,6 +40,8 @@
 #include "ExprRewrite.h"
 #include "LispRef.h"
 #include "OperGroups.h"
+#include "Operator.h"
+#include "OperSignature.h"
 #include "SessionData.h"
 #include "SupplCache.h"
 #include "UnitClass.h"
@@ -1475,7 +1477,14 @@ namespace {
 		const TreeItem* m_ApplItem = nullptr; // the applied/checked function, for error attribution
 		CharPtr m_Phase = "";                 // "" at application; "the definition of " at definition time
 
-		struct ConstraintRec { TokenID name, constraint; SharedStr source; ValueClassSet set; };
+		// soft: an operator-support set (derived from the group's registered members,
+		// OperSignature.h). A concrete class outside the set is a definition-time
+		// error (reduction would find no member), but soft sets never narrow or
+		// reject a rigid ∀-variable and stay out of `feasible`: operator support is
+		// not a declared promise — an unsupported instantiation fails at its own
+		// reduction (S1), and the prelude's <T: any> null-aware predicates over
+		// eq/lt depend on passing through them symbolically.
+		struct ConstraintRec { TokenID name, constraint; SharedStr source; ValueClassSet set; bool soft = false; SharedStr setText; };
 		struct ValueNode
 		{
 			SizeT parent; // union-find: parent == own index at a root
@@ -1542,16 +1551,46 @@ namespace {
 
 		void CheckFeasible(const ValueNode& n, const ValueClass* vt, const SharedStr& source)
 		{
-			if (n.feasible.test(UInt32(vt->GetValueClassID())))
-				return;
+			bool hardOk = n.feasible.test(UInt32(vt->GetValueClassID()));
 			for (const auto& rec : n.constraints)
 				if (!rec.set.test(UInt32(vt->GetValueClassID())))
-					throwErrorF("ExprParser", "{}: {} ({}) does not satisfy '{}: {}' ({})"
+				{
+					if (rec.soft)
+						throwErrorF("ExprParser", "{}: {} ({}) is not among the value types supported by {} ({})"
+							, FullName().c_str()
+							, vt->GetName().c_str(), source.c_str()
+							, rec.source.c_str(), rec.setText.c_str());
+					if (!hardOk)
+						throwErrorF("ExprParser", "{}: {} ({}) does not satisfy '{}: {}' ({})"
+							, FullName().c_str()
+							, vt->GetName().c_str(), source.c_str()
+							, rec.name.GetStr().c_str(), rec.constraint.GetStr().c_str(), rec.source.c_str());
+				}
+			if (!hardOk)
+				throwErrorF("ExprParser", "{}: {} ({}) does not satisfy the combined constraints on type variable '{}'"
+					, FullName().c_str(), vt->GetName().c_str(), source.c_str(), n.name.GetStr().c_str());
+		}
+
+		// attach an operator-support set (see ConstraintRec::soft); a node already
+		// bound outside the set errors immediately, an unbound node records the set
+		// for its eventual binding, and `feasible` stays untouched so rigid
+		// ∀-reasoning keeps using declared constraints only
+		void AddSoftConstraint(SizeT i, const ValueClassSet& set, TokenID roleName, const SharedStr& source, const SharedStr& setText)
+		{
+			auto& n = m_ValueNodes[FindV(i)];
+			if (n.bound)
+			{
+				if (!set.test(UInt32(n.bound->GetValueClassID())))
+					throwErrorF("ExprParser", "{}: {} ({}) is not among the value types supported by {} ({})"
 						, FullName().c_str()
-						, vt->GetName().c_str(), source.c_str()
-						, rec.name.GetStr().c_str(), rec.constraint.GetStr().c_str(), rec.source.c_str());
-			throwErrorF("ExprParser", "{}: {} ({}) does not satisfy the combined constraints on type variable '{}'"
-				, FullName().c_str(), vt->GetName().c_str(), source.c_str(), n.name.GetStr().c_str());
+						, n.bound->GetName().c_str(), n.boundSource.c_str()
+						, source.c_str(), setText.c_str());
+				return;
+			}
+			ConstraintRec rec;
+			rec.name = roleName; rec.source = source; rec.set = set;
+			rec.soft = true; rec.setText = setText;
+			n.constraints.push_back(std::move(rec));
 		}
 
 		void BindValue(SizeT i, const ValueClass* vt, const SharedStr& source)
@@ -1594,10 +1633,11 @@ namespace {
 						, FullName().c_str(), na.name.GetStr().c_str()
 						, nb.bound->GetName().c_str(), nb.boundSource.c_str(), na.name.GetStr().c_str());
 				// FOR-ALL semantics: every instantiation allowed for the rigid variable
-				// must be accepted by the other side's constraints
+				// must be accepted by the other side's DECLARED constraints; soft
+				// operator-support sets do not reject rigid variables (see ConstraintRec)
 				if ((na.feasible & ~nb.feasible).any())
 					for (const auto& rec : nb.constraints)
-						if ((na.feasible & ~rec.set).any())
+						if (!rec.soft && (na.feasible & ~rec.set).any())
 							throwErrorF("ExprParser", "{}: type variable '{}' must satisfy '{}: {}' ({}) for every instantiation, which its declaration does not guarantee"
 								, FullName().c_str(), na.name.GetStr().c_str()
 								, rec.name.GetStr().c_str(), rec.constraint.GetStr().c_str(), rec.source.c_str());
@@ -2642,6 +2682,11 @@ namespace {
 		const ValueClass* vc = nullptr;
 		SizeT vNode = NO_TYPE_VAR;
 
+		// value composition of a Data term when known (§18.4); Unknown = no claim.
+		// Consumed by candidate elimination only (a Single-composition argument
+		// cannot serve a sequence-registered member and vice versa)
+		ValueComposition vcomp = ValueComposition::Unknown;
+
 		// domain position (Data: the domain; UnitVal: the unit's own identity)
 		enum class Dom : UInt8 { Unknown, Void, Concrete, Node } dom = Dom::Unknown;
 		const AbstrUnit* domUnit = nullptr; SharedTreeItem domKeep; // Concrete
@@ -2673,7 +2718,8 @@ namespace {
 		DefType InferExpr(const TreeItem* refScope, LispPtr expr);
 		DefType InferArg(const TreeItem* refScope, LispPtr argExpr);
 		DefType InferApplication(const TreeItem* refScope, const DefType& fnVal, LispPtr argsList, CharPtr headName);
-		DefType InferOperator(const struct OperSig& sig, TokenID headID, const TreeItem* refScope, LispPtr argsList); // WP4.1 op-sig batch 1
+		DefType InferOperatorApplication(const AbstrOperGroup* og, TokenID headID, const TreeItem* refScope, LispPtr argsList); // op-sig batch A
+		DefType ApplyOperRecord(const OperGroupSignatures::MergedRecord& mr, const SharedStr& headName, const std::vector<DefType>& argTerms);
 		DefType ParamType(UInt32 idx);
 		DefType DeclaredItemType(const TreeItem* item);
 		DefType PositionType(const TreeItem* posItem, const TreeItem* fnDef, UInt32 instance,
@@ -2880,6 +2926,7 @@ namespace {
 
 		r.kind = DefType::Kind::Data;
 		auto adi = AsDataItem(posItem);
+		r.vcomp = adi->GetValueComposition();
 
 		if (TokenID vTok = adi->ValuesUnitToken())
 		{
@@ -3152,99 +3199,405 @@ namespace {
 		return InferExpr(refScope, argExpr);
 	}
 
-	// ---- WP4.1 operator signatures, batch 1 (hand-curated) ----
+	// ---- operator signatures, batch A: described group records type applications ----
 	//
-	// Kinds-level signature templates over ONE implicit value variable per
-	// application, instantiated exactly like an implicit generic callee: fresh
-	// unifier nodes per application; the void domain broadcasts through the shared
-	// domain node; metrics/counts stay per-application (§11). An application whose
-	// arity falls outside the recorded range simply DEFERS (variadic and
-	// optional-argument forms keep their per-application checking), so a signature
-	// can only ADD judgments, never new arity rejections.
-	enum class OperSigKind : UInt8
-	{
-		SameUnit,   // (V[D], V[D]) -> V[D] (or unary): add sub mul min_elem max_elem neg MakeDefined
-		Compare,    // (V[D], V[D]) -> bool[D]: eq ne lt le gt ge
-		Logical,    // (bool[D], ...) -> bool[D]: and or not
-		FloatFunc,  // (F[D]) -> F[D], F: floats — sqrt exp log sin cos tan
-	};
-	struct OperSig { OperSigKind kind; UInt32 minArgs, maxArgs; };
+	// The walker consumes AbstrOperGroup::GetSignatures() (OperSignature.h). Per
+	// application it (1) filters the group's members by arity and by the argument
+	// classes it knows — a concrete class, a node's binding, or a node's (hard)
+	// feasible set, each an over-approximation of the classes any successful
+	// reduction can present, so elimination is sound; (2) applies the unique
+	// surviving merged record: the shared domain variable with void broadcast and
+	// one class node per record variable; and (3) derives the cross-position class
+	// relations from the record's member TUPLES — positions on which ALL tuples
+	// agree are LINKED (hard: exactly the old shared-node semantics, so e.g.
+	// mul(x:V, y:W) with independent rigids still errors), and positions all
+	// tuples pin to one class are BOUND, but never onto a rigid ∀-variable
+	// (support sets are soft, see ConstraintRec). Mixed survivor sets, undescribed
+	// survivors, and arity mismatches DEFER — FindOper's widening escape hatches
+	// and per-application checking stay in charge, so a description can only ADD
+	// judgments where the membership is unambiguous.
 
-	const OperSig* FindOperatorSignature(TokenID headID)
+	// the witness classes of one inferred argument term; result = could not tell
+	enum class WitnessKind : UInt8 { None, Concrete, Feasible };
+	WitnessKind ArgWitnesses(TypeUnifier& u, const DefType& t, ValueClassSet& r)
 	{
-		static const std::map<TokenID, OperSig> s_Sigs = []
+		if (t.kind != DefType::Kind::Data && t.kind != DefType::Kind::UnitVal)
+			return WitnessKind::None;
+		if (t.vc)
 		{
-			std::map<TokenID, OperSig> m;
-			auto reg = [&m](CharPtr name, OperSigKind k, UInt32 lo, UInt32 hi)
-				{ m[GetTokenID_mt(name)] = OperSig{ k, lo, hi }; };
-			reg("add", OperSigKind::SameUnit, 2, 2); // '+' concatenates strings too: the constraint stays 'any'
-			reg("sub", OperSigKind::SameUnit, 2, 2);
-			reg("mul", OperSigKind::SameUnit, 2, 2); // metric products differ, value CLASSES agree (kinds level)
-			reg("neg", OperSigKind::SameUnit, 1, 1);
-			reg("min_elem", OperSigKind::SameUnit, 2, 4);
-			reg("max_elem", OperSigKind::SameUnit, 2, 4);
-			reg("MakeDefined", OperSigKind::SameUnit, 2, 2);
-			reg("eq", OperSigKind::Compare, 2, 2);
-			reg("ne", OperSigKind::Compare, 2, 2);
-			reg("lt", OperSigKind::Compare, 2, 2);
-			reg("le", OperSigKind::Compare, 2, 2);
-			reg("gt", OperSigKind::Compare, 2, 2);
-			reg("ge", OperSigKind::Compare, 2, 2);
-			reg("and", OperSigKind::Logical, 2, 2);
-			reg("or",  OperSigKind::Logical, 2, 2);
-			reg("not", OperSigKind::Logical, 1, 1);
-			reg("sqrt", OperSigKind::FloatFunc, 1, 1);
-			reg("exp",  OperSigKind::FloatFunc, 1, 1);
-			reg("log",  OperSigKind::FloatFunc, 1, 1);
-			reg("sin",  OperSigKind::FloatFunc, 1, 1);
-			reg("cos",  OperSigKind::FloatFunc, 1, 1);
-			reg("tan",  OperSigKind::FloatFunc, 1, 1);
-			return m;
-		}();
-		auto it = s_Sigs.find(headID);
-		return it == s_Sigs.end() ? nullptr : &it->second;
+			r.reset(); r.set(UInt32(t.vc->GetValueClassID()));
+			return WitnessKind::Concrete;
+		}
+		if (t.vNode != NO_TYPE_VAR)
+		{
+			const auto& n = u.m_ValueNodes[u.FindV(t.vNode)];
+			if (n.bound)
+			{
+				r.reset(); r.set(UInt32(n.bound->GetValueClassID()));
+				return WitnessKind::Concrete;
+			}
+			if (!n.feasible.all())
+			{
+				r = n.feasible;
+				return WitnessKind::Feasible;
+			}
+		}
+		return WitnessKind::None;
 	}
 
-	static TokenID t_gcFloatsTok = GetTokenID_st("floats");
-
-	DefType FunctionChecker::InferOperator(const OperSig& sig, TokenID headID, const TreeItem* refScope, LispPtr argsList)
+	// can witness class `w` present itself to a member position registered as
+	// `argCls`? (§18.2: item-free class synthesis; Find, never FindCertain)
+	// a known composition restricts the synthesis to that composition's class
+	bool WitnessMatchesArgClass(const ValueClass* w, bool isUnitArg, const Class* argCls, ValueComposition knownComp)
 	{
-		std::vector<DefType> argTerms;
-		for (LispPtr a = argsList; !a.EndP(); a = a.Right())
-			argTerms.push_back(InferExpr(refScope, a.Left()));
-		if (argTerms.size() < sig.minArgs || argTerms.size() > sig.maxArgs)
-			return {}; // arity outside the recorded signature: defer (variadic/optional forms)
+		auto uc = UnitClass::Find(w);
+		if (!uc)
+			return false;
+		if (isUnitArg)
+			return uc->IsDerivedFrom(argCls);
+		static const ValueComposition s_Comps[3] = { ValueComposition::Single, ValueComposition::Polygon, ValueComposition::Sequence };
+		for (auto comp : s_Comps)
+		{
+			if (knownComp != ValueComposition::Unknown && comp != knownComp)
+				continue;
+			auto vt = uc->GetValueType(comp);
+			if (!vt)
+				continue;
+			auto dic = DataItemClass::Find(vt);
+			if (dic && dic->IsDerivedFrom(argCls))
+				return true;
+		}
+		return false;
+	}
 
-		SharedStr headName(headID.AsStrRange()); // materialized: no TokenStr may span the unification calls
+	bool MemberAcceptsArity(const AbstrOperGroup* og, const Operator* m, arg_index nrArgs)
+	{
+		arg_index ns = m->NrSpecifiedArgs(), req = ns - m->NrOptionalArgs();
+		if (og->AllowExtraArgs())
+			return nrArgs >= req;
+		return req <= nrArgs && nrArgs <= ns;
+	}
+
+	// sound elimination on the REGISTERED classes (described or not).
+	// Survives: no known argument class rules the member out.
+	// EliminatedConcrete: some position with a CONCRETE class rejects it — the
+	// same classes reach reduction, so FindOper is certain to reject it there too.
+	// EliminatedFeasible: only feasible-SET witnesses reject it — symbolic
+	// knowledge, so the no-candidate verdict must defer, not error (a rejecting
+	// concrete position elsewhere still upgrades the member to Concrete: the
+	// scan continues past a feasible rejection looking for one).
+	enum class MemberVerdict : UInt8 { Survives, EliminatedConcrete, EliminatedFeasible };
+	MemberVerdict ClassifyMember(TypeUnifier& u, const Operator* m, const std::vector<DefType>& argTerms)
+	{
+		auto verdict = MemberVerdict::Survives;
+		arg_index ns = m->NrSpecifiedArgs();
+		for (arg_index i = 0, ie = std::min<arg_index>(ns, arg_index(argTerms.size())); i != ie; ++i)
+		{
+			ValueClassSet w;
+			WitnessKind wk = ArgWitnesses(u, argTerms[i], w);
+			if (wk == WitnessKind::None)
+				continue;
+			auto argCls = m->GetArgClass(i);
+			if (!argCls)
+				continue;
+			bool isUnitArg = argTerms[i].kind == DefType::Kind::UnitVal;
+			ValueComposition knownComp = argTerms[i].kind == DefType::Kind::Data ? argTerms[i].vcomp : ValueComposition::Unknown;
+			if (knownComp == ValueComposition::MultiPoint)
+				knownComp = ValueComposition::Sequence; // folded onto one sequence class (§18.2)
+			bool any = false;
+			for (UInt32 v = 0; v != UInt32(ValueClassID::VT_Count) && !any; ++v)
+				if (w.test(v))
+					if (auto wc = ValueClass::FindByValueClassID(ValueClassID(v)))
+						any = WitnessMatchesArgClass(wc, isUnitArg, argCls, knownComp);
+			if (!any)
+			{
+				if (wk == WitnessKind::Concrete)
+					return MemberVerdict::EliminatedConcrete;
+				verdict = MemberVerdict::EliminatedFeasible;
+			}
+		}
+		return verdict;
+	}
+
+	DefType FunctionChecker::ApplyOperRecord(const OperGroupSignatures::MergedRecord& mr, const SharedStr& headName, const std::vector<DefType>& argTerms)
+	{
+		const auto& shape = mr.shape;
+		UInt32 inst = m_NextInstance++;
 		SharedStr src = mySSPrintF("operator '{}'", headName.c_str());
 
-		static const ValueClass* boolCls = ValueClass::FindByScriptName(GetTokenID_mt("bool"));
-		UInt32 inst = m_NextInstance++;
+		UInt32 nv = shape.NrVars();
+		std::vector<SizeT> valNode(nv, NO_TYPE_VAR), domNode(nv, NO_TYPE_VAR);
+		std::vector<TokenID> roleTok(nv);
+		for (UInt32 v = 0; v != nv; ++v)
+			roleTok[v] = GetTokenID_mt(shape.varRoles[v].c_str());
 
-		// the implicit signature: one value node, one domain node, shared by all
-		// positions and (per kind) the result
-		DefType posT; posT.kind = DefType::Kind::Data;
-		if (sig.kind == OperSigKind::Logical)
-			posT.vc = boolCls;
-		else
-			posT.vNode = m_Unifier.ValueVar(nullptr, inst, headID, src, false
-				, sig.kind == OperSigKind::FloatFunc ? t_gcFloatsTok : TokenID());
-		posT.dom = DefType::Dom::Node;
-		posT.dNode = m_Unifier.DomainVar(nullptr, inst, headID);
+		auto VN = [&](sig_var v) -> SizeT
+		{
+			if (valNode[v] == NO_TYPE_VAR)
+			{
+				valNode[v] = m_Unifier.ValueVar(nullptr, inst, roleTok[v], src, false, shape.varConstraints[v]);
+				if (shape.varFixedCls[v])
+					m_Unifier.BindValue(valNode[v], shape.varFixedCls[v], src);
+				else
+				{
+					// soft support set: the union of the congruent members' classes at v
+					ValueClassSet set; bool covered = !mr.tuples.empty();
+					SharedStr setText; UInt32 nrClasses = 0;
+					for (const auto& tuple : mr.tuples)
+					{
+						const ValueClass* mc = v < tuple.size() ? tuple[v] : nullptr;
+						if (!mc)
+						{
+							covered = false; // some member leaves v unconstrained: no set
+							break;
+						}
+						if (set.test(UInt32(mc->GetValueClassID())))
+							continue;
+						set.set(UInt32(mc->GetValueClassID()));
+						if (nrClasses++)
+							setText += ", ";
+						setText += SharedStr(mc->GetName());
+					}
+					if (covered)
+						m_Unifier.AddSoftConstraint(valNode[v], set, roleTok[v], src, setText);
+				}
+			}
+			return valNode[v];
+		};
+		auto DN = [&](sig_var v) -> SizeT
+		{
+			if (domNode[v] == NO_TYPE_VAR)
+				domNode[v] = m_Unifier.DomainVar(nullptr, inst, roleTok[v]);
+			return domNode[v];
+		};
+
+		// the record variables used in a values role by any position
+		std::vector<sig_var> posVars;
+		auto notePosVar = [&](sig_var v)
+		{
+			if (v == no_sig_var)
+				return;
+			for (sig_var q : posVars)
+				if (q == v)
+					return;
+			posVars.push_back(v);
+		};
+		for (const auto& p : shape.args)
+			if (p.kind == SignatureRecord::PosKind::Attr || p.kind == SignatureRecord::PosKind::Unit)
+				notePosVar(p.values);
+		if (shape.repeat.active)
+			notePosVar(shape.repeat.values);
+		if (shape.result.kind == SignatureRecord::PosKind::Attr || shape.result.kind == SignatureRecord::PosKind::Unit)
+			notePosVar(shape.result.values);
+		for (sig_var v : posVars)
+			VN(v); // create + attach soft sets before any linking
+
+		// tuple agreement over a tuple subset: equal-class pairs and single-class pins
+		auto agreeEqual = [&](const std::vector<const std::vector<const ValueClass*>*>& tuples, sig_var v, sig_var q) -> bool
+		{
+			if (tuples.empty())
+				return false;
+			for (auto t : tuples)
+			{
+				const ValueClass* cv = v < t->size() ? (*t)[v] : nullptr;
+				const ValueClass* cq = q < t->size() ? (*t)[q] : nullptr;
+				if (!cv || cv != cq)
+					return false;
+			}
+			return true;
+		};
+		auto agreeClass = [&](const std::vector<const std::vector<const ValueClass*>*>& tuples, sig_var v) -> const ValueClass*
+		{
+			const ValueClass* c = nullptr;
+			for (auto t : tuples)
+			{
+				const ValueClass* cv = v < t->size() ? (*t)[v] : nullptr;
+				if (!cv || (c && c != cv))
+					return nullptr;
+				c = cv;
+			}
+			return c;
+		};
+
+		std::vector<const std::vector<const ValueClass*>*> allTuples;
+		for (const auto& t : mr.tuples)
+			allTuples.push_back(&t);
+
+		// pre-unification links: positions on which EVERY member agrees carry the
+		// old shared-node semantics exactly (hard: rigid-rigid conflicts must error)
+		SharedStr agreeSrc = mySSPrintF("the registered overloads of operator '{}'", headName.c_str());
+		for (SizeT i = 0; i != posVars.size(); ++i)
+			for (SizeT j = i + 1; j != posVars.size(); ++j)
+				if (agreeEqual(allTuples, posVars[i], posVars[j]))
+					m_Unifier.LinkValue(VN(posVars[i]), VN(posVars[j]), agreeSrc);
+
+		// unify each argument against its described position
+		auto posType = [&](const SignatureRecord::Pos& p) -> DefType
+		{
+			DefType r;
+			if (p.kind == SignatureRecord::PosKind::Attr)
+			{
+				r.kind = DefType::Kind::Data;
+				r.vcomp = p.vc;
+				if (p.values != no_sig_var)
+					r.vNode = VN(p.values);
+				if (p.domain != no_sig_var)
+				{
+					if (shape.varFlags[p.domain] & SignatureRecord::VF_VoidDomain)
+						r.dom = DefType::Dom::Void;
+					else
+					{
+						r.dom = DefType::Dom::Node;
+						r.dNode = DN(p.domain);
+					}
+				}
+			}
+			else if (p.kind == SignatureRecord::PosKind::Unit)
+			{
+				r.kind = DefType::Kind::UnitVal;
+				r.vNode = VN(p.values);
+				r.dom = DefType::Dom::Node;
+				r.dNode = DN(p.values); // the unit's own identity, in the same var
+			}
+			return r; // MetaValue/Container/Deferred: Unknown (argument stays walked)
+		};
 
 		for (SizeT k = 0; k != argTerms.size(); ++k)
 		{
+			const SignatureRecord::Pos* p = nullptr;
+			SignatureRecord::Pos repeatPos;
+			if (k < shape.args.size())
+				p = &shape.args[k];
+			else if (shape.repeat.active && k >= shape.repeat.fromPos)
+			{
+				repeatPos.kind = SignatureRecord::PosKind::Attr;
+				repeatPos.values = shape.repeat.values; repeatPos.domain = shape.repeat.domain; repeatPos.vc = shape.repeat.vc;
+				p = &repeatPos;
+			}
+			if (!p || p->kind == SignatureRecord::PosKind::None)
+				continue;
+			DefType posT = posType(*p);
+			if (posT.kind == DefType::Kind::Unknown)
+				continue;
 			SharedStr argSrc = mySSPrintF("argument {} of operator '{}'", k + 1, headName.c_str());
 			UnifyData(argTerms[k], posT, argSrc, src);
 		}
 
-		DefType r = posT;
-		if (sig.kind == OperSigKind::Compare)
+		// narrow the tuples by what the arguments bound; an empty remainder means
+		// no registered member matches the (concrete) classes — reduction is bound
+		// to fail on the same FindOper this record was derived from
+		std::vector<const std::vector<const ValueClass*>*> compatible;
+		for (auto t : allTuples)
 		{
-			r.vNode = NO_TYPE_VAR;
-			r.vc = boolCls;
+			bool ok = true;
+			for (sig_var v : posVars)
+			{
+				if (valNode[v] == NO_TYPE_VAR)
+					continue;
+				const auto& n = m_Unifier.m_ValueNodes[m_Unifier.FindV(valNode[v])];
+				if (!n.bound)
+					continue;
+				const ValueClass* cv = v < t->size() ? (*t)[v] : nullptr;
+				if (cv && cv != n.bound)
+				{
+					ok = false;
+					break;
+				}
+			}
+			if (ok)
+				compatible.push_back(t);
 		}
-		return r;
+		if (compatible.empty() && !allTuples.empty())
+			throwErrorF("ExprParser", "{}: the argument types of operator '{}' do not match any of its registered overloads"
+				, m_Unifier.FullName().c_str(), headName.c_str());
+
+		// post-narrowing propagation: facts every REMAINING member agrees on.
+		// Pins and narrowed links never touch rigid ∀-variables (soft support);
+		// flexible nodes take them as ordinary bindings/links.
+		for (sig_var v : posVars)
+		{
+			if (auto c = agreeClass(compatible, v))
+			{
+				const auto& n = m_Unifier.m_ValueNodes[m_Unifier.FindV(valNode[v])];
+				if (!n.rigid && !n.bound)
+					m_Unifier.BindValue(valNode[v], c, agreeSrc);
+			}
+		}
+		for (SizeT i = 0; i != posVars.size(); ++i)
+			for (SizeT j = i + 1; j != posVars.size(); ++j)
+				if (agreeEqual(compatible, posVars[i], posVars[j]))
+				{
+					SizeT ri = m_Unifier.FindV(valNode[posVars[i]]), rj = m_Unifier.FindV(valNode[posVars[j]]);
+					if (ri == rj)
+						continue;
+					if (m_Unifier.m_ValueNodes[ri].rigid && m_Unifier.m_ValueNodes[rj].rigid)
+						continue; // narrowed-set knowledge stays soft on rigid pairs
+					m_Unifier.LinkValue(valNode[posVars[i]], valNode[posVars[j]], agreeSrc);
+				}
+
+		// the result, in the same variables
+		if (shape.dynamicShape || shape.resultDeferred)
+			return {};
+		return posType(shape.result);
+	}
+
+	DefType FunctionChecker::InferOperatorApplication(const AbstrOperGroup* og, TokenID headID, const TreeItem* refScope, LispPtr argsList)
+	{
+		std::vector<DefType> argTerms;
+		for (LispPtr a = argsList; !a.EndP(); a = a.Right())
+			argTerms.push_back(InferExpr(refScope, a.Left()));
+
+		if (!og->MustCacheResult())
+			return {}; // meta/selection groups: fluid effective arity, per-application checking
+
+		auto sigs = og->GetSignatures();
+		if (!sigs)
+			return {}; // no member describes itself: defer, as before the description layer
+
+		arg_index nrArgs = arg_index(argTerms.size());
+		Int32 theRecord = -2; // -2: no class survivor yet; -1: mixed/undescribed -> defer
+		bool anyAritySurvivor = false, anyFeasibleOnlyElimination = false;
+		for (const auto& me : sigs->members)
+		{
+			if (!MemberAcceptsArity(og, me.oper, nrArgs))
+				continue;
+			anyAritySurvivor = true;
+			auto mv = ClassifyMember(m_Unifier, me.oper, argTerms);
+			if (mv != MemberVerdict::Survives)
+			{
+				if (mv == MemberVerdict::EliminatedFeasible)
+					anyFeasibleOnlyElimination = true;
+				continue;
+			}
+			if (theRecord != -1)
+			{
+				if (me.recordIdx < 0)
+					theRecord = -1;
+				else if (theRecord == -2)
+					theRecord = me.recordIdx;
+				else if (theRecord != me.recordIdx)
+					theRecord = -1;
+			}
+		}
+		if (!anyAritySurvivor)
+			return {}; // arity outside every member: defer (a same-named function or FindOper's own widening may serve)
+
+		SharedStr headName(headID.AsStrRange()); // materialized: no TokenStr may span the unification calls
+		if (theRecord == -2)
+		{
+			// every member rejected the known argument classes. Members rejected by a
+			// concrete class fail at reduction with certainty; a member rejected only
+			// through a feasible SET is symbolic knowledge, so the verdict defers
+			// (soft support: the ∀-variable is not rejected).
+			if (anyFeasibleOnlyElimination)
+				return {};
+			throwErrorF("ExprParser", "{}: the argument types of operator '{}' do not match any of its registered overloads"
+				, m_Unifier.FullName().c_str(), headName.c_str());
+		}
+		if (theRecord < 0)
+			return {}; // several congruence classes or an undescribed member survive: defer
+
+		return ApplyOperRecord(sigs->records[theRecord], headName, argTerms);
 	}
 
 	DefType FunctionChecker::InferExpr(const TreeItem* refScope, LispPtr expr)
@@ -3342,17 +3695,15 @@ namespace {
 			if (argT.kind == DefType::Kind::Data)
 			{
 				r.dom = argT.dom; r.domUnit = argT.domUnit; r.domKeep = argT.domKeep; r.dNode = argT.dNode;
+				r.vcomp = argT.vcomp; // a value conversion preserves the geometric composition
 			}
 			return r;
 		}
 
-		// built-in operator: a reified signature (batch 1) types the application;
-		// unsignatured operators keep walking their arguments and defer the result
-		if (auto sig = FindOperatorSignature(headID))
-			return InferOperator(*sig, headID, refScope, expr.Right());
-		for (LispPtr a = expr.Right(); !a.EndP(); a = a.Right())
-			InferExpr(refScope, a.Left());
-		return {};
+		// built-in operator: the group's described signature records (batch A)
+		// type the application; groups without described members walk their
+		// arguments and defer the result
+		return InferOperatorApplication(og, headID, refScope, expr.Right());
 	}
 
 	DefType FunctionChecker::InferBodyItem(const TreeItem* refItem)

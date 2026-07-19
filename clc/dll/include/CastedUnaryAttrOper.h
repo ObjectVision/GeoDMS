@@ -11,6 +11,7 @@
 #define __CLC_CASTEDUNARYATTROPER_H
 
 #include "DataItemClass.h"
+#include "OperSignature.h"
 #include "ParallelTiles.h"
 #include "UnitClass.h"
 #include "TileFunctorImpl.h"
@@ -94,6 +95,28 @@ public:
 	}
 	virtual void Calculate(AbstrDataObject* res, const AbstrDataItem* argDataA, const AbstrUnit* argUnit, tile_id t) const =0;
 	virtual auto CreateFutureTileCaster(std::shared_ptr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* argUnitA MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr)) const -> SharedPtr<const AbstrDataObject> = 0;
+
+	// mirrors CreateResult above: one data argument and one unit argument; the
+	// result ranges over the data argument's domain and takes the unit argument
+	// as values unit — at class level: R's class equals U's class per member,
+	// which the merged records' tuples carry (convert/value: the typed cast)
+	bool DescribeSignature(AbstrSignatureBuilder& sb) const override
+	{
+		arg_index dataPos = m_ReverseArgs ? 1 : 0, unitPos = m_ReverseArgs ? 0 : 1;
+		auto dataCls = dynamic_cast<const DataItemClass*>(GetArgClass(dataPos));
+		auto unitCls = dynamic_cast<const UnitClass*>(GetArgClass(unitPos));
+		auto resCls  = dynamic_cast<const DataItemClass*>(GetResultClass());
+		if (!dataCls || !unitCls || !resCls)
+			return false;
+		sig_var D = sb.UnitVar("D"), V = sb.UnitVar("V"), U = sb.UnitVar("U"), R = sb.UnitVar("R");
+		sb.MemberValueClass(V, dataCls->GetValuesType());
+		sb.MemberValueClass(U, unitCls->GetValueType());
+		sb.MemberValueClass(R, resCls->GetValuesType());
+		sb.ArgAttr(dataPos, V, D, m_VC);
+		sb.ArgUnit(unitPos, U);
+		sb.ResultAttr(R, D, m_VC);
+		return true;
+	}
 
 private:
 	ValueComposition m_VC;

@@ -15,6 +15,7 @@
 #include "set/StackUtil.h"
 #include "ptr/SharedStr.h"
 
+#include <memory>
 #include <variant>
 #include <optional>
 
@@ -108,6 +109,12 @@ struct AbstrOperGroup
 	const Operator* FindOper      (arg_index nrArgs, const ClassCPtr* argType) const;
 	TIC_CALL const Operator* FindOperByArgs(const ArgRefs& args) const;
 
+	// operator-signature descriptions (batch 0, OperSignature.h): the lazily built,
+	// per-group merge of the members' DescribeSignature records. nullptr when no
+	// member describes itself — consumers then defer, as before the description
+	// layer existed. Register() invalidates the cache (late-loading DLLs).
+	TIC_CALL const struct OperGroupSignatures* GetSignatures() const;
+
 	// arity-aware head dispatch (§5.14 successor): false ONLY when no member's arity
 	// range can cover nrArgs — FindOper is then guaranteed to throw, and a same-named
 	// function (scope/prelude) may serve the foreign arity. Conservative: non-caching
@@ -136,6 +143,8 @@ private:
 	const Operator* m_FirstMember;
 	mutable arg_index m_MinReqArgs = 0, m_MaxSpecArgs = 0; // cached member-arity envelope
 	mutable bool      m_ArityEnvelopeValid = false;        // invalidated by Register (late-loading DLLs)
+	mutable bool      m_SignaturesValid = false;           // idem, for the signature cache
+	mutable std::unique_ptr<const struct OperGroupSignatures> m_Signatures;
 
 protected:
 	oper_policy     m_Policy;

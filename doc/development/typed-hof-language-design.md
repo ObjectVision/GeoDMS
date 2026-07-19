@@ -1226,11 +1226,28 @@ form can reach this (a classic `attribute<V>(D) x := …` already carries a full
 declared type), so no legacy config is affected. The declaration is thus the lever
 that moves a check from instantiation-time back to definition-time.
 
-Still open in WP4.1: the declarative signature interface that replaces this
-registry and reaches the relational/composite operators
-(`operator-signature-interface.md`; its batch A retires `OperSigKind`, batch U
-generalizes domain nodes to unit nodes, batch B lands `lookup` & co), and lifting
-the function-application-into-bare-item restriction.
+**Batches 0 + A of the successor SHIPPED (2026-07-19)** — see
+`operator-signature-interface.md` §12.1. `Operator::DescribeSignature` +
+`OperSignature.h/.cpp` (records, merge, group cache, printer) exist; the clc
+attribute families (unary/binary/ternary, casted convert/value, and the
+`min_elem`/`argmin` variadic family) describe themselves; the walker's
+`InferOperatorApplication` applies the unique surviving merged record and the
+hand-curated registry above is **retired**. Signatures are now *derived from the
+registrations*: member class tuples carry cross-position co-variance (all-agree
+positions link hard — the old shared-node semantics — and all-agree classes bind,
+though never onto a rigid ∀-variable), support sets are **soft** on rigid
+variables (the prelude's `<T: any>` predicates over `eq`/`lt` mandate this; the
+batch-1 `sqrt: floats` ∀-error is retired — sqrt is in fact registered over
+`num_objects`, so the hand-written claim over-constrained), and a concrete
+argument class that no member accepts errors at definition. `DefType` gained a
+`ValueComposition` field (§18.4) so Single-composition arguments eliminate
+sequence-registered members. Coverage widened from ~22 hand-listed names to every
+group with described members (`iif`, `div`, `mod`, `pow`, string ops, predicates,
+rounding, `convert` …), with `and`/`or`/`not` no longer falsely pinned to bool.
+
+Still open in WP4.1: batch U (`DomainNode`→`UnitNode`, unlocking K2), batch B
+(`lookup` & co), batches C–F, and lifting the
+function-application-into-bare-item restriction.
 
 ### 5.11 Anonymous functions and the brace-disambiguation rule *(tier A implemented 2026-07-14)*
 

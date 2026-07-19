@@ -1,0 +1,230 @@
+// Copyright (C) 1998-2026 Object Vision b.v.
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
+
+#if defined(_MSC_VER)
+#pragma once
+#endif
+
+#if !defined(__TIC_OPERSIGNATURE_H)
+#define __TIC_OPERSIGNATURE_H
+
+#include "TicBase.h"
+#include "mci/ValueComposition.h"
+#include "ptr/SharedStr.h"
+
+#include <vector>
+
+// *****************************************************************************
+// Operator unit-constraint signatures (doc/development/operator-signature-interface.md)
+//
+// Operators DESCRIBE their unit/class constraints declaratively through the
+// AbstrSignatureBuilder vocabulary (batch 0). The description is recorded once
+// per member into a plain-data SignatureRecord; congruent member records are
+// merged per group into an OperGroupSignatures cache whose per-member class
+// TUPLES carry the cross-position co-variance exactly (each member binds its
+// variables consistently, so "all members agree on positions i,j" is a sound
+// family fact). Consumers: the definition-time typed walker (AbstrCalculator),
+// the printer below, and (later) the §9 debug drift-verifier.
+//
+// A sig_var is ONE sort of unit variable, usable in both values and domain
+// roles (the K2 bridge). Until the UnitNode tranche (batch U) lands, the
+// walker interprets variables at the CLASS level only: values roles become
+// value-class nodes, domain roles become domain-identity nodes, and no unit
+// identity is claimed across the two — so descriptions stay honest (e.g. mul's
+// result var is NOT its argument var: the metric product is a different unit
+// even where the classes coincide).
+// *****************************************************************************
+
+using sig_var = UInt32;
+constexpr sig_var no_sig_var = sig_var(-1);
+
+enum class SigArgTraits : UInt8 { none = 0, no_void_broadcast = 1, categorical = 2 };
+
+struct AbstrSignatureBuilder
+{
+	// --- unit variables: ONE sort, usable in BOTH domain and values roles (the K2 fix)
+	virtual sig_var UnitVar(CharPtr role) = 0;             // "D", "E2", "V"
+	virtual sig_var VoidDomain() = 0;                      // K15, parameters
+	virtual sig_var DefaultUnit(const ValueClass* vc) = 0; // boolean/default_unit_creator
+	virtual sig_var GeneratedUnit(CharPtr role) = 0;       // K6 existential
+
+	// --- value-class constraints on a unit variable
+	virtual void MemberValueClass(sig_var u, const ValueClass* vc) = 0; // this member's own class; merged as tuples
+	virtual void FixedValueClass (sig_var u, const ValueClass* vc) = 0; // K14; identical across members
+	virtual void ConstrainValueClass(sig_var u, TokenID genericConstraint) = 0; // "floats"; intersected
+
+	// --- argument positions (0-based, aligned with GetArgClass)
+	virtual void ArgName(arg_index i, CharPtr name) = 0;   // diagnostics
+	virtual void ArgAttr(arg_index i, sig_var values, sig_var domain,
+	                     ValueComposition vc, SigArgTraits traits = SigArgTraits::none) = 0;
+	virtual void ArgUnit(arg_index i, sig_var u) = 0;
+	virtual void ArgMetaValue(arg_index i, const ValueClass* vc, CharPtr meaning) = 0; // K13
+	virtual void ArgContainer(arg_index i, CharPtr memberPattern,
+	                          sig_var sharedMemberDomain = no_sig_var) = 0;            // K11
+	virtual void ArgDeferred(arg_index i, CharPtr note) = 0;
+	virtual void RepeatArgs(arg_index fromPos, sig_var values, sig_var domain,
+	                        ValueComposition vc) = 0;                                  // variadic tails
+
+	// --- relations beyond shared variables
+	virtual void SameValueClass  (sig_var a, sig_var b) = 0;
+	virtual void CompatibleValues(sig_var a, sig_var b) = 0;   // K7/K16; def-time = class equality
+	virtual void MetricProduct (sig_var r, sig_var a, sig_var b) = 0;  // K10: declared, def-time-deferred
+	virtual void MetricQuotient(sig_var r, sig_var num, sig_var den) = 0;
+	virtual void MetricPower   (sig_var r, sig_var base, int exponent) = 0;
+	virtual void Dimensionless (sig_var u) = 0;
+	virtual void CastOf(sig_var r, sig_var src, const ValueClass* toCls) = 0;
+	virtual void DeferredRelation(CharPtr note) = 0;           // K12: real, unexpressible, printable
+
+	// --- result derivation, in the same variables
+	virtual void ResultAttr(sig_var values, sig_var domain, ValueComposition vc) = 0;
+	virtual void ResultUnit(sig_var u) = 0;
+	virtual void ResultContainer(CharPtr memberPattern, sig_var sharedMemberDomain = no_sig_var) = 0;
+	virtual void ResultDeferred(CharPtr note) = 0;
+
+	// --- whole-signature deferral: shape depends on a meta-read value (K13)
+	virtual void DynamicShape(CharPtr why) = 0;
+protected:
+	~AbstrSignatureBuilder() = default;
+};
+
+// the recorded form of one member's description: plain data, comparable.
+// memberClasses (per var) is the member's OWN concrete-class binding and is the
+// ONLY part excluded from shape equality — equal-shape records merge, their
+// class vectors become the merged record's tuples.
+struct SignatureRecord
+{
+	enum class PosKind : UInt8 { None, Attr, Unit, MetaValue, Container, Deferred };
+	struct Pos
+	{
+		PosKind kind = PosKind::None;
+		sig_var values = no_sig_var, domain = no_sig_var; // Attr: both; Unit: 'values' identifies the unit var
+		ValueComposition vc = ValueComposition::Single;
+		SigArgTraits traits = SigArgTraits::none;
+		const ValueClass* metaCls = nullptr;              // MetaValue
+		SharedStr name;                                   // ArgName / prose
+
+		bool operator==(const Pos& rhs) const
+		{
+			return kind == rhs.kind && values == rhs.values && domain == rhs.domain
+				&& vc == rhs.vc && traits == rhs.traits && metaCls == rhs.metaCls
+				&& name == rhs.name;
+		}
+	};
+	enum class RelKind : UInt8 { SameValueClass, CompatibleValues, MetricProduct, MetricQuotient, MetricPower, Dimensionless, CastOf, Deferred };
+	struct Rel
+	{
+		RelKind kind;
+		sig_var a = no_sig_var, b = no_sig_var, c = no_sig_var;
+		int power = 0;
+		const ValueClass* cls = nullptr;
+		SharedStr note;
+
+		bool operator==(const Rel& rhs) const
+		{
+			return kind == rhs.kind && a == rhs.a && b == rhs.b && c == rhs.c
+				&& power == rhs.power && cls == rhs.cls && note == rhs.note;
+		}
+	};
+	struct Repeat
+	{
+		bool active = false;
+		arg_index fromPos = 0;
+		sig_var values = no_sig_var, domain = no_sig_var;
+		ValueComposition vc = ValueComposition::Single;
+
+		bool operator==(const Repeat& rhs) const
+		{
+			return active == rhs.active && fromPos == rhs.fromPos
+				&& values == rhs.values && domain == rhs.domain && vc == rhs.vc;
+		}
+	};
+
+	// per-var facts (indexed by sig_var)
+	enum VarFlags : UInt8 { VF_None = 0, VF_VoidDomain = 1, VF_Generated = 2, VF_DefaultUnit = 4 };
+	std::vector<SharedStr>         varRoles;
+	std::vector<UInt8>             varFlags;
+	std::vector<const ValueClass*> varFixedCls;    // FixedValueClass / DefaultUnit class
+	std::vector<TokenID>           varConstraints; // ConstrainValueClass
+
+	std::vector<Pos> args;
+	Pos     result;                                // kind None => no result described
+	bool    resultDeferred = false, dynamicShape = false;
+	SharedStr resultNote, dynamicNote;
+	Repeat  repeat;
+	std::vector<Rel> rels;
+
+	// the member's own concrete classes per var (nullptr = unconstrained by this member)
+	std::vector<const ValueClass*> memberClasses;
+
+	UInt32 NrVars() const { return UInt32(varRoles.size()); }
+	TIC_CALL bool SameShape(const SignatureRecord& rhs) const; // everything except memberClasses
+};
+
+// the per-group cache: which members describe, merged into congruence classes
+struct OperGroupSignatures
+{
+	struct MergedRecord
+	{
+		SignatureRecord shape;                     // memberClasses cleared
+		std::vector<std::vector<const ValueClass*>> tuples; // one class vector per congruent member
+		std::vector<const Operator*> members;
+	};
+	struct MemberEntry
+	{
+		const Operator* oper = nullptr;
+		Int32 recordIdx = -1;                      // -1: undescribed member
+	};
+	std::vector<MergedRecord> records;
+	std::vector<MemberEntry>  members;
+	bool anyDescribed = false;
+};
+
+// the recording builder: DescribeSignature writes through the abstract
+// vocabulary; the result is the plain-data record above
+struct SignatureRecorder final : AbstrSignatureBuilder
+{
+	SignatureRecord rec;
+
+	TIC_CALL sig_var UnitVar(CharPtr role) override;
+	TIC_CALL sig_var VoidDomain() override;
+	TIC_CALL sig_var DefaultUnit(const ValueClass* vc) override;
+	TIC_CALL sig_var GeneratedUnit(CharPtr role) override;
+
+	TIC_CALL void MemberValueClass(sig_var u, const ValueClass* vc) override;
+	TIC_CALL void FixedValueClass (sig_var u, const ValueClass* vc) override;
+	TIC_CALL void ConstrainValueClass(sig_var u, TokenID genericConstraint) override;
+
+	TIC_CALL void ArgName(arg_index i, CharPtr name) override;
+	TIC_CALL void ArgAttr(arg_index i, sig_var values, sig_var domain, ValueComposition vc, SigArgTraits traits) override;
+	TIC_CALL void ArgUnit(arg_index i, sig_var u) override;
+	TIC_CALL void ArgMetaValue(arg_index i, const ValueClass* vc, CharPtr meaning) override;
+	TIC_CALL void ArgContainer(arg_index i, CharPtr memberPattern, sig_var sharedMemberDomain) override;
+	TIC_CALL void ArgDeferred(arg_index i, CharPtr note) override;
+	TIC_CALL void RepeatArgs(arg_index fromPos, sig_var values, sig_var domain, ValueComposition vc) override;
+
+	TIC_CALL void SameValueClass  (sig_var a, sig_var b) override;
+	TIC_CALL void CompatibleValues(sig_var a, sig_var b) override;
+	TIC_CALL void MetricProduct (sig_var r, sig_var a, sig_var b) override;
+	TIC_CALL void MetricQuotient(sig_var r, sig_var num, sig_var den) override;
+	TIC_CALL void MetricPower   (sig_var r, sig_var base, int exponent) override;
+	TIC_CALL void Dimensionless (sig_var u) override;
+	TIC_CALL void CastOf(sig_var r, sig_var src, const ValueClass* toCls) override;
+	TIC_CALL void DeferredRelation(CharPtr note) override;
+
+	TIC_CALL void ResultAttr(sig_var values, sig_var domain, ValueComposition vc) override;
+	TIC_CALL void ResultUnit(sig_var u) override;
+	TIC_CALL void ResultContainer(CharPtr memberPattern, sig_var sharedMemberDomain) override;
+	TIC_CALL void ResultDeferred(CharPtr note) override;
+
+	TIC_CALL void DynamicShape(CharPtr why) override;
+
+private:
+	sig_var NewVar(CharPtr role, UInt8 flags, const ValueClass* fixedCls = nullptr);
+	SignatureRecord::Pos& PosAt(arg_index i);
+};
+
+// the printer: the second interpreter over the same records
+TIC_CALL SharedStr RenderMergedSignature(const AbstrOperGroup* og, const OperGroupSignatures::MergedRecord& mr);
+
+#endif // __TIC_OPERSIGNATURE_H

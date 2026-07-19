@@ -12,6 +12,8 @@
 #include "mci/CompositeCast.h"
 
 #include "AbstrUnit.h"
+#include "DataItemClass.h"
+#include "OperSignature.h"
 
 #include "AttrUniStruct.h"
 #include "ParallelTiles.h"
@@ -97,6 +99,25 @@ struct AbstrUnaryAttrOperator: UnaryOperator
 
 	virtual SharedPtr<const AbstrDataObject> CreateFutureTileFunctor(std::shared_ptr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, ArgFlags af MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr)) const = 0;
 	virtual void Calculate(AbstrDataObject* borrowedDataHandle, const AbstrDataItem* arg1A, ArgFlags af, tile_id t) const =0;
+
+	// mirrors CreateResult above: one data argument; the result ranges over the
+	// argument's domain; the concrete classes are the member's registration.
+	// R is deliberately NOT the argument's var — the values-unit derivation
+	// (m_UnitCreatorPtr) may produce a different unit; the class-level relation
+	// between V and R is carried exactly by the merged records' member tuples.
+	bool DescribeSignature(AbstrSignatureBuilder& sb) const override
+	{
+		auto argCls = dynamic_cast<const DataItemClass*>(GetArgClass(0));
+		auto resCls = dynamic_cast<const DataItemClass*>(GetResultClass());
+		if (!argCls || !resCls)
+			return false;
+		sig_var D = sb.UnitVar("D"), V = sb.UnitVar("V"), R = sb.UnitVar("R");
+		sb.MemberValueClass(V, argCls->GetValuesType());
+		sb.MemberValueClass(R, resCls->GetValuesType());
+		sb.ArgAttr(0, V, D, m_VC);
+		sb.ResultAttr(R, D, m_VC);
+		return true;
+	}
 
 private:
 	UnitCreatorPtr   m_UnitCreatorPtr;

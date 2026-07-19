@@ -13,6 +13,7 @@
 #include "AbstrUnit.h"
 #include "DataItemClass.h"
 #include "Operator.h"
+#include "OperSignature.h"
 #include "ParallelTiles.h"
 #include "TileFunctorImpl.h"
 #include "UnitCreators.h"
@@ -97,6 +98,28 @@ struct AbstrBinaryAttrOper : BinaryOperator
 
 	virtual SharedPtr<const AbstrDataObject> CreateFutureTileFunctor(std::shared_ptr<AbstrDataItem>, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A, ArgFlags af MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr)) const = 0;
 	virtual void Calculate(AbstrDataObject* borrowedDataHandle, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A,	ArgFlags af, tile_id t) const=0;
+
+	// mirrors CreateResult above: both data arguments share one domain (void
+	// broadcasts); the result ranges over it. Distinct class vars per position:
+	// the cross-position class relation (e.g. mul's V1==V2==R) is carried by the
+	// merged records' member tuples, and unit identity is never over-claimed
+	// (mul's result is a metric product, not the argument unit).
+	bool DescribeSignature(AbstrSignatureBuilder& sb) const override
+	{
+		auto arg1Cls = dynamic_cast<const DataItemClass*>(GetArgClass(0));
+		auto arg2Cls = dynamic_cast<const DataItemClass*>(GetArgClass(1));
+		auto resCls  = dynamic_cast<const DataItemClass*>(GetResultClass());
+		if (!arg1Cls || !arg2Cls || !resCls)
+			return false;
+		sig_var D = sb.UnitVar("D"), V1 = sb.UnitVar("V1"), V2 = sb.UnitVar("V2"), R = sb.UnitVar("R");
+		sb.MemberValueClass(V1, arg1Cls->GetValuesType());
+		sb.MemberValueClass(V2, arg2Cls->GetValuesType());
+		sb.MemberValueClass(R, resCls->GetValuesType());
+		sb.ArgAttr(0, V1, D, m_ValueComposition);
+		sb.ArgAttr(1, V2, D, m_ValueComposition);
+		sb.ResultAttr(R, D, m_ValueComposition);
+		return true;
+	}
 
 private:
 	UnitCreatorPtr   m_UnitCreatorPtr;
