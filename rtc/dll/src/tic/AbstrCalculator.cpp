@@ -3596,6 +3596,22 @@ namespace {
 			return c;
 		};
 
+		// batch B: a record variable used in BOTH a values role and a domain role
+		// claims unit IDENTITY across those positions (the K2 pattern: lookup's E2
+		// in org_rel's VALUES role and values' DOMAIN role; rlookup/invert result
+		// values borrowing an argument's domain). Values-only variables stay
+		// class-level: their runtime discharge is UnifyValues (class + metric),
+		// where a key-identity claim would over-reject (S1, review finding)
+		std::vector<bool> inDomainRole(nv, false);
+		auto noteDomainRole = [&](sig_var v) { if (v != no_sig_var) inDomainRole[v] = true; };
+		for (const auto& p : shape.args)
+			if (p.kind == SignatureRecord::PosKind::Attr)
+				noteDomainRole(p.domain);
+		if (shape.repeat.active)
+			noteDomainRole(shape.repeat.domain);
+		if (shape.result.kind == SignatureRecord::PosKind::Attr)
+			noteDomainRole(shape.result.domain);
+
 		std::vector<const std::vector<const ValueClass*>*> allTuples;
 		for (const auto& t : mr.tuples)
 			allTuples.push_back(&t);
@@ -3617,7 +3633,11 @@ namespace {
 				r.kind = DefType::Kind::Data;
 				r.vcomp = p.vc;
 				if (p.values != no_sig_var)
+				{
 					r.vNode = VN(p.values);
+					if (inDomainRole[p.values])
+						r.vuNode = DN(p.values); // K2: the SAME node the domain role uses
+				}
 				if (p.domain != no_sig_var)
 				{
 					if (shape.varFlags[p.domain] & SignatureRecord::VF_VoidDomain)

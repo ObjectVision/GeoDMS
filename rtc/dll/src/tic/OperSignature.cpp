@@ -57,6 +57,15 @@ sig_var SignatureRecorder::GeneratedUnit(CharPtr role)        { return NewVar(ro
 void SignatureRecorder::MemberValueClass(sig_var u, const ValueClass* vc)
 {
 	assert(u < rec.NrVars());
+	// normalize to the walker's FIELD-class vocabulary (review finding, batch B):
+	// sequence/polygon members register COMPOSED classes (float32seq, dpolygon),
+	// but walker terms carry the field class with the composition separate
+	// (§18.2) — raw composed classes in the tuples would falsely reject every
+	// concrete sequence/polygon argument at the class bind and the tuple
+	// narrowing. The position's ValueComposition keeps the composed-ness.
+	if (vc && IsAcceptableValuesComposition(vc->GetValueComposition()))
+		if (auto fc = vc->GetFieldClass())
+			vc = fc;
 	rec.memberClasses[u] = vc;
 }
 void SignatureRecorder::FixedValueClass(sig_var u, const ValueClass* vc)

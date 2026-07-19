@@ -214,6 +214,7 @@ public:
 	ValueComposition GetValueComposition       () const { return m_ValueComposition; }
 
 	// Related classes (observers). Range/Sequence may be lazily resolved (mutable members).
+          const ValueClass* GetFieldClass   () const { return m_FieldClass; }
           const ValueClass* GetScalarClass  () const { return m_ScalarClass; }
           const ValueClass* GetRangeClass   () const { return m_RangeClass; }
           const ValueClass* GetSequenceClass() const { return m_SequenceClass; }

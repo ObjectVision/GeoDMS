@@ -28,6 +28,8 @@
 #include "UnitProcessor.h"
 #include "stg/AbstrStorageManager.h"
 
+#include "OperSignature.h"
+
 #include "lookup.h"
 
 #include "rlookup.h"
@@ -40,6 +42,28 @@ public:
 	AbstrIndexedSearchOperator(AbstrOperGroup* gr, const Class* argClass)
 		:	BinaryOperator(gr, ResultType::GetStaticClass(), argClass, argClass)
 	{}
+
+	// mirrors CreateResult below: rlookup(a: V1[D]; b: V2[E]) -> E[D] — the
+	// result's VALUES unit IS b's domain (K4; one variable E in b's domain role
+	// and the result's values role — reduction-honest: the result is flagged
+	// categorical, so a declared-values conflict also fails CheckResultItem's
+	// UnifyDomain discharge). E carries no member class (dynamic result class);
+	// its class flows through the unit node's companion when E binds. The
+	// values-compatibility of a and b stays class-level via the member tuples
+	bool DescribeSignature(AbstrSignatureBuilder& sb) const override
+	{
+		auto argCls = dynamic_cast<const DataItemClass*>(GetArgClass(0));
+		if (!argCls)
+			return false;
+		ValueComposition vc = argCls->GetValuesType()->GetValueComposition();
+		sig_var D = sb.UnitVar("D"), E = sb.UnitVar("E"), V1 = sb.UnitVar("V1"), V2 = sb.UnitVar("V2");
+		sb.MemberValueClass(V1, argCls->GetValuesType());
+		sb.MemberValueClass(V2, argCls->GetValuesType());
+		sb.ArgAttr(0, V1, D, vc);
+		sb.ArgAttr(1, V2, E, vc);
+		sb.ResultAttr(E, D, ValueComposition::Single);
+		return true;
+	}
 
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{

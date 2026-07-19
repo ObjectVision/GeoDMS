@@ -15,6 +15,7 @@
 
 #include "DataArray.h"
 #include "DataItemClass.h"
+#include "OperSignature.h"
 #include "ParallelTiles.h"
 #include "Unit.h"
 #include "UnitClass.h"
@@ -51,6 +52,25 @@ struct AbstrInvertOperator : public UnaryOperator
 			)
 		,	m_All(all)
 	{}
+
+	// mirrors CreateResult below: invert(x: B[A]) -> A[B] — DOUBLE cross-role:
+	// x's VALUES unit is the result's DOMAIN and x's DOMAIN is the result's
+	// VALUES (reduction-honest: domains are UnifyDomain-checked everywhere and
+	// the result is flagged categorical, so declared-values conflicts also fail
+	// CheckResultItem's UnifyDomain discharge). A carries no member class (its
+	// class is the argument's domain class, dynamic); it flows through the
+	// companion when A binds
+	bool DescribeSignature(AbstrSignatureBuilder& sb) const override
+	{
+		auto argCls = dynamic_cast<const DataItemClass*>(GetArgClass(0));
+		if (!argCls)
+			return false;
+		sig_var A = sb.UnitVar("A"), B = sb.UnitVar("B");
+		sb.MemberValueClass(B, argCls->GetValuesType());
+		sb.ArgAttr(0, B, A, argCls->GetValuesType()->GetValueComposition());
+		sb.ResultAttr(A, B, ValueComposition::Single);
+		return true;
+	}
 
 	// Override Operator
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override

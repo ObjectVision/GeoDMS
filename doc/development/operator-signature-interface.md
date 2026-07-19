@@ -896,6 +896,53 @@ described — arithmetic, compare, logical, trig/float functions, rounding, pred
 `convert`/`value`, `min_elem`/`argmin` families — and typed at definition wherever the
 surviving membership is unambiguous, with `and`/`or`/`not` no longer falsely pinned to
 bool (they are registered over all-ints) and div/iif checked for the first time.
+
+### 12.2 Batch B as shipped (2026-07-19) — the relational family
+
+Implemented: `DescribeSignature` on `AbstrLookupOperator` (lookup + collect_by_org_rel:
+the K2 join-key — one variable `E2` in org_rel's VALUES role and values' DOMAIN role;
+result `V[D]` with the class borrow through shared `V`), `AbstrIndexedSearchOperator`
+(rlookup + kin: K4 — the result's VALUES unit IS arg2's domain, one variable `E` in both
+roles; `E` carries no member class, its class flows through the unit node's companion),
+`AbstrInvertOperator` (double cross-role: `B[A] → A[B]`), and `AbstrIndexOperator`
+(conservative: the result-values claim uses a SEPARATE variable because index's result is
+not flagged categorical — see the S1 rule below). `AbstrDirectIndexOperator` stays
+undescribed (its values class is chosen conditionally at runtime). `collect_by_cond`
+defers to batch D (K6 fresh subset domain).
+
+**The identity rule.** The walker claims values-unit identity (`DefType::vuNode` = the
+same unit node the domain role uses) for a record variable used in BOTH a values role
+and a domain role — and only for those. Values-only variables stay class-level, because
+their runtime discharge is `UnifyValues` (class + metric) or a plain borrow, where a
+key-identity claim would over-reject (the batch-U S1 rule). Reduction-honesty per claim:
+lookup's `E2` is UnifyDomain-enforced in `CreateResult` (with `UM_AllowDefaultLeft`
+borrowing — harmless here because concrete DEFAULT units are not denotable in walker
+terms: `vUnit` only ever comes from named scope units, so borrowing configs defer; the
+doc-mandated regression config is `fn_test_opsigB`'s `pick`); rlookup's and invert's
+result claims discharge against declared caller items via `CheckResultItem`'s
+**categorical** UnifyDomain branch (both flag `TSF_Categorical`); index does not flag it,
+hence its separate result variable.
+
+**Adversarial-review correction (pre-landing, 3 independent confirmations): the
+field-class vocabulary.** Sequence/polygon members register COMPOSED classes
+(`float32seq`, `dpolygon`), but walker terms carry the FIELD class with the composition
+separate (§18.2). Member elimination already bridges (witness synthesis via
+`GetValueType(comp)`), so the sequence record was correctly SELECTED — and then the raw
+composed classes in its tuples falsely rejected every concrete sequence/polygon argument
+at the class bind and the tuple narrowing (an S1 violation on routine geometry lookups,
+also latently present in batch A's sequence-registered `iif` members). Fixed centrally:
+`SignatureRecorder::MemberValueClass` normalizes composed classes to their field class
+(`ValueClass::GetFieldClass`, accessor added); the position's `ValueComposition` keeps
+the composed-ness, so sequence records remain shape-distinct. Regression: the meta-only
+`seqOf` case in `fn_test_opsigB.dms`.
+
+Tests: `fn_test_opsigB{,_neg1,_neg2}.dms` — neg1 is the headline K2 catch
+("inconsistent instantiation of unit variable 'E2': the unit bound argument 1 of
+operator 'lookup' differs from the unit bound argument 2"), neg2 the K4 result-identity
+catch against the declared result. (Debug note: neg2 exits 3 in Debug via the
+pre-existing reduce-side-error teardown artifact — TreeItem leak + `NumbObjCache`
+assert — identical to `fn_test_unify_neg2` since the bare-id fix; Release shows the
+clean intended message.)
 | **D** | fresh-unit family: `unique`, `select`/`subset`, `union` | K6 generative nodes | low / modest (ranked by description simplicity + printer value, not unification power) |
 | **E** | `discrete_alloc` partial + `connect` family | `ArgContainer`, `DeferredRelation`, K16 | low / **diagnostics + docs only**. By the §16 ruling these are **opaque at definition** (result ⊤) and checked at concrete instances; the description exists purely so the printer (§6.3) can state their contracts and a declared result type is what the def-time check trusts (§17) |
 | **F** | `impedance_matrix` / dijkstra | `DynamicShape` | low / **docs only**. Opaque at definition (K13 shape-from-value); a `DynamicShape` record only feeds the printer. Do last |

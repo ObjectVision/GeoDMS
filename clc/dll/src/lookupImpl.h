@@ -31,6 +31,8 @@
 #include "UnitProcessor.h"
 #include "stg/AbstrStorageManager.h"
 
+#include "OperSignature.h"
+
 #include "OperRelUni.h"
 #include "lookup.h"
 
@@ -42,12 +44,32 @@ class AbstrLookupOperator : public BinaryOperator
 {
 	ValueComposition m_VC;
 public:
-	AbstrLookupOperator(AbstrOperGroup& aog, const DataItemClass* arg1Cls, const DataItemClass* arg2Cls) : 
+	AbstrLookupOperator(AbstrOperGroup& aog, const DataItemClass* arg1Cls, const DataItemClass* arg2Cls) :
 		BinaryOperator(&aog, arg2Cls, // result elem type == arg2 elem type
 			arg1Cls, arg2Cls
-		) 
+		)
 		,	m_VC(arg2Cls->GetValuesType()->GetValueComposition())
 	{}
+
+	// mirrors CreateResult below: the join-key identity v1 == e2 (K2) — one
+	// variable E2 in org_rel's VALUES role and values' DOMAIN role; the result
+	// ranges over org_rel's domain and borrows values' class (shared V is a
+	// CLASS-level claim only: the walker asserts unit identity exclusively for
+	// variables that also appear in a domain role, so the borrow stays soft)
+	bool DescribeSignature(AbstrSignatureBuilder& sb) const override
+	{
+		auto arg1Cls = dynamic_cast<const DataItemClass*>(GetArgClass(0));
+		auto arg2Cls = dynamic_cast<const DataItemClass*>(GetArgClass(1));
+		if (!arg1Cls || !arg2Cls)
+			return false;
+		sig_var D = sb.UnitVar("D"), E2 = sb.UnitVar("E2"), V = sb.UnitVar("V");
+		sb.MemberValueClass(E2, arg1Cls->GetValuesType());
+		sb.MemberValueClass(V, arg2Cls->GetValuesType());
+		sb.ArgName(0, "org_rel"); sb.ArgAttr(0, E2, D, ValueComposition::Single);
+		sb.ArgName(1, "values");  sb.ArgAttr(1, V, E2, m_VC);
+		sb.ResultAttr(V, D, m_VC);
+		return true;
+	}
 
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{

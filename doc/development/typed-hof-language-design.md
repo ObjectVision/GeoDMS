@@ -1264,8 +1264,27 @@ node is pinned to its declared class regardless of which resolution path
 creates the node first (`UNode` scans the owner's parameters;
 `UnitVar` reconciles a later-supplied declared class).
 
-Still open in WP4.1: batch B (`lookup` & co, on the shipped UnitNode pool),
-batches C–F, and lifting the function-application-into-bare-item restriction.
+**Batch B SHIPPED (2026-07-19)** — the relational family
+(`operator-signature-interface.md` §12.2): `lookup`/`collect_by_org_rel` (the
+K2 join-key: one variable in org_rel's VALUES role and values' DOMAIN role),
+`rlookup` and kin (K4: the result's VALUES unit IS arg2's domain), `invert`
+(double cross-role), `index` (conservative result — not categorical at
+reduction). The walker claims values-unit identity exactly for record
+variables used in both a values and a domain role; values-only variables stay
+class-level (their reduction discharge is `UnifyValues`, where key identity
+would over-reject). Join-key mismatches now error at the definition's first
+reference: *"inconsistent instantiation of unit variable 'E2': the unit bound
+argument 1 of operator 'lookup' differs from the unit bound argument 2"*.
+Adversarial review caught one S1 hazard pre-landing: sequence/polygon members
+register COMPOSED classes while walker terms carry FIELD classes — fixed
+centrally by normalizing `MemberValueClass` to the field class (also curing
+batch A's latent sequence-`iif` variant); the borrowing regression
+(default-metric rel values against a named domain) ships as a positive in
+`fn_test_opsigB.dms`.
+
+Still open in WP4.1: batches C–F (aggregations, fresh-unit family,
+composite printers), and lifting the function-application-into-bare-item
+restriction.
 
 ### 5.11 Anonymous functions and the brace-disambiguation rule *(tier A implemented 2026-07-14)*
 

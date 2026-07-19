@@ -17,6 +17,7 @@
 #include "CheckedDomain.h"
 #include "DataArray.h"
 #include "DataItemClass.h"
+#include "OperSignature.h"
 #include "Metric.h"
 #include "TreeItemClass.h"
 #include "Unit.h"
@@ -48,6 +49,23 @@ public:
 	AbstrIndexOperator(const Class* argClass)
 		:	UnaryOperator(&cog_index, AbstrDataItem::GetStaticClass(), argClass)
 	{}
+
+	// mirrors CreateResult below: index(x: V[E]) -> R[E] — the result ranges over
+	// x's domain. Its VALUES unit is that same domain unit, but the claim stays a
+	// SEPARATE variable R: the result item is not flagged categorical, so a
+	// declared values unit is discharged by UnifyValues at reduction, where a
+	// key-identity claim would over-reject (the batch-U S1 rule)
+	bool DescribeSignature(AbstrSignatureBuilder& sb) const override
+	{
+		auto argCls = dynamic_cast<const DataItemClass*>(GetArgClass(0));
+		if (!argCls)
+			return false;
+		sig_var E = sb.UnitVar("E"), V = sb.UnitVar("V"), R = sb.UnitVar("R");
+		sb.MemberValueClass(V, argCls->GetValuesType());
+		sb.ArgAttr(0, V, E, argCls->GetValuesType()->GetValueComposition());
+		sb.ResultAttr(R, E, ValueComposition::Single);
+		return true;
+	}
 
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
