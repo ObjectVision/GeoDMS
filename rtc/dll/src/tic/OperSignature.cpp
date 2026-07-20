@@ -27,6 +27,13 @@ bool Operator::DescribeSignature(AbstrSignatureBuilder& /*sb*/) const
 	return false;
 }
 
+// §12.7: the closed-spec variant — default: no per-spec description, the walker
+// keeps the DynamicShape deferral exactly as without spec knowledge
+bool Operator::DescribeSpecSignature(AbstrSignatureBuilder& /*sb*/, CharPtr /*specValue*/) const
+{
+	return false;
+}
+
 // *****************************************************************************
 // SignatureRecorder
 // *****************************************************************************

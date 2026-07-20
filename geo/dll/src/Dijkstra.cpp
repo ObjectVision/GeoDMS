@@ -1343,6 +1343,168 @@ public:
 		return true;
 	}
 
+	// §12.7 impedance tranche: the CONCRETE signature for a definition-time-known
+	// spec. Positions follow CreateResult's extraction order exactly; the emitted
+	// count therefore equals CalcNrArgs(df) — the walker's ruled honest arity
+	// check. Claim discipline: hard unit-variable shares mirror UNCONDITIONAL
+	// UnifyDomain calls of the metainfo preamble below (given the flags); value
+	// classes checked by MG_USERCHECK/checked-casts at metainfo become fixed or
+	// member classes; UnifyValues discharges stay class-level (shared class vars,
+	// never unit identity); void-escaping (UM_AllowVoidRight) domains use the
+	// shared var too — a void-domain actual short-circuits in the walker, so the
+	// escape is preserved. A parse/CheckFlags throw makes the walker defer.
+	bool DescribeSpecSignature(AbstrSignatureBuilder& sb, CharPtr specValue) const override
+	{
+		auto df = DijkstraFlag(m_OperFlags | ParseDijkstraString(specValue)); // throws on syntax error -> walker defers
+		CheckFlags(df);                                                       // throws on invalid combos -> walker defers
+		bool isOD = flags(df & DijkstraFlag::OD);
+
+		sig_var E = sb.UnitVar("Links");  sb.FixedValueClass(E, ValueWrap<LinkType>::GetStaticClass()); // checked_domain<LinkType>
+		sig_var N = sb.UnitVar("Nodes");  sb.FixedValueClass(N, ValueWrap<NodeType>::GetStaticClass()); // const_unit_cast<NodeType>
+		sig_var I = sb.UnitVar("Imp");    sb.MemberValueClass(I, ValueWrap<ImpType>::GetStaticClass());
+
+		arg_index i = 0;
+		sb.ArgName(i, "specification");
+		sb.ArgMetaValue(i, DataArray<SharedStr>::GetStaticClass()->GetValuesType(), "the evaluated specification"); ++i;
+		sb.ArgName(i, "linkImpedance"); sb.ArgAttr(i, I, E, ValueComposition::Single); ++i;
+		sb.ArgName(i, "fromNode_rel"); sb.ArgAttr(i, N, E, ValueComposition::Single); ++i; // Links domain + Node values, both UnifyDomain-enforced
+		sb.ArgName(i, "toNode_rel");   sb.ArgAttr(i, N, E, ValueComposition::Single); ++i;
+		if (flags(df & DijkstraFlag::BidirFlag))
+		{
+			sig_var B = sb.UnitVar("BidirFlag"); sb.FixedValueClass(B, ValueWrap<Bool>::GetStaticClass());
+			sb.ArgName(i, "bidirectional_flag"); sb.ArgAttr(i, B, E, ValueComposition::Single); ++i;
+		}
+		sig_var X = N, Y = N; // start/end point sets collapse to the Node set without Org/DstNode
+		if (flags(df & DijkstraFlag::OrgNode))
+		{
+			X = sb.UnitVar("StartPoints"); sb.FixedValueClass(X, ValueWrap<NodeType>::GetStaticClass()); // checked_domain<NodeType>
+			sb.ArgName(i, "startPoint_node_rel"); sb.ArgAttr(i, N, X, ValueComposition::Single); ++i;    // values ranged over the Node set
+		}
+		if (flags(df & DijkstraFlag::OrgImp))
+		{
+			sig_var OI = sb.UnitVar("OrgImp"); sb.MemberValueClass(OI, ValueWrap<ImpType>::GetStaticClass());
+			sb.ArgName(i, "startPoint_impedance"); sb.ArgAttr(i, OI, X, ValueComposition::Single); ++i;  // domain == start-point set (unconditional)
+		}
+		// orgZones: OD -> the start-point set unless an explicit OrgZone_rel; !OD -> void
+		sig_var OZ = isOD ? X : no_sig_var;
+		if (flags(df & DijkstraFlag::OrgZone)) // CheckFlags: requires OD
+		{
+			OZ = sb.UnitVar("OrgZones"); sb.FixedValueClass(OZ, ValueWrap<ZoneType>::GetStaticClass());
+			sb.ArgName(i, "startPoint_OrgZone_rel"); sb.ArgAttr(i, OZ, X, ValueComposition::Single); ++i;
+		}
+		auto ozDom = [&]() -> sig_var { return OZ != no_sig_var ? OZ : sb.VoidDomain(); }; // !OD: the arg must be a void-domain parameter
+		if (flags(df & DijkstraFlag::OrgZoneLoc))
+		{
+			sig_var L = sb.UnitVar("OrgZoneLoc"); sb.FixedValueClass(L, ValueWrap<euclid_location_t>::GetStaticClass());
+			sb.ArgName(i, "OrgZone_location"); sb.ArgAttr(i, L, ozDom(), ValueComposition::Single); ++i;
+		}
+		if (flags(df & DijkstraFlag::DstNode))
+		{
+			Y = sb.UnitVar("EndPoints"); sb.FixedValueClass(Y, ValueWrap<NodeType>::GetStaticClass());
+			sb.ArgName(i, "endPoint_node_rel"); sb.ArgAttr(i, N, Y, ValueComposition::Single); ++i;
+		}
+		if (flags(df & DijkstraFlag::DstImp))
+		{
+			sig_var DI = sb.UnitVar("DstImp"); sb.MemberValueClass(DI, ValueWrap<ImpType>::GetStaticClass());
+			sb.ArgName(i, "endPoint_impedance"); sb.ArgAttr(i, DI, Y, ValueComposition::Single); ++i;
+		}
+		sig_var DZ = Y; // dstZones collapse to the end-point set without DstZone
+		if (flags(df & DijkstraFlag::DstZone))
+		{
+			DZ = sb.UnitVar("DstZones"); sb.FixedValueClass(DZ, ValueWrap<ZoneType>::GetStaticClass());
+			sb.ArgName(i, "endPoint_DstZone_rel"); sb.ArgAttr(i, DZ, Y, ValueComposition::Single); ++i;
+		}
+		if (flags(df & DijkstraFlag::DstZoneLoc))
+		{
+			sig_var L = sb.UnitVar("DstZoneLoc"); sb.FixedValueClass(L, ValueWrap<euclid_location_t>::GetStaticClass());
+			sb.ArgName(i, "DstZone_location"); sb.ArgAttr(i, L, DZ, ValueComposition::Single); ++i;
+		}
+		if (flags(df & DijkstraFlag::ImpCut))
+		{
+			sig_var MI = sb.UnitVar("OrgZone_max_imp"); sb.MemberValueClass(MI, ValueWrap<MassType>::GetStaticClass());
+			sb.ArgName(i, "OrgZone_max_imp"); sb.ArgAttr(i, MI, ozDom(), ValueComposition::Single); ++i;
+		}
+		if (flags(df & DijkstraFlag::DstLimit))
+		{
+			sig_var M1 = sb.UnitVar("OrgZone_max_mass"); sb.MemberValueClass(M1, ValueWrap<MassType>::GetStaticClass());
+			sb.ArgName(i, "OrgZone_max_mass"); sb.ArgAttr(i, M1, ozDom(), ValueComposition::Single); ++i;
+			sig_var M2 = sb.UnitVar("DstZone_mass"); sb.MemberValueClass(M2, ValueWrap<MassType>::GetStaticClass());
+			sb.ArgName(i, "DstZone_mass"); sb.ArgAttr(i, M2, DZ, ValueComposition::Single); ++i;
+		}
+		if (flags(df & DijkstraFlag::UseEuclidicFilter))
+		{
+			sig_var SD = sb.UnitVar("maxSqrDist"); sb.FixedValueClass(SD, ValueWrap<sqr_dist_t>::GetStaticClass());
+			sb.ArgName(i, "maxSqrDist"); sb.ArgAttr(i, SD, sb.VoidDomain(), ValueComposition::Single); ++i;
+		}
+		if (flags(df & DijkstraFlag::UseAltLinkImp))
+		{
+			sig_var AI = sb.UnitVar("AltImp"); sb.MemberValueClass(AI, ValueWrap<ImpType>::GetStaticClass());
+			sb.ArgName(i, "alternative_link_imp"); sb.ArgAttr(i, AI, E, ValueComposition::Single); ++i;
+		}
+		if (flags(df & DijkstraFlag::UseLinkAttr))
+		{
+			sig_var LA = sb.UnitVar("LinkAttr"); sb.MemberValueClass(LA, ValueWrap<MassType>::GetStaticClass());
+			sb.ArgName(i, "link_attr"); sb.ArgAttr(i, LA, sb.UnitVar("LinkAttrDomain"), ValueComposition::Single); ++i; // no domain unify exists: fresh single-use var
+		}
+		if (flags(df & DijkstraFlag::OrgMinImp))
+		{
+			sig_var MI = sb.UnitVar("OrgMinImp"); sb.MemberValueClass(MI, ValueWrap<ImpType>::GetStaticClass());
+			sb.ArgName(i, "OrgZone_min_imp"); sb.ArgAttr(i, MI, ozDom(), ValueComposition::Single); ++i;
+		}
+		if (flags(df & DijkstraFlag::DstMinImp))
+		{
+			sig_var MI = sb.UnitVar("DstMinImp"); sb.MemberValueClass(MI, ValueWrap<ImpType>::GetStaticClass());
+			sb.ArgName(i, "DstZone_min_imp"); sb.ArgAttr(i, MI, DZ, ValueComposition::Single); ++i;
+		}
+		if (flags(df & DijkstraFlag::InteractionVi))
+		{
+			sig_var MV = sb.UnitVar("v_i"); sb.MemberValueClass(MV, ValueWrap<MassType>::GetStaticClass());
+			sb.ArgName(i, "v_i"); sb.ArgAttr(i, MV, ozDom(), ValueComposition::Single); ++i;
+		}
+		if (flags(df & DijkstraFlag::InteractionWj))
+		{
+			sig_var MW = sb.UnitVar("w_j"); sb.MemberValueClass(MW, ValueWrap<MassType>::GetStaticClass());
+			sb.ArgName(i, "w_j"); sb.ArgAttr(i, MW, DZ, ValueComposition::Single); ++i;
+		}
+		if (flags(df & DijkstraFlag::DistDecay))
+		{
+			sig_var P = sb.UnitVar("dist_decay"); sb.MemberValueClass(P, ValueWrap<ParamType>::GetStaticClass());
+			sb.ArgName(i, "dist_decay_beta"); sb.ArgAttr(i, P, sb.VoidDomain(), ValueComposition::Single); ++i;
+		}
+		if (flags(df & DijkstraFlag::DistLogit))
+		{
+			for (CharPtr nm : { "logit_alpha", "logit_beta", "logit_gamma" })
+			{
+				sig_var P = sb.UnitVar(nm); sb.MemberValueClass(P, ValueWrap<ParamType>::GetStaticClass());
+				sb.ArgName(i, nm); sb.ArgAttr(i, P, sb.VoidDomain(), ValueComposition::Single); ++i;
+			}
+		}
+		if (flags(df & DijkstraFlag::InteractionAlpha))
+		{
+			sig_var MA = sb.UnitVar("OrgZone_alpha"); sb.MemberValueClass(MA, ValueWrap<MassType>::GetStaticClass());
+			sb.ArgName(i, "OrgZone_alpha"); sb.ArgAttr(i, MA, ozDom(), ValueComposition::Single); ++i;
+		}
+		if (flags(df & DijkstraFlag::PrecalculatedNrDstZones))
+		{
+			sig_var PC = sb.UnitVar("NrDstZones"); sb.FixedValueClass(PC, ValueWrap<ZoneType>::GetStaticClass());
+			sb.ArgName(i, "precalculated_NrDstZones"); sb.ArgAttr(i, PC, OZ, ValueComposition::Single); ++i; // OD-only (CheckFlags); strict domain
+		}
+		assert(i == CalcNrArgs(df)); // the walker's arity check rests on this equality
+
+		if (isOD)
+		{
+			sig_var R = sb.GeneratedUnit("OD_Pairs");
+			sb.FixedValueClass(R, flags(df & DijkstraFlag::UInt64_Od)
+				? static_cast<const ValueClass*>(ValueWrap<UInt64>::GetStaticClass())
+				: static_cast<const ValueClass*>(ValueWrap<UInt32>::GetStaticClass()));
+			sb.ResultUnit(R);
+			sb.DeferredRelation("sub-items per the specification: impedance, zone-rels, point-rels, LinkSet, aggregates");
+		}
+		else
+			sb.ResultAttr(I, DZ, ValueComposition::Single); // impedance_table: attribute<Imp>(dstZones)
+		return true;
+	}
+
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
 		DijkstraFlag df = m_OperFlags;

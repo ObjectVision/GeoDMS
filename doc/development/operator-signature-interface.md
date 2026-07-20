@@ -1185,7 +1185,53 @@ rebuilt, Debug sweep clean. tst `/Network`'s pre-existing `pow`-metric failure i
 plain-`UM_Throw` claims, opaque-favouring vocabulary, no cross-arg claim over any
 conditional/default-escaping path) held.
 
-### 12.7 PLANNED (post-F, ruled 2026-07-20): definition-time K13 spec processing
+### 12.7 Definition-time K13 spec processing (ruled 2026-07-20) — **impedance tranche SHIPPED 2026-07-20**
+
+**As shipped** (`Operator::DescribeSpecSignature` + the `FunctionChecker` closed-spec machinery in
+`AbstrCalculator.cpp` + `DijkstraMatrOperator<T>::DescribeSpecSignature` in `Dijkstra.cpp`):
+
+- **The pipeline**: when a `DynamicShape` record's single string-valued `ArgMetaValue` position
+  holds a spec CLOSED over the formals, the walker evaluates it (literal fast path off the parse
+  tree; otherwise `TryBuildClosedKeyExpr` reduces the closed sub-expression to its hash-consed DC
+  key — externals via `GetCheckedKeyExpr`, body locals recursively, operator nodes via
+  `RewriteExprTop` — and `EvalClosedSpec` runs `GetOrCreateDataController` → `CalcCertainResult` →
+  `GetTheValue<SharedStr>` under a `FencedInterestRetainContext`, the dynamic-argument-policies
+  idiom). The surviving members' `DescribeSpecSignature` records (no `DynamicShape`; positions in
+  the extraction order, count == `CalcNrArgs(df)`) merge and apply. **Storage-backed specs are
+  read at definition scan** per the ruling — verified: a storage-backed spec's arity violation
+  errors at definition with the file's content quoted. Every failure at every stage defers.
+- **The two live catches**: the ruled honest ARITY error (*"number of given arguments to operator
+  'impedance_table' doesn't match the specification '…': 6 arguments given (including the
+  specification), but 5 expected"*) and the per-spec hard unit shares (the Links domain over
+  imp/F1/F2 + the per-flag tail relations — *"the body requires unit variables 'L2' and 'L1' to
+  be equal (operator 'impedance_table')"*). Non-OD results claim `ResultAttr(Imp, dstZones)`; OD
+  results a `GeneratedUnit` with the `UInt64_Od`-aware class.
+- **Adversarial-review corrections (fixed pre-landing, workflow `wf_2db0d75a`)**: (a) a per-spec
+  record memo keyed `(group, spec)` replayed one application's SURVIVOR tuples against another's
+  argument classes (two impedance calls with different Imp classes in one body → false
+  no-overload; the exact repro is now the `dist2` regression in `fn_test_opsigK13`) — the memo is
+  DROPPED, records derive per application (the LispPtr memo dedups call sites); (b) a trailing
+  `...rest` symbol counts as ONE syntactic term but splices at reduction — rest-having functions
+  defer the whole spec path; (c) reduction resolves the closure ENVIRONMENT before the definition
+  scope, so a def-scope item shadowed by an enclosing function's member must classify as a
+  capture (open), not an evaluable external; (d) the application/closed-key memos now hold
+  **strong `LispRef` keys** — the map entries pin the interned nodes, closing the raw-pointer
+  ABA hazard two review rounds had disputed. Additionally `CheckFunctionDefinition` gained a
+  re-entrancy sentinel (closed-spec evaluation can `UpdateMetaInfo` items whose expressions apply
+  the function being checked).
+- **v1 narrowings inside the granted scope**: function-call heads inside a spec expression defer
+  (building their key would re-enter `ReduceValue`; lift with the sentinel + errorHolder later);
+  a cleanly-evaluated-but-invalid spec defers rather than erring (the ruling permits either; the
+  honest-error upgrade is a one-liner).
+
+Tests: `fn_test_opsigK13{,_stor,_neg1,_neg2}.dms` (positives: literal + closed-external +
+storage-backed + open-defer + the memo regression; negatives: the arity and Links-domain catches).
+Validation: 101/101 battery, tst `/Arithmetics` + `/Rescale` + `/MetaInfo` (+ `/Network`
+unchanged: pre-existing `pow`-metric only), `examples/function.dms`, Release + Debug, Debug sweep
+clean (the emission's `assert(i == CalcNrArgs(df))` holds). The `for_each` tranche and the
+invalid-spec honest error remain per the plan below.
+
+#### The original ruling and plan
 
 > **Ruling (Maarten, 2026-07-20): when a K13 meta-directing argument is available at function
 > definition, process it — not only literals: every spec that does not depend on the function's

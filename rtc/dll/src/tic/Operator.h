@@ -101,6 +101,15 @@ public:
 	// must mirror the member's CreateResult (the §9 drift defenses guard the pair).
 	TIC_CALL virtual bool DescribeSignature(struct AbstrSignatureBuilder& sb) const;
 
+	// §12.7 (K13 closed-spec): describe this member's CONCRETE signature for a
+	// definition-time-known value of its meta-directing argument. The walker calls
+	// this when a DynamicShape member's spec argument is CLOSED over the checked
+	// function's formals and was evaluated at definition scan; the emitted record
+	// (no DynamicShape) carries exactly the spec-implied position count, which the
+	// walker enforces as the ruled honest arity check. A throw (unparsable or
+	// invalid spec) or false makes the walker defer exactly as without the spec.
+	TIC_CALL virtual bool DescribeSpecSignature(struct AbstrSignatureBuilder& sb, CharPtr specValue) const;
+
 	inline bool HasRegisteredResultClass() const { return !(GetOperPolicy() & oper_policy::dynamic_result_class); }
 	inline bool CalcRequiresMetaInfo()     const { return GetOperPolicy() & oper_policy::calc_requires_metainfo; }
 	inline bool CanRunParallel()           const { return !(GetGroup()->HasExternalEffects() ||  CalcRequiresMetaInfo()); }

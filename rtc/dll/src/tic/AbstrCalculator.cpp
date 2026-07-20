@@ -2806,7 +2806,9 @@ namespace {
 		// their fresh existential units must be the same node), and a diagnostics
 		// de-duplicator for every repeated subexpression as a bonus. refScope is in
 		// the key because symbol resolution inside the application depends on it.
-		std::map<std::pair<const TreeItem*, const LispObj*>, DefType> m_ApplTypes;
+		// The key holds a STRONG LispRef (§12.7 review): the map entry itself pins
+		// the interned node, so the pointer-ordered key can never dangle or ABA
+		std::map<std::pair<const TreeItem*, LispRef>, DefType> m_ApplTypes;
 		std::vector<SharedTreeItem>  m_Keep;             // liveness of resolved callees
 
 		DefType InferBodyItem(const TreeItem* refItem);
@@ -2910,13 +2912,39 @@ namespace {
 			return false;
 		}
 
-		// 0=parameter (index via *paramIdx), 1=local (via *local), 2=import/external; throws on unknown
-		int ResolveName(const TreeItem* refScope, TokenID sym, const TreeItem** local, UInt32* paramIdx = nullptr);
+		// 0=parameter (index via *paramIdx), 1=local (via *local), 2=import/external; throws on unknown.
+		// §12.7: the bare code 2 conflates CLOSED and OPEN references — extKindPtr
+		// discriminates (see ExtRefKind); externalOut receives the resolved item for
+		// the DefScopeExternal case (the only evaluable one)
+		enum class ExtRefKind : UInt32 { DefScopeExternal = 0, ParamMember, PreludeFunc, ClosureCapture };
+		int ResolveName(const TreeItem* refScope, TokenID sym, const TreeItem** local, UInt32* paramIdx = nullptr,
+			SharedTreeItem* externalOut = nullptr, ExtRefKind* extKindPtr = nullptr);
+
+		// §12.7 impedance tranche: definition-time K13 spec processing. A body
+		// sub-expression CLOSED over the formals (references no parameter, rest
+		// slice, closure capture, or parameter member — transitively through body
+		// locals; externals terminate the scan since formals are lexically
+		// invisible outside the function) is REDUCED to its DataController key —
+		// the same hash-consed key every application interns (β-substitution is
+		// the identity on closed expressions) — and EVALUATED at definition scan,
+		// storage-backed sources included (the explicit ruling). Any failure at
+		// any stage yields nullopt/empty = defer, exactly as without the spec.
+		std::map<std::pair<const TreeItem*, LispRef>, LispRef> m_ClosedKeyMemo; // strong key AND value LispRefs: nothing dangles
+		std::set<const TreeItem*> m_ScanBusy; // cycle guard for body-local recursion (distinct from m_InProgress)
+		LispRef TryBuildClosedKeyExpr(const TreeItem* refScope, LispPtr expr);
+		LispRef TryBuildClosedKeyExprImpl(const TreeItem* refScope, LispPtr expr);
+		std::optional<SharedStr> EvalClosedSpec(const TreeItem* refScope, LispPtr specExpr);
+		std::optional<DefType> TrySpecProcessing(const AbstrOperGroup* og,
+			const OperGroupSignatures::MergedRecord& mr, const std::vector<const Operator*>& survivors,
+			const SharedStr& headName, const TreeItem* refScope, LispPtr argsList, const std::vector<DefType>& argTerms);
 	};
 
-	int FunctionChecker::ResolveName(const TreeItem* refScope, TokenID sym, const TreeItem** local, UInt32* paramIdx)
+	int FunctionChecker::ResolveName(const TreeItem* refScope, TokenID sym, const TreeItem** local, UInt32* paramIdx,
+		SharedTreeItem* externalOut, ExtRefKind* extKindPtr)
 	{
 		if (local) *local = nullptr;
+		if (externalOut) *externalOut = nullptr;
+		if (extKindPtr) *extKindPtr = ExtRefKind::DefScopeExternal;
 		SharedStr fullStr(sym.AsStrRange());
 		CharPtr b = fullStr.begin(), e = fullStr.send();
 		if (b != e && (*b == '.' || *b == '/'))
@@ -2935,7 +2963,11 @@ namespace {
 					if (m_Params[i] == child.get())
 					{
 						if (paramIdx) *paramIdx = i;
-						if (slash != e) return 2; // parameter member access is not verified/typed at definition time
+						if (slash != e)
+						{
+							if (extKindPtr) *extKindPtr = ExtRefKind::ParamMember; // OPEN: depends on the argument
+							return 2; // parameter member access is not verified/typed at definition time
+						}
 						return 0;
 					}
 				const TreeItem* target = child.get();
@@ -2960,9 +2992,15 @@ namespace {
 				found = defParent->FindItem(fullStr);
 		if (!found && slash == e)
 			if (auto pf = FindPreludeFunction(sym); pf && pf->IsFunctionItem())
+			{
+				if (extKindPtr) *extKindPtr = ExtRefKind::PreludeFunc; // a function value: not an evaluable data spec
 				return 2; // prelude: implicit outermost namespace, also for function references
+			}
 		if (!found && FindEnclosingFunctionMember(firstTok))
+		{
+			if (extKindPtr) *extKindPtr = ExtRefKind::ClosureCapture; // OPEN: bound per application
 			return 2; // captured through the closure environment; typed per application
+		}
 		if (!found)
 			throwErrorF("ExprParser", "'{}': unknown identifier in body of function '{}' (visible are: parameters, local items, 'using' imports, and the definition scope)"
 				, fullStr.c_str(), m_FuncItem->GetFullName().c_str());
@@ -2972,11 +3010,180 @@ namespace {
 			// parameter or local is 'found' here — those are §5.10 closure captures,
 			// bound through the environment at reduction: defer, don't reject
 			if (FindEnclosingFunctionMember(firstTok))
+			{
+				if (extKindPtr) *extKindPtr = ExtRefKind::ClosureCapture; // OPEN
 				return 2;
+			}
 			throwErrorF("ExprParser", "'{}': reference to (part of) a template or function from body of function '{}'"
 				, fullStr.c_str(), m_FuncItem->GetFullName().c_str());
 		}
+		// §12.7 (review finding): reduction resolves the closure ENVIRONMENT before
+		// imports/definition scope (ResolveBodySymbol), so a definition-scope item
+		// SHADOWED by an enclosing function's member is bound to the CAPTURE at
+		// reduction — classifying it DefScopeExternal would evaluate the wrong
+		// (and formal-dependent) binding. Probe the shadow for the §12.7 caller
+		if (extKindPtr && FindEnclosingFunctionMember(firstTok))
+		{
+			*extKindPtr = ExtRefKind::ClosureCapture; // OPEN: the capture shadows `found`
+			return 2;
+		}
+		if (externalOut) *externalOut = found; // DefScopeExternal: CLOSED by construction (§12.7)
 		return 2;
+	}
+
+	// §12.7: reduce a body sub-expression that is CLOSED over the formals to its
+	// DataController key — the SAME hash-consed key every application interns
+	// (β-substitution is the identity on closed expressions), so a definition-time
+	// evaluation reads the value once through the very DC reduction will use.
+	// Empty result = open or not buildable: the caller defers. Mirrors the closed
+	// subset of FunctionApplication::SubstituteBodyExpr; memoized (the strong
+	// LispRefs in the memo also pin the built keys for the checker's lifetime).
+	LispRef FunctionChecker::TryBuildClosedKeyExpr(const TreeItem* refScope, LispPtr expr)
+	{
+		if (expr.EndP())
+			return {};
+		auto memoKey = std::make_pair(refScope, LispRef(expr));
+		if (auto it = m_ClosedKeyMemo.find(memoKey); it != m_ClosedKeyMemo.end())
+			return it->second;
+		LispRef built = TryBuildClosedKeyExprImpl(refScope, expr);
+		m_ClosedKeyMemo.emplace(std::move(memoKey), built);
+		return built;
+	}
+
+	LispRef FunctionChecker::TryBuildClosedKeyExprImpl(const TreeItem* refScope, LispPtr expr)
+	{
+		if (expr.IsRealList())
+		{
+			if (!expr.Left().IsSymb())
+				return {};
+			LispRef head = expr.Left();
+			TokenID headID = head.GetSymbID();
+			if (headID == token::sourceDescr)
+				return TryBuildClosedKeyExpr(refScope, expr.Right().Left());
+			if (headID == token::arrow || headID == token::scope || headID == token::subitem
+				|| headID == t_ApplyValue || headID == t_ContainerLiteral)
+				return {};
+			const AbstrOperGroup* og = AbstrOperGroup::FindName(headID);
+			if (og->IsTemplateCall() && !ValueClass::FindByScriptName(headID))
+				return {}; // function-call heads: not buildable in v1 (ReduceValue re-entrancy)
+			if (!og->IsTemplateCall() && !og->MustCacheResult())
+				return {}; // meta heads: reduction rejects them in bodies anyway
+			std::vector<LispRef> substArgs;
+			for (LispPtr argPtr = expr.Right(); !argPtr.EndP(); argPtr = argPtr.Right())
+			{
+				auto sub = TryBuildClosedKeyExpr(refScope, argPtr.Left());
+				if (sub.EndP() && !argPtr.Left().EndP())
+					return {}; // an open/unbuildable argument
+				substArgs.push_back(sub);
+			}
+			LispRef argList;
+			for (auto ri = substArgs.rbegin(); ri != substArgs.rend(); ++ri)
+				argList = LispRef(*ri, argList);
+			LispRef result = RewriteExprTop(LispRef(head, std::move(argList)));
+			if (!og->IsTemplateCall() && og->CanResultToConfigItem())
+			{
+				DataControllerRef dc = GetOrCreateDataController(result);
+				auto supplier = dc->MakeResult();
+				if (!supplier)
+					return {}; // metainfo failure: defer (the application reports it)
+				if (!supplier->IsCacheItem())
+					result = supplier->GetCheckedKeyExpr();
+			}
+			return result;
+		}
+		if (expr.IsSymb())
+		{
+			TokenID symbID = expr.GetSymbID();
+			if (symbID == t_Hole)
+				return {}; // (a '...x' rest symbol resolves to its param child below: class 0 = open)
+			if (token::isConst(symbID))
+				return ExprList(symbID);
+			if (ValueClass::FindByScriptName(symbID))
+				return List(LispRef(expr));
+			const TreeItem* local = nullptr; UInt32 paramIdx = 0;
+			SharedTreeItem external; ExtRefKind extKind = ExtRefKind::DefScopeExternal;
+			switch (ResolveName(refScope, symbID, &local, &paramIdx, &external, &extKind))
+			{
+			case 0:
+				return {}; // a formal: OPEN
+			case 1:
+			{
+				if (!local)
+					return {};
+				if (!m_ScanBusy.insert(local).second)
+					return {}; // cyclic body-local reference: defer (reduction reports)
+				LispRef r;
+				SharedStr exprStr = local->GetExpr();
+				if (!exprStr.empty() && !AbstrCalculator::MustEvaluate(exprStr.c_str()))
+				{
+					auto calc = AbstrCalculator::ConstructFromStr(local, exprStr, CalcRole::Calculator);
+					auto localScope = local->GetTreeParent();
+					r = TryBuildClosedKeyExpr(localScope.get(), RewriteExpr(calc->GetLispExprOrg()));
+				}
+				m_ScanBusy.erase(local);
+				return r;
+			}
+			default:
+				if (extKind != ExtRefKind::DefScopeExternal || !external)
+					return {}; // param-member / prelude-fn / closure capture: OPEN or not a data value
+				if (external->IsFunctionItem() || external->InTemplate())
+					return {};
+				external->UpdateMetaInfo();
+				return external->GetCheckedKeyExpr();
+			}
+		}
+		return LispRef(expr); // numeric / string / UInt64 literal: a valid DC key of its own
+	}
+
+	// §12.7: evaluate a closed spec sub-expression at definition scan. Literal
+	// fast path reads straight off the parse tree; everything else — including
+	// storage-backed definition-scope items, per the explicit ruling — goes
+	// through the standard meta-thread calculation (the CalcCertainResult idiom
+	// the dynamic-argument-policies spec read already uses). ANY failure,
+	// including a transient storage failure, yields nullopt = defer: the
+	// application retries the same DC and reports properly if it persists.
+	std::optional<SharedStr> FunctionChecker::EvalClosedSpec(const TreeItem* refScope, LispPtr specExpr)
+	{
+		if (specExpr.IsStrn())
+			return SharedStr(CharPtrRange(specExpr.GetStrnBeg(), specExpr.GetStrnEnd()));
+		auto defScope = m_FuncItem->GetTreeParent();
+		if (!defScope || defScope->InTemplate())
+			return std::nullopt; // a function nested in a template: no evaluation context
+		LispRef key;
+		try
+		{
+			key = TryBuildClosedKeyExpr(refScope, specExpr);
+		}
+		catch (...)
+		{
+			m_ScanBusy.clear(); // unwind the cycle-guard marks of the aborted scan
+			return std::nullopt;
+		}
+		if (key.EndP())
+			return std::nullopt;
+		try
+		{
+			FencedInterestRetainContext irc("FunctionChecker::EvalClosedSpec");
+			auto dc = GetOrCreateDataController(key);
+			if (!dc)
+				return std::nullopt;
+			irc.Add(dc.get());
+			auto resItem = dc->MakeResult();
+			if (!resItem || dc->WasFailed() || !IsDataItem(resItem.get()))
+				return std::nullopt;
+			FutureData fd = dc->CalcCertainResult();
+			if (!fd || fd->WasFailed())
+				return std::nullopt;
+			auto adi = AsDataItem(fd->GetOld());
+			if (!adi || !adi->HasVoidDomainGuarantee()
+				|| adi->GetAbstrValuesUnit()->GetValueType()->GetValueClassID() != ValueClassID::VT_SharedStr)
+				return std::nullopt;
+			return GetTheValue<SharedStr>(adi);
+		}
+		catch (...)
+		{
+			return std::nullopt;
+		}
 	}
 
 	// the declared type of parameter idx: rigid variables for generic positions, a
@@ -3747,6 +3954,94 @@ namespace {
 		return posType(shape.result);
 	}
 
+	// §12.7: attempt definition-time K13 spec processing for a DynamicShape record
+	// whose single string-valued ArgMetaValue position holds a spec CLOSED over
+	// the formals. On success the surviving members' DescribeSpecSignature records
+	// (merged; NO DynamicShape) are applied — including the ruled honest ARITY
+	// check: the derived position count IS the CalcNrArgs predicate CreateResult
+	// applies, the sole exemption from §6.2's arity-always-defers rule. Every
+	// other outcome returns nullopt and the caller defers exactly as today.
+	std::optional<DefType> FunctionChecker::TrySpecProcessing(const AbstrOperGroup* og,
+		const OperGroupSignatures::MergedRecord& mr, const std::vector<const Operator*>& survivors,
+		const SharedStr& headName, const TreeItem* refScope, LispPtr argsList, const std::vector<DefType>& argTerms)
+	{
+		if (survivors.empty())
+			return std::nullopt;
+		// review finding: a trailing '...rest' symbol counts as ONE syntactic term
+		// here but splices to its captured argument count at reduction — both the
+		// positional mapping and the arity verdict would misalign. Rest-having
+		// functions defer the whole spec path (their effective arity is per
+		// application)
+		if (TreeItem_HasFunctionRestParam(m_FuncItem))
+			return std::nullopt;
+		SizeT metaPos = SizeT(-1);
+		for (SizeT k = 0; k != mr.shape.args.size(); ++k)
+			if (mr.shape.args[k].kind == SignatureRecord::PosKind::MetaValue)
+			{
+				if (metaPos != SizeT(-1))
+					return std::nullopt; // several meta-directing positions: not this tranche
+				metaPos = k;
+			}
+		if (metaPos == SizeT(-1))
+			return std::nullopt;
+		const ValueClass* mc = mr.shape.args[metaPos].metaCls;
+		if (!mc || mc->GetValueClassID() != ValueClassID::VT_SharedStr)
+			return std::nullopt; // non-string meta values (name arrays): await K11
+
+		LispPtr specExpr; SizeT k = 0;
+		for (LispPtr a = argsList; !a.EndP(); a = a.Right(), ++k)
+			if (k == metaPos)
+			{
+				specExpr = a.Left();
+				break;
+			}
+		if (specExpr.EndP())
+			return std::nullopt;
+		auto specValue = EvalClosedSpec(refScope, specExpr);
+		if (!specValue)
+			return std::nullopt;
+
+		// derive the per-spec record from THIS application's survivors (review
+		// finding: the survivor set varies per application with the argument
+		// classes, so a cross-application memo keyed on the spec alone would
+		// reuse the wrong tuples; derivation is cheap and the LispPtr application
+		// memo already de-duplicates identical call sites)
+		auto merged = std::make_shared<OperGroupSignatures::MergedRecord>();
+		for (const Operator* m : survivors)
+		{
+			SignatureRecorder rec;
+			bool described = false;
+			try
+			{
+				described = m->DescribeSpecSignature(rec, specValue->c_str());
+			}
+			catch (...)
+			{
+				described = false; // unparsable/invalid spec: v1 defers (the application reports)
+			}
+			if (!described)
+				return std::nullopt;
+			if (merged->members.empty())
+			{
+				merged->shape = rec.rec;
+				merged->shape.memberClasses.clear();
+			}
+			else if (!merged->shape.SameShape(rec.rec))
+				return std::nullopt; // incongruent per-spec records across survivors: defer
+			merged->tuples.push_back(std::move(rec.rec.memberClasses));
+			merged->members.push_back(m);
+		}
+		const auto& derived = merged;
+
+		// the ruled arity exemption — strictly OUTSIDE every defer-catch above
+		if (argTerms.size() != derived->shape.args.size())
+			throwErrorF("ExprParser", "{}: number of given arguments to operator '{}' doesn't match the specification '{}': {} arguments given (including the specification), but {} expected"
+				, m_Unifier.FullName().c_str(), headName.c_str(), specValue->c_str()
+				, argTerms.size(), derived->shape.args.size());
+
+		return ApplyOperRecord(*derived, headName, argTerms);
+	}
+
 	DefType FunctionChecker::InferOperatorApplication(const AbstrOperGroup* og, TokenID headID, const TreeItem* refScope, LispPtr argsList)
 	{
 		std::vector<DefType> argTerms;
@@ -3763,6 +4058,7 @@ namespace {
 		arg_index nrArgs = arg_index(argTerms.size());
 		Int32 theRecord = -2; // -2: no class survivor yet; -1: mixed/undescribed -> defer
 		bool anyAritySurvivor = false, anyFeasibleOnlyElimination = false;
+		std::vector<const Operator*> survivors; // §12.7: the members a spec-record may derive from
 		for (const auto& me : sigs->members)
 		{
 			if (!MemberAcceptsArity(og, me.oper, nrArgs))
@@ -3775,6 +4071,7 @@ namespace {
 					anyFeasibleOnlyElimination = true;
 				continue;
 			}
+			survivors.push_back(me.oper);
 			if (theRecord != -1)
 			{
 				if (me.recordIdx < 0)
@@ -3803,7 +4100,14 @@ namespace {
 		if (theRecord < 0)
 			return {}; // several congruence classes or an undescribed member survive: defer
 
-		return ApplyOperRecord(sigs->records[theRecord], headName, argTerms);
+		const auto& mr = sigs->records[theRecord];
+		// §12.7: a DynamicShape record with a definition-time-knowable spec is
+		// upgraded to the spec-derived concrete record; every failure inside
+		// falls through to the DynamicShape deferral, byte-identical to today
+		if (mr.shape.dynamicShape)
+			if (auto specType = TrySpecProcessing(og, mr, survivors, headName, refScope, argsList, argTerms))
+				return *specType;
+		return ApplyOperRecord(mr, headName, argTerms);
 	}
 
 	DefType FunctionChecker::InferExpr(const TreeItem* refScope, LispPtr expr)
@@ -3913,11 +4217,11 @@ namespace {
 		// select(c) — share ONE result node (batch D, §6.1). An error throws
 		// (never cached); a cache hit skips re-walking the (identical) arguments,
 		// whose own checks already ran on the first occurrence
-		auto memoKey = std::make_pair(refScope, expr.get());
+		auto memoKey = std::make_pair(refScope, LispRef(expr));
 		if (auto it = m_ApplTypes.find(memoKey); it != m_ApplTypes.end())
 			return it->second;
 		DefType applResult = InferOperatorApplication(og, headID, refScope, expr.Right());
-		m_ApplTypes.emplace(memoKey, applResult);
+		m_ApplTypes.emplace(std::move(memoKey), applResult);
 		return applResult;
 	}
 
@@ -3958,6 +4262,20 @@ namespace {
 			return;
 		if (TreeItem_IsFunctionVariantSet(funcItem))
 			return; // each variant is checked at its own application
+
+		// §12.7: closed-spec evaluation can UpdateMetaInfo definition-scope items
+		// whose expressions apply the function CURRENTLY being checked, and the
+		// checked-flag is set only on completion — guard against re-entry (the
+		// outer invocation completes the verdict). Meta-thread-only, like the
+		// whole checker, so a plain static set suffices
+		static std::set<const TreeItem*> s_CheckInProgress;
+		if (!s_CheckInProgress.insert(funcItem).second)
+			return;
+		struct Eraser
+		{
+			std::set<const TreeItem*>* s; const TreeItem* f;
+			~Eraser() { s->erase(f); }
+		} eraser{ &s_CheckInProgress, funcItem };
 		TokenID resultName = TreeItem_GetFunctionResultName(funcItem);
 		auto resultChild = funcItem->GetConstSubTreeItemByID(resultName);
 		if (!resultChild)
