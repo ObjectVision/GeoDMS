@@ -47,6 +47,7 @@ Section "GeoDMS Program Folder"
   File ${CMakeBinDir}\GeoDmsRun.exe
   File ${CMakeBinDir}\GeoDmsGuiQt.exe
   File ${CMakeBinDir}\RewriteExpr.lsp
+  File ${CMakeBinDir}\prelude.dms
   File ${CMakeBinDir}\profiler.py
   File ${CMakeBinDir}\regression.py
 

@@ -34,6 +34,7 @@ Section "GeoDMS Program Folder" ;No components page, name is not important
   File ..\bin\Release\${GeoDmsPlatform}\GeoDmsRun.exe
   File ..\bin\Release\${GeoDmsPlatform}\GeoDmsGuiQt.exe
   File ..\bin\Release\${GeoDmsPlatform}\RewriteExpr.lsp
+  File ..\bin\Release\${GeoDmsPlatform}\prelude.dms
   File ..\bin\Release\${GeoDmsPlatform}\profiler.py
   File ..\bin\Release\${GeoDmsPlatform}\regression.py
 

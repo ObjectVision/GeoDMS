@@ -151,6 +151,10 @@ done
 # of the report scripts, and nothing else reads them from the install prefix.
 install -m 644 "${SRC}/RewriteExpr.lsp" "${DST}/"
 
+# Typed standard prelude (WP4.5): functions auto-imported by every config via
+# %exeDir%/prelude.dms — as REQUIRED next to the binaries as RewriteExpr.lsp.
+install -m 644 "${SRC}/prelude.dms" "${DST}/"
+
 # Linux-side performance sampler (issue #1104). When the Windows-side
 # profiler.py spots a `wsl --` invocation it splices run_with_sampler.sh
 # in front of the GeoDmsRun command; the wrapper then forks
@@ -353,6 +357,7 @@ CRITICAL_FILES=(
     geodms
     qt.conf
     RewriteExpr.lsp
+    prelude.dms
     libDmRtc.so libDmStx.so libDmStg.so libDmClc.so libDmGeo.so libDmShv.so
     libQt6Core.so.6 libQt6Gui.so.6 libQt6Widgets.so.6
     platforms/libqxcb.so
