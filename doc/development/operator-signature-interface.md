@@ -1185,6 +1185,48 @@ rebuilt, Debug sweep clean. tst `/Network`'s pre-existing `pow`-metric failure i
 plain-`UM_Throw` claims, opaque-favouring vocabulary, no cross-arg claim over any
 conditional/default-escaping path) held.
 
+### 12.7 PLANNED (post-F, ruled 2026-07-20): definition-time K13 spec processing
+
+> **Ruling (Maarten, 2026-07-20): when a K13 meta-directing argument is available at function
+> definition, process it — not only literals: every spec that does not depend on the function's
+> arguments.**
+
+Today a K13 application (`impedance_matrix` & co., `discrete_alloc`'s name arrays) defers wholly
+(`DynamicShape` ⇒ ⊤), because the argument layout is a function of the spec's *value* and
+definition time is symbolic (§16, §20.1 fragment 3). But that deferral is only *forced* when the
+spec is unknowable at definition. The planned refinement:
+
+- **Trigger** — the described member carries `DynamicShape` and the `ArgMetaValue` position's
+  argument expression is **closed with respect to the function's formals**: it references no
+  parameter, no `...rest` slice, no captured closure value, and no enclosing function's parameter
+  — transitively. Literals qualify; so do definition-scope constants and parameters
+  (`parameter<string> spec: [...]` at config scope) and pure expressions over them. Anything
+  touching a formal ⇒ defer exactly as today.
+- **Mechanism** — evaluate the closed spec sub-expression at meta time (the same evaluation
+  `oper_arg_policy::calc_always` already performs for that argument in `CreateResultCaller` — the
+  argument is *ground*, so this is legitimate probing per §19.3's groundness law, unlike the
+  fabricated-placeholder probing §19.2 forbids). For the impedance family: feed it to
+  `ParseDijkstraString` → `CalcNrArgs` and re-derive a **concrete per-spec record**: the arity
+  check (honest — `CreateResult` throws unconditionally on `args.size() != CalcNrArgs(df)`), plus
+  the per-flag tail roles from the argument-extraction order (node-rels ranging over the one Node
+  set — `UnifyDomain` in the preamble, K2-style; impedances sharing the Imp values unit —
+  `UnifyValues`, so **class-level only** per the identity rule; zone-rels and their domains).
+  Cache the derived record per `(member, spec value)`; the LispPtr application memo already
+  de-duplicates per call site. For `discrete_alloc`, a closed typeNames array names the member
+  obligations — but container members have no `DefType` kind (§7 K11 defers in v1), so the
+  realistic v1 scope is the **impedance/dijkstra family**; `discrete_alloc` joins if/when K11
+  container checking lands.
+- **S1 guards** — process only on clean evaluation of a closed spec; any unavailability,
+  evaluation failure, or unparsable spec string ⇒ defer as today (an unparsable *closed* spec may
+  optionally be reported: reduction hits the same `CheckFlags` throw, so it is honest — but defer
+  is always acceptable). Never evaluate anything depending on a formal. The arity verdict for a
+  known spec is exempt from the §6.2 "arity always defers" rule *only* because `CalcNrArgs` is
+  the very predicate reduction applies — the general rule stands for every other operator.
+- **Why this is not a ruling change** — §16 excludes running the operator's `CreateResult` on
+  *placeholders*; here the spec argument is concrete and the evaluation is the meta stage's own.
+  K13 stays "genuinely staged" in general; this tranche merely notices when the staging boundary
+  for one argument has, for a particular body, already been crossed at definition.
+
 ## 13. Risk register
 
 | # | Risk | Sev | Mitigation |
