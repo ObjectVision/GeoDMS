@@ -40,6 +40,21 @@ if errorlevel 1 (
     goto :build_failed
 )
 
+REM Refuse to proceed while ANOTHER MSBuild is running: two concurrent builds of
+REM this repo interleave writes into bin\Release\x64 and the obj dirs, so NSIS
+REM packages a TORN binary snapshot -- the resulting install fails every unit
+REM test and the :unit_failed cleanup then removes it again (this exact
+REM collision produced a broken 20.9.0.m install on 2026-07-20: a background
+REM CLI build was still writing DLLs while this script wiped, rebuilt and
+REM packaged the same output folder). If the running MSBuild provably targets
+REM another repo, the CHOICE allows continuing.
+powershell -NoProfile -Command "exit ([int]((Get-Process MSBuild -EA SilentlyContinue | Measure-Object).Count -gt 0))"
+if errorlevel 1 (
+    echo *** WARNING: an MSBuild.exe is currently running. A concurrent build of THIS repo tears the setup contents. ***
+    CHOICE /M "Continue anyway (only safe if that build targets ANOTHER repo)?"
+    if ErrorLevel 2 goto :build_failed
+)
+
 REM Wipe the build OUTPUT folder (the final DLLs/EXEs/import-libs that NSIS
 REM packages) before building, so obsolete binaries from before a component
 REM rename/removal cannot linger in bin\Release\x64 and ship in the installer.

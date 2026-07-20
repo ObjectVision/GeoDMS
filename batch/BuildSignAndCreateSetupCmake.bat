@@ -74,6 +74,18 @@ if errorlevel 1 (
     goto :build_failed
 )
 
+REM Refuse to proceed while ANOTHER build (MSBuild or cmake-driven) is running:
+REM concurrent builds of this repo interleave writes into the packaged output,
+REM so NSIS ships a TORN binary snapshot whose unit tests all fail (see the
+REM 2026-07-20 20.9.0.m incident in the msbuild sister script). If it provably
+REM targets another repo, the CHOICE allows continuing.
+powershell -NoProfile -Command "exit ([int](((Get-Process MSBuild,cmake -EA SilentlyContinue) | Measure-Object).Count -gt 0))"
+if errorlevel 1 (
+    echo *** WARNING: an MSBuild.exe/cmake.exe is currently running. A concurrent build of THIS repo tears the setup contents. ***
+    CHOICE /M "Continue anyway (only safe if that build targets ANOTHER repo)?"
+    if ErrorLevel 2 goto :build_failed
+)
+
 REM Wipe the build OUTPUT folder (%BUILD_DIR%\bin -- the final DLLs/EXEs that
 REM NSIS packages) before building, so obsolete binaries from before a component
 REM rename/removal cannot linger and ship in the installer. CMakeCache.txt and
