@@ -67,7 +67,9 @@ enum UnifyMode {
 	UM_AllowAllEqualCount= 32,
 
 	// UnifyDomain only: allow interning (GetOrCreateDataController) of the RIGHT
-	// operand's checked-key DC, making the comparison total and symmetric. Without
+	// operand's checked-key DC, making the comparison total and symmetric; both
+	// operands are also made meta-info-ready first (UpdateMetaInfoIfNotAlready),
+	// as checker-resolved units may not have been updated yet. Without
 	// it the right side is looked up only (GetExistingDataController, the #361 fix:
 	// DC creation is meta-thread-only), so a->UnifyDomain(b) can be false where
 	// b->UnifyDomain(a) is true, depending on DC-interning order. Callers passing

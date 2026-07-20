@@ -294,6 +294,17 @@ bool AbstrUnit::UnifyDomain(const AbstrUnit* cu, CharPtr leftRole, CharPtr right
 	if ((um & UM_AllowDefaultLeft ) &&     IsDefaultUnit()) return true;
 	if ((um & UM_AllowDefaultRight) && cu->IsDefaultUnit()) return true;
 
+	if (um & UM_AllowRightExpansion)
+	{
+		// the identity walk below (GetCurrUltimateItem, GetCheckedKeyExpr) has
+		// meta-info readiness as precondition, but this mode's callers (the typed
+		// checker) compare units freshly resolved from scope or a declared
+		// signature, which nothing has updated yet. The flag is a meta-thread
+		// caller contract (see AbstrUnit.h), so updating here is legitimate.
+		UpdateMetaInfoIfNotAlready();
+		cu->UpdateMetaInfoIfNotAlready();
+	}
+
 	if (GetCurrUltimateItem() != cu->GetCurrUltimateItem())
 	{
 		SharedTreeItem thisRepresentation = make_shared_tree(this, existing_obj{});
