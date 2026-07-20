@@ -277,8 +277,23 @@ SharedStr RenderMergedSignature(const AbstrOperGroup* og, const OperGroupSignatu
 	r += ")";
 	if (shape.result.kind != SignatureRecord::PosKind::None)
 		r += mySSPrintF(" -> {}", RenderPos(shape, shape.result).c_str());
+	else if (shape.resultDeferred && !shape.resultNote.empty())
+		r += mySSPrintF(" -> ... [{}]", shape.resultNote.c_str()); // batch F: deferred-result prose was invisible
 	if (shape.dynamicShape)
 		r += mySSPrintF(" [shape: {}]", shape.dynamicNote.c_str());
+
+	// batch F: deferred-relation prose (K12/K16 contracts the walker cannot
+	// check) — the printer is these notes' only consumer, so render them
+	SharedStr deferredRels;
+	for (const auto& rel : shape.rels)
+		if (rel.kind == SignatureRecord::RelKind::Deferred && !rel.note.empty())
+		{
+			if (!deferredRels.empty())
+				deferredRels += "; ";
+			deferredRels += rel.note;
+		}
+	if (!deferredRels.empty())
+		r += mySSPrintF(" [deferred: {}]", deferredRels.c_str());
 
 	// per-var feasible sets: the union of the congruent members' concrete classes
 	bool anyWhere = false;

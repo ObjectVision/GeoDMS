@@ -81,6 +81,7 @@
 #include "DataCheckMode.h"
 #include "DataItemClass.h"
 #include "OperationContext.h"
+#include "OperSignature.h"
 #include "ParallelTiles.h"
 #include "UnitClass.h"
 
@@ -1314,6 +1315,32 @@ public:
 		*argClsIter++ = ArgNodeType::GetStaticClass();
 
 		dms_assert(m_ArgClassesEnd == argClsIter);
+	}
+
+	// batch F (§11 floor, §16 ruling): the impedance/dijkstra family is the K13
+	// archetype — the specification string, read at meta time, decides the whole
+	// argument layout and every unit obligation. The description therefore
+	// CONSTRAINS NOTHING: the four registered prefix positions are stated as
+	// prose (their relations — one Links domain, one Node set — fire in
+	// CreateResult's UnifyDomain preamble below), the shape is dynamic, and the
+	// result is ⊤. This record exists purely so the printer can state the
+	// contract — the vocabulary's floor case the design promised to prove.
+	bool DescribeSignature(AbstrSignatureBuilder& sb) const override
+	{
+		if (auto a0 = dynamic_cast<const DataItemClass*>(this->GetArgClass(0)))
+			sb.ArgMetaValue(0, a0->GetValuesType(), "the specification: directs the remaining arguments");
+		else
+			sb.ArgDeferred(0, "specification");
+		sb.ArgDeferred(1, "linkImpedance: attribute<Imp>(Links)");
+		sb.ArgDeferred(2, "fromNode_rel: attribute<Nodes>(Links)");
+		sb.ArgDeferred(3, "toNode_rel: attribute<Nodes>(Links)");
+		sb.DeferredRelation("linkImpedance, fromNode_rel and toNode_rel share one Links domain; the node_rels range over one Node set; further arguments and their unit relations are directed by the specification");
+		sb.DynamicShape("the argument layout is computed from the specification string (K13)");
+		if (flags(m_OperFlags & DijkstraFlag::OD))
+			sb.ResultDeferred("a new OD-pairs unit with impedance and zone-rel sub-items");
+		else
+			sb.ResultDeferred("attribute<Imp> over the origin zones");
+		return true;
 	}
 
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override

@@ -17,6 +17,7 @@
 #include "DataArray.h"
 #include "DataItemClass.h"
 #include "LispTreeType.h"
+#include "OperSignature.h"
 #include "TreeItemClass.h"
 #include "Unit.h"
 #include "UnitClass.h"
@@ -402,6 +403,23 @@ CLC_CALL void DMS_CONV XML_ReportOperator(OutStreamBase* xmlStr, const Operator*
 CLC_CALL void DMS_CONV XML_ReportOperGroup(OutStreamBase* xmlStr, const AbstrOperGroup* gr)
 {
 	XML_OutElement xml_oper(*xmlStr, "OperatorGroup", GetTokenStr(gr->GetNameID()).c_str());
+
+	// batch F (§6.3): the durable operator-doc surface — the group's declared
+	// unit-constraint signatures, rendered by the same printer that enriches
+	// FindOper's failure message. Undescribed groups (GetSignatures()==nullptr)
+	// emit nothing, keeping the report shape unchanged for them. Report
+	// generation runs on the main/meta thread, the same contract as the
+	// FindOper enrichment (GetSignatures()'s lazy build has no worker-thread
+	// callers; its only writer, Register(), completes at static-init); the
+	// IsMetaThread() guard documents that contract, as at the FindOper site.
+	if (IsMetaThread())
+		if (const auto* sigs = gr->GetSignatures())
+			for (const auto& mr : sigs->records)
+			{
+				XML_OutElement xml_sig(*xmlStr, "Signature", "");
+				xmlStr->WriteValue(RenderMergedSignature(gr, mr).c_str());
+			}
+
 	const Operator* oper = gr->GetFirstMember();
 	while(oper)
 	{
@@ -415,8 +433,12 @@ CLC_CALL void DMS_CONV XML_ReportOperGroup(OutStreamBase* xmlStr, const AbstrOpe
 CLC_CALL void DMS_CONV XML_ReportAllOperGroups(OutStreamBase* xmlStr)
 {
 	XML_OutElement xml_funcs(*xmlStr, "FunctionList", "");
-	UInt32 nrFuncs = GetNrOperators();
-	xmlStr->WriteAttr("NrFunctions", nrFuncs);
-	for (UInt32 i=0; i<nrFuncs; ++i)
+	// pre-existing bug, surfaced by the batch-F review: the loop bound was
+	// GetNrOperators() (the total MEMBER count) while GetOperatorGroup(i) takes
+	// a GROUP index — overrunning the group registry past GetNrOperatorGroups()
+	// (debug assert; out-of-bounds read in release). Iterate the groups.
+	UInt32 nrGroups = AbstrOperGroup::GetNrOperatorGroups();
+	xmlStr->WriteAttr("NrFunctions", nrGroups);
+	for (UInt32 i=0; i<nrGroups; ++i)
 		XML_ReportOperGroup(xmlStr, AbstrOperGroup::GetOperatorGroup(i));
 }

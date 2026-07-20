@@ -676,6 +676,35 @@ public:
 		)
 	{}
 
+	// batch F: connect_info / dist_info (+ _eq/_ne, +maxdist/+mindist), deferred
+	// from batch E. Mirrors the shipped FastConnect describe: the arc geometry
+	// (Sequence|Polygon), the eq/ne join keys and the void-broadcasting distances
+	// stay deferred prose; the points position carries fresh (single-use) vars —
+	// no cross-argument unification claim. The one faithful upgrade is
+	// dist_info's RESULT (OnlyDistResult): CreateResult below unconditionally
+	// builds CreateCacheDataItem(pointEntity, the metric-LESS default dist unit)
+	// — ResultAttr(DefaultUnit, Dp) states the K3 domain identity and the class,
+	// both discharged by CheckResultItem at reduction.
+	// connect_info's container result is printer prose (ResultContainer).
+	bool DescribeSignature(AbstrSignatureBuilder& sb) const override
+	{
+		arg_index n = this->NrSpecifiedArgs(), i = 0; // this-> : dependent base in the ConnectInfo template
+		sb.ArgName(i, "arcs"); sb.ArgDeferred(i, "arc geometry (Sequence or Polygon)"); ++i;
+		if (CT != compare_type::none) { sb.ArgName(i, "arcKey"); sb.ArgDeferred(i, "arc join key"); ++i; }
+		sig_var Dp = sb.UnitVar("Dp"), Vpt = sb.UnitVar("Vpt");
+		if (auto ptCls = dynamic_cast<const DataItemClass*>(this->GetArgClass(i)))
+			sb.MemberValueClass(Vpt, ptCls->GetValuesType());
+		sb.ArgName(i, "points"); sb.ArgAttr(i, Vpt, Dp, ValueComposition::Single); ++i;
+		if (CT != compare_type::none) { sb.ArgName(i, "pointKey"); sb.ArgDeferred(i, "point join key (shares values with arcKey)"); ++i; }
+		for (; i < n; ++i) { sb.ArgName(i, "distance"); sb.ArgDeferred(i, "max/min distance (may be a void-domain parameter)"); }
+		sb.DeferredRelation("the arc and point coordinates share one value class (K16); eq/ne join keys share values");
+		if (OnlyDistResult)
+			sb.ResultAttr(sb.DefaultUnit(DataArray<SqrtDistType>::GetStaticClass()->GetValuesType()), Dp, ValueComposition::Single);
+		else
+			sb.ResultContainer("dist: attribute<float>(points.domain); arc_rel; CutPoint; InArc; InSegm; SegmID", Dp);
+		return true;
+	}
+
 	// Override Operator
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
@@ -1003,7 +1032,7 @@ public:
 		sb.ArgName(i, "points"); sb.ArgAttr(i, sb.UnitVar("Vpt"), sb.UnitVar("Dp"), ValueComposition::Single); ++i; // fresh vars: no cross-arg claim
 		if (CT != compare_type::none) { sb.ArgName(i, "pointKey"); sb.ArgDeferred(i, "point join key (shares values with arcKey)"); ++i; }
 		for (; i < n; ++i) { sb.ArgName(i, "distance"); sb.ArgDeferred(i, "max/min distance (may be a void-domain parameter)"); }
-		sb.DeferredRelation("arc coordinate class == point coordinate class (K16, :955); eq/ne join keys share values (:960)");
+		sb.DeferredRelation("the arc and point coordinates share one value class (K16); eq/ne join keys share values");
 		sb.ResultUnit(sb.GeneratedUnit("connected_network"));
 		return true;
 	}

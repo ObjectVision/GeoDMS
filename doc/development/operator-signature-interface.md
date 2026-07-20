@@ -1,14 +1,16 @@
 # Operator unit-constraint signatures via a virtual interface
 
-**Status: batches 0 + A SHIPPED (2026-07-19) — `OperSignature.h/.cpp` infrastructure,
-the `DescribeSignature` vtable slot, the group signature cache, the clc attribute-family
-descriptions, and the walker's record applier are implemented; the interim `OperSigKind`
-registry is retired. See §12.1 for the as-shipped decisions, which refine §5.5/§6
-(member-class TUPLES, soft support sets, no trial harness in v1). The §8/S11
-`UM_AllowRightExpansion` prerequisite shipped 2026-07-17. Companion to
-`typed-hof-language-design.md` (WP4.1 "operator signature reification"), which this
-document supersedes for everything beyond its interim batch 1. Read §1.1 and Part II
-(§16–§20) first — the 2026-07-16 staging ruling governs how §2–§15 are read.**
+**Status: ALL BATCHES SHIPPED (0+A 2026-07-19, U/B/C/D 2026-07-19, E/F 2026-07-20) —
+the infrastructure, the walker's record applier, and the full family coverage
+(attribute/casted/min_elem, relational, aggregations, fresh-unit, composites) are
+implemented; the interim `OperSigKind` registry is retired; the printer is wired into
+`FindOper`'s failure message and the `XML_ReportOperGroup` doc surface. See §12.1–§12.6
+for the as-shipped decisions per batch, which refine §5.5/§6 (member-class TUPLES, soft
+support sets, no trial harness in v1). The §8/S11 `UM_AllowRightExpansion` prerequisite
+shipped 2026-07-17. Companion to `typed-hof-language-design.md` (WP4.1 "operator
+signature reification"), which this document supersedes for everything beyond its
+interim batch 1. Read §1.1 and Part II (§16–§20) first — the 2026-07-16 staging ruling
+governs how §2–§15 are read.**
 
 ## 1. Purpose
 
@@ -540,10 +542,13 @@ impedance_matrix(spec: string [meta: directs the remaining arguments]; ...) [sha
 
 Uses: def-time error text; enriching `FindOper`'s failure message with described signatures
 (**shipped batch E**, `OperGroups.cpp` — the `IsMetaThread()`-guarded loop over
-`GetSignatures()->records`; see §12.5); and a future signature browser / generated operator
-docs (the durable `XML_ReportOperGroup` surface — batch F) — the first place `discrete_alloc`'s
-contract would be stated anywhere findable. Having two consumers from day one is itself a check
-on the vocabulary: anything the printer cannot render means the record is too operational.
+`GetSignatures()->records`; see §12.5); and the durable `XML_ReportOperGroup` `<Signature>`
+elements (**shipped batch F**, §12.6) — the first place `discrete_alloc`'s contract is stated
+anywhere findable. Since batch F the printer also renders the deferred-result prose
+(`-> ... [<note>]`) and the `DeferredRelation` notes (`[deferred: …]`) — which therefore are
+USER-VISIBLE text and must stay symbolic (no source line numbers). Having two consumers is
+itself a check on the vocabulary: anything the printer cannot render means the record is too
+operational.
 
 ### 6.4 The debug verifier
 
@@ -1074,7 +1079,60 @@ a suppressed diagnostic still fails at reduction (a sound deferral).
 
 | **D** ✅ | fresh-unit family: `unique`, `select`/`subset`, `union` + `collect_by_cond` (deferred from B) | K6 generative nodes + LispPtr memoization | SHIPPED 2026-07-19 — §12.4 |
 | **E** ✅ | `discrete_alloc` (opaque) + `connect` family + **the printer wired into `FindOper`'s failure** | `ArgContainer`, `ArgMetaValue`, `DeferredRelation`, `DynamicShape`, `ResultDeferred` | SHIPPED 2026-07-20 — §12.5 |
-| **F** | `impedance_matrix` / dijkstra + `connect_info`/`dist_info` + the durable `XML_ReportOperGroup` signature surface | `DynamicShape` | low / **docs only**. Opaque at definition (K13 shape-from-value); a `DynamicShape` record only feeds the printer. Do last |
+| **F** ✅ | `impedance_matrix` / dijkstra (the K13 floor) + `connect_info`/`dist_info` + the durable `XML_ReportOperGroup` signature surface + printer completion | `DynamicShape`, `ArgMetaValue`, `DefaultUnit` result | SHIPPED 2026-07-20 — §12.6. **The batch sequence is COMPLETE.** |
+
+### 12.6 Batch F as shipped (2026-07-20) — the K13 floor, the last family, and the doc surface
+
+The final batch, docs-only by the §16 ruling. Four deliverables:
+
+1. **The impedance/dijkstra family is the §11 floor, verbatim** —
+   `DijkstraMatrOperator<T>::DescribeSignature` (all 6 groups: `impedance_table`/`impedance_matrix`/
+   `impedance_matrix_od64` + the 3 obsolete `dijkstra_*`; T ∈ Float64/Float32/UInt32/UInt64). It
+   **constrains nothing**: `ArgMetaValue` (the spec string, K13), `ArgDeferred` for the three prefix
+   attributes (their Links/Nodes relations fire in `CreateResult`'s preamble but stay prose —
+   `DynamicShape` forces the whole application to defer anyway, so a hard claim would buy no
+   checking), `DeferredRelation` + `DynamicShape` + `ResultDeferred`. The rendered record is exactly
+   the §11 promise: *`impedance_matrix(String [meta: the specification: directs the remaining
+   arguments]; … ) -> … [a new OD-pairs unit …] [shape: the argument layout is computed from the
+   specification string (K13)] [deferred: linkImpedance, fromNode_rel and toNode_rel share one Links
+   domain; …]`* — an operator that can only say "arg 1 is the spec" prints sensibly and constrains
+   nothing.
+
+2. **`connect_info`/`dist_info`** (`ConnectInfoOperator`, arities 2–6, `_eq`/`_ne`, ±maxdist/mindist)
+   — deferred from batch E, mirroring the shipped FastConnect shape: arcs/keys/distances as deferred
+   prose, points with fresh single-use vars (no cross-argument claim). The one faithful upgrade is
+   **`dist_info`'s result**: `CreateResult` unconditionally builds
+   `CreateCacheDataItem(pointEntity, default-dist-unit)`, so `ResultAttr(DefaultUnit(SqrtDistType),
+   Dp)` states the **K3 domain identity** (result domain == points domain) and the metric-less float
+   class — both discharged by `CheckResultItem` at reduction. The K3 catch is live
+   (`fn_test_opsigF_neg2`): declaring the result over the ARC domain errors at the definition's
+   first reference. `connect_info`'s container result is `ResultContainer` prose (walker: Unknown).
+
+3. **The durable doc surface**: `XML_ReportOperGroup` (`ReportFunctions.cpp`) emits a `<Signature>`
+   element per merged record — the same printer, `IsMetaThread()`-guarded like the FindOper site;
+   `<`/`>` in rendered signatures are XML-escaped by `OutStream_XmlBase::WriteValue`. The review
+   **confirmed a pre-existing out-of-bounds bug** on this very surface, fixed in this batch:
+   `XML_ReportAllOperGroups` used `GetNrOperators()` (the total MEMBER count) as the loop bound for
+   `GetOperatorGroup(i)` (a GROUP index), overrunning the group registry — debug assert / release
+   out-of-bounds read on every whole-report generation. The bound is now
+   `GetNrOperatorGroups()`.
+
+4. **Printer completion** (review-driven): `RenderMergedSignature` never rendered `DeferredRelation`
+   notes or `ResultDeferred` prose — the very content batches E/F exist to publish. It now renders
+   `-> ... [<result note>]` for a deferred result and a trailing `[deferred: <note>; <note>]` block.
+   Consequence: persistent note strings are USER-VISIBLE — they must never embed source line
+   numbers (the review confirmed the first draft's `:698`-style citations were invalidated by the
+   very insertion that added them; all notes are now symbolic).
+
+Tests: `fn_test_opsigF.dms` (a valid `dist_info` in a function body — accepted and reduced, the K3
+claim live), `fn_test_opsigF_neg1` (the enriched `impedance_matrix` failure renders the full floor
+record incl. `[shape:]` and `[deferred:]`), `fn_test_opsigF_neg2` (the K3 wrong-result-domain
+def-time catch). Validation: 97/97 battery, tst `/Arithmetics` + `/Rescale` + `/MetaInfo`,
+`examples/function.dms`, both flavors, Debug sweep clean; `/Network` fails only on its pre-existing
+`pow`-metric items (zero connect/dijkstra/describe errors). Adversarial review (workflow
+`wf_3d462fe1`, 3 dimensions + verify): 2 CONFIRMED findings — the stale note citations and the
+pre-existing `XML_ReportAllOperGroups` overrun — both fixed pre-landing; the refuted-as-non-defect
+observations (printer gap, missing guard) were addressed as quality items anyway.
 
 ### 12.5 Batch E as shipped (2026-07-20) — the composites + the printer's first consumer
 
