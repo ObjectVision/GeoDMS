@@ -1202,6 +1202,31 @@ spec is unknowable at definition. The planned refinement:
   — transitively. Literals qualify; so do definition-scope constants and parameters
   (`parameter<string> spec: [...]` at config scope) and pure expressions over them. Anything
   touching a formal ⇒ defer exactly as today.
+- **Closedness is decided syntactically, without evaluating anything** — a memoized reachability
+  predicate over the walker's existing reference classification (`ResolveName`: formal / body
+  local / closure env / external). The scan terminates at externals *by construction*: the
+  formals are lexically invisible outside the function, so a definition-scope item's own
+  expression cannot reference them; transitivity is needed only through body locals and the
+  closure environment. Equivalent characterization: an expression is closed **iff β-substitution
+  of the arguments is the identity on it** — which is also exactly the condition under which its
+  DataController key is one and the same across all applications, so a single definition-time
+  evaluation is coherent. Note the value-question is strictly stronger than the meta-question
+  (`parameter<string> s := formalSpec` has closed *meta* — void × string — but an open *value*);
+  it is the value-question this WP tests.
+- **Closed means EVALUATE — storage-backed specs included (ruled 2026-07-20).** A closed spec is
+  read at definition-scan time whatever backs it: a literal comes straight from the parse tree;
+  every other closed form — definition-scope constants, pure expressions over them, **and
+  storage-backed items** (`parameter<string> spec: storagename = "x.txt"`) — is evaluated through
+  the standard meta-time calculation, the same one `oper_arg_policy::calc_always` performs for
+  that argument at reduction. *Scanning `f`'s definition IS the time to read `x.txt` when `x.txt`
+  decides which sub-items `impedance_matrix` yields in `f`* — the I/O is the point, not a side
+  effect to avoid. There is no closed-but-effectful defer tier. Two consequences: (a) the
+  definition check acquires a **data dependency** on the closed spec's sources, with the same
+  per-config-load consistency reduction already has — it is the *same hash-consed DC* the
+  eventual reductions use, so the value is read once and the definition-time evaluation warms the
+  very cache entry reduction needs (no double read); (b) a spec source changing between sessions
+  changes the definition verdict exactly as it changes every reduction — no new invalidation
+  machinery.
 - **Mechanism** — evaluate the closed spec sub-expression at meta time (the same evaluation
   `oper_arg_policy::calc_always` already performs for that argument in `CreateResultCaller` — the
   argument is *ground*, so this is legitimate probing per §19.3's groundness law, unlike the
@@ -1216,12 +1241,14 @@ spec is unknowable at definition. The planned refinement:
   obligations — but container members have no `DefType` kind (§7 K11 defers in v1), so the
   realistic v1 scope is the **impedance/dijkstra family**; `discrete_alloc` joins if/when K11
   container checking lands.
-- **S1 guards** — process only on clean evaluation of a closed spec; any unavailability,
-  evaluation failure, or unparsable spec string ⇒ defer as today (an unparsable *closed* spec may
-  optionally be reported: reduction hits the same `CheckFlags` throw, so it is honest — but defer
-  is always acceptable). Never evaluate anything depending on a formal. The arity verdict for a
-  known spec is exempt from the §6.2 "arity always defers" rule *only* because `CalcNrArgs` is
-  the very predicate reduction applies — the general rule stands for every other operator.
+- **S1 guards** — never evaluate anything depending on a formal. An **evaluation failure**
+  (including a transient storage failure reading a closed spec's source) ⇒ **defer**, never a
+  definition-time error from the evaluation itself: the instantiation retries the same DC and
+  reports the failure properly if it persists. A **cleanly evaluated but invalid** spec may be
+  reported at definition (reduction hits the same `CheckFlags`/parse throw, so it is honest —
+  defer remains acceptable). The arity verdict for a known spec is exempt from the §6.2 "arity
+  always defers" rule *only* because `CalcNrArgs` is the very predicate reduction applies — the
+  general rule stands for every other operator.
 - **Why this is not a ruling change** — §16 excludes running the operator's `CreateResult` on
   *placeholders*; here the spec argument is concrete and the evaluation is the meta stage's own.
   K13 stays "genuinely staged" in general; this tranche merely notices when the staging boundary
@@ -1242,10 +1269,14 @@ dependency order: (1) **container-shaped types in `DefType`** (the §7 K11 gap �
 `discrete_alloc`'s name arrays), since the payoff *is* a typed container; (2) a walker path for
 **meta groups**: all `for_each_*` groups are `dont_cache_result`, which
 `InferOperatorApplication` today defers wholesale before signatures are even consulted — the
-closed-spec path must branch before that gate. S1 guards identical: any formal-dependence,
-evaluation failure, or unresolvable unit name ⇒ defer as today. Sequencing recommendation: the
-impedance tranche first (no new `DefType` machinery), then K11 containers, then this — at which
-point `discrete_alloc`'s obligations come along for free.
+closed-spec path must branch before that gate. The evaluation ruling applies identically
+(ruled 2026-07-20): a `for_each` application whose meta-directing arguments do not depend on
+`f`'s formals is processed at definition scan — **including storage-backed name/expr/unit-name
+arrays**, read through the same meta-time calculation reduction uses; there is no
+closed-but-effectful defer tier here either. S1 guards identical: formal-dependence, evaluation
+failure (defer — the instantiation retries), or an unresolvable unit name ⇒ defer as today.
+Sequencing recommendation: the impedance tranche first (no new `DefType` machinery), then K11
+containers, then this — at which point `discrete_alloc`'s obligations come along for free.
 
 ## 13. Risk register
 
