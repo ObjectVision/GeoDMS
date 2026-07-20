@@ -2200,6 +2200,11 @@ operator work; category D stays engine-side (§8.4).
   such an argument depends on a formal, that sub-DC cannot be evaluated at definition.
   Mark it *deferred*; it re-checks per application automatically (the application's own
   `MakeResult` runs it). Emit a definition-time warning listing deferred spots.
+  *Status 2026-07-20*: the CLOSED complement is now processed at definition scan — the
+  impedance spec string and the for_each name arrays (storage-backed included) are
+  evaluated when they do not depend on the formals, per the §12.7 ruling and both
+  shipped tranches (operator-signature-interface.md §12.7); only genuinely
+  formal-dependent meta arguments still defer.
 - **Metric/projection constraints**: a formal `unit<float64>` has an empty metric at
   definition; operators that constrain metrics re-check per application. Definition
   checking is sound for kinds/domains/arity — not for metrics (P4/v2: declared metric

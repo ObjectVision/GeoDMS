@@ -13,6 +13,7 @@
 #include "mci/CompositeCast.h"
 
 #include "DataItemClass.h"
+#include "OperSignature.h"
 #include "TicPropDefConst.h"
 #include "TreeItemClass.h"
 #include "DataArray.h"
@@ -359,6 +360,34 @@ static arg_index CalcNrArgs(field_spec fs)
 	return nrParams;
 }
 
+// §12.7 for_each tranche: the checker-facing layout of one for_each group,
+// positions in the EXACT argument-extraction order of ForEach_CreateResult
+// above (names, [exprs], [checks], templ[+names], domain[+names],
+// values[+names], unit[+names], then the property arrays counted by
+// CalcNrArgs). `offset` shifts everything for the for_each_ind form, whose
+// first argument is the field spec itself.
+static void FillForEachLayout(MetaMemberLayout& layout, field_spec fs, arg_index offset)
+{
+	arg_index pos = offset;
+	layout.namesPos = pos++;
+	if (fs & FS_EXPR)  pos++;
+	if (fs & FS_CHECK) pos++;
+	param_t tm = TemplMode(fs), dm = DomainMode(fs), vm = ValuesMode(fs), um = UnitMode(fs);
+	if (tm != pt_excluded) { layout.templPos  = pos++; if (tm == pt_contextname) layout.templNamesPos  = pos++; }
+	if (dm != pt_excluded) { layout.domainPos = pos++; if (dm == pt_contextname) layout.domainNamesPos = pos++; }
+	if (vm != pt_excluded) { layout.valuesPos = pos++; if (vm == pt_contextname) layout.valuesNamesPos = pos++; }
+	if (um != pt_excluded) { layout.unitPos   = pos++; if (um == pt_contextname) layout.unitNamesPos   = pos++; }
+	layout.memberKind =
+		  tm != pt_excluded ? MetaMemberLayout::MemberKind::TemplateCopy
+		: dm != pt_excluded ? MetaMemberLayout::MemberKind::Data
+		: um != pt_excluded ? MetaMemberLayout::MemberKind::Unit
+		:                     MetaMemberLayout::MemberKind::Untyped;
+	layout.vcomp = ValueComposition::Single;
+	if (fs & FS_VC_SEQUENCE) layout.vcomp = ValueComposition::Sequence;
+	if (fs & FS_VC_POLYGON)  layout.vcomp = ValueComposition::Polygon;
+	layout.nrArgs = CalcNrArgs(fs) + offset;
+}
+
 // *****************************************************************************
 //									ForEachInd operator
 // *****************************************************************************
@@ -430,6 +459,20 @@ public:
 
 		return ForEach_CreateResult(resultHolder, args, 1, GetGroup()->GetNameID(), fs);
 	}
+
+	// §12.7 for_each tranche: the layout is directed by the first argument's
+	// VALUE (K13); with a definition-time-known spec it mirrors CreateResult
+	// exactly — including nrArgs = CalcNrArgs(fs)+1, whose violation the walker
+	// reports with CreateResult's own arity message (the ruled exemption).
+	// ScanFirstArg throws on an invalid spec: the walker then defers.
+	bool DescribeMetaSignature(MetaMemberLayout& layout, CharPtr optSpecValue) const override
+	{
+		if (!optSpecValue)
+			return false;
+		auto fs = ScanFirstArg(GetGroup(), optSpecValue);
+		FillForEachLayout(layout, fs, 1);
+		return true;
+	}
 };
 
 // *****************************************************************************
@@ -494,6 +537,15 @@ public:
 		}
 */
 		return ForEach_CreateResult(resultHolder, args, 0, GetGroup()->GetNameID(), m_FS);
+	}
+
+	// §12.7 for_each tranche: the static per-group layout (the suffix IS the
+	// spec); the checker pseudo-expands the generated member set when the
+	// name array is closed over a checked function's formals
+	bool DescribeMetaSignature(MetaMemberLayout& layout, CharPtr /*optSpecValue*/) const override
+	{
+		FillForEachLayout(layout, m_FS, 0);
+		return true;
 	}
 
 private:

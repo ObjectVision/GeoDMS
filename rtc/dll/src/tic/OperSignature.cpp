@@ -34,6 +34,13 @@ bool Operator::DescribeSpecSignature(AbstrSignatureBuilder& /*sb*/, CharPtr /*sp
 	return false;
 }
 
+// §12.7 for_each tranche — default: no describable generated container, the
+// walker keeps the wholesale meta-group deferral exactly as before
+bool Operator::DescribeMetaSignature(MetaMemberLayout& /*layout*/, CharPtr /*optSpecValue*/) const
+{
+	return false;
+}
+
 // *****************************************************************************
 // SignatureRecorder
 // *****************************************************************************

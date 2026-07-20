@@ -1185,7 +1185,7 @@ rebuilt, Debug sweep clean. tst `/Network`'s pre-existing `pow`-metric failure i
 plain-`UM_Throw` claims, opaque-favouring vocabulary, no cross-arg claim over any
 conditional/default-escaping path) held.
 
-### 12.7 Definition-time K13 spec processing (ruled 2026-07-20) — **impedance tranche SHIPPED 2026-07-20**
+### 12.7 Definition-time K13 spec processing (ruled 2026-07-20) — **impedance AND for_each tranches SHIPPED 2026-07-20**
 
 **As shipped** (`Operator::DescribeSpecSignature` + the `FunctionChecker` closed-spec machinery in
 `AbstrCalculator.cpp` + `DijkstraMatrOperator<T>::DescribeSpecSignature` in `Dijkstra.cpp`):
@@ -1228,8 +1228,8 @@ Tests: `fn_test_opsigK13{,_stor,_neg1,_neg2}.dms` (positives: literal + closed-e
 storage-backed + open-defer + the memo regression; negatives: the arity and Links-domain catches).
 Validation: 101/101 battery, tst `/Arithmetics` + `/Rescale` + `/MetaInfo` (+ `/Network`
 unchanged: pre-existing `pow`-metric only), `examples/function.dms`, Release + Debug, Debug sweep
-clean (the emission's `assert(i == CalcNrArgs(df))` holds). The `for_each` tranche and the
-invalid-spec honest error remain per the plan below.
+clean (the emission's `assert(i == CalcNrArgs(df))` holds). The `for_each` tranche is now also
+shipped (below); the invalid-spec honest error remains per the plan.
 
 #### The original ruling and plan
 
@@ -1299,6 +1299,68 @@ spec is unknowable at definition. The planned refinement:
   *placeholders*; here the spec argument is concrete and the evaluation is the meta stage's own.
   K13 stays "genuinely staged" in general; this tranche merely notices when the staging boundary
   for one argument has, for a particular body, already been crossed at definition.
+
+#### The for_each tranche — **SHIPPED 2026-07-20**
+
+**As shipped** (`MetaMemberLayout` + `Operator::DescribeMetaSignature` in tic, `FillForEachLayout`
++ the two overrides in `clc/ForEach.cpp`, and the `FunctionChecker` container machinery in
+`AbstrCalculator.cpp`):
+
+- **K11 lands**: `DefType` gains `Kind::Container` with a shared path-keyed member map
+  (`members` + `membersComplete`) — the pseudo-expanded member set of a container-GENERATING
+  meta application. `InferOperatorApplication` branches to `TryMetaContainerProcessing`
+  **inside** the (previously wholesale) `!MustCacheResult` deferral: the group's members
+  describe their argument LAYOUT (`namesPos`, `domain/values/unit` positions with optional
+  per-member name-array companions, `vcomp`, member kind Data/Unit/TemplateCopy/Untyped,
+  `nrArgs`); a closed name array is EVALUATED at definition scan (`EvalClosedStrArray` — the
+  `EvalClosedSpec` idiom over any-domain string arrays, **storage-backed sources included** per
+  the ruling); undefined/empty rows skip exactly as `ForEach_CreateResult`; duplicates defer.
+- **Member types**: Data members take their domain/values from the layout's unit positions — a
+  *formal* unit parameter contributes its unifier node in both class and identity roles (the K2
+  bridge, verified by the `fe_neg3`/`fe_neg4` pair: a member typed by `unit<float64> V` unifies
+  with a declared `attribute<V>` result, and a `float32`-valued member against a declared
+  `string` result errors at definition); a value-class name (`float64` default unit) pins the
+  class only; a closed def-scope external unit contributes concrete identity; the
+  `(container, name-array)` pair mode resolves units per member inside a closed external
+  container. Anything unresolvable defers that MEMBER's type, never the member set.
+- **Member references**: `ResolveName`'s slash-descend over body locals is now segment-wise;
+  a miss below a generating item (meta-head rule, `RuleMayGenerateSubItems`; the nearest
+  generating item on the walked path wins) returns code 3, and `InferGeneratedMember` types the
+  remaining path against the container's member map: exact hit ⇒ the member's type; either-way
+  path-prefix relations ⇒ defer (intermediate generated containers above members, and
+  sub-structure BELOW template-copy/rule-bearing members — a review fix); a complete-set miss
+  ⇒ an honest definition-time error listing the generated members (capped at 10; empty sets get
+  their own wording). Sound because the inline reduction rejects every meta-rule member access
+  with certainty ("meta function call is not supported inside function bodies" /
+  `ResolveBodySymbol`'s `FindSubItem` throw); the copy-instantiating form is not checker-covered.
+- **Arity**: `for_each_ind`'s spec-derived width IS `CreateResult`'s own
+  `CalcNrArgs(fs)+1` predicate — its violation errors at definition with CreateResult's message
+  shape (the ruled exemption, mirroring the impedance tranche); layout-static suffix groups
+  defer arity mismatches (§6.2), and counts outside the group's accepted range defer before
+  that (a same-named function may serve the call).
+- **What defers wholly**: `...rest`-having functions, heterogeneous/undescribed groups, open
+  or unevaluable names/specs, duplicate names — byte-identical to the pre-tranche deferral.
+  `loop` and other meta groups don't describe (default `DescribeMetaSignature` = false) and
+  keep deferring; `discrete_alloc` (cacheable, name-array K13) now has the K11 container
+  vocabulary available and joins in a follow-up.
+
+Tests: `fn_test_fe_pos` (declared-sub-container slash paths + config-scope for_each unchanged)
+and `fn_test_fe_{neg1..neg6,stor_neg}`: closed-set miss listing `a, b`; the ind spec-arity
+error; the CLEAN scan with a K2-bridged member (fails only late); the member-type conflict at
+definition; the open-names S1 defer; the below-member defer; and the storage proof — the
+missing-member message quotes `alpha` read from `fe_names.txt` at definition scan. Validation:
+109/109 battery (Release), tst Operator `/Arithmetics` + `/Rescale` + `/MetaInfo`,
+`examples/function.dms`, Debug sweep with all `fe` tests assertion-free. (The Debug sweep now
+distinguishes assertion exits and exposed a PRE-EXISTING `NumbObjCache.empty()` teardown leak
+on two old unifier-error negatives — `fn_test_unify_neg2`, `fn_test_opsigB_neg2` — verified
+present on a clean HEAD baseline build and filed separately; unrelated to this tranche.)
+**Adversarial review
+(workflow `wf_f404ef1a-219`, 4 dimensions): zero confirmed findings; the three reviewer
+observations that survived manual adjudication (below-member paths mis-reported, garbled
+empty-set message, deepest-item-only code-3 attribution) were all fixed pre-landing** (the
+verify stage was partially cut short by session limits; adjudication was redone by hand).
+
+#### The original for_each extension ruling
 
 **The same ruling extends to the meta-scripting family (ruled 2026-07-20): `for_each_*`,
 `for_each_ind`, `loop`, …** — the §19.2 value-reading operators. Their K13 profile differs from

@@ -2752,7 +2752,7 @@ namespace {
 	// the definition-time type of a body expression (kinds-level, §5 terms)
 	struct DefType
 	{
-		enum class Kind : UInt8 { Unknown, Data, UnitVal, Func } kind = Kind::Unknown;
+		enum class Kind : UInt8 { Unknown, Data, UnitVal, Func, Container } kind = Kind::Unknown;
 
 		// value position (Data: the values class; UnitVal: the unit's class):
 		// concrete class XOR unifier node XOR unknown
@@ -2786,6 +2786,16 @@ namespace {
 		const TreeItem* varsOwner = nullptr;
 		UInt32 instance = 0;
 		std::shared_ptr<std::map<TokenID, TokenID>> tok2owner;
+
+		// Container (K11, §12.7 for_each tranche): the pseudo-expanded member
+		// set of a container-GENERATING meta application, keyed by the
+		// generation-time sub-item PATH (a name-array entry may contain '/').
+		// membersComplete marks a definitively-known set — the closed name
+		// array evaluated cleanly — the only state in which a missing member
+		// may be reported (sound even then only because inline reduction
+		// rejects every meta-rule member access with certainty)
+		std::shared_ptr<const std::map<SharedStr, DefType>> members;
+		bool membersComplete = false;
 	};
 
 	struct FunctionChecker
@@ -2915,10 +2925,14 @@ namespace {
 		// 0=parameter (index via *paramIdx), 1=local (via *local), 2=import/external; throws on unknown.
 		// §12.7: the bare code 2 conflates CLOSED and OPEN references — extKindPtr
 		// discriminates (see ExtRefKind); externalOut receives the resolved item for
-		// the DefScopeExternal case (the only evaluable one)
+		// the DefScopeExternal case (the only evaluable one).
+		// 3 (only when genSubPathOut is passed) = a path miss below an item whose
+		// rule may GENERATE sub-items at instantiation (§12.7 for_each tranche):
+		// *local is that generating item, *genSubPathOut the remaining path — the
+		// caller resolves it against the container's pseudo-expanded member set
 		enum class ExtRefKind : UInt32 { DefScopeExternal = 0, ParamMember, PreludeFunc, ClosureCapture };
 		int ResolveName(const TreeItem* refScope, TokenID sym, const TreeItem** local, UInt32* paramIdx = nullptr,
-			SharedTreeItem* externalOut = nullptr, ExtRefKind* extKindPtr = nullptr);
+			SharedTreeItem* externalOut = nullptr, ExtRefKind* extKindPtr = nullptr, SharedStr* genSubPathOut = nullptr);
 
 		// §12.7 impedance tranche: definition-time K13 spec processing. A body
 		// sub-expression CLOSED over the formals (references no parameter, rest
@@ -2937,10 +2951,51 @@ namespace {
 		std::optional<DefType> TrySpecProcessing(const AbstrOperGroup* og,
 			const OperGroupSignatures::MergedRecord& mr, const std::vector<const Operator*>& survivors,
 			const SharedStr& headName, const TreeItem* refScope, LispPtr argsList, const std::vector<DefType>& argTerms);
+
+		// §12.7 for_each tranche: the container-generating meta family. A
+		// closed name array (and, for for_each_ind, the closed field spec) is
+		// EVALUATED at definition scan — storage-backed sources included, per
+		// the ruling — and the application types as a Container whose member
+		// set is the pseudo-expansion of the names; member domain/values types
+		// come from the layout's unit positions (a formal unit parameter
+		// contributes its unifier node: the K2 bridge). Any failure at any
+		// stage defers exactly as before the tranche.
+		std::optional<std::vector<SharedStr>> EvalClosedStrArray(const TreeItem* refScope, LispPtr expr);
+		std::optional<DefType> TryMetaContainerProcessing(const AbstrOperGroup* og, TokenID headID,
+			const TreeItem* refScope, LispPtr argsList, const std::vector<DefType>& argTerms);
+		DefType InferGeneratedMember(TokenID sym, const TreeItem* genItem, const SharedStr& subPath);
 	};
 
+	// §12.7 for_each tranche: may `item`'s calculation rule GENERATE sub-items
+	// at instantiation? True exactly for meta heads (for_each_* & co.:
+	// dont_cache_result, non-template). Rule-generated members are invisible in
+	// the declared tree, so a path miss below such an item must not be reported
+	// as unknown — it resolves against the pseudo-expanded member set (a code-3
+	// generated-member access) or defers to per-application checking.
+	bool RuleMayGenerateSubItems(const TreeItem* item)
+	{
+		SharedStr exprStr = item->GetExpr();
+		if (exprStr.empty() || AbstrCalculator::MustEvaluate(exprStr.c_str()))
+			return false;
+		try
+		{
+			auto calc = AbstrCalculator::ConstructFromStr(item, exprStr, CalcRole::Calculator);
+			LispRef expr = RewriteExpr(calc->GetLispExprOrg());
+			while (expr.IsRealList() && expr.Left().IsSymb() && expr.Left().GetSymbID() == token::sourceDescr)
+				expr = expr.Right().Left();
+			if (!expr.IsRealList() || !expr.Left().IsSymb())
+				return false;
+			const AbstrOperGroup* og = AbstrOperGroup::FindName(expr.Left().GetSymbID());
+			return og && !og->IsTemplateCall() && !og->MustCacheResult();
+		}
+		catch (...)
+		{
+			return false; // an unparsable rule generates nothing knowable: keep the plain-miss report
+		}
+	}
+
 	int FunctionChecker::ResolveName(const TreeItem* refScope, TokenID sym, const TreeItem** local, UInt32* paramIdx,
-		SharedTreeItem* externalOut, ExtRefKind* extKindPtr)
+		SharedTreeItem* externalOut, ExtRefKind* extKindPtr, SharedStr* genSubPathOut)
 	{
 		if (local) *local = nullptr;
 		if (externalOut) *externalOut = nullptr;
@@ -2970,16 +3025,43 @@ namespace {
 						}
 						return 0;
 					}
-				const TreeItem* target = child.get();
+				SharedTreeItem cursor = child;
 				if (slash != e)
 				{
-					auto t = FindSubItem(child.get(), SharedStr(CharPtrRange(slash + 1, e)));
-					if (!t)
-						throwErrorF("ExprParser", "'{}': not found in body of function '{}'"
-							, fullStr.c_str(), m_FuncItem->GetFullName().c_str());
-					target = t.get();
+					// segment-wise descend (mirroring FindSubItem, message included) so
+					// a miss can be attributed to a GENERATING item on the walked path:
+					// when an item's rule may GENERATE sub-items at instantiation
+					// (§12.7 for_each tranche), the path remaining FROM that item
+					// resolves against its pseudo-expanded member set (code 3) instead
+					// of being unknown. The deepest generating item wins (its member
+					// paths are keyed from itself); a generating ancestor above a
+					// declared child covers names that route through declared items.
+					CharPtr segBegin = slash + 1;
+					std::vector<std::pair<SharedTreeItem, CharPtr>> descended;
+					descended.emplace_back(cursor, segBegin);
+					while (segBegin != e)
+					{
+						CharPtr segEnd = std::find(segBegin, e, DELIMITER_CHAR);
+						auto sub = cursor->GetConstSubTreeItemByID(GetTokenID_mt(segBegin, segEnd));
+						if (!sub)
+						{
+							if (genSubPathOut)
+								for (auto ri = descended.rbegin(); ri != descended.rend(); ++ri)
+									if (RuleMayGenerateSubItems(ri->first.get()))
+									{
+										if (local) *local = ri->first.get();
+										*genSubPathOut = SharedStr(CharPtrRange(ri->second, e));
+										return 3;
+									}
+							throwErrorF("FindSubItem", "Cannot find {} from {}"
+								, SharedStr(CharPtrRange(segBegin, segEnd)), cursor->GetFullName().c_str());
+						}
+						cursor = sub;
+						segBegin = (segEnd == e) ? e : segEnd + 1;
+						descended.emplace_back(cursor, segBegin);
+					}
 				}
-				if (local) *local = target;
+				if (local) *local = cursor.get();
 				return 1;
 			}
 			if (atFuncRoot)
@@ -3179,6 +3261,64 @@ namespace {
 				|| adi->GetAbstrValuesUnit()->GetValueType()->GetValueClassID() != ValueClassID::VT_SharedStr)
 				return std::nullopt;
 			return GetTheValue<SharedStr>(adi);
+		}
+		catch (...)
+		{
+			return std::nullopt;
+		}
+	}
+
+	// §12.7 for_each tranche: the array sibling of EvalClosedSpec — evaluate a
+	// closed string ARRAY (any domain) at definition scan and read all its
+	// values, storage-backed sources included per the ruling. The evaluation
+	// runs through the very hash-consed DC every instantiation of the meta
+	// application will use (closedness ⟺ β-substitution is the identity), so
+	// the value is read once and the cache entry is warmed. ANY failure yields
+	// nullopt = defer: the instantiation retries the same DC and reports
+	// properly if it persists.
+	std::optional<std::vector<SharedStr>> FunctionChecker::EvalClosedStrArray(const TreeItem* refScope, LispPtr expr)
+	{
+		auto defScope = m_FuncItem->GetTreeParent();
+		if (!defScope || defScope->InTemplate())
+			return std::nullopt; // a function nested in a template: no evaluation context
+		LispRef key;
+		try
+		{
+			key = TryBuildClosedKeyExpr(refScope, expr);
+		}
+		catch (...)
+		{
+			m_ScanBusy.clear(); // unwind the cycle-guard marks of the aborted scan
+			return std::nullopt;
+		}
+		if (key.EndP())
+			return std::nullopt;
+		try
+		{
+			FencedInterestRetainContext irc("FunctionChecker::EvalClosedStrArray");
+			auto dc = GetOrCreateDataController(key);
+			if (!dc)
+				return std::nullopt;
+			irc.Add(dc.get());
+			auto resItem = dc->MakeResult();
+			if (!resItem || dc->WasFailed() || !IsDataItem(resItem.get()))
+				return std::nullopt;
+			FutureData fd = dc->CalcCertainResult();
+			if (!fd || fd->WasFailed())
+				return std::nullopt;
+			auto adi = AsDataItem(fd->GetOld());
+			if (!adi || adi->GetAbstrValuesUnit()->GetValueType()->GetValueClassID() != ValueClassID::VT_SharedStr)
+				return std::nullopt;
+			DataReadLock lock(adi);
+			auto sa = const_array_cast<SharedStr>(lock);
+			if (!sa)
+				return std::nullopt;
+			SizeT n = adi->GetAbstrDomainUnit()->GetDataCount();
+			std::vector<SharedStr> result;
+			result.reserve(n);
+			for (SizeT i = 0; i != n; ++i)
+				result.push_back(sa->GetIndexedValue(i));
+			return result;
 		}
 		catch (...)
 		{
@@ -4042,6 +4182,296 @@ namespace {
 		return ApplyOperRecord(*derived, headName, argTerms);
 	}
 
+	// §12.7 for_each tranche: definition-time processing of a container-
+	// GENERATING meta application (a dont_cache_result group). The group's
+	// member(s) describe their argument LAYOUT (MetaMemberLayout); when the
+	// name array — and, for for_each_ind, the field spec directing the layout —
+	// is CLOSED over the checked function's formals, it is EVALUATED at
+	// definition scan (the ruling: storage-backed sources included) and the
+	// application types as a Container carrying the pseudo-expanded member set.
+	// Member types come from the layout's unit positions: a direct unit
+	// argument types every member uniformly (a formal unit parameter
+	// contributes its unifier node — the K2 bridge; a closed external unit its
+	// concrete identity), a (container, name-array) pair resolves a unit per
+	// member inside a closed external container. An unresolvable unit defers
+	// that MEMBER's type, never the member set. Every other failure — open
+	// arguments, evaluation failure, duplicate names, heterogeneous layouts —
+	// returns nullopt and the caller defers exactly as before the tranche.
+	std::optional<DefType> FunctionChecker::TryMetaContainerProcessing(const AbstrOperGroup* og, TokenID headID,
+		const TreeItem* refScope, LispPtr argsList, const std::vector<DefType>& argTerms)
+	{
+		// a trailing '...rest' splices at reduction: positions misalign (§12.7 review rule)
+		if (TreeItem_HasFunctionRestParam(m_FuncItem))
+			return std::nullopt;
+		if (!og->GetFirstMember())
+			return std::nullopt;
+
+		// for a layout directed by the first argument's value (for_each_ind),
+		// that value must itself be closed and evaluable
+		std::optional<SharedStr> specValue;
+		if (og->HasDynamicArgPolicies())
+		{
+			if (argsList.EndP())
+				return std::nullopt;
+			specValue = EvalClosedSpec(refScope, argsList.Left());
+			if (!specValue)
+				return std::nullopt;
+		}
+
+		// every member must describe the SAME layout (each for_each group holds one)
+		MetaMemberLayout layout;
+		bool anyDescribed = false;
+		for (const Operator* m = og->GetFirstMember(); m; m = m->GetNextGroupMember())
+		{
+			MetaMemberLayout ml;
+			bool described = false;
+			try
+			{
+				described = m->DescribeMetaSignature(ml, specValue ? specValue->c_str() : nullptr);
+			}
+			catch (...)
+			{
+				return std::nullopt; // an invalid spec: v1 defers (the application reports)
+			}
+			if (!described)
+				return std::nullopt; // an undescribed member could serve the application: defer
+			if (anyDescribed && !(ml == layout))
+				return std::nullopt;
+			layout = ml;
+			anyDescribed = true;
+		}
+		if (!anyDescribed || layout.namesPos == no_meta_pos)
+			return std::nullopt;
+
+		// arity: outside the group's accepted range, a same-named function may
+		// serve the call — defer (§6.2). Within it, a spec-derived width is
+		// CreateResult's own predicate: its violation is the ruled honest error
+		// (for_each_ind's own message shape), strictly outside every defer-catch.
+		arg_index nrGiven = arg_index(argTerms.size());
+		if (!og->AcceptsArity(nrGiven))
+			return std::nullopt;
+		if (nrGiven != layout.nrArgs)
+		{
+			if (!specValue)
+				return std::nullopt; // layout-static groups: arity always defers (§6.2)
+			SharedStr headName(headID.AsStrRange());
+			throwErrorF("ExprParser", "{}: number of given arguments to operator '{}' doesn't match the specification '{}': {} arguments given (including the specification), but {} expected"
+				, m_Unifier.FullName().c_str(), headName.c_str(), specValue->c_str()
+				, nrGiven, layout.nrArgs);
+		}
+
+		auto argExprAt = [&](arg_index p) -> LispPtr
+		{
+			arg_index k = 0;
+			for (LispPtr a = argsList; !a.EndP(); a = a.Right(), ++k)
+				if (k == p)
+					return a.Left();
+			return {};
+		};
+
+		auto names = EvalClosedStrArray(refScope, argExprAt(layout.namesPos));
+		if (!names)
+			return std::nullopt;
+
+		// one unit-providing source per layout role; FragAt yields a UnitVal
+		// fragment per member, or Unknown where nothing is knowable
+		struct UnitSource
+		{
+			DefType uniform;                                     // context-only mode
+			SharedTreeItem container;                            // pair mode
+			std::optional<std::vector<SharedStr>> perMemberNames;
+
+			DefType FragAt(SizeT i) const
+			{
+				if (container && perMemberNames)
+				{
+					if (i >= perMemberNames->size())
+						return {};
+					try
+					{
+						auto u = container->FindItem((*perMemberNames)[i]);
+						if (u && IsUnit(u.get()) && !u->InTemplate())
+						{
+							DefType f; f.kind = DefType::Kind::UnitVal;
+							f.vc = AsUnit(u.get())->GetValueType();
+							f.dom = DefType::Dom::Concrete; f.domKeep = u; f.domUnit = AsUnit(u.get());
+							return f;
+						}
+					}
+					catch (...) {}
+					return {}; // an unresolvable unit name defers this member's type
+				}
+				return uniform;
+			}
+		};
+		auto resolveUnitSource = [&](arg_index pos, arg_index namesPos) -> UnitSource
+		{
+			UnitSource s;
+			if (pos == no_meta_pos || pos >= nrGiven)
+				return s;
+			try
+			{
+				if (namesPos == no_meta_pos)
+				{
+					if (argTerms[pos].kind == DefType::Kind::UnitVal)
+						s.uniform = argTerms[pos]; // formal unit parameters ride their unifier node here
+					else if (LispPtr ue = argExprAt(pos); ue.IsSymb())
+					{
+						if (auto vc = ValueClass::FindByScriptName(ue.GetSymbID()))
+						{
+							// the DEFAULT unit of a value-class name ('float64'):
+							// class pinned, identity left unclaimed
+							s.uniform.kind = DefType::Kind::UnitVal;
+							s.uniform.vc = vc;
+							return s;
+						}
+						// a def-scope external unit: closed by construction (§12.7)
+						const TreeItem* local = nullptr; UInt32 pi = 0;
+						SharedTreeItem ext; ExtRefKind ek = ExtRefKind::DefScopeExternal;
+						if (ResolveName(refScope, ue.GetSymbID(), &local, &pi, &ext, &ek) == 2
+							&& ek == ExtRefKind::DefScopeExternal && ext && IsUnit(ext.get()) && !ext->InTemplate())
+						{
+							s.uniform.kind = DefType::Kind::UnitVal;
+							s.uniform.vc = AsUnit(ext.get())->GetValueType();
+							s.uniform.dom = DefType::Dom::Concrete; s.uniform.domKeep = ext; s.uniform.domUnit = AsUnit(ext.get());
+						}
+					}
+					return s;
+				}
+				// pair mode: a CLOSED external container + a closed per-member name array
+				LispPtr ce = argExprAt(pos);
+				if (!ce.IsSymb() || namesPos >= nrGiven)
+					return s;
+				const TreeItem* local = nullptr; UInt32 pi = 0;
+				SharedTreeItem ext; ExtRefKind ek = ExtRefKind::DefScopeExternal;
+				if (ResolveName(refScope, ce.GetSymbID(), &local, &pi, &ext, &ek) != 2
+					|| ek != ExtRefKind::DefScopeExternal || !ext || ext->IsFunctionItem() || ext->InTemplate())
+					return s;
+				ext->UpdateMetaInfo(); // its own rule may generate the named units
+				auto nm = EvalClosedStrArray(refScope, argExprAt(namesPos));
+				if (!nm)
+					return s;
+				s.container = ext;
+				s.perMemberNames = std::move(nm);
+			}
+			catch (...)
+			{
+				s.container = {};
+				s.perMemberNames.reset(); // defer the member types, keep the member set
+			}
+			return s;
+		};
+
+		UnitSource duSrc = resolveUnitSource(layout.domainPos, layout.domainNamesPos);
+		UnitSource vuSrc = resolveUnitSource(layout.valuesPos, layout.valuesNamesPos);
+		UnitSource unSrc = resolveUnitSource(layout.unitPos, layout.unitNamesPos);
+
+		auto memberTypeAt = [&](SizeT i) -> DefType
+		{
+			switch (layout.memberKind)
+			{
+			case MetaMemberLayout::MemberKind::Data:
+			{
+				DefType m; m.kind = DefType::Kind::Data; m.vcomp = layout.vcomp;
+				DefType du = duSrc.FragAt(i);
+				if (du.kind == DefType::Kind::UnitVal)
+				{
+					if (du.vc && du.vc->GetValueClassID() == ValueClassID::VT_Void)
+						m.dom = DefType::Dom::Void;
+					else
+					{
+						m.dom = du.dom; m.domUnit = du.domUnit; m.domKeep = du.domKeep; m.dNode = du.dNode;
+					}
+				}
+				DefType vu = vuSrc.FragAt(i);
+				if (vu.kind == DefType::Kind::UnitVal)
+				{
+					m.vc = vu.vc; m.vNode = vu.vNode;
+					m.vuNode = vu.dNode; m.vUnit = vu.domUnit; m.vKeep = vu.domKeep;
+				}
+				return m;
+			}
+			case MetaMemberLayout::MemberKind::Unit:
+			{
+				DefType m; m.kind = DefType::Kind::UnitVal;
+				DefType un = unSrc.FragAt(i);
+				if (un.kind == DefType::Kind::UnitVal)
+					m.vc = un.vc; // class only: each generated unit's IDENTITY is fresh per holder
+				return m;
+			}
+			default:
+				return {}; // TemplateCopy / plain items: member types per application
+			}
+		};
+
+		auto members = std::make_shared<std::map<SharedStr, DefType>>();
+		for (SizeT i = 0; i != names->size(); ++i)
+		{
+			const SharedStr& nm = (*names)[i];
+			if (!nm.IsDefined() || nm.empty())
+				continue; // skipped rows, exactly as ForEach_CreateResult
+			if (!members->emplace(nm, memberTypeAt(i)).second)
+				return std::nullopt; // duplicate generated names: collision semantics not modeled
+		}
+
+		DefType r;
+		r.kind = DefType::Kind::Container;
+		r.members = std::move(members);
+		r.membersComplete = true;
+		return r;
+	}
+
+	// §12.7 for_each tranche: type a reference INTO a rule-generated container
+	// ('r/foo' where r's rule is a meta application). The container's inferred
+	// type carries the pseudo-expanded member set when the generation was
+	// closed over the formals: an exact hit yields the member's type, a path
+	// prefix of a deeper member is a generated intermediate container (no
+	// claim), and a complete-set miss is reported honestly — sound because
+	// inline reduction rejects every meta-rule member access with certainty.
+	// A deferred or non-container generation defers as before.
+	DefType FunctionChecker::InferGeneratedMember(TokenID sym, const TreeItem* genItem, const SharedStr& subPath)
+	{
+		DefType ct = InferBodyItem(genItem);
+		if (ct.kind != DefType::Kind::Container || !ct.members)
+			return {};
+		if (auto it = ct.members->find(subPath); it != ct.members->end())
+			return it->second;
+		SizeT sn = subPath.ssize();
+		for (const auto& [path, mt] : *ct.members)
+		{
+			SizeT pn = path.ssize();
+			if (pn > sn && *(path.begin() + sn) == DELIMITER_CHAR
+				&& std::equal(subPath.begin(), subPath.send(), path.begin()))
+				return {}; // a generated intermediate container on the way to a deeper member
+			if (sn > pn && *(subPath.begin() + pn) == DELIMITER_CHAR
+				&& std::equal(path.begin(), path.send(), subPath.begin()))
+				return {}; // a path BELOW a generated member: template copies and
+				           // rule-bearing members may carry deeper sub-structure the
+				           // member set makes no claim about (review finding)
+		}
+		if (!ct.membersComplete)
+			return {};
+		if (ct.members->empty())
+			throwErrorF("ExprParser", "'{}': the calculation rule of '{}' generates no members, so '{}' cannot exist (body of function '{}')"
+				, SharedStr(sym.AsStrRange()).c_str(), genItem->GetFullName().c_str()
+				, subPath.c_str(), m_FuncItem->GetFullName().c_str());
+		SharedStr listed; UInt32 nrListed = 0;
+		for (const auto& [path, mt] : *ct.members)
+		{
+			if (nrListed == 10)
+			{
+				listed += ", ...";
+				break;
+			}
+			if (nrListed++)
+				listed += ", ";
+			listed += path;
+		}
+		throwErrorF("ExprParser", "'{}': the calculation rule of '{}' generates member(s) {}; '{}' is not among them (body of function '{}')"
+			, SharedStr(sym.AsStrRange()).c_str(), genItem->GetFullName().c_str()
+			, listed.c_str(), subPath.c_str(), m_FuncItem->GetFullName().c_str());
+	}
+
 	DefType FunctionChecker::InferOperatorApplication(const AbstrOperGroup* og, TokenID headID, const TreeItem* refScope, LispPtr argsList)
 	{
 		std::vector<DefType> argTerms;
@@ -4049,7 +4479,15 @@ namespace {
 			argTerms.push_back(InferExpr(refScope, a.Left()));
 
 		if (!og->MustCacheResult())
+		{
+			// §12.7 for_each tranche: a container-GENERATING meta application
+			// whose meta-directing arguments are CLOSED over the formals is
+			// processed at definition scan (the ruling); every failure inside
+			// falls through to the wholesale deferral, byte-identical to before
+			if (auto containerType = TryMetaContainerProcessing(og, headID, refScope, argsList, argTerms))
+				return *containerType;
 			return {}; // meta/selection groups: fluid effective arity, per-application checking
+		}
 
 		auto sigs = og->GetSignatures();
 		if (!sigs)
@@ -4122,10 +4560,12 @@ namespace {
 				if (sym == t_Hole || token::isConst(sym) || ValueClass::FindByScriptName(sym))
 					return {};
 				const TreeItem* local = nullptr; UInt32 paramIdx = 0;
-				switch (ResolveName(refScope, sym, &local, &paramIdx))
+				SharedStr genSubPath;
+				switch (ResolveName(refScope, sym, &local, &paramIdx, nullptr, nullptr, &genSubPath))
 				{
 				case 0: return ParamType(paramIdx);
 				case 1: return local ? InferBodyItem(local) : DefType{};
+				case 3: return local ? InferGeneratedMember(sym, local, genSubPath) : DefType{}; // §12.7: rule-generated member access
 				default: return {}; // imports/externals: their types are checked per application
 				}
 			}

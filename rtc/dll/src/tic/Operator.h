@@ -110,6 +110,16 @@ public:
 	// invalid spec) or false makes the walker defer exactly as without the spec.
 	TIC_CALL virtual bool DescribeSpecSignature(struct AbstrSignatureBuilder& sb, CharPtr specValue) const;
 
+	// §12.7 (for_each tranche): describe the argument LAYOUT of a container-
+	// GENERATING meta member (OperSignature.h MetaMemberLayout) so the walker
+	// can pseudo-expand the generated member set when the meta-directing
+	// arguments are CLOSED over a checked function's formals. For a group whose
+	// layout is directed by its first argument's value (dynamic_argument_policies,
+	// for_each_ind), the walker passes that value once closed-evaluated;
+	// layout-static members ignore it. A throw (invalid spec) or false (the
+	// default: no describable container) makes the walker defer as before.
+	TIC_CALL virtual bool DescribeMetaSignature(struct MetaMemberLayout& layout, CharPtr optSpecValue) const;
+
 	inline bool HasRegisteredResultClass() const { return !(GetOperPolicy() & oper_policy::dynamic_result_class); }
 	inline bool CalcRequiresMetaInfo()     const { return GetOperPolicy() & oper_policy::calc_requires_metainfo; }
 	inline bool CanRunParallel()           const { return !(GetGroup()->HasExternalEffects() ||  CalcRequiresMetaInfo()); }

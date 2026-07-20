@@ -180,6 +180,35 @@ struct OperGroupSignatures
 	bool anyDescribed = false;
 };
 
+// §12.7 for_each tranche: the argument layout of a container-GENERATING meta
+// operator (a dont_cache_result group), consumed by the definition-time
+// checker to pseudo-expand the generated member set when the meta-directing
+// arguments are CLOSED over a checked function's formals. Unlike a
+// SignatureRecord this describes tree-item generation, not data typing: the
+// name array names the generated members/paths (K13); the domain/values/unit
+// positions declare each member's type, either as a direct unit argument
+// (context-only mode) or as a (container, name-array) pair resolving a unit
+// per member. nrArgs is the exact arity the layout implies — for a group
+// whose layout is directed by its first argument's value (for_each_ind) it
+// is CreateResult's own predicate, so the walker may report its violation
+// honestly (the ruled §12.7 arity exemption); for layout-static groups the
+// §6.2 arity-always-defers rule stands.
+constexpr arg_index no_meta_pos = arg_index(-1);
+struct MetaMemberLayout
+{
+	enum class MemberKind : UInt8 { Untyped, Data, Unit, TemplateCopy };
+	MemberKind memberKind = MemberKind::Untyped;
+	ValueComposition vcomp = ValueComposition::Single; // Data members
+	arg_index nrArgs = 0;
+	arg_index namesPos  = no_meta_pos;                       // string array: the generated member names/paths
+	arg_index domainPos = no_meta_pos, domainNamesPos = no_meta_pos; // Data members
+	arg_index valuesPos = no_meta_pos, valuesNamesPos = no_meta_pos; // Data members
+	arg_index unitPos   = no_meta_pos, unitNamesPos   = no_meta_pos; // Unit members
+	arg_index templPos  = no_meta_pos, templNamesPos  = no_meta_pos; // TemplateCopy members
+
+	bool operator==(const MetaMemberLayout&) const = default;
+};
+
 // the recording builder: DescribeSignature writes through the abstract
 // vocabulary; the result is the plain-data record above
 struct SignatureRecorder final : AbstrSignatureBuilder
