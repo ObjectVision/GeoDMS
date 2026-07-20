@@ -464,7 +464,8 @@ public:
 	// VALUE (K13); with a definition-time-known spec it mirrors CreateResult
 	// exactly — including nrArgs = CalcNrArgs(fs)+1, whose violation the walker
 	// reports with CreateResult's own arity message (the ruled exemption).
-	// ScanFirstArg throws on an invalid spec: the walker then defers.
+	// ScanFirstArg throws on an invalid spec — the walker reports that honestly
+	// at definition (CreateResult applies the same predicate first).
 	bool DescribeMetaSignature(MetaMemberLayout& layout, CharPtr optSpecValue) const override
 	{
 		if (!optSpecValue)

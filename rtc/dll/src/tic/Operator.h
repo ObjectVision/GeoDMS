@@ -106,8 +106,10 @@ public:
 	// this when a DynamicShape member's spec argument is CLOSED over the checked
 	// function's formals and was evaluated at definition scan; the emitted record
 	// (no DynamicShape) carries exactly the spec-implied position count, which the
-	// walker enforces as the ruled honest arity check. A throw (unparsable or
-	// invalid spec) or false makes the walker defer exactly as without the spec.
+	// walker enforces as the ruled honest arity check. False makes the walker defer
+	// exactly as without the spec. A THROW must be the member's own spec validation
+	// (the very predicate CreateResult applies first — ParseDijkstraString/
+	// CheckFlags): the walker PROPAGATES it as an honest definition-time error.
 	TIC_CALL virtual bool DescribeSpecSignature(struct AbstrSignatureBuilder& sb, CharPtr specValue) const;
 
 	// §12.7 (for_each tranche): describe the argument LAYOUT of a container-
@@ -116,8 +118,10 @@ public:
 	// arguments are CLOSED over a checked function's formals. For a group whose
 	// layout is directed by its first argument's value (dynamic_argument_policies,
 	// for_each_ind), the walker passes that value once closed-evaluated;
-	// layout-static members ignore it. A throw (invalid spec) or false (the
-	// default: no describable container) makes the walker defer as before.
+	// layout-static members ignore it. False (the default: no describable
+	// container) makes the walker defer as before. A THROW must be the member's
+	// own spec validation (ScanFirstArg — CreateResult's first predicate): the
+	// walker PROPAGATES it as an honest definition-time error.
 	TIC_CALL virtual bool DescribeMetaSignature(struct MetaMemberLayout& layout, CharPtr optSpecValue) const;
 
 	inline bool HasRegisteredResultClass() const { return !(GetOperPolicy() & oper_policy::dynamic_result_class); }

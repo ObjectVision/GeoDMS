@@ -1355,8 +1355,8 @@ public:
 	// escape is preserved. A parse/CheckFlags throw makes the walker defer.
 	bool DescribeSpecSignature(AbstrSignatureBuilder& sb, CharPtr specValue) const override
 	{
-		auto df = DijkstraFlag(m_OperFlags | ParseDijkstraString(specValue)); // throws on syntax error -> walker defers
-		CheckFlags(df);                                                       // throws on invalid combos -> walker defers
+		auto df = DijkstraFlag(m_OperFlags | ParseDijkstraString(specValue)); // throws on syntax error -> honest definition-time report (§12.7 upgrade)
+		CheckFlags(df);                                                       // throws on invalid combos -> honest definition-time report
 		bool isOD = flags(df & DijkstraFlag::OD);
 
 		sig_var E = sb.UnitVar("Links");  sb.FixedValueClass(E, ValueWrap<LinkType>::GetStaticClass()); // checked_domain<LinkType>

@@ -4150,15 +4150,11 @@ namespace {
 		for (const Operator* m : survivors)
 		{
 			SignatureRecorder rec;
-			bool described = false;
-			try
-			{
-				described = m->DescribeSpecSignature(rec, specValue->c_str());
-			}
-			catch (...)
-			{
-				described = false; // unparsable/invalid spec: v1 defers (the application reports)
-			}
+			// a throw here is the member's OWN spec validation (ParseDijkstraString/
+			// CheckFlags — the very predicates CreateResult applies first), reached
+			// only for a CLEANLY EVALUATED closed spec: reporting it at definition
+			// is honest (the §12.7 ruling's sanctioned upgrade from the v1 deferral)
+			bool described = m->DescribeSpecSignature(rec, specValue->c_str());
 			if (!described)
 				return std::nullopt;
 			if (merged->members.empty())
@@ -4218,21 +4214,17 @@ namespace {
 				return std::nullopt;
 		}
 
-		// every member must describe the SAME layout (each for_each group holds one)
+		// every member must describe the SAME layout (each for_each group holds one).
+		// A throw is the member's OWN spec validation (ScanFirstArg — the predicate
+		// CreateResult applies first), reached only for a CLEANLY EVALUATED closed
+		// spec: reporting it at definition is honest (the §12.7 ruling's sanctioned
+		// upgrade from the v1 deferral)
 		MetaMemberLayout layout;
 		bool anyDescribed = false;
 		for (const Operator* m = og->GetFirstMember(); m; m = m->GetNextGroupMember())
 		{
 			MetaMemberLayout ml;
-			bool described = false;
-			try
-			{
-				described = m->DescribeMetaSignature(ml, specValue ? specValue->c_str() : nullptr);
-			}
-			catch (...)
-			{
-				return std::nullopt; // an invalid spec: v1 defers (the application reports)
-			}
+			bool described = m->DescribeMetaSignature(ml, specValue ? specValue->c_str() : nullptr);
 			if (!described)
 				return std::nullopt; // an undescribed member could serve the application: defer
 			if (anyDescribed && !(ml == layout))

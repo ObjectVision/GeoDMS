@@ -1220,16 +1220,21 @@ conditional/default-escaping path) held.
   re-entrancy sentinel (closed-spec evaluation can `UpdateMetaInfo` items whose expressions apply
   the function being checked).
 - **v1 narrowings inside the granted scope**: function-call heads inside a spec expression defer
-  (building their key would re-enter `ReduceValue`; lift with the sentinel + errorHolder later);
-  a cleanly-evaluated-but-invalid spec defers rather than erring (the ruling permits either; the
-  honest-error upgrade is a one-liner).
+  (building their key would re-enter `ReduceValue`; lift with the sentinel + errorHolder later).
+  ~~A cleanly-evaluated-but-invalid spec defers~~ — **UPGRADED 2026-07-20**: a throw from
+  `DescribeSpecSignature`/`DescribeMetaSignature` on a cleanly evaluated closed spec now
+  PROPAGATES as the definition-time error (the interface contract requires such throws to be
+  the member's own spec validation — `ParseDijkstraString`/`CheckFlags`/`ScanFirstArg`, the very
+  predicates `CreateResult` applies first, so the report is honest). Verified:
+  `fn_test_opsigK13_neg3` ("parse dijkstra options Error: syntax error at …" at definition) and
+  `fn_test_fe_neg7` ("argument specification, unexpected token(s): 'qq' in nqq" at definition).
 
 Tests: `fn_test_opsigK13{,_stor,_neg1,_neg2}.dms` (positives: literal + closed-external +
 storage-backed + open-defer + the memo regression; negatives: the arity and Links-domain catches).
 Validation: 101/101 battery, tst `/Arithmetics` + `/Rescale` + `/MetaInfo` (+ `/Network`
 unchanged: pre-existing `pow`-metric only), `examples/function.dms`, Release + Debug, Debug sweep
 clean (the emission's `assert(i == CalcNrArgs(df))` holds). The `for_each` tranche is now also
-shipped (below); the invalid-spec honest error remains per the plan.
+shipped (below), as is the invalid-spec honest error (see the v1-narrowings note above).
 
 #### The original ruling and plan
 
@@ -1341,8 +1346,25 @@ spec is unknowable at definition. The planned refinement:
 - **What defers wholly**: `...rest`-having functions, heterogeneous/undescribed groups, open
   or unevaluable names/specs, duplicate names — byte-identical to the pre-tranche deferral.
   `loop` and other meta groups don't describe (default `DescribeMetaSignature` = false) and
-  keep deferring; `discrete_alloc` (cacheable, name-array K13) now has the K11 container
-  vocabulary available and joins in a follow-up.
+  keep deferring.
+- **discrete_alloc scoping (2026-07-20 — the join is NOT free; needs a ruling)**: reading
+  `CreateResultCaller`/`CreateResultingItems`: the result container holds FIXED members
+  (`landuse` = `attribute<AT>(allocUnit)` whose VALUES unit is the typeNames array's DOMAIN;
+  `status`/`statusFlag` parameters; `bid_price` = `attribute<S>(allocUnit)` with the
+  suitabilities' shared price unit) plus NAME-DIRECTED members `shadow_prices/<typeName>` and
+  `total_allocated/<typeName>` (partitioningUnit × priceUnit / land_unit_id). Joining needs:
+  (1) an ARRAY-spec path on the CACHEABLE side (`TrySpecProcessing` is scalar-string-gated;
+  the evaluation itself is ready — `EvalClosedStrArray`); (2) a typed result-CONTAINER
+  vocabulary for spec-describes (SignatureRecord's `ResultContainer` is prose-only) or a
+  second producer of the K11 `Container` DefType on the normal path; (3) most importantly, a
+  REDUCTION-side decision: member references into cacheable operator results (`a/landuse` on
+  a body local) throw at inline reduction today (`ResolveBodySymbol`'s `FindSubItem`), so
+  checker-side result typing would be diagnostics-only — unless reduction learns to emit
+  `slSubItemCall` sub-item keys for them (the cache machinery exists: `GetLispRefForTreeItem`
+  uses exactly that form), which is a language-semantics extension to rule on first. The
+  INPUT obligations (suitabilities/claims members per type name) are checkable without (3)
+  but only bind when the container argument is a closed external — rarely the case in
+  function bodies (containers are usually formals).
 
 Tests: `fn_test_fe_pos` (declared-sub-container slash paths + config-scope for_each unchanged)
 and `fn_test_fe_{neg1..neg6,stor_neg}`: closed-set miss listing `a, b`; the ind spec-arity
