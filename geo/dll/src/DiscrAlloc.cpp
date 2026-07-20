@@ -18,8 +18,10 @@
 
 #include "CheckedDomain.h"
 #include "DataArray.h"
+#include "DataItemClass.h"
 #include "DisplayValue.h"
 #include "MoreDataControllers.h"
+#include "OperSignature.h"
 #include "TreeItemClass.h"
 #include "UnitClass.h"
 
@@ -3314,6 +3316,49 @@ public:
 			*argClsIter++ = TreeItem::GetStaticClass(); // feasibility certificate
 		}
 		assert(argClsIter == m_ArgClassesEnd);
+	}
+
+	// batch E (§16 ruling): discrete_alloc is OPAQUE at definition. Its entire
+	// obligation set — which members the suitabilities/claims containers must
+	// hold and their unit relations — is computed from the meta-read type-name
+	// array (K13), so the result is ⊤ (ResultDeferred) and the whole application
+	// defers (DynamicShape). The description exists only for the printer (§6.3):
+	// it states the argument roles and the deferred relations but makes ZERO
+	// cross-argument unification claims (the only unit vars, allocUnit/atomicRegionUnit,
+	// are each used ONCE, so they bind their argument and never link — cannot error).
+	bool DescribeSignature(AbstrSignatureBuilder& sb) const override
+	{
+		arg_index n = GetNrArguments();
+		if (auto a0 = dynamic_cast<const DataItemClass*>(GetArgClass(0)))
+			sb.ArgMetaValue(0, a0->GetValuesType(), "typeNames: names the allocation types; its count decides the member set (K13)");
+		else
+			sb.ArgDeferred(0, "typeNames");
+		sb.ArgUnit(1, sb.UnitVar("allocUnit"));                 // single-use var: binds arg, never links
+		sb.ArgContainer(2, "suitabilities: per-type attribute<S>(allocUnit); all members share one price values unit");
+		arg_index i = 3;
+		if (n >= 10) // multiple partitions
+		{
+			sb.ArgDeferred(i++, "ggTypes2partitionings: attribute<PartId>(typeNames.domain)");
+			if (auto a4 = dynamic_cast<const DataItemClass*>(GetArgClass(i)))
+				sb.ArgMetaValue(i, a4->GetValuesType(), "partitioningNames: names the partitionings");
+			else
+				sb.ArgDeferred(i, "partitioningNames");
+			++i;
+		}
+		if (n >= 8) // one partition and up: atomic-region unit + map
+		{
+			sb.ArgUnit(i++, sb.UnitVar("atomicRegionUnit"));    // single-use var
+			sb.ArgDeferred(i++, "atomicRegionMap: attribute<AR>(allocUnit)");
+		}
+		sb.ArgContainer(i++, "minClaims: per-type claim, keyed by the type names");
+		sb.ArgContainer(i++, "maxClaims: per-type claim, keyed by the type names");
+		sb.ArgDeferred(i++, "threshold: Int32 cutoff");
+		if (n == 11)
+			sb.ArgDeferred(i++, "feasibilityCertificate");
+		sb.DeferredRelation("suitabilities[t].domain == allocUnit; the claim and suitability members are keyed by the typeNames values (K11/K12)");
+		sb.DynamicShape("the member obligations are computed from the meta-read typeNames array (K13)");
+		sb.ResultDeferred("an opaque allocation container: landuse = attribute<AT>(allocUnit), total_allocated, bid_price, status");
+		return true;
 	}
 
 	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, LispPtr) const override

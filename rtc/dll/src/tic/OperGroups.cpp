@@ -452,18 +452,36 @@ const Operator* AbstrOperGroup::FindOper(arg_index nrArgs, const ClassCPtr* argT
 	nextGroupMember:;
 	}
 	auto nameStr = SharedStr(GetName());
+
+	// batch E (§6.3): enrich the "cannot find operator" failure with this group's
+	// DECLARED unit-constraint signatures — the printer (RenderMergedSignature)
+	// over GetSignatures(). Undescribed groups yield sigs==nullptr => empty text
+	// => message byte-identical to before (zero behaviour change). Meta-thread-
+	// only and race-free: FindOper's genuine-not-found failure fires only at
+	// meta-info construction (an operator, once resolved from arg CLASSES, is
+	// cached in FuncDC and never re-looked-up on worker threads), sharing the
+	// meta thread with the def-time walker's GetSignatures() reader; the lazy
+	// build's only writer, Register(), completes at static-init before any config
+	// walk. The IsMetaThread() guard documents (and future-proofs) that contract.
+	SharedStr describedSigs;
+	if (IsMetaThread())
+		if (const auto* sigs = GetSignatures())
+			for (const auto& mr : sigs->records)
+				describedSigs += mySSPrintF("  {}\n", RenderMergedSignature(this, mr).c_str());
+
 	throwErrorF(nameStr.c_str(), "Cannot find operator for these arguments:\n"
 		"{}"
 		"Possible cause: argument type mismatch. Check the types of the used arguments.\n"
 		"\nThere are {} operators registered for the {} operator-group."
 		"\n{} operator{} correspond{} with these arguments for the first {} argument{}, {} the following signature:\n"
-		"{}{}{}"
+		"{}{}{}{}"
 		, GenerateArgClsDescription(nrArgs, argTypes).c_str()
 		, GetNrMembers(), nameStr.c_str()
 		, nr_best_match, (nr_best_match==1 ? "": "s"), (nr_best_match == 1 ? "s" : ""), best_count, (best_count == 1 ? "" : "s"), (nr_best_match == 1 ? "with" : "of which the first operator has")
 		, GenerateArgClsDescription(best_oper->NrSpecifiedArgs(), best_oper->m_ArgClassesBegin).c_str()
 		, AllowExtraArgs() ? "\nand supplemental args" : ""
 		, HasAnnotation() ? mySSPrintF("\n\n{}", GetAnnotation()).c_str() : ""
+		, describedSigs.empty() ? "" : mySSPrintF("\nDeclared unit-constraint signatures for this operator-group:\n{}", describedSigs.c_str()).c_str()
 	);
 
 	return nullptr;

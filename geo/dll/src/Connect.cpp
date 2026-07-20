@@ -25,6 +25,7 @@
 #include "DataArray.h"
 #include "DataItemClass.h"
 #include "IndexAssigner.h"
+#include "OperSignature.h"
 #include "ParallelTiles.h"
 #include "TreeItemClass.h"
 #include "Unit.h"
@@ -116,6 +117,24 @@ struct AbstrConnectNeighbourPointOperator : VariadicOperator
 		if (withPartitioning)
 			*argClsIter++ = AbstrDataItem::GetStaticClass();
 		dms_assert(m_ArgClassesEnd == argClsIter);
+	}
+
+	// batch E: connect_neighbour(points: attribute<Vp>(D)[; partitioning: attribute<P>(D)])
+	// -> attribute<D>(D). The one def-time claim is the domain share between points
+	// and partitioning (K1, CreateResult :133 is an unconditional UnifyDomain(UM_Throw),
+	// no default/void escape), safe like the batch-D collect_by_cond K1. The value
+	// classes stay member-unconstrained (no cross-class claim); the result relation
+	// is deferred (§16 opaque-by-ruling).
+	bool DescribeSignature(AbstrSignatureBuilder& sb) const override
+	{
+		sig_var D = sb.UnitVar("D");
+		sb.ArgName(0, "points"); sb.ArgAttr(0, sb.UnitVar("Vp"), D, ValueComposition::Single);
+		if (NrSpecifiedArgs() >= 2)
+		{
+			sb.ArgName(1, "partitioning"); sb.ArgAttr(1, sb.UnitVar("P"), D, ValueComposition::Single);
+		}
+		sb.ResultDeferred("attribute<D>(D): the nearest-neighbour relation");
+		return true;
 	}
 
 	// Override Operator
@@ -279,6 +298,39 @@ struct AbstrConnectPointOperator : VariadicOperator
 		if (isCapacitated) *argClsIter++ = AbstrDataItem::GetStaticClass();
 		if (CT != compare_type::none) *argClsIter++ = AbstrDataItem::GetStaticClass();
 		dms_assert(m_ArgClassesEnd == argClsIter);
+	}
+
+	// batch E: connect(point1: attribute<Vc>(D1); point2: attribute<Vc>(D2)) -> attribute<D1>(D2),
+	// and capacitated_connect(point1; weight1; point2; weight2). Faithful, safe claims only:
+	// the two coordinate value classes share (K16, CreateResult :300 is a plain UnifyValues(UM_Throw)
+	// with NO default escape — unlike union — so class equality is a sound def-time under-approximation
+	// of the class+metric reduction check), and the capacitated weights share their point domain (:303,
+	// :304) and each other's value class (:306) — all unconditional UM_Throw. The result relation is
+	// deferred (§16). GUARD: skip the mis-registered eq/ne members (4-arg non-capacitated, 6-arg
+	// capacitated) — their CreateResult never implements the compare-key contract (it asserts 2||4 args
+	// and treats any 4-arg as capacitated), so they must not be described.
+	bool DescribeSignature(AbstrSignatureBuilder& sb) const override
+	{
+		arg_index n = NrSpecifiedArgs();
+		bool describable = (n == 2 && !isCapacitated) || (n == 4 && isCapacitated);
+		if (!describable)
+			return false;
+		sig_var Vc = sb.UnitVar("Vc"), D1 = sb.UnitVar("D1"), D2 = sb.UnitVar("D2");
+		if (!isCapacitated)
+		{
+			sb.ArgName(0, "point1"); sb.ArgAttr(0, Vc, D1, ValueComposition::Single);
+			sb.ArgName(1, "point2"); sb.ArgAttr(1, Vc, D2, ValueComposition::Single); // shared Vc: K16 coord class
+		}
+		else
+		{
+			sig_var Vw = sb.UnitVar("Vw");
+			sb.ArgName(0, "point1");  sb.ArgAttr(0, Vc, D1, ValueComposition::Single);
+			sb.ArgName(1, "weight1"); sb.ArgAttr(1, Vw, D1, ValueComposition::Single); // weight1.domain == point1.domain (:303)
+			sb.ArgName(2, "point2");  sb.ArgAttr(2, Vc, D2, ValueComposition::Single); // shared Vc (:300)
+			sb.ArgName(3, "weight2"); sb.ArgAttr(3, Vw, D2, ValueComposition::Single); // shared Vw (:306), weight2.domain == point2.domain (:304)
+		}
+		sb.ResultDeferred("attribute<D1>(D2): the point-connection relation");
+		return true;
 	}
 
 	// Override Operator
@@ -933,6 +985,28 @@ public:
 			, Arg2Type::GetStaticClass(), DataArray<E>::GetStaticClass()
 		)
 	{}
+
+	// batch E: connect / connect_eq / connect_ne (arc -> network). This is a
+	// FRESH-UNIT operator (K6): CreateResult builds a new Unit<UInt32> result
+	// carrying geometry + arc_rel sub-items (:970-977). The one faithful def-time
+	// claim is that fresh result unit (ResultUnit(GeneratedUnit) — the proven-safe
+	// batch-D pattern: a fresh flexible node, LispPtr-memoized, never rigid). The
+	// arc geometry (composition Sequence|Polygon, not member-fixed), the K16
+	// coordinate-class share (:955, plain UM_Throw), the eq/ne join keys (:960),
+	// and the void-broadcasting min/max distances (:963,:965, UM_AllowVoidRight)
+	// are recorded as deferred prose (§16 opaque) — no cross-argument unification.
+	bool DescribeSignature(AbstrSignatureBuilder& sb) const override
+	{
+		arg_index n = this->NrSpecifiedArgs(), i = 0; // this-> : dependent base in the FastConnect template
+		sb.ArgName(i, "arcs"); sb.ArgDeferred(i, "arc geometry (Sequence or Polygon)"); ++i;
+		if (CT != compare_type::none) { sb.ArgName(i, "arcKey"); sb.ArgDeferred(i, "arc join key"); ++i; }
+		sb.ArgName(i, "points"); sb.ArgAttr(i, sb.UnitVar("Vpt"), sb.UnitVar("Dp"), ValueComposition::Single); ++i; // fresh vars: no cross-arg claim
+		if (CT != compare_type::none) { sb.ArgName(i, "pointKey"); sb.ArgDeferred(i, "point join key (shares values with arcKey)"); ++i; }
+		for (; i < n; ++i) { sb.ArgName(i, "distance"); sb.ArgDeferred(i, "max/min distance (may be a void-domain parameter)"); }
+		sb.DeferredRelation("arc coordinate class == point coordinate class (K16, :955); eq/ne join keys share values (:960)");
+		sb.ResultUnit(sb.GeneratedUnit("connected_network"));
+		return true;
+	}
 
 	// Override Operator
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override

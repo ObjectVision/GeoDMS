@@ -538,11 +538,12 @@ unique(values: attribute<V>(D)) -> unit<crd(D)> U [new] { Values: attribute<V>(U
 impedance_matrix(spec: string [meta: directs the remaining arguments]; ...) [shape depends on spec]
 ```
 
-Uses: def-time error text; enriching `FindOper`'s failure message
-(`OperGroups.cpp:415-428`, classes-only today) with described signatures; and a future
-signature browser / generated operator docs — the first place `discrete_alloc`'s contract
-would be stated anywhere findable. Having two consumers from day one is itself a check on
-the vocabulary: anything the printer cannot render means the record is too operational.
+Uses: def-time error text; enriching `FindOper`'s failure message with described signatures
+(**shipped batch E**, `OperGroups.cpp` — the `IsMetaThread()`-guarded loop over
+`GetSignatures()->records`; see §12.5); and a future signature browser / generated operator
+docs (the durable `XML_ReportOperGroup` surface — batch F) — the first place `discrete_alloc`'s
+contract would be stated anywhere findable. Having two consumers from day one is itself a check
+on the vocabulary: anything the printer cannot render means the record is too operational.
 
 ### 6.4 The debug verifier
 
@@ -1072,8 +1073,59 @@ are never cached), which moves the checker toward fewer errors, the opposite of 
 a suppressed diagnostic still fails at reduction (a sound deferral).
 
 | **D** ✅ | fresh-unit family: `unique`, `select`/`subset`, `union` + `collect_by_cond` (deferred from B) | K6 generative nodes + LispPtr memoization | SHIPPED 2026-07-19 — §12.4 |
-| **E** | `discrete_alloc` partial + `connect` family | `ArgContainer`, `DeferredRelation`, K16 | low / **diagnostics + docs only**. By the §16 ruling these are **opaque at definition** (result ⊤) and checked at concrete instances; the description exists purely so the printer (§6.3) can state their contracts and a declared result type is what the def-time check trusts (§17) |
-| **F** | `impedance_matrix` / dijkstra | `DynamicShape` | low / **docs only**. Opaque at definition (K13 shape-from-value); a `DynamicShape` record only feeds the printer. Do last |
+| **E** ✅ | `discrete_alloc` (opaque) + `connect` family + **the printer wired into `FindOper`'s failure** | `ArgContainer`, `ArgMetaValue`, `DeferredRelation`, `DynamicShape`, `ResultDeferred` | SHIPPED 2026-07-20 — §12.5 |
+| **F** | `impedance_matrix` / dijkstra + `connect_info`/`dist_info` + the durable `XML_ReportOperGroup` signature surface | `DynamicShape` | low / **docs only**. Opaque at definition (K13 shape-from-value); a `DynamicShape` record only feeds the printer. Do last |
+
+### 12.5 Batch E as shipped (2026-07-20) — the composites + the printer's first consumer
+
+Batch E is diagnostics/docs-only by the §16 ruling: the composite operators are OPAQUE at
+definition (result ⊤). Its two deliverables:
+
+1. **The printer is wired into `FindOper`'s failure message** (`OperGroups.cpp`, §6.3) — the first
+   consumer of `RenderMergedSignature`, and the batch's observable payoff. When `FindOper` throws
+   *"Cannot find operator for these arguments"* (a reduction-time, meta-thread-only event — an
+   operator is resolved from arg CLASSES once and cached in `FuncDC`, never re-looked-up on worker
+   threads), the message now appends the group's **declared unit-constraint signatures**
+   (`GetSignatures()->records` rendered by the printer), for EVERY described group (batches A–E).
+   Undescribed groups yield `sigs==nullptr` ⇒ empty ⇒ byte-identical message (zero behaviour
+   change). Guarded by `IsMetaThread()` — belt-and-suspenders documenting the meta-only contract;
+   `GetSignatures()`'s lazy build is race-free because its only writer, `Register()`, completes at
+   static-init. Verified live: `connect(float32, float32)` now prints
+   `connect(point1: attribute<Vc>(D1); point2: attribute<Vc>(D2))` and the arc→network variants
+   `… -> unit<connected_network>`.
+
+2. **`discrete_alloc`** (`HitchcockTransportationOperator::DescribeSignature`, all three
+   np/sp/multi families via `GetNrArguments()`): **fully opaque, S1-vacuous**. The entire
+   obligation set is computed from the meta-read type-name array (K13), so the whole application
+   defers (`DynamicShape`) and the result is ⊤ (`ResultDeferred`). It makes ZERO cross-argument
+   claims: `ArgMetaValue` (typeNames), single-use `ArgUnit` (allocUnit / atomicRegionUnit — bind
+   their argument, never link), `ArgContainer`/`ArgDeferred` (Unknown positions), `DeferredRelation`
+   prose. Purely printer content.
+
+3. **The `connect` family** (`AbstrConnectNeighbourPointOperator`, `AbstrConnectPointOperator`,
+   `FastConnectOperator`) — described with only the **verified-safe** claims. Every shared-variable
+   claim was checked against `CreateResult` to be a plain `UnifyValues`/`UnifyDomain(UM_Throw)` with
+   **no default-unit escape** (the union S1 mirror) and no void escape: the neighbour domain share
+   (`:133`), the point-point coordinate class share (`:300`, class-level — reduction also checks the
+   metric, so def-time is strictly more permissive), the capacitated weight domain/value shares
+   (`:303`/`:304`/`:306`). The mis-registered `eq`/`ne` `ConnectPointOperator` members (whose
+   `CreateResult` asserts `size==2||4` and never implements the compare-key contract) are **guarded
+   out** (`describable = (n==2 && !isCapacitated) || (n==4 && isCapacitated)`). `FastConnect`
+   (arc→network) states its **fresh `Unit<UInt32>` result** as `ResultUnit(GeneratedUnit)` — the
+   proven-safe batch-D K6 pattern — with the geometry, K16 coordinate share, join keys and
+   void-broadcasting distances all recorded as `ArgDeferred`/`DeferredRelation` prose. `spatialIndex`
+   is left to its batch-A `AbstrTernaryAttrOperator` describe; `connect_info`/`dist_info`
+   (`ConnectInfoOperator`) are deferred to batch F.
+
+Tests: `fn_test_opsigE.dms` (a valid `connect_neighbour` in a function body — the walker accepts it,
+proving no false def-time rejection, and it reduces) and `fn_test_opsigE_neg1.dms` (the enrichment:
+`connect(float32,…)` fails `FindOper` and the message lists the declared signatures). Validation:
+94/94 battery, tst Operator `/Arithmetics` + `/Rescale`, `examples/function.dms`, both flavors
+rebuilt, Debug sweep clean. tst `/Network`'s pre-existing `pow`-metric failure in
+`dijkstra_all_interaction` is unrelated (no connect/`FindOper` error). **Adversarial review
+(workflow `wf_9619da3d`, 3 dimensions): ZERO findings** — the conservative dial (verified
+plain-`UM_Throw` claims, opaque-favouring vocabulary, no cross-arg claim over any
+conditional/default-escaping path) held.
 
 ## 13. Risk register
 
