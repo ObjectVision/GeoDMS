@@ -1227,6 +1227,26 @@ spec is unknowable at definition. The planned refinement:
   K13 stays "genuinely staged" in general; this tranche merely notices when the staging boundary
   for one argument has, for a particular body, already been crossed at definition.
 
+**The same ruling extends to the meta-scripting family (ruled 2026-07-20): `for_each_*`,
+`for_each_ind`, `loop`, …** — the §19.2 value-reading operators. Their K13 profile differs from
+the impedance family in an instructive way: the *argument layout* is already **static** (encoded
+in the suffix-generated group name — `for_each_nedv`'s parallel arrays are fixed at
+registration), so what a closed spec unlocks is not arity but the **generated member set and the
+per-member types**: with the name array closed over the formals, the checker can pseudo-expand
+the resulting container — one member per name — and with closed `d`/`v`/`u` arrays type each
+member from the named domain/values units (unit-name strings resolving against the definition
+scope, or against a *formal* unit parameter, in which case the member's type rides that formal's
+unifier node — the K2 machinery, per instantiation). `for_each_ind`'s indirection strings
+qualify under the same closedness test. Two extra gates beyond the impedance tranche, in
+dependency order: (1) **container-shaped types in `DefType`** (the §7 K11 gap — the same gate as
+`discrete_alloc`'s name arrays), since the payoff *is* a typed container; (2) a walker path for
+**meta groups**: all `for_each_*` groups are `dont_cache_result`, which
+`InferOperatorApplication` today defers wholesale before signatures are even consulted — the
+closed-spec path must branch before that gate. S1 guards identical: any formal-dependence,
+evaluation failure, or unresolvable unit name ⇒ defer as today. Sequencing recommendation: the
+impedance tranche first (no new `DefType` machinery), then K11 containers, then this — at which
+point `discrete_alloc`'s obligations come along for free.
+
 ## 13. Risk register
 
 | # | Risk | Sev | Mitigation |
