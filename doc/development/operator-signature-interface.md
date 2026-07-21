@@ -1468,9 +1468,15 @@ ruled the reduction extension in.
   class-level `Imp`, mass/param values unclaimed. `impedance_matrix` is CACHEABLE, so
   `impedance_matrix(spec,…)/impedance` both types AND inline-reduces (slSubItemCall) in a body —
   the set is COMPLETE (df fixes exactly which exist). Non-OD keeps `ResultAttr(Imp, dstZones)`
-  plus a non-complete `TraceBack` member. NOT yet described: `connect_info`/`dist_info` members,
-  `discrete_alloc` (needs the §12.7 array-spec path + its record; the reduction gap (3) of the
-  scoping note is now RESOLVED by the §12.8 tranche).
+  plus a non-complete `TraceBack` member. **`connect_info` members (SHIPPED 2026-07-21)**:
+  `dist_info` (`OnlyDistResult`) was already a single `dist` attribute; `connect_info`'s
+  container now emits its 7 members — `dist` (metric-less default dist class), `arc_rel` +
+  `ArcID` (the deprecated alias, created at meta time — included so the COMPLETE set stays
+  sound), `CutPoint` (points' coordinate class via `Vpt`), `InArc`/`InSegm` (Bool), `SegmID`
+  (UInt32) — ALL keyed by the points' domain `Dp` (K3). `connect_info` is cacheable ⇒
+  `connect_info(…)/dist` types AND inline-reduces. NOT yet described: `discrete_alloc` (needs
+  the §12.7 array-spec path + its record; the reduction gap (3) of the scoping note is RESOLVED
+  by the §12.8 tranche).
 
 Adversarial review (workflow `wf_d8532e78-bd5`, 4 dimensions, 34 agents, all completed): 3
 distinct confirmed defects, all fixed pre-landing — the non-cache-base crash (live-repro'd),

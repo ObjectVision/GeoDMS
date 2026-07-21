@@ -701,7 +701,29 @@ public:
 		if (OnlyDistResult)
 			sb.ResultAttr(sb.DefaultUnit(DataArray<SqrtDistType>::GetStaticClass()->GetValuesType()), Dp, ValueComposition::Single);
 		else
-			sb.ResultContainer("dist: attribute<float>(points.domain); arc_rel; CutPoint; InArc; InSegm; SegmID", Dp);
+			{
+				// §12.8 slSubItemCall tranche: connect_info's CONTAINER members,
+				// exactly as CreateResult builds them (:755-760) plus the
+				// deprecated ArcID alias created at meta time (:765) — ALL keyed by
+				// the points' domain Dp (K3). Values: dist the metric-less default
+				// dist class; CutPoint the point coordinate class (Vpt, class-level
+				// — a values-only var); InArc/InSegm Bool; SegmID UInt32; arc_rel
+				// and ArcID hold the arc entity (a deferred arg, no var) so their
+				// values stay unclaimed. The set is COMPLETE: CreateResult builds
+				// exactly these, unconditionally. connect_info is cacheable, so
+				// connect_info(...)/dist both types AND inline-reduces in a body.
+				sig_var Dd = sb.DefaultUnit(DataArray<SqrtDistType>::GetStaticClass()->GetValuesType());
+				sig_var Bf = sb.UnitVar("InFlag"); sb.FixedValueClass(Bf, DataArray<Bool>::GetStaticClass()->GetValuesType());
+				sig_var Sg = sb.UnitVar("SegmId"); sb.FixedValueClass(Sg, DataArray<UInt32>::GetStaticClass()->GetValuesType());
+				sb.ResultContainerMember("dist",     Dd,         Dp, ValueComposition::Single);
+				sb.ResultContainerMember("arc_rel",  no_sig_var, Dp, ValueComposition::Single);
+				sb.ResultContainerMember("ArcID",    no_sig_var, Dp, ValueComposition::Single);
+				sb.ResultContainerMember("CutPoint", Vpt,        Dp, ValueComposition::Single);
+				sb.ResultContainerMember("InArc",    Bf,         Dp, ValueComposition::Single);
+				sb.ResultContainerMember("InSegm",   Bf,         Dp, ValueComposition::Single);
+				sb.ResultContainerMember("SegmID",   Sg,         Dp, ValueComposition::Single);
+				sb.ResultMembersComplete();
+			}
 		return true;
 	}
 
