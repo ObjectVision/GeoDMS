@@ -1205,7 +1205,8 @@ conditional/default-escaping path) held.
   specification), but 5 expected"*) and the per-spec hard unit shares (the Links domain over
   imp/F1/F2 + the per-flag tail relations — *"the body requires unit variables 'L2' and 'L1' to
   be equal (operator 'impedance_table')"*). Non-OD results claim `ResultAttr(Imp, dstZones)`; OD
-  results a `GeneratedUnit` with the `UInt64_Od`-aware class.
+  results a `GeneratedUnit` with the `UInt64_Od`-aware class (and, since 2026-07-21, its typed
+  OD member zoo — see §12.8).
 - **Adversarial-review corrections (fixed pre-landing, workflow `wf_2db0d75a`)**: (a) a per-spec
   record memo keyed `(group, spec)` replayed one application's SURVIVOR tuples against another's
   argument classes (two impedance calls with different Imp classes in one body → false
@@ -1458,10 +1459,18 @@ ruled the reduction extension in.
   domain U, complete; the plain `select_*` groups are complete-EMPTY, so `select(...)/org_rel`
   errors at definition); `union` (`UnionData`: domain-only — the default-unit adoption makes
   values unclaimable — complete); `connect` (`geometry` Sequence + `arc_rel`, domain-only,
-  complete). NOT yet described: dijkstra's OD sub-item zoo (~18 flag-conditional members —
-  emissions belong in `DescribeSpecSignature`, the machinery attaches them generically),
-  `connect_info`/`dist_info` members, `discrete_alloc` (needs the §12.7 array-spec path + its
-  record; the reduction gap (3) of the scoping note is now RESOLVED by this tranche).
+  complete). **dijkstra's OD sub-item zoo (SHIPPED 2026-07-21)**: `DijkstraMatrOperator<T>::
+  DescribeSpecSignature` emits the 17 OD members per `Prod*` flag (`impedance`, `LinkSet`,
+  `alt_imp`, `LinkAttr`, `D_i`/`M_ix`/`C_j`/`M_xj`, the `OrgZone_*` aggregates, `Link_flow`,
+  and the four `*_rel`), each through the vars the arguments bound — members over the fresh
+  `OD_Pairs` unit `R` (impedance/LinkSet/`*_rel`) share it; the zone aggregates ride `OZ`/`DZ`;
+  the `*_rel` members claim values IDENTITY to the start/end/zone units (K2), impedance stays
+  class-level `Imp`, mass/param values unclaimed. `impedance_matrix` is CACHEABLE, so
+  `impedance_matrix(spec,…)/impedance` both types AND inline-reduces (slSubItemCall) in a body —
+  the set is COMPLETE (df fixes exactly which exist). Non-OD keeps `ResultAttr(Imp, dstZones)`
+  plus a non-complete `TraceBack` member. NOT yet described: `connect_info`/`dist_info` members,
+  `discrete_alloc` (needs the §12.7 array-spec path + its record; the reduction gap (3) of the
+  scoping note is now RESOLVED by the §12.8 tranche).
 
 Adversarial review (workflow `wf_d8532e78-bd5`, 4 dimensions, 34 agents, all completed): 3
 distinct confirmed defects, all fixed pre-landing — the non-cache-base crash (live-repro'd),

@@ -1498,10 +1498,53 @@ public:
 				? static_cast<const ValueClass*>(ValueWrap<UInt64>::GetStaticClass())
 				: static_cast<const ValueClass*>(ValueWrap<UInt32>::GetStaticClass()));
 			sb.ResultUnit(R);
-			sb.DeferredRelation("sub-items per the specification: impedance, zone-rels, point-rels, LinkSet, aggregates");
+			// §12.8 slSubItemCall tranche: the OD result's sub-item zoo, exactly
+			// as CreateResult emits it (SAME Prod* flag gating; :1741-1830),
+			// typed through the vars the arguments already bound. In OD:
+			// orgZonesOrVoid==OZ, dstZones==DZ, x/y/e==X/Y/E, impUnit/imp2Unit
+			// are Unit<ImpType>==I's class (:1576-1578, :1643). Members over R
+			// (impedance/LinkSet/*_rel) share the fresh OD_Pairs node; the zone
+			// aggregates ride OZ/DZ. Values claimed only where the unit is a
+			// described var — the Imp class (values-only ⇒ class-level, the K2
+			// rule), and the Links/zone/point units by IDENTITY (they are in a
+			// domain role); mass/param-derived values stay unclaimed (no_sig_var),
+			// exactly as union/connect. impedance_matrix is CACHEABLE, so these
+			// members are INLINE-usable in a body (slSubItemCall), not just
+			// diagnostic. The set is COMPLETE: df fixes exactly which exist.
+			auto od = [&](DijkstraFlag f, CharPtr nm, sig_var vals, sig_var dom, ValueComposition vc)
+			{
+				if (flags(df & f))
+					sb.ResultContainerMember(nm, vals, dom, vc);
+			};
+			od(DijkstraFlag::ProdOdImpedance,      "impedance",           I,          R,  ValueComposition::Single);
+			od(DijkstraFlag::ProdOdLinkSet,        "LinkSet",             E,          R,  ValueComposition::Sequence);
+			od(DijkstraFlag::ProdOdAltImpedance,   "alt_imp",             I,          R,  ValueComposition::Single);
+			od(DijkstraFlag::ProdOdLinkAttr,       "LinkAttr",            no_sig_var, R,  ValueComposition::Single);
+			od(DijkstraFlag::ProdOrgFactor,        "D_i",                 no_sig_var, OZ, ValueComposition::Single);
+			od(DijkstraFlag::ProdOrgDemand,        "M_ix",                no_sig_var, OZ, ValueComposition::Single);
+			od(DijkstraFlag::ProdDstFactor,        "C_j",                 no_sig_var, DZ, ValueComposition::Single);
+			od(DijkstraFlag::ProdDstSupply,        "M_xj",                no_sig_var, DZ, ValueComposition::Single);
+			od(DijkstraFlag::ProdOrgNrDstZones,    "OrgZone_NrDstZones",  DZ,         OZ, ValueComposition::Single);
+			od(DijkstraFlag::ProdOrgSumImp,        "OrgZone_SumImp",      I,          OZ, ValueComposition::Single);
+			od(DijkstraFlag::ProdOrgSumLinkAttr,   "OrgZone_SumLinkAttr", no_sig_var, OZ, ValueComposition::Single);
+			od(DijkstraFlag::ProdOrgMaxImp,        "OrgZone_MaxImp",      I,          OZ, ValueComposition::Single);
+			od(DijkstraFlag::ProdLinkFlow,         "Link_flow",           no_sig_var, E,  ValueComposition::Single);
+			od(DijkstraFlag::ProdOdOrgZone_rel,    "OrgZone_rel",         OZ,         R,  ValueComposition::Single);
+			od(DijkstraFlag::ProdOdDstZone_rel,    "DstZone_rel",         DZ,         R,  ValueComposition::Single);
+			od(DijkstraFlag::ProdOdStartPoint_rel, "StartPoint_rel",      X,          R,  ValueComposition::Single);
+			od(DijkstraFlag::ProdOdEndPoint_rel,   "EndPoint_rel",        Y,          R,  ValueComposition::Single);
+			sb.ResultMembersComplete();
 		}
 		else
+		{
 			sb.ResultAttr(I, DZ, ValueComposition::Single); // impedance_table: attribute<Imp>(dstZones)
+			// the non-OD result attribute also carries a TraceBack sub-item
+			// (attribute<Links>(Nodes)-shaped: domain v==N, values e==E).
+			// NOT marked complete — non-OD aggregate members (CheckFlags-gated)
+			// are not enumerated here, so unknown members must defer, not error.
+			if (flags(df & DijkstraFlag::ProdTraceBack))
+				sb.ResultContainerMember("TraceBack", E, N, ValueComposition::Single);
+		}
 		return true;
 	}
 
