@@ -334,8 +334,10 @@ public:
 	// application, deduplicated across repeated occurrences by the walker's
 	// LispPtr memo); its value class is crd(D), knowable at definition only for
 	// the typed unique_uintN groups (m_ResDomainClass fixed), unconstrained for
-	// the dynamic-result-class cog_unique. The Values sub-item (attribute<V>(U))
-	// is a container member — accessed as unique(x)/Values, deferred (K11)
+	// the dynamic-result-class cog_unique. §12.7 slSubItemCall tranche: the ONE
+	// sub-item CreateResult makes — Values : attribute<V>(U), the argument's
+	// composition — is a described, complete member set: unique(x)/Values types
+	// at definition (values class linked through V; identity per application)
 	bool DescribeSignature(AbstrSignatureBuilder& sb) const override
 	{
 		auto argCls = dynamic_cast<const DataItemClass*>(GetArgClass(0));
@@ -349,6 +351,8 @@ public:
 		sb.ArgName(0, "values");
 		sb.ArgAttr(0, V, D, argCls->GetValuesType()->GetValueComposition());
 		sb.ResultUnit(U);
+		sb.ResultContainerMember("Values", V, U, argCls->GetValuesType()->GetValueComposition());
+		sb.ResultMembersComplete();
 		return true;
 	}
 

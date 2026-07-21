@@ -88,6 +88,12 @@ public:
 		sb.ArgName(0, "first");
 		sb.ArgAttr(0, V, no_sig_var, m_VC);       // domain unconstrained; subsequent args deferred
 		sb.ResultUnit(U);
+		// §12.7 slSubItemCall tranche: the one UnionData sub-item. Its VALUES
+		// unit escapes description (the default-unit adoption above) and its
+		// composition is unified across the arguments, so the member claims
+		// domain identity only
+		sb.ResultContainerMember("UnionData", no_sig_var, U, ValueComposition::Unknown);
+		sb.ResultMembersComplete();
 		return true;
 	}
 

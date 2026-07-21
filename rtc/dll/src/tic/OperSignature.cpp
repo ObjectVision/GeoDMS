@@ -168,6 +168,16 @@ void SignatureRecorder::ResultDeferred(CharPtr note)
 {
 	rec.resultDeferred = true; rec.resultNote = SharedStr(note);
 }
+void SignatureRecorder::ResultContainerMember(CharPtr path, sig_var values, sig_var domain, ValueComposition vc)
+{
+	SignatureRecord::ResultMember rm;
+	rm.path = SharedStr(path); rm.values = values; rm.domain = domain; rm.vc = vc;
+	rec.resultMembers.push_back(std::move(rm));
+}
+void SignatureRecorder::ResultMembersComplete()
+{
+	rec.resultMembersComplete = true;
+}
 void SignatureRecorder::DynamicShape(CharPtr why)
 {
 	rec.dynamicShape = true; rec.dynamicNote = SharedStr(why);
@@ -185,6 +195,8 @@ bool SignatureRecord::SameShape(const SignatureRecord& rhs) const
 		&& varConstraints == rhs.varConstraints
 		&& args == rhs.args
 		&& result == rhs.result
+		&& resultMembers == rhs.resultMembers
+		&& resultMembersComplete == rhs.resultMembersComplete
 		&& resultDeferred == rhs.resultDeferred
 		&& dynamicShape == rhs.dynamicShape
 		&& resultNote == rhs.resultNote
@@ -293,6 +305,21 @@ SharedStr RenderMergedSignature(const AbstrOperGroup* og, const OperGroupSignatu
 		r += mySSPrintF(" -> {}", RenderPos(shape, shape.result).c_str());
 	else if (shape.resultDeferred && !shape.resultNote.empty())
 		r += mySSPrintF(" -> ... [{}]", shape.resultNote.c_str()); // batch F: deferred-result prose was invisible
+	// §12.7 slSubItemCall tranche: typed sub-items of a composite result
+	if (!shape.resultMembers.empty())
+	{
+		r += " { ";
+		for (SizeT i = 0; i != shape.resultMembers.size(); ++i)
+		{
+			const auto& rm = shape.resultMembers[i];
+			if (i)
+				r += "; ";
+			r += mySSPrintF("{}: attribute<{}>({})", rm.path.c_str()
+				, rm.values != no_sig_var ? RenderVar(shape, rm.values).c_str() : "..."
+				, rm.domain != no_sig_var ? RenderVar(shape, rm.domain).c_str() : "...");
+		}
+		r += shape.resultMembersComplete ? " }" : "; ... }";
+	}
 	if (shape.dynamicShape)
 		r += mySSPrintF(" [shape: {}]", shape.dynamicNote.c_str());
 

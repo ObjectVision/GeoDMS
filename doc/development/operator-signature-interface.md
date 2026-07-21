@@ -1364,7 +1364,11 @@ spec is unknowable at definition. The planned refinement:
   uses exactly that form), which is a language-semantics extension to rule on first. The
   INPUT obligations (suitabilities/claims members per type name) are checkable without (3)
   but only bind when the container argument is a closed external — rarely the case in
-  function bodies (containers are usually formals).
+  function bodies (containers are usually formals). **STATUS: (3) was ruled and shipped as
+  §12.8 (2026-07-21), and (2)'s vocabulary now exists (`ResultContainerMember`); what remains
+  for the discrete_alloc join is (1) the array-spec path plus its own record (fixed members
+  structurally — `landuse` = typeNames' domain × allocUnit — name-directed members via the
+  arrays, `bid_price` conditional).**
 
 Tests: `fn_test_fe_pos` (declared-sub-container slash paths + config-scope for_each unchanged)
 and `fn_test_fe_{neg1..neg6,stor_neg}`: closed-set miss listing `a, b`; the ind spec-arity
@@ -1407,6 +1411,66 @@ closed-but-effectful defer tier here either. S1 guards identical: formal-depende
 failure (defer — the instantiation retries), or an unresolvable unit name ⇒ defer as today.
 Sequencing recommendation: the impedance tranche first (no new `DefType` machinery), then K11
 containers, then this — at which point `discrete_alloc`'s obligations come along for free.
+
+### 12.8 Composite-result member references — the slSubItemCall tranche (ruled + SHIPPED 2026-07-20/21)
+
+**The ruling** (Maarten): `container a := discrete_alloc(…); … a/landuse …` in a function body
+should type as `attribute<AT>(allocUnit)` with AT the typeNames array's domain — *symbolically*,
+even when typeNames (or anything it depends on, transitively) rides a formal — and where typing
+must defer, the definition-time placeholder must be broad enough never to false-error; the check
+then happens at instantiation. That presupposes the reference is *legal* at instantiation, which
+ruled the reduction extension in.
+
+**As shipped:**
+
+- **Reduction** (`FunctionApplication::ResolveBodySymbol`): a body slash-path descends the
+  DECLARED structure segment-wise; a miss below an item WITH a calculation rule reduces to
+  `slSubItemCall(ReduceBodyItem(item), rest)` — the cache layer's canonical
+  `(SubItem base 'path')` form, whose `SubItemOperator` performs the per-application
+  "instantiation-time typing": a missing member fails that DC's own `MakeResult` honestly. The
+  deepest rule-bearing item on the walked path wins; rule-less misses keep the old `FindSubItem`
+  throw; meta rules keep their own rejection (`ReduceBodyItem` throws it); and a base whose rule
+  reduces to a CONFIG-item reference (a `sourceDescr` key: bare import/def-scope/param aliases)
+  keeps the pre-tranche throw — `SubItemOperator` requires a cache base (review finding,
+  live-repro'd Debug assert). `unique(x)/values`-style references thereby became legal in inline
+  bodies, operator-genericly.
+- **Checker flip (the S1 atom)**: the definition-time code-3 computed-member path now fires for
+  ANY rule-bearing local (`RuleMayComputeSubItems`), because the old definition-time
+  "Cannot find" throw became false the moment reduction accepts; `InferGeneratedMember` consults
+  the member map on ANY DefType kind (a `unique` result is a UnitVal *carrying* members). Member
+  maps are keyed case-insensitively with FIXED ASCII folding (the engine's item lookup accepts
+  either case; locale-dependent folding was a review finding).
+- **Vocabulary**: `ResultContainerMember(path, values, domain, vc)` + `ResultMembersComplete()`
+  on `AbstrSignatureBuilder`/`SignatureRecord` (printer renders `{ path: attribute<V>(U); … }`).
+  `ApplyOperRecord` builds the member map through the SAME `VN`/`DN` nodes the positions bound:
+  member values stay class-level unless the var is also in a domain role (the batch-B K2 rule);
+  member domains claim identity — `unique`'s `Values` rides the *same existential node* as the
+  result unit, so `attribute<V> y (u) := u/Values`-style bindings unify. `vc` must be `Unknown`
+  unless member-fixed (a wrong composition claim falsely eliminates downstream overloads). A
+  complete-EMPTY set attaches too (review finding: it was silently dropped, making the plain
+  `select_*` promise inert). Completeness licenses definition-time missing-member errors and is
+  claimed ONLY where `CreateResult` provably creates nothing else.
+- **Described members**: `unique` (`Values`: V class-linked + U domain, arg composition,
+  complete — the flagship: `u/Values` types with V riding the formal's rigid node, verified by
+  the roundtrip positive and the "inconsistent instantiation of type variable 'V': Float64 …
+  vs String (the declared type of 'result')" negative); `subset`/`select_*` family (`org_rel` /
+  `nr_OrgEntity` per `OrgRelCreationMode`: values = D — identity for free, D is in both roles —
+  domain U, complete; the plain `select_*` groups are complete-EMPTY, so `select(...)/org_rel`
+  errors at definition); `union` (`UnionData`: domain-only — the default-unit adoption makes
+  values unclaimable — complete); `connect` (`geometry` Sequence + `arc_rel`, domain-only,
+  complete). NOT yet described: dijkstra's OD sub-item zoo (~18 flag-conditional members —
+  emissions belong in `DescribeSpecSignature`, the machinery attaches them generically),
+  `connect_info`/`dist_info` members, `discrete_alloc` (needs the §12.7 array-spec path + its
+  record; the reduction gap (3) of the scoping note is now RESOLVED by this tranche).
+
+Adversarial review (workflow `wf_d8532e78-bd5`, 4 dimensions, 34 agents, all completed): 3
+distinct confirmed defects, all fixed pre-landing — the non-cache-base crash (live-repro'd),
+the dropped complete-EMPTY sets, locale-dependent case folding. Non-actionable observations:
+`SubItemOperator`'s "Cannot find 'x' from ''" renders the cache root's empty name (pre-existing
+message, honest but terse); deep multi-segment rests ride one `slSubItemCall` (GetCurrItem
+handles paths). Tests `fn_test_subref{,2,_neg1..5}`; validation: 118/118 battery Release +
+Debug (assertion-free), tst Operator `/Arithmetics` + `/Rescale` + `/MetaInfo`,
+`examples/function.dms`.
 
 ## 13. Risk register
 

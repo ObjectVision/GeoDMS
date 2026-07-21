@@ -123,8 +123,11 @@ struct SubsetOperator: public UnaryOperator
 	// elimination already rejects a non-bool concrete condition); the result is
 	// an existential unit whose value class is crd(D) — fixed for the typed
 	// select_uintN groups, unconstrained for the dynamic-result-class select.
-	// An org_rel / nr_OrgEntity sub-item (attribute<D>(U)) is a container member,
-	// deferred (K11)
+	// §12.7 slSubItemCall tranche: the org_rel / nr_OrgEntity sub-item —
+	// attribute<D>(U); D is in BOTH roles, so the member's values IDENTITY
+	// rides the condition's domain (the batch-B K2 rule). The member set is
+	// complete per ORCM variant — the plain select_* groups create NO
+	// sub-items, so a member reference on them reports at definition
 	bool DescribeSignature(AbstrSignatureBuilder& sb) const override
 	{
 		auto argCls = dynamic_cast<const DataItemClass*>(GetArgClass(0));
@@ -138,6 +141,11 @@ struct SubsetOperator: public UnaryOperator
 		sb.ArgName(0, "condition");
 		sb.ArgAttr(0, B, D, ValueComposition::Single);
 		sb.ResultUnit(U);
+		if (m_ORCM != OrgRelCreationMode::none)
+			sb.ResultContainerMember(
+				m_ORCM == OrgRelCreationMode::nr_OrgEntity ? "nr_OrgEntity" : "org_rel"
+				, D, U, ValueComposition::Single);
+		sb.ResultMembersComplete();
 		return true;
 	}
 

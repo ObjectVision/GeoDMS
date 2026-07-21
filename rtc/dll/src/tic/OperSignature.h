@@ -82,6 +82,19 @@ struct AbstrSignatureBuilder
 	virtual void ResultContainer(CharPtr memberPattern, sig_var sharedMemberDomain = no_sig_var) = 0;
 	virtual void ResultDeferred(CharPtr note) = 0;
 
+	// --- §12.7 slSubItemCall tranche: TYPED sub-items of a composite result,
+	// path relative to the result root. The values var claims the member's
+	// value CLASS (identity only when the var is also used in a domain role —
+	// the batch-B K2 rule); the domain var claims the member's domain
+	// IDENTITY; vc must be Unknown unless member-fixed (a wrong composition
+	// claim falsely eliminates downstream overloads). Emit
+	// ResultMembersComplete() ONLY when CreateResult provably creates no
+	// sub-items beyond those described: it licenses definition-time
+	// missing-member errors (sound because SubItemOperator is certain to
+	// reject the same reference per application).
+	virtual void ResultContainerMember(CharPtr path, sig_var values, sig_var domain, ValueComposition vc) = 0;
+	virtual void ResultMembersComplete() = 0;
+
 	// --- whole-signature deferral: shape depends on a meta-read value (K13)
 	virtual void DynamicShape(CharPtr why) = 0;
 protected:
@@ -147,8 +160,23 @@ struct SignatureRecord
 	std::vector<const ValueClass*> varFixedCls;    // FixedValueClass / DefaultUnit class
 	std::vector<TokenID>           varConstraints; // ConstrainValueClass
 
+	// a typed sub-item of a composite result (§12.7 slSubItemCall tranche)
+	struct ResultMember
+	{
+		SharedStr path;
+		sig_var values = no_sig_var, domain = no_sig_var;
+		ValueComposition vc = ValueComposition::Unknown;
+
+		bool operator==(const ResultMember& rhs) const
+		{
+			return path == rhs.path && values == rhs.values && domain == rhs.domain && vc == rhs.vc;
+		}
+	};
+
 	std::vector<Pos> args;
 	Pos     result;                                // kind None => no result described
+	std::vector<ResultMember> resultMembers;       // typed members of a composite result
+	bool    resultMembersComplete = false;         // licenses def-time missing-member errors
 	bool    resultDeferred = false, dynamicShape = false;
 	SharedStr resultNote, dynamicNote;
 	Repeat  repeat;
@@ -245,6 +273,8 @@ struct SignatureRecorder final : AbstrSignatureBuilder
 	TIC_CALL void ResultUnit(sig_var u) override;
 	TIC_CALL void ResultContainer(CharPtr memberPattern, sig_var sharedMemberDomain) override;
 	TIC_CALL void ResultDeferred(CharPtr note) override;
+	TIC_CALL void ResultContainerMember(CharPtr path, sig_var values, sig_var domain, ValueComposition vc) override;
+	TIC_CALL void ResultMembersComplete() override;
 
 	TIC_CALL void DynamicShape(CharPtr why) override;
 

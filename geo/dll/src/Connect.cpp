@@ -1033,7 +1033,15 @@ public:
 		if (CT != compare_type::none) { sb.ArgName(i, "pointKey"); sb.ArgDeferred(i, "point join key (shares values with arcKey)"); ++i; }
 		for (; i < n; ++i) { sb.ArgName(i, "distance"); sb.ArgDeferred(i, "max/min distance (may be a void-domain parameter)"); }
 		sb.DeferredRelation("the arc and point coordinates share one value class (K16); eq/ne join keys share values");
-		sb.ResultUnit(sb.GeneratedUnit("connected_network"));
+		sig_var U = sb.GeneratedUnit("connected_network");
+		sb.ResultUnit(U);
+		// §12.7 slSubItemCall tranche: the two sub-items CreateResult makes.
+		// Their values units (the arc coordinates / the arcs' domain) belong to
+		// DEFERRED positions, so only the domain identity and the geometry's
+		// member-fixed Sequence composition are claimed
+		sb.ResultContainerMember("geometry", no_sig_var, U, ValueComposition::Sequence);
+		sb.ResultContainerMember("arc_rel", no_sig_var, U, ValueComposition::Single);
+		sb.ResultMembersComplete();
 		return true;
 	}
 

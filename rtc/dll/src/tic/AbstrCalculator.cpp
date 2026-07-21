@@ -2485,10 +2485,47 @@ namespace {
 				SharedTreeItem target = child;
 				if (slash != e)
 				{
-					target = FindSubItem(child.get(), SharedStr(CharPtrRange(slash + 1, e)));
-					if (!target)
-						throwErrorF("ExprParser", "'{}': not found in body of function '{}'"
-							, fullStr.c_str(), m_FuncItem->GetFullName().c_str());
+					// §12.7 slSubItemCall tranche: descend the DECLARED structure
+					// segment-wise; a miss below an item WITH a calculation rule
+					// resolves INTO its computed result — slSubItemCall(reducedKey,
+					// rest), the cache layer's canonical sub-item form (u/Values on
+					// u := unique(x) & co.). SubItemOperator reports a missing
+					// member per application; meta rules keep their own rejection
+					// (ReduceBodyItem throws it). The deepest rule-bearing item on
+					// the walked path wins (its members are keyed from itself);
+					// rule-less misses keep the FindSubItem report exactly as before.
+					CharPtr segBegin = slash + 1;
+					std::vector<std::pair<SharedTreeItem, CharPtr>> descended;
+					descended.emplace_back(target, segBegin);
+					while (segBegin != e)
+					{
+						CharPtr segEnd = std::find(segBegin, e, DELIMITER_CHAR);
+						auto sub = target->GetConstSubTreeItemByID(GetTokenID_mt(segBegin, segEnd));
+						if (!sub)
+						{
+							for (auto ri = descended.rbegin(); ri != descended.rend(); ++ri)
+								if (!ri->first->GetExpr().empty())
+								{
+									LispRef baseKey = ReduceBodyItem(ri->first.get());
+									// a CONFIG-item reference (a SymbDC sourceDescr key:
+									// the rule was a bare import/def-scope/param alias)
+									// is NOT a cache result — SubItemOperator requires a
+									// cache base (review finding, live-repro'd Debug
+									// assert). Such accesses keep the pre-tranche throw.
+									if (baseKey.IsRealList() && baseKey.Left().IsSymb()
+										&& baseKey.Left().GetSymbID() == token::sourceDescr)
+										break;
+									if (foundItemPtr)
+										*foundItemPtr = nullptr;
+									return slSubItemCall(std::move(baseKey), CharPtrRange(ri->second, e));
+								}
+							throwErrorF("FindSubItem", "Cannot find {} from {}"
+								, SharedStr(CharPtrRange(segBegin, segEnd)), target->GetFullName().c_str());
+						}
+						target = sub;
+						segBegin = (segEnd == e) ? e : segEnd + 1;
+						descended.emplace_back(target, segBegin);
+					}
 				}
 				if (foundItemPtr)
 					*foundItemPtr = nullptr; // reduced local: no item identity to bind member access to
@@ -2749,6 +2786,29 @@ namespace {
 	// member/container accesses stay DEFERRED (type Unknown) and remain checked per
 	// application by the reduction — operator signatures are the next tranche.
 
+	// §12.7: generated/computed member maps are keyed CASE-INSENSITIVELY —
+	// TreeItem lookup (and hence SubItemOperator's GetCurrItem) accepts either
+	// case (with a deprecation warning), so an exact-case map would falsely
+	// miss legal references (S1). Folding is FIXED ASCII, matching the
+	// engine's token equality — locale-dependent folding (stricmp/tolower)
+	// could diverge under a changed CRT locale (review finding)
+	struct MemberPathLess
+	{
+		static char Fold(char ch) { return (ch >= 'A' && ch <= 'Z') ? char(ch - 'A' + 'a') : ch; }
+
+		bool operator()(const SharedStr& a, const SharedStr& b) const
+		{
+			CharPtr ai = a.begin(), ae = a.send(), bi = b.begin(), be = b.send();
+			for (; ai != ae && bi != be; ++ai, ++bi)
+			{
+				char fa = Fold(*ai), fb = Fold(*bi);
+				if (fa != fb)
+					return fa < fb;
+			}
+			return (ae - ai) < (be - bi);
+		}
+	};
+
 	// the definition-time type of a body expression (kinds-level, §5 terms)
 	struct DefType
 	{
@@ -2787,14 +2847,17 @@ namespace {
 		UInt32 instance = 0;
 		std::shared_ptr<std::map<TokenID, TokenID>> tok2owner;
 
-		// Container (K11, §12.7 for_each tranche): the pseudo-expanded member
-		// set of a container-GENERATING meta application, keyed by the
-		// generation-time sub-item PATH (a name-array entry may contain '/').
-		// membersComplete marks a definitively-known set — the closed name
-		// array evaluated cleanly — the only state in which a missing member
-		// may be reported (sound even then only because inline reduction
-		// rejects every meta-rule member access with certainty)
-		std::shared_ptr<const std::map<SharedStr, DefType>> members;
+		// K11 member map (§12.7): the member set of a composite result — the
+		// pseudo-expanded members of a container-GENERATING meta application
+		// (for_each, Kind::Container) OR the DESCRIBED sub-items of a
+		// cacheable operator's cache result (unique/Values & co., any kind;
+		// slSubItemCall tranche) — keyed by the sub-item PATH (a name-array
+		// entry may contain '/'), case-insensitively (TreeItem lookup accepts
+		// either case). membersComplete marks a definitively-known set — the
+		// only state in which a missing member may be reported (sound: meta
+		// rules reject every inline member access; described-complete cache
+		// results make SubItemOperator certain to reject the same reference)
+		std::shared_ptr<const std::map<SharedStr, DefType, MemberPathLess>> members;
 		bool membersComplete = false;
 	};
 
@@ -2966,32 +3029,19 @@ namespace {
 		DefType InferGeneratedMember(TokenID sym, const TreeItem* genItem, const SharedStr& subPath);
 	};
 
-	// §12.7 for_each tranche: may `item`'s calculation rule GENERATE sub-items
-	// at instantiation? True exactly for meta heads (for_each_* & co.:
-	// dont_cache_result, non-template). Rule-generated members are invisible in
-	// the declared tree, so a path miss below such an item must not be reported
-	// as unknown — it resolves against the pseudo-expanded member set (a code-3
-	// generated-member access) or defers to per-application checking.
-	bool RuleMayGenerateSubItems(const TreeItem* item)
+	// §12.7: may `item`'s calculation rule COMPUTE sub-items at application —
+	// a meta head GENERATING config items (for_each_*), or a cacheable rule
+	// whose composite cache result carries members (unique/Values & co., now
+	// reachable through slSubItemCall)? Any non-empty rule qualifies since the
+	// slSubItemCall tranche: reduction resolves the remaining path against the
+	// rule's result, so a declared-tree miss below such an item is never
+	// reported as unknown at definition — it types via the pseudo-expanded or
+	// described member set (a code-3 access) or defers to the per-application
+	// SubItem check. (A leading-'=' rule qualifies too: InferBodyItem reports
+	// its own honest error, matching ReduceBodyItem's.)
+	bool RuleMayComputeSubItems(const TreeItem* item)
 	{
-		SharedStr exprStr = item->GetExpr();
-		if (exprStr.empty() || AbstrCalculator::MustEvaluate(exprStr.c_str()))
-			return false;
-		try
-		{
-			auto calc = AbstrCalculator::ConstructFromStr(item, exprStr, CalcRole::Calculator);
-			LispRef expr = RewriteExpr(calc->GetLispExprOrg());
-			while (expr.IsRealList() && expr.Left().IsSymb() && expr.Left().GetSymbID() == token::sourceDescr)
-				expr = expr.Right().Left();
-			if (!expr.IsRealList() || !expr.Left().IsSymb())
-				return false;
-			const AbstrOperGroup* og = AbstrOperGroup::FindName(expr.Left().GetSymbID());
-			return og && !og->IsTemplateCall() && !og->MustCacheResult();
-		}
-		catch (...)
-		{
-			return false; // an unparsable rule generates nothing knowable: keep the plain-miss report
-		}
+		return !item->GetExpr().empty();
 	}
 
 	int FunctionChecker::ResolveName(const TreeItem* refScope, TokenID sym, const TreeItem** local, UInt32* paramIdx,
@@ -3047,7 +3097,7 @@ namespace {
 						{
 							if (genSubPathOut)
 								for (auto ri = descended.rbegin(); ri != descended.rend(); ++ri)
-									if (RuleMayGenerateSubItems(ri->first.get()))
+									if (RuleMayComputeSubItems(ri->first.get()))
 									{
 										if (local) *local = ri->first.get();
 										*genSubPathOut = SharedStr(CharPtrRange(ri->second, e));
@@ -3922,6 +3972,8 @@ namespace {
 			notePosVar(shape.repeat.values);
 		if (shape.result.kind == SignatureRecord::PosKind::Attr || shape.result.kind == SignatureRecord::PosKind::Unit)
 			notePosVar(shape.result.values);
+		for (const auto& rm : shape.resultMembers) // §12.7: member values participate like positions
+			notePosVar(rm.values);
 		for (sig_var v : posVars)
 			VN(v); // create + attach soft sets before any linking
 
@@ -3967,6 +4019,8 @@ namespace {
 			noteDomainRole(shape.repeat.domain);
 		if (shape.result.kind == SignatureRecord::PosKind::Attr)
 			noteDomainRole(shape.result.domain);
+		for (const auto& rm : shape.resultMembers) // §12.7: member domains are real domain roles
+			noteDomainRole(rm.domain);
 
 		std::vector<const std::vector<const ValueClass*>*> allTuples;
 		for (const auto& t : mr.tuples)
@@ -4091,7 +4145,45 @@ namespace {
 		// the result, in the same variables
 		if (shape.dynamicShape || shape.resultDeferred)
 			return {};
-		return posType(shape.result);
+		DefType r = posType(shape.result);
+		// §12.7 slSubItemCall tranche: typed sub-items of a composite result —
+		// consumed by InferGeneratedMember when the body references INTO the
+		// result (u/Values). Member values stay class-level unless the var is
+		// also in a domain role (the batch-B K2 rule); member domains claim
+		// identity through the same DN nodes the positions bound — so
+		// unique's Values rides the SAME existential node as the result unit.
+		// The completeness flag licenses definition-time missing-member errors
+		// (SubItemOperator is certain to reject the same reference) — and a
+		// complete-EMPTY set (the plain select_* groups) must attach too, or
+		// its promised definition-time report never fires (review finding).
+		if (!shape.resultMembers.empty() || shape.resultMembersComplete)
+		{
+			auto members = std::make_shared<std::map<SharedStr, DefType, MemberPathLess>>();
+			for (const auto& rm : shape.resultMembers)
+			{
+				DefType m; m.kind = DefType::Kind::Data; m.vcomp = rm.vc;
+				if (rm.values != no_sig_var)
+				{
+					m.vNode = VN(rm.values);
+					if (inDomainRole[rm.values])
+						m.vuNode = DN(rm.values);
+				}
+				if (rm.domain != no_sig_var)
+				{
+					if (shape.varFlags[rm.domain] & SignatureRecord::VF_VoidDomain)
+						m.dom = DefType::Dom::Void;
+					else
+					{
+						m.dom = DefType::Dom::Node;
+						m.dNode = DN(rm.domain);
+					}
+				}
+				(*members)[rm.path] = m;
+			}
+			r.members = std::move(members);
+			r.membersComplete = shape.resultMembersComplete;
+		}
+		return r;
 	}
 
 	// §12.7: attempt definition-time K13 spec processing for a DynamicShape record
@@ -4396,14 +4488,14 @@ namespace {
 			}
 		};
 
-		auto members = std::make_shared<std::map<SharedStr, DefType>>();
+		auto members = std::make_shared<std::map<SharedStr, DefType, MemberPathLess>>();
 		for (SizeT i = 0; i != names->size(); ++i)
 		{
 			const SharedStr& nm = (*names)[i];
 			if (!nm.IsDefined() || nm.empty())
 				continue; // skipped rows, exactly as ForEach_CreateResult
 			if (!members->emplace(nm, memberTypeAt(i)).second)
-				return std::nullopt; // duplicate generated names: collision semantics not modeled
+				return std::nullopt; // duplicate generated names (case-insensitively, like the tree): not modeled
 		}
 
 		DefType r;
@@ -4413,33 +4505,36 @@ namespace {
 		return r;
 	}
 
-	// §12.7 for_each tranche: type a reference INTO a rule-generated container
-	// ('r/foo' where r's rule is a meta application). The container's inferred
-	// type carries the pseudo-expanded member set when the generation was
-	// closed over the formals: an exact hit yields the member's type, a path
-	// prefix of a deeper member is a generated intermediate container (no
-	// claim), and a complete-set miss is reported honestly — sound because
-	// inline reduction rejects every meta-rule member access with certainty.
-	// A deferred or non-container generation defers as before.
+	// §12.7: type a reference INTO a rule-computed member set — 'r/foo' where
+	// r's rule is a meta application (the pseudo-expanded for_each container)
+	// or a cacheable composite whose record describes its sub-items
+	// (u := unique(x); u/Values — the slSubItemCall tranche). An exact hit
+	// (case-insensitive, like the engine's item lookup) yields the member's
+	// type, a path prefix of a deeper member is an intermediate container (no
+	// claim), a path BELOW a member defers (members may carry deeper
+	// sub-structure), and a complete-set miss is reported honestly — sound
+	// because meta rules reject every inline member access and described-
+	// complete cache results make SubItemOperator certain to reject the same
+	// reference per application. Everything else defers as before.
 	DefType FunctionChecker::InferGeneratedMember(TokenID sym, const TreeItem* genItem, const SharedStr& subPath)
 	{
 		DefType ct = InferBodyItem(genItem);
-		if (ct.kind != DefType::Kind::Container || !ct.members)
+		if (!ct.members)
 			return {};
 		if (auto it = ct.members->find(subPath); it != ct.members->end())
 			return it->second;
+		auto ciEq = [](char x, char y) { return MemberPathLess::Fold(x) == MemberPathLess::Fold(y); };
 		SizeT sn = subPath.ssize();
 		for (const auto& [path, mt] : *ct.members)
 		{
 			SizeT pn = path.ssize();
 			if (pn > sn && *(path.begin() + sn) == DELIMITER_CHAR
-				&& std::equal(subPath.begin(), subPath.send(), path.begin()))
-				return {}; // a generated intermediate container on the way to a deeper member
+				&& std::equal(subPath.begin(), subPath.send(), path.begin(), ciEq))
+				return {}; // an intermediate container on the way to a deeper member
 			if (sn > pn && *(subPath.begin() + pn) == DELIMITER_CHAR
-				&& std::equal(path.begin(), path.send(), subPath.begin()))
-				return {}; // a path BELOW a generated member: template copies and
-				           // rule-bearing members may carry deeper sub-structure the
-				           // member set makes no claim about (review finding)
+				&& std::equal(path.begin(), path.send(), subPath.begin(), ciEq))
+				return {}; // a path BELOW a member: members may carry deeper
+				           // sub-structure the member set makes no claim about
 		}
 		if (!ct.membersComplete)
 			return {};
