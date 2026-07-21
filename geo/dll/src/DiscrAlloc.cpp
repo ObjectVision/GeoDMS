@@ -3318,22 +3318,34 @@ public:
 		assert(argClsIter == m_ArgClassesEnd);
 	}
 
-	// batch E (§16 ruling): discrete_alloc is OPAQUE at definition. Its entire
-	// obligation set — which members the suitabilities/claims containers must
-	// hold and their unit relations — is computed from the meta-read type-name
-	// array (K13), so the result is ⊤ (ResultDeferred) and the whole application
-	// defers (DynamicShape). The description exists only for the printer (§6.3):
-	// it states the argument roles and the deferred relations but makes ZERO
-	// cross-argument unification claims (the only unit vars, allocUnit/atomicRegionUnit,
-	// are each used ONCE, so they bind their argument and never link — cannot error).
+	// batch E + §12.8 (the array-spec join): discrete_alloc's result-member
+	// obligations split in two. The INPUT obligations (which members the
+	// suitabilities/claims containers must hold, and the name-directed
+	// shadow_prices/<name> + total_allocated/<name> outputs) are computed from
+	// the meta-read type-name array and the partitionings/suitabilities — those
+	// stay deferred prose. But the FIXED result members are STRUCTURAL, and the
+	// flagship — landuse = attribute<AT>(allocUnit), AT the typeNames' DOMAIN —
+	// is derivable symbolically even when typeNames/allocUnit are formals: this
+	// describes typeNames as an ATTRIBUTE so AT gets a var (used in BOTH the
+	// typeNames domain role and landuse's values role — the K2 bridge, so
+	// landuse's values IDENTITY is AT). The result member set is deliberately
+	// INCOMPLETE (no ResultMembersComplete): the name-directed members and the
+	// conditional bid_price mean an unknown member DEFERS, never errors — the
+	// ruled broad placeholder (a/landuse types; a/anything_else defers).
 	bool DescribeSignature(AbstrSignatureBuilder& sb) const override
 	{
 		arg_index n = GetNrArguments();
-		if (auto a0 = dynamic_cast<const DataItemClass*>(GetArgClass(0)))
-			sb.ArgMetaValue(0, a0->GetValuesType(), "typeNames: names the allocation types; its count decides the member set (K13)");
+		auto a0 = dynamic_cast<const DataItemClass*>(GetArgClass(0));
+		sig_var A = sb.UnitVar("allocUnit"), AT = no_sig_var;
+		if (a0)
+		{
+			sig_var TN = sb.UnitVar("typeName"); sb.MemberValueClass(TN, a0->GetValuesType()); // string names
+			AT = sb.UnitVar("AllocTypes");
+			sb.ArgName(0, "typeNames"); sb.ArgAttr(0, TN, AT, ValueComposition::Single);        // attribute<string>(AT)
+		}
 		else
 			sb.ArgDeferred(0, "typeNames");
-		sb.ArgUnit(1, sb.UnitVar("allocUnit"));                 // single-use var: binds arg, never links
+		sb.ArgUnit(1, A);
 		sb.ArgContainer(2, "suitabilities: per-type attribute<S>(allocUnit); all members share one price values unit");
 		arg_index i = 3;
 		if (n >= 10) // multiple partitions
@@ -3355,9 +3367,16 @@ public:
 		sb.ArgDeferred(i++, "threshold: Int32 cutoff");
 		if (n == 11)
 			sb.ArgDeferred(i++, "feasibilityCertificate");
-		sb.DeferredRelation("suitabilities[t].domain == allocUnit; the claim and suitability members are keyed by the typeNames values (K11/K12)");
-		sb.DynamicShape("the member obligations are computed from the meta-read typeNames array (K13)");
-		sb.ResultDeferred("an opaque allocation container: landuse = attribute<AT>(allocUnit), total_allocated, bid_price, status");
+		sb.DeferredRelation("suitabilities[t].domain == allocUnit; the claim and suitability members are keyed by the typeNames values (K11/K12); shadow_prices/<name> + total_allocated/<name> are name-directed — their types come from the partitionings/suitabilities, not the type-names, so they stay deferred");
+		// §12.8: the FIXED structural result members over allocUnit (A), keyed by A;
+		// landuse's values ride AT (the typeNames' domain) — the ruling's flagship.
+		// The set is INCOMPLETE by design — see the class comment. (status/statusFlag
+		// are void parameters, deliberately left deferred; typing them would need two
+		// distinct default-class vars anyway — a DefaultUnit shares the role token
+		// "default", so two would collide in the unifier's (owner,inst,role) keying.)
+		if (AT != no_sig_var)
+			sb.ResultContainerMember("landuse", AT, A, ValueComposition::Single);        // attribute<AT>(allocUnit)
+		sb.ResultContainerMember("bid_price",  no_sig_var, A, ValueComposition::Single); // attribute<S>(allocUnit), conditional (present iff a suitability map is found)
 		return true;
 	}
 

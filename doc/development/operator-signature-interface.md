@@ -1365,11 +1365,14 @@ spec is unknowable at definition. The planned refinement:
   uses exactly that form), which is a language-semantics extension to rule on first. The
   INPUT obligations (suitabilities/claims members per type name) are checkable without (3)
   but only bind when the container argument is a closed external — rarely the case in
-  function bodies (containers are usually formals). **STATUS: (3) was ruled and shipped as
-  §12.8 (2026-07-21), and (2)'s vocabulary now exists (`ResultContainerMember`); what remains
-  for the discrete_alloc join is (1) the array-spec path plus its own record (fixed members
-  structurally — `landuse` = typeNames' domain × allocUnit — name-directed members via the
-  arrays, `bid_price` conditional).**
+  function bodies (containers are usually formals). **STATUS (2026-07-21): all three gaps
+  closed for the flagship. (3) shipped as §12.8; (2)'s vocabulary is `ResultContainerMember`;
+  and (1) shipped — `landuse = attribute<AT>(allocUnit)` (AT = typeNames' domain) is typed
+  STRUCTURALLY (no array evaluation needed — the "join" is the type derivation, symbolic in
+  formals), plus `bid_price`, incomplete set (§12.8). The name-directed
+  `shadow_prices/<name>`/`total_allocated/<name>` members stay deferred: their types come from
+  the partitionings/suitabilities, not the type-names, so a closed typeNames array does not
+  determine them.**
 
 Tests: `fn_test_fe_pos` (declared-sub-container slash paths + config-scope for_each unchanged)
 and `fn_test_fe_{neg1..neg6,stor_neg}`: closed-set miss listing `a, b`; the ind spec-arity
@@ -1474,9 +1477,17 @@ ruled the reduction extension in.
   `ArcID` (the deprecated alias, created at meta time — included so the COMPLETE set stays
   sound), `CutPoint` (points' coordinate class via `Vpt`), `InArc`/`InSegm` (Bool), `SegmID`
   (UInt32) — ALL keyed by the points' domain `Dp` (K3). `connect_info` is cacheable ⇒
-  `connect_info(…)/dist` types AND inline-reduces. NOT yet described: `discrete_alloc` (needs
-  the §12.7 array-spec path + its record; the reduction gap (3) of the scoping note is RESOLVED
-  by the §12.8 tranche).
+  `connect_info(…)/dist` types AND inline-reduces. **`discrete_alloc` landuse (SHIPPED
+  2026-07-21 — the array-spec join)**: `DescribeSignature` describes typeNames as an
+  attribute (values = the names, domain = the allocation-types unit `AT`) so `AT` gets a var,
+  and emits `landuse : attribute<AT>(allocUnit)` + `bid_price : attribute<S>(allocUnit)`,
+  dropping the old `DynamicShape`/`ResultDeferred`. `landuse`'s type is STRUCTURAL — `AT` = the
+  typeNames' domain, `allocUnit` = arg 1 — so `a/landuse` types even when typeNames/allocUnit
+  are FORMALS (the ruling), with no closed-array evaluation needed. The set is INCOMPLETE (the
+  name-directed `shadow_prices/<name>`/`total_allocated/<name>` and the conditional `bid_price`
+  mean unknown members DEFER, never error — the ruled broad placeholder). The name-directed
+  members' types come from the partitionings/suitabilities, not the type-names, so they stay
+  deferred. `discrete_alloc` is cacheable ⇒ `a/landuse` inline-reduces too.
 
 Adversarial review (workflow `wf_d8532e78-bd5`, 4 dimensions, 34 agents, all completed): 3
 distinct confirmed defects, all fixed pre-landing — the non-cache-base crash (live-repro'd),
