@@ -28,6 +28,7 @@
 #include "ser/StringStream.h"
 #include "ser/VectorStream.h"
 #include "geo/StringBounds.h"
+#include "utl/Case.h"
 #include "utl/Instantiate.h"
 
 #include "RtcTypeLists.h"
@@ -272,8 +273,13 @@ template <typename T> CharPtr GetScriptName();
 template <typename T> ValueClassID GetTypeID();
 
 typedef SharedStr String;
+// GetScriptName returns the canonical, lower-case ("linux-style") spelling of each
+// value-type name. Since the TokenID table is ASCII-case-folded, this lower-case
+// spelling is the one first interned at startup and thus stored as canonical, so
+// the mostly-used lower-case config writings (uint32, bool, ...) no longer trigger
+// depreciated case-mixup warnings. See ObjectVision/GeoDMS#1161.
 #define INSTANTIATE(T) \
-	template <> CharPtr      GetScriptName<T>() { return #T; } \
+	template <> CharPtr      GetScriptName<T>() { static const SharedStr s = AsLowerCase(#T); return s.c_str(); } \
 	template <> ValueClassID GetTypeID    <T>() { return ValueClassID::VT_##T; }
 
 INSTANTIATE_ALL_VC
@@ -281,7 +287,7 @@ INSTANTIATE_ALL_VC
 #undef INSTANTIATE
 
 #define INSTANTIATE(T) \
-	template <> CharPtr      GetScriptName<Range<T> >() { return "Range" #T;  } \
+	template <> CharPtr      GetScriptName<Range<T> >() { static const SharedStr s = AsLowerCase("Range" #T); return s.c_str(); } \
 	template <> ValueClassID GetTypeID    <Range<T> >() { return ValueClassID::VT_Range##T; }
 
 INSTANTIATE_NUM_ORG

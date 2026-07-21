@@ -33,8 +33,13 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "RtcBase.h"
 
+struct SharedStr;
+
 RTC_CALL void UpperCase(StringRef& ref, CharPtr b, CharPtr e);
 RTC_CALL void LowerCase(StringRef& ref, CharPtr b, CharPtr e);
+
+RTC_CALL SharedStr AsLowerCase(CharPtr b, CharPtr e);
+RTC_CALL SharedStr AsLowerCase(CharPtr zStr);
 
 
 #endif // __UTL_CASE_H

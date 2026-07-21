@@ -9,9 +9,11 @@
 #endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "geo/SequenceArray.h"
+#include "ptr/SharedStr.h"
 #include "utl/case.h"
 
 #include <ctype.h>
+#include <string>
 
 //================= UpperCase
 
@@ -43,5 +45,18 @@ void LowerCase(StringRef& result, CharPtr begin, CharPtr end)
 	char* res = result.begin();
 	while (begin != end)
 		*res++ = LowerCase(*begin++);
+}
+
+SharedStr AsLowerCase(CharPtr begin, CharPtr end)
+{
+	std::string tmp(begin, end);
+	for (char& ch : tmp)
+		ch = LowerCase(ch);
+	return SharedStr(tmp);
+}
+
+SharedStr AsLowerCase(CharPtr zStr)
+{
+	return AsLowerCase(zStr, zStr + std::char_traits<char>::length(zStr));
 }
 
