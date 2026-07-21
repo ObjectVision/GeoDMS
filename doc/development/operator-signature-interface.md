@@ -1472,6 +1472,67 @@ handles paths). Tests `fn_test_subref{,2,_neg1..5}`; validation: 118/118 battery
 Debug (assertion-free), tst Operator `/Arithmetics` + `/Rescale` + `/MetaInfo`,
 `examples/function.dms`.
 
+### 12.9 The select family — complete composite-result type rules (2026-07-21)
+
+The `select`/`subset` family spans two tiers, split by `oper_policy`. The **cacheable** tier
+inline-reduces in function bodies and is fully typed by §12.8; the **meta** tier
+(`dont_cache_result`) cannot inline-reduce in bodies at all (`SubstituteBodyExpr` rejects every
+non-cacheable head with *"meta function call is not supported inside function bodies"*), so its
+typing is diagnostic-only and — because its member set is directed by a *container* argument that
+is almost always a formal — defers in nearly every body. It is specified here and scoped, mirroring
+the `discrete_alloc` input-obligation discipline.
+
+**Tier 1 — cacheable `SubsetOperator` (SHIPPED, §12.8).** One fresh existential subset unit `U`
+(K6, value class `crd(D)` or the group's fixed `uintN`), plus at most one org-relation member:
+
+| group(s) | `OrgRelCreationMode` | result | member | complete |
+|---|---|---|---|---|
+| `select`, `select_uintN` | `none` | `U` | — | ✓ (EMPTY — `sel/x` errors at definition) |
+| `select_with_org_rel`, `select_uintN_with_org_rel` | `org_rel` | `U` | `org_rel : attribute<D>(U)` | ✓ |
+| `subset` (runtime-obsolete) | `nr_OrgEntity` | `U` | `nr_OrgEntity : attribute<D>(U)` | ✓ |
+
+The org-rel member's values ride `D` (the condition's domain node) in *both* a values and a domain
+role, so its values-unit **identity** is claimed for free (the batch-B K2 rule): `v[s/org_rel]`
+type-checks the reverse-index against `v`'s own domain. Verified by `fn_test_subref2`
+(`select_with_org_rel` + `union`) and `fn_test_subref_neg4` (the complete-EMPTY `select_uint32`
+report). `collect_by_cond`/`collect_by_org_rel` (batch B/D) are single-attribute results, not
+composite: `-> attribute<V>(S)` over the passed subset unit `S`.
+
+**Tier 2 — meta `SelectMetaOperator` (SPECIFIED, scoped).** `select_with_attr_by_cond`,
+`select_with_org_rel_with_attr_by_cond`, `select_with_attr_by_org_rel` and their `uintN` variants
+(`oap = {calc_never, calc_as_result}`). Given `(attrContainer, condition)`, `CreateResult` builds a
+fresh subset unit `U` = `select_uintN(condition)` and, for **each data-item child `m` of
+attrContainer whose domain unifies with the condition's domain `D`** (children named
+`org_rel`/`nr_OrgEntity` skipped), a collected member `m : attribute<Vₘ>(U)` computed by
+`collect_by_cond`; the `_with_org_rel_` variants add `org_rel : attribute<D>(U)`. So the composite
+type rule is:
+
+```
+select_with_attr_by_cond(c: container; cond: attribute<bool>(D))
+  -> unit<crd(D)> U { [org_rel: attribute<D>(U);]  mᵢ: attribute<Vᵢ>(U)  ∀ mᵢ∈c with domain≈D }
+```
+
+**Why it is scoped, not built.** (1) *Un-inlineable in bodies*: a meta head throws at reduction,
+so even a perfectly typed `sel/population` could never inline-reduce — typing buys only
+definition-time diagnostics on a body that must be used through the instantiating form. (2)
+*Member set almost always unknowable*: `attrContainer` is typically a formal `container`
+parameter (`DefType::Kind::Unknown`, typed-by-example), whose children vary per application — so
+the member set is not enumerable at definition and the checker defers. It becomes knowable only
+when `attrContainer` is a **closed external** (a def-scope container), and even then the
+domain-match filter (`D` vs each child's domain) only decides when `D` is concrete — the same
+closed-external narrowness as `discrete_alloc`'s obligations. (3) *A new mechanism*: members come
+from enumerating a container argument's structure, not a name array, so it needs a
+container-directed `MetaMemberLayout` variant distinct from the for_each path — non-trivial surface
+for near-zero body value. Building it is deferred until a concrete need (a closed-external
+meta-select in a checked body) appears. `collect_attr_by_cond`/`collect_attr_by_org_rel` (the
+`CollectWithAttrOperator` meta pair, generating into a *given* domain with an org-rel indirection)
+scope out for the same reasons.
+
+**Current sound behavior (pinned).** `fn_test_selmeta` (positive) confirms config-scope
+meta-select works end-to-end (the checker never runs there); `fn_test_selmeta_neg` confirms an
+*applied* body using meta-select defers cleanly at the definition scan and then surfaces the
+honest reduction rejection — proving no false definition-time error is introduced.
+
 ## 13. Risk register
 
 | # | Risk | Sev | Mitigation |
