@@ -811,9 +811,12 @@ bool AbstrDataItem::HasVoidDomainGuarantee() const
 {
 	auto adu = GetAbstrDomainUnit();
 	if (!adu)
-	{
-		this->throwItemError("Invalid domain reference.");
-	}
+		// An unresolved domain reference gives NO void guarantee: this only happens for an
+		// in-template item whose declared domain is a generic type-variable (a concrete item
+		// with a missing domain already throws in FindUnit); an instantiation may bind it to a
+		// non-void domain, so it must not be reported as a guaranteed-void (parameter) domain.
+		// (Data operators never reach this — they run on concrete, instantiated items.)
+		return false;
 	return adu->IsKindOf( Unit<Void>::GetStaticClass() );
 }
 

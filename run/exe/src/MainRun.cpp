@@ -162,6 +162,24 @@ int main2_without_SE(int argc, char** argv)
 					result = 1;
 				}
 			}
+			if (!stricmp(cmd, "dumpconfig"))
+			{
+				// headless config-source dump: write the loaded configuration back out in
+				// DMS syntax (the same serialization the GUI 'Configuration' detail page
+				// shows). Handy for inspecting how items — functions in particular — are
+				// represented, and for round-trip checks.  Usage: @dumpconfig <out.dms>
+				if (argc > 1)
+				{
+					--argc, ++argv;
+					std::cout << std::endl << "Dumping configuration to " << *argv << std::endl;
+					if (!DMS_TreeItem_Dump(cfg, *argv))
+					{
+						reportF(SeverityTypeID::ST_Error, "ErrorLevel up to 1 because the configuration dump to '{}' failed.", *argv);
+						result = 1;
+					}
+					ProcessMainThreadOpers();
+				}
+			}
 			if (!stricmp(cmd, "file"))
 			{
 				if (argc > 1)
