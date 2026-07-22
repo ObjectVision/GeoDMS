@@ -1125,31 +1125,33 @@ void TreeItem_XML_DumpItem(const TreeItem* subItem, XML_Table& xmlTable, bool vi
 				if (IsDataItem(subItem))
 				{
 					auto adi = AsDataItem(subItem);
+					// The values/domain unit can be null for an unresolved-generic (in-template
+					// signature) item, e.g. the synthesized 'result' of 'nuf = function<V,D>(...)'.
+					// A raw ->GetDisplayName() on a null unit is an SEH access violation that the
+					// surrounding catch(...) does NOT catch under /EHsc; fall back to the source
+					// token so we never dereference a null unit.
+					auto avu = adi->GetAbstrValuesUnit();
+					SharedStr vName = avu ? avu->GetDisplayName() : SharedStr(adi->ValuesUnitToken());
+					SharedStr vMetric = avu ? avu->GetFormattedMetricStr() : SharedStr();
 					if (adi->HasVoidDomainGuarantee())
-						xmlRow.ValueCell(
-							mySSPrintF("param: {} {}"
-								, adi->GetAbstrValuesUnit()->GetDisplayName()
-								, adi->GetAbstrValuesUnit()->GetFormattedMetricStr()
-							).c_str()
-						);
+						xmlRow.ValueCell(mySSPrintF("param: {} {}", vName, vMetric).c_str());
 					else
-						xmlRow.ValueCell( 
-							mySSPrintF("attr: {} -> {} {}"
-								, adi->GetAbstrDomainUnit()->GetDisplayName()
-								, adi->GetAbstrValuesUnit()->GetDisplayName()
-								, adi->GetAbstrValuesUnit()->GetFormattedMetricStr()
-							).c_str() 
-						);
+					{
+						auto adu = adi->GetAbstrDomainUnit();
+						SharedStr dName = adu ? adu->GetDisplayName() : SharedStr(adi->DomainUnitToken());
+						xmlRow.ValueCell(mySSPrintF("attr: {} -> {} {}", dName, vName, vMetric).c_str());
+					}
 				}
 				if (IsUnit(subItem))
 				{
 					auto au = AsUnit(subItem);
-					xmlRow.ValueCell(
-						mySSPrintF("unit<{}> {}"
-							, au->GetValueType()->GetName()
-							, au->GetFormattedMetricStr()
-						).c_str()
-					);
+					if (auto vt = au->GetValueType()) // null only for a broken/unresolved unit
+						xmlRow.ValueCell(
+							mySSPrintF("unit<{}> {}"
+								, vt->GetName()
+								, au->GetFormattedMetricStr()
+							).c_str()
+						);
 				}
 			}
 			catch (...) {}

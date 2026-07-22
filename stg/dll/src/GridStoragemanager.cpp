@@ -292,7 +292,8 @@ TokenID PALETTE_DATA_ID = GetTokenID_st(PALETTE_DATA);
 
 bool IsGridDomain(const AbstrUnit* au)
 {
-	dms_assert(au);
+	if (!au) // an in-template generic (unresolved) domain resolves to null; it is not a grid domain
+		return false;
 	return au->GetNrDimensions() == 2 && au->CanBeDomain();
 }
 

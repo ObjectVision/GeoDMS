@@ -107,6 +107,8 @@ bool CurrentItemCanBeExportedAsDatabase(const TreeItem* item)
 
 bool CurrentItemCanBeExportedAsTableOrDatabase(const TreeItem* item)
 {
+    if (item && item->InTemplate()) // template-internal items have unresolved (null) units: not exportable
+        return false;
     if (CurrentItemCanBeExportedAsTable(item))
         return true;
     return CurrentItemCanBeExportedAsDatabase(item);
@@ -117,8 +119,11 @@ bool isGeometryItem(const TreeItem* item)
     if (!IsDataItem(item))
         return false;
     auto adi = AsDataItem(item);
+    auto avu = adi->GetAbstrValuesUnit();
+    if (!avu) // unresolved-generic (in-template) values unit: not a geometry item
+        return false;
     auto vc = adi->GetValueComposition();
-    auto vci = adi->GetAbstrValuesUnit()->GetValueType()->GetValueClassID();
+    auto vci = avu->GetValueType()->GetValueClassID();
     return vc <= ValueComposition::Sequence && (vci >= ValueClassID::VT_SPoint && vci < ValueClassID::VT_FirstAfterPolygon);
 }
 
@@ -386,6 +391,9 @@ bool currentItemCanBeExportedToVector(const TreeItem* item)
     if (item->IsFailed())
         return false;
 
+    if (item->InTemplate()) // template-internal item: unresolved (null) units, not exportable
+        return false;
+
     if (IsUnit(item)) // exclude unit that is grid domain
     {
         if (IsGridDomain(AsUnit(item)))
@@ -438,6 +446,9 @@ bool currentItemCanBeExportedToRaster(const TreeItem* item)
     if (item->IsFailed())
         return false;
 
+    if (item->InTemplate()) // template-internal item: unresolved (null) units, not exportable
+        return false;
+
     if (!IsDataItem(item))
     {
         /*if (IsUnit(item))
@@ -456,11 +467,16 @@ bool currentItemCanBeExportedToRaster(const TreeItem* item)
     auto adi = AsDataItem(item); assert(adi);
     if (adi->GetValueComposition() != ValueComposition::Single)
         return false;
-    auto avu = adi->GetAbstrValuesUnit(); assert(avu);
-    if (!avu->GetValueType()->IsNumericOrBool())
+    // values/domain unit can be null for an in-template generic item (unresolved type variable);
+    // a raw deref here is an SEH access violation that the caller's catch(...) cannot catch under
+    // /EHsc, so null-check rather than rely on the (Release-noop) asserts.
+    auto avu = adi->GetAbstrValuesUnit();
+    if (!avu || !avu->GetValueType()->IsNumericOrBool())
         return false;
 
-    auto adu = adi->GetAbstrDomainUnit(); assert(adu);
+    auto adu = adi->GetAbstrDomainUnit();
+    if (!adu)
+        return false;
 
     return CanBeRasterDomain(adu);
 }

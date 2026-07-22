@@ -382,16 +382,26 @@ void MainWindow::clearActionsForEmptyCurrentItem() const {
 
 void MainWindow::updateActionsForNewCurrentItem() {
     auto ci = m_current_item.get();
-    auto viewstyle_flags = ci ? SHV_GetViewStyleFlags(ci) : ViewStyleFlags::vsfNone;
+    // A template definition or a template-internal item (e.g. 'nuf/result') has no computable data
+    // and unresolved (null) units, so data views, statistics and export are meaningless and would
+    // dereference a null unit and crash. Treat it as not data-actionable.
+    bool dataActionable = ci && !ci->InTemplate() && !ci->IsTemplate();
+    auto viewstyle_flags = dataActionable ? SHV_GetViewStyleFlags(ci) : ViewStyleFlags::vsfNone;
     m_defaultview_action->setEnabled(viewstyle_flags & (ViewStyleFlags::vsfDefault | ViewStyleFlags::vsfTableView | ViewStyleFlags::vsfTableContainer | ViewStyleFlags::vsfMapView)); // TODO: vsfDefault appears to never be set
     m_tableview_action->setEnabled(viewstyle_flags & (ViewStyleFlags::vsfTableView | ViewStyleFlags::vsfTableContainer));
     m_mapview_action->setEnabled(viewstyle_flags & ViewStyleFlags::vsfMapView);
-    // accessing the values unit / value type can throw on a failed item; this slot runs on
-    // every current-item change, so guard rather than let it escape into Qt.
+    // This slot runs on every current-item change. The values unit / value type may be absent
+    // (e.g. a synthesized result item of a signature-only function has generic, unresolved V/D
+    // units, so GetAbstrValuesUnit() returns nullptr) OR the getters may throw on a failed item.
+    // A null deref here is an SEH access violation that catch(...) does NOT catch under /EHsc and
+    // that would escape into Qt and terminate the process, so null-CHECK every hop as well as guard.
     bool histogramEnabled = false;
     try {
-        histogramEnabled = ci && IsDataItem(ci) && !AsDataItem(ci)->HasVoidDomainGuarantee()
-            && AsDataItem(ci)->GetAbstrValuesUnit()->GetValueType()->IsNumericOrBool();
+        if (ci && IsDataItem(ci) && !AsDataItem(ci)->HasVoidDomainGuarantee()) {
+            auto avu = AsDataItem(ci)->GetAbstrValuesUnit();
+            auto vt = avu ? avu->GetValueType() : nullptr;
+            histogramEnabled = vt && vt->IsNumericOrBool();
+        }
     }
     catch (...) {
         catchException(false); // swallow: don't enable the action, don't disrupt the UI update
@@ -400,7 +410,7 @@ void MainWindow::updateActionsForNewCurrentItem() {
     m_scatterview_action->setEnabled(histogramEnabled);
     m_lineview_action->setEnabled(histogramEnabled);
     m_barview_action->setEnabled(histogramEnabled);
-    m_statistics_action->setEnabled(ci ? IsDataItem(ci) : false);
+    m_statistics_action->setEnabled(dataActionable && IsDataItem(ci));
     m_process_schemes_action->setEnabled(true);
     m_update_treeitem_action->setEnabled(true);
     m_invalidate_action->setEnabled(true);
@@ -1876,7 +1886,10 @@ void MainWindow::updateFileMenu() {
 
 void MainWindow::updateViewMenu() const {
     // disable actions not applicable to current item
-    auto ti_is_or_is_in_template = !m_current_item || (m_current_item->InTemplate() && m_current_item->IsTemplate());
+    // A data view / statistics on an item that IS a template or is INSIDE one is meaningless and
+    // would dereference the item's unresolved (null) units and crash; the name of this flag already
+    // says 'is or is in template' (was a && bug that let template-internal data items through).
+    auto ti_is_or_is_in_template = !m_current_item || m_current_item->InTemplate() || m_current_item->IsTemplate();
     m_update_treeitem_action->setDisabled(ti_is_or_is_in_template);
     m_update_subtree_action->setDisabled(ti_is_or_is_in_template);
     m_invalidate_action->setDisabled(ti_is_or_is_in_template);
