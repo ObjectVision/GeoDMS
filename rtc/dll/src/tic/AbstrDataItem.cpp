@@ -953,10 +953,24 @@ struct DomainUnitPropDef : ReadOnlyPropDef<AbstrDataItem, SharedStr>
 
 	// implement PropDef get/set virtuals
 	auto GetValue(const AbstrDataItem* item) const-> SharedStr override
-	{ 
+	{
 		auto adu = item->GetAbstrDomainUnit();
 		if (adu)
-			return adu->GetScriptName(item);
+		{
+			auto resolved = adu->GetScriptName(item);
+			// Prefer a bare-name SOURCE token over a resolved *relative path*: a bare name is
+			// up-scope searched, so it re-resolves after the item is copied to another depth
+			// (e.g. a function/template body instantiated at the call site); a '../'-style path
+			// would ascend above root there. Only substitute when the source is a bare name and
+			// the resolved form is a path — otherwise keep the resolved (more specific) name.
+			if (IsDefined(item->m_tDomainUnit))
+			{
+				SharedStr src(item->m_tDomainUnit);
+				if (!src.empty() && !strchr(src.c_str(), '/') && strchr(resolved.c_str(), '/'))
+					return src;
+			}
+			return resolved;
+		}
 		assert(IsDefined(item->m_tDomainUnit));
 		return SharedStr(item->m_tDomainUnit);
 	}
@@ -974,11 +988,21 @@ struct ValuesUnitPropDef : ReadOnlyPropDef<AbstrDataItem, SharedStr>
 
 	// implement PropDef get/set virtuals
 	auto GetValue(const AbstrDataItem* item) const -> SharedStr override
-	{ 
+	{
 		auto avu = item->GetAbstrValuesUnit();
 		if (avu)
-			return avu->GetScriptName(item);
-
+		{
+			auto resolved = avu->GetScriptName(item);
+			// see DomainUnitPropDef::GetValue: a bare-name source token is re-instantiation-safe
+			// where a resolved relative path is not.
+			if (IsDefined(item->m_tValuesUnit))
+			{
+				SharedStr src(item->m_tValuesUnit);
+				if (!src.empty() && !strchr(src.c_str(), '/') && strchr(resolved.c_str(), '/'))
+					return src;
+			}
+			return resolved;
+		}
 		assert(IsDefined(item->m_tValuesUnit));
 		return SharedStr(item->m_tValuesUnit);
 	}

@@ -213,6 +213,11 @@ public:
 
 	// XML dump for diagnostics or config serialization; dumpSubTags toggles subtree traversal.
 	TIC_CALL virtual void XML_Dump(OutStreamBase* out, bool dumpSubTags = true) const; // DumpDecl
+private:
+	// DMS-syntax serialization of a function item as a 'function name<tvs>(params) -> result'
+	// declaration (rather than the generic 'container ...: IsTemplate' form). ST_DMS only.
+	void XML_DumpFunctionDecl(OutStreamBase* out, bool notWritingDictionary) const;
+public:
 
 //	storage
 
@@ -691,6 +696,12 @@ TIC_CALL auto    TreeItem_GetFunctionParamSignature(const TreeItem* functionItem
 TIC_CALL const std::vector<TokenID>* TreeItem_GetFunctionParamSigTypeArgs(const TreeItem* functionItem, UInt32 paramIndex); // WP4.1: 'sig<V, D>' arguments
 TIC_CALL void    TreeItem_SetFunctionTypeVars(const TreeItem* functionItem, std::vector<std::pair<TokenID, TokenID>> typeVars); // WP4.1: ordered <var: constraint> list
 TIC_CALL const std::vector<std::pair<TokenID, TokenID>>* TreeItem_GetFunctionTypeVars(const TreeItem* functionItem);
+TIC_CALL void    TreeItem_SetFunctionSignatureOnly(const TreeItem* functionItem); // 'alias = function<...>(...) -> ...;' — declared type, no body
+TIC_CALL bool    TreeItem_IsFunctionSignatureOnly(const TreeItem* functionItem);
+TIC_CALL void    TreeItem_SetFunctionResultSig(const TreeItem* functionItem, bool resultIsFunction, const TreeItem* resultSigExemplar, std::vector<TokenID> typeArgs = {}); // §5.10: function-valued result
+TIC_CALL bool    TreeItem_IsFunctionResultFunction(const TreeItem* functionItem);
+TIC_CALL auto    TreeItem_GetFunctionResultSig(const TreeItem* functionItem) -> SharedTreeItem;
+TIC_CALL const std::vector<TokenID>* TreeItem_GetFunctionResultSigTypeArgs(const TreeItem* functionItem);
 TIC_CALL void    TreeItem_CopyFunctionSpec(const TreeItem* dstFunctionItem, const TreeItem* srcFunctionItem);
 
 // generic type variables on function parameters: function f<V: numerics>(... attribute<V> x ...)

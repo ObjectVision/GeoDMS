@@ -1188,7 +1188,12 @@ void ConfigProd::OnFunctionResultSig()
 	if (m_PendingFunctionParamSig)
 	{
 		// §5.10 Stage 2: '-> some_signature_alias[<V, D>]' — a function-valued result;
-		// v1 records the function-ness (shape checks against the alias stay kind-level)
+		// v1 records the function-ness (shape checks against the alias stay kind-level).
+		// Retain the exemplar + type-application args so the config dump can render the
+		// declared result signature faithfully ('-> nuf<V, D>' rather than '-> function').
+		m_FuncStates.back().resultSigExemplar = m_PendingFunctionParamSig;
+		m_FuncStates.back().resultSigTypeArgs = std::move(m_PendingTypeArgs);
+		m_PendingTypeArgs.clear();
 		m_PendingFunctionParamSig = nullptr;
 		m_FuncStates.back().resultIsFunction = true;
 	}
@@ -1355,6 +1360,10 @@ void ConfigProd::OnFunctionDeclEnd(iterator_t first)
 		TreeItem_AddFunctionMetaRefParam(func, metaRefIdx);
 	if (fs.hasRestParam)
 		TreeItem_SetFunctionRestParam(func);
+	if (fs.signatureOnly)
+		TreeItem_SetFunctionSignatureOnly(func); // config-dump: render 'nuf = function<...>(...) -> ...;'
+	if (fs.resultIsFunction)
+		TreeItem_SetFunctionResultSig(func, true, fs.resultSigExemplar, fs.resultSigTypeArgs); // config-dump: render '-> nuf<V, D>'
 	// arity-aware operator-name coexistence check (variant members are not call heads;
 	// their SET is validated at OnVariantSetEnd)
 	if (!(func->GetTreeParent() && TreeItem_IsFunctionVariantSet(func->GetTreeParent().get())))
