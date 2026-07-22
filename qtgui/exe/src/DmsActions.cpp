@@ -248,6 +248,10 @@ void createDmsActions() {
     main_window->connect(main_window->m_expand_all_action.get(), &QAction::triggered, main_window, &MainWindow::expandAll);
     main_window->m_tools_menu->addAction(main_window->m_expand_all_action.get());
 
+    main_window->m_check_functions_action = std::make_unique<QAction>(QObject::tr("Check all function definitions"));
+    main_window->connect(main_window->m_check_functions_action.get(), &QAction::triggered, main_window, &MainWindow::checkAllFunctionDefinitions);
+    main_window->m_tools_menu->addAction(main_window->m_check_functions_action.get());
+
     // debug tools
 #ifdef MG_DEBUG
     main_window->m_save_value_info_pages = std::make_unique<QAction>(QObject::tr("Debug: save value info page(s)"));

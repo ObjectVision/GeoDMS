@@ -421,6 +421,17 @@ void UsingCache::UpdateCache() const
 			Update(u);
 
 #if defined(MG_DEBUG)
+	// Warm the referred-item namespace chain HERE, in this UpdateMetaInfo-permitted
+	// context, BEFORE installing the no-update guard below. The namespace-merge walk
+	// further down calls GetReferredItem(), which triggers a fresh UpdateMetaInfo on any
+	// not-yet-resolved referred namespace; under the guard that would assert. Normally
+	// the chain is already warm (the configuration was resolved as a side effect of
+	// computing some item), so this is a no-op; it matters only when a UsingCache is
+	// built COLD — e.g. the definition-time @checkfunctions audit runs the checker before
+	// the configuration is otherwise resolved.
+	for (SharedTreeItem warmRef = make_shared_tree(m_Context, existing_obj{}); warmRef; warmRef = warmRef->GetReferredItem())
+		warmRef->UpdateMetaInfo();
+
 	MG_LOCKER_NO_UPDATEMETAINFO
 	assert(sd_UpdateCacheTmpLockCount == 0);
 	StaticMtIncrementalLock<sd_UpdateCacheTmpLockCount> useTmp;

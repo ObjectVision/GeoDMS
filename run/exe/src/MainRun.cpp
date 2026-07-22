@@ -73,6 +73,15 @@ enum class itemCmd { commit, statistics, histogram, list, file };
 
 using itemCmdPair = std::pair<itemCmd, SharedTreeItemInterestPtr>;
 
+// reporter for the '@checkfunctions' verb: one line per audited function definition
+static void DMS_CONV ReportFunctionDefinitionCheck(ClientHandle /*clientHandle*/, const TreeItem* funcItem, bool ok, CharPtr message)
+{
+	if (ok)
+		reportF(SeverityTypeID::ST_MajorTrace, "function definition OK: {}", funcItem->GetFullName().c_str());
+	else
+		reportF(SeverityTypeID::ST_Error, "function definition FAILED: {}: {}", funcItem->GetFullName().c_str(), message);
+}
+
 int main2_without_SE(int argc, char** argv)
 {
 	ParseRegStatusFlags(argc, argv);
@@ -137,6 +146,22 @@ int main2_without_SE(int argc, char** argv)
 				currCmd = itemCmd::histogram;
 			if (!stricmp(cmd, "list"))
 				currCmd = itemCmd::list;
+			if (!stricmp(cmd, "checkfunctions"))
+			{
+				// opt-in typed-HOF audit: type-check EVERY function definition in the
+				// config (including never-referenced ones, which the ordinary
+				// application-triggered checker never reaches). Reports per function and
+				// raises the error level if any definition fails.
+				std::cout << std::endl << "Checking all function definitions..." << std::endl;
+				UInt32 nrFailed = CheckAllFunctionDefinitions(cfg, &ReportFunctionDefinitionCheck, nullptr);
+				ProcessMainThreadOpers();
+				std::cout << std::endl << "Function definition check complete: " << nrFailed << " failed." << std::endl;
+				if (nrFailed)
+				{
+					reportF(SeverityTypeID::ST_Error, "ErrorLevel up to 1 because {} function definition(s) failed the type check.", nrFailed);
+					result = 1;
+				}
+			}
 			if (!stricmp(cmd, "file"))
 			{
 				if (argc > 1)

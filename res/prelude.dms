@@ -33,9 +33,11 @@ function reverse<T: any>(attribute<T> x) -> attribute<T> := lookup(reversed_id(D
 
 // ---------------------------------------------------------------- proximity (WP4.5 tranche 3)
 // the retained 'order' and 'isOverlapping' rewrite rules fire at body-parse
-// fixpoint on these spellings, so the reduced keys equal the old rule chain
-
-function neighbourhood<V: numerics>(attribute<V> x; attribute<V> f) -> container := order(x, f * x);
+// fixpoint on these spellings, so the reduced keys equal the old rule chain.
+// (An earlier 'neighbourhood(x,f) -> container := order(x, f*x)' helper was removed:
+//  a naked 'order(...)' reduces to a bare 'interval(...)' constructor, which has no
+//  operator — it only resolves when consumed by the isOverlapping/median rule patterns
+//  below — so as a standalone result it was non-reducible; it had no callers.)
 
 function float_isNearby<V: numerics>(attribute<V> a; attribute<V> b; attribute<V> f)
 -> attribute<bool> := isOverlapping(order(a, f * a), order(b, f * b));

@@ -1903,6 +1903,7 @@ void MainWindow::updateToolsMenu() const {
     m_code_analysis_clr_targets_action->setEnabled(bool(m_current_item));
     m_code_analysis_set_source_action->setEnabled(bool(m_current_item));
     m_code_analysis_set_target_action->setEnabled(bool(m_current_item));
+    m_check_functions_action->setEnabled(bool(m_root)); // audits the loaded configuration's functions
 }
 
 void MainWindow::updateSettingsMenu() const {
@@ -2098,6 +2099,38 @@ void MainWindow::expandAll() {
     Waiter waitReporter(&context);
     reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "expandAll");
     m_treeview->expandAll();
+}
+
+// reporter for the "Check all function definitions" tools action: one event-log line
+// per audited function definition (see CheckAllFunctionDefinitions in TicInterface.h)
+static void DMS_CONV GuiReportFunctionDefinitionCheck(ClientHandle /*clientHandle*/, const TreeItem* funcItem, bool ok, CharPtr message)
+{
+    if (ok)
+        reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "function definition OK: {}", funcItem->GetFullName());
+    else
+        reportF(MsgCategory::commands, SeverityTypeID::ST_Error, "function definition FAILED: {}: {}", funcItem->GetFullName(), message);
+}
+
+void MainWindow::checkAllFunctionDefinitions() {
+    FixedContextHandle context("checkAllFunctionDefinitions");
+    Waiter waitReporter(&context);
+    try {
+        if (!m_root) {
+            reportF(MsgCategory::commands, SeverityTypeID::ST_Warning, "Check all function definitions: no configuration loaded");
+            return;
+        }
+        reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "Checking all function definitions...");
+        UInt32 nrFailed = CheckAllFunctionDefinitions(m_root.get(), &GuiReportFunctionDefinitionCheck, nullptr);
+        reportF(MsgCategory::commands, nrFailed ? SeverityTypeID::ST_Warning : SeverityTypeID::ST_MajorTrace,
+            "Function definition check complete: {} failed.", nrFailed);
+        QMessageBox::information(this, tr("Check all function definitions"),
+            nrFailed
+                ? tr("%1 function definition(s) failed the definition-time type check.\nSee the event log for details.").arg(nrFailed)
+                : tr("All function definitions passed the definition-time type check."));
+    }
+    catch (...) {
+        catchAndReportException();
+    }
 }
 
 #include "dbg/DebugReporter.h"

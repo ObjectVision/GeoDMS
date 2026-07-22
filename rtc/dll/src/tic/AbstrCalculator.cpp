@@ -5717,3 +5717,75 @@ TIC_CALL IStringHandle DMS_CONV DMS_TreeItem_PropertyValue(TreeItem* context, Ab
 	return nullptr;
 }
 
+// =============================================================================
+// Opt-in "check all function definitions" audit — see TicInterface.h. Config load
+// is left untouched (the ordinary checker fires only on application); this walks the
+// PARSE-created structure with the raw _GetFirstSubItem accessor, so NO whole-tree
+// meta-update is forced — only the reachable-from-result slice of each checked
+// function is parsed, exactly as at an application. `insideUncheckableScope` tracks
+// whether we are lexically inside a scope whose functions can be typed only on their
+// instantiated/applied copy (which the application-time checker already covers), so
+// checking them cold here would falsely fail (S1): an ordinary function's BODY (its
+// nested closures capture the enclosing environment) and a TEMPLATE container (its
+// functions reference template siblings that stay inert/`InTemplate` until
+// instantiation). A variant SET and a plain container are transparent, so variant
+// members and container-nested functions stay checkable.
+// =============================================================================
+static void CheckFunctionDefinitionsInSubtree(const TreeItem* item, bool insideUncheckableScope
+	, FunctionCheckReporterFunc reporter, ClientHandle clientHandle, UInt32& nrFailed)
+{
+	for (const TreeItem* c = item->_GetFirstSubItem(); c; c = c->GetNextItem())
+	{
+		bool isFn         = c->IsFunctionItem();
+		bool isVariantSet = isFn && TreeItem_IsFunctionVariantSet(c);
+		bool isOrdinaryFn = isFn && !isVariantSet;
+
+		if (isOrdinaryFn && !insideUncheckableScope)
+		{
+			bool ok = true;
+			SharedStr msg;
+			try
+			{
+				CheckFunctionDefinition(c);
+			}
+			catch (const DmsException& x)
+			{
+				ok = false;
+				msg = x.GetAsText();
+			}
+			catch (const std::exception& x)
+			{
+				ok = false;
+				msg = SharedStr(x.what());
+			}
+			catch (...)
+			{
+				ok = false;
+				msg = SharedStr("unknown exception during definition check");
+			}
+			if (!ok)
+				++nrFailed;
+			if (reporter)
+				reporter(clientHandle, c, ok, ok ? "" : msg.c_str());
+		}
+
+		// Propagate the flag to c's children. An ordinary function's children are its
+		// body; a TEMPLATE container's functions are template-internal (a function/variant
+		// set is ITSELF a template — SetIsFunction implies SetIsTemplate — so exclude those
+		// via !isFn to keep variant members and plain-template-less scopes checkable). A
+		// variant SET and a plain container pass the flag through unchanged.
+		bool isTemplateContainer = !isFn && c->IsTemplate();
+		bool childInsideUncheckableScope = (isOrdinaryFn || isTemplateContainer) ? true : insideUncheckableScope;
+		CheckFunctionDefinitionsInSubtree(c, childInsideUncheckableScope, reporter, clientHandle, nrFailed);
+	}
+}
+
+TIC_CALL UInt32 CheckAllFunctionDefinitions(const TreeItem* root, FunctionCheckReporterFunc reporter, ClientHandle clientHandle)
+{
+	dms_assert(IsMetaThread());
+	UInt32 nrFailed = 0;
+	if (root)
+		CheckFunctionDefinitionsInSubtree(root, false, reporter, clientHandle, nrFailed);
+	return nrFailed;
+}
+

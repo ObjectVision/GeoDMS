@@ -28,6 +28,21 @@ auto TreeItem_VisitConstVisibleSubTree(const TreeItem* self, const ActorVisitor&
 TIC_CALL auto TreeItem_GetBestItemAndUnfoundPart(const TreeItem* context, CharPtr path)->BestItemRef;
 
 //----------------------------------------------------------------------
+// Opt-in "check all function definitions" audit (typed-HOF, §5.16): runs the
+// definition-time type checker on every function DEFINITION in the subtree of
+// `root`. Config load stays untouched — the ordinary checker fires only on
+// application, so a defined-but-never-referenced function is otherwise never
+// checked; this audit is the explicit, on-demand way to cover them.
+// It skips (a) closures nested in another function's body — those are checked at
+// application, where their captured environment is known — and (b) variant-SET
+// containers, whose members are checked individually. Each checked definition is
+// reported through `reporter` (may be null); the return value is the number of
+// functions whose definition-time check FAILED. Meta-thread only.
+//----------------------------------------------------------------------
+typedef void (DMS_CONV *FunctionCheckReporterFunc)(ClientHandle clientHandle, const TreeItem* funcItem, bool ok, CharPtr message);
+TIC_CALL UInt32 CheckAllFunctionDefinitions(const TreeItem* root, FunctionCheckReporterFunc reporter, ClientHandle clientHandle);
+
+//----------------------------------------------------------------------
 // C style Interface functions for construction
 //----------------------------------------------------------------------
 extern "C" {

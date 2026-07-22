@@ -49,6 +49,11 @@ references were verified against that tree.*
   decreasing arity are permitted; variant sets now also dispatch on body-nested and
   argument-nested calls. Retires the `concat`, `replace_value` and `combine_data`
   rewrite chains to prelude variadic functions.
+- **§5.16 the `@checkfunctions` audit** (2026-07-22) — an opt-in pass that runs the
+  definition-time checker on every function DEFINITION, closing the last gap in
+  "definitions type-checked": a defined-but-never-referenced function was otherwise
+  never checked (the checker fires only on application). Config load stays untouched;
+  surfaces are the `GeoDmsRun @checkfunctions` verb and the GUI Tools action.
 
 Not yet implemented (specs below remain actionable): the redundant top-level
 `{ X(args) }` sugar (§5.9 deferred list), the opt-in `applyF` boundary
@@ -1843,6 +1848,78 @@ valid and simply shadows the auto-imported copy at nearer scope.
 4. End state: **no untyped user-visible macro layer**. Definitions are typed functions;
    normalizations are operator features; simplifications are typed engine passes.
 
+### 5.16 Checking never-referenced functions: the `@checkfunctions` audit *(implemented 2026-07-22)*
+
+The definition-time checker (§5.10 status block, WP4.1 t3) fires at every application
+entry (`ReduceValue`) — a function is validated the first time it is applied, covering
+closures, prelude functions and variant members. A function that is *defined but never
+referenced* is therefore never checked: the ordinary path has nothing to hang the check
+on. This section closes that gap — the last piece of "function definitions type-checked".
+
+Config load is deliberately left untouched. Forcing a definition-time pass at load
+would add cost to every configuration, re-check the auto-imported prelude on every
+load, and could turn a latent type error in an unused helper into a load-time verdict
+on configurations that open cleanly today. Instead the checker is exposed as an
+**explicit, opt-in audit**: `CheckAllFunctionDefinitions(root, reporter, clientHandle)`
+(`rtc/dll/src/tic/TicInterface.h`) walks the parse-created structure of a loaded
+configuration and runs the definition-time checker on every function *definition*. Two
+surfaces:
+
+- **GeoDmsRun** — the `@checkfunctions` verb (`GeoDmsRun cfg.dms @checkfunctions`): one
+  line per audited function, process error level raised (exit 1) if any definition
+  fails. The headless / CI surface (`run/exe/src/MainRun.cpp`).
+- **GUI** — Tools → *Check all function definitions*: reports each verdict to the event
+  log and shows a pass/fail summary (`qtgui/exe/src/DmsMainWindow.cpp`).
+
+Scope of the walk (`CheckFunctionDefinitionsInSubtree`, `tic/AbstrCalculator.cpp`):
+
+- The walk is **raw** (`_GetFirstSubItem`), forcing no whole-tree meta-update — only
+  each checked function's reachable-from-`result` slice is parsed, exactly as at an
+  application.
+- **Closures** — a function nested in another *ordinary* function's body — are
+  **skipped**: they capture an enclosing environment that exists only at application,
+  where they are checked. **Template-internal functions** (defined inside a `template`
+  container) are skipped for the same reason: their references to template siblings stay
+  inert (`InTemplate`) until instantiation, so checking them cold would falsely fail
+  (an S1 violation — reduction accepts them once the template is instantiated). A variant
+  SET is not a body and is not a plain template (a function is *itself* a template, so the
+  test is `IsTemplate() && !IsFunctionItem()`), so its variant members — and functions in
+  ordinary containers — stay checkable. The walk carries an `insideUncheckableScope` flag
+  that a variant set and a plain container pass through, but an ordinary function or a
+  template container sets for its children.
+- **Signature-only functions** (declared signatures) have an empty result expression
+  and are checked as a no-op.
+- Each verdict is *reported* but **not** persisted onto the item — the audit is
+  non-invasive and never fails the tree, so it cannot change the configuration's state.
+
+Running the checker **cold** (before the configuration is otherwise resolved) exposed one
+Debug-only ordering issue: the checker resolves a call head through `TreeItem::FindItem`,
+which builds the scope's `UsingCache` for the first time, and the namespace-merge walk
+inside `UsingCache::UpdateCache` calls `GetReferredItem()` — triggering a fresh
+`UpdateMetaInfo` under that method's own (Debug-only) no-update-metainfo guard. At
+application the referred chain is already warm, so it is a no-op; cold it asserts. Fixed
+by warming the referred-item chain in the permitted context *before* the guard
+(`tic/UsingCache.cpp`, inside `#if defined(MG_DEBUG)` — Release is byte-identical, and it
+is a no-op once the chain is warm).
+
+The audit was the first thing ever to definition-check the shipped prelude, and it
+earned its keep immediately: it flagged `prelude/neighbourhood`
+(`-> container := order(x, f*x)`). A naked `order(x, f*x)` rewrites (via the retained
+`order` rule) to a bare `interval(…)` — a constructor with no operator, resolvable only
+when consumed by the `isOverlapping`/`median` rule patterns — so it is **non-reducible
+as a standalone result**: a config-scope `order(a, b)` fails reduction identically with
+*"'interval': unknown function"*. This is a true positive, not an S1 over-rejection (the
+checker rejects exactly what reduction rejects, because `order` is a capturing rule that
+produces the `interval` form regardless of argument groundness). The function had no
+callers and was removed. The full prelude now audits clean.
+
+Tests: `scratch/fn_test_checkall.dms` — unreferenced well-typed functions (`good_sqr`,
+`good_id`, `fonly`) reported OK; unreferenced ∀-violating functions (`bad_numerics`, and
+the `multi/bad_gen` variant, each applying the floats-only `fonly` under
+`<V: numerics>`) reported FAILED; a closure (`withClosure/bump`) correctly not audited
+standalone; and the config's own `/checks` computes cleanly — the ill-typed functions
+never touch the ordinary path, which is the whole point of the audit.
+
 ## 9. Verified template/for_each context
 
 (Reference summary; details in §4.6, §5.2, §5.5.) Templates are containers flagged
@@ -2109,10 +2186,11 @@ body errors with function-level attribution (`unknown identifier in body of func
 **Upgraded by WP4.1 tranche 3 (2026-07-14)**: the walker now performs full
 definition-time TYPE checking with rigid variables — see the §5.10 status block —
 and is additionally triggered at every application entry (`ReduceValue`), covering
-closures, prelude functions and variant members. Not yet: checking of
-*never-referenced* functions (needs a config-load sweep) and typed operator
-positions beyond the interim `OperSigKind` batch 1 (the declarative signature
-interface — `operator-signature-interface.md`).
+closures, prelude functions and variant members. **Never-referenced functions** are
+covered by the opt-in `@checkfunctions` audit (§5.16, 2026-07-22). Typed operator
+positions are handled by the declarative signature interface
+(`operator-signature-interface.md`), which superseded the interim `OperSigKind`
+registry.
 
 ### P4 — unifier, boundary keys, refinements, rewrite end-state (implementation-ready)
 
