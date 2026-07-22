@@ -2114,14 +2114,25 @@ void MainWindow::expandAll() {
     m_treeview->expandAll();
 }
 
-// reporter for the "Check all function definitions" tools action: one event-log line
-// per audited function definition (see CheckAllFunctionDefinitions in TicInterface.h)
-static void DMS_CONV GuiReportFunctionDefinitionCheck(ClientHandle /*clientHandle*/, const TreeItem* funcItem, bool ok, CharPtr message)
+// reporter for the "Check all function definitions" tools action (see CheckAllFunctionDefinitions
+// in TicInterface.h): passing definitions are only COUNTED — logging one 'OK' line each buried the
+// single failing line among dozens of prelude entries. Failures are collected and re-surfaced at
+// the END, after the summary, where the user looks; each carries the same descriptive message the
+// application-time checker produces.
+struct FunctionCheckLog
 {
-    if (ok)
-        reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "function definition OK: {}", funcItem->GetFullName());
-    else
-        reportF(MsgCategory::commands, SeverityTypeID::ST_Error, "function definition FAILED: {}: {}", funcItem->GetFullName(), message);
+    UInt32 nrChecked = 0;
+    std::vector<std::pair<SharedStr, SharedStr>> failures; // (fullName, message)
+};
+
+static void DMS_CONV GuiReportFunctionDefinitionCheck(ClientHandle clientHandle, const TreeItem* funcItem, bool ok, CharPtr message)
+{
+    auto* log = reinterpret_cast<FunctionCheckLog*>(clientHandle);
+    if (!log)
+        return;
+    ++log->nrChecked;
+    if (!ok)
+        log->failures.emplace_back(SharedStr(funcItem->GetFullName()), SharedStr(message));
 }
 
 void MainWindow::checkAllFunctionDefinitions() {
@@ -2133,13 +2144,18 @@ void MainWindow::checkAllFunctionDefinitions() {
             return;
         }
         reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "Checking all function definitions...");
-        UInt32 nrFailed = CheckAllFunctionDefinitions(m_root.get(), &GuiReportFunctionDefinitionCheck, nullptr);
+        FunctionCheckLog log;
+        UInt32 nrFailed = CheckAllFunctionDefinitions(m_root.get(), &GuiReportFunctionDefinitionCheck, &log);
         reportF(MsgCategory::commands, nrFailed ? SeverityTypeID::ST_Warning : SeverityTypeID::ST_MajorTrace,
-            "Function definition check complete: {} failed.", nrFailed);
+            "Function definition check complete: {} of {} definition(s) failed.", nrFailed, log.nrChecked);
+        // re-surface each failure AFTER the summary so the descriptive errors are the last thing in
+        // the event log, not buried among the (unlogged) passing definitions higher up.
+        for (const auto& f : log.failures)
+            reportF(MsgCategory::commands, SeverityTypeID::ST_Error, "function definition FAILED: {}: {}", f.first, f.second);
         QMessageBox::information(this, tr("Check all function definitions"),
             nrFailed
-                ? tr("%1 function definition(s) failed the definition-time type check.\nSee the event log for details.").arg(nrFailed)
-                : tr("All function definitions passed the definition-time type check."));
+                ? tr("%1 of %2 function definition(s) failed the definition-time type check.\nThe failures are listed at the end of the event log.").arg(nrFailed).arg(log.nrChecked)
+                : tr("All %1 function definitions passed the definition-time type check.").arg(log.nrChecked));
     }
     catch (...) {
         catchAndReportException();

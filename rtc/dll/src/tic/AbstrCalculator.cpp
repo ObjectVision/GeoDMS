@@ -25,6 +25,7 @@
 #include "utl/mySPrintF.h"
 #include "utl/SplitPath.h"
 #include "xct/DmsException.h"
+#include "xct/ErrMsg.h"
 #include "xml/XmlOut.h"
 
 #include "LispList.h"
@@ -4810,7 +4811,14 @@ namespace {
 	void CheckFunctionDefinition(const TreeItem* funcItem)
 	{
 		if (TreeItem_IsFunctionDefinitionChecked(funcItem))
+		{
+			// The definition was already checked. A wrong definition is a persistent error whose
+			// verdict is recorded ON THE FUNCTION ITEM (below) — re-raise it so this application
+			// fails too, WITHOUT re-running the (failing) check at every application.
+			if (funcItem->WasFailed(FailType::MetaInfo))
+				funcItem->ThrowFail();
 			return;
+		}
 		if (TreeItem_IsFunctionVariantSet(funcItem))
 			return; // each variant is checked at its own application
 
@@ -4827,23 +4835,37 @@ namespace {
 			std::set<const TreeItem*>* s; const TreeItem* f;
 			~Eraser() { s->erase(f); }
 		} eraser{ &s_CheckInProgress, funcItem };
-		TokenID resultName = TreeItem_GetFunctionResultName(funcItem);
-		auto resultChild = funcItem->GetConstSubTreeItemByID(resultName);
-		if (!resultChild)
-			throwErrorF("ExprParser", "'{}': designated result '{}' not found"
-				, funcItem->GetFullName().c_str(), resultName.GetStr().c_str());
-		if (!resultChild->GetExpr().empty()) // signature-only functions and nested-function results have no body expression here
+		try
 		{
-			FunctionChecker chk;
-			chk.m_FuncItem = funcItem;
-			chk.m_Unifier.m_ApplItem = funcItem;
-			chk.m_Unifier.m_Phase = "the definition of ";
-			chk.m_DeclSource = mySSPrintF("declared by function '{}'", funcItem->GetFullName().c_str());
-			UInt32 nrParams = TreeItem_GetFunctionParamCount(funcItem);
-			const TreeItem* p = funcItem->_GetFirstSubItem();
-			for (UInt32 i = 0; i < nrParams && p; ++i, p = p->GetNextItem())
-				chk.m_Params.push_back(p);
-			chk.InferBodyItem(resultChild.get());
+			TokenID resultName = TreeItem_GetFunctionResultName(funcItem);
+			auto resultChild = funcItem->GetConstSubTreeItemByID(resultName);
+			if (!resultChild)
+				throwErrorF("ExprParser", "'{}': designated result '{}' not found"
+					, funcItem->GetFullName().c_str(), resultName.GetStr().c_str());
+			if (!resultChild->GetExpr().empty()) // signature-only functions and nested-function results have no body expression here
+			{
+				FunctionChecker chk;
+				chk.m_FuncItem = funcItem;
+				chk.m_Unifier.m_ApplItem = funcItem;
+				chk.m_Unifier.m_Phase = "the definition of ";
+				chk.m_DeclSource = mySSPrintF("declared by function '{}'", funcItem->GetFullName().c_str());
+				UInt32 nrParams = TreeItem_GetFunctionParamCount(funcItem);
+				const TreeItem* p = funcItem->_GetFirstSubItem();
+				for (UInt32 i = 0; i < nrParams && p; ++i, p = p->GetNextItem())
+					chk.m_Params.push_back(p);
+				chk.InferBodyItem(resultChild.get());
+			}
+		}
+		catch (...)
+		{
+			// Record the verdict ON THE FUNCTION DEFINITION and cache it: a wrong definition
+			// becomes a failed item (so it shows as failed, whether the check was triggered by
+			// an application or by the audit), and every subsequent application re-raises the
+			// same verdict (above) rather than re-running the failing check. CatchFail captures
+			// the in-flight exception with its context; the re-throw fails the caller too.
+			funcItem->CatchFail(FailType::MetaInfo);
+			TreeItem_SetFunctionDefinitionChecked(funcItem);
+			throw;
 		}
 		TreeItem_SetFunctionDefinitionChecked(funcItem);
 	}
@@ -5772,20 +5794,13 @@ static void CheckFunctionDefinitionsInSubtree(const TreeItem* item, bool insideU
 			{
 				CheckFunctionDefinition(c);
 			}
-			catch (const DmsException& x)
-			{
-				ok = false;
-				msg = x.GetAsText();
-			}
-			catch (const std::exception& x)
-			{
-				ok = false;
-				msg = SharedStr(x.what());
-			}
 			catch (...)
 			{
 				ok = false;
-				msg = SharedStr("unknown exception during definition check");
+				// CheckFunctionDefinition has already recorded the verdict ON 'c' (it becomes a
+				// failed item and is not re-checked); read that reason for the audit report.
+				auto fr = c->GetFailReason();
+				msg = fr ? fr->Why() : SharedStr("function definition check failed");
 			}
 			if (!ok)
 				++nrFailed;

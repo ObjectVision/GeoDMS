@@ -367,14 +367,10 @@ QVariant DmsModel::data(const QModelIndex& index, int role) const {
 			return getTreeItemTextColor(index);
 
 		case Qt::BackgroundRole:
-/*
-			if (ti->WasFailed() 
-				&& !MainWindow::TheOne()->m_treeview->selectionModel()->selectedIndexes().empty()
-				&&  MainWindow::TheOne()->m_treeview->selectionModel()->selectedIndexes().at(0) == index) {
-				return QColor(150, 0, 0);
-			}
-			*/
-			if (ti->WasFailed(FailType::Data))
+			// colour ANY failed item, not only data-computation (FailType::Data) failures: a
+			// definition-time failure on a function/template item (FailType::MetaInfo, e.g. a
+			// wrong '/bad') must show as failed in the tree too, like a failed data item.
+			if (ti->WasFailed())
 				return GetUserQColor(color_option::st_failed);
 
 			switch (TreeItem_GetSupplierLevel(ti)) 
