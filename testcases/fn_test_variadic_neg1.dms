@@ -1,0 +1,11 @@
+container fn_test_variadic_neg1
+{
+	// NEGATIVE: a '...' rest parameter must be the LAST parameter — parse error
+	function bad(...r; container x) -> container := x;
+
+	parameter<uint32> z := 1;
+	container checks
+	{
+		parameter<bool> c_z := z == 1, IntegrityCheck = "c_z == true";
+	}
+}

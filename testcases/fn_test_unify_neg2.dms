@@ -1,0 +1,18 @@
+container fn_test_unify_neg2
+{
+	unit<uint32> Road : nrofrows = 3 { attribute<float64> flow : [ 1.0, 2.0, 3.0 ]; }
+	unit<uint32> Rail : nrofrows = 2 { attribute<float64> flow : [ 5.0, 6.0 ]; }
+
+	nuf = function<V: numerics, D: domains>(attribute<V> (D)) -> attribute<V> (D);
+
+	// declares a CONCRETE domain: instantiates D := Road through the signature
+	function road_only(attribute<float64> x (Road)) -> attribute<float64> (Road) := x + 0.0;
+
+	function mixap<V: numerics, D: domains>(h: nuf<V, D>; attribute<V> y (D))
+	-> attribute<V> (D) := h(y);
+
+	// y's domain binds D := Rail; road_only's declared domain conflicts
+	attribute<float64> bad (Rail) := mixap(road_only, Rail/flow);
+
+	container checks { parameter<float64> use := sum(bad); }
+}

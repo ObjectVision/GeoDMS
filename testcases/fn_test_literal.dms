@@ -1,0 +1,32 @@
+container fn_test_literal
+{
+	// non-generic structured-parameter function (isolate container-literal mechanics)
+	function CongestionRatio(unit<uint32> Rd { attribute<float64> flow; attribute<float64> cap; })
+	-> attribute<float64> (Rd) := min_elem(Rd/flow / Rd/cap, 1.0);
+
+	unit<uint32> Road : nrofrows = 4
+	{
+		attribute<float64> flow : [ 0.0, 2.0, 4.0, 8.0 ];
+		attribute<float64> cap  : [ 2.0, 2.0, 2.0, 2.0 ];
+	}
+
+	// 1) container literal with a domain, '.' = the domain unit; the user's target form
+	attribute<float64> lit (range_0_10) := CongestionRatio( range_0_10 { flow: float64(ID(.)); cap: 2.0; } );
+	unit<uint32> range_0_10 := range(uint32, 0u, 10u);
+
+	// 2) container literal whose members reference caller-scope items (not '.')
+	attribute<float64> viaRoad (Road) := CongestionRatio( Road { flow: Road/flow; cap: Road/cap; } );
+
+	// 3) named-member ':=' form is accepted identically to ':'
+	attribute<float64> viaRoad2 (Road) := CongestionRatio( Road { flow := Road/flow * 2.0; cap := Road/cap; } );
+
+	container checks
+	{
+		// lit: flow=[0..9], cap=2 → raw=[0,.5,1,1.5,..], min_elem(raw,1)=[0,.5,1,1,1,1,1,1,1,1] sum=8.5
+		parameter<float64> c_lit  := sum(lit),      IntegrityCheck = "c_lit == 8.5";
+		// viaRoad: flow/cap = [0,1,2,4] min 1 → [0,1,1,1] sum=3
+		parameter<float64> c_road := sum(viaRoad),  IntegrityCheck = "c_road == 3.0";
+		// viaRoad2: (flow*2)/cap = [0,2,4,8] min 1 → [0,1,1,1] sum=3
+		parameter<float64> c_rd2  := sum(viaRoad2), IntegrityCheck = "c_rd2 == 3.0";
+	}
+}

@@ -1,0 +1,39 @@
+container fn_test_sig
+{
+	unit<uint32> Road : nrofrows = 4
+	{
+		attribute<float64> flow : [ 100.0, 200.0,  50.0, 400.0 ];
+	}
+
+	// plain type aliases: alias = type;  (vs 'name : type;' declaring an item)
+	flt  = attribute<float64>;
+	dom  = unit<uint32>;
+	dom2 = dom;                       // alias of alias (type by example)
+
+	x1: flt (Road) := Road/flow * 1.0;
+	D2: dom2 : nrofrows = 2;
+	c1: parameter<float64> := 40.0 + 2.0;
+
+	// function-signature type alias
+	unary_fn = (unit<uint32> D; attribute<float64> v (D)) -> attribute<float64> (D);
+
+	container lib
+	{
+		function Halve(unit<uint32> D; attribute<float64> v (D))
+		-> attribute<float64> (D) := v / 2.0;
+
+		// signature-typed function parameter: bound functions are checked against unary_fn
+		function ApplyTwiceT(unit<uint32> D; f: unary_fn; attribute<float64> x (D))
+		-> attribute<float64> (D) := f(D, f(D, x));
+	}
+
+	attribute<float64> quarter (Road) := lib/ApplyTwiceT(Road, lib/Halve, Road/flow);
+
+	container checks
+	{
+		parameter<float64> check1 := sum(quarter), IntegrityCheck = "check1 == 187.5";
+		parameter<float64> check2 := sum(x1),      IntegrityCheck = "check2 == 750.0";
+		parameter<uint32>  check3 := #D2,          IntegrityCheck = "check3 == 2";
+		parameter<float64> check4 := c1,           IntegrityCheck = "check4 == 42.0";
+	}
+}

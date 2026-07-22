@@ -1,0 +1,21 @@
+container fn_test_subref_neg3
+{
+	// §12.7 slSubItemCall tranche, the DEFER guard: an operator result WITHOUT
+	// described members (add) accepts the member reference at definition scan
+	// (no set claim) and fails LATE, per application, with SubItemOperator's
+	// own "Cannot find 'nope' from ..." — never a definition-time error.
+	unit<uint32> D : nrofrows = 4;
+	attribute<float64> x (D) : [1.0, 2.0, 2.0, 3.0];
+
+	function f(attribute<float64> src (D)) -> parameter<float64>
+	{
+		attribute<float64> twice (D) := src + src;
+		parameter<float64> result := sum(twice/nope);
+	}
+	parameter<float64> s := f(x);
+
+	container checks
+	{
+		parameter<float64> c_1 := s, IntegrityCheck = "c_1 == 0.0";
+	}
+}

@@ -1,0 +1,9 @@
+container fn_test_prelude_neg
+{
+	unit<uint32> Road : nrofrows = 2 { attribute<float64> flow : [ 2.0, 3.0 ]; }
+	// a head that exists in NO scope (not even the auto-imported prelude) must give
+	// a clear unknown-function error (the original 'sqr without prelude' expectation
+	// is obsolete since the prelude is auto-imported)
+	attribute<float64> bad (Road) := sqr_no_such_function(Road/flow);
+	container checks { parameter<float64> use := sum(bad); }
+}

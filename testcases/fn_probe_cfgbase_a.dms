@@ -1,0 +1,26 @@
+container fn_probe_cfgbase_a
+{
+	// Config-alias member access (a): a body local whose rule is a bare reference to a
+	// def-scope CONFIG container; member access below it (c/sub) resolves directly
+	// against the referenced config item (cfg/sub) instead of routing through the cache
+	// SubItemOperator (which only accepts cache bases). Positive test.
+	unit<uint32> D : nrofrows = 3;
+	attribute<float64> x (D) : [1.0, 2.0, 3.0];
+
+	container cfg
+	{
+		attribute<float64> sub (D) : [1.0, 2.0, 3.0];
+	}
+
+	function f(attribute<float64> src (D)) -> parameter<float64>
+	{
+		container c := cfg;
+		parameter<float64> result := sum(src) + sum(c/sub);
+	}
+	parameter<float64> y := f(x);
+
+	container checks
+	{
+		parameter<float64> c_1 := y, IntegrityCheck = "c_1 == 12.0";
+	}
+}

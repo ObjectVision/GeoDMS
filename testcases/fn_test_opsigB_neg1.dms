@@ -1,0 +1,20 @@
+container fn_test_opsigB_neg1
+{
+	// NEGATIVE (definition-time, op-sig batch B): the K2 join-key catch. lookup's
+	// org_rel is valued in Region but the values argument ranges over Town — the
+	// DERIVED signature binds both to one unit variable E2, so the definition
+	// fails at its first reference. At reduction the same config throws in
+	// lookup's CreateResult (v1 vs e2 UnifyDomain).
+	// Expected: "the definition of '/bad': inconsistent instantiation of unit
+	//            variable 'E2' ..."
+	unit<uint32> Region : nrofrows = 2;
+	unit<uint32> Town   : nrofrows = 2 { attribute<float64> pop : [5.0, 6.0]; }
+	unit<uint32> House  : nrofrows = 3 { attribute<Region> reg : [0, 1, 1]; }
+
+	function bad<D: domains>(attribute<Region> r (D); attribute<float64> v (Town))
+	-> attribute<float64> (D) := lookup(r, v);
+
+	attribute<float64> z (House) := bad(House/reg, Town/pop);
+
+	container checks { parameter<float64> use := sum(z); }
+}

@@ -1,0 +1,32 @@
+container fn_test_lambda2
+{
+	// REGRESSION (tier B review): legacy expressions and edge cases that lambda
+	// lifting must NOT capture or break.
+	unit<uint32> Road : nrofrows = 3 { attribute<float64> flow : [ 1.0, 2.0, 3.0 ]; }
+
+	// (a) an item NAMED 'function', arrow-dereferenced — legacy syntax that predates
+	// literals; the implementation-required gate must let it through
+	unit<uint32> cls : nrofrows = 2 { attribute<float64> val : [ 10.0, 20.0 ]; }
+	attribute<cls>     function (Road) : [ 0, 1, 1 ];
+	attribute<float64> legacy  (Road) := function -> val;
+	// gate-shaped legacy text 'function(args) -> item' must PARSE (config load);
+	// deliberately not computed (calling an attribute is not a calculation)
+	attribute<float64> legacy_shape (Road) := min_elem(function(Road) -> val, 1.0);
+
+	// (b) comparison with '<' right of the word 'function' — the bounded angle scan
+	// must not swallow expression text
+	parameter<uint32> fn2 := 3;
+	parameter<bool>   cmp := (fn2 < 3) || (fn2 > 2);
+
+	// (c) a user item occupying '_lambda_1': the hoist probe must skip it
+	parameter<float64> _lambda_1 := 42.0;
+	attribute<float64> lifted (Road)
+		:= (function(attribute<float64> z (Road)) -> attribute<float64> (Road) := z + z)(Road/flow);
+
+	container checks
+	{
+		parameter<float64> c_leg := sum(legacy),  IntegrityCheck = "c_leg == 50.0";
+		parameter<float64> c_lif := sum(lifted),  IntegrityCheck = "c_lif == 12.0";
+		parameter<float64> c_usr := _lambda_1,    IntegrityCheck = "c_usr == 42.0";
+	}
+}

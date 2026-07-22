@@ -1,0 +1,39 @@
+container fn_test_aritydisp
+{
+	// arity-aware head dispatch: argument counts the binary operators reject route to
+	// the same-named prelude variadic functions (add/mul/or/and folds, 2-arg log)
+	unit<uint32> D : nrofrows = 3 { attribute<float64> x := float64(id(D)); }
+
+	parameter<uint32>  a1 := add(7);
+	parameter<uint32>  a3 := add(1, 2, 3);
+	parameter<uint32>  a4 := add(1, 2, 3, 4);
+	parameter<uint32>  m3 := mul(2, 3, 4);
+	parameter<bool>    o3 := or(false, false, true);
+	parameter<bool>    n3 := and(true, true, false);
+	parameter<float64> lg := log(8.0, 2.0);
+
+	// replace: 3-arg = the ternary operator (regression: dispatch must not capture it);
+	// 5/7-arg = the prelude pairwise fold
+	parameter<string> rp3 := replace('aXbZ', 'X', 'Y');
+	parameter<string> rp5 := replace('aXbZ', 'X', 'Y', 'Z', 'W');
+	parameter<string> rp7 := replace('aXbZcQ', 'X', 'Y', 'Z', 'W', 'Q', 'R');
+
+	// dispatch from INSIDE a function body (incl. the folds' own recursion)
+	function inner(attribute<float64> y) -> attribute<float64> := add(y, y, y);
+	attribute<float64> tri (D) := inner(D/x);
+
+	container checks
+	{
+		parameter<bool> c_a1 := a1 == 7,  IntegrityCheck = "c_a1 == true";
+		parameter<bool> c_a3 := a3 == 6,  IntegrityCheck = "c_a3 == true";
+		parameter<bool> c_a4 := a4 == 10, IntegrityCheck = "c_a4 == true";
+		parameter<bool> c_m3 := m3 == 24, IntegrityCheck = "c_m3 == true";
+		parameter<bool> c_o3 := o3,       IntegrityCheck = "c_o3 == true";
+		parameter<bool> c_n3 := !n3,      IntegrityCheck = "c_n3 == true";
+		parameter<bool> c_lg := abs(lg - 3.0) < 1e-12, IntegrityCheck = "c_lg == true";
+		parameter<bool> c_r3 := rp3 == 'aYbZ',   IntegrityCheck = "c_r3 == true";
+		parameter<bool> c_r5 := rp5 == 'aYbW',   IntegrityCheck = "c_r5 == true";
+		parameter<bool> c_r7 := rp7 == 'aYbWcR', IntegrityCheck = "c_r7 == true";
+		parameter<bool> c_tr := all(tri == 3.0 * D/x), IntegrityCheck = "c_tr == true";
+	}
+}

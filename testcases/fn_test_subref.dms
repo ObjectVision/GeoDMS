@@ -1,0 +1,32 @@
+container fn_test_subref
+{
+	// §12.7 slSubItemCall tranche, the FLAGSHIP positive: composite-result
+	// member references in an inline function body WORK end-to-end.
+	// u := unique(src) types as an existential unit U; u/Values as
+	// attribute<V>(U) with V riding the FORMAL's rigid node — the rlookup/
+	// lookup roundtrip must scan clean at definition AND compute (identity).
+	unit<uint32> D : nrofrows = 4;
+	attribute<float64> x (D) : [1.0, 2.0, 2.0, 3.0];
+
+	function f<V: numerics, DD: domains>(attribute<V> src (DD)) -> attribute<V> (DD)
+	{
+		unit<uint32> u := unique(src);
+		attribute<V> result (DD) := u/Values[rlookup(src, u/Values)];
+	}
+	attribute<float64> y (D) := f(x);
+
+	// lowercase member reference: the engine's item lookup is case-insensitive,
+	// so the checker's member map must be too
+	function g(attribute<float64> src (D)) -> parameter<float64>
+	{
+		unit<uint32> u := unique(src);
+		parameter<float64> result := sum(u/values);
+	}
+	parameter<float64> s := g(x);
+
+	container checks
+	{
+		parameter<float64> c_1 := sum(y), IntegrityCheck = "c_1 == 8.0"; // identity roundtrip
+		parameter<float64> c_2 := s,      IntegrityCheck = "c_2 == 6.0"; // 1+2+3
+	}
+}

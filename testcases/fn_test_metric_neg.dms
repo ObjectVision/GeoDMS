@@ -1,0 +1,13 @@
+container fn_test_metric_neg
+{
+	unit<float64> meter  := BaseUnit('m', float64);
+	unit<float64> second := BaseUnit('s', float64);
+
+	length   = parameter<meter>;
+	duration = parameter<second>;
+
+	a: length   := 3.0[meter];
+	t: duration := 5.0[second];
+
+	bad: length := a + t;   // expect: incompatible metrics (metre vs second)
+}

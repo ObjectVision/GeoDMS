@@ -1,0 +1,14 @@
+container fn_test_defcheck
+{
+	unit<uint32> Road : nrofrows = 2
+	{
+		attribute<float64> flow : [ 1.0, 2.0 ];
+	}
+
+	// a function whose body references an identifier that does not resolve in its scope
+	function Bad(unit<uint32> D; attribute<float64> x (D))
+	-> attribute<float64> (D) := x + nonexistent_thing;
+
+	// referencing it triggers the definition-time scope check
+	attribute<float64> failing (Road) := Bad(Road, Road/flow);
+}

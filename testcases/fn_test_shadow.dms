@@ -1,0 +1,46 @@
+container fn_test_shadow
+{
+	// REGRESSION (review findings, tranche 3): body-local declarations shadow outer
+	// names at reduction; the definition-time walker must honor the same
+	// nearest-scope rules (or defer), never typing the shadowed OUTER name.
+	unit<uint32> N    : nrofrows = 5;   // outer N: uint32 — shadowed inside F's body
+	unit<uint32> Road : nrofrows = 3
+	{
+		attribute<float64> flow   : [ 1.0, 2.0, 3.0 ];
+		attribute<float32> flow32 : [ 1.5, 2.5, 3.0 ];
+	}
+
+	function gid8<D: domains>(attribute<uint8> z (D)) -> attribute<uint8> (D) := (z);
+
+	// (a) a sub-container-local unit N shadows the outer N for declared types
+	function F(attribute<float64> x (Road)) -> attribute<uint8> (Road) := (sub/q);
+	{
+		container sub
+		{
+			unit<uint8> N;                        // body-local N (uint8) shadows outer uint32 N
+			attribute<uint8> y (Road) := uint8(x);
+			attribute<N>     q (Road) := gid8(y); // 'N' here = the LOCAL uint8 N
+		}
+	}
+	attribute<uint8> outF (Road) := F(Road/flow);
+
+	// (b) a sub-container local shadows a same-named DATA parameter in argument
+	// position: the walker must type the LOCAL float32 'a', not the parameter
+	function gf32<D: domains>(attribute<float32> w (D)) -> attribute<float32> (D) := (w);
+
+	function G<V: numerics, D: domains>(attribute<V> a (D); attribute<float32> f32src (D)) -> attribute<float32> (D) := (helper/r);
+	{
+		container helper
+		{
+			attribute<float32> a (D) := f32src;
+			attribute<float32> r (D) := gf32(a);   // 'a' = helper/a (float32), NOT the parameter
+		}
+	}
+	attribute<float32> outG (Road) := G(Road/flow, Road/flow32);
+
+	container checks
+	{
+		parameter<float64> c_f := sum(float64(outF)), IntegrityCheck = "c_f == 6.0";
+		parameter<float64> c_g := sum(float64(outG)), IntegrityCheck = "c_g == 7.0";
+	}
+}

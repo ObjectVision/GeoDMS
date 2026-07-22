@@ -1,0 +1,18 @@
+container fn_test_gsig_neg
+{
+	unit<uint32> Road : nrofrows = 2 { attribute<float64> flow : [ 1.0, 2.0 ]; }
+
+	nuf = function<V: numerics, D: domains>(attribute<V> (D)) -> attribute<V> (D);
+
+	// a binary function cannot bind to a unary signature
+	function add2<V: numerics>(attribute<V> a; attribute<V> b) -> attribute<V> := a + b;
+
+	function twice(h: nuf) -> function
+	{
+		function result<V: numerics>(attribute<V> x) -> attribute<V> := h(h(x));
+	}
+
+	attribute<float64> bad (Road) := twice(add2)(Road/flow);
+
+	container checks { parameter<float64> use := sum(bad); }
+}

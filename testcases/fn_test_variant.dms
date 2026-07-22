@@ -1,0 +1,24 @@
+container fn_test_variant
+{
+	unit<uint32> D : nrofrows = 3
+	{
+		attribute<float64> f : [ 1.0, 2.0, 3.0 ];
+		attribute<int32>   i : [ 10, 20, 30 ];
+	}
+
+	// a variant set: 'describe' dispatches on the element type of its argument
+	function describe
+	{
+		variant asFloat(attribute<float64> x (D)) -> attribute<float64> (D) := x * 100.0;
+		variant asInt  (attribute<int32>   x (D)) -> attribute<int32>   (D) := x + x;
+	}
+
+	attribute<float64> df (D) := describe(D/f);   // picks asFloat
+	attribute<int32>   di (D) := describe(D/i);   // picks asInt
+
+	container checks
+	{
+		parameter<float64> cf := sum(df), IntegrityCheck = "cf == 600.0";      // (1+2+3)*100
+		parameter<int32>   ci := sum(di), IntegrityCheck = "ci == int32(120)"; // (10+20+30)*2
+	}
+}

@@ -1,0 +1,30 @@
+container fn_test_odmembers_neg2
+{
+	// dijkstra OD member emissions: the impedance member types as float64
+	// (the link-impedance class, ImpType) over the fresh OD_Pairs unit, so a
+	// string-declared local fed from it — reachable from the result — is a
+	// DEFINITION-time class mismatch (Float64 vs String), no reduction needed.
+	unit<uint32> Node : nrofrows = 2;
+	unit<uint32> Link : nrofrows = 1
+	{
+		attribute<Node>    F1  : [0];
+		attribute<Node>    F2  : [1];
+		attribute<float64> imp : [1.0];
+	}
+	unit<uint32> StartSet : nrofrows = 1 { attribute<Node> nr : [0]; }
+	unit<uint32> EndSet   : nrofrows = 1 { attribute<Node> nr : [1]; }
+
+	function odbad(attribute<float64> w (Link); attribute<Node> f1 (Link); attribute<Node> f2 (Link); attribute<Node> sr (StartSet); attribute<Node> er (EndSet))
+	-> parameter<uint32>
+	{
+		unit<uint32> od := impedance_matrix('directed;startPoint(Node_rel);endPoint(Node_rel);od:impedance,OrgZone_rel,DstZone_rel', w, f1, f2, sr, er);
+		attribute<string> mislabeled (od) := od/impedance; // float64 member vs string declaration
+		parameter<uint32> result := #mislabeled;           // references mislabeled -> checked
+	}
+	parameter<uint32> n := odbad(Link/imp, Link/F1, Link/F2, StartSet/nr, EndSet/nr);
+
+	container checks
+	{
+		parameter<uint32> c_1 := n, IntegrityCheck = "c_1 == 1";
+	}
+}

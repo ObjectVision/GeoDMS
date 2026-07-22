@@ -1,0 +1,22 @@
+container fn_test_applyt
+{
+	template Doubler
+	{
+		unit<uint32>       D;
+		attribute<float64> x (D);
+		attribute<float64> result (D) := 2.0 * x;
+	}
+
+	unit<uint32> Road : nrofrows = 3 { attribute<float64> flow : [ 1.0, 2.0, 3.0 ]; }
+
+	// 'apply T' = the value: the 'result' sub-item of a cache-instantiated Doubler(args)
+	attribute<float64> doubled  (Road) := apply Doubler(Road, Road/flow);
+	// same scope + same args → should intern to the same cache item
+	attribute<float64> doubled2 (Road) := apply Doubler(Road, Road/flow);
+
+	container checks
+	{
+		parameter<float64> c1 := sum(doubled),  IntegrityCheck = "c1 == 12.0"; // 2*(1+2+3)
+		parameter<float64> c2 := sum(doubled2), IntegrityCheck = "c2 == 12.0";
+	}
+}

@@ -1,0 +1,13 @@
+container fn_test_domvar_neg
+{
+	unit<uint32> Road : nrofrows = 3 { attribute<float64> flow : [ 1.0, 2.0, 3.0 ]; }
+	unit<uint32> Rail : nrofrows = 2 { attribute<float64> flow : [ 5.0, 6.0 ]; }
+
+	function ratio<V: numerics, D: domains>(attribute<V> a (D); attribute<V> b (D))
+	-> attribute<V> (D) := a / b;
+
+	// Road and Rail domains differ: D cannot be instantiated consistently
+	attribute<float64> bad (Road) := ratio(Road/flow, Rail/flow);
+
+	container checks { parameter<float64> use := sum(bad); }
+}

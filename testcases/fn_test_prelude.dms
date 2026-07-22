@@ -1,0 +1,69 @@
+container fn_test_prelude
+{
+	#include <%exeDir%/prelude.dms>
+
+	unit<uint32> Road : nrofrows = 4
+	{
+		attribute<float64> flow : [ 2.0, 3.0, 0.0, 1.0 ];
+		attribute<float64> nully : [ 1.0, null, 2.0, null ];
+		attribute<float64> nully2 : [ 1.0, null, null, 5.0 ];
+	}
+
+	// ------------------------------------------------ value checks
+	attribute<float64> sq   (Road) := sqr(Road/flow);              // [4,9,0,1]
+	attribute<float64> pl   (Road) := plogp(Road/flow);            // [2ln2, 3ln3, 0 (MakeDefined), 0]
+	attribute<bool>    eqbn (Road) := eq_or_both_null(Road/nully, Road/nully2);  // [T,T,F,F]
+	attribute<bool>    lel  (Road) := le_or_lhs_null(Road/nully, Road/nully2);   // [T,T,F,T]
+	attribute<bool>    ler  (Road) := le_or_rhs_null(Road/nully, Road/nully2);   // [T,T,T,F]
+	attribute<bool>    neon (Road) := ne_or_one_null(Road/nully, Road/nully2);   // [F,F,T,T]
+	attribute<float64> lp   (Road) := llpart(const(4.0,Road), Road/flow + 1.0, const(2.0,Road));
+	attribute<float64> lpx  (Road) := 2.0 * log(Road/flow + 1.0) - log(const(4.0,Road)); // same spelling, explicit
+
+	// ------------------------------------------------ R13 key identity: cross-spelling unit unification
+	// three spellings of the same count expression must intern to ONE domain key
+	parameter<uint32> p := 3;
+	unit<uint32> DomA := range(uint32, 0, sqr(p));
+	unit<uint32> DomB := range(uint32, 0, p * p);
+	attribute<float64> xAB (DomA) := const(1.0, DomB);   // compiles iff DomA/DomB keys identical
+
+	// pow expansion regression (resolvents now carry sqr inline)
+	attribute<float64> p3 (Road) := pow(Road/flow, 3);   // [8,27,0,1]
+	attribute<float64> p4 (Road) := pow(Road/flow, 4);   // [16,81,0,1]
+	attribute<float64> p6 (Road) := pow(Road/flow, 6);   // [64,729,0,1]
+
+	// ---------------------------------------- tranche 2: multi-arity variant dispatch
+	attribute<float64> rs1 (Road) := rescale(Road/flow);              // (x-0)/(3-0) = [2/3, 1, 0, 1/3]
+	attribute<float64> rs3 (Road) := rescale(Road/flow, 10.0, 40.0);  // [30, 40, 10, 20]
+	attribute<float64> nrm (Road) := normalize(Road/flow);            // mean 1.5, sum(normalized)=0
+	attribute<float64> ssum(Road) := scalesum(Road/flow, const(12.0, Road));   // x * 12/6 = [4,6,0,2]
+	attribute<float64> dst (Road) := distribute(const(12.0, Road), Road/flow); // same by arg-swap
+
+	// partitioned forms: two groups [0,0,1,1]
+	unit<uint32> Part : nrofrows = 2;
+	attribute<Part>    grp (Road)  : [ 0, 0, 1, 1 ];
+	attribute<float64> targ (Part) : [ 10.0, 4.0 ];
+	attribute<float64> ssP (Road) := scalesum(Road/flow, grp, targ); // g0: x*10/5=[4,6]; g1: x*4/1=[0,4]
+	attribute<float64> rsP (Road) := rescale(Road/flow, grp, 0.0, 1.0); // per-group [0..1]: [0,1,0,1] (min/max are scalars, as in the retired rule)
+
+	container checks
+	{
+		parameter<float64> c_sq   := sum(sq),  IntegrityCheck = "c_sq == 14.0";
+		parameter<float64> c_pl   := sum(pl),  IntegrityCheck = "c_pl > 4.68 && c_pl < 4.69"; // 2ln2+3ln3 = 4.6821
+		parameter<uint32>  c_eqbn := sum(uint32(eqbn)), IntegrityCheck = "c_eqbn == 2";
+		parameter<uint32>  c_lel  := sum(uint32(lel)),  IntegrityCheck = "c_lel == 3";
+		parameter<uint32>  c_ler  := sum(uint32(ler)),  IntegrityCheck = "c_ler == 3";
+		parameter<uint32>  c_neon := sum(uint32(neon)), IntegrityCheck = "c_neon == 2";
+		parameter<float64> c_lldiff := sum(abs(lp - lpx)), IntegrityCheck = "c_lldiff == 0.0";
+		parameter<float64> c_keys := sum(xAB), IntegrityCheck = "c_keys == 9.0";
+		parameter<float64> c_p3   := sum(p3),  IntegrityCheck = "c_p3 == 36.0";
+		parameter<float64> c_p4   := sum(p4),  IntegrityCheck = "c_p4 == 98.0";
+		parameter<float64> c_p6   := sum(p6),  IntegrityCheck = "c_p6 == 794.0";
+		parameter<float64> c_rs1  := sum(rs1), IntegrityCheck = "c_rs1 > 1.999999 && c_rs1 < 2.000001";
+		parameter<float64> c_rs3  := sum(rs3), IntegrityCheck = "c_rs3 == 100.0";
+		parameter<float64> c_nrm  := sum(nrm), IntegrityCheck = "abs(c_nrm) < 1e-12";
+		parameter<float64> c_ss   := sum(ssum),IntegrityCheck = "c_ss == 12.0";
+		parameter<float64> c_dst  := sum(dst), IntegrityCheck = "c_dst == 12.0";
+		parameter<float64> c_ssP  := sum(ssP), IntegrityCheck = "c_ssP == 14.0";
+		parameter<float64> c_rsP  := sum(rsP), IntegrityCheck = "c_rsP == 2.0";
+	}
+}

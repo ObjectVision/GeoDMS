@@ -1,0 +1,44 @@
+container fn_test_p2
+{
+	unit<uint32> Road : nrofrows = 4
+	{
+		attribute<float64> flow  : [ 100.0, 200.0,  50.0, 400.0 ];
+		attribute<uint32>  lanes : [ 1, 2, 1, 3 ];
+	}
+
+	// value-type-generic function: one definition, multiple instantiations
+	function TwiceG<V: numerics>(unit<uint32> D; attribute<V> x (D))
+	-> attribute<V> (D) := x + x;
+
+	attribute<float64> f2 (Road) := TwiceG(Road, Road/flow);
+	attribute<uint32>  l2 (Road) := TwiceG(Road, Road/lanes);
+
+	// generic domain parameter
+	function CountOf<D: domains>(unit<D> E) -> parameter<uint32> := uint32(#E);
+	parameter<uint32> n := CountOf(Road);
+
+	// two independent type variables
+	function Mix<V: numerics, W: numerics>(unit<uint32> D; attribute<V> a (D); attribute<W> b (D))
+	-> attribute<float64> (D) := float64(a) + float64(b);
+	attribute<float64> mixed (Road) := Mix(Road, Road/flow, Road/lanes);
+
+	// signed/unsigned integer constraints (both spellings)
+	attribute<int32> delta (Road) : [ -1, 1, -2, 2 ];
+	function AbsG<V: signed_ints>(unit<uint32> D; attribute<V> x (D))
+	-> attribute<V> (D) := abs(x);
+	attribute<int32> absd (Road) := AbsG(Road, delta);
+
+	function TwiceU<V: uints>(unit<uint32> D; attribute<V> x (D))
+	-> attribute<V> (D) := x + x;
+	attribute<uint32> l2u (Road) := TwiceU(Road, Road/lanes);
+
+	container checks
+	{
+		parameter<float64> check1 := sum(f2),    IntegrityCheck = "check1 == 1500.0";
+		parameter<uint32>  check2 := sum(l2),    IntegrityCheck = "check2 == 14";
+		parameter<uint32>  check3 := n,          IntegrityCheck = "check3 == 4";
+		parameter<float64> check4 := sum(mixed), IntegrityCheck = "check4 == 757.0";
+		parameter<int32>   check5 := sum(absd), IntegrityCheck = "check5 == int32(6)";
+		parameter<uint32>  check6 := sum(l2u),  IntegrityCheck = "check6 == 14";
+	}
+}

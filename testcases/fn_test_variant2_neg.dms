@@ -1,0 +1,15 @@
+container fn_test_variant2_neg
+{
+	unit<uint32> D : nrofrows = 2 { attribute<float64> f : [ 1.0, 2.0 ]; }
+
+	// (numerics, float64) and (float64, numerics) overlap at (float64, float64)
+	// without either being more specific: rejected at definition
+	function bad
+	{
+		variant a<V: numerics>(attribute<V> x (D); attribute<float64> y (D)) -> attribute<float64> (D) := y;
+		variant b<W: numerics>(attribute<float64> x (D); attribute<W> y (D)) -> attribute<float64> (D) := x;
+	}
+
+	attribute<float64> use (D) := bad(D/f, D/f);
+	container checks { parameter<float64> c := sum(use); }
+}

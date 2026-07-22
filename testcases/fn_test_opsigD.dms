@@ -1,0 +1,48 @@
+container fn_test_opsigD
+{
+	// op-sig batch D: the fresh-unit family - unique / select / union produce a
+	// fresh (existential) result unit (K6 -> a fresh flexible node, deduplicated
+	// per hash-consed application by the walker's LispPtr memo), and
+	// collect_by_cond ranges over a passed subset unit with the condition/data
+	// domains unified (K1). Descriptions checked THROUGH function bodies.
+	unit<uint32> Dom : nrofrows = 5;
+	attribute<uint32>  seq  (Dom) : [0, 1, 2, 3, 4];
+	attribute<uint32>  reps (Dom) : [0, 1, 0, 1, 0];       // 2 distinct values
+	attribute<bool>    cond (Dom) := seq < uint32(3);      // [T,T,T,F,F] -> 3 trues
+	attribute<float32> data (Dom) := float32(seq);         // [0,1,2,3,4]
+
+	// select-domain declared at container level; the function collects over it.
+	// collectF exercises collect_by_cond: K1 (c and d share domain D) + result
+	// over the passed subset s + values borrow (class-level)
+	unit<uint32> Sub := select(cond);   // fresh subset unit, 3 rows
+
+	function collectF<D: domains, V: any>(unit<uint32> s; attribute<bool> c (D); attribute<V> d (D))
+	-> attribute<V> (s) := collect_by_cond(s, c, d);
+
+	attribute<float32> picked (Sub) := collectF(Sub, cond, data);   // [0,1,2]
+
+	// select INSIDE a function body: the fresh unit feeds NrOfRows (a namable
+	// parameter result); the condition's Bool class is checked at definition
+	function countSel<D: domains>(attribute<bool> c (D)) -> parameter<uint32> := NrOfRows(select(c));
+
+	// unique INSIDE a function body: fresh unit -> NrOfRows
+	function countUniq<D: domains, V: any>(attribute<V> x (D)) -> parameter<uint32> := NrOfRows(unique(x));
+
+	// union INSIDE a function body: two attributes sharing value class V (K7
+	// compatible-values as class equality) -> a fresh unit -> NrOfRows
+	function countUnion<D1: domains, D2: domains, V: any>(attribute<V> a (D1); attribute<V> b (D2))
+	-> parameter<uint32> := NrOfRows(union(a, b));
+
+	parameter<uint32> nSel   := countSel(cond);            // 3
+	parameter<uint32> nUniq  := countUniq(reps);           // 2
+	parameter<uint32> nUnion := countUnion(data, data);    // 5 + 5 = 10
+
+	container checks
+	{
+		parameter<uint32>  c_n := NrOfRows(Sub),   IntegrityCheck = "c_n == 3";
+		parameter<float32> c_p := sum(picked),     IntegrityCheck = "c_p == 3f";   // 0+1+2
+		parameter<uint32>  c_s := nSel,            IntegrityCheck = "c_s == 3";
+		parameter<uint32>  c_u := nUniq,           IntegrityCheck = "c_u == 2";
+		parameter<uint32>  c_v := nUnion,          IntegrityCheck = "c_v == 10";
+	}
+}

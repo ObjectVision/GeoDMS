@@ -1,0 +1,20 @@
+container fn_test_opsigB_neg2
+{
+	// NEGATIVE (definition-time, op-sig batch B): rlookup's result is VALUED in
+	// its second argument's domain (K4); declaring the result over Town while b
+	// ranges over Region violates that identity at the definition's first
+	// reference. At reduction the same config throws in CheckResultItem's
+	// categorical UnifyDomain discharge (rlookup results are categorical).
+	// Expected: "the definition of '/bad2': inconsistent instantiation of unit
+	//            variable 'E' ..."
+	unit<uint32> Region : nrofrows = 2 { attribute<float64> avg : [10.0, 20.0]; }
+	unit<uint32> Town   : nrofrows = 2;
+	unit<uint32> House  : nrofrows = 3 { attribute<float64> price : [1.0, 2.0, 3.0]; }
+
+	function bad2<D: domains>(attribute<float64> a (D); attribute<float64> b (Region))
+	-> attribute<Town> (D) := rlookup(a, b);
+
+	attribute<Town> z (House) := bad2(House/price, Region/avg);
+
+	container checks { parameter<uint32> use := sum(uint32(z)); }
+}

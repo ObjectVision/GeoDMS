@@ -1,0 +1,12 @@
+container fn_test_literal_neg
+{
+	function CongestionRatio(unit<uint32> Rd { attribute<float64> flow; attribute<float64> cap; })
+	-> attribute<float64> (Rd) := min_elem(Rd/flow / Rd/cap, 1.0);
+
+	unit<uint32> Road : nrofrows = 2 { attribute<float64> flow : [1.0,2.0]; }
+
+	// the literal is missing the required member 'cap' → error at Rd/cap
+	attribute<float64> bad (Road) := CongestionRatio( Road { flow: Road/flow; } );
+
+	container checks { parameter<float64> use := sum(bad); }
+}

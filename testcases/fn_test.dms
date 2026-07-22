@@ -1,0 +1,88 @@
+container fn_test
+{
+	unit<uint32> Road : nrofrows = 4
+	{
+		attribute<float64> flow : [ 100.0, 200.0,  50.0, 400.0 ];
+		attribute<float64> cap  : [ 200.0, 100.0, 100.0, 300.0 ];
+	}
+
+	// form b: '->' result type, result expression over a body item, body block after ';'
+	function CongestionRatio(
+		unit<uint32>       Rd;
+		attribute<float64> flow (Rd);
+		attribute<float64> cap  (Rd))
+	-> attribute<float64> (Rd) := min_elem(raw, 1.0);
+	{
+		attribute<float64> raw (Rd) := flow / cap;
+	}
+
+	container cr := instantiate CongestionRatio(Road, Road/flow, Road/cap);
+	attribute<float64> congestion (Road) := cr/result;
+
+	// form c: expression-only function, structured (table-typed) parameter
+	function CongestionRatio2(
+		unit<uint32> Rd {
+			attribute<float64> flow;
+			attribute<float64> cap;
+		}
+	) -> attribute<float64> (Rd) := min_elem(Rd/flow / Rd/cap, 1.0);
+
+	container cr2 := instantiate CongestionRatio2(Road);
+	attribute<float64> congestion2 (Road) := cr2/result;
+
+	// form a: name:type declarations in the telescope, ':= Result' designating a body item
+	function CongestionRatio3(
+		Rd: unit<uint32> {
+			flow: attribute<float64>;
+			cap:  attribute<float64>;
+		}
+	)
+	-> attribute<float64> (Rd) := Result
+	{
+		attribute<float64> raw    (Rd) := Rd/flow / Rd/cap;
+		attribute<float64> result (Rd) := min_elem(raw, 1.0);
+	}
+
+	container cr3 := instantiate CongestionRatio3(Road);
+	attribute<float64> congestion3 (Road) := cr3/result;
+
+	// composite type by example + named result; name:type declarations with data
+	network_links: unit<uint32> : nrofrows = 3
+	{
+		nodeset: unit<uint32> : nrofrows = 3;
+		F1: attribute<nodeset> : [ 0, 1, 2 ];
+		F2: attribute<nodeset> : [ 1, 2, 0 ];
+	}
+
+	// multi-name declaration sharing one calculation rule
+	c1, c2: parameter<float64> := 1.0;
+
+	function connectedness( nw: network_links ) -> link_counts: attribute<uint32> (nw/nodeset) := pcount(nw/F1) + pcount(nw/F2);
+
+	container conn := instantiate connectedness(network_links);
+	attribute<uint32> node_counts (network_links/nodeset) := conn/link_counts;
+
+	// explicit import: strict scope + using
+	container shared
+	{
+		parameter<float64> limit := 0.5;
+	}
+
+	function Capped(
+		unit<uint32>       Rd;
+		attribute<float64> x (Rd))
+	,	using = shared
+	-> attribute<float64> (Rd) := min_elem(x, limit);
+
+	container cp := instantiate Capped(Road, Road/flow);
+
+	container checks
+	{
+		parameter<float64> check1 := sum(congestion),  IntegrityCheck = "check1 == 3.0";
+		parameter<float64> check2 := sum(congestion2), IntegrityCheck = "check2 == 3.0";
+		parameter<float64> check3 := sum(congestion3), IntegrityCheck = "check3 == 3.0";
+		parameter<uint32>  check4 := sum(node_counts), IntegrityCheck = "check4 == 6";
+		parameter<float64> check5 := sum(cp/result),   IntegrityCheck = "check5 == 2.0";
+		parameter<float64> check6 := c1 + c2,          IntegrityCheck = "check6 == 2.0";
+	}
+}

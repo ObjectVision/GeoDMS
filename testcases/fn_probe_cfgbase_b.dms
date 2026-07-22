@@ -1,0 +1,25 @@
+container fn_probe_cfgbase_b
+{
+	// Config-alias member access (b): a body local aliasing an 'item' (meta-reference)
+	// parameter whose argument is a CONFIG container; member access below the alias
+	// (c/sub) resolves directly against the referenced config item (cfg/sub). Positive test.
+	unit<uint32> D : nrofrows = 3;
+	attribute<float64> x (D) : [1.0, 2.0, 3.0];
+
+	container cfg
+	{
+		attribute<float64> sub (D) : [1.0, 2.0, 3.0];
+	}
+
+	function f(item it) -> parameter<float64>
+	{
+		container c := it;
+		parameter<float64> result := sum(c/sub);
+	}
+	parameter<float64> y := f(cfg);
+
+	container checks
+	{
+		parameter<float64> c_1 := y, IntegrityCheck = "c_1 == 6.0";
+	}
+}

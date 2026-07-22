@@ -1,0 +1,26 @@
+container fn_test_da
+{
+	// §12.8 discrete_alloc array-spec join: in a function body,
+	// a := discrete_alloc(...); a/landuse is typed attribute<AT>(allocUnit),
+	// AT = the typeNames' DOMAIN — STRUCTURALLY, even when typeNames/allocUnit
+	// are FORMALS (the ruling). This is the VALUES-conflict negative: landuse's
+	// values ride AT (a domains-constrained type var D here), so a string
+	// declaration fed from a/landuse is a DEFINITION-time conflict — proving
+	// landuse's values == the typeNames domain, no discrete_alloc reduction.
+	unit<uint8>  LuType : nrofrows = 2 { attribute<string> name : ['A','B']; }
+	unit<uint32> Cells  : nrofrows = 4;
+	container Suit { attribute<float32> A (Cells) := const(1f, Cells); attribute<float32> B (Cells) := const(1f, Cells); }
+	container CMin { parameter<uint32> A := 1; parameter<uint32> B := 1; }
+	container CMax { parameter<uint32> A := 4; parameter<uint32> B := 4; }
+	parameter<int32> thr := 0i;
+
+	function f<D: domains>(attribute<string> tn (D); unit<uint32> cells) -> parameter<uint32>
+	{
+		container a := discrete_alloc_np(tn, cells, Suit, CMin, CMax, thr);
+		attribute<string> bad (cells) := a/landuse; // landuse values = D (typeNames domain), declared string -> conflict
+		parameter<uint32> result := #bad;
+	}
+	parameter<uint32> n := f(LuType/name, Cells);
+
+	container checks { parameter<uint32> c_1 := n, IntegrityCheck = "c_1 == 4"; }
+}

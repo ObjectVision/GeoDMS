@@ -1,0 +1,100 @@
+container fn_test_p1
+{
+	unit<uint32> Road : nrofrows = 4
+	{
+		attribute<float64> flow : [ 100.0, 200.0,  50.0, 400.0 ];
+		attribute<float64> cap  : [ 200.0, 100.0, 100.0, 300.0 ];
+		attribute<bool>    busy : [ false, true, false, true ];
+	}
+
+	container lib
+	{
+		function Ratio(
+			unit<uint32> Rd {
+				attribute<float64> flow;
+				attribute<float64> cap;
+			}
+		) -> attribute<float64> (Rd) := min_elem(raw, 1.0);
+		{
+			attribute<float64> raw (Rd) := Rd/flow / Rd/cap;
+		}
+
+		// function composition: calling another function requires importing its scope
+		function Scaled(
+			unit<uint32> Rd {
+				attribute<float64> flow;
+				attribute<float64> cap;
+			};
+			parameter<float64> f
+		), using = /lib
+		-> attribute<float64> (Rd) := Ratio(Rd) * f;
+
+		// unit-returning function
+		function SelectBusy(
+			unit<uint32> Rd { attribute<bool> busy; }
+		) -> unit<uint32> := select_with_org_rel(Rd/busy);
+	}
+
+	// direct typed root call: the application is an expression, no container needed
+	attribute<float64> congestion (Road) := lib/Ratio(Road);
+
+	// nested call inside a larger expression
+	attribute<float64> pressure (Road) := lib/Ratio(Road) * 2.0;
+
+	// function calling function, with a literal argument
+	attribute<float64> scaled (Road) := lib/Scaled(Road, 10.0);
+
+	// applicative identity: two separate bindings of the same application
+	// must yield UNIFIABLE domains
+	unit<uint32> busy1 := lib/SelectBusy(Road);
+	unit<uint32> busy2 := lib/SelectBusy(Road);
+	attribute<uint32> r1 (busy1) := uint32(busy1/org_rel);
+	attribute<uint32> r2 (busy2) := uint32(busy2/org_rel);
+
+	// container-bound call of a function whose import equals its definition parent
+	// (regression: imports must survive instantiation even when == definition scope)
+	container scaled_inst := instantiate lib/Scaled(Road, 10.0);
+	attribute<float64> scaled2 (Road) := scaled_inst/result;
+
+	// nested body scope: sibling references inside a body container
+	function Nested(
+		unit<uint32> Rd { attribute<float64> flow; }
+	) -> attribute<float64> (Rd) := helpers/b
+	{
+		container helpers
+		{
+			attribute<float64> a (Rd) := Rd/flow * 2.0;
+			attribute<float64> b (Rd) := a + 1.0;
+		}
+	}
+	attribute<float64> nested_out (Road) := Nested(Road);
+
+	// structured parameter with multi-name member declarations: arity stays 1
+	function Pair(
+		unit<uint32> Rd { flow, cap: attribute<float64>; }
+	) -> attribute<float64> (Rd) := Rd/flow + Rd/cap;
+	attribute<float64> paired (Road) := Pair(Road);
+
+	// function defined inside a template body survives instantiation
+	template TWrap
+	{
+		unit<uint32> D;
+		attribute<float64> vals (D);
+		function Twice(attribute<float64> x (D)) -> attribute<float64> (D) := 2.0 * x;
+		attribute<float64> out (D) := Twice(vals);
+	}
+	container tw := TWrap(Road, Road/flow);
+
+	container checks
+	{
+		parameter<float64> check1 := sum(congestion), IntegrityCheck = "check1 == 3.0";
+		parameter<float64> check2 := sum(pressure),   IntegrityCheck = "check2 == 6.0";
+		parameter<float64> check3 := sum(scaled),     IntegrityCheck = "check3 == 30.0";
+		parameter<uint32>  check4 := #busy1,          IntegrityCheck = "check4 == 2";
+		parameter<uint32>  check5 := sum(r1 - r2),    IntegrityCheck = "check5 == 0"; // requires busy1/busy2 to unify
+		parameter<float64> check6 := sum(scaled2),    IntegrityCheck = "check6 == 30.0";
+		parameter<float64> check7 := sum(nested_out), IntegrityCheck = "check7 == 1504.0"; // 2*flow + 1 summed
+		parameter<float64> check8 := sum(paired),     IntegrityCheck = "check8 == 1450.0"; // sum(flow) + sum(cap)
+		parameter<float64> check9 := sum(tw/out),     IntegrityCheck = "check9 == 1500.0"; // 2 * sum(flow)
+	}
+}

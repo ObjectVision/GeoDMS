@@ -1,0 +1,49 @@
+container fn_test_opsigA
+{
+	// op-sig batch A: operator signatures DERIVED from the registered members
+	// (OperSignature.h merged records + member class tuples) type applications
+	// in function bodies — no hand-written registry entries anywhere below
+	unit<uint32> Road : nrofrows = 3
+	{
+		attribute<float64> flow : [ 1.0, 2.0, 3.0 ];
+		attribute<float64> cap  : [ 2.0, 4.0, 6.0 ];
+	}
+
+	// iif (absent from the retired OperSigKind registry): the tuples pin the
+	// condition to bool and link both branches with the result
+	function pickmax<V: numerics, D: domains>(attribute<V> x (D); attribute<V> y (D)) -> attribute<V> (D)
+		:= iif(x < y, y, x);
+
+	// div (also absent from the old registry): result class follows the
+	// argument class through the all-members-agree tuple link
+	function half<F: floats, D: domains>(attribute<F> x (D)) -> attribute<F> (D) := x / (x + x);
+
+	// min_elem: the variadic family (allow_extra_args) described via RepeatArgs —
+	// every trailing argument shares the class and domain of the first
+	function clamp3<V: numerics, D: domains>(attribute<V> a (D); attribute<V> b (D); attribute<V> c (D)) -> attribute<V> (D)
+		:= min_elem(a, b, c);
+
+	// convert through the casted family: the result class equals the unit
+	// argument's class per member (tuple-linked U == R)
+	function toCnt<D: domains>(attribute<float64> x (D)) -> attribute<uint32> (D) := convert(x, uint32);
+
+	// the cog_mul mixed-group sentinel: with an untypeable argument (a literal)
+	// the unit-members and undescribed members stay in play, so the walker
+	// DEFERS — never errors — and the declared type stays authoritative
+	function twice<V: numerics, D: domains>(attribute<V> x (D)) -> attribute<V> (D) := x * 2.0;
+
+	attribute<float64> t1 (Road) := pickmax(Road/flow, Road/cap);   // = cap
+	attribute<float64> t2 (Road) := half(Road/flow);                // 0.5 each
+	attribute<float64> t3 (Road) := clamp3(Road/flow, Road/cap, Road/flow); // = flow
+	attribute<uint32>  t4 (Road) := toCnt(Road/flow);               // [1,2,3]
+	attribute<float64> t5 (Road) := twice(Road/flow);               // [2,4,6]
+
+	container checks
+	{
+		parameter<float64> c_1 := sum(t1), IntegrityCheck = "c_1 == 12.0";
+		parameter<float64> c_2 := sum(t2), IntegrityCheck = "c_2 == 1.5";
+		parameter<float64> c_3 := sum(t3), IntegrityCheck = "c_3 == 6.0";
+		parameter<uint32>  c_4 := sum(t4), IntegrityCheck = "c_4 == 6";
+		parameter<float64> c_5 := sum(t5), IntegrityCheck = "c_5 == 12.0";
+	}
+}

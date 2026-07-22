@@ -1,0 +1,16 @@
+container fn_test_arity
+{
+	unit<uint32> Road : nrofrows = 2
+	{
+		attribute<float64> flow : [ 100.0, 200.0 ];
+	}
+
+	function F(
+		unit<uint32>       Rd;
+		attribute<float64> x (Rd))
+	-> attribute<float64> (Rd) := 2.0 * x;
+
+	attribute<float64> bad (Road) := F(Road);   // arity error expected: F expects 2 arguments
+
+	parameter<float64> check := sum(bad);
+}

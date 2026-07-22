@@ -1,0 +1,48 @@
+container fn_test_bareid
+{
+	// REGRESSION: a bare-identifier result expression naming a PARAMETER (':= x')
+	// must become the result's calculation rule (the identity function), not
+	// designate the expression-less parameter item; applying gid then failed with
+	// "'/gid' is a function signature without implementation and cannot be applied".
+	// Designation (form a) stays reserved for BODY items: exact-case (':= helper')
+	// and case-insensitively-unique (':= Result' -> 'result').
+	unit<uint32> Road : nrofrows = 3
+	{
+		attribute<float64> flow : [ 1.0, 2.0, 3.0 ];
+	}
+
+	nuf = function<V: numerics, D: domains>(attribute<V> (D)) -> attribute<V> (D);
+
+	// identity: bare parameter name after ':='
+	function gid<W: numerics, E: domains>(attribute<W> x (E)) -> attribute<W> (E) := x;
+
+	function ap<A: numerics, D: domains>(f: nuf<A, D>; attribute<A> x (D))
+	-> attribute<A> (D) := f(x);
+
+	attribute<float64> direct (Road) := gid(Road/flow);      // direct application
+	attribute<float64> viaHof (Road) := ap(gid, Road/flow);  // application through a sig-typed parameter
+
+	// designation of a body item, case-insensitive (':= Result' -> 'result')
+	function capped(unit<uint32> Rd; attribute<float64> y (Rd))
+	-> attribute<float64> (Rd) := Result
+	{
+		attribute<float64> result (Rd) := min_elem(y, 2.0);
+	}
+	attribute<float64> viaDesig (Road) := capped(Road, Road/flow);   // [1,2,2]
+
+	// designation of a body item, exact-case, name != 'result'
+	function floored(unit<uint32> Rd; attribute<float64> y (Rd))
+	-> attribute<float64> (Rd) := helper
+	{
+		attribute<float64> helper (Rd) := max_elem(y, 2.0);
+	}
+	attribute<float64> viaDesig2 (Road) := floored(Road, Road/flow); // [2,2,3]
+
+	container checks
+	{
+		parameter<float64> c_direct := sum(direct),    IntegrityCheck = "c_direct == 6.0";
+		parameter<float64> c_hof    := sum(viaHof),    IntegrityCheck = "c_hof == 6.0";
+		parameter<float64> c_desig  := sum(viaDesig),  IntegrityCheck = "c_desig == 5.0";
+		parameter<float64> c_desig2 := sum(viaDesig2), IntegrityCheck = "c_desig2 == 7.0";
+	}
+}

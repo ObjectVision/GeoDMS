@@ -1,0 +1,13 @@
+container fn_test_apply_neg
+{
+	unit<uint32> Road : nrofrows = 2 { attribute<float64> flow : [ 1.0, 2.0 ]; attribute<float64> cap : [ 2.0, 4.0 ]; }
+
+	function CongestionRatio(unit<uint32> Rd { attribute<float64> flow; attribute<float64> cap; })
+	-> attribute<float64> (Rd) := min_elem(Rd/flow / Rd/cap, 1.0);
+
+	// no more holder-driven instantiation: a bare function call is a value, so binding it
+	// to a container (which cannot hold the scalar result) is an error
+	container bad := CongestionRatio(Road);
+
+	container checks { parameter<float64> use := sum(bad); }
+}

@@ -1,0 +1,19 @@
+container fn_test_opsigD_neg2
+{
+	// NEGATIVE (definition-time, op-sig batch D): select requires a Bool condition.
+	// Describing SubsetOperator makes cog_select's single (Bool-argument) member
+	// eligible for definition-time elimination: a concrete non-bool condition rules
+	// out the only member, so the walker reports no matching overload at the
+	// definition's first reference. Honest at METAINFO too: FindOper(cog_select,
+	// [uint32]) finds no member and throws in GetOperator.
+	// Expected: "the argument types of operator 'select' do not match any of its
+	//            registered overloads"
+	unit<uint32> D : nrofrows = 3;
+	attribute<uint32> x (D) : [0, 1, 2];
+
+	function bad2<E: domains>(attribute<uint32> c (E)) -> parameter<uint32> := NrOfRows(select(c));
+
+	parameter<uint32> z := bad2(x);
+
+	container checks { parameter<uint32> use := z; }
+}

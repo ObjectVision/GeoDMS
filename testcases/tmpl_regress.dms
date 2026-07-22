@@ -1,0 +1,24 @@
+container tmpl_regress
+{
+	unit<uint32> Road : nrofrows = 4
+	{
+		attribute<float64> flow : [ 100.0, 200.0,  50.0, 400.0 ];
+	}
+
+	parameter<float64> factor := 2.0;
+
+	template Doubler
+	{
+		unit<uint32>       D;
+		attribute<float64> x (D);
+		// classic template: body may reference definition scope (factor) implicitly
+		attribute<float64> result (D) := x * factor;
+	}
+
+	container d := Doubler(Road, Road/flow);
+
+	container checks
+	{
+		parameter<float64> check1 := sum(d/result), IntegrityCheck = "check1 == 1500.0";
+	}
+}

@@ -1,0 +1,37 @@
+container fn_test_variadic2
+{
+	// MakeDefined at all arities (prelude function; rules retired except the
+	// structural collapse), median-of-3 (prelude function), and FLAT multi-arg
+	// union (fold rule removed: the variadic operator is authoritative)
+	parameter<float64> nul  := 0.0 / 0.0;
+	parameter<float64> md1  := MakeDefined(4.0);
+	parameter<float64> md2a := MakeDefined(nul, 5.0);
+	parameter<float64> md2b := MakeDefined(3.0, 5.0);
+	parameter<float64> md3  := MakeDefined(nul, nul, 7.0);
+	parameter<float64> mdc  := MakeDefined(MakeDefined(nul, 5.0), 5.0);  // collapse-rule corner
+
+	parameter<float64> me1 := median(2.0, 1.0, 3.0);
+	parameter<float64> me2 := median(5.0, 1.0, 3.0);
+	parameter<float64> me3 := median(0.0, 1.0, 3.0);
+
+	unit<uint32> A : nrofrows = 2 { attribute<float64> v := float64(id(A)); }
+	unit<uint32> B : nrofrows = 2 { attribute<float64> v := float64(id(B)) + 10.0; }
+	unit<uint32> C : nrofrows = 3 { attribute<float64> v := float64(id(C)) + 20.0; }
+	unit<uint32> U2 := union(A/v, B/v);
+	unit<uint32> U3 := union(A/v, B/v, C/v);
+
+	container checks
+	{
+		parameter<bool> c_m1 := md1 == 4.0, IntegrityCheck = "c_m1 == true";
+		parameter<bool> c_2a := md2a == 5.0, IntegrityCheck = "c_2a == true";
+		parameter<bool> c_2b := md2b == 3.0, IntegrityCheck = "c_2b == true";
+		parameter<bool> c_m3 := md3 == 7.0, IntegrityCheck = "c_m3 == true";
+		parameter<bool> c_mc := mdc == 5.0, IntegrityCheck = "c_mc == true";
+		parameter<bool> c_e1 := me1 == 2.0, IntegrityCheck = "c_e1 == true";
+		parameter<bool> c_e2 := me2 == 3.0, IntegrityCheck = "c_e2 == true";
+		parameter<bool> c_e3 := me3 == 1.0, IntegrityCheck = "c_e3 == true";
+		parameter<bool> c_u2 := NrOfRows(U2) == 4, IntegrityCheck = "c_u2 == true";
+		parameter<bool> c_u3 := NrOfRows(U3) == 7, IntegrityCheck = "c_u3 == true";
+		parameter<bool> c_us := sum(U3/UnionData) == 85.0, IntegrityCheck = "c_us == true";
+	}
+}

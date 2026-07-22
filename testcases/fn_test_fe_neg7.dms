@@ -1,0 +1,24 @@
+container fn_test_fe_neg7
+{
+	// §12.7 honest-error upgrade: a CLOSED, cleanly evaluated but INVALID
+	// for_each_ind field spec is reported at DEFINITION scan (ScanFirstArg's
+	// own "unexpected token(s)" error — CreateResult's first predicate), no
+	// longer deferred.
+	unit<uint32> D : nrofrows = 3;
+	unit<uint32> NSet : nrofrows = 2;
+	attribute<string> mnames (NSet) : ['a','b'];
+	attribute<string> mexprs (NSet) : ['x + x','x - x'];
+	attribute<float64> src (D) : [1.0, 2.0, 3.0];
+
+	function f(attribute<float64> x (D)) -> attribute<float64> (D)
+	{
+		container r := for_each_ind('nqq', mnames, mexprs, D); // 'qq' is no field-spec token
+		attribute<float64> result (D) := r/a;
+	}
+	attribute<float64> y (D) := f(src);
+
+	container checks
+	{
+		parameter<float64> c_1 := sum(y), IntegrityCheck = "c_1 == 0.0";
+	}
+}

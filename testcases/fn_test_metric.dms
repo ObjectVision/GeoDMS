@@ -1,0 +1,21 @@
+container fn_test_metric
+{
+	unit<float64> meter  := BaseUnit('m', float64);
+	unit<float64> second := BaseUnit('s', float64);
+
+	// aliases pinning concrete metric units — the values unit (and thus the metric)
+	// is cloned onto every item declared with the alias
+	length   = parameter<meter>;
+	duration = parameter<second>;
+
+	a: length   := 3.0[meter];
+	b: length   := 4.0[meter];
+	t: duration := 5.0[second];
+
+	sum_len: length := a + b;   // ok: both metres
+
+	container checks
+	{
+		parameter<meter> total := sum_len, IntegrityCheck = "total == 7.0[meter]";
+	}
+}

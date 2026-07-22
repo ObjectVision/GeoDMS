@@ -1,0 +1,9 @@
+container fn_test_p3_neg
+{
+	function Bad(f: function)
+	-> parameter<float64> := f + 1.0;   // value misuse of a function-valued parameter
+
+	function One() -> parameter<float64> := 1.0;
+
+	parameter<float64> misuse := Bad(One);   // expect: 'can only be applied or passed on' error
+}

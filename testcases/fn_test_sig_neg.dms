@@ -1,0 +1,17 @@
+container fn_test_sig_neg
+{
+	unary_fn = (unit<uint32> D; attribute<float64> v (D)) -> attribute<float64> (D);
+
+	function Wrong3(unit<uint32> D; attribute<float64> v (D); parameter<float64> extra)
+	-> attribute<float64> (D) := v;
+
+	function ApplyT(unit<uint32> D; f: unary_fn; attribute<float64> x (D))
+	-> attribute<float64> (D) := f(D, x);
+
+	unit<uint32> Road : nrofrows = 2
+	{
+		attribute<float64> flow : [ 1.0, 2.0 ];
+	}
+
+	attribute<float64> failing (Road) := ApplyT(Road, Wrong3, Road/flow);   // expect: signature arity mismatch
+}

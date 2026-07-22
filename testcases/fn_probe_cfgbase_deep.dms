@@ -1,0 +1,17 @@
+container fn_probe_cfgbase_deep
+{
+	// Config-alias member access, DEEP path: a body local aliasing a CONFIG container,
+	// then a MULTI-SEGMENT member access below it (c/inner/sub) — exercises the
+	// multi-segment FindSubItem descent against the referenced config item. Positive test.
+	unit<uint32> D : nrofrows = 2;
+	container cfg { container inner { attribute<float64> sub (D) : [4.0, 5.0]; } }
+
+	function f(item it) -> parameter<float64>
+	{
+		container c := it;
+		parameter<float64> result := sum(c/inner/sub);
+	}
+	parameter<float64> y := f(cfg);
+
+	container checks { parameter<float64> c_1 := y, IntegrityCheck = "c_1 == 9.0"; }
+}

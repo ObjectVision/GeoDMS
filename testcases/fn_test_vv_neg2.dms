@@ -1,0 +1,27 @@
+container fn_test_vv_neg2
+{
+	// NEGATIVE: constraint-set intersection becomes EMPTY with no concrete anchor
+	// at all — both arguments are fully generic functions, but their own declared
+	// constraints (floats vs uints) are mutually exclusive once both are linked to
+	// the same applied variable V. Must fail at ap2's application, before any data
+	// argument exists.
+	// Expected: "no value type can instantiate type variable 'V': 'W: floats'
+	//            (function '.../fhalf' bound to parameter 'f') conflicts with
+	//            'U: uints' (function '.../uinc' bound to parameter 'g')"
+	unit<uint32> Road : nrofrows = 3
+	{
+		attribute<float64> flow : [ 1.0, 2.0, 3.0 ];
+	}
+
+	nuf = function<V: numerics, D: domains>(attribute<V> (D)) -> attribute<V> (D);
+
+	function fhalf<W: floats, E: domains>(attribute<W> x (E)) -> attribute<W> (E) := x / 2.0;
+	function uinc <U: uints,  E: domains>(attribute<U> x (E)) -> attribute<U> (E) := x + 1;
+
+	function ap2<V: numerics, D: domains>(f: nuf<V, D>; g: nuf<V, D>) -> nuf<V, D>
+	{
+		function result(attribute<V> x (D)) -> attribute<V> (D) := f(g(x));
+	}
+
+	attribute<float64> z (Road) := ap2(fhalf, uinc)(Road/flow); // must FAIL at ap2(fhalf, uinc)
+}

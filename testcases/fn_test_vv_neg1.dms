@@ -1,0 +1,21 @@
+container fn_test_vv_neg1
+{
+	// NEGATIVE: the data argument's value class violates a constraint that reaches
+	// the applied variable only through a variable-variable LINK — binding fhalf
+	// (W: floats) to f: nuf<V, D> links V ≡ W, so the int32 data argument must
+	// fail at ap's application with attribution to 'W: floats' and fhalf.
+	// Expected: "int32 (parameter 'x') does not satisfy 'W: floats'
+	//            (function '/fn_test_vv_neg1/fhalf' bound to parameter 'f')"
+	unit<uint32> Road : nrofrows = 3
+	{
+		attribute<int32> n : [ 1, 2, 3 ];
+	}
+
+	nuf = function<V: numerics, D: domains>(attribute<V> (D)) -> attribute<V> (D);
+
+	function fhalf<W: floats, E: domains>(attribute<W> x (E)) -> attribute<W> (E) := x / 2.0;
+
+	function ap<V: numerics, D: domains>(f: nuf<V, D>; attribute<V> x (D)) -> attribute<V> (D) := f(x);
+
+	attribute<int32> a (Road) := ap(fhalf, Road/n); // must FAIL
+}

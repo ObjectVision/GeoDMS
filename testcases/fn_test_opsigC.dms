@@ -1,0 +1,33 @@
+container fn_test_opsigC
+{
+	// op-sig batch C: aggregations — K15 (total: void-domain result) and K5
+	// (partitioned: the result ranges over the PARTITIONING argument's VALUES
+	// unit), derived from AbstrOperAccTotUni/AbstrOperAccPartUni + PartCount
+	unit<uint32> Region : nrofrows = 2;
+	unit<uint32> House  : nrofrows = 3
+	{
+		attribute<Region>  reg   : [0, 1, 1];
+		attribute<float64> price : [1.0, 2.0, 3.0];
+	}
+
+	// K15: total aggregation to a void-domain parameter
+	function tot<V: numerics, D: domains>(attribute<V> x (D)) -> parameter<V> := sum(x);
+
+	// K5: the result domain IS the partition's values unit
+	function regioSum<V: numerics, D: domains>(attribute<V> x (D); attribute<Region> part (D))
+	-> attribute<V> (Region) := sum(x, part);
+
+	// pcount (typed group): result over the partition values unit, count class fixed
+	function cnt(attribute<Region> rel (House)) -> attribute<uint32> (Region) := pcount_uint32(rel);
+
+	parameter<float64> s1          := tot(House/price);              // 6.0
+	attribute<float64> s2 (Region) := regioSum(House/price, House/reg); // [1, 5]
+	attribute<uint32>  pc (Region) := cnt(House/reg);                // [1, 2]
+
+	container checks
+	{
+		parameter<float64> c_1 := s1,      IntegrityCheck = "c_1 == 6.0";
+		parameter<float64> c_2 := sum(s2), IntegrityCheck = "c_2 == 6.0";
+		parameter<uint32>  c_3 := sum(pc), IntegrityCheck = "c_3 == 3";
+	}
+}

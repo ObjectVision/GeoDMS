@@ -1,0 +1,23 @@
+container fn_test_scope
+{
+	unit<uint32> Road : nrofrows = 2
+	{
+		attribute<float64> flow : [ 100.0, 200.0 ];
+	}
+
+	parameter<float64> outside := 42.0;
+
+	// lexical definition scope (§4.6 revision 2026-07-13): 'outside' is visible from
+	// the point of definition, so the body may reference it — no 'using' needed
+	function F(
+		unit<uint32>       Rd;
+		attribute<float64> x (Rd))
+	-> attribute<float64> (Rd) := x * outside;
+
+	attribute<float64> good (Road) := F(Road, Road/flow);
+
+	container checks
+	{
+		parameter<float64> check := sum(good), IntegrityCheck = "check == 12600.0"; // 300 * 42
+	}
+}

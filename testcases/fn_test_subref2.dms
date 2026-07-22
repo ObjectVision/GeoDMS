@@ -1,0 +1,32 @@
+container fn_test_subref2
+{
+	// §12.7 slSubItemCall tranche: select_with_org_rel's org_rel member types
+	// as attribute<D>(U) with the values IDENTITY riding the condition's
+	// domain (D in both roles, the K2 rule); v[s/org_rel] must scan clean at
+	// definition and compute. Union's UnionData member resolves too
+	// (domain-identity-only claim). (The classic 'subset' group is
+	// runtime-obsolete, so its nr_OrgEntity flavor is untestable here.)
+	unit<uint32> D : nrofrows = 4;
+	attribute<float64> x (D) : [1.0, 2.0, 2.0, 3.0];
+	attribute<bool>    c (D) : [false, true, true, false];
+
+	function g(attribute<bool> cond (D); attribute<float64> v (D)) -> parameter<float64>
+	{
+		unit<uint32> s := select_with_org_rel(cond);
+		parameter<float64> result := sum(v[s/org_rel]);
+	}
+	parameter<float64> sel := g(c, x);
+
+	function h(attribute<float64> a (D); attribute<float64> b (D)) -> parameter<float64>
+	{
+		unit<uint32> w := union(a, b);
+		parameter<float64> result := sum(w/UnionData);
+	}
+	parameter<float64> uni := h(x, x);
+
+	container checks
+	{
+		parameter<float64> c_1 := sel, IntegrityCheck = "c_1 == 4.0";  // 2+2
+		parameter<float64> c_2 := uni, IntegrityCheck = "c_2 == 16.0"; // 2*8
+	}
+}

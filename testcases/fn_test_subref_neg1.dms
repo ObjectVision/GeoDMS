@@ -1,0 +1,20 @@
+container fn_test_subref_neg1
+{
+	// §12.7 slSubItemCall tranche: unique's member set is described COMPLETE —
+	// a reference to a non-member is a DEFINITION-time error listing 'Values',
+	// not the late per-application SubItem miss.
+	unit<uint32> D : nrofrows = 4;
+	attribute<float64> x (D) : [1.0, 2.0, 2.0, 3.0];
+
+	function f(attribute<float64> src (D)) -> parameter<float64>
+	{
+		unit<uint32> u := unique(src);
+		parameter<float64> result := sum(u/bogus);
+	}
+	parameter<float64> s := f(x);
+
+	container checks
+	{
+		parameter<float64> c_1 := s, IntegrityCheck = "c_1 == 0.0";
+	}
+}

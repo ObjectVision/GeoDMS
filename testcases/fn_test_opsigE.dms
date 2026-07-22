@@ -1,0 +1,26 @@
+container fn_test_opsigE
+{
+	// op-sig batch E: composite operators (connect / discrete_alloc) are OPAQUE at
+	// definition (§16 ruling) — described for the PRINTER, results deferred. The
+	// only def-time claims are the SAFE ones (unconditional UnifyDomain domain
+	// shares, plain-UM_Throw value-class shares, and the K6 fresh-unit result).
+	// This positive proves the walker does NOT falsely reject a valid connect call.
+	unit<uint32> Region : nrofrows = 4;
+	attribute<float32> ry  (Region) : [0, 0, 5, 5];
+	attribute<float32> rx  (Region) : [0, 1, 0, 1];
+	attribute<fpoint>  pts (Region) := point_yx(ry, rx, fpoint);
+	attribute<uint32>  grp (Region) : [0, 0, 1, 1];
+
+	// connect_neighbour inside a function body: the walker checks the K1 domain
+	// share (points and partitioning over the same domain D); the result relation
+	// is deferred, and the declared attribute<D>(D) is trusted (§17).
+	function nn<D: domains>(attribute<fpoint> p (D); attribute<uint32> part (D)) -> attribute<D> (D)
+		:= connect_neighbour(p, part);
+
+	attribute<Region> nearest (Region) := nn(pts, grp);   // nearest point in the other group
+
+	container checks
+	{
+		parameter<uint32> c_n := sum(uint32(IsDefined(nearest))), IntegrityCheck = "c_n == 4";
+	}
+}

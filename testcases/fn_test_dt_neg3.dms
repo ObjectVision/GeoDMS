@@ -1,0 +1,20 @@
+container fn_test_dt_neg3
+{
+	// NEGATIVE (definition-time): the body's result is concretely float64 (via a
+	// conversion), but the declared result type is attribute<V> — pinning the
+	// rigid V. The definition must fail at first reference.
+	// Expected: "the definition of '/bad': the body requires type variable 'V'
+	//            to be Float64 ..."
+	unit<uint32> Road : nrofrows = 3
+	{
+		attribute<float64> flow : [ 1.0, 2.0, 3.0 ];
+	}
+
+	function gid<W: numerics, E: domains>(attribute<W> x (E)) -> attribute<W> (E) := (x);
+
+	function bad<V: numerics, D: domains>(attribute<V> x (D)) -> attribute<V> (D) := float64(gid(x));
+
+	attribute<float64> z (Road) := bad(Road/flow); // even the float64 call site must not save the definition
+
+	container checks { parameter<float64> use := sum(z); }
+}

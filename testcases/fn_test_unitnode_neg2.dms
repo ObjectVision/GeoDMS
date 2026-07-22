@@ -1,0 +1,28 @@
+container fn_test_unitnode_neg2
+{
+	// NEGATIVE (definition-time, batch U): pass2 declares BOTH data parameters'
+	// values unit to be the unit parameter E; feeding attributes valued in two
+	// DIFFERENT units violates the declared contract at the first reference —
+	// the signature is the contract, exactly like the domain-variable checks
+	// (fn_test_domvar_neg precedent). Note the units share value class uint32,
+	// so only the IDENTITY distinguishes them — inexpressible before batch U.
+	// Expected: "the definition of '/bad2': inconsistent instantiation of unit
+	//            variable 'E' ..."
+	unit<uint32> Region : nrofrows = 2;
+	unit<uint32> Town   : nrofrows = 2;
+	unit<uint32> House  : nrofrows = 3
+	{
+		attribute<Region> reg : [0, 1, 1];
+		attribute<Town>   twn : [1, 0, 1]; // NB not 'town': item names collide case-insensitively with the unit
+	}
+
+	function pass2<D: domains>(unit<uint32> E; attribute<E> a (D); attribute<E> b (D))
+	-> attribute<E> (D) := min_elem(a, b);
+
+	function bad2<D: domains>(attribute<Region> x (D); attribute<Town> y (D))
+	-> attribute<Region> (D) := pass2(Region, x, y);
+
+	attribute<Region> z (House) := bad2(House/reg, House/twn);
+
+	container checks { parameter<uint32> use := sum(uint32(z)); }
+}

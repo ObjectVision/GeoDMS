@@ -1,0 +1,46 @@
+container fn_test_apply
+{
+	unit<uint32> Road : nrofrows = 4
+	{
+		attribute<float64> flow : [ 100.0, 200.0,  50.0, 400.0 ];
+		attribute<float64> cap  : [ 200.0, 100.0, 100.0, 300.0 ];
+	}
+
+	function CongestionRatio(unit<uint32> Rd { attribute<float64> flow; attribute<float64> cap; })
+	-> attribute<float64> (Rd) := result
+	{
+		attribute<float64> raw    (Rd) := Rd/flow / Rd/cap;
+		attribute<float64> result (Rd) := min_elem(raw, 1.0);
+	}
+
+	// bare call = result value; 'apply' = the same, made explicit
+	attribute<float64> bare  (Road) := CongestionRatio(Road);
+	attribute<float64> app   (Road) := apply CongestionRatio(Road);
+	attribute<float64> nested(Road) := 2.0 * CongestionRatio(Road);
+
+	// 'instantiate' = all steps as browsable items
+	container steps := instantiate CongestionRatio(Road);
+	attribute<float64> from_steps (Road) := steps/result;   // the designated result
+	attribute<float64> intermediate (Road) := steps/raw;    // an intermediate step
+
+	// a template: bare = instantiation (unchanged); instantiate = the same
+	template Doubler
+	{
+		unit<uint32>       D;
+		attribute<float64> x (D);
+		attribute<float64> result (D) := 2.0 * x;
+	}
+	container t1 := Doubler(Road, Road/flow);              // bare template = instantiate (as always)
+	container t2 := instantiate Doubler(Road, Road/flow);  // explicit, same thing
+
+	container checks
+	{
+		parameter<float64> c_bare   := sum(bare),         IntegrityCheck = "c_bare == 3.0";
+		parameter<float64> c_app    := sum(app),          IntegrityCheck = "c_app == 3.0";
+		parameter<float64> c_nested := sum(nested),       IntegrityCheck = "c_nested == 6.0";
+		parameter<float64> c_steps  := sum(from_steps),   IntegrityCheck = "c_steps == 3.0";
+		parameter<float64> c_inter  := sum(intermediate), IntegrityCheck = "c_inter > 4.3 && c_inter < 4.4"; // .5+2+.5+1.333
+		parameter<float64> c_t1     := sum(t1/result),    IntegrityCheck = "c_t1 == 1500.0";
+		parameter<float64> c_t2     := sum(t2/result),    IntegrityCheck = "c_t2 == 1500.0";
+	}
+}

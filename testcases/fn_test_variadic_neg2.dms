@@ -1,0 +1,14 @@
+container fn_test_variadic_neg2
+{
+	// NEGATIVE: a rest parameter can only be passed on as the trailing argument of a
+	// function or operator call — using it as a bare value errors at application.
+	// (Note: 'a + r' is LEGAL since arity-aware dispatch — it splices into add and
+	// folds; that spelling moved to the positive test fn_test_aritydisp.)
+	function bad(container a; ...r) -> container := r;
+
+	parameter<uint32> z := bad(1, 2, 3);
+	container checks
+	{
+		parameter<bool> c_z := z == 6, IntegrityCheck = "c_z == true";
+	}
+}

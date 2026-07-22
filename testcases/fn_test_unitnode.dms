@@ -1,0 +1,39 @@
+container fn_test_unitnode
+{
+	// batch U (operator-signature-interface.md §8): ONE unit-node pool serving
+	// both roles a unit can play. A unit parameter used in a VALUES position of
+	// one signature slot and a DOMAIN position of another flows through a single
+	// node — the K2 join-key identity, expressible in FUNCTION signatures.
+	unit<uint32> Region : nrofrows = 2 { attribute<float64> avg : [10.0, 20.0]; }
+	unit<uint32> House  : nrofrows = 3
+	{
+		attribute<Region>  reg   : [0, 1, 1];
+		attribute<float64> price : [1.0, 2.0, 3.0];
+	}
+
+	// rel's VALUES unit and vals' DOMAIN are the same unit parameter E
+	function joinval<D: domains, V: numerics>(unit<uint32> E; attribute<E> rel (D); attribute<V> vals (E))
+	-> attribute<V> (D) := lookup(rel, vals);
+
+	// a checked body applying it consistently: E binds Region through rel's
+	// values AND vals' domain — one node, no conflict, result typed V[D]
+	function use1<D: domains>(attribute<Region> r (D); attribute<float64> v (Region))
+	-> attribute<float64> (D) := joinval(Region, r, v);
+
+	// both roles of one unit parameter inside a single definition: the declared
+	// result values unit E carries the identity through to the caller's check
+	function pass2<D: domains>(unit<uint32> E; attribute<E> a (D); attribute<E> b (D))
+	-> attribute<E> (D) := min_elem(a, b);
+
+	function use2<D: domains>(attribute<Region> x (D); attribute<Region> y (D))
+	-> attribute<Region> (D) := pass2(Region, x, y);
+
+	attribute<float64> t1 (House) := use1(House/reg, Region/avg);      // [10,20,20]
+	attribute<Region>  t2 (House) := use2(House/reg, House/reg);       // = reg
+
+	container checks
+	{
+		parameter<float64> c_1 := sum(t1),               IntegrityCheck = "c_1 == 50.0";
+		parameter<uint32>  c_2 := sum(uint32(t2)),       IntegrityCheck = "c_2 == 2";
+	}
+}

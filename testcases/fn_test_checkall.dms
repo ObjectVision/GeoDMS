@@ -1,0 +1,60 @@
+container fn_test_checkall
+{
+	// Audit test for CheckAllFunctionDefinitions (GeoDmsRun '@checkfunctions').
+	// NONE of the functions below is ever REFERENCED, so ordinary loading/compute
+	// never checks them (the application-triggered checker never reaches them). The
+	// opt-in audit must: report the well-typed ones OK, and report the ill-typed
+	// 'bad_*' ones FAILED (they are wrong for EVERY instantiation).
+	//
+	//   GeoDmsRun fn_test_checkall.dms /checks/c_1   -> computes OK (bad fns untouched)
+	//   GeoDmsRun fn_test_checkall.dms @checkfunctions -> 2 failed, exit 1
+
+	unit<uint32> Road : nrofrows = 3 { attribute<float64> flow : [1.0, 2.0, 3.0]; }
+
+	// --- well-typed, unreferenced: audit reports OK ---
+	function good_sqr<V: numerics, D: domains>(attribute<V> x (D)) -> attribute<V> (D) := x * x;
+	function good_id (unit<uint32> E; attribute<float64> x (E)) -> attribute<float64> (E) := x;
+
+	// --- ill-typed, unreferenced: audit reports FAILED ---
+	//     fonly requires floats; bad_numerics applies it under <V: numerics> (fails for V=int)
+	function fonly<W: floats, E: domains>(attribute<W> x (E)) -> attribute<W> (E) := x / 2.0;
+	function bad_numerics<V: numerics, D: domains>(attribute<V> x (D)) -> attribute<V> (D) := fonly(x);
+
+	// --- variant set, unreferenced: each variant is audited individually ---
+	//     asF is fine; bad_gen applies the floats-only 'fonly' under <V: numerics> (fails for V=int)
+	function multi
+	{
+		variant asF   (attribute<float64> x (Road)) -> attribute<float64> (Road) := x * 2.0;
+		variant bad_gen<V: numerics>(attribute<V> x (Road)) -> attribute<V> (Road) := fonly(x);
+	}
+
+	// --- a closure inside a body (nested function): must NOT be audited standalone ---
+	//     'inner' captures the enclosing parameter 'k'; the audit checks 'withClosure'
+	//     but skips 'inner' (checked at application, where k is bound)
+	function withClosure(unit<uint32> E; attribute<float64> x (E); parameter<float64> k)
+	-> attribute<float64> (E) := bump(x)
+	{
+		function bump(attribute<float64> v (E)) -> attribute<float64> (E) := v + k;
+	}
+
+	// --- a TEMPLATE-internal function referencing a template SIBLING: must NOT be audited
+	//     standalone. Cold, the sibling 'vals' is still InTemplate, so a standalone check
+	//     would falsely FAIL (S1); at instantiation the sibling resolves and reduction
+	//     accepts. The audit must SKIP /TW/UsesSibling (checked at application). ---
+	template TW
+	{
+		unit<uint32>       D;
+		attribute<float64> vals (D);
+		function UsesSibling(attribute<float64> x (D)) -> attribute<float64> (D) := x + vals;
+		attribute<float64> out (D) := UsesSibling(vals);
+	}
+	container twInst := TW(Road, Road/flow); // instantiates: reduction accepts UsesSibling
+
+	// a normal computed item: /checks loads and computes fine (proving the audit adds
+	// coverage beyond the ordinary path), and exercises the template instantiation
+	container checks
+	{
+		parameter<float64> c_1 := sum(Road/flow), IntegrityCheck = "c_1 == 6.0";
+		parameter<float64> c_2 := sum(twInst/out), IntegrityCheck = "c_2 == 12.0"; // (1+2+3) + (1+2+3)
+	}
+}

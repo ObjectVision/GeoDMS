@@ -1,0 +1,20 @@
+container fn_test_domvar
+{
+	unit<uint32> Road : nrofrows = 3 { attribute<float64> flow : [ 1.0, 2.0, 3.0 ]; attribute<float64> cap : [ 2.0, 2.0, 2.0 ]; }
+	unit<uint32> Rail : nrofrows = 2 { attribute<float64> flow : [ 5.0, 6.0 ]; }
+
+	// D is a domain variable: both arguments must share their domain
+	function ratio<V: numerics, D: domains>(attribute<V> a (D); attribute<V> b (D))
+	-> attribute<V> (D) := a / b;
+
+	attribute<float64> ok (Road) := ratio(Road/flow, Road/cap);
+	parameter<float64> okScalar  := ratio(6.0, 3.0);              // void binds nothing
+	attribute<float64> mixed (Road) := ratio(Road/flow, 2.0);     // void broadcasts into D
+
+	container checks
+	{
+		parameter<float64> c_ok := sum(ok),    IntegrityCheck = "c_ok == 3.0"; // .5+1+1.5
+		parameter<float64> c_sc := okScalar,   IntegrityCheck = "c_sc == 2.0";
+		parameter<float64> c_mx := sum(mixed), IntegrityCheck = "c_mx == 3.0";
+	}
+}

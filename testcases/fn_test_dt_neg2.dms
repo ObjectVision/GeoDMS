@@ -1,0 +1,23 @@
+container fn_test_dt_neg2
+{
+	// NEGATIVE (definition-time): the body forces two independent generic
+	// parameters equal — pick's single W meets both A and B, so A ≡ W ≡ B. The
+	// definition must fail even though the call site passes two float64
+	// attributes (which would satisfy application-time checking).
+	// Expected: "the definition of '/both': the body requires type variables
+	//            'A' and 'B' to be equal ..."
+	unit<uint32> Road : nrofrows = 3
+	{
+		attribute<float64> flow : [ 1.0, 2.0, 3.0 ];
+		attribute<float64> cap  : [ 2.0, 4.0, 6.0 ];
+	}
+
+	function pick<W: numerics, E: domains>(attribute<W> p (E); attribute<W> q (E)) -> attribute<W> (E) := p + q;
+
+	function both<A: numerics, B: numerics, D: domains>(attribute<A> x (D); attribute<B> y (D)) -> attribute<A> (D)
+		:= pick(x, y);
+
+	attribute<float64> z (Road) := both(Road/flow, Road/cap);
+
+	container checks { parameter<float64> use := sum(z); }
+}

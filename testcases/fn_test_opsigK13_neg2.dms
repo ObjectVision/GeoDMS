@@ -1,0 +1,25 @@
+container fn_test_opsigK13_neg2
+{
+	// NEGATIVE (definition-time, §12.7): the per-spec record's HARD Links-domain
+	// share. With a known spec, linkImpedance/fromNode_rel/toNode_rel thread one
+	// unit variable 'Links' (CreateResult's unconditional UnifyDomain preamble),
+	// so declaring the impedance over an INDEPENDENT domain generic errors at
+	// the definition's first reference — pre-tranche this deferred to reduction.
+	// Expected: "the definition of '/bad': the body requires unit variables
+	//            'L1' and 'L2' to be equal ... independent ..."
+	unit<uint32> Node : nrofrows = 2;
+	unit<uint32> Link : nrofrows = 1
+	{
+		attribute<Node>    F1  : [0];
+		attribute<Node>    F2  : [1];
+	}
+	unit<uint32> OtherLink : nrofrows = 1 { attribute<float64> w : [1.0]; }
+	unit<uint32> StartSet : nrofrows = 1 { attribute<Node> nr : [0]; }
+
+	function bad<L1: domains, L2: domains, S: domains>(attribute<float64> w (L1); attribute<Node> f1 (L2); attribute<Node> f2 (L2); attribute<Node> sr (S))
+	-> attribute<float64> (Node) := impedance_table('directed;startPoint(Node_rel)', w, f1, f2, sr);
+
+	attribute<float64> z (Node) := bad(OtherLink/w, Link/F1, Link/F2, StartSet/nr);
+
+	container checks { parameter<float64> use := sum(z); }
+}

@@ -1,0 +1,25 @@
+container fn_test_opsigD_neg1
+{
+	// NEGATIVE (definition-time, op-sig batch D): collect_by_cond requires the
+	// CONDITION domain and the DATA domain to be the same (K1 - CreateResult
+	// runs condA->GetAbstrDomainUnit()->UnifyDomain(dataA->GetAbstrDomainUnit(),
+	// UM_Throw), Subset.cpp). The derived signature threads both through ONE unit
+	// variable D, so declaring the condition over D1 and the data over D2 - two
+	// independent domain generics - is caught at the definition's first
+	// reference. At reduction the same config throws in that UnifyDomain.
+	// Expected: "the definition of '/bad': the body requires unit variables
+	//            'D1' and 'D2' to be equal ... they are independent ..."
+	unit<uint32> A : nrofrows = 3;
+	unit<uint32> B : nrofrows = 3;
+	attribute<uint32>  seqA  (A) : [0, 1, 2];
+	attribute<bool>    condA (A) := seqA < uint32(2);
+	attribute<float32> dataB (B) : [0, 1, 2];
+
+	function bad<D1: domains, D2: domains, V: any>(unit<uint32> s; attribute<bool> c (D1); attribute<V> d (D2))
+	-> attribute<V> (s) := collect_by_cond(s, c, d);
+
+	unit<uint32> Sub := select(condA);
+	attribute<float32> z (Sub) := bad(Sub, condA, dataB);
+
+	container checks { parameter<float32> use := sum(z); }
+}

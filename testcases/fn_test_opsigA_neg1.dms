@@ -1,0 +1,21 @@
+container fn_test_opsigA_neg1
+{
+	// NEGATIVE (definition-time, op-sig batch A): every registered iif overload
+	// takes a boolean condition; a concrete uint32 condition violates the
+	// DERIVED support set at the first reference of the definition — no
+	// hand-written signature involved.
+	// Expected: "the definition of '/bad': the argument types of operator 'iif'
+	//            do not match any of its registered overloads"
+	unit<uint32> Road : nrofrows = 3
+	{
+		attribute<uint32>  cnt  : [ 0, 1, 2 ];
+		attribute<float64> flow : [ 1.0, 2.0, 3.0 ];
+	}
+
+	function bad<D: domains>(attribute<uint32> c (D); attribute<float64> x (D)) -> attribute<float64> (D)
+		:= iif(c, x, x);
+
+	attribute<float64> z (Road) := bad(Road/cnt, Road/flow);
+
+	container checks { parameter<float64> use := sum(z); }
+}

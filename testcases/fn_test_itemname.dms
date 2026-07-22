@@ -1,0 +1,29 @@
+container fn_test_itemname
+{
+	// GUARD test for the 'item' keyword: identifiers named 'item' (or starting with
+	// 'item') must keep parsing exactly as before the keyword existed.
+
+	item := 3;                               // bare §5.12 decl NAMED 'item' — the ':=' guard
+	parameter<uint32> items := uint32(item) + 1;  // 'item' prefix — the word-boundary guard
+	item2 := items + 1;                      // bare decl with 'item' prefix
+
+	myint = parameter<uint32>;               // type alias for the colon-form guard case
+	container sub
+	{
+		item : myint := 4;                   // colon-TYPED decl NAMED 'item' — the ':' guard
+	}
+
+	// name position after a keyword signature + 'item' inside a quoted expression
+	unit<uint32> itemset : nrofrows = 2;
+	attribute<uint32> itemval (itemset) := id(itemset);
+	parameter<uint32> named : expr = "items + uint32(item)";
+
+	container checks
+	{
+		parameter<bool> c_i  := uint32(item) == 3, IntegrityCheck = "c_i == true";
+		parameter<bool> c_is := items == 4,        IntegrityCheck = "c_is == true";
+		parameter<bool> c_i2 := uint32(item2) == 5, IntegrityCheck = "c_i2 == true";
+		parameter<bool> c_s  := uint32(sub/item) == 4, IntegrityCheck = "c_s == true";
+		parameter<bool> c_n  := named == 7,        IntegrityCheck = "c_n == true";
+	}
+}

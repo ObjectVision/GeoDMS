@@ -1,0 +1,44 @@
+container fn_test_anon
+{
+	// §5.11 anonymous functions, tier A + designation-by-name + result-position (A1-A3)
+	unit<uint32> Road : nrofrows = 3
+	{
+		attribute<float64> flow : [ 1.0, 2.0, 3.0 ];
+	}
+
+	nuf = function<V: numerics, D: domains>(attribute<V> (D)) -> attribute<V> (D);
+
+	// A1: whole-rule anonymous function, expression form (item == function)
+	twice := function<V: numerics, D: domains>(attribute<V> x (D)) -> attribute<V> (D) := x + x;
+
+	// A1 + A2: whole-rule anonymous function with a designated-result body block
+	// (the original sketch: '-> restype { result := ...; }', declarations typed)
+	ratio := function(attribute<float64> flw (Road); attribute<float64> cap (Road)) -> attribute<float64> (Road)
+	{
+		attribute<float64> raw    (Road) := flw / cap;
+		attribute<float64> result (Road) := min_elem(raw, 1.0);
+	};
+
+	// A2 for the NAMED form too: data result type + block, no ':=' — designation by name
+	function named2(attribute<float64> x (Road)) -> attribute<float64> (Road)
+	{
+		attribute<float64> result (Road) := 2.0 * x;
+	}
+
+	// A3: anonymous result-position function — replaces the nested 'function result' idiom
+	function compose3<V: numerics, D: domains>(f: nuf<V, D>; g: nuf<V, D>) -> nuf<V, D>
+		:= function(attribute<V> x (D)) -> attribute<V> (D) := f(g(x));
+
+	attribute<float64> t  (Road) := twice(Road/flow);                    // [2,4,6]
+	attribute<float64> r  (Road) := ratio(Road/flow, twice(Road/flow)); // 0.5 each
+	attribute<float64> n2 (Road) := named2(Road/flow);                  // [2,4,6]
+	attribute<float64> p4 (Road) := compose3(sqr, sqr)(Road/flow);      // x^4 -> [1,16,81]
+
+	container checks
+	{
+		parameter<float64> c_t := sum(t),  IntegrityCheck = "c_t == 12.0";
+		parameter<float64> c_r := sum(r),  IntegrityCheck = "c_r == 1.5";
+		parameter<float64> c_n := sum(n2), IntegrityCheck = "c_n == 12.0";
+		parameter<float64> c_p := sum(p4), IntegrityCheck = "c_p == 98.0";
+	}
+}

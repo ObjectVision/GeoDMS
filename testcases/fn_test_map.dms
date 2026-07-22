@@ -1,0 +1,35 @@
+container fn_test_map
+{
+	unit<uint32> Road : nrofrows = 4
+	{
+		attribute<float64> flow : [ 100.0, 200.0,  50.0, 400.0 ];
+	}
+
+	// a container (table) whose data-item children will be mapped over
+	container src
+	{
+		attribute<float64> a (Road) := Road/flow;
+		attribute<float64> b (Road) := Road/flow * 2.0;
+	}
+
+	// unary function: takes one attribute, halves it
+	function Halve(attribute<float64> x (Road)) -> attribute<float64> (Road) := x / 2.0;
+
+	// map(Halve, src) -> container with children a, b each halved
+	container out := map(Halve, src);
+
+	attribute<float64> out_a (Road) := out/a;
+	attribute<float64> out_b (Road) := out/b;
+
+	// generic mapped function works too
+	function DoubleG<V: numerics>(attribute<V> y (Road)) -> attribute<V> (Road) := y + y;
+	container dbl := map(DoubleG, src);
+
+	container checks
+	{
+		parameter<float64> check1 := sum(out/a),  IntegrityCheck = "check1 == 375.0";  // sum(flow)/2
+		parameter<float64> check2 := sum(out/b),  IntegrityCheck = "check2 == 750.0";  // sum(flow*2)/2
+		parameter<float64> check3 := sum(dbl/a),  IntegrityCheck = "check3 == 1500.0"; // sum(flow)*2
+		parameter<float64> check4 := sum(dbl/b),  IntegrityCheck = "check4 == 3000.0"; // sum(flow*2)*2
+	}
+}

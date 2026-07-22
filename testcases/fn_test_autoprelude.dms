@@ -1,0 +1,36 @@
+container fn_test_autoprelude
+{
+	// NO #include: the prelude is auto-imported under the config root
+
+	unit<uint32> Road : nrofrows = 4 { attribute<float64> flow : [ 2.0, 3.0, 0.0, 1.0 ]; }
+
+	attribute<float64> sq  (Road) := sqr(Road/flow);                      // prelude sqr
+	attribute<float64> rs  (Road) := rescale(Road/flow, 10.0, 40.0);      // prelude rescale (arity 3)
+
+	// a user function of the same name shadows the prelude (nearest scope wins)
+	container shadowed
+	{
+		function sqr<V: numerics>(attribute<V> x) -> attribute<V> := x + x; // deliberately different
+		attribute<float64> doubled (/Road) := sqr(/Road/flow);              // [4,6,0,2]
+	}
+
+	// a NON-callable item named 'sqr' does not capture the call head (prelude fallback)
+	container sqr_doc_container_test
+	{
+		container sqr { parameter<float64> just_documentation := 0.0; }
+		attribute<float64> squared (/Road) := sqr(/Road/flow);              // prelude sqr: [4,9,0,1]
+	}
+
+	// prelude heads are callable inside user function bodies (strict scope + implicit prelude)
+	function twice_sqr<V: numerics>(attribute<V> x) -> attribute<V> := 2.0 * sqr(x);
+	attribute<float64> ts (Road) := twice_sqr(Road/flow);                  // [8,18,0,2]
+
+	container checks
+	{
+		parameter<float64> c_sq := sum(sq),                          IntegrityCheck = "c_sq == 14.0";
+		parameter<float64> c_rs := sum(rs),                          IntegrityCheck = "c_rs == 100.0";
+		parameter<float64> c_sh := sum(shadowed/doubled),            IntegrityCheck = "c_sh == 12.0";
+		parameter<float64> c_dc := sum(sqr_doc_container_test/squared), IntegrityCheck = "c_dc == 14.0";
+		parameter<float64> c_ts := sum(ts),                          IntegrityCheck = "c_ts == 28.0";
+	}
+}

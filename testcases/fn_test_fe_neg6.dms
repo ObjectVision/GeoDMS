@@ -1,0 +1,25 @@
+container fn_test_fe_neg6
+{
+	// §12.7 for_each tranche (review fix): a path BELOW a generated member —
+	// 'r/a/deeper' where 'a' IS generated — must NOT be reported as
+	// "not among them" at definition (template copies and rule-bearing members
+	// may carry deeper sub-structure); it DEFERS and fails only at the LATE
+	// inline-reduction stage ('Cannot find a from ...').
+	unit<uint32> D : nrofrows = 3;
+	unit<uint32> NSet : nrofrows = 2;
+	attribute<string> mnames (NSet) : ['a','b'];
+	attribute<string> mexprs (NSet) : ['x + x','x - x'];
+	attribute<float64> src (D) : [1.0, 2.0, 3.0];
+
+	function f(attribute<float64> x (D)) -> attribute<float64> (D)
+	{
+		container r := for_each_nedv(mnames, mexprs, D, float64);
+		attribute<float64> result (D) := r/a/deeper; // below member 'a': defer, no definition-time error
+	}
+	attribute<float64> y (D) := f(src);
+
+	container checks
+	{
+		parameter<float64> c_1 := sum(y), IntegrityCheck = "c_1 == 0.0";
+	}
+}

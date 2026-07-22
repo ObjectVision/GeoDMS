@@ -1,0 +1,11 @@
+container fn_test_refine_neg
+{
+	frac = parameter<float64>, IntegrityCheck = "frac >= 0.0 && frac <= 1.0";
+
+	bad: frac := 1.5;   // expect: IntegrityCheck failure (out of [0,1])
+
+	container checks
+	{
+		parameter<float64> use := bad;
+	}
+}

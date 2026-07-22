@@ -1,0 +1,28 @@
+container fn_test_variant2
+{
+	unit<uint32> D : nrofrows = 3
+	{
+		attribute<float64> f : [ 1.0, 2.0, 3.0 ];
+		attribute<float32> g : [ 1.0, 2.0, 3.0 ];
+		attribute<int32>   i : [ 10, 20, 30 ];
+	}
+
+	// three specificity levels: exact float32 > any float > any numeric
+	function scale
+	{
+		variant exact32(attribute<float32> x (D)) -> attribute<float32> (D) := x + x;
+		variant anyFloat<V: floats>  (attribute<V> x (D)) -> attribute<V> (D) := x + x + x;
+		variant anyNum  <V: numerics>(attribute<V> x (D)) -> attribute<V> (D) := x + x + x + x;
+	}
+
+	attribute<float32> s32 (D) := scale(D/g);   // exact32:  *2
+	attribute<float64> s64 (D) := scale(D/f);   // anyFloat: *3
+	attribute<int32>   si  (D) := scale(D/i);   // anyNum:   *4
+
+	container checks
+	{
+		parameter<float32> c32 := sum(s32), IntegrityCheck = "c32 == float32(12)";
+		parameter<float64> c64 := sum(s64), IntegrityCheck = "c64 == 18.0";
+		parameter<int32>   ci  := sum(si),  IntegrityCheck = "ci == int32(240)";
+	}
+}

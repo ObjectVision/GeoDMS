@@ -1,0 +1,10 @@
+container fn_test_p1_rec
+{
+	container lib
+	{
+		function R(parameter<float64> x), using = /lib
+		-> parameter<float64> := R(x);
+	}
+
+	parameter<float64> bad := lib/R(1.0);   // expect: recursive function application error
+}

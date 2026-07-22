@@ -1,0 +1,23 @@
+container fn_test_unitnode_neg1
+{
+	// NEGATIVE (definition-time, batch U): joinval declares rel's VALUES unit and
+	// vals' DOMAIN to be the same unit parameter E; binding E to Region through
+	// rel and to Town through vals is inconsistent — caught at the first
+	// reference of the definition. At reduction the same config throws in
+	// lookup's CreateResult (values-of-arg1 vs domain-of-arg2 UnifyDomain).
+	// Expected: "the definition of '/bad': inconsistent instantiation of unit
+	//            variable 'E' ..."
+	unit<uint32> Region : nrofrows = 2 { attribute<float64> avg : [10.0, 20.0]; }
+	unit<uint32> Town   : nrofrows = 2 { attribute<float64> pop : [ 5.0,  6.0]; }
+	unit<uint32> House  : nrofrows = 3 { attribute<Region> reg : [0, 1, 1]; }
+
+	function joinval<D: domains, V: numerics>(unit<uint32> E; attribute<E> rel (D); attribute<V> vals (E))
+	-> attribute<V> (D) := lookup(rel, vals);
+
+	function bad<D: domains>(attribute<Region> r (D); attribute<float64> v (Town))
+	-> attribute<float64> (D) := joinval(Region, r, v);
+
+	attribute<float64> z (House) := bad(House/reg, Town/pop);
+
+	container checks { parameter<float64> use := sum(z); }
+}

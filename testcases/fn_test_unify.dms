@@ -1,0 +1,27 @@
+container fn_test_unify
+{
+	unit<uint32> Road : nrofrows = 3 { attribute<float64> flow : [ 1.0, 2.0, 3.0 ]; }
+
+	nuf = function<V: numerics, D: domains>(attribute<V> (D)) -> attribute<V> (D);
+
+	function fhalf(attribute<float64> x) -> attribute<float64> := x / 2.0;    // concrete float64
+	function gen_inc<V: numerics>(attribute<V> x) -> attribute<V> := x + 1.0; // fully generic
+
+	// concrete + generic through one V: consistent (fhalf instantiates V := float64)
+	function compose<V: numerics, D: domains>(f: nuf<V, D>; g: nuf<V, D>) -> nuf<V, D>
+	{
+		function result(attribute<V> x (D)) -> attribute<V> (D) := f(g(x));
+	}
+	attribute<float64> ok (Road) := compose(fhalf, gen_inc)(Road/flow);   // (x+1)/2 -> [1, 1.5, 2]
+
+	// V bound by BOTH a function argument (via the signature) and a data argument
+	function mixap<V: numerics, D: domains>(h: nuf<V, D>; attribute<V> y (D))
+	-> attribute<V> (D) := h(y);
+	attribute<float64> ok2 (Road) := mixap(fhalf, Road/flow);             // [0.5, 1, 1.5]
+
+	container checks
+	{
+		parameter<float64> c_ok  := sum(ok),  IntegrityCheck = "c_ok == 4.5";
+		parameter<float64> c_ok2 := sum(ok2), IntegrityCheck = "c_ok2 == 3.0";
+	}
+}

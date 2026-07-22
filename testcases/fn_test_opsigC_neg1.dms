@@ -1,0 +1,24 @@
+container fn_test_opsigC_neg1
+{
+	// NEGATIVE (definition-time, op-sig batch C): THE classic aggregation error —
+	// declaring a partitioned sum's result over the DATA domain instead of the
+	// partition set. The derived K5 signature binds the result domain to the
+	// partitioning argument's VALUES unit (Region), so the declared House domain
+	// conflicts at the definition's first reference. At reduction the same config
+	// throws in CheckResultItem's domain UnifyDomain discharge.
+	// Expected: "the definition of '/bad': inconsistent instantiation of unit
+	//            variable 'P' ..."
+	unit<uint32> Region : nrofrows = 2;
+	unit<uint32> House  : nrofrows = 3
+	{
+		attribute<Region>  reg   : [0, 1, 1];
+		attribute<float64> price : [1.0, 2.0, 3.0];
+	}
+
+	function bad<V: numerics>(attribute<V> x (House); attribute<Region> part (House))
+	-> attribute<V> (House) := sum(x, part);
+
+	attribute<float64> z (House) := bad(House/price, House/reg);
+
+	container checks { parameter<float64> use := sum(z); }
+}

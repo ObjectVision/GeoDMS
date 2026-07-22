@@ -1,0 +1,46 @@
+container fn_test_props
+{
+	// WP4.5 tranche 4: metadata accessors (name/Descr/Expr/Label/STORAGE/EK)
+	// retired from RewriteExpr.lsp to prelude PropValue-alias functions.
+	unit<uint32> Road : nrofrows = 3
+	{
+		attribute<float64> flow := float64(id(Road));  // has an Expr
+	}
+
+	container box : Descr = "a box" { parameter<uint32> k := 7; }
+
+	// accessor on a container, a unit, and an attribute
+	parameter<string> n_box  := name(box);          // 'box'
+	parameter<string> d_box  := Descr(box);         // 'a box'
+	parameter<string> n_road := name(Road);         // 'Road'
+	parameter<string> n_flow := name(Road/flow);    // 'flow'
+	parameter<string> e_flow := Expr(Road/flow);    // 'float64(id(Road))'
+
+	// KEY-IDENTITY probes: the prelude alias must key identically to a direct
+	// PropValue call — for a container, a UNIT and an ATTRIBUTE (the latter two are
+	// what the meta-reference 'item' parameter kind unlocks: the argument binds as a
+	// raw item reference, never its range/calc key)
+	parameter<string> viaAlias  := name(box);
+	parameter<string> viaDirect := PropValue(box, 'name');
+	parameter<string> viaAliasU  := name(Road);
+	parameter<string> viaDirectU := PropValue(Road, 'name');
+	parameter<string> viaAliasA  := name(Road/flow);
+	parameter<string> viaDirectA := PropValue(Road/flow, 'name');
+
+	// a user function with an 'item' parameter (not just the prelude ones)
+	function twoProps(item t) -> parameter<string> := PropValue(t, 'name') + '|' + PropValue(t, 'Descr');
+	parameter<string> tp := twoProps(box);   // 'box|a box'
+
+	container checks
+	{
+		parameter<bool> c_nb := n_box  == 'box',  IntegrityCheck = "c_nb == true";
+		parameter<bool> c_db := d_box  == 'a box', IntegrityCheck = "c_db == true";
+		parameter<bool> c_nr := n_road == 'Road', IntegrityCheck = "c_nr == true";
+		parameter<bool> c_nf := n_flow == 'flow', IntegrityCheck = "c_nf == true";
+		parameter<bool> c_ef := e_flow == 'float64(id(Road))', IntegrityCheck = "c_ef == true";
+		parameter<bool> c_id  := viaAlias  == viaDirect,  IntegrityCheck = "c_id == true";
+		parameter<bool> c_idU := viaAliasU == viaDirectU, IntegrityCheck = "c_idU == true";
+		parameter<bool> c_idA := viaAliasA == viaDirectA, IntegrityCheck = "c_idA == true";
+		parameter<bool> c_tp  := tp == 'box|a box', IntegrityCheck = "c_tp == true";
+	}
+}

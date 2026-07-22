@@ -1,0 +1,16 @@
+container fn_test_opsig_neg2
+{
+	// NEGATIVE (definition-time): no registered add overload takes a bool
+	// operand (bints are outside ranged_unit_objects), so the concrete bool
+	// argument eliminates every member — caught at first reference, without a
+	// bad call.
+	// Expected: "the definition of '/bad': the argument types of operator 'add'
+	//            do not match any of its registered overloads"
+	unit<uint32> Road : nrofrows = 3 { attribute<float64> flow : [ 1.0, 2.0, 3.0 ]; }
+
+	function bad<V: numerics, D: domains>(attribute<V> x (D); attribute<bool> b (D)) -> attribute<V> (D)
+		:= x + b;
+
+	attribute<float64> z (Road) := bad(Road/flow, Road/flow > Road/flow);
+	container checks { parameter<float64> use := sum(z); }
+}

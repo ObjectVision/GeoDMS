@@ -1,0 +1,29 @@
+container fn_test_vv4
+{
+	// REGRESSION (tranche 2 defect, fixed in tranche 3): the SAME generic function
+	// bound to two DIFFERENT sig-typed parameters must get independent variable
+	// instances — binding gid to both f: nuf<A, D> and g: nuf<B, E> must NOT force
+	// A ≡ B through gid's shared W. This application (A=float64, B=int32) is valid.
+	unit<uint32> Road : nrofrows = 3
+	{
+		attribute<float64> flow : [ 1.0, 2.0, 3.0 ];
+		attribute<int32>   n    : [ 1, 2, 3 ];
+	}
+
+	nuf = function<V: numerics, D: domains>(attribute<V> (D)) -> attribute<V> (D);
+
+	function gid<W: numerics, E: domains>(attribute<W> x (E)) -> attribute<W> (E) := x;
+
+	function two<A: numerics, B: numerics, D: domains, E: domains>(
+		f: nuf<A, D>; g: nuf<B, E>;
+		attribute<A> x (D); attribute<B> y (E))
+	-> attribute<A> (D)
+		:= f(x);
+
+	attribute<float64> a (Road) := two(gid, gid, Road/flow, Road/n);
+
+	container checks
+	{
+		parameter<float64> c_a := sum(a), IntegrityCheck = "c_a == 6.0";
+	}
+}

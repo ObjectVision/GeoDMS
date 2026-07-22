@@ -1,0 +1,29 @@
+container fn_test_gsig
+{
+	unit<uint32> Road : nrofrows = 3 { attribute<float64> flow : [ 1.0, 2.0, 3.0 ]; }
+
+	nuf = function<V: numerics, D: domains>(attribute<V> (D)) -> attribute<V> (D);
+
+	function inc<V: numerics>(attribute<V> x) -> attribute<V> := x + 1.0;
+
+	// generic signature on a parameter of a closure-producing function
+	function twice(h: nuf) -> function
+	{
+		function result<V: numerics>(attribute<V> x) -> attribute<V> := h(h(x));
+	}
+
+	// typed compose: signature with type application on parameters and result
+	function compose2<V: numerics, D: domains>(f: nuf<V, D>; g: nuf<V, D>) -> nuf<V, D>
+	{
+		function result(attribute<V> x (D)) -> attribute<V> (D) := f(g(x));
+	}
+
+	attribute<float64> t (Road) := twice(inc)(Road/flow);          // x+2 -> [3,4,5]
+	attribute<float64> c (Road) := compose2(inc, inc)(Road/flow);  // x+2 -> [3,4,5]
+
+	container checks
+	{
+		parameter<float64> c_t := sum(t), IntegrityCheck = "c_t == 12.0";
+		parameter<float64> c_c := sum(c), IntegrityCheck = "c_c == 12.0";
+	}
+}

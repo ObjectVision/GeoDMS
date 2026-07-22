@@ -1,0 +1,51 @@
+container fn_test_wp45t3
+{
+	// WP4.5 tranche 3: abs, sort_str, reversed_id, reverse, neighbourhood,
+	// float_isNearby, point_isNearby retired from RewriteExpr.lsp to the prelude.
+	unit<uint32> Road : nrofrows = 3
+	{
+		attribute<int32>   n    : [ -5, 3, -1 ];
+		attribute<float64> flow : [ 1.0, 2.0, 3.0 ];
+		attribute<string>  s    : [ 'b', 'a', 'c' ];
+		attribute<string>  s_up : [ 'a', 'b', 'c' ];
+		attribute<float64> rev  : [ 3.0, 2.0, 1.0 ];
+	}
+
+	attribute<int32>   t_abs (Road) := abs(Road/n);                 // [5,3,1]
+	attribute<string>  t_srt (Road) := sort_str(Road/s);            // ['a','b','c']
+	attribute<float64> t_rev (Road) := reverse(Road/flow);          // [3,2,1]
+	attribute<uint32>  t_rid (Road) := reversed_id(Road);           // [2,1,0]
+
+	parameter<float64> f_lo  := 1.1;
+	parameter<bool>    t_nb1 := float_isNearby(1.0, 1.05, f_lo);    // overlapping -> true
+	parameter<bool>    t_nb2 := float_isNearby(1.0, 5.0,  f_lo);    // disjoint    -> false
+
+	unit<uint32> pset : nrofrows = 1
+	{
+		attribute<dpoint> p1 : [ '{1.0, 1.0}'  ];
+		attribute<dpoint> p2 : [ '{1.05, 1.05}' ];
+		attribute<dpoint> p3 : [ '{9.0, 9.0}'  ];
+	}
+	attribute<bool> t_pn1 (pset) := point_isNearby(pset/p1, pset/p2, 1.1);
+	attribute<bool> t_pn2 (pset) := point_isNearby(pset/p1, pset/p3, 1.1);
+
+	// KEY-IDENTITY probe: the prelude abs must produce the exact key its retired
+	// rule produced, so range(...) domains built from either spelling UNIFY
+	parameter<int32> pp := -4;
+	unit<uint32> u1 := range(uint32, 0, uint32(abs(pp)));
+	unit<uint32> u2 := range(uint32, 0, uint32(isNegative(pp) ? -pp : pp));
+	attribute<float64> xu (u1) := float64(id(u1));
+	attribute<float64> yu (u2) := xu; // compiles only when u1 and u2 share their defining key
+
+	container checks
+	{
+		parameter<float64> c_abs := sum(float64(t_abs)),               IntegrityCheck = "c_abs == 9.0";
+		parameter<uint32>  c_srt := sum(uint32(t_srt == Road/s_up)),   IntegrityCheck = "c_srt == 3";
+		parameter<uint32>  c_rev := sum(uint32(t_rev == Road/rev)),    IntegrityCheck = "c_rev == 3";
+		parameter<float64> c_rid := sum(float64(t_rid)),               IntegrityCheck = "c_rid == 3.0";
+		parameter<bool>    c_nb1 := t_nb1,                             IntegrityCheck = "c_nb1 == true";
+		parameter<bool>    c_nb2 := t_nb2,                             IntegrityCheck = "c_nb2 == false";
+		parameter<uint32>  c_pn  := sum(uint32(t_pn1)) + sum(uint32(not(t_pn2))), IntegrityCheck = "c_pn == 2";
+		parameter<float64> c_key := sum(yu),                           IntegrityCheck = "c_key == 6.0";
+	}
+}

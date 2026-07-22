@@ -9,6 +9,14 @@ repo root. Purely session-local temp files should use the session scratchpad dir
 outside the repo instead. The repo root once accumulated 51 loose `cdb_*.txt`/`*.out`
 diag files; don't let that happen again.
 
+**The typed-HOF regression suite is git-tracked in `testcases/`** (the `fn_test*.dms`
+battery + a few `fn_probe_*` probes + `tmpl_regress.dms`, with the `fe_names.txt`/
+`impspec.txt` fixtures and `fnrun_itemmap.txt`). Run it via **`testcases/run_testcases.bat`**
+(defaults to `bin\Release\x64\GeoDmsRun.exe`; classifies positives=exit-0,
+`_neg`/`defcheck`=exit-nonzero, exit-3 assert=always-fail). Run artifacts land in the
+gitignored `testcases/_out*/`. One-off investigation configs (controls, repros) still
+belong in gitignored `scratch/`, not `testcases/`.
+
 ## Build & setup policy — do NOT improvise
 
 Build ONLY through the committed solution / preset files, using **msbuild** or **CMake**.

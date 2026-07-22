@@ -62,8 +62,10 @@ remainder, §10 P2 — designed in `operator-signature-interface.md`: operators
 describe their unit constraints through a virtual, unlocking the relational and
 composite families that the interim `OperSigKind` registry cannot express), and
 the WP4.5 tranche-3 heads (variadic / optional-argument rules). Verification
-configs live in the gitignored `scratch/fn_test*.dms`; the shipped example is
-`examples/function.dms`.
+configs live in the git-tracked `testcases/` directory (`fn_test*.dms` plus a few
+`fn_probe_*` probes and `tmpl_regress.dms`); run the whole suite through
+`testcases/run_testcases.bat` (positives must exit 0, `_neg`/`defcheck` cases must
+exit nonzero). The shipped example is `examples/function.dms`.
 
 ## 1. Motivation and scope
 
@@ -587,7 +589,7 @@ through the strict scope (import) can likewise be passed from inside a body. Mis
 as a value (`f + 1.0`) and member access through a function-valued parameter are
 rejected with dedicated diagnostics. Bindings are meta-stage only — by DC time every
 application is reduced away, so the erasure guarantee (§5.6) holds. Verified by
-`scratch/fn_test_p3.dms` (apply-twice, two-parameter composition, body-level
+`testcases/fn_test_p3.dms` (apply-twice, two-parameter composition, body-level
 pass-through) and a value-misuse negative test. Not yet: declared function *types*
 (signatures `(T)->R` on parameters — currently any function binds, arity-checked at
 application), lambdas/partial application, and the typed `map`/`filter` container
@@ -672,7 +674,7 @@ dispatch on argument *form* — `collect_by_cond` has one rule per `select_*` fl
    materialises each argument's value class and selects the variant whose parameter
    value classes all match (an untyped/wildcard parameter position matches anything);
    the chosen variant is then reduced like a normal function. Ambiguous matches and
-   no-match both error with the variant list. Verified by `scratch/fn_test_variant.dms`
+   no-match both error with the variant list. Verified by `testcases/fn_test_variant.dms`
    (float64→asFloat, int32→asInt) and a no-match negative (string).
 
    **v2 implemented (2026-07-14): specificity ordering + definition-time
@@ -684,7 +686,7 @@ dispatch on argument *form* — `collect_by_cond` has one rule per `select_*` fl
    wildcard). Dispatch (`ResolveVariant`) collects all matching variants and picks
    the unique most specific one by per-parameter subset comparison
    (`TreeItem_CompareVariantSpecificity`), so `exact float32 > <V: floats> >
-   <V: numerics>` layers dispatch as expected (`scratch/fn_test_variant2.dms`).
+   <V: numerics>` layers dispatch as expected (`testcases/fn_test_variant2.dms`).
    At definition (`OnVariantSetEnd` → `TreeItem_CheckVariantSetDisjointness`,
    token-based and parse-safe), two same-arity variants whose acceptance sets overlap
    must be strictly specificity-ordered; identical or incomparable overlapping
@@ -769,7 +771,7 @@ Semantics and implementation:
   signature position is a wildcard), and result class. Unit *relationships* between
   signature positions (the dependent part) are not yet compared — that is P2 unifier
   territory.
-- Verified by `scratch/fn_test_sig.dms` (aliases, alias-of-alias, alias with explicit
+- Verified by `testcases/fn_test_sig.dms` (aliases, alias-of-alias, alias with explicit
   domain, signature-checked higher-order application) and an arity-mismatch negative
   test with a dedicated diagnostic.
 
@@ -940,7 +942,7 @@ holder-class test in favor of the explicit marker; `apply T(…)` = a `MetaFuncC
 variant that cache-instantiates `T` keyed by the call-site context (decision 3) and sets
 the holder's follow-source to the instance's `result`; a container literal reduces to an
 anonymous container value (a `CreateCacheRoot` populated from its members, à la
-`InstantiateMap`) usable as an argument. Migration updates `scratch/fn_test*.dms` and
+`InstantiateMap`) usable as an argument. Migration updates `testcases/fn_test*.dms` and
 `examples/function.dms` (bare `container := F(args)` becomes `instantiate F(args)`).
 
 GUI inspection of inline applications (no materialized steps): the Value-Info /
@@ -952,7 +954,7 @@ additions.
 ### 5.10 Function-valued results, closures, applied call results *(Stages 1+2 implemented 2026-07-14)*
 
 **Implementation status (Stage 1).** All three pieces below are implemented and
-verified (`scratch/fn_test_closure.dms`, `examples/function.dms` `hof2`): grammar =
+verified (`testcases/fn_test_closure.dms`, `examples/function.dms` `hof2`): grammar =
 call-suffix chain in `functionCallOrIdentifier` + `apply_value` marker emission in
 `ProdFunctionCall` (list-valued head) + `-> function` result type with implicit
 designation of a nested function named `result` (`':=' now grammar-optional, enforced
@@ -1016,7 +1018,7 @@ same rule as partial applications today. `pow4(a)` reduces through the closure t
 `(mul (mul aK aK) (mul aK aK))` — key identity with `pow(a, 4)` preserved end-to-end.
 
 **Stage 2 implemented (2026-07-14).** The typed form runs
-(`examples/function.dms` `hof2`, `scratch/fn_test_gsig.dms`, `fn_test_domvar.dms`):
+(`examples/function.dms` `hof2`, `testcases/fn_test_gsig.dms`, `fn_test_domvar.dms`):
 
 - **Generic signature aliases**: `nuf = function<V: numerics, D: domains>
   (attribute<V> (D)) -> attribute<V> (D);` — the `function` keyword and type-params
@@ -1101,7 +1103,7 @@ to parameter 'g')"*, and `mixap(road_only, Rail/flow)` *"… the domain bound vi
 parameter 'y' differs from the domain bound by function '/road_only' bound to
 parameter 'h'"* (tranche-3 wording — the shared LinkSignatureBinding helper builds
 the source). The store is per-application and monotonic. Tests
-`scratch/fn_test_vv{,_neg1,_neg2,_neg3}.dms`.
+`testcases/fn_test_vv{,_neg1,_neg2,_neg3}.dms`.
 
 **WP4.1 tranche 3 implemented (2026-07-14): the definition-time typed body walker.**
 The WP3.4 checker now derives TYPES: the function's own type/domain variables (and
@@ -1144,16 +1146,16 @@ and variant members are covered uniformly — previously only direct call heads 
 checked. The same tranche fixed a tranche-2 defect: variables are now additionally
 keyed by an **instance** number, so two independent bindings of the same generic
 function no longer link through a shared node (binding `gid` to both `f: nuf<A, D>`
-and `g: nuf<B, E>` must not force `A ≡ B`; regression `scratch/fn_test_vv4.dms`).
+and `g: nuf<B, E>` must not force `A ≡ B`; regression `testcases/fn_test_vv4.dms`).
 A parser defect found in the same round is fixed: a bare-identifier result `:= x;`
 naming a *parameter* was captured by the designation scan (parameters are sub-items
 too) and designated the expression-less parameter item, so the applied function had
 no calculation rule ("function signature without implementation"); designation now
 skips the first `paramCount` sub-items, matching §5.1 ("designates an existing
 **body** item"), and a bare parameter name becomes the result's calculation rule
-(regression `scratch/fn_test_bareid.dms`, incl. exact-case and case-insensitive
+(regression `testcases/fn_test_bareid.dms`, incl. exact-case and case-insensitive
 body-item designation guards). Tests
-`scratch/fn_test_dt{,_neg1,_neg2,_neg3,_neg4}.dms`.
+`testcases/fn_test_dt{,_neg1,_neg2,_neg3,_neg4}.dms`.
 
 *Adversarial review round (4 dimensions, 13 agents, findings verified against the
 built binaries with live repros) confirmed five walker defects, all fixed before
@@ -1219,7 +1221,7 @@ declaration). This also makes an untyped `result := …;` body item valid, so
 `OnBareExprHeading` creates a SignatureType::TreeItem item. Limit: a direct
 FUNCTION-application rule on a bare item still requires a typed holder (the §5.9
 container-holder guard, with its existing instructive error); operator and
-data rules work. Tests `scratch/fn_test_opsig{,_neg1,_neg2}.dms`; all prelude
+data rules work. Tests `testcases/fn_test_opsig{,_neg1,_neg2}.dms`; all prelude
 bodies re-validated under typed operator positions (battery + tst /Rescale +
 /Arithmetics). **Staging semantics for the underdetermined case** (ruling
 2026-07-16, `operator-signature-interface.md` §17): a bare item whose expression
@@ -1405,8 +1407,8 @@ hoisted items record the synthesized declaration's line-1 source location (GUI
 go-to-source lands at the file top for `_lambda_` items); a literal reaching the
 calculation-time parser (only possible through leading-`=` string evaluation)
 errors cleanly; the GUI shows the spliced name in calculation rules. Tests
-`scratch/fn_test_anon{,_neg1,_neg2}.dms`, `scratch/fn_test_lambda{,_neg}.dms`,
-`scratch/fn_test_lambda2.dms` (legacy `function`-named items, bounded angle scan,
+`testcases/fn_test_anon{,_neg1,_neg2}.dms`, `testcases/fn_test_lambda{,_neg}.dms`,
+`testcases/fn_test_lambda2.dms` (legacy `function`-named items, bounded angle scan,
 name-probe collision).
 
 ## 6. Verified mechanism inventory
@@ -1562,7 +1564,7 @@ same mechanism as the .lsp); configs opt in with `#include <%exeDir%/prelude.dms
 Retired (14 rules): `sqr`, `plogp`, `llpart`, `ll1`, and the ten `*_or_*_null`
 predicates. Every prelude body is the exact fixpoint expansion of its retired rule, so
 keys are byte-identical (verified: `range(uint32,0,sqr(p))` and `range(uint32,0,p*p)`
-intern to one domain key — the R13 regression in `scratch/fn_test_prelude.dms`).
+intern to one domain key — the R13 regression in `testcases/fn_test_prelude.dms`).
 Retained rules whose resolvents referenced retired heads carry the expansions inline
 (`pow 2/3/4/6` → `mul` chains; `isOverlapping` → expanded `le_or_lhs_null`), keeping
 their output keys unchanged. Not retired, with reasons: `order` (its
@@ -1604,7 +1606,7 @@ bodies SPELL `order(…)`/`isOverlapping(…)` calls, on which the two **retaine
 pattern-matching rules still fire at body-parse fixpoint, so the reduced keys equal
 the old rule chain without hand-expanding anything. Key identity re-proven by a
 range-domain unification probe (`range(uint32,0,uint32(abs(pp)))` from both
-spellings; `scratch/fn_test_wp45t3.dms`) and by the unmodified tst `/Arithmetics`
+spellings; `testcases/fn_test_wp45t3.dms`) and by the unmodified tst `/Arithmetics`
 (its `abs` and four `float_isNearby` tests). Enabling grammar fix: the optional
 result NAME (`-> name: type`) must not claim the `:` of `:=` — a not-`=` lookahead
 after the colon (`-> container := …` previously mis-parsed; latent since P0, first
@@ -1692,7 +1694,7 @@ config item by absolute `FindItem`).
 
 With this, the six accessors are prelude functions
 (`function name(item t) -> parameter<string> := PropValue(t, 'name');` etc.) and
-their rewrite rules are retired. Tests: `scratch/fn_test_props.dms` (alias values +
+their rewrite rules are retired. Tests: `testcases/fn_test_props.dms` (alias values +
 alias≡direct key-identity probes for a container, a **unit** and an **attribute**,
 plus a user function with an `item` parameter), `fn_test_props_neg1` (calculated
 expression into an `item` parameter → clean error), `fn_test_itemname` (keyword
@@ -1913,7 +1915,7 @@ checker rejects exactly what reduction rejects, because `order` is a capturing r
 produces the `interval` form regardless of argument groundness). The function had no
 callers and was removed. The full prelude now audits clean.
 
-Tests: `scratch/fn_test_checkall.dms` — unreferenced well-typed functions (`good_sqr`,
+Tests: `testcases/fn_test_checkall.dms` — unreferenced well-typed functions (`good_sqr`,
 `good_id`, `fonly`) reported OK; unreferenced ∀-violating functions (`bad_numerics`, and
 the `multi/bad_gen` variant, each applying the floats-only `fonly` under
 `<V: numerics>`) reported FAILED; a closure (`withClosure/bump`) correctly not audited
@@ -1949,7 +1951,7 @@ structured and composite-typed parameters, `using` clauses) in
 import resolution in `UsingCache::FindNamespace` + absolute-frozen import copying in
 `TreeItem::Copy`; name-collision validation via `AbstrOperGroup::FindName` +
 `HasRewriteRuleForHead` (`tic/ExprRewrite.{h,cpp}`). Functional tests in
-`scratch/fn_test*.dms` (value-checked positive suite incl. structured/composite params,
+`testcases/fn_test*.dms` (value-checked positive suite incl. structured/composite params,
 designation, imports, multi-name; arity + strict-scope negative tests). NOT yet in P0:
 definition-time body checking (bodies stay template-inert; checks run per
 instantiation) — moved to P1 alongside the applicative DC, since both need the meta
@@ -2016,7 +2018,7 @@ alternative from the design (§8.3's `inline` behavior, applied as the default f
 expression positions): identical applications intern to identical keys, so applicative
 identity — including unit-returning functions unifying across call sites — comes free,
 with **no new DC class and no R5 teardown risk**. Verified by
-`scratch/fn_test_p1.dms` (nested calls, direct typed calls, function-calling-function
+`testcases/fn_test_p1.dms` (nested calls, direct typed calls, function-calling-function
 via `using = /lib`, unit-returning select function, cross-binding domain unification,
 container-bound calls with imports equal to the definition parent, nested body
 containers with sibling references, structured parameters with multi-name member
@@ -2091,7 +2093,7 @@ bodies come free. Also implemented: **dependent-position checks in declared func
 signatures** (closing the §5.8 gap): domain/values references that name a parameter
 must name the positionally same parameter on both sides (alpha-invariant, `#j`
 normalization), other references compare literally, and value compositions must
-match. Verified by `scratch/fn_test_p2.dms` (+2 negatives).
+match. Verified by `testcases/fn_test_p2.dms` (+2 negatives).
 
 Remaining P2 work: `variant` blocks with specificity ordering and definition-time
 disjointness (§5.7); the declarative operator-signature interface (the ClassCPtr array
@@ -2123,7 +2125,7 @@ a data key. `MergeBinding` fills holes left-to-right and arity-checks against th
 of holes. A residual (partial) binding may only be passed as an argument — binding one
 to an item errors ("a partial application can only be passed as an argument"). Signature
 checking (`CheckFunctionSignature`) runs the full structural check on plain bindings and
-a residual-arity check on partial ones. Verified by `scratch/fn_test_partial.dms`
+a residual-arity check on partial ones. Verified by `testcases/fn_test_partial.dms`
 (partial passed to a higher-order applier, applied twice: `Scale(Road,3.0,_)` → ×9;
 `Add2(Road,_,_)` → doubler) and a negative test.
 
@@ -2160,7 +2162,7 @@ child of the holder named `c->GetID()` with `SetCalculator(ConstructFromLispRef(
 reducedKey, CalcRole::Calculator))` — a plain holder child that follows the reduced
 data result. Nested/sub-expression use is rejected (map yields a container).
 Generic mapped functions work (the per-child value class is derived and constraint-
-checked in the reduction). Verified by `scratch/fn_test_map.dms` (a `Halve` function
+checked in the reduction). Verified by `testcases/fn_test_map.dms` (a `Halve` function
 and a generic `DoubleG` mapped over a two-attribute container). Not yet: partial-
 application F (`map(Scale(k,_), src)`), `filter`/`fold` (same pattern), and `for_each`
 deprecation.
@@ -2242,13 +2244,13 @@ name with the item's name (`frac >= 0.0` → `good >= 0.0` /
 `SubstituteWholeIdentifier`). Alias-of-refined-alias inherits and re-rebinds. The check
 is an ordinary IntegrityCheck (lazy, data-stage — §2 staging). No new checking
 machinery. Verified: `good`/`good2` (via `ratio = frac`) pass; `bad: frac := 1.5` fails
-`'bad >= 0.0 && bad <= 1.0' is not true` (`scratch/fn_test_refine{,_neg}.dms`). A
+`'bad >= 0.0 && bad <= 1.0' is not true` (`testcases/fn_test_refine{,_neg}.dms`). A
 `range = [lo, hi]` sugar generating the check string can follow.
 
 **WP4.4 — Metric constraints via aliases — VERIFIED in 20.9.0 (no code change).**
 An alias whose exemplar references a concrete values *unit* pins the metric: the cloned
 values-unit token re-resolves at the use site and `UnifyValues` enforces metric
-equality at calc time. Verified by `scratch/fn_test_metric.dms` —
+equality at calc time. Verified by `testcases/fn_test_metric.dms` —
 `length = parameter<meter>; duration = parameter<second>;` (with
 `meter := BaseUnit('m', float64)`): two `length` values add (same metric), and
 `length + duration` errors with *"Arguments must have compatible units, but arg1 has

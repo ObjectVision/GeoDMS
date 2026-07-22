@@ -1,0 +1,37 @@
+container fn_test_membergen
+{
+	unit<uint32> Road : nrofrows = 4
+	{
+		attribute<float64> flow     : [ 100.0, 200.0,  50.0, 400.0 ];
+		attribute<float64> capacity : [ 200.0, 100.0, 100.0, 300.0 ];
+	}
+
+	// a type variable used ONLY inside a structured parameter's member block:
+	// must not be recorded as a top-level generic param (regression: gpIndex crash)
+	function CongestionRatio<V: numerics>(
+		unit<uint32> Network {
+			attribute<V> flow;
+			attribute<V> capacity;
+		}
+	)
+	-> attribute<float64> (Network) := result
+	{
+		attribute<float64> raw    (Network) := Network/flow / Network/capacity;
+		attribute<float64> result (Network) := min_elem(raw, 1.0);
+	}
+
+	// inline (was crashing when generic) and container-instantiation
+	attribute<float64> evening (Road) := 2.0 * CongestionRatio(Road);
+	container           morning       := instantiate CongestionRatio(Road);
+
+	// a top-level generic param still works alongside a member-generic one
+	function TwiceG<V: numerics>(unit<uint32> D; attribute<V> x (D)) -> attribute<V> (D) := x + x;
+	attribute<float64> doubled (Road) := TwiceG(Road, Road/flow);
+
+	container checks
+	{
+		parameter<float64> ev := sum(evening),      IntegrityCheck = "ev == 6.0";      // 2 * 3.0
+		parameter<float64> mo := sum(morning/result), IntegrityCheck = "mo == 3.0";
+		parameter<float64> db := sum(doubled),      IntegrityCheck = "db == 1500.0";
+	}
+}

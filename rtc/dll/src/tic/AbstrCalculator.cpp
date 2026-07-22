@@ -2507,14 +2507,38 @@ namespace {
 								if (!ri->first->GetExpr().empty())
 								{
 									LispRef baseKey = ReduceBodyItem(ri->first.get());
-									// a CONFIG-item reference (a SymbDC sourceDescr key:
-									// the rule was a bare import/def-scope/param alias)
-									// is NOT a cache result — SubItemOperator requires a
-									// cache base (review finding, live-repro'd Debug
-									// assert). Such accesses keep the pre-tranche throw.
+									// A CONFIG-item reference (a sourceDescr key: the
+									// local's rule was a bare import/def-scope/param alias
+									// to a config item) is NOT a cache result, so the
+									// cache-layer SubItemOperator cannot take it as a base.
+									// But the member is directly resolvable: descend the
+									// remaining path against the referenced config item and
+									// emit that item's own key — exactly as member access
+									// through a structured parameter does (see above) —
+									// instead of routing through the cache layer.
 									if (baseKey.IsRealList() && baseKey.Left().IsSymb()
 										&& baseKey.Left().GetSymbID() == token::sourceDescr)
-										break;
+									{
+										LispPtr fullNameRef = baseKey.Right().Left();
+										if (fullNameRef.IsSymb())
+										{
+											// materialize the name first: a TokenStr range holds the
+											// token-registry lock, which FindItem (parse-capable) must not span
+											SharedStr baseName(fullNameRef.GetSymbID().AsStrRange());
+											if (auto baseItem = m_FuncItem->FindItem(baseName))
+											{
+												// FindSubItem throws a clean FindSubItem error on a genuinely missing member
+												auto member = FindSubItem(baseItem.get(), SharedStr(CharPtrRange(ri->second, e)));
+												member->UpdateMetaInfo();
+												if (m_SubstBuff)
+													registerSupplier(*m_SubstBuff, member.get());
+												if (foundItemPtr)
+													*foundItemPtr = member;
+												return member->GetCheckedKeyExpr();
+											}
+										}
+										break; // config base could not be resolved -> keep the pre-tranche throw
+									}
 									if (foundItemPtr)
 										*foundItemPtr = nullptr;
 									return slSubItemCall(std::move(baseKey), CharPtrRange(ri->second, e));

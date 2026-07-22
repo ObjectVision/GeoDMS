@@ -1,0 +1,13 @@
+container fn_test_props_neg1
+{
+	// NEGATIVE: an 'item' (meta-reference) parameter requires an item REFERENCE;
+	// a calculated expression must be rejected with a clear error
+	unit<uint32> Road : nrofrows = 3 { attribute<float64> flow := float64(id(Road)); }
+
+	parameter<string> bad := name(Road/flow + Road/flow);
+
+	container checks
+	{
+		parameter<bool> c_bad := strlen(bad) > 0, IntegrityCheck = "c_bad == true";
+	}
+}

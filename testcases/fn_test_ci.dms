@@ -1,0 +1,36 @@
+container fn_test_ci
+{
+	// §12.8/slSubItemCall + connect_info members: connect_info is CACHEABLE, so
+	// ci/arc_rel, ci/dist, ci/CutPoint... all inline-reduce (slSubItemCall) AND
+	// type at definition — every member keyed by the points' domain (K3).
+	// Minimal geometry (expression-built): one arc = segment (0,0)->(0,10); a point at (3,5).
+	unit<uint32> ArcPoints : nrofrows = 2
+	{
+		attribute<float32> px      := float32(id(.)) * 10f; // 0, 10
+		attribute<float32> py      := float32(id(.)) *  0f; // 0, 0
+		attribute<fpoint>  point   := point_yx(py, px, fpoint);
+		attribute<Arc>     seq_rel : [0, 0];
+		attribute<uint32>  ordinal := id(.);
+	}
+	unit<uint32> Arc : nrofrows = 1
+	{
+		attribute<fpoint> geometry (Arc) := points2sequence(ArcPoints/point, ArcPoints/seq_rel, ArcPoints/ordinal);
+	}
+	unit<uint32> Pnt : nrofrows = 1
+	{
+		attribute<fpoint> geometry := const(point_yx(3f, 5f, fpoint), .);
+	}
+
+	function nearest(attribute<fpoint> arcs (Arc); attribute<fpoint> pts (Pnt)) -> parameter<uint32>
+	{
+		container ci := connect_info(arcs, pts);
+		// robust target (coordinate-convention independent): the only arc is 0.
+		parameter<uint32> result := sum(uint32(ci/arc_rel)) + (sum(ci/dist) >= 0.0 ? 0 : 1);
+	}
+	parameter<uint32> n := nearest(Arc/geometry, Pnt/geometry);
+
+	container checks
+	{
+		parameter<uint32> c_1 := n, IntegrityCheck = "c_1 == 0"; // single point -> nearest arc 0
+	}
+}

@@ -1,0 +1,20 @@
+container fn_test_opsig_neg1
+{
+	// NEGATIVE (definition-time, op-sig batch A): sin is registered for float
+	// attributes only; a concrete string argument matches no overload, so the
+	// definition fails at its first reference.
+	// (History: this test used sqrt on a <V: numerics> parameter against the
+	// hand-written batch-1 claim 'sqrt: floats'. The DERIVED signature knows
+	// sqrt is actually registered over all numeric objects, and operator-support
+	// sets are soft on rigid variables — so the honest def-time error is a
+	// CONCRETE unsupported class, not a ∀-violation.)
+	// Expected: "the definition of '/bad': the argument types of operator 'sin'
+	//            do not match any of its registered overloads"
+	unit<uint32> Road : nrofrows = 3 { attribute<string> name : ['a','b','c']; }
+
+	function bad<D: domains>(attribute<string> s (D)) -> attribute<string> (D) := sin(s);
+
+	attribute<string> z (Road) := bad(Road/name);
+
+	container checks { attribute<string> use (Road) := z; }
+}

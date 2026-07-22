@@ -1,0 +1,24 @@
+container fn_test_fe_neg5
+{
+	// §12.7 for_each tranche, the S1 guard: an OPEN name array (a FORMAL
+	// parameter) must DEFER exactly as before the tranche — no definition-time
+	// error of any kind (in particular no bogus 'not among them'); the failure
+	// is the LATE inline-reduction one.
+	unit<uint32> D : nrofrows = 3;
+	unit<uint32> NSet : nrofrows = 2;
+	attribute<string> mnames (NSet) : ['a','b'];
+	attribute<string> mexprs (NSet) : ['x + x','x - x'];
+	attribute<float64> src (D) : [1.0, 2.0, 3.0];
+
+	function f(attribute<string> nm (NSet); attribute<float64> x (D)) -> attribute<float64> (D)
+	{
+		container r := for_each_nedv(nm, mexprs, D, float64);
+		attribute<float64> result (D) := r/anything; // member set unknowable at definition: defer
+	}
+	attribute<float64> y (D) := f(mnames, src);
+
+	container checks
+	{
+		parameter<float64> c_1 := sum(y), IntegrityCheck = "c_1 == 0.0";
+	}
+}

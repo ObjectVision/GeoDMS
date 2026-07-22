@@ -1,0 +1,55 @@
+container fn_test_opsigK13
+{
+	// §12.7 impedance tranche: a definition-time-KNOWN spec upgrades the K13
+	// DynamicShape deferral to a concrete per-spec record — full per-flag typing
+	// (Links domain shared over imp/F1/F2, node-rels over the Node set, the
+	// result attribute<Imp>(dstZones)) plus the ruled honest arity check.
+	// Minimal network: 2 nodes, 1 directed link node0 -> node1, impedance 1.
+	unit<uint32> Node : nrofrows = 2;
+	unit<uint32> Link : nrofrows = 1
+	{
+		attribute<Node>    F1   : [0];
+		attribute<Node>    F2   : [1];
+		attribute<float64> imp  : [1.0];
+		attribute<float32> tt32 : [1];
+	}
+	unit<uint32> StartSet : nrofrows = 1 { attribute<Node> nr : [0]; }
+
+	parameter<string> impSpec := 'directed;startPoint(Node_rel)';
+
+	// P1: LITERAL spec — read straight off the parse tree
+	function distL<L: domains, S: domains>(attribute<float64> w (L); attribute<Node> f1 (L); attribute<Node> f2 (L); attribute<Node> sr (S))
+	-> attribute<float64> (Node) := impedance_table('directed;startPoint(Node_rel)', w, f1, f2, sr);
+
+	// P2: CLOSED definition-scope spec — evaluated at definition scan through
+	// the same DC every application interns
+	function distC<L: domains, S: domains>(attribute<float64> w (L); attribute<Node> f1 (L); attribute<Node> f2 (L); attribute<Node> sr (S))
+	-> attribute<float64> (Node) := impedance_table(impSpec, w, f1, f2, sr);
+
+	// P4 (S1 regression): OPEN spec — a FORMAL parameter; must defer exactly as
+	// before this tranche (no def-time error) and still compute
+	function distO<L: domains, S: domains>(parameter<string> sp; attribute<float64> w (L); attribute<Node> f1 (L); attribute<Node> f2 (L); attribute<Node> sr (S))
+	-> attribute<float64> (Node) := impedance_table(sp, w, f1, f2, sr);
+
+	// MEMO-REPLAY REGRESSION (review S1 finding, fixed): TWO impedance
+	// applications with DIFFERENT Imp classes in ONE body — the per-spec record
+	// must derive from each application's OWN surviving member (float64 vs
+	// float32), never replay the other's tuples
+	function dist2<L: domains, S: domains>(attribute<float64> w64 (L); attribute<float32> w32 (L); attribute<Node> f1 (L); attribute<Node> f2 (L); attribute<Node> sr (S))
+	-> attribute<float64> (Node) :=
+		   impedance_table('directed;startPoint(Node_rel)', w64, f1, f2, sr)
+		 + float64(impedance_table('directed;startPoint(Node_rel)', w32, f1, f2, sr));
+
+	attribute<float64> d1 (Node) := distL(Link/imp, Link/F1, Link/F2, StartSet/nr);
+	attribute<float64> d2 (Node) := distC(Link/imp, Link/F1, Link/F2, StartSet/nr);
+	attribute<float64> d3 (Node) := distO(impSpec, Link/imp, Link/F1, Link/F2, StartSet/nr);
+	attribute<float64> d4 (Node) := dist2(Link/imp, Link/tt32, Link/F1, Link/F2, StartSet/nr);
+
+	container checks
+	{
+		parameter<float64> c_1 := sum(d1), IntegrityCheck = "c_1 == 1.0";   // distances [0,1]
+		parameter<float64> c_2 := sum(d2), IntegrityCheck = "c_2 == 1.0";
+		parameter<float64> c_3 := sum(d3), IntegrityCheck = "c_3 == 1.0";
+		parameter<float64> c_4 := sum(d4), IntegrityCheck = "c_4 == 2.0";   // [0,1]+[0,1]
+	}
+}

@@ -1,0 +1,12 @@
+container fn_test_p2_neg1
+{
+	unit<uint32> Road : nrofrows = 2
+	{
+		attribute<string> names : [ 'a', 'b' ];
+	}
+
+	function TwiceG<V: numerics>(unit<uint32> D; attribute<V> x (D))
+	-> attribute<V> (D) := x + x;
+
+	attribute<string> failing (Road) := TwiceG(Road, Road/names);   // expect: does not satisfy 'V: numerics'
+}

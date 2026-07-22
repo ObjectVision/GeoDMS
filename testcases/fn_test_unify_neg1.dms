@@ -1,0 +1,19 @@
+container fn_test_unify_neg1
+{
+	unit<uint32> Road : nrofrows = 3 { attribute<float64> flow : [ 1.0, 2.0, 3.0 ]; }
+
+	nuf = function<V: numerics, D: domains>(attribute<V> (D)) -> attribute<V> (D);
+
+	function fhalf(attribute<float64> x) -> attribute<float64> := x / 2.0;  // V := float64
+	function iinc (attribute<int32>   x) -> attribute<int32>   := x + 1;    // V := int32
+
+	function compose<V: numerics, D: domains>(f: nuf<V, D>; g: nuf<V, D>) -> nuf<V, D>
+	{
+		function result(attribute<V> x (D)) -> attribute<V> (D) := f(g(x));
+	}
+
+	// float64 and int32 cannot both instantiate the same V
+	attribute<float64> bad (Road) := compose(fhalf, iinc)(Road/flow);
+
+	container checks { parameter<float64> use := sum(bad); }
+}

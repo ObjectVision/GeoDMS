@@ -1,0 +1,22 @@
+container fn_test_subref_neg4
+{
+	// §12.7 slSubItemCall tranche (review fix): the plain select_* groups
+	// create NO sub-items — their complete-EMPTY member set now reaches the
+	// checker, so a member reference reports at DEFINITION ("generates no
+	// members, so 'org_rel' cannot exist"), not just per application.
+	unit<uint32> D : nrofrows = 4;
+	attribute<float64> x (D) : [1.0, 2.0, 2.0, 3.0];
+	attribute<bool>    c (D) : [false, true, true, false];
+
+	function f(attribute<bool> cond (D)) -> parameter<uint32>
+	{
+		unit<uint32> s := select_uint32(cond);
+		parameter<uint32> result := sum(uint32(s/org_rel));
+	}
+	parameter<uint32> n := f(c);
+
+	container checks
+	{
+		parameter<uint32> c_1 := n, IntegrityCheck = "c_1 == 0";
+	}
+}

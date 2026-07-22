@@ -1,0 +1,18 @@
+container fn_test_constrv
+{
+	// argument-completion aliases retired to the prelude: 3-arg const (dispatch onto
+	// the binary const operator) and ReadValue (= ReadArray with Void domain)
+	unit<uint32> D : nrofrows = 3;
+
+	attribute<uint32> c2 (D) := const(7, D);           // 2-arg = the operator (regression)
+	attribute<uint32> c3 (D) := const(7, D, uint32);   // 3-arg = the prelude completion
+
+	parameter<uint32> rv := ReadValue('42 43', uint32, 0);
+
+	container checks
+	{
+		parameter<bool> c_c2 := all(c2 == 7),  IntegrityCheck = "c_c2 == true";
+		parameter<bool> c_c3 := all(c3 == 7),  IntegrityCheck = "c_c3 == true";
+		parameter<bool> c_rv := rv == 42,      IntegrityCheck = "c_rv == true";
+	}
+}

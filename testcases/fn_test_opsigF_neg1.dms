@@ -1,0 +1,16 @@
+container fn_test_opsigF_neg1
+{
+	// NEGATIVE (batch F printer floor): impedance_matrix is the K13 archetype —
+	// its DynamicShape record only feeds the printer. Calling it with argument
+	// classes no member accepts fails FindOper at reduction; the enriched
+	// "Cannot find operator" message must now render the impedance record,
+	// including the "[shape: ...]" dynamic-shape marker and the meta spec arg.
+	// Expected: error text contains "Declared unit-constraint signatures" and
+	//           "[shape: the argument layout is computed from the specification"
+	unit<uint32> D : nrofrows = 2;
+	attribute<uint32> u (D) : [1, 2];
+
+	attribute<float64> bad (D) := impedance_matrix(u, u, u, u);
+
+	container checks { parameter<float64> use := sum(bad); }
+}

@@ -1,0 +1,26 @@
+container fn_test_opsigK13_neg1
+{
+	// NEGATIVE (definition-time, §12.7): the ruled honest ARITY check. The spec
+	// 'directed;startPoint(Node_rel)' implies exactly 5 arguments (CalcNrArgs);
+	// passing 6 errors at the definition's first reference — the sole exemption
+	// from the "arity always defers" rule, honest because CreateResult throws on
+	// the identical predicate for the identical spec.
+	// Expected: "... number of given arguments to operator 'impedance_table'
+	//            doesn't match the specification 'directed;startPoint(Node_rel)':
+	//            6 arguments given (including the specification), but 5 expected"
+	unit<uint32> Node : nrofrows = 2;
+	unit<uint32> Link : nrofrows = 1
+	{
+		attribute<Node>    F1  : [0];
+		attribute<Node>    F2  : [1];
+		attribute<float64> imp : [1.0];
+	}
+	unit<uint32> StartSet : nrofrows = 1 { attribute<Node> nr : [0]; }
+
+	function bad<L: domains, S: domains>(attribute<float64> w (L); attribute<Node> f1 (L); attribute<Node> f2 (L); attribute<Node> sr (S))
+	-> attribute<float64> (Node) := impedance_table('directed;startPoint(Node_rel)', w, f1, f2, sr, sr);
+
+	attribute<float64> z (Node) := bad(Link/imp, Link/F1, Link/F2, StartSet/nr);
+
+	container checks { parameter<float64> use := sum(z); }
+}

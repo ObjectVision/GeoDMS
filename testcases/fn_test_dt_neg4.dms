@@ -1,0 +1,23 @@
+container fn_test_dt_neg4
+{
+	// NEGATIVE (definition-time): the body forces two independent domain
+	// variables equal — add2c's single E meets both D1 and D2. Must fail at
+	// first reference even though the call site passes two attributes over the
+	// SAME domain.
+	// Expected: "the definition of '/bad': the body requires domains 'D1' and
+	//            'D2' to be equal ..."
+	unit<uint32> Road : nrofrows = 3
+	{
+		attribute<float64> flow : [ 1.0, 2.0, 3.0 ];
+		attribute<float64> cap  : [ 2.0, 4.0, 6.0 ];
+	}
+
+	function add2c<W: numerics, E: domains>(attribute<W> p (E); attribute<W> q (E)) -> attribute<W> (E) := p + q;
+
+	function bad<D1: domains, D2: domains>(attribute<float64> x (D1); attribute<float64> y (D2)) -> attribute<float64> (D1)
+		:= add2c(x, y);
+
+	attribute<float64> z (Road) := bad(Road/flow, Road/cap);
+
+	container checks { parameter<float64> use := sum(z); }
+}

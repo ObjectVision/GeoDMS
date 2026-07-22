@@ -1,0 +1,29 @@
+container fn_test_encl
+{
+	// REGRESSION (review finding, tranche 3): a nested function's type application
+	// may name an ENCLOSING function's type variable; the rigid node must be seeded
+	// with the ENCLOSING declaration's constraint ('F: floats'), not with an all-set
+	// feasible set that makes the for-all check spuriously strict.
+	// (Note: the nested body applies g to a literal — a plain nested call has no
+	// closure environment, so capturing outer's data parameter is a separate,
+	// pre-existing limit; closures cover that case, see fn_test_closure2.)
+	unit<uint32> Road : nrofrows = 3 { attribute<float64> flow : [ 1.0, 2.0, 3.0 ]; }
+
+	nuf = function<V: numerics, D: domains>(attribute<V> (D)) -> attribute<V> (D);
+
+	function outer<F: floats, D: domains>(attribute<F> a (D)) -> attribute<F> (D) := inner(half);
+	{
+		function half<W: floats, Dh: domains>(attribute<W> x (Dh)) -> attribute<W> (Dh) := x / 2.0;
+
+		// F appears ONLY in the type application here — its constraint must come
+		// from outer's clause when the walker links it to half's 'W: floats'
+		function inner(g: nuf<F, D>) -> attribute<F> (D) := g(half(1.0));
+	}
+
+	parameter<float64> o := outer(Road/flow); // g=half: half(half(1.0)) = 0.25 (void result)
+
+	container checks
+	{
+		parameter<float64> c_o := o, IntegrityCheck = "c_o == 0.25";
+	}
+}

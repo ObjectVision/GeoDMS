@@ -1,0 +1,34 @@
+container fn_test_opsigF
+{
+	// op-sig batch F: connect_info/dist_info describes + the impedance/dijkstra
+	// K13 floor. dist_info's is the one checkable claim: its result is
+	// UNCONDITIONALLY attribute<float64>(points.domain) with the metric-less
+	// default dist unit — ResultAttr(DefaultUnit(float64), Dp), the K3 domain
+	// identity. This positive proves the walker accepts a valid dist_info call
+	// in a function body (no false rejection) and the claim reduces.
+	unit<uint32> ArcSet : nrofrows = 1;
+	unit<uint32> PointSrc : nrofrows = 2;   // 2 points forming 1 horizontal arc y=0, x=0..10
+	attribute<float32> ay   (PointSrc) : [0, 0];
+	attribute<float32> ax   (PointSrc) : [0, 10];
+	attribute<fpoint>  apt  (PointSrc) := point_yx(ay, ax, fpoint);
+	attribute<ArcSet>  seqr (PointSrc) : [0, 0];   // seq_rel VALUES unit = the result domain
+	attribute<uint32>  ord  (PointSrc) : [0, 1];
+
+	attribute<fpoint> arcs (ArcSet, arc) := points2sequence(apt, seqr, ord);
+
+	unit<uint32> P : nrofrows = 2;
+	attribute<float32> py  (P) : [1, 3];
+	attribute<float32> px  (P) : [2, 5];
+	attribute<fpoint>  pts (P) := point_yx(py, px, fpoint);
+
+	// K3 live: the declared result domain must be the POINTS domain D
+	function distF<A: domains, D: domains>(attribute<fpoint> a (A, arc); attribute<fpoint> p (D))
+	-> attribute<float64> (D) := dist_info(a, p);
+
+	attribute<float64> d (P) := distF(arcs, pts);   // vertical distances [1.0, 3.0]
+
+	container checks
+	{
+		parameter<float64> c_d := sum(d), IntegrityCheck = "c_d == 4.0";
+	}
+}

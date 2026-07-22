@@ -1,0 +1,52 @@
+container fn_test_opsig
+{
+	// WP4.1 operator signatures (batch 1) + §5.12 auto-typed bare declarations
+	unit<uint32> Road : nrofrows = 3
+	{
+		attribute<float64> flow : [ 1.0, 2.0, 3.0 ];
+		attribute<float64> cap  : [ 2.0, 4.0, 6.0 ];
+	}
+
+	// typed operator positions in a generic body: '+' links both args and the
+	// result through one implicit signature variable, so the declared types check
+	function addup<V: numerics, D: domains>(attribute<V> x (D); attribute<V> y (D)) -> attribute<V> (D)
+		:= x + y;
+
+	// bare body local (auto-typed): 'raw' is inferred V[D] from the mul signature,
+	// and min_elem unifies it back with x — fully typed without a declaration
+	function scaled<V: numerics, D: domains>(attribute<V> x (D); attribute<V> y (D)) -> attribute<V> (D)
+	{
+		raw := x * y;
+		attribute<V> result (D) := min_elem(raw, x);
+	}
+
+	// comparisons yield bool over the shared domain
+	function isless<V: numerics, D: domains>(attribute<V> x (D); attribute<V> y (D)) -> attribute<bool> (D)
+		:= x < y;
+
+	// §5.12 untyped result designation: '-> restype { result := ...; }'
+	function twiceF<D: domains>(attribute<float64> x (D)) -> attribute<float64> (D)
+	{
+		result := x + x;
+	}
+
+	// §5.12 auto-typed CONFIG items: class and domain derive from the calculation
+	// (operator rules; a function-application rule still needs a typed holder)
+	a := Road/flow + Road/cap;
+	s := mul(a, a);
+
+	attribute<float64> t1 (Road) := addup(Road/flow, Road/cap);   // [3,6,9]
+	attribute<float64> t2 (Road) := scaled(Road/flow, Road/cap);  // min(x*y, x) = x -> [1,2,3]
+	attribute<bool>    t3 (Road) := isless(Road/flow, Road/cap);  // all true
+	attribute<float64> t4 (Road) := twiceF(Road/flow);            // [2,4,6]
+
+	container checks
+	{
+		parameter<float64> c_1 := sum(t1),           IntegrityCheck = "c_1 == 18.0";
+		parameter<float64> c_2 := sum(t2),           IntegrityCheck = "c_2 == 6.0";
+		parameter<uint32>  c_3 := sum(uint32(t3)),   IntegrityCheck = "c_3 == 3";
+		parameter<float64> c_4 := sum(t4),           IntegrityCheck = "c_4 == 12.0";
+		parameter<float64> c_a := sum(a),            IntegrityCheck = "c_a == 18.0";
+		parameter<float64> c_s := sum(s),            IntegrityCheck = "c_s == 126.0";
+	}
+}

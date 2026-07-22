@@ -1,0 +1,12 @@
+container fn_test_lambda_neg
+{
+	// NEGATIVE: per the brace/parenthesis rule, a function literal is expression
+	// content only INSIDE parentheses; an unparenthesized literal as the whole rule
+	// of a TYPED data item is not a valid expression (must fail; the untyped
+	// whole-rule form 'name := function ...' is the supported spelling).
+	unit<uint32> Road : nrofrows = 3 { attribute<float64> flow : [ 1.0, 2.0, 3.0 ]; }
+
+	attribute<float64> bad (Road) := function(attribute<float64> x (Road)) -> attribute<float64> (Road) := x + x;
+
+	container checks { parameter<float64> use := sum(bad); }
+}

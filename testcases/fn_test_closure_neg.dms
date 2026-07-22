@@ -1,0 +1,11 @@
+container fn_test_closure_neg
+{
+	unit<uint32> Road : nrofrows = 2 { attribute<float64> flow : [ 1.0, 2.0 ]; }
+
+	function double_<V: numerics>(attribute<V> x) -> attribute<V> := x + x;
+
+	// applying a data value: '(...)' after a call whose result is data must error
+	attribute<float64> bad (Road) := double_(Road/flow)(Road/flow);
+
+	container checks { parameter<float64> use := sum(bad); }
+}

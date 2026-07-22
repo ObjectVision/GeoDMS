@@ -1,0 +1,11 @@
+container fn_probe_cfgbase_scope
+{
+	unit<uint32> D : nrofrows = 3;
+	container cfg { attribute<float64> sub (D) : [1.0, 2.0, 3.0]; }
+
+	// same 'alias a config container, then member-access below it' pattern, but at
+	// plain CONFIG scope (no function body) -> does it resolve to cfg/sub?
+	container c := cfg;
+	parameter<float64> y := sum(c/sub);
+	container checks { parameter<float64> c_1 := y, IntegrityCheck = "c_1 == 6.0"; }
+}

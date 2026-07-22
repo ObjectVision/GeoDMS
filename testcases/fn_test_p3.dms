@@ -1,0 +1,36 @@
+container fn_test_p3
+{
+	unit<uint32> Road : nrofrows = 4
+	{
+		attribute<float64> flow : [ 100.0, 200.0,  50.0, 400.0 ];
+	}
+
+	container lib
+	{
+		function Halve(unit<uint32> D; attribute<float64> v (D))
+		-> attribute<float64> (D) := v / 2.0;
+
+		// higher-order: a function-valued parameter, applied twice
+		function ApplyTwice(unit<uint32> D; f: function; attribute<float64> x (D))
+		-> attribute<float64> (D) := f(D, f(D, x));
+
+		// two function-valued parameters, composed
+		function Compose2(unit<uint32> D; f: function; g: function; attribute<float64> x (D))
+		-> attribute<float64> (D) := f(D, g(D, x));
+
+		// passing a sibling function (resolved via import) onward from inside a body
+		function QuarterViaPass(unit<uint32> D; attribute<float64> x (D)), using = /lib
+		-> attribute<float64> (D) := ApplyTwice(D, Halve, x);
+	}
+
+	attribute<float64> quarter  (Road) := lib/ApplyTwice(Road, lib/Halve, Road/flow);
+	attribute<float64> quarter2 (Road) := lib/Compose2(Road, lib/Halve, lib/Halve, Road/flow);
+	attribute<float64> quarter3 (Road) := lib/QuarterViaPass(Road, Road/flow);
+
+	container checks
+	{
+		parameter<float64> check1 := sum(quarter),  IntegrityCheck = "check1 == 187.5"; // 750 / 4
+		parameter<float64> check2 := sum(quarter2), IntegrityCheck = "check2 == 187.5";
+		parameter<float64> check3 := sum(quarter3), IntegrityCheck = "check3 == 187.5";
+	}
+}

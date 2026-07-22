@@ -1,0 +1,22 @@
+container fn_test_applyt2
+{
+	parameter<float64> factor := 10.0;
+
+	// the body references 'factor', resolved through the injected definition-parent
+	// namespace of the (cache-)instantiated copy — template scoping preserved
+	template Scaler
+	{
+		unit<uint32>       D;
+		attribute<float64> x (D);
+		attribute<float64> result (D) := factor * x;
+	}
+
+	unit<uint32> Road : nrofrows = 3 { attribute<float64> flow : [ 1.0, 2.0, 3.0 ]; }
+
+	attribute<float64> scaled (Road) := apply Scaler(Road, Road/flow);
+
+	container checks
+	{
+		parameter<float64> c1 := sum(scaled), IntegrityCheck = "c1 == 60.0"; // 10*(1+2+3)
+	}
+}

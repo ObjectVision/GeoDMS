@@ -1,0 +1,13 @@
+container fn_test_partial_neg
+{
+	unit<uint32> Road : nrofrows = 2
+	{
+		attribute<float64> flow : [ 1.0, 2.0 ];
+	}
+
+	function Add2(unit<uint32> D; attribute<float64> a (D); attribute<float64> b (D))
+	-> attribute<float64> (D) := a + b;
+
+	// binding a partial application to a data item is an error
+	attribute<float64> bad (Road) := Add2(Road, Road/flow, _);
+}

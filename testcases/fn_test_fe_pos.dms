@@ -1,0 +1,32 @@
+container fn_test_fe_pos
+{
+	// §12.7 for_each tranche, S1 regressions that must keep WORKING:
+	// (a) slash-paths into DECLARED body sub-containers — the ResolveName
+	//     segment-walk rewrite must resolve them exactly as before;
+	// (b) config-scope for_each is untouched by the tranche.
+	unit<uint32> D : nrofrows = 3;
+	attribute<float64> src (D) : [1.0, 2.0, 3.0];
+
+	function f<V: numerics>(attribute<V> x (D)) -> attribute<V> (D)
+	{
+		container sub
+		{
+			attribute<V> twice (D) := x + x;
+		}
+		attribute<V> result (D) := sub/twice + sub/twice;
+	}
+	attribute<float64> y (D) := f(src);
+
+	// config-scope for_each: outside functions, byte-identical behavior
+	unit<uint32> NSet : nrofrows = 2;
+	attribute<string> mnames (NSet) : ['m1','m2'];
+	attribute<string> mexprs (NSet) : ['src + 1.0','src + 2.0'];
+	container fe := for_each_nedv(mnames, mexprs, D, float64);
+
+	container checks
+	{
+		parameter<float64> c_1 := sum(y),     IntegrityCheck = "c_1 == 24.0"; // 4*(1+2+3)
+		parameter<float64> c_2 := sum(fe/m1), IntegrityCheck = "c_2 == 9.0";  // (1+2+3)+3
+		parameter<float64> c_3 := sum(fe/m2), IntegrityCheck = "c_3 == 12.0"; // (1+2+3)+6
+	}
+}

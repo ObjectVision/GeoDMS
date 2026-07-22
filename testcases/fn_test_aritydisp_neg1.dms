@@ -1,0 +1,12 @@
+container fn_test_aritydisp_neg1
+{
+	// NEGATIVE: a user function may share an operator's name ONLY for argument counts
+	// the operator rejects; declaring the operator's own arity is a semantic error
+	function add(container a; container b) -> container := a;
+
+	parameter<uint32> z := 1;
+	container checks
+	{
+		parameter<bool> c_z := z == 1, IntegrityCheck = "c_z == true";
+	}
+}

@@ -1,0 +1,17 @@
+container fn_test_opsigE_neg1
+{
+	// NEGATIVE (batch E printer wiring): calling a DESCRIBED operator-group with
+	// argument types no member accepts makes FindOper fail at reduction with
+	// "Cannot find operator for these arguments" — now ENRICHED (§6.3) with the
+	// group's declared unit-constraint signatures (RenderMergedSignature over
+	// GetSignatures()). connect (cogCON) takes point/polygon-valued geometry; a
+	// float32 argument matches no member.
+	// Expected: the error text contains "Declared unit-constraint signatures"
+	//           followed by the rendered connect signatures.
+	unit<uint32> D : nrofrows = 2;
+	attribute<float32> f (D) : [1, 2];
+
+	attribute<uint32> bad (D) := connect(f, f);
+
+	container checks { parameter<uint32> use := sum(bad); }
+}

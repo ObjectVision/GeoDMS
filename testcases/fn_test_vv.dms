@@ -1,0 +1,34 @@
+container fn_test_vv
+{
+	unit<uint32> Road : nrofrows = 3
+	{
+		attribute<float64> flow : [ 1.0, 2.0, 3.0 ];
+		attribute<float64> cap  : [ 2.0, 4.0, 6.0 ];
+	}
+
+	nuf = function<V: numerics, D: domains>(attribute<V> (D)) -> attribute<V> (D);
+	bif = function<A: numerics, B: numerics, D: domains>(attribute<A> (D); attribute<B> (D)) -> attribute<A> (D);
+
+	// float-only generic: binding it to nuf<V, D> LINKS its W to V (WP4.1 t2);
+	// float64 satisfies floats ∩ numerics, so the link is consistent here
+	function fhalf<W: floats, E: domains>(attribute<W> x (E)) -> attribute<W> (E) := x / 2.0;
+
+	function ap<V: numerics, D: domains>(f: nuf<V, D>; attribute<V> x (D)) -> attribute<V> (D) := f(x);
+
+	attribute<float64> a (Road) := ap(fhalf, Road/flow); // [0.5, 1.0, 1.5]
+
+	// add2 uses ONE variable W for both positions of bif<A, B, D>: binding it
+	// forces A == B transitively (A ≡ W ≡ B); both arguments are float64, so ok
+	function add2<W: numerics, E: domains>(attribute<W> p (E); attribute<W> q (E)) -> attribute<W> (E) := p + q;
+
+	function zip<A: numerics, B: numerics, D: domains>(f: bif<A, B, D>; attribute<A> x (D); attribute<B> y (D)) -> attribute<A> (D)
+		:= f(x, y);
+
+	attribute<float64> b (Road) := zip(add2, Road/flow, Road/cap); // [3.0, 6.0, 9.0]
+
+	container checks
+	{
+		parameter<float64> c_a := sum(a), IntegrityCheck = "c_a == 3.0";
+		parameter<float64> c_b := sum(b), IntegrityCheck = "c_b == 18.0";
+	}
+}

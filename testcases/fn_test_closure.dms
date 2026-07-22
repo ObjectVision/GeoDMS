@@ -1,0 +1,32 @@
+container fn_test_closure
+{
+	unit<uint32> Road : nrofrows = 3 { attribute<float64> flow : [ 1.0, 2.0, 3.0 ]; }
+
+	function double_<V: numerics>(attribute<V> x) -> attribute<V> := x + x;
+	function inc<V: numerics>(attribute<V> x) -> attribute<V> := x + 1.0;
+
+	function compose(f: function; g: function) -> function
+	{
+		function result<V: numerics>(attribute<V> x) -> attribute<V> := f(g(x));
+	}
+
+	// f after g: double(inc(x)) = 2x + 2
+	attribute<float64> di (Road) := compose(double_, inc)(Road/flow);      // [4,6,8]
+	// g after f: inc(double(x)) = 2x + 1
+	attribute<float64> id2 (Road) := compose(inc, double_)(Road/flow);     // [3,5,7]
+
+	// closure as an argument: pass the composed function into another HOF
+	function apply1(h: function; attribute<float64> y) -> attribute<float64> := h(y);
+	attribute<float64> viaArg (Road) := apply1(compose(double_, inc), Road/flow); // [4,6,8]
+
+	// nested composition: a closure composed with a closure-producing call
+	attribute<float64> quad (Road) := compose(compose(double_, inc), inc)(Road/flow); // double(inc(inc(x))) = 2x+4 -> [6,8,10]
+
+	container checks
+	{
+		parameter<float64> c_di   := sum(di),     IntegrityCheck = "c_di == 18.0";
+		parameter<float64> c_id2  := sum(id2),    IntegrityCheck = "c_id2 == 15.0";
+		parameter<float64> c_arg  := sum(viaArg), IntegrityCheck = "c_arg == 18.0";
+		parameter<float64> c_quad := sum(quad),   IntegrityCheck = "c_quad == 24.0";
+	}
+}

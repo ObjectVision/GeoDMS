@@ -1,0 +1,17 @@
+container fn_test_refine
+{
+	// a refined type alias: a fraction is a float64 constrained to [0, 1]
+	frac = parameter<float64>, IntegrityCheck = "frac >= 0.0 && frac <= 1.0";
+
+	// items declared with the alias inherit the refinement (rebound to their own name)
+	good: frac := 0.75;   // ok
+
+	// an alias-of-refined-alias also carries the refinement
+	ratio = frac;
+	good2: ratio := 0.25; // ok
+
+	container checks
+	{
+		parameter<float64> total := good + good2, IntegrityCheck = "total == 1.0";
+	}
+}

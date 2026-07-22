@@ -1,0 +1,20 @@
+container fn_test_closure2
+{
+	// REGRESSION (review finding, tranche 3): a closure capturing an enclosing
+	// function's DATA parameter — the canonical 'adder'. The definition-time walker
+	// must DEFER the captured name 'a' (closure environment, resolved at reduction),
+	// not reject it via the FindItem parent-chain ascension.
+	unit<uint32> Road : nrofrows = 3 { attribute<float64> flow : [ 1.0, 2.0, 3.0 ]; }
+
+	function adder(parameter<float64> a) -> function
+	{
+		function result(attribute<float64> x) -> attribute<float64> := x + a;
+	}
+
+	attribute<float64> plus10 (Road) := adder(10.0)(Road/flow); // [11,12,13]
+
+	container checks
+	{
+		parameter<float64> c_p := sum(plus10), IntegrityCheck = "c_p == 36.0";
+	}
+}

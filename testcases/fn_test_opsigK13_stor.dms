@@ -1,0 +1,31 @@
+container fn_test_opsigK13_stor
+{
+	// §12.7 storage-backed ruling: a CLOSED spec whose value comes from STORAGE
+	// ("x.txt") is read at definition scan — "it's time to read x.txt when
+	// scanning f's definition if x.txt decides which sub-items result". The
+	// def-time evaluation goes through the same DC the application interns, so
+	// the file is read once. impspec.txt contains: directed;startPoint(Node_rel)
+	unit<uint32> Node : nrofrows = 2;
+	unit<uint32> Link : nrofrows = 1
+	{
+		attribute<Node>    F1  : [0];
+		attribute<Node>    F2  : [1];
+		attribute<float64> imp : [1.0];
+	}
+	unit<uint32> StartSet : nrofrows = 1 { attribute<Node> nr : [0]; }
+
+	parameter<string> impSpec
+	:	StorageName = "C:/dev/GeoDMS_2026/testcases/impspec.txt"
+	,	StorageType = "str"
+	,	StorageReadOnly = "TRUE";
+
+	function distS<L: domains, S: domains>(attribute<float64> w (L); attribute<Node> f1 (L); attribute<Node> f2 (L); attribute<Node> sr (S))
+	-> attribute<float64> (Node) := impedance_table(impSpec, w, f1, f2, sr);
+
+	attribute<float64> d (Node) := distS(Link/imp, Link/F1, Link/F2, StartSet/nr);
+
+	container checks
+	{
+		parameter<float64> c_d := sum(d), IntegrityCheck = "c_d == 1.0";   // distances [0,1]
+	}
+}

@@ -1,0 +1,16 @@
+container fn_test_anon_neg1
+{
+	// NEGATIVE (parse-time): a data result type without ':= expr' whose body block
+	// has NO item named 'result' to designate.
+	// Expected: "function result expression expected after ':=', or a body item
+	//            named 'result' (or the declared result name) to designate"
+	unit<uint32> Road : nrofrows = 3 { attribute<float64> flow : [ 1.0, 2.0, 3.0 ]; }
+
+	function bad(attribute<float64> x (Road)) -> attribute<float64> (Road)
+	{
+		attribute<float64> other (Road) := 2.0 * x;
+	}
+
+	attribute<float64> z (Road) := bad(Road/flow);
+	container checks { parameter<float64> use := sum(z); }
+}

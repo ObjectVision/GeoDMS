@@ -1,0 +1,39 @@
+container fn_test_partial
+{
+	unit<uint32> Road : nrofrows = 4
+	{
+		attribute<float64> flow : [ 100.0, 200.0,  50.0, 400.0 ];
+	}
+
+	container lib
+	{
+		function Add2(unit<uint32> D; attribute<float64> a (D); attribute<float64> b (D))
+		-> attribute<float64> (D) := a + b;
+
+		function Scale(unit<uint32> D; parameter<float64> k; attribute<float64> x (D))
+		-> attribute<float64> (D) := x * k;
+
+		// higher-order: applies a unary function twice
+		function ApplyTwice(unit<uint32> D; f: function; attribute<float64> x (D))
+		-> attribute<float64> (D) := f(f(x));
+	}
+
+	// partial application: bind the first data arg, leave a hole for the domain+value.
+	// AddSelf = Add2(D, x, x) via partial? Simpler: bind k in Scale.
+	// Scale(Road, 3.0, _) is a partial application (unary: takes the x attribute),
+	// passed to ApplyTwice which applies it twice -> *9.
+	attribute<float64> times9 (Road) := lib/ApplyTwice(Road, lib/Scale(Road, 3.0, _), Road/flow);
+
+	// partial application bound directly is an error (tested separately);
+	// but a full application built from a partial-in-argument works:
+	// doubler = Add2(Road, _, _) applied with (flow, flow)
+	function ApplyBin(unit<uint32> D; g: function; attribute<float64> p (D); attribute<float64> q (D))
+	-> attribute<float64> (D) := g(p, q);
+	attribute<float64> doubled (Road) := ApplyBin(Road, lib/Add2(Road, _, _), Road/flow, Road/flow);
+
+	container checks
+	{
+		parameter<float64> check1 := sum(times9),  IntegrityCheck = "check1 == 6750.0"; // sum(flow)*9 = 750*9
+		parameter<float64> check2 := sum(doubled), IntegrityCheck = "check2 == 1500.0"; // sum(flow)*2
+	}
+}

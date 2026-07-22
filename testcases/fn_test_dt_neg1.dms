@@ -1,0 +1,22 @@
+container fn_test_dt_neg1
+{
+	// NEGATIVE (definition-time): the body applies a floats-only callee to a
+	// parameter of a <V: numerics> function. The DEFINITION is wrong — it does not
+	// hold for V = int32 — even though the only call site uses float64 (which
+	// application-time checking would happily accept). The typed walker must
+	// reject at the first reference.
+	// Expected: "the definition of '/bad': type variable 'V' must satisfy
+	//            'W: floats' (function '/fonly') for every instantiation ..."
+	unit<uint32> Road : nrofrows = 3
+	{
+		attribute<float64> flow : [ 1.0, 2.0, 3.0 ];
+	}
+
+	function fonly<W: floats, E: domains>(attribute<W> x (E)) -> attribute<W> (E) := x / 2.0;
+
+	function bad<V: numerics, D: domains>(attribute<V> x (D)) -> attribute<V> (D) := fonly(x);
+
+	attribute<float64> z (Road) := bad(Road/flow); // float64 args, yet the DEFINITION must fail
+
+	container checks { parameter<float64> use := sum(z); }
+}

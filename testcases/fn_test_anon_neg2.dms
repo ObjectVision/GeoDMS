@@ -1,0 +1,14 @@
+container fn_test_anon_neg2
+{
+	// NEGATIVE (parse-time): an anonymous result-position function under a DATA
+	// result type.
+	// Expected: "an anonymous function result requires a '-> function' or
+	//            signature-typed result specification"
+	unit<uint32> Road : nrofrows = 3 { attribute<float64> flow : [ 1.0, 2.0, 3.0 ]; }
+
+	function bad(attribute<float64> x (Road)) -> attribute<float64> (Road)
+		:= function(attribute<float64> y (Road)) -> attribute<float64> (Road) := y + y;
+
+	attribute<float64> z (Road) := bad(Road/flow);
+	container checks { parameter<float64> use := sum(z); }
+}
