@@ -4939,7 +4939,28 @@ void InstantiateMap(TreeItem* holder, const AbstrCalculator* ac, LispPtr mapExpr
 		appl.PushArg(a);
 		LispRef key = appl.Reduce();
 
-		auto child = holder->CreateItem(c->GetID());
+		// Materialize the result's meta so each mapped child is a FIRST-CLASS typed item (a
+		// DataItem / Unit of the derived type), not a plain TreeItem follower. The latter works as
+		// a value (sum(out/a)) but is NOT directly assignable to a declared attribute
+		// (out_a := out/a fails: 'DataItem<..> incompatible with a result of type TreeItem').
+		auto dc = GetOrCreateDataController(key);
+		auto res = dc->MakeResult();
+		if (!res)
+		{
+			dms_assert(dc->WasFailed(FailType::MetaInfo));
+			errorHolder->ThrowFail(dc.get());
+		}
+		SharedMutableTreeItem child;
+		if (IsDataItem(res.get()))
+		{
+			auto rdi = AsDataItem(res.get());
+			child = CreateDataItem(holder, c->GetID(), rdi->GetAbstrDomainUnit(), rdi->GetAbstrValuesUnit(), rdi->GetValueComposition());
+		}
+		else if (IsUnit(res.get()))
+			child = AsUnit(res.get())->GetUnitClass()->CreateUnit(holder, c->GetID());
+		else
+			child = holder->CreateItem(c->GetID()); // a container/other result: keep the plain follower
+
 		child->SetCalculator(AbstrCalculator::ConstructFromLispRef(child.get(), key, CalcRole::Calculator));
 	}
 	holder->SetIsInstantiated();

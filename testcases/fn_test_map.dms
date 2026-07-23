@@ -31,5 +31,8 @@ container fn_test_map
 		parameter<float64> check2 := sum(out/b),  IntegrityCheck = "check2 == 750.0";  // sum(flow*2)/2
 		parameter<float64> check3 := sum(dbl/a),  IntegrityCheck = "check3 == 1500.0"; // sum(flow)*2
 		parameter<float64> check4 := sum(dbl/b),  IntegrityCheck = "check4 == 3000.0"; // sum(flow*2)*2
+		// map children are FIRST-CLASS attributes: a direct copy into a declared attribute works
+		parameter<float64> check5 := sum(out_a),  IntegrityCheck = "check5 == 375.0";  // out_a := out/a
+		parameter<float64> check6 := sum(out_b),  IntegrityCheck = "check6 == 750.0";  // out_b := out/b
 	}
 }
