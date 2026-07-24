@@ -286,4 +286,16 @@ private:
 // the printer: the second interpreter over the same records
 TIC_CALL SharedStr RenderMergedSignature(const AbstrOperGroup* og, const OperGroupSignatures::MergedRecord& mr);
 
+#if defined(MG_DEBUG)
+// op-sig §9 drift defense #1 (the strongest): after a successful
+// CreateResultCaller in FuncDC — operator, args, and result all concrete — replay
+// the member's described SignatureRecord against the ACTUAL units and check the
+// record's claims (unit identity, value class, CompatibleValues; metric relations
+// are log-only). Drift is a programming error in DescribeSignature, so a violation
+// is REPORTED (ST_Warning, full detail) and NOT thrown — a debug-only cross-check
+// must never break a legitimate config's run, and report-only surfaces EVERY
+// drifting family in one battery pass rather than aborting on the first.
+TIC_CALL void SigUnitChecker_VerifyApplication(const Operator* oper, const ArgSeqType& argItems, const TreeItem* result);
+#endif
+
 #endif // __TIC_OPERSIGNATURE_H

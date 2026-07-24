@@ -38,6 +38,7 @@
 #include "LispTreeType.h"
 #include "Operator.h"
 #include "OperationContext.h"
+#include "OperSignature.h" // MG_DEBUG op-sig §9 defense #1: SigUnitChecker_VerifyApplication
 #include "Param.h"
 #include "SessionData.h"
 #include "TreeItemClass.h"
@@ -657,6 +658,17 @@ bool FuncDC_CreateResult(const FuncDC* funcDC)
 		// m_DomainUnit/m_ValuesUnit of the cache result items do not expire once *args / the operator locals drop.
 		if (resultHolder.IsNew())
 			resultHolder.CaptureResultUnits();
+
+#if defined(MG_DEBUG)
+		// op-sig §9 drift defense #1: replay the resolved member's described signature
+		// against the freshly determined units (report-only; the operator, args and
+		// result are all concrete and alive here — the one place §9 specifies). The
+		// checker reports via the cancellation-safe path, but wrap it defensively so no
+		// checker throw can EVER reach the result-failing catch below and fail a result.
+		if (resultHolder.IsNew())
+			try { SigUnitChecker_VerifyApplication(oper, GetItems(*args), resultHolder.GetNew()); }
+			catch (...) {}
+#endif
 	}
 	catch (...)
 	{
