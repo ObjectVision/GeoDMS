@@ -30,6 +30,7 @@ Effort tags: **[substantial]** / **[moderate]** / **[niche]**. Items are sorted 
 
 - **WP3.3 — remaining `map`/combinator surface** **[moderate]** · *partial*
   Remaining siblings of the shipped typed `map(F,src)`: `filter` + `fold` container combinators (no `filter`/`fold` in `AbstrCalculator.cpp` yet — note `filter` has a meta-vs-data phase problem: deciding which children to keep needs computed data at instantiation time); and `for_each` deprecation / a template→function lint path. **DONE: `map` over a partial-application F** (`map(Scale(k, _), src)`, commit `7551dad2`).
+  **`fold` motivation (Maarten):** the current idiom for sub-item aggregation is `AsItemList(...)` in an *indirect expression* over a member set that is only known per instantiation; a typed `fold` would be **checkable at the function definition** — the reduction type unifies without the concrete sub-item set — which the indirect-expression form cannot be. Future work; not built on spec (no confirmed reduce-over-variable-children need yet).
   *Sources: design §10 P3 WP3.3 (2166-2168), §9 (1934), §5.5.*
 
 - **Member access through a function-valued parameter (§5.10)** **[moderate]** · *documented limitation*
@@ -72,8 +73,13 @@ Effort tags: **[substantial]** / **[moderate]** / **[niche]**. Items are sorted 
   `select_with_attr_by_cond`, `select_with_org_rel_with_attr_by_cond`, `select_with_attr_by_org_rel` (+uintN), `collect_attr_by_{cond,org_rel}`. Specified but not built: meta heads can't inline-reduce (diagnostics-only payoff), the member set is a usually-formal container arg, and it needs a new container-directed `MetaMemberLayout` variant. Current sound behavior pinned by `fn_test_selmeta{,_neg}`.
   *Sources: op-sig §12.9 Tier 2 (1527-1560).*
 
-- **§9 `SigUnitChecker` drift-verifier** **[moderate]** · *not started*
-  Under MG_DEBUG, replay each `SignatureRecord` against actual units after a real `CreateResultCaller`, plus a merge-time structural audit of described positions vs. registered `m_ArgClasses`. The primary S2 (description↔CreateResult drift) defense; today only per-family tests + a soundness-bias guard.
+- **§9 `SigUnitChecker` drift-verifier** **[moderate]** · *partial*
+  **DONE (defense #2, MG_DEBUG, commit `91412119`):** merge-time structural KIND audit in
+  `AbstrOperGroup::GetSignatures` — a described `Attr` position registered as a unit (or `Unit`
+  registered as data) asserts (contradiction-only, so polymorphic args pass). **Remaining (defense #1):**
+  the stronger full unit replay in `FuncDC` after `CreateResultCaller` — assign each `sig_var` the actual
+  units, verify identity via `UnifyDomain(um=0)`, classes, `UnifyValues`, metric (log-only). The primary
+  S2 (description↔CreateResult drift) defense.
   *Sources: op-sig §9 (720-746), §6.4; risk S2.*
 
 - **Speculation / trial harness in `TypeUnifier`** **[moderate]** · *not started*
