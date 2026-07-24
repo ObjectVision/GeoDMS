@@ -73,26 +73,31 @@ Effort tags: **[substantial]** / **[moderate]** / **[niche]**. Items are sorted 
   `select_with_attr_by_cond`, `select_with_org_rel_with_attr_by_cond`, `select_with_attr_by_org_rel` (+uintN), `collect_attr_by_{cond,org_rel}`. Specified but not built: meta heads can't inline-reduce (diagnostics-only payoff), the member set is a usually-formal container arg, and it needs a new container-directed `MetaMemberLayout` variant. Current sound behavior pinned by `fn_test_selmeta{,_neg}`.
   *Sources: op-sig §12.9 Tier 2 (1527-1560).*
 
-- **§9 `SigUnitChecker` drift-verifier** **[moderate]** · *both defenses landed; two v1 coverage gaps remain*
+- **§9 `SigUnitChecker` drift-verifier** **[moderate]** · *both defenses landed + armed; two v1 coverage gaps remain*
   **DONE (defense #2, MG_DEBUG, commit `91412119`):** merge-time structural KIND audit in
   `AbstrOperGroup::GetSignatures` — a described `Attr` position registered as a unit (or `Unit`
   registered as data) asserts (contradiction-only, so polymorphic args pass).
-  **DONE (defense #1, MG_DEBUG, report-only):** `SigUnitChecker_VerifyApplication`
-  (`OperSignature.cpp`) replays each resolved member's record against the ACTUAL units after a successful
-  `CreateResultCaller` in `FuncDC_CreateResult` — unit IDENTITY per `sig_var` (K2 bridge: values-in-domain-role
-  vars only) via `UnifyDomain`, value CLASS vs `memberClasses`, `SameValueClass`/`CompatibleValues`, and metric
-  product/quotient/dimensionless (log-only). Report-only (never throws — via
-  `reportF_without_cancellation_check`, since plain `reportF`→`ASyncContinueCheck` throws on a pending GUI
-  cancel and would fail the just-created result), so drift surfaces on the first Debug run of any test touching
-  the family without breaking the run. Verified: 137/137 Debug battery clean (zero reports); an inverted-condition
-  canary confirmed the hook→collect→report path fires on real applications; a 22-agent adversarial audit
-  predicted zero false-fires and zero real drift across 18 described families. The primary S2
-  (description↔CreateResult drift) defense.
+  **DONE (defense #1, MG_DEBUG, commit `48967a7f`; ARMED as asserts in a follow-up):**
+  `SigUnitChecker_VerifyApplication` (`OperSignature.cpp`) replays each resolved member's record against the
+  ACTUAL units after a successful `CreateResultCaller` in `FuncDC_CreateResult` — unit IDENTITY per `sig_var`
+  (K2 bridge: values-in-domain-role vars only) via `UnifyDomain`, value CLASS vs `memberClasses`,
+  `SameValueClass`/`CompatibleValues`, and metric product/quotient/dimensionless (log-only). Those three
+  class/identity checks now emit a detailed `ST_Error` line and ASSERT (headless: log + exit(3)); metric stays
+  log-only (§9 deferred). Reports go via `reportF_without_cancellation_check` (plain `reportF`→`ASyncContinueCheck`
+  throws on a pending GUI cancel and would fail the just-created result); the call site also wraps the checker in
+  `catch(...)` so no report path can reach FuncDC's result-failing catch. Because the checker runs only AFTER
+  CreateResult succeeded, a fired assert = the description genuinely OVER-claims (the S2 drift). Verified:
+  137/137 Debug battery clean with asserts armed (zero ASSERT verdicts); a deliberate-drift canary confirmed the
+  armed report+assert fires (exit 3, `ST_Error` detail) on a real application; a 22-agent adversarial audit
+  predicted zero false-fires and zero real drift across 18 described families (and caught the cancellation-throw
+  bug). The primary S2 (description↔CreateResult drift) defense.
   **Remaining (v1 gaps, follow-ups — silence, not false-fire):** (a) `rec.resultMembers` (§12.7/§12.8 composite
   sub-items — unique `Values`, union `UnionData`, `connect_info`/`discrete_alloc`/`dijkstra` member sets) are not
   replayed (member-path resolution post-`CreateResult` risks meta-info recursion); (b) `addValRep` is first-wins,
-  so a `RepeatArgs`/variadic tail's value class is checked at its first position only; (c) arming
-  identity/class as ASSERTs (metric stays log) once broader (tst-Debug) coverage confirms no false positive.
+  so a `RepeatArgs`/variadic tail's value class is checked at its first position only. NOTE: a described family
+  NOT exercised by the 137-config battery (e.g. some geo/aggregation members, and `rlookup` which the audit
+  flagged as not actually analyzed) could surface its FIRST assert in a tst-Debug or GUI-Debug run — that is the
+  intended drift signal, to be fixed at the description.
   *Sources: op-sig §9 (720-746), §6.4; risk S2.*
 
 - **Speculation / trial harness in `TypeUnifier`** **[moderate]** · *not started*

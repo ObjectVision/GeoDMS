@@ -421,17 +421,26 @@ SharedStr RenderMergedSignature(const AbstrOperGroup* og, const OperGroupSignatu
 // unit here already satisfies the operator's real constraints; a firing check
 // therefore means the DESCRIPTION over-claims a relation the operator does not
 // enforce (the exact drift §9 targets). Under-claims are invisible here — the
-// soundness bias. Violations are REPORTED (not thrown): a debug cross-check must
-// never break a legitimate run, and report-only surfaces every drifting family in
-// one battery pass. Arming identity/class as asserts is a follow-up once the
-// battery confirms zero false positives.
+// soundness bias.
 //
-// The reports MUST use reportF_without_cancellation_check: plain reportF routes
-// through ASyncContinueCheck(), which THROWS when a host cancel is pending (GUI /
-// any cancellable host). A throw here would escape into FuncDC_CreateResult's
-// result-building catch and mark an already-successfully-created cache result as
-// FAILED — the report-only checker breaking a legitimate run, precisely what this
-// comment forbids. The call site additionally wraps this in its own catch(...).
+// ARMED: identity (CHECK 1), value class (CHECK 2) and SameValueClass/
+// CompatibleValues (CHECK 3-class) each emit a detailed ST_Error line and then
+// ASSERT — drift in a hand-written DescribeSignature is a programming error and
+// must abort the debug run (headless: logged detail + exit(3)). This never breaks
+// a LEGITIMATE run: the checker runs only after CreateResult succeeded, so a fired
+// assert means the description genuinely over-claims. Metric relations stay
+// LOG-ONLY (§9: the deferred part), and a checker-INTERNAL exception is caught and
+// logged (ST_Warning), never asserted. The battery (137/137) and a 22-agent audit
+// showed zero false-fires across the described families before arming; a family
+// NOT exercised there could still surface a first-run assert in tst-Debug — that is
+// the intended drift signal, to be fixed at its description, not silenced here.
+//
+// The ST_Error/warning reports MUST use reportF_without_cancellation_check: plain
+// reportF routes through ASyncContinueCheck(), which THROWS when a host cancel is
+// pending (GUI / any cancellable host). A throw before the assert would escape into
+// FuncDC_CreateResult's result-building catch and mark an already-successfully-
+// created cache result as FAILED — a spurious failure on a run that is merely being
+// cancelled. The call site additionally wraps this in its own catch(...).
 //
 // v1 coverage gaps (report nothing, never false-fire — follow-ups, not drift
 // coverage): (a) rec.resultMembers (§12.7/§12.8 composite sub-items — unique
@@ -556,10 +565,13 @@ void SigUnitChecker_VerifyApplication(const Operator* oper, const ArgSeqType& ar
 			{
 				if (!ref) { ref = u; continue; }
 				if (!ref->UnifyDomain(u, "", "", UnifyMode(UM_AllowVoidRight | UM_AllowRightExpansion)))
-					reportF_without_cancellation_check(SeverityTypeID::ST_Warning
+				{
+					reportF_without_cancellation_check(SeverityTypeID::ST_Error
 						, "SigUnitChecker drift: {}: unit variable '{}' should identify all its positions, but units {} and {} do not unify"
 						, where.c_str(), roleName(v).c_str()
 						, ref->GetFullName().c_str(), u->GetFullName().c_str());
+					assert(!"SigUnitChecker: a described unit variable's positions are not unit-identical (see the preceding ST_Error log line)");
+				}
 			}
 		}
 
@@ -575,10 +587,11 @@ void SigUnitChecker_VerifyApplication(const Operator* oper, const ArgSeqType& ar
 			if (got && got != want)
 			{
 				SharedStr wantName(want->GetName()), gotName(got->GetName());
-				reportF_without_cancellation_check(SeverityTypeID::ST_Warning
+				reportF_without_cancellation_check(SeverityTypeID::ST_Error
 					, "SigUnitChecker drift: {}: unit variable '{}' recorded value class {}, but the actual unit {} has value class {}"
 					, where.c_str(), roleName(v).c_str()
 					, wantName.c_str(), vu[v].valRep->GetFullName().c_str(), gotName.c_str());
+				assert(!"SigUnitChecker: a described unit variable's recorded value class differs from the actual unit's (see the preceding ST_Error log line)");
 			}
 		}
 
@@ -597,11 +610,12 @@ void SigUnitChecker_VerifyApplication(const Operator* oper, const ArgSeqType& ar
 				if (ca && cb && ca != cb)
 				{
 					SharedStr caName(ca->GetName()), cbName(cb->GetName());
-					reportF_without_cancellation_check(SeverityTypeID::ST_Warning
+					reportF_without_cancellation_check(SeverityTypeID::ST_Error
 						, "SigUnitChecker drift: {}: {} of '{}' and '{}' violated: value classes {} vs {}"
 						, where.c_str()
 						, rel.kind == SignatureRecord::RelKind::SameValueClass ? "SameValueClass" : "CompatibleValues"
 						, roleName(rel.a).c_str(), roleName(rel.b).c_str(), caName.c_str(), cbName.c_str());
+					assert(!"SigUnitChecker: a described SameValueClass/CompatibleValues relation is violated by the actual units (see the preceding ST_Error log line)");
 				}
 				break;
 			}
