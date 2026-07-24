@@ -15,6 +15,9 @@
 
 #include "OperGroups.h"
 #include "Operator.h"
+#include "AbstrDataItem.h" // SigUnitChecker: classify a registered arg/result class as data-item vs unit
+#include "AbstrUnit.h"
+#include "TreeItemClass.h" // complete TreeItemClass so *::GetStaticClass() upcasts to const Class*
 
 // *****************************************************************************
 // Operator::DescribeSignature — the batch-0 vtable slot. The default is
@@ -225,6 +228,32 @@ const OperGroupSignatures* AbstrOperGroup::GetSignatures() const
 				// merge-time structural audit (light): described positions may not
 				// outnumber the registered ones unless a repeat tail covers the rest
 				assert(arg_index(recorder.rec.args.size()) <= m->NrSpecifiedArgs() || recorder.rec.repeat.active);
+#if defined(MG_DEBUG)
+				// SigUnitChecker (op-sig §9 defense #2): a described position's item KIND must not
+				// CONTRADICT the member's REGISTERED class — an 'attribute' position registered as a
+				// unit (or a 'unit' position registered as a data item) means the hand-written
+				// DescribeSignature drifted from the operator itself. Only a definite contradiction
+				// fires: a generic/base registration (neither strictly data nor unit) passes, so this
+				// never false-positives on a genuinely polymorphic argument.
+				{
+					auto kindContradicts = [](SignatureRecord::PosKind k, ClassCPtr cls) -> bool
+					{
+						if (!cls)
+							return false;
+						bool isData = cls->IsDerivedFrom(AbstrDataItem::GetStaticClass());
+						bool isUnit = cls->IsDerivedFrom(AbstrUnit::GetStaticClass());
+						if (k == SignatureRecord::PosKind::Attr) return isUnit && !isData;
+						if (k == SignatureRecord::PosKind::Unit) return isData && !isUnit;
+						return false;
+					};
+					arg_index nChk = std::min<arg_index>(arg_index(recorder.rec.args.size()), m->NrSpecifiedArgs());
+					for (arg_index i = 0; i != nChk; ++i)
+						assert(!kindContradicts(recorder.rec.args[i].kind, m->GetArgClass(i))
+							&& "SigUnitChecker: a described argument's item kind (attribute/unit) contradicts the operator's registered argument class");
+					assert(!kindContradicts(recorder.rec.result.kind, m->GetResultClass())
+						&& "SigUnitChecker: the described result's item kind contradicts the operator's registered result class");
+				}
+#endif
 
 				sigs->anyDescribed = true;
 				for (Int32 r = 0, n = Int32(sigs->records.size()); r != n; ++r)
