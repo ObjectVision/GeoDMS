@@ -28,8 +28,8 @@ Effort tags: **[substantial]** / **[moderate]** / **[niche]**. Items are sorted 
   A nested body may reference the enclosing application's **parameters** only; referencing an enclosing function's **local** item errors "reference to (part of) a template or function." Marked "lift on demand."
   *Sources: design §5.10 v1 limitation (971-973).*
 
-- **WP3.3 — remaining `map`/combinator surface** **[moderate]** · *not started / partial*
-  Three siblings of the shipped single-param typed `map(F,src)`: `filter` + `fold` container combinators (same `InstantiateMap` pattern; no `filter`/`fold` in `AbstrCalculator.cpp` yet); `map` over a partial-application F, e.g. `map(Scale(k,_), src)` **[niche]**; and `for_each` deprecation / a template→function lint path.
+- **WP3.3 — remaining `map`/combinator surface** **[moderate]** · *partial*
+  Remaining siblings of the shipped typed `map(F,src)`: `filter` + `fold` container combinators (no `filter`/`fold` in `AbstrCalculator.cpp` yet — note `filter` has a meta-vs-data phase problem: deciding which children to keep needs computed data at instantiation time); and `for_each` deprecation / a template→function lint path. **DONE: `map` over a partial-application F** (`map(Scale(k, _), src)`, commit `7551dad2`).
   *Sources: design §10 P3 WP3.3 (2166-2168), §9 (1934), §5.5.*
 
 - **Member access through a function-valued parameter (§5.10)** **[moderate]** · *documented limitation*
