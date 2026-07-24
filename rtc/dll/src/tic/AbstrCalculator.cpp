@@ -4910,17 +4910,60 @@ void InstantiateMap(TreeItem* holder, const AbstrCalculator* ac, LispPtr mapExpr
 		holder->throwItemError("map expects exactly two arguments: map(function, container)");
 	LispPtr fExpr = args.Left();
 	LispPtr srcExpr = args.Right().Left();
-	if (!fExpr.IsSymb())
-		holder->throwItemError("map: the first argument must be the name of a function");
 	if (!srcExpr.IsSymb())
 		holder->throwItemError("map: the second argument must be the name of a container");
 
-	auto funcItem = ac->FindItem(fExpr.GetSymbID());
+	// The mapped function is either a plain function name F (applied as F(child)) or a PARTIAL
+	// APPLICATION of one leaving exactly one '_' hole for the mapped element, e.g.
+	// map(Scale(k, _), src) -> Scale(k, child). Partial-application fixed arguments must be item
+	// references or literals here (a nested sub-expression argument is not supported).
+	const TokenID t_Hole = GetTokenID_st("_");
+	LispPtr fHead = fExpr;
+	std::vector<CallArg> fixedArgs; // resolved fixed args, in order; the hole slot is a placeholder
+	SizeT holePos = SizeT(-1);
+	if (fExpr.IsSymb())
+	{
+		fixedArgs.emplace_back().isHole = true; // one implicit element slot
+		holePos = 0;
+	}
+	else if (!fExpr.EndP() && fExpr.Left().IsSymb())
+	{
+		fHead = fExpr.Left();
+		SizeT i = 0;
+		for (LispPtr a = fExpr.Right(); !a.EndP(); a = a.Right(), ++i)
+		{
+			LispPtr ae = a.Left();
+			if (ae.IsSymb() && ae.GetSymbID() == t_Hole)
+			{
+				if (holePos != SizeT(-1))
+					holder->throwItemError("map: a partial-application mapped function must leave exactly one '_' hole");
+				holePos = i;
+				fixedArgs.emplace_back().isHole = true;
+			}
+			else if (ae.IsSymb())
+			{
+				auto ai = ac->FindItem(ae.GetSymbID());
+				if (!ai)
+					holder->throwItemErrorF("map: partial-application argument '{}' not found", ae.GetSymbID().GetStr().c_str());
+				CallArg fa; fa.key = ai->GetCheckedKeyExpr(); fa.item = ai; fixedArgs.push_back(fa);
+			}
+			else
+			{
+				CallArg fa; fa.key = LispRef(ae); fixedArgs.push_back(fa); // a literal argument
+			}
+		}
+		if (holePos == SizeT(-1))
+			holder->throwItemError("map: a partial-application mapped function must leave one '_' hole for the element, e.g. map(F(k, _), src)");
+	}
+	else
+		holder->throwItemError("map: the first argument must be a function or a partial application of one, e.g. map(F, src) or map(F(k, _), src)");
+
+	auto funcItem = ac->FindItem(fHead.GetSymbID());
 	if (!funcItem || !funcItem->IsFunctionItem())
-		holder->throwItemErrorF("map: '{}' is not a function", fExpr.GetSymbID().GetStr().c_str());
-	if (TreeItem_GetFunctionParamCount(funcItem.get()) != 1)
-		holder->throwItemErrorF("map: function '{}' must take exactly one parameter to be mapped over a container"
-			, funcItem->GetFullName().c_str());
+		holder->throwItemErrorF("map: '{}' is not a function", fHead.GetSymbID().GetStr().c_str());
+	if (SizeT(TreeItem_GetFunctionParamCount(funcItem.get())) != fixedArgs.size())
+		holder->throwItemErrorF("map: function '{}' takes {} parameter(s), but the (partial) application supplies {} including the '_' element"
+			, funcItem->GetFullName().c_str(), UInt32(TreeItem_GetFunctionParamCount(funcItem.get())), UInt32(fixedArgs.size()));
 
 	auto srcItem = ac->FindItem(srcExpr.GetSymbID());
 	if (!srcItem)
@@ -4935,8 +4978,16 @@ void InstantiateMap(TreeItem* holder, const AbstrCalculator* ac, LispPtr mapExpr
 		FunctionApplication appl;
 		appl.m_FuncItem = funcItem.get();
 		appl.m_ErrorHolder = errorHolder;
-		CallArg a; a.key = c->GetCheckedKeyExpr(); a.item = make_shared_tree(c, existing_obj{});
-		appl.PushArg(a);
+		for (SizeT i = 0; i != fixedArgs.size(); ++i)
+		{
+			if (i == holePos)
+			{
+				CallArg a; a.key = c->GetCheckedKeyExpr(); a.item = make_shared_tree(c, existing_obj{});
+				appl.PushArg(a);
+			}
+			else
+				appl.PushArg(fixedArgs[i]);
+		}
 		LispRef key = appl.Reduce();
 
 		// Materialize the result's meta so each mapped child is a FIRST-CLASS typed item (a
@@ -5648,9 +5699,22 @@ MetaInfo AbstrCalculator::SubstituteExpr(SubstitutionBuffer& substBuff, LispPtr 
 				if (mapHolder && (IsDataItem(mapHolder.get()) || IsUnit(mapHolder.get())))
 					throwErrorF("ExprParser", "map(function, container) produces a container; bind it to a container item (e.g. 'container out := map(F, src);')");
 				LispPtr margs = localExpr.Right();
-				if (!margs.EndP() && margs.Left().IsSymb())
-					if (auto f = FindOrVisitItem(substBuff, margs.Left().GetSymbID()))
-						registerSupplier(substBuff, f.get());
+				// register the mapped function as a supplier; for a partial application
+				// map(F(k, _), src) register its head F and every item argument (k), skipping '_'
+				if (!margs.EndP())
+				{
+					LispPtr fa = margs.Left();
+					if (fa.IsSymb())
+					{
+						if (auto f = FindOrVisitItem(substBuff, fa.GetSymbID()))
+							registerSupplier(substBuff, f.get());
+					}
+					else
+						for (LispPtr e = fa; !e.EndP(); e = e.Right())
+							if (e.Left().IsSymb() && e.Left().GetSymbID() != GetTokenID_st("_"))
+								if (auto it = FindOrVisitItem(substBuff, e.Left().GetSymbID()))
+									registerSupplier(substBuff, it.get());
+				}
 				if (!margs.EndP() && !margs.Right().EndP() && margs.Right().Left().IsSymb())
 					if (auto s = FindOrVisitItem(substBuff, margs.Right().Left().GetSymbID()))
 						registerSupplier(substBuff, s.get());

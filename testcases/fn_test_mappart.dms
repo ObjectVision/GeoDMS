@@ -1,0 +1,27 @@
+container fn_test_mappart
+{
+	// map over a PARTIAL APPLICATION of the mapped function: the function is applied with some
+	// arguments fixed and exactly one '_' hole for the mapped element (currying + map).
+	unit<uint32> Road : nrofrows = 3 { attribute<float64> flow : [ 1.0, 2.0, 3.0 ]; }
+	container src
+	{
+		attribute<float64> a (Road) := Road/flow;
+		attribute<float64> b (Road) := Road/flow * 10.0;
+	}
+	parameter<float64> k := 2.0;
+
+	function Scale (parameter<float64> factor; attribute<float64> x (Road)) -> attribute<float64> (Road) := x * factor;
+	function ScaleR(attribute<float64> x (Road); parameter<float64> factor) -> attribute<float64> (Road) := x * factor;
+
+	container scaled  := map(Scale(k, _), src);   // hole LAST,  fixed arg = an item reference
+	container scaledR := map(ScaleR(_, k), src);  // hole FIRST
+	container scaledL := map(Scale(3.0, _), src); // fixed arg = a literal
+
+	container checks
+	{
+		parameter<float64> check1 := sum(scaled/a),  IntegrityCheck = "check1 == 12.0";   // (1+2+3)*2
+		parameter<float64> check2 := sum(scaled/b),  IntegrityCheck = "check2 == 120.0";  // (10+20+30)*2
+		parameter<float64> check3 := sum(scaledR/a), IntegrityCheck = "check3 == 12.0";   // hole-first, same result
+		parameter<float64> check4 := sum(scaledL/a), IntegrityCheck = "check4 == 18.0";   // (1+2+3)*3
+	}
+}

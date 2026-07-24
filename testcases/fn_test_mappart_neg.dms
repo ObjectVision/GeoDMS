@@ -1,0 +1,12 @@
+container fn_test_mappart_neg
+{
+	// NEGATIVE: a partial application mapped by map(...) must leave EXACTLY ONE '_' hole for the
+	// element; two holes is an error.
+	unit<uint32> Road : nrofrows = 3 { attribute<float64> flow : [ 1.0, 2.0, 3.0 ]; }
+	container src { attribute<float64> a (Road) := Road/flow; }
+	function Scale(parameter<float64> factor; attribute<float64> x (Road)) -> attribute<float64> (Road) := x * factor;
+
+	container bad := map(Scale(_, _), src); // two holes -> "must leave exactly one '_' hole"
+
+	container checks { parameter<float64> c := sum(bad/a), IntegrityCheck = "c == 0.0"; }
+}
