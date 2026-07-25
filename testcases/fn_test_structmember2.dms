@@ -1,0 +1,23 @@
+container fn_test_structmember2
+{
+	// K11a-1b: F1 and F2 both relate to the SAME node unit (nodeset) in the structured
+	// parameter's member block, so both member attributes carry nodeset's IDENTITY node.
+	// pcount(nw/F1) and pcount(nw/F2) both type over nodeset at DEFINITION (the member
+	// identity flows through pcount's values->result-domain bridge); the well-formed
+	// network's connectedness computes. Complements neg2 (different node units, rejected).
+	unit<uint32> Net : nrofrows = 3
+	{
+		unit<uint32> nodeset : nrofrows = 3;
+		attribute<nodeset> F1 : [ 0, 1, 2 ];
+		attribute<nodeset> F2 : [ 1, 2, 0 ];
+	}
+	function connectedness( unit<uint32> nw {
+		unit<uint32> nodeset;
+		attribute<nodeset> F1;
+		attribute<nodeset> F2;
+	} ) -> parameter<uint32> := sum(pcount(nw/F1) + pcount(nw/F2));
+
+	parameter<uint32> total := connectedness(Net);
+	// each of the 3 nodes appears exactly twice across F1,F2 → sum = 6
+	container checks { parameter<uint32> c := total, IntegrityCheck = "c == 6"; }
+}

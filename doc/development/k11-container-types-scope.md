@@ -64,7 +64,28 @@ Link `SignatureRecorder::ArgContainer`'s `sharedMemberDomain` into the same unif
 ## 5. Sequencing, effort, risk
 
 1. **K11a-1 — LANDED (commit `08ac5c8f`).** `ParamType` (IsUnit branch) builds `DefType.members` via `BuildParamMembers` for a structured unit parameter; the minimal member-access consumption shipped with it (`ResolveName` code 2 outputs the member path; `InferExpr` `case 2` → `InferParamMember`), so structured-parameter member usage is now type-checked at the definition (float-where-uint-required is a def error; `fn_test_structmember` + `_neg1`, battery 142). v1: direct members, value-class only.
-2. **K11a-1b** shared values-unit **identity** across members (F1,F2 → the SAME node unit) + the composite-type-by-example form (`nw: network_links`, whose exemplar members must be persisted — today it clones only the class, `ConfigProd.cpp:888`).
+2. **K11a-1b — identity plumbing LANDED; def-time observability GATED (documented).** A
+   member ATTRIBUTE whose values token names a sibling member UNIT now carries that unit's
+   IDENTITY node (`vuNode = UNode(m_FuncItem,0,vt,vc)` in `BuildParamMembers`), keyed by
+   token so `F1`,`F2` both `attribute<nodeset>` share ONE node — exactly the batch-U K2
+   pattern the signature-param path already uses. **Verified flowing**: an instrumented
+   trace showed `pcount(nw/F1)` result domain = the member unit's *rigid* node
+   (`argVuNodeSet=1`, result `dNode` rigid), and two members over *different* node units
+   yield two *distinct rigid* result domains. **BUT** the natural network idiom
+   `pcount(F1)+pcount(F2)` does not surface the cross-member conflict under ∀: the combining
+   `add`/`+` group has multi-class/undescribed overloads, so the walker takes the
+   `theRecord<0 → return {}` deferral (`InferOperatorApplication`) and the `ns1≠ns2` conflict
+   is reported at the *instantiation* (concrete-argument reduction), not at the definition.
+   Structured-param functions also only parse with `-> parameter<…>` results (no
+   attribute-result declaration to force a result-domain conflict). So K11a-1b's identity is
+   a correct, forward-looking building block whose *observable* def-time payoff is gated on
+   (i) a DESCRIBED combining operator (the `add`-deferral gate — same class of work as
+   WP4.1 select-family sigs / arithmetic-op description) and (ii) richer structured-param
+   result grammar. Regression coverage: `fn_test_structmember2` (well-formed two-relation
+   network computes), `fn_test_structmember_neg2` (malformed different-node-unit network
+   rejected — at instantiation, per the gate above; comment states this precisely).
+   STILL DEFERRED: the composite-type-by-example form (`nw: network_links`, whose exemplar
+   members must be persisted — today `ConfigProd.cpp:888` clones only the class).
 3. **K11a-3** instantiation-point contract check (c) — moderate; reducer-side; also reports a **missing** declared member (def-time, `membersComplete`).
 4. **K11b** operator `ArgContainer` linking — substantial; gated on K11a.
 

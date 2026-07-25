@@ -3465,8 +3465,10 @@ namespace {
 	// declared value class (a ValueClass name, or a sibling member unit's class — e.g.
 	// `F1: attribute<nodeset>` picks up nodeset's uint class). Value-class typing already
 	// catches "the relation must be an unsigned-integer unit" via the body's operator
-	// checks (a float member fails pcount at definition). v1: direct members only;
-	// shared values-unit IDENTITY across members (F1,F2 to the SAME node) is K11a-1b.
+	// checks (a float member fails pcount at definition). K11a-1b: a member attribute whose
+	// values token names a sibling member unit also carries that unit's IDENTITY node
+	// (vuNode) — so members sharing a node unit (F1,F2 both attribute<nodeset>) unify over
+	// the SAME node at definition, and members over different node units fail to unify.
 	std::shared_ptr<const std::map<SharedStr, DefType, MemberPathLess>>
 	FunctionChecker::BuildParamMembers(const TreeItem* p, SizeT paramDomNode)
 	{
@@ -3494,7 +3496,20 @@ namespace {
 						md.vc = vc;
 					else
 						for (const TreeItem* u = p->_GetFirstSubItem(); u; u = u->GetNextItem())
-							if (u->GetID() == vt && IsUnit(u)) { md.vc = AsUnit(u)->GetValueType(); break; }
+							if (u->GetID() == vt && IsUnit(u))
+							{
+								// K11a-1b: the member attribute's values unit IS the sibling
+								// member unit — carry its IDENTITY node, not just its class.
+								// UNode(m_FuncItem,0,vt,vc) is keyed by token, so it is the
+								// SAME node the member unit itself got (built above with
+								// m->GetID()==vt). Hence F1,F2 both `attribute<nodeset>` share
+								// one node: the body's pcount(nw/F1)+pcount(nw/F2) unifies over
+								// the single nodeset domain at definition, and two members over
+								// DIFFERENT node units would fail to unify.
+								md.vc = AsUnit(u)->GetValueType();
+								md.vuNode = UNode(m_FuncItem, 0, vt, md.vc);
+								break;
+							}
 				}
 			}
 			else
