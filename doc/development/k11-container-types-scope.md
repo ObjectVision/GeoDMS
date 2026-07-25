@@ -63,9 +63,9 @@ Link `SignatureRecorder::ArgContainer`'s `sharedMemberDomain` into the same unif
 
 ## 5. Sequencing, effort, risk
 
-1. **K11a-1** `ParamType` builds the container DefType (a) — moderate; reuses `PositionType`. Unblocks (b).
-2. **K11a-2** `ResolveName` member-access typing (b) — moderate; new resolve code threaded through `InferExpr`.
-3. **K11a-3** instantiation-point contract check (c) — moderate; reducer-side, independent of 1–2.
+1. **K11a-1 — LANDED (commit `08ac5c8f`).** `ParamType` (IsUnit branch) builds `DefType.members` via `BuildParamMembers` for a structured unit parameter; the minimal member-access consumption shipped with it (`ResolveName` code 2 outputs the member path; `InferExpr` `case 2` → `InferParamMember`), so structured-parameter member usage is now type-checked at the definition (float-where-uint-required is a def error; `fn_test_structmember` + `_neg1`, battery 142). v1: direct members, value-class only.
+2. **K11a-1b** shared values-unit **identity** across members (F1,F2 → the SAME node unit) + the composite-type-by-example form (`nw: network_links`, whose exemplar members must be persisted — today it clones only the class, `ConfigProd.cpp:888`).
+3. **K11a-3** instantiation-point contract check (c) — moderate; reducer-side; also reports a **missing** declared member (def-time, `membersComplete`).
 4. **K11b** operator `ArgContainer` linking — substantial; gated on K11a.
 
 **Risks.** (R-a) member DefTypes must use *per-instantiation* identity nodes so two applications of `connectedness` don't force their `nodeset`s equal (the same instance-key discipline as WP4.1 T3, `TypeUnifier` keyed `(owner, instance, token)`). (R-b) composite-by-example exemplars can carry *data* (fn_test.dms `network_links` has `[0,1,2]`) — the checker must read only the declared kind/type, never the values. (R-c) soundness of the def-time "member not found": only report when `membersComplete` (as the result-side already gates, `:2881-2884`). (R-d) instantiation check must not double-report what the body already catches — prefer the boundary message and suppress the transitive one, or accept both (boundary first).

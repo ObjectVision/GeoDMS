@@ -57,7 +57,7 @@ Effort tags: **[substantial]** / **[moderate]** / **[niche]**. Items are sorted 
 
 ## 2. Operator signatures
 
-- **K11 — container-shaped types in `DefType`** **[substantial]** · *deferred* · **scoped: `k11-container-types-scope.md`**
+- **K11 — container-shaped types in `DefType`** **[substantial]** · *K11a-1 landed (`08ac5c8f`); rest deferred* · **scoped: `k11-container-types-scope.md`**
   `ArgContainer` records a domain var but does not **link** it (v1 diagnostics-only); there is no container/record kind in the def-time type language. The gate for the two items below plus discrete_alloc name-array obligations. (A narrow `DefType::Kind::Container` landed for for_each/composite typing, but general operator `ArgContainer` linking + container-argument member enumeration is deferred.) **Scope splits it into K11a — user composite *parameters* with statically-declared members (moderate, recommended first; the `network_links` case) — and K11b — operator `ArgContainer` runtime-member linking (substantial, gated).**
   *Sources: op-sig §7 K11 (571-587), §15 Q1 (1623), §12.7-12.8 (1351-1490); `k11-container-types-scope.md`.*
 
