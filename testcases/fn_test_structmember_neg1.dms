@@ -1,0 +1,19 @@
+container fn_test_structmember_neg1
+{
+	// K11a: F1 is declared as a FLOAT relation in the structured parameter's member
+	// block, so nw/F1 types as attribute<float32>(nw) at DEFINITION and pcount — which
+	// requires a uint partitioning — has no matching overload. The rejection is a
+	// definition-time error on '/bad_net', independent of the (valid uint) argument Net.
+	unit<uint32> Net : nrofrows = 2
+	{
+		unit<uint32> nodeset : nrofrows = 3;
+		attribute<nodeset> F1 : [ 0, 1 ];
+	}
+	function bad_net( unit<uint32> nw {
+		unit<uint32> nodeset;
+		attribute<float32> F1;
+	} ) -> parameter<uint32> := sum(pcount(nw/F1));
+
+	parameter<uint32> total := bad_net(Net);
+	container checks { parameter<uint32> c := total, IntegrityCheck = "c == 2"; }
+}

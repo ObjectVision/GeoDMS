@@ -1,0 +1,19 @@
+container fn_test_structmember
+{
+	// K11a: a structured unit parameter's member block is typed at DEFINITION — a
+	// member access nw/F1 types as attribute<uint32>(nw) (F1's values pick up the
+	// member unit nodeset's uint class), so the body's pcount is checked at the
+	// function definition, not only per instantiation.
+	unit<uint32> Net : nrofrows = 2
+	{
+		unit<uint32> nodeset : nrofrows = 3;
+		attribute<nodeset> F1 : [ 0, 1 ];
+	}
+	function ok_net( unit<uint32> nw {
+		unit<uint32> nodeset;
+		attribute<nodeset> F1;
+	} ) -> parameter<uint32> := sum(pcount(nw/F1));
+
+	parameter<uint32> total := ok_net(Net);
+	container checks { parameter<uint32> c := total, IntegrityCheck = "c == 2"; }
+}

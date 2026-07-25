@@ -2916,6 +2916,13 @@ namespace {
 		DefType InferOperatorApplication(const AbstrOperGroup* og, TokenID headID, const TreeItem* refScope, LispPtr argsList); // op-sig batch A
 		DefType ApplyOperRecord(const OperGroupSignatures::MergedRecord& mr, const SharedStr& headName, const std::vector<DefType>& argTerms);
 		DefType ParamType(UInt32 idx);
+		// K11a-1: the declared member set of a structured unit parameter (a member
+		// block on a `unit<...> P { … }` parameter), each member typed by its declared
+		// value class over the parameter's own domain. Enables def-time typing of
+		// `P/member` access (InferExpr case 2 / InferParamMember).
+		std::shared_ptr<const std::map<SharedStr, DefType, MemberPathLess>>
+			BuildParamMembers(const TreeItem* p, SizeT paramDomNode);
+		DefType InferParamMember(UInt32 paramIdx, const SharedStr& memberPath);
 		DefType DeclaredItemType(const TreeItem* item);
 		DefType PositionType(const TreeItem* posItem, const TreeItem* fnDef, UInt32 instance,
 			const TreeItem* ownerFn, UInt32 ownerInstance, const std::map<TokenID, TokenID>* tok2owner,
@@ -3096,7 +3103,10 @@ namespace {
 						if (slash != e)
 						{
 							if (extKindPtr) *extKindPtr = ExtRefKind::ParamMember; // OPEN: depends on the argument
-							return 2; // parameter member access is not verified/typed at definition time
+							// K11a-2: hand the member path to InferExpr, which types it
+							// against a structured parameter's member map (else defers)
+							if (genSubPathOut) *genSubPathOut = SharedStr(CharPtrRange(slash + 1, e));
+							return 2;
 						}
 						return 0;
 					}
@@ -3429,6 +3439,14 @@ namespace {
 			// rigid identity (the unit bound at application); the declared class
 			// pins the companion class node concretely (batch U)
 			r.dNode = UNode(m_FuncItem, 0, p->GetID(), r.vc);
+			// K11a-1: a structured unit parameter carries a member block (sub-items).
+			// A composite-type-by-example parameter clones only the class (no member
+			// sub-items, ConfigProd.cpp:888) — it has no _GetFirstSubItem and defers.
+			if (p->_GetFirstSubItem())
+			{
+				r.members = BuildParamMembers(p, r.dNode);
+				r.membersComplete = true;
+			}
 			return r;
 		}
 		if (IsDataItem(p))
@@ -3439,6 +3457,64 @@ namespace {
 			return r;
 		}
 		return {}; // container / typed-by-example parameters: deferred
+	}
+
+	// K11a-1: build the member map of a structured unit parameter `p`. Each declared
+	// member sub-item is typed: a member UNIT gets a per-instantiation identity node; a
+	// member ATTRIBUTE is Data over the PARAMETER's own domain (paramDomNode) with its
+	// declared value class (a ValueClass name, or a sibling member unit's class — e.g.
+	// `F1: attribute<nodeset>` picks up nodeset's uint class). Value-class typing already
+	// catches "the relation must be an unsigned-integer unit" via the body's operator
+	// checks (a float member fails pcount at definition). v1: direct members only;
+	// shared values-unit IDENTITY across members (F1,F2 to the SAME node) is K11a-1b.
+	std::shared_ptr<const std::map<SharedStr, DefType, MemberPathLess>>
+	FunctionChecker::BuildParamMembers(const TreeItem* p, SizeT paramDomNode)
+	{
+		auto members = std::make_shared<std::map<SharedStr, DefType, MemberPathLess>>();
+		for (const TreeItem* m = p->_GetFirstSubItem(); m; m = m->GetNextItem())
+		{
+			DefType md;
+			if (IsUnit(m))
+			{
+				md.kind = DefType::Kind::UnitVal;
+				md.vc   = AsUnit(m)->GetValueType();
+				md.dom  = DefType::Dom::Node;
+				md.dNode = UNode(m_FuncItem, 0, m->GetID(), md.vc);
+			}
+			else if (IsDataItem(m))
+			{
+				auto adi = AsDataItem(m);
+				md.kind  = DefType::Kind::Data;
+				md.vcomp = adi->GetValueComposition();
+				md.dom   = DefType::Dom::Node;
+				md.dNode = paramDomNode; // a member attribute is over the parameter unit
+				if (TokenID vt = adi->ValuesUnitToken())
+				{
+					if (auto vc = ValueClass::FindByScriptName(vt))
+						md.vc = vc;
+					else
+						for (const TreeItem* u = p->_GetFirstSubItem(); u; u = u->GetNextItem())
+							if (u->GetID() == vt && IsUnit(u)) { md.vc = AsUnit(u)->GetValueType(); break; }
+				}
+			}
+			else
+				continue;
+			(*members)[SharedStr(m->GetID().AsStrRange())] = md;
+		}
+		return members;
+	}
+
+	// K11a-2: type `P/member` access at definition against the structured parameter's
+	// member map. Hit → the member's type (so the body's use of it is checked under ∀);
+	// miss / non-structured parameter → defer (the per-application SubItem check still
+	// runs). Reporting a missing member as a def-time error is K11a-3.
+	DefType FunctionChecker::InferParamMember(UInt32 paramIdx, const SharedStr& memberPath)
+	{
+		DefType pt = ParamType(paramIdx);
+		if (pt.members)
+			if (auto it = pt.members->find(memberPath); it != pt.members->end())
+				return it->second;
+		return {};
 	}
 
 	// the declared annotation of a body item (or result); Unknown when undeclared
@@ -4677,6 +4753,7 @@ namespace {
 				{
 				case 0: return ParamType(paramIdx);
 				case 1: return local ? InferBodyItem(local) : DefType{};
+				case 2: return InferParamMember(paramIdx, genSubPath); // K11a-2: structured-parameter member access
 				case 3: return local ? InferGeneratedMember(sym, local, genSubPath) : DefType{}; // §12.7: rule-generated member access
 				default: return {}; // imports/externals: their types are checked per application
 				}
