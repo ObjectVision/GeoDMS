@@ -1,0 +1,21 @@
+container fn_test_unify_neg3
+{
+	// gen_add is a 2-parameter generic; the signature nuf<V,D> requires a
+	// 1-parameter function, so binding it to compose's 'g' is a DEFINITION-time
+	// arity mismatch ("gen_add ... has 2 parameter(s); its declared signature
+	// '/nuf' requires 1").
+	unit<uint32> Road : nrofrows = 3 { attribute<float64> flow : [ 1.0, 2.0, 3.0 ]; }
+
+	nuf = function<V: numerics, D: domains>(attribute<V> (D)) -> attribute<V> (D);
+
+	function fhalf(attribute<float64> x) -> attribute<float64> := x / 2.0;
+	function gen_add<V: numerics>(attribute<V> x; attribute<V> y) -> attribute<V> := x + y; // 2 params
+
+	function compose<V: numerics, D: domains>(f: nuf<V, D>; g: nuf<V, D>) -> nuf<V, D>
+	{
+		function result(attribute<V> x (D)) -> attribute<V> (D) := f(g(x));
+	}
+	attribute<float64> bad (Road) := compose(fhalf, gen_add)(Road/flow);
+
+	container checks { parameter<float64> use := sum(bad); }
+}

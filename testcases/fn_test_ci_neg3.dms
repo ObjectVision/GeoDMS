@@ -1,0 +1,35 @@
+container fn_test_ci_neg3
+{
+	// nearest_err's result adds sum(uint32(ci/arc_rel)) — uint32 — to sum(ci/dist),
+	// which is float32 (connect_info's distance member, typed at definition via the
+	// composite-member op-signatures over the points' domain). 'add' has no
+	// uint32 + float32 overload, so the body is rejected at DEFINITION time.
+	unit<uint32> ArcPoints : nrofrows = 2
+	{
+		attribute<float32> px      := float32(id(.)) * 10f; // 0, 10
+		attribute<float32> py      := float32(id(.)) *  0f; // 0, 0
+		attribute<fpoint>  point   := point_yx(py, px, fpoint);
+		attribute<Arc>     seq_rel : [0, 0];
+		attribute<uint32>  ordinal := id(.);
+	}
+	unit<uint32> Arc : nrofrows = 1
+	{
+		attribute<fpoint> geometry (Arc) := points2sequence(ArcPoints/point, ArcPoints/seq_rel, ArcPoints/ordinal);
+	}
+	unit<uint32> Pnt : nrofrows = 1
+	{
+		attribute<fpoint> geometry := const(point_yx(3f, 5f, fpoint), .);
+	}
+
+	function nearest_err(attribute<fpoint> arcs (Arc); attribute<fpoint> pts (Pnt)) -> parameter<uint32>
+	{
+		container ci := connect_info(arcs, pts);
+		parameter<uint32> result := sum(uint32(ci/arc_rel)) + sum(ci/dist); // uint32 + float32: no 'add' overload
+	}
+	parameter<uint32> n_err := nearest_err(Arc/geometry, Pnt/geometry);
+
+	container checks
+	{
+		parameter<uint32> c_1 := n_err, IntegrityCheck = "c_1 == 0";
+	}
+}

@@ -1,0 +1,21 @@
+container fn_test_unify_neg4
+{
+	// strlength is string -> uint32; composing it with fhalf (float64 -> float64)
+	// forces the shared type variable V to be both float64 (from fhalf) and string
+	// (from strlength) — an inconsistent instantiation caught at DEFINITION time
+	// ("inconsistent instantiation of type variable 'V': float64 ... vs string ...").
+	unit<uint32> Road : nrofrows = 3 { attribute<float64> flow : [ 1.0, 2.0, 3.0 ]; }
+
+	nuf = function<V: numerics, D: domains>(attribute<V> (D)) -> attribute<V> (D);
+
+	function fhalf(attribute<float64> x) -> attribute<float64> := x / 2.0;
+	function strlength(attribute<string> str) -> attribute<uint32> := strlen(str);
+
+	function compose<V: numerics, D: domains>(f: nuf<V, D>; g: nuf<V, D>) -> nuf<V, D>
+	{
+		function result(attribute<V> x (D)) -> attribute<V> (D) := f(g(x));
+	}
+	attribute<float64> bad (Road) := compose(fhalf, strlength)(Road/flow);
+
+	container checks { parameter<float64> use := sum(bad); }
+}
