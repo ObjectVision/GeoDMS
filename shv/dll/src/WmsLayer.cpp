@@ -453,7 +453,7 @@ namespace wms {
 		if (st == SeverityTypeID::ST_Error)
 			st = SeverityTypeID::ST_Warning;
 
-		reportF(ct, st, "%1%:%2%\nRequest: %3%\nResponse: %4%\n" // wms(%5%,%6%)
+		reportF(ct, st, "{}:{}\nRequest: {}\nResponse: {}\n" // wms({},{})
 			, what 
 			, msg 
 			, m_Request 

@@ -281,9 +281,9 @@ static CharPtr OperName(const AbstrDataItem* adi, AggrMethod am)
 }
 
 // provides a format string for the expression of an aggregation operation
-//	%1% = AggrOperName
-//	%2% = adi->GetFullName()
-//	%3% = groupByItemName
+//	{0} = AggrOperName
+//	{1} = adi->GetFullName()
+//	{2} = groupByItemName
 
 static CharPtr OperExprFormat(const AbstrDataItem* adi, const AbstrDataItem* groupBy_rel, AggrMethod am)
 {
@@ -291,39 +291,39 @@ static CharPtr OperExprFormat(const AbstrDataItem* adi, const AbstrDataItem* gro
 	{
 	case AggrMethod::asItemList:
 		if (adi->GetAbstrValuesUnit()->GetValueType()->GetValueClassID() != ValueClassID::VT_String)
-			return "%1%(String(%2%), %3%)"; // fits for most cases
+			return "{0}(String({1}), {2})"; // fits for most cases
 		break;
 
 	case AggrMethod::first:
 	case AggrMethod::last:
 		if (adi->GetValueComposition() != ValueComposition::Single)
-			return "%2%[%1%(ID(DomainUnit(%3%)), %3%)]";
+			return "{1}[{0}(ID(DomainUnit({2})), {2})]";
 		break;
 	case AggrMethod::min:
 		if (adi->GetValueComposition() != ValueComposition::Single)
-			return "min(lower_bound(%2%), %3%)";
+			return "min(lower_bound({1}), {2})";
 		break;
 	case AggrMethod::max:
 		if (adi->GetValueComposition() != ValueComposition::Single)
-			return "max(upper_bound(%2%), %3%)";
+			return "max(upper_bound({1}), {2})";
 		break;
 	case AggrMethod::sum:
-		return "sum(float64(%2%), %3%)";
+		return "sum(float64({1}), {2})";
 
 	case AggrMethod::mean:
 		if (adi->GetValueComposition() != ValueComposition::Single)
-			return "mean(centroid(%2%), %3%))";
+			return "mean(centroid({1}), {2}))";
 		break;
-	case AggrMethod::count: return SelectCardinality(count_unit_creator(adi).get(), "count_uint8(%2%, %3%)", "count_uint16(%2%, %3%)", "count_uint32(%2%, %3%)", "count_uint64(%2%, %3%)");
-	case AggrMethod::nr_undefined_values: return SelectCardinality(count_unit_creator(adi).get(), "sum_uint8(not(IsDefined(%2%)), %3%)", "sum_uint16(not(IsDefined(%2%)), %3%)", "sum_uint32(not(IsDefined(%2%)), %3%)", "sum_uint64(not(IsDefined(%2%)), %3%)");
-	case AggrMethod::modus_count: return SelectCardinality(count_unit_creator(adi).get(), "modus_count_uint8(%2%, %3%)", "modus_count_uint16(%2%, %3%)", "modus_count_uint32(%2%, %3%)", "modus_count_uint64(%2%, %3%)");
-	case AggrMethod::unique_count: return SelectCardinality(unique_count_unit_creator(adi, groupBy_rel).get(), "unique_count_uint8(%2%, %3%)", "unique_count_uint16(%2%, %3%)", "unique_count_uint32(%2%, %3%)", "unique_count_uint64(%2%, %3%)");
+	case AggrMethod::count: return SelectCardinality(count_unit_creator(adi).get(), "count_uint8({1}, {2})", "count_uint16({1}, {2})", "count_uint32({1}, {2})", "count_uint64({1}, {2})");
+	case AggrMethod::nr_undefined_values: return SelectCardinality(count_unit_creator(adi).get(), "sum_uint8(not(IsDefined({1})), {2})", "sum_uint16(not(IsDefined({1})), {2})", "sum_uint32(not(IsDefined({1})), {2})", "sum_uint64(not(IsDefined({1})), {2})");
+	case AggrMethod::modus_count: return SelectCardinality(count_unit_creator(adi).get(), "modus_count_uint8({1}, {2})", "modus_count_uint16({1}, {2})", "modus_count_uint32({1}, {2})", "modus_count_uint64({1}, {2})");
+	case AggrMethod::unique_count: return SelectCardinality(unique_count_unit_creator(adi, groupBy_rel).get(), "unique_count_uint8({1}, {2})", "unique_count_uint16({1}, {2})", "unique_count_uint32({1}, {2})", "unique_count_uint64({1}, {2})");
 	case AggrMethod::bounding_box:
 		if (adi->GetValueComposition() != ValueComposition::Single)
-			return "'['+String(min(lower_bound(%2%), %3%))+'...'+String(max(upper_bound(%2%), %3%))+']'";
-		return "'['+String(min(%2%, %3%))+'...'+String(max(%2%, %3%))+']'";
+			return "'['+String(min(lower_bound({1}), {2}))+'...'+String(max(upper_bound({1}), {2}))+']'";
+		return "'['+String(min({1}, {2}))+'...'+String(max({1}, {2}))+']'";
 	}
-	return "%1%(%2%, %3%)"; // fits for most cases
+	return "{0}({1}, {2})"; // fits for most cases
 }
 
 static SharedStr OperExpr(const AbstrDataItem* adi, const AbstrDataItem* groupBy_rel, AggrMethod am)
