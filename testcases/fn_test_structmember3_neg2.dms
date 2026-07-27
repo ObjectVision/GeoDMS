@@ -1,0 +1,25 @@
+container fn_test_structmember3_neg2
+{
+	// K11a-3.1 negative: a member declared over an earlier telescope parameter (E2)
+	// designated into a body item declared over the STRUCTURED parameter's own unit
+	// (nw) — a rigid-rigid domain conflict ('nw' vs 'E2') the definition-time checker
+	// must reject. The dual of the fn_test_structmember3 esum positive.
+	unit<uint32> Edge : nrofrows = 3;
+	unit<uint32> Net : nrofrows = 3
+	{
+		attribute<float64> cost (Edge) : [ 5.0, 6.0, 7.0 ];
+	}
+
+	function bad( unit<uint32> E2; unit<uint32> nw { attribute<float64> cost (E2); } )
+	-> parameter<float64> := sum(mid)
+	{
+		attribute<float64> mid (nw) := nw/cost;   // cost is over E2, not over nw
+	}
+
+	parameter<float64> t := bad(Edge, Net);
+
+	container checks
+	{
+		parameter<float64> c := t, IntegrityCheck = "c == 18.0";
+	}
+}

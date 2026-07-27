@@ -2907,6 +2907,11 @@ namespace {
 		// The key holds a STRONG LispRef (§12.7 review): the map entry itself pins
 		// the interned node, so the pointer-ordered key can never dangle or ABA
 		std::map<std::pair<const TreeItem*, LispRef>, DefType> m_ApplTypes;
+		// K11a-3.1 review: memoize the checked function's own parameter types — every
+		// nw/member reference re-derived ParamType (and for a structured parameter
+		// rebuilt the whole member map incl. per-member FindItem scope walks). Nodes
+		// are get-or-create so this only removes rework, never changes a verdict.
+		std::map<UInt32, DefType>    m_ParamTypes;
 		std::vector<SharedTreeItem>  m_Keep;             // liveness of resolved callees
 
 		DefType InferBodyItem(const TreeItem* refItem);
@@ -2915,7 +2920,8 @@ namespace {
 		DefType InferApplication(const TreeItem* refScope, const DefType& fnVal, LispPtr argsList, CharPtr headName);
 		DefType InferOperatorApplication(const AbstrOperGroup* og, TokenID headID, const TreeItem* refScope, LispPtr argsList); // op-sig batch A
 		DefType ApplyOperRecord(const OperGroupSignatures::MergedRecord& mr, const SharedStr& headName, const std::vector<DefType>& argTerms);
-		DefType ParamType(UInt32 idx);
+		DefType ParamType(UInt32 idx);     // memoized front (m_ParamTypes)
+		DefType ParamTypeImpl(UInt32 idx);
 		// K11a-1: the declared member set of a structured unit parameter (a member
 		// block on a `unit<...> P { … }` parameter), each member typed by its declared
 		// value class over the parameter's own domain. Enables def-time typing of
@@ -3415,6 +3421,15 @@ namespace {
 	// rigid identity for unit parameters, a Func value for signature-typed parameters
 	DefType FunctionChecker::ParamType(UInt32 idx)
 	{
+		if (auto it = m_ParamTypes.find(idx); it != m_ParamTypes.end())
+			return it->second;
+		DefType pt = ParamTypeImpl(idx);
+		m_ParamTypes[idx] = pt;
+		return pt;
+	}
+
+	DefType FunctionChecker::ParamTypeImpl(UInt32 idx)
+	{
 		const TreeItem* p = m_Params[idx];
 		if (auto sig = TreeItem_GetFunctionParamSignature(m_FuncItem, idx))
 		{
@@ -3461,18 +3476,41 @@ namespace {
 
 	// K11a-1: build the member map of a structured unit parameter `p`. Each declared
 	// member sub-item is typed: a member UNIT gets a per-instantiation identity node; a
-	// member ATTRIBUTE is Data over the PARAMETER's own domain (paramDomNode) with its
-	// declared value class (a ValueClass name, or a sibling member unit's class — e.g.
-	// `F1: attribute<nodeset>` picks up nodeset's uint class). Value-class typing already
-	// catches "the relation must be an unsigned-integer unit" via the body's operator
-	// checks (a float member fails pcount at definition). K11a-1b: a member attribute whose
-	// values token names a sibling member unit also carries that unit's IDENTITY node
-	// (vuNode) — so members sharing a node unit (F1,F2 both attribute<nodeset>) unify over
-	// the SAME node at definition, and members over different node units fail to unify.
+	// member ATTRIBUTE is Data with its declared value class and domain. K11a-1b: a
+	// member attribute whose values token names a sibling member unit also carries that
+	// unit's IDENTITY node (vuNode) — so members sharing a node unit (F1,F2 both
+	// attribute<nodeset>) unify over the SAME node at definition, and members over
+	// different node units fail to unify.
+	// K11a-3.1 (generic member types): member tokens resolve through the SAME ladder a
+	// positional declaration uses (PositionType), innermost first —
+	//   values: sibling member unit → the function's generic variables (a domain-
+	//     sorted variable also carries unit identity, the K2 bridge) → ValueClass
+	//     name → a telescope unit parameter → a definition-scope unit;
+	//   domain: the parameter itself / '.' (the default) → sibling member unit →
+	//     generic domain variable → telescope unit parameter → definition-scope
+	//     unit (Void broadcasts) → otherwise DEFER (Dom::Unknown).
+	// (Review findings, K11a-3.1 round:) generic variables come BEFORE ValueClass
+	// names, matching PositionType — a type variable named like a value class must
+	// type members and body items to the SAME rigid node; a member declared without
+	// a domain carries the implicit '.' entity token (ConfigProd RetrieveEntity),
+	// never an empty one, so '.' selects the parameter-unit default; and member-unit
+	// nodes are keyed by the PARAMETER-QUALIFIED token 'p/member' so same-named
+	// member units of different structured parameters (or a member unit shadowing a
+	// same-named telescope parameter) stay DISTINCT rigid units.
+	// An explicit domain token must NEVER silently fall back to the parameter unit:
+	// that mistyped `cost (E2)` as over the parameter and falsely rejected a correct
+	// body item declared over E2 (rigid-rigid 'nw'≠'E2' conflict) — unresolvable
+	// tokens defer.
 	std::shared_ptr<const std::map<SharedStr, DefType, MemberPathLess>>
 	FunctionChecker::BuildParamMembers(const TreeItem* p, SizeT paramDomNode)
 	{
 		auto members = std::make_shared<std::map<SharedStr, DefType, MemberPathLess>>();
+		SharedStr pName(p->GetID().AsStrRange()); // materialized: TokenStr must not span token creation below
+		auto qualTok = [&](TokenID memberTok) -> TokenID
+		{
+			SharedStr mName(memberTok.AsStrRange());
+			return GetTokenID_mt(mySSPrintF("{}/{}", pName.c_str(), mName.c_str()).c_str());
+		};
 		for (const TreeItem* m = p->_GetFirstSubItem(); m; m = m->GetNextItem())
 		{
 			DefType md;
@@ -3481,35 +3519,125 @@ namespace {
 				md.kind = DefType::Kind::UnitVal;
 				md.vc   = AsUnit(m)->GetValueType();
 				md.dom  = DefType::Dom::Node;
-				md.dNode = UNode(m_FuncItem, 0, m->GetID(), md.vc);
+				md.dNode = UNode(m_FuncItem, 0, qualTok(m->GetID()), md.vc);
 			}
 			else if (IsDataItem(m))
 			{
 				auto adi = AsDataItem(m);
 				md.kind  = DefType::Kind::Data;
 				md.vcomp = adi->GetValueComposition();
-				md.dom   = DefType::Dom::Node;
-				md.dNode = paramDomNode; // a member attribute is over the parameter unit
+
 				if (TokenID vt = adi->ValuesUnitToken())
 				{
-					if (auto vc = ValueClass::FindByScriptName(vt))
-						md.vc = vc;
-					else
-						for (const TreeItem* u = p->_GetFirstSubItem(); u; u = u->GetNextItem())
-							if (u->GetID() == vt && IsUnit(u))
+					bool vMatched = false;
+					for (const TreeItem* u = p->_GetFirstSubItem(); u; u = u->GetNextItem())
+						if (u->GetID() == vt && IsUnit(u))
+						{
+							// K11a-1b: the member attribute's values unit IS the sibling
+							// member unit — carry its IDENTITY node, not just its class.
+							// The node is keyed by the QUALIFIED token, so it is the SAME
+							// node the member unit itself got above. Hence F1,F2 both
+							// `attribute<nodeset>` share one node: the body's
+							// pcount(nw/F1)+pcount(nw/F2) unifies over the single nodeset
+							// domain at definition, and two members over DIFFERENT node
+							// units fail to unify.
+							md.vc = AsUnit(u)->GetValueType();
+							md.vuNode = UNode(m_FuncItem, 0, qualTok(vt), md.vc);
+							vMatched = true;
+							break;
+						}
+					if (!vMatched && (IsOwnDeclaredVar(m_FuncItem, vt) || IsGenericVarOf(m_FuncItem, vt)))
+					{
+						// K11a-3.1: `w: attribute<V>` under `<V: numerics>` — the member's
+						// values class IS the function's rigid variable, so body uses of
+						// nw/w are checked under ∀ exactly like a positional attribute<V>
+						md.vNode = ValNode(m_FuncItem, 0, vt);
+						if (IsDomainSortedVarOf(m_FuncItem, vt))
+							md.vuNode = UNode(m_FuncItem, 0, vt); // K2: identity through the values role
+						vMatched = true;
+					}
+					if (!vMatched)
+						if (auto vc = ValueClass::FindByScriptName(vt))
+						{
+							md.vc = vc;
+							vMatched = true;
+						}
+					if (!vMatched)
+					{
+						const TreeItem* q = m_FuncItem->_GetFirstSubItem();
+						for (UInt32 j = 0, n = TreeItem_GetFunctionParamCount(m_FuncItem); j != n && q; ++j, q = q->GetNextItem())
+							if (q->GetID() == vt && IsUnit(q))
 							{
-								// K11a-1b: the member attribute's values unit IS the sibling
-								// member unit — carry its IDENTITY node, not just its class.
-								// UNode(m_FuncItem,0,vt,vc) is keyed by token, so it is the
-								// SAME node the member unit itself got (built above with
-								// m->GetID()==vt). Hence F1,F2 both `attribute<nodeset>` share
-								// one node: the body's pcount(nw/F1)+pcount(nw/F2) unifies over
-								// the single nodeset domain at definition, and two members over
-								// DIFFERENT node units would fail to unify.
-								md.vc = AsUnit(u)->GetValueType();
+								// a telescope unit parameter in the VALUES role: its declared
+								// class + per-instantiation identity (as PositionType does)
+								md.vc = AsUnit(q)->GetValueType();
 								md.vuNode = UNode(m_FuncItem, 0, vt, md.vc);
+								vMatched = true;
 								break;
 							}
+					}
+					if (!vMatched)
+						if (auto u = ResolveUnitInScope(vt, m_FuncItem))
+						{
+							md.vc = AsUnit(u.get())->GetValueType();
+							md.vKeep = u; md.vUnit = AsUnit(u.get()); // identity too (batch U)
+						}
+					// else: unknown values class — checked per application
+				}
+
+				// domain: default = the parameter's own unit; an explicit token resolves
+				// through the ladder or DEFERS (never silently the parameter unit)
+				TokenID dt = adi->DomainUnitToken();
+				if (!dt || dt == p->GetID() || dt == t_Dot)
+				{
+					md.dom = DefType::Dom::Node;
+					md.dNode = paramDomNode;
+				}
+				else
+				{
+					bool dMatched = false;
+					for (const TreeItem* u = p->_GetFirstSubItem(); u; u = u->GetNextItem())
+						if (u->GetID() == dt && IsUnit(u))
+						{
+							// over a sibling member unit — the SAME (qualified) node that
+							// member got
+							md.dom = DefType::Dom::Node;
+							md.dNode = UNode(m_FuncItem, 0, qualTok(dt), AsUnit(u)->GetValueType());
+							dMatched = true;
+							break;
+						}
+					if (!dMatched && (IsOwnDeclaredVar(m_FuncItem, dt) || IsGenericVarOf(m_FuncItem, dt)))
+					{
+						md.dom = DefType::Dom::Node;
+						md.dNode = UNode(m_FuncItem, 0, dt); // generic domain variable
+						dMatched = true;
+					}
+					if (!dMatched)
+					{
+						const TreeItem* q = m_FuncItem->_GetFirstSubItem();
+						for (UInt32 j = 0, n = TreeItem_GetFunctionParamCount(m_FuncItem); j != n && q; ++j, q = q->GetNextItem())
+							if (q->GetID() == dt && IsUnit(q))
+							{
+								// over a telescope unit parameter (UNode self-pins its class)
+								md.dom = DefType::Dom::Node;
+								md.dNode = UNode(m_FuncItem, 0, dt);
+								dMatched = true;
+								break;
+							}
+					}
+					if (!dMatched)
+						if (auto u = ResolveUnitInScope(dt, m_FuncItem))
+						{
+							if (AsUnit(u.get())->GetValueType()->GetValueClassID() == ValueClassID::VT_Void)
+								md.dom = DefType::Dom::Void;
+							else
+							{
+								md.dom = DefType::Dom::Concrete;
+								md.domKeep = u; md.domUnit = AsUnit(u.get());
+							}
+							dMatched = true;
+						}
+					// !dMatched: md.dom stays Dom::Unknown — defer
 				}
 			}
 			else

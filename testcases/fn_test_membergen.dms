@@ -7,7 +7,14 @@ container fn_test_membergen
 	}
 
 	// a type variable used ONLY inside a structured parameter's member block:
-	// must not be recorded as a top-level generic param (regression: gpIndex crash)
+	// must not be recorded as a top-level generic param (regression: gpIndex crash).
+	// K11a-3.1: member attributes<V> now really carry the rigid V at definition, so a
+	// float64-pinned body must CONVERT the members (float64(V) holds for every V:
+	// numerics) — the former bare Network/flow / Network/capacity demanded
+	// div(V,V)->float64 for EVERY V and is now rejected under forall, exactly as the
+	// positional attribute<V> analog always was. The conversion also keeps the body
+	// V-token-free, which the instantiate path below requires (a copied body does not
+	// substitute type variables).
 	function CongestionRatio<V: numerics>(
 		unit<uint32> Network {
 			attribute<V> flow;
@@ -16,7 +23,7 @@ container fn_test_membergen
 	)
 	-> attribute<float64> (Network) := result
 	{
-		attribute<float64> raw    (Network) := Network/flow / Network/capacity;
+		attribute<float64> raw    (Network) := float64(Network/flow) / float64(Network/capacity);
 		attribute<float64> result (Network) := min_elem(raw, 1.0);
 	}
 

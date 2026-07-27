@@ -1,0 +1,25 @@
+container fn_test_structmember3_neg1
+{
+	// K11a-3.1 negative: two members typed by INDEPENDENT generic value variables
+	// (V, W) are forced equal by a direct designation — a rigid-rigid conflict the
+	// definition-time checker must reject (independent generic parameters), without
+	// any operator involved (no add-deferral gate).
+	unit<uint32> Net : nrofrows = 3
+	{
+		attribute<float64> a : [ 1.0, 2.0, 3.0 ];
+		attribute<float64> b : [ 4.0, 5.0, 6.0 ];
+	}
+
+	function bad<V: numerics, W: numerics>( unit<uint32> nw { attribute<V> a; attribute<W> b; } )
+	-> parameter<V> := sum(s)
+	{
+		attribute<V> s (nw) := nw/b;   // W-member designated into a V-typed item: rigid V = rigid W
+	}
+
+	parameter<float64> t := bad(Net);
+
+	container checks
+	{
+		parameter<float64> c := t, IntegrityCheck = "c == 15.0";
+	}
+}

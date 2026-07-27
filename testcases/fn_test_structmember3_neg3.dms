@@ -1,0 +1,27 @@
+container fn_test_structmember3_neg3
+{
+	// K11a-3.1 review finding #2: a member attribute declared WITHOUT a domain
+	// carries the implicit '.' entity token, not an empty one — it must type over
+	// the parameter's own unit (the default), so designating it into a body item
+	// declared over the OTHER telescope parameter E2 is a rigid domain conflict at
+	// definition. (Before the fix the '.' token fell through the ladder and the
+	// member's domain silently DEFERRED, accepting this wrong program.)
+	unit<uint32> Edge : nrofrows = 3;
+	unit<uint32> Net : nrofrows = 3
+	{
+		attribute<float64> w : [ 10.0, 20.0, 30.0 ];
+	}
+
+	function bad( unit<uint32> E2; unit<uint32> nw { attribute<float64> w; } )
+	-> parameter<float64> := sum(mid)
+	{
+		attribute<float64> mid (E2) := nw/w;   // w is over nw (the default), not E2
+	}
+
+	parameter<float64> t := bad(Edge, Net);
+
+	container checks
+	{
+		parameter<float64> c := t, IntegrityCheck = "c == 60.0";
+	}
+}

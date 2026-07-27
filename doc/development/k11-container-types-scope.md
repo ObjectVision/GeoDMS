@@ -76,18 +76,64 @@ Link `SignatureRecorder::ArgContainer`'s `sharedMemberDomain` into the same unif
    `add`/`+` group has multi-class/undescribed overloads, so the walker takes the
    `theRecord<0 → return {}` deferral (`InferOperatorApplication`) and the `ns1≠ns2` conflict
    is reported at the *instantiation* (concrete-argument reduction), not at the definition.
-   Structured-param functions also only parse with `-> parameter<…>` results (no
-   attribute-result declaration to force a result-domain conflict). So K11a-1b's identity is
-   a correct, forward-looking building block whose *observable* def-time payoff is gated on
-   (i) a DESCRIBED combining operator (the `add`-deferral gate — same class of work as
-   WP4.1 select-family sigs / arithmetic-op description) and (ii) richer structured-param
-   result grammar. Regression coverage: `fn_test_structmember2` (well-formed two-relation
-   network computes), `fn_test_structmember_neg2` (malformed different-node-unit network
-   rejected — at instantiation, per the gate above; comment states this precisely).
+   So K11a-1b's identity payoff through a COMBINING operator is gated on a DESCRIBED
+   combiner (the `add`-deferral gate — same class of work as WP4.1 select-family sigs /
+   arithmetic-op description). Regression coverage: `fn_test_structmember2` (well-formed
+   two-relation network computes), `fn_test_structmember_neg2` (malformed
+   different-node-unit network rejected — at instantiation, per the gate above).
+   *(CORRECTED 2026-07-27: the earlier claim that structured-param functions "only parse
+   with `-> parameter<…>` results" was WRONG — `-> attribute<uint32> (Network)` and even
+   the member-path result domain `-> attribute<uint32> (nw/nodeset)` parse, reduce, and
+   compute; pinned by `fn_test_membergen` and `fn_test_network`.)*
    STILL DEFERRED: the composite-type-by-example form (`nw: network_links`, whose exemplar
    members must be persisted — today `ConfigProd.cpp:888` clones only the class).
-3. **K11a-3** instantiation-point contract check (c) — moderate; reducer-side; also reports a **missing** declared member (def-time, `membersComplete`).
-4. **K11b** operator `ArgContainer` linking — substantial; gated on K11a.
+3. **K11a-3.1 — generic member types LANDED (2026-07-27).** `BuildParamMembers` resolves
+   member tokens through the SAME ladder as positional declarations (`PositionType`),
+   innermost first — values: ValueClass name → sibling member unit (K11a-1b identity) →
+   the function's generic variables (`attribute<V> w` carries the rigid V `vNode`; a
+   domain-sorted variable also carries unit identity, the K2 bridge) → a telescope unit
+   parameter (class + per-instantiation identity) → a definition-scope unit; domain: the
+   parameter itself (default) → sibling member unit → generic domain variable → telescope
+   unit parameter → scope unit (Void broadcasts / Concrete) → otherwise **Dom::Unknown
+   (defer)**. This FIXED a live K11a-1 false rejection: an explicit member domain token
+   (`cost (E2)`) was silently ignored and the member mistyped over the parameter unit, so
+   a correct body item `mid (E2) := nw/cost` errored with a rigid-rigid `'nw'≠'E2'`
+   conflict — an explicit token now resolves or defers, never falls back to the parameter
+   unit. Coverage: `fn_test_structmember3` (generic values member checked under ∀ +
+   telescope-domain member + generic-domain member; includes the once-falsely-rejected
+   shape), `_neg1` (rigid V≠W via a member designated into a differently-generic body
+   item — operator-free, no add-gate), `_neg2` (member over E2 designated into a body
+   item declared over nw — rigid domain conflict), `fn_test_network` (the §6 motivating
+   case with a member-path result domain). NOTE: `fn_test_membergen` needed a body fix —
+   with `attribute<V>` members REALLY carrying V, a float64-pinned body must CONVERT
+   (`float64(Network/flow)`); the bare division demanded `div(V,V)->float64` for every V
+   and is now rejected exactly like its positional analog always was (and an
+   `instantiate`d body must stay V-token-free: copied bodies do not substitute type
+   variables).
+   **Adversarial review round (3 lenses, 9 agents, all findings reproduced against the
+   built binaries) confirmed 4 distinct defects, all fixed before landing:** (1) a member
+   declared WITHOUT a domain carries the implicit `'.'` entity token, never an empty one
+   — the first-cut default test missed it and the common no-domain member spelling
+   silently DEFERRED its domain (losing the K11a-1 paramDomNode guarantee; wrong programs
+   accepted) — `'.'` now selects the default (`fn_test_structmember3_neg3`); (2+3) member-
+   unit nodes were keyed by BARE token, collapsing same-named member units of different
+   structured parameters (and a member unit shadowing a same-named telescope parameter)
+   into one rigid node — now keyed by the PARAMETER-QUALIFIED token `p/member`, which also
+   upgrades the diagnostics ("unit variables 'nw2/ns' and 'nw1/ns' … independent";
+   `fn_test_structmember3_neg4`); (4) the values ladder tested ValueClass names BEFORE the
+   generic variables, inverting PositionType's precedence for a type variable named like a
+   value class (member typed concrete, body rigid → false rejection) — the variable rungs
+   now precede the class-name rung, sibling members innermost; (5, perf) `ParamType` is
+   now memoized per index (`m_ParamTypes`) — every `nw/member` reference used to rebuild
+   the whole member map including per-member `FindItem` scope walks.
+   Still out of scope here: member UNITS with generic classes (`unit<V>`
+   member: class stays unresolved/deferred), deep member paths (nested sub-containers),
+   `container`-kind parameters; body-item declarations naming a member path as their
+   domain (`attribute<uint32> x (nw/nodeset)`) defer (the member item is in-template for
+   `ResolveUnitInScope`) — wiring those to the qualified member nodes is a natural
+   K11a-3 companion.
+4. **K11a-3** instantiation-point contract check (c) — moderate; reducer-side; also reports a **missing** declared member (def-time, `membersComplete`).
+5. **K11b** operator `ArgContainer` linking — substantial; gated on K11a.
 
 **Risks.** (R-a) member DefTypes must use *per-instantiation* identity nodes so two applications of `connectedness` don't force their `nodeset`s equal (the same instance-key discipline as WP4.1 T3, `TypeUnifier` keyed `(owner, instance, token)`). (R-b) composite-by-example exemplars can carry *data* (fn_test.dms `network_links` has `[0,1,2]`) — the checker must read only the declared kind/type, never the values. (R-c) soundness of the def-time "member not found": only report when `membersComplete` (as the result-side already gates, `:2881-2884`). (R-d) instantiation check must not double-report what the body already catches — prefer the boundary message and suppress the transitive one, or accept both (boundary first).
 

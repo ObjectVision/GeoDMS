@@ -1,0 +1,49 @@
+container fn_test_structmember3
+{
+	// K11a-3.1: structured-parameter members with GENERIC and TELESCOPE types.
+	// (a) a member typed by the function's value variable: attribute<V> under <V: numerics>;
+	// (b) a member over an EARLIER telescope unit parameter: attribute<float64> (E2) —
+	//     before K11a-3.1 the domain token was ignored and the member mistyped as over
+	//     the parameter unit, FALSELY rejecting the correct body item mid (E2) below;
+	// (c) a member over a generic domain variable resolves to the same rigid node the
+	//     positional declarations use.
+	unit<uint32> Edge : nrofrows = 3;
+	unit<uint32> Net : nrofrows = 3
+	{
+		unit<uint32> nodeset : nrofrows = 3;
+		attribute<float64> w : [ 10.0, 20.0, 30.0 ];
+		attribute<float64> cost (Edge) : [ 5.0, 6.0, 7.0 ];
+	}
+
+	// (a) generic values member: sum(nw/w) is checked under forall-V and the result
+	// rides the same rigid V
+	function gsum<V: numerics>( unit<uint32> nw { attribute<V> w; } )
+	-> parameter<V> := sum(nw/w);
+
+	parameter<float64> t1 := gsum(Net);
+
+	// (b) member over an earlier telescope parameter; the body item mid is declared
+	// over E2 — its rule nw/cost must type over E2 too (the K11a-3.1 fix)
+	function esum( unit<uint32> E2; unit<uint32> nw { attribute<float64> cost (E2); } )
+	-> parameter<float64> := sum(mid)
+	{
+		attribute<float64> mid (E2) := nw/cost;
+	}
+
+	parameter<float64> t2 := esum(Edge, Net);
+
+	// (c) generic domain variable in the member's domain position: cost lives on D,
+	// which the positional anchor binds at the application (D := Edge)
+	attribute<uint32> eid (Edge) := id(Edge);
+	function dsum<D: domains>( unit<uint32> nw { attribute<float64> cost (D); }; attribute<uint32> anchor (D) )
+	-> parameter<float64> := sum(nw/cost);
+
+	parameter<float64> t3 := dsum(Net, eid);
+
+	container checks
+	{
+		parameter<float64> c1 := t1, IntegrityCheck = "c1 == 60.0";
+		parameter<float64> c2 := t2, IntegrityCheck = "c2 == 18.0";
+		parameter<float64> c3 := t3, IntegrityCheck = "c3 == 18.0";
+	}
+}

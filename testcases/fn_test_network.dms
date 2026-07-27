@@ -1,0 +1,29 @@
+container fn_test_network
+{
+	// The K11 motivating case (k11-container-types-scope.md): a network relating
+	// edges twice to a shared node unit, with the RESULT declared over the member
+	// path nw/nodeset. Pins that (a) the member-path result domain parses and
+	// reduces, and (b) the def-time checker types both relations over the ONE
+	// member-unit node (K11a-1b identity + K11a-3.1 member resolution).
+	unit<uint32> Net : nrofrows = 3
+	{
+		unit<uint32> nodeset : nrofrows = 4;
+		attribute<nodeset> F1 : [ 0, 1, 2 ];
+		attribute<nodeset> F2 : [ 1, 2, 3 ];
+	}
+
+	function connectedness( unit<uint32> nw {
+		unit<uint32> nodeset;
+		attribute<nodeset> F1;
+		attribute<nodeset> F2;
+	} )
+	-> link_counts: attribute<uint32> (nw/nodeset) := pcount(nw/F1) + pcount(nw/F2);
+
+	attribute<uint32> pc (Net/nodeset) := connectedness(Net);
+
+	container checks
+	{
+		// each of the 6 endpoints lands on nodes 0..3: [1,2,2,1]
+		parameter<uint32> c := sum(pc), IntegrityCheck = "c == 6";
+	}
+}

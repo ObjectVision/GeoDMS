@@ -1,0 +1,33 @@
+container fn_test_structmember3_neg4
+{
+	// K11a-3.1 review finding #3: member-unit nodes are keyed by the PARAMETER-
+	// QUALIFIED token, so the same member-unit NAME in two different structured
+	// parameters denotes two DISTINCT rigid units. The lookup below requires
+	// nw1's ns (F1's values unit) to equal nw2's ns (w's domain unit) — a
+	// rigid-rigid conflict the definition-time checker must reject. (Before the
+	// fix both keyed as one node and this wrong program passed the definition.)
+	unit<uint32> Net1 : nrofrows = 3
+	{
+		unit<uint32> ns : nrofrows = 2;
+		attribute<ns> F1 : [ 0, 1, 0 ];
+	}
+	unit<uint32> Net2 : nrofrows = 3
+	{
+		unit<uint32> ns : nrofrows = 2;
+		attribute<float64> w (ns) : [ 5.0, 6.0 ];
+	}
+
+	function two( unit<uint32> nw1 { unit<uint32> ns; attribute<ns> F1; };
+	              unit<uint32> nw2 { unit<uint32> ns; attribute<float64> w (ns); } )
+	-> parameter<float64> := sum(res)
+	{
+		attribute<float64> res (nw1) := nw2/w[nw1/F1];
+	}
+
+	parameter<float64> t := two(Net1, Net2);
+
+	container checks
+	{
+		parameter<float64> c := t, IntegrityCheck = "c == 16.0";
+	}
+}
