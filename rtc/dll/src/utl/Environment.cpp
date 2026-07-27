@@ -612,12 +612,12 @@ struct RegDWordAttr
 	bool    wasRead;
 };
 
-RegDWordAttr s_RegDWordAttrs[] = 
+RegDWordAttr s_RegDWordAttrs[] =
 {
 	{ "MemoryFlushThreshold", 80, false},
 	{ "SwapFileMinSize", 0, false },
     { "DrawingSizeInPixels", 0, false },
-	{ "MemoryMaxRAM_GB", 64, false }
+	{ "MemoryMaxRAM_GB", 64, false } // simulates a smaller machine; also throttles operation activation via IsLowOnFreeRAM
 };
 
 extern "C" RTC_CALL DWORD RTC_GetRegDWord(RegDWordEnum i)
@@ -2503,7 +2503,7 @@ static RegDWordAttr s_RegDWordAttrs[] =
 	{ "MemoryFlushThreshold", 80, false },
 	{ "SwapFileMinSize", 0, false },
 	{ "DrawingSizeInPixels", 0, false },
-	{ "MemoryMaxRAM_GB", 64, false }
+	{ "MemoryMaxRAM_GB", 64, false } // simulates a smaller machine; also throttles operation activation via IsLowOnFreeRAM
 };
 
 extern "C" RTC_CALL DWORD RTC_GetRegDWord(RegDWordEnum i)
