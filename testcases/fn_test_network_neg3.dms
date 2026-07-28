@@ -1,0 +1,38 @@
+container fn_test_network_neg3
+{
+	// K11a-3 contract check: the argument's F1 relates to a DIFFERENT unit than its
+	// own nodeset member (the declaration says attribute<nodeset> F1) — rejected at
+	// the application boundary ("the values of 'F1' must be 'nodeset'"), and the
+	// argument's w is an attribute<uint32> where the declaration requires float64.
+	// Either violation alone suffices; both are exercised across the two calls.
+	unit<uint32> other : nrofrows = 4;
+	unit<uint32> NetBadRel : nrofrows = 3
+	{
+		unit<uint32> nodeset : nrofrows = 4;
+		attribute<other> F1 : [ 0, 1, 2 ];
+	}
+
+	function nodecount( unit<uint32> nw {
+		unit<uint32> nodeset;
+		attribute<nodeset> F1;
+	} )
+	-> parameter<uint32> := sum(pcount(nw/F1));
+
+	parameter<uint32> t1 := nodecount(NetBadRel);
+
+	unit<uint32> NetBadClass : nrofrows = 3
+	{
+		attribute<uint32> w : [ 1, 2, 3 ];
+	}
+
+	function wsum( unit<uint32> nw { attribute<float64> w; } )
+	-> parameter<float64> := sum(nw/w);
+
+	parameter<float64> t2 := wsum(NetBadClass);
+
+	container checks
+	{
+		parameter<uint32>  c1 := t1, IntegrityCheck = "c1 == 3";
+		parameter<float64> c2 := t2, IntegrityCheck = "c2 == 6.0";
+	}
+}

@@ -1,0 +1,26 @@
+container fn_test_memnf_neg
+{
+	// K11a-3 definition-time member-not-found: the member block is the parameter's
+	// declared interface (membersComplete), so a body reference to an undeclared
+	// DIRECT member (nw/F3) is a DEFINITION error — "parameter 'nw' declares no
+	// member 'F3'" — regardless of what extra members an argument provides.
+	unit<uint32> Net : nrofrows = 3
+	{
+		unit<uint32> nodeset : nrofrows = 4;
+		attribute<nodeset> F1 : [ 0, 1, 2 ];
+		attribute<nodeset> F3 : [ 1, 2, 3 ];   // exists on the ARGUMENT, but not declared
+	}
+
+	function bad( unit<uint32> nw {
+		unit<uint32> nodeset;
+		attribute<nodeset> F1;
+	} )
+	-> parameter<uint32> := sum(pcount(nw/F3));
+
+	parameter<uint32> t := bad(Net);
+
+	container checks
+	{
+		parameter<uint32> c := t, IntegrityCheck = "c == 3";
+	}
+}

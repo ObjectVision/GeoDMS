@@ -1971,6 +1971,154 @@ namespace {
 				, sigResult->GetDynamicClass()->GetName().c_str());
 	}
 
+	// K11a-3: instantiation-point contract check for a structured / by-example unit
+	// parameter (op-sig scope doc §3(c)). The declared member block is a CLOSED
+	// interface, so each declared member must be PRESENT on the actual argument,
+	// KIND-compatible, CLASS-compatible (incl. generic-constraint satisfaction and
+	// cross-member consistency of a shared type variable), and — for the relations
+	// checkable at the boundary — co-domained: a member declared over a SIBLING
+	// member unit must relate to the argument's own that-unit, and a default-domain
+	// member must be an attribute of the argument unit itself. Violations are
+	// reported AT THE APPLICATION, naming the parameter and the member, instead of
+	// transitively inside the reduced body. Deferred to the body's own reduction:
+	// members over telescope parameters or generic DOMAIN variables, deep member
+	// paths, members whose declared values token resolves outside the block, and
+	// anything whose actual units are not resolvable here (null guards defer, never
+	// misreport). memberSrc is the parameter (explicit block) or its by-example
+	// exemplar; generic-variable handling applies to explicit blocks only (exemplar
+	// tokens are the exemplar's lexical world).
+	void CheckStructuredParamContract(const TreeItem* funcItem, const TreeItem* paramItem,
+		const TreeItem* memberSrc, const TreeItem* argRoot)
+	{
+		assert(IsMetaThread()); // reduction runs on the meta thread; UnifyDomain below relies on it
+		if (!IsUnit(argRoot))
+			return; // a non-unit argument fails the ordinary binding diagnostics
+		bool byExample = memberSrc != paramItem;
+		SharedStr fnName(funcItem->GetFullName());
+		SharedStr pName(paramItem->GetID().AsStrRange());
+		constexpr UnifyMode um = UnifyMode(UM_AllowVoidRight | UM_AllowRightExpansion);
+
+		// shared type variables: the first member's actual class binds; later members must agree
+		std::map<TokenID, std::pair<const ValueClass*, SharedStr>> varBindings;
+
+		for (const TreeItem* m = memberSrc->_GetFirstSubItem(); m; m = m->GetNextItem())
+		{
+			if (!IsUnit(m) && !IsDataItem(m))
+				continue; // container-like members: not typed yet (K11 container-kind)
+			SharedStr mName(m->GetID().AsStrRange());
+			auto a = argRoot->GetConstSubTreeItemByID(m->GetID());
+			if (!a)
+				throwErrorF("ExprParser", "'{}': the argument for parameter '{}' does not match its declared members: member '{}' is missing"
+					, fnName.c_str(), pName.c_str(), mName.c_str());
+			if (IsUnit(m))
+			{
+				if (!IsUnit(a.get()))
+					throwErrorF("ExprParser", "'{}': the argument for parameter '{}' does not match its declared members: '{}' must be a unit"
+						, fnName.c_str(), pName.c_str(), mName.c_str());
+				auto wantCls = AsUnit(m)->GetValueType();
+				auto gotCls = AsUnit(a.get())->GetValueType();
+				if (wantCls && gotCls && wantCls != gotCls)
+					throwErrorF("ExprParser", "'{}': the argument for parameter '{}' does not match its declared members: unit '{}' must be a unit<{}>, not a unit<{}>"
+						, fnName.c_str(), pName.c_str(), mName.c_str()
+						, wantCls->GetName().c_str(), gotCls->GetName().c_str());
+				continue;
+			}
+
+			// data member
+			if (!IsDataItem(a.get()))
+				throwErrorF("ExprParser", "'{}': the argument for parameter '{}' does not match its declared members: '{}' must be an attribute"
+					, fnName.c_str(), pName.c_str(), mName.c_str());
+			auto declared = AsDataItem(m);
+			auto actual   = AsDataItem(a.get());
+			if (declared->GetValueComposition() != actual->GetValueComposition())
+				throwErrorF("ExprParser", "'{}': the argument for parameter '{}' does not match its declared members: '{}' differs in value composition"
+					, fnName.c_str(), pName.c_str(), mName.c_str());
+
+			auto avu = actual->GetAbstrValuesUnit();
+			if (TokenID vt = declared->ValuesUnitToken())
+			{
+				// ladder order mirrors BuildParamMembers (review finding: sibling and
+				// generic-variable rungs BEFORE the ValueClass vocabulary, so a type
+				// variable named like a value class stays the variable here too)
+				bool isSibling = false;
+				for (const TreeItem* u = memberSrc->_GetFirstSubItem(); u; u = u->GetNextItem())
+					if (u->GetID() == vt && IsUnit(u))
+					{
+						isSibling = true;
+						break;
+					}
+				if (isSibling)
+				{
+					// a sibling MEMBER UNIT: the actual member must relate to the
+					// argument's own that-unit (the K2 identity, at the boundary)
+					auto aSib = argRoot->GetConstSubTreeItemByID(vt);
+					if (avu && aSib && IsUnit(aSib.get())
+						&& !avu->UnifyDomain(AsUnit(aSib.get()), "", "", um))
+					{
+						SharedStr vtName(vt.AsStrRange());
+						throwErrorF("ExprParser", "'{}': the argument for parameter '{}' does not match its declared members: the values of '{}' must be '{}' (the argument's own member unit)"
+							, fnName.c_str(), pName.c_str(), mName.c_str(), vtName.c_str());
+					}
+				}
+				else if (!byExample && (IsOwnDeclaredVar(funcItem, vt) || IsGenericVarOf(funcItem, vt)))
+				{
+					// generic value variable (own <...> clause OR positional generic —
+					// same pair BuildParamMembers tests): satisfy the declared
+					// constraint and stay consistent with any earlier member sharing
+					// the variable
+					auto gotCls = avu ? avu->GetValueType() : nullptr;
+					if (gotCls)
+					{
+						if (TokenID cons = DeclaredConstraintOf(funcItem, vt))
+							if (!GenericConstraintSet(cons).test(UInt32(gotCls->GetValueClassID())))
+							{
+								SharedStr vtName(vt.AsStrRange()), consName(cons.AsStrRange());
+								throwErrorF("ExprParser", "'{}': the argument for parameter '{}' does not match its declared members: '{}' is an attribute<{}>, which does not satisfy '{}: {}'"
+									, fnName.c_str(), pName.c_str(), mName.c_str()
+									, gotCls->GetName().c_str(), vtName.c_str(), consName.c_str());
+							}
+						auto [it, isNew] = varBindings.try_emplace(vt, gotCls, mName);
+						if (!isNew && it->second.first != gotCls)
+						{
+							SharedStr vtName(vt.AsStrRange());
+							throwErrorF("ExprParser", "'{}': the argument for parameter '{}' does not match its declared members: '{}' ({}) and '{}' ({}) must share one value type for '{}'"
+								, fnName.c_str(), pName.c_str()
+								, it->second.second.c_str(), it->second.first->GetName().c_str()
+								, mName.c_str(), gotCls->GetName().c_str(), vtName.c_str());
+						}
+					}
+				}
+				else if (auto wantCls = ValueClass::FindByScriptName(vt))
+				{
+					auto gotCls = avu ? avu->GetValueType() : nullptr;
+					if (gotCls && gotCls != wantCls)
+						throwErrorF("ExprParser", "'{}': the argument for parameter '{}' does not match its declared members: '{}' must be an attribute<{}>, not an attribute<{}>"
+							, fnName.c_str(), pName.c_str(), mName.c_str()
+							, wantCls->GetName().c_str(), gotCls->GetName().c_str());
+				}
+				// else: resolves outside the block / telescope / unknown — defer
+			}
+
+			// default-domain members are attributes OF the argument unit; a VOID
+			// actual domain broadcasts (the language's single implicit coercion —
+			// review finding: a parameter<> member must not be rejected); explicit
+			// non-default domains (telescope params, generic domain vars, scope
+			// units) are checked transitively by the body's reduction
+			TokenID dt = declared->DomainUnitToken();
+			bool defaultDomain = !dt || dt == t_Dot || dt == memberSrc->GetID()
+				|| (!byExample && dt == paramItem->GetID());
+			if (defaultDomain)
+			{
+				auto adu = actual->GetAbstrDomainUnit();
+				if (adu
+					&& adu->GetValueType()->GetValueClassID() != ValueClassID::VT_Void
+					&& !adu->UnifyDomain(AsUnit(argRoot), "", "", um))
+					throwErrorF("ExprParser", "'{}': the argument for parameter '{}' does not match its declared members: '{}' must be an attribute of the argument unit itself"
+						, fnName.c_str(), pName.c_str(), mName.c_str());
+			}
+		}
+	}
+
 	LispRef FunctionApplication::Reduce()
 	{
 		CallArg r = ReduceValue();
@@ -2085,6 +2233,29 @@ namespace {
 				if (auto sigTypeArgs = TreeItem_GetFunctionParamSigTypeArgs(m_FuncItem, i))
 					if (auto sigVars = TreeItem_GetFunctionTypeVars(declaredSig.get()); sigVars && sigTypeArgs->size() == sigVars->size())
 						sigConstraints.push_back({ i, declaredSig, m_ArgBindings[i]->funcItem, sigVars, sigTypeArgs });
+			}
+
+			// K11a-3: a structured / by-example unit parameter carries a declared
+			// member interface — validate the ACTUAL argument against it here, at the
+			// call boundary (clear attribution), instead of deep inside the reduced
+			// body. The argument's CONFIG item (m_ArgItems — the same reference the
+			// body's member access binds to) carries the members; an expression
+			// argument has none here and defers to the body's own resolution.
+			// FUNCTION items only (review finding): a plain template's unit-parameter
+			// sub-items (helper locals with calculation rules) are NOT a declared
+			// member contract — 'apply' on such templates must keep working.
+			if (!isPlainTemplate && IsUnit(child) && m_ArgItems[i])
+			{
+				const TreeItem* memberSrc = child->_GetFirstSubItem() ? child : nullptr;
+				SharedTreeItem exKeep;
+				if (!memberSrc)
+					if (auto ex = TreeItem_GetFunctionParamTypeExemplar(m_FuncItem, i); ex && ex->_GetFirstSubItem())
+					{
+						exKeep = ex;
+						memberSrc = exKeep.get();
+					}
+				if (memberSrc)
+					CheckStructuredParamContract(m_FuncItem, child, memberSrc, m_ArgItems[i].get());
 			}
 		}
 
@@ -3724,23 +3895,38 @@ namespace {
 					// !dMatched: md.dom stays Dom::Unknown — defer
 				}
 			}
-			else
-				continue;
+			// else (container / nested-function members): md stays Unknown — the
+			// member IS declared, so it must be IN the map (K11a-3 review finding:
+			// dropping it while membersComplete=true made a direct `nw/meta`
+			// reference a false "declares no member" definition error); its access
+			// just defers to the per-application resolution
 			(*members)[SharedStr(m->GetID().AsStrRange())] = md;
 		}
 		return members;
 	}
 
 	// K11a-2: type `P/member` access at definition against the structured parameter's
-	// member map. Hit → the member's type (so the body's use of it is checked under ∀);
-	// miss / non-structured parameter → defer (the per-application SubItem check still
-	// runs). Reporting a missing member as a def-time error is K11a-3.
+	// member map. Hit → the member's type (so the body's use of it is checked under ∀).
+	// K11a-3: a DIRECT-member miss under a COMPLETE declared interface is a
+	// definition-time error — the member block is the parameter's declared contract
+	// (§4.6 strict scope), so a body reference outside it is wrong regardless of what
+	// extra members an argument happens to provide. DEEP paths defer (the argument may
+	// legitimately carry structure BELOW a declared member, e.g. nw/nodeset/label);
+	// non-structured parameters defer as before (the per-application SubItem check runs).
 	DefType FunctionChecker::InferParamMember(UInt32 paramIdx, const SharedStr& memberPath)
 	{
 		DefType pt = ParamType(paramIdx);
 		if (pt.members)
+		{
 			if (auto it = pt.members->find(memberPath); it != pt.members->end())
 				return it->second;
+			if (pt.membersComplete && std::find(memberPath.begin(), memberPath.send(), '/') == memberPath.send())
+			{
+				SharedStr pName(m_Params[paramIdx]->GetID().AsStrRange());
+				throwErrorF("ExprParser", "the definition of '{}': parameter '{}' declares no member '{}'"
+					, m_FuncItem->GetFullName().c_str(), pName.c_str(), memberPath.c_str());
+			}
+		}
 		return {};
 	}
 
@@ -4976,11 +5162,20 @@ namespace {
 					return {};
 				const TreeItem* local = nullptr; UInt32 paramIdx = 0;
 				SharedStr genSubPath;
-				switch (ResolveName(refScope, sym, &local, &paramIdx, nullptr, nullptr, &genSubPath))
+				ExtRefKind extKind = ExtRefKind::DefScopeExternal;
+				switch (ResolveName(refScope, sym, &local, &paramIdx, nullptr, &extKind, &genSubPath))
 				{
 				case 0: return ParamType(paramIdx);
 				case 1: return local ? InferBodyItem(local) : DefType{};
-				case 2: return InferParamMember(paramIdx, genSubPath); // K11a-2: structured-parameter member access
+				case 2:
+					// K11a-2: structured-parameter member access. Code 2 is OVERLOADED
+					// (K11a-3 review finding): prelude refs, closure captures and
+					// def-scope externals also return 2 WITHOUT touching paramIdx/
+					// genSubPath — only a genuine ParamMember may reach the member map
+					// (the stale defaults falsely hit parameter 0 with an empty path)
+					if (extKind == ExtRefKind::ParamMember)
+						return InferParamMember(paramIdx, genSubPath);
+					return {}; // prelude/capture/external: checked per application
 				case 3: return local ? InferGeneratedMember(sym, local, genSubPath) : DefType{}; // §12.7: rule-generated member access
 				default: return {}; // imports/externals: their types are checked per application
 				}

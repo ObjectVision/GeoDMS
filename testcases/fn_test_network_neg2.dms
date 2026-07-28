@@ -1,0 +1,26 @@
+container fn_test_network_neg2
+{
+	// K11a-3 contract check: the argument lacks the declared member F2 — rejected AT
+	// THE APPLICATION with a boundary message naming parameter and member ("member
+	// 'F2' is missing"), instead of an Unknown-identifier error deep inside the
+	// reduced body.
+	unit<uint32> Net : nrofrows = 3
+	{
+		unit<uint32> nodeset : nrofrows = 4;
+		attribute<nodeset> F1 : [ 0, 1, 2 ];
+	}
+
+	function connectedness( unit<uint32> nw {
+		unit<uint32> nodeset;
+		attribute<nodeset> F1;
+		attribute<nodeset> F2;
+	} )
+	-> parameter<uint32> := sum(pcount(nw/F1) + pcount(nw/F2));
+
+	parameter<uint32> t := connectedness(Net);
+
+	container checks
+	{
+		parameter<uint32> c := t, IntegrityCheck = "c == 6";
+	}
+}

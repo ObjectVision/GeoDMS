@@ -160,7 +160,50 @@ Link `SignatureRecorder::ArgContainer`'s `sharedMemberDomain` into the same unif
    (the shadowing scenarios: same-named telescope parameter + same-named unit in the
    function's container must not capture), and `fn_test.dms`'s original
    `connectedness(nw: network_links)` now def-time-typed.
-5. **K11a-3** instantiation-point contract check (c) — moderate; reducer-side; also reports a **missing** declared member (def-time, `membersComplete`).
+5. **K11a-3 — instantiation-point contract check LANDED (2026-07-28).** Two parts:
+   **(def-time)** `InferParamMember` now reports a DIRECT-member miss under a complete
+   declared interface as a definition error — "parameter 'nw' declares no member 'F3'"
+   (the block is the §4.6 declared contract, regardless of what extra members an
+   argument provides); DEEP paths defer (the argument may carry structure below a
+   declared member). **(boundary)** `CheckStructuredParamContract` (sibling of
+   `CheckFunctionSignature`) runs at argument binding in
+   `FunctionApplication::ReduceValue` for a structured / by-example unit parameter
+   whose argument is a PLAIN ITEM REFERENCE (`m_ArgItems` — the same config reference
+   the body's member access binds to; expression arguments defer): each declared
+   member must be present ("member 'F2' is missing"), kind-compatible, class/
+   composition-compatible, satisfy generic constraints incl. cross-member consistency
+   of a shared type variable (explicit blocks only), relate to the argument's own
+   sibling member unit ("the values of 'F1' must be 'nodeset'"), and default-domain
+   members must be attributes of the argument unit itself — every violation reported
+   AT THE APPLICATION with parameter+member attribution. Unresolvable/null units
+   defer, never misreport. Implementation trap (cost one round): the check must run
+   against the argument's CONFIG item, NOT `DataController::MakeResult()` — the cache
+   result unit carries no config members, so everything reported "missing".
+   **Adversarial review round (2 lenses, 9 agents, all 7 findings reproduced with
+   control pairs) — all fixed before landing:** (1+6) `ResolveName`'s return code 2
+   is OVERLOADED (prelude refs / closure captures / def-scope externals also return
+   2 without touching `paramIdx`/`genSubPath`) — the dispatcher now consults
+   `ExtRefKind` and only a genuine `ParamMember` reaches the member map (the stale
+   defaults falsely hit parameter 0 with an EMPTY path, rejecting any structured-
+   first-param function referencing a bare external); (2) a VOID actual-member
+   domain (a `parameter<>` member) broadcasts — `UM_AllowVoidRight` covers only a
+   void RIGHT operand, so the check now skips void-left explicitly; (3) the contract
+   is gated to FUNCTION items (`!isPlainTemplate`) — a classic template's
+   rule-bearing unit-parameter locals are not a member contract and `apply` on such
+   templates must keep working; (4+7) declared CONTAINER members now enter the
+   member map as deferred (Unknown) entries — dropping them while
+   `membersComplete=true` made a direct `nw/meta` reference a false "declares no
+   member" definition error; (5) the boundary check's values ladder now mirrors
+   `BuildParamMembers` (sibling → generic variable, testing `IsOwnDeclaredVar` OR
+   `IsGenericVarOf` → ValueClass name).
+   Coverage: `fn_test_network_neg2` (missing member), `fn_test_network_neg3` (wrong
+   sibling relation + wrong member class), `fn_test_memnf_neg` (def-time undeclared
+   member), `fn_test_structcontract` (the four fixed false-rejection scenarios as
+   positives: external beside a structured first param, void member, apply-template
+   with helper local, container member access). v1 deferrals: members over telescope
+   parameters / generic domain variables (checked transitively by the body),
+   expression arguments, the `instantiate` path (does not pass through
+   `ReduceValue`'s binding loop), deep member paths.
 6. **K11b** operator `ArgContainer` linking — substantial; gated on K11a.
 
 **Risks.** (R-a) member DefTypes must use *per-instantiation* identity nodes so two applications of `connectedness` don't force their `nodeset`s equal (the same instance-key discipline as WP4.1 T3, `TypeUnifier` keyed `(owner, instance, token)`). (R-b) composite-by-example exemplars can carry *data* (fn_test.dms `network_links` has `[0,1,2]`) — the checker must read only the declared kind/type, never the values. (R-c) soundness of the def-time "member not found": only report when `membersComplete` (as the result-side already gates, `:2881-2884`). (R-d) instantiation check must not double-report what the body already catches — prefer the boundary message and suppress the transitive one, or accept both (boundary first).
