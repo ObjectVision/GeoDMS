@@ -2302,6 +2302,22 @@ operator work; category D stays engine-side (§8.4).
   See `operator-signature-interface.md` §20 for the full free/interpreted/staged-fragment
   account and the staging contract (definition = placeholders + structural checks;
   instantiation = full concrete `CreateResult` semantics).
+  **RULING (Maarten, 2026-07-29): metric compatibility STAYS an instantiation-time
+  concern — permanently, by design.** Do not build declared-metric syntax, definition-time
+  metric unification, or any "fuss at definition time" for metrics. This closes the
+  P4/v2 "declared metric constraints" work package and everything gated on it
+  (`unit_creator_spec`/`uc_*` factories, WP4.4 metric surfacing beyond cosmetics); the
+  §9 SigUnitChecker's metric checks stay log-only for the same reason.
+- **Tier-2 `SelectMetaOperator`s on formal arguments** (`select_with_attr_by_cond`,
+  `select_with_org_rel_with_attr_by_cond`, `collect_attr_by_*` & co): their member set
+  comes from a container argument that is usually a *formal*, so their composite results
+  are only evaluated at the specific instantiation — the attributes are unknown to the
+  function definition. **RULING (Maarten, 2026-07-29): this is ACCEPTED, not a gap** —
+  per-instantiation evaluation of these meta selections is fine; no definition-time
+  typing effort is warranted. These operators are borderline deprecation-candidates
+  *because* of such troubles; as long as they remain harmless (defer cleanly, no false
+  definition-time errors), leave them be and do not invest further. The Tier-2
+  composite-result typing work package is closed accordingly.
 - **Counts, ranges, tiles**: inherently data-stage; never part of static checking.
 - **Leading-`=` string-eval** is incompatible with once-checking unless the indirection
   string is parameter-independent — restrict it inside function bodies.

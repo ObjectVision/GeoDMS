@@ -254,13 +254,22 @@ void CheckResultingTreeItem(const TreeItem* refItem, const Class* desiredResulti
 
 
 void InstantiateMap(TreeItem* holder, const AbstrCalculator* ac, LispPtr mapExpr); // fwd (defined below, uses FunctionApplication)
+namespace { // merges with the checker machinery's anonymous namespace below
+	void CheckStructuredParamContracts(const TreeItem* applyItem, LispPtr argList, const TreeItem* target); // fwd (K11a-3 boundary check, instantiate path)
+}
 
 void MetaFuncCurry::operator ()(TreeItem* target, const AbstrCalculator* ac) const
 {
 	if (isMapCall)
 		InstantiateMap(target, ac, fullLispExpr);
 	else if (applyItem)
+	{
+		// K11a-3 on the INSTANTIATE path: validate structured/by-example parameter
+		// contracts at the boundary before the body is copied (functions only).
+		// Arguments resolve from the TARGET's parent — the copy's binding context.
+		CheckStructuredParamContracts(applyItem, fullLispExpr.Right(), target);
 		InstantiateTemplate(target, applyItem, fullLispExpr.Right());
+	}
 	else if (og)
 		ApplyAsMetaFunction(target, ac, og, fullLispExpr.Right());
 }
@@ -2152,6 +2161,58 @@ namespace {
 		}
 		};
 		walkBlock(memberSrc, argRoot, unitParam, SharedStr());
+	}
+
+	// K11 leftover (2026-07-29): the INSTANTIATE path bypasses ReduceValue's binding
+	// loop (it is a CopyTreeContext tree copy), so the K11a-3 contract check never
+	// ran there — a missing member surfaced as a transitive 'Unknown identifier
+	// nw/F2' inside the copied body instead of the boundary message. This helper
+	// applies the same check from MetaFuncCurry; expression arguments and
+	// non-function apply-items (plain templates) defer, as at the inline site.
+	//
+	// Review finding (reproduced both ways, fixed): arguments must resolve from the
+	// TARGET's parent — the context the copied parameter's ArgCalc calculator will
+	// bind in (param.parent.parent = target.parent) — NOT via ac->FindItem (the
+	// calculator's search context). The two coincide for a Calculator-role holder,
+	// but when the 'instantiate f(...)' expression sits on a copied TEMPLATE
+	// ARGUMENT (ArgCalc role) inside a template whose LOCAL shadows the call-site
+	// name, ac resolved the call-site item while the copy binds the template-local
+	// one: the checker validated the WRONG item (a false boundary rejection of a
+	// previously-working config, and a false pass of a broken one).
+	void CheckStructuredParamContracts(const TreeItem* applyItem, LispPtr argList, const TreeItem* target)
+	{
+		if (!applyItem || !applyItem->IsFunctionItem() || !target)
+			return;
+		auto bindScope = target->GetTreeParent();
+		if (!bindScope)
+			return;
+		UInt32 nrParams = TreeItem_GetFunctionParamCount(applyItem);
+		const TreeItem* param = applyItem->_GetFirstSubItem();
+		LispPtr a = argList;
+		for (UInt32 i = 0; i != nrParams && param && !a.EndP(); ++i, param = param->GetNextItem(), a = a.Right())
+		{
+			if (IsDataItem(param) || param->IsFunctionItem())
+				continue;
+			if (!(IsUnit(param) || !IsDataItem(param))) // unit or container parameters only
+				continue;
+			const TreeItem* memberSrc = param->_GetFirstSubItem() ? param : nullptr;
+			SharedTreeItem exKeep;
+			if (!memberSrc)
+				if (auto ex = TreeItem_GetFunctionParamTypeExemplar(applyItem, i); ex && ex->_GetFirstSubItem())
+				{
+					exKeep = ex;
+					memberSrc = exKeep.get();
+				}
+			if (!memberSrc)
+				continue;
+			LispPtr ae = a.Left();
+			if (!ae.IsSymb())
+				continue; // expression argument: defers, as at the inline site
+			auto argItem = bindScope->FindItem(SharedStr(ae.GetSymbID().AsStrRange()));
+			if (!argItem)
+				continue; // an unresolvable argument fails through the ordinary path
+			CheckStructuredParamContract(applyItem, param, memberSrc, argItem.get());
+		}
 	}
 
 	LispRef FunctionApplication::Reduce()
@@ -4795,12 +4856,22 @@ namespace {
 
 		// canonicalize one record: per position (kind, domain-slot, composition),
 		// where a domain slot numbers the domain variables in first-seen order and
-		// carries the variable's flags (void/generated domains are distinct claims)
+		// carries the variable's flags (void/generated domains are distinct claims).
+		// K11 leftover (2026-07-29): Container positions are canonicalized too (their
+		// shared member domain slot, whether a shared member VALUES var exists, and
+		// the naming argument), so multi-record groups with a container argument can
+		// still agree on the skeleton; Deferred/MetaValue positions canonicalize as
+		// kind-only (no claim) instead of vetoing the whole skeleton.
 		struct Slot { UInt32 id = UInt32(-1); UInt8 flags = 0; };
-		struct PosSkel { SignatureRecord::PosKind kind{}; Slot dom; ValueComposition vc{}; };
+		struct PosSkel
+		{
+			SignatureRecord::PosKind kind{}; Slot dom; ValueComposition vc{};
+			bool hasVal = false;                  // Container: a shared member VALUES var exists
+			arg_index namesPos = arg_index(-1);   // Container: the naming argument
+		};
 		auto canon = [](const SignatureRecord& s, std::vector<PosSkel>& args, PosSkel& res, std::vector<SharedStr>& roles) -> bool
 		{
-			if (s.dynamicShape || s.resultDeferred || s.repeat.active || !s.resultMembers.empty())
+			if (s.dynamicShape || s.resultDeferred || s.repeat.active || !s.resultMembers.empty() || !s.resultMemberSets.empty())
 				return false; // deferred/variadic/composite shapes: not a plain skeleton
 			std::map<sig_var, UInt32> seen;
 			auto slotOf = [&](sig_var v) -> Slot
@@ -4822,14 +4893,16 @@ namespace {
 					ps.dom = slotOf(p.domain);
 				else if (p.kind == SignatureRecord::PosKind::Unit)
 					ps.dom = slotOf(p.values);
+				else if (p.kind == SignatureRecord::PosKind::Container)
+				{
+					ps.dom = slotOf(p.domain);
+					ps.hasVal = p.values != no_sig_var;
+					ps.namesPos = p.namesPos;
+				}
 				return ps;
 			};
 			for (const auto& p : s.args)
-			{
-				if (p.kind == SignatureRecord::PosKind::Container || p.kind == SignatureRecord::PosKind::Deferred)
-					return false; // container/deferred positions: no skeleton claim
 				args.push_back(posOf(p));
-			}
 			res = posOf(s.result);
 			return true;
 		};
@@ -4850,6 +4923,9 @@ namespace {
 			{
 				if (a[i].kind != refArgs[i].kind || a[i].dom.id != refArgs[i].dom.id || a[i].dom.flags != refArgs[i].dom.flags)
 					return std::nullopt; // the skeletons disagree: nothing is shared
+				if (a[i].kind == SignatureRecord::PosKind::Container
+					&& (a[i].hasVal != refArgs[i].hasVal || a[i].namesPos != refArgs[i].namesPos))
+					return std::nullopt; // container claims must agree exactly
 				if (a[i].vc != refArgs[i].vc)
 					vcAgrees[i] = false;
 			}
@@ -4898,6 +4974,16 @@ namespace {
 			}
 			else if (ps.kind == SignatureRecord::PosKind::Unit)
 				p.values = ps.dom.id == UInt32(-1) ? no_sig_var : sig_var(ps.dom.id); // the unit's own identity
+			else if (ps.kind == SignatureRecord::PosKind::Container)
+			{
+				// the agreed container claim: shared member domain slot, an intra-
+				// container shared VALUES var when every record declares one (fresh —
+				// no cross-position class identity), and the agreed naming argument
+				p.domain = ps.dom.id == UInt32(-1) ? no_sig_var : sig_var(ps.dom.id);
+				if (ps.hasVal)
+					p.values = addVar(SharedStr(posName), 0);
+				p.namesPos = ps.namesPos;
+			}
 			else
 				p.kind = SignatureRecord::PosKind::None; // MetaValue & co: no claim
 			return p;
@@ -5697,7 +5783,7 @@ namespace {
 			// `pcount(nw/F1) + pcount(nw/F2)` over different node units is now a
 			// DEFINITION-time conflict instead of an instantiation-time one.
 			if (auto skeleton = BuildDomainSkeletonRecord(sigs, survivorRecords))
-				return ApplyOperRecord(*skeleton, headName, argTerms);
+				return ApplyOperRecord(*skeleton, headName, argTerms, refScope, argsList); // K11 leftover: container positions link here too
 			return {}; // no agreed skeleton (or an undescribed member survives): defer
 		}
 
