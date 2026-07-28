@@ -225,6 +225,7 @@ void                ClearPropData();
 		ValueComposition          resultVC = ValueComposition::Unknown;
 		SharedStr                 resultExpr;
 		std::vector<std::tuple<UInt32, const TreeItem*, std::vector<TokenID>>> paramSigs; // (param index, signature exemplar, type-application args)
+		std::vector<std::pair<UInt32, const TreeItem*>> paramExemplars; // K11a by-example: (param index, UNIT type exemplar) — its declared members type the parameter
 		std::vector<std::pair<TokenID, TokenID>> typeVars;         // (var, constraint)
 		std::vector<std::tuple<UInt32, TokenID, TokenID, bool>> genericParams; // (param index, var, constraint, isDomainVar)
 		std::vector<UInt32> metaRefParams;                         // 'item x' parameters (raw item-reference binding)

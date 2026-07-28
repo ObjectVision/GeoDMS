@@ -81,6 +81,7 @@ namespace {
 		UInt32 nrParams = 0;
 		TokenID resultName;
 		std::vector<std::tuple<UInt32, std::weak_ptr<const TreeItem>, std::vector<TokenID>>> paramSigs; // (param index, signature exemplar, type-application args)
+		std::vector<std::pair<UInt32, std::weak_ptr<const TreeItem>>> paramTypeExemplars; // K11a by-example: (param index, UNIT exemplar whose declared members type the parameter)
 		std::vector<std::tuple<UInt32, TokenID, TokenID, bool>> genericParams; // (param index, type variable, constraint, isDomainVar)
 		std::vector<std::pair<TokenID, TokenID>> typeVars; // the declaration's own ordered <var: constraint> list (WP4.1)
 		std::vector<UInt32> metaRefParams; // 'item x' parameters: bound as raw item references (sourceDescr), not calculation keys
@@ -1475,6 +1476,26 @@ TIC_CALL SharedTreeItem TreeItem_GetFunctionParamSignature(const TreeItem* funct
 		for (const auto& paramSig : specPtr->paramSigs)
 			if (std::get<0>(paramSig) == paramIndex)
 				return SharedTreeItem(std::get<1>(paramSig).lock());
+	return {};
+}
+
+// K11a by-example: a 'p: exemplar' parameter whose exemplar is a UNIT — the
+// exemplar's declared sub-items serve as the parameter's member block for the
+// definition-time checker (the parse-time clone carries only the class).
+TIC_CALL void TreeItem_AddFunctionParamTypeExemplar(const TreeItem* functionItem, UInt32 paramIndex, const TreeItem* exemplar)
+{
+	assert(functionItem && functionItem->IsFunctionItem());
+	assert(exemplar);
+	s_FunctionSpecAssoc[functionItem].paramTypeExemplars.emplace_back(paramIndex, exemplar->weak_from_this());
+}
+
+TIC_CALL SharedTreeItem TreeItem_GetFunctionParamTypeExemplar(const TreeItem* functionItem, UInt32 paramIndex)
+{
+	auto specPtr = s_FunctionSpecAssoc.get_value_ptr(functionItem);
+	if (specPtr)
+		for (const auto& pe : specPtr->paramTypeExemplars)
+			if (pe.first == paramIndex)
+				return SharedTreeItem(pe.second.lock());
 	return {};
 }
 

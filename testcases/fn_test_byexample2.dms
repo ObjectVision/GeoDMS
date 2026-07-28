@@ -1,0 +1,42 @@
+container fn_test_byexample2
+{
+	// K11a by-example review finding (reproduced, fixed): EXEMPLAR member tokens are
+	// lexically the exemplar's world. A function telescope parameter (nodeset_g in f)
+	// or a same-named unit in the function's container (app/nodes for app/g) must NOT
+	// capture them — before the fix both captured and falsely rejected these correct
+	// programs at definition.
+	unit<uint32> nodeset_g : nrofrows = 4;
+	network_links: unit<uint32> : nrofrows = 3
+	{
+		attribute<nodeset_g> F1 : [ 0, 1, 2 ];
+	}
+
+	// same-named FLOAT telescope parameter must not capture the exemplar's nodeset_g
+	function f( unit<float32> nodeset_g; nw: network_links )
+	-> parameter<uint32> := sum(pcount(nw/F1));
+
+	unit<float32> fdom;
+	parameter<uint32> t1 := f(fdom, network_links);
+
+	container defs
+	{
+		unit<uint32> nodes : nrofrows = 4;
+		links: unit<uint32> : nrofrows = 3
+		{
+			attribute<nodes> F1 : [ 0, 1, 2 ];
+		}
+	}
+	container app
+	{
+		unit<float32> nodes : nrofrows = 2;   // must not capture the exemplar's defs/nodes
+		function g( nw: defs/links )
+		-> parameter<uint32> := sum(pcount(nw/F1));
+		parameter<uint32> t2 := g(defs/links);
+	}
+
+	container checks
+	{
+		parameter<uint32> c1 := t1,     IntegrityCheck = "c1 == 3";
+		parameter<uint32> c2 := app/t2, IntegrityCheck = "c2 == 3";
+	}
+}

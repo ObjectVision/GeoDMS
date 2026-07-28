@@ -943,6 +943,11 @@ void ConfigProd::DoColonItemHeading(iterator_t first, iterator_t last)
 		bool topLevel = inParams && IsTopLevelFunctionParam();
 		if (m_PendingFunctionParamSig && topLevel)
 			m_FuncStates.back().paramSigs.emplace_back(m_FuncStates.back().paramCount + i, m_PendingFunctionParamSig, m_PendingTypeArgs);
+		// K11a by-example: 'nw: network_links' — retain the UNIT exemplar so the
+		// definition-time checker can type the parameter's members from ITS declared
+		// sub-items (the class clone above carries no member block)
+		if (m_PendingTypeExemplar && topLevel && IsUnit(m_PendingTypeExemplar))
+			m_FuncStates.back().paramExemplars.emplace_back(m_FuncStates.back().paramCount + i, m_PendingTypeExemplar);
 		if (genericVar && topLevel)
 			m_FuncStates.back().genericParams.emplace_back(m_FuncStates.back().paramCount + i, genericVar, FindActiveTypeVarConstraint(genericVar), false);
 		if (domainVar && topLevel)
@@ -1354,6 +1359,8 @@ void ConfigProd::OnFunctionDeclEnd(iterator_t first)
 	TreeItem_SetFunctionSpec(func, fs.paramCount, designated);
 	for (const auto& paramSig : fs.paramSigs)
 		TreeItem_AddFunctionParamSignature(func, std::get<0>(paramSig), std::get<1>(paramSig), std::get<2>(paramSig));
+	for (const auto& paramEx : fs.paramExemplars)
+		TreeItem_AddFunctionParamTypeExemplar(func, paramEx.first, paramEx.second); // K11a by-example member source
 	for (const auto& genericParam : fs.genericParams)
 		TreeItem_AddFunctionGenericParam(func, std::get<0>(genericParam), std::get<1>(genericParam), std::get<2>(genericParam), std::get<3>(genericParam));
 	for (UInt32 metaRefIdx : fs.metaRefParams)

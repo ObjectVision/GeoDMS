@@ -1,0 +1,24 @@
+container fn_test_byexample_neg1
+{
+	// K11a by-example negative: the exemplar declares F1 as a FLOAT attribute, so
+	// through the retained exemplar the member nw/F1 types as attribute<float64>
+	// and pcount — which requires an unsigned-integer partitioning — is rejected
+	// at the DEFINITION (mirror of fn_test_structmember_neg1 via the by-example
+	// path; before this tranche the parameter had no members and the misuse only
+	// surfaced per instantiation).
+	bad_links: unit<uint32> : nrofrows = 3
+	{
+		unit<uint32> nodeset : nrofrows = 4;
+		attribute<float64> F1 : [ 0.0, 1.0, 2.0 ];
+	}
+
+	function connectedness( nw: bad_links )
+	-> parameter<uint32> := sum(pcount(nw/F1));
+
+	parameter<uint32> t := connectedness(bad_links);
+
+	container checks
+	{
+		parameter<uint32> c := t, IntegrityCheck = "c == 3";
+	}
+}

@@ -1,0 +1,29 @@
+container fn_test_byexample
+{
+	// K11a by-example: 'nw: network_links' — the parameter clones only the exemplar's
+	// CLASS at parse time; the retained exemplar now supplies the declared member
+	// block to the definition-time checker, so nw/F1 and nw/w are typed (and the
+	// exemplar's DATA is never read — declared kind/type only).
+	network_links: unit<uint32> : nrofrows = 3
+	{
+		unit<uint32> nodeset : nrofrows = 4;
+		attribute<nodeset> F1 : [ 0, 1, 2 ];
+		attribute<nodeset> F2 : [ 1, 2, 3 ];
+		attribute<float64> w  : [ 10.0, 20.0, 30.0 ];
+	}
+
+	function connectedness( nw: network_links )
+	-> link_counts: attribute<uint32> (nw/nodeset) := pcount(nw/F1) + pcount(nw/F2);
+
+	function weightsum( nw: network_links )
+	-> parameter<float64> := sum(nw/w);
+
+	attribute<uint32> pc (network_links/nodeset) := connectedness(network_links);
+	parameter<float64> ws := weightsum(network_links);
+
+	container checks
+	{
+		parameter<uint32>  c1 := sum(pc), IntegrityCheck = "c1 == 6";
+		parameter<float64> c2 := ws,      IntegrityCheck = "c2 == 60.0";
+	}
+}

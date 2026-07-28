@@ -2980,7 +2980,7 @@ namespace {
 		// value class over the parameter's own domain. Enables def-time typing of
 		// `P/member` access (InferExpr case 2 / InferParamMember).
 		std::shared_ptr<const std::map<SharedStr, DefType, MemberPathLess>>
-			BuildParamMembers(const TreeItem* p, SizeT paramDomNode);
+			BuildParamMembers(const TreeItem* p, SizeT paramDomNode, const TreeItem* memberSrc = nullptr);
 		DefType InferParamMember(UInt32 paramIdx, const SharedStr& memberPath);
 		DefType DeclaredItemType(const TreeItem* item);
 		DefType PositionType(const TreeItem* posItem, const TreeItem* fnDef, UInt32 instance,
@@ -3510,12 +3510,21 @@ namespace {
 			// pins the companion class node concretely (batch U)
 			r.dNode = UNode(m_FuncItem, 0, p->GetID(), r.vc);
 			// K11a-1: a structured unit parameter carries a member block (sub-items).
-			// A composite-type-by-example parameter clones only the class (no member
-			// sub-items, ConfigProd.cpp:888) — it has no _GetFirstSubItem and defers.
+			// K11a by-example ('nw: network_links'): the parse-time clone carries only
+			// the CLASS (ConfigProd.cpp DoRefTypeSignature) — the retained UNIT
+			// exemplar supplies the declared member block instead, typed through the
+			// SAME BuildParamMembers ladder (declared kind/type only; exemplar DATA is
+			// never read, risk R-b).
 			if (p->_GetFirstSubItem())
 			{
 				r.members = BuildParamMembers(p, r.dNode);
 				r.membersComplete = true;
+			}
+			else if (auto ex = TreeItem_GetFunctionParamTypeExemplar(m_FuncItem, idx); ex && ex->_GetFirstSubItem())
+			{
+				r.members = BuildParamMembers(p, r.dNode, ex.get());
+				r.membersComplete = true;
+				m_Keep.push_back(ex);
 			}
 			return r;
 		}
@@ -3557,8 +3566,23 @@ namespace {
 	// body item declared over E2 (rigid-rigid 'nw'≠'E2' conflict) — unresolvable
 	// tokens defer.
 	std::shared_ptr<const std::map<SharedStr, DefType, MemberPathLess>>
-	FunctionChecker::BuildParamMembers(const TreeItem* p, SizeT paramDomNode)
+	FunctionChecker::BuildParamMembers(const TreeItem* p, SizeT paramDomNode, const TreeItem* memberSrc)
 	{
+		// memberSrc: the item whose DECLARED sub-items form the member block — the
+		// parameter itself (explicit block) or its by-example UNIT exemplar. Node
+		// qualification stays on the PARAMETER's name either way (two by-example
+		// parameters of one exemplar must still be distinct rigid units).
+		// By-example review finding (reproduced): EXEMPLAR member tokens are
+		// lexically the EXEMPLAR's world — they must never resolve against the
+		// function's generic variables, telescope parameters, definition scope, or
+		// the caller-chosen parameter name (a same-named parameter/scope unit
+		// CAPTURED them, falsely rejecting correct programs at definition). In
+		// by-example mode the non-sibling rungs are the ValueClass vocabulary and
+		// the exemplar's own lexical scope; everything else defers.
+		bool byExample = memberSrc != nullptr && memberSrc != p;
+		if (!memberSrc)
+			memberSrc = p;
+		const TreeItem* scopeAnchor = byExample ? memberSrc : m_FuncItem;
 		auto members = std::make_shared<std::map<SharedStr, DefType, MemberPathLess>>();
 		SharedStr pName(p->GetID().AsStrRange()); // materialized: TokenStr must not span token creation below
 		auto qualTok = [&](TokenID memberTok) -> TokenID
@@ -3566,7 +3590,7 @@ namespace {
 			SharedStr mName(memberTok.AsStrRange());
 			return GetTokenID_mt(mySSPrintF("{}/{}", pName.c_str(), mName.c_str()).c_str());
 		};
-		for (const TreeItem* m = p->_GetFirstSubItem(); m; m = m->GetNextItem())
+		for (const TreeItem* m = memberSrc->_GetFirstSubItem(); m; m = m->GetNextItem())
 		{
 			DefType md;
 			if (IsUnit(m))
@@ -3585,7 +3609,7 @@ namespace {
 				if (TokenID vt = adi->ValuesUnitToken())
 				{
 					bool vMatched = false;
-					for (const TreeItem* u = p->_GetFirstSubItem(); u; u = u->GetNextItem())
+					for (const TreeItem* u = memberSrc->_GetFirstSubItem(); u; u = u->GetNextItem())
 						if (u->GetID() == vt && IsUnit(u))
 						{
 							// K11a-1b: the member attribute's values unit IS the sibling
@@ -3601,7 +3625,7 @@ namespace {
 							vMatched = true;
 							break;
 						}
-					if (!vMatched && (IsOwnDeclaredVar(m_FuncItem, vt) || IsGenericVarOf(m_FuncItem, vt)))
+					if (!vMatched && !byExample && (IsOwnDeclaredVar(m_FuncItem, vt) || IsGenericVarOf(m_FuncItem, vt)))
 					{
 						// K11a-3.1: `w: attribute<V>` under `<V: numerics>` — the member's
 						// values class IS the function's rigid variable, so body uses of
@@ -3617,7 +3641,7 @@ namespace {
 							md.vc = vc;
 							vMatched = true;
 						}
-					if (!vMatched)
+					if (!vMatched && !byExample)
 					{
 						const TreeItem* q = m_FuncItem->_GetFirstSubItem();
 						for (UInt32 j = 0, n = TreeItem_GetFunctionParamCount(m_FuncItem); j != n && q; ++j, q = q->GetNextItem())
@@ -3632,7 +3656,7 @@ namespace {
 							}
 					}
 					if (!vMatched)
-						if (auto u = ResolveUnitInScope(vt, m_FuncItem))
+						if (auto u = ResolveUnitInScope(vt, scopeAnchor))
 						{
 							md.vc = AsUnit(u.get())->GetValueType();
 							md.vKeep = u; md.vUnit = AsUnit(u.get()); // identity too (batch U)
@@ -3641,9 +3665,14 @@ namespace {
 				}
 
 				// domain: default = the parameter's own unit; an explicit token resolves
-				// through the ladder or DEFERS (never silently the parameter unit)
+				// through the ladder or DEFERS (never silently the parameter unit).
+				// The member SOURCE's own name (the exemplar, in the by-example case)
+				// also selects the default: inside the exemplar's declaration that
+				// name IS its enclosing unit, which the parameter stands for. The
+				// caller-chosen PARAMETER name selects the default only for an
+				// explicit member block (an exemplar token never means it).
 				TokenID dt = adi->DomainUnitToken();
-				if (!dt || dt == p->GetID() || dt == t_Dot)
+				if (!dt || dt == t_Dot || dt == memberSrc->GetID() || (!byExample && dt == p->GetID()))
 				{
 					md.dom = DefType::Dom::Node;
 					md.dNode = paramDomNode;
@@ -3651,7 +3680,7 @@ namespace {
 				else
 				{
 					bool dMatched = false;
-					for (const TreeItem* u = p->_GetFirstSubItem(); u; u = u->GetNextItem())
+					for (const TreeItem* u = memberSrc->_GetFirstSubItem(); u; u = u->GetNextItem())
 						if (u->GetID() == dt && IsUnit(u))
 						{
 							// over a sibling member unit — the SAME (qualified) node that
@@ -3661,13 +3690,13 @@ namespace {
 							dMatched = true;
 							break;
 						}
-					if (!dMatched && (IsOwnDeclaredVar(m_FuncItem, dt) || IsGenericVarOf(m_FuncItem, dt)))
+					if (!dMatched && !byExample && (IsOwnDeclaredVar(m_FuncItem, dt) || IsGenericVarOf(m_FuncItem, dt)))
 					{
 						md.dom = DefType::Dom::Node;
 						md.dNode = UNode(m_FuncItem, 0, dt); // generic domain variable
 						dMatched = true;
 					}
-					if (!dMatched)
+					if (!dMatched && !byExample)
 					{
 						const TreeItem* q = m_FuncItem->_GetFirstSubItem();
 						for (UInt32 j = 0, n = TreeItem_GetFunctionParamCount(m_FuncItem); j != n && q; ++j, q = q->GetNextItem())
@@ -3681,7 +3710,7 @@ namespace {
 							}
 					}
 					if (!dMatched)
-						if (auto u = ResolveUnitInScope(dt, m_FuncItem))
+						if (auto u = ResolveUnitInScope(dt, scopeAnchor))
 						{
 							if (AsUnit(u.get())->GetValueType()->GetValueClassID() == ValueClassID::VT_Void)
 								md.dom = DefType::Dom::Void;

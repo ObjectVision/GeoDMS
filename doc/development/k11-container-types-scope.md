@@ -85,8 +85,8 @@ Link `SignatureRecorder::ArgContainer`'s `sharedMemberDomain` into the same unif
    with `-> parameter<…>` results" was WRONG — `-> attribute<uint32> (Network)` and even
    the member-path result domain `-> attribute<uint32> (nw/nodeset)` parse, reduce, and
    compute; pinned by `fn_test_membergen` and `fn_test_network`.)*
-   STILL DEFERRED: the composite-type-by-example form (`nw: network_links`, whose exemplar
-   members must be persisted — today `ConfigProd.cpp:888` clones only the class).
+   *(The composite-type-by-example deferral below was RESOLVED by the by-example tranche —
+   see the K11a-3.2 entry.)*
 3. **K11a-3.1 — generic member types LANDED (2026-07-27).** `BuildParamMembers` resolves
    member tokens through the SAME ladder as positional declarations (`PositionType`),
    innermost first — values: ValueClass name → sibling member unit (K11a-1b identity) →
@@ -132,8 +132,36 @@ Link `SignatureRecorder::ArgContainer`'s `sharedMemberDomain` into the same unif
    domain (`attribute<uint32> x (nw/nodeset)`) defer (the member item is in-template for
    `ResolveUnitInScope`) — wiring those to the qualified member nodes is a natural
    K11a-3 companion.
-4. **K11a-3** instantiation-point contract check (c) — moderate; reducer-side; also reports a **missing** declared member (def-time, `membersComplete`).
-5. **K11b** operator `ArgContainer` linking — substantial; gated on K11a.
+4. **K11a-3.2 — composite-by-example member persistence LANDED (2026-07-27).** A
+   `nw: network_links` parameter (UNIT exemplar) retains the exemplar through the
+   function-spec side-assoc (`FunctionSpecData::paramTypeExemplars`, recorded in
+   `ConfigProd::DoColonItemHeading` when the pending type exemplar is a unit and the
+   declaration is a top-level parameter, flushed at `OnFunctionDeclEnd` — the exact
+   `paramSigs` pattern). `ParamTypeImpl` then builds the member map from the EXEMPLAR's
+   declared sub-items (`BuildParamMembers(p, dNode, exemplar)`): the K11a-3.1 ladder
+   applies unchanged, node qualification stays on the PARAMETER's name (two by-example
+   parameters of one exemplar are distinct rigid units), the member source's own name
+   also selects the domain default, and only declared kind/type is read — a
+   data-carrying exemplar (fn_test.dms `network_links : [0,1,2]`) is fine (risk R-b).
+   An unresolved/absent exemplar or a weak-ptr expiry defers exactly as before.
+   **Adversarial review round (2 lenses, 4 agents, both findings reproduced with
+   control pairs) caught one root defect, fixed before landing:** exemplar member
+   tokens initially resolved through the FUNCTION's ladder, so a same-named telescope
+   parameter or a same-named unit in the function's container CAPTURED them — false
+   definition-time rejections of correct programs (and `dt == p->GetID()` wrongly let
+   the caller-chosen parameter name select the exemplar's domain default). In
+   by-example mode the non-sibling rungs are now ONLY the ValueClass vocabulary and
+   `ResolveUnitInScope` anchored on the EXEMPLAR (its own lexical world); the
+   function's generic variables, telescope parameters, and parameter name are never
+   consulted; unresolvable tokens defer.
+   Coverage: `fn_test_byexample` (member-path result domain + member sum through the
+   exemplar), `fn_test_byexample_neg1` (float `F1` in the exemplar → DEF-TIME `pcount`
+   rejection — previously only surfaced per instantiation), `fn_test_byexample2`
+   (the shadowing scenarios: same-named telescope parameter + same-named unit in the
+   function's container must not capture), and `fn_test.dms`'s original
+   `connectedness(nw: network_links)` now def-time-typed.
+5. **K11a-3** instantiation-point contract check (c) — moderate; reducer-side; also reports a **missing** declared member (def-time, `membersComplete`).
+6. **K11b** operator `ArgContainer` linking — substantial; gated on K11a.
 
 **Risks.** (R-a) member DefTypes must use *per-instantiation* identity nodes so two applications of `connectedness` don't force their `nodeset`s equal (the same instance-key discipline as WP4.1 T3, `TypeUnifier` keyed `(owner, instance, token)`). (R-b) composite-by-example exemplars can carry *data* (fn_test.dms `network_links` has `[0,1,2]`) — the checker must read only the declared kind/type, never the values. (R-c) soundness of the def-time "member not found": only report when `membersComplete` (as the result-side already gates, `:2881-2884`). (R-d) instantiation check must not double-report what the body already catches — prefer the boundary message and suppress the transitive one, or accept both (boundary first).
 
