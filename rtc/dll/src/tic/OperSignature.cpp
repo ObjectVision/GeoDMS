@@ -113,10 +113,15 @@ void SignatureRecorder::ArgMetaValue(arg_index i, const ValueClass* vc, CharPtr 
 	auto& p = PosAt(i);
 	p.kind = SignatureRecord::PosKind::MetaValue; p.metaCls = vc; p.name = SharedStr(meaning);
 }
-void SignatureRecorder::ArgContainer(arg_index i, CharPtr memberPattern, sig_var sharedMemberDomain)
+void SignatureRecorder::ArgContainer(arg_index i, CharPtr memberPattern, sig_var sharedMemberDomain, sig_var sharedMemberValues, arg_index namesPos)
 {
 	auto& p = PosAt(i);
-	p.kind = SignatureRecord::PosKind::Container; p.domain = sharedMemberDomain; p.name = SharedStr(memberPattern);
+	// K11b: a Container position has no values term of its own, so `values` carries
+	// the members' SHARED values unit (as `domain` carries their shared domain)
+	p.kind = SignatureRecord::PosKind::Container;
+	p.domain = sharedMemberDomain; p.values = sharedMemberValues;
+	p.name = SharedStr(memberPattern);
+	p.namesPos = namesPos;
 }
 void SignatureRecorder::ArgDeferred(arg_index i, CharPtr note)
 {

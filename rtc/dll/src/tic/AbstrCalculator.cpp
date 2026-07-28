@@ -3181,7 +3181,8 @@ namespace {
 		DefType InferArg(const TreeItem* refScope, LispPtr argExpr);
 		DefType InferApplication(const TreeItem* refScope, const DefType& fnVal, LispPtr argsList, CharPtr headName);
 		DefType InferOperatorApplication(const AbstrOperGroup* og, TokenID headID, const TreeItem* refScope, LispPtr argsList); // op-sig batch A
-		DefType ApplyOperRecord(const OperGroupSignatures::MergedRecord& mr, const SharedStr& headName, const std::vector<DefType>& argTerms);
+		DefType ApplyOperRecord(const OperGroupSignatures::MergedRecord& mr, const SharedStr& headName, const std::vector<DefType>& argTerms
+			, const TreeItem* refScope = nullptr, LispPtr argsList = LispPtr()); // K11b: refScope+argsList enable ArgContainer member enumeration
 		// §6.2 cross-record fallback: the DOMAIN skeleton all surviving records agree on
 		std::optional<OperGroupSignatures::MergedRecord> BuildDomainSkeletonRecord(const OperGroupSignatures* sigs, const std::vector<Int32>& recordIdxs);
 		DefType ParamType(UInt32 idx);     // memoized front (m_ParamTypes)
@@ -3192,6 +3193,13 @@ namespace {
 		// `P/member` access (InferExpr case 2 / InferParamMember).
 		std::shared_ptr<const std::map<SharedStr, DefType, MemberPathLess>>
 			BuildParamMembers(const TreeItem* p, SizeT paramDomNode, const TreeItem* memberSrc = nullptr);
+		// K11b: the CONCRETE members of a definition-scope container argument
+		std::shared_ptr<const std::map<SharedStr, DefType, MemberPathLess>>
+			BuildConcreteContainerMembers(const TreeItem* c);
+		// K11b: link an ArgContainer position's shared domain/values against the actual members
+		void LinkContainerArg(const SignatureRecord::Pos& p, const DefType& argTerm, LispPtr argExpr,
+			const TreeItem* refScope, const SharedStr& argSrc, LispPtr argsList,
+			const std::function<SizeT(sig_var)>& VN, const std::function<SizeT(sig_var)>& DN);
 		DefType InferParamMember(UInt32 paramIdx, const SharedStr& memberPath);
 		DefType DeclaredItemType(const TreeItem* item);
 		DefType PositionType(const TreeItem* posItem, const TreeItem* fnDef, UInt32 instance,
@@ -3358,6 +3366,14 @@ namespace {
 	bool ExemplarMemberSetIsClosed(const TreeItem* exemplar)
 	{
 		return !RuleMayComputeSubItems(exemplar) && !exemplar->HasStorageManager();
+	}
+
+	// K11b: is `item` a plain CONTAINER — something that can carry an operator's
+	// ArgContainer members? Units and data items have their own positions, function
+	// items and templates are inert type/logic carriers, never member bags.
+	bool IsPlainContainer(const TreeItem* item)
+	{
+		return item && !IsUnit(item) && !IsDataItem(item) && !item->IsFunctionItem() && !item->IsTemplate();
 	}
 
 	int FunctionChecker::ResolveName(const TreeItem* refScope, TokenID sym, const TreeItem** local, UInt32* paramIdx,
@@ -4014,6 +4030,66 @@ namespace {
 		return members;
 	}
 
+	// K11b: type the members of a CONCRETE container (a definition-scope item passed
+	// as an operator's ArgContainer argument). Unlike a parameter's member block these
+	// members are real items, so their types are CONCRETE: a member unit is itself the
+	// unit, and a member attribute's domain/values tokens resolve in the CONTAINER's
+	// OWN scope (never the function's — the by-example capture-shadowing lesson).
+	// Members whose tokens do not resolve stay Unknown and simply defer.
+	std::shared_ptr<const std::map<SharedStr, DefType, MemberPathLess>>
+	FunctionChecker::BuildConcreteContainerMembers(const TreeItem* c)
+	{
+		auto members = std::make_shared<std::map<SharedStr, DefType, MemberPathLess>>();
+		for (const TreeItem* m = c->_GetFirstSubItem(); m; m = m->GetNextItem())
+		{
+			DefType md;
+			if (IsUnit(m))
+			{
+				md.kind = DefType::Kind::UnitVal;
+				md.vc = AsUnit(m)->GetValueType();
+				if (AsUnit(m)->GetValueType()->GetValueClassID() == ValueClassID::VT_Void)
+					md.dom = DefType::Dom::Void;
+				else
+				{
+					md.dom = DefType::Dom::Concrete;
+					md.domKeep = m->shared_from_this(); md.domUnit = AsUnit(m);
+				}
+			}
+			else if (IsDataItem(m))
+			{
+				auto adi = AsDataItem(m);
+				md.kind = DefType::Kind::Data;
+				md.vcomp = adi->GetValueComposition();
+				if (TokenID vt = adi->ValuesUnitToken())
+				{
+					if (auto vc = ValueClass::FindByScriptName(vt))
+						md.vc = vc;
+					else if (auto u = ResolveUnitInScope(vt, c))
+					{
+						md.vc = AsUnit(u.get())->GetValueType();
+						md.vKeep = u; md.vUnit = AsUnit(u.get());
+					}
+				}
+				TokenID dt = adi->DomainUnitToken();
+				if (!dt || dt == t_Dot || dt == c->GetID())
+					; // a container has no enclosing unit: an implicit domain defers
+				else if (auto u = ResolveUnitInScope(dt, c))
+				{
+					if (AsUnit(u.get())->GetValueType()->GetValueClassID() == ValueClassID::VT_Void)
+						md.dom = DefType::Dom::Void;
+					else
+					{
+						md.dom = DefType::Dom::Concrete;
+						md.domKeep = u; md.domUnit = AsUnit(u.get());
+					}
+				}
+			}
+			// else: nested containers & co stay Unknown (declared, but untyped here)
+			(*members)[SharedStr(m->GetID().AsStrRange())] = md;
+		}
+		return members;
+	}
+
 	// K11a-2: type `P/member` access at definition against the structured parameter's
 	// member map. Hit → the member's type (so the body's use of it is checked under ∀).
 	// K11a-3: a DIRECT-member miss under a COMPLETE declared interface is a
@@ -4558,6 +4634,138 @@ namespace {
 		return verdict;
 	}
 
+	// K11b: consume an ArgContainer position — the members a container argument
+	// contributes are unified against the shared domain/values variables the
+	// description declares, so a container that disagrees with another argument
+	// bound to the same variable (e.g. discrete_alloc's allocUnit) is a
+	// DEFINITION-time error instead of a reduction-time one.
+	//
+	// THE CONSUMED SET IS NAME-DIRECTED (review finding, reproduced). Operators read
+	// a SUBSET of the container: discrete_alloc looks each suitability up by type
+	// NAME (`GetConstSubTreeItemByID(gg->m_NameID)`), so a container carrying further
+	// members — a per-type weight, a regional helper — is legitimate and already
+	// exercised in tst (`source/Compacted/SuitabilityMaps` has 3 members for 2 type
+	// names). An "every member" claim therefore FALSELY rejects working configs, as a
+	// same-file control proved: the top-level call reduces while the function-body
+	// call was rejected. So the claim applies to the NAMED members only, and only
+	// when those names are definition-time knowable — the `namesPos` string array,
+	// evaluated exactly like the §12.7 for_each tranche evaluates its name arrays.
+	// No evaluable name array ⇒ NO claim (defer), which is the honest verdict when
+	// the member set is data-directed.
+	//
+	// Two argument shapes are typed: a structured/by-example CONTAINER PARAMETER
+	// (K11a-4 already built its member map) and a definition-scope CONTAINER item
+	// (members enumerated concretely here). Anything else — expressions, generated
+	// containers, closure captures — defers exactly as before.
+	void FunctionChecker::LinkContainerArg(const SignatureRecord::Pos& p, const DefType& argTerm, LispPtr argExpr,
+		const TreeItem* refScope, const SharedStr& argSrc, LispPtr argsList,
+		const std::function<SizeT(sig_var)>& VN, const std::function<SizeT(sig_var)>& DN)
+	{
+		if (p.domain == no_sig_var && p.values == no_sig_var)
+			return; // a purely descriptive container position: nothing to link
+		if (p.namesPos == arg_index(-1) || !refScope)
+			return; // the consumed member set is unknown: claim nothing
+		// the names array: CLOSED over the formals, or nothing is claimed
+		LispPtr namesExpr;
+		{
+			arg_index j = 0;
+			for (LispPtr a = argsList; !a.EndP(); a = a.Right(), ++j)
+				if (j == p.namesPos)
+				{
+					namesExpr = a.Left();
+					break;
+				}
+		}
+		if (namesExpr.EndP())
+			return;
+		auto names = EvalClosedStrArray(refScope, namesExpr);
+		if (!names || names->empty())
+			return; // data-directed member set: defer, exactly as before K11b
+		std::shared_ptr<const std::map<SharedStr, DefType, MemberPathLess>> members;
+		bool fromExternal = false;
+		if (argTerm.kind == DefType::Kind::Container && argTerm.members)
+			members = argTerm.members;                       // a structured container parameter
+		else if (argExpr.IsSymb())
+		{
+			// a definition-scope container reference: enumerate its declared members
+			const TreeItem* local = nullptr; UInt32 paramIdx = 0;
+			SharedTreeItem ext; ExtRefKind extKind = ExtRefKind::DefScopeExternal; SharedStr genSubPath;
+			int code = 0;
+			try {
+				code = ResolveName(refScope, argExpr.GetSymbID(), &local, &paramIdx, &ext, &extKind, &genSubPath);
+			}
+			catch (...) {
+				return; // an unresolvable argument is reported by its own walk
+			}
+			const TreeItem* c = nullptr;
+			if (code == 2 && extKind == ExtRefKind::DefScopeExternal && ext)
+				c = ext.get();
+			else if (code == 1)
+				c = local;                                    // a body-local container
+			if (!c || !IsPlainContainer(c) || !c->_GetFirstSubItem() || !ExemplarMemberSetIsClosed(c))
+				return;                                       // not an enumerable container: defer
+			if (code == 2 && ext)
+				m_Keep.push_back(ext);
+			members = BuildConcreteContainerMembers(c);
+			fromExternal = true;
+		}
+		if (!members)
+			return;
+
+		// A definition-scope container's members are CONCRETE, and definition-scope
+		// externals deliberately DEFER (their types are checked per application) —
+		// binding the operator's shared variable to a concrete member unit would pin
+		// a rigid unit parameter and falsely reject a body that today type-checks
+		// (verified: `attribute<V> x (cells) := SomeExternal;` is accepted precisely
+		// because the external defers). So for an external argument only the
+		// INTRA-container fact is claimed: the NAMED member attributes must agree with
+		// EACH OTHER on one domain. A container PARAMETER's members carry variables,
+		// so there the full cross-argument link runs — the ∀ payoff.
+		SharedStr refName; const DefType* refMember = nullptr;
+		for (const auto& nm : *names)
+		{
+			auto it = members->find(nm);
+			if (it == members->end())
+				continue; // a named member the argument does not declare: reduction reports it
+			const DefType& mt = it->second;
+			if (mt.kind != DefType::Kind::Data)
+				continue; // only member ATTRIBUTES carry the shared domain/values
+			SharedStr memberSrc = mySSPrintF("member '{}' of {}", nm.c_str(), argSrc.c_str());
+			if (fromExternal)
+			{
+				if (p.domain == no_sig_var || mt.dom == DefType::Dom::Unknown)
+					continue;
+				if (!refMember)
+				{
+					refName = nm; refMember = &mt;
+					continue;
+				}
+				DefType a; a.kind = DefType::Kind::Data;
+				a.dom = refMember->dom; a.dNode = refMember->dNode; a.domKeep = refMember->domKeep; a.domUnit = refMember->domUnit;
+				DefType b; b.kind = DefType::Kind::Data;
+				b.dom = mt.dom; b.dNode = mt.dNode; b.domKeep = mt.domKeep; b.domUnit = mt.domUnit;
+				UnifyData(a, b, mySSPrintF("member '{}' of {}", refName.c_str(), argSrc.c_str()), memberSrc);
+				continue;
+			}
+			if (p.domain != no_sig_var && mt.dom != DefType::Dom::Unknown)
+			{
+				DefType want; want.kind = DefType::Kind::Data;
+				want.dom = DefType::Dom::Node; want.dNode = DN(p.domain);
+				DefType got; got.kind = DefType::Kind::Data;
+				got.dom = mt.dom; got.dNode = mt.dNode; got.domKeep = mt.domKeep; got.domUnit = mt.domUnit;
+				UnifyData(got, want, memberSrc, argSrc);
+			}
+			if (p.values != no_sig_var && (mt.vc || mt.vUnit || mt.vNode != NO_TYPE_VAR))
+			{
+				DefType want; want.kind = DefType::Kind::Data;
+				want.vNode = VN(p.values);
+				DefType got; got.kind = DefType::Kind::Data;
+				got.vc = mt.vc; got.vNode = mt.vNode; got.vKeep = mt.vKeep; got.vUnit = mt.vUnit;
+				UnifyData(got, want, memberSrc, argSrc);
+			}
+		}
+	}
+
 	// §6.2 cross-record fallback. When several congruence records survive, the
 	// walker used to defer wholesale: no single record's class tuples apply. But a
 	// group's records often still AGREE on the DOMAIN SKELETON — which positions are
@@ -4701,7 +4909,8 @@ namespace {
 		return mr;
 	}
 
-	DefType FunctionChecker::ApplyOperRecord(const OperGroupSignatures::MergedRecord& mr, const SharedStr& headName, const std::vector<DefType>& argTerms)
+	DefType FunctionChecker::ApplyOperRecord(const OperGroupSignatures::MergedRecord& mr, const SharedStr& headName, const std::vector<DefType>& argTerms
+		, const TreeItem* refScope, LispPtr argsList)
 	{
 		const auto& shape = mr.shape;
 		UInt32 inst = m_NextInstance++;
@@ -4882,10 +5091,28 @@ namespace {
 			}
 			if (!p || p->kind == SignatureRecord::PosKind::None)
 				continue;
+			SharedStr argSrc = mySSPrintF("argument {} of operator '{}'", k + 1, headName.c_str());
+			// K11b: a described CONTAINER argument — unify its actual members against
+			// the shared domain/values variables the description declares
+			if (p->kind == SignatureRecord::PosKind::Container)
+			{
+				LispPtr argExpr;
+				if (refScope)
+				{
+					SizeT j = 0;
+					for (LispPtr a = argsList; !a.EndP(); a = a.Right(), ++j)
+						if (j == k)
+						{
+							argExpr = a.Left();
+							break;
+						}
+				}
+				LinkContainerArg(*p, argTerms[k], argExpr, refScope, argSrc, argsList, VN, DN);
+				continue;
+			}
 			DefType posT = posType(*p);
 			if (posT.kind == DefType::Kind::Unknown)
 				continue;
-			SharedStr argSrc = mySSPrintF("argument {} of operator '{}'", k + 1, headName.c_str());
 			UnifyData(argTerms[k], posT, argSrc, src);
 		}
 
@@ -5066,7 +5293,7 @@ namespace {
 				, m_Unifier.FullName().c_str(), headName.c_str(), specValue->c_str()
 				, argTerms.size(), derived->shape.args.size());
 
-		return ApplyOperRecord(*derived, headName, argTerms);
+		return ApplyOperRecord(*derived, headName, argTerms, refScope, argsList); // K11b: spec records may carry container positions too
 	}
 
 	// §12.7 for_each tranche: definition-time processing of a container-
@@ -5446,7 +5673,7 @@ namespace {
 		if (mr.shape.dynamicShape)
 			if (auto specType = TrySpecProcessing(og, mr, survivors, headName, refScope, argsList, argTerms))
 				return *specType;
-		return ApplyOperRecord(mr, headName, argTerms);
+		return ApplyOperRecord(mr, headName, argTerms, refScope, argsList); // K11b: enable ArgContainer linking
 	}
 
 	DefType FunctionChecker::InferExpr(const TreeItem* refScope, LispPtr expr)

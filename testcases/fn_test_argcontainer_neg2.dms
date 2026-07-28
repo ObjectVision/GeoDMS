@@ -1,0 +1,31 @@
+container fn_test_argcontainer_neg2
+{
+	// K11b negative (container PARAMETER): the NAMED suitability members are
+	// declared over 'other', a DIFFERENT telescope unit parameter than the
+	// allocUnit argument 'cells'. discrete_alloc reads them over the allocUnit, so
+	// this is a rigid-rigid conflict at the DEFINITION — it holds for every
+	// instantiation, and no allocation is reduced.
+	unit<uint8>  LuType : nrofrows = 2 { attribute<string> name : ['A','B']; }
+	unit<uint32> Cells  : nrofrows = 4;
+	container CMin { parameter<uint32> A := 1; parameter<uint32> B := 1; }
+	container CMax { parameter<uint32> A := 4; parameter<uint32> B := 4; }
+	parameter<int32> thr := 0i;
+
+	function alloc_bad(unit<uint32> cells; unit<uint32> other;
+	                   container suit { attribute<int32> A (other); attribute<int32> B (other); })
+	-> parameter<uint32>
+	{
+		container a := discrete_alloc_np(LuType/name, cells, suit, CMin, CMax, thr);
+		attribute<LuType> lu (cells) := a/landuse;
+		parameter<uint32> result := sum(uint32(IsDefined(lu)));
+	}
+
+	container Suit
+	{
+		attribute<int32> A (Cells) := const(1i, Cells);
+		attribute<int32> B (Cells) := const(1i, Cells);
+	}
+	parameter<uint32> n := alloc_bad(Cells, Cells, Suit);
+
+	container checks { parameter<uint32> c := n, IntegrityCheck = "c == 4"; }
+}

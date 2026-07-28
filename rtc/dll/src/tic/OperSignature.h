@@ -60,8 +60,17 @@ struct AbstrSignatureBuilder
 	                     ValueComposition vc, SigArgTraits traits = SigArgTraits::none) = 0;
 	virtual void ArgUnit(arg_index i, sig_var u) = 0;
 	virtual void ArgMetaValue(arg_index i, const ValueClass* vc, CharPtr meaning) = 0; // K13
+	// K11: a CONTAINER argument. `sharedMemberDomain` / `sharedMemberValues` are the
+	// domain / values unit the CONSUMED members share. `namesPos` is the argument
+	// position holding the STRING ARRAY that names them: operators read a
+	// name-directed SUBSET (discrete_alloc looks up suitabilities by the type names),
+	// so a container may legitimately carry further members. Without a `namesPos`
+	// the consumed set is unknown at definition time and K11b claims NOTHING — an
+	// "every member" claim would reject the blessed superset-container pattern.
 	virtual void ArgContainer(arg_index i, CharPtr memberPattern,
-	                          sig_var sharedMemberDomain = no_sig_var) = 0;            // K11
+	                          sig_var sharedMemberDomain = no_sig_var,
+	                          sig_var sharedMemberValues = no_sig_var,
+	                          arg_index namesPos = arg_index(-1)) = 0;                 // K11
 	virtual void ArgDeferred(arg_index i, CharPtr note) = 0;
 	virtual void RepeatArgs(arg_index fromPos, sig_var values, sig_var domain,
 	                        ValueComposition vc) = 0;                                  // variadic tails
@@ -116,12 +125,13 @@ struct SignatureRecord
 		SigArgTraits traits = SigArgTraits::none;
 		const ValueClass* metaCls = nullptr;              // MetaValue
 		SharedStr name;                                   // ArgName / prose
+		arg_index namesPos = arg_index(-1);               // Container: the string-array argument naming the CONSUMED members (K11b)
 
 		bool operator==(const Pos& rhs) const
 		{
 			return kind == rhs.kind && values == rhs.values && domain == rhs.domain
 				&& vc == rhs.vc && traits == rhs.traits && metaCls == rhs.metaCls
-				&& name == rhs.name;
+				&& name == rhs.name && namesPos == rhs.namesPos;
 		}
 	};
 	enum class RelKind : UInt8 { SameValueClass, CompatibleValues, MetricProduct, MetricQuotient, MetricPower, Dimensionless, CastOf, Deferred };
@@ -256,7 +266,7 @@ struct SignatureRecorder final : AbstrSignatureBuilder
 	TIC_CALL void ArgAttr(arg_index i, sig_var values, sig_var domain, ValueComposition vc, SigArgTraits traits) override;
 	TIC_CALL void ArgUnit(arg_index i, sig_var u) override;
 	TIC_CALL void ArgMetaValue(arg_index i, const ValueClass* vc, CharPtr meaning) override;
-	TIC_CALL void ArgContainer(arg_index i, CharPtr memberPattern, sig_var sharedMemberDomain) override;
+	TIC_CALL void ArgContainer(arg_index i, CharPtr memberPattern, sig_var sharedMemberDomain, sig_var sharedMemberValues, arg_index namesPos) override;
 	TIC_CALL void ArgDeferred(arg_index i, CharPtr note) override;
 	TIC_CALL void RepeatArgs(arg_index fromPos, sig_var values, sig_var domain, ValueComposition vc) override;
 

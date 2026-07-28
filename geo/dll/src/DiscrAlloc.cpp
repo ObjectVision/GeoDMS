@@ -3346,7 +3346,14 @@ public:
 		else
 			sb.ArgDeferred(0, "typeNames");
 		sb.ArgUnit(1, A);
-		sb.ArgContainer(2, "suitabilities: per-type attribute<S>(allocUnit); all members share one price values unit");
+		// K11b: the CONSUMED suitability members are looked up by TYPE NAME (arg 0's
+		// values), and each is an attribute over the allocUnit — so the shared member
+		// domain is A and the naming array is argument 0. The container may carry
+		// further members (helpers, per-type weights): they are never read, and a
+		// claim over them would falsely reject working configs. The shared price
+		// VALUES unit stays undeclared: the operator casts the suitability values, so
+		// a cross-member values claim is not established.
+		sb.ArgContainer(2, "suitabilities: per-type attribute<S>(allocUnit), keyed by the type names", A, no_sig_var, 0);
 		arg_index i = 3;
 		if (n >= 10) // multiple partitions
 		{

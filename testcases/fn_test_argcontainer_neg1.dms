@@ -1,0 +1,29 @@
+container fn_test_argcontainer_neg1
+{
+	// K11b negative (definition-scope container): the NAMED suitability members
+	// ('A' and 'B' — the type names) live on DIFFERENT domains. discrete_alloc
+	// reads both over the allocUnit, so the walker's intra-container check over the
+	// named members reports the conflict at the DEFINITION, before any allocation
+	// is reduced. (A member that is NOT a type name is exempt — see the positive.)
+	unit<uint8>  LuType : nrofrows = 2 { attribute<string> name : ['A','B']; }
+	unit<uint32> Cells  : nrofrows = 4;
+	unit<uint32> Other  : nrofrows = 5;
+	container Suit
+	{
+		attribute<int32> A (Cells) := const(1i, Cells);
+		attribute<int32> B (Other) := const(1i, Other);   // named, but wrong domain
+	}
+	container CMin { parameter<uint32> A := 1; parameter<uint32> B := 1; }
+	container CMax { parameter<uint32> A := 4; parameter<uint32> B := 4; }
+	parameter<int32> thr := 0i;
+
+	function alloc_e(unit<uint32> cells) -> parameter<uint32>
+	{
+		container a := discrete_alloc_np(LuType/name, cells, Suit, CMin, CMax, thr);
+		attribute<LuType> lu (cells) := a/landuse;
+		parameter<uint32> result := sum(uint32(IsDefined(lu)));
+	}
+	parameter<uint32> n := alloc_e(Cells);
+
+	container checks { parameter<uint32> c := n, IntegrityCheck = "c == 4"; }
+}

@@ -55,9 +55,74 @@ Set `membersComplete = true` (the block is a closed declaration). The member Def
 
 ---
 
-## 4. K11b design (sketch)
+## 4. K11b design — LANDED 2026-07-28
 
-Link `SignatureRecorder::ArgContainer`'s `sharedMemberDomain` into the same unifier the positional args use, and — at the meta application — enumerate the container argument's actual members to (i) bind the shared domain and (ii) type-check declared member patterns. Enumeration must run in the reducer (members exist only after the argument item resolves), feeding results back as a `Kind::Container` `DefType`. Sequenced **after** K11a proves the parameter-side container-DefType plumbing, and after the impedance/for_each tranche (already done) — matching the remaining-work note "impedance tranche → K11 → for_each container expansion".
+The sketch was: link `ArgContainer`'s `sharedMemberDomain` into the same unifier the
+positional args use and enumerate the container argument's actual members. That is what
+shipped, plus a shared **values** variable — but with one correction the sketch missed,
+found by probing rather than reasoning (see the asymmetry below).
+
+**Vocabulary.** `ArgContainer(i, memberPattern, sharedMemberDomain, sharedMemberValues, namesPos)`.
+A `Container` position has no values term of its own, so `Pos.values` carries the members'
+shared values unit exactly as `Pos.domain` carries their shared domain; `Pos.namesPos` is the
+new field naming the argument that holds the members' name array.
+
+**THE CONSUMED SET IS NAME-DIRECTED — the correction that reshaped this tranche.** The first
+cut claimed the shared domain for EVERY member of the container. An adversarial review
+disproved it with a same-file control: `discrete_alloc` reads only the members NAMED by the
+typeNames values (`suitabilitySet->GetConstSubTreeItemByID(gg->m_NameID)`), so a container
+carrying further members — a per-type weight, a regional helper — is legitimate and already
+exercised in tst (`source/Compacted/SuitabilityMaps` has three members for two type names).
+The top-level call reduced while the byte-identical function-body call was rejected: a
+correct-at-reduction program refused at definition, and the container-PARAMETER path
+over-claimed identically (its values link additionally forced helpers onto the price unit).
+The claim is therefore restricted to the members the `namesPos` array names, and that array
+must be definition-time knowable — evaluated by the same `EvalClosedStrArray` the §12.7
+for_each tranche uses. **No evaluable name array ⇒ no claim at all**, which is the honest
+verdict when the member set is data-directed. The operator's own `DeferredRelation` prose had
+said this all along ("keyed by the typeNames values (K11/K12)").
+
+**Consumption.** `ApplyOperRecord` (now given `refScope` + `argsList`) routes `Container`
+positions to `LinkContainerArg`, which enumerates the actual argument two ways:
+
+- a structured / by-example **container PARAMETER** — K11a-4 already built its member map,
+  and those members carry VARIABLES, so each member attribute is unified against
+  `DN(sharedMemberDomain)` / `VN(sharedMemberValues)`: the full cross-argument link, checked
+  under ∀;
+- a **definition-scope (or body-local) container item**, resolved from the raw argument
+  symbol and typed by `BuildConcreteContainerMembers` (a member unit IS the unit; a member
+  attribute's tokens resolve in the CONTAINER's own scope, never the function's — the
+  by-example capture-shadowing lesson). Gated on `IsPlainContainer` + `ExemplarMemberSetIsClosed`.
+
+**The asymmetry (the correction).** For a definition-scope container the walker claims ONLY
+the INTRA-container fact — its member attributes must agree with EACH OTHER on one domain —
+never a link to the operator's variable. Definition-scope externals DEFER by design, so
+binding the shared variable to a concrete member unit PINS a rigid unit parameter and falsely
+rejects a body that type-checks today. Verified empirically: `attribute<V> x (cells) :=
+SomeExternalOverCells;` is accepted precisely because the external defers. The first cut did
+bind it and broke `fn_test_da_neg1`/`_neg2` (they began failing for the wrong reason) — the
+asymmetry restored their original diagnostics, which is how the fix was confirmed.
+
+**First consumer.** `DiscrAlloc` passes `A` (allocUnit) as the suitabilities' shared member
+domain and argument 0 as the naming array. The shared VALUES unit stays undeclared: the
+operator casts suitability values, so a cross-member values claim is not established (the
+review showed the first cut's `S` claim rejecting a float helper beside int suitabilities).
+
+Coverage: `fn_test_argcontainer` (a container parameter flowing into `discrete_alloc_np` —
+the allocation actually REDUCES, which is how the integer-utility requirement on
+suitabilities surfaced — plus a SUPERSET container whose unnamed `helper` sits on another
+domain and is correctly ignored, and a def-scope container),
+`fn_test_argcontainer_neg1` (def-scope container whose NAMED members are over DIFFERENT
+domains → intra-container conflict at the definition), `fn_test_argcontainer_neg2` (container
+parameter whose named members sit on a different telescope unit than `allocUnit` →
+rigid-rigid conflict). Every false rejection the review reproduced (`k11b_p1..p4`,
+`rv_p1_weight`, `rv_p1_param_super`) passes under the name-directed claim.
+
+Not covered yet: the §6.2 skeleton path calls `ApplyOperRecord` without `refScope`/`argsList`,
+so container positions do not link there (multi-record groups with container args are rare —
+`discrete_alloc` is single-record); container arguments that are expressions, generated
+containers or closure captures still defer; `for_each`'s fully typed RESULT container remains
+its own remaining-work item.
 
 ---
 
