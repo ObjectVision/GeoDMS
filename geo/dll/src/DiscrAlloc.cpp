@@ -3384,6 +3384,30 @@ public:
 		if (AT != no_sig_var)
 			sb.ResultContainerMember("landuse", AT, A, ValueComposition::Single);        // attribute<AT>(allocUnit)
 		sb.ResultContainerMember("bid_price",  no_sig_var, A, ValueComposition::Single); // attribute<S>(allocUnit), conditional (present iff a suitability map is found)
+
+		// K11b result side: the NAME-DIRECTED member families. Per ggType (named by
+		// the typeNames values, argument 0) CheckAndPrepare creates
+		//   total_allocated/<name> = CreateDataItem(.., partitioningUnit, default<claim_type>)
+		//   shadow_prices/<name>   = CreateDataItem(.., partitioningUnit, priceUnit)   [iff m_MustAdjust]
+		// Only the UNPARTITIONED variants are described: there partitioningUnit is
+		// provably Unit<Void> (the else-branch of hasPartitionings), so both families
+		// are parameters. With partitionings the domain is a per-type partitioning
+		// unit — not one variable — so those variants keep deferring.
+		// The value classes are exact per member instantiation: claim_type for the
+		// totals, S (the suitability price class) for the shadow prices.
+		if constexpr (DAV == discr_alloc_version::no_partition)
+		{
+			sig_var voidDom = sb.VoidDomain();
+			sig_var TA = sb.UnitVar("totalAllocated");
+			sb.MemberValueClass(TA, ResultTotalType::GetStaticClass()->GetValuesType());
+			sb.ResultContainerMemberSet("total_allocated", 0, TA, voidDom, ValueComposition::Single);
+			if (m_MustAdjust)
+			{
+				sig_var SP = sb.UnitVar("shadowPrice");
+				sb.MemberValueClass(SP, ResultShadowPriceType::GetStaticClass()->GetValuesType());
+				sb.ResultContainerMemberSet("shadow_prices", 0, SP, voidDom, ValueComposition::Single);
+			}
+		}
 		return true;
 	}
 

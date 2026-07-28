@@ -102,6 +102,14 @@ struct AbstrSignatureBuilder
 	// missing-member errors (sound because SubItemOperator is certain to
 	// reject the same reference per application).
 	virtual void ResultContainerMember(CharPtr path, sig_var values, sig_var domain, ValueComposition vc) = 0;
+	// NAME-DIRECTED result members: one member '<pathPrefix>/<name>' per entry of
+	// the string array at argument `namesPos`, all of the same declared type
+	// (discrete_alloc's shadow_prices/<type> and total_allocated/<type>). The
+	// walker expands these per application, and only when that array is
+	// definition-time evaluable — the same closedness test the §12.7 for_each
+	// tranche and K11b apply; otherwise nothing is claimed.
+	virtual void ResultContainerMemberSet(CharPtr pathPrefix, arg_index namesPos,
+	                                      sig_var values, sig_var domain, ValueComposition vc) = 0;
 	virtual void ResultMembersComplete() = 0;
 
 	// --- whole-signature deferral: shape depends on a meta-read value (K13)
@@ -183,9 +191,26 @@ struct SignatureRecord
 		}
 	};
 
+	// a NAME-DIRECTED family of result members: '<prefix>/<name>' for every name
+	// in the string array at `namesPos`, each of the declared type
+	struct ResultMemberSet
+	{
+		SharedStr prefix;
+		arg_index namesPos = arg_index(-1);
+		sig_var values = no_sig_var, domain = no_sig_var;
+		ValueComposition vc = ValueComposition::Unknown;
+
+		bool operator==(const ResultMemberSet& rhs) const
+		{
+			return prefix == rhs.prefix && namesPos == rhs.namesPos
+				&& values == rhs.values && domain == rhs.domain && vc == rhs.vc;
+		}
+	};
+
 	std::vector<Pos> args;
 	Pos     result;                                // kind None => no result described
 	std::vector<ResultMember> resultMembers;       // typed members of a composite result
+	std::vector<ResultMemberSet> resultMemberSets; // name-directed member families (K11b result side)
 	bool    resultMembersComplete = false;         // licenses def-time missing-member errors
 	bool    resultDeferred = false, dynamicShape = false;
 	SharedStr resultNote, dynamicNote;
@@ -284,6 +309,7 @@ struct SignatureRecorder final : AbstrSignatureBuilder
 	TIC_CALL void ResultContainer(CharPtr memberPattern, sig_var sharedMemberDomain) override;
 	TIC_CALL void ResultDeferred(CharPtr note) override;
 	TIC_CALL void ResultContainerMember(CharPtr path, sig_var values, sig_var domain, ValueComposition vc) override;
+	TIC_CALL void ResultContainerMemberSet(CharPtr pathPrefix, arg_index namesPos, sig_var values, sig_var domain, ValueComposition vc) override;
 	TIC_CALL void ResultMembersComplete() override;
 
 	TIC_CALL void DynamicShape(CharPtr why) override;

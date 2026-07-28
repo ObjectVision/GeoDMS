@@ -183,6 +183,13 @@ void SignatureRecorder::ResultContainerMember(CharPtr path, sig_var values, sig_
 	rm.path = SharedStr(path); rm.values = values; rm.domain = domain; rm.vc = vc;
 	rec.resultMembers.push_back(std::move(rm));
 }
+void SignatureRecorder::ResultContainerMemberSet(CharPtr pathPrefix, arg_index namesPos, sig_var values, sig_var domain, ValueComposition vc)
+{
+	SignatureRecord::ResultMemberSet rms;
+	rms.prefix = SharedStr(pathPrefix); rms.namesPos = namesPos;
+	rms.values = values; rms.domain = domain; rms.vc = vc;
+	rec.resultMemberSets.push_back(std::move(rms));
+}
 void SignatureRecorder::ResultMembersComplete()
 {
 	rec.resultMembersComplete = true;
@@ -205,6 +212,7 @@ bool SignatureRecord::SameShape(const SignatureRecord& rhs) const
 		&& args == rhs.args
 		&& result == rhs.result
 		&& resultMembers == rhs.resultMembers
+		&& resultMemberSets == rhs.resultMemberSets
 		&& resultMembersComplete == rhs.resultMembersComplete
 		&& resultDeferred == rhs.resultDeferred
 		&& dynamicShape == rhs.dynamicShape

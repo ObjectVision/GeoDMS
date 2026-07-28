@@ -113,8 +113,10 @@ Effort tags: **[substantial]** / **[moderate]** / **[niche]**. Items are sorted 
   Pair a `UnitDerivationKind` with a `UnitCreatorPtr` so K9/K10 values-unit derivation is consumable at definition time. "Deliberately deferred"; only useful once metric checking un-defers.
   *Sources: op-sig §5.4 (307-342), §12.1 pt 4 (897-900).*
 
-- **discrete_alloc name-directed result members** **[moderate]** · *deferred*
-  `shadow_prices/<name>`, `total_allocated/<name>` (+ conditional `bid_price`) types derive from partitionings/suitabilities, not the closed `typeNames` array, so they defer rather than error; `landuse`/`bid_price` are typed structurally (shipped).
+- **discrete_alloc name-directed result members** **[moderate]** · *DONE 2026-07-28 for the UNPARTITIONED variants; partitioned ones still defer*
+  New vocabulary `ResultContainerMemberSet(prefix, namesPos, values, domain, vc)` — the result-side mirror of K11b's `ArgContainer` — records a family of members `<prefix>/<name>`, one per entry of the string array at `namesPos`. `ApplyOperRecord` expands it per application, evaluating that array with the same `EvalClosedStrArray` closedness test §12.7/K11b use; a non-evaluable array contributes nothing, so the result set stays exactly as incomplete as before.
+  Derived by reading `CheckAndPrepare` (not the prose): per ggType (named by the typeNames VALUES) it creates `total_allocated/<name>` = `CreateDataItem(.., partitioningUnit, default<claim_type>)` and, iff `m_MustAdjust`, `shadow_prices/<name>` = `CreateDataItem(.., partitioningUnit, priceUnit)`. Declared ONLY for `discr_alloc_version::no_partition`, where `partitioningUnit` is provably `Unit<Void>` (so both families are parameters); with partitionings the domain is a PER-TYPE partitioning unit — not one variable — so those variants keep deferring. Value classes are exact per member instantiation: `claim_type` for the totals, `S` for the prices.
+  Pinned by `fn_test_dares` (both families declared with their true types, allocation computes), `fn_test_dares_neg1` (totals declared string → def-time conflict, expected uint32) and `fn_test_dares_neg2` (prices declared string → expected int32 — different expected classes prove each family is typed from its own source).
   *Sources: op-sig §12.7-12.8 (1372-1490).*
 
 - **§12.7 v1 narrowing — function-CALL head inside a closed K13 spec** **[moderate]** · *documented limitation*

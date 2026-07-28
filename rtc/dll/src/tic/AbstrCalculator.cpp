@@ -5182,29 +5182,64 @@ namespace {
 		// (SubItemOperator is certain to reject the same reference) — and a
 		// complete-EMPTY set (the plain select_* groups) must attach too, or
 		// its promised definition-time report never fires (review finding).
-		if (!shape.resultMembers.empty() || shape.resultMembersComplete)
+		if (!shape.resultMembers.empty() || shape.resultMembersComplete || !shape.resultMemberSets.empty())
 		{
 			auto members = std::make_shared<std::map<SharedStr, DefType, MemberPathLess>>();
-			for (const auto& rm : shape.resultMembers)
+			auto memberTypeOf = [&](sig_var values, sig_var domain, ValueComposition vc) -> DefType
 			{
-				DefType m; m.kind = DefType::Kind::Data; m.vcomp = rm.vc;
-				if (rm.values != no_sig_var)
+				DefType m; m.kind = DefType::Kind::Data; m.vcomp = vc;
+				if (values != no_sig_var)
 				{
-					m.vNode = VN(rm.values);
-					if (inDomainRole[rm.values])
-						m.vuNode = DN(rm.values);
+					m.vNode = VN(values);
+					if (inDomainRole[values])
+						m.vuNode = DN(values);
 				}
-				if (rm.domain != no_sig_var)
+				if (domain != no_sig_var)
 				{
-					if (shape.varFlags[rm.domain] & SignatureRecord::VF_VoidDomain)
+					if (shape.varFlags[domain] & SignatureRecord::VF_VoidDomain)
 						m.dom = DefType::Dom::Void;
 					else
 					{
 						m.dom = DefType::Dom::Node;
-						m.dNode = DN(rm.domain);
+						m.dNode = DN(domain);
 					}
 				}
-				(*members)[rm.path] = m;
+				return m;
+			};
+			for (const auto& rm : shape.resultMembers)
+				(*members)[rm.path] = memberTypeOf(rm.values, rm.domain, rm.vc);
+
+			// NAME-DIRECTED result member families: one member per entry of the
+			// declared names array — discrete_alloc's shadow_prices/<type> and
+			// total_allocated/<type>. The array must be definition-time evaluable
+			// (the §12.7 / K11b closedness test); otherwise this family contributes
+			// nothing, leaving the set exactly as incomplete as before.
+			for (const auto& rms : shape.resultMemberSets)
+			{
+				if (rms.namesPos == arg_index(-1) || !refScope)
+					continue;
+				LispPtr namesExpr;
+				{
+					arg_index j = 0;
+					for (LispPtr a = argsList; !a.EndP(); a = a.Right(), ++j)
+						if (j == rms.namesPos)
+						{
+							namesExpr = a.Left();
+							break;
+						}
+				}
+				if (namesExpr.EndP())
+					continue;
+				auto names = EvalClosedStrArray(refScope, namesExpr);
+				if (!names)
+					continue; // data-directed: no claim, as before
+				DefType mt = memberTypeOf(rms.values, rms.domain, rms.vc);
+				for (const auto& nm : *names)
+				{
+					if (!nm.IsDefined() || nm.empty())
+						continue;
+					(*members)[rms.prefix + "/" + nm] = mt;
+				}
 			}
 			r.members = std::move(members);
 			r.membersComplete = shape.resultMembersComplete;

@@ -118,6 +118,17 @@ parameter whose named members sit on a different telescope unit than `allocUnit`
 rigid-rigid conflict). Every false rejection the review reproduced (`k11b_p1..p4`,
 `rv_p1_weight`, `rv_p1_param_super`) passes under the name-directed claim.
 
+**Result side (2026-07-28).** The same name-direction now types discrete_alloc's per-type RESULT
+members. `ResultContainerMemberSet(prefix, namesPos, values, domain, vc)` records a family
+`<prefix>/<name>`, one per entry of the names array, which `ApplyOperRecord` expands per
+application under the same closedness test. `discrete_alloc`'s `total_allocated/<name>`
+(`default<claim_type>`) and, when `m_MustAdjust`, `shadow_prices/<name>` (the suitability price
+class `S`) are declared for the UNPARTITIONED variants only — there `partitioningUnit` is provably
+`Unit<Void>`, so both families are parameters; with partitionings the domain is a per-type
+partitioning unit and those variants keep deferring. Pinned by `fn_test_dares{,_neg1,_neg2}`, whose
+two negatives report DIFFERENT expected classes (uint32 vs int32) — the evidence each family is
+typed from its own source.
+
 Not covered yet: the §6.2 skeleton path calls `ApplyOperRecord` without `refScope`/`argsList`,
 so container positions do not link there (multi-record groups with container args are rare —
 `discrete_alloc` is single-record); container arguments that are expressions, generated
