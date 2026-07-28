@@ -1416,6 +1416,17 @@ failure (defer — the instantiation retries), or an unresolvable unit name ⇒ 
 Sequencing recommendation: the impedance tranche first (no new `DefType` machinery), then K11
 containers, then this — at which point `discrete_alloc`'s obligations come along for free.
 
+**Superseded 2026-07-28.** Both "extra gates" were in fact already cleared: the impedance
+tranche built the container `DefType` itself, and `TryMetaContainerProcessing` branches ahead
+of the `dont_cache_result` deferral. The typed `for_each_*` result container has therefore been
+live since that tranche — member DOMAIN, member VALUES, the complete member SET and the ∀/K2
+case (the domain argument a formal unit parameter, the member's type riding its unifier node)
+are all checked at the definition; see the `fn_test_fe_neg*` battery, `_neg8` for the ∀ domain
+half. What remains is out of scope by design: `MemberKind::Untyped` variants (`for_each_ne`,
+whose member types could only come from evaluating the expression STRING) and `TemplateCopy`
+members. `discrete_alloc`'s own container obligations landed separately with K11b, which found
+its member set is NAME-DIRECTED rather than universal.
+
 ### 12.8 Composite-result member references — the slSubItemCall tranche (ruled + SHIPPED 2026-07-20/21)
 
 **The ruling** (Maarten): `container a := discrete_alloc(…); … a/landuse …` in a function body
