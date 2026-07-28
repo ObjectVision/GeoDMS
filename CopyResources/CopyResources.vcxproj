@@ -46,6 +46,8 @@ robocopy "$(SolutionDir)library" "$(OutDir)library" /E /NJH /NJS /NP /R:2 /W:2 /
 if errorlevel 8 ( echo *** CopyResources: robocopy library FAILED *** &amp; exit /b 1 )
 robocopy "$(SolutionDir)examples" "$(OutDir)examples" /E /NJH /NJS /NP /R:2 /W:2 /XO
 if errorlevel 8 ( echo *** CopyResources: robocopy examples FAILED *** &amp; exit /b 1 )
+robocopy "$(SolutionDir)testcases" "$(OutDir)examples\testcases" /E /NJH /NJS /NP /R:2 /W:2 /XO /XD _out*
+if errorlevel 8 ( echo *** CopyResources: robocopy testcases FAILED *** &amp; exit /b 1 )
 if not exist "$(_VcpkgRuntimeBin)\*.dll" ( echo *** CopyResources: vcpkg runtime bin not found or empty - "$(_VcpkgRuntimeBin)" *** &amp; exit /b 1 )
 robocopy "$(_VcpkgRuntimeBin)" "$(OutDir.TrimEnd('\'))" *.dll /NJH /NJS /NP /R:2 /W:2 /XO
 if errorlevel 8 ( echo *** CopyResources: robocopy vcpkg runtime DLLs FAILED *** &amp; exit /b 1 )

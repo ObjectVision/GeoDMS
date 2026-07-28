@@ -53,6 +53,14 @@ foreach(_res_dir library examples)
     endif()
 endforeach()
 
+# The typed-function testcases battery ships as end-user example content under
+# examples/testcases (run via run_testcases.bat against the installed
+# GeoDmsRun). The gitignored _out* run-artifact folders stay local. The Linux
+# setup (nsi/CreateLinuxSetup.sh) stages examples/ recursively, so the .deb and
+# .tar.gz packages inherit this copy.
+file(COPY ${SRC_DIR}/testcases DESTINATION ${RUNTIME_DIR}/examples
+     PATTERN "_out*" EXCLUDE)
+
 # Python utility scripts.
 foreach(_py_script profiler.py regression.py)
     if(EXISTS ${SRC_DIR}/profiler/${_py_script})

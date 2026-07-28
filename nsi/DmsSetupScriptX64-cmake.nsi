@@ -192,6 +192,11 @@ Section "GeoDMS Program Folder"
   SetOutPath $INSTDIR\examples
   File ${CMakeBinDir}\examples\*.*
 
+  ; typed-function testcases battery (also the regression suite: run via
+  ; examples\testcases\run_testcases.bat against the installed GeoDmsRun)
+  SetOutPath $INSTDIR\examples\testcases
+  File ${CMakeBinDir}\examples\testcases\*.*
+
   ; Start menu shortcuts
   IfSilent skip_set_all
     MessageBox MB_YESNO 'Install startmenu shortcuts for all users?' IDNO skip_set_all
@@ -246,6 +251,7 @@ Section uninstall
   Delete $INSTDIR\library\basedata_nl\rdc\*.*
   Delete $INSTDIR\library\basedata_nl\*.*
   Delete $INSTDIR\library\*.*
+  Delete $INSTDIR\examples\testcases\*.*
   Delete $INSTDIR\examples\*.*
 
   Delete "$SMPROGRAMS\GeoDMS\version${GeoDmsVersion}\GeoDms Qt GUI ${GeoDmsVersion}.lnk"
@@ -270,6 +276,7 @@ Section uninstall
   RMDIR $INSTDIR\library\basedata_nl\rdc
   RMDIR $INSTDIR\library\basedata_nl
   RMDIR $INSTDIR\library
+  RMDIR $INSTDIR\examples\testcases
   RMDIR $INSTDIR\examples
 
   ; Remove the Apps & Features entry created at install time (issue #499).

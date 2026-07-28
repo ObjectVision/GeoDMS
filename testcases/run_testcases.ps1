@@ -20,7 +20,13 @@ $here = $PSScriptRoot
 if (-not $here) { $here = Split-Path -Parent $MyInvocation.MyCommand.Definition }
 if (-not $OutDir) { $OutDir = Join-Path $here '_out' }
 $Exe = (Resolve-Path $Exe).Path
-New-Item -ItemType Directory -Force $OutDir | Out-Null
+try { New-Item -ItemType Directory -Force $OutDir -ErrorAction Stop | Out-Null }
+catch {
+    # installed under Program Files: the suite dir is not writable - log to TEMP
+    $OutDir = Join-Path $env:TEMP 'GeoDmsTestcases_out'
+    New-Item -ItemType Directory -Force $OutDir | Out-Null
+    "NOTE: logs go to $OutDir (suite folder not writable)"
+}
 $OutDir = (Resolve-Path $OutDir).Path
 
 $map = @{}

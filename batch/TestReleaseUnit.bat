@@ -10,3 +10,12 @@ REM msbuild all22.sln -t:build -p:Configuration=Release -p:Platform=x64
 cd ..\tst\batch
 Call unit.bat R64 off
 cd %geodms_rootdir%
+
+REM Typed-function testcases battery (testcases\*.dms): positives must exit 0,
+REM _neg/defcheck configs must exit nonzero, a Debug assert (exit 3) always fails.
+Call "%geodms_rootdir%\testcases\run_testcases.bat" "%geodms_rootdir%\bin\Release\x64\GeoDmsRun.exe"
+if errorlevel 1 (
+  echo *** TESTCASES BATTERY FAILED - see table above and testcases\_out\ logs ***
+) else (
+  echo TESTCASES BATTERY PASSED
+)

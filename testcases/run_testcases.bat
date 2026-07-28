@@ -9,7 +9,10 @@ rem Exit code: 0 if every case matched its expected outcome, nonzero otherwise.
 rem =====================================================================
 setlocal
 set "EXE=%~1"
+REM Default exe: repo layout (testcases\ beside bin\), else the INSTALLED layout
+REM (this suite ships as <install>\examples\testcases, two levels below GeoDmsRun.exe).
 if "%EXE%"=="" set "EXE=%~dp0..\bin\Release\x64\GeoDmsRun.exe"
+if not exist "%EXE%" if exist "%~dp0..\..\GeoDmsRun.exe" set "EXE=%~dp0..\..\GeoDmsRun.exe"
 if not exist "%EXE%" (
   echo ERROR: GeoDmsRun.exe not found at "%EXE%".
   echo Build the Release configuration first, or pass the exe path as the first argument.
