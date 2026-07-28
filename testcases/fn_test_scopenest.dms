@@ -37,6 +37,36 @@ container fn_test_scopenest
 		function fe(parameter<uint32> q) -> parameter<uint32> := topLevel + q;
 	}
 
+	// f: nested function reads the ENCLOSING function's PARAMETER (closure capture)
+	function ff(parameter<uint32> q) -> parameter<uint32> := inner(1u);
+	{
+		function inner(parameter<uint32> r) -> parameter<uint32> := q + r;
+	}
+
+	// g: nested function reads the ENCLOSING function's LOCAL item
+	function fg(parameter<uint32> q) -> parameter<uint32> := inner(q);
+	{
+		parameter<uint32> localItem := 100u;
+		function inner(parameter<uint32> r) -> parameter<uint32> := localItem + r;
+	}
+
+	// h: the enclosing local itself depends on the enclosing parameter, so the capture
+	// must be per application, not a single shared value
+	function fh(parameter<uint32> q) -> parameter<uint32> := inner(1u);
+	{
+		parameter<uint32> doubled := q * 2u;
+		function inner(parameter<uint32> r) -> parameter<uint32> := doubled + r;
+	}
+
+	// i: two levels down, reaching the outermost function's parameter
+	function fi(parameter<uint32> q) -> parameter<uint32> := level2(q);
+	{
+		function level2(parameter<uint32> r) -> parameter<uint32> := deep(r);
+		{
+			function deep(parameter<uint32> s) -> parameter<uint32> := q + s;
+		}
+	}
+
 	container checks
 	{
 		parameter<uint32> c_a := fa(1u),        IntegrityCheck = "c_a == 11u";
@@ -44,5 +74,11 @@ container fn_test_scopenest
 		parameter<uint32> c_c := fc(3u),        IntegrityCheck = "c_c == 13u";
 		parameter<uint32> c_d := sub/fd(4u),    IntegrityCheck = "c_d == 14u";
 		parameter<uint32> c_e := shadow/fe(5u), IntegrityCheck = "c_e == 105u";
+		parameter<uint32> c_f := ff(6u),        IntegrityCheck = "c_f == 7u";
+		parameter<uint32> c_g := fg(7u),        IntegrityCheck = "c_g == 107u";
+		// per-application capture: two applications of fh must not share 'doubled'
+		parameter<uint32> c_h1 := fh(10u),      IntegrityCheck = "c_h1 == 21u";
+		parameter<uint32> c_h2 := fh(20u),      IntegrityCheck = "c_h2 == 41u";
+		parameter<uint32> c_i := fi(8u),        IntegrityCheck = "c_i == 16u";
 	}
 }

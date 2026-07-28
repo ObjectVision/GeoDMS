@@ -1156,6 +1156,26 @@ namespace {
 
 		void PushArg(const CallArg& a) { m_ArgKeys.push_back(a.key); m_ArgItems.push_back(a.item); m_ArgBindings.push_back(a.binding); m_ArgLiterals.push_back(a.literal); }
 
+		// §5.10: this application's bound parameters as a closure environment, chained
+		// to the environment it was itself applied in. Captured by value, so the result
+		// is independent of where the capturing function value travels (#1166).
+		std::shared_ptr<ClosureEnv> MakeCurrentEnv() const
+		{
+			auto env = std::make_shared<ClosureEnv>();
+			env->funcItem = m_FuncItem;
+			UInt32 nrParams = TreeItem_GetFunctionParamCount(m_FuncItem);
+			env->args.reserve(nrParams);
+			for (UInt32 i = 0; i != nrParams && i != m_ArgKeys.size(); ++i)
+			{
+				CallArg a;
+				a.key = m_ArgKeys[i]; a.item = m_ArgItems[i];
+				a.binding = m_ArgBindings[i]; a.literal = m_ArgLiterals[i];
+				env->args.push_back(std::move(a));
+			}
+			env->next = m_Env;
+			return env;
+		}
+
 		bool IsRestParamSymbol(TokenID sym) const { return m_RestParam && m_RestParam->GetID() == sym; }
 		void SpliceRestArgs(std::vector<CallArg>& out) const
 		{
@@ -1189,6 +1209,20 @@ namespace {
 		b->slots.resize(n);
 		for (auto& s : b->slots) s.isHole = true;
 		return b;
+	}
+
+	// #1166: a function nested in another function's BODY is applied in the enclosing
+	// application's scope, so its body may reference the enclosing parameters. Give
+	// such a callee this application's environment; a callee reached from the
+	// definition scope or the prelude is not nested and gets none.
+	bool IsNestedInside(const TreeItem* callee, const TreeItem* outer)
+	{
+		if (!callee || !outer)
+			return false;
+		for (auto p = callee->GetTreeParent(); p; p = p->GetTreeParent())
+			if (p.get() == outer)
+				return true;
+		return false;
 	}
 
 	// fill the holes of `b` with `holeFills` left-to-right; the counts must match —
@@ -2154,17 +2188,7 @@ namespace {
 		// this application's bound parameters, captured by value
 		if (resultChild->IsFunctionItem())
 		{
-			auto env = std::make_shared<ClosureEnv>();
-			env->funcItem = m_FuncItem;
-			env->args.reserve(nrParams);
-			for (UInt32 i = 0; i != nrParams; ++i)
-			{
-				CallArg a;
-				a.key = m_ArgKeys[i]; a.item = m_ArgItems[i];
-				a.binding = m_ArgBindings[i]; a.literal = m_ArgLiterals[i];
-				env->args.push_back(std::move(a));
-			}
-			env->next = m_Env;
+			auto env = MakeCurrentEnv();
 
 			CallArg r;
 			r.binding = std::make_shared<FunctionBinding>();
@@ -2308,6 +2332,8 @@ namespace {
 						CheckFunctionDefinition(variant);
 					}
 					FunctionBinding calleeBinding = paramBinding ? *paramBinding : *MakeAllHoles(headFn);
+					if (!paramBinding && !calleeBinding.env && IsNestedInside(headFn.get(), m_FuncItem))
+						calleeBinding.env = MakeCurrentEnv(); // #1166: nested callee sees the enclosing parameters
 
 					FunctionBinding merged = MergeBinding(calleeBinding, holeFills);
 					if (merged.NrHoles() != 0)
@@ -2622,8 +2648,28 @@ namespace {
 				, fullStr.c_str());
 		}
 		if (found->InTemplate())
+		{
+			// #1166: a nested function's body may reference the ENCLOSING function's
+			// LOCAL items. Those have no value of their own here — they must be reduced
+			// in the enclosing application, which holds its bindings. Its parameters are
+			// captured by value in the environment (resolved above); a local is reduced
+			// in place by delegating to that application on the parent chain. When the
+			// nested function was returned as a closure and applied elsewhere, no parent
+			// on the chain owns 'found' and the reference is rejected as before.
+			for (const FunctionApplication* p = m_Parent; p; p = p->m_Parent)
+				if (IsNestedInside(found.get(), p->m_FuncItem))
+				{
+					// non-const: the parent is a live stack application, and this is the
+					// very reduction it would perform for the item itself (its memo and
+					// in-progress set keep circular-reference detection intact)
+					auto* encl = const_cast<FunctionApplication*>(p);
+					if (foundItemPtr)
+						*foundItemPtr = nullptr; // reduced in the enclosing scope: no item identity to bind member access to
+					return encl->ReduceBodyItem(found.get());
+				}
 			throwErrorF("ExprParser", "'{}': reference to (part of) a template or function from body of function '{}'"
 				, fullStr.c_str(), m_FuncItem->GetFullName().c_str());
+		}
 		found->UpdateMetaInfo();
 		if (m_SubstBuff)
 			registerSupplier(*m_SubstBuff, found.get());
@@ -2794,6 +2840,8 @@ namespace {
 					CheckFunctionDefinition(variant);
 				}
 				FunctionBinding calleeBinding = pb ? *pb : *MakeAllHoles(headFn);
+				if (!pb && !calleeBinding.env && IsNestedInside(headFn.get(), m_FuncItem))
+					calleeBinding.env = MakeCurrentEnv(); // #1166: nested callee sees the enclosing parameters
 				FunctionBinding merged = MergeBinding(calleeBinding, sub);
 				if (merged.NrHoles() == 0)
 					return ReduceMergedValue(merged, this, m_SubstBuff, m_ErrorHolder); // §5.10: data key OR closure binding
