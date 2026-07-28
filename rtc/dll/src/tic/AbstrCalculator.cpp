@@ -2596,11 +2596,16 @@ namespace {
 
 		// imports and externals: own scope + explicit imports first, then the lexical
 		// definition scope (§4.6 revision 2026-07-13: identifiers resolve to what is
-		// visible from the point of definition; the call site stays invisible)
+		// visible from the point of definition; the call site stays invisible).
+		// The definition scope is the WHOLE enclosing chain, not just the immediate
+		// parent: a function nested in another function's body must still see the
+		// container scope. FindTreeItemByID stops ascending at the first item with a
+		// using-cache, so one GetTreeParent() step only suffices while the function
+		// sits directly in a container; from '/outer/inner' it lands on '/outer' and
+		// the container was never consulted (ObjectVision/GeoDMS#1166).
 		auto found = m_FuncItem->FindItem(fullStr);
-		if (!found)
-			if (auto defParent = m_FuncItem->GetTreeParent())
-				found = defParent->FindItem(fullStr);
+		for (auto defScope = m_FuncItem->GetTreeParent(); !found && defScope; defScope = defScope->GetTreeParent())
+			found = defScope->FindItem(fullStr);
 		if (!found)
 			throwErrorF("ExprParser", "'{}': unknown identifier in body of function '{}' (visible are: parameters, local items, 'using' imports, and the definition scope)"
 				, fullStr.c_str(), m_FuncItem->GetFullName().c_str());
@@ -3160,9 +3165,11 @@ namespace {
 		}
 
 		auto found = m_FuncItem->FindItem(fullStr);
-		if (!found)
-			if (auto defParent = m_FuncItem->GetTreeParent()) // lexical definition scope (§4.6)
-				found = defParent->FindItem(fullStr);
+		// lexical definition scope (§4.6): the whole enclosing chain — see the
+		// matching walk in ResolveBodySymbol (ObjectVision/GeoDMS#1166). This site
+		// types the reference and throws first, so it needs the same ascent.
+		for (auto defScope = m_FuncItem->GetTreeParent(); !found && defScope; defScope = defScope->GetTreeParent())
+			found = defScope->FindItem(fullStr);
 		if (!found && slash == e)
 			if (auto pf = FindPreludeFunction(sym); pf && pf->IsFunctionItem())
 			{

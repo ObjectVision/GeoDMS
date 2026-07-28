@@ -1,0 +1,48 @@
+container fn_test_scopenest
+{
+	// #1166: the lexical definition scope of a function body is the WHOLE enclosing
+	// chain. Before the fix the identifier lookup ascended exactly one level, so a
+	// function nested in another function's body never reached the container scope.
+
+	parameter<uint32> topLevel := 10u;
+
+	// a: function directly in a container -> container-level item (worked before too)
+	function fa(parameter<uint32> q) -> parameter<uint32> := topLevel + q;
+
+	// b: function nested in a FUNCTION BODY -> container-level item (the #1166 case)
+	function fb(parameter<uint32> q) -> parameter<uint32> := inner(q);
+	{
+		function inner(parameter<uint32> r) -> parameter<uint32> := topLevel + r;
+	}
+
+	// c: two levels of function nesting -> still the container scope
+	function fc(parameter<uint32> q) -> parameter<uint32> := level2(q);
+	{
+		function level2(parameter<uint32> r) -> parameter<uint32> := deep(r);
+		{
+			function deep(parameter<uint32> s) -> parameter<uint32> := topLevel + s;
+		}
+	}
+
+	// d: function in a nested CONTAINER -> grandparent-container item
+	container sub
+	{
+		function fd(parameter<uint32> q) -> parameter<uint32> := topLevel + q;
+	}
+
+	// e: the nearest enclosing scope still wins over an outer one of the same name
+	container shadow
+	{
+		parameter<uint32> topLevel := 100u;
+		function fe(parameter<uint32> q) -> parameter<uint32> := topLevel + q;
+	}
+
+	container checks
+	{
+		parameter<uint32> c_a := fa(1u),        IntegrityCheck = "c_a == 11u";
+		parameter<uint32> c_b := fb(2u),        IntegrityCheck = "c_b == 12u";
+		parameter<uint32> c_c := fc(3u),        IntegrityCheck = "c_c == 13u";
+		parameter<uint32> c_d := sub/fd(4u),    IntegrityCheck = "c_d == 14u";
+		parameter<uint32> c_e := shadow/fe(5u), IntegrityCheck = "c_e == 105u";
+	}
+}
