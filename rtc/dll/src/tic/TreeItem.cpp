@@ -106,6 +106,8 @@ namespace {
 	static TokenID t_gcDomains      = GetTokenID_st("domains");
 	static TokenID t_gcPoints       = GetTokenID_st("points");
 	static TokenID t_gcDomainPoints = GetTokenID_st("domain_points");
+	static TokenID t_gcSignedDomainPoints = GetTokenID_st("signed_domain_points");
+	static TokenID t_gcUnsignedDomainPoints = GetTokenID_st("unsigned_domain_points");
 }
 
 TIC_CALL bool IsKnownGenericConstraint(TokenID constraintName)
@@ -120,7 +122,9 @@ TIC_CALL bool IsKnownGenericConstraint(TokenID constraintName)
 		|| constraintName == t_gcSignedInts
 		|| constraintName == t_gcDomains
 		|| constraintName == t_gcPoints
-		|| constraintName == t_gcDomainPoints;
+		|| constraintName == t_gcDomainPoints
+		|| constraintName == t_gcSignedDomainPoints
+		|| constraintName == t_gcUnsignedDomainPoints;
 }
 
 TIC_CALL bool MatchesGenericConstraint(const ValueClass* vc, TokenID constraintName)
@@ -139,6 +143,17 @@ TIC_CALL bool MatchesGenericConstraint(const ValueClass* vc, TokenID constraintN
 	if (constraintName == t_gcPoints)   return vc->GetNrDims() == 2 && vc->GetValueComposition() == ValueComposition::Single;
 	if (constraintName == t_gcDomainPoints)
 		return vc->GetNrDims() == 2 && vc->GetValueComposition() == ValueComposition::Single && vc->IsCountable();
+	if (constraintName == t_gcSignedDomainPoints)
+		// domain_points restricted to SIGNED coordinates (spoint, ipoint): only those
+		// can carry a negative cell offset. Signedness lives on the coordinate type,
+		// not on the point value class — is_signed<Point<T>> is false for every T —
+		// so consult the scalar class, exactly as IsCountable() does for integrality.
+		return vc->GetNrDims() == 2 && vc->GetValueComposition() == ValueComposition::Single && vc->IsCountable()
+			&& vc->GetScalarClass() && vc->GetScalarClass()->IsSigned();
+	if (constraintName == t_gcUnsignedDomainPoints)
+		// the complement within domain_points (wpoint, upoint): see the note above
+		return vc->GetNrDims() == 2 && vc->GetValueComposition() == ValueComposition::Single && vc->IsCountable()
+			&& vc->GetScalarClass() && !vc->GetScalarClass()->IsSigned();
 	return false;
 }
 

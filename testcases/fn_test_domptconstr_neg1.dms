@@ -1,0 +1,9 @@
+container fn_test_domptconstr_neg1
+{
+	// an UNSIGNED point domain does not satisfy signed_domain_points
+	function nrCellsS<P: signed_domain_points>(unit<P> D) -> parameter<uint32> := uint32(#D);
+
+	unit<wpoint> Dw := range(point_xy(0w, 0w), point_xy(4w, 4w));
+
+	container checks { parameter<uint32> bad := nrCellsS(Dw); }
+}

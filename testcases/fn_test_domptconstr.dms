@@ -1,0 +1,33 @@
+container fn_test_domptconstr
+{
+	// #1163: signed_domain_points / unsigned_domain_points partition domain_points by
+	// the signedness of the COORDINATE type. Signedness is not a property of the point
+	// value class itself (is_signed<Point<T>> is false for every T), so the constraint
+	// consults the scalar class — the same way IsCountable() does for integrality.
+
+	function nrCellsAny<P: domain_points>         (unit<P> D) -> parameter<uint32> := uint32(#D);
+	function nrCellsS  <P: signed_domain_points>  (unit<P> D) -> parameter<uint32> := uint32(#D);
+	function nrCellsU  <P: unsigned_domain_points>(unit<P> D) -> parameter<uint32> := uint32(#D);
+
+	unit<spoint> Ds := range(point_xy(0s, 0s), point_xy(4s, 4s));
+	unit<ipoint> Di := range(point_xy(0i, 0i), point_xy(4i, 4i));
+	unit<wpoint> Dw := range(point_xy(0w, 0w), point_xy(4w, 4w));
+	unit<upoint> Du := range(point_xy(0u, 0u), point_xy(4u, 4u));
+
+	container checks
+	{
+		// signed_domain_points accepts exactly spoint and ipoint
+		parameter<uint32> s_s := nrCellsS(Ds), IntegrityCheck = "s_s == 16u";
+		parameter<uint32> s_i := nrCellsS(Di), IntegrityCheck = "s_i == 16u";
+
+		// unsigned_domain_points accepts exactly wpoint and upoint
+		parameter<uint32> u_w := nrCellsU(Dw), IntegrityCheck = "u_w == 16u";
+		parameter<uint32> u_u := nrCellsU(Du), IntegrityCheck = "u_u == 16u";
+
+		// the two are a partition of domain_points: all four still satisfy the parent
+		parameter<uint32> a_s := nrCellsAny(Ds), IntegrityCheck = "a_s == 16u";
+		parameter<uint32> a_i := nrCellsAny(Di), IntegrityCheck = "a_i == 16u";
+		parameter<uint32> a_w := nrCellsAny(Dw), IntegrityCheck = "a_w == 16u";
+		parameter<uint32> a_u := nrCellsAny(Du), IntegrityCheck = "a_u == 16u";
+	}
+}

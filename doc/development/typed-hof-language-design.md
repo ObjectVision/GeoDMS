@@ -521,7 +521,7 @@ Notes on the notation:
 | checking | body never evaluated until instantiation (`TSF_InTemplate` suppresses calculators, `tic/TreeItem.cpp:854-857`); every call site re-checks independently | typechecked **once at definition** against the parameter types |
 | composability | barred as sub-expression (`tic/AbstrCalculator.cpp:1375-1396` throws) | `F(args)` is an expression of type R, nestable |
 | instantiation | deep tree copy into the holder (`InstantiateTemplate` → `CopyTreeContext`, `tic/AbstrCalculator.cpp:996-1015`) | applicative DC keyed by (F, argument keys); no copy — or full inlining for `inline` functions (§8.3) |
-| scoping | definition scope takes precedence via injected `using`, but the implicit parent namespace keeps call-site names reachable as fallback (§4.6) | closed: formals + locals + explicit `using` imports only; parent namespace removed, boundary total |
+| scoping | definition scope takes precedence via injected `using`, but the implicit parent namespace keeps call-site names reachable as fallback (§4.6) | lexical definition scope (§4.6 rev. 2026-07-13): formals + locals + explicit `using` imports + the definition-parent chain; call-site isolation total |
 | result | conventionally some subitem; untyped | designated `result` with checked annotation; the item has type `(A_i) -> R` |
 | overloading | none (one body per name) | typed variants resolved by argument types (§5.7) |
 
@@ -2076,10 +2076,16 @@ plan below remains the design for the boundary-keyed variant:
 `function f<V: numerics>(unit<uint32> D; attribute<V> x (D)) -> attribute<V> (D)` —
 class-constrained type variables over the closed 𝕍 universe. Constraint vocabulary:
 `any, numerics, integers, floats, uints/unsigned_ints, sints/signed_ints, domains,
-points, domain_points`
+points, domain_points, signed_domain_points, unsigned_domain_points`
 (`MatchesGenericConstraint` in `tic/TreeItem.cpp`, built on ValueClass predicates;
 `domain_points` = 2-dimensional, single composition, countable coordinates — the
-point types eligible as grid domains).
+point types eligible as grid domains; `signed_domain_points` / `unsigned_domain_points`
+partition it by the signedness of the COORDINATE type — spoint/ipoint vs wpoint/upoint.
+Signedness is not a property of the point value class itself, since `is_signed<Point<T>>`
+is false for every T, so those two consult `GetScalarClass()->IsSigned()`, exactly as
+`IsCountable()` consults the scalar class for integrality. Only the signed ones can carry
+a negative cell offset, which is what a neighbourhood displacement such as
+`add_or_null(id(Dom), Value(point_xy(-1s, -1s), Dom))` needs — see ObjectVision/GeoDMS#1163).
 `attribute<V>`/`parameter<V>` positions record the variable per parameter in the
 function spec; `unit<V>` parameters (and `-> unit<V>` results) become plain binders
 whose types follow from the arguments. Checking happens at application time in the
@@ -2387,8 +2393,10 @@ extension).
   `TreeItem_Get/AddFunctionParamSignature`, `TreeItem_Add/GetFunctionGenericParam`,
   `TreeItem_MakeStrictScope`; `IsKnownGenericConstraint` /
   `MatchesGenericConstraint` (vocabulary: any, numerics, integers, floats,
-  uints/unsigned_ints, sints/signed_ints, domains, points, domain_points; built on
-  ValueClass predicates). `TreeItem::Copy`: function scopes keep ALL imports (skip
+  uints/unsigned_ints, sints/signed_ints, domains, points, domain_points,
+  signed_domain_points, unsigned_domain_points; built on ValueClass predicates —
+  the last two via `GetScalarClass()->IsSigned()`, since a point value class is
+  never itself signed). `TreeItem::Copy`: function scopes keep ALL imports (skip
   guard bypassed), stream them absolute, `RemoveParentUsing`; nested function copies
   keep flag+spec+strict scope.
 - **rtc/dll/src/tic/UsingCache.{h,cpp}**: `RemoveParentUsing` + `m_ParentIsHidden`;
