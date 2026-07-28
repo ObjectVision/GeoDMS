@@ -1,0 +1,31 @@
+container fn_test_containerparam
+{
+	// K11a-4: CONTAINER parameters. (a) explicit member block with a NESTED
+	// container — deep member access cfg/nested/offset is typed at definition
+	// (flattened member paths); (b) container typed BY EXAMPLE (cfg: Settings);
+	// (c) the boundary contract validates presence recursively.
+	unit<uint32> Road : nrofrows = 3 { attribute<float64> flow : [ 1.0, 2.0, 3.0 ]; }
+
+	container Settings
+	{
+		parameter<float64> factor := 2.0;
+		container nested { parameter<float64> offset := 5.0; }
+	}
+
+	function scale( container cfg { parameter<float64> factor; container nested { parameter<float64> offset; } };
+	                attribute<float64> x (Road) )
+	-> attribute<float64> (Road) := x * cfg/factor + cfg/nested/offset;
+
+	attribute<float64> t1 (Road) := scale(Settings, Road/flow);
+
+	function scale2( cfg: Settings; attribute<float64> x (Road) )
+	-> attribute<float64> (Road) := x * cfg/factor;
+
+	attribute<float64> t2 (Road) := scale2(Settings, Road/flow);
+
+	container checks
+	{
+		parameter<float64> c1 := sum(t1), IntegrityCheck = "c1 == 27.0"; // 2*(1+2+3) + 3*5
+		parameter<float64> c2 := sum(t2), IntegrityCheck = "c2 == 12.0";
+	}
+}

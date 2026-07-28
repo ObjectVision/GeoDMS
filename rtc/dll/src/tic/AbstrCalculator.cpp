@@ -1991,8 +1991,13 @@ namespace {
 		const TreeItem* memberSrc, const TreeItem* argRoot)
 	{
 		assert(IsMetaThread()); // reduction runs on the meta thread; UnifyDomain below relies on it
-		if (!IsUnit(argRoot))
-			return; // a non-unit argument fails the ordinary binding diagnostics
+		// K11a-4: a UNIT parameter requires a unit argument (whose identity the
+		// default-domain members check against); a CONTAINER parameter accepts any
+		// item carrying the members. A kind-mismatched argument fails the ordinary
+		// binding diagnostics.
+		bool unitParam = IsUnit(paramItem);
+		if (unitParam && !IsUnit(argRoot))
+			return;
 		bool byExample = memberSrc != paramItem;
 		SharedStr fnName(funcItem->GetFullName());
 		SharedStr pName(paramItem->GetID().AsStrRange());
@@ -2001,12 +2006,29 @@ namespace {
 		// shared type variables: the first member's actual class binds; later members must agree
 		std::map<TokenID, std::pair<const ValueClass*, SharedStr>> varBindings;
 
-		for (const TreeItem* m = memberSrc->_GetFirstSubItem(); m; m = m->GetNextItem())
+		// K11a-4: recurse into declared CONTAINER members (presence + the same
+		// per-member checks under the nested block; nested blocks have no enclosing
+		// unit, so default-domain membership is not claimed there)
+		std::function<void(const TreeItem*, const TreeItem*, bool)> walkBlock;
+		walkBlock = [&](const TreeItem* srcBlock, const TreeItem* argBlock, bool blockIsParamUnit)
+		{
+		for (const TreeItem* m = srcBlock->_GetFirstSubItem(); m; m = m->GetNextItem())
 		{
 			if (!IsUnit(m) && !IsDataItem(m))
-				continue; // container-like members: not typed yet (K11 container-kind)
+			{
+				// declared container member: must be present; recurse for its members
+				if (m->IsFunctionItem() || !m->_GetFirstSubItem())
+					continue;
+				SharedStr cName(m->GetID().AsStrRange());
+				auto c = argBlock->GetConstSubTreeItemByID(m->GetID());
+				if (!c)
+					throwErrorF("ExprParser", "'{}': the argument for parameter '{}' does not match its declared members: member '{}' is missing"
+						, fnName.c_str(), pName.c_str(), cName.c_str());
+				walkBlock(m, c.get(), false);
+				continue;
+			}
 			SharedStr mName(m->GetID().AsStrRange());
-			auto a = argRoot->GetConstSubTreeItemByID(m->GetID());
+			auto a = argBlock->GetConstSubTreeItemByID(m->GetID());
 			if (!a)
 				throwErrorF("ExprParser", "'{}': the argument for parameter '{}' does not match its declared members: member '{}' is missing"
 					, fnName.c_str(), pName.c_str(), mName.c_str());
@@ -2041,7 +2063,7 @@ namespace {
 				// generic-variable rungs BEFORE the ValueClass vocabulary, so a type
 				// variable named like a value class stays the variable here too)
 				bool isSibling = false;
-				for (const TreeItem* u = memberSrc->_GetFirstSubItem(); u; u = u->GetNextItem())
+				for (const TreeItem* u = srcBlock->_GetFirstSubItem(); u; u = u->GetNextItem())
 					if (u->GetID() == vt && IsUnit(u))
 					{
 						isSibling = true;
@@ -2051,7 +2073,7 @@ namespace {
 				{
 					// a sibling MEMBER UNIT: the actual member must relate to the
 					// argument's own that-unit (the K2 identity, at the boundary)
-					auto aSib = argRoot->GetConstSubTreeItemByID(vt);
+					auto aSib = argBlock->GetConstSubTreeItemByID(vt);
 					if (avu && aSib && IsUnit(aSib.get())
 						&& !avu->UnifyDomain(AsUnit(aSib.get()), "", "", um))
 					{
@@ -2099,15 +2121,17 @@ namespace {
 				// else: resolves outside the block / telescope / unknown — defer
 			}
 
-			// default-domain members are attributes OF the argument unit; a VOID
-			// actual domain broadcasts (the language's single implicit coercion —
-			// review finding: a parameter<> member must not be rejected); explicit
-			// non-default domains (telescope params, generic domain vars, scope
-			// units) are checked transitively by the body's reduction
+			// default-domain members are attributes OF the argument unit (claimed
+			// ONLY at a unit parameter's TOP block — containers/nested blocks have
+			// no member-domain default); a VOID actual domain broadcasts (the
+			// language's single implicit coercion — review finding: a parameter<>
+			// member must not be rejected); explicit non-default domains (telescope
+			// params, generic domain vars, scope units) are checked transitively by
+			// the body's reduction
 			TokenID dt = declared->DomainUnitToken();
-			bool defaultDomain = !dt || dt == t_Dot || dt == memberSrc->GetID()
-				|| (!byExample && dt == paramItem->GetID());
-			if (defaultDomain)
+			bool defaultDomain = !dt || dt == t_Dot || dt == srcBlock->GetID()
+				|| (!byExample && srcBlock == memberSrc && dt == paramItem->GetID());
+			if (defaultDomain && blockIsParamUnit)
 			{
 				auto adu = actual->GetAbstrDomainUnit();
 				if (adu
@@ -2117,6 +2141,8 @@ namespace {
 						, fnName.c_str(), pName.c_str(), mName.c_str());
 			}
 		}
+		};
+		walkBlock(memberSrc, argRoot, unitParam);
 	}
 
 	LispRef FunctionApplication::Reduce()
@@ -2244,7 +2270,10 @@ namespace {
 			// FUNCTION items only (review finding): a plain template's unit-parameter
 			// sub-items (helper locals with calculation rules) are NOT a declared
 			// member contract — 'apply' on such templates must keep working.
-			if (!isPlainTemplate && IsUnit(child) && m_ArgItems[i])
+			// K11a-4: CONTAINER parameters (plain non-data, non-function items with a
+			// member block or exemplar) carry the same declared interface.
+			if (!isPlainTemplate && m_ArgItems[i]
+				&& (IsUnit(child) || (!IsDataItem(child) && !child->IsFunctionItem())))
 			{
 				const TreeItem* memberSrc = child->_GetFirstSubItem() ? child : nullptr;
 				SharedTreeItem exKeep;
@@ -3706,7 +3735,29 @@ namespace {
 			DefType r; r.kind = DefType::Kind::Func; r.fn = p; // bare 'name: function' / cloned exemplar
 			return r;
 		}
-		return {}; // container / typed-by-example parameters: deferred
+		// K11a-4: a CONTAINER parameter ('container cfg { … }', or by-example
+		// 'cfg: Settings') — the declared member block types exactly like a
+		// structured unit parameter's, except there is no parameter unit: members
+		// without an explicit domain DEFER instead of defaulting (NO_TYPE_VAR).
+		// A plain member-less TreeItem parameter ('item x' meta-refs and friends)
+		// stays deferred.
+		{
+			DefType r; r.kind = DefType::Kind::Container;
+			if (p->_GetFirstSubItem())
+			{
+				r.members = BuildParamMembers(p, NO_TYPE_VAR);
+				r.membersComplete = true;
+				return r;
+			}
+			if (auto ex = TreeItem_GetFunctionParamTypeExemplar(m_FuncItem, idx); ex && ex->_GetFirstSubItem())
+			{
+				r.members = BuildParamMembers(p, NO_TYPE_VAR, ex.get());
+				r.membersComplete = true;
+				m_Keep.push_back(ex);
+				return r;
+			}
+		}
+		return {}; // member-less plain parameters: deferred
 	}
 
 	// K11a-1: build the member map of a structured unit parameter `p`. Each declared
@@ -3756,152 +3807,180 @@ namespace {
 		const TreeItem* scopeAnchor = byExample ? memberSrc : m_FuncItem;
 		auto members = std::make_shared<std::map<SharedStr, DefType, MemberPathLess>>();
 		SharedStr pName(p->GetID().AsStrRange()); // materialized: TokenStr must not span token creation below
-		auto qualTok = [&](TokenID memberTok) -> TokenID
-		{
-			SharedStr mName(memberTok.AsStrRange());
-			return GetTokenID_mt(mySSPrintF("{}/{}", pName.c_str(), mName.c_str()).c_str());
-		};
-		for (const TreeItem* m = memberSrc->_GetFirstSubItem(); m; m = m->GetNextItem())
-		{
-			DefType md;
-			if (IsUnit(m))
-			{
-				md.kind = DefType::Kind::UnitVal;
-				md.vc   = AsUnit(m)->GetValueType();
-				md.dom  = DefType::Dom::Node;
-				md.dNode = UNode(m_FuncItem, 0, qualTok(m->GetID()), md.vc);
-			}
-			else if (IsDataItem(m))
-			{
-				auto adi = AsDataItem(m);
-				md.kind  = DefType::Kind::Data;
-				md.vcomp = adi->GetValueComposition();
 
-				if (TokenID vt = adi->ValuesUnitToken())
+		// K11a-4: one WALK per block, recursing into declared CONTAINER members with
+		// the member path as prefix — the map is FLAT, keyed by the full relative
+		// path ('meta', 'meta/factor'), so deep member access types directly.
+		// blockDomNode is the enclosing unit's node, or NO_TYPE_VAR when the block
+		// has no enclosing unit (a container parameter / a nested container block):
+		// there, members without an explicit domain DEFER instead of defaulting.
+		// Sibling resolution is per block; qualified node tokens carry the full
+		// path ('p/meta/subunit').
+		std::function<void(const TreeItem*, const SharedStr&, SizeT)> walkBlock;
+		walkBlock = [&](const TreeItem* block, const SharedStr& prefix, SizeT blockDomNode)
+		{
+			auto qualTok = [&](TokenID memberTok) -> TokenID
+			{
+				SharedStr mName(memberTok.AsStrRange());
+				return prefix.empty()
+					? GetTokenID_mt(mySSPrintF("{}/{}", pName.c_str(), mName.c_str()).c_str())
+					: GetTokenID_mt(mySSPrintF("{}/{}{}", pName.c_str(), prefix.c_str(), mName.c_str()).c_str());
+			};
+			for (const TreeItem* m = block->_GetFirstSubItem(); m; m = m->GetNextItem())
+			{
+				DefType md;
+				if (IsUnit(m))
 				{
-					bool vMatched = false;
-					for (const TreeItem* u = memberSrc->_GetFirstSubItem(); u; u = u->GetNextItem())
-						if (u->GetID() == vt && IsUnit(u))
-						{
-							// K11a-1b: the member attribute's values unit IS the sibling
-							// member unit — carry its IDENTITY node, not just its class.
-							// The node is keyed by the QUALIFIED token, so it is the SAME
-							// node the member unit itself got above. Hence F1,F2 both
-							// `attribute<nodeset>` share one node: the body's
-							// pcount(nw/F1)+pcount(nw/F2) unifies over the single nodeset
-							// domain at definition, and two members over DIFFERENT node
-							// units fail to unify.
-							md.vc = AsUnit(u)->GetValueType();
-							md.vuNode = UNode(m_FuncItem, 0, qualTok(vt), md.vc);
-							vMatched = true;
-							break;
-						}
-					if (!vMatched && !byExample && (IsOwnDeclaredVar(m_FuncItem, vt) || IsGenericVarOf(m_FuncItem, vt)))
+					md.kind = DefType::Kind::UnitVal;
+					md.vc   = AsUnit(m)->GetValueType();
+					md.dom  = DefType::Dom::Node;
+					md.dNode = UNode(m_FuncItem, 0, qualTok(m->GetID()), md.vc);
+				}
+				else if (IsDataItem(m))
+				{
+					auto adi = AsDataItem(m);
+					md.kind  = DefType::Kind::Data;
+					md.vcomp = adi->GetValueComposition();
+
+					if (TokenID vt = adi->ValuesUnitToken())
 					{
-						// K11a-3.1: `w: attribute<V>` under `<V: numerics>` — the member's
-						// values class IS the function's rigid variable, so body uses of
-						// nw/w are checked under ∀ exactly like a positional attribute<V>
-						md.vNode = ValNode(m_FuncItem, 0, vt);
-						if (IsDomainSortedVarOf(m_FuncItem, vt))
-							md.vuNode = UNode(m_FuncItem, 0, vt); // K2: identity through the values role
-						vMatched = true;
-					}
-					if (!vMatched)
-						if (auto vc = ValueClass::FindByScriptName(vt))
-						{
-							md.vc = vc;
-							vMatched = true;
-						}
-					if (!vMatched && !byExample)
-					{
-						const TreeItem* q = m_FuncItem->_GetFirstSubItem();
-						for (UInt32 j = 0, n = TreeItem_GetFunctionParamCount(m_FuncItem); j != n && q; ++j, q = q->GetNextItem())
-							if (q->GetID() == vt && IsUnit(q))
+						bool vMatched = false;
+						for (const TreeItem* u = block->_GetFirstSubItem(); u; u = u->GetNextItem())
+							if (u->GetID() == vt && IsUnit(u))
 							{
-								// a telescope unit parameter in the VALUES role: its declared
-								// class + per-instantiation identity (as PositionType does)
-								md.vc = AsUnit(q)->GetValueType();
-								md.vuNode = UNode(m_FuncItem, 0, vt, md.vc);
+								// K11a-1b: the member attribute's values unit IS the sibling
+								// member unit — carry its IDENTITY node, not just its class.
+								// The node is keyed by the QUALIFIED token, so it is the SAME
+								// node the member unit itself got above. Hence F1,F2 both
+								// `attribute<nodeset>` share one node: the body's
+								// pcount(nw/F1)+pcount(nw/F2) unifies over the single nodeset
+								// domain at definition, and two members over DIFFERENT node
+								// units fail to unify.
+								md.vc = AsUnit(u)->GetValueType();
+								md.vuNode = UNode(m_FuncItem, 0, qualTok(vt), md.vc);
 								vMatched = true;
 								break;
 							}
-					}
-					if (!vMatched)
-						if (auto u = ResolveUnitInScope(vt, scopeAnchor))
+						if (!vMatched && !byExample && (IsOwnDeclaredVar(m_FuncItem, vt) || IsGenericVarOf(m_FuncItem, vt)))
 						{
-							md.vc = AsUnit(u.get())->GetValueType();
-							md.vKeep = u; md.vUnit = AsUnit(u.get()); // identity too (batch U)
+							// K11a-3.1: `w: attribute<V>` under `<V: numerics>` — the member's
+							// values class IS the function's rigid variable, so body uses of
+							// nw/w are checked under ∀ exactly like a positional attribute<V>
+							md.vNode = ValNode(m_FuncItem, 0, vt);
+							if (IsDomainSortedVarOf(m_FuncItem, vt))
+								md.vuNode = UNode(m_FuncItem, 0, vt); // K2: identity through the values role
+							vMatched = true;
 						}
-					// else: unknown values class — checked per application
-				}
-
-				// domain: default = the parameter's own unit; an explicit token resolves
-				// through the ladder or DEFERS (never silently the parameter unit).
-				// The member SOURCE's own name (the exemplar, in the by-example case)
-				// also selects the default: inside the exemplar's declaration that
-				// name IS its enclosing unit, which the parameter stands for. The
-				// caller-chosen PARAMETER name selects the default only for an
-				// explicit member block (an exemplar token never means it).
-				TokenID dt = adi->DomainUnitToken();
-				if (!dt || dt == t_Dot || dt == memberSrc->GetID() || (!byExample && dt == p->GetID()))
-				{
-					md.dom = DefType::Dom::Node;
-					md.dNode = paramDomNode;
-				}
-				else
-				{
-					bool dMatched = false;
-					for (const TreeItem* u = memberSrc->_GetFirstSubItem(); u; u = u->GetNextItem())
-						if (u->GetID() == dt && IsUnit(u))
-						{
-							// over a sibling member unit — the SAME (qualified) node that
-							// member got
-							md.dom = DefType::Dom::Node;
-							md.dNode = UNode(m_FuncItem, 0, qualTok(dt), AsUnit(u)->GetValueType());
-							dMatched = true;
-							break;
-						}
-					if (!dMatched && !byExample && (IsOwnDeclaredVar(m_FuncItem, dt) || IsGenericVarOf(m_FuncItem, dt)))
-					{
-						md.dom = DefType::Dom::Node;
-						md.dNode = UNode(m_FuncItem, 0, dt); // generic domain variable
-						dMatched = true;
-					}
-					if (!dMatched && !byExample)
-					{
-						const TreeItem* q = m_FuncItem->_GetFirstSubItem();
-						for (UInt32 j = 0, n = TreeItem_GetFunctionParamCount(m_FuncItem); j != n && q; ++j, q = q->GetNextItem())
-							if (q->GetID() == dt && IsUnit(q))
+						if (!vMatched)
+							if (auto vc = ValueClass::FindByScriptName(vt))
 							{
-								// over a telescope unit parameter (UNode self-pins its class)
+								md.vc = vc;
+								vMatched = true;
+							}
+						if (!vMatched && !byExample)
+						{
+							const TreeItem* q = m_FuncItem->_GetFirstSubItem();
+							for (UInt32 j = 0, n = TreeItem_GetFunctionParamCount(m_FuncItem); j != n && q; ++j, q = q->GetNextItem())
+								if (q->GetID() == vt && IsUnit(q))
+								{
+									// a telescope unit parameter in the VALUES role: its declared
+									// class + per-instantiation identity (as PositionType does)
+									md.vc = AsUnit(q)->GetValueType();
+									md.vuNode = UNode(m_FuncItem, 0, vt, md.vc);
+									vMatched = true;
+									break;
+								}
+						}
+						if (!vMatched)
+							if (auto u = ResolveUnitInScope(vt, scopeAnchor))
+							{
+								md.vc = AsUnit(u.get())->GetValueType();
+								md.vKeep = u; md.vUnit = AsUnit(u.get()); // identity too (batch U)
+							}
+						// else: unknown values class — checked per application
+					}
+
+					// domain: default = the enclosing unit (or DEFER when the block has
+					// none); an explicit token resolves through the ladder or DEFERS
+					// (never silently the parameter unit). The block's own name (the
+					// exemplar, in the by-example case) also selects the default: inside
+					// its declaration that name IS the enclosing unit. The caller-chosen
+					// PARAMETER name selects the default only for an explicit member
+					// block (an exemplar token never means it).
+					TokenID dt = adi->DomainUnitToken();
+					if (!dt || dt == t_Dot || dt == block->GetID() || (!byExample && block == memberSrc && dt == p->GetID()))
+					{
+						if (blockDomNode != NO_TYPE_VAR)
+						{
+							md.dom = DefType::Dom::Node;
+							md.dNode = blockDomNode;
+						}
+						// else: containers have no member-domain default — defer
+					}
+					else
+					{
+						bool dMatched = false;
+						for (const TreeItem* u = block->_GetFirstSubItem(); u; u = u->GetNextItem())
+							if (u->GetID() == dt && IsUnit(u))
+							{
+								// over a sibling member unit — the SAME (qualified) node that
+								// member got
 								md.dom = DefType::Dom::Node;
-								md.dNode = UNode(m_FuncItem, 0, dt);
+								md.dNode = UNode(m_FuncItem, 0, qualTok(dt), AsUnit(u)->GetValueType());
 								dMatched = true;
 								break;
 							}
-					}
-					if (!dMatched)
-						if (auto u = ResolveUnitInScope(dt, scopeAnchor))
+						if (!dMatched && !byExample && (IsOwnDeclaredVar(m_FuncItem, dt) || IsGenericVarOf(m_FuncItem, dt)))
 						{
-							if (AsUnit(u.get())->GetValueType()->GetValueClassID() == ValueClassID::VT_Void)
-								md.dom = DefType::Dom::Void;
-							else
-							{
-								md.dom = DefType::Dom::Concrete;
-								md.domKeep = u; md.domUnit = AsUnit(u.get());
-							}
+							md.dom = DefType::Dom::Node;
+							md.dNode = UNode(m_FuncItem, 0, dt); // generic domain variable
 							dMatched = true;
 						}
-					// !dMatched: md.dom stays Dom::Unknown — defer
+						if (!dMatched && !byExample)
+						{
+							const TreeItem* q = m_FuncItem->_GetFirstSubItem();
+							for (UInt32 j = 0, n = TreeItem_GetFunctionParamCount(m_FuncItem); j != n && q; ++j, q = q->GetNextItem())
+								if (q->GetID() == dt && IsUnit(q))
+								{
+									// over a telescope unit parameter (UNode self-pins its class)
+									md.dom = DefType::Dom::Node;
+									md.dNode = UNode(m_FuncItem, 0, dt);
+									dMatched = true;
+									break;
+								}
+						}
+						if (!dMatched)
+							if (auto u = ResolveUnitInScope(dt, scopeAnchor))
+							{
+								if (AsUnit(u.get())->GetValueType()->GetValueClassID() == ValueClassID::VT_Void)
+									md.dom = DefType::Dom::Void;
+								else
+								{
+									md.dom = DefType::Dom::Concrete;
+									md.domKeep = u; md.domUnit = AsUnit(u.get());
+								}
+								dMatched = true;
+							}
+						// !dMatched: md.dom stays Dom::Unknown — defer
+					}
 				}
+				// else (container / nested-function members): md stays Unknown — the
+				// member IS declared, so it must be IN the map (K11a-3 review finding:
+				// dropping it while membersComplete=true made a direct `nw/meta`
+				// reference a false "declares no member" definition error)
+				SharedStr mName(m->GetID().AsStrRange());
+				SharedStr mPath = prefix.empty() ? mName : prefix + mName;
+				(*members)[mPath] = md;
+
+				// K11a-4: recurse into a declared CONTAINER member — its members type
+				// under the flattened path ('meta/factor'); nested blocks have no
+				// enclosing unit, so their default domains defer. Nested UNIT members'
+				// sub-items stay deferred (the argument may carry label attrs etc.).
+				if (!IsUnit(m) && !IsDataItem(m) && !m->IsFunctionItem() && m->_GetFirstSubItem())
+					walkBlock(m, mPath + "/", NO_TYPE_VAR);
 			}
-			// else (container / nested-function members): md stays Unknown — the
-			// member IS declared, so it must be IN the map (K11a-3 review finding:
-			// dropping it while membersComplete=true made a direct `nw/meta`
-			// reference a false "declares no member" definition error); its access
-			// just defers to the per-application resolution
-			(*members)[SharedStr(m->GetID().AsStrRange())] = md;
-		}
+		};
+		walkBlock(memberSrc, SharedStr(), paramDomNode);
 		return members;
 	}
 

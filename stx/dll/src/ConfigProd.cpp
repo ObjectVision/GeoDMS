@@ -913,6 +913,13 @@ void ConfigProd::DoRefTypeSignature()
 			return;
 		}
 		SetSignature(SignatureType::TreeItem); // container-like exemplar: plain item
+		// K11a-4: a CONTAINER exemplar of a function parameter ('cfg: Settings')
+		// supplies the parameter's declared member block, exactly like a unit
+		// exemplar — retain it for the definition-time checker (parameters only:
+		// outside a param list the pending exemplar would wrongly feed
+		// CloneAliasRefinement for plain item declarations)
+		if (!m_FuncStates.empty() && m_FuncStates.back().inParamList)
+			m_PendingTypeExemplar = exemplar;
 		return;
 	}
 
@@ -943,10 +950,11 @@ void ConfigProd::DoColonItemHeading(iterator_t first, iterator_t last)
 		bool topLevel = inParams && IsTopLevelFunctionParam();
 		if (m_PendingFunctionParamSig && topLevel)
 			m_FuncStates.back().paramSigs.emplace_back(m_FuncStates.back().paramCount + i, m_PendingFunctionParamSig, m_PendingTypeArgs);
-		// K11a by-example: 'nw: network_links' — retain the UNIT exemplar so the
-		// definition-time checker can type the parameter's members from ITS declared
-		// sub-items (the class clone above carries no member block)
-		if (m_PendingTypeExemplar && topLevel && IsUnit(m_PendingTypeExemplar))
+		// K11a by-example: 'nw: network_links' / 'cfg: Settings' — retain the UNIT or
+		// CONTAINER exemplar so the definition-time checker can type the parameter's
+		// members from ITS declared sub-items (the class clone above carries no
+		// member block). Data-item exemplars carry no member interface.
+		if (m_PendingTypeExemplar && topLevel && !IsDataItem(m_PendingTypeExemplar))
 			m_FuncStates.back().paramExemplars.emplace_back(m_FuncStates.back().paramCount + i, m_PendingTypeExemplar);
 		if (genericVar && topLevel)
 			m_FuncStates.back().genericParams.emplace_back(m_FuncStates.back().paramCount + i, genericVar, FindActiveTypeVarConstraint(genericVar), false);

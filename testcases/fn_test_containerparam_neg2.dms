@@ -1,0 +1,19 @@
+container fn_test_containerparam_neg2
+{
+	// K11a-4 definition-time negative: a body reference to an undeclared DIRECT
+	// member of a CONTAINER parameter's complete interface — "parameter 'cfg'
+	// declares no member 'missing'" — regardless of the argument.
+	unit<uint32> Road : nrofrows = 3 { attribute<float64> flow : [ 1.0, 2.0, 3.0 ]; }
+
+	container Settings { parameter<float64> factor := 2.0; }
+
+	function scale( container cfg { parameter<float64> factor; }; attribute<float64> x (Road) )
+	-> attribute<float64> (Road) := x * cfg/missing;
+
+	attribute<float64> t (Road) := scale(Settings, Road/flow);
+
+	container checks
+	{
+		parameter<float64> c := sum(t), IntegrityCheck = "c == 12.0";
+	}
+}

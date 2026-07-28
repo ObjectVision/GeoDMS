@@ -204,7 +204,25 @@ Link `SignatureRecorder::ArgContainer`'s `sharedMemberDomain` into the same unif
    parameters / generic domain variables (checked transitively by the body),
    expression arguments, the `instantiate` path (does not pass through
    `ReduceValue`'s binding loop), deep member paths.
-6. **K11b** operator `ArgContainer` linking — substantial; gated on K11a.
+6. **K11a-4 — container-kind parameters LANDED (2026-07-28).** `container cfg { … }`
+   (explicit block) and `cfg: Settings` (by-example CONTAINER exemplar — ConfigProd
+   now retains container exemplars for parameters, gated on `inParamList`) type as
+   `DefType Kind::Container` with a member map. `BuildParamMembers` is now a
+   RECURSIVE per-block walk producing a FLAT map keyed by full relative paths
+   (`meta`, `meta/factor`), so DEEP member access (`cfg/nested/offset`) types at the
+   definition; declared container members insert a deferred entry AND recurse;
+   nested blocks pass no enclosing-unit node (default-domain members defer there);
+   qualified rigid-node tokens carry the full path (`p/meta/subunit`); nested UNIT
+   members' sub-items stay deferred. `CheckStructuredParamContract` recurses into
+   declared container members (presence + the same per-member checks; the
+   default-domain membership claim applies only at a unit parameter's top block; the
+   root guard is kind-aware). Member-less plain parameters (`item x`) still defer.
+   Coverage: `fn_test_containerparam` (explicit + nested deep member + by-example),
+   `_neg1` (missing NESTED member + wrong class at the boundary), `_neg2` (def-time
+   undeclared direct member of a container parameter). Reduction needed NO changes
+   (container params + deep member access already reduced correctly — verified by
+   probe before the tranche).
+7. **K11b** operator `ArgContainer` linking — substantial; gated on K11a.
 
 **Risks.** (R-a) member DefTypes must use *per-instantiation* identity nodes so two applications of `connectedness` don't force their `nodeset`s equal (the same instance-key discipline as WP4.1 T3, `TypeUnifier` keyed `(owner, instance, token)`). (R-b) composite-by-example exemplars can carry *data* (fn_test.dms `network_links` has `[0,1,2]`) — the checker must read only the declared kind/type, never the values. (R-c) soundness of the def-time "member not found": only report when `membersComplete` (as the result-side already gates, `:2881-2884`). (R-d) instantiation check must not double-report what the body already catches — prefer the boundary message and suppress the transitive one, or accept both (boundary first).
 
