@@ -76,11 +76,18 @@ Link `SignatureRecorder::ArgContainer`'s `sharedMemberDomain` into the same unif
    `add`/`+` group has multi-class/undescribed overloads, so the walker takes the
    `theRecord<0 → return {}` deferral (`InferOperatorApplication`) and the `ns1≠ns2` conflict
    is reported at the *instantiation* (concrete-argument reduction), not at the definition.
-   So K11a-1b's identity payoff through a COMBINING operator is gated on a DESCRIBED
-   combiner (the `add`-deferral gate — same class of work as WP4.1 select-family sigs /
-   arithmetic-op description). Regression coverage: `fn_test_structmember2` (well-formed
+   **GATE LIFTED 2026-07-28 (§6.2 cross-record domain skeleton).** The diagnosis in the
+   paragraph above was only half right: `add` IS described — it splits into THREE
+   congruence records (spolygon/ipolygon, dpolygon/fpolygon, scalar+string) — and the
+   real blocker was that its arguments arrive CLASSLESS (plain `pcount`'s result class
+   is dynamic: `count_unit_creator` takes the argument DOMAIN's cardinality class), so
+   no record could be eliminated. The walker now falls back to the DOMAIN SKELETON all
+   surviving records agree on (`BuildDomainSkeletonRecord`), which holds whichever
+   member reduction selects. `fn_test_structmember_neg2` is therefore rejected AT THE
+   DEFINITION now: *"the body requires unit variables 'nw/ns2' and 'nw/ns1' to be equal
+   (operator 'add')"*. Regression coverage: `fn_test_structmember2` (well-formed
    two-relation network computes), `fn_test_structmember_neg2` (malformed
-   different-node-unit network rejected — at instantiation, per the gate above).
+   different-node-unit network — now a definition-time conflict).
    *(CORRECTED 2026-07-27: the earlier claim that structured-param functions "only parse
    with `-> parameter<…>` results" was WRONG — `-> attribute<uint32> (Network)` and even
    the member-path result domain `-> attribute<uint32> (nw/nodeset)` parse, reduce, and

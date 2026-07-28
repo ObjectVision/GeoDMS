@@ -100,8 +100,12 @@ Effort tags: **[substantial]** / **[moderate]** / **[niche]**. Items are sorted 
   intended drift signal, to be fixed at the description.
   *Sources: op-sig §9 (720-746), §6.4; risk S2.*
 
+- **§6.2 cross-record DOMAIN SKELETON fallback** **[moderate]** · *LANDED 2026-07-28*
+  When several congruence records survive, the walker no longer defers wholesale: if every surviving record agrees on the DOMAIN skeleton (per position: kind, domain-slot in first-seen order, slot flags), `BuildDomainSkeletonRecord` synthesizes a record claiming ONLY that structure (fresh per-position values vars, no tuples/rels, composition only where all agree) and applies it — sound because the claim holds whichever member reduction selects. This LIFTED the documented "combining operator" gate: `add`/`+` has three records (two polygon families + scalar/string) and classless arguments (plain `pcount`'s class is dynamic), so `pcount(nw/F1) + pcount(nw/F2)` over different node units is now a DEFINITION-time conflict. Gotcha fixed en route: `TypeUnifier` keys variables by (owner, instance, NAME), so the fresh per-position vars need DISTINCT names or they collapse into one node (that made `cond ? 0 : 1` a bool-vs-uint32 conflict). Records with dynamicShape/resultDeferred/variadic tails/resultMembers/container positions still defer. `fn_test_skeleton{,_neg1}`, `fn_test_structmember_neg2`.
+  *Sources: op-sig §6.2; the K11a-1b gate note in `k11-container-types-scope.md`.*
+
 - **Speculation / trial harness in `TypeUnifier`** **[moderate]** · *not started*
-  Copy-trial-adopt for multi-candidate overload selection; today ambiguity defers instead of committing the unique surviving candidate's implications. Boundary already shaped as Begin/Commit/AbortTrial.
+  Copy-trial-adopt for multi-candidate overload selection; today ambiguity defers instead of committing the unique surviving candidate's implications (the §6.2 skeleton fallback above now covers the DOMAIN half of that loss). Boundary already shaped as Begin/Commit/AbortTrial.
   *Sources: op-sig §6.2 (484-505), §12.1 pt 5 (901-903); risk S4.*
 
 - **`unit_creator_spec` + `uc_*` registration factories** **[moderate]** · *not started*

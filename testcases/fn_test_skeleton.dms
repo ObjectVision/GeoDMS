@@ -1,0 +1,30 @@
+container fn_test_skeleton
+{
+	// §6.2 cross-record domain skeleton: when several congruence records survive
+	// (so no single record's VALUE claims apply), the records may still AGREE on
+	// the DOMAIN structure, which holds whichever member reduction selects.
+	// Positives: the claim must not equate the positions' VALUE classes.
+	unit<uint32> D : nrofrows = 3
+	{
+		attribute<float64> a : [ 1.0, 2.0, 3.0 ];
+		attribute<uint32>  n : [ 1, 2, 3 ];
+	}
+
+	// 'add' survives as three records (two polygon families + the scalar family)
+	// with classless arguments; only the shared domain is claimed.
+	function addup(attribute<float64> x (D); attribute<float64> y (D))
+	-> attribute<float64> (D) := x + y;
+	attribute<float64> s (D) := addup(D/a, D/a);
+
+	// 'iif' likewise: its condition is bool while its branches and result are
+	// numeric — the skeleton must keep those value classes INDEPENDENT (a shared
+	// fresh variable would make this a bool-vs-uint32 conflict).
+	function pick(attribute<uint32> k (D)) -> attribute<uint32> (D) := (sum(k) >= 0 ? k : 0);
+	attribute<uint32> p (D) := pick(D/n);
+
+	container checks
+	{
+		parameter<float64> c1 := sum(s), IntegrityCheck = "c1 == 12.0";
+		parameter<uint32>  c2 := sum(p), IntegrityCheck = "c2 == 6";
+	}
+}

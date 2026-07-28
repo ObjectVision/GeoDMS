@@ -3182,6 +3182,8 @@ namespace {
 		DefType InferApplication(const TreeItem* refScope, const DefType& fnVal, LispPtr argsList, CharPtr headName);
 		DefType InferOperatorApplication(const AbstrOperGroup* og, TokenID headID, const TreeItem* refScope, LispPtr argsList); // op-sig batch A
 		DefType ApplyOperRecord(const OperGroupSignatures::MergedRecord& mr, const SharedStr& headName, const std::vector<DefType>& argTerms);
+		// §6.2 cross-record fallback: the DOMAIN skeleton all surviving records agree on
+		std::optional<OperGroupSignatures::MergedRecord> BuildDomainSkeletonRecord(const OperGroupSignatures* sigs, const std::vector<Int32>& recordIdxs);
 		DefType ParamType(UInt32 idx);     // memoized front (m_ParamTypes)
 		DefType ParamTypeImpl(UInt32 idx);
 		// K11a-1: the declared member set of a structured unit parameter (a member
@@ -4556,6 +4558,149 @@ namespace {
 		return verdict;
 	}
 
+	// §6.2 cross-record fallback. When several congruence records survive, the
+	// walker used to defer wholesale: no single record's class tuples apply. But a
+	// group's records often still AGREE on the DOMAIN SKELETON — which positions are
+	// attributes/units and which of them share a domain — and that part holds no
+	// matter which member reduction ultimately selects, so claiming it is sound.
+	//
+	// This is the gate the K11a-1b note called out: `add`/`+` splits into three
+	// records (spolygon/ipolygon, dpolygon/fpolygon, and the scalar family), and
+	// with classless arguments none can be eliminated. All three nevertheless say
+	// "both arguments and the result live on ONE domain", so a body adding two
+	// attributes over DIFFERENT domains is now rejected at the definition.
+	//
+	// The synthesized record claims ONLY that structure: every position gets a FRESH
+	// values variable (no cross-position class identity, no metric or value-class
+	// relations), the domain variables are the canonical ones all records share, and
+	// a value composition is claimed only where every record agrees. The empty tuple
+	// list makes ApplyOperRecord's soft support sets, class pins and agreement links
+	// no-ops, so the application reduces to pure domain unification.
+	std::optional<OperGroupSignatures::MergedRecord>
+	FunctionChecker::BuildDomainSkeletonRecord(const OperGroupSignatures* sigs, const std::vector<Int32>& recordIdxs)
+	{
+		if (recordIdxs.size() < 2)
+			return std::nullopt;
+		for (Int32 ri : recordIdxs)
+			if (ri < 0)
+				return std::nullopt; // an UNDESCRIBED member survives: nothing is known
+
+		// canonicalize one record: per position (kind, domain-slot, composition),
+		// where a domain slot numbers the domain variables in first-seen order and
+		// carries the variable's flags (void/generated domains are distinct claims)
+		struct Slot { UInt32 id = UInt32(-1); UInt8 flags = 0; };
+		struct PosSkel { SignatureRecord::PosKind kind{}; Slot dom; ValueComposition vc{}; };
+		auto canon = [](const SignatureRecord& s, std::vector<PosSkel>& args, PosSkel& res, std::vector<SharedStr>& roles) -> bool
+		{
+			if (s.dynamicShape || s.resultDeferred || s.repeat.active || !s.resultMembers.empty())
+				return false; // deferred/variadic/composite shapes: not a plain skeleton
+			std::map<sig_var, UInt32> seen;
+			auto slotOf = [&](sig_var v) -> Slot
+			{
+				Slot r;
+				if (v == no_sig_var || v >= s.NrVars())
+					return r;
+				auto [it, isNew] = seen.try_emplace(v, UInt32(seen.size()));
+				if (isNew)
+					roles.push_back(s.varRoles[v]);
+				r.id = it->second; r.flags = s.varFlags[v];
+				return r;
+			};
+			auto posOf = [&](const SignatureRecord::Pos& p) -> PosSkel
+			{
+				PosSkel ps; ps.kind = p.kind; ps.vc = p.vc;
+				// an Attr's domain, and a Unit position's own identity variable
+				if (p.kind == SignatureRecord::PosKind::Attr)
+					ps.dom = slotOf(p.domain);
+				else if (p.kind == SignatureRecord::PosKind::Unit)
+					ps.dom = slotOf(p.values);
+				return ps;
+			};
+			for (const auto& p : s.args)
+			{
+				if (p.kind == SignatureRecord::PosKind::Container || p.kind == SignatureRecord::PosKind::Deferred)
+					return false; // container/deferred positions: no skeleton claim
+				args.push_back(posOf(p));
+			}
+			res = posOf(s.result);
+			return true;
+		};
+
+		std::vector<PosSkel> refArgs; PosSkel refRes; std::vector<SharedStr> refRoles;
+		if (!canon(sigs->records[recordIdxs[0]].shape, refArgs, refRes, refRoles))
+			return std::nullopt;
+		std::vector<bool> vcAgrees(refArgs.size(), true);
+		bool resVcAgrees = true;
+		for (SizeT k = 1; k != recordIdxs.size(); ++k)
+		{
+			std::vector<PosSkel> a; PosSkel r; std::vector<SharedStr> roles;
+			if (!canon(sigs->records[recordIdxs[k]].shape, a, r, roles))
+				return std::nullopt;
+			if (a.size() != refArgs.size())
+				return std::nullopt;
+			for (SizeT i = 0; i != a.size(); ++i)
+			{
+				if (a[i].kind != refArgs[i].kind || a[i].dom.id != refArgs[i].dom.id || a[i].dom.flags != refArgs[i].dom.flags)
+					return std::nullopt; // the skeletons disagree: nothing is shared
+				if (a[i].vc != refArgs[i].vc)
+					vcAgrees[i] = false;
+			}
+			if (r.kind != refRes.kind || r.dom.id != refRes.dom.id || r.dom.flags != refRes.dom.flags)
+				return std::nullopt;
+			if (r.vc != refRes.vc)
+				resVcAgrees = false;
+		}
+
+		// synthesize: canonical domain vars first, then one fresh values var per position
+		OperGroupSignatures::MergedRecord mr;
+		auto& shape = mr.shape;
+		UInt32 nDom = UInt32(refRoles.size());
+		auto addVar = [&](const SharedStr& role, UInt8 flags) -> sig_var
+		{
+			sig_var v = shape.NrVars();
+			shape.varRoles.push_back(role);
+			shape.varFlags.push_back(flags);
+			shape.varFixedCls.push_back(nullptr);
+			shape.varConstraints.push_back(TokenID());
+			return v;
+		};
+		std::vector<UInt8> domFlags(nDom, 0);
+		for (const auto& p : refArgs)
+			if (p.dom.id != UInt32(-1))
+				domFlags[p.dom.id] = p.dom.flags;
+		if (refRes.dom.id != UInt32(-1))
+			domFlags[refRes.dom.id] = refRes.dom.flags;
+		for (UInt32 d = 0; d != nDom; ++d)
+			addVar(refRoles[d], domFlags[d]);
+
+		auto emitPos = [&](const PosSkel& ps, bool vcOk, CharPtr posName) -> SignatureRecord::Pos
+		{
+			SignatureRecord::Pos p;
+			p.kind = ps.kind;
+			p.vc = vcOk ? ps.vc : ValueComposition::Unknown;
+			if (ps.kind == SignatureRecord::PosKind::Attr)
+			{
+				// A DISTINCT role name per position is essential: TypeUnifier keys
+				// variables by (owner, instance, NAME), so same-named fresh variables
+				// would collapse into ONE class node and falsely equate the positions'
+				// value classes (that turned `cond ? 0 : 1` into a bool-vs-uint32
+				// conflict between the condition and the result).
+				p.values = addVar(SharedStr(posName), 0);
+				p.domain = ps.dom.id == UInt32(-1) ? no_sig_var : sig_var(ps.dom.id);
+			}
+			else if (ps.kind == SignatureRecord::PosKind::Unit)
+				p.values = ps.dom.id == UInt32(-1) ? no_sig_var : sig_var(ps.dom.id); // the unit's own identity
+			else
+				p.kind = SignatureRecord::PosKind::None; // MetaValue & co: no claim
+			return p;
+		};
+		for (SizeT i = 0; i != refArgs.size(); ++i)
+			shape.args.push_back(emitPos(refArgs[i], vcAgrees[i], mySSPrintF("?a{}", UInt32(i)).c_str()));
+		shape.result = emitPos(refRes, resVcAgrees, "?r");
+		// no tuples and no members: ApplyOperRecord's class machinery becomes a no-op
+		return mr;
+	}
+
 	DefType FunctionChecker::ApplyOperRecord(const OperGroupSignatures::MergedRecord& mr, const SharedStr& headName, const std::vector<DefType>& argTerms)
 	{
 		const auto& shape = mr.shape;
@@ -5238,6 +5383,7 @@ namespace {
 		Int32 theRecord = -2; // -2: no class survivor yet; -1: mixed/undescribed -> defer
 		bool anyAritySurvivor = false, anyFeasibleOnlyElimination = false;
 		std::vector<const Operator*> survivors; // §12.7: the members a spec-record may derive from
+		std::vector<Int32> survivorRecords;     // §6.2 cross-record fallback: the DISTINCT records that survive
 		for (const auto& me : sigs->members)
 		{
 			if (!MemberAcceptsArity(og, me.oper, nrArgs))
@@ -5251,6 +5397,8 @@ namespace {
 				continue;
 			}
 			survivors.push_back(me.oper);
+			if (std::find(survivorRecords.begin(), survivorRecords.end(), me.recordIdx) == survivorRecords.end())
+				survivorRecords.push_back(me.recordIdx);
 			if (theRecord != -1)
 			{
 				if (me.recordIdx < 0)
@@ -5277,7 +5425,19 @@ namespace {
 				, m_Unifier.FullName().c_str(), headName.c_str());
 		}
 		if (theRecord < 0)
-			return {}; // several congruence classes or an undescribed member survive: defer
+		{
+			// §6.2 cross-record fallback: several congruence classes survive, so no
+			// single record's VALUE claims apply — but they may still AGREE on the
+			// DOMAIN skeleton, and whichever member reduction picks, that part holds.
+			// This un-gates the combining operators: `add`/`+` splits into three
+			// records (two polygon families + the scalar family), all of which say
+			// "both arguments and the result share ONE domain", so
+			// `pcount(nw/F1) + pcount(nw/F2)` over different node units is now a
+			// DEFINITION-time conflict instead of an instantiation-time one.
+			if (auto skeleton = BuildDomainSkeletonRecord(sigs, survivorRecords))
+				return ApplyOperRecord(*skeleton, headName, argTerms);
+			return {}; // no agreed skeleton (or an undescribed member survives): defer
+		}
 
 		const auto& mr = sigs->records[theRecord];
 		// §12.7: a DynamicShape record with a definition-time-knowable spec is

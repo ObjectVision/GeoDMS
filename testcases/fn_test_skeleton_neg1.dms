@@ -1,0 +1,20 @@
+container fn_test_skeleton_neg1
+{
+	// §6.2 cross-record domain skeleton, negative: two attributes over DIFFERENT
+	// generic domains combined with '+'. Every surviving 'add' record says both
+	// arguments share one domain, so this is a DEFINITION-time rigid-rigid
+	// conflict (before the skeleton fallback the walker deferred and reduction
+	// reported a domain mismatch on the concrete argument instead).
+	unit<uint32> D1 : nrofrows = 3 { attribute<float64> a : [ 1.0, 2.0, 3.0 ]; }
+	unit<uint32> D2 : nrofrows = 3 { attribute<float64> b : [ 4.0, 5.0, 6.0 ]; }
+
+	function bad<E1: domains, E2: domains>(attribute<float64> x (E1); attribute<float64> y (E2))
+	-> parameter<float64> := sum(x + y);
+
+	parameter<float64> t := bad(D1/a, D2/b);
+
+	container checks
+	{
+		parameter<float64> c := t, IntegrityCheck = "c == 21.0";
+	}
+}
