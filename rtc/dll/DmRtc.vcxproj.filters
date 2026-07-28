@@ -54,6 +54,12 @@
     <Filter Include="ipolygon">
       <UniqueIdentifier>{438168a6-191d-4376-98bc-1c0783b6de2f}</UniqueIdentifier>
     </Filter>
+    <Filter Include="TreeItemComponent">
+      <UniqueIdentifier>{74576e51-60c7-4d9b-a396-bb5914c8a487}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="SymbolicCalculation">
+      <UniqueIdentifier>{d7a813b6-30c8-41d4-9201-58e0ea2ba559}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\act\Actor.h">
@@ -552,7 +558,6 @@
       <Filter>Actor Update Mechanism</Filter>
     </ClInclude>
     <ClInclude Include="src\VersionComponent.h" />
-    <ClInclude Include="src\geo\Undef_xx.h" />
     <ClInclude Include="src\LockLevels.h" />
     <ClInclude Include="src\mem\FixedAlloc.h">
       <Filter>Memory</Filter>
@@ -821,19 +826,10 @@
     <ClInclude Include="src\ptr\LifetimeProtector.h">
       <Filter>Smart Pointers</Filter>
     </ClInclude>
-    <ClInclude Include="src\geo\DataPtrTraits.h" />
-    <ClInclude Include="src\geo\IsNotUndef.h" />
     <ClInclude Include="src\RtcGeneratedVersion.h" />
     <ClInclude Include="src\throwItemError.h" />
-    <ClInclude Include="src\geo\CharPtrRange.h" />
-    <ClInclude Include="src\geo\IterTraits.h" />
-    <ClInclude Include="src\ser\FormattingFlags.h" />
-    <ClInclude Include="src\geo\AssocTower.h" />
-    <ClInclude Include="src\set\MemPageTable.h" />
     <ClInclude Include="src\act\waiter.h" />
-    <ClInclude Include="src\utl\NonCopyable.h" />
     <ClInclude Include="src\buildstamp.h" />
-    <ClInclude Include="src\utl\AddFakeCopyCTor.h" />
     <ClInclude Include="src\mem\resize.h">
       <Filter>Memory</Filter>
     </ClInclude>
@@ -841,11 +837,320 @@
       <Filter>Actor Update Mechanism</Filter>
     </ClInclude>
     <ClInclude Include="src\FileResult.h" />
-    <ClInclude Include="src\parallel\portable_task_group.h" />
-    <ClInclude Include="src\parallel\dms_task.h" />
-    <ClInclude Include="src\parallel\dms_combinable.h" />
     <ClInclude Include="src\ptr\SharedTreePtr.h">
       <Filter>Smart Pointers</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\AbstrCalculator.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\AbstrDataItem.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\AbstrDataObject.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\stg\AbstrStorageManager.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\stg\AbstrStreamManager.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\AbstrUnit.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\Xml\XmlTreeParser.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\Xml\XmlTreeOut.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\DataCheckMode.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\DataArray.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\LispTreeType.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\utl\AddFakeCopyCTor.h">
+      <Filter>Utility Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\stg\AsmUtil.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\aspect.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\sym\Assoc.h">
+      <Filter>SymbolicCalculation</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geo\AssocTower.h">
+      <Filter>SymbolicCalculation</Filter>
+    </ClInclude>
+    <ClInclude Include="src\sym\Lispeval.h">
+      <Filter>SymbolicCalculation</Filter>
+    </ClInclude>
+    <ClInclude Include="src\sym\LispList.h">
+      <Filter>SymbolicCalculation</Filter>
+    </ClInclude>
+    <ClInclude Include="src\sym\LispRef.h">
+      <Filter>SymbolicCalculation</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\TicBase.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\TicInterface.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\TicPCH.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\TicPropDefConst.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\TileAccess.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\TileArrayImpl.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\tilechannel.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\TiledRangeData.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\TiledRangeDataImpl.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\TiledUnit.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\TileFunctorImpl.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\TileIter.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\TileLock.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\TreeItem.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\TreeItemClass.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\TreeItemContextHandle.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\TreeItemDualref.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\treeitemflags.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\TreeItemProps.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\TreeItemSet.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\treeitemutils.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\sym\SymPCH.h">
+      <Filter>SymbolicCalculation</Filter>
+    </ClInclude>
+    <ClInclude Include="src\sym\SymInterface.h">
+      <Filter>SymbolicCalculation</Filter>
+    </ClInclude>
+    <ClInclude Include="src\sym\SymBase.h">
+      <Filter>SymbolicCalculation</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\Unit.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\UnitClass.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\UnitClassReg.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\UnitCreators.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\UnitProcessor.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\UsingCache.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\Param.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\sym\Prolog.h">
+      <Filter>SymbolicCalculation</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geo\CharPtrRange.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\MetaInfo.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\Metric.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\MoreDataControllers.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\DataController.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\DataItemClass.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\DataLockContainers.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\DataLocks.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\datastoremanager.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\DataStoreManagerCaller.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\DC_Ptr.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\dedicatedattrs.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\DisplayValue.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\Explain.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\ExprRewrite.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geo\DataPtrTraits.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\CopyTreeContext.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\ItemUpdate.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\ItemLocks.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\sym\Parser.h">
+      <Filter>SymbolicCalculation</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\Operator.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\OperGroups.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\OperPolicy.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\stg\StorageClass.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\stg\StorageInterface.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\StoredPropDef.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\SupplCache.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\FreeDataManager.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\OperArgPolicy.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\OperationContext.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\OperSignature.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\ParallelTiles.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\stg\MemoryMappeddataStorageManager.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\sym\RewriteRules.h">
+      <Filter>SymbolicCalculation</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\LispContextHandle.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geo\IsNotUndef.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geo\Undef_xx.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\propfuncs.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\Projection.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\IndexGetterCreator.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\set\MemPageTable.h">
+      <Filter>Set oriented functions&amp;classes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ser\FormattingFlags.h">
+      <Filter>Serialization</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\CheckedDomain.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\parallel\dms_task.h">
+      <Filter>Threading</Filter>
+    </ClInclude>
+    <ClInclude Include="src\parallel\dms_combinable.h">
+      <Filter>Threading</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geo\IterTraits.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\FutureTileArray.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\parallel\portable_task_group.h">
+      <Filter>Threading</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\SessionData.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\valuefiller.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\ValueGetter.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\StateChangeNotification.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\utl\NonCopyable.h">
+      <Filter>Utility Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -924,9 +1229,6 @@
     <ClCompile Include="src\set\Token.cpp">
       <Filter>Set oriented functions&amp;classes</Filter>
     </ClCompile>
-    <ClCompile Include="src\utl\Case.cpp">
-      <Filter>Mathematic Utilities</Filter>
-    </ClCompile>
     <ClCompile Include="src\utl\Environment.cpp">
       <Filter>Utility Files</Filter>
     </ClCompile>
@@ -999,6 +1301,192 @@
     <ClCompile Include="src\parallel\portable_task_group.cpp">
       <Filter>Mathematic Utilities</Filter>
     </ClCompile>
+    <ClCompile Include="src\RtcPCH.cpp">
+      <Filter>Mathematic Utilities</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\IndexGetterCreator.cpp">
+      <Filter>Mathematic Utilities</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\SessionData.cpp">
+      <Filter>Mathematic Utilities</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\attr_Interface.cpp">
+      <Filter>Mathematic Utilities</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\ExtLockMgr.cpp">
+      <Filter>Mathematic Utilities</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\SourceDescr.cpp">
+      <Filter>Mathematic Utilities</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\StateChangeNotification.cpp">
+      <Filter>Mathematic Utilities</Filter>
+    </ClCompile>
+    <ClCompile Include="src\utl\Case.cpp">
+      <Filter>Utility Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\AbstrCalculator.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\AbstrDataItem.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\AbstrDataObject.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\stg\AbstrStoragemanager.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\stg\AbstrStreamManager.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\AbstrUnit.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\Xml\XmlTreeParser.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\Xml\XmlTreeOut.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\DataArray.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\LispTreeType.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\stg\AsmUtil.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\Aspect.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\sym\Assoc.cpp">
+      <Filter>SymbolicCalculation</Filter>
+    </ClCompile>
+    <ClCompile Include="src\sym\Lispeval.cpp">
+      <Filter>SymbolicCalculation</Filter>
+    </ClCompile>
+    <ClCompile Include="src\sym\LispRef.cpp">
+      <Filter>SymbolicCalculation</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\TicInterface.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\TicPCH.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\TreeItem.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\TreeItemClass.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\TreeItemContextHandle.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\TreeItemProps.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\TreeItemSet.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\TreeItemUtils.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\sym\SymPCH.cpp">
+      <Filter>SymbolicCalculation</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\Unit.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\UnitClass.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\UnitCreators.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\UsingCache.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\Param.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\sym\Prolog.cpp">
+      <Filter>SymbolicCalculation</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\Metric.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\MoreDataControllers.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\DataController.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\DataItemClass.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\DataLockContainers.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\DataLocks.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\DataStoreManager.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\DedicatedAttrs.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\DisplayValue.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\ExprRewrite.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\Explain.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\CopyTreeContext.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\ItemLocks.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\sym\Parser.cpp">
+      <Filter>SymbolicCalculation</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\Operator.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\OperGroups.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\stg\StorageClass.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\stg\StorageInterface.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\SupplCache.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\FreeDataManager.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\OperationContext.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\OperSignature.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\stg\MemoryMappedDataStorageManager.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\LispContextHandle.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="src\mci\SingleLinkedTree.inc">
@@ -1010,8 +1498,12 @@
     <None Include="src\geo\SequenceArray.txt">
       <Filter>Geometry</Filter>
     </None>
+    <None Include="cpp.hint" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="NatvisFile.natvis" />
   </ItemGroup>
 </Project>
