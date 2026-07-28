@@ -1,0 +1,40 @@
+container fn_test_containerparam2
+{
+	// K11a-4 review positives (each a REPRODUCED false rejection, fixed):
+	// (a) an exemplar/block containing a TEMPLATE or a type ALIAS is implementation
+	//     content, not a member contract — an alternative argument without them
+	//     must bind; (b) a by-example exemplar's incidental sub-CONTAINER is not
+	//     required on the argument; (c) an exemplar whose member set is OPEN (a
+	//     calculation rule can add members) must not license def-time
+	//     'declares no member'.
+	unit<uint32> Road : nrofrows = 3 { attribute<float64> flow : [ 1.0, 2.0, 3.0 ]; }
+
+	container Settings
+	{
+		parameter<float64> factor := 2.0;
+		container meta { parameter<float64> version := 1.0; }   // incidental
+		Template Helper { parameter<float64> x; parameter<float64> result := 2.0 * x; }
+	}
+	container Minimal { parameter<float64> factor := 3.0; }     // no meta, no Helper
+
+	function scale( cfg: Settings; attribute<float64> x (Road) )
+	-> attribute<float64> (Road) := x * cfg/factor;
+
+	attribute<float64> t1 (Road) := scale(Settings, Road/flow);
+	attribute<float64> t2 (Road) := scale(Minimal,  Road/flow);   // (a)+(b)
+
+	// (c) OPEN exemplar: its rule contributes members, so a body reference to a
+	// non-declared member must DEFER to the per-application resolution
+	container SrcBase { parameter<float64> gen := 4.0; }
+	container Derived := SrcBase { parameter<float64> extra := 1.0; }
+
+	function useOpen( cfg: Derived ) -> parameter<float64> := cfg/gen + cfg/extra;
+	parameter<float64> t3 := useOpen(Derived);
+
+	container checks
+	{
+		parameter<float64> c1 := sum(t1), IntegrityCheck = "c1 == 12.0";
+		parameter<float64> c2 := sum(t2), IntegrityCheck = "c2 == 18.0";
+		parameter<float64> c3 := t3,      IntegrityCheck = "c3 == 5.0";
+	}
+}

@@ -2009,25 +2009,34 @@ namespace {
 		// K11a-4: recurse into declared CONTAINER members (presence + the same
 		// per-member checks under the nested block; nested blocks have no enclosing
 		// unit, so default-domain membership is not claimed there)
-		std::function<void(const TreeItem*, const TreeItem*, bool)> walkBlock;
-		walkBlock = [&](const TreeItem* srcBlock, const TreeItem* argBlock, bool blockIsParamUnit)
+		std::function<void(const TreeItem*, const TreeItem*, bool, const SharedStr&)> walkBlock;
+		walkBlock = [&](const TreeItem* srcBlock, const TreeItem* argBlock, bool blockIsParamUnit, const SharedStr& prefix)
 		{
 		for (const TreeItem* m = srcBlock->_GetFirstSubItem(); m; m = m->GetNextItem())
 		{
+			// review finding: nested FUNCTIONS, TEMPLATES and type-alias exemplars are
+			// implementation content, never a member contract (a template's internals
+			// are exactly what the K11a-3 plain-template exemption already ruled out)
+			if (m->IsTemplate() || m->IsFunctionItem())
+				continue;
 			if (!IsUnit(m) && !IsDataItem(m))
 			{
-				// declared container member: must be present; recurse for its members
-				if (m->IsFunctionItem() || !m->_GetFirstSubItem())
+				// declared container member: must be present; recurse for its members.
+				// BY-EXAMPLE: the exemplar is a real config item whose sub-containers
+				// are INCIDENTAL, not a declared interface — never require them
+				// (review finding: an exemplar's 'container meta { … }' made every
+				// alternative argument fail).
+				if (byExample || !m->_GetFirstSubItem())
 					continue;
-				SharedStr cName(m->GetID().AsStrRange());
+				SharedStr cName(prefix + SharedStr(m->GetID().AsStrRange()));
 				auto c = argBlock->GetConstSubTreeItemByID(m->GetID());
 				if (!c)
 					throwErrorF("ExprParser", "'{}': the argument for parameter '{}' does not match its declared members: member '{}' is missing"
 						, fnName.c_str(), pName.c_str(), cName.c_str());
-				walkBlock(m, c.get(), false);
+				walkBlock(m, c.get(), false, cName + "/");
 				continue;
 			}
-			SharedStr mName(m->GetID().AsStrRange());
+			SharedStr mName(prefix + SharedStr(m->GetID().AsStrRange()));
 			auto a = argBlock->GetConstSubTreeItemByID(m->GetID());
 			if (!a)
 				throwErrorF("ExprParser", "'{}': the argument for parameter '{}' does not match its declared members: member '{}' is missing"
@@ -2142,7 +2151,7 @@ namespace {
 			}
 		}
 		};
-		walkBlock(memberSrc, argRoot, unitParam);
+		walkBlock(memberSrc, argRoot, unitParam, SharedStr());
 	}
 
 	LispRef FunctionApplication::Reduce()
@@ -3335,6 +3344,20 @@ namespace {
 		return !item->GetExpr().empty();
 	}
 
+	// K11a by-example (review finding): an EXEMPLAR is a real config item, so its
+	// declared children are the member set only when nothing can ADD to them at
+	// instantiation. A storage manager (GDAL & co. generate layer sub-items at
+	// UpdateMetaInfo) or a calculation rule (a composite result contributes its
+	// members) leaves the set OPEN — membersComplete must then stay false, or a
+	// body reference to a generated member is a false definition-time
+	// "declares no member" error whose verdict even depends on whether the
+	// exemplar's meta info happened to be updated first. An explicitly written
+	// member block is always closed: it declares an interface, not an item.
+	bool ExemplarMemberSetIsClosed(const TreeItem* exemplar)
+	{
+		return !RuleMayComputeSubItems(exemplar) && !exemplar->HasStorageManager();
+	}
+
 	int FunctionChecker::ResolveName(const TreeItem* refScope, TokenID sym, const TreeItem** local, UInt32* paramIdx,
 		SharedTreeItem* externalOut, ExtRefKind* extKindPtr, SharedStr* genSubPathOut)
 	{
@@ -3723,7 +3746,7 @@ namespace {
 			else if (auto ex = TreeItem_GetFunctionParamTypeExemplar(m_FuncItem, idx); ex && ex->_GetFirstSubItem())
 			{
 				r.members = BuildParamMembers(p, r.dNode, ex.get());
-				r.membersComplete = true;
+				r.membersComplete = ExemplarMemberSetIsClosed(ex.get());
 				m_Keep.push_back(ex);
 			}
 			return r;
@@ -3752,7 +3775,7 @@ namespace {
 			if (auto ex = TreeItem_GetFunctionParamTypeExemplar(m_FuncItem, idx); ex && ex->_GetFirstSubItem())
 			{
 				r.members = BuildParamMembers(p, NO_TYPE_VAR, ex.get());
-				r.membersComplete = true;
+				r.membersComplete = ExemplarMemberSetIsClosed(ex.get());
 				m_Keep.push_back(ex);
 				return r;
 			}
@@ -3828,6 +3851,11 @@ namespace {
 			};
 			for (const TreeItem* m = block->_GetFirstSubItem(); m; m = m->GetNextItem())
 			{
+				// review finding: nested FUNCTIONS, TEMPLATES and type-alias exemplars
+				// are implementation content, not members — they must neither be typed
+				// nor (through membersComplete) make a same-named reference an error
+				if (m->IsTemplate() || m->IsFunctionItem())
+					continue;
 				DefType md;
 				if (IsUnit(m))
 				{
@@ -3976,7 +4004,7 @@ namespace {
 				// under the flattened path ('meta/factor'); nested blocks have no
 				// enclosing unit, so their default domains defer. Nested UNIT members'
 				// sub-items stay deferred (the argument may carry label attrs etc.).
-				if (!IsUnit(m) && !IsDataItem(m) && !m->IsFunctionItem() && m->_GetFirstSubItem())
+				if (!IsUnit(m) && !IsDataItem(m) && m->_GetFirstSubItem())
 					walkBlock(m, mPath + "/", NO_TYPE_VAR);
 			}
 		};
@@ -3999,11 +4027,44 @@ namespace {
 		{
 			if (auto it = pt.members->find(memberPath); it != pt.members->end())
 				return it->second;
-			if (pt.membersComplete && std::find(memberPath.begin(), memberPath.send(), '/') == memberPath.send())
+			if (pt.membersComplete)
 			{
-				SharedStr pName(m_Params[paramIdx]->GetID().AsStrRange());
-				throwErrorF("ExprParser", "the definition of '{}': parameter '{}' declares no member '{}'"
-					, m_FuncItem->GetFullName().c_str(), pName.c_str(), memberPath.c_str());
+				// a DIRECT miss is an error; a DEEP miss is an error only when its
+				// parent path is a declared container block we WALKED (K11a-4: the
+				// flat map then holds that block's complete member set, so
+				// 'cfg/nested/wrong' is as wrong as a direct miss). A deep path below
+				// a UNIT member or an unwalked item still defers: the argument may
+				// legitimately carry sub-structure there (label attributes, a
+				// composite rule's generated members).
+				auto slash = std::find(memberPath.begin(), memberPath.send(), '/');
+				bool report = slash == memberPath.send();
+				if (!report)
+				{
+					CharPtr lastSlash = memberPath.send();
+					for (CharPtr q = memberPath.begin(); q != memberPath.send(); ++q)
+						if (*q == '/')
+							lastSlash = q;
+					// NB: CharPtrRange, NOT (begin, end) — SharedStr has no two-pointer
+					// ctor, so that silently binds to SharedStr(zStr, debugSrcName) and
+					// yields the WHOLE path
+					SharedStr parentPath{ CharPtrRange(memberPath.begin(), lastSlash) };
+					SharedStr parentPrefix = parentPath + "/";
+					if (auto pit = pt.members->find(parentPath); pit != pt.members->end()
+						&& pit->second.kind != DefType::Kind::Data && pit->second.kind != DefType::Kind::UnitVal)
+						for (const auto& kv : *pt.members)
+							if (kv.first.ssize() > parentPrefix.ssize()
+								&& std::equal(parentPrefix.begin(), parentPrefix.send(), kv.first.begin()))
+							{
+								report = true; // the parent block was walked: its member set is closed
+								break;
+							}
+				}
+				if (report)
+				{
+					SharedStr pName(m_Params[paramIdx]->GetID().AsStrRange());
+					throwErrorF("ExprParser", "the definition of '{}': parameter '{}' declares no member '{}'"
+						, m_FuncItem->GetFullName().c_str(), pName.c_str(), memberPath.c_str());
+				}
 			}
 		}
 		return {};

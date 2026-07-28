@@ -1,0 +1,24 @@
+container fn_test_containerparam_neg3
+{
+	// K11a-4 review finding: an undeclared DEEP member under a COMPLETE nested
+	// container block escaped the closed-interface check (deep paths deferred
+	// wholesale). cfg/nested/wrong must now be a DEFINITION error, because
+	// 'nested' is a declared block we walked — its member set is closed.
+	unit<uint32> Road : nrofrows = 3 { attribute<float64> flow : [ 1.0, 2.0, 3.0 ]; }
+
+	container Settings
+	{
+		container nested { parameter<float64> offset := 5.0; parameter<float64> wrong := 1.0; }
+	}
+
+	function scale( container cfg { container nested { parameter<float64> offset; } };
+	                attribute<float64> x (Road) )
+	-> attribute<float64> (Road) := x + cfg/nested/wrong;
+
+	attribute<float64> t (Road) := scale(Settings, Road/flow);
+
+	container checks
+	{
+		parameter<float64> c := sum(t), IntegrityCheck = "c == 9.0";
+	}
+}

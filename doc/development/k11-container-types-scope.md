@@ -217,9 +217,32 @@ Link `SignatureRecorder::ArgContainer`'s `sharedMemberDomain` into the same unif
    declared container members (presence + the same per-member checks; the
    default-domain membership claim applies only at a unit parameter's top block; the
    root guard is kind-aware). Member-less plain parameters (`item x`) still defer.
+   **Adversarial review round (2 lenses, 8 agents, findings reproduced) — 5 fixed
+   in the follow-up commit:** (1) plain TEMPLATES and type-ALIAS exemplars
+   (`IsTemplate`, not `IsFunctionItem`) were treated as required members and
+   recursed into, enforcing a template's INTERNALS on the argument — both walks now
+   skip `IsTemplate() || IsFunctionItem()` items (the same exemption the K11a-3
+   plain-template gate established); (2) `membersComplete` was claimed from an
+   exemplar whose member set is OPEN (a storage manager generates layer sub-items at
+   `UpdateMetaInfo`, a calculation rule contributes composite members) — that made a
+   body reference to a generated member a false def-time error with a
+   *timing-dependent* verdict; `ExemplarMemberSetIsClosed` now gates it (an
+   explicitly written block is always closed: it declares an interface, not an item);
+   (3) a by-example exemplar's INCIDENTAL sub-containers were hard-required on every
+   argument — by-example never requires container members; (4) an undeclared DEEP
+   member under a COMPLETE nested block escaped the closed-interface error (deep
+   paths deferred wholesale) — a deep miss now reports when its parent path is a
+   declared block the walk actually entered; (5) nested violations named only the
+   leaf — messages now carry the member PATH (`nested/offset`). Implementation trap
+   worth remembering: `SharedStr` has **no** `(begin, end)` ctor, so a two-pointer
+   call silently binds to `SharedStr(zStr, debugSrcName)` and yields the WHOLE
+   string — use `CharPtrRange`.
    Coverage: `fn_test_containerparam` (explicit + nested deep member + by-example),
    `_neg1` (missing NESTED member + wrong class at the boundary), `_neg2` (def-time
-   undeclared direct member of a container parameter). Reduction needed NO changes
+   undeclared direct member), `_neg3` (undeclared DEEP member under a complete
+   nested block), `fn_test_containerparam2` (the fixed false-rejections as
+   positives: template/alias in the block, incidental exemplar sub-container, OPEN
+   exemplar whose rule contributes members). Reduction needed NO changes
    (container params + deep member access already reduced correctly — verified by
    probe before the tranche).
 7. **K11b** operator `ArgContainer` linking — substantial; gated on K11a.
