@@ -339,7 +339,7 @@ Override once per family base, mirroring how `CreateResult` is already factored 
 | Sort/order/`unique`/`nth_element` (`clc/dll/src/Unique.cpp`, `geo/dll/src/nth_element.cpp`) | `elemOps = n log n`; workingSet ≈ 2n×width (copy + sort buffer); `unique` result: `bounded` by n. |
 | Relational producers with data-dependent cardinality (`select_*` family, `subset`, `collect_by_cond`) | result count unknown ⇒ `bounded` by source count — or by a declared `SizeUpperbound` on the consuming config unit (§4.5) — `dependsOnDataOf = {condition}`; after the condition's data exists, `pcount`-style refinement is exact. **Prime estimation-barrier clients (§6).** |
 | Geometric/geo operators (`geo/dll/src/BoostPolygon.cpp`, `BoostGeometry.cpp`, `geos*`, `Poly2GridOper.cpp`, `Dijkstra.cpp`, `Connect.cpp`) | Superlinear and value-dependent: per-group declared complexity class + calibrated factor (§4.6); inputs from counts *and value ranges* (e.g. Dijkstra: #nodes/#links/#origin-zones are all ready meta; poly2grid: output ≈ covered-cell count bounded via bounding boxes from the values units' ranges). These operators already keep local progress `Timer`s (`BoostPolygon.cpp:864`, `Dijkstra.cpp:617`) — the calibration hook replaces ad-hoc logging. |
-| Sequence/string-valued inputs | Per-element width unknown (256-bit / avg-32-elements guess today) ⇒ declared total-element bound when present (`SizeUpperbound` on the attribute, §4.5), else **pilot-tile probing** (§4.7). |
+| Sequence/string-valued inputs | Per-element width unknown (256-bit / avg-32-elements guess today) ⇒ declared total-element/character bound when present (`SizeUpperbound` on the attribute, §4.5 — covers both compositions and the `string` value type), else **pilot-tile probing** (§4.7). |
 | Meta/tree operators (`PhaseContainer`, `subitem`, `for_each*`, template calls) | Zero data cost; `PhaseContainer` charges nothing itself but *its suppliers* dominate — see §6.4. |
 | **Storage reads** (not `Operator`s) | Attach a `ResourceEstimate` to the item-writer OC at creation (`TreeItem.cpp:4326-4355` / `OperationContext::CreateItemWriter`): `ioBytes = count × width` (or actual file size when smaller), `resultBytes` likewise, chores from native tiling, seriality = the manager's CS group, throughput factor calibrated **per storage-manager class** (GDAL-raster vs FSS vs ODBC…). All inputs are pre-read-knowable per §2.6. |
 
@@ -362,20 +362,23 @@ reads; the estimator gives the same guarantee a use.
 ### 4.5 Declared expectations: the `SizeUpperbound` property
 
 The biggest residual gaps in §4.2–§4.3 are data-dependent cardinalities (subsets,
-unions, sparse OD matrices) and composite-value volumes (sequence/arc/polygon
-attributes), where structural bounds are sound but uselessly loose. These are
+unions, sparse OD matrices) and variable-width value volumes (sequence/arc/polygon
+and string attributes), where structural bounds are sound but uselessly loose. These are
 exactly the places where the modeler *has* cheap knowledge the engine cannot derive.
 Add a config property **`SizeUpperbound`**: a calculation rule (an expression
 string, `SizeEstimator`-style) that is deliberately **cheaper to evaluate than the
 actual cardinality/size** and declares a **sound upper bound**:
 
 - on a **domain unit**: an upper bound on its `GetCount()`;
-- on an **attribute with `ValueComposition != VC_Single`**: an upper bound on the
-  **total composite-element count** (Σ over rows of the per-row sequence length) —
-  the real driver of the data block `totalElems × fieldWidth + n × indexWidth`,
-  where today's `ElementWeight` can only guess 32 elements per row
-  (`tic/AbstrDataItem.cpp:1272-1273`). Declaring it on a `VC_Single` attribute
-  draws a config warning (widths are exact there).
+- on an **attribute with variable-sized elements** — `ValueComposition !=
+  VC_Single` (sequence/arc/polygon) **or the `string` value type** (`VC_Single`
+  but variable-width): an upper bound on the **total element count** (Σ over rows
+  of the per-row sequence length; for strings, the total character/byte count) —
+  the real driver of the data block `totalElems × fieldWidth + n × indexWidth`
+  (`fieldWidth` = 1 byte for strings), where today's `ElementWeight` can only
+  guess 32 elements per row for compositions and 32 bytes per string
+  (`tic/AbstrDataItem.cpp:1269-1273`). Declaring it on a fixed-width attribute
+  (non-string `VC_Single`) draws a config warning (widths are exact there).
 
 Sketch (expression vocabulary to be fixed in P1 — parameters, counts of source
 domains, arithmetic):
@@ -386,6 +389,9 @@ unit<uint32> ODpairs := select_uni(within_reach)          // structural bound = 
 
 attr<dpoint> route (ODpairs, arc)
 ,   SizeUpperbound = "#origins * MaxDestsPerOrigin * MaxRouteVertices";
+
+attr<string> label (ODpairs)
+,   SizeUpperbound = "#origins * MaxDestsPerOrigin * MaxLabelChars";  // total characters
 ```
 
 Integration:
@@ -399,7 +405,8 @@ Integration:
   (§5.1); ordering ranks on the expected (= the bound when nothing better exists).
   The two properties compose: expected from one, bound from the other.
 - **Attr-side byte model.** `EstimateDataBytes(adi)` uses the declared total-element
-  bound for VC≠Single attributes; per-chore shares are prorated by tile fraction
+  bound for variable-width attributes (VC≠Single compositions and `string`);
+  per-chore shares are prorated by tile fraction
   (the bound cannot be localized per tile; admission charges the total, chore
   shaping uses the prorata).
 - **Plumbing.** Exactly the `SizeEstimator` template: name constant beside
