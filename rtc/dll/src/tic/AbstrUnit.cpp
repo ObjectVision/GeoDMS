@@ -202,7 +202,15 @@ bool AbstrUnit::HasDataItemOut(const AbstrDataItem* item) const
 
 SharedStr AbstrUnit::GetProjMetrString() const
 {
-	return GetMetricStr(FormattingFlags::ThousandSeparator) + GetProjectionStr(FormattingFlags::ThousandSeparator);
+	auto result = GetMetricStr(FormattingFlags::ThousandSeparator) + GetProjectionStr(FormattingFlags::ThousandSeparator);
+
+	// Append the CRS, or an "(incompatible SpatialReferences)" unification failure shows
+	// two units that look identical with no visible reason for the rejection -- the CRS is
+	// no longer part of the metric string that used to expose it.
+	if (auto crs = GetCurrCrs())
+		result += SharedStr(" [") + SharedStr(crs->m_SpatialRef) + SharedStr("]");
+
+	return result;
 }
 
 using CharPtrPair = std::pair<CharPtr, CharPtr>;
@@ -385,6 +393,26 @@ bool AbstrUnit::UnifyValues(const AbstrUnit* cu, CharPtr leftRole, CharPtr right
 		UnifyError(cu, " (incompatible Projections)", leftRole, rightRole, um, resultMsg, false);
 		return false;
 	}
+
+	// Coordinate-reference-system unification. STRICT, exactly like metric: an empty CRS
+	// unifies only with an empty one, so a bare coordinate unit cannot silently acquire a
+	// CRS from a sibling. The leniency lives in the UM_AllowDefault* short-circuits above
+	// and in UnitCreators' absorption rule, not here.
+	//
+	// This is an ERROR rather than a warning because the engine already treats a differing
+	// spatial reference as semantically real: Type2DConversion (clc/OperConv.h) performs an
+	// actual OGR coordinate transformation when two non-empty CRS differ. Two CRS-tagged
+	// attributes silently unified are two coordinate systems overlaid as one.
+	//
+	// The background layer deliberately has NO counterpart here -- it is presentation, not
+	// type. Two units differing only in background hint now unify, where the 0xFF packing
+	// made them fail with "(incompatible Metrics)".
+	auto lhsCrs = GetCurrCrs(), rhsCrs = cu->GetCurrCrs();
+	if (!AreEqual(lhsCrs, rhsCrs))
+	{
+		UnifyError(cu, " (incompatible SpatialReferences)", leftRole, rightRole, um, resultMsg, false);
+		return false;
+	}
 	return true;
 }
 
@@ -400,19 +428,42 @@ bool AbstrUnit::HasVarRangeData() const
 
 const UnitCrs* AbstrUnit::GetCrs() const
 {
-	// Delegate to the referred item exactly as RangedUnit<V>::GetMetric does (Unit.cpp).
+	// 1. delegate to the referred item exactly as RangedUnit<V>::GetMetric does (Unit.cpp).
 	// This is the whole point of moving off the side table: a cache unit can now answer
 	// for the config unit it refers to.
 	if (auto refItem = debug_cast<const AbstrUnit*>(GetReferredItem().get()))
 		return refItem->GetCrs();
-	return m_Crs.get_ptr();
+
+	// 2. own slot
+	if (m_Crs)
+		return m_Crs.get_ptr();
+
+	// 3. walk the projection chain to its composite base (Stage 5). A projection-bearing
+	// unit is a rescaling of some base unit and is in that base's CRS; without this, a
+	// unit reached through a projection rather than through DuplFrom/gridset -- e.g. one
+	// built by an operator that constructs its own UnitProjection -- would report no CRS.
+	if (auto p = GetProjection())
+		if (auto base = p->GetCompositeBase())
+			if (base != this)
+				return base->GetCrs();
+
+	return nullptr;
 }
 
 const UnitCrs* AbstrUnit::GetCurrCrs() const
 {
 	if (auto refItem = debug_cast<const AbstrUnit*>(GetCurrRefItem().get()))
 		return refItem->GetCurrCrs();
-	return m_Crs.get_ptr();
+
+	if (m_Crs)
+		return m_Crs.get_ptr();
+
+	if (auto p = GetCurrProjection())
+		if (auto base = p->GetCompositeBase())
+			if (base != this)
+				return base->GetCurrCrs();
+
+	return nullptr;
 }
 
 void AbstrUnit::SetCrs(const UnitCrs* crs)
@@ -1152,8 +1203,27 @@ public:
 		: PropDef<AbstrUnit, TokenID>(SR_NAME, set_mode::optional, xml_mode::element, cpy_mode::all, chg_mode::none, false, true, false)
 	{}
 	// override base class
+	// COOKED: what CRS is this unit in? Follows delegation and the projection chain, so a
+	// range()/gridset()-derived unit answers with the CRS it is actually in.
 	ApiType GetValue(const AbstrUnit* item) const override { return item->GetSpatialReference(); }
 	void SetValue(AbstrUnit* item, ParamType val) override { item->SetSpatialReference(val); }
+
+	// RAW (the config dump, via OutStreamBase::DumpPropList): did THIS item declare a
+	// SpatialReference? Own slot only -- no delegation, no projection walk.
+	//
+	// Mandatory as of Stage 4/5. Now that derived units report a CRS, the cooked getter
+	// would make every range()/gridset() result dump a SpatialReference = "..." line it
+	// never declared, and reloading such a dump re-declares a CRS on a unit that should
+	// inherit one. xml_mode::element + cpy_mode::all mean this propdef really is written
+	// out and copied, so the distinction is load-bearing rather than cosmetic.
+	// This is the same raw-vs-cooked seam that caused the 2026-07-29 PropValue regression
+	// (c390758b); the lesson there was to put serialization concerns in GetRawValue and
+	// leave GetValue alone.
+	ApiType GetRawValue(const AbstrUnit* item) const override
+	{
+		auto crs = item->GetLocalCrs();
+		return crs ? crs->m_SpatialRef : TokenID::GetEmptyID();
+	}
 };
 
 struct MetricPropDef : ReadOnlyPropDef<AbstrUnit, SharedStr>

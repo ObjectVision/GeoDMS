@@ -227,6 +227,19 @@ settle whether a real config relies on two distinct same-σ units unifying. Stag
 testcase pair pinning: same-σ unifies; different-σ errors; σ-less unifies with σ-less; σ-less does
 **not** unify with σ-bearing; same-σ with *different* DialogData **does** unify (the un-erroring).
 
+**Stage 5 note — the DialogData un-erroring cannot be tested until Stage 7.** The plan lists
+"two same-σ units with different DialogData DO unify" among Stage 5's tests. It is not
+achievable there: the background hint is still inside the metric, so the metric comparison
+rejects the pair before the CRS comparison is reached. Measured with Stage 5 in place:
+
+```
+Values mismatch ... (/bg_x EPSG:28992<0xFF>layer_x [EPSG:28992]: float64)
+and ( EPSG:28992<0xFF>layer_y [EPSG:28992]: float64) (incompatible Metrics)
+```
+
+That failure *is* the defect this project removes, and it disappears with the packing. The case
+is documented in `testcases/fn_test_crs_unify.dms` and becomes a positive assertion in Stage 7.
+
 **Stage 5 caveat — the raw/cooked seam.** `SpatialReferencePropDef::GetRawValue` must read only
 the own slot, with no delegation and no projection walk. Without it the newly-effective getter
 makes derived units dump a `SpatialReference = "..."` line they do not dump today, breaking the

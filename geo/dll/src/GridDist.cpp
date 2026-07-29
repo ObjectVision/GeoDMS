@@ -310,9 +310,16 @@ public:
 			const AbstrUnit* baseUnit = gridSet;
 			auto gridSetProjection = gridSet->GetCurrProjection();
 			if (gridSetProjection)
-				baseUnit = gridSetProjection->GetBaseUnit();
+				baseUnit = gridSetProjection->GetCompositeBase(); // NOT GetBaseUnit()
 			MG_CHECK(baseUnit);
 
+			// GetCompositeBase, not GetBaseUnit: the immediate base of a CHAINED gridset
+			// (e.g. rdc -> rdc_mm -> a finer grid) is itself projection-bearing and carries
+			// no spatial reference, so this silently yielded an empty token -- and empty
+			// means "skip the latitude correction", not "fail". Walking to the composite
+			// base reaches the unit that actually declares the CRS.
+			// (RULING 2026-07-29: fix it, make it consistent. Guarded by fn_test_crs's
+			// chained-gridset case.)
 			auto srToken = baseUnit->GetSpatialReference();
 
 			GDAL_ErrorFrame errorFrame;

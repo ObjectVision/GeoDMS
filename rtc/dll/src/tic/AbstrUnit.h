@@ -114,6 +114,13 @@ public:
 	TIC_CALL const UnitCrs* GetCurrCrs() const;
 	TIC_CALL void           SetCrs(const UnitCrs* crs);
 
+	// The CRS stored on THIS unit only: no referred-item delegation and no walk up the
+	// projection chain. This is the DUMP/serialization view -- it answers "did this item
+	// declare a SpatialReference?", not "what CRS is this unit in?". Keeping the two apart
+	// is what stops derived units from emitting SpatialReference lines they never declared.
+	// See SpatialReferencePropDef::GetRawValue and feedback on the raw-vs-cooked seam.
+	const UnitCrs* GetLocalCrs() const { return m_Crs.get_ptr(); }
+
 	TIC_CALL SharedStr GetBackgroundReference() const;
 	TIC_CALL TokenID   GetSpatialReference    () const;
 	TIC_CALL TokenID   GetCurrSpatialReference() const;

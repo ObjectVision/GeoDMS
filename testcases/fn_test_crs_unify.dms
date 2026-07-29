@@ -1,0 +1,48 @@
+// CRS unification matrix. doc/development/crs-metric-decoupling.md, Stage 5.
+//
+// AbstrUnit::UnifyValues now compares the coordinate reference system alongside metric
+// and projection, STRICTLY: an empty CRS unifies only with an empty one. The background
+// layer deliberately has NO counterpart -- it is presentation, not type.
+//
+// Positive cases live here; the rejections are fn_test_crs_unify_neg1 (different CRS) and
+// fn_test_crs_unify_neg2 (CRS-less vs CRS-bearing).
+//
+// NB the assignments below are what actually exercise UnifyValues: declaring an attribute
+// with values unit X and defining it from an attribute with values unit Y forces X and Y
+// to unify. (An `x + y` expression instead goes through the absorption rule in
+// compatible_values_unit_creator_func, which is a different, more lenient path.)
+container fn_test_crs_unify
+{
+	unit<float64> inner := BaseUnit('m', float64);
+
+	unit<float64> rd_a := CrsUnit('EPSG:28992', inner);
+	unit<float64> rd_b := CrsUnit('EPSG:28992', inner); // same CRS, separately written
+
+	unit<float64> plain_a := BaseUnit('m', float64);
+	unit<float64> plain_b := BaseUnit('m', float64);    // no CRS at all
+
+	// NOT YET TESTABLE -- deferred to Stage 7. Two units with the SAME CRS but a different
+	// DialogData must unify, since a background hint is presentation and not type. They
+	// still do NOT, because the 0xFF packing puts the hint inside the metric, so the
+	// metric comparison rejects them first. Measured 2026-07-29 with Stage 5 in place:
+	//   Values mismatch ... (/bg_x EPSG:28992<0xFF>layer_x [EPSG:28992]: float64)
+	//   and ( EPSG:28992<0xFF>layer_y [EPSG:28992]: float64) (incompatible Metrics)
+	// That failure IS the bug this project exists to remove, and it disappears with the
+	// packing in Stage 7 -- where this case becomes a positive assertion.
+
+	unit<uint32> dom : nrofrows = 2;
+
+	attribute<rd_b>    src_same  (dom) : [3.0, 4.0];
+	attribute<plain_b> src_none  (dom) : [7.0, 8.0];
+
+	// 1. two units in the SAME CRS unify
+	attribute<rd_a>    same_crs (dom) := src_same;
+	// 2. two units with NO CRS unify (empty with empty)
+	attribute<plain_a> no_crs   (dom) := src_none;
+
+	container checks
+	{
+		parameter<float64> c1 := sum(same_crs), IntegrityCheck = "c1 == 7.0";
+		parameter<float64> c2 := sum(no_crs),   IntegrityCheck = "c2 == 15.0";
+	}
+}

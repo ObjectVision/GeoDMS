@@ -1,0 +1,32 @@
+// NEGATIVE: a CRS-less unit must not silently unify with a CRS-bearing one.
+// doc/development/crs-metric-decoupling.md, Stage 5.
+//
+// This is the STRICTNESS half of the rule, and the reason AreEqual(const UnitCrs*,...)
+// treats empty as compatible only with empty: if a bare coordinate unit could absorb a
+// CRS from a sibling, a dataset with no declared reference would silently acquire one and
+// nothing downstream could detect it. Both units share an identical {m:1} metric, so only
+// the SpatialReference comparison can reject this.
+//
+// The assignment below is what forces UnifyValues. Note that `a + b` would NOT test this:
+// that path is the absorption rule in compatible_values_unit_creator_func, where an
+// argument WITHOUT a CRS is deliberately overruled by one with a CRS rather than
+// rejected. The two rules differ on purpose, and this file pins the strict one.
+//
+// Expected: nonzero exit, "(incompatible SpatialReferences)".
+container fn_test_crs_unify_neg2
+{
+	unit<float64> inner := BaseUnit('m', float64);
+	unit<float64> rd    := CrsUnit('EPSG:28992', inner);
+	unit<float64> plain := BaseUnit('m', float64); // same metric, no CRS
+
+	unit<uint32> dom : nrofrows = 2;
+	attribute<plain> src (dom) : [3.0, 4.0];
+
+	container checks
+	{
+		// declaring the values unit as `rd` while defining it from a CRS-less attribute
+		// forces UnifyValues(plain, rd), which must fail
+		attribute<rd> forced (dom) := src;
+		parameter<float64> total := sum(forced), IntegrityCheck = "total > 0.0";
+	}
+}

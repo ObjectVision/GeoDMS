@@ -1,0 +1,23 @@
+// NEGATIVE: units in DIFFERENT coordinate reference systems must not unify.
+// doc/development/crs-metric-decoupling.md, Stage 5.
+//
+// Both have an identical {m:1} metric, so metric comparison cannot separate them; only
+// the SpatialReference check in AbstrUnit::UnifyValues can. An error rather than a
+// warning because the engine treats a differing CRS as semantically real -- a non-empty
+// CRS difference triggers an actual OGR coordinate transformation (clc/OperConv.h).
+container fn_test_crs_unify_neg1
+{
+	unit<float64> inner := BaseUnit('m', float64);
+	unit<float64> rd    := CrsUnit('EPSG:28992', inner);
+	unit<float64> merc  := CrsUnit('EPSG:3857',  inner);
+
+	unit<uint32> dom : nrofrows = 2;
+	attribute<rd>   a (dom) : [1.0, 2.0];
+	attribute<merc> b (dom) : [3.0, 4.0];
+
+	container checks
+	{
+		attribute<rd> bad (dom) := a + b;
+		parameter<float64> total := sum(bad), IntegrityCheck = "total > 0.0";
+	}
+}
