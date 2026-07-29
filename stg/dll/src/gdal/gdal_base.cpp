@@ -1155,10 +1155,18 @@ auto GetOGRSpatialReferenceFromDataItems(const TreeItem* storageHolder) -> std::
 
 		if (wktString.empty())
 		{
+			// Ask the domain for its spatial reference directly. This used to take the
+			// projection base's NAME-OR-METRIC and hand that to OGR's SetFromUserInput,
+			// which only worked because a CRS unit's metric happened to BE its spatial
+			// reference -- and it handed OGR a string containing a raw 0xFF byte whenever a
+			// background layer was declared too. GetSpatialReference now walks delegation
+			// and the projection chain itself (AbstrUnit::GetCrs), so it answers for a
+			// chained gridset domain as well.
+			// See doc/development/crs-metric-decoupling.md.
 			const AbstrUnit* colDomain = adi->GetAbstrDomainUnit();
-			auto unit_projection = colDomain->GetProjection();
-			if (unit_projection)
-				wktString = unit_projection->GetBaseUnit()->GetNameOrCurrMetric(FormattingFlags::None);
+			auto srToken = colDomain->GetSpatialReference();
+			if (srToken)
+				wktString = SharedStr(srToken);
 		}
 
 		if (!wktString.empty())

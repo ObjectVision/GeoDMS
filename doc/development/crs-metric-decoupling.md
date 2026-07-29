@@ -1,6 +1,9 @@
 # CRS / metric decoupling for coordinate units (#1119 follow-up)
 
-Status: **design agreed, not yet implemented.** Interim mitigation in place (see bottom).
+Status: **IMPLEMENTED, Stages 0–7 (2026-07-29), pending a full `prj_snapshots` regression.**
+The 0xFF packing is gone; the interim #1119 mitigation at the bottom of this document has been
+superseded (see "What this fixes for free"). Commits: `23c30435` (0), `053b3d47` (1),
+`724142b9` (2), `c4020ee7` (3), `b8d7795a` (4), `6a719a45` (5), and Stages 6+7 together.
 Origin: t060 (BAG20 GeoPackage snapshot) regressed to `data error / exit 1` on 20.2.0.m.
 Revised 2026-07-29: the storage model changed (see *Revision note*), two open decisions are
 now settled by evidence, and every file:line anchor below was re-verified against the tree
@@ -308,7 +311,19 @@ All four were put to the author and answered. None remain open; they are now wor
    `rdc`-derived units, and (b) becomes moot once Stage 7 replaces that call site. Attach a
    debugger at Stage 2 rather than blocking Stage 0/1 on it.
 
-## Interim mitigation (IMPLEMENTED)
+## Measured outcome (2026-07-29, Stages 6+7)
+
+- A **projected** CRS unit carries metric `m`; a **geographic** one stays metric-free, as ruled.
+- `area(geom, m2)` over an EPSG:28992 chain validates with **no diagnostic at all**. The BAG20
+  config (`t060`) computes `/snapshot_date_nl_geoparaat_gpkg/pand/impl/result_base` with **zero**
+  "#1119 / label only" warnings, where the interim mitigation below used to warn.
+- **GeoDMS logs are valid UTF-8.** The BAG20 log contains zero `0xFF` bytes and decodes cleanly;
+  so do all 186 testcase logs. (Beware: PowerShell-redirected `.out` files start with a UTF-16LE
+  BOM `FF FE` — that is the shell's encoding, not GeoDMS output. Measure the `/L` log files.)
+- Two units in the same CRS with **different background layers now unify**. They did not before:
+  the hint lived in the metric, so a presentation difference was a type error.
+
+## Interim mitigation (SUPERSEDED — kept for history)
 
 Until the above lands, `GeoMeasure_ValidateAndWarn` (`geo/dll/src/OperPolygon.cpp`) no longer
 **throws** on an incompatible coordinate metric. It emits a **deprecation warning** and accepts the

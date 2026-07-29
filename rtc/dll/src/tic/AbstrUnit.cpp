@@ -479,102 +479,20 @@ void AbstrUnit::SetSpatialReference(TokenID format)
 	SetCrs(format.empty() ? nullptr : new UnitCrs(format));
 }
 
-// ---------------------------------------------------------------------------
-// LEGACY 0xFF packing -- everything below is deleted in Stage 7 of
-// doc/development/crs-metric-decoupling.md. It was triplicated across the three
-// accessors; factored into one place so the eventual deletion is a single edit and
-// so the drift detector has exactly one "old channel" to compare against.
-//
-// A coordinate unit's metric could be a CRS identity tag rather than a dimension: a
-// single base unit of power 1 whose symbol is "<SpatialReference>\xFF<DialogData>".
-// ---------------------------------------------------------------------------
-namespace {
-
-	// Returns the packed symbol and the position of its 0xFF separator, or nullptr.
-	auto FindPackedCrsSymbol(const UnitMetric* m) -> std::optional<SharedStr>
-	{
-		if (!m || m->m_BaseUnits.size() != 1 || m->m_BaseUnits.begin()->second != 1)
-			return {};
-		const SharedStr& sym = m->m_BaseUnits.begin()->first;
-		if (std::find(sym.begin(), sym.send(), char(0xFF)) == sym.send())
-			return {};
-		return sym;
-	}
-
-	auto DecodePackedSpatialRef(const UnitMetric* m) -> TokenID
-	{
-		auto sym = FindPackedCrsSymbol(m);
-		if (!sym)
-			return TokenID::GetEmptyID();
-		auto sepPos = std::find(sym->begin(), sym->send(), char(0xFF));
-		return GetTokenID_mt(sym->begin(), sepPos);
-	}
-
-	auto DecodePackedBackgroundRef(const UnitMetric* m) -> SharedStr
-	{
-		auto sym = FindPackedCrsSymbol(m);
-		if (!sym)
-			return {};
-		auto sepPos = std::find(sym->begin(), sym->send(), char(0xFF));
-		return SharedStr(CharPtrRange(sepPos + 1, sym->send()) MG_DEBUG_ALLOCATOR_SRC("DecodePackedBackgroundRef"));
-	}
-
-#if defined(MG_DEBUG)
-	// Stage-2 drift detector, modelled on the SigUnitChecker metric replay in
-	// OperSignature.cpp. While BOTH channels are live, any unit that carries a CRS in its
-	// own slot AND a packed one in its metric must agree. This is the cheapest available
-	// proof, across the whole regression corpus, that the new channel reproduces the old
-	// one BEFORE Stage 7 deletes the old one. Removed together with the packing.
-	void CheckCrsChannelDrift(const AbstrUnit* self, TokenID fromSlot, TokenID fromMetric)
-	{
-		if (fromSlot.empty() || fromMetric.empty() || fromSlot == fromMetric)
-			return;
-		reportF_without_cancellation_check(SeverityTypeID::ST_Error
-			, "CRS channel drift on {}: the m_Crs slot says '{}' but the packed metric says '{}'"
-			, self->GetFullName().c_str(), SharedStr(fromSlot).c_str(), SharedStr(fromMetric).c_str());
-		assert(!"CRS decoupling: the UnitCrs slot disagrees with the legacy 0xFF-packed metric (see the preceding ST_Error log line)");
-	}
-#endif
-
-} // anonymous namespace
-
 SharedStr AbstrUnit::GetBackgroundReference() const
 {
+	// The item's own hint, else the layer registered under its CRS. A cache unit has no
+	// DialogData of its own, which is what the registry exists for.
+	//
+	// The third source that used to sit between these two -- decoding the part of the
+	// metric's base-unit symbol after a 0xFF separator -- is gone with the packing
+	// (Stage 7). The registry is per-CRS and first-wins where that decode was per-unit and
+	// exact; that difference is only observable when one configuration declares a single
+	// CRS with two different background layers, which a scan of the repo and C:/dev/tst
+	// found NO configuration doing. See doc/development/crs-metric-decoupling.md.
 	auto dd = TreeItem_GetDialogData(this);
 	if (not dd.empty())
 		return dd;
-
-	// Order: own DialogData -> the legacy packed metric -> the CRS registry.
-	//
-	// The plan put the registry BEFORE the packing. It is deliberately placed AFTER,
-	// which keeps this stage strictly behaviour-preserving: while the packing is still
-	// emitted it always answers first, so nothing observable moves. The two differ only
-	// where a config declares one CRS with two different backgrounds -- the packing is
-	// per-unit and exact, the registry is per-CRS and first-wins -- and there is a real
-	// such config (tst/Projects/lus_demo_2023, regression t611). Deferring that change to
-	// Stage 7, when the packing goes away and the registry becomes the only source,
-	// keeps the switch-over in one place instead of smearing it across stages.
-	//
-	// The Debug check below still exercises the registry against the packing across the
-	// whole corpus now, so it is validated long before it becomes load-bearing. It only
-	// WARNS: unlike a CRS mismatch, a background mismatch is cosmetic and the t611
-	// divergence above is expected rather than a defect.
-	auto fromPacking = DecodePackedBackgroundRef(GetMetric());
-
-#if defined(MG_DEBUG)
-	if (auto crs = GetCrs())
-	{
-		auto fromRegistry = GetCrsBackgroundRef(crs->m_SpatialRef);
-		if (!fromPacking.empty() && !fromRegistry.empty() && fromPacking != fromRegistry)
-			reportF_without_cancellation_check(SeverityTypeID::ST_Warning
-				, "background-reference note on {}: the packed metric says '{}' but the CRS registry says '{}' for '{}'"
-				, GetFullName().c_str(), fromPacking.c_str(), fromRegistry.c_str()
-				, SharedStr(crs->m_SpatialRef).c_str());
-	}
-#endif
-
-	if (!fromPacking.empty())
-		return fromPacking;
 
 	if (auto crs = GetCrs())
 		return GetCrsBackgroundRef(crs->m_SpatialRef);
@@ -584,19 +502,8 @@ SharedStr AbstrUnit::GetBackgroundReference() const
 
 TokenID AbstrUnit::GetSpatialReference() const
 {
-	// Own slot (with referred-item delegation) first; the 0xFF metric decode stays as the
-	// LAST resort until the new channel carries everything (Stage 7 deletes it).
 	auto crs = GetCrs();
-
-#if defined(MG_DEBUG)
-	if (crs)
-		CheckCrsChannelDrift(this, crs->m_SpatialRef, DecodePackedSpatialRef(GetMetric()));
-#endif
-
-	if (crs)
-		return crs->m_SpatialRef;
-
-	return DecodePackedSpatialRef(GetMetric());
+	return crs ? crs->m_SpatialRef : TokenID::GetEmptyID();
 }
 
 TokenID AbstrUnit::GetCurrSpatialReference() const
@@ -604,16 +511,7 @@ TokenID AbstrUnit::GetCurrSpatialReference() const
 	assert(m_State.GetProgress() >= ProgressState::MetaInfo); //UpdateMetaInfo();
 
 	auto crs = GetCurrCrs();
-
-#if defined(MG_DEBUG)
-	if (crs)
-		CheckCrsChannelDrift(this, crs->m_SpatialRef, DecodePackedSpatialRef(GetCurrMetric()));
-#endif
-
-	if (crs)
-		return crs->m_SpatialRef;
-
-	return DecodePackedSpatialRef(GetCurrMetric());
+	return crs ? crs->m_SpatialRef : TokenID::GetEmptyID();
 }
 
 

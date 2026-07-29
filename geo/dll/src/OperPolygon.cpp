@@ -242,19 +242,14 @@ inline bool GeoMeasure_GetCoordMetric(const AbstrOperGroup* gr, const AbstrUnit*
 	const UnitMetric* m = coordUnit->GetCurrMetric();
 	if (!IsEmpty(m))
 	{
-		// Spatial-reference coordinate units (GDAL-read / CRS-tagged) encode the CRS in their
-		// metric: a single base unit (power 1) whose symbol carries a 0xFF separator (the encoding
-		// AbstrUnit::GetSpatialReference parses). That "metric" is the projection WKT/EPSG, not a
-		// linear unit, so a linear area/length unit cannot be derived from it — keep the legacy
-		// label-only behavior. We inspect the metric directly rather than calling
-		// GetCurrSpatialReference(), which asserts metainfo-ready and is unsafe to call this early
-		// during supplier determination.
-		if (m->m_BaseUnits.size() == 1 && m->m_BaseUnits.begin()->second == 1)
-		{
-			const SharedStr& sym = m->m_BaseUnits.begin()->first;
-			if (std::find(sym.begin(), sym.send(), char(0xFF)) != sym.send())
-				return false;
-		}
+		// A coordinate unit's metric is now always a real dimension, so it can be used
+		// directly. This is where issue #1119's special case used to live: a CRS-tagged unit
+		// encoded its spatial reference IN the metric, as a single base unit whose symbol
+		// joined the CRS and the background layer with a 0xFF byte, and squaring that
+		// identity tag produced the "(EPSG:28992<0xFF>wmts_layer)^2 is not compatible with
+		// m2" failure that took t060 down. The sniff that skipped such metrics is deleted
+		// with the packing: a projected CRS now carries {m:1} and area(geom, m2) simply
+		// matches at factor 1. See doc/development/crs-metric-decoupling.md.
 		outL = m;
 		return true;
 	}
@@ -331,31 +326,41 @@ inline void GeoMeasure_ValidateAndWarn(const AbstrOperGroup* gr,
 	}
 
 	// Validate dimensional compatibility: base-unit maps must match.
-	// #1119 follow-up: a coordinate unit whose "metric" is actually a CRS/spatial-reference
-	// identity tag (e.g. the synthesized "EPSG:28992\xFFwmts_layer" base unit) is not a linear
-	// metric, so it cannot be matched against m². Rather than hard-failing existing configurations
-	// (which broke t060), treat the 2nd argument as a label only — the pre-#1119 behavior — and
-	// emit a deprecation warning. The calc-phase GeoMeasure_PureFactor then yields the raw measure
-	// (factor 1), which is already correct for metre-based CRS such as EPSG:28992.
-	// Proper fix (model CRS units as a projection over a real `m` base) is tracked in
-	// CRS_metric_decoupling_plan.md.
+	//
+	// #1119's original failure -- a coordinate unit whose "metric" was really a CRS identity
+	// tag, so that squaring it produced "(EPSG:28992<0xFF>wmts_layer)^2 is not compatible
+	// with m2" -- no longer exists: a PROJECTED coordinate reference system now carries a
+	// real {m:1} metric, so natBaseUnits is {m:2} and matches m2 at factor 1, with no
+	// diagnostic at all. That is the correct semantics and it is value-neutral for
+	// metre-based systems.
+	//
+	// What remains is the genuinely undetermined case: a coordinate unit with NO linear
+	// metric. In practice that is a GEOGRAPHIC crs (EPSG:4326 and friends), whose units are
+	// degrees -- an area in m2 is simply not derivable from degrees without a geodesic
+	// computation. Rather than hard-failing configurations that have always relied on the
+	// pre-#1119 label-only behaviour (2BURP, 2UP, tst/Unit/CRS), keep accepting the second
+	// argument as a label and warn, naming the real problem.
+	// See doc/development/crs-metric-decoupling.md.
 	if (!(natBaseUnits == tgt->m_BaseUnits))
 	{
-		// Report L itself (the metric that GeoMeasure_GetCoordMetric actually resolved and squared):
-		// for a projection-bearing coordinate unit, coordUnit's own metric is empty (units never
-		// have both a metric and a projection), so the squared base-units come from the projection's
-		// composite base, not from coordUnit->GetCurrMetricStr(). L is null/empty when that base
-		// carries no linear metric at all (e.g. a metric-less CRS coordinate unit).
-		SharedStr coordMetricStr = (L && !IsEmpty(L)) ? L->AsString(FormattingFlags::ThousandSeparator)
-		                                              : SharedStr("<none>");
-		reportF(SeverityTypeID::ST_Warning
-			, "{}: the requested result unit {} is not compatible with the coordinate metric ({})^{}; "
-			  "the second argument is accepted as a label only (deprecated, issue #1119). "
-			  "This will become an error once CRS coordinate units carry a proper linear metric."
-			, gr->GetName().c_str()
-			, targetUnit->GetCurrMetricStr(FormattingFlags::ThousandSeparator).c_str()
-			, coordMetricStr.c_str()
-			, nrDims);
+		// L is null/empty exactly when the coordinate unit -- or, for a projection-bearing
+		// one, its composite base -- carries no linear metric.
+		bool hasLinearMetric = (L && !IsEmpty(L));
+		if (!hasLinearMetric)
+			reportF(SeverityTypeID::ST_Warning
+				, "{}: the coordinate unit has no linear metric, so a result in {} cannot be derived from it "
+				  "(a geographic coordinate reference system measures in degrees; reproject to a projected "
+				  "system, or compute a geodesic measure). The second argument is accepted as a label only."
+				, gr->GetName().c_str()
+				, targetUnit->GetCurrMetricStr(FormattingFlags::ThousandSeparator).c_str());
+		else
+			reportF(SeverityTypeID::ST_Warning
+				, "{}: the requested result unit {} is not compatible with the coordinate metric ({})^{}; "
+				  "the second argument is accepted as a label only (deprecated, issue #1119)."
+				, gr->GetName().c_str()
+				, targetUnit->GetCurrMetricStr(FormattingFlags::ThousandSeparator).c_str()
+				, L->AsString(FormattingFlags::ThousandSeparator).c_str()
+				, nrDims);
 		return; // label-only: no conversion factor applied
 	}
 

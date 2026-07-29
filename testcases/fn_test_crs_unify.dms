@@ -21,28 +21,36 @@ container fn_test_crs_unify
 	unit<float64> plain_a := BaseUnit('m', float64);
 	unit<float64> plain_b := BaseUnit('m', float64);    // no CRS at all
 
-	// NOT YET TESTABLE -- deferred to Stage 7. Two units with the SAME CRS but a different
-	// DialogData must unify, since a background hint is presentation and not type. They
-	// still do NOT, because the 0xFF packing puts the hint inside the metric, so the
-	// metric comparison rejects them first. Measured 2026-07-29 with Stage 5 in place:
+	// Same CRS, DIFFERENT background layer -- these MUST unify, because a background hint
+	// is presentation and not type.
+	//
+	// Until Stage 7 they did not. The hint lived inside the metric as
+	// "EPSG:28992<0xFF>layer_x", so the metric comparison rejected the pair before the CRS
+	// comparison was even reached, with (measured 2026-07-29, Stage 5):
 	//   Values mismatch ... (/bg_x EPSG:28992<0xFF>layer_x [EPSG:28992]: float64)
 	//   and ( EPSG:28992<0xFF>layer_y [EPSG:28992]: float64) (incompatible Metrics)
-	// That failure IS the bug this project exists to remove, and it disappears with the
-	// packing in Stage 7 -- where this case becomes a positive assertion.
+	// A presentation hint acting as a type error is exactly the defect this project set out
+	// to remove; both units now simply carry metric {m:1} and CRS EPSG:28992.
+	unit<float64> bg_x : SpatialReference = "EPSG:28992", DialogData = "layer_x";
+	unit<float64> bg_y : SpatialReference = "EPSG:28992", DialogData = "layer_y";
 
 	unit<uint32> dom : nrofrows = 2;
 
 	attribute<rd_b>    src_same  (dom) : [3.0, 4.0];
 	attribute<plain_b> src_none  (dom) : [7.0, 8.0];
+	attribute<bg_y>    src_bg    (dom) : [1.0, 2.0];
 
 	// 1. two units in the SAME CRS unify
 	attribute<rd_a>    same_crs (dom) := src_same;
 	// 2. two units with NO CRS unify (empty with empty)
 	attribute<plain_a> no_crs   (dom) := src_none;
+	// 3. same CRS, different background hint: unifies (the un-erroring)
+	attribute<bg_x>    diff_bg  (dom) := src_bg;
 
 	container checks
 	{
 		parameter<float64> c1 := sum(same_crs), IntegrityCheck = "c1 == 7.0";
 		parameter<float64> c2 := sum(no_crs),   IntegrityCheck = "c2 == 15.0";
+		parameter<float64> c3 := sum(diff_bg),  IntegrityCheck = "c3 == 3.0";
 	}
 }

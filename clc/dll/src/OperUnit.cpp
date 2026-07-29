@@ -458,7 +458,38 @@ public:
 			result->SetMetric(arg2->GetMetric());
 
 		if (!crsName.empty())
+		{
 			result->SetCrs(new UnitCrs(GetTokenID_mt(crsName.begin(), crsName.send())));
+
+			// Stage 6: give a PROJECTED coordinate reference system a real linear metric,
+			// so that area(geom, m2) on an EPSG:28992 chain simply works instead of
+			// comparing m^2 against a squared CRS tag (issue #1119). Only meaningful once
+			// the wrapped unit no longer supplies the packed tag as its "metric", which is
+			// why Stage 6 and Stage 7 land together.
+			//
+			// PROJECTED ONLY, and metre-based only:
+			//  - a GEOGRAPHIC crs reports "degree" here, and giving EPSG:4326 a {degree:1}
+			//    metric would turn area(geom, m2) from a warning into a HARD ERROR for
+			//    2BURP, 2UP and tst/Unit/CRS. Those stay metric-free; geodesic area is a
+			//    separate question.
+			//  - a projected crs in some other linear unit (US survey foot) would need the
+			//    scale factor to be folded in as a projection factor. RULING 2026-07-29:
+			//    leave GetUnitlabeledScalePair().second unused for now, so such a crs also
+			//    stays metric-free and keeps today's label-only behaviour.
+			if (IsEmpty(result->GetMetric()) && !result->GetProjection())
+			{
+				auto labelScale = result->GetUnitlabeledScalePair(); // reads the slot set above
+				auto unitName = SharedStr(labelScale.first);
+				bool isMetre = (unitName == "metre" || unitName == "meter" || unitName == "m")
+					&& labelScale.second == 1.0;
+				if (isMetre)
+				{
+					auto m = std::make_unique<UnitMetric>();
+					m->m_BaseUnits[SharedStr("m")] = 1; // 'm', matching baseunit('m', ...) in configs
+					result->SetMetric(m.release());
+				}
+			}
+		}
 
 		return true;
 	}

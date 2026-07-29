@@ -128,52 +128,29 @@ LispRef UnitBase<V>::GetKeyExprImpl() const
 		{
 			if (!IsDefaultUnit())
 			{
-				LispRef baseUnitMetricExpr;
 				auto sr = GetSpatialReference();
 				if (sr)
 				{
-					// BaseUnit( 'sr', result ) provides a format specific identity
-					//auto srStr = sr.AsStrRange();
-					auto dd = TreeItem_GetDialogData(this);
-					auto sr_range = sr.AsStrRange();
+					// A unit WITH a spatial reference gets its identity from that reference:
+					//     (CrsUnit "EPSG:28992" (fpoint))
+					// Two units declaring the same CRS are the same type, which is what makes
+					// them unify -- and, unlike the encoding this replaces, their background
+					// layer plays no part in it.
+					//
+					// Until Stage 7 this wrapped an inner
+					//     (BaseUnit "EPSG:28992\xFF<DialogData>" (fpoint))
+					// whose base-unit SYMBOL carried the CRS and the background hint joined by
+					// a 0xFF byte, and whose "metric" was therefore a CRS identity tag rather
+					// than a dimension. That is gone: the CRS is a first-class unit property
+					// (tic/Crs.h) and CrsUnit derives a real linear metric for projected
+					// systems, so area(geom, m2) no longer squares an identity tag. It also
+					// makes GeoDMS logs valid UTF-8, since 0xFF is not a legal UTF-8 byte and
+					// this symbol leaked into every rendered metric.
+					// See doc/development/crs-metric-decoupling.md.
 
-					MG_CHECK(std::find(sr_range.begin(), sr_range.end(), char(0xFF)) == sr_range.end());
-
-					auto baseUnitStr = OwningPtrSizedArray<char>(dd.ssize() + sr_range.size() + 1, dont_initialize MG_DEBUG_ALLOCATOR_SRC("UnitBase<V>::GetKeyExprImpl()"));
-					auto resultIter = fast_copy(sr_range.begin(), sr_range.end(), baseUnitStr.begin());
-					* resultIter++ = char(0xFF);
-					resultIter = fast_copy(dd.begin(), dd.send(), resultIter);
-					assert(SizeT(resultIter - baseUnitStr.begin()) == baseUnitStr.size());
-					baseUnitMetricExpr = LispRef(baseUnitStr.begin(), baseUnitStr.end());
-				}
-				else
-				{
-					// BaseUnit( Left('%FullName%', 0), result ) provides a unique domain and projection identity with compatible metric
-					auto fullName = this->GetFullName();
-					baseUnitMetricExpr = ExprList(token::left
-						, LispRef(fullName.begin(), fullName.send())
-						, ExprList(token::UInt32, LispRef(Number(0.0)))
-					);
-				}
-				result = ExprList(token::BaseUnit
-					, baseUnitMetricExpr
-					, result
-				);
-
-				// CRS decoupling Stage 2: when this unit has a spatial reference, WRAP the
-				// term above rather than replacing it:
-				//     (CrsUnit "EPSG:28992" (BaseUnit "EPSG:28992\xFFwmts_layer" (fpoint)))
-				// The inner term is untouched, so the packed metric and every 0xFF fallback
-				// behave exactly as before, while the CRS additionally arrives on the result
-				// unit's own m_Crs slot -- which is what lets a CACHE unit answer for its
-				// CRS without decoding a metric symbol. Stage 7 drops the packing and with
-				// it the inner term's CRS role. See doc/development/crs-metric-decoupling.md.
-				if (sr)
-				{
-					// Stage 3: remember this unit's background layer under its CRS, so a
-					// cache unit -- which has no DialogData of its own -- can still find one
-					// once the 0xFF packing is gone. Deliberately NOT part of the key below:
-					// the background is not part of a unit's type. See Crs.h.
+					// The background layer is remembered OUT OF BAND, under the CRS: a cache
+					// unit has no DialogData of its own, and the hint deliberately does not
+					// belong to the key above because it is presentation, not type.
 					RegisterCrsBackgroundRef(sr, TreeItem_GetDialogData(this));
 
 					// Materialize the token BEFORE building the LispRef: a TokenID str-range
@@ -182,6 +159,18 @@ LispRef UnitBase<V>::GetKeyExprImpl() const
 					SharedStr srStr(sr);
 					result = ExprList(token::CrsUnit
 						, LispRef(srStr.begin(), srStr.send())
+						, result
+					);
+				}
+				else
+				{
+					// BaseUnit( Left('%FullName%', 0), result ) provides a unique domain and projection identity with compatible metric
+					auto fullName = this->GetFullName();
+					result = ExprList(token::BaseUnit
+						, ExprList(token::left
+							, LispRef(fullName.begin(), fullName.send())
+							, ExprList(token::UInt32, LispRef(Number(0.0)))
+						)
 						, result
 					);
 				}
