@@ -1,0 +1,32 @@
+// NEGATIVE: two values units in DIFFERENT coordinate reference systems must not combine.
+// doc/development/crs-metric-decoupling.md, Stage 4.
+//
+// Both units have the SAME metric ({m:1}, no 0xFF anywhere), so the long-standing metric
+// compatibility check cannot tell them apart. Only the SpatialReference check added to
+// compatible_values_unit_creator_func can reject this.
+//
+// This is deliberately the Stage-6 shape brought forward: once projected CRS derive a
+// real linear metric, EVERY metre-based CRS pair looks exactly like this, and this check
+// becomes the only thing standing between the user and two coordinate systems silently
+// combined -- which the engine elsewhere treats as semantically real, since a differing
+// SpatialReference triggers an actual OGR coordinate transformation (OperConv.h).
+//
+// Expected: nonzero exit with
+//   "Arguments must have compatible units, but arg1 has SpatialReference EPSG:28992
+//    and arg2 has SpatialReference EPSG:3857"
+container fn_test_crs_neg
+{
+	unit<float64> inner := BaseUnit('m', float64);
+	unit<float64> rd    := CrsUnit('EPSG:28992', inner);
+	unit<float64> merc  := CrsUnit('EPSG:3857',  inner);
+
+	unit<uint32> dom : nrofrows = 2;
+	attribute<rd>   a (dom) : [1.0, 2.0];
+	attribute<merc> b (dom) : [3.0, 4.0];
+
+	container checks
+	{
+		attribute<rd> bad (dom) := a + b; // must be rejected
+		parameter<float64> total := sum(bad), IntegrityCheck = "total > 0.0";
+	}
+}

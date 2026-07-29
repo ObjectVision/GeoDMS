@@ -1,0 +1,41 @@
+// CRS as a first-class unit property: derivation rules.
+// doc/development/crs-metric-decoupling.md, Stages 1-4.
+//
+// The coordinate reference system used to be smuggled through a unit's METRIC as a base
+// unit whose symbol is "<SpatialReference>\xFF<DialogData>". It is now its own property
+// (UnitCrs, rtc/dll/src/tic/Crs.h) with its own derivation and unification rules,
+// mirroring UnitMetric. This pins the derivation half; fn_test_crs_neg pins rejection.
+container fn_test_crs
+{
+	unit<fpoint> rdc_base : SpatialReference = "EPSG:28992", DialogData = "wmts_layer";
+
+	// range() -> AbstrUnit::DuplFrom. This is PROJECTION-bearing, so its own metric is
+	// empty and the legacy 0xFF decode finds nothing: before Stage 4 it reported no CRS
+	// at all. It is the case the packing could never carry.
+	unit<fpoint> rdc    := range(rdc_base, point_yx(300000f,0f), point_yx(625000f,280000f));
+
+	// gridset() -> a rescaling, not a change of CRS: rdc_mm is still EPSG:28992.
+	unit<ipoint> rdc_mm := gridset(rdc, point_yx(0.001,0.001), point_yx(0.0,0.0), ipoint);
+
+	// scaling a CRS-bearing unit by a dimensionless one keeps the CRS; combining two
+	// CRS-bearing units does not (there is no EPSG:28992 squared)
+	unit<float64> inner  := BaseUnit('m', float64);
+	unit<float64> tagged := CrsUnit('EPSG:28992', inner);
+
+	container checks
+	{
+		parameter<string> sr_base := PropValue(rdc_base, 'SpatialReference');
+		parameter<string> sr_rng  := PropValue(rdc,      'SpatialReference');
+		parameter<string> sr_mm   := PropValue(rdc_mm,   'SpatialReference');
+		parameter<string> sr_tag  := PropValue(tagged,   'SpatialReference');
+
+		// the declared unit reports its own CRS
+		parameter<bool> c1 := sr_base == 'EPSG:28992', IntegrityCheck = "c1 == True";
+		// ... and so do units DERIVED from it, through both derivation paths
+		parameter<bool> c2 := sr_rng  == 'EPSG:28992', IntegrityCheck = "c2 == True";
+		parameter<bool> c3 := sr_mm   == 'EPSG:28992', IntegrityCheck = "c3 == True";
+		// a CrsUnit-tagged unit reports it even when its metric carries no packed tag,
+		// which proves the value comes from the UnitCrs slot and not from a metric decode
+		parameter<bool> c4 := sr_tag  == 'EPSG:28992', IntegrityCheck = "c4 == True";
+	}
+}

@@ -185,7 +185,7 @@ replacement demonstrably carries the information.
 | **1** | `UnitCrs` value object + `AbstrUnit` slot + accessors; retire `s_SpatialReferenceAssoc` + `USF_HasSpatialReference`; keep 0xFF fallback last | preserving | medium |
 | **2** | `CrsUnit` operator + token + **nested** key term; Debug drift detector | preserving (cache-key churn) | medium |
 | **3** | σ→background registry; `GetBackgroundReference` consults it before the fallback | preserving | small |
-| **4** | Derivation: `DuplFrom`, `gridset`, `AbstrBinUnitOperator`, absorption in `UnitCreators` | preserving (redundant 2nd channel) | medium |
+| **4** | Derivation: `DuplFrom`, `gridset`, `AbstrBinUnitOperator`, absorption in `UnitCreators` | **changing** (see note) | medium |
 | **5** | Unification block + `GetProjMetrString`; **`GetRawValue` override** on `SpatialReferencePropDef` | **changing**: stricter σ, looser DD | small-med |
 | **6** | Derive linear metric from σ (projected CRS only) | **changing** | small |
 | **7** | Delete producer, 3 decoders, the `OperPolygon` sniff, the drift detector | **changing** | medium |
@@ -198,6 +198,23 @@ fallout is attributable:
   which is **base-unit-blind**; unify onto `AreEqual(const UnitProjection*)`.
 - `AbstrUnit.cpp:668`/`CopyProps` can pass an empty token into `SetSpatialReference`, whose first
   line is `dms_assert(!format.empty())`.
+
+**Stage 4 is behaviour-CHANGING, contrary to this table's first draft.** It was planned as a
+"second, redundant channel", on the assumption that σ derivation merely duplicates what the
+packed metric already carries. Measurement says otherwise: a `range()`/`gridset()`-derived unit
+is **projection**-bearing, so its own metric is empty and the 0xFF decode has nothing to read —
+those units reported *no CRS at all* through Stages 1–3. Propagating σ through `DuplFrom` and
+`gridset` makes them report the CRS they are actually in. That is the first user-visible
+improvement of the project and precisely the thing the packing could never do, but it is a
+change, not a no-op: `PropValue(<derived unit>,'SpatialReference')` goes from `''` to e.g.
+`'EPSG:28992'`. Guarded by `testcases/fn_test_crs.dms`.
+
+The new CRS check in `compatible_values_unit_creator_func` is genuinely redundant *today* — a
+σ-bearing unit's metric IS its packed tag, so the metric check already rejects a mismatch. It
+stops being redundant at Stage 6. It is nevertheless proven working now, via
+`testcases/fn_test_crs_neg.dms`, which uses `CrsUnit` to build two units with an identical
+`{m:1}` metric and different σ — the only construction in which the new check is reachable, and
+exactly the shape every metre-based CRS pair takes after Stage 6.
 
 **The correctness proof for the cutover** is the Stage-2 Debug-only drift detector (modelled on
 the SigUnitChecker replay in `rtc/dll/src/tic/OperSignature.cpp`): assert

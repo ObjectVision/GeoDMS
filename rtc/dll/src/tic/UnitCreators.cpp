@@ -137,6 +137,7 @@ ConstUnitRef compatible_values_unit_creator_func(arg_index nrSkippedArgs, const 
 	}
 
 	const UnitMetric* a1MetricPtr = arg1_ValuesUnit->GetMetric();
+	const UnitCrs* a1CrsPtr = arg1_ValuesUnit->GetCrs();
 	const UnitProjection* a1ProjectionPtr = arg1_ValuesUnit->GetProjection();
 	assert(IsEmpty(a1MetricPtr) || !a1ProjectionPtr); // this code assumes units never have both a metric and a projection
 
@@ -185,6 +186,26 @@ ConstUnitRef compatible_values_unit_creator_func(arg_index nrSkippedArgs, const 
 			a1MetricPtr     = currArg_MetricPtr;
 			arg1_ValuesUnit = currArg_ValuesUnit;
 		}
+
+		// Same shape for the coordinate reference system: two non-empty must agree, an
+		// empty one is overruled. Deliberately WITHOUT reassigning arg1_ValuesUnit -- which
+		// unit is returned stays driven by metric/projection, so this stage cannot change
+		// the chosen result unit; it only rejects arguments in different CRS.
+		//
+		// Redundant today, because a sigma-bearing unit's metric IS its packed CRS tag, so
+		// the metric check above already catches a mismatch. It stops being redundant at
+		// Stage 6, when projected CRS get a REAL linear metric and two different CRS both
+		// measured in metres therefore compare EQUAL on metric.
+		const UnitCrs* currArg_CrsPtr = currArg_ValuesUnit->GetCrs();
+		if (!IsEmpty(a1CrsPtr))
+		{
+			if ((!IsEmpty(currArg_CrsPtr)) && !AreEqual(a1CrsPtr, currArg_CrsPtr))
+				throwCompatibleError(gr, nrSkippedArgs, i, "SpatialReference"
+					, SharedStr(a1CrsPtr->m_SpatialRef).c_str()
+					, SharedStr(currArg_CrsPtr->m_SpatialRef).c_str());
+		}
+		else if (!IsEmpty(currArg_CrsPtr))
+			a1CrsPtr = currArg_CrsPtr;
 
 		const UnitProjection* currArg_ProjectionPtr = currArg_ValuesUnit->GetProjection();
 		if (a1ProjectionPtr)

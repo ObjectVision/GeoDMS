@@ -795,6 +795,13 @@ void AbstrUnit::DuplFrom(const AbstrUnit* src)
 	}
 	else
 		SetMetric(src->GetMetric());
+
+	// A duplicated unit is in the same coordinate reference system as its source. Without
+	// this a range()/cat_range() result knew its CRS only if the source's metric happened
+	// to carry a packed 0xFF tag -- and for the 2D branch above it never did, because the
+	// result is projection-bearing and its own metric is empty. See
+	// doc/development/crs-metric-decoupling.md Stage 4.
+	SetCrs(src->GetCrs());
 }
 
 const UnitClass* AbstrUnit::GetUnitClass() const

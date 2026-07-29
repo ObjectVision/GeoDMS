@@ -565,6 +565,11 @@ public:
 		auto newP = std::make_unique<UnitProjection>((orgP ? orgP->GetBaseUnit() : AsUnit(arg1->GetCurrUltimateItem()).get()), trRel.Offset(), trRel.Factor());
 		result->SetProjection(newP.release());
 
+		// A gridset is a rescaling of arg1, not a change of coordinate reference system:
+		// rdc_mm is still EPSG:28992, just in millimetres. Carry the CRS across so a
+		// chained gridset does not lose it. See doc/development/crs-metric-decoupling.md.
+		result->SetCrs(arg1->GetCurrCrs());
+
 		if (mustCalc)
 		{
 			DRect range = arg1->GetRangeAsDRect();

@@ -14,6 +14,7 @@
 #include "Unit.h"
 #include "UnitGroup.h"
 #include "UnitClass.h"
+#include "Crs.h"
 #include "Metric.h"
 #include "DataArray.h"
 #include "CheckedDomain.h"
@@ -93,11 +94,30 @@ public:
 			dms_assert(res);
 
 			res->SetMetric(MetricOperation(arg1A->GetCurrMetric(), arg2A->GetCurrMetric()) );
+			res->SetCrs(CrsOperation(arg1A->GetCurrCrs(), arg2A->GetCurrCrs()));
 		}
 
 		return true;
 	}
 	virtual SharedPtr<const UnitMetric> MetricOperation(const UnitMetric* arg1, const UnitMetric* arg2) const= 0;
+
+	// CRS under * and / : a coordinate unit scaled by a dimensionless one stays in its
+	// coordinate reference system, but multiplying or dividing two CRS-bearing units does
+	// not yield a CRS -- there is no EPSG:28992 squared. This deliberately reproduces what
+	// the legacy 0xFF packing already does: the packed tag is only decoded when the metric
+	// is a SINGLE base unit of power 1 (AbstrUnit.cpp), so crs*crs -- which raises the
+	// packed symbol to power 2 -- already decodes to nothing today.
+	// See doc/development/crs-metric-decoupling.md Stage 4.
+	// Returns a BORROWED pointer (never a freshly created UnitCrs, unlike MetricOperation
+	// which may build a product/quotient) -- SetCrs takes shared ownership of it.
+	virtual const UnitCrs* CrsOperation(const UnitCrs* arg1, const UnitCrs* arg2) const
+	{
+		if (IsEmpty(arg1))
+			return IsEmpty(arg2) ? nullptr : arg2;
+		if (IsEmpty(arg2))
+			return arg1;
+		return nullptr; // both carry a CRS: the product/quotient is not in either of them
+	}
 };
 
 template <typename MetricFunctor>
