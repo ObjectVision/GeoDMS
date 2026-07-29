@@ -56,10 +56,17 @@ TIC_CALL SizeT ResolvedNrElements(const TreeItem* item);
 TIC_CALL auto EstimateOperPerformance(const Operator* oper, TreeItemDualRef& resultHolder
 	, const ArgRefs& args) -> PerformanceEstimationData;
 
-// Report a completed operator evaluation against its estimate. 'actualNrElements' is the result
-// domain's now-resolved count, or -1 when it could not be established cheaply.
+// Report a completed operator evaluation against its estimates. 'actualNrElements' is the result
+// domain's now-resolved count, or Undefined when it could not be established cheaply.
+//
+// Two estimates, because the difference between them is the point: 'scheduleEstimate' is what was
+// knowable when the operation was queued, 'runEstimate' what is knowable once its suppliers are
+// done and it is about to run -- which is where the admission gate of §5.1 actually sits. For a
+// calculated domain the first is usually blind (neither its count nor its tiling exists yet) and
+// the second is exact, so reporting both measures what re-estimation (§6.2) is worth.
 TIC_CALL void ReportOperPerformance(CharPtr operName, const TreeItem* result
-	, const PerformanceEstimationData& estimate, Float64 elapsedMSec, SizeT actualNrElements);
+	, const PerformanceEstimationData& scheduleEstimate, const PerformanceEstimationData& runEstimate
+	, Float64 elapsedMSec, SizeT actualNrElements);
 
 // Report a completed storage read. Reads have no estimator yet (they are not Operators); this
 // establishes the throughput measurements that a read cost model will be calibrated against.

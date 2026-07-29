@@ -2704,6 +2704,12 @@ void OperationContext::RunOperator(ArgRefs argRefs, std::vector<ItemReadLock> re
 			MG_CHECK(op);
 
 			bool measure = IsPerformanceLogging();
+
+			// Re-estimate here, where the suppliers are done and the result's domain -- its count
+			// AND its tiling, hence its materialization regime -- is finally knowable. This is the
+			// point an admission gate acts at, so it is the estimate worth judging.
+			auto runEstimate = measure ? EstimateOperPerformance(op, resultHolder, argRefs) : PerformanceEstimationData();
+
 			PerfTimer timer(measure);
 
 			actualResult = op->CalcResult(resultHolder, argRefs, std::move(readLocks), context.get()); // ============== payload
@@ -2714,6 +2720,7 @@ void OperationContext::RunOperator(ArgRefs argRefs, std::vector<ItemReadLock> re
 				auto resultItem = resultHolder.GetUlt();
 				ReportOperPerformance(GetOperGroup()->GetNameStr(), resultItem
 					, m_Estimate ? *m_Estimate : PerformanceEstimationData()
+					, runEstimate
 					, elapsedMSec
 					, ResolvedNrElements(resultItem));
 			}

@@ -16,6 +16,7 @@
 #include "TreeItem.h"
 #include "dbg/Check.h"
 #include "dbg/SeverityType.h"
+#include "utl/mySPrintF.h"
 
 namespace {
 
@@ -77,11 +78,21 @@ TIC_CALL auto EstimateOperPerformance(const Operator* oper, TreeItemDualRef& res
 }
 
 TIC_CALL void ReportOperPerformance(CharPtr operName, const TreeItem* result
-	, const PerformanceEstimationData& estimate, Float64 elapsedMSec, SizeT actualNrElements)
+	, const PerformanceEstimationData& scheduleEstimate, const PerformanceEstimationData& runEstimate
+	, Float64 elapsedMSec, SizeT actualNrElements)
 {
 	assert(IsPerformanceLogging()); // callers gate; keep the formatting off the hot path
 
+	// The run-time estimate is the better one and the one a gate would use; the schedule-time
+	// figure is reported alongside only where it disagreed, which is the interesting case.
+	const auto& estimate = runEstimate;
 	auto resultLabel = ItemLabel(result);
+	auto scheduleStr = (scheduleEstimate.resultingNrElements == runEstimate.resultingNrElements
+		&& scheduleEstimate.regime == runEstimate.regime)
+		? SharedStr()
+		: mySSPrintF("; at schedule time: est n {}, {}, {} confidence"
+			, scheduleEstimate.resultingNrElements, AsString(scheduleEstimate.regime)
+			, AsString(scheduleEstimate.confidence));
 
 	if (!result || !IsDataItem(result))
 	{
@@ -92,32 +103,36 @@ TIC_CALL void ReportOperPerformance(CharPtr operName, const TreeItem* result
 		return;
 	}
 
-	// A lazily calculated result means CalcResult only built the tile functor: the element work is
-	// charged to whoever pulls the tiles, so this elapsed time is not the operator's compute cost.
-	// This is the same flag the MT3 pipelining decision itself consults.
-	CharPtr deferred = result->GetLazyCalculatedState() ? "; lazy result: element work deferred to tile pull" : "";
+	// Naming the regime is what keeps these lines comparable. Under deferred/streaming the elapsed
+	// time is tile-functor construction, not compute -- the element work is charged to whoever
+	// pulls the tiles -- and residentMemory is what a ledger would book, which for streaming is
+	// concurrency x one tile rather than the whole array (§4.4 of the plan; /C3 for eager numbers).
+	auto regimeStr = (estimate.regime == materialization::eager)
+		? mySSPrintF("eager, resident {}", estimate.residentMemory)
+		: mySSPrintF("{}, {} chores of {} B, resident {} (element work deferred to tile pull)"
+			, AsString(estimate.regime), estimate.nrChores, estimate.choreMemory, estimate.residentMemory);
 
 	if (!IsDefined(actualNrElements))
 	{
 		reportF(MsgCategory::performance, SeverityTypeID::ST_MinorTrace
-			, "oper {}: {} took {:.1f} ms; actual size not established; est n {}, est bytes {}, est {} confidence{}"
+			, "oper {}: {} took {:.1f} ms; actual size not established; est n {}, est bytes {}, est {} confidence; {}"
 			, operName, resultLabel
 			, elapsedMSec
 			, estimate.resultingNrElements, estimate.resultingMemory, AsString(estimate.confidence)
-			, deferred
+			, regimeStr + scheduleStr
 		);
 		return;
 	}
 
 	auto actualBytes = EstimateDataBytes(AsDataItem(result), actualNrElements);
 	reportF(MsgCategory::performance, SeverityTypeID::ST_MinorTrace
-		, "oper {}: {} took {:.1f} ms; n {} vs est {} ({:.2f}x); bytes {} vs est {} ({:.2f}x); est {} confidence, est {:.0f} elem-ops{}"
+		, "oper {}: {} took {:.1f} ms; n {} vs est {} ({:.2f}x); bytes {} vs est {} ({:.2f}x); est {} confidence, est {:.0f} elem-ops; {}"
 		, operName, resultLabel
 		, elapsedMSec
 		, actualNrElements, estimate.resultingNrElements, Residual(actualNrElements, estimate.resultingNrElements)
 		, actualBytes, estimate.resultingMemory, Residual(actualBytes, estimate.resultingMemory)
 		, AsString(estimate.confidence), estimate.expectedCalcTime
-		, deferred
+		, regimeStr + scheduleStr
 	);
 }
 

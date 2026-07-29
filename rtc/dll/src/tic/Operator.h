@@ -50,15 +50,33 @@ enum class estimate_confidence : UInt8
 	assumed,    // ASSUMED_SIZE-style fallback
 };
 
+// How the result's data comes into existence -- the biggest single factor in what an operation
+// costs in memory, and predictable from the same inputs the operator families decide it with.
+// Measured spread on a 50M-element chain: eager 1303 MB, deferred 416 MB, streaming 542 MB.
+// See doc/development/schedule-with-lookahead.md §4.4.
+enum class materialization : UInt8
+{
+	meta,       // unit or container result: no data at all
+	eager,      // whole array written under a DataWriteLock before CalcResult returns
+	deferred,   // FutureTileFunctor: tiles computed on pull and then KEPT (strong tile records)
+	streaming,  // LazyTileFunctor: tiles freed when the consumer releases them (weak refs)
+};
+
+TIC_CALL CharPtr AsString(materialization);
+
 struct PerformanceEstimationData
 {
 	calc_time_t expectedCalcTime = 0;
 	SizeT inputSize = 0, inputSizePerChore = 0;
 	SizeT workingMemorySize = 0, workingMemorySizePerChore = 0;
-	SizeT resultingMemory = 0;
+	SizeT resultingMemory = 0;       // the eventual full result volume, once every tile exists
+	SizeT residentMemory = 0;        // what a ledger would charge; per regime, see materialization
+	SizeT choreMemory = 0;           // one tile's worth of the result
 	SizeT resultingNrElements = 0;
 
+	UInt32 nrChores = 1;             // tiles this result is produced in
 	UInt16 extraTasks = 0;
+	materialization regime = materialization::eager;
 	estimate_confidence confidence = estimate_confidence::assumed;
 };
 

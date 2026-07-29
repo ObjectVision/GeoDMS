@@ -408,6 +408,27 @@ Three consequences for the plan:
    first-class estimator output** (`nrChores`, `choreBytes`) and raises the value of
    §5.4's shaping lever — bounding in-flight tiles is how streaming is made to pay off.
 
+**Validated against the estimator** (P1, same three configs; the estimator predicts the regime
+from the resolved tiling and reports it on every line):
+
+| Run | Predicted regime | `nrChores` × `choreBytes` | Estimated resident/stage | Measured peak (whole chain) |
+|---|---|---|---|---|
+| default | deferred | 764 × 256 KB | 200 MB (uint32) / 400 MB (float64) | 416 MB |
+| `LazyCalculated` | streaming | 764 × 256 KB | **8 MB** (= 32 workers × 256 KB) | **542 MB** |
+| `/C3` | eager | — | 200 MB / 400 MB | 1303 MB |
+
+Two open discrepancies, both of which say *do not grant admission on these numbers yet*:
+
+- **Deferred over-reserves.** Σ per-stage resident = 1.0 GB against a 416 MB measured peak,
+  because stages are dropped as their consumers finish rather than all being live. The §5.1
+  progressive-charging bullet is the decision this forces.
+- **Streaming under-estimates by ~13×** (40 MB summed over five stages vs 542 MB measured). The
+  `inflight × choreBytes` model is therefore *optimistic*, and admission must not trust a
+  streaming estimate until the extra residency is accounted for — candidates: per-thread
+  accumulators in the pulling aggregation, tiles held across the whole chain by one read lock,
+  or weak tile refs not being released as promptly as the type suggests. Identifying it is the
+  first task of P2, ahead of any grant logic.
+
 For diagnosis, the two modes answer different questions, and the estimator covers both:
 run with **`/C3`** (eager) to attribute compute time and full volumes per operator, and
 with **`/S3`** (default) to see the footprint production will actually have. The residual

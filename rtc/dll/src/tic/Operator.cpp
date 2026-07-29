@@ -76,6 +76,21 @@ auto Operator::GetArgPolicy(arg_index argNr, CharPtr firstArgValue) const -> ope
 
 #include "AbstrDataItem.h"
 #include "AbstrUnit.h"
+#include "TiledRangeData.h"
+#include "act/MainThread.h"
+#include "stg/AbstrStorageManager.h" // IsInMMD
+#include "utl/Environment.h"        // IsMultiThreaded3
+
+TIC_CALL CharPtr AsString(materialization m)
+{
+	switch (m) {
+	case materialization::meta: return "meta";
+	case materialization::eager: return "eager";
+	case materialization::deferred: return "deferred";
+	case materialization::streaming: return "streaming";
+	}
+	return "?";
+}
 
 // A domain's element count, with how much that number can be trusted. Robust by construction: at
 // schedule time a cache result's domain is often not computed yet, and asking an uncomputed unit
@@ -94,13 +109,29 @@ static auto EstimateDomainCount(const AbstrUnit* domain) -> std::pair<SizeT, est
 	}
 }
 
+// Which of the three materialization regimes this result will be produced in. Mirrors the
+// predicate the operator families apply when they choose between CreateFutureTileFunctor and an
+// eager parallel_tileloop (clc/dll/include/OperAttr*.h and friends), so the estimate describes
+// what will actually happen. Families whose gate carries extra terms refine this.
+static auto PredictMaterialization(const AbstrDataItem* res, tile_id nrTiles) -> materialization
+{
+	if (!IsMultiThreaded3() || nrTiles <= 1 || IsInMMD(res) || res->GetKeepDataState())
+		return materialization::eager;
+	return res->GetLazyCalculatedState() ? materialization::streaming : materialization::deferred;
+}
+
 TIC_CALL auto Operator::EstimatePerformance(TreeItemDualRef& resultHolder, const ArgRefs& args) const -> PerformanceEstimationData
 {
-	CreateResultCaller(resultHolder, args);
+	// Only materialize the skeleton when there isn't one: this is the very condition
+	// CreateResultCaller early-returns on, but checking it here also keeps overrides that require
+	// the meta thread (PhaseContainer's MG_CHECK) out of the way when re-estimating from a worker.
+	if (!resultHolder || resultHolder.IsTmp())
+		CreateResultCaller(resultHolder, args);
 
 	auto result = PerformanceEstimationData();
 	if (!IsDataItem(resultHolder.GetNew()))
 	{
+		result.regime = materialization::meta;
 		result.confidence = estimate_confidence::derived; // a unit or container result: zero data cost, exactly
 		return result;
 	}
@@ -110,7 +141,31 @@ TIC_CALL auto Operator::EstimatePerformance(TreeItemDualRef& resultHolder, const
 
 	std::tie(result.resultingNrElements, result.confidence) = EstimateDomainCount(domain);
 	result.resultingMemory = EstimateDataBytes(adi, result.resultingNrElements);
-	try { result.extraTasks = domain->GetNrTiles(); } catch (...) {}
+
+	// Tiling, then the regime it enables, then what is actually resident under that regime.
+	tile_offset maxTileSize = 0;
+	try {
+		result.nrChores = domain->GetNrTiles();
+		if (auto trd = domain->GetTiledRangeData())
+			maxTileSize = trd->GetMaxTileSize();
+	}
+	catch (...) {}
+	result.extraTasks = UInt16(Min<SizeT>(result.nrChores, MAX_VALUE(UInt16)));
+	result.choreMemory = maxTileSize ? EstimateDataBytes(adi, maxTileSize)
+		: (result.nrChores ? result.resultingMemory / result.nrChores : result.resultingMemory);
+
+	result.regime = PredictMaterialization(adi, result.nrChores);
+	if (result.regime == materialization::streaming)
+	{
+		// Only the tiles being pulled right now exist; a released tile is freed and recomputed if
+		// pulled again. The bound is concurrency x one tile, never the whole array.
+		auto inflight = Min<SizeT>(result.nrChores, MaxConcurrentTreads());
+		result.residentMemory = result.choreMemory * inflight;
+	}
+	else
+		// eager writes it all at once; deferred accumulates its tiles and keeps them, so both end
+		// up holding the whole array for as long as the result is of interest.
+		result.residentMemory = result.resultingMemory;
 
 	// Work scales with the widest domain involved, not with the result's own: an aggregation
 	// visits every input element to produce one. Per-family refinements sharpen this (§4.3 of
