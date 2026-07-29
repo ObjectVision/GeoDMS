@@ -268,7 +268,13 @@ public:
 		{
 			auto metric = std::make_unique<UnitMetric>(*arg1SI);
 
-			const AbstrDataItem* adi = AsDataItem(args[2]);
+			// args[1], not args[2]: this is a BinaryOperator, the assert above pins
+			// args.size()==2, and the checked_domain call above reads a2 as args[1].
+			// args[2] was an out-of-bounds read on a 2-element std::vector -- it did not
+			// trip in either configuration (Release has no check; Debug's
+			// _ITERATOR_DEBUG_LEVEL=1 does not check this subscript), so pow(unit, param)
+			// silently raised the metric to whatever float the adjacent heap decoded to.
+			const AbstrDataItem* adi = AsDataItem(args[1]);
 
 			DataReadLock lck(adi);
 			Float64 power = adi->GetCurrRefObj()->GetValueAsFloat64(0);

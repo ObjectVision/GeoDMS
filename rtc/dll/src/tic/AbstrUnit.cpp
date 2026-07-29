@@ -394,7 +394,12 @@ bool AbstrUnit::HasVarRangeData() const
 
 void AbstrUnit::SetSpatialReference(TokenID format)
 {
-	dms_assert(!format.empty());
+	// An empty token legitimately means CLEAR, and the body already implements exactly
+	// that: static_quick_assoc::assoc erases the entry and returns false for a default
+	// value, and SetTSF then drops USF_HasSpatialReference. The old
+	// dms_assert(!format.empty()) contradicted its own body and made CopyProps below
+	// abort in Debug whenever the TARGET carried a spatial reference and the SOURCE did
+	// not -- the right-hand side of its `||`, whose whole purpose is to clear the target.
 	SetTSF(
 		USF_HasSpatialReference,
 		s_SpatialReferenceAssoc.assoc(this, format)

@@ -189,7 +189,14 @@ ConstUnitRef compatible_values_unit_creator_func(arg_index nrSkippedArgs, const 
 		const UnitProjection* currArg_ProjectionPtr = currArg_ValuesUnit->GetProjection();
 		if (a1ProjectionPtr)
 		{
-			if (currArg_ProjectionPtr && !(*a1ProjectionPtr == *currArg_ProjectionPtr))
+			// AreEqual, not operator==: UnitProjection derives from CrdTransformation, so
+			// `*a == *b` selects CrdTransformation::operator== and compares ONLY the
+			// immediate factor/offset -- it is blind to m_BaseUnit and does not compose the
+			// projection chain. Two coordinate units over DIFFERENT bases (i.e. different
+			// CRS) sharing a scale therefore passed this compatibility check. AreEqual
+			// (Metric.cpp) compares GetCompositeBase() AND GetCompositeTransform(), which is
+			// what the unification path in AbstrUnit::UnifyValues already uses.
+			if (currArg_ProjectionPtr && !AreEqual(a1ProjectionPtr, currArg_ProjectionPtr))
 				throwCompatibleError(gr, nrSkippedArgs, i, "Projection", arg1_ValuesUnit->GetProjectionStr(FormattingFlags::ThousandSeparator).c_str(), currArg_ValuesUnit->GetProjectionStr(FormattingFlags::ThousandSeparator).c_str());
 		}
 		else if (currArg_ProjectionPtr)

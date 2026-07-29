@@ -1,0 +1,58 @@
+// UnitPowerOperator: pow(<unit>, <parameter>) must raise the unit's metric to that power.
+//
+// Regression guard (2026-07-29, CRS-decoupling Stage 0): UnitPowerOperator::CreateResult
+// (clc/dll/include/OperUnit.h) is a BinaryOperator -- args.size()==2, indices 0 and 1 --
+// but the non-empty-metric branch read args[2]. That is an out-of-bounds read on a
+// 2-element std::vector, and neither configuration trips on it (Release is unchecked;
+// Debug's _ITERATOR_DEBUG_LEVEL=1 does not check this subscript), so the exponent came
+// from whatever the adjacent heap decoded to as a float64 and the resulting metric was
+// arbitrary. Found while mapping the CRS/metric decoupling
+// (doc/development/crs-metric-decoupling.md, Stage 0).
+container fn_test_unitpow
+{
+	unit<float64> m := baseunit('m', float64);
+
+	parameter<float64> two   := 2.0;
+	parameter<float64> three := 3.0;
+	parameter<float64> one   := 1.0;
+
+	unit<float64> m_p1 := pow(m, one);
+	unit<float64> m_p2 := pow(m, two);
+	unit<float64> m_p3 := pow(m, three);
+
+	// independent ground truth for the exponent: multiplying the unit by itself must
+	// produce the same metric as raising it to that power. This is what makes the check
+	// EXACT -- with the args[2] out-of-bounds read the exponent was whatever the adjacent
+	// heap decoded to, so it could not agree with these.
+	unit<float64> m_x2 := m * m;
+	unit<float64> m_x3 := m * m * m;
+
+	container checks
+	{
+		// PropValue(...,'Metric') renders the metric of the unit; the exponent must track
+		// the second argument exactly. Comparing against the pow(m,1) rendering keeps this
+		// independent of how superscripts happen to be formatted.
+		parameter<string> s1 := PropValue(m_p1, 'Metric');
+		parameter<string> s2 := PropValue(m_p2, 'Metric');
+		parameter<string> s3 := PropValue(m_p3, 'Metric');
+		parameter<string> sm := PropValue(m,    'Metric');
+		parameter<string> x2 := PropValue(m_x2, 'Metric');
+		parameter<string> x3 := PropValue(m_x3, 'Metric');
+
+		// NB: the IntegrityCheck must COMPARE the item (the suite idiom, cf. fn_test_p1);
+		// a bare self-reference re-enters UpdateMetaInfo and reports Invalid Recursion.
+		//
+		// pow(m,1) must be m itself; the three powers must all differ from one another.
+		parameter<bool> c1 := s1 == sm,                         IntegrityCheck = "c1 == True";
+		parameter<bool> c2 := s2 != s1 && s2 != '',             IntegrityCheck = "c2 == True";
+		parameter<bool> c3 := s3 != s1 && s3 != s2,             IntegrityCheck = "c3 == True";
+
+		// the metric must be non-empty for every power (the else-branch really is taken,
+		// which is what made the out-of-bounds read reachable)
+		parameter<bool> c4 := strlen(s2) > 0 && strlen(s3) > 0, IntegrityCheck = "c4 == True";
+
+		// EXACT: pow(m,2) must equal m*m and pow(m,3) must equal m*m*m
+		parameter<bool> c5 := s2 == x2,                         IntegrityCheck = "c5 == True";
+		parameter<bool> c6 := s3 == x3,                         IntegrityCheck = "c6 == True";
+	}
+}
