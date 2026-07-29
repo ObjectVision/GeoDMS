@@ -66,7 +66,7 @@ public:
 			DataReadLock arg1Lock(argDataA);
 
 			tile_id nrTiles = argDataA->GetAbstrDomainUnit()->GetNrTiles();
-			bool createPipelinedCaster = IsMultiThreaded3() && (nrTiles > 1) && !IsInMMD(res) && !res->GetKeepDataState() && (LTF_ElementWeight(argDataA) <= LTF_ElementWeight(res));
+			bool createPipelinedCaster = IsMultiThreaded3() && (nrTiles > 1) && !IsInMMD(res) && !res->GetKeepDataState();
 			if (createPipelinedCaster)
 			{
 				auto valuesUnitA = AsUnit(res->GetValuesUnitOrThrow()->GetCurrRangeItem());

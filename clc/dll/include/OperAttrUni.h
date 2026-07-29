@@ -39,13 +39,6 @@ struct AbstrUnaryAttrOperator: UnaryOperator
 			,	m_PossibleArgFlags(possibleArgFlags)
 	{}
 
-	auto EstimatePerformance(TreeItemDualRef& resultHolder, const ArgRefs& args) -> PerformanceEstimationData override
-	{
-		auto result = UnaryOperator::EstimatePerformance(resultHolder, args);
-		result.expectedCalcTime *= GetGroup()->GetCalcFactor();
-		return result;
-	}
-
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
 		MG_PRECONDITION(args.size() == 1);
@@ -78,7 +71,7 @@ struct AbstrUnaryAttrOperator: UnaryOperator
 			auto resValuesUnit = res->GetValuesUnitOrThrow(); // owning, non-null; raw accessor can be null off the meta thread
 			auto valuesUnitA = AsUnit(resValuesUnit->GetCurrRangeItem());
 			MG_CHECK(valuesUnitA); // can be empty for a mid-destruction item
-			if (IsMultiThreaded3() && (tn > 1) && !IsInMMD(res) && (LTF_ElementWeight(arg1A) <= LTF_ElementWeight(res)))
+			if (IsMultiThreaded3() && (tn > 1) && !IsInMMD(res))
 				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileFunctor(make_shared_tree(res, existing_obj{}), res->GetLazyCalculatedState(), valuesUnitA.get(), arg1A, af MG_DEBUG_ALLOCATOR_SRC(res->md_FullName + " := " + GetGroup()->GetNameStr()));
 			else
 			{

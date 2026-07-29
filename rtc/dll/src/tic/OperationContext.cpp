@@ -89,6 +89,7 @@
 #include "DataStoreManagerCaller.h"
 #include "Operator.h"
 #include "MoreDataControllers.h"
+#include "PerfMeasurement.h"
 #include "stg/AbstrStorageManager.h" // #933: NonmappableStorageManager + m_CriticalSection
 RTC_CALL void NotifyCurrentTargetCount();
 
@@ -1138,11 +1139,9 @@ void StartCollectedOperationContexts(context_array collectedActivatedContexts)
 						self->TryRunningTaskInline();
 				};
 
-#if defined(_MSC_VER)
+			// One bounded pool on every platform: the non-MSVC branch used to detach a fresh
+			// std::thread per activated context, so nothing capped concurrency there.
 			GetPortableTaskGroup().run(selfCaller);
-#else
-			std::thread(selfCaller).detach();
-#endif
 		}
 }
 
@@ -2093,6 +2092,12 @@ bool OperationContext::ScheduleCalcResult(ArgRefs&& argRefs, explain_context_ptr
 	if (!resultHolder.WasFailed(FailType::Data) && !SuspendTrigger::DidSuspend())
 	{
 		assert(funcDC);
+
+		// Predict the cost here, where a scheduler would have to: on the meta thread, with the
+		// result skeleton built and the arguments known, but before anything has been calculated.
+		if (IsPerformanceLogging())
+			m_Estimate = std::make_unique<PerformanceEstimationData>(EstimateOperPerformance(GetOperator(), resultHolder, argRefs));
+
 		auto func = OC_CalcResultFunc{ std::move(argRefs), allArgInterests }; // TOD: move in, but keep view of ArgInterests array
 
 		m_TaskFunc = std::move(func);
@@ -2698,7 +2703,20 @@ void OperationContext::RunOperator(ArgRefs argRefs, std::vector<ItemReadLock> re
 			auto op = funcDC->m_Operator;
 			MG_CHECK(op);
 
+			bool measure = IsPerformanceLogging();
+			PerfTimer timer(measure);
+
 			actualResult = op->CalcResult(resultHolder, argRefs, std::move(readLocks), context.get()); // ============== payload
+
+			if (measure)
+			{
+				auto elapsedMSec = timer.ElapsedMSec();
+				auto resultItem = resultHolder.GetUlt();
+				ReportOperPerformance(GetOperGroup()->GetNameStr(), resultItem
+					, m_Estimate ? *m_Estimate : PerformanceEstimationData()
+					, elapsedMSec
+					, ResolvedNrElements(resultItem));
+			}
 
 			assert(resultHolder || IsCanceled());
 			assert(actualResult || SuspendTrigger::DidSuspend());

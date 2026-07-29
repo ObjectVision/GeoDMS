@@ -78,7 +78,7 @@ struct AbstrBinaryAttrOper : BinaryOperator
 			auto resValuesUnit = res->GetValuesUnitOrThrow(); // owning, non-null; raw accessor can be null off the meta thread
 			auto valuesUnitA = AsUnit(resValuesUnit->GetCurrRangeItem());
 			MG_CHECK(valuesUnitA); // can be empty for a mid-destruction item
-			if (IsMultiThreaded3() && (tn > 1) && !IsInMMD(res) && (LTF_ElementWeight(arg1A) + LTF_ElementWeight(arg2A) <= LTF_ElementWeight(res)))
+			if (IsMultiThreaded3() && (tn > 1) && !IsInMMD(res))
 				res->m_DataObject = CreateFutureTileFunctor(make_shared_tree(res, existing_obj{}), res->GetLazyCalculatedState(), valuesUnitA.get(), arg1A, arg2A, af MG_DEBUG_ALLOCATOR_SRC(res->md_FullName + " := "  + GetGroup()->GetNameStr()));
 			else
 			{

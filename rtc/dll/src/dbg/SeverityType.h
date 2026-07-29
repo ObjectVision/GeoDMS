@@ -36,6 +36,7 @@ enum class MsgCategory : UInt8 {
 	other,
 	memory,
 	commands,
+	performance, // cost/footprint measurements; off unless the PerformanceLogging setting is set
 };
 
 RTC_CALL CharPtr AsString(MsgCategory);

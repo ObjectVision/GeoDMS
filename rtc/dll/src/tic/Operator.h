@@ -38,14 +38,28 @@ enum ArgFlags
 // Section:     PerformanceEstimationData
 // *****************************************************************************
 
+// How much the numbers below can be relied on; see doc/development/schedule-with-lookahead.md §4.
+// Ordered from most to least reliable: a consumer may reserve on 'declared' and better, and must
+// treat 'bounded'/'assumed' figures as upper bounds rather than expectations.
+enum class estimate_confidence : UInt8
+{
+	measured,   // actual value of a completed run / ready data
+	derived,    // computed from ready supplier meta-info (exact counts and widths)
+	declared,   // from a SizeExpectation / SizeUpperbound property
+	bounded,    // sound upper bound; the expected value is unknown
+	assumed,    // ASSUMED_SIZE-style fallback
+};
+
 struct PerformanceEstimationData
 {
 	calc_time_t expectedCalcTime = 0;
-	SizeT inputSize, inputSizePerChore = 0;
+	SizeT inputSize = 0, inputSizePerChore = 0;
 	SizeT workingMemorySize = 0, workingMemorySizePerChore = 0;
 	SizeT resultingMemory = 0;
+	SizeT resultingNrElements = 0;
 
 	UInt16 extraTasks = 0;
+	estimate_confidence confidence = estimate_confidence::assumed;
 };
 
 // *****************************************************************************
@@ -83,7 +97,10 @@ public:
 		auto argSeq = GetItems(args);
 		return CreateResult(resultHolder, argSeq, true);
 	}
-	TIC_CALL virtual auto EstimatePerformance(TreeItemDualRef& resultHolder, const ArgRefs& args) -> PerformanceEstimationData;
+	// Predict this operator's cost and footprint from the result skeleton and the argument
+	// meta-info, without calculating anything. Not consumed by scheduling decisions yet: P0 of
+	// doc/development/schedule-with-lookahead.md only logs it against the measured actuals.
+	TIC_CALL virtual auto EstimatePerformance(TreeItemDualRef& resultHolder, const ArgRefs& args) const -> PerformanceEstimationData;
 
 	arg_index             NrSpecifiedArgs()        const { return m_ArgClassesEnd - m_ArgClassesBegin; }
 	arg_index             NrOptionalArgs()         const { dms_assert(NrSpecifiedArgs() >= m_NrOptionalArgs);  return m_NrOptionalArgs; }

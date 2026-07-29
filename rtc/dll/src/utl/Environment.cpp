@@ -585,6 +585,7 @@ extern "C" RTC_CALL bool DMS_CONV RTC_ParseRegStatusFlag(const char* param)
 		case '2': SetCachedStatusFlag(RSF_MultiThreading2, newValue); break;
 		case '3': SetCachedStatusFlag(RSF_MultiThreading3, newValue); break;
 		case 'H': SetCachedStatusFlag(RSF_ShowThousandSeparator, newValue); break;
+		case 'P': SetPerformanceLogging(newValue); break; // not a status flag: that DWORD is out of bits
 		case 'W': SetCachedStatusFlag(RSF_EventLog_HideDepreciated, !newValue); break; // the command line option is /SW to Show (not hide) deprecated events, but the flag is HideDepreciated, so invert the value
 		default:
 			reportF(SeverityTypeID::ST_Warning, "Unrecognised command line {} option {}",  (newValue ? "Set" : "Clear"), param);
@@ -617,7 +618,8 @@ RegDWordAttr s_RegDWordAttrs[] =
 	{ "MemoryFlushThreshold", 80, false},
 	{ "SwapFileMinSize", 0, false },
     { "DrawingSizeInPixels", 0, false },
-	{ "MemoryMaxRAM_GB", 64, false } // simulates a smaller machine; also throttles operation activation via IsLowOnFreeRAM
+	{ "MemoryMaxRAM_GB", 64, false }, // simulates a smaller machine; also throttles operation activation via IsLowOnFreeRAM
+	{ "PerformanceLogging", 0, false }
 };
 
 extern "C" RTC_CALL DWORD RTC_GetRegDWord(RegDWordEnum i)
@@ -2473,6 +2475,7 @@ extern "C" RTC_CALL bool DMS_CONV RTC_ParseRegStatusFlag(const char* param)
 		case '2': SetCachedStatusFlag(RSF_MultiThreading2, newValue); break;
 		case '3': SetCachedStatusFlag(RSF_MultiThreading3, newValue); break;
 		case 'H': SetCachedStatusFlag(RSF_ShowThousandSeparator, newValue); break;
+		case 'P': SetPerformanceLogging(newValue); break; // not a status flag: that DWORD is out of bits
 		case 'W': SetCachedStatusFlag(RSF_EventLog_HideDepreciated, !newValue); break;
 		default:
 			reportF(SeverityTypeID::ST_Warning, "Unrecognised command line {} option {}", (newValue ? "Set" : "Clear"), param);
@@ -2503,7 +2506,8 @@ static RegDWordAttr s_RegDWordAttrs[] =
 	{ "MemoryFlushThreshold", 80, false },
 	{ "SwapFileMinSize", 0, false },
 	{ "DrawingSizeInPixels", 0, false },
-	{ "MemoryMaxRAM_GB", 64, false } // simulates a smaller machine; also throttles operation activation via IsLowOnFreeRAM
+	{ "MemoryMaxRAM_GB", 64, false }, // simulates a smaller machine; also throttles operation activation via IsLowOnFreeRAM
+	{ "PerformanceLogging", 0, false }
 };
 
 extern "C" RTC_CALL DWORD RTC_GetRegDWord(RegDWordEnum i)
@@ -2698,6 +2702,33 @@ auto wchar_2_Utf8Str(const wchar_t* wCharStr, int strLen) -> SharedStr
 }
 
 #endif //defined(_MSC_VER)
+
+//  -----------------------------------------------------------------------
+// Performance logging (cross-platform)
+
+#include <atomic>
+
+// Tri-state cache of the PerformanceLogging setting: 0 = not yet read, 1 = off, 2 = on.
+// RTC_GetRegDWord takes s_RegAccess, which is too much for a per-operation check, and the
+// setting is not meant to change mid-session.
+static std::atomic<UInt8> s_PerformanceLoggingState = 0;
+
+RTC_CALL bool IsPerformanceLogging()
+{
+	auto state = s_PerformanceLoggingState.load(std::memory_order_relaxed);
+	if (!state)
+	{
+		state = RTC_GetRegDWord(RegDWordEnum::PerformanceLogging) ? 2 : 1;
+		s_PerformanceLoggingState.store(state, std::memory_order_relaxed);
+	}
+	return state == 2;
+}
+
+RTC_CALL void SetPerformanceLogging(bool enable)
+{
+	RTC_SetCachedDWord(RegDWordEnum::PerformanceLogging, enable ? 1 : 0);
+	s_PerformanceLoggingState.store(enable ? 2 : 1, std::memory_order_relaxed);
+}
 
 //  -----------------------------------------------------------------------
 // Executable version component (cross-platform), shown in the Help/About

@@ -279,6 +279,11 @@ public:
 	// Timestamp when this context became active (for diagnostics/scheduling).
 	TimeStamp          m_ActiveTimestamp = -1;
 
+	// What this operation was predicted to cost, filled in at schedule time and only when the
+	// PerformanceLogging setting is on. Nothing schedules on it: RunOperator reports it against
+	// the measured outcome (P0 of doc/development/schedule-with-lookahead.md).
+	std::unique_ptr<struct PerformanceEstimationData> m_Estimate;
+
 public:
 	// Phase number used to coordinate group waits/blocks across contexts.
 	phase_number m_PhaseNumber = 0;

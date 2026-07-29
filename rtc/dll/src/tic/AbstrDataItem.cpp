@@ -1297,9 +1297,21 @@ UInt32 ElementWeight(const AbstrDataItem* adi)
 	return  bitSize;
 }
 
-UInt32 LTF_ElementWeight(const AbstrDataItem* adi)
+// Assumed per-row volume of variable-width elements, matching the guesses ElementWeight has
+// always made. A declared SizeUpperbound (schedule-with-lookahead.md §4.5) supersedes them.
+const SizeT ASSUMED_STRING_BYTES = 32;
+const SizeT ASSUMED_SEQ_LENGTH   = 32;
+
+SizeT EstimateDataBytes(const AbstrDataItem* adi, SizeT nrElements)
 {
-	return 0;
+	if (adi->HasVoidDomainGuarantee())
+		return 0;
+	auto bitSize = SizeT(adi->GetAbstrValuesUnit()->GetValueType()->GetBitSize());
+	if (!bitSize)
+		return nrElements * (ASSUMED_STRING_BYTES + sizeof(SizeT)); // chars plus a sequence index entry
+	if (adi->GetValueComposition() != ValueComposition::Single)
+		return nrElements * (((bitSize * ASSUMED_SEQ_LENGTH) >> 3) + sizeof(SizeT));
+	return (nrElements * bitSize + 7) >> 3; // sub-byte elements are bit-packed
 }
 
 //----------------------------------------------------------------------

@@ -461,6 +461,10 @@
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
+    <ClCompile Include="src\tic\PerfMeasurement.cpp">
+      <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
+      <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
+    </ClCompile>
     <ClCompile Include="src\tic\SessionData.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
@@ -710,6 +714,7 @@
     <ClInclude Include="src\tic\OperPolicy.h" />
     <ClInclude Include="src\tic\OperSignature.h" />
     <ClInclude Include="src\tic\Param.h" />
+    <ClInclude Include="src\tic\PerfMeasurement.h" />
     <ClInclude Include="src\tic\SessionData.h" />
     <ClInclude Include="src\tic\StateChangeNotification.h" />
     <ClInclude Include="src\tic\StoredPropDef.h" />

@@ -104,7 +104,7 @@ public:
 			auto arg2DomainRange = arg2Lock->GetTiledRangeData();
 
 
-			if (IsMultiThreaded3() && (nrTiles > 1) && !IsInMMD(res) && (LTF_ElementWeight(arg1A) <= LTF_ElementWeight(res)) && (nrTiles > arg2DomainRange->GetNrTiles()))
+			if (IsMultiThreaded3() && (nrTiles > 1) && !IsInMMD(res) && (nrTiles > arg2DomainRange->GetNrTiles()))
 				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileIndexer(make_shared_tree(res, existing_obj{}), res->GetLazyCalculatedState(), arg2_DomainUnit, arg1A, arg2Domain, arg2DomainRange.get(), hasIndex, std::move(index) MG_DEBUG_ALLOCATOR_SRC(res->md_FullName + " := RLookup()"));
 			else
 			{

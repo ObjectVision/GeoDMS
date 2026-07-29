@@ -202,7 +202,12 @@ TIC_CALL extern PropDef<AbstrDataItem, SharedStr>* s_DomainUnitPropDefPtr;
 
 TIC_CALL const AbstrUnit* AbstrValuesUnit(const AbstrDataItem* adi);
 TIC_CALL UInt32 ElementWeight(const AbstrDataItem* adi);
-TIC_CALL UInt32 LTF_ElementWeight(const AbstrDataItem* adi);
+
+// Bytes a data block of nrElements elements of adi's value type occupies, sub-byte packing
+// included. For variable-width elements (strings, non-Single value compositions) the per-row
+// volume is a guess; a declared SizeUpperbound is what will replace that guess.
+// See doc/development/schedule-with-lookahead.md §4.
+TIC_CALL SizeT EstimateDataBytes(const AbstrDataItem* adi, SizeT nrElements);
 
 
 #endif

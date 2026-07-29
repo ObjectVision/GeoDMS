@@ -57,6 +57,7 @@ CharPtr AsString(MsgCategory msgCat)
 	case MsgCategory::progress: {return "[progress]"; }
 	case MsgCategory::memory: {return "[memory]"; }
 	case MsgCategory::commands: { return "[commands]"; }
+	case MsgCategory::performance: { return "[performance]"; }
 	}
 	return "[unknown category]";
 }

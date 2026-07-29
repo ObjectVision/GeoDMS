@@ -1092,6 +1092,9 @@
     <ClInclude Include="src\tic\ParallelTiles.h">
       <Filter>TreeItemComponent</Filter>
     </ClInclude>
+    <ClInclude Include="src\tic\PerfMeasurement.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
     <ClInclude Include="src\tic\stg\MemoryMappeddataStorageManager.h">
       <Filter>TreeItemComponent</Filter>
     </ClInclude>
@@ -1485,6 +1488,9 @@
       <Filter>TreeItemComponent</Filter>
     </ClCompile>
     <ClCompile Include="src\tic\OperSignature.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\PerfMeasurement.cpp">
       <Filter>TreeItemComponent</Filter>
     </ClCompile>
     <ClCompile Include="src\tic\stg\MemoryMappedDataStorageManager.cpp">

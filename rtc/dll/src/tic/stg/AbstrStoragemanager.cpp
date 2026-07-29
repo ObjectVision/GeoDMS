@@ -36,6 +36,7 @@
 #include "DataArray.h"
 #include "DataStoreManagerCaller.h"
 #include "TreeItem.h"
+#include "PerfMeasurement.h"
 #include "TreeItemContextHandle.h"
 #include "TreeItemProps.h"
 #include "stg/StorageClass.h"
@@ -1054,7 +1055,15 @@ bool StorageReadHandle::Read() const
 	if (!StorageManager()->IsOpen())
 		return false;
 
-	return FocusItem()->DoReadItem(MetaInfo());
+	bool measure = IsPerformanceLogging();
+	PerfTimer timer(measure);
+
+	auto result = FocusItem()->DoReadItem(MetaInfo());
+
+	if (measure)
+		ReportReadPerformance(FocusItem(), timer.ElapsedMSec());
+
+	return result;
 }
 
 

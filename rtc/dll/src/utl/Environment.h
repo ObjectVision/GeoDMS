@@ -136,8 +136,16 @@ enum class RegDWordEnum
 	MemoryFlushThreshold = 0,
 	SwapFileMinSize = 1,
 	DrawingSizeInPixels = 2,
-	MemoryRAM_MAX_GB = 3, 
+	MemoryRAM_MAX_GB = 3,
+	PerformanceLogging = 4,
 };
+
+// Whether to measure and report per-operation cost and footprint under MsgCategory::performance.
+// Off by default; caches the PerformanceLogging setting so hot paths pay one relaxed load.
+RTC_CALL bool IsPerformanceLogging();
+
+// Session-local override of that setting, as the /SP and /CP command-line options do.
+RTC_CALL void SetPerformanceLogging(bool enable);
 
 extern "C" RTC_CALL DWORD DMS_CONV RTC_GetRegDWord(RegDWordEnum i);
 extern "C" RTC_CALL void  DMS_CONV RTC_SetCachedDWord(RegDWordEnum i, DWORD dw);

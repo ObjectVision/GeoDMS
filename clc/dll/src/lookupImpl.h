@@ -117,7 +117,7 @@ public:
 
 			auto tn = domainA->GetNrTiles();
 			auto wrappedValuesArray = MakeValuesArray(arg2A);
-			if (IsMultiThreaded3() && (tn > 1) && !IsInMMD(res) && (LTF_ElementWeight(arg1A) <= LTF_ElementWeight(res)) && tn > arg2DomainA->GetNrTiles())
+			if (IsMultiThreaded3() && (tn > 1) && !IsInMMD(res) && tn > arg2DomainA->GetNrTiles())
 				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileFunctor(make_shared_tree(res, existing_obj{}), res->GetLazyCalculatedState(), arg1A, dcmArg1, valuesA, arg2DomainA, wrappedValuesArray MG_DEBUG_ALLOCATOR_SRC(res->md_FullName + " := lookup"));
 			else
 			{

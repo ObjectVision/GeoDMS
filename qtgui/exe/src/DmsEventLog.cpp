@@ -120,6 +120,7 @@ QVariant EventLogModel::data(const QModelIndex& index, int role) const
 		case MsgCategory::background_layer_request: {return html_purple; }
 		case MsgCategory::commands: { return html_black; }
 		case MsgCategory::memory: {return html_brown; }
+		case MsgCategory::performance: {return html_ForestGreen; }
 		case MsgCategory::other: {return html_gray; }
 		}
 		return return_color;
@@ -168,6 +169,7 @@ bool EventLogModel::itemPassesCategoryFilter(const MsgData& msgLine) const
 	case MsgCategory::background_layer_connection: {return eventlog->m_eventlog_filter->m_connection_filter->isChecked(); }
 	case MsgCategory::background_layer_request: {return eventlog->m_eventlog_filter->m_request_filter->isChecked(); }
 	case MsgCategory::memory: {return eventlog->m_eventlog_filter->m_category_filter_memory->isChecked(); }
+	case MsgCategory::performance: // shares the 'other' checkbox: opting in to the measurements is the PerformanceLogging setting, not a filter
 	case MsgCategory::other: {return eventlog->m_eventlog_filter->m_category_filter_other->isChecked(); }
 	case MsgCategory::commands: {return eventlog->m_eventlog_filter->m_category_filter_commands->isChecked(); }
 	}

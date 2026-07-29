@@ -731,14 +731,15 @@ Each phase is independently landable, flag-guarded, and validated on
 (t720/2BURP, t641/RSopen — wall time *and* peak commit via `GetFixedAllocStatus`
 maxima; the perf-`.bin` infrastructure already records timings per test).
 
-- **P0 — measure & mend (no behavior change).**
-  Fix `PerformanceEstimationData` defects (initializer, field mis-assignment, byte
-  units, `ElementByteWeight`); implement-or-delete `LTF_ElementWeight`; unify the
-  non-MSVC detached-thread path onto `portable_task_group`; instrument
-  `RunOperator`/`CalcResult` and `StorageReadHandle::Read` with elapsed +
-  alloc-status deltas + result bytes, logged under a new `MsgCategory::performance`;
-  add the estimate-vs-actual residual log (estimates computed but **unused**).
-  Exit: overhead unmeasurable; residual report exists for the whole battery.
+- **P0 — measure & mend (no behavior change). DONE** — see §8.1 for what it
+  established. Fixed the `PerformanceEstimationData` defects (missing initializer,
+  the mis-assigned aggregate return) and replaced the bits-vs-bytes muddle with
+  `EstimateDataBytes(adi, nrElements)` (sub-byte packing included); deleted the inert
+  `LTF_ElementWeight` and simplified its seven MT3 gates; unified the non-MSVC
+  detached-thread path onto `portable_task_group`; instrumented the `CalcResult`
+  payload and `StorageReadHandle::Read` under a new `MsgCategory::performance`, off
+  unless the `PerformanceLogging` setting (or `/SP`) is on; the estimate is computed
+  at schedule time and reported against the measured outcome, **consumed by nothing**.
 - **P1 — the estimator.**
   `EstimateResources` default (signature-derived where available) + family overrides
   (§4.3) + the `SizeUpperbound` property (§4.5: registration beside
@@ -770,6 +771,42 @@ maxima; the perf-`.bin` infrastructure already records timings per test).
   modeler-facing docs (when to still use `PhaseContainer`; authoring guidance for
   `SizeExpectation` (né `SizeEstimator` — currently an undocumented power
   feature) and `SizeUpperbound`, §4.5).
+
+### 8.1 What P0 measured (and what it changes about the plan)
+
+Landed as `rtc/dll/src/tic/PerfMeasurement.{h,cpp}` plus the touch-ups listed above.
+Enable with `/SP` on any exe (or the `PerformanceLogging` registry DWORD); `/CP`
+turns it off again. Verification: whole-solution Release build clean, all 186
+`testcases/` cases pass unchanged, and with logging off the added cost is two relaxed
+atomic loads per payload (measured wall time within run-to-run noise; enabling it cost
+~3 ms on a ~50 ms run emitting 14 report lines).
+
+Three findings that matter for P1–P5:
+
+1. **At schedule time the result domain's count is usually *not* resolved.** On a
+   plain `id → add → mul → float64 → div → sum` chain over a 3.2 M-element calculated
+   unit, every elementwise operator estimated `assumed` confidence with the
+   `ASSUMED_SIZE` = 1 M fallback, i.e. **3.20× under** the actual count; only the
+   void-domain parameters came out `derived`. So the P1 exit criterion ("≥ 80 %
+   `derived`/`declared`") cannot be met by better per-family formulas alone — it needs
+   the §6.2 re-estimation at supplier completion, or a declared `SizeUpperbound`. This
+   is the plan's central hypothesis, now measured rather than assumed.
+2. **Estimation must degrade per field, never all-or-nothing.** Asking an uncomputed
+   unit for `GetCount()`/`GetNrTiles()` throws; a single try/catch around the whole
+   estimator turned that into an all-zero record that *looked* like a confident
+   "costs nothing". `EstimateDomainCount` now isolates each query, and confidence is
+   the **worst** over the result and all inputs.
+3. **Elapsed time at the `CalcResult` boundary is not an operator's compute cost.**
+   Pipelined operators return once the tile functor is built: the 3.2 M-element
+   operators each reported ≤ 0.1 ms while the `sum` that pulled their tiles reported
+   7.9 ms. Per-operator time therefore has to be measured per tile chore (§4.7), and
+   until then the calibration of §4.6 can only be trusted for eager operators. The
+   report marks a lazily-calculated result explicitly rather than implying otherwise.
+
+Also worth recording: the `[performance]` category shares the event log's "other"
+filter checkbox, and the `RegStatusFlags` DWORD is **out of bits** (`RSF_WasRead` is
+0x80000000), which is why `PerformanceLogging` is a `RegDWordEnum` entry and `/SP`
+sets that rather than a status flag. P2's throttle flag will need the same treatment.
 
 ---
 
@@ -831,3 +868,4 @@ maxima; the perf-`.bin` infrastructure already records timings per test).
 | PhaseContainer | `clc/dll/src/PhaseContainer.cpp` (intent: `:27-30`), `clc/dll/src/SubItem.cpp:41-52`, issues #902/#1128 |
 | Storage pre-read knowledge | `tic/stg/AbstrStoragemanager.cpp:71-80`, `stg/dll/src/gdal/gdal_grid.cpp:95-118,525-538`, `tic/AbstrDataItem.cpp:249-355`, `tic/TreeItem.cpp:4209-4360` |
 | Measurement primitives | `mem/FixedAlloc.cpp:748-817`, `dbg/Timer.h:30-50` |
+| P0 instrumentation (landed) | `tic/PerfMeasurement.{h,cpp}`, gate `utl/Environment.cpp` (`IsPerformanceLogging`, `/SP`), call sites `tic/OperationContext.cpp` (`RunOperator`, `ScheduleCalcResult`) and `tic/stg/AbstrStoragemanager.cpp` (`StorageReadHandle::Read`) |
