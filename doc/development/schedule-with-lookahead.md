@@ -21,7 +21,7 @@ This plan works out:
    which is not an `Operator`) producing per-task estimates of CPU work, transient
    working memory, retained result memory and I/O — derived from argument **domain
    counts, value ranges/widths and tiling**, refined per operator family, bounded by
-   modeler-declared expectations (`SizeUpperbound`, §4.5), calibrated from
+   modeler-declared expectations (`SizeUpperbound`, §4.6), calibrated from
    measurements;
 2. a **scheduler** that uses those estimates for admission control (throttling),
    ordering (finish memory-retaining sub-task groups before opening new ones), and
@@ -139,7 +139,7 @@ That is exactly the lever §5.2 pulls.
 | `AbstrOperGroup::m_CalcFactor` | `tic/OperGroups.h:83,151` | Declared, defaulted to 1.0, never set to anything else. |
 | `ElementWeight(adi)` | `tic/AbstrDataItem.cpp:1265-1275` | Bits-per-element from pure metadata: void→0, string→256, sequences→`bitSize×32`, else `GetBitSize()`. Note: **bits, not bytes** — unit hygiene needed. |
 | `LTF_ElementWeight(adi)` | `AbstrDataItem.cpp:1277-1280` | **Stubbed to `return 0;`** — all MT3 pipelining gates (`OperAttrUni.h:81`, `OperAttrBin.h:81`, `OperAttrTer.h:94`, `CastedUnaryAttrOper.h:69,156`, `clc/dll/src/lookupImpl.h:120`, `RLookupImpl.h:107`, `geo/dll/src/Point.cpp:119`, `tic/AbstrDataItem.cpp:313`) degenerate to always-true. |
-| `AbstrUnit::GetEstimatedCount()` | `tic/AbstrUnit.cpp:788-817` | Ready data → exact `GetCount()`; else evaluate the modeler-declared **`SizeEstimator`** property (`TicPropDefConst.h:37`, `TreeItem.cpp:1002-1016`); else `ASSUMED_SIZE = 1'000'000`. A three-tier confidence ladder already exists here; §4.5 adds a declared upper-bound sibling (`SizeUpperbound`) and renames `SizeEstimator` to `SizeExpectation`. |
+| `AbstrUnit::GetEstimatedCount()` | `tic/AbstrUnit.cpp:788-817` | Ready data → exact `GetCount()`; else evaluate the modeler-declared **`SizeEstimator`** property (`TicPropDefConst.h:37`, `TreeItem.cpp:1002-1016`); else `ASSUMED_SIZE = 1'000'000`. A three-tier confidence ladder already exists here; §4.6 adds a declared upper-bound sibling (`SizeUpperbound`) and renames `SizeEstimator` to `SizeExpectation`. |
 | Tiling oracle | `tic/TiledRangeData.h:66-108` | `GetNrTiles`, `GetTileSize(t)`, `GetMaxTileSize`, and notably `GetNrMemPages(log2BitsPerElem)` — tiling × element width combined. |
 | Measurement primitives | `mem/FixedAlloc.cpp:748-817` (`GetFixedAllocStatus` incl. running maxima), `:780-802` (`GetMemoryStatus`), `dbg/Timer.h:30-50` | Exist, but used only for rate-limited logging. **No CPU-time accounting, no per-operator history, no bytes-read counters** (per-read log is a bare "Read X from Y", `tic/TreeItem.cpp:4039-4044`). |
 
@@ -223,12 +223,12 @@ estimation value:
 |---|---|
 | `CreateResultCaller` / `CreateResult(…, mustCalc=false)` (`Operator.h:62-75`) | **High.** Builds the result skeleton on the meta thread *before* calculation: result domain and values units exist, so result cardinality and element width are readable pre-run for the (large) class of operators whose result domain is a function of argument meta. The default `EstimatePerformance` already exploits this. Cost: it may create cache items; but for FuncDC-driven OCs it runs anyway during scheduling, so estimation piggybacks nearly free. |
 | `PreCalcUpdate` (`Operator.h:77`) | **Medium.** A pre-run hook on the scheduling thread (today only `PhaseContainer` overrides it). Natural place for last-moment estimate refresh once suppliers are done. |
-| `CalcResult` (`Operator.h:79`) | Measurement bracket for calibration (§4.6): wrap its invocation in `RunOperator` (`OperationContext.h:302`) with a timer + allocation snapshot. |
+| `CalcResult` (`Operator.h:79`) | Measurement bracket for calibration (§4.7): wrap its invocation in `RunOperator` (`OperationContext.h:302`) with a timer + allocation snapshot. |
 | `EstimatePerformance` (`Operator.h:86`) | The seed to rework (§4). Currently uncalled. |
 | `GetArgPolicy` / group `oper_policy` flags (`Operator.h:95-130`, `OperGroups.h:68-99`) | Classify: `has_external_effects` / `calc_requires_metainfo` ⇒ inline-only (exempt from throttling); `is_transient`, `dont_cache_result` ⇒ result-retention differs; `is_template_call`/meta operators ⇒ zero data cost. |
 | `DescribeSignature` / `DescribeSpecSignature` / `DescribeMetaSignature` (`Operator.h:102-125`, `OperSignature.h`) | **Strategic.** The typed-HOF signature layer already declares, per member, how result domain/values units relate to argument units. A generic estimator can *derive* result cardinality and element width from the signature record without instantiating anything — the same records serve type checking and cost lookahead. Where a signature exists, the default estimate needs no per-operator code at all. |
 | `CanRunParallel` (`Operator.h:129`) | Already the async eligibility bit; keep as-is. |
-| `AbstrOperGroup::m_CalcFactor` / `CreateValuesUnit` (`OperGroups.h:83,133`) | Group-level cost scalar (to be *calibrated*, not hand-set — §4.6) and the unit-creator that determines result element type. |
+| `AbstrOperGroup::m_CalcFactor` / `CreateValuesUnit` (`OperGroups.h:83,133`) | Group-level cost scalar (to be *calibrated*, not hand-set — §4.7) and the unit-creator that determines result element type. |
 
 **Gaps** (what the interface cannot express today):
 
@@ -258,9 +258,18 @@ units (bytes, abstract element-ops) and confidence:
 enum class estimate_confidence : UInt8 {
     measured,   // actual value from a completed run / ready data
     derived,    // computed from ready supplier meta (exact counts, exact widths)
-    declared,   // from a SizeExpectation / SizeUpperbound property (§4.5)
+    declared,   // from a SizeExpectation / SizeUpperbound property (§4.6)
     bounded,    // sound upper bound (e.g. select <= src count); expected unknown
     assumed     // ASSUMED_SIZE-style fallback
+};
+
+// How the result's data comes into existence -- the single biggest factor in what an
+// operation costs in memory. See §4.4 for the regimes and their measured footprints.
+enum class materialization : UInt8 {
+    meta,       // unit/container result: no data at all
+    eager,      // full array written under a DataWriteLock before CalcResult returns
+    deferred,   // FutureTileFunctor: tiles computed on pull and KEPT (strong tile records)
+    streaming,  // LazyTileFunctor: tiles freed when the consumer releases them (weak refs)
 };
 
 struct ResourceEstimate
@@ -269,9 +278,13 @@ struct ResourceEstimate
     SizeT ioBytes                = 0;   // storage traffic (reads/writes)
     SizeT workingSetBytes        = 0;   // transient scratch, freed when CalcResult returns
     SizeT workingSetBytesPerChore= 0;   // per-tile/chore share, for parallelism shaping
-    SizeT resultBytes            = 0;   // retained until consumers release interest
-    SizeT resultBytesUpperBound  = 0;   // sound bound when resultBytes is a guess (structural or declared, §4.5)
+    SizeT resultBytes            = 0;   // eventual full result volume, once every tile exists
+    SizeT residentBytes          = 0;   // what the ledger charges: see §4.4 -- resultBytes for
+                                        // eager/deferred, inflight*choreBytes for streaming
+    SizeT choreBytes             = 0;   // one tile's worth of the result
+    SizeT resultBytesUpperBound  = 0;   // sound bound when resultBytes is a guess (structural or declared, §4.6)
     UInt32 nrChores              = 1;   // tile/chore fan-out this task will commission
+    materialization regime = materialization::eager;
     estimate_confidence confidence = estimate_confidence::assumed;
     // estimation barrier: args whose *data* (not meta) must exist before the numbers
     // above can leave 'bounded/assumed' state; empty means statically estimable.
@@ -286,15 +299,17 @@ Design points:
   bits-based `ElementWeight` and fix all consumers; while at it, implement or delete
   `LTF_ElementWeight` — an inert gate is worse than none (it misleads readers into
   thinking a decision exists).
-- **Two memory numbers.** `workingSetBytes` (transient, scheduler charges it only
-  while the OC runs) vs `resultBytes` (charged from completion until the ledger sees
-  the interest release — §5.1). This distinction is what lets the scheduler prefer
-  "finish and shrink" over "start and grow".
+- **Three memory numbers, not two.** `workingSetBytes` (transient, charged only while
+  the OC runs), `resultBytes` (the eventual full volume) and `residentBytes` (what the
+  ledger actually charges from completion until interest release — §5.1). The third is
+  needed because a pipelined result's peak is *not* its full volume; §4.4 derives it
+  per regime. This is what lets the scheduler prefer "finish and shrink" over "start
+  and grow" without mistaking a streamed chain for a whale.
 - **Bounds as first-class.** Many "unknown" cardinalities have sound cheap bounds:
   `select ≤ |src|`, `unique ≤ |src|`, `union = Σ|args|`, raster→polygon ≤ #cells.
   A `bounded` estimate lets admission be conservative without blocking planning.
   Where the structural bound is uselessly loose (a select over a full OD product),
-  the modeler-declared `SizeUpperbound` (§4.5) replaces it.
+  the modeler-declared `SizeUpperbound` (§4.6) replaces it.
 - Fix the two latent defects in the current struct/default (missing initializer;
   aggregate-init mis-assignment) as an immediate P0 item, independent of everything
   else.
@@ -310,7 +325,7 @@ TIC_CALL virtual auto EstimateResources(TreeItemDualRef& resultHolder,
 Default implementation (generalizing today's `Operator.cpp:80-90`):
 
 1. Ensure the result skeleton exists (`CreateResultCaller` — as today).
-2. For a data-item result: `n = domain->EstimateCount()` (§4.5 ladder: ready ⇒
+2. For a data-item result: `n = domain->EstimateCount()` (§4.6 ladder: ready ⇒
    `derived`; `SizeExpectation` expected / `SizeUpperbound` bound ⇒ `declared`;
    structural subset/union/product rules ⇒ `bounded`; else `assumed`);
    `resultBytes = n × ElementByteWeight(res)`;
@@ -337,13 +352,68 @@ Override once per family base, mirroring how `CreateResult` is already factored 
 | Aggregations (`OperAccUni.h`, `OperAccBin.h`, partitioned totals) | `elemOps = n`; `resultBytes = |partition-domain| × width` — the *values/partition unit* count, which is typically ready meta; workingSet = accumulator array = result-sized (or #threads × result-sized for parallel accumulation — reflect the actual `throttled_async` structure). |
 | `lookup`/`rlookup`/index building (`lookupImpl.h`, `RLookupImpl.h`, `IndexAssigner`) | workingSet includes the index table (m×width or hash-table factor); `elemOps = n + m log m` for sort-based paths. |
 | Sort/order/`unique`/`nth_element` (`clc/dll/src/Unique.cpp`, `geo/dll/src/nth_element.cpp`) | `elemOps = n log n`; workingSet ≈ 2n×width (copy + sort buffer); `unique` result: `bounded` by n. |
-| Relational producers with data-dependent cardinality (`select_*` family, `subset`, `collect_by_cond`) | result count unknown ⇒ `bounded` by source count — or by a declared `SizeUpperbound` on the consuming config unit (§4.5) — `dependsOnDataOf = {condition}`; after the condition's data exists, `pcount`-style refinement is exact. **Prime estimation-barrier clients (§6).** |
-| Geometric/geo operators (`geo/dll/src/BoostPolygon.cpp`, `BoostGeometry.cpp`, `geos*`, `Poly2GridOper.cpp`, `Dijkstra.cpp`, `Connect.cpp`) | Superlinear and value-dependent: per-group declared complexity class + calibrated factor (§4.6); inputs from counts *and value ranges* (e.g. Dijkstra: #nodes/#links/#origin-zones are all ready meta; poly2grid: output ≈ covered-cell count bounded via bounding boxes from the values units' ranges). These operators already keep local progress `Timer`s (`BoostPolygon.cpp:864`, `Dijkstra.cpp:617`) — the calibration hook replaces ad-hoc logging. |
-| Sequence/string-valued inputs | Per-element width unknown (256-bit / avg-32-elements guess today) ⇒ declared total-element/character bound when present (`SizeUpperbound` on the attribute, §4.5 — covers both compositions and the `string` value type), else **pilot-tile probing** (§4.7). |
+| Relational producers with data-dependent cardinality (`select_*` family, `subset`, `collect_by_cond`) | result count unknown ⇒ `bounded` by source count — or by a declared `SizeUpperbound` on the consuming config unit (§4.6) — `dependsOnDataOf = {condition}`; after the condition's data exists, `pcount`-style refinement is exact. **Prime estimation-barrier clients (§6).** |
+| Geometric/geo operators (`geo/dll/src/BoostPolygon.cpp`, `BoostGeometry.cpp`, `geos*`, `Poly2GridOper.cpp`, `Dijkstra.cpp`, `Connect.cpp`) | Superlinear and value-dependent: per-group declared complexity class + calibrated factor (§4.7); inputs from counts *and value ranges* (e.g. Dijkstra: #nodes/#links/#origin-zones are all ready meta; poly2grid: output ≈ covered-cell count bounded via bounding boxes from the values units' ranges). These operators already keep local progress `Timer`s (`BoostPolygon.cpp:864`, `Dijkstra.cpp:617`) — the calibration hook replaces ad-hoc logging. |
+| Sequence/string-valued inputs | Per-element width unknown (256-bit / avg-32-elements guess today) ⇒ declared total-element/character bound when present (`SizeUpperbound` on the attribute, §4.6 — covers both compositions and the `string` value type), else **pilot-tile probing** (§4.8). |
 | Meta/tree operators (`PhaseContainer`, `subitem`, `for_each*`, template calls) | Zero data cost; `PhaseContainer` charges nothing itself but *its suppliers* dominate — see §6.4. |
 | **Storage reads** (not `Operator`s) | Attach a `ResourceEstimate` to the item-writer OC at creation (`TreeItem.cpp:4326-4355` / `OperationContext::CreateItemWriter`): `ioBytes = count × width` (or actual file size when smaller), `resultBytes` likewise, chores from native tiling, seriality = the manager's CS group, throughput factor calibrated **per storage-manager class** (GDAL-raster vs FSS vs ODBC…). All inputs are pre-read-knowable per §2.6. |
 
-### 4.4 Value ranges, not just counts
+### 4.4 Materialization regimes: what a result actually occupies
+
+An estimate that charges every intermediate its full `n × width` is wrong for most of a
+GeoDMS calculation, because tiled results are usually *not* built in one go. The regime
+is decided per operator instance, by the very predicate the operator families apply
+(`clc/dll/include/OperAttr*.h`, `CastedUnaryAttrOper.h`, `clc/dll/src/{lookup,RLookup}Impl.h`,
+`geo/dll/src/Point.cpp`), so the estimator can predict it from the same inputs:
+
+```
+tn          = domain->GetNrTiles()
+canPipeline = IsMultiThreaded3() && tn > 1 && !IsInMMD(res) [&& !res->GetKeepDataState()]
+regime      = !canPipeline                      ? eager
+            : res->GetLazyCalculatedState()     ? streaming   // LazyTileFunctor
+            :                                     deferred    // FutureTileFunctor
+```
+
+| Regime | Mechanism | What is resident |
+|---|---|---|
+| **eager** | `parallel_tileloop` under one `DataWriteLock` (`OperAttrUni.h:85-95`) | the whole array, from `CalcResult` until interest release |
+| **deferred** | `FutureTileFunctor`: `m_ActiveTiles` is `unique_ptr<shared_ptr<future_tile>[]>` (**strong**) and each `tile_record::GetTile` stores its computed tile in `m_State` for good (`TileFunctorImpl.h:89-126`) | grows tile-by-tile toward the whole array as consumers pull; released only when the data object is dropped |
+| **streaming** | `LazyTileFunctor`: `m_ActiveTiles[t].m_TileFutureWPtr` is **weak**, so a tile dies with the consumer's lock and is recomputed if pulled again (`TileFunctorImpl.h:211-256`) | `inflight × choreBytes`, where `inflight ≈ min(nrConcurrentPullers, tn)` — plus recompute cost on re-pull |
+
+**Measured** (P0 instrumentation + sampled peak working set; `scratch/pipe_{A,B,C}.dms`,
+a 50 M-element `id → add → mul → add → float64/div → sum` chain, 4 attribute stages):
+
+| Run | Regime | Peak working set |
+|---|---|---|
+| `/C3` (MT3 off) | eager | **1303 MB** ≈ Σ stages (3 × 200 MB uint32 + 400 MB float64) |
+| default (MT3 on) | deferred | **416 MB** |
+| `LazyCalculated = "True"` | streaming | **542 MB** |
+
+Three consequences for the plan:
+
+1. **Pipelining is a 3.1× memory lever, and it is the ordinary case** — so the ledger
+   must charge `residentBytes` by regime. Charging `resultBytes` unconditionally would
+   have throttled this harmless chain at 1.3 GB while a genuine whale (an eager sort, an
+   aggregation accumulator) went unnoticed.
+2. **The default is *deferred*, not streaming.** Tiles are computed on demand but then
+   kept, so a stage still tends toward its full volume while it is of interest; the
+   whole-chain saving comes from stages being *dropped* as their consumers finish, not
+   from tiles being freed. A per-worker constant applies only to `streaming`, which today
+   requires the modeler to set `LazyCalculated`. Whether that should be the engine's
+   default for consumed-once intermediates is a real question for §5.4 — it is a
+   behavioural change and needs the ledger to measure it, so it stays out of P1.
+3. **Streaming is not automatically cheaper** (542 MB > 416 MB here): its footprint is
+   `inflight × choreBytes`, i.e. tile geometry × concurrency. With few, large tiles and
+   many workers it can beat eager and lose to deferred. That makes **tile geometry a
+   first-class estimator output** (`nrChores`, `choreBytes`) and raises the value of
+   §5.4's shaping lever — bounding in-flight tiles is how streaming is made to pay off.
+
+For diagnosis, the two modes answer different questions, and the estimator covers both:
+run with **`/C3`** (eager) to attribute compute time and full volumes per operator, and
+with **`/S3`** (default) to see the footprint production will actually have. The residual
+report names the regime on every line so the two are never compared by accident.
+
+### 4.5 Value ranges, not just counts
 
 The user-visible promise "probe with argument domain **and values ranges**" concretely
 means:
@@ -359,7 +429,7 @@ means:
 `StorageMetaInfo::PrepareReadDataOrSuspend` already forces values-unit ranges for
 reads; the estimator gives the same guarantee a use.
 
-### 4.5 Declared expectations: the `SizeUpperbound` property
+### 4.6 Declared expectations: the `SizeUpperbound` property
 
 The biggest residual gaps in §4.2–§4.3 are data-dependent cardinalities (subsets,
 unions, sparse OD matrices) and variable-width value volumes (sequence/arc/polygon
@@ -426,7 +496,7 @@ Integration:
   which is what turns an `assumed` whale into an admissible, ordered task. When the
   actual count/size materializes, it is compared against the declaration: exceeding
   it logs a warning with both numbers and flags the item in the estimate-vs-actual
-  report (§4.6). Planning-only semantics keep violations harmless to results (the
+  report (§4.7). Planning-only semantics keep violations harmless to results (the
   `IsLowOnFreeRAM` backstop absorbs the under-reservation); a strict
   IntegrityCheck-like failure mode can follow later if wanted.
 - **Where consumers find it.** Operator-created cache units carry no config
@@ -445,7 +515,7 @@ Integration:
   `mc_SizeEstimator`, `Has/GetSizeEstimator`) follow. Most models will want only
   the bound.
 
-### 4.6 Calibration instead of hand-tuned constants
+### 4.7 Calibration instead of hand-tuned constants
 
 Hand-maintained per-operator constants rot (witness `m_CalcFactor ≡ 1.0` since
 inception). Instead, close the loop the way StarPU's per-codelet history models and
@@ -464,7 +534,7 @@ SQL Server's memory-grant feedback do:
   drift is visible (and regression-testable: the tst battery gains an
   estimate-accuracy report).
 
-### 4.7 Pilot-tile probing for value-dependent costs
+### 4.8 Pilot-tile probing for value-dependent costs
 
 For sequence/string/polygon payloads, per-element cost and width are data-dependent.
 The tiling architecture gives a cheap sampler: run **tile 0 as a probe chore first**
@@ -489,14 +559,25 @@ architecture.
   `MemoryRAM_MAX_GB` clamp × `MemoryFlushThreshold`. Same knobs, new semantics:
   they already claim to throttle activation; now they will, proportionally.
 - **Ledger**: the scheduler tracks `committed = Σ workingSetBytes(running OCs) +
-  Σ resultBytes(completed-but-still-of-interest results it admitted)`. Result
-  retirement is observed by hooking the existing release path
-  (`TryCleanupMem`/interest-drop already funnel through few sites, §2.3); precision
-  can be approximate — the ledger is a planning device, not an allocator.
+  Σ residentBytes(completed-but-still-of-interest results it admitted)`. Charging
+  `residentBytes` rather than `resultBytes` is what makes the regimes of §4.4 count:
+  a streamed stage is charged `inflight × choreBytes`, an eager or deferred one its
+  full volume. On the measured 50 M chain that is the difference between 1.3 GB and
+  ~0.4 GB of booked memory for identical work. Result retirement is observed by hooking
+  the existing release path (`TryCleanupMem`/interest-drop already funnel through few
+  sites, §2.3); precision can be approximate — the ledger is a planning device, not an
+  allocator.
+- **Deferred results are charged progressively, not at once.** A `FutureTileFunctor`
+  reaches its full volume only as consumers pull it, so booking `resultBytes` at
+  completion over-reserves for a chain whose stages are dropped as they are consumed.
+  Book `choreBytes × nrChores` as the ceiling but let the *observed* growth (tile pulls)
+  drive the charge, or accept the over-reservation and rely on the retirement-first
+  ordering of §5.2 to keep the error harmless. Decide with the ledger's own numbers in
+  P2; do not guess.
 - **Rule**: admit the next queued OC iff `committed + estimate ≤ B`, where
   `estimate` uses `resultBytesUpperBound`/pessimistic numbers for
   `bounded`/`assumed` confidence, declared `SizeUpperbound` bounds at face
-  value (§4.5), and expected numbers for `derived`/`measured` (robustness against
+  value (§4.6), and expected numbers for `derived`/`measured` (robustness against
   the misestimates §7's DB literature warns about).
 - **Progress guarantee** (deadlock-freedom): always admit when nothing is running
   and nothing can retire — i.e. the head-of-queue task is admitted unconditionally
@@ -548,7 +629,7 @@ applies *within* a phase.
 ### 5.3 Group scheduling
 
 Cluster the runnable set by "shares a heavy live supplier" (union-find over supplier
-edges weighted by resultBytes). Admission opens at most K clusters concurrently
+edges weighted by `residentBytes`). Admission opens at most K clusters concurrently
 (K small, e.g. 2); a cluster is "open" while any of its heavy intermediates is
 retained. This is the coarse-grained complement of §5.2's fine-grained priority and
 subsumes the *throttling* role of `PhaseContainer`: an open cluster ≙ an implicit
@@ -562,10 +643,14 @@ estimates.
   `workingSetBytesPerChore`: commission `min(cores, floor(B_tile / perChoreBytes))`
   threads for fat chores (the `reader_clone_farm` semaphore gets the same number for
   parallel reads).
-- Make the MT3 pipelining gate real: choose the lazy `FutureTileFunctor` when it
-  *reduces* resident bytes (result consumed tile-wise by a downstream pipelined
-  consumer), eager `parallel_tileloop` otherwise — the comparison the stubbed
-  `LTF_ElementWeight` was meant to make, now with honest byte weights, plus a bound
+- Make the MT3 pipelining gate real — and note §4.4 makes this a **three-way** choice,
+  not two: eager, deferred (`FutureTileFunctor`, keeps its tiles) or streaming
+  (`LazyTileFunctor`, frees them). The measurement says the interesting lever is
+  promoting a consumed-once intermediate from *deferred* to *streaming*, which today
+  only the `LazyCalculated` property does; the engine could infer it when the result has
+  exactly one pipelined consumer and no `KeepData`/MMD requirement. That is a
+  behavioural change, so it belongs after the ledger can measure it. Choose with honest
+  byte weights — the comparison the stubbed `LTF_ElementWeight` was meant to make — plus a bound
   on in-flight tiles per pipeline (KPN backpressure, §7).
 - `MaxAllowedConcurrentTreads() == 32` (`MainThread.cpp:447-450`) and the fixed pool
   remain; shaping only decides how many slots a given group occupies.
@@ -588,7 +673,7 @@ For each OC at schedule time, `EstimateResources` classifies its numbers:
 | Class | Example | Planner treatment |
 |---|---|---|
 | static-exact (`derived`) | elementwise ops, aggregations with ready partition units, storage reads after `ReadUnitRange` | plan directly |
-| declared | unit/attr with `SizeExpectation` or `SizeUpperbound` (§4.5) | plan directly (reserve on declared bounds), flag for post-hoc verification |
+| declared | unit/attr with `SizeExpectation` or `SizeUpperbound` (§4.6) | plan directly (reserve on declared bounds), flag for post-hoc verification |
 | bounded | `select ≤ n`, `unique ≤ n`, product units = #A·#B | admit pessimistically OR defer (§6.3) |
 | data-dependent (`assumed` + `dependsOnDataOf`) | count of a `select` result's *consumers*' inputs, iterative allocation state, polygon overlay output | **estimation barrier** |
 
@@ -619,7 +704,7 @@ choices; pick per confidence gap:
 
 Together with §5.3's cluster cap, this reproduces the memory behavior modelers
 currently buy with manual fences, but scoped, data-driven and reversible.
-Declared `SizeUpperbound` bounds (§4.5) shrink the gap between bound and
+Declared `SizeUpperbound` bounds (§4.6) shrink the gap between bound and
 expectation, converting defer-behind-producer cases into pessimistic-admit ones —
 the modeler's expectation buys back parallelism.
 
@@ -643,7 +728,7 @@ Keep the operator; change its job description:
    follow-up mini-phase, instead of being silently late.
 4. **`PhaseContainer` as calibrator**: an explicit phase boundary is a natural
    checkpoint where the ledger reconciles estimates against `GetFixedAllocStatus()`
-   actuals — cheap ground truth for §4.6.
+   actuals — cheap ground truth for §4.7.
 
 Automation extent, stated honestly: the *mechanism* (serialize groups, then plan the
 front with known cardinalities) is fully automatable and this plan automates it; the
@@ -696,7 +781,7 @@ cardinality estimates is Selinger et al. (SIGMOD 1979); its Achilles heel is
 estimate error compounding through joins — "How Good Are Query Optimizers, Really?"
 (Leis et al., VLDB 2015) — hence §5.1's preference for bounds + robustness over
 point estimates. Memory grants per operator with *feedback* from observed usage
-(SQL Server's memory-grant feedback) is exactly §4.6's loop. Mid-query
+(SQL Server's memory-grant feedback) is exactly §4.7's loop. Mid-query
 re-optimization at materialization points (Kabra & DeWitt, SIGMOD 1998; Markl et
 al. POP, SIGMOD 2004; Graefe & Cole's dynamic plans; Eddies, Avnur & Hellerstein,
 SIGMOD 2000) and Spark's Adaptive Query Execution — which re-plans at *stage
@@ -706,7 +791,7 @@ including adaptive degree-of-parallelism.
 
 **Runtime systems.** StarPU (Augonnet et al., CCPE 2011) schedules from
 *auto-calibrated per-codelet history-based performance models* — the direct
-precedent for calibrated `m_CalcFactor` (§4.6); PaRSEC and Legion likewise separate
+precedent for calibrated `m_CalcFactor` (§4.7); PaRSEC and Legion likewise separate
 cost models from mapping. Dask's static task ordering is explicitly designed to
 minimize resident intermediates ("run tasks that free memory first") and pairs with
 spilling — the same two levers as §5.2 + CalcCache. Rematerialization /
@@ -741,8 +826,9 @@ maxima; the perf-`.bin` infrastructure already records timings per test).
   unless the `PerformanceLogging` setting (or `/SP`) is on; the estimate is computed
   at schedule time and reported against the measured outcome, **consumed by nothing**.
 - **P1 — the estimator.**
+  Regime prediction and per-regime `residentBytes`/`choreBytes` (§4.4) +
   `EstimateResources` default (signature-derived where available) + family overrides
-  (§4.3) + the `SizeUpperbound` property (§4.5: registration beside
+  (§4.3) + the `SizeUpperbound` property (§4.6: registration beside
   `SizeExpectation` — the renamed `SizeEstimator`, a clean rename since it is
   unused in production configs — plus the `EstimateCount` ladder rework,
   attr-side byte model, bound-violation warning) + storage-read estimates +
@@ -770,7 +856,7 @@ maxima; the perf-`.bin` infrastructure already records timings per test).
   calibration warm-start; revisit CalcCache spilling (`IsFileableSize`) for whales;
   modeler-facing docs (when to still use `PhaseContainer`; authoring guidance for
   `SizeExpectation` (né `SizeEstimator` — currently an undocumented power
-  feature) and `SizeUpperbound`, §4.5).
+  feature) and `SizeUpperbound`, §4.6).
 
 ### 8.1 What P0 measured (and what it changes about the plan)
 
@@ -799,9 +885,12 @@ Three findings that matter for P1–P5:
 3. **Elapsed time at the `CalcResult` boundary is not an operator's compute cost.**
    Pipelined operators return once the tile functor is built: the 3.2 M-element
    operators each reported ≤ 0.1 ms while the `sum` that pulled their tiles reported
-   7.9 ms. Per-operator time therefore has to be measured per tile chore (§4.7), and
-   until then the calibration of §4.6 can only be trusted for eager operators. The
-   report marks a lazily-calculated result explicitly rather than implying otherwise.
+   7.9 ms. Per-operator time therefore has to be measured per tile chore (§4.8), and
+   until then the calibration of §4.7 can only be trusted for eager operators —
+   equivalently, attribute compute per operator by running with `/C3`. Investigating
+   this produced the regime model and the peak-memory measurements now in **§4.4**,
+   which replace the plan's original "every intermediate costs `n × width`"
+   assumption; that assumption would have over-reserved by 3.1× on the measured chain.
 
 Also worth recording: the `[performance]` category shares the event log's "other"
 filter checkbox, and the `RegStatusFlags` DWORD is **out of bits** (`RSF_WasRead` is
@@ -839,7 +928,7 @@ sets that rather than a status flag. P2's throttle flag will need the same treat
    observe) or at first-consumer-completion (observable, undercounts fan-out)?
    Start with the conservative former via the `TryCleanupMem` funnel.
 3. Cluster cap K vs. per-cluster byte budgets — which is the better primary knob?
-4. `SizeUpperbound` (§4.5) covers declared *size* expectations. Do we also
+4. `SizeUpperbound` (§4.6) covers declared *size* expectations. Do we also
    want a declared *CPU-cost* annotation for black-box operators (external
    effects, `geos`), or is calibration alone sufficient there?
 5. Spilling: revive swap-to-file for whales (the commented `IsFileableSize`), or
@@ -856,7 +945,7 @@ sets that rather than a status flag. P2's throttle flag will need the same treat
 |---|---|
 | Estimation seed | `tic/Operator.h:41-49,86`, `tic/Operator.cpp:80-90`, `clc/dll/include/OperAttrUni.h:42-47` |
 | Cardinality ladder | `tic/AbstrUnit.cpp:788-817` (`GetEstimatedCount`, `SizeEstimator`, `ASSUMED_SIZE`) |
-| Declared-bound plumbing template (for `SizeUpperbound`, §4.5) | `tic/TicPropDefConst.h:37`, `tic/TreeItem.h:381-382,625`, `tic/TreeItem.cpp:1002-1016`, `tic/TreeItemProps.cpp` (registration) |
+| Declared-bound plumbing template (for `SizeUpperbound`, §4.6) | `tic/TicPropDefConst.h:37`, `tic/TreeItem.h:381-382,625`, `tic/TreeItem.cpp:1002-1016`, `tic/TreeItemProps.cpp` (registration) |
 | Widths & tiling | `tic/AbstrDataItem.cpp:1265-1280`, `mci/ValueClass.h:170-177`, `tic/TiledRangeData.h:66-108` |
 | Queue & phases | `tic/OperationContext.cpp:585-604,855-870,1021-1094,2362-2384` |
 | License gate (re-queue pattern) | `tic/OperationContext.cpp:1552-1595` |
