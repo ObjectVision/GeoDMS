@@ -246,20 +246,37 @@ destructor coupling; `GetSpatialReference()` gains the referred-item delegation 
 caused this whole mess; and presentation data leaves type identity, which
 `doc/development/typed-hof-language-design.md` already flags as a defect.
 
-## Open questions
+## Resolved questions (rulings, 2026-07-29)
 
-1. **`GridDist.cpp` uses the immediate projection base, not `GetCompositeBase()`** — works for a
-   single hop, silently returns empty for a chained gridset, and empty means "skip", not "fail".
-   Convert in Stage 5 and add a `tst/Unit/CRS` case. Most likely site to break quietly.
-2. **Registry conflict**: two units declaring the same σ with different backgrounds. Proposal:
-   first non-empty wins, `ST_Warning` on conflict. Scan all `*.dms` for units carrying both
-   `SpatialReference=` and `DialogData=` before coding.
-3. **`GetUnitlabeledScalePair().second` has no consumer today.** Candidate use in Stage 6 as the
-   projection factor for non-metre projected CRS (US survey foot).
-4. **UNVERIFIED (needs a debugger, not a grep):** that a config unit's `mc_RefItem` chain really
-   terminates at the `BaseUnit` cache unit for `rdc.dms` — one breakpoint at
-   `GraphDataView.cpp:152` settles it; and whether the GDAL `SetFromUserInput` fallback currently
-   misparses or silently drops a 0xFF-bearing string.
+All four were put to the author and answered. None remain open; they are now work items.
+
+1. **`GridDist.cpp` uses the immediate projection base, not `GetCompositeBase()`.**
+   → **RULING: fix it, make it consistent.** It works for a single hop but silently returns empty
+   for a chained gridset, and empty means "skip", not "fail" — so a chained-gridset config loses
+   its CRS with no diagnostic. Convert to `GetCompositeBase()` in **Stage 5** and add a
+   `tst/Unit/CRS` case covering the chained shape. This is the site most likely to break quietly,
+   so it gets a test, not just a fix.
+
+2. **Registry conflict: two units declaring the same σ with different backgrounds.**
+   → **RULING: accepted as proposed.** First non-empty wins; `ST_Warning` on conflict. Before
+   coding **Stage 3**, scan all `*.dms` (repo + `C:/dev/tst`) for units carrying both
+   `SpatialReference=` and `DialogData=`, to find out whether any real config actually hits this.
+
+3. **`GetUnitlabeledScalePair().second` has no consumer today.**
+   → **RULING: keep it as-is for now.** Do **not** repurpose it in Stage 6 as the projection
+   factor for non-metre projected CRS (US survey foot). Stage 6 derives the linear metric from
+   `.first` only. Revisit if a non-metre projected CRS ever shows up in a real config; until then
+   an unused field is cheaper than a speculative consumer.
+
+4. **The two UNVERIFIED runtime claims.**
+   → **RULING: debug them during implementation, not before.** Namely (a) that a config unit's
+   `mc_RefItem` chain really terminates at the `BaseUnit` cache unit for `rdc.dms` — one
+   breakpoint at `shv/dll/src/GraphDataView.cpp:152` settles it; and (b) whether the GDAL
+   `SetFromUserInput` fallback currently misparses or silently drops a 0xFF-bearing string.
+   Both are naturally answered by the **Stage-2 Debug drift detector**, which runs the whole
+   corpus with both channels live: (a) shows up as the detector firing or staying silent on
+   `rdc`-derived units, and (b) becomes moot once Stage 7 replaces that call site. Attach a
+   debugger at Stage 2 rather than blocking Stage 0/1 on it.
 
 ## Interim mitigation (IMPLEMENTED)
 
