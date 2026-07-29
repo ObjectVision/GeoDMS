@@ -493,7 +493,42 @@ SharedStr AbstrUnit::GetBackgroundReference() const
 	if (not dd.empty())
 		return dd;
 
-	return DecodePackedBackgroundRef(GetMetric());
+	// Order: own DialogData -> the legacy packed metric -> the CRS registry.
+	//
+	// The plan put the registry BEFORE the packing. It is deliberately placed AFTER,
+	// which keeps this stage strictly behaviour-preserving: while the packing is still
+	// emitted it always answers first, so nothing observable moves. The two differ only
+	// where a config declares one CRS with two different backgrounds -- the packing is
+	// per-unit and exact, the registry is per-CRS and first-wins -- and there is a real
+	// such config (tst/Projects/lus_demo_2023, regression t611). Deferring that change to
+	// Stage 7, when the packing goes away and the registry becomes the only source,
+	// keeps the switch-over in one place instead of smearing it across stages.
+	//
+	// The Debug check below still exercises the registry against the packing across the
+	// whole corpus now, so it is validated long before it becomes load-bearing. It only
+	// WARNS: unlike a CRS mismatch, a background mismatch is cosmetic and the t611
+	// divergence above is expected rather than a defect.
+	auto fromPacking = DecodePackedBackgroundRef(GetMetric());
+
+#if defined(MG_DEBUG)
+	if (auto crs = GetCrs())
+	{
+		auto fromRegistry = GetCrsBackgroundRef(crs->m_SpatialRef);
+		if (!fromPacking.empty() && !fromRegistry.empty() && fromPacking != fromRegistry)
+			reportF_without_cancellation_check(SeverityTypeID::ST_Warning
+				, "background-reference note on {}: the packed metric says '{}' but the CRS registry says '{}' for '{}'"
+				, GetFullName().c_str(), fromPacking.c_str(), fromRegistry.c_str()
+				, SharedStr(crs->m_SpatialRef).c_str());
+	}
+#endif
+
+	if (!fromPacking.empty())
+		return fromPacking;
+
+	if (auto crs = GetCrs())
+		return GetCrsBackgroundRef(crs->m_SpatialRef);
+
+	return {};
 }
 
 TokenID AbstrUnit::GetSpatialReference() const

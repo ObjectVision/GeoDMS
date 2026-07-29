@@ -15,6 +15,7 @@
 #include "utl/Environment.h"
 #include "utl/splitPath.h"
 
+#include "Crs.h"
 #include "Param.h"
 
 leveled_counted_section s_SessionUsageCounter(item_level_type(0), ord_level_type(1), "SessionUsageCounter");
@@ -188,6 +189,10 @@ std::shared_ptr<SessionData> SessionData::Create(CharPtr configLoadDir, CharPtr 
 		s_CurrSD->deactivateThis();
 
 	assert(!s_CurrSD);
+
+	// The CRS -> background-layer registry is per configuration: a GUI session that
+	// reopens a different config must not inherit the previous one's backgrounds.
+	ClearCrsBackgroundRefs();
 	s_CurrSD = std::make_shared<SessionData>(MakeAbsolutePath(configLoadDir).c_str(), configSubDir );
 	assert(s_CurrSD->m_ConfigRoot == nullptr); // POSTCONDITION of Created but not opend SessionData
 	return s_CurrSD;

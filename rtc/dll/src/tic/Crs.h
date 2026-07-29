@@ -42,6 +42,30 @@ struct UnitCrs : SharedBase
 	friend bool IsEmpty(const UnitCrs* self) { return !self || self->Empty(); }
 };
 
+// *****************************************************************************
+// Background-reference registry: spatial reference -> the WMS/WMTS background layer
+// declared alongside it (a unit's DialogData).
+//
+// DialogData deliberately does NOT travel in UnitCrs, is NOT compared, and is NOT part
+// of the DataController key (RULING 2026-07-29): a CRS mismatch is a correctness bug,
+// a background mismatch is cosmetic, and packing the background into the metric is what
+// currently makes two units differing ONLY in background hint fail to unify with
+// "(incompatible Metrics)". Keeping it out of identity is the point of the separation.
+//
+// The consequence -- accepted -- is that sigma is the finest granularity available to a
+// SHARED cache unit, so when one config declares the same CRS with two different
+// backgrounds the first non-empty registration wins and the rest are reported. A real
+// example exists: tst/Projects/lus_demo_2023 (regression t611) declares EPSG:28992 twice
+// with different DialogData, one of them a computed expression.
+//
+// Cleared per configuration load (SessionData::Create), so a GUI session that reopens a
+// different config does not inherit the previous one's backgrounds.
+// *****************************************************************************
+
+TIC_CALL void      RegisterCrsBackgroundRef(TokenID spatialRef, const SharedStr& backgroundRef);
+TIC_CALL SharedStr GetCrsBackgroundRef     (TokenID spatialRef);
+TIC_CALL void      ClearCrsBackgroundRefs  ();
+
 // nullptr is treated as an empty UnitCrs.
 // Strict, like AreEqual(const UnitMetric*, const UnitMetric*): an empty CRS unifies
 // ONLY with an empty CRS. A bare coordinate unit must not silently acquire a CRS from

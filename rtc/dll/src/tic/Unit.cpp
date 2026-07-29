@@ -26,6 +26,7 @@
 #include "DataStoreManagerCaller.h"
 #include "DataController.h"
 #include "DataLocks.h"
+#include "Crs.h"
 #include "Metric.h"
 #include "Projection.h"
 #include "PropFuncs.h"
@@ -169,6 +170,12 @@ LispRef UnitBase<V>::GetKeyExprImpl() const
 				// it the inner term's CRS role. See doc/development/crs-metric-decoupling.md.
 				if (sr)
 				{
+					// Stage 3: remember this unit's background layer under its CRS, so a
+					// cache unit -- which has no DialogData of its own -- can still find one
+					// once the 0xFF packing is gone. Deliberately NOT part of the key below:
+					// the background is not part of a unit's type. See Crs.h.
+					RegisterCrsBackgroundRef(sr, TreeItem_GetDialogData(this));
+
 					// Materialize the token BEFORE building the LispRef: a TokenID str-range
 					// temporary keeps the token-registry lock held for its lifetime, and
 					// spanning a parse-capable call with it self-deadlocks at ~0 CPU.
