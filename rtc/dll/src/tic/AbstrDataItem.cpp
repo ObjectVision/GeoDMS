@@ -236,8 +236,14 @@ void AbstrDataItem::XML_DumpData(OutStreamBase* xmlOutStr) const
 
 SharedStr AbstrDataItem::GetSignature() const
 {
+	// GetSignature is a SERIALIZER accessor: its only callers are the DMS config dump
+	// (the 'attribute<vu>' tag) and the function-decl writer. It therefore takes the
+	// RAW values-unit token — a bare source name re-resolves by up-scope search after
+	// the item is written at another depth, whereas a resolved '../'-path would ascend
+	// above root on reload (e.g. a body item whose values unit is a function parameter).
+	// The user-visible PropValue(item,'ValuesUnit') keeps the resolved path via GetValue.
 	return SharedStr(HasVoidDomainGuarantee()	?	"parameter<" :	"attribute<")
-		+	s_ValuesUnitPropDefPtr->GetValue(this)
+		+	s_ValuesUnitPropDefPtr->GetRawValue(this)
 		+	">";
 }
 
@@ -954,25 +960,38 @@ struct DomainUnitPropDef : ReadOnlyPropDef<AbstrDataItem, SharedStr>
 	// implement PropDef get/set virtuals
 	auto GetValue(const AbstrDataItem* item) const-> SharedStr override
 	{
+		// The PROPERTY value (what PropValue(item,'DomainUnit') returns) is the
+		// RESOLVED script name — documented public behavior, relative path since 18.x.
 		auto adu = item->GetAbstrDomainUnit();
 		if (adu)
-		{
-			auto resolved = adu->GetScriptName(item);
-			// Prefer a bare-name SOURCE token over a resolved *relative path*: a bare name is
-			// up-scope searched, so it re-resolves after the item is copied to another depth
-			// (e.g. a function/template body instantiated at the call site); a '../'-style path
-			// would ascend above root there. Only substitute when the source is a bare name and
-			// the resolved form is a path — otherwise keep the resolved (more specific) name.
-			if (IsDefined(item->m_tDomainUnit))
-			{
-				SharedStr src(item->m_tDomainUnit);
-				if (!src.empty() && !strchr(src.c_str(), '/') && strchr(resolved.c_str(), '/'))
-					return src;
-			}
-			return resolved;
-		}
+			return adu->GetScriptName(item);
 		assert(IsDefined(item->m_tDomainUnit));
 		return SharedStr(item->m_tDomainUnit);
+	}
+
+	// The DUMP value (OutStreamBase::DumpPropList writes GetRawValue): prefer a
+	// bare-name SOURCE token over a resolved *relative path*. A bare name is
+	// up-scope searched, so it re-resolves after the item is copied to another
+	// depth (a function/template body instantiated at the call site); a '../'-style
+	// path would ascend above root there ("FollowDots: relative pathname ascended
+	// above root" on reload of the dumped config).
+	//
+	// This split is the 2026-07-29 regression fix: fc15f892 put the bare-name
+	// preference in GetValue, which silently changed the user-visible
+	// PropValue(item,'DomainUnit'/'ValuesUnit') from the documented relative path
+	// ('../meter') to the bare name ('meter') and broke the tst Operator suite
+	// (Miscellaneous/PropValue asserts '../meter' since 18.x). Dump fidelity and
+	// property semantics are different questions, so they now use different hooks.
+	auto GetRawValue(const AbstrDataItem* item) const -> SharedStr override
+	{
+		auto resolved = GetValue(item);
+		if (IsDefined(item->m_tDomainUnit))
+		{
+			SharedStr src(item->m_tDomainUnit);
+			if (!src.empty() && !strchr(src.c_str(), '/') && strchr(resolved.c_str(), '/'))
+				return src;
+		}
+		return resolved;
 	}
 	bool HasNonDefaultValue(const Object* self) const override
 	{
@@ -989,22 +1008,26 @@ struct ValuesUnitPropDef : ReadOnlyPropDef<AbstrDataItem, SharedStr>
 	// implement PropDef get/set virtuals
 	auto GetValue(const AbstrDataItem* item) const -> SharedStr override
 	{
+		// see DomainUnitPropDef::GetValue: the PROPERTY stays RESOLVED (public API)
 		auto avu = item->GetAbstrValuesUnit();
 		if (avu)
-		{
-			auto resolved = avu->GetScriptName(item);
-			// see DomainUnitPropDef::GetValue: a bare-name source token is re-instantiation-safe
-			// where a resolved relative path is not.
-			if (IsDefined(item->m_tValuesUnit))
-			{
-				SharedStr src(item->m_tValuesUnit);
-				if (!src.empty() && !strchr(src.c_str(), '/') && strchr(resolved.c_str(), '/'))
-					return src;
-			}
-			return resolved;
-		}
+			return avu->GetScriptName(item);
 		assert(IsDefined(item->m_tValuesUnit));
 		return SharedStr(item->m_tValuesUnit);
+	}
+
+	// see DomainUnitPropDef::GetRawValue: the DUMP prefers the re-instantiation-safe
+	// bare source token
+	auto GetRawValue(const AbstrDataItem* item) const -> SharedStr override
+	{
+		auto resolved = GetValue(item);
+		if (IsDefined(item->m_tValuesUnit))
+		{
+			SharedStr src(item->m_tValuesUnit);
+			if (!src.empty() && !strchr(src.c_str(), '/') && strchr(resolved.c_str(), '/'))
+				return src;
+		}
+		return resolved;
 	}
 };
 
