@@ -139,7 +139,7 @@ That is exactly the lever §5.2 pulls.
 | `AbstrOperGroup::m_CalcFactor` | `tic/OperGroups.h:83,151` | Declared, defaulted to 1.0, never set to anything else. |
 | `ElementWeight(adi)` | `tic/AbstrDataItem.cpp:1265-1275` | Bits-per-element from pure metadata: void→0, string→256, sequences→`bitSize×32`, else `GetBitSize()`. Note: **bits, not bytes** — unit hygiene needed. |
 | `LTF_ElementWeight(adi)` | `AbstrDataItem.cpp:1277-1280` | **Stubbed to `return 0;`** — all MT3 pipelining gates (`OperAttrUni.h:81`, `OperAttrBin.h:81`, `OperAttrTer.h:94`, `CastedUnaryAttrOper.h:69,156`, `clc/dll/src/lookupImpl.h:120`, `RLookupImpl.h:107`, `geo/dll/src/Point.cpp:119`, `tic/AbstrDataItem.cpp:313`) degenerate to always-true. |
-| `AbstrUnit::GetEstimatedCount()` | `tic/AbstrUnit.cpp:788-817` | Ready data → exact `GetCount()`; else evaluate the modeler-declared **`SizeEstimator`** property (`TicPropDefConst.h:37`, `TreeItem.cpp:1002-1016`); else `ASSUMED_SIZE = 1'000'000`. A three-tier confidence ladder already exists here; §4.5 adds a declared upper-bound sibling (`SizeUpperbound`). |
+| `AbstrUnit::GetEstimatedCount()` | `tic/AbstrUnit.cpp:788-817` | Ready data → exact `GetCount()`; else evaluate the modeler-declared **`SizeEstimator`** property (`TicPropDefConst.h:37`, `TreeItem.cpp:1002-1016`); else `ASSUMED_SIZE = 1'000'000`. A three-tier confidence ladder already exists here; §4.5 adds a declared upper-bound sibling (`SizeUpperbound`) and renames `SizeEstimator` to `SizeExpectation`. |
 | Tiling oracle | `tic/TiledRangeData.h:66-108` | `GetNrTiles`, `GetTileSize(t)`, `GetMaxTileSize`, and notably `GetNrMemPages(log2BitsPerElem)` — tiling × element width combined. |
 | Measurement primitives | `mem/FixedAlloc.cpp:748-817` (`GetFixedAllocStatus` incl. running maxima), `:780-802` (`GetMemoryStatus`), `dbg/Timer.h:30-50` | Exist, but used only for rate-limited logging. **No CPU-time accounting, no per-operator history, no bytes-read counters** (per-read log is a bare "Read X from Y", `tic/TreeItem.cpp:4039-4044`). |
 
@@ -258,7 +258,7 @@ units (bytes, abstract element-ops) and confidence:
 enum class estimate_confidence : UInt8 {
     measured,   // actual value from a completed run / ready data
     derived,    // computed from ready supplier meta (exact counts, exact widths)
-    declared,   // from a SizeEstimator / SizeUpperbound property (§4.5)
+    declared,   // from a SizeExpectation / SizeUpperbound property (§4.5)
     bounded,    // sound upper bound (e.g. select <= src count); expected unknown
     assumed     // ASSUMED_SIZE-style fallback
 };
@@ -311,7 +311,7 @@ Default implementation (generalizing today's `Operator.cpp:80-90`):
 
 1. Ensure the result skeleton exists (`CreateResultCaller` — as today).
 2. For a data-item result: `n = domain->EstimateCount()` (§4.5 ladder: ready ⇒
-   `derived`; `SizeEstimator` expected / `SizeUpperbound` bound ⇒ `declared`;
+   `derived`; `SizeExpectation` expected / `SizeUpperbound` bound ⇒ `declared`;
    structural subset/union/product rules ⇒ `bounded`; else `assumed`);
    `resultBytes = n × ElementByteWeight(res)`;
    `elemOps = n × Σ ElementByteWeight(arg_i)/reference_width`; `nrChores` from
@@ -366,8 +366,9 @@ unions, sparse OD matrices) and variable-width value volumes (sequence/arc/polyg
 and string attributes), where structural bounds are sound but uselessly loose. These are
 exactly the places where the modeler *has* cheap knowledge the engine cannot derive.
 Add a config property **`SizeUpperbound`**: a calculation rule (an expression
-string, `SizeEstimator`-style) that is deliberately **cheaper to evaluate than the
-actual cardinality/size** and declares a **sound upper bound**:
+string, in the style of the existing `SizeEstimator` — renamed `SizeExpectation`
+below) that is deliberately **cheaper to evaluate than the actual
+cardinality/size** and declares a **sound upper bound**:
 
 - on a **domain unit**: an upper bound on its `GetCount()`;
 - on an **attribute with variable-sized elements** — `ValueComposition !=
@@ -398,7 +399,7 @@ Integration:
 
 - **Ladder rework.** `AbstrUnit::GetEstimatedCount()` (`AbstrUnit.cpp:788-817`)
   becomes `EstimateCount() → {expected, upperBound, confidence}`: ready ⇒ exact;
-  `SizeEstimator` ⇒ expected (`declared`); `SizeUpperbound` ⇒ upperBound
+  `SizeExpectation` ⇒ expected (`declared`); `SizeUpperbound` ⇒ upperBound
   (`declared`), **overriding** the structural bound — the point of the sparse-OD
   case, where select-over-product would bound at #origins·#dests; structural rules ⇒
   upperBound (`bounded`); else `ASSUMED_SIZE`. Admission reserves on the bound
@@ -434,10 +435,15 @@ Integration:
   since their argument units are the config items. The producing OC itself (the
   `select_uni` above) keeps its structural bound; the declaration pays off across
   all consumers ranging over the subset/OD unit, which is where the volume is.
-- **Relation to `SizeEstimator`.** Keep both, with sharpened roles: `SizeEstimator`
-  = expected value (a point estimate, may err either way, never used for
-  reservations); `SizeUpperbound` = sound bound (reservations allowed). Most
-  models will want only the bound.
+- **Relation to `SizeEstimator` — renamed `SizeExpectation`.** Keep both
+  properties, with sharpened roles and symmetric names: the existing
+  `SizeEstimator` becomes **`SizeExpectation`** = expected value (a point
+  estimate, may err either way, never used for reservations); `SizeUpperbound` =
+  sound bound (reservations allowed). A clean rename — the property has not been
+  used in production configs yet, so no compatibility alias is needed; the
+  `GetEstimatedCount` error texts and the C++ identifiers (`SIZE_ESTIMATOR_NAME`,
+  `mc_SizeEstimator`, `Has/GetSizeEstimator`) follow. Most models will want only
+  the bound.
 
 ### 4.6 Calibration instead of hand-tuned constants
 
@@ -582,7 +588,7 @@ For each OC at schedule time, `EstimateResources` classifies its numbers:
 | Class | Example | Planner treatment |
 |---|---|---|
 | static-exact (`derived`) | elementwise ops, aggregations with ready partition units, storage reads after `ReadUnitRange` | plan directly |
-| declared | unit/attr with `SizeEstimator` or `SizeUpperbound` (§4.5) | plan directly (reserve on declared bounds), flag for post-hoc verification |
+| declared | unit/attr with `SizeExpectation` or `SizeUpperbound` (§4.5) | plan directly (reserve on declared bounds), flag for post-hoc verification |
 | bounded | `select ≤ n`, `unique ≤ n`, product units = #A·#B | admit pessimistically OR defer (§6.3) |
 | data-dependent (`assumed` + `dependsOnDataOf`) | count of a `select` result's *consumers*' inputs, iterative allocation state, polygon overlay output | **estimation barrier** |
 
@@ -736,8 +742,10 @@ maxima; the perf-`.bin` infrastructure already records timings per test).
 - **P1 — the estimator.**
   `EstimateResources` default (signature-derived where available) + family overrides
   (§4.3) + the `SizeUpperbound` property (§4.5: registration beside
-  `SizeEstimator`, the `EstimateCount` ladder rework, attr-side byte model,
-  bound-violation warning) + storage-read estimates + calibration store
+  `SizeExpectation` — the renamed `SizeEstimator`, a clean rename since it is
+  unused in production configs — plus the `EstimateCount` ladder rework,
+  attr-side byte model, bound-violation warning) + storage-read estimates +
+  calibration store
   (write-only). Exit: ≥ 80% of OCs in t720/t641 estimated `derived`/`declared`;
   median byte-estimate within 2× of actual; report of worst offenders drives the
   next overrides; a sparse-OD scratch config demonstrates a declared bound flipping
@@ -760,8 +768,8 @@ maxima; the perf-`.bin` infrastructure already records timings per test).
   Chore-count shaping from per-chore bytes; pilot-tile probing; persisted
   calibration warm-start; revisit CalcCache spilling (`IsFileableSize`) for whales;
   modeler-facing docs (when to still use `PhaseContainer`; authoring guidance for
-  `SizeEstimator` — currently an undocumented power feature — and
-  `SizeUpperbound`, §4.5).
+  `SizeExpectation` (né `SizeEstimator` — currently an undocumented power
+  feature) and `SizeUpperbound`, §4.5).
 
 ---
 
@@ -779,9 +787,9 @@ maxima; the perf-`.bin` infrastructure already records timings per test).
   release ⇒ ledger overestimates ⇒ safe direction). The t641_2/EnableAutoDelete
   history mandates full-battery + GUI-close testing for every P2+ change.
 - *Meta-thread cost*: estimation runs where `CreateResultCaller` already runs; the
-  signature-derived path avoids new allocations; `SizeEstimator` evaluation must be
-  bounded (it calls `CalcCertainResult` — cap it to parameter-sized expressions, as
-  its error messages already demand).
+  signature-derived path avoids new allocations; `SizeExpectation`/`SizeUpperbound`
+  rule evaluation must be bounded (they call `CalcCertainResult` — cap to
+  parameter-sized expressions, as the existing error messages already demand).
 - *Lock granularity*: priority queue and ledger live under the existing
   `cs_ThreadMessing`; operations must stay O(log n) with small constants, or the
   single-mutex design (§2.1) becomes the bottleneck.
