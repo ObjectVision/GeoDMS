@@ -397,6 +397,83 @@ struct BaseUnitOperator : AbstrBaseUnitOperator
 };
 
 // *****************************************************************************
+// CrsUnitOperator
+//
+// Stamps a coordinate reference system onto a unit, TRANSPARENTLY: the result
+// expresses whatever the wrapped unit expressed (metric or projection) and adds the
+// CRS in its own slot. It exists so a CRS is a first-class component of a unit's
+// DataController key expression instead of being packed into a base-unit symbol as
+// "<SpatialReference>\xFF<DialogData>".
+//
+// UnitBase<V>::GetKeyExprImpl currently emits it as a WRAPPER around the old term:
+//     (CrsUnit "EPSG:28992" (BaseUnit "EPSG:28992\xFFwmts_layer" (fpoint)))
+// so the packed metric -- and therefore every existing 0xFF fallback -- keeps working
+// unchanged while the new channel is validated alongside it. See
+// doc/development/crs-metric-decoupling.md (Stage 2; the packing goes in Stage 7).
+// *****************************************************************************
+
+oper_arg_policy oap_CrsUnit[2] = {
+	oper_arg_policy::calc_always,  // arg0 is the spatial reference str
+	oper_arg_policy::calc_never    // arg1 is the unit being wrapped; only its metainfo is read
+};
+SpecialOperGroup sog_CrsUnit("CrsUnit", 2, oap_CrsUnit);
+
+class AbstrCrsUnitOperator : public BinaryOperator
+{
+	typedef DataArray<SharedStr> Arg1Type;
+
+public:
+	AbstrCrsUnitOperator(const UnitClass* resCls)
+		:	BinaryOperator(&sog_CrsUnit
+			,	resCls
+			,	Arg1Type::GetStaticClass()
+			,	resCls
+			)
+	{}
+
+	// Override Operator
+	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
+	{
+		MG_PRECONDITION(args.size() == 2);
+		if (mustCalc)
+		{
+			dms_assert(resultHolder);
+			return true;
+		}
+		const AbstrUnit* arg2 = AsUnit(args[1]);
+		dms_assert(arg2);
+
+		checked_domain<Void>(args[0], "a1");
+
+		SharedStr crsName = GetCurrValue<Arg1Type::value_type>(args[0], 0);
+		auto result_owner = arg2->GetUnitClass()->CreateTmpUnit(resultHolder.GetNew()); AbstrUnit* result = result_owner.get();
+		resultHolder = result;
+
+		// Transparent: carry over exactly what the wrapped unit expresses. Units never have
+		// both a metric and a projection (see the assert in UnitCreators.cpp), so this is a
+		// genuine either/or rather than a copy of both.
+		if (auto p = arg2->GetProjection())
+			result->SetProjection(p);
+		else
+			result->SetMetric(arg2->GetMetric());
+
+		if (!crsName.empty())
+			result->SetCrs(new UnitCrs(GetTokenID_mt(crsName.begin(), crsName.send())));
+
+		return true;
+	}
+};
+
+template <typename T>
+struct CrsUnitOperator : AbstrCrsUnitOperator
+{
+	typedef Unit<T> ResultType;
+	CrsUnitOperator()
+		:	AbstrCrsUnitOperator(ResultType::GetStaticClass())
+	{}
+};
+
+// *****************************************************************************
 // BaseUnitOperator
 // *****************************************************************************
 
@@ -1255,6 +1332,7 @@ namespace
 	tl_oper::inst_tuple_templ<typelists::points, PointOperators > pointOpers;
 
 	tl_oper::inst_tuple_templ<typelists::ranged_unit_objects, BaseUnitOperator > baseUnitOpers; // here the 2nd arg is a unit of which only the UnitClass is requested
+	tl_oper::inst_tuple_templ<typelists::ranged_unit_objects, CrsUnitOperator  > crsUnitOpers;  // wraps a unit and stamps its CRS; see AbstrCrsUnitOperator
 	BaseUnitObsoleteOperator  buOldOper; // actually this DOES calc_always the 2nd arg (typename string)
 
 	SpecialOperGroup sog_DefUnit("DefaultUnit", 1, &oap_BaseUnit[0], oper_policy::dynamic_result_class); // arg0 is typename str: calc_always

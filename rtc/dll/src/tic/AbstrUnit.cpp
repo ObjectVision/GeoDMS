@@ -12,8 +12,11 @@
 
 #include "act/ActorVisitor.h"
 #include "act/UpdateMark.h"
+#include "dbg/Check.h"        // reportF_without_cancellation_check, for the Stage-2 CRS drift detector
 #include "dbg/DmsCatch.h"
 #include "dbg/SeverityType.h"
+
+#include <optional>
 #include "geo/PointOrder.h"
 #include "mci/ValueClass.h"
 #include "mci/ValueClassID.h"
@@ -425,56 +428,106 @@ void AbstrUnit::SetSpatialReference(TokenID format)
 	SetCrs(format.empty() ? nullptr : new UnitCrs(format));
 }
 
+// ---------------------------------------------------------------------------
+// LEGACY 0xFF packing -- everything below is deleted in Stage 7 of
+// doc/development/crs-metric-decoupling.md. It was triplicated across the three
+// accessors; factored into one place so the eventual deletion is a single edit and
+// so the drift detector has exactly one "old channel" to compare against.
+//
+// A coordinate unit's metric could be a CRS identity tag rather than a dimension: a
+// single base unit of power 1 whose symbol is "<SpatialReference>\xFF<DialogData>".
+// ---------------------------------------------------------------------------
+namespace {
+
+	// Returns the packed symbol and the position of its 0xFF separator, or nullptr.
+	auto FindPackedCrsSymbol(const UnitMetric* m) -> std::optional<SharedStr>
+	{
+		if (!m || m->m_BaseUnits.size() != 1 || m->m_BaseUnits.begin()->second != 1)
+			return {};
+		const SharedStr& sym = m->m_BaseUnits.begin()->first;
+		if (std::find(sym.begin(), sym.send(), char(0xFF)) == sym.send())
+			return {};
+		return sym;
+	}
+
+	auto DecodePackedSpatialRef(const UnitMetric* m) -> TokenID
+	{
+		auto sym = FindPackedCrsSymbol(m);
+		if (!sym)
+			return TokenID::GetEmptyID();
+		auto sepPos = std::find(sym->begin(), sym->send(), char(0xFF));
+		return GetTokenID_mt(sym->begin(), sepPos);
+	}
+
+	auto DecodePackedBackgroundRef(const UnitMetric* m) -> SharedStr
+	{
+		auto sym = FindPackedCrsSymbol(m);
+		if (!sym)
+			return {};
+		auto sepPos = std::find(sym->begin(), sym->send(), char(0xFF));
+		return SharedStr(CharPtrRange(sepPos + 1, sym->send()) MG_DEBUG_ALLOCATOR_SRC("DecodePackedBackgroundRef"));
+	}
+
+#if defined(MG_DEBUG)
+	// Stage-2 drift detector, modelled on the SigUnitChecker metric replay in
+	// OperSignature.cpp. While BOTH channels are live, any unit that carries a CRS in its
+	// own slot AND a packed one in its metric must agree. This is the cheapest available
+	// proof, across the whole regression corpus, that the new channel reproduces the old
+	// one BEFORE Stage 7 deletes the old one. Removed together with the packing.
+	void CheckCrsChannelDrift(const AbstrUnit* self, TokenID fromSlot, TokenID fromMetric)
+	{
+		if (fromSlot.empty() || fromMetric.empty() || fromSlot == fromMetric)
+			return;
+		reportF_without_cancellation_check(SeverityTypeID::ST_Error
+			, "CRS channel drift on {}: the m_Crs slot says '{}' but the packed metric says '{}'"
+			, self->GetFullName().c_str(), SharedStr(fromSlot).c_str(), SharedStr(fromMetric).c_str());
+		assert(!"CRS decoupling: the UnitCrs slot disagrees with the legacy 0xFF-packed metric (see the preceding ST_Error log line)");
+	}
+#endif
+
+} // anonymous namespace
+
 SharedStr AbstrUnit::GetBackgroundReference() const
 {
 	auto dd = TreeItem_GetDialogData(this);
 	if (not dd.empty())
 		return dd;
 
-	auto m = GetMetric();
-	if (m && m->m_BaseUnits.size() == 1 && m->m_BaseUnits.begin()->second == 1)
-	{
-		const SharedStr pair_str = m->m_BaseUnits.begin()->first;
-		auto tab_pos = std::find(pair_str.begin(), pair_str.send(), char(0xFF));
-		if (tab_pos != pair_str.send())
-			return SharedStr(CharPtrRange(tab_pos + 1, pair_str.send()) MG_DEBUG_ALLOCATOR_SRC("AbstrUnit::GetBackgroundReference"));
-	}
-	return {};
+	return DecodePackedBackgroundRef(GetMetric());
 }
 
 TokenID AbstrUnit::GetSpatialReference() const
 {
 	// Own slot (with referred-item delegation) first; the 0xFF metric decode stays as the
 	// LAST resort until the new channel carries everything (Stage 7 deletes it).
-	if (auto crs = GetCrs())
+	auto crs = GetCrs();
+
+#if defined(MG_DEBUG)
+	if (crs)
+		CheckCrsChannelDrift(this, crs->m_SpatialRef, DecodePackedSpatialRef(GetMetric()));
+#endif
+
+	if (crs)
 		return crs->m_SpatialRef;
 
-	auto m = GetMetric();
-	if (m && m->m_BaseUnits.size() == 1 && m->m_BaseUnits.begin()->second == 1)
-	{
-		const SharedStr pair_str = m->m_BaseUnits.begin()->first;
-		auto tab_pos = std::find(pair_str.begin(), pair_str.send(), char(0xFF));
-		if (tab_pos != pair_str.send())
-			return GetTokenID_mt(pair_str.begin(), tab_pos);
-	}
-	return TokenID::GetEmptyID();
+	return DecodePackedSpatialRef(GetMetric());
 }
 
 TokenID AbstrUnit::GetCurrSpatialReference() const
 {
 	assert(m_State.GetProgress() >= ProgressState::MetaInfo); //UpdateMetaInfo();
 
-	if (auto crs = GetCurrCrs())
+	auto crs = GetCurrCrs();
+
+#if defined(MG_DEBUG)
+	if (crs)
+		CheckCrsChannelDrift(this, crs->m_SpatialRef, DecodePackedSpatialRef(GetCurrMetric()));
+#endif
+
+	if (crs)
 		return crs->m_SpatialRef;
-	auto m = GetCurrMetric();
-	if (m && m->m_BaseUnits.size() == 1 && m->m_BaseUnits.begin()->second == 1)
-	{
-		const SharedStr pair_str = m->m_BaseUnits.begin()->first;
-		auto tab_pos = std::find(pair_str.begin(), pair_str.send(), char(0xFF));
-		if (tab_pos != pair_str.send())
-			return GetTokenID_mt(pair_str.begin(), tab_pos);
-	}
-	return TokenID::GetEmptyID();
+
+	return DecodePackedSpatialRef(GetCurrMetric());
 }
 
 

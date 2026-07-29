@@ -89,6 +89,7 @@ namespace token {
 	extern TIC_CALL TokenID point_xy;
 
 	extern TIC_CALL TokenID BaseUnit;
+	extern TIC_CALL TokenID CrsUnit;
 	extern TIC_CALL TokenID UInt32;
 	extern TIC_CALL TokenID left;
 	extern TIC_CALL TokenID right;

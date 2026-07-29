@@ -186,6 +186,7 @@ namespace token {
 	TIC_CALL TokenID second_rel = GetTokenID_st("second_rel");
 	TIC_CALL TokenID ordinal = GetTokenID_st("ordinal");
 	TIC_CALL TokenID BaseUnit = GetTokenID_st("BaseUnit");
+	TIC_CALL TokenID CrsUnit = GetTokenID_st("CrsUnit"); // see doc/development/crs-metric-decoupling.md
 	TIC_CALL TokenID UInt32 = GetTokenID_st("UInt32");
 	TIC_CALL TokenID left = GetTokenID_st("left");
 	TIC_CALL TokenID right = GetTokenID_st("right");

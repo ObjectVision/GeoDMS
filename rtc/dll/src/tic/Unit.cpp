@@ -159,6 +159,26 @@ LispRef UnitBase<V>::GetKeyExprImpl() const
 					, result
 				);
 
+				// CRS decoupling Stage 2: when this unit has a spatial reference, WRAP the
+				// term above rather than replacing it:
+				//     (CrsUnit "EPSG:28992" (BaseUnit "EPSG:28992\xFFwmts_layer" (fpoint)))
+				// The inner term is untouched, so the packed metric and every 0xFF fallback
+				// behave exactly as before, while the CRS additionally arrives on the result
+				// unit's own m_Crs slot -- which is what lets a CACHE unit answer for its
+				// CRS without decoding a metric symbol. Stage 7 drops the packing and with
+				// it the inner term's CRS role. See doc/development/crs-metric-decoupling.md.
+				if (sr)
+				{
+					// Materialize the token BEFORE building the LispRef: a TokenID str-range
+					// temporary keeps the token-registry lock held for its lifetime, and
+					// spanning a parse-capable call with it self-deadlocks at ~0 CPU.
+					SharedStr srStr(sr);
+					result = ExprList(token::CrsUnit
+						, LispRef(srStr.begin(), srStr.send())
+						, result
+					);
+				}
+
 #if defined(MG_DEBUG)
 				auto resultStr2 = AsString(result.AsLispPtr());
 #endif
