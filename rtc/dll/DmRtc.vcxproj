@@ -557,6 +557,10 @@
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
+    <ClCompile Include="src\tic\Crs.cpp">
+      <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
+      <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
+    </ClCompile>
     <ClCompile Include="src\tic\Metric.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
@@ -697,6 +701,7 @@
     <ClInclude Include="src\tic\FreeDataManager.h" />
     <ClInclude Include="src\tic\ItemUpdate.h" />
     <ClInclude Include="src\tic\LispTreeType.h" />
+    <ClInclude Include="src\tic\Crs.h" />
     <ClInclude Include="src\tic\Metric.h" />
     <ClInclude Include="src\tic\MoreDataControllers.h" />
     <ClInclude Include="src\tic\OperArgPolicy.h" />

@@ -9,6 +9,8 @@
 
 #include "TreeItem.h"
 
+#include "Crs.h"
+
 #include "geo/Geometry.h"
 #include "geo/Range.h"
 #include "mci/ValueComposition.h"
@@ -102,6 +104,15 @@ public:
 	virtual SharedPtr<const AbstrTileRangeData> GetTiledRangeData() const;
 	TIC_CALL bool HasVarRangeData() const;
 	TIC_CALL void SetSpatialReference(TokenID format);
+
+	// The CRS as a first-class property, peer of the metric. GetCrs/GetCurrCrs delegate
+	// to the referred item exactly as RangedUnit<V>::GetMetric does (Unit.cpp) -- that
+	// delegation is what lets a cache unit answer for its config origin, and its absence
+	// on the old side-table channel is why the CRS had to ride inside the metric.
+	// See doc/development/crs-metric-decoupling.md.
+	TIC_CALL const UnitCrs* GetCrs    () const;
+	TIC_CALL const UnitCrs* GetCurrCrs() const;
+	TIC_CALL void           SetCrs(const UnitCrs* crs);
 
 	TIC_CALL SharedStr GetBackgroundReference() const;
 	TIC_CALL TokenID   GetSpatialReference    () const;
@@ -226,6 +237,11 @@ private:
 
 private:
 	mutable std::unique_ptr<DataItemRefContainer>    m_DataItemsAssocPtr;
+
+	// Replaces the former s_SpatialReferenceAssoc global (an unsynchronised std::map
+	// keyed on raw pointers, which therefore could not be written from worker threads)
+	// plus its USF_HasSpatialReference flag bit and ~AbstrUnit erase.
+	SharedPtr<const UnitCrs>                         m_Crs;
 
 	DECL_ABSTR(TIC_CALL, Class)
 };

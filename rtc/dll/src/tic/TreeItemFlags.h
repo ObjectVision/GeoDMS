@@ -78,7 +78,10 @@ const TreeItemStatusFlags TSF_Depreciated                 = 0x00800000; // unall
 const TreeItemStatusFlags TSF_IsFunctionItem              = 0x01000000; // 'function' definition: template-like (body inert via TSF_In/IsTemplate) + typed telescope, designated result, strict scope
 
 // Unit flags can overlap with Data flags as a TreeItem is never both.
-const UnitItemStatusFlags USF_HasSpatialReference         = 0x02000000;
+// 0x02000000 was USF_HasSpatialReference, the companion flag of the s_SpatialReferenceAssoc
+// global. Both are gone: the CRS is now the AbstrUnit::m_Crs member (see tic/Crs.h and
+// doc/development/crs-metric-decoupling.md). Left documented rather than silently reused,
+// so a future flag does not collide with a stale persisted value.
 const UnitItemStatusFlags USF_HasConfigRange              = 0x04000000;
 
 // REMOVE, TODO: CONSIDER STORING THE FOLLOWING PER TILE

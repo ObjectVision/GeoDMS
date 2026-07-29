@@ -122,9 +122,11 @@ private:
 	vec_t m_Vec;
 };
 
-namespace {
-	static_quick_assoc<const AbstrUnit*, TokenID> s_SpatialReferenceAssoc;
-}
+// NOTE: the former `static_quick_assoc<const AbstrUnit*, TokenID> s_SpatialReferenceAssoc`
+// lived here. It is replaced by the AbstrUnit::m_Crs member (see Crs.h). The global was an
+// unsynchronised std::map keyed on raw pointers, so it could not be written from the worker
+// threads that build cache units -- which is precisely why the CRS had to be smuggled
+// through the metric instead. See doc/development/crs-metric-decoupling.md.
 //----------------------------------------------------------------------
 // class  : AbstrUnit 
 //----------------------------------------------------------------------
@@ -134,8 +136,9 @@ AbstrUnit::AbstrUnit() {}  // ctor calls for ~OwningPtr<DataItemsAssocPair> in c
 // DataItemsOut
 AbstrUnit::~AbstrUnit()
 {
-	if (GetTSF(USF_HasSpatialReference))
-		s_SpatialReferenceAssoc.eraseExisting(this);
+	// The spatial reference used to live in the s_SpatialReferenceAssoc global keyed on
+	// `this`, which had to be erased here. It is now the m_Crs member, released with the
+	// object -- no destructor coupling, and no global to keep in step.
 }
 
 inline DataItemRefContainer& AbstrUnit::GetDataItemsAssoc() const
@@ -392,18 +395,34 @@ bool AbstrUnit::HasVarRangeData() const
 	return AsUnit(this)->HasTiledRangeData() && !AsUnit(this)->GetValueType()->HasFixedValues();
 }
 
+const UnitCrs* AbstrUnit::GetCrs() const
+{
+	// Delegate to the referred item exactly as RangedUnit<V>::GetMetric does (Unit.cpp).
+	// This is the whole point of moving off the side table: a cache unit can now answer
+	// for the config unit it refers to.
+	if (auto refItem = debug_cast<const AbstrUnit*>(GetReferredItem().get()))
+		return refItem->GetCrs();
+	return m_Crs.get_ptr();
+}
+
+const UnitCrs* AbstrUnit::GetCurrCrs() const
+{
+	if (auto refItem = debug_cast<const AbstrUnit*>(GetCurrRefItem().get()))
+		return refItem->GetCurrCrs();
+	return m_Crs.get_ptr();
+}
+
+void AbstrUnit::SetCrs(const UnitCrs* crs)
+{
+	m_Crs = IsEmpty(crs) ? nullptr : crs;
+}
+
 void AbstrUnit::SetSpatialReference(TokenID format)
 {
-	// An empty token legitimately means CLEAR, and the body already implements exactly
-	// that: static_quick_assoc::assoc erases the entry and returns false for a default
-	// value, and SetTSF then drops USF_HasSpatialReference. The old
-	// dms_assert(!format.empty()) contradicted its own body and made CopyProps below
-	// abort in Debug whenever the TARGET carried a spatial reference and the SOURCE did
-	// not -- the right-hand side of its `||`, whose whole purpose is to clear the target.
-	SetTSF(
-		USF_HasSpatialReference,
-		s_SpatialReferenceAssoc.assoc(this, format)
-	);
+	// An empty token legitimately means CLEAR (see the Stage-0 note: the old
+	// dms_assert(!format.empty()) contradicted its own body and made CopyProps abort in
+	// Debug whenever the TARGET carried a spatial reference and the SOURCE did not).
+	SetCrs(format.empty() ? nullptr : new UnitCrs(format));
 }
 
 SharedStr AbstrUnit::GetBackgroundReference() const
@@ -425,8 +444,10 @@ SharedStr AbstrUnit::GetBackgroundReference() const
 
 TokenID AbstrUnit::GetSpatialReference() const
 {
-	if (GetTSF(USF_HasSpatialReference))
-		return s_SpatialReferenceAssoc.GetExisting(this);
+	// Own slot (with referred-item delegation) first; the 0xFF metric decode stays as the
+	// LAST resort until the new channel carries everything (Stage 7 deletes it).
+	if (auto crs = GetCrs())
+		return crs->m_SpatialRef;
 
 	auto m = GetMetric();
 	if (m && m->m_BaseUnits.size() == 1 && m->m_BaseUnits.begin()->second == 1)
@@ -443,8 +464,8 @@ TokenID AbstrUnit::GetCurrSpatialReference() const
 {
 	assert(m_State.GetProgress() >= ProgressState::MetaInfo); //UpdateMetaInfo();
 
-	if (GetTSF(USF_HasSpatialReference))
-		return s_SpatialReferenceAssoc.GetExisting(this);
+	if (auto crs = GetCurrCrs())
+		return crs->m_SpatialRef;
 	auto m = GetCurrMetric();
 	if (m && m->m_BaseUnits.size() == 1 && m->m_BaseUnits.begin()->second == 1)
 	{
@@ -708,8 +729,10 @@ void AbstrUnit::CopyProps(TreeItem* result, const CopyTreeContext& copyContext) 
 	base_type::CopyProps(result, copyContext);
 
 	AbstrUnit* resultUnit = debug_cast<AbstrUnit*>(result);
-	if (GetTSF(USF_HasSpatialReference) || resultUnit->GetTSF(USF_HasSpatialReference))
-		resultUnit->SetSpatialReference(GetSpatialReference());
+	// Copy the CRS slot straight across, including the "source has none, clear the target"
+	// case that the old flag-pair condition expressed (and that used to trip an assert).
+	if (m_Crs || resultUnit->m_Crs)
+		resultUnit->SetCrs(m_Crs.get_ptr());
 	if (GetTSF(USF_HasConfigRange))
 		resultUnit->SetTSF(USF_HasConfigRange);
 }
