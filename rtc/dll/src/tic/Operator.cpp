@@ -79,7 +79,10 @@ auto Operator::GetArgPolicy(arg_index argNr, CharPtr firstArgValue) const -> ope
 #include "TiledRangeData.h"
 #include "act/MainThread.h"
 #include "stg/AbstrStorageManager.h" // IsInMMD
-#include "utl/Environment.h"        // IsMultiThreaded3
+#include "utl/Environment.h"        // IsMultiThreaded3, IsPerformanceLogging
+#include "dbg/Check.h"
+#include "dbg/DmsCatch.h"
+#include "dbg/SeverityType.h"
 
 TIC_CALL CharPtr AsString(materialization m)
 {
@@ -92,20 +95,41 @@ TIC_CALL CharPtr AsString(materialization m)
 	return "?";
 }
 
+TIC_CALL CharPtr AsString(estimate_confidence c)
+{
+	switch (c) {
+	case estimate_confidence::measured: return "measured";
+	case estimate_confidence::derived: return "derived";
+	case estimate_confidence::declared: return "declared";
+	case estimate_confidence::bounded: return "bounded";
+	case estimate_confidence::assumed: return "assumed";
+	}
+	return "?";
+}
+
 // A domain's element count, with how much that number can be trusted. Robust by construction: at
 // schedule time a cache result's domain is often not computed yet, and asking an uncomputed unit
-// for its count throws -- which must degrade this one field, never the whole estimate.
-static auto EstimateDomainCount(const AbstrUnit* domain) -> std::pair<SizeT, estimate_confidence>
+// for its count -- or evaluating a declared size rule -- throws, which must degrade this one field
+// and never the whole estimate.
+static auto EstimateDomainCount(const AbstrUnit* domain) -> AbstrUnit::CountEstimate
 {
 	try {
-		if (IsDataReady(domain))
-			return { domain->GetCount(), estimate_confidence::derived };
-		auto declared = domain->HasSizeEstimator();
-		return { domain->GetEstimatedCount()
-			, declared ? estimate_confidence::declared : estimate_confidence::assumed }; // else ASSUMED_SIZE
+		return domain->EstimateCount();
 	}
 	catch (...) {
-		return { 0, estimate_confidence::assumed };
+		// A declared SizeExpectation/SizeUpperbound that cannot be evaluated where the estimate is
+		// taken is a silent loss of the modeller's knowledge, and the reason is what tells us where
+		// it *can* be evaluated. Everything here is inside the guard: probing for the properties can
+		// itself need meta-info, so even asking whether one exists may throw.
+		auto reason = catchException(false);
+		try {
+			if (IsPerformanceLogging())
+				reportF(MsgCategory::performance, SeverityTypeID::ST_MinorTrace
+					, "size estimate for {}: unavailable here: {}"
+					, domain->GetFullName(), reason ? reason->GetAsText() : SharedStr("(no reason)"));
+		}
+		catch (...) {}
+		return { 0, 0, estimate_confidence::assumed };
 	}
 }
 
@@ -139,8 +163,11 @@ TIC_CALL auto Operator::EstimatePerformance(TreeItemDualRef& resultHolder, const
 	auto adi = AsDataItem(resultHolder.GetNew());
 	auto domain = adi->GetAbstrDomainUnit();
 
-	std::tie(result.resultingNrElements, result.confidence) = EstimateDomainCount(domain);
-	result.resultingMemory = EstimateDataBytes(adi, result.resultingNrElements);
+	auto domainCount = EstimateDomainCount(domain);
+	result.resultingNrElements = domainCount.expected;
+	result.confidence = domainCount.confidence;
+	result.resultingMemory = EstimateDataBytes(adi, domainCount.expected);
+	result.resultingMemoryUpperBound = EstimateDataBytes(adi, domainCount.upperBound);
 
 	// Tiling, then the regime it enables, then what is actually resident under that regime.
 	tile_offset maxTileSize = 0;
@@ -175,10 +202,10 @@ TIC_CALL auto Operator::EstimatePerformance(TreeItemDualRef& resultHolder, const
 		if (auto argItem = GetItem(argRef); argItem && IsDataItem(argItem))
 		{
 			auto argAdi = AsDataItem(argItem);
-			auto [argCount, argConfidence] = EstimateDomainCount(argAdi->GetAbstrDomainUnit());
-			result.inputSize += EstimateDataBytes(argAdi, argCount);
-			MakeMax(nrElemOps, argCount);
-			MakeMax(result.confidence, argConfidence); // the estimate is only as good as its worst input
+			auto argCount = EstimateDomainCount(argAdi->GetAbstrDomainUnit());
+			result.inputSize += EstimateDataBytes(argAdi, argCount.expected);
+			MakeMax(nrElemOps, argCount.expected);
+			MakeMax(result.confidence, argCount.confidence); // only as good as its worst input
 		}
 	result.expectedCalcTime = calc_time_t(nrElemOps) * GetGroup()->GetCalcFactor();
 

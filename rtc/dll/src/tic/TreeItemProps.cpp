@@ -759,7 +759,8 @@ namespace {
 
 	static StoredPropDef<TreeItem, SharedStr> descrPropDef(DESCR_NAME, set_mode::optional, xml_mode::element, cpy_mode::expr, false);
 	static StoredPropDef<TreeItem, SharedStr> integrityCheckPropDef(ICHECK_NAME, set_mode::optional, xml_mode::element, cpy_mode::expr, true);
-	static StoredPropDef<TreeItem, SharedStr> sizeEstimatorPropDef(SIZE_ESTIMATOR_NAME, set_mode::optional, xml_mode::element, cpy_mode::expr, true);
+	static StoredPropDef<TreeItem, SharedStr> sizeExpectationPropDef(SIZE_EXPECTATION_NAME, set_mode::optional, xml_mode::element, cpy_mode::expr, true);
+	static StoredPropDef<TreeItem, SharedStr> sizeUpperboundPropDef(SIZE_UPPERBOUND_NAME, set_mode::optional, xml_mode::element, cpy_mode::expr, true);
 	static StoredPropDef<TreeItem, SharedStr> storageNamePropDef(STORAGENAME_NAME, set_mode::optional, xml_mode::element, stg_cpy_mode, true, chg_mode::invalidate);
 	static StoredPropDef<TreeItem, TokenID  > storageTypePropDef(STORAGETYPE_NAME, set_mode::optional, xml_mode::element, stg_cpy_mode, false, chg_mode::invalidate);
 	static StoredPropDef<TreeItem, SharedStr> storageDriverPropDef(STORAGEDRIVER_NAME, set_mode::optional, xml_mode::element, stg_cpy_mode, true, chg_mode::invalidate);
@@ -814,7 +815,8 @@ namespace {
 PropDef<TreeItem, SharedStr>* calcRulePropDefPtr       = &calcRulePropDef;
 PropDef<TreeItem, SharedStr>* descrPropDefPtr          = &descrPropDef;
 PropDef<TreeItem, SharedStr>* integrityCheckPropDefPtr = &integrityCheckPropDef;
-PropDef<TreeItem, SharedStr>* sizeEstimatorPropDefPtr  = &sizeEstimatorPropDef;
+PropDef<TreeItem, SharedStr>* sizeExpectationPropDefPtr = &sizeExpectationPropDef;
+PropDef<TreeItem, SharedStr>* sizeUpperboundPropDefPtr  = &sizeUpperboundPropDef;
 PropDef<TreeItem, SharedStr>* explicitSupplPropDefPtr  = &explicitSupplPropDef;
 
 PropDef<TreeItem, SharedStr>* storageNamePropDefPtr    = &storageNamePropDef;

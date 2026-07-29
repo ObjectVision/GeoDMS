@@ -34,7 +34,11 @@
 #define CALCRULE_NAME           "CalcRule"
 #define DESCR_NAME              "Descr"
 #define ICHECK_NAME             "IntegrityCheck"
-#define SIZE_ESTIMATOR_NAME     "SizeEstimator"
+// Declared size knowledge, for resource estimation (doc/development/schedule-with-lookahead.md §4.6).
+// Expectation: a point estimate, never reserved on. Upperbound: a sound bound, which admission may
+// reserve on. Both are calculation rules that must be cheaper to evaluate than the size itself.
+#define SIZE_EXPECTATION_NAME   "SizeExpectation"
+#define SIZE_UPPERBOUND_NAME    "SizeUpperbound"
 #define LABEL_NAME              "Label"
 
 

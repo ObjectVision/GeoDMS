@@ -37,6 +37,7 @@
 #include "PropFuncs.h"
 #include "TiledUnit.h"
 #include "TreeItemClass.h"
+#include "TicPropDefConst.h" // SIZE_EXPECTATION_NAME / SIZE_UPPERBOUND_NAME, used in EstimateCount
 #include "TreeItemContextHandle.h"
 #include "TreeItemProps.h"
 #include "Unit.h"
@@ -859,33 +860,58 @@ bool AbstrUnit::IsOrdinalAndZeroBased() const
 
 const row_id ASSUMED_SIZE = 1000000;
 
+// Evaluate a declared size rule (SizeExpectation / SizeUpperbound) to a single number.
+// propName names the property in the error texts, since both share this machinery.
+static row_id EvalDeclaredSizeRule(const AbstrCalculatorRef& rule, CharPtr propName)
+{
+	assert(rule);
+	auto dc = CalledCalcHandle(rule.get(), AbstrDataItem::GetStaticClass());
+	auto fd = dc->CalcCertainResult();
+	auto ri = fd->MakeResult();
+
+	if (!ri || !IsDataItem(ri))
+		throwDmsErrF("{} must define a numeric result, but is defined as {}", propName, rule->GetExpr());
+	auto ari = AsDataItem(ri);
+	if (!ari->HasVoidDomainGuarantee())
+		throwDmsErrF("{} must define a single result, but is defined as {}", propName, rule->GetExpr());
+	DataReadLock drl(ari.get());
+	auto ado = ari->GetRefObj();
+	assert(ado);
+	return ado->GetValueAsSizeT(0);
+}
+
+auto AbstrUnit::EstimateCount() const -> CountEstimate
+{
+	// Ready data beats every declaration: the count is simply known.
+	if (IsDataReady(this))
+	{
+		auto n = GetCount();
+		return { n, n, estimate_confidence::derived };
+	}
+
+	// A declared bound may be reserved on, so it is the upper bound even when an expectation
+	// exists; the expectation, being a point estimate, only ever informs ordering.
+	auto result = CountEstimate{ ASSUMED_SIZE, ASSUMED_SIZE, estimate_confidence::assumed };
+
+	if (HasSizeUpperbound())
+	{
+		result.upperBound = EvalDeclaredSizeRule(GetSizeUpperbound(), SIZE_UPPERBOUND_NAME);
+		result.expected = result.upperBound;
+		result.confidence = estimate_confidence::declared;
+	}
+	if (HasSizeExpectation())
+	{
+		result.expected = EvalDeclaredSizeRule(GetSizeExpectation(), SIZE_EXPECTATION_NAME);
+		if (!HasSizeUpperbound())
+			result.upperBound = result.expected; // no sound bound declared; nothing better to offer
+		result.confidence = estimate_confidence::declared;
+	}
+	return result;
+}
+
 row_id AbstrUnit::GetEstimatedCount() const
 {
-	if (IsDataReady(this))
-		return GetCount();
-	if (HasSizeEstimator())
-	{
-		auto se = GetSizeEstimator();
-		assert(se);
-		auto dc = CalledCalcHandle(se.get(), AbstrDataItem::GetStaticClass());
-		auto fd = dc->CalcCertainResult();
-		auto ri = fd->MakeResult();
-
-		if (!ri || !IsDataItem(ri))
-			throwDmsErrF("SizeEstimator must define a numeric result, but is defined as {}"
-				, se->GetExpr()
-				);
-		auto ari = AsDataItem(ri);
-		if (!ari->HasVoidDomainGuarantee())
-			throwDmsErrF("SizeEstimator must define a single result, but is defined as {}"
-				, se->GetExpr()
-			);
-		DataReadLock drl(ari.get());
-		auto ado = ari->GetRefObj();
-		assert(ado);
-		return ado->GetValueAsSizeT(0);
-	}
-	return ASSUMED_SIZE;
+	return EstimateCount().expected;
 }
 
 void AbstrUnit::ValidateCount(SizeT supposedCount) const

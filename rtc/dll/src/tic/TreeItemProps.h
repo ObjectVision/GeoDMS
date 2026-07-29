@@ -17,7 +17,8 @@ using PropBool = Bool;
 TIC_CALL extern PropDef<TreeItem, SharedStr>* calcRulePropDefPtr;
 TIC_CALL extern PropDef<TreeItem, SharedStr>* descrPropDefPtr;
 TIC_CALL extern PropDef<TreeItem, SharedStr>* integrityCheckPropDefPtr;
-TIC_CALL extern PropDef<TreeItem, SharedStr>* sizeEstimatorPropDefPtr;
+TIC_CALL extern PropDef<TreeItem, SharedStr>* sizeExpectationPropDefPtr;
+TIC_CALL extern PropDef<TreeItem, SharedStr>* sizeUpperboundPropDefPtr;
 TIC_CALL extern PropDef<TreeItem, SharedStr>* explicitSupplPropDefPtr;
 
 TIC_CALL extern PropDef<TreeItem, SharedStr>* storageNamePropDefPtr;

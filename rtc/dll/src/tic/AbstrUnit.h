@@ -182,7 +182,19 @@ public:
 	virtual tile_offset GetTileCount(tile_id t) const;
 	virtual row_id GetBase () const;
 	TIC_CALL bool IsOrdinalAndZeroBased() const;
-	TIC_CALL row_id GetEstimatedCount() const;
+	TIC_CALL row_id GetEstimatedCount() const; // == EstimateCount().expected
+
+	// The confidence ladder of doc/development/schedule-with-lookahead.md §4.6: ready data gives the
+	// exact count; else a declared SizeUpperbound (reservable) and/or SizeExpectation (a point
+	// estimate, never reserved on); else ASSUMED_SIZE. Evaluating a declared rule can throw -- that
+	// is a fact about the declaration, so callers that must not fail have to guard it.
+	struct CountEstimate
+	{
+		row_id expected = 0;
+		row_id upperBound = 0;
+		estimate_confidence confidence = estimate_confidence::assumed;
+	};
+	TIC_CALL auto EstimateCount() const -> CountEstimate;
 
 	virtual auto CreateAbstrValueAtIndex(SizeT i) const -> std::unique_ptr<AbstrValue>;
 	virtual SizeT GetIndexForAbstrValue(const AbstrValue&) const;

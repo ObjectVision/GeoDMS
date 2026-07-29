@@ -38,31 +38,8 @@ enum ArgFlags
 // Section:     PerformanceEstimationData
 // *****************************************************************************
 
-// How much the numbers below can be relied on; see doc/development/schedule-with-lookahead.md §4.
-// Ordered from most to least reliable: a consumer may reserve on 'declared' and better, and must
-// treat 'bounded'/'assumed' figures as upper bounds rather than expectations.
-enum class estimate_confidence : UInt8
-{
-	measured,   // actual value of a completed run / ready data
-	derived,    // computed from ready supplier meta-info (exact counts and widths)
-	declared,   // from a SizeExpectation / SizeUpperbound property
-	bounded,    // sound upper bound; the expected value is unknown
-	assumed,    // ASSUMED_SIZE-style fallback
-};
-
-// How the result's data comes into existence -- the biggest single factor in what an operation
-// costs in memory, and predictable from the same inputs the operator families decide it with.
-// Measured spread on a 50M-element chain: eager 1303 MB, deferred 416 MB, streaming 542 MB.
-// See doc/development/schedule-with-lookahead.md §4.4.
-enum class materialization : UInt8
-{
-	meta,       // unit or container result: no data at all
-	eager,      // whole array written under a DataWriteLock before CalcResult returns
-	deferred,   // FutureTileFunctor: tiles computed on pull and then KEPT (strong tile records)
-	streaming,  // LazyTileFunctor: tiles freed when the consumer releases them (weak refs)
-};
-
-TIC_CALL CharPtr AsString(materialization);
+// estimate_confidence and materialization live in TicBase.h: units and storage managers describe
+// themselves with them too. See doc/development/schedule-with-lookahead.md §4.1 and §4.4.
 
 struct PerformanceEstimationData
 {
@@ -70,6 +47,7 @@ struct PerformanceEstimationData
 	SizeT inputSize = 0, inputSizePerChore = 0;
 	SizeT workingMemorySize = 0, workingMemorySizePerChore = 0;
 	SizeT resultingMemory = 0;       // the eventual full result volume, once every tile exists
+	SizeT resultingMemoryUpperBound = 0; // sound ceiling: from a declared SizeUpperbound where present
 	SizeT residentMemory = 0;        // what a ledger would charge; per regime, see materialization
 	SizeT choreMemory = 0;           // one tile's worth of the result
 	SizeT resultingNrElements = 0;

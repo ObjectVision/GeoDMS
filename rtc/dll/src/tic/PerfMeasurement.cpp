@@ -20,18 +20,6 @@
 
 namespace {
 
-	CharPtr AsString(estimate_confidence c)
-	{
-		switch (c) {
-		case estimate_confidence::measured: return "measured";
-		case estimate_confidence::derived: return "derived";
-		case estimate_confidence::declared: return "declared";
-		case estimate_confidence::bounded: return "bounded";
-		case estimate_confidence::assumed: return "assumed";
-		}
-		return "?";
-	}
-
 	// actual/estimate as a printable factor. Both zero (a void domain, say) is a match, not a 0x miss.
 	Float64 Residual(SizeT actual, SizeT estimate)
 	{

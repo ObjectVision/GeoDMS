@@ -34,6 +34,36 @@
 #define TICTOC_CALL TIC_CALL
 
 
+//----------------------------------------------------------------------
+// resource estimation vocabulary (doc/development/schedule-with-lookahead.md §4)
+// Here rather than in Operator.h because units and storage managers describe themselves
+// with it too, and they must not depend on the operator interface.
+//----------------------------------------------------------------------
+
+// How much the accompanying numbers can be relied on, best first: a consumer may reserve on
+// 'declared' and better, and must read 'bounded'/'assumed' figures as upper bounds only.
+enum class estimate_confidence : UInt8
+{
+	measured,   // actual value of a completed run / ready data
+	derived,    // computed from ready supplier meta-info (exact counts and widths)
+	declared,   // from a SizeExpectation / SizeUpperbound property
+	bounded,    // sound upper bound; the expected value is unknown
+	assumed,    // ASSUMED_SIZE-style fallback
+};
+
+// How a result's data comes into existence -- the biggest single factor in what it costs in
+// memory. Measured spread on a 50M-element chain: eager 1303 MB, deferred 416 MB, streaming 542 MB.
+enum class materialization : UInt8
+{
+	meta,       // unit or container result: no data at all
+	eager,      // whole array written under a DataWriteLock before CalcResult returns
+	deferred,   // FutureTileFunctor: tiles computed on pull and then KEPT (strong tile records)
+	streaming,  // LazyTileFunctor: tiles freed when the consumer releases them (weak refs)
+};
+
+TIC_CALL CharPtr AsString(estimate_confidence);
+TIC_CALL CharPtr AsString(materialization);
+
 struct TreeItem;
 struct TreeItemSetType;
 struct TreeItemVectorType;

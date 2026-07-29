@@ -918,6 +918,45 @@ filter checkbox, and the `RegStatusFlags` DWORD is **out of bits** (`RSF_WasRead
 0x80000000), which is why `PerformanceLogging` is a `RegDWordEnum` entry and `/SP`
 sets that rather than a status flag. P2's throttle flag will need the same treatment.
 
+### 8.2 P1 status
+
+**Landed** (all with 186/186 testcases passing, nothing scheduling on any of it):
+
+- Regime prediction and per-regime `residentMemory`/`choreMemory`/`nrChores` (§4.4),
+  validated against measured peaks in all three modes.
+- **Estimates taken twice** — at schedule time and again just before the payload, where
+  suppliers are done and the domain is resolved. This is §6.2's mechanism proven in the
+  small: `est n 1000000 / assumed / eager` at queue time becomes `n 50007071 / derived /
+  deferred` at run time, exact. The run-time point is also where §5.1's gate sits, so it
+  is the estimate a throttle would use.
+- **`SizeEstimator` renamed `SizeExpectation`, `SizeUpperbound` added** (§4.6): both
+  registered as `StoredPropDef`s, both readable from config (verified by `PropValue` +
+  `IntegrityCheck` on a declaring unit), and `AbstrUnit::EstimateCount()` now returns
+  `{expected, upperBound, confidence}` with the bound preferred for reservations and the
+  expectation only informing ordering. `GetEstimatedCount()` is a thin wrapper, so
+  existing callers are unaffected. The estimation vocabulary (`estimate_confidence`,
+  `materialization`) moved to `TicBase.h` so units and storage managers can describe
+  themselves without depending on the operator interface.
+
+**Open, with the diagnosis so far:**
+
+- **A declared bound does not yet reach the estimate.** On a probe declaring both
+  properties on an OD unit, the items over that domain still estimate `assumed`/0. The
+  properties are stored and readable, and the *rule evaluation* is not what fails — the
+  estimator throws earlier, before the domain is consulted, for the operator producing
+  those items (`SubItem` in the probe; its `CreateResultCaller` is the suspect). A
+  reason-reporting guard is in place (`"size estimate for X: unavailable here: …"` under
+  `[performance]`) and did **not** fire, which localizes the throw to
+  `EstimatePerformance` outside `EstimateDomainCount`. Next step: instrument that outer
+  catch the same way, then decide whether declared rules need a meta-thread evaluation
+  cached on the unit (the plan's cheapness discipline already anticipates this).
+- **Family overrides (§4.3) and storage-read estimates not started.** The base estimator
+  currently scales work by the widest domain involved, which is right for elementwise and
+  aggregation shapes but has no accumulator, index-table or sort-buffer term yet, and
+  reads carry no estimate at all.
+- The two footprint discrepancies of §4.4 (deferred over-reserves, streaming
+  under-estimates ~13×) remain the gate on P2.
+
 ---
 
 ## 9. Risks and open questions

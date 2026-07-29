@@ -378,8 +378,12 @@ public:
 	TIC_CALL bool HasIntegrityChecker() const;
 	TIC_CALL auto GetIntegrityChecker() const -> AbstrCalculatorRef;
 
-	TIC_CALL bool HasSizeEstimator() const;
-	TIC_CALL auto GetSizeEstimator() const->AbstrCalculatorRef;
+	// Declared size knowledge (§4.6): the expectation is a point estimate, the upperbound a sound
+	// bound that admission may reserve on. Both are cheap-to-evaluate calculation rules.
+	TIC_CALL bool HasSizeExpectation() const;
+	TIC_CALL auto GetSizeExpectation() const->AbstrCalculatorRef;
+	TIC_CALL bool HasSizeUpperbound() const;
+	TIC_CALL auto GetSizeUpperbound() const->AbstrCalculatorRef;
 
 	// Referred/ultimate item helpers; “Curr” variants avoid UpdateMetaInfo.
 	TIC_CALL auto GetCurrUltimateItem() const noexcept -> std::shared_ptr<const TreeItem>;
@@ -622,7 +626,8 @@ public: // TODO G8: encapsulate and move config attr (aka mc_ ) into a separate 
 		SharedStr          mc_Expr;             // configuration-time calculation rule
 		AbstrCalculatorRef mc_Calculator;
 		AbstrCalculatorRef mc_IntegrityChecker;
-		AbstrCalculatorRef mc_SizeEstimator;
+		AbstrCalculatorRef mc_SizeExpectation;
+		AbstrCalculatorRef mc_SizeUpperbound;
 	};
 	mutable std::unique_ptr<ConfigProperties> m_ConfigProperties;
 
@@ -633,7 +638,8 @@ public: // TODO G8: encapsulate and move config attr (aka mc_ ) into a separate 
 	TIC_CALL const SharedStr&          GetExprMember()             const noexcept;
 	TIC_CALL const AbstrCalculatorRef& GetCalculatorMember()       const noexcept;
 	TIC_CALL const AbstrCalculatorRef& GetIntegrityCheckerMember() const noexcept;
-	TIC_CALL const AbstrCalculatorRef& GetSizeEstimatorMember()    const noexcept;
+	TIC_CALL const AbstrCalculatorRef& GetSizeExpectationMember()  const noexcept;
+	TIC_CALL const AbstrCalculatorRef& GetSizeUpperboundMember()   const noexcept;
 	TIC_CALL void ResetCalculatorMember()       const; // defined in .cpp where AbstrCalculator is complete
 	TIC_CALL void ResetIntegrityCheckerMember() const;
 

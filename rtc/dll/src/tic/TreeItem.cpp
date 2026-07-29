@@ -193,10 +193,16 @@ const AbstrCalculatorRef& TreeItem::GetIntegrityCheckerMember() const noexcept
 	return m_ConfigProperties ? m_ConfigProperties->mc_IntegrityChecker : s_empty;
 }
 
-const AbstrCalculatorRef& TreeItem::GetSizeEstimatorMember() const noexcept
+const AbstrCalculatorRef& TreeItem::GetSizeExpectationMember() const noexcept
 {
 	static const AbstrCalculatorRef s_empty;
-	return m_ConfigProperties ? m_ConfigProperties->mc_SizeEstimator : s_empty;
+	return m_ConfigProperties ? m_ConfigProperties->mc_SizeExpectation : s_empty;
+}
+
+const AbstrCalculatorRef& TreeItem::GetSizeUpperboundMember() const noexcept
+{
+	static const AbstrCalculatorRef s_empty;
+	return m_ConfigProperties ? m_ConfigProperties->mc_SizeUpperbound : s_empty;
 }
 
 void TreeItem::ResetCalculatorMember() const
@@ -999,21 +1005,38 @@ auto TreeItem::GetIntegrityChecker() const -> AbstrCalculatorRef
 	return cfg.mc_IntegrityChecker;
 }
 
-bool TreeItem::HasSizeEstimator() const
+bool TreeItem::HasSizeExpectation() const
 {
-	return GetSizeEstimatorMember() || sizeEstimatorPropDefPtr->HasNonDefaultValue(this);
+	return GetSizeExpectationMember() || sizeExpectationPropDefPtr->HasNonDefaultValue(this);
 }
 
-auto TreeItem::GetSizeEstimator() const -> AbstrCalculatorRef
+auto TreeItem::GetSizeExpectation() const -> AbstrCalculatorRef
 {
-	assert(HasSizeEstimator()); // Precondition
+	assert(HasSizeExpectation()); // Precondition
 	auto& cfg = GetOrCreateConfigProperties();
-	if (!cfg.mc_SizeEstimator)
+	if (!cfg.mc_SizeExpectation)
 	{
-		SharedStr iCheckStr = sizeEstimatorPropDefPtr->GetValue(this);
-		cfg.mc_SizeEstimator = AbstrCalculator::ConstructFromStr(this, iCheckStr, CalcRole::Checker);
+		SharedStr ruleStr = sizeExpectationPropDefPtr->GetValue(this);
+		cfg.mc_SizeExpectation = AbstrCalculator::ConstructFromStr(this, ruleStr, CalcRole::Checker);
 	}
-	return cfg.mc_SizeEstimator;
+	return cfg.mc_SizeExpectation;
+}
+
+bool TreeItem::HasSizeUpperbound() const
+{
+	return GetSizeUpperboundMember() || sizeUpperboundPropDefPtr->HasNonDefaultValue(this);
+}
+
+auto TreeItem::GetSizeUpperbound() const -> AbstrCalculatorRef
+{
+	assert(HasSizeUpperbound()); // Precondition
+	auto& cfg = GetOrCreateConfigProperties();
+	if (!cfg.mc_SizeUpperbound)
+	{
+		SharedStr ruleStr = sizeUpperboundPropDefPtr->GetValue(this);
+		cfg.mc_SizeUpperbound = AbstrCalculator::ConstructFromStr(this, ruleStr, CalcRole::Checker);
+	}
+	return cfg.mc_SizeUpperbound;
 }
 
 void TreeItem::AssertPropChangeRights(CharPtr changeWhat) const
