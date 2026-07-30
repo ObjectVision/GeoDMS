@@ -282,7 +282,7 @@ Four sites call `make_unique_LazyTileFunctor` directly, so they **always** recal
 
 | Site | Gate | Notes |
 |---|---|---|
-| `AbstrMappingOperator` (`CastedUnaryAttrOper.h:156-177`) | `IsMultiThreaded3() && !IsInMMD(res)` — **no** `tn > 1`, no `lazy` | Retains interest in both argument units via `SharedUnitInterestPtr` captured in the closure, then re-runs `Calculate` per request. The only MT3-gated site that is lazy regardless of `LazyCalculated`, and the only one that pipelines a **single-tile** result — where there is no streaming to gain, so its one tile is recomputed on every access that follows a release. See §6 observation 5. |
+| `AbstrMappingOperator` (`CastedUnaryAttrOper.h:161-182`) | `IsMultiThreaded3() && tn>1 && !IsInMMD(res)` — no `lazy` | Retains interest in both argument units via `SharedUnitInterestPtr` captured in the closure, then re-runs `Calculate` per request. The only MT3-gated site that is lazy regardless of `LazyCalculated`. The `tn > 1` conjunct was added 2026-07-30 to conform to §4.2; before that a single-tile mapping result was lazy too, recomputing its only tile on every access after a release. |
 | `AbstrIDOperator` (`ID.cpp:60-81`) | none at all | `id()` is a pure generator; the result also sets `SetFreeDataState(true)` ("never cache", `ID.cpp:57`), so recomputation is the intended design rather than a fallback. |
 | `combine()` back-refs (`OperUnit.cpp:132-176`) | none at all | One lazy functor per `first_rel`/`second_rel`/… sub-item; each tile is regenerated arithmetically from `(groupSize, cycleSize, unitCount)`. |
 | Storage read (`AbstrDataItem.cpp:319-345`) | `IsMultiThreaded3() && tn>1 && sm->AllowRandomTileAccess()`, values in `typelists::numerics` | Guarded by `if (true \|\| sm->EasyRereadTiles())` (`:339`) — the `EasyRereadTiles()` intent is short-circuited, so *every* random-access storage manager gets the lazy re-reading functor. The closure holds a `reader_clone_farm` (`:256`) so concurrent tile reads use per-thread reader clones. |
@@ -359,15 +359,16 @@ if (!IsMultiThreaded3() || nrTiles <= 1 || IsInMMD(res) || res->GetKeepDataState
 return res->GetLazyCalculatedState() ? materialization::streaming : materialization::deferred;
 ```
 
-Two mismatches against §4.2/§4.3 are worth knowing, both currently harmless:
+One mismatch against §4.2/§4.3 remains, and it is currently harmless: the predictor applies
+`GetKeepDataState()` to *every* family, but only the casted-unary gate actually tests it. A
+`KeepData` result of a unary/binary/ternary/point/lookup operator with MT3 and `tn > 1` really gets
+a `FutureTileFunctor`, i.e. `deferred`, while the predictor says `eager`. The *residency* number is
+unaffected — `Operator.cpp:199-202` charges the full array for both — so only the reported regime
+label is wrong.
 
-- It applies `GetKeepDataState()` to *every* family, but only the casted-unary gate actually tests
-  it. A `KeepData` result of a unary/binary/ternary/point/lookup operator with MT3 and `tn > 1`
-  really gets a `FutureTileFunctor`, i.e. `deferred`, while the predictor says `eager`. The
-  *residency* number is unaffected — `Operator.cpp:199-202` charges the full array for both — so
-  only the reported regime label is wrong.
-- It never predicts `streaming` for `AbstrMappingOperator`'s single-tile case, since `nrTiles <= 1`
-  short-circuits to `eager` while the operator itself still installs a `LazyTileFunctor` (§4.3).
+The predictor's `nrTiles <= 1` short-circuit used to disagree with `AbstrMappingOperator`, which
+installed a `LazyTileFunctor` for single-tile results that the predictor called `eager`. Adding
+`tn > 1` to that gate (§4.3) closed the gap, so the two now agree for every tile count.
 
 The regimes also carry the residency model: `streaming` is charged `inflight × choreBytes`
 (`Operator.cpp:192-198`, `inflight = min(nrChores, MaxConcurrentTreads())`), everything else the
@@ -467,14 +468,12 @@ Observations that may warrant follow-up:
    `EstimateDataBytes` informs the estimator only. Restoring a real weight comparison is listed as
    future work in `schedule-with-lookahead.md` §5.4 — with the caveat from observation 8 that
    "lighter" is not simply "streaming".
-5. `AbstrMappingOperator` (`CastedUnaryAttrOper.h:156`) is the one MT3-gated site that goes
-   straight to `LazyTileFunctor`, so it ignores `LazyCalculated` (a `mapping()` result is
-   `streaming` whenever MT3 is on, whatever the config says) **and** omits `tn > 1`, so it is also
-   the only site that installs a lazy functor for a single-tile result — where there is no
-   streaming to gain and the one tile is recomputed on every access after a release. Adding
-   `tn > 1` conform §4.2 is a two-line change and was prototyped on `hof_syntax`
-   (`2769ebf5`); whether it should also route through `make_unique_FutureTileFunctor` so
-   `LazyCalculated` is honoured is the larger open question.
+5. `AbstrMappingOperator` (`CastedUnaryAttrOper.h:161`) still goes straight to `LazyTileFunctor`,
+   so it is the one MT3-gated site that ignores `LazyCalculated` — a `mapping()` result is
+   `streaming` whenever MT3 is on, whatever the config says. Its missing `tn > 1` conjunct was
+   fixed 2026-07-30, which also brought it into line with `PredictMaterialization` (§4.7); whether
+   it should additionally route through `make_unique_FutureTileFunctor` so `LazyCalculated` is
+   honoured is the larger open question.
 6. "Lazy" only halves the saving it looks like: `make_unique_FutureTileFunctor`'s lazy branch
    still builds every tile's `PrepareState` (typically a supplier future) eagerly and holds it
    for the object's lifetime (`TileFunctorImpl.h:135-148`). It drops the result footprint, not the
