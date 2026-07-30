@@ -40,6 +40,7 @@
 #include "DataItemClass.h"
 #include "DataLockContainers.h"
 #include "LispTreeType.h"
+#include "OperationContext.h" // MemoryLedger_ReleaseRetained
 #include "ParallelTiles.h"
 #include "TileAccess.h"
 #include "TileFunctorImpl.h"
@@ -217,6 +218,8 @@ void AbstrDataItem::ClearDataObject(garbage_can& garbage) const
 {
 	MG_CHECK(GetDataObjLockCount() == 0);
 	MG_CHECK(m_ItemCount == 0);
+
+	MemoryLedger_ReleaseRetained(this); // this is the funnel: the data is going, so unbook it
 
 	if (m_DataObject)
 		m_DataObject->ImLosingIt(); // clear any non-owning back-ref into this item (e.g. a tile functor's m_ResultAdi) before (deferred) destruction

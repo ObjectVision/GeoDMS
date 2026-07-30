@@ -169,6 +169,10 @@ public: // TODO G8: Re-encapsulate
 	mutable SharedPtr<const AbstrDataObject> m_DataObject;
 	mutable std::atomic<Int32>               m_DataLockCount = 0; // -1 = WriteLock; positive: nr Of Read Locks on Data
 
+	// Bytes this item's completed result is booked for in the admission ledger, 0 when unbooked.
+	// Set at operation completion, cleared in ClearDataObject. See MemoryLedger_Retain.
+	mutable SizeT                            m_LedgerRetainedBytes = 0;
+
 	friend struct DataReadLock;
 	friend struct DataReadLockAtom; 
 	friend struct DataWriteLock;

@@ -1635,6 +1635,34 @@ bool  OperationContext::getUniqueLicenseToRun(bool runDirect)
 static SizeT sd_LedgerCommittedBytes = 0;
 static UInt32 sd_LedgerRunningOps = 0;
 
+// Retained results: booked at completion, released when the data object goes. Atomic rather than
+// cs_ThreadMessing-guarded because the release side runs inside ClearDataObject, under whatever
+// locks its caller holds -- reaching for the global scheduling mutex there would invert lock order.
+static std::atomic<SizeT> sd_LedgerRetainedBytes = 0;
+
+TIC_CALL void MemoryLedger_Retain(const AbstrDataItem* item, SizeT bytes)
+{
+	if (!item || !bytes || GetResourceScheduling() == resource_scheduling::off)
+		return;
+	MemoryLedger_ReleaseRetained(item); // a recalculated result replaces its own earlier booking
+	item->m_LedgerRetainedBytes = bytes;
+	sd_LedgerRetainedBytes.fetch_add(bytes, std::memory_order_relaxed);
+}
+
+TIC_CALL void MemoryLedger_ReleaseRetained(const AbstrDataItem* item) noexcept
+{
+	if (!item || !item->m_LedgerRetainedBytes)
+		return;
+	auto bytes = item->m_LedgerRetainedBytes;
+	item->m_LedgerRetainedBytes = 0;
+	// Clamp rather than assert: the booking is advisory and a lost race must not fire an assert in
+	// a noexcept teardown path.
+	auto prev = sd_LedgerRetainedBytes.load(std::memory_order_relaxed);
+	while (!sd_LedgerRetainedBytes.compare_exchange_weak(prev, prev > bytes ? prev - bytes : 0
+		, std::memory_order_relaxed))
+		;
+}
+
 // What a running instance of this operation should be booked for.
 static SizeT LedgerChargeOf(const PerformanceEstimationData& e)
 {
@@ -1668,7 +1696,9 @@ static bool AdmitOrRequeue(OperationContext* self)
 
 	auto charge = LedgerChargeOf(*self->m_Estimate);
 	auto budget = LedgerBudgetBytes();
-	bool fits = (sd_LedgerCommittedBytes + charge <= budget);
+	auto retained = sd_LedgerRetainedBytes.load(std::memory_order_relaxed);
+	auto committed = sd_LedgerCommittedBytes + retained;
+	bool fits = (committed + charge <= budget);
 
 	// Progress guarantee: when nothing else is running, the head of the queue runs whatever it
 	// costs. An over-budget estimate must serialize the engine, never wedge it.
@@ -1683,7 +1713,7 @@ static bool AdmitOrRequeue(OperationContext* self)
 			, "admission {}: {} needs {} B, committed {} B of {} B over {} running op(s)"
 			, (mode == resource_scheduling::enforce ? "refused" : "would refuse")
 			, self->m_Result ? self->m_Result->GetSourceName() : SharedStr("?")
-			, charge, sd_LedgerCommittedBytes, budget, sd_LedgerRunningOps);
+			, charge, committed, budget, sd_LedgerRunningOps);
 
 	if (mode == resource_scheduling::shadow)
 		return true; // decide and report, but let it run: this is the measuring mode
@@ -1829,7 +1859,13 @@ garbage_can OperationContext::separateResources(task_status status)
 	releaseRunCount(status);
 	assert(getStatus() == status);
 
-	MemoryLedger_Release(this); // whatever this op was booked for is no longer occupied
+	// Hand the running booking over to the retained one: a completed result keeps occupying memory
+	// until its consumers let go, which is what the peak is actually made of.
+	if (status == task_status::done && m_LedgerBooked && m_Estimate)
+		if (auto resultItem = GetResult(); resultItem && IsDataItem(resultItem.get()))
+			MemoryLedger_Retain(AsDataItem(resultItem.get()), m_Estimate->residentMemory);
+
+	MemoryLedger_Release(this); // the running charge is done; the retained one lives on the item
 
 	garbage_can releaseBin;
 	if (!m_Suppliers.empty())

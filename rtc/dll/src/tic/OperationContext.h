@@ -359,6 +359,16 @@ public:
 	std::vector<std::shared_ptr<const TreeItem>> m_KeptArgUnits;
 };
 
+// Retained-result accounting for the admission ledger (§5.1 of the plan). A completed operation's
+// data stays resident until its consumers release interest, so booking only the running footprint
+// throttles nothing on a workload whose peak is made of finished results. Retain() books the result
+// at completion; ReleaseRetained() unbooks it at the one funnel where a data object goes away,
+// AbstrDataItem::ClearDataObject. Both are lock-free: ClearDataObject runs under callers' locks and
+// must not reach for cs_ThreadMessing.
+class AbstrDataItem;
+TIC_CALL void MemoryLedger_Retain(const AbstrDataItem* item, SizeT bytes);
+TIC_CALL void MemoryLedger_ReleaseRetained(const AbstrDataItem* item) noexcept;
+
 // GetNextPhaseNumber
 // Global monotonic counter to assign new phase numbers for batch scheduling/waiting.
 TIC_CALL auto GetNextPhaseNumber() -> phase_number;

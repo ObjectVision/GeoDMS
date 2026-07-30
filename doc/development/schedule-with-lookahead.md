@@ -1095,13 +1095,37 @@ because the operations in a pipelined chain never overlap, so `sd_LedgerRunningO
 one asks to start and the progress guarantee admits it whatever it costs. Peak is unchanged
 (401 MB unthrottled vs 371 MB at a 200 MB budget — noise), and every run completes correctly.
 
-The reason is structural, and it is the piece deferred above: **the peak is caused by retained
-results of *completed* operations**, not by concurrent running ones. Each `deferred` stage keeps its
-tiles while it is of interest (§4.4), and the ledger books only the running footprint. So the
-retained-result accounting of §5.1 — charge from completion until the interest release observed via
-the `TryCleanupMem` funnel — is not an optional refinement: without it the gate is inert on exactly
-the workloads that motivate it. That is P2's next task, ahead of hysteresis (still absent) and
-ahead of any recommendation to enable this flag.
+The reason is structural: **the peak is caused by retained results of *completed* operations**, not
+by concurrent running ones. Each `deferred` stage keeps its tiles while it is of interest (§4.4),
+and the ledger booked only the running footprint.
+
+**Retained-result accounting, and what it does and does not fix.** `MemoryLedger_Retain` books a
+completed result's `residentMemory` on the item (`AbstrDataItem::m_LedgerRetainedBytes`) and
+`MemoryLedger_ReleaseRetained` unbooks it at `ClearDataObject`, the one funnel a data object leaves
+through. The counter is atomic rather than `cs_ThreadMessing`-guarded, because the release side runs
+inside `ClearDataObject` under whatever locks its caller holds and must not invert lock order.
+Admission now charges running + retained.
+
+That still does nothing for a **linear** chain, and cannot: each stage must run to free its
+predecessor, so refusing it would deadlock and the progress guarantee correctly admits it. **Depth
+is not throttleable — breadth is.** On a wide probe (`scratch/wide.dms`: 8 independent
+`id → mul/add → float64 → sum` branches over a 12 M domain, all consumed by one total):
+
+| Run | Peak working set | Wall | Refusals |
+|---|---|---|---|
+| gate off | **371 MB** | 271 ms | 0 |
+| enforce, `/SB400` | **222 MB** | 290 ms | 358 |
+| enforce, `/SB200` | **218 MB** | 299 ms | 407 |
+
+**~40 % peak reduction for ~7–10 % wall time**, every run correct, and refusal counts in the
+hundreds rather than the tens of thousands the leaked-counter bug produced — the requeue path is
+not spinning. Peak does not fall below ~218 MB even at a 200 MB budget: the progress guarantee
+floors it at one branch's footprint, which is the intended behaviour.
+
+Still open before recommending the flag: hysteresis (absent — the gate has no admit/refuse band, so
+a workload sitting exactly at the budget could churn), retained bookings for results the scheduler
+did *not* admit (only admitted operations are booked, so pre-existing data is invisible to it), and
+a battery run in enforce mode on a real model rather than a synthetic probe.
 
 ### 8.2 P1 status — complete
 
