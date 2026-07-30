@@ -714,6 +714,35 @@ architecture.
   (`OperationContext.cpp:1051-1067`), because that genuinely is a mode driven by a
   sampled OS signal — but it is a separate mechanism from this ledger and there is no
   evidence of it flapping, so it stays untouched until measured.
+- **Drain mode** (user ruling 2026-07-30): a refused task becomes the *claimant*, and
+  while it waits, admission defers every operation that would **add** retained memory —
+  even one that fits — so ready leaves of other branches cannot consume the budget the
+  claimant waits for. Operations that do **not** add retained memory keep flowing:
+  *compressors*, i.e. `residentMemory ≤ reclaimableInputMemory`, where
+  `reclaimableInputMemory` counts the inputs the operation is the **last** consumer of
+  (interest count 1, cache item, not kept) — `C := A + B` with A and B unneeded
+  afterwards, size-reducing aggregations. The refusal is **lifted** when (a) nothing
+  else runs, or (b) no memory-decreasing operation is available — detected without any
+  new signalling: refused tasks re-queue at the *back*, so if the drain **generation**
+  (bumped on every admission and every release) is unchanged since the claimant's
+  previous refusal, a whole queue cycle admitted no compressor and released nothing,
+  and waiting longer cannot drain. This is the admission-side enforcement of §5.2's
+  retirement-first ordering, and it subsumes the reservation idea: freed memory is
+  protected not arithmetically but categorically.
+- **Hysteresis, revisited for drain mode.** Drain mode *does* have the three
+  ingredients the plain threshold gate lacked: a mode that flips (claim set/cleared), a
+  control action that moves the measured quantity (deferral drains `committed`), and
+  observable flapping (each admitted claimant can be followed immediately by the next
+  refusal, re-entering drain — visible in the mixed-probe trace as successive short
+  claim epochs). So an **exit band** — keep deferring growers until `committed` drops
+  below `L·budget` even after the claimant was admitted — is now a *coherent* option,
+  unlike before: it would batch admissions and cut claim-epoch churn, at the price of
+  parallelism inside the band and a shift of the mode's owner from a specific task
+  (the user's intent: the whale gets in) to a memory level. Entry-side hysteresis
+  remains pointless (entry is an event, a refusal, not a threshold crossing). Verdict:
+  defer until a real-model run shows epoch flapping that the cheaper retry-discipline
+  fix does not already remove — each epoch admits at least one task, so flapping here
+  is inefficiency, not livelock.
 - **Exemptions**: inline/runDirect paths, explain contexts, `CanRunParallel()==false`
   operators, and the meta thread are never budget-gated (they are today's correctness
   paths); tile chores are shaped (§5.4), not admission-gated.
@@ -1147,11 +1176,25 @@ earlier draft mislabelled as churn:
    358 refusals across **21 distinct targets** (≈17 re-tests each; the worst single task was
    refused 100 times) and 407 across 30 at `/SB200`. The fix is to retry on **release events**
    rather than on every re-drive — cheaper, and it does not change which tasks run.
-2. **Starvation of large tasks.** A whale that does not fit can be passed over indefinitely while
-   smaller tasks keep consuming the budget. This is the failure mode most likely to bite a real
-   model, and it is **untested**: every branch in the probe is the same size, so nothing could
-   starve. The remedy is aging or a head-of-queue reservation (let the refused head accumulate a
-   claim), not a threshold band.
+2. **Starvation of large tasks — RESOLVED by drain mode** (see the §5.1 drain-mode bullet; user
+   rulings 2026-07-30). The first task refused for budget becomes the claimant; growers are
+   deferred while it waits, compressors keep flowing, and the refusal is lifted when nothing else
+   runs or when a queue cycle shows no drain activity (generation unchanged). Measured on the
+   mixed-size probe (`scratch/mix.dms`: one 30 M "whale" branch + six 3 M branches):
+
+   | Run | Peak WS | Wall | refused | deferred | lifted |
+   |---|---|---|---|---|---|
+   | gate off | 245 MB | 227 ms | 0 | 0 | 0 |
+   | enforce `/SB300` | 226 MB | 209 ms | 62 | 24 | 2 |
+   | enforce `/SB200` | 242 MB | 178 ms | 93 | 18 | 5 |
+
+   All runs complete correctly; the trace shows growers visibly deferred while a claimant waits
+   and both lift arms firing. Two honest observations: the probe is too small for the peak numbers
+   to mean much (its value is the demonstrated *ordering*), and the claimant is whoever is refused
+   **first** — in the trace a small leaf, not the whale, because the leaves race at startup. The
+   policy is size-agnostic by design; if protecting the *largest* refused task specifically ever
+   matters, claim ownership could prefer the biggest charge, but nothing measured yet calls for
+   that.
 
 Also still open: retained bookings for results the scheduler did *not* admit (only admitted
 operations are booked, so data already resident is invisible to the ledger), and a battery run in

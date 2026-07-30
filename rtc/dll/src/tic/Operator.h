@@ -49,6 +49,11 @@ struct PerformanceEstimationData
 	SizeT workingMemorySize = 0, workingMemorySizePerChore = 0;
 	SizeT resultingMemory = 0;       // the eventual full result volume, once every tile exists
 	SizeT resultingMemoryUpperBound = 0; // sound ceiling: from a declared SizeUpperbound where present
+	SizeT reclaimableInputMemory = 0; // inputs this op is the LAST consumer of: released by its completion.
+	                                  // residentMemory - reclaimableInputMemory <= 0 marks a COMPRESSOR
+	                                  // (C := A + B with A,B unneeded afterwards; a size-reducing
+	                                  // aggregation), which the drain policy may admit while a refused
+	                                  // claimant waits (§5.1 of the plan).
 	SizeT residentMemory = 0;        // what a ledger would charge; per regime, see materialization
 	SizeT choreMemory = 0;           // one tile's worth of the result
 	SizeT resultingNrElements = 0;

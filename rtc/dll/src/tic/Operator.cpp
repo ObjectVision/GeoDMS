@@ -224,7 +224,13 @@ TIC_CALL auto Operator::EstimatePerformance(TreeItemDualRef& resultHolder, const
 		{
 			auto argAdi = AsDataItem(argItem);
 			auto argCount = EstimateDomainCount(argAdi->GetAbstrDomainUnit());
-			result.inputSize += EstimateDataBytes(argAdi, argCount.expected);
+			auto argBytes = EstimateDataBytes(argAdi, argCount.expected);
+			result.inputSize += argBytes;
+			// Inputs this op is the last consumer of are released by its completion. Our own
+			// supplier interest is still held at estimation time, so a count of 1 means: only us.
+			// Conservative by construction: config items, kept items and shared inputs count 0.
+			if (argItem->IsCacheItem() && !argItem->GetKeepDataState() && argItem->GetInterestCount() <= 1)
+				result.reclaimableInputMemory += argBytes;
 			MakeMax(nrElemOps, argCount.expected);
 			MakeMax(result.confidence, argCount.confidence); // only as good as its worst input
 		}

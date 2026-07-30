@@ -96,6 +96,8 @@ TIC_CALL void ReportOperPerformance(CharPtr operName, const TreeItem* result
 	auto workStr = estimate.workingMemorySize
 		? mySSPrintF(" ws={}", Bytes(estimate.workingMemorySize))
 		: SharedStr();
+	if (estimate.reclaimableInputMemory) // last-consumer inputs: what this op's completion releases
+		workStr = workStr + mySSPrintF(" rel={}", Bytes(estimate.reclaimableInputMemory));
 
 	if (!result || !IsDataItem(result))
 	{
