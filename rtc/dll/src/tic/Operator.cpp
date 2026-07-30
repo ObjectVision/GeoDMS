@@ -133,13 +133,18 @@ static auto EstimateDomainCount(const AbstrUnit* domain) -> AbstrUnit::CountEsti
 	}
 }
 
-// Which of the three materialization regimes this result will be produced in. Mirrors the
-// predicate the operator families apply when they choose between CreateFutureTileFunctor and an
-// eager parallel_tileloop (clc/dll/include/OperAttr*.h and friends), so the estimate describes
-// what will actually happen. Families whose gate carries extra terms refine this.
+// Which materialization regime this result will be produced in. Mirrors the predicate the operator
+// families apply when they choose between CreateFutureTileFunctor and an eager parallel_tileloop
+// (clc/dll/include/OperAttr*.h and friends), so the estimate describes what will actually happen.
+// Families whose gate carries extra terms refine this.
+//
+// KeepData is deliberately NOT tested here: of the seven gated families only the casted-unary one
+// consults GetKeepDataState(), so applying it to all of them mislabelled a KeepData result of a
+// unary/binary/ternary/point/lookup operator as eager when it really gets a FutureTileFunctor.
+// The casted-unary family adds the term in its own override. See doc/tile-data-retainment.md §4.7.
 static auto PredictMaterialization(const AbstrDataItem* res, tile_id nrTiles) -> materialization
 {
-	if (!IsMultiThreaded3() || nrTiles <= 1 || IsInMMD(res) || res->GetKeepDataState())
+	if (!IsMultiThreaded3() || nrTiles <= 1 || IsInMMD(res))
 		return materialization::eager;
 	return res->GetLazyCalculatedState() ? materialization::streaming : materialization::deferred;
 }

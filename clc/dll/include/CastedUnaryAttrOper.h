@@ -34,6 +34,22 @@ public:
 		,	m_ReverseArgs(reverseArgs)
 	{}
 
+	// This is the one gated family whose pipelining test includes !GetKeepDataState() (see
+	// CreateResult below), so it is the one that adds the term to the predicted regime. The base
+	// predictor deliberately omits it, because the other six families do not test it.
+	// doc/tile-data-retainment.md §4.7.
+	auto EstimatePerformance(TreeItemDualRef& resultHolder, const ArgRefs& args) const -> PerformanceEstimationData override
+	{
+		auto result = BinaryOperator::EstimatePerformance(resultHolder, args);
+		if (result.regime != materialization::meta)
+			if (auto res = resultHolder.GetUlt(); res && res->GetKeepDataState())
+			{
+				result.regime = materialization::eager;
+				result.residentMemory = result.resultingMemory; // a kept result holds its whole array
+			}
+		return result;
+	}
+
 	// Override Operator
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{

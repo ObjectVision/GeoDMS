@@ -432,8 +432,10 @@ Two open discrepancies, both of which say *do not grant admission on these numbe
 #### 4.4.0 The regime is a property of the data object, not of a predicate
 
 **`doc/tile-data-retainment.md` is the authoritative inventory** of which `AbstrDataObject`
-subclass retains its tiles and which recalculates them, and it corrects this section in two
-ways that matter for the estimate:
+subclass retains its tiles and which recalculates them; its **§4.7** holds the
+class ↔ `materialization` mapping and the audit of `PredictMaterialization` against the real
+gates. Division of labour: that document says *which class you get and whether a released tile
+comes back for free*, this section says *what it costs*. Two corrections it made here:
 
 1. **There are more regimes than three, and one is a spill.** `FileTileArray` (chosen by the
    `DataWriteLock` ctor under an `MmdStorageManager`) retains **on disk** and maps on demand:
@@ -455,6 +457,21 @@ bookmarks rather than tile data, and dropping it frees nothing; the prepare stat
 real data when the argument is a `FutureTileFunctor`, and there the `tile_record` variant
 already releases it the moment the consumer tile materializes. The inventory's own observation 6
 states the same conclusion independently.
+
+Its §4.7 audit also found a defect in `PredictMaterialization`: the predictor applied
+`GetKeepDataState()` to all seven gated families, but only the casted-unary gate tests it, so a
+`KeepData` result of a unary/binary/ternary/point/lookup operator was labelled `eager` when it
+really gets a `FutureTileFunctor`. Residency was unaffected (both charge the full array) but the
+label was wrong and would now trip the mismatch marker on every such result. Fixed: the base
+predictor drops the term and `AbstrCastedUnaryAttrOperator` adds it in its own override. Its
+observation 8 independently reaches §4.4.1's conclusion — `streaming` measured *worse* than
+`deferred` because a tile lives as long as any consumer holds it, so out-of-step consumers keep
+everything between the slowest and fastest reader alive, which no per-class property can express.
+
+One simplification to keep visible: §4.7 maps `FileTileArray` onto `eager`, and the estimator
+charges it the full array. That over-charges it — a file-backed result's RAM cost is its live
+mappings, not its volume, and a released tile costs a page-in rather than a recompute. A ledger
+that books MMD-backed results as heap will refuse work it could have run.
 
 Two further leads from it for the still-unexplained streaming residency: whole-array reads build
 a **shadow tile** (`m_shadowTilePtr`, weak) that copies every tile into one contiguous buffer —
