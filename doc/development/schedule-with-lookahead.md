@@ -952,6 +952,39 @@ filter checkbox, and the `RegStatusFlags` DWORD is **out of bits** (`RSF_WasRead
 0x80000000), which is why `PerformanceLogging` is a `RegDWordEnum` entry and `/SP`
 sets that rather than a status flag. P2's throttle flag will need the same treatment.
 
+### 8.1.1 P2 step 1: the streaming residency is still unexplained
+
+§4.4 makes explaining the streaming gap (542 MB measured against 40 MB predicted) the
+precondition for P2's grant logic. First hypothesis tested and **rejected**:
+
+*Hypothesis.* A `PrepareState` holds strong `shared_ptr<future_tile>` handles on the
+operation's **arguments** (the `prepare_data` pairs in `clc/dll/include/OperAttr*.h`), and
+`make_unique_FutureTileFunctor`'s lazy branch pre-builds them for **every** tile up front and
+captures the whole array in the apply lambda (`TileFunctorImpl.h:137-146`). That pins every
+upstream tile for the functor's life, so the streaming variant — whose purpose is to free
+tiles — would retain more than the deferred one it replaces.
+
+*Test.* Prepare each tile's state on demand inside the apply instead, so an argument tile
+lives only while the tile consuming it is computed.
+
+*Result.* No improvement: **598 MB** after the change against 542 MB before (deferred control
+420 MB, matching its earlier 416 MB). Reverted.
+
+*What it teaches.* The pre-built holder is not primarily a leak, it is a **memoization
+anchor**: holding the argument's `future_tile` keeps that tile's computed data alive in the
+upstream `tile_record`, so dropping the holder trades memory for recomputation — and here
+bought no memory at all. Two consequences: (a) the dominant streaming residency is elsewhere
+(the §4.4.1 consumer-skew term, per-thread accumulators in the pulling aggregation, and the
+`sum` over five stages are the remaining candidates, in that order); (b) any future attempt to
+bound retention by *releasing* holders must budget for the recompute it causes, which is the
+argument for the synchronize-consumers option of §4.4.1 over the drop-holders one.
+
+The admission gate is therefore **not implemented**: its estimate would be the one number
+still known to be ~13× optimistic, and granting on it is exactly the failure mode §5.1 warns
+about. What P2 needs next is a measurement that separates those three candidates — e.g. peak
+with the aggregation replaced by a per-tile sink (isolates accumulators), and peak with a
+single-consumer chain (isolates skew).
+
 ### 8.2 P1 status — complete
 
 **Landed** (all with 186/186 testcases passing, nothing scheduling on any of it):
