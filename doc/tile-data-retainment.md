@@ -266,7 +266,7 @@ Four sites call `make_unique_LazyTileFunctor` directly, so they **always** recal
 
 | Site | Gate | Notes |
 |---|---|---|
-| `AbstrMappingOperator` (`CastedUnaryAttrOper.h:156-177`) | `IsMultiThreaded3() && !IsInMMD(res)` — **no** `tn>1`, no weight, no `lazy` | Retains interest in both argument units via `SharedUnitInterestPtr` captured in the closure, then re-runs `Calculate` per request. The only MT3-gated site that is lazy regardless of `LazyCalculated`. |
+| `AbstrMappingOperator` (`CastedUnaryAttrOper.h:155-182`) | `IsMultiThreaded3() && tn>1 && !IsInMMD(res)` — no weight test, no `lazy` | Retains interest in both argument units via `SharedUnitInterestPtr` captured in the closure, then re-runs `Calculate` per request. The only MT3-gated site that is lazy regardless of `LazyCalculated`. The `tn > 1` conjunct was added 2026-07-30 to conform to the §4.2 channels; before that even a single-tile mapping result recalculated per access. |
 | `AbstrIDOperator` (`ID.cpp:60-81`) | none at all | `id()` is a pure generator; the result also sets `SetFreeDataState(true)` ("never cache", `ID.cpp:57`), so recomputation is the intended design rather than a fallback. |
 | `combine()` back-refs (`OperUnit.cpp:132-176`) | none at all | One lazy functor per `first_rel`/`second_rel`/… sub-item; each tile is regenerated arithmetically from `(groupSize, cycleSize, unitCount)`. |
 | Storage read (`AbstrDataItem.cpp:312-341`) | `IsMultiThreaded3() && tn>1 && sm->AllowRandomTileAccess()`, values in `typelists::numerics` | Guarded by `if (true \|\| sm->EasyRereadTiles())` (`:333`) — the `EasyRereadTiles()` intent is short-circuited, so *every* random-access storage manager gets the lazy re-reading functor. The closure holds a `reader_clone_farm` so concurrent tile reads use per-thread reader clones. |
@@ -392,9 +392,10 @@ supplier interest on the `AbstrDataItem` the whole time and now requests read ac
 | `LazyTileFunctor<V,ApplyFunc>` | leaf, lazy | **recalculates** after last release |
 | `ConstTileFunctor<V>` (clc) | leaf, lazy | **recalculates** (refill) after last release |
 
-Which class an item ends up with is decided entirely at creation time (§4): the MT3-gated
-operator families fork on `LazyCalculated` (default false → retaining `FutureTileFunctor`),
-four channels are lazy unconditionally, and everything else is eager heap/file storage.
+Which class an item ends up with is decided entirely at creation time (§4): the seven MT3-gated
+operator families fork on `LazyCalculated` (default false → retaining `FutureTileFunctor`), four
+channels bypass that flag and are always lazy when they fire, `const()` has its own size-based
+gate, and everything else is eager heap/file storage.
 
 Observations that may warrant follow-up:
 
@@ -407,12 +408,15 @@ Observations that may warrant follow-up:
 3. `FutureTileFunctor` sits at the opposite extreme: computed tiles are never evicted while
    interest lasts, setting the memory high-water mark for wide pipelined results.
 4. The `LTF_ElementWeight` gate that was meant to weigh laziness against argument/result sizes
-   is currently a stub returning 0 (`AbstrDataItem.cpp:1277-1280`), making the pipelined-functor
-   path purely thread/tiling/MMD-gated.
-5. `AbstrMappingOperator` (`CastedUnaryAttrOper.h:156`) is the one MT3-gated site that goes
-   straight to `LazyTileFunctor`, ignoring both `LazyCalculated` and `tn > 1` — so even a
-   single-tile mapping result recalculates per access whenever MT3 is on. Worth confirming that
-   is intended rather than an artifact of predating the fork.
+   is currently a stub returning 0 (`AbstrDataItem.cpp:1277-1280`), so nothing weighs streaming
+   the arguments against storing the result — only the threading/tiling/MMD tests and each
+   family's own extras (§4.2) remain.
+5. `AbstrMappingOperator` (`CastedUnaryAttrOper.h:161`) still goes straight to `LazyTileFunctor`,
+   so it is the one MT3-gated site that ignores `LazyCalculated` — a `mapping()` result is lazy
+   whenever MT3 is on, whatever the config says. Its missing `tn > 1` conjunct was fixed
+   2026-07-30 (single-tile results used to recalculate the whole attribute per access); whether it
+   should also honour `LazyCalculated`, i.e. route through `make_unique_FutureTileFunctor` like
+   §4.2 does, is still open.
 6. "Lazy" only halves the saving it looks like: `make_unique_FutureTileFunctor`'s lazy branch
    still builds every tile's `PrepareState` (typically a supplier future) eagerly and holds it
    for the object's lifetime (`TileFunctorImpl.h:135-148`). It drops the result footprint, not the

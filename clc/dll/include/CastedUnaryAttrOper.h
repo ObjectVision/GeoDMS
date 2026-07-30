@@ -152,8 +152,13 @@ public:
 			auto res = AsDataItem(resultHolder.GetNew());
 			MG_PRECONDITION(res);
 
-			assert(res->GetValueComposition() == ValueComposition::Single); 
-			if (IsMultiThreaded3() && !IsInMMD(res))
+			assert(res->GetValueComposition() == ValueComposition::Single);
+
+			// tn > 1 conform the other pipelined channels: a single-tile result gains no
+			// tile-wise streaming, and a LazyTileFunctor would re-run the mapping for the whole
+			// attribute on every access that follows a release of its only tile.
+			auto tn = argDomainUnit->GetNrTiles();
+			if (IsMultiThreaded3() && (tn > 1) && !IsInMMD(res))
 			{
 				auto binaryOper = this;
 
@@ -179,7 +184,7 @@ public:
 			{
 				DataWriteLock resLock(res, dms_rw_mode::write_only_mustzero);
 
-				parallel_tileloop(argDomainUnit->GetNrTiles(), [this, argDomainUnit, argValuesUnit, &resLock](tile_id t)->void
+				parallel_tileloop(tn, [this, argDomainUnit, argValuesUnit, &resLock](tile_id t)->void
 					{
 						this->Calculate(resLock.get(), argDomainUnit, argValuesUnit, t);
 					}
