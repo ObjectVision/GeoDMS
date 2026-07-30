@@ -347,6 +347,9 @@ void TableHeaderControl::DoUpdateView()
 			columnHeader->SetDic( dic->shared_from_base<DataItemColumn>() );
 		}
 		columnHeader->SetText(dic->Caption());
+		// caption in the text color that belongs to the origin of the shown attribute, as the
+		// TreeView renders that item; the DIC renders its values in it too (issue #1159)
+		columnHeader->SetTextColor(DmsColor2COLORREF(dic->GetOriginTextColor()));
 		auto headerWidth = dic->CalcClientSize().FlippableX(isColOriented)
 			+ Size(dic->GetBorderLogicalExtents()).FlippableX(isColOriented)
 			- Size(columnHeader->GetBorderLogicalExtents()).FlippableX(isColOriented);
