@@ -297,6 +297,14 @@ public:
 	SizeT m_LedgerCharge = 0;
 	bool  m_LedgerBooked = false;
 
+	// Retry discipline (user ruling 2026-07-30): a parked (refused/deferred) task retries only when
+	// memory was released since it parked, or when nothing else runs -- a release may have been
+	// missed while this thread Joins a stalled operation, so idleness must always allow a retest.
+	// 0 = not parked; else the release generation at parking, +1. The count feeds the once-per-task
+	// stall/resume log lines.
+	UInt64 m_LedgerParkedReleaseGen = 0;
+	UInt32 m_LedgerParkCount = 0;
+
 public:
 	// Phase number used to coordinate group waits/blocks across contexts.
 	phase_number m_PhaseNumber = 0;

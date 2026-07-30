@@ -1170,12 +1170,26 @@ Still open before recommending the flag — and note that **hysteresis is not am
 "Not hysteresis" bullet in §5.1; the refusal counts point at two different problems, which an
 earlier draft mislabelled as churn:
 
-1. **Retry discipline.** A refused task is re-queued and re-driven both by
-   `StartOperationContexts` on completion *and* by the `Join`/`DoWorkWhileWaiting` poll loops, so
-   it is re-tested when nothing about its budget situation has changed. Measured on the wide probe:
-   358 refusals across **21 distinct targets** (≈17 re-tests each; the worst single task was
-   refused 100 times) and 407 across 30 at `/SB200`. The fix is to retry on **release events**
-   rather than on every re-drive — cheaper, and it does not change which tasks run.
+1. **Retry discipline — DONE** (user ruling 2026-07-30). Three changes:
+   - **The estimate is computed once per OC.** `RefreshEstimateForAdmission` returns immediately
+     when `m_Estimate->confidence <= declared`; no freshness flag is needed, because the confidence
+     field already encodes it — a schedule-time estimate on an unresolved domain is
+     `assumed`/`bounded`, a successful runnable-time one is `derived`/`declared` and final. This
+     removes the dominant per-retry cost (a full meta-info walk per re-test). One accepted
+     consequence: `reclaimableInputMemory` freezes at first computation even though argument
+     interest counts can still drop, so a compressor may be misclassified as a grower; that costs
+     one extra drain cycle, never progress.
+   - **A parked task retries only on a release, or when nothing else runs.** Two generation
+     counters now answer two different questions: **releases** gate retries (a parked task's
+     situation only improves when memory comes free), **admissions** arm lift (b). The idleness
+     arm is not redundant — a release may have been missed while this thread `Join`s a stalled
+     operation, which is exactly the starvation case, so `sd_LedgerRunningOps == 0` always permits
+     a re-test.
+   - **One stall line and one resume line per task**, the resume naming which lift fired.
+
+   Measured on the mixed probe at `/SB300`: **16 refusals + 1 deferral, 17 resumes** — exactly one
+   resume per stall — against 62 + 24 for the same workload before. The log now counts *parked
+   tasks* rather than re-tests, which is what makes it usable as a diagnostic.
 2. **Starvation of large tasks — RESOLVED by drain mode** (see the §5.1 drain-mode bullet; user
    rulings 2026-07-30). The first task refused for budget becomes the claimant; growers are
    deferred while it waits, compressors keep flowing, and the refusal is lifted when nothing else

@@ -1648,10 +1648,15 @@ static std::atomic<SizeT> sd_LedgerRetainedBytes = 0;
 // cycle produced no drain activity (nothing released, no compressor admitted): the generation
 // counter below records drain activity, and an unchanged generation since the claimant's previous
 // refusal means waiting longer cannot drain anything.
-static OperationContext* sd_LedgerClaimant = nullptr;      // under cs_ThreadMessing
-static SizeT sd_LedgerClaimBytes = 0;                      // its charge, for the log
-static UInt64 sd_LedgerClaimSeenGeneration = 0;            // generation at its previous refusal
-static std::atomic<UInt64> sd_LedgerDrainGeneration = 0;   // bumped on every admission and release
+static OperationContext* sd_LedgerClaimant = nullptr;       // under cs_ThreadMessing
+static SizeT sd_LedgerClaimBytes = 0;                       // its charge, for the log
+static UInt64 sd_LedgerClaimSeenAdmitGeneration = 0;        // admit generation at its previous refusal
+// Two generations, for two different questions. Releases gate RETRIES: a parked task's budget
+// situation only improves when memory comes free, so it is re-tested on a release (or on idleness).
+// Admissions arm lift (b): a full queue cycle without any admission means no compressor could run,
+// so waiting cannot drain. Atomic because ReleaseRetained runs lock-free under callers' locks.
+static std::atomic<UInt64> sd_LedgerAdmitGeneration = 0;    // bumped on every admission
+static std::atomic<UInt64> sd_LedgerReleaseGeneration = 0;  // bumped on every release/unbook
 
 TIC_CALL void MemoryLedger_Retain(const AbstrDataItem* item, SizeT bytes)
 {
@@ -1674,7 +1679,7 @@ TIC_CALL void MemoryLedger_ReleaseRetained(const AbstrDataItem* item) noexcept
 	while (!sd_LedgerRetainedBytes.compare_exchange_weak(prev, prev > bytes ? prev - bytes : 0
 		, std::memory_order_relaxed))
 		;
-	sd_LedgerDrainGeneration.fetch_add(1, std::memory_order_relaxed); // memory came free: drain activity
+	sd_LedgerReleaseGeneration.fetch_add(1, std::memory_order_relaxed); // memory came free: parked tasks may retry
 }
 
 // What a running instance of this operation should be booked for.
@@ -1708,6 +1713,18 @@ static bool AdmitOrRequeue(OperationContext* self)
 	if (!self->m_Estimate)
 		return true; // nothing predicted (estimates are only taken when measuring): never withhold
 
+	// Retry discipline (user ruling 2026-07-30): a parked task's budget situation only improves
+	// when memory comes free, so re-test it only after a release -- or when nothing else runs,
+	// because a release may have been missed while this thread Joins a stalled operation, and
+	// idleness must always allow a retest. Silent: the stall was logged when the task parked.
+	auto releaseGen = sd_LedgerReleaseGeneration.load(std::memory_order_relaxed);
+	if (mode == resource_scheduling::enforce && self->m_LedgerParkedReleaseGen
+		&& self->m_LedgerParkedReleaseGen == releaseGen + 1 && sd_LedgerRunningOps > 0)
+	{
+		scheduleRunnableTask(self);
+		return false;
+	}
+
 	const auto& est = *self->m_Estimate;
 	auto charge = LedgerChargeOf(est);
 	auto budget = LedgerBudgetBytes();
@@ -1719,36 +1736,32 @@ static bool AdmitOrRequeue(OperationContext* self)
 	// memory is not growth -- it is gone when the op ends.
 	bool isCompressor = (est.reclaimableInputMemory >= est.residentMemory);
 	bool isClaimant = (sd_LedgerClaimant == self);
-	auto generation = sd_LedgerDrainGeneration.load(std::memory_order_relaxed);
+	auto admitGen = sd_LedgerAdmitGeneration.load(std::memory_order_relaxed);
+	bool wasParked = self->m_LedgerParkedReleaseGen != 0;
 
 	bool fits = (committed + charge <= budget);
+	bool lifted = false;
 
 	// Lift (a): nothing else runs -- the head of the queue must run whatever it costs. While a
 	// claim is pending this arm serves the CLAIMANT: growers are deferred below and re-queue
 	// behind it, so the lift reaches the task that was refused first.
 	if (!fits && sd_LedgerRunningOps == 0 && (isClaimant || !sd_LedgerClaimant))
-		fits = true;
+		fits = lifted = true;
 
 	// Lift (b): no memory-decreasing operation is available. Refused tasks re-queue at the BACK,
 	// so by the time the claimant is re-tested every other runnable candidate had its licensing
-	// attempt in between; an unchanged drain generation since its previous refusal means that
-	// whole cycle admitted no compressor and released nothing -- waiting longer cannot drain.
-	if (!fits && isClaimant && generation == sd_LedgerClaimSeenGeneration)
-	{
-		fits = true;
-		if (IsPerformanceLogging())
-			reportF(MsgCategory::performance, SeverityTypeID::ST_MinorTrace
-				, "admission lifted: no drain activity while {} waited (needs {} B, committed {} B of {} B)"
-				, self->m_Result ? self->m_Result->GetSourceName() : SharedStr("?")
-				, charge, committed, budget);
-	}
+	// attempt in between; an unchanged ADMIT generation since its previous refusal means that
+	// whole cycle admitted no compressor -- the available operations cannot drain, so waiting
+	// longer is pointless even while other work still runs.
+	if (!fits && isClaimant && admitGen == sd_LedgerClaimSeenAdmitGeneration)
+		fits = lifted = true;
 
 	// Drain policy: while the claimant waits, work that ADDS retained memory is deferred even when
 	// it fits -- ready leaves of other branches must not consume the budget it is waiting for.
 	// Compressors keep flowing: they are what drains toward admitting it.
-	if (fits && sd_LedgerClaimant && !isClaimant && !isCompressor)
+	if (fits && !lifted && sd_LedgerClaimant && !isClaimant && !isCompressor)
 	{
-		if (IsPerformanceLogging())
+		if (!wasParked && IsPerformanceLogging()) // stall logged once per task
 			reportF(MsgCategory::performance, SeverityTypeID::ST_MinorTrace
 				, "admission {}: {} would add {} B retained while {} waits for {} B"
 				, (mode == resource_scheduling::enforce ? "deferred" : "would defer")
@@ -1758,6 +1771,8 @@ static bool AdmitOrRequeue(OperationContext* self)
 				, sd_LedgerClaimBytes);
 		if (mode == resource_scheduling::enforce)
 		{
+			self->m_LedgerParkedReleaseGen = releaseGen + 1;
+			++self->m_LedgerParkCount;
 			scheduleRunnableTask(self);
 			return false;
 		}
@@ -1770,20 +1785,28 @@ static bool AdmitOrRequeue(OperationContext* self)
 			sd_LedgerClaimant = nullptr;
 			sd_LedgerClaimBytes = 0;
 		}
+		if (wasParked && IsPerformanceLogging()) // resume logged once per task, lifts included
+			reportF(MsgCategory::performance, SeverityTypeID::ST_MinorTrace
+				, "admission resumed{}: {} after {} park(s); needs {} B, committed {} B of {} B"
+				, (lifted ? (sd_LedgerRunningOps == 0 ? " (lifted: idle)" : " (lifted: no drain available)") : "")
+				, self->m_Result ? self->m_Result->GetSourceName() : SharedStr("?")
+				, self->m_LedgerParkCount, charge, committed, budget);
+		self->m_LedgerParkedReleaseGen = 0;
+		self->m_LedgerParkCount = 0;
 		return true;
 	}
 
 	// Refusal. The first task refused for budget becomes the claimant; its stamp of the current
-	// generation is what arms lift (b) for the next cycle.
+	// admit generation is what arms lift (b) for the next cycle.
 	if (!sd_LedgerClaimant)
 	{
 		sd_LedgerClaimant = self;
 		sd_LedgerClaimBytes = charge;
 	}
 	if (sd_LedgerClaimant == self)
-		sd_LedgerClaimSeenGeneration = generation;
+		sd_LedgerClaimSeenAdmitGeneration = admitGen;
 
-	if (IsPerformanceLogging())
+	if (!wasParked && IsPerformanceLogging()) // stall logged once per task
 		reportF(MsgCategory::performance, SeverityTypeID::ST_MinorTrace
 			, "admission {}{}: {} needs {} B, committed {} B of {} B over {} running op(s)"
 			, (mode == resource_scheduling::enforce ? "refused" : "would refuse")
@@ -1794,6 +1817,8 @@ static bool AdmitOrRequeue(OperationContext* self)
 	if (mode == resource_scheduling::shadow)
 		return true; // decide and report, but let it run: this is the measuring mode
 
+	self->m_LedgerParkedReleaseGen = releaseGen + 1;
+	++self->m_LedgerParkCount;
 	scheduleRunnableTask(self); // enforce: back to the queue, worker freed (the #933 pattern)
 	return false;
 }
@@ -1808,7 +1833,7 @@ static void MemoryLedger_Charge(OperationContext* self)
 	self->m_LedgerBooked = true;
 	sd_LedgerCommittedBytes += self->m_LedgerCharge;
 	++sd_LedgerRunningOps;
-	sd_LedgerDrainGeneration.fetch_add(1, std::memory_order_relaxed); // an admission is drain activity: during a claim only compressors (and the claimant) get here
+	sd_LedgerAdmitGeneration.fetch_add(1, std::memory_order_relaxed); // during a claim only compressors (and the claimant) get here
 }
 
 void MemoryLedger_Release(OperationContext* self)
@@ -1829,7 +1854,7 @@ void MemoryLedger_Release(OperationContext* self)
 	self->m_LedgerCharge = 0;
 	self->m_LedgerBooked = false;
 	--sd_LedgerRunningOps;
-	sd_LedgerDrainGeneration.fetch_add(1, std::memory_order_relaxed); // the running charge came free
+	sd_LedgerReleaseGeneration.fetch_add(1, std::memory_order_relaxed); // the running charge came free
 }
 
 // Bring m_Estimate up to date for the admission gate, from a runnable OC whose suppliers are done.
@@ -1837,6 +1862,14 @@ void MemoryLedger_Release(OperationContext* self)
 void OperationContext::RefreshEstimateForAdmission()
 {
 	if (GetResourceScheduling() == resource_scheduling::off)
+		return;
+	// Compute once per OC: after it became runnable the estimate does not change, and no freshness
+	// flag is needed -- the confidence field already encodes it. A schedule-time estimate on an
+	// unresolved domain is 'assumed'/'bounded'; a successful runnable-time estimate is
+	// 'derived'/'declared' and is final. (reclaimableInputMemory is thereby frozen even though arg
+	// interest counts can still drop; retries happen on release events, and a stale classification
+	// only costs drain efficiency -- a grower kept waiting one cycle longer -- never progress.)
+	if (m_Estimate && m_Estimate->confidence <= estimate_confidence::declared)
 		return;
 	auto funcDC = GetFuncDC();
 	if (!funcDC || !funcDC->m_Operator)
