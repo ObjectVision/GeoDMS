@@ -53,15 +53,38 @@ each is fixed so the dumped declaration re-parses to the same runtime item:
    keyword purely from `HasVoidDomainGuarantee()`, and `DMS_WriteDomainSuffix` emits no suffix when
    that guarantee holds. (The earlier `DomainUnitToken().empty() && …` guard misfired for a
    `parameter<uint32>` whose token is the non-empty `"void"`.)
-2. **A bare-name source token beats a resolved *relative path*.** `DomainUnitPropDef::GetValue` /
-   `ValuesUnitPropDef::GetValue` (`AbstrDataItem.cpp`) return the resolved `GetScriptName` — a
-   `../Rd`-style path for an item nested inside a function body. That path ascends above root once
-   the template body is instantiated at the call site (a different depth), so a nested
-   `attribute<float64> a (Rd)` in `function Nested{ container helpers{ a … } }` reloaded as
-   `a(../Rd)` and threw `FollowDots: relative pathname ascended above root`. Both propdefs now
-   prefer the **bare** source token (`m_tDomainUnit`/`m_tValuesUnit`) when it has no `/` and the
-   resolved form does — a bare name is up-scope searched and thus re-instantiation-safe. (Only that
-   narrow case substitutes; explicit source paths and same-level names keep the resolved name.)
+2. **A bare-name source token beats a resolved *relative path* — in the DUMP accessor only.**
+   The resolved `GetScriptName` is a `../Rd`-style path for an item nested inside a function body.
+   That path ascends above root once the template body is instantiated at the call site (a
+   different depth), so a nested `attribute<float64> a (Rd)` in
+   `function Nested{ container helpers{ a … } }` reloaded as `a(../Rd)` and threw
+   `FollowDots: relative pathname ascended above root`. The serializer therefore prefers the
+   **bare** source token (`m_tDomainUnit`/`m_tValuesUnit`) when it has no `/` and the resolved form
+   does — a bare name is up-scope searched and thus re-instantiation-safe. (Only that narrow case
+   substitutes; explicit source paths and same-level names keep the resolved name.)
+
+   **This preference lives in `GetRawValue`, never in `GetValue`** (`AbstrDataItem.cpp`). `PropDef`
+   exposes two accessors and they answer different questions:
+
+   | accessor | reached via | consumer | value |
+   |---|---|---|---|
+   | `GetValue` | `GetValueAsSharedStr` | `TreeItemPropertyValue` → the **`PropValue()` operator** | RESOLVED script name (`../meter`) |
+   | `GetRawValue` | `GetRawValueAsSharedStr` | `OutStreamBase::DumpPropList` → the **config dump** | bare source token (`meter`) |
+
+   Putting the preference in `GetValue` (as `fc15f892` first did) silently changed the user-visible
+   `PropValue(item,'DomainUnit'/'ValuesUnit')` from the documented relative path back to the bare
+   name, which the tst **Operator** suite asserts since 18.x
+   (`Miscellaneous/PropValue/A/test_valueunit` expects `../meter`) — it regressed
+   `/results/tests_regression` to `False` in 20.8.0. Dump fidelity and property semantics are
+   independent concerns; keep them on their own hooks.
+
+   The values unit rides in the **tag**, not in the property list, so `AbstrDataItem::GetSignature()`
+   (`attribute<vu>` / `parameter<vu>`) must read `GetRawValue` too. It is a serializer accessor —
+   its only callers are the DMS dump tag and the function-decl writer, neither GUI text nor the C
+   API. Guarded by `fn_test_vurt`, whose values unit is a function parameter (`attribute<mu>` inside
+   a body container); with `GetSignature` on the cooked accessor its dump emits `attribute<../mu>`
+   and the reload ascends above root. The domain side has been guarded all along by
+   `fn_test_p1/Nested`.
 3. **A non-Single composition survives even on a `.`/empty domain.** `DMS_WriteDomainSuffix` used to
    drop the whole suffix for a `.` (self) or empty domain — discarding the `arc`/`polygon`
    composition with it. The typed-HOF walker's `connect_info` member typing rewrites an arc-geometry
@@ -158,12 +181,17 @@ future thrower, not just the generic-domain one.
 
 ## Verification
 
-- `testcases/run_testcases.bat` — the 135-config suite: **135/135, BAD=0** in Release (and Debug).
+- `testcases/run_testcases.bat` — the config suite: **180/180, BAD=0** in Release *and* Debug.
   The domain/values/composition changes are dump/display-only, so computation is unaffected.
 - `testcases/run_roundtrip.bat` (harness `run_roundtrip.ps1`): for each positive config,
   `@dumpconfig` then reload the dumped `.dms` and recompute its item (the dumped IntegrityChecks
-  re-verify the semantics). **All 61 round-trip, BAD=0.** `fn_test_prelude` is the one documented
+  re-verify the semantics). **All 79 round-trip, BAD=0.** `fn_test_prelude` is the one documented
   skip (explicit `#include` of the auto-imported prelude — see limitations above).
+- The **tst Operator suite** (`C:/dev/tst/Operator/cfg/operator.dms`, item `/results/tests_regression`)
+  is the guard on the *property* side of the raw/cooked split: it asserts
+  `PropValue(A,'ValuesUnit') == '../meter'`. Any change to `DomainUnitPropDef`/`ValuesUnitPropDef`
+  must be checked against **both** it and the round-trip sweep — they pull in opposite directions,
+  which is precisely why the two accessors exist.
 - Manual: the GUI Configuration page for `compose` shows the `function …` form, brace-closed.
 
 The round-trip yardstick drove the three fidelity fixes above: without them the sweep reported

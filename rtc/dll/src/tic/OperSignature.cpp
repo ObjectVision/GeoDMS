@@ -183,6 +183,13 @@ void SignatureRecorder::ResultContainerMember(CharPtr path, sig_var values, sig_
 	rm.path = SharedStr(path); rm.values = values; rm.domain = domain; rm.vc = vc;
 	rec.resultMembers.push_back(std::move(rm));
 }
+void SignatureRecorder::ResultContainerMemberSet(CharPtr pathPrefix, arg_index namesPos, sig_var values, sig_var domain, ValueComposition vc)
+{
+	SignatureRecord::ResultMemberSet rms;
+	rms.prefix = SharedStr(pathPrefix); rms.namesPos = namesPos;
+	rms.values = values; rms.domain = domain; rms.vc = vc;
+	rec.resultMemberSets.push_back(std::move(rms));
+}
 void SignatureRecorder::ResultMembersComplete()
 {
 	rec.resultMembersComplete = true;
@@ -205,6 +212,7 @@ bool SignatureRecord::SameShape(const SignatureRecord& rhs) const
 		&& args == rhs.args
 		&& result == rhs.result
 		&& resultMembers == rhs.resultMembers
+		&& resultMemberSets == rhs.resultMemberSets
 		&& resultMembersComplete == rhs.resultMembersComplete
 		&& resultDeferred == rhs.resultDeferred
 		&& dynamicShape == rhs.dynamicShape
@@ -447,12 +455,13 @@ SharedStr RenderMergedSignature(const AbstrOperGroup* og, const OperGroupSignatu
 // created cache result as FAILED — a spurious failure on a run that is merely being
 // cancelled. The call site additionally wraps this in its own catch(...).
 //
-// v1 coverage gaps (report nothing, never false-fire — follow-ups, not drift
-// coverage): (a) rec.resultMembers (§12.7/§12.8 composite sub-items — unique
-// Values, union UnionData, connect_info/discrete_alloc/dijkstra member sets) are
-// NOT replayed, because resolving a member path post-CreateResult risks meta-info
-// recursion; (b) addValRep is first-wins, so a RepeatArgs/variadic tail's value
-// class is checked at its first position only.
+// v2 (2026-07-29) closed the v1 coverage gaps: (a) rec.resultMembers ARE now
+// replayed against the actual result's sub-items (absence = conditional member,
+// no claim; presence = the described var's units are collected like a position);
+// (b) EVERY collected values-unit is class-checked, so a variadic tail's later
+// positions are covered. Still out: resultMemberSets (their names live in
+// argument DATA, which this debug checker must not read) and — by the 2026-07-29
+// ruling — metrics stay log-only permanently.
 // *****************************************************************************
 
 void SigUnitChecker_VerifyApplication(const Operator* oper, const ArgSeqType& argItems, const TreeItem* result)
@@ -484,10 +493,14 @@ void SigUnitChecker_VerifyApplication(const Operator* oper, const ArgSeqType& ar
 		if (rec.repeat.active) noteDomainRole(rec.repeat.domain);
 		if (rec.result.kind == SignatureRecord::PosKind::Attr)      noteDomainRole(rec.result.domain);
 		else if (rec.result.kind == SignatureRecord::PosKind::Unit) noteDomainRole(rec.result.values);
+		for (const auto& rm : rec.resultMembers) // v2: described result members participate
+			noteDomainRole(rm.domain);
 
-		// per var: the units that must be identical (an equivalence bucket) and a
-		// representative values-unit driving the class + metric checks
-		struct VarUnits { std::vector<const AbstrUnit*> idUnits; const AbstrUnit* valRep = nullptr; };
+		// per var: the units that must be identical (an equivalence bucket) and the
+		// values-units driving the class + metric checks. v2 (coverage gap (b)): ALL
+		// collected values-units are class-checked, not just the first — a variadic
+		// tail's positions beyond the first were previously invisible to CHECK 2.
+		struct VarUnits { std::vector<const AbstrUnit*> idUnits, valReps; };
 		std::vector<VarUnits> vu(nv);
 
 		auto skipIdentity = [&](sig_var v) -> bool
@@ -505,8 +518,7 @@ void SigUnitChecker_VerifyApplication(const Operator* oper, const ArgSeqType& ar
 		{
 			if (v == no_sig_var || v >= nv || !u)
 				return;
-			if (!vu[v].valRep)
-				vu[v].valRep = u;
+			vu[v].valReps.push_back(u);
 		};
 
 		auto collectPos = [&](const SignatureRecord::Pos& p, const TreeItem* item)
@@ -559,8 +571,34 @@ void SigUnitChecker_VerifyApplication(const Operator* oper, const ArgSeqType& ar
 		if (rec.result.kind == SignatureRecord::PosKind::Attr || rec.result.kind == SignatureRecord::PosKind::Unit)
 			collectPos(rec.result, result);
 
+		// v2 (coverage gap (a)): replay the DESCRIBED result members against the
+		// ACTUAL result's sub-items. Absence is NOT drift — described member sets are
+		// deliberately incomplete/conditional (bid_price exists iff a suitability map
+		// is found) — but a member that IS present must carry the described var's
+		// units. Paths are walked segment-wise on the freshly created result tree.
+		// (resultMemberSets stay out: their names come from argument DATA, which the
+		// debug checker must not read.)
+		if (result)
+			for (const auto& rm : rec.resultMembers)
+			{
+				const TreeItem* m = result;
+				CharPtr b = rm.path.begin(), e = rm.path.send();
+				while (m && b != e)
+				{
+					CharPtr segEnd = std::find(b, e, '/');
+					m = m->GetConstSubTreeItemByID(GetTokenID_mt(b, segEnd)).get();
+					b = (segEnd == e) ? e : segEnd + 1;
+				}
+				if (!m)
+					continue; // conditional member not created: no claim
+				SignatureRecord::Pos mp;
+				mp.kind = SignatureRecord::PosKind::Attr;
+				mp.values = rm.values; mp.domain = rm.domain; mp.vc = rm.vc;
+				collectPos(mp, m);
+			}
+
 		auto roleName = [&](sig_var v) -> SharedStr { return (v != no_sig_var && v < nv) ? rec.varRoles[v] : SharedStr("?"); };
-		auto valUnitOf = [&](sig_var v) -> const AbstrUnit* { return (v != no_sig_var && v < nv) ? vu[v].valRep : nullptr; };
+		auto valUnitOf = [&](sig_var v) -> const AbstrUnit* { return (v != no_sig_var && v < nv && !vu[v].valReps.empty()) ? vu[v].valReps.front() : nullptr; };
 
 		// (1) unit identity within each var's bucket (UnifyDomain, symmetric on the meta thread)
 		for (sig_var v = 0; v != nv; ++v)
@@ -586,17 +624,20 @@ void SigUnitChecker_VerifyApplication(const Operator* oper, const ArgSeqType& ar
 			const ValueClass* want = v < rec.memberClasses.size() ? rec.memberClasses[v] : nullptr;
 			if (!want)
 				want = rec.varFixedCls[v];
-			if (!want || !vu[v].valRep)
+			if (!want)
 				continue;
-			auto got = vu[v].valRep->GetValueType();
-			if (got && got != want)
+			for (auto rep : vu[v].valReps) // v2: every position, not just the first (variadic tails)
 			{
-				SharedStr wantName(want->GetName()), gotName(got->GetName());
-				reportF_without_cancellation_check(SeverityTypeID::ST_Error
-					, "SigUnitChecker drift: {}: unit variable '{}' recorded value class {}, but the actual unit {} has value class {}"
-					, where.c_str(), roleName(v).c_str()
-					, wantName.c_str(), vu[v].valRep->GetFullName().c_str(), gotName.c_str());
-				assert(!"SigUnitChecker: a described unit variable's recorded value class differs from the actual unit's (see the preceding ST_Error log line)");
+				auto got = rep->GetValueType();
+				if (got && got != want)
+				{
+					SharedStr wantName(want->GetName()), gotName(got->GetName());
+					reportF_without_cancellation_check(SeverityTypeID::ST_Error
+						, "SigUnitChecker drift: {}: unit variable '{}' recorded value class {}, but the actual unit {} has value class {}"
+						, where.c_str(), roleName(v).c_str()
+						, wantName.c_str(), rep->GetFullName().c_str(), gotName.c_str());
+					assert(!"SigUnitChecker: a described unit variable's recorded value class differs from the actual unit's (see the preceding ST_Error log line)");
+				}
 			}
 		}
 

@@ -1,0 +1,36 @@
+container fn_test_structcontract3
+{
+	// Variant A: the CALL-SITE Net is INCOMPLETE (lacks F2), the T-LOCAL Net is
+	// COMPLETE. If the actual instantiate-copy binds the T-local Net (as the
+	// ArgCalc scoping implies), the program computed fine before the boundary
+	// check existed; the checker resolving the call-site Net would now falsely
+	// reject it at the boundary.
+	unit<uint32> Net : nrofrows = 3
+	{
+		unit<uint32> nodeset : nrofrows = 3;
+		attribute<nodeset> F1 : [ 0, 1, 2 ];
+		// F2 deliberately missing at the call site
+	}
+
+	function f( unit<uint32> nw {
+		unit<uint32> nodeset;
+		attribute<nodeset> F1;
+		attribute<nodeset> F2;
+	} ) -> parameter<uint32> := sum(pcount(nw/F1) + pcount(nw/F2));
+
+	template T
+	{
+		container p;
+		unit<uint32> Net : nrofrows = 3
+		{
+			unit<uint32> nodeset : nrofrows = 3;
+			attribute<nodeset> F1 : [ 0, 1, 2 ];
+			attribute<nodeset> F2 : [ 1, 2, 0 ];
+		}
+		parameter<uint32> r := p/result;
+	}
+
+	container useT := T(instantiate f(Net));
+
+	container checks { parameter<uint32> c := useT/r, IntegrityCheck = "c == 6"; }
+}

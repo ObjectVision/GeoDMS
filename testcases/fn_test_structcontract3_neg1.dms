@@ -1,0 +1,35 @@
+container fn_test_structcontract3_neg1
+{
+	// Variant B: the CALL-SITE Net is COMPLETE (satisfies f's contract), the
+	// T-LOCAL Net is INCOMPLETE (lacks F2). If the boundary checker validates the
+	// call-site Net but the actual instantiate-copy binds the T-local Net, the
+	// check passes and the failure surfaces transitively inside the copied body.
+	unit<uint32> Net : nrofrows = 3
+	{
+		unit<uint32> nodeset : nrofrows = 3;
+		attribute<nodeset> F1 : [ 0, 1, 2 ];
+		attribute<nodeset> F2 : [ 1, 2, 0 ];
+	}
+
+	function f( unit<uint32> nw {
+		unit<uint32> nodeset;
+		attribute<nodeset> F1;
+		attribute<nodeset> F2;
+	} ) -> parameter<uint32> := sum(pcount(nw/F1) + pcount(nw/F2));
+
+	template T
+	{
+		container p;
+		unit<uint32> Net : nrofrows = 3
+		{
+			unit<uint32> nodeset : nrofrows = 3;
+			attribute<nodeset> F1 : [ 0, 1, 2 ];
+			// F2 deliberately missing: incomplete shadow
+		}
+		parameter<uint32> r := p/result;
+	}
+
+	container useT := T(instantiate f(Net));
+
+	container checks { parameter<uint32> c := useT/r, IntegrityCheck = "c == 6"; }
+}

@@ -1,0 +1,31 @@
+container fn_test_dares
+{
+	// K11b result side: discrete_alloc's NAME-DIRECTED result members. Per type
+	// name (the values of argument 0) CheckAndPrepare creates
+	//   total_allocated/<name> : parameter<claim_type>   (unpartitioned: void domain)
+	//   shadow_prices/<name>   : parameter<S>            (iff the group adjusts prices)
+	// With the name array closed over the formals the walker expands both families
+	// at the DEFINITION, so the members are typed rather than deferred.
+	unit<uint8>  LuType : nrofrows = 2 { attribute<string> name : ['A','B']; }
+	unit<uint32> Cells  : nrofrows = 4;
+	container Suit
+	{
+		attribute<int32> A (Cells) := const(1i, Cells);
+		attribute<int32> B (Cells) := const(1i, Cells);
+	}
+	container CMin { parameter<uint32> A := 1; parameter<uint32> B := 1; }
+	container CMax { parameter<uint32> A := 4; parameter<uint32> B := 4; }
+	parameter<int32> thr := 0i;
+
+	// both families declared with their TRUE types: uint32 totals, int32 prices
+	function f(unit<uint32> cells) -> parameter<uint32>
+	{
+		container a := discrete_alloc_np(LuType/name, cells, Suit, CMin, CMax, thr);
+		parameter<int32>  sp     := a/shadow_prices/A;      // typed parameter<S=int32>
+		parameter<uint32> totals := a/total_allocated/A + a/total_allocated/B;
+		parameter<uint32> result := totals + uint32(IsDefined(sp)) - uint32(IsDefined(sp));
+	}
+	parameter<uint32> n := f(Cells);
+
+	container checks { parameter<uint32> c := n, IntegrityCheck = "c == 4"; }
+}

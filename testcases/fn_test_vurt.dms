@@ -1,0 +1,43 @@
+// Round-trip fidelity of the VALUES unit in a function body.
+//
+// Regression guard (2026-07-29): the DMS dump writes an item's values unit in its tag
+// ('attribute<vu>', AbstrDataItem::GetSignature) and its domain unit as a property.
+// Both must emit the RAW source token, not the RESOLVED script name: a body item whose
+// values/domain unit is a function PARAMETER resolves to a relative path ('../mu'), and
+// re-reading the dump at another depth then fails with
+//   FollowDots: relative pathname ascended above root
+// A bare source name is up-scope searched instead, so it re-resolves wherever the item
+// lands. The domain side was covered by fn_test_p1/Nested; the values side was not, and
+// silently regressed when the bare-name preference was moved out of the property getter
+// (which must stay resolved -- PropValue(item,'ValuesUnit') is public API asserted by the
+// tst Operator suite). run_roundtrip.ps1 dumps and reloads this config; the check below
+// re-verifies the semantics after the reload.
+container fn_test_vurt
+{
+	unit<float64> m := baseunit('m', float64);
+
+	unit<uint32> Road : nrofrows = 4
+	{
+		attribute<m> flow : [ 100.0, 200.0,  50.0, 400.0 ];
+	}
+
+	// the values unit `mu` is a function parameter, so from inside `helpers` its resolved
+	// script name is a relative path -- this is the shape that leaked into the dump
+	function Twice(
+		unit<float64> mu;
+		unit<uint32> Rd { attribute<mu> flow; }
+	) -> attribute<mu> (Rd) := helpers/b
+	{
+		container helpers
+		{
+			attribute<mu> a (Rd) := Rd/flow * 2.0;
+			attribute<mu> b (Rd) := a + Rd/flow;
+		}
+	}
+	attribute<m> tripled (Road) := Twice(m, Road);
+
+	container checks
+	{
+		parameter<m> check1 := sum(tripled), IntegrityCheck = "check1 == 2250.0[m]"; // 3 * sum(flow)
+	}
+}

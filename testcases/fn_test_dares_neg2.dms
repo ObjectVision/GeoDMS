@@ -1,0 +1,26 @@
+container fn_test_dares_neg2
+{
+	// K11b result side, negative: shadow_prices/<name> carries the SUITABILITY
+	// price class S (here int32, from the suitability maps), not the count class.
+	// Declaring it string is a DEFINITION-time conflict — proving the second
+	// name-directed family is typed too, and typed from the operator's own S.
+	unit<uint8>  LuType : nrofrows = 2 { attribute<string> name : ['A','B']; }
+	unit<uint32> Cells  : nrofrows = 4;
+	container Suit
+	{
+		attribute<int32> A (Cells) := const(1i, Cells);
+		attribute<int32> B (Cells) := const(1i, Cells);
+	}
+	container CMin { parameter<uint32> A := 1; parameter<uint32> B := 1; }
+	container CMax { parameter<uint32> A := 4; parameter<uint32> B := 4; }
+	parameter<int32> thr := 0i;
+
+	function bad(unit<uint32> cells) -> parameter<string>
+	{
+		container a := discrete_alloc_np(LuType/name, cells, Suit, CMin, CMax, thr);
+		parameter<string> result := a/shadow_prices/A;   // it is an int32 price
+	}
+	parameter<string> n := bad(Cells);
+
+	container checks { parameter<string> c := n, IntegrityCheck = "c == '0'"; }
+}
