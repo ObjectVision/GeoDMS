@@ -20,6 +20,7 @@
 #include "DmsTreeView.h"
 #include "SessionData.h"
 #include "TreeItem.h"
+#include "TreeItemUtils.h"
 #include "utl/Environment.h"
 #include <QMainWindow>
 #include <QApplication>
@@ -275,17 +276,16 @@ QVariant DmsModel::getTreeItemIcon(const QModelIndex& index) const {
 	return QVariant::fromValue(QPixmap(":/res/images/TV_unit_transparant.bmp"));
 }
 
+// the rule itself lives in rtc (GetItemOrigin) as the TableView applies it as well, see issue #1159
 static color_option getTextColorOption(const TreeItem* ti) {
 	assert(ti);
-	bool isInTemplate = ti->InTemplate();
 
-	if (isInTemplate)
-		return color_option::src_template_def;
-
-	if (ti->HasCalculator())
-		return color_option::src_calculated;
-	if (ti->GetStorageParent(false))
-		return color_option::src_exogenic;	
+	switch (GetItemOrigin(ti))
+	{
+	case item_origin::template_def: return color_option::src_template_def;
+	case item_origin::calculated:   return color_option::src_calculated;
+	case item_origin::exogenic:     return color_option::src_exogenic;
+	}
 	return color_option::src_none;
 }
 

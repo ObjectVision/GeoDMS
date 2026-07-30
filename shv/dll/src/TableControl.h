@@ -109,6 +109,13 @@ public:
 	void HideSortOptions(bool value = true) { m_State.Set(TCF_HideSortOptions, value);   }
 	bool HasSortOptions() const             { return ! m_State.Get(TCF_HideSortOptions); }
 
+	// Whether the column captions and column values are rendered in the text color that
+	// belongs to the origin of the shown attribute - calculated, read-in or within a
+	// template - just as the TreeView renders the item itself (issue #1159).
+	// Overridden to false by PaletteControl: its rows describe classes of a legend, not
+	// configured items, so origin colors would only be confusing there.
+	virtual bool ShowOriginTextColors() const { return true; }
+
 	bool ShowSelectedOnlyEnabled() const override;
 
 	SizeT NrRows() const;

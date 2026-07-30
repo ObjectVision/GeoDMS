@@ -103,6 +103,41 @@ bool HasVisibleSubItems(const TreeItem* refItem)  noexcept
 }
 
 
+item_origin GetItemOrigin(const TreeItem* ti)
+{
+	assert(ti);
+
+	// order matters: an item within a template is shown as such even when it has a calculation
+	// rule, and a calculation rule prevails over the storage of an enclosing container.
+	if (ti->InTemplate())
+		return item_origin::template_def;
+	if (ti->HasCalculator())
+		return item_origin::calculated;
+	if (ti->GetStorageParent(false))
+		return item_origin::exogenic;
+	return item_origin::container;
+}
+
+static std::array<DmsColor, UInt32(item_origin::count)> s_OriginTextColors = sc_DefaultOriginTextColors;
+
+DmsColor GetItemOriginTextColor(item_origin io)
+{
+	assert(io < item_origin::count);
+	return s_OriginTextColors[UInt32(io)];
+}
+
+DmsColor GetItemOriginTextColor(const TreeItem* ti)
+{
+	return GetItemOriginTextColor(GetItemOrigin(ti));
+}
+
+void SetItemOriginTextColor(item_origin io, DmsColor clr)
+{
+	assert(io < item_origin::count);
+	clr &= MAX_COLOR;
+	s_OriginTextColors[UInt32(io)] = clr;
+}
+
 NotificationCode NotificationCodeFromProblem(FailType ft)
 {
 	switch (ft)

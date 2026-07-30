@@ -82,6 +82,13 @@ public:
 	const AbstrDataItem* GetActiveTextAttr() const;
 	const AbstrDataItem* GetSrcAttr() const;
 
+	// Text color for the values of this column and for its caption in the TableHeaderControl,
+	// following the origin of the shown attribute the way the TreeView does (issue #1159):
+	// black when calculated, dark blue when read from a storage, purple within a template.
+	// Falls back to the default text color when the origin is unknown or when the owning
+	// TableControl opts out (see TableControl::ShowOriginTextColors).
+	DmsColor GetOriginTextColor() const;
+
 	SharedStr Caption() const;
 	void SetElemWidth(UInt16 width) override;
 	void SetElemHeight(UInt16 height) override;

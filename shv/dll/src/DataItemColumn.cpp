@@ -33,6 +33,7 @@
 #include "LispTreeType.h"
 #include "StateChangeNotification.h"
 #include "TreeItemProps.h"
+#include "TreeItemUtils.h"
 #include "Unit.h"
 #include "UnitClass.h"
 
@@ -342,6 +343,22 @@ const AbstrDataItem* DataItemColumn::GetActiveTextAttr() const
 const AbstrDataItem* DataItemColumn::GetSrcAttr() const
 {
 	return m_FutureSrcAttr.get_ptr();
+}
+
+DmsColor DataItemColumn::GetOriginTextColor() const
+{
+	auto tc = GetTableControl().lock();
+	if (!tc || !tc->ShowOriginTextColors())
+		return GraphicObject::GetDefaultTextColor();
+
+	// take the configured attribute and not GetActiveTextAttr(): in group-by mode the latter is
+	// a generated cache item that always has a calculation rule, which would make each grouped
+	// column read as calculated, also when it aggregates a read-in attribute.
+	const AbstrDataItem* srcAttr = GetSrcAttr();
+	if (!srcAttr || srcAttr->IsCacheItem())
+		return GraphicObject::GetDefaultTextColor();
+
+	return GetItemOriginTextColor(srcAttr);
 }
 
 SharedStr DataItemColumn::Caption() const
@@ -1101,7 +1118,7 @@ void DataItemColumn::DrawElement(GraphDrawer& d, SizeT rowNr, GRect elemDeviceEx
 			else
 				clr = textInfo.m_Grayed ? CombineRGB(100, 100, 100) : GetColor(recNo, AN_LabelTextColor);
 			if (!IsDefined(clr))
-				clr = GraphicObject::GetDefaultTextColor();
+				clr = GetOriginTextColor(); // no LabelTextColor configured: follow the TreeView, issue #1159
 			dc->SetBold(false);
 			// 1-px left pad so the value does not sit flush against the column separator.
 			// No vertical offset: TableControl/PaletteControl size cells to font in DIPs

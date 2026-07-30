@@ -6,6 +6,7 @@
 #include "ptr/SharedStr.h"
 #include "StgBase.h"
 #include "AbstrDataItem.h"
+#include "TreeItemUtils.h"
 
 #include <bit>
 
@@ -41,7 +42,8 @@ struct colorOptionAttr {
     CharPtr descr;
     DmsColor color;
     UInt32  palette_index = 0;
-    QColor AsQColor() 
+    item_origin origin = item_origin::count; // count: not an origin text color
+    QColor AsQColor()
     {
         return QColor(GetRed(color), GetGreen(color),GetBlue(color));
     }
@@ -53,6 +55,8 @@ struct colorOptionAttr {
         this->color = clr;
         if (this->palette_index)
             STG_Bmp_SetDefaultColor(this->palette_index, clr);
+        if (this->origin != item_origin::count)
+            SetItemOriginTextColor(this->origin, clr); // let shv (TableView) use it too, see issue #1159
     }
 };
 
@@ -62,10 +66,9 @@ static DmsColor lightGreen = CombineRGB(0xDF, 0xF5, 0xE1);
 static DmsColor lightBlue  = CombineRGB(0xE6, 0xF2, 0xFF);
 static DmsColor lightRed = CombineRGB(0xFF, 0xD6, 0xD6);
 
-static DmsColor darkGrey = CombineRGB(0x30, 0x30, 0x30);
-static DmsColor darkBlue = CombineRGB(0x1F, 0x4E, 0x79);
-static DmsColor black = CombineRGB(0, 0, 0);
-static DmsColor purple = CombineRGB(0x6A, 0x3D, 0x9A);
+// the defaults of the source text colors (dark grey, black, dark blue, purple) live in rtc,
+// see sc_DefaultOriginTextColors, so that shv uses the same ones for TableView columns
+static DmsColor originClr(item_origin io) { return sc_DefaultOriginTextColors[(int)io]; }
 
 colorOptionAttr sColorOptionData[(int)color_option::count] =
 {
@@ -77,10 +80,10 @@ colorOptionAttr sColorOptionData[(int)color_option::count] =
     { "DataFailed", "background color for rule or data processing failure", lightRed},
 
     // source text colors
-    { "Container", "Text color for items that have no assiciated value(s)", darkGrey},
-    { "Calculated", "Text color for items with a calculation rule", black},
-    { "SourceData", "Text color for exogenic value items, i.e. read from database or defined in the configuration", darkBlue},
-    { "Template", "Text color for template defintion items", purple},
+    { "Container", "Text color for items that have no assiciated value(s)", originClr(item_origin::container), 0, item_origin::container},
+    { "Calculated", "Text color for items with a calculation rule", originClr(item_origin::calculated), 0, item_origin::calculated},
+    { "SourceData", "Text color for exogenic value items, i.e. read from database or defined in the configuration", originClr(item_origin::exogenic), 0, item_origin::exogenic},
+    { "Template", "Text color for template defintion items", originClr(item_origin::template_def), 0, item_origin::template_def},
 
     // map color(s)
     { "Background", "Pick the Mapview background color", white, 256},

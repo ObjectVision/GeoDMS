@@ -34,6 +34,9 @@ public:
 //	override virtuals of GraphicObject
 	void Sync(TreeItem* viewContext, ShvSyncMode sm) override;
 
+//	override virtual of TableControl
+	bool ShowOriginTextColors() const override { return false; } // legend rows describe classes, not configured items
+
 	void CreateSelCountColumn();
 	bool m_HasTriedToAddSelCountColumn = false;
 

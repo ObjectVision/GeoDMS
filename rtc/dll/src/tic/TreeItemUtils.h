@@ -37,11 +37,14 @@ granted by an additional written contract for support, assistance and/or develop
 #define __TIC_TREEITEMUTILS_H
 
 #include "xct/DmsException.h"
+#include "geo/color.h"
 
 #include "AbstrDataItem.h"
 #include "AbstrUnit.h"
 #include "TreeItem.h"
 #include "TreeItemProps.h"
+
+#include <array>
 
 TIC_CALL auto _GetHistoricUltimateItem(const TreeItem* ti) noexcept -> std::shared_ptr<const TreeItem>;
 TIC_CALL auto _GetCurrUltimateItem(const TreeItem* ti) noexcept -> std::shared_ptr<const TreeItem>;
@@ -49,6 +52,41 @@ TIC_CALL auto _GetCurrRangeItem(const TreeItem* ti) noexcept -> std::shared_ptr<
 TIC_CALL auto _GetUltimateItem(const TreeItem* ti) noexcept -> std::shared_ptr<const TreeItem>;
 
 TIC_CALL bool HasVisibleSubItems(const TreeItem* refItem) noexcept;
+
+//----------------------------------------------------------------------
+// item origin and its text color
+//----------------------------------------------------------------------
+
+// The (static) origin of an item, i.e. where its value(s) come from. It determines the color
+// an item is rendered in, both as a name in the TreeView and as a column caption and column
+// values in a TableView (issue #1159), so that a user recognizes a read-in attribute as such
+// wherever it is shown.
+enum class item_origin
+{
+	container,    // no associated value(s)
+	calculated,   // has a calculation rule
+	exogenic,     // read from a storage, i.e. from a database or a file
+	template_def, // defined within a template
+
+	count
+};
+
+TIC_CALL item_origin GetItemOrigin(const TreeItem* ti);
+
+// Default text colors per origin. The GUI reads overrides from the registry section "Colors"
+// (see LoadColors in qtgui) and pushes them here through SetItemOriginTextColor, so that the
+// TreeView and the TableView keep using the same colors.
+constexpr std::array<DmsColor, UInt32(item_origin::count)> sc_DefaultOriginTextColors =
+{
+	CombineRGB(0x30, 0x30, 0x30), // container:    dark grey
+	CombineRGB(0x00, 0x00, 0x00), // calculated:   black
+	CombineRGB(0x1F, 0x4E, 0x79), // exogenic:     dark blue
+	CombineRGB(0x6A, 0x3D, 0x9A), // template_def: purple
+};
+
+TIC_CALL DmsColor GetItemOriginTextColor(item_origin io);
+TIC_CALL DmsColor GetItemOriginTextColor(const TreeItem* ti);
+TIC_CALL void     SetItemOriginTextColor(item_origin io, DmsColor clr);
 
 //----------------------------------------------------------------------
 
