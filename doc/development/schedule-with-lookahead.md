@@ -429,6 +429,41 @@ Two open discrepancies, both of which say *do not grant admission on these numbe
   or weak tile refs not being released as promptly as the type suggests. Identifying it is the
   first task of P2, ahead of any grant logic.
 
+#### 4.4.0 The regime is a property of the data object, not of a predicate
+
+**`doc/tile-data-retainment.md` is the authoritative inventory** of which `AbstrDataObject`
+subclass retains its tiles and which recalculates them, and it corrects this section in two
+ways that matter for the estimate:
+
+1. **There are more regimes than three, and one is a spill.** `FileTileArray` (chosen by the
+   `DataWriteLock` ctor under an `MmdStorageManager`) retains **on disk** and maps on demand:
+   the last consumer release unmaps the view, a re-request pages back in with no recomputation.
+   Its RAM cost is bounded by live mappings, not by the array — so a ledger must not book it as
+   heap. `ConstTileFunctor` is a fifth class, recalculating with its own non-MT3 gate.
+2. **The regime cannot be predicted from `LazyCalculated` alone.** Four channels build a
+   recalculating object regardless of it — `id()`, `combine()` back-refs,
+   `AbstrMappingOperator`, and the random-access storage read (whose `EasyRereadTiles()` intent
+   is short-circuited by `if (true || …)`) — plus `const()` with its own gate. So the estimator
+   now **measures** the regime through a new `AbstrDataObject::GetMaterialization()` virtual and
+   reports it beside its prediction, flagging disagreement as `!regime=… predicted=…`. First run
+   caught `id()` exactly as the inventory says: actual `streaming`, predicted `deferred`.
+
+It also explains §8.1.1's negative result mechanically: for any `GeneratedTileFunctor`
+descendant — which `LazyTileFunctor` is — a held future is a `future_caller` **bookmark** that
+pins the data object, not the tile. So in a *streaming* chain the prepare-states array holds
+bookmarks rather than tile data, and dropping it frees nothing; the prepare state only holds
+real data when the argument is a `FutureTileFunctor`, and there the `tile_record` variant
+already releases it the moment the consumer tile materializes. The inventory's own observation 6
+states the same conclusion independently.
+
+Two further leads from it for the still-unexplained streaming residency: whole-array reads build
+a **shadow tile** (`m_shadowTilePtr`, weak) that copies every tile into one contiguous buffer —
+and for sequence values additionally pins `locked_cseq_t` on *all* tiles, fully materializing a
+lazy source; and two channels **alias one data object into two items** (`union_data`,
+`PhaseContainer`), so a ledger keyed on items would double-count it. Neither applies to the
+measured probe (the aggregation reads per-tile via `GetFutureTileArray` + `GetTile(t)`), which
+leaves the per-thread accumulators and allocator-pool slack as the candidates to separate next.
+
 #### 4.4.1 What actually forces a tile to be retained: consumer skew
 
 Regime alone is too coarse. A pipelined tile has to exist only while some consuming operation

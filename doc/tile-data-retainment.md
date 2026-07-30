@@ -33,6 +33,7 @@ whether it keeps its tiles.
   `DataReadLockAtom` is released and the item is not `PartOfInterest`, `TryCleanupMem` runs
   (`DataLocks.cpp:154-155`) and — unless the item is kept (`PartOfInterestOrKeep`,
   `GetKeepDataState()`), has no source to recompute from, or is a memory object ≤
+  `KEEPMEM_MAX_NR_BYTES` = 128 bytes (`FreeDataManager.h:44`, `AbstrDataItem.cpp:846-896`) —
   `KEEPMEM_MAX_NR_BYTES` = 128 bytes (`FreeDataManager.h:44`, `AbstrDataItem.cpp:852-896`) —
   drops the whole data object via `DropValue`/`ClearDataObject` (`AbstrDataItem.cpp:216-228`).
 
@@ -329,6 +330,12 @@ lazy or future functor:
 - `tn > 1` — `FutureTileFunctor`'s own precondition (§4.1).
 - `!IsInMMD(res)` — results living in a memory-mapped store must be materialized
   (`stg` `MemoryMappedDataStorageManager.cpp:115`, decl `AbstrStorageManager.h:441`).
+- `LTF_ElementWeight(args) <= LTF_ElementWeight(res)` — **currently a no-op**: the function
+  returns 0 unconditionally (`AbstrDataItem.cpp:1277-1280`), so the comparison is always
+  `0 <= 0`. The intended heuristic `ElementWeight` (bit size, ×32 for non-Single composition, 256
+  for strings; `AbstrDataItem.cpp:1265-1275`) sits right above it, unused. Effect: the
+  pipelined path is chosen purely on threading/tiling/MMD grounds, never on whether streaming the
+  arguments is actually cheaper than storing the result.
 - `res->GetLazyCalculatedState()` → the `lazy` argument: status flag `TSF_LazyCalculated` from the
   config property `LazyCalculated` (`TreeItem.h:432-433`, `TreeItemProps.cpp:297-313`), inherited
   by sub-items and pushed onto referred items (`TreeItem.cpp:577-578`, `1841-1852`). Default

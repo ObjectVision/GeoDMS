@@ -115,6 +115,9 @@ struct FutureTileFunctor : DelayedTileFunctor<V>
 #endif
 	};
 
+	// Computed on first demand, then kept: the tile_record's variant never flips back.
+	materialization GetMaterialization() const override { return materialization::deferred; }
+
 	FutureTileFunctor(SharedMutableDataItem resultAdi, const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<field_of_t<V>> valueRangePtr
 	, PrepareFunc&& pFunc_, ApplyFunc&& aFunc_ MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr))
 	: DelayedTileFunctor<V>(resultAdi, tiledDomainRangeData, valueRangePtr MG_DEBUG_ALLOCATOR_SRC_PARAM)
@@ -187,6 +190,9 @@ struct LazyTileFunctor : GeneratedTileFunctor<V>
 //	auto CreateFutureTile(tile_id t) const->TileRef override;
 	auto GetWritableTile(tile_id t, dms_rw_mode rwMode)->locked_seq_t override;
 	auto GetTile(tile_id t) const->locked_cseq_t override;
+	// Tiles are held weakly ("don't keep it !"): freed at the last consumer release, recomputed on
+	// the next request, which cascades into suppliers that are themselves lazy.
+	materialization GetMaterialization() const override { return materialization::streaming; }
 	// m_ResultAdi is non-owning: cleared when the item releases this object (AbstrDataItem::ClearDataObject).
 	void ImLosingIt() const override { m_ResultAdi.reset(); }
 
