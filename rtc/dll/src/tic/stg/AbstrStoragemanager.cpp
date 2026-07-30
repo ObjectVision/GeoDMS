@@ -1056,12 +1056,16 @@ bool StorageReadHandle::Read() const
 		return false;
 
 	bool measure = IsPerformanceLogging();
+	// Estimate before reading: PrepareReadDataOrSuspend has already resolved the domain count and
+	// values range, so unlike a calculation a read knows its size up front.
+	auto estimate = measure ? EstimateReadResources(FocusItem()) : PerformanceEstimationData();
+
 	PerfTimer timer(measure);
 
 	auto result = FocusItem()->DoReadItem(MetaInfo());
 
 	if (measure)
-		ReportReadPerformance(FocusItem(), timer.ElapsedMSec());
+		ReportReadPerformance(FocusItem(), estimate, timer.ElapsedMSec());
 
 	return result;
 }

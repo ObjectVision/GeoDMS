@@ -429,6 +429,40 @@ Two open discrepancies, both of which say *do not grant admission on these numbe
   or weak tile refs not being released as promptly as the type suggests. Identifying it is the
   first task of P2, ahead of any grant logic.
 
+#### 4.4.1 What actually forces a tile to be retained: consumer skew
+
+Regime alone is too coarse. A pipelined tile has to exist only while some consuming operation
+still holds it — consumers take `GetFutureTileArray(...)` (`tic/FutureTileArray.h:19-27`), an
+array of `shared_ptr<future_tile>` *usage holders*, and pull each tile when their own loop
+reaches it. So the retention a result imposes is governed by **how far apart its consumers'
+tile loops run**, not by its element count:
+
+- **one consumer, in step** — tile `t` is live only while that consumer processes it:
+  `residentBytes ≈ inflight × choreBytes`, the streaming figure, *whatever* the regime, because
+  nothing else references the older tiles.
+- **several consumers, out of step** — every tile between the slowest and fastest consumer's
+  position must stay alive: `residentBytes ≈ (skew + inflight) × choreBytes`, degrading to the
+  whole array when one consumer is at tile 0 while another is at tile *n*.
+- The two regimes differ in *who* holds the tile, and that is what makes skew payable or not:
+  `FutureTileFunctor` keeps a strong `tile_record` per tile, so a retained tile stays retained
+  for the functor's life even after every consumer has passed it, whereas `LazyTileFunctor`
+  holds only weak refs, so its retention really is the skew window — at the price of
+  recomputing a tile pulled twice.
+
+That yields a lever the plan did not have: **either retain, or synchronize.** For a result with
+multiple pipelined consumers the scheduler can
+(a) accept retention and book `nrChores × choreBytes` (today's deferred behaviour), or
+(b) **keep the consumers' tile loops in step** — dispatch tile `t` to all consumers of a result
+before advancing — and book `(bounded skew + inflight) × choreBytes` instead. (b) is the
+memory-cheap option and needs no new data structure: the tile dispatch order already goes
+through `tile_task_group` (`OperationContext.cpp:233-269`), which is where a
+consumers-of-the-same-result group could be advanced together, with the skew bound as its knob.
+This is also the honest explanation candidate for §4.4's unexplained streaming residency
+(542 MB measured against 40 MB predicted): five stages pulled by one aggregation is exactly the
+multi-consumer, unsynchronized case, so the skew term may *be* the missing memory. Confirming
+that is the first P2 measurement, and `estimate.nrChores`/`choreMemory` are already reported per
+operation to support it.
+
 For diagnosis, the two modes answer different questions, and the estimator covers both:
 run with **`/C3`** (eager) to attribute compute time and full volumes per operator, and
 with **`/S3`** (default) to see the footprint production will actually have. The residual
@@ -918,7 +952,7 @@ filter checkbox, and the `RegStatusFlags` DWORD is **out of bits** (`RSF_WasRead
 0x80000000), which is why `PerformanceLogging` is a `RegDWordEnum` entry and `/SP`
 sets that rather than a status flag. P2's throttle flag will need the same treatment.
 
-### 8.2 P1 status
+### 8.2 P1 status — complete
 
 **Landed** (all with 186/186 testcases passing, nothing scheduling on any of it):
 
@@ -938,24 +972,40 @@ sets that rather than a status flag. P2's throttle flag will need the same treat
   `materialization`) moved to `TicBase.h` so units and storage managers can describe
   themselves without depending on the operator interface.
 
-**Open, with the diagnosis so far:**
+- **The `GetNew()` trap, fixed.** The estimator inherited `resultHolder.GetNew()` from the
+  dead pre-P0 implementation. `GetNew()` is `MG_CHECK(!IsOld())`, so it **throws for every
+  operator whose result is an existing item** (`oper_policy::existing` — `subitem` and
+  friends), and the guard turned that into an all-zero record: `subitem` estimated
+  `n=0 / assumed / eager` where the truth was `n=32,492,000 / derived / deferred, 496
+  chores`. It now uses `GetUlt()` (falling back to `GetOld()`), which is also the item
+  `RunOperator` measures, so estimate and actual describe the same item. Any operator
+  family added later must not reintroduce `GetNew()` here.
+- **Aggregation family override** (`clc/dll/include/OperAccUni.h`): the accumulator is
+  working memory, not result memory — one slot per chore for a total, a whole
+  partition-sized array per chore for a partitioned aggregation, times
+  `MaxConcurrentTreads()`. A void-domain result is charged 0 bytes by design, which would
+  have made the total-aggregation accumulator vanish, so it charges one slot minimum.
+- **Storage reads now carry an estimate** (`EstimateReadResources`), taken before the read
+  in `StorageReadHandle::Read` — reads are the one case where size is genuinely knowable up
+  front, since `PrepareReadDataOrSuspend` has already resolved count and values range. The
+  read line reports actual-vs-estimated bytes and MB/s per manager, which is the input a
+  read cost model gets calibrated on.
+- **Report format compacted.** `MsgDispatch` truncates a message at 256 characters, which
+  was silently cutting off the schedule-vs-run comparison — the most informative part.
+  Lines are now terse (`n=… (1.00x derived) B=123M deferred 496x256K res=123M | sched
+  n=1000000 eager assumed`) and fit.
 
-- **A declared bound does not yet reach the estimate.** On a probe declaring both
-  properties on an OD unit, the items over that domain still estimate `assumed`/0. The
-  properties are stored and readable, and the *rule evaluation* is not what fails — the
-  estimator throws earlier, before the domain is consulted, for the operator producing
-  those items (`SubItem` in the probe; its `CreateResultCaller` is the suspect). A
-  reason-reporting guard is in place (`"size estimate for X: unavailable here: …"` under
-  `[performance]`) and did **not** fire, which localizes the throw to
-  `EstimatePerformance` outside `EstimateDomainCount`. Next step: instrument that outer
-  catch the same way, then decide whether declared rules need a meta-thread evaluation
-  cached on the unit (the plan's cheapness discipline already anticipates this).
-- **Family overrides (§4.3) and storage-read estimates not started.** The base estimator
-  currently scales work by the widest domain involved, which is right for elementwise and
-  aggregation shapes but has no accumulator, index-table or sort-buffer term yet, and
-  reads carry no estimate at all.
-- The two footprint discrepancies of §4.4 (deferred over-reserves, streaming
-  under-estimates ~13×) remain the gate on P2.
+**Deliberately not in P1:**
+
+- Lookup/sort/geometric family terms (index tables, sort buffers, superlinear complexity
+  classes) — the base estimator scales work by the widest domain involved, which is honest
+  for elementwise and aggregation shapes and an under-estimate for these.
+- Feeding calibration back into the estimate (§4.7) — measurements are reported, not learned
+  from, and per §8.1 finding 3 they can only be trusted for eager operators anyway.
+- The consumer-skew retention term of §4.4.1: the estimator reports `nrChores`/`choreMemory`
+  so the skew hypothesis can be tested, but it does not model skew, and the two footprint
+  discrepancies of §4.4 (deferred over-reserves, streaming under-estimates ~13×) remain the
+  gate on P2's grant logic.
 
 ---
 

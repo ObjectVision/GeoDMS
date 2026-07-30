@@ -68,8 +68,15 @@ TIC_CALL void ReportOperPerformance(CharPtr operName, const TreeItem* result
 	, const PerformanceEstimationData& scheduleEstimate, const PerformanceEstimationData& runEstimate
 	, Float64 elapsedMSec, SizeT actualNrElements);
 
-// Report a completed storage read. Reads have no estimator yet (they are not Operators); this
-// establishes the throughput measurements that a read cost model will be calibrated against.
-TIC_CALL void ReportReadPerformance(const TreeItem* focusItem, Float64 elapsedMSec);
+// Predict a pending storage read. Reads are not Operators, so they get their estimate here:
+// StorageMetaInfo::PrepareReadDataOrSuspend has already resolved the domain count and the values
+// range by the time the gated task runs, and tiling comes from the storage's native geometry --
+// so unlike a calculation, a read's size is knowable before it starts. §2.6 and §4.3 of the plan.
+TIC_CALL auto EstimateReadResources(const TreeItem* focusItem) -> PerformanceEstimationData;
+
+// Report a completed storage read against that estimate, establishing the per-manager throughput
+// a read cost model will be calibrated against.
+TIC_CALL void ReportReadPerformance(const TreeItem* focusItem, const PerformanceEstimationData& estimate
+	, Float64 elapsedMSec);
 
 #endif // __TIC_PERFMEASUREMENT_H

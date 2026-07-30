@@ -44,6 +44,7 @@ enum ArgFlags
 struct PerformanceEstimationData
 {
 	calc_time_t expectedCalcTime = 0;
+	SizeT ioBytes = 0;               // storage traffic: what a read (or write) moves across the boundary
 	SizeT inputSize = 0, inputSizePerChore = 0;
 	SizeT workingMemorySize = 0, workingMemorySizePerChore = 0;
 	SizeT resultingMemory = 0;       // the eventual full result volume, once every tile exists

@@ -153,14 +153,21 @@ TIC_CALL auto Operator::EstimatePerformance(TreeItemDualRef& resultHolder, const
 		CreateResultCaller(resultHolder, args);
 
 	auto result = PerformanceEstimationData();
-	if (!IsDataItem(resultHolder.GetNew()))
+
+	// Never GetNew() here: it MG_CHECKs !IsOld(), so it throws for every operator whose result is an
+	// EXISTING item (oper_policy::existing -- subitem and friends), which silently cost those their
+	// whole estimate. GetUlt() is also the item RunOperator measures, so estimate and actual agree.
+	auto resultItem = resultHolder.GetUlt();
+	if (!resultItem)
+		resultItem = resultHolder.GetOld();
+	if (!resultItem || !IsDataItem(resultItem))
 	{
 		result.regime = materialization::meta;
 		result.confidence = estimate_confidence::derived; // a unit or container result: zero data cost, exactly
 		return result;
 	}
 
-	auto adi = AsDataItem(resultHolder.GetNew());
+	auto adi = AsDataItem(resultItem);
 	auto domain = adi->GetAbstrDomainUnit();
 
 	auto domainCount = EstimateDomainCount(domain);

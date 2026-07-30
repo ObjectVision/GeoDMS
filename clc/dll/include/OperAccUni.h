@@ -38,6 +38,21 @@ struct AbstrOperAccTotUni: UnaryOperator
 		gr->SetCanExplainValue();
 	}
 
+	// An aggregation's result is one element, but it visits every input element to get there and it
+	// holds an accumulator while doing so. The base estimate already scales work by the widest
+	// domain; what it cannot know is that the accumulator -- here a single value, per worker under
+	// parallel accumulation -- is this operator's working memory rather than its result.
+	// See doc/development/schedule-with-lookahead.md §4.3.
+	auto EstimatePerformance(TreeItemDualRef& resultHolder, const ArgRefs& args) const -> PerformanceEstimationData override
+	{
+		auto result = UnaryOperator::EstimatePerformance(resultHolder, args);
+		// A void-domain result is charged 0 bytes by design, which would make the accumulator
+		// disappear; one slot per chore is the honest order of magnitude.
+		result.workingMemorySizePerChore = Max<SizeT>(result.resultingMemory, sizeof(Float64));
+		result.workingMemorySize = result.workingMemorySizePerChore * MaxConcurrentTreads();
+		return result;
+	}
+
 	// mirrors CreateResultCaller below: a total aggregation takes one data
 	// argument and yields a VOID-domain result (K15); the result class is the
 	// member's accumulator class (may widen: sum(uint8) -> uint32), carried by
@@ -152,6 +167,18 @@ struct AbstrOperAccPartUni: BinaryOperator
 		assert(gr);
 		gr->SetCanExplainValue();
 
+	}
+
+	// A partitioned aggregation holds a whole accumulator ARRAY over the partitioning unit while it
+	// runs -- the term that actually dominates memory for a fine partitioning, and the one a
+	// pipelined chain leaves standing (§4.3, §4.4). Per chore because parallel accumulation gives
+	// each worker its own array to merge afterwards.
+	auto EstimatePerformance(TreeItemDualRef& resultHolder, const ArgRefs& args) const -> PerformanceEstimationData override
+	{
+		auto result = BinaryOperator::EstimatePerformance(resultHolder, args);
+		result.workingMemorySizePerChore = result.resultingMemory;
+		result.workingMemorySize = result.workingMemorySizePerChore * MaxConcurrentTreads();
+		return result;
 	}
 
 	// mirrors CreateResultCaller below: both arguments share one domain (K1,
