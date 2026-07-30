@@ -284,6 +284,10 @@ public:
 	// the measured outcome (P0 of doc/development/schedule-with-lookahead.md).
 	std::unique_ptr<struct PerformanceEstimationData> m_Estimate;
 
+	// Bytes this operation is booked for in the admission ledger while it runs; 0 when unbooked.
+	// See the ledger section in OperationContext.cpp and §5.1 of the plan.
+	SizeT m_LedgerCharge = 0;
+
 public:
 	// Phase number used to coordinate group waits/blocks across contexts.
 	phase_number m_PhaseNumber = 0;

@@ -586,6 +586,8 @@ extern "C" RTC_CALL bool DMS_CONV RTC_ParseRegStatusFlag(const char* param)
 		case '3': SetCachedStatusFlag(RSF_MultiThreading3, newValue); break;
 		case 'H': SetCachedStatusFlag(RSF_ShowThousandSeparator, newValue); break;
 		case 'P': SetPerformanceLogging(newValue); break; // not a status flag: that DWORD is out of bits
+		case 'Q': SetResourceScheduling(newValue ? resource_scheduling::enforce : resource_scheduling::off); break;
+		case 'q': SetResourceScheduling(newValue ? resource_scheduling::shadow : resource_scheduling::off); break;
 		case 'W': SetCachedStatusFlag(RSF_EventLog_HideDepreciated, !newValue); break; // the command line option is /SW to Show (not hide) deprecated events, but the flag is HideDepreciated, so invert the value
 		default:
 			reportF(SeverityTypeID::ST_Warning, "Unrecognised command line {} option {}",  (newValue ? "Set" : "Clear"), param);
@@ -619,7 +621,8 @@ RegDWordAttr s_RegDWordAttrs[] =
 	{ "SwapFileMinSize", 0, false },
     { "DrawingSizeInPixels", 0, false },
 	{ "MemoryMaxRAM_GB", 64, false }, // simulates a smaller machine; also throttles operation activation via IsLowOnFreeRAM
-	{ "PerformanceLogging", 0, false }
+	{ "PerformanceLogging", 0, false },
+	{ "ResourceAwareScheduling", 0, false }
 };
 
 extern "C" RTC_CALL DWORD RTC_GetRegDWord(RegDWordEnum i)
@@ -2476,6 +2479,8 @@ extern "C" RTC_CALL bool DMS_CONV RTC_ParseRegStatusFlag(const char* param)
 		case '3': SetCachedStatusFlag(RSF_MultiThreading3, newValue); break;
 		case 'H': SetCachedStatusFlag(RSF_ShowThousandSeparator, newValue); break;
 		case 'P': SetPerformanceLogging(newValue); break; // not a status flag: that DWORD is out of bits
+		case 'Q': SetResourceScheduling(newValue ? resource_scheduling::enforce : resource_scheduling::off); break;
+		case 'q': SetResourceScheduling(newValue ? resource_scheduling::shadow : resource_scheduling::off); break;
 		case 'W': SetCachedStatusFlag(RSF_EventLog_HideDepreciated, !newValue); break;
 		default:
 			reportF(SeverityTypeID::ST_Warning, "Unrecognised command line {} option {}", (newValue ? "Set" : "Clear"), param);
@@ -2507,7 +2512,8 @@ static RegDWordAttr s_RegDWordAttrs[] =
 	{ "SwapFileMinSize", 0, false },
 	{ "DrawingSizeInPixels", 0, false },
 	{ "MemoryMaxRAM_GB", 64, false }, // simulates a smaller machine; also throttles operation activation via IsLowOnFreeRAM
-	{ "PerformanceLogging", 0, false }
+	{ "PerformanceLogging", 0, false },
+	{ "ResourceAwareScheduling", 0, false }
 };
 
 extern "C" RTC_CALL DWORD RTC_GetRegDWord(RegDWordEnum i)
@@ -2728,6 +2734,27 @@ RTC_CALL void SetPerformanceLogging(bool enable)
 {
 	RTC_SetCachedDWord(RegDWordEnum::PerformanceLogging, enable ? 1 : 0);
 	s_PerformanceLoggingState.store(enable ? 2 : 1, std::memory_order_relaxed);
+}
+
+// Same tri-state caching trick: 0 = not yet read, else 1 + the mode.
+static std::atomic<UInt8> s_ResourceSchedulingState = 0;
+
+RTC_CALL resource_scheduling GetResourceScheduling()
+{
+	auto state = s_ResourceSchedulingState.load(std::memory_order_relaxed);
+	if (!state)
+	{
+		auto dw = RTC_GetRegDWord(RegDWordEnum::ResourceAwareScheduling);
+		state = UInt8(1 + Min<DWORD>(dw, DWORD(resource_scheduling::enforce)));
+		s_ResourceSchedulingState.store(state, std::memory_order_relaxed);
+	}
+	return resource_scheduling(state - 1);
+}
+
+RTC_CALL void SetResourceScheduling(resource_scheduling mode)
+{
+	RTC_SetCachedDWord(RegDWordEnum::ResourceAwareScheduling, DWORD(mode));
+	s_ResourceSchedulingState.store(UInt8(1 + UInt8(mode)), std::memory_order_relaxed);
 }
 
 //  -----------------------------------------------------------------------

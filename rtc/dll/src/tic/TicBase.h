@@ -59,6 +59,8 @@ enum class materialization : UInt8
 	eager,      // whole array written under a DataWriteLock before CalcResult returns
 	deferred,   // FutureTileFunctor: tiles computed on pull and then KEPT (strong tile records)
 	streaming,  // LazyTileFunctor: tiles freed when the consumer releases them (weak refs)
+	spilled,    // FileTileArray: the data lives in a cache FILE and is mapped on demand, so RAM
+	            // holds live mappings only and a released tile costs a page-in, not a recompute
 };
 
 TIC_CALL CharPtr AsString(estimate_confidence);

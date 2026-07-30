@@ -91,6 +91,7 @@ TIC_CALL CharPtr AsString(materialization m)
 	case materialization::eager: return "eager";
 	case materialization::deferred: return "deferred";
 	case materialization::streaming: return "streaming";
+	case materialization::spilled: return "spilled";
 	}
 	return "?";
 }
@@ -144,7 +145,12 @@ static auto EstimateDomainCount(const AbstrUnit* domain) -> AbstrUnit::CountEsti
 // The casted-unary family adds the term in its own override. See doc/tile-data-retainment.md §4.7.
 static auto PredictMaterialization(const AbstrDataItem* res, tile_id nrTiles) -> materialization
 {
-	if (!IsMultiThreaded3() || nrTiles <= 1 || IsInMMD(res))
+	// A result in a memory-mapped store becomes a FileTileArray: its data goes to a cache file and
+	// RAM holds only the mapped views. Charging it the whole array (as folding it into 'eager' did)
+	// over-reserves by the array size and would make a ledger refuse work it could have run.
+	if (IsInMMD(res))
+		return materialization::spilled;
+	if (!IsMultiThreaded3() || nrTiles <= 1)
 		return materialization::eager;
 	return res->GetLazyCalculatedState() ? materialization::streaming : materialization::deferred;
 }
@@ -194,12 +200,15 @@ TIC_CALL auto Operator::EstimatePerformance(TreeItemDualRef& resultHolder, const
 		: (result.nrChores ? result.resultingMemory / result.nrChores : result.resultingMemory);
 
 	result.regime = PredictMaterialization(adi, result.nrChores);
-	if (result.regime == materialization::streaming)
+	if (result.regime == materialization::streaming || result.regime == materialization::spilled)
 	{
-		// Only the tiles being pulled right now exist; a released tile is freed and recomputed if
-		// pulled again. The bound is concurrency x one tile, never the whole array.
+		// Only the tiles in flight occupy RAM: streaming frees a released tile (and recomputes it if
+		// pulled again), spilled unmaps it (and pages it back in). Either way the bound is
+		// concurrency x one tile, never the whole array.
 		auto inflight = Min<SizeT>(result.nrChores, MaxConcurrentTreads());
 		result.residentMemory = result.choreMemory * inflight;
+		if (result.regime == materialization::spilled)
+			result.ioBytes = result.resultingMemory; // the volume that goes to, and comes back from, the cache file
 	}
 	else
 		// eager writes it all at once; deferred accumulates its tiles and keeps them, so both end

@@ -38,5 +38,10 @@ void ConsiderMakingFreeSpace(SizeT sz);
 
 RTC_CALL bool IsLowOnFreeRAM();
 
+// Physical memory this process is allowed to consider, i.e. the machine's RAM after the
+// MemoryRAM_MAX_GB clamp that simulates a smaller machine. The budget a resource-aware scheduler
+// divides up (doc/development/schedule-with-lookahead.md §5.1). 0 when it cannot be determined.
+RTC_CALL SizeT TotalAllowedPhysicalMemory();
+
 
 #endif // __RTC_UTL_MEMGUARD_H

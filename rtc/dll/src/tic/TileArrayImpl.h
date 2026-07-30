@@ -91,6 +91,10 @@ struct FileTileArray : GeneratedTileFunctor<V>
 	locked_seq_t GetWritableTile(tile_id t, dms_rw_mode rwMode) override;
 	locked_cseq_t GetTile(tile_id t) const override;
 
+	// The data is retained in the cache file; each file_tile keeps only a weak ref to its mapping,
+	// so RAM holds live mappings and a re-request re-maps instead of recomputing.
+	materialization GetMaterialization() const override { return materialization::spilled; }
+
 	SharedStr m_CacheFileName;
 	files_t m_Files;
 	bool    m_IsTmp;

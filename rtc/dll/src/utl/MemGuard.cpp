@@ -122,6 +122,15 @@ bool IsLowOnFreeRAM() {
 	return info.IsLowOnFreeRAM();
 }
 
+SizeT TotalAllowedPhysicalMemory() {
+	memory_info info;
+#if defined(WIN32)
+	return SizeT(info.memStat.ullTotalPhys); // already reduced by the MemoryRAM_MAX_GB clamp
+#else
+	return SizeT(info.totalPhysKB) * 1024;
+#endif
+}
+
 std::atomic<SizeT> s_CumulativeMemoryAllocCount = 0;
 
 #if defined(WIN32)

@@ -1154,6 +1154,11 @@ TIC_CALL void StartOperationContexts()
 
 inline bool IsActiveOrRunning(task_status s) { return s >= task_status::activated && s <= task_status::running; }
 
+// Admission ledger, defined below getUniqueLicenseToRun; all three require cs_ThreadMessing.
+static bool AdmitOrRequeue(OperationContext* self);
+static void MemoryLedger_Charge(OperationContext* self);
+void MemoryLedger_Release(OperationContext* self);
+
 // Transition a context to 'activated' and bump counters. Requires cs_ThreadMessing.
 void OperationContex_setActivated(OperationContext* self)
 {
@@ -1589,8 +1594,109 @@ bool  OperationContext::getUniqueLicenseToRun(bool runDirect)
 		m_StorageLockHeld = true;
 	}
 
+	// §5.1 admission: refuse to start work whose predicted footprint does not fit the remaining
+	// budget, using the same put-it-back-and-free-the-worker mechanism as the storage gate above.
+	// Never on runDirect: the inline paths are today's correctness paths, and a meta thread that
+	// withheld its own work would deadlock rather than throttle.
+	if (!runDirect && !AdmitOrRequeue(this))
+		return false;
+
 	m_Status = task_status::running;
+	MemoryLedger_Charge(this);
 	return true;
+}
+
+// *****************************************************************************
+// Section:     memory ledger and admission (§5.1 of doc/development/schedule-with-lookahead.md)
+// *****************************************************************************
+//
+// Books what running operations were predicted to occupy, and refuses to start one more when the
+// booked total would exceed the budget. Off by default (ResourceAwareScheduling / /SQ, /Sq).
+//
+// Charge policy is deliberately CONSERVATIVE. The streaming residency estimate is measured to be
+// ~13x optimistic (§4.4), so booking it would let a chain through that then overruns. Until that
+// discrepancy is explained, streaming and deferred are both charged their full result volume;
+// only 'spilled' is charged its in-flight mappings, because there the data provably lives in a
+// cache file rather than in RAM. Over-charging can only make the gate refuse work it could have
+// run -- a slowdown -- whereas under-charging is what causes the paging collapse this exists to
+// prevent.
+//
+// Everything below runs under cs_ThreadMessing, which the caller already holds.
+
+static SizeT sd_LedgerCommittedBytes = 0;
+static UInt32 sd_LedgerRunningOps = 0;
+
+// What a running instance of this operation should be booked for.
+static SizeT LedgerChargeOf(const PerformanceEstimationData& e)
+{
+	auto resident = (e.regime == materialization::spilled) ? e.residentMemory : e.resultingMemory;
+	return resident + e.workingMemorySize;
+}
+
+// The budget: the same knobs that already claim to throttle activation -- the (optionally clamped)
+// physical memory times the flush threshold percentage.
+static SizeT LedgerBudgetBytes()
+{
+	auto load = RTC_GetRegDWord(RegDWordEnum::MemoryFlushThreshold);
+	if (!load || load > 100)
+		load = 80;
+	return SizeT((Float64(TotalAllowedPhysicalMemory()) * Float64(load)) / 100.0);
+}
+
+// Decide whether to let self start. Returns false only when the caller must put it back.
+static bool AdmitOrRequeue(OperationContext* self)
+{
+	auto mode = GetResourceScheduling();
+	if (mode == resource_scheduling::off)
+		return true;
+	if (!self->m_Estimate)
+		return true; // nothing predicted (estimates are only taken when measuring): never withhold
+
+	auto charge = LedgerChargeOf(*self->m_Estimate);
+	auto budget = LedgerBudgetBytes();
+	bool fits = (sd_LedgerCommittedBytes + charge <= budget);
+
+	// Progress guarantee: when nothing else is running, the head of the queue runs whatever it
+	// costs. An over-budget estimate must serialize the engine, never wedge it.
+	if (!fits && sd_LedgerRunningOps == 0)
+		fits = true;
+
+	if (fits)
+		return true;
+
+	if (IsPerformanceLogging())
+		reportF(MsgCategory::performance, SeverityTypeID::ST_MinorTrace
+			, "admission {}: {} needs {} B, committed {} B of {} B over {} running op(s)"
+			, (mode == resource_scheduling::enforce ? "refused" : "would refuse")
+			, self->m_Result ? self->m_Result->GetSourceName() : SharedStr("?")
+			, charge, sd_LedgerCommittedBytes, budget, sd_LedgerRunningOps);
+
+	if (mode == resource_scheduling::shadow)
+		return true; // decide and report, but let it run: this is the measuring mode
+
+	scheduleRunnableTask(self); // enforce: back to the queue, worker freed (the #933 pattern)
+	return false;
+}
+
+// Book the charge for the duration of the run; released by MemoryLedger_Release at OnEnd.
+static void MemoryLedger_Charge(OperationContext* self)
+{
+	if (GetResourceScheduling() == resource_scheduling::off || !self->m_Estimate)
+		return;
+	self->m_LedgerCharge = LedgerChargeOf(*self->m_Estimate);
+	sd_LedgerCommittedBytes += self->m_LedgerCharge;
+	++sd_LedgerRunningOps;
+}
+
+void MemoryLedger_Release(OperationContext* self)
+{
+	if (!self->m_LedgerCharge)
+		return;
+	assert(sd_LedgerCommittedBytes >= self->m_LedgerCharge);
+	sd_LedgerCommittedBytes -= self->m_LedgerCharge;
+	self->m_LedgerCharge = 0;
+	if (sd_LedgerRunningOps)
+		--sd_LedgerRunningOps;
 }
 
 // Thread-safe wrapper for licensing.
@@ -1685,6 +1791,8 @@ garbage_can OperationContext::separateResources(task_status status)
 	
 	releaseRunCount(status);
 	assert(getStatus() == status);
+
+	MemoryLedger_Release(this); // whatever this op was booked for is no longer occupied
 
 	garbage_can releaseBin;
 	if (!m_Suppliers.empty())

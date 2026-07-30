@@ -1037,6 +1037,49 @@ about. What P2 needs next is a measurement that separates those three candidates
 with the aggregation replaced by a per-tile sink (isolates accumulators), and peak with a
 single-consumer chain (isolates skew).
 
+### 8.1.2 P2: the ledger and the gate (landed, default off, refusal path unvalidated)
+
+`FileTileArray` no longer over-charged: `IsInMMD(res)` is exactly the file-backed predicate, so it
+now yields a fifth regime **`spilled`** (`TicBase.h`), charged `inflight × choreBytes` for its live
+mappings with the full volume booked as `ioBytes` instead. `FileTileArray::GetMaterialization()`
+reports it, so prediction and measurement agree.
+
+Admission (§5.1) is implemented at the licensing choke point:
+
+- **Ledger** — `sd_LedgerCommittedBytes` / `sd_LedgerRunningOps` in `OperationContext.cpp`, charged
+  in `getUniqueLicenseToRun` and released in `separateResources`, both already under
+  `cs_ThreadMessing`. It books the *running* footprint only; retained-result accounting (the
+  interest-release hook of §5.1) is not in yet.
+- **Budget** — `TotalAllowedPhysicalMemory()` (new, `MemGuard.h`: RAM after the
+  `MemoryRAM_MAX_GB` clamp) × `MemoryFlushThreshold`. The knobs that already claimed to throttle
+  activation now do.
+- **Charge policy — deliberately conservative.** Streaming's residency estimate is measured ~13×
+  optimistic (§4.4), so booking it would admit a chain that then overruns. Until that is
+  explained, `streaming` and `deferred` are both charged their **full result volume**; only
+  `spilled` gets its in-flight discount, because there the data provably lives in a cache file.
+  Over-charging can only refuse work that would have fit — a slowdown; under-charging is what
+  causes the collapse this exists to prevent.
+- **Progress guarantee** — when nothing else is running, the head of the queue runs whatever it
+  costs. An over-budget estimate serializes the engine, it can never wedge it.
+- **Mechanism on refusal** — `scheduleRunnableTask(self)` and return false, the #933 pattern that
+  frees the worker instead of blocking it. `runDirect`/inline paths are never gated: they are
+  today's correctness paths, and a meta thread withholding its own work would deadlock.
+- **Flag** — `ResourceAwareScheduling` (`RegDWordEnum`, since `RegStatusFlags` is out of bits):
+  0 = off (**default**), 1 = shadow (decide and log, never withhold), 2 = enforce.
+  `/Sq` = shadow, `/SQ` = enforce, `/Cq`/`/CQ` = off.
+
+**Validated:** builds clean; 186/186 testcases pass with the gate off; off/shadow/enforce each run
+the 50 M-element chain to completion with no wall-time change (166/160/157 ms) and no hangs across
+repeated enforce runs.
+
+**Not validated: the refusal path has never fired.** The budget on this machine is the 64 GB clamp
+× 80 % ≈ 51 GB, which the probes never approach, and `MemoryRAM_MAX_GB` has no command-line switch
+— so nothing has yet exercised requeue-on-refusal, the progress guarantee, or hysteresis (which is
+not implemented). Before this flag is recommended to anyone: add a way to set the budget per run
+(a value-taking switch beside `/L`, or a test hook), then re-run the battery in enforce mode with a
+budget small enough to force refusals, watching for the starvation failure mode the 20.0.3
+worker-pool episode produced.
+
 ### 8.2 P1 status — complete
 
 **Landed** (all with 186/186 testcases passing, nothing scheduling on any of it):

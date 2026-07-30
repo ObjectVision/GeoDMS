@@ -138,7 +138,15 @@ enum class RegDWordEnum
 	DrawingSizeInPixels = 2,
 	MemoryRAM_MAX_GB = 3,
 	PerformanceLogging = 4,
+	ResourceAwareScheduling = 5, // 0 = off, 1 = shadow (log what would be refused), 2 = enforce
 };
+
+// Resource-aware admission of operations (doc/development/schedule-with-lookahead.md §5.1).
+// 0 = off (default), 1 = shadow: decide and report, never withhold, 2 = enforce.
+// Cached like IsPerformanceLogging, so the run gate pays one relaxed load.
+enum class resource_scheduling : UInt8 { off = 0, shadow = 1, enforce = 2 };
+RTC_CALL resource_scheduling GetResourceScheduling();
+RTC_CALL void SetResourceScheduling(resource_scheduling mode);
 
 // Whether to measure and report per-operation cost and footprint under MsgCategory::performance.
 // Off by default; caches the PerformanceLogging setting so hot paths pay one relaxed load.
