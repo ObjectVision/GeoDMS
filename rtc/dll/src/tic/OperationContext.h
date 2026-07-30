@@ -225,6 +225,11 @@ public:
 	// Attempt to execute the task on the caller thread if policy allows.
 	bool TryRunningTaskInline();
 
+	// RefreshEstimateForAdmission
+	// Recompute m_Estimate now that suppliers are done, so the admission gate charges real numbers
+	// instead of the blind schedule-time ones. Must be called WITHOUT cs_ThreadMessing.
+	void RefreshEstimateForAdmission();
+
 	// collectTaskImpl
 	// Prepare the task for execution: resolve locks, connect args, and ready the runnable.
 	bool collectTaskImpl();
@@ -284,9 +289,13 @@ public:
 	// the measured outcome (P0 of doc/development/schedule-with-lookahead.md).
 	std::unique_ptr<struct PerformanceEstimationData> m_Estimate;
 
-	// Bytes this operation is booked for in the admission ledger while it runs; 0 when unbooked.
+	// Bytes this operation is booked for in the admission ledger while it runs, and whether it is
+	// booked at all. The flag is separate because a legitimate charge can be 0 (a void-domain result
+	// with no working memory): keying the release on the byte count alone leaked the running-op
+	// count upward, which silently disabled the progress guarantee.
 	// See the ledger section in OperationContext.cpp and §5.1 of the plan.
 	SizeT m_LedgerCharge = 0;
+	bool  m_LedgerBooked = false;
 
 public:
 	// Phase number used to coordinate group waits/blocks across contexts.

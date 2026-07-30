@@ -1543,6 +1543,15 @@ bool OperationContext::TryRunningTaskInline()
 	assert(m_Suppliers.empty());
 	StealTasks();
 
+	// Re-estimate before licensing, because the admission gate inside it cannot use the
+	// schedule-time estimate: at queue time neither the result domain's count nor its tiling exists,
+	// so that estimate is the blind ASSUMED_SIZE one (§8.1 finding 1) and charging it under-books by
+	// orders of magnitude -- measured 4 MB against a real 200 MB. Here the suppliers are done (an OC
+	// only becomes runnable once they are), so the domain is resolved and the numbers are exact.
+	// Deliberately OUTSIDE cs_ThreadMessing: this walks unit meta-info and must not run under the
+	// single global scheduling mutex.
+	RefreshEstimateForAdmission();
+
 	if (!GetUniqueLicenseToRun())
 		return false;
 
@@ -1633,10 +1642,15 @@ static SizeT LedgerChargeOf(const PerformanceEstimationData& e)
 	return resident + e.workingMemorySize;
 }
 
-// The budget: the same knobs that already claim to throttle activation -- the (optionally clamped)
-// physical memory times the flush threshold percentage.
+// The budget: SchedulerBudgetMB when set (/SB<MB>), else the same knobs that already claim to
+// throttle activation -- the (optionally clamped) physical memory times the flush threshold.
+// The explicit override exists because clamping MemoryRAM_MAX_GB to force refusals would also trip
+// the pre-existing IsLowOnFreeRAM activation brake, confounding what this gate does.
 static SizeT LedgerBudgetBytes()
 {
+	if (auto budgetMB = RTC_GetRegDWord(RegDWordEnum::SchedulerBudgetMB))
+		return SizeT(budgetMB) << 20;
+
 	auto load = RTC_GetRegDWord(RegDWordEnum::MemoryFlushThreshold);
 	if (!load || load > 100)
 		load = 80;
@@ -1683,20 +1697,43 @@ static void MemoryLedger_Charge(OperationContext* self)
 {
 	if (GetResourceScheduling() == resource_scheduling::off || !self->m_Estimate)
 		return;
+	assert(!self->m_LedgerBooked);
 	self->m_LedgerCharge = LedgerChargeOf(*self->m_Estimate);
+	self->m_LedgerBooked = true;
 	sd_LedgerCommittedBytes += self->m_LedgerCharge;
 	++sd_LedgerRunningOps;
 }
 
 void MemoryLedger_Release(OperationContext* self)
 {
-	if (!self->m_LedgerCharge)
+	if (!self->m_LedgerBooked)
 		return;
 	assert(sd_LedgerCommittedBytes >= self->m_LedgerCharge);
+	assert(sd_LedgerRunningOps > 0);
 	sd_LedgerCommittedBytes -= self->m_LedgerCharge;
 	self->m_LedgerCharge = 0;
-	if (sd_LedgerRunningOps)
-		--sd_LedgerRunningOps;
+	self->m_LedgerBooked = false;
+	--sd_LedgerRunningOps;
+}
+
+// Bring m_Estimate up to date for the admission gate, from a runnable OC whose suppliers are done.
+// No lock held here; a failure to estimate leaves whatever we had (never blocks the operation).
+void OperationContext::RefreshEstimateForAdmission()
+{
+	if (GetResourceScheduling() == resource_scheduling::off)
+		return;
+	auto funcDC = GetFuncDC();
+	if (!funcDC || !funcDC->m_Operator)
+		return;
+	auto args = funcDC->GetArgs(false, false);
+	if (!args)
+		return;
+	TreeItemDualRef& resultHolder = *const_cast<FuncDC*>(funcDC.get_nonnull());
+	if (!resultHolder)
+		return;
+	auto fresh = EstimateOperPerformance(funcDC->m_Operator, resultHolder, *args);
+	if (fresh.confidence <= estimate_confidence::declared) // only replace with something trustworthy
+		m_Estimate = std::make_unique<PerformanceEstimationData>(fresh);
 }
 
 // Thread-safe wrapper for licensing.

@@ -588,6 +588,9 @@ extern "C" RTC_CALL bool DMS_CONV RTC_ParseRegStatusFlag(const char* param)
 		case 'P': SetPerformanceLogging(newValue); break; // not a status flag: that DWORD is out of bits
 		case 'Q': SetResourceScheduling(newValue ? resource_scheduling::enforce : resource_scheduling::off); break;
 		case 'q': SetResourceScheduling(newValue ? resource_scheduling::shadow : resource_scheduling::off); break;
+		// /SB<MB> caps the scheduler's admission budget for this run; /CB restores the derived one.
+		// A value-taking switch, like /L: everything after the 'B' is the number.
+		case 'B': RTC_SetCachedDWord(RegDWordEnum::SchedulerBudgetMB, newValue ? DWORD(atoi(param + 3)) : 0); break;
 		case 'W': SetCachedStatusFlag(RSF_EventLog_HideDepreciated, !newValue); break; // the command line option is /SW to Show (not hide) deprecated events, but the flag is HideDepreciated, so invert the value
 		default:
 			reportF(SeverityTypeID::ST_Warning, "Unrecognised command line {} option {}",  (newValue ? "Set" : "Clear"), param);
@@ -622,7 +625,8 @@ RegDWordAttr s_RegDWordAttrs[] =
     { "DrawingSizeInPixels", 0, false },
 	{ "MemoryMaxRAM_GB", 64, false }, // simulates a smaller machine; also throttles operation activation via IsLowOnFreeRAM
 	{ "PerformanceLogging", 0, false },
-	{ "ResourceAwareScheduling", 0, false }
+	{ "ResourceAwareScheduling", 0, false },
+	{ "SchedulerBudgetMB", 0, false }
 };
 
 extern "C" RTC_CALL DWORD RTC_GetRegDWord(RegDWordEnum i)
@@ -2481,6 +2485,9 @@ extern "C" RTC_CALL bool DMS_CONV RTC_ParseRegStatusFlag(const char* param)
 		case 'P': SetPerformanceLogging(newValue); break; // not a status flag: that DWORD is out of bits
 		case 'Q': SetResourceScheduling(newValue ? resource_scheduling::enforce : resource_scheduling::off); break;
 		case 'q': SetResourceScheduling(newValue ? resource_scheduling::shadow : resource_scheduling::off); break;
+		// /SB<MB> caps the scheduler's admission budget for this run; /CB restores the derived one.
+		// A value-taking switch, like /L: everything after the 'B' is the number.
+		case 'B': RTC_SetCachedDWord(RegDWordEnum::SchedulerBudgetMB, newValue ? DWORD(atoi(param + 3)) : 0); break;
 		case 'W': SetCachedStatusFlag(RSF_EventLog_HideDepreciated, !newValue); break;
 		default:
 			reportF(SeverityTypeID::ST_Warning, "Unrecognised command line {} option {}", (newValue ? "Set" : "Clear"), param);
@@ -2513,7 +2520,8 @@ static RegDWordAttr s_RegDWordAttrs[] =
 	{ "DrawingSizeInPixels", 0, false },
 	{ "MemoryMaxRAM_GB", 64, false }, // simulates a smaller machine; also throttles operation activation via IsLowOnFreeRAM
 	{ "PerformanceLogging", 0, false },
-	{ "ResourceAwareScheduling", 0, false }
+	{ "ResourceAwareScheduling", 0, false },
+	{ "SchedulerBudgetMB", 0, false }
 };
 
 extern "C" RTC_CALL DWORD RTC_GetRegDWord(RegDWordEnum i)

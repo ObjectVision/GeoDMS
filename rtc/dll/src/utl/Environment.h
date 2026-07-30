@@ -139,6 +139,7 @@ enum class RegDWordEnum
 	MemoryRAM_MAX_GB = 3,
 	PerformanceLogging = 4,
 	ResourceAwareScheduling = 5, // 0 = off, 1 = shadow (log what would be refused), 2 = enforce
+	SchedulerBudgetMB = 6,       // 0 = derive from MemoryRAM_MAX_GB x MemoryFlushThreshold
 };
 
 // Resource-aware admission of operations (doc/development/schedule-with-lookahead.md §5.1).

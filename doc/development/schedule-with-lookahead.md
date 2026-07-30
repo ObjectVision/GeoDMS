@@ -1072,13 +1072,36 @@ Admission (§5.1) is implemented at the licensing choke point:
 the 50 M-element chain to completion with no wall-time change (166/160/157 ms) and no hangs across
 repeated enforce runs.
 
-**Not validated: the refusal path has never fired.** The budget on this machine is the 64 GB clamp
-× 80 % ≈ 51 GB, which the probes never approach, and `MemoryRAM_MAX_GB` has no command-line switch
-— so nothing has yet exercised requeue-on-refusal, the progress guarantee, or hysteresis (which is
-not implemented). Before this flag is recommended to anyone: add a way to set the budget per run
-(a value-taking switch beside `/L`, or a test hook), then re-run the battery in enforce mode with a
-budget small enough to force refusals, watching for the starvation failure mode the 20.0.3
-worker-pool episode produced.
+**Budget switch added, refusals forced, and the result is negative: this ledger cannot throttle a
+pipelined chain.** `/SB<MB>` (`SchedulerBudgetMB`) overrides the budget for a run — deliberately a
+ledger-only knob, because forcing refusals by clamping `MemoryRAM_MAX_GB` would also trip the
+pre-existing `IsLowOnFreeRAM` activation brake and confound what is being measured. Two things came
+out of driving it:
+
+1. **The gate needs a gate-time estimate.** It was charging `m_Estimate`, the *schedule-time*
+   figure, which is the blind `ASSUMED_SIZE` one (§8.1 finding 1) — 4 MB against a real 200 MB, so
+   nothing ever exceeded any budget. `RefreshEstimateForAdmission()` now re-estimates in
+   `TryRunningTaskInline` just before licensing, where suppliers are done and the domain is
+   resolved, and deliberately outside `cs_ThreadMessing`.
+2. **A leaked counter faked a win.** `MemoryLedger_Release` keyed on the byte count, but a
+   legitimate charge can be 0 (void-domain result, no working memory), so those ops incremented
+   `sd_LedgerRunningOps` and never decremented it. With the count stuck at 6 the progress guarantee
+   never fired and the gate refused 35 601 times, serializing the run: peak 393 → 58 MB, wall
+   206 ms → 5 932 ms. That looked like a 6.8× memory win and was a bug. Fixed with an explicit
+   `m_LedgerBooked` flag.
+
+With both fixed, the measured truth: **at a 1 MB budget, across 15 operations, zero refusals** —
+because the operations in a pipelined chain never overlap, so `sd_LedgerRunningOps` is 0 whenever
+one asks to start and the progress guarantee admits it whatever it costs. Peak is unchanged
+(401 MB unthrottled vs 371 MB at a 200 MB budget — noise), and every run completes correctly.
+
+The reason is structural, and it is the piece deferred above: **the peak is caused by retained
+results of *completed* operations**, not by concurrent running ones. Each `deferred` stage keeps its
+tiles while it is of interest (§4.4), and the ledger books only the running footprint. So the
+retained-result accounting of §5.1 — charge from completion until the interest release observed via
+the `TryCleanupMem` funnel — is not an optional refinement: without it the gate is inert on exactly
+the workloads that motivate it. That is P2's next task, ahead of hysteresis (still absent) and
+ahead of any recommendation to enable this flag.
 
 ### 8.2 P1 status — complete
 
