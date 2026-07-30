@@ -73,6 +73,7 @@
 
 #include "Parallel.h"
 #include "dbg/Check.h"
+#include "dbg/Timer.h"
 #include "dbg/DmsCatch.h"
 #include "dbg/SeverityType.h"
 #include "ser/AsString.h"
@@ -1648,6 +1649,14 @@ static std::atomic<SizeT> sd_LedgerRetainedBytes = 0;
 // cycle produced no drain activity (nothing released, no compressor admitted): the generation
 // counter below records drain activity, and an unchanged generation since the claimant's previous
 // refusal means waiting longer cannot drain anything.
+// Ledger diagnostics are their own switch: they must NOT require PerformanceLogging, whose
+// per-operator line would run into the millions on a full-model run and bury these. And they use
+// the without_cancellation_check reporters because everything here runs under cs_ThreadMessing --
+// reportF's ASyncContinueCheck can throw task_canceled, which must not escape while that is held.
+inline bool IsLedgerLogging() { return GetResourceScheduling() != resource_scheduling::off; }
+
+RTC_CALL auto GetMemoryStatus() -> SharedStr; // FixedAlloc.cpp: process commit vs peak, for the sample line
+
 static OperationContext* sd_LedgerClaimant = nullptr;       // under cs_ThreadMessing
 static SizeT sd_LedgerClaimBytes = 0;                       // its charge, for the log
 static UInt64 sd_LedgerClaimSeenAdmitGeneration = 0;        // admit generation at its previous refusal
@@ -1657,6 +1666,28 @@ static UInt64 sd_LedgerClaimSeenAdmitGeneration = 0;        // admit generation 
 // so waiting cannot drain. Atomic because ReleaseRetained runs lock-free under callers' locks.
 static std::atomic<UInt64> sd_LedgerAdmitGeneration = 0;    // bumped on every admission
 static std::atomic<UInt64> sd_LedgerReleaseGeneration = 0;  // bumped on every release/unbook
+
+// Periodic ledger-vs-reality sample. Without it a multi-hour run cannot answer the question it is
+// run to answer: does the ledger's view track the process's actual memory? Driven off the ledger's
+// own events rather than a timer thread, rate-limited to once per 30 s.
+static Timer sd_LedgerSampleTimer;
+static UInt32 sd_LedgerAdmittedTotal = 0, sd_LedgerParkedTotal = 0;
+static SizeT LedgerBudgetBytes(); // defined below, beside the charge policy
+
+static void MemoryLedger_ConsiderSample(CharPtr event)
+{
+	if (!IsLedgerLogging() || !sd_LedgerSampleTimer.PassedSecs_impl(30))
+		return;
+	reportF_without_cancellation_check(MsgCategory::performance, SeverityTypeID::ST_MajorTrace
+		, "ledger @{}: running {} op(s) {} B + retained {} B = {} B of {} B budget; {} admitted, {} parked so far; claimant {}; process {}"
+		, event, sd_LedgerRunningOps, sd_LedgerCommittedBytes
+		, sd_LedgerRetainedBytes.load(std::memory_order_relaxed)
+		, sd_LedgerCommittedBytes + sd_LedgerRetainedBytes.load(std::memory_order_relaxed)
+		, LedgerBudgetBytes(), sd_LedgerAdmittedTotal, sd_LedgerParkedTotal
+		, sd_LedgerClaimant ? SharedStr("yes") : SharedStr("none")
+		, GetMemoryStatus()
+	);
+}
 
 TIC_CALL void MemoryLedger_Retain(const AbstrDataItem* item, SizeT bytes)
 {
@@ -1761,8 +1792,8 @@ static bool AdmitOrRequeue(OperationContext* self)
 	// Compressors keep flowing: they are what drains toward admitting it.
 	if (fits && !lifted && sd_LedgerClaimant && !isClaimant && !isCompressor)
 	{
-		if (!wasParked && IsPerformanceLogging()) // stall logged once per task
-			reportF(MsgCategory::performance, SeverityTypeID::ST_MinorTrace
+		if (!wasParked && IsLedgerLogging()) // stall logged once per task
+			reportF_without_cancellation_check(MsgCategory::performance, SeverityTypeID::ST_MinorTrace
 				, "admission {}: {} would add {} B retained while {} waits for {} B"
 				, (mode == resource_scheduling::enforce ? "deferred" : "would defer")
 				, self->m_Result ? self->m_Result->GetSourceName() : SharedStr("?")
@@ -1773,6 +1804,7 @@ static bool AdmitOrRequeue(OperationContext* self)
 		{
 			self->m_LedgerParkedReleaseGen = releaseGen + 1;
 			++self->m_LedgerParkCount;
+			++sd_LedgerParkedTotal;
 			scheduleRunnableTask(self);
 			return false;
 		}
@@ -1785,8 +1817,8 @@ static bool AdmitOrRequeue(OperationContext* self)
 			sd_LedgerClaimant = nullptr;
 			sd_LedgerClaimBytes = 0;
 		}
-		if (wasParked && IsPerformanceLogging()) // resume logged once per task, lifts included
-			reportF(MsgCategory::performance, SeverityTypeID::ST_MinorTrace
+		if (wasParked && IsLedgerLogging()) // resume logged once per task, lifts included
+			reportF_without_cancellation_check(MsgCategory::performance, SeverityTypeID::ST_MinorTrace
 				, "admission resumed{}: {} after {} park(s); needs {} B, committed {} B of {} B"
 				, (lifted ? (sd_LedgerRunningOps == 0 ? " (lifted: idle)" : " (lifted: no drain available)") : "")
 				, self->m_Result ? self->m_Result->GetSourceName() : SharedStr("?")
@@ -1806,8 +1838,8 @@ static bool AdmitOrRequeue(OperationContext* self)
 	if (sd_LedgerClaimant == self)
 		sd_LedgerClaimSeenAdmitGeneration = admitGen;
 
-	if (!wasParked && IsPerformanceLogging()) // stall logged once per task
-		reportF(MsgCategory::performance, SeverityTypeID::ST_MinorTrace
+	if (!wasParked && IsLedgerLogging()) // stall logged once per task
+		reportF_without_cancellation_check(MsgCategory::performance, SeverityTypeID::ST_MinorTrace
 			, "admission {}{}: {} needs {} B, committed {} B of {} B over {} running op(s)"
 			, (mode == resource_scheduling::enforce ? "refused" : "would refuse")
 			, (sd_LedgerClaimant == self ? " (claimant)" : "")
@@ -1819,6 +1851,7 @@ static bool AdmitOrRequeue(OperationContext* self)
 
 	self->m_LedgerParkedReleaseGen = releaseGen + 1;
 	++self->m_LedgerParkCount;
+	++sd_LedgerParkedTotal;
 	scheduleRunnableTask(self); // enforce: back to the queue, worker freed (the #933 pattern)
 	return false;
 }
@@ -1834,6 +1867,8 @@ static void MemoryLedger_Charge(OperationContext* self)
 	sd_LedgerCommittedBytes += self->m_LedgerCharge;
 	++sd_LedgerRunningOps;
 	sd_LedgerAdmitGeneration.fetch_add(1, std::memory_order_relaxed); // during a claim only compressors (and the claimant) get here
+	++sd_LedgerAdmittedTotal;
+	MemoryLedger_ConsiderSample("admit");
 }
 
 void MemoryLedger_Release(OperationContext* self)
@@ -1855,6 +1890,7 @@ void MemoryLedger_Release(OperationContext* self)
 	self->m_LedgerBooked = false;
 	--sd_LedgerRunningOps;
 	sd_LedgerReleaseGeneration.fetch_add(1, std::memory_order_relaxed); // the running charge came free
+	MemoryLedger_ConsiderSample("release");
 }
 
 // Bring m_Estimate up to date for the admission gate, from a runnable OC whose suppliers are done.
