@@ -11,6 +11,7 @@
 #include "PerfMeasurement.h"
 
 #include "AbstrDataItem.h"
+#include "AbstrDataObject.h"
 #include "AbstrUnit.h"
 #include "ItemLocks.h"
 #include "TiledRangeData.h"
@@ -109,6 +110,16 @@ TIC_CALL void ReportOperPerformance(CharPtr operName, const TreeItem* result
 	// time is tile-functor construction, not compute -- the element work is charged to whoever
 	// pulls the tiles -- and residentMemory is what a ledger would book, which for streaming is
 	// concurrency x one tile rather than the whole array (§4.4 of the plan; /C3 for eager numbers).
+	// The regime the object actually got, beside the prediction: several channels build a
+	// recalculating object whatever LazyCalculated says (doc/tile-data-retainment.md §4.3), so a
+	// disagreement here is an estimator defect worth seeing rather than a detail.
+	auto actualRegime = estimate.regime;
+	if (auto ado = AsDataItem(result)->GetRefObj())
+		actualRegime = ado->GetMaterialization();
+	auto regimeMismatch = (actualRegime != estimate.regime)
+		? mySSPrintF(" !regime={} predicted={}", AsString(actualRegime), AsString(estimate.regime))
+		: SharedStr();
+
 	auto regimeStr = (estimate.regime == materialization::eager)
 		? mySSPrintF("eager res={}", Bytes(estimate.residentMemory))
 		: mySSPrintF("{} {}x{} res={}", AsString(estimate.regime), estimate.nrChores
@@ -120,7 +131,7 @@ TIC_CALL void ReportOperPerformance(CharPtr operName, const TreeItem* result
 			, "oper {} {}: {:.1f}ms n=? est n={} B={} {} {}{}{}"
 			, operName, resultLabel, elapsedMSec
 			, estimate.resultingNrElements, Bytes(estimate.resultingMemory)
-			, AsString(estimate.confidence), regimeStr, workStr, scheduleStr
+			, AsString(estimate.confidence), regimeStr, workStr, scheduleStr + regimeMismatch
 		);
 		return;
 	}
@@ -132,7 +143,7 @@ TIC_CALL void ReportOperPerformance(CharPtr operName, const TreeItem* result
 		, actualNrElements, Residual(actualNrElements, estimate.resultingNrElements), AsString(estimate.confidence)
 		, Bytes(actualBytes), Residual(actualBytes, estimate.resultingMemory)
 		, estimate.expectedCalcTime
-		, regimeStr, workStr, scheduleStr
+		, regimeStr, workStr, scheduleStr + regimeMismatch
 	);
 }
 

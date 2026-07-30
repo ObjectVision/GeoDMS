@@ -102,6 +102,15 @@ public:
 	TIC_CALL virtual std::size_t GetNrTileBytesNow(tile_id t, bool calcStreamSize = false) const = 0;
 	TIC_CALL virtual bool        IsSmallerThan(SizeT sz) const = 0;
 
+	// Whether this object retains its tiles or recalculates them once every consumer lock is gone.
+	// Which class an item ends up with is decided at creation time and is NOT predictable from the
+	// LazyCalculated property alone -- several channels (id(), combine() back-refs, mapping(),
+	// random-access storage reads, const()) build a recalculating object regardless of it. So the
+	// resource estimate reports the measured regime beside its prediction rather than trusting the
+	// prediction. Default = the heap/file arrays, which retain.
+	// See doc/tile-data-retainment.md and doc/development/schedule-with-lookahead.md §4.4.
+	TIC_CALL virtual materialization GetMaterialization() const { return materialization::eager; }
+
 //	Values Cardinality
 	TIC_CALL virtual row_id GetValuesRangeCount() const { return UNDEFINED_VALUE(row_id); }
 	TIC_CALL virtual bool   IsFirstValueZero() const { return false;  }
