@@ -696,9 +696,24 @@ architecture.
   version of what modelers use `PhaseContainer` for today.
 - **Mechanism**: reuse the #933 pattern — the license gate returns the task to the
   queue on budget refusal instead of blocking a worker (`OperationContext.cpp:1583-1591`
-  is the template). Add hysteresis (admit-below-75%, refuse-above-90%) to avoid
-  thrash, and keep the once-per-pass `IsLowOnFreeRAM` probe as the reality backstop
-  for estimate error.
+  is the template) — and keep the once-per-pass `IsLowOnFreeRAM` probe as the reality
+  backstop for estimate error.
+- **Not hysteresis.** An earlier draft of this bullet prescribed an admit-below-75% /
+  refuse-above-90% band by analogy with load-shedding controllers. That was wrong for
+  this gate. Hysteresis damps oscillation around a threshold, which needs a mode that
+  flips, a control action that moves the measured quantity, and a jittery signal. This
+  gate has none: `AdmitOrRequeue` is a **per-task predicate** with no global
+  "now refusing" state; an admitted task **runs to completion**, so the
+  admit→overshoot→evict→re-admit cycle cannot occur; and `committed` moves only at our
+  own discrete events (charge at licence, release at completion, unbook at
+  `ClearDataObject`), not as a sampled OS signal. A band would also be actively
+  counter-productive: a task refused at 91% would then have to wait for a drawdown to
+  75%, i.e. more refusals and more wall time for a marginally lower peak — which
+  lowering `/SB` already delivers directly. The one mechanism here that *is* a
+  classical hysteresis candidate is the pre-existing `s_IsInLowRamMode` brake
+  (`OperationContext.cpp:1051-1067`), because that genuinely is a mode driven by a
+  sampled OS signal — but it is a separate mechanism from this ledger and there is no
+  evidence of it flapping, so it stays untouched until measured.
 - **Exemptions**: inline/runDirect paths, explain contexts, `CanRunParallel()==false`
   operators, and the meta thread are never budget-gated (they are today's correctness
   paths); tile chores are shaped (§5.4), not admission-gated.
@@ -946,8 +961,8 @@ maxima; the perf-`.bin` infrastructure already records timings per test).
   an `assumed` whale to plannable.
 - **P2 — admission throttle** (flag: new `RSF_` bit, e.g. "resource-aware
   scheduling", default off).
-  Ledger + budget + hysteresis + progress rule + whale-exclusive mode at the
-  activation/licensing choke points. Exit: on a RAM-clamped run
+  Ledger + budget + progress rule + retry discipline + anti-starvation + whale-exclusive
+  mode at the activation/licensing choke points. Exit: on a RAM-clamped run
   (`MemoryRAM_MAX_GB`), peak commit respects the budget on 2BURP-class tests with
   wall-time regression ≤ 10%; no new hangs across the battery (hang history: §1).
 - **P3 — ordering.**
@@ -1122,10 +1137,25 @@ hundreds rather than the tens of thousands the leaked-counter bug produced — t
 not spinning. Peak does not fall below ~218 MB even at a 200 MB budget: the progress guarantee
 floors it at one branch's footprint, which is the intended behaviour.
 
-Still open before recommending the flag: hysteresis (absent — the gate has no admit/refuse band, so
-a workload sitting exactly at the budget could churn), retained bookings for results the scheduler
-did *not* admit (only admitted operations are booked, so pre-existing data is invisible to it), and
-a battery run in enforce mode on a real model rather than a synthetic probe.
+Still open before recommending the flag — and note that **hysteresis is not among these**, see the
+"Not hysteresis" bullet in §5.1; the refusal counts point at two different problems, which an
+earlier draft mislabelled as churn:
+
+1. **Retry discipline.** A refused task is re-queued and re-driven both by
+   `StartOperationContexts` on completion *and* by the `Join`/`DoWorkWhileWaiting` poll loops, so
+   it is re-tested when nothing about its budget situation has changed. Measured on the wide probe:
+   358 refusals across **21 distinct targets** (≈17 re-tests each; the worst single task was
+   refused 100 times) and 407 across 30 at `/SB200`. The fix is to retry on **release events**
+   rather than on every re-drive — cheaper, and it does not change which tasks run.
+2. **Starvation of large tasks.** A whale that does not fit can be passed over indefinitely while
+   smaller tasks keep consuming the budget. This is the failure mode most likely to bite a real
+   model, and it is **untested**: every branch in the probe is the same size, so nothing could
+   starve. The remedy is aging or a head-of-queue reservation (let the refused head accumulate a
+   claim), not a threshold band.
+
+Also still open: retained bookings for results the scheduler did *not* admit (only admitted
+operations are booked, so data already resident is invisible to the ledger), and a battery run in
+enforce mode on a real model rather than a synthetic probe.
 
 ### 8.2 P1 status — complete
 
@@ -1189,7 +1219,7 @@ a battery run in enforce mode on a real model rather than a synthetic probe.
 **Risks**
 
 - *Estimate error* is certain (Leis et al.). Mitigations are structural: bounds +
-  hysteresis + the `IsLowOnFreeRAM` reality backstop + never-block-only-serialize.
+  the `IsLowOnFreeRAM` reality backstop + never-block-only-serialize.
 - *Graham anomalies*: any admission/ordering change can slow specific DAGs. The flag
   stays user-visible until the battery shows consistent wins; per-config opt-out
   remains.
