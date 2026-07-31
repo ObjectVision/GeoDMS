@@ -51,7 +51,13 @@ struct ProdStringLiteral1 : WeakPtr<StringProdType>
 	template<typename IteratorT>
 	void operator()(IteratorT first, IteratorT last) const
 	{
-		(*this)->ProdStringLiteral1(&*first, &*last);
+		if constexpr (requires { first.get_position(); }) // position_iterator: tell where a warning applies
+		{
+			auto pos = first.get_position();
+			(*this)->ProdStringLiteral1(&*first, &*last, &pos);
+		}
+		else
+			(*this)->ProdStringLiteral1(&*first, &*last);
 	}
 };
 
@@ -63,7 +69,13 @@ struct ProdStringLiteral2 : WeakPtr<StringProdType>
 	template<typename IteratorT>
 	void operator()(IteratorT first, IteratorT last) const
 	{
-		(*this)->ProdStringLiteral2(&*first, &*last);
+		if constexpr (requires { first.get_position(); }) // position_iterator: tell where a warning applies
+		{
+			auto pos = first.get_position();
+			(*this)->ProdStringLiteral2(&*first, &*last, &pos);
+		}
+		else
+			(*this)->ProdStringLiteral2(&*first, &*last);
 	}
 };
 

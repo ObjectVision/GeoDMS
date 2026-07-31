@@ -1,0 +1,22 @@
+// issue #292: a backslash starts an escape code; an unknown one has its backslash dropped.
+// The parser warns about that (not assertable here - the battery only inspects exit codes), so
+// this case pins the resulting values: what is dropped, and which escape codes are honoured.
+container escape_codes
+{
+	unit<uint32> Src : nrofrows = 1
+	{
+		// warns: unknown escape code '\U' - the value reads C:UsersCicadaDownloadsTestQt.pdf
+		attribute<int32> IntegerAtt : [0], url = "C:\Users\Cicada\Downloads\TestQt.pdf";
+	}
+
+	parameter<string> known_escapes  := 'tab:\t nl:\n cr:\r backslash:\\ quote:'' hex:\x41';
+	parameter<string> known_escapes2 := "double quote:\" tab:\t backslash:\\";
+	parameter<string> unknown_escape := 'a\d+b'; // warns: unknown escape code '\d'
+
+	container checks
+	{
+		parameter<bool> dropped   := unknown_escape == 'ad+b',                 IntegrityCheck = "dropped == True";
+		parameter<bool> hexEscape := known_escapes  == 'tab:\t nl:\n cr:\r backslash:\\ quote:'' hex:A', IntegrityCheck = "hexEscape == True";
+		parameter<bool> quoted    := known_escapes2 == 'double quote:" tab:\t backslash:\\',             IntegrityCheck = "quoted == True";
+	}
+}

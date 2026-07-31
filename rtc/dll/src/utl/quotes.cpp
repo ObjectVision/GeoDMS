@@ -448,6 +448,39 @@ void DoubleQuote(struct FormattedOutStream& os, CharPtr begin, CharPtr end)
 // '\\' is skipped in counting, even before '\0' or end
 // '\xHH' (two hex digits) counts as one char
 
+// keep in sync with the escape-code translation in _SingleUnQuoteMiddle / _DoubleUnQuoteMiddle
+static bool isKnownEscapeCode(char esc)
+{
+	switch (esc)
+	{
+		case '0': case 't': case 'r': case 'n': // translated escape codes
+		case '\\': case '\"': case '\'':        // self-escaping characters
+			return true;
+	}
+	return false;
+}
+
+CharPtr FindUnknownEscapeCode(CharPtr begin, CharPtr end)
+{
+	dms_assert(end || !begin);
+	while (begin != end)
+	{
+		if (*begin++ != '\\')
+			continue;
+		if (begin == end)
+			break; // a trailing backslash is swallowed as string terminator, not as escape code
+		if (*begin == 'x' && begin + 2 < end && isxdigit((unsigned char)begin[1]) && isxdigit((unsigned char)begin[2]))
+		{
+			begin += 3; // \xHH
+			continue;
+		}
+		if (!isKnownEscapeCode(*begin))
+			return begin;
+		++begin;
+	}
+	return nullptr;
+}
+
 static inline int hexDigitVal(unsigned char c)
 {
 	if (c >= '0' && c <= '9') return c - '0';

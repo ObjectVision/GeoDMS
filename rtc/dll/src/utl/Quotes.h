@@ -55,5 +55,11 @@ RTC_CALL void SingleUnQuote(SharedStr& ref, CharPtr b, CharPtr e);
 
 RTC_CALL SharedStr SingleUnQuote(CharPtr begin, CharPtr end);
 
+// Points at the character following a backslash that is not a known escape code, or nullptr when
+// the given quoted-string middle has none. Known are \0, \t, \r, \n, \xHH and the self-escaping
+// \\, \" and \'; anything else has its backslash silently swallowed by the UnQuote functions
+// above, which is why parsers warn about it (issue #292).
+RTC_CALL CharPtr FindUnknownEscapeCode(CharPtr begin, CharPtr end);
+
 
 #endif // __RTC_UTL_QUOTES_H
