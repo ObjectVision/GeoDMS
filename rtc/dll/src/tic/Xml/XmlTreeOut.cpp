@@ -751,14 +751,19 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 		AbstrStorageManager* sm = sp->GetStorageManager();
 		dms_assert(sm);
 		bool readOnly = sm->IsReadOnly();
-		if (!readOnly || !self->HasCalculator())
+		// A calculated item that merely resides under a read-only storage does not get its data
+		// from that storage, so its storage rows are suppressed. An item that IS the storage holder
+		// always reads from it, also when HasCalculator() reports a calculation: an .mmd holder
+		// obtains its range from the storage dictionary, which sets USF_HasConfigRange and thus
+		// made the whole storage description disappear from its detail page (issue #1143).
+		if (!readOnly || !self->HasCalculator() || sp.get() == self)
 		{
 			xmlTable.EmptyRow();
 			{
 				XML_Table::Row row(xmlTable);
 				xmlOutStrPtr->WriteAttr("bgcolor", CLR_HROW);
 				row.ValueCell(IsUnit(self) || IsDataItem(self)
-					? self->HasCalculator()
+					? (self->HasCalculator() && !readOnly) // a read-only storage can only be a source
 					? "DataTarget"
 					: "DataSource"
 					: "Storage");
