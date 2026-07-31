@@ -1149,6 +1149,21 @@ void ExportMetaInfoToFileImpl(const TreeItem* curr, CharPtr datasetName)
 
 	const TreeItem* fileTypeItem = metaInfo->GetConstSubTreeItemByID(fileTypeID).get();
 
+	// Reading a value requires interest on the item that produces it - see the assertions in
+	// GetValue and TreeItem::PrepareDataUsage - which is why GenerateMetaInfo below registers
+	// every section and key with an InterestRetainContext before reading it. FileName and
+	// FileType were read without that, so every sidecar write hit those assertions in a Debug
+	// build, freezing the GUI on any config with an ExportSettings/MetaInfo.
+	const_cast<TreeItem*>(fileNameItem)->SetKeepDataState(true);
+	fileNameItem->CertainUpdate("ExportMetaInfoToFile");
+	holdCalcResultsHere.Add(fileNameItem);
+	if (fileTypeItem)
+	{
+		const_cast<TreeItem*>(fileTypeItem)->SetKeepDataState(true);
+		fileTypeItem->CertainUpdate("ExportMetaInfoToFile");
+		holdCalcResultsHere.Add(fileTypeItem);
+	}
+
 	bool isXml = (fileTypeItem != nullptr) && (stricmp(GetTheValue<SharedStr>(fileTypeItem).c_str(), "xml") == 0);
 
 	SharedStr fileNamePattern = GetTheValue<SharedStr>(fileNameItem);
