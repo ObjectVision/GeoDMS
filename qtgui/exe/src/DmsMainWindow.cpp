@@ -82,13 +82,14 @@ void MainWindow::SaveValueInfoImpl(CharPtr filename) {
     FileOutStreamBuff buff(SharedStr(expandedFilename), true, false);
     for (auto& child_object : children()) {
         auto value_info_window_candidate = dynamic_cast<ValueInfoWindow*>(child_object);
-        if (!value_info_window_candidate)
+        if (!value_info_window_candidate || !value_info_window_candidate->m_browser)
             continue;
 
-        // TODO: implement this for qwebengineview
-        //auto htmlSource = value_info_window_candidate->m_browser->toHtml();
-        //auto htmlsourceAsUtf8 = htmlSource.toUtf8();
-        //buff.WriteBytes(htmlsourceAsUtf8.data(), htmlsourceAsUtf8.size());
+        // The rendered text, not the html source: it is what the user reads, and it keeps a
+        // regression comparison free of Qt's rich-text markup. Without this the SaveValueInfo
+        // test-script command wrote an empty file, so no value-info test could assert anything.
+        auto pageText = value_info_window_candidate->m_browser->toPlainText().toUtf8();
+        buff.WriteBytes(pageText.data(), pageText.size());
     }
 }
 
