@@ -1,0 +1,79 @@
+﻿// issue #597: min_ifdefined / min_alldefined / max_ifdefined / max_alldefined
+//
+// min and max accumulate from MAX_VALUE resp. MIN_VALUE, so an aggregation without any defined
+// value yields that bound. The _ifdefined variants yield null there; the _alldefined variants
+// yield null as soon as one undefined value is aggregated.
+container oper_minmax_nulls
+{
+	unit<uint32> Part : nrofrows = 5; // partition 4 gets no elements at all
+
+	unit<uint32> Src : nrofrows = 6
+	{
+		attribute<int32>   val  : [ 3, null,    1, null, null, 5 ];
+		attribute<Part>    part_rel: [ 0,    0,    1,    1,    2, 3 ];
+		attribute<float32> fval : [ 3.0, null, 1.0, null, null, 5.0 ];
+		attribute<int32>   full : [ 3,    7,    1,    9,    2, 5 ]; // no undefined values
+	}
+
+	container partitioned
+	{
+		attribute<int32> min_k (Part) := min_ifdefined (Src/val, Src/part_rel);
+		attribute<int32> min_c (Part) := min_alldefined(Src/val, Src/part_rel);
+		attribute<int32> max_k (Part) := max_ifdefined (Src/val, Src/part_rel);
+		attribute<int32> max_c (Part) := max_alldefined(Src/val, Src/part_rel);
+
+		//                                  p0    p1    p2    p3    p4(empty)
+		attribute<int32> min_k_exp (Part) : [  3,    1, null,    5, null ];
+		attribute<int32> min_c_exp (Part) : [ null, null, null,  5, null ];
+		attribute<int32> max_k_exp (Part) : [  3,    1, null,    5, null ];
+		attribute<int32> max_c_exp (Part) : [ null, null, null,  5, null ];
+
+		attribute<bool> min_k_ok (Part) := min_k == min_k_exp || (IsNull(min_k) && IsNull(min_k_exp));
+		attribute<bool> min_c_ok (Part) := min_c == min_c_exp || (IsNull(min_c) && IsNull(min_c_exp));
+		attribute<bool> max_k_ok (Part) := max_k == max_k_exp || (IsNull(max_k) && IsNull(max_k_exp));
+		attribute<bool> max_c_ok (Part) := max_c == max_c_exp || (IsNull(max_c) && IsNull(max_c_exp));
+
+		// the partitioned aggregation of an attribute without undefined values is the plain min/max
+		attribute<int32> full_min_c (Part) := min_alldefined(Src/full, Src/part_rel);
+		attribute<int32> full_min   (Part) := min           (Src/full, Src/part_rel);
+		attribute<bool>  full_ok    (Part) := full_min_c == full_min || IsNull(full_min_c); // p4 is empty: null vs MAX_VALUE
+	}
+
+	container total
+	{
+		parameter<int32> min_k := min_ifdefined (Src/val);
+		parameter<int32> min_c := min_alldefined(Src/val);
+		parameter<int32> max_k := max_ifdefined (Src/val);
+		parameter<int32> max_c := max_alldefined(Src/val);
+
+		parameter<int32> full_min_k := min_ifdefined (Src/full);
+		parameter<int32> full_min_c := min_alldefined(Src/full);
+		parameter<int32> full_max_c := max_alldefined(Src/full);
+
+		parameter<float32> fmin_k := min_ifdefined (Src/fval);
+		parameter<float32> fmin_c := min_alldefined(Src/fval);
+	}
+
+	container checks
+	{
+		parameter<bool> min_k_ok := all(partitioned/min_k_ok), IntegrityCheck = "min_k_ok == True";
+		parameter<bool> min_c_ok := all(partitioned/min_c_ok), IntegrityCheck = "min_c_ok == True";
+		parameter<bool> max_k_ok := all(partitioned/max_k_ok), IntegrityCheck = "max_k_ok == True";
+		parameter<bool> max_c_ok := all(partitioned/max_c_ok), IntegrityCheck = "max_c_ok == True";
+		parameter<bool> full_ok  := all(partitioned/full_ok),  IntegrityCheck = "full_ok == True";
+
+		parameter<bool> tot_min_k := total/min_k == 1i,        IntegrityCheck = "tot_min_k == True";
+		parameter<bool> tot_max_k := total/max_k == 5i,        IntegrityCheck = "tot_max_k == True";
+		parameter<bool> tot_min_c := IsNull(total/min_c),      IntegrityCheck = "tot_min_c == True";
+		parameter<bool> tot_max_c := IsNull(total/max_c),      IntegrityCheck = "tot_max_c == True";
+
+		parameter<bool> tot_full_min_k := total/full_min_k == 1i, IntegrityCheck = "tot_full_min_k == True";
+		parameter<bool> tot_full_min_c := total/full_min_c == 1i, IntegrityCheck = "tot_full_min_c == True";
+		parameter<bool> tot_full_max_c := total/full_max_c == 9i, IntegrityCheck = "tot_full_max_c == True";
+
+		parameter<bool> tot_fmin_k := total/fmin_k == 1f,      IntegrityCheck = "tot_fmin_k == True";
+		parameter<bool> tot_fmin_c := IsNull(total/fmin_c),    IntegrityCheck = "tot_fmin_c == True";
+	}
+}
+
+

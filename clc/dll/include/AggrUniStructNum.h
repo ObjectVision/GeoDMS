@@ -274,6 +274,150 @@ struct min_partial_best: unary_assign_partial_accumulation<unary_assign_min<T>, 
 {};
 
 /*****************************************************************************/
+//							MIN / MAX with null results (issue #597)
+/*****************************************************************************/
+
+// min and max accumulate from MAX_VALUE resp. MIN_VALUE, so a partition without any defined
+// value yields that bound rather than null. These variants yield null there, analogous to
+// min_elem_ifdefined / min_elem_alldefined: _ifdefined skips undefined values and is null only
+// when nothing defined was found; _alldefined is also null as soon as one undefined value is met.
+
+template <typename T, bool IsMin>
+struct unary_assign_minmax_ifdefined : unary_assign<T, T>
+{
+	static_assert(has_undefines_v<T>); // null must be representable in the accumulator
+
+	template <typename R>
+	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return CastUnit<R>(arg1_values_unit(args)); }
+
+	void operator()(typename unary_assign_minmax_ifdefined::assignee_ref assignee, typename unary_assign_minmax_ifdefined::arg1_cref arg) const
+	{
+		if (!IsDefined(arg))
+			return;
+		if (!IsDefined(assignee)) // first defined value of this aggregation
+		{
+			assignee = arg;
+			return;
+		}
+		if constexpr (IsMin)
+			MakeLowerBound(assignee, arg);
+		else
+			MakeUpperBound(assignee, arg);
+	}
+	void CombineRefs(typename unary_assign_minmax_ifdefined::assignee_ref assignee, typename unary_assign_minmax_ifdefined::arg1_cref rhs) const
+	{
+		(*this)(assignee, rhs);
+	}
+	void CombineValues(T& assignee, T rhs) const
+	{
+		(*this)(assignee, rhs);
+	}
+};
+
+// Accumulator of min_alldefined / max_alldefined: the extreme of the defined values seen so far,
+// plus a flag that is raised by the first undefined value. Both an empty and a flagged
+// accumulation convert to null.
+// The all-zero state must mean 'empty': assign_default initialization of an accumulation buffer is
+// short-circuited to fast_zero (see the transform_assign specialization in dms_transform.h), which
+// bypasses any member initializer. Hence the separate m_HasValue rather than a null m_Value.
+template <typename T>
+struct alldefined_minmax_accumulation_type
+{
+	static_assert(has_undefines_v<T>);
+
+	operator T() const { return (m_HasValue && !m_HasUndefinedValue) ? m_Value : UNDEFINED_VALUE(T); }
+
+	T    m_Value = T();
+	bool m_HasValue = false;
+	bool m_HasUndefinedValue = false;
+};
+
+template <typename T, bool IsMin>
+struct unary_assign_minmax_alldefined : unary_assign<alldefined_minmax_accumulation_type<T>, T>
+{
+	using accumulation_type = alldefined_minmax_accumulation_type<T>;
+
+	template <typename R>
+	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return CastUnit<R>(arg1_values_unit(args)); }
+
+	void operator()(typename unary_assign_minmax_alldefined::assignee_ref assignee, typename unary_assign_minmax_alldefined::arg1_cref arg) const
+	{
+		if (!IsDefined(arg))
+		{
+			assignee.m_HasUndefinedValue = true;
+			return;
+		}
+		AssignDefinedValue(assignee, arg);
+	}
+	void CombineValues(accumulation_type& assignee, const accumulation_type& rhs) const
+	{
+		if (rhs.m_HasUndefinedValue)
+			assignee.m_HasUndefinedValue = true;
+		if (rhs.m_HasValue)
+			AssignDefinedValue(assignee, rhs.m_Value);
+	}
+	void CombineRefs(accumulation_type& assignee, const accumulation_type& rhs) const
+	{
+		CombineValues(assignee, rhs);
+	}
+
+private:
+	static void AssignDefinedValue(accumulation_type& assignee, typename unary_assign_minmax_alldefined::arg1_cref arg)
+	{
+		if (!assignee.m_HasValue) // first defined value of this aggregation
+		{
+			assignee.m_Value = arg;
+			assignee.m_HasValue = true;
+			return;
+		}
+		if constexpr (IsMin)
+			MakeLowerBound(assignee.m_Value, arg);
+		else
+			MakeUpperBound(assignee.m_Value, arg);
+	}
+};
+
+template <typename T>
+struct min_ifdefined_total_best : unary_assign_total_accumulation<unary_assign_minmax_ifdefined<T, true>, assign_null_value<T> >, assign_output_direct<T>
+{};
+
+template <typename T>
+struct min_ifdefined_partial_best : unary_assign_partial_accumulation<unary_assign_minmax_ifdefined<T, true>, assign_null_value<T> >
+{};
+
+template <typename T>
+struct max_ifdefined_total_best : unary_assign_total_accumulation<unary_assign_minmax_ifdefined<T, false>, assign_null_value<T> >, assign_output_direct<T>
+{};
+
+template <typename T>
+struct max_ifdefined_partial_best : unary_assign_partial_accumulation<unary_assign_minmax_ifdefined<T, false>, assign_null_value<T> >
+{};
+
+template <typename T>
+struct min_alldefined_total_best
+	:	unary_assign_total_accumulation<unary_assign_minmax_alldefined<T, true> >
+	,	assign_output_convert<T, T>
+{};
+
+template <typename T>
+struct min_alldefined_partial_best
+	:	unary_assign_partial_accumulation<unary_assign_minmax_alldefined<T, true> >
+	,	assign_partial_output_from_buffer< assign_output_convert<T, T> >
+{};
+
+template <typename T>
+struct max_alldefined_total_best
+	:	unary_assign_total_accumulation<unary_assign_minmax_alldefined<T, false> >
+	,	assign_output_convert<T, T>
+{};
+
+template <typename T>
+struct max_alldefined_partial_best
+	:	unary_assign_partial_accumulation<unary_assign_minmax_alldefined<T, false> >
+	,	assign_partial_output_from_buffer< assign_output_convert<T, T> >
+{};
+
+/*****************************************************************************/
 //									FIRST
 /*****************************************************************************/
 

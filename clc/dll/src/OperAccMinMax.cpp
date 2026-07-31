@@ -15,6 +15,10 @@
 
 CommonOperGroup cog_Min("min");
 CommonOperGroup cog_Max("max");
+CommonOperGroup cog_MinK("min_ifdefined");   // null when no defined value was aggregated
+CommonOperGroup cog_MaxK("max_ifdefined");
+CommonOperGroup cog_MinC("min_alldefined");  // null when no defined value, or any undefined value, was aggregated
+CommonOperGroup cog_MaxC("max_alldefined");
 CommonOperGroup cog_MinIndex("min_index", oper_policy::dynamic_result_class);
 CommonOperGroup cog_MaxIndex("max_index", oper_policy::dynamic_result_class);
 
@@ -121,6 +125,13 @@ namespace
 {
 	OperAccUniNum::AggrOperators<min_total_best, min_partial_best, typelists::ranged_unit_objects> s_MinOpers(&cog_Min, true);
 	OperAccUniNum::AggrOperators<max_total_best, max_partial_best, typelists::ranged_unit_objects> s_MaxOpers(&cog_Max, true);
+
+	// issue #597: min/max variants that report null instead of MAX_VALUE/MIN_VALUE for an empty
+	// aggregation (_ifdefined), resp. for an empty or incomplete one (_alldefined).
+	OperAccUniNum::AggrOperators<min_ifdefined_total_best, min_ifdefined_partial_best, typelists::ranged_unit_objects> s_MinKOpers(&cog_MinK, false);
+	OperAccUniNum::AggrOperators<max_ifdefined_total_best, max_ifdefined_partial_best, typelists::ranged_unit_objects> s_MaxKOpers(&cog_MaxK, false);
+	OperAccUniNum::AggrOperators<min_alldefined_total_best, min_alldefined_partial_best, typelists::ranged_unit_objects> s_MinCOpers(&cog_MinC, false);
+	OperAccUniNum::AggrOperators<max_alldefined_total_best, max_alldefined_partial_best, typelists::ranged_unit_objects> s_MaxCOpers(&cog_MaxC, false);
 
 	struct ltFunc { template<typename V, typename W> bool operator() (const V& a, const W& b) { return a < b; }; template<typename V> static V StartValue() { return MAX_VALUE(V);  } };
 	struct gtFunc { template<typename V, typename W> bool operator() (const V& a, const W& b) { return b < a; }; template<typename V> static V StartValue() { return MIN_VALUE(V); }};
