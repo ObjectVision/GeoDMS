@@ -1048,6 +1048,13 @@ void WmsLayer::Zoom1To1(ViewPort* vp)
 	vp->SetROI(CrdRect(p - s, p + s));
 }
 
+// A '+' / '-' / wheel step first snaps the viewport onto the tile grid of the level that fits the
+// current scale, which keeps the background crisp. That snap was accepted as the whole step as
+// soon as it changed the scale by 1%, so a view that sat just off the grid answered a zoom
+// command with an invisible 1% move - the "zoom werkt meestal niet meer" of issue #1129. Require
+// the snap to be a recognizable step; otherwise take a tile level as well.
+constexpr CrdType MIN_ZOOM_STEP = 1.5;
+
 bool WmsLayer::ZoomOut(ViewPort* vp, bool justClickIsOK)
 {
 	assert(vp);
@@ -1060,9 +1067,10 @@ bool WmsLayer::ZoomOut(ViewPort* vp, bool justClickIsOK)
 		m_ZoomLevel = SizeT(m_TMS.size());
 	--m_ZoomLevel;
 	Zoom1To1(vp);
-//	m_ZoomLevel = ChooseTileMatrix(m_TMS, 1.0 / zoomLevel);
-	if (!zoomFactor || vp->CalcCurrWorldToDeviceZoomLevel() / zoomFactor < 0.99 || justClickIsOK)
+	if (!zoomFactor || justClickIsOK)
 		return true;
+	if (vp->CalcCurrWorldToDeviceZoomLevel() * MIN_ZOOM_STEP <= zoomFactor)
+		return true; // snapping to this level is a zoom-out step by itself
 	if (!m_ZoomLevel)
 		return false;
 	--m_ZoomLevel;
@@ -1076,16 +1084,13 @@ bool WmsLayer::ZoomIn(ViewPort* vp)
 
 	auto zoomFactor = vp->CalcCurrWorldToDeviceZoomLevel();
 	m_ZoomLevel = ChooseTileMatrix(m_TMS, 1.0 / zoomFactor);
-	if (m_ZoomLevel >= m_TMS.size() - 1)
-		return false;
-//	++m_ZoomLevel;
+	if (m_ZoomLevel >= m_TMS.size() - 1) // also when undefined: zoomed in beyond the finest level
+		return false;                    // let the caller zoom by a plain factor 2
 	Zoom1To1(vp);
-	//	m_ZoomLevel = ChooseTileMatrix(m_TMS, 1.0 / zoomLevel);
 	if (!zoomFactor)
 		return true;
-	auto currW2DevZL= vp->CalcCurrWorldToDeviceZoomLevel();
-	if (currW2DevZL / zoomFactor > 1.01)
-		return true;
+	if (vp->CalcCurrWorldToDeviceZoomLevel() >= zoomFactor * MIN_ZOOM_STEP)
+		return true; // snapping to this level is a zoom-in step by itself
 	if (m_ZoomLevel >= m_TMS.size() - 1)
 		return false;
 	++m_ZoomLevel;

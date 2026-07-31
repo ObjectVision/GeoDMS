@@ -67,6 +67,8 @@ using HCURSOR = void*;
 #define VK_ADD          0x6B
 #define VK_SUBTRACT     0x6D
 #define VK_F2           0x71
+#define VK_OEM_PLUS     0xBB  // main-row '+' key (shifted '=' on most layouts)
+#define VK_OEM_MINUS    0xBD  // main-row '-' key
 #endif
 
 //----------------------------------------------------------------------

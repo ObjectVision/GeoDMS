@@ -1031,14 +1031,33 @@ bool ViewPort::OnKeyDown(UInt32 virtKey)
 			case 'N': case 'n': return OnCommand(TB_RestoreNorth);    // restore north-up (yaw=0)
 			case 'T': case 't': return OnCommand(TB_RestoreUntilted); // restore untilted (pitch=0)
 		}
+
+		// '+' and '-' zoom from the centre. Accept every spelling the key paths deliver, not just
+		// the numeric keypad's VK_ADD/VK_SUBTRACT: the main-row keys arrive as VK_OEM_PLUS /
+		// VK_OEM_MINUS, and on most layouts '+' needs Shift, which makes IsSpec() false and left
+		// the key dead below - hence '+/- werkt meestal niet' on a keyboard without a numpad. The
+		// Qt path delivers keys that qtKeyToVK does not translate as WM_CHAR-equivalents with the
+		// Char flag set. Keep the two sets apart: as character codes VK_ADD is 'k' and VK_SUBTRACT
+		// is 'm', which must not zoom (issue #1129).
+		if (KeyInfo::IsChar(virtKey))
+		{
+			switch (KeyInfo::CharOf(virtKey)) {
+				case '+': case '=': return OnCommand(TB_ZoomIn1);
+				case '-':           return OnCommand(TB_ZoomOut1);
+			}
+		}
+		else
+		{
+			switch (KeyInfo::CharOf(virtKey)) {
+				case VK_ADD:      case VK_OEM_PLUS:  return OnCommand(TB_ZoomIn1);
+				case VK_SUBTRACT: case VK_OEM_MINUS: return OnCommand(TB_ZoomOut1);
+			}
+		}
 	}
 
 	if (KeyInfo::IsSpec(virtKey))
 	{
 		switch (KeyInfo::CharOf(virtKey)) {
-			case VK_ADD:      return OnCommand(TB_ZoomIn1);
-			case VK_SUBTRACT: return OnCommand(TB_ZoomOut1);
-
 			case VK_RIGHT:    ScrollLogical(shp2dms_order<TType>(-ScrollStepSize(), 0)); return true;
 			case VK_LEFT:     ScrollLogical(shp2dms_order<TType>( ScrollStepSize(), 0)); return true;
 			case VK_UP:       ScrollLogical(shp2dms_order<TType>(0,  ScrollStepSize())); return true;
