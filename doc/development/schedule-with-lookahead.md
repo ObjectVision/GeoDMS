@@ -2185,6 +2185,62 @@ t641_1 sample), so per-op admission traffic is mostly trivial accepts.
 
 ---
 
+### 8.1.21 Why the 100 G budget barely moves t641's commit peak — the layered decomposition
+
+Parsing every `ledger @admit/@release` sample of the enforce runs (27 samples t641_1_B, 13
+t641_2_B) and decomposing the PROCESS-peak moments — with a correction to §8.1.20's first
+reading: `live-alloc req` and `fs` are DISJOINT counters (live allocations vs pooled free
+blocks), so t641_2 held ~138 G live *beside* ~138 G pooled, not "99.6 % pooled".
+
+**t641_1_B, commit peak 156.7 G @22:48:56** (`running 0 ops`):
+
+| component | size | ledger sees it? |
+|---|---|---|
+| census-live (`req`) | 42.2 G | 40.9 G booked retained + 1.3 G unbooked |
+| free stacks, committed share | ≤ 5.4 G | no (pooled = dead) |
+| **outside the allocation stocks entirely** | **~109 G** | **no** |
+
+Earlier in the same run (@22:31:24) the ledger itself peaked: retained 134.9→144.9 G with
+running 0 — the §8.1.20 retention story — but at the true commit peak the dominant term is
+memory the census never allocates: GEOS's own allocator, the export/write path's buffers, CRT.
+The gate is blind to ~70 % of the peak not because estimates are wrong but because that memory
+never passes through `AllocateFromStock`.
+
+**t641_2_B, commit peak 190.4 G @23:14:09** (`running 0 ops`):
+
+| component | size | ledger sees it? |
+|---|---|---|
+| census-live (`req`) | 138.3 G | only 78.2 G booked retained |
+| — of which unbooked-live | 60.1 G | no: retained bookings under-measure sequence widths (§8.1.19; the read-width publisher of b91d1313 targets exactly this) |
+| free stacks, committed share | ~52 G | no (≤1 MiB classes below the decommit threshold) |
+| free stacks, decommitted share | ~85 G | (already released to the OS — the ≥2 MiB decommit working as designed) |
+
+**The four layers, ranked by what they bound:**
+
+0. **Admission's entire domain of control is the concurrent running-charge band, and that band
+   is tiny here**: the maximum running charge ever sampled is 14.0 G (3 ops, t641_1) resp.
+   6.0 G (t641_2). Forcing it to zero forever would move a 157–195 G peak by at most that much.
+   This is the arithmetic reason no admission policy — however calibrated — can matter on t641.
+1. **The floor under the budget is retention, which admission must not refuse**: retained
+   climbs monotonically (only 9 resp. 4 declining steps out of 26/12, all late) to 134.9 G /
+   87.4 G because MakeBaseData/Allocatie keep every computed layer of-interest until the
+   end-of-run writes. The progress guarantee + compressor exemption rightly keep the frontier
+   admissible — refusing it would deadlock, not save memory — so retention marches through any
+   budget. 22 357 parks on t641_2 are the gate correctly parking growers, and it changes
+   nothing because the growers are eventually the frontier.
+2. **A large share of the peak is invisible or dead**: ~109 G non-census commit at t641_1's
+   peak; ~52 G committed-but-free pool at t641_2's. No admission decision touches either.
+3. **Even the reachable savings buy nothing on this hardware** (§8.1.20: A ≡ B in wall).
+
+**Updated lever ranking:** (1) retention policy — spill/release completed results under
+pressure, targets the 87–145 G floor; (2) free-stack pressure release below 2 MiB — targets
+~52 G on t641_2; (3) honest retained booking via measured widths — landed (b91d1313), closes
+the 60 G unbooked-live gap in accounting (not in commit); (4) census coverage for the
+non-stock consumers (a GEOS allocator hook, the write path) — without it, even a perfect
+retention policy steers by a gauge that misses the largest term at the worst moment.
+
+---
+
 ## 9. Risks and open questions
 
 **Risks**
