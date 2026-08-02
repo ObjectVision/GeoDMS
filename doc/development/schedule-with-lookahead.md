@@ -2078,6 +2078,113 @@ cascade might. Worth a releasable-scoped-exit like the ones `ReadLockInit` itsel
 
 ---
 
+### 8.1.19 Stage 3 — t641_1 calibration at scale: the aggregate error flips sign
+
+t641_1 with the census on, gate off, all estimator terms + the my_allocator retype in place
+(commits 8b89acf5 + faee729f): clean run, **0 failures** (§8.1.18's fix verified on the workload
+that exposed it), wall 2 081 s vs the 2 161 s no-census baseline — the block→owner register's tax
+is inside the noise on this workload, presumably paid for by the ≥2 MiB decommit and the pooled
+intermediates. Census at scale: PeakLiveLarge 144.4 G, commit-charge peak 187.8 G, PeakFreeStack
+85.8 G (the §8.1.9 allocator-retention gap, now measured in one line), residual live 2 MB.
+
+The per-operator picture is qualitatively different from t405:
+
+```
+total measured peak     329.97 G
+total predicted         199.12 G   (0.60x)   -- t405_2 stood at 1.92x the other way
+```
+
+t405 over-charges; t641 UNDER-charges. Ranked by what would defeat an admission gate:
+
+1. **`modus` 4.2× under — 77.2 G measured against 18.3 G booked, twice** (`Write_*_25m_LU_
+   ModelType`), 150 G of the 330 G total. Cause: the O(v·p) counter table that
+   `ModusPart`'s own dispatcher selects when integral countable values satisfy v·p ≤ n
+   (77.2 G ≈ v·p·8 exactly). Never modelled; the retype made it visible. **Fixed** (commit
+   1cdb63e4): `ModusPart`/`WeightedModusPart::EstimatePerformance` mirror the dispatcher's
+   predicate and charge the table as working memory — which `LedgerChargeOf` includes. This
+   term decides stage 4: booked at 18 G, a 100 G budget grants ~82 G of concurrent work beside
+   the whale (→ pagefile anyway); booked at 77 G it grants ~23 G.
+2. **BAG `collect_by_org_rel`/`collect_by_cond` on `pand/geometry` ~21× under** (15.7 G vs
+   0.7 G, and five siblings at 6–7 G) — the storage-read sequence-width hole again, but cutting
+   the OPPOSITE way from GTFS: buffered building polygons run ~10× ABOVE `ASSUMED_SEQ_LENGTH`
+   where GTFS arcs ran 16× below. Constants cannot win both; only measured widths can
+   (§8.1.17's open residency-limited query, plus geos operators publishing their result width).
+3. **`geos_buffer_multi_polygon` 18×/2.6× under** — GEOS out-of-band memory + result width.
+4. **`point_in_polygon` 113–160× under** (1.27 G vs ~10 M) — the SpatialIndex + boundingbox
+   cache build over 9 M pand polygons, visible since the retype, unmodelled.
+5. **`lookup` 1003× predicting ≈0** on one item — the prediction-floor issue from §8.1.17 again.
+
+Over-charges (conservative, so less urgent): `sum` 0.06× (19.1 G booked vs 1.1 G — the argmat
+term charges materializing an input that was in fact already resident/streaming), one `lookup`
+0.03× (12.0 G vs 0.36 G — inherited element width × whole-array residency for a result that
+actually streamed; NOT the rlookup index term, which is confined to the RLookup* TU-splits).
+Both are the §8.1.16 regime-prediction weakness wearing new clothes.
+
+Stage-4 protocol (batch `.claude/run_t641_stage4_ab.bat`): same census-off build, cold caches,
+A = gate off, B = enforce with `SchedulerBudgetMB` 100 G against 128 G physical; success = B's
+commit peak bounded near budget AND wall not worse than A — staying out of the pagefile should
+buy back more than admission stalls cost. Baselines: t641_1 2 161 s / 158.8 G, t641_2 1 276 s /
+195.5 G.
+
+---
+
+### 8.1.20 Stage 4 — the A/B verdict: admission is free, and admission is not the lever
+
+Same census-off build, cold caches, sequential A/B (batch `.claude/run_t641_stage4_ab.bat`):
+
+| run | wall | commit peak | PeakLiveLarge | ledger parks |
+|---|---|---|---|---|
+| t641_1 A (gate off) | 2 035 s | 162.0 G | 144 392 MB | — |
+| t641_1 B (enforce 100 G) | 2 028 s | 160.8 G | 144 392 MB | 11 of ~108 K admissions |
+| t641_2 A (gate off) | 1 254 s | 195.1 G | 175 986 MB | — |
+| t641_2 B (enforce 100 G) | 1 262 s | 194.9 G | 176 040 MB | **22 357** of ~163 K |
+
+Wall times within 0.7 %, PeakLiveLarge identical to the MB on t641_1. Two findings, one per test,
+both legible in the enforce run's own `ledger @` samples:
+
+**Finding 1 — the machinery costs nothing.** 22 357 parks on t641_2 for +0.6 % wall. Admission,
+re-estimation at runnable time, the drain lifts — all of it is measurement noise. Whatever gate
+policy we converge on, its overhead is a solved question.
+
+**Finding 2 — t641's peak is not admission-controllable, for two distinct reasons:**
+
+- **t641_1: retention-by-interest.** The maximal ledger sample reads
+  `running 0 op(s) 0 B + retained 144.9 G of 100 G budget` — at the process's 148 G commit
+  moment, ZERO bytes belong to running operations. The peak is completed results held by
+  downstream interest (the §8.1.13 population 2). Refusing every admissible task still leaves
+  144.9 G; the budget is exceeded before the gate has anything to say. This is §8.1.3's t405
+  lesson at full scale: the model's memory is DEPTH (retained chain results), not BREADTH.
+- **t641_2: allocator pool retention.** At its sampled maximum:
+  `live-alloc req 134.4 G / fs 133.8 G` — 99.6 % of requested-live bytes are FREE-STACK blocks:
+  freed by the app, pooled for reuse, still committed. The app's actually-live data at that
+  moment is ~0.6 G. The ≥2 MiB decommit threshold (§8.1.14) never touches these: the SpecialSize
+  window caps pooled blocks at 1 MiB, so t641_2's discrete-alloc churn (8 K–1 M objects) pools
+  forever. The commit peak of the allocation test IS the free stacks.
+
+**Consequences for the roadmap.** Admission gating (P2's grant logic) is validated as a
+breadth-limiter (§8.1.10's −62 % on a wide workload stands) and as harmless everywhere else — it
+can stay on cheaply. But t641 does not get better until one of the two real levers moves:
+
+1. **Retention policy** for population 2 — spill or drop+recompute completed results under
+   pressure, which is the §4.4/§8.1.13 design question, not an admission question. The retained
+   booking now measures the target precisely (144.9 G against a 100 G budget on t641_1).
+2. **Free-stack pressure release** for population 3 — the pooled ≤1 MiB classes. Deferred by
+   explicit ruling (§8.1.14: size-threshold only for now, pressure-triggered decommit noted as
+   future work); t641_2 now quantifies what that ruling leaves on the table: ~134 G of committed
+   free memory at peak, the whole gap to the 100 G budget and more.
+
+The original hypothesis — "consume less, run faster by avoiding pagefile waits" — is answered in
+the negative for THIS hardware: both A runs overcommit physical RAM by 30–70 G and neither shows
+a wall-time penalty for it (NVMe paging + OS write-behind absorb it). The budget's value on this
+machine is therefore headroom for the REST of the system, not wall time of the run itself.
+
+Residual instrumentation notes: `bookings … booked vs cardinality-route (ratio 1)` — the
+object-keyed retained bookings and the cardinality route agree exactly now; regimes on t641 are
+dominated by eager (n ≤ 1 tile) micro-ops (17 816× eager vs 23× deferred + 96× streaming on the
+t641_1 sample), so per-op admission traffic is mostly trivial accepts.
+
+---
+
 ## 9. Risks and open questions
 
 **Risks**
