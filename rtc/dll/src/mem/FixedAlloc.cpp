@@ -108,11 +108,11 @@ void NoteDeallocation(void* ptr, SizeT bytes);
 // large classes anyway. Small-object attribution can be added later by lifting that switch
 // deliberately rather than as a side effect of turning on diagnostics.
 //
-// OFF for performance runs (stage 4, SS8.1.19): the block->owner map costs a mutexed std::map
-// insert/erase per >=4 KiB (de)allocation. The cheap always-on counters (PeakLiveLarge, the
-// histogram, per-operation Charge* atomics) do NOT depend on this switch. Turn it back on for
-// calibration runs, which need per-operation peak attribution.
-//#define MG_CACHE_COLLECTDATA
+// ON for calibration runs (per-operation peak attribution needs the block->owner register), OFF
+// for performance runs (stage 4, SS8.1.19): it costs a mutexed std::map insert/erase per >=4 KiB
+// (de)allocation. The cheap always-on counters (PeakLiveLarge, the histogram, per-operation
+// Charge* atomics) do NOT depend on this switch.
+#define MG_CACHE_COLLECTDATA
 
 // =========================================  implementation
 

@@ -1395,6 +1395,26 @@ void point_in_polygon(
 
 CommonOperGroup cogPP("point_in_polygon", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
 
+// The quadtree spatial index over the polygon argument is linear in the number of features: one
+// PolyLeaf per polygon (bounding box + object pointer + intrusive next-link) plus quadrant Nodes
+// allocated in groups of four, all in flat arrays (SpatialIndex.h). Measured on t641_1: 1 270 M
+// held for 9 M BAG pand polygons ~= 141 B/feature, against an 8-11 M prediction (113-160x under,
+// SS8.1.19) -- sizeof(PolyLeaf<DPoint,..>) = 48 plus ~1.4 nodes/leaf of 64 B. 144 rounds that.
+const SizeT SPATIAL_INDEX_BYTES_PER_FEATURE = 144;
+
+// Shared by the plain and ranked point-in-polygon operators: charge the index over args[1].
+static void AddSpatialIndexTerm(PerformanceEstimationData& result, const ArgRefs& args)
+{
+	if (args.size() < 2)
+		return;
+	if (auto polyItem = GetItem(args[1]); polyItem && IsDataItem(polyItem))
+		if (auto polyDomain = AsDataItem(polyItem)->GetAbstrDomainUnit())
+			try {
+				result.workingMemorySize += polyDomain->EstimateCount().expected * SPATIAL_INDEX_BYTES_PER_FEATURE;
+			}
+			catch (...) {} // uncountable polygon domain: keep the family default
+}
+
 class AbstrPointInPolygonOperator : public BinaryOperator
 {
 protected:
@@ -1404,6 +1424,13 @@ protected:
 			,	polyAttrClass
 			)
 	{}
+
+	auto EstimatePerformance(TreeItemDualRef& resultHolder, const ArgRefs& args) const -> PerformanceEstimationData override
+	{
+		auto result = BinaryOperator::EstimatePerformance(resultHolder, args);
+		AddSpatialIndexTerm(result, args);
+		return result;
+	}
 
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
@@ -1712,6 +1739,13 @@ protected:
 			, rankAttrClass
 		)
 	{}
+
+	auto EstimatePerformance(TreeItemDualRef& resultHolder, const ArgRefs& args) const -> PerformanceEstimationData override
+	{
+		auto result = TernaryOperator::EstimatePerformance(resultHolder, args);
+		AddSpatialIndexTerm(result, args); // same index, over the same args[1] polygon attribute
+		return result;
+	}
 
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{

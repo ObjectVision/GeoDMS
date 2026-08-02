@@ -187,7 +187,7 @@ public:
 		my_elem_vec_t<V> argData; argData.reserve(trd->GetElemCount());
 		for (tile_id t = 0, te = trd->GetNrTiles(); t != te; ++t)
 			for (const auto& v : di->GetTile(t))
-					argData.emplace_back(v);
+					argData.push_back(v); // push_back, not emplace_back: BitVector (the bit branch) has no emplace
 
 		visit<typelists::ulongs>(resultValuesUnit, [result, &argData]<typename I>(const Unit<I>* values)
 		{

@@ -509,13 +509,13 @@ struct BitVector : bit_info<N, Block>
 	{
 	}
 
-	BitVector(size_type sz MG_DEBUG_ALLOCATOR_SRC_ARG)
+	BitVector(size_type sz MG_DEBUG_ALLOCATOR_SRC_ARG_D)
 		: m_NrElems(sz)
 	{
 		::resizeSO(m_bits, bit_info_t::calc_nr_blocks(sz), true MG_DEBUG_ALLOCATOR_SRC_PARAM);
 	}
 
-	BitVector(size_type sz, bit_value<N> v MG_DEBUG_ALLOCATOR_SRC_ARG)
+	BitVector(size_type sz, bit_value<N> v MG_DEBUG_ALLOCATOR_SRC_ARG_D)
 		:	m_NrElems(sz)
 	{
 		::resizeSO(m_bits, bit_info_t::calc_nr_blocks(sz), false MG_DEBUG_ALLOCATOR_SRC_PARAM);
@@ -525,14 +525,14 @@ struct BitVector : bit_info<N, Block>
 	}
 
 	template <typename Iter>
-	BitVector(Iter first, Iter last MG_DEBUG_ALLOCATOR_SRC_ARG)
+	BitVector(Iter first, Iter last MG_DEBUG_ALLOCATOR_SRC_ARG_D)
 		:	m_NrElems(last - first)
 	{
 		::resizeSO(m_bits, bit_info_t::calc_nr_blocks(m_NrElems), false MG_DEBUG_ALLOCATOR_SRC_PARAM);
 		std::copy(first, last, begin());	//	OPTIMIZE: if first.elem_offset == 0, direct insertion into m_Bits prevents double passing it. 
 	}
 
-	BitVector(bit_iterator<N, const Block> first, bit_iterator<N, const Block> last MG_DEBUG_ALLOCATOR_SRC_ARG)
+	BitVector(bit_iterator<N, const Block> first, bit_iterator<N, const Block> last MG_DEBUG_ALLOCATOR_SRC_ARG_D)
 		:	m_NrElems(last - first)
 	{
 		assert(first.m_NrElems < bit_info_t::nr_elem_per_block);
@@ -649,7 +649,7 @@ struct BitVector : bit_info<N, Block>
 		m_NrElems = newNrElems;
 	}
 
-	void push_back(bit_info_t::value_type v MG_DEBUG_ALLOCATOR_SRC_ARG)
+	void push_back(bit_info_t::value_type v MG_DEBUG_ALLOCATOR_SRC_ARG_D)
 	{
 		// substitute a call to insert(end(), 1, v); with iterator ip = end() and size_type k=1;
 		SizeT oldNrElems = m_NrElems;

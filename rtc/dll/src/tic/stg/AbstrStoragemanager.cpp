@@ -1048,6 +1048,43 @@ void StorageReadHandle::Init()
 		MetaInfo()->OnOpenForRead(this);
 }
 
+// A variable-width attribute read from an external source is the LEAF of every estimate that
+// consumes it, and after the read its true volume is simply known: the sequence element arrays are
+// in memory right now. Publish measured-bytes-per-row on the item, so EstimateDataBytes stops
+// guessing ASSUMED_SEQ_LENGTH for it and every subselection (collect_by_cond, lookup, ...)
+// inherits the real width -- the assumption being that the average survives subselection.
+// Measured need on t641_1: BAG pand geometry consumers ran ~21x UNDER the guess while GTFS arcs
+// ran 16x OVER it; no constant can serve both, only a measured width can (SS8.1.19/8.1.21).
+//
+// Always on (not gated on PerformanceLogging): the width feeds the admission gate of enforce runs.
+// Safe against materialization: this runs right after DoReadItem, the one moment the tiles are
+// guaranteed resident, so GetNrBytesNow's GetTile walk re-touches hot data instead of recomputing.
+// GetNrTileBytesNow yields SizeT(-1) for an empty tile (wrapping the sum downward by 1 per empty
+// tile); the credibility window below rejects a wrapped or absurd average rather than publish it.
+static void PublishReadElementWidth(const TreeItem* focusItem) noexcept
+{
+	try {
+		if (!IsDataItem(focusItem))
+			return;
+		auto adi = AsDataItem(focusItem);
+		bool isSeq = adi->GetValueComposition() != ValueComposition::Single;
+		auto valuesType = adi->GetAbstrValuesUnit()->GetValueType();
+		if (!isSeq && valuesType->GetBitSize() != UInt32(-1))
+			return; // fixed width: EstimateDataBytes is already exact
+		auto obj = adi->GetCurrRefObj();
+		if (!obj)
+			return;
+		auto rows = obj->GetNrFeaturesNow();
+		if (!rows)
+			return;
+		auto bytes = obj->GetNrBytesNow(false);
+		auto avg = bytes / rows;
+		if (avg && avg <= (SizeT(1) << 20)) // > 1 MiB/row says the sum wrapped, not that rows are huge
+			adi->SetEstimatedBytesPerElement(avg);
+	}
+	catch (...) {} // a width is an optimization, never a reason to fail a completed read
+}
+
 bool StorageReadHandle::Read() const
 {
 	assert(FocusItem     ()); // note that storageHolder may be nullptr
@@ -1063,6 +1100,9 @@ bool StorageReadHandle::Read() const
 	PerfTimer timer(measure);
 
 	auto result = FocusItem()->DoReadItem(MetaInfo());
+
+	if (result)
+		PublishReadElementWidth(FocusItem());
 
 	if (measure)
 		ReportReadPerformance(FocusItem(), estimate, timer.ElapsedMSec());
