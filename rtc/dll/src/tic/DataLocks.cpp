@@ -402,6 +402,14 @@ TIC_CALL void DataWriteLock::Commit()
 	adi->MarkTS(UpdateMarker::GetActiveTS(MG_DEBUG_TS_SOURCE_CODE("DataWriteLock::Commit")));
 	if (!adi->IsEndogenous())
 		adi->GetDomainUnitOrThrow()->AddDataItemOut(adi.get());
+
+	// Every commit of a variable-width result publishes its measured bytes-per-row (no-op for
+	// fixed-width types). This is what carries real sequence widths across links the inheritance
+	// guard rightly refuses -- value-type conversions (mm integer points -> float points) and
+	// operators that build new geometry (geos_*) -- because the NEXT consumer re-estimates after
+	// its suppliers completed, i.e. after this line ran for them (SS8.1.19/8.1.21). The tiles were
+	// just written, so the measurement walks resident data.
+	PublishMeasuredElementWidth(adi.get());
 }
 
 //----------------------------------------------------------------------

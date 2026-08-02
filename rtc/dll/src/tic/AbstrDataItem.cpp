@@ -1359,6 +1359,33 @@ void AbstrDataItem::SetEstimatedBytesPerElement(SizeT bytesPerElement) const noe
 		; // curr is reloaded by compare_exchange_weak on failure
 }
 
+// One shared implementation for the two residency-guaranteed call sites (post-read in
+// StorageReadHandle::Read, post-commit in DataWriteLock::Commit). GetNrTileBytesNow yields
+// SizeT(-1) for an empty tile, wrapping the sum downward by one per empty tile; the credibility
+// window below rejects a wrapped or absurd average rather than publish it.
+void PublishMeasuredElementWidth(const AbstrDataItem* adi) noexcept
+{
+	try {
+		if (!adi)
+			return;
+		bool isSeq = adi->GetValueComposition() != ValueComposition::Single;
+		auto valuesType = adi->GetAbstrValuesUnit()->GetValueType();
+		if (!isSeq && valuesType->GetBitSize() != UInt32(-1))
+			return; // fixed width: EstimateDataBytes is already exact
+		auto obj = adi->GetCurrRefObj();
+		if (!obj)
+			return;
+		auto rows = obj->GetNrFeaturesNow();
+		if (!rows)
+			return;
+		auto bytes = obj->GetNrBytesNow(false);
+		auto avg = bytes / rows;
+		if (avg && avg <= (SizeT(1) << 20)) // > 1 MiB/row says the sum wrapped, not that rows are huge
+			adi->SetEstimatedBytesPerElement(avg);
+	}
+	catch (...) {}
+}
+
 SizeT EstimateDataBytes(const AbstrDataItem* adi, SizeT nrElements)
 {
 	if (adi->HasVoidDomainGuarantee())

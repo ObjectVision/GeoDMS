@@ -227,5 +227,13 @@ TIC_CALL UInt32 ElementWeight(const AbstrDataItem* adi);
 // See doc/development/schedule-with-lookahead.md §4.
 TIC_CALL SizeT EstimateDataBytes(const AbstrDataItem* adi, SizeT nrElements);
 
+// If adi is variable-width (a sequence, a string) and its data object is complete AND resident,
+// measure bytes-per-row and publish it via SetEstimatedBytesPerElement, so EstimateDataBytes stops
+// guessing for this item and consumers inherit the real width. Call ONLY where residency is
+// guaranteed -- right after a storage read or a DataWriteLock::Commit -- because the measurement
+// walks GetTile over all tiles. noexcept and self-guarding: a width is an optimization, never a
+// reason to fail the read or commit that just succeeded.
+TIC_CALL void PublishMeasuredElementWidth(const AbstrDataItem* adi) noexcept;
+
 
 #endif

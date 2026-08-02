@@ -34,6 +34,9 @@
 // allocation stocks and hide the cost from the per-operation allocation census (SS8.1.16).
 #include "mem/MyContainers.h"
 
+#include "dbg/SeverityType.h"
+#include "utl/Environment.h" // IsPerformanceLogging
+
 
 
 // *****************************************************************************
@@ -700,8 +703,16 @@ struct ModusPart : OperAccPartUniWithCFTA<V, typename AggrFunc::result_type>
 						SizeT v = valuesAdi->GetAbstrValuesUnit()->EstimateCount().expected;
 						SizeT n = valuesAdi->GetAbstrDomainUnit()->EstimateCount().expected;
 						SizeT p = result.resultingNrElements;
-						if (v && p && v <= n / p) // the dispatcher's memory condition: v*p <= n
+						bool fires = v && p && v <= n / p; // the dispatcher's memory condition: v*p <= n
+						if (fires)
 							MakeMax(result.workingMemorySize, v * p * sizeof(SizeT));
+						// Probe: the t641 verification run kept reporting 4.21x with this term in
+						// place, so ONE of these legs differs from what the dispatcher sees at run
+						// time. Log the legs until one calibration run has shown which (SS8.1.21).
+						if (IsPerformanceLogging())
+							reportF(MsgCategory::performance, SeverityTypeID::ST_MinorTrace
+								, "modus table-term probe: v={} n={} p={} fires={} ws={}"
+								, v, n, p, fires, result.workingMemorySize);
 					}
 			}
 			catch (...) {} // an unresolved unit just keeps the family default
