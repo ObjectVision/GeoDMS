@@ -11,6 +11,8 @@
 #include <atomic>
 #include <map>
 
+#include "mem/MyContainers.h"
+
 #include "dbg/SeverityType.h"
 #include "dbg/Timer.h"
 #include "mci/CompositeCast.h"
@@ -93,7 +95,7 @@ std::any CreateSpatialIndex(const AbstrOperGroup* og, const AbstrDataItem* arg1A
 
 	// test that arg1Data has only unique values
 	{
-		std::vector<PointType> sortedArg1Data(destBegin, destEnd);
+		my_vec_t<PointType> sortedArg1Data(destBegin, destEnd);
 		std::sort(sortedArg1Data.begin(), sortedArg1Data.end(), DataLessThanCompare<PointType>());
 		if (std::adjacent_find(sortedArg1Data.begin(), sortedArg1Data.end()) != sortedArg1Data.end() )
 			og->throwOperError("Multiple destinations with the same location found");
@@ -1163,8 +1165,9 @@ public:
 			using CutInfoType = CutInfo<PointType, R>;
 			tile_id nrTiles = arg2A->GetAbstrDomainUnit()->GetNrTiles();
 
-			// Per-tile cut info vectors
-			std::vector<std::vector<CutInfoType>> perTileCutInfos(nrTiles);
+			// Per-tile cut info vectors: the inner vectors jointly hold one CutInfo per input point,
+			// which is this phase's real working set -- census-visible via my_vec_t.
+			std::vector<my_vec_t<CutInfoType>> perTileCutInfos(nrTiles);
 			std::vector<SizeT> tileOffsets(nrTiles + 1, 0);
 
 			// Calculate tile offsets for global point indexing
@@ -1197,7 +1200,7 @@ public:
 				auto streetBegin = arg1Data.begin();
 				row_id globalOffset = tileOffsets[t];
 
-				std::vector<CutInfoType>& tileCutInfos = perTileCutInfos[t];
+				my_vec_t<CutInfoType>& tileCutInfos = perTileCutInfos[t];
 				tileCutInfos.reserve(tileSize);
 
 				for (SizeT i = 0; i < tileSize; ++i)
@@ -1288,7 +1291,7 @@ public:
 			// ============================================================
 
 			// Flatten all cut infos and count valid connections
-			std::vector<CutInfoType> allCutInfos;
+			my_vec_t<CutInfoType> allCutInfos;
 			allCutInfos.reserve(arg2Count);
 			R nrValidConnections = 0;
 
@@ -1303,7 +1306,7 @@ public:
 			}
 
 			// Group cuts that need splitting by original arc
-			std::map<R, std::vector<CutInfoType*>> cutsPerArc;
+			my_map_t<R, my_vec_t<CutInfoType*>> cutsPerArc;
 			for (auto& ci : allCutInfos)
 			{
 				if (ci.foundAny && ci.inArc)

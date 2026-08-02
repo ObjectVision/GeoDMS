@@ -18,6 +18,8 @@
 
 #include <set>
 
+#include "mem/MyContainers.h"
+
 typedef UInt32            PointIndex;
 typedef Point<PointIndex> PointIndexPair;
 
@@ -41,7 +43,7 @@ struct HalfEdge
 
 };
 
-struct WaveFront : std::set<WaveFrontElem>
+struct WaveFront : my_set_t<WaveFrontElem>
 {
 };
 
@@ -70,7 +72,7 @@ private:
 	Float64       m_When;
 };
 
-struct WaveEventQueue : std::vector<WaveEvent>
+struct WaveEventQueue : my_vec_t<WaveEvent>
 {
 	void AddEvent(const WaveEvent& ev)
 	{
@@ -215,9 +217,9 @@ public:
 			auto maxNrTinLines = nrPoints * 3 - 6;
 
 
-			std::vector<PointIndexPair> tin;
+			my_vec_t<PointIndexPair> tin;
 			tin.resize(maxNrTinLines);
-			std::vector<PointIndexPair>::iterator
+			my_vec_t<PointIndexPair>::iterator
 				tinEnd = 
 					triangualize(
 						arg1Data.begin(),

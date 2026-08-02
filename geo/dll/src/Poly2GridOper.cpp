@@ -35,6 +35,7 @@
 #endif
 
 #include "act/UpdateMark.h"
+#include "mem/MyContainers.h"
 #include "dbg/SeverityType.h"
 #include "geo/Conversions.h"
 #include "geo/RangeIndex.h"
@@ -125,9 +126,9 @@ struct RLE_range
 };
 
 // Convenience aliases for RLE collections.
-template <typename CoordType> using RLE_polygon = std::vector<RLE_range<CoordType>>;
-template <typename CoordType> using RLE_polygon_tileset = std::vector<RLE_polygon<CoordType>>;
-template <typename CoordType> using RLE_polygon_wall = std::vector<RLE_polygon_tileset<CoordType>>;
+template <typename CoordType> using RLE_polygon = my_vec_t<RLE_range<CoordType>>;
+template <typename CoordType> using RLE_polygon_tileset = my_vec_t<RLE_polygon<CoordType>>;
+template <typename CoordType> using RLE_polygon_wall = my_vec_t<RLE_polygon_tileset<CoordType>>;
 
 // Abstract sink for scanline spans. Implementations:
 //  - RasterizeInfo<T>: write spans directly into a raster buffer.
@@ -198,12 +199,12 @@ struct RLE_Info : AbstrRasterizeInfo
 
 // Re-usable scratch memory to avoid reallocations within ImageFilledPolygon.
 struct IFP_resouces {
-	std::vector<rowcol_t> rows, cols;             // rounded row/col for each input point
-	std::vector<seq_index_t> edgeListStarts;      // per-row start indices into edgeLists
-	std::vector<poly_edge_node> edgeLists;        // buckets of edges keyed by start row
-	std::vector<poly_edge> currEdges;             // active edge list for current scanline
-	std::vector<bool> leftTogglePoints, rightTogglePoints; // toggles for edges fully left/right
-	std::vector<rowcol_t> crossingCols;           // intersection columns per scanline
+	my_vec_t<rowcol_t> rows, cols;             // rounded row/col for each input point
+	my_vec_t<seq_index_t> edgeListStarts;      // per-row start indices into edgeLists
+	my_vec_t<poly_edge_node> edgeLists;        // buckets of edges keyed by start row
+	my_vec_t<poly_edge> currEdges;             // active edge list for current scanline
+	my_vec_t<bool> leftTogglePoints, rightTogglePoints; // toggles for edges fully left/right
+	my_vec_t<rowcol_t> crossingCols;           // intersection columns per scanline
 };
 
 // Core scanline polygon rasterizer.
@@ -328,7 +329,7 @@ void ImageFilledPolygon(AbstrRasterizeInfo* rasterInfo, point_t* padf, part_inde
 	auto edgeListStartsPtr = edgeListStarts.begin();
 
 	// Active edge set for current scanline.
-	std::vector<poly_edge>& currEdges = ifpResources.currEdges;
+	my_vec_t<poly_edge>& currEdges = ifpResources.currEdges;
 	currEdges.clear(); // initialize reusable resource
 
 	// open_left/open_right keep parity across edges lying strictly outside viewport.
@@ -353,7 +354,7 @@ void ImageFilledPolygon(AbstrRasterizeInfo* rasterInfo, point_t* padf, part_inde
 			currEdges.push_back(edgeLists[currEdgeIndex].edge);
 
 		// Compute intersections for active edges; store as rounded columns.
-		std::vector<rowcol_t>& crossingCols = ifpResources.crossingCols;
+		my_vec_t<rowcol_t>& crossingCols = ifpResources.crossingCols;
 		crossingCols.clear(); // initialize reusable resource
 
 		bool open_left_here = open_left, open_right_here = open_right;
@@ -429,7 +430,7 @@ void ImageFilledPolygon(AbstrRasterizeInfo* rasterInfo, point_t* padf, part_inde
 /*                       gv_rasterize_one_shape()                       */
 /*   Convenience wrapper to rasterize a single multi-ring polygon.      */
 /************************************************************************/
-void rasterize_one_shape(AbstrRasterizeInfo* rasterInfo, std::vector<DPoint>& poShape, BurnValueVariant eBurnValue, IFP_resouces& ifpResources)
+void rasterize_one_shape(AbstrRasterizeInfo* rasterInfo, my_vec_t<DPoint>& poShape, BurnValueVariant eBurnValue, IFP_resouces& ifpResources)
 {
 	assert(rasterInfo);
 
@@ -472,7 +473,7 @@ namespace poly2grid
 	struct AbstrSequenceGetter
 	{
 		virtual void OpenTile(const AbstrDataObject* polyData, tile_id t) = 0;
-		virtual void GetValue(SizeT i, std::vector<DPoint>& dPoints)   = 0;
+		virtual void GetValue(SizeT i, my_vec_t<DPoint>& dPoints)   = 0;
 		virtual ~AbstrSequenceGetter() {}
 	};
 
@@ -488,7 +489,7 @@ namespace poly2grid
 			m_Seq = const_array_cast<PolyType>(polyData)->GetTile(t);
 		}
 
-		void GetValue(SizeT i, std::vector<DPoint>& dPoints) override
+		void GetValue(SizeT i, my_vec_t<DPoint>& dPoints) override
 		{
 			typename DataArray<PolyType>::const_reference seq = m_Seq[i];
 			dPoints.clear();
@@ -561,7 +562,7 @@ namespace poly2grid
 			// Create transform from layer/world coords to tile-local grid coords.
 			CrdTransformation transForm = m_ViewPortInfo.Inverse();
 			transForm -= base;
-			std::vector<DPoint> dPoints;
+			my_vec_t<DPoint> dPoints;
 			IFP_resouces ifpResources; // per-call scratch
 
 			// Acquire write buffer for tile and wrap as RasterizeInfo sink.
@@ -660,7 +661,7 @@ namespace poly2grid
 
 			CrdTransformation transForm = m_ViewPortInfo.Inverse();
 			transForm -= base;
-			std::vector<DPoint> dPoints;
+			my_vec_t<DPoint> dPoints;
 			IFP_resouces ifpResources;
 
 			auto rleInfo = RLE_Info<scalar_of_t<RT>>(Convert<RasterSizeType>(size));

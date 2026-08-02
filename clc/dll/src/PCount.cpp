@@ -30,6 +30,7 @@
 #include "utl/TypeListOper.h"
 
 #include "ParallelTiles.h"
+#include "mem/MyContainers.h"
 #include "TreeItemClass.h"
 
 #include "DataItemClass.h"
@@ -133,7 +134,7 @@ namespace {
 				// Use parallel processing if input is large
 				if (tn > 1 && arg1A->GetAbstrDomainUnit()->GetCount() > 8 * nrRes)
 				{
-					dms_combinable<std::vector<SizeT>> counts;
+					dms_combinable<my_vec_t<SizeT>> counts;
 					parallel_tileloop(arg1A->GetAbstrDomainUnit()->GetNrTiles(), [nrRes, arg1, indexRange = e1->GetRange(), dcm, &counts](tile_id t)
 						{
 							auto& localCounts = counts.local();

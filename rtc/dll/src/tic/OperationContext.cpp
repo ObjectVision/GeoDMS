@@ -3329,7 +3329,13 @@ void OperationContext::RunOperator(ArgRefs argRefs, std::vector<ItemReadLock> re
 			{
 				auto elapsedMSec = timer.ElapsedMSec();
 				auto resultItem = resultHolder.GetUlt();
-				ReportOperPerformance(GetOperGroup()->GetNameStr(), resultItem
+				// op->GetGroup(), NOT GetOperGroup(): CalcResult may complete the operation and clear
+				// m_FuncDC (see ScheduleCalcResult's "RunImpl() may destroy this" note), and
+				// GetOperGroup() derefs that member -- which turned a SUCCESSFUL calculation into a
+				// "m_Ptr != nullptr" item failure on t641, cascading into hundreds of failed items and
+				// a teardown drain deadlock (SS8.1.18). `op` is a local; operators are registered
+				// statically and immortal.
+				ReportOperPerformance(op->GetGroup()->GetNameStr(), resultItem
 					, m_Estimate ? *m_Estimate : PerformanceEstimationData()
 					, runEstimate
 					, elapsedMSec

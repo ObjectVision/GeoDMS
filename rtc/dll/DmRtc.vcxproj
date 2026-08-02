@@ -307,6 +307,7 @@
     <ClInclude Include="src\mem\ManagedAllocData.h" />
     <ClInclude Include="src\mem\MappedSequenceProvider.h" />
     <ClInclude Include="src\mem\MyAllocator.h" />
+    <ClInclude Include="src\mem\MyContainers.h" />
     <ClInclude Include="src\mem\SeqLock.h" />
     <ClInclude Include="src\mem\SequenceObj.h" />
     <ClInclude Include="src\act\Actor.h" />

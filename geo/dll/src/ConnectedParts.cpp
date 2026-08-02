@@ -12,6 +12,7 @@
 #include "TileChannel.h"
 #include "Unit.h"
 #include "UnitClass.h"
+#include "mem/MyContainers.h"
 
 template <typename NodeType, typename LinkType>
 void InvertIntoLinkedList(LinkType edgeCount, NodeType nodeCount,
@@ -66,7 +67,7 @@ class ConnectedPartsOperator : public BinaryOperator
 	using ResultUnitType = Unit<PartType>;
 	using ResultSubType = DataArray<PartType>; // V->P
 
-	using NodeStackType = std::vector<NodeType>;
+	using NodeStackType = my_vec_t<NodeType>;
 
 public:
 	ConnectedPartsOperator():
@@ -130,10 +131,10 @@ public:
 
 			// TODO G8: doe dit zoals in OperDistrict.cpp
 
-			std::vector<PartType> resultData(nrV, UNDEFINED_VALUE(PartType));
+			my_vec_t<PartType> resultData(nrV, UNDEFINED_VALUE(PartType));
 			assert(resultData   .size() == nrV); 
 
-			std::vector<LinkType>
+			my_vec_t<LinkType>
 				link1    (nrV, UNDEFINED_VALUE(LinkType)),
 				link2    (nrV, UNDEFINED_VALUE(LinkType)),
 				nextLink1(nrE, UNDEFINED_VALUE(LinkType)),
@@ -211,10 +212,10 @@ template<typename NodeType, typename LinkType, typename PartType, typename PartL
 auto stronglyConnectedComponentsIterativeWithInvertedLinks(NodeType nrV, LinkType nrE, const LinkType* link1, const LinkType* nextLink1, const NodeType* node2Data, PartType* resSubData)
 {
 	sequence_traits<Bool>::container_type onStackFlag(nrV, false MG_DEBUG_ALLOCATOR_SRC("stronglyConnectedComponentsIterativeWithInvertedLinks"));
-	std::vector<NodeType> nodeStack;
-	std::vector<Couple<PartType>> partLinks;
+	my_vec_t<NodeType> nodeStack;
+	my_vec_t<Couple<PartType>> partLinks;
 
-	std::vector<std::tuple<NodeType, LinkType, bool>> stack; // Node, CurrentLink, didVisitLink
+	my_vec_t<std::tuple<NodeType, LinkType, bool>> stack; // Node, CurrentLink, didVisitLink
 	OwningPtrSizedArray< Couple < PartType >> timedPartLinkLinkedList; // avoid using a std::set for the partLinks from currentPart
 	OwningPtrSizedArray<Couple<NodeType>> indices(nrV, dont_initialize MG_DEBUG_ALLOCATOR_SRC("stronglyConnectedComponents: indices"));
 	for (auto& index : indices)
@@ -335,7 +336,7 @@ auto stronglyConnectedComponentsIterativeWithInvertedLinks(NodeType nrV, LinkTyp
 template<typename NodeType, typename LinkType, typename PartType, typename PartLinkType>
 auto stronglyConnectedComponentsIterative(NodeType nrV, LinkType nrE, const DataArray<NodeType>* arg1, const NodeType* node2Data, PartType* resSubData)
 {
-	std::vector<LinkType>
+	my_vec_t<LinkType>
 		link1(nrV, UNDEFINED_VALUE(LinkType)),
 		nextLink1(nrE, UNDEFINED_VALUE(LinkType));
 	{

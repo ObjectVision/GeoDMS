@@ -5,6 +5,7 @@
 
 #include "AbstrBoundingBoxCache.h"
 #include "ParallelTiles.h"
+#include "mem/MyContainers.h"
 
 GEO_CALL extern std::map<const AbstrDataObject*, std::weak_ptr<const AbstrBoundingBoxCache>> g_BB_Register;
 GEO_CALL extern leveled_critical_section cs_BB;
@@ -42,7 +43,7 @@ struct PointBoundingBoxCache : AbstrBoundingBoxCache
 {
 	using PointType = Point<F>;
 	using RectType = Range<PointType>;
-	using RectArrayType= std::vector<RectType>;
+	using RectArrayType= my_vec_t<RectType>; // one rect per feature-block per tile: census-visible
 
 	struct BoxData {
 		RectArrayType m_BlockBoundArray;
@@ -74,7 +75,7 @@ struct PointBoundingBoxCache : AbstrBoundingBoxCache
 		return Convert<DRect>(GetBoxData(t).m_BlockBoundArray[blockNr]);
 	}
 
-	std::vector<BoxData> m_BoxData;
+	my_vec_t<BoxData> m_BoxData;
 };
 
 template <typename F>
@@ -82,7 +83,7 @@ struct SequenceBoundingBoxCache : AbstrBoundingBoxCache
 {
 	using PointType = Point<F>;
 	using RectType = Range<PointType>;
-	using RectArrayType = std::vector<RectType>;
+	using RectArrayType = my_vec_t<RectType>; // one rect per feature and per block, per tile: census-visible
 	using PolygonType = typename sequence_traits<PointType>::container_type;
 
 	struct BoxData {
@@ -123,7 +124,7 @@ struct SequenceBoundingBoxCache : AbstrBoundingBoxCache
 		return Convert<DRect>(GetBoxData(t).m_BlockBoundArray[blockNr]);
 	}
 
-	std::vector<BoxData> m_BoxData;
+	my_vec_t<BoxData> m_BoxData;
 };
 
 

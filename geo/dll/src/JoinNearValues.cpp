@@ -16,6 +16,7 @@
 
 #include "geo/CheckedCalc.h"
 #include "geo/SpatialIndex.h"
+#include "mem/MyContainers.h"
 
 #include "ParallelTiles.h"
 
@@ -104,7 +105,7 @@ struct JoinNearValuesOperator : AbstrJoinNearValuesOperator
 		using SpatialIndexType = SpatialIndex<CoordType, const ArgValuesElement*>;
 		SpatialIndexType spIndex(bxRefData.begin(), bxRefData.end(), 0);
 
-		using tile_results_type = std::vector<std::pair<SizeT, SizeT > >;
+		using tile_results_type = my_vec_t<std::pair<SizeT, SizeT > >;
 
 		auto atn = A->GetNrTiles();
 		std::vector<tile_results_type> resultArrays(atn);
@@ -113,7 +114,7 @@ struct JoinNearValuesOperator : AbstrJoinNearValuesOperator
 			auto axRefData = const_array_cast<ArgValuesElement>(axRef)->GetTile(at);
 			auto tileFirstIndex = axDomain->GetTileFirstIndex(at);
 			tile_results_type tileResults;
-			std::vector<SizeT> second_rels;
+			my_vec_t<SizeT> second_rels;
 			for (const auto& ap : axRefData)
 			{
 				if (!IsDefined(ap))

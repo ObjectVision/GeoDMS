@@ -76,6 +76,7 @@
 #include <cmath>
 
 #include "LockLevels.h"
+#include "mem/MyContainers.h"
 
 #include "CheckedDomain.h"
 #include "DataCheckMode.h"
@@ -458,7 +459,7 @@ struct NodeZoneConnector
 
 	OwningPtrSizedArray<ImpType>  m_ResImpPerDstZone;
 	OwningPtrSizedArray<ZoneType> m_FoundYPerDstZone;
-	std::vector<ZoneType>         m_FoundYPerRes;
+	my_vec_t<ZoneType>            m_FoundYPerRes;
 	OwningPtrSizedArray<ZoneType> m_FoundResPerY;
 
 	OwningPtrSizedArray<ZoneType> m_LastCommittedSrcZone;
@@ -633,9 +634,9 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 	dms_combinable<NodeZoneConnector<NodeType, LinkType, ZoneType, ImpType>> nzcC;
 	dms_combinable<OwningDijkstraHeap<NodeType, LinkType, ZoneType, ImpType>> dhC;
 	dms_combinable<TreeRelations> trC;
-	dms_combinable< std::vector<ImpType>> pot_ijC;
+	dms_combinable< my_vec_t<ImpType>> pot_ijC;
 
-	dms_combinable<std::vector<MassType> >  resLinkFlowC;
+	dms_combinable<my_vec_t<MassType> >  resLinkFlowC;
 
 	// Default masses if void-domain singletons
 	MassType orgMass = 1.0; if (tgOrgMass && tgOrgMassHasVoidDomain)
@@ -729,7 +730,7 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 				maxSrcMass = (srcMassLimitPtr) ? srcMassLimitPtr[srcMassLimitHasVoidDomain ? 0 : orgZone] : MAX_VALUE(MassType);
 
 			using EndPointHeapElemType = heapElemType<ImpType, ZoneType>;
-			std::vector<EndPointHeapElemType> endPointHeap;
+			my_vec_t<EndPointHeapElemType> endPointHeap;
 
 			// Main Dijkstra loop
 			while (!dh.Empty())
@@ -951,7 +952,7 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 			// Interaction & aggregate metrics
 			if (flags(df & DijkstraFlag::InteractionOrMaxImp))
 			{
-				std::vector<ImpType>& pot_ij = pot_ijC.local();
+				my_vec_t<ImpType>& pot_ij = pot_ijC.local();
 				Float64 totalPotential = 0;
 				ImpType maxImp = 0;
 
@@ -1191,7 +1192,7 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 	// Combine link-flow contributions
 	if (res.LinkFlow)
 		resLinkFlowC.combine_each(
-			[&res](std::vector<MassType>& localLinkFlow){
+			[&res](my_vec_t<MassType>& localLinkFlow){
 				auto linkFlowPtr = res.LinkFlow;
 				for (auto flowPtr = localLinkFlow.begin(), flowEnd = localLinkFlow.end(); flowPtr != flowEnd; ++flowPtr, ++linkFlowPtr)
 					*linkFlowPtr += *flowPtr;

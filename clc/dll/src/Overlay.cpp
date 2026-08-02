@@ -14,6 +14,7 @@
 #include "geo/Conversions.h"
 
 #include "TileArrayImpl.h"
+#include "mem/MyContainers.h"
 #include "DataCheckMode.h"
 #include "OperationContext.h"
 #include "Unit.h"
@@ -210,7 +211,7 @@ void DoOverlay(AbstrDataItem* resAtomicRegionGrid, IterRange<const overlay_parti
 	}
 	// count atomicRegionID's in the atomicMap and count the unique nr of observed combinations
 	UInt32 nrAtomicRegions = 0;                                    // the unique nr of observed combinations
-	std::vector<UInt32> atomicRegionCounts(visitor.m_AtomicRegionFactor, 0); // # of observed combinations in the atomic map
+	my_vec_t<UInt32> atomicRegionCounts(visitor.m_AtomicRegionFactor, 0); // # of observed combinations in the atomic map
 
 	for (tile_id t = 0; t != visitor.m_NrTiles; ++t)
 	{
@@ -237,10 +238,10 @@ void DoOverlay(AbstrDataItem* resAtomicRegionGrid, IterRange<const overlay_parti
 
 	// collect atomicRegionIds and replace atomicRegionCounts by atomicRegionIds
 	typedef std::pair<UInt32, ProdID> atomic_region_count_t;
-	std::vector<atomic_region_count_t> atomicRegions;   // 1 per atomic region (== ar )
+	my_vec_t<atomic_region_count_t> atomicRegions;   // 1 per atomic region (== ar )
 	atomicRegions.reserve(nrAtomicRegions);
 
-	std::vector<UInt32>::iterator
+	my_vec_t<UInt32>::iterator
 		arcBeg = atomicRegionCounts.begin(),
 		arcPtr = arcBeg,
 		arcEnd = atomicRegionCounts.end();
@@ -294,7 +295,7 @@ void DoOverlay(AbstrDataItem* resAtomicRegionGrid, IterRange<const overlay_parti
 		auto resPartRelLock = lock_or_cancel(pPtr->m_ResPartRel); // owning for this scope; throws if torn down
 		DataWriteLock regionLock(resPartRelLock.get());
 
-		std::vector<atomic_region_count_t>::const_iterator
+		my_vec_t<atomic_region_count_t>::const_iterator
 			arPtr = atomicRegions.begin(),
 			arEnd = atomicRegions.end();
 		UInt32 c = 0;

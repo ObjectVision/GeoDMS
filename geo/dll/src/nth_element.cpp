@@ -84,6 +84,7 @@
 #endif
 
 #include "set/VectorFunc.h"
+#include "mem/MyContainers.h"
 #include "mci/CompositeCast.h"
 #include "geo/Conversions.h"
 
@@ -405,7 +406,7 @@ struct NthElementPart: AbstrPthElementPart<I>
 		auto resData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
 
 		// Count defined per partition
-		std::vector<SizeT> partCount(nrP, 0);
+		my_vec_t<SizeT> partCount(nrP, 0);
 		for (tile_id t=0, te=argVA->GetAbstrDomainUnit()->GetNrTiles(); t!=te; ++t)
 		{
 			auto argVData = argV->GetTile(t);
@@ -771,7 +772,7 @@ struct RthElementPart: AbstrPthElementPart<RatioType>
 		ResultType* result = mutable_array_cast<V>(res);
 		auto resData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
 
-		std::vector<I> partCount(nrP, 0);
+		my_vec_t<I> partCount(nrP, 0);
 
 		// Count defined per partition
 		for (tile_id t=0, te=argVA->GetAbstrDomainUnit()->GetNrTiles(); t!=te; ++t)
@@ -783,13 +784,13 @@ struct RthElementPart: AbstrPthElementPart<RatioType>
 
 		// Cumulative offsets
 		I cumulativeN = 0;
-		std::vector<I> cumul; cumul.reserve(nrP);
+		my_vec_t<I> cumul; cumul.reserve(nrP);
 		for (auto i = partCount.begin(), e = partCount.end(); i!=e; ++i)
 		{
 			cumul.push_back(cumulativeN);
 			cumulativeN += *i;
 		}
-		std::vector<I> cumul2 = cumul;
+		my_vec_t<I> cumul2 = cumul;
 
 		// Copy defined values into partition slices
 		typename sequence_traits<V>::container_type copy(cumulativeN, V() MG_DEBUG_ALLOCATOR_SRC("rth_element buffer"));

@@ -15,6 +15,7 @@
 #include "UnitClass.h"
 
 #include "pcount.h"
+#include "mem/MyContainers.h"
 
 // *****************************************************************************
 //                         IndexedSearchOperator
@@ -86,10 +87,10 @@ struct JoinEqualValuesOperator : AbstrJoinEqualValuesOperator
 
 		AbstrUnit* AB = AsUnit(resultHolder.GetNew());
 
-		std::vector<ResultElement> aCounts(nr_X), aUsed(nr_X); 
-		std::vector<ResultElement> bCounts(nr_X), bUsed(nr_X);
-		std::vector<ResultElement> abCounts; abCounts.reserve(nr_X);
-		std::vector<ResultElement> abOffsets; abOffsets.reserve(nr_X);
+		my_vec_t<ResultElement> aCounts(nr_X), aUsed(nr_X); 
+		my_vec_t<ResultElement> bCounts(nr_X), bUsed(nr_X);
+		my_vec_t<ResultElement> abCounts; abCounts.reserve(nr_X);
+		my_vec_t<ResultElement> abOffsets; abOffsets.reserve(nr_X);
 		auto xRange = X->GetRange();
 		pcount_best(axRefData.begin(), axRefData.end(), begin_ptr(aCounts), nr_X, xRange, axRef->GetCheckMode(), false);
 		pcount_best(bxRefData.begin(), bxRefData.end(), begin_ptr(bCounts), nr_X, xRange, bxRef->GetCheckMode(), false);

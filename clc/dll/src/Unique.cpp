@@ -26,11 +26,12 @@
 #include "OperSignature.h"
 
 #include "rlookup.h"
+#include "mem/MyContainers.h"
 
 template <typename V> const UInt32 BUFFER_SIZE = 4096 / sizeof(V);
 
 template <typename V>
-std::vector<V> GetUniqueValuesDirect(typename DataArray<V>::locked_cseq_t seq, tile_offset index, tile_offset size, bool mustBeDefined)
+my_elem_vec_t<V> GetUniqueValuesDirect(typename DataArray<V>::locked_cseq_t seq, tile_offset index, tile_offset size, bool mustBeDefined)
 {
 	// PRECONDITIONS
 	assert(size <= BUFFER_SIZE<V>);
@@ -67,7 +68,7 @@ std::vector<V> GetUniqueValuesDirect(typename DataArray<V>::locked_cseq_t seq, t
 				// use the ordering that handles null well
 				std::sort(buffer, bufferCursor, cmp);
 				bufferCursor = std::unique(buffer, bufferCursor, areEqual);
-				return std::vector<V>(buffer, bufferCursor);
+				return my_elem_vec_t<V>(buffer, bufferCursor);
 			}
 		}
 		else
@@ -80,7 +81,7 @@ std::vector<V> GetUniqueValuesDirect(typename DataArray<V>::locked_cseq_t seq, t
 				// use the ordering that handles null well
 				std::sort(buffer, bufferCursor, cmp); // sort with nulll on top
 				bufferCursor = std::unique(buffer, bufferCursor); // use the normal equality compare operator
-				return std::vector<V>(buffer, bufferCursor);
+				return my_elem_vec_t<V>(buffer, bufferCursor);
 			}
 		}
 	}
@@ -102,7 +103,7 @@ std::vector<V> GetUniqueValuesDirect(typename DataArray<V>::locked_cseq_t seq, t
 	// use the simpler ordering as null has been filtered  out or is irrelevant
 	std::sort(buffer, bufferCursor); // sort
 	bufferCursor = std::unique(buffer, bufferCursor); // use the normal equality compare operator
-	return std::vector<V>(buffer, bufferCursor);
+	return my_elem_vec_t<V>(buffer, bufferCursor);
 }
 
 template <typename Iter, typename Pred>
@@ -130,9 +131,9 @@ auto set_union_by_move(Iter first1, Iter last1, Iter first2, Iter last2, Iter de
 }
 
 template <typename V>
-std::vector<V> MergeToLeft(std::vector<V> left, std::vector<V> right, bool mustBeDefined)
+my_elem_vec_t<V> MergeToLeft(my_elem_vec_t<V> left, my_elem_vec_t<V> right, bool mustBeDefined)
 {
-	std::vector<V> result;
+	my_elem_vec_t<V> result;
 	result.resize(left.size() + right.size());
 
 	if (!result.empty())
@@ -151,12 +152,12 @@ std::vector<V> MergeToLeft(std::vector<V> left, std::vector<V> right, bool mustB
 }
 
 template <typename V>
-std::vector<V> GetTileUniqueValues(typename DataArray<V>::locked_cseq_t tileData, tile_offset index, tile_offset size, bool mustBeDefined)
+my_elem_vec_t<V> GetTileUniqueValues(typename DataArray<V>::locked_cseq_t tileData, tile_offset index, tile_offset size, bool mustBeDefined)
 {
 	if (size <= BUFFER_SIZE<V>)
 		return GetUniqueValuesDirect<V>(tileData, index, size, mustBeDefined);
 
-	std::vector<V> result;
+	my_elem_vec_t<V> result;
 	tile_offset m = size / 2;
 
 	auto firstHalf = throttled_async([&tileData, index, m, mustBeDefined]() {
@@ -170,7 +171,7 @@ std::vector<V> GetTileUniqueValues(typename DataArray<V>::locked_cseq_t tileData
 }
 
 template <typename V>
-std::vector<V> GetUniqueWallValues(const DataArray<V>* ado, tile_id t, tile_id nrTiles, bool mustBeDefined)
+my_elem_vec_t<V> GetUniqueWallValues(const DataArray<V>* ado, tile_id t, tile_id nrTiles, bool mustBeDefined)
 {
 	dms_assert(nrTiles >= 1); // PRECONDITION
 	if (nrTiles == 1)
@@ -198,7 +199,7 @@ void GetUniqueValues(AbstrUnit* res, AbstrDataItem* resSub, const AbstrDataItem*
 	dms_assert(adi && adi->GetInterestCount());
 
 	const DataArray<V>* ado = const_array_cast<V>(adi);
-	std::vector<V> values;
+	my_elem_vec_t<V> values;
 	SizeT count = ado->GetTiledRangeData()->GetElemCount();
 	if (count)
 	{
@@ -264,7 +265,7 @@ void GetUniqueValues(AbstrUnit* res, AbstrDataItem* resSub, const AbstrDataItem*
 	visit<typelists::domain_elements>(adi->GetAbstrDomainUnit(), [res, resSub, allValues, mustBeDefined]<typename E>(const Unit<E>*arg2Domain)
 	{
 		using index_type = typename cardinality_type<E>::type;
-		std::vector<index_type> index;
+		my_vec_t<index_type> index;
 		if (mustBeDefined)
 			make_index_skip_null(index, allValues.size(), allValues.begin());
 		else

@@ -2030,6 +2030,54 @@ build-and-verify cycle rather than being folded in ahead of a long run.
 
 ---
 
+### 8.1.18 t641 under PerformanceLogging: the measurement line failed a SUCCESSFUL operation
+
+First run of t641_1 with PerformanceLogging on (the stage-3 census probe) died ~3.5 minutes in:
+`Check Failed Error: m_Ptr != nullptr, PtrBase.h(62)` on `/Geography/rdc_25m`, hundreds of
+dependent failures, and then a **teardown deadlock** — main thread blocked forever in
+`TreeItem::EnableAutoDelete`'s worker drain (`s_SessionUsageCounter` exclusive lock) with every
+worker idle, i.e. a leaked shared usage count somewhere in the failure cascade's unwind.
+
+Diagnosis was by rerunning under cdb with `sxe -c "kn 50;gn" eh` (stack on every first-chance
+C++ exception, then continue). 842 exceptions clustered into:
+
+- 421× `AbstrUnit::GetNrTiles` ← `Operator::EstimatePerformance`+0x231 — PDB line mapping puts
+  +0x231 at Operator.cpp:245, **inside** the try — the documented degrade-don't-fail probe on a
+  not-yet-computed domain. Caught, benign, but 400+ throw/catch cycles on the meta path per run
+  is real waste; a future refinement could probe range readiness first.
+- 139× GDAL storage-open errors + assorted meta noise — pre-existing config/data conditions.
+- 212× `Actor::ThrowFail` re-raises — the failure cascade, not the origin.
+- **1× the origin**: `OperationContext::GetOperGroup` ← `OperationContext::RunOperator` ←
+  worker task wrapper, caught by `RunOperator`'s own catch → `Actor::CatchFail`.
+
+The origin line is the measurement call after the payload:
+
+```cpp
+actualResult = op->CalcResult(resultHolder, argRefs, ...);   // may complete the operation
+...
+ReportOperPerformance(GetOperGroup()->GetNameStr(), ...)     // derefs m_FuncDC -- cleared!
+```
+
+`ScheduleCalcResult` documents that completing the operation can clear `m_FuncDC` ("RunImpl()
+may destroy this and make m_FuncDC inaccessible"), and the error path a few lines below even
+guards `if (m_FuncDC)` before calling `GetOperGroup()`. The measurement line did not — so with
+logging on, a timing window after a *successful* `CalcResult` threw, `CatchFail` stored the
+checked-deref message on the freshly produced result, and everything downstream failed. t405
+never hit the window in 3 calibration runs; t641's meta-heavy load hit it once in ~2 500
+operations — and once is all a failure cascade needs.
+
+**Fix:** capture the group from the local `op` (`op->GetGroup()->GetNameStr()`) — operators are
+registered statically and immortal, and `funcDC` is a local `SharedPtr` besides.
+
+**Open robustness item (not fixed here):** the teardown drain deadlock means an error cascade
+can leak a `s_SessionUsageCounter` share. One suspicious shape found while reading:
+`ItemReadLock(SharedTreeItemInterestPtr&&, try_token_t)` MG_CHECKs *after* `TryReadLockInit`
+succeeded — a throw there exits the constructor with the read lock and shared usage count taken
+and no destructor to release them (ItemLocks.cpp). Healthy runs never reach it; a failure
+cascade might. Worth a releasable-scoped-exit like the ones `ReadLockInit` itself uses.
+
+---
+
 ## 9. Risks and open questions
 
 **Risks**

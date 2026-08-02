@@ -12,6 +12,8 @@
 
 #include <functional>
 
+#include "mem/MyContainers.h"
+
 // *****************************************************************************
 //									directions
 // *****************************************************************************
@@ -102,8 +104,8 @@ struct bi_graph
 	UInt32 GetNrLinks   () const { return m_Links.size(); }
 
 private:
-	std::vector<UInt32>        m_FirstLnkSrc, m_FirstLnkDst;
-	std::vector<bi_graph_link> m_Links;
+	my_vec_t<UInt32>           m_FirstLnkSrc, m_FirstLnkDst;
+	my_vec_t<bi_graph_link>    m_Links;
 };
 
 // *****************************************************************************
@@ -218,8 +220,8 @@ protected:
 
 private:
 	const bi_graph&        m_Graph;
-	std::vector<heap_elem> m_Heap;
-	std::vector<flag_elem> m_srcTraceBack, m_dstTraceBack;
+	my_vec_t<heap_elem> m_Heap;
+	my_vec_t<flag_elem> m_srcTraceBack, m_dstTraceBack;
 	ChronoID               m_CurrFlag = 0;
 
 	UInt32 m_maxFoundAugmentation = 0, m_maxFoundLink = 0;
@@ -568,8 +570,8 @@ struct directed_dijkstra
 
 private:
 	const DIRECTED_GRAPH&  m_Graph;
-	std::vector<heap_elem>  m_Heap;
-	std::vector<flag_elem>  m_NodeTraceBack;
+	my_vec_t<heap_elem>  m_Heap;
+	my_vec_t<flag_elem>  m_NodeTraceBack;
 	ChronoID               m_CurrFlag;
 	cost_type              m_MaxLinkCost;
 };

@@ -28,6 +28,7 @@
 #include "OperRelUni.h"
 #include "UnitProcessor.h"
 #include "LispTreeType.h"
+#include "mem/MyContainers.h"
 
 // *****************************************************************************
 //                         Helper Funcs
@@ -182,7 +183,8 @@ public:
 
 		// TODO: Optimize for sequence-arrays, similar to GetDataRead(no_tile);
 		auto trd = di->GetTiledRangeData();
-		std::vector<V> argData; argData.reserve(trd->GetElemCount());
+		// Full-domain buffers: route them through the allocation stocks so the census sees them.
+		my_elem_vec_t<V> argData; argData.reserve(trd->GetElemCount());
 		for (tile_id t = 0, te = trd->GetNrTiles(); t != te; ++t)
 			for (const auto& v : di->GetTile(t))
 					argData.emplace_back(v);
@@ -193,7 +195,7 @@ public:
 //			auto resData = resObj->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
 
 			// TODO, OPTIMIZE: try to avoid zero-initialisation of resData
-			std::vector<I> resData(resObj->GetTiledRangeData()->GetElemCount());
+			my_vec_t<I> resData(resObj->GetTiledRangeData()->GetElemCount());
 			make_index_in_existing_span(resData.begin(), resData.end(), argData.begin());
 			
 			tile_write_channel<I> resultWriter(resObj);

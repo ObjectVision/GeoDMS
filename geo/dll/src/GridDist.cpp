@@ -19,6 +19,7 @@
 
 #include "dbg/SeverityType.h"
 #include "CheckedDomain.h"
+#include "mem/MyContainers.h"
 #include "geo/RangeIndex.h"
 #include "geo/PointOrder.h"
 #include "utl/scoped_exit.h"
@@ -44,7 +45,7 @@ struct DisplacementInfo // { Start, NW, N, NE, W, E, SW, S, SE }
 	Directions d, r;
 	Float64    factor;
 
-	Float64 getFactor(bool useLatFactor, const std::vector<Couple<Float64>>& latFactors, UInt32 row) const
+	Float64 getFactor(bool useLatFactor, const my_vec_t<Couple<Float64>>& latFactors, UInt32 row) const
 	{
 		if (useLatFactor)
 		{
@@ -130,7 +131,7 @@ class GridDistOperator : public Operator
 	typedef UInt4  LinkType; 
 	typedef UInt32 ZoneType; // TODO, REMOVE only required for non-used parts of DijkstraHeap
 	typedef heapElemType<ImpType>    HeapElemType;
-	typedef std::vector<HeapElemType> HeapType;
+	typedef my_vec_t<HeapElemType> HeapType;
 	typedef Range<GridType>          GridRangeType;
 
 	typedef DataArray<ImpType> Arg1Type;  // Grid->Imp
@@ -294,7 +295,7 @@ public:
 			maxImp = const_array_cast<ImpType>(adiLimitImp)->GetTile(0)[0];
 		}
 
-		std::vector<Couple<Float64>> latFactors;
+		my_vec_t<Couple<Float64>> latFactors;
 		Range<GridType> domainRange = gridSet->GetRange();
 		auto yRange = Range<scalar_of_t<GridType>>(domainRange.first.Y(), domainRange.second.Y());
 		ImpType boundaryFactor = 0.0;

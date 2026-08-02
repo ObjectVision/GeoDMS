@@ -29,6 +29,11 @@
 #include "ValuesTable.h"
 #include "IndexGetterCreator.h"
 
+// The modus intermediates (table buffers, counter maps) go through my_vec_t/my_map_t: they are the
+// actual working set of this operator, and the default allocator would both bypass the lock-free
+// allocation stocks and hide the cost from the per-operation allocation census (SS8.1.16).
+#include "mem/MyContainers.h"
+
 
 
 // *****************************************************************************
@@ -243,15 +248,6 @@ void ModusTotByTable(const DataArray<V>* tileFunctor, typename sequence_traits<R
 // Exact size is implementation-defined; the payload plus 4 pointer-sized
 // fields (parent, left, right, color/bookkeeping) is a portable upper bound.
 template <typename V> constexpr UInt32 map_node_type_size = sizeof(std::pair<std::pair<SizeT, V>, SizeT>) + 4 * sizeof(void*);
-
-// The modus intermediates go through my_allocator, i.e. through AllocateFromStock, for two reasons.
-// They are the actual working set of this operator -- a table buffer is vCount*pCount entries and a
-// counter map holds one node per distinct value -- so with the default allocator they bypass the
-// lock-free allocator AND are invisible to the per-operation allocation census, which is why modus
-// measured ~1.0x against its estimate: the cost simply was not being seen (§8.1.16).
-template <typename T> using my_vec_t = std::vector<T, my_allocator<T>>;
-template <typename K, typename T> using my_map_t
-	= std::map<K, T, std::less<K>, my_allocator<std::pair<const K, T>>>;
 
 template <typename V, typename R, typename AggrFunc>
 void ModusTotDispatcher(const DataArray<V>* valuesTF, bool noOutOfRangeValues, typename sequence_traits<R>::container_type::reference resData, AggrFunc aggrFunc)

@@ -12,6 +12,7 @@
 
 #include "geo/Pair.h"
 #include "geo/SequenceArray.h"
+#include "mem/MyContainers.h"
 #include "utl/IncrementalLock.h"
 
 template <typename SpatialIndexType> struct neighbour_iter;
@@ -234,7 +235,9 @@ struct SpatialIndex
 
 
 	using LeafType = SpatialIndexImpl::LeafTypeGetter_t<PointType, ObjectPtrType>;
-	using LeafContainer = std::vector<LeafType>;
+	// One leaf per indexed object and quadtree nodes in groups of 4: the whole index is
+	// operator working set, so it lives in the allocation stocks where the census sees it.
+	using LeafContainer = my_vec_t<LeafType>;
 
 	struct Node
 	{
@@ -293,7 +296,7 @@ struct SpatialIndex
 		LeafType* m_FirstLeaf;  // index of first leaf; leafs form a singly-linked list
 		SizeT     m_NrObjects;
 	};
-	typedef std::vector<Node> NodeContainer;
+	typedef my_vec_t<Node> NodeContainer;
 
 	template <typename SelType>
 	struct iterator

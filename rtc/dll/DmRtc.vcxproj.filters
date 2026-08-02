@@ -287,6 +287,9 @@
     <ClInclude Include="src\mem\MyAllocator.h">
       <Filter>Memory</Filter>
     </ClInclude>
+    <ClInclude Include="src\mem\MyContainers.h">
+      <Filter>Memory</Filter>
+    </ClInclude>
     <ClInclude Include="src\mem\SeqLock.h">
       <Filter>Memory</Filter>
     </ClInclude>

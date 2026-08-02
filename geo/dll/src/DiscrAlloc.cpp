@@ -28,6 +28,7 @@
 #include "bi_graph.h" // used to apply Dijkstra on a bi_graph, needed for finding an shortest route through a graph of facets when adjusting the splitter.
 #include "PCount.h"
 #include "DataArrayValue.h"
+#include "mem/MyContainers.h"
 
 /*
 	discrete allocation, O(n*k), see:
@@ -340,8 +341,10 @@ struct claim
 //
 // MEMORY
 // ------
-// Inherits privately from std::vector<land_unit_id>; heap range is the full
-// underlying vector.
+// Inherits privately from my_vec_t<land_unit_id>; heap range is the full
+// underlying vector. The heaps jointly hold every cell that lost a confrontation
+// (~n x (k-1) entries across all facets), which is the operator's real working
+// set -- so they go through the allocation stocks, where the census sees them.
 //
 // THREAD SAFETY
 // -------------
@@ -354,7 +357,7 @@ struct claim
 //
 // ============================================================================
 template <typename S>
-struct priority_heap : private std::vector<land_unit_id>
+struct priority_heap : private my_vec_t<land_unit_id>
 {
 	// Construct a facet heap connecting source->target claim.
 	// Registers this heap in singly linked adjacency lists of both claims.
