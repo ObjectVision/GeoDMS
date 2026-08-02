@@ -95,6 +95,21 @@ struct FileTileArray : GeneratedTileFunctor<V>
 	// so RAM holds live mappings and a re-request re-maps instead of recomputing.
 	materialization GetMaterialization() const override { return materialization::spilled; }
 
+	// Tiles with a live mapping. m_NrMappedFileTiles is the mapping refcount maintained by
+	// mapped_file_tile's ctor/dtor, so a plain read tells us residency without touching cs_file and
+	// without creating a mapping (which file_tile::get() would). Reading it unsynchronised is
+	// deliberate: this feeds a resource estimate, and a tile mapped or unmapped concurrently is
+	// exactly as true a moment later. Never calls GetTile().
+	tile_id GetNrResidentTilesNow() const override
+	{
+		auto trd = this->GetTiledRangeData();
+		tile_id tn = trd ? trd->GetNrTiles() : 0, resident = 0;
+		for (tile_id t = 0; t != tn; ++t)
+			if (m_Files[t].m_NrMappedFileTiles)
+				++resident;
+		return resident;
+	}
+
 	SharedStr m_CacheFileName;
 	files_t m_Files;
 	bool    m_IsTmp;

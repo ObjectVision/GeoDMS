@@ -34,6 +34,11 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "Operator.h"
 
+// For the argument-materialization term in EstimatePerformance: it asks each argument's data object
+// for its regime and tiling, so the complete type is needed here (§8.1.16).
+#include "AbstrDataObject.h"
+#include "TiledRangeData.h"
+
 // *****************************************************************************
 // Section:     Operator
 // *****************************************************************************
@@ -155,6 +160,43 @@ static auto PredictMaterialization(const AbstrDataItem* res, tile_id nrTiles) ->
 	return res->GetLazyCalculatedState() ? materialization::streaming : materialization::deferred;
 }
 
+// Carry a derived per-element width from an argument to the result, for the families whose result
+// elements ARE their argument's elements (lookup, collect_by_cond, collect_by_org_rel, ...).
+//
+// Two guards keep this honest. Identical ValueComposition and identical values ValueClass mean the
+// element really is carried over rather than rebuilt, and the result is left alone once it has its
+// own width, so an operator that publishes a precise figure is never overwritten by an inherited
+// one. The max over arguments is the conservative choice for an admission charge.
+static void InheritEstimatedElementWidth(const AbstrDataItem* adi, const ArgRefs& args) noexcept
+{
+	try {
+		if (adi->GetEstimatedBytesPerElement())
+			return; // already knows better than anything we could copy in
+		auto valuesUnit = adi->GetAbstrValuesUnit();
+		if (!valuesUnit)
+			return;
+		auto valuesType = valuesUnit->GetValueType();
+		auto composition = adi->GetValueComposition();
+		if (composition == ValueComposition::Single && valuesType && valuesType->GetBitSize() != UInt32(-1))
+			return; // fixed width: EstimateDataBytes is already exact
+
+		SizeT widest = 0;
+		for (const auto& argRef : args)
+			if (auto argItem = GetItem(argRef); argItem && IsDataItem(argItem))
+			{
+				auto argAdi = AsDataItem(argItem);
+				if (argAdi->GetValueComposition() != composition)
+					continue;
+				auto argValuesUnit = argAdi->GetAbstrValuesUnit();
+				if (!argValuesUnit || argValuesUnit->GetValueType() != valuesType)
+					continue;
+				MakeMax(widest, SizeT(argAdi->GetEstimatedBytesPerElement()));
+			}
+		adi->SetEstimatedBytesPerElement(widest);
+	}
+	catch (...) {} // an unresolvable values unit just means: keep the generic guess
+}
+
 TIC_CALL auto Operator::EstimatePerformance(TreeItemDualRef& resultHolder, const ArgRefs& args) const -> PerformanceEstimationData
 {
 	// Only materialize the skeleton when there isn't one: this is the very condition
@@ -184,6 +226,16 @@ TIC_CALL auto Operator::EstimatePerformance(TreeItemDualRef& resultHolder, const
 	auto domainCount = EstimateDomainCount(domain);
 	result.resultingNrElements = domainCount.expected;
 	result.confidence = domainCount.confidence;
+
+	// Before charging for a variable-width result, see whether an argument already carries a derived
+	// per-element width. The selection/permutation families (lookup, collect_by_cond,
+	// collect_by_org_rel, recollect_by_cond, ...) copy argument elements verbatim, so the result's
+	// elements are exactly as wide as the argument's -- whereas EstimateDataBytes would otherwise
+	// fall back to ASSUMED_SEQ_LENGTH and lose whatever the producer knew. Guarded on identical
+	// composition AND identical value type, so this only fires where an element really is carried
+	// over unchanged; an operator that builds different elements publishes its own width instead.
+	InheritEstimatedElementWidth(adi, args);
+
 	result.resultingMemory = EstimateDataBytes(adi, domainCount.expected);
 	result.resultingMemoryUpperBound = EstimateDataBytes(adi, domainCount.upperBound);
 
@@ -231,6 +283,31 @@ TIC_CALL auto Operator::EstimatePerformance(TreeItemDualRef& resultHolder, const
 			// Conservative by construction: config items, kept items and shared inputs count 0.
 			if (argItem->IsCacheItem() && !argItem->GetKeepDataState() && argItem->GetInterestCount() <= 1)
 				result.reclaimableInputMemory += argBytes;
+
+			// An argument that has not been materialized yet is materialized by US, when we pull it,
+			// inside our own CancelableFrame -- so its allocation belongs to this operation, not to
+			// the producer that only built the tile functor. That is what makes an aggregation's
+			// measured peak track its input rather than its result (§8.1.16).
+			// Only knowable once the argument HAS a data object, i.e. from the run-time estimate that
+			// RefreshEstimateForAdmission takes; at schedule time this term is legitimately 0.
+			if (auto argObj = argAdi->GetCurrRefObj())
+				switch (argObj->GetMaterialization())
+				{
+				case materialization::deferred:
+					// tiles are kept once pulled, so pulling it through costs its whole volume
+					result.argMaterializationMemory += argBytes;
+					break;
+				case materialization::streaming:
+					// a released tile is freed again, so only the tiles in flight are resident --
+					// the same bound the result side applies to a streaming result
+					if (auto argTiles = argObj->GetTiledRangeData(); argTiles && argTiles->GetNrTiles())
+						result.argMaterializationMemory +=
+							(argBytes / argTiles->GetNrTiles()) * Min<SizeT>(argTiles->GetNrTiles(), MaxConcurrentTreads());
+					break;
+				default: // eager / spilled / meta: already materialized, charged to whoever made it
+					break;
+				}
+
 			MakeMax(nrElemOps, argCount.expected);
 			MakeMax(result.confidence, argCount.confidence); // only as good as its worst input
 		}

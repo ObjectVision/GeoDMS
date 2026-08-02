@@ -91,7 +91,16 @@ template <typename V>
 struct const_shadow_sequence_tile : tile<V>
 {
 	using tile<V>::tile;
-	std::vector< typename DataArrayBase<V>::locked_cseq_t > m_Seqs;
+
+	// my_allocator, so this goes through AllocateFromStock like every other tile buffer. One entry
+	// per sequence (a shared_ptr plus a range, ~32 B), retained for as long as the shadow lives --
+	// which is the dominant cost of a lookup/rlookup on a sequence-valued attribute, since each
+	// future tile holds a shared reference to this immutable shadow while the indices are pulled
+	// lazily. With the default allocator that cost bypassed the lock-free allocator and was invisible
+	// to the per-operation census, which is why rlookup's p90 stayed at 147,483x while its median
+	// was corrected (§8.1.16).
+	using seq_lock_t = typename DataArrayBase<V>::locked_cseq_t;
+	std::vector<seq_lock_t, my_allocator<seq_lock_t>> m_Seqs;
 };
 
 template <typename V>
@@ -179,7 +188,11 @@ struct const_shadow : const_tile_t<V>
 
 
 AbstrDataObject::~AbstrDataObject()
-{}
+{
+	// The bytes are going now -- not when some item dropped its reference. See the comment on
+	// m_LedgerRetainedBytes: this is the only moment at which a retained booking is truly stale.
+	MemoryLedger_ReleaseRetained(this);
+}
 
 template<typename V>
 std::shared_ptr<const_shadow<V>> GetConstShadowTile(const DataArrayBase<V>* ado)

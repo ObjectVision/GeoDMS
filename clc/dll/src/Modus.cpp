@@ -244,6 +244,15 @@ void ModusTotByTable(const DataArray<V>* tileFunctor, typename sequence_traits<R
 // fields (parent, left, right, color/bookkeeping) is a portable upper bound.
 template <typename V> constexpr UInt32 map_node_type_size = sizeof(std::pair<std::pair<SizeT, V>, SizeT>) + 4 * sizeof(void*);
 
+// The modus intermediates go through my_allocator, i.e. through AllocateFromStock, for two reasons.
+// They are the actual working set of this operator -- a table buffer is vCount*pCount entries and a
+// counter map holds one node per distinct value -- so with the default allocator they bypass the
+// lock-free allocator AND are invisible to the per-operation allocation census, which is why modus
+// measured ~1.0x against its estimate: the cost simply was not being seen (§8.1.16).
+template <typename T> using my_vec_t = std::vector<T, my_allocator<T>>;
+template <typename K, typename T> using my_map_t
+	= std::map<K, T, std::less<K>, my_allocator<std::pair<const K, T>>>;
+
 template <typename V, typename R, typename AggrFunc>
 void ModusTotDispatcher(const DataArray<V>* valuesTF, bool noOutOfRangeValues, typename sequence_traits<R>::container_type::reference resData, AggrFunc aggrFunc)
 {
@@ -318,7 +327,7 @@ void ModusPartByTable(const AbstrDataItem* indicesItem, future_tile_array<V> val
 	, AggrFunc aggrFunc)
 {
 	SizeT vCount = Cardinality(valuesRange);
-	std::vector<SizeT> buffer(vCount*pCount, 0);
+	my_vec_t<SizeT> buffer(vCount*pCount, 0);
 	auto bufferB = buffer.begin();
 
 	for (tile_id t =0, tn = values_fta.size(); t != tn; ++t)
@@ -362,7 +371,7 @@ void ModusPartByTable(const AbstrDataItem* indicesItem, future_tile_array<V> val
 template<typename V>
 void WeightedModusTotBySet(const DataArray<V>* valuesTF, const AbstrDataItem* weightItem, typename sequence_traits<V>::container_type::reference resData)
 {
-	std::map<V, Float64> counters;
+	my_map_t<V, Float64> counters;
 
 	for (tile_id t =0, tn = valuesTF->GetTiledRangeData()->GetNrTiles(); t!=tn; ++t)
 	{
@@ -390,7 +399,7 @@ template<typename V>
 void WeightedModusTotByTable(const DataArray<V>* valuesTF, const AbstrDataItem* weightItem, typename sequence_traits<V>::container_type::reference resData, const typename Unit<V>::range_t& valuesRange)
 {
 	auto vCount = Cardinality(valuesRange);
-	std::vector<Float64> buffer(vCount, 0);
+	my_vec_t<Float64> buffer(vCount, 0);
 
 	for (tile_id t =0, tn = valuesTF->GetTiledRangeData()->GetNrTiles(); t!=tn; ++t)
 	{
@@ -469,7 +478,7 @@ void WeightedModusPartBySet(const DataArray<V>* valuesTF, const AbstrDataItem* w
 	SizeT pCount)  // countable dommain unit of result; P can be Void.
 {
 	typedef std::pair<SizeT, V> value_type;
-	std::map<value_type, Float64> wieghtAccumulators;
+	my_map_t<value_type, Float64> wieghtAccumulators;
 
 	for (tile_id t=0, tn= valuesTF->GetTiledRangeData()->GetNrTiles(); t!=tn; ++t)
 	{
@@ -522,8 +531,8 @@ template<typename V, typename OIV>
 void WeightedModusPartByTable(const DataArray<V>* valuesTF, const AbstrDataItem* weightItem, const AbstrDataItem* indicesItem, OIV resBegin, typename Unit<V>::range_t valuesRange, SizeT pCount)  // countable dommain unit of result; P can be Void.
 {
 	SizeT vCount = Cardinality(valuesRange);
-	std::vector<Float64> buffer(vCount*pCount, 0);
-	std::vector<Float64>::iterator bufferB = buffer.begin();
+	my_vec_t<Float64> buffer(vCount*pCount, 0);
+	my_vec_t<Float64>::iterator bufferB = buffer.begin();
 
 	for (tile_id t =0, tn = valuesTF->GetTiledRangeData()->GetNrTiles(); t!=tn; ++t)
 	{

@@ -81,7 +81,11 @@ struct my_allocator {
 	template <class U> bool operator==(const my_allocator <U>&) const { return true; }
 	template <class U> bool operator!=(const my_allocator <U>&) const { return false; }
 
-	T* allocate(SizeT n MG_DEBUG_ALLOCATOR_SRC_ARG)
+	// _ARG_D, not _ARG: the source string must DEFAULT, or this is not a conforming Allocator.
+	// std::allocator_traits<A>::allocate(a, n) calls a.allocate(n) with one argument, so under
+	// MG_DEBUG_ALLOCATOR -- where the macro appends `, CharPtr srcStr` -- every std container using
+	// my_allocator would compile in Release and fail in Debug.
+	T* allocate(SizeT n MG_DEBUG_ALLOCATOR_SRC_ARG_D)
 	{
 		auto result = reinterpret_cast<T*>(AllocateFromStock(safe_size_n<nrbits_of_v<T>>(n) MG_DEBUG_ALLOCATOR_SRC_PARAM));
 		return result;

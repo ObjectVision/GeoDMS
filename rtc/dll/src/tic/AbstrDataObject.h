@@ -111,6 +111,23 @@ public:
 	// See doc/tile-data-retainment.md and doc/development/schedule-with-lookahead.md §4.4.
 	TIC_CALL virtual materialization GetMaterialization() const { return materialization::eager; }
 
+	// How many tiles of this object occupy RAM *right now*. Only meaningful for a regime whose
+	// residency is a moving subset of the whole: a spilled (FileTileArray) result keeps its data in
+	// a cache file and holds live mappings for the tiles currently in use, so charging it either its
+	// whole volume or nothing is wrong in both directions. Every other regime returns 0, meaning
+	// "not applicable -- use the regime's own rule", NOT "occupies nothing".
+	// Must not force any work: this is read on a scheduling path.
+	TIC_CALL virtual tile_id GetNrResidentTilesNow() const { return 0; }
+
+	// Memory-ledger booking, held HERE rather than on the AbstrDataItem that produced it. A data
+	// object routinely outlives its creator's ClearDataObject: it stays read-only shared-owned by
+	// active operations and by tile futures produced by operations that consume it. Keying the
+	// booking on the item therefore unbooked memory that was still resident -- measured on t641, the
+	// ledger's live total sat at ~2.5 GB while the process held 126-190 GB, with retains and
+	// releases pairing up perfectly. Keyed on the object, the booking lasts exactly as long as the
+	// bytes do, because ~AbstrDataObject is what releases it.
+	mutable SizeT m_LedgerRetainedBytes = 0;
+
 //	Values Cardinality
 	TIC_CALL virtual row_id GetValuesRangeCount() const { return UNDEFINED_VALUE(row_id); }
 	TIC_CALL virtual bool   IsFirstValueZero() const { return false;  }

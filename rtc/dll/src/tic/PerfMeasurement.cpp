@@ -34,8 +34,11 @@ namespace {
 	// stay terse or they lose their tail -- which is where the schedule-vs-run comparison sits.
 	SharedStr Bytes(SizeT n)
 	{
-		if (n >= (SizeT(1) << 30)) return mySSPrintF("{}G", n >> 30);
-		if (n >= (SizeT(1) << 20)) return mySSPrintF("{}M", n >> 20);
+		// Two decimals above 1 MB. Integer division flattened everything in [1 GB, 2 GB) to "1G",
+		// which made five different operators report an identical peak and hid whether a sequence
+		// result was carrying its element array or only its 16-byte-per-sequence index (§8.1.16).
+		if (n >= (SizeT(1) << 30)) return mySSPrintF("{:.2f}G", Float64(n) / Float64(SizeT(1) << 30));
+		if (n >= (SizeT(1) << 20)) return mySSPrintF("{:.2f}M", Float64(n) / Float64(SizeT(1) << 20));
 		if (n >= (SizeT(1) << 10)) return mySSPrintF("{}K", n >> 10);
 		return mySSPrintF("{}", n);
 	}
@@ -79,7 +82,7 @@ TIC_CALL auto EstimateOperPerformance(const Operator* oper, TreeItemDualRef& res
 
 TIC_CALL void ReportOperPerformance(CharPtr operName, const TreeItem* result
 	, const PerformanceEstimationData& scheduleEstimate, const PerformanceEstimationData& runEstimate
-	, Float64 elapsedMSec, SizeT actualNrElements)
+	, Float64 elapsedMSec, SizeT actualNrElements, SizeT actualAllocBytes, SizeT actualPeakBytes)
 {
 	assert(IsPerformanceLogging()); // callers gate; keep the formatting off the hot path
 
@@ -98,6 +101,29 @@ TIC_CALL void ReportOperPerformance(CharPtr operName, const TreeItem* result
 		: SharedStr();
 	if (estimate.reclaimableInputMemory) // last-consumer inputs: what this op's completion releases
 		workStr = workStr + mySSPrintF(" rel={}", Bytes(estimate.reclaimableInputMemory));
+
+	// MEASURED allocation demand vs what was predicted to be needed to run: the residual that says
+	// whether the estimate is fit to schedule on. Counts every >= 4 KB allocation charged to this
+	// operation's CancelableFrame -- tile work on other workers included, and temporary memory any
+	// operator took along the way, which is the part no estimate models today. A ratio far above 1
+	// is an operator whose real demand the gate cannot see (the GEOS/GDAL case of §8.1.13c).
+	if (estimate.argMaterializationMemory) // arguments this op materializes itself; see §8.1.16
+		workStr = workStr + mySSPrintF(" argmat={}", Bytes(estimate.argMaterializationMemory));
+
+	if (actualAllocBytes || actualPeakBytes)
+	{
+		auto predictedDemand = estimate.residentMemory + estimate.workingMemorySize
+			+ estimate.argMaterializationMemory;
+		// gross= is allocation TRAFFIC (churn included); peak= is the high-water of what this
+		// operation actually held at once, which is what an admission budget must be compared
+		// against and what residentMemory is trying to predict. The ratio is taken on peak for that
+		// reason -- grading against gross would condemn every streaming operator for recycling tiles.
+		workStr = workStr + mySSPrintF(" gross={} peak={}{}"
+			, Bytes(actualAllocBytes), Bytes(actualPeakBytes)
+			, predictedDemand
+				? mySSPrintF(" ({:.2f}x pred)", Float64(actualPeakBytes) / Float64(predictedDemand))
+				: SharedStr());
+	}
 
 	if (!result || !IsDataItem(result))
 	{

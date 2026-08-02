@@ -1486,6 +1486,55 @@ OperationContext* CancelableFrame::CurrActive()
 	return sl_CurrOperationContext;
 }
 
+// *****************************************************************************
+// Section: per-operation allocation accounting (user design 2026-08-02)
+// *****************************************************************************
+//
+// Each object store handed out by the free-stack allocator remembers the OperationContext that was
+// the allocating thread's CancelableFrame::CurrActive(). That is what makes a LIVE and a PEAK figure
+// possible at all: at deallocation the allocating frame is long gone, and the freeing thread is
+// routinely working for a different operation, so a counter alone could only ever produce a gross
+// total. Keying on the frame rather than on the thread is also what groups a tile_task_group's work
+// correctly -- DoWork() installs the frame of the OWNING context on every worker.
+//
+// Defined here rather than in FixedAlloc.cpp because that TU cannot include OperationContext.h (no
+// tic prerequisites; the ItemLocks/AbstrCalculator chain does not resolve there). FixedAlloc calls
+// these two by declaration -- same DLL, no function pointer, no installer.
+//
+// Weak ownership: a context that dies while its memory is still out simply stops being charged,
+// rather than being kept alive by the allocator.
+
+// The block -> owner register itself lives in FixedAlloc.cpp, owned by ElemAllocComponent, so its
+// lifetime brackets all allocation by construction (RtcComponents.h: derive from the component you
+// depend on and ordering is guaranteed). These three are what that register needs from tic, kept as
+// type-erased shared_ptr<void> so the allocator never needs the OperationContext definition.
+
+RTC_CALL auto CurrentOperationRef() -> std::shared_ptr<void>
+{
+	auto oc = CancelableFrame::CurrActive();
+	return oc ? oc->shared_from_this() : std::shared_ptr<OperationContext>();
+}
+
+RTC_CALL void ChargeOperationAlloc(void* ocPtr, SizeT bytes)
+{
+	auto oc = static_cast<OperationContext*>(ocPtr);
+	oc->m_ActualAllocBytes.fetch_add(bytes, std::memory_order_relaxed);
+	auto live = oc->m_LiveAllocBytes.fetch_add(bytes, std::memory_order_relaxed) + bytes;
+	// CAS max, never load/store: a plain compare-then-store lets a thread computing a LOWER value
+	// win the race and move the peak backwards, which is exactly how PeakLiveLarge came to read
+	// 27.6 GB against a 176 GB reality (§8.1.12).
+	auto prev = oc->m_PeakAllocBytes.load(std::memory_order_relaxed);
+	while (live > prev
+		&& !oc->m_PeakAllocBytes.compare_exchange_weak(prev, live, std::memory_order_relaxed))
+		;
+}
+
+RTC_CALL void ChargeOperationFree(void* ocPtr, SizeT bytes)
+{
+	// Actual and Peak stay cumulative; only Live comes back down.
+	static_cast<OperationContext*>(ocPtr)->m_LiveAllocBytes.fetch_sub(bytes, std::memory_order_relaxed);
+}
+
 bool CancelableFrame::CurrActiveCanceled()
 {
 	auto ca = CurrActive();
@@ -1641,6 +1690,38 @@ static UInt32 sd_LedgerRunningOps = 0;
 // locks its caller holds -- reaching for the global scheduling mutex there would invert lock order.
 static std::atomic<SizeT> sd_LedgerRetainedBytes = 0;
 
+// Retained-booking instrumentation. The question these answer: is the retained total wrong because
+// bookings LEAK (retains >> releases), or because each booking is too BIG? Measured on t641 the
+// total plateaus rather than climbs, which points at magnitude -- but the ledger has now been wrong
+// twice from inference, so this counts instead of reasoning.
+//
+// BookedSum vs ActualSum is the direct test of the cost model: 'booked' is the schedule-time
+// estimate separateResources hands over, 'actual' is what the SAME item's now-ready domain says it
+// really holds. They diverge exactly when the estimate was taken before the domain count was known,
+// which is the normal case -- AbstrUnit::EstimateCount falls back to ASSUMED_SIZE (1e6 elements)
+// whenever !IsDataReady, so a result of 100 elements books as if it held 1e6.
+static std::atomic<UInt64> sd_LedgerRetainCount = 0, sd_LedgerReleaseCount = 0;
+static std::atomic<SizeT> sd_LedgerBookedSum = 0, sd_LedgerActualSum = 0;
+static std::atomic<UInt64> sd_LedgerMeasuredCount = 0;
+
+// Where the memory the ledger does NOT book actually lives. Measured on t641: the ledger reads
+// 2.1-2.5 GB while the process holds 126-189 GB, a ~75x UNDER-count, so the interesting quantity is
+// no longer what is booked but what is skipped. Every completed result is tallied here by the
+// regime of the object it actually produced, booked or not, so one line says which regime owns the
+// gap -- instead of another round of inference. Indexed by the materialization enum.
+constexpr size_t NR_REGIMES = 5; // meta, eager, deferred, streaming, spilled
+static std::atomic<UInt64> sd_LedgerRegimeCount[NR_REGIMES] = {};
+static std::atomic<SizeT> sd_LedgerRegimeBytes[NR_REGIMES] = {};
+
+static void TallyRegime(materialization regime, SizeT estimatedBytes)
+{
+	auto i = size_t(regime);
+	if (i >= NR_REGIMES)
+		return;
+	sd_LedgerRegimeCount[i].fetch_add(1, std::memory_order_relaxed);
+	sd_LedgerRegimeBytes[i].fetch_add(estimatedBytes, std::memory_order_relaxed);
+}
+
 // The claim: the first task refused for budget becomes the claimant, and while it waits the drain
 // policy (user ruling 2026-07-30) admits only operations that do NOT add retained memory -- ready
 // leaves of other branches must not consume the budget it is waiting for; compressors (C := A + B
@@ -1656,6 +1737,8 @@ static std::atomic<SizeT> sd_LedgerRetainedBytes = 0;
 inline bool IsLedgerLogging() { return GetResourceScheduling() != resource_scheduling::off; }
 
 RTC_CALL auto GetMemoryStatus() -> SharedStr; // FixedAlloc.cpp: process commit vs peak, for the sample line
+RTC_CALL SizeT GetLiveLargeAllocBytes();      // FixedAlloc.cpp: measured live bytes in large allocations
+RTC_CALL SizeT GetFreeStackLiveBytes();       // FixedAlloc.cpp: the same population as the allocator counts it
 
 static OperationContext* sd_LedgerClaimant = nullptr;       // under cs_ThreadMessing
 static SizeT sd_LedgerClaimBytes = 0;                       // its charge, for the log
@@ -1678,32 +1761,161 @@ static void MemoryLedger_ConsiderSample(CharPtr event)
 {
 	if (!IsLedgerLogging() || !sd_LedgerSampleTimer.PassedSecs_impl(30))
 		return;
+	auto retains = sd_LedgerRetainCount.load(std::memory_order_relaxed);
+	auto releases = sd_LedgerReleaseCount.load(std::memory_order_relaxed);
+	auto booked = sd_LedgerBookedSum.load(std::memory_order_relaxed);
+	auto actual = sd_LedgerActualSum.load(std::memory_order_relaxed);
+	auto measured = sd_LedgerMeasuredCount.load(std::memory_order_relaxed);
 	reportF_without_cancellation_check(MsgCategory::performance, SeverityTypeID::ST_MajorTrace
-		, "ledger @{}: running {} op(s) {} B + retained {} B = {} B of {} B budget; {} admitted, {} parked so far; claimant {}; process {}"
+		, "ledger @{}: running {} op(s) {} B + retained {} B = {} B of {} B budget; live-alloc req {} B / fs {} B; {} admitted, {} parked so far; claimant {}; process {}"
 		, event, sd_LedgerRunningOps, sd_LedgerCommittedBytes
 		, sd_LedgerRetainedBytes.load(std::memory_order_relaxed)
 		, sd_LedgerCommittedBytes + sd_LedgerRetainedBytes.load(std::memory_order_relaxed)
-		, LedgerBudgetBytes(), sd_LedgerAdmittedTotal, sd_LedgerParkedTotal
+		, LedgerBudgetBytes()
+		// Two independent measurements of the SAME population, sampled at the same instant: bytes
+		// requested through AllocateFromStock, and bytes the free-stack allocators report handed out
+		// (size-class rounded, so fs >= req and fs < 2*req is the healthy relation). A ratio far
+		// from that localises a counting defect rather than leaving two peaks to be compared.
+		, GetLiveLargeAllocBytes(), GetFreeStackLiveBytes()
+		, sd_LedgerAdmittedTotal, sd_LedgerParkedTotal
 		, sd_LedgerClaimant ? SharedStr("yes") : SharedStr("none")
 		, GetMemoryStatus()
 	);
+	// Separate line: leak (retains vs releases) and magnitude (booked vs measured) are the two
+	// candidate causes, and one line answering both is what tells them apart at a glance.
+	reportF_without_cancellation_check(MsgCategory::performance, SeverityTypeID::ST_MajorTrace
+		, "ledger bookings: {} retained, {} released, {} live; over {} compared: booked {} B vs cardinality-route {} B (ratio {})"
+		, retains, releases, (retains > releases ? retains - releases : 0), measured, booked, actual
+		, actual ? double(booked) / double(actual) : 0.0
+	);
+	// Which regime owns the memory the ledger does not book. Estimated volume per regime over all
+	// completed results, so 'streaming' and 'meta' totals show what the current booking rules skip.
+	reportF_without_cancellation_check(MsgCategory::performance, SeverityTypeID::ST_MajorTrace
+		, "ledger regimes: meta {}x/{} B, eager {}x/{} B, deferred {}x/{} B, streaming {}x/{} B, spilled {}x/{} B"
+		, sd_LedgerRegimeCount[0].load(std::memory_order_relaxed), sd_LedgerRegimeBytes[0].load(std::memory_order_relaxed)
+		, sd_LedgerRegimeCount[1].load(std::memory_order_relaxed), sd_LedgerRegimeBytes[1].load(std::memory_order_relaxed)
+		, sd_LedgerRegimeCount[2].load(std::memory_order_relaxed), sd_LedgerRegimeBytes[2].load(std::memory_order_relaxed)
+		, sd_LedgerRegimeCount[3].load(std::memory_order_relaxed), sd_LedgerRegimeBytes[3].load(std::memory_order_relaxed)
+		, sd_LedgerRegimeCount[4].load(std::memory_order_relaxed), sd_LedgerRegimeBytes[4].load(std::memory_order_relaxed)
+	);
 }
 
-TIC_CALL void MemoryLedger_Retain(const AbstrDataItem* item, SizeT bytes)
+// What a COMPLETED result actually occupies, for the retained booking.
+//
+// Measured on t405: booking the estimate produced single bookings of ~40 TB. The estimate is not
+// diverging from the completed truth (booked == actual, factor 1 over 19 313 bookings) -- both are
+// EstimateDataBytes(item, count), and the count itself is out of range: Unit<V>::GetCount() is
+// Cardinality(GetRange()), which for a geometric domain is width x height, so a grid or point
+// domain with a large range yields an element count no result ever materializes. Two paths then
+// turn that into a "whole array resident" booking: EstimatePerformance swallows a throwing
+// GetNrTiles() and leaves nrChores 0, which PredictMaterialization reads as nrTiles <= 1 -> eager,
+// and eager sets residentMemory = resultingMemory.
+//
+// So: take the count from the OBJECT rather than from the unit, and bound what remains.
+//
+// GetNrFeaturesNow() is GetTiledRangeData()->GetElemCount(): the element count the produced object
+// actually spans, summed over its tiled range. That is the honest figure, and unlike the unit's
+// Cardinality(GetRange()) it cannot describe a region the object does not cover.
+//
+// NOT GetNrBytesNow(), which would be the obvious "just measure it": it calls GetTile() per tile,
+// and HeapTileArray::GetTile does InitTile(..., true) -- it ALLOCATES a tile that is not present.
+// Turning a measurement into an allocation is bad anywhere; doing it here, on a cleanup path that
+// runs while cs_ThreadMessing is held, is a deadlock and memory-spike risk for a diagnostic number.
+//
+// The remaining bound is a correctness guard, not a tuning constant: a booking claiming more memory
+// than physically exists is wrong whatever produced it, and nothing can occupy more than that.
+static SizeT RetainedBytesOf(const AbstrDataItem* item, const AbstrDataObject* obj
+	, const PerformanceEstimationData& est) noexcept
 {
-	if (!item || !bytes || GetResourceScheduling() == resource_scheduling::off)
+	auto cap = TotalAllowedPhysicalMemory();
+	if (obj)
+		try {
+			if (auto n = obj->GetNrFeaturesNow())
+				if (auto bytes = EstimateDataBytes(item, n); bytes && bytes <= cap)
+					return bytes;
+		}
+		catch (...) {}
+	return Min<SizeT>(est.residentMemory, cap);
+}
+
+// A spilled result's resident volume: one tile's worth per live mapping, bounded like every other
+// booking. choreMemory is the estimator's per-tile figure (EstimateDataBytes over the max tile
+// size), which is what a mapped tile costs.
+static SizeT SpilledResidentBytes(const PerformanceEstimationData& est, tile_id nrResidentTiles) noexcept
+{
+	auto cap = TotalAllowedPhysicalMemory();
+	auto perTile = est.choreMemory ? est.choreMemory : est.residentMemory;
+	if (!perTile || !nrResidentTiles)
+		return 0;
+	// Saturating: nrResidentTiles is bounded by the tile count, but perTile comes from an estimate.
+	if (perTile > cap / nrResidentTiles)
+		return cap;
+	return Min<SizeT>(perTile * nrResidentTiles, cap);
+}
+
+// What the item REALLY holds, now that it is complete: its domain is ready by definition here, so
+// GetCount() is the true element count rather than the pre-calculation guess. Returns 0 when that
+// cannot be established, which the caller reads as "no measurement", not as "holds nothing".
+// Diagnostic only -- this is the quantity whose absurdity the outlier line reports.
+static SizeT MeasuredRetainedBytes(const AbstrDataItem* item) noexcept
+{
+	try {
+		auto domain = item->GetAbstrDomainUnit();
+		if (!domain || !IsDataReady(domain))
+			return 0;
+		return EstimateDataBytes(item, domain->GetCount());
+	}
+	catch (...) { return 0; }
+}
+
+TIC_CALL void MemoryLedger_Retain(const AbstrDataItem* item, const AbstrDataObject* obj, SizeT bytes)
+{
+	if (!item || !obj || !bytes || GetResourceScheduling() == resource_scheduling::off)
 		return;
-	MemoryLedger_ReleaseRetained(item); // a recalculated result replaces its own earlier booking
-	item->m_LedgerRetainedBytes = bytes;
+	MemoryLedger_ReleaseRetained(obj); // a re-booked object replaces its own earlier entry
+
+	// What the OLD rule would have booked: EstimateDataBytes over the unit's range cardinality. Kept
+	// as the comparison term so the sample line shows how far the cardinality route is off from what
+	// is now booked -- with the fix in, a ratio below 1 is the bound doing its job, not a new bug.
+	auto raw = MeasuredRetainedBytes(item);
+	if (raw)
+	{
+		sd_LedgerBookedSum.fetch_add(bytes, std::memory_order_relaxed);
+		sd_LedgerActualSum.fetch_add(raw, std::memory_order_relaxed);
+		sd_LedgerMeasuredCount.fetch_add(1, std::memory_order_relaxed);
+	}
+
+	// Name the offenders. Tested on the RAW cardinality figure, not on the booked one, so it keeps
+	// reporting them after RetainedBytesOf has bounded them -- the point is to see WHICH domains
+	// produce an impossible element count, not merely that the bound engaged.
+	if (raw > TotalAllowedPhysicalMemory() && IsLedgerLogging())
+	{
+		static std::atomic<UInt32> sd_OutlierReports = 0;
+		if (sd_OutlierReports.fetch_add(1, std::memory_order_relaxed) < 20)
+			try {
+				auto domain = item->GetAbstrDomainUnit();
+				reportF_without_cancellation_check(MsgCategory::performance, SeverityTypeID::ST_MajorTrace
+					, "ledger OUTLIER: {} would book {} B, booked {} B; domain {} count {} tiles {}"
+					, item->GetSourceName(), raw, bytes
+					, domain ? domain->GetFullName() : SharedStr("(none)")
+					, domain ? domain->GetCount() : 0
+					, domain ? domain->GetNrTiles() : 0);
+			}
+			catch (...) {}
+	}
+
+	sd_LedgerRetainCount.fetch_add(1, std::memory_order_relaxed);
+	obj->m_LedgerRetainedBytes = bytes;
 	sd_LedgerRetainedBytes.fetch_add(bytes, std::memory_order_relaxed);
 }
 
-TIC_CALL void MemoryLedger_ReleaseRetained(const AbstrDataItem* item) noexcept
+TIC_CALL void MemoryLedger_ReleaseRetained(const AbstrDataObject* obj) noexcept
 {
-	if (!item || !item->m_LedgerRetainedBytes)
+	if (!obj || !obj->m_LedgerRetainedBytes)
 		return;
-	auto bytes = item->m_LedgerRetainedBytes;
-	item->m_LedgerRetainedBytes = 0;
+	auto bytes = obj->m_LedgerRetainedBytes;
+	obj->m_LedgerRetainedBytes = 0;
+	sd_LedgerReleaseCount.fetch_add(1, std::memory_order_relaxed);
 	// Clamp rather than assert: the booking is advisory and a lost race must not fire an assert in
 	// a noexcept teardown path.
 	auto prev = sd_LedgerRetainedBytes.load(std::memory_order_relaxed);
@@ -1716,8 +1928,17 @@ TIC_CALL void MemoryLedger_ReleaseRetained(const AbstrDataItem* item) noexcept
 // What a running instance of this operation should be booked for.
 static SizeT LedgerChargeOf(const PerformanceEstimationData& e)
 {
-	auto resident = (e.regime == materialization::spilled) ? e.residentMemory : e.resultingMemory;
-	return resident + e.workingMemorySize;
+	// Plus what this operation will materialize of its own arguments: an aggregation's real footprint
+	// is its INPUT, not the scalar it produces, and charging only the result under-books it by orders
+	// of magnitude (t405: mean 707x, min_index 79x, rlookup p90 147,483x -- §8.1.16).
+	auto resident = e.argMaterializationMemory
+		+ ((e.regime == materialization::spilled) ? e.residentMemory : e.resultingMemory);
+	// Same bound as the retained side, for the same reason: these figures derive from a domain
+	// cardinality that can be out of range (Cardinality(GetRange()) of a wide geometric domain), and
+	// an operation charged more than the machine physically has would be refused forever -- which is
+	// precisely the degenerate mode the t641 enforce run hit. Bounding cannot mask a real overrun:
+	// nothing can actually occupy more than this.
+	return Min<SizeT>(resident + e.workingMemorySize, TotalAllowedPhysicalMemory());
 }
 
 // The budget: SchedulerBudgetMB when set (/SB<MB>), else the same knobs that already claim to
@@ -2016,9 +2237,63 @@ garbage_can OperationContext::separateResources(task_status status)
 
 	// Hand the running booking over to the retained one: a completed result keeps occupying memory
 	// until its consumers let go, which is what the peak is actually made of.
+	//
+	// The amount booked is decided by the REGIME OF THE PRODUCED OBJECT, not by the estimate's
+	// conservative charge. Those two answer different questions and must not share a number: the
+	// running charge is deliberately pessimistic (§5.1 charges streaming and deferred their full
+	// result volume, because under-charging is what causes a paging collapse), whereas a booking
+	// that outlives the operation has to describe what is ACTUALLY still occupied. Booking the
+	// pessimistic figure here made the retained total the running sum of every intermediate volume
+	// the model ever produced: measured on t405 in shadow mode it read 276 GB at t=31 s and 816 GB
+	// at the end, against a process holding a flat ~29 GB -- a ~30x over-count that would have put
+	// enforce mode permanently over any budget and left it running on the lift arms alone.
+	//
+	// Only a result that holds heap data after its operation ends is booked:
+	//   eager     - the array is materialized and held: book it.
+	//   deferred  - FutureTileFunctor keeps strong tile records, so computed tiles stay: book it.
+	//   streaming - LazyTileFunctor holds weak refs; a released tile is recomputed, not retained.
+	//   spilled   - the data lives in the cache file; RAM holds live mappings, which belong to
+	//               whoever maps them, not to this completed operation.
+	//   meta      - no data at all.
+	// How MUCH is then decided by RetainedBytesOf, which takes the element count from the produced
+	// OBJECT (GetNrFeaturesNow, a pure read of its tiled range) instead of from the unit's
+	// Cardinality(GetRange()), and bounds the result by installed RAM.
+	// GetCurrDataObj() (a bare m_DataObject read) rather than GetCurrRefObj(): we want THIS item's
+	// object, and the latter walks to the ultimate item behind an MG_CHECK that can throw -- which
+	// must not happen on a cleanup path that runs while cs_ThreadMessing is held.
 	if (status == task_status::done && m_LedgerBooked && m_Estimate)
 		if (auto resultItem = GetResult(); resultItem && IsDataItem(resultItem.get()))
-			MemoryLedger_Retain(AsDataItem(resultItem.get()), m_Estimate->residentMemory);
+		{
+			// Book against the ULTIMATE item, not the referring one. A data object is routinely shared
+			// by several items -- PhaseContainer::CalcResult assigns
+			// `resItem->m_DataObject = srcUltItem->m_DataObject` outright, and reference items
+			// (a := b) resolve through the same chain -- so booking per referring item counts the
+			// same bytes once per referrer. Keying on the ultimate item collapses those to one
+			// booking, and because MemoryLedger_Retain releases any previous booking on its key
+			// first, a second referrer completing simply re-books the same entry instead of adding.
+			// GetCurrUltimateItem() is noexcept and non-updating, so it is safe on this cleanup path
+			// (unlike GetCurrRefObj(), whose MG_CHECK can throw while cs_ThreadMessing is held).
+			auto adi = AsDataItem(resultItem.get());
+			auto ult = adi->GetCurrUltimateItem();
+			auto owner = (ult && IsDataItem(ult.get())) ? AsDataItem(ult.get()) : adi;
+
+			auto dataObj = owner->GetCurrDataObj();
+			auto regime = dataObj ? dataObj->GetMaterialization() : materialization::meta;
+
+			// Tally EVERY completed result, booked or not: the skipped ones are the open question.
+			TallyRegime(regime, m_Estimate->resultingMemory);
+
+			if (regime == materialization::eager || regime == materialization::deferred)
+				MemoryLedger_Retain(owner, dataObj.get(), RetainedBytesOf(owner, dataObj.get(), *m_Estimate));
+			else if (regime == materialization::spilled)
+				// Not zero, as it was: a spilled result's data is in a cache file, but the tiles in
+				// use are mapped into RAM and those pages are as real as heap. Charge one tile's
+				// volume per live mapping. This is a snapshot at completion -- mappings come and go
+				// afterwards -- so it under-states a result that gets mapped more heavily later; it
+				// is still strictly better than the 0 that made spilled results invisible.
+				if (auto resident = dataObj->GetNrResidentTilesNow())
+					MemoryLedger_Retain(owner, dataObj.get(), SpilledResidentBytes(*m_Estimate, resident));
+		}
 
 	MemoryLedger_Release(this); // the running charge is done; the retained one lives on the item
 
@@ -3058,7 +3333,9 @@ void OperationContext::RunOperator(ArgRefs argRefs, std::vector<ItemReadLock> re
 					, m_Estimate ? *m_Estimate : PerformanceEstimationData()
 					, runEstimate
 					, elapsedMSec
-					, ResolvedNrElements(resultItem));
+					, ResolvedNrElements(resultItem)
+					, m_ActualAllocBytes.load(std::memory_order_relaxed)
+					, m_PeakAllocBytes.load(std::memory_order_relaxed));
 			}
 
 			assert(resultHolder || IsCanceled());

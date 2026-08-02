@@ -150,6 +150,16 @@ public:
 	TokenID DomainUnitToken() const { return m_tDomainUnit; }
 	TokenID ValuesUnitToken() const { return m_tValuesUnit; }
 
+	// Per-element volume for a value composition that has no fixed width (a sequence, a string).
+	// 0 means nobody knows better than EstimateDataBytes' ASSUMED_* guesses.
+	UInt32 GetEstimatedBytesPerElement() const noexcept
+	{
+		return m_EstimatedBytesPerElement.load(std::memory_order_relaxed);
+	}
+	// Monotone (keeps the larger of old and new), so concurrent estimators cannot make a booking
+	// shrink, and so a coarse publisher can never undercut a precise one.
+	TIC_CALL void SetEstimatedBytesPerElement(SizeT bytesPerElement) const noexcept;
+
 protected:
 	TIC_CALL void CopyProps(TreeItem* result, const CopyTreeContext& copyContext) const override;
 
@@ -169,9 +179,13 @@ public: // TODO G8: Re-encapsulate
 	mutable SharedPtr<const AbstrDataObject> m_DataObject;
 	mutable std::atomic<Int32>               m_DataLockCount = 0; // -1 = WriteLock; positive: nr Of Read Locks on Data
 
-	// Bytes this item's completed result is booked for in the admission ledger, 0 when unbooked.
-	// Set at operation completion, cleared in ClearDataObject. See MemoryLedger_Retain.
-	mutable SizeT                            m_LedgerRetainedBytes = 0;
+	// See GetEstimatedBytesPerElement above. Atomic because estimates are taken from worker threads
+	// (RefreshEstimateForAdmission) as well as from the meta thread.
+	mutable std::atomic<UInt32>              m_EstimatedBytesPerElement = 0;
+
+	// (The admission ledger's retained booking used to live here. It now lives on the data object --
+	// AbstrDataObject::m_LedgerRetainedBytes -- because an object outlives this item's reference to
+	// it whenever an active operation or a tile future still shares ownership.)
 
 	friend struct DataReadLock;
 	friend struct DataReadLockAtom; 

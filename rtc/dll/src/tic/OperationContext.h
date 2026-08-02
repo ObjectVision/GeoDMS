@@ -289,6 +289,23 @@ public:
 	// the measured outcome (P0 of doc/development/schedule-with-lookahead.md).
 	std::unique_ptr<struct PerformanceEstimationData> m_Estimate;
 
+	// MEASURED allocation, to grade that prediction. Charged whenever this context is the allocating
+	// thread's CancelableFrame::CurrActive() -- which covers tile work fanned out over the worker
+	// pool, because tile_task_group::DoWork establishes the frame for its OWNING context, and covers
+	// temporary memory from anything routed through AllocateFromStock. All three are maintained by
+	// the allocator; atomic because the workers charging them run concurrently.
+	//
+	//   Actual = GROSS bytes ever requested. Churn included, so a streaming chain reads far above its
+	//            footprint. Says "how much allocation did admitting this cause".
+	//   Live   = net bytes still held, i.e. Actual minus the frees discharged back to this context.
+	//            Only meaningful because each object store remembers its allocating context
+	//            (MG_CACHE_COLLECTDATA); without that the free side could not find the right owner.
+	//   Peak   = high-water of Live. THIS is the quantity an admission budget should be compared
+	//            against, and the one the estimate's residentMemory is trying to predict.
+	mutable std::atomic<SizeT> m_ActualAllocBytes = 0;
+	mutable std::atomic<SizeT> m_LiveAllocBytes = 0;
+	mutable std::atomic<SizeT> m_PeakAllocBytes = 0;
+
 	// Bytes this operation is booked for in the admission ledger while it runs, and whether it is
 	// booked at all. The flag is separate because a legitimate charge can be 0 (a void-domain result
 	// with no working memory): keying the release on the byte count alone leaked the running-op
@@ -370,12 +387,19 @@ public:
 // Retained-result accounting for the admission ledger (§5.1 of the plan). A completed operation's
 // data stays resident until its consumers release interest, so booking only the running footprint
 // throttles nothing on a workload whose peak is made of finished results. Retain() books the result
-// at completion; ReleaseRetained() unbooks it at the one funnel where a data object goes away,
-// AbstrDataItem::ClearDataObject. Both are lock-free: ClearDataObject runs under callers' locks and
-// must not reach for cs_ThreadMessing.
+// at completion; ReleaseRetained() unbooks it in ~AbstrDataObject, the one moment at which the bytes
+// are actually gone. Both are lock-free: the destructor runs under callers' locks and must not reach
+// for cs_ThreadMessing.
+//
+// Keyed on the DATA OBJECT, not on the AbstrDataItem that produced it: an object outlives its
+// creator's ClearDataObject whenever it is still read-only shared-owned by active operations or by
+// tile futures produced by operations consuming it. Keying on the item unbooked memory that was
+// still resident (t641: ledger live ~2.5 GB against a 126-190 GB process, retains and releases
+// pairing perfectly).
 class AbstrDataItem;
-TIC_CALL void MemoryLedger_Retain(const AbstrDataItem* item, SizeT bytes);
-TIC_CALL void MemoryLedger_ReleaseRetained(const AbstrDataItem* item) noexcept;
+class AbstrDataObject;
+TIC_CALL void MemoryLedger_Retain(const AbstrDataItem* item, const AbstrDataObject* obj, SizeT bytes);
+TIC_CALL void MemoryLedger_ReleaseRetained(const AbstrDataObject* obj) noexcept;
 
 // GetNextPhaseNumber
 // Global monotonic counter to assign new phase numbers for batch scheduling/waiting.

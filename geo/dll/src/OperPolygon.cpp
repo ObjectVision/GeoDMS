@@ -558,6 +558,58 @@ public:
 		dms_assert(argClasses == m_ArgClassesEnd);
 	}
 
+	// points2sequence DISTRIBUTES its point rows over sequences: every row of argument 1 becomes
+	// exactly one point of exactly one output sequence, so the element array is precisely
+	//     nrPointRows x sizeof(point)
+	// and the index array is one IndexRange<SizeT> per output sequence. Both are exact, where the
+	// generic estimate has to guess a length -- EstimateDataBytes charges ASSUMED_SEQ_LENGTH = 32
+	// points per sequence for any sequence-valued result.
+	//
+	// That guess is what poisoned a whole chain on t405 (§8.1.16): GTFS link geometries are built as
+	//     GenLines := union_unit(Links, Links)          // exactly 2 rows per link
+	//     geometry (arc) := points2sequence(GenLines/Points, GenLines/Seq, GenLines/Ord)
+	// i.e. exactly TWO points per arc, so 32 over-states the leaf 16x, and two levels of union_data
+	// carried that up to a 7.15 G prediction for a result of roughly 1 G.
+	//
+	// Conditions this relies on, and why they hold here: each point row is placed in one sequence
+	// (the seq argument is a relation into the result domain), and rows are neither duplicated nor
+	// dropped. Where a seq value is null the row is dropped, so this is an UPPER bound rather than
+	// an identity -- which is the right side to err on for an admission charge.
+	auto EstimatePerformance(TreeItemDualRef& resultHolder, const ArgRefs& args) const -> PerformanceEstimationData override
+	{
+		auto result = VariadicOperator::EstimatePerformance(resultHolder, args);
+
+		if (!args.empty())
+			if (auto pointsItem = GetItem(args[0]); pointsItem && IsDataItem(pointsItem))
+			{
+				auto pointsAdi = AsDataItem(pointsItem);
+				if (auto pointsDomain = pointsAdi->GetAbstrDomainUnit())
+					try {
+						auto nrPointRows = pointsDomain->EstimateCount().expected;
+						// One point per input row, at the point type's own width; plus the per-sequence
+						// index entry, which is what a sequence_array carries beside its element array.
+						auto elemBytes = EstimateDataBytes(pointsAdi, nrPointRows);
+						auto indexBytes = result.resultingNrElements * sizeof(IndexRange<SizeT>);
+
+						result.resultingMemory = elemBytes + indexBytes;
+						if (result.regime == materialization::eager || result.regime == materialization::deferred)
+							result.residentMemory = result.resultingMemory;
+						if (result.nrChores)
+							result.choreMemory = result.resultingMemory / result.nrChores;
+
+						// Publish the width, so every consumer of this geometry inherits it. This is the
+						// root of the chain: without it, the union_data levels above re-guess
+						// ASSUMED_SEQ_LENGTH for each argument and the 8.25x over-charge comes back.
+						if (result.resultingNrElements)
+							if (auto resultItem = resultHolder.GetUlt(); resultItem && IsDataItem(resultItem))
+								AsDataItem(resultItem)->SetEstimatedBytesPerElement(
+									result.resultingMemory / result.resultingNrElements);
+					}
+					catch (...) {} // uncountable points domain: keep the generic estimate
+			}
+		return result;
+	}
+
 	// Override Operator
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{

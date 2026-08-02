@@ -64,9 +64,12 @@ TIC_CALL auto EstimateOperPerformance(const Operator* oper, TreeItemDualRef& res
 // done and it is about to run -- which is where the admission gate of §5.1 actually sits. For a
 // calculated domain the first is usually blind (neither its count nor its tiling exists yet) and
 // the second is exact, so reporting both measures what re-estimation (§6.2) is worth.
+// 'actualAllocBytes' is the MEASURED allocation demand of this operation: every >= 4 KB allocation
+// made while it was the calling thread's CancelableFrame::CurrActive(), which covers tile work fanned
+// out over the worker pool and the temporary memory no estimate models. 0 when not being attributed.
 TIC_CALL void ReportOperPerformance(CharPtr operName, const TreeItem* result
 	, const PerformanceEstimationData& scheduleEstimate, const PerformanceEstimationData& runEstimate
-	, Float64 elapsedMSec, SizeT actualNrElements);
+	, Float64 elapsedMSec, SizeT actualNrElements, SizeT actualAllocBytes = 0, SizeT actualPeakBytes = 0);
 
 // Predict a pending storage read. Reads are not Operators, so they get their estimate here:
 // StorageMetaInfo::PrepareReadDataOrSuspend has already resolved the domain count and the values

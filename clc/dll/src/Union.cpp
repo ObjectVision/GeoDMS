@@ -291,6 +291,42 @@ public:
 		,   m_IsOrdered(isOrdered)
 	{}
 
+	// A union_data CONCATENATES its data arguments, so its result volume is exactly the sum of
+	// theirs -- which the base already accumulates as inputSize.
+	//
+	// Summing is only better than the generic estimate if the ARGUMENT sizes are themselves better.
+	// They were not, at first: EstimateDataBytes fell back to ASSUMED_SEQ_LENGTH for every
+	// sequence-valued argument, so the sum re-applied exactly the guess it was meant to replace --
+	// the run-4 calibration logged `B=7.15G (1.00x) res=7.15G` for allLinks/geometry, i.e. Sum(args)
+	// and the generic estimate agreeing to the digit, against a measured 1.67G. The fix is the
+	// per-element width that points2sequence publishes and that consumers inherit; with it, the sum
+	// carries a real width up the chain instead of re-guessing at every level (§8.1.17).
+	//
+	// Argument 0 is the result DOMAIN (a unit, not data), so it contributes nothing to inputSize.
+	auto EstimatePerformance(TreeItemDualRef& resultHolder, const ArgRefs& args) const -> PerformanceEstimationData override
+	{
+		auto result = BinaryOperator::EstimatePerformance(resultHolder, args);
+
+		if (result.inputSize)
+		{
+			result.resultingMemory = result.inputSize;
+			// Keep the regime-dependent charge consistent with the corrected volume.
+			if (result.regime == materialization::eager || result.regime == materialization::deferred)
+				result.residentMemory = result.resultingMemory;
+			if (result.nrChores)
+				result.choreMemory = result.resultingMemory / result.nrChores;
+
+			// Pass the concatenated width on, so a union of unions does not fall back to the guess.
+			// This is the average over the arguments; SetEstimatedBytesPerElement keeps the larger of
+			// this and whatever the base already inherited, which is the conservative side.
+			if (result.resultingNrElements)
+				if (auto resultItem = resultHolder.GetUlt(); resultItem && IsDataItem(resultItem))
+					AsDataItem(resultItem)->SetEstimatedBytesPerElement(
+						result.resultingMemory / result.resultingNrElements);
+		}
+		return result;
+	}
+
    // Override Operator
 	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, LispPtr) const override
 	{

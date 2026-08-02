@@ -219,7 +219,10 @@ void AbstrDataItem::ClearDataObject(garbage_can& garbage) const
 	MG_CHECK(GetDataObjLockCount() == 0);
 	MG_CHECK(m_ItemCount == 0);
 
-	MemoryLedger_ReleaseRetained(this); // this is the funnel: the data is going, so unbook it
+	// NOT unbooked here any more. This item is dropping its reference, but the object itself can
+	// live on -- read-only shared-owned by active operations, or by tile futures produced by
+	// operations consuming it. Releasing the booking here reported memory as freed while it was
+	// still resident. ~AbstrDataObject now owns that release.
 
 	if (m_DataObject)
 		m_DataObject->ImLosingIt(); // clear any non-owning back-ref into this item (e.g. a tile functor's m_ResultAdi) before (deferred) destruction
@@ -1305,16 +1308,90 @@ UInt32 ElementWeight(const AbstrDataItem* adi)
 const SizeT ASSUMED_STRING_BYTES = 32;
 const SizeT ASSUMED_SEQ_LENGTH   = 32;
 
+// True element width in bits, or 0 when the type has none. ValueWrap.cpp passes
+// `has_fixed_elem_size_v<T> ? nrbits_of_v<T> : -1` into a UInt32 m_BitSize, so a variable-width
+// type (string, any sequence) arrives here as 0xFFFFFFFF -- NOT as 0. Reading that as a width made
+// one element cost (2^32)/8 = 512 MB, which is how the memory ledger came to book 92.7 TB for the
+// 172 800-element /units/Time/TemplatableText (and 335 GB for a 624-element classification text).
+static SizeT FixedWidthInBits(const ValueClass* vc)
+{
+	if (!vc)
+		return 0;
+	auto bitSize = SizeT(vc->GetBitSize());
+	return (bitSize == SizeT(UInt32(-1))) ? 0 : bitSize;
+}
+
+// Absurdity tripwire, not a physical limit. Legitimate estimates can exceed installed RAM (a
+// 'spilled' result lives in a cache file), so this cannot be TotalAllowedPhysicalMemory(); the
+// ledger applies that bound separately where residency actually matters. What this catches is a
+// count that cannot describe real data at all -- a wide geometric domain's Cardinality(GetRange())
+// runs to ~1e19 elements. Clamping keeps one bad input from poisoning every sum it feeds
+// (resultingMemory, inputSize, choreMemory) and from wrapping SizeT on the way.
+const SizeT MAX_CREDIBLE_DATA_BYTES = SizeT(1) << 50; // 1 PiB
+
+// Saturating, because a wrapped estimate is far more dangerous than a huge one: wrapping turns an
+// impossible volume into a small plausible number that no downstream guard can recognise.
+const SizeT SIZET_MAX = SizeT(-1); // SizeT is unsigned
+
+static SizeT SaturatingMul(SizeT a, SizeT b)
+{
+	if (!a || !b)
+		return 0;
+	return (a > SIZET_MAX / b) ? SIZET_MAX : a * b;
+}
+
+static SizeT CappedDataBytes(SizeT bytes)
+{
+	return (bytes > MAX_CREDIBLE_DATA_BYTES) ? MAX_CREDIBLE_DATA_BYTES : bytes;
+}
+
+// A published width is monotone: max(old, new). Two estimators racing on the same item must not be
+// able to make a booking shrink, and a coarse publisher (an inherited width) must not be able to
+// undercut a precise one (points2sequence's exact points-per-arc).
+void AbstrDataItem::SetEstimatedBytesPerElement(SizeT bytesPerElement) const noexcept
+{
+	if (!bytesPerElement)
+		return;
+	auto newValue = UInt32(Min<SizeT>(bytesPerElement, MAX_VALUE(UInt32)));
+	auto curr = m_EstimatedBytesPerElement.load(std::memory_order_relaxed);
+	while (curr < newValue
+		&& !m_EstimatedBytesPerElement.compare_exchange_weak(curr, newValue, std::memory_order_relaxed))
+		; // curr is reloaded by compare_exchange_weak on failure
+}
+
 SizeT EstimateDataBytes(const AbstrDataItem* adi, SizeT nrElements)
 {
 	if (adi->HasVoidDomainGuarantee())
 		return 0;
-	auto bitSize = SizeT(adi->GetAbstrValuesUnit()->GetValueType()->GetBitSize());
+	auto valuesType = adi->GetAbstrValuesUnit()->GetValueType();
+	auto bitSize = FixedWidthInBits(valuesType);
+	bool isSequence = adi->GetValueComposition() != ValueComposition::Single;
+
+	if (!bitSize || isSequence)
+	{
+		// Variable width. A width someone actually derived beats any guess we can make here; this is
+		// what carries points2sequence's exact points-per-arc up through the union_data chain that
+		// consumes it. Without it, ASSUMED_SEQ_LENGTH over-stated t405's GTFS link geometries 8.25x,
+		// which was 37 G of the 38 G total over-charge in the run-4 calibration (§8.1.17).
+		if (auto bytesPerElement = adi->GetEstimatedBytesPerElement())
+			return CappedDataBytes(SaturatingMul(nrElements, bytesPerElement));
+	}
+
 	if (!bitSize)
-		return nrElements * (ASSUMED_STRING_BYTES + sizeof(SizeT)); // chars plus a sequence index entry
-	if (adi->GetValueComposition() != ValueComposition::Single)
-		return nrElements * (((bitSize * ASSUMED_SEQ_LENGTH) >> 3) + sizeof(SizeT));
-	return (nrElements * bitSize + 7) >> 3; // sub-byte elements are bit-packed
+	{
+		// No fixed width. A sequence still knows its element type, so charge that element's own
+		// width times an assumed length rather than falling back to the string guess.
+		if (isSequence)
+			if (auto scalarBits = FixedWidthInBits(valuesType->GetScalarClass()))
+				return CappedDataBytes(SaturatingMul(nrElements, ((scalarBits * ASSUMED_SEQ_LENGTH) >> 3) + sizeof(SizeT)));
+		// chars plus a sequence index entry
+		return CappedDataBytes(SaturatingMul(nrElements, ASSUMED_STRING_BYTES + sizeof(SizeT)));
+	}
+	if (isSequence)
+		return CappedDataBytes(SaturatingMul(nrElements, ((bitSize * ASSUMED_SEQ_LENGTH) >> 3) + sizeof(SizeT)));
+
+	auto bits = SaturatingMul(nrElements, bitSize); // sub-byte elements are bit-packed
+	return CappedDataBytes(bits == SIZET_MAX ? bits : (bits + 7) >> 3);
 }
 
 //----------------------------------------------------------------------

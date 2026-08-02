@@ -1214,6 +1214,670 @@ Also still open: retained bookings for results the scheduler did *not* admit (on
 operations are booked, so data already resident is invisible to the ledger), and a battery run in
 enforce mode on a real model rather than a synthetic probe.
 
+### 8.1.3 t405: the hand-fenced A/B says this model has no breadth to throttle
+
+`t405_2_NetworkModel_PBL_zonderFence` and `t405_3_NetworkModel_PBL_metFence` run the *same*
+NetworkModel_PBL with and without hand-placed `PhaseContainer` fences — the regression suite's
+built-in A/B of manual fencing, and therefore the closest thing we have to a preview of what
+automated fencing (§6.3) could win. Measured on installed 20.10.0.m, gate off, `/S1 /S2 /S3`,
+`MemoryFlushThreshold=90`, `MemoryMaxRAM_GB=128`:
+
+| | wall | Highest CommitCharge | Highest allocated | Reserved in blocks | Highest freed |
+|---|---|---|---|---|---|
+| t405_2 zonderFence | 792 s | 31 665 MB | 22 337 MB | 29 277 MB | 25 406 MB |
+| t405_3 metFence | 780 s | 33 620 MB | 24 666 MB | 29 277 MB | 25 406 MB |
+
+**Fencing buys nothing here — and the reason is not a defect in fencing.** Extracting the region
+segment of every item path in both logs (`scratch/t405_region_interleave.py`) shows that *both*
+runs already execute the 12 provinces strictly one after another:
+
+```
+zonderFence   Groningen 1..117s  Friesland 136..179s  Drenthe 197..238s  ... Limburg 747..792s
+metFence      Groningen 0..100s  Friesland 118..159s  Drenthe 178..218s  ... Limburg 721..780s
+regions with an open window per 10 s bucket:  max 2, mean 0.90  — in BOTH runs
+```
+
+No province overlaps another in either variant (the max of 2 is boundary adjacency). Region 1 is
+the long one (~110 s vs ~43 s) because it also loads the shared national GTFS/OSM base data.
+
+So the fence has **no concurrency to remove**. That is decisive rather than circumstantial,
+because in the unfenced run there are no `PhaseContainer`s at all, so every `m_PhaseNumber` is 0
+and the phase gate in `getUniqueLicenseToRun`
+([OperationContext.cpp:1580](../../rtc/dll/src/tic/OperationContext.cpp)) — `m_PhaseNumber >
+s_CurrActivePhaseNumber` → requeue — *cannot fire*. The serialization is therefore intrinsic to the
+model, not to fencing. Its most likely source (**inferred, not yet proven**) is the driver itself:
+`AsList(Regio/name + '…/OUTPUT_Generate_fullOD_long_CSVFiles', ' + ')`
+([NetworkSetup.dms:12-13](../../../tst/Projects/NetworkModel_PBL_RegressieTest/cfg/main/NetworkSetup.dms))
+is a reduction over per-province CSV-export driver strings, and it is the only structure in the
+demand path that spans all 12 provinces. The 12 fences are bookkeeping added on top of a schedule
+that was already serial,
+which is why the fenced peak is, if anything, marginally higher rather than lower. (`Reserved in
+blocks` and `Highest freed` are *byte-identical* across the two runs, so the CommitCharge and
+`allocated` deltas are within run-to-run variation; the honest claim is "not lower", not "6 % worse".)
+
+**Consequence for this project.** t405 is a *depth* workload, and §8.1 already established that
+depth is not throttleable — a serial chain must run to completion to free its predecessor. Neither
+manual fencing nor the admission gate can reduce a peak that is one province's working set plus the
+shared national base data. This does not weaken the case for §5.1/§6.3; it says t405 is the wrong
+witness for it, and that the search for a real-model beneficiary must look for models with genuine
+*breadth* — independent subtrees that today run concurrently. It also sets a caution for §6.3:
+auto-fencing a workload that is already serial adds overhead and returns nothing, so a breadth
+test must gate the insertion of an automatic fence.
+
+**Unexplained side observation, worth its own issue.** The fenced run emits **zero**
+`PhaseContainer(<n>): …` MajorTrace lines, although `ST_MajorTrace` is otherwise logged there (105
+`[!][progress]`, 93 `[!][storage read]`, 36 `[!][storage write]`), and the run really is the fenced
+branch (its outputs carry `FENCE-True`, from `'_FENCE-' + string(/UseFence)`). That message is the
+last statement of `PhaseContainerOperator::CalcResult`
+([clc/dll/src/PhaseContainer.cpp:286](../../clc/dll/src/PhaseContainer.cpp)) and its message
+argument is non-empty, so on the face of it **no fence's `CalcResult` ever completed** — yet the
+model produced correct results (t405_3_2 indicator passes). The leading explanation is that the
+demanded item is a *sub-item* of the phase's mirror tree reached by a direct path reference, whose
+update resolves through its `SupplCache` to the source and so bypasses the phase, while the
+`DoUpdate` hook that joins the phase OC ([TreeItem.cpp:3424-3438](../../rtc/dll/src/tic/TreeItem.cpp))
+only fires for an item whose *own* `GetOrgDC()` is the `PhaseContainer` `FuncDC` — i.e. the
+container itself. **This is unproven** and needs a dedicated minimal repro; if it holds, a
+`PhaseContainer` can be silently inert, which would matter to users independently of this project.
+It does not affect the conclusion above, which rests only on the interleaving measurement.
+
+### 8.1.4 Shadow mode on t405 found the retained ledger over-counting ~30x — fixed
+
+Running t405_2/t405_3 in shadow (`ResourceAwareScheduling=1`, budget left at the 128 GB x 90 %
+default) was meant to produce a retained-bytes curve. It produced a broken meter instead, which is
+what shadow mode exists for:
+
+| sample | t405_2 retained | t405_3 retained | process commit | budget |
+|---|---|---|---|---|
+| first (t≈30 s) | 276 GB | 276 GB | **5.5 GB** | 117 GB |
+| last (t≈760 s) | 600 GB | 760 GB | **28 GB** | 117 GB |
+| max | 816 GB | 949 GB | 29 GB (flat all run) | 117 GB |
+
+Process commit sat flat at ~29 GB for the whole run while the ledger's retained figure climbed past
+800 GB — already 50x over at the *first* sample, so this is over-booking, not a slow leak.
+
+**Cause.** `separateResources` booked `m_Estimate->residentMemory` — the *running* charge — as the
+retained amount. That number is deliberately pessimistic: §5.1 charges streaming and deferred
+results their full result volume, because under-charging is what produces a paging collapse. As a
+booking that outlives the operation it is simply the wrong quantity, and with `/S3` tile pipelining
+most intermediates are `LazyTileFunctor`s that retain *nothing* — their tiles are recomputed, not
+kept. Booking every one of them at full volume made the retained total the running sum of every
+intermediate the model ever produced.
+
+**Fix.** The retained booking is now decided by the regime of the object actually produced
+(`GetMaterialization()`, added in P2): `eager` and `deferred` hold heap data after the operation
+ends and are booked; `streaming` (weak refs, recomputes), `spilled` (lives in the cache file) and
+`meta` book nothing. `GetNrBytesNow()` is deliberately *not* used to measure the real figure — it
+calls `GetTile()` per tile, which on a lazy or deferred functor would force exactly the
+materialization the regime avoids.
+
+**Why this had to be fixed before any enforce-mode run.** With retained reading ~800 GB against any
+sane budget, `fits` is false for every candidate, so enforce mode would refuse everything and
+survive only on the two lift arms — degenerating to near-serial execution. A t641 run in that state
+would have measured this bug, at a cost of hours, and looked like evidence against the design.
+
+Two things this does *not* fix, both still open: results the scheduler never admitted are still
+unbooked (so data already resident is invisible), and the booked figure is still the estimate rather
+than a measurement — right now that is only sound because the regimes that book are the ones whose
+volume the estimator predicts best.
+
+### 8.1.5 t641 at a 100 GB budget: the regime fix was NOT sufficient — enforce is unusable
+
+First enforce-mode run on a real RAM consumer. Same build for both arms
+(`full.py -version local-msbuild-release -tests t641`, msbuild Release from `bin/Release/x64`,
+carrying the §8.1.4 fix), gate off first, then `ResourceAwareScheduling=2` with
+`SchedulerBudgetMB=102400`.
+
+| | t641_1 wall | t641_1 peak commit | t641_2 wall | t641_2 peak commit |
+|---|---|---|---|---|
+| A, gate off | 2 161 s | 158 818 MB | 1 276 s | 195 468 MB |
+| B, enforce 100 GB | **5 399 s — tree-killed at its 5 400 s cap** | n/a | **10 800 s — tree-killed at its 10 800 s cap** | n/a |
+
+**Run B never completed.** Both tests hit `TEST_TIMEOUTS` exactly and were tree-killed, so those
+walls are lower bounds (≥2.5x and ≥8.5x slower) and their "peak commit" is absent rather than zero —
+a killed process writes no `Highest CommitCharge` summary. Run A completed both.
+
+**The regime fix removed a contributor, not the dominant one.** The ledger still reads
+**4 181 GB** (t641_1) and **2 713 GB** (t641_2) against the 100 GB budget while the process sat at
+**~36 GB committed** for most of the run (observed live in Resource Monitor; the 30 s ledger samples
+bracket it at 13.8–72.6 GB and 20.5–123.0 GB). That is a ~100x over-count against the steady state.
+Every sample was over budget (179/179 and 358/358), so:
+
+```
+admission refused: [[/first_rel]] needs 9048 B, committed 4181449761600 B of 107374182400 B over 1 running op(s)
+admission resumed (lifted: idle): ... after 6093 park(s); needs 786022 B, committed 4181451073778 B ...
+admission resumed (lifted: no drain available): ... after 4684 park(s); needs 0 B ...
+```
+
+Everything is refused permanently; the run survives *only* on the two lift arms, which is by
+construction one operation at a time — 44 170 and 90 917 refusals, single tasks parking 6 093 times.
+That is the degenerate mode §8.1.4 predicted for a broken ledger, and it is exactly what happened,
+so the fix did not go far enough rather than the design being wrong.
+
+**Where the remaining error is.** The logged *charges* are tiny (`needs 0 B`, `needs 9048 B`,
+`needs 786022 B`), so `sd_LedgerCommittedBytes` is not the problem: the multi-TB figure is
+accumulated **retained** bookings. Unlike t405's climbing curve, t641's plateaus (min 3 847 GB /
+max 3 898 GB), i.e. retains and releases roughly balance but at a level ~40x too high. The next step
+is to *count* retains against releases and histogram the booked amounts rather than infer the cause
+again — the §8.1.4 fix was reasoned from the t405 curve and proved insufficient, and a second guess
+is not worth another 4.5 hours of machine time.
+
+Until that is resolved, **enforce mode must stay off**; shadow remains safe and useful (it is what
+found both defects).
+
+### 8.1.6 Instrumented: the retained ledger's error is an out-of-range domain cardinality
+
+The ledger had now been wrong twice from inference, so this round counted instead. Two counters were
+added to the 30 s sample — retains vs releases (leak?) and booked vs the same item's now-ready
+measurement (magnitude?) — and t405_2 was run in shadow with a deliberately unreachable budget, so
+no admission decisions fire and the log stays readable.
+
+| sample | retained | released | live | booked | actual | factor |
+|---|---|---|---|---|---|---|
+| 1 | 13 007 | 12 917 | 90 | 21.1 PB | 21.1 PB | 1 |
+| 3 | 15 232 | 14 772 | 460 | 70.6 PB | 70.6 PB | 1 |
+| 6 | 22 111 | 20 352 | 1 759 | 70.5963 PB | 70.5963 PB | 1 |
+
+**Both standing hypotheses were wrong.** There is no leak: releases track retains, `live` stays in
+the hundreds. And `booked == actual` *exactly* over 22 111 bookings, so the schedule-time estimate
+is not diverging from the completed truth — the `ASSUMED_SIZE` story was wrong. What is wrong is
+that *both* figures are absurd, and they stop growing after the first ~2 minutes (samples 3→6 add
+~6 900 bookings but only ~3e10 B, i.e. a normal ~7.5 MB each). So the multi-PB total is **a handful
+of enormous bookings early in the run**, not a systemic over-estimate.
+
+**Cause.** `EstimateDataBytes` is just `nrElements x bytes-per-element`, so an impossible total
+means an impossible `nrElements`. `Unit<V>::GetCount()` is `Cardinality(GetRange())`, which for a
+geometric domain is width x height — a grid or point domain with a wide range yields an element
+count no result ever materializes. Two things then turn that into a "whole array resident" booking:
+
+```cpp
+try { result.nrChores = domain->GetNrTiles(); ... } catch (...) {}   // nrChores stays 0
+...
+if (!IsMultiThreaded3() || nrTiles <= 1) return materialization::eager;   // 0 <= 1 -> eager
+...
+result.residentMemory = result.resultingMemory;                      // eager: the whole array
+```
+
+a swallowed `GetNrTiles()` leaves `nrChores` at 0, `PredictMaterialization` reads that as untiled and
+returns `eager`, and eager books the entire array.
+
+**Fix — measure what can be measured, bound what cannot.** `RetainedBytesOf()`:
+`eager` results are materialized by the time they are booked, so `GetNrBytesNow()` is both safe and
+exact there (it was only unsafe for the lazy regimes, which are not booked at all); `deferred` keeps
+the estimate. Either way the result is bounded by `TotalAllowedPhysicalMemory()`, which also
+discards `GetNrTileBytesNow`'s `SizeT(-1)` empty-tile sentinel. The same bound now applies to
+`LedgerChargeOf`, because a *running* charge above installed RAM would be refused forever for
+exactly the same reason — that is the degenerate mode §8.1.5 measured. The bound cannot mask a real
+overrun: nothing can occupy more memory than the machine has.
+
+The outlier line (`ledger OUTLIER: … would book … domain … count … tiles …`) deliberately tests the
+raw cardinality-derived figure rather than the bounded booking, so it keeps naming which domains
+produce impossible counts after the bound engages. That is what found the actual root cause.
+
+### 8.1.7 Root cause: `EstimateDataBytes` read a `-1` marker as an element width
+
+The outlier lines named three items, and each books **exactly 536 870 912 B (2^29) per element**:
+
+| item | count | would book | check |
+|---|---|---|---|
+| `/units/Time/TemplatableText` | 172 800 | 92 771 293 572 000 | `172800 * 4294967295 >> 3` exact |
+| `/Classifications/OSM/wegtype/Elements/Text` | 624 | 335 007 449 010 | `624 * 4294967295 >> 3` exact |
+| `…/gpkg/gemeente_niet_gegeneraliseerd` (a name attribute) | 345 | 185 220 464 597 | `(345 * 4294967295 + 7) >> 3` exact |
+
+All three are `DataItem<string>`, and all three arithmetic checks are exact, so the element width
+being used is **4 294 967 295 = UInt32(-1)**. [ValueWrap.cpp:312](../../rtc/dll/src/mci/ValueWrap.cpp)
+constructs every value class with
+
+```cpp
+Int32(has_fixed_elem_size_v<T> ? nrbits_of_v<T> : -1),   // -> UInt32 m_BitSize
+```
+
+so a type with no fixed element size (string, and any sequence-of-sequence) carries **-1**, not 0 —
+while `EstimateDataBytes` guarded only `if (!bitSize)`. Its variable-width branch was therefore
+**dead code**, and every string attribute was costed at `(2^32)/8` = 512 MB per element. Note this
+is a defect in the *cost model itself*, not in the ledger: `EstimateDataBytes` feeds
+`resultingMemory`, `inputSize` and `choreMemory`, so every estimate involving a string attribute was
+wrong by ~13 million x. `GetBitSize()` is documented as a sub-byte marker ("0 or >=8 means regular
+byte-sized"), not a width — `GetSize()` is the byte width — so reading it as a width was never sound.
+
+Fixed in `EstimateDataBytes` via a `FixedWidthInBits()` helper that maps the `-1` marker to 0, with
+sequences now charged their *scalar* element's width x `ASSUMED_SEQ_LENGTH` instead of falling
+through to the string guess. The §8.1.6 bound stays as a backstop: it is what turned a 92.7 TB
+booking into a merely-wrong 127 GB one, and it will contain the next such defect too.
+
+**Verified on t405_2** (shadow, unreachable budget, three builds, identical workload — the booking
+counts come out byte-identical at 47 554 retained / 45 419 released, so the fix changed the
+accounting and nothing else):
+
+| build | cumulative booked | peak LIVE retained | shape | process peak |
+|---|---|---|---|---|
+| original | 70 637 859 629 706 181 B (70.6 PB) | 816 GB | monotonic climb | 34 GB |
+| + physical-memory bound | 111 220 374 568 442 B (111 TB) | — | — | 34 GB |
+| + `-1` marker fix | 1 090 076 002 536 B (1.09 TB) | **53.3 GB** | saw-tooth | 33 GB |
+
+A 64 800x correction, with `ratio 1` at every sample — i.e. the bound no longer engages anywhere,
+which is what distinguishes a real fix from the backstop masking the defect.
+
+**And the retained curve is finally readable, which settles §8.1.3 from a second direction.** It
+oscillates in a 44–53 GB band and only collapses to 8.9 GB at the very end:
+
+```
+t= 31s 26.3 GB Groningen   t=147s 43.8 GB Friesland v   t=447s 44.6 GB Utrecht
+t=111s 53.0 GB Groningen   t=267s 53.3 GB Overijssel    t=627s 53.3 GB Zeeland
+                           t=297s 44.3 GB Overijssel v  t=748s  8.9 GB Limburg v
+```
+
+12 of 23 transitions decrease, so memory *is* released at region boundaries — but only ~9 GB of the
+~53 GB peak is that per-region churn. The remaining **~44 GB is a persistent floor**: the shared
+national GTFS/OSM base data every province needs. That is exactly what §8.1.3 concluded from the
+interleaving measurement (peak = shared base + one province, so a fence cannot lower it), reached
+here by an independent route.
+
+### 8.1.8 The unit of retention is the TILE BUFFER, not the result
+
+Established by reading `TileFunctorImpl.h` after t641 showed the ledger under-counting ~75x
+(live 2.5 GB against a 126-190 GB process, with retains and releases pairing perfectly).
+
+**A tile buffer outlives its `AbstrDataObject`, in both tiled regimes, by two distinct routes.**
+
+*Streaming (`LazyTileFunctor`)* — the functor keeps only a weak ref, so the consumer owns the buffer:
+
+```cpp
+tileSPtr = std::make_shared<tile_data>();                            // created in GetTile
+m_ActiveTiles[t].m_TileFutureWPtr = tileSPtr;                        // functor: WEAK only
+return locked_cseq_t(std::static_pointer_cast<void>(tileSPtr), ...); // consumer: sole owner
+```
+
+*Deferred (`FutureTileFunctor`)* — the buffer lives in `tile_record::m_State`, and both consumer
+handles are owning:
+
+```cpp
+auto GetFutureTile(tile_id t) const -> shared_ptr<future_tile> { return m_ActiveTiles[t]; } // COPY
+return locked_cseq_t(this->shared_from_this(), GetConstSeq(std::get<1>(m_State)));          // lock owns record
+```
+
+The producer back-refs (`m_ResultAdi`) are `weak_ptr` in both, so nothing pins the item either.
+
+**Consequences for §4.4's cost model.** Result-granular booking is wrong in both directions:
+
+| regime | booked today | what is actually resident |
+|---|---|---|
+| streaming | **0** ("the object retains nothing") | every consumer-held lazy tile — true of the object, false of the system |
+| deferred | whole result, released in `~AbstrDataObject` | consumer-held `tile_record`s survive that release |
+
+So neither the item-keyed booking (released at `ClearDataObject`, too early) nor the object-keyed one
+(released at `~AbstrDataObject`, still too early) can be right: **both key on an owner that is not
+the owner of the bytes.**
+
+**Preferred direction: account at the allocation layer.** Tile buffers are allocated through
+`reallocSO`/`resizeSO` (`HeapSequenceProvider`). A live-bytes counter there is exact,
+regime-independent, and immune to every ownership subtlety in this section -- it measures what is
+allocated instead of modelling who retains it, and it would also capture the storage-read and
+already-resident data that no result-granular scheme can see. The alternative, booking per
+`tile_record` and per lazy tile, needs two separate mechanisms and still misses a buffer held only
+by a `locked_cseq_t`.
+
+### 8.1.9 Measured: t641's memory pressure is allocator retention, not live data
+
+§8.1.8 concluded that no result-granular booking can be right, so the next step was to stop
+modelling and measure: an atomic census on `AllocateFromStock`/`LeaveToStock` (the single funnel for
+every heap object), limited to allocations >= 4 KB, reported as `live-alloc` in every ledger sample.
+
+| | booked (ledger) | live-alloc (measured) | process commit | allocator reserved blocks |
+|---|---|---|---|---|
+| t641_1 | 2.50 GB | **6.74 GB** | 124 772 MB | — |
+| t641_2 | 8.93 GB | **27.64 GB** | 189 074 MB | **189 991 MB** |
+
+> **RETRACTED 2026-08-01 — the absolute figures below do not reconcile; see §8.1.11.**
+> `Highest allocated` is the peak of *simultaneously in-use* bytes rounded up to power-of-two size
+> classes, so it can exceed true live bytes by at most ~2x. It reads 156 GB against a `PeakLiveLarge`
+> of 27.6 GB, a factor of 5.6 that rounding cannot produce -- so one of the two is wrong, and the
+> likely fault is `PeakLiveLarge` (an allocate/deallocate size asymmetry, §8.1.11). The conclusion
+> "~162 GB is allocator pool" is therefore NOT established. What survives is the *relative* result in
+> §8.1.10, which compares the same counter between two arms of one workload, where a systematic
+> undercount cancels.
+
+**Live data peaks at ~27.6 GB while the process commits 189 GB.** The allocator's own reserved-blocks
+figure (189 991 MB) matches the commit almost exactly, suggesting **~162 GB is reserved-but-free
+pool** rather than memory any operation holds — but see the retraction above before relying on this.
+
+Three consequences, and the first is the important one:
+
+1. **On this workload the admission gate cannot help, and should not be expected to.** Real live data
+   never approaches the 100 GB budget. The 189 GB is memory the allocator took from the OS and did
+   not return; no ordering, fencing or drain decision reclaims it. §5.1/§6.3 are the wrong instrument
+   for this particular pressure -- the right one is allocator behaviour (pool trimming, fragmentation,
+   returning free blocks), which is outside this plan's scope. This does not invalidate the gate for
+   workloads whose peak really is made of concurrent live intermediates (the synthetic wide-workload
+   probe in §8.1.2 cut 371 MB to 222 MB); it says t641 is not such a workload, and the earlier
+   assumption that it was -- because it "consumes 200 GB" -- was wrong.
+2. **The residual ledger error is now ~3x, down from 91x**: booked 8.93 GB against 27.64 GB measured.
+   That gap is the §8.1.8 tile-ownership residue -- consumer-held lazy tiles (booked 0) and
+   `tile_record`s co-owned past their functor's death. Tractable, and now quantified rather than
+   inferred.
+3. **The budget should be denominated in live data, not process commit.** `live-alloc` is the figure
+   to compare against, and it is now available at every sample.
+
+**Limits of the measurement, stated so it is not over-read.** `live-alloc` counts only >= 4 KB
+allocations through `AllocateFromStock`, so it is a *lower bound*: third-party allocations (GDAL,
+GEOS) bypass the funnel entirely, and small-object churn is deliberately excluded (a relaxed
+`fetch_add` per small allocation would ping-pong a cacheline across ~30 worker threads). Neither
+weakens the conclusion, because the allocator's own reserved-vs-used accounting confirms the pools
+independently.
+
+**Ruling (user, 2026-08-01): the allocation census stays ALWAYS ON — do not gate it behind `/SP` or
+the resource-scheduling switch.** It is deliberately cheap enough to leave unconditional: one
+relaxed `fetch_add` (plus a racy max) on allocations >= 4 KB only, which is invisible against the
+cost of the allocation itself and measured no effect on the wide probe or on t641. The value of
+`PeakLiveLarge` is that EVERY run's memory summary distinguishes live data from allocator pool
+without anyone having to re-run with a diagnostic flag — which is exactly the confusion that cost
+this project several days. The per-operator `/SP` logging and the ledger's own lines remain gated;
+this one figure does not.
+
+### 8.1.10 Gate validated on a wide workload: −62 % peak, +9 % wall, and a predictable peak
+
+§8.1.9 showed t641 cannot benefit from admission control (its footprint is allocator pool, not live
+data), which left the gate's value unproven outside the tiny §8.1.2 probe. `scratch/wide_big.dms` is
+the workload class the gate targets: 12 mutually independent branches (each from its own `id(dom)`,
+sharing no supplier, so nothing imposes an order), each holding `a<uint32>` 200 MB and
+`c<float64>` 400 MB at its widest, with `sum()` as a compressor releasing `c`. One branch needs
+600 MB; twelve concurrent need ~7.2 GB.
+
+Measured with `PeakLiveLarge` — the exact high-water mark of live large-allocation bytes added in
+§8.1.9, not the 30 s sample (a 0.8 s probe never reaches one). n = 4 per arm, interleaved:
+
+| arm | peak mean | peak range | calc mean | correct |
+|---|---|---|---|---|
+| shadow, unreachable budget | 1 896 MB | 1 330 – 3 280 MB | 0.776 s | yes |
+| enforce `/SB600` | **725 MB** | **671 – 767 MB** | 0.849 s | yes |
+
+**−62 % peak for +9.4 % wall, results correct in every run.**
+
+Two things confirm this is the designed mechanism rather than luck:
+
+- **The budget value barely matters.** `/SB1000`, `/SB600`, `/SB400` all land at 639–766 MB with
+  ~45 refusals and 0 deferrals. The gate converges on a floor set by DEPTH -- one branch's 600 MB --
+  and cannot go below it. That is §8.1's "depth is not throttleable, breadth is" appearing as a hard
+  floor exactly where predicted.
+- **The peak becomes predictable.** Unthrottled it varies 2.5x run to run (1 330–3 280 MB), because
+  how many branches happen to overlap is a scheduling accident; under the gate it varies 1.14x. On a
+  memory-constrained machine that matters as much as the mean, since provisioning follows the worst
+  case.
+
+Taken with §8.1.9, the picture is now empirical on both sides: the gate delivers on workloads whose
+peak is concurrent live intermediates, and cannot help where the footprint is allocator retention.
+Identifying which case a model is in is what `PeakLiveLarge` vs `CommitCharge` now answers directly.
+
+### 8.1.11 WRONG — there is no sub-byte allocator asymmetry (kept as a record of the dead end)
+
+> **Retracted 2026-08-01, same day, by the user.** `MyAllocator.h` line 12 carries a full
+> specialization `my_allocator<bit_value<N>>` whose `allocate` and `deallocate` BOTH size via
+> `info_t::calc_nr_blocks(sz)`, delegating to `my_allocator<block_type>` where `block_type` is
+> byte-sized and `safe_size_n` therefore equals `sizeof(T)*n`. Sub-byte values never instantiate the
+> generic template, so the mismatch described below does not exist. I reached it by reading the
+> generic template from line 55 without checking what preceded it.
+>
+> Two things independently confirmed while checking: `objectCount` is `++`/`--` on
+> allocate/deallocate, so `Highest allocated` is instantaneous (not cumulative); and
+> `assert(objectSize > inner.objectStoreSize / 2)` fixes size-class rounding below 2x, exactly as the
+> user argued. **The 27.6 GB vs 156 GB gap therefore remains unexplained** -- see §8.1.12.
+
+*(original text, now known to be false:)*
+
+Raised by the user 2026-08-01: a >4 KB chunk cannot cost much more than ~2x its size, so a
+`PeakLiveLarge` of 27.6 GB cannot sit under a `Highest allocated` of 156 GB. That arithmetic is
+right, and chasing it found this in `rtc/dll/src/mem/MyAllocator.h`:
+
+```cpp
+T* allocate(SizeT n)              { return AllocateFromStock(safe_size_n<nrbits_of_v<T>>(n)); }
+void deallocate(T* ptr, size_t n) { LeaveToStock(ptr, sizeof(T)*n); }
+```
+
+`allocate` passes the **bit-packed** byte count; `deallocate` passes `sizeof(T)*n`. For byte-or-larger
+types these are equal. For sub-byte types they are not: `static_assert(sizeof(bit_value<N>) == 1)`
+(`geo/BitValue.h`), while `safe_size_n<N>(n)` for `N < 8` returns `ceil(n / (32/N)) * 4` -- for N=1
+about `n/8`. **The free side reports up to 8x the size the alloc side reported.**
+
+Two consequences, of very different severity:
+
+1. **The census undercounts** (certain). `PeakLiveLarge` adds `n/8` and subtracts `n` per boolean
+   array, with the saturating clamp absorbing the excess, biasing the live total toward zero. RSopen
+   (t641) is full of boolean masks, which fits the observed 5.6x discrepancy in direction and
+   plausibly in size. So the counter is not trustworthy as an ABSOLUTE. It remains sound as a
+   RELATIVE measure between arms of one workload (§8.1.10, whose probe uses only uint32/float64 and
+   allocates no sub-byte data at all).
+2. **It may be a live allocator bug** (unverified, and the more important question). `LeaveToStock`
+   derives its free list from `BlockListIndex(objectSize)`. Given a size 8x too large it would return
+   the block to the wrong list, from which a later request could be handed a block smaller than it
+   asked for. Whether boolean data actually flows through `my_allocator<bit_value<N>>` -- rather than
+   through a bit-sequence provider with its own allocation path -- has NOT been established, and that
+   determines whether this is a real defect or only an accounting one. It should be settled before
+   anything is changed here: this is production memory management, not diagnostics.
+
+**Do not "fix" this by patching only the counter.** The asymmetry is the root; making
+`deallocate` use `safe_size_n` to match `allocate` is the candidate fix, but it changes which free
+list every sub-byte block returns to and must be validated deliberately.
+
+### 8.1.12 The 27.6 GB vs 156 GB gap is a real contradiction — cause still unknown
+
+State of play after eliminating three hypotheses. The two figures cannot both be right:
+
+**What is established (all read from the code, not inferred):**
+
+| fact | source |
+|---|---|
+| `objectCount` is `++` on allocate, `--` on deallocate | `FreeStackAllocator`, FixedAlloc.cpp 299/323 |
+| so `Highest allocated` is INSTANTANEOUS peak in-use, not cumulative | `MakeMax` over `objectStoreSize * objectCount` |
+| size-class rounding is bounded below 2x | `assert(objectSize > inner.objectStoreSize / 2)`, line 330 |
+| free-stack allocators cover [4 KB, 256 MB] | `ALLOC_PAGESIZE_MIN_BITS=12`, `ALLOC_OBJSSIZE_MAX_BITS=28` |
+| `PeakLiveLarge`'s threshold is 4 KB — the SAME lower bound | `LARGE_ALLOC_THRESHOLD` |
+| allocations > 256 MB bypass the free stacks (std::allocator) — counted by `PeakLiveLarge` only | `AllocateFromStock_impl` |
+| there is no small-object pooling in this build | `//#define MG_CACHE_ALLOC_SMALL` is commented out |
+
+Therefore `Highest allocated <= 2 x PeakLiveLarge` should hold. Measured: **156 GB vs 27.6 GB = 5.6x.**
+
+**Hypotheses eliminated** (each was wrong; recorded so they are not re-tried):
+
+1. *`Highest allocated` is cumulative* — no, `objectCount` decrements.
+2. *`my_allocator` sizes allocate/deallocate differently for sub-byte types* — no,
+   `my_allocator<bit_value<N>>` is fully specialized (MyAllocator.h line 12) and symmetric via
+   `calc_nr_blocks` on both sides.
+3. *Small-object pools draw object stores that `PeakLiveLarge` cannot see* — no, that path is
+   `#if defined(MG_CACHE_ALLOC_SMALL)` and the macro is off.
+
+**The measurement that settles it, instead of a fourth guess.** Log both quantities at the SAME
+instant, repeatedly: a synchronous `UpdateFixedAllocStatus()` snapshot beside
+`GetLiveLargeAllocBytes()`. If the instantaneous in-use total already exceeds the live counter, the
+divergence is in one of the two counters and can be bisected by size class (`ReportStatus` already
+emits per-class figures under `MG_DEBUG_ALLOCATOR`). Comparing two independently-maintained *peaks*
+-- which is all that has been done so far -- cannot distinguish "different populations" from
+"one of them is wrong", and that ambiguity is what produced three dead ends.
+
+**Until this is resolved, `PeakLiveLarge` is trustworthy only as a RELATIVE measure** between arms of
+one workload (§8.1.10 stands: same counter, same workload, systematic error cancels). Its absolute
+value, and every conclusion drawn from comparing it to `CommitCharge` (§8.1.9), stays retracted.
+
+### 8.1.13 What the budget should actually bound — three separate populations
+
+User framing, 2026-08-01, and it splits what had been muddled into one number:
+
+**(a) Live allocated memory — the thing to limit.** This is what presses on the active set and what an
+admission budget should bound. `PeakLiveLarge` targets it.
+
+**(b) Freed-but-pooled memory — committed, but should not press the active set.** Retained free
+chunks in the free-stack pools count toward CommitCharge yet hold nothing anyone wants. They are
+NOT a scheduling problem and must not be charged to operations.
+
+> **But they are not free of cost today.** `VirtualAllocChunk::release()` is a no-op on both
+> platforms -- `MEM_RESET` (Windows) and `madvise(MADV_DONTNEED)` (POSIX) are both commented out,
+> and the file's own header comment lists exactly this as a TODO. So a freed chunk stays committed
+> **and dirty**: to reclaim the physical page Windows must WRITE it to the pagefile. On a 128 GB host
+> carrying ~200 GB of commit that is tens of GB of pagefile traffic for memory whose contents are
+> dead. Enabling `MEM_RESET` on release and `MEM_RESET_UNDO` on recommit would let those pages be
+> discarded instead of written -- a direct lever on the "t641 must respect 128 GB" goal, entirely
+> independent of scheduling. Precondition to verify first: a reset page's contents become undefined,
+> so every caller that needs zeroed memory must already be passing `mustClear` (the flag exists; the
+> audit does not).
+
+**(c) Memory an operator takes OUTSIDE `AllocateFromStock` — invisible to the census AND missing
+from the estimates.** `std::vector` data, and worse, allocations inside external libraries: GEOS
+buffer/overlay working sets, GDAL block caches, PROJ. None of it passes through
+`AllocateFromStock`, so:
+
+- the live census cannot see it -- `PeakLiveLarge` is a lower bound on live memory, by construction,
+  not merely by its 4 KB threshold;
+- and more importantly, **the estimator does not account for it**, so the admission gate has no idea
+  that activating e.g. a `geos_buffer` will demand a large working set. §4.1's `workingMemorySize`
+  and `choreMemory` are the fields meant to carry this; §4.3's family overrides are where a GEOS- or
+  GDAL-backed operator should declare its out-of-band demand. Today they mostly carry the
+  GeoDMS-side figure only.
+
+This matters more than it sounds: an operator whose cost is dominated by an external library is
+exactly the kind the gate would wave through while it consumes the budget invisibly -- and t301/t641
+(geos_buffer, GDAL reads) are full of them.
+
+**Consequence for the roadmap.** "Does the estimate cover what the operation will actually demand"
+is a separate question from "does the ledger track what is resident", and only the second has been
+worked on so far. Both must hold before an enforce-mode budget means anything on a real model.
+
+### 8.1.14 Decommit on release: what it buys, what it costs, and the size threshold
+
+`VirtualAllocChunk::release()` was a no-op, so a freed store stayed committed AND dirty -- reclaiming
+the physical page required a pagefile write. The user replaced it with `VirtualFree(MEM_DECOMMIT)`
+and `recommit` with `VirtualAlloc(MEM_COMMIT)`.
+
+**Measured on t641, enforce @100 GB (run 8 = no decommit, run 9 = decommit everything):**
+
+| | t641_1 | t641_2 |
+|---|---|---|
+| CommitCharge | 179 256 -> **143 793 MB** (−20 %) | 197 179 -> **175 626 MB** (−11 %) |
+| PeakLiveLarge | 144 449 -> 144 392 (unchanged) | 175 973 -> 175 977 (unchanged) |
+| wall | 2 133 -> 2 298 s (+7.7 %) | 1 460 -> 1 555 s (+6.5 %) |
+| vmcalls | 10.0 M / 806 s, peak concurrent **33** | 34.1 M / 4 228 s, peak concurrent **33** |
+
+Two findings. **It achieves its purpose**: commit charge now equals live data (143 793 vs 144 392;
+175 626 vs 175 977), i.e. pool overhead is gone. And **it re-serialises the allocator**: peak
+concurrent 33 means every worker was inside the process address-space lock at once, which is exactly
+what the lock-free allocator exists to prevent. t641_2 burned 4 228 s of thread time in decommit
+inside a 1 555 s run.
+
+**Resolution: decommit only blocks >= 2 MB** (`DECOMMIT_MIN_SIZE`). The size profile is tile-shaped
+-- a default tile is 2^16 elements, so 8 KB (Bool at 1/8 B) through 1 MB (DPoint / pair<SizeT> at
+16 B) are ordinary tile buffers, with 4 KB as a domain's smaller last tile. Those are recycled
+constantly, so decommitting them is immediately undone by the matching recommit: pure churn. The
+>= 2 MB classes are the sequence/string payloads where the retained volume actually sits -- ~223 GB
+of allocation on t641_2, in ~54 000 calls instead of 34.1 M, a **630x reduction in syscalls**. On the
+wide probe the threshold takes decommit calls to zero and restores baseline wall time.
+
+**Rejected (user ruling): pressure-triggered decommit.** Decommitting only when commit approaches the
+budget is complex to start while the lock-free free lists keep being updated, and by the time
+pressure is high the free lists are already long -- so the reclaim arrives too late to help. Noted
+as a possible future improvement, not a current direction.
+
+### 8.1.15 How complete is the allocation census, and how to grade the estimates
+
+**Completeness — better than §8.1.13(c) feared, at least here.** Once decommit made commit charge
+track live data, the two can be compared directly:
+
+| | PeakLiveLarge | CommitCharge |
+|---|---|---|
+| t641_1 | 144 392 MB | 143 793 MB |
+| t641_2 | 175 977 MB | 175 626 MB |
+
+Commit includes *everything* -- sub-4 KB allocations, `std::vector`, GEOS/GDAL/PROJ internals -- and
+comes out ~0.4 % BELOW the census (the peaks are at different instants). So for t641 the census is
+close to complete and out-of-band allocation is not a significant term. That does NOT generalise:
+t301 and other GEOS-heavy configs are where the same comparison should be run, and a large
+CommitCharge-minus-PeakLiveLarge there would localise the out-of-band consumer.
+
+**Grading the estimates.** The census supplies a trustworthy "actual"; the difficulty is
+attribution, because concurrent operations interleave their allocations and a before/after delta
+around one operation is therefore meaningless. Two options:
+
+1. **Sample only when `sd_LedgerRunningOps == 1`.** The ledger already maintains that. With exactly
+   one operation running, `delta live-alloc` across it IS that operation's footprint -- temporary
+   memory included, whatever allocator it came from -- and can be compared against
+   `residentMemory + workingMemorySize`. Biased toward operations that run alone, but those are the
+   large ones the gate most needs to predict, and it needs no new plumbing.
+2. **Thread-local allocation counters aggregated per operation.** Exact and unbiased, but tile tasks
+   fan out across the pool, so it needs a task -> operation mapping to reassemble.
+
+Start with (1). It produces the predicted/actual residual series per operator family that §4.7's
+calibration always assumed, and it is exactly the instrument that would have exposed a `geos_buffer`
+whose real working set is orders of magnitude above its estimate.
+
+### 8.1.16 Calibration on t405_2: when the charge deviates, and why
+
+First measured estimate-vs-actual per operator, using the per-operation peak attributed through
+`CancelableFrame::CurrActive()` (5 563 attributed lines, gate off, PerformanceLogging on).
+**Peak, not gross**: gross is allocation traffic, so a streaming operator that recycles tiles looks
+enormous while holding little; peak is what a budget must be compared against.
+
+| operator | n | median x | p90 x | Σ peak |
+|---|---|---|---|---|
+| `mean` | 2 | **706.7** | 706.7 | 0.1 G |
+| `min_index` | 2 | **79.1** | 79.2 | 0.4 G |
+| `modus` | 1 | 15.6 | 15.6 | 0.1 G |
+| `any` | 3 | 11.6 | 19.2 | 0.0 G |
+| `rlookup` | 28 | 7.0 | **147 483** | 3.5 G |
+| `collect_by_org_rel` | 12 | 6.5 | 702.6 | 0.6 G |
+| `lookup` | 174 | 1.7 | **24 133** | 3.6 G |
+| `union_data` | 43 | 1.0 | 2.0 | 8.5 G |
+| `iif`, `add`, `point_xy`, … | many | 1.0 | 1.0 | ~0 |
+| `points2sequence` | 4 | **0.2** | 0.3 | 1.1 G |
+
+**The good news first: the estimator is broadly right.** Median 1.0x across most families. The
+failures are specific and explainable, not diffuse.
+
+**Deviation 1 — aggregations charge the RESULT, but hold the INPUT.** The mechanism is visible in a
+single line:
+
+```
+oper mean [[.../Gemeente/y_mean]]: n=345 B=1K eager res=1K ws=43K
+                                   ops=8045594  gross=30M peak=30M (706.68x pred)
+```
+
+345 means out, so `res=1K`, plus a 43 KB accumulator -> 44 KB predicted. But it reads **8 045 594**
+input elements, and 8.05 M x 4 B = 32 MB, which is the measured 30 MB. Confirmed on two more:
+`min_index` 11.76 M ops -> 185 MB (x16 B = 188 MB), and 23.0 M ops -> 175 MB (x8 B = 184 MB). In
+every case **peak ≈ ops x element width**, i.e. the input volume.
+
+**Deviation 2 — a consumer pays for materialising its lazy suppliers.** The producer builds a tile
+functor in ~1 ms holding nothing while the estimate books its full result volume; the consumer that
+pulls the tiles allocates it inside its own frame. That is the p90 tail on `rlookup` (147 483x) and
+`lookup` (24 133x), and the wide probe's extreme case (`sum` predicted 256 B, held 383 MB).
+
+**Deviation 3 — `PredictMaterialization` is wrong ~83 % of the time** (~4 600 of 5 563):
+`lookup` 1841 and `pcount` 1325 predicted deferred and came out eager; `id` predicted eager/deferred
+and came out streaming 849 times. The eager<->deferred half is currently harmless to the CHARGE
+(both book the whole array) but it invalidates every other regime-based decision -- including the
+§8.1.4 retained booking, which books eager and deferred and skips streaming. The `id` cases are a
+genuine over-charge: predicted to hold an array, actually holds nothing.
+
+**Deviation 4 — over-charge at the top end.** The largest results measure 0.1–0.2x their prediction,
+i.e. charged ~5x too much. Note the `Bytes()` compaction flattens everything in [1 GB, 2 GB) to
+"1G", so this band is approximate until that resolution is fixed.
+
+**Net effect: the charge is INVERTED.** The gate over-charges the big producers it should admit and
+under-charges the aggregations that actually consume the budget. That is a coherent explanation for
+throttling behaving badly, and it is a modelling error rather than a measurement one.
+
+#### Proposed improvements, in order of value
+
+1. **Charge input materialisation to the consumer, gated on the ARGUMENT's regime.**
+   `PerformanceEstimationData::inputSize` is already accumulated in `Operator::EstimatePerformance`
+   and never enters the charge. Add to the predicted demand the volume of arguments whose data
+   object is `streaming`/`deferred` -- those get materialised inside this operation's frame -- and
+   skip `eager` ones, which are already resident and were charged to their producer. This addresses
+   deviations 1 and 2 with data already in hand, and it must use the RUN-time estimate
+   (`RefreshEstimateForAdmission`), since at schedule time the argument has no data object yet.
+2. **Make aggregation working memory scale with the input.** Even where arguments are already
+   resident, measured peak tracks `ops x width`, not the accumulator. The `OperAccUni` override
+   currently returns accumulator size only; it should be at least `max(accumulator, inputSize)`.
+3. **Fix `PredictMaterialization`.** An 83 % error rate makes every regime-derived decision
+   unreliable. `lookup`/`pcount`/`min_elem`/`max_elem` predicted deferred and are eager; `id` is
+   streaming. These are knowable from the operator family.
+4. **Give `Bytes()` sub-GB resolution** before drawing conclusions about deviation 4.
+
 ### 8.2 P1 status — complete
 
 **Landed** (all with 186/186 testcases passing, nothing scheduling on any of it):
@@ -1268,6 +1932,101 @@ enforce mode on a real model rather than a synthetic probe.
   so the skew hypothesis can be tested, but it does not model skew, and the two footprint
   discrepancies of §4.4 (deferred over-reserves, streaming under-estimates ~13×) remain the
   gate on P2's grant logic.
+
+---
+
+### 8.1.17 The whole residual over-charge was one guess: `ASSUMED_SEQ_LENGTH`
+
+Run 4 of the t405_2 calibration (after the `rlookup` index term, `union_data` = Σ args,
+`points2sequence`, and `argMaterializationMemory` all landed) measured:
+
+```
+total measured peak      17.33 G
+total predicted charge   55.48 G   (3.20x)
+```
+
+The 3.20× is not spread out. **Four items carry 37 G of the 38 G excess**, and all four are
+sequence-valued `geometry`:
+
+| item | peak | predicted | ratio |
+|---|---|---|---|
+| `union_data` `…/StaticNets/allLinks/geometry` | 1 710 M | 14 251 M | 0.12× |
+| `union_data` `…/StaticNets/Static_net/geometry` | 1 587 M | 13 227 M | 0.12× |
+| `collect_by_cond` `…/isVerbonden/geometry` | 1 055 M | 8 113 M | 0.13× |
+| `lookup` `…/Network_Pedestrian/geometry` | 1 556 M | 8 192 M | 0.19× |
+
+One cause. `EstimateDataBytes` has no width for a value composition that isn't `Single`, so it
+charges `ASSUMED_SEQ_LENGTH = 32` scalars per element. For a `DPoint` sequence that is
+`(64×32)>>3 + 8 = 264` bytes per arc, against ~32 real — the log prints the factor directly, as
+every `points2sequence` line carries `B=… (8.25x)`, the generic estimate over the refined one.
+Dividing each of the four predictions by 8.25 lands them at 1.02×, 1.02×, 1.07× and 1.57×.
+
+**Why `union_data` = Σ args did not fix itself.** Summing arguments is only better than the
+generic estimate if the *argument* sizes are better, and they were not: the sum calls
+`EstimateDataBytes` per argument, which re-applies the same 32-scalar guess. The run-4 log states
+it exactly — `B=7.15G (1.00x) res=7.15G` — Σ args and the generic estimate agreeing to the digit.
+A refinement that consumes the thing it is refining cannot escape it.
+
+**Fix: make the width a propagated fact.** `AbstrDataItem` gains
+`m_EstimatedBytesPerElement` (0 = unknown), consulted by `EstimateDataBytes` ahead of both
+`ASSUMED_*` guesses, published monotonically (`max`, so racing estimators cannot shrink a booking
+and a coarse publisher cannot undercut a precise one). Three publishers:
+
+- `points2sequence` — the root of the chain, and exact: one point row per output point, so
+  `resultingMemory / resultingNrElements` is the true width.
+- `union_data` — republishes the concatenated (weighted-average) width, so a union of unions does
+  not fall back to the guess.
+- `Operator::EstimatePerformance` — inherits the widest matching argument width for the
+  selection/permutation families, whose result elements *are* their argument's elements
+  (`lookup`, `collect_by_cond`, `collect_by_org_rel`, `recollect_by_cond`). Guarded on identical
+  `ValueComposition` **and** identical values `ValueClass`, so it only fires where an element is
+  carried over unchanged, and skipped when the result already has its own width.
+
+**Measured (run 5): 3.31× → 1.93× overall**, 54.70 G of predicted charge down to 31.86 G against
+an unchanged 16.5 G measured. The chain rooted at `points2sequence` collapsed as intended:
+
+| item | predicted before → after | ratio |
+|---|---|---|
+| `union_data` allLinks/geometry | 14 251 M → 1 296 M | 0.12× → 1.32× |
+| `union_data` Static_net/geometry | 13 227 M → 2 645 M | 0.12× → 0.60× |
+| `union_data` ScheduledLinks/geometry | 504 M → 60 M | 0.12× → 1.00× |
+
+Six items moved the wrong way, all small (largest peak 176 M, most ≤7 M) — `lookup` cases that
+were exactly 1.00× and now over-predict, and one `any` at 0.05×. The mechanism to watch is that
+`SetEstimatedBytesPerElement` is monotone-max: a width that comes out too large **sticks and
+propagates**, since a consumer can only ever raise it. `union_data` republishing
+`resultingMemory / resultingNrElements` is the likely source — a level whose result-domain
+estimate is small against its Σ-args produces an inflated width that its consumers then inherit.
+Net is strongly positive (22.8 G of over-charge removed against a few hundred MB added), but if
+this term is extended further, the max should probably become "max over publishers, but never
+above the generic guess".
+
+**Known remaining hole — and it is now the dominant one.** A sequence read from storage has no
+publisher, so its leaf width is still guessed, and the two items that consume the OSM
+`Network_Pedestrian/geometry` leaf did not move at all:
+`lookup` 0.19× → 0.2×, `collect_by_cond` 0.13× → 0.1×. Together they are ~13.5 G of the ~15.3 G
+excess that survives. Closing it needs a *measured* width, and neither obvious source supplies
+one: `GetNrBytesNow()` calls `GetTile()` per tile and would materialise the data (the trap
+`RetainedBytesOf` avoids with `GetNrFeaturesNow()`), and `ReportReadPerformance` derives its
+"actual" bytes from `EstimateDataBytes` too, so it is measuring the guess against itself.
+
+The viable route is a residency-limited query: walk only the tiles that are already in memory,
+sum their element and feature counts, and publish `elems / features`. `FileTileArray` already has
+the shape of this in `GetNrResidentTilesNow()` (which reads the mapping refcount and never calls
+`GetTile()`); `HeapTileArray` does not override it at all. That is a change to tile-array
+internals in exactly the place where a mistake re-introduces materialisation, so it wants its own
+build-and-verify cycle rather than being folded in ahead of a long run.
+
+**Not addressed here, carried forward:**
+
+- **A 2.0× cluster.** `points2sequence` 2.00/2.03×, `min_index` 2.01/2.04×, `collect_by_org_rel`
+  2.00×, several `lookup` 1.89–2.01×. The exactness says one mechanism (deferred results appearing
+  to be held twice during production), but it spans sequence *and* non-sequence results while
+  *not* applying to the `union_data` geometry cases above — so no hypothesis is trusted yet. Total
+  under-charge ~1.5 G against 37 G for the width bug.
+- **Three `lookup` calls predicting ≈0** (1023×, 2770×, 7449×) on items that really take
+  225 M / 21 M / 22 M. Small in bytes, but a gate that predicts zero is precisely how a run
+  overcommits; wants a floor rather than a family term.
 
 ---
 

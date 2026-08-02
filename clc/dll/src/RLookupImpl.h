@@ -43,6 +43,32 @@ public:
 		:	BinaryOperator(gr, ResultType::GetStaticClass(), argClass, argClass)
 	{}
 
+	// A reverse search builds an INDEX over its second argument (the values being searched), one
+	// entry per value -- `indexed_tile_t = std::pair<std::vector<I>, locked_cseq_t>` with
+	// `index_type_t` = UInt32 or UInt64 (rlookup.h). That cost is proportional to the VALUES
+	// attribute and completely independent of the result, which is what made this the worst
+	// mis-estimate measured on t405: an rlookup producing 171 elements (684 B predicted) built an
+	// index over 23,007,329 values and held 184 MB -- 269,091x its prediction, and 184 MB /
+	// 23,007,329 = exactly 8 B/element, confirming UInt64 entries (§8.1.16).
+	auto EstimatePerformance(TreeItemDualRef& resultHolder, const ArgRefs& args) const -> PerformanceEstimationData override
+	{
+		auto result = BinaryOperator::EstimatePerformance(resultHolder, args);
+
+		if (args.size() >= 2)
+			if (auto valuesItem = GetItem(args[1]); valuesItem && IsDataItem(valuesItem))
+				if (auto valuesDomain = AsDataItem(valuesItem)->GetAbstrDomainUnit())
+					try {
+						auto valuesCount = valuesDomain->EstimateCount().expected;
+						// Index entry width follows the values domain's cardinality type, exactly as
+						// index_type_t does: <= 4 bytes of cardinality -> UInt32, else UInt64.
+						auto entrySize = (valuesCount <= MAX_VALUE(UInt32)) ? sizeof(UInt32) : sizeof(UInt64);
+						result.workingMemorySize += valuesCount * entrySize;
+					}
+					catch (...) {} // an uncountable values domain: leave the term out rather than fail
+
+		return result;
+	}
+
 	// mirrors CreateResult below: rlookup(a: V1[D]; b: V2[E]) -> E[D] — the
 	// result's VALUES unit IS b's domain (K4; one variable E in b's domain role
 	// and the result's values role — reduction-honest: the result is flagged

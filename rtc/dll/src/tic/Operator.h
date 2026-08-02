@@ -54,6 +54,14 @@ struct PerformanceEstimationData
 	                                  // (C := A + B with A,B unneeded afterwards; a size-reducing
 	                                  // aggregation), which the drain policy may admit while a refused
 	                                  // claimant waits (§5.1 of the plan).
+	SizeT argMaterializationMemory = 0; // arguments this operation will MATERIALIZE itself, because they
+	                                  // arrive unmaterialized (streaming/deferred) and are only computed
+	                                  // when this operation pulls them -- inside its own CancelableFrame,
+	                                  // so the allocation is charged here and not to the producer that
+	                                  // merely built the tile functor. Measured on t405 (§8.1.16): an
+	                                  // aggregation's peak tracks its INPUT volume, not its result --
+	                                  // `mean` over 8.05M elements holds 30 MB while predicting 44 KB --
+	                                  // and the tail cases (rlookup p90 147,483x) are the same effect.
 	SizeT residentMemory = 0;        // what a ledger would charge; per regime, see materialization
 	SizeT choreMemory = 0;           // one tile's worth of the result
 	SizeT resultingNrElements = 0;

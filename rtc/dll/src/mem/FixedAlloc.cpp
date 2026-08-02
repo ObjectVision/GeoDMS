@@ -64,12 +64,50 @@
 #include "dbg/SeverityType.h"
 #include "xct/DmsException.h"
 
+// Per-operation allocation accounting. Hooked at the SAME two points as RegisterAlloc/RemoveAlloc
+// (AllocateFromStock / LeaveToStock) so it sees every allocation; an earlier version hooked
+// FreeStackAllocator::allocate and therefore only saw the pooled SpecialSize subset, a minority of
+// the traffic (t641_1: fs inUse 5.5 GB vs req 42.9 GB).
+//
+// The register lives here and is owned by ElemAllocComponent, exactly like s_AllocRegister: that
+// component is the base every allocating component derives from, so it is constructed first and
+// destroyed last and the register's lifetime brackets all allocation by construction. No lifetime
+// flags, no leaked singleton -- the dependency is expressed by the component hierarchy
+// (RtcComponents.h) and checked by assert on use.
+//
+// Only these three come from tic, type-erased so the allocator never needs OperationContext defined
+// (including tic/OperationContext.h here does not compile: this TU has no tic prerequisites).
+RTC_CALL auto CurrentOperationRef() -> std::shared_ptr<void>;
+RTC_CALL void ChargeOperationAlloc(void* ocPtr, SizeT bytes);
+RTC_CALL void ChargeOperationFree(void* ocPtr, SizeT bytes);
+
+// Defined below, beside the register they use; declared here because AllocateFromStock and
+// LeaveToStock appear earlier in this file.
+void NoteAllocation(void* ptr, SizeT bytes);
+void NoteDeallocation(void* ptr, SizeT bytes);
+
 #include <memory>
+#include <unordered_map>
 
 #define MG_CACHE_ALLOC
 
 //#define MG_CACHE_ALLOC_SMALL
 #define MG_CACHE_ALLOC_ONLY_SPECIALSIZE
+
+// Per-operation allocation accounting for estimator calibration (§8.1.16). Each object store
+// remembers the OperationContext that was this thread's CancelableFrame::CurrActive() when it was
+// handed out, so the matching free can discharge the SAME operation -- which is what a plain
+// counter cannot do, because at deallocation the frame that allocated is long gone.
+//
+// Diagnostic only. Costs a hash-map insert/erase per large (de)allocation, under the allocator's
+// existing allocSection, so it must not ship on by default.
+//
+// NOTE, deviating from the proposal: this does NOT enable MG_CACHE_ALLOC_SMALL. Doing so would
+// change which allocator serves every sub-8 KB object -- a live behavioural change to production
+// paths that have been compiled out for a long time -- and the memory being calibrated is in the
+// large classes anyway. Small-object attribution can be added later by lifting that switch
+// deliberately rather than as a side effect of turning on diagnostics.
+#define MG_CACHE_COLLECTDATA
 
 // =========================================  implementation
 
@@ -133,6 +171,46 @@ constexpr alloc_index_t highest_bit_rank(Unsigned value)
 #include <sys/mman.h>
 #endif
 
+// ===== Instrumentation for the decommit-on-release experiment ==============================
+// The question this answers is NOT "is it faster" but "does it reintroduce the serialisation the
+// lock-free allocator exists to avoid". VirtualAlloc/VirtualFree take the process address-space
+// lock, so if workers pile up inside them we are back to one-thread-at-a-time on the very path that
+// was made lock-free. inFlightPeak is the direct evidence: it is the largest number of threads ever
+// simultaneously inside a decommit/recommit syscall. 1-2 means no congestion; a number near the
+// worker count means the syscall is serialising the pool.
+static std::atomic<UInt64> s_DecommitCount = 0, s_RecommitCount = 0;
+static std::atomic<UInt64> s_DecommitTicks = 0, s_RecommitTicks = 0;
+static std::atomic<UInt32> s_VmSysCallsInFlight = 0, s_VmSysCallsInFlightPeak = 0;
+
+struct VmSysCallScope // RAII: gauge in, gauge out, accumulate elapsed ticks
+{
+	std::atomic<UInt64>& m_Count;
+	std::atomic<UInt64>& m_Ticks;
+	Int64 m_T0 = 0;
+
+	VmSysCallScope(std::atomic<UInt64>& count, std::atomic<UInt64>& ticks)
+		: m_Count(count), m_Ticks(ticks)
+	{
+		auto inFlight = s_VmSysCallsInFlight.fetch_add(1, std::memory_order_relaxed) + 1;
+		auto prev = s_VmSysCallsInFlightPeak.load(std::memory_order_relaxed);
+		while (inFlight > prev
+			&& !s_VmSysCallsInFlightPeak.compare_exchange_weak(prev, inFlight, std::memory_order_relaxed))
+			;
+#if defined(WIN32)
+		LARGE_INTEGER t; QueryPerformanceCounter(&t); m_T0 = t.QuadPart;
+#endif
+	}
+	~VmSysCallScope()
+	{
+#if defined(WIN32)
+		LARGE_INTEGER t; QueryPerformanceCounter(&t);
+		m_Ticks.fetch_add(UInt64(t.QuadPart - m_T0), std::memory_order_relaxed);
+#endif
+		m_Count.fetch_add(1, std::memory_order_relaxed);
+		s_VmSysCallsInFlight.fetch_sub(1, std::memory_order_relaxed);
+	}
+};
+
 struct VirtualAllocChunk
 {
 	VirtualAllocChunk(SizeT chunkSize_)
@@ -183,10 +261,27 @@ struct VirtualAllocChunk
 #endif
 	}
 
+	// Only blocks at or above this are handed back to the OS. Below it, a freed store stays
+	// committed and the free list serves it without any syscall -- which is the whole point of the
+	// lock-free allocator.
+	//
+	// Why 2 MB. The size profile is tile-shaped: a default tile is 2^16 elements, so the classes
+	// from 8 KB (Bool, 1/8 B) up to 1 MB (DPoint / pair<SizeT>, 16 B) are ORDINARY TILE BUFFERS,
+	// with 4 KB appearing as a domain's smaller last tile. Those are recycled constantly -- a
+	// decommit there is immediately undone by the matching recommit, pure syscall churn. Everything
+	// at 2 MB and above is the sequence/string payload of a tile, which is where the retained volume
+	// actually sits: on t641_2 the >= 2 MB classes account for ~223 GB of allocation.
+	// Measured before this threshold existed: 34.1 M decommits costing 4 228 s of thread time with
+	// all 33 workers inside the address-space lock at once (§8.1.14).
+	static constexpr object_size_t DECOMMIT_MIN_SIZE = object_size_t(1) << 21; // 2 MB
+
 	static void release(BYTE_PTR objectPtr, object_size_t objectSize)
 	{
+		if (objectSize < DECOMMIT_MIN_SIZE)
+			return; // keep it committed; the free list will hand it out again without a syscall
 #if defined(WIN32)
-//		VirtualAlloc(objectPtr, objectSize, MEM_RESET, PAGE_NOACCESS);
+		VmSysCallScope scope(s_DecommitCount, s_DecommitTicks);
+		VirtualFree(objectPtr, objectSize, MEM_DECOMMIT);
 #else
 //		madvise(objectPtr, objectSize, MADV_DONTNEED);
 #endif
@@ -194,8 +289,11 @@ struct VirtualAllocChunk
 
 	static void recommit(BYTE_PTR objectPtr, object_size_t objectSize)
 	{
+		if (objectSize < DECOMMIT_MIN_SIZE)
+			return; // never decommitted, so still committed: nothing to undo
 #if defined(WIN32)
-//		VirtualAlloc(objectPtr, objectSize, MEM_RESET_UNDO, PAGE_READWRITE);
+		VmSysCallScope scope(s_RecommitCount, s_RecommitTicks);
+		VirtualAlloc(objectPtr, objectSize, MEM_COMMIT, PAGE_READWRITE);
 #endif
 	}
 
@@ -279,6 +377,17 @@ FreeStackAllocSummary operator +(FreeStackAllocSummary lhs, FreeStackAllocSummar
 
 // =========================================  FreeStackAllocator definition section
 
+// Cross-check for PeakLiveLarge (user request 2026-08-01). Maintained at exactly the two points
+// where objectCount moves, so it equals the sum of objectStoreSize*objectCount over all free-stack
+// allocators by construction -- the same quantity ReportStatus computes, but continuously and
+// without taking any lock. Comparing it against the AllocateFromStock live counter is the direct
+// test: absent an MT defect the two must agree to within size-class rounding (< 2x), because every
+// free-stack object store is handed out by exactly one AllocateFromStock call.
+static std::atomic<SizeT> s_FreeStackLiveBytes = 0;
+static std::atomic<SizeT> s_PeakFreeStackBytes = 0;
+RTC_CALL SizeT GetFreeStackLiveBytes() { return s_FreeStackLiveBytes.load(std::memory_order_relaxed); }
+RTC_CALL SizeT GetPeakFreeStackBytes() { return s_PeakFreeStackBytes.load(std::memory_order_relaxed); }
+
 struct FreeStackAllocator
 {
 	VirtualAllocChunkArray inner;
@@ -297,6 +406,14 @@ struct FreeStackAllocator
 		std::lock_guard guard(allocSection);
 
 		objectCount++;
+		auto fsLive = s_FreeStackLiveBytes.fetch_add(inner.objectStoreSize, std::memory_order_relaxed)
+			+ inner.objectStoreSize;
+		{	// CAS max, not load/store -- see the note on s_PeakLargeAllocBytes
+			auto prev = s_PeakFreeStackBytes.load(std::memory_order_relaxed);
+			while (fsLive > prev
+				&& !s_PeakFreeStackBytes.compare_exchange_weak(prev, fsLive, std::memory_order_relaxed))
+				;
+		}
 
 		if (freeStack.empty())
 			return { inner.get_reserved_objectstore(), true };
@@ -312,6 +429,7 @@ struct FreeStackAllocator
 			inner.commit(reserved_or_rest_block.first, objectSize);
 		else
 			inner.recommit(reserved_or_rest_block.first, objectSize);
+
 		return reserved_or_rest_block.first;
 	}
 
@@ -320,7 +438,9 @@ struct FreeStackAllocator
 	void add_to_freestack(BYTE_PTR ptr)
 	{
 		std::lock_guard guard(allocSection); // critical section here too
+
 		objectCount--;
+		s_FreeStackLiveBytes.fetch_sub(inner.objectStoreSize, std::memory_order_relaxed);
 		freeStack.emplace_back(ptr);
 	}
 	void deallocate(BYTE_PTR ptr, object_size_t objectSize)
@@ -643,6 +763,52 @@ void* AllocateFromStock_impl(size_t objectSize)
 	return result;
 }
 
+//----------------------------------------------------------------------
+// Live large-allocation census, for the admission ledger (schedule-with-lookahead.md §8.1.8)
+//----------------------------------------------------------------------
+// Ground truth for "how much is actually resident", measured instead of modelled. Every attempt to
+// attribute memory to a RESULT has failed against t641, because the bytes are owned by tile buffers
+// whose lifetime is set by consumers: a lazy tile is owned solely by the consumer's lock, and a
+// deferred tile_record is co-owned by whoever holds the future tile. Keying a booking on the item
+// (released at ClearDataObject) or on the data object (released at ~AbstrDataObject) both unbook
+// memory that is still there. This counter has no such problem: it moves when the bytes move.
+//
+// Only allocations >= LARGE_ALLOC_THRESHOLD are counted, for two reasons. The memory that matters
+// is tile and array buffers, which are far above it; and a relaxed fetch_add on every small-object
+// allocation would ping-pong one cacheline across ~30 worker threads for no diagnostic gain.
+constexpr size_t LARGE_ALLOC_THRESHOLD = 4096;
+
+
+// Size histogram of large allocations, bucketed by log2. Answers "what sizes is t641 actually
+// asking for", and in particular how much lives above ALLOC_OBJSSIZE_MAX (2^28 = 256 MB), which is
+// the cut-off above which requests bypass the free-stack allocators entirely and go to
+// std::allocator -- i.e. the population that would come back under the lock-free allocator's control
+// if ALLOC_OBJSSIZE_MAX_BITS and log2_max_chunk_size were raised.
+static std::atomic<UInt64> s_AllocSizeHistogram[64] = {};
+
+// Allocations at or above this are individually logged, WITH the item context the reporting
+// framework appends -- that is the attribution: which operation asked for it. They are rare enough
+// (a handful per run) that one log line each costs nothing, and the report happens after
+// AllocateFromStock_impl has returned, so no allocator lock is held.
+constexpr size_t HUGE_ALLOC_LOG_THRESHOLD = SizeT(1) << 28; // 256 MB == ALLOC_OBJSSIZE_MAX
+
+static std::atomic<SizeT> s_LiveLargeAllocBytes = 0;
+// True high-water mark, not a sample. The ledger sample is rate-limited to 30 s, which is far too
+// coarse for a probe that runs in tens of seconds -- and the peak is exactly what a memory
+// experiment is measuring. Maintained on the increment path only.
+static std::atomic<SizeT> s_PeakLargeAllocBytes = 0;
+
+RTC_CALL SizeT GetLiveLargeAllocBytes()
+{
+	return s_LiveLargeAllocBytes.load(std::memory_order_relaxed);
+}
+
+RTC_CALL SizeT GetPeakLargeAllocBytes()
+{
+	return s_PeakLargeAllocBytes.load(std::memory_order_relaxed);
+}
+
+
 void* AllocateFromStock(size_t objectSize MG_DEBUG_ALLOCATOR_SRC_ARG)
 {
 	if (!objectSize)
@@ -650,11 +816,44 @@ void* AllocateFromStock(size_t objectSize MG_DEBUG_ALLOCATOR_SRC_ARG)
 
 	auto result = AllocateFromStock_impl(objectSize);
 
+	if (objectSize >= LARGE_ALLOC_THRESHOLD)
+	{
+		s_AllocSizeHistogram[std::bit_width(objectSize) - 1].fetch_add(1, std::memory_order_relaxed);
+
+		auto live = s_LiveLargeAllocBytes.fetch_add(objectSize, std::memory_order_relaxed) + objectSize;
+		// Proper CAS max. The earlier load/store version was NOT a max but last-writer-wins: two
+		// threads read the same old peak, the one computing the LOWER value could store last, and
+		// the recorded peak went BACKWARDS. With ~30 workers allocating continuously that clobbers
+		// the peak downward systematically -- it is what made PeakLiveLarge read 27.6 GB on t641
+		// while the process held ~200 GB.
+		auto prevPeak = s_PeakLargeAllocBytes.load(std::memory_order_relaxed);
+		while (live > prevPeak
+			&& !s_PeakLargeAllocBytes.compare_exchange_weak(prevPeak, live, std::memory_order_relaxed))
+			;
+
+		// Attribution for the >= 256 MB population: which operation asked for it. Reported directly
+		// (not via PostMainThreadOper) precisely BECAUSE the reporting framework appends the calling
+		// thread's current item context -- deferring it to the main thread would lose exactly the
+		// information wanted. Safe here: AllocateFromStock_impl has returned, so no allocator lock is
+		// held, and reportF's own allocations are far below this threshold so they cannot recurse
+		// into this branch.
+		if (objectSize >= HUGE_ALLOC_LOG_THRESHOLD)
+			reportF(MsgCategory::memory, SeverityTypeID::ST_MinorTrace
+				, "huge alloc {}[MB]; live now {}[MB]", objectSize >> 20, live >> 20);
+
+	}
+
 #if defined(MG_CACHE_ALLOC)
 
 #if defined(MG_DEBUG_ALLOCATOR)
 	RegisterAlloc(result, objectSize MG_DEBUG_ALLOCATOR_SRC_PARAM);
 #endif //defined(MG_DEBUG_ALLOCATOR)
+
+#if defined(MG_CACHE_COLLECTDATA)
+	// Beside RegisterAlloc, and for the same reason: this is the one point every allocation passes.
+	if (objectSize >= LARGE_ALLOC_THRESHOLD)
+		NoteAllocation(result, objectSize);
+#endif //defined(MG_CACHE_COLLECTDATA)
 
 	ConsiderReporting();
 
@@ -669,11 +868,27 @@ void LeaveToStock(void* objectPtr, size_t objectSize) {
 		dms_assert(objectPtr == nullptr);
 		return;
 	}
+
+	if (objectSize >= LARGE_ALLOC_THRESHOLD)
+	{
+		// Do not lie. The earlier version clamped at zero on underflow, which would have silently
+		// absorbed exactly the alloc/free size mismatch this counter exists to detect. Subtract
+		// plainly and assert instead: if the census ever goes negative we want to SEE it.
+		auto prev = s_LiveLargeAllocBytes.fetch_sub(objectSize, std::memory_order_relaxed);
+		assert(prev >= objectSize); // underflow wraps to a huge value rather than being hidden
+	}
 #if defined(MG_CACHE_ALLOC)
 
 #if defined(MG_DEBUG_ALLOCATOR)
 	RemoveAlloc(objectPtr, objectSize);
 #endif //defined(MG_DEBUG_ALLOCATOR)
+
+#if defined(MG_CACHE_COLLECTDATA)
+	// Discharges the operation that ALLOCATED this block, which is why the owner has to be recorded
+	// per pointer: the freeing thread is routinely working for a different operation by now.
+	if (objectSize >= LARGE_ALLOC_THRESHOLD)
+		NoteDeallocation(objectPtr, objectSize);
+#endif //defined(MG_CACHE_COLLECTDATA)
 
 	auto i = BlockListIndex(objectSize);
 	if (i < FIRST_PAGE_INDEX)
@@ -766,6 +981,25 @@ RTC_CALL auto UpdateFixedAllocStatus() -> FreeStackAllocSummary
 	return cumulBytes;
 }
 
+// Periodic census line for diagnosing the PeakLiveLarge gap (user request 2026-08-01). Emitted
+// beside the per-sample allocator status so the two populations can be followed over time instead of
+// compared as two end-of-run peaks -- which is what left three explanations standing.
+//   inUse  = sum(objectStoreSize * objectCount) over the free stacks, i.e. what the allocator says
+//            is handed out RIGHT NOW (size-class rounded)
+//   req    = bytes requested through AllocateFromStock and not yet returned
+// Healthy relation: req <= inUse < 2*req. Anywhere those diverge is where the gap opens, and the
+// running peaks beside them show whether it is a sustained level or a spike being missed.
+RTC_CALL auto GetLargeAllocCensus() -> SharedStr
+{
+	auto req = GetLiveLargeAllocBytes();
+	auto inUse = GetFreeStackLiveBytes();
+	return mySSPrintF("census: live req {}[MB] vs fs inUse {}[MB] (ratio {}); peaks req {}[MB] fs {}[MB]"
+		, req >> 20, inUse >> 20
+		, req ? Float64(inUse) / Float64(req) : 0.0
+		, GetPeakLargeAllocBytes() >> 20, GetPeakFreeStackBytes() >> 20
+	);
+}
+
 RTC_CALL auto GetFixedAllocStatus(const FreeStackAllocSummary& cumulBytes) -> SharedStr
 {
 	return mySSPrintF("Reserved in Blocks {}[MB]; allocated: {}[MB]; freed: {}[MB]; uncommitted: {}[MB]; CommitCharge: {}[MB]"
@@ -775,6 +1009,46 @@ RTC_CALL auto GetFixedAllocStatus(const FreeStackAllocSummary& cumulBytes) -> Sh
 		, std::get<3>(cumulBytes) >> 20
 		, std::get<4>(cumulBytes) >> 20
 	);
+}
+
+// Decommit cost, and whether it serialises the workers. peak-concurrent is the number that matters:
+// VirtualAlloc/VirtualFree take the process address-space lock, so if threads pile up inside them
+// the lock-free allocator's whole purpose is defeated. 1-2 = no congestion; near the worker count =
+// the pool has been re-serialised and the change should be reverted.
+RTC_CALL auto GetVmSysCallStats() -> SharedStr
+{
+#if defined(WIN32)
+	LARGE_INTEGER f; QueryPerformanceFrequency(&f);
+	auto perMs = Float64(f.QuadPart) / 1000.0;
+#else
+	auto perMs = 1.0;
+#endif
+	return mySSPrintF("vmcalls: decommit {}x/{}ms, recommit {}x/{}ms; peak concurrent {}"
+		, s_DecommitCount.load(std::memory_order_relaxed)
+		, Float64(s_DecommitTicks.load(std::memory_order_relaxed)) / perMs
+		, s_RecommitCount.load(std::memory_order_relaxed)
+		, Float64(s_RecommitTicks.load(std::memory_order_relaxed)) / perMs
+		, s_VmSysCallsInFlightPeak.load(std::memory_order_relaxed)
+	);
+}
+
+// Which sizes are actually requested, and how much sits above ALLOC_OBJSSIZE_MAX (2^28 = 256 MB) --
+// the population that bypasses the free stacks for std::allocator, and would return under the
+// lock-free allocator's control if ALLOC_OBJSSIZE_MAX_BITS / log2_max_chunk_size were raised.
+RTC_CALL auto GetAllocHistogram() -> SharedStr
+{
+	SharedStr result;
+	for (int i = 12; i < 64; ++i) // from 4 KB up
+	{
+		auto n = s_AllocSizeHistogram[i].load(std::memory_order_relaxed);
+		if (!n)
+			continue;
+		SharedStr bucket = (i >= 30) ? mySSPrintF("{}G", SizeT(1) << (i - 30))
+			: (i >= 20) ? mySSPrintF("{}M", SizeT(1) << (i - 20))
+			: mySSPrintF("{}K", SizeT(1) << (i - 10));
+		result = result + mySSPrintF(" {}:{}", bucket, n);
+	}
+	return mySSPrintF("alloc histogram (log2 buckets, >=4K):{}", result);
 }
 
 RTC_CALL auto GetMemoryStatus() -> SharedStr
@@ -808,9 +1082,12 @@ void ReportFixedAllocStatus()
 	if (++reportThrottler > 17) // only report to log every 17th time
 	{
 		reportThrottler = 0;
-		PostMainThreadOper([reportStr = GetFixedAllocStatus(cumulBytes)]
+		PostMainThreadOper([reportStr = GetFixedAllocStatus(cumulBytes), censusStr = GetLargeAllocCensus()]
 			{
 				reportD(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, reportStr.c_str());
+				// Same instant as the line above, so the allocator's view and the request-side view
+				// are directly comparable rather than two peaks from different moments.
+				reportD(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, censusStr.c_str());
 			}
 		);
 	}
@@ -820,17 +1097,32 @@ RTC_CALL auto UpdateAndGetFixedAllocFinalSummary() -> SharedStr
 {
 	auto cumulBytes = maxCumulBytes;
 
-	return mySSPrintF( "Highest Reserved in Blocks {}[MB]; Highest allocated: {}[MB]; Highest freed: {}[MB]; Highest uncommitted: {}[MB]; Highest CommitCharge: {}[MB]"
+	// PeakLiveLarge is the one figure here that is LIVE data rather than a cumulative or reserved
+	// total: the high-water mark of bytes simultaneously held in >= 4 KB allocations. On t641 it read
+	// 27.6 GB against a 189 GB CommitCharge and 190 GB reserved -- i.e. it separates data an operation
+	// actually holds from pool the allocator has taken and not returned. See §8.1.9.
+	return mySSPrintF( "Highest Reserved in Blocks {}[MB]; Highest allocated: {}[MB]; Highest freed: {}[MB]; Highest uncommitted: {}[MB]; Highest CommitCharge: {}[MB]; PeakLiveLarge: {}[MB]; PeakFreeStack: {}[MB]; residual live: req {}[MB] vs fs {}[MB]"
 		, std::get<0>(cumulBytes) >> 20
 		, std::get<1>(cumulBytes) >> 20
 		, std::get<2>(cumulBytes) >> 20
 		, std::get<3>(cumulBytes) >> 20
 		, std::get<4>(cumulBytes) >> 20
+		, GetPeakLargeAllocBytes() >> 20
+		, GetPeakFreeStackBytes() >> 20
+		// Residual at shutdown: both should be near zero if every allocation was freed. A large
+		// residual on either side localises a leak; a DIFFERENCE between them localises a counting
+		// defect (alloc and free charged different sizes).
+		, GetLiveLargeAllocBytes() >> 20
+		, GetFreeStackLiveBytes() >> 20
 	);
 }
 
 void ReportFixedAllocFinalSummary()
 {
+	// Decommit cost and allocation size profile, once per run beside the memory summary.
+	reportD(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, GetVmSysCallStats().c_str());
+	reportD(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, GetAllocHistogram().c_str());
+
 	auto msgStr = UpdateAndGetFixedAllocFinalSummary();
 
 	reportD(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, msgStr.c_str());
@@ -871,6 +1163,58 @@ auto& GetAllocRegister()
 
 #endif
 
+#if defined(MG_CACHE_COLLECTDATA)
+
+// Which operation allocated each live block, so the matching free can discharge that SAME operation
+// -- the freeing thread is routinely working for a different one by then, which is why a counter
+// alone can only ever produce a gross total. Weak, so a context that ends while its memory is still
+// out stops being charged rather than being kept alive by the allocator.
+struct alloc_owner_register_t
+{
+	std::map<void*, std::weak_ptr<void>> map; // block -> owning OperationContext (type-erased)
+	std::mutex mutex;
+};
+
+static alloc_owner_register_t* s_AllocOwnerRegister = nullptr;
+
+auto& GetAllocOwnerRegister()
+{
+	assert(s_AllocOwnerRegister); // guaranteed by ElemAllocComponent; see RtcComponents.h
+	return *s_AllocOwnerRegister;
+}
+
+void NoteAllocation(void* ptr, SizeT bytes)
+{
+	auto ocRef = CurrentOperationRef();
+	if (!ocRef)
+		return; // allocation outside any operation (meta thread, startup): nothing to charge
+
+	auto& reg = GetAllocOwnerRegister();
+	{
+		std::lock_guard guard(reg.mutex);
+		reg.map[ptr] = ocRef;
+	}
+	ChargeOperationAlloc(ocRef.get(), bytes);
+}
+
+void NoteDeallocation(void* ptr, SizeT bytes)
+{
+	auto& reg = GetAllocOwnerRegister();
+	std::weak_ptr<void> owner;
+	{
+		std::lock_guard guard(reg.mutex);
+		auto pos = reg.map.find(ptr);
+		if (pos == reg.map.end())
+			return; // never charged (allocated outside an operation)
+		owner = std::move(pos->second);
+		reg.map.erase(pos);
+	}
+	if (auto ocRef = owner.lock())
+		ChargeOperationFree(ocRef.get(), bytes);
+}
+
+#endif //defined(MG_CACHE_COLLECTDATA)
+
 //----------------------------------------------------------------------
 // clean-up
 //----------------------------------------------------------------------
@@ -888,6 +1232,11 @@ ElemAllocComponent::ElemAllocComponent()
 #if defined(MG_DEBUG_ALLOCATOR)
 	assert(!s_AllocRegister);
 	s_AllocRegister = new alloc_register_t;
+#endif
+
+#if defined(MG_CACHE_COLLECTDATA)
+	assert(!s_AllocOwnerRegister);
+	s_AllocOwnerRegister = new alloc_owner_register_t;
 #endif
 
 	GetFreeStackAllocatorArray();
@@ -919,6 +1268,12 @@ ElemAllocComponent::~ElemAllocComponent()
 	assert(s_AllocRegister);
 	delete s_AllocRegister;
 	s_AllocRegister = nullptr;
+#endif
+
+#if defined(MG_CACHE_COLLECTDATA)
+	assert(s_AllocOwnerRegister);
+	delete s_AllocOwnerRegister;
+	s_AllocOwnerRegister = nullptr;
 #endif
 }
 
