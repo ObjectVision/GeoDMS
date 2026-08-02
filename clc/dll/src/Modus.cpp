@@ -682,6 +682,32 @@ struct ModusPart : OperAccPartUniWithCFTA<V, typename AggrFunc::result_type>
 		: base_type(gr, ucp, valueMustBeDefined)
 	{}
 
+	// The table path's O(v*p) counter buffer IS this operator's footprint at scale: t641's
+	// Write_*_25m_LU_ModelType holds a single 77.2 G table against an 18.3 G prediction, twice --
+	// the run's largest allocations by far, invisible to the admission gate (SS8.1.19). Mirror the
+	// dispatcher's own tradeoff below (integral countable values and v*p <= n selects the table):
+	// when the table will be chosen, charge it as working memory. The set path keeps the family
+	// default. One buffer, not one per thread: ModusPartByTable walks the tiles serially.
+	auto EstimatePerformance(TreeItemDualRef& resultHolder, const ArgRefs& args) const -> PerformanceEstimationData override
+	{
+		auto result = base_type::EstimatePerformance(resultHolder, args);
+		if constexpr (is_integral_v<scalar_of_t<V>>)
+			try {
+				if (!args.empty())
+					if (auto valuesItem = GetItem(args[0]); valuesItem && IsDataItem(valuesItem))
+					{
+						auto valuesAdi = AsDataItem(valuesItem);
+						SizeT v = valuesAdi->GetAbstrValuesUnit()->EstimateCount().expected;
+						SizeT n = valuesAdi->GetAbstrDomainUnit()->EstimateCount().expected;
+						SizeT p = result.resultingNrElements;
+						if (v && p && v <= n / p) // the dispatcher's memory condition: v*p <= n
+							MakeMax(result.workingMemorySize, v * p * sizeof(SizeT));
+					}
+			}
+			catch (...) {} // an unresolved unit just keeps the family default
+		return result;
+	}
+
 	void ProcessData(ResultType* result, ProcessDataInfo& pdi) const override
 	{
 		assert(result);
@@ -741,9 +767,31 @@ struct WeightedModusPart : public AbstrOperAccPartBin
 	typedef AbstrDataItem         Arg3Type;   // index vector
 	typedef DataArray<ValueType>  ResultType; // will contain the first most occuring value per index value
 			
-	WeightedModusPart(AbstrOperGroup* gr) 
+	WeightedModusPart(AbstrOperGroup* gr)
 		:	AbstrOperAccPartBin(gr, ResultType::GetStaticClass(), Arg1Type::GetStaticClass(), Arg2Type::GetStaticClass(), Arg3Type::GetStaticClass(), arg1_values_unit, COMPOSITION(ValueType))
 	{}
+
+	// Same table term as ModusPart: WeightedModusPartDispatcher picks the O(v*p) Float64 table under
+	// the same v*p <= n condition, and that buffer dominates at scale (SS8.1.19).
+	auto EstimatePerformance(TreeItemDualRef& resultHolder, const ArgRefs& args) const -> PerformanceEstimationData override
+	{
+		auto result = AbstrOperAccPartBin::EstimatePerformance(resultHolder, args);
+		if constexpr (is_integral_v<scalar_of_t<V>>)
+			try {
+				if (!args.empty())
+					if (auto valuesItem = GetItem(args[0]); valuesItem && IsDataItem(valuesItem))
+					{
+						auto valuesAdi = AsDataItem(valuesItem);
+						SizeT v = valuesAdi->GetAbstrValuesUnit()->EstimateCount().expected;
+						SizeT n = valuesAdi->GetAbstrDomainUnit()->EstimateCount().expected;
+						SizeT p = result.resultingNrElements;
+						if (v && p && v <= n / p) // the dispatcher's memory condition: v*p <= n
+							MakeMax(result.workingMemorySize, v * p * sizeof(Float64));
+					}
+			}
+			catch (...) {} // an unresolved unit just keeps the family default
+		return result;
+	}
 
 	// Override Operator
 	void Calculate(DataWriteLock& res, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A, const AbstrDataItem* arg3A) const override
