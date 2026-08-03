@@ -2241,6 +2241,43 @@ retention policy steers by a gauge that misses the largest term at the worst mom
 
 ---
 
+### 8.1.22 The width/term verification trail (three t641_1 calibration rounds)
+
+Same protocol each round (census on, gate off, cold caches, ~35 min); aggregate stayed
+0.60–0.61× throughout because the fixes traded over-charges for honesty as much as they lifted
+under-charges. Per family:
+
+| family | stage 3 | +read-publisher, spatial term | +commit-publisher | +scaling, credible-n | mechanism |
+|---|---|---|---|---|---|
+| `point_in_polygon` | 113–160× | **1.00×** | 1.00× | 1.00× | linear index term, 144 B/feature |
+| `sum` (median) | 0.06× | 1.03× | 1.03× | 1.03× | honest input widths fixed argmat |
+| BAG `Y2025`/`Y2012` collects | ~21× | ~21× | **1.40×** | 1.40× | commit-time width publisher |
+| BAG `geometry_inflated/simpl` | ~1.3–21× | 1.2–1.45× | 1.4× | 1.4× | read publisher + inheritance |
+| `modus` (2× 77.2 G) | 4.21× | 4.21× | 4.21× | **3.56×** | credible-n fallback fired the table term |
+| BAG `VolledigeBAG` + `Y2023` | ~21× | ~21× | ~21× | **~21× — open** | see below |
+| `geos_buffer_multi_polygon` | 2.6× | 4.16× | 4.16× | 4.16× | GEOS out-of-band, unmodelled |
+
+**Open residuals, each with its identified cause:**
+
+- **Deferred results have no width publisher.** `DataWriteLock::Commit` only runs for eager
+  results; a FutureTileFunctor result materialises tile-by-tile inside its CONSUMERS, so the
+  moment its width becomes measurable is after the consumer's estimate needed it. The two ~21×
+  items (`VolledigeBAG/panden/pand/geometry`'s producer, `Y2023`'s consumer) both sit on
+  deferred chains. Fix sketch: accumulate rows+element-bytes into the item's width at
+  future-tile fulfilment (monotone-max keeps it stable as tiles arrive) — tile-machinery
+  surgery, wants its own careful cycle.
+- **modus 3.56× residual**: the probe printed `v=19 vUB=19 vConf=derived` while the measured
+  table implies ~64 distinct values — the arg's DATA value-range is wider than its declared
+  19-row values unit. Only the data object's own values-range knows; today that accessor is
+  type-erased (`GetAbstrValuesRangeData` returns `SharedPtr<const SharedObj>`), so closing it
+  needs a small abstract cardinality accessor.
+- **GEOS out-of-band memory** (4.16× on the big buffer) — §8.1.21 layer-2; needs a GEOS
+  allocator hook to even be counted, let alone estimated.
+- Two `sum` items at 0.06× (argmat charged for an input that was already resident) — the
+  §8.1.16 regime-prediction weakness; over-charge, so conservative.
+
+---
+
 ## 9. Risks and open questions
 
 **Risks**
