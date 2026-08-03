@@ -160,13 +160,30 @@ static auto PredictMaterialization(const AbstrDataItem* res, tile_id nrTiles) ->
 	return res->GetLazyCalculatedState() ? materialization::streaming : materialization::deferred;
 }
 
+// True scalar width in bits, or 0 when there is none (variable width arrives as the UInt32(-1)
+// marker -- see EstimateDataBytes). Local twin of AbstrDataItem.cpp's FixedWidthInBits.
+static SizeT ScalarBitsOf(const ValueClass* vc)
+{
+	if (!vc)
+		return 0;
+	auto scalarClass = vc->GetScalarClass();
+	if (!scalarClass)
+		return 0;
+	auto bitSize = SizeT(scalarClass->GetBitSize());
+	return (bitSize == SizeT(UInt32(-1))) ? 0 : bitSize;
+}
+
 // Carry a derived per-element width from an argument to the result, for the families whose result
 // elements ARE their argument's elements (lookup, collect_by_cond, collect_by_org_rel, ...).
 //
-// Two guards keep this honest. Identical ValueComposition and identical values ValueClass mean the
-// element really is carried over rather than rebuilt, and the result is left alone once it has its
-// own width, so an operator that publishes a precise figure is never overwritten by an inherited
-// one. The max over arguments is the conservative choice for an admission charge.
+// Guards keep this honest. Identical ValueComposition means the element really is carried over
+// rather than rebuilt, and the result is left alone once it has its own width, so an operator that
+// publishes a precise figure is never overwritten by an inherited one. Between SEQUENCES whose
+// scalar widths are both known, the value type may differ: a point-type conversion (mm integer
+// points -> float points) keeps the points-per-row and scales the bytes by the scalar ratio --
+// without that, the BAG chains that pass through the mm stage kept estimating 21x under
+// (SS8.1.19/8.1.21). Everything else still requires the exact same value type. The max over
+// arguments is the conservative choice for an admission charge.
 static void InheritEstimatedElementWidth(const AbstrDataItem* adi, const ArgRefs& args) noexcept
 {
 	try {
@@ -177,8 +194,10 @@ static void InheritEstimatedElementWidth(const AbstrDataItem* adi, const ArgRefs
 			return;
 		auto valuesType = valuesUnit->GetValueType();
 		auto composition = adi->GetValueComposition();
-		if (composition == ValueComposition::Single && valuesType && valuesType->GetBitSize() != UInt32(-1))
+		bool isSeq = composition != ValueComposition::Single;
+		if (!isSeq && valuesType && valuesType->GetBitSize() != UInt32(-1))
 			return; // fixed width: EstimateDataBytes is already exact
+		auto myScalarBits = isSeq ? ScalarBitsOf(valuesType) : 0;
 
 		SizeT widest = 0;
 		for (const auto& argRef : args)
@@ -188,9 +207,22 @@ static void InheritEstimatedElementWidth(const AbstrDataItem* adi, const ArgRefs
 				if (argAdi->GetValueComposition() != composition)
 					continue;
 				auto argValuesUnit = argAdi->GetAbstrValuesUnit();
-				if (!argValuesUnit || argValuesUnit->GetValueType() != valuesType)
+				if (!argValuesUnit)
 					continue;
-				MakeMax(widest, SizeT(argAdi->GetEstimatedBytesPerElement()));
+				SizeT argWidth = argAdi->GetEstimatedBytesPerElement();
+				if (!argWidth)
+					continue;
+				auto argType = argValuesUnit->GetValueType();
+				if (argType != valuesType)
+				{
+					// sequence-to-sequence with a scalar conversion: same element count per row,
+					// bytes scale with the scalar width
+					auto argScalarBits = isSeq ? ScalarBitsOf(argType) : SizeT(0);
+					if (!myScalarBits || !argScalarBits)
+						continue;
+					argWidth = (argWidth * myScalarBits) / argScalarBits;
+				}
+				MakeMax(widest, argWidth);
 			}
 		adi->SetEstimatedBytesPerElement(widest);
 	}

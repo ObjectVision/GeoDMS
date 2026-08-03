@@ -45,6 +45,7 @@ Diagnostics:
 #include "act/garbage_can.h"
 #include "act/MainThread.h"
 #include "dbg/DebugContext.h"
+#include "mem/FixedAlloc.h" // MG_CACHE_COLLECTDATA: conditions the per-operation alloc counters below
 
 #include "ItemLocks.h"
 #include "MoreDataControllers.h"
@@ -289,22 +290,29 @@ public:
 	// the measured outcome (P0 of doc/development/schedule-with-lookahead.md).
 	std::unique_ptr<struct PerformanceEstimationData> m_Estimate;
 
-	// MEASURED allocation, to grade that prediction. Charged whenever this context is the allocating
-	// thread's CancelableFrame::CurrActive() -- which covers tile work fanned out over the worker
-	// pool, because tile_task_group::DoWork establishes the frame for its OWNING context, and covers
-	// temporary memory from anything routed through AllocateFromStock. All three are maintained by
-	// the allocator; atomic because the workers charging them run concurrently.
+	// MEASURED allocation, to grade that prediction -- calibration-build members. Charged whenever
+	// this context is the allocating thread's CancelableFrame::CurrActive() -- which covers tile
+	// work fanned out over the worker pool, because tile_task_group::DoWork establishes the frame
+	// for its OWNING context, and covers temporary memory from anything routed through
+	// AllocateFromStock. Maintained by the allocator; atomic because workers charge concurrently.
 	//
 	//   Actual = GROSS bytes ever requested. Churn included, so a streaming chain reads far above its
 	//            footprint. Says "how much allocation did admitting this cause".
 	//   Live   = net bytes still held, i.e. Actual minus the frees discharged back to this context.
 	//            Only meaningful because each object store remembers its allocating context
-	//            (MG_CACHE_COLLECTDATA); without that the free side could not find the right owner.
+	//            (the MG_CACHE_COLLECTDATA block->owner register); without that the free side could
+	//            not find the right owner, so ALL THREE exist only with the register (the switch
+	//            lives in mem/FixedAlloc.h so every module sees the same object layout). Production
+	//            builds carry no dead counters; everything else added for the scheduling work
+	//            (m_Estimate, the m_Ledger* fields) stays unconditional because the admission gate
+	//            is a RUNTIME feature (ResourceAwareScheduling), not a diagnostic.
 	//   Peak   = high-water of Live. THIS is the quantity an admission budget should be compared
 	//            against, and the one the estimate's residentMemory is trying to predict.
+#if defined(MG_CACHE_COLLECTDATA)
 	mutable std::atomic<SizeT> m_ActualAllocBytes = 0;
 	mutable std::atomic<SizeT> m_LiveAllocBytes = 0;
 	mutable std::atomic<SizeT> m_PeakAllocBytes = 0;
+#endif
 
 	// Bytes this operation is booked for in the admission ledger while it runs, and whether it is
 	// booked at all. The flag is separate because a legitimate charge can be 0 (a void-domain result

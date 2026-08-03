@@ -1509,6 +1509,8 @@ OperationContext* CancelableFrame::CurrActive()
 // depend on and ordering is guaranteed). These three are what that register needs from tic, kept as
 // type-erased shared_ptr<void> so the allocator never needs the OperationContext definition.
 
+#if defined(MG_CACHE_COLLECTDATA)
+
 RTC_CALL auto CurrentOperationRef() -> std::shared_ptr<void>
 {
 	auto oc = CancelableFrame::CurrActive();
@@ -1534,6 +1536,8 @@ RTC_CALL void ChargeOperationFree(void* ocPtr, SizeT bytes)
 	// Actual and Peak stay cumulative; only Live comes back down.
 	static_cast<OperationContext*>(ocPtr)->m_LiveAllocBytes.fetch_sub(bytes, std::memory_order_relaxed);
 }
+
+#endif //defined(MG_CACHE_COLLECTDATA)
 
 bool CancelableFrame::CurrActiveCanceled()
 {
@@ -3340,8 +3344,11 @@ void OperationContext::RunOperator(ArgRefs argRefs, std::vector<ItemReadLock> re
 					, runEstimate
 					, elapsedMSec
 					, ResolvedNrElements(resultItem)
+#if defined(MG_CACHE_COLLECTDATA)
 					, m_ActualAllocBytes.load(std::memory_order_relaxed)
-					, m_PeakAllocBytes.load(std::memory_order_relaxed));
+					, m_PeakAllocBytes.load(std::memory_order_relaxed)
+#endif // else: the gross=/peak= figures default to 0 and the report omits them
+					);
 			}
 
 			assert(resultHolder || IsCanceled());

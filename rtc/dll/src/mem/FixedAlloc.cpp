@@ -75,8 +75,11 @@
 // flags, no leaked singleton -- the dependency is expressed by the component hierarchy
 // (RtcComponents.h) and checked by assert on use.
 //
+#if defined(MG_CACHE_COLLECTDATA)
 // Only these three come from tic, type-erased so the allocator never needs OperationContext defined
 // (including tic/OperationContext.h here does not compile: this TU has no tic prerequisites).
+// Conditional together with the register: without it a free cannot find its owner, so tic compiles
+// the charge counters and these entry points out as well (OperationContext.h).
 RTC_CALL auto CurrentOperationRef() -> std::shared_ptr<void>;
 RTC_CALL void ChargeOperationAlloc(void* ocPtr, SizeT bytes);
 RTC_CALL void ChargeOperationFree(void* ocPtr, SizeT bytes);
@@ -85,6 +88,7 @@ RTC_CALL void ChargeOperationFree(void* ocPtr, SizeT bytes);
 // LeaveToStock appear earlier in this file.
 void NoteAllocation(void* ptr, SizeT bytes);
 void NoteDeallocation(void* ptr, SizeT bytes);
+#endif //defined(MG_CACHE_COLLECTDATA)
 
 #include <memory>
 #include <unordered_map>
@@ -108,11 +112,8 @@ void NoteDeallocation(void* ptr, SizeT bytes);
 // large classes anyway. Small-object attribution can be added later by lifting that switch
 // deliberately rather than as a side effect of turning on diagnostics.
 //
-// ON for calibration runs (per-operation peak attribution needs the block->owner register), OFF
-// for performance runs (stage 4, SS8.1.19): it costs a mutexed std::map insert/erase per >=4 KiB
-// (de)allocation. The cheap always-on counters (PeakLiveLarge, the histogram, per-operation
-// Charge* atomics) do NOT depend on this switch.
-#define MG_CACHE_COLLECTDATA
+// The MG_CACHE_COLLECTDATA switch itself lives in mem/FixedAlloc.h: OperationContext.h conditions
+// its per-operation counters on it, so it must be visible identically to every module.
 
 // =========================================  implementation
 

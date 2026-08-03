@@ -75,6 +75,22 @@
 #define MG_DEBUG_ALLOCATOR_SRC_PARAM
 
 #endif //defined(MG_DEBUG_ALLOCATOR)
+
+// Per-operation allocation attribution: every >=4 KiB block AllocateFromStock hands out is
+// registered to the OperationContext that allocated it (a mutexed std::map insert/erase per
+// (de)allocation), which is what lets a FREE discharge the operation that allocated -- the basis
+// of the per-operation live/peak figures the memory-estimate calibration is graded against.
+//
+// ON for calibration runs, OFF for production and performance runs: the register is the cost, and
+// without it the per-operation counters cannot be maintained, so those members and their charge
+// entry points are compiled out along with it (OperationContext.h). The always-on cheap counters
+// (PeakLiveLarge, the size histogram, the admission ledger) do NOT depend on this switch.
+//
+// Lives here, not in FixedAlloc.cpp: OperationContext.h conditions data members on it, so every
+// module must see the same setting -- a header both include is what guarantees that.
+// See doc/development/schedule-with-lookahead.md SS8.1.13/8.1.19.
+#define MG_CACHE_COLLECTDATA
+
 RTC_CALL void* AllocateFromStock(size_t sz MG_DEBUG_ALLOCATOR_SRC_ARG);
 RTC_CALL void  LeaveToStock(void* ptr, size_t sz);
 extern std::atomic<bool> s_ReportingRequestPending;

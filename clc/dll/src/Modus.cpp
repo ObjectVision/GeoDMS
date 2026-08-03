@@ -700,19 +700,30 @@ struct ModusPart : OperAccPartUniWithCFTA<V, typename AggrFunc::result_type>
 					if (auto valuesItem = GetItem(args[0]); valuesItem && IsDataItem(valuesItem))
 					{
 						auto valuesAdi = AsDataItem(valuesItem);
-						SizeT v = valuesAdi->GetAbstrValuesUnit()->EstimateCount().expected;
+						auto vCount = valuesAdi->GetAbstrValuesUnit()->EstimateCount();
+						SizeT v = vCount.expected;
 						SizeT n = valuesAdi->GetAbstrDomainUnit()->EstimateCount().expected;
 						SizeT p = result.resultingNrElements;
-						bool fires = v && p && v <= n / p; // the dispatcher's memory condition: v*p <= n
+						// The probe run (SS8.1.21) showed the dispatcher's n as ASSUMED_SIZE here for
+						// the t641 whale: the values-arg's cache domain was not count-ready even at
+						// the run-time estimate, so `v <= n/p` compared against garbage and the term
+						// never fired. A resolved n is at least p (one visited row per partition
+						// cell); when it is smaller, treat n as unknown and fall back to "any
+						// classification-sized v selects the table" -- if the dispatcher then picks
+						// the set path after all, actual memory is LESS than charged, which is the
+						// safe side for admission.
+						const SizeT MAX_CLASSIFICATION_COUNT = 4096;
+						bool credibleN = n >= p;
+						bool fires = v && p && (credibleN ? v <= n / p : v <= MAX_CLASSIFICATION_COUNT);
 						if (fires)
 							MakeMax(result.workingMemorySize, v * p * sizeof(SizeT));
-						// Probe: the t641 verification run kept reporting 4.21x with this term in
-						// place, so ONE of these legs differs from what the dispatcher sees at run
-						// time. Log the legs until one calibration run has shown which (SS8.1.21).
+						// Residual probe: measured peak implies the dispatcher sized the table for
+						// ~64 values where the unit's expected count says 19 -- a declared count vs
+						// data-range gap. Log the bound alongside until one run settles it.
 						if (IsPerformanceLogging())
 							reportF(MsgCategory::performance, SeverityTypeID::ST_MinorTrace
-								, "modus table-term probe: v={} n={} p={} fires={} ws={}"
-								, v, n, p, fires, result.workingMemorySize);
+								, "modus table-term probe: v={} vUB={} vConf={} n={} p={} fires={} ws={}"
+								, v, vCount.upperBound, AsString(vCount.confidence), n, p, fires, result.workingMemorySize);
 					}
 			}
 			catch (...) {} // an unresolved unit just keeps the family default
