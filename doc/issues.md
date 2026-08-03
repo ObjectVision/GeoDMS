@@ -117,8 +117,13 @@ Two fixes without their own issue, both found while working on the above (branch
   `14beadc1` takes interest the way `GenerateMetaInfo` already does for sections and keys.
 - The `SaveValueInfo` test-script command opened its output file and wrote nothing (the body was
   commented out), so no test could assert anything about a value-info page. Commit `176980a4`
-  writes the rendered page; the `t1640_value_info` and `t1642_value_info_group_by` references
-  compare real content for the first time and probably need to be re-recorded.
+  writes the rendered page. This does not change any regression outcome: `profiler.py` only
+  compares files for an experiment that passes `file_comparison` (as `t1742_command_statistics`
+  does), and `t1640_value_info` / `t1642_value_info_group_by` do not — they only check that the
+  GUI script runs to a zero status, so their "vergelijk met opgenomen referentie" intent has
+  never actually been wired. Now that the command produces content, they could be given a
+  `file_comparison` against a freshly recorded reference. (The commit message of `176980a4`
+  claims those references need re-recording; that claim is wrong.)
 
 ## Cross-cutting observations
 
