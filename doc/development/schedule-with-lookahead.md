@@ -2501,6 +2501,62 @@ pending a WSL validation cycle — commit charge is a Windows-measured problem f
 
 ---
 
+### 8.1.25 The drain goes array-wide: one shared lock, sweep all classes
+
+§8.1.24's self-drain coupled WHERE the drain lands to WHERE the traffic is — the defect its
+own measurement exposed. The ruling that fixes it (user, 2026-08-03): *allocations are block
+size correlated anyway* — a workload hammers one or two size classes at a time, so the
+17-way per-class lock striping mostly serialized the same hot class — *so make
+`FreeStackAllocator::allocSection` static and drain all of `GetFreeStackAllocatorArray()`.*
+
+**Change (FixedAlloc.cpp).** `allocSection` is now a `static inline std::mutex` — one lock,
+constant-initialized (constexpr ctor), shared by all seventeen allocators; every existing
+lock site compiles unchanged. The self-drain block in `get_reserved_or_reset_objectstore`
+becomes `DrainAllFreeStacks_lockHeld()`: under the lock the allocation already holds, walk
+the array and give each class one `drain_one_cold_store_lockHeld()` step — the §8.1.24
+machinery per class (front-of-stack first, `nr_deallocated` prefix invariant, ≥ 2 MB classes
+skip, drained stores counted as `uncommitted`), now funded by allocation traffic ANYWHERE.
+No nesting, no ordering concerns: it is all the same mutex. Once the pools are dry the sweep
+costs seventeen size/index checks per allocation.
+
+**Probe** (same shape as §8.1.24's, fresh keys): `drained 1796x = 631[MB]` where the
+per-class drain managed 479x/177 MB — idle classes no longer shelter. Gate-off control
+`drained 0x`; typed-HOF battery 188/188.
+
+**At scale — t641_2 enforce 100 G, third arm beside §8.1.24's two. Test OK.**
+
+| metric | s4_B (no drain) | drain-B (per-class) | drain-C (shared lock, sweep) |
+|---|---|---|---|
+| drained | — | 503 837 = 103.4 GiB | **812 668 = 158.4 GiB** (23.5 s syscall time, ~29 µs each) |
+| true commit peak (compk) | 193.46 G | 190.18 G | **179.58 G** |
+| max sampled commit | 190.36 G | 186.50 G | **175.97 G** |
+| pool at the crest sample | 52.0 G | 48.4 G | 40.4 G (burst lag, see below) |
+| pool at the next sample | — | — | **7.75 G**, with live at its 149.9 G maximum |
+| Highest uncommitted | 4.5 G | 13.3 G | **26.9 G** (the drained-prefix population) |
+| PeakLiveLarge | 171.9 G | 171.9 G | 171.9 G — live untouched, as designed |
+| wall | 1 513 s standalone comparator | 1 588 s | **1 406 s — the fastest standalone t641_2 measured** |
+
+The peak finally moves: **−13.9 G against the no-drain baseline**, and §8.1.24's ~5 % wall
+tax inverts into a ~7 % win. Both follow from the same cause: the sweep lands drains on IDLE
+classes' stores — cold by construction, not about to be re-requested — where the self-drain
+kept eating the hot class's own recycling (103 GiB re-zero-faulted); and 14 G less
+overcommit on a 128 G box means less write-behind. `peak concurrent 1` in the vmcalls line
+is the shared lock serializing the drain path by construction, not congestion — with one
+mutex the §8.1.14 gauge can no longer read contention, so WALL is the congestion proxy now,
+and it improved.
+
+**What remains, unchanged from §8.1.24's verdict:** (a) burst lag — the crest moment still
+carries ~40 G of pool because a ±50 G release wave outruns per-allocation draining for about
+a minute (the sweep catches up one sample later: 7.75 G); (b) the claim-free end phase still
+rebuilds its pool with drainage off — the commit-vs-budget trigger remains the identified
+next step, and only the `SetFreeStackDrainageMode` call sites move. One residual to watch,
+not measured in isolation: the lock unification also governs gate-off runs; the battery and
+drain-C's pre-claim supplier phase (which paced identically to drain-B's) show no cost, but
+a breadth-heavy workload under the single mutex has not been separately A/B'd (§2.1's
+single-mutex concern, now extended to the stock allocator).
+
+---
+
 ## 9. Risks and open questions
 
 **Risks**

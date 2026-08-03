@@ -424,14 +424,16 @@ static std::atomic<SizeT> s_DrainedStackBytes = 0; // lifetime bytes handed back
 RTC_CALL void SetFreeStackDrainageMode(bool active) { s_FreeStackDrainageMode.store(active, std::memory_order_relaxed); }
 RTC_CALL bool InFreeStackDrainageMode() { return s_FreeStackDrainageMode.load(std::memory_order_relaxed); }
 
+static void DrainAllFreeStacks_lockHeld(); // defined below GetFreeStackAllocatorArray()
+
 struct FreeStackAllocator
 {
 	VirtualAllocChunkArray inner;
 	std::vector<BYTE_PTR> freeStack;
 	objectstore_count_t objectCount = 0;
-	// Pressure-drain bookkeeping (§8.1.24), under allocSection. INVARIANT: the decommitted
-	// stores are exactly the cold PREFIX freeStack[0 .. nr_deallocated); everything from
-	// nr_deallocated onward is committed. The three mutations each preserve it:
+	// Pressure-drain bookkeeping (§8.1.24), under the shared allocSection. INVARIANT: the
+	// decommitted stores are exactly the cold PREFIX freeStack[0 .. nr_deallocated); everything
+	// from nr_deallocated onward is committed. The three mutations each preserve it:
 	// add_to_freestack pushes a committed store at the BACK; the pop takes the back, which lies
 	// inside the prefix only when the prefix spans the whole stack (then the popped store is
 	// handed out as-if-fresh and nr_deallocated shrinks with the stack); the drain step
@@ -440,7 +442,12 @@ struct FreeStackAllocator
 	// stack cold at the BACK, so for those classes nr_deallocated stays 0 and the existing
 	// recommit() covers reuse.
 	objectstore_count_t nr_deallocated = 0;
-	mutable std::mutex allocSection;
+	// ONE mutex for all FreeStackAllocators (user ruling 2026-08-03): allocation traffic is
+	// block-size correlated -- a workload hammers one or two classes at a time, so the per-class
+	// striping this replaces mostly serialized the same hot class anyway -- and a single lock is
+	// what lets the drain sweep ALL stacks from the allocation path without nesting or ordering
+	// concerns (§8.1.25). std::mutex has a constexpr ctor, so constant-initialized.
+	static inline std::mutex allocSection;
 
 	void Init_log2(alloc_index_t log2ObjectStoreSize) 
 	{ 
@@ -477,22 +484,30 @@ struct FreeStackAllocator
 				--nr_deallocated;
 		}
 
-		// Pressure-triggered decommit (§8.1.24): while the scheduler drains, each allocation
-		// from this class returns one cold freed store -- the FRONT of the stack, least recently
-		// used -- to the OS. Amortized O(1), rate-bound by allocation traffic in the class,
-		// under the same lock that owns the stack, and it stops short of the store just handed
-		// out. Cost and congestion stay visible in GetVmSysCallStats (drained x/ms + the shared
-		// peak-concurrent gauge that §8.1.14 established as the serialisation tripwire).
-		if (inner.objectStoreSize < VirtualAllocChunk::DECOMMIT_MIN_SIZE
-			&& nr_deallocated < freeStack.size()
-			&& s_FreeStackDrainageMode.load(std::memory_order_relaxed))
-		{
-			VirtualAllocChunk::decommit_free_store(freeStack[nr_deallocated], inner.objectStoreSize);
-			++nr_deallocated;
-			s_DrainedStackBytes.fetch_add(inner.objectStoreSize, std::memory_order_relaxed);
-		}
+		// Pressure-triggered decommit (§8.1.24, whole-array sweep per §8.1.25): while the
+		// scheduler drains, each allocation funds one decommit in EVERY class that still has a
+		// committed freed store -- coldest first, the FRONT of each stack. allocSection is
+		// shared by all FreeStackAllocators, so the sweep runs under the lock already held
+		// here, and the size-correlation of allocation traffic means an idle class's pool no
+		// longer shelters behind the busy one (the §8.1.24 defect). Once the pools are dry the
+		// sweep costs one size/index check per class. Cost and congestion stay visible in
+		// GetVmSysCallStats (drained x/ms + the §8.1.14 peak-concurrent tripwire).
+		if (s_FreeStackDrainageMode.load(std::memory_order_relaxed))
+			DrainAllFreeStacks_lockHeld();
 
 		return result;
+	}
+
+	// One drain step for this class; assumes the shared allocSection is held by the caller.
+	void drain_one_cold_store_lockHeld()
+	{
+		if (inner.objectStoreSize >= VirtualAllocChunk::DECOMMIT_MIN_SIZE)
+			return; // release() already decommits these at free
+		if (nr_deallocated >= freeStack.size())
+			return; // no committed freed store left on this stack
+		VirtualAllocChunk::decommit_free_store(freeStack[nr_deallocated], inner.objectStoreSize);
+		++nr_deallocated;
+		s_DrainedStackBytes.fetch_add(inner.objectStoreSize, std::memory_order_relaxed);
 	}
 
 	BYTE_PTR allocate(object_size_t objectSize)
@@ -608,6 +623,16 @@ FreeStackAllocator& GetFreeStackAllocator(alloc_index_t i)
 	auto& fsa = GetFreeStackAllocatorArray()[i];
 	assert(fsa.inner.objectStoreSize);
 	return fsa;
+}
+
+// The §8.1.25 drain sweep: one cold-store decommit per class that still has one. Callable only
+// with FreeStackAllocator::allocSection held -- which, being shared by all instances, makes the
+// cross-class walk as safe as the self-drain it replaces.
+static void DrainAllFreeStacks_lockHeld()
+{
+	auto& fsaa = GetFreeStackAllocatorArray();
+	for (alloc_index_t i = 0; i != NR_FREE_STACK_ALLOCS; ++i)
+		fsaa[i].drain_one_cold_store_lockHeld();
 }
 
 // =========================================  FreeListAllocator definition section
