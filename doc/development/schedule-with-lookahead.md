@@ -2278,6 +2278,153 @@ under-charges. Per family:
 
 ---
 
+### 8.1.23 The pebble-game floor: what t641 could run in, and why it doesn't
+
+The question this section answers (user, 2026-08-03): *from the estimated sizes and the DAG —
+pebble theory — what is the minimum committed memory with which both t641 runs could
+theoretically complete, and why does the actual run consume more?* Answering it forced a
+re-derivation of every peak figure from first principles, which overturned two conclusions of
+§8.1.20/§8.1.21 before it produced the floors. Data: the per-operation census of the cal3 run
+(t641_1), a new census+perf run of t641_2 (`.claude/run_t641_2_calibrate.bat`, wall 1 513 s vs
+the 1 276 s no-census baseline, test OK), the stage-4 enforce ledgers, and the `[memory]` block
+reports; extraction script `scratch/pebble_floor.py` (it knows the two log traps: oper lines
+can be INDENTED after `[performance]`, and MsgDispatch truncates at 256 chars, which on
+deep-path items eats the tail fields — the t641_1 whale lines were found only by searching
+`ws=20.61G`, and every t641_2 `discrete_alloc` completion line lost its census fields to
+truncation).
+
+**First, the counter decode that §8.1.20/21 each got wrong once.** `ledger @` lines print
+`live-alloc req R / fs F`. `req` is `s_LiveLargeAllocBytes`: application-live bytes ≥ 4 KB
+(up at `AllocateFromStock`, down at `LeaveToStock`). `fs` is `s_FreeStackLiveBytes` — and it is
+NOT the pooled-free volume: it counts bytes *currently handed out* from the free-stack size
+classes (FixedAlloc.cpp:386-449 — up in `get_reserved_or_reset_objectstore`, down in
+`add_to_freestack`), i.e. the subset of `req` that lives in pool-class stores, maintained as a
+cross-check of the live counter (its own comment says so). The pooled-free volume appears in
+the `[memory]` reports instead: `freed` − `uncommitted` = stores sitting on free stacks still
+committed. Pool classes span 4 KB–256 MB (`NR_FREE_STACK_ALLOCS`), and `DECOMMIT_MIN_SIZE`
+(FixedAlloc.cpp:282) decommits freed stores of 2 MB and up at release — so the committed dead
+pool is exactly the freed < 2 MB classes, which never decommit. Three corrections follow:
+
+- §8.1.20's t641_2 finding ("99.6 % of requested-live bytes are FREE-STACK blocks: freed,
+  pooled, still committed... actually-live ~0.6 G") had the right ratio and the wrong
+  mechanism: `fs` ⊆ `req`, so what tracked `req` in lockstep was 138 G of small-class LIVE
+  data, not dead pool. §8.1.21's "correction" (disjoint counters, live *beside* pool) was
+  wrong the other way.
+- §8.1.21's t641_1 layer table put "~109 G outside the allocation stocks entirely (GEOS, write
+  path, CRT)". The `[memory]` report at 22:45:56 measures that mass directly: `freed 114 870 −
+  uncommitted 3 263` = **111.6 GiB of committed dead pool** — freed < 2 MB stores. The
+  genuinely census-external commit is ~3-5 G. On t641_2 the same arithmetic closes to under
+  1 G: commit 190.4 = live 138.3 + pool 52.0 (measured independently as 53.3 G freed-committed
+  a minute later) + ε. There is no large dark mass on either run; there is a large DEAD one.
+- Every §8.1.20 table peak is a *sampled* figure (full.py records the system-wide CommitCharge
+  the throttled `[memory]` reporter happened to see; ledger samples fire on admit/release
+  events, and the interesting windows have none). The true high-waters are `PeakPagefileUsage`
+  (the ledger's `of peak` field) and the CAS-max counters: **t641_1_B commit peak 183.18 G**
+  (not 160.8), **t641_2_B 193.46 G**, PeakLiveLarge 141.0 / 171.9 G, PeakFreeStack 83.8 /
+  171.5 G (now readable as: small-class live high-water). t641_1's true peak falls INSIDE the
+  modus-whale window (22:37-22:43), where a 6-minute admit/release gap left no sample at all;
+  §8.1.21 decomposed the highest sample (156.7 G, after the whale) believing it was the peak.
+
+**The game.** Map the run onto weighted DAG pebbling: node = result item, weight = measured
+bytes (`B=` at published widths); placing a pebble = materializing the result; each operation
+additionally holds a transient of (census peak − retained result) while it runs; removal =
+interest-lapse; spilling = write-to-store-then-drop (red-blue pebbling). GeoDMS is NOT playing
+a no-removal game: t641_1 produced 463 G of retainable results (plus 123 G streaming, recycled
+tile-wise) with a live high-water of 141 G; t641_2 produced ≥ 4.4 TB (1.51 TB under the three
+`/Allocatie/Zichtjaren` targets, 2.38 TB anonymous cache intermediates, plus 0.49 TB whose
+regime the truncation hid) with a live high-water of 171.9 G — 26× less. The interest-lapse
+frees work, in waves: −77 G in four minutes on t641_1; a ±40 G sawtooth per year/sequence cone
+on t641_2 (req 98→138→93→125→44 G). Two floors then matter:
+
+- **L_op — the spill-everything floor**: max over operations of (resident inputs + own census
+  peak). No budget, retention policy, or ordering goes below it while the operator algorithms
+  stand; with unlimited spill it is also achievable up to I/O buffers.
+- **L_order — the no-spill floor**: min over topological orders of the maximum live cut
+  (+ running transients). Between L_op and the observed live high-water; estimated from cone
+  structure, since exact weighted pebbling is intractable (and pointless at this precision).
+
+And one theorem-shaped observation about the throttle: admission neither removes pebbles nor
+changes their weights — it only limits how many *transients* overlap. Its entire control band
+is the concurrent running charge, measured at most **14.0 G** (t641_1) / **6.0 G** (t641_2).
+Everything else at the crest — retained cones, one operation's interior, the dead pool — is
+outside admission's reach by construction. That is the pebble-theoretic restatement of the
+§8.1.20 A≡B verdict, and it is why the 22 357 parks moved nothing: parking delays placements,
+and delayed placements still weigh the same when the frontier finally forces them.
+
+**t641_1 (MakeBaseData) — floors.** The nominally-eager 50.6 + 25.3 G BGT rasterization pair
+in the produced mass in fact streams into its consumers (the `any`/`modus` reducers over the
+2.5 m pseudo-domain run at census peaks 4.19/2.19 G, and `req` never exceeded 72.5 G through
+that phase), so it does not set a floor. The single dominant operation is the LU_ModelType
+counter table: `modus` over 14.56 G source cells onto p = 145.6 M cells with data value-range
+~64-70 (declared 19), census **peak 75.40 G**, twice (`Write_Huidig_25m_LU_ModelType`,
+`Write_HDB2050_25m_LU_ModelType`), which the current schedule happens to run back-to-back
+rather than stacked. Its inputs stream, so:
+
+- **L_op ≈ 76-78 G** — the whale table + tile windows.
+- **L_order ≈ 80 G** — the whale window plus the few co-retained finished layers even under
+  ideal target-serial order; the BAG phase under year-serial order needs only ~60 G (shared
+  VolledigeBAG geometry variants ~21-32 G + one year cone ~10 G + WOZ 16 G), against the
+  141 G it actually crests at with ~7 cones and WOZ open at once.
+- **Actual: 183.2 G.** The excess decomposes into two terms that crest at different moments:
+  concurrent-cone live above the single-cone need (~60-80 G of ordering slack at the 141 G
+  live crest — all requested targets' cones inflate together because the client requests
+  everything up front and arrival order, not memory, decides the schedule), and the committed
+  dead pool (~60-65 G at the commit crest, ratcheting to 111.6 G while live falls to 42 G —
+  the allocator integrates the churn history and never gives the < 2 MB classes back).
+
+An approximate ladder, each step from measured components: actual 183 G → target-serial
+ordering ~135-140 G (live capped near the floor, pool fed by less churn) → + free-stack
+decommit under pressure ~85-90 G → both ≈ **L_order 80 G** → + modus value-remap (the table at
+the declared v = 19 costs 22.1 G) ≈ **50-60 G**, at which point the BAG cones set the floor.
+
+**t641_2 (Allocatie) — floors.** The inverse shape: NO whale. The largest single-operation
+footprint in the whole run is **15.3 G — and it is the shared BAG supplier knot**
+(`collect_by_org_rel` on `pand/geometry`), not the allocation itself. The Allocatie phase's
+own operations are bounded by ~2 G (largest surviving census peak 1.21 G, largest single block
+1.11 G across 140 huge-alloc events; every `discrete_alloc` completion line lost its census
+fields to path-length truncation, but the compacted allocation domains sit far below
+AdminDomain scale). The live mass is pure cone concurrency: per-year suitability layers
+(55-66 G produced per Zichtjaar) plus the current sequence/iteration state chains, released in
+the sawtooth above. The empirical witness for the floor is the inter-cone troughs the run
+itself keeps returning to: 44-65 G.
+
+- **L_op ≈ 15 G** — supplier-bound, not allocation-bound.
+- **L_order ≈ 60-70 G** — current-year suitability base + one sequence/iteration cone + step
+  working; the year chain (2030→2040→2050) is sequential by data dependency anyway.
+- **Actual: 193.5 G** = live crest 171.9 G (several cones + a year's suitability co-resident;
+  booked-retained maxed at 87.4 G, so the ledger under-sees cone mass ~2× — the deferred-width
+  residual of §8.1.22) + committed dead pool 52-53 G at the sampled crest. Ladder: actual
+  193.5 → sequence-serial ordering ~90-110 → + pool decommit ~65-75 → ≈ **L_order ~65 G**.
+
+**The answer to the question.** Minimum committed memory to complete as-configured, with
+today's operator algorithms: **t641_1 ≈ 80 G (whale-bound), t641_2 ≈ 65 G (cone-bound)** —
+both under the 100 G budget; the workloads are not intrinsically oversized for the machine.
+The actual runs commit 183/193 G because of, in order: (1) the allocator keeps every freed
+< 2 MB store committed (dead pool: 53-112 G, now directly measured); (2) all requested
+targets' supplier cones are live concurrently because arrival order decides the schedule
+(60-110 G of ordering slack at the live crests); (3) on t641_1, one operator's interior is
+3.6× its booked charge (the modus table, 75.4 G vs 21.2 G booked — a gap admission could not
+act on anyway, but one a REORDERING scheduler must know about to avoid stacking the two
+whales, which would add +75 G to any schedule that overlaps them). Admission throttling
+addresses none of these; it was measured free and validated as a breadth-limiter (§8.1.10),
+but on t641 breadth was never the problem. The floors are set by different subsystems on the
+two runs — one operator's table on t641_1, cone width × allocator retention on t641_2 — and
+neither is the admission gate.
+
+**Lever ranking, superseding §8.1.21's:** (1) **free-stack decommit under pressure** — the
+recommit path already exists (`FreeStackAllocator::allocate` recommits ≥ 2 MB stores); a
+pressure-triggered sweep decommitting < 2 MB freed stores converts 53-112 G of dead commit,
+and because pressure events are rare it sidesteps §8.1.14's always-on measurement (34.1 M
+decommits, 4 228 s of thread time) that justified deferring exactly this; (2) **target-serial
+ordering** — the lookahead *reordering* half of this branch's title, as distinct from
+throttling — worth 60-110 G of live crest on these workloads; needs the estimates only for
+tie-breaking, and must preserve whale non-stacking (which honest `ws` booking now makes
+visible); (3) **retention/spill policy** remains the fallback where cones must genuinely
+overlap; (4) the modus values-range fix (§8.1.22 residual) halves t641_1's floor — an operator
+change, not a scheduling one.
+
+---
+
 ## 9. Risks and open questions
 
 **Risks**
