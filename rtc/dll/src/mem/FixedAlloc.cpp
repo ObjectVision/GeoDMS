@@ -186,6 +186,9 @@ constexpr alloc_index_t highest_bit_rank(Unsigned value)
 // worker count means the syscall is serialising the pool.
 static std::atomic<UInt64> s_DecommitCount = 0, s_RecommitCount = 0;
 static std::atomic<UInt64> s_DecommitTicks = 0, s_RecommitTicks = 0;
+// The pressure drain (§8.1.24) gets its own pair so its cost stays distinguishable from the
+// >= 2 MB threshold path above; both share the in-flight congestion gauge below.
+static std::atomic<UInt64> s_DrainCount = 0, s_DrainTicks = 0;
 static std::atomic<UInt32> s_VmSysCallsInFlight = 0, s_VmSysCallsInFlightPeak = 0;
 
 struct VmSysCallScope // RAII: gauge in, gauge out, accumulate elapsed ticks
@@ -303,6 +306,23 @@ struct VirtualAllocChunk
 #endif
 	}
 
+	// Pressure drain (§8.1.24): unconditional decommit of a WHOLE free store. The
+	// < DECOMMIT_MIN_SIZE early-out of release() is exactly what this bypasses -- it is called
+	// only for stores release() left committed, taken from the cold end of a free stack while
+	// the scheduler signals drainage. The store is free in full, so the full objectStoreSize
+	// goes back, mirroring commit() which committed the full store; reuse goes through commit()
+	// again (the pop hands a drained store out as if freshly reserved).
+	static void decommit_free_store(BYTE_PTR objectPtr, object_size_t objectStoreSize)
+	{
+		assert(std::popcount(objectStoreSize) == 1);
+#if defined(WIN32)
+		VmSysCallScope scope(s_DrainCount, s_DrainTicks);
+		VirtualFree(objectPtr, objectStoreSize, MEM_DECOMMIT);
+#else
+//		madvise(objectPtr, objectStoreSize, MADV_DONTNEED); // same posture as release(): not enabled on linux
+#endif
+	}
+
 private:
 	BYTE_PTR chunkPtr;
 	SizeT chunkSize;
@@ -394,11 +414,32 @@ static std::atomic<SizeT> s_PeakFreeStackBytes = 0;
 RTC_CALL SizeT GetFreeStackLiveBytes() { return s_FreeStackLiveBytes.load(std::memory_order_relaxed); }
 RTC_CALL SizeT GetPeakFreeStackBytes() { return s_PeakFreeStackBytes.load(std::memory_order_relaxed); }
 
+// Drainage mode (§8.1.24): set by the admission ledger while a refused task's claim is pending
+// (enforce mode only), cleared when the claim resolves. While it is on, every allocation from a
+// free-stack class also decommits one cold freed store of that class -- the committed dead pool
+// (measured at 53-112 GB on t641, §8.1.23) flows back to the OS at the pace of allocation
+// traffic, exactly for as long as the scheduler is actually short of budget.
+static std::atomic<bool> s_FreeStackDrainageMode = false;
+static std::atomic<SizeT> s_DrainedStackBytes = 0; // lifetime bytes handed back by the drain
+RTC_CALL void SetFreeStackDrainageMode(bool active) { s_FreeStackDrainageMode.store(active, std::memory_order_relaxed); }
+RTC_CALL bool InFreeStackDrainageMode() { return s_FreeStackDrainageMode.load(std::memory_order_relaxed); }
+
 struct FreeStackAllocator
 {
 	VirtualAllocChunkArray inner;
 	std::vector<BYTE_PTR> freeStack;
 	objectstore_count_t objectCount = 0;
+	// Pressure-drain bookkeeping (§8.1.24), under allocSection. INVARIANT: the decommitted
+	// stores are exactly the cold PREFIX freeStack[0 .. nr_deallocated); everything from
+	// nr_deallocated onward is committed. The three mutations each preserve it:
+	// add_to_freestack pushes a committed store at the BACK; the pop takes the back, which lies
+	// inside the prefix only when the prefix spans the whole stack (then the popped store is
+	// handed out as-if-fresh and nr_deallocated shrinks with the stack); the drain step
+	// decommits freeStack[nr_deallocated] itself and advances. Only meaningful for classes
+	// below DECOMMIT_MIN_SIZE: larger stores are decommitted by release() and re-enter the
+	// stack cold at the BACK, so for those classes nr_deallocated stays 0 and the existing
+	// recommit() covers reuse.
+	objectstore_count_t nr_deallocated = 0;
 	mutable std::mutex allocSection;
 
 	void Init_log2(alloc_index_t log2ObjectStoreSize) 
@@ -421,11 +462,37 @@ struct FreeStackAllocator
 				;
 		}
 
+		std::pair<BYTE_PTR, bool> result;
 		if (freeStack.empty())
-			return { inner.get_reserved_objectstore(), true };
+			result = { inner.get_reserved_objectstore(), true };
+		else
+		{
+			assert(nr_deallocated <= freeStack.size());
+			// the back is committed unless the decommitted prefix spans the whole stack; a cold
+			// back is handed out as-if-fresh, so the caller's commit() re-commits the full store
+			bool poppedColdStore = (nr_deallocated == freeStack.size());
+			result = { freeStack.back(), poppedColdStore };
+			freeStack.pop_back();
+			if (poppedColdStore)
+				--nr_deallocated;
+		}
 
-		auto ptr = freeStack.back(); freeStack.pop_back();
-		return { ptr, false };
+		// Pressure-triggered decommit (§8.1.24): while the scheduler drains, each allocation
+		// from this class returns one cold freed store -- the FRONT of the stack, least recently
+		// used -- to the OS. Amortized O(1), rate-bound by allocation traffic in the class,
+		// under the same lock that owns the stack, and it stops short of the store just handed
+		// out. Cost and congestion stay visible in GetVmSysCallStats (drained x/ms + the shared
+		// peak-concurrent gauge that §8.1.14 established as the serialisation tripwire).
+		if (inner.objectStoreSize < VirtualAllocChunk::DECOMMIT_MIN_SIZE
+			&& nr_deallocated < freeStack.size()
+			&& s_FreeStackDrainageMode.load(std::memory_order_relaxed))
+		{
+			VirtualAllocChunk::decommit_free_store(freeStack[nr_deallocated], inner.objectStoreSize);
+			++nr_deallocated;
+			s_DrainedStackBytes.fetch_add(inner.objectStoreSize, std::memory_order_relaxed);
+		}
+
+		return result;
 	}
 
 	BYTE_PTR allocate(object_size_t objectSize)
@@ -475,7 +542,10 @@ struct FreeStackAllocator
 			pageCount = inner.chunks.size();
 			totalBytes = 0; for (const auto& page : inner.chunks) totalBytes += page.ChunkSize();
 			nrAllocated = objectCount;
-			nrUncommitted = inner.nrResevedButUncommitedObjectStores;
+			// both populations hold no commit charge: the never-committed reserve tail plus the
+			// drained cold prefix (§8.1.24) -- which keeps 'freed' meaning committed-on-stack,
+			// i.e. the dead pool the §8.1.23 decomposition measures
+			nrUncommitted = inner.nrResevedButUncommitedObjectStores + nr_deallocated;
 			nrFreed = (totalBytes >> inner.log2ObjectStoreSize) - nrAllocated - nrUncommitted;
 			nrAllocatedBytes = inner.objectStoreSize * nrAllocated;
 		}
@@ -1029,11 +1099,14 @@ RTC_CALL auto GetVmSysCallStats() -> SharedStr
 #else
 	auto perMs = 1.0;
 #endif
-	return mySSPrintF("vmcalls: decommit {}x/{}ms, recommit {}x/{}ms; peak concurrent {}"
+	return mySSPrintF("vmcalls: decommit {}x/{}ms, recommit {}x/{}ms, drained {}x = {}[MB]/{}ms; peak concurrent {}"
 		, s_DecommitCount.load(std::memory_order_relaxed)
 		, Float64(s_DecommitTicks.load(std::memory_order_relaxed)) / perMs
 		, s_RecommitCount.load(std::memory_order_relaxed)
 		, Float64(s_RecommitTicks.load(std::memory_order_relaxed)) / perMs
+		, s_DrainCount.load(std::memory_order_relaxed)
+		, s_DrainedStackBytes.load(std::memory_order_relaxed) >> 20
+		, Float64(s_DrainTicks.load(std::memory_order_relaxed)) / perMs
 		, s_VmSysCallsInFlightPeak.load(std::memory_order_relaxed)
 	);
 }

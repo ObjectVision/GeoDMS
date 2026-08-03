@@ -1743,6 +1743,7 @@ inline bool IsLedgerLogging() { return GetResourceScheduling() != resource_sched
 RTC_CALL auto GetMemoryStatus() -> SharedStr; // FixedAlloc.cpp: process commit vs peak, for the sample line
 RTC_CALL SizeT GetLiveLargeAllocBytes();      // FixedAlloc.cpp: measured live bytes in large allocations
 RTC_CALL SizeT GetFreeStackLiveBytes();       // FixedAlloc.cpp: the same population as the allocator counts it
+RTC_CALL void SetFreeStackDrainageMode(bool); // FixedAlloc.cpp: while on, each allocation decommits one cold freed store (§8.1.24)
 
 static OperationContext* sd_LedgerClaimant = nullptr;       // under cs_ThreadMessing
 static SizeT sd_LedgerClaimBytes = 0;                       // its charge, for the log
@@ -2041,6 +2042,7 @@ static bool AdmitOrRequeue(OperationContext* self)
 		{
 			sd_LedgerClaimant = nullptr;
 			sd_LedgerClaimBytes = 0;
+			SetFreeStackDrainageMode(false); // claim resolved: stop returning cold stores
 		}
 		if (wasParked && IsLedgerLogging()) // resume logged once per task, lifts included
 			reportF_without_cancellation_check(MsgCategory::performance, SeverityTypeID::ST_MinorTrace
@@ -2059,6 +2061,11 @@ static bool AdmitOrRequeue(OperationContext* self)
 	{
 		sd_LedgerClaimant = self;
 		sd_LedgerClaimBytes = charge;
+		// While the claim pends, the allocator gives cold freed stores back to the OS (§8.1.24):
+		// the same pressure signal that defers growers also shrinks the committed dead pool.
+		// Enforce only -- shadow mode must keep observing without changing memory behaviour.
+		if (mode == resource_scheduling::enforce)
+			SetFreeStackDrainageMode(true);
 	}
 	if (sd_LedgerClaimant == self)
 		sd_LedgerClaimSeenAdmitGeneration = admitGen;
@@ -2104,6 +2111,7 @@ void MemoryLedger_Release(OperationContext* self)
 	{
 		sd_LedgerClaimant = nullptr;
 		sd_LedgerClaimBytes = 0;
+		SetFreeStackDrainageMode(false);
 	}
 
 	if (!self->m_LedgerBooked)

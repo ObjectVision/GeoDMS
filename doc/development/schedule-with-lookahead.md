@@ -2425,6 +2425,82 @@ change, not a scheduling one.
 
 ---
 
+### 8.1.24 Lever 1 lands: pressure-triggered decommit of freed < 2 MB stores
+
+Design as ruled (user, 2026-08-03): the drain lives in `get_reserved_or_reset_objectstore`,
+guarded by the already-locked `allocSection`, active only in drainage mode; each
+`FreeStackAllocator` tracks how many of its freeStack entries are already deallocated, with
+the INVARIANT that deallocation eats the stack front first — `freeStack[0 .. nr_deallocated)`
+is the decommitted cold prefix, everything from `nr_deallocated` on is committed.
+
+**Mechanics (FixedAlloc.cpp).** The stack is LIFO — `add_to_freestack` pushes committed
+stores at the back, the pop takes the back — so the front IS the coldest population, and the
+three mutations each preserve the prefix invariant: a push extends the committed suffix; the
+pop touches the prefix only when it spans the whole stack, in which case the popped store is
+handed out as-if-fresh (`.second == true` → the caller's `commit()` re-commits the full
+store, the same call the fresh-reservation path takes) and `nr_deallocated` shrinks with the
+stack; the drain step decommits `freeStack[nr_deallocated]` itself and advances. One store
+per allocation: amortized O(1), rate-bound by the class's allocation traffic, never touching
+the store just handed out. `VirtualAllocChunk::decommit_free_store` bypasses the < 2 MB
+early-out of `release()` (that early-out is why the dead pool exists) and decommits the FULL
+objectStoreSize, mirroring `commit()`. Classes at or above `DECOMMIT_MIN_SIZE` are excluded:
+release() already decommits those at free and their cold stores sit at arbitrary stack
+positions, so for them `nr_deallocated` stays 0 — the invariant is claimed only where the
+drain operates. Drained stores move from the report's `freed` into `uncommitted`
+(`ReportStatus` adds `nr_deallocated` to the no-commit-charge tally), so `freed` keeps
+meaning what §8.1.23 measured: the committed dead pool. The drain's syscalls get their own
+counters in the always-on vmcalls line (`drained Nx = M[MB]/ms`), sharing §8.1.14's
+peak-concurrent serialisation tripwire.
+
+**Trigger (OperationContext.cpp).** Drainage mode is the claimant window:
+`SetFreeStackDrainageMode(true)` when a refused task becomes the claimant — enforce mode
+only, shadow keeps observing without changing memory behaviour — and off at both claim
+resolutions (admission of the claimant; release of a cancelled/failed one). Gate off ⇒ the
+flag never sets ⇒ today's behaviour, bit for bit.
+
+**Probe (scratch/mix_drain.dms, the P2 mixed probe re-keyed).** Enforce + `/SB50`:
+`drained 479x = 177[MB]/22.5ms; peak concurrent 2` — 47 µs per decommit, no worker pile-up,
+correct results (a drained store handed back out without its re-commit would fault on first
+touch; 479 drains against ~3 800 subsequent same-class allocations and a clean
+IntegrityCheck close that hole). Gate-off control (fresh keys): `drained 0x`. Typed-HOF
+battery on the build: 188/188.
+
+**At scale — t641_2 enforce 100 G (`.claude/run_t641_2_drainB.bat`), against the Aug 2 s4_B
+baseline; both census-on builds, the only code delta is the drain. Test OK.**
+
+| metric | s4_B (no drain) | drain-B |
+|---|---|---|
+| drained | — | **503 837 stores = 103.4 GiB**, 17.3 s syscall time, peak concurrent 4 |
+| pool at claim-window samples | ~50 G steady | **squeezed to 8-25 G** |
+| parks | 22 357 | **13 653** (−39 %: drained memory lets admissions fit) |
+| true commit peak (compk) | 193.46 G | 190.18 G (−3.3 G) |
+| PeakLiveLarge | 171.9 G | 171.9 G (live untouched, as designed) |
+| wall | 1 262 s (warm: ran after t641_1) | 1 588 s vs **1 513 s standalone no-drain comparator** (the cal run): ≈ +5 % |
+
+The mechanism is verified — half a million decommits, zero serialisation (peak concurrent 4
+against 33 workers; §8.1.14's disaster was 34.1 M calls at peak 33), correct results, and the
+pool demonstrably drains while claims pend. The PEAK barely moves, though, and the wall pays
+~5 % on this maximally-churning workload, for two reasons the ledger curve makes explicit:
+(a) release bursts (±40 G per cone) outpace a one-per-allocation drain inside the claim
+window, so the crest moment still carries ~48 G of pool; (b) the claim-window trigger misses
+the phases where the pool is truly cold — after the last claim resolves, the end-of-run
+release wave rebuilds a 106-137 G pool with drainage off. Meanwhile the ~5 % wall is the
+zero-fill cost of re-faulting 103 GiB of drained-then-reused stores: inside the churn phase
+the drain keeps eating stores the very next allocations want back. The claim-window signal
+is, in short, anti-correlated with coldness on this workload.
+
+**Verdict and next step for this lever.** Mechanism: done, cheap, safe, observable — keep.
+Policy: the trigger needs to follow COLDNESS or COMMIT PRESSURE rather than admission
+contention: drain while process commit exceeds the budget (the §8.1.23 pressure notion,
+evaluable in the ledger sampler that already reads `GetMemoryStatus`), which would cover the
+end-phase pool that the claimant window structurally misses, and spare the hot churn that it
+structurally hits. The invariant, the accounting, and the per-class machinery all carry over
+unchanged; only the `SetFreeStackDrainageMode` call sites move. On Linux the drain takes the
+same posture as release(): the `madvise(MADV_DONTNEED)` line is present but commented,
+pending a WSL validation cycle — commit charge is a Windows-measured problem first.
+
+---
+
 ## 9. Risks and open questions
 
 **Risks**
