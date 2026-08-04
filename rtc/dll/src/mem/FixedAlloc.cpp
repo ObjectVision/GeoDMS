@@ -148,6 +148,7 @@ constexpr SizeT ALLOC_OBJSSIZE_MAX = 1 << ALLOC_OBJSSIZE_MAX_BITS;
 constexpr UInt32 FIRST_PAGE_INDEX = ALLOC_PAGESIZE_MIN_BITS - ALLOC_OBJSSIZE_MIN_BITS;
 
 constexpr alloc_index_t NR_ELEM_ALLOC = ALLOC_OBJSSIZE_MAX_BITS - ALLOC_OBJSSIZE_MIN_BITS + 1;
+constexpr alloc_index_t NR_FREE_STACK_ALLOCS = ALLOC_OBJSSIZE_MAX_BITS - ALLOC_PAGESIZE_MIN_BITS + 1;
 
 constexpr SizeT ALLOC_LIMIT = 0x1000000000000000;
 
@@ -426,6 +427,16 @@ RTC_CALL bool InFreeStackDrainageMode() { return s_FreeStackDrainageMode.load(st
 
 static void DrainAllFreeStacks_lockHeld(); // defined below GetFreeStackAllocatorArray()
 
+// Sweep gate (user design 2026-08-04): stores pushed COMMITTED onto free stacks and not yet
+// decommitted or recounted. Plain, not atomic: every touch point -- the push in
+// add_to_freestack, the gate test in get_reserved_or_reset_objectstore, the recalibration in
+// DrainAllFreeStacks_lockHeld -- runs under the shared allocSection. Once the pools are dry
+// this is what makes a drainage-mode allocation cost one flag load and one compare instead of
+// a 17-slot walk. Reuse-pops shrink the true backlog without decrementing (they would need a
+// class-size test on the pop path); the sweep's recount corrects that within one low-yield
+// walk.
+static SizeT s_DeallocatedButNotYetDecommitted = 0;
+
 struct FreeStackAllocator
 {
 	VirtualAllocChunkArray inner;
@@ -489,25 +500,31 @@ struct FreeStackAllocator
 		// committed freed store -- coldest first, the FRONT of each stack. allocSection is
 		// shared by all FreeStackAllocators, so the sweep runs under the lock already held
 		// here, and the size-correlation of allocation traffic means an idle class's pool no
-		// longer shelters behind the busy one (the §8.1.24 defect). Once the pools are dry the
-		// sweep costs one size/index check per class. Cost and congestion stay visible in
-		// GetVmSysCallStats (drained x/ms + the §8.1.14 peak-concurrent tripwire).
-		if (s_FreeStackDrainageMode.load(std::memory_order_relaxed))
+		// longer shelters behind the busy one (the §8.1.24 defect). The gate counter (user
+		// design 2026-08-04) spares the walk once the pools are dry: sweep only when more
+		// committed freed stores are pending than a full sweep has classes to visit.
+		// Cost and congestion stay visible in GetVmSysCallStats (drained x/ms).
+		if (s_FreeStackDrainageMode.load(std::memory_order_relaxed)
+			&& s_DeallocatedButNotYetDecommitted > NR_FREE_STACK_ALLOCS)
 			DrainAllFreeStacks_lockHeld();
 
 		return result;
 	}
 
 	// One drain step for this class; assumes the shared allocSection is held by the caller.
-	void drain_one_cold_store_lockHeld()
+	// Returns the committed freed stores still on this stack afterwards: the sweep sums these
+	// into the recalibrated gate counter.
+	SizeT drain_one_cold_store_lockHeld()
 	{
 		if (inner.objectStoreSize >= VirtualAllocChunk::DECOMMIT_MIN_SIZE)
-			return; // release() already decommits these at free
-		if (nr_deallocated >= freeStack.size())
-			return; // no committed freed store left on this stack
-		VirtualAllocChunk::decommit_free_store(freeStack[nr_deallocated], inner.objectStoreSize);
-		++nr_deallocated;
-		s_DrainedStackBytes.fetch_add(inner.objectStoreSize, std::memory_order_relaxed);
+			return 0; // release() decommits these at free: never gate-relevant
+		if (nr_deallocated < freeStack.size())
+		{
+			VirtualAllocChunk::decommit_free_store(freeStack[nr_deallocated], inner.objectStoreSize);
+			++nr_deallocated;
+			s_DrainedStackBytes.fetch_add(inner.objectStoreSize, std::memory_order_relaxed);
+		}
+		return freeStack.size() - nr_deallocated;
 	}
 
 	BYTE_PTR allocate(object_size_t objectSize)
@@ -530,6 +547,8 @@ struct FreeStackAllocator
 		objectCount--;
 		s_FreeStackLiveBytes.fetch_sub(inner.objectStoreSize, std::memory_order_relaxed);
 		freeStack.emplace_back(ptr);
+		if (inner.objectStoreSize < VirtualAllocChunk::DECOMMIT_MIN_SIZE)
+			++s_DeallocatedButNotYetDecommitted; // arrives committed: gate-relevant (>= 2 MB stores arrive decommitted by release())
 	}
 	void deallocate(BYTE_PTR ptr, object_size_t objectSize)
 	{
@@ -580,9 +599,6 @@ struct FreeStackAllocator
 struct FreeStackAllocatorArray* sd_FSA_ptr = nullptr;
 #endif
 
-constexpr alloc_index_t NR_FREE_STACK_ALLOCS = ALLOC_OBJSSIZE_MAX_BITS - ALLOC_PAGESIZE_MIN_BITS + 1;
-
-
 struct FreeStackAllocatorArray
 {
 	FreeStackAllocatorArray()
@@ -627,12 +643,18 @@ FreeStackAllocator& GetFreeStackAllocator(alloc_index_t i)
 
 // The §8.1.25 drain sweep: one cold-store decommit per class that still has one. Callable only
 // with FreeStackAllocator::allocSection held -- which, being shared by all instances, makes the
-// cross-class walk as safe as the self-drain it replaces.
+// cross-class walk as safe as the self-drain it replaces. The walk doubles as the gate
+// counter's "reset" (user design 2026-08-04) -- a RECOUNT of what remains rather than a zeroing,
+// so a burst concentrated in a few classes, of which one sweep drains only one store each, is
+// not forgotten when deallocations pause; the recount is free, the walk visits every class
+// anyway.
 static void DrainAllFreeStacks_lockHeld()
 {
 	auto& fsaa = GetFreeStackAllocatorArray();
+	SizeT remaining = 0;
 	for (alloc_index_t i = 0; i != NR_FREE_STACK_ALLOCS; ++i)
-		fsaa[i].drain_one_cold_store_lockHeld();
+		remaining += fsaa[i].drain_one_cold_store_lockHeld();
+	s_DeallocatedButNotYetDecommitted = remaining;
 }
 
 // =========================================  FreeListAllocator definition section

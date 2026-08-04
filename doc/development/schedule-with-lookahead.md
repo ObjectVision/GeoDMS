@@ -2557,6 +2557,42 @@ single-mutex concern, now extended to the stock allocator).
 
 ---
 
+### 8.1.26 The sweep gets a gate: no walking dry pools
+
+§8.1.25's sweep runs on every allocation while drainage lasts — including the long stretches
+after the pools are dry, where each allocation still walks seventeen slots under the shared
+lock to find nothing. The fix as designed (user, 2026-08-04): a global
+deallocated-but-not-yet-decommitted counter, incremented when a store lands COMMITTED on a
+free stack (`add_to_freestack`, < 2 MB classes only — larger stores arrive decommitted by
+release() and would pollute the signal), reset by the sweep, and the sweep runs only when the
+counter exceeds `NR_FREE_STACK_ALLOCS` — more pending stores than a walk has classes to
+visit. Plain, not atomic: every touch point already runs under the shared `allocSection`.
+
+One deliberate deviation from the literal design: the sweep's "reset" is a RECOUNT of what
+remains (each class's drain step returns `freeStack.size() − nr_deallocated`; the sum is free,
+the walk visits every class anyway), not a zeroing. Reset-to-zero would forget a burst
+concentrated in a few classes — a sweep drains one store per class, so a 1 000-store burst
+into three classes would strand ~997 stores until seventeen NEW frees happened to arrive; the
+recount keeps sweeping while backlog exists and still goes fully quiet on dry pools, where a
+drainage-mode allocation now costs one flag load and one compare. Reuse-pops shrink the true
+backlog without decrementing (a decrement would need a class-size test on the pop path); the
+next sweep's recount corrects that within one low-yield walk.
+
+**Measured (fourth t641_2 arm, same protocol; test OK, battery 188/188, gate-off `drained
+0x`).** Probe: `drained 1500x = 503[MB]` vs 1796x/631 MB ungated — the difference is the
+≤ 17-store tails the gate leaves in peace. At scale: drained 515 863 stores = 94.7 GiB in
+14.3 s syscall time (§8.1.25's ungated arm: 812 668 = 158.4 GiB in 23.5 s — a third of the
+syscalls were sub-threshold walks), wall **1 349 s, the fastest of the four arms**
+(1 513 no-drain comparator → 1 588 per-class → 1 406 sweep → 1 349 gated sweep), PeakLiveLarge
+identical. Commit peak 181.60 G vs the ungated sweep's 179.58 G: the mid-run crest is equal
+(~176-177 G sampled, pool ~35 G of burst lag), and the +2 G difference sits where both
+variants are blind — the claim-free end phase, whose pool the last samples show rebuilding to
+~89 G with drainage off. The gated run's peak is now SET by exactly the phase the
+commit-vs-budget trigger (§8.1.24's standing verdict) is for; the trigger move is the whole
+remaining agenda for this lever.
+
+---
+
 ## 9. Risks and open questions
 
 **Risks**
