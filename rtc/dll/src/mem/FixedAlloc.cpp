@@ -437,6 +437,19 @@ static void DrainAllFreeStacks_lockHeld(); // defined below GetFreeStackAllocato
 // walk.
 static SizeT s_DeallocatedButNotYetDecommitted = 0;
 
+// §8.1.27 budgeted-sweep tuning.
+// DRAIN_SWEEP_BUDGET caps one sweep's decommits: ~64 x ~30 us ~= 2 ms worst-case hold of the
+// shared allocSection, against the unbudgeted worst case of a whole release wave in one call
+// (~80 K stores ~= seconds of stop-the-world). A backlog concentrated in one class drains up
+// to 64x faster than the §8.1.25 one-per-class step, with the walk overhead divided by the
+// batch size.
+// KEEP_HOT_STORES spares the back-most stores of each stack as the reuse band: §8.1.24's
+// per-class arm measured what draining stores the next allocation wants back costs -- 103 GiB
+// re-zero-faulted, ~+5 % wall. Kept-hot stores become drainable only when newer deallocations
+// push them deeper than KEEP_HOT_STORES from the back.
+constexpr SizeT DRAIN_SWEEP_BUDGET = 64;
+constexpr SizeT KEEP_HOT_STORES = 4;
+
 struct FreeStackAllocator
 {
 	VirtualAllocChunkArray inner;
@@ -495,15 +508,15 @@ struct FreeStackAllocator
 				--nr_deallocated;
 		}
 
-		// Pressure-triggered decommit (§8.1.24, whole-array sweep per §8.1.25): while the
-		// scheduler drains, each allocation funds one decommit in EVERY class that still has a
-		// committed freed store -- coldest first, the FRONT of each stack. allocSection is
-		// shared by all FreeStackAllocators, so the sweep runs under the lock already held
-		// here, and the size-correlation of allocation traffic means an idle class's pool no
-		// longer shelters behind the busy one (the §8.1.24 defect). The gate counter (user
-		// design 2026-08-04) spares the walk once the pools are dry: sweep only when more
-		// committed freed stores are pending than a full sweep has classes to visit.
-		// Cost and congestion stay visible in GetVmSysCallStats (drained x/ms).
+		// Pressure-triggered decommit (§8.1.24; array-wide sweep §8.1.25; budgeted §8.1.27):
+		// while the scheduler drains, each allocation funds one budget's worth of decommits
+		// across ALL classes -- coldest first, the FRONT of each stack, sparing each stack's
+		// kept-hot reuse band. allocSection is shared by all FreeStackAllocators, so the sweep
+		// runs under the lock already held here, and the size-correlation of allocation
+		// traffic means an idle class's pool no longer shelters behind the busy one (the
+		// §8.1.24 defect). The gate counter (user design 2026-08-04) spares the walk once
+		// nothing is drainable: sweep only when more drainable stores are pending than a walk
+		// has classes to visit. Cost and congestion stay visible in GetVmSysCallStats.
 		if (s_FreeStackDrainageMode.load(std::memory_order_relaxed)
 			&& s_DeallocatedButNotYetDecommitted > NR_FREE_STACK_ALLOCS)
 			DrainAllFreeStacks_lockHeld();
@@ -511,20 +524,25 @@ struct FreeStackAllocator
 		return result;
 	}
 
-	// One drain step for this class; assumes the shared allocSection is held by the caller.
-	// Returns the committed freed stores still on this stack afterwards: the sweep sums these
-	// into the recalibrated gate counter.
-	SizeT drain_one_cold_store_lockHeld()
+	// Budgeted drain for this class (§8.1.27); assumes the shared allocSection is held by the
+	// caller. Decommits cold stores front-first while the sweep budget lasts, sparing the
+	// KEEP_HOT_STORES back-most stores as the reuse band. Returns the DRAINABLE remainder --
+	// committed stores beyond the kept-hot band -- which the sweep sums into the recalibrated
+	// gate counter; kept-hot stores are excluded so that a stack reduced to its reuse band
+	// stops asking for sweeps.
+	SizeT drain_cold_stores_lockHeld(SizeT& sweepBudget)
 	{
 		if (inner.objectStoreSize >= VirtualAllocChunk::DECOMMIT_MIN_SIZE)
 			return 0; // release() decommits these at free: never gate-relevant
-		if (nr_deallocated < freeStack.size())
+		while (sweepBudget && nr_deallocated + KEEP_HOT_STORES < freeStack.size())
 		{
 			VirtualAllocChunk::decommit_free_store(freeStack[nr_deallocated], inner.objectStoreSize);
 			++nr_deallocated;
+			--sweepBudget;
 			s_DrainedStackBytes.fetch_add(inner.objectStoreSize, std::memory_order_relaxed);
 		}
-		return freeStack.size() - nr_deallocated;
+		SizeT stillCommitted = freeStack.size() - nr_deallocated;
+		return stillCommitted > KEEP_HOT_STORES ? stillCommitted - KEEP_HOT_STORES : 0;
 	}
 
 	BYTE_PTR allocate(object_size_t objectSize)
@@ -641,20 +659,23 @@ FreeStackAllocator& GetFreeStackAllocator(alloc_index_t i)
 	return fsa;
 }
 
-// The §8.1.25 drain sweep: one cold-store decommit per class that still has one. Callable only
-// with FreeStackAllocator::allocSection held -- which, being shared by all instances, makes the
-// cross-class walk as safe as the self-drain it replaces. The walk doubles as the gate
-// counter's "reset" (user design 2026-08-04) -- a RECOUNT of what remains rather than a zeroing,
-// so a burst concentrated in a few classes, of which one sweep drains only one store each, is
-// not forgotten when deallocations pause; the recount is free, the walk visits every class
-// anyway.
+// The drain sweep (§8.1.25, budgeted per §8.1.27): walk the classes spending one shared budget
+// of decommits, front-of-stack first within each. Callable only with
+// FreeStackAllocator::allocSection held -- which, being shared by all instances, makes the
+// cross-class walk as safe as a self-drain. The walk doubles as the gate counter's "reset"
+// (user design 2026-08-04): a RECOUNT of the DRAINABLE remainder -- so a budget-exhausted sweep
+// leaves the gate open and catch-up continues on the very next allocation, while a sweep that
+// found nothing drainable (all pending inside kept-hot bands) resets the gate to zero, and the
+// next walk then requires NR_FREE_STACK_ALLOCS+1 FRESH deallocations: the minimum-new-
+// deallocations rule that keeps dry pools from being walked.
 static void DrainAllFreeStacks_lockHeld()
 {
 	auto& fsaa = GetFreeStackAllocatorArray();
-	SizeT remaining = 0;
+	SizeT sweepBudget = DRAIN_SWEEP_BUDGET;
+	SizeT drainableRemainder = 0;
 	for (alloc_index_t i = 0; i != NR_FREE_STACK_ALLOCS; ++i)
-		remaining += fsaa[i].drain_one_cold_store_lockHeld();
-	s_DeallocatedButNotYetDecommitted = remaining;
+		drainableRemainder += fsaa[i].drain_cold_stores_lockHeld(sweepBudget);
+	s_DeallocatedButNotYetDecommitted = drainableRemainder;
 }
 
 // =========================================  FreeListAllocator definition section

@@ -2593,6 +2593,45 @@ remaining agenda for this lever.
 
 ---
 
+### 8.1.27 The sweep gets a budget and a reuse band: burst lag eliminated
+
+Why should `drain_one_cold_store_lockHeld` stop at one store (user, 2026-08-04)? Draining a
+class to empty in one `while` would answer the burst lag, but at two measured costs: a
+release wave is ~80 K stores, and one sweep taking them all means seconds of back-to-back
+decommits while holding the now-global `allocSection` — §8.1.14's syscall concentration
+reborn as a stop-the-world pause billed to one unlucky operator — and a drain-to-empty eats
+the back of the stack, the very stores the next allocations reuse, which is the §8.1.24
+per-class arm's measured failure (103 GiB re-zero-faulted, ~+5 % wall). The ruled synthesis,
+implemented:
+
+- **`DRAIN_SWEEP_BUDGET` = 64** decommits per sweep, spent greedily along the walk
+  (`drain_cold_stores_lockHeld(SizeT& sweepBudget)`): worst-case lock-hold ~2 ms instead of
+  seconds, concentrated backlogs drain 64× faster than one-per-class, walk overhead divided
+  by the batch size.
+- **`KEEP_HOT_STORES` = 4**: each stack's back-most stores are spared as the reuse band;
+  they become drainable only when newer deallocations push them deeper than the band.
+- **Minimum-new-deallocations rule**, falling out of the recount semantics: the sweep's
+  recount now sums only the DRAINABLE remainder (beyond kept-hot bands). A budget-exhausted
+  sweep leaves the gate open — catch-up continues on the very next allocation — while a sweep
+  that found nothing drainable recounts to zero, so the next walk requires
+  `NR_FREE_STACK_ALLOCS`+1 fresh deallocations.
+
+**Measured (fifth t641_2 arm; test OK, battery 188/188, gate-off `drained 0x`; probe
+2054x/678 MB — a budgeted sweep catches whole backlog batches, out-draining both earlier
+variants).** Drained **960 889 stores = 194.9 GiB** in 19.7 s syscall time — the most of any
+arm, at no wall cost: **1 371 s**, in the fast band beside the gated arm's 1 349 s and far
+under the 1 513 s no-drain comparator, so keep-hot did its job despite the record drain
+volume. The intended effect is measured directly: at the LIVE crest (req 143.2 G) the pool is
+**8.2 G** — the §8.1.25/26 arms carried 26-40 G of burst lag there — and it stays ≤ 15 G
+through the whole claim-active phase. Commit peak 181.51 G ≈ the gated arm's 181.60 G, and
+the curve shows why to the sample: compk is set at 18:45-18:47 in the claim-free END phase,
+where the pool rebuilds to 88.6 G with parks frozen and drainage off. Everything a drain
+RATE can reach is now reached; the peak consists of exactly one term the claimant-window
+trigger cannot see. The commit-vs-budget trigger move (§8.1.24's standing verdict) is the
+entirety of what remains for this lever.
+
+---
+
 ## 9. Risks and open questions
 
 **Risks**
