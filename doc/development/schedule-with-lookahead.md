@@ -2618,7 +2618,7 @@ implemented:
 
 **Measured (fifth t641_2 arm; test OK, battery 188/188, gate-off `drained 0x`; probe
 2054x/678 MB — a budgeted sweep catches whole backlog batches, out-draining both earlier
-variants).** Drained **960 889 stores = 194.9 GiB** in 19.7 s syscall time — the most of any
+variants).** (§8.1.28 supersedes the sweep ORDER; the budget/keep-hot findings below stand.) Drained **960 889 stores = 194.9 GiB** in 19.7 s syscall time — the most of any
 arm, at no wall cost: **1 371 s**, in the fast band beside the gated arm's 1 349 s and far
 under the 1 513 s no-drain comparator, so keep-hot did its job despite the record drain
 volume. The intended effect is measured directly: at the LIVE crest (req 143.2 G) the pool is
@@ -2629,6 +2629,90 @@ where the pool rebuilds to 88.6 G with parks frozen and drainage off. Everything
 RATE can reach is now reached; the peak consists of exactly one term the claimant-window
 trigger cannot see. The commit-vs-budget trigger move (§8.1.24's standing verdict) is the
 entirety of what remains for this lever.
+
+---
+
+### 8.1.28 Largest class first — and the measurement that settles draining outside the lock
+
+Two questions (user, 2026-08-05): should the sweep spend its budget on the LARGEST drainable
+class first, walking down and exiting early; and should the decommits move mostly OUTSIDE
+`allocSection` so other threads can proceed meanwhile? The first is implemented; the second is
+answered with a number rather than an opinion, and declined.
+
+**Largest first.** A decommit costs one syscall whatever the store size, so bytes returned per
+budget slot — and per microsecond of held lock — is maximised by starting at the top:
+ascending, a 64-slot budget spent on the 4 KB class returns 256 KB; descending, the same budget
+on the 1 MB class returns 64 MB, **256× for identical cost**. The walk now runs
+`i = NR_DRAINABLE_FSA` downto 0 (`= log2(DECOMMIT_MIN_SIZE) − ALLOC_PAGESIZE_MIN_BITS` = 9, so
+it no longer visits the eight classes `release()` already decommits at free) and breaks the
+moment the budget is spent. Two consequences worth stating:
+
+- **The recount moves under a condition.** Only a COMPLETE walk knows the true drainable
+  remainder, so the gate counter is reassigned only when the budget survived the walk. A
+  budget-exhausted sweep leaves it untouched — it was above threshold to get here, so the gate
+  stays open and the next allocation resumes the catch-up. The min-new-deallocations rule
+  (§8.1.27) is unaffected: a zero-yield sweep never exhausts its budget, so it always completes
+  and always recounts.
+- **The order is bytes-first, not fair.** Small classes are reached only once the big ones are
+  down to their keep-hot bands — the intent, since on the t641_2 profile the mass is
+  256 K/512 K tile buffers and the small classes' few megabytes only matter when everything
+  above them is already drained.
+
+**Measured (sixth t641_2 arm, same protocol; test OK, battery 188/188, gate-off `drained 0x`).**
+
+| metric | §8.1.27 ascending | largest-first |
+|---|---|---|
+| drained | 960 889 = 194.9 GiB | **1 110 127 = 229.9 GiB** |
+| bytes per syscall | 213 KB | 217 KB |
+| sampled commit high-water | 184 430 MB | **176 648 MB (−7.6 GiB)** |
+| held decommitted (`Highest uncommitted`) | 53.3 G | **57.3 G** |
+| true commit peak (compk) | 181.51 G | 181.12 G |
+| wall | 1 371 s | **1 343 s — fastest of the five drain arms** |
+
+Bytes-per-syscall barely moved (213 → 217 KB), and the reason is worth recording: over a whole
+run the drain KEEPS UP — 19.2 decommits per sweep against a 64-slot budget — so the aggregate
+mix of drained stores reflects the pools' own size distribution whatever order they are visited
+in. Order matters exactly when the budget BINDS, during a release burst, and that is where it
+pays: the commit CURVE drops (sampled high-water −7.6 GiB) while total drained volume rises
+18 %.
+
+**The true peak does not move, because it is no longer pool-bound.** compk 181.12 G against
+PeakLiveLarge 171.9 G leaves ~9 G for keep-hot bands, in-flight allocations, non-stock memory
+and CRT. Every drain arm has converged into that band (gap 7.7–9.7 G) from the no-drain arm's
+21.6 G. **The allocator lever is finished**: what remains of t641_2's commit peak is LIVE data,
+which no drain can touch — only ordering/retention (§8.1.23 lever 2) reduces it. The
+commit-vs-budget trigger is still worth taking for the end-phase commit LEVEL, not for the peak.
+
+**Draining outside the lock: pros, cons, decision.** The pro is real — during a sweep no thread
+can allocate from or free to ANY free-stack class, since §8.1.25 unified the lock. The cons:
+
+1. *The pop-vs-decommit race.* Advancing `nr_deallocated` under the lock and syscalling after
+   releasing it lets another thread pop a store still in flight: the pop takes the back, and
+   when the prefix spans the whole stack it hands that store out as-if-fresh and commits it —
+   our pending `VirtualFree` then decommits live, in-use memory. Access violation on first
+   touch, nondeterministic and rare. `KEEP_HOT_STORES` narrows but does not close the window
+   (five pops without an interleaved free inside ~2 ms is ordinary on a churning class).
+2. *The safe variant is not free.* Making in-flight stores unpoppable means MOVING the batch
+   out of `freeStack` under the lock, decommitting outside, then re-inserting at the front: two
+   O(n) pointer memmoves (~30–50 µs at 80 K entries), a second lock acquisition per sweep, a
+   transient reporting skew (≤ 64 stores counted committed-freed while actually decommitted),
+   and an invariant with a third state — exactly the surface §8.1.25 removed.
+3. *The phase argument.* Drainage runs only inside claim windows, i.e. precisely when the
+   scheduler has parked the growers and there is LESS concurrency to protect than at any other
+   moment of the run.
+
+And the cost being bought out is now measured, by the two gauges added to the always-on vmcalls
+line: average sweep **0.44 ms**, total lock-held drain time **25.2 s of a 1 343 s run (1.9 %)**,
+worst single sweep **21.8 ms**. The worst case is real but rare (one outlier over 57 854 sweeps)
+and is not a batching artefact — 64 × the typical 23 µs is 1.5 ms, so a 21.8 ms sweep is
+`VirtualFree` latency under contention, which draining outside our lock would relocate rather
+than remove. Meanwhile the arm that drains the most is also the fastest.
+
+Decision: keep the drain inside the lock. Should the tail ever need bounding, the cheap fix is a
+DEADLINE on the sweep (stop after ~2 ms elapsed; one `QueryPerformanceCounter` per class, ~30 ns
+against a 23 µs syscall) — same worst-case guarantee, none of the in-flight state. The
+out-of-lock design is recorded above for the workload that would justify it: one still
+allocating hard THROUGH a claim window, which t641 does not.
 
 ---
 

@@ -450,6 +450,18 @@ static SizeT s_DeallocatedButNotYetDecommitted = 0;
 constexpr SizeT DRAIN_SWEEP_BUDGET = 64;
 constexpr SizeT KEEP_HOT_STORES = 4;
 
+// Classes at or above DECOMMIT_MIN_SIZE are decommitted by release() at free, so free-stack
+// index i is drainable only while 2^(i + ALLOC_PAGESIZE_MIN_BITS) < DECOMMIT_MIN_SIZE: indices
+// 0 (4 KB) .. NR_DRAINABLE_FSA-1 (1 MB), 9 of the 17 classes. The sweep walks exactly these --
+// and walks them LARGEST FIRST (§8.1.28).
+constexpr alloc_index_t NR_DRAINABLE_FSA =
+	alloc_index_t(std::countr_zero(VirtualAllocChunk::DECOMMIT_MIN_SIZE)) - ALLOC_PAGESIZE_MIN_BITS;
+
+// Sweep cost gauges (§8.1.28): sweeps run, and the worst single one. The max is the direct
+// measure of how long a drain sweep can hold the shared allocSection -- the number that decides
+// whether draining outside the lock is worth its complexity, rather than an assumption about it.
+static std::atomic<UInt64> s_DrainSweepCount = 0, s_DrainSweepMaxTicks = 0;
+
 struct FreeStackAllocator
 {
 	VirtualAllocChunkArray inner;
@@ -670,12 +682,45 @@ FreeStackAllocator& GetFreeStackAllocator(alloc_index_t i)
 // deallocations rule that keeps dry pools from being walked.
 static void DrainAllFreeStacks_lockHeld()
 {
+#if defined(WIN32)
+	LARGE_INTEGER t0; QueryPerformanceCounter(&t0);
+#endif
 	auto& fsaa = GetFreeStackAllocatorArray();
 	SizeT sweepBudget = DRAIN_SWEEP_BUDGET;
 	SizeT drainableRemainder = 0;
-	for (alloc_index_t i = 0; i != NR_FREE_STACK_ALLOCS; ++i)
-		drainableRemainder += fsaa[i].drain_cold_stores_lockHeld(sweepBudget);
-	s_DeallocatedButNotYetDecommitted = drainableRemainder;
+
+	// LARGEST DRAINABLE CLASS FIRST (user, 2026-08-05). A decommit costs one syscall whatever
+	// the store size, so bytes returned per budget slot -- and per microsecond of held
+	// allocSection -- is maximised by starting at 1 MB and walking down: a budget spent on 1 MB
+	// stores returns 256x what the same budget spent on 4 KB stores would. Ascending order also
+	// let the small classes, which hold almost nothing (the t641_2 profile is 256 K/512 K tile
+	// buffers), consume a budget meant for the mass. The trade is deliberate: this is
+	// bytes-first, not fair -- small classes are only reached once the big ones are down to
+	// their keep-hot bands, which is exactly when their few megabytes start to matter.
+	alloc_index_t i = NR_DRAINABLE_FSA;
+	while (i)
+	{
+		drainableRemainder += fsaa[--i].drain_cold_stores_lockHeld(sweepBudget);
+		if (!sweepBudget)
+			break; // early exit: no point walking classes this sweep can no longer serve
+	}
+
+	// Recount only after a COMPLETE walk. A budget-exhausted sweep leaves the gate counter
+	// untouched -- it was above threshold to get here, so it stays open and the next allocation
+	// resumes the catch-up -- and only a full walk can know the true drainable remainder, which
+	// is what arms the min-new-deallocations rule (§8.1.27) when it comes out zero.
+	if (sweepBudget)
+		s_DeallocatedButNotYetDecommitted = drainableRemainder;
+
+	s_DrainSweepCount.fetch_add(1, std::memory_order_relaxed);
+#if defined(WIN32)
+	LARGE_INTEGER t1; QueryPerformanceCounter(&t1);
+	auto ticks = UInt64(t1.QuadPart - t0.QuadPart);
+	auto prevMax = s_DrainSweepMaxTicks.load(std::memory_order_relaxed);
+	while (ticks > prevMax
+		&& !s_DrainSweepMaxTicks.compare_exchange_weak(prevMax, ticks, std::memory_order_relaxed))
+		;
+#endif
 }
 
 // =========================================  FreeListAllocator definition section
@@ -1167,14 +1212,22 @@ RTC_CALL auto GetVmSysCallStats() -> SharedStr
 #else
 	auto perMs = 1.0;
 #endif
-	return mySSPrintF("vmcalls: decommit {}x/{}ms, recommit {}x/{}ms, drained {}x = {}[MB]/{}ms; peak concurrent {}"
+	auto nrDrained = s_DrainCount.load(std::memory_order_relaxed);
+	auto nrSweeps = s_DrainSweepCount.load(std::memory_order_relaxed);
+	return mySSPrintF("vmcalls: decommit {}x/{}ms, recommit {}x/{}ms, drained {}x = {}[MB]/{}ms ({}[KB]/call over {} sweeps, worst sweep {}ms); peak concurrent {}"
 		, s_DecommitCount.load(std::memory_order_relaxed)
 		, Float64(s_DecommitTicks.load(std::memory_order_relaxed)) / perMs
 		, s_RecommitCount.load(std::memory_order_relaxed)
 		, Float64(s_RecommitTicks.load(std::memory_order_relaxed)) / perMs
-		, s_DrainCount.load(std::memory_order_relaxed)
+		, nrDrained
 		, s_DrainedStackBytes.load(std::memory_order_relaxed) >> 20
 		, Float64(s_DrainTicks.load(std::memory_order_relaxed)) / perMs
+		// bytes per syscall: the whole point of draining the largest classes first (§8.1.28)
+		, nrDrained ? (s_DrainedStackBytes.load(std::memory_order_relaxed) / nrDrained) >> 10 : 0
+		, nrSweeps
+		// worst single sweep = worst-case allocSection hold from draining; decides whether
+		// draining outside the lock would buy anything
+		, Float64(s_DrainSweepMaxTicks.load(std::memory_order_relaxed)) / perMs
 		, s_VmSysCallsInFlightPeak.load(std::memory_order_relaxed)
 	);
 }
