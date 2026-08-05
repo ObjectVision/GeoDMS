@@ -59,8 +59,9 @@
 #include "geo/mpf.h"
 #include "mem/FixedAlloc.h"
 #include "set/VectorFunc.h"
+#include "utl/Environment.h" // RegDWordEnum::MemoryDrainage: the drainage on/off setting
 #include "utl/IncrementalLock.h"
-#include "utl/MemGuard.h"
+#include "utl/MemGuard.h"    // IsLowOnFreeRAM: RAM use vs MemoryFlushThreshold, the drainage trigger
 #include "dbg/SeverityType.h"
 #include "xct/DmsException.h"
 
@@ -90,6 +91,7 @@ void NoteAllocation(void* ptr, SizeT bytes);
 void NoteDeallocation(void* ptr, SizeT bytes);
 #endif //defined(MG_CACHE_COLLECTDATA)
 
+#include <chrono>
 #include <memory>
 #include <unordered_map>
 
@@ -420,10 +422,77 @@ RTC_CALL SizeT GetPeakFreeStackBytes() { return s_PeakFreeStackBytes.load(std::m
 // free-stack class also decommits one cold freed store of that class -- the committed dead pool
 // (measured at 53-112 GB on t641, §8.1.23) flows back to the OS at the pace of allocation
 // traffic, exactly for as long as the scheduler is actually short of budget.
-static std::atomic<bool> s_FreeStackDrainageMode = false;
-static std::atomic<SizeT> s_DrainedStackBytes = 0; // lifetime bytes handed back by the drain
-RTC_CALL void SetFreeStackDrainageMode(bool active) { s_FreeStackDrainageMode.store(active, std::memory_order_relaxed); }
+static std::atomic<bool> s_FreeStackDrainageMode = false; // effective: what the sweep gate reads
+static std::atomic<bool> s_LedgerDrainageMode = false;    // the ledger's claim window (enforce only)
+static std::atomic<bool> s_PressureDrainageMode = false;  // RAM use above MemoryFlushThreshold
+static std::atomic<bool> s_DrainageIsStanding = false;    // pressure-driven: use the sustainable band
+static std::atomic<SizeT> s_DrainedStackBytes = 0;        // lifetime bytes handed back by the drain
+
+// -1 until the MemoryDrainage setting has been read; /CF and /SF write it directly, so the
+// switch does not have to wait for the next pressure poll to be honoured.
+static std::atomic<Int32> s_DrainageEnabled = -1;
+static void UpdateEffectiveDrainage();
+
+RTC_CALL bool IsFreeStackDrainageEnabled()
+{
+	auto v = s_DrainageEnabled.load(std::memory_order_relaxed);
+	if (v < 0)
+	{
+		v = (RTC_GetRegDWord(RegDWordEnum::MemoryDrainage) != 0) ? 1 : 0;
+		s_DrainageEnabled.store(v, std::memory_order_relaxed);
+	}
+	return v != 0;
+}
+
+RTC_CALL void SetFreeStackDrainageEnabled(bool enabled)
+{
+	s_DrainageEnabled.store(enabled ? 1 : 0, std::memory_order_relaxed);
+	UpdateEffectiveDrainage(); // take effect now, not at the next poll
+}
+
+static void UpdateEffectiveDrainage()
+{
+	bool ledger = s_LedgerDrainageMode.load(std::memory_order_relaxed);
+	bool pressure = s_PressureDrainageMode.load(std::memory_order_relaxed);
+	bool enabled = IsFreeStackDrainageEnabled();
+	// A claim window is a short burst with a task waiting: drain hard. Standing RAM pressure is
+	// open-ended, and §8.1.30 measured what draining hard for a whole run costs (1.7 TB
+	// re-committed, +20 % wall), so that mode keeps a proportional reuse band instead.
+	s_DrainageIsStanding.store(pressure && !ledger, std::memory_order_relaxed);
+	s_FreeStackDrainageMode.store(enabled && (ledger || pressure), std::memory_order_relaxed);
+}
+
+RTC_CALL void SetFreeStackDrainageMode(bool active)
+{
+	s_LedgerDrainageMode.store(active, std::memory_order_relaxed);
+	UpdateEffectiveDrainage();
+}
 RTC_CALL bool InFreeStackDrainageMode() { return s_FreeStackDrainageMode.load(std::memory_order_relaxed); }
+
+// The 20.10.0 default trigger (§8.1.32): once the machine's RAM use passes
+// MemoryFlushThreshold -- the same signal that already throttles operation activation via
+// IsLowOnFreeRAM -- freed <2 MB stores start flowing back to the OS, with no scheduler
+// involvement, so it works with the admission gate off. Polled at most once a second, and only
+// on every 1024th large allocation, so the steady-state cost is one relaxed load.
+static std::atomic<UInt32> s_DrainagePollCountdown = 0;
+static std::atomic<Int64> s_DrainageNextPollNs = 0;
+
+static void ConsiderDrainagePressure()
+{
+	if (s_DrainagePollCountdown.fetch_add(1, std::memory_order_relaxed) % 1024)
+		return;
+	auto nowNs = std::chrono::steady_clock::now().time_since_epoch().count();
+	auto nextNs = s_DrainageNextPollNs.load(std::memory_order_relaxed);
+	if (nowNs < nextNs)
+		return;
+	if (!s_DrainageNextPollNs.compare_exchange_strong(nextNs, nowNs + 1'000'000'000, std::memory_order_relaxed))
+		return; // another thread is polling this second
+	s_PressureDrainageMode.store(IsLowOnFreeRAM(), std::memory_order_relaxed);
+	// Recompute unconditionally, not only when the pressure bit flips: the first poll can happen
+	// before the command line is parsed (allocation starts during module init), so a latched
+	// decision would ignore /CF. This way the setting is honoured within a second either way.
+	UpdateEffectiveDrainage();
+}
 
 static void DrainAllFreeStacks_lockHeld(); // defined below GetFreeStackAllocatorArray()
 
@@ -546,7 +615,15 @@ struct FreeStackAllocator
 	{
 		if (inner.objectStoreSize >= VirtualAllocChunk::DECOMMIT_MIN_SIZE)
 			return 0; // release() decommits these at free: never gate-relevant
-		while (sweepBudget && nr_deallocated + KEEP_HOT_STORES < freeStack.size())
+		// Standing (RAM-pressure) drainage keeps HALF of each stack committed, floored at
+		// KEEP_HOT_STORES: the stack is LIFO, so the retained half is exactly the band reuse
+		// comes from, and draining to the floor for a whole run is what turned §8.1.30 into
+		// decommit-on-free (1.7 TB re-committed, +20 % wall). A claim window still drains to
+		// the floor: it is short, and a task is waiting for the memory.
+		SizeT keepHot = KEEP_HOT_STORES;
+		if (s_DrainageIsStanding.load(std::memory_order_relaxed))
+			MakeMax(keepHot, SizeT(freeStack.size() / 2));
+		while (sweepBudget && nr_deallocated + keepHot < freeStack.size())
 		{
 			VirtualAllocChunk::decommit_free_store(freeStack[nr_deallocated], inner.objectStoreSize);
 			++nr_deallocated;
@@ -554,7 +631,7 @@ struct FreeStackAllocator
 			s_DrainedStackBytes.fetch_add(inner.objectStoreSize, std::memory_order_relaxed);
 		}
 		SizeT stillCommitted = freeStack.size() - nr_deallocated;
-		return stillCommitted > KEEP_HOT_STORES ? stillCommitted - KEEP_HOT_STORES : 0;
+		return stillCommitted > keepHot ? stillCommitted - keepHot : 0;
 	}
 
 	BYTE_PTR allocate(object_size_t objectSize)
@@ -1007,6 +1084,7 @@ void* AllocateFromStock(size_t objectSize MG_DEBUG_ALLOCATOR_SRC_ARG)
 
 	if (objectSize >= LARGE_ALLOC_THRESHOLD)
 	{
+		ConsiderDrainagePressure(); // §8.1.32: RAM use vs MemoryFlushThreshold, ~1/s
 		s_AllocSizeHistogram[std::bit_width(objectSize) - 1].fetch_add(1, std::memory_order_relaxed);
 
 		auto live = s_LiveLargeAllocBytes.fetch_add(objectSize, std::memory_order_relaxed) + objectSize;

@@ -1758,8 +1758,12 @@ static SizeT LedgerBudgetBytes();       // defined below, beside the charge poli
 // changing memory behaviour. All callers hold cs_ThreadMessing.
 static void UpdateFreeStackDrainageMode()
 {
+	// Claimant window ONLY (drain-F, the measured operating point): §8.1.30 tried coupling
+	// standing commit pressure in and measured it a net loss on this workload (peak unchanged,
+	// wall +20 % from re-draining the churn). The pressure signal itself stays observable below;
+	// re-coupling it needs a coldness discriminator first.
 	SetFreeStackDrainageMode(GetResourceScheduling() == resource_scheduling::enforce
-		&& (sd_LedgerClaimant != nullptr || sd_LedgerCommitPressure));
+		&& sd_LedgerClaimant != nullptr);
 }
 
 // §8.1.30: the commit-vs-budget pressure signal -- one GetProcessMemoryInfo per second, not
@@ -2059,9 +2063,10 @@ static bool AdmitOrRequeue(OperationContext* self)
 	// something else runs: with an idle worker pool the frontier must proceed whatever it
 	// costs, or an all-grower runnable set would deadlock -- the claimant path has its own
 	// idle lift (a) for the same reason.
-	bool commitPressure = UpdateLedgerCommitPressure();
-	if (fits && !lifted && !isClaimant && !isCompressor
-		&& (sd_LedgerClaimant || (commitPressure && sd_LedgerRunningOps > 0)))
+	UpdateLedgerCommitPressure(); // observability only: logs pressure flips; §8.1.30 measured
+	                              // the pressure couplings (defer + drain) a net loss -- reverted
+	                              // to the claimant window (drain-F) pending a coldness-aware design
+	if (fits && !lifted && sd_LedgerClaimant && !isClaimant && !isCompressor)
 	{
 		if (!wasParked && IsLedgerLogging()) // stall logged once per task
 			reportF_without_cancellation_check(MsgCategory::performance, SeverityTypeID::ST_MinorTrace

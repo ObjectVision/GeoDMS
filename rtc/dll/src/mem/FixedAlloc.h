@@ -89,7 +89,16 @@
 // Lives here, not in FixedAlloc.cpp: OperationContext.h conditions data members on it, so every
 // module must see the same setting -- a header both include is what guarantees that.
 // See doc/development/schedule-with-lookahead.md SS8.1.13/8.1.19.
-#define MG_CACHE_COLLECTDATA
+// OFF for the 20.10.0 release builds (2026-08-05): calibration instrumentation only.
+// #define MG_CACHE_COLLECTDATA
+
+// Free-store drainage (doc/development/schedule-with-lookahead.md SS8.1.32): give freed < 2 MB
+// object stores back to the OS once the machine's RAM use passes MemoryFlushThreshold. On by
+// default; /CF (or MemoryDrainage=0) switches it off. Cached like PerformanceLogging, so the
+// allocation path pays one relaxed load -- and the setter is what makes /CF take effect at once
+// instead of at the next pressure poll.
+RTC_CALL void SetFreeStackDrainageEnabled(bool enabled);
+RTC_CALL bool IsFreeStackDrainageEnabled();
 
 RTC_CALL void* AllocateFromStock(size_t sz MG_DEBUG_ALLOCATOR_SRC_ARG);
 RTC_CALL void  LeaveToStock(void* ptr, size_t sz);

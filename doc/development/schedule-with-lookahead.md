@@ -2861,6 +2861,61 @@ exhausted (§8.1.20, §8.1.30).
 
 ---
 
+### 8.1.32 What 20.11.0 ships: drainage on by the memory-flush threshold
+
+Release decision (user, 2026-08-05): drainage becomes a DEFAULT behaviour, triggered by the
+same "Threshold for memory flushing" percentage that already governs `IsLowOnFreeRAM`, and
+overridable by a setting. Until now drainage was reachable only through the admission gate,
+which is off by default — so no production run ever drained.
+
+**What ships.**
+
+| | before | 20.11.0 |
+|---|---|---|
+| trigger | `ResourceAwareScheduling=enforce` AND a pending claim | machine RAM use > `MemoryFlushThreshold` (default 80 %), gate-independent; the claim window still triggers it when the gate IS on |
+| default | never drains (gate off by default) | drains under RAM pressure |
+| off switch | — | `/CF` (back on: `/SF`), or registry `MemoryDrainage=0` |
+| keep-hot band | 4 stores | 4 in a claim window; **half of each stack** under standing RAM pressure |
+
+The poll is `IsLowOnFreeRAM()` at most once a second, and only on every 1024th ≥ 4 KB
+allocation, so steady state costs one relaxed load on the allocation path. `MemoryDrainage`
+joins the `RegDWordEnum` family (both the `_MSC_VER` and the GCC copy of `Environment.cpp` —
+that file carries two full copies of the registry code) and is cached like `PerformanceLogging`.
+
+**Why the keep band changes with the trigger.** §8.1.30 measured a standing trigger draining to
+the 4-store floor for a whole run: 1.7 TB re-committed, +20 % wall, peak unmoved. A claim window
+is short and has a task waiting, so draining to the floor is right there; standing pressure is
+open-ended, so each class now keeps half its free stack committed. The stack is LIFO: the
+retained half is exactly the band reuse comes from, which is what makes the difference between
+returning dead memory and re-implementing decommit-on-free.
+
+**Two defects found while validating the switch**, both worth remembering because they are the
+kind that make a setting look implemented while doing nothing:
+
+1. *A latched decision.* The effective drainage flag was recomputed only when the pressure bit
+   FLIPPED. The first poll happens during module init, before the command line is parsed, so
+   `/CF` was silently ignored. Fixed by recomputing unconditionally each poll AND by giving the
+   setting its own cached setter (`SetFreeStackDrainageEnabled`, the `SetPerformanceLogging`
+   pattern) that recomputes immediately — otherwise a run shorter than the poll interval could
+   never honour the switch.
+2. *`/L` must come first.* `main1` strips `/L<file>` only when it is argv[0]; `ParseRegStatusFlags`
+   then consumes leading `/S`/`/C` flags and the unknown-option guard rejects anything else that
+   still starts with `/`. So `GeoDmsRun /CF /L<log> cfg item` exits with code 2 while
+   `GeoDmsRun /L<log> /CF cfg item` works. Pre-existing, not introduced here, but it is what a
+   drainage switch will be typed against.
+
+Verified: probes at normal RAM (`drained 0x`), under forced pressure (`MemoryMaxRAM_GB=2` ⇒
+`drained 138x = 69 MB`), and the same with `/CF` (`drained 0x`); typed-HOF battery 188/188.
+
+**Also set for release:** `MG_CACHE_COLLECTDATA` is OFF in `mem/FixedAlloc.h`. It is the
+calibration-only block→owner register — a mutexed map insert/erase per ≥ 4 KB allocation — and
+the always-on counters (PeakLiveLarge, the histogram, the drain gauges) do not depend on it.
+The §8.1.30 pressure couplings in the ledger are reverted to the claimant window (drain-F, the
+measured operating point: same peak as drain-G at 20 % less wall); `UpdateLedgerCommitPressure`
+survives as a log-only observation.
+
+---
+
 ## 9. Risks and open questions
 
 **Risks**
