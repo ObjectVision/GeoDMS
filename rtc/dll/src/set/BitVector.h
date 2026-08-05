@@ -20,6 +20,7 @@
 #include "set/rangefuncs.h"
 #include "utl/swap.h"
 
+#include <utility> // std::forward, for the emplace_back conformance overload below
 #include <vector>
 
 //======================== FORWARD DECL
@@ -658,6 +659,21 @@ struct BitVector : bit_info<N, Block>
 		enable_nr_blocks(bit_info_t::calc_nr_blocks(newNrElems) MG_DEBUG_ALLOCATOR_SRC_PARAM);
 		m_NrElems = newNrElems;
 		operator [](oldNrElems) = v;
+	}
+
+	// Conformance for generic code that must compile against BOTH branches of my_elem_vec_t
+	// (std::vector for ordinary value types, this for bit values). push_back is NOT a drop-in
+	// substitute for emplace_back at such a call site: appending a sequence element copy-
+	// initialises the value_type, and e.g. SA_ConstReference<char> -> SharedStr is ambiguous
+	// under GCC in copy-initialisation while the direct-initialisation emplace_back performs is
+	// not (it broke the Linux build of clc/Index.cpp). Bits are built in place regardless, so
+	// this simply forwards.
+	template <typename ...Args>
+	void emplace_back(Args&&... args)
+	{
+		push_back(bit_value<N>(std::forward<Args>(args)...)); // == bit_info_t::value_type, but not a
+		                                                     // dependent name: GCC parses that as a
+		                                                     // non-type in expression context
 	}
 
 	void erase(iterator b, iterator e)

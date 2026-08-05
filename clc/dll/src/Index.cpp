@@ -187,7 +187,9 @@ public:
 		my_elem_vec_t<V> argData; argData.reserve(trd->GetElemCount());
 		for (tile_id t = 0, te = trd->GetNrTiles(); t != te; ++t)
 			for (const auto& v : di->GetTile(t))
-					argData.push_back(v); // push_back, not emplace_back: BitVector (the bit branch) has no emplace
+					argData.emplace_back(v); // in-place: a sequence element (SA_ConstReference<char> for
+					                         // string V) converts unambiguously only in direct-init; BitVector
+					                         // grew a forwarding emplace_back for the bit branch
 
 		visit<typelists::ulongs>(resultValuesUnit, [result, &argData]<typename I>(const Unit<I>* values)
 		{

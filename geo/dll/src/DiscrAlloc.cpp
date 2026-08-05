@@ -3339,12 +3339,15 @@ public:
 	{
 		arg_index n = GetNrArguments();
 		auto a0 = dynamic_cast<const DataItemClass*>(GetArgClass(0));
-		sig_var A = sb.UnitVar("allocUnit"), AT = no_sig_var;
+		// ATv, not AT: the enclosing class template already has a type parameter AT, and a local
+		// that shadows a template parameter is ill-formed ([temp.local]/6) -- GCC rejects it,
+		// MSVC accepts it silently.
+		sig_var A = sb.UnitVar("allocUnit"), ATv = no_sig_var;
 		if (a0)
 		{
 			sig_var TN = sb.UnitVar("typeName"); sb.MemberValueClass(TN, a0->GetValuesType()); // string names
-			AT = sb.UnitVar("AllocTypes");
-			sb.ArgName(0, "typeNames"); sb.ArgAttr(0, TN, AT, ValueComposition::Single);        // attribute<string>(AT)
+			ATv = sb.UnitVar("AllocTypes");
+			sb.ArgName(0, "typeNames"); sb.ArgAttr(0, TN, ATv, ValueComposition::Single);        // attribute<string>(AT)
 		}
 		else
 			sb.ArgDeferred(0, "typeNames");
@@ -3384,8 +3387,8 @@ public:
 		// are void parameters, deliberately left deferred; typing them would need two
 		// distinct default-class vars anyway — a DefaultUnit shares the role token
 		// "default", so two would collide in the unifier's (owner,inst,role) keying.)
-		if (AT != no_sig_var)
-			sb.ResultContainerMember("landuse", AT, A, ValueComposition::Single);        // attribute<AT>(allocUnit)
+		if (ATv != no_sig_var)
+			sb.ResultContainerMember("landuse", ATv, A, ValueComposition::Single);        // attribute<AT>(allocUnit)
 		sb.ResultContainerMember("bid_price",  no_sig_var, A, ValueComposition::Single); // attribute<S>(allocUnit), conditional (present iff a suitability map is found)
 
 		// K11b result side: the NAME-DIRECTED member families. Per ggType (named by
