@@ -2716,6 +2716,61 @@ allocating hard THROUGH a claim window, which t641 does not.
 
 ---
 
+### 8.1.29 What the 181 G peak IS, and what reordering can still do about it
+
+The question (user, 2026-08-05), now that the peak is live-bound: what is the live mass at the
+crest allocated FOR, and could a different order of operations reduce it? Method: phase/cone
+decomposition of the t641_2 census+perf timeline (`scratch/live_decomp.py` over the Aug 3 run —
+completion windows and masses per year/sequence/sector-region bucket, per-minute production
+beside the huge-alloc live sampler, early-vs-in-phase attribution).
+
+**The workload's measured shape.** The allocation is far more serial than assumed: the three
+Zichtjaren are chained (zero year mass completes before its phase: 0 B for Y2040, 0.27 G for
+Y2050); within a year, Seq_0 (3-4 min) then Seq_1 (60-90 s); within a sequence, the
+sector-region cones run one after another (Wonen 08:36:06-08:38:55, then Werken
+08:38:51-08:39:26, then ... Wind 08:42:07-08:43:14 — the discrete allocation is a chain through
+the shared claimed-space state), each producing 13-75 G of mostly anonymous iteration
+intermediates in 15-170 s. Production peaks at ~250 G/MINUTE against a live ceiling of 172 G:
+the interest machinery recycles at production rate, and the inter-wave troughs sit at 60-75 G.
+**The classic reordering wins are already taken — by data dependency, not by the scheduler.**
+
+**The crest, decomposed.** The live sampler's maxima land on the year TRANSITIONS (08:44 =
+Y2030/Seq_1 → Y2040, 145.5 G at events; 08:49 = Y2040/Seq_1 → Y2050, 143.2 G; true unsampled
+crest 171.9 G in those windows). Composition, from the trough/crest arithmetic and the bucket
+windows:
+
+| component | size | held because |
+|---|---|---|
+| standing base at the troughs | 60-75 G | current year's suitability (55-66 G produced, of interest until its LAST sequence ends) + carried VariantData/StartState + accumulated per-sector final states |
+| the Seq_1 wave in flight | ~75-85 G | crest minus trough: iteration intermediates + per-sector 555 MB AdminDomain grids between production and consumption — residency = production rate × consumer lag |
+| transition overlap | ~20-30 G | the INCOMING year's suitability built early (measured: 19.5 G of Y2040's 55 G completed during Y2030's phase) while the OUTGOING year's base is still legitimately held through its Seq_1 |
+
+**What a different order can and cannot do.**
+
+1. *Cannot*: serialize what is already serial. Years, sequences, and sector-region cones are
+   chains; the 60-110 G of breadth-slack §8.1.23 estimated for t641_1's BAG phase (where 7
+   cones genuinely overlap) does NOT transfer to t641_2 — its measured overlap is nearly zero.
+2. *Can, ~20-40 G*: **phase hygiene at the transitions** — defer the next year's suitability
+   cone until the current year's Seq_1 has completed (today the scheduler runs its ready
+   leaves early because workers are free). This is a genuine ordering lever, it targets
+   exactly the crest minutes, and it is the admission drain policy's natural complement: the
+   claimant window already defers growers; a phase-aware priority would defer READY
+   next-phase roots too. Ceiling: crest ~172 → ~135-150 G.
+3. *The rest is residency, not order*: the wave's ~75-85 G is production-rate × consumer-lag
+   inside a chain — shrinkable only by tightening producer-consumer distance (the §4.4.1
+   consumer-synchronization lever, P1's skew finding resurfacing at scale) or by
+   spill/recompute of per-iteration states; and the standing base shrinks only by releasing
+   suitability layers per-sector after last use (retention policy) rather than per-year.
+
+So the ordering answer is: yes, but modestly and at a specific place — the year transitions —
+for ~20-40 G; the road from 181 G to the §8.1.23 floor (~65 G) runs through consumer
+synchronization and retention/spill, not through admission or further serialization. The
+write tail is a separate, smaller story: only 16.3 G of new production completes after the
+allocation ends; the end-phase commit LEVEL is retained-awaiting-write (~45-50 G live) plus
+the undrained claim-free pool (~89 G, the commit-vs-budget trigger's remaining target).
+
+---
+
 ## 9. Risks and open questions
 
 **Risks**
