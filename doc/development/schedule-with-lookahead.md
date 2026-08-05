@@ -2826,6 +2826,41 @@ work, not scheduler-policy work.
 
 ---
 
+### 8.1.31 One iteration state weighs 7.7 G, and the states ARE the peak
+
+The user's framing (2026-08-05): most calculations are per-element and should tile-pipeline;
+only the allocations are iteratively global-state-affecting — so how much is ONE iteration
+state, and how does it relate to the retained peak? Measured from the census log
+(`/Iters_Normaal/Iter_j/StateNaAllocatie*` aggregation):
+
+- **One `StateNaAllocatie` container = 7.1-8.2 G** — not one grid but a container of
+  per-sector full-AdminDomain attributes (Werken 2.51 G, PandFootprint 2.51 G, Wonen 1.88 G,
+  Wind 0.64 G, Verblijfsrecreatie/Landbouw/Zon 0.43 G each, plus SubSector_rel/OP_rel — ~12
+  attributes × 145.6 M cells × 1-4 B).
+- Each iteration runs ~2.75 such state sub-steps (`StateNaAllocatie0/1/2`): **~15 G per
+  iteration**, five iterations per sector-region cone (330 state containers over 120
+  iterations in the run).
+- **Σ state mass = 1 238.5 G of 1 321.8 G total iteration production — 94 %.** The premise is
+  confirmed exactly: the per-element work between states pipelines into insignificance; the
+  allocation states are the memory.
+
+**Relation to the peak.** A perfectly synchronized iteration chain holds state(j) while
+state(j+1) is being built: **2 states ≈ 15-16 G per active cone** — the data-imposed minimum.
+The measured in-flight wave is 75-85 G ≈ **ten state containers**: roughly two full
+iterations' sub-step sets plus neighbours, i.e. ~4-5 states of excess retention beyond the
+2-state minimum. The mechanism is §4.4.1 verbatim at container granularity: each state's
+per-sector attributes are consumed by DIFFERENT downstream chains at different moments, so
+the container's last sub-attribute's last consumer sets the whole container's lifetime, and
+deferred-regime tile holders keep each attribute whole meanwhile. The concrete
+consumer-synchronization target follows: advance the consumers of one state's attributes
+together and release the container as a unit once state(j+1) exists — wave 75-85 → ~15-20 G,
+crest ~172 → ~100-110 G; the remaining distance to the ~65 G floor is the suitability base
+(per-sequence spill/JIT, §8.1.29). The lever ordering for t641_2 is thereby final:
+state-lifetime discipline first, base residency second, everything scheduler-side already
+exhausted (§8.1.20, §8.1.30).
+
+---
+
 ## 9. Risks and open questions
 
 **Risks**
