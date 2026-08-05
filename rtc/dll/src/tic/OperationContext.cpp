@@ -1747,6 +1747,43 @@ RTC_CALL void SetFreeStackDrainageMode(bool); // FixedAlloc.cpp: while on, each 
 
 static OperationContext* sd_LedgerClaimant = nullptr;       // under cs_ThreadMessing
 static SizeT sd_LedgerClaimBytes = 0;                       // its charge, for the log
+static bool  sd_LedgerCommitPressure = false;               // under cs_ThreadMessing; refreshed ~1/s
+static Int64 sd_LedgerPressureCheckNs = 0;
+
+RTC_CALL SizeT GetProcessCommitBytes(); // FixedAlloc.cpp: PagefileUsage, the §8.1.23 pressure gauge
+static SizeT LedgerBudgetBytes();       // defined below, beside the charge policy
+
+// Drainage (§8.1.24, trigger widened §8.1.30) follows BOTH pressure signals: a pending claim,
+// or standing process commit above the budget. Enforce only -- shadow observes without
+// changing memory behaviour. All callers hold cs_ThreadMessing.
+static void UpdateFreeStackDrainageMode()
+{
+	SetFreeStackDrainageMode(GetResourceScheduling() == resource_scheduling::enforce
+		&& (sd_LedgerClaimant != nullptr || sd_LedgerCommitPressure));
+}
+
+// §8.1.30: the commit-vs-budget pressure signal -- one GetProcessMemoryInfo per second, not
+// per admission. It is what lets the drain reach the claim-free end phase (§8.1.26/27's ~89 G
+// residual) and what arms the phase-hygiene deferral of ready next-phase roots.
+static bool UpdateLedgerCommitPressure()
+{
+	auto nowNs = std::chrono::steady_clock::now().time_since_epoch().count();
+	if (nowNs - sd_LedgerPressureCheckNs > 1'000'000'000)
+	{
+		sd_LedgerPressureCheckNs = nowNs;
+		bool pressure = GetProcessCommitBytes() > LedgerBudgetBytes();
+		if (pressure != sd_LedgerCommitPressure)
+		{
+			sd_LedgerCommitPressure = pressure;
+			UpdateFreeStackDrainageMode();
+			if (IsLedgerLogging())
+				reportF_without_cancellation_check(MsgCategory::performance, SeverityTypeID::ST_MinorTrace
+					, "ledger commit pressure {}: {}"
+					, pressure ? "ON" : "off", GetMemoryStatus());
+		}
+	}
+	return sd_LedgerCommitPressure;
+}
 static UInt64 sd_LedgerClaimSeenAdmitGeneration = 0;        // admit generation at its previous refusal
 // Two generations, for two different questions. Releases gate RETRIES: a parked task's budget
 // situation only improves when memory comes free, so it is re-tested on a release (or on idleness).
@@ -2013,19 +2050,30 @@ static bool AdmitOrRequeue(OperationContext* self)
 	if (!fits && isClaimant && admitGen == sd_LedgerClaimSeenAdmitGeneration)
 		fits = lifted = true;
 
-	// Drain policy: while the claimant waits, work that ADDS retained memory is deferred even when
-	// it fits -- ready leaves of other branches must not consume the budget it is waiting for.
-	// Compressors keep flowing: they are what drains toward admitting it.
-	if (fits && !lifted && sd_LedgerClaimant && !isClaimant && !isCompressor)
+	// Drain policy: work that ADDS retained memory is deferred even when it fits, while either
+	// a refused claimant waits -- ready leaves of other branches must not consume the budget it
+	// is waiting for -- or the PROCESS commit stands above the budget (§8.1.30 phase hygiene:
+	// under standing pressure, ready roots of LATER phases must not inflate the current crest;
+	// measured on t641_2, 19.5 G of next-year suitability ran a whole phase early). Compressors
+	// keep flowing: they are what drains toward relief. Pressure alone defers only while
+	// something else runs: with an idle worker pool the frontier must proceed whatever it
+	// costs, or an all-grower runnable set would deadlock -- the claimant path has its own
+	// idle lift (a) for the same reason.
+	bool commitPressure = UpdateLedgerCommitPressure();
+	if (fits && !lifted && !isClaimant && !isCompressor
+		&& (sd_LedgerClaimant || (commitPressure && sd_LedgerRunningOps > 0)))
 	{
 		if (!wasParked && IsLedgerLogging()) // stall logged once per task
 			reportF_without_cancellation_check(MsgCategory::performance, SeverityTypeID::ST_MinorTrace
-				, "admission {}: {} would add {} B retained while {} waits for {} B"
+				, "admission {}: {} would add {} B retained while {}"
 				, (mode == resource_scheduling::enforce ? "deferred" : "would defer")
 				, self->m_Result ? self->m_Result->GetSourceName() : SharedStr("?")
 				, est.residentMemory - est.reclaimableInputMemory
-				, sd_LedgerClaimant->m_Result ? sd_LedgerClaimant->m_Result->GetSourceName() : SharedStr("?")
-				, sd_LedgerClaimBytes);
+				, sd_LedgerClaimant
+					? mySSPrintF("{} waits for {} B"
+						, sd_LedgerClaimant->m_Result ? sd_LedgerClaimant->m_Result->GetSourceName() : SharedStr("?")
+						, sd_LedgerClaimBytes)
+					: mySSPrintF("process commit exceeds the {} B budget", budget));
 		if (mode == resource_scheduling::enforce)
 		{
 			self->m_LedgerParkedReleaseGen = releaseGen + 1;
@@ -2042,7 +2090,7 @@ static bool AdmitOrRequeue(OperationContext* self)
 		{
 			sd_LedgerClaimant = nullptr;
 			sd_LedgerClaimBytes = 0;
-			SetFreeStackDrainageMode(false); // claim resolved: stop returning cold stores
+			UpdateFreeStackDrainageMode(); // claim resolved; drainage persists only under standing commit pressure
 		}
 		if (wasParked && IsLedgerLogging()) // resume logged once per task, lifts included
 			reportF_without_cancellation_check(MsgCategory::performance, SeverityTypeID::ST_MinorTrace
@@ -2063,9 +2111,7 @@ static bool AdmitOrRequeue(OperationContext* self)
 		sd_LedgerClaimBytes = charge;
 		// While the claim pends, the allocator gives cold freed stores back to the OS (§8.1.24):
 		// the same pressure signal that defers growers also shrinks the committed dead pool.
-		// Enforce only -- shadow mode must keep observing without changing memory behaviour.
-		if (mode == resource_scheduling::enforce)
-			SetFreeStackDrainageMode(true);
+		UpdateFreeStackDrainageMode(); // enforce-only inside; shadow keeps observing
 	}
 	if (sd_LedgerClaimant == self)
 		sd_LedgerClaimSeenAdmitGeneration = admitGen;
@@ -2111,7 +2157,7 @@ void MemoryLedger_Release(OperationContext* self)
 	{
 		sd_LedgerClaimant = nullptr;
 		sd_LedgerClaimBytes = 0;
-		SetFreeStackDrainageMode(false);
+		UpdateFreeStackDrainageMode();
 	}
 
 	if (!self->m_LedgerBooked)

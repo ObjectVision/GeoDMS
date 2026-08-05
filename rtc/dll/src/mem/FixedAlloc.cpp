@@ -1251,6 +1251,26 @@ RTC_CALL auto GetAllocHistogram() -> SharedStr
 	return mySSPrintF("alloc histogram (log2 buckets, >=4K):{}", result);
 }
 
+// The §8.1.23 pressure gauge as a number: what the ledger's commit-vs-budget trigger (§8.1.30)
+// compares against the budget. Windows: commit charge; elsewhere the resident set is the
+// nearest standing-pressure proxy.
+RTC_CALL SizeT GetProcessCommitBytes()
+{
+#if defined(WIN32)
+	PROCESS_MEMORY_COUNTERS processInfo;
+	GetProcessMemoryInfo(GetCurrentProcess(), &processInfo, sizeof(PROCESS_MEMORY_COUNTERS));
+	return processInfo.PagefileUsage;
+#else
+	SizeT vmRSS = 0;
+	std::ifstream status("/proc/self/status");
+	std::string line;
+	while (std::getline(status, line))
+		if (line.compare(0, 6, "VmRSS:") == 0)
+			std::sscanf(line.c_str(), "VmRSS: %zu", &vmRSS);
+	return vmRSS * 1024;
+#endif
+}
+
 RTC_CALL auto GetMemoryStatus() -> SharedStr
 {
 #if defined(WIN32)

@@ -2771,6 +2771,61 @@ the undrained claim-free pool (~89 G, the commit-vs-budget trigger's remaining t
 
 ---
 
+### 8.1.30 The commit-pressure trigger, tried: pool annihilated, peak unmoved, wall pays
+
+Implemented (user request 2026-08-05): `UpdateLedgerCommitPressure()` — one
+`GetProcessMemoryInfo` per second under `cs_ThreadMessing`, comparing process commit against
+the budget — feeding BOTH standing verdicts through one signal: drainage mode persists while
+pressure stands (`UpdateFreeStackDrainageMode()`, now the single authority over the flag),
+and the drain-policy branch defers growers under pressure even without a claimant (the
+§8.1.29 phase-hygiene deferral of ready next-phase roots), guarded by
+`sd_LedgerRunningOps > 0` so an all-grower runnable set cannot deadlock. Probe: pressure
+flips ON at 22 MB against a 20 MB budget, clean completion; battery 188/188; gate-off
+untouched. Seventh t641_2 arm (test OK), against §8.1.28's claimant-only arm:
+
+| metric | drain-F (claimant-only) | drain-G (+ pressure) |
+|---|---|---|
+| true commit peak (compk) | 181.12 G | 180.99 G — **unchanged** |
+| pool at the crest / pool high-water | ~35-40 G / 103.5 G | **~9 G / 23.6 G** |
+| live at the crest sample / true live peak | 141.0 / 176.0 G | 166.85 / 176.0 G |
+| drained | 229.9 GiB | **1 692.8 GiB**, 155.5 s syscall time (9.8 M calls) |
+| pressure deferrals | — | 10 967 parks over 38 pressure windows |
+| wall | 1 343 s | **1 610 s (+20 %)** |
+
+Three findings, each decisive:
+
+1. **The pool half worked perfectly and bought nothing.** Standing drainage annihilates the
+   pool — crest share 40 → 9 G, high-water 103 → 24 G, the §8.1.27 end-phase 89 G gone — and
+   compk does not move, because §8.1.28 already established the peak is LIVE-bound: squeezing
+   the pool at the crest just raises the live share of the same total. The pool levers are
+   hereby measured to exhaustion: they were worth −12 G of compk (193.5 → 181), all of it
+   already collected by the claimant-window arms.
+2. **Standing drainage resurrects the §8.1.24 refault tax at scale.** 1.7 TB drained on a run
+   whose pool never exceeds 24 G means the sweep continuously eats each wave's freed stores
+   and the next wave re-commits them: decommit-on-free through the back door, 9.8 M syscalls
+   (§8.1.14 was 34 M), +267 s of wall. The 4-store keep-hot band is calibrated for claim
+   windows, not for a drain that never ends. A coldness discriminator (store age, or a much
+   deeper keep band under standing pressure) is REQUIRED before a standing trigger can be a
+   win — a backlog-size gate cannot help, because the churn regenerates backlog faster than
+   any threshold filters it.
+3. **The phase-hygiene deferral is inert at admission level.** 10 967 growers parked, live
+   crest identical to the sample (176.0 G): the transition mass §8.1.29 attributed to early
+   next-year suitability does not arrive through ADMISSIONS the gate can defer — it arrives
+   as tile-level work inside already-admitted deferred-regime chains, which is §4.4.1's
+   territory (consumer synchronization), not admission's. This closes the admission chapter
+   for t641_2 twice over: neither breadth (§8.1.20) nor phase order (here) moves its peak
+   through the gate.
+
+**Operating guidance until refined:** the claimant-window trigger (drain-F) is the better
+operating point — same peak, 20 % less wall — so the pressure trigger should not be adopted
+as-is; the code stays (enforce is opt-in, the signal and plumbing are what a coldness-aware
+version needs) with this section as the warning label. The lever that remains for the 181 G
+peak is unchanged by two more experiments: §4.4.1 consumer synchronization against the
+75-85 G in-flight wave, and per-sequence spill/JIT of the suitability base — tile-machinery
+work, not scheduler-policy work.
+
+---
+
 ## 9. Risks and open questions
 
 **Risks**
