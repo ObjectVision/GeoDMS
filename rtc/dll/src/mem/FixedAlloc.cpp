@@ -477,6 +477,46 @@ RTC_CALL bool InFreeStackDrainageMode() { return s_FreeStackDrainageMode.load(st
 static std::atomic<UInt32> s_DrainagePollCountdown = 0;
 static std::atomic<Int64> s_DrainageNextPollNs = 0;
 
+// The allocator must not touch the configuration system before the runtime is up.
+// ConsiderDrainagePressure reads THREE registry settings -- MemoryFlushThreshold and
+// MemoryRAM_MAX_GB via IsLowOnFreeRAM, and MemoryDrainage via UpdateEffectiveDrainage -- but
+// allocation starts during module initialisation, long before any of that exists. On Linux
+// RTC_GetRegDWord is served from an ini cache whose std::map is a dynamically initialised static
+// in another translation unit, and static init order across TUs is unspecified: the very first
+// large allocation (TokenComponent's string pool, from libDmRtc's own static init) walked an
+// unconstructed red-black tree and segfaulted, so EVERY GeoDmsRun/GeoDmsGuiQt invocation died at
+// startup on Linux -- 20.11.0 exit 139 on every unit test. Windows was unaffected only because
+// RTC_GetRegDWord reads the real registry there rather than an ini file.
+//
+// So (user design 2026-08-06): until the process has allocated DRAINAGE_ARM_BYTES, behave as if
+// MemoryFlushThreshold were 100% -- never low on RAM, hence no pressure drainage -- and read no
+// configuration at all. The first large allocation past that mark arms the poll and reads the
+// settings ONCE. A process that never allocates 8 GB never reads them from here, and any process
+// that does has long since finished startup and config load, so the threshold is picked up from
+// the real setting rather than assumed.
+constexpr SizeT DRAINAGE_ARM_BYTES = SizeT(8) << 30; // 8 GB of large allocations
+static std::atomic<SizeT> s_LargeAllocBytesTotal = 0; // cumulative; drives the arming test only
+static std::atomic<bool>  s_DrainageArmed = false;
+
+// false while the allocator must stay clear of the configuration system.
+static bool ArmDrainageWhenWarm(size_t objectSize)
+{
+	if (s_DrainageArmed.load(std::memory_order_relaxed))
+		return true;
+
+	auto total = s_LargeAllocBytesTotal.fetch_add(objectSize, std::memory_order_relaxed) + objectSize;
+	if (total < DRAINAGE_ARM_BYTES)
+		return false;
+
+	// Exactly one thread arms, and it is the one that pays for the single registry read.
+	bool expected = false;
+	if (!s_DrainageArmed.compare_exchange_strong(expected, true, std::memory_order_relaxed))
+		return true; // another thread got there first
+
+	IsFreeStackDrainageEnabled(); // read MemoryDrainage once and latch it into s_DrainageEnabled
+	return true;
+}
+
 static void ConsiderDrainagePressure()
 {
 	if (s_DrainagePollCountdown.fetch_add(1, std::memory_order_relaxed) % 1024)
@@ -1084,7 +1124,10 @@ void* AllocateFromStock(size_t objectSize MG_DEBUG_ALLOCATOR_SRC_ARG)
 
 	if (objectSize >= LARGE_ALLOC_THRESHOLD)
 	{
-		ConsiderDrainagePressure(); // §8.1.32: RAM use vs MemoryFlushThreshold, ~1/s
+		// §8.1.32: RAM use vs MemoryFlushThreshold, ~1/s -- but only once the process is warm
+		// enough that reading configuration is safe; see ArmDrainageWhenWarm.
+		if (ArmDrainageWhenWarm(objectSize))
+			ConsiderDrainagePressure();
 		s_AllocSizeHistogram[std::bit_width(objectSize) - 1].fetch_add(1, std::memory_order_relaxed);
 
 		auto live = s_LiveLargeAllocBytes.fetch_add(objectSize, std::memory_order_relaxed) + objectSize;

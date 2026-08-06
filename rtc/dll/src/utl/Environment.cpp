@@ -2154,9 +2154,32 @@ static SharedStr GetGeoDmsIniPath()
 // Simple in-memory INI cache: section -> (key -> value)
 using IniData = std::map<std::string, std::map<std::string, std::string>>;
 
+// Function-local, NOT namespace-scope. std::map is dynamically initialised, and this cache is
+// read during static initialisation of other translation units -- every static GetTokenID_st()
+// goes through EventLog_HideDepreciatedCaseMixupWarnings() -> GetRegStatusFlags() -> IniGet(),
+// and the allocator reaches it too. Static init order ACROSS translation units is unspecified,
+// so a namespace-scope std::map here was routinely used before its constructor had run: the
+// red-black tree walk dereferenced garbage and SIGSEGV'd. That killed every GeoDmsRun and
+// GeoDmsGuiQt invocation on Linux at startup (20.11.0: exit 139 on all unit tests); Windows was
+// unaffected only because RTC_GetRegDWord reads the real registry there instead of this file.
+//
+// A function-local static is constructed on first use, whenever that is, which is exactly the
+// guarantee the namespace-scope version lacked. std::mutex is left as-is deliberately: its
+// default constructor is constexpr, so it is constant-initialised and safe before any dynamic
+// initialisation runs.
 static std::mutex s_IniMutex;
-static IniData    s_IniData;
-static bool       s_IniLoaded = false;
+
+static IniData& IniDataRef()
+{
+    static IniData s_IniData;
+    return s_IniData;
+}
+
+static bool& IniLoadedRef()
+{
+    static bool s_IniLoaded = false;
+    return s_IniLoaded;
+}
 
 static void EnsureIniDirExists()
 {
@@ -2174,8 +2197,8 @@ static void EnsureIniDirExists()
 
 static void LoadIni_Locked()
 {
-    if (s_IniLoaded) return;
-    s_IniLoaded = true;
+    if (IniLoadedRef()) return;
+    IniLoadedRef() = true;
 
     auto path = GetGeoDmsIniPath();
     FILE* f = fopen(path.c_str(), "r");
@@ -2206,7 +2229,7 @@ static void LoadIni_Locked()
             {
                 std::string key(p, eq);
                 std::string val(eq + 1);
-                s_IniData[section][key] = val;
+                IniDataRef()[section][key] = val;
             }
         }
     }
@@ -2219,7 +2242,7 @@ static void SaveIni_Locked()
     auto path = GetGeoDmsIniPath();
     FILE* f = fopen(path.c_str(), "w");
     if (!f) return;
-    for (auto& [sec, kv] : s_IniData)
+    for (auto& [sec, kv] : IniDataRef())
     {
         fprintf(f, "[%s]\n", sec.c_str());
         for (auto& [k, v] : kv)
@@ -2233,8 +2256,8 @@ static std::string IniGet(const char* section, const char* key, const char* defa
 {
     std::lock_guard lock(s_IniMutex);
     LoadIni_Locked();
-    auto si = s_IniData.find(section);
-    if (si == s_IniData.end()) return defaultValue;
+    auto si = IniDataRef().find(section);
+    if (si == IniDataRef().end()) return defaultValue;
     auto ki = si->second.find(key);
     if (ki == si->second.end()) return defaultValue;
     return ki->second;
@@ -2244,7 +2267,7 @@ static void IniSet(const char* section, const char* key, const char* value)
 {
     std::lock_guard lock(s_IniMutex);
     LoadIni_Locked();
-    s_IniData[section][key] = value;
+    IniDataRef()[section][key] = value;
     SaveIni_Locked();
 }
 
