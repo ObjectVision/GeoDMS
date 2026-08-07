@@ -260,7 +260,11 @@ void DoOverlay(AbstrDataItem* resAtomicRegionGrid, IterRange<const overlay_parti
 	DataWriteLock resAtomicRegionGridLock(resAtomicRegionGrid);
 	for (tile_id t = 0; t != visitor.m_NrTiles; ++t)
 	{
-		typename DataArray<ResID>::locked_seq_t atomicRegionMap = mutable_array_cast<ResID>(resAtomicRegionGridLock)->GetDataWrite(t, dms_rw_mode::write_only_mustzero);
+		// write_only_all: the loop below assigns *arm_iter for every element of the tile (UNDEFINED_VALUE
+		// in the else-branch), so no zero-fill is needed. Note an explicit tile id does NOT imply a
+		// tiled functor: an untiled domain has exactly one tile (id 0) and lands on HeapSingleArray,
+		// which allocates in the DataWriteLock ctor -- so mustzero here was silently dropped.
+		typename DataArray<ResID>::locked_seq_t atomicRegionMap = mutable_array_cast<ResID>(resAtomicRegionGridLock)->GetDataWrite(t, dms_rw_mode::write_only_all);
 		ResID* arm_iter = atomicRegionMap.begin();
 		ResID* arm_end  = atomicRegionMap.end();
 

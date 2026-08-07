@@ -353,7 +353,11 @@ bool AbstrDataItem::DoReadItem(StorageMetaInfoPtr smi)
 		}
 		else
 		{
-			DataWriteLock readResultHolder(this);
+			// mustzero: the storage managers that fill this buffer (Shp/dbf/Odbc/Xdb) ask for
+			// write_only_mustzero on it, so a short or partial read leaves zeros rather than
+			// indeterminate memory. That mode has to be given HERE -- an untiled result allocates in
+			// the DataWriteLock ctor, so the mode passed to GetDataWrite() cannot zero anything.
+			DataWriteLock readResultHolder(this, dms_rw_mode::write_only_mustzero);
 			MG_CHECK(readResultHolder.get_ptr());
 			serial_for<tile_id>(0, GetAbstrDomainUnit()->GetNrTiles(),
 				[sm, smi, this, &readResultHolder](tile_id t)->void

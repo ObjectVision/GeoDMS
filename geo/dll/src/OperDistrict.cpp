@@ -80,7 +80,10 @@ struct DistrictOperator : public UnaryOperator
 			district_type nrDistricts = 0;
 
 			auto inputVec  = inputGrid->GetDataRead();
-			auto outputVec = resLock->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
+			// write_only_all: Districting() fills every cell when the rect is non-empty, and an empty rect
+			// means a zero-length result. The tile functor above is created with mustClear=false, so the
+			// mustzero request could never have been honoured.
+			auto outputVec = resLock->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
 
 			IRect rect = domain->GetRangeAsIRect();
 			if (!rect.empty())
@@ -164,7 +167,9 @@ public:
 			ResultType* result= mutable_array_cast<T>(resLock);
 
 			auto inputVec  = inputGrid->GetDataRead();
-			auto outputVec = result   ->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
+			// write_only_all: Diversity() fills every cell when the rect is non-empty, and an empty rect
+			// means a zero-length result; the lock above is write_only_all so mustzero was a no-op.
+			auto outputVec = result   ->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
 		
 			Range<T> range = values->GetRange();
 			assert(range.first < range.second);

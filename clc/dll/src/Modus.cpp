@@ -819,7 +819,12 @@ struct WeightedModusPart : public AbstrOperAccPartBin
 	void Calculate(DataWriteLock& res, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A, const AbstrDataItem* arg3A) const override
 	{
 		auto result = mutable_array_cast<ValueType>(res); assert(result);
-		auto resData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
+		// write_only_all, like ModusPart above: WeightedModusPartByTable/BySet assign every element of
+		// [0, nrP) -- gaps and tail included -- so no zero-fill is needed. Asking for mustzero here was
+		// unsatisfiable anyway: AbstrOperAccPartBin opens the lock write_only_all (deliberately -- the
+		// partial-aggregation family initialises via TAcc1Func::Init, not via the allocator), and an
+		// untiled result allocates in its ctor, so the request was silently dropped.
+		auto resData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
 
 		assert(resData.size() == res->GetTiledRangeData()->GetRangeSize()); // DataWriteLock was set by caller and p3 is domain of res
 

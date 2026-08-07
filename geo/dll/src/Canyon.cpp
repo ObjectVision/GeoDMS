@@ -185,10 +185,15 @@ public:
 			AbstrDataItem* res3 = AsDataItem(resultHolder.GetNew()->GetSubTreeItemByID(s_LLoc));
 			AbstrDataItem* res4 = AsDataItem(resultHolder.GetNew()->GetSubTreeItemByID(s_LRC ));
 
-			DataWriteLock res1Lock(res1);
-			DataWriteLock res2Lock(res2);
-			DataWriteLock res3Lock(res3);
-			DataWriteLock res4Lock(res4);
+			// mustzero HERE: the four GetDataWrite calls below sit inside `if (nrCalcPoints && nrBuildings)`,
+			// so with no buildings the results are never written at all. With the default write_only_all
+			// they were then committed as uninitialised memory instead of zeros -- the same defect class as
+			// issue #1169, and the mode must be given at the lock because an untiled result allocates in
+			// its ctor (the mode passed to GetDataWrite cannot zero anything afterwards).
+			DataWriteLock res1Lock(res1, dms_rw_mode::write_only_mustzero);
+			DataWriteLock res2Lock(res2, dms_rw_mode::write_only_mustzero);
+			DataWriteLock res3Lock(res3, dms_rw_mode::write_only_mustzero);
+			DataWriteLock res4Lock(res4, dms_rw_mode::write_only_mustzero);
 
 			if (nrCalcPoints && nrBuildings)
 			{

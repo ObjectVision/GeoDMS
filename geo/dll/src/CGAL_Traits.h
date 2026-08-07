@@ -299,11 +299,18 @@ auto cgal_split_assign_polygon_set(RI resIter, const CGAL_Traits::Polygon_set& p
 	polyData.polygons_with_holes(std::back_inserter(polyVec));
 	for (const auto& poly : polyVec)
 	{
-		SizeT count = poly.outer_boundary().size();
-		assert(count);
+		// Must match what cgal_assign_polygon_with_holes actually writes, which is what
+		// cgal_assign_polygon_with_holes_vector already counts per polygon:
+		//   cgal_assign_ring emits n+1 points per ring (first vertex, then all n in reverse, so the
+		//   ring closes), and after the rings the hole loop emits nh-1 hole first-vertices plus one
+		//   outer first-vertex -- i.e. nh extra. Total: outer+1 + sum(hole+2).
+		// This used to count outer + sum(hole+1), short by nh+1 (by 1 with no holes), which both
+		// under-reserved and tripped the postcondition assert below.
+		assert(poly.outer_boundary().size());
+		SizeT count = poly.outer_boundary().size() + 1;
 
 		for (const auto& hole : poly.holes())
-			count += hole.size() + 1;
+			count += hole.size() + 2;
 
 
 		resIter->clear();

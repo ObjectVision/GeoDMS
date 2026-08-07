@@ -679,7 +679,7 @@ struct BitVector : bit_info<N, Block>
 	void erase(iterator b, iterator e)
 	{
 		m_NrElems = fast_copy(e, end(), b) - begin();
-		m_bits.resize(bit_info_t::calc_nr_blocks(m_NrElems) );
+		m_bits.resize(bit_info_t::calc_nr_blocks(m_NrElems) MG_DEBUG_ALLOCATOR_SRC("BitVector::erase"));
 	}
 
 	void swap(BitVector& oth) { 
@@ -689,7 +689,7 @@ struct BitVector : bit_info<N, Block>
 
     void reserve(size_type n)
 	{
-		m_bits.reserve(bit_info_t::calc_nr_blocks(n));
+		m_bits.reserve(bit_info_t::calc_nr_blocks(n) MG_DEBUG_ALLOCATOR_SRC("BitVector::reserve"));
 	}
 
     size_type capacity() const
