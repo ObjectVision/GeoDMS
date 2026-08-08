@@ -84,8 +84,13 @@ public:
 			SRect  rect     = arg1->GetRange();
 			UInt32 size     = Cardinality(Size(rect));
 			UInt32 maxCount = arg2->GetCount();
-			DPoint origin   = GetValue<DPoint>(arg3A, 0);
-			DPoint increment= GetValue<DPoint>(arg4A, 0);
+			// GetCurrValue, not GetValue: the free GetValue<V> calls PrepareDataUsage(CertainOrThrow),
+			// whose Update bits are meta-thread-only (TreeItem.cpp:4143). CreateResult runs on a
+			// portable_task_group worker, so that tripped the IsMetaThread assert. The arguments are
+			// already prepared by the time the task runs, so a plain DataReadLock -- which is all
+			// GetCurrValue does -- is what is wanted here, as in OperDistrict's Diversity operator.
+			DPoint origin   = GetCurrValue<DPoint>(arg3A, 0);
+			DPoint increment= GetCurrValue<DPoint>(arg4A, 0);
 			SPoint topLeft = rect.first;
 			SPoint botRight= rect.second;
 			
@@ -97,7 +102,9 @@ public:
 
 			DataWriteLock resLock(res);
 			auto result = mutable_array_cast<UInt32>(resLock); assert(result);
-			auto resultData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero); assert(resultData.size() == size);
+			// write_only_all: the row/col loop below assigns every one of `size` elements. mustzero was
+			// unsatisfiable here anyway (untiled result, allocated by the lock above as write_only_all).
+			auto resultData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_all); assert(resultData.size() == size);
 
 			ResultType::iterator dai = resultData.begin();
 			DPoint currLoc = origin;

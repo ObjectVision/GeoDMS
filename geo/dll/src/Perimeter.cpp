@@ -60,8 +60,14 @@ public:
 
 			AbstrDataItem* result = AsDataItem(resultHolder.GetNew());
 
-			DataWriteLock resLock(result);
-			
+			// write_only_mustzero HERE, in the DataWriteLock ctor: this accumulates with += into
+			// the result buffer, so it must start at zero. The ctor is the only place the mode is
+			// honoured for an untiled result - HeapSingleArray allocates in its ctor and its
+			// GetWritableTile() ignores rwMode, so the mode passed to GetDataWrite() below cannot
+			// zero anything. Defaulting to write_only_all left the buffer uninitialised, which
+			// only showed up once the allocator started recycling dirty blocks (issue #1169).
+			DataWriteLock resLock(result, dms_rw_mode::write_only_mustzero);
+
 			auto inputVec   = inputGrid->GetDataRead();
 
 			IRect rect = domain->GetRangeAsIRect();
@@ -166,11 +172,11 @@ public:
 
 			AbstrDataItem* result = AsDataItem(resultHolder.GetNew());
 
-			DataWriteLock resLock(result);
-			
+			DataWriteLock resLock(result, dms_rw_mode::write_only_mustzero); // += accumulation; see PerimeterOperator
+
 			auto inputVec   = inputGrid->GetDataRead();
 			auto
-				northVec = const_array_cast<R>(args[1])->GetDataRead(), 
+				northVec = const_array_cast<R>(args[1])->GetDataRead(),
 				eastVec  = const_array_cast<R>(args[2])->GetDataRead(), 
 				southVec = const_array_cast<R>(args[3])->GetDataRead(), 
 				westVec  = const_array_cast<R>(args[4])->GetDataRead();

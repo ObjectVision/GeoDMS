@@ -142,13 +142,16 @@ auto make_unique_FutureTileFunctor(SharedMutableDataItem resultAdi, bool lazy, c
 		for (tile_id t = 0; t != tn; ++t)
 			preparedStates.emplace_back(pFunc(t));
 
+		// Deliberately no rwMode here: LazyTileFunctor::GetTile has already allocated the tile by the
+		// time this runs, so a mode passed now could not zero anything -- it only looked as if it
+		// could, and MustZero was being silently dropped. It now travels as the functor's template
+		// argument down to that allocation, mirroring the eager FutureTileFunctor path below.
 		auto lazyApplyFunc = [aFunc, preparedStates = std::move(preparedStates)](AbstrDataObject* ado, tile_id t)
 		{
-			auto rwMode = MustZero ? dms_rw_mode::write_only_mustzero : dms_rw_mode::write_only_all;
-			aFunc(mutable_array_cast<V>(ado)->GetWritableTile(t, rwMode), preparedStates[t]);
+			aFunc(mutable_array_cast<V>(ado)->GetWritableTile(t), preparedStates[t]);
 		};
 
-		return make_unique_LazyTileFunctor<V>(resultAdi, tiledDomainRangeData, valueRangePtr, std::move(lazyApplyFunc) MG_DEBUG_ALLOCATOR_SRC(std::move(srcStr)));
+		return make_unique_LazyTileFunctor<V, MustZero>(resultAdi, tiledDomainRangeData, valueRangePtr, std::move(lazyApplyFunc) MG_DEBUG_ALLOCATOR_SRC(std::move(srcStr)));
 	}
 
 	return std::make_unique<FutureTileFunctor<V, PrepareState, MustZero, PrepareFunc, ApplyFunc>>(resultAdi,
@@ -162,7 +165,10 @@ auto make_unique_FutureTileFunctor(SharedMutableDataItem resultAdi, bool lazy, c
 //----------------------------------------------------------------------
 // LazyTileFunctor
 //----------------------------------------------------------------------
-template <typename V, typename ApplyFunc>
+// MustZero is a template argument rather than a member for the same reason as in FutureTileFunctor:
+// it decides how GetTile allocates each tile, costs no runtime storage, and cannot then be
+// contradicted by an rwMode handed to GetWritableTile after the fact.
+template <typename V, bool MustZero, typename ApplyFunc>
 struct LazyTileFunctor : GeneratedTileFunctor<V>
 {
 	using typename TileFunctor<V>::locked_cseq_t;
@@ -202,10 +208,13 @@ struct LazyTileFunctor : GeneratedTileFunctor<V>
 	mutable std::weak_ptr<AbstrDataItem> m_ResultAdi; // std::weak_ptr-backed non-owning back-ref (lock at use)
 };
 
-template <typename V, typename ApplyFunc>
+// MustZero defaults to false to keep the four sites that construct a LazyTileFunctor directly
+// (ID.cpp, OperUnit.cpp, CastedUnaryAttrOper.h, AbstrDataItem.cpp) at today's behaviour; only
+// make_unique_FutureTileFunctor's lazy branch passes it explicitly.
+template <typename V, bool MustZero = false, typename ApplyFunc>
 auto make_unique_LazyTileFunctor(SharedMutableDataItem resultAdi, const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<field_of_t<V>> valueRangePtr, ApplyFunc&& aFunc MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr))
 {
-	return std::make_unique<LazyTileFunctor<V, ApplyFunc>>(resultAdi, tiledDomainRangeData, valueRangePtr, std::forward<ApplyFunc>(aFunc) MG_DEBUG_ALLOCATOR_SRC(std::move(srcStr)));
+	return std::make_unique<LazyTileFunctor<V, MustZero, ApplyFunc>>(resultAdi, tiledDomainRangeData, valueRangePtr, std::forward<ApplyFunc>(aFunc) MG_DEBUG_ALLOCATOR_SRC(std::move(srcStr)));
 }
 
 
@@ -214,8 +223,8 @@ auto make_unique_LazyTileFunctor(SharedMutableDataItem resultAdi, const AbstrTil
 //----------------------------------------------------------------------
 #include "mem/HeapSequenceProvider.h"
 
-template <typename V, typename ApplyFunc>
-auto LazyTileFunctor<V, ApplyFunc>::GetWritableTile(tile_id t, dms_rw_mode rwMode) -> locked_seq_t
+template <typename V, bool MustZero, typename ApplyFunc>
+auto LazyTileFunctor<V, MustZero, ApplyFunc>::GetWritableTile(tile_id t, dms_rw_mode rwMode) -> locked_seq_t
 {
 	assert(t < this->GetTiledRangeData()->GetNrTiles());
 
@@ -225,11 +234,20 @@ auto LazyTileFunctor<V, ApplyFunc>::GetWritableTile(tile_id t, dms_rw_mode rwMod
 	assert(tileSPtr); // called only from within m_Func
 	assert(tileSPtr->size() == this->GetTiledRangeData()->GetTileSize(t));
 
+	// Symmetric with HeapSingleArray::GetWritableTile: the tile was already allocated (by GetTile,
+	// from MustZero), so rwMode cannot zero anything here. An apply-func asking for a zeroed tile from
+	// a functor instantiated MustZero=false would silently accumulate into indeterminate memory --
+	// the shape of issue #1169. Only for fixed-size elements; sequence/string elements are
+	// raw_construct-ed regardless. Reachable via the four direct make_unique_LazyTileFunctor callers,
+	// whose apply-funcs choose their own mode; the FutureTileFunctor branch passes none.
+	if constexpr (has_fixed_elem_size_v<V>)
+		MGD_CHECK_OBJ(MustZero || rwMode != dms_rw_mode::write_only_mustzero);
+
 	return locked_seq_t(std::static_pointer_cast<void>(tileSPtr), GetSeq(*tileSPtr));
 }
 
-template <typename V, typename ApplyFunc>
-auto LazyTileFunctor<V, ApplyFunc>::GetTile(tile_id t) const -> locked_cseq_t
+template <typename V, bool MustZero, typename ApplyFunc>
+auto LazyTileFunctor<V, MustZero, ApplyFunc>::GetTile(tile_id t) const -> locked_cseq_t
 {
 	if (auto resultAdi = m_ResultAdi.lock(); resultAdi && resultAdi->WasFailed(FailType::Data))
 		resultAdi->ThrowFail();
@@ -243,10 +261,13 @@ auto LazyTileFunctor<V, ApplyFunc>::GetTile(tile_id t) const -> locked_cseq_t
 		{
 			tileSPtr = std::make_shared<tile_data>(); // done by GetWritableTile
 
-			resizeSO(*tileSPtr, this->GetTiledRangeData()->GetTileSize(t), false MG_DEBUG_ALLOCATOR_SRC("this->md_SrcStr"));
+			// THE allocation site for a lazy tile, so MustZero must be honoured here -- it was
+			// hardcoded false, which dropped the MustZero of every make_unique_FutureTileFunctor
+			// that took the lazy branch. (md_SrcStr was passed as a string literal, not its value.)
+			resizeSO(*tileSPtr, this->GetTiledRangeData()->GetTileSize(t), MustZero MG_DEBUG_ALLOCATOR_SRC(this->md_SrcStr.c_str()));
 
 			m_ActiveTiles[t].m_TileFutureWPtr = tileSPtr;
-			m_ApplyFunc(const_cast<LazyTileFunctor<V, ApplyFunc>*>(this), t);
+			m_ApplyFunc(const_cast<LazyTileFunctor<V, MustZero, ApplyFunc>*>(this), t);
 		}
 		assert(tileSPtr);
 		assert(tileSPtr->size() == this->GetTiledRangeData()->GetTileSize(t));

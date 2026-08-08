@@ -7,8 +7,8 @@
 @REM after this call.
 
 set DMS_VERSION_MAJOR=20
-set DMS_VERSION_MINOR=11
-set DMS_VERSION_PATCH=1
+set DMS_VERSION_MINOR=12
+set DMS_VERSION_PATCH=0
 
 REM Refresh the generated version + buildstamp headers -- but only ONCE per
 REM build session. Build.bat calls this file up-front; the guard below then

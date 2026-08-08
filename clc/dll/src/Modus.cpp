@@ -214,10 +214,10 @@ struct asUniqueListFunc {
 
 // assume v >> n; time complexity: n*log(min(v, n))
 template<typename V, typename R, typename AggrFunc>
-void ModusTotBySet(const DataArray<V>* tileFunctor, typename sequence_traits<R>::container_type::reference resData, AggrFunc aggrFunc)
+void ModusTotBySet(const DataArray<V>* tileFunctor, typename sequence_traits<R>::container_type::reference resData, bool valueMustBeDefined, AggrFunc aggrFunc)
 {
 	auto values_fta = GetFutureTileArray(tileFunctor);
-	auto counters = GetWeededWallCounts<V, SizeT>(values_fta, SizeT(-1));
+	auto counters = GetWeededWallCounts<V, SizeT>(values_fta, SizeT(-1), valueMustBeDefined);
 
 	resData = aggrFunc(counters.begin(), counters.end()
 	,	[](auto i) { return i->second; }
@@ -253,17 +253,20 @@ void ModusTotByTable(const DataArray<V>* tileFunctor, typename sequence_traits<R
 template <typename V> constexpr UInt32 map_node_type_size = sizeof(std::pair<std::pair<SizeT, V>, SizeT>) + 4 * sizeof(void*);
 
 template <typename V, typename R, typename AggrFunc>
-void ModusTotDispatcher(const DataArray<V>* valuesTF, bool noOutOfRangeValues, typename sequence_traits<R>::container_type::reference resData, AggrFunc aggrFunc)
+void ModusTotDispatcher(const DataArray<V>* valuesTF, bool noOutOfRangeValues, typename sequence_traits<R>::container_type::reference resData, bool valueMustBeDefined, AggrFunc aggrFunc)
 {
 	if constexpr (is_bitvalue_v<scalar_of_t<V>>)
 	{
+		// bit values have no null, so the table represents both variants exactly
 		ModusTotByTable<V, R>(valuesTF, resData, GetValuesRange<V>(valuesTF), aggrFunc);
 	}
 	else
 	{
 		if constexpr (is_integral_v<scalar_of_t<V>>)
 		{
-			if (noOutOfRangeValues)
+			// the table is indexed by values range and thus has no slot to count nulls in,
+			// so it can only serve the variant that skips them; compare ModusPart::ProcessData
+			if (noOutOfRangeValues && valueMustBeDefined)
 			{
 				typename Unit<V>::range_t valuesRange = GetValuesRange<V>(valuesTF);
 				// Countable values; go for Table if sensible
@@ -277,7 +280,7 @@ void ModusTotDispatcher(const DataArray<V>* valuesTF, bool noOutOfRangeValues, t
 				}
 			}
 		}
-		ModusTotBySet<V, R>(valuesTF, resData, aggrFunc);
+		ModusTotBySet<V, R>(valuesTF, resData, valueMustBeDefined, aggrFunc);
 	}
 }
 
@@ -639,7 +642,7 @@ public:
 		assert(result);
 		auto  resData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
 
-		 ModusTotDispatcher<V, ResultValueType>(const_array_cast<V>(arg1A), OnlyDefinedCheckRequired(arg1A), resData[0], m_AggrFunc);
+		ModusTotDispatcher<V, ResultValueType>(const_array_cast<V>(arg1A), OnlyDefinedCheckRequired(arg1A), resData[0], m_ValueMustBeDefined, m_AggrFunc);
 	}
 	AggrFunc m_AggrFunc;
 };
@@ -819,7 +822,12 @@ struct WeightedModusPart : public AbstrOperAccPartBin
 	void Calculate(DataWriteLock& res, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A, const AbstrDataItem* arg3A) const override
 	{
 		auto result = mutable_array_cast<ValueType>(res); assert(result);
-		auto resData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
+		// write_only_all, like ModusPart above: WeightedModusPartByTable/BySet assign every element of
+		// [0, nrP) -- gaps and tail included -- so no zero-fill is needed. Asking for mustzero here was
+		// unsatisfiable anyway: AbstrOperAccPartBin opens the lock write_only_all (deliberately -- the
+		// partial-aggregation family initialises via TAcc1Func::Init, not via the allocator), and an
+		// untiled result allocates in its ctor, so the request was silently dropped.
+		auto resData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
 
 		assert(resData.size() == res->GetTiledRangeData()->GetRangeSize()); // DataWriteLock was set by caller and p3 is domain of res
 
@@ -852,6 +860,7 @@ namespace
 	CommonOperGroup cogFequencyTable("frequency_table", oper_policy::better_not_in_meta_scripting);
 	CommonOperGroup cogFequencyTableWithNull("frequency_table_with_null", oper_policy::better_not_in_meta_scripting);
 	CommonOperGroup cogAsUniqueList("as_unique_list", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup cogAsUniqueListWithNull("as_unique_list_with_null", oper_policy::better_not_in_meta_scripting);
 
 	template <typename V, typename AggrFunc>
 	struct AggrFuncInst
@@ -884,6 +893,7 @@ namespace
 			, m_FreqTable(cogFequencyTable, default_unit_creator<SharedStr>, true)
 			, m_FreqTableWithNull(cogFequencyTableWithNull, default_unit_creator<SharedStr>, false)
 			, m_AsUniqueList(cogAsUniqueList, default_unit_creator<SharedStr>, true)
+			, m_AsUniqueListWithNull(cogAsUniqueListWithNull, default_unit_creator<SharedStr>, false)
 		{}
 
 	private:
@@ -904,6 +914,7 @@ namespace
 		AggrFuncInst<V, frequencyTableFunc > m_FreqTable;
 		AggrFuncInst<V, frequencyTableFunc > m_FreqTableWithNull;
 		AggrFuncInst<V, asUniqueListFunc > m_AsUniqueList;
+		AggrFuncInst<V, asUniqueListFunc > m_AsUniqueListWithNull;
 	};
 
 	// TODO: WeightedModusXXXX ook generaliseren met variabele AggrFunc, conform Modus

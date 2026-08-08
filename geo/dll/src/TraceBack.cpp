@@ -109,7 +109,10 @@ struct TraceBackOperator : QuaternaryOperator
 			DataWriteLock resLock(res);
 
 			ResultType* result = mutable_array_cast<FlowType>(resLock);
-			auto resultData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
+			// write_only_all: the fast_fill() a few lines below zeroes this buffer explicitly, so the
+			// allocator need not. (mustzero was a no-op here regardless: untiled result, lock opened
+			// write_only_all, so the buffer is already allocated by the time we ask.)
+			auto resultData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
 
 			assert(resultData.size() == nrE);
 

@@ -403,7 +403,10 @@ struct NthElementPart: AbstrPthElementPart<I>
 		auto arg2Data = arg2->GetDataRead();
 
 		ResultType* result = mutable_array_cast<V>(res);
-		auto resData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
+		// write_only_all: the per-partition loop assigns resData[i] for every i in [0, nrP), so no
+		// zero-fill is needed. mustzero was unsatisfiable anyway -- the lock is opened write_only_all
+		// and an untiled result allocates in its ctor, so the request was silently dropped.
+		auto resData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
 
 		// Count defined per partition
 		my_vec_t<SizeT> partCount(nrP, 0);
@@ -616,7 +619,10 @@ struct NthElementWeightedPart: AbstrNthElementWeightedPart
 		auto arg2Data = arg2->GetDataRead(); // non-tiled cumulative target(s)
 
 		ResultType* result = mutable_array_cast<V>(res);
-		auto resData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
+		// write_only_all: the per-partition loop assigns resData[i] for every i in [0, nrP), so no
+		// zero-fill is needed. mustzero was unsatisfiable anyway -- the lock is opened write_only_all
+		// and an untiled result allocates in its ctor, so the request was silently dropped.
+		auto resData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
 
 		// Count defined per partition (ignores weight at this stage)
 		auto partCount = sequence_traits<SizeT>::container_type(nrP, 0 MG_DEBUG_ALLOCATOR_SRC("NthElementWeightedPath index buffer"));
@@ -770,7 +776,10 @@ struct RthElementPart: AbstrPthElementPart<RatioType>
 		auto arg2Data = arg2->GetDataRead();
 
 		ResultType* result = mutable_array_cast<V>(res);
-		auto resData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
+		// write_only_all: the per-partition loop assigns resData[i] for every i in [0, nrP), so no
+		// zero-fill is needed. mustzero was unsatisfiable anyway -- the lock is opened write_only_all
+		// and an untiled result allocates in its ctor, so the request was silently dropped.
+		auto resData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
 
 		my_vec_t<I> partCount(nrP, 0);
 

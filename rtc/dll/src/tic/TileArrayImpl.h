@@ -52,6 +52,14 @@ struct HeapSingleArray : GeneratedTileFunctor<V>
 	auto GetTile(tile_id t) const->locked_cseq_t override;
 
 	tile_t m_Seq;
+
+#if defined(MG_DEBUG)
+	// Whether m_Seq was zeroed when the ctor allocated it, i.e. whether the DataWriteLock that
+	// created this object was opened with write_only_mustzero. Diagnostics only -- see the
+	// contradiction check in GetWritableTile. Absent from release builds, so sizeof() is unchanged
+	// there and AbstrDataObject stays untouched for every other data-object kind.
+	bool md_WasZeroed = false;
+#endif
 };
 
 
@@ -191,6 +199,7 @@ HeapSingleArray<V>::HeapSingleArray(const AbstrTileRangeData* trd, bool mustClea
 	this->m_TileRangeData = trd;
 	auto tileSize = trd->GetTileSize(0);
 	reallocSO(m_Seq, tileSize, mustClear MG_DEBUG_ALLOCATOR_SRC("HeapSingleArray<V>::ctor"));
+	MG_DEBUGCODE(md_WasZeroed = mustClear;)
 }
 
 template <typename V>
@@ -201,6 +210,23 @@ auto HeapSingleArray<V>::GetWritableTile(tile_id t, dms_rw_mode rwMode) -> locke
 
 	auto tileSize = this->GetTiledRangeData()->GetTileSize(0);
 	dms_assert(m_Seq.size() == this->GetTiledRangeData()->GetTileSize(0));
+
+	// write_only_mustzero means "zeroed when the storage was allocated", and for this class the
+	// allocation already happened in the ctor, from the mode given to the DataWriteLock. So rwMode
+	// cannot zero anything now: a caller asking for a zeroed buffer here while the write session was
+	// opened write_only_all is stating two contradictory things about one session, and silently gets
+	// uninitialised memory to accumulate into -- that was issue #1169 (perimeter) and the same defect
+	// in Dijkstra's org-zone aggregates. Untiled results are the only place this is harmful:
+	// HeapTileArray/FileTileArray allocate lazily and so do honour the rwMode of the first request,
+	// and HeapSingleValue is always value-initialised. Covering GetWritableTile covers every route,
+	// since GetDataWrite, GetWritableTileLock and GetDataWriteBegin all funnel through here.
+	//
+	// Only for fixed-size elements: skipping the zero-fill leaves those indeterminate (raw_awake is
+	// a NOP for raw_constructed types, rangefuncs.h). Sequence/string elements go through
+	// raw_construct instead, so they are always constructed and an unhonoured mustzero costs nothing
+	// -- points2sequence states the same contradiction harmlessly, and should not be flagged.
+	if constexpr (has_fixed_elem_size_v<V>)
+		MGD_CHECK_OBJ(md_WasZeroed || rwMode != dms_rw_mode::write_only_mustzero);
 
 	return locked_seq_t(std::make_shared<SharedPtr<AbstrDataObject>>(this), GetSeq(m_Seq));
 }

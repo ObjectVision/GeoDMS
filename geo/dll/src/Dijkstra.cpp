@@ -2075,11 +2075,17 @@ public:
 			DataWriteLock resALWLock(resAltLinkImp);
 			DataWriteLock resLinkAttrLock (resLinkAttr);
 			DataWriteLock resOrgNrDstZonesLock(resOrgNrDstZones);
-			DataWriteLock resOrgSumImpLock(resOrgSumImp);
-			DataWriteLock resOrgSumLinkAttrLock(resOrgSumLinkAttr);
-			DataWriteLock resOrgFactorLock(resOrgFactor);
-			DataWriteLock resODLock(resOrgDemand);
-			DataWriteLock resOMILock(resOrgMaxImp);
+			// The five org-zone aggregates below are ACCUMULATED into (sums, and a max), and their
+			// GetDataWrite() calls request write_only_mustzero -- so the zero must be arranged HERE.
+			// For an untiled org-zone domain the result is a HeapSingleArray, which allocates in its
+			// ctor and therefore takes the mode from this lock; the mode passed to GetDataWrite()
+			// cannot zero anything. Defaulting to write_only_all left them uninitialised, the same
+			// defect as perimeter (issue #1169). Their dstZone_/LinkFlow siblings already do this.
+			DataWriteLock resOrgSumImpLock(resOrgSumImp, dms_rw_mode::write_only_mustzero);
+			DataWriteLock resOrgSumLinkAttrLock(resOrgSumLinkAttr, dms_rw_mode::write_only_mustzero);
+			DataWriteLock resOrgFactorLock(resOrgFactor, dms_rw_mode::write_only_mustzero);
+			DataWriteLock resODLock(resOrgDemand, dms_rw_mode::write_only_mustzero);
+			DataWriteLock resOMILock(resOrgMaxImp, dms_rw_mode::write_only_mustzero);
 			DataWriteLock resDFLock(resDstFactor,      dms_rw_mode::write_only_mustzero);
 			DataWriteLock resDSLock(resDstSupply,      dms_rw_mode::write_only_mustzero);
 			DataWriteLock resLinkFlowLock(resLinkFlow, dms_rw_mode::write_only_mustzero);

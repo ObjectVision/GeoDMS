@@ -290,7 +290,11 @@ struct RasterImpressOperator: public AbstrRasterMergeOperator
 		I64Rect uRect = vpi.GetViewPortInGridAsIRect();
 
 		auto valueData  = const_array_cast<ValueType>(valueDataA)->GetLockedDataRead(u);
-		auto resultData = mutable_array_cast<ValueType>(  resDataA)->GetDataWrite(t, ((u==0) && (a==0)) ? dms_rw_mode::write_only_mustzero : dms_rw_mode::read_write);
+		// read_write throughout: InitTile() has already fast_filled this tile with UNDEFINED_OR_ZERO
+		// before any CopyWhere for it (driver loop above), so we always want to keep what is there.
+		// The old (u==0 && a==0) ? mustzero branch was redundant, and unsatisfiable for an untiled
+		// result -- one tile means HeapSingleArray, which allocates in the DataWriteLock ctor.
+		auto resultData = mutable_array_cast<ValueType>(  resDataA)->GetDataWrite(t, dms_rw_mode::read_write);
 
 		I64Rect tuRect = tRect & uRect; 
 		UInt32 

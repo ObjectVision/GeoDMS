@@ -222,7 +222,7 @@ struct ParseContext
 template <typename V, typename Container >
 void StoreValues(AbstrDataItem* adi, Container& c)
 {
-	DataWriteLock lock(adi);
+	DataWriteLock lock(adi, dms_rw_mode::write_only_mustzero); // as in StoreAttrValues below; the mode must be given here, not at GetDataWrite
 	auto data = mutable_array_cast<V>(lock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
 	SizeT i=0;
 	for (auto v: c)

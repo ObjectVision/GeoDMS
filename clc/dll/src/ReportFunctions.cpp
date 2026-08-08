@@ -162,7 +162,7 @@ public:
 					UInt32 nrClasses = GetNrObjectTypes();
 					auTableTypes->SetCount(nrClasses);
 
-					DataWriteLock resLock(adiTypeName);
+					DataWriteLock resLock(adiTypeName, dms_rw_mode::write_only_mustzero); // mode must match the GetDataWrite below; see line ~355
 					auto diTypeName = mutable_array_cast<SharedStr>(resLock);
 					auto nameData = diTypeName->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
 					if (nrClasses)
@@ -191,8 +191,8 @@ public:
 				{
 					auTableGroups->SetCount(GetNrGroups());
 
-					DataWriteLock res1Lock(adiGroupName); 
-					DataWriteLock res2Lock(adiNrOper   ); 
+					DataWriteLock res1Lock(adiGroupName, dms_rw_mode::write_only_mustzero);
+					DataWriteLock res2Lock(adiNrOper   , dms_rw_mode::write_only_mustzero);
 
 					auto nameData = mutable_array_cast<SharedStr>(res1Lock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
 					auto nrOpData = mutable_array_cast<UInt32>(res2Lock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
@@ -222,8 +222,8 @@ public:
 				{
 					auTableFuncs->SetCount(GetNrOperators());
 
-					DataWriteLock res1Lock(adiNrGroup);
-					DataWriteLock res2Lock(adiResultType);
+					DataWriteLock res1Lock(adiNrGroup, dms_rw_mode::write_only_mustzero);
+					DataWriteLock res2Lock(adiResultType, dms_rw_mode::write_only_mustzero);
 
 					auto nrGroupData = mutable_array_cast<UInt32>(res1Lock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
 					auto resTypeData = mutable_array_cast<UInt32>(res2Lock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
@@ -261,8 +261,8 @@ public:
 				{
 					auTableArgs->SetCount(GetNrArgs());
 
-					DataWriteLock res1Lock(adiNrOper);
-					DataWriteLock res2Lock(adiNrType);
+					DataWriteLock res1Lock(adiNrOper, dms_rw_mode::write_only_mustzero);
+					DataWriteLock res2Lock(adiNrType, dms_rw_mode::write_only_mustzero);
 
 					auto nrOperData = mutable_array_cast<UInt32>(res1Lock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
 					auto nrTypeData = mutable_array_cast<UInt32>(res2Lock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
