@@ -32,7 +32,7 @@
 #include <CGAL/Partition_traits_2.h>
 #include <CGAL/Arr_segment_traits_2.h>
 #include <CGAL/Arrangement_2.h>
-#include <CGAL/create_offset_polygons_2.h>
+#include <CGAL/convex_hull_2.h>
 
 #include "CGAL_60/Polygon_repair/repair.h"
 
@@ -245,39 +245,6 @@ void cgal_assign_polygon_with_holes_vector(E&& ref, std::vector<CGAL_Traits::Pol
 	{
 		--np;
 		cgal_assign_point(ref, polyVec[np].outer_boundary().vertices_begin()[0]);
-	}
-	assert(ref.size() == count);
-}
-
-template <dms_sequence E, typename Polygon>
-void cgal_assign_shared_polygon_vector(E&& ref, std::vector<std::shared_ptr<Polygon>>&& polyVec)
-{
-	ref.clear();
-
-	auto np = polyVec.size();
-	if (!np)
-		return;
-
-	SizeT count = np - 1;
-
-	for (const auto& resPoly : polyVec)
-	{
-		assert(resPoly->size());
-		count += resPoly->size() + 1;
-//		for (auto hi = resPoly.holes().begin(), he = resPoly.holes().end(); hi != he; ++hi)
-//			count += hi->size() + 2;
-	}
-	ref.reserve(count MG_DEBUG_ALLOCATOR_SRC("cgal_assign_shared_polygon_vector"));
-
-	for (const auto& sharedPolyPtr : polyVec)
-		if (auto polyPtr = sharedPolyPtr.get())
-			cgal_assign_ring(ref, *polyPtr);
-
-	--np;
-	while (np)
-	{
-		--np;
-		cgal_assign_point(ref, polyVec[np]->begin()[0]);
 	}
 	assert(ref.size() == count);
 }

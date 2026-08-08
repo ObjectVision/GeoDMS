@@ -12,6 +12,7 @@
 
 #include "BoostGeometry.h"
 
+#include "Parallel.h" // MaxConcurrentTreads, for the buffer operators' working-memory estimate
 #include "geo/BoostPolygon.h"
 
 #include "CGAL_Traits.h"
@@ -73,6 +74,73 @@ void bg_load_multi_linestring(bg_multi_linestring_t& mls, SA_ConstReference<P> m
 
 		lineStringBegin = lineStringEnd;
 	}
+}
+
+// The buffer of a polyline is the Minkowski sum of its segments with the buffer disc. With the disc
+// approximated by a pointsPerCircle-gon, the sum over one segment is exactly the convex hull of that
+// polygon placed at both segment endpoints, and the union of those capsules over all segments is the
+// round-join / round-cap shape that geos_buffer_linestring and bp_buffer_linestring produce -- so the
+// three implementations stay comparable. Sub-linestrings are separated by undefined points, exactly as in
+// bg_load_multi_linestring / bp_load_multi_linestring above.
+//
+// Issue #1172: this replaces an offset of the INTERIOR straight skeleton of the point sequence read as a
+// closed ring. That is a polygon shrink rather than a buffer, and it is empty for any open polyline (a
+// 2-point linestring has no interior at all), which is why cgal_buffer_linestring always returned nothing.
+template <typename P>
+void cgal_buffer_multi_linestring(CGAL_Traits::Polygon_set& resPS, SA_ConstReference<P> multiLineStringRef
+	, const CGAL_Traits::Ring& circle
+	, std::vector<CGAL_Traits::Ring>& capsules, std::vector<CGAL_Traits::Point>& helperPoints)
+{
+	resPS.clear();
+	capsules.clear();
+
+	std::vector<CGAL_Traits::Point> hullPoints;
+
+	auto appendCapsule = [&](P a, P b)
+	{
+		CGAL::Aff_transformation_2<CGAL_Traits::Kernel> translateA(CGAL::TRANSLATION, CGAL_Traits::Kernel::Vector_2(a.X(), a.Y()));
+		CGAL::Aff_transformation_2<CGAL_Traits::Kernel> translateB(CGAL::TRANSLATION, CGAL_Traits::Kernel::Vector_2(b.X(), b.Y()));
+
+		helperPoints.clear();
+		helperPoints.reserve(2 * circle.size());
+		for (const auto& v : circle)
+		{
+			helperPoints.push_back(translateA.transform(v));
+			helperPoints.push_back(translateB.transform(v));
+		}
+
+		hullPoints.clear();
+		CGAL::convex_hull_2(helperPoints.begin(), helperPoints.end(), std::back_inserter(hullPoints));
+		if (hullPoints.size() < 3) // degenerate disc (bufferDistance <= 0): nothing to join
+			return;
+		capsules.emplace_back(hullPoints.begin(), hullPoints.end()); // convex_hull_2 yields counterclockwise
+	};
+
+	auto lineStringBegin = begin_ptr(multiLineStringRef)
+		, sequenceEnd = end_ptr(multiLineStringRef);
+
+	while (lineStringBegin != sequenceEnd)
+	{
+		if (!IsDefined(*lineStringBegin))
+		{
+			++lineStringBegin;
+			continue;
+		}
+		auto lineStringEnd = lineStringBegin + 1;
+		while (lineStringEnd != sequenceEnd && IsDefined(*lineStringEnd))
+			++lineStringEnd;
+
+		if (lineStringEnd - lineStringBegin == 1)
+			appendCapsule(lineStringBegin[0], lineStringBegin[0]); // isolated point: the disc itself
+		else
+			for (auto p = lineStringBegin; p + 1 != lineStringEnd; ++p)
+				appendCapsule(p[0], p[1]);
+
+		lineStringBegin = lineStringEnd;
+	}
+
+	if (!capsules.empty())
+		resPS.join(capsules.begin(), capsules.end()); // one divide & conquer union, not N incremental ones
 }
 
 // *****************************************************************************
@@ -671,6 +739,37 @@ protected:
 
 	ValueComposition m_ExpectedInputVC;
 
+	// The buffer families hold their transient geometry OUTSIDE the DMS allocator -- GEOS builds a
+	// MultiPolygon per element (geos_create_polygons) and buffers it, boost_geometry keeps currMP /
+	// resMP / helperPolygon / helperRing -- so without a working-memory term the ledger books only
+	// the packed result and misses the library-side representation entirely (§8.1.34).
+	//
+	// It is deliberately a PER-ELEMENT term, not a per-tile one: Calculate loops one sequence at a
+	// time and releases each element's geometry before the next, so the honest transient is one
+	// element's worth per chore in flight. Charging a whole tile here would over-book these
+	// operators by the element count and throttle a workload that does not need it -- t301's real
+	// consumer is polygon_connectivity, not the buffer.
+	auto EstimatePerformance(TreeItemDualRef& resultHolder, const ArgRefs& args) const -> PerformanceEstimationData override
+	{
+		auto result = TernaryOperator::EstimatePerformance(resultHolder, args);
+
+		// The result domain IS the first argument's domain (UnifyDomain below), so the element count
+		// is the result's own; inputSize is dominated by arg1, args 2-3 being void or scalar.
+		auto nrElements = result.resultingNrElements;
+		if (!nrElements || !result.inputSize)
+			return result;
+
+		// Covers the library's node-per-coordinate representation against the packed DMS point
+		// sequence, plus the vertex multiplication a rounded buffer applies at every corner.
+		static constexpr SizeT GEOM_INFLATION = 8;
+
+		auto avgElementBytes = result.inputSize / nrElements;
+		auto inflight = Min<SizeT>(result.nrChores ? result.nrChores : 1, MaxConcurrentTreads());
+		result.workingMemorySizePerChore = avgElementBytes * GEOM_INFLATION;
+		result.workingMemorySize = result.workingMemorySizePerChore * inflight;
+		return result;
+	}
+
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
 		assert(args.size() == 3);
@@ -944,6 +1043,15 @@ struct BufferMultiPointOperator : public AbstrBufferOperator
 				typename bp_union_poly_traits<CoordType>::polygon_set_data_type resMP = {};
 				auto resRing = bp_circle<CoordType>(bufferDistance, pointsPerCircle);
 
+				// polygon_set_data::insert takes the ring's orientation from polygon_traits, and the
+				// point_sequence_traits specialisation for std::vector<bp::point_data<>> declares
+				// clockwise_winding unconditionally (rtc/dll/src/geo/BoostPolygon.h). bp_circle emits
+				// counterclockwise, so inserting it as-is signs every edge the wrong way: the set then
+				// describes the complement of the circles and cleans to nothing -- the empty result of
+				// issue #1172. bp_buffer_point does not hit this because it hands the ring straight to
+				// bp_assign_ring without a polygon set, so the circle itself must keep its orientation.
+				std::reverse(resRing.begin(), resRing.end());
+
 				do {
 					resMP.clear();
 					for (const auto& dmsPoint : polyData[i])
@@ -1107,31 +1215,20 @@ struct BufferLineStringOperator : public AbstrBufferOperator
 			else if constexpr (GL == geometry_library::cgal)
 			{
 				auto cgalCircle = cgal_circle<CoordType>(bufferDistance, pointsPerCircle);
-				do {
-					CGAL_Traits::Ring lsAsPolygon;
-					for (const auto& p: lineStringData[i])
-						lsAsPolygon.push_back(CGAL_Traits::Point(p.X(), p.Y()));
-//					CGAL_Traits::Kernel::FT offsetDistance(bufferDistance);
 
-					// Compute the straight skeleton explicitly
-					auto straight_skeleton = CGAL::create_interior_straight_skeleton_2(lsAsPolygon);
-					if (straight_skeleton)
-					{
-						// CGAL 6.1: create_offset_polygons_2 takes an explicit OutPolygon type as its
-						// first template argument and already returns std::vector<std::shared_ptr<OutPolygon>>
-						// (it no longer returns boost::shared_ptr, so the old conversion dance is gone).
-						// The straight skeleton is built in the inexact kernel (the default), so the offset
-						// polygons come back as Polygon_2<EPICK> — the same type the old code deduced.
-						using PolygonType = CGAL::Polygon_2<CGAL::Exact_predicates_inexact_constructions_kernel>;
-						auto offsetPolygons = CGAL::create_offset_polygons_2<PolygonType>(bufferDistance, *straight_skeleton);
-						cgal_assign_shared_polygon_vector(resData[i], std::move(offsetPolygons));
-					}
+				CGAL_Traits::Polygon_set resPS;
+				std::vector<CGAL_Traits::Ring> capsules;
+				std::vector<CGAL_Traits::Point> helperPoints;
+
+				do {
+					cgal_buffer_multi_linestring<P>(resPS, lineStringData[i], cgalCircle, capsules, helperPoints);
+					cgal_assign_polygon_set(resData[i], resPS);
 
 					// move to next geometry
 					if (++i == n)
 						return;
 
-				} while (e2IsVoid);
+				} while (e2IsVoid && e3IsVoid); // pointsPerCircle varies per element too: reload the disc
 			}
 			else if constexpr (GL == geometry_library::boost_polygon)
 			{
@@ -1594,7 +1691,7 @@ namespace
 	tl_oper::inst_tuple_templ<typelists::int_points, BpBufferMultiPointOperator> bpBufferMultiPointOperators(grBpBuffer_multi_point);
 	tl_oper::inst_tuple_templ<typelists::points, BgBufferPointOperator> bgBufferPointOperators(grBgBuffer_point);
 	tl_oper::inst_tuple_templ<typelists::points, BgBufferMultiPointOperator> bgBufferMultiPointOperators(grBgBuffer_multi_point);
-	tl_oper::inst_tuple_templ<typelists::points, CgalBufferPointOperator> cgalBufferPointOperators(grBgBuffer_point);
+	tl_oper::inst_tuple_templ<typelists::points, CgalBufferPointOperator> cgalBufferPointOperators(grCgalBuffer_point);
 	tl_oper::inst_tuple_templ<typelists::points, CgalBufferMultiPointOperator> cgalBufferMultiPointOperators(grCgalBuffer_multi_point);
 	tl_oper::inst_tuple_templ<typelists::points, GeosBufferPointOperator> geosBufferPointOperators(grGeosBuffer_point);
 	tl_oper::inst_tuple_templ<typelists::points, GeosBufferMultiPointOperator> geosBeosBufferMultiPointOperators(grGeosBuffer_multi_point);

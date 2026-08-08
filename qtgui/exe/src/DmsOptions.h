@@ -113,6 +113,9 @@ private:
     void setInitialSourceDatDirValue();
     void setInitialEditorValue();
     void setInitialMemoryFlushTresholdValue();
+    // The F / q / Q boxes: registry DWORDs of their own rather than StatusFlags bits, so they need
+    // their own read-back. Shared by the constructor and restoreOptions.
+    void setSchedulingCheckboxes();
     void setChanged(bool isChanged);
 
     bool m_changed = false;

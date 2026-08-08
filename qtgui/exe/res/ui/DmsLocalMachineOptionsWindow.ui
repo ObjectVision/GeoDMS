@@ -242,11 +242,76 @@
        </property>
       </widget>
      </item>
-     <item row="16" column="0">
-      <widget class="QLabel" name="label_4">
-       <property name="text">
-        <string/>
-       </property>
+     <item row="16" column="0" colspan="11">
+      <widget class="QWidget" name="m_pp_scheduling_row" native="true">
+       <layout class="QHBoxLayout" name="m_pp_scheduling_layout">
+        <property name="leftMargin">
+         <number>0</number>
+        </property>
+        <property name="topMargin">
+         <number>0</number>
+        </property>
+        <property name="rightMargin">
+         <number>0</number>
+        </property>
+        <property name="bottomMargin">
+         <number>0</number>
+        </property>
+        <item>
+         <widget class="QCheckBox" name="m_ppF">
+          <property name="font">
+           <font>
+            <pointsize>10</pointsize>
+           </font>
+          </property>
+          <property name="toolTip">
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;F: Free-store drainage&lt;/span&gt; (command line /SF, /CF; registry MemoryDrainage)&lt;/p&gt;&lt;p&gt;Hands freed memory blocks back to the operating system once RAM use passes the memory flushing treshold, instead of keeping them in the free store for re-use. Lowers the committed memory of a long calculation at the cost of some allocation work.&lt;/p&gt;&lt;p&gt;On by default.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          </property>
+          <property name="text">
+           <string>F: Free-store drainage</string>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="m_ppQs">
+          <property name="font">
+           <font>
+            <pointsize>10</pointsize>
+           </font>
+          </property>
+          <property name="toolTip">
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;q: Resource-aware scheduling, shadow mode&lt;/span&gt; (command line /Sq; registry ResourceAwareScheduling = 1)&lt;/p&gt;&lt;p&gt;Predicts the memory footprint of every operation and reports which ones would be withheld, but never actually withholds any. Use it to measure the quality of the estimates at no risk to the run.&lt;/p&gt;&lt;p&gt;Mutually exclusive with enforce mode.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          </property>
+          <property name="text">
+           <string>q: Resource-aware scheduling (shadow)</string>
+          </property>
+          <property name="checked">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="m_ppQe">
+          <property name="font">
+           <font>
+            <pointsize>10</pointsize>
+           </font>
+          </property>
+          <property name="toolTip">
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Q: Resource-aware scheduling, enforce mode&lt;/span&gt; (command line /SQ; registry ResourceAwareScheduling = 2)&lt;/p&gt;&lt;p&gt;Defers an operation whose predicted footprint does not fit the remaining budget until memory comes free. The budget is the memory flushing treshold percentage of the allowed RAM.&lt;/p&gt;&lt;p&gt;Mutually exclusive with shadow mode.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          </property>
+          <property name="text">
+           <string>Q: Resource-aware scheduling (enforce)</string>
+          </property>
+          <property name="checked">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+       </layout>
       </widget>
      </item>
      <item row="5" column="2" colspan="8">

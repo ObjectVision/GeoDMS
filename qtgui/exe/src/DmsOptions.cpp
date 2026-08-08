@@ -2,6 +2,7 @@
 #include "DmsEventLog.h"
 #include "dbg/DmsCatch.h"
 #include "utl/Environment.h"
+#include "mem/FixedAlloc.h" // SetFreeStackDrainageEnabled, for the F checkbox
 #include "Parallel.h"
 #include "ptr/SharedStr.h"
 #include "StgBase.h"
@@ -372,6 +373,15 @@ DmsLocalMachineOptionsWindow::DmsLocalMachineOptionsWindow(QWidget* parent)
     connect(m_pp2, &QCheckBox::stateChanged, this, &DmsLocalMachineOptionsWindow::onStateChange);
     connect(m_pp3, &QCheckBox::stateChanged, this, &DmsLocalMachineOptionsWindow::onStateChange);
 
+    setSchedulingCheckboxes();
+    connect(m_ppF , &QCheckBox::stateChanged, this, &DmsLocalMachineOptionsWindow::onStateChange);
+    connect(m_ppQs, &QCheckBox::stateChanged, this, &DmsLocalMachineOptionsWindow::onStateChange);
+    connect(m_ppQe, &QCheckBox::stateChanged, this, &DmsLocalMachineOptionsWindow::onStateChange);
+    // Shadow and enforce are two modes of ONE tri-state setting, not independent flags, so ticking
+    // either clears the other -- the same relation /Sq and /SQ have on the command line.
+    connect(m_ppQs, &QCheckBox::toggled, this, [this](bool on) { if (on) m_ppQe->setChecked(false); });
+    connect(m_ppQe, &QCheckBox::toggled, this, [this](bool on) { if (on) m_ppQs->setChecked(false); });
+
     // flush treshold
     m_flush_treshold->setTickPosition(QSlider::TickPosition::TicksBelow);
     connect(m_flush_treshold, &QSlider::valueChanged, this, &DmsLocalMachineOptionsWindow::onFlushTresholdValueChange);
@@ -462,6 +472,21 @@ void DmsLocalMachineOptionsWindow::setInitialMemoryFlushTresholdValue()
     m_flush_treshold->setValue(flush_treshold);
 }
 
+// Unlike parallel-processing 0..3, free-store drainage and resource-aware scheduling are not bits in
+// the StatusFlags DWORD: each is a registry DWORD of its own (MemoryDrainage, ResourceAwareScheduling).
+// They are read through RTC_GetRegDWord because that is the value the engine actually acts on -- it
+// applies the same registry lookup and built-in default, and it also reflects a /SF, /CF, /Sq or /SQ
+// given on the command line for this session, so the dialog shows what is in force rather than only
+// what is stored.
+void DmsLocalMachineOptionsWindow::setSchedulingCheckboxes()
+{
+    m_ppF->setChecked(RTC_GetRegDWord(RegDWordEnum::MemoryDrainage) != 0);
+
+    auto scheduling = RTC_GetRegDWord(RegDWordEnum::ResourceAwareScheduling);
+    m_ppQs->setChecked(scheduling == DWORD(resource_scheduling::shadow));
+    m_ppQe->setChecked(scheduling >= DWORD(resource_scheduling::enforce));
+}
+
 void DmsLocalMachineOptionsWindow::restoreOptions()
 {
     {
@@ -475,6 +500,9 @@ void DmsLocalMachineOptionsWindow::restoreOptions()
         const QSignalBlocker blocker7(m_pp2);
         const QSignalBlocker blocker8(m_pp3);
         const QSignalBlocker blocker9(m_tracelog);
+        const QSignalBlocker blocker10(m_ppF);
+        const QSignalBlocker blocker11(m_ppQs);
+        const QSignalBlocker blocker12(m_ppQe);
 
         setInitialLocalDataDirValue();
         setInitialSourceDatDirValue();
@@ -484,6 +512,7 @@ void DmsLocalMachineOptionsWindow::restoreOptions()
         m_pp1->setChecked(IsMultiThreaded1());
         m_pp2->setChecked(IsMultiThreaded2());
         m_pp3->setChecked(IsMultiThreaded3());
+        setSchedulingCheckboxes();
         m_tracelog->setChecked(GetRegStatusFlags() & RSF_TraceLogFile);
     }
     setChanged(false);
@@ -509,6 +538,21 @@ void DmsLocalMachineOptionsWindow::apply()
     SetStatusFlag(RSF_MultiThreading2, m_pp2->isChecked());
     SetStatusFlag(RSF_MultiThreading3, m_pp3->isChecked());
     SetStatusFlag(RSF_TraceLogFile, m_tracelog->isChecked());
+
+    // Not status-flag bits: each of these is its own registry DWORD. Persist it AND update the
+    // in-process cached value, so the setting takes effect in this session exactly as /SF, /Sq and
+    // /SQ do -- RTC_SetCachedDWord / SetResourceScheduling only touch the cache, the reg key only
+    // the next session, and both are wanted.
+    DWORD drainage = m_ppF->isChecked() ? 1 : 0;
+    SetGeoDmsRegKeyDWord("MemoryDrainage", drainage);
+    RTC_SetCachedDWord(RegDWordEnum::MemoryDrainage, drainage);
+    SetFreeStackDrainageEnabled(drainage != 0);
+
+    auto scheduling = m_ppQe->isChecked() ? resource_scheduling::enforce
+        : m_ppQs->isChecked() ? resource_scheduling::shadow
+        : resource_scheduling::off;
+    SetGeoDmsRegKeyDWord("ResourceAwareScheduling", DWORD(scheduling));
+    SetResourceScheduling(scheduling);
 
     MainWindow::TheOne()->updateTracelogHandle();
 

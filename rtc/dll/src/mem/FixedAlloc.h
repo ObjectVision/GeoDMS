@@ -100,6 +100,10 @@
 RTC_CALL void SetFreeStackDrainageEnabled(bool enabled);
 RTC_CALL bool IsFreeStackDrainageEnabled();
 
+// Bytes of freed-but-still-committed object stores: the reclaimable dead pool. Drainage hands it
+// back on demand, so an occupancy measure that counts it overstates what the process really holds.
+RTC_CALL SizeT GetFreeStackDeadBytes();
+
 RTC_CALL void* AllocateFromStock(size_t sz MG_DEBUG_ALLOCATOR_SRC_ARG);
 RTC_CALL void  LeaveToStock(void* ptr, size_t sz);
 extern std::atomic<bool> s_ReportingRequestPending;
