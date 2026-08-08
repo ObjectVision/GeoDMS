@@ -60,9 +60,59 @@ auto GetValuesRange(const DataArray<V>* tileFunctor) -> typename Unit<V>::range_
 
 //----------------------------------------------------------------------
 
+// Ordering of the keys of a (value, count) table.
+//
+// When nulls are counted too, such as by frequency_table_with_null, operator< is not
+// good enough: null is MAX for the unsigned int types and a NaN for the float types.
+// DataLessThanCompare orders null before all defined values, which is also where
+// operator< puts it for the signed int types that use MIN as null, so the resulting
+// order is the same for all value types.
+// When nulls are excluded, operator< is used directly to keep the counting hot path cheap.
+//
+// compare_must_check_undefines_v is precisely the set of types for which operator< gets
+// null wrong; for all others -- signed ints, SharedStr, and the bit types that have no
+// null at all -- DataLessThanCompare *is* operator<, so the flag is not consulted and
+// the comparator compiles down to a bare comparison.
+
+template <typename K>
+struct ValueCountKeyCompare
+{
+	ValueCountKeyCompare(bool valueMustBeDefined) : m_ValueMustBeDefined(valueMustBeDefined) {}
+
+	bool operator ()(const K& lhs, const K& rhs) const
+	{
+		if constexpr (compare_must_check_undefines_v<K>)
+			if (!m_ValueMustBeDefined)
+				return DataLessThanCompare<K>()(lhs, rhs);
+
+		if constexpr (has_undefines_v<K>)
+		{
+			assert(IsDefined(lhs) || !m_ValueMustBeDefined);
+			assert(IsDefined(rhs) || !m_ValueMustBeDefined);
+		}
+		return lhs < rhs;
+	}
+
+	bool m_ValueMustBeDefined;
+};
+
+// for partitioned counts the partition index is the primary key; it is always defined
+template <typename V>
+struct ValueCountKeyCompare<Pair<SizeT, V> >
+{
+	ValueCountKeyCompare(bool valueMustBeDefined) : m_ValueComp(valueMustBeDefined) {}
+
+	bool operator ()(const Pair<SizeT, V>& lhs, const Pair<SizeT, V>& rhs) const
+	{
+		return lhs.first < rhs.first
+			|| (lhs.first == rhs.first && m_ValueComp(lhs.second, rhs.second));
+	}
+
+	ValueCountKeyCompare<V> m_ValueComp;
+};
 
 template <ordered_value_type V, count_type C>
-auto GetCountsDirect(typename sequence_traits<V>::cseq_t data, tile_offset index, tile_offset size) -> ValueCountPairContainerT<V, C>
+auto GetCountsDirect(typename sequence_traits<V>::cseq_t data, tile_offset index, tile_offset size, bool valueMustBeDefined) -> ValueCountPairContainerT<V, C>
 {
 	assert(size <= BUFFER_SIZE);
 	assert(size > 0);
@@ -75,21 +125,26 @@ auto GetCountsDirect(typename sequence_traits<V>::cseq_t data, tile_offset index
 
 	auto pi = data.begin() + index;
 	if constexpr (has_undefines_v<V>)
-	{		
+	{
 		auto bufferPtr = &buffer[0];
 		for (auto pe = pi + size; pi!=pe; ++pi)
+		{
 			if (IsDefined(*pi))
 				*bufferPtr++ = *pi;
-
+			else if (!valueMustBeDefined)
+				MakeUndefined(*bufferPtr++); // don't assign: for sequence-backed V such as SharedStr
+			                                 // the conversion turns null into an empty defined value
+		}
 		size = bufferPtr - buffer;
 	}
 	else
 		fast_copy(pi, pi + size, buffer);
-	// Postcondition: all buffer ... buffer+size-1 are defined
+	// Postcondition: when valueMustBeDefined, all buffer ... buffer+size-1 are defined
 	if (size == 0)
 		return {};
 
-	std::sort(buffer, buffer + size);
+	auto keyComp = ValueCountKeyCompare<V>(valueMustBeDefined);
+	std::sort(buffer, buffer + size, keyComp);
 
 	ValueCountPairContainerT<V, C> result;
 	result.reserve(size MG_DEBUG_ALLOCATOR_SRC("GetCountsDirect"));
@@ -101,7 +156,7 @@ auto GetCountsDirect(typename sequence_traits<V>::cseq_t data, tile_offset index
 	++currCount;
 	for (; i != size; ++i)
 	{
-		if (currValue < buffer[i])
+		if (keyComp(currValue, buffer[i]))
 		{
 			result.emplace_back(MG_DEBUG_ALLOCATOR_FIRST("GetCountsDirect") currValue, currCount);
 			currValue = buffer[i];
@@ -139,29 +194,26 @@ auto GetPartitionedCountsDirect(typename sequence_traits<V>::cseq_t data, const 
 		if (!IsDefined(part_i))
 			continue;
 
-		*bufferPtr++ = partition_value_pair(part_i, V(*valuesIter));
+		auto& target = *bufferPtr++;
+		target.first = part_i;
+		if constexpr (has_undefines_v<V>)
+			if (!IsDefined(*valuesIter))
+			{
+				// don't convert: for sequence-backed V such as SharedStr
+				// the conversion turns null into an empty defined value
+				MakeUndefined(target.second);
+				continue;
+			}
+		target.second = V(*valuesIter);
 	}
 
 	size = bufferPtr - buffer;
-	// Postcondition: all buffer ... buffer+size-1 are defined
+	// Postcondition: when valueMustBeDefined, all buffer ... buffer+size-1 have a defined value
 	if (size == 0)
 		return {};
-	DataLessThanCompare<V> valueComp;
-	auto comp = [valueComp](const partition_value_pair& lhs, const partition_value_pair& rhs) 
-		{ 
-			return lhs.first < rhs.first 
-				|| (lhs.first == rhs.first && valueComp(lhs.second, rhs.second));  
-		};
 
-	bool speciallySorted = false;
-	if constexpr (compare_must_check_undefines_v<V>)
-		if (!valueMustBeDefined)
-		{
-			std::sort(buffer, buffer + size, comp);
-			speciallySorted = true;
-		}
-	if (!speciallySorted)
-		std::sort(buffer, buffer + size);
+	auto keyComp = ValueCountKeyCompare<partition_value_pair>(valueMustBeDefined);
+	std::sort(buffer, buffer + size, keyComp);
 
 	PartionedValueCountPairContainerT<V, C> result;
 	result.reserve(size MG_DEBUG_ALLOCATOR_SRC("GetPartitionedCountsDirect result buffer"));
@@ -171,32 +223,16 @@ auto GetPartitionedCountsDirect(typename sequence_traits<V>::cseq_t data, const 
 
 	auto currCount = C();
 	++currCount;
-	if constexpr (compare_must_check_undefines_v<V>)
-		if (speciallySorted)
+	for (; i != size; ++i)
+	{
+		if (keyComp(currPartitionValuePart, buffer[i]))
 		{
-			for (; i != size; ++i)
-			{
-				if (comp(currPartitionValuePart, buffer[i]))
-				{
-					result.emplace_back(MG_DEBUG_ALLOCATOR_FIRST("GetPartitionedCountsDirect result buffer") currPartitionValuePart, currCount);
-					currPartitionValuePart = buffer[i];
-					currCount = C();
-				}
-				++currCount;
-			}
-
+			result.emplace_back(MG_DEBUG_ALLOCATOR_FIRST("GetPartitionedCountsDirect result buffer") currPartitionValuePart, currCount);
+			currPartitionValuePart = buffer[i];
+			currCount = C();
 		}
-	if (!speciallySorted)
-		for (; i != size; ++i)
-		{
-			if (currPartitionValuePart < buffer[i])
-			{
-				result.emplace_back(MG_DEBUG_ALLOCATOR_FIRST("GetPartitionedCountsDirect result buffer") currPartitionValuePart, currCount);
-				currPartitionValuePart = buffer[i];
-				currCount = C();
-			}
-			++currCount;
-		}
+		++currCount;
+	}
 	result.emplace_back(MG_DEBUG_ALLOCATOR_FIRST("GetPartitionedCountsDirect result buffer") currPartitionValuePart, currCount);
 	return result;
 }
@@ -236,21 +272,22 @@ void WeedOutOddPairs(ValueCountPairContainerT<V, C>& vcpc, SizeT maxPairCount)
 }
 
 template <ordered_value_type V, count_type C>
-auto MergeToLeft(const ValueCountPairContainerT<V, C>& left, const ValueCountPairContainerT<V, C>& right) -> ValueCountPairContainerT<V, C>
+auto MergeToLeft(const ValueCountPairContainerT<V, C>& left, const ValueCountPairContainerT<V, C>& right, ValueCountKeyCompare<V> keyComp) -> ValueCountPairContainerT<V, C>
 {
 	ValueCountPairContainerT<V, C> result;
 	result.resize(left.size() + right.size() MG_DEBUG_ALLOCATOR_SRC("MergeToLeft"));
 
 	if (!result.empty())
 	{
-		std::merge(right.begin(), right.end(), left.begin(), left.end(), result.begin(), CompareFirst());
+		auto pairComp = [keyComp](const ValueCountPair<V, C>& lhs, const ValueCountPair<V, C>& rhs) { return keyComp(lhs.first, rhs.first); };
+		std::merge(right.begin(), right.end(), left.begin(), left.end(), result.begin(), pairComp);
 
 		auto
 			currPair = result.begin(),
 			lastPair = result.end(),
 			index = currPair + 1;
 
-		while (index != lastPair && currPair->first < index->first)
+		while (index != lastPair && keyComp(currPair->first, index->first))
 		{
 			currPair = index;
 			++index;
@@ -260,7 +297,7 @@ auto MergeToLeft(const ValueCountPairContainerT<V, C>& left, const ValueCountPai
 		C currCount = currPair->second;
 		for (; index != lastPair; ++index)
 		{
-			if (currValue < index->first)
+			if (keyComp(currValue, index->first))
 			{
 				*currPair++ = ValueCountPair<V, C>(currValue, currCount);
 				currValue = index->first;
@@ -276,24 +313,24 @@ auto MergeToLeft(const ValueCountPairContainerT<V, C>& left, const ValueCountPai
 }
 
 template <ordered_value_type V, count_type C>
-auto WeededMergeToLeft(const ValueCountPairContainerT<V, C>& left, const ValueCountPairContainerT<V, C>& right, SizeT maxPairCount) -> ValueCountPairContainerT<V, C>
+auto WeededMergeToLeft(const ValueCountPairContainerT<V, C>& left, const ValueCountPairContainerT<V, C>& right, SizeT maxPairCount, ValueCountKeyCompare<V> keyComp) -> ValueCountPairContainerT<V, C>
 {
-	auto result = MergeToLeft(left, right);
-	WeedOutOddPairs(result, maxPairCount);
+	auto result = MergeToLeft(left, right, keyComp);
+	WeedOutOddPairs(result, maxPairCount); // only weeds when values are known to be defined, see GetWeededCountsOfV
 	return result;
 }
 
 template <ordered_value_type V, count_type C>
-auto GetTileCounts(typename sequence_traits<V>::cseq_t data, SizeT index, SizeT size) -> ValueCountPairContainerT<V, C>
+auto GetTileCounts(typename sequence_traits<V>::cseq_t data, SizeT index, SizeT size, bool valueMustBeDefined) -> ValueCountPairContainerT<V, C>
 {
 	if (size <= BUFFER_SIZE)
-		return GetCountsDirect<V, C>(data, index, size);
+		return GetCountsDirect<V, C>(data, index, size, valueMustBeDefined);
 
 	SizeT m = size / 2;
 
-	auto firstHalf = GetTileCounts<V, C>(data, index, m);
-	auto secondHalf = GetTileCounts<V, C>(data, index + m, size - m);
-	return MergeToLeft(firstHalf, secondHalf);
+	auto firstHalf = GetTileCounts<V, C>(data, index, m, valueMustBeDefined);
+	auto secondHalf = GetTileCounts<V, C>(data, index + m, size - m, valueMustBeDefined);
+	return MergeToLeft(firstHalf, secondHalf, ValueCountKeyCompare<V>(valueMustBeDefined));
 }
 
 template <ordered_value_type V, count_type C>
@@ -307,67 +344,67 @@ auto GetPartitionedTileCounts(typename sequence_traits<V>::cseq_t data, const In
 	auto firstHalf  = GetPartitionedTileCounts<V, C>(data, indexGetter, index    ,        m, pCount, valueMustBeDefined);
 	auto secondHalf = GetPartitionedTileCounts<V, C>(data, indexGetter, index + m, size - m, pCount, valueMustBeDefined);
 
-	return MergeToLeft(firstHalf, secondHalf);
+	return MergeToLeft(firstHalf, secondHalf, ValueCountKeyCompare<Pair<SizeT, V> >(valueMustBeDefined));
 }
 
 template <ordered_value_type V, count_type C>
-auto GetWeededTileCounts(typename sequence_traits<V>::cseq_t data, SizeT index, SizeT size, SizeT maxPairCount) -> ValueCountPairContainerT<V, C>
+auto GetWeededTileCounts(typename sequence_traits<V>::cseq_t data, SizeT index, SizeT size, SizeT maxPairCount, bool valueMustBeDefined) -> ValueCountPairContainerT<V, C>
 {
 	if (size <= BUFFER_SIZE)
-		return GetCountsDirect<V, C>(data, index, size);
+		return GetCountsDirect<V, C>(data, index, size, valueMustBeDefined);
 
 	SizeT m = size / 2;
 
-	auto firstHalf = GetWeededTileCounts<V, C>(data, index, m, maxPairCount);
-	auto secondHalf = GetWeededTileCounts<V, C>(data, index + m, size - m, maxPairCount);
-	return WeededMergeToLeft(firstHalf, secondHalf, maxPairCount);
+	auto firstHalf = GetWeededTileCounts<V, C>(data, index, m, maxPairCount, valueMustBeDefined);
+	auto secondHalf = GetWeededTileCounts<V, C>(data, index + m, size - m, maxPairCount, valueMustBeDefined);
+	return WeededMergeToLeft(firstHalf, secondHalf, maxPairCount, ValueCountKeyCompare<V>(valueMustBeDefined));
 }
 
 template <ordered_value_type V, count_type C>
-auto GetWeededWallCounts_ST(future_tile_array<V>& values_fta, tile_id t, tile_id nrTiles, SizeT maxPairCount) -> ValueCountPairContainerT<V, C>
+auto GetWeededWallCounts_ST(future_tile_array<V>& values_fta, tile_id t, tile_id nrTiles, SizeT maxPairCount, bool valueMustBeDefined) -> ValueCountPairContainerT<V, C>
 {
 	if (nrTiles == 1)
 	{
 		auto tileData = values_fta[t]->GetTile(); values_fta[t] = nullptr;
-		return GetWeededTileCounts<V, C>(tileData, 0, tileData.size(), maxPairCount);
+		return GetWeededTileCounts<V, C>(tileData, 0, tileData.size(), maxPairCount, valueMustBeDefined);
 	}
 
 	tile_id m = nrTiles / 2;
 	assert(m >= 1);
 
-	auto firstHalf  = GetWeededWallCounts_ST<V, C>(values_fta, t, m, maxPairCount);
-	auto secondHalf = GetWeededWallCounts_ST<V, C>(values_fta, t + m, nrTiles - m, maxPairCount);
+	auto firstHalf  = GetWeededWallCounts_ST<V, C>(values_fta, t, m, maxPairCount, valueMustBeDefined);
+	auto secondHalf = GetWeededWallCounts_ST<V, C>(values_fta, t + m, nrTiles - m, maxPairCount, valueMustBeDefined);
 
-	return WeededMergeToLeft(firstHalf, secondHalf, maxPairCount);
+	return WeededMergeToLeft(firstHalf, secondHalf, maxPairCount, ValueCountKeyCompare<V>(valueMustBeDefined));
 }
 
 template <ordered_value_type V, count_type C>
-auto GetWeededWallCounts_MT(future_tile_array<V>& values_fta, tile_id t, tile_id nrTiles, SizeT maxPairCount, SizeT availableThreads) -> ValueCountPairContainerT<V, C>
+auto GetWeededWallCounts_MT(future_tile_array<V>& values_fta, tile_id t, tile_id nrTiles, SizeT maxPairCount, SizeT availableThreads, bool valueMustBeDefined) -> ValueCountPairContainerT<V, C>
 {
 	assert(nrTiles);
 	assert(availableThreads <= nrTiles);
 
 	if (availableThreads == 1)
 	{
-		return GetWeededWallCounts_ST<V, C>(values_fta, t, nrTiles, maxPairCount);
+		return GetWeededWallCounts_ST<V, C>(values_fta, t, nrTiles, maxPairCount, valueMustBeDefined);
 	}
 
 	auto m = nrTiles / 2;
 	auto rt = availableThreads / 2;
 
-	auto firstHalf = throttled_async([&values_fta, t, m, maxPairCount, rt]
+	auto firstHalf = throttled_async([&values_fta, t, m, maxPairCount, rt, valueMustBeDefined]
 		{
-			return GetWeededWallCounts_MT<V, C>(values_fta, t, m, maxPairCount, rt);
+			return GetWeededWallCounts_MT<V, C>(values_fta, t, m, maxPairCount, rt, valueMustBeDefined);
 		}
 	);
 
-	auto secondHalf = GetWeededWallCounts_MT<V, C>(values_fta, t + m, nrTiles - m, maxPairCount, availableThreads - rt);
+	auto secondHalf = GetWeededWallCounts_MT<V, C>(values_fta, t + m, nrTiles - m, maxPairCount, availableThreads - rt, valueMustBeDefined);
 
-	return WeededMergeToLeft(firstHalf->get(), secondHalf, maxPairCount);
+	return WeededMergeToLeft(firstHalf->get(), secondHalf, maxPairCount, ValueCountKeyCompare<V>(valueMustBeDefined));
 }
 
 template <ordered_value_type V, count_type C>
-auto GetWeededWallCounts(future_tile_array<V>& values_fta, SizeT maxPairCount) -> ValueCountPairContainerT<V, C>
+auto GetWeededWallCounts(future_tile_array<V>& values_fta, SizeT maxPairCount, bool valueMustBeDefined) -> ValueCountPairContainerT<V, C>
 {
 	auto nrTiles = values_fta.size();
 	if (!nrTiles)
@@ -377,7 +414,7 @@ auto GetWeededWallCounts(future_tile_array<V>& values_fta, SizeT maxPairCount) -
 	MakeMin(maxNrThreads, nrTiles);
 	MakeMax(maxNrThreads, 1);
 
-	return GetWeededWallCounts_MT<V, C>(values_fta, 0, nrTiles, maxPairCount, maxNrThreads);
+	return GetWeededWallCounts_MT<V, C>(values_fta, 0, nrTiles, maxPairCount, maxNrThreads, valueMustBeDefined);
 }
 
 template <ordered_value_type V, count_type C>
@@ -404,7 +441,7 @@ auto GetPartitionedWallCounts(future_tile_array<V>& values_fta, const AbstrDataI
 
 	auto secondHalf = GetPartitionedWallCounts<V, C>(values_fta, indicesItem, part_fta, t + m, nrTiles - m, pCount, valueMustBeDefined);
 
-	return MergeToLeft(firstHalf->get(), secondHalf);
+	return MergeToLeft(firstHalf->get(), secondHalf, ValueCountKeyCompare<Pair<SizeT, V> >(valueMustBeDefined));
 }
 
 inline auto GetDomain(const AbstrDataItem* adi)  { return adi->GetAbstrDomainUnit(); }
@@ -543,7 +580,7 @@ auto GetWeededCountsOfV(const DataArray<V>* valuesTF, bool noOutOfRangeValues,  
 			}
 		}
 		auto values_fta = GetFutureTileArray(valuesTF);
-		auto vcxxx = GetWeededWallCounts<V, C>(values_fta, maxPairCount);
+		auto vcxxx = GetWeededWallCounts<V, C>(values_fta, maxPairCount, true); // class breaks and unique counts never count nulls
 		if constexpr (std::is_same_v<R, V>)
 			return vcxxx;
 		else
