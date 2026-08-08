@@ -1676,6 +1676,75 @@ protected:
 		:	UnaryOperator(aog, Unit<ResultingDomainType>::GetStaticClass(),	polyAttrClass)
 	{}
 
+	// Without this override the base estimator calls this a FREE operation: the result is a unit, so
+	// Operator::EstimatePerformance returns early with regime 'meta', zero bytes and -- worse --
+	// confidence 'derived', i.e. high confidence in the number 0. Measured on t301 (§8.1.34) this is
+	// the hungriest operator in the config, and none of what it holds passes through the DMS
+	// allocator, so neither the free-store bookkeeping nor the ledger's retained side sees it
+	// either: PeakLiveLarge 4.4 GB against a 20.2 GB process peak, and a 20 GB admission budget
+	// produced zero refusals.
+	//
+	// Calculate() is UNTILED (GetDataRead over the whole domain, no_tile) and holds concurrently:
+	//   * bp::connectivity_extraction  -- every inserted polygon's edges, for the whole extraction
+	//   * bp::polygon_set_data         -- one element's working copy, reused across elements
+	//   * std::vector<std::set<int>>   -- a red-black node per adjacency, counted from both ends
+	//   * std::vector<SizeT> domain_rel-- one entry per accepted polygon
+	// all of them std::allocator, i.e. malloc.
+	//
+	// The polygon count and its byte volume are DERIVED (the argument is materialized by the time an
+	// OC becomes runnable, which is where RefreshEstimateForAdmission re-takes this). Only the shape
+	// factors below are modelled -- exactly as OperAccUni models an accumulator as one slot per
+	// concurrent thread -- so the confidence follows the input count rather than being downgraded;
+	// an 'assumed' estimate would never be installed (RefreshEstimateForAdmission only accepts
+	// <= declared) and the gate would stay blind, which is the defect being fixed.
+	auto EstimatePerformance(TreeItemDualRef& resultHolder, const ArgRefs& args) const -> PerformanceEstimationData override
+	{
+		auto result = UnaryOperator::EstimatePerformance(resultHolder, args);
+
+		if (args.empty())
+			return result;
+		auto argItem = GetItem(args[0]);
+		if (!argItem || !IsDataItem(argItem))
+			return result;
+		auto argAdi = AsDataItem(argItem);
+
+		AbstrUnit::CountEstimate argCount;
+		try { argCount = argAdi->GetAbstrDomainUnit()->EstimateCount(); }
+		catch (...) { return result; } // an unresolvable domain just keeps the base's figures
+		auto inputBytes = EstimateDataBytes(argAdi, argCount.expected);
+
+		// Order-of-magnitude modelling constants, not measurements of a particular run.
+		// PC_SWEEP_BYTES_PER_INPUT_BYTE covers connectivity_extraction's sweep records plus the
+		// per-element polygon_set_data copy, both of which hold the geometry in a node-per-edge form
+		// rather than the packed DMS point sequence.
+		static constexpr SizeT PC_SWEEP_BYTES_PER_INPUT_BYTE = 4;
+		static constexpr SizeT PC_GRAPH_NODE_BYTES = 48;  // an MSVC std::set<int> _Tree node
+		static constexpr SizeT PC_AVG_ADJACENCY = 8;      // neighbours per polygon, both ends counted
+
+		auto nrPolygons = argCount.expected;
+		result.inputSize = inputBytes;
+		result.inputSizePerChore = inputBytes; // untiled: the whole domain is read at once
+		result.nrChores = 1;
+		result.extraTasks = 1;
+		result.workingMemorySize =
+			  inputBytes * PC_SWEEP_BYTES_PER_INPUT_BYTE
+			+ nrPolygons * (sizeof(std::set<int>) + PC_AVG_ADJACENCY * PC_GRAPH_NODE_BYTES)
+			+ nrPolygons * sizeof(SizeT);
+		result.workingMemorySizePerChore = result.workingMemorySize;
+
+		// The result unit itself carries no data, but its F1/F2 subitems do, and they are written
+		// eagerly under a DataWriteLock before Calculate returns. The regime stays 'meta' because
+		// that is what the RESULT is; resultingMemory is what the charge policy actually reads.
+		auto nrEdges = (nrPolygons * PC_AVG_ADJACENCY) / 2;
+		result.resultingNrElements = nrEdges;
+		result.resultingMemory = nrEdges * 2 * sizeof(ResultingDomainType);
+		result.residentMemory = result.resultingMemory;
+		result.choreMemory = result.resultingMemory;
+		result.expectedCalcTime = calc_time_t(nrPolygons) * GetGroup()->GetCalcFactor();
+		result.confidence = argCount.confidence;
+		return result;
+	}
+
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
 		dms_assert(args.size() == 1);

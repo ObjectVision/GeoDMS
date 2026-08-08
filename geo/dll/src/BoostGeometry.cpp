@@ -12,6 +12,7 @@
 
 #include "BoostGeometry.h"
 
+#include "Parallel.h" // MaxConcurrentTreads, for the buffer operators' working-memory estimate
 #include "geo/BoostPolygon.h"
 
 #include "CGAL_Traits.h"
@@ -670,6 +671,37 @@ protected:
 	{}
 
 	ValueComposition m_ExpectedInputVC;
+
+	// The buffer families hold their transient geometry OUTSIDE the DMS allocator -- GEOS builds a
+	// MultiPolygon per element (geos_create_polygons) and buffers it, boost_geometry keeps currMP /
+	// resMP / helperPolygon / helperRing -- so without a working-memory term the ledger books only
+	// the packed result and misses the library-side representation entirely (§8.1.34).
+	//
+	// It is deliberately a PER-ELEMENT term, not a per-tile one: Calculate loops one sequence at a
+	// time and releases each element's geometry before the next, so the honest transient is one
+	// element's worth per chore in flight. Charging a whole tile here would over-book these
+	// operators by the element count and throttle a workload that does not need it -- t301's real
+	// consumer is polygon_connectivity, not the buffer.
+	auto EstimatePerformance(TreeItemDualRef& resultHolder, const ArgRefs& args) const -> PerformanceEstimationData override
+	{
+		auto result = TernaryOperator::EstimatePerformance(resultHolder, args);
+
+		// The result domain IS the first argument's domain (UnifyDomain below), so the element count
+		// is the result's own; inputSize is dominated by arg1, args 2-3 being void or scalar.
+		auto nrElements = result.resultingNrElements;
+		if (!nrElements || !result.inputSize)
+			return result;
+
+		// Covers the library's node-per-coordinate representation against the packed DMS point
+		// sequence, plus the vertex multiplication a rounded buffer applies at every corner.
+		static constexpr SizeT GEOM_INFLATION = 8;
+
+		auto avgElementBytes = result.inputSize / nrElements;
+		auto inflight = Min<SizeT>(result.nrChores ? result.nrChores : 1, MaxConcurrentTreads());
+		result.workingMemorySizePerChore = avgElementBytes * GEOM_INFLATION;
+		result.workingMemorySize = result.workingMemorySizePerChore * inflight;
+		return result;
+	}
 
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
