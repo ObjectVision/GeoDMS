@@ -630,7 +630,15 @@ RegDWordAttr s_RegDWordAttrs[] =
     { "DrawingSizeInPixels", 0, false },
 	{ "MemoryMaxRAM_GB", 64, false }, // simulates a smaller machine; also throttles operation activation via IsLowOnFreeRAM
 	{ "PerformanceLogging", 0, false },
-	{ "ResourceAwareScheduling", 0, false },
+	{ "ResourceAwareScheduling", 0, false }, // OFF by default (0=off, 1=shadow, 2=enforce). Switched on
+	                                        // with /Sq or /SQ, or the q/Q boxes under Settings >
+	                                        // Local machine options > Parallel Processing.
+	                                        // Off because enforce does not yet pay for itself: measured
+	                                        // on t641_2 it parked 124 184 operations and still left the
+	                                        // live peak at 171.9 GiB -- identical to the run without it
+	                                        // (doc SS8.1.33). Budget = MemoryFlushThreshold % of allowed
+	                                        // RAM -- the same threshold that triggers MemoryDrainage --
+	                                        // unless SchedulerBudgetMB (/SB<MB>) overrides it.
 	{ "SchedulerBudgetMB", 0, false },
 	{ "MemoryDrainage", 1, false } // on by default; the trigger is MemoryFlushThreshold (doc SS8.1.32)
 };
@@ -2553,7 +2561,15 @@ static RegDWordAttr s_RegDWordAttrs[] =
 	{ "DrawingSizeInPixels", 0, false },
 	{ "MemoryMaxRAM_GB", 64, false }, // simulates a smaller machine; also throttles operation activation via IsLowOnFreeRAM
 	{ "PerformanceLogging", 0, false },
-	{ "ResourceAwareScheduling", 0, false },
+	{ "ResourceAwareScheduling", 0, false }, // OFF by default (0=off, 1=shadow, 2=enforce). Switched on
+	                                        // with /Sq or /SQ, or the q/Q boxes under Settings >
+	                                        // Local machine options > Parallel Processing.
+	                                        // Off because enforce does not yet pay for itself: measured
+	                                        // on t641_2 it parked 124 184 operations and still left the
+	                                        // live peak at 171.9 GiB -- identical to the run without it
+	                                        // (doc SS8.1.33). Budget = MemoryFlushThreshold % of allowed
+	                                        // RAM -- the same threshold that triggers MemoryDrainage --
+	                                        // unless SchedulerBudgetMB (/SB<MB>) overrides it.
 	{ "SchedulerBudgetMB", 0, false },
 	{ "MemoryDrainage", 1, false } // on by default; the trigger is MemoryFlushThreshold (doc SS8.1.32)
 };
