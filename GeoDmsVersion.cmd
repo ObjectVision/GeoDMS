@@ -17,6 +17,7 @@
 @REM and for composing GeoDmsVersion=%MAJOR%.%MINOR%.%PATCH% after this call.
 
 set "DMS_VERSION_HEADER=%~dp0rtc\dll\src\RtcVersionNumbers.h"
+set "DMS_BUILDSTAMP_HEADER=%~dp0rtc\dll\src\buildstamp.h"
 
 if not exist "%DMS_VERSION_HEADER%" (
 	echo *** GeoDmsVersion.cmd: %DMS_VERSION_HEADER% not found. ***
@@ -48,14 +49,45 @@ REM A standalone flavor run (GEODMS_VERSION_HEADER_DONE unset) still refreshes
 REM the stamp itself. Note this concern no longer applies to the version numbers:
 REM RtcVersionNumbers.h only changes when a human bumps it.
 REM Builds that never run a .bat get a buildstamp.h from the generate-if-missing
-REM hooks in Directory.Build.targets (msbuild) and CMakeLists.txt (cmake).
-if not defined GEODMS_VERSION_HEADER_DONE (
-	echo #define DMS_BUILD_DATE "%DATE%" > "%~dp0rtc\dll\src\buildstamp.h"
-	echo #define DMS_BUILD_TIME "%TIME%" >> "%~dp0rtc\dll\src\buildstamp.h"
-	set GEODMS_VERSION_HEADER_DONE=1
-)
+REM hooks in Directory.Build.targets (msbuild) and CMakeLists.txt (cmake); those
+REM write ISO 8601, and :write_buildstamp below matches them.
+if not defined GEODMS_VERSION_HEADER_DONE call :write_buildstamp
 
 exit /B 0
+
+REM ---------------------------------------------------------------------------
+REM Write buildstamp.h with an ISO 8601 date and time (yyyy-MM-dd / HH:mm:ss).
+REM
+REM NOT %DATE% / %TIME%: those are locale-dependent (dd-MM-yyyy vs MM/dd/yyyy,
+REM some locales prefix the weekday) and %TIME% adds centiseconds and pads the
+REM hour with a space before 10:00. That made the stamp differ per machine and
+REM disagree with the msbuild/cmake fallbacks. PowerShell formats it culture-
+REM invariantly; it is already a build dependency (tools\ensure-vcpkg.ps1).
+REM
+REM A subroutine, not an inline block: %VAR% set inside a parenthesized block is
+REM expanded at parse time, and delayed expansion is not an option here because
+REM setlocal would discard the DMS_VERSION_* exports this file exists to provide.
+REM ---------------------------------------------------------------------------
+:write_buildstamp
+set "_dms_stamp_date="
+set "_dms_stamp_time="
+for /f "usebackq delims=" %%d in (`powershell -NoProfile -Command "(Get-Date).ToString('yyyy-MM-dd')"`) do set "_dms_stamp_date=%%d"
+for /f "usebackq delims=" %%t in (`powershell -NoProfile -Command "(Get-Date).ToString('HH:mm:ss')"`) do set "_dms_stamp_time=%%t"
+if not defined _dms_stamp_date goto :stamp_failed
+if not defined _dms_stamp_time goto :stamp_failed
+REM No space before the redirection: cmd would echo it into the file, and the
+REM msbuild/cmake fallbacks do not emit one. Byte-identical output means
+REM alternating between build paths does not dirty the header and force a relink.
+echo #define DMS_BUILD_DATE "%_dms_stamp_date%"> "%DMS_BUILDSTAMP_HEADER%"
+echo #define DMS_BUILD_TIME "%_dms_stamp_time%">> "%DMS_BUILDSTAMP_HEADER%"
+set "_dms_stamp_date="
+set "_dms_stamp_time="
+set GEODMS_VERSION_HEADER_DONE=1
+goto :eof
+
+:stamp_failed
+echo *** GeoDmsVersion.cmd: could not format the build timestamp via powershell. ***
+exit /B 1
 
 :parse_failed
 echo *** GeoDmsVersion.cmd: could not parse DMS_VERSION_MAJOR/MINOR/PATCH from ***
