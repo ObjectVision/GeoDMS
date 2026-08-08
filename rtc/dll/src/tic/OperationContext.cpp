@@ -1788,6 +1788,53 @@ static bool UpdateLedgerCommitPressure()
 	}
 	return sd_LedgerCommitPressure;
 }
+
+// The ledger's own sum counts only what the DMS allocator hands out. Memory a third-party library
+// takes straight from malloc is invisible to it -- and on a geometry workload that is most of the
+// footprint. Measured on t301 (§8.1.34): the ledger read 706 MB while the process held 18 037 MB,
+// because bp::connectivity_extraction's sweep structures and the std::vector<std::set<int>> graph
+// inside polygon_connectivity are std::allocator, not AllocateFromStock. A 20 GB budget against a
+// 20.2 GB peak therefore produced ZERO refusals: the gate cannot refuse what it cannot see.
+//
+// So the gate tests the process's REAL commit as well as its own books, and uses whichever is
+// larger. The ledger view keeps its role -- it carries the lookahead for work that is running but
+// has not allocated yet, which a pure observation cannot have -- so the running-op charges are
+// added on top of the observation. That double-counts the part of a running charge already
+// allocated; it is the deliberate direction of error, per the charge policy above (over-charging
+// costs a slower run, under-charging costs the paging collapse this exists to prevent).
+//
+// Rate-limited: AdmitOrRequeue runs per licensing attempt -- 173 178 of them on t641 -- and
+// GetProcessCommitBytes is a syscall. 100 ms is short against the seconds in which this workload
+// moves gigabytes.
+//
+// Note the self-correcting interaction with drainage: process commit includes the free-store's
+// freed-but-not-yet-decommitted pool, so a large dead pool reads as pressure here -- which is
+// exactly the condition UpdateFreeStackDrainageMode turns drainage ON for (§8.1.24). The pool is
+// handed back, the observation falls, and the gate reopens. A run cannot get stuck on it either:
+// the idle and no-drain-available lifts release the frontier whatever the observation says.
+static SizeT sd_LedgerObservedCommit = 0;
+static Int64 sd_LedgerObservedCommitNs = 0;
+
+static SizeT LedgerObservedCommitBytes()
+{
+	auto nowNs = std::chrono::steady_clock::now().time_since_epoch().count();
+	if (!sd_LedgerObservedCommitNs || nowNs - sd_LedgerObservedCommitNs > 100'000'000)
+	{
+		sd_LedgerObservedCommitNs = nowNs;
+		sd_LedgerObservedCommit = GetProcessCommitBytes();
+	}
+	return sd_LedgerObservedCommit;
+}
+
+// What the admission gate weighs against the budget: the ledger's books, or the observed process
+// commit plus the in-flight charges the observation cannot yet contain. Both callers -- the gate
+// and its log line -- must agree, so it lives in one place.
+static SizeT LedgerEffectiveCommittedBytes()
+{
+	auto ledgerView = sd_LedgerCommittedBytes + sd_LedgerRetainedBytes.load(std::memory_order_relaxed);
+	return Max<SizeT>(ledgerView, LedgerObservedCommitBytes() + sd_LedgerCommittedBytes);
+}
+
 static UInt64 sd_LedgerClaimSeenAdmitGeneration = 0;        // admit generation at its previous refusal
 // Two generations, for two different questions. Releases gate RETRIES: a parked task's budget
 // situation only improves when memory comes free, so it is re-tested on a release (or on idleness).
@@ -1826,6 +1873,16 @@ static void MemoryLedger_ConsiderSample(CharPtr event)
 		, sd_LedgerAdmittedTotal, sd_LedgerParkedTotal
 		, sd_LedgerClaimant ? SharedStr("yes") : SharedStr("none")
 		, GetMemoryStatus()
+	);
+	// Which of the two bases the gate is actually on, and by how far they disagree. Its own line
+	// because the sample line above already runs against the 256-char log truncation, and because
+	// this single ratio is what says whether the ledger can see this workload's memory at all:
+	// t301 read 706 MB against an 18 037 MB process before §8.1.34.
+	reportF_without_cancellation_check(MsgCategory::performance, SeverityTypeID::ST_MajorTrace
+		, "ledger basis: books {} B vs observed commit {} B (+{} B in flight) -> gate weighs {} B of {} B"
+		, sd_LedgerCommittedBytes + sd_LedgerRetainedBytes.load(std::memory_order_relaxed)
+		, LedgerObservedCommitBytes(), sd_LedgerCommittedBytes
+		, LedgerEffectiveCommittedBytes(), LedgerBudgetBytes()
 	);
 	// Separate line: leak (retains vs releases) and magnitude (booked vs measured) are the two
 	// candidate causes, and one line answering both is what tells them apart at a glance.
@@ -2026,8 +2083,10 @@ static bool AdmitOrRequeue(OperationContext* self)
 	const auto& est = *self->m_Estimate;
 	auto charge = LedgerChargeOf(est);
 	auto budget = LedgerBudgetBytes();
-	auto retained = sd_LedgerRetainedBytes.load(std::memory_order_relaxed);
-	auto committed = sd_LedgerCommittedBytes + retained;
+	// Real process commit, not just the ledger's books -- see LedgerEffectiveCommittedBytes. This is
+	// what makes /SB<MB> and the derived budget mean what they say on a workload whose footprint is
+	// mostly outside the DMS allocator.
+	auto committed = LedgerEffectiveCommittedBytes();
 
 	// A compressor does not add retained memory once complete: its resident result weighs no more
 	// than the inputs it is the last consumer of, which its completion releases. Transient working
