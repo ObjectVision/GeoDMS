@@ -3,10 +3,41 @@
 
 cmake_minimum_required(VERSION 3.25)
 
+# Version: parsed from the tracked header that the C++ code itself includes, so the
+# cmake flavor can never disagree with the compiled binaries. Bump it there, not here.
+# GeoDmsVersion.cmd parses the same file for the msbuild/NSIS side.
+# (This used to be a hard-coded VERSION that had drifted to 15.0.0.)
+set(DMS_VERSION_HEADER "${CMAKE_CURRENT_SOURCE_DIR}/rtc/dll/src/RtcVersionNumbers.h")
+
+foreach(_part MAJOR MINOR PATCH)
+    file(STRINGS "${DMS_VERSION_HEADER}" _dms_line REGEX "^#define DMS_VERSION_${_part} +[0-9]+")
+    if(NOT _dms_line)
+        message(FATAL_ERROR
+            "No '#define DMS_VERSION_${_part} <n>' in ${DMS_VERSION_HEADER}")
+    endif()
+    string(REGEX REPLACE "^#define DMS_VERSION_${_part} +([0-9]+).*$" "\\1"
+           DMS_VERSION_${_part} "${_dms_line}")
+endforeach()
+
 project(GeoDMS
-    VERSION 15.0.0
+    VERSION ${DMS_VERSION_MAJOR}.${DMS_VERSION_MINOR}.${DMS_VERSION_PATCH}
     LANGUAGES CXX
 )
+
+# Re-configure when the version is bumped, so a cached build dir cannot go stale.
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${DMS_VERSION_HEADER}")
+
+# buildstamp.h is genuinely per-build and stays generated + gitignored, but the
+# batch scripts are the only thing that writes it. Seed it here when absent so a
+# fresh clone configures and builds without having to run a .bat first. Only when
+# missing: rewriting it every configure would force a needless Rtc relink.
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/rtc/dll/src/buildstamp.h")
+    string(TIMESTAMP _dms_build_date "%Y-%m-%d")
+    string(TIMESTAMP _dms_build_time "%H:%M:%S")
+    file(WRITE "${CMAKE_CURRENT_SOURCE_DIR}/rtc/dll/src/buildstamp.h"
+         "#define DMS_BUILD_DATE \"${_dms_build_date}\"\n"
+         "#define DMS_BUILD_TIME \"${_dms_build_time}\"\n")
+endif()
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

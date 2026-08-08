@@ -12,6 +12,33 @@
     tools\ensure-vcpkg.ps1 does the submodule checkout + bootstrap and serializes
     itself across parallel MSBuild nodes with a named mutex.
   -->
+  <!--
+    Seed rtc\dll\src\buildstamp.h when it is absent, so a fresh clone builds with a
+    bare `msbuild all22.sln` or an F5 in Visual Studio. gen\General.cpp includes it,
+    it is gitignored, and GeoDmsVersion.cmd (i.e. Build.bat and the three flavor
+    scripts) is otherwise the only thing that writes it.
+
+    The version numbers deliberately need NO such hook: they live in the tracked
+    rtc\dll\src\RtcVersionNumbers.h, which the compiler reads directly.
+
+    Only when missing. Writing it on every build would make the header newer than
+    the outputs, forcing a needless Rtc recompile+relink each time and emitting
+    .pdb files that no longer match installed binaries, the very thing the
+    GEODMS_VERSION_HEADER_DONE guard in GeoDmsVersion.cmd exists to avoid.
+  -->
+  <Target Name="DmsEnsureBuildStamp"
+          BeforeTargets="ClCompile"
+          Condition="!Exists('$(MSBuildThisFileDirectory)rtc\dll\src\buildstamp.h')">
+    <PropertyGroup>
+      <_DmsStampDate>$([System.DateTime]::Now.ToString('yyyy-MM-dd'))</_DmsStampDate>
+      <_DmsStampTime>$([System.DateTime]::Now.ToString('HH:mm:ss'))</_DmsStampTime>
+    </PropertyGroup>
+    <Message Importance="high" Text="Seeding rtc\dll\src\buildstamp.h (absent in this checkout)..." />
+    <WriteLinesToFile File="$(MSBuildThisFileDirectory)rtc\dll\src\buildstamp.h"
+                      Lines="#define DMS_BUILD_DATE &quot;$(_DmsStampDate)&quot;;#define DMS_BUILD_TIME &quot;$(_DmsStampTime)&quot;"
+                      Overwrite="true" />
+  </Target>
+
   <Target Name="EnsureVcpkgBootstrapped"
           BeforeTargets="VcpkgInstallManifestDependencies"
           Condition="!Exists('$(VcpkgRoot)\vcpkg.exe')">

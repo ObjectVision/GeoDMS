@@ -18,8 +18,8 @@
 #include "rtctypemodel.h"
 #include "RtcInterface.h"
 
-#include "RtcGeneratedVersion.h"
-#include "buildstamp.h"
+#include "RtcVersionNumbers.h" // tracked single source of truth; see its header comment
+#include "buildstamp.h"        // generated per build (date/time only)
 
 
 #ifdef MG_DEBUG

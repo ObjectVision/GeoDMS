@@ -829,7 +829,7 @@
     <ClInclude Include="src\ptr\LifetimeProtector.h">
       <Filter>Smart Pointers</Filter>
     </ClInclude>
-    <ClInclude Include="src\RtcGeneratedVersion.h" />
+    <ClInclude Include="src\RtcVersionNumbers.h" />
     <ClInclude Include="src\throwItemError.h" />
     <ClInclude Include="src\act\waiter.h" />
     <ClInclude Include="src\buildstamp.h" />

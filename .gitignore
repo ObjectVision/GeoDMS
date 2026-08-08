@@ -16,6 +16,8 @@ todo*.txt
 /vc_downloads
 /splash
 /rtc/dll/src/buildstamp.h
+# Legacy: the version numbers now live in the TRACKED rtc/dll/src/RtcVersionNumbers.h.
+# Kept ignored so stale copies in existing checkouts do not show up as untracked.
 /rtc/dll/src/RtcGeneratedVersion.h
 
 /build/
