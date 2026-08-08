@@ -8,6 +8,8 @@
 #pragma hdrstop
 #endif
 
+#include <algorithm> // std::sort, for the greedy/needy land unit ranking
+
 #include "dbg/debug.h"
 #include "dbg/SeverityType.h"
 #include "geo/Pair.h"
@@ -132,12 +134,34 @@ results in:
 const bool DMS_DEBUG_DISCRALLOC = MG_DEBUGCODE( true ||) false;
 
 enum class discr_alloc_version
-{ 
+{
 	no_partition,
 	one_partition,
 	multiple_partitions_without_feasibility_test,
 	multiple_partitions_with_feasibility_test
 };
+
+// The allocation regimes are deliberately kept apart: each one is a complete algorithm on its own
+// and none of them is used to prime another (no price pre-heating), so that what a result means can
+// be documented per operator without reference to the others.
+//
+//   hitchcock: the exact transportation solve; shadow prices, facet queues and reallocation.
+//   greedy   : rank the land units ONCE by their best suitability, then serve them in that order.
+//   needy    : idem, but ranked by regret (best minus next best), so the units with the most to
+//              lose from being denied their favourite type are served first.
+//
+// greedy and needy share all their machinery (SolveGreedy) and differ only in the ranking key.
+// Neither of them computes or reports shadow prices.
+enum class alloc_regime { hitchcock, greedy, needy };
+
+inline CharPtr AllocRegimeName(alloc_regime regime)
+{
+	switch (regime) {
+		case alloc_regime::greedy: return "greedy_alloc";
+		case alloc_regime::needy:  return "needy_alloc";
+		default:                   return "discrete_alloc";
+	}
+}
 
 // *****************************************************************************
 //									Helping structures
@@ -509,6 +533,11 @@ struct ggType_meta_t
 	std::weak_ptr<AbstrDataItem> m_diResShadowPrices;
 	std::weak_ptr<AbstrDataItem> m_diResTotalAllocated;
 
+	// The greedy and needy regimes (mustAdjust == false) have no shadow_prices/<name> result member,
+	// so m_diResShadowPrices stays an EMPTY weak. That is indistinguishable from an EXPIRED weak, which
+	// lock_or_cancel must keep treating as cancellation; hence this explicit "was it ever created" flag.
+	// See CreateResultingItems and StoreLanduseTypeInfo (issue #1171).
+	bool m_HasResShadowPrices = false;
 };
 
 template <typename S>
@@ -1751,12 +1780,15 @@ void CreateResultingItems(
 				throwErrorF("discrete_alloc", "price unit expired while processing suitability map for {}", gg->m_NameID);
 
 			if (mustAdjust)
+			{
 				gg->m_diResShadowPrices = make_weak_tree(CreateDataItem(
 					resShadowPriceContainer
 					, gg->m_NameID
 					, partitioningUnit
 					, priceUnit
 				).get()); // owned by resShadowPriceContainer
+				gg->m_HasResShadowPrices = true;
+			}
 		}
 		gg->m_diResTotalAllocated =
 			make_weak_tree(CreateDataItem(
@@ -2019,6 +2051,8 @@ void PrepareFacets(htp_info_t<S, AR, AT>& htpInfo)
 			}
 		}
 	}
+	dms_assert(htpInfo.m_FacetIds.size() == SizeT(nrAtomicRegions) * K * K); // postcondition of this function;
+	// it lived in PrepareReport until the greedy/needy regimes started skipping PrepareFacets altogether.
 }
 
 template <typename S, typename AR, typename AT>
@@ -2035,11 +2069,6 @@ void PrepareReport(htp_info_t<S, AR, AT>& htpInfo)
 		htpInfo.GetNrUniqueRegions(), 
 		htpInfo.GetNrLinks()
 	);
-#if defined(MG_DEBUG)
-	UInt32 K  = htpInfo.GetK();
-	UInt32 ar = htpInfo.GetNrAtomicRegions();
-	dms_assert(htpInfo.m_FacetIds.size()     == ar * K * K ); // htpInfo.GetNrLinks()
-#endif
 }
 
 // *****************************************************************************
@@ -3178,6 +3207,203 @@ void Solve(htp_info_t<S, AR, AT>& htpInfo, S threshold, AbstrDataObject* resPric
 	StoreBidPricesCurrTile(htpInfo, resPrices, true);
 }
 
+// *****************************************************************************
+//					SolveGreedy: the greedy_alloc and needy_alloc regimes
+// *****************************************************************************
+//
+// One static ranking of the land units, then at most two sweeps over that ranking. No shadow
+// prices, no facet queues, no reallocation: once a land unit has been given a type it keeps it.
+//
+// RANKING (once, before anything is allocated; see rank_unit below)
+//   Per land unit take the suitabilities that reach the threshold. 'best' is the highest of them
+//   and 'next' the second highest, or the threshold itself when the unit has only one admissible
+//   type -- the threshold is the value at which allocating stops being worthwhile, so it is the
+//   natural stand-in for "this unit would go unallocated instead".
+//     greedy_alloc ranks by  best         -- the highest bidders are served first.
+//     needy_alloc  ranks by  best - next  -- the units with the most to lose are served first.
+//   Ties are broken by land unit index, so a run is reproducible and independent of tiling.
+//   The ranking is NOT recomputed while allocating: a bid is what a land unit is worth, not a
+//   moving target, which is what makes the outcome easy to explain.
+//
+// SWEEP 1 (skipped when every minimum claim is 0)
+//   Reserve for the minimum claims: each land unit, in ranking order, goes to its best type whose
+//   claim is still below its MINIMUM. Units that cannot help any deficient claim are left for
+//   sweep 2. Reserving first matters: after sweep 2 the attractive units are spent and the
+//   minimums can only be met by taking back land units that are wanted elsewhere.
+//
+// SWEEP 2
+//   Every land unit still free, in ranking order, goes to its best type whose claim is below its
+//   MAXIMUM. A unit for which every admissible claim is full stays unallocated and is counted.
+//
+// Complexity O(N*K + N*log N) in time and O(N) extra memory (the ranking vector, sizeof(ranked_unit)
+// per land unit); in particular it never builds the O(#atomicRegions * K^2) facet administration
+// that the hitchcock regime needs, which is where most of that regime's constant factor sits.
+//
+// This is a heuristic. Land units and claims each form a partition matroid, so maximising total
+// suitability over their intersection is exactly what discrete_alloc solves; a one-pass greedy on
+// such an intersection can be off, in the worst case by a factor two. Use discrete_alloc when the
+// allocation has to be optimal.
+
+struct ranked_unit
+{
+	Float64      m_Score;
+	land_unit_id m_Unit;
+};
+
+inline bool CompareRankedUnits(const ranked_unit& a, const ranked_unit& b)
+{
+	if (a.m_Score != b.m_Score)
+		return a.m_Score > b.m_Score; // highest score first
+	return a.m_Unit < b.m_Unit;       // deterministic tie-break, independent of tiling
+}
+
+struct greedy_totals
+{
+	land_unit_id m_NrAllocated = 0;
+	land_unit_id m_NrReserved = 0;      // allocated by sweep 1 (minimum claims)
+	land_unit_id m_NrNoCapacity = 0;    // admissible, but every reachable claim was full
+	Int64        m_TotalSuitability = 0;
+};
+
+// Give land unit i its best type whose claim still has room, and administer the allocation.
+// minPhase: room means "below the MINIMUM claim" instead of "below the maximum claim". That cannot
+// overshoot the maximum, because FeasibilityTest has already rejected every claim with min > max.
+template <typename S, typename AR, typename AT>
+bool GreedyAllocateUnit(htp_info_t<S, AR, AT>& htpInfo, land_unit_id i, bool minPhase, Int64& totalSuitability)
+{
+	auto ar = htpInfo.GetAtomicRegionID(i);
+	UInt32 K = htpInfo.GetK();
+
+	UInt32 winner = UNDEFINED_VALUE(UInt32);
+	S      winningBid = S();
+	for (UInt32 j = 0; j != K; ++j)
+	{
+		S s = htpInfo.m_ggTypes[j].m_Suitabilities[i];
+		if (s < htpInfo.m_Threshold)
+			continue;
+
+		// shadow prices stay zero in these regimes, so a plain count test says it all; using
+		// AtMax() here would drag the (unused) price terms of claim<S> into the criterion.
+		const claim<S>& c = htpInfo.GetClaim(ar, AT(j));
+		if (c.m_Count >= (minPhase ? c.m_ClaimRange.first : c.m_ClaimRange.second))
+			continue;
+
+		if (winner == UNDEFINED_VALUE(UInt32) || winningBid < s)
+		{
+			winningBid = s;
+			winner = j;
+		}
+	}
+	if (winner == UNDEFINED_VALUE(UInt32))
+		return false;
+
+	htpInfo.m_ResultArray[i] = AT(winner);
+	++htpInfo.GetClaim(ar, AT(winner)).m_Count;
+	totalSuitability += Int64(winningBid);
+	return true;
+}
+
+template <typename S, typename AR, typename AT>
+greedy_totals SolveGreedy(htp_info_t<S, AR, AT>& htpInfo, S threshold, alloc_regime regime, AbstrDataObject* resPrices)
+{
+	CDebugContextHandle debugContext("DiscrAlloc", "SolveGreedy", true);
+	CharPtr regimeName = AllocRegimeName(regime);
+
+	htpInfo.m_Threshold = IsDefined(threshold) ? threshold : MinValue<S>();
+	const S thr = htpInfo.m_Threshold;
+
+	const land_unit_id N = htpInfo.GetN();
+	const UInt32       K = htpInfo.GetK();
+	const bool         isNeedy = (regime == alloc_regime::needy);
+
+	greedy_totals totals;
+
+	// ---- rank the land units once
+	std::vector<ranked_unit> ranking;
+	ranking.reserve(N);
+	for (land_unit_id i = 0; i != N; ++i)
+	{
+		htpInfo.m_ResultArray[i] = UNDEFINED_VALUE(AT); // also the "still free" marker for the sweeps
+
+		bool any = false;
+		S best = thr, next = thr;
+		for (UInt32 j = 0; j != K; ++j)
+		{
+			S s = htpInfo.m_ggTypes[j].m_Suitabilities[i];
+			if (s < thr)
+				continue;
+			if (!any || best < s)
+			{
+				if (any)
+					next = best;
+				best = s;
+				any = true;
+			}
+			else if (next < s)
+				next = s;
+		}
+		if (!any)
+		{
+			++htpInfo.m_NrBelowThreshold;
+			if (htpInfo.m_NrBelowThreshold <= NR_BELOW_THRESHOLD_NOTIFICATIONS)
+				reportF(SeverityTypeID::ST_MajorTrace, "{}: all suitabilities of land unit {} are below the threshold {}",
+					regimeName, i, AsString(thr).c_str()
+				);
+			continue;
+		}
+		ranking.push_back(ranked_unit{ isNeedy ? Float64(best) - Float64(next) : Float64(best), i });
+	}
+	std::sort(ranking.begin(), ranking.end(), CompareRankedUnits);
+
+	reportF(SeverityTypeID::ST_MajorTrace, "{}: ranked {} of {} land units by {}; {} below the threshold {}",
+		regimeName, ranking.size(), N,
+		isNeedy ? "regret (best minus next best suitability)" : "best suitability",
+		htpInfo.m_NrBelowThreshold, AsString(thr).c_str()
+	);
+
+	// ---- sweep 1: reserve for the minimum claims
+	SizeT totalDeficit = 0;
+	for (const auto& c : htpInfo.m_Claims)
+		totalDeficit += c.m_ClaimRange.first;
+
+	if (totalDeficit)
+	{
+		reportF(SeverityTypeID::ST_MajorTrace, "{}: reserving for minimum claims totalling {} land units", regimeName, totalDeficit);
+		for (const auto& ru : ranking)
+		{
+			if (!totalDeficit)
+				break; // every minimum claim is met; the rest is sweep 2's business
+			if (GreedyAllocateUnit(htpInfo, ru.m_Unit, true, totals.m_TotalSuitability))
+			{
+				++totals.m_NrReserved;
+				--totalDeficit;
+			}
+		}
+		reportF(SeverityTypeID::ST_MajorTrace, "{}: minimum claims sweep allocated {} land units, {} short",
+			regimeName, totals.m_NrReserved, totalDeficit
+		);
+	}
+
+	// ---- sweep 2: the remaining land units, against the maximum claims
+	for (const auto& ru : ranking)
+	{
+		if (IsDefined(htpInfo.m_ResultArray[ru.m_Unit]))
+			continue; // reserved by sweep 1
+		if (!GreedyAllocateUnit(htpInfo, ru.m_Unit, false, totals.m_TotalSuitability))
+			++totals.m_NrNoCapacity;
+	}
+	totals.m_NrAllocated = land_unit_id(ranking.size()) - totals.m_NrNoCapacity;
+
+	reportF(SeverityTypeID::ST_MajorTrace, "{}: allocated {} land units ({} of them reserved for minimum claims); "
+		"{} below the threshold and {} without any claim capacity left",
+		regimeName, totals.m_NrAllocated, totals.m_NrReserved,
+		htpInfo.m_NrBelowThreshold, totals.m_NrNoCapacity
+	);
+
+	StoreBidPricesCurrTile(htpInfo, resPrices, true);
+	return totals;
+}
+
 
 // *****************************************************************************
 //									StoreLanduseTypeInfo
@@ -3190,39 +3416,50 @@ void StoreLanduseTypeInfo(htp_info_t<S, AR, AT>& htpInfo, bool isFeasible)
 	{
 		ggType_info_t<S>& ggTypeInfo = htpInfo.m_ggTypes[j];
 
-		auto resSPLock = lock_or_cancel(ggTypeInfo.m_diResShadowPrices);   // owning for this scope; throws if torn down
-		auto resTALock = lock_or_cancel(ggTypeInfo.m_diResTotalAllocated);
-		DataWriteLock spLock(resSPLock.get()  , dms_rw_mode::write_only_all);
-		DataWriteLock taLock(resTALock.get(), dms_rw_mode::write_only_all);
-
-		DataArray<S           >* doResSP = mutable_array_checkedcast<S>(spLock);
-		DataArray<land_unit_id>* doResTA = mutable_array_checkedcast<land_unit_id>(taLock);
-		auto daResSP = doResSP->GetDataWrite(no_tile, dms_rw_mode::write_only_all); auto resSPiter = daResSP.begin();
-		auto daResTA = doResTA->GetDataWrite(no_tile, dms_rw_mode::write_only_all); auto resTAiter = daResTA.begin();
-
 		UInt32 K = ggTypeInfo.m_NrClaims;
+		auto firstClaim = htpInfo.m_Claims.begin() + ggTypeInfo.m_FirstClaimID;
+
+		// total_allocated/<name> is always part of the result
+		{
+			auto resTALock = lock_or_cancel(ggTypeInfo.m_diResTotalAllocated); // owning for this scope; throws if torn down
+			DataWriteLock taLock(resTALock.get(), dms_rw_mode::write_only_all);
+
+			DataArray<land_unit_id>* doResTA = mutable_array_checkedcast<land_unit_id>(taLock);
+			auto daResTA = doResTA->GetDataWrite(no_tile, dms_rw_mode::write_only_all); auto resTAiter = daResTA.begin();
+			dms_assert(daResTA.size() == K);
+
+			if (isFeasible)
+				for (auto claimIter = firstClaim, claimEnd = firstClaim + K; claimIter != claimEnd; ++claimIter)
+					*resTAiter++ = claimIter->m_Count;
+			else
+				fast_fill(resTAiter, resTAiter+K, UNDEFINED_VALUE(UInt32));
+
+			taLock.Commit();
+		}
+
+		// shadow_prices/<name> only exists for the adjusting (discrete_alloc) variants; the greedy_alloc and
+		// needy_alloc families run with mustAdjust == false, so CreateResultingItems left m_diResShadowPrices
+		// EMPTY. Issue #1171:
+		// locking an empty weak throws task_canceled, which OperationContext::Run_with_catch swallows, leaving the
+		// result neither computed nor failed -- observed as a spinning retry ("hang") up to 20.8.0 and as an
+		// internal "m_Ptr->WasFailed()" check failure afterwards.
+		if (!ggTypeInfo.m_HasResShadowPrices)
+			continue;
+
+		auto resSPLock = lock_or_cancel(ggTypeInfo.m_diResShadowPrices); // owning for this scope; throws if torn down
+		DataWriteLock spLock(resSPLock.get(), dms_rw_mode::write_only_all);
+
+		DataArray<S>* doResSP = mutable_array_checkedcast<S>(spLock);
+		auto daResSP = doResSP->GetDataWrite(no_tile, dms_rw_mode::write_only_all); auto resSPiter = daResSP.begin();
 		dms_assert(daResSP.size() == K);
-		dms_assert(daResTA.size() == K);
 
 		if (isFeasible)
-		{
-			auto
-				claimIter = htpInfo.m_Claims.begin() + ggTypeInfo.m_FirstClaimID,
-				claimEnd  = claimIter                + K;
-			while(claimIter != claimEnd)
-			{
+			for (auto claimIter = firstClaim, claimEnd = firstClaim + K; claimIter != claimEnd; ++claimIter)
 				*resSPiter++ = claimIter->m_ShadowPrice.first;
-				*resTAiter++ = claimIter->m_Count;
-				++claimIter;
-			}
-		}
 		else
-		{
 			fast_fill(resSPiter, resSPiter+K, UNDEFINED_VALUE(S));
-			fast_fill(resTAiter, resTAiter+K, UNDEFINED_VALUE(UInt32));
-		}
+
 		spLock.Commit();
-		taLock.Commit();
 	}
 }
 
@@ -3275,7 +3512,11 @@ class HitchcockTransportationOperator : public VariadicOperator
 	typedef PriceType     ResultShadowPriceType; 
 	using htp_meta_type = htp_meta_t<S>;
 	using htp_info_type = htp_info_t<S, AR, AT>;
-	const bool m_MustAdjust;
+
+	// Which algorithm this operator group runs; see alloc_regime. Only the hitchcock regime
+	// computes shadow prices, so only it gets shadow_prices/<name> result members.
+	const alloc_regime m_Regime;
+	bool MustAdjust() const { return m_Regime == alloc_regime::hitchcock; }
 
 	arg_index GetNrArguments() const
 	{
@@ -3293,9 +3534,9 @@ class HitchcockTransportationOperator : public VariadicOperator
 	}
 
 public:
-	HitchcockTransportationOperator(AbstrOperGroup* gr, bool mustAdjust)
-		:	VariadicOperator(gr, ResultType::GetStaticClass(), GetNrArguments()) 
-		,	m_MustAdjust(mustAdjust)
+	HitchcockTransportationOperator(AbstrOperGroup* gr, alloc_regime regime)
+		:	VariadicOperator(gr, ResultType::GetStaticClass(), GetNrArguments())
+		,	m_Regime(regime)
 	{
 		ClassCPtr* argClsIter = m_ArgClasses.get();
 		*argClsIter++ = Arg1Type::GetStaticClass(); // ggTypes->name array
@@ -3394,7 +3635,7 @@ public:
 		// K11b result side: the NAME-DIRECTED member families. Per ggType (named by
 		// the typeNames values, argument 0) CheckAndPrepare creates
 		//   total_allocated/<name> = CreateDataItem(.., partitioningUnit, default<claim_type>)
-		//   shadow_prices/<name>   = CreateDataItem(.., partitioningUnit, priceUnit)   [iff m_MustAdjust]
+		//   shadow_prices/<name>   = CreateDataItem(.., partitioningUnit, priceUnit)   [iff MustAdjust()]
 		// Only the UNPARTITIONED variants are described: there partitioningUnit is
 		// provably Unit<Void> (the else-branch of hasPartitionings), so both families
 		// are parameters. With partitionings the domain is a per-type partitioning
@@ -3407,7 +3648,7 @@ public:
 			sig_var TA = sb.UnitVar("totalAllocated");
 			sb.MemberValueClass(TA, ResultTotalType::GetStaticClass()->GetValuesType());
 			sb.ResultContainerMemberSet("total_allocated", 0, TA, voidDom, ValueComposition::Single);
-			if (m_MustAdjust)
+			if (MustAdjust())
 			{
 				sig_var SP = sb.UnitVar("shadowPrice");
 				sb.MemberValueClass(SP, ResultShadowPriceType::GetStaticClass()->GetValuesType());
@@ -3503,7 +3744,7 @@ public:
 			resShadowPriceContainer,
 			resTotalAllocatedContainer,
 			htpMeta,
-			m_MustAdjust, debug_refcast<FuncDC&>(resultHolder)
+			MustAdjust(), debug_refcast<FuncDC&>(resultHolder)
 		,	!std::is_same_v<AR, Void>
 		);
 
@@ -3565,7 +3806,8 @@ public:
 			else
 			{
 				DataReadLockSuitabilities(htpInfo);
-				PrepareFacets(htpInfo);
+				if (MustAdjust())
+					PrepareFacets(htpInfo); // reallocation queues; greedy/needy never reallocate
 				PrepareReport(htpInfo);
 			}
 
@@ -3581,7 +3823,12 @@ public:
 				S threshold = GetTheCurrValue<S>(GetItem(argIter[2]));
 
 				PrepareTileLock(htpInfo);
-				Solve(htpInfo, threshold, htpInfo.m_ResultPriceDataLock.get());
+
+				greedy_totals greedyTotals;
+				if (MustAdjust())
+					Solve(htpInfo, threshold, htpInfo.m_ResultPriceDataLock.get());
+				else
+					greedyTotals = SolveGreedy(htpInfo, threshold, m_Regime, htpInfo.m_ResultPriceDataLock.get());
 
 				if (htpInfo.m_NrBelowThreshold > 0)
 				{
@@ -3592,7 +3839,29 @@ public:
 					);
 				}
 				isFeasible = CheckAllClaims(htpInfo, &strStatus);
-				if (isFeasible)
+				if (isFeasible && !MustAdjust())
+				{
+					// No shadow prices, so no distance-from-optimum analysis: greedy/needy give up
+					// optimality by design and DistFromOpt asserts that every deviation from the best
+					// bid is caused by the threshold, which is exactly what these regimes break.
+					dms_assert(strStatus.empty());
+					strStatus = mySSPrintF("{} completed", AllocRegimeName(m_Regime));
+					strStatus += mySSPrintF(" with a total magnified suitability of {} over {} allocated land units",
+						greedyTotals.m_TotalSuitability, greedyTotals.m_NrAllocated
+					);
+					if (greedyTotals.m_NrAllocated)
+						strStatus += mySSPrintF(" = {:f} per land unit",
+							Float64(greedyTotals.m_TotalSuitability) / Float64(greedyTotals.m_NrAllocated)
+						);
+					if (greedyTotals.m_NrReserved)
+						strStatus += mySSPrintF(", of which {} were reserved for minimum claims", greedyTotals.m_NrReserved);
+					if (htpInfo.m_NrBelowThreshold)
+						strStatus += mySSPrintF("; {} land units left unallocated below the threshold", htpInfo.m_NrBelowThreshold);
+					if (greedyTotals.m_NrNoCapacity)
+						strStatus += mySSPrintF("; {} land units left unallocated for lack of claim capacity", greedyTotals.m_NrNoCapacity);
+					strStatus += "; not necessarily optimal, use discrete_alloc for that";
+				}
+				else if (isFeasible)
 				{
 					dms_assert(strStatus.empty());
 					DistFromOpt distData(htpInfo);
@@ -3717,49 +3986,64 @@ namespace
 	SpecialOperGroup hitchcockGroup_16("discrete_alloc_16",       11, da_oap, oper_policy::better_not_in_meta_scripting);
 	SpecialOperGroup greedyGroup   ("greedy_alloc", 11, da_oap, oper_policy::better_not_in_meta_scripting);
 	SpecialOperGroup greedyGroup_16("greedy_alloc_16", 11, da_oap, oper_policy::better_not_in_meta_scripting);
+	SpecialOperGroup needyGroup    ("needy_alloc", 11, da_oap, oper_policy::better_not_in_meta_scripting);
+	SpecialOperGroup needyGroup_16 ("needy_alloc_16", 11, da_oap, oper_policy::better_not_in_meta_scripting);
 
 	SpecialOperGroup hitchcockGroup_sp   ("discrete_alloc_sp", 8, sp_oap, oper_policy::better_not_in_meta_scripting);
 	SpecialOperGroup hitchcockGroup_sp_16("discrete_alloc_sp_16", 8, sp_oap, oper_policy::better_not_in_meta_scripting);
 	SpecialOperGroup greedyGroup_sp      ("greedy_alloc_sp", 8, sp_oap, oper_policy::better_not_in_meta_scripting);
 	SpecialOperGroup greedyGroup_sp_16   ("greedy_alloc_sp_16", 8, sp_oap, oper_policy::better_not_in_meta_scripting);
+	SpecialOperGroup needyGroup_sp       ("needy_alloc_sp", 8, sp_oap, oper_policy::better_not_in_meta_scripting);
+	SpecialOperGroup needyGroup_sp_16    ("needy_alloc_sp_16", 8, sp_oap, oper_policy::better_not_in_meta_scripting);
 
 	SpecialOperGroup hitchcockGroup_np("discrete_alloc_np", 6, np_oap, oper_policy::better_not_in_meta_scripting);
 	SpecialOperGroup hitchcockGroup_np_16("discrete_alloc_np_16", 6, np_oap, oper_policy::better_not_in_meta_scripting);
 	SpecialOperGroup greedyGroup_np("greedy_alloc_np", 6, np_oap, oper_policy::better_not_in_meta_scripting);
 	SpecialOperGroup greedyGroup_np_16("greedy_alloc_np_16", 6, np_oap, oper_policy::better_not_in_meta_scripting);
+	SpecialOperGroup needyGroup_np ("needy_alloc_np", 6, np_oap, oper_policy::better_not_in_meta_scripting);
+	SpecialOperGroup needyGroup_np_16("needy_alloc_np_16", 6, np_oap, oper_policy::better_not_in_meta_scripting);
 
+	constexpr auto ar_hitchcock = alloc_regime::hitchcock;
+	constexpr auto ar_greedy    = alloc_regime::greedy;
+	constexpr auto ar_needy     = alloc_regime::needy;
 
 	template <typename S>
 	struct HitchcockTransportationOperatorSetjeNP
 	{
 		HitchcockTransportationOperator<S, discr_alloc_version::no_partition, Void, UInt8>
-			htpDefault = { &hitchcockGroup_np, true },
-			htpGreedy = { &greedyGroup_np, false };
+			htpDefault = { &hitchcockGroup_np, ar_hitchcock },
+			htpGreedy = { &greedyGroup_np, ar_greedy },
+			htpNeedy = { &needyGroup_np, ar_needy };
 		HitchcockTransportationOperator<S, discr_alloc_version::no_partition, Void, UInt16>
-			htpDefault16 = { &hitchcockGroup_np_16, true },
-			htpGreedy16 = {&greedyGroup_np_16, false};
+			htpDefault16 = { &hitchcockGroup_np_16, ar_hitchcock },
+			htpGreedy16 = { &greedyGroup_np_16, ar_greedy },
+			htpNeedy16 = { &needyGroup_np_16, ar_needy };
 	};
 
 	template <typename S, typename AR>
 	struct HitchcockTransportationOperatorSetjeSP
 	{
 		HitchcockTransportationOperator<S, discr_alloc_version::one_partition, AR, UInt8>
-			htpDefault = { &hitchcockGroup_sp, true },
-			htpGreedy = { &greedyGroup_sp, false };
+			htpDefault = { &hitchcockGroup_sp, ar_hitchcock },
+			htpGreedy = { &greedyGroup_sp, ar_greedy },
+			htpNeedy = { &needyGroup_sp, ar_needy };
 		HitchcockTransportationOperator<S, discr_alloc_version::one_partition, AR, UInt16>
-			htpDefault16 = { &hitchcockGroup_sp_16, true },
-			htpGreedy16 = { &greedyGroup_sp_16, false };
+			htpDefault16 = { &hitchcockGroup_sp_16, ar_hitchcock },
+			htpGreedy16 = { &greedyGroup_sp_16, ar_greedy },
+			htpNeedy16 = { &needyGroup_sp_16, ar_needy };
 	};
 
 	template <typename S, discr_alloc_version DAV, typename AR>
 	struct HitchcockTransportationOperatorSetje
 	{
 		HitchcockTransportationOperator<S, DAV, AR, UInt8>
-			htpDefault = { &hitchcockGroup, true },
-			htpGreedy = { &greedyGroup, false };
+			htpDefault = { &hitchcockGroup, ar_hitchcock },
+			htpGreedy = { &greedyGroup, ar_greedy },
+			htpNeedy = { &needyGroup, ar_needy };
 		HitchcockTransportationOperator<S, DAV, AR, UInt16>
-			htpDefault16 = { &hitchcockGroup_16, true },
-			htpGreedy16 = { &greedyGroup_16, false };
+			htpDefault16 = { &hitchcockGroup_16, ar_hitchcock },
+			htpGreedy16 = { &greedyGroup_16, ar_greedy },
+			htpNeedy16 = { &needyGroup_16, ar_needy };
 	};
 
 	template <typename S, typename AR>
