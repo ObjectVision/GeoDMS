@@ -417,6 +417,19 @@ static std::atomic<SizeT> s_PeakFreeStackBytes = 0;
 RTC_CALL SizeT GetFreeStackLiveBytes() { return s_FreeStackLiveBytes.load(std::memory_order_relaxed); }
 RTC_CALL SizeT GetPeakFreeStackBytes() { return s_PeakFreeStackBytes.load(std::memory_order_relaxed); }
 
+// Bytes of freed stores that are still COMMITTED: the reclaimable dead pool, measured at 53-112 GB
+// on t641 (§8.1.23). The admission gate subtracts it from the observed process commit, because that
+// memory is not held by anything -- drainage hands it back as soon as the gate is short of budget,
+// so counting it as occupancy would throttle a run for memory it can have for the asking.
+//
+// Same population as s_DeallocatedButNotYetDecommitted counts, in bytes. Unlike that gate counter,
+// this one pays the class-size test on the reuse-pop path: the gate counter may drift low and be
+// recalibrated by the next sweep, but a drifting BYTE figure would silently bias every admission
+// decision, and low drift here means under-subtracting, i.e. throttling for memory that is free.
+// Every mutation is made under the shared allocSection; the atomic is for the lock-free reader.
+static std::atomic<SizeT> s_FreeStackDeadBytes = 0;
+RTC_CALL SizeT GetFreeStackDeadBytes() { return s_FreeStackDeadBytes.load(std::memory_order_relaxed); }
+
 // Drainage mode (§8.1.24): set by the admission ledger while a refused task's claim is pending
 // (enforce mode only), cleared when the claim resolves. While it is on, every allocation from a
 // free-stack class also decommits one cold freed store of that class -- the committed dead pool
@@ -626,7 +639,9 @@ struct FreeStackAllocator
 			result = { freeStack.back(), poppedColdStore };
 			freeStack.pop_back();
 			if (poppedColdStore)
-				--nr_deallocated;
+				--nr_deallocated; // was decommitted: it held no commit charge, so the dead pool is unchanged
+			else if (inner.objectStoreSize < VirtualAllocChunk::DECOMMIT_MIN_SIZE)
+				s_FreeStackDeadBytes.fetch_sub(inner.objectStoreSize, std::memory_order_relaxed); // a committed dead store came back to life
 		}
 
 		// Pressure-triggered decommit (§8.1.24; array-wide sweep §8.1.25; budgeted §8.1.27):
@@ -669,6 +684,7 @@ struct FreeStackAllocator
 			++nr_deallocated;
 			--sweepBudget;
 			s_DrainedStackBytes.fetch_add(inner.objectStoreSize, std::memory_order_relaxed);
+			s_FreeStackDeadBytes.fetch_sub(inner.objectStoreSize, std::memory_order_relaxed); // handed back to the OS: no longer committed
 		}
 		SizeT stillCommitted = freeStack.size() - nr_deallocated;
 		return stillCommitted > keepHot ? stillCommitted - keepHot : 0;
@@ -695,7 +711,10 @@ struct FreeStackAllocator
 		s_FreeStackLiveBytes.fetch_sub(inner.objectStoreSize, std::memory_order_relaxed);
 		freeStack.emplace_back(ptr);
 		if (inner.objectStoreSize < VirtualAllocChunk::DECOMMIT_MIN_SIZE)
+		{
 			++s_DeallocatedButNotYetDecommitted; // arrives committed: gate-relevant (>= 2 MB stores arrive decommitted by release())
+			s_FreeStackDeadBytes.fetch_add(inner.objectStoreSize, std::memory_order_relaxed);
+		}
 	}
 	void deallocate(BYTE_PTR ptr, object_size_t objectSize)
 	{

@@ -1743,6 +1743,7 @@ inline bool IsLedgerLogging() { return GetResourceScheduling() != resource_sched
 RTC_CALL auto GetMemoryStatus() -> SharedStr; // FixedAlloc.cpp: process commit vs peak, for the sample line
 RTC_CALL SizeT GetLiveLargeAllocBytes();      // FixedAlloc.cpp: measured live bytes in large allocations
 RTC_CALL SizeT GetFreeStackLiveBytes();       // FixedAlloc.cpp: the same population as the allocator counts it
+RTC_CALL SizeT GetFreeStackDeadBytes();       // FixedAlloc.cpp: freed but still committed, i.e. reclaimable on demand
 RTC_CALL void SetFreeStackDrainageMode(bool); // FixedAlloc.cpp: while on, each allocation decommits one cold freed store (§8.1.24)
 
 static OperationContext* sd_LedgerClaimant = nullptr;       // under cs_ThreadMessing
@@ -1821,7 +1822,14 @@ static SizeT LedgerObservedCommitBytes()
 	if (!sd_LedgerObservedCommitNs || nowNs - sd_LedgerObservedCommitNs > 100'000'000)
 	{
 		sd_LedgerObservedCommitNs = nowNs;
-		sd_LedgerObservedCommit = GetProcessCommitBytes();
+		// Net out the free store's freed-but-still-committed pool. That memory is held by nothing:
+		// drainage gives it back to the OS precisely when the gate is short of budget (§8.1.24), so
+		// counting it as occupancy would defer work for memory available for the asking -- and it is
+		// not a rounding term, measured at 53-112 GB on t641 (§8.1.23). What remains is what the
+		// process actually occupies, which is the quantity a budget should be compared against.
+		auto commit = GetProcessCommitBytes();
+		auto reclaimable = GetFreeStackDeadBytes();
+		sd_LedgerObservedCommit = (commit > reclaimable) ? commit - reclaimable : 0;
 	}
 	return sd_LedgerObservedCommit;
 }
@@ -1879,9 +1887,9 @@ static void MemoryLedger_ConsiderSample(CharPtr event)
 	// this single ratio is what says whether the ledger can see this workload's memory at all:
 	// t301 read 706 MB against an 18 037 MB process before §8.1.34.
 	reportF_without_cancellation_check(MsgCategory::performance, SeverityTypeID::ST_MajorTrace
-		, "ledger basis: books {} B vs observed commit {} B (+{} B in flight) -> gate weighs {} B of {} B"
+		, "ledger basis: books {} B vs occupied {} B (commit less {} B reclaimable, +{} B in flight) -> gate weighs {} B of {} B"
 		, sd_LedgerCommittedBytes + sd_LedgerRetainedBytes.load(std::memory_order_relaxed)
-		, LedgerObservedCommitBytes(), sd_LedgerCommittedBytes
+		, LedgerObservedCommitBytes(), GetFreeStackDeadBytes(), sd_LedgerCommittedBytes
 		, LedgerEffectiveCommittedBytes(), LedgerBudgetBytes()
 	);
 	// Separate line: leak (retains vs releases) and magnitude (booked vs measured) are the two
