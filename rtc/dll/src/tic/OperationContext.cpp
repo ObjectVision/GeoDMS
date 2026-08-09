@@ -303,7 +303,7 @@ tile_task_group::~tile_task_group()
 		if (m_NrCompleted >= m_Last)
 			break;
 
-		m_TileTasksDone.wait_for(lock, std::chrono::milliseconds(500));
+		WaitForTaskNotification(m_TileTasksDone, lock);
 	}
 	assert(m_NrCompleted == m_Last); // we now expect to have completed all commissioned task-slots.
 }
@@ -362,7 +362,10 @@ void tile_task_group::registerCompletions(IndexType nr)
 	CheckThis(this);
 	assert(m_NrCompleted <= m_Last);
 	if (m_NrCompleted == m_Last)
+	{
 		m_TileTasksDone.notify_all();
+		WakeUpMainThreadWaiter();
+	}
 }
 
 bool tile_task_group::registerCompletion(IndexType i)
@@ -378,9 +381,10 @@ bool tile_task_group::registerCompletion(IndexType i)
 
 	auto nrCompleted = ++m_NrCompleted; // don't increment outside lock as it may cause another thread to Join and destruct
 	CheckThis(this);
-	if (nrCompleted != m_Last) 
+	if (nrCompleted != m_Last)
 		return false;
 	m_TileTasksDone.notify_all();
+	WakeUpMainThreadWaiter();
 	return true;
 }
 
@@ -497,7 +501,7 @@ void tile_task_group::AwaitRunningSlots()
 			DSM::CancelIfOutOfInterest();
 		ASyncContinueCheck(); // can throw !
 
-		m_TileTasksDone.wait_for(lock, std::chrono::milliseconds(500));
+		WaitForTaskNotification(m_TileTasksDone, lock);
 	}
 }
 
@@ -698,6 +702,7 @@ void wakeUpJoiners()
 {
 	assert(!cs_ThreadMessing.try_lock());
 	cv_TaskCompleted.notify_all();
+	WakeUpMainThreadWaiter();
 }
 
 TIC_CALL void WakeUpJoiners()
@@ -3293,7 +3298,7 @@ task_status OperationContext::Join()
 		}
 
 		// or wait for conditioin that was certainly not met just after setting the thread messing lock
-		cv_TaskCompleted.wait_for(lock.m_BaseLock, std::chrono::milliseconds(500));
+		WaitForTaskNotification(cv_TaskCompleted, lock.m_BaseLock);
 	}
 exit:
 	auto status = GetStatus();
@@ -3349,7 +3354,7 @@ TIC_CALL void DoWorkWhileWaiting()
 	}
 
 	// wait for conditioin that was certainly not met just after setting the thread messing lock
-	cv_TaskCompleted.wait_for(lock.m_BaseLock, std::chrono::milliseconds(500));
+	WaitForTaskNotification(cv_TaskCompleted, lock.m_BaseLock);
 }
 
 // *****************************************************************************
@@ -3403,7 +3408,7 @@ TIC_CALL void DoWorkWhileWaitingFor(std::atomic<task_status>* fenceStatus)
 			return;
 
 		// wait for conditioin that was certainly not met just after setting the thread messing lock
-		cv_TaskCompleted.wait_for(lock.m_BaseLock, std::chrono::milliseconds(500));
+		WaitForTaskNotification(cv_TaskCompleted, lock.m_BaseLock);
 	}
 }
 

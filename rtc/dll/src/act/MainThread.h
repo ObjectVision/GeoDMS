@@ -12,6 +12,7 @@
 #include "RtcBase.h"
 
 #include "Parallel.h"
+#include <condition_variable>
 #include <map>
 #include <deque>
 #include <functional>
@@ -85,6 +86,24 @@ RTC_CALL void ConfirmMainThreadOperProcessing();
 RTC_CALL void SetRequestMainThreadOperProcessingCallback(std::function<void()> callback);
 #endif
 RTC_CALL bool IsMainThreadOperProcessingRequestPending();
+
+//----------------------------------------------------------------------
+// section : responsive waiting for task-state notifications (#1156)
+//----------------------------------------------------------------------
+// WaitForTaskNotification replaces cv.wait_for(lock, 500ms) at spots where the
+// main thread can park while joining work. Off the main thread it is exactly
+// that. On the main thread (Windows) it blocks in MsgWaitForMultipleObjectsEx
+// instead: user32 then has the thread in the waiting-for-input state, so the
+// hang detector never declares its windows "Not Responding", and the arrival of
+// any message (input, posted, or cross-thread sent) also ends the wait --
+// without delivering anything, so no window procedure runs mid-computation.
+// Callers must re-check their wait predicate in a loop (all current callers do);
+// a message wake-up simply reaches their MustSuspend()/predicate check earlier.
+// Completion notifiers pair every cv.notify_all() with WakeUpMainThreadWaiter()
+// so the main thread still wakes promptly; a missed pairing only costs the
+// 500ms timeout, not correctness.
+RTC_CALL void WaitForTaskNotification(std::condition_variable& cv, std::unique_lock<std::mutex>& lock);
+RTC_CALL void WakeUpMainThreadWaiter() noexcept;
 
 struct MainThreadBlocker
 {

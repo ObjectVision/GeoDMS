@@ -57,7 +57,8 @@ namespace treeitem_production_task
 #endif defined(MG_DEBUG)
 
 		leveled_critical_section::unique_lock lock(cs_lockCounterUpdate);
-		cv_lockrelease.wait(lock.m_BaseLock, [self]() {return self->m_ItemCount <= 0;  });
+		while (self->m_ItemCount > 0)
+			WaitForTaskNotification(cv_lockrelease, lock.m_BaseLock);
 
 //		assert(!self->m_ItemCount); // TODO: Check that earlier lock_unique is from the same thread
 		--self->m_ItemCount;
@@ -71,7 +72,8 @@ namespace treeitem_production_task
 		DBG_TRACE(("count={}, producer = {}", self->m_ItemCount, self->m_Producer.lock() ? "available" : "null"));
 
 		leveled_critical_section::unique_lock lock(cs_lockCounterUpdate);
-		cv_lockrelease.wait(lock.m_BaseLock, [self]() {return self->m_ItemCount == 0; });
+		while (self->m_ItemCount != 0)
+			WaitForTaskNotification(cv_lockrelease, lock.m_BaseLock);
 
 		assert(self->m_Producer.expired()); // was cleaned up by producers task
 		--self->m_ItemCount;
@@ -110,7 +112,7 @@ namespace treeitem_production_task
 		leveled_critical_section::unique_lock lock(cs_lockCounterUpdate);
 		if (self->m_ItemCount < 0)
 		{
-			cv_lockrelease.wait_for(lock.m_BaseLock, std::chrono::milliseconds(500));
+			WaitForTaskNotification(cv_lockrelease, lock.m_BaseLock);
 			if (self->m_ItemCount < 0)
 				goto retry;
 		}
@@ -168,6 +170,7 @@ namespace treeitem_production_task
 
 		self->m_Producer.reset();
 		cv_lockrelease.notify_all();
+		WakeUpMainThreadWaiter();
 	}
 
 	void unlock_shared(const TreeItem* self) noexcept
@@ -181,7 +184,10 @@ namespace treeitem_production_task
 		assert(self->m_ItemCount > 0);
 		assert(self->m_Producer.expired());
 		if (!--self->m_ItemCount)
+		{
 			cv_lockrelease.notify_all();
+			WakeUpMainThreadWaiter();
+		}
 		DBG_TRACE(("count={}", self->m_ItemCount));
 	}
 /*  REMOVE
@@ -235,7 +241,7 @@ namespace cs_lock {
 			else
 			{
 				leveled_critical_section::unique_lock lock(treeitem_production_task::cs_lockCounterUpdate);
-				treeitem_production_task::cv_lockrelease.wait_for(lock.m_BaseLock, std::chrono::milliseconds(500));
+				WaitForTaskNotification(treeitem_production_task::cv_lockrelease, lock.m_BaseLock);
 			}
 			goto restart; // chain may have changed; re-scan from the top
 		}

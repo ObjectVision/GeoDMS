@@ -504,6 +504,17 @@ int main(int argc, char* argv[]) {
     // older LoadLibrary call sites.
     ::SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
     ::SetDllDirectoryW(L"");
+
+    // The "(Not Responding)" caption, the frosted overlay AND the rerouting of
+    // input all belong to the DWM ghost HWND that replaces a window whose thread
+    // hasn't retrieved messages for ~5s. During suspendible computation the main
+    // thread polls GetQueueStatus (which the hang detector doesn't count) instead
+    // of pumping, so a long calculation ghosts on the user's first interaction --
+    // and from then on clicks land in the ghost's queue, starving the very
+    // HasWaitingMessages() check that would make MustSuspend() yield (#1156).
+    // Without ghosting, input keeps arriving in our real queue and the suspend
+    // trigger answers it within its 1s timer tick. Irreversible per process.
+    ::DisableProcessWindowsGhosting();
 #else
     s_argc = argc;
     s_argv = argv;

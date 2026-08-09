@@ -200,6 +200,54 @@ RTC_CALL bool IsMainThreadOperProcessingRequestPending()
 {
 	return s_MainThreadOperProcessRequestPending;
 }
+
+//----------------------------------------------------------------------
+// section : responsive waiting for task-state notifications (#1156)
+//----------------------------------------------------------------------
+
+#if defined(WIN32)
+// Auto-reset event paired with the task-completion condition variables
+// (cv_TaskCompleted, m_TileTasksDone, cv_lockrelease). The main thread is the
+// only MsgWaitForMultipleObjectsEx waiter, so a single auto-reset event
+// suffices; a SetEvent while it is not waiting stays latched and merely makes
+// the next wait return once, after which the caller's predicate loop re-waits.
+static HANDLE s_MainThreadWakeUpEvent = CreateEventW(nullptr, FALSE, FALSE, nullptr);
+#endif
+
+RTC_CALL void WakeUpMainThreadWaiter() noexcept
+{
+#if defined(WIN32)
+	if (s_MainThreadWakeUpEvent)
+		SetEvent(s_MainThreadWakeUpEvent);
+#endif
+}
+
+RTC_CALL void WaitForTaskNotification(std::condition_variable& cv, std::unique_lock<std::mutex>& lock)
+{
+#if defined(WIN32)
+	if (IsMainThread() && IsMultiThreaded0() && s_MainThreadWakeUpEvent)
+	{
+		// A std::condition_variable wait is invisible to user32: 5s of it and the
+		// hang detector ghosts our windows, rerouting all further input to the
+		// ghost HWND and thereby starving HasWaitingMessages() (#1156). Blocking
+		// in MsgWaitForMultipleObjectsEx instead puts the thread in the official
+		// waiting-for-input state (documented as exempt from the not-responding
+		// verdict) and additionally wakes on any newly arriving message WITHOUT
+		// delivering it, so no window procedure can run here; the caller's loop
+		// then reaches its MustSuspend() check, and delivery happens in the event
+		// loop after unwinding. Deliberately no MWMO_INPUTAVAILABLE: messages
+		// already observed by a GetQueueStatus poll would otherwise end every
+		// wait immediately, turning non-suspendible waits (e.g. under a
+		// SilentBlocker in tile_task_group::Join) into a busy spin.
+		lock.unlock();
+		MsgWaitForMultipleObjectsEx(1, &s_MainThreadWakeUpEvent, 500, QS_ALLINPUT, 0);
+		lock.lock();
+		return;
+	}
+#endif
+	cv.wait_for(lock, std::chrono::milliseconds(500));
+}
+
 //----------------------------------------------------------------------
 // section : Operation Queues
 //----------------------------------------------------------------------

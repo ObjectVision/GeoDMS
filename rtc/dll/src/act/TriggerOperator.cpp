@@ -407,7 +407,11 @@ namespace SuspendTrigger {
 		MGD_CHECKDATA(gd_TriggerApplyLockCount == 0); // find who pulls the trigger
 
 #if defined(WIN32)
-		if (s_SuspendLevel || s_Timer.PassedSec() && HasWaitingMessages()) // HasWaitingMessages() can send WM_SIZE ... that sets s_SuspendLevel
+		// HasWaitingMessages() is GetQueueStatus(QS_ALLINPUT): dispatch-free detection of
+		// queued/sent messages; delivery happens in the event loop after this yields.
+		// (A former PeekMessage-based implementation could deliver WM_SIZE and the like
+		// right here; s_SuspendLevel remains as the guard for such reentrant handling.)
+		if (s_SuspendLevel || s_Timer.PassedSec() && HasWaitingMessages())
 #else
 		// On Linux there is no Win32 message pump, so HasWaitingMessages() is always false.
 		// Use the timer alone so that Join() on the meta thread can return task_status::suspended

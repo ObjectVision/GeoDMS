@@ -167,7 +167,16 @@ std::atomic<UInt32> g_DispatchLockCount = 0;
 
 bool HasWaitingMessages()
 {
-	return IsMultiThreaded0() && GetQueueStatus(QS_ALLEVENTS);
+	// GetQueueStatus is a pure status probe: unlike PeekMessage it never delivers
+	// pending cross-thread sent messages, so it cannot re-enter window procedures
+	// mid-computation (a PeekMessage-based implementation once did, dispatching
+	// WM_SIZE and the like at arbitrary suspend-poll points; see #1156).
+	// QS_ALLINPUT rather than QS_ALLEVENTS: QS_ALLINPUT adds QS_SENDMESSAGE, so a
+	// pending incoming SendMessage from another thread or process (shell WM_GETICON
+	// probes, SendMessageTimeout(SMTO_ABORTIFHUNG) hang probes, blocking senders)
+	// also makes MustSuspend() yield to the event loop, where the next retrieval
+	// call delivers it within ~1s instead of after the whole computation.
+	return IsMultiThreaded0() && GetQueueStatus(QS_ALLINPUT);
 }
 
 extern "C" RTC_CALL bool DMS_CONV DMS_HasWaitingMessages()
