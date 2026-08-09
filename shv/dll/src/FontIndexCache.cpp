@@ -252,16 +252,17 @@ FontArray::FontArray(const FontIndexCache* indexCache, bool sizesAreCellHeights)
 	for (auto i = indexCache->m_Keys.begin(), e = indexCache->m_Keys.end(); i!=e; ++i)
 	{
 		Int32  fontSize  = std::get<0>(*i);
-		std::get<0>(*i);
 
 		if (fontSize == 0)
 			m_FontArray.push_back( GdiHandle<HFONT>() ); // add handle without resource
 		else
 		{
 			UInt16  fontAngle = std::get<2>(*i);
-			CharPtr fontName  = GetTokenStr(std::get<1>(*i)).c_str();
-			// Font name is UTF-8; convert to wide for the -W font API (LOGFONTW).
-			MultiByteToWideChar(CP_UTF8, 0, fontName, -1, fontInfo.lfFaceName, LF_FACESIZE);
+			{
+				auto fontName = GetTokenStr(std::get<1>(*i));
+				// Font name is UTF-8; convert to wide for the -W font API (LOGFONTW).
+				MultiByteToWideChar(CP_UTF8, 0, fontName.c_str(), -1, fontInfo.lfFaceName, LF_FACESIZE);
+			}
 			fontInfo.lfFaceName[LF_FACESIZE-1] = 0;
 			fontInfo.lfHeight = (sizesAreCellHeights)
 				?	fontSize
