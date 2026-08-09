@@ -1,0 +1,19 @@
+// issue #1168: ordered_union_data must also reject a descent when it has ONE data item that already
+// has the resulting domain. union_data adopts such an argument without reading it; ordered_union_data
+// reads it to verify the stated order.
+// The IntegrityCheck below holds for the adopted values (3+2+1 == 6), so the run may only fail on the
+// order check of ordered_union_data.
+container oper_ordered_union_data_neg3
+{
+	unit<uint32> A : nrofrows = 3
+	{
+		attribute<uint32> descending : [ 3, 2, 1 ];
+	}
+
+	attribute<uint32> single (A) := ordered_union_data(A, A/descending);
+
+	container checks
+	{
+		parameter<uint32> v_sum := sum(single), IntegrityCheck = "v_sum == 6";
+	}
+}

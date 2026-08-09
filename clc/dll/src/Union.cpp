@@ -14,6 +14,7 @@
 #include "ser/AsString.h"
 #include "dbg/SeverityType.h"
 #include "set/VectorFunc.h"
+#include "utl/mySPrintF.h"
 #include "xct/DmsException.h"
 
 #include "CheckedDomain.h"
@@ -46,6 +47,8 @@ Annotated<CommonOperGroup> cog_unionData (
 
 Annotated<CommonOperGroup> cog_orderedUnionData(
 	"Note that the first argument indicates the domain of the result and subsequent arguments (at least one) determine the unit and type of the resulting values."
+	" Furthermore, ordered_union_data guarantees that the concatenation of the values of the subsequent arguments is non-decreasing (monotone increasing, but not strictly);"
+	" that guarantee is verified when the result is calculated and its violation is reported as a data error. Use union_data when the values are not known to be ordered."
 	, token::ordered_union_data, oper_policy::allow_extra_args | oper_policy::can_explain_value
 );
 
@@ -370,6 +373,74 @@ public:
 			resultHolder->m_StatusFlags.SetHasSortedValues();
 	}
 
+	// ordered_union_data promises that the concatenation of its data arguments is non-decreasing, and
+	// CreateResultCaller stamps that promise onto the result as DSF_HasSortedValues. Consumers read that
+	// flag and then take a sorted-merge path instead of building an index (rlookup, unique, GetCounts),
+	// so a false promise doesn't surface as an error downstream but silently yields wrong results.
+	// Verify it here, where the values pass by anyway on their way into the result.
+	//
+	// Non-decreasing means monotone increasing but NOT strict: equal successors are fine, only a descent
+	// is an error. The check runs on freshly produced values only; values that are already there were
+	// checked when they were produced.
+	//
+	// Only instantiated for the arithmetic value types: ordered_union_data is registered for
+	// typelists::num_objects (see OrderedUnionOpers below), which is exactly the arithmetic subset of the
+	// typelists::value_elements that UnionDataOperator as a whole is instantiated for. For the other
+	// value types m_IsOrdered is always false and the check is not compiled at all.
+	static constexpr bool can_check_ascending_v = std::is_arithmetic_v<V>;
+
+	// running state of the ascending check, carried across the tiles of an argument and across the arguments
+	struct ascending_check_state
+	{
+		SizeT m_NrChecked = 0;     // number of result elements checked so far; also the index of the next one
+		SizeT m_ArgFirstIndex = 0; // result index of the first element of the argument currently being checked
+		V     m_PrevValue = V();   // value of the last checked element; only meaningful when m_NrChecked != 0
+	};
+
+	[[noreturn]] void ThrowNotAscending(const ascending_check_state& state, const V& currValue
+		, const AbstrDataItem* res, const AbstrDataItem* argA, arg_index argNr) const
+	{
+		res->ThrowFail(mySSPrintF(
+			"ordered_union_data: the concatenation of the argument values is not non-decreasing.\n"
+			"Element {0} of the result, which is element {1} of argument {2}: {3}, has value {4},"
+			" which is less than the value {5} of its predecessor.\n"
+			"Use union_data if the values of the arguments are not guaranteed to be ordered."
+		,	state.m_NrChecked
+		,	state.m_NrChecked - state.m_ArgFirstIndex
+		,	argNr
+		,	argA->GetSourceName()
+		,	AsString(currValue)
+		,	AsString(state.m_PrevValue)
+		), FailType::Data);
+	}
+
+	template <typename ConstIter>
+	void CheckAscending(ConstIter first, ConstIter last, ascending_check_state& state
+		, const AbstrDataItem* res, const AbstrDataItem* argA, arg_index argNr) const
+	{
+		for (; first != last; ++first)
+		{
+			V currValue = *first;
+			if (state.m_NrChecked && (currValue < state.m_PrevValue))
+				ThrowNotAscending(state, currValue, res, argA, argNr);
+			state.m_PrevValue = currValue;
+			++state.m_NrChecked;
+		}
+	}
+
+	// Check all tiles of one argument, in the order in which they contribute to the result.
+	void CheckAscendingArg(ascending_check_state& state, const AbstrDataItem* res, const AbstrDataItem* argA, arg_index argNr) const
+	{
+		const ArgType* arg = debug_cast<const ArgType*>(argA->GetCurrRefObj().get());
+		const AbstrUnit* argDU = argA->GetAbstrDomainUnit();
+		state.m_ArgFirstIndex = state.m_NrChecked;
+		for (tile_id t = 0, tn = argDU->GetNrTiles(); t != tn; ++t)
+		{
+			auto argData = arg->GetLockedDataRead(t);
+			CheckAscending(argData.begin(), argData.end(), state, res, argA, argNr);
+		}
+	}
+
 	bool CalcResult(TreeItemDualRef& resultHolder, const ArgRefs& args, std::vector<ItemReadLock> readLocks, Explain::Context* context) const override
 	{
 		dms_assert(resultHolder);
@@ -398,6 +469,11 @@ public:
 		dms_assert(!res->m_DataObject || context);
 		bool dontRecalc = IsDataReady(res);
 		dms_assert(!dontRecalc || context);
+
+		// both are only read from within the if constexpr (can_check_ascending_v) blocks below
+		[[maybe_unused]] bool mustCheckAscending = m_IsOrdered && !dontRecalc;
+		[[maybe_unused]] ascending_check_state ascendingState;
+
 		if (n == 1)
 		{
 			const AbstrDataItem* argA = AsDataItem(args[1]);
@@ -405,6 +481,13 @@ public:
 			DataReadLock argLock(argA);
 			if (argLock->GetTiledRangeData() == resultDomain->GetTiledRangeData())
 			{
+				// the single argument becomes the result as-is, so the loop below that checks while writing
+				// is not entered; verify the promise on the adopted values here.
+				if constexpr (can_check_ascending_v)
+				{
+					if (mustCheckAscending)
+						CheckAscendingArg(ascendingState, res, argA, 2);
+				}
 				res->m_DataObject = argLock;
 				return true;
 			}
@@ -419,12 +502,21 @@ public:
 
 			DataReadLock argLock(argA);
 			const ArgType* arg = debug_cast<const ArgType*>(argA->GetCurrRefObj().get());
+			if constexpr (can_check_ascending_v)
+				ascendingState.m_ArgFirstIndex = ascendingState.m_NrChecked;
 			for (tile_id t = 0, tn = argDU->GetNrTiles(); t != tn; ++t)
 			{
 				auto argData = arg->GetLockedDataRead(t);
 
 				if (!dontRecalc)
+				{
+					if constexpr (can_check_ascending_v)
+					{
+						if (mustCheckAscending)
+							CheckAscending(argData.begin(), argData.end(), ascendingState, res, argA, i + 1);
+					}
 					resultDataChannel.Write(argData.begin(), argData.end());
+				}
 				if (context)
 				{
 					SizeT sz = argData.size();

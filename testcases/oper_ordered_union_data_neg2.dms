@@ -1,0 +1,26 @@
+// issue #1168: ordered_union_data must reject a descent ACROSS the boundary of two arguments:
+// each argument is non-decreasing on its own, but the first value of B/low is below the last of A/v.
+// The IntegrityCheck below holds for the concatenated values (1+2+3+0+1 == 7), so the run may only
+// fail on the order check of ordered_union_data.
+container oper_ordered_union_data_neg2
+{
+	unit<uint32> A : nrofrows = 3
+	{
+		attribute<uint32> v : [ 1, 2, 3 ];
+	}
+
+	unit<uint32> B : nrofrows = 2
+	{
+		attribute<uint32> low : [ 0, 1 ];
+	}
+
+	unit<uint32> AB := union_unit(A, B)
+	{
+		attribute<uint32> v := ordered_union_data(., A/v, B/low);
+	}
+
+	container checks
+	{
+		parameter<uint32> v_sum := sum(AB/v), IntegrityCheck = "v_sum == 7";
+	}
+}
