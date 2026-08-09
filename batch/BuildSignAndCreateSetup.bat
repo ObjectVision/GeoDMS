@@ -63,6 +63,35 @@ REM stays a fast incremental compile + full relink/redeploy, not a full rebuild.
 REM (Runs after the lock check above so no held handle can block the rmdir.)
 if exist "bin\Release\x64" rmdir /s /q "bin\Release\x64"
 
+REM Mirror the vcpkg roots that DmsDef.props passes to msbuild as command-line options
+REM (VcpkgAdditionalInstallOptions: --binarysource / --downloads-root) into the environment,
+REM so the drift check below queries the SAME cache + tools the build will use. Querying the
+REM machine-default roots would resolve a different cmake and report phantom drift. Same
+REM values as the .c script sets, which is also what keeps the two flavors sharing one cache.
+set VCPKG_BINARY_SOURCES=clear;files,%geodms_rootdir%\vc_archives,readwrite
+set VCPKG_DOWNLOADS=%geodms_rootdir%\vc_downloads
+
+REM Say up front how much vcpkg work this build implies. The .m flavor is the one that can
+REM be BLIND to this: vcpkg.targets gates its manifest install on vcpkg.json's timestamp vs
+REM a stamp file, so an ABI change that does not touch vcpkg.json (submodule bump, triplet
+REM edit, MSVC re-pin) is skipped silently and .m links whatever happens to be installed.
+REM Directory.Build.targets now widens that gate, and this check reports what it implies
+REM before the build rather than after. Advisory: a full re-churn IS correct after a
+REM baseline bump. CHOICE has a 30s timeout defaulting to Yes so Build.bat stays unattended.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%geodms_rootdir%\tools\vcpkg-drift-check.ps1" -Triplet x64-windows-v145
+if errorlevel 1 if not errorlevel 2 (
+    choice /C YN /T 30 /D Y /M "Continue with this build"
+    if errorlevel 2 goto :eof
+)
+
+REM Re-apply the qtdeploy.targets MSB4023 fix if the Qt VS Tools extension has clobbered it
+REM again. The extension re-extracts %LOCALAPPDATA%\QtMsBuild from its package not only on
+REM updates but also on a plain Visual Studio start (observed 2026-08-09: package timestamp
+REM 2026-04-14 restored, patch gone), and the unpatched file fails the GeoDmsGuiQt build at
+REM the QtDeploy step on every "Skipping system library" line Qt 6.11's windeployqt prints.
+REM Idempotent and cheap; exit 2 (no QtMsBuild on this machine) is fine and must not block.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%geodms_rootdir%\tools\patch-qtdeploy-targets.ps1"
+
 REM Always do an incremental build. If intermediates become funky, clean
 REM from the MSVC IDE or `rmdir /s /q bin build` from the shell — no need
 REM for a CHOICE inside this script.

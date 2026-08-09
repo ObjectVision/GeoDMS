@@ -42,7 +42,35 @@ git pull
 cd %geodms_rootdir%
 
 
-set CMAKE="C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe"
+REM Drive the build with the cmake that vcpkg itself pins (vcpkg\scripts\vcpkg-tools.json,
+REM i.e. whatever the submodule says), NOT the VS-bundled one. Both bit us on 2026-08-09:
+REM   1) a VS update silently replaced its bundled cmake 4.2 -> 4.3 and deleted
+REM      share\cmake-4.2; the CMAKE_ROOT cached in an existing build dir still pointed there,
+REM      so every configure died on "CMakeSystem.cmake.in does not exist";
+REM   2) the cmake VERSION is an ABI input for every vcpkg-cmake port, so a cmake that drifts
+REM      out from under us invalidates all of vc_archives and costs a multi-hour rebuild.
+REM `vcpkg fetch cmake` prints (downloading if needed) exactly the pinned tool, so this tracks
+REM the submodule automatically -- no version literal to maintain here. Falls back to the VS
+REM copy when vcpkg.exe is not bootstrapped yet (fresh clone; the toolchain bootstraps during
+REM configure, and a later run picks up the pinned one).
+set CMAKE=
+for /f "usebackq delims=" %%C in (`"%geodms_rootdir%\vcpkg\vcpkg.exe" fetch cmake --x-stderr-status 2^>nul`) do set CMAKE="%%C"
+if not defined CMAKE (
+    echo --- 'vcpkg fetch cmake' unavailable; falling back to the VS-bundled cmake ---
+    set CMAKE="C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe"
+)
+echo --- cmake: %CMAKE%
+
+REM Say up front how much vcpkg work this build implies. A full re-churn is the CORRECT
+REM outcome of a baseline bump or a compiler re-pin, so this only warns -- but it turns an
+REM unexplained 47-minute stall into an expected, attributable cost. CHOICE has a 30s
+REM timeout defaulting to Yes so an unattended Build.bat still completes.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%geodms_rootdir%\tools\vcpkg-drift-check.ps1" -Triplet x64-windows-v145
+if errorlevel 1 if not errorlevel 2 (
+    choice /C YN /T 30 /D Y /M "Continue with this build"
+    if errorlevel 2 goto :build_failed
+)
+
 set BUILD_DIR=build\windows-x64-release
 
 REM Mark script start so the post-build staleness guard can verify cmake

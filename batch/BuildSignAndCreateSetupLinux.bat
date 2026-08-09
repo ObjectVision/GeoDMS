@@ -60,8 +60,20 @@ REM (the Windows preset's VCPKG_INSTALLED_DIR / Qt CMAKE_PREFIX_PATH overrides a
 REM Windows-only). The FIRST configure triggers a full vcpkg install of the Linux deps --
 REM long unless vc_archives already holds matching gcc entries (shared via
 REM VCPKG_BINARY_SOURCES, same as the build + package steps).
+REM Say up front how much vcpkg work this build implies (x64-linux counterpart of the check
+REM in the .m/.c scripts). Advisory: a full re-churn IS correct after a baseline bump or a
+REM gcc upgrade in this distro. CHOICE has a 30s timeout defaulting to Yes so Build.bat
+REM stays unattended. Exit 2 means the query itself could not run (vcpkg not bootstrapped
+REM for Linux yet, e.g. a fresh checkout) -- that must not block the build that bootstraps it.
+echo --- checking how many vcpkg ports this build would rebuild ---
+wsl bash -c "export VCPKG_BINARY_SOURCES='clear;files,%geodms_wsldir%/vc_archives,readwrite' && export VCPKG_DOWNLOADS='%geodms_wsldir%/vc_downloads' && bash %geodms_wsldir%/tools/vcpkg-drift-check.sh %geodms_wsldir% x64-linux"
+if errorlevel 1 if not errorlevel 2 (
+    choice /C YN /T 30 /D Y /M "Continue with this build"
+    if errorlevel 2 goto :build_failed
+)
+
 echo --- configuring linux-x64-release (skipped if already configured) ---
-wsl bash -c "export VCPKG_BINARY_SOURCES='clear;files,%geodms_wsldir%/vc_archives,readwrite' && cd %geodms_wsldir% && if [ ! -f build/linux-x64-release/CMakeCache.txt ]; then cmake --preset linux-x64-release; fi"
+wsl bash -c "export VCPKG_BINARY_SOURCES='clear;files,%geodms_wsldir%/vc_archives,readwrite' && export VCPKG_DOWNLOADS='%geodms_wsldir%/vc_downloads' && cd %geodms_wsldir% && if [ ! -f build/linux-x64-release/CMakeCache.txt ]; then cmake --preset linux-x64-release; fi"
 if errorlevel 1 goto :build_failed
 
 echo --- building linux-x64-release in WSL ---
@@ -75,7 +87,15 @@ REM ELF binaries CreateLinuxSetup.sh packages) before building, so obsolete
 REM binaries from before a component rename/removal cannot linger and ship in
 REM the .deb/.tar.gz. Object files live under CMakeFiles/ (not bin), so this
 REM stays an incremental compile + relink, not a full rebuild.
-wsl bash -c "export VCPKG_BINARY_SOURCES='clear;files,%geodms_wsldir%/vc_archives,readwrite' && cd %geodms_wsldir% && rm -rf build/linux-x64-release/bin && cmake --build build/linux-x64-release --config Release"
+REM VCPKG_DOWNLOADS shares the in-repo vc_downloads tool cache with .m and .c, exactly as
+REM BuildSignAndCreateSetupCmake.bat does. Without it the WSL side resolves vcpkg's tools
+REM (cmake, ninja, ...) from the distro-default root, and their VERSIONS are ABI inputs for
+REM every port: the moment the two roots disagree, the whole x64-linux half of vc_archives
+REM goes stale and this build silently turns into a multi-hour from-source rebuild. That is
+REM not hypothetical -- it is exactly what the .c flavor cost on 2026-08-09 (cmake 3.31.10
+REM vs 4.3.2, 47 minutes) before it got the same export. Linux tool dirs are named per
+REM platform (cmake-4.3.2-linux), so they coexist with the Windows ones in vc_downloads.
+wsl bash -c "export VCPKG_BINARY_SOURCES='clear;files,%geodms_wsldir%/vc_archives,readwrite' && export VCPKG_DOWNLOADS='%geodms_wsldir%/vc_downloads' && cd %geodms_wsldir% && rm -rf build/linux-x64-release/bin && cmake --build build/linux-x64-release --config Release"
 if errorlevel 1 goto :build_failed
 
 REM Linux ELF has no Windows FileVersion -- use mtime: GeoDmsRun must be at

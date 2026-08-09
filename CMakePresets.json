@@ -4,6 +4,11 @@
         {
             "name": "vcpkg-base",
             "hidden": true,
+            "description": "Shared vcpkg roots. Set HERE and not only in batch/BuildSignAndCreateSetup*.bat, so a build started any other way (Visual Studio 'Open Folder', an IDE preset, a bare 'cmake --preset ...') uses the same binary cache and tool downloads as the scripted builds. While these lived only in the .bat wrappers, an IDE-launched configure silently fell back to %LOCALAPPDATA%/vcpkg/{archives,downloads}, whose cmake version differed - and cmake's version is an ABI input for every port, so that second world invalidated the whole cache and cost a 47-minute from-source rebuild (2026-08-09). buildPresets inherit this through inheritConfigureEnvironment (default true), so a build that re-triggers configure gets the same roots. ${sourceDir} keeps it correct on Linux too, where the same tree is seen as /mnt/c/...",
+            "environment": {
+                "VCPKG_BINARY_SOURCES": "clear;files,${sourceDir}/vc_archives,readwrite",
+                "VCPKG_DOWNLOADS": "${sourceDir}/vc_downloads"
+            },
             "cacheVariables": {
                 "CMAKE_TOOLCHAIN_FILE": {
                     "type": "FILEPATH",

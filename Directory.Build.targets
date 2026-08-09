@@ -61,6 +61,39 @@
           Condition="Exists('$(VcpkgRoot)\scripts\buildsystems\msbuild\vcpkg.targets')" />
 
   <!--
+    Widen the manifest-install gate to the inputs that actually determine the vcpkg ABI.
+
+    vcpkg.targets runs VcpkgInstallManifestDependencies as an incremental MSBuild target with
+    Inputs = vcpkg.json (+ vcpkg-configuration.json) and Outputs = the .msbuildstamp file, so
+    MSBuild SKIPS it entirely whenever the stamp is newer. vcpkg is then never invoked and the
+    installed tree is never re-checked against the current configuration. Anything that changes
+    a port's ABI hash WITHOUT touching vcpkg.json is therefore invisible to the .m flavor: the
+    triplet file, the MSVC pin in Directory.Build.props, or a vcpkg submodule bump.
+
+    That is not hypothetical. The 2026-06-03 baseline bump moved vcpkg's pinned cmake
+    3.31.10 -> 4.3.2; cmake's version is an ABI input for every vcpkg-cmake port, so the whole
+    vc_archives cache went stale. .m never noticed (stamp still newer than vcpkg.json, dated
+    2026-07-11), and the cost landed on .c (whose CMake toolchain installs on every configure
+    and has no such gate) as a 47-minute rebuild of 144 already-installed ports.
+
+    Listing those files as additional Inputs costs nothing while they are older than the stamp,
+    and forces exactly one re-check when one of them changes. vcpkg's own ABI comparison then
+    decides whether anything actually needs rebuilding, which is the correct authority.
+  -->
+  <ItemGroup Condition="'$(VcpkgEnabled)' == 'true' and '$(VcpkgEnableManifest)' == 'true' and '$(VcpkgManifestInstall)' == 'true'">
+    <!-- the triplet: carries VCPKG_PLATFORM_TOOLSET / arch and feeds triplet_abi -->
+    <_ZVcpkgInstallManifestDependenciesInputs Include="$(MSBuildThisFileDirectory)vcpkg-triplets\$(VcpkgTriplet).cmake"
+                                              Condition="Exists('$(MSBuildThisFileDirectory)vcpkg-triplets\$(VcpkgTriplet).cmake')" />
+    <!-- the MSVC pin (VCToolsVersion) and the vcpkg root/host-triplet selection -->
+    <_ZVcpkgInstallManifestDependenciesInputs Include="$(MSBuildThisFileDirectory)Directory.Build.props" />
+    <_ZVcpkgInstallManifestDependenciesInputs Include="$(MSBuildThisFileDirectory)DmsDef.props"
+                                              Condition="Exists('$(MSBuildThisFileDirectory)DmsDef.props')" />
+    <!-- vcpkg's own pinned tool versions (cmake, powershell, ...), i.e. the submodule pointer -->
+    <_ZVcpkgInstallManifestDependenciesInputs Include="$(VcpkgRoot)\scripts\vcpkg-tools.json"
+                                              Condition="Exists('$(VcpkgRoot)\scripts\vcpkg-tools.json')" />
+  </ItemGroup>
+
+  <!--
     Repo-owned, self-healing deployment of the vcpkg runtime DLLs next to the exes.
 
     The vcpkg baseline (2026.05.25) carries upstream #50521, which gates its applocal

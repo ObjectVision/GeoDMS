@@ -27,13 +27,20 @@
   </PropertyGroup>
   <PropertyGroup Label="Vcpkg">
     <VcpkgEnableManifest>true</VcpkgEnableManifest>
-    <VcpkgAdditionalInstallOptions>--binarysource=clear;files,$(SolutionDir)\vc_archives,readwrite --downloads-root=$(SolutionDir)\vc_downloads</VcpkgAdditionalInstallOptions>
+	<!-- Anchored on THIS FILE's directory (the repo root), never on $(SolutionDir). -->
+	<!-- $(SolutionDir) is only the repo root when all22.sln drives the build: a standalone -->
+	<!-- .vcxproj build (or an IDE that opens a project rather than the solution) resolves it -->
+	<!-- to that module's dll\ folder and scatters vcpkg_installed / vc_archives / vc_downloads -->
+	<!-- there - which is what once contaminated rtc\dll. $(MSBuildThisFileDirectory) is the -->
+	<!-- same path however the build was started, so the IDE, a bare msbuild and the batch -->
+	<!-- scripts all share one vcpkg tree, one binary cache and one downloads root. -->
+    <VcpkgAdditionalInstallOptions>--binarysource=clear;files,$(MSBuildThisFileDirectory)vc_archives,readwrite --downloads-root=$(MSBuildThisFileDirectory)vc_downloads</VcpkgAdditionalInstallOptions>
 	<VcpkgTriplet>x64-windows-v145</VcpkgTriplet>
 	<!-- Override default (vcpkg_installed\$(VcpkgTriplet)\) so the layout matches what cmake -->
 	<!-- writes via -DVCPKG_INSTALLED_DIR=vcpkg_installed: a single $(VcpkgTriplet) level, -->
 	<!-- not the doubly-nested vcpkg_installed\<triplet>\<triplet>\ MS's vcpkg.targets produces -->
 	<!-- by default. Shared layout means .m and .c link against the same binaries. -->
-	<VcpkgInstalledDir>$(SolutionDir)vcpkg_installed\</VcpkgInstalledDir>
+	<VcpkgInstalledDir>$(MSBuildThisFileDirectory)vcpkg_installed\</VcpkgInstalledDir>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <Bscmake>
