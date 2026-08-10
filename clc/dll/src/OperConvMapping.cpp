@@ -38,7 +38,7 @@ void do_mapping(const MappingState<TR, TA, TCF>& state, tile_id t, RIT dstIter, 
 	DispatchMapping(state.GetFunctor(), dstIter, tileRange, n);
 }
 
-template <typename TR, typename TA, typename TCF, typename RIT>
+template <typename Cardinal, typename TR, typename TA, typename TCF, typename RIT>
 void do_mapping_count(const MappingState<TR, TA, TCF>& state, tile_id t, RIT dstIter, RIT dstEnd)
 {
 	auto srcTileRange = state.GetTileRange(t);
@@ -49,6 +49,10 @@ void do_mapping_count(const MappingState<TR, TA, TCF>& state, tile_id t, RIT dst
 	if constexpr (MappingState<TR, TA, TCF>::has_cross_support)
 		if (state.m_HasCross && state.m_CrossIndex.m_IsValid)
 		{
+			// The outer product skips the source cells altogether; it declines only when the
+			// destination window is larger than the tile, and then the per-cell walk is cheaper.
+			if (CountTileFromCrossProduct<TA, Cardinal>(state.m_CrossIndex, dstIter, srcTileRange, state.m_DomainRange, n))
+				return;
 			CountTileFromCrossIndex<TA>(state.m_CrossIndex, dstIter, srcTileRange, state.m_DomainRange, n);
 			return;
 		}
@@ -124,14 +128,16 @@ public:
 		);
 	}
 
-	void Calculate(DataWriteHandle& borrowedDataHandle, const AbstrMappingState& state, tile_id t) const override
+	void CalculateAll(DataWriteHandle& borrowedDataHandle, const AbstrMappingState& state, tile_id nrTiles) const override
 	{
+		// Acquired once, outside the loop: see the comment in AbstrMappingCountOperator.
 		auto resultData = mutable_array_cast<Cardinal>(borrowedDataHandle)->GetDataWrite(no_tile, dms_rw_mode::read_write);
+		auto& typedState = *debug_cast<const StateType*>(&state);
 
-		do_mapping_count<TR, TA, TypeConversionF<std::false_type>>(
-			*debug_cast<const StateType*>(&state), t,
-			resultData.begin(), resultData.end()
-		);
+		for (tile_id t = 0; t != nrTiles; ++t)
+			do_mapping_count<Cardinal, TR, TA, TypeConversionF<std::false_type>>(
+				typedState, t, resultData.begin(), resultData.end()
+			);
 	}
 };
 

@@ -152,8 +152,15 @@ struct MappingCross
 // COLUMN and the destination Col from the source ROW.
 struct CrossIndex
 {
+	// Per source-ROW-axis entry and per source-COLUMN-axis entry: the destination ORDINATE index
+	// it lands on, and the same value already reduced to its term of the linear index.
+	// m_RowAxisIsDstRow says which destination axis the source-row axis addresses -- under the
+	// Swapped pairing the source rows drive the destination COLUMNS.
+	std::vector<SizeT> m_RowAxisIdx, m_ColAxisIdx;
 	std::vector<SizeT> m_RowPart, m_ColPart;
 	std::vector<char>  m_RowOk, m_ColOk;
+	bool               m_RowAxisIsDstRow = true;
+	SizeT              m_DstWidth = 0, m_DstHeight = 0;
 	bool               m_IsValid = false;
 };
 
@@ -164,46 +171,55 @@ void BuildCrossIndex(const MappingCross<TR>& cross, typename Unit<TR>::range_t d
 	if (!IsDefined(dstRange))
 		return;
 
-	SizeT dstWidth = SizeT(Width(dstRange));
 	auto top = Top(dstRange), bottom = Bottom(dstRange);
 	auto left = Left(dstRange), right = Right(dstRange);
 	if (!(left < right) || !(top < bottom))
 		return;
 
-	// The two ordinate terms, each mirroring exactly what Range_GetIndex_checked would decide
-	// for that ordinate alone.
-	auto rowTerm = [top, bottom, dstWidth](const TR& v, SizeT& part) -> bool
+	res.m_DstWidth = SizeT(Width(dstRange));
+	res.m_DstHeight = SizeT(Height(dstRange));
+
+	// The two ordinate reductions, each mirroring exactly what Range_GetIndex_checked would
+	// decide for that ordinate alone.
+	auto rowTerm = [top, bottom](const TR& v, SizeT& idx) -> bool
 	{
 		auto y = v.Row();
 		if (!IsDefined(y) || y < top || !(y < bottom))
 			return false;
-		part = SizeT(y - top) * dstWidth;
+		idx = SizeT(y - top);
 		return true;
 	};
-	auto colTerm = [left, right](const TR& v, SizeT& part) -> bool
+	auto colTerm = [left, right](const TR& v, SizeT& idx) -> bool
 	{
 		auto x = v.Col();
 		if (!IsDefined(x) || x < left || !(x < right))
 			return false;
-		part = SizeT(x - left);
+		idx = SizeT(x - left);
 		return true;
 	};
 
 	bool straight = (cross.m_Pairing == CrossPairing::Straight);
 	SizeT H = cross.m_RowVal.size(), W = cross.m_ColVal.size();
 
-	res.m_RowPart.assign(H, 0); res.m_RowOk.assign(H, 0);
-	res.m_ColPart.assign(W, 0); res.m_ColOk.assign(W, 0);
+	res.m_RowAxisIsDstRow = straight;
+	res.m_RowAxisIdx.assign(H, 0); res.m_RowPart.assign(H, 0); res.m_RowOk.assign(H, 0);
+	res.m_ColAxisIdx.assign(W, 0); res.m_ColPart.assign(W, 0); res.m_ColOk.assign(W, 0);
 
 	for (SizeT r = 0; r != H; ++r)
 		if (cross.m_RowOk[r])
-			res.m_RowOk[r] = straight ? rowTerm(cross.m_RowVal[r], res.m_RowPart[r])
-			                          : colTerm(cross.m_RowVal[r], res.m_RowPart[r]);
+		{
+			res.m_RowOk[r] = straight ? rowTerm(cross.m_RowVal[r], res.m_RowAxisIdx[r])
+			                          : colTerm(cross.m_RowVal[r], res.m_RowAxisIdx[r]);
+			res.m_RowPart[r] = straight ? res.m_RowAxisIdx[r] * res.m_DstWidth : res.m_RowAxisIdx[r];
+		}
 
 	for (SizeT c = 0; c != W; ++c)
 		if (cross.m_ColOk[c])
-			res.m_ColOk[c] = straight ? colTerm(cross.m_ColVal[c], res.m_ColPart[c])
-			                          : rowTerm(cross.m_ColVal[c], res.m_ColPart[c]);
+		{
+			res.m_ColOk[c] = straight ? colTerm(cross.m_ColVal[c], res.m_ColAxisIdx[c])
+			                          : rowTerm(cross.m_ColVal[c], res.m_ColAxisIdx[c]);
+			res.m_ColPart[c] = straight ? res.m_ColAxisIdx[c] : res.m_ColAxisIdx[c] * res.m_DstWidth;
+		}
 
 	res.m_IsValid = true;
 }
@@ -587,6 +603,86 @@ void DispatchMappingCount(Type2DConversion<TR, TA>& functor, RI ri, typename Uni
 				if (j < n)
 					ri[j]++;
 			}
+}
+
+// Histograms a tile as an OUTER PRODUCT of two 1-D histograms, which is what separability buys
+// mapping_count on top of the cheaper index arithmetic:
+//
+//   a source cell (r, c) lands in destination cell (i, j) iff row r lands on i AND column c
+//   lands on j, independently -- so
+//
+//       count(i, j) = |{ r : r -> i }| * |{ c : c -> j }|
+//
+// Building those two 1-D histograms costs H + W, and the destination is then filled with ONE
+// multiplication per DESTINATION cell, written in row-major order instead of scattered. The
+// source cells are never visited at all: W * H disappears from the cost entirely.
+//
+// This is exact for any tiling: a tile is a rectangle of source cells, so its own contribution
+// factorises the same way, and disjoint tiles sum.
+//
+// Returns false when the destination window a tile touches is bigger than the tile itself, in
+// which case walking the tile's cells is the cheaper of the two; the caller then falls back.
+template<typename TA, typename Cardinal, typename RI>
+bool CountTileFromCrossProduct(const CrossIndex& index, RI ri, typename Unit<TA>::range_t srcTileRange, typename Unit<TA>::range_t domainRange, SizeT n)
+{
+	assert(index.m_IsValid);
+
+	SizeT rBase = SizeT(Top(srcTileRange) - Top(domainRange));
+	SizeT cBase = SizeT(Left(srcTileRange) - Left(domainRange));
+	SizeT W = SizeT(Width(srcTileRange)), H = SizeT(Height(srcTileRange));
+
+	// The destination window this tile touches, per axis.
+	SizeT rowLo = UNDEFINED_VALUE(SizeT), rowHi = 0, colLo = UNDEFINED_VALUE(SizeT), colHi = 0;
+	for (SizeT r = 0; r != H; ++r)
+		if (index.m_RowOk[rBase + r])
+		{
+			SizeT v = index.m_RowAxisIdx[rBase + r];
+			if (!IsDefined(rowLo) || v < rowLo) rowLo = v;
+			if (v > rowHi) rowHi = v;
+		}
+	for (SizeT c = 0; c != W; ++c)
+		if (index.m_ColOk[cBase + c])
+		{
+			SizeT v = index.m_ColAxisIdx[cBase + c];
+			if (!IsDefined(colLo) || v < colLo) colLo = v;
+			if (v > colHi) colHi = v;
+		}
+	if (!IsDefined(rowLo) || !IsDefined(colLo))
+		return true; // nothing in this tile lands anywhere: no counts to add
+
+	SizeT rowSpan = rowHi - rowLo + 1, colSpan = colHi - colLo + 1;
+	if (rowSpan > W * H / colSpan)
+		return false; // the destination window is larger than the tile; per-cell is cheaper
+
+	std::vector<SizeT> rowHist(rowSpan, 0), colHist(colSpan, 0);
+	for (SizeT r = 0; r != H; ++r)
+		if (index.m_RowOk[rBase + r])
+			rowHist[index.m_RowAxisIdx[rBase + r] - rowLo]++;
+	for (SizeT c = 0; c != W; ++c)
+		if (index.m_ColOk[cBase + c])
+			colHist[index.m_ColAxisIdx[cBase + c] - colLo]++;
+
+	// Put the two axes back onto (destination row, destination column).
+	const auto& dstRowHist = index.m_RowAxisIsDstRow ? rowHist : colHist;
+	const auto& dstColHist = index.m_RowAxisIsDstRow ? colHist : rowHist;
+	SizeT dstRowLo = index.m_RowAxisIsDstRow ? rowLo : colLo;
+	SizeT dstColLo = index.m_RowAxisIsDstRow ? colLo : rowLo;
+
+	for (SizeT i = 0, ie = dstRowHist.size(); i != ie; ++i)
+	{
+		SizeT rowCount = dstRowHist[i];
+		if (!rowCount)
+			continue;
+		SizeT base = (dstRowLo + i) * index.m_DstWidth + dstColLo;
+		for (SizeT j = 0, je = dstColHist.size(); j != je; ++j)
+			if (dstColHist[j])
+			{
+				SizeT k = base + j;
+				if (k < n)
+					ri[k] += Cardinal(rowCount * dstColHist[j]); // wraps exactly as ++ would
+			}
+	}
+	return true;
 }
 
 // Histograms one tile straight from the whole-domain cross index: no coordinate is transformed,
