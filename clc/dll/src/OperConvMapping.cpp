@@ -128,13 +128,43 @@ public:
 		);
 	}
 
-	void CalculateAll(DataWriteHandle& borrowedDataHandle, const AbstrMappingState& state, tile_id nrTiles) const override
+	bool HasIndependentResultTiles(const AbstrMappingState& state) const override
 	{
-		// Acquired once, outside the loop: see the comment in AbstrMappingCountOperator.
+		if constexpr (StateType::has_cross_support)
+		{
+			auto& typedState = *debug_cast<const StateType*>(&state);
+			return typedState.m_HasCross
+				&& typedState.m_CrossCounts.m_IsValid
+				&& typedState.m_SourceTilesCoverDomain;
+		}
+		else
+			return false;
+	}
+
+	// One RESULT tile: one multiplication per destination cell, written straight into that tile.
+	// Nothing is read from the source and nothing is accumulated, so this is safe to run for any
+	// tile, in any order, on any thread -- which is what lets the result be a LazyTileFunctor.
+	void Calculate(AbstrDataObject* borrowedDataHandle, const AbstrMappingState& state, tile_id t) const override
+	{
+		if constexpr (StateType::has_cross_support)
+		{
+			auto& typedState = *debug_cast<const StateType*>(&state);
+			auto resultData = mutable_array_cast<Cardinal>(borrowedDataHandle)->GetWritableTile(t, dms_rw_mode::write_only_all);
+
+			FillCountTileFromProduct<Cardinal, TR>(typedState.m_CrossCounts, resultData.begin()
+				, typedState.GetDstTileRange(t), typedState.GetDstRange());
+		}
+		else
+			throwIllegalAbstract(MG_POS, "MappingCountOperator::Calculate"); // gated by HasIndependentResultTiles
+	}
+
+	void AccumulateFromSourceTiles(DataWriteHandle& borrowedDataHandle, const AbstrMappingState& state, tile_id nrSrcTiles) const override
+	{
+		// One handle for the whole loop: see the comment in AbstrMappingCountOperator.
 		auto resultData = mutable_array_cast<Cardinal>(borrowedDataHandle)->GetDataWrite(no_tile, dms_rw_mode::read_write);
 		auto& typedState = *debug_cast<const StateType*>(&state);
 
-		for (tile_id t = 0; t != nrTiles; ++t)
+		for (tile_id t = 0; t != nrSrcTiles; ++t)
 			do_mapping_count<Cardinal, TR, TA, TypeConversionF<std::false_type>>(
 				typedState, t, resultData.begin(), resultData.end()
 			);

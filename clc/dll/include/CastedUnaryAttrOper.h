@@ -279,22 +279,76 @@ public:
 			// Once for the whole operator, not once per tile: see AbstrMappingState.
 			auto mappingState = CreateMappingState(argDomainUnit, argValuesUnit);
 
-			DataWriteLock resLock(res, dms_rw_mode::write_only_mustzero);
+			// With a coordinate-separable transformation the whole histogram is the OUTER PRODUCT
+			// of two 1-D counts, so a destination cell's value depends on nothing but its own
+			// (i, j). Result tiles are then independent -- no accumulation, no ordering -- and
+			// this operator gets exactly the treatment AbstrMappingOperator gets: a
+			// LazyTileFunctor when it pays, a parallel_tileloop otherwise.
+			//
+			// Without a cross the counts have to be scattered from the source, so the loop stays
+			// over SOURCE tiles and stays serial. It also has to keep ONE destination write
+			// handle for the whole loop: a histogram larger than a single tile makes
+			// GetDataWrite(no_tile, ...) hand out a MutableShadowTile (DataArray.cpp:346) that
+			// copies the entire destination in and out, which per source tile is
+			// O(nrSourceTiles * destinationSize).
+			if (HasIndependentResultTiles(*mappingState))
+			{
+				auto tn = argValuesUnit->GetNrTiles();
+				if (IsMultiThreaded3() && (tn > 1) && !IsInMMD(res))
+				{
+					auto ternaryOper = this;
 
-			// The whole source-tile loop lives inside CalculateAll so that the implementation can
-			// acquire the destination write handle ONCE. That matters a lot: a histogram result
-			// larger than one tile makes GetDataWrite(no_tile, ...) hand out a MutableShadowTile
-			// (DataArray.cpp:346), which copies the entire destination in and out. Doing that per
-			// source tile made the operator O(nrSourceTiles * destinationSize) -- measured at
-			// ~600 ms of pure copying for 1500 source tiles against a 4.6 MB destination.
-			CalculateAll(resLock, *mappingState, argDomainUnit->GetNrTiles());
-			resLock.Commit();
+					auto resDomainRange = res->GetDomainUnitOrThrow()->GetCurrRangeItem();
+					MG_CHECK(resDomainRange);
+					auto tileRangeData = AsUnit(resDomainRange)->GetTiledRangeData();
+					auto valuesUnit = AsUnit(res->GetValuesUnitOrThrow()->GetCurrRangeItem());
+					MG_CHECK(valuesUnit);
+					visit<typelists::fields>(valuesUnit.get(), [ternaryOper, res, argDomainUnit, argValuesUnit, tileRangeData, mappingState]<typename V>(const Unit<V>*valuesUnit) {
+						SharedUnitInterestPtr retainedArgDomainUnit = argDomainUnit;
+						SharedUnitInterestPtr retainedArgValuesUnit = argValuesUnit;
+						auto lazyTileFunctor = make_unique_LazyTileFunctor<V>(make_shared_tree(res, existing_obj{}), tileRangeData.get(), valuesUnit->m_RangeDataPtr
+							, [ternaryOper, retainedArgDomainUnit, retainedArgValuesUnit, mappingState](AbstrDataObject* self, tile_id t) {
+								ternaryOper->Calculate(self, *mappingState, t); // write into the same tile.
+							}
+							MG_DEBUG_ALLOCATOR_SRC(res->md_FullName + ": = MappingCountOperator()")
+						);
+						res->m_DataObject = lazyTileFunctor.release();
+					}
+					);
+				}
+				else
+				{
+					// write_only_all, not mustzero: the outer product writes every destination
+					// cell, including the zeros, so pre-zeroing the result is wasted work.
+					DataWriteLock resLock(res, dms_rw_mode::write_only_all);
+
+					parallel_tileloop(tn, [this, &mappingState, &resLock](tile_id t)->void
+						{
+							this->Calculate(resLock.get(), *mappingState, t);
+						}
+					);
+					resLock.Commit();
+				}
+			}
+			else
+			{
+				// mustzero: the fallback INCREMENTS, so it needs a zeroed result to start from.
+				DataWriteLock resLock(res, dms_rw_mode::write_only_mustzero);
+				AccumulateFromSourceTiles(resLock, *mappingState, argDomainUnit->GetNrTiles());
+				resLock.Commit();
+			}
 		}
 		return true;
 	}
 
 	virtual auto CreateMappingState(const AbstrUnit* argDomainUnit, const AbstrUnit* argValuesUnit) const -> std::shared_ptr<AbstrMappingState> = 0;
-	virtual void CalculateAll(DataWriteLock& res, const AbstrMappingState& state, tile_id nrTiles) const = 0;
+	// Whether the result is an outer product, i.e. whether each destination tile can be produced
+	// on its own from the state alone.
+	virtual bool HasIndependentResultTiles(const AbstrMappingState& state) const = 0;
+	// Produces one RESULT tile. Only called when HasIndependentResultTiles().
+	virtual void Calculate(AbstrDataObject* res, const AbstrMappingState& state, tile_id t) const = 0;
+	// The fallback: scatters counts from every SOURCE tile into one destination write handle.
+	virtual void AccumulateFromSourceTiles(DataWriteLock& res, const AbstrMappingState& state, tile_id nrSrcTiles) const = 0;
 };
 
 // *****************************************************************************
