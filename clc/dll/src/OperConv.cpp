@@ -136,21 +136,13 @@ bool ProjectionIsColFirst(OGRSpatialReference& srs)
 
 leveled_critical_section cs_SpatialRefBlockCreation(item_level_type(0), ord_level_type::SpecificOperator, "SpatialRefBlock");
 
-static std::mutex s_projMutex;
-
 SpatialRefBlock::SpatialRefBlock()
-{
-	std::lock_guard guard(s_projMutex);
-	m_ProjCtx = proj_context_create();
-}
+{}
 
 SpatialRefBlock::~SpatialRefBlock()
 {
 	if (m_Transformer)
 		OGRCoordinateTransformation::DestroyCT(m_Transformer);
-
-	std::lock_guard guard(s_projMutex);
-	proj_context_destroy(m_ProjCtx);
 }
 
 void SpatialRefBlock::CreateTransformer()

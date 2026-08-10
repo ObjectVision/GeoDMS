@@ -18,32 +18,41 @@
 //			Mapping helper functions (local to this unit)
 // *****************************************************************************
 
+// The conversion functor is NOT built here any more: it lives in the shared MappingState that
+// AbstrMappingOperator::CreateResult builds once per invocation. When that state carries a
+// separable cross (issue #298), a tile is filled straight from the whole-domain x and y arrays
+// and no coordinate is transformed at all.
 template <typename TR, typename TA, typename TCF, typename RIT>
-void do_mapping(const Unit<TR>* dstUnit, const Unit<TA>* srcUnit, tile_id t, RIT dstIter, RIT dstEnd)
+void do_mapping(const MappingState<TR, TA, TCF>& state, tile_id t, RIT dstIter, RIT dstEnd)
 {
-	using FunctorType = typename ConversionGenerator<TCF, TR, TA>::type;
-
-	auto functor = FunctorType{ dstUnit, srcUnit };
-	auto tileRange = srcUnit->GetTileRange(t);
+	auto tileRange = state.GetTileRange(t);
 	SizeT n = Cardinality(tileRange);
 	MG_CHECK(dstIter + n == dstEnd);
-	DispatchMapping(functor, dstIter, tileRange, n);
+
+	if constexpr (MappingState<TR, TA, TCF>::has_cross_support)
+		if (state.m_HasCross)
+		{
+			FillTileFromCross<TA>(state.m_Cross, dstIter, tileRange, state.m_DomainRange);
+			return;
+		}
+	DispatchMapping(state.GetFunctor(), dstIter, tileRange, n);
 }
 
 template <typename TR, typename TA, typename TCF, typename RIT>
-void do_mapping_count(const Unit<TR>* dstUnit, const Unit<TA>* srcUnit, tile_id t, RIT dstIter, RIT dstEnd)
+void do_mapping_count(const MappingState<TR, TA, TCF>& state, tile_id t, RIT dstIter, RIT dstEnd)
 {
-	using FunctorType = typename ConversionGenerator<TCF, TR, TA>::type;
-
-	auto dstUnit2 = dstUnit;
-	auto srcUnit2 = srcUnit;
-	auto functor = FunctorType(dstUnit2, srcUnit2);
-
-	auto srcTileRange = srcUnit->GetTileRange(t);
-	auto dstRange = dstUnit->GetRange();
+	auto srcTileRange = state.GetTileRange(t);
+	auto dstRange = state.m_DstUnit->GetRange();
 	SizeT n = Cardinality(dstRange);
 	MG_CHECK(dstIter + n == dstEnd);
-	DispatchMappingCount(functor, dstIter, srcTileRange, dstRange, n);
+
+	if constexpr (MappingState<TR, TA, TCF>::has_cross_support)
+		if (state.m_HasCross)
+		{
+			CountTileFromCross<TA>(state.m_Cross, dstIter, srcTileRange, state.m_DomainRange, dstRange, n);
+			return;
+		}
+	DispatchMappingCount(state.GetFunctor(), dstIter, srcTileRange, dstRange, n);
 }
 
 // *****************************************************************************
@@ -66,13 +75,22 @@ public:
 		)
 	{}
 
-	void Calculate(AbstrDataObject* borrowedDataHandle, const AbstrUnit* argDomainUnit, const AbstrUnit* argValuesUnit, tile_id t) const override
+	using StateType = MappingState<TR, TA, TypeConversionF<std::false_type>>;
+
+	auto CreateMappingState(const AbstrUnit* argDomainUnit, const AbstrUnit* argValuesUnit) const -> std::shared_ptr<AbstrMappingState> override
+	{
+		return std::make_shared<StateType>(
+			debug_cast<const Unit<TR>*>(argValuesUnit),
+			debug_cast<const Unit<TA>*>(argDomainUnit)
+		);
+	}
+
+	void Calculate(AbstrDataObject* borrowedDataHandle, const AbstrMappingState& state, tile_id t) const override
 	{
 		auto resultData = mutable_array_cast<TR>(borrowedDataHandle)->GetDataWrite(t, dms_rw_mode::write_only_all);
 
 		do_mapping<TR, TA, TypeConversionF<std::false_type>>(
-			debug_cast<const Unit<TR>*>(argValuesUnit),
-			debug_cast<const Unit<TA>*>(argDomainUnit), t,
+			*debug_cast<const StateType*>(&state), t,
 			resultData.begin(), resultData.end()
 		);
 	}
@@ -96,13 +114,22 @@ public:
 		)
 	{}
 
-	void Calculate(DataWriteHandle& borrowedDataHandle, const AbstrUnit* argDomainUnit, const AbstrUnit* argValuesUnit, tile_id t) const override
+	using StateType = MappingState<TR, TA, TypeConversionF<std::false_type>>;
+
+	auto CreateMappingState(const AbstrUnit* argDomainUnit, const AbstrUnit* argValuesUnit) const -> std::shared_ptr<AbstrMappingState> override
+	{
+		return std::make_shared<StateType>(
+			debug_cast<const Unit<TR>*>(argValuesUnit),
+			debug_cast<const Unit<TA>*>(argDomainUnit)
+		);
+	}
+
+	void Calculate(DataWriteHandle& borrowedDataHandle, const AbstrMappingState& state, tile_id t) const override
 	{
 		auto resultData = mutable_array_cast<Cardinal>(borrowedDataHandle)->GetDataWrite(no_tile, dms_rw_mode::read_write);
 
 		do_mapping_count<TR, TA, TypeConversionF<std::false_type>>(
-			debug_cast<const Unit<TR>*>(argValuesUnit),
-			debug_cast<const Unit<TA>*>(argDomainUnit), t,
+			*debug_cast<const StateType*>(&state), t,
 			resultData.begin(), resultData.end()
 		);
 	}

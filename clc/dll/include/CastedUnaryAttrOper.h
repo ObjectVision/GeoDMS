@@ -139,12 +139,30 @@ private:
 	bool             m_ReverseArgs;
 };
 
+// *****************************************************************************
+//			AbstrMappingState: the per-invocation conversion state of a mapping
+// *****************************************************************************
+// Built ONCE in CreateResult and shared by every tile, instead of being rebuilt per tile.
+// For a cross-CRS mapping that construction is two OGRSpatialReference::SetFromUserInput calls
+// (proj.db lookups) plus an OGRCreateCoordinateTransformation, all under the global
+// cs_SpatialRefBlockCreation -- measured at ~1.1 ms, which used to dominate the whole operator:
+// a 12M-cell EPSG:4326 -> EPSG:3857 mapping spent ~220 ms of its ~230 ms there and only
+// microseconds in the actual coordinate transformations.
+//
+// The concrete state (MappingState in SeparableMapping.h) also carries the whole-domain x/y
+// cross when the transformation is coordinate separable, so tile production reads (x[c], y[r])
+// and calls PROJ zero times per raster cell. See issue #298.
+struct AbstrMappingState
+{
+	virtual ~AbstrMappingState() {}
+};
+
 class AbstrMappingOperator : public BinaryOperator
 {
 public:
 	AbstrMappingOperator(AbstrOperGroup* gr, const DataItemClass* resultType, const UnitClass* argDomainUnitType, const UnitClass* argValuesUnitType)
 		:	BinaryOperator(gr
-			,	resultType 
+			,	resultType
 			,	argDomainUnitType
 			,	argValuesUnitType
 			)
@@ -170,6 +188,9 @@ public:
 
 			assert(res->GetValueComposition() == ValueComposition::Single);
 
+			// Once for the whole operator, not once per tile: see AbstrMappingState.
+			auto mappingState = CreateMappingState(argDomainUnit, argValuesUnit);
+
 			// tn > 1 conform the other pipelined channels: a single-tile result gains no
 			// tile-wise streaming, and a LazyTileFunctor would re-run the mapping for the whole
 			// attribute on every access that follows a release of its only tile.
@@ -183,12 +204,15 @@ public:
 				auto tileRangeData = AsUnit(resDomainRange)->GetTiledRangeData();
 				auto valuesUnit = AsUnit(res->GetValuesUnitOrThrow()->GetCurrRangeItem());
 				MG_CHECK(valuesUnit);
-				visit<typelists::fields>(valuesUnit.get(), [binaryOper, res, argDomainUnit, argValuesUnit, tileRangeData]<typename V>(const Unit<V>*valuesUnit) {
+				visit<typelists::fields>(valuesUnit.get(), [binaryOper, res, argDomainUnit, argValuesUnit, tileRangeData, mappingState]<typename V>(const Unit<V>*valuesUnit) {
 					SharedUnitInterestPtr retainedArgDomainUnit = argDomainUnit;
 					SharedUnitInterestPtr retainedArgValuesUnit = argValuesUnit;
+					// mappingState outlives every tile: the lambda owns a share of it, so a tile
+					// recomputed long after CreateResult still finds the transformer and the
+					// separable cross already built.
 					auto lazyTileFunctor = make_unique_LazyTileFunctor<V>(make_shared_tree(res, existing_obj{}), tileRangeData.get(), valuesUnit->m_RangeDataPtr
-						, [binaryOper, res, retainedArgDomainUnit, retainedArgValuesUnit](AbstrDataObject* self, tile_id t) {
-							binaryOper->Calculate(self, retainedArgDomainUnit, retainedArgValuesUnit, t); // write into the same tile.
+						, [binaryOper, res, retainedArgDomainUnit, retainedArgValuesUnit, mappingState](AbstrDataObject* self, tile_id t) {
+							binaryOper->Calculate(self, *mappingState, t); // write into the same tile.
 						}
 						MG_DEBUG_ALLOCATOR_SRC(res->md_FullName +  ": = MappingOperator()")
 					);
@@ -200,9 +224,9 @@ public:
 			{
 				DataWriteLock resLock(res, dms_rw_mode::write_only_mustzero);
 
-				parallel_tileloop(tn, [this, argDomainUnit, argValuesUnit, &resLock](tile_id t)->void
+				parallel_tileloop(tn, [this, &mappingState, &resLock](tile_id t)->void
 					{
-						this->Calculate(resLock.get(), argDomainUnit, argValuesUnit, t);
+						this->Calculate(resLock.get(), *mappingState, t);
 					}
 				);
 				resLock.Commit();
@@ -210,7 +234,10 @@ public:
 		}
 		return true;
 	}
-	virtual void Calculate(AbstrDataObject* res, const AbstrUnit* argDomainUnit, const AbstrUnit* argValuesUnit, tile_id t) const =0;
+
+	// Builds the shared conversion state. Called once per invocation, on the calling thread.
+	virtual auto CreateMappingState(const AbstrUnit* argDomainUnit, const AbstrUnit* argValuesUnit) const -> std::shared_ptr<AbstrMappingState> = 0;
+	virtual void Calculate(AbstrDataObject* res, const AbstrMappingState& state, tile_id t) const = 0;
 };
 
 class AbstrMappingCountOperator : public TernaryOperator
@@ -249,15 +276,20 @@ public:
 			auto res = AsDataItem(resultHolder.GetNew());
 			MG_PRECONDITION(res);
 
+			// Once for the whole operator, not once per tile: see AbstrMappingState.
+			auto mappingState = CreateMappingState(argDomainUnit, argValuesUnit);
+
 			DataWriteLock resLock(res, dms_rw_mode::write_only_mustzero);
 
 			for (tile_id t = 0, te = argDomainUnit->GetNrTiles(); t != te; ++t)
-				Calculate(resLock, argDomainUnit, argValuesUnit, t);
+				Calculate(resLock, *mappingState, t);
 			resLock.Commit();
 		}
 		return true;
 	}
-	virtual void Calculate(DataWriteLock& res, const AbstrUnit* argDomainUnit, const AbstrUnit* argValuesUnit, tile_id t) const = 0;
+
+	virtual auto CreateMappingState(const AbstrUnit* argDomainUnit, const AbstrUnit* argValuesUnit) const -> std::shared_ptr<AbstrMappingState> = 0;
+	virtual void Calculate(DataWriteLock& res, const AbstrMappingState& state, tile_id t) const = 0;
 };
 
 // *****************************************************************************

@@ -71,9 +71,12 @@ extern leveled_critical_section cs_SpatialRefBlockCreation;
 //			SpatialRefBlock (defined in OperConv.cpp)
 // *****************************************************************************
 
+// NB there is deliberately no pj_ctx member here. One used to be created and destroyed with the
+// block but never passed to anything -- CreateTransformer uses GDAL's own thread-local PROJ
+// context. It was pure cost, and a thread-affine object that a shared MappingState could end up
+// destroying on a different thread than the one that created it.
 struct SpatialRefBlock : SharedBase, gdalComponent
 {
-	pj_ctx* m_ProjCtx = nullptr;
 	OGRSpatialReference          m_Src, m_Dst;
 	OGRCoordinateTransformation* m_Transformer = nullptr;
 

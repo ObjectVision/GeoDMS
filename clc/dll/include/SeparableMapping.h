@@ -2,16 +2,24 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
-// SeparableMapping.h - the grid-mapping dispatchers for Type2DConversion.
+// SeparableMapping.h - the conversion state and grid-mapping dispatchers behind mapping(D, V)
+// and mapping_count(D, V, C).
 //
-// mapping(D, V) enumerates a grid domain row-major and reprojects every cell into V's
-// coordinate space; mapping_count(D, V, C) histograms the same enumeration. Both are
-// instantiated by exactly one TU (OperConvMapping.cpp), so they live here rather than in
-// OperConv.h, which 12 other TUs include and would otherwise parse them for nothing.
+// These templates are instantiated by exactly one TU (OperConvMapping.cpp), so they live here
+// rather than in OperConv.h, which 12 other TUs include and would otherwise parse them for
+// nothing.
 //
-// See issue #298: for a coordinate-separable transformation a W x H tile needs only W + H
-// transformations instead of W * H, because the tile's domain values contain only W distinct
-// x's and H distinct y's. That fast path is added on top of the generic dispatchers here.
+// Two things happen here, both from issue #298:
+//
+//  1. The conversion functor is built ONCE per operator invocation (MappingState, held by
+//     AbstrMappingOperator::CreateResult) instead of once per tile. For a cross-CRS mapping that
+//     construction is two proj.db lookups plus an OGRCreateCoordinateTransformation under a
+//     global critical section, ~1.1 ms, which used to dominate the entire operator.
+//
+//  2. When the transformation is coordinate separable, the transformed x values (one per domain
+//     column) and y values (one per domain row) are computed once for the WHOLE domain and every
+//     raster cell (r, c) is then read off as (x[c], y[r]). A W x H domain costs W + H
+//     transformations instead of W * H, and tile production calls PROJ zero times.
 
 #pragma once
 
@@ -19,15 +27,20 @@
 #define __CLC_SEPARABLEMAPPING_H
 
 #include "OperConv.h"
+#include "CastedUnaryAttrOper.h"
 
 #include <algorithm>
+#include <map>
+#include <memory>
+#include <mutex>
+#include <thread>
 #include <vector>
 
 // *****************************************************************************
 //			TransformPointRun: the one blocked OGR transform loop
 // *****************************************************************************
 // The single place that pushes points through OGRCoordinateTransformation in PROJ_BLOCK_SIZE
-// chunks. Both the generic mapping loop and the separable fast path go through it, so their
+// chunks. Both the generic mapping loop and the separable cross builder go through it, so their
 // pre-rescaling, axis-order handling, post-rescaling and failure policy cannot drift apart.
 //
 //	gen(k)               -> the k-th source value (TA), k counted over the whole run
@@ -85,16 +98,20 @@ bool TransformPointRun(Type2DConversion<TR, TA>& functor, SrcGen&& gen, SizeT n,
 }
 
 // *****************************************************************************
-//			MappingCross: the W + H transformed coordinates of a W x H tile
+//			MappingCross: the W + H transformed coordinates of a W x H domain
 // *****************************************************************************
 
-// Below this many cells the 2H + W + 64 probe transformations and the structural gate are not
+// Below this many cells the W + H + probe transformations and the structural gate are not
 // repaid by the W * H they save.
 constexpr SizeT g_SeparableMapping_MinCells = 4096;
 
 // How many distinct rows / columns the verification lattice samples per axis (so up to 8 x 8
 // probe points, plus at most one failing row and column: still one PROJ block).
 constexpr SizeT g_SeparableMapping_ProbeLines = 8;
+
+// Sanity cap on W + H. Never binds on a real domain (a square domain would have to exceed
+// 500_000 cells per side), but keeps a pathological range from allocating without bound.
+constexpr SizeT g_SeparableMapping_MaxCrossSize = 1000000;
 
 // Which source component the transformed column values carry. EPSG:4326 is authority order
 // (lat, lon) while EPSG:3857 is (easting, northing), so LatLong -> Mercator is separable *with a
@@ -158,15 +175,15 @@ inline std::vector<SizeT> PickProbeLines(const std::vector<char>& okFlags)
 	return res;
 }
 
-// Why a tile did or did not get the separable treatment. Reported at ST_MinorTrace, because a
+// Why a domain did or did not get the separable treatment. Reported at ST_MinorTrace, because a
 // silent optimization that sometimes engages and sometimes does not is undiagnosable.
 enum class CrossOutcome : UInt8
 {
-	used,                  // the fast path ran: W + H transformations instead of W * H
-	tileTooSmall,          // below g_SeparableMapping_MinCells; the probes would not be repaid
+	used,                  // the fast path is on: W + H transformations instead of W * H
+	domainTooSmall,        // below g_SeparableMapping_MinCells; the probes would not be repaid
 	rescalerNotSeparable,  // a pre/post rescaler above AnisoScale mixes the axes
 	crsNotSeparable,       // the structural CRS gate refused the pair
-	notRectangular,        // W * H != n; not the enumeration this decomposition assumes
+	notRectangular,        // W * H != n, or too large; not the shape this decomposition assumes
 	transformFailed,       // OGR reported a whole-block failure; leave that case to the old code
 	noUsableAnchor,        // no row or no column could be transformed at all
 	verificationFailed,    // the pair looked separable but the probe lattice says otherwise
@@ -177,10 +194,10 @@ inline CharPtr AsString(CrossOutcome outcome)
 	switch (outcome)
 	{
 	case CrossOutcome::used:                 return "used";
-	case CrossOutcome::tileTooSmall:         return "skipped: tile too small";
+	case CrossOutcome::domainTooSmall:       return "skipped: domain too small";
 	case CrossOutcome::rescalerNotSeparable: return "skipped: rescaler is not axis separable";
 	case CrossOutcome::crsNotSeparable:      return "skipped: CRS pair is not separable";
-	case CrossOutcome::notRectangular:       return "skipped: tile range is not the expected rectangle";
+	case CrossOutcome::notRectangular:       return "skipped: domain range is not the expected rectangle";
 	case CrossOutcome::transformFailed:      return "skipped: a coordinate transformation block failed";
 	case CrossOutcome::noUsableAnchor:       return "skipped: no transformable row or column";
 	case CrossOutcome::verificationFailed:   return "skipped: verification found the transformation is not separable after all";
@@ -188,17 +205,17 @@ inline CharPtr AsString(CrossOutcome outcome)
 	return "skipped";
 }
 
-// Builds the cross for a tile and PROVES it reproduces the generic per-point result on a probe
-// lattice; any outcome other than `used` means "run the generic loop".
+// Builds the cross for a domain and PROVES it reproduces the generic per-point result on a probe
+// lattice; any outcome other than `used` means "run the generic per-point loop".
 //
-// Cost when it succeeds: at most 2H + W + 64 transformed points instead of W * H.
+// Cost when it succeeds: at most 2H + W + 64 transformed points for the whole domain.
 template<typename TR, typename TA>
-CrossOutcome BuildMappingCrossImpl(Type2DConversion<TR, TA>& functor, typename Unit<TA>::range_t tileRange, SizeT n, MappingCross<TR>& res)
+CrossOutcome BuildMappingCrossImpl(Type2DConversion<TR, TA>& functor, typename Unit<TA>::range_t domainRange, SizeT n, MappingCross<TR>& res)
 {
 	assert(functor.m_OgrComponentHolder && functor.m_OgrComponentHolder->m_Transformer);
 
 	if (n < g_SeparableMapping_MinCells)
-		return CrossOutcome::tileTooSmall;
+		return CrossOutcome::domainTooSmall;
 
 	// Above AnisoScale a rescaler mixes the axes (rotation, shear, perspective) before or after
 	// the projection, so the composite is not separable even when the CRS pair is.
@@ -207,13 +224,16 @@ CrossOutcome BuildMappingCrossImpl(Type2DConversion<TR, TA>& functor, typename U
 	if (!functor.m_OgrComponentHolder->IsAxisSeparableCrsPair())
 		return CrossOutcome::crsNotSeparable;
 
-	// A wrapped-around width (an empty or malformed range) fails the W * H == n check.
-	SizeT W = SizeT(Width(tileRange)), H = SizeT(Height(tileRange));
-	if (W < 2 || H < 2 || W * H != n)
+	if (!IsDefined(domainRange))
 		return CrossOutcome::notRectangular;
 
-	// Exactly the enumeration DispatchMapping uses, so the fast path sees the same source values.
-	auto valueAt = [&tileRange, W](SizeT r, SizeT c) { return Range_GetValue_naked(tileRange, r * W + c); };
+	// A wrapped-around width (an empty or malformed range) fails the W * H == n check.
+	SizeT W = SizeT(Width(domainRange)), H = SizeT(Height(domainRange));
+	if (W < 2 || H < 2 || W * H != n || W + H > g_SeparableMapping_MaxCrossSize)
+		return CrossOutcome::notRectangular;
+
+	// Exactly the enumeration DispatchMapping uses, so the cross sees the same source values.
+	auto valueAt = [&domainRange, W](SizeT r, SizeT c) { return Range_GetValue_naked(domainRange, r * W + c); };
 
 	res.m_RowVal.resize(H); res.m_RowOk.assign(H, 0);
 	res.m_ColVal.resize(W); res.m_ColOk.assign(W, 0);
@@ -308,32 +328,35 @@ CrossOutcome BuildMappingCrossImpl(Type2DConversion<TR, TA>& functor, typename U
 	return CrossOutcome::used;
 }
 
-// Reports the outcome once per tile so that "did the #298 optimization engage, and if not why"
-// is answerable from a trace log rather than from a profiler.
+// Reports the outcome once per invocation so that "did the #298 optimization engage, and if not
+// why" is answerable from a trace log rather than from a profiler.
 template<typename TR, typename TA>
-bool BuildMappingCross(Type2DConversion<TR, TA>& functor, typename Unit<TA>::range_t tileRange, SizeT n, MappingCross<TR>& res)
+bool BuildMappingCross(Type2DConversion<TR, TA>& functor, typename Unit<TA>::range_t domainRange, SizeT n, MappingCross<TR>& res)
 {
 	if (!functor.m_OgrComponentHolder || !functor.m_OgrComponentHolder->m_Transformer)
 		return false;
 
-	auto outcome = BuildMappingCrossImpl<TR, TA>(functor, tileRange, n, res);
+	auto outcome = BuildMappingCrossImpl<TR, TA>(functor, domainRange, n, res);
 
-	// A tile below the threshold is the uninteresting majority; narrating those would bury the
-	// rest. Everything else says something about either the data or the gate.
-	if (outcome != CrossOutcome::tileTooSmall)
-		reportF(MsgCategory::progress, SeverityTypeID::ST_MinorTrace
-			, "mapping: separable fast path {}", AsString(outcome));
+	reportF(MsgCategory::progress, SeverityTypeID::ST_MinorTrace
+		, "mapping: separable fast path {}", AsString(outcome));
 
 	return outcome == CrossOutcome::used;
 }
 
-// Writes the W * H cells of a tile from its cross, row-major, without transforming anything.
-template<typename TR, typename RIT>
-void FillFromCross(const MappingCross<TR>& cross, RIT ri, SizeT W, SizeT H)
+// Writes one tile from the whole-domain cross, row-major, transforming nothing.
+template<typename TA, typename TR, typename RIT>
+void FillTileFromCross(const MappingCross<TR>& cross, RIT ri, typename Unit<TA>::range_t tileRange, typename Unit<TA>::range_t domainRange)
 {
+	assert(Top(tileRange) >= Top(domainRange) && Left(tileRange) >= Left(domainRange));
+
+	SizeT rBase = SizeT(Top(tileRange) - Top(domainRange));
+	SizeT cBase = SizeT(Left(tileRange) - Left(domainRange));
+	SizeT W = SizeT(Width(tileRange)), H = SizeT(Height(tileRange));
+
 	for (SizeT r = 0; r != H; ++r)
 	{
-		if (!cross.m_RowOk[r])
+		if (!cross.m_RowOk[rBase + r])
 		{
 			for (SizeT c = 0; c != W; ++c, ++ri)
 				Assign(*ri, Undefined());
@@ -341,19 +364,19 @@ void FillFromCross(const MappingCross<TR>& cross, RIT ri, SizeT W, SizeT H)
 		}
 		if (cross.m_Pairing == CrossPairing::Straight)
 		{
-			auto rowPart = cross.m_RowVal[r].second;
+			auto rowPart = cross.m_RowVal[rBase + r].second;
 			for (SizeT c = 0; c != W; ++c, ++ri)
-				if (cross.m_ColOk[c])
-					Assign(*ri, TR(cross.m_ColVal[c].first, rowPart));
+				if (cross.m_ColOk[cBase + c])
+					Assign(*ri, TR(cross.m_ColVal[cBase + c].first, rowPart));
 				else
 					Assign(*ri, Undefined());
 		}
 		else
 		{
-			auto rowPart = cross.m_RowVal[r].first;
+			auto rowPart = cross.m_RowVal[rBase + r].first;
 			for (SizeT c = 0; c != W; ++c, ++ri)
-				if (cross.m_ColOk[c])
-					Assign(*ri, TR(rowPart, cross.m_ColVal[c].second));
+				if (cross.m_ColOk[cBase + c])
+					Assign(*ri, TR(rowPart, cross.m_ColVal[cBase + c].second));
 				else
 					Assign(*ri, Undefined());
 		}
@@ -361,21 +384,72 @@ void FillFromCross(const MappingCross<TR>& cross, RIT ri, SizeT W, SizeT H)
 }
 
 // *****************************************************************************
+//			MappingState: the shared per-invocation conversion state
+// *****************************************************************************
+
+template <typename F> struct is_2d_conversion : std::false_type {};
+template <typename TR, typename TA> struct is_2d_conversion<Type2DConversion<TR, TA>> : std::true_type {};
+template <typename F> constexpr bool is_2d_conversion_v = is_2d_conversion<F>::value;
+
+template <typename TR, typename TA, typename TCF>
+struct MappingState : AbstrMappingState
+{
+	using FunctorType = typename ConversionGenerator<TCF, TR, TA>::type;
+	using range_t = typename Unit<TA>::range_t;
+
+	// Only a 2D (coordinate) conversion can have a cross at all; for the numeric mapping
+	// instantiations TA is a scalar, whose range_t has no Top/Left/Width/Height, so the cross
+	// paths must not even be instantiated for them.
+	static constexpr bool has_cross_support = is_2d_conversion_v<FunctorType>;
+
+	MappingState(const Unit<TR>* dstUnit, const Unit<TA>* srcUnit)
+		: m_DstUnit(make_shared_tree(dstUnit, existing_obj{}))
+		, m_SrcUnit(make_shared_tree(srcUnit, existing_obj{}))
+		, m_DomainRange(srcUnit->GetRange())
+	{
+		if constexpr (has_cross_support)
+			m_HasCross = BuildMappingCross<TR, TA>(GetFunctor(), m_DomainRange, Cardinality(m_DomainRange), m_Cross);
+	}
+
+	// The functor for the calling thread. OGRCoordinateTransformation is NOT thread-safe, and a
+	// shared one would be used concurrently by parallel_tileloop and by LazyTileFunctor refills,
+	// so the state amortises construction per THREAD rather than per tile. When m_HasCross the
+	// tile path never asks for one at all.
+	FunctorType& GetFunctor() const
+	{
+		auto id = std::this_thread::get_id();
+		std::lock_guard lock(m_FunctorMutex);
+		auto& slot = m_PerThreadFunctor[id];
+		if (!slot)
+			slot = std::make_unique<FunctorType>(m_DstUnit.get(), m_SrcUnit.get());
+		return *slot;
+	}
+
+	auto GetTileRange(tile_id t) const { return m_SrcUnit->GetTileRange(t); }
+
+	std::shared_ptr<const Unit<TR>> m_DstUnit;
+	std::shared_ptr<const Unit<TA>> m_SrcUnit;
+	range_t                         m_DomainRange;
+
+	mutable std::mutex m_FunctorMutex;
+	mutable std::map<std::thread::id, std::unique_ptr<FunctorType>> m_PerThreadFunctor;
+
+	// Whole-domain separable cross. When present, tile production reads (x[c], y[r]) from it and
+	// calls PROJ zero times per raster cell.
+	MappingCross<TR> m_Cross;
+	bool             m_HasCross = false;
+};
+
+// *****************************************************************************
 //			DispatchMapping / DispatchMappingCount for Type2DConversion
 // *****************************************************************************
+// The generic per-point paths, used when there is no separable cross.
 
 template<typename TR, typename TA>
 void DispatchMapping(Type2DConversion<TR, TA>& functor, typename Type2DConversion<TR, TA>::iterator ri, typename Unit<TA>::range_t tileRange, SizeT n)
 {
 	if (functor.m_OgrComponentHolder)
 	{
-		MappingCross<TR> cross;
-		if (BuildMappingCross<TR, TA>(functor, tileRange, n, cross))
-		{
-			FillFromCross(cross, ri, SizeT(Width(tileRange)), SizeT(Height(tileRange)));
-			return;
-		}
-
 		TransformPointRun<TR, TA>(functor
 			, [&tileRange](SizeT k) { return Range_GetValue_naked(tileRange, k); }
 			, n
@@ -404,27 +478,6 @@ void DispatchMappingCount(Type2DConversion<TR, TA>& functor, RI ri, typename Uni
 	SizeT k = Cardinality(srcTileRange);
 	if (functor.m_OgrComponentHolder)
 	{
-		// The histogram itself stays O(W * H) -- unavoidable -- but the transformations do not.
-		MappingCross<TR> cross;
-		if (BuildMappingCross<TR, TA>(functor, srcTileRange, k, cross))
-		{
-			SizeT W = SizeT(Width(srcTileRange)), H = SizeT(Height(srcTileRange));
-			for (SizeT r = 0; r != H; ++r)
-			{
-				if (!cross.m_RowOk[r])
-					continue;
-				for (SizeT c = 0; c != W; ++c)
-				{
-					if (!cross.m_ColOk[c])
-						continue;
-					auto j = Range_GetIndex_checked(dstRange, cross.Combine(r, c));
-					if (j < n)
-						ri[j]++;
-				}
-			}
-			return;
-		}
-
 		// Batched, unlike the ApplyProjection / ApplyScaledProjection loop this replaces, which
 		// issued one Transform(1, ...) call per point.
 		TransformPointRun<TR, TA>(functor
@@ -455,6 +508,29 @@ void DispatchMappingCount(Type2DConversion<TR, TA>& functor, RI ri, typename Uni
 				if (j < n)
 					ri[j]++;
 			}
+}
+
+// Histograms one tile straight from the whole-domain cross, transforming nothing.
+template<typename TA, typename TR, typename RI>
+void CountTileFromCross(const MappingCross<TR>& cross, RI ri, typename Unit<TA>::range_t srcTileRange, typename Unit<TA>::range_t domainRange, typename Unit<TR>::range_t dstRange, SizeT n)
+{
+	SizeT rBase = SizeT(Top(srcTileRange) - Top(domainRange));
+	SizeT cBase = SizeT(Left(srcTileRange) - Left(domainRange));
+	SizeT W = SizeT(Width(srcTileRange)), H = SizeT(Height(srcTileRange));
+
+	for (SizeT r = 0; r != H; ++r)
+	{
+		if (!cross.m_RowOk[rBase + r])
+			continue;
+		for (SizeT c = 0; c != W; ++c)
+		{
+			if (!cross.m_ColOk[cBase + c])
+				continue;
+			auto j = Range_GetIndex_checked(dstRange, cross.Combine(rBase + r, cBase + c));
+			if (j < n)
+				ri[j]++;
+		}
+	}
 }
 
 #endif // !defined(__CLC_SEPARABLEMAPPING_H)
