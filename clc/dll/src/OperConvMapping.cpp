@@ -39,14 +39,14 @@ void do_mapping(const MappingState<TR, TA, TCF>& state, tile_id t, RIT dstIter, 
 }
 
 template <typename Cardinal, typename TR, typename TA, typename TCF, typename RIT>
-void do_mapping_count(const MappingState<TR, TA, TCF>& state, tile_id t, RIT dstIter, RIT dstEnd)
+void do_mapping_count(const MappingCountState<TR, TA, TCF>& state, tile_id t, RIT dstIter, RIT dstEnd)
 {
 	auto srcTileRange = state.GetTileRange(t);
 	auto dstRange = state.m_DstUnit->GetRange();
 	SizeT n = Cardinality(dstRange);
 	MG_CHECK(dstIter + n == dstEnd);
 
-	if constexpr (MappingState<TR, TA, TCF>::has_cross_support)
+	if constexpr (MappingCountState<TR, TA, TCF>::has_cross_support)
 		if (state.m_HasCross && state.m_CrossIndex.m_IsValid)
 		{
 			// The outer product skips the source cells altogether; it declines only when the
@@ -118,7 +118,7 @@ public:
 		)
 	{}
 
-	using StateType = MappingState<TR, TA, TypeConversionF<std::false_type>>;
+	using StateType = MappingCountState<TR, TA, TypeConversionF<std::false_type>>;
 
 	auto CreateMappingState(const AbstrUnit* argDomainUnit, const AbstrUnit* argValuesUnit) const -> std::shared_ptr<AbstrMappingState> override
 	{
@@ -133,9 +133,9 @@ public:
 		if constexpr (StateType::has_cross_support)
 		{
 			auto& typedState = *debug_cast<const StateType*>(&state);
-			return typedState.m_HasCross
-				&& typedState.m_CrossCounts.m_IsValid
-				&& typedState.m_SourceTilesCoverDomain;
+			// An irregular source tiling is fine here: m_CrossCounts then holds one histogram
+			// pair per source tile and a destination tile aggregates the ones that overlap it.
+			return typedState.m_HasCross && typedState.m_HasCountProduct;
 		}
 		else
 			return false;

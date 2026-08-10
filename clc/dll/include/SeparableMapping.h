@@ -113,6 +113,11 @@ constexpr SizeT g_SeparableMapping_ProbeLines = 8;
 // 500_000 cells per side), but keeps a pathological range from allocating without bound.
 constexpr SizeT g_SeparableMapping_MaxCrossSize = 1000000;
 
+// Sanity cap on the total size of the PER-SOURCE-TILE histogram pairs (an irregular tiling).
+// Normally tiny -- a source tile lands on a small window of the destination -- but a tiling of
+// many full-width slivers could make it nrTiles * destinationWidth.
+constexpr SizeT g_SeparableMapping_MaxCountPartEntries = 4000000;
+
 // Which source component the transformed column values carry. EPSG:4326 is authority order
 // (lat, lon) while EPSG:3857 is (easting, northing), so LatLong -> Mercator is separable *with a
 // swap*: result component 0 is a function of source component 1. The pairing is therefore
@@ -224,68 +229,151 @@ void BuildCrossIndex(const MappingCross<TR>& cross, typename Unit<TR>::range_t d
 	res.m_IsValid = true;
 }
 
-// The two 1-D histograms the whole mapping_count result is an outer product of:
+// The two 1-D histograms whose outer product IS a mapping_count result, over ONE rectangle of
+// source cells:
 //
 //     count(i, j) = m_DstRowCount[i] * m_DstColCount[j]
 //
-// Because a source cell (r, c) lands in destination cell (i, j) iff row r lands on i AND column
-// c lands on j, INDEPENDENTLY. Reduced from the whole-domain cross once per invocation, after
-// which the result is a pure function of the destination cell: every destination tile can be
-// produced on demand, in parallel, without looking at the source at all.
+// because a source cell (r, c) lands in destination cell (i, j) iff row r lands on i AND column
+// c lands on j, INDEPENDENTLY.
+//
+// THE RECTANGLE MATTERS. A single whole-domain product is only the answer when the source tiles
+// actually cover the source domain's whole RANGE -- which regular (default) tiling does. An
+// IRREGULAR tiling may cover a strict subset of its own bounding box (a sparse study area), and
+// then the bounding box contains cells that do not exist; counting them would be wrong.
+//
+// So the general form is one CrossCounts PER SOURCE TILE: each source tile is its own rectangle
+// of raster points, its own contribution factorises the same way, and a destination cell's count
+// is the sum over every source tile whose image overlaps it. Tiles are disjoint, so those
+// contributions simply add. A destination tile is still produced independently of every other --
+// it just aggregates over the source tiles that overlap it.
+//
+// Only the nonzero window is stored (m_DstRowLo / m_DstColLo plus the spans), because a single
+// source tile normally lands on a small part of the destination.
 struct CrossCounts
 {
+	SizeT              m_DstRowLo = 0, m_DstColLo = 0;
 	std::vector<SizeT> m_DstRowCount, m_DstColCount;
 	bool               m_IsValid = false;
+
+	SizeT DstRowEnd() const { return m_DstRowLo + m_DstRowCount.size(); }
+	SizeT DstColEnd() const { return m_DstColLo + m_DstColCount.size(); }
+	SizeT NrEntries() const { return m_DstRowCount.size() + m_DstColCount.size(); }
 };
 
-inline void BuildCrossCounts(const CrossIndex& index, CrossCounts& res)
+// Builds the pair of histograms for the source rectangle [r0, r1) x [c0, c1), in cross
+// coordinates (i.e. relative to the source domain's range). Leaves m_IsValid false when nothing
+// in that rectangle lands anywhere, which is a valid empty contribution.
+inline void BuildCrossCounts(const CrossIndex& index, SizeT r0, SizeT r1, SizeT c0, SizeT c1, CrossCounts& res)
 {
-	res.m_IsValid = false;
+	res = CrossCounts{};
 	if (!index.m_IsValid)
 		return;
 
-	res.m_DstRowCount.assign(index.m_DstHeight, 0);
-	res.m_DstColCount.assign(index.m_DstWidth, 0);
+	// aXxx follows the source-ROW axis, bXxx the source-COLUMN axis. Which destination axis each
+	// drives is decided at the end: under the Swapped pairing the source rows drive the
+	// destination COLUMNS.
+	SizeT aLo = UNDEFINED_VALUE(SizeT), aHi = 0, bLo = UNDEFINED_VALUE(SizeT), bHi = 0;
 
-	// Under the Swapped pairing the source ROWS drive the destination COLUMNS and vice versa.
-	auto& fromRowAxis = index.m_RowAxisIsDstRow ? res.m_DstRowCount : res.m_DstColCount;
-	auto& fromColAxis = index.m_RowAxisIsDstRow ? res.m_DstColCount : res.m_DstRowCount;
-
-	for (SizeT r = 0, re = index.m_RowAxisIdx.size(); r != re; ++r)
+	for (SizeT r = r0; r != r1; ++r)
 		if (index.m_RowOk[r])
-			fromRowAxis[index.m_RowAxisIdx[r]]++;
-
-	for (SizeT c = 0, ce = index.m_ColAxisIdx.size(); c != ce; ++c)
+		{
+			SizeT v = index.m_RowAxisIdx[r];
+			if (!IsDefined(aLo) || v < aLo) aLo = v;
+			if (v > aHi) aHi = v;
+		}
+	for (SizeT c = c0; c != c1; ++c)
 		if (index.m_ColOk[c])
-			fromColAxis[index.m_ColAxisIdx[c]]++;
+		{
+			SizeT v = index.m_ColAxisIdx[c];
+			if (!IsDefined(bLo) || v < bLo) bLo = v;
+			if (v > bHi) bHi = v;
+		}
+	if (!IsDefined(aLo) || !IsDefined(bLo))
+		return; // this rectangle contributes nothing
 
+	std::vector<SizeT> aCount(aHi - aLo + 1, 0), bCount(bHi - bLo + 1, 0);
+	for (SizeT r = r0; r != r1; ++r)
+		if (index.m_RowOk[r])
+			aCount[index.m_RowAxisIdx[r] - aLo]++;
+	for (SizeT c = c0; c != c1; ++c)
+		if (index.m_ColOk[c])
+			bCount[index.m_ColAxisIdx[c] - bLo]++;
+
+	if (index.m_RowAxisIsDstRow)
+	{
+		res.m_DstRowLo = aLo; res.m_DstRowCount = std::move(aCount);
+		res.m_DstColLo = bLo; res.m_DstColCount = std::move(bCount);
+	}
+	else
+	{
+		res.m_DstRowLo = bLo; res.m_DstRowCount = std::move(bCount);
+		res.m_DstColLo = aLo; res.m_DstColCount = std::move(aCount);
+	}
 	res.m_IsValid = true;
 }
 
-// Produces one DESTINATION tile of a mapping_count result: one multiplication per cell, written
-// sequentially, reading no source data. Nothing is accumulated, so tiles are independent and the
-// result can be a LazyTileFunctor.
+// Produces one DESTINATION tile of a mapping_count result by aggregating over the source-tile
+// contributions that overlap it. Reads no source data and touches no other destination tile, so
+// tiles stay independent and the result can be a LazyTileFunctor.
 template<typename Cardinal, typename TR, typename RIT>
-void FillCountTileFromProduct(const CrossCounts& counts, RIT ri, typename Unit<TR>::range_t dstTileRange, typename Unit<TR>::range_t dstRange)
+void FillCountTileFromProduct(const std::vector<CrossCounts>& parts, RIT ri, typename Unit<TR>::range_t dstTileRange, typename Unit<TR>::range_t dstRange)
 {
-	assert(counts.m_IsValid);
-
 	SizeT iBase = SizeT(Top(dstTileRange) - Top(dstRange));
 	SizeT jBase = SizeT(Left(dstTileRange) - Left(dstRange));
 	SizeT W = SizeT(Width(dstTileRange)), H = SizeT(Height(dstTileRange));
 
-	for (SizeT i = 0; i != H; ++i)
+	// The covering-tiling case is a single rectangle, so every cell can be written once and no
+	// zeroing pass is needed. This is the regular/default tiling, i.e. the common one.
+	if (parts.size() == 1 && parts[0].m_IsValid
+		&& parts[0].m_DstRowLo <= iBase && iBase + H <= parts[0].DstRowEnd()
+		&& parts[0].m_DstColLo <= jBase && jBase + W <= parts[0].DstColEnd())
 	{
-		SizeT rowCount = counts.m_DstRowCount[iBase + i];
-		if (!rowCount)
+		const auto& cc = parts[0];
+		for (SizeT i = 0; i != H; ++i)
 		{
+			SizeT rowCount = cc.m_DstRowCount[iBase + i - cc.m_DstRowLo];
+			if (!rowCount)
+			{
+				for (SizeT j = 0; j != W; ++j, ++ri)
+					Assign(*ri, Cardinal(0));
+				continue;
+			}
+			const SizeT* colCount = cc.m_DstColCount.data() + (jBase - cc.m_DstColLo);
 			for (SizeT j = 0; j != W; ++j, ++ri)
-				Assign(*ri, Cardinal(0));
-			continue;
+				Assign(*ri, Cardinal(rowCount * colCount[j])); // wraps exactly as repeated ++ would
 		}
-		const SizeT* colCount = counts.m_DstColCount.data() + jBase;
-		for (SizeT j = 0; j != W; ++j, ++ri)
-			Assign(*ri, Cardinal(rowCount * colCount[j])); // wraps exactly as repeated ++ would
+		return;
+	}
+
+	// General case: start from zero and add each overlapping source tile's contribution.
+	for (SizeT k = 0, ke = W * H; k != ke; ++k)
+		Assign(ri[k], Cardinal(0));
+
+	for (const auto& cc : parts)
+	{
+		if (!cc.m_IsValid)
+			continue;
+		SizeT i0 = std::max(iBase, cc.m_DstRowLo), i1 = std::min(iBase + H, cc.DstRowEnd());
+		if (i0 >= i1)
+			continue;
+		SizeT j0 = std::max(jBase, cc.m_DstColLo), j1 = std::min(jBase + W, cc.DstColEnd());
+		if (j0 >= j1)
+			continue;
+
+		for (SizeT i = i0; i != i1; ++i)
+		{
+			SizeT rowCount = cc.m_DstRowCount[i - cc.m_DstRowLo];
+			if (!rowCount)
+				continue;
+			RIT row = ri + (i - iBase) * W;
+			for (SizeT j = j0; j != j1; ++j)
+			{
+				SizeT colCount = cc.m_DstColCount[j - cc.m_DstColLo];
+				if (colCount)
+					row[j - jBase] += Cardinal(rowCount * colCount);
+			}
+		}
 	}
 }
 
@@ -563,30 +651,7 @@ struct MappingState : AbstrMappingState
 			m_HasCross = BuildMappingCross<TR, TA>(GetFunctor(), m_DomainRange, Cardinality(m_DomainRange), m_Cross);
 			// W + H integer operations, only useful to mapping_count -- but too cheap to be
 			// worth a second construction path.
-			if (m_HasCross)
-			{
-				BuildCrossIndex<TR>(m_Cross, dstUnit->GetRange(), m_CrossIndex);
-				BuildCrossCounts(m_CrossIndex, m_CrossCounts);
-				m_SourceTilesCoverDomain = SourceTilesCoverDomain();
-			}
 		}
-	}
-
-	// Whether the source tiles exactly tile the source domain's RANGE. The whole-domain
-	// histograms in m_CrossCounts count every cell of that rectangle, so they are the true
-	// histograms only under this condition -- an irregular tiling may cover a strict subset of
-	// its own bounding rectangle (a sparse study area), and then only the per-source-tile paths
-	// are correct. Tiles are disjoint by construction (every element has exactly one
-	// GetTileDataLocation), so comparing the total element count settles it.
-	bool SourceTilesCoverDomain() const
-	{
-		auto trd = m_SrcUnit->GetTiledRangeData();
-		if (!trd)
-			return false;
-		SizeT covered = 0;
-		for (tile_id t = 0, te = trd->GetNrTiles(); t != te; ++t)
-			covered += trd->GetTileSize(t);
-		return covered == Cardinality(m_DomainRange);
 	}
 
 	// The functor for the calling thread. OGRCoordinateTransformation is NOT thread-safe, and a
@@ -619,11 +684,96 @@ struct MappingState : AbstrMappingState
 	MappingCross<TR> m_Cross;
 	bool             m_HasCross = false;
 
-	// The same cross pre-reduced to destination indices, and then to the two 1-D histograms whose
-	// outer product IS the mapping_count result. Both are for mapping_count only.
-	CrossIndex  m_CrossIndex;
-	CrossCounts m_CrossCounts;
-	bool        m_SourceTilesCoverDomain = false;
+};
+
+// mapping_count's state: the cross, plus its reduction to destination indices and then to the
+// histogram pairs whose outer product is the result. Separate from MappingState because mapping()
+// needs none of it and should not pay for building it.
+template <typename TR, typename TA, typename TCF>
+struct MappingCountState : MappingState<TR, TA, TCF>
+{
+	using base_type = MappingState<TR, TA, TCF>;
+
+	MappingCountState(const Unit<TR>* dstUnit, const Unit<TA>* srcUnit)
+		: base_type(dstUnit, srcUnit)
+	{
+		if constexpr (base_type::has_cross_support)
+			if (this->m_HasCross)
+			{
+				BuildCrossIndex<TR>(this->m_Cross, dstUnit->GetRange(), m_CrossIndex);
+				BuildCountProduct();
+			}
+	}
+
+	// Whether the source tiles exactly tile the source domain's RANGE, which regular (default)
+	// tiling does. Tiles are disjoint by construction (every element has exactly one
+	// GetTileDataLocation), so comparing the total element count settles it.
+	bool SourceTilesCoverDomain() const
+	{
+		auto trd = this->m_SrcUnit->GetTiledRangeData();
+		if (!trd)
+			return false;
+		SizeT covered = 0;
+		for (tile_id t = 0, te = trd->GetNrTiles(); t != te; ++t)
+			covered += trd->GetTileSize(t);
+		return covered == Cardinality(this->m_DomainRange);
+	}
+
+	// Reduces the cross to the histogram pairs whose outer product is the result: ONE pair when
+	// the source tiles cover the domain range, otherwise one pair PER SOURCE TILE, because an
+	// irregular tiling's bounding box contains cells that do not exist and a single whole-domain
+	// product would count them. See CrossCounts.
+	void BuildCountProduct()
+	{
+		if (!m_CrossIndex.m_IsValid)
+			return;
+
+		SizeT H = m_CrossIndex.m_RowAxisIdx.size(), W = m_CrossIndex.m_ColAxisIdx.size();
+		m_SourceTilesCoverDomain = SourceTilesCoverDomain();
+
+		if (m_SourceTilesCoverDomain)
+		{
+			m_CrossCounts.resize(1);
+			BuildCrossCounts(m_CrossIndex, 0, H, 0, W, m_CrossCounts[0]);
+			m_HasCountProduct = m_CrossCounts[0].m_IsValid;
+			reportF(MsgCategory::progress, SeverityTypeID::ST_MinorTrace
+				, "mapping_count: outer product over the whole domain");
+			return;
+		}
+
+		auto trd = this->m_SrcUnit->GetTiledRangeData();
+		if (!trd)
+			return;
+		tile_id tn = trd->GetNrTiles();
+
+		std::vector<CrossCounts> parts(tn);
+		SizeT entries = 0;
+		for (tile_id t = 0; t != tn; ++t)
+		{
+			auto tr = this->m_SrcUnit->GetTileRange(t);
+			if (!IsDefined(tr))
+				return;
+			SizeT r0 = SizeT(Top(tr) - Top(this->m_DomainRange)), c0 = SizeT(Left(tr) - Left(this->m_DomainRange));
+			SizeT r1 = r0 + SizeT(Height(tr)), c1 = c0 + SizeT(Width(tr));
+			if (r1 > H || c1 > W)
+				return; // a tile outside the domain range: not a shape this decomposition assumes
+
+			BuildCrossCounts(m_CrossIndex, r0, r1, c0, c1, parts[t]);
+			entries += parts[t].NrEntries();
+			if (entries > g_SeparableMapping_MaxCountPartEntries)
+				return; // pathological; the per-source-tile scatter is the safer bet
+		}
+
+		m_CrossCounts = std::move(parts);
+		m_HasCountProduct = true;
+		reportF(MsgCategory::progress, SeverityTypeID::ST_MinorTrace
+			, "mapping_count: outer product per source tile ({} tiles, irregular tiling)", tn);
+	}
+
+	CrossIndex               m_CrossIndex;
+	std::vector<CrossCounts> m_CrossCounts;
+	bool                     m_HasCountProduct = false;
+	bool                     m_SourceTilesCoverDomain = false;
 };
 
 // *****************************************************************************
