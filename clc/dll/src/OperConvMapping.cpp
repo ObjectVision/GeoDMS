@@ -47,9 +47,9 @@ void do_mapping_count(const MappingState<TR, TA, TCF>& state, tile_id t, RIT dst
 	MG_CHECK(dstIter + n == dstEnd);
 
 	if constexpr (MappingState<TR, TA, TCF>::has_cross_support)
-		if (state.m_HasCross)
+		if (state.m_HasCross && state.m_CrossIndex.m_IsValid)
 		{
-			CountTileFromCross<TA>(state.m_Cross, dstIter, srcTileRange, state.m_DomainRange, dstRange, n);
+			CountTileFromCrossIndex<TA>(state.m_CrossIndex, dstIter, srcTileRange, state.m_DomainRange, n);
 			return;
 		}
 	DispatchMappingCount(state.GetFunctor(), dstIter, srcTileRange, dstRange, n);

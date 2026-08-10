@@ -138,6 +138,76 @@ struct MappingCross
 	}
 };
 
+// Destination-INDEX decomposition of a cross, so that mapping_count's inner loop is one addition
+// per raster cell instead of building a point and re-deriving its index from scratch.
+//
+// Range_GetIndex_naked is (Row - Top) * Width + (Col - Left), and Range_GetIndex_checked rejects
+// on IsIncluding, which for a 2D range is the conjunction of the two INDEPENDENT per-ordinate
+// tests (Range.h:215, Point.h:141/192). So the destination index splits exactly:
+//
+//     j = m_RowPart[r] + m_ColPart[c]      valid iff m_RowOk[r] && m_ColOk[c]
+//
+// one side carrying the (Row - Top) * Width term and the other the (Col - Left) term. Which side
+// is which follows the cross pairing: under Swapped the destination Row comes from the source
+// COLUMN and the destination Col from the source ROW.
+struct CrossIndex
+{
+	std::vector<SizeT> m_RowPart, m_ColPart;
+	std::vector<char>  m_RowOk, m_ColOk;
+	bool               m_IsValid = false;
+};
+
+template<typename TR>
+void BuildCrossIndex(const MappingCross<TR>& cross, typename Unit<TR>::range_t dstRange, CrossIndex& res)
+{
+	res.m_IsValid = false;
+	if (!IsDefined(dstRange))
+		return;
+
+	SizeT dstWidth = SizeT(Width(dstRange));
+	auto top = Top(dstRange), bottom = Bottom(dstRange);
+	auto left = Left(dstRange), right = Right(dstRange);
+	if (!(left < right) || !(top < bottom))
+		return;
+
+	// The two ordinate terms, each mirroring exactly what Range_GetIndex_checked would decide
+	// for that ordinate alone.
+	auto rowTerm = [top, bottom, dstWidth](const TR& v, SizeT& part) -> bool
+	{
+		auto y = v.Row();
+		if (!IsDefined(y) || y < top || !(y < bottom))
+			return false;
+		part = SizeT(y - top) * dstWidth;
+		return true;
+	};
+	auto colTerm = [left, right](const TR& v, SizeT& part) -> bool
+	{
+		auto x = v.Col();
+		if (!IsDefined(x) || x < left || !(x < right))
+			return false;
+		part = SizeT(x - left);
+		return true;
+	};
+
+	bool straight = (cross.m_Pairing == CrossPairing::Straight);
+	SizeT H = cross.m_RowVal.size(), W = cross.m_ColVal.size();
+
+	res.m_RowPart.assign(H, 0); res.m_RowOk.assign(H, 0);
+	res.m_ColPart.assign(W, 0); res.m_ColOk.assign(W, 0);
+
+	for (SizeT r = 0; r != H; ++r)
+		if (cross.m_RowOk[r])
+			res.m_RowOk[r] = straight ? rowTerm(cross.m_RowVal[r], res.m_RowPart[r])
+			                          : colTerm(cross.m_RowVal[r], res.m_RowPart[r]);
+
+	for (SizeT c = 0; c != W; ++c)
+		if (cross.m_ColOk[c])
+			res.m_ColOk[c] = straight ? colTerm(cross.m_ColVal[c], res.m_ColPart[c])
+			                          : rowTerm(cross.m_ColVal[c], res.m_ColPart[c]);
+
+	res.m_IsValid = true;
+}
+
 // The first index whose flag is set, or UNDEFINED_VALUE(SizeT) when there is none.
 inline SizeT FirstOkIndex(const std::vector<char>& okFlags)
 {
@@ -408,7 +478,13 @@ struct MappingState : AbstrMappingState
 		, m_DomainRange(srcUnit->GetRange())
 	{
 		if constexpr (has_cross_support)
+		{
 			m_HasCross = BuildMappingCross<TR, TA>(GetFunctor(), m_DomainRange, Cardinality(m_DomainRange), m_Cross);
+			// W + H integer operations, only useful to mapping_count -- but too cheap to be
+			// worth a second construction path.
+			if (m_HasCross)
+				BuildCrossIndex<TR>(m_Cross, dstUnit->GetRange(), m_CrossIndex);
+		}
 	}
 
 	// The functor for the calling thread. OGRCoordinateTransformation is NOT thread-safe, and a
@@ -438,6 +514,9 @@ struct MappingState : AbstrMappingState
 	// calls PROJ zero times per raster cell.
 	MappingCross<TR> m_Cross;
 	bool             m_HasCross = false;
+
+	// The same cross pre-reduced to destination indices, for mapping_count.
+	CrossIndex m_CrossIndex;
 };
 
 // *****************************************************************************
@@ -510,26 +589,34 @@ void DispatchMappingCount(Type2DConversion<TR, TA>& functor, RI ri, typename Uni
 			}
 }
 
-// Histograms one tile straight from the whole-domain cross, transforming nothing.
-template<typename TA, typename TR, typename RI>
-void CountTileFromCross(const MappingCross<TR>& cross, RI ri, typename Unit<TA>::range_t srcTileRange, typename Unit<TA>::range_t domainRange, typename Unit<TR>::range_t dstRange, SizeT n)
+// Histograms one tile straight from the whole-domain cross index: no coordinate is transformed,
+// no point is built, and the destination index of a cell costs ONE addition. The per-row term is
+// hoisted out of the inner loop, so what remains per cell is a flag test, an add and the
+// (inherently scattered) increment.
+template<typename TA, typename RI>
+void CountTileFromCrossIndex(const CrossIndex& index, RI ri, typename Unit<TA>::range_t srcTileRange, typename Unit<TA>::range_t domainRange, SizeT n)
 {
+	assert(index.m_IsValid);
+
 	SizeT rBase = SizeT(Top(srcTileRange) - Top(domainRange));
 	SizeT cBase = SizeT(Left(srcTileRange) - Left(domainRange));
 	SizeT W = SizeT(Width(srcTileRange)), H = SizeT(Height(srcTileRange));
 
 	for (SizeT r = 0; r != H; ++r)
 	{
-		if (!cross.m_RowOk[rBase + r])
+		if (!index.m_RowOk[rBase + r])
 			continue;
+		SizeT rowPart = index.m_RowPart[rBase + r];
+
+		const char*  colOk = index.m_ColOk.data() + cBase;
+		const SizeT* colPart = index.m_ColPart.data() + cBase;
 		for (SizeT c = 0; c != W; ++c)
-		{
-			if (!cross.m_ColOk[cBase + c])
-				continue;
-			auto j = Range_GetIndex_checked(dstRange, cross.Combine(rBase + r, cBase + c));
-			if (j < n)
-				ri[j]++;
-		}
+			if (colOk[c])
+			{
+				SizeT j = rowPart + colPart[c];
+				if (j < n)
+					ri[j]++;
+			}
 	}
 }
 
