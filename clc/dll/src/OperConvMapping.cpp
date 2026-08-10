@@ -12,6 +12,7 @@
 #endif
 
 #include "OperConv.h"
+#include "SeparableMapping.h"
 
 // *****************************************************************************
 //			Mapping helper functions (local to this unit)

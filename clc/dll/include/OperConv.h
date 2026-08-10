@@ -49,6 +49,7 @@
 #include <functional>
 #include <iterator>
 #include <algorithm>
+#include <optional>
 
 #include "ogr_spatialref.h"
 #include "geo/Transform.h"
@@ -80,6 +81,14 @@ struct SpatialRefBlock : SharedBase, gdalComponent
 	~SpatialRefBlock();
 	void CreateTransformer();
 	void Release() const { delete this; }
+
+	// #298: may the src -> dst map be coordinate separable, i.e. is the transformed x a function
+	// of the source x alone and the transformed y of the source y alone (modulo axis order)?
+	// A STRUCTURAL verdict on the CRS pair only: true means "worth trying", never "proven".
+	// Callers must still verify numerically before relying on it -- see BuildMappingCross in
+	// SeparableMapping.h. Memoized because it is a pure function of m_Src and m_Dst.
+	bool IsAxisSeparableCrsPair() const;
+	mutable std::optional<bool> m_IsAxisSeparable;
 };
 
 // *****************************************************************************
@@ -490,88 +499,9 @@ struct Type2DConversion : unary_func<TR, TA>
 	bool                         m_Projection_is_col_first = dms_order_tag::col_first;
 };
 
-template<typename TR, typename TA>
-void DispatchMapping(Type2DConversion<TR, TA>& functor, typename Type2DConversion<TR, TA>::iterator ri, typename Unit<TA>::range_t tileRange, SizeT n)
-{
-	if (functor.m_OgrComponentHolder)
-	{
-		Float64 resX[PROJ_BLOCK_SIZE];
-		Float64 resY[PROJ_BLOCK_SIZE];
-		int     successFlags[PROJ_BLOCK_SIZE];
-		bool    source_is_expected_to_be_col_first = functor.m_Source_is_expected_to_be_col_first;
-		bool    projection_is_col_first = functor.m_Projection_is_col_first;
-
-		while (n)
-		{
-			auto s = n;
-			MakeMin(s, PROJ_BLOCK_SIZE);
-			for (SizeT i = 0; i != s; ++i)
-			{
-				DPoint rescaledA = functor.m_PreRescaler.Apply(DPoint(Range_GetValue_naked(tileRange, i)));
-				rescaledA = prj2dms_order(rescaledA, source_is_expected_to_be_col_first);
-				resX[i] = rescaledA.first;
-				resY[i] = rescaledA.second;
-			}
-			if (!functor.m_OgrComponentHolder->m_Transformer->Transform(s, resX, resY, nullptr, successFlags))
-				fast_fill(successFlags, successFlags + s, 0);
-			for (SizeT i = 0; i != s; ++ri, ++i)
-			{
-				if (successFlags[i])
-				{
-					auto reprojectedPoint = prj2dms_order(resX[i], resY[i], projection_is_col_first);
-					auto rescaledPoint = functor.m_PostRescaler.Apply(reprojectedPoint);
-					Assign(*ri, SignedIntGridConvert<TR>(rescaledPoint));
-				}
-				else
-					Assign(*ri, Undefined());
-			}
-			n -= s;
-		}
-	}
-	else
-		if (functor.m_PreRescaler.IsIdentity())
-			for (SizeT i = 0; i != n; ++ri, ++i)
-				Assign(*ri, functor.ApplyDirect(Range_GetValue_naked(tileRange, i)));
-		else
-			for (SizeT i = 0; i != n; ++ri, ++i)
-				Assign(*ri, functor.ApplyScaled(Range_GetValue_naked(tileRange, i)));
-}
-
-template<typename TR, typename TA, typename RI>
-void DispatchMappingCount(Type2DConversion<TR, TA>& functor, RI ri, typename Unit<TA>::range_t srcTileRange, typename Unit<TR>::range_t dstRange, SizeT n)
-{
-	SizeT k = Cardinality(srcTileRange);
-	if (functor.m_OgrComponentHolder)
-		if (functor.m_PreRescaler.IsIdentity() && functor.m_PostRescaler.IsIdentity())
-			for (SizeT i = 0; i != k; ++i)
-			{
-				auto j = Range_GetIndex_checked(dstRange, functor.ApplyProjection(Range_GetValue_naked(srcTileRange, i)));
-				if (j < n)
-					ri[j]++;
-			}
-		else
-			for (SizeT i = 0; i != k; ++i)
-			{
-				auto j = Range_GetIndex_checked(dstRange, functor.ApplyScaledProjection(Range_GetValue_naked(srcTileRange, i)));
-				if (j < n)
-					ri[j]++;
-			}
-	else
-		if (functor.m_PreRescaler.IsIdentity())
-			for (SizeT i = 0; i != k; ++i)
-			{
-				auto j = Range_GetIndex_checked(dstRange, functor.ApplyDirect(Range_GetValue_naked(srcTileRange, i)));
-				if (j < n)
-					ri[j]++;
-			}
-		else
-			for (SizeT i = 0; i != k; ++i)
-			{
-				auto j = Range_GetIndex_checked(dstRange, functor.ApplyScaled(Range_GetValue_naked(srcTileRange, i)));
-				if (j < n)
-					ri[j]++;
-			}
-}
+// The DispatchMapping / DispatchMappingCount overloads for Type2DConversion live in
+// SeparableMapping.h: only OperConvMapping.cpp instantiates them, and they carry the #298
+// separable fast path. Everything else that includes this header would parse them for nothing.
 
 // *****************************************************************************
 //			Polymorphic Functor applicator

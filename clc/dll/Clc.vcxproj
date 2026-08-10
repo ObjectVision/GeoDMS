@@ -97,6 +97,7 @@
     <ClCompile Include="src\RLookup_intpoint.cpp" />
     <ClCompile Include="src\RLookup_numseq.cpp" />
     <ClCompile Include="src\RLookup_pntseq.cpp" />
+    <ClCompile Include="src\SeparableMapping.cpp" />
     <ClCompile Include="src\Sort.cpp" />
     <ClCompile Include="src\SubItem.cpp" />
     <ClCompile Include="src\Subset.cpp" />
@@ -202,6 +203,7 @@
     <ClInclude Include="include\Prototypes.h" />
     <ClInclude Include="include\RemoveAdjacentsAndSpikes.h" />
     <ClInclude Include="include\rlookup.h" />
+    <ClInclude Include="include\SeparableMapping.h" />
     <ClInclude Include="include\UnitGroup.h" />
     <ClInclude Include="include\CalcClassBreaks.h" />
     <ClInclude Include="include\ValuesTable.h" />
