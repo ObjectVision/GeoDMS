@@ -1,0 +1,164 @@
+// GeoDMS issue #298 - separable mapping(D, V) / mapping_count(D, V, C)
+//
+// mapping(D, V) reprojects every cell of a grid domain. When the transformation is coordinate
+// separable (LatLong <=> Mercator and friends) a W x H tile only needs W + H transformations,
+// because it contains only W distinct x's and H distinct y's.
+//
+// The oracle needs no build flag: IDOperator::CalcTile enumerates a domain with the very same
+// Range_GetValue_naked call DispatchMapping uses, and convert() drives the SAME
+// Type2DConversion through its per-point path, which the #298 work does not touch. So
+//
+//     mapping(D, V)  ==  convert(id(D), V)      -- exactly, bit for bit
+//
+// and any divergence between the separable fast path and the generic loop shows up right here.
+//
+// Part of the testcases suite: run via testcases\run_testcases.bat, or standalone with
+//   GeoDmsRun.exe /L<log> <this file> /checks        (exit 0 = pass)
+// Self-contained: no source data, only EPSG codes resolved through proj.db.
+
+container issue_298
+{
+	container Geography
+	{
+		unit<dpoint> ll_base  : SpatialReference = "EPSG:4326";  // authority order: lat, lon
+		unit<dpoint> wm_base  : SpatialReference = "EPSG:3857";  // easting, northing
+		unit<dpoint> utm_base : SpatialReference = "EPSG:32631"; // UTM 31N: NOT separable
+		unit<dpoint> rd_base  : SpatialReference = "EPSG:28992"; // Dutch RD: NOT separable, and
+		                                                        // needs a real datum transformation
+	}
+
+	// 0.01 degree cells over NW Europe: 800 cols x 600 rows = 480_000 cells, i.e. well past
+	// g_SeparableMapping_MinCells and past several PROJ_BLOCK_SIZE blocks.
+	unit<spoint> LL :=
+		range(
+			gridset(
+				 Geography/ll_base
+				,point_yx(-0.01, 0.01, Geography/ll_base)
+				,point_yx(56.0, 3.0, Geography/ll_base)
+				,spoint
+			)
+			,point_yx(0s, 0s)
+			,point_yx(600s, 800s)
+		);
+
+	// 1000 m cells covering the image of LL in web mercator: 1000 cols x 1200 rows.
+	unit<spoint> WM :=
+		range(
+			gridset(
+				 Geography/wm_base
+				,point_yx(-1000.0, 1000.0, Geography/wm_base)
+				,point_yx(7600000.0, 300000.0, Geography/wm_base)
+				,spoint
+			)
+			,point_yx(0s, 0s)
+			,point_yx(1200s, 1000s)
+		);
+
+	unit<spoint> UTM :=
+		range(
+			gridset(
+				 Geography/utm_base
+				,point_yx(-1000.0, 1000.0, Geography/utm_base)
+				,point_yx(6300000.0, 0.0, Geography/utm_base)
+				,spoint
+			)
+			,point_yx(0s, 0s)
+			,point_yx(1200s, 1200s)
+		);
+
+	container ll2wm                                     // LatLong -> Mercator
+	{
+		attribute<WM>   fast (LL) := mapping(LL, WM);
+		attribute<WM>   gen  (LL) := convert(id(LL), WM);
+		parameter<bool> ok        := all(fast == gen);
+	}
+
+	container wm2ll                                     // Mercator -> LatLong
+	{
+		attribute<LL>   fast (WM) := mapping(WM, LL);
+		attribute<LL>   gen  (WM) := convert(id(WM), LL);
+		parameter<bool> ok        := all(fast == gen);
+	}
+
+	container counts                                    // mapping_count as an outer product
+	{
+		attribute<uint32> cnt (WM) := mapping_count(LL, WM, uint32);
+		attribute<uint32> pcn (WM) := pcount(ll2wm/fast);
+		parameter<bool>   ok       := all(cnt == pcn);
+	}
+
+	unit<spoint> RD :=
+		range(
+			gridset(
+				 Geography/rd_base
+				,point_yx(-100.0, 100.0, Geography/rd_base)
+				,point_yx(625000.0, 0.0, Geography/rd_base)
+				,spoint
+			)
+			,point_yx(0s, 0s)
+			,point_yx(3250s, 2800s)
+		);
+
+	// Negative control: UTM's easting reads the latitude too, so the structural gate must refuse
+	// it and the generic loop must run. This is where an over-eager whitelist shows up.
+	container utm_must_fall_back
+	{
+		attribute<UTM>  fast (LL) := mapping(LL, UTM);
+		attribute<UTM>  gen  (LL) := convert(id(LL), UTM);
+		parameter<bool> ok        := all(fast == gen);
+	}
+
+	// Second negative control, and the one that pins the per-thread functor reuse: EPSG:28992
+	// needs a real datum transformation, so PROJ has SEVERAL candidate coordinate operations and
+	// picks among them by area of use. mapping() now reuses one OGRCoordinateTransformation per
+	// worker thread across many tiles, where convert() still builds one per tile -- if that reuse
+	// changed which operation gets applied, these two would diverge.
+	container rd_must_fall_back
+	{
+		attribute<RD>   fast (LL) := mapping(LL, RD);
+		attribute<RD>   gen  (LL) := convert(id(LL), RD);
+		parameter<bool> ok        := all(fast == gen);
+	}
+
+	// mapping_count on the path where there is no cross, so the per-point loop runs. Pins the
+	// CalculateAll restructuring (one destination write handle for the whole source-tile loop)
+	// for the fallback as well as for the outer-product path.
+	container counts_no_cross
+	{
+		attribute<uint32> cnt (UTM) := mapping_count(LL, UTM, uint32);
+		attribute<uint32> pcn (UTM) := pcount(utm_must_fall_back/fast);
+		parameter<bool>   ok        := all(cnt == pcn);
+	}
+
+	// An IRREGULAR source tiling: three blocks on a diagonal, so the tiles cover a strict subset
+	// of their own bounding box. A single whole-domain outer product would count the cells in the
+	// gaps, which do not exist; the state must instead build one histogram pair PER SOURCE TILE
+	// and let each destination tile aggregate the ones that overlap it.
+	// mapping() is unaffected (it reads the cross at absolute positions), so pcount over it is
+	// the oracle.
+	unit<uint32> sparse_tiles : NrOfRows = 3
+	{
+		attribute<LL> LB := union_data(., point_yx(  0s,   0s, LL), point_yx(200s, 300s, LL), point_yx(400s, 600s, LL));
+		attribute<LL> UB := union_data(., point_yx(200s, 200s, LL), point_yx(400s, 500s, LL), point_yx(600s, 800s, LL));
+	}
+	unit<spoint> LLsparse := TiledUnit(sparse_tiles/LB, sparse_tiles/UB);
+
+	container counts_sparse
+	{
+		attribute<WM>     m   (LLsparse) := mapping(LLsparse, WM);
+		attribute<uint32> cnt (WM)       := mapping_count(LLsparse, WM, uint32);
+		attribute<uint32> pcn (WM)       := pcount(m);
+		parameter<bool>   ok             := all(cnt == pcn);
+	}
+
+	container checks
+	{
+		parameter<bool> c_ll2wm := ll2wm/ok,              IntegrityCheck = "c_ll2wm == True";
+		parameter<bool> c_wm2ll := wm2ll/ok,              IntegrityCheck = "c_wm2ll == True";
+		parameter<bool> c_count := counts/ok,             IntegrityCheck = "c_count == True";
+		parameter<bool> c_cnt0  := counts_no_cross/ok,    IntegrityCheck = "c_cnt0  == True";
+		parameter<bool> c_cntsp := counts_sparse/ok,      IntegrityCheck = "c_cntsp == True";
+		parameter<bool> c_utm   := utm_must_fall_back/ok, IntegrityCheck = "c_utm   == True";
+		parameter<bool> c_rd    := rd_must_fall_back/ok,  IntegrityCheck = "c_rd    == True";
+	}
+}
