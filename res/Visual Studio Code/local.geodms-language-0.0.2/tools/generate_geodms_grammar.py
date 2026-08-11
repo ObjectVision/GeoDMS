@@ -29,7 +29,11 @@ keywords_secondary = [w for w in kw2 if w.lower() in ["attribute", "parameter"]]
 keywords_unit = [w for w in kw4 if w.lower() in ["unit"]]
 
 def regex_alt(words, ci=False):
-    words = sorted(set(words), key=lambda x: (-len(x), x.lower()))
+    # longest first, so a longer alternative is never masked by a prefix of itself.
+    # The final `x` breaks ties between case variants of one word (TRUE/True/true):
+    # without it the order comes from set iteration, i.e. from Python's randomized
+    # string hashing, and every regeneration reshuffles those alternatives.
+    words = sorted(set(words), key=lambda x: (-len(x), x.lower(), x))
     pat = "|".join(re.escape(w) for w in words)
     return f"(?i:{pat})" if ci else pat
 
@@ -113,7 +117,7 @@ grammar = {
       {"name":"keyword.operator.comparison.geodms","match":"<=|>=|<>|<|>|="},
       {"name":"keyword.operator.ternary.geodms","match":"\\?|:"},
       {"name":"punctuation.separator.comma.geodms","match":","},
-      {"name":"keyword.operator.path.geodms","match":"(?<=\\b(?:for_each_[A-Za-z0-9_]*|bg_[A-Za-z0-9_]*|bp_[A-Za-z0-9_]*|cgal_[A-Za-z0-9_]*|geos_[A-Za-z0-9_]*)\\()\\s/"}
+      {"name":"keyword.operator.path.geodms","match":"(?<=\\b(?:for_each_[A-Za-z0-9_]*|bg_[A-Za-z0-9_]*|bp_[A-Za-z0-9_]*|cgal_[A-Za-z0-9_]*|geos_[A-Za-z0-9_]*)\\()\\s*/"}
     ]},
     "genericAngles":{"patterns":[
       {"name":"keyword.operator.bracket.geodms","match":"(?<=\\b(?:Attribute|Parameter|Unit)\\s)<|>"}
