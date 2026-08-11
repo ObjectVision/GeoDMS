@@ -68,6 +68,71 @@ struct JoinEqualValuesOperator : AbstrJoinEqualValuesOperator
 		: AbstrJoinEqualValuesOperator(gr, Unit<ResultElement>::GetStaticClass(), DataArray<ArgValuesElement>::GetStaticClass())
 	{}
 
+	// The join builds six arrays with one slot per candidate common value. Which values are
+	// candidates is decided by an x-index; the two implementations below differ only in that.
+	//
+	// dense_x_index: one slot per value in the range of the values unit X, addressed directly.
+	// No lookup cost and no index to build, but it costs 6 * #X * sizeof(ResultElement) bytes
+	// and a sweep over all of #X, however few values actually occur.
+	struct dense_x_index
+	{
+		typename Unit<ArgValuesElement>::range_t m_XRange;
+		SizeT                                    m_NrSlots;
+
+		SizeT size() const { return m_NrSlots; }
+
+		bool find(ArgValuesElement x, SizeT& slot) const
+		{
+			if (!IsIncluding(m_XRange, x))
+				return false;
+			slot = Range_GetIndex_naked(m_XRange, x);
+			assert(slot < m_NrSlots);
+			return true;
+		}
+
+		template <typename Iter, typename CheckModeT>
+		void count(Iter first, Iter last, ResultElement* counts, CheckModeT cm) const
+		{
+			pcount_best(first, last, counts, m_NrSlots, m_XRange, cm, false);
+		}
+	};
+
+	// sparse_x_index: one slot per distinct value that actually occurs in the first argument.
+	// A value that occurs only in the second argument has aCount == 0, thus abCount == 0, and
+	// can never produce a result row, so #slots <= #A regardless of the range of X. The keys
+	// are kept sorted, so both indexes number the result rows in the same ascending-value
+	// order and produce identical results; only the resource use differs.
+	struct sparse_x_index
+	{
+		my_vec_t<ArgValuesElement> m_Keys; // sorted, unique, all within m_XRange
+
+		SizeT size() const { return m_Keys.size(); }
+
+		bool find(ArgValuesElement x, SizeT& slot) const
+		{
+			auto i = std::lower_bound(m_Keys.begin(), m_Keys.end(), x);
+			if (i == m_Keys.end() || !(*i == x))
+				return false;
+			slot = i - m_Keys.begin();
+			return true;
+		}
+
+		template <typename Iter, typename CheckModeT>
+		void count(Iter first, Iter last, ResultElement* counts, CheckModeT) const
+		{
+			for (; first != last; ++first)
+			{
+				SizeT slot;
+				if (find(*first, slot))
+					++counts[slot];
+			}
+		}
+	};
+
+	// bit-valued keys (Bool, UInt2, UInt4) have at most 16 values and are always ordinal and
+	// zero-based, so they always take the dense path; my_vec_t cannot hold them anyway.
+	static constexpr bool has_sparse_path = !is_bitvalue_v<ArgValuesElement>;
+
 	bool CalcResult(TreeItemDualRef& resultHolder, const ArgRefs& args, std::vector<ItemReadLock> readLocks, Explain::Context* context = nullptr) const override
 	{
 		const AbstrDataItem* axRef = AsDataItem(args[0]);
@@ -80,124 +145,154 @@ struct JoinEqualValuesOperator : AbstrJoinEqualValuesOperator
 		const Unit<ArgValuesElement>* X = debug_cast<const Unit<ArgValuesElement>*>(axRef->GetAbstrValuesUnit());
 		MG_CHECK(A->IsOrdinalAndZeroBased());
 		MG_CHECK(B->IsOrdinalAndZeroBased());
-		MG_CHECK(X->IsOrdinalAndZeroBased());
 		auto nr_A = A->GetCount();
 		auto nr_B = B->GetCount();
-		auto nr_X = X->GetCount();
-
-		AbstrUnit* AB = AsUnit(resultHolder.GetNew());
-
-		my_vec_t<ResultElement> aCounts(nr_X), aUsed(nr_X); 
-		my_vec_t<ResultElement> bCounts(nr_X), bUsed(nr_X);
-		my_vec_t<ResultElement> abCounts; abCounts.reserve(nr_X);
-		my_vec_t<ResultElement> abOffsets; abOffsets.reserve(nr_X);
 		auto xRange = X->GetRange();
-		pcount_best(axRefData.begin(), axRefData.end(), begin_ptr(aCounts), nr_X, xRange, axRef->GetCheckMode(), false);
-		pcount_best(bxRefData.begin(), bxRefData.end(), begin_ptr(bCounts), nr_X, xRange, bxRef->GetCheckMode(), false);
-		ResultElement nr_AB = 0;
-		for (auto aCountPtr = aCounts.begin(), bCountPtr = bCounts.begin(), aCountEnd = aCounts.end(); aCountPtr != aCountEnd; ++aCountPtr, ++bCountPtr)
+
+		auto calculate = [&] <typename XIndex> (const XIndex& xIndex) -> bool
 		{
-			ResultElement aCount = ThrowingConvertNonNull<ResultElement>(*aCountPtr);
-			ResultElement bCount = ThrowingConvertNonNull<ResultElement>(*bCountPtr);
-			ResultElement abCount = aCount * bCount;
-			// SafeMul
-			MG_USERCHECK2(!bCount || abCount / bCount == aCount,
-				"join_equal_values operator: the product of the cardinalities of a common value exceeds the maximum value of the resulting unit");
+			SizeT nr_slots = xIndex.size();
 
-			abCounts.emplace_back(abCount);
-			abOffsets.emplace_back(nr_AB);
-			ResultElement old_nr_AB = nr_AB;
-			nr_AB += abCount;
-			MG_USERCHECK2(nr_AB >= old_nr_AB,
-				"join_equal_values operator: the cumulation of the cardinalities of common values exceeds the maximum value of the resulting unit");
-		}
-		AB->SetCount(nr_AB);
+			AbstrUnit* AB = AsUnit(resultHolder.GetNew());
 
-		AbstrDataItem* resSubA = CreateDataItem(AB, GetTokenID_mt("first_rel"), AB, AsDataItem(args[0])->GetAbstrDomainUnit()).get(); // owned by AB
-		AbstrDataItem* resSubB = CreateDataItem(AB, GetTokenID_mt("second_rel"), AB, AsDataItem(args[1])->GetAbstrDomainUnit()).get(); // owned by AB
-		AbstrDataItem* resSubX = CreateDataItem(AB, GetTokenID_mt("X_rel"), AB, AsDataItem(args[0])->GetAbstrValuesUnit()).get(); // owned by AB
-
-		DataWriteLock resSubALock(resSubA);
-
-		visit<typelists::domain_elements>(A, 
-			[&] <typename a_type> (const Unit<a_type>* unitA) 
+			my_vec_t<ResultElement> aCounts(nr_slots), aUsed(nr_slots);
+			my_vec_t<ResultElement> bCounts(nr_slots), bUsed(nr_slots);
+			my_vec_t<ResultElement> abCounts; abCounts.reserve(nr_slots);
+			my_vec_t<ResultElement> abOffsets; abOffsets.reserve(nr_slots);
+			xIndex.count(axRefData.begin(), axRefData.end(), begin_ptr(aCounts), axRef->GetCheckMode());
+			xIndex.count(bxRefData.begin(), bxRefData.end(), begin_ptr(bCounts), bxRef->GetCheckMode());
+			ResultElement nr_AB = 0;
+			for (auto aCountPtr = aCounts.begin(), bCountPtr = bCounts.begin(), aCountEnd = aCounts.end(); aCountPtr != aCountEnd; ++aCountPtr, ++bCountPtr)
 			{
-				auto aRange = unitA->GetRange();
-				auto subAData = mutable_array_cast<a_type>(resSubALock)->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
-				for (SizeT ab_index = 0, aIndex = 0, aSize = axRefData.size(); aIndex != aSize; ++aIndex)
+				ResultElement aCount = ThrowingConvertNonNull<ResultElement>(*aCountPtr);
+				ResultElement bCount = ThrowingConvertNonNull<ResultElement>(*bCountPtr);
+				ResultElement abCount = aCount * bCount;
+				// SafeMul
+				MG_USERCHECK2(!bCount || abCount / bCount == aCount,
+					"join_equal_values operator: the product of the cardinalities of a common value exceeds the maximum value of the resulting unit");
+
+				abCounts.emplace_back(abCount);
+				abOffsets.emplace_back(nr_AB);
+				ResultElement old_nr_AB = nr_AB;
+				nr_AB += abCount;
+				MG_USERCHECK2(nr_AB >= old_nr_AB,
+					"join_equal_values operator: the cumulation of the cardinalities of common values exceeds the maximum value of the resulting unit");
+			}
+			AB->SetCount(nr_AB);
+
+			AbstrDataItem* resSubA = CreateDataItem(AB, GetTokenID_mt("first_rel"), AB, AsDataItem(args[0])->GetAbstrDomainUnit()).get(); // owned by AB
+			AbstrDataItem* resSubB = CreateDataItem(AB, GetTokenID_mt("second_rel"), AB, AsDataItem(args[1])->GetAbstrDomainUnit()).get(); // owned by AB
+			AbstrDataItem* resSubX = CreateDataItem(AB, GetTokenID_mt("X_rel"), AB, AsDataItem(args[0])->GetAbstrValuesUnit()).get(); // owned by AB
+
+			DataWriteLock resSubALock(resSubA);
+
+			visit<typelists::domain_elements>(A,
+				[&] <typename a_type> (const Unit<a_type>* unitA)
 				{
-					ArgValuesElement x = axRefData[aIndex];
-					if (IsIncluding(xRange, x))
+					auto aRange = unitA->GetRange();
+					auto subAData = mutable_array_cast<a_type>(resSubALock)->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
+					for (SizeT ab_index = 0, aIndex = 0, aSize = axRefData.size(); aIndex != aSize; ++aIndex)
 					{
-						SizeT x_index = Range_GetIndex_naked(xRange, x);
-						dms_assert(x_index < nr_X);
-						SizeT b_count = bCounts[x_index];
-
-						SizeT resIndex = abOffsets[x_index] + aUsed[x_index]++ * b_count;
-
-						while (b_count)
+						ArgValuesElement x = axRefData[aIndex];
+						SizeT x_index;
+						if (xIndex.find(x, x_index))
 						{
-							dms_assert(aIndex < nr_A);
-							subAData[resIndex + --b_count] = Range_GetValue_naked(aRange, aIndex);
+							dms_assert(x_index < nr_slots);
+							SizeT b_count = bCounts[x_index];
+
+							SizeT resIndex = abOffsets[x_index] + aUsed[x_index]++ * b_count;
+
+							while (b_count)
+							{
+								dms_assert(aIndex < nr_A);
+								subAData[resIndex + --b_count] = Range_GetValue_naked(aRange, aIndex);
+							}
 						}
 					}
 				}
-			}
-		);
-		resSubALock.Commit();
+			);
+			resSubALock.Commit();
 
-		DataWriteLock resSubBLock(resSubB);
+			DataWriteLock resSubBLock(resSubB);
 
-		visit<typelists::domain_elements>(B, 
-			[&] <typename b_type> (const Unit<b_type>* unitB) 
-			{
-				auto bRange = unitB->GetRange();
-				auto subBData = mutable_array_cast<b_type>(resSubBLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
-				for (SizeT ab_index = 0, bIndex = 0, bSize = bxRefData.size(); bIndex != bSize; ++bIndex)
+			visit<typelists::domain_elements>(B,
+				[&] <typename b_type> (const Unit<b_type>* unitB)
 				{
-					ArgValuesElement x = bxRefData[bIndex];
-					if (IsIncluding(xRange, x))
+					auto bRange = unitB->GetRange();
+					auto subBData = mutable_array_cast<b_type>(resSubBLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
+					for (SizeT ab_index = 0, bIndex = 0, bSize = bxRefData.size(); bIndex != bSize; ++bIndex)
 					{
-						SizeT x_index = Range_GetIndex_naked(xRange, x);
-						dms_assert(x_index < nr_X);
-						SizeT a_count = aCounts[x_index];
-						SizeT b_count = bCounts[x_index];
-
-						SizeT resIndex = abOffsets[x_index]; resIndex += bUsed[x_index]++;
-
-						while (a_count--)
+						ArgValuesElement x = bxRefData[bIndex];
+						SizeT x_index;
+						if (xIndex.find(x, x_index))
 						{
-							dms_assert(bIndex < nr_B);
-							subBData[resIndex] = Range_GetValue_naked(bRange, bIndex);
-							resIndex += b_count;
+							dms_assert(x_index < nr_slots);
+							SizeT a_count = aCounts[x_index];
+							SizeT b_count = bCounts[x_index];
+
+							SizeT resIndex = abOffsets[x_index]; resIndex += bUsed[x_index]++;
+
+							while (a_count--)
+							{
+								dms_assert(bIndex < nr_B);
+								subBData[resIndex] = Range_GetValue_naked(bRange, bIndex);
+								resIndex += b_count;
+							}
 						}
 					}
 				}
-			}
-		);
-		resSubBLock.Commit();
+			);
+			resSubBLock.Commit();
 
-		DataWriteLock resSubXLock(resSubX);
-		auto dataSubX = mutable_array_cast<ArgValuesElement>(resSubXLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
+			DataWriteLock resSubXLock(resSubX);
+			auto dataSubX = mutable_array_cast<ArgValuesElement>(resSubXLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
 
-		fast_zero(aUsed.begin(), aUsed.end());
-		for (SizeT ab_index = 0, aIndex = 0, aSize = axRefData.size(); aIndex != aSize; ++aIndex)
-		{
-			ArgValuesElement x = axRefData[aIndex];
-			if (IsIncluding(xRange, x))
+			fast_zero(aUsed.begin(), aUsed.end());
+			for (SizeT ab_index = 0, aIndex = 0, aSize = axRefData.size(); aIndex != aSize; ++aIndex)
 			{
-				SizeT x_index = Range_GetIndex_naked(xRange, x);
-				SizeT b_count = bCounts[x_index];
+				ArgValuesElement x = axRefData[aIndex];
+				SizeT x_index;
+				if (xIndex.find(x, x_index))
+				{
+					SizeT b_count = bCounts[x_index];
 
-				SizeT resIndex = abOffsets[x_index] + aUsed[x_index]++ * b_count;
+					SizeT resIndex = abOffsets[x_index] + aUsed[x_index]++ * b_count;
 
-				while (b_count)
-					dataSubX[ resIndex + --b_count ] = x;
+					while (b_count)
+						dataSubX[ resIndex + --b_count ] = x;
+				}
+			}
+			resSubXLock.Commit();
+
+			return true;
+		};
+
+		// A dense slot array only pays off when the range of X is not much larger than the data.
+		// A join key that is typed by its value type instead of by a domain unit (a plain uint32
+		// attribute, say) has #X == 2^32-2, which is 60 GB of slots and a two-minute sweep for
+		// three rows joined on three rows; and a values unit that is not ordinal and zero-based
+		// cannot be addressed directly at all. Both cases take the index over the values that
+		// actually occur. See https://github.com/ObjectVision/GeoDMS/issues/1175
+		if constexpr (has_sparse_path)
+		{
+			bool useDenseIndex = X->IsOrdinalAndZeroBased() && X->GetCount() <= SizeT(nr_A) + SizeT(nr_B);
+			if (!useDenseIndex)
+			{
+				sparse_x_index xIndex;
+				xIndex.m_Keys.reserve(axRefData.size());
+				for (auto xPtr = axRefData.begin(), xEnd = axRefData.end(); xPtr != xEnd; ++xPtr)
+					if (IsIncluding(xRange, *xPtr)) // excludes undefined values, as the dense path does
+						xIndex.m_Keys.emplace_back(*xPtr);
+				std::sort(xIndex.m_Keys.begin(), xIndex.m_Keys.end());
+				xIndex.m_Keys.erase(std::unique(xIndex.m_Keys.begin(), xIndex.m_Keys.end()), xIndex.m_Keys.end());
+
+				return calculate(xIndex);
 			}
 		}
-		resSubXLock.Commit();
+		else
+			MG_CHECK(X->IsOrdinalAndZeroBased());
 
-		return true;
+		return calculate(dense_x_index{ xRange, X->GetCount() });
 	}
 };
 
