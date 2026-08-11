@@ -449,10 +449,8 @@ inline CharPtr AsString(CrossOutcome outcome)
 //
 // Cost when it succeeds: at most 2H + W + 64 transformed points for the whole domain.
 template<typename TR, typename TA>
-CrossOutcome BuildMappingCrossImpl(Type2DConversion<TR, TA>& functor, typename Unit<TA>::range_t domainRange, SizeT n, MappingCross<TR>& res)
+CrossOutcome BuildMappingCrossImpl(Type2DConversion<TR, TA>& functor, typename Unit<TA>::range_t domainRange, SizeT n, MappingCross<TR>& res, bool hasOgr)
 {
-	assert(functor.m_OgrComponentHolder && functor.m_OgrComponentHolder->m_Transformer);
-
 	if (n < g_SeparableMapping_MinCells)
 		return CrossOutcome::domainTooSmall;
 
@@ -460,8 +458,29 @@ CrossOutcome BuildMappingCrossImpl(Type2DConversion<TR, TA>& functor, typename U
 	// the projection, so the composite is not separable even when the CRS pair is.
 	if (!functor.m_PreRescaler.IsAxisSeparable() || !functor.m_PostRescaler.IsAxisSeparable())
 		return CrossOutcome::rescalerNotSeparable;
-	if (!functor.m_OgrComponentHolder->IsAxisSeparableCrsPair())
+	if (hasOgr && !functor.m_OgrComponentHolder->IsAxisSeparableCrsPair())
 		return CrossOutcome::crsNotSeparable;
+
+	// Where the transformed coordinates come from. With a CRS conversion that is PROJ, in blocks.
+	// WITHOUT one -- the two grids share a SpatialReference and differ only in their
+	// UnitProjection -- the composite is just the axis-separable affine that Type2DConversion
+	// already folded into m_PreRescaler, applied component-wise by SignedIntGridConvert. That is
+	// separable by construction, costs no PROJ call and cannot fail, but it still goes through
+	// the same probe verification below: the cross must reproduce the generic path exactly, and
+	// checking that costs 64 points.
+	auto runPoints = [&functor, hasOgr](auto&& gen, SizeT count, auto&& sink) -> bool
+	{
+		if (hasOgr)
+			return TransformPointRun<TR, TA>(functor, gen, count, sink);
+
+		if (functor.m_PreRescaler.IsIdentity())
+			for (SizeT i = 0; i != count; ++i)
+				sink(i, functor.ApplyDirect(gen(i)), true);
+		else
+			for (SizeT i = 0; i != count; ++i)
+				sink(i, functor.ApplyScaled(gen(i)), true);
+		return true;
+	};
 
 	if (!IsDefined(domainRange))
 		return CrossOutcome::notRectangular;
@@ -479,8 +498,8 @@ CrossOutcome BuildMappingCrossImpl(Type2DConversion<TR, TA>& functor, typename U
 
 	auto runRowsAtColumn = [&](SizeT atCol)
 	{
-		return TransformPointRun<TR, TA>(functor
-			, [&valueAt, atCol](SizeT r) { return valueAt(r, atCol); }
+		return runPoints(
+			  [&valueAt, atCol](SizeT r) { return valueAt(r, atCol); }
 			, H
 			, [&res](SizeT r, const TR& v, bool ok) { res.m_RowVal[r] = v; res.m_RowOk[r] = ok; }
 		);
@@ -495,8 +514,8 @@ CrossOutcome BuildMappingCrossImpl(Type2DConversion<TR, TA>& functor, typename U
 		return CrossOutcome::noUsableAnchor;
 
 	// 2. the horizontal cross along a row that column cStar could transform.
-	if (!TransformPointRun<TR, TA>(functor
-			, [&valueAt, rStar](SizeT c) { return valueAt(rStar, c); }
+	if (!runPoints(
+			  [&valueAt, rStar](SizeT c) { return valueAt(rStar, c); }
 			, W
 			, [&res](SizeT c, const TR& v, bool ok) { res.m_ColVal[c] = v; res.m_ColOk[c] = ok; }))
 		return CrossOutcome::transformFailed;
@@ -522,8 +541,8 @@ CrossOutcome BuildMappingCrossImpl(Type2DConversion<TR, TA>& functor, typename U
 
 	std::vector<TR>   probeVal(np);
 	std::vector<char> probeOk(np, 0);
-	if (!TransformPointRun<TR, TA>(functor
-			, [&valueAt, &probeRows, &probeCols, nc](SizeT k) { return valueAt(probeRows[k / nc], probeCols[k % nc]); }
+	if (!runPoints(
+			  [&valueAt, &probeRows, &probeCols, nc](SizeT k) { return valueAt(probeRows[k / nc], probeCols[k % nc]); }
 			, np
 			, [&probeVal, &probeOk](SizeT k, const TR& v, bool ok) { probeVal[k] = v; probeOk[k] = ok; }))
 		return CrossOutcome::transformFailed;
@@ -569,13 +588,19 @@ CrossOutcome BuildMappingCrossImpl(Type2DConversion<TR, TA>& functor, typename U
 
 // Reports the outcome once per invocation so that "did the #298 optimization engage, and if not
 // why" is answerable from a trace log rather than from a profiler.
+// alsoWhenAffine: build the cross even when there is no CRS conversion at all, i.e. when the two
+// grids share a SpatialReference and the composite is just the affine from their UnitProjections.
+// mapping_count wants that -- the outer product then removes its W * H loop entirely -- while
+// mapping() does not: its fill is per cell either way, so the cross would only trade two
+// multiply-adds for two array loads and add W + H of retained state.
 template<typename TR, typename TA>
-bool BuildMappingCross(Type2DConversion<TR, TA>& functor, typename Unit<TA>::range_t domainRange, SizeT n, MappingCross<TR>& res)
+bool BuildMappingCross(Type2DConversion<TR, TA>& functor, typename Unit<TA>::range_t domainRange, SizeT n, MappingCross<TR>& res, bool alsoWhenAffine = false)
 {
-	if (!functor.m_OgrComponentHolder || !functor.m_OgrComponentHolder->m_Transformer)
+	bool hasOgr = functor.m_OgrComponentHolder && functor.m_OgrComponentHolder->m_Transformer;
+	if (!hasOgr && !alsoWhenAffine)
 		return false;
 
-	auto outcome = BuildMappingCrossImpl<TR, TA>(functor, domainRange, n, res);
+	auto outcome = BuildMappingCrossImpl<TR, TA>(functor, domainRange, n, res, hasOgr);
 
 	reportF(MsgCategory::progress, SeverityTypeID::ST_MinorTrace
 		, "mapping: separable fast path {}", AsString(outcome));
@@ -641,17 +666,13 @@ struct MappingState : AbstrMappingState
 	// paths must not even be instantiated for them.
 	static constexpr bool has_cross_support = is_2d_conversion_v<FunctorType>;
 
-	MappingState(const Unit<TR>* dstUnit, const Unit<TA>* srcUnit)
+	MappingState(const Unit<TR>* dstUnit, const Unit<TA>* srcUnit, bool crossAlsoWhenAffine = false)
 		: m_DstUnit(make_shared_tree(dstUnit, existing_obj{}))
 		, m_SrcUnit(make_shared_tree(srcUnit, existing_obj{}))
 		, m_DomainRange(srcUnit->GetRange())
 	{
 		if constexpr (has_cross_support)
-		{
-			m_HasCross = BuildMappingCross<TR, TA>(GetFunctor(), m_DomainRange, Cardinality(m_DomainRange), m_Cross);
-			// W + H integer operations, only useful to mapping_count -- but too cheap to be
-			// worth a second construction path.
-		}
+			m_HasCross = BuildMappingCross<TR, TA>(GetFunctor(), m_DomainRange, Cardinality(m_DomainRange), m_Cross, crossAlsoWhenAffine);
 	}
 
 	// The functor for the calling thread. OGRCoordinateTransformation is NOT thread-safe, and a
@@ -694,8 +715,10 @@ struct MappingCountState : MappingState<TR, TA, TCF>
 {
 	using base_type = MappingState<TR, TA, TCF>;
 
+	// crossAlsoWhenAffine: unlike mapping(), the outer product removes this operator's W * H loop
+	// altogether, so the cross is worth building even for a plain same-SpatialReference affine.
 	MappingCountState(const Unit<TR>* dstUnit, const Unit<TA>* srcUnit)
-		: base_type(dstUnit, srcUnit)
+		: base_type(dstUnit, srcUnit, true)
 	{
 		if constexpr (base_type::has_cross_support)
 			if (this->m_HasCross)
