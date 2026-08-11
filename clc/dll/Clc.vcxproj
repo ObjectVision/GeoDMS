@@ -182,7 +182,6 @@
     <ClInclude Include="include\ConstOper.h" />
     <ClInclude Include="include\dms_transform.h" />
     <ClInclude Include="include\ExprCalculator.h" />
-    <ClInclude Include="include\funclist.h" />
     <ClInclude Include="include\IndexAssigner.h" />
     <ClInclude Include="include\Invert.h" />
     <ClInclude Include="include\InvertedRel.h" />

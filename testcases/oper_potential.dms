@@ -1,11 +1,14 @@
-// issue #1174: potentialPacked / potentialRawPacked produced garbage (small grids) or an
-// all-null result (larger grids) on plain float32 input. AddConvolutionKernel built the
-// pre-computed kernel FFT from `reinterpret_cast<const IppsArray<Float64>*>` of the Float32
-// weight buffer, so the packed backends convolved with a bit-punned kernel and over-read the
-// buffer by 2x. Introduced by the Intel-IPP -> FFTW3 migration (0f919d9ea); the IPP
-// predecessor resolved the convolution overload on the element type and was correct.
-// This config pins every registered potential backend against `potential` on two shapes,
+// Pins every registered potential backend against `potential` on two grid/kernel shapes,
 // and smoke-tests `proximity`, which shares the same AddConvolutionKernel entry point.
+//
+// History this guards against:
+// - issue #1174: the single-precision backends (then called potentialPacked /
+//   potentialRawPacked) built their pre-computed kernel FFT from a Float32 weight buffer
+//   reinterpreted as Float64, so they convolved with a bit-punned kernel and over-read the
+//   buffer by 2x. Results underflowed to zero on small grids and went null on larger ones.
+// - 20.13.0 completed the Intel-IPP -> FFTW3 port for those backends: they now run FFTW's
+//   single-precision fftwf_ transform end to end, instead of a double transform whose result
+//   was merely stored in float32 buffers. Renamed to potential32 / potentialRaw32.
 container oper_potential
 {
 	// ---- small case: 4x4 data, 3x3 kernel --------------------------------------
@@ -17,12 +20,12 @@ container oper_potential
 
 	container small
 	{
-		attribute<float32> base (G4) := potential          (src4, wgt3);
-		attribute<float32> slow (G4) := potentialSlow      (src4, wgt3);
-		attribute<float32> i64  (G4) := potentialIpps64    (src4, wgt3);
-		attribute<float32> r64  (G4) := potentialRaw64     (src4, wgt3);
-		attribute<float32> pack (G4) := potentialPacked    (src4, wgt3);
-		attribute<float32> rp   (G4) := potentialRawPacked (src4, wgt3);
+		attribute<float32> base (G4) := potential      (src4, wgt3);
+		attribute<float32> slow (G4) := potentialSlow  (src4, wgt3);
+		attribute<float32> f64  (G4) := potential64    (src4, wgt3);
+		attribute<float32> r64  (G4) := potentialRaw64 (src4, wgt3);
+		attribute<float32> f32  (G4) := potential32    (src4, wgt3);
+		attribute<float32> r32  (G4) := potentialRaw32 (src4, wgt3);
 	}
 
 	// ---- larger case: 33x33 data, 5x5 kernel -----------------------------------
@@ -37,38 +40,39 @@ container oper_potential
 
 	container large
 	{
-		attribute<float32> base (G33) := potential          (src33, wgt5);
-		attribute<float32> slow (G33) := potentialSlow      (src33, wgt5);
-		attribute<float32> i64  (G33) := potentialIpps64    (src33, wgt5);
-		attribute<float32> r64  (G33) := potentialRaw64     (src33, wgt5);
-		attribute<float32> pack (G33) := potentialPacked    (src33, wgt5);
-		attribute<float32> rp   (G33) := potentialRawPacked (src33, wgt5);
+		attribute<float32> base (G33) := potential      (src33, wgt5);
+		attribute<float32> slow (G33) := potentialSlow  (src33, wgt5);
+		attribute<float32> f64  (G33) := potential64    (src33, wgt5);
+		attribute<float32> r64  (G33) := potentialRaw64 (src33, wgt5);
+		attribute<float32> f32  (G33) := potential32    (src33, wgt5);
+		attribute<float32> r32  (G33) := potentialRaw32 (src33, wgt5);
 	}
 
 	container checks
 	{
-		// every backend must agree with `potential`. The tolerances allow for the
-		// direct-summation vs FFT rounding spread (potentialSlow deviates by 1.2e-4 on
-		// the large case, whose values run up to ~1088); the bug was off by ~50 resp.
-		// produced nulls, so it is caught with a wide margin either way.
+		// Every backend must agree with `potential`. The tolerances leave room for the
+		// rounding spread between a float64 FFT, a float32 FFT and direct summation, with
+		// two decades of margin on what is actually observed: 3.8e-6 (small, potential32),
+		// 1.2e-4 (large, potentialSlow) and 3.7e-4 (large, potential32) on values that run
+		// up to 49.5 resp. 1088. The bug this replaces was off by ~50 resp. produced nulls.
 		parameter<bool> s_slow_ok := max(abs(small/slow - small/base)) < 0.001f, IntegrityCheck = "s_slow_ok == True";
-		parameter<bool> s_i64_ok  := max(abs(small/i64  - small/base)) < 0.001f, IntegrityCheck = "s_i64_ok  == True";
+		parameter<bool> s_f64_ok  := max(abs(small/f64  - small/base)) < 0.001f, IntegrityCheck = "s_f64_ok  == True";
 		parameter<bool> s_r64_ok  := max(abs(small/r64  - small/base)) < 0.001f, IntegrityCheck = "s_r64_ok  == True";
-		parameter<bool> s_pack_ok := max(abs(small/pack - small/base)) < 0.001f, IntegrityCheck = "s_pack_ok == True";
-		parameter<bool> s_rp_ok   := max(abs(small/rp   - small/base)) < 0.001f, IntegrityCheck = "s_rp_ok   == True";
+		parameter<bool> s_f32_ok  := max(abs(small/f32  - small/base)) < 0.001f, IntegrityCheck = "s_f32_ok  == True";
+		parameter<bool> s_r32_ok  := max(abs(small/r32  - small/base)) < 0.001f, IntegrityCheck = "s_r32_ok  == True";
 
 		parameter<bool> l_slow_ok := max(abs(large/slow - large/base)) < 0.01f, IntegrityCheck = "l_slow_ok == True";
-		parameter<bool> l_i64_ok  := max(abs(large/i64  - large/base)) < 0.01f, IntegrityCheck = "l_i64_ok  == True";
+		parameter<bool> l_f64_ok  := max(abs(large/f64  - large/base)) < 0.01f, IntegrityCheck = "l_f64_ok  == True";
 		parameter<bool> l_r64_ok  := max(abs(large/r64  - large/base)) < 0.01f, IntegrityCheck = "l_r64_ok  == True";
-		parameter<bool> l_pack_ok := max(abs(large/pack - large/base)) < 0.01f, IntegrityCheck = "l_pack_ok == True";
-		parameter<bool> l_rp_ok   := max(abs(large/rp   - large/base)) < 0.01f, IntegrityCheck = "l_rp_ok   == True";
+		parameter<bool> l_f32_ok  := max(abs(large/f32  - large/base)) < 0.05f, IntegrityCheck = "l_f32_ok  == True";
+		parameter<bool> l_r32_ok  := max(abs(large/r32  - large/base)) < 0.05f, IntegrityCheck = "l_r32_ok  == True";
 
 		// NaN is the float32 null, so the all-null symptom needs its own assertion:
 		// a null result makes the max() above null too, which is not < tolerance.
-		parameter<bool> s_pack_def := all(IsDefined(small/pack)), IntegrityCheck = "s_pack_def == True";
-		parameter<bool> s_rp_def   := all(IsDefined(small/rp  )), IntegrityCheck = "s_rp_def   == True";
-		parameter<bool> l_pack_def := all(IsDefined(large/pack)), IntegrityCheck = "l_pack_def == True";
-		parameter<bool> l_rp_def   := all(IsDefined(large/rp  )), IntegrityCheck = "l_rp_def   == True";
+		parameter<bool> s_f32_def := all(IsDefined(small/f32)), IntegrityCheck = "s_f32_def == True";
+		parameter<bool> s_r32_def := all(IsDefined(small/r32)), IntegrityCheck = "s_r32_def == True";
+		parameter<bool> l_f32_def := all(IsDefined(large/f32)), IntegrityCheck = "l_f32_def == True";
+		parameter<bool> l_r32_def := all(IsDefined(large/r32)), IntegrityCheck = "l_r32_def == True";
 
 		// proximity takes the max instead of the sum: max over the grid is max(src) * w.
 		parameter<bool> s_prox_ok := abs(max(proximity(src4 , wgt3)) -  8.00f) < 0.001f, IntegrityCheck = "s_prox_ok == True";

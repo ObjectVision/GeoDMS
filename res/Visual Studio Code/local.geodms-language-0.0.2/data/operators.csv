@@ -446,10 +446,10 @@ poly2grid_untiled
 polygon
 polygon_connectivity
 potential
-potentialIpps64
-potentialPacked
+potential32
+potential64
+potentialRaw32
 potentialRaw64
-potentialRawPacked
 potentialSlow
 pow
 PropValue

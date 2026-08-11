@@ -48,7 +48,7 @@
       <AdditionalIncludeDirectories>../../clc/dll/include;../../rtc/dll/src;../../stx/dll/src;../../rtc/dll/src/tic;../../stg/dll/src;../../rtc/dll/src/sym;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>fftw3.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>fftw3.lib;fftw3f.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Platform)'=='Win32'">
@@ -87,7 +87,6 @@
     <ClInclude Include="src\GeoInterface.h" />
     <ClInclude Include="src\GeoPCH.h" />
     <ClInclude Include="src\GEOS_Traits.h" />
-    <ClInclude Include="src\IppiUtils.h" />
     <ClInclude Include="src\minkowski.h" />
     <ClInclude Include="src\PolyOper.h" />
     <ClInclude Include="src\Potential.h" />

@@ -67,6 +67,7 @@ Section "GeoDMS Program Folder" ;No components page, name is not important
 
 
   File ..\bin\Release\${GeoDmsPlatform}\fftw3.dll
+  File ..\bin\Release\${GeoDmsPlatform}\fftw3f.dll
   File ..\bin\Release\${GeoDmsPlatform}\gdal.dll
   File ..\bin\Release\${GeoDmsPlatform}\tiff.dll
   File ..\bin\Release\${GeoDmsPlatform}\arrow.dll

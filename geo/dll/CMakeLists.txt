@@ -14,14 +14,15 @@ target_include_directories(DmGeo
 # caused C4005 (macro redefinition) in every TU; the .vcxproj relies on the PCH alone.
 
 find_package(FFTW3 CONFIG)
+find_package(FFTW3f CONFIG) # single-precision fftwf_ API, used by the Fft32 potential backends
 find_package(CGAL CONFIG)
 find_package(GEOS CONFIG)
 find_package(GDAL)
 find_package(PROJ CONFIG)
 
 target_link_libraries(DmGeo PUBLIC DmRtc DmStx DmStg DmClc)
-if(FFTW3_FOUND)
-    target_link_libraries(DmGeo PRIVATE FFTW3::fftw3)
+if(FFTW3_FOUND AND FFTW3f_FOUND)
+    target_link_libraries(DmGeo PRIVATE FFTW3::fftw3 FFTW3::fftw3f)
 else()
     # Exclude FFTW3-dependent sources when FFTW3 is not available
     list(FILTER GEO_SOURCES EXCLUDE REGEX "(Potential|OperPot)\\.cpp$")

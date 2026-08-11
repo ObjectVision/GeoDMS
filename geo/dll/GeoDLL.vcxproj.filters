@@ -8,7 +8,7 @@
       <UniqueIdentifier>{b4d39853-3211-411f-9d16-d7fc202966db}</UniqueIdentifier>
       <Extensions>h</Extensions>
     </Filter>
-    <Filter Include="Ipp Files">
+    <Filter Include="Convolution Files">
       <UniqueIdentifier>{2d81605b-4bf8-442b-9bea-299ee7882842}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
@@ -36,9 +36,6 @@
     </ClInclude>
     <ClInclude Include="src\GeoInterface.h">
       <Filter>Geo Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\IppiUtils.h">
-      <Filter>Ipp Files</Filter>
     </ClInclude>
     <ClInclude Include="src\minkowski.h">
       <Filter>Geo Header Files</Filter>
@@ -136,7 +133,7 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\Potential.cpp">
-      <Filter>Ipp Files</Filter>
+      <Filter>Convolution Files</Filter>
     </ClCompile>
     <ClCompile Include="src\BoostPolygon.cpp">
       <Filter>Source Files</Filter>

@@ -70,6 +70,7 @@ Section "GeoDMS Program Folder"
 
   ; vcpkg third-party DLLs
   File ${CMakeBinDir}\fftw3.dll
+  File ${CMakeBinDir}\fftw3f.dll
   File ${CMakeBinDir}\gdal.dll
   File ${CMakeBinDir}\tiff.dll
   File ${CMakeBinDir}\arrow.dll

@@ -44,16 +44,61 @@ static std::mutex g_fftwPlanMutex;
 //	FFTW Plan and Kernel FFT Caching
 // *****************************************************************************
 
+// FFTW ships one complete API per precision, distinguished only by prefix: fftw_ for double
+// and fftwf_ for float (fftw3.h declares both, see its FFTW_DEFINE_API / FFTW_MANGLE_* lines).
+// fftw_api<R> selects one of them, so that everything below -- plans, plan cache, pre-computed
+// kernel FFT, per-thread work buffers -- exists once per precision. The Fft64 backends
+// instantiate R = Float64, the Fft32 backends R = Float32; the latter therefore transform in
+// single precision from end to end instead of widening their float32 arguments to double.
+template <typename R> struct fftw_api;
+
+template <> struct fftw_api<Float64>
+{
+	using real_type = double;
+	using complex_type = fftw_complex;
+	using plan_type = fftw_plan;
+
+	static real_type*    alloc_real   (TileSize n)                                { return fftw_alloc_real(n); }
+	static complex_type* alloc_complex(TileSize n)                                { return fftw_alloc_complex(n); }
+	static void          release      (void* p)                                   { fftw_free(p); }
+	static plan_type     plan_r2c     (int n, real_type* in, complex_type* out)   { return fftw_plan_dft_r2c_1d(n, in, out, FFTW_ESTIMATE); }
+	static plan_type     plan_c2r     (int n, complex_type* in, real_type* out)   { return fftw_plan_dft_c2r_1d(n, in, out, FFTW_ESTIMATE); }
+	static void          destroy_plan (plan_type p)                               { fftw_destroy_plan(p); }
+	static void          execute_r2c  (plan_type p, real_type* i, complex_type* o){ fftw_execute_dft_r2c(p, i, o); }
+	static void          execute_c2r  (plan_type p, complex_type* i, real_type* o){ fftw_execute_dft_c2r(p, i, o); }
+	static void          cleanup      ()                                          { fftw_cleanup(); }
+};
+
+template <> struct fftw_api<Float32>
+{
+	using real_type = float;
+	using complex_type = fftwf_complex;
+	using plan_type = fftwf_plan;
+
+	static real_type*    alloc_real   (TileSize n)                                { return fftwf_alloc_real(n); }
+	static complex_type* alloc_complex(TileSize n)                                { return fftwf_alloc_complex(n); }
+	static void          release      (void* p)                                   { fftwf_free(p); }
+	static plan_type     plan_r2c     (int n, real_type* in, complex_type* out)   { return fftwf_plan_dft_r2c_1d(n, in, out, FFTW_ESTIMATE); }
+	static plan_type     plan_c2r     (int n, complex_type* in, real_type* out)   { return fftwf_plan_dft_c2r_1d(n, in, out, FFTW_ESTIMATE); }
+	static void          destroy_plan (plan_type p)                               { fftwf_destroy_plan(p); }
+	static void          execute_r2c  (plan_type p, real_type* i, complex_type* o){ fftwf_execute_dft_r2c(p, i, o); }
+	static void          execute_c2r  (plan_type p, complex_type* i, real_type* o){ fftwf_execute_dft_c2r(p, i, o); }
+	static void          cleanup      ()                                          { fftwf_cleanup(); }
+};
+
 // Cached FFTW resources for a specific FFT length.
-// Plans are created once and reused via fftw_execute_dft_r2c/c2r with new arrays.
+// Plans are created once and reused via execute_r2c/execute_c2r with new arrays.
+template <typename R>
 struct FftwPlanSet {
+	using api = fftw_api<R>;
+
 	int fftLen = 0;
-	fftw_plan planFwd = nullptr;  // Forward: real -> complex
-	fftw_plan planInv = nullptr;  // Inverse: complex -> real
+	typename api::plan_type planFwd = nullptr;  // Forward: real -> complex
+	typename api::plan_type planInv = nullptr;  // Inverse: complex -> real
 
 	// Scratch arrays used only for plan creation (FFTW_ESTIMATE doesn't actually use them)
-	double* scratchReal = nullptr;
-	fftw_complex* scratchComplex = nullptr;
+	typename api::real_type* scratchReal = nullptr;
+	typename api::complex_type* scratchComplex = nullptr;
 
 	FftwPlanSet() = default;
 
@@ -62,58 +107,58 @@ struct FftwPlanSet {
 	FftwPlanSet& operator=(const FftwPlanSet&) = delete;
 
 	~FftwPlanSet() {
-		if (planFwd) fftw_destroy_plan(planFwd);
-		if (planInv) fftw_destroy_plan(planInv);
-		if (scratchReal) fftw_free(scratchReal);
-		if (scratchComplex) fftw_free(scratchComplex);
+		if (planFwd) api::destroy_plan(planFwd);
+		if (planInv) api::destroy_plan(planInv);
+		if (scratchReal) api::release(scratchReal);
+		if (scratchComplex) api::release(scratchComplex);
 	}
 
 	bool initialize(int len) {
 		fftLen = len;
-		scratchReal = fftw_alloc_real(len);
-		scratchComplex = fftw_alloc_complex(len / 2 + 1);
+		scratchReal = api::alloc_real(len);
+		scratchComplex = api::alloc_complex(len / 2 + 1);
 		if (!scratchReal || !scratchComplex) return false;
 
-		planFwd = fftw_plan_dft_r2c_1d(len, scratchReal, scratchComplex, FFTW_ESTIMATE);
-		planInv = fftw_plan_dft_c2r_1d(len, scratchComplex, scratchReal, FFTW_ESTIMATE);
+		planFwd = api::plan_r2c(len, scratchReal, scratchComplex);
+		planInv = api::plan_c2r(len, scratchComplex, scratchReal);
 		return planFwd && planInv;
 	}
 };
 
-// FFTW keeps an internal planner/solver registry that fftw_destroy_plan does NOT release; only
-// fftw_cleanup() frees it (without it, every run that used a Fourier operator reports hundreds of
-// fftw-internal blocks in the Debug CRT leak dump). fftw_cleanup invalidates any still-existing
-// plans, so it must run AFTER ~g_planCache. Registering the atexit BEFORE g_planCache is
-// constructed (same TU, declaration order) guarantees that: the exit stack is LIFO, so
-// ~g_planCache (registered later) runs first, then fftw_cleanup.
-static int s_FftwCleanupRegistrar = (std::atexit([] { fftw_cleanup(); }), 0);
+// FFTW keeps an internal planner/solver registry that destroy_plan does NOT release; only
+// cleanup() frees it (without it, every run that used a Fourier operator reports hundreds of
+// fftw-internal blocks in the Debug CRT leak dump), and it exists per precision. cleanup()
+// invalidates any still-existing plans, so it must run AFTER the plan caches are destroyed.
+// This atexit is registered during static initialization, hence before either plan cache is
+// constructed on first use; the exit stack is LIFO, so the caches (registered later) are
+// destroyed first and the cleanups run last.
+static int s_FftwCleanupRegistrar = (std::atexit([] { fftw_api<Float32>::cleanup(); fftw_api<Float64>::cleanup(); }), 0);
 
-// Global cache of FFTW plans keyed by FFT length.
-// Uses shared_mutex for read-heavy access pattern.
-static std::shared_mutex g_planCacheMutex;
-static std::unordered_map<int, std::unique_ptr<FftwPlanSet>> g_planCache;
+// Get or create a plan set for the given FFT length, from a cache per precision.
+// Uses shared_mutex for the read-heavy access pattern. Returns nullptr on failure.
+template <typename R>
+static FftwPlanSet<R>* GetOrCreatePlanSet(int fftLen) {
+	static std::shared_mutex planCacheMutex;
+	static std::unordered_map<int, std::unique_ptr<FftwPlanSet<R>>> planCache;
 
-// Get or create a plan set for the given FFT length.
-// Returns nullptr on failure.
-static FftwPlanSet* GetOrCreatePlanSet(int fftLen) {
 	// Try read-only access first (common case)
 	{
-		std::shared_lock<std::shared_mutex> readLock(g_planCacheMutex);
-		auto it = g_planCache.find(fftLen);
-		if (it != g_planCache.end())
+		std::shared_lock<std::shared_mutex> readLock(planCacheMutex);
+		auto it = planCache.find(fftLen);
+		if (it != planCache.end())
 			return it->second.get();
 	}
 
 	// Need to create - acquire exclusive lock
-	std::unique_lock<std::shared_mutex> writeLock(g_planCacheMutex);
+	std::unique_lock<std::shared_mutex> writeLock(planCacheMutex);
 
 	// Double-check after acquiring write lock
-	auto it = g_planCache.find(fftLen);
-	if (it != g_planCache.end())
+	auto it = planCache.find(fftLen);
+	if (it != planCache.end())
 		return it->second.get();
 
 	// Create new plan set (plan creation itself needs the FFTW mutex)
-	auto planSet = std::make_unique<FftwPlanSet>();
+	auto planSet = std::make_unique<FftwPlanSet<R>>();
 	{
 		std::lock_guard<std::mutex> fftwLock(g_fftwPlanMutex);
 		if (!planSet->initialize(fftLen))
@@ -121,87 +166,86 @@ static FftwPlanSet* GetOrCreatePlanSet(int fftLen) {
 	}
 
 	auto* result = planSet.get();
-	g_planCache[fftLen] = std::move(planSet);
+	planCache[fftLen] = std::move(planSet);
 	return result;
 }
 
 // Pre-computed kernel FFT for a specific (kernel, fftLen) combination.
 // Stored in kernel_info via std::any for type erasure.
+// NB initialize() takes the kernel in the transform's own precision: the element type of the
+// weight buffer and the precision of the FFT it feeds are one and the same choice, and making
+// that a compile-time property is what rules out the mismatch of issue #1174.
+template <typename R>
 struct KernelFft {
+	using api = fftw_api<R>;
+	using real_type = typename api::real_type;
+
 	int fftLen = 0;
 	int freqLen = 0;
-	std::vector<double> freqData; // Interleaved [re0, im0, re1, im1, ...]
-	double invScale = 0.0;        // 1.0 / fftLen for normalization
+	std::vector<real_type> freqData; // Interleaved [re0, im0, re1, im1, ...]
+	real_type invScale = 0;          // 1 / fftLen for normalization
 
 	KernelFft() = default;
 
-	template <typename T>
-	bool initialize(const T* kernelData, TileSize kernelLen, int totalFftLen) {
+	bool initialize(const real_type* kernelData, TileSize kernelLen, int totalFftLen) {
 		fftLen = totalFftLen;
 		freqLen = fftLen / 2 + 1;
-		invScale = 1.0 / fftLen;
-		freqData.resize(freqLen * 2); // [re, im] pairs
+		invScale = real_type(1) / real_type(fftLen);
+		freqData.resize(SizeT(freqLen) * 2); // [re, im] pairs
 
-		auto* planSet = GetOrCreatePlanSet(fftLen);
+		auto* planSet = GetOrCreatePlanSet<R>(fftLen);
 		if (!planSet) return false;
 
 		// Allocate temp buffers for kernel FFT computation
-		double* tempReal = fftw_alloc_real(fftLen);
-		fftw_complex* tempComplex = fftw_alloc_complex(freqLen);
+		auto* tempReal = api::alloc_real(fftLen);
+		auto* tempComplex = api::alloc_complex(freqLen);
 		if (!tempReal || !tempComplex) {
-			fftw_free(tempReal);
-			fftw_free(tempComplex);
+			api::release(tempReal);
+			api::release(tempComplex);
 			return false;
 		}
 
 		// Zero-pad kernel to FFT length
 		for (int i = 0; i < fftLen; ++i)
-			tempReal[i] = (static_cast<TileSize>(i) < kernelLen) ? static_cast<double>(kernelData[i]) : 0.0;
+			tempReal[i] = (static_cast<TileSize>(i) < kernelLen) ? kernelData[i] : real_type(0);
 
 		// Compute kernel FFT using new-array execute
-		fftw_execute_dft_r2c(planSet->planFwd, tempReal, tempComplex);
+		api::execute_r2c(planSet->planFwd, tempReal, tempComplex);
 
 		// Store frequency data
 		for (int i = 0; i < freqLen; ++i) {
-			freqData[i * 2]     = tempComplex[i][0]; // Real
-			freqData[i * 2 + 1] = tempComplex[i][1]; // Imag
+			freqData[SizeT(i) * 2    ] = tempComplex[i][0]; // Real
+			freqData[SizeT(i) * 2 + 1] = tempComplex[i][1]; // Imag
 		}
 
-		fftw_free(tempReal);
-		fftw_free(tempComplex);
+		api::release(tempReal);
+		api::release(tempComplex);
 		return true;
 	}
 };
 
 // Thread-local FFTW working buffers to avoid allocation per convolution call.
 // Sized for the maximum FFT length needed.
+template <typename R>
 struct FftwWorkBuffers {
+	using api = fftw_api<R>;
+
 	int capacity = 0;
-	double* realIn = nullptr;
-	double* realOut = nullptr;
-	fftw_complex* freqData = nullptr;
-	fftw_complex* freqProduct = nullptr;
+	typename api::real_type* realIn = nullptr;
+	typename api::real_type* realOut = nullptr;
+	typename api::complex_type* freqData = nullptr;
+	typename api::complex_type* freqProduct = nullptr;
 
 	FftwWorkBuffers() = default;
 	~FftwWorkBuffers() { cleanup(); }
 
-	// Non-copyable
+	// Non-copyable, non-movable: only ever reached as the thread_local below
 	FftwWorkBuffers(const FftwWorkBuffers&) = delete;
 	FftwWorkBuffers& operator=(const FftwWorkBuffers&) = delete;
 
-	// Move constructor for thread_local initialization
-	FftwWorkBuffers(FftwWorkBuffers&& other) noexcept
-		: capacity(other.capacity), realIn(other.realIn), realOut(other.realOut)
-		, freqData(other.freqData), freqProduct(other.freqProduct)
-	{
-		other.capacity = 0;
-		other.realIn = other.realOut = nullptr;
-		other.freqData = other.freqProduct = nullptr;
-	}
-
 	void cleanup() {
-		fftw_free(realIn); fftw_free(realOut);
-		fftw_free(freqData); fftw_free(freqProduct);
+		api::release(realIn); api::release(realOut);
+		api::release(freqData); api::release(freqProduct);
 		realIn = realOut = nullptr;
 		freqData = freqProduct = nullptr;
 		capacity = 0;
@@ -212,10 +256,10 @@ struct FftwWorkBuffers {
 
 		cleanup();
 		int freqLen = fftLen / 2 + 1;
-		realIn = fftw_alloc_real(fftLen);
-		realOut = fftw_alloc_real(fftLen);
-		freqData = fftw_alloc_complex(freqLen);
-		freqProduct = fftw_alloc_complex(freqLen);
+		realIn = api::alloc_real(fftLen);
+		realOut = api::alloc_real(fftLen);
+		freqData = api::alloc_complex(freqLen);
+		freqProduct = api::alloc_complex(freqLen);
 
 		if (!realIn || !realOut || !freqData || !freqProduct) {
 			cleanup();
@@ -226,8 +270,12 @@ struct FftwWorkBuffers {
 	}
 };
 
-// Thread-local work buffers - each thread gets its own set
-static thread_local FftwWorkBuffers t_workBuffers;
+// Thread-local work buffers - each thread gets its own set, per precision
+template <typename R>
+static FftwWorkBuffers<R>& GetWorkBuffers() {
+	static thread_local FftwWorkBuffers<R> workBuffers;
+	return workBuffers;
+}
 
 // *****************************************************************************
 //	Convolution status codes
@@ -376,61 +424,69 @@ void AlignedArray_InitReversed(AlignedArray<A>* self, const UGrid<const T>& data
 //  - Redundant kernel FFT computation (uses kernelFft)
 //  - Plan creation/destruction per call (uses cached plans)
 //  - Memory allocation per call (uses thread-local buffers)
-template <typename T>
+template <typename R>
 inline ConvStatus FftwConvolveWithKernelFft(
-	const T* pSrc1, TileSize lenSrc1,
-	const KernelFft& kernelFft,
-	T* pDst)
+	const R* pSrc1, TileSize lenSrc1,
+	const KernelFft<R>& kernelFft,
+	R* pDst)
 {
+	using api = fftw_api<R>;
+	using real_type = typename api::real_type;
+
 	int fftLen = kernelFft.fftLen;
 	int freqLen = kernelFft.freqLen;
 
 	// Get cached plan set
-	auto* planSet = GetOrCreatePlanSet(fftLen);
+	auto* planSet = GetOrCreatePlanSet<R>(fftLen);
 	if (!planSet)
 		return ConvStatus::Err;
 
 	// Ensure thread-local buffers are large enough
-	if (!t_workBuffers.ensureCapacity(fftLen))
+	auto& workBuffers = GetWorkBuffers<R>();
+	if (!workBuffers.ensureCapacity(fftLen))
 		return ConvStatus::MemAllocErr;
 
-	double* realIn = t_workBuffers.realIn;
-	double* realOut = t_workBuffers.realOut;
-	fftw_complex* freqData = t_workBuffers.freqData;
-	fftw_complex* freqProduct = t_workBuffers.freqProduct;
+	auto* realIn = workBuffers.realIn;
+	auto* realOut = workBuffers.realOut;
+	auto* freqData = workBuffers.freqData;
+	auto* freqProduct = workBuffers.freqProduct;
 
 	// Zero-pad input data to FFT length
 	for (int i = 0; i < fftLen; ++i)
-		realIn[i] = (static_cast<TileSize>(i) < lenSrc1) ? static_cast<double>(pSrc1[i]) : 0.0;
+		realIn[i] = (static_cast<TileSize>(i) < lenSrc1) ? pSrc1[i] : real_type(0);
 
 	// Forward FFT of data using new-array execute (thread-safe with different arrays)
-	fftw_execute_dft_r2c(planSet->planFwd, realIn, freqData);
+	api::execute_r2c(planSet->planFwd, realIn, freqData);
 
 	// Multiply in frequency domain with pre-computed kernel FFT
-	const double* kernelFreq = kernelFft.freqData.data();
+	const real_type* kernelFreq = kernelFft.freqData.data();
 	for (int i = 0; i < freqLen; ++i) {
-		double re1 = freqData[i][0], im1 = freqData[i][1];
-		double re2 = kernelFreq[i * 2], im2 = kernelFreq[i * 2 + 1];
+		real_type re1 = freqData[i][0], im1 = freqData[i][1];
+		real_type re2 = kernelFreq[i * 2], im2 = kernelFreq[i * 2 + 1];
 		freqProduct[i][0] = re1 * re2 - im1 * im2; // Real
 		freqProduct[i][1] = re1 * im2 + im1 * re2; // Imag
 	}
 
 	// Inverse FFT
-	fftw_execute_dft_c2r(planSet->planInv, freqProduct, realOut);
+	api::execute_c2r(planSet->planInv, freqProduct, realOut);
 
 	// Normalize and copy to output
-	double scale = kernelFft.invScale;
+	real_type scale = kernelFft.invScale;
 	for (int i = 0; i < fftLen; ++i)
-		pDst[i] = static_cast<T>(realOut[i] * scale);
+		pDst[i] = realOut[i] * scale;
 
 	return ConvStatus::NoErr;
 }
 
-// Legacy FftwConvolve for Float32 - used when kernel FFT is not pre-computed.
+// Fallback FftwConvolve - used when no kernel FFT was pre-computed for this column count.
 // Computes linear convolution: conv(a, b) = IFFT(FFT(a) * FFT(b))
 // Output length = lenSrc1 + lenSrc2 - 1
-inline ConvStatus FftwConvolve(const Float32* pSrc1, TileSize lenSrc1, const Float32* pSrc2, TileSize lenSrc2, Float32* pDst)
+template <typename R>
+inline ConvStatus FftwConvolve(const R* pSrc1, TileSize lenSrc1, const R* pSrc2, TileSize lenSrc2, R* pDst)
 {
+	using api = fftw_api<R>;
+	using real_type = typename api::real_type;
+
 	// FFTW uses int for sizes, so we need to validate the input lengths
 	constexpr TileSize maxFftwSize = static_cast<TileSize>(std::numeric_limits<int>::max());
 	TileSize outLen64 = lenSrc1 + lenSrc2 - 1;
@@ -441,104 +497,51 @@ inline ConvStatus FftwConvolve(const Float32* pSrc1, TileSize lenSrc1, const Flo
 	int fftLen = static_cast<int>(outLen64);
 
 	// Get cached plan set
-	auto* planSet = GetOrCreatePlanSet(fftLen);
+	auto* planSet = GetOrCreatePlanSet<R>(fftLen);
 	if (!planSet)
 		return ConvStatus::Err;
 
 	// Ensure thread-local buffers are large enough
-	if (!t_workBuffers.ensureCapacity(fftLen))
+	auto& workBuffers = GetWorkBuffers<R>();
+	if (!workBuffers.ensureCapacity(fftLen))
 		return ConvStatus::MemAllocErr;
 
 	// Allocate additional buffer for second input's frequency data
-	fftw_complex* freq2 = fftw_alloc_complex(fftLen / 2 + 1);
+	auto* freq2 = api::alloc_complex(fftLen / 2 + 1);
 	if (!freq2)
 		return ConvStatus::MemAllocErr;
 
-	double* realIn = t_workBuffers.realIn;
-	double* realOut = t_workBuffers.realOut;
-	fftw_complex* freq1 = t_workBuffers.freqData;
-	fftw_complex* freqOut = t_workBuffers.freqProduct;
+	auto* realIn = workBuffers.realIn;
+	auto* realOut = workBuffers.realOut;
+	auto* freq1 = workBuffers.freqData;
+	auto* freqOut = workBuffers.freqProduct;
 
 	// Forward FFT of first input
 	for (int i = 0; i < fftLen; ++i)
-		realIn[i] = (static_cast<TileSize>(i) < lenSrc1) ? static_cast<double>(pSrc1[i]) : 0.0;
-	fftw_execute_dft_r2c(planSet->planFwd, realIn, freq1);
+		realIn[i] = (static_cast<TileSize>(i) < lenSrc1) ? pSrc1[i] : real_type(0);
+	api::execute_r2c(planSet->planFwd, realIn, freq1);
 
 	// Forward FFT of second input (kernel)
 	for (int i = 0; i < fftLen; ++i)
-		realIn[i] = (static_cast<TileSize>(i) < lenSrc2) ? static_cast<double>(pSrc2[i]) : 0.0;
-	fftw_execute_dft_r2c(planSet->planFwd, realIn, freq2);
+		realIn[i] = (static_cast<TileSize>(i) < lenSrc2) ? pSrc2[i] : real_type(0);
+	api::execute_r2c(planSet->planFwd, realIn, freq2);
 
 	// Multiply in frequency domain
 	int freqLen = fftLen / 2 + 1;
 	for (int i = 0; i < freqLen; ++i) {
-		double re1 = freq1[i][0], im1 = freq1[i][1];
-		double re2 = freq2[i][0], im2 = freq2[i][1];
+		real_type re1 = freq1[i][0], im1 = freq1[i][1];
+		real_type re2 = freq2[i][0], im2 = freq2[i][1];
 		freqOut[i][0] = re1 * re2 - im1 * im2;
 		freqOut[i][1] = re1 * im2 + im1 * re2;
 	}
 
-	fftw_free(freq2);
+	api::release(freq2);
 
 	// Inverse FFT
-	fftw_execute_dft_c2r(planSet->planInv, freqOut, realOut);
+	api::execute_c2r(planSet->planInv, freqOut, realOut);
 
 	// Normalize and copy to output
-	double scale = 1.0 / fftLen;
-	for (int i = 0; i < fftLen; ++i)
-		pDst[i] = static_cast<Float32>(realOut[i] * scale);
-
-	return ConvStatus::NoErr;
-}
-
-// Legacy FftwConvolve for Float64 - used when kernel FFT is not pre-computed.
-inline ConvStatus FftwConvolve(const Float64* pSrc1, TileSize lenSrc1, const Float64* pSrc2, TileSize lenSrc2, Float64* pDst)
-{
-	constexpr TileSize maxFftwSize = static_cast<TileSize>(std::numeric_limits<int>::max());
-	TileSize outLen64 = lenSrc1 + lenSrc2 - 1;
-
-	if (lenSrc1 > maxFftwSize || lenSrc2 > maxFftwSize || outLen64 > maxFftwSize)
-		return ConvStatus::Err;
-
-	int fftLen = static_cast<int>(outLen64);
-
-	auto* planSet = GetOrCreatePlanSet(fftLen);
-	if (!planSet)
-		return ConvStatus::Err;
-
-	if (!t_workBuffers.ensureCapacity(fftLen))
-		return ConvStatus::MemAllocErr;
-
-	fftw_complex* freq2 = fftw_alloc_complex(fftLen / 2 + 1);
-	if (!freq2)
-		return ConvStatus::MemAllocErr;
-
-	double* realIn = t_workBuffers.realIn;
-	double* realOut = t_workBuffers.realOut;
-	fftw_complex* freq1 = t_workBuffers.freqData;
-	fftw_complex* freqOut = t_workBuffers.freqProduct;
-
-	for (int i = 0; i < fftLen; ++i)
-		realIn[i] = (static_cast<TileSize>(i) < lenSrc1) ? pSrc1[i] : 0.0;
-	fftw_execute_dft_r2c(planSet->planFwd, realIn, freq1);
-
-	for (int i = 0; i < fftLen; ++i)
-		realIn[i] = (static_cast<TileSize>(i) < lenSrc2) ? pSrc2[i] : 0.0;
-	fftw_execute_dft_r2c(planSet->planFwd, realIn, freq2);
-
-	int freqLen = fftLen / 2 + 1;
-	for (int i = 0; i < freqLen; ++i) {
-		double re1 = freq1[i][0], im1 = freq1[i][1];
-		double re2 = freq2[i][0], im2 = freq2[i][1];
-		freqOut[i][0] = re1 * re2 - im1 * im2;
-		freqOut[i][1] = re1 * im2 + im1 * re2;
-	}
-
-	fftw_free(freq2);
-
-	fftw_execute_dft_c2r(planSet->planInv, freqOut, realOut);
-
-	double scale = 1.0 / fftLen;
+	real_type scale = real_type(1) / real_type(fftLen);
 	for (int i = 0; i < fftLen; ++i)
 		pDst[i] = realOut[i] * scale;
 
@@ -576,7 +579,7 @@ TileSize PotentialFftwRaw(potential_context<A>& context, UPoint& zeroInfo, const
 	// Try to use pre-computed kernel FFT for optimal performance
 	if (kernelInfo.kernelFfts.has_value())
 	{
-		const auto& kernelFftMap = std::any_cast<const std::map<SideSize, KernelFft>&>(kernelInfo.kernelFfts);
+		const auto& kernelFftMap = GetKernelFftMap<A>(kernelInfo);
 		auto it = kernelFftMap.find(dataOrg.GetSize().Col());
 		if (it != kernelFftMap.end())
 		{
@@ -629,7 +632,13 @@ TileSize PotentialFftwSmooth(potential_context<A>& context, UPoint& zeroInfo, co
 	for (auto ptr = firstOutput, end = lastOutput; ptr !=end ; ++ptr)
 		sumSqrData += Sqr64(*ptr);
 
-	auto errThreshold = sqrt(sumSqrData) / 1000000000.0;
+	// The threshold has to sit above the transform's own noise floor, which scales with the
+	// epsilon of the precision the transform ran in. 1e-9 of the L2 norm is some 4.5e6 epsilons
+	// in float64, but two decades BELOW the float32 noise floor, where it would never fire.
+	// 1e-6 is its float32 counterpart: roughly ten times that noise floor.
+	constexpr Float64 relThreshold = std::is_same_v<A, Float64> ? 1e-9 : 1e-6;
+
+	auto errThreshold = sqrt(sumSqrData) * relThreshold;
 	auto errThresholdNeg = - errThreshold;
 	for (auto ptr = firstOutput, end = lastOutput; ptr != end; ++ptr)
 		if (*ptr < errThreshold && errThresholdNeg < *ptr)
@@ -711,20 +720,54 @@ bool CalculateClassic(AnalysisType at,
 	return true;
 } // CalculateClassic
 
-// Type alias for kernel FFT cache map (used with std::any in kernel_info)
-using KernelFftMap = std::map<SideSize, KernelFft>;
+// Type alias for kernel FFT cache map (used with std::any in kernel_info).
+// A kernel_info serves one operator, hence one backend, hence one precision R.
+template <typename R> using KernelFftMap = std::map<SideSize, KernelFft<R>>;
 
 // Helper to get or create kernel FFT cache from kernel_info
-KernelFftMap& GetKernelFftMap(kernel_info& self)
+template <typename R>
+KernelFftMap<R>& GetKernelFftMap(kernel_info& self)
 {
 	if (!self.kernelFfts.has_value())
-		self.kernelFfts = KernelFftMap{};
-	return std::any_cast<KernelFftMap&>(self.kernelFfts);
+		self.kernelFfts = KernelFftMap<R>{};
+	return std::any_cast<KernelFftMap<R>&>(self.kernelFfts);
 }
 
-const KernelFftMap& GetKernelFftMap(const kernel_info& self)
+template <typename R>
+const KernelFftMap<R>& GetKernelFftMap(const kernel_info& self)
 {
-	return std::any_cast<const KernelFftMap&>(self.kernelFfts);
+	return std::any_cast<const KernelFftMap<R>&>(self.kernelFfts);
+}
+
+// Pre-compute (and cache) the kernel FFT for a given data column count. The element type of
+// the weight buffer picks the transform precision, so the kernel always goes into the FFT as
+// the type it was written as.
+template <typename R>
+void AddKernelFft(kernel_info& self, const AlignedArray<R>* weightBuffer, SideSize nrDataCols)
+{
+	auto& kernelFftMap = GetKernelFftMap<R>(self);
+	if (kernelFftMap.find(nrDataCols) != kernelFftMap.end())
+		return;
+
+	// Compute FFT length based on max data size and kernel size
+	// FFT length = dataBufferSize + weightBufferSize - 1
+	// dataBufferSize = nx*ny + (kx-1)*(ny-1) where nx=nrDataCols, ny=maxDataRows
+	// weightBufferSize = kx*ky + (nx-1)*(ky-1)
+	SideSize maxDataRows = self.maxDataSize.Row();
+	SideSize kx = self.orgWeightSize.Col();
+
+	TileSize maxDataBufferSize = TileSize(nrDataCols) * maxDataRows + TileSize(kx - 1) * (maxDataRows - 1);
+	TileSize kernelBufferSize = weightBuffer->capacity();
+	TileSize fftLen = maxDataBufferSize + kernelBufferSize - 1;
+
+	// Validate FFT size fits in int (FFTW limitation)
+	constexpr TileSize maxFftwSize = static_cast<TileSize>(std::numeric_limits<int>::max());
+	if (fftLen > maxFftwSize)
+		return;
+
+	KernelFft<R> newKernelFft;
+	if (newKernelFft.initialize(weightBuffer->begin(), kernelBufferSize, static_cast<int>(fftLen)))
+		kernelFftMap[nrDataCols] = std::move(newKernelFft);
 }
 
 } // namespace potential::impl
@@ -739,56 +782,32 @@ MDL_CALL void AddConvolutionKernel(kernel_info& self, AnalysisType at, SideSize 
 	if (!nrDataCols)
 		return;
 
-	// The Float64 backends widen the kernel (and their working buffers) to Float64;
-	// the Packed backends keep everything in the native element type T.
-	bool isFloat64Backend = (at == AnalysisType::PotentialFft64       || at == AnalysisType::PotentialRawFft64);
-	bool isPackedBackend  = (at == AnalysisType::PotentialFftPacked   || at == AnalysisType::PotentialRawFftPacked);
-	if (!isFloat64Backend && !isPackedBackend)
+	// The Fft64 backends widen the kernel and their working buffers to Float64; the Fft32
+	// backends keep everything in the element type of the arguments and run the transform in
+	// single precision. Either way the weight buffer, the pre-computed kernel FFT and the
+	// transform that consumes it share one element type -- letting those drift apart is what
+	// issue #1174 was.
+	bool isFloat64Backend = (at == AnalysisType::PotentialFft64 || at == AnalysisType::PotentialRawFft64);
+	bool isFloat32Backend = (at == AnalysisType::PotentialFft32 || at == AnalysisType::PotentialRawFft32);
+	if (!isFloat64Backend && !isFloat32Backend)
 		return; // PotentialSlow and Proximity don't convolve; they need neither weight buffer nor kernel FFT.
 
 	//	dms_assert(dataOrg.GetSize() == outputOrg.GetSize());
 	const UGrid<const T>& weightOrg = *std::any_cast<UGrid<const T>>(&self.orgWeightGrid);
 
-	// Initialize reversed weight buffer (for packed convolution layout)
+	// Initialize the reversed weight buffer, then the kernel FFT that reads it
 	if (isFloat64Backend)
-		potential::impl::AlignedArray_InitReversed(self.weightBuffer<Float64>(nrDataCols), weightOrg, nrDataCols);
-	else
-		potential::impl::AlignedArray_InitReversed(self.weightBuffer<T>(nrDataCols), weightOrg, nrDataCols);
-
-	// Pre-compute kernel FFT for this column count if not already done
-	auto& kernelFftMap = potential::impl::GetKernelFftMap(self);
-	if (kernelFftMap.find(nrDataCols) != kernelFftMap.end())
-		return;
-
-	// Compute FFT length based on max data size and kernel size
-	// FFT length = dataBufferSize + weightBufferSize - 1
-	// dataBufferSize = nx*ny + (kx-1)*(ny-1) where nx=nrDataCols, ny=maxDataRows
-	// weightBufferSize = kx*ky + (nx-1)*(ky-1)
-	SideSize maxDataRows = self.maxDataSize.Row();
-	SideSize kx = self.orgWeightSize.Col();
-
-	// NB: the element type of the weight buffer must follow the backend; reinterpreting a
-	// Float32 buffer as Float64 here would both corrupt the kernel and over-read the buffer.
-	auto buildKernelFft = [&](const auto* weightBuffer)
 	{
-		TileSize maxDataBufferSize = TileSize(nrDataCols) * maxDataRows + TileSize(kx - 1) * (maxDataRows - 1);
-		TileSize kernelBufferSize = weightBuffer->capacity();
-		TileSize fftLen = maxDataBufferSize + kernelBufferSize - 1;
-
-		// Validate FFT size fits in int (FFTW limitation)
-		constexpr TileSize maxFftwSize = static_cast<TileSize>(std::numeric_limits<int>::max());
-		if (fftLen > maxFftwSize)
-			return;
-
-		KernelFft newKernelFft;
-		if (newKernelFft.initialize(weightBuffer->begin(), kernelBufferSize, static_cast<int>(fftLen)))
-			kernelFftMap[nrDataCols] = std::move(newKernelFft);
-	};
-
-	if (isFloat64Backend)
-		buildKernelFft(self.weightBuffer<Float64>(nrDataCols));
+		auto* weightBuffer = self.weightBuffer<Float64>(nrDataCols);
+		potential::impl::AlignedArray_InitReversed(weightBuffer, weightOrg, nrDataCols);
+		potential::impl::AddKernelFft(self, weightBuffer, nrDataCols);
+	}
 	else
-		buildKernelFft(self.weightBuffer<T>(nrDataCols));
+	{
+		auto* weightBuffer = self.weightBuffer<T>(nrDataCols);
+		potential::impl::AlignedArray_InitReversed(weightBuffer, weightOrg, nrDataCols);
+		potential::impl::AddKernelFft(self, weightBuffer, nrDataCols);
+	}
 }
 
 // Main entry for Float32 potential calculation, dispatches to classic or FFTW.
@@ -806,10 +825,10 @@ bool Potential(AnalysisType at, potential_contexts& context, const kernel_info& 
 				kernelInfo, context.F32.overlappingOutput
 			);
 
-		case AnalysisType::PotentialRawFftPacked:
+		case AnalysisType::PotentialRawFft32:
 			return potential::impl::PotentialFftwRaw   <Float32>(context.F32, context.zeroInfo, kernelInfo, dataOrg);
 
-		case AnalysisType::PotentialFftPacked:
+		case AnalysisType::PotentialFft32:
 			return potential::impl::PotentialFftwSmooth<Float32>(context.F32, context.zeroInfo, kernelInfo, dataOrg);
 
 		case AnalysisType::PotentialRawFft64:
@@ -830,8 +849,8 @@ bool Potential(AnalysisType at, potential_contexts& context, const kernel_info& 
 {
 	DBG_START("Potential", "Float64", MG_DEBUG_POTENTIAL);
 
-	if (at == AnalysisType::PotentialFftPacked   ) at = AnalysisType::PotentialFft64;
-	if (at == AnalysisType::PotentialRawFftPacked) at = AnalysisType::PotentialRawFft64;
+	if (at == AnalysisType::PotentialFft32   ) at = AnalysisType::PotentialFft64;
+	if (at == AnalysisType::PotentialRawFft32) at = AnalysisType::PotentialRawFft64;
 
 	switch (at) {
 		case AnalysisType::PotentialSlow:

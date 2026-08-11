@@ -395,8 +395,8 @@ public:
                 // These backends compute Float64 outputs even if T != Float64
                 StoreImpl<Float64>(resObj, tr, resTileRect, incremental, overlapTileRect, workingBuffer.F64);
                 break;
-            case AnalysisType::PotentialFftPacked:
-            case AnalysisType::PotentialRawFftPacked:
+            case AnalysisType::PotentialFft32:
+            case AnalysisType::PotentialRawFft32:
             case AnalysisType::PotentialSlow:
             case AnalysisType::Proximity:
                 // Native type result accumulation
@@ -450,33 +450,35 @@ public:
 
 namespace
 {
-    // The operator names below are configuration syntax and are therefore kept as they are,
-    // including the historic 'Ipps' of the Intel Performance Primitives library that the
-    // FFT-based backends used before they moved to FFTW3. The AnalysisType enumerators and
-    // the internal buffer types no longer carry that name.
+    // The name suffix is the precision the FFT runs in: potential64 / potentialRaw64 transform
+    // in double precision, potential32 / potentialRaw32 in single precision. Both pairs accept
+    // float32 arguments; only the 64 pair also accepts float64 ones. Up to 20.13.0 these were
+    // called potentialIpps64 and potentialPacked / potentialRawPacked, after the Intel
+    // Performance Primitives library and its buffer layout; the implementation has used FFTW3
+    // since 20.0.0 and neither term described anything anymore.
 
     // Default group (auto-selects fastest feasible backend)
     CommonOperGroup potentialDefault("potential", oper_policy::better_not_in_meta_scripting);
 
-    CommonOperGroup potentialIpps64("potentialIpps64", oper_policy::better_not_in_meta_scripting);
-    CommonOperGroup potentialRaw64    ("potentialRaw64",    oper_policy::better_not_in_meta_scripting);
-    CommonOperGroup potentialSlow     ("potentialSlow",     oper_policy::better_not_in_meta_scripting);
-    CommonOperGroup potentialPacked   ("potentialPacked",   oper_policy::better_not_in_meta_scripting);
-    CommonOperGroup potentialRawPacked("potentialRawPacked",oper_policy::better_not_in_meta_scripting);
+    CommonOperGroup potential64    ("potential64",    oper_policy::better_not_in_meta_scripting);
+    CommonOperGroup potentialRaw64 ("potentialRaw64", oper_policy::better_not_in_meta_scripting);
+    CommonOperGroup potentialSlow  ("potentialSlow",  oper_policy::better_not_in_meta_scripting);
+    CommonOperGroup potential32    ("potential32",    oper_policy::better_not_in_meta_scripting);
+    CommonOperGroup potentialRaw32 ("potentialRaw32", oper_policy::better_not_in_meta_scripting);
 
     // Float32 variants
-    DirectPotentialOperator<Float32> potDF32Def  (&potentialDefault , AnalysisType::PotentialDefault);
-    DirectPotentialOperator<Float32> potDF32Ipps (&potentialIpps64  , AnalysisType::PotentialFft64);
-    DirectPotentialOperator<Float32> potDF32IppsR(&potentialRaw64   , AnalysisType::PotentialRawFft64);
-    DirectPotentialOperator<Float32> potDF32Slow (&potentialSlow    , AnalysisType::PotentialSlow);
-    DirectPotentialOperator<Float32> potDF32P    (&potentialPacked  , AnalysisType::PotentialFftPacked);
-    DirectPotentialOperator<Float32> potDF32RP   (&potentialRawPacked, AnalysisType::PotentialRawFftPacked);
+    DirectPotentialOperator<Float32> potDF32Def  (&potentialDefault, AnalysisType::PotentialDefault);
+    DirectPotentialOperator<Float32> potDF32Fft  (&potential64     , AnalysisType::PotentialFft64);
+    DirectPotentialOperator<Float32> potDF32FftR (&potentialRaw64  , AnalysisType::PotentialRawFft64);
+    DirectPotentialOperator<Float32> potDF32Slow (&potentialSlow   , AnalysisType::PotentialSlow);
+    DirectPotentialOperator<Float32> potDF32Fft32(&potential32     , AnalysisType::PotentialFft32);
+    DirectPotentialOperator<Float32> potDF32Raw32(&potentialRaw32  , AnalysisType::PotentialRawFft32);
 
     // Float64 variants
-    DirectPotentialOperator<Float64> potDF64Def  (&potentialDefault , AnalysisType::PotentialDefault);
-    DirectPotentialOperator<Float64> potDF64Ipps (&potentialIpps64  , AnalysisType::PotentialFft64);
-    DirectPotentialOperator<Float64> potDF64IppsR(&potentialRaw64   , AnalysisType::PotentialRawFft64);
-    DirectPotentialOperator<Float64> potDF64Slow (&potentialSlow    , AnalysisType::PotentialSlow);
+    DirectPotentialOperator<Float64> potDF64Def  (&potentialDefault, AnalysisType::PotentialDefault);
+    DirectPotentialOperator<Float64> potDF64Fft  (&potential64     , AnalysisType::PotentialFft64);
+    DirectPotentialOperator<Float64> potDF64FftR (&potentialRaw64  , AnalysisType::PotentialRawFft64);
+    DirectPotentialOperator<Float64> potDF64Slow (&potentialSlow   , AnalysisType::PotentialSlow);
 
     // Proximity (max-based accumulation) group
     CommonOperGroup proximity("proximity", oper_policy::better_not_in_meta_scripting);

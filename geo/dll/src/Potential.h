@@ -34,19 +34,18 @@ using TileSize = SizeT;   // Represents buffer element counts (potentially large
 
 // Enumeration of analysis implementation variants.
 // Naming:
-//  - Fft64 / FftPacked -> FFT-based versions; Fft64 widens kernel and working buffers
-//        to Float64, FftPacked keeps them in the element type of the arguments
+//  - Fft64 / Fft32 -> FFT-based versions; Fft64 widens kernel and working buffers to
+//        Float64 and transforms in double precision, Fft32 keeps them in the element
+//        type of the arguments and transforms in single precision (fftwf)
 //  - Raw -> without the smoothing step that resets near-zero FFT output to zero
 //  - Proximity -> distance/proximity specific computation (non-convolution path)
 //  - PotentialSlow -> reference / fallback
 // PotentialDefault resolves to fastest available implementation.
-// NB the registered operator names keep the historic Ipps spelling (potentialIpps64,
-// potentialPacked, ...) for configuration compatibility; see OperPot.cpp.
 enum class AnalysisType {
 	PotentialFft64 = 0,
 	PotentialRawFft64 = 1,
-	PotentialFftPacked = 2,
-	PotentialRawFftPacked = 3,
+	PotentialFft32 = 2,
+	PotentialRawFft32 = 3,
 	Proximity = 4,
 	PotentialSlow = 6,
 
