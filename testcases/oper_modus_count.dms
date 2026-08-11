@@ -1,0 +1,41 @@
+// issue #1173: the uint16 variant of modus_count was registered as 'modus_count_uint17', so
+// modus_count_uint16 -- the name the table view generates for a domain whose cardinality fits
+// UInt16 (shv/dll/src/DataItemColumn.cpp, AggrMethod::modus_count) -- did not resolve.
+// This config covers all four counter widths, in both the total and the partitioned form.
+container oper_modus_count
+{
+	unit<uint8> P : nrofrows = 2;
+
+	unit<uint32> src : nrofrows = 8
+	{
+		attribute<uint32> val      : [ 1, 1, 1, 2, 5, 5, 4, 4 ];
+		attribute<P>      part_rel : [ 0, 0, 0, 0, 1, 1, 1, 1 ];
+	}
+
+	// modus of P/0 is 1 (3x); P/1 is a 4/5 tie at 2x each, so the count is 2 whichever wins
+	attribute<uint32> expected (P) : [ 3, 2 ];
+
+	attribute<uint8 > mc08 (P) := modus_count_uint8 (src/val, src/part_rel);
+	attribute<uint16> mc16 (P) := modus_count_uint16(src/val, src/part_rel);
+	attribute<uint32> mc32 (P) := modus_count_uint32(src/val, src/part_rel);
+	attribute<uint64> mc64 (P) := modus_count_uint64(src/val, src/part_rel);
+
+	// over all 8 values the modus is 1, occurring 3x
+	parameter<uint8 > mt08 := modus_count_uint8 (src/val);
+	parameter<uint16> mt16 := modus_count_uint16(src/val);
+	parameter<uint32> mt32 := modus_count_uint32(src/val);
+	parameter<uint64> mt64 := modus_count_uint64(src/val);
+
+	container checks
+	{
+		parameter<bool>   mc08_ok := all(uint32(mc08) == expected), IntegrityCheck = "mc08_ok == True";
+		parameter<bool>   mc16_ok := all(uint32(mc16) == expected), IntegrityCheck = "mc16_ok == True";
+		parameter<bool>   mc32_ok := all(uint32(mc32) == expected), IntegrityCheck = "mc32_ok == True";
+		parameter<bool>   mc64_ok := all(uint32(mc64) == expected), IntegrityCheck = "mc64_ok == True";
+
+		parameter<uint32> mt08_v  := uint32(mt08), IntegrityCheck = "mt08_v == 3";
+		parameter<uint32> mt16_v  := uint32(mt16), IntegrityCheck = "mt16_v == 3";
+		parameter<uint32> mt32_v  := uint32(mt32), IntegrityCheck = "mt32_v == 3";
+		parameter<uint32> mt64_v  := uint32(mt64), IntegrityCheck = "mt64_v == 3";
+	}
+}

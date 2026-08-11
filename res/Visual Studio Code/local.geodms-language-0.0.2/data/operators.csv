@@ -347,7 +347,7 @@ min_index
 mls_length
 mod
 modus
-modus_count_uint17
+modus_count_uint16
 modus_count_uint32
 modus_count_uint64
 modus_count_uint8
