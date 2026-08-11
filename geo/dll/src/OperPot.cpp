@@ -390,13 +390,13 @@ public:
                IRect overlapTileRect, const potential_contexts& workingBuffer) const override
     {
         switch (m_AnalysisType) {
-            case AnalysisType::PotentialIpps64:
-            case AnalysisType::PotentialRawIpps64:
+            case AnalysisType::PotentialFft64:
+            case AnalysisType::PotentialRawFft64:
                 // These backends compute Float64 outputs even if T != Float64
                 StoreImpl<Float64>(resObj, tr, resTileRect, incremental, overlapTileRect, workingBuffer.F64);
                 break;
-            case AnalysisType::PotentialIppsPacked:
-            case AnalysisType::PotentialRawIppsPacked:
+            case AnalysisType::PotentialFftPacked:
+            case AnalysisType::PotentialRawFftPacked:
             case AnalysisType::PotentialSlow:
             case AnalysisType::Proximity:
                 // Native type result accumulation
@@ -450,6 +450,11 @@ public:
 
 namespace
 {
+    // The operator names below are configuration syntax and are therefore kept as they are,
+    // including the historic 'Ipps' of the Intel Performance Primitives library that the
+    // FFT-based backends used before they moved to FFTW3. The AnalysisType enumerators and
+    // the internal buffer types no longer carry that name.
+
     // Default group (auto-selects fastest feasible backend)
     CommonOperGroup potentialDefault("potential", oper_policy::better_not_in_meta_scripting);
 
@@ -461,16 +466,16 @@ namespace
 
     // Float32 variants
     DirectPotentialOperator<Float32> potDF32Def  (&potentialDefault , AnalysisType::PotentialDefault);
-    DirectPotentialOperator<Float32> potDF32Ipps (&potentialIpps64  , AnalysisType::PotentialIpps64);
-    DirectPotentialOperator<Float32> potDF32IppsR(&potentialRaw64   , AnalysisType::PotentialRawIpps64);
+    DirectPotentialOperator<Float32> potDF32Ipps (&potentialIpps64  , AnalysisType::PotentialFft64);
+    DirectPotentialOperator<Float32> potDF32IppsR(&potentialRaw64   , AnalysisType::PotentialRawFft64);
     DirectPotentialOperator<Float32> potDF32Slow (&potentialSlow    , AnalysisType::PotentialSlow);
-    DirectPotentialOperator<Float32> potDF32P    (&potentialPacked  , AnalysisType::PotentialIppsPacked);
-    DirectPotentialOperator<Float32> potDF32RP   (&potentialRawPacked, AnalysisType::PotentialRawIppsPacked);
+    DirectPotentialOperator<Float32> potDF32P    (&potentialPacked  , AnalysisType::PotentialFftPacked);
+    DirectPotentialOperator<Float32> potDF32RP   (&potentialRawPacked, AnalysisType::PotentialRawFftPacked);
 
     // Float64 variants
     DirectPotentialOperator<Float64> potDF64Def  (&potentialDefault , AnalysisType::PotentialDefault);
-    DirectPotentialOperator<Float64> potDF64Ipps (&potentialIpps64  , AnalysisType::PotentialIpps64);
-    DirectPotentialOperator<Float64> potDF64IppsR(&potentialRaw64   , AnalysisType::PotentialRawIpps64);
+    DirectPotentialOperator<Float64> potDF64Ipps (&potentialIpps64  , AnalysisType::PotentialFft64);
+    DirectPotentialOperator<Float64> potDF64IppsR(&potentialRaw64   , AnalysisType::PotentialRawFft64);
     DirectPotentialOperator<Float64> potDF64Slow (&potentialSlow    , AnalysisType::PotentialSlow);
 
     // Proximity (max-based accumulation) group

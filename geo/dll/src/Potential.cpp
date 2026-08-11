@@ -230,7 +230,7 @@ struct FftwWorkBuffers {
 static thread_local FftwWorkBuffers t_workBuffers;
 
 // *****************************************************************************
-//	Convolution status codes (replacing IPP types)
+//	Convolution status codes
 // *****************************************************************************
 
 enum class ConvStatus {
@@ -259,19 +259,19 @@ inline void CheckConvResult(ConvStatus status, CharPtr func, CharPtr file, int l
 //											impl
 // *****************************************************************************
 
-//================================================== IppsArray
+//================================================== AlignedArray
 
-// Cleans up aligned memory for IppsArray.
+// Cleans up aligned memory for AlignedArray.
 template <typename A>
-void IppsArray<A>::clean()
+void AlignedArray<A>::clean()
 {
 	if (m_Data) //delete [] (m_Data);
 		::operator delete(m_Data, std::align_val_t{ 64 });
 }
 
-// Reserves aligned memory for IppsArray.
+// Reserves aligned memory for AlignedArray.
 template <typename A>
-void IppsArray<A>::reserve(TileSize nrElem)
+void AlignedArray<A>::reserve(TileSize nrElem)
 {
 	if (nrElem > m_Capacity)
 	{
@@ -287,9 +287,9 @@ namespace potential::impl {
 
 // Initializes a padded array for convolution input.
 template <typename A, typename T>
-TileSize IppsArray_Init(IppsArray<A>* self, UPoint& zeroInfo, const UGrid<const T>& dataOrg, SideSize kernelWidth)
+TileSize AlignedArray_Init(AlignedArray<A>* self, UPoint& zeroInfo, const UGrid<const T>& dataOrg, SideSize kernelWidth)
 {
-	DBG_START("IppsArray", "Init", MG_DEBUG_POTENTIAL);
+	DBG_START("AlignedArray", "Init", MG_DEBUG_POTENTIAL);
 
 	dms_assert(kernelWidth);
 	dms_assert(dataOrg.GetSize().Row());
@@ -337,9 +337,9 @@ TileSize IppsArray_Init(IppsArray<A>* self, UPoint& zeroInfo, const UGrid<const 
 
 // Initializes a reversed (mirrored) kernel buffer for convolution.
 template <typename A, typename T>
-void IppsArray_InitReversed(IppsArray<A>* self, const UGrid<const T>& dataOrg, SideSize tileDataWidth)
+void AlignedArray_InitReversed(AlignedArray<A>* self, const UGrid<const T>& dataOrg, SideSize tileDataWidth)
 {
-	DBG_START("IppsArray", "InitReversed", MG_DEBUG_POTENTIAL);
+	DBG_START("AlignedArray", "InitReversed", MG_DEBUG_POTENTIAL);
 
 	dms_assert(self);
 
@@ -563,7 +563,7 @@ TileSize PotentialFftwRaw(potential_context<A>& context, UPoint& zeroInfo, const
 	SideSize nrCols = dataOrg.GetSize().Col() + kernelInfo.orgWeightSize.Col() - 1;
 	SideSize nrRows = dataOrg.GetSize().Row() + kernelInfo.orgWeightSize.Row() - 1;
 
-	auto dataBufferSize = IppsArray_Init(&context.paddedInput, zeroInfo, dataOrg, kernelInfo.orgWeightSize.Col()); // fill all in-between space with zeroes once
+	auto dataBufferSize = AlignedArray_Init(&context.paddedInput, zeroInfo, dataOrg, kernelInfo.orgWeightSize.Col()); // fill all in-between space with zeroes once
 
 	TileSize outputSize = dataBufferSize + weightBuffer.capacity() - 1;
 	dms_assert(outputSize == SizeT(nrCols) * nrRows ); // elementary math
@@ -646,7 +646,7 @@ TileSize PotentialFftwSmooth(potential_context<A>& context, UPoint& zeroInfo, co
 template <typename T>
 bool CalculateClassic(AnalysisType at,
 		const UGrid<const T>& dataGrid, const UGrid<const T>& kernelGrid,
-		const kernel_info& kernelInfo, IppsArray<T>& output)
+		const kernel_info& kernelInfo, AlignedArray<T>& output)
 {
 	DBG_START("Potential", "CalculateClassic", true);
 
@@ -741,8 +741,8 @@ MDL_CALL void AddConvolutionKernel(kernel_info& self, AnalysisType at, SideSize 
 
 	// The Float64 backends widen the kernel (and their working buffers) to Float64;
 	// the Packed backends keep everything in the native element type T.
-	bool isFloat64Backend = (at == AnalysisType::PotentialIpps64       || at == AnalysisType::PotentialRawIpps64);
-	bool isPackedBackend  = (at == AnalysisType::PotentialIppsPacked   || at == AnalysisType::PotentialRawIppsPacked);
+	bool isFloat64Backend = (at == AnalysisType::PotentialFft64       || at == AnalysisType::PotentialRawFft64);
+	bool isPackedBackend  = (at == AnalysisType::PotentialFftPacked   || at == AnalysisType::PotentialRawFftPacked);
 	if (!isFloat64Backend && !isPackedBackend)
 		return; // PotentialSlow and Proximity don't convolve; they need neither weight buffer nor kernel FFT.
 
@@ -751,9 +751,9 @@ MDL_CALL void AddConvolutionKernel(kernel_info& self, AnalysisType at, SideSize 
 
 	// Initialize reversed weight buffer (for packed convolution layout)
 	if (isFloat64Backend)
-		potential::impl::IppsArray_InitReversed(self.weightBuffer<Float64>(nrDataCols), weightOrg, nrDataCols);
+		potential::impl::AlignedArray_InitReversed(self.weightBuffer<Float64>(nrDataCols), weightOrg, nrDataCols);
 	else
-		potential::impl::IppsArray_InitReversed(self.weightBuffer<T>(nrDataCols), weightOrg, nrDataCols);
+		potential::impl::AlignedArray_InitReversed(self.weightBuffer<T>(nrDataCols), weightOrg, nrDataCols);
 
 	// Pre-compute kernel FFT for this column count if not already done
 	auto& kernelFftMap = potential::impl::GetKernelFftMap(self);
@@ -806,16 +806,16 @@ bool Potential(AnalysisType at, potential_contexts& context, const kernel_info& 
 				kernelInfo, context.F32.overlappingOutput
 			);
 
-		case AnalysisType::PotentialRawIppsPacked:
+		case AnalysisType::PotentialRawFftPacked:
 			return potential::impl::PotentialFftwRaw   <Float32>(context.F32, context.zeroInfo, kernelInfo, dataOrg);
 
-		case AnalysisType::PotentialIppsPacked:
+		case AnalysisType::PotentialFftPacked:
 			return potential::impl::PotentialFftwSmooth<Float32>(context.F32, context.zeroInfo, kernelInfo, dataOrg);
 
-		case AnalysisType::PotentialRawIpps64:
+		case AnalysisType::PotentialRawFft64:
 			return potential::impl::PotentialFftwRaw   <Float64>(context.F64, context.zeroInfo, kernelInfo, dataOrg);
 
-		case AnalysisType::PotentialIpps64:
+		case AnalysisType::PotentialFft64:
 			return potential::impl::PotentialFftwSmooth<Float64>(context.F64, context.zeroInfo, kernelInfo, dataOrg);
 
 		default:
@@ -830,8 +830,8 @@ bool Potential(AnalysisType at, potential_contexts& context, const kernel_info& 
 {
 	DBG_START("Potential", "Float64", MG_DEBUG_POTENTIAL);
 
-	if (at == AnalysisType::PotentialIppsPacked   ) at = AnalysisType::PotentialIpps64;
-	if (at == AnalysisType::PotentialRawIppsPacked) at = AnalysisType::PotentialRawIpps64;
+	if (at == AnalysisType::PotentialFftPacked   ) at = AnalysisType::PotentialFft64;
+	if (at == AnalysisType::PotentialRawFftPacked) at = AnalysisType::PotentialRawFft64;
 
 	switch (at) {
 		case AnalysisType::PotentialSlow:
@@ -841,10 +841,10 @@ bool Potential(AnalysisType at, potential_contexts& context, const kernel_info& 
 				kernelInfo, context.F64.overlappingOutput
 			);
 
-		case AnalysisType::PotentialRawIpps64:
+		case AnalysisType::PotentialRawFft64:
 			return potential::impl::PotentialFftwRaw   <Float64>(context.F64, context.zeroInfo, kernelInfo, dataOrg);
 
-		case AnalysisType::PotentialIpps64:
+		case AnalysisType::PotentialFft64:
 			return potential::impl::PotentialFftwSmooth<Float64>(context.F64, context.zeroInfo, kernelInfo, dataOrg);
 
 		default:
@@ -854,9 +854,9 @@ bool Potential(AnalysisType at, potential_contexts& context, const kernel_info& 
 	return true;
 }
 
-// Explicit template instantiations for IppsArray and AddConvolutionKernel.
-template struct IppsArray<Float32>;
-template struct IppsArray<Float64>;
+// Explicit template instantiations for AlignedArray and AddConvolutionKernel.
+template struct AlignedArray<Float32>;
+template struct AlignedArray<Float64>;
 
 template void AddConvolutionKernel<Float32>(kernel_info& self, AnalysisType at, SideSize nrDataCols);
 template void AddConvolutionKernel<Float64>(kernel_info& self, AnalysisType at, SideSize nrDataCols);

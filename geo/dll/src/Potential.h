@@ -34,20 +34,23 @@ using TileSize = SizeT;   // Represents buffer element counts (potentially large
 
 // Enumeration of analysis implementation variants.
 // Naming:
-//  - Ipps64 / Packed -> FFT-based optimized versions for Float64 / packed layout
-//  - Raw -> un-packed intermediate handling (explicit padding)
+//  - Fft64 / FftPacked -> FFT-based versions; Fft64 widens kernel and working buffers
+//        to Float64, FftPacked keeps them in the element type of the arguments
+//  - Raw -> without the smoothing step that resets near-zero FFT output to zero
 //  - Proximity -> distance/proximity specific computation (non-convolution path)
 //  - PotentialSlow -> reference / fallback
 // PotentialDefault resolves to fastest available implementation.
+// NB the registered operator names keep the historic Ipps spelling (potentialIpps64,
+// potentialPacked, ...) for configuration compatibility; see OperPot.cpp.
 enum class AnalysisType {
-	PotentialIpps64 = 0, 
-	PotentialRawIpps64 = 1, 
-	PotentialIppsPacked = 2, 
-	PotentialRawIppsPacked = 3, 
-	Proximity = 4, 
+	PotentialFft64 = 0,
+	PotentialRawFft64 = 1,
+	PotentialFftPacked = 2,
+	PotentialRawFftPacked = 3,
+	Proximity = 4,
 	PotentialSlow = 6,
 
-	PotentialDefault = PotentialIpps64
+	PotentialDefault = PotentialFft64
 };
 
 // *****************************************************************************
@@ -76,8 +79,8 @@ MDL_CALL bool DMS_CONV MDL_Potential64(AnalysisType at,
 
 #endif
 
-//================================================== AlignedArray (legacy name: IppsArray)
-// Small RAII wrapper for aligned dynamically allocated linear buffers 
+//================================================== AlignedArray
+// Small RAII wrapper for aligned dynamically allocated linear buffers
 // used by FFTW convolution code paths.
 // Characteristics:
 //  - Move-only semantic (copy ctor steals pointer; no explicit copy assignment).
@@ -86,34 +89,34 @@ MDL_CALL bool DMS_CONV MDL_Potential64(AnalysisType at,
 //  - capacity() returns number of elements (not bytes).
 // Thread-safety: Not thread-safe; intended for per-thread or single-owner use.
 template <typename A>
-struct IppsArray
+struct AlignedArray
 {
-	IppsArray() = default;
+	AlignedArray() = default;
 
-	IppsArray(TileSize nrElem)
+	AlignedArray(TileSize nrElem)
 	{
 		reserve(nrElem);
 	}
-	~IppsArray()
+	~AlignedArray()
 	{
 		clean();
 	}
 
 	// Move constructor
-	IppsArray(IppsArray&& rhs) noexcept
+	AlignedArray(AlignedArray&& rhs) noexcept
 		:	m_Data(rhs.m_Data)
 		,	m_Capacity(rhs.m_Capacity)
 	{
 		rhs.m_Data = nullptr;
 		rhs.m_Capacity = 0;
 	}
-	IppsArray(const IppsArray& rhs) = delete; // No copy ctor.
+	AlignedArray(const AlignedArray& rhs) = delete; // No copy ctor.
 
 	// Allocate (or grow) buffer to hold at least nrElem elements.
 	void reserve(TileSize nrElem);
 
 	// Move assignment.
-	void operator = (IppsArray&& rhs) noexcept
+	void operator = (AlignedArray&& rhs) noexcept
 	{
 		std::swap(m_Data, rhs.m_Data);
 		std::swap(m_Capacity, rhs.m_Capacity);
@@ -152,7 +155,7 @@ bool Potential(AnalysisType at,
 //  - orgWeightGrid: Stored original weight grid for slow / proximity algorithms.
 //  - weightShadowTile: Reference to weight tile metadata (tiling system).
 // Buffer sizing formulas (comments from code):
-//  For weight buffer (packed ipps):
+//  For weight buffer (packed fft):
 //    size = (nx + kx - 1)*(ky - 1) + kx = kx*ky + (nx - 1)*(ky - 1)
 //  For paddedInput (data):
 //    size = (nx + kx - 1)*(ny - 1) + nx = nx*ny + (kx - 1)*(ny - 1)
@@ -163,8 +166,8 @@ struct kernel_info
 	UPoint orgWeightSize, maxDataSize, maxColvolvedSize;
 
 	// Weight buffers reused across tiles (avoid recomputation).
-	std::map<SideSize, IppsArray<Float32>> weightBuffers32; // Float32 kernel expansions.
-	std::map<SideSize, IppsArray<Float64>> weightBuffers64; // Float64 kernel expansions.
+	std::map<SideSize, AlignedArray<Float32>> weightBuffers32; // Float32 kernel expansions.
+	std::map<SideSize, AlignedArray<Float64>> weightBuffers64; // Float64 kernel expansions.
 
 	// Pre-computed kernel FFTs keyed by column count (padding size).
 	// Stored as std::any to avoid exposing FFTW types in header.
@@ -187,7 +190,7 @@ struct kernel_info
 	}
 
 #if defined(DMS_POTENTIAL_I16)
-	IppsArray<Int16> weightBufferI16;      // Single Int16 kernel buffer (no map variant).
+	AlignedArray<Int16> weightBufferI16;      // Single Int16 kernel buffer (no map variant).
 	template <> auto weightBuffer<Int16>() { return &weightBufferI16; }
 	template <> auto weightBuffer<Int16>() const { return &weightBufferI16; }
 #endif //defined(DMS_POTENTIAL_I16)
@@ -202,7 +205,7 @@ struct kernel_info
 template < typename T>
 MDL_CALL kernel_info PrepareConvolutionKernel(AnalysisType at, TileCRef weightShadowTile, const UGrid<const T>& weightOrg, UPoint maxDataTileSize)
 {
-	DBG_START("PrepareConvolutionKernel", "Ipps", MG_DEBUG_POTENTIAL);
+	DBG_START("PrepareConvolutionKernel", "Fftw", MG_DEBUG_POTENTIAL);
 
 	//	dms_assert(dataOrg.GetSize() == outputOrg.GetSize());
 	kernel_info result;
@@ -239,8 +242,8 @@ struct potential_context
 	potential_context() = default;
 	potential_context(potential_context&&) = default;
 
-	IppsArray<A> paddedInput;       // size: (nx+kx-1)*(ny-1)+nx = nx*ny + (kx-1)*(ny-1); not used for PotentialSlow and Proximity
-	IppsArray<A> overlappingOutput; // size: (nx+kx-1)*(ny+ky-1)
+	AlignedArray<A> paddedInput;       // size: (nx+kx-1)*(ny-1)+nx = nx*ny + (kx-1)*(ny-1); not used for PotentialSlow and Proximity
+	AlignedArray<A> overlappingOutput; // size: (nx+kx-1)*(ny+ky-1)
 
 	bool WasInitialized() const { return overlappingOutput.WasInitialized(); }
 };
