@@ -151,6 +151,36 @@ container issue_298
 		parameter<bool>   ok             := all(cnt == pcn);
 	}
 
+	// SAME SpatialReference: the transformation is the plain affine composed from the two
+	// UnitProjections, with no PROJ involved. It is separable by construction and takes the cross
+	// as well, so it needs pinning against the untouched per-point path just like the projected
+	// cases -- the more so because it is the most common form in practice.
+	unit<spoint> WMcoarse :=
+		range(
+			gridset(
+				 Geography/wm_base
+				,point_yx(-10000.0, 10000.0, Geography/wm_base)
+				,point_yx(7600000.0, 300000.0, Geography/wm_base)
+				,spoint
+			)
+			,point_yx(0s, 0s)
+			,point_yx(120s, 100s)
+		);
+
+	container affine
+	{
+		attribute<WMcoarse> fast (WM) := mapping(WM, WMcoarse);
+		attribute<WMcoarse> gen  (WM) := convert(id(WM), WMcoarse);
+		parameter<bool>     ok        := all(fast == gen);
+	}
+
+	container affine_counts
+	{
+		attribute<uint32> cnt (WMcoarse) := mapping_count(WM, WMcoarse, uint32);
+		attribute<uint32> pcn (WMcoarse) := pcount(affine/fast);
+		parameter<bool>   ok             := all(cnt == pcn);
+	}
+
 	container checks
 	{
 		parameter<bool> c_ll2wm := ll2wm/ok,              IntegrityCheck = "c_ll2wm == True";
@@ -158,6 +188,8 @@ container issue_298
 		parameter<bool> c_count := counts/ok,             IntegrityCheck = "c_count == True";
 		parameter<bool> c_cnt0  := counts_no_cross/ok,    IntegrityCheck = "c_cnt0  == True";
 		parameter<bool> c_cntsp := counts_sparse/ok,      IntegrityCheck = "c_cntsp == True";
+		parameter<bool> c_aff   := affine/ok,             IntegrityCheck = "c_aff   == True";
+		parameter<bool> c_affcnt:= affine_counts/ok,      IntegrityCheck = "c_affcnt == True";
 		parameter<bool> c_utm   := utm_must_fall_back/ok, IntegrityCheck = "c_utm   == True";
 		parameter<bool> c_rd    := rd_must_fall_back/ok,  IntegrityCheck = "c_rd    == True";
 	}
