@@ -61,6 +61,8 @@
 #include "set/VectorFunc.h"
 #include "utl/Environment.h" // RegDWordEnum::MemoryDrainage: the drainage on/off setting
 #include "utl/IncrementalLock.h"
+#include "utl/mySPrintF.h"   // the huge-alloc attribution lines; the Reporting section below
+                             // includes this again, but only under MG_CACHE_ALLOC
 #include "utl/MemGuard.h"    // IsLowOnFreeRAM: RAM use vs MemoryFlushThreshold, the drainage trigger
 #include "dbg/SeverityType.h"
 #include "xct/DmsException.h"
@@ -176,9 +178,12 @@ constexpr alloc_index_t highest_bit_rank(Unsigned value)
 
 #if defined(WIN32)
 #include <Windows.h>
+#include <dbghelp.h> // types only: the huge-alloc attribution resolves the entry points by name
 #else
 #include <sys/mman.h>
+#include <execinfo.h> // backtrace/backtrace_symbols, for the same attribution
 #endif
+#include <cstdlib> // std::getenv/strtoull, for the GEODMS_HUGE_ALLOC_{MB,STACK} settings
 
 // ===== Instrumentation for the decommit-on-release experiment ==============================
 // The question this answers is NOT "is it faster" but "does it reintroduce the serialisation the
@@ -1115,7 +1120,23 @@ static std::atomic<UInt64> s_AllocSizeHistogram[64] = {};
 // framework appends -- that is the attribution: which operation asked for it. They are rare enough
 // (a handful per run) that one log line each costs nothing, and the report happens after
 // AllocateFromStock_impl has returned, so no allocator lock is held.
-constexpr size_t HUGE_ALLOC_LOG_THRESHOLD = SizeT(1) << 28; // 256 MB == ALLOC_OBJSSIZE_MAX
+constexpr size_t HUGE_ALLOC_LOG_DEFAULT_THRESHOLD = SizeT(1) << 28; // 256 MB == ALLOC_OBJSSIZE_MAX
+
+// GEODMS_HUGE_ALLOC_MB lowers (or raises) that cut-off for a diagnostic run. Hunting an
+// unexplained buffer means watching it GROW -- a doubling vector crosses 256 MB only on its last
+// few steps, and by then the early frames that chose the size are long gone -- so the cut-off has
+// to be movable without a rebuild. Read once; 0 or unparsable keeps the default.
+static SizeT HugeAllocLogThreshold()
+{
+	static const SizeT s_Threshold = []() -> SizeT
+		{
+			if (auto setting = std::getenv("GEODMS_HUGE_ALLOC_MB"))
+				if (auto mb = std::strtoull(setting, nullptr, 10))
+					return SizeT(mb) << 20;
+			return HUGE_ALLOC_LOG_DEFAULT_THRESHOLD;
+		}();
+	return s_Threshold;
+}
 
 static std::atomic<SizeT> s_LiveLargeAllocBytes = 0;
 // True high-water mark, not a sample. The ledger sample is rate-limited to 30 s, which is far too
@@ -1133,6 +1154,146 @@ RTC_CALL SizeT GetPeakLargeAllocBytes()
 	return s_PeakLargeAllocBytes.load(std::memory_order_relaxed);
 }
 
+//----------------------------------------------------------------------
+// Huge-allocation attribution (issue #1175)
+//----------------------------------------------------------------------
+// "huge alloc {}[MB]" reports objectSize >> 20, and that is too coarse to name the requester.
+// #1175's three figures -- 8191, 16383 and 32767 [MB] -- are each consistent with SEVERAL
+// (element count x element width) pairs, and telling those apart IS the question: 8191[MB] is
+// 2^32-1 elements of 2 bytes, i.e. a count taken from MAX_VALUE(UInt32) -- an array sized by a
+// value-type RANGE rather than by a count -- but it is equally 2^30 elements of 8 bytes, i.e. a
+// buffer that is correctly sized and merely big. What the MB figures DO already settle is that
+// all three are exactly one short of the clean power of two: a range of 2^32 would have printed
+// 8192, so whatever produced them counted a MAX_VALUE, not a size.
+//
+// So report the exact byte count, the element counts it implies at the usual widths (flagging
+// the ones with a type-range shape), and the call stack -- the stack being the only part that
+// names the actual buffer. The item context that makes the existing line useful is appended by
+// the reporting framework, as before.
+
+// Recognises n as a TYPE RANGE rather than as a data count. MAX_VALUE(UInt16)^2 is in the list
+// because a K*K matrix over a uint16 type-id range -- what #1175 posits -- has exactly that shape,
+// and at MB granularity it is indistinguishable from MAX_VALUE(UInt32).
+// Deliberately NOT "any power of two": element counts are byte counts divided by 2, 4 or 8, so
+// every 2^k-byte buffer -- the commonest shape there is -- would flag three times and drown the
+// signal. Only counts that can ONLY have come from a type range are listed.
+static auto RangeShapeHint(SizeT n) -> CharPtr
+{
+	if (n == 0xFFull)                          return " <- MAX_VALUE(UInt8)";
+	if (n == 0x100ull)                         return " <- uint8 range";
+	if (n == 0xFFFFull)                        return " <- MAX_VALUE(UInt16)";
+	if (n == 0x10000ull)                       return " <- uint16 range";
+	if (n == 0xFFFFFFFFull)                    return " <- MAX_VALUE(UInt32)";
+	if (n == 0x100000000ull)                   return " <- uint32 range";
+	if (n == SizeT(0xFFull) * 0xFFull)         return " <- MAX_VALUE(UInt8)^2";
+	if (n == SizeT(0xFFFFull) * 0xFFFFull)     return " <- MAX_VALUE(UInt16)^2";
+	return "";
+}
+
+static auto DescribeHugeAllocSize(SizeT objectSize) -> SharedStr
+{
+	auto result = mySSPrintF("{} bytes (0x{:X})", objectSize, objectSize);
+	for (SizeT width : { SizeT(2), SizeT(4), SizeT(8) })
+		if (!(objectSize % width))
+			result = result + mySSPrintF("; /{}B = {}{}", width, objectSize / width, RangeShapeHint(objectSize / width));
+	return result;
+}
+
+// Stacks are on by default: the population that reaches HugeAllocLogThreshold() is a handful per
+// run (it already gets a log line each), so the volume is affordable and the attribution is the
+// whole point. Set GEODMS_HUGE_ALLOC_STACK=0 to get the plain line back on a run where it is not.
+static bool HugeAllocStacksEnabled()
+{
+	static const bool s_Enabled = []
+		{
+			auto setting = std::getenv("GEODMS_HUGE_ALLOC_STACK");
+			return !setting || (*setting != '0');
+		}();
+	return s_Enabled;
+}
+
+#if defined(WIN32)
+
+// dbghelp, resolved on first use. Deliberately NOT linked: a diagnostic must not force a change to
+// the vcxproj and the CMakeLists (and thus to how the product builds). Without symbols the frames
+// still carry module+RVA, which resolves offline against the matching pdb.
+static std::mutex s_SymMutex; // dbghelp is single-threaded by contract
+static BOOL (WINAPI* s_SymFromAddr)(HANDLE, DWORD64, PDWORD64, PSYMBOL_INFO) = nullptr;
+
+static bool EnsureSymbols()
+{
+	static const bool s_Ok = []
+		{
+			auto dbgHelp = LoadLibraryA("dbghelp.dll");
+			if (!dbgHelp)
+				return false;
+			auto symInitialize = reinterpret_cast<BOOL(WINAPI*)(HANDLE, PCSTR, BOOL)>(GetProcAddress(dbgHelp, "SymInitialize"));
+			s_SymFromAddr = reinterpret_cast<decltype(s_SymFromAddr)>(GetProcAddress(dbgHelp, "SymFromAddr"));
+			return symInitialize && s_SymFromAddr && symInitialize(GetCurrentProcess(), nullptr, TRUE);
+		}();
+	return s_Ok;
+}
+
+static auto DescribeFrame(void* frame, PSYMBOL_INFO sym) -> SharedStr
+{
+	DWORD64 displacement = 0;
+	if (EnsureSymbols() && s_SymFromAddr(GetCurrentProcess(), reinterpret_cast<DWORD64>(frame), &displacement, sym))
+		return mySSPrintF("\n\t{}+0x{:X}", CharPtr(sym->Name), displacement);
+
+	HMODULE module = nullptr;
+	if (GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT
+		, reinterpret_cast<LPCSTR>(frame), &module) && module)
+	{
+		char modulePath[MAX_PATH] = "";
+		if (GetModuleFileNameA(module, modulePath, MAX_PATH))
+		{
+			CharPtr baseName = modulePath;
+			for (CharPtr i = modulePath; *i; ++i)
+				if (*i == '\\' || *i == '/')
+					baseName = i + 1;
+			return mySSPrintF("\n\t{}+0x{:X}", baseName, reinterpret_cast<SizeT>(frame) - reinterpret_cast<SizeT>(module));
+		}
+	}
+	return mySSPrintF("\n\t0x{:X}", reinterpret_cast<SizeT>(frame));
+}
+
+#endif //defined(WIN32)
+
+static auto CaptureHugeAllocStack() -> SharedStr
+{
+	if (!HugeAllocStacksEnabled())
+		return SharedStr();
+
+	const UInt32 NR_FRAMES = 24;
+	void* frames[NR_FRAMES] = {};
+
+#if defined(WIN32)
+	auto nrFrames = CaptureStackBackTrace(1, NR_FRAMES, frames, nullptr); // skip this function
+	if (!nrFrames)
+		return SharedStr("\n\t<no stack>");
+
+	std::lock_guard symLock(s_SymMutex);
+	char symbolBuffer[sizeof(SYMBOL_INFO) + MAX_SYM_NAME] = {};
+	auto sym = reinterpret_cast<PSYMBOL_INFO>(symbolBuffer);
+	sym->SizeOfStruct = sizeof(SYMBOL_INFO);
+	sym->MaxNameLen = MAX_SYM_NAME;
+
+	SharedStr result;
+	for (UInt32 i = 0; i != nrFrames; ++i)
+		result = result + DescribeFrame(frames[i], sym);
+	return result;
+#else
+	auto nrFrames = backtrace(frames, NR_FRAMES);
+	SharedStr result;
+	if (auto names = backtrace_symbols(frames, nrFrames))
+	{
+		for (int i = 1; i < nrFrames; ++i) // skip this function
+			result = result + mySSPrintF("\n\t{}", CharPtr(names[i]));
+		free(names);
+	}
+	return result;
+#endif //defined(WIN32)
+}
 
 void* AllocateFromStock(size_t objectSize MG_DEBUG_ALLOCATOR_SRC_ARG)
 {
@@ -1166,9 +1327,11 @@ void* AllocateFromStock(size_t objectSize MG_DEBUG_ALLOCATOR_SRC_ARG)
 		// information wanted. Safe here: AllocateFromStock_impl has returned, so no allocator lock is
 		// held, and reportF's own allocations are far below this threshold so they cannot recurse
 		// into this branch.
-		if (objectSize >= HUGE_ALLOC_LOG_THRESHOLD)
+		if (objectSize >= HugeAllocLogThreshold())
 			reportF(MsgCategory::memory, SeverityTypeID::ST_MinorTrace
-				, "huge alloc {}[MB]; live now {}[MB]", objectSize >> 20, live >> 20);
+				, "huge alloc {}[MB]; live now {}[MB]; {}{}"
+				, objectSize >> 20, live >> 20
+				, DescribeHugeAllocSize(objectSize), CaptureHugeAllocStack());
 
 	}
 
