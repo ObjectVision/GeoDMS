@@ -739,48 +739,56 @@ MDL_CALL void AddConvolutionKernel(kernel_info& self, AnalysisType at, SideSize 
 	if (!nrDataCols)
 		return;
 
+	// The Float64 backends widen the kernel (and their working buffers) to Float64;
+	// the Packed backends keep everything in the native element type T.
+	bool isFloat64Backend = (at == AnalysisType::PotentialIpps64       || at == AnalysisType::PotentialRawIpps64);
+	bool isPackedBackend  = (at == AnalysisType::PotentialIppsPacked   || at == AnalysisType::PotentialRawIppsPacked);
+	if (!isFloat64Backend && !isPackedBackend)
+		return; // PotentialSlow and Proximity don't convolve; they need neither weight buffer nor kernel FFT.
+
 	//	dms_assert(dataOrg.GetSize() == outputOrg.GetSize());
 	const UGrid<const T>& weightOrg = *std::any_cast<UGrid<const T>>(&self.orgWeightGrid);
-	SizeT weightBufferSize = weightOrg.size() + Cardinality(UPoint(nrDataCols - 1, weightOrg.GetSize().Row() - 1));
 
 	// Initialize reversed weight buffer (for packed convolution layout)
-	if (at == AnalysisType::PotentialIpps64 || at == AnalysisType::PotentialRawIpps64)
+	if (isFloat64Backend)
 		potential::impl::IppsArray_InitReversed(self.weightBuffer<Float64>(nrDataCols), weightOrg, nrDataCols);
-	else if (at == AnalysisType::PotentialIppsPacked || at == AnalysisType::PotentialRawIppsPacked)
+	else
 		potential::impl::IppsArray_InitReversed(self.weightBuffer<T>(nrDataCols), weightOrg, nrDataCols);
 
 	// Pre-compute kernel FFT for this column count if not already done
 	auto& kernelFftMap = potential::impl::GetKernelFftMap(self);
-	if (kernelFftMap.find(nrDataCols) == kernelFftMap.end())
+	if (kernelFftMap.find(nrDataCols) != kernelFftMap.end())
+		return;
+
+	// Compute FFT length based on max data size and kernel size
+	// FFT length = dataBufferSize + weightBufferSize - 1
+	// dataBufferSize = nx*ny + (kx-1)*(ny-1) where nx=nrDataCols, ny=maxDataRows
+	// weightBufferSize = kx*ky + (nx-1)*(ky-1)
+	SideSize maxDataRows = self.maxDataSize.Row();
+	SideSize kx = self.orgWeightSize.Col();
+
+	// NB: the element type of the weight buffer must follow the backend; reinterpreting a
+	// Float32 buffer as Float64 here would both corrupt the kernel and over-read the buffer.
+	auto buildKernelFft = [&](const auto* weightBuffer)
 	{
-		// Get the weight buffer we just initialized
-		const auto* weightBuffer = (at == AnalysisType::PotentialIpps64 || at == AnalysisType::PotentialRawIpps64)
-			? self.weightBuffer<Float64>(nrDataCols)
-			: reinterpret_cast<const IppsArray<Float64>*>(self.weightBuffer<T>(nrDataCols));
-
-		// Compute FFT length based on max data size and kernel size
-		// FFT length = dataBufferSize + weightBufferSize - 1
-		// dataBufferSize = nx*ny + (kx-1)*(ny-1) where nx=nrDataCols, ny=maxDataRows
-		// weightBufferSize = kx*ky + (nx-1)*(ky-1)
-		SideSize maxDataRows = self.maxDataSize.Row();
-		SideSize kx = self.orgWeightSize.Col();
-		SideSize ky = self.orgWeightSize.Row();
-
 		TileSize maxDataBufferSize = TileSize(nrDataCols) * maxDataRows + TileSize(kx - 1) * (maxDataRows - 1);
 		TileSize kernelBufferSize = weightBuffer->capacity();
 		TileSize fftLen = maxDataBufferSize + kernelBufferSize - 1;
 
 		// Validate FFT size fits in int (FFTW limitation)
 		constexpr TileSize maxFftwSize = static_cast<TileSize>(std::numeric_limits<int>::max());
-		if (fftLen <= maxFftwSize)
-		{
-			KernelFft newKernelFft;
-			if (newKernelFft.initialize(weightBuffer->begin(), kernelBufferSize, static_cast<int>(fftLen)))
-			{
-				kernelFftMap[nrDataCols] = std::move(newKernelFft);
-			}
-		}
-	}
+		if (fftLen > maxFftwSize)
+			return;
+
+		KernelFft newKernelFft;
+		if (newKernelFft.initialize(weightBuffer->begin(), kernelBufferSize, static_cast<int>(fftLen)))
+			kernelFftMap[nrDataCols] = std::move(newKernelFft);
+	};
+
+	if (isFloat64Backend)
+		buildKernelFft(self.weightBuffer<Float64>(nrDataCols));
+	else
+		buildKernelFft(self.weightBuffer<T>(nrDataCols));
 }
 
 // Main entry for Float32 potential calculation, dispatches to classic or FFTW.

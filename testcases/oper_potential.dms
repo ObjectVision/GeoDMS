@@ -1,0 +1,77 @@
+// issue #1174: potentialPacked / potentialRawPacked produced garbage (small grids) or an
+// all-null result (larger grids) on plain float32 input. AddConvolutionKernel built the
+// pre-computed kernel FFT from `reinterpret_cast<const IppsArray<Float64>*>` of the Float32
+// weight buffer, so the packed backends convolved with a bit-punned kernel and over-read the
+// buffer by 2x. Introduced by the Intel-IPP -> FFTW3 migration (0f919d9ea); the IPP
+// predecessor resolved the convolution overload on the element type and was correct.
+// This config pins every registered potential backend against `potential` on two shapes,
+// and smoke-tests `proximity`, which shares the same AddConvolutionKernel entry point.
+container oper_potential
+{
+	// ---- small case: 4x4 data, 3x3 kernel --------------------------------------
+	unit<spoint> G4  := range(point_xy(0s, 0s), point_xy( 4s,  4s));
+	unit<spoint> KD3 := range(point_xy(0s, 0s), point_xy( 3s,  3s));
+
+	attribute<float32> src4 (G4)  : [ 1,2,3,4, 5,6,7,8, 9,10,11,12, 13,14,15,16 ];
+	attribute<float32> wgt3 (KD3) : [ 0.5,0.5,0.5, 0.5,0.5,0.5, 0.5,0.5,0.5 ];
+
+	container small
+	{
+		attribute<float32> base (G4) := potential          (src4, wgt3);
+		attribute<float32> slow (G4) := potentialSlow      (src4, wgt3);
+		attribute<float32> i64  (G4) := potentialIpps64    (src4, wgt3);
+		attribute<float32> r64  (G4) := potentialRaw64     (src4, wgt3);
+		attribute<float32> pack (G4) := potentialPacked    (src4, wgt3);
+		attribute<float32> rp   (G4) := potentialRawPacked (src4, wgt3);
+	}
+
+	// ---- larger case: 33x33 data, 5x5 kernel -----------------------------------
+	// 33 columns x a 5-row kernel gives a 153-element weight buffer; reading that as
+	// Float64 used to run 612 bytes past the allocation, which is where the NaNs
+	// (and hence the all-null result) came from.
+	unit<spoint> G33 := range(point_xy(0s, 0s), point_xy(33s, 33s));
+	unit<spoint> KD5 := range(point_xy(0s, 0s), point_xy( 5s,  5s));
+
+	attribute<float32> src33 (G33) := float32(pointcol(id(G33))) + 33f * float32(pointrow(id(G33)));
+	attribute<float32> wgt5  (KD5) := const(0.04f, KD5);
+
+	container large
+	{
+		attribute<float32> base (G33) := potential          (src33, wgt5);
+		attribute<float32> slow (G33) := potentialSlow      (src33, wgt5);
+		attribute<float32> i64  (G33) := potentialIpps64    (src33, wgt5);
+		attribute<float32> r64  (G33) := potentialRaw64     (src33, wgt5);
+		attribute<float32> pack (G33) := potentialPacked    (src33, wgt5);
+		attribute<float32> rp   (G33) := potentialRawPacked (src33, wgt5);
+	}
+
+	container checks
+	{
+		// every backend must agree with `potential`. The tolerances allow for the
+		// direct-summation vs FFT rounding spread (potentialSlow deviates by 1.2e-4 on
+		// the large case, whose values run up to ~1088); the bug was off by ~50 resp.
+		// produced nulls, so it is caught with a wide margin either way.
+		parameter<bool> s_slow_ok := max(abs(small/slow - small/base)) < 0.001f, IntegrityCheck = "s_slow_ok == True";
+		parameter<bool> s_i64_ok  := max(abs(small/i64  - small/base)) < 0.001f, IntegrityCheck = "s_i64_ok  == True";
+		parameter<bool> s_r64_ok  := max(abs(small/r64  - small/base)) < 0.001f, IntegrityCheck = "s_r64_ok  == True";
+		parameter<bool> s_pack_ok := max(abs(small/pack - small/base)) < 0.001f, IntegrityCheck = "s_pack_ok == True";
+		parameter<bool> s_rp_ok   := max(abs(small/rp   - small/base)) < 0.001f, IntegrityCheck = "s_rp_ok   == True";
+
+		parameter<bool> l_slow_ok := max(abs(large/slow - large/base)) < 0.01f, IntegrityCheck = "l_slow_ok == True";
+		parameter<bool> l_i64_ok  := max(abs(large/i64  - large/base)) < 0.01f, IntegrityCheck = "l_i64_ok  == True";
+		parameter<bool> l_r64_ok  := max(abs(large/r64  - large/base)) < 0.01f, IntegrityCheck = "l_r64_ok  == True";
+		parameter<bool> l_pack_ok := max(abs(large/pack - large/base)) < 0.01f, IntegrityCheck = "l_pack_ok == True";
+		parameter<bool> l_rp_ok   := max(abs(large/rp   - large/base)) < 0.01f, IntegrityCheck = "l_rp_ok   == True";
+
+		// NaN is the float32 null, so the all-null symptom needs its own assertion:
+		// a null result makes the max() above null too, which is not < tolerance.
+		parameter<bool> s_pack_def := all(IsDefined(small/pack)), IntegrityCheck = "s_pack_def == True";
+		parameter<bool> s_rp_def   := all(IsDefined(small/rp  )), IntegrityCheck = "s_rp_def   == True";
+		parameter<bool> l_pack_def := all(IsDefined(large/pack)), IntegrityCheck = "l_pack_def == True";
+		parameter<bool> l_rp_def   := all(IsDefined(large/rp  )), IntegrityCheck = "l_rp_def   == True";
+
+		// proximity takes the max instead of the sum: max over the grid is max(src) * w.
+		parameter<bool> s_prox_ok := abs(max(proximity(src4 , wgt3)) -  8.00f) < 0.001f, IntegrityCheck = "s_prox_ok == True";
+		parameter<bool> l_prox_ok := abs(max(proximity(src33, wgt5)) - 43.52f) < 0.01f , IntegrityCheck = "l_prox_ok == True";
+	}
+}
