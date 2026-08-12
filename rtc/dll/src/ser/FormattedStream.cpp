@@ -398,23 +398,52 @@ int process_int(char* charBuf, UInt32 bufLen, int charCount)
 	return process_uint(charBuf, charBuf + charCount, bufLen, charCount);
 }
 
+// the end of the integer part: the '.' or the exponent marker, whichever comes first.
+// std::to_chars writes a lower-case 'e'; 'E' is tolerated for hand-written input.
+char* find_end_of_int_part(char* first, char* last)
+{
+	while (first != last && *first != '.' && *first != 'e' && *first != 'E')
+		++first;
+	return first;
+}
+
+bool has_exponent(const char* first, const char* last)
+{
+	for (; first != last; ++first)
+		if (*first == 'e' || *first == 'E')
+			return true;
+	return false;
+}
+
 int process_frac(char* charBuf, UInt32 bufLen, int charCount)
 {
 	if (*charBuf == '-')
 	{
 		++charBuf; --charCount; --bufLen;
 	}
-	auto decPtr = charBuf, e = charBuf + charCount;
-	
-	while (decPtr != e)
-	{
-		if (*decPtr == '.' || *decPtr == 'E')
-			break;
-		++decPtr;
-	}
-	dms_assert(decPtr == e || *decPtr == '.' || *decPtr == 'E');
+	auto decPtr = find_end_of_int_part(charBuf, charBuf + charCount);
+
 	return process_uint(charBuf, decPtr, bufLen, charCount);
 }
+
+// how many separators process_int/process_uint/process_frac will insert into this rendering
+int count_thousand_separators(char* charBuf, int charCount)
+{
+	if (charCount && *charBuf == '-')
+	{
+		++charBuf; --charCount;
+	}
+	auto nrIntDigits = find_end_of_int_part(charBuf, charBuf + charCount) - charBuf;
+	return nrIntDigits ? (nrIntDigits - 1) / 3 : 0;
+}
+
+// std::to_chars renders the shortest round-tripping form, which switches to scientific
+// notation surprisingly early: 300000.0 comes out as "3e+05". Plain notation is preferred;
+// its fixed form round-trips just as exactly, but for an extreme exponent it would run to
+// hundreds of digits, so it is only taken while it stays within this many characters.
+// 24 covers every value that a float64 represents as an exact integer (up to 2^53, 16
+// digits) with room to spare, so integral values always come out in plain notation.
+constexpr UInt32 MAX_PLAIN_NOTATION_SIZE = 24;
 
 template<typename U>
 auto mysnprintf(char* charBuf, UInt32 bufLen, U value, FormattingFlags ff) -> UInt32
@@ -423,7 +452,37 @@ auto mysnprintf(char* charBuf, UInt32 bufLen, U value, FormattingFlags ff) -> UI
 	if (to_chars_result.ec != std::errc()) return 0;
 	auto charCount = static_cast<UInt32>(to_chars_result.ptr - charBuf);
 	assert(UInt32(charCount) <= bufLen);
-	if (HasThousandSeparator(ff))
+
+	bool isScientific = false;
+	if constexpr (std::is_floating_point_v<U>)
+	{
+		isScientific = has_exponent(charBuf, charBuf + charCount);
+		if (isScientific)
+		{
+			auto plainLimit = Min<UInt32>(bufLen, MAX_PLAIN_NOTATION_SIZE);
+			auto plain_result = std::to_chars(charBuf, charBuf + plainLimit, value, std::chars_format::fixed);
+			if (plain_result.ec == std::errc())
+			{
+				auto plainCount = static_cast<UInt32>(plain_result.ptr - charBuf);
+				if (!HasThousandSeparator(ff) || plainCount + count_thousand_separators(charBuf, plainCount) <= bufLen)
+				{
+					charCount = plainCount;
+					isScientific = false;
+				}
+			}
+			if (isScientific)
+			{
+				// no plain form of a reasonable size: restore the scientific one, whose
+				// buffer contents std::to_chars just left unspecified, and leave it
+				// unseparated -- a ',' amid "3e+05" reads as a corrupted number.
+				to_chars_result = std::to_chars(charBuf, charBuf + bufLen, value);
+				assert(to_chars_result.ec == std::errc());
+				charCount = static_cast<UInt32>(to_chars_result.ptr - charBuf);
+			}
+		}
+	}
+
+	if (HasThousandSeparator(ff) && !isScientific)
 	{
 		if constexpr (std::is_floating_point_v<U>)
 			charCount += process_frac(charBuf, bufLen, charCount);

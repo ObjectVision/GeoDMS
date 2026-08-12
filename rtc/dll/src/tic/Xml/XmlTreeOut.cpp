@@ -71,7 +71,10 @@ SharedStr GetStrRange(const AbstrUnit* unit)
 		auto [from, to_] = unit->GetRangeAsDRect();
 		if (!IsLowerBound(from, to_))
 			goto unbounded;
-		return mySSPrintF("From {} to {}", AsString(DPoint(from.Row(), from.Col())).c_str(), AsString(DPoint(to_.Row(), to_.Col())).c_str());
+		// AsString renders a point as xy(x; y); the Row()/Col() shuffle this used to do
+		// swapped that into (col, row), so this row and the range property below it
+		// presented the same rectangle in opposite coordinate order.
+		return mySSPrintF("From {} to {}", AsString(from).c_str(), AsString(to_).c_str());
 	}
 	catch (const DmsException& x)
 	{

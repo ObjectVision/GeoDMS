@@ -46,10 +46,17 @@ FormattedOutStream& operator << (FormattedOutStream& os, const Range<T>& r)
 	return os;
 }
 
+// Both bounds and the separator between them are read leniently: '[0,34)', '[0, 34) ' and
+// '[xy(0; 300000); xy(280000; 625000))' all parse. For 2d ranges the bounds carry their own
+// xy()/yx() tag, so only the pair order is fixed here: lower bound first, then upper bound.
 template <class T>
 FormattedInpStream& operator >> (FormattedInpStream& is, Range<T>& r)
 {
-	is >> "[" >> r.first >> ", " >> r.second >> ")";
+	point_stream::ReadChar(is, '[');
+	is >> r.first;
+	point_stream::ReadSeparator(is);
+	is >> r.second;
+	point_stream::ReadChar(is, ')');
 	return is;
 }
 
