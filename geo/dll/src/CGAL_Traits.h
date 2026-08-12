@@ -10,6 +10,7 @@
 #define DMS_GEO_CGAL_TRAITS_H
 
 #include <numbers>
+#include <optional>
 #include "geo/RingIterator.h"
 
 
@@ -79,12 +80,39 @@ void assign_multi_polygon(CGAL_Traits::Polygon_set& resMP, SA_ConstReference<Dms
 	, CGAL_Traits::Polygon_with_holes& helperPolygon, CGAL_Traits::Ring& helperRing)
 {
 	resMP.clear();
-	std::vector<CGAL_Traits::Ring> foundHoles;
 
 	SA_ConstRingIterator<DmsPointType> ri(polyRef, 0), re(polyRef, -1);
 
 	if (ri == re)
 		return;
+
+	// Rings arrive one polygon at a time: an outer ring opens a polygon and each inner ring
+	// that follows belongs to THAT polygon, exactly as the bg and geos readers assume. The
+	// open polygon is kept apart from resMP until it is complete: subtracting a hole from the
+	// whole of resMP - as this used to do with a collected foundHoles vector - also erases any
+	// polygon that happens to lie inside that hole, such as an annex in the courtyard of a
+	// merged building block (issue #1178).
+	// The common case (an outer ring without holes) never builds an intermediate Polygon_set:
+	// currOuter holds the open polygon until a hole forces the switch to currPS. A Polygon_set
+	// allocates its traits and its arrangement, so it stays unmaterialized for the many polygons
+	// that have no holes at all.
+	std::optional<CGAL_Traits::Polygon_set> currPS;
+	CGAL_Traits::Ring                       currOuter;
+	bool hasCurrPolygon = false; // an outer ring is open, in currPS when that exists else in currOuter
+
+	auto flushCurrPolygon = [&]
+	{
+		if (!hasCurrPolygon)
+			return;
+		if (currPS)
+		{
+			resMP.join(*currPS);
+			currPS.reset();
+		}
+		else
+			resMP.join(currOuter);
+		hasCurrPolygon = false;
+	};
 
 	std::vector<DmsPointType> ringPoints;
 	for (; ri != re; ++ri)
@@ -114,17 +142,29 @@ void assign_multi_polygon(CGAL_Traits::Polygon_set& resMP, SA_ConstReference<Dms
 		if (helperRing.is_simple())
 		{
 			if (helperRing.orientation() == CGAL::COUNTERCLOCKWISE)
-				resMP.join(helperRing);
-			else
+			{
+				// an outer ring closes the polygon that was open and opens a new one
+				flushCurrPolygon();
+				currOuter = std::move(helperRing);
+				hasCurrPolygon = true;
+			}
+			else if (hasCurrPolygon && mustInsertInnerRings)
 			{
 				helperRing.reverse_orientation();
-				foundHoles.emplace_back(std::move(helperRing));
+				if (!currPS)
+				{
+					currPS.emplace();
+					currPS->join(currOuter);
+				}
+				currPS->difference(helperRing); // only from the polygon this hole belongs to
 			}
 		}
 		else
 		{
 			// backtrack and do all at once with repair polygons
 			resMP.clear();
+			currPS.reset();
+			hasCurrPolygon = false;
 			helperRing.clear();
 			ringPoints.clear();
 
@@ -144,13 +184,10 @@ void assign_multi_polygon(CGAL_Traits::Polygon_set& resMP, SA_ConstReference<Dms
 			auto resPolygonWithHolesContainer = CGAL::Polygon_repair::repair(helperRing);
 			for (const auto& resPolygonWithHoles : resPolygonWithHolesContainer)
 				resMP.insert(resPolygonWithHoles);
-			foundHoles.clear();
-			break;
+			return; // the repair covered the complete sequence
 		}
 	}
-	// remove holes now
-	for (const auto& hole : foundHoles)
-		resMP.difference(hole);
+	flushCurrPolygon();
 }
 
 template <typename CoordType>

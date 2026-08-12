@@ -96,7 +96,9 @@ auto fix_bg_polygons_with_CGAL(bg_multi_polygon_t&& input) -> bg_multi_polygon_t
 
 		for (const auto& inner : resPolygonWithHoles.holes())
 		{
-			if (cgal_ring_to_bg(outputRing, inner))
+			// cgal_ring_to_bg returns true on success; the test used to be inverted, which
+			// dropped every converted hole and emplaced the degenerate ones instead
+			if (!cgal_ring_to_bg(outputRing, inner))
 				continue;
 
 			outputPolygonWithHoles.inners().emplace_back(outputRing);
@@ -148,6 +150,14 @@ auto geos_point_to_bg(const geos::geom::Coordinate& c) -> DPoint
 	return shp2dms_order(c.x, c.y);
 }
 
+// Rings that come back from GEOS (in particular from MakeValid) can be degenerate: collapsed
+// slivers, spikes and 'there and back' rings with a zero signed area. boost::geometry rejects
+// those with failure_wrong_topological_dimension (fewer than 4 distinct consecutive points) or
+// failure_wrong_orientation (ring_area not STRICTLY positive for an outer / negative for an
+// inner ring, see boost/geometry/algorithms/detail/is_valid/ring.hpp), and every algorithm fed
+// such a geometry is undefined behaviour. So clean each ring the way the other readers do
+// (assign_multi_polygon calls clean(), cgal_ring_to_bg calls remove_adjacents_and_spikes) and
+// drop what remains degenerate rather than passing it on - see issue #1176.
 auto geos_lr_to_bg(const geos::geom::LinearRing* lr) -> bg_ring_t
 {
 	assert(lr);
@@ -161,6 +171,16 @@ auto geos_lr_to_bg(const geos::geom::LinearRing* lr) -> bg_ring_t
 	MG_CHECK(coords->getAt(0) == coords->getAt(s - 1));
 	for (SizeT i = 0; i != s; ++i)
 		result.emplace_back(geos_point_to_bg(coords->getAt(i)));
+
+	if (!clean(result)) // removes adjacent duplicates and spikes; fails on < 3 distinct points
+		return {};
+
+	if (boost::geometry::area(result) == 0.0) // a collapsed ring; boost calls this 'wrong orientation'
+	{
+		result.clear();
+		return {};
+	}
+
 	return result;
 }
 
@@ -174,10 +194,14 @@ auto geos_polygon_with_holes_to_bg(const geos::geom::Polygon* poly) -> bg_polygo
 	bg_polygon_t result;
 	result.outer().swap(outerRing);
 
-	std::vector<geos::geom::Coordinate> backTrackPoints;
 	SizeT irCount = poly->getNumInteriorRing();
 	for (SizeT ir = 0; ir != irCount; ++ir)
-		result.inners().emplace_back(geos_lr_to_bg(poly->getInteriorRingN(ir)));
+	{
+		auto innerRing = geos_lr_to_bg(poly->getInteriorRingN(ir));
+		if (innerRing.empty()) // an empty inner ring would make the whole multi_polygon invalid
+			continue;
+		result.inners().emplace_back(std::move(innerRing));
+	}
 
 	return result;
 }
@@ -197,7 +221,10 @@ auto bg_from_geos_mp(const geos::geom::MultiPolygon* mp) -> bg_multi_polygon_t
 	for (SizeT i = 0; i != polygonCount; ++i)
 	{
 		const auto* poly = debug_cast<const geos::geom::Polygon*>(mp->getGeometryN(i));
-		result.emplace_back(geos_polygon_with_holes_to_bg(poly));
+		auto resPoly = geos_polygon_with_holes_to_bg(poly);
+		if (resPoly.outer().empty()) // don't let a degenerate polygon into the multi_polygon
+			continue;
+		result.emplace_back(std::move(resPoly));
 	}
 	return result;
 }
@@ -215,6 +242,8 @@ auto bg_from_geos_geometry(const geos::geom::Geometry* geometry) -> bg_multi_pol
 	{
 		bg_multi_polygon_t result;
 		auto polyWithHoles = geos_polygon_with_holes_to_bg(poly);
+		if (polyWithHoles.outer().empty())
+			return result;
 		result.emplace_back(std::move(polyWithHoles));
 		return result;
 	}
@@ -243,9 +272,13 @@ auto fix_bg_polygons_with_GEOS(bg_multi_polygon_t&& input) -> bg_multi_polygon_t
 	geos_create_linear_ring_helper_data<DPoint> tmp;
 	auto raw_input = to_geos_multipolygon(input, tmp);
 
-	if (raw_input->isValid())
-		return bg_from_geos_mp(raw_input.get());
+	auto result = raw_input->isValid()
+		? bg_from_geos_mp(raw_input.get())
+		: bg_from_geos_geometry(clean_geos_geometry(raw_input.get()).get());
 
-	auto geosResult = clean_geos_geometry(raw_input.get());
-	return bg_from_geos_geometry(geosResult.get());
+	// GEOS validity ignores ring orientation and MakeValid output is not normalized, so restore
+	// the clockwise-outer / counterclockwise-inner order that boost::geometry requires (#1176).
+	fixWindingOrders(result);
+
+	return result;
 }

@@ -535,10 +535,24 @@ bg_multi_polygon_t clean_bg_geometry(Geometry&& input)
 	auto output = fix_bg_polygons_with_GEOS(std::move(input));
 
 	std::string reason2;
-	if (!boost::geometry::is_valid(output, reason2))
-		reportF(SeverityTypeID::ST_Warning, "fix_bg_polygons_with_GEOS failed because \"{}\".", reason2);
+	if (boost::geometry::is_valid(output, reason2))
+		return output;
 
-	return output;
+	// A second round: dropping degenerate rings in the first pass can expose geometry that
+	// MakeValid is able to settle now.
+	reportF(SeverityTypeID::ST_Warning, "fix_bg_polygons_with_GEOS did not settle because \"{}\"; retrying.", reason2);
+
+	output = fix_bg_polygons_with_GEOS(std::move(output));
+
+	std::string reason3;
+	if (boost::geometry::is_valid(output, reason3))
+		return output;
+
+	// Never hand invalid geometry to boost::geometry: its algorithms document invalid input as
+	// undefined behaviour, and that killed the process without any [E] line, leaving the log cut
+	// off mid-line (issue #1176). Failing the item here turns that silent kill into a reportable
+	// error that names the geometry problem.
+	throwDmsErrF("clean_bg_geometry: GEOS could not repair this geometry: \"{}\"", reason3);
 }
 
 inline void checkWindingOrders(const bg_multi_polygon_t& mp)
