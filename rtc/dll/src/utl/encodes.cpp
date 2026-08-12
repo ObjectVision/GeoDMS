@@ -153,6 +153,197 @@ SharedStr UrlDecode(WeakStr urlStr)
 	return resultStr;
 }
 
+/*	UrlEncode is the exact inverse of UrlDecode above: every byte of the unreserved set of
+	RFC2396 (the 7-bit alphanumerics plus the mark characters "-_.!~*'()") passes through, a
+	space becomes '+', and every other byte becomes %XX with UPPERCASE hex digits. Hence
+	UrlDecode(UrlEncode(s)) == s for EVERY byte string s, non-ASCII (e.g. UTF-8) included.
+
+	NB url::IsSafeChar is deliberately NOT used here: its table also marks '+' as safe -- it
+	exists to SIZE the decode result, where "+" is one character -- and letting a literal '+'
+	through unescaped would silently decode back as a space. It is escaped as %2B instead.
+*/
+static bool IsUrlUnreservedChar(unsigned char uch)
+{
+	if ((uch >= '0' && uch <= '9') || (uch >= 'A' && uch <= 'Z') || (uch >= 'a' && uch <= 'z'))
+		return true;
+	switch (uch)
+	{
+		case '-': case '_': case '.': case '!': case '~': case '*': case '\'': case '(': case ')':
+			return true;
+	}
+	return false;
+}
+
+static const char s_UpperHexDigits[] = "0123456789ABCDEF";
+
+SharedStr UrlEncode(WeakStr urlStr)
+{
+	std::string result;
+	result.reserve(urlStr.ssize());
+
+	for (CharPtr chPtr = urlStr.begin(), chEnd = urlStr.send(); chPtr != chEnd; ++chPtr)
+	{
+		unsigned char uch = *chPtr;
+		if (IsUrlUnreservedChar(uch))
+			result += char(uch);
+		else if (uch == ' ')
+			result += '+';
+		else
+		{
+			result += '%';
+			result += s_UpperHexDigits[uch >> 4];
+			result += s_UpperHexDigits[uch & 0x0F];
+		}
+	}
+	return SharedStr(result MG_DEBUG_ALLOCATOR_SRC("UrlEncode"));
+}
+
+/*	HtmlEncode / HtmlDecode work on the five predefined XML/HTML entities -- the same set that
+	the XML/HTML output stream escapes (see the RegisterConst table in xml/XmlConst.cpp), listed
+	once here so that HtmlDecode is by construction the inverse of HtmlEncode. The table is NOT
+	shared with XmlConst.cpp: its reverse lookup is a std::map::operator[] on a global map, which
+	would INSERT on an unknown entity name (and race between worker threads).
+
+	HtmlEncode touches nothing else: bytes >= 0x80 pass through unchanged, so UTF-8 input stays
+	UTF-8 instead of becoming a stream of numeric character references.
+
+	HtmlDecode additionally accepts what a browser writes but HtmlEncode never produces: the
+	ubiquitous &nbsp;, and numeric character references &#DDD; and &#xHH; (emitted as UTF-8).
+	It is lenient by design -- an unterminated, unknown or out-of-range reference is copied
+	through verbatim rather than being an error, since that is what the input meant literally.
+*/
+static void append_utf8(std::string& out, unsigned cp); // defined with the CP1250 table below
+
+namespace html
+{
+	struct entity_t { CharPtr m_Name; unsigned m_CodePoint; };
+
+	static const entity_t s_Entities[] = {
+		{ "lt"  , '<'    },
+		{ "gt"  , '>'    },
+		{ "amp" , '&'    },
+		{ "apos", '\''   },
+		{ "quot", '"'    },
+		{ "nbsp", 0x00A0 }, // decode-only: not produced by HtmlEncode
+	};
+
+	// the encodable set is the table minus its decode-only tail
+	static const entity_t* FindEntityByChar(char ch)
+	{
+		for (const auto& e : s_Entities)
+			if (e.m_CodePoint == unsigned(unsigned char(ch)) && e.m_CodePoint < 0x80)
+				return &e;
+		return nullptr;
+	}
+
+	static const entity_t* FindEntityByName(CharPtr first, CharPtr last)
+	{
+		for (const auto& e : s_Entities)
+		{
+			CharPtr n = e.m_Name, p = first;
+			while (p != last && *n && *p == *n)
+				++p, ++n;
+			if (p == last && !*n)
+				return &e;
+		}
+		return nullptr;
+	}
+
+	// parse "#DDD" or "#xHH" (the part between '&' and ';'); returns false if malformed
+	static bool ParseNumericRef(CharPtr first, CharPtr last, unsigned& cp)
+	{
+		assert(first != last && *first == '#');
+		++first;
+		unsigned base = 10;
+		if (first != last && (*first == 'x' || *first == 'X'))
+		{
+			base = 16;
+			++first;
+		}
+		if (first == last)
+			return false;
+
+		unsigned value = 0;
+		for (; first != last; ++first)
+		{
+			unsigned digit;
+			if (*first >= '0' && *first <= '9')
+				digit = *first - '0';
+			else if (base == 16 && isHex(*first))
+				digit = hexVal(*first);
+			else
+				return false;
+			value = value * base + digit;
+			if (value > 0x10FFFF) // beyond the last Unicode code point
+				return false;
+		}
+		cp = value;
+		return true;
+	}
+} // namespace html
+
+SharedStr HtmlEncode(WeakStr htmlStr)
+{
+	std::string result;
+	result.reserve(htmlStr.ssize());
+
+	for (CharPtr chPtr = htmlStr.begin(), chEnd = htmlStr.send(); chPtr != chEnd; ++chPtr)
+	{
+		if (const auto* e = html::FindEntityByChar(*chPtr))
+		{
+			result += '&';
+			result += e->m_Name;
+			result += ';';
+		}
+		else
+			result += *chPtr;
+	}
+	return SharedStr(result MG_DEBUG_ALLOCATOR_SRC("HtmlEncode"));
+}
+
+SharedStr HtmlDecode(WeakStr htmlStr)
+{
+	std::string result;
+	result.reserve(htmlStr.ssize());
+
+	CharPtr chPtr = htmlStr.begin(), chEnd = htmlStr.send();
+	while (chPtr != chEnd)
+	{
+		if (*chPtr != '&')
+		{
+			result += *chPtr++;
+			continue;
+		}
+
+		// an entity reference is '&', a name or numeric reference, and a ';'
+		CharPtr semiColon = chPtr + 1;
+		while (semiColon != chEnd && *semiColon != ';' && *semiColon != '&')
+			++semiColon;
+
+		unsigned cp = 0;
+		bool isResolved = false;
+		if (semiColon != chEnd && *semiColon == ';' && semiColon != chPtr + 1)
+		{
+			if (chPtr[1] == '#')
+				isResolved = html::ParseNumericRef(chPtr + 1, semiColon, cp);
+			else if (const auto* e = html::FindEntityByName(chPtr + 1, semiColon))
+			{
+				cp = e->m_CodePoint;
+				isResolved = true;
+			}
+		}
+
+		if (isResolved)
+		{
+			append_utf8(result, cp);
+			chPtr = semiColon + 1;
+		}
+		else
+			result += *chPtr++; // not a reference we know: the '&' stands for itself
+	}
+	return SharedStr(result MG_DEBUG_ALLOCATOR_SRC("HtmlDecode"));
+}
+
 // Windows-1250 (Central European) single byte -> Unicode code point, for the
 // upper half 0x80..0xFF (the lower half 0x00..0x7F maps to itself). 0xFFFD marks
 // the five byte positions that are undefined in CP1250. This static table
@@ -183,8 +374,13 @@ static void append_utf8(std::string& out, unsigned cp)
 	else if (cp < 0x800) {
 		out += static_cast<char>(0xC0 | (cp >> 6));
 		out += static_cast<char>(0x80 | (cp & 0x3F));
-	} else { // all CP1250 code points are in the BMP (max U+20AC)
+	} else if (cp < 0x10000) { // all CP1250 code points are in the BMP (max U+20AC)
 		out += static_cast<char>(0xE0 | (cp >> 12));
+		out += static_cast<char>(0x80 | ((cp >> 6) & 0x3F));
+		out += static_cast<char>(0x80 | (cp & 0x3F));
+	} else { // only reachable from HtmlDecode's numeric character references
+		out += static_cast<char>(0xF0 | (cp >> 18));
+		out += static_cast<char>(0x80 | ((cp >> 12) & 0x3F));
 		out += static_cast<char>(0x80 | ((cp >> 6) & 0x3F));
 		out += static_cast<char>(0x80 | (cp & 0x3F));
 	}

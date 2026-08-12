@@ -32,6 +32,9 @@
 #include "DataArrayValue.h"
 #include "mem/MyContainers.h"
 
+#include "RtcInterface.h"        // DMS_GetMajorVersionNumber, for the obsolete claim_* stubs at the end
+#include "RtcVersionNumbers.h"   // DMS_VERSION_MAJOR, for their compile-time v21 removal tripwire
+
 /*
 	discrete allocation, O(n*k), see:
 		Tokuyama, T., & Nakano, J.(1995). Efficient algorithms for the Hitchcock transportation problem. SIAM Journal on Computing, 24(3), 563–578.
@@ -4058,6 +4061,61 @@ namespace
 	HitchcockTransportationOperators<Int32, UInt32> htp3232;
 	HitchcockTransportationOperators<Int32, UInt16> htp3216;
 	HitchcockTransportationOperators<Int32, UInt8 > htp3208;
+
+	// *************************************************************************
+	// OBSOLETE claim_* stubs -- REMOVE IN v21, see issue #1177
+	//
+	// These names have no implementation: they only reserve the name so that a
+	// config still using them gets the message below instead of "operator name
+	// not found". Their meaning used to come from claim-correction rewrite rules
+	// in RewriteExpr.lsp, which were removed there. They moved here from
+	// IpfAlloc.cpp when that file was deleted with the gutted ipf_alloc operator
+	// (#1177); this is their home because claim correction is allocation input.
+	//
+	// The v21 removal is guaranteed by TWO tripwires:
+	//  (a) the static_assert below -- bumping DMS_VERSION_MAJOR to 21 fails the
+	//      BUILD, with a message that says what to do;
+	//  (b) the throwDmsErrD in ClaimOperatorsFlag() as a runtime backstop.
+	// (a) exists because (b) alone is close to undiagnosable: ClaimOperatorsFlag
+	// runs from a STATIC INITIALIZER, so its throw escapes through DllMain as
+	// STATUS_DLL_INIT_FAILED (0xC0000142) -- every exe then fails to start with
+	// no message at all. The same pair now guards the other "remove at v21" sites:
+	// Subset.cpp (subset), Dijkstra.cpp (dijkstra_*), ConnectedParts.cpp (PartNr).
+	// *************************************************************************
+
+	static_assert(DMS_VERSION_MAJOR <= 20,
+		"v21: REMOVE the obsolete claim_* operator stubs below (GeoDMS issue #1177) "
+		"rather than bumping the major version with them still registered.");
+
+	CharPtr rewriteObsoleteWarning = "claim correction related rewrite rules have been removed from RewriteExpr.lsp";
+
+	oper_policy ClaimOperatorsFlag()
+	{
+		if (DMS_GetMajorVersionNumber() < 20)
+			return oper_policy::depreciated;
+		if (DMS_GetMajorVersionNumber() <= 20)
+			return oper_policy::obsolete;
+
+		throwDmsErrD("This code should be removed in v21"); // see the static_assert above
+	}
+
+	const oper_policy PHASE_OUT_FLAG = ClaimOperatorsFlag();
+
+	Obsolete< CommonOperGroup > claimStubs[] =
+	{
+		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_div", oper_policy::better_not_in_meta_scripting | PHASE_OUT_FLAG),
+		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_divF64", oper_policy::better_not_in_meta_scripting | PHASE_OUT_FLAG),
+		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_divF32D", oper_policy::better_not_in_meta_scripting | PHASE_OUT_FLAG),
+		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_corr", oper_policy::better_not_in_meta_scripting | PHASE_OUT_FLAG),
+		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_corrF32D", oper_policy::better_not_in_meta_scripting | PHASE_OUT_FLAG),
+		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_corrF32DL", oper_policy::better_not_in_meta_scripting | PHASE_OUT_FLAG),
+
+		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_minmax_corrF32", oper_policy::better_not_in_meta_scripting | PHASE_OUT_FLAG),
+		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_minmax_corrF64", oper_policy::better_not_in_meta_scripting | PHASE_OUT_FLAG),
+
+		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_minmax_corrF32D", oper_policy::better_not_in_meta_scripting | PHASE_OUT_FLAG),
+		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_minmax_corrF32L", oper_policy::better_not_in_meta_scripting | PHASE_OUT_FLAG)
+	};
 }
 
 /******************************************************************************/

@@ -35,6 +35,9 @@ granted by an additional written contract for support, assistance and/or develop
 
 RTC_CALL SharedStr AsFilename(WeakStr filenameStr);
 RTC_CALL SharedStr UrlDecode(WeakStr urlStr);
+RTC_CALL SharedStr UrlEncode(WeakStr urlStr);   // exact inverse of UrlDecode
+RTC_CALL SharedStr HtmlEncode(WeakStr htmlStr); // escapes < > & ' " as the XML predefined entities
+RTC_CALL SharedStr HtmlDecode(WeakStr htmlStr); // inverse, plus &nbsp; and numeric character references
 RTC_CALL SharedStr to_utf   (CharPtr first, CharPtr last);
 RTC_CALL SharedStr from_utf (CharPtr first, CharPtr last);
 RTC_CALL SharedStr as_item_name(CharPtr first, CharPtr last);

@@ -113,7 +113,6 @@
     <ClCompile Include="src\DiscrAlloc.cpp" />
     <ClCompile Include="src\GeoInterface.cpp" />
     <ClCompile Include="src\GridDist.cpp" />
-    <ClCompile Include="src\IpfAlloc.cpp" />
     <ClCompile Include="src\JoinEqualValues.cpp" />
     <ClCompile Include="src\JoinNearValues.cpp" />
     <ClCompile Include="src\Mandlebrot.cpp" />

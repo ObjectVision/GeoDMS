@@ -190,7 +190,9 @@ static CommonOperGroup grBgBuffer_linestring("bg_buffer_linestring", oper_policy
 static CommonOperGroup grGeosBuffer_linestring("geos_buffer_linestring", oper_policy::better_not_in_meta_scripting);
 static CommonOperGroup grCgalBuffer_linestring("cgal_buffer_linestring", oper_policy::better_not_in_meta_scripting);
 
-static CommonOperGroup grBpBuffer_multi_polygon("bp_buffer_multi_polygon", oper_policy::better_not_in_meta_scripting);
+// bp_buffer_multi_polygon was a registered name with no operator behind it (#1177): boost::polygon
+// has no multi_polygon buffer here, so the group only produced a 'reserved for future
+// implementation' error. Use bg_buffer_multi_polygon or geos_buffer_multi_polygon.
 static CommonOperGroup grBgBuffer_multi_polygon("bg_buffer_multi_polygon", oper_policy::better_not_in_meta_scripting);
 static CommonOperGroup grGeosBuffer_multi_polygon("geos_buffer_multi_polygon", oper_policy::better_not_in_meta_scripting);
 

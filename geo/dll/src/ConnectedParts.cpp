@@ -34,13 +34,20 @@ void InvertIntoLinkedList(LinkType edgeCount, NodeType nodeCount,
 //									ConnectedParts
 // *****************************************************************************
 #include "RtcInterface.h"
+#include "RtcVersionNumbers.h" // DMS_VERSION_MAJOR, for the v21 removal tripwire on the obsolete PartNr support
 
 namespace {
 	CommonOperGroup cogCP("connected_parts", oper_policy::better_not_in_meta_scripting);
 	CommonOperGroup cogSCC("strongly_connected_components", oper_policy::better_not_in_meta_scripting);
 
-	// REMOVE: Obsolte PartNr support
-	static TokenID s_PartNr = GetTokenID_st("PartNr");	
+	// REMOVE: Obsolte PartNr support -- REMOVED IN v21 (issue #1177); use part_rel.
+	// The static_assert is the primary guarantee: it fails the BUILD when the major version
+	// is bumped, instead of leaving the removal to the runtime throw below.
+	static_assert(DMS_VERSION_MAJOR <= 20,
+		"v21: REMOVE the obsolete PartNr support below (GeoDMS issue #1177; use part_rel) "
+		"rather than bumping the major version with it still in place.");
+
+	static TokenID s_PartNr = GetTokenID_st("PartNr");
 	TreeItemStatusFlags PartNrTSF()
 	{
 		if (DMS_GetMajorVersionNumber() <= 20)

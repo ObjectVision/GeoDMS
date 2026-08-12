@@ -59,6 +59,15 @@ const UnitClass* GetUnitClass(TokenID valueTypeID)
 
 // *****************************************************************************
 // DefaultUnitOperator
+//
+// The ONE callable form is DefaultUnit(<typename as string>), e.g.
+//     unit<string> u := DefaultUnit('string');
+// arg1 is a Void-domain string DataItem (Arg1Type below), NOT a unit: DefaultUnit(uint32)
+// passes a unit and therefore does not bind ("Cannot find operator for these arguments"),
+// which is what made the #1177 operator sweep report the group as having no callable form.
+// The string form is exercised by the Operator regression config (UnitFunctions/unit_default).
+// For a value type known at config-time there is no need for this operator at all: the
+// per-type nullary group gives the same default unit as e.g. uint32().
 // *****************************************************************************
 
 DefaultUnitOperator::DefaultUnitOperator(AbstrOperGroup* gr)

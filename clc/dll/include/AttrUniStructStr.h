@@ -186,6 +186,36 @@ struct urldecode_assign : unary_assign<SharedStr, SharedStr>
 	}
 };
 
+struct urlencode_assign : unary_assign<SharedStr, SharedStr>
+{
+	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return arg1_values_unit(args); }
+
+	void operator ()(typename unary_assign::assignee_ref res, typename unary_assign::arg1_cref arg) const
+	{
+		Assign(res, UrlEncode(SharedStr(arg)));
+	}
+};
+
+struct htmlencode_assign : unary_assign<SharedStr, SharedStr>
+{
+	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return arg1_values_unit(args); }
+
+	void operator ()(typename unary_assign::assignee_ref res, typename unary_assign::arg1_cref arg) const
+	{
+		Assign(res, HtmlEncode(SharedStr(arg)));
+	}
+};
+
+struct htmldecode_assign : unary_assign<SharedStr, SharedStr>
+{
+	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return arg1_values_unit(args); }
+
+	void operator ()(typename unary_assign::assignee_ref res, typename unary_assign::arg1_cref arg) const
+	{
+		Assign(res, HtmlDecode(SharedStr(arg)));
+	}
+};
+
 struct to_utf_assign : unary_assign<SharedStr, SharedStr>
 {
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return arg1_values_unit(args); }

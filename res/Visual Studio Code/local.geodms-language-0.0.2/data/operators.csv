@@ -70,7 +70,6 @@ BoundRange
 box_connectivity
 bp_buffer_linestring
 bp_buffer_multi_point
-bp_buffer_multi_polygon
 bp_buffer_point
 bp_difference
 bp_intersect
@@ -299,7 +298,6 @@ IntegrityCheck
 interpolate_linear
 invert
 invertAll
-ipf_alloc
 IPoint
 IPolygon
 IsDefined

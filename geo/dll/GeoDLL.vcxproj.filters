@@ -90,9 +90,6 @@
     <ClCompile Include="src\DiscrAlloc.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\IpfAlloc.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\Mandlebrot.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>

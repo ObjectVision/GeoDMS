@@ -2176,12 +2176,21 @@ private:
 #include "RtcTypeLists.h"
 #include "utl/TypeListOper.h"
 #include "RtcInterface.h"
+#include "RtcVersionNumbers.h" // DMS_VERSION_MAJOR, for the v21 removal tripwire on the obsolete dijkstra_* stubs
 
 namespace
 {
+	// The obsolete dijkstra_s / dijkstra_m / dijkstra_m64 stubs are REMOVED IN v21 (issue
+	// #1177). The static_assert is the primary guarantee: it fails the BUILD when the major
+	// version is bumped, whereas the throw below runs from a STATIC INITIALIZER and would
+	// only surface as an opaque STATUS_DLL_INIT_FAILED (0xC0000142) with no message.
+	static_assert(DMS_VERSION_MAJOR <= 20,
+		"v21: REMOVE the obsolete dijkstra_s/dijkstra_m/dijkstra_m64 operator stubs below "
+		"(GeoDMS issue #1177) rather than bumping the major version with them still registered.");
+
 	oper_policy OldDijstraOperatorFlags()
 	{
-		// Dijkstra operator is renamed to impedance_table/matrix, but we want to keep the old name working for a while with a warning, 
+		// Dijkstra operator is renamed to impedance_table/matrix, but we want to keep the old name working for a while with a warning,
 		// so we mark it as depreciated in v19, obsolete in v20 and this code should be removed in v21.
 		if (DMS_GetMajorVersionNumber() < 20)
 			return oper_policy::depreciated;

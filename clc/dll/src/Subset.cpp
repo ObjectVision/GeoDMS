@@ -735,6 +735,7 @@ struct RecollectByCondOperator : AbstrRecollectByCondOperator
 
 #include "LispTreeType.h"
 #include "RtcInterface.h"
+#include "RtcVersionNumbers.h" // DMS_VERSION_MAJOR, for the v21 removal tripwire on the obsolete `subset` stub
 namespace {
 
 	CommonOperGroup cog_select(token::select, oper_policy::dynamic_result_class);
@@ -750,6 +751,15 @@ namespace {
 	CommonOperGroup cog_select_64_with_org_rel(token::select_uint64_with_org_rel);
 
 	// Partly DEPRECIATED VARIANTS of select BEGIN
+	// The obsolete `subset` stub is REMOVED IN v21 (issue #1177). The static_assert is the
+	// primary guarantee: it fails the BUILD when the major version is bumped, whereas the
+	// throw below runs from a STATIC INITIALIZER and would only surface as an opaque
+	// STATUS_DLL_INIT_FAILED (0xC0000142) with no message.
+	static_assert(DMS_VERSION_MAJOR <= 20,
+		"v21: REMOVE the obsolete `subset` operator stub below (GeoDMS issue #1177), "
+		"plus token::nrOrgEntity and OrgRelCreationMode::nr_OrgEntity, "
+		"rather than bumping the major version with them still registered.");
+
 	oper_policy ObsoleteOperatorsFlag()
 	{
 		if (DMS_GetMajorVersionNumber() < 20)
@@ -757,7 +767,7 @@ namespace {
 		if (DMS_GetMajorVersionNumber() <= 20)
 			return oper_policy::obsolete;
 
-		throwDmsErrD("This code should be removed in v20"); // also remove token::nrOrgEntity and  OrgRelCreationMode::nr_OrgEntity
+		throwDmsErrD("This code should be removed in v21"); // also remove token::nrOrgEntity and  OrgRelCreationMode::nr_OrgEntity
 	}
 
 	Obsolete<CommonOperGroup> cog_subset_xx("use select_with_org_rel or select and use collect_by_cond for collecting selected attribute values", "subset", oper_policy::dynamic_result_class| ObsoleteOperatorsFlag());

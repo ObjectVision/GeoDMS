@@ -151,6 +151,9 @@ namespace
 	UnaryAttrAssignOperator<   dquote_assign> s_DQuoteAssign(&cog_dquote);
 	UnaryAttrAssignOperator< undquote_assign> s_UnDquoteAssign(&cog_undquote);
 	UnaryAttrAssignOperator<urldecode_assign> s_UrlDecodeAssign(&cog_urldecode);
+	UnaryAttrAssignOperator<urlencode_assign> s_UrlEncodeAssign(&cog_urlencode);   // #1177: was a registered name without an implementation
+	UnaryAttrAssignOperator<htmldecode_assign> s_HtmlDecodeAssign(&cog_htmldecode); // idem
+	UnaryAttrAssignOperator<htmlencode_assign> s_HtmlEncodeAssign(&cog_htmlencode); // idem
 	UnaryAttrAssignOperator<to_utf_assign   > s_ToUtfAssign(&cog_toUtf);
 	UnaryAttrAssignOperator<from_utf_assign > s_FromUtfAssign(&cog_fromUtf);
 	UnaryAttrAssignOperator<item_name_assign> s_AsItemName(&cog_asItemName);
