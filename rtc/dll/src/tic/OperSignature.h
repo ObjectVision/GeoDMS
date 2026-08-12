@@ -149,7 +149,8 @@ struct SignatureRecord
 		sig_var a = no_sig_var, b = no_sig_var, c = no_sig_var;
 		int power = 0;
 		const ValueClass* cls = nullptr;
-		SharedStr note;
+		SharedStr note = {}; // the `= {}` keeps the many `Rel{kind, a, b}` aggregate inits
+		                     // out of -Wmissing-field-initializers, like the members above
 
 		bool operator==(const Rel& rhs) const
 		{

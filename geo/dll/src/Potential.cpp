@@ -548,6 +548,19 @@ inline ConvStatus FftwConvolve(const R* pSrc1, TileSize lenSrc1, const R* pSrc2,
 	return ConvStatus::NoErr;
 }
 
+// Type alias for kernel FFT cache map (used with std::any in kernel_info).
+// A kernel_info serves one operator, hence one backend, hence one precision R.
+template <typename R> using KernelFftMap = std::map<SideSize, KernelFft<R>>;
+
+// Declared here, defined below with the other kernel-FFT cache helpers: PotentialFftwRaw
+// calls GetKernelFftMap<A>(kernelInfo) with an EXPLICIT template argument, so the call is
+// not dependent on the type of its argument and argument-dependent lookup at the point of
+// instantiation cannot reach a definition that comes later in the translation unit. GCC
+// diagnoses that ("was not declared in this scope, and no declarations were found by
+// argument-dependent lookup"); MSVC's laxer two-phase lookup happened to accept it.
+template <typename R> KernelFftMap<R>& GetKernelFftMap(kernel_info& self);
+template <typename R> const KernelFftMap<R>& GetKernelFftMap(const kernel_info& self);
+
 // Performs raw convolution using FFTW, with buffer and kernel management.
 // Uses pre-computed kernel FFT when available for optimal performance.
 template <typename A, typename T>
@@ -720,11 +733,7 @@ bool CalculateClassic(AnalysisType at,
 	return true;
 } // CalculateClassic
 
-// Type alias for kernel FFT cache map (used with std::any in kernel_info).
-// A kernel_info serves one operator, hence one backend, hence one precision R.
-template <typename R> using KernelFftMap = std::map<SideSize, KernelFft<R>>;
-
-// Helper to get or create kernel FFT cache from kernel_info
+// Helper to get or create kernel FFT cache from kernel_info; declared above PotentialFftwRaw
 template <typename R>
 KernelFftMap<R>& GetKernelFftMap(kernel_info& self)
 {

@@ -1544,7 +1544,7 @@ namespace {
 		// not a declared promise — an unsupported instantiation fails at its own
 		// reduction (S1), and the prelude's <T: any> null-aware predicates over
 		// eq/lt depend on passing through them symbolically.
-		struct ConstraintRec { TokenID name, constraint; SharedStr source; ValueClassSet set; bool soft = false; SharedStr setText; };
+		struct ConstraintRec { TokenID name, constraint; SharedStr source; ValueClassSet set; bool soft = false; SharedStr setText = {}; };
 		struct ValueNode
 		{
 			SizeT parent; // union-find: parent == own index at a root
@@ -1574,10 +1574,12 @@ namespace {
 			SharedStr boundSource;
 			SizeT classNode = NO_TYPE_VAR; // companion ValueNode: class-of(this unit)
 		};
-		std::vector<ValueNode> m_ValueNodes;
-		std::vector<UnitNode>  m_UnitNodes;
+		// the `= {}` on these four keeps `TypeUnifier{ m_FuncItem }` (which names only the
+		// first member) out of -Wmissing-field-initializers, like the members above
+		std::vector<ValueNode> m_ValueNodes = {};
+		std::vector<UnitNode>  m_UnitNodes = {};
 		using VarKey = std::tuple<const TreeItem*, UInt32, TokenID>;
-		std::map<VarKey, SizeT> m_ValueVarIndex, m_UnitVarIndex;
+		std::map<VarKey, SizeT> m_ValueVarIndex = {}, m_UnitVarIndex = {};
 
 		SizeT FindV(SizeT i) { while (m_ValueNodes[i].parent != i) i = m_ValueNodes[i].parent = m_ValueNodes[m_ValueNodes[i].parent].parent; return i; }
 		SizeT FindU(SizeT i) { while (m_UnitNodes[i].parent != i) i = m_UnitNodes[i].parent = m_UnitNodes[m_UnitNodes[i].parent].parent; return i; }

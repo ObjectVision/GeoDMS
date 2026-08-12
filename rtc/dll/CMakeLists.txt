@@ -22,6 +22,16 @@ target_include_directories(DmRtc
 
 target_compile_definitions(DmRtc PRIVATE DMRTC_EXPORTS DMSYM_EXPORTS DMTIC_EXPORTS)
 
+# General.cpp prints the compiler/version banner with #pragma message. GCC routes those
+# through its normal diagnostic machinery as located `note:`s, so each one echoes its own
+# source line plus a caret -- three lines per banner entry, and the long DmsVersion line
+# reads like an error in the build log. The caret display is not controllable from the
+# pragma; -fno-diagnostics-show-caret is, and it is applied HERE ONLY, to the one banner
+# translation unit, so every real warning and error elsewhere keeps its caret.
+if(NOT MSVC)
+    set_source_files_properties(src/gen/General.cpp PROPERTIES COMPILE_OPTIONS -fno-diagnostics-show-caret)
+endif()
+
 # Debugger visualizers, moved here from tic/dll when the source tree was flattened.
 # VS/MSVC-generator only; harmlessly ignored by the Ninja/GCC (.l) build.
 if(MSVC)

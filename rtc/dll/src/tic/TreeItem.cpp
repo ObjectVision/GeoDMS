@@ -81,17 +81,19 @@ namespace {
 		UInt32 nrParams = 0;
 		TokenID resultName;
 		std::vector<std::tuple<UInt32, std::weak_ptr<const TreeItem>, std::vector<TokenID>>> paramSigs; // (param index, signature exemplar, type-application args)
-		std::vector<std::pair<UInt32, std::weak_ptr<const TreeItem>>> paramTypeExemplars; // K11a by-example: (param index, UNIT exemplar whose declared members type the parameter)
-		std::vector<std::tuple<UInt32, TokenID, TokenID, bool>> genericParams; // (param index, type variable, constraint, isDomainVar)
-		std::vector<std::pair<TokenID, TokenID>> typeVars; // the declaration's own ordered <var: constraint> list (WP4.1)
-		std::vector<UInt32> metaRefParams; // 'item x' parameters: bound as raw item references (sourceDescr), not calculation keys
+		// the `= {}` on the members below keeps `FunctionSpecData{ nrParams, resultName, {} }`
+		// out of -Wmissing-field-initializers, like the bool members further down
+		std::vector<std::pair<UInt32, std::weak_ptr<const TreeItem>>> paramTypeExemplars = {}; // K11a by-example: (param index, UNIT exemplar whose declared members type the parameter)
+		std::vector<std::tuple<UInt32, TokenID, TokenID, bool>> genericParams = {}; // (param index, type variable, constraint, isDomainVar)
+		std::vector<std::pair<TokenID, TokenID>> typeVars = {}; // the declaration's own ordered <var: constraint> list (WP4.1)
+		std::vector<UInt32> metaRefParams = {}; // 'item x' parameters: bound as raw item references (sourceDescr), not calculation keys
 		bool hasRestParam = false;      // '...x' rest parameter (always the LAST param): binds ONE OR MORE trailing arguments
 		bool definitionChecked = false; // WP3.4: body scope/shape validated once
 		bool isVariantSet = false;      // §5.7: a function that dispatches to variant sub-functions by argument type
 		bool signatureOnly = false;     // 'alias = function<...>(...) -> ...;' — a signature-only function item (declared type, no body)
 		bool resultIsFunction = false;  // §5.10: '-> function' / '-> sigAlias' — the result is function-valued
-		std::weak_ptr<const TreeItem> resultSig; // the '-> sigAlias<...>' result-signature exemplar, if any (else expired)
-		std::vector<TokenID> resultSigTypeArgs;  // the result signature's type-application args
+		std::weak_ptr<const TreeItem> resultSig = {}; // the '-> sigAlias<...>' result-signature exemplar, if any (else expired)
+		std::vector<TokenID> resultSigTypeArgs = {};  // the result signature's type-application args
 	};
 	bool IsDefaultValue(const FunctionSpecData& v) { return v.nrParams == 0 && !v.resultName && v.paramSigs.empty() && v.genericParams.empty() && v.typeVars.empty() && v.metaRefParams.empty() && !v.hasRestParam && !v.definitionChecked && !v.isVariantSet && !v.signatureOnly && !v.resultIsFunction && v.resultSig.expired() && v.resultSigTypeArgs.empty(); }
 	static_quick_assoc<const TreeItem*, FunctionSpecData> s_FunctionSpecAssoc;

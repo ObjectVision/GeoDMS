@@ -100,7 +100,9 @@ CharPtr DMS_CONV DMS_GetBuildConfig()
 
 #pragma message( "==========:---------------" )
 #pragma message( "Compiler  : " BOOST_COMPILER )
+#if defined(_MSC_VER)
 #pragma message( "MSC_VER   : " BOOST_STRINGIZE( _MSC_VER ) )
+#endif
 #if defined(__EDG_VERSION__)
 #pragma message( "EdgVersion: " BOOST_STRINGIZE( MG_EDG_VERSION ) )
 #endif
