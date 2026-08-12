@@ -231,7 +231,7 @@ namespace html
 	static const entity_t* FindEntityByChar(char ch)
 	{
 		for (const auto& e : s_Entities)
-			if (e.m_CodePoint == unsigned(unsigned char(ch)) && e.m_CodePoint < 0x80)
+			if (e.m_CodePoint == static_cast<unsigned char>(ch) && e.m_CodePoint < 0x80)
 				return &e;
 		return nullptr;
 	}
