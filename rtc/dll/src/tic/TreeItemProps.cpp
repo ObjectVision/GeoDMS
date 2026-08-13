@@ -220,9 +220,24 @@ namespace { // local defs
 			MGD_PRECONDITION(ti);
 			return ti->_GetExprStr();
 		}
+		// An empty calculation rule leaves the item without one. That is accepted rather than fatal:
+		// a leading-'=' rule that evaluates to "" says the same thing deliberately (see
+		// CalcFactory::ConstructExpr). But when the emptiness is spelled out in the configuration it
+		// is nearly always an oversight -- the item then has no rule, no storage and no data, and only
+		// says so much later, as "No calculation rule or storage manager was specified". Warn here,
+		// while the configured text is in hand. Only this property path warns; TreeItem::SetExpr is
+		// also called internally with an empty string (DataWriteLock::Commit) where it means nothing.
+		static void WarnEmptyRule(const TreeItem* ti)
+		{
+			reportF(SeverityTypeID::ST_Warning, "{}: empty CalculationRule; this item has no calculation rule"
+				, ti->GetFullName().c_str());
+		}
+
 		void SetValue(TreeItem* ti, ParamType value) override
 		{
 			MGD_PRECONDITION(ti);
+			if (value.empty())
+				WarnEmptyRule(ti);
 			ti->SetExpr(value);
 		}
 
@@ -230,12 +245,15 @@ namespace { // local defs
 		{
 			debug_cast<TreeItem*>(dst)->_SetExpr( debug_cast<const TreeItem*>(src)->_GetExprStr() );
 		}
-			
+
 		void SetValueAsCharArray(Object* self, CharPtr value) override
 		{
 			TreeItem* ti = debug_cast<TreeItem*>(self);
 			assert(ti);
-			ti->SetExpr( SharedStr(value MG_DEBUG_ALLOCATOR_SRC("ExprPropDef::SetValueAsCharArray")) );
+			auto exprStr = SharedStr(value MG_DEBUG_ALLOCATOR_SRC("ExprPropDef::SetValueAsCharArray"));
+			if (exprStr.empty())
+				WarnEmptyRule(ti);
+			ti->SetExpr( exprStr );
 		}
 	};
 

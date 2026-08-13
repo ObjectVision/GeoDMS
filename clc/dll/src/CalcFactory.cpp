@@ -37,11 +37,11 @@ AbstrCalculatorRef CalcFactory::ConstructExpr(const TreeItem* context, WeakStr e
 {
 	dms_assert(IsMetaThread());
 	if (expr.empty())
-	{
-		if (cr == CalcRole::Calculator)
-			context->Fail("Invalid CalculationRule", FailType::MetaInfo);
+		// No calculation rule. A leading-'=' rule that evaluates to "" says exactly that, and says it
+		// deliberately -- it is how a rule can make itself conditional -- so it is accepted in silence.
+		// A rule spelled out as empty in the configuration is warned about by ExprPropDef, where the
+		// configured text is still in hand; failing here would report it a second time, and later.
 		return {};
-	}
 	AbstrCalculatorRef exprCalc = new ExprCalculator(context, expr, cr); // hold resource for now; beware: this line can trigger new inserts/deletes in s_CalcFactory
 	return exprCalc; // second alloc succeeded, release hold an from now on it's callers' responsibility to destroy the new ExprCalculator
 }
