@@ -665,6 +665,13 @@ SharedStr AbstrCalculator::EvaluateExpr(const TreeItem* context, CharPtrRange ex
 		if (resDataItem->WasFailed(FailType::Committed)) // just pass on commit failures.
 			context->Fail(resDataItem);
 
+		if (!resultStr.IsDefined())
+			// null is not a rule. A rule that deliberately results in no calculation rule must
+			// evaluate to the empty string '' (see CalcFactory::ConstructExpr); a null result is an
+			// oversight in the referenced value, and is failed here, the last point where the two
+			// are distinguishable -- one level down, null and a deliberate '' both arrive empty().
+			context->Fail("the '=' indirection evaluated to null; a rule that deliberately results in no calculation rule must evaluate to the empty string ''", FailType::MetaInfo);
+
 		auto nrNewEvals = CountIndirections( resultStr.c_str() );
 		if (nrNewEvals)
 			resultStr.erase(0, nrNewEvals);
