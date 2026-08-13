@@ -10,6 +10,8 @@
 #define __STG_MMD_STORAGEMANAGER_H
 
 
+#include <set>
+
 #include "ser/FileMapHandle.h"
 
 #include "mci/Object.h"
@@ -48,6 +50,11 @@ protected:
 	void DoWriteTree(const TreeItem* storageHolder) override;
 
 	mutable FileHandle m_MmdLockFile;
+
+	// #1154/#1179: read holders whose dictionary has been merged. Consulted only to keep
+	// DoUpdateTree idempotent -- after the merge the holder HAS sub-items, which must not trip
+	// the reader-declared-sub-items refusal on a revisit. Pointers are keys, never dereferenced.
+	mutable std::set<const TreeItem*> m_MergedReadHolders;
 
 	DECL_RTTI(TIC_CALL, StorageClass)
 };

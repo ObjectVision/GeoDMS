@@ -67,8 +67,28 @@ void MmdStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* cu
 		return;
 	if (curr->HasCalculator()) // don't read schema info if the item has a calculator; this is the production case
 		return;
-	if (curr->_GetFirstSubItem() && !storageReadOnlyPropDefPtr->GetValue(storageHolder))
-		return; 
+
+	if (storageReadOnlyPropDefPtr->GetValue(storageHolder))
+	{
+		// #1154/#1179 usage contract for a read holder: the reader declares ONLY the holder --
+		// StorageName plus StorageReadOnly -- and everything below it comes from the dictionary.
+		// Anything else is refused loudly rather than merged over: a reader-declared sub-item
+		// would collide with its dictionary namesake, and a reader-declared IntegrityCheck on
+		// the holder would be silently replaced by the restrictions the dictionary carries
+		// (which, conversely, guard all merged sub-items since #1180).
+		if (m_MergedReadHolders.contains(curr))
+			return; // this holder's dictionary is already merged; its sub-items are the dictionary's
+		if (curr->_GetFirstSubItem())
+			curr->throwItemErrorF(
+				"a read-only MMD storage holder must not declare sub-items; "
+				"they are defined by the dictionary of {}", GetNameStr());
+		if (integrityCheckPropDefPtr->HasNonDefaultValue(curr))
+			curr->throwItemErrorF(
+				"an IntegrityCheck on a read-only MMD storage holder is not supported; "
+				"the restrictions of {} come from its dictionary", GetNameStr());
+	}
+	else if (curr->_GetFirstSubItem())
+		return;
 
 	auto dictFileName = GetFullFileName("0Dictionary.dms");
 
@@ -78,6 +98,7 @@ void MmdStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* cu
 		throwErrorD("MmdStorageManager::DoUpdateTree", "s_AppendTreeFromConfigurationPtr is not set");
 
 	s_AppendTreeFromConfigurationPtr(dictFileName.c_str(), curr);
+	m_MergedReadHolders.insert(curr);
 }
 
 void MmdStorageManager::DoWriteTree(const TreeItem* storageHolder)
