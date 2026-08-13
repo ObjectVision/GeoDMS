@@ -1376,13 +1376,15 @@ void PublishMeasuredElementWidth(const AbstrDataItem* adi) noexcept
 		auto valuesType = adi->GetAbstrValuesUnit()->GetValueType();
 		if (!isSeq && valuesType->GetBitSize() != UInt32(-1))
 			return; // fixed width: EstimateDataBytes is already exact
-		// NOT GetCurrRefObj: this is best-effort instrumentation, but that accessor carries
-		// contracts -- a dbg_assert on meta-info readiness and an MG_CHECK on the ultimate item --
-		// which the callers cannot guarantee (e.g. the python binding's set_value commits into an
-		// item whose meta progression is elsewhere). The catch below swallows the Release throw,
-		// but the Debug assert fires first: in GeoDmsRun that is exit(3), in any other host (the
-		// python unit tests) a modal CRT dialog that hangs the run (#1181 family, fifth site).
-		auto ultimate = adi->GetCurrUltimateItem();
+		// Reach the data object without any of the contract-carrying accessors. This is best-effort
+		// instrumentation, but GetCurrRefObj and GetCurrUltimateItem both dbg_assert meta-info
+		// readiness (and the former MG_CHECKs the ultimate item), which the callers cannot guarantee:
+		// the python binding's set_value commits into an item whose meta progression is elsewhere.
+		// The catch below swallows the Release throw, but the Debug assert fires first -- exit(3) in
+		// GeoDmsRun, a modal CRT dialog that hangs any other host, such as the python unit tests.
+		// _GetHistoricUltimateItem is the same walk without the assert, as used by
+		// GetDataRefLockCount; it yields an empty pointer for an item that is mid-destruction.
+		auto ultimate = _GetHistoricUltimateItem(adi);
 		auto ultimateAdi = AsDynamicDataItem(ultimate.get());
 		if (!ultimateAdi)
 			return;
