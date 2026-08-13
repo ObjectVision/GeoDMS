@@ -3166,43 +3166,53 @@ LispRef TreeItem::GetCheckedKeyExpr() const
 {
 	auto dc = TreeItem_GetCheckedDC_impl(this);
 	if (dc)
-		return dc->GetLispRef();
+		return dc->GetLispRef(); // UpdateDC folded the checks of this item and of its ancestors into mc_DC (#1180)
+
+	// Every other representation a consumer can receive is folded below, so that referencing
+	// ANYTHING under a checked ancestor carries its guard -- whether the item's key comes from
+	// its expression, from literal data, or from a plain reference. This is the packaging that
+	// keeps integrity checking inside the DataController graph: the condition travels as an
+	// operator argument, with interest, scheduled by an OperationContext (#1180, #1181).
 	auto result = GetKeyExprImpl();
-
-	if (!result.EndP())
-		return result;
-
-	dms_assert(!IsCacheItem());
-	if (IsDataItem(this) && AsDataItem(this)->HasDataObj() && !IsLoadable())
+	if (result.EndP())
 	{
-		auto adi = AsDataItem(this);
-		auto valueList = AsDataItem(this)->GetDataObj()->GetValuesAsKeyArgs(adi->GetAbstrValuesUnit()->GetCheckedKeyExpr());
-		if (adi->HasVoidDomainGuarantee())
+		dms_assert(!IsCacheItem());
+		if (IsDataItem(this) && AsDataItem(this)->HasDataObj() && !IsLoadable())
 		{
-			assert(valueList.IsRealList());
-			assert(valueList.Right().EndP());
-			return valueList.Left();
-		}
-		if (valueList.EndP())
-			return ExprList(token::const_
-				,	ExprList(adi->GetAbstrValuesUnit()->GetValueType()->GetID()
-					,	LispRef(Number(0))
+			auto adi = AsDataItem(this);
+			auto valueList = AsDataItem(this)->GetDataObj()->GetValuesAsKeyArgs(adi->GetAbstrValuesUnit()->GetCheckedKeyExpr());
+			if (adi->HasVoidDomainGuarantee())
+			{
+				assert(valueList.IsRealList());
+				assert(valueList.Right().EndP());
+				result = valueList.Left();
+			}
+			else if (valueList.EndP())
+				result = ExprList(token::const_
+					,	ExprList(adi->GetAbstrValuesUnit()->GetValueType()->GetID()
+						,	LispRef(Number(0))
+						)
+					,	adi->GetAbstrDomainUnit()->GetCheckedKeyExpr()
+					);
+			else
+			{
+				// one or more values, so we need a union
+				assert(valueList.IsRealList());
+				result = LispRef(
+					LispRef(adi->m_StatusFlags.HasSortedValues() ? token::ordered_union_data : token::union_data)
+					, LispRef(adi->GetAbstrDomainUnit()->GetCheckedKeyExpr()
+						, valueList
 					)
-				,	adi->GetAbstrDomainUnit()->GetCheckedKeyExpr()
 				);
-
-		// one or more values, so we need a union
-		assert(valueList.IsRealList());
-		return LispRef(
-			LispRef(adi->m_StatusFlags.HasSortedValues() ? token::ordered_union_data : token::union_data)
-			, LispRef(adi->GetAbstrDomainUnit()->GetCheckedKeyExpr()
-				, valueList
-			)
-		);
+			}
+		}
+		else
+		{
+			// required for Convert test and subItem moniking, empty for applicators non-calculatable or loadable items (such as some parents).
+			this->DetermineState();
+			result = CreateLispTree(this, false);
+		}
 	}
-	// required for Convert test and subItem moniking, empty for applicators non-calculatable or loadable items (such as some parents).
-	this->DetermineState();
-	result = CreateLispTree(this, false);
 	if (TreeItem_HasIntegrityCheckerInclAncestors(this))
 		result = TreeItem_CreateCheckedExpr(result, this);
 	return result;
