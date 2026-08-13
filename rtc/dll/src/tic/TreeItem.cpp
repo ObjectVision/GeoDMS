@@ -3506,12 +3506,23 @@ ActorVisitState TreeItem::DoUpdate()
 				}
 				if (!iCheckerDC->Was(ProgressState::Validated))
 				{
+					// The verdict a folded check (#1180) computed during data preparation is NOT
+					// guaranteed to still be resident here: once the wrapping IntegrityCheck operator
+					// has consumed its condition argument, the argument interest is released and the
+					// condition's DataController may be re-armed empty. Re-evaluation therefore goes
+					// through CalledCalcHandle, which takes its own interest and schedules through an
+					// OperationContext -- recomputing from whatever sub-results are still retained.
 					iCheckerDC = CalledCalcHandle(iCheckerPtr.get(), DataArray<Bool>::GetStaticClass()); // @@@SCHEDULE
 
 					if (SuspendTrigger::DidSuspend())
 						return AVS_SuspendedOrFailed;
 
-					assert(iCheckerDC && iCheckerDC->GetInterestCount());
+					// #1181 backstop, also in Release: primary data evaluated on behalf of an
+					// integrity check must be under interest and scheduled -- CalledCalcHandle
+					// guarantees both by construction, and this pins that contract where a bypass
+					// (evaluating the checker without taking interest) would otherwise regress
+					// silently, since the out-of-band answer is still the right verdict.
+					MG_CHECK(iCheckerDC && iCheckerDC->GetInterestCount());
 
 					DataReadLockContainer c;
 					auto iCheckerFD = iCheckerDC->CallCalcResult(nullptr);// @@@USE
