@@ -53,10 +53,19 @@ template <class T>
 FormattedInpStream& operator >> (FormattedInpStream& is, Range<T>& r)
 {
 	point_stream::ReadChar(is, '[');
+	point_stream::SkipSpace(is);
+	// A '{' can only start the legacy untagged {row, col} spelling of a point bound. Deprecated
+	// for the coordinate-order reasons of #1165 -- since 20.14.0 output is always xy(x; y) -- but
+	// still parsed, as existing configurations and .mmd dictionaries carry it. This is the range
+	// parse only: the high-volume point readers (sequences, data blocks) do not pass through here.
+	bool legacyPointNotation = (is.NextChar() == '{');
 	is >> r.first;
 	point_stream::ReadSeparator(is);
 	is >> r.second;
 	point_stream::ReadChar(is, ')');
+	if (legacyPointNotation)
+		reportF(SeverityTypeID::ST_Warning
+			, "Depreciated point notation {{row, col}} in a range; write it as \"[xy(x1; y1), xy(x2; y2))\", see wiki topic XY-order");
 	return is;
 }
 
