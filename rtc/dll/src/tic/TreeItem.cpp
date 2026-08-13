@@ -3055,26 +3055,57 @@ static auto TreeItem_CreateConvertedExpr(const TreeItem* self, const TreeItem* c
 	return expr;
 }
 
+// #1180: an IntegrityCheck guards everything below the item carrying it, so the checks of this
+// item AND of its ancestors are folded here, each as a condition wrapping the result expression.
+// The fold keeps integrity checking inside the DataController graph: a condition is an operator
+// argument, so it carries interest and is scheduled by an OperationContext, ordered against the
+// primary data by CheckOperator -- the validate phase of DoUpdate then merely inspects the
+// already-computed verdict (see there) instead of calculating out-of-band (#1181).
+//
+// Well-foundedness: a checker referencing an item inside its holder's subtree is refused as a
+// circular dependency when its metainfo is built (the DoesContain gate in
+// AbstrCalculator::SubstituteExpr), so a foldable check can only reference items OUTSIDE its
+// holder's subtree, and the checked expressions of those can never fold this check again.
+// The condition's LispRef is one and the same for every descendant, so its DataController is
+// shared and the check's calculation runs once, not once per descendant.
+static bool TreeItem_HasIntegrityCheckerInclAncestors(const TreeItem* self)
+{
+	SharedTreeItem holder; // keeps the ancestor alive while it is inspected
+	for (auto guardian = self; guardian; holder = guardian->GetTreeParent(), guardian = holder.get())
+		if (guardian->HasIntegrityChecker())
+			return true;
+	return false;
+}
+
 static auto TreeItem_CreateCheckedExpr(LispPtr resultExpr, const TreeItem* self) -> LispRef
 {
-	dms_assert(self->HasIntegrityChecker());
+	dms_assert(TreeItem_HasIntegrityCheckerInclAncestors(self));
 
-	auto icCalc = self->GetIntegrityChecker();
-	if (!icCalc)
+	LispRef result = resultExpr;
+	SharedTreeItem holder; // keeps the ancestor alive while its checker is folded
+	for (auto guardian = self; guardian; holder = guardian->GetTreeParent(), guardian = holder.get())
 	{
-		self->Fail("Failed to construct IntegryCheck", FailType::Validate);
-		return resultExpr;
-	}
+		if (!guardian->HasIntegrityChecker())
+			continue;
 
-	auto contextForReportingPurposes = TreeItemContextHandle(self, "Create IntegrityCheck");
+		auto icCalc = guardian->GetIntegrityChecker();
+		if (!icCalc)
+		{
+			self->Fail("Failed to construct IntegryCheck", FailType::Validate);
+			return resultExpr;
+		}
 
-	auto ic = GetAsLispRef(icCalc->GetMetaInfo());
-	if (ic.EndP())
-	{
-		self->Fail("Failed to construct IntegryCheck", FailType::Validate);
-		return resultExpr;
+		auto contextForReportingPurposes = TreeItemContextHandle(guardian, "Create IntegrityCheck");
+
+		auto ic = GetAsLispRef(icCalc->GetMetaInfo());
+		if (ic.EndP())
+		{
+			self->Fail("Failed to construct IntegryCheck", FailType::Validate);
+			return resultExpr;
+		}
+		result = ExprList(token::integrity_check, result, ic);
 	}
-	return ExprList(token::integrity_check, resultExpr, ic);
+	return result;
 }
 
 void TreeItem::UpdateDC() const
@@ -3097,7 +3128,7 @@ void TreeItem::UpdateDC() const
 			resultDC = GetOrCreateDataController(keyExpr);
 		}
 	}
-	if (resultDC && HasIntegrityChecker())
+	if (resultDC && TreeItem_HasIntegrityCheckerInclAncestors(this))
 	{
 		LispRef resultExpr;
 		if (resultDC)
@@ -3172,7 +3203,7 @@ LispRef TreeItem::GetCheckedKeyExpr() const
 	// required for Convert test and subItem moniking, empty for applicators non-calculatable or loadable items (such as some parents).
 	this->DetermineState();
 	result = CreateLispTree(this, false);
-	if (HasIntegrityChecker())
+	if (TreeItem_HasIntegrityCheckerInclAncestors(this))
 		result = TreeItem_CreateCheckedExpr(result, this);
 	return result;
 }
@@ -3445,6 +3476,11 @@ ActorVisitState TreeItem::DoUpdate()
 		// validated against its own check and then against each of its ancestors' checks, and fails
 		// here when any of them does not hold. Every exit below is a return, so the only fall-through
 		// is "this check held", which continues with the next ancestor.
+		// For an item with a DataController these checks were folded into it as conditions
+		// (TreeItem_CreateCheckedExpr), so they arrive here already scheduled by an
+		// OperationContext, with interest, and computed: the CalledCalcHandle below then finds the
+		// shared condition DataController ready and this loop only inspects the verdict. It still
+		// calculates for items without a DataController, i.e. when the item itself is the request.
 		SharedTreeItem guardianHolder; // keeps the ancestor alive while its check is evaluated
 		for (const TreeItem* guardian = this; guardian; guardianHolder = guardian->GetTreeParent(), guardian = guardianHolder.get())
 		if (guardian->HasIntegrityChecker())
