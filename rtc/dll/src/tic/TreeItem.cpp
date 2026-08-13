@@ -3441,14 +3441,20 @@ ActorVisitState TreeItem::DoUpdate()
 
 	if (m_State.GetProgress() < ProgressState::Validated) 
 	{
-		if (HasIntegrityChecker())
+		// #1180: an IntegrityCheck guards everything below the item carrying it, so this item is
+		// validated against its own check and then against each of its ancestors' checks, and fails
+		// here when any of them does not hold. Every exit below is a return, so the only fall-through
+		// is "this check held", which continues with the next ancestor.
+		SharedTreeItem guardianHolder; // keeps the ancestor alive while its check is evaluated
+		for (const TreeItem* guardian = this; guardian; guardianHolder = guardian->GetTreeParent(), guardian = guardianHolder.get())
+		if (guardian->HasIntegrityChecker())
 		{
 //			m_State.Set(actor_flag_set::AF_IntegrityChecked);
 			try
 			{
-				TreeItemContextHandle tich2(this, "IntegrityCheck Evaluation");
+				TreeItemContextHandle tich2(guardian, "IntegrityCheck Evaluation");
 
-				auto iCheckerPtr = GetIntegrityChecker();
+				auto iCheckerPtr = guardian->GetIntegrityChecker();
 				assert(iCheckerPtr);
 
 				auto iCheckerDC = MakeResult(iCheckerPtr.get());
@@ -3836,22 +3842,43 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 
 	// =============== IntegrityChecker
 
-	if (Test(svf, SupplierVisitFlag::Checker) && HasIntegrityChecker())
+	// #1180: an IntegrityCheck guards everything below the item carrying it, so the checks of
+	// this item AND of all its ancestors are suppliers here: using a nested item has to evaluate
+	// them, not only requesting the ancestor itself. A failing ancestor check thereby fails its
+	// descendants, which is what makes a guard on a storage holder or a sub-table root mean
+	// anything for the items read through it.
+	//
+	// An ancestor check that reaches into its own subtree closes a cycle this way and is reported
+	// as a circular dependency. It already was one whenever the ancestor itself was requested, so
+	// it could never be relied upon; the same holds for the condition elements of an indirect
+	// expression. Restricting units defined OUTSIDE the subtree -- what the .mmd dictionary guards
+	// of #1154 do -- needs no reference into it and so never closes a cycle.
+	if (Test(svf, SupplierVisitFlag::Checker))
 	{
-		auto ic = GetIntegrityChecker();
-		if (ic->VisitSuppliers(svf, visitor) == AVS_SuspendedOrFailed)
-			return AVS_SuspendedOrFailed;
-
-		auto dc = MakeResult(ic.get());
-		if (dc->WasFailed(FailType::MetaInfo))
+		const TreeItem* guardian = this;
+		SharedTreeItem guardianHolder; // keeps the ancestor alive while its checker is visited
+		while (guardian)
 		{
-			Fail(dc.get());
-//			return AVS_SuspendedOrFailed;
+			if (guardian->HasIntegrityChecker())
+			{
+				auto ic = guardian->GetIntegrityChecker();
+				if (ic->VisitSuppliers(svf, visitor) == AVS_SuspendedOrFailed)
+					return AVS_SuspendedOrFailed;
+
+				auto dc = MakeResult(ic.get());
+				if (dc->WasFailed(FailType::MetaInfo))
+				{
+					Fail(dc.get());
+		//			return AVS_SuspendedOrFailed;
+				}
+				if (visitor.Visit(dc.get()) != AVS_Ready)
+					return AVS_SuspendedOrFailed;
+				if (visitor.Visit(dc->GetOld()) == AVS_SuspendedOrFailed)
+					return AVS_SuspendedOrFailed;
+			}
+			guardianHolder = guardian->GetTreeParent();
+			guardian = guardianHolder.get();
 		}
-		if (visitor.Visit(dc.get()) != AVS_Ready)
-			return AVS_SuspendedOrFailed;
-		if (visitor.Visit(dc->GetOld()) == AVS_SuspendedOrFailed)
-			return AVS_SuspendedOrFailed;
 	}
 
 	return base_type::VisitSuppliers(svf, visitor);
