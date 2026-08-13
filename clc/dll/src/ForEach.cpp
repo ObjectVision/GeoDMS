@@ -559,7 +559,12 @@ private:
 
 oper_arg_policy CalcArgPolicy(arg_index argNr, field_spec fs)
 {
-	dms_assert(argNr < 11);
+	// The widest specs have 12 positions -- neidnvnvcsldats, say, is name, expr, check, domain
+	// container + domain, values container + values, label, descr, storagename, storagetype,
+	// sqlstring -- so a literal bound of 11 rejected the last argument of the widest groups. Bound
+	// by the spec's own arity instead, which stays right as fields are added; the positions past
+	// the domain/values block fall through to calc_always below, which is what they need.
+	dms_assert(argNr < CalcNrArgs(fs));
 	if (argNr--)                        // ! NAME
 		if (!(fs & FS_EXPR) || argNr--)  // ! EXPR
 			if (!(fs & FS_CHECK) || argNr--)  // ! CHECK
