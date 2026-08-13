@@ -62,5 +62,13 @@ protected:
 using AppendTreeFromConfigurationFuncPtr = auto (*) (const char* fileName, TreeItem* treeItem)->TreeItem*;
 extern TIC_CALL AppendTreeFromConfigurationFuncPtr s_AppendTreeFromConfigurationPtr;
 
+// #1154: while DoWriteTree dumps a dictionary, the root being dumped. TreeItem::XML_Dump emits
+// the synthesized restrictions of that root as an IntegrityCheck subtag, which the read holder
+// merges and, through #1180, applies to every sub-item read through it.
+// No TIC_CALL: thread_local data cannot carry a dll interface (C2492); definition and consumer
+// both live in DmRtc.
+extern thread_local const TreeItem* t_MmdDictionaryRoot;
+TIC_CALL auto Mmd_SynthesizeExternalUnitRestrictions(const TreeItem* dictRoot) -> SharedStr;
+
 
 #endif // !defined(__STG_MMD_STORAGEMANAGER_H)

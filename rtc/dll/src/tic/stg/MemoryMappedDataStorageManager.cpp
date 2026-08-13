@@ -14,18 +14,28 @@
 
 #include "stg/MemoryMappedDataStorageManager.h"
 
+#include <algorithm>
+
 #include "act/TriggerOperator.h"
 #include "dbg/debug.h"
 #include "dbg/SeverityType.h"
 #include "mci/ValueClass.h"
+#include "mci/ValueClassID.h"
+#include "ptr/InterestHolders.h"
+#include "ser/AsString.h"
 #include "ser/FileStreamBuff.h"
 #include "utl/Environment.h"
 #include "utl/mySPrintF.h"
+#include "utl/scoped_exit.h"
 #include "utl/SplitPath.h"
 #include "xml/XMLOut.h"
 
 #include "AbstrDataItem.h"
 #include "AbstrDataObject.h"
+#include "AbstrUnit.h"
+#include "DataLocks.h" // DrlType
+#include "ItemLocks.h"
+#include "TreeItem.h"
 #include "DataStoreManagerCaller.h"
 #include "TicInterface.h"
 #include "TreeItemProps.h"
@@ -33,6 +43,115 @@
 #include "stg/StorageClass.h"
 
 TIC_CALL AppendTreeFromConfigurationFuncPtr s_AppendTreeFromConfigurationPtr = nullptr;
+
+thread_local const TreeItem* t_MmdDictionaryRoot = nullptr;
+
+//////////////////////////////////////////////////////////////////////
+// #1154: restrictions on units external to the dictionary
+//
+// The dictionary describes what is INSIDE the storage; the value type and range of a unit
+// declared OUTSIDE it only survive as a name in the attribute signatures, which re-resolves
+// against whatever the reading configuration declares under that name. When that declaration
+// changed since the write -- the fpoint->dpoint case of #1154 -- the reader silently binds the
+// new type to the old bytes. These restrictions record what the bytes were written against, as
+// an IntegrityCheck on the dictionary root: merged onto the read holder, #1180 folds them into
+// every sub-item read through it, so a mismatch fails every consumer instead of delivering
+// reinterpreted data. Units inside the dictionary are self-describing and need none of this.
+//////////////////////////////////////////////////////////////////////
+
+namespace {
+
+	// The unit's name as the reader will resolve it: the RAW configured token, the same spelling
+	// the attribute signatures dump, resolving by up-scope search from the read holder.
+	SharedStr Mmd_UnitRefStr(TokenID nameToken)
+	{
+		if (!IsDefined(nameToken) || nameToken == TokenID::GetEmptyID())
+			return {};
+		return SharedStr(GetTokenStr(nameToken).c_str()); // materialize: TokenStr holds the token-registry lock
+	}
+
+	void Mmd_AddUnitRestriction(SharedStr& expr, std::vector<const AbstrUnit*>& seen
+		, const TreeItem* dictRoot, const AbstrUnit* u, TokenID nameToken, bool isDomainRole)
+	{
+		if (!u || u->IsDefaultUnit() || dictRoot->DoesContain(u))
+			return;
+		if (std::find(seen.begin(), seen.end(), u) != seen.end())
+			return;
+		auto name = Mmd_UnitRefStr(nameToken);
+		if (name.empty() || name == ".")
+			return;
+		seen.push_back(u);
+
+		auto vc = u->GetValueType();
+		assert(vc);
+		if (!expr.empty())
+			expr += " && ";
+		expr += mySSPrintF("PropValue({}, 'ValueType') == '{}'", name, vc->GetName());
+
+		// The extent matters for a domain: the stored per-element files are only readable against
+		// the count they were written with. A values unit needs no bounds -- and a base unit's
+		// range would assert the full value-type range, which restricts nothing.
+		if (!isDomainRole)
+			return;
+		auto rangeItem = u->GetCurrRangeItem();
+		if (!rangeItem || !IsCalculatingOrReady(rangeItem.get()))
+			return; // not known yet; the #1155 re-emission at unit commit refreshes the dictionary
+		InterestPtr<const TreeItem*> holder(u); // the same guarded access the Range subtag emission uses
+		u->PrepareDataUsage(DrlType::Certain);
+
+		auto nrDims = vc->GetNrDims();
+		if (nrDims == 1 && vc->IsNumeric())
+		{
+			// 64-bit integral bounds do not round-trip through the Float64 accessor; the ValueType
+			// restriction still holds and the count mismatch surfaces at the file-size guards.
+			auto vcid = vc->GetValueClassID();
+			if (vcid == ValueClassID::VT_UInt64 || vcid == ValueClassID::VT_Int64)
+				return;
+			auto [b, e] = u->GetRangeAsFloat64();
+			if (!IsDefined(b) || !IsDefined(e) || b > e)
+				return;
+			// cast-constructor literals: <vt>(<plain number>) needs no per-type literal suffix
+			expr += mySSPrintF(" && LowerBound({0}) == {1}({2}) && UpperBound({0}) == {1}({3})"
+				, name, vc->GetName()
+				, AsString(b, FormattingFlags::None), AsString(e, FormattingFlags::None));
+		}
+		else if (nrDims == 2)
+		{
+			auto [from, to_] = u->GetRangeAsDRect();
+			if (!IsLowerBound(from, to_))
+				return;
+			auto crdName = vc->GetScalarClass()->GetName();
+			expr += mySSPrintF(" && LowerBound({0}) == point_xy({1}({2}), {1}({3}))"
+				" && UpperBound({0}) == point_xy({1}({4}), {1}({5}))"
+				, name, crdName
+				, AsString(from.Col(), FormattingFlags::None), AsString(from.Row(), FormattingFlags::None)
+				, AsString(to_.Col(), FormattingFlags::None), AsString(to_.Row(), FormattingFlags::None));
+		}
+	}
+
+} // anonymous namespace
+
+TIC_CALL auto Mmd_SynthesizeExternalUnitRestrictions(const TreeItem* dictRoot) -> SharedStr
+{
+	SharedStr expr;
+	std::vector<const AbstrUnit*> seen; // first-encounter order keeps the dictionary text deterministic
+
+	std::vector<const TreeItem*> stack{ dictRoot };
+	while (!stack.empty())
+	{
+		auto ti = stack.back();
+		stack.pop_back();
+		for (auto sub = ti->_GetFirstSubItem(); sub; sub = sub->GetNextItem())
+			if (!sub->IsDisabledStorage()) // mirrors what the dictionary dump includes
+				stack.push_back(sub);
+		if (!IsDataItem(ti))
+			continue;
+		auto adi = AsDataItem(ti);
+		Mmd_AddUnitRestriction(expr, seen, dictRoot, adi->GetAbstrDomainUnit(), adi->DomainUnitToken(), true);
+		Mmd_AddUnitRestriction(expr, seen, dictRoot, adi->GetAbstrValuesUnit(), adi->ValuesUnitToken(), false);
+	}
+	return expr;
+}
 
 //////////////////////////////////////////////////////////////////////
 // MmdStorageManager implementation
@@ -112,6 +231,10 @@ void MmdStorageManager::DoWriteTree(const TreeItem* storageHolder)
 
 	auto osb = VectorOutStreamBuff();
 	auto out = OutStream_DMS(&osb, calcRulePropDefPtr);
+
+	// #1154: let XML_Dump synthesize the external-unit restrictions at this root
+	t_MmdDictionaryRoot = storageHolder;
+	auto resetRoot = make_scoped_exit([] { t_MmdDictionaryRoot = nullptr; });
 
 	TreeItem_XML_DumpOrThrow(storageHolder, &out, false);
 

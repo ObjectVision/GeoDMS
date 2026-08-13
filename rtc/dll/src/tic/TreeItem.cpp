@@ -5308,6 +5308,15 @@ void TreeItem::XML_Dump(OutStreamBase* xmlOutStr, bool notWritingDictionary) con
 
 	if (notWritingDictionary)
 		xmlOutStr->DumpSubTags(this);
+	else if (this == t_MmdDictionaryRoot)
+	{
+		// #1154: record what the stored bytes were written against for every unit declared
+		// OUTSIDE this dictionary. Merged onto the read holder, #1180 folds these restrictions
+		// into every sub-item read through it.
+		auto restrictions = Mmd_SynthesizeExternalUnitRestrictions(this);
+		if (!restrictions.empty())
+			xmlOutStr->DumpSubTag(ICHECK_NAME, restrictions.c_str(), false);
+	}
 	// end of Copy
 
 	if (IsDataItem(this))
