@@ -1376,7 +1376,17 @@ void PublishMeasuredElementWidth(const AbstrDataItem* adi) noexcept
 		auto valuesType = adi->GetAbstrValuesUnit()->GetValueType();
 		if (!isSeq && valuesType->GetBitSize() != UInt32(-1))
 			return; // fixed width: EstimateDataBytes is already exact
-		auto obj = adi->GetCurrRefObj();
+		// NOT GetCurrRefObj: this is best-effort instrumentation, but that accessor carries
+		// contracts -- a dbg_assert on meta-info readiness and an MG_CHECK on the ultimate item --
+		// which the callers cannot guarantee (e.g. the python binding's set_value commits into an
+		// item whose meta progression is elsewhere). The catch below swallows the Release throw,
+		// but the Debug assert fires first: in GeoDmsRun that is exit(3), in any other host (the
+		// python unit tests) a modal CRT dialog that hangs the run (#1181 family, fifth site).
+		auto ultimate = adi->GetCurrUltimateItem();
+		auto ultimateAdi = AsDynamicDataItem(ultimate.get());
+		if (!ultimateAdi)
+			return;
+		auto obj = ultimateAdi->GetCurrDataObj();
 		if (!obj)
 			return;
 		auto rows = obj->GetNrFeaturesNow();
