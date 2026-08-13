@@ -44,6 +44,17 @@
 [(collect_by_org_rel (select_uint16_with_org_rel _Cond) _Data) (lookup (SubItem (select_uint16_with_org_rel _Cond) "org_rel") _Data)]
 [(collect_by_org_rel (select_uint32_with_org_rel _Cond) _Data) (lookup (SubItem (select_uint32_with_org_rel _Cond) "org_rel") _Data)]
 
+/* The rules above destructure the SUBSET argument, so they only fire when its structure is
+   visible. Since #1180 an item under an IntegrityCheck hands consumers its guarded form,
+   (integrity_check <expr> <check>), which hides that structure: the binary spelling then
+   found no rule and no binary operator either. Lift the guard to the call, where it means
+   the same thing -- the consumer fails when the check fails -- and the subset argument is
+   bare again. This peels one guard per iteration: the template's inner call is re-applied
+   (AssocList_RepApplyTopEnv), so a second guard, from a second checked ancestor, hoists on
+   the next pass, and the bare call finally meets the rules above. */
+[(collect_by_cond    (IntegrityCheck _Subset _Check) _Data) (IntegrityCheck (collect_by_cond    _Subset _Data) _Check)]
+[(collect_by_org_rel (IntegrityCheck _Subset _Check) _Data) (IntegrityCheck (collect_by_org_rel _Subset _Data) _Check)]
+
 /*********** Elementary funcs  *********/
 
 /* the 2-arg log rule is RETIRED to a prelude function (arity-aware head dispatch:
