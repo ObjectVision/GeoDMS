@@ -882,8 +882,13 @@ static row_id EvalDeclaredSizeRule(const AbstrCalculatorRef& rule, CharPtr propN
 
 auto AbstrUnit::EstimateCount() const -> CountEstimate
 {
-	// Ready data beats every declaration: the count is simply known.
-	if (IsDataReady(this))
+	// Ready data beats every declaration: the count is simply known. Probed on the range item -- a
+	// unit whose range delegates is not its own range item, which IsDataReady's Debug precondition
+	// requires -- and only under interest, without which the probe's answer would be volatile (its
+	// other precondition, ItemLocks.cpp; both tripped from the estimate path, #1181). No interest
+	// means: fall through to the declared bounds, which is what an estimate is for.
+	auto rangeItem = GetCurrRangeItem();
+	if (rangeItem && rangeItem->HasInterest() && IsDataReady(rangeItem.get()))
 	{
 		auto n = GetCount();
 		return { n, n, estimate_confidence::derived };

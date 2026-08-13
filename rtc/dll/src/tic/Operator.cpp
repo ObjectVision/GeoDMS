@@ -272,13 +272,18 @@ TIC_CALL auto Operator::EstimatePerformance(TreeItemDualRef& resultHolder, const
 	result.resultingMemoryUpperBound = EstimateDataBytes(adi, domainCount.upperBound);
 
 	// Tiling, then the regime it enables, then what is actually resident under that regime.
+	// Read the tiling only where it already exists: an estimator must not force anything, and
+	// GetNrTiles MG_CHECKs a not-yet-calculated range -- the catch that used to sit here recovered
+	// from that in Release, but throwCheckFailed asserts before throwing, so any Debug run through
+	// here died (#1181). Probing the range item also reads the tiling where it lives: on a
+	// delegating unit, GetTiledRangeData on the unit itself answers from its own, empty, slot.
 	tile_offset maxTileSize = 0;
-	try {
-		result.nrChores = domain->GetNrTiles();
-		if (auto trd = domain->GetTiledRangeData())
+	if (auto rangeItem = domain->GetCurrRangeItem())
+		if (auto trd = AsUnit(rangeItem.get())->GetTiledRangeData())
+		{
+			result.nrChores = trd->GetNrTiles();
 			maxTileSize = trd->GetMaxTileSize();
-	}
-	catch (...) {}
+		}
 	result.extraTasks = UInt16(Min<SizeT>(result.nrChores, MAX_VALUE(UInt16)));
 	result.choreMemory = maxTileSize ? EstimateDataBytes(adi, maxTileSize)
 		: (result.nrChores ? result.resultingMemory / result.nrChores : result.resultingMemory);

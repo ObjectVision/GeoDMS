@@ -59,7 +59,13 @@ TIC_CALL SizeT ResolvedNrElements(const TreeItem* item)
 	if (!item || !IsDataItem(item))
 		return UNDEFINED_VALUE(SizeT);
 	auto domain = AsDataItem(item)->GetAbstrDomainUnit();
-	if (!domain || !IsDataReady(domain))
+	if (!domain)
+		return UNDEFINED_VALUE(SizeT);
+	// Probed on the range item, under interest: IsDataReady's Debug preconditions require both --
+	// a delegating unit is not its own range item, and an uninterested item's answer is volatile
+	// (#1181). Either miss means the count is not resolvable, which the report renders as n=?.
+	auto rangeItem = domain->GetCurrRangeItem();
+	if (!rangeItem || !rangeItem->HasInterest() || !IsDataReady(rangeItem.get()))
 		return UNDEFINED_VALUE(SizeT);
 	return domain->GetCount();
 }
@@ -141,8 +147,14 @@ TIC_CALL void ReportOperPerformance(CharPtr operName, const TreeItem* result
 	// The regime the object actually got, beside the prediction: several channels build a
 	// recalculating object whatever LazyCalculated says (doc/tile-data-retainment.md §4.3), so a
 	// disagreement here is an estimator defect worth seeing rather than a detail.
+	// GetCurrDataObj, NOT GetRefObj: this runs on the OperationContext worker that just produced
+	// the result, and GetRefObj asserts IsMetaThread -- its GetUltimateItem walk can trigger meta
+	// processing -- which made any Debug run with a data-producing operator die here (#1181). The
+	// caller passes resultHolder.GetUlt(), already the ultimate item, whose m_DataObject is the
+	// object the operation just stored (asserted at the call site) and is kept alive by the
+	// running context's interest; reading it directly needs no walk and no meta processing.
 	auto actualRegime = estimate.regime;
-	if (auto ado = AsDataItem(result)->GetRefObj())
+	if (auto ado = AsDataItem(result)->GetCurrDataObj())
 		actualRegime = ado->GetMaterialization();
 	auto regimeMismatch = (actualRegime != estimate.regime)
 		? mySSPrintF(" !regime={} predicted={}", AsString(actualRegime), AsString(estimate.regime))
@@ -193,9 +205,14 @@ TIC_CALL auto EstimateReadResources(const TreeItem* focusItem) -> PerformanceEst
 		result.resultingMemory = EstimateDataBytes(adi, count.expected);
 		result.resultingMemoryUpperBound = EstimateDataBytes(adi, count.upperBound);
 		result.confidence = count.confidence;
-		result.nrChores = domain->GetNrTiles();
-		if (auto trd = domain->GetTiledRangeData())
-			result.choreMemory = EstimateDataBytes(adi, trd->GetMaxTileSize());
+		// guarded like Operator::EstimatePerformance: GetNrTiles MG_CHECKs a not-yet-calculated
+		// range, which the surrounding catch recovered from in Release but killed Debug (#1181)
+		if (auto rangeItem = domain->GetCurrRangeItem())
+			if (auto trd = AsUnit(rangeItem.get())->GetTiledRangeData())
+			{
+				result.nrChores = trd->GetNrTiles();
+				result.choreMemory = EstimateDataBytes(adi, trd->GetMaxTileSize());
+			}
 		// A read's bytes cross the storage boundary; that traffic IS the cost, and the result holds
 		// the same volume. Tiles are written into the result array, so nothing is streamed away.
 		result.ioBytes = result.resultingMemory;
