@@ -123,6 +123,33 @@ For headless feature verification (capture the exact command an action launches,
 test-script verbs) use the `/L<logfile> /T<scriptfile> <config>` form instead of clicking.
 
 
+## Documenting a behaviour change: the wiki
+
+The user-facing documentation is the **GitHub wiki**, checked out beside this repo as
+**`C:\dev\GeoDMS.wiki`** (`ObjectVision/GeoDMS.wiki.git`; `GeoDMS_Academy.wiki` is a separate
+one). It is a normal git clone: edit the `.md` pages, commit locally, **never push** (same rule
+as every repo here).
+
+**A change that alters observable behaviour is not finished when it builds and the tests pass.**
+Semantics that a modeller can notice — a new or changed notation, a property that starts warning
+or erroring, a check that now fires where it did not, a rule about what a storage records or what
+a reader may declare — belongs on the wiki in the same session, next to the code and the issue
+debrief. Verifying a change tells you it works; the wiki is what makes it usable.
+
+Conventions that the existing pages follow, worth matching:
+
+- **Date the change**: "**Since GeoDMS 20.14.0** …", so a reader on an older build knows why the
+  page and their build disagree. When the old behaviour was wrong rather than merely different,
+  say what it was — the pages are read by people debugging configurations written years ago.
+- **Say what breaks.** Where a change makes a previously silent configuration fail, name that:
+  the IntegrityCheck page states that a check which never fired before can surface on the first
+  run after upgrading, which is the whole point of the change but still a surprise.
+- **Put it on the topic page**, not in a changelog: `IntegrityCheck.md`, `MMD.md`, `XY-order.md`,
+  `Indirect-expression.md`, … Link between them with the wiki's own `[[Page-name]]` /
+  `[[label|Page-name]]` syntax, and add the reverse link on the pages that should point back.
+- **Keep the issue debrief and the wiki distinct**: the issue records what was wrong, how it was
+  diagnosed and what was measured; the wiki records only what a modeller must now do differently.
+
 ## Build & headless-run gotchas
 
 - **`'pwsh.exe' is not recognized` post-build line is noise.** A post-build event shells out to
