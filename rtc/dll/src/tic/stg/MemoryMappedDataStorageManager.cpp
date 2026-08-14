@@ -95,7 +95,7 @@ namespace {
 			return;
 		auto rangeItem = u->GetCurrRangeItem();
 		if (!rangeItem || !IsCalculatingOrReady(rangeItem.get()))
-			return; // not known yet; the #1155 re-emission at unit commit refreshes the dictionary
+			return; // not known yet; a later re-emission (see UpdateDictionary) refreshes the dictionary
 		InterestPtr<const TreeItem*> holder(u); // the same guarded access the Range subtag emission uses
 		u->PrepareDataUsage(DrlType::Certain);
 
@@ -249,8 +249,13 @@ void MmdStorageManager::UpdateDictionary(const TreeItem* storageHolder)
 	// of units that were not calculated yet (see the var-range branch of TreeItem::XML_Dump,
 	// #1130); re-emitting it here completes the dictionary before the write session ends.
 	auto lock = lock_t(m_CriticalSection);
-	if (!m_IsOpen || !m_IsOpenedForWrite)
-		return; // nothing emitted yet: OpenForWrite will dump the dictionary with this unit's now-ready range
+	// Not `m_IsOpen && m_IsOpenedForWrite`: the storage is already CLOSED when the last stored
+	// attribute finishes committing, and that is exactly the moment the extent of a domain
+	// declared outside this storage first becomes readable (#1154). The dictionary is a separate
+	// text file, so refreshing it needs the write SESSION, not the mapped storage. Before
+	// OpenForWrite has run there is nothing to refresh, which m_IsOpenedForWrite still states.
+	if (!m_IsOpenedForWrite)
+		return; // nothing emitted yet: OpenForWrite will dump the dictionary with the now-ready range
 
 	SuspendTrigger::FencedBlocker blockSuspension("MmdStorageManager::UpdateDictionary");
 	DoWriteTree(storageHolder);

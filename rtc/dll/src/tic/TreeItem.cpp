@@ -4952,7 +4952,13 @@ bool TreeItem::CommitDataChanges() const
 			mmd->UpdateDictionary(storageHolder.get()); // #1155: the dictionary emitted at OpenForWrite lacked this unit's Range
 		}
 		if (IsDataItem(this))
+		{
 			DataReadLock lock(AsDataItem(this)); // make sure data is calculated and stored
+			// #1154: writing the data required the domain's range, so here -- and not at
+			// OpenForWrite, where the dictionary was first emitted -- the extent of a domain
+			// declared OUTSIDE this storage is finally readable and can be recorded.
+			mmd->UpdateDictionary(storageHolder.get());
+		}
 		return true;
 	}
 
