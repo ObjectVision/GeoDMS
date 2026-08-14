@@ -3077,6 +3077,37 @@ static bool TreeItem_HasIntegrityCheckerInclAncestors(const TreeItem* self)
 	return false;
 }
 
+// Does expr already enforce exactly this check? Then guarding it again adds nothing:
+// evaluating expr evaluates that node, which fails on the same condition. This is the common
+// shape under a checked ancestor -- an item's expression references a sibling whose own key
+// expression the fold already guarded -- and without this test every item AND every reference
+// between them carries its own copy, so one check on a root container multiplies over the
+// whole configuration.
+//
+// The search is depth-bounded on purpose. Missing a redundancy only costs one superfluous
+// wrapper, whereas an unbounded walk would scan entire substituted trees on every fold; the
+// references that matter sit within a couple of argument levels. Conditions are interned, so
+// the comparison is a pointer test.
+static bool TreeItem_ExprEnforcesCheck(LispPtr expr, LispPtr ic, UInt32 depthBudget)
+{
+	if (!expr.IsRealList())
+		return false;
+
+	if (expr.Left().IsSymb() && expr.Left().GetSymbID() == token::integrity_check
+		&& expr.Right().IsRealList() && expr.Right().Right().IsRealList()
+		&& expr.Right().Right().Left() == ic)
+		return true;
+
+	if (!depthBudget)
+		return false;
+	for (LispPtr cursor = expr.Right(); cursor.IsRealList(); cursor = cursor.Right())
+		if (TreeItem_ExprEnforcesCheck(cursor.Left(), ic, depthBudget - 1))
+			return true;
+	return false;
+}
+
+static const UInt32 c_CheckContainmentDepth = 4;
+
 static auto TreeItem_CreateCheckedExpr(LispPtr resultExpr, const TreeItem* self) -> LispRef
 {
 	dms_assert(TreeItem_HasIntegrityCheckerInclAncestors(self));
@@ -3103,7 +3134,8 @@ static auto TreeItem_CreateCheckedExpr(LispPtr resultExpr, const TreeItem* self)
 			self->Fail("Failed to construct IntegryCheck", FailType::Validate);
 			return resultExpr;
 		}
-		result = ExprList(token::integrity_check, result, ic);
+		if (!TreeItem_ExprEnforcesCheck(result, ic, c_CheckContainmentDepth))
+			result = ExprList(token::integrity_check, result, ic);
 	}
 	return result;
 }
