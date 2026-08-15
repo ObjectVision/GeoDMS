@@ -485,11 +485,169 @@ bool FuncDC::MustCalcArg(oper_arg_policy ap, bool doCalc)
 			return true;
 //		case oper_arg_policy::calc_never:
 //		case oper_arg_policy::calc_at_subitem:
-//		case oper_arg_policy::is_templ:       
+//		case oper_arg_policy::is_templ:
 //		case oper_arg_policy::subst_with_subitems:
 		default:
 			return false;
 	}
+}
+
+// =========================================  GetImpliedChecks (#1182)
+
+// The set of IntegrityCheck conditions that evaluating this DC's key is certain to evaluate:
+// the union over the args the engine calculates before the operator runs (MustCalcArg, as
+// GetArgs applies it), plus this key's own condition when it is an integrity_check application.
+// TreeItem_CreateCheckedExpr consults it to skip a wrap whose condition an embedded node
+// already enforces. The DC graph mirrors the calculation DAG (FuncDC's ctor makes a DC per
+// argument), so each node folds once per DC lifetime and a redundant guard is found at any
+// depth; the set dies with its DC, so no separate registry or eviction is needed.
+
+static check_set_ptr GetSharedEmptyCheckSet()
+{
+	// holds no LispRefs, so its CRT-exit destruction stays clear of the LispObj caches
+	static check_set_ptr s_EmptyCheckSet = make_SharedThing<check_set>();
+	return s_EmptyCheckSet;
+}
+
+// Split a condition on its conjunction spine: 'a && b && c' parses to and(and(a, b), c), and
+// enforcing that for every element enforces a, b and c individually. Non-conjunctions yield
+// themselves, so every condition has a normal form of one or more atoms.
+static void CollectCheckAtoms(LispPtr cond, std::vector<LispPtr>& atoms)
+{
+	std::vector<LispPtr> todo; // explicit stack: a generated conjunction spine can be long
+	todo.push_back(cond);
+	while (!todo.empty())
+	{
+		LispPtr curr = todo.back();
+		todo.pop_back();
+		if (curr.IsRealList() && curr.Left().IsSymb() && curr.Left().GetSymbID() == token::and_)
+		{
+			for (LispPtr cursor = curr.Right(); cursor.IsRealList(); cursor = cursor.Right())
+				todo.push_back(cursor.Left());
+			continue;
+		}
+		atoms.push_back(curr);
+	}
+}
+
+void InsertCheckAtoms(check_set& dest, LispPtr cond)
+{
+	std::vector<LispPtr> atoms;
+	CollectCheckAtoms(cond, atoms);
+	for (auto atom : atoms)
+		dest.insert(LispRef(atom));
+}
+
+bool AreCheckAtomsImplied(const check_set& enforced, LispPtr cond)
+{
+	std::vector<LispPtr> atoms;
+	CollectCheckAtoms(cond, atoms);
+	if (atoms.empty())
+		return false; // nothing recognisable to enforce: keep the guard
+	for (auto atom : atoms)
+		if (!enforced.contains(atom))
+			return false;
+	return true;
+}
+
+// an arg's checks only count when the engine calculates that arg before the operator runs;
+// dynamic policies depend on arg 0's data, which is not consulted here: treat those args as
+// non-contributing, which errs towards an extra wrap
+static bool DataController_ArgContributes(const FuncDC* funcDC, arg_index argNr)
+{
+	if (funcDC->m_OperatorGroup->HasDynamicArgPolicies())
+		return false;
+	return funcDC->MustCalcArg(argNr, true, nullptr);
+}
+
+check_set_ptr DataController::GetImpliedChecks() const
+{
+	assert(IsMetaThread()); // same discipline as DC creation; keeps m_ImpliedChecks lock-free
+
+	if (m_ImpliedChecks)
+		return m_ImpliedChecks;
+
+	struct frame_type { const FuncDC* funcDC; const DcRefListElem* nextArg; arg_index argNr = 0; };
+	std::vector<frame_type> stack; // explicit stack: key expressions nest deeper than the C-stack allows
+
+	auto scheduleOrResolve = [&stack](const DataController* dc)
+	{
+		if (dc->m_ImpliedChecks)
+			return;
+		auto funcDC = dynamic_cast<const FuncDC*>(dc);
+		if (funcDC && funcDC->GetArgList())
+			stack.emplace_back(frame_type{ funcDC, funcDC->GetArgList() });
+		else
+			dc->m_ImpliedChecks = GetSharedEmptyCheckSet(); // sourceDescr, symbol, literal or nullary application
+	};
+
+	scheduleOrResolve(this);
+	while (!stack.empty())
+	{
+		frame_type& top = stack.back();
+		if (top.nextArg)
+		{
+			const DataController* argDC = top.nextArg->m_DC.get();
+			arg_index argNr = top.argNr;
+			top.nextArg = top.nextArg->m_Next.get(); ++top.argNr;
+			if (DataController_ArgContributes(top.funcDC, argNr))
+				scheduleOrResolve(argDC); // may push a frame and invalidate top: not used below
+			continue;
+		}
+
+		// post-order position: all contributing args of top.funcDC are folded
+		const FuncDC* funcDC = top.funcDC;
+
+		check_set_ptr singleContribution;
+		bool multipleContributions = false;
+		arg_index argNr = 0;
+		for (const DcRefListElem* argIter = funcDC->GetArgList(); argIter && !multipleContributions; argIter = argIter->m_Next.get(), ++argNr)
+		{
+			if (!DataController_ArgContributes(funcDC, argNr))
+				continue;
+			const check_set_ptr& argChecks = argIter->m_DC->m_ImpliedChecks;
+			assert(argChecks);
+			if (argChecks->thing.empty() || argChecks == singleContribution)
+				continue;
+			if (singleContribution)
+				multipleContributions = true;
+			else
+				singleContribution = argChecks;
+		}
+
+		// NB the operator group carries the applied operator's identity; DataController::GetID()
+		// is the Object identity of the key's head node, which is its LispObj class, not its token
+		LispPtr ownCond;
+		if (funcDC->m_OperatorGroup->GetNameID() == token::integrity_check)
+		{
+			auto tail = funcDC->GetLispRef().Right(); // (<expr> <cond>)
+			if (tail.IsRealList() && tail.Right().IsRealList())
+				ownCond = tail.Right().Left();
+		}
+
+		if (!singleContribution && ownCond.EndP())
+			funcDC->m_ImpliedChecks = GetSharedEmptyCheckSet();
+		else if (!multipleContributions && (ownCond.EndP() || (singleContribution && AreCheckAtomsImplied(singleContribution->thing, ownCond))))
+			funcDC->m_ImpliedChecks = singleContribution; // nothing added: share the arg's set
+		else
+		{
+			check_set_ptr combined = make_SharedThing<check_set>();
+			argNr = 0;
+			for (const DcRefListElem* argIter = funcDC->GetArgList(); argIter; argIter = argIter->m_Next.get(), ++argNr)
+				if (DataController_ArgContributes(funcDC, argNr))
+				{
+					const check_set& argChecks = argIter->m_DC->m_ImpliedChecks->thing;
+					combined->thing.insert(argChecks.begin(), argChecks.end());
+				}
+			if (!ownCond.EndP())
+				InsertCheckAtoms(combined->thing, ownCond);
+			funcDC->m_ImpliedChecks = std::move(combined);
+		}
+		stack.pop_back();
+	}
+
+	assert(m_ImpliedChecks);
+	return m_ImpliedChecks;
 }
 
 const Operator* FuncDC::GetOperator() const

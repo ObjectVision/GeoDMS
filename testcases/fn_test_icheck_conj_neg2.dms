@@ -1,0 +1,23 @@
+// The unsound direction must NOT be taken: here the NEARER ancestor guards only "a", while the
+// outer one guards "a && b". Enforcing a says nothing about b, so the outer guard may not be
+// skipped. With b violated the run must fail; if a future change ever skipped a candidate whose
+// conjuncts are only partially enforced, this case would silently start passing.
+container fn_test_icheck_conj_neg2
+{
+	parameter<uint32> g1 := 45;
+	parameter<uint32> g2 := 8; // b is false
+
+	container outer : IntegrityCheck = "g1 == 45 && g2 == 7" // a && b
+	{
+		container inner : IntegrityCheck = "g1 == 45"         // only a, folded first
+		{
+			parameter<uint32> u := 42;
+			parameter<uint32> v := u + 1;
+		}
+	}
+
+	container checks
+	{
+		parameter<bool> c1 := outer/inner/v == 43, IntegrityCheck = "c1 == True";
+	}
+}

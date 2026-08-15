@@ -1,0 +1,24 @@
+// Negative twin of fn_test_icheck_dedup: the ancestor check is violated (guard_src is 44),
+// so reading anything under grp must fail -- including items whose own wrap the #1182 memo
+// skipped because a referenced sibling already carries the guard. The failure surfaces on
+// the guarded supplier and its consumers fail derivatively; the run must exit nonzero.
+container fn_test_icheck_dedup_neg1
+{
+	parameter<uint32> guard_src := 44;
+
+	container grp : IntegrityCheck = "guard_src == 45"
+	{
+		parameter<uint32> u := 42;
+		parameter<uint32> v := u + 1;
+		parameter<uint32> w := v + 1;
+		parameter<uint32> x := w + 1;
+		parameter<uint32> y := x + 1;
+		parameter<uint32> z := y + 1;
+	}
+
+	container checks
+	{
+		// the computed value would be correct; the violated ancestor check must fail the run anyway
+		parameter<bool> c1 := grp/z == 47, IntegrityCheck = "c1 == True";
+	}
+}

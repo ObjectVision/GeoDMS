@@ -1,0 +1,22 @@
+// Negative twin of fn_test_icheck_conj: the b conjunct of the inner "a && b" is violated.
+// The inner guard is the one that survives the fold, so this must fail the run -- proving that
+// discharging the outer "a" did not weaken what is actually enforced.
+container fn_test_icheck_conj_neg1
+{
+	parameter<uint32> g1 := 45;
+	parameter<uint32> g2 := 8; // b is false
+
+	container outer : IntegrityCheck = "g1 == 45"
+	{
+		container inner : IntegrityCheck = "g1 == 45 && g2 == 7"
+		{
+			parameter<uint32> u := 42;
+			parameter<uint32> v := u + 1;
+		}
+	}
+
+	container checks
+	{
+		parameter<bool> c1 := outer/inner/v == 43, IntegrityCheck = "c1 == True";
+	}
+}

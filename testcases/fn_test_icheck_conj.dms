@@ -1,0 +1,28 @@
+// #1182: conditions are compared per conjunct, not as whole expressions.
+// A check_set records the conjuncts of a condition separately, because enforcing "a && b" for
+// every element enforces a and b individually. So when the NEARER ancestor guards "a && b", the
+// outer ancestor's "a" is already discharged and its wrap is skipped -- one guard instead of two.
+//
+// The converse is deliberately not applied: an enforced "a" says nothing about "b", so a
+// candidate is only skipped when every one of its conjuncts is enforced. fn_test_icheck_conj_neg2
+// pins that direction by violating the b of an outer "a && b" that an inner "a" must NOT discharge.
+container fn_test_icheck_conj
+{
+	parameter<uint32> g1 := 45; // outside the guarded subtree
+	parameter<uint32> g2 := 7;
+
+	container outer : IntegrityCheck = "g1 == 45"                 // atom a
+	{
+		container inner : IntegrityCheck = "g1 == 45 && g2 == 7"   // a && b, folded first
+		{
+			parameter<uint32> u := 42;
+			parameter<uint32> v := u + 1;
+		}
+	}
+
+	container checks
+	{
+		parameter<bool> c1 := outer/inner/u == 42, IntegrityCheck = "c1 == True";
+		parameter<bool> c2 := outer/inner/v == 43, IntegrityCheck = "c2 == True";
+	}
+}

@@ -12,6 +12,7 @@
 //										CheckOperator
 // *****************************************************************************
 
+#include "dbg/SeverityType.h"
 #include "utl/mySPrintF.h"
 #include "LispTreeType.h"
 
@@ -21,6 +22,12 @@
 #include "TreeItemClass.h"
 
 CommonOperGroup sog_Check(token::integrity_check, oper_policy::existing|oper_policy::dynamic_result_class);
+
+#if defined(MG_DEBUG)
+// #1182 observability: counts distinct integrity_check DC instantiations; the trace line makes
+// per-condition totals grep-able from a /L log to compare guard-dedup effectiveness.
+static std::atomic<UInt32> gd_NrIntegrityCheckDCs = 0;
+#endif
 
 struct CheckOperator : public BinaryOperator
 {
@@ -43,6 +50,12 @@ struct CheckOperator : public BinaryOperator
 			resultHolder = arg1;
 			resultHolder->m_State.Set(actor_flag_set::AF_IntegrityChecked);
 			resultHolder.m_State.Set(actor_flag_set::AF_IntegrityChecked);
+#if defined(MG_DEBUG)
+			if (auto funcDC = dynamic_cast<FuncDC*>(&resultHolder))
+				reportF(SeverityTypeID::ST_MinorTrace, "integrity_check dc #{}: {}"
+				,	++gd_NrIntegrityCheckDCs
+				,	AsFLispSharedStr(funcDC->GetArgDC(1)->GetLispRef(), FormattingFlags::None));
+#endif
 		}
 		assert(resultHolder);
 

@@ -12,8 +12,10 @@
 #include "TicBase.h"
 
 #include "LispRef.h"
+#include "ptr/SharedObj.h"
 
 #include <map>
+#include <set>
 
 #include "TreeItem.h"
 #include "TreeItemDualRef.h"
@@ -26,6 +28,26 @@
 // *****************************************************************************
 // Section:     DataController Interface
 // *****************************************************************************
+
+// the set of IntegrityCheck conditions that evaluating a key expression is certain to evaluate;
+// elements are the interned cond LispRefs (arg 2 of an integrity_check application), so
+// membership is a pointer comparison and the strong refs keep the conds alive with the set (#1182)
+struct lisp_ref_less
+{
+	using is_transparent = void; // allow probing with a LispPtr without creating a LispRef
+	template <typename L, typename R>
+	bool operator()(const L& lhs, const R& rhs) const { return lhs.get() < rhs.get(); }
+};
+using check_set     = std::set<LispRef, lisp_ref_less>;
+using check_set_ptr = SharedThingPtr<check_set>;
+
+// A conjunctive condition enforces each of its conjuncts, so a check_set holds the conjuncts as
+// separate members rather than the condition as a whole: checks that share a conjunct then
+// recognise each other, and the sets of a function's arguments merge on atoms. The converse does
+// not hold -- enforcing 'a' says nothing about 'b' -- so a candidate condition may only be
+// skipped when EVERY one of its atoms is already enforced.
+TIC_CALL void InsertCheckAtoms(check_set& dest, LispPtr cond);
+TIC_CALL bool AreCheckAtomsImplied(const check_set& enforced, LispPtr cond);
 
 struct DataController : TreeItemDualRef
 {
@@ -47,6 +69,8 @@ struct DataController : TreeItemDualRef
 
 	virtual bool IsCalculating() const;
 
+	TIC_CALL check_set_ptr GetImpliedChecks() const; // meta-thread only; lazy, derived from m_Key
+
 protected:
 	TIC_CALL void DoInvalidate () const override;
 	TIC_CALL SharedStr GetSourceName() const override; // override Object
@@ -63,6 +87,7 @@ public:
 
 protected:
 	DataControllerKey m_Key;  // expr + root of context
+	mutable check_set_ptr m_ImpliedChecks; // #1182: null = not yet derived from m_Key; shared empty instance = derived, none
 
 	DECL_RTTI(TIC_CALL, Class)
 };

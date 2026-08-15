@@ -66,9 +66,29 @@ into `bin\Release\x64`.
 
 If a build cannot be run exactly as above, **stop and ask** — do not work around it.
 
-### Running a setup script with live progress on screen *and* readable by Claude
+### Build and test ONLY through the committed scripts — and never headless
 
-The `batch\BuildSignAndCreateSetup{,Cmake,Linux}.bat` scripts (and the `Build.bat` wrapper) are run by the **user** in their own
+Use `batch\*.bat` for building and testing. They set the environment the steps depend on and run
+them in the right order; hand-rolled equivalents skip or misconfigure something. Two failures seen
+in practice from invoking the pieces directly instead of the launcher:
+
+- `unit.bat` called on its own tests the WRONG binaries. `generic\SetGeoDMSPlatform.bat` defaults
+  `geodms_rootdir` to `C:\dev\GeoDMS` when unset, so every test silently runs a nonexistent exe.
+  `batch\TestReleaseUnit.bat` sets it. Check the `Testing <path>` line at the top of the output.
+- `batch\TestReleaseUnit.bat` exits **0** even when the whole unit portion never ran. If the shell
+  sets `NoDefaultCurrentDirectoryInExePath=1`, cmd cannot resolve `unit.bat` from the current
+  directory and prints `'unit.bat' is not recognized`; only the testcases battery then runs. Clear
+  that variable in the parent process first — setting it inside cmd is too late.
+
+**Do not run these scripts headless.** Piping them through `cmd /c ... | Tee-Object` leaves them
+without a console: the script's `timeout /T` steps fail with
+`ERROR: Input redirection is not supported`, nothing is visible on screen, and GUI tests pop up
+with no context around them. Run them in a real console window — see below.
+
+### Running a build or test script with live progress on screen *and* readable by Claude
+
+The `batch\BuildSignAndCreateSetup{,Cmake,Linux}.bat` scripts (and the `Build.bat` wrapper), and the
+`batch\Test*Unit.bat` / `RunGUITests.bat` test launchers, are run by the **user** in their own
 interactive PowerShell (so they inherit the user's environment and don't trigger a clean-env
 vcpkg re-bootstrap). To let the user watch live progress **and** let Claude read the output,
 pipe the script through `Tee-Object`:
@@ -129,6 +149,11 @@ The user-facing documentation is the **GitHub wiki**, checked out beside this re
 **`C:\dev\GeoDMS.wiki`** (`ObjectVision/GeoDMS.wiki.git`; `GeoDMS_Academy.wiki` is a separate
 one). It is a normal git clone: edit the `.md` pages, commit locally, **never push** (same rule
 as every repo here).
+
+**Always `git pull` the wiki before editing a page.** Other people write to the same `main`
+branch from other machines, so an edit made on a stale checkout turns into a merge conflict that
+someone has to resolve by hand — including conflict markers landing inside a page. Pull first,
+then edit.
 
 **A change that alters observable behaviour is not finished when it builds and the tests pass.**
 Semantics that a modeller can notice — a new or changed notation, a property that starts warning
