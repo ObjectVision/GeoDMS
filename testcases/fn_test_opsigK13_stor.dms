@@ -15,7 +15,7 @@ container fn_test_opsigK13_stor
 	unit<uint32> StartSet : nrofrows = 1 { attribute<Node> nr : [0]; }
 
 	parameter<string> impSpec
-	:	StorageName = "C:/dev/GeoDMS_2026/testcases/impspec.txt"
+	:	StorageName = "%currDir%/impspec.txt"
 	,	StorageType = "str"
 	,	StorageReadOnly = "TRUE";
 
