@@ -1,12 +1,15 @@
-// Copyright (C) 1998-2025 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #include "ShvDllPch.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif //defined(CC_PRAGMAHDRSTOP)
+#endif
+
+// ViewPort: the world-to-device viewport of a map view — region of
+// interest, zoom/scale management and coordinate display.
 
 #include "ViewPort.h"
 #include "../res/Resource.h"
@@ -33,7 +36,7 @@
 #include "UnitClass.h"
 
 #include "StgBase.h"
-#include "gdal/gdal_base.h"
+#include "gdal/gdal_base.h" // GetUnitSizeInMeters
 
 #include "CaretOperators.h"
 #include "Carets.h"

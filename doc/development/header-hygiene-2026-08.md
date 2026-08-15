@@ -68,9 +68,13 @@ Union of all closures: **166 of 605 headers (27%)**. First-include discipline is
 | file | evidence |
 |---|---|
 | `rtc/dll/src/RingIterator.h` | 469-line dead fork of `geo/BoostPolygon.h` carrying the **same include guard** `DMS_GEO_BOOSTPOLYGON_H` as the live file; fan-in 0; not in any build file. The real ring iterator (`SA_ConstRing`, `SA_ConstRingIterator`) is `geo/RingIterator.h`. Whichever of the two same-guard files is included first silently swallows the other. |
-| `stg/dll/src/Stg2Pch.h`, `Stg2Impl.h`, `Stg2Base.h` | complete orphan DLL scaffold (pre-2004 GPL-v2 banner); only mutual self-references; declares `DMS_Stg2_Load` which is never defined or called. |
-| `rtc/dll/src/act/box.h` | fan-in 0 and does not compile standalone (`BoxBase::AddFiduciary` references `Box<T>` before declaration, calls `throwIllegalAbstract` without its header). |
-| `rtc/dll/src/mci/SingleLinkedTree.h` | only includer is `TreeItem.h`, which does not use it — its own comments (lines 77/243/600) say the structure *"is now inlined directly into TreeItem"*. Only the sibling `.inc` file has a user (`shv/GraphicContainer.cpp`). |
+| `stg/dll/src/Stg2Pch.h`, `Stg2Impl.h`, `Stg2Base.h` | complete orphan DLL scaffold (pre-2004 GPL-v2 banner); declares `DMS_Stg2_Load` which is never defined or called. *Implementation note: one stale external includer existed after all — `shv/ShvDllInterface.cpp:40` included `Stg2Base.h` without using anything from it; removed together with the files.* |
+| `rtc/dll/src/act/box.h` | fan-in 0 and does not compile standalone (`BoxBase::AddFiduciary` references `Box<T>` before declaration, calls `throwIllegalAbstract` without its header). Was listed in `DmRtc.vcxproj`(+filters) — entries removed with the file. |
+
+**Correction (found during step-1 implementation): `rtc/dll/src/mci/SingleLinkedTree.h` is
+NOT dead** — `mci/SingleLinkedTree.inc` (used by `shv/GraphicContainer.cpp`) includes it at
+line 12, which the audit's grep missed. The header stays; only `TreeItem.h`'s unused include
+of it was removed (TreeItem's own comments say the structure was inlined into TreeItem).
 
 ## Finding 3 — dead includes in the hot headers (symbol-verified)
 
@@ -90,9 +94,14 @@ Audited and **clean** (no action): `DataItemClass.h`, `geo/SequenceArray.h`,
 `set/BitVector.h`, `ptr/SharedStr.h`, `dbg/Check.h`, `ser/format.h`, `set/rangefuncs.h`
 (near-clean: only `typesafe_cast` of `dbg/DebugCast.h` is used).
 
-Cross-DLL dead include worth a special mention: **`shv/dll/src/ViewPort.cpp:36` includes
-stg's `gdal/gdal_base.h`** — the GDAL/CPL/PROJ surface — with zero `gdal/GDAL/OGR/CPL`
-references in the file.
+~~Cross-DLL dead include: `shv/dll/src/ViewPort.cpp:36` includes stg's `gdal/gdal_base.h`
+with zero `gdal/GDAL/OGR/CPL` references.~~ **Retracted during step-1 implementation:** the
+include is load-bearing — ViewPort.cpp calls `GetUnitSizeInMeters(const AbstrUnit*)`
+(declared `gdal_base.h:182`, `STGDLL_CALL`), which the gdal-pattern symbol probe missed.
+Removal broke the shv build (C3861 at ViewPort.cpp:654/:1522); the include is restored with
+a comment naming the used symbol. A cleaner follow-up would move that one declaration out of
+the GDAL surface header, since three more shv TUs (PaletteControl, ResourceIndexCache,
+ScaleBar) include `gdal_base.h` for the same single function.
 
 ### The TU-level pattern
 
@@ -103,8 +112,13 @@ most-frequently-stale headers are exactly the copy-paste boilerplate block at th
 operator `.cpp` files — `TreeItemClass.h` (stale in ~41 TUs), `DataItemClass.h` (32),
 `geo/Conversions.h` (30), `geo/PointOrder.h` (27), `UnitProcessor.h` (21), `Param.h` (19).
 Independently, **52 of 887 files contain a literally duplicated `#include` line**
-(`utl/Environment.cpp` six, `gdal_vect.cpp`, `XmlTreeOut.cpp`, `GraphVisitor.cpp`, and
-`clc/Index.cpp` includes `UnitProcessor.h` twice and uses it zero times).
+(`gdal_vect.cpp`, `XmlTreeOut.cpp`, `GraphVisitor.cpp`, and `clc/Index.cpp` includes
+`UnitProcessor.h` twice). *Caveat found during step-1 implementation: a textual duplicate is
+not always redundant — `utl/Environment.cpp` (one big `#if defined(_MSC_VER)`/`#else` split)
+repeats five of its six "duplicates" deliberately, once per platform branch, and
+`shv/GeoTypes.h` includes `geo/color.h` once per `#ifdef _WIN32` branch. Only duplicates
+whose first occurrence is unconditional and earlier were removed (~55 lines across ~45
+files, each checked against the `#if` nesting); the per-branch repeats stay.*
 
 With PCH on, removing these buys almost no parse time (most are in the PCH anyway); the
 value is clarity and freedom to re-shape PCHs later. Recommendation: fix the duplicated
@@ -307,6 +321,31 @@ renames, and all newly created headers — gets its prolog normalized to:
   `RingIterator.h`/`BoostPolygon.h` duplicated-guard bug of Finding 2 is exactly what it
   rules out.
 - All edits byte-exact (this is a CRLF repo — no sed/python text-mode scripts).
+
+**Companion convention for `.cpp` files** (user-specified; applies to every `.cpp` changed
+by any step): the same banner (rule line trimmed to the copyright line's length), then the
+module's PCH include first, then the hdrstop block with a bare `#endif`, then a brief
+summary comment of the TU:
+
+```cpp
+// Copyright (C) 1998-2026 Object Vision B.V.
+// License: GNU GPL 3
+/////////////////////////////////////////////
+
+#include "XxxPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
+#pragma hdrstop
+#endif
+
+// brief summary of what this translation unit implements
+```
+
+PCH names per module: RtcPCH.h / SymPCH.h / TicPCH.h (rtc, per sub-tree), StxPch.h,
+StoragePch.h, ClcPCH.h, GeoPCH.h, ShvDllPch.h; qtgui/run/python TUs have no PCH — for
+those the prolog is banner + summary only. This also retires the remaining pre-2004
+`//<HEADER>` YUSE GSO banners and stray field-style `Name/Description` blocks as files are
+touched.
 
 ## Prioritized implementation ladder
 

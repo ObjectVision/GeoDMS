@@ -1,11 +1,18 @@
-// Copyright (C) 1998-2026 Object Vision B.V. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #if defined(_MSC_VER)
 #pragma once
 #endif
 
+/*
+ *  Search and index kernels over sorted or index-sorted attribute arrays:
+ *  lowerbound/upperbound (plain, null-aware, and indexed variants that probe
+ *  through a sort-index), and make_index* builders that construct such sort
+ *  indices, optionally skipping null values, with a size-dependent choice of
+ *  sequential vs parallel execution policy.
+ */
 
 #if !defined(__CLC_OPERRELUNI_H)
 #define __CLC_OPERRELUNI_H
@@ -19,7 +26,6 @@
 #include "set/VectorFunc.h"
 #include "geo/StringBounds.h"
 #include "set/IndexCompare.h"
-#include "set/VectorFunc.h"
 
 #include "makeCululative.h"
 #include "pcount.h"
@@ -471,6 +477,6 @@ void make_subindex_container(
 	Range_Index2Value_checked(domain, begin_ptr(resTemp), end_ptr( resTemp ), resData.begin());
 }
 
-#endif // !defined(__CLC_OPERRELUNI_H)
+#endif // __CLC_OPERRELUNI_H
 
 

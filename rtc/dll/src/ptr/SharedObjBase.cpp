@@ -1,25 +1,17 @@
-// Copyright (C) 1998-2026 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #include "RtcPCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif //defined(CC_PRAGMAHDRSTOP)
+#endif
 
-//  -----------------------------------------------------------------------
-//  Name        : SharedBase.h
-//  Description : SharedBase is a possible base class for objects that are
-//                referred to by SharedPtr.
-//                It offers RefCount() and AddRef(), 
-//                but not Release(), which should be implemented
-//                by descending class since SharedBase has no
-//                virtual calls and therefore no virtual dtor to 
-//                allow a descending class to be non-polymorphic
-//	Note:         When your class is polymorphic (has a virtual dtor),
-//                derive from PersistentSharedObj
-//  -----------------------------------------------------------------------
+// SharedBase: base class for objects referred to by SharedPtr; it offers
+// RefCount() and AddRef() but leaves Release() to the derived class (no
+// virtual dtor, so a derived class can stay non-polymorphic). Polymorphic
+// classes derive from PersistentSharedObj instead.
 
 #include "ptr/SharedBase.h"
 #include "act/Actor.h"
@@ -154,7 +146,6 @@ bool SharedBase::DecRef() const noexcept
 #include "act/MainThread.h"
 #include "utl/Environment.h"
 
-#include "Parallel.h"
 #include "LockLevels.h"
 #include <condition_variable>
 

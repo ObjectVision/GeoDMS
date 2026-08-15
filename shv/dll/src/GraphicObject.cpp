@@ -1,12 +1,15 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #include "ShvDllPch.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif //defined(CC_PRAGMAHDRSTOP)
+#endif
+
+// GraphicObject: the common base of all shv view objects — visibility,
+// extents and invalidation administration.
 
 #include "GraphicObject.h"
 
@@ -857,8 +860,6 @@ bool GraphicObject::IsOwnerOf(GraphicObject* obj) const
 	}
 	return false;
 }
-
-#include "ViewPort.h"
 
 IMPL_ABSTR_CLASS(GraphicObject)
 

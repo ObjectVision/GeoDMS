@@ -1,3 +1,10 @@
+// Copyright (C) 1998-2026 Object Vision B.V.
+// License: GNU GPL 3
+/////////////////////////////////////////////
+
+// The tree-view dock of the GeoDMS GUI over the configuration tree, with
+// item state decoration and context-menu actions.
+
 #include <QTreeView>
 
 #include <QObject>
@@ -16,7 +23,6 @@
 #include "DmsMainWindow.h"
 #include "DmsOptions.h"
 #include "DmsExport.h"
-#include "DmsOptions.h"
 #include "DmsTreeView.h"
 #include "SessionData.h"
 #include "TreeItem.h"

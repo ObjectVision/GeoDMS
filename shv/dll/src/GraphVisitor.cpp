@@ -1,13 +1,17 @@
-// Copyright (C) 1998-2024 Object Vision b.v.
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #include "ShvDllPch.h"
-#include <cstdio>
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif //defined(CC_PRAGMAHDRSTOP)
+#endif
+
+// GraphVisitor: traversal of the graphic-object tree for drawing,
+// invalidation and event dispatch.
+
+#include <cstdio>
 
 #include "GraphVisitor.h"
 
@@ -788,8 +792,6 @@ WeakPtr<CounterStacks> GraphDrawer::GetCounterStacks() const
 // GraphInvalidator members
 //----------------------------------------------------------------------
 
-#include "DataView.h"
-
 GraphInvalidator::GraphInvalidator()
 {
 }
@@ -871,7 +873,6 @@ revisit:
 #include "ser/MoreStreamBuff.h"
 
 #include "AbstrController.h"
-#include "DataView.h"
 #include "MouseEventDispatcher.h"
 
 MouseEventDispatcher::MouseEventDispatcher(DataView* owner, EventInfo& eventInfo)

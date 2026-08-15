@@ -1,12 +1,15 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #include "ClcPCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
 #endif
+
+// Matrix operators (matr_mul, matr_var, matr_inv, …) implemented with
+// boost::numeric::ublas.
 
 #include "RtcTypeLists.h"
 #include "geo/Range.h"
@@ -287,8 +290,7 @@ protected:
 	virtual void Calculate(AbstrDataObject* res, const AbstrDataItem* arg1A, SizeT n) const=0;
 };
 
-#include <boost/numeric/ublas/matrix.hpp> 
-#include <boost/numeric/ublas/lu.hpp> 
+#include <boost/numeric/ublas/lu.hpp>
 
 namespace ublas = boost::numeric::ublas; 
 

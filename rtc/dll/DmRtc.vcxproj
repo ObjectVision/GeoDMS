@@ -53,7 +53,6 @@
     <ClInclude Include="src\act\actorlock.h" />
     <ClInclude Include="src\act\ActorVisitor.h" />
     <ClInclude Include="src\act\any.h" />
-    <ClInclude Include="src\act\box.h" />
     <ClInclude Include="src\act\garbage_can.h" />
     <ClInclude Include="src\act\interestretaincontext.h" />
     <ClInclude Include="src\act\MainThread.h" />

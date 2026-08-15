@@ -1,14 +1,20 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #if defined(_MSC_VER)
 #pragma once
 #endif
 
+/*
+ *  Assorted helpers shared across the shv viewer classes: tic extensions
+ *  (real values-unit and classification lookups), grid-coordinate keys,
+ *  TreeItem ViewData/DialogData property access, status-text notification,
+ *  and small drawing/selection utilities.
+ */
 
-#if !defined(_SHV_UTLS_H)
-#define _SHV_UTLS_H
+#if !defined(__SHV_SHVUTILS_H)
+#define __SHV_SHVUTILS_H
 
 #include "ShvBase.h"
 #include "ptr/SharedTreePtr.h"
@@ -72,8 +78,6 @@ grid_coord_key GetGridCoordKey(const AbstrUnit* geoUnit);
 //----------------------------------------------------------------------
 // section : TreeItem Properties
 //----------------------------------------------------------------------
-
-#include "DataLocks.h"
 
 SharedStr       GetViewData  (const TreeItem* item);         // look  at DialogData of subItem "ViewData"
 void            SetViewData  (TreeItem* item, CharPtr data); // store at DialogData of subItem "ViewData"
@@ -364,4 +368,4 @@ inline dms_rw_mode DmsRwChangeType(bool mustCreateNew)
 		:	dms_rw_mode::read_write;
 }
 
-#endif // !defined(_SHV_UTLS_H)
+#endif // __SHV_SHVUTILS_H

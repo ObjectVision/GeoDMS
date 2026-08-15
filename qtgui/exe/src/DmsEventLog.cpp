@@ -1,3 +1,10 @@
+// Copyright (C) 1998-2026 Object Vision B.V.
+// License: GNU GPL 3
+/////////////////////////////////////////////
+
+// The event-log dock of the GeoDMS GUI: filtered display of DMS log
+// messages with severity/category filters and clipboard support.
+
 #include <QApplication>
 #include <QColor>
 #include <QObject>
@@ -12,8 +19,6 @@
 #include <QGridLayout>
 #include <QScrollBar>
 #include <QClipboard>
-#include <QEvent>
-#include <QKeyEvent>
 
 #include "dbg/Timer.h"
 

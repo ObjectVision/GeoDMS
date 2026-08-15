@@ -1,12 +1,15 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #include "TicPCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif //defined(CC_PRAGMAHDRSTOP)
+#endif
+
+// DataArray<V>: instantiation of the typed tile arrays (bodies in
+// DataArray.ipp) and registration of their data-item classes.
 
 #include "DataArray.ipp"
 
@@ -992,7 +995,6 @@ auto CreateFileTileArray(const AbstrDataItem* adi, const SharedObj* abstrValuesR
 
 #include "rtcTypeLists.h"
 #include "utl/TypeListOper.h"
-#include "TileArrayImpl.h"
 
 namespace  {
 

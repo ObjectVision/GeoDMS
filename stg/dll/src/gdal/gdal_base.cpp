@@ -1,12 +1,16 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #include "StoragePch.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif //defined(CC_PRAGMAHDRSTOP)
+#endif
+
+// GDAL bindings: driver and dataset handling, spatial-reference and
+// projection helpers (incl. GetUnitSizeInMeters), error frames and the
+// gdal/proj version components.
 
 #include <boost/config/helper_macros.hpp> // BOOST_STRINGIZE (needed by MSVC and GCC; boost/format no longer provides it transitively)
 
@@ -817,8 +821,6 @@ struct gdalVersionComponent : AbstrVersionComponent
 };
 
 gdalVersionComponent s_gdalComponent;
-
-#include "proj.h"
 
 #define PROJ_VERSION_STRING "Proj " BOOST_STRINGIZE(PROJ_VERSION_MAJOR) "." BOOST_STRINGIZE(PROJ_VERSION_MINOR) "." BOOST_STRINGIZE(PROJ_VERSION_PATCH)
 VersionComponent s_ProjComponent(PROJ_VERSION_STRING);

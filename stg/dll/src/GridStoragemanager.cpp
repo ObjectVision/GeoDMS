@@ -1,8 +1,15 @@
+// Copyright (C) 1998-2026 Object Vision B.V.
+// License: GNU GPL 3
+/////////////////////////////////////////////
+
 #include "StoragePch.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif //defined(CC_PRAGMAHDRSTOP)
+#endif
+
+// AbstrGridStorageManager: functionality shared by the grid storage
+// managers — grid-data domain creation and grid data helpers.
 
 #include "GridStorageManager.h"
 #include "TreeItemProps.h"
@@ -83,7 +90,6 @@ SharedDataItem GetPaletteData(const TreeItem * storageHolder)
 //
 // *****************************************************************************
 
-#include "Unit.h"
 #include "UnitClass.h"
 
 AbstrUnit* AbstrGridStorageManager::CreateGridDataDomain(const TreeItem* storageHolder)

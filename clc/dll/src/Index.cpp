@@ -1,12 +1,15 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #include "ClcPCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
 #endif
+
+// index operator: the ordering permutation (sort index) of an attribute,
+// instantiated per value type.
 
 #include "geo/StringBounds.h"
 #include "geo/GeoSequence.h"
@@ -26,7 +29,6 @@
 #include "TileChannel.h"
 
 #include "OperRelUni.h"
-#include "UnitProcessor.h"
 #include "LispTreeType.h"
 #include "mem/MyContainers.h"
 

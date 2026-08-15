@@ -1,12 +1,15 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #include "TicPCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif //defined(CC_PRAGMAHDRSTOP)
+#endif
+
+// AbstrDataItem: the abstract attribute item — domain/values unit
+// resolution, data-object administration, checks and interest handling.
 
 #include <semaphore>
 
@@ -25,7 +28,6 @@
 #include "ser/FileCreationMode.h"
 #include "utl/mySPrintF.h"
 #include "utl/scoped_exit.h"
-#include "xct/DmsException.h"
 #include "xml/XmlOut.h"
 
 #include "LockLevels.h"
@@ -1120,8 +1122,6 @@ ValuesUnitFullNamePropDef staticValuesUnitFullNamePropDef;
 // C style Interface functions for class id retrieval
 //----------------------------------------------------------------------
 
-#include "TicInterface.h"
-
 TIC_CALL const Class* DMS_CONV DMS_AbstrParam_GetStaticClass()
 {
 	return AbstrParam::GetStaticClass();
@@ -1445,7 +1445,6 @@ SizeT EstimateDataBytes(const AbstrDataItem* adi, SizeT nrElements)
 
 #include "act/SupplInterest.h"
 #include "dbg/DebugReporter.h"
-#include "dbg/DebugContext.h"
 #include "mci/Class.h"
 
 inline CharPtr YesNo(bool v) { return v  ? "Yes" : "No"; }

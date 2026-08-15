@@ -1,12 +1,15 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #include "ShvDllPch.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif //defined(CC_PRAGMAHDRSTOP)
+#endif
+
+// DataItemColumn: one attribute column of a TableControl — rendering,
+// in-place editing, sorting, relative display and tooltips.
 
 #include "DataItemColumn.h"
 #include "ptr/SharedTreePtr.h"
@@ -42,7 +45,6 @@
 #include "UnitProcessor.h"
 
 #include "Clipboard.h"
-#include "DataController.h"
 #include "DataView.h"
 #include "DcHandle.h"
 #include "FontIndexCache.h"
@@ -2109,8 +2111,6 @@ DataItemColumn* DataItemColumn::GetPrevControl()
 	auto tc = GetTableControl().lock(); if (!tc) return nullptr;
 	return debug_cast<DataItemColumn*>(tc->GetEntry(colNr));
 }
-
-#include "MouseEventDispatcher.h"
 
 bool DataItemColumn::GetTooltipText(TooltipCollector& ttc) const
 {

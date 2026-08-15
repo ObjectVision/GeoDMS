@@ -1,6 +1,9 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
+
+// The export dialog of the GeoDMS GUI: raster and vector export of tree
+// items through the storage managers.
 
 #include "DmsExport.h"
 #include "DmsMainWindow.h"
@@ -44,7 +47,6 @@
 #include "ser/FileStreamBuff.h"
 #include "stg/AbstrStoragemanager.h"
 #include "GridStorageManager.h"
-#include "TicInterface.h"
 #include "utl/splitPath.h"
 
 const AbstrUnit* CommonDomain(const TreeItem* item)

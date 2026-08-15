@@ -1,12 +1,15 @@
-﻿// Copyright (C) 1998-2024 Object Vision b.v. 
+﻿// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #include "StoragePch.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif //defined(CC_PRAGMAHDRSTOP)
+#endif
+
+// GdalVectSM: the GDAL vector storage manager — reading and writing OGR
+// layers, features and attribute fields.
 
 #include "gdal_base.h"
 #include "gdal_vect.h"
@@ -2683,12 +2686,7 @@ bool IsVatDomain(const AbstrUnit* au)
 
 #include "DataItemClass.h"
 #include "Unit.h"
-#include "UnitClass.h"
 #include "mci/ValueWrap.h"
-#include "mci/ValueClass.h"
-#include "Unit.h"
-#include "UnitClass.h"
-#include "AbstrDataItem.h"
 
 void GdalVectSM::CompareConfiguredGeometryWithGdal(AbstrDataItem* geometry, OGRLayer* layer) const {
 	auto layer_geometry_type = layer->GetGeomType();

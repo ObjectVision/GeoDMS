@@ -1,19 +1,20 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #include "ShvDllPch.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif //defined(CC_PRAGMAHDRSTOP)
+#endif
+
+// GDI device-context handle wrappers used by the shv drawing code.
 
 #include "DcHandle.h"
 
 #include "dbg/debug.h"
 #include "utl/Environment.h"
 #include "ser/AsString.h"
-#include "utl/Environment.h"
 
 #include "DataView.h"
 #include "DrawContext.h"

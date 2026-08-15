@@ -1,12 +1,15 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #include "ClcPCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
 #endif
+
+// subset/select operators: building selection domains and their org_rel
+// attributes from condition attributes.
 
 #include "mci/CompositeCast.h"
 #include "mci/ValueClass.h"
@@ -733,7 +736,6 @@ struct RecollectByCondOperator : AbstrRecollectByCondOperator
 //                               INSTANTIATION
 // *****************************************************************************
 
-#include "LispTreeType.h"
 #include "RtcInterface.h"
 #include "RtcVersionNumbers.h" // DMS_VERSION_MAJOR, for the v21 removal tripwire on the obsolete `subset` stub
 namespace {

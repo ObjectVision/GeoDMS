@@ -1,14 +1,21 @@
-// Copyright (C) 1998-2026 Object Vision B.V. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #if defined(_MSC_VER)
 #pragma once
 #endif
 
+/*
+ *  Algorithms that pick a representative interior point of a polygon (used
+ *  for label placement and point-in-polygon representation): SelectRow
+ *  determines a suitable horizontal scan row through the polygon and
+ *  SelectPoint derives an interior point on it, supported by the area and
+ *  width calculations of geo/Area.h and geo/CalcWidth.h.
+ */
 
-#ifndef __RTC_GEO_SELECTPOINT_H
-#define __RTC_GEO_SELECTPOINT_H
+#ifndef __GEO_SELECTPOINT_H
+#define __GEO_SELECTPOINT_H
 
 #include "dbg/debug.h"
 #include "geo/Area.h"
@@ -141,7 +148,6 @@ ScalarType SelectRow(ConstPointIter polyBegin, ConstPointIter polyEnd, DensityTy
 	return UNDEFINED_VALUE(ScalarType);
 }
 
-#include "geo/Area.h"
 #include "geo/PointOrder.h"
 
 template <typename ScalarType, typename DensityType, typename ConstPointIter>
@@ -173,6 +179,6 @@ Point<ScalarType> Mid(ConstPointIter polyBegin, ConstPointIter polyEnd, ScanPoin
 	return AreaPercentile<ScalarType>(polyBegin, polyEnd, 0.5, 0.5, calcResource);
 }
 
-#endif // __RTC_GEO_SELECTPOINT_H
+#endif // __GEO_SELECTPOINT_H
 
 

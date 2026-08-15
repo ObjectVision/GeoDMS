@@ -1,12 +1,15 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #include "TicPCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif //defined(CC_PRAGMAHDRSTOP)
+#endif
+
+// XML output of the configuration tree: config export, item description
+// pages and source descriptions.
 
 #include "xml/XmlTreeOut.h"
 
@@ -19,7 +22,6 @@
 #include "utl/Environment.h"
 #include "utl/splitPath.h"
 #include "xct/DmsException.h"
-#include "xml/XmlTreeOut.h"
 
 #include "stg/AbstrStorageManager.h"
 
@@ -28,7 +30,6 @@
 #include "AbstrDataObject.h"
 #include "DataLocks.h"
 #include "DataStoreManagerCaller.h"
-#include "xml/XmlTreeOut.h"
 #include "StateChangeNotification.h"
 #include "SupplCache.h"
 #include "TicInterface.h"
@@ -36,7 +37,6 @@
 #include "TreeItemProps.h"
 #include "TreeItemClass.h"
 #include "TreeItemContextHandle.h"
-#include "TreeItemProps.h"
 #include "TreeItemSet.h"
 #include "Unit.h"
 #include "UnitClass.h"
@@ -911,7 +911,6 @@ TIC_CALL bool TreeItem_XML_DumpGeneral(const TreeItem* self, OutStreamBase* xmlO
 
 	return true;
 }
-#include "TreeItemProps.h"
 TIC_CALL void TreeItem_XML_DumpSourceDescription(const TreeItem* self, SourceDescrMode mode, OutStreamBase* xmlOutStrPtr)
 {
 	assert(xmlOutStrPtr);

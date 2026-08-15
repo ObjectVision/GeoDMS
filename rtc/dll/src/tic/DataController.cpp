@@ -1,8 +1,15 @@
+// Copyright (C) 1998-2026 Object Vision B.V.
+// License: GNU GPL 3
+/////////////////////////////////////////////
+
 #include "TicPCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif //defined(CC_PRAGMAHDRSTOP)
+#endif
+
+// DataControllers: the calculation cache — cache entries keyed by their
+// LispRef expression, with creation, lookup and interest administration.
 
 #include "DataController.h"
 
@@ -332,7 +339,6 @@ void DataControllerContextHandle::GenerateDescription()
 
 #include "MoreDataControllers.h"
 #include "LispList.h"
-#include "LispTreeType.h"
 
 namespace {
 

@@ -1,14 +1,20 @@
-// Copyright (C) 1998-2026 Object Vision B.V. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #if defined(_MSC_VER)
 #pragma once
 #endif
 
+/*
+ *  Free-function helpers shared by the storage managers: stream-type
+ *  determination for data items, table-domain lookup and attribute matching,
+ *  projection reference/base resolution, and grid georeferencing (the affine
+ *  transformation of a grid data item, reading/writing GeoRef files).
+ */
 
-#if !defined(__STG_IMPL_H)
-#define __STG_IMPL_H
+#if !defined(__STG_STGIMPL_H)
+#define __STG_STGIMPL_H
 
 #include "StgBase.h"
 #include "FileResult.h"
@@ -33,4 +39,4 @@ FileResult WriteGeoRefFile(const AbstrDataItem* diGrid, WeakStr geoRefFileName);
 void GetImageToWorldTransformFromFile(TreeItem* storageHolder, WeakStr geoRefFileName);
 
 
-#endif __STG_IMPL_H
+#endif // __STG_STGIMPL_H

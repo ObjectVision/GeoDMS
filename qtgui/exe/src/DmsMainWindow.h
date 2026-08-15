@@ -1,13 +1,19 @@
-// Copyright (C) 1998-2025 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #if defined(_MSC_VER)
 #pragma once
 #endif
 
-#if !defined(MAINWINDOW_H)
-#define MAINWINDOW_H
+/*
+ *  The GeoDmsGuiQt main window: class MainWindow with its dock panels
+ *  (tree view, detail pages, event log, toolbar), the menus and QActions,
+ *  and the MDI area that hosts the map and table views.
+ */
+
+#if !defined(__QTGUI_DMSMAINWINDOW_H)
+#define __QTGUI_DMSMAINWINDOW_H
 
 #include <QMainWindow>
 #include <QPointer>
@@ -18,7 +24,6 @@
 #include <QDialog>
 #include <QPushButton>
 #include <QCheckBox>
-#include <QPushButton>
 #include <QSlider>
 #include <QTextBrowser>
 #include <QListView>
@@ -348,4 +353,4 @@ private:
     operation_queue m_AppOperQueue;
 };
 
-#endif
+#endif // __QTGUI_DMSMAINWINDOW_H

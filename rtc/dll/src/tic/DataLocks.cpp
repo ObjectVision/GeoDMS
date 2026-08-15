@@ -1,12 +1,15 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #include "TicPCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif //defined(CC_PRAGMAHDRSTOP)
+#endif
+
+// DataReadLock / DataWriteLock: data-access locking of attribute data
+// objects, file-data opening and write-commit administration.
 
 #include "DataLocks.h"
 
@@ -430,8 +433,6 @@ TIC_CALL void DataWriteLock::Commit()
 //----------------------------------------------------------------------
 // extern "C" interface funcs
 //----------------------------------------------------------------------
-
-#include "TicInterface.h"
 
 TIC_CALL DataReadLock*  DMS_CONV DMS_DataReadLock_Create(const AbstrDataItem* self, bool mustUpdateCertain)
 {

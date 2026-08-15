@@ -1,12 +1,15 @@
-// Copyright (C) 1998-2025 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #include "ShvDllPch.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif //defined(CC_PRAGMAHDRSTOP)
+#endif
+
+// The mouse/tool controllers of the map and table views: zooming, panning,
+// selection (rect/circle/polygon) and polygon drawing.
 
 #include <numbers>
 
@@ -354,7 +357,6 @@ bool TieCursorController::Move (EventInfo& eventInfo)
 
 #include "geo/Transform.h"
 #include "geo/Conversions.h"
-#include "ViewPort.h"
 #include "Carets.h"
 
 // Right-button marquee uses RBUTTONUP as its exec/stop trigger; the left-button (Alt+drag and
@@ -553,7 +555,6 @@ void SelectPoint(GraphicLayer* layer, const CrdPoint& worldPoint, EventID eventI
 	}
 }
 
-#include "Theme.h"
 #include "GridLayer.h"
 
 void SelectPoints(LayerSet* ls, GraphicLayer* activeLayer, const CrdPoint& worldPoint, EventID eventID)
@@ -782,7 +783,6 @@ bool SelectDistrictController::Exec(EventInfo& eventInfo)
 //----------------------------------------------------------------------
 // class  : DrawPolygonController
 //----------------------------------------------------------------------
-#include "Carets.h"
 
 DrawPolygonController::DrawPolygonController(
 		DataView*                owner, 

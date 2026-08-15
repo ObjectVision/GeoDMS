@@ -1,12 +1,16 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #include "TicPCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif //defined(CC_PRAGMAHDRSTOP)
+#endif
+
+// AbstrOperGroup: the operator-group registry — name resolution policies,
+// the member chains that operators register into, and operator error
+// reporting.
 
 #include "OperGroups.h"
 #include "Operator.h"
@@ -557,7 +561,6 @@ ConstUnitRef AbstrOperGroup::CreateValuesUnit(const ArgSeqType& dataArgs) const
 }
 
 #include <stdarg.h>
-#include "utl/mySPrintF.h"
 
 [[noreturn]] void AbstrOperGroup::throwOperError(CharPtr msg) const
 {

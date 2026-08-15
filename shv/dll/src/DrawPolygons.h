@@ -1,10 +1,17 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #if defined(_MSC_VER)
 #pragma once
 #endif
+
+/*
+ *  Template drawing routines for polygon feature layers: DrawPolygons
+ *  renders the (selected) features of a GraphicPolygonLayer through the
+ *  FeatureDrawer/DrawContext machinery, using point-index buffers, the
+ *  pen-index cache, and suspendible counting via CounterStacks.
+ */
 
 #if !defined(__SHV_DRAWPOLYGONS_H)
 #define __SHV_DRAWPOLYGONS_H
@@ -333,8 +340,6 @@ exitFill:
 	itemCounter.Close();
 	return false;
 }
-
-#include "FeatureLayer.h"
 
 template <typename ScalarType>
 bool DrawPolygons(const GraphicPolygonLayer* layer, const FeatureDrawer& fd, const AbstrDataItem* featureItem, const PenIndexCache* penIndices)

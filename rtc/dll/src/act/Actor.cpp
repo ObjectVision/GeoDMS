@@ -1,35 +1,16 @@
-// Copyright (C) 1998-2023 Object Vision b.v.
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
-
-/*
-PSEUDOCODE PLAN (documentation-only, no behavior changes)
-- Goal: Add clarifying comments and light-weight TODO suggestions without changing logic.
-- Strategy:
-  1) Annotate high-level concepts: timestamps, progress states, fail types, interest counts, and supplier interest.
-  2) Explain RAII locks (UpdateLock, DetermineStateLock) and concurrency/ordering guarantees.
-  3) Document main flows:
-     - InvalidateAt: how invalidation is applied and interest/suppliers are handled.
-     - SetProgress/MarkTS: monotonic progress and timestamp semantics.
-     - SuspendibleUpdate/CertainUpdate: update orchestration, suspension, and failure propagation.
-     - DetermineState/DetermineLastSupplierChange: change detection across suppliers.
-     - UpdateSuppliers: cascading updates with suspension/failure handling.
-     - Interest management: Inc/Dec interest count, Start/Stop interest, supplier interest lists.
-     - Fail handling/logging: ClearFail, DoFail, ThrowFail, concurrency guards.
-  4) Identify improvement suggestions as TODO comments:
-     - Consider std::scoped_lock/atomic where safe to simplify lock management.
-     - Reduce duplication and cyclomatic complexity (especially in SuspendibleUpdate and DetermineState).
-     - Narrow critical sections; ensure no callbacks in locked sections when avoidable.
-     - Improve naming/enum conversions, and add stronger invariants/assertions where cheap.
-     - Add unit tests around recursion, suspension, and failure edge-cases.
-  5) Keep code identical except for comments. Build should remain unaffected.
-*/
+/////////////////////////////////////////////
 
 #include "RtcPCH.h"
 
-#if defined(_MSC_VER)
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif //defined(_MSC_VER)
+#endif
+
+// Actor: the update/invalidation state machine underlying all tree items:
+// timestamps, progress states, failure administration, interest counting
+// and supplier interest, guarded by the actor/update section locks.
 
 #include "act/Actor.h"
 #include "act/garbage_can.h"
@@ -636,8 +617,6 @@ void Actor::UpdateSupplMetaInfo() const
     );
 }
 
-#include "act/ActorVisitor.h"
-
 // Aggregate the last change timestamp over suppliers and collect earliest (strongest) failure.
 // TODO: Consider early-out if strong failure encountered to reduce traversal time.
 TimeStamp Actor::DetermineLastSupplierChange(ErrMsgPtr& failReason, FailType& failType) const //noexcept
@@ -1081,7 +1060,6 @@ void Actor::Fail(const Actor* src) const
 //=============================== ConcurrentMap (client is responsible for scoping and stack unwinding issues)
 
 #include "act/ActorLock.h"
-#include "LockLevels.h"
 
 // define global mappings
 leveled_std_section sg_CountSection(item_level_type(0), ord_level_type::CountSection, "LockCountSection");

@@ -1,12 +1,15 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #include "ShvDllPch.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif //defined(CC_PRAGMAHDRSTOP)
+#endif
+
+// LayerSet: the ordered collection of layers of a map view, with z-order
+// and visibility administration.
 
 #include "dbg/DebugCast.h"
 #include "dbg/DebugContext.h"
@@ -412,8 +415,6 @@ void LayerSet::ShuffleEntry(ScalableObject* focalEntry, ElemShuffleCmd esc)
 	SaveOrder();
 	ProcessCollectionChange();
 }
-
-#include "LayerClass.h"
 
 IMPL_DYNC_SHVCLASS(LayerSet,GraphicObject)
 

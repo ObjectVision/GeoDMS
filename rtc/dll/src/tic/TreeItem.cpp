@@ -1,12 +1,15 @@
-// Copyright (C) 1998-2025 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #include "TicPCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif //defined(CC_PRAGMAHDRSTOP)
+#endif
+
+// TreeItem: the configuration-tree node — tree topology, item state and
+// update flow, storage binding and interest-count management.
 
 #include "TreeItem.h"
 //----------------------------------------------------------------------
@@ -5551,8 +5554,6 @@ const TreeItem* FindTreeItemByID(const TreeItem* searchLoc, TokenID subItemID)
 //----------------------------------------------------------------------
 //	InterestCount management
 //----------------------------------------------------------------------
-
-#include "DataArray.h"
 
 //mc_IntegrityCheckTiles
 

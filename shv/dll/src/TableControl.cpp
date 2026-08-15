@@ -1,12 +1,15 @@
-// Copyright (C) 1998-2025 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #include "ShvDllPch.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif //defined(CC_PRAGMAHDRSTOP)
+#endif
+
+// TableControl: the table view — column management, navigation, selection
+// and export of tabular data.
 
 #include "TableControl.h"
 #include "ptr/SharedTreePtr.h"
@@ -734,8 +737,6 @@ FormattedOutStream& operator << (FormattedOutStream& fos, const SelRange& sr)
 	fos << sr.m_Begin << ";" << sr.m_Curr << ";" << sr.m_End;
 	return fos;
 }
-
-#include "ser/FormattedStream.h"
 
 FormattedInpStream& operator >> (FormattedInpStream& fis, SelRange& sr)
 {

@@ -1,9 +1,14 @@
+// Copyright (C) 1998-2026 Object Vision B.V.
+// License: GNU GPL 3
+/////////////////////////////////////////////
+
+// GeoDmsRun: the command-line runner — loads a configuration and updates
+// the requested items, with logging and test-script support.
+
 //#include "ShvDllInterface.h"
 #include "ClcInterface.h"
 #include "GeoInterface.h"
 #include "TicInterface.h"
-#include "ClcInterface.h"
-#include "GeoInterface.h"
 #include "StxInterface.h"
 #include "RtcInterface.h"
 

@@ -685,9 +685,6 @@
     <ClInclude Include="src\geo\BoostPolygon.h">
       <Filter>Geometry</Filter>
     </ClInclude>
-    <ClInclude Include="src\act\box.h">
-      <Filter>Set oriented functions&amp;classes</Filter>
-    </ClInclude>
     <ClInclude Include="src\ipolygon\detail\iterator_points_to_compact.hpp">
       <Filter>ipolygon</Filter>
     </ClInclude>

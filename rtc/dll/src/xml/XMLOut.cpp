@@ -1,12 +1,15 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #include "RtcPCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif //defined(CC_PRAGMAHDRSTOP)
+#endif
+
+// XML/HTML output streams: the OutStreamBase implementations (XML, HTML,
+// DMS notation) and the PropDef reporting interface.
 
 #include "dbg/DmsCatch.h"
 #include "xml/XMLOut.h"
@@ -696,7 +699,6 @@ DMS_CONV XML_OutStream_WriteText(OutStreamBase* xmlStr, CharPtr txt)
 /********** PropDef Reporting Interface **********/
 
 #include "dbg/debug.h"
-#include "mci/PropDef.h"
 #include "mci/ValueClass.h"
 
 RTC_CALL void DMS_CONV XML_ReportPropDef(OutStreamBase* xmlStr, AbstrPropDef* pd)

@@ -1,12 +1,15 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #include "ShvDllPch.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif //defined(CC_PRAGMAHDRSTOP)
+#endif
+
+// Assorted shv helpers (see ShvUtils.h): values-unit and classification
+// lookups, ViewData properties, status text and selection utilities.
 
 #include <format>
 #include "ShvUtils.h"
@@ -1178,7 +1181,6 @@ const AbstrDataItem* SHV_DataContainer_GetItem(const TreeItem* ti, const AbstrUn
 //----------------------------------------------------------------------
 // UpdateShowSelOnly section
 //----------------------------------------------------------------------
-#include "Theme.h"
 
 static TokenID selID = GetTokenID_st("SelID");
 static TokenID selSetID = GetTokenID_st("SelSet");
@@ -1247,8 +1249,6 @@ void UpdateShowSelOnlyImpl(
 		}
 	}
 }
-
-#include "SessionData.h"
 
 GraphVisitState GVS_BreakOnSuspended()
 {

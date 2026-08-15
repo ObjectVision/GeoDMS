@@ -1,12 +1,15 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #include "TicPCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif //defined(CC_PRAGMAHDRSTOP)
+#endif
+
+// AbstrCalculator: binds calculation rules (LispRef expressions) to tree
+// items, resolves references, and applies meta-functions and templates.
 
 #include "AbstrCalculator.h"
 
@@ -6172,9 +6175,6 @@ void InstantiateMap(TreeItem* holder, const AbstrCalculator* ac, LispPtr mapExpr
 	}
 	holder->SetIsInstantiated();
 }
-
-#include "Operator.h"
-#include "MoreDataControllers.h"
 
 OArgRefs ApplyMetaFunc_GetArgs(TreeItem* holder, const AbstrCalculator* ac, const AbstrOperGroup* og, LispPtr metaCallArgs)
 {

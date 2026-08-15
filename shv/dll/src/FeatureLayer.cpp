@@ -1,12 +1,15 @@
-// Copyright (C) 1998-2025 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #include "ShvDllPch.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif //defined(CC_PRAGMAHDRSTOP)
+#endif
+
+// FeatureLayer: the vector feature layers (points, arcs, polygons) —
+// drawing, label placement and selection handling.
 
 #include "FeatureLayer.h"
 #include "ptr/SharedTreePtr.h"
@@ -887,7 +890,6 @@ bool SelectPointsInPolygon(GraphicPointLayer* layer, const AbstrDataObject* poin
 	return result;
 }
 
-#include "AbstrController.h"
 #include "ViewPort.h"
 
 void GraphicPointLayer::SelectRect(CrdRect worldRect, EventID eventID)
@@ -2591,7 +2593,6 @@ IMPL_DYNC_LAYERCLASS(GraphicArcLayer, ASE_Feature|ASE_OrderBy|ASE_Label|ASE_Pen|
 
 #include "geo/Centroid.h"
 #include "SelectPoint.h"
-#include "geo/IsInside.h"
 
 template <typename ScalarType>
 row_id FindNextPolygonByPoint(const GraphicPolygonLayer* layer, Point<ScalarType> pnt, SizeT currFeatureIndex)
@@ -2823,7 +2824,6 @@ CrdRect GraphicPolygonLayer::GetFeatureWorldExtents() const
 	return rect;
 }
 
-#include "MouseEventDispatcher.h"
 #include "ser/FormattedStream.h"
 
 bool FeatureLayer::GetTooltipText(TooltipCollector& ttc) const

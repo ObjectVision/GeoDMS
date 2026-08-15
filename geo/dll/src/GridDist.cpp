@@ -1,12 +1,15 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #include "GeoPCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
 #endif
+
+// griddist operator: cost distances over a grid (heap-based Dijkstra),
+// with optional start points and traceback administration.
 
 #include <numbers> // std::numbers
 
@@ -25,8 +28,6 @@
 #include "utl/scoped_exit.h"
 
 #include "Projection.h"
-
-#include "gdal/gdal_base.h"
 
 // *****************************************************************************
 //									GridDist

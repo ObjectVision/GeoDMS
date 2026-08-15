@@ -1,12 +1,15 @@
-// Copyright (C) 1998-2025 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #include "GeoPCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
 #endif
+
+// join_near_values operator: relational join of two attributes on nearly
+// equal values.
 
 #include "geo/RangeIndex.h"
 #include "utl/mySPrintF.h"
@@ -192,10 +195,9 @@ struct JoinNearValuesOperator : AbstrJoinNearValuesOperator
 //                               INSTANTIATION
 // *****************************************************************************
 
-#include "RtcTypeLists.h"
 #include "utl/TypeListOper.h"
 
-namespace 
+namespace
 {
 	static const oper_policy op = oper_policy::better_not_in_meta_scripting; // op_allow_extra_args;
 	CommonOperGroup cog_jev("join_near_values", op);

@@ -1,12 +1,15 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #include "ShvDllPch.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif //defined(CC_PRAGMAHDRSTOP)
+#endif
+
+// ScalableObject: base of the world-coordinate graphic objects — extents,
+// transformations and viewport access.
 
 #include "ShvUtils.h"
 #include "ScalableObject.h"
@@ -19,7 +22,6 @@
 #include "utl/mySPrintF.h"
 #include "mci/Class.h"
 #include "utl/IncrementalLock.h"
-#include "utl/mySPrintF.h"
 
 #include "AbstrCmd.h"
 #include "DataView.h"
@@ -136,8 +138,6 @@ TRect ScalableObject::GetBorderLogicalExtents() const
 //----------------------------------------------------------------------
 // class: ScalableObject --- accessing related-entries by supplying covariant return types
 //----------------------------------------------------------------------
-
-#include "ViewPort.h"
 
 const ViewPort* ScalableObject::GetViewPort() const
 {

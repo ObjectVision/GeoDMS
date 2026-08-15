@@ -1,13 +1,22 @@
-// Copyright (C) 1998-2025 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #if defined(_MSC_VER)
-#pragma once // MSVC fast include guard
+#pragma once
 #endif
 
-#if !defined(__TREEITEM_H)
-#define __TREEITEM_H
+/*
+ *  TreeItem is the node type of the configuration tree: a named Actor with
+ *  parent/sub-item links, the item's configuration state (calculator or
+ *  expression, storage association, properties and metadata), and the
+ *  interest-counting machinery that drives demand-driven calculation.
+ *  Free functions at the end support function items and their generic
+ *  parameter/result sub-items (template instantiation).
+ */
+
+#if !defined(__TIC_TREEITEM_H)
+#define __TIC_TREEITEM_H
 
 //----------------------------------------------------------------------
 // used modules and forward class references
@@ -18,7 +27,6 @@
 #include "act/Actor.h"
 #include "act/any.h"
 #include "act/garbage_can.h"
-#include "mci/SingleLinkedTree.h"
 #include "ptr/InterestHolders.h"
 #include "ptr/OwningPtr.h"
 #include "ptr/SharedPtr.h"
@@ -734,4 +742,4 @@ TIC_CALL void    TreeItem_CheckVariantSetDisjointness(const TreeItem* setItem); 
 // resolve against the definition scope.
 TIC_CALL void    TreeItem_MakeStrictScope(TreeItem* functionItem);
 
-#endif // __TREEITEM_H
+#endif // __TIC_TREEITEM_H

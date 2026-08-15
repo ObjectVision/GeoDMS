@@ -1,12 +1,15 @@
-﻿// Copyright (C) 1998-2024 Object Vision b.v. 
+﻿// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #include "ClcPCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
 #endif
+
+// Statistics text for data items: min/max, counts and value summaries as
+// shown in the GUI's statistics pane.
 
 #include "dbg/DmsCatch.h"
 #include "geo/DataPtrTraits.h"
@@ -347,8 +350,6 @@ void WriteBinData(OutStreamBase& os, const bin_count_type& binCounts, const Abst
 		os << CharPtr(u8"\n\nTo see all unique values and their frequency, you can open this attribute in a TableView, select the column header, and press the ∑ (GroupBy) button in the toolbar.");
 	}
 }
-
-#include "xml/XmlTreeOut.h"
 
 CLC_CALL bool NumericDataItem_GetStatistics(const TreeItem* item, vos_buffer_type& statisticsBuffer)
 {

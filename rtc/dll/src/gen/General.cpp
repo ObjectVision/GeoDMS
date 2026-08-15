@@ -1,12 +1,15 @@
-// Copyright (C) 1998-2026 Object Vision B.V. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #include "RtcPCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif //defined(CC_PRAGMAHDRSTOP)
+#endif
+
+// General: miscellaneous gen-subsystem services, version components and
+// MG_DEBUG self-tests of core rtc facilities.
 
 #include <boost/config/helper_macros.hpp> // BOOST_STRINGIZE (needed by MSVC and GCC; boost/format no longer provides it transitively)
 
@@ -208,7 +211,6 @@ RTC_CALL SharedStr GetSessionStartTimeStr()
 
 #if defined(MG_DEBUG)
 
-#include "RtcInterface.h"
 #include "geo/Range.h"
 #include "geo/iterrange.h"
 

@@ -1,12 +1,15 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #include "ShvDllPch.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
 #endif
+
+// DataView: the top-level view host that binds the shv graphic tree to a
+// window and dispatches its messages and update requests.
 
 #include "DataView.h"
 
@@ -1079,8 +1082,6 @@ void DataView::InvalidateChangedGraphics()
 #endif // may Send WM_PAINT or WM_ERASEBKGND to SHV_DataView_DispatchMessage
 	assert(!SuspendTrigger::DidSuspend());
 }
-
-#include "act/TriggerOperator.h"
 
 //	SELCARET
 #include "MapControl.h"

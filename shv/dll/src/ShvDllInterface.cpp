@@ -1,12 +1,15 @@
-// Copyright (C) 1998-2025 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #include "ShvDllPch.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif //defined(CC_PRAGMAHDRSTOP)
+#endif
+
+// The C interface of the shv DLL: view creation, message dispatch and the
+// GUI callback registration.
 
 #include "RtcInterface.h"
 
@@ -36,8 +39,6 @@ std::vector<MsgStruct> g_MsgQueue;
 #include "ShvDllInterface.h"
 #include "ClcInterface.h"
 #include "StgBase.h"
-
-#include "Stg2Base.h"
 
 #include "dbg/DebugContext.h"
 

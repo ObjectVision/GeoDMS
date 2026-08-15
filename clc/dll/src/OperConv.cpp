@@ -1,6 +1,12 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
+
+#include "ClcPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
+#pragma hdrstop
+#endif
 
 // OperConv.cpp - Core conversion operator definitions
 // Template instantiations are split into separate files for parallel compilation:
@@ -9,12 +15,6 @@
 // - OperConvSequence.cpp  : Sequence type conversions
 // - OperConvMapping.cpp   : Mapping operators
 // - OperConvTransform.cpp : RD2LatLong transformations
-
-#include "ClcPCH.h"
-
-#if defined(CC_PRAGMAHDRSTOP)
-#pragma hdrstop
-#endif
 
 #include "OperConv.h"
 #include "xml/XMLOut.h"
@@ -156,8 +156,6 @@ void SpatialRefBlock::CreateTransformer()
 // *****************************************************************************
 //			AsDataStr OPERATOR
 // *****************************************************************************
-
-#include "xml/XMLOut.h"
 
 class AsDataStringOperator : public UnaryOperator
 {

@@ -1,6 +1,12 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
+
+#include "RtcPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
+#pragma hdrstop
+#endif
 
 /*
 	FixedAlloc provides an allocator that has an efficient memory management.
@@ -46,12 +52,6 @@
 	- allocate_at_least(size_t n) -> span of actual 2^K allocated bytes
 */
 
-#include "RtcPCH.h"
-
-#if defined(CC_PRAGMAHDRSTOP)
-#pragma hdrstop
-#endif //defined(CC_PRAGMAHDRSTOP)
-
 #include "RtcBase.h"
 
 #include "act/MainThread.h"
@@ -62,7 +62,6 @@
 #include "utl/Environment.h" // RegDWordEnum::MemoryDrainage: the drainage on/off setting
 #include "utl/IncrementalLock.h"
 #include "utl/MemGuard.h"    // IsLowOnFreeRAM: RAM use vs MemoryFlushThreshold, the drainage trigger
-#include "dbg/SeverityType.h"
 #include "xct/DmsException.h"
 
 // Per-operation allocation accounting. Hooked at the SAME two points as RegisterAlloc/RemoveAlloc
