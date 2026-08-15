@@ -141,7 +141,7 @@ That is exactly the lever §5.2 pulls.
 | `LTF_ElementWeight(adi)` | `AbstrDataItem.cpp:1277-1280` | **Stubbed to `return 0;`** — all MT3 pipelining gates (`OperAttrUni.h:81`, `OperAttrBin.h:81`, `OperAttrTer.h:94`, `CastedUnaryAttrOper.h:69,156`, `clc/dll/src/lookupImpl.h:120`, `RLookupImpl.h:107`, `geo/dll/src/Point.cpp:119`, `tic/AbstrDataItem.cpp:313`) degenerate to always-true. |
 | `AbstrUnit::GetEstimatedCount()` | `tic/AbstrUnit.cpp:788-817` | Ready data → exact `GetCount()`; else evaluate the modeler-declared **`SizeEstimator`** property (`TicPropDefConst.h:37`, `TreeItem.cpp:1002-1016`); else `ASSUMED_SIZE = 1'000'000`. A three-tier confidence ladder already exists here; §4.6 adds a declared upper-bound sibling (`SizeUpperbound`) and renames `SizeEstimator` to `SizeExpectation`. |
 | Tiling oracle | `tic/TiledRangeData.h:66-108` | `GetNrTiles`, `GetTileSize(t)`, `GetMaxTileSize`, and notably `GetNrMemPages(log2BitsPerElem)` — tiling × element width combined. |
-| Measurement primitives | `mem/FixedAlloc.cpp:748-817` (`GetFixedAllocStatus` incl. running maxima), `:780-802` (`GetMemoryStatus`), `dbg/Timer.h:30-50` | Exist, but used only for rate-limited logging. **No CPU-time accounting, no per-operator history, no bytes-read counters** (per-read log is a bare "Read X from Y", `tic/TreeItem.cpp:4039-4044`). |
+| Measurement primitives | `mem/FixedAlloc.cpp` (`GetFixedAllocStatus` incl. running maxima, `GetMemoryStatus`; line anchors predate the §8.1 census additions), `dbg/Timer.h:30-50` | Exist, but used only for rate-limited logging. **No CPU-time accounting, no per-operator history, no bytes-read counters** (per-read log is a bare "Read X from Y", `tic/TreeItem.cpp:4039-4044`). |
 
 ### 2.5 Phase numbers and `PhaseContainer`
 
@@ -2910,9 +2910,97 @@ Verified: probes at normal RAM (`drained 0x`), under forced pressure (`MemoryMax
 **Also set for release:** `MG_CACHE_COLLECTDATA` is OFF in `mem/FixedAlloc.h`. It is the
 calibration-only block→owner register — a mutexed map insert/erase per ≥ 4 KB allocation — and
 the always-on counters (PeakLiveLarge, the histogram, the drain gauges) do not depend on it.
+(Since §8.1.35 the histogram's log LINE is `/SP`-gated; the counter itself remains always-on.)
 The §8.1.30 pressure couplings in the ledger are reverted to the claimant window (drain-F, the
 measured operating point: same peak as drain-G at 20 % less wall); `UpdateLedgerCommitPressure`
 survives as a log-only observation.
+
+### 8.1.33 Enforce on the full harness: why throttling is inert on t641_2, and why the flag stays off
+
+Full-harness run (registry cleared, `PerformanceLogging` on, `ResourceAwareScheduling=enforce`):
+173 178 operations admitted, **124 184 parked** — and `PeakLiveLarge` **171.9 GiB, identical to
+the drain-only run**. The refusal machinery works; it just cannot reach the mass. Measured why:
+
+- The candidate's own charge is noise against what is already retained: at the peak the ledger
+  held 118.5 G retained while the refused candidate would add ~0.0 G; 15 431 of 15 503 refusals
+  hit a candidate whose charge is under 1 % of committed.
+- 15 433 of 15 503 refusals arrive when committed ALREADY exceeds the budget — the gate is a
+  latecomer, not a limiter.
+- 16 022 of 16 144 refusals end in a lift (nothing else to run ⇒ admit anyway).
+- The regime tally says where the mass really materialises: **deferred = 91.2 % of volume**
+  (74 344 ops / 4 513 GB) vs eager 8.0 % — tile-level work inside already-admitted deferred
+  chains, invisible to admission by construction (the §8.1.30 finding, now on the full harness).
+
+The estimates themselves are healthy: 98 % `derived`, booked-vs-cardinality ratio 1.00 over
+107 494 bookings (a consistency check, not an accuracy check — both sides share the cardinality
+route). So the verdict is structural, not a calibration gap.
+
+**Consequence (landed):** `ResourceAwareScheduling` stays **0 = off by default** — enforce does
+not yet pay for itself (`80169f28` records the rationale beside the setting). The GUI got
+check boxes for the three switches (`2b468a41`): F = free-store drainage, q = shadow, Q = enforce;
+registry DWORDs, not StatusFlags (that DWORD is out of bits), q/Q mutually exclusive. The budget
+derives from `MemoryFlushThreshold` % of allowed RAM unless `/SB<MB>` overrides it.
+
+**Metric trap, recorded here because this section's numbers depend on it:** `Highest CommitCharge`
+in the end-of-run FixedAlloc summary is a SAMPLED max (`maxCumulBytes`, updated only when
+`UpdateFixedAllocStatus` happens to run) — one t301 arm reported 3 346 MB while its own
+`PeakLiveLarge` said 4 553 MB. Only `PeakLiveLarge`/`PeakFreeStack` are true high-water marks
+(CAS-maxed per allocation), and `PeakLiveLarge` covers only `AllocateFromStock`, so it misses a
+geometry library's own heap. For real process peaks use the harness's 1 Hz sampler.
+
+### 8.1.34 t301: the gate was blind to library memory — estimate it, and weigh observed commit
+
+t301 (91 kaartbladen, `for_each_ne` → select → `geos_buffer_multi_polygon` →
+`polygon_connectivity` → `unique`, `FreeData="False"`): the gate saw **706 MB of an 18 037 MB
+process** and refused nothing at `/SB20480`. Two causes, two fixes:
+
+1. **A unit result read as "free" with maximal confidence.** `polygon_connectivity` returns a
+   UNIT, so `Operator::EstimatePerformance` early-returned regime `meta`, 0 bytes, confidence
+   `derived` — high confidence in the number 0 — while its `bp::connectivity_extraction` sweep
+   structures and `std::vector<std::set<int>>` graph are `std::allocator`, invisible to the
+   allocator census AND the ledger. Fixed (`20632c76`): the geometry operators estimate from the
+   derived polygon count (`BoostPolygon.cpp`, `BoostGeometry.cpp` working-memory terms); the
+   published confidence must stay ≤ `declared`, or `RefreshEstimateForAdmission` never installs
+   the improved estimate. Gate now sees 13.3 GB; in-flight window 13 MB → 1.1 GB; 312 refusals.
+2. **Books alone are the wrong basis when a library allocates around the census.** The gate now
+   weighs `max(books, observed process commit − reclaimable free-store pool + in-flight)`
+   (`5f9ad853`, rate-limited to one `GetProcessMemoryInfo` per 100 ms), with the dead pool
+   netted out via `s_FreeStackDeadBytes` (`e44a3976`) — freed-but-committed stores are
+   reclaimable by drainage, so counting them as occupancy would double-brake. The `ledger basis:`
+   sample line reports both sides; its books/occupied ratio is the one figure that says whether
+   the ledger can see a workload's memory at all.
+
+**Still pending:** re-run the t301 arms through full.py for a trustworthy 1 Hz process-peak
+comparison, and re-check the t641 numbers on the same basis.
+
+### 8.1.35 Release hygiene: the calibration log lines move behind `/SP`
+
+The calibration campaign left three always-on log emissions in `mem/FixedAlloc.cpp` that spam a
+production run (`huge alloc 494[MB]; live now 26649[MB]` on every ≥ 256 MB allocation was the
+visible one). Since this change they are emitted only under `PerformanceLogging` (`/SP`):
+
+| line | was | now |
+|---|---|---|
+| `huge alloc N[MB]; live now M[MB]` (per ≥ 256 MB allocation, with item context) | always | `/SP`, and only once the process is warm (the `ArmDrainageWhenWarm` guard — `IsPerformanceLogging`'s first call reads configuration, unsafe during static init) |
+| periodic `census: live req … vs fs inUse …` (every 17th status report) | always | `/SP` — its question (the PeakLiveLarge gap) was settled in §8.1.23 |
+| end-of-run `alloc histogram (log2 buckets, >=4K)` | always | `/SP` |
+
+Unchanged and still always-on: the throttled `Reserved in Blocks…CommitCharge` status line, the
+end-of-run `vmcalls` line (the drain gauges), and the final summary including
+`PeakLiveLarge`/`PeakFreeStack`/`residual live`. All COUNTERS remain always-on per the 2026-08-01
+ruling — only log lines moved — so a run with `/SP` reports complete full-run data.
+
+Consequences for measurement workflows: calibration runs that read the huge-alloc live sampler
+(`scratch/pebble_floor.py`, the §8.1.23 timelines) must pass `/SP` from now on, and
+**full.py passes `/SP` in every experiment command** so release-testing logs keep the
+performance and memory lines for post-run analysis and the bokeh figures. Older reference
+versions tolerate the flag: an unrecognised `/S?` letter warns and continues.
+
+In the same sweep, `MG_TRACE_OPERATIONCONTEXTS` — unconditionally defined since long before this
+branch, three lines below its `MG_DEBUG`-guarded define — is Debug-only again: Release no longer
+pays a critical section + `std::set`/`std::map` touch per OperationContext lifecycle. The one
+functional use of its counter, `Join()`'s supplier-chain recursion bound, moved to an always-on
+relaxed atomic (`s_OcCount`).
 
 ---
 
@@ -2973,5 +3061,5 @@ survives as a log-only observation.
 | Phase numbers | `act/Actor.cpp:1513-1547`, `tic/TreeItem.cpp:2803`, `tic/MoreDataControllers.cpp:601-616`, `tic/ItemLocks.cpp:56,96` |
 | PhaseContainer | `clc/dll/src/PhaseContainer.cpp` (intent: `:27-30`), `clc/dll/src/SubItem.cpp:41-52`, issues #902/#1128 |
 | Storage pre-read knowledge | `tic/stg/AbstrStoragemanager.cpp:71-80`, `stg/dll/src/gdal/gdal_grid.cpp:95-118,525-538`, `tic/AbstrDataItem.cpp:249-355`, `tic/TreeItem.cpp:4209-4360` |
-| Measurement primitives | `mem/FixedAlloc.cpp:748-817`, `dbg/Timer.h:30-50` |
+| Measurement primitives | `mem/FixedAlloc.cpp` (`GetFixedAllocStatus`, `GetMemoryStatus`, the §8.1 census in `AllocateFromStock`, `ReportFixedAllocStatus`/`ReportFixedAllocFinalSummary`), `dbg/Timer.h:30-50` |
 | P0 instrumentation (landed) | `tic/PerfMeasurement.{h,cpp}`, gate `utl/Environment.cpp` (`IsPerformanceLogging`, `/SP`), call sites `tic/OperationContext.cpp` (`RunOperator`, `ScheduleCalcResult`) and `tic/stg/AbstrStoragemanager.cpp` (`StorageReadHandle::Read`) |

@@ -2168,7 +2168,7 @@ void MainWindow::debugReports() {
 
 #if defined(MG_DEBUGREPORTER)
     DebugReporter::ReportAll();
-#endif defined(MG_DEBUGREPORTER)
+#endif // defined(MG_DEBUGREPORTER)
 }
 
 void MainWindow::expandActiveNode(bool doExpand) {

@@ -373,12 +373,6 @@ auto FuncDC::CallCalcResult(std::shared_ptr<Explain::Context> context) const -> 
 	if (WasFailed(FailType::MetaInfo))
 		return {};
 
-#if defined(MG_DEBUG)
-//	static TokenID testsID = GetTokenID("tests");
-//	if (dContext && dContext->m_BackRef && dContext->m_BackRef->GetID() == testsID)
-//		__debugbreak();
-#endif
-
 	FutureData thisFutureResult = this;
 
 	// precondition if doCalc: Interest, SupplInterest, Not FailType::MetaInfo, nor Args; FailType::Data may occur in worker threads, but then re-Make is futile.

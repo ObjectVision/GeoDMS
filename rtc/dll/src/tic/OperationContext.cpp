@@ -143,15 +143,6 @@ void CheckThis(tile_task_group* self)
 
 	auto nrCompleted = std::accumulate(self->md_CompletedWork.begin(), self->md_CompletedWork.end(), UInt32(0), std::plus<>());
 	assert(nrCompleted == self->m_NrCompleted);
-
-	if (self->m_Commissioned == 858 && self->m_Last == 857)
-	{
-		reportD(SeverityTypeID::ST_Warning, "Daar gaan we");
-	}
-	if (self->m_NrCompleted == 856 && self->m_Last == 857)
-	{
-		reportD(SeverityTypeID::ST_Warning, "KoekKoek");
-	}
 #endif
 }
 
@@ -633,13 +624,14 @@ static std::set<const OperationContext*> sd_ManagedContexts;
 #define MG_TRACE_OPERATIONCONTEXTS
 #endif
 
-#define MG_TRACE_OPERATIONCONTEXTS
+// Live OperationContext count. Not tracing: Join()'s supplier-chain walk uses it as the recursion
+// bound that turns a supplier cycle into an "Invalid Recursion" error instead of an endless walk.
+static std::atomic<UInt32> s_OcCount = 0;
 
 #if defined(MG_TRACE_OPERATIONCONTEXTS)
 
 leveled_critical_section cs_OcAdm(item_level_type(0), ord_level_type::OperationContext, "OperationContextSet");
 
-static UInt32 sd_OcCount;
 static std::set<OperationContext*> sd_OC;
 static std::map<OperationContext*, phase_number> sd_RunningOC;
 
@@ -745,7 +737,9 @@ TIC_CALL tg_maintainer::~tg_maintainer()
 	GetPortableTaskGroup().cancel();
 	GetPortableTaskGroup().wait();
 
+#if defined(MG_TRACE_OPERATIONCONTEXTS)
 	assert(sd_RunningOC.empty() || g_IsTerminating);
+#endif
 
 	DestroyPortableTaskGroup();
 }
@@ -1215,14 +1209,14 @@ void OperationContex_setActivated(OperationContext* self)
 /// Call ScheduleCalcResult() to start the calculation.
 /// todo: integreate ScheduleCalcResult into the constructor.
 
-// Debug/admin counter increment for constructed OperationContext.
+// Admin counter increment for constructed OperationContext.
 void OperationContext_AddOcCount(OperationContext* self)
 {
+	s_OcCount.fetch_add(1, std::memory_order_relaxed);
 
 #if defined(MG_TRACE_OPERATIONCONTEXTS)
 
 	leveled_critical_section::scoped_lock lock(cs_OcAdm);
-	++sd_OcCount;
 	sd_OC.insert(self);
 
 #endif
@@ -1287,10 +1281,11 @@ OperationContext::~OperationContext()
 
 	assert(!IsActiveOrRunning(m_Status));
 
+	s_OcCount.fetch_sub(1, std::memory_order_relaxed);
+
 	#if defined(MG_TRACE_OPERATIONCONTEXTS)
 
 	leveled_critical_section::scoped_lock lock(cs_OcAdm);
-	--sd_OcCount;
 	sd_OC.erase(this);
 
 	#endif
@@ -3280,7 +3275,7 @@ task_status OperationContext::Join()
 				if (fs->m_Suppliers.empty())
 					break;
 
-				if (recursionCount++ > sd_OcCount)
+				if (recursionCount++ > s_OcCount.load(std::memory_order_relaxed))
 					throwErrorF("OperationContext", "Invalid Recursion detected on OperationContext({})::Join"
 						, GetResult()->GetFullName()
 					);

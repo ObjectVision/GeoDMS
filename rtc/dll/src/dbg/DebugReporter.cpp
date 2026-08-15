@@ -91,4 +91,4 @@ auto test = MakeDebugCaller(
 	[]() { dms_assert(1 + 1 == 2);  }
 );
 
-#endif defined(MG_DEBUGREPORTER)
+#endif // defined(MG_DEBUGREPORTER)

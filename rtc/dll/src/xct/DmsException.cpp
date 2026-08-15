@@ -182,16 +182,6 @@ DmsException::~DmsException()
 	SetUnrollingErrMsgPtr(m_PrevUnrollingErrMsgPtr);
 }
 
-#if defined(MG_DEBUG)
-#define MG_COUNT_EXCEPTIONS
-#endif
-
-//#define MG_COUNT_EXCEPTIONS
-
-#if defined(MG_COUNT_EXCEPTIONS)
-static int sd_ThrowItemErrorCount = 0;
-#endif
-
 RTC_CALL const char* DmsException::what() const noexcept
 {
 	return get()->m_Why.c_str();
@@ -199,11 +189,6 @@ RTC_CALL const char* DmsException::what() const noexcept
 
 [[noreturn]] RTC_CALL void DmsException::throwMsg(ErrMsgPtr msg)
 {
-#if defined(MG_COUNT_EXCEPTIONS)
-	sd_ThrowItemErrorCount++;
-//	reportF(ST_MajorTrace, "Logging throwItemError {}: {}", sd_ThrowItemErrorCount, msg.Why());
-#endif
-
 	throw DmsException(msg);
 }
 

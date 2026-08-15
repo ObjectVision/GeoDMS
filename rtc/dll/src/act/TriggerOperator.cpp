@@ -140,27 +140,12 @@ void IncRemainingTargetCount()
 }
 
 
-#if defined(MG_DEBUGREPORTER)
-static bool sd_ReportedDone = false;
-#endif //defined(MG_DEBUGREPORTER)
-
 void DecRemainingTargetCount()
 {
 	assert(g_RemainingTargetCount);
 
 	leveled_critical_section::scoped_lock notifyLock(sc_NotifyTargetCount);
 	NotifyRemainingTargetCount(--g_RemainingTargetCount, g_MaxTargetCount);
-
-#if defined(MG_DEBUGREPORTER)
-
-	// DEBUG REPORT ON decreasing to 300 000 targets
-	if (false) // g_RemainingTargetCount == 340000 || g_RemainingTargetCount == 325000 || g_RemainingTargetCount == 290000)
-	{
-		sd_ReportedDone = true;
-		SendMainThreadOper(DBG_DebugReport);
-	}
-
-#endif defined(MG_DEBUGREPORTER)
 }
 
 //----------------------------------------------------------------------

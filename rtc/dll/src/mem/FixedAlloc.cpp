@@ -1111,10 +1111,10 @@ constexpr size_t LARGE_ALLOC_THRESHOLD = 4096;
 // if ALLOC_OBJSSIZE_MAX_BITS and log2_max_chunk_size were raised.
 static std::atomic<UInt64> s_AllocSizeHistogram[64] = {};
 
-// Allocations at or above this are individually logged, WITH the item context the reporting
-// framework appends -- that is the attribution: which operation asked for it. They are rare enough
-// (a handful per run) that one log line each costs nothing, and the report happens after
-// AllocateFromStock_impl has returned, so no allocator lock is held.
+// Allocations at or above this are individually logged under PerformanceLogging (/SP), WITH the
+// item context the reporting framework appends -- that is the attribution: which operation asked
+// for it. The report happens after AllocateFromStock_impl has returned, so no allocator lock is
+// held.
 constexpr size_t HUGE_ALLOC_LOG_THRESHOLD = SizeT(1) << 28; // 256 MB == ALLOC_OBJSSIZE_MAX
 
 static std::atomic<SizeT> s_LiveLargeAllocBytes = 0;
@@ -1145,7 +1145,8 @@ void* AllocateFromStock(size_t objectSize MG_DEBUG_ALLOCATOR_SRC_ARG)
 	{
 		// §8.1.32: RAM use vs MemoryFlushThreshold, ~1/s -- but only once the process is warm
 		// enough that reading configuration is safe; see ArmDrainageWhenWarm.
-		if (ArmDrainageWhenWarm(objectSize))
+		bool warm = ArmDrainageWhenWarm(objectSize);
+		if (warm)
 			ConsiderDrainagePressure();
 		s_AllocSizeHistogram[std::bit_width(objectSize) - 1].fetch_add(1, std::memory_order_relaxed);
 
@@ -1165,8 +1166,9 @@ void* AllocateFromStock(size_t objectSize MG_DEBUG_ALLOCATOR_SRC_ARG)
 		// thread's current item context -- deferring it to the main thread would lose exactly the
 		// information wanted. Safe here: AllocateFromStock_impl has returned, so no allocator lock is
 		// held, and reportF's own allocations are far below this threshold so they cannot recurse
-		// into this branch.
-		if (objectSize >= HUGE_ALLOC_LOG_THRESHOLD)
+		// into this branch. Only under PerformanceLogging (/SP), and only once the process is warm:
+		// IsPerformanceLogging's first call reads configuration, which is unsafe during static init.
+		if (objectSize >= HUGE_ALLOC_LOG_THRESHOLD && warm && IsPerformanceLogging())
 			reportF(MsgCategory::memory, SeverityTypeID::ST_MinorTrace
 				, "huge alloc {}[MB]; live now {}[MB]", objectSize >> 20, live >> 20);
 
@@ -1292,8 +1294,6 @@ static FreeStackAllocSummary maxCumulBytes = FreeStackAllocSummary(0, 0, 0, 0, 0
 RTC_CALL auto UpdateFixedAllocStatus() -> FreeStackAllocSummary
 {
 	s_ReportingRequestPending = false;
-
-	//	reportD(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, "ReportFixedAllocStatus");
 
 	FreeStackAllocSummary cumulBytes;
 	const auto& fsaa = GetFreeStackAllocatorArray();
@@ -1442,12 +1442,16 @@ void ReportFixedAllocStatus()
 	if (++reportThrottler > 17) // only report to log every 17th time
 	{
 		reportThrottler = 0;
-		PostMainThreadOper([reportStr = GetFixedAllocStatus(cumulBytes), censusStr = GetLargeAllocCensus()]
+		// The census line only under PerformanceLogging (/SP): it answered the PeakLiveLarge-gap
+		// question (§8.1.23) and remains a calibration instrument, not product output. Sampled
+		// here, at the same instant as the status line, so when both are on the allocator's view
+		// and the request-side view stay directly comparable.
+		auto censusStr = IsPerformanceLogging() ? GetLargeAllocCensus() : SharedStr();
+		PostMainThreadOper([reportStr = GetFixedAllocStatus(cumulBytes), censusStr]
 			{
 				reportD(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, reportStr.c_str());
-				// Same instant as the line above, so the allocator's view and the request-side view
-				// are directly comparable rather than two peaks from different moments.
-				reportD(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, censusStr.c_str());
+				if (!censusStr.empty())
+					reportD(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, censusStr.c_str());
 			}
 		);
 	}
@@ -1479,9 +1483,13 @@ RTC_CALL auto UpdateAndGetFixedAllocFinalSummary() -> SharedStr
 
 void ReportFixedAllocFinalSummary()
 {
-	// Decommit cost and allocation size profile, once per run beside the memory summary.
+	// Decommit cost, once per run beside the memory summary. The size histogram only under
+	// PerformanceLogging (/SP): its question -- what sizes a workload asks for, and how much lives
+	// above ALLOC_OBJSSIZE_MAX -- is calibration, not product output. The underlying counters are
+	// always maintained, so a run with /SP reports the complete profile.
 	reportD(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, GetVmSysCallStats().c_str());
-	reportD(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, GetAllocHistogram().c_str());
+	if (IsPerformanceLogging())
+		reportD(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, GetAllocHistogram().c_str());
 
 	auto msgStr = UpdateAndGetFixedAllocFinalSummary();
 
@@ -1605,14 +1613,7 @@ ElemAllocComponent::ElemAllocComponent()
 	GetFreeListAllocatorArray();
 #endif //defined(MG_CACHE_ALLOC_SMALL)
 
-#if defined(MG_X)
-#endif
-
-#if defined(MG_DEBUG)
-//	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF /*| _CRTDBG_CHECK_CRT_DF | _CRTDBG_CHECK_ALWAYS_DF*/);
-//	_CrtSetBreakAlloc(6548); 
-//	Known leak: iconv-2.dll->relocatable.c->DllMail contains  shared_library_fullname = strdup(location); which leaks 44 bytes of memory
-#endif
+	// Known leak: iconv-2.dll->relocatable.c->DllMain contains shared_library_fullname = strdup(location), which leaks 44 bytes.
 #endif //defined(MG_CACHE_ALLOC)
 
 }
@@ -1703,12 +1704,7 @@ void ReportAllocs()
 	std::map<alloc_register_t::aspects_t, SizeT> fequencyCounts;
 	reportD(SeverityTypeID::ST_MinorTrace, "All Registered Memory Blocks");
 	for (auto& registeredAlloc : map)
-	{
-		auto aspects = registeredAlloc.second;
-		SizeT sz = aspects.second;
-//		reportF(SeverityTypeID::ST_MajorTrace, "Alloc {} size {:x} src {}", i++, sz, registeredAlloc.second.first);
-		fequencyCounts[aspects]++;
-	}
+		fequencyCounts[registeredAlloc.second]++;
 
 	SizeT cumulSize = 0, otherCount = 0, otherSize = 0;
 	reportD(SeverityTypeID::ST_MinorTrace, "Frequency counts per size:");

@@ -58,15 +58,7 @@ PSEUDOCODE PLAN (documentation-only, no behavior changes)
 #include <set>
 //#include <ppltasks.h>
 
-#if defined(MG_DEBUG_INTERESTSOURCE)
-
 #define MG_DEBUG_INTERESTSOURCE_VALUE false
-
-#else
-
-#define MG_DEBUG_INTERESTSOURCE_VALUE false
-
-#endif
 
 
 // *****************************************************************************
