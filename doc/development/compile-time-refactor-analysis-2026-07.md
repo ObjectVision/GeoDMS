@@ -325,3 +325,12 @@ headers with short/common type names. Always re-verify a candidate with hand-pic
 symbols *and* a by-value-member/base-class check before cutting an edge — and confirm with a
 build, which is the only ground truth for forward-declarability. (Scripts:
 `scratchpad/{incgraph2,edges,blast2,trueneed,precise,purewin,verify_cc}.py`.)
+
+---
+
+*Follow-up 2026-08-16: see [header-hygiene-2026-08.md](header-hygiene-2026-08.md). It
+re-measures fan-in/churn on the merged tree and supersedes this document's churn picture:
+`DataArray.h` has gone cold (its `.ipp` split exists — the "explicit follow-up" above is
+done) and `TreeItem.h` is now the dominant PCH-invalidation source; the "keep `Unit.h`
+out of the PCHs" advice has expired. It also adds dead-file/dead-include findings, a
+rename/move catalog, and a header prolog convention.*
