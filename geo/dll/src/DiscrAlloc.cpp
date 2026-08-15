@@ -1,6 +1,6 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #include "GeoPCH.h"
 
@@ -8,7 +8,13 @@
 #pragma hdrstop
 #endif
 
+// discrete_alloc operator: discrete allocation of land units to claims
+// through iterated bidding rounds with price adjustment.
+
 #include <algorithm> // std::sort, for the greedy/needy land unit ranking
+#include "ser/PairStream.h" // operator<< for Pair, the base of shadow_price
+#include "set/VectorFunc.h" // vector_zero_n
+#include "xml/XMLOut.h" // MAX_TEXTOUT_SIZE
 
 #include "dbg/debug.h"
 #include "dbg/SeverityType.h"

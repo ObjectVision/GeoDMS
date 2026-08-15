@@ -13,6 +13,7 @@
 
 #include "TreeItemUtils.h"
 
+#include "act/TriggerOperator.h" // SuspendTrigger
 #include "utl/mySPrintF.h"
 #include "utl/splitPath.h"
 

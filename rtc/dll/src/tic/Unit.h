@@ -1,8 +1,16 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
+#if defined(_MSC_VER)
 #pragma once
+#endif
+
+/*
+ *  Unit<V>: the typed unit template — holds the value range and tiling
+ *  (TiledRangeData) of a domain or values unit, with checked cardinality
+ *  calculation and range formatting/streaming support.
+ */
 
 #if !defined(__TIC_UNIT_H)
 #define __TIC_UNIT_H
@@ -12,10 +20,6 @@
 //----------------------------------------------------------------------
 
 #include "geo/CheckedCalc.h"
-#include "geo/RangeIndex.h"
-#include "geo/SequenceArray.h"
-#include "ptr/LifetimeProtector.h"
-#include "ser/PointStream.h"
 #include "ser/RangeStream.h"
 
 #include "AbstrUnit.h"

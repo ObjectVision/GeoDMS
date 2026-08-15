@@ -1,10 +1,17 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #if defined(_MSC_VER)
 #pragma once
 #endif
+
+/*
+ *  DataArrayBase<V> / DataArray<V>: the typed tile-array interface over
+ *  AbstrDataObject — locked tile access (seq/cseq), value-range data, and
+ *  the adapter hierarchy (NumericArray, GeoArrayAdapter, SeqArrayAdapter,
+ *  TileFunctor). Template member bodies live in DataArray.ipp.
+ */
 
 #if !defined(__TIC_DATAARRAY_H)
 #define __TIC_DATAARRAY_H
@@ -13,10 +20,7 @@
 // used modules and forward class references
 //----------------------------------------------------------------------
 
-#include <set/VectorFunc.h>
-#include "geo/StringBounds.h"
 #include "geo/GeoSequence.h"
-#include "geo/iterrange.h"
 #include "geo/SequenceArray.h"
 #include "mem/LockedSequenceObj.h"
 #include "ptr/LifetimeProtector.h"

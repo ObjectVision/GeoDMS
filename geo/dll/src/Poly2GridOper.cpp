@@ -1,6 +1,13 @@
-// Copyright (C) 1998-2024 Object Vision b.v.
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
+
+#include "GeoPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
+#pragma hdrstop
+#endif
+
 // File: Poly2GridOper.cpp
 // Purpose:
 //   - Rasterize polygonal geometry (multi-ring) to grid tiles (scanline fill).
@@ -25,16 +32,9 @@
 //   - Row/column rounding uses RoundPositiveHalfOpen for consistent scanline
 //     grid coverage.
 //   - For each scanline, crossing count (after considering toggles) must be even.
-//
-/////////////////////////////////////////////////////////////////////////////
-
-#include "GeoPCH.h"
-
-#if defined(CC_PRAGMAHDRSTOP)
-#pragma hdrstop
-#endif
 
 #include "act/UpdateMark.h"
+#include "set/VectorFunc.h" // vector_fill_n
 #include "mem/MyContainers.h"
 #include "dbg/SeverityType.h"
 #include "geo/Conversions.h"

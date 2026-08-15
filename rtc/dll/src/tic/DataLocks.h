@@ -1,10 +1,17 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #if defined(_MSC_VER)
 #pragma once
 #endif
+
+/*
+ *  DataReadLock / DataWriteLock: RAII access to the data object of an
+ *  AbstrDataItem — a read lock triggers calculation or file loading as
+ *  needed, a write lock administers preparation and commit — plus the
+ *  FileData open/close primitives.
+ */
 
 #if !defined(__TIC_DATALOCKS_H)
 #define __TIC_DATALOCKS_H
@@ -14,11 +21,10 @@
 //----------------------------------------------------------------------
 
 #include "AbstrDataItem.h"
+#include "act/InterestRetainContext.h"
 #include "dbg/Check.h"
-#include "ptr/InterestHolders.h"
 #include "ser/FileCreationMode.h"
 #include "ItemLocks.h"
-#include "TileLock.h"
 
 enum class DrlType : UInt8 { UpdateNever = 0, Suspendible = 1, Certain = 2, ThrowOnFail = 4, UpdateMask = 0x0003, CertainOrThrow = Certain + ThrowOnFail };
 
@@ -220,4 +226,4 @@ template <typename V> V AbstrDataItem::LockAndGetValue(SizeT index) const
 	return GetValue<V>(index);
 }
 
-#endif //!defined(__RTC_SET_RESOURCECOLLECTION_H)
+#endif // __TIC_DATALOCKS_H

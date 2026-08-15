@@ -1,12 +1,15 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #include "StoragePch.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif //defined(CC_PRAGMAHDRSTOP)
+#endif
+
+// GdalGridSM: the GDAL raster storage manager — reading and writing grid
+// data and palettes through GDAL raster bands.
 
 // *****************************************************************************
 //
@@ -17,6 +20,7 @@
 #include "gdal_base.h"
 #include "gdal_grid.h"
 
+#include "set/VectorFunc.h"  // vector_resize
 #include "utl/Environment.h" // ConvertDmsFileName, see issue #367
 
 #include <gdal_priv.h>

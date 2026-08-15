@@ -1,19 +1,24 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
+#if defined(_MSC_VER)
 #pragma once
+#endif
+
+/*
+ *  AbstrDataItem: the abstract attribute item — a TreeItem with a domain
+ *  and a values unit, data-check modes, and typed access to its data
+ *  object (AbstrDataObject) through the DataItemClass metaclass.
+ */
 
 #if !defined(__TIC_ABSTRDATAITEM_H)
 #define __TIC_ABSTRDATAITEM_H
 
 #include "TreeItem.h"
 
-#include "act/InterestRetainContext.h"
 #include "DataCheckMode.h"
-#include "dbg/DebugCast.h"
 #include "mci/CompositeCast.h"
-
 
 #include "DataItemClass.h"
 
@@ -236,4 +241,4 @@ TIC_CALL SizeT EstimateDataBytes(const AbstrDataItem* adi, SizeT nrElements);
 TIC_CALL void PublishMeasuredElementWidth(const AbstrDataItem* adi) noexcept;
 
 
-#endif
+#endif // __TIC_ABSTRDATAITEM_H

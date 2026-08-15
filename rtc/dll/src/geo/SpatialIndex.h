@@ -1,18 +1,24 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #if defined(_MSC_VER)
 #pragma once
 #endif
 
+/*
+ *  SpatialIndex<ScalarType, ObjectPtr>: a quad-tree-like spatial index over
+ *  point, box and sequence (arc/polygon) collections, with range queries
+ *  and neighbour iteration support (see geo/NeighbourIter.h).
+ */
 
-#ifndef __RTC_GEO_SPATIALINDEX_H
-#define __RTC_GEO_SPATIALINDEX_H
+#ifndef __GEO_SPATIALINDEX_H
+#define __GEO_SPATIALINDEX_H
 
 #include "geo/Pair.h"
 #include "geo/SequenceArray.h"
 #include "mem/MyContainers.h"
+#include "set/VectorFunc.h" // RangeFromSequence_SkipUndefined
 #include "utl/IncrementalLock.h"
 
 template <typename SpatialIndexType> struct neighbour_iter;
@@ -521,4 +527,4 @@ private:
 	NodeContainer m_Nodes;
 };
 
-#endif // __RTC_GEO_SPATIALINDEX_H
+#endif // __GEO_SPATIALINDEX_H

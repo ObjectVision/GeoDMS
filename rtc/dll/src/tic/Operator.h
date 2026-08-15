@@ -1,25 +1,28 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #if defined(_MSC_VER)
 #pragma once
 #endif
+
+/*
+ *  Operator: the base class of all operators — argument specification and
+ *  binding, applicability tests, and membership of the AbstrOperGroup
+ *  under which the operator is found at name resolution.
+ */
 
 #if !defined(__TIC_OPERATOR_H)
 #define __TIC_OPERATOR_H
 
 #include <vector>
 template <typename V> class Unit;
-#include "set/StackUtil.h"
 
 #include "OperGroups.h"
 #include "TreeItemDualRef.h"
-#include "ptr/OwningPtrSizedArray.h"
-#include "Explain.h"
-#include "DataController.h"
 #include "ItemLocks.h"
-struct ItemReadLock;
+
+namespace Explain { struct Context; }  // was: "Explain.h"; only Explain::Context* is used here
 
 // *****************************************************************************
 // Section:     enums

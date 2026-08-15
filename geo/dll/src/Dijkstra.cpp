@@ -1,6 +1,13 @@
 // Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
+
+#include "GeoPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
+#pragma hdrstop
+#endif
+
 // File: Dijkstra.cpp
 //
 // High-level purpose:
@@ -56,18 +63,11 @@
 // Safety & assertions:
 //   - Defensive checks on undefined values, bounds, monotonic commits, and flag consistency.
 //   - Many MG_CHECK/MG_USERCHECK macros enforce invariants, fail fast on inconsistent inputs.
-//
-/////////////////////////////////////////////////////////////////////////////
-
-#include "GeoPCH.h"
-
-#if defined(CC_PRAGMAHDRSTOP)
-#pragma hdrstop
-#endif
 
 #include "Dijkstra.h"
 
 #include "dbg/SeverityType.h"
+#include "set/VectorFunc.h" // vector_resize
 #include "dbg/Timer.h"
 #include "geo/Point.h"
 #include "mci/ValueClassID.h"

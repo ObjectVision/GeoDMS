@@ -1,11 +1,12 @@
-// Copyright (C) 1998-2025 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #include "DataArray.h"
 #include "ParallelTiles.h"
 
 #include "geo/Conversions.h"
+#include "set/VectorFunc.h"
 
 #include "Unit.h"
 

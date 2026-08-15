@@ -1,6 +1,6 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #include "ClcPCH.h"
 
@@ -8,6 +8,10 @@
 #pragma hdrstop
 #endif
 
+// union_data / union_unit operators: concatenating domains and their
+// attributes, with value-info (Explain) support for the merged items.
+
+#include "Explain.h" // Explain::Context, AddQueueEntry
 #include "geo/GeoSequence.h"
 #include "geo/StringBounds.h"
 #include "mci/CompositeCast.h"

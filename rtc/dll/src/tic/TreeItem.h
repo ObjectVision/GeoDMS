@@ -30,9 +30,7 @@
 #include "ptr/InterestHolders.h"
 #include "ptr/OwningPtr.h"
 #include "ptr/SharedPtr.h"
-#include "ptr/SharedTreePtr.h"
 #include "ptr/SharedStr.h"
-#include "ptr/WeakPtr.h"
 #include "set/Token.h"
 
 #include "MetaInfo.h"
@@ -47,20 +45,16 @@
 #include <geo/CharPtrRange.h>
 #include <mci/Class.h>
 #include <mci/Object.h>
-#include <mci/PropDef.h>
-#include <xml/XMLOut.h>
 #include <LispRef.h>
-/*
-#include "AbstrDataItem.h"
-#include "DataLocks.h"
-#include "OperGroups.h"
-#include "TreeItemClass.h"
+
 #include <atomic>
 #include <functional>
 #include <memory>
 #include <optional>
 #include <utility>
-*/
+
+class AbstrPropDef;  // was: <mci/PropDef.h>; only AbstrPropDef* is used here
+// OutStreamBase (was: <xml/XMLOut.h>) is forward-declared in RtcBase.h
 //----------------------------------------------------------------------
 // class  : TreeItem Facets
 //----------------------------------------------------------------------

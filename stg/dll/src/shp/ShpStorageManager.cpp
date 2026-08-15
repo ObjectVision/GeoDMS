@@ -1,12 +1,14 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #include "StoragePch.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif //defined(CC_PRAGMAHDRSTOP)
+#endif
+
+// ShpStorageManager: the native ESRI shapefile reader/writer.
 
 
 // *****************************************************************************
@@ -16,6 +18,8 @@
 // *****************************************************************************
 
 #include <iterator>
+
+#include "set/VectorFunc.h" // vector_resize_uninitialized, convert_copy
 
 #include "ShpStorageManager.h"
 #include "shp/ShpImp.h"
