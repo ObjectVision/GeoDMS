@@ -3463,6 +3463,128 @@ bool IntegrityCheckFailure(const TreeItem* self, const AbstrDataItem* iCheckerRe
 	return true;
 }
 
+// #1180: validate self against its OWN IntegrityCheck only; the ancestors' verdicts arrive by
+// validating the parent first -- which covers ITS ancestors the same way -- and inheriting a
+// validate failure. This walks each chain once per update sweep, instead of every descendant
+// re-walking all its ancestors: a parent whose own DoUpdate already ran answers from its progress
+// and failure state, and a parent validated from here answers from the condition DataController,
+// which the evaluation below leaves Validated (shared by identity with the #1180-folded
+// conditions, deduplicated per #1182).
+//
+// Returns AVS_SuspendedOrFailed for SUSPENSION only; a verdict, either way, returns AVS_Ready
+// and a failure is recorded on self (FailType::Validate). No progress is marked here: self's
+// DoUpdate does that, and a parent validated on behalf of a descendant must not skip ahead of
+// its own data phase.
+static ActorVisitState TreeItem_ValidateIntegrity(const TreeItem* self)
+{
+	assert(self);
+
+	if (SharedTreeItem parent = self->GetTreeParent(); parent
+		&& !parent->IsPassor() && !parent->IsCacheItem() && !parent->InTemplate())
+	{
+		if (!parent->WasFailed(FailType::Validate) && parent->m_State.GetProgress() < ProgressState::Validated)
+			if (TreeItem_ValidateIntegrity(parent.get()) == AVS_SuspendedOrFailed)
+				return AVS_SuspendedOrFailed;
+		if (parent->WasFailed(FailType::Validate))
+		{
+			self->Fail(parent.get());
+			return AVS_Ready;
+		}
+	}
+
+	if (!self->HasIntegrityChecker())
+		return AVS_Ready;
+
+	try
+	{
+		TreeItemContextHandle tich2(self, "IntegrityCheck Evaluation");
+
+		auto iCheckerPtr = self->GetIntegrityChecker();
+		assert(iCheckerPtr);
+
+		auto iCheckerDC = MakeResult(iCheckerPtr.get());
+		assert(iCheckerDC);
+		if (iCheckerDC->WasFailed(FailType::Validate))
+		{
+			self->Fail(iCheckerDC.get());
+			return AVS_Ready;
+		}
+		if (!iCheckerDC->Was(ProgressState::Validated))
+		{
+			// The verdict a folded check (#1180) computed during data preparation is NOT
+			// guaranteed to still be resident here: once the wrapping IntegrityCheck operator
+			// has consumed its condition argument, the argument interest is released and the
+			// condition's DataController may be re-armed empty. Re-evaluation therefore goes
+			// through CalledCalcHandle, which takes its own interest and schedules through an
+			// OperationContext -- recomputing from whatever sub-results are still retained.
+			iCheckerDC = CalledCalcHandle(iCheckerPtr.get(), DataArray<Bool>::GetStaticClass()); // @@@SCHEDULE
+
+			if (SuspendTrigger::DidSuspend())
+				return AVS_SuspendedOrFailed;
+
+			// #1181 backstop, also in Release: primary data evaluated on behalf of an
+			// integrity check must be under interest and scheduled -- CalledCalcHandle
+			// guarantees both by construction, and this pins that contract where a bypass
+			// (evaluating the checker without taking interest) would otherwise regress
+			// silently, since the out-of-band answer is still the right verdict.
+			MG_CHECK(iCheckerDC && iCheckerDC->GetInterestCount());
+
+			DataReadLockContainer c;
+			auto iCheckerFD = iCheckerDC->CallCalcResult(nullptr);// @@@USE
+			if (!iCheckerFD)
+			{
+				if (SuspendTrigger::DidSuspend())
+					return AVS_SuspendedOrFailed;
+				assert(iCheckerDC->WasFailed(FailType::Data));
+				self->Fail(iCheckerDC.get_ptr());
+				assert(self->WasFailed());
+				return AVS_Ready;
+			}
+
+			SharedDataItem iCheckerResult = make_shared_tree(AsDynamicDataItem(iCheckerDC->GetOld()), existing_obj{});
+			if (iCheckerResult)
+			{
+				assert(iCheckerResult->GetInterestCount());
+
+				std::shared_ptr<const TreeItem> adiCheckerResult = iCheckerResult->GetCurrUltimateItem();
+				assert(adiCheckerResult->GetInterestCount());
+				if (!WaitForReadyOrSuspendTrigger(adiCheckerResult.get()))
+				{
+					if (adiCheckerResult->WasFailed())
+					{
+						self->Fail(adiCheckerResult.get());
+						return AVS_Ready;
+					}
+					assert(SuspendTrigger::DidSuspend());
+					return AVS_SuspendedOrFailed;
+				}
+			}
+			if (!iCheckerResult || !c.Add(iCheckerResult.get(), DrlType::Suspendible))
+			{
+				if (SuspendTrigger::DidSuspend())
+					return AVS_SuspendedOrFailed;
+				assert(iCheckerDC->WasFailed(FailType::Data) || !iCheckerResult || iCheckerResult->WasFailed(FailType::Data));
+				if (iCheckerDC->WasFailed(FailType::Data))
+					self->Fail(iCheckerDC.get_ptr());
+				else if (iCheckerResult && iCheckerResult->WasFailed(FailType::Data))
+					self->Fail(iCheckerResult.get());
+				else
+					self->Fail("Unknown error in IntegrityCheck: ", FailType::MetaInfo);
+				assert(self->WasFailed());
+				return AVS_Ready;
+			}
+
+			IntegrityCheckFailure(self, iCheckerResult.get(), [iCheckerPtr]() { return iCheckerPtr->GetExpr(); });
+		}
+	}
+	catch (...)
+	{
+		auto err = catchException(false);
+		self->DoFailCaller(err, FailType::Validate);
+	}
+	return AVS_Ready;
+}
+
 ActorVisitState TreeItem::DoUpdate()
 {
 	DBG_START("TreeItem", "DoUpdate", MG_DEBUG_UPDATEMETAINFO && false);
@@ -3499,119 +3621,31 @@ ActorVisitState TreeItem::DoUpdate()
 							}
 						}
 
-	if (m_State.GetProgress() < ProgressState::Validated) 
+	if (m_State.GetProgress() < ProgressState::Validated)
 	{
-		// #1180: an IntegrityCheck guards everything below the item carrying it, so this item is
-		// validated against its own check and then against each of its ancestors' checks, and fails
-		// here when any of them does not hold. Every exit below is a return, so the only fall-through
-		// is "this check held", which continues with the next ancestor.
-		// For an item with a DataController these checks were folded into it as conditions
-		// (TreeItem_CreateCheckedExpr), so they arrive here already scheduled by an
-		// OperationContext, with interest, and computed: the CalledCalcHandle below then finds the
-		// shared condition DataController ready and this loop only inspects the verdict. It still
-		// calculates for items without a DataController, i.e. when the item itself is the request.
-		SharedTreeItem guardianHolder; // keeps the ancestor alive while its check is evaluated
-		for (const TreeItem* guardian = this; guardian; guardianHolder = guardian->GetTreeParent(), guardian = guardianHolder.get())
-		if (guardian->HasIntegrityChecker())
+		if (WasFailed(FailType::Validate))
 		{
-//			m_State.Set(actor_flag_set::AF_IntegrityChecked);
-			try
-			{
-				TreeItemContextHandle tich2(guardian, "IntegrityCheck Evaluation");
-
-				auto iCheckerPtr = guardian->GetIntegrityChecker();
-				assert(iCheckerPtr);
-
-				auto iCheckerDC = MakeResult(iCheckerPtr.get());
-				assert(iCheckerDC);
-				if (iCheckerDC->WasFailed(FailType::Validate))
-					Fail(iCheckerDC.get());
-
-				//InterestPtr<SharedPtr<const AbstrCalculator>> iChecker = iCheckerPtr;
-				if (WasFailed(FailType::Validate))
-				{
-					m_State.SetProgress(ProgressState::Validated);
-					return AVS_SuspendedOrFailed;
-				}
-				if (!iCheckerDC->Was(ProgressState::Validated))
-				{
-					// The verdict a folded check (#1180) computed during data preparation is NOT
-					// guaranteed to still be resident here: once the wrapping IntegrityCheck operator
-					// has consumed its condition argument, the argument interest is released and the
-					// condition's DataController may be re-armed empty. Re-evaluation therefore goes
-					// through CalledCalcHandle, which takes its own interest and schedules through an
-					// OperationContext -- recomputing from whatever sub-results are still retained.
-					iCheckerDC = CalledCalcHandle(iCheckerPtr.get(), DataArray<Bool>::GetStaticClass()); // @@@SCHEDULE
-
-					if (SuspendTrigger::DidSuspend())
-						return AVS_SuspendedOrFailed;
-
-					// #1181 backstop, also in Release: primary data evaluated on behalf of an
-					// integrity check must be under interest and scheduled -- CalledCalcHandle
-					// guarantees both by construction, and this pins that contract where a bypass
-					// (evaluating the checker without taking interest) would otherwise regress
-					// silently, since the out-of-band answer is still the right verdict.
-					MG_CHECK(iCheckerDC && iCheckerDC->GetInterestCount());
-
-					DataReadLockContainer c;
-					auto iCheckerFD = iCheckerDC->CallCalcResult(nullptr);// @@@USE
-					if (!iCheckerFD)
-					{
-						if (SuspendTrigger::DidSuspend())
-							return AVS_SuspendedOrFailed;
-						assert(iCheckerDC->WasFailed(FailType::Data));
-						Fail(iCheckerDC.get_ptr());
-						m_State.SetProgress(ProgressState::Validated);
-						assert(WasFailed());
-						return AVS_SuspendedOrFailed;
-					}
-
-					SharedDataItem iCheckerResult = make_shared_tree(AsDynamicDataItem(iCheckerDC->GetOld()), existing_obj{});
-					if (iCheckerResult)
-					{
-						assert(iCheckerResult->GetInterestCount());
-
-						std::shared_ptr<const TreeItem> adiCheckerResult = iCheckerResult->GetCurrUltimateItem();
-						assert(adiCheckerResult->GetInterestCount());
-						if (!WaitForReadyOrSuspendTrigger(adiCheckerResult.get()))
-						{
-							if (adiCheckerResult->WasFailed())
-							{
-								m_State.SetProgress(ProgressState::Validated);
-								Fail(adiCheckerResult.get());
-							}
-							assert(SuspendTrigger::DidSuspend() || WasFailed());
-							return AVS_SuspendedOrFailed;
-						}
-
-					}
-					if (!iCheckerResult || !c.Add(iCheckerResult.get(), DrlType::Suspendible))
-					{
-						if (SuspendTrigger::DidSuspend())
-							return AVS_SuspendedOrFailed;
-						assert(iCheckerDC->WasFailed(FailType::Data) || !iCheckerResult || iCheckerResult->WasFailed(FailType::Data));
-						if (iCheckerDC->WasFailed(FailType::Data))
-							Fail(iCheckerDC.get_ptr());
-						else if (iCheckerResult && iCheckerResult->WasFailed(FailType::Data))
-							Fail(iCheckerResult.get());
-						else
-							Fail("Unknown error in IntegrityCheck: ", FailType::MetaInfo);
-						m_State.SetProgress(ProgressState::Validated);
-						assert(WasFailed());
-						return AVS_SuspendedOrFailed;
-					}
-
-					if (IntegrityCheckFailure(this, iCheckerResult.get(), [iCheckerPtr]() { return iCheckerPtr->GetExpr(); }))
-						return AVS_Ready;
-				}
-			}
-			catch (...)
-			{
-				auto err = catchException(false);
-				DoFailCaller(err, FailType::Validate);
-				m_State.SetProgress(ProgressState::Validated);
-				return AVS_Ready;
-			}
+			m_State.SetProgress(ProgressState::Validated);
+			return AVS_SuspendedOrFailed;
+		}
+		// #1180: an IntegrityCheck guards everything below the item carrying it. The ancestral
+		// verdicts arrive through the tree structure: the parent is validated first -- covering
+		// ITS ancestors the same way -- and a validate-failed parent fails this item. Only this
+		// item's OWN check is evaluated here, so a chain of ancestors is walked once per update
+		// sweep instead of once per descendant; a parent whose own DoUpdate already ran answers
+		// from its progress and failure state.
+		// For an item with a DataController the checks were also folded into it as conditions
+		// (TreeItem_CreateCheckedExpr), scheduled by an OperationContext with interest; the
+		// evaluation below then finds the shared condition DataController ready and only inspects
+		// the verdict. It still calculates for items without a DataController, i.e. when the item
+		// itself is the request: a plain tree update demands no data, so the folded operator
+		// never runs there and this is the only evaluator (measured, see #1182).
+		if (TreeItem_ValidateIntegrity(this) == AVS_SuspendedOrFailed)
+			return AVS_SuspendedOrFailed; // suspended; not yet Validated, retried on resume
+		if (WasFailed(FailType::Validate))
+		{
+			m_State.SetProgress(ProgressState::Validated);
+			return AVS_Ready; // data remains viewable; commit is skipped
 		}
 		SetProgress(ProgressState::Validated);
 	}
