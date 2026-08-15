@@ -41,6 +41,10 @@ if not exist "%TSTBATCH%\unit.bat" (
   exit /b 1
 )
 
+REM Calling unit.bat by an explicit path below fixes only OUR hop: unit.bat in turn calls
+REM unit_flagged.bat by bare name, and that file lives in the tst tree, which this repo has
+REM no business editing. Putting the folder on PATH is what rescues that nested call, since
+REM PATH is searched even when the current directory is not.
 set "PATH=%TSTBATCH%;%PATH%"
 
 echo.
@@ -57,7 +61,7 @@ set "UNITRESULTS=%LocalDataDir%\GeoDMSTestResults\unit"
 set "AGGBEFORE="
 for /f "delims=" %%F in ('dir /b /o-d "%UNITRESULTS%\v%1*.txt" 2^>nul') do if not defined AGGBEFORE set "AGGBEFORE=%%F"
 
-call unit.bat %1 %2
+call "%TSTBATCH%\unit.bat" %1 %2
 set "UNITERR=%ERRORLEVEL%"
 
 set "AGGAFTER="
