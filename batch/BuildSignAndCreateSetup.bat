@@ -5,9 +5,17 @@ REM This script now lives in <repo-root>\batch; re-root to the repo root so all 
 REM relative paths below (all22.sln, nsi, distr, ..\tst\batch, %cd% capture) resolve.
 cd /d "%~dp0.."
 
-REM Version comes from nsi\GeoDmsVersion.cmd (shared with the cmake + linux
-REM sister scripts). Bump the patch number there, not here.
-call GeoDmsVersion.cmd
+REM Version comes from GeoDmsVersion.cmd in the repo root (shared with the cmake +
+REM linux sister scripts). Bump the patch number there, not here.
+REM Called by an explicit path, not by bare name: cmd resolves a bare name through the
+REM current directory, which a shell with NoDefaultCurrentDirectoryInExePath=1 refuses --
+REM and "not recognized" does not stop this script, so %GeoDmsVersion% would silently
+REM stay empty and every path built from it below would be wrong.
+call "%~dp0..\GeoDmsVersion.cmd"
+if not defined DMS_VERSION_MAJOR (
+    echo *** ABORT: GeoDmsVersion.cmd did not run - version unknown, cannot name the setup ***
+    goto :build_failed
+)
 
 REM Flavor suffix appended to install dir + setup filename. Sister scripts:
 REM   BuildSignAndCreateSetupCmake.bat (c)  /  BuildSignAndCreateSetupLinux.bat (l)
@@ -146,7 +154,13 @@ REM SetGeoDMSPlatform.bat can compose the install dir as
 REM GeoDms<ver>.<flavor> (e.g. GeoDms20.0.0.m). Without the flavor the
 REM path becomes GeoDms<ver> which does not exist and every GeoDmsRun.exe
 REM invocation reports a missing-file FAILED.
-Call unit.bat %GeoDmsVersion% m off
+REM Explicit path for the same reason as GeoDmsVersion.cmd above; the PATH entry is
+REM what rescues unit.bat's own bare-name call to unit_flagged.bat, which lives in the
+REM tst tree. The result-file scan below already catches a suite that never ran.
+set "SAVED_PATH=%PATH%"
+set "PATH=%CD%;%PATH%"
+Call "%CD%\unit.bat" %GeoDmsVersion% m off
+set "PATH=%SAVED_PATH%"
 cd %geodms_rootdir%
 echo on
 

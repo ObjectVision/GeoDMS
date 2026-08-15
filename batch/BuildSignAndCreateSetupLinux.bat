@@ -31,9 +31,17 @@ REM capture below (and the WSL geodms_wsldir derived from it) points at the repo
 REM the relative nsi/ + TestLinuxReleaseUnit.sh references resolve.
 cd /d "%~dp0.."
 
-REM Version comes from nsi\GeoDmsVersion.cmd (shared with the msbuild + cmake
-REM sister scripts). Bump the patch number there, not here.
-call GeoDmsVersion.cmd
+REM Version comes from GeoDmsVersion.cmd in the repo root (shared with the msbuild +
+REM cmake sister scripts). Bump the patch number there, not here.
+REM Called by an explicit path, not by bare name: cmd resolves a bare name through the
+REM current directory, which a shell with NoDefaultCurrentDirectoryInExePath=1 refuses --
+REM and "not recognized" does not stop this script, so %GeoDmsVersion% would silently
+REM stay empty and every path built from it below would be wrong.
+call "%~dp0..\GeoDmsVersion.cmd"
+if not defined DMS_VERSION_MAJOR (
+    echo *** ABORT: GeoDmsVersion.cmd did not run - version unknown, cannot name the setup ***
+    exit /B 1
+)
 set GeoDmsFlavor=l
 
 set geodms_rootdir=%cd%
