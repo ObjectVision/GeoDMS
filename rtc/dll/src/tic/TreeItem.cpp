@@ -3077,40 +3077,29 @@ static bool TreeItem_HasIntegrityCheckerInclAncestors(const TreeItem* self)
 	return false;
 }
 
-// Does expr already enforce exactly this check? Then guarding it again adds nothing:
-// evaluating expr evaluates that node, which fails on the same condition. This is the common
-// shape under a checked ancestor -- an item's expression references a sibling whose own key
-// expression the fold already guarded -- and without this test every item AND every reference
+// Guarding an expression that already enforces the same check adds nothing: evaluating it
+// evaluates the contained node, which fails on the same condition. That is the common shape
+// under a checked ancestor -- an item's expression references a sibling whose own key
+// expression the fold already guarded -- and without skipping, every item AND every reference
 // between them carries its own copy, so one check on a root container multiplies over the
 // whole configuration.
 //
-// The search is depth-bounded on purpose. Missing a redundancy only costs one superfluous
-// wrapper, whereas an unbounded walk would scan entire substituted trees on every fold; the
-// references that matter sit within a couple of argument levels. Conditions are interned, so
-// the comparison is a pointer test.
-static bool TreeItem_ExprEnforcesCheck(LispPtr expr, LispPtr ic, UInt32 depthBudget)
-{
-	if (!expr.IsRealList())
-		return false;
-
-	if (expr.Left().IsSymb() && expr.Left().GetSymbID() == token::integrity_check
-		&& expr.Right().IsRealList() && expr.Right().Right().IsRealList()
-		&& expr.Right().Right().Left() == ic)
-		return true;
-
-	if (!depthBudget)
-		return false;
-	for (LispPtr cursor = expr.Right(); cursor.IsRealList(); cursor = cursor.Right())
-		if (TreeItem_ExprEnforcesCheck(cursor.Left(), ic, depthBudget - 1))
-			return true;
-	return false;
-}
-
-static const UInt32 c_CheckContainmentDepth = 4;
-
-static auto TreeItem_CreateCheckedExpr(LispPtr resultExpr, const TreeItem* self) -> LispRef
+// The skip is decided from resultExprDC's memoized set of implied conditions (#1182), which is
+// exact at any depth: it replaces a depth-bounded containment search that re-scanned the
+// substituted tree on every fold and missed redundancy below its bound. Conditions are
+// interned, so membership is a pointer-ordered set probe. Conditions are compared per conjunct,
+// so a nearer ancestor's "a && b" also discharges an outer ancestor's "a"; the enforced set is
+// seeded from the expression and extended with the guards this fold adds on top of it, which
+// have no DataController of their own yet.
+static auto TreeItem_CreateCheckedExpr(LispPtr resultExpr, const DataController* resultExprDC, const TreeItem* self) -> LispRef
 {
 	dms_assert(TreeItem_HasIntegrityCheckerInclAncestors(self));
+	assert(!resultExprDC || resultExprDC->GetLispRef() == resultExpr);
+
+	check_set enforced;
+	if (resultExprDC)
+		if (auto implied = resultExprDC->GetImpliedChecks())
+			enforced = implied->thing;
 
 	LispRef result = resultExpr;
 	SharedTreeItem holder; // keeps the ancestor alive while its checker is folded
@@ -3134,8 +3123,10 @@ static auto TreeItem_CreateCheckedExpr(LispPtr resultExpr, const TreeItem* self)
 			self->Fail("Failed to construct IntegryCheck", FailType::Validate);
 			return resultExpr;
 		}
-		if (!TreeItem_ExprEnforcesCheck(result, ic, c_CheckContainmentDepth))
-			result = ExprList(token::integrity_check, result, ic);
+		if (AreCheckAtomsImplied(enforced, ic))
+			continue;
+		InsertCheckAtoms(enforced, ic);
+		result = ExprList(token::integrity_check, result, ic);
 	}
 	return result;
 }
@@ -3162,12 +3153,8 @@ void TreeItem::UpdateDC() const
 	}
 	if (resultDC && TreeItem_HasIntegrityCheckerInclAncestors(this))
 	{
-		LispRef resultExpr;
-		if (resultDC)
-			resultExpr = resultDC->GetLispRef();
-		else
-			resultExpr = CreateLispTree(this, false);
-		resultDC = GetOrCreateDataController(TreeItem_CreateCheckedExpr(resultExpr, this));
+		LispRef resultExpr = resultDC->GetLispRef();
+		resultDC = GetOrCreateDataController(TreeItem_CreateCheckedExpr(resultExpr, resultDC.get(), this));
 	}
 	SetDC(resultDC, srcItem.get());
 }
@@ -3246,7 +3233,7 @@ LispRef TreeItem::GetCheckedKeyExpr() const
 		}
 	}
 	if (TreeItem_HasIntegrityCheckerInclAncestors(this))
-		result = TreeItem_CreateCheckedExpr(result, this);
+		result = TreeItem_CreateCheckedExpr(result, nullptr, this); // no DC on this path: implied set unknown, wrap all
 	return result;
 }
 

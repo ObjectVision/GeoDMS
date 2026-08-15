@@ -46,7 +46,7 @@ struct SharedObjWrap : VBase, SharedBase
 using SharedObj = SharedObjWrap<Object>;
 
 template <typename T>
-class SharedThing : public SharedObj
+class SharedThing final : public SharedBase
 {
 public:
 	template <typename ...Args>
@@ -54,13 +54,22 @@ public:
 		: thing(std::forward<Args>(args)...)
 	{}
 	T thing;
+
+	void Release() const  noexcept // SharedThing is final, so destructing from here without virtual dtor is OK
+	{
+		MG_CHECK(!IsOwned());
+		delete this;
+	}
 };
 
-template <typename T>
-SharedPtr<SharedThing<T>> make_SharedThing(T&& thing) 
+template <typename T, typename ...Args>
+auto make_SharedThing(Args&& ...args) -> SharedPtr<SharedThing<T>>
 { 
-	auto* pointer_to_shared_thing = new SharedThing<T>( std::forward<T>(thing) );
-	return pointer_to_shared_thing;
+	auto* pointer_to_shared_thing = new SharedThing<T>( std::forward<Args>(args)... );
+	return { pointer_to_shared_thing, newly_obj{} };
 }
+
+template <typename T>
+using SharedThingPtr = SharedPtr<SharedThing<T>>;
 
 #endif // __RTC_PTR_SHAREDOBJ_H

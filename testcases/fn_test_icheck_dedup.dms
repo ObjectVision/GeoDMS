@@ -1,0 +1,28 @@
+// #1182: exact IntegrityCheck dedup via DataController-memoized implied-check sets.
+// Under a checked ancestor, an item whose expression references a sibling embeds that
+// sibling's guarded key expression; the ancestor's wrap around the referencing item is then
+// redundant and skipped -- decided from the memoized set, not from a depth-bounded scan, so
+// the chain below stays single-guarded at ANY depth (the retired containment search gave up
+// at 4 argument levels). This positive pins that values computed through skipped wraps stay
+// correct; fn_test_icheck_dedup_neg1 pins that a violated check still fails the whole chain.
+container fn_test_icheck_dedup
+{
+	parameter<uint32> guard_src := 45; // outside grp: a check into its own subtree would be circular
+
+	container grp : IntegrityCheck = "guard_src == 45"
+	{
+		parameter<uint32> u := 42;
+		parameter<uint32> v := u + 1; // embeds u's guarded key: v's own ancestor wrap is skipped
+		parameter<uint32> w := v + 1; // ... and each next link sits one argument level deeper,
+		parameter<uint32> x := w + 1; // so from here on the old bounded search no longer saw
+		parameter<uint32> y := x + 1; // the guard and re-wrapped; the memoized set still does
+		parameter<uint32> z := y + 1;
+	}
+
+	container checks
+	{
+		parameter<bool> c1 := grp/u == 42, IntegrityCheck = "c1 == True";
+		parameter<bool> c2 := grp/v == 43, IntegrityCheck = "c2 == True";
+		parameter<bool> c3 := grp/z == 47, IntegrityCheck = "c3 == True";
+	}
+}
