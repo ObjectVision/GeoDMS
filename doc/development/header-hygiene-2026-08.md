@@ -349,6 +349,17 @@ touched.
 
 ## Prioritized implementation ladder
 
+*Status 2026-08-16: steps 1–3 are DONE — step 1 in commit `f3bb3adb` (with the corrections
+noted inline above), step 2 in `89836638` (15 dead includes cut from the six hot headers;
+10 TUs/headers needed a direct include for what they had been getting transitively —
+including `geo/SpatialIndex.h`, which used `RangeFromSequence_SkipUndefined` without
+including `set/VectorFunc.h`), step 3 in the follow-up commit: ShvDllPch ← `dataview.h`,
+Tic/Clc/Geo PCHs ← the §4b set, and a new `qtgui/exe/src/GuiPch.h` injected via
+`ForcedIncludeFiles` (msbuild; covers the QtMsBuild moc TUs) + `target_precompile_headers`
+(CMake). Measured after enrichment: a full rebuild of tic+clc+geo+shv = 578 s wall; a full
+qtgui rebuild = **21 s** (334 MB `.pch`). Gates: msbuild Release green, unit-suite
+aggregate empty, testcases 200/200. Steps 4–5 remain open.*
+
 1. **Zero-risk cleanup**: delete the Finding-2 dead files; remove the 52 duplicated
    `#include` lines; drop `ViewPort.cpp`'s gdal include; fix `StgImpl.h`'s `#endif`.
    Gate: one `.m` build.
