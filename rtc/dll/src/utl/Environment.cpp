@@ -438,11 +438,26 @@ UInt32 g_RegStatusFlags = 0; // status flags as found in the register
 UInt32 g_OvrStatusFlags = 0; // status flags as set from the command line
 UInt32 g_OvrStatusMask  = 0; // mask for status flags as set from the command line
 
-leveled_critical_section s_RegAccess(item_level_type(0), ord_level_type::RegisterAccess, "RegisterAccess");
+// Order-safe accessor for the registry-access section. This section is reached
+// from DYNAMIC INITIALIZATION: a namespace-scope TokenID initializer (e.g.
+// token::UInt32 in tic/LispTreeType.cpp) creates a token, IndexedStrings then
+// calls EventLog_HideDepreciatedCaseMixupWarnings, which reads the registry
+// status flags. A namespace-scope section would then be used before this TU's
+// own initializers have run -- on GCC that order is link-order dependent, and
+// the Linux Debug build aborted at startup on EnterLevel's level != 0 assert
+// (in Release the assert is compiled out, so the same disorder passed
+// unnoticed). A function-local static is constructed on first use, so the
+// order no longer matters. See also the ThousandSeparator note in
+// dbg/MsgDispatch.cpp, which worked around this same fragility at a call site.
+static leveled_critical_section& RegAccessSection()
+{
+	static leveled_critical_section s_RegAccess(item_level_type(0), ord_level_type::RegisterAccess, "RegisterAccess");
+	return s_RegAccess;
+}
 
 RTC_CALL void DMS_Appl_SetRegStatusFlags(UInt32 newSF)
 {
-	leveled_critical_section::scoped_lock lock(s_RegAccess);
+	leveled_critical_section::scoped_lock lock(RegAccessSection());
 	g_RegStatusFlags = (newSF | RSF_WasRead);
 }
 
@@ -451,7 +466,7 @@ UInt32 ReadOnceRegisteredStatusFlags()
 	if (g_RegStatusFlags & RSF_WasRead)
 		return g_RegStatusFlags;
 
-	leveled_critical_section::scoped_lock lock(s_RegAccess);
+	leveled_critical_section::scoped_lock lock(RegAccessSection());
 
 	if (g_RegStatusFlags & RSF_WasRead)
 		return g_RegStatusFlags;
@@ -493,7 +508,7 @@ RTC_CALL UInt32 DMS_Appl_GetRegStatusFlags()
 
 RTC_CALL void SetCachedStatusFlag(UInt32 newSF, bool newVal)
 {
-	leveled_critical_section::scoped_lock lock(s_RegAccess);
+	leveled_critical_section::scoped_lock lock(RegAccessSection());
 	g_OvrStatusMask |= newSF;
 	if (newVal)
 		g_OvrStatusFlags |= newSF; // set
@@ -511,7 +526,7 @@ void SetRegStatusFlags(UInt32 newSF)
 
 RTC_CALL void SetStatusFlag(UInt32 newSF, bool newVal)
 {
-	leveled_critical_section::scoped_lock lock(s_RegAccess);
+	leveled_critical_section::scoped_lock lock(RegAccessSection());
 	g_OvrStatusMask |= newSF;
 	if (newVal)
 		g_OvrStatusFlags |= newSF; // set
@@ -666,7 +681,7 @@ extern "C" RTC_CALL DWORD RTC_GetRegDWord(RegDWordEnum i)
 	auto ui = UInt32(i);
 	MG_CHECK(ui < sizeof(s_RegDWordAttrs) / sizeof(RegDWordAttr));
 
-	leveled_critical_section::scoped_lock lock(s_RegAccess);
+	leveled_critical_section::scoped_lock lock(RegAccessSection());
 
 	RegDWordAttr& regAttr = s_RegDWordAttrs[ui];
 	if (!regAttr.wasRead)
@@ -700,7 +715,7 @@ extern "C" RTC_CALL void RTC_SetCachedDWord(RegDWordEnum i, DWORD dw)
 	auto ui = UInt32(i);
 	assert(ui < sizeof(s_RegDWordAttrs) / sizeof(RegDWordAttr));
 
-	leveled_critical_section::scoped_lock lock(s_RegAccess);
+	leveled_critical_section::scoped_lock lock(RegAccessSection());
 	RegDWordAttr& regAttr = s_RegDWordAttrs[ui];
 	regAttr.wasRead = true;
 	regAttr.value   = dw;
@@ -2437,11 +2452,26 @@ UInt32 g_RegStatusFlags = 0;
 UInt32 g_OvrStatusFlags = 0;
 UInt32 g_OvrStatusMask  = 0;
 
-leveled_critical_section s_RegAccess(item_level_type(0), ord_level_type::RegisterAccess, "RegisterAccess");
+// Order-safe accessor for the registry-access section. This section is reached
+// from DYNAMIC INITIALIZATION: a namespace-scope TokenID initializer (e.g.
+// token::UInt32 in tic/LispTreeType.cpp) creates a token, IndexedStrings then
+// calls EventLog_HideDepreciatedCaseMixupWarnings, which reads the registry
+// status flags. A namespace-scope section would then be used before this TU's
+// own initializers have run -- on GCC that order is link-order dependent, and
+// the Linux Debug build aborted at startup on EnterLevel's level != 0 assert
+// (in Release the assert is compiled out, so the same disorder passed
+// unnoticed). A function-local static is constructed on first use, so the
+// order no longer matters. See also the ThousandSeparator note in
+// dbg/MsgDispatch.cpp, which worked around this same fragility at a call site.
+static leveled_critical_section& RegAccessSection()
+{
+	static leveled_critical_section s_RegAccess(item_level_type(0), ord_level_type::RegisterAccess, "RegisterAccess");
+	return s_RegAccess;
+}
 
 RTC_CALL void DMS_Appl_SetRegStatusFlags(UInt32 newSF)
 {
-	leveled_critical_section::scoped_lock lock(s_RegAccess);
+	leveled_critical_section::scoped_lock lock(RegAccessSection());
 	g_RegStatusFlags = (newSF | RSF_WasRead);
 }
 
@@ -2450,7 +2480,7 @@ UInt32 ReadOnceRegisteredStatusFlags()
 	if (g_RegStatusFlags & RSF_WasRead)
 		return g_RegStatusFlags;
 
-	leveled_critical_section::scoped_lock lock(s_RegAccess);
+	leveled_critical_section::scoped_lock lock(RegAccessSection());
 	if (g_RegStatusFlags & RSF_WasRead)
 		return g_RegStatusFlags;
 
@@ -2476,7 +2506,7 @@ RTC_CALL UInt32 DMS_Appl_GetRegStatusFlags()
 
 RTC_CALL void SetCachedStatusFlag(UInt32 newSF, bool newVal)
 {
-	leveled_critical_section::scoped_lock lock(s_RegAccess);
+	leveled_critical_section::scoped_lock lock(RegAccessSection());
 	g_OvrStatusMask |= newSF;
 	if (newVal) g_OvrStatusFlags |= newSF;
 	else        g_OvrStatusFlags &= ~newSF;
@@ -2490,7 +2520,7 @@ void SetRegStatusFlags(UInt32 newSF)
 
 RTC_CALL void SetStatusFlag(UInt32 newSF, bool newVal)
 {
-	leveled_critical_section::scoped_lock lock(s_RegAccess);
+	leveled_critical_section::scoped_lock lock(RegAccessSection());
 	g_OvrStatusMask |= newSF;
 	if (newVal) g_OvrStatusFlags |= newSF;
 	else        g_OvrStatusFlags &= ~newSF;
@@ -2595,7 +2625,7 @@ extern "C" RTC_CALL DWORD RTC_GetRegDWord(RegDWordEnum i)
 {
 	auto ui = UInt32(i);
 	MG_CHECK(ui < sizeof(s_RegDWordAttrs) / sizeof(RegDWordAttr));
-	leveled_critical_section::scoped_lock lock(s_RegAccess);
+	leveled_critical_section::scoped_lock lock(RegAccessSection());
 	RegDWordAttr& regAttr = s_RegDWordAttrs[ui];
 	if (!regAttr.wasRead)
 	{
@@ -2610,7 +2640,7 @@ extern "C" RTC_CALL void RTC_SetCachedDWord(RegDWordEnum i, DWORD dw)
 {
 	auto ui = UInt32(i);
 	assert(ui < sizeof(s_RegDWordAttrs) / sizeof(RegDWordAttr));
-	leveled_critical_section::scoped_lock lock(s_RegAccess);
+	leveled_critical_section::scoped_lock lock(RegAccessSection());
 	s_RegDWordAttrs[ui].wasRead = true;
 	s_RegDWordAttrs[ui].value = dw;
 }
