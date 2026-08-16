@@ -105,9 +105,6 @@
     <ClCompile Include="src\DiscrAlloc.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\Mandlebrot.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\nth_element.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -141,9 +138,6 @@
     <ClCompile Include="src\RasterMerge.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\GeoInterface.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\Potential.cpp">
       <Filter>Convolution Files</Filter>
     </ClCompile>
@@ -162,16 +156,13 @@
 <ClCompile Include="src\BoostGeometry.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+<ClCompile Include="src\GeoSupport.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="src\GridDist.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\Perimeter.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\PolyOper.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\AbstrBoundingBoxCache.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\Poly2GridOper.cpp">

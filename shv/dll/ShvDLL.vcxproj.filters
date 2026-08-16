@@ -18,19 +18,10 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\ActivationInfo.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\CaretOperators.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\Carets.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\Clipboard.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Cmds.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\Controllers.cpp">
@@ -96,16 +87,10 @@
     <ClCompile Include="src\GridLayer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\IdleTimer.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\IndexCollector.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\ItemSchemaView.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\LayerClass.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\LayerControl.cpp">
@@ -153,9 +138,6 @@
     <ClCompile Include="src\Region.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\RegionTower.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\ScalableObject.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -183,10 +165,13 @@
     <ClCompile Include="src\ShvUtils.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\TableControl.cpp">
+    <ClCompile Include="src\ShvControlsSupport.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\TableDataView.cpp">
+    <ClCompile Include="src\ShvDrawSupport.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\TableControl.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\TableHeaderControl.cpp">
@@ -204,28 +189,16 @@
     <ClCompile Include="src\Theme.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\ThemeReadLocks.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\ThemeSet.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\ViewControl.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\ViewPort.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Wrapper.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\InvalidationBlock.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\TypeInfoOrdering.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\AspectGroup.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\ThemeValueGetter.cpp">
@@ -238,9 +211,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\GdiDrawContext.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\DrawContext.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
