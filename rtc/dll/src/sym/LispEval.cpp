@@ -8,6 +8,10 @@
 #pragma hdrstop
 #endif //defined(CC_PRAGMAHDRSTOP)
 
+// (Assoc merged in, 2026-08)
+
+// ==== from LispEval.cpp ====
+
 /****************** Lisp interpreter              *******************/
 
 #include "LispEval.h"
@@ -1019,3 +1023,36 @@ LispRef BoolEvalCondList(LispPtr Goal)
 */
 
 
+
+
+// ==== from Assoc.cpp ====
+
+#include "Assoc.h"
+
+#include "ser/FormattedStream.h"
+
+
+auto Assoc::failed() -> AssocPtr
+{
+	static AssocPtr result = AssocPtr(LispPtr());
+	return result;
+}
+
+auto AssocList::empty() -> AssocListPtr
+{
+	static AssocListPtr result = AssocListPtr(LispPtr());
+	return result;
+}
+
+auto AssocList::failed() ->AssocListPtr
+{
+	static AssocList assocListFailed = AssocList(Assoc::failed(), AssocList::empty());
+	return AssocListPtr(assocListFailed.get());
+}
+
+/**************** operators      *****************/
+
+FormattedOutStream& operator <<(FormattedOutStream& output, AssocPtr a)
+{
+	return output << a.Key() << CharPtr(" = ") << a.Val();
+}

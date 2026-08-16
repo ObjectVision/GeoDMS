@@ -336,10 +336,7 @@
     <ClCompile Include="src\RtcPCH.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="src\act\ActorEnums.cpp" />
-    <ClCompile Include="src\act\garbage_can.cpp" />
     <ClCompile Include="src\act\MainThread.cpp" />
-    <ClCompile Include="src\act\Waiter.cpp" />
     <ClCompile Include="src\dbg\DebugContext.cpp" />
     <ClCompile Include="src\dbg\DebugReporter.cpp" />
     <ClCompile Include="src\dbg\DebugStream.cpp" />
@@ -349,7 +346,6 @@
     <ClCompile Include="src\parallel\portable_task_group.cpp" />
     <ClCompile Include="src\ptr\SharedObjBase.cpp" />
     <ClCompile Include="src\RtcMain.cpp" />
-    <ClCompile Include="src\ser\AsString.cpp" />
     <ClCompile Include="src\utl\Encodes.cpp" />
     <ClCompile Include="src\utl\MemGuard.cpp" />
     <ClCompile Include="src\utl\SourceLocation.cpp" />
@@ -359,10 +355,8 @@
     <ClCompile Include="src\utl\Quotes.cpp" />
     <ClCompile Include="src\utl\Registry.cpp" />
     <ClCompile Include="src\ptr\SharedStr.cpp" />
-    <ClCompile Include="src\vt\BaseBounds.cpp" />
-    <ClCompile Include="src\vt\iterrangefuncs.cpp" />
     <ClCompile Include="src\vt\SequenceArray.cpp" />
-    <ClCompile Include="src\ser\BaseStreamBuff.cpp" />
+    <ClCompile Include="src\vt\VtSupport.cpp" />
     <ClCompile Include="src\ser\FileMapHandle.cpp" />
     <ClCompile Include="src\ser\FileStreamBuff.cpp" />
     <ClCompile Include="src\ser\FormattedStream.cpp" />
@@ -375,11 +369,10 @@
     <ClCompile Include="src\utl\Case.cpp" />
     <ClCompile Include="src\set\IndexedStrings.cpp" />
     <ClCompile Include="src\sym\Token.cpp" />
-    <ClCompile Include="src\xml\XmlConst.cpp" />
     <ClCompile Include="src\xml\XMLOut.cpp" />
     <ClCompile Include="src\xml\XmlParser.cpp" />
     <ClCompile Include="src\act\Actor.cpp" />
-    <ClCompile Include="src\act\ActorSet.cpp" />
+    <ClCompile Include="src\act\ActorSupport.cpp" />
     <ClCompile Include="src\act\TriggerOperator.cpp" />
     <ClCompile Include="src\act\UpdateMark.cpp" />
     <ClCompile Include="src\gen\General.cpp" />
@@ -401,10 +394,6 @@
   <ItemGroup>
     <ClCompile Include="src\sym\SymPCH.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
-      <PrecompiledHeaderFile>SymPCH.h</PrecompiledHeaderFile>
-      <PrecompiledHeaderOutputFile>$(IntDir)Sym.pch</PrecompiledHeaderOutputFile>
-    </ClCompile>
-    <ClCompile Include="src\sym\Assoc.cpp">
       <PrecompiledHeaderFile>SymPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Sym.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
@@ -476,19 +465,11 @@
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="src\tic\stg\AsmUtil.cpp">
+    <ClCompile Include="src\tic\stg\StorageSupport.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
     <ClCompile Include="src\tic\stg\MemoryMappedDataStorageManager.cpp">
-      <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
-      <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
-    </ClCompile>
-    <ClCompile Include="src\tic\stg\StorageClass.cpp">
-      <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
-      <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
-    </ClCompile>
-    <ClCompile Include="src\tic\stg\StorageInterface.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
