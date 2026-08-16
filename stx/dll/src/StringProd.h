@@ -59,8 +59,8 @@ struct StringProd
 	void ProdFirstStringValue() { m_StringValue  = m_StringLiteral; }
 	void ProdNextStringValue () { m_StringValue += m_StringLiteral; }
 
-	SYNTAX_CALL void ProdStringLiteral1(CharPtr first, CharPtr last, const text_position* pos = nullptr);
-	SYNTAX_CALL void ProdStringLiteral2(CharPtr first, CharPtr last, const text_position* pos = nullptr);
+	void ProdStringLiteral1(CharPtr first, CharPtr last, const text_position* pos = nullptr);
+	void ProdStringLiteral2(CharPtr first, CharPtr last, const text_position* pos = nullptr);
 
 	CharPtr c_str() const { return m_StringValue.c_str(); }
 	CharPtr begin() const { return m_StringValue.begin(); }

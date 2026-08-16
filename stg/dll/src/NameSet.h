@@ -69,7 +69,7 @@ struct SharedPtrInsensitiveCompare {
 
 struct TNameSet : SharedBase
 {
-	STGDLL_CALL TNameSet(UInt32 len);
+	TNameSet(UInt32 len);
 
 	void Release() const
 	{
@@ -78,19 +78,19 @@ struct TNameSet : SharedBase
 	}
 
 	void InsertItem(const AbstrDataItem* ti);
-	STGDLL_CALL SharedStr InsertFieldName(CharPtr fieldName);
+	SharedStr InsertFieldName(CharPtr fieldName);
 	void InsertIfColumn(const TreeItem* ti, const AbstrUnit* tableDomain);
 
-	STGDLL_CALL SharedStr FieldNameToMappedName(CharPtr fieldName) const;
-	STGDLL_CALL SharedStr FieldNameToItemName(CharPtr fieldName) const;
+	SharedStr FieldNameToMappedName(CharPtr fieldName) const;
+	SharedStr FieldNameToItemName(CharPtr fieldName) const;
 	SharedStr ItemNameToFieldName(CharPtr itemName) const;
-	STGDLL_CALL SharedStr ItemNameToMappedName(CharPtr itemName) const;
+	SharedStr ItemNameToMappedName(CharPtr itemName) const;
 
 	CharPtr GetItemName(CharPtr fieldName) const;
 
 	UInt32 GetMappedNameBufferLength() const { return m_Len+1; }
 
-	STGDLL_CALL static bool EqualName(CharPtr n1, CharPtr n2);
+	static bool EqualName(CharPtr n1, CharPtr n2);
 
 private:
 	bool HasMappedName(CharPtr name);

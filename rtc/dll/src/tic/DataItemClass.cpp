@@ -65,7 +65,7 @@ TIC_CALL SharedMutableDataItem CreateAbstrDataItem(
 	return SharedMutableDataItem(std::static_pointer_cast<AbstrDataItem>(std::move(item)));
 }
 
-TIC_CALL SharedMutableDataItem CreateAbstrDataItemFromPath(
+SharedMutableDataItem CreateAbstrDataItemFromPath(
 	TreeItem*        parent,
 	CharPtr          path,
 	TokenID          tDomainUnit,

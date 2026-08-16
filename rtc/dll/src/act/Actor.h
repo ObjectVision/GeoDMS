@@ -117,16 +117,16 @@ struct Actor: PersistentObject
 	// - MarkTS: explicitly mark lastChangeTS with a provided timestamp without updating.
 	RTC_CALL void MarkTS(TimeStamp ts) const;
 	// - Set progress timestamp for a specific ProgressState (e.g., meta/data).
-	RTC_CALL void SetProgressAt(ProgressState ps, TimeStamp ts) const;
+	void SetProgressAt(ProgressState ps, TimeStamp ts) const;
 	// - SetProgress: record that progress reached 'ps' at the change source timestamp.
 	RTC_CALL virtual void SetProgress(ProgressState ps) const; // set lastChangeTS to ChangeSource TimeStamp
 	// - RaiseProgress: monotonically raise progress if lower than 'ps'.
-	RTC_CALL void RaiseProgress(ProgressState ps = ProgressState::Committed) const { if (m_State.GetProgress() < ps) SetProgress(ps); }
+	void RaiseProgress(ProgressState ps = ProgressState::Committed) const { if (m_State.GetProgress() < ps) SetProgress(ps); }
 	// State queries
 	// - Was: true if m_State.GetProgress() >= ps (i.e., progress has reached ps in the past).
 	RTC_CALL bool Was  (ProgressState ps) const; //	true if m_State.GetProgress() >= ps
 	// - Is: true if still valid for >= ps (encapsulates GetState semantics).
-	RTC_CALL bool Is   (ProgressState ps) const; //	true if still valid. Is encapsulates GetState unless it wasn't there yet
+	bool Is   (ProgressState ps) const; //	true if still valid. Is encapsulates GetState unless it wasn't there yet
 	// Failure state queries
 	RTC_CALL bool IsFailed () const;  //	true if erroneous. IsFailed encapsulates GetState.
 	FailType GetFailType() const { return m_State.GetFailType(); }
@@ -141,11 +141,11 @@ struct Actor: PersistentObject
     bool WasValid (ProgressState ps = ProgressState::Committed) const { return m_State.GetProgress() >= ps && !m_State.IsFailed();  }
 
 	// Trigger an evaluation/update cycle proactively (e.g., prefetch).
-	RTC_CALL void TriggerEvaluation() const;
+	void TriggerEvaluation() const;
 
 	// Failure reporting
 	RTC_CALL ErrMsgPtr GetFailReason() const;
-	RTC_CALL void ClearFail() const;
+	void ClearFail() const;
 
 	// Change tracking
 	// - GetLastChangeTS: computes and returns the last change timestamp across this actor and suppliers.
@@ -190,11 +190,11 @@ struct Actor: PersistentObject
 	// Recompute state based on suppliers and change detection heuristics.
 	RTC_CALL void DetermineState () const;
 	// Update suppliers for a given progress state; returns visit/update outcome.
-	RTC_CALL ActorVisitState UpdateSuppliers() const;
+	ActorVisitState UpdateSuppliers() const;
 
 protected:
 	// Apply decision hook used by update flow to decide if an apply-like action is needed.
-	RTC_CALL bool MustApplyImpl() const;
+	bool MustApplyImpl() const;
 
 	// Actual update implementation for derived classes; default may orchestrate meta/data updates.
 	RTC_CALL virtual ActorVisitState DoUpdate();
@@ -207,13 +207,13 @@ protected:
 	RTC_CALL virtual void UpdateMetaInfo() const noexcept;
 
 	// Update meta-info of suppliers. Called by CertainUpdate/DetermineState when needed.
-	RTC_CALL void UpdateSupplMetaInfo() const;
+	void UpdateSupplMetaInfo() const;
 
 	// Detect last supplier change and potential failure type; default aggregates suppliers' timestamps.
 	RTC_CALL virtual TimeStamp DetermineLastSupplierChange(ErrMsgPtr& failReason, FailType& failType) const; // noexcept;
 
 	// Invalidate at a specific timestamp (used for partial/incremental invalidation).
-	RTC_CALL void InvalidateAt(TimeStamp invalidate_ts) const;
+	RTC_CALL void InvalidateAt(TimeStamp invalidate_ts) const; // exported: shv FeatureLayer::Init needs it in Debug links (/OPT:REF strips the reference in Release)
 
 public:
 	// Interest management
@@ -225,12 +225,12 @@ public:
 	RTC_CALL garbage_can DecInterestCount() const noexcept;
 	auto GetInterestCount() const noexcept { return m_InterestCount; }
 	// - Returns true if any supplier interest is active.
-	RTC_CALL bool DoesHaveSupplInterest() const noexcept;
+	RTC_CALL bool DoesHaveSupplInterest() const noexcept; // exported: many shv TUs need it in Debug links (/OPT:REF strips the references in Release)
 
 	// Supplier interest list access (lifetime owned externally).
-	RTC_CALL SupplInterestListPtr GetSupplInterest() const;
+	SupplInterestListPtr GetSupplInterest() const;
 	// Returns the shared interest handle for this actor if any (or null).
-	RTC_CALL SharedActorInterestPtr GetInterestPtrOrNull() const;
+	SharedActorInterestPtr GetInterestPtrOrNull() const;
 
 	// Non-owning std::weak_ptr to this actor, for the weak supplier-interest list. Default empty (intrusive
 	// SharedActor actors such as DataController are not std-managed); TreeItem overrides via weak_from_this().
@@ -243,9 +243,9 @@ protected:
 
 public:
 	// Supplier interest orchestration
-	RTC_CALL void StartSupplInterest   () const;          friend struct FuncDC;
+	void StartSupplInterest   () const;          friend struct FuncDC;
 	RTC_CALL garbage_can StopSupplInterest() const noexcept; friend struct AbstrOperGroup;
-	RTC_CALL void RestartSupplInterestIfAny() const;
+	void RestartSupplInterestIfAny() const;
 	// Phase numbers
 	// - Phase numbers tag update cycles to prevent re-entrancy issues and detect recursion.
 	RTC_CALL auto GetPhaseNumber() const -> phase_number;
@@ -289,8 +289,8 @@ public: // status info functions, Debug statistics
 	// RAII to guard update transitions; sets and clears transitional flags in m_State.
 	struct UpdateLock //: ::UpdateLock
 	{
-		RTC_CALL UpdateLock(const Actor* act, actor_flag_set::TransState ps);
-		RTC_CALL ~UpdateLock();
+		UpdateLock(const Actor* act, actor_flag_set::TransState ps);
+		~UpdateLock();
 
 		const Actor*               m_Actor;
 		actor_flag_set::TransState m_TransState;
@@ -299,7 +299,7 @@ protected:
 
 #if defined(MG_DEBUG)
 	// Debug helpers
-	RTC_CALL virtual SharedStr GetExpr() const { return SharedStr(); }
+	virtual SharedStr GetExpr() const { return SharedStr(); }
 #endif
 
 	// Allow internal components to manipulate Actor internals.

@@ -14,7 +14,7 @@
 #include "ViewPort.h"
 #include "../res/Resource.h"
 
-#include "act/InvalidationBlock.h"
+#include "InvalidationBlock.h"
 #include "act/ActorVisitor.h"
 #include "act/TriggerOperator.h"
 #include "act/UpdateMark.h"
@@ -37,7 +37,7 @@
 #include "UnitClass.h"
 
 #include "StgBase.h"
-#include "gdal/gdal_base.h" // GetUnitSizeInMeters
+#include "ProjectionUnits.h" // GetUnitSizeInMeters
 
 #include "CaretOperators.h"
 #include "Carets.h"

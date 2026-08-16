@@ -71,9 +71,6 @@
     <ClInclude Include="src\act\ActorSet.h">
       <Filter>Actor Update Mechanism</Filter>
     </ClInclude>
-    <ClInclude Include="src\act\InvalidationBlock.h">
-      <Filter>Actor Update Mechanism</Filter>
-    </ClInclude>
     <ClInclude Include="src\act\TriggerOperator.h">
       <Filter>Actor Update Mechanism</Filter>
     </ClInclude>
@@ -194,6 +191,9 @@
     <ClInclude Include="src\vt\Pair.h">
       <Filter>Geometry</Filter>
     </ClInclude>
+    <ClInclude Include="src\geom\RemoveAdjacentsAndSpikes.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
     <ClInclude Include="src\geom\Point.h">
       <Filter>Geometry</Filter>
     </ClInclude>
@@ -216,9 +216,6 @@
       <Filter>Geometry</Filter>
     </ClInclude>
     <ClInclude Include="src\vt\SizeCalculator.h">
-      <Filter>Geometry</Filter>
-    </ClInclude>
-    <ClInclude Include="src\geom\SpatialIndex.h">
       <Filter>Geometry</Filter>
     </ClInclude>
     <ClInclude Include="src\vt\StringArray.h">
@@ -500,9 +497,6 @@
     <ClInclude Include="src\utl\swapper.h">
       <Filter>Utility Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\utl\TypeInfoOrdering.h">
-      <Filter>Utility Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\utl\TypeListOper.h">
       <Filter>Utility Files</Filter>
     </ClInclude>
@@ -694,9 +688,6 @@
     <ClInclude Include="src\ipolygon\detail\boolean_op_45.hpp">
       <Filter>ipolygon</Filter>
     </ClInclude>
-    <ClInclude Include="src\geom\BoostPolygon.h">
-      <Filter>Geometry</Filter>
-    </ClInclude>
     <ClInclude Include="src\ipolygon\detail\iterator_points_to_compact.hpp">
       <Filter>ipolygon</Filter>
     </ClInclude>
@@ -723,9 +714,6 @@
     </ClInclude>
     <ClInclude Include="src\ipolygon\detail\minkowski.hpp">
       <Filter>ipolygon</Filter>
-    </ClInclude>
-    <ClInclude Include="src\geom\NeighbourIter.h">
-      <Filter>Geometry</Filter>
     </ClInclude>
     <ClInclude Include="src\ipolygon\point_traits.hpp">
       <Filter>ipolygon</Filter>
@@ -862,9 +850,6 @@
       <Filter>TreeItemComponent</Filter>
     </ClInclude>
     <ClInclude Include="src\tic\stg\AbstrStorageManager.h">
-      <Filter>TreeItemComponent</Filter>
-    </ClInclude>
-    <ClInclude Include="src\tic\stg\AbstrStreamManager.h">
       <Filter>TreeItemComponent</Filter>
     </ClInclude>
     <ClInclude Include="src\tic\AbstrUnit.h">
@@ -1175,10 +1160,7 @@
     <ClCompile Include="src\act\Actor.cpp">
       <Filter>Actor Update Mechanism</Filter>
     </ClCompile>
-    <ClCompile Include="src\act\ActorSet.cpp">
-      <Filter>Actor Update Mechanism</Filter>
-    </ClCompile>
-    <ClCompile Include="src\act\InvalidationBlock.cpp">
+    <ClCompile Include="src\act\ActorSupport.cpp">
       <Filter>Actor Update Mechanism</Filter>
     </ClCompile>
     <ClCompile Include="src\act\TriggerOperator.cpp">
@@ -1193,7 +1175,7 @@
     <ClCompile Include="src\dbg\DebugReporter.cpp">
       <Filter>Debug Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\dbg\DebugStream.cpp">
+    <ClCompile Include="src\dbg\MsgDispatch.cpp">
       <Filter>Debug Files</Filter>
     </ClCompile>
     <ClCompile Include="src\dllimp\RunDllProc.cpp">
@@ -1202,16 +1184,13 @@
     <ClCompile Include="src\gen\General.cpp">
       <Filter>General</Filter>
     </ClCompile>
-    <ClCompile Include="src\vt\BaseBounds.cpp">
-      <Filter>Geometry</Filter>
-    </ClCompile>
-    <ClCompile Include="src\vt\iterrangefuncs.cpp">
-      <Filter>Geometry</Filter>
-    </ClCompile>
     <ClCompile Include="src\vt\SequenceArray.cpp">
       <Filter>Geometry</Filter>
     </ClCompile>
-    <ClCompile Include="src\mci\persistent.cpp">
+    <ClCompile Include="src\vt\VtSupport.cpp">
+      <Filter>Geometry</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mci\MciInterface.cpp">
       <Filter>Meta Class Information</Filter>
     </ClCompile>
     <ClCompile Include="src\mci\PropDef.cpp">
@@ -1225,9 +1204,6 @@
     </ClCompile>
     <ClCompile Include="src\ptr\SharedStr.cpp">
       <Filter>Smart Pointers</Filter>
-    </ClCompile>
-    <ClCompile Include="src\ser\BaseStreamBuff.cpp">
-      <Filter>Serialization</Filter>
     </ClCompile>
     <ClCompile Include="src\ser\FileMapHandle.cpp">
       <Filter>Serialization</Filter>
@@ -1253,20 +1229,17 @@
     <ClCompile Include="src\utl\StrFormat.cpp">
       <Filter>Utility Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\utl\splitPath.cpp">
+      <Filter>Utility Files</Filter>
+    </ClCompile>
     <ClCompile Include="src\utl\Quotes.cpp">
       <Filter>Utility Files</Filter>
     </ClCompile>
     <ClCompile Include="src\utl\Registry.cpp">
       <Filter>Utility Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\utl\TypeInfoOrdering.cpp">
-      <Filter>Utility Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\xct\DmsException.cpp">
       <Filter>Debug Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\xml\XmlConst.cpp">
-      <Filter>XMLFiles</Filter>
     </ClCompile>
     <ClCompile Include="src\xml\XMLOut.cpp">
       <Filter>XMLFiles</Filter>
@@ -1277,10 +1250,7 @@
     <ClCompile Include="src\utl\MemGuard.cpp">
       <Filter>Mathematic Utilities</Filter>
     </ClCompile>
-    <ClCompile Include="src\ptr\SharedObjBase.cpp">
-      <Filter>Mathematic Utilities</Filter>
-    </ClCompile>
-    <ClCompile Include="src\act\ActorEnums.cpp">
+    <ClCompile Include="src\ptr\SharedBase.cpp">
       <Filter>Mathematic Utilities</Filter>
     </ClCompile>
     <ClCompile Include="src\mem\HeapSequenceProvider.cpp">
@@ -1304,17 +1274,8 @@
     <ClCompile Include="src\utl\SourceLocation.cpp">
       <Filter>Mathematic Utilities</Filter>
     </ClCompile>
-    <ClCompile Include="src\ser\AsString.cpp">
-      <Filter>Mathematic Utilities</Filter>
-    </ClCompile>
     <ClCompile Include="src\geom\Transform.cpp">
       <Filter>Mathematic Utilities</Filter>
-    </ClCompile>
-    <ClCompile Include="src\act\Waiter.cpp">
-      <Filter>Mathematic Utilities</Filter>
-    </ClCompile>
-    <ClCompile Include="src\act\garbage_can.cpp">
-      <Filter>Actor Update Mechanism</Filter>
     </ClCompile>
     <ClCompile Include="src\parallel\portable_task_group.cpp">
       <Filter>Mathematic Utilities</Filter>
@@ -1328,16 +1289,10 @@
     <ClCompile Include="src\tic\SessionData.cpp">
       <Filter>Mathematic Utilities</Filter>
     </ClCompile>
-    <ClCompile Include="src\tic\attr_Interface.cpp">
-      <Filter>Mathematic Utilities</Filter>
-    </ClCompile>
-    <ClCompile Include="src\tic\ExtLockMgr.cpp">
+    <ClCompile Include="src\tic\AttrInterface.cpp">
       <Filter>Mathematic Utilities</Filter>
     </ClCompile>
     <ClCompile Include="src\tic\SourceDescr.cpp">
-      <Filter>Mathematic Utilities</Filter>
-    </ClCompile>
-    <ClCompile Include="src\tic\StateChangeNotification.cpp">
       <Filter>Mathematic Utilities</Filter>
     </ClCompile>
     <ClCompile Include="src\utl\Case.cpp">
@@ -1349,13 +1304,10 @@
     <ClCompile Include="src\tic\AbstrDataItem.cpp">
       <Filter>TreeItemComponent</Filter>
     </ClCompile>
-    <ClCompile Include="src\tic\AbstrDataObject.cpp">
-      <Filter>TreeItemComponent</Filter>
-    </ClCompile>
     <ClCompile Include="src\tic\stg\AbstrStorageManager.cpp">
       <Filter>TreeItemComponent</Filter>
     </ClCompile>
-    <ClCompile Include="src\tic\stg\AbstrStreamManager.cpp">
+    <ClCompile Include="src\tic\stg\StorageSupport.cpp">
       <Filter>TreeItemComponent</Filter>
     </ClCompile>
     <ClCompile Include="src\tic\AbstrUnit.cpp">
@@ -1372,15 +1324,6 @@
     </ClCompile>
     <ClCompile Include="src\tic\LispTreeType.cpp">
       <Filter>TreeItemComponent</Filter>
-    </ClCompile>
-    <ClCompile Include="src\tic\stg\AsmUtil.cpp">
-      <Filter>TreeItemComponent</Filter>
-    </ClCompile>
-    <ClCompile Include="src\tic\Aspect.cpp">
-      <Filter>TreeItemComponent</Filter>
-    </ClCompile>
-    <ClCompile Include="src\sym\Assoc.cpp">
-      <Filter>SymbolicCalculation</Filter>
     </ClCompile>
     <ClCompile Include="src\sym\LispEval.cpp">
       <Filter>SymbolicCalculation</Filter>
@@ -1400,16 +1343,10 @@
     <ClCompile Include="src\tic\TreeItemClass.cpp">
       <Filter>TreeItemComponent</Filter>
     </ClCompile>
-    <ClCompile Include="src\tic\TreeItemContextHandle.cpp">
-      <Filter>TreeItemComponent</Filter>
-    </ClCompile>
     <ClCompile Include="src\tic\TreeItemProps.cpp">
       <Filter>TreeItemComponent</Filter>
     </ClCompile>
     <ClCompile Include="src\tic\TreeItemSet.cpp">
-      <Filter>TreeItemComponent</Filter>
-    </ClCompile>
-    <ClCompile Include="src\tic\TreeItemUtils.cpp">
       <Filter>TreeItemComponent</Filter>
     </ClCompile>
     <ClCompile Include="src\sym\SymPCH.cpp">
@@ -1427,14 +1364,8 @@
     <ClCompile Include="src\tic\UsingCache.cpp">
       <Filter>TreeItemComponent</Filter>
     </ClCompile>
-    <ClCompile Include="src\tic\Param.cpp">
-      <Filter>TreeItemComponent</Filter>
-    </ClCompile>
     <ClCompile Include="src\sym\Prolog.cpp">
       <Filter>SymbolicCalculation</Filter>
-    </ClCompile>
-    <ClCompile Include="src\tic\Crs.cpp">
-      <Filter>TreeItemComponent</Filter>
     </ClCompile>
     <ClCompile Include="src\tic\Metric.cpp">
       <Filter>TreeItemComponent</Filter>
@@ -1448,22 +1379,10 @@
     <ClCompile Include="src\tic\DataItemClass.cpp">
       <Filter>TreeItemComponent</Filter>
     </ClCompile>
-    <ClCompile Include="src\tic\DataLockContainers.cpp">
-      <Filter>TreeItemComponent</Filter>
-    </ClCompile>
     <ClCompile Include="src\tic\DataLocks.cpp">
       <Filter>TreeItemComponent</Filter>
     </ClCompile>
-    <ClCompile Include="src\tic\DataStoreManager.cpp">
-      <Filter>TreeItemComponent</Filter>
-    </ClCompile>
     <ClCompile Include="src\tic\DedicatedAttrs.cpp">
-      <Filter>TreeItemComponent</Filter>
-    </ClCompile>
-    <ClCompile Include="src\tic\DisplayValue.cpp">
-      <Filter>TreeItemComponent</Filter>
-    </ClCompile>
-    <ClCompile Include="src\tic\ExprRewrite.cpp">
       <Filter>TreeItemComponent</Filter>
     </ClCompile>
     <ClCompile Include="src\tic\Explain.cpp">
@@ -1484,19 +1403,19 @@
     <ClCompile Include="src\tic\OperGroups.cpp">
       <Filter>TreeItemComponent</Filter>
     </ClCompile>
-    <ClCompile Include="src\tic\stg\StorageClass.cpp">
-      <Filter>TreeItemComponent</Filter>
-    </ClCompile>
-    <ClCompile Include="src\tic\stg\StorageInterface.cpp">
-      <Filter>TreeItemComponent</Filter>
-    </ClCompile>
-    <ClCompile Include="src\tic\SupplCache.cpp">
-      <Filter>TreeItemComponent</Filter>
-    </ClCompile>
-    <ClCompile Include="src\tic\FreeDataManager.cpp">
-      <Filter>TreeItemComponent</Filter>
-    </ClCompile>
     <ClCompile Include="src\tic\OperationContext.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\TicDataSupport.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\TicItemSupport.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\TicCalcSupport.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\ParallelTiles.cpp">
       <Filter>TreeItemComponent</Filter>
     </ClCompile>
     <ClCompile Include="src\tic\OperSignature.cpp">
@@ -1506,9 +1425,6 @@
       <Filter>TreeItemComponent</Filter>
     </ClCompile>
     <ClCompile Include="src\tic\stg\MemoryMappedDataStorageManager.cpp">
-      <Filter>TreeItemComponent</Filter>
-    </ClCompile>
-    <ClCompile Include="src\tic\LispContextHandle.cpp">
       <Filter>TreeItemComponent</Filter>
     </ClCompile>
   </ItemGroup>

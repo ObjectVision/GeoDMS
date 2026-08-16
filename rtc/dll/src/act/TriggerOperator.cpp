@@ -121,7 +121,7 @@ void NotifyRemainingTargetCount(UInt32 nrCount, UInt32 maxCount)
 	s_LastMsgTime = currTime;
 }
 
-RTC_CALL void NotifyCurrentTargetCount()
+void NotifyCurrentTargetCount()
 {
 	leveled_critical_section::scoped_lock notifyLock(sc_NotifyTargetCount);
 	s_LastMsgTime = 0;

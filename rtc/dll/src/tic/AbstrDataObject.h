@@ -82,13 +82,13 @@ public:
 	TIC_CALL virtual bool CheckValuesUnit(const AbstrUnit* valuesUnit) = 0;
 //	Meta Info
 
-	TIC_CALL const DataItemClass* GetDataItemClass() const;
+	const DataItemClass* GetDataItemClass() const;
 
 	TIC_CALL const ValueClass*  GetValuesType() const;
 
 //	Tiling
 	TIC_CALL tile_loc GetTiledLocation   (row_id idx) const;
-	TIC_CALL tile_loc GetTileDataLocation(datarow_id idx) const;
+	tile_loc GetTileDataLocation(datarow_id idx) const;
 
 // Abstr Tile retention
 	virtual auto GetFutureAbstrTile(tile_id t) const-> std::shared_ptr<abstr_future_tile> = 0;
@@ -97,7 +97,7 @@ public:
 
 //	DomainCardinality
 	TIC_CALL row_id      GetNrFeaturesNow() const;
-	TIC_CALL std::size_t GetNrBytesNow    (bool calcStreamSize = false) const;
+	std::size_t GetNrBytesNow    (bool calcStreamSize = false) const;
 
 	TIC_CALL virtual std::size_t GetNrTileBytesNow(tile_id t, bool calcStreamSize = false) const = 0;
 	TIC_CALL virtual bool        IsSmallerThan(SizeT sz) const = 0;
@@ -146,8 +146,8 @@ public:
 	TIC_CALL virtual void SetNull         (SizeT index) = 0;
 	TIC_CALL virtual bool IsNull          (SizeT index) const = 0;
 	TIC_CALL virtual bool IsDataRowNull   (SizeT index) const = 0;
-	TIC_CALL virtual bool   AsCharArray(SizeT index, char* sink, streamsize_t buflen, GuiReadLock& lockHolder, FormattingFlags ff) const=0;
-	TIC_CALL virtual SizeT  AsCharArraySize(SizeT index, streamsize_t maxLen, GuiReadLock& lockHolder, FormattingFlags ff) const=0;
+	virtual bool   AsCharArray(SizeT index, char* sink, streamsize_t buflen, GuiReadLock& lockHolder, FormattingFlags ff) const=0;
+	virtual SizeT  AsCharArraySize(SizeT index, streamsize_t maxLen, GuiReadLock& lockHolder, FormattingFlags ff) const=0;
 	TIC_CALL virtual SharedStr AsString (SizeT index, GuiReadLock& lockHolder, FormattingFlags ff) const=0;
 
 // Support for numerics (optional)
@@ -225,7 +225,7 @@ public:
 	TIC_CALL virtual LispRef GetValuesAsKeyArgs(LispPtr valuesUnitKeyExpr) const = 0;
 
 // Serialization
-	DECL_ABSTR(TIC_CALL, Class)
+	DECL_ABSTR(, Class)
 
 public:
 	SharedPtr<const AbstrTileRangeData> m_TileRangeData; // this replaces m_DomainUnitCopy
@@ -321,7 +321,7 @@ auto mutable_array_checkedcast(AbstrDataObject* ptr) -> TileFunctor<V>*
 #include "TiledRangeData.h"
 
 template<typename V>
-TIC_CALL auto CreateHeapTileArrayU(const AbstrTileRangeData* tdr, const Unit<field_of_t<V>>* valuesUnitPtr, bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG)->std::unique_ptr<TileFunctor<V>>;
+auto CreateHeapTileArrayU(const AbstrTileRangeData* tdr, const Unit<field_of_t<V>>* valuesUnitPtr, bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG)->std::unique_ptr<TileFunctor<V>>;
 
 template<typename V>
 TIC_CALL auto CreateHeapTileArrayV(const AbstrTileRangeData* tdr, const range_or_void_data<field_of_t<V>>* valuesRangeDataPtr, bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG) -> std::unique_ptr<TileFunctor<V>>;

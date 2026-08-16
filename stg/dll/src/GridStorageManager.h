@@ -72,17 +72,17 @@ extern TokenID PALETTE_DATA_ID;
 extern TokenID GDAL_BLOCK_SIZE_X_ID;
 extern TokenID GDAL_BLOCK_SIZE_Y_ID;
 
-STGDLL_CALL const AbstrUnit* GetGridDataDomainRO(const TreeItem* storageHolder);
-STGDLL_CALL       AbstrUnit* GetGridDataDomainRW(TreeItem* storageHolder);
+const AbstrUnit* GetGridDataDomainRO(const TreeItem* storageHolder);
+      AbstrUnit* GetGridDataDomainRW(TreeItem* storageHolder);
 
 STGDLL_CALL bool IsGridDomain(const AbstrUnit* au);
 STGDLL_CALL bool HasGridDomain(const AbstrDataItem* adi);
-STGDLL_CALL SharedDataItem GetGridData(const TreeItem* storageHolder);
-STGDLL_CALL SharedDataItem GetGridData(const TreeItem* storageHolder, bool projectionSpecsAvailable);
-STGDLL_CALL SharedUnit GridDomain(const AbstrDataItem* adi);
-STGDLL_CALL SharedUnit CheckedGridDomain(const AbstrDataItem* adi);
+SharedDataItem GetGridData(const TreeItem* storageHolder);
+SharedDataItem GetGridData(const TreeItem* storageHolder, bool projectionSpecsAvailable);
+SharedUnit GridDomain(const AbstrDataItem* adi);
+SharedUnit CheckedGridDomain(const AbstrDataItem* adi);
 
-STGDLL_CALL SharedDataItem GetPaletteData(const TreeItem* storageHolder);
+SharedDataItem GetPaletteData(const TreeItem* storageHolder);
 
 inline bool HasPaletteData(const TreeItem* storageHolder) { return GetPaletteData(storageHolder) != nullptr; }
 
@@ -92,10 +92,10 @@ class AbstrGridStorageManager : public NonmappableStorageManager
 {
 	typedef AbstrStorageManager base_type;
 public:
-	STGDLL_CALL AbstrUnit* CreateGridDataDomain(const TreeItem* storageHolder) override;
-	STGDLL_CALL ActorVisitState VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor, const TreeItem* storageHolder, const TreeItem* self) const override;
-	STGDLL_CALL StorageMetaInfoPtr GetMetaInfo(const TreeItem* storageHolder, TreeItem* curr, StorageAction) const override;
-	STGDLL_CALL bool AllowRandomTileAccess() const override { return true;  }
+	AbstrUnit* CreateGridDataDomain(const TreeItem* storageHolder) override;
+	ActorVisitState VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor, const TreeItem* storageHolder, const TreeItem* self) const override;
+	StorageMetaInfoPtr GetMetaInfo(const TreeItem* storageHolder, TreeItem* curr, StorageAction) const override;
+	bool AllowRandomTileAccess() const override { return true;  }
 	bool DoCheckFactorSimilarity(StorageMetaInfoPtr smi) const override;
 	bool DoCheck50PercentExtentOverlap(StorageMetaInfoPtr smi) const override;
 
@@ -125,7 +125,7 @@ namespace Grid {
 	{
 		Int32  t_min;
 		UInt32 t_cnt, mod_begin, mod_end;
-		STGDLL_CALL TileCount(Int32 start, UInt32 diff, UInt32 tileSize);
+		TileCount(Int32 start, UInt32 diff, UInt32 tileSize);
 	};
 
 	//  --FUNCS ------------------------------------------------------------------

@@ -52,7 +52,7 @@ private:
 	mutable UInt32 m_CachedBlockSizeY = 0;
 	//mutable DataItemsWriteStatusInfo m_DataItemsWriteStatus;
 
-	DECL_RTTI(STGDLL_CALL, StorageClass)
+	DECL_RTTI(, StorageClass)
 };
 
 struct GdalWritableGridSM : GdalGridSM
@@ -60,7 +60,7 @@ struct GdalWritableGridSM : GdalGridSM
 	bool IsWritableGDAL() const override { return true; }
 	bool IsWriteOnlyStorage() const override { return true; }
 
-	DECL_RTTI(STGDLL_CALL, StorageClass)
+	DECL_RTTI(, StorageClass)
 };
 
 // *****************************************************************************
@@ -89,8 +89,8 @@ public:
 	void UnpackStrip(void* stripBuff, Int32 currDataSize, UInt32 nrBitsPerPixel) const {};
 
 	template <int N>
-	STGDLL_CALL void UnpackStrip(bit_iterator<N, bit_block_t> pixelData, void* stripBuff, UInt32 nrBitsPerPixel, Int32& currNrProcesedBytes, UInt32 nrBytesPerRow, UInt32 tw, UInt32 th, UInt32 tw_aligned, bit_value<N> defaultColor) const;
-	STGDLL_CALL void UnpackStrip(UInt32* pixelData, void* stripBuff, UInt32 nrBitsPerPixel, Int32& currNrProcesedBytes, UInt32 nrBytesPerRow, UInt32 tw, UInt32 th, UInt32 tw_aligned, UInt32 defaultColor)  const;
+	void UnpackStrip(bit_iterator<N, bit_block_t> pixelData, void* stripBuff, UInt32 nrBitsPerPixel, Int32& currNrProcesedBytes, UInt32 nrBytesPerRow, UInt32 tw, UInt32 th, UInt32 tw_aligned, bit_value<N> defaultColor) const;
+	void UnpackStrip(UInt32* pixelData, void* stripBuff, UInt32 nrBitsPerPixel, Int32& currNrProcesedBytes, UInt32 nrBytesPerRow, UInt32 tw, UInt32 th, UInt32 tw_aligned, UInt32 defaultColor)  const;
 	void UnpackStrip(UInt8* pixelData, void* stripBuff, UInt32 nrBitsPerPixel, Int32& currNrProcesedBytes, UInt32 nrBytesPerRow, UInt32 tw, UInt32 th, UInt32 tw_aligned, UInt8 defaultColor)  const {};
 	void UnpackStrip(UInt16* pixelData, void* stripBuff, UInt32 nrBitsPerPixel, Int32& currNrProcesedBytes, UInt32 nrBytesPerRow, UInt32 tw, UInt32 th, UInt32 tw_aligned, UInt16 defaultColor)  const {};
 	void UnpackStrip(Float64* pixelData, void* stripBuff, UInt32 nrBitsPerPixel, Int32& currNrProcesedBytes, UInt32 nrBytesPerRow, UInt32 tw, UInt32 th, UInt32 tw_aligned, Float64 defaultColor) const {};

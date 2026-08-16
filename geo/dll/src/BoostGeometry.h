@@ -26,7 +26,7 @@
 #include "UnitClass.h"
 
 #include "OperAttrBin.h"
-#include "RemoveAdjacentsAndSpikes.h"
+#include "geom/RemoveAdjacentsAndSpikes.h"
 
 #include <boost/geometry.hpp>
 #include <boost/geometry/algorithms/within.hpp>

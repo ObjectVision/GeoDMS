@@ -244,7 +244,7 @@ private:
 	weakPtrGO m_Owner;
 	CrdRect   m_DrawnFullAbsRect; friend GraphDrawer; friend MovableObject;
 
-	DECL_ABSTR(SHV_CALL, Class)
+	DECL_ABSTR(, Class)
 };
 
 #endif // __SHV_GRAPHICOBJECT_H

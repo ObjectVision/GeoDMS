@@ -104,7 +104,7 @@ struct AbstrTileRangeData : SharedObj
 
 	virtual LispRef GetAsLispRef(LispPtr base, bool asCategorical) const = 0;
 
-	TIC_CALL hash_code GetHashCode() const;
+	hash_code GetHashCode() const;
 	TIC_CALL row_id GetElemCount() const;
 };
 

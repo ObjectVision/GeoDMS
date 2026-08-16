@@ -199,7 +199,7 @@ public:
 
 	// hide ValueComposition from header bloat
 	// Suggestion: Mark noexcept if these are pure queries without side effects.
-	RTC_CALL bool    IsRange   () const;
+	bool    IsRange   () const;
 	RTC_CALL bool    IsSequence() const;
 
 	// Identity and numeric bounds
@@ -221,8 +221,8 @@ public:
 
 	// Signedness / unsignedness conversion counterparts and "countable" (ordinal) class retrieval.
 	// Suggestion: Document if these may return 'this' when already matching.
-	RTC_CALL const ValueClass* GetUnsignedClass() const;
-	RTC_CALL const ValueClass* GetSignedClass  () const;
+	const ValueClass* GetUnsignedClass() const;
+	const ValueClass* GetSignedClass  () const;
 	RTC_CALL const ValueClass* GetCrdClass     () const; // ord version for Countable
 
 	// Lookup utilities by id or script name.
@@ -274,7 +274,7 @@ private:
 
 	// RTTI macro for the meta class system.
 	// Suggestion: Ensure no ODR issues from macro expansion; prefer out-of-line definitions where possible.
-	DECL_RTTI(RTC_CALL, MetaClass)
+	DECL_RTTI(, MetaClass)
 };
 
 // Utility: Determine if two value classes overlap (same pointer or same integral size).

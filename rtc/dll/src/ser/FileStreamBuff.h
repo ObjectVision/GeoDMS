@@ -25,11 +25,11 @@ public:
 	RTC_CALL virtual ~FileOutStreamBuff();
 
 	RTC_CALL void WriteBytes(const Byte* data, streamsize_t size) override;
-	RTC_CALL streamsize_t CurrPos() const override;
-	RTC_CALL bool AtEnd() const override { return false; }
-	RTC_CALL WeakStr FileName() override;
+	streamsize_t CurrPos() const override;
+	bool AtEnd() const override { return false; }
+	WeakStr FileName() override;
 
-	RTC_CALL bool IsOpen() const;
+	bool IsOpen() const;
 
 private:
 	SharedStr      m_FileName;
@@ -45,12 +45,12 @@ public:
 	RTC_CALL FileInpStreamBuff(WeakStr fileName, bool isAsciiFile);
 	RTC_CALL virtual ~FileInpStreamBuff();
 
-	RTC_CALL void ReadBytes (Byte* data, streamsize_t size) const override;
-	RTC_CALL streamsize_t CurrPos() const override;
-	RTC_CALL WeakStr FileName() override;
-	RTC_CALL bool AtEnd() const override { return !m_ifstream; }
+	void ReadBytes (Byte* data, streamsize_t size) const override;
+	streamsize_t CurrPos() const override;
+	WeakStr FileName() override;
+	bool AtEnd() const override { return !m_ifstream; }
 
-	RTC_CALL bool IsOpen() const;
+	bool IsOpen() const;
 
 private:
 	SharedStr             m_FileName;
@@ -67,12 +67,12 @@ class MappedFileInpStreamBuff : public InpStreamBuff
 {
 public:
 	RTC_CALL MappedFileInpStreamBuff(WeakStr fileName, bool throwOnError, bool doRetry);
-	RTC_CALL virtual ~MappedFileInpStreamBuff();
+	virtual ~MappedFileInpStreamBuff();
 
-	RTC_CALL void ReadBytes (Byte* data, streamsize_t size) const override;
-	RTC_CALL streamsize_t CurrPos() const override;
-	RTC_CALL WeakStr FileName() override;
-	RTC_CALL bool AtEnd() const override { return m_Curr == m_FileView.DataEnd(); }
+	void ReadBytes (Byte* data, streamsize_t size) const override;
+	streamsize_t CurrPos() const override;
+	WeakStr FileName() override;
+	bool AtEnd() const override { return m_Curr == m_FileView.DataEnd(); }
 
 	RTC_CALL bool IsOpen() const;
 
@@ -90,14 +90,14 @@ class MappedFileOutStreamBuff : public OutStreamBuff
 {
 public:
 	RTC_CALL MappedFileOutStreamBuff(WeakStr fileName, streamsize_t nrBytes);
-	RTC_CALL virtual ~MappedFileOutStreamBuff();
+	virtual ~MappedFileOutStreamBuff();
 
-	RTC_CALL void WriteBytes(const Byte* data, streamsize_t size) override;
-	RTC_CALL streamsize_t CurrPos() const override;
-	RTC_CALL bool AtEnd() const override { return m_Curr >= m_FileView.DataEnd(); }
-	RTC_CALL WeakStr FileName() override;
+	void WriteBytes(const Byte* data, streamsize_t size) override;
+	streamsize_t CurrPos() const override;
+	bool AtEnd() const override { return m_Curr >= m_FileView.DataEnd(); }
+	WeakStr FileName() override;
 
-	RTC_CALL bool IsOpen() const;
+	bool IsOpen() const;
 
 private:
 	SharedStr                 m_FileName;

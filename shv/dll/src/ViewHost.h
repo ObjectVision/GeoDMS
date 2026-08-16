@@ -23,7 +23,7 @@ struct Region;
 struct MenuData;
 class DrawContext;
 
-class SHV_CALL ViewHost
+class SHV_CALL ViewHost // exported: qtgui QDmsViewArea derives from it; Debug links need ctor/dtor/vtable
 {
 public:
 	virtual ~ViewHost() = default;

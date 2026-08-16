@@ -46,7 +46,7 @@ struct mempage_table : rw_file_view < FileChunkSpec >
 {
 	using rw_file_view < FileChunkSpec >::rw_file_view; // inherit ctors
 
-	RTC_CALL void InitFreeSetsFromChunkSpecs(tile_id tn, dms::filesize_t fileSize);
+	void InitFreeSetsFromChunkSpecs(tile_id tn, dms::filesize_t fileSize);
 	FreeChunk ReallocChunk(FreeChunk currChunk, dms::filesize_t newSize, dms::filesize_t fileSize);
 	void FreeAllocatedChunk(FreeChunk currChunk);
 

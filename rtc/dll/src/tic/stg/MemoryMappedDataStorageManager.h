@@ -29,11 +29,11 @@ class MmdStorageManager : public AbstrStorageManager
 public:
 	using base_type = AbstrStorageManager;
 
-	TIC_CALL SharedStr GetFullFileName(CharPtr name) const;
+	SharedStr GetFullFileName(CharPtr name) const;
 
 	// #1155: re-emit the dictionary once a var-range unit's range has become available;
 	// the dictionary written at OpenForWrite time lacks the Range of units not calculated yet
-	TIC_CALL void UpdateDictionary(const TreeItem* storageHolder);
+	void UpdateDictionary(const TreeItem* storageHolder);
 
 protected:
 //	implement AbstrStorageManager interface
@@ -42,7 +42,7 @@ protected:
 
 	bool AllowRandomTileAccess() const override { return true; }
 	bool EasyRereadTiles() const override { return true; }
-	TIC_CALL virtual bool CanWriteTiles() const { return true; }
+	virtual bool CanWriteTiles() const { return true; }
 
 	bool DoCheckExistence(const TreeItem* storageHolder, const TreeItem* storageItem) const override; // Default implementation now checks existence of m_Name as a file
 
@@ -56,7 +56,7 @@ protected:
 	// the reader-declared-sub-items refusal on a revisit. Pointers are keys, never dereferenced.
 	mutable std::set<const TreeItem*> m_MergedReadHolders;
 
-	DECL_RTTI(TIC_CALL, StorageClass)
+	DECL_RTTI(, StorageClass)
 };
 
 using AppendTreeFromConfigurationFuncPtr = auto (*) (const char* fileName, TreeItem* treeItem)->TreeItem*;
@@ -68,7 +68,7 @@ extern TIC_CALL AppendTreeFromConfigurationFuncPtr s_AppendTreeFromConfiguration
 // No TIC_CALL: thread_local data cannot carry a dll interface (C2492); definition and consumer
 // both live in DmRtc.
 extern thread_local const TreeItem* t_MmdDictionaryRoot;
-TIC_CALL auto Mmd_SynthesizeExternalUnitRestrictions(const TreeItem* dictRoot) -> SharedStr;
+auto Mmd_SynthesizeExternalUnitRestrictions(const TreeItem* dictRoot) -> SharedStr;
 
 
 #endif // !defined(__STG_MMD_STORAGEMANAGER_H)

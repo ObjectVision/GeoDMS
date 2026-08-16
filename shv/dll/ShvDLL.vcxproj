@@ -60,7 +60,7 @@
   <ItemDefinitionGroup>
     <ClCompile>
       <AdditionalIncludeDirectories>./src;../../rtc/dll/src;../../rtc/dll/src/sym;../../rtc/dll/src/tic;../../stgimpl/dll/src;../../stg/dll/src;../../clc/dll/include;../../geo/dll/src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>SHVDLL_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <CustomBuildStep>
       <Command>"C:\Program Files (x86)\NSIS\makensisw.exe" "..\..\..\nsi\DmsSetupScriptW32.nsi"</Command>
@@ -76,22 +76,19 @@
     <ClCompile Include="src\ShvDllPCH.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="src\ActivationInfo.cpp" />
-    <ClCompile Include="src\AspectGroup.cpp" />
+    <ClCompile Include="src\InvalidationBlock.cpp" />
+    <ClCompile Include="src\TypeInfoOrdering.cpp" />
     <ClCompile Include="src\AxisControl.cpp" />
-    <ClCompile Include="src\CaretOperators.cpp" />
     <ClCompile Include="src\Carets.cpp" />
     <ClCompile Include="src\ChartControl.cpp" />
     <ClCompile Include="src\ChartDataView.cpp" />
     <ClCompile Include="src\ChartLayer.cpp" />
     <ClCompile Include="src\Clipboard.cpp" />
-    <ClCompile Include="src\Cmds.cpp" />
     <ClCompile Include="src\Controllers.cpp" />
     <ClCompile Include="src\CounterStacks.cpp" />
     <ClCompile Include="src\DataItemColumn.cpp" />
     <ClCompile Include="src\DataView.cpp" />
     <ClCompile Include="src\DcHandle.cpp" />
-    <ClCompile Include="src\DrawContext.cpp" />
     <ClCompile Include="src\GdiDrawContext.cpp" />
     <ClCompile Include="src\Win32ViewHost.cpp" />
     <ClCompile Include="src\EditPalette.cpp" />
@@ -110,11 +107,9 @@
     <ClCompile Include="src\GridDrawer.cpp" />
     <ClCompile Include="src\GridLayer.cpp" />
     <ClCompile Include="src\HistogramLayer.cpp" />
-    <ClCompile Include="src\IdleTimer.cpp" />
     <ClCompile Include="src\ResourceIndexCache.cpp" />
     <ClCompile Include="src\IndexCollector.cpp" />
     <ClCompile Include="src\ItemSchemaView.cpp" />
-    <ClCompile Include="src\LayerClass.cpp" />
     <ClCompile Include="src\LayerControl.cpp" />
     <ClCompile Include="src\LayerInfo.cpp" />
     <ClCompile Include="src\LayerSet.cpp" />
@@ -125,35 +120,36 @@
     <ClCompile Include="src\PaletteControl.cpp" />
     <ClCompile Include="src\PenIndexCache.cpp" />
     <ClCompile Include="src\Region.cpp" />
-    <ClCompile Include="src\RegionTower.cpp" />
     <ClCompile Include="src\ScalableObject.cpp" />
     <ClCompile Include="src\ScaleBar.cpp" />
     <ClCompile Include="src\ScrollPort.cpp" />
     <ClCompile Include="src\SelCaret.cpp" />
     <ClCompile Include="src\ShvDllInterface.cpp" />
+    <ClCompile Include="src\ShvDesktopData.cpp" />
+    <ClCompile Include="src\ShvGdi.cpp" />
+    <ClCompile Include="src\ShvSync.cpp" />
     <ClCompile Include="src\ShvUtils.cpp" />
+    <ClCompile Include="src\ShvControlsSupport.cpp" />
+    <ClCompile Include="src\ShvDrawSupport.cpp" />
     <ClCompile Include="src\TableControl.cpp" />
-    <ClCompile Include="src\TableDataView.cpp" />
     <ClCompile Include="src\TableHeaderControl.cpp" />
     <ClCompile Include="src\TableViewControl.cpp" />
     <ClCompile Include="src\TextControl.cpp" />
     <ClCompile Include="src\TextEditController.cpp" />
     <ClCompile Include="src\Theme.cpp" />
-    <ClCompile Include="src\ThemeReadLocks.cpp" />
     <ClCompile Include="src\ThemeSet.cpp" />
     <ClCompile Include="src\ThemeValueGetter.cpp" />
-    <ClCompile Include="src\ViewControl.cpp" />
     <ClCompile Include="src\ViewPort.cpp" />
     <ClCompile Include="src\WmsLayer.cpp">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="src\WmsLegendControl.cpp" />
-    <ClCompile Include="src\Wrapper.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\AbstrCaret.h" />
     <ClInclude Include="src\AbstrCmd.h" />
     <ClInclude Include="src\AbstrController.h" />
+    <ClInclude Include="src\InvalidationBlock.h" />
+    <ClInclude Include="src\TypeInfoOrdering.h" />
     <ClInclude Include="src\ActivationInfo.h" />
     <ClInclude Include="src\AspectGroup.h" />
     <ClInclude Include="src\AxisControl.h" />

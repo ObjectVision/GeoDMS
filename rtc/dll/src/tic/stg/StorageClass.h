@@ -33,7 +33,7 @@ public:
 private:
 	static StorageClass* Find(TokenID classID);
 
-	DECL_RTTI(TIC_CALL, MetaClass)
+	DECL_RTTI(, MetaClass)
 };
 
 #define IMPL_STORAGECLASS(CLS, TYPENAME, CREATE_FUNC) \

@@ -23,6 +23,7 @@
 
 #include "gdal_base.h"
 #include "gdal_vect.h"
+#include "ProjectionUnits.h" // the STGDLL_CALL declarations of GetBaseProjectionUnitFromValuesUnit / GetUnitSizeInMeters defined below
 
 #include <gdal.h>
 #include <proj.h>

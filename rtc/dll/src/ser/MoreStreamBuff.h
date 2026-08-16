@@ -27,13 +27,13 @@ class MemoInpStreamBuff : public InpStreamBuff
 {
 public:
 	RTC_CALL MemoInpStreamBuff(CBytePtr begin, CBytePtr end = nullptr);
-	RTC_CALL void ReadBytes (Byte* data, streamsize_t size) const override;
+	void ReadBytes (Byte* data, streamsize_t size) const override;
 	RTC_CALL streamsize_t CurrPos() const override;
 	RTC_CALL bool   AtEnd  () const override { dms_assert(m_Data.begin() <= m_Curr && m_Curr <= m_Data.end()); return m_Curr == m_Data.end(); }
 
-	RTC_CALL virtual CharPtr GetDataBegin() override;
-	RTC_CALL virtual CharPtr GetDataEnd()   override;
-	RTC_CALL virtual void    SetCurrPos(streamsize_t pos) override;
+	virtual CharPtr GetDataBegin() override;
+	virtual CharPtr GetDataEnd()   override;
+	virtual void    SetCurrPos(streamsize_t pos) override;
 
 private:
 	CByteRange m_Data;
@@ -110,7 +110,7 @@ public:
 		: m_SourceData(sourceData)
 	{}
 
-	RTC_CALL void  WriteBytes(const Byte* data, streamsize_t size) override;
+	void  WriteBytes(const Byte* data, streamsize_t size) override;
 
 	auto CurrPos() const -> streamsize_t override { return m_CurrPos;  }
 	bool AtEnd  () const                 override { return m_CurrPos == m_SourceData.size(); }
@@ -143,9 +143,9 @@ public:
 	const Byte* GetData   () const { return begin_ptr(m_DataRef); }
 	const Byte* GetDataEnd() const { return end_ptr  (m_DataRef); }
 
-	RTC_CALL void  WriteBytes(const Byte* data, streamsize_t size) override;
-	RTC_CALL streamsize_t CurrPos() const override;
-	RTC_CALL bool AtEnd() const override { return false; }
+	void  WriteBytes(const Byte* data, streamsize_t size) override;
+	streamsize_t CurrPos() const override;
+	bool AtEnd() const override { return false; }
 
 private:
 	VectorType& m_DataRef;
@@ -167,7 +167,7 @@ public:
 
 	RTC_CALL void WriteBytes(const Byte* data, streamsize_t size) override;
 	RTC_CALL streamsize_t CurrPos() const override;
-	RTC_CALL bool AtEnd() const override { return false; }
+	bool AtEnd() const override { return false; }
 
 protected:
 	VectorType m_Data;
@@ -179,11 +179,11 @@ class CallbackOutStreamBuff : public OutStreamBuff
 {
 public:
 
-	RTC_CALL CallbackOutStreamBuff(ClientHandle clientHandle, CallbackStreamFuncType func);
+	CallbackOutStreamBuff(ClientHandle clientHandle, CallbackStreamFuncType func);
 
-	RTC_CALL void  WriteBytes(const Byte* data, streamsize_t size) override;
-	RTC_CALL streamsize_t CurrPos() const override;
-	RTC_CALL bool AtEnd() const override { return false; }
+	void  WriteBytes(const Byte* data, streamsize_t size) override;
+	streamsize_t CurrPos() const override;
+	bool AtEnd() const override { return false; }
 
 private:
 	ClientHandle           m_ClientHandle;

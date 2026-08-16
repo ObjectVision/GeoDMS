@@ -12,6 +12,7 @@
 // layers, features and attribute fields.
 
 #include "gdal_base.h"
+#include "ProjectionUnits.h" // GetBaseProjectionUnitFromValuesUnit
 #include "gdal_vect.h"
 
 #include "ogrsf_frmts.h"

@@ -30,7 +30,7 @@ struct UnitCrs : SharedBase
 
 	TIC_CALL UnitCrs(TokenID spatialRef) : m_SpatialRef(spatialRef) {}
 
-	TIC_CALL SharedStr AsString(FormattingFlags ff) const;
+	SharedStr AsString(FormattingFlags ff) const;
 
 	bool Empty() const
 	{
@@ -62,9 +62,9 @@ struct UnitCrs : SharedBase
 // different config does not inherit the previous one's backgrounds.
 // *****************************************************************************
 
-TIC_CALL void      RegisterCrsBackgroundRef(TokenID spatialRef, const SharedStr& backgroundRef);
-TIC_CALL SharedStr GetCrsBackgroundRef     (TokenID spatialRef);
-TIC_CALL void      ClearCrsBackgroundRefs  ();
+void      RegisterCrsBackgroundRef(TokenID spatialRef, const SharedStr& backgroundRef);
+SharedStr GetCrsBackgroundRef     (TokenID spatialRef);
+void      ClearCrsBackgroundRefs  ();
 
 // nullptr is treated as an empty UnitCrs.
 // Strict, like AreEqual(const UnitMetric*, const UnitMetric*): an empty CRS unifies
@@ -73,7 +73,7 @@ TIC_CALL void      ClearCrsBackgroundRefs  ();
 // leniency lives outside this predicate, in the same two places metric's does: the
 // UM_AllowDefault* short-circuits in AbstrUnit::UnifyValues and the absorption rule in
 // compatible_values_unit_creator_func (UnitCreators.cpp).
-TIC_CALL bool AreEqual(const UnitCrs* lhs, const UnitCrs* rhs);
+bool AreEqual(const UnitCrs* lhs, const UnitCrs* rhs);
 
 FormattedOutStream& operator <<(FormattedOutStream& str, const UnitCrs& repr);
 

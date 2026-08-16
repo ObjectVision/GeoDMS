@@ -132,7 +132,7 @@ namespace {
 
 } // anonymous namespace
 
-TIC_CALL auto Mmd_SynthesizeExternalUnitRestrictions(const TreeItem* dictRoot) -> SharedStr
+auto Mmd_SynthesizeExternalUnitRestrictions(const TreeItem* dictRoot) -> SharedStr
 {
 	SharedStr expr;
 	std::vector<const AbstrUnit*> seen; // first-encounter order keeps the dictionary text deterministic

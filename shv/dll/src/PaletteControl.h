@@ -66,7 +66,7 @@ private:
 	std::shared_ptr<const AbstrUnit> m_PaletteDomain;
 	SharedUnitInterestPtr      m_ThemeUnit;
 
-	DECL_RTTI(SHV_CALL, Class)
+	DECL_RTTI(, Class)
 };
 
 

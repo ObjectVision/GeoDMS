@@ -19,29 +19,30 @@
 // initialization order -- which is undefined within a single DLL. See
 // StaticTokenID in set/Token.h for the canonical example.
 //
-// The ctors/dtors are RTC_CALL-exported so objects in other modules (tic, sym,
-// ...) can derive from them too, both while those modules are separate DLLs
-// (dllimport) and after they are merged into one (intra-DLL).
+// The ctors/dtors were RTC_CALL-exported so objects in the then-separate tic
+// and sym DLLs could derive from them. Since the rtc+sym+tic merge all deriving
+// statics live inside DmRtc (dumpbin 2026-08: no downstream binary imported
+// these), so the 2026-08 de-export pass removed the decoration.
 //----------------------------------------------------------------------
 
 #include "RtcBase.h"
 
 struct ElemAllocComponent
 {
-	RTC_CALL ElemAllocComponent();
-	RTC_CALL ~ElemAllocComponent();
+	ElemAllocComponent();
+	~ElemAllocComponent();
 };
 
 struct IndexedStringsComponent : ElemAllocComponent
 {
-	RTC_CALL IndexedStringsComponent();
-	RTC_CALL ~IndexedStringsComponent();
+	IndexedStringsComponent();
+	~IndexedStringsComponent();
 };
 
 struct TokenComponent : IndexedStringsComponent
 {
-	RTC_CALL TokenComponent();
-	RTC_CALL ~TokenComponent();
+	TokenComponent();
+	~TokenComponent();
 };
 
 #endif // __RTC_COMPONENTS_H

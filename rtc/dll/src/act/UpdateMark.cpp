@@ -36,17 +36,17 @@ namespace UpdateMarker {
 		THREAD_LOCAL UInt32    iDetermineChangeLockCount = 0;
 	}
 
-	RTC_CALL TimeStamp GetLastChangeTS(const Actor* actor) 
+	TimeStamp GetLastChangeTS(const Actor* actor) 
 	{ 
 		return (actor) ? actor->GetLastChangeTS() : tsBereshit;
 	}
 
-	RTC_CALL bool IsInActiveState()
+	bool IsInActiveState()
 	{
 		return impl::tsActive != 0; 
 	}
 
-	RTC_CALL bool IsInDetermineState()
+	bool IsInDetermineState()
 	{
 		return impl::iDetermineChangeLockCount;
 	}
@@ -60,7 +60,7 @@ namespace UpdateMarker {
 				:	GetFreshTS(MG_DEBUG_TS_SOURCE_CODE(cause)); 
 	}
 
-	RTC_CALL bool CheckTS(TimeStamp changeTS)
+	bool CheckTS(TimeStamp changeTS)
 	{
 		dms_assert( IsInDetermineState() );
 		return 	(IsInActiveState()) 

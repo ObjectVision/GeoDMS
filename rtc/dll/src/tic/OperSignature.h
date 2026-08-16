@@ -222,7 +222,7 @@ struct SignatureRecord
 	std::vector<const ValueClass*> memberClasses;
 
 	UInt32 NrVars() const { return UInt32(varRoles.size()); }
-	TIC_CALL bool SameShape(const SignatureRecord& rhs) const; // everything except memberClasses
+	bool SameShape(const SignatureRecord& rhs) const; // everything except memberClasses
 };
 
 // the per-group cache: which members describe, merged into congruence classes
@@ -279,41 +279,41 @@ struct SignatureRecorder final : AbstrSignatureBuilder
 {
 	SignatureRecord rec;
 
-	TIC_CALL sig_var UnitVar(CharPtr role) override;
-	TIC_CALL sig_var VoidDomain() override;
-	TIC_CALL sig_var DefaultUnit(const ValueClass* vc) override;
-	TIC_CALL sig_var GeneratedUnit(CharPtr role) override;
+	sig_var UnitVar(CharPtr role) override;
+	sig_var VoidDomain() override;
+	sig_var DefaultUnit(const ValueClass* vc) override;
+	sig_var GeneratedUnit(CharPtr role) override;
 
-	TIC_CALL void MemberValueClass(sig_var u, const ValueClass* vc) override;
-	TIC_CALL void FixedValueClass (sig_var u, const ValueClass* vc) override;
-	TIC_CALL void ConstrainValueClass(sig_var u, TokenID genericConstraint) override;
+	void MemberValueClass(sig_var u, const ValueClass* vc) override;
+	void FixedValueClass (sig_var u, const ValueClass* vc) override;
+	void ConstrainValueClass(sig_var u, TokenID genericConstraint) override;
 
-	TIC_CALL void ArgName(arg_index i, CharPtr name) override;
-	TIC_CALL void ArgAttr(arg_index i, sig_var values, sig_var domain, ValueComposition vc, SigArgTraits traits) override;
-	TIC_CALL void ArgUnit(arg_index i, sig_var u) override;
-	TIC_CALL void ArgMetaValue(arg_index i, const ValueClass* vc, CharPtr meaning) override;
-	TIC_CALL void ArgContainer(arg_index i, CharPtr memberPattern, sig_var sharedMemberDomain, sig_var sharedMemberValues, arg_index namesPos) override;
-	TIC_CALL void ArgDeferred(arg_index i, CharPtr note) override;
-	TIC_CALL void RepeatArgs(arg_index fromPos, sig_var values, sig_var domain, ValueComposition vc) override;
+	void ArgName(arg_index i, CharPtr name) override;
+	void ArgAttr(arg_index i, sig_var values, sig_var domain, ValueComposition vc, SigArgTraits traits) override;
+	void ArgUnit(arg_index i, sig_var u) override;
+	void ArgMetaValue(arg_index i, const ValueClass* vc, CharPtr meaning) override;
+	void ArgContainer(arg_index i, CharPtr memberPattern, sig_var sharedMemberDomain, sig_var sharedMemberValues, arg_index namesPos) override;
+	void ArgDeferred(arg_index i, CharPtr note) override;
+	void RepeatArgs(arg_index fromPos, sig_var values, sig_var domain, ValueComposition vc) override;
 
-	TIC_CALL void SameValueClass  (sig_var a, sig_var b) override;
-	TIC_CALL void CompatibleValues(sig_var a, sig_var b) override;
-	TIC_CALL void MetricProduct (sig_var r, sig_var a, sig_var b) override;
-	TIC_CALL void MetricQuotient(sig_var r, sig_var num, sig_var den) override;
-	TIC_CALL void MetricPower   (sig_var r, sig_var base, int exponent) override;
-	TIC_CALL void Dimensionless (sig_var u) override;
-	TIC_CALL void CastOf(sig_var r, sig_var src, const ValueClass* toCls) override;
-	TIC_CALL void DeferredRelation(CharPtr note) override;
+	void SameValueClass  (sig_var a, sig_var b) override;
+	void CompatibleValues(sig_var a, sig_var b) override;
+	void MetricProduct (sig_var r, sig_var a, sig_var b) override;
+	void MetricQuotient(sig_var r, sig_var num, sig_var den) override;
+	void MetricPower   (sig_var r, sig_var base, int exponent) override;
+	void Dimensionless (sig_var u) override;
+	void CastOf(sig_var r, sig_var src, const ValueClass* toCls) override;
+	void DeferredRelation(CharPtr note) override;
 
-	TIC_CALL void ResultAttr(sig_var values, sig_var domain, ValueComposition vc) override;
-	TIC_CALL void ResultUnit(sig_var u) override;
-	TIC_CALL void ResultContainer(CharPtr memberPattern, sig_var sharedMemberDomain) override;
-	TIC_CALL void ResultDeferred(CharPtr note) override;
-	TIC_CALL void ResultContainerMember(CharPtr path, sig_var values, sig_var domain, ValueComposition vc) override;
-	TIC_CALL void ResultContainerMemberSet(CharPtr pathPrefix, arg_index namesPos, sig_var values, sig_var domain, ValueComposition vc) override;
-	TIC_CALL void ResultMembersComplete() override;
+	void ResultAttr(sig_var values, sig_var domain, ValueComposition vc) override;
+	void ResultUnit(sig_var u) override;
+	void ResultContainer(CharPtr memberPattern, sig_var sharedMemberDomain) override;
+	void ResultDeferred(CharPtr note) override;
+	void ResultContainerMember(CharPtr path, sig_var values, sig_var domain, ValueComposition vc) override;
+	void ResultContainerMemberSet(CharPtr pathPrefix, arg_index namesPos, sig_var values, sig_var domain, ValueComposition vc) override;
+	void ResultMembersComplete() override;
 
-	TIC_CALL void DynamicShape(CharPtr why) override;
+	void DynamicShape(CharPtr why) override;
 
 private:
 	sig_var NewVar(CharPtr role, UInt8 flags, const ValueClass* fixedCls = nullptr);

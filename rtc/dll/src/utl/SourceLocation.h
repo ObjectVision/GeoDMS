@@ -77,8 +77,8 @@ struct SourceLocation : SharedBase
 {
 	RTC_CALL SourceLocation(FileDescrPtr configFileDescr, UInt32 lineNr, UInt32 colNr);
 
-	RTC_CALL SharedStr AsText() const;
-	RTC_CALL void Release() const;  //most descendant dtor visible from here
+	SharedStr AsText() const;
+	void Release() const;  //most descendant dtor visible from here
 
 	SharedStr GetSourceName(WeakStr fullName, const Class* cls) const;
 

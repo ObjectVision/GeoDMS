@@ -1,9 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="src\AnyAll.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\BoostBlas.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -16,19 +13,10 @@
     <ClCompile Include="src\CalcFactory.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\ClassBreak.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\ClcInterface.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\Cumulate.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\ExprCalculator.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Loop.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\Modus.cpp">
@@ -46,16 +34,13 @@
     <ClCompile Include="src\GetStatistics.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\ID.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\Index.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\Invert.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\lookup.cpp">
+    <ClCompile Include="src\Lookup.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\OperAccCount.cpp">
@@ -73,10 +58,31 @@
     <ClCompile Include="src\OperAccUniStr.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\OperAttrBin_addsub.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\OperAttrBin_bits.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\OperAttrBin_compare.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\OperAttrBin_muldiv.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="src\OperAttrBin.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\OperMisc.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\OperMappings.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="src\OperAttrTer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\OperAttrUni_str.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\OperAttrUni.cpp">
@@ -106,28 +112,19 @@
     <ClCompile Include="src\PCount.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\Ramp.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\random.cpp">
+    <ClCompile Include="src\Random.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\ReadData.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\regex.cpp">
+    <ClCompile Include="src\Regex.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\ReportFunctions.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\RLookup.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Sort.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\SubItem.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\Subset.cpp">
@@ -140,9 +137,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\PhaseContainer.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Checker.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\OperConvNumeric.cpp">
@@ -243,10 +237,7 @@
     <ClInclude Include="src\Invert.h">
       <Filter>Clc Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\InvertedRel.h">
-      <Filter>Clc Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\lookup.h">
+    <ClInclude Include="src\Lookup.h">
       <Filter>Clc Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\OperAccBin.h">
@@ -256,6 +247,9 @@
       <Filter>Clc Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\OperAccUniNum.h">
+      <Filter>Clc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\OperAttrBinImpl.h">
       <Filter>Clc Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\OperAttrBin.h">
@@ -286,9 +280,6 @@
       <Filter>Clc Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\PartitionTypes.h">
-      <Filter>Clc Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="include\RemoveAdjacentsAndSpikes.h">
       <Filter>Clc Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\ValuesTable.h">

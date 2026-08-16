@@ -67,7 +67,7 @@ private:
 protected:
 	bool m_IsInverted;
 
-	DECL_RTTI(SHV_CALL, Class)
+	DECL_RTTI(, Class)
 };
 
 //----------------------------------------------------------------------

@@ -60,13 +60,13 @@
     <ClCompile Include="src\ConfigFileName.cpp" />
     <ClCompile Include="src\ConfigParse.cpp" />
     <ClCompile Include="src\ConfigProd.cpp" />
+    <ClCompile Include="src\ConfigProd_functions.cpp" />
     <ClCompile Include="src\DataBlockProd.cpp" />
     <ClCompile Include="src\DataBlockTask.cpp" />
     <ClCompile Include="src\DijkstraString.cpp" />
     <ClCompile Include="src\ExprParse.cpp" />
     <ClCompile Include="src\ExprProd.cpp" />
     <ClCompile Include="src\SpiritTools.cpp" />
-    <ClCompile Include="src\StringProd.cpp" />
     <ClCompile Include="src\StxInterface.cpp" />
   </ItemGroup>
   <ItemGroup>

@@ -46,12 +46,12 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include <array>
 
-TIC_CALL auto _GetHistoricUltimateItem(const TreeItem* ti) noexcept -> std::shared_ptr<const TreeItem>;
-TIC_CALL auto _GetCurrUltimateItem(const TreeItem* ti) noexcept -> std::shared_ptr<const TreeItem>;
-TIC_CALL auto _GetCurrRangeItem(const TreeItem* ti) noexcept -> std::shared_ptr<const TreeItem>;
-TIC_CALL auto _GetUltimateItem(const TreeItem* ti) noexcept -> std::shared_ptr<const TreeItem>;
+auto _GetHistoricUltimateItem(const TreeItem* ti) noexcept -> std::shared_ptr<const TreeItem>;
+auto _GetCurrUltimateItem(const TreeItem* ti) noexcept -> std::shared_ptr<const TreeItem>;
+auto _GetCurrRangeItem(const TreeItem* ti) noexcept -> std::shared_ptr<const TreeItem>;
+auto _GetUltimateItem(const TreeItem* ti) noexcept -> std::shared_ptr<const TreeItem>;
 
-TIC_CALL bool HasVisibleSubItems(const TreeItem* refItem) noexcept;
+bool HasVisibleSubItems(const TreeItem* refItem) noexcept;
 
 //----------------------------------------------------------------------
 // item origin and its text color
@@ -90,11 +90,11 @@ TIC_CALL void     SetItemOriginTextColor(item_origin io, DmsColor clr);
 
 //----------------------------------------------------------------------
 
-TIC_CALL TreeItem* CheckedAs(TreeItem* self, const Class* requiredClass);
+TreeItem* CheckedAs(TreeItem* self, const Class* requiredClass);
 
-TIC_CALL auto CreateAndInitItem(TreeItem* self, TokenID id, const Class* requiredClass) -> SharedMutableTreeItem;
+auto CreateAndInitItem(TreeItem* self, TokenID id, const Class* requiredClass) -> SharedMutableTreeItem;
 
-TIC_CALL NotificationCode NotificationCodeFromProblem(FailType ft);
+NotificationCode NotificationCodeFromProblem(FailType ft);
 
 TIC_CALL SharedStr GetPartialName(const TreeItem* themeDisplayItem, UInt32 nameLevel);
 

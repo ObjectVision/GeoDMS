@@ -55,17 +55,17 @@ namespace UpdateMarker
 
 	const TimeStamp tsBereshit = 1;
 
-	RTC_CALL bool IsInActiveState();
-	RTC_CALL bool IsInDetermineState();
+	bool IsInActiveState();
+	bool IsInDetermineState();
 
-	RTC_CALL void TriggerFreshTS(MG_DEBUG_TS_SOURCE_CODE(CharPtr cause));
+	void TriggerFreshTS(MG_DEBUG_TS_SOURCE_CODE(CharPtr cause));
 	RTC_CALL TimeStamp GetFreshTS(MG_DEBUG_TS_SOURCE_CODE(CharPtr cause));
 
 	inline TimeStamp LastTS()    { return impl::tsLast; }
 	inline TimeStamp GetLastTS() { impl::bCommitted = true; return LastTS(); }
 	RTC_CALL TimeStamp GetActiveTS(MG_DEBUG_TS_SOURCE_CODE(CharPtr cause));
 	inline bool IsLoadingConfig() { return IsInActiveState() && GetActiveTS(MG_DEBUG_TS_SOURCE_CODE("IsLoadingConfig")) == tsBereshit; }
-	RTC_CALL bool CheckTS(TimeStamp changeTS);
+	bool CheckTS(TimeStamp changeTS);
 
 	inline bool HasActiveChangeSource()
 	{
@@ -105,15 +105,15 @@ namespace UpdateMarker
 
 	struct DetermineChangeLock : private geodms::rtc::noncopyable
 	{
-		RTC_CALL DetermineChangeLock();
-		RTC_CALL ~DetermineChangeLock();
+		DetermineChangeLock();
+		~DetermineChangeLock();
 
 	private:
 		TimeStamp m_PrevActiveChangeSource;
 	};
 
 	typedef TimeStamp* TimeStampPtr;
-	RTC_CALL void Renumber(TimeStampPtr* first, TimeStampPtr* last);
+	void Renumber(TimeStampPtr* first, TimeStampPtr* last);
 
 //  -----------------------------------------------------------------------
 //  struct DetermineChangeLock interface
@@ -123,7 +123,7 @@ namespace UpdateMarker
 	{
 		RTC_CALL PrepareDataInvalidatorLock();
 		RTC_CALL ~PrepareDataInvalidatorLock();
-		RTC_CALL static bool IsLocked();
+		static bool IsLocked();
 	};
 
 }	// end namespace UpdateMarker

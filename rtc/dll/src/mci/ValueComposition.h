@@ -60,7 +60,7 @@ template <typename T> constexpr ValueComposition composition_of_v = composition_
 //----------------------------------------------------------------------
 
 RTC_CALL TokenID          GetValueCompositionID(ValueComposition vc);
-RTC_CALL ValueComposition DetermineValueComposition(CharPtr featureType);
+ValueComposition DetermineValueComposition(CharPtr featureType);
 
 
 #endif // __RTC_MCI_VALUECOMPOSITION_H

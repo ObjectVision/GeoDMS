@@ -52,10 +52,10 @@ inline bool itemNameNextChar_test(unsigned char ch)
 	return isalnum(ch) || ch == '_' || ch == '@' || ch >= 128; // TODO: behavior under different code tables?
 }
 
-RTC_CALL bool itemName_test(CharPtr p);
-RTC_CALL CharPtr ParseTreeItemName(CharPtr name);
-RTC_CALL CharPtr ParseTreeItemPath(CharPtr name);
-RTC_CALL void CheckTreeItemName(CharPtr name);
+bool itemName_test(CharPtr p);
+CharPtr ParseTreeItemName(CharPtr name);
+CharPtr ParseTreeItemPath(CharPtr name);
+void CheckTreeItemName(CharPtr name);
 RTC_CALL void CheckTreeItemPath(CharPtr name);
 
 #endif // __RTC_UTL_ENCODES_H

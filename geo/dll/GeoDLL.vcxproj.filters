@@ -58,10 +58,25 @@
     <ClInclude Include="..\..\rtc\dll\src\ipolygon\polygon.hpp">
       <Filter>Geo Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\geom\BoostPolygon.h">
+      <Filter>Geo Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geom\NeighbourIter.h">
+      <Filter>Geo Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geom\SpatialIndex.h">
+      <Filter>Geo Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\InvertedRel.h">
+      <Filter>Geo Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="src\AbstrBoundingBoxCache.h">
       <Filter>Geo Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\BoundingBoxCache.h">
+      <Filter>Geo Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\BoostGeometryImpl.h">
       <Filter>Geo Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\BoostGeometry.h">
@@ -88,9 +103,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\DiscrAlloc.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Mandlebrot.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\nth_element.cpp">
@@ -126,28 +138,31 @@
     <ClCompile Include="src\RasterMerge.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\GeoInterface.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\Potential.cpp">
       <Filter>Convolution Files</Filter>
     </ClCompile>
     <ClCompile Include="src\BoostPolygon.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\BoostGeometry.cpp">
+        <ClCompile Include="src\BoostGeometry_bp.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\BoostGeometry_cgal.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\BoostGeometry_geos.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+<ClCompile Include="src\BoostGeometry.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+<ClCompile Include="src\GeoSupport.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\GridDist.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\Perimeter.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\PolyOper.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\AbstrBoundingBoxCache.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\Poly2GridOper.cpp">

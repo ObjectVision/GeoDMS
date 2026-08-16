@@ -75,10 +75,15 @@
   <ItemGroup>
     <ClInclude Include="..\..\rtc\dll\src\ipolygon\polygon.hpp" />
     <ClInclude Include="src\AbstrBoundingBoxCache.h" />
+    <ClInclude Include="src\geom\BoostPolygon.h" />
+    <ClInclude Include="src\geom\NeighbourIter.h" />
+    <ClInclude Include="src\geom\SpatialIndex.h" />
+    <ClInclude Include="src\InvertedRel.h" />
     <ClInclude Include="src\CentroidOrMid.h" />
     <ClInclude Include="src\SelectPoint.h" />
     <ClInclude Include="src\bi_graph.h" />
     <ClInclude Include="src\BoostGeometry.h" />
+    <ClInclude Include="src\BoostGeometryImpl.h" />
     <ClInclude Include="src\BoundingBoxCache.h" />
     <ClInclude Include="src\CGAL_60\Polygon_repair\repair.h" />
     <ClInclude Include="src\CGAL_Traits.h" />
@@ -102,8 +107,11 @@
     <ClCompile Include="src\GeoPCH.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="src\AbstrBoundingBoxCache.cpp" />
     <ClCompile Include="src\BoostGeometry.cpp" />
+    <ClCompile Include="src\GeoSupport.cpp" />
+    <ClCompile Include="src\BoostGeometry_bp.cpp" />
+    <ClCompile Include="src\BoostGeometry_cgal.cpp" />
+    <ClCompile Include="src\BoostGeometry_geos.cpp" />
     <ClCompile Include="src\BoostPolygon.cpp" />
     <ClCompile Include="src\Canyon.cpp" />
     <ClCompile Include="src\CGAL.cpp" />
@@ -111,11 +119,9 @@
     <ClCompile Include="src\ConnectedParts.cpp" />
     <ClCompile Include="src\Dijkstra.cpp" />
     <ClCompile Include="src\DiscrAlloc.cpp" />
-    <ClCompile Include="src\GeoInterface.cpp" />
     <ClCompile Include="src\GridDist.cpp" />
     <ClCompile Include="src\JoinEqualValues.cpp" />
     <ClCompile Include="src\JoinNearValues.cpp" />
-    <ClCompile Include="src\Mandlebrot.cpp" />
     <ClCompile Include="src\nth_element.cpp" />
     <ClCompile Include="src\OperDistrict.cpp" />
     <ClCompile Include="src\OperPolygon.cpp" />
@@ -123,7 +129,6 @@
     <ClCompile Include="src\Perimeter.cpp" />
     <ClCompile Include="src\Point.cpp" />
     <ClCompile Include="src\Poly2GridOper.cpp" />
-    <ClCompile Include="src\PolyOper.cpp" />
     <ClCompile Include="src\Potential.cpp" />
     <ClCompile Include="src\RasterMerge.cpp" />
     <ClCompile Include="src\RegCount.cpp" />

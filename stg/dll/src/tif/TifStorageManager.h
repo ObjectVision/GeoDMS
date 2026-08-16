@@ -76,7 +76,7 @@ private:
 	mutable UInt32 m_CachedBlockSizeX = 0;
 	mutable UInt32 m_CachedBlockSizeY = 0;
 
-	DECL_RTTI(STGDLL_CALL, StorageClass)
+	DECL_RTTI(, StorageClass)
 };
 
 

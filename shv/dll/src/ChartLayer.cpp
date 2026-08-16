@@ -11,7 +11,7 @@
 #include "ChartLayer.h"
 
 #include "act/ActorVisitor.h"
-#include "act/InvalidationBlock.h"
+#include "InvalidationBlock.h"
 #include "vt/Conversions.h"
 #include "geom/IsInside.h"
 #include "geom/PointOrder.h"

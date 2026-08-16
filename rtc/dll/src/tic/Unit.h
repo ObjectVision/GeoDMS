@@ -69,11 +69,11 @@ struct RangedUnit : UnitBase<V>
 	using range_t = Range<value_t>;
 	using range_data_t = range_or_void_data<V>;
 
-	TIC_CALL auto GetSegmInfo() const -> const range_data_t*;
+	auto GetSegmInfo() const -> const range_data_t*;
 	TIC_CALL auto GetCurrSegmInfo() const -> const range_data_t*;
 
 	//	data member access
-	TIC_CALL range_t GetPreparedRange() const;
+	range_t GetPreparedRange() const;
 	TIC_CALL range_t GetRange() const;
 	TIC_CALL virtual void SetRange(const range_t& range) = 0;
 	TIC_CALL virtual void SetRange(const range_t& range, tile_extent_t<V> blockSize) =0;
@@ -111,9 +111,9 @@ struct FloatUnit : RangedUnit<V>
 {
 	using range_t = Range<V>;
 
-	TIC_CALL void SetRange(const range_t& range) override;
-	TIC_CALL void SetRange(const range_t& range, tile_extent_t<V> blockSize) override;
-	TIC_CALL void SetMaxRange() override;
+	void SetRange(const range_t& range) override;
+	void SetRange(const range_t& range, tile_extent_t<V> blockSize) override;
+	void SetMaxRange() override;
 };
 
 //----------------------------------------------------------------------
@@ -130,8 +130,8 @@ struct VarNumRangeUnitAdapter : NumRangeUnitAdapterBase<U> // all numeric object
 {
 	static_assert(has_var_range_field_v<U>);
 	// Support for Numerics
-	TIC_CALL void SetRangeAsFloat64(Float64 begin, Float64 end) override;
-	TIC_CALL void SetRangeAsUInt64 (UInt64 begin, UInt64 end) override;
+	void SetRangeAsFloat64(Float64 begin, Float64 end) override;
+	void SetRangeAsUInt64 (UInt64 begin, UInt64 end) override;
 };
 
 template <typename U> 
@@ -182,9 +182,9 @@ struct CountableUnitBase : RangedUnit<V> // all integral objects and integral po
 	using typename base_type::value_t;
 	using typename base_type::range_t;
 
-	TIC_CALL void SetRange(const range_t& range) override;
-	TIC_CALL void SetRange(const range_t& range, tile_extent_t<V> blockSize) override;
-	TIC_CALL void SetMaxRange() override;
+	void SetRange(const range_t& range) override;
+	void SetRange(const range_t& range, tile_extent_t<V> blockSize) override;
+	void SetMaxRange() override;
 
 	auto GetTiledRangeData() const -> SharedPtr<const AbstrTileRangeData> override;
 
@@ -201,7 +201,7 @@ struct CountableUnitBase : RangedUnit<V> // all integral objects and integral po
 	tile_offset GetTileCount(tile_id t) const override;
 
 	TIC_CALL value_t GetValueAtIndex(row_id i) const;
-	TIC_CALL row_id  GetIndexForValue(const value_t&) const;
+	row_id  GetIndexForValue(const value_t&) const;
 
 protected:
 	void LoadRangeImpl (BinaryInpStream& pis) override;
@@ -229,8 +229,8 @@ struct IndexableUnitAdapter : U
 	row_id GetDimSize(DimType dimNr) const override;
 
 	// use U::GetValueAtIndex and U:GetIndexForValue
-	TIC_CALL auto CreateAbstrValueAtIndex(SizeT i) const ->std::unique_ptr<AbstrValue> override;
-	TIC_CALL SizeT GetIndexForAbstrValue(const AbstrValue&) const override;
+	auto CreateAbstrValueAtIndex(SizeT i) const ->std::unique_ptr<AbstrValue> override;
+	SizeT GetIndexForAbstrValue(const AbstrValue&) const override;
 };
 
 
@@ -271,7 +271,7 @@ struct BitUnitBase : UnitBase<bit_value<N>>
 
 //	Support for Numerics; TODO merge this func with the NumericUnitAdapter version
 	TIC_CALL value_t GetValueAtIndex (SizeT   i) const { return i; }
-	TIC_CALL SizeT  GetIndexForValue(value_t v) const { return v; }
+	SizeT  GetIndexForValue(value_t v) const { return v; }
 
 	auto GetCurrSegmInfo() const -> SharedPtr<const range_data_t> {
 		static SharedPtr<const range_data_t> s_RangeData = new range_data_t;
@@ -297,8 +297,8 @@ struct VoidUnitBase : UnitBase<Void>
 	range_t GetTileRange(tile_id t) const { assert(t==0); return range_t(0, 1); }
 
 // Support for Numerics
-	TIC_CALL value_t GetValueAtIndex (row_id i) const { assert(!i); return Void(); }
-	TIC_CALL row_id  GetIndexForValue(value_t ) const { return 0; }
+	value_t GetValueAtIndex (row_id i) const { assert(!i); return Void(); }
+	row_id  GetIndexForValue(value_t ) const { return 0; }
 };
 
 //----------------------------------------------------------------------

@@ -40,7 +40,7 @@ struct UsingCache
 	UInt32 GetNrUsings() const;
 	const TreeItem* GetUsing(UInt32 i) const;
 
-	TIC_CALL auto FindItem(TokenID itemID) const -> SharedTreeItem;
+	auto FindItem(TokenID itemID) const -> SharedTreeItem;
 
 	void OnItemAdded  (const TreeItem* child);
 	void OnItemRemoved(const TreeItem* child) { SetDirty(); }

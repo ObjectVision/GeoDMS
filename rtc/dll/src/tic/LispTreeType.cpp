@@ -108,7 +108,7 @@ namespace token {
 	TIC_CALL TokenID null_dp = GetTokenID_st("null_dp");
 	TIC_CALL TokenID null_str = GetTokenID_st("null_str");
 
-	TIC_CALL bool isConst(TokenID t)
+	bool isConst(TokenID t)
 	{ 
 		assert(true_.GetNr(TokenID::TokenKey()) + 19 == null_str.GetNr(TokenID::TokenKey()));
 		return t >= true_ && t <= null_str;
@@ -128,10 +128,10 @@ namespace token {
 	TIC_CALL TokenID TiledUnit = GetTokenID_st("TiledUnit");
 
 	TIC_CALL TokenID point = GetTokenID_st("point");
-	TIC_CALL TokenID point_xy = GetTokenID_st("point_xy");
+	TokenID point_xy = GetTokenID_st("point_xy");
 	TIC_CALL TokenID union_data = GetTokenID_st("union_data");
 	TIC_CALL TokenID ordered_union_data = GetTokenID_st("ordered_union_data");
-	TIC_CALL TokenID sourceDescr = GetTokenID_st("SourceDescr");
+	TokenID sourceDescr = GetTokenID_st("SourceDescr");
 	TIC_CALL TokenID container = GetTokenID_st("container");
 	TIC_CALL TokenID classify = GetTokenID_st("classify");
 
@@ -173,7 +173,7 @@ namespace token {
 	TIC_CALL TokenID collect_attr_by_org_rel = GetTokenID_st("collect_attr_by_org_rel");
 
 	TIC_CALL TokenID recollect_by_cond = GetTokenID_st("recollect_by_cond");
-	TIC_CALL TokenID recollect_by_org_rel = GetTokenID_st("recollect_by_org_rel");
+	TokenID recollect_by_org_rel = GetTokenID_st("recollect_by_org_rel");
 
 //	SELECT section END
 
@@ -186,25 +186,25 @@ namespace token {
 	TIC_CALL TokenID first_rel = GetTokenID_st("first_rel");
 	TIC_CALL TokenID second_rel = GetTokenID_st("second_rel");
 	TIC_CALL TokenID ordinal = GetTokenID_st("ordinal");
-	TIC_CALL TokenID BaseUnit = GetTokenID_st("BaseUnit");
-	TIC_CALL TokenID CrsUnit = GetTokenID_st("CrsUnit"); // see doc/development/crs-metric-decoupling.md
-	TIC_CALL TokenID UInt32 = GetTokenID_st("UInt32");
+	TokenID BaseUnit = GetTokenID_st("BaseUnit");
+	TokenID CrsUnit = GetTokenID_st("CrsUnit"); // see doc/development/crs-metric-decoupling.md
+	TokenID UInt32 = GetTokenID_st("UInt32");
 	TIC_CALL TokenID left = GetTokenID_st("left");
 	TIC_CALL TokenID right = GetTokenID_st("right");
 	TIC_CALL TokenID DomainUnit = GetTokenID_st("DomainUnit");
-	TIC_CALL TokenID ValuesUnit = GetTokenID_st("ValuesUnit");
+	TokenID ValuesUnit = GetTokenID_st("ValuesUnit");
 	TIC_CALL TokenID integrity_check = GetTokenID_st("IntegrityCheck");
 
-	TIC_CALL TokenID map = GetTokenID_st("map");
+	TokenID map = GetTokenID_st("map");
 	TIC_CALL TokenID spatial_reference = GetTokenID_st("spatial_reference");
 	TIC_CALL TokenID geometry = GetTokenID_st("geometry");
 	TIC_CALL TokenID geometry_z = GetTokenID_st("geometry_z");
 	TIC_CALL TokenID geometry_m = GetTokenID_st("geometry_m");
 	TIC_CALL TokenID PhaseContainer = GetTokenID_st("PhaseContainer");
 
-	TIC_CALL TokenID SubItems = GetTokenID_st("SubItems");
-	TIC_CALL TokenID Error = GetTokenID_st("Error");
-	TIC_CALL TokenID SigAndSub = GetTokenID_st("SigAndSub");
+	TokenID SubItems = GetTokenID_st("SubItems");
+	TokenID Error = GetTokenID_st("Error");
+	TokenID SigAndSub = GetTokenID_st("SigAndSub");
 
 	TIC_CALL TokenID direct_index = GetTokenID_st("direct_index");
 	TIC_CALL TokenID index = GetTokenID_st("index");

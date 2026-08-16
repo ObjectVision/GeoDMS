@@ -81,6 +81,9 @@ add_compile_definitions(
 # Platform-specific settings
 if(MSVC)
     add_compile_options(/utf-8 /bigobj /W3 /EHsc /GR /fp:precise)
+    # 16k MSF pages: raises the PDB size cap from 4 GB to 16 GB; Debug Clc.pdb (3.2 GB)
+    # was hitting the 4 GB cap on incremental links (matches DmsDef.props on the msbuild side)
+    add_link_options(/pdbpagesize:16384)
     # Build every module as a Unicode module, matching the msbuild side
     # (CharacterSet=Unicode in Directory.Build.props). GeoDMS is UTF-8 internally and uses
     # explicit -W Win32 calls at OS boundaries, so generic Win32/CRT macros resolving to the

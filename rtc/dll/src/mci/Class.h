@@ -54,16 +54,16 @@ public:
 	RTC_CALL TokenID GetID() const override { return m_TypeID; }
 
 	RTC_CALL bool IsDerivedFrom(const Class* base) const;
-	RTC_CALL Object*         CreateObj() const;
-	RTC_CALL std::shared_ptr<Object> CreateSharedObj() const; // migration (a): make_shared-based; null if !HasSharedCreator
+	Object*         CreateObj() const;
+	std::shared_ptr<Object> CreateSharedObj() const; // migration (a): make_shared-based; null if !HasSharedCreator
 	bool HasSharedCreator() const { return m_SharedConstructor != nullptr; }
-	RTC_CALL         bool    HasDefaultCreator() const;
+	        bool    HasDefaultCreator() const;
 	RTC_CALL virtual bool    IsDataObjType() const;
 
 	RTC_CALL static const Class*     Find(TokenID id);
 	RTC_CALL static UInt32           Size(); // # in ClassKernel
 	RTC_CALL static const ClassCPtr* Begin();
-	RTC_CALL static const ClassCPtr* End();
+	static const ClassCPtr* End();
 
 	class  AbstrPropDef* GetLastPropDef        () const { return m_LastPD;         }
 	class  AbstrPropDef* GetLastCopyablePropDef() const { return m_LastCopyablePD; }
@@ -129,10 +129,10 @@ public:
 		createFromXmlFuncType xmlFunc);
 	RTC_CALL ~MetaClass();
 
-	RTC_CALL static MetaClass* Find(TokenID id);
-	RTC_CALL std::shared_ptr<Actor> CreateFromXml(Object* currObj, struct XmlElement& elem) const;
+	static MetaClass* Find(TokenID id);
+	std::shared_ptr<Actor> CreateFromXml(Object* currObj, struct XmlElement& elem) const;
 
-	DECL_RTTI(RTC_CALL, MetaClass)
+	DECL_RTTI(, MetaClass)
 
 private:
 	createFromXmlFuncType m_XmlFunc;

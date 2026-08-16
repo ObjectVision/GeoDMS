@@ -430,3 +430,8 @@ summary. With that, every item of this document's ladder is implemented.*
    headers get the new `__SUBSYSTEM_FILEBASENAME_H` guard in the same edit.
 
 Nothing here changes modeller-observable behaviour, so no wiki page is needed.
+
+*Follow-up 2026-08-16: the TU-level counterpart of this effort (split/merge/rename TUs,
+cross-DLL moves, and the de-export pass over the post-merge Rtc.dll export surface) is
+planned in `tu-reorg-and-export-surface-2026-08.md`; the `GetUnitSizeInMeters` follow-up
+recorded above is picked up there (§4).*

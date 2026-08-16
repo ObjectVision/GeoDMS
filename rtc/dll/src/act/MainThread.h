@@ -33,10 +33,10 @@ using operation_type = std::function<void()>;
 struct operation_queue
 {
 	RTC_CALL bool Post(operation_type&& func); // returns true if the queue was empty before posting
-	RTC_CALL void Send(operation_type&& func);
+	void Send(operation_type&& func);
 
 	RTC_CALL void Process();
-	RTC_CALL bool Empty() const;
+	bool Empty() const;
 	RTC_CALL bool SynchonizedEmpty() const;
 
 private:
@@ -49,13 +49,13 @@ using suspendible_task_map_type = std::map<phase_number, suspendible_task_array_
 
 struct suspendible_task_queue
 {
-	RTC_CALL bool Post(phase_number fn, suspendible_task_type&& task); // returns true if the queue was empty before posting
+	bool Post(phase_number fn, suspendible_task_type&& task); // returns true if the queue was empty before posting
 //	RTC_CALL void Send(operation_type&& func);
 
-	RTC_CALL void Process();
-	RTC_CALL void CancelTasks();
+	void Process();
+	void CancelTasks();
 
-	RTC_CALL bool Empty() const;
+	bool Empty() const;
 
 private:
 	suspendible_task_map_type m_OperationMap;
@@ -64,20 +64,20 @@ private:
 /********** helper funcs  **********/
 
 RTC_CALL void   SetMainThreadID() noexcept;
-RTC_CALL void   SetMetaThreadID() noexcept;
+void   SetMetaThreadID() noexcept;
 RTC_CALL bool   IsMainThread() noexcept;
 RTC_CALL bool   IsMetaThread() noexcept;
-RTC_CALL bool   NoOtherThreadsStarted();
-RTC_CALL bool   IsElevatedThread();
-RTC_CALL UInt32 GetCallCount();
-RTC_CALL UInt32 GetThreadID();
+bool   NoOtherThreadsStarted();
+bool   IsElevatedThread();
+UInt32 GetCallCount();
+RTC_CALL UInt32 GetThreadID(); // exported: qtgui DmsMainWindow needs it in Debug links (/OPT:REF strips the reference in Release)
 RTC_CALL void PostMainThreadOper(operation_type&& func);
-RTC_CALL void SendMainThreadOper(operation_type&& func);
+void SendMainThreadOper(operation_type&& func);
 RTC_CALL void PostMainThreadTask(phase_number fn, suspendible_task_type&& task);
 RTC_CALL void ProcessMainThreadOpers();
-RTC_CALL void ProcessSuspendibleTasks();
+void ProcessSuspendibleTasks();
 RTC_CALL void ProcessMainThreadOpersAndTasks();
-RTC_CALL bool HasMainThreadTasks();
+bool HasMainThreadTasks();
 RTC_CALL void CancelMainThreadTasks();
 RTC_CALL bool IsProcessingMainThreadOpers();
 RTC_CALL void RequestMainThreadOperProcessing();
@@ -85,7 +85,7 @@ RTC_CALL void ConfirmMainThreadOperProcessing();
 #if !defined(WIN32)
 RTC_CALL void SetRequestMainThreadOperProcessingCallback(std::function<void()> callback);
 #endif
-RTC_CALL bool IsMainThreadOperProcessingRequestPending();
+bool IsMainThreadOperProcessingRequestPending();
 
 //----------------------------------------------------------------------
 // section : responsive waiting for task-state notifications (#1156)
@@ -102,8 +102,8 @@ RTC_CALL bool IsMainThreadOperProcessingRequestPending();
 // Completion notifiers pair every cv.notify_all() with WakeUpMainThreadWaiter()
 // so the main thread still wakes promptly; a missed pairing only costs the
 // 500ms timeout, not correctness.
-RTC_CALL void WaitForTaskNotification(std::condition_variable& cv, std::unique_lock<std::mutex>& lock);
-RTC_CALL void WakeUpMainThreadWaiter() noexcept;
+void WaitForTaskNotification(std::condition_variable& cv, std::unique_lock<std::mutex>& lock);
+void WakeUpMainThreadWaiter() noexcept;
 
 struct MainThreadBlocker
 {

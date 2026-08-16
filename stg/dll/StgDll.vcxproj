@@ -60,6 +60,7 @@
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="src\bmp\BmpStorageManager.cpp" />
+    <ClCompile Include="src\AbstrStreamManager.cpp" />
     <ClCompile Include="src\gdal\gdal_base.cpp" />
     <ClCompile Include="src\gdal\gdal_grid.cpp" />
     <ClCompile Include="src\gdal\gdal_vect.cpp" />
@@ -78,6 +79,10 @@
     <ClCompile Include="src\dbf\dbfStorageManager.cpp" />
     <ClCompile Include="src\str\StrStorageManager.cpp" />
     <ClCompile Include="src\shp\ShpStorageManager.cpp" />
+    <ClCompile Include="src\GeoRef.cpp" />
+    <ClCompile Include="src\NameSet.cpp" />
+    <ClCompile Include="src\TreeItemColumnInfo.cpp" />
+    <ClCompile Include="src\ViewPortInfoEx.cpp" />
     <ClCompile Include="src\DllMain.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -88,7 +93,7 @@
     <ClInclude Include="src\xdb\XdbImp.h" />
     <ClInclude Include="src\shp\ShpImp.h" />
     <ClInclude Include="src\tif\TifImp.h" />
-    <ClInclude Include="src\dbf\dbfImpl.h" />
+    <ClInclude Include="src\dbf\dbfImp.h" />
     <ClInclude Include="src\FilePtrHandle.h" />
     <ClInclude Include="src\ImplMain.h" />
     <ClInclude Include="src\bmp\BmpStorageManager.h" />
@@ -106,6 +111,8 @@
     <ClInclude Include="src\dbf\dbfStorageManager.h" />
     <ClInclude Include="src\str\StrStorageManager.h" />
     <ClInclude Include="src\shp\ShpStorageManager.h" />
+    <ClInclude Include="src\ProjectionUnits.h" />
+    <ClInclude Include="src\AbstrStreamManager.h" />
     <ClInclude Include="src\StgBase.h" />
     <ClInclude Include="src\StorageUtils.h" />
   </ItemGroup>

@@ -79,7 +79,7 @@ private:
 	bool   m_HorScroll = false, m_VerScroll = false;
 #endif
 
-	DECL_RTTI(SHV_CALL, Class)
+	DECL_RTTI(, Class)
 };
 
 

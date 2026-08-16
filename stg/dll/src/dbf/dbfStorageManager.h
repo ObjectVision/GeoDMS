@@ -71,7 +71,7 @@ private:
 	mutable std::shared_ptr<const AbstrUnit> m_TableDomain;
 
 	friend struct DbfMetaInfo;
-	DECL_RTTI(STGDLL_CALL,StorageClass)
+	DECL_RTTI(,StorageClass)
 };
 
 #endif // __STG_DBF_STORAGEMANAGER_H

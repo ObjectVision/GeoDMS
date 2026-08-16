@@ -48,12 +48,12 @@ private:
 
 // The item's domain element count once its data is there, or Undefined when establishing it would
 // cost more than the measurement is worth: an unresolved count must never be forced to report on it.
-TIC_CALL SizeT ResolvedNrElements(const TreeItem* item);
+SizeT ResolvedNrElements(const TreeItem* item);
 
 // Predict an operator evaluation's cost, for later comparison against the measurement. Returns a
 // default (all-zero, 'assumed') record when the estimator itself fails: a prediction is never
 // allowed to break the calculation it describes.
-TIC_CALL auto EstimateOperPerformance(const Operator* oper, TreeItemDualRef& resultHolder
+auto EstimateOperPerformance(const Operator* oper, TreeItemDualRef& resultHolder
 	, const ArgRefs& args) -> PerformanceEstimationData;
 
 // Report a completed operator evaluation against its estimates. 'actualNrElements' is the result
@@ -67,7 +67,7 @@ TIC_CALL auto EstimateOperPerformance(const Operator* oper, TreeItemDualRef& res
 // 'actualAllocBytes' is the MEASURED allocation demand of this operation: every >= 4 KB allocation
 // made while it was the calling thread's CancelableFrame::CurrActive(), which covers tile work fanned
 // out over the worker pool and the temporary memory no estimate models. 0 when not being attributed.
-TIC_CALL void ReportOperPerformance(CharPtr operName, const TreeItem* result
+void ReportOperPerformance(CharPtr operName, const TreeItem* result
 	, const PerformanceEstimationData& scheduleEstimate, const PerformanceEstimationData& runEstimate
 	, Float64 elapsedMSec, SizeT actualNrElements, SizeT actualAllocBytes = 0, SizeT actualPeakBytes = 0);
 
@@ -75,11 +75,11 @@ TIC_CALL void ReportOperPerformance(CharPtr operName, const TreeItem* result
 // StorageMetaInfo::PrepareReadDataOrSuspend has already resolved the domain count and the values
 // range by the time the gated task runs, and tiling comes from the storage's native geometry --
 // so unlike a calculation, a read's size is knowable before it starts. §2.6 and §4.3 of the plan.
-TIC_CALL auto EstimateReadResources(const TreeItem* focusItem) -> PerformanceEstimationData;
+auto EstimateReadResources(const TreeItem* focusItem) -> PerformanceEstimationData;
 
 // Report a completed storage read against that estimate, establishing the per-manager throughput
 // a read cost model will be calibrated against.
-TIC_CALL void ReportReadPerformance(const TreeItem* focusItem, const PerformanceEstimationData& estimate
+void ReportReadPerformance(const TreeItem* focusItem, const PerformanceEstimationData& estimate
 	, Float64 elapsedMSec);
 
 #endif // __TIC_PERFMEASUREMENT_H

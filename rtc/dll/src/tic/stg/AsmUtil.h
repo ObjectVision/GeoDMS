@@ -54,6 +54,6 @@ typedef enum
 } ASM_STATE;
 
 
-[[noreturn]] TIC_CALL void throwStorageError(ASM_STATE state, const char* storageName);
+[[noreturn]] void throwStorageError(ASM_STATE state, const char* storageName);
 
 #endif // __ASMUTIL_H

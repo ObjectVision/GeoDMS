@@ -115,7 +115,7 @@ private:
 		const wms::tile_matrix& tm = m_TMS[key.first];
 		return tm.WorldExtents(key.second);
 	}
-	DECL_RTTI(SHV_CALL, LayerClass)
+	DECL_RTTI(, LayerClass)
 };
 
 

@@ -43,7 +43,7 @@ granted by an additional written contract for support, assistance and/or develop
 TIC_CALL UInt32 GetSwapFileMinSize();
 #define KEEPMEM_MAX_NR_BYTES          128
 
-TIC_CALL UInt32 ElemSize(const ValueClass* vc);
+UInt32 ElemSize(const ValueClass* vc);
 template <typename V>
 inline UInt32 ElemSize()
 {
@@ -51,8 +51,8 @@ inline UInt32 ElemSize()
 }
 
 
-TIC_CALL UInt32 AbstrDataByteSize(const AbstrDataItem* adi);
-TIC_CALL bool MustStorePersistent(const TreeItem* adi);
+UInt32 AbstrDataByteSize(const AbstrDataItem* adi);
+bool MustStorePersistent(const TreeItem* adi);
 //TIC_CALL bool IsFileableSize(const AbstrDataItem* adi, SizeT nrBytes);
 /* 
 inline bool IsFileable(const AbstrDataItem* adi)

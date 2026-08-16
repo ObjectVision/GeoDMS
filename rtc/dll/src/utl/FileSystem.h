@@ -36,7 +36,7 @@ RTC_CALL SharedStr GetCurrentDir();
 
 RTC_CALL SharedStr GetExeDir();
 RTC_CALL SharedStr GetLocalDataDir();
-RTC_CALL SharedStr GetSourceDataDir();
+SharedStr GetSourceDataDir();
 RTC_CALL SharedStr ConvertDosFileName(WeakStr fileName);
 RTC_CALL SharedStr ConvertDmsFileName(WeakStr path);
 RTC_CALL SharedStr ConvertDmsFileNameAlways(SharedStr&& path); // for updated WinAPI funcs
@@ -46,17 +46,17 @@ RTC_CALL void ReplaceSpecificDelimiters(MutableCharPtrRange range, const char de
 
 struct FindFileBlock
 {
-	RTC_CALL FindFileBlock(WeakStr fileSearchSpec);
-	RTC_CALL FindFileBlock(FindFileBlock&& src) noexcept;
-	RTC_CALL ~FindFileBlock() noexcept;
+	FindFileBlock(WeakStr fileSearchSpec);
+	FindFileBlock(FindFileBlock&& src) noexcept;
+	~FindFileBlock() noexcept;
 
-	RTC_CALL bool    IsValid() const;
-	RTC_CALL CharPtr GetCurrFileName() const;          // UTF-8 (transcoded from WIN32_FIND_DATAW::cFileName)
-	RTC_CALL DWORD   GetFileAttr() const;
-	RTC_CALL bool    IsDirectory() const;
-	RTC_CALL FileDateTime GetFileOrDirDateTime() const;
+	bool    IsValid() const;
+	CharPtr GetCurrFileName() const;          // UTF-8 (transcoded from WIN32_FIND_DATAW::cFileName)
+	DWORD   GetFileAttr() const;
+	bool    IsDirectory() const;
+	FileDateTime GetFileOrDirDateTime() const;
 
-	RTC_CALL bool    Next();
+	bool    Next();
 
 private:
 	// m_Data carries a WIN32_FIND_DATAW (wide-char filenames). m_CurrFileNameUtf8
@@ -71,22 +71,22 @@ private:
 
 RTC_CALL void   MakeDir(WeakStr dirName);
 RTC_CALL void   CopyFileOrDir(CharPtr srcFileOrDirName, CharPtr destFileOrDirName, bool mayBeMissing);
-RTC_CALL bool   MoveFileOrDir(CharPtr srcFileOrDirName, CharPtr destFileOrDirName, bool mayBeMissing);
+bool   MoveFileOrDir(CharPtr srcFileOrDirName, CharPtr destFileOrDirName, bool mayBeMissing);
 RTC_CALL bool   KillFileOrDir(WeakStr fileOrDirName, bool canBeDir = true);
 RTC_CALL bool   IsFileOrDirAccessible(WeakStr fileOrDirName);
-RTC_CALL bool   IsFileOrDirWritable(WeakStr fileOrDirName);
+bool   IsFileOrDirWritable(WeakStr fileOrDirName);
 RTC_CALL void   GetWritePermission(WeakStr fileName);
 RTC_CALL FileDateTime GetFileOrDirDateTime(WeakStr fileOrDirName);
 RTC_CALL auto   GetFileOrDirDateTimeAsReadableString(WeakStr fileOrDirName) -> SharedStr;
 RTC_CALL void   MakeDirsForFile(WeakStr fileName);
-RTC_CALL bool   HasDosDelimiters(CharPtr source);
-RTC_CALL bool   HasDosDelimiters(CharPtrRange source);
-RTC_CALL bool   IsRelative(CharPtr source);
+bool   HasDosDelimiters(CharPtr source);
+bool   HasDosDelimiters(CharPtrRange source);
+bool   IsRelative(CharPtr source);
 
 extern "C" RTC_CALL void DMS_CONV SetCurrentDir(CharPtr dir);
 
-RTC_CALL Int32     GetConfigKeyValue (WeakStr configFileName, CharPtr sectionName, CharPtr keyName, Int32   defaultValue);
-RTC_CALL SharedStr GetConfigKeyString(WeakStr configFileName, CharPtr sectionName, CharPtr keyName, CharPtr defaultValue);
-RTC_CALL void      SetConfigKeyString(WeakStr configFileName, CharPtr sectionName, CharPtr keyName, CharPtr keyValue);
+Int32     GetConfigKeyValue (WeakStr configFileName, CharPtr sectionName, CharPtr keyName, Int32   defaultValue);
+SharedStr GetConfigKeyString(WeakStr configFileName, CharPtr sectionName, CharPtr keyName, CharPtr defaultValue);
+void      SetConfigKeyString(WeakStr configFileName, CharPtr sectionName, CharPtr keyName, CharPtr keyValue);
 
 #endif // __UTL_FILESYSTEM_H

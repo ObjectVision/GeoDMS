@@ -68,8 +68,8 @@ struct CopyTreeContext
 			:	cpy_mode::all;
 	}
 
-	TIC_CALL TokenID GetAbsOrRelNameID(const TreeItem*  si, const TreeItem* srcTI, TreeItem* dstTI) const;
-	TIC_CALL TokenID GetAbsOrRelUnitID(const AbstrUnit* su, const AbstrDataItem* srcADI, AbstrDataItem* dstADI) const;
+	TokenID GetAbsOrRelNameID(const TreeItem*  si, const TreeItem* srcTI, TreeItem* dstTI) const;
+	TokenID GetAbsOrRelUnitID(const AbstrUnit* su, const AbstrDataItem* srcADI, AbstrDataItem* dstADI) const;
 
 	SharedMutableTreeItem Apply()
 	{
@@ -103,12 +103,12 @@ struct CopyTreeContext
 
 struct AnchestorStackGuard
 {
-	TIC_CALL AnchestorStackGuard(CopyTreeContext& ctc, std::shared_ptr<TreeItem> dst, std::shared_ptr<const TreeItem> src)
+	AnchestorStackGuard(CopyTreeContext& ctc, std::shared_ptr<TreeItem> dst, std::shared_ptr<const TreeItem> src)
 		: m_CTC(ctc)
 	{
 		m_CTC.m_AnchestorStack.emplace_back(dst, src);
 	}
-	TIC_CALL ~AnchestorStackGuard()
+	~AnchestorStackGuard()
 	{
 		m_CTC.m_AnchestorStack.pop_back();
 	}
@@ -121,11 +121,11 @@ struct AnchestorStackGuard
 
 struct CopyPropsContext 
 {
-	TIC_CALL CopyPropsContext(TreeItem*  dst, const TreeItem* src, cpy_mode minCpyMode, bool doClearDest);
+	CopyPropsContext(TreeItem*  dst, const TreeItem* src, cpy_mode minCpyMode, bool doClearDest);
 
-	TIC_CALL ~CopyPropsContext();
+	~CopyPropsContext();
 
-	TIC_CALL void Apply();
+	void Apply();
 
 private:
 	bool MustCopy(AbstrPropDef* propDef);

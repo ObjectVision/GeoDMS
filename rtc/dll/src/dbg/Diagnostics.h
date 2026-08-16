@@ -48,10 +48,10 @@ struct CharPtrRange;
 // fix assertion problem by safe implementation of dms_assert if neccesary
 //----------------------------------------------------------------------
 
-RTC_CALL void dms_check_failed(CharPtr msg, CharPtr fileName, unsigned line);
+void dms_check_failed(CharPtr msg, CharPtr fileName, unsigned line);
 #define dms_check(EXPR) (void)( (!!(EXPR)) || (dms_check_failed(#EXPR, __FILE__, __LINE__), 0) )
 
-RTC_CALL void dms_assertion_failed(CharPtr msg, CharPtr fileName, unsigned line);
+void dms_assertion_failed(CharPtr msg, CharPtr fileName, unsigned line);
 
 #if defined(CC_FIX_ASSERT)
 
@@ -124,7 +124,7 @@ template<typename ...Args>
 [[noreturn]] RTC_CALL void throwIllegalAbstract   (CharPtr sourceFile, int line, CharPtr method);
 [[noreturn]] RTC_CALL void throwNYI               (CharPtr sourceFile, int line, CharPtr method);
 
-RTC_CALL void reportD_impl(MsgCategory msgCat, SeverityTypeID st, CharPtrRange&& msg);
+void reportD_impl(MsgCategory msgCat, SeverityTypeID st, CharPtrRange&& msg);
 RTC_CALL void reportD(MsgCategory msgCat, SeverityTypeID st, CharPtr msg);
 RTC_CALL void reportD(MsgCategory msgCat, SeverityTypeID st, CharPtr msg1, CharPtr msg2);
 RTC_CALL void reportD_without_cancellation_check(MsgCategory msgCat, SeverityTypeID st, CharPtr msg);
@@ -175,7 +175,7 @@ void reportF_without_cancellation_check(MsgCategory msgCat, SeverityTypeID st, C
 	reportD_without_cancellation_check(msgCat, st, mgFormat2string<Args...>(format, std::forward<Args>(args)...).c_str());
 }
 
-RTC_CALL void ReportSuspension();
+void ReportSuspension();
 
 
 #define MG_CHECK2(Cond, Msg)        if(!(Cond))  { throwCheckFailed(MG_POS, Msg); }

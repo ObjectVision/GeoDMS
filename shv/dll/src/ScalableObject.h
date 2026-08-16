@@ -78,7 +78,7 @@ public:
 private:
 	CrdRect   m_WorldClientRect;
 
-	DECL_ABSTR(SHV_CALL, Class)
+	DECL_ABSTR(, Class)
 };
 
 #endif // __SHV_SCALABLEOBJECT_H

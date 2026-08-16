@@ -33,12 +33,17 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\AbstrStreamManager.cpp" />
     <ClCompile Include="src\bmp\BmpStorageManager.cpp">
       <Filter>Bmp</Filter>
     </ClCompile>
     <ClCompile Include="src\dbf\dbfStorageManager.cpp">
       <Filter>dbf</Filter>
     </ClCompile>
+    <ClCompile Include="src\GeoRef.cpp" />
+    <ClCompile Include="src\NameSet.cpp" />
+    <ClCompile Include="src\TreeItemColumnInfo.cpp" />
+    <ClCompile Include="src\ViewPortInfoEx.cpp" />
     <ClCompile Include="src\DllMain.cpp" />
     <ClCompile Include="src\fss\FileSystemStorageManager.cpp">
       <Filter>File System Storage</Filter>
@@ -115,6 +120,8 @@
       <Filter>Ascii Table</Filter>
     </ClInclude>
     <ClInclude Include="src\StgBase.h" />
+    <ClInclude Include="src\ProjectionUnits.h" />
+    <ClInclude Include="src\AbstrStreamManager.h" />
     <ClInclude Include="src\NameSet.h" />
     <ClInclude Include="src\ViewPortInfoEx.h" />
     <ClInclude Include="src\StoragePCH.h" />
@@ -134,7 +141,7 @@
     <ClInclude Include="src\bmp\BmpImp.h">
       <Filter>Bmp</Filter>
     </ClInclude>
-    <ClInclude Include="src\dbf\dbfImpl.h">
+    <ClInclude Include="src\dbf\dbfImp.h">
       <Filter>dbf</Filter>
     </ClInclude>
     <ClInclude Include="src\odbc\ODBCImp.h">

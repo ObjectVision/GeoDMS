@@ -73,14 +73,12 @@
     <ClInclude Include="src\dbg\UnitTesting.h" />
     <ClInclude Include="src\FileResult.h" />
     <ClInclude Include="src\vt\AssocTower.h" />
-    <ClInclude Include="src\geom\BoostPolygon.h" />
     <ClInclude Include="src\vt\CharPtrRange.h" />
     <ClInclude Include="src\vt\CheckedCalc.h" />
     <ClInclude Include="src\vt\DataPtrTraits.h" />
     <ClInclude Include="src\vt\HeapElem.h" />
     <ClInclude Include="src\vt\IsNotUndef.h" />
     <ClInclude Include="src\vt\IterTraits.h" />
-    <ClInclude Include="src\geom\NeighbourIter.h" />
     <ClInclude Include="src\geom\PointIndexBuffer.h" />
     <ClInclude Include="src\vt\undef_xx.h" />
     <ClInclude Include="src\ipolygon\detail\boolean_op.hpp" />
@@ -205,7 +203,6 @@
     <ClInclude Include="src\utl\StringFunc.h" />
     <ClInclude Include="src\utl\swap.h" />
     <ClInclude Include="src\utl\swapper.h" />
-    <ClInclude Include="src\utl\TypeInfoOrdering.h" />
     <ClInclude Include="src\utl\TypeListOper.h" />
     <ClInclude Include="src\ptr\AutoDeletePtr.h" />
     <ClInclude Include="src\ptr\IterCast.h" />
@@ -243,6 +240,7 @@
     <ClInclude Include="src\vt\mpf.h" />
     <ClInclude Include="src\vt\Pair.h" />
     <ClInclude Include="src\geom\Point.h" />
+    <ClInclude Include="src\geom\RemoveAdjacentsAndSpikes.h" />
     <ClInclude Include="src\geom\PointOrder.h" />
     <ClInclude Include="src\geom\Range.h" />
     <ClInclude Include="src\vt\RangeIndex.h" />
@@ -250,7 +248,6 @@
     <ClInclude Include="src\vt\SequenceArray.h" />
     <ClInclude Include="src\vt\SequenceTraits.h" />
     <ClInclude Include="src\vt\SizeCalculator.h" />
-    <ClInclude Include="src\geom\SpatialIndex.h" />
     <ClInclude Include="src\vt\StringArray.h" />
     <ClInclude Include="src\vt\StringBounds.h" />
     <ClInclude Include="src\geom\Transform.h" />
@@ -317,7 +314,6 @@
     <ClInclude Include="src\act\Actor.h" />
     <ClInclude Include="src\act\ActorEnums.h" />
     <ClInclude Include="src\act\ActorSet.h" />
-    <ClInclude Include="src\act\InvalidationBlock.h" />
     <ClInclude Include="src\act\TriggerOperator.h" />
     <ClInclude Include="src\act\UpdateMark.h" />
     <ClInclude Include="src\RtcBase.h" />
@@ -340,52 +336,44 @@
     <ClCompile Include="src\RtcPCH.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="src\act\ActorEnums.cpp" />
-    <ClCompile Include="src\act\garbage_can.cpp" />
     <ClCompile Include="src\act\MainThread.cpp" />
-    <ClCompile Include="src\act\Waiter.cpp" />
     <ClCompile Include="src\dbg\DebugContext.cpp" />
     <ClCompile Include="src\dbg\DebugReporter.cpp" />
-    <ClCompile Include="src\dbg\DebugStream.cpp" />
+    <ClCompile Include="src\dbg\MsgDispatch.cpp" />
     <ClCompile Include="src\geom\Transform.cpp" />
     <ClCompile Include="src\mem\FixedAlloc.cpp" />
     <ClCompile Include="src\mem\HeapSequenceProvider.cpp" />
     <ClCompile Include="src\parallel\portable_task_group.cpp" />
-    <ClCompile Include="src\ptr\SharedObjBase.cpp" />
+    <ClCompile Include="src\ptr\SharedBase.cpp" />
     <ClCompile Include="src\RtcMain.cpp" />
-    <ClCompile Include="src\ser\AsString.cpp" />
     <ClCompile Include="src\utl\Encodes.cpp" />
     <ClCompile Include="src\utl\MemGuard.cpp" />
     <ClCompile Include="src\utl\SourceLocation.cpp" />
     <ClCompile Include="src\xct\DmsException.cpp" />
     <ClCompile Include="src\utl\Environment.cpp" />
     <ClCompile Include="src\utl\StrFormat.cpp" />
+    <ClCompile Include="src\utl\splitPath.cpp" />
     <ClCompile Include="src\utl\Quotes.cpp" />
     <ClCompile Include="src\utl\Registry.cpp" />
-    <ClCompile Include="src\utl\TypeInfoOrdering.cpp" />
     <ClCompile Include="src\ptr\SharedStr.cpp" />
-    <ClCompile Include="src\vt\BaseBounds.cpp" />
-    <ClCompile Include="src\vt\iterrangefuncs.cpp" />
     <ClCompile Include="src\vt\SequenceArray.cpp" />
-    <ClCompile Include="src\ser\BaseStreamBuff.cpp" />
+    <ClCompile Include="src\vt\VtSupport.cpp" />
     <ClCompile Include="src\ser\FileMapHandle.cpp" />
     <ClCompile Include="src\ser\FileStreamBuff.cpp" />
     <ClCompile Include="src\ser\FormattedStream.cpp" />
     <ClCompile Include="src\ser\MoreStreamBuff.cpp" />
     <ClCompile Include="src\ser\StringStream.cpp" />
-    <ClCompile Include="src\mci\persistent.cpp" />
+    <ClCompile Include="src\mci\MciInterface.cpp" />
     <ClCompile Include="src\mci\PropDef.cpp" />
     <ClCompile Include="src\mci\ValueWrap.cpp" />
     <ClCompile Include="src\mth\BigInt.cpp" />
     <ClCompile Include="src\utl\Case.cpp" />
     <ClCompile Include="src\set\IndexedStrings.cpp" />
     <ClCompile Include="src\sym\Token.cpp" />
-    <ClCompile Include="src\xml\XmlConst.cpp" />
     <ClCompile Include="src\xml\XMLOut.cpp" />
     <ClCompile Include="src\xml\XmlParser.cpp" />
     <ClCompile Include="src\act\Actor.cpp" />
-    <ClCompile Include="src\act\ActorSet.cpp" />
-    <ClCompile Include="src\act\InvalidationBlock.cpp" />
+    <ClCompile Include="src\act\ActorSupport.cpp" />
     <ClCompile Include="src\act\TriggerOperator.cpp" />
     <ClCompile Include="src\act\UpdateMark.cpp" />
     <ClCompile Include="src\gen\General.cpp" />
@@ -407,10 +395,6 @@
   <ItemGroup>
     <ClCompile Include="src\sym\SymPCH.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
-      <PrecompiledHeaderFile>SymPCH.h</PrecompiledHeaderFile>
-      <PrecompiledHeaderOutputFile>$(IntDir)Sym.pch</PrecompiledHeaderOutputFile>
-    </ClCompile>
-    <ClCompile Include="src\sym\Assoc.cpp">
       <PrecompiledHeaderFile>SymPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Sym.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
@@ -438,15 +422,7 @@
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="src\tic\Aspect.cpp">
-      <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
-      <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
-    </ClCompile>
     <ClCompile Include="src\tic\DedicatedAttrs.cpp">
-      <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
-      <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
-    </ClCompile>
-    <ClCompile Include="src\tic\ExprRewrite.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
@@ -458,11 +434,23 @@
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="src\tic\LispContextHandle.cpp">
+    <ClCompile Include="src\tic\OperationContext.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="src\tic\OperationContext.cpp">
+    <ClCompile Include="src\tic\TicDataSupport.cpp">
+      <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
+      <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
+    </ClCompile>
+    <ClCompile Include="src\tic\TicItemSupport.cpp">
+      <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
+      <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
+    </ClCompile>
+    <ClCompile Include="src\tic\TicCalcSupport.cpp">
+      <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
+      <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
+    </ClCompile>
+    <ClCompile Include="src\tic\ParallelTiles.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
@@ -478,23 +466,11 @@
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="src\tic\stg\AbstrStreamManager.cpp">
-      <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
-      <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
-    </ClCompile>
-    <ClCompile Include="src\tic\stg\AsmUtil.cpp">
+    <ClCompile Include="src\tic\stg\StorageSupport.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
     <ClCompile Include="src\tic\stg\MemoryMappedDataStorageManager.cpp">
-      <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
-      <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
-    </ClCompile>
-    <ClCompile Include="src\tic\stg\StorageClass.cpp">
-      <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
-      <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
-    </ClCompile>
-    <ClCompile Include="src\tic\stg\StorageInterface.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
@@ -506,15 +482,11 @@
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="src\tic\AbstrDataObject.cpp">
-      <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
-      <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
-    </ClCompile>
     <ClCompile Include="src\tic\AbstrUnit.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="src\tic\attr_Interface.cpp">
+    <ClCompile Include="src\tic\AttrInterface.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
@@ -534,19 +506,7 @@
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="src\tic\DataLockContainers.cpp">
-      <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
-      <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
-    </ClCompile>
     <ClCompile Include="src\tic\DataLocks.cpp">
-      <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
-      <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
-    </ClCompile>
-    <ClCompile Include="src\tic\DataStoreManager.cpp">
-      <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
-      <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
-    </ClCompile>
-    <ClCompile Include="src\tic\DisplayValue.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
@@ -554,19 +514,7 @@
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="src\tic\ExtLockMgr.cpp">
-      <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
-      <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
-    </ClCompile>
-    <ClCompile Include="src\tic\FreeDataManager.cpp">
-      <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
-      <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
-    </ClCompile>
     <ClCompile Include="src\tic\LispTreeType.cpp">
-      <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
-      <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
-    </ClCompile>
-    <ClCompile Include="src\tic\Crs.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
@@ -590,19 +538,7 @@
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="src\tic\Param.cpp">
-      <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
-      <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
-    </ClCompile>
     <ClCompile Include="src\tic\SourceDescr.cpp">
-      <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
-      <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
-    </ClCompile>
-    <ClCompile Include="src\tic\StateChangeNotification.cpp">
-      <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
-      <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
-    </ClCompile>
-    <ClCompile Include="src\tic\SupplCache.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
@@ -618,19 +554,11 @@
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="src\tic\TreeItemContextHandle.cpp">
-      <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
-      <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
-    </ClCompile>
     <ClCompile Include="src\tic\TreeItemProps.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
     <ClCompile Include="src\tic\TreeItemSet.cpp">
-      <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
-      <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
-    </ClCompile>
-    <ClCompile Include="src\tic\TreeItemUtils.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
@@ -693,7 +621,6 @@
     <ClInclude Include="src\tic\AbstrCalculator.h" />
     <ClInclude Include="src\tic\AbstrDataItem.h" />
     <ClInclude Include="src\tic\AbstrDataObject.h" />
-    <ClInclude Include="src\tic\stg\AbstrStreamManager.h" />
     <ClInclude Include="src\tic\AbstrUnit.h" />
     <ClInclude Include="src\tic\CheckedDomain.h" />
     <ClInclude Include="src\tic\CopyTreeContext.h" />

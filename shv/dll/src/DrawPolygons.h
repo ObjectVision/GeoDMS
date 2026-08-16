@@ -30,9 +30,12 @@
 #include "IndexCollector.h"
 #include "Theme.h"
 #include "ThemeValueGetter.h"
-#include "RemoveAdjacentsAndSpikes.h"
+#include "geom/RemoveAdjacentsAndSpikes.h"
 
-SHV_CALL Float64 s_DrawingSizeTresholdInPixels = 0.0;
+// exported: qtgui DmsOptions.cpp writes it; defined in FeatureLayer.cpp. Before the
+// SHV_CALL dllimport fix this was a decorated DEFINITION in this header, so qtgui
+// compiled its own private copy and the GUI option never reached the shv drawing code.
+extern SHV_CALL Float64 s_DrawingSizeTresholdInPixels;
 
 using pointBuffer_t = std::vector<GPoint>;
 

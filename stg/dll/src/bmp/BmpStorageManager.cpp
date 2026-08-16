@@ -423,14 +423,14 @@ class PalStorageManager : public BmpPalStorageManager
 {
 	bool HasGridData() override { return false; }
 
-	DECL_RTTI(STGDLL_CALL, StorageClass)
+	DECL_RTTI(, StorageClass)
 };
 
 class BmpStorageManager : public BmpPalStorageManager
 {
 	bool HasGridData() override { return true; }
 
-	DECL_RTTI(STGDLL_CALL, StorageClass)
+	DECL_RTTI(, StorageClass)
 };
 
 

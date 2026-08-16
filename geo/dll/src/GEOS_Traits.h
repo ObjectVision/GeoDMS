@@ -12,7 +12,7 @@
 #include "geom/RingIterator.h"
 
 
-#include "RemoveAdjacentsAndSpikes.h"
+#include "geom/RemoveAdjacentsAndSpikes.h"
 
 //============================  GEOS  ============================
 #include <geos/geom/GeometryFactory.h>

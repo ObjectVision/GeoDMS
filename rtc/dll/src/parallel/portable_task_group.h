@@ -36,16 +36,16 @@ class portable_task_group {
 	unsigned m_active{0};
 
 public:
-	RTC_CALL explicit portable_task_group(unsigned concurrency);
-	RTC_CALL void run(std::function<void()> f);
-	RTC_CALL void cancel();
-	RTC_CALL void wait();
+	explicit portable_task_group(unsigned concurrency);
+	void run(std::function<void()> f);
+	void cancel();
+	void wait();
 	bool is_canceling() const { return m_canceling.load(std::memory_order_relaxed); }
-	RTC_CALL ~portable_task_group();
+	~portable_task_group();
 };
 
-RTC_CALL portable_task_group& GetPortableTaskGroup();
-RTC_CALL void InitPortableTaskGroup(unsigned concurrency);
-RTC_CALL void DestroyPortableTaskGroup();
+portable_task_group& GetPortableTaskGroup();
+void InitPortableTaskGroup(unsigned concurrency);
+void DestroyPortableTaskGroup();
 
 #endif // __RTC_PORTABLE_TASK_GROUP_H

@@ -222,7 +222,7 @@ bool RTC_IsLoaded(const DllHandle* hnd)
 	return hnd->IsLoaded();
 }
 
-RTC_CALL UInt32 RunDllProc0(CharPtr dllName, CharPtr procName)
+UInt32 RunDllProc0(CharPtr dllName, CharPtr procName)
 {
 	CDebugContextHandle context(dllName, procName, false);
 
@@ -230,7 +230,7 @@ RTC_CALL UInt32 RunDllProc0(CharPtr dllName, CharPtr procName)
 	return (*runFunc)();
 }
 
-RTC_CALL UInt32 RunDllProc1(CharPtr dllName, CharPtr procName, CharPtr arg1)
+UInt32 RunDllProc1(CharPtr dllName, CharPtr procName, CharPtr arg1)
 {
 	CDebugContextHandle context    (dllName, procName, false);
 	CDebugContextHandle arg1Context("arg1", arg1, false);
@@ -239,7 +239,7 @@ RTC_CALL UInt32 RunDllProc1(CharPtr dllName, CharPtr procName, CharPtr arg1)
 	return (*runFunc)(arg1);
 }
 
-RTC_CALL UInt32 RunDllProc2(CharPtr dllName, CharPtr procName, CharPtr arg1, CharPtr arg2)
+UInt32 RunDllProc2(CharPtr dllName, CharPtr procName, CharPtr arg1, CharPtr arg2)
 {
 	CDebugContextHandle context(dllName, procName, false);
 	CDebugContextHandle arg1Context("arg1", arg1, false);
@@ -249,7 +249,7 @@ RTC_CALL UInt32 RunDllProc2(CharPtr dllName, CharPtr procName, CharPtr arg1, Cha
 	return (*runFunc)(arg1, arg2);
 }
 
-RTC_CALL UInt32 RunDllProc3(CharPtr dllName, CharPtr procName, CharPtr arg1, CharPtr arg2, CharPtr arg3)
+UInt32 RunDllProc3(CharPtr dllName, CharPtr procName, CharPtr arg1, CharPtr arg2, CharPtr arg3)
 {
 	CDebugContextHandle context(dllName, procName, false);
 	CDebugContextHandle arg1Context("arg1", arg1, false);

@@ -37,7 +37,7 @@ TIC_CALL TokenID   TreeItem_GetDialogType(const TreeItem* self);
 TIC_CALL void      TreeItem_SetDialogType(TreeItem* self, TokenID dialogType);
 TIC_CALL SharedStr TreeItem_GetDialogData(const TreeItem* item);
 TIC_CALL void      TreeItem_SetDialogData(TreeItem* item, CharPtrRange dialogData);
-TIC_CALL SharedStr TreeItem_GetViewAction(const TreeItem* self);
+SharedStr TreeItem_GetViewAction(const TreeItem* self);
 
 // Specific DialogTypes
 

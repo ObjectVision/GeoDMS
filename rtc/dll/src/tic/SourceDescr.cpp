@@ -239,7 +239,7 @@ SharedStr TreeItem_GetSourceDescr(const TreeItem* studyObject, SourceDescrMode s
 }
 
 #include "xml/XMLOut.h"
-TIC_CALL void TreeItem_DumpSourceCalculator(const TreeItem* studyObject, SourceDescrMode sdm, bool bShowHidden, OutStreamBase* xmlOutStrPtr)
+void TreeItem_DumpSourceCalculator(const TreeItem* studyObject, SourceDescrMode sdm, bool bShowHidden, OutStreamBase* xmlOutStrPtr)
 {
 	assert(xmlOutStrPtr);
 	auto source_calculator = SourceCalculator(sdm, bShowHidden);// .GetDescr(studyObject);

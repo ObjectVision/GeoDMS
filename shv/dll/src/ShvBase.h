@@ -29,12 +29,10 @@
 
 #if defined(DM_SHV_EXPORTS)
 #	define SHV_CALL __declspec(dllexport)
+#elif defined(DM_SHV_STATIC)
+#	define SHV_CALL
 #else
-#	if defined(DM_SHV_DLL)
-#		define SHV_CALL __declspec(dllimport)
-#	else
-#		define SHV_CALL
-#	endif
+#	define SHV_CALL __declspec(dllimport)
 #endif
 
 #define SHV_SUPPORT_OLDNAMES

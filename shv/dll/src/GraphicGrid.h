@@ -66,7 +66,7 @@ private:
 	DmsColor m_BrushColor;
 	DmsColor m_PenColor;
 
-	DECL_RTTI(SHV_CALL, ShvClass)
+	DECL_RTTI(, ShvClass)
 };
 
 #endif // __SHV_GRAPHICGRID_H

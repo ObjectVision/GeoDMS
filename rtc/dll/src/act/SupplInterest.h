@@ -58,7 +58,7 @@ struct SupplInterestListPtr: private std::unique_ptr<SupplInterestListElem>
 		: base_type(std::move(rhs))
 	{}
 
-	RTC_CALL ~SupplInterestListPtr() noexcept;
+	~SupplInterestListPtr() noexcept;
 
 	void init(SupplInterestListElem* ptr)
 	{
@@ -122,7 +122,7 @@ typedef std::map<const Actor*, SupplInterestListPtr > SupplTreeInterestType;
 
 #include "ptr/StaticPtr.h"
 
-extern RTC_CALL static_ptr<SupplTreeInterestType> s_SupplTreeInterest;
+extern static_ptr<SupplTreeInterestType> s_SupplTreeInterest;
 
 
 #endif //!defined(__RTC_ACT_SUPPLINTEREST_H)

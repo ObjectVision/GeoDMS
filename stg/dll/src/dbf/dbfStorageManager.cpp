@@ -15,7 +15,7 @@
 /*****************************************************************************/
 
 #include "dbfStorageManager.h"
-#include "dbf/dbfImpl.h"
+#include "dbf/dbfImp.h"
 
 #include "dbg/debug.h"
 #include "mci/ValueClassID.h"  

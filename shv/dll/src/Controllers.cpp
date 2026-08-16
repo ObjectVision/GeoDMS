@@ -533,7 +533,7 @@ bool RectPanController::Exec(EventInfo& eventInfo)
 // class  : InfoController
 //----------------------------------------------------------------------
 
-#include "act/InvalidationBlock.h"
+#include "InvalidationBlock.h"
 #include "Theme.h"
 
 void SelectPoint(GraphicLayer* layer, const CrdPoint& worldPoint, EventID eventID)

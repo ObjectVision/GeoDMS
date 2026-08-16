@@ -148,7 +148,7 @@ public:
 	RTC_CALL virtual void XML_Dump(OutStreamBase* xmlOutStr) const;
 	RTC_CALL virtual void XML_DumpData(OutStreamBase* xmlOutStr) const;
 
-	RTC_CALL TokenStr GetXmlClassName() const;
+	TokenStr GetXmlClassName() const;
 	RTC_CALL virtual TokenID GetXmlClassID() const;
 
 	// NON VIRTUAL ROUTINES BASED ON THE ABOVE INTERFACE

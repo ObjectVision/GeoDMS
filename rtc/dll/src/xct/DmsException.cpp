@@ -188,7 +188,7 @@ RTC_CALL const char* DmsException::what() const noexcept
 	return get()->m_Why.c_str();
 }
 
-[[noreturn]] RTC_CALL void DmsException::throwMsg(ErrMsgPtr msg)
+[[noreturn]] void DmsException::throwMsg(ErrMsgPtr msg)
 {
 	throw DmsException(msg);
 }
@@ -279,7 +279,7 @@ RTC_CALL void reportD(MsgCategory msgCat, SeverityTypeID st, CharPtr msg)
 }
 
 
-RTC_CALL void reportD_impl(MsgCategory msgCat, SeverityTypeID st, CharPtrRange&& msg)
+void reportD_impl(MsgCategory msgCat, SeverityTypeID st, CharPtrRange&& msg)
 {
 	ASyncContinueCheck();
 
@@ -293,7 +293,7 @@ RTC_CALL void reportD(MsgCategory msgCat, SeverityTypeID st, CharPtr msg1, CharP
 	reportD_without_cancellation_check_impl(msgCat, st, [=] { *g_DebugStream << msg1 << msg2; });
 }
 
-RTC_CALL void ReportSuspension()
+void ReportSuspension()
 {
 	reportD(SeverityTypeID::ST_MinorTrace, "Suspension that might result in the recalculation of intermediate results");
 }
@@ -576,7 +576,7 @@ SharedStr GetExceptionText(unsigned int exceptionCode, _EXCEPTION_POINTERS* pExp
 THREAD_LOCAL unsigned int g_StructuredExceptionCode = 0;
 THREAD_LOCAL _EXCEPTION_POINTERS* g_pExp;
 
-RTC_CALL unsigned int GetLastExceptionCode()
+unsigned int GetLastExceptionCode()
 {
 	return g_StructuredExceptionCode;
 }
@@ -709,7 +709,7 @@ void debugBreak()
 
 }
 
-RTC_CALL void dms_check_failed(CharPtr msg, CharPtr fileName, unsigned line)
+void dms_check_failed(CharPtr msg, CharPtr fileName, unsigned line)
 {
 	reportF_without_cancellation_check(SeverityTypeID::ST_MajorTrace, "check failure: {}\n{}({})", msg, fileName, line);
 
@@ -719,7 +719,7 @@ RTC_CALL void dms_check_failed(CharPtr msg, CharPtr fileName, unsigned line)
 
 }
 
-RTC_CALL void dms_assertion_failed(CharPtr msg, CharPtr fileName, unsigned line)
+void dms_assertion_failed(CharPtr msg, CharPtr fileName, unsigned line)
 {
 #if defined(MG_DEBUG)
 	debugBreak();
@@ -731,7 +731,7 @@ CharPtr GetContextPtr(WeakStr msg)
 	return Search(CharPtrRange(msg), CharPtrRange("\n# "));
 }
 
-RTC_CALL bool HasContext(WeakStr msg)
+bool HasContext(WeakStr msg)
 {
 	return GetContextPtr(msg) != msg.csend();
 }

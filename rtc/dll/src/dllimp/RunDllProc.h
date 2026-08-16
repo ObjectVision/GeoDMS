@@ -16,18 +16,18 @@ RTC_CALL DllHandle*  RTC_GetDll (CharPtr dllName);
 RTC_CALL void*       RTC_GetProc(DllHandle*, CharPtr procName);
 RTC_CALL bool        RTC_IsLoaded(const DllHandle*);
 
-RTC_CALL DllHandle*  GetDllChecked(CharPtr dllName);
-RTC_CALL void*       GetProcChecked(CharPtr dllName, CharPtr procName);
+DllHandle*  GetDllChecked(CharPtr dllName);
+void*       GetProcChecked(CharPtr dllName, CharPtr procName);
 
 typedef UInt32 (DMS_CONV* LPFNDLLFUNC0)();
 typedef UInt32 (DMS_CONV* LPFNDLLFUNC1)(CharPtr);
 typedef UInt32 (DMS_CONV* LPFNDLLFUNC2)(CharPtr, CharPtr);
 typedef UInt32 (DMS_CONV* LPFNDLLFUNC3)(CharPtr, CharPtr, CharPtr);
 
-RTC_CALL UInt32 RunDllProc0(CharPtr dllName, CharPtr procName);
-RTC_CALL UInt32 RunDllProc1(CharPtr dllName, CharPtr procName, CharPtr arg1);
-RTC_CALL UInt32 RunDllProc2(CharPtr dllName, CharPtr procName, CharPtr arg1, CharPtr arg2);
-RTC_CALL UInt32 RunDllProc3(CharPtr dllName, CharPtr procName, CharPtr arg1, CharPtr arg2, CharPtr arg3);
+UInt32 RunDllProc0(CharPtr dllName, CharPtr procName);
+UInt32 RunDllProc1(CharPtr dllName, CharPtr procName, CharPtr arg1);
+UInt32 RunDllProc2(CharPtr dllName, CharPtr procName, CharPtr arg1, CharPtr arg2);
+UInt32 RunDllProc3(CharPtr dllName, CharPtr procName, CharPtr arg1, CharPtr arg2, CharPtr arg3);
 
 // Example calls
 inline void RunAccessSql(CharPtr dbName, CharPtr sqlName, CharPtr tblName)

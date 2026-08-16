@@ -414,8 +414,8 @@ FreeStackAllocSummary operator +(FreeStackAllocSummary lhs, FreeStackAllocSummar
 // free-stack object store is handed out by exactly one AllocateFromStock call.
 static std::atomic<SizeT> s_FreeStackLiveBytes = 0;
 static std::atomic<SizeT> s_PeakFreeStackBytes = 0;
-RTC_CALL SizeT GetFreeStackLiveBytes() { return s_FreeStackLiveBytes.load(std::memory_order_relaxed); }
-RTC_CALL SizeT GetPeakFreeStackBytes() { return s_PeakFreeStackBytes.load(std::memory_order_relaxed); }
+SizeT GetFreeStackLiveBytes() { return s_FreeStackLiveBytes.load(std::memory_order_relaxed); }
+SizeT GetPeakFreeStackBytes() { return s_PeakFreeStackBytes.load(std::memory_order_relaxed); }
 
 // Bytes of freed stores that are still COMMITTED: the reclaimable dead pool, measured at 53-112 GB
 // on t641 (§8.1.23). The admission gate subtracts it from the observed process commit, because that
@@ -428,7 +428,7 @@ RTC_CALL SizeT GetPeakFreeStackBytes() { return s_PeakFreeStackBytes.load(std::m
 // decision, and low drift here means under-subtracting, i.e. throttling for memory that is free.
 // Every mutation is made under the shared allocSection; the atomic is for the lock-free reader.
 static std::atomic<SizeT> s_FreeStackDeadBytes = 0;
-RTC_CALL SizeT GetFreeStackDeadBytes() { return s_FreeStackDeadBytes.load(std::memory_order_relaxed); }
+SizeT GetFreeStackDeadBytes() { return s_FreeStackDeadBytes.load(std::memory_order_relaxed); }
 
 // Drainage mode (§8.1.24): set by the admission ledger while a refused task's claim is pending
 // (enforce mode only), cleared when the claim resolves. While it is on, every allocation from a
@@ -446,7 +446,7 @@ static std::atomic<SizeT> s_DrainedStackBytes = 0;        // lifetime bytes hand
 static std::atomic<Int32> s_DrainageEnabled = -1;
 static void UpdateEffectiveDrainage();
 
-RTC_CALL bool IsFreeStackDrainageEnabled()
+bool IsFreeStackDrainageEnabled()
 {
 	auto v = s_DrainageEnabled.load(std::memory_order_relaxed);
 	if (v < 0)
@@ -475,12 +475,12 @@ static void UpdateEffectiveDrainage()
 	s_FreeStackDrainageMode.store(enabled && (ledger || pressure), std::memory_order_relaxed);
 }
 
-RTC_CALL void SetFreeStackDrainageMode(bool active)
+void SetFreeStackDrainageMode(bool active)
 {
 	s_LedgerDrainageMode.store(active, std::memory_order_relaxed);
 	UpdateEffectiveDrainage();
 }
-RTC_CALL bool InFreeStackDrainageMode() { return s_FreeStackDrainageMode.load(std::memory_order_relaxed); }
+bool InFreeStackDrainageMode() { return s_FreeStackDrainageMode.load(std::memory_order_relaxed); }
 
 // The 20.10.0 default trigger (§8.1.32): once the machine's RAM use passes
 // MemoryFlushThreshold -- the same signal that already throttles operation activation via
@@ -1123,12 +1123,12 @@ static std::atomic<SizeT> s_LiveLargeAllocBytes = 0;
 // experiment is measuring. Maintained on the increment path only.
 static std::atomic<SizeT> s_PeakLargeAllocBytes = 0;
 
-RTC_CALL SizeT GetLiveLargeAllocBytes()
+SizeT GetLiveLargeAllocBytes()
 {
 	return s_LiveLargeAllocBytes.load(std::memory_order_relaxed);
 }
 
-RTC_CALL SizeT GetPeakLargeAllocBytes()
+SizeT GetPeakLargeAllocBytes()
 {
 	return s_PeakLargeAllocBytes.load(std::memory_order_relaxed);
 }
@@ -1291,7 +1291,7 @@ SizeT CommittedSize()
 
 static FreeStackAllocSummary maxCumulBytes = FreeStackAllocSummary(0, 0, 0, 0, 0);
 
-RTC_CALL auto UpdateFixedAllocStatus() -> FreeStackAllocSummary
+auto UpdateFixedAllocStatus() -> FreeStackAllocSummary
 {
 	s_ReportingRequestPending = false;
 
@@ -1318,7 +1318,7 @@ RTC_CALL auto UpdateFixedAllocStatus() -> FreeStackAllocSummary
 //   req    = bytes requested through AllocateFromStock and not yet returned
 // Healthy relation: req <= inUse < 2*req. Anywhere those diverge is where the gap opens, and the
 // running peaks beside them show whether it is a sustained level or a spike being missed.
-RTC_CALL auto GetLargeAllocCensus() -> SharedStr
+auto GetLargeAllocCensus() -> SharedStr
 {
 	auto req = GetLiveLargeAllocBytes();
 	auto inUse = GetFreeStackLiveBytes();
@@ -1329,7 +1329,7 @@ RTC_CALL auto GetLargeAllocCensus() -> SharedStr
 	);
 }
 
-RTC_CALL auto GetFixedAllocStatus(const FreeStackAllocSummary& cumulBytes) -> SharedStr
+auto GetFixedAllocStatus(const FreeStackAllocSummary& cumulBytes) -> SharedStr
 {
 	return mySSPrintF("Reserved in Blocks {}[MB]; allocated: {}[MB]; freed: {}[MB]; uncommitted: {}[MB]; CommitCharge: {}[MB]"
 		, std::get<0>(cumulBytes) >> 20
@@ -1344,7 +1344,7 @@ RTC_CALL auto GetFixedAllocStatus(const FreeStackAllocSummary& cumulBytes) -> Sh
 // VirtualAlloc/VirtualFree take the process address-space lock, so if threads pile up inside them
 // the lock-free allocator's whole purpose is defeated. 1-2 = no congestion; near the worker count =
 // the pool has been re-serialised and the change should be reverted.
-RTC_CALL auto GetVmSysCallStats() -> SharedStr
+auto GetVmSysCallStats() -> SharedStr
 {
 #if defined(WIN32)
 	LARGE_INTEGER f; QueryPerformanceFrequency(&f);
@@ -1375,7 +1375,7 @@ RTC_CALL auto GetVmSysCallStats() -> SharedStr
 // Which sizes are actually requested, and how much sits above ALLOC_OBJSSIZE_MAX (2^28 = 256 MB) --
 // the population that bypasses the free stacks for std::allocator, and would return under the
 // lock-free allocator's control if ALLOC_OBJSSIZE_MAX_BITS / log2_max_chunk_size were raised.
-RTC_CALL auto GetAllocHistogram() -> SharedStr
+auto GetAllocHistogram() -> SharedStr
 {
 	SharedStr result;
 	for (int i = 12; i < 64; ++i) // from 4 KB up
@@ -1394,7 +1394,7 @@ RTC_CALL auto GetAllocHistogram() -> SharedStr
 // The §8.1.23 pressure gauge as a number: what the ledger's commit-vs-budget trigger (§8.1.30)
 // compares against the budget. Windows: commit charge; elsewhere the resident set is the
 // nearest standing-pressure proxy.
-RTC_CALL SizeT GetProcessCommitBytes()
+SizeT GetProcessCommitBytes()
 {
 #if defined(WIN32)
 	PROCESS_MEMORY_COUNTERS processInfo;
@@ -1457,7 +1457,7 @@ void ReportFixedAllocStatus()
 	}
 }
 
-RTC_CALL auto UpdateAndGetFixedAllocFinalSummary() -> SharedStr
+auto UpdateAndGetFixedAllocFinalSummary() -> SharedStr
 {
 	auto cumulBytes = maxCumulBytes;
 

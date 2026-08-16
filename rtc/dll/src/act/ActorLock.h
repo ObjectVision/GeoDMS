@@ -21,7 +21,7 @@
 
 using actor_section_lock_map = cs_lock_map<const Actor*>;
 
-extern RTC_CALL leveled_std_section sg_CountSection;
-extern RTC_CALL actor_section_lock_map sg_ActorLockMap;
+extern leveled_std_section sg_CountSection;
+extern actor_section_lock_map sg_ActorLockMap;
 
 #endif // __RTC_ACT_ACTORLOCK_H

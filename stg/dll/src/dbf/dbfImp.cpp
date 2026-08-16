@@ -14,7 +14,7 @@
 #pragma hdrstop
 #endif //defined(CC_PRAGMAHDRSTOP)
 
-#include "dbfImpl.h"
+#include "dbfImp.h"
 #include <memory> // std::addressof
 
 #include "dbg/debug.h"

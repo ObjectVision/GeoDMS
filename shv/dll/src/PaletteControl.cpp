@@ -28,7 +28,7 @@
 #include "Theme.h"
 
 #include "StgBase.h"
-#include "gdal/gdal_base.h"
+#include "ProjectionUnits.h"
 
 
 //----------------------------------------------------------------------

@@ -43,7 +43,7 @@ template <typename T> UInt32 ObjCountMonitor<T>::s_Destroy = 0;
 
 // =======================================
 
-struct SHV_CALL MenuItem : movable
+struct SHV_CALL MenuItem : movable // exported: qtgui QDmsViewArea::VH_ShowPopupMenu calls MenuItem::Execute in Debug links
 {
 	MenuItem();
 	MenuItem(WeakStr caption);

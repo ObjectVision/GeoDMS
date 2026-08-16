@@ -221,7 +221,7 @@ RTC_CALL std::string TokenID::AsStdString() const
 }
 
 
-RTC_CALL CharPtrRange TokenID::str_range_st() const
+CharPtrRange TokenID::str_range_st() const
 {
 	dms_assert(NoOtherThreadsStarted()); // and check that no other thread exists, i.e. only in DllLoad
 	dms_assert(s_TokenListPtr);
@@ -232,7 +232,7 @@ RTC_CALL CharPtrRange TokenID::str_range_st() const
 		: CharPtrRange(Undefined());
 }
 
-RTC_CALL void Trim(CharPtrRange& range)
+void Trim(CharPtrRange& range)
 {
 	while (!range.empty() && isspace(*range.first))
 		++range.first;
@@ -241,7 +241,7 @@ RTC_CALL void Trim(CharPtrRange& range)
 }
 
 
-RTC_CALL TokenID GetTrimmedTokenID(CharPtr first, CharPtr last)
+TokenID GetTrimmedTokenID(CharPtr first, CharPtr last)
 {
 	CharPtrRange range(first, last);
 	Trim(range);

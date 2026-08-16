@@ -228,7 +228,7 @@ private:
 	mutable Float64 m_ColumnTotal = 0.0;
 	mutable SharedDataItemInterestPtrTuple m_DisplayInterest;
 
-	DECL_RTTI(SHV_CALL, ShvClass)
+	DECL_RTTI(, ShvClass)
 };
 
 #endif // __SHV_DIC_H

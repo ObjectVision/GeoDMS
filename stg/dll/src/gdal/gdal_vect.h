@@ -105,7 +105,7 @@ private:
 	mutable SizeT           m_CurrFieldIndex = -1;
 
 
-	DECL_RTTI(STGDLL_CALL, StorageClass)
+	DECL_RTTI(, StorageClass)
 	friend GdalVectlMetaInfo;
 };
 
@@ -114,7 +114,7 @@ struct GdalWritableVectSM : GdalVectSM
 	bool IsWritableGDAL() const override { return true; }
 	bool IsWriteOnlyStorage() const override { return true; }
 
-	DECL_RTTI(STGDLL_CALL, StorageClass)
+	DECL_RTTI(, StorageClass)
 };
 
 

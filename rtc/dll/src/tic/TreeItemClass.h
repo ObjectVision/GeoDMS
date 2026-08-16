@@ -24,11 +24,11 @@ struct TreeItemClass : Class
 private:
 	typedef Class base_type;
 public:
-	TIC_CALL TreeItemClass(Constructor cFunc, const Class* baseCls, TokenID typeID, SharedConstructor sFunc = nullptr);
+	TreeItemClass(Constructor cFunc, const Class* baseCls, TokenID typeID, SharedConstructor sFunc = nullptr);
 
 	static std::shared_ptr<Actor> CreateFromXml(Object* context, struct XmlElement& elem);
 
-	DECL_RTTI(TIC_CALL, MetaClass)
+	DECL_RTTI(, MetaClass)
 };
 
 

@@ -55,7 +55,7 @@ struct ViewPortInfoEx : public ViewPortInfo<SignedInt>
 		return IsIntersecting(m_GridExtents, this->GetViewPortInGridAsIRect());
 	}
 
-	STGDLL_CALL void SetWritability(AbstrDataItem* adi) const;
+	void SetWritability(AbstrDataItem* adi) const;
 
 	rect_type GetGridExtents() const { return m_GridExtents; }
 
@@ -65,9 +65,9 @@ protected:
 
 struct ViewPortInfoProvider
 {
-	STGDLL_CALL ViewPortInfoProvider(const TreeItem * storageHolder, const AbstrDataItem* adi, bool mayCreateDomain, bool queryActualRange);
+	ViewPortInfoProvider(const TreeItem * storageHolder, const AbstrDataItem* adi, bool mayCreateDomain, bool queryActualRange);
 
-	STGDLL_CALL ViewPortInfoEx<Int32> GetViewportInfoEx(tile_id tc, StorageMetaInfoPtr smi, tile_id tg=no_tile) const;
+	ViewPortInfoEx<Int32> GetViewportInfoEx(tile_id tc, StorageMetaInfoPtr smi, tile_id tg=no_tile) const;
 
 	std::shared_ptr<const AbstrDataItem > m_ADI;
 	SharedUnitInterestPtr m_CurrDomain; // target domain when reading from storage or viewport extent when drawing

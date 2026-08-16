@@ -88,7 +88,7 @@ private:
 	sharedPtrGO m_Contents;
 	SharedStr   m_Caption;
 
-	DECL_ABSTR(SHV_CALL, Class)
+	DECL_ABSTR(, Class)
 };
 
 

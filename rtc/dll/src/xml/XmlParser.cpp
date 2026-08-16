@@ -32,6 +32,10 @@ granted by an additional written contract for support, assistance and/or develop
 #pragma hdrstop
 #endif //defined(CC_PRAGMAHDRSTOP)
 
+// (XmlConst merged in, 2026-08)
+
+// ==== from XmlParser.cpp ====
+
 #include <ctype.h>
 
 #include "xml/XmlParser.h"
@@ -329,3 +333,36 @@ void XmlParser::ReadAttr(XmlElement& element)
 }
 
 // *****************************************************************************
+
+
+// ==== from XmlConst.cpp ====
+
+#include "xml/XmlConst.h"
+
+CharPtr XmlConstTable[256];
+std::map<CharPtr, Char, CompCharPtr> XmlConstMap;
+
+
+char SymbolGetChar(CharPtr symbol)
+{
+	return XmlConstMap[symbol];
+}
+
+struct RegisterConst {
+	RegisterConst(char ch, CharPtr token)
+	{
+		XmlConstTable[static_cast<unsigned char>(ch)] = token;
+		XmlConstMap[token] = ch;
+	}
+};
+namespace {
+
+RegisterConst lt('<',  "lt" );
+RegisterConst gt('>',  "gt" );
+RegisterConst amp('&', "amp");
+RegisterConst apos('\'', "apos");
+RegisterConst quot('"',"quot");
+
+// etc.
+
+} // namespace

@@ -33,7 +33,7 @@ struct UnitMetric : SharedBase
 
 	TIC_CALL void SetProduct (const UnitMetric* arg1SI, const UnitMetric* arg2SI);
 	TIC_CALL void SetQuotient(const UnitMetric* arg1SI, const UnitMetric* arg2SI);
-	TIC_CALL bool IsNumeric() const;
+	bool IsNumeric() const;
 
 	bool Empty() const
 	{
@@ -47,7 +47,7 @@ struct UnitMetric : SharedBase
 };
 
 // nullptr is treated as an empty UnitMetric.
-TIC_CALL bool AreEqual(const UnitMetric* lhs, const UnitMetric* rhs);
+bool AreEqual(const UnitMetric* lhs, const UnitMetric* rhs);
 
 FormattedOutStream& operator <<(FormattedOutStream& str, const UnitMetric& repr);
 

@@ -35,7 +35,7 @@
 #include "OperSignature.h"
 
 #include "OperRelUni.h"
-#include "lookup.h"
+#include "Lookup.h"
 #include "UnitProcessor.h"
 
 CommonOperGroup cog_union      ("union",      oper_policy::allow_extra_args);

@@ -7,7 +7,12 @@ set(STG_SOURCES
     src/bmp/BmpStorageManager.cpp
     src/dbf/dbfImp.cpp
     src/dbf/dbfStorageManager.cpp
+    src/AbstrStreamManager.cpp
     src/DllMain.cpp
+    src/GeoRef.cpp
+    src/NameSet.cpp
+    src/TreeItemColumnInfo.cpp
+    src/ViewPortInfoEx.cpp
     src/fss/FileSystemStorageManager.cpp
     src/gdal/gdal_base.cpp
     src/gdal/gdal_grid.cpp

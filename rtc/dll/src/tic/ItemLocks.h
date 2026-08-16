@@ -60,7 +60,7 @@ struct ItemReadLock
 	// which then hangs the EnableAutoDelete worker-drain at teardown). The old intrusive SharedPtr move-assign
 	// was swap-based, so '= default' used to route the old lock through the moved-from temporary's dtor; std
 	// semantics broke that. Release first. (Same fix as ItemWriteLock / DataReadLockAtom / DataWriteLock.)
-	TIC_CALL ItemReadLock& operator = (ItemReadLock&& rhs) noexcept;
+	ItemReadLock& operator = (ItemReadLock&& rhs) noexcept;
 
 	ItemReadLock(const ItemReadLock& rhs) = delete;
 	void operator = (const ItemReadLock& rhs) = delete;
@@ -99,7 +99,7 @@ struct ItemWriteLock // held by creator to manage its unreadyness to prevent oth
 
 	operator bool() const { return has_ptr(); }
 	const TreeItem* GetItem() const { return m_ItemPtr.get(); }
-	TIC_CALL std::shared_ptr<OperationContext> GetProducer() const
+	std::shared_ptr<OperationContext> GetProducer() const
 	{
 		dms_assert(has_ptr());
 		if (!has_ptr())
@@ -115,26 +115,26 @@ private:
 	std::shared_ptr<const TreeItem> m_ItemPtr;
 };
 
-TIC_CALL Int32 GetItemLockCount(const TreeItem* item);
-TIC_CALL bool IsReadLocked(const TreeItem* item);
-TIC_CALL bool IsCalculating(const TreeItem* item);
-TIC_CALL bool IsDataCurrCompleted(const TreeItem* item);
+Int32 GetItemLockCount(const TreeItem* item);
+bool IsReadLocked(const TreeItem* item);
+bool IsCalculating(const TreeItem* item);
+bool IsDataCurrCompleted(const TreeItem* item);
 TIC_CALL bool IsDataCurrReady(const TreeItem* item);
 TIC_CALL bool IsDataCurrStandby(const TreeItem* item);
 TIC_CALL bool IsDataReady(const TreeItem* item);
-TIC_CALL bool IsAllDataCurrStandby(const TreeItem* item);
-TIC_CALL bool IsAllInterestedCalculatingOrDataReady(const TreeItem* item);
-TIC_CALL bool CheckAllSubDataReady(const TreeItem* item);
+bool IsAllDataCurrStandby(const TreeItem* item);
+bool IsAllInterestedCalculatingOrDataReady(const TreeItem* item);
+bool CheckAllSubDataReady(const TreeItem* item);
 TIC_CALL bool IsCalculatingOrReady(const TreeItem* item);
-TIC_CALL bool CheckCalculatingOrReady(const TreeItem* item);
+TIC_CALL bool CheckCalculatingOrReady(const TreeItem* item); // exported: shv GraphDataView needs it in Debug links (/OPT:REF strips the reference in Release)
 TIC_CALL bool IsCalculatingOrReady(const DataController* dc, const TreeItem* cacheRoot, const TreeItem* cacheItem);
-TIC_CALL bool IsInWriteLock(const TreeItem* item);
-TIC_CALL bool WaitForReadyOrSuspendTrigger(const TreeItem* ti);
+bool IsInWriteLock(const TreeItem* item);
+bool WaitForReadyOrSuspendTrigger(const TreeItem* ti);
 TIC_CALL bool WaitReady(const TreeItem* item);
-TIC_CALL bool RunTask(const TreeItem* item);
+bool RunTask(const TreeItem* item);
 inline   bool CheckDataReady(const TreeItem* item) { return IsDataReady(item); } // Obsolete?
 
-TIC_CALL std::shared_ptr<OperationContext> GetOperationContext(const TreeItem* item);
+std::shared_ptr<OperationContext> GetOperationContext(const TreeItem* item);
 
 
 #endif //!defined(__TIC_ITEMLOCKS_H)

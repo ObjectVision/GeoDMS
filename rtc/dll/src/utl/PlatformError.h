@@ -25,7 +25,7 @@
 namespace platform {
 	RTC_CALL SharedStr GetSystemErrorText(DWORD lastErr);
 	RTC_CALL DWORD GetLastError();
-	RTC_CALL bool isCharPtrAndExceeds_MAX_PATH(CharPtr xFileName);
+	bool isCharPtrAndExceeds_MAX_PATH(CharPtr xFileName);
 }
 
 template<typename T>

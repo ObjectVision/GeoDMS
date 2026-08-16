@@ -46,9 +46,9 @@ struct StackHandle : Base
 	RTC_CALL StackHandle() noexcept;
 	RTC_CALL ~StackHandle()  noexcept;
 
-	RTC_CALL StackHandle* GetPrev() const;
-	static RTC_CALL StackHandle* GetLast();
-	RTC_CALL UInt32 GetContextLevel() const;
+	StackHandle* GetPrev() const;
+	static StackHandle* GetLast();
+	UInt32 GetContextLevel() const;
 
 private:
 	StackHandle* m_Prev;
@@ -194,12 +194,12 @@ struct CDebugContextHandle : ContextHandle
 	RTC_CALL CDebugContextHandle(CharPtr className, CharPtr funcName, bool active);
 	RTC_CALL ~CDebugContextHandle();
 
-	RTC_CALL void LogTime(CharPtr action);
+	void LogTime(CharPtr action);
 
 	bool m_Active;
 
 protected:
-	RTC_CALL void GenerateDescription() override;
+	void GenerateDescription() override;
 
 	double RunningTime() const;
 
@@ -211,6 +211,6 @@ private:
 
 /********** helper funcs  **********/
 
-RTC_CALL UInt32 GetCallCount();
+UInt32 GetCallCount();
 
 #endif // __DBG_DEBUGCONTEXT_H

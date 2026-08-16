@@ -48,7 +48,7 @@ private:
 	void AddSeriesLayer(const AbstrDataItem* adi, ChartKind kind, bool isDropped);
 	void ActivateAndZoom(GraphicLayer* layer, bool isDropped);
 
-	DECL_RTTI(SHV_CALL, Class)
+	DECL_RTTI(, Class)
 };
 
 #endif // !defined(__SHV_CHARTDATAVIEW_H)

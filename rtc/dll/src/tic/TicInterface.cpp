@@ -972,7 +972,7 @@ static SharedTreeItem GetFencedErrorSource(const TreeItem* cacheItem)
 	return {};
 }
 
-TIC_CALL SharedTreeItem DataController_GetErrorSource(const DataController* dc, UInt32 searchLevel, bool mustVisitSubTree)
+SharedTreeItem DataController_GetErrorSource(const DataController* dc, UInt32 searchLevel, bool mustVisitSubTree)
 {
 	auto ti = dc->GetOld();
 	if (ti && !ti->IsCacheItem())
@@ -1036,7 +1036,7 @@ TIC_CALL SharedTreeItem DataController_GetErrorSource(const DataController* dc, 
 	return {};
 }
 
-TIC_CALL BestItemRef TreeItem_GetErrorSource(const TreeItem* src, bool tryCalcSuppliers)
+BestItemRef TreeItem_GetErrorSource(const TreeItem* src, bool tryCalcSuppliers)
 {
 	TreeItemContextHandle checkPtr1(src, TreeItem::GetStaticClass(), "TreeItem_GetErrorSource");
 	if (!src)

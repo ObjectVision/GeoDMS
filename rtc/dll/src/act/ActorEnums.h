@@ -36,7 +36,7 @@ struct flag_set {
 	RTC_CALL UInt32 GetBits(UInt32 sf) const;
 	RTC_CALL void   Set    (UInt32 sf);
 	RTC_CALL void   Clear  (UInt32 sf);
-	RTC_CALL void   SetBits(UInt32 sf, UInt32 values);
+	void   SetBits(UInt32 sf, UInt32 values);
 	RTC_CALL void   Toggle (UInt32 sf);
 
 	bool Get(UInt32 sf) const { return GetBits(sf) != 0; }

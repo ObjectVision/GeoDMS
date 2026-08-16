@@ -16,9 +16,9 @@ struct DebugOutStream : FormattedOutStream, leveled_critical_section
 {
 	DebugOutStream();
 
-	RTC_CALL void NewLine();
-	RTC_CALL void PrintSpaces();
-	RTC_CALL static void SetSeverity(DebugOutStream* self, SeverityTypeID st);
+	void NewLine();
+	void PrintSpaces();
+	static void SetSeverity(DebugOutStream* self, SeverityTypeID st);
 private:
 	void SetSeverity(SeverityTypeID st);
 	void SetMsgCategory(MsgCategory msgCat);
@@ -30,14 +30,14 @@ public:
 	};
 	struct scoped_lock : flush_after, leveled_critical_section::scoped_lock
 	{
-		RTC_CALL scoped_lock(DebugOutStream* str, SeverityTypeID st = SeverityTypeID::ST_MinorTrace, MsgCategory = MsgCategory::progress);
-		RTC_CALL ~scoped_lock();
+		scoped_lock(DebugOutStream* str, SeverityTypeID st = SeverityTypeID::ST_MinorTrace, MsgCategory = MsgCategory::progress);
+		~scoped_lock();
 	private:
 		WeakPtr<DebugOutStream> m_Str;
 	};
 };
 
-RTC_CALL extern static_ptr<DebugOutStream> g_DebugStream;
+extern static_ptr<DebugOutStream> g_DebugStream;
 
 
 #endif // __RTC_SER_DEBUGOUTSTREAM_H

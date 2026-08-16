@@ -254,7 +254,7 @@ public:
 		imp.ColDescriptions[2].m_Name =  "Z"; imp.ColDescriptions[2].m_Offset = 24; imp.ColDescriptions[2].m_Type = ValueClassID::VT_Float32;
 	};
 
-	DECL_RTTI(STGDLL_CALL,StorageClass)
+	DECL_RTTI(,StorageClass)
 };
 
 IMPL_DYNC_STORAGECLASS(XyzStorageManager, "xyz")

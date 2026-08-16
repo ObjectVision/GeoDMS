@@ -33,7 +33,7 @@ public:
 	virtual void AssignFromCharPtr (CharPtr data) =0;
 	virtual void AssignFromCharPtrs(CharPtr first, CharPtr last) =0;
 
-	DECL_ABSTR(RTC_CALL, Class)
+	DECL_ABSTR(, Class)
 };
 
 #endif // __MCI_ABSTRVALUE_H

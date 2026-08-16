@@ -150,13 +150,13 @@ inline void Assign           (Bool& a, Bool  b) { a = b; }
 
 inline void Assign(Void& /*lhs*/, Void /*rhs*/) { }
 
-[[noreturn]] RTC_CALL Float64 AsFloat64(const Void& ); // illegal abstract
+[[noreturn]] Float64 AsFloat64(const Void& ); // illegal abstract
 
 //----------------------------------------------------------------------
 // Section      : Element operations on CharPtr
 //----------------------------------------------------------------------
 
-RTC_CALL Float64 AsFloat64(CharPtr x);
+Float64 AsFloat64(CharPtr x);
 
 
 //----------------------------------------------------------------------

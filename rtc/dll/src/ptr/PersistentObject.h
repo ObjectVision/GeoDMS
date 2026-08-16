@@ -43,7 +43,7 @@ public:
 	/// Return a prefixed variant of the full name (e.g., with type or scope prefix).
 	/// TODO: Define/Document the prefix semantics in the implementation.
 	/// TODO: Consider [[nodiscard]] and noexcept.
-	RTC_CALL auto GetPrefixedFullName() const->SharedStr;
+	auto GetPrefixedFullName() const->SharedStr;
 
 	/// Return the full configuration name; default maps to GetFullName().
 	/// Override to include configuration-specific qualifiers.
@@ -73,11 +73,11 @@ public:
 	/// Typically used to generate references between items.
 	/// Precondition: subItem should be in the same hierarchy.
 	/// TODO: Document the exact naming rules and escaping strategy.
-	RTC_CALL [[nodiscard]] SharedStr GetFindableName(const PersistentObject* subItem) const;
+	[[nodiscard]] SharedStr GetFindableName(const PersistentObject* subItem) const;
 
 	/// Declare abstract RTTI for this class (macro from project infrastructure).
 	/// Typically provides meta-class registration and introspection facilities.
-	DECL_ABSTR(RTC_CALL, Class)
+	DECL_ABSTR(, Class)
 };
 
 /*
@@ -95,7 +95,7 @@ Suggestions for improvements (non-breaking API suggestions):
 */
 
 // used for determining the scope of relative names in XML_Dump
-RTC_CALL extern const PersistentObject* s_RelativeScope;
+extern const PersistentObject* s_RelativeScope;
 
 
 //using PersistentSharedObj = SharedObjWrap< PersistentObject>;

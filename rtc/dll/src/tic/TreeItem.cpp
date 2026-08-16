@@ -135,7 +135,7 @@ TIC_CALL bool IsKnownGenericConstraint(TokenID constraintName)
 		|| constraintName == t_gcUnsignedDomainPoints;
 }
 
-TIC_CALL bool MatchesGenericConstraint(const ValueClass* vc, TokenID constraintName)
+bool MatchesGenericConstraint(const ValueClass* vc, TokenID constraintName)
 {
 	if (!vc)
 		return false;
@@ -1496,7 +1496,7 @@ TIC_CALL void TreeItem_AddFunctionParamSignature(const TreeItem* functionItem, U
 	s_FunctionSpecAssoc[functionItem].paramSigs.emplace_back(paramIndex, signatureExemplar->weak_from_this(), std::move(typeArgs));
 }
 
-TIC_CALL SharedTreeItem TreeItem_GetFunctionParamSignature(const TreeItem* functionItem, UInt32 paramIndex)
+SharedTreeItem TreeItem_GetFunctionParamSignature(const TreeItem* functionItem, UInt32 paramIndex)
 {
 	auto specPtr = s_FunctionSpecAssoc.get_value_ptr(functionItem);
 	if (specPtr)
@@ -1516,7 +1516,7 @@ TIC_CALL void TreeItem_AddFunctionParamTypeExemplar(const TreeItem* functionItem
 	s_FunctionSpecAssoc[functionItem].paramTypeExemplars.emplace_back(paramIndex, exemplar->weak_from_this());
 }
 
-TIC_CALL SharedTreeItem TreeItem_GetFunctionParamTypeExemplar(const TreeItem* functionItem, UInt32 paramIndex)
+SharedTreeItem TreeItem_GetFunctionParamTypeExemplar(const TreeItem* functionItem, UInt32 paramIndex)
 {
 	auto specPtr = s_FunctionSpecAssoc.get_value_ptr(functionItem);
 	if (specPtr)
@@ -1544,7 +1544,7 @@ TIC_CALL void TreeItem_AddFunctionMetaRefParam(const TreeItem* functionItem, UIn
 	s_FunctionSpecAssoc[functionItem].metaRefParams.push_back(paramIndex);
 }
 
-TIC_CALL bool TreeItem_IsFunctionMetaRefParam(const TreeItem* functionItem, UInt32 paramIndex)
+bool TreeItem_IsFunctionMetaRefParam(const TreeItem* functionItem, UInt32 paramIndex)
 {
 	auto specPtr = s_FunctionSpecAssoc.get_value_ptr(functionItem);
 	if (specPtr)
@@ -1554,7 +1554,7 @@ TIC_CALL bool TreeItem_IsFunctionMetaRefParam(const TreeItem* functionItem, UInt
 	return false;
 }
 
-TIC_CALL const std::vector<TokenID>* TreeItem_GetFunctionParamSigTypeArgs(const TreeItem* functionItem, UInt32 paramIndex)
+const std::vector<TokenID>* TreeItem_GetFunctionParamSigTypeArgs(const TreeItem* functionItem, UInt32 paramIndex)
 {
 	auto specPtr = s_FunctionSpecAssoc.get_value_ptr(functionItem);
 	if (specPtr)
@@ -1570,7 +1570,7 @@ TIC_CALL void TreeItem_SetFunctionTypeVars(const TreeItem* functionItem, std::ve
 	s_FunctionSpecAssoc[functionItem].typeVars = std::move(typeVars);
 }
 
-TIC_CALL const std::vector<std::pair<TokenID, TokenID>>* TreeItem_GetFunctionTypeVars(const TreeItem* functionItem)
+const std::vector<std::pair<TokenID, TokenID>>* TreeItem_GetFunctionTypeVars(const TreeItem* functionItem)
 {
 	auto specPtr = s_FunctionSpecAssoc.get_value_ptr(functionItem);
 	if (specPtr && !specPtr->typeVars.empty())
@@ -1584,7 +1584,7 @@ TIC_CALL void TreeItem_SetFunctionSignatureOnly(const TreeItem* functionItem)
 	s_FunctionSpecAssoc[functionItem].signatureOnly = true;
 }
 
-TIC_CALL bool TreeItem_IsFunctionSignatureOnly(const TreeItem* functionItem)
+bool TreeItem_IsFunctionSignatureOnly(const TreeItem* functionItem)
 {
 	auto specPtr = s_FunctionSpecAssoc.get_value_ptr(functionItem);
 	return specPtr && specPtr->signatureOnly;
@@ -1602,13 +1602,13 @@ TIC_CALL void TreeItem_SetFunctionResultSig(const TreeItem* functionItem, bool r
 	spec.resultSigTypeArgs = std::move(typeArgs);
 }
 
-TIC_CALL bool TreeItem_IsFunctionResultFunction(const TreeItem* functionItem)
+bool TreeItem_IsFunctionResultFunction(const TreeItem* functionItem)
 {
 	auto specPtr = s_FunctionSpecAssoc.get_value_ptr(functionItem);
 	return specPtr && specPtr->resultIsFunction;
 }
 
-TIC_CALL SharedTreeItem TreeItem_GetFunctionResultSig(const TreeItem* functionItem)
+SharedTreeItem TreeItem_GetFunctionResultSig(const TreeItem* functionItem)
 {
 	auto specPtr = s_FunctionSpecAssoc.get_value_ptr(functionItem);
 	if (specPtr)
@@ -1616,7 +1616,7 @@ TIC_CALL SharedTreeItem TreeItem_GetFunctionResultSig(const TreeItem* functionIt
 	return {};
 }
 
-TIC_CALL const std::vector<TokenID>* TreeItem_GetFunctionResultSigTypeArgs(const TreeItem* functionItem)
+const std::vector<TokenID>* TreeItem_GetFunctionResultSigTypeArgs(const TreeItem* functionItem)
 {
 	auto specPtr = s_FunctionSpecAssoc.get_value_ptr(functionItem);
 	if (specPtr && !specPtr->resultSigTypeArgs.empty())
@@ -1706,7 +1706,7 @@ namespace {
 
 } // anonymous namespace
 
-TIC_CALL bool TreeItem_VariantMatches(const TreeItem* variant, const std::vector<const ValueClass*>& argVCs)
+bool TreeItem_VariantMatches(const TreeItem* variant, const std::vector<const ValueClass*>& argVCs)
 {
 	UInt32 np = TreeItem_GetFunctionParamCount(variant);
 	// a '...x' rest variant binds one-or-more trailing arguments through its LAST
@@ -1730,7 +1730,7 @@ TIC_CALL bool TreeItem_VariantMatches(const TreeItem* variant, const std::vector
 	return true;
 }
 
-TIC_CALL int TreeItem_CompareVariantSpecificity(const TreeItem* a, const TreeItem* b)
+int TreeItem_CompareVariantSpecificity(const TreeItem* a, const TreeItem* b)
 {
 	auto ia = GetVariantMatchInfo(a), ib = GetVariantMatchInfo(b);
 	// unequal declared arity (possible when a rest variant and a fixed/longer variant
@@ -1773,7 +1773,7 @@ TIC_CALL void TreeItem_CheckVariantSetDisjointness(const TreeItem* setItem)
 		}
 }
 
-TIC_CALL void TreeItem_CopyFunctionSpec(const TreeItem* dstFunctionItem, const TreeItem* srcFunctionItem)
+void TreeItem_CopyFunctionSpec(const TreeItem* dstFunctionItem, const TreeItem* srcFunctionItem)
 {
 	assert(dstFunctionItem && dstFunctionItem->IsFunctionItem());
 	auto specPtr = s_FunctionSpecAssoc.get_value_ptr(srcFunctionItem);
@@ -1787,7 +1787,7 @@ TIC_CALL void TreeItem_AddFunctionGenericParam(const TreeItem* functionItem, UIn
 	s_FunctionSpecAssoc[functionItem].genericParams.emplace_back(paramIndex, varName, constraintName, isDomainVar);
 }
 
-TIC_CALL bool TreeItem_GetFunctionGenericParam(const TreeItem* functionItem, UInt32 seqNr, UInt32* paramIndex, TokenID* varName, TokenID* constraintName, bool* isDomainVar)
+bool TreeItem_GetFunctionGenericParam(const TreeItem* functionItem, UInt32 seqNr, UInt32* paramIndex, TokenID* varName, TokenID* constraintName, bool* isDomainVar)
 {
 	auto specPtr = s_FunctionSpecAssoc.get_value_ptr(functionItem);
 	if (!specPtr || seqNr >= specPtr->genericParams.size())
@@ -1800,13 +1800,13 @@ TIC_CALL bool TreeItem_GetFunctionGenericParam(const TreeItem* functionItem, UIn
 	return true;
 }
 
-TIC_CALL bool TreeItem_IsFunctionDefinitionChecked(const TreeItem* functionItem)
+bool TreeItem_IsFunctionDefinitionChecked(const TreeItem* functionItem)
 {
 	auto specPtr = s_FunctionSpecAssoc.get_value_ptr(functionItem);
 	return specPtr && specPtr->definitionChecked;
 }
 
-TIC_CALL void TreeItem_SetFunctionDefinitionChecked(const TreeItem* functionItem)
+void TreeItem_SetFunctionDefinitionChecked(const TreeItem* functionItem)
 {
 	assert(functionItem && functionItem->IsFunctionItem());
 	s_FunctionSpecAssoc[functionItem].definitionChecked = true;
@@ -1830,7 +1830,7 @@ TIC_CALL UInt32 TreeItem_GetFunctionParamCount(const TreeItem* functionItem)
 	return specPtr ? specPtr->nrParams : 0;
 }
 
-TIC_CALL TokenID TreeItem_GetFunctionResultName(const TreeItem* functionItem)
+TokenID TreeItem_GetFunctionResultName(const TreeItem* functionItem)
 {
 	auto specPtr = s_FunctionSpecAssoc.get_value_ptr(functionItem);
 	return specPtr ? specPtr->resultName : TokenID::GetEmptyID();

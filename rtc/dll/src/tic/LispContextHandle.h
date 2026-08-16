@@ -44,7 +44,7 @@ struct LispContextHandle : ContextHandle
 	TIC_CALL ~LispContextHandle();
 
 protected:
-	TIC_CALL void GenerateDescription() override;
+	void GenerateDescription() override;
 
 private:
 	CharPtr m_Expr;
