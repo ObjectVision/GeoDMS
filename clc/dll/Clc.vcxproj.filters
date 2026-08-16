@@ -1,9 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="src\AnyAll.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\BoostBlas.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -16,19 +13,10 @@
     <ClCompile Include="src\CalcFactory.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\ClassBreak.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\ClcInterface.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\Cumulate.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\ExprCalculator.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Loop.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\Modus.cpp">
@@ -44,9 +32,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\GetStatistics.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\ID.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\Index.cpp">
@@ -88,6 +73,12 @@
     <ClCompile Include="src\OperAttrBin.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\OperMisc.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\OperMappings.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="src\OperAttrTer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -121,9 +112,6 @@
     <ClCompile Include="src\PCount.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\Ramp.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\random.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -139,12 +127,6 @@
     <ClCompile Include="src\RLookup.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\Sort.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\SubItem.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\Subset.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -155,9 +137,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\PhaseContainer.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Checker.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\OperConvNumeric.cpp">
