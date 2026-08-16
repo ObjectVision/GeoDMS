@@ -62,51 +62,51 @@ static StaticTokenID readSqlID("readSql");
 static StaticTokenID readID("read");
 
 namespace token {
-	TIC_CALL TokenID add = GetTokenID_st("add");
-	TIC_CALL TokenID sub = GetTokenID_st("sub");
-	TIC_CALL TokenID mul = GetTokenID_st("mul");
-	TIC_CALL TokenID div = GetTokenID_st("div");
-	TIC_CALL TokenID mod = GetTokenID_st("mod");
+	TIC_CALL StaticTokenID add("add");
+	TIC_CALL StaticTokenID sub("sub");
+	TIC_CALL StaticTokenID mul("mul");
+	TIC_CALL StaticTokenID div("div");
+	TIC_CALL StaticTokenID mod("mod");
 
-	TIC_CALL TokenID neg = GetTokenID_st("neg");
+	TIC_CALL StaticTokenID neg("neg");
 
-	TIC_CALL TokenID eq = GetTokenID_st("eq");
-	TIC_CALL TokenID ne = GetTokenID_st("ne");
-	TIC_CALL TokenID lt = GetTokenID_st("lt");
-	TIC_CALL TokenID le = GetTokenID_st("le");
-	TIC_CALL TokenID gt = GetTokenID_st("gt");
-	TIC_CALL TokenID ge = GetTokenID_st("ge");
+	TIC_CALL StaticTokenID eq("eq");
+	TIC_CALL StaticTokenID ne("ne");
+	TIC_CALL StaticTokenID lt("lt");
+	TIC_CALL StaticTokenID le("le");
+	TIC_CALL StaticTokenID gt("gt");
+	TIC_CALL StaticTokenID ge("ge");
 
-	TIC_CALL TokenID id = GetTokenID_st("id");
+	TIC_CALL StaticTokenID id("id");
 
-	TIC_CALL TokenID and_ = GetTokenID_st("and");
-	TIC_CALL TokenID or_ = GetTokenID_st("or");
-	TIC_CALL TokenID not_ = GetTokenID_st("not");
-	TIC_CALL TokenID iif = GetTokenID_st("iif");
+	TIC_CALL StaticTokenID and_("and");
+	TIC_CALL StaticTokenID or_("or");
+	TIC_CALL StaticTokenID not_("not");
+	TIC_CALL StaticTokenID iif("iif");
 
-	TIC_CALL TokenID const_ = GetTokenID_st("const");;
+	TIC_CALL StaticTokenID const_("const");;
 
-	TIC_CALL TokenID true_ = GetTokenID_st("true");
-	TIC_CALL TokenID false_ = GetTokenID_st("false");
-	TIC_CALL TokenID pi = GetTokenID_st("?");
+	TIC_CALL StaticTokenID true_("true");
+	TIC_CALL StaticTokenID false_("false");
+	TIC_CALL StaticTokenID pi("?");
 
-	TIC_CALL TokenID null_b = GetTokenID_st("null_b");
-	TIC_CALL TokenID null_w = GetTokenID_st("null_w");
-	TIC_CALL TokenID null_u = GetTokenID_st("null_u");
-	TIC_CALL TokenID null_u64 = GetTokenID_st("null_u64");
-	TIC_CALL TokenID null_c = GetTokenID_st("null_c");
-	TIC_CALL TokenID null_s = GetTokenID_st("null_s");
-	TIC_CALL TokenID null_i = GetTokenID_st("null_i");
-	TIC_CALL TokenID null_i64 = GetTokenID_st("null_i64");
-	TIC_CALL TokenID null_f = GetTokenID_st("null_f");
-	TIC_CALL TokenID null_d = GetTokenID_st("null_d");
-	TIC_CALL TokenID null_sp = GetTokenID_st("null_sp");
-	TIC_CALL TokenID null_wp = GetTokenID_st("null_wp");
-	TIC_CALL TokenID null_ip = GetTokenID_st("null_ip");
-	TIC_CALL TokenID null_up = GetTokenID_st("null_up");
-	TIC_CALL TokenID null_fp = GetTokenID_st("null_fp");
-	TIC_CALL TokenID null_dp = GetTokenID_st("null_dp");
-	TIC_CALL TokenID null_str = GetTokenID_st("null_str");
+	TIC_CALL StaticTokenID null_b("null_b");
+	TIC_CALL StaticTokenID null_w("null_w");
+	TIC_CALL StaticTokenID null_u("null_u");
+	TIC_CALL StaticTokenID null_u64("null_u64");
+	TIC_CALL StaticTokenID null_c("null_c");
+	TIC_CALL StaticTokenID null_s("null_s");
+	TIC_CALL StaticTokenID null_i("null_i");
+	TIC_CALL StaticTokenID null_i64("null_i64");
+	TIC_CALL StaticTokenID null_f("null_f");
+	TIC_CALL StaticTokenID null_d("null_d");
+	TIC_CALL StaticTokenID null_sp("null_sp");
+	TIC_CALL StaticTokenID null_wp("null_wp");
+	TIC_CALL StaticTokenID null_ip("null_ip");
+	TIC_CALL StaticTokenID null_up("null_up");
+	TIC_CALL StaticTokenID null_fp("null_fp");
+	TIC_CALL StaticTokenID null_dp("null_dp");
+	TIC_CALL StaticTokenID null_str("null_str");
 
 	bool isConst(TokenID t)
 	{ 
@@ -114,101 +114,101 @@ namespace token {
 		return t >= true_ && t <= null_str;
 	}
 
-	TIC_CALL TokenID arrow = GetTokenID_st("arrow");
-	TIC_CALL TokenID lookup = GetTokenID_st("lookup");
-	TIC_CALL TokenID convert = GetTokenID_st("convert");
-	TIC_CALL TokenID rounded_convert = GetTokenID_st("rounded_convert");
-	TIC_CALL TokenID eval = GetTokenID_st("eval");
-	TIC_CALL TokenID scope = GetTokenID_st("scope");
+	TIC_CALL StaticTokenID arrow("arrow");
+	TIC_CALL StaticTokenID lookup("lookup");
+	TIC_CALL StaticTokenID convert("convert");
+	TIC_CALL StaticTokenID rounded_convert("rounded_convert");
+	TIC_CALL StaticTokenID eval("eval");
+	TIC_CALL StaticTokenID scope("scope");
 
-	TIC_CALL TokenID subitem = GetTokenID_st("SubItem");
-	TIC_CALL TokenID NrOfRows = GetTokenID_st("NrOfRows");
-	TIC_CALL TokenID range = GetTokenID_st("range");
-	TIC_CALL TokenID cat_range = GetTokenID_st("cat_range");
-	TIC_CALL TokenID TiledUnit = GetTokenID_st("TiledUnit");
+	TIC_CALL StaticTokenID subitem("SubItem");
+	TIC_CALL StaticTokenID NrOfRows("NrOfRows");
+	TIC_CALL StaticTokenID range("range");
+	TIC_CALL StaticTokenID cat_range("cat_range");
+	TIC_CALL StaticTokenID TiledUnit("TiledUnit");
 
-	TIC_CALL TokenID point = GetTokenID_st("point");
-	TokenID point_xy = GetTokenID_st("point_xy");
-	TIC_CALL TokenID union_data = GetTokenID_st("union_data");
-	TIC_CALL TokenID ordered_union_data = GetTokenID_st("ordered_union_data");
-	TokenID sourceDescr = GetTokenID_st("SourceDescr");
-	TIC_CALL TokenID container = GetTokenID_st("container");
-	TIC_CALL TokenID classify = GetTokenID_st("classify");
+	TIC_CALL StaticTokenID point("point");
+	StaticTokenID point_xy("point_xy");
+	TIC_CALL StaticTokenID union_data("union_data");
+	TIC_CALL StaticTokenID ordered_union_data("ordered_union_data");
+	StaticTokenID sourceDescr("SourceDescr");
+	TIC_CALL StaticTokenID container("container");
+	TIC_CALL StaticTokenID classify("classify");
 
 //	SELECT section BEGIN
-	TIC_CALL TokenID select = GetTokenID_st("select");
-	TIC_CALL TokenID select_uint8 = GetTokenID_st("select_uint8");
-	TIC_CALL TokenID select_uint16 = GetTokenID_st("select_uint16");
-	TIC_CALL TokenID select_uint32 = GetTokenID_st("select_uint32");
-	TIC_CALL TokenID select_uint64 = GetTokenID_st("select_uint64");
+	TIC_CALL StaticTokenID select("select");
+	TIC_CALL StaticTokenID select_uint8("select_uint8");
+	TIC_CALL StaticTokenID select_uint16("select_uint16");
+	TIC_CALL StaticTokenID select_uint32("select_uint32");
+	TIC_CALL StaticTokenID select_uint64("select_uint64");
 
-	TIC_CALL TokenID select_with_org_rel = GetTokenID_st("select_with_org_rel");
-	TIC_CALL TokenID select_uint8_with_org_rel = GetTokenID_st("select_uint8_with_org_rel");
-	TIC_CALL TokenID select_uint16_with_org_rel = GetTokenID_st("select_uint16_with_org_rel");
-	TIC_CALL TokenID select_uint32_with_org_rel = GetTokenID_st("select_uint32_with_org_rel");
-	TIC_CALL TokenID select_uint64_with_org_rel = GetTokenID_st("select_uint64_with_org_rel");
+	TIC_CALL StaticTokenID select_with_org_rel("select_with_org_rel");
+	TIC_CALL StaticTokenID select_uint8_with_org_rel("select_uint8_with_org_rel");
+	TIC_CALL StaticTokenID select_uint16_with_org_rel("select_uint16_with_org_rel");
+	TIC_CALL StaticTokenID select_uint32_with_org_rel("select_uint32_with_org_rel");
+	TIC_CALL StaticTokenID select_uint64_with_org_rel("select_uint64_with_org_rel");
 
-	TIC_CALL TokenID select_with_attr_by_cond = GetTokenID_st("select_with_attr_by_cond");
-	TIC_CALL TokenID select_uint8_with_attr_by_cond= GetTokenID_st("select_uint8_with_attr_by_cond");
-	TIC_CALL TokenID select_uint16_with_attr_by_cond= GetTokenID_st("select_uint16_with_attr_by_cond");
-	TIC_CALL TokenID select_uint32_with_attr_by_cond= GetTokenID_st("select_uint32_with_attr_by_cond");
-	TIC_CALL TokenID select_uint64_with_attr_by_cond = GetTokenID_st("select_uint64_with_attr_by_cond");
+	TIC_CALL StaticTokenID select_with_attr_by_cond("select_with_attr_by_cond");
+	TIC_CALL StaticTokenID select_uint8_with_attr_by_cond("select_uint8_with_attr_by_cond");
+	TIC_CALL StaticTokenID select_uint16_with_attr_by_cond("select_uint16_with_attr_by_cond");
+	TIC_CALL StaticTokenID select_uint32_with_attr_by_cond("select_uint32_with_attr_by_cond");
+	TIC_CALL StaticTokenID select_uint64_with_attr_by_cond("select_uint64_with_attr_by_cond");
 
-	TIC_CALL TokenID select_with_org_rel_with_attr_by_cond= GetTokenID_st("select_with_org_rel_with_attr_by_cond");
-	TIC_CALL TokenID select_uint8_with_org_rel_with_attr_by_cond  = GetTokenID_st("select_uint8_with_org_rel_with_attr_by_cond");
-	TIC_CALL TokenID select_uint16_with_org_rel_with_attr_by_cond = GetTokenID_st("select_uint16_with_org_rel_with_attr_by_cond");
-	TIC_CALL TokenID select_uint32_with_org_rel_with_attr_by_cond = GetTokenID_st("select_uint32_with_org_rel_with_attr_by_cond");
-	TIC_CALL TokenID select_uint64_with_org_rel_with_attr_by_cond = GetTokenID_st("select_uint64_with_org_rel_with_attr_by_cond");
+	TIC_CALL StaticTokenID select_with_org_rel_with_attr_by_cond("select_with_org_rel_with_attr_by_cond");
+	TIC_CALL StaticTokenID select_uint8_with_org_rel_with_attr_by_cond("select_uint8_with_org_rel_with_attr_by_cond");
+	TIC_CALL StaticTokenID select_uint16_with_org_rel_with_attr_by_cond("select_uint16_with_org_rel_with_attr_by_cond");
+	TIC_CALL StaticTokenID select_uint32_with_org_rel_with_attr_by_cond("select_uint32_with_org_rel_with_attr_by_cond");
+	TIC_CALL StaticTokenID select_uint64_with_org_rel_with_attr_by_cond("select_uint64_with_org_rel_with_attr_by_cond");
 
-	TIC_CALL TokenID select_with_attr_by_org_rel = GetTokenID_st("select_with_attr_by_org_rel");
-	TIC_CALL TokenID select_uint8_with_attr_by_org_rel = GetTokenID_st("select_uint8_with_attr_by_org_rel");
-	TIC_CALL TokenID select_uint16_with_attr_by_org_rel = GetTokenID_st("select_uint16_with_attr_by_org_rel");
-	TIC_CALL TokenID select_uint32_with_attr_by_org_rel = GetTokenID_st("select_uint32_with_attr_by_org_rel");
-	TIC_CALL TokenID select_uint64_with_attr_by_org_rel = GetTokenID_st("select_uint64_with_attr_by_org_rel");
+	TIC_CALL StaticTokenID select_with_attr_by_org_rel("select_with_attr_by_org_rel");
+	TIC_CALL StaticTokenID select_uint8_with_attr_by_org_rel("select_uint8_with_attr_by_org_rel");
+	TIC_CALL StaticTokenID select_uint16_with_attr_by_org_rel("select_uint16_with_attr_by_org_rel");
+	TIC_CALL StaticTokenID select_uint32_with_attr_by_org_rel("select_uint32_with_attr_by_org_rel");
+	TIC_CALL StaticTokenID select_uint64_with_attr_by_org_rel("select_uint64_with_attr_by_org_rel");
 
-	TIC_CALL TokenID collect_by_cond = GetTokenID_st("collect_by_cond");
-	TIC_CALL TokenID collect_by_org_rel = GetTokenID_st("collect_by_org_rel"); // synonimous with lookup, arrow-operator, and (reversed) array-index operator
+	TIC_CALL StaticTokenID collect_by_cond("collect_by_cond");
+	TIC_CALL StaticTokenID collect_by_org_rel("collect_by_org_rel"); // synonimous with lookup, arrow-operator, and (reversed) array-index operator
 
-	TIC_CALL TokenID collect_attr_by_cond = GetTokenID_st("collect_attr_by_cond");
-	TIC_CALL TokenID collect_attr_by_org_rel = GetTokenID_st("collect_attr_by_org_rel");
+	TIC_CALL StaticTokenID collect_attr_by_cond("collect_attr_by_cond");
+	TIC_CALL StaticTokenID collect_attr_by_org_rel("collect_attr_by_org_rel");
 
-	TIC_CALL TokenID recollect_by_cond = GetTokenID_st("recollect_by_cond");
-	TokenID recollect_by_org_rel = GetTokenID_st("recollect_by_org_rel");
+	TIC_CALL StaticTokenID recollect_by_cond("recollect_by_cond");
+	StaticTokenID recollect_by_org_rel("recollect_by_org_rel");
 
 //	SELECT section END
 
-	TIC_CALL TokenID nr_OrgEntity = GetTokenID_st("nr_OrgEntity");
-	TIC_CALL TokenID polygon_rel = GetTokenID_st("polygon_rel");
-	TIC_CALL TokenID part_rel = GetTokenID_st("part_rel");
-	TIC_CALL TokenID arc_rel = GetTokenID_st("arc_rel");;
-	TIC_CALL TokenID sequence_rel = GetTokenID_st("sequence_rel");;
-	TIC_CALL TokenID org_rel = GetTokenID_st("org_rel");
-	TIC_CALL TokenID first_rel = GetTokenID_st("first_rel");
-	TIC_CALL TokenID second_rel = GetTokenID_st("second_rel");
-	TIC_CALL TokenID ordinal = GetTokenID_st("ordinal");
-	TokenID BaseUnit = GetTokenID_st("BaseUnit");
-	TokenID CrsUnit = GetTokenID_st("CrsUnit"); // see doc/development/crs-metric-decoupling.md
-	TokenID UInt32 = GetTokenID_st("UInt32");
-	TIC_CALL TokenID left = GetTokenID_st("left");
-	TIC_CALL TokenID right = GetTokenID_st("right");
-	TIC_CALL TokenID DomainUnit = GetTokenID_st("DomainUnit");
-	TokenID ValuesUnit = GetTokenID_st("ValuesUnit");
-	TIC_CALL TokenID integrity_check = GetTokenID_st("IntegrityCheck");
+	TIC_CALL StaticTokenID nr_OrgEntity("nr_OrgEntity");
+	TIC_CALL StaticTokenID polygon_rel("polygon_rel");
+	TIC_CALL StaticTokenID part_rel("part_rel");
+	TIC_CALL StaticTokenID arc_rel("arc_rel");;
+	TIC_CALL StaticTokenID sequence_rel("sequence_rel");;
+	TIC_CALL StaticTokenID org_rel("org_rel");
+	TIC_CALL StaticTokenID first_rel("first_rel");
+	TIC_CALL StaticTokenID second_rel("second_rel");
+	TIC_CALL StaticTokenID ordinal("ordinal");
+	StaticTokenID BaseUnit("BaseUnit");
+	StaticTokenID CrsUnit("CrsUnit"); // see doc/development/crs-metric-decoupling.md
+	StaticTokenID UInt32("UInt32");
+	TIC_CALL StaticTokenID left("left");
+	TIC_CALL StaticTokenID right("right");
+	TIC_CALL StaticTokenID DomainUnit("DomainUnit");
+	StaticTokenID ValuesUnit("ValuesUnit");
+	TIC_CALL StaticTokenID integrity_check("IntegrityCheck");
 
-	TokenID map = GetTokenID_st("map");
-	TIC_CALL TokenID spatial_reference = GetTokenID_st("spatial_reference");
-	TIC_CALL TokenID geometry = GetTokenID_st("geometry");
-	TIC_CALL TokenID geometry_z = GetTokenID_st("geometry_z");
-	TIC_CALL TokenID geometry_m = GetTokenID_st("geometry_m");
-	TIC_CALL TokenID PhaseContainer = GetTokenID_st("PhaseContainer");
+	StaticTokenID map("map");
+	TIC_CALL StaticTokenID spatial_reference("spatial_reference");
+	TIC_CALL StaticTokenID geometry("geometry");
+	TIC_CALL StaticTokenID geometry_z("geometry_z");
+	TIC_CALL StaticTokenID geometry_m("geometry_m");
+	TIC_CALL StaticTokenID PhaseContainer("PhaseContainer");
 
-	TokenID SubItems = GetTokenID_st("SubItems");
-	TokenID Error = GetTokenID_st("Error");
-	TokenID SigAndSub = GetTokenID_st("SigAndSub");
+	StaticTokenID SubItems("SubItems");
+	StaticTokenID Error("Error");
+	StaticTokenID SigAndSub("SigAndSub");
 
-	TIC_CALL TokenID direct_index = GetTokenID_st("direct_index");
-	TIC_CALL TokenID index = GetTokenID_st("index");
-	TIC_CALL TokenID subindex = GetTokenID_st("subindex");
+	TIC_CALL StaticTokenID direct_index("direct_index");
+	TIC_CALL StaticTokenID index("index");
+	TIC_CALL StaticTokenID subindex("subindex");
 }
 
 LispRef CreateStorageSpec(const TreeItem* src)

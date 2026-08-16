@@ -56,10 +56,10 @@
 #define POINT_DATA "PointData"
 
 namespace {
-	TokenID	POLYGON_DATA_ID = GetTokenID_st(POLYGON_DATA);
-	TokenID	POINT_DATA_ID = GetTokenID_st(POINT_DATA);
-	TokenID SHAPEID_ID = GetTokenID_st("ShapeID");
-	TokenID	SHAPERANGE_ID = GetTokenID_st("ShapeRange");
+	StaticTokenID	POLYGON_DATA_ID(POLYGON_DATA);
+	StaticTokenID	POINT_DATA_ID(POINT_DATA);
+	StaticTokenID SHAPEID_ID("ShapeID");
+	StaticTokenID	SHAPERANGE_ID("ShapeRange");
 }
 
 bool IsPointData(const AbstrDataItem* pData)

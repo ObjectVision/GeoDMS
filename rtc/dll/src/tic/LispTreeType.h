@@ -10,6 +10,7 @@
 #ifndef __TIC_LISPTREETYPE_H
 #define __TIC_LISPTREETYPE_H
 
+#include "sym/Token.h" // StaticTokenID (namespace-scope token globals)
 #include "LispRef.h"
 #include "LispList.h"
 
@@ -25,150 +26,150 @@ TIC_CALL LispRef slSubItemCall(LispPtr baseExpr, CharPtrRange relPath);
 TIC_CALL LispRef slConvertedLispExpr(LispPtr result, LispPtr vu);
 
 namespace token {
-	extern TIC_CALL TokenID add;
-	extern TIC_CALL TokenID sub;
-	extern TIC_CALL TokenID mul;
-	extern TIC_CALL TokenID div;
-	extern TIC_CALL TokenID mod;
+	extern TIC_CALL StaticTokenID add;
+	extern TIC_CALL StaticTokenID sub;
+	extern TIC_CALL StaticTokenID mul;
+	extern TIC_CALL StaticTokenID div;
+	extern TIC_CALL StaticTokenID mod;
 
-	extern TIC_CALL TokenID neg;
+	extern TIC_CALL StaticTokenID neg;
 
-	extern TIC_CALL TokenID eq;
-	extern TIC_CALL TokenID ne;
-	extern TIC_CALL TokenID lt;
-	extern TIC_CALL TokenID le;
-	extern TIC_CALL TokenID gt;
-	extern TIC_CALL TokenID ge;
+	extern TIC_CALL StaticTokenID eq;
+	extern TIC_CALL StaticTokenID ne;
+	extern TIC_CALL StaticTokenID lt;
+	extern TIC_CALL StaticTokenID le;
+	extern TIC_CALL StaticTokenID gt;
+	extern TIC_CALL StaticTokenID ge;
 
-	extern TIC_CALL TokenID id;
+	extern TIC_CALL StaticTokenID id;
 
-	extern TIC_CALL TokenID and_;
-	extern TIC_CALL TokenID or_;
-	extern TIC_CALL TokenID not_;
+	extern TIC_CALL StaticTokenID and_;
+	extern TIC_CALL StaticTokenID or_;
+	extern TIC_CALL StaticTokenID not_;
 
-	extern TIC_CALL TokenID iif;
+	extern TIC_CALL StaticTokenID iif;
 
-	extern TIC_CALL TokenID true_;
-	extern TIC_CALL TokenID false_;
-	extern TIC_CALL TokenID pi;
+	extern TIC_CALL StaticTokenID true_;
+	extern TIC_CALL StaticTokenID false_;
+	extern TIC_CALL StaticTokenID pi;
 
-	extern TIC_CALL TokenID const_;
-	extern TIC_CALL TokenID null_b;
-	extern TIC_CALL TokenID null_w;
-	extern TIC_CALL TokenID null_u;
-	extern TIC_CALL TokenID null_u64;
-	extern TIC_CALL TokenID null_c;
-	extern TIC_CALL TokenID null_s;
-	extern TIC_CALL TokenID null_i;
-	extern TIC_CALL TokenID null_i64;
-	extern TIC_CALL TokenID null_f;
-	extern TIC_CALL TokenID null_d;
-	extern TIC_CALL TokenID null_sp;
-	extern TIC_CALL TokenID null_wp;
-	extern TIC_CALL TokenID null_ip;
-	extern TIC_CALL TokenID null_up;
-	extern TIC_CALL TokenID null_fp;
-	extern TIC_CALL TokenID null_dp;
-	extern TIC_CALL TokenID null_str;
+	extern TIC_CALL StaticTokenID const_;
+	extern TIC_CALL StaticTokenID null_b;
+	extern TIC_CALL StaticTokenID null_w;
+	extern TIC_CALL StaticTokenID null_u;
+	extern TIC_CALL StaticTokenID null_u64;
+	extern TIC_CALL StaticTokenID null_c;
+	extern TIC_CALL StaticTokenID null_s;
+	extern TIC_CALL StaticTokenID null_i;
+	extern TIC_CALL StaticTokenID null_i64;
+	extern TIC_CALL StaticTokenID null_f;
+	extern TIC_CALL StaticTokenID null_d;
+	extern TIC_CALL StaticTokenID null_sp;
+	extern TIC_CALL StaticTokenID null_wp;
+	extern TIC_CALL StaticTokenID null_ip;
+	extern TIC_CALL StaticTokenID null_up;
+	extern TIC_CALL StaticTokenID null_fp;
+	extern TIC_CALL StaticTokenID null_dp;
+	extern TIC_CALL StaticTokenID null_str;
 
 	bool isConst(TokenID t);
 
-	extern TIC_CALL TokenID arrow;
-	extern TIC_CALL TokenID lookup;
-	extern TIC_CALL TokenID convert;
-	extern TIC_CALL TokenID rounded_convert;
-	extern TIC_CALL TokenID eval;
-	extern TIC_CALL TokenID scope;
+	extern TIC_CALL StaticTokenID arrow;
+	extern TIC_CALL StaticTokenID lookup;
+	extern TIC_CALL StaticTokenID convert;
+	extern TIC_CALL StaticTokenID rounded_convert;
+	extern TIC_CALL StaticTokenID eval;
+	extern TIC_CALL StaticTokenID scope;
 
-	extern TIC_CALL TokenID subitem;
-	extern TIC_CALL TokenID NrOfRows;
-	extern TIC_CALL TokenID range;
-	extern TIC_CALL TokenID cat_range;
-	extern TIC_CALL TokenID TiledUnit;
-	extern TIC_CALL TokenID point;
-	extern TokenID point_xy;
+	extern TIC_CALL StaticTokenID subitem;
+	extern TIC_CALL StaticTokenID NrOfRows;
+	extern TIC_CALL StaticTokenID range;
+	extern TIC_CALL StaticTokenID cat_range;
+	extern TIC_CALL StaticTokenID TiledUnit;
+	extern TIC_CALL StaticTokenID point;
+	extern StaticTokenID point_xy;
 
-	extern TokenID BaseUnit;
-	extern TokenID CrsUnit;
-	extern TokenID UInt32;
-	extern TIC_CALL TokenID left;
-	extern TIC_CALL TokenID right;
-	extern TIC_CALL TokenID DomainUnit;
-	extern TokenID ValuesUnit;
+	extern StaticTokenID BaseUnit;
+	extern StaticTokenID CrsUnit;
+	extern StaticTokenID UInt32;
+	extern TIC_CALL StaticTokenID left;
+	extern TIC_CALL StaticTokenID right;
+	extern TIC_CALL StaticTokenID DomainUnit;
+	extern StaticTokenID ValuesUnit;
 
-	extern TIC_CALL TokenID union_data;
-	extern TIC_CALL TokenID ordered_union_data;
-	extern TokenID sourceDescr;
-	extern TIC_CALL TokenID container;
-	extern TIC_CALL TokenID classify;
+	extern TIC_CALL StaticTokenID union_data;
+	extern TIC_CALL StaticTokenID ordered_union_data;
+	extern StaticTokenID sourceDescr;
+	extern TIC_CALL StaticTokenID container;
+	extern TIC_CALL StaticTokenID classify;
 
 //	SELECT section BEGIN
-	extern TIC_CALL TokenID select;
-	extern TIC_CALL TokenID select_uint8;
-	extern TIC_CALL TokenID select_uint16;
-	extern TIC_CALL TokenID select_uint32;
-	extern TIC_CALL TokenID select_uint64;
+	extern TIC_CALL StaticTokenID select;
+	extern TIC_CALL StaticTokenID select_uint8;
+	extern TIC_CALL StaticTokenID select_uint16;
+	extern TIC_CALL StaticTokenID select_uint32;
+	extern TIC_CALL StaticTokenID select_uint64;
 
-	extern TIC_CALL TokenID select_with_org_rel;
-	extern TIC_CALL TokenID select_uint8_with_org_rel;
-	extern TIC_CALL TokenID select_uint16_with_org_rel;
-	extern TIC_CALL TokenID select_uint32_with_org_rel;
-	extern TIC_CALL TokenID select_uint64_with_org_rel;
+	extern TIC_CALL StaticTokenID select_with_org_rel;
+	extern TIC_CALL StaticTokenID select_uint8_with_org_rel;
+	extern TIC_CALL StaticTokenID select_uint16_with_org_rel;
+	extern TIC_CALL StaticTokenID select_uint32_with_org_rel;
+	extern TIC_CALL StaticTokenID select_uint64_with_org_rel;
 
-	extern TIC_CALL TokenID select_with_attr_by_cond;
-	extern TIC_CALL TokenID select_uint8_with_attr_by_cond;
-	extern TIC_CALL TokenID select_uint16_with_attr_by_cond;
-	extern TIC_CALL TokenID select_uint32_with_attr_by_cond;
-	extern TIC_CALL TokenID select_uint64_with_attr_by_cond;
+	extern TIC_CALL StaticTokenID select_with_attr_by_cond;
+	extern TIC_CALL StaticTokenID select_uint8_with_attr_by_cond;
+	extern TIC_CALL StaticTokenID select_uint16_with_attr_by_cond;
+	extern TIC_CALL StaticTokenID select_uint32_with_attr_by_cond;
+	extern TIC_CALL StaticTokenID select_uint64_with_attr_by_cond;
 
-	extern TIC_CALL TokenID select_with_org_rel_with_attr_by_cond;
-	extern TIC_CALL TokenID select_uint8_with_org_rel_with_attr_by_cond;
-	extern TIC_CALL TokenID select_uint16_with_org_rel_with_attr_by_cond;
-	extern TIC_CALL TokenID select_uint32_with_org_rel_with_attr_by_cond;
-	extern TIC_CALL TokenID select_uint64_with_org_rel_with_attr_by_cond;
+	extern TIC_CALL StaticTokenID select_with_org_rel_with_attr_by_cond;
+	extern TIC_CALL StaticTokenID select_uint8_with_org_rel_with_attr_by_cond;
+	extern TIC_CALL StaticTokenID select_uint16_with_org_rel_with_attr_by_cond;
+	extern TIC_CALL StaticTokenID select_uint32_with_org_rel_with_attr_by_cond;
+	extern TIC_CALL StaticTokenID select_uint64_with_org_rel_with_attr_by_cond;
 
-	extern TIC_CALL TokenID select_with_attr_by_org_rel;
-	extern TIC_CALL TokenID select_uint8_with_attr_by_org_rel;
-	extern TIC_CALL TokenID select_uint16_with_attr_by_org_rel;
-	extern TIC_CALL TokenID select_uint32_with_attr_by_org_rel;
-	extern TIC_CALL TokenID select_uint64_with_attr_by_org_rel;
+	extern TIC_CALL StaticTokenID select_with_attr_by_org_rel;
+	extern TIC_CALL StaticTokenID select_uint8_with_attr_by_org_rel;
+	extern TIC_CALL StaticTokenID select_uint16_with_attr_by_org_rel;
+	extern TIC_CALL StaticTokenID select_uint32_with_attr_by_org_rel;
+	extern TIC_CALL StaticTokenID select_uint64_with_attr_by_org_rel;
 
-	extern TIC_CALL TokenID collect_by_cond;
-	extern TIC_CALL TokenID collect_by_org_rel; // synonimous with lookup, arrow-operator, and (reversed) array-index operator
+	extern TIC_CALL StaticTokenID collect_by_cond;
+	extern TIC_CALL StaticTokenID collect_by_org_rel; // synonimous with lookup, arrow-operator, and (reversed) array-index operator
 
-	extern TIC_CALL TokenID collect_attr_by_cond;
-	extern TIC_CALL TokenID collect_attr_by_org_rel;
+	extern TIC_CALL StaticTokenID collect_attr_by_cond;
+	extern TIC_CALL StaticTokenID collect_attr_by_org_rel;
 
-	extern TIC_CALL TokenID recollect_by_cond;
-	extern TokenID recollect_by_org_rel;
+	extern TIC_CALL StaticTokenID recollect_by_cond;
+	extern StaticTokenID recollect_by_org_rel;
 
 //	SELECT section END
 
-	extern TIC_CALL TokenID nr_OrgEntity;
-	extern TIC_CALL TokenID polygon_rel;
-	extern TIC_CALL TokenID part_rel;
-	extern TIC_CALL TokenID arc_rel;
-	extern TIC_CALL TokenID sequence_rel;
-	extern TIC_CALL TokenID org_rel;
-	extern TIC_CALL TokenID first_rel;
-	extern TIC_CALL TokenID second_rel;
-	extern TIC_CALL TokenID ordinal;
-	extern TIC_CALL TokenID integrity_check;
+	extern TIC_CALL StaticTokenID nr_OrgEntity;
+	extern TIC_CALL StaticTokenID polygon_rel;
+	extern TIC_CALL StaticTokenID part_rel;
+	extern TIC_CALL StaticTokenID arc_rel;
+	extern TIC_CALL StaticTokenID sequence_rel;
+	extern TIC_CALL StaticTokenID org_rel;
+	extern TIC_CALL StaticTokenID first_rel;
+	extern TIC_CALL StaticTokenID second_rel;
+	extern TIC_CALL StaticTokenID ordinal;
+	extern TIC_CALL StaticTokenID integrity_check;
 
-	extern TokenID map;
-	extern TIC_CALL TokenID geometry;
-	extern TIC_CALL TokenID geometry_z;
-	extern TIC_CALL TokenID geometry_m;
-	extern TIC_CALL TokenID spatial_reference;
-	extern TIC_CALL TokenID PhaseContainer;
+	extern StaticTokenID map;
+	extern TIC_CALL StaticTokenID geometry;
+	extern TIC_CALL StaticTokenID geometry_z;
+	extern TIC_CALL StaticTokenID geometry_m;
+	extern TIC_CALL StaticTokenID spatial_reference;
+	extern TIC_CALL StaticTokenID PhaseContainer;
 
-	extern TokenID SubItems;
-	extern TokenID Error;
-	extern TokenID SigAndSub;
+	extern StaticTokenID SubItems;
+	extern StaticTokenID Error;
+	extern StaticTokenID SigAndSub;
 
-	extern TIC_CALL TokenID direct_index;
-	extern TIC_CALL TokenID index;
-	extern TIC_CALL TokenID subindex;
+	extern TIC_CALL StaticTokenID direct_index;
+	extern TIC_CALL StaticTokenID index;
+	extern TIC_CALL StaticTokenID subindex;
 }
 
 //LispRef CreateLispSubTree(const TreeItem* self, bool inclSubTree);

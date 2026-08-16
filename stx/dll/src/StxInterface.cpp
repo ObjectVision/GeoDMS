@@ -35,8 +35,8 @@
 #include "ConfigFileName.h"
 
 namespace {
-	TokenID s_DesktopRootID_OBSOLETE = GetTokenID_st("DesktopRoot");
-	TokenID s_DesktopRootID = GetTokenID_st("Desktops");
+	StaticTokenID s_DesktopRootID_OBSOLETE("DesktopRoot");
+	StaticTokenID s_DesktopRootID("Desktops");
 }
 
 SYNTAX_CALL void DMS_CONV DMS_Stx_Load()

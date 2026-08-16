@@ -120,8 +120,8 @@ namespace {
 	DataArrayOperator theDataBlockOper(&ogDataArray, ValueComposition::Single);
 	DataArrayOperator theSeqBlockOper(&ogSeqArray, ValueComposition::Sequence);
 
-	TokenID t_dataArray = GetTokenID_st(strDataArray);
-	TokenID t_seqArray  = GetTokenID_st(strSeqArray);
+	StaticTokenID t_dataArray(strDataArray);
+	StaticTokenID t_seqArray(strSeqArray);
 }
 
 #include "LispList.h"

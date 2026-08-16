@@ -27,21 +27,42 @@
 
 #include "RtcBase.h"
 
+// These are Schwarz counters: the first instance brings its subsystem up, the
+// last one takes it down. That accounting only holds when EVERY live instance
+// owns exactly one reference, so a copy must count as a new instance. The
+// implicitly generated copy constructor does NOT increment, so copying a
+// component-derived object (e.g. `auto id = someStaticTokenID;`, which deduces
+// StaticTokenID rather than TokenID) used to hand out an unowned reference and
+// the eventual destructor drove the count one too low -- tearing the subsystem
+// down while other instances were still alive. The explicit copy/move ctors
+// below delegate to the default one, so each instance holds its own reference.
 struct ElemAllocComponent
 {
 	ElemAllocComponent();
+	ElemAllocComponent(const ElemAllocComponent&) : ElemAllocComponent() {}
+	ElemAllocComponent(ElemAllocComponent&&) noexcept : ElemAllocComponent() {}
+	ElemAllocComponent& operator =(const ElemAllocComponent&) { return *this; } // already holds a reference
+	ElemAllocComponent& operator =(ElemAllocComponent&&) noexcept { return *this; }
 	~ElemAllocComponent();
 };
 
 struct IndexedStringsComponent : ElemAllocComponent
 {
 	IndexedStringsComponent();
+	IndexedStringsComponent(const IndexedStringsComponent&) : IndexedStringsComponent() {}
+	IndexedStringsComponent(IndexedStringsComponent&&) noexcept : IndexedStringsComponent() {}
+	IndexedStringsComponent& operator =(const IndexedStringsComponent&) { return *this; }
+	IndexedStringsComponent& operator =(IndexedStringsComponent&&) noexcept { return *this; }
 	~IndexedStringsComponent();
 };
 
 struct TokenComponent : IndexedStringsComponent
 {
 	TokenComponent();
+	TokenComponent(const TokenComponent&) : TokenComponent() {}
+	TokenComponent(TokenComponent&&) noexcept : TokenComponent() {}
+	TokenComponent& operator =(const TokenComponent&) { return *this; }
+	TokenComponent& operator =(TokenComponent&&) noexcept { return *this; }
 	~TokenComponent();
 };
 

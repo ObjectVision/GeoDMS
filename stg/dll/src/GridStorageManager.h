@@ -66,9 +66,9 @@ void CheckValueCount(CharPtr loc, Iter iter, SizeT sz)
 //
 // *****************************************************************************
 
-extern TokenID GRID_DATA_ID;
-extern TokenID GRID_DOMAIN_ID;
-extern TokenID PALETTE_DATA_ID;
+extern StaticTokenID GRID_DATA_ID;
+extern StaticTokenID GRID_DOMAIN_ID;
+extern StaticTokenID PALETTE_DATA_ID;
 extern TokenID GDAL_BLOCK_SIZE_X_ID;
 extern TokenID GDAL_BLOCK_SIZE_Y_ID;
 
