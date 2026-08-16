@@ -1,14 +1,18 @@
-// Copyright (C) 1998-2026 Object Vision B.V. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #if defined(_MSC_VER)
 #pragma once
 #endif
 
+/*
+ *  Distance kernels: MinDistToRange and point-to-segment/sequence square
+ *  distances for nearest-object searches.
+ */
 
-#ifndef __GEO_GEODIST_H
-#define __GEO_GEODIST_H
+#if !defined(__GEOM_GEODIST_H)
+#define __GEOM_GEODIST_H
 
 #include "vt/Conversions.h"
 #include "geom/RingIterator.h"
@@ -295,6 +299,6 @@ private:
 
 };
 
-#endif // __GEO_GEODIST_H
+#endif // __GEOM_GEODIST_H
 
 

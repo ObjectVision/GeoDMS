@@ -1,12 +1,18 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
+/////////////////////////////////////////////
 
 #if defined(_MSC_VER)
 #pragma once
 #endif
 
-#if !defined(__RTC_GEO_UNDEFINED_H)
-#define __RTC_GEO_UNDEFINED_H
+/*
+ *  UndefinedValue / IsDefined per value type: the canonical null
+ *  representations of the GeoDMS value types.
+ */
+
+#if !defined(__VT_UNDEFINED_H)
+#define __VT_UNDEFINED_H
 
 #include <string_view>
 
@@ -248,4 +254,4 @@ inline void MakeDefined(T& v, const T& d) { if (!IsDefined(v)) v = d; }
 template <typename Iter, typename T>
 inline void MakeDefined(Iter b, Iter e, const T& d) { for(; b!=e; ++b) MakeDefined(*b, d); }
 
-#endif // !defined(__RTC_GEO_UNDEFINED_H)
+#endif // !defined(__VT_UNDEFINED_H)

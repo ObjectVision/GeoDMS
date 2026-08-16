@@ -1,14 +1,18 @@
-// Copyright (C) 1998-2026 Object Vision B.V. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #if defined(_MSC_VER)
 #pragma once
 #endif
 
+/*
+ *  Neighbourhood iteration support: square-distance primitives and
+ *  neighbour_iter over spatial-index buckets.
+ */
 
-#ifndef __RTC_GEO_NEIGHBOURITER_H
-#define __RTC_GEO_NEIGHBOURITER_H
+#if !defined(__GEOM_NEIGHBOURITER_H)
+#define __GEOM_NEIGHBOURITER_H
 
 #include "vt/HeapElem.h"
 #include "geom/SpatialIndex.h"
@@ -192,4 +196,4 @@ private:
 	std::vector<LeafRec>       m_LeafHeap;
 };
 
-#endif // __RTC_GEO_NEIGHBOURITER_H
+#endif // __GEOM_NEIGHBOURITER_H

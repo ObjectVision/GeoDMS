@@ -1,13 +1,18 @@
-// Copyright (C) 1998-2025 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #if defined(_MSC_VER)
 #pragma once
 #endif
 
-#if !defined(__RTC_GEO_SIZECALCULATOR_H)
-#define __RTC_GEO_SIZECALCULATOR_H
+/*
+ *  capacity_calculator<T>: bytes-per-element capacity computation,
+ *  including the bit-packed types.
+ */
+
+#if !defined(__VT_SIZECALCULATOR_H)
+#define __VT_SIZECALCULATOR_H
 
 #include "vt/SequenceTraits.h"
 
@@ -95,4 +100,4 @@ std::size_t NrBytesOf(const bit_sequence<N, bit_block_t>& v, bool calcStreamSize
 template <int N>
 std::size_t NrBytesOf(const bit_sequence<N, const bit_block_t>& v, bool calcStreamSize) { return size_calculator<bit_value<N>>().nr_bytes(v.size()) + (calcStreamSize ? NrStreamBytesOf(v.size()) : 0); }
 
-#endif //!defined(__RTC_GEO_SIZECALCULATOR_H)
+#endif //!defined(__VT_SIZECALCULATOR_H)

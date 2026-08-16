@@ -1,11 +1,18 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
-#if !defined(__RTC_GEO_ITER_TRAITS_H)
-#define __RTC_GEO_ITER_TRAITS_H
+/*
+ *  Iterator traits: size, difference and reference types of iterators
+ *  (sizetype_of_iterator and kin).
+ */
+
+#if !defined(__VT_ITERTRAITS_H)
+#define __VT_ITERTRAITS_H
 
 //=======================================
 // get sizetype for an iterator to dms sequences
@@ -66,4 +73,4 @@ struct value_type_of_iterator<const T*>
 };
 
 
-#endif // !defined(__RTC_GEO_ITER_TRAITS_H)
+#endif // !defined(__VT_ITERTRAITS_H)

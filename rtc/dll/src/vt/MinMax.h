@@ -1,15 +1,18 @@
-
-// Copyright (C) 1998-2026 Object Vision B.V. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #if defined(_MSC_VER)
 #pragma once
 #endif
 
+/*
+ *  Min/Max free functions over comparable values, with in-place
+ *  MakeMin/MakeMax update variants.
+ */
 
-#if !defined(__RTC_GEO_MINMAX_H)
-#define __RTC_GEO_MINMAX_H
+#if !defined(__VT_MINMAX_H)
+#define __VT_MINMAX_H
 
 #include "vt/ElemTraits.h"
 #include "utl/swap.h"
@@ -36,4 +39,4 @@ inline bool MakeMax(T& a, std::type_identity_t<T> b) { if (!(a<b)) return false;
 template <class T> 
 inline void MakeRange(T& a, T& b) { if (b<a) omni::swap(a, b); }
 
-#endif // !defined(__RTC_GEO_MINMAX_H)
+#endif // !defined(__VT_MINMAX_H)

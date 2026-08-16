@@ -1,14 +1,17 @@
-// Copyright (C) 1998-2026 Object Vision B.V. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #if defined(_MSC_VER)
 #pragma once
 #endif
 
+/*
+ *  Point-in-polygon test (IsInside) over point iterators.
+ */
 
-#ifndef __RTC_GEO_ISINSIDE_H
-#define __RTC_GEO_ISINSIDE_H
+#if !defined(__GEOM_ISINSIDE_H)
+#define __GEOM_ISINSIDE_H
 
 //**************************************************************************
 
@@ -61,6 +64,6 @@ bool IsInside(SA_ConstReference<PointType> poly, PointType point)
 	return IsInside(poly.begin(), poly.end(), point);
 }
 
-#endif // __RTC_GEO_ISINSIDE_H
+#endif // __GEOM_ISINSIDE_H
 
 

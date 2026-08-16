@@ -1,11 +1,18 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
-#ifndef __RTC_GEO_POINTORDER_H
-#define __RTC_GEO_POINTORDER_H
+/*
+ *  Row/col versus col/row point-order tags and comparators - the XY-order
+ *  machinery.
+ */
+
+#if !defined(__GEOM_POINTORDER_H)
+#define __GEOM_POINTORDER_H
 
 //----------------------------------------------------------------------
 // used modules and forward class references
@@ -199,6 +206,6 @@ dmsPoint_GetSecondCfgValue(const Point<F>& cfgPoint)
 }
 
 
-#endif // __RTC_GEO_POINTORDER_H
+#endif // __GEOM_POINTORDER_H
 
 

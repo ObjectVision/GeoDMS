@@ -1,15 +1,17 @@
-
-// Copyright (C) 1998-2026 Object Vision B.V. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #if defined(_MSC_VER)
 #pragma once
 #endif
 
+/*
+ *  Undef08/16/32/64: undefined-value lookup by ValueClassID stream type.
+ */
 
-#if !defined(__RTC_GEO_UNDEF_XX_H)
-#define __RTC_GEO_UNDEF_XX_H
+#if !defined(__VT_UNDEF_XX_H)
+#define __VT_UNDEF_XX_H
 
 #include "vt/Undefined.h"
 #include "mci/ValueClassID.h"
@@ -64,4 +66,4 @@ inline UInt64 Undef64(ValueClassID streamTypeID)
 	return UNDEFINED_VALUE(UInt64);
 }
 
-#endif // !defined(__RTC_GEO_UNDEF_XX_H)
+#endif // !defined(__VT_UNDEF_XX_H)

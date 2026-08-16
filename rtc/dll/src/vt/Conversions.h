@@ -1,12 +1,19 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #if defined(_MSC_VER)
 #pragma once
 #endif
 
-#ifndef __RTC_GEO_CONVERSIONS_H
+/*
+ *  The Convert machinery across the value types: null-equivalence
+ *  detection and numeric/point/sequence conversions, checked and
+ *  unchecked. NB deliberate late-define guard: the includes below run
+ *  before the guard macro is defined, tolerating cyclic inclusion.
+ */
+
+#ifndef __VT_CONVERSIONS_H
 
 //----------------------------------------------------------------------
 // used modules and forward class references
@@ -21,7 +28,7 @@
 #include "ser/AsString.h"
 #include "ser/FormattedStream.h"
 
-#define __RTC_GEO_CONVERSIONS_H
+#define __VT_CONVERSIONS_H
 
 //----------------------------------------------------------------------
 // Section      : has_equivalent_null
@@ -383,4 +390,4 @@ inline my_vector<T> Convert4(typename sequence_array<T>::const_reference v, cons
 }
 
 
-#endif // __RTC_GEO_CONVERSIONS_H
+#endif // __VT_CONVERSIONS_H

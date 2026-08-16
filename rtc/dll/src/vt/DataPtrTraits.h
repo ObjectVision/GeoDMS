@@ -1,7 +1,18 @@
-#pragma once
+// Copyright (C) 1998-2026 Object Vision B.V.
+// License: GNU GPL 3
+/////////////////////////////////////////////
 
-#if !defined(__GEO_DATA_PTR_TRAITS_H)
-#define __GEO_DATA_PTR_TRAITS_H
+#if defined(_MSC_VER)
+#pragma once
+#endif
+
+/*
+ *  data_ptr_traits<Seq>: raw-pointer access to the contiguous storage
+ *  behind sequence types.
+ */
+
+#if !defined(__VT_DATAPTRTRAITS_H)
+#define __VT_DATAPTRTRAITS_H
 
 
 template <typename Seq> struct data_ptr_traits {};
@@ -61,4 +72,4 @@ struct data_ptr_traits< IterRange<V*> >
 };
 
 
-#endif // !defined(__GEO_DATA_PTR_TRAITS_H)
+#endif // !defined(__VT_DATAPTRTRAITS_H)

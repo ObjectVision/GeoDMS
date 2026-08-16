@@ -1,14 +1,18 @@
-// Copyright (C) 1998-2026 Object Vision B.V. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #if defined(_MSC_VER)
 #pragma once
 #endif
 
+/*
+ *  Polygon width scanning over rings - support for interior-point/label
+ *  placement (see SelectPoint.h in the geo DLL).
+ */
 
-#ifndef __RTC_GEO_CALCWIDTH_H
-#define __RTC_GEO_CALCWIDTH_H
+#if !defined(__GEOM_CALCWIDTH_H)
+#define __GEOM_CALCWIDTH_H
 
 #if defined(MG_DEBUG)
 inline bool MG_TRACE_LABELPOS = false;
@@ -163,6 +167,6 @@ ScalarType GetScanPoint(ConstPointIter polyBegin, ConstPointIter polyEnd, Scalar
 }
 
 
-#endif // __RTC_GEO_CALCWIDTH_H
+#endif // __GEOM_CALCWIDTH_H
 
 

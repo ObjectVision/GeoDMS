@@ -1,13 +1,18 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #if defined(_MSC_VER)
 #pragma once
 #endif
 
-#if !defined(__RTC_GEO_COLOR_H)
-#define __RTC_GEO_COLOR_H
+/*
+ *  DmsColor: the packed RGB(A) palette color, with CombineRGB and the
+ *  per-channel accessors.
+ */
+
+#if !defined(__VT_COLOR_H)
+#define __VT_COLOR_H
 
 #include "RtcBase.h"
 #include "dbg/Diagnostics.h"
@@ -57,4 +62,4 @@ inline void CheckColor(DmsColor clr)
 }
 
 
-#endif __RTC_GEO_COLOR_H
+#endif __VT_COLOR_H

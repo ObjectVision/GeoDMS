@@ -1,13 +1,18 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #if defined(_MSC_VER)
 #pragma once
 #endif
 
-#if !defined(__RTC_GEO_SEQUENCE_TRAITS_H)
-#define __RTC_GEO_SEQUENCE_TRAITS_H
+/*
+ *  sequence_traits<E>: per-element-type storage selection (vector, bit
+ *  vector or sequence_array) and the polymorph_vec_t alias.
+ */
+
+#if !defined(__VT_SEQUENCETRAITS_H)
+#define __VT_SEQUENCETRAITS_H
 
 //=======================================
 // Wrapping of myown facilities library
@@ -267,4 +272,4 @@ struct iter_creator<bit_value<N> >
 };
 
 
-#endif // !defined(__RTC_GEO_SEQUENCE_TRAITS_H)
+#endif // !defined(__VT_SEQUENCETRAITS_H)

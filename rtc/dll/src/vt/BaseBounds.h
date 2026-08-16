@@ -1,13 +1,18 @@
-// Copyright (C) 1998-2025 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #if defined(_MSC_VER)
 #pragma once
 #endif
 
-#if !defined(__RTC_GEO__BASEBOUNDS_H)
-#define __RTC_GEO__BASEBOUNDS_H
+/*
+ *  Element bounds and sign predicates: MinValue<T>/MaxValue<T> through
+ *  minmax_traits, IsNegative and kin, and bound-combining helpers.
+ */
+
+#if !defined(__VT_BASEBOUNDS_H)
+#define __VT_BASEBOUNDS_H
 
 #include "vt/ElemTraits.h"
 #include "vt/MinMax.h"
@@ -181,4 +186,4 @@ template <class T> inline T Abs(const T& t) { return UpperBound(t, -t); }
 template <class T> inline T Sqr(const T& x) { return x*x;               }
 
 
-#endif // !defined(__RTC_GEO__BASEBOUNDS_H)
+#endif // !defined(__VT_BASEBOUNDS_H)

@@ -1,14 +1,18 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #if defined(_MSC_VER)
 #pragma once
 #endif
 
+/*
+ *  Index buffers over point sequences: the index_range vectors used when
+ *  drawing and selecting feature geometry.
+ */
 
-#if !defined(__RTC_GEO_POINTINDEXBUFFER_H)
-#define __RTC_GEO_POINTINDEXBUFFER_H
+#if !defined(__GEOM_POINTINDEXBUFFER_H)
+#define __GEOM_POINTINDEXBUFFER_H
 
 #include "RtcBase.h"
 #include "geom/Range.h"
@@ -74,4 +78,4 @@ void fillPointIndexBuffer(index_range_vector_t& buf, PI ii, PI ie)
 	fillPointIndexBufferImpl(buf, ii, ii, ie, isClosedRing);
 }
 
-#endif // __RTC_GEO_POINTINDEXBUFFER_H
+#endif // __GEOM_POINTINDEXBUFFER_H

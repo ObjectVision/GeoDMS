@@ -1,14 +1,18 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #if defined(_MSC_VER)
 #pragma once
 #endif
 
+/*
+ *  assoc_tower<SemiGroup>: pairwise accumulation of a sequence into a tower
+ *  of partial aggregates - associative reduction with logarithmic tower depth.
+ */
 
-#ifndef __RTC_GEO_ASSOCTOWER_H
-#define __RTC_GEO_ASSOCTOWER_H
+#if !defined(__VT_ASSOCTOWER_H)
+#define __VT_ASSOCTOWER_H
 
 #include <utility>
 #include <vector>
@@ -82,4 +86,4 @@ private:
 };
 
 
-#endif // __RTC_GEO_ASSOCTOWER_H
+#endif // __VT_ASSOCTOWER_H

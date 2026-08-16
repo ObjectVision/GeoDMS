@@ -1,14 +1,18 @@
-// Copyright (C) 1998-2026 Object Vision B.V. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #if defined(_MSC_VER)
 #pragma once
 #endif
 
+/*
+ *  Rounding of floating-point values to integers: the int_type<N> selection
+ *  table and the Round* family.
+ */
 
-#ifndef __RTC_GEO_ROUND_H
-#define __RTC_GEO_ROUND_H
+#if !defined(__VT_ROUND_H)
+#define __VT_ROUND_H
 
 #include "geom/Point.h"
 #include "geom/Range.h"
@@ -402,6 +406,6 @@ Range<typename scalar_replace<P, N>::type>
 	return Range<typename scalar_replace<P, N>::type>(RoundUp<N>(r.first), RoundDown<N>(r.second) ); 
 }
 
-#endif // __RTC_GEO_ROUND_H
+#endif // __VT_ROUND_H
 
 

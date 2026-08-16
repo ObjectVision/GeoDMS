@@ -1,15 +1,17 @@
-
-// Copyright (C) 1998-2026 Object Vision B.V. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #if defined(_MSC_VER)
 #pragma once
 #endif
 
+/*
+ *  namespace mpf: compile-time bit-width metafunctions (log2 and kin).
+ */
 
-#if !defined(__RTC_GEO_MPF_H)
-#define __RTC_GEO_MPF_H
+#if !defined(__VT_MPF_H)
+#define __VT_MPF_H
 
 #include "RtcBase.h"
 
@@ -40,4 +42,4 @@ namespace mpf {
 }
 
 
-#endif // !defined(__RTC_GEO_MPF_H)
+#endif // !defined(__VT_MPF_H)

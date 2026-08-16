@@ -1,14 +1,18 @@
-// Copyright (C) 1998-2026 Object Vision B.V. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #if defined(_MSC_VER)
 #pragma once
 #endif
 
+/*
+ *  The concrete point/rect types: DEFINE_POINT instantiations
+ *  (SPoint/SRect .. DPoint/DRect) tying scalar types to Point and Range.
+ */
 
-#if !defined(__RTC_GEO_GEOMETRY_H)
-#define __RTC_GEO_GEOMETRY_H
+#if !defined(__GEOM_GEOMETRY_H)
+#define __GEOM_GEOMETRY_H
 
 #include "RtcBase.h"
 #include "vt/ConversionBase.h"
@@ -53,6 +57,6 @@ I64Rect AsI64Rect(const Range<Point<T>>& src)
 }
 
 
-#endif // __RTC_GEO_GEOMETRY_H
+#endif // __GEOM_GEOMETRY_H
 
 

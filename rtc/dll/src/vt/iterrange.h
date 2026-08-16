@@ -1,14 +1,18 @@
-// Copyright (C) 1998-2025 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #if defined(_MSC_VER)
 #pragma once
 #endif
 
+/*
+ *  IterRange<Iter>: a Couple of iterators as a non-owning range, with
+ *  GetSeq access.
+ */
 
-#if !defined(__RTC_GEO_ITERRANGE_H)
-#define __RTC_GEO_ITERRANGE_H
+#if !defined(__VT_ITERRANGE_H)
+#define __VT_ITERRANGE_H
 
 #include "vt/Couple.h"
 #include "vt/IterTraits.h"
@@ -104,4 +108,4 @@ inline constexpr IterRange<Iter> UndefinedValue(const IterRange<Iter>*)
 	return IterRange<Iter>();
 }
 
-#endif // !defined(__RTC_GEO_ITERRANGE_H)
+#endif // !defined(__VT_ITERRANGE_H)

@@ -1,14 +1,18 @@
-// Copyright (C) 1998-2026 Object Vision B.V. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #if defined(_MSC_VER)
 #pragma once
 #endif
 
+/*
+ *  heapElemType<Dist,Value>: the (distance, value) pair with heap ordering,
+ *  used by Dijkstra-style algorithms.
+ */
 
-#if !defined(__RTC_GEO_HEAPELEM_H)
-#define __RTC_GEO_HEAPELEM_H
+#if !defined(__VT_HEAPELEM_H)
+#define __VT_HEAPELEM_H
 
 #include "RtcBase.h"
 
@@ -30,4 +34,4 @@ private:
 	DistType  m_Imp;
 };
 
-#endif //!defined(__RTC_GEO_HEAPELEM_H)
+#endif //!defined(__VT_HEAPELEM_H)

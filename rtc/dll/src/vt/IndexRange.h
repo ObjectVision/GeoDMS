@@ -1,14 +1,18 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #if defined(_MSC_VER)
 #pragma once
 #endif
 
+/*
+ *  IndexRange<T>: a Couple-based index interval with undefined-aware
+ *  semantics.
+ */
 
-#if !defined(__GEO_INDEX_RANGE_H)
-#define __GEO_INDEX_RANGE_H
+#if !defined(__VT_INDEXRANGE_H)
+#define __VT_INDEXRANGE_H
 
 #include "vt/Couple.h"
 
@@ -49,4 +53,4 @@ inline constexpr IndexRange<T> UndefinedValue(const IndexRange<T>*)
 }
 
 
-#endif // !defined(__GEO_INDEX_RANGE_H)
+#endif // !defined(__VT_INDEXRANGE_H)

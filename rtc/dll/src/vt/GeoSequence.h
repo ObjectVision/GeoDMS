@@ -1,14 +1,20 @@
-/// Copyright (C) 1998-2025 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #if defined(_MSC_VER)
 #pragma once
 #endif
 
+/*
+ *  The polygon/arc sequence value types: DEFINE_POINTTYPES instantiations
+ *  (SPolygon..DPolygon and their arcs) over sequence_array.
+ */
 
-#if !defined(__GEO_SEQUENCE_H)
-#define __GEO_SEQUENCE_H
+/// Copyright (C) 1998-2025 Object Vision b.v. 
+
+#if !defined(__VT_GEOSEQUENCE_H)
+#define __VT_GEOSEQUENCE_H
 
 #include "geom/Point.h"
 #include "geom/Geometry.h"
@@ -102,6 +108,6 @@ inline Float64 AsFloat64(const locked_sequence<T>& x)
 	throwIllegalAbstract(MG_POS, "locked_sequence<T>::AsFloat64");
 }
 
-#endif // !defined(__GEO_SEQUENCE_H)
+#endif // !defined(__VT_GEOSEQUENCE_H)
 
 

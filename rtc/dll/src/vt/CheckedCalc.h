@@ -1,11 +1,18 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
-#ifndef __RTC_GEO_CHECKEDCALC_H
-#define __RTC_GEO_CHECKEDCALC_H
+/*
+ *  Overflow-checked arithmetic: the mul_type<T> widening table, checked
+ *  add/sub/mul, and the checked Cardinality of a Range.
+ */
+
+#if !defined(__VT_CHECKEDCALC_H)
+#define __VT_CHECKEDCALC_H
 
 #include "dbg/Diagnostics.h"
 #include "vt/ElemTraits.h"
@@ -249,4 +256,4 @@ Area(Range<Point<T> > r)
 }
 
 
-#endif // __RTC_GEO_CHECKEDCALC_H
+#endif // __VT_CHECKEDCALC_H

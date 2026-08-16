@@ -1,13 +1,18 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #if defined(_MSC_VER)
 #pragma once
 #endif
 
-#ifndef __RTC_GEO_CONVERSIONBASE_H
-#define __RTC_GEO_CONVERSIONBASE_H
+/*
+ *  The Convert/RoundedConvert core: conversion functor bases with per-type
+ *  null and throw policies (undefined_or_zero_func, throw_func).
+ */
+
+#if !defined(__VT_CONVERSIONBASE_H)
+#define __VT_CONVERSIONBASE_H
 
 //----------------------------------------------------------------------
 // used modules and forward class references
@@ -73,4 +78,4 @@ Dst ThrowingConvertNonNull(const Src& src)
 }
 
 
-#endif // __RTC_GEO_CONVERSIONBASE_H
+#endif // __VT_CONVERSIONBASE_H

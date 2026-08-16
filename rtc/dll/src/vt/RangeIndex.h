@@ -1,13 +1,18 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #if defined(_MSC_VER)
 #pragma once
 #endif
 
-#if !defined(__RTC_GEO_RANGEINDEX_H)
-#define __RTC_GEO_RANGEINDEX_H
+/*
+ *  Range_GetIndex / Range_GetValue (naked, unchecked, zbase): row-index
+ *  arithmetic between a Range<V> domain and zero-based indices.
+ */
+
+#if !defined(__VT_RANGEINDEX_H)
+#define __VT_RANGEINDEX_H
 
 #include "ser/RangeStream.h"
 #include "ser/AsString.h"
@@ -526,4 +531,4 @@ inline void Range_Index2Value_Inplace_checked(const Range<E>& range, MutIter fir
 }
 
 
-#endif // __RTC_GEO_RANGEINDEX_H
+#endif // __VT_RANGEINDEX_H

@@ -1,13 +1,17 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #if defined(_MSC_VER)
 #pragma once
 #endif
 
-#ifndef __RTC_GEO_DYNAMICPOINT_H
-#define __RTC_GEO_DYNAMICPOINT_H
+/*
+ *  Arc-length measurement and dynamic-point interpolation along arcs.
+ */
+
+#if !defined(__GEOM_DYNAMICPOINT_H)
+#define __GEOM_DYNAMICPOINT_H
 
 #include "geom/Point.h"
 
@@ -112,6 +116,6 @@ inline PointType DynamicPoint(SA_ConstReference<PointType> arc, Float64 ratio)
 	return DynamicPoint<PointType>(arc.begin(), arc.end(), ratio);
 }
 
-#endif // __RTC_GEO_DYNAMICPOINT_H
+#endif // __GEOM_DYNAMICPOINT_H
 
 

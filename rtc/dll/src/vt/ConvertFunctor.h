@@ -1,7 +1,18 @@
-#pragma once
+// Copyright (C) 1998-2026 Object Vision B.V.
+// License: GNU GPL 3
+/////////////////////////////////////////////
 
-#ifndef __RTC_GEO_CONVERTFUNCTOR_H
-#define __RTC_GEO_CONVERTFUNCTOR_H
+#if defined(_MSC_VER)
+#pragma once
+#endif
+
+/*
+ *  ConvertResultFunctor: the unary functor form of Convert, for use in
+ *  transformations.
+ */
+
+#if !defined(__VT_CONVERTFUNCTOR_H)
+#define __VT_CONVERTFUNCTOR_H
 
 #include "vt/Conversions.h"
 #include <functional>
@@ -23,4 +34,4 @@ struct ConvertResultFunctor
 };
 
 
-#endif // __RTC_GEO_CONVERTFUNCTOR_H
+#endif // __VT_CONVERTFUNCTOR_H

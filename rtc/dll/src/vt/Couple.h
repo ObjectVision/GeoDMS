@@ -1,11 +1,18 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
-#if !defined(__RTC_GEO_COUPLE_H)
-#define __RTC_GEO_COUPLE_H
+/*
+ *  Couple<T>: an ordered pair of two T's - the base of Point and IterRange,
+ *  with comparison and streaming.
+ */
+
+#if !defined(__VT_COUPLE_H)
+#define __VT_COUPLE_H
 
 //----------------------------------------------------------------------
 // used modules and forward class references
@@ -100,4 +107,4 @@ inline Float64 AsFloat64(const Couple<T>& x )
 	throwIllegalAbstract(MG_POS, "Point::AsFloat64");
 }
 
-#endif // __RTC_GEO_COUPLE_H
+#endif // __VT_COUPLE_H

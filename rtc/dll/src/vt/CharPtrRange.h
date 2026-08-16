@@ -1,11 +1,18 @@
-// Copyright (C) 1998-2026 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
-#if !defined(__RTC_GEO_CHARPTRRANGE_H)
-#define __RTC_GEO_CHARPTRRANGE_H
+/*
+ *  CharPtrRange / MutableCharPtrRange: non-owning character ranges over
+ *  C-style strings, with streaming support.
+ */
+
+#if !defined(__VT_CHARPTRRANGE_H)
+#define __VT_CHARPTRRANGE_H
 
 #include <string_view>
 #include <functional>
@@ -54,4 +61,4 @@ std::basic_ostream<Char, Traits>& operator << (std::basic_ostream<Char, Traits>&
 }
 
 
-#endif // !defined(__RTC_GEO_CHARPTRRANGE_H)
+#endif // !defined(__VT_CHARPTRRANGE_H)

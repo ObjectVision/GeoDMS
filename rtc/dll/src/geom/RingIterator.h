@@ -1,13 +1,18 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #if defined(_MSC_VER)
 #pragma once
 #endif
 
-#if !defined(DMS_RTC_GEO_RINGITERATOR_H)
-#define DMS_RTC_GEO_RINGITERATOR_H
+/*
+ *  SA_ConstRing / SA_ConstRingIterator: iteration over the closed rings of
+ *  a polygon sequence value.
+ */
+
+#if !defined(__GEOM_RINGITERATOR_H)
+#define __GEOM_RINGITERATOR_H
 
 #pragma warning( disable : 4018) // warning C4018: '<=' : signed/unsigned mismatch
 #pragma warning( disable : 4146) // warning C4146: unary minus operator applied to unsigned type, result still unsigned
@@ -140,4 +145,4 @@ struct SA_ConstRingIterator
 	SizeT                 m_RingIndex = SizeT(-1);
 };
 
-#endif //!defined(DMS_RTC_GEO_RINGITERATOR_H)
+#endif //!defined(__GEOM_RINGITERATOR_H)

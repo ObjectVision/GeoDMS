@@ -1,14 +1,18 @@
-// Copyright (C) 1998-2026 Object Vision B.V. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #if defined(_MSC_VER)
 #pragma once
 #endif
 
+/*
+ *  Area-weighted polygon centroid and centroid-or-mid helpers over point
+ *  iterators.
+ */
 
-#ifndef __RTC_GEO_CENTROID_H
-#define __RTC_GEO_CENTROID_H
+#if !defined(__GEOM_CENTROID_H)
+#define __GEOM_CENTROID_H
 
 //#include "vt/GeoSequence.h"
 
@@ -64,6 +68,6 @@ inline PointType Centroid(SA_ConstReference<PointType> poly)
 
 
 
-#endif // __RTC_GEO_CENTROID_H
+#endif // __GEOM_CENTROID_H
 
 

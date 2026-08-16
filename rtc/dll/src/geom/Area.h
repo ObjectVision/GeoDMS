@@ -1,11 +1,18 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
-#ifndef __RTC_GEO_AREA_H
-#define __RTC_GEO_AREA_H
+/*
+ *  Signed polygon area: imp_Area and its typed wrappers over point
+ *  iterators.
+ */
+
+#if !defined(__GEOM_AREA_H)
+#define __GEOM_AREA_H
 
 //#include "vt/GeoSequence.h"
 
@@ -55,6 +62,6 @@ inline ReturnType Area(SA_ConstReference<PointType> poly)
 
 
 
-#endif // __RTC_GEO_AREA_H
+#endif // __GEOM_AREA_H
 
 

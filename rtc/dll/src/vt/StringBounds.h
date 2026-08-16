@@ -1,14 +1,17 @@
-// Copyright (C) 1998-2026 Object Vision B.V. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #if defined(_MSC_VER)
 #pragma once
 #endif
 
+/*
+ *  StrLen overloads for C strings, ranges and bounded buffers.
+ */
 
-#if !defined(__GEO_STRINGBOUNDS_H)
-#define __GEO_STRINGBOUNDS_H
+#if !defined(__VT_STRINGBOUNDS_H)
+#define __VT_STRINGBOUNDS_H
 
 //----------------------------------------------------------------------
 // Section      : String specific functions 
@@ -29,4 +32,4 @@ inline SizeT StrLen(CharPtr str, SizeT maxLen)
 	return StrLen(str, str + maxLen);
 }
 
-#endif //__GEO_STRINGBOUNDS_H
+#endif //__VT_STRINGBOUNDS_H

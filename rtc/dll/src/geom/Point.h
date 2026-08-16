@@ -1,14 +1,18 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #if defined(_MSC_VER)
 #pragma once
 #endif
 
+/*
+ *  Point<T>: the 2D point on Couple<T>, with arithmetic, ordering and the
+ *  get_x/get_y projections.
+ */
 
-#if !defined(__RTC_GEO_POINT_H)
-#define __RTC_GEO_POINT_H
+#if !defined(__GEOM_POINT_H)
+#define __GEOM_POINT_H
 
 //----------------------------------------------------------------------
 // used modules and forward class references
@@ -382,4 +386,4 @@ template <typename T> struct is_point_type<Point<T>> :std::true_type {};
 template <typename T> constexpr bool is_point_type_v = is_point_type<T>::value;
 template <typename T> concept PointType = is_point_type_v<T>;
 
-#endif // __RTC_GEO_POINT_H
+#endif // __GEOM_POINT_H

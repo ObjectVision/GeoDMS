@@ -1,13 +1,18 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #if defined(_MSC_VER)
 #pragma once
 #endif
 
-#if !defined(DMS_GEO_BOOSTPOLYGON_H)
-#define DMS_GEO_BOOSTPOLYGON_H
+/*
+ *  Adapters between GeoDMS points/rings and boost::polygon, plus the
+ *  geometry_library selector for the polygon-operation backends.
+ */
+
+#if !defined(__GEOM_BOOSTPOLYGON_H)
+#define __GEOM_BOOSTPOLYGON_H
 
 #pragma warning( disable : 4018) // warning C4018: '<=' : signed/unsigned mismatch
 #pragma warning( disable : 4146) // warning C4146: unary minus operator applied to unsigned type, result still unsigned
@@ -385,4 +390,4 @@ void move(typename bp_union_poly_traits<C>::ring_type& ring, typename bp_union_p
 }
 
 
-#endif //!defined(DMS_GEO_BOOSTPOLYGON_H)
+#endif //!defined(__GEOM_BOOSTPOLYGON_H)

@@ -1,13 +1,18 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #if defined(_MSC_VER)
 #pragma once
 #endif
 
-#if !defined(__RTC_GEO_BITVALUE_H)
-#define __RTC_GEO_BITVALUE_H
+/*
+ *  bit_value<N>: the N-bit packed value type (Bool, UInt2, UInt4) with its
+ *  minmax and undefined traits - the element type of bit-packed sequences.
+ */
+
+#if !defined(__VT_BITVALUE_H)
+#define __VT_BITVALUE_H
 
 #include "RtcBase.h"
 
@@ -107,4 +112,4 @@ inline bool IsBitValueOrDefined(const T& v)
 		return true;
 }
 
-#endif // !defined(__RTC_GEO_BITVALUE_H)
+#endif // !defined(__VT_BITVALUE_H)

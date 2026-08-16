@@ -1,13 +1,18 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #if defined(_MSC_VER)
 #pragma once
 #endif
 
-#if !defined(__RTC_GEO_ELEMTRAITS_H)
-#define __RTC_GEO_ELEMTRAITS_H
+/*
+ *  elem_traits and the domain type tags (crd/inf/string/float): the
+ *  per-value-type classification that selects storage and calculation paths.
+ */
+
+#if !defined(__VT_ELEMTRAITS_H)
+#define __VT_ELEMTRAITS_H
 
 //----------------------------------------------------------------------
 // includes and defines
@@ -406,4 +411,4 @@ template <typename P> using IntRoundUpFunc = std::conditional_t<is_integral_v   
 
 #endif
 
-#endif // !defined(__RTC_GEO_ELEMTRAITS_H)
+#endif // !defined(__VT_ELEMTRAITS_H)

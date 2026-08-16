@@ -1,12 +1,18 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
+/////////////////////////////////////////////
 
 #if defined(_MSC_VER)
 #pragma once
 #endif
 
-#if !defined(__RTC_GEO_PAIR_H)
-#define __RTC_GEO_PAIR_H
+/*
+ *  Pair<T,U> over std::pair, with minmax and undefined traits - the value
+ *  type of key-value data and base of perturbation-ordered types.
+ */
+
+#if !defined(__VT_PAIR_H)
+#define __VT_PAIR_H
 
 //----------------------------------------------------------------------
 // used modules and forward class references
@@ -268,4 +274,4 @@ Float64 AsFloat64(Pair<T, U> v)
 	throwIllegalAbstract(MG_POS, "Pair::AsFloat64");
 }
 
-#endif // __RTC_GEO_PAIR_H
+#endif // __VT_PAIR_H

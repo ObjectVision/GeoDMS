@@ -1,13 +1,18 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #if defined(_MSC_VER)
 #pragma once
 #endif
 
-#if !defined(__RTC_GEO_RANGE_H)
-#define __RTC_GEO_RANGE_H
+/*
+ *  Range<T>: the closed-open interval (rect, for Point T) with inclusion,
+ *  intersection and undefined-aware construction.
+ */
+
+#if !defined(__GEOM_RANGE_H)
+#define __GEOM_RANGE_H
 
 #include "RtcBase.h"
 
@@ -344,4 +349,4 @@ template <class T> inline Point<T> BottomRight(Range<Point<T> > r) { return r.se
 template <class T> inline Point<T> TopRight(Range<Point<T> > r) { return shp2dms_order(r.second.X(), r.first.Y()); }
 template <class T> inline Point<T> BottomLeft(Range<Point<T> > r) { return shp2dms_order(r.first.X(), r.second.Y()); }
 
-#endif // __RTC_GEO_RANGE_H
+#endif // __GEOM_RANGE_H

@@ -1,6 +1,6 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #if defined(_MSC_VER)
 #pragma once
@@ -98,8 +98,8 @@ when the last sequence often grows, but adds a constant cost to the re-allocatio
 
 */
 
-#if !defined(__GEO_SEQUENCE_ARRAY_H)
-#define __GEO_SEQUENCE_ARRAY_H
+#if !defined(__VT_SEQUENCEARRAY_H)
+#define __VT_SEQUENCEARRAY_H
 
 #include <ranges>
 
@@ -1192,4 +1192,4 @@ struct sequence_array_index
 };
 
 
-#endif // !defined(__GEO_SEQUENCE_ARRAY_H)
+#endif // !defined(__VT_SEQUENCEARRAY_H)

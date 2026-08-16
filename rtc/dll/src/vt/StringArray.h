@@ -1,13 +1,18 @@
-// Copyright (C) 1998-2025 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #if defined(_MSC_VER)
 #pragma once
 #endif
 
-#if !defined(__RTC_GEO_STRINGARRAY_H)
-#define __RTC_GEO_STRINGARRAY_H
+/*
+ *  StringRef/StringCRef helpers: Assign and bound-making over the string
+ *  sequence references.
+ */
+
+#if !defined(__VT_STRINGARRAY_H)
+#define __VT_STRINGARRAY_H
 
 #include "vt/SequenceArray.h"
 
@@ -52,4 +57,4 @@ inline bool MakeUpperBound(StringRef a, StringCRef b)
 	a=b;
 	return true;
 }
-#endif //__RTC_GEO_STRINGARRAY_H
+#endif //__VT_STRINGARRAY_H

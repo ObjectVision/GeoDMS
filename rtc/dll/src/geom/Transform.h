@@ -1,10 +1,15 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #if defined(_MSC_VER)
 #pragma once
 #endif
+
+/*
+ *  Transformation<T>: the affine world<->device transform (factor+offset)
+ *  with composition, TransformComplexity and JacobianMatrix.
+ */
 
 /***************************************************************************
  *
@@ -13,8 +18,8 @@
  * Multiple Transformation can be combined.
  ****************************************************************************/
 
-#ifndef __RTC_GEO_TRANSFORM_H
-#define __RTC_GEO_TRANSFORM_H
+#if !defined(__GEOM_TRANSFORM_H)
+#define __GEOM_TRANSFORM_H
 
 //----------------------------------------------------------------------
 // used modules and forward class references
@@ -501,6 +506,6 @@ RTC_CALL FormattedOutStream& operator << (FormattedOutStream& os, const CrdTrans
 
 inline CrdRect GetDefaultCrdRect() { return CrdRect(0.001*MinValue<CrdPoint>(), 0.001*MaxValue<CrdPoint>()); }
 
-#endif // __RTC_GEO_TRANSFORM_H
+#endif // __GEOM_TRANSFORM_H
 
 
