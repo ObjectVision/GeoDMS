@@ -141,7 +141,7 @@
     <ClInclude Include="src\bmp\BmpImp.h">
       <Filter>Bmp</Filter>
     </ClInclude>
-    <ClInclude Include="src\dbf\dbfImpl.h">
+    <ClInclude Include="src\dbf\dbfImp.h">
       <Filter>dbf</Filter>
     </ClInclude>
     <ClInclude Include="src\odbc\ODBCImp.h">

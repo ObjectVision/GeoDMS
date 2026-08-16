@@ -93,7 +93,7 @@
     <ClInclude Include="src\xdb\XdbImp.h" />
     <ClInclude Include="src\shp\ShpImp.h" />
     <ClInclude Include="src\tif\TifImp.h" />
-    <ClInclude Include="src\dbf\dbfImpl.h" />
+    <ClInclude Include="src\dbf\dbfImp.h" />
     <ClInclude Include="src\FilePtrHandle.h" />
     <ClInclude Include="src\ImplMain.h" />
     <ClInclude Include="src\bmp\BmpStorageManager.h" />

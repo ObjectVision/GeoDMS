@@ -1175,7 +1175,7 @@
     <ClCompile Include="src\dbg\DebugReporter.cpp">
       <Filter>Debug Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\dbg\DebugStream.cpp">
+    <ClCompile Include="src\dbg\MsgDispatch.cpp">
       <Filter>Debug Files</Filter>
     </ClCompile>
     <ClCompile Include="src\dllimp\RunDllProc.cpp">
@@ -1190,7 +1190,7 @@
     <ClCompile Include="src\vt\VtSupport.cpp">
       <Filter>Geometry</Filter>
     </ClCompile>
-    <ClCompile Include="src\mci\persistent.cpp">
+    <ClCompile Include="src\mci\MciInterface.cpp">
       <Filter>Meta Class Information</Filter>
     </ClCompile>
     <ClCompile Include="src\mci\PropDef.cpp">
@@ -1229,6 +1229,9 @@
     <ClCompile Include="src\utl\StrFormat.cpp">
       <Filter>Utility Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\utl\splitPath.cpp">
+      <Filter>Utility Files</Filter>
+    </ClCompile>
     <ClCompile Include="src\utl\Quotes.cpp">
       <Filter>Utility Files</Filter>
     </ClCompile>
@@ -1247,7 +1250,7 @@
     <ClCompile Include="src\utl\MemGuard.cpp">
       <Filter>Mathematic Utilities</Filter>
     </ClCompile>
-    <ClCompile Include="src\ptr\SharedObjBase.cpp">
+    <ClCompile Include="src\ptr\SharedBase.cpp">
       <Filter>Mathematic Utilities</Filter>
     </ClCompile>
     <ClCompile Include="src\mem\HeapSequenceProvider.cpp">
@@ -1286,7 +1289,7 @@
     <ClCompile Include="src\tic\SessionData.cpp">
       <Filter>Mathematic Utilities</Filter>
     </ClCompile>
-    <ClCompile Include="src\tic\attr_Interface.cpp">
+    <ClCompile Include="src\tic\AttrInterface.cpp">
       <Filter>Mathematic Utilities</Filter>
     </ClCompile>
     <ClCompile Include="src\tic\SourceDescr.cpp">

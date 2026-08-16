@@ -10,7 +10,7 @@
 #pragma hdrstop
 #endif
 
-#include "lookupImpl.h"
+#include "LookupImpl.h"
 
 namespace {
 	tl_oper::inst_tuple_templ<typelists::jv2_t<typelists::strings, typelists::points>, lookup_instances> operLookup_strpoint(cog_lookup);

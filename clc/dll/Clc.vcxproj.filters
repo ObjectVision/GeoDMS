@@ -40,7 +40,7 @@
     <ClCompile Include="src\Invert.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\lookup.cpp">
+    <ClCompile Include="src\Lookup.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\OperAccCount.cpp">
@@ -112,13 +112,13 @@
     <ClCompile Include="src\PCount.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\random.cpp">
+    <ClCompile Include="src\Random.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\ReadData.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\regex.cpp">
+    <ClCompile Include="src\Regex.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\ReportFunctions.cpp">
@@ -237,7 +237,7 @@
     <ClInclude Include="src\Invert.h">
       <Filter>Clc Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\lookup.h">
+    <ClInclude Include="src\Lookup.h">
       <Filter>Clc Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\OperAccBin.h">

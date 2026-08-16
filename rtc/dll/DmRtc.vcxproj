@@ -339,12 +339,12 @@
     <ClCompile Include="src\act\MainThread.cpp" />
     <ClCompile Include="src\dbg\DebugContext.cpp" />
     <ClCompile Include="src\dbg\DebugReporter.cpp" />
-    <ClCompile Include="src\dbg\DebugStream.cpp" />
+    <ClCompile Include="src\dbg\MsgDispatch.cpp" />
     <ClCompile Include="src\geom\Transform.cpp" />
     <ClCompile Include="src\mem\FixedAlloc.cpp" />
     <ClCompile Include="src\mem\HeapSequenceProvider.cpp" />
     <ClCompile Include="src\parallel\portable_task_group.cpp" />
-    <ClCompile Include="src\ptr\SharedObjBase.cpp" />
+    <ClCompile Include="src\ptr\SharedBase.cpp" />
     <ClCompile Include="src\RtcMain.cpp" />
     <ClCompile Include="src\utl\Encodes.cpp" />
     <ClCompile Include="src\utl\MemGuard.cpp" />
@@ -352,6 +352,7 @@
     <ClCompile Include="src\xct\DmsException.cpp" />
     <ClCompile Include="src\utl\Environment.cpp" />
     <ClCompile Include="src\utl\StrFormat.cpp" />
+    <ClCompile Include="src\utl\splitPath.cpp" />
     <ClCompile Include="src\utl\Quotes.cpp" />
     <ClCompile Include="src\utl\Registry.cpp" />
     <ClCompile Include="src\ptr\SharedStr.cpp" />
@@ -362,7 +363,7 @@
     <ClCompile Include="src\ser\FormattedStream.cpp" />
     <ClCompile Include="src\ser\MoreStreamBuff.cpp" />
     <ClCompile Include="src\ser\StringStream.cpp" />
-    <ClCompile Include="src\mci\persistent.cpp" />
+    <ClCompile Include="src\mci\MciInterface.cpp" />
     <ClCompile Include="src\mci\PropDef.cpp" />
     <ClCompile Include="src\mci\ValueWrap.cpp" />
     <ClCompile Include="src\mth\BigInt.cpp" />
@@ -485,7 +486,7 @@
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="src\tic\attr_Interface.cpp">
+    <ClCompile Include="src\tic\AttrInterface.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>

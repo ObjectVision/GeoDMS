@@ -30,7 +30,7 @@
 
 #include "OperSignature.h"
 
-#include "lookup.h"
+#include "Lookup.h"
 
 #include "rlookup.h"
 

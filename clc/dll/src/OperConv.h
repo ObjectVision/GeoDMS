@@ -38,7 +38,7 @@
 #include "gdal/gdal_base.h"
 
 #include "ConstOper.h"
-#include "lookup.h"
+#include "Lookup.h"
 #include "OperUnit.h"
 #include "CastedUnaryAttrOper.h"
 #include "OperAttrUni.h"

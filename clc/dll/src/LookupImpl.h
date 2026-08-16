@@ -34,7 +34,7 @@
 #include "OperSignature.h"
 
 #include "OperRelUni.h"
-#include "lookup.h"
+#include "Lookup.h"
 
 #include "RtcTypeLists.h"
 #include "utl/TypeListOper.h"
