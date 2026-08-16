@@ -115,7 +115,7 @@ bool DataArrayBase<V>::IsSmallerThan(SizeT sz) const
 //----------------------------------------------------------------------
 
 template <class V>
-SizeT NumericArray<V>::FindPos(V v, SizeT startPos) const
+SizeT DataArrayBase<V>::FindPos(V v, SizeT startPos) const requires numeric_array_api_v<V>
 {
 	auto tn = this->GetTiledRangeData()->GetNrTiles();
 	if (tn)
@@ -146,110 +146,180 @@ SizeT NumericArray<V>::FindPos(V v, SizeT startPos) const
 }
 
 template <class V>
-Float64 NumericArray<V>::GetValueAsFloat64(SizeT index) const
+Float64 DataArrayBase<V>::GetValueAsFloat64(SizeT index) const
 {
-	CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
-	return conv.template GetScalar<Float64>(this->GetIndexedValue(index));
+	if constexpr (numeric_array_api_v<V>)
+	{
+		CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
+		return conv.template GetScalar<Float64>(this->GetIndexedValue(index));
+	}
+	else
+		return AbstrDataObject::GetValueAsFloat64(index);
 }
 
 template <class V>
-void NumericArray<V>::SetValueAsFloat64(SizeT index, Float64 val)
+void DataArrayBase<V>::SetValueAsFloat64(SizeT index, Float64 val)
 {
-	CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
-	this->SetIndexedValue(index, conv.GetValue(val));
+	if constexpr (numeric_array_api_v<V>)
+	{
+		CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
+		this->SetIndexedValue(index, conv.GetValue(val));
+	}
+	else
+		AbstrDataObject::SetValueAsFloat64(index, val);
 }
 
 template <class V>
-SizeT NumericArray<V>::FindPosOfFloat64(Float64 val, SizeT startPos) const
+SizeT DataArrayBase<V>::FindPosOfFloat64(Float64 val, SizeT startPos) const
 {
-	CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
-	return FindPos( conv.GetValue(val), startPos);
+	if constexpr (numeric_array_api_v<V>)
+	{
+		CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
+		return FindPos( conv.GetValue(val), startPos);
+	}
+	else
+		return AbstrDataObject::FindPosOfFloat64(val, startPos);
 }
 
 template <class V>
-Int32 NumericArray<V>::GetValueAsInt32(SizeT index) const
+Int32 DataArrayBase<V>::GetValueAsInt32(SizeT index) const
 {
-	CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
-	return conv.template GetScalar<Int32>(this->GetIndexedValue(index));
+	if constexpr (numeric_array_api_v<V>)
+	{
+		CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
+		return conv.template GetScalar<Int32>(this->GetIndexedValue(index));
+	}
+	else
+		return AbstrDataObject::GetValueAsInt32(index);
 }
 
 template <class V>
-void NumericArray<V>::SetValueAsInt32(SizeT index, Int32 val)
+void DataArrayBase<V>::SetValueAsInt32(SizeT index, Int32 val)
 {
-	CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
-	this->SetIndexedValue(index, conv.GetValue(val) );
+	if constexpr (numeric_array_api_v<V>)
+	{
+		CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
+		this->SetIndexedValue(index, conv.GetValue(val) );
+	}
+	else
+		AbstrDataObject::SetValueAsInt32(index, val);
 }
 
 template <class V>
-UInt32 NumericArray<V>::GetValueAsUInt32(SizeT index) const
+UInt32 DataArrayBase<V>::GetValueAsUInt32(SizeT index) const
 {
-	CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
-	return conv.template GetScalar<UInt32>(this->GetIndexedValue(index));
+	if constexpr (numeric_array_api_v<V>)
+	{
+		CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
+		return conv.template GetScalar<UInt32>(this->GetIndexedValue(index));
+	}
+	else
+		return AbstrDataObject::GetValueAsUInt32(index);
 }
 
 template <class V>
-SizeT NumericArray<V>::GetValueAsSizeT(SizeT index) const
+SizeT DataArrayBase<V>::GetValueAsSizeT(SizeT index) const
 {
-	CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
-	return conv.template GetScalar<SizeT>(this->GetIndexedValue(index));
+	if constexpr (numeric_array_api_v<V>)
+	{
+		CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
+		return conv.template GetScalar<SizeT>(this->GetIndexedValue(index));
+	}
+	else
+		return AbstrDataObject::GetValueAsSizeT(index);
 }
 
 template <class V>
-void NumericArray<V>::SetValueAsSizeT(SizeT index, SizeT val)
+void DataArrayBase<V>::SetValueAsSizeT(SizeT index, SizeT val)
 {
-	CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
-	this->SetIndexedValue(index, conv.GetValue(val) );
+	if constexpr (numeric_array_api_v<V>)
+	{
+		CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
+		this->SetIndexedValue(index, conv.GetValue(val) );
+	}
+	else
+		AbstrDataObject::SetValueAsSizeT(index, val);
 }
 
 template <class V>
-void NumericArray<V>::SetValueAsDiffT(SizeT index, DiffT val)
+void DataArrayBase<V>::SetValueAsDiffT(SizeT index, DiffT val)
 {
-	CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
-	this->SetIndexedValue(index, conv.GetValue(val));
+	if constexpr (numeric_array_api_v<V>)
+	{
+		CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
+		this->SetIndexedValue(index, conv.GetValue(val));
+	}
+	else
+		AbstrDataObject::SetValueAsDiffT(index, val);
 }
 
 template <class V>
-void NumericArray<V>::SetValueAsSizeT(SizeT index, SizeT val, tile_id t)
+void DataArrayBase<V>::SetValueAsSizeT(SizeT index, SizeT val, tile_id t)
 {
-	CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
-	this->SetTileIndexedValue(t, index, conv.GetValue(val));
+	if constexpr (numeric_array_api_v<V>)
+	{
+		CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
+		this->SetTileIndexedValue(t, index, conv.GetValue(val));
+	}
+	else
+		AbstrDataObject::SetValueAsSizeT(index, val, t);
 }
 
 template <class V>
-UInt8 NumericArray<V>::GetValueAsUInt8(SizeT index) const
+UInt8 DataArrayBase<V>::GetValueAsUInt8(SizeT index) const
 {
-	CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
-	return conv.template GetScalar<UInt8>(this->GetIndexedValue(index));
+	if constexpr (numeric_array_api_v<V>)
+	{
+		CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
+		return conv.template GetScalar<UInt8>(this->GetIndexedValue(index));
+	}
+	else
+		return AbstrDataObject::GetValueAsUInt8(index);
 }
 
 template <class V>
-void NumericArray<V>::SetValueAsUInt32(SizeT index, UInt32 val)
+void DataArrayBase<V>::SetValueAsUInt32(SizeT index, UInt32 val)
 {
-	CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
-	this->SetIndexedValue(index, conv.GetValue(val) );
+	if constexpr (numeric_array_api_v<V>)
+	{
+		CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
+		this->SetIndexedValue(index, conv.GetValue(val) );
+	}
+	else
+		AbstrDataObject::SetValueAsUInt32(index, val);
 }
 
 template <class V>
-SizeT NumericArray<V>::FindPosOfSizeT(SizeT val, SizeT startPos) const
+SizeT DataArrayBase<V>::FindPosOfSizeT(SizeT val, SizeT startPos) const
 {
-	CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
-	return FindPos( conv.GetValue(val), startPos );
+	if constexpr (numeric_array_api_v<V>)
+	{
+		CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
+		return FindPos( conv.GetValue(val), startPos );
+	}
+	else
+		return AbstrDataObject::FindPosOfSizeT(val, startPos);
 }
 
 //----------------------------------------------------------------------
-// class  : AdditiveArray
+// Support for additive numerics: the scalar value types only (was AdditiveArray)
 //----------------------------------------------------------------------
 
 template <class V>
-Float64 AdditiveArray<V>::GetSumAsFloat64() const
+Float64 DataArrayBase<V>::GetSumAsFloat64() const
 {
-	Float64 result = 0;
-	auto data = this->GetLockedDataRead();
-	
-	for (auto i = begin_ptr(data), e = end_ptr(data); i!=e; ++i)
-		if (IsDefined(*i))
-			result += V(*i);
-	return result;
+	if constexpr (numeric_elem_v<V>)
+	{
+		Float64 result = 0;
+		auto data = this->GetLockedDataRead();
+
+		for (auto i = begin_ptr(data), e = end_ptr(data); i!=e; ++i)
+			if (IsDefined(*i))
+				result += V(*i);
+		return result;
+	}
+	else
+		return AbstrDataObject::GetSumAsFloat64();
 }
 
 //----------------------------------------------------------------------
@@ -257,226 +327,296 @@ Float64 AdditiveArray<V>::GetSumAsFloat64() const
 //----------------------------------------------------------------------
 
 template <class V>
-SizeT NumericArray<V>::GetValuesAsFloat64Array(tile_loc tl, SizeT len, Float64* data) const
+SizeT DataArrayBase<V>::GetValuesAsFloat64Array(tile_loc tl, SizeT len, Float64* data) const
 {
-	CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
+	if constexpr (numeric_array_api_v<V>)
+	{
+		CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
 
-	auto elemData = this->GetDataRead(tl.first);
-	if (elemData.size() < tl.second)
-		throwDmsErrD("DataArrayBase::GetValuesAsFloat64Array: index out of range");
-	MakeMin(len, elemData.size() - tl.second);
-	auto
-		pi = elemData.begin() + tl.second,
-		pe = pi + len;
-	for (; pi != pe; ++pi, ++data)
-		*data = conv.template GetScalar<Float64>(*pi);
-	return len;
+		auto elemData = this->GetDataRead(tl.first);
+		if (elemData.size() < tl.second)
+			throwDmsErrD("DataArrayBase::GetValuesAsFloat64Array: index out of range");
+		MakeMin(len, elemData.size() - tl.second);
+		auto
+			pi = elemData.begin() + tl.second,
+			pe = pi + len;
+		for (; pi != pe; ++pi, ++data)
+			*data = conv.template GetScalar<Float64>(*pi);
+		return len;
+	}
+	else
+		return AbstrDataObject::GetValuesAsFloat64Array(tl, len, data);
 }
 
 template <class V>
-SizeT NumericArray<V>::GetValuesAsUInt32Array  (tile_loc tl, SizeT len, UInt32* data) const
+SizeT DataArrayBase<V>::GetValuesAsUInt32Array  (tile_loc tl, SizeT len, UInt32* data) const
 {
-	CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
+	if constexpr (numeric_array_api_v<V>)
+	{
+		CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
 
-	auto elemData = this->GetDataRead(tl.first);
-	if (elemData.size() < tl.second)
-		throwDmsErrD("DataArrayBase::GetValuesAsUInt32Array: index out of range");
-	MakeMin(len, elemData.size() - tl.second);
-	auto
-		pi = elemData.begin() + tl.second,
-		pe = pi + len;
-	for (; pi != pe; ++pi, ++data)
-		*data = conv.template GetScalar<UInt32>(*pi);
-	return len;
+		auto elemData = this->GetDataRead(tl.first);
+		if (elemData.size() < tl.second)
+			throwDmsErrD("DataArrayBase::GetValuesAsUInt32Array: index out of range");
+		MakeMin(len, elemData.size() - tl.second);
+		auto
+			pi = elemData.begin() + tl.second,
+			pe = pi + len;
+		for (; pi != pe; ++pi, ++data)
+			*data = conv.template GetScalar<UInt32>(*pi);
+		return len;
+	}
+	else
+		return AbstrDataObject::GetValuesAsUInt32Array(tl, len, data);
 }
 
 template <class V>
-SizeT NumericArray<V>::GetValuesAsInt32Array(tile_loc tl, SizeT len, Int32* data) const
+SizeT DataArrayBase<V>::GetValuesAsInt32Array(tile_loc tl, SizeT len, Int32* data) const
 {
-	CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
+	if constexpr (numeric_array_api_v<V>)
+	{
+		CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
 
-	auto elemData = this->GetDataRead(tl.first);
-	if (elemData.size() < tl.second)
-		throwErrorD("NumericArray<V>", "GetValuesAsInt32Array: index out of range");
-	MakeMin(len, elemData.size() - tl.second);
-	auto
-		pi = elemData.begin() + tl.second,
-		pe = pi + len;
-	for (; pi != pe; ++pi, ++data)
-		*data = conv.template GetScalar<Int32>(*pi);
-	return len;
+		auto elemData = this->GetDataRead(tl.first);
+		if (elemData.size() < tl.second)
+			throwErrorD("DataArrayBase<V>", "GetValuesAsInt32Array: index out of range");
+		MakeMin(len, elemData.size() - tl.second);
+		auto
+			pi = elemData.begin() + tl.second,
+			pe = pi + len;
+		for (; pi != pe; ++pi, ++data)
+			*data = conv.template GetScalar<Int32>(*pi);
+		return len;
+	}
+	else
+		return AbstrDataObject::GetValuesAsInt32Array(tl, len, data);
 }
 
 template <class V>
-SizeT NumericArray<V>::GetValuesAsUInt8Array  (tile_loc tl, SizeT len, UInt8* data) const
+SizeT DataArrayBase<V>::GetValuesAsUInt8Array  (tile_loc tl, SizeT len, UInt8* data) const
 {
-	CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
+	if constexpr (numeric_array_api_v<V>)
+	{
+		CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
 
-	auto elemData = this->GetDataRead(tl.first);
-	if (elemData.size() < tl.second)
-		throwErrorD("NumericArray<V>", "GetValuesAsUInt8Array: index out of range");
-	MakeMin(len, elemData.size() - tl.second);
-	auto
-		pi = elemData.begin() + tl.second,
-		pe = pi + len;
-	for (; pi != pe; ++pi, ++data)
-		*data = conv.template GetScalar<UInt8>(*pi);
-	return len;
+		auto elemData = this->GetDataRead(tl.first);
+		if (elemData.size() < tl.second)
+			throwErrorD("DataArrayBase<V>", "GetValuesAsUInt8Array: index out of range");
+		MakeMin(len, elemData.size() - tl.second);
+		auto
+			pi = elemData.begin() + tl.second,
+			pe = pi + len;
+		for (; pi != pe; ++pi, ++data)
+			*data = conv.template GetScalar<UInt8>(*pi);
+		return len;
+	}
+	else
+		return AbstrDataObject::GetValuesAsUInt8Array(tl, len, data);
 }
 
 template <class V>
-void NumericArray<V>::SetValuesAsFloat64Array(tile_loc tl, SizeT len, const Float64* srcData)
+void DataArrayBase<V>::SetValuesAsFloat64Array(tile_loc tl, SizeT len, const Float64* srcData)
 {
-	CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
+	if constexpr (numeric_array_api_v<V>)
+	{
+		CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
 
-	auto data = this->GetDataWrite(tl.first, dms_rw_mode::read_write);
+		auto data = this->GetDataWrite(tl.first, dms_rw_mode::read_write);
 
-	assert( tl.second <= tl.second + len && tl.second + len <= data.size() );
+		assert( tl.second <= tl.second + len && tl.second + len <= data.size() );
 
-	auto pi = data.begin() + tl.second;
-	auto pe = pi + len;
-	for (; pi != pe; ++pi, ++srcData)
-		Assign(*pi, conv.GetValue(*srcData) );
+		auto pi = data.begin() + tl.second;
+		auto pe = pi + len;
+		for (; pi != pe; ++pi, ++srcData)
+			Assign(*pi, conv.GetValue(*srcData) );
+	}
+	else
+		AbstrDataObject::SetValuesAsFloat64Array(tl, len, srcData);
 }
 
 template <class V>
-void NumericArray<V>::SetValuesAsInt32Array  (tile_loc tl, SizeT len, const Int32* srcData)
+void DataArrayBase<V>::SetValuesAsInt32Array  (tile_loc tl, SizeT len, const Int32* srcData)
 {
-	CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
+	if constexpr (numeric_array_api_v<V>)
+	{
+		CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
 
-	auto data = this->GetDataWrite(tl.first, dms_rw_mode::read_write);
+		auto data = this->GetDataWrite(tl.first, dms_rw_mode::read_write);
 
-	dms_assert( tl.second <= tl.second + len && tl.second + len <= data.size() );
+		dms_assert( tl.second <= tl.second + len && tl.second + len <= data.size() );
 
-	auto pi = data.begin() + tl.second;
-	auto pe = pi + len;
-	for (; pi != pe; ++pi, ++srcData)
-		Assign(*pi, conv.GetValue(*srcData) );
+		auto pi = data.begin() + tl.second;
+		auto pe = pi + len;
+		for (; pi != pe; ++pi, ++srcData)
+			Assign(*pi, conv.GetValue(*srcData) );
+	}
+	else
+		AbstrDataObject::SetValuesAsInt32Array(tl, len, srcData);
 }
 
 template <class V>
-void NumericArray<V>::SetValuesAsUInt8Array  (tile_loc tl, SizeT len, const UInt8* srcData)
+void DataArrayBase<V>::SetValuesAsUInt8Array  (tile_loc tl, SizeT len, const UInt8* srcData)
 {
-	CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
+	if constexpr (numeric_array_api_v<V>)
+	{
+		CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
 
-	auto data = this->GetDataWrite(tl.first, dms_rw_mode::read_write);
+		auto data = this->GetDataWrite(tl.first, dms_rw_mode::read_write);
 
-	dms_assert( tl.second <= tl.second + len && tl.second + len <= data.size() );
+		dms_assert( tl.second <= tl.second + len && tl.second + len <= data.size() );
 
-	auto pi = data.begin() + tl.second;
-	auto pe = pi + len;
-	for (; pi != pe; ++pi, ++srcData)
-		Assign(*pi, conv.GetValue(*srcData) );
+		auto pi = data.begin() + tl.second;
+		auto pe = pi + len;
+		for (; pi != pe; ++pi, ++srcData)
+			Assign(*pi, conv.GetValue(*srcData) );
+	}
+	else
+		AbstrDataObject::SetValuesAsUInt8Array(tl, len, srcData);
 }
 
 template <class V>
-void NumericArray<V>::FillWithFloat64Values  (tile_loc tl, SizeT len, Float64 fillValue)
+void DataArrayBase<V>::FillWithFloat64Values  (tile_loc tl, SizeT len, Float64 fillValue)
 {
-	CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
+	if constexpr (numeric_array_api_v<V>)
+	{
+		CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
 
-	auto data = this->GetDataWrite(tl.first, dms_rw_mode::read_write);
+		auto data = this->GetDataWrite(tl.first, dms_rw_mode::read_write);
 
-	dms_assert( tl.second <= tl.second + len && tl.second + len <= data.size() );
+		dms_assert( tl.second <= tl.second + len && tl.second + len <= data.size() );
 
-	auto pi = data.begin() + tl.second;
+		auto pi = data.begin() + tl.second;
 
-	fast_fill(pi, pi + len, conv.GetValue(fillValue));
+		fast_fill(pi, pi + len, conv.GetValue(fillValue));
+	}
+	else
+		AbstrDataObject::FillWithFloat64Values(tl, len, fillValue);
 }
 
 template <class V>
-void NumericArray<V>::FillWithUInt32Values  (tile_loc tl, SizeT len, UInt32 fillValue)
+void DataArrayBase<V>::FillWithUInt32Values  (tile_loc tl, SizeT len, UInt32 fillValue)
 {
-	CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
+	if constexpr (numeric_array_api_v<V>)
+	{
+		CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
 
-	auto data = this->GetDataWrite(tl.first, dms_rw_mode::read_write);
+		auto data = this->GetDataWrite(tl.first, dms_rw_mode::read_write);
 
-	dms_assert( tl.second <= tl.second + len && tl.second + len <= data.size() );
+		dms_assert( tl.second <= tl.second + len && tl.second + len <= data.size() );
 
-	auto pi = data.begin() + tl.second;
+		auto pi = data.begin() + tl.second;
 
-	fast_fill(pi, pi + len, conv.GetValue(fillValue));
+		fast_fill(pi, pi + len, conv.GetValue(fillValue));
+	}
+	else
+		AbstrDataObject::FillWithUInt32Values(tl, len, fillValue);
 }
 
 template <class V>
-void NumericArray<V>::FillWithInt32Values  (tile_loc tl, SizeT len, Int32 fillValue)
+void DataArrayBase<V>::FillWithInt32Values  (tile_loc tl, SizeT len, Int32 fillValue)
 {
-	CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
+	if constexpr (numeric_array_api_v<V>)
+	{
+		CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
 
-	auto data = this->GetDataWrite(tl.first, dms_rw_mode::read_write);
+		auto data = this->GetDataWrite(tl.first, dms_rw_mode::read_write);
 
-	dms_assert( tl.second <= tl.second + len && tl.second + len <= data.size() );
+		dms_assert( tl.second <= tl.second + len && tl.second + len <= data.size() );
 
-	auto pi = data.begin() + tl.second;
+		auto pi = data.begin() + tl.second;
 
-	fast_fill(pi, pi + len, conv.GetValue(fillValue));
+		fast_fill(pi, pi + len, conv.GetValue(fillValue));
+	}
+	else
+		AbstrDataObject::FillWithInt32Values(tl, len, fillValue);
 }
 
 template <class V>
-void NumericArray<V>::FillWithUInt8Values  (tile_loc tl, SizeT len, UInt8 fillValue)
+void DataArrayBase<V>::FillWithUInt8Values  (tile_loc tl, SizeT len, UInt8 fillValue)
 {
-	CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
+	if constexpr (numeric_array_api_v<V>)
+	{
+		CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
 
-	auto data = this->GetDataWrite(tl.first, dms_rw_mode::read_write);
+		auto data = this->GetDataWrite(tl.first, dms_rw_mode::read_write);
 
-	dms_assert( tl.second <= tl.second + len && tl.second + len <= data.size() );
+		dms_assert( tl.second <= tl.second + len && tl.second + len <= data.size() );
 
-	auto pi = data.begin() + tl.second;
-	
-	fast_fill(pi, pi + len, conv.GetValue(fillValue));
+		auto pi = data.begin() + tl.second;
+
+		fast_fill(pi, pi + len, conv.GetValue(fillValue));
+	}
+	else
+		AbstrDataObject::FillWithUInt8Values(tl, len, fillValue);
 }
 
 //----------------------------------------------------------------------
 // Support for Geometrics
 //----------------------------------------------------------------------
 
-template <typename Base>
-DRect GeoArrayAdapter<Base>::GetActualRangeAsDRect(bool checkForNulls) const
+template <typename V>
+DRect DataArrayBase<V>::GetActualRangeAsDRect(bool checkForNulls) const
 {
-	using field_t = typename Base::field_t;
-	Range<field_t> result;
-	std::mutex resultMutationCS;
-	parallel_tileloop(this->GetTiledRangeData()->GetNrTiles(), [&result, &resultMutationCS, this, checkForNulls](tile_id t)
-		{
-			auto data = this->GetTile(t);
-			auto range = 
-				Range<field_t>(data.begin(), data.end()
-				,	checkForNulls
-				,	false // don't call MakeStrictlyGreater on upper bound of the range
-				);
-			std::lock_guard exclusiveAccessLock(resultMutationCS);
-			result |= range;
-		}
-	);
-	return Convert<DRect>(result);
+	if constexpr (geo_elem_v<V>)
+	{
+		Range<field_t> result;
+		std::mutex resultMutationCS;
+		parallel_tileloop(this->GetTiledRangeData()->GetNrTiles(), [&result, &resultMutationCS, this, checkForNulls](tile_id t)
+			{
+				auto data = this->GetTile(t);
+				auto range =
+					Range<field_t>(data.begin(), data.end()
+					,	checkForNulls
+					,	false // don't call MakeStrictlyGreater on upper bound of the range
+					);
+				std::lock_guard exclusiveAccessLock(resultMutationCS);
+				result |= range;
+			}
+		);
+		return Convert<DRect>(result);
+	}
+	else
+		return AbstrDataObject::GetActualRangeAsDRect(checkForNulls);
 }
 
 //----------------------------------------------------------------------
-// Support for GeometricPoints
+// Support for GeometricPoints: the point types only (was PointArrayAdapter)
 //----------------------------------------------------------------------
 
-template <typename Base>
-DPoint  PointArrayAdapter<Base>::GetValueAsDPoint(SizeT index) const
+template <typename V>
+DPoint  DataArrayBase<V>::GetValueAsDPoint(SizeT index) const
 {
-	return Convert<DPoint>(this->GetIndexedValue(index));
+	if constexpr (point_elem_v<V>)
+		return Convert<DPoint>(this->GetIndexedValue(index));
+	else
+		return AbstrDataObject::GetValueAsDPoint(index);
 }
 
-template <typename Base>
-void PointArrayAdapter<Base>::SetValueAsDPoint(SizeT index, const DPoint& val)
+template <typename V>
+void DataArrayBase<V>::SetValueAsDPoint(SizeT index, const DPoint& val)
 {
-	this->SetIndexedValue(index, Convert<typename Base::value_type>(val) );
+	if constexpr (point_elem_v<V>)
+		this->SetIndexedValue(index, Convert<value_type>(val) );
+	else
+		AbstrDataObject::SetValueAsDPoint(index, val);
 }
 
 //----------------------------------------------------------------------
-// Support for GeometricSequences
+// Support for GeometricSequences: the point polygons only (was SeqArrayAdapter)
 //----------------------------------------------------------------------
 
-template <typename Base>
-void SeqArrayAdapter<Base>::GetValueAsDPoints(SizeT index, std::vector<DPoint>& dpoints) const
+template <typename V>
+void DataArrayBase<V>::GetValueAsDPoints(SizeT index, std::vector<DPoint>& dpoints) const
 {
-	typename Base::value_type value = this->GetIndexedValue(index);
-	dpoints.clear();
-	dpoints.reserve(value.size());
-	for (auto i = value.begin(), e=value.end(); i!=e; ++i)
-		dpoints.push_back(Convert<DPoint>(*i));
+	if constexpr (polygon_elem_v<V>)
+	{
+		value_type value = this->GetIndexedValue(index);
+		dpoints.clear();
+		dpoints.reserve(value.size());
+		for (auto i = value.begin(), e=value.end(); i!=e; ++i)
+			dpoints.push_back(Convert<DPoint>(*i));
+	}
+	else
+		AbstrDataObject::GetValueAsDPoints(index, dpoints);
 }
 

@@ -8,9 +8,19 @@
 
 /*
  *  DataArrayBase<V> / DataArray<V>: the typed tile-array interface over
- *  AbstrDataObject — locked tile access (seq/cseq), value-range data, and
- *  the adapter hierarchy (NumericArray, GeoArrayAdapter, SeqArrayAdapter,
- *  TileFunctor). Template member bodies live in DataArray.ipp.
+ *  AbstrDataObject — locked tile access (seq/cseq), value-range data, and the
+ *  numeric/geometric value accessors. TileFunctor<V> derives directly from it.
+ *  Template member bodies live in DataArray.ipp.
+ *
+ *  Which accessors apply depends on V: the numeric, point and sequence groups
+ *  below are each guarded by a predicate (see "element-group predicates"). A
+ *  virtual function cannot carry a requires-clause, so the guard sits in the
+ *  body as an `if constexpr` whose else-branch calls the AbstrDataObject
+ *  default (which throws or returns the documented neutral value) — exactly
+ *  what a V outside the group inherited when these members still lived in the
+ *  NumericArray / AdditiveArray / GeoArrayAdapter / PointArrayAdapter /
+ *  SeqArrayAdapter layers that data_array_traits<V> used to splice in.
+ *  Non-virtual members (FindPos) do carry a requires-clause.
  */
 
 #if !defined(__TIC_DATAARRAY_H)
@@ -35,6 +45,31 @@ using value_range_data = std::conditional_t<
 	has_range_v<field_of_t<V>>
 	, SharedPtr<const range_or_void_data<field_of_t<V>>>
 	, Void>;
+
+//----------------------------------------------------------------------
+// element-group predicates
+//
+// These reproduce, per value type, the member sets that the removed
+// data_array_traits<V> table used to select by splicing adapter classes:
+//   numeric_elem       : the 13 scalar value types (AdditiveArray)
+//   countable_point_elem: S/W/I/UPoint       -- index<->value conversion is
+//                        meaningful only for integral points, which is why
+//                        F/DPoint were never NumericArray
+//   numeric_array_api  : NumericArray        = numeric_elem + countable_point_elem
+//   geo_elem           : GeoArrayAdapter     = the 6 points + the 6 point polygons
+//   point_elem         : PointArrayAdapter   = the 6 point types
+//   polygon_elem       : SeqArrayAdapter     = the 6 point polygons
+// Note dimension_of_v<SPolygon> == 2 as well (it is a vector of points), so the
+// has_fixed_elem_size_v term is what separates points from polygons.
+//----------------------------------------------------------------------
+
+template <typename V> constexpr bool numeric_elem_v = (dimension_of_v<V> == 1) && (is_numeric_v<V> || is_bitvalue_v<V>);
+template <typename V> constexpr bool geo_elem_v     = (dimension_of_v<V> == 2);
+template <typename V> constexpr bool point_elem_v   = geo_elem_v<V> &&  has_fixed_elem_size_v<V>;
+template <typename V> constexpr bool polygon_elem_v = geo_elem_v<V> && !has_fixed_elem_size_v<V>;
+
+template <typename V> constexpr bool countable_point_elem_v = point_elem_v<V> && is_integral_v<scalar_of_t<V>>;
+template <typename V> constexpr bool numeric_array_api_v    = numeric_elem_v<V> || countable_point_elem_v<V>;
 
 //----------------------------------------------------------------------
 // class  : DataArrayBase
@@ -163,18 +198,8 @@ struct DataArrayBase : AbstrDataObject
 	}
 
 	TICTOC_CALL LispRef GetValuesAsKeyArgs(LispPtr valuesUnitKeyExpr) const override;
-};
 
-template <> class DataArrayBase<bool> {}; // bool shoudn't be used
-
-//----------------------------------------------------------------------
-// class  : NumericArray
-//----------------------------------------------------------------------
-
-template <class V> 
-struct NumericArray : DataArrayBase<V>
-{
-	// Support for numerics
+//	Support for numerics; applies to numeric_array_api_v<V>, other V delegate to AbstrDataObject
 	TIC_CALL Float64 GetValueAsFloat64(SizeT index)                       const override;
 	TIC_CALL void    SetValueAsFloat64(SizeT index, Float64 val)                override;
 	TIC_CALL SizeT   FindPosOfFloat64 (Float64 val, SizeT startPos)       const override;
@@ -189,7 +214,7 @@ struct NumericArray : DataArrayBase<V>
 	TIC_CALL UInt8   GetValueAsUInt8  (SizeT index)                       const override;
 	TIC_CALL SizeT   FindPosOfSizeT   (SizeT val, SizeT startPos)         const override;
 
-	// Support for numeric arrays
+//	Support for numeric arrays; applies to numeric_array_api_v<V>
 	TIC_CALL SizeT   GetValuesAsFloat64Array(tile_loc tl, SizeT len, Float64* data) const override;
 	TIC_CALL SizeT   GetValuesAsUInt32Array (tile_loc tl, SizeT len, UInt32*  data) const override;
 	TIC_CALL SizeT   GetValuesAsInt32Array  (tile_loc tl, SizeT len, Int32*   data) const override;
@@ -204,96 +229,53 @@ struct NumericArray : DataArrayBase<V>
 	TIC_CALL void    FillWithInt32Values    (tile_loc tl, SizeT len, Int32   fillValue)   override;
 	TIC_CALL void    FillWithUInt8Values    (tile_loc tl, SizeT len, UInt8   fillValue)   override;
 
-	// Support for value range info
-	TIC_CALL row_id GetValuesRangeCount() const override { if constexpr (has_var_range_field_v<V>) return this->m_ValueRangeDataPtr->GetRangeSize();     else return nrbits_of_v<V>; }
-	TIC_CALL bool   IsFirstValueZero   () const override { if constexpr (has_var_range_field_v<V>) return this->m_ValueRangeDataPtr->IsFirstValueZero(); else return true; }
+//	Support for value range info; applies to numeric_array_api_v<V>
+	TIC_CALL row_id GetValuesRangeCount() const override
+	{
+		if constexpr (numeric_array_api_v<V>)
+		{
+			if constexpr (has_var_range_field_v<V>) return this->m_ValueRangeDataPtr->GetRangeSize();
+			else                                    return nrbits_of_v<V>;
+		}
+		else
+			return AbstrDataObject::GetValuesRangeCount();
+	}
+	TIC_CALL bool   IsFirstValueZero   () const override
+	{
+		if constexpr (numeric_array_api_v<V>)
+		{
+			if constexpr (has_var_range_field_v<V>) return this->m_ValueRangeDataPtr->IsFirstValueZero();
+			else                                    return true;
+		}
+		else
+			return AbstrDataObject::IsFirstValueZero();
+	}
 
-
-	// Helper func
-	SizeT FindPos(V val, SizeT startPos = 0) const;
-};
-
-//----------------------------------------------------------------------
-// class  : AdditiveArray
-//----------------------------------------------------------------------
-
-template <class V> 
-struct AdditiveArray : NumericArray<V>
-{
-	// Support for numerics
+//	Support for additive numerics: the scalar value types only (not points)
 	TIC_CALL Float64 GetSumAsFloat64() const override;
-};
 
-//----------------------------------------------------------------------
-// class  : GeoArrayAdapter
-//----------------------------------------------------------------------
-
-template <typename Base>
-struct GeoArrayAdapter : Base
-{
-	// Support for Geometrics
+//	Support for Geometrics: points and point polygons
 	TIC_CALL DRect GetActualRangeAsDRect(bool checkForNulls) const override;
-};
 
-//----------------------------------------------------------------------
-// class  : PointArrayAdapter
-//----------------------------------------------------------------------
-
-template <typename Base>
-struct PointArrayAdapter : GeoArrayAdapter<Base>
-{
-	// Support for GeometricPoints
+//	Support for GeometricPoints: the point types only
 	TIC_CALL DPoint  GetValueAsDPoint(SizeT index) const override;
 	TIC_CALL void    SetValueAsDPoint(SizeT index, const DPoint& val) override;
-};
 
-//----------------------------------------------------------------------
-// class  : SequenceArrayAdapter
-//----------------------------------------------------------------------
-
-template <typename Base>
-struct SeqArrayAdapter : GeoArrayAdapter<Base>
-{
-	// Support for GeometricSequences
+//	Support for GeometricSequences: the point polygons only
 	TIC_CALL void GetValueAsDPoints(SizeT index, std::vector<DPoint>& dpoints) const override;
+
+//	Helper func; non-virtual, so this one does carry its guard as a requires-clause
+	SizeT FindPos(V val, SizeT startPos = 0) const requires numeric_array_api_v<V>;
 };
 
+template <> class DataArrayBase<bool> {}; // bool shoudn't be used
+
 //----------------------------------------------------------------------
-// class  : data_array_traits
+// class  : TileFunctor
 //----------------------------------------------------------------------
-template <typename V> struct data_array_traits { typedef DataArrayBase<V>      type; };
-
-template<> struct data_array_traits<UInt64>    { typedef AdditiveArray<UInt64>  type; };
-template<> struct data_array_traits<UInt32>    { typedef AdditiveArray<UInt32>  type; };
-template<> struct data_array_traits<UInt16>    { typedef AdditiveArray<UInt16>  type; };
-template<> struct data_array_traits<UInt8 >    { typedef AdditiveArray<UInt8 >  type; };
-template<> struct data_array_traits<Int64>     { typedef AdditiveArray<Int64>   type; };
-template<> struct data_array_traits<Int32>     { typedef AdditiveArray<Int32>   type; };
-template<> struct data_array_traits<Int16>     { typedef AdditiveArray<Int16>   type; };
-template<> struct data_array_traits<Int8 >     { typedef AdditiveArray<Int8 >   type; };
-template<> struct data_array_traits<Float32>   { typedef AdditiveArray<Float32> type; };
-template<> struct data_array_traits<Float64>   { typedef AdditiveArray<Float64> type; };
-template<> struct data_array_traits<Bool>      { typedef AdditiveArray<Bool>    type; };
-template<> struct data_array_traits<UInt2 >    { typedef AdditiveArray<UInt2 >  type; };
-template<> struct data_array_traits<UInt4 >    { typedef AdditiveArray<UInt4 >  type; };
-template<> struct data_array_traits<Void>      {  }; // should not be instantiated
-
-template<> struct data_array_traits<SPoint>    { typedef PointArrayAdapter<NumericArray<SPoint> > type; };
-template<> struct data_array_traits<WPoint>    { typedef PointArrayAdapter<NumericArray<WPoint> > type; };
-template<> struct data_array_traits<IPoint>    { typedef PointArrayAdapter<NumericArray<IPoint> > type; };
-template<> struct data_array_traits<UPoint>    { typedef PointArrayAdapter<NumericArray<UPoint> > type; };
-template<> struct data_array_traits<FPoint>    { typedef PointArrayAdapter<DataArrayBase<FPoint> > type; };
-template<> struct data_array_traits<DPoint>    { typedef PointArrayAdapter<DataArrayBase<DPoint> > type; };
-
-template<> struct data_array_traits<SPolygon>  { typedef SeqArrayAdapter<DataArrayBase<SPolygon> > type; };
-template<> struct data_array_traits<WPolygon>  { typedef SeqArrayAdapter<DataArrayBase<WPolygon> > type; };
-template<> struct data_array_traits<IPolygon>  { typedef SeqArrayAdapter<DataArrayBase<IPolygon> > type; };
-template<> struct data_array_traits<UPolygon>  { typedef SeqArrayAdapter<DataArrayBase<UPolygon> > type; };
-template<> struct data_array_traits<FPolygon>  { typedef SeqArrayAdapter<DataArrayBase<FPolygon> > type; };
-template<> struct data_array_traits<DPolygon>  { typedef SeqArrayAdapter<DataArrayBase<DPolygon> > type; };
 
 template <typename V>
-struct TileFunctor : data_array_traits<V>::type
+struct TileFunctor : DataArrayBase<V>
 {
 	TileFunctor() {}
 

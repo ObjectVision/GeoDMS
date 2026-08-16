@@ -204,9 +204,17 @@ GCC).
   `CountableUnitBase` with `requires tileable_value`; delete the GCC TileAdapter block; fold
   `OrderedUnit` into `CountableUnitBase`; duplicate `NumRangeUnitAdapterBase`'s one member into its
   two children (temporary, dies in U5).
-- **U4 — DataArray merge** (rehearsal for U5). §3.4 in full; update
-  [../tile-data-retainment.md](../tile-data-retainment.md)'s class tree. Run storage-heavy suites
-  (`batch\TestReleaseUnit.bat`) — the numeric/geo conversion virtuals feed storage round-trips.
+- **U4 — DataArray merge** *(implemented 2026-08-16)*. Merged per §3.4, but into **`DataArrayBase<V>`**
+  rather than up into `TileFunctor<V>`, which now derives directly from it. That target keeps
+  `DataArrayBase` a real class template, so both poison specializations (`DataArrayBase<bool>` and
+  clc's `DataArrayBase<null_wrap<T>>`) and every external `DataArrayBase<V>::iterator`-style typedef
+  read keep working untouched — no compat alias needed. `data_array_traits` and the five adapter
+  layers are gone; the gates live in named predicates (`numeric_elem_v`, `countable_point_elem_v`,
+  `numeric_array_api_v`, `geo_elem_v`, `point_elem_v`, `polygon_elem_v`).
+  **Lesson that constrains U5:** only the non-virtual `FindPos` could take a requires-clause (a
+  virtual override may not, [class.virtual]/6), and MSVC then rejects naming that constrained member
+  in an explicit *function* instantiation (C3190) — so constrained members must be emitted through
+  `template class X<T>;`, never per-member. See the guarded instantiation at the end of DataArray.cpp.
 - **U5 — Unit spine merge** (the big one). §3.2 in full; delete `unit_traits`,
   `TiledUnitInstantiator`, all instantiation tails → uniform `template class Unit<X>` on both
   compilers. Debug spot-run of a tiled + a bit-domain + a string-values config (SetRange asserts are

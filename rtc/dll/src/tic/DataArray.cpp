@@ -984,10 +984,17 @@ namespace  {
 	TypeListClassReg<tl::transform_templ<typelists::value_elements, FileTileArray>> s_FTA;
 }
 
-// Explicit Template Instantiation; TODO G8: Why?
+// Explicit Template Instantiation. Why: TreeItem.cpp calls AbstrDataItem::FindPos<Bool>, which
+// forwards to DataArrayBase<Bool>::FindPos; that TU sees only the declaration in DataArray.h, so the
+// definition from DataArray.ipp must be emitted here. Same for CountValues.
+// FindPos carries a requires-clause and MSVC then rejects naming it in an explicit *function*
+// instantiation (C3190), so instantiate the class instead; the GCC block below already does that for
+// every element type, hence the guard against a duplicate explicit instantiation.
 
 template SizeT DataArrayBase<Bool>::CountValues(Bool v) const;
-template SizeT NumericArray<Bool>::FindPos(Bool v, SizeT startPos) const;
+#if defined(_MSC_VER)
+template class DataArrayBase<Bool>;
+#endif
 
 // Explicit instantiations for GCC/Linux (MSVC exports all members via dllexport on the class).
 // 'template class DataArrayBase<T>' became possible once the uninstantiable dead members
