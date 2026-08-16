@@ -76,6 +76,9 @@
     <ClInclude Include="src\BoundingBoxCache.h">
       <Filter>Geo Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\BoostGeometryImpl.h">
+      <Filter>Geo Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="src\BoostGeometry.h">
       <Filter>Geo Header Files</Filter>
     </ClInclude>
@@ -147,7 +150,16 @@
     <ClCompile Include="src\BoostPolygon.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\BoostGeometry.cpp">
+        <ClCompile Include="src\BoostGeometry_bp.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\BoostGeometry_cgal.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\BoostGeometry_geos.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+<ClCompile Include="src\BoostGeometry.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\GridDist.cpp">

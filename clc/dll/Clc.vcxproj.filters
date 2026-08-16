@@ -73,10 +73,25 @@
     <ClCompile Include="src\OperAccUniStr.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\OperAttrBin_addsub.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\OperAttrBin_bits.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\OperAttrBin_compare.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\OperAttrBin_muldiv.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="src\OperAttrBin.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\OperAttrTer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\OperAttrUni_str.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\OperAttrUni.cpp">
@@ -253,6 +268,9 @@
       <Filter>Clc Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\OperAccUniNum.h">
+      <Filter>Clc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\OperAttrBinImpl.h">
       <Filter>Clc Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\OperAttrBin.h">

@@ -113,8 +113,13 @@
     <ClCompile Include="src\OperAccUniStatistics.cpp" />
     <ClCompile Include="src\OperAccUniStr.cpp" />
     <ClCompile Include="src\OperAttrBin.cpp" />
+    <ClCompile Include="src\OperAttrBin_addsub.cpp" />
+    <ClCompile Include="src\OperAttrBin_bits.cpp" />
+    <ClCompile Include="src\OperAttrBin_compare.cpp" />
+    <ClCompile Include="src\OperAttrBin_muldiv.cpp" />
     <ClCompile Include="src\OperAttrTer.cpp" />
     <ClCompile Include="src\OperAttrUni.cpp" />
+    <ClCompile Include="src\OperAttrUni_str.cpp" />
     <ClCompile Include="src\OperConv.cpp" />
     <ClCompile Include="src\OperExec.cpp" />
     <ClCompile Include="src\OperLinInterpol.cpp" />
@@ -191,6 +196,7 @@
     <ClInclude Include="include\OperAccUni.h" />
     <ClInclude Include="src\OperAccUniNum.h" />
     <ClInclude Include="include\OperAttrBin.h" />
+    <ClInclude Include="src\OperAttrBinImpl.h" />
     <ClInclude Include="include\OperAttrTer.h" />
     <ClInclude Include="include\OperAttrUni.h" />
     <ClInclude Include="src\OperConv.h" />
