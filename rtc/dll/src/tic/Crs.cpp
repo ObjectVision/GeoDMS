@@ -10,7 +10,7 @@
 
 #include "Crs.h"
 
-#include "dbg/Check.h"
+#include "dbg/Diagnostics.h"
 #include "ser/FormattedStream.h"
 
 #include <map>

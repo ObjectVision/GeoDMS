@@ -13,7 +13,7 @@
 #if !defined(__RTC_PTR_OWNINGPTR_H)
 #define __RTC_PTR_OWNINGPTR_H
 
-#include "dbg/Check.h"
+#include "dbg/Diagnostics.h"
 #include "ptr/PtrBase.h"
 
 template <class T>

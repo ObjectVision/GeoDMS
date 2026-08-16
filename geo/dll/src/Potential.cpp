@@ -17,14 +17,14 @@
 #include "Potential.h"
 
 #include "dbg/debug.h"
-#include "geo/Conversions.h"
-#include "geo/PointOrder.h"
+#include "vt/Conversions.h"
+#include "geom/PointOrder.h"
 #include "xct/DmsException.h"
 
 #include "AbstrUnit.h"
 
-#include "aggrFuncNum.h"
-#include "attrUniStructNum.h"
+#include "AggrFuncNum.h"
+#include "AttrUniStructNum.h"
 
 #include <fftw3.h>
 #include <cstdlib> // std::atexit (fftw_cleanup at process exit)

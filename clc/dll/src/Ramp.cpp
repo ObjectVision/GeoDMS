@@ -116,7 +116,7 @@ struct RampLinearFunc
 	Float64 m_FirstV, m_LastV;
 };
 
-#include "geo/color.h"
+#include "vt/color.h"
 #include "DataArrayValue.h"
 
 struct RampRgbFunc

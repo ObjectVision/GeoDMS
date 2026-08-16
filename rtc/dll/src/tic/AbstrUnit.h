@@ -11,8 +11,8 @@
 
 #include "Crs.h"
 
-#include "geo/Geometry.h"
-#include "geo/Range.h"
+#include "geom/Geometry.h"
+#include "geom/Range.h"
 #include "mci/ValueComposition.h"
 #include "ptr/OwningPtrSizedArray.h"
 

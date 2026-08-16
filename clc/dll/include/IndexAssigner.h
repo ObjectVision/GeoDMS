@@ -6,7 +6,7 @@
 #pragma once
 #endif
 
-#include "ClcPCH.h"
+#include "ClcBase.h"
 
 #if !defined(__CLC_INDEXASSIGNER_H)
 #define __CLC_INDEXASSIGNER_H 
@@ -14,7 +14,7 @@
 #include "RtcBase.h"
 
 #include "UnitProcessor.h"
-#include "geo/CheckedCalc.h"
+#include "vt/CheckedCalc.h"
 #include "mci/ValueClass.h"
 #include "mci/ValueClassID.h"
 #include "mci/ValueWrap.h"

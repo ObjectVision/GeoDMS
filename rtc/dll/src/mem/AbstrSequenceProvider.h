@@ -13,7 +13,7 @@
 #include "mem/FixedAlloc.h"
 #include "ptr/SharedStr.h"
 #include "ser/FileCreationMode.h"
-#include "utl/noncopyable.h"
+#include "utl/NonCopyable.h"
 
 //----------------------------------------------------------------------
 // interfaces to abstr_sequence_provider

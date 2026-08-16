@@ -12,10 +12,10 @@
 #include <ctype.h>
 #include <charconv>
 
-#include "geo/Conversions.h"
-#include "geo/iterrange.h"
-#include "geo/StringBounds.h"
-#include "geo/Undefined.h"
+#include "vt/Conversions.h"
+#include "vt/iterrange.h"
+#include "vt/StringBounds.h"
+#include "vt/Undefined.h"
 #include "ser/FormattedStream.h"
 #include "ser/ReadValue.h"
 #include "ser/StringStream.h"

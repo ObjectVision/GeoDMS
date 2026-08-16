@@ -10,7 +10,7 @@
 #define __RTC_MCI_SINGLELINKEDTREE_INC
 
 #include "mci/SingleLinkedTree.h"
-#include "dbg/Check.h"
+#include "dbg/Diagnostics.h"
 
 /***********    composites                           **********/
 

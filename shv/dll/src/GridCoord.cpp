@@ -11,8 +11,8 @@
 #include "GridCoord.h"
 
 #include "dbg/SeverityType.h"
-#include "geo/Conversions.h"
-#include "geo/PointOrder.h"
+#include "vt/Conversions.h"
+#include "geom/PointOrder.h"
 #include "ser/PairStream.h"
 #include "ser/PointStream.h"
 #include "ser/RangeStream.h"

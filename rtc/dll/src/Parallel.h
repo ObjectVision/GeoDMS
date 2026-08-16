@@ -3,7 +3,7 @@
 #if !defined(__RTC_PARALLEL_H)
 #define __RTC_PARALLEL_H
 
-#include "dbg/Check.h"
+#include "dbg/Diagnostics.h"
 #include "parallel/portable_task_group.h"
 
 #include <thread>

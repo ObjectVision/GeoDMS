@@ -11,7 +11,7 @@
 #include "RtcTypeLists.h"
 #include "utl/TypeListOper.h"
 
-#include "geo/RangeIndex.h"
+#include "vt/RangeIndex.h"
 #include "ViewPortInfoEx.h"
 
 #include "Unit.h"

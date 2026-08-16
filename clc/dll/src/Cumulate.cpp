@@ -10,7 +10,7 @@
 
 #include "RtcTypeLists.h"
 
-#include "geo/CheckedCalc.h"
+#include "vt/CheckedCalc.h"
 #include "utl/TypeListOper.h"
 
 #include "AbstrUnit.h"

@@ -10,8 +10,8 @@
 
 #include "SpiritTools.h"
 
-#include "geo/BaseBounds.h"
-#include "geo/MinMax.h"
+#include "vt/BaseBounds.h"
+#include "vt/MinMax.h"
 #include "ptr/IterCast.h"
 #include "utl/StrFormat.h"
 

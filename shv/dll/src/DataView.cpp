@@ -1,0 +1,2405 @@
+// Copyright (C) 1998-2026 Object Vision B.V.
+// License: GNU GPL 3
+/////////////////////////////////////////////
+
+#include "ShvDllPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
+#pragma hdrstop
+#endif
+
+// DataView: the top-level view host that binds the shv graphic tree to a
+// window and dispatches its messages and update requests.
+
+#include "DataView.h"
+
+#include "act/ActorVisitor.h"
+#include "act/UpdateMark.h"
+#include "act/TriggerOperator.h"
+#include "dbg/debug.h"
+#include "dbg/DmsCatch.h"
+#include "vt/Conversions.h"
+#include "geom/PointOrder.h"
+#include "mci/Class.h"
+#include "mci/DoubleLinkedTree.inc"
+#include "set/VectorFunc.h"
+#include "xct/DmsException.h"
+
+#include "LockLevels.h"
+
+#include "AbstrUnit.h"
+#include "SessionData.h"
+#include "StateChangeNotification.h"
+#include "TreeItemUtils.h" // GetPartialName, for #418 cross-view caption disambiguation
+
+#include "ShvUtils.h"
+
+#include "ActivationInfo.h"
+#include "Carets.h"
+#include "CaretOperators.h"
+#include "DrawContext.h"
+#include "FocusElemProvider.h"
+#include "GraphVisitor.h"
+#include "IdleTimer.h"
+#include "KeyFlags.h"
+#include "MouseEventDispatcher.h"
+#include "ScrollPort.h"
+#include "TableControl.h"     // GetCaptionItem: TableControl::GetEntity, for #418
+#include "TableViewControl.h" // GetCaptionItem: contents is a TableViewControl holding the TableControl, for #418
+#include "GdiRegionUtil.h"
+
+#ifdef _WIN32
+#include "windowsx.h"
+#endif
+
+//    NOTOOLBAR    Customizable bitmap-button toolbar control.
+//    NOUPDOWN     Up and Down arrow increment/decrement control.
+//    NOSTATUSBAR  Status bar control.
+//    NOMENUHELP   APIs to help manage menus, especially with a status bar.
+//    NOTRACKBAR   Customizable column-width tracking control.
+//    NODRAGLIST   APIs to make a listbox source and sink drag&drop actions.
+//    NOPROGRESS   Progress gas gauge.
+//    NOHOTKEY     HotKey control
+//    NOHEADER     Header bar control.
+//    NOIMAGEAPIS  ImageList apis.
+//    NOLISTVIEW   ListView control.
+//    NOTREEVIEW   TreeView control.
+//    NOTABCONTROL Tab control.
+//    NOANIMATE    Animate control.
+
+#ifdef _WIN32
+#include "CommCtrl.h"
+#endif
+ActorVisitState UpdateChildViews(DataViewTree* dvl);
+
+#ifdef _WIN32
+GPoint LParam2Point(LPARAM lParam)
+{
+	return GPoint(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+}
+#endif
+
+//----------------------------------------------------------------------
+// ViewStyle
+//----------------------------------------------------------------------
+
+SHV_CALL CharPtr GetViewStyleName(ViewStyle ct)
+{
+	switch (ct) {
+		case tvsMapView: return "MapView";
+		case tvsTableView: return "TableView";
+		case tvsExprEdit: return "ExprEdit";
+		case tvsClassificationEdit: return "ClassificationEdit";
+		case tvsPaletteEdit: return "PaletteEdit";
+		case tvsDefault: return "Default";
+		case tvsContainer: return "Container";
+		case tvsTableContainer: return "TableContainer";
+		case tvsHistogram: return "Histogram";
+		case tvsUpdateItem: return "UpdateItem";
+		case tvsUpdateTree: return "UpdateTree";
+		case tvsSubItemSchema: return "SubItemSchema";
+		case tvsSupplierSchema: return "SupplierSchema";
+		case tvsExprSchema: return "ExprSchema";
+		case tvsUndefined: return "Undefined";
+		case tvsStatistics: return "Statistics";
+		case tvsCalculationTimes: return "CalculationTimes";
+		case tvsCurrentConfigFileList: return "CurrentConfigFileList";
+		default: return "Unknown";
+	}
+}
+
+//----------------------------------------------------------------------
+// struct : MsgStruct
+//----------------------------------------------------------------------
+
+#ifdef _WIN32
+MsgResult MsgStruct::Send() const
+{
+	#if defined(MG_DEBUG_DATAVIEWSET)
+	MG_CHECK(m_DataView->IsInActiveDataViewSet());
+	#endif
+	return m_DataView->DispatchMsg(*this);
+}
+#endif
+
+//----------------------------------------------------------------------
+// class  : DataViewTree
+//----------------------------------------------------------------------
+
+DataViewTree g_DataViewRoots;
+
+void DataViewTree::BringChildToTop(DataView* dv)
+{
+	DelSub(dv);
+	AddSub(dv); // top of Z-order
+}
+
+void DataViewTree::AddChildView(DataView* childView)
+{
+	dms_assert(childView);
+	dms_assert(childView->m_ParentView == nullptr);
+	AddSub(childView);
+	childView->m_ParentView = this;
+}
+
+void DataViewTree::DelChildView(DataView* childView)
+{
+	dms_assert(childView);
+	dms_assert(childView->m_ParentView == this);
+	DelSub(childView); 
+	childView->m_ParentView = nullptr;
+}
+
+void DataViewTree::BroadcastCmd(ToolButtonID id)
+{
+	for (auto cv = _GetFirstSubItem(); cv; cv = cv->GetNextItem())
+	{
+		if (auto contents = cv->GetContents())
+			contents->OnCommand(id);
+		cv->BroadcastCmd(id);
+	}
+}
+
+void DataViewTree::BroadcastUpdateRequest()
+{
+	for (auto cv = _GetFirstSubItem(); cv; cv = cv->GetNextItem())
+	{
+		cv->SetUpdateTimer();
+		cv->BroadcastUpdateRequest();
+	}
+}
+
+void BroadcastCommandToAllDataViews(ToolButtonID id)
+{
+	g_DataViewRoots.BroadcastCmd(id);
+}
+
+static std::atomic<bool> s_broadcastPending = false;
+
+void BroadcastUpdateRequest()
+{
+	if (s_broadcastPending.exchange(true))
+		return;
+	PostMainThreadOper([]() 
+		{
+			s_broadcastPending = false;
+			g_DataViewRoots.BroadcastUpdateRequest();
+		}
+	);
+}
+
+//----------------------------------------------------------------------
+// section: DEBUG TOOLS
+//----------------------------------------------------------------------
+
+#if defined(MG_DEBUG)
+
+DbgInvalidateDrawLock::DbgInvalidateDrawLock(DataView* dv)
+	:	m_DataView(dv)
+{ 
+	dms_assert(dv);
+	if (dv)
+		++dv->md_InvalidateDrawLock;
+}
+
+DbgInvalidateDrawLock::~DbgInvalidateDrawLock()
+{
+	if (m_DataView.has_ptr())
+		--m_DataView->md_InvalidateDrawLock;
+}
+
+#endif
+
+
+#if defined(MG_DEBUG_DATAVIEWSET)
+
+std::mutex g_csActiveDataViewSet;
+std::set<DataView*> g_ActiveDataViews;
+
+bool DataView::IsInActiveDataViewSet()
+{
+	auto lock = std::unique_lock(g_csActiveDataViewSet);
+	return g_ActiveDataViews.find(this) != g_ActiveDataViews.end();
+}
+
+#endif
+
+
+//----------------------------------------------------------------------
+// class  : DataView
+//----------------------------------------------------------------------
+
+/////////////////////////////////////////////////////////////////////////////
+// DataView construction/destruction
+
+DataView::DataView(TreeItem* viewContext)
+	:
+#ifdef _WIN32
+		m_hWnd(0)
+	,
+#endif
+		m_ViewContext(make_shared_tree(viewContext, existing_obj{}))
+	,	m_CheckedTS(0)
+	,	m_ViewDeviceSize(0, 0)
+	,	m_FocusCaret(new FocusCaret)
+	,	m_ParentView(0)
+	,	m_ScrollEventsReceiver(0)
+#if defined(MG_DEBUG)
+	,	md_InvalidateDrawLock(0)
+	,	md_IsDrawingCount(0)
+#endif
+	,	m_ColorPalette {
+			CombineRGB(253,  98,  94), // rood
+			CombineRGB(53, 116, 201), // fel blauw
+			CombineRGB(41, 184, 102), // fel groen
+			CombineRGB(254, 150, 102), // oranje
+			CombineRGB(166, 105, 153), // paars
+			CombineRGB(121,  55,  10), // bruin
+			CombineRGB(112,  17,  23), // donker rood
+			CombineRGB(138, 212, 235), // licht blauw
+			CombineRGB(71, 155,   0), // groen
+			CombineRGB(57,  60,  61), // donker grijs
+			CombineRGB(9,  92,  43), // donker groen
+			CombineRGB(20,  44,  76), // donker blauw
+			CombineRGB(255,   9, 127), // roze
+			CombineRGB(242, 200,  15), // donker geel
+			CombineRGB(0,   0,   0), // zwart
+			CombineRGB(118,  76,  26)  // lichter bruin
+		}
+{
+//	for (int i = 0; i != nrPaletteColors; ++i)
+//		m_ColorPalette[i] = DmsColor2COLORREF(i + 1);
+
+	assert(viewContext);
+
+	InsertCaret(m_FocusCaret.get());
+	m_State.Set(DVF_CaretsVisible); // Paint will draw them.if true; we assume application and view has focus.
+
+#if defined(MG_DEBUG_DATAVIEWSET)
+	auto lock = std::unique_lock(g_csActiveDataViewSet);
+	g_ActiveDataViews.insert(this);
+#endif //defined(MG_DEBUG_DATAVIEWSET)
+}
+
+DataView::~DataView()
+{
+	dbg_assert(md_IsDrawingCount == 0);
+
+	// Hide any tooltip still attached to this DataView so it cannot outlive us.
+	HideActiveTooltip();
+
+	// avoid destructor of m_ControllerVector that triggers RemoveCaret to Reverse any remaining carets
+	m_State.Clear(DVF_CaretsVisible);
+
+	DataView* subView = _GetFirstSubItem();
+	while (subView)
+	{
+		DataView* thisSubView = subView;
+		subView = subView->GetNextItem();
+#ifdef _WIN32
+		thisSubView->DestroyWindow();
+#endif
+	}
+
+	if (m_ParentView)
+		m_ParentView->DelChildView(this);
+
+	SelThemeCreator::UnregisterDataView(this);
+	dbg_assert(md_InvalidateDrawLock == 0);
+
+	OnDestroyDataView(this); // remove remaining messages for this DataView from the queue.
+
+#if defined(MG_DEBUG_DATAVIEWSET)
+	auto lock = std::unique_lock(g_csActiveDataViewSet);
+	g_ActiveDataViews.erase(this);
+#endif //defined(MG_DEBUG_DATAVIEWSET)
+}
+
+void DataView::SetContents(std::shared_ptr<MovableObject> contents, ShvSyncMode sm)
+{
+	ObjectContextHandle contextHandle1(contents.get(), "DataView::SetContents");
+
+	dms_assert(contents);
+	dms_assert(contents->GetDataView().lock().get() == this);
+	dms_assert(!m_Contents);
+	m_Contents = contents->shared_from_this();
+	TreeItem* ti = GetViewContext();
+
+	ObjectContextHandle contextHandle2(ti, sm ==SM_Load ? "Load" : "Save");
+	m_Contents->Sync(ti, sm);
+}
+
+#ifdef _WIN32
+
+void DataView::DestroyWindow()
+{
+	if (m_ViewHost)
+		m_ViewHost->VH_SendClose();
+	else
+		SendMessage(GetHWnd(), WM_CLOSE, 0, 0);
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// DataView Interface funcs
+
+
+HFONT DataView::GetDefaultFont(FontSizeCategory fid, Float64 dip2pixFactor) const
+{
+//	dip2pixFactor *= GetWindowDIP2pixFactor(m_hWnd);
+	assert(fid >= FontSizeCategory::SMALL && fid <= FontSizeCategory::COUNT);
+	if (fid < FontSizeCategory::SMALL || fid >= FontSizeCategory::COUNT)
+		return {};
+
+	auto font_scaling = dip2pixFactor * (96.0 / 72.0);
+	if (! m_DefaultFonts[static_cast<int>(fid)][dip2pixFactor])
+	{
+		m_DefaultFonts[static_cast<int>(fid)][dip2pixFactor] =
+			GdiHandle<HFONT>(
+				CreateFontW(
+	//				-10, // nHeight, -MulDiv(8, GetDeviceCaps(hDC, LOGPIXELSY), 72) // height, we assume LOGPIXELSY == 96*dip2pixFactor
+					GetDefaultFontHeightDIP(fid)*font_scaling,
+					  0, // nWidth,  match against the digitization aspect ratio of the available fonts 
+					  0, // nEscapement
+					  0, // nOrientaion
+					400, // fnWeight
+					false,	                   // DWORD fdwItalic,         // italic attribute flag
+					false,                     // DWORD fdwUnderline,      // underline attribute flag
+					false,                     // DWORD fdwStrikeOut,      // strikeout attribute flag
+					ANSI_CHARSET,              // DWORD fdwCharSet,        // character set identifier
+					OUT_TT_PRECIS,             // DWORD fdwOutputPrecision,  // output precision
+					CLIP_DEFAULT_PRECIS,       // DWORD fdwClipPrecision,  // clipping precision
+					PROOF_QUALITY,             // DWORD fdwQuality,        // output quality
+					DEFAULT_PITCH|FF_DONTCARE, // DWORD fdwPitchAndFamily,  // pitch and family
+					L"Noto Sans Medium"        // pointer to typeface name string
+				)
+			);
+	}
+	return m_DefaultFonts[static_cast<int>(fid)][dip2pixFactor];
+}
+
+#endif // _WIN32 (DestroyWindow, GetDefaultFont)
+
+void DataView::InsertCaret(AbstrCaret* c)
+{ 
+	DBG_START("DataView", "InsertCaret", MG_DEBUG_CARET);
+
+	m_CaretVector.push_back(c);
+	if (m_State.Get(DVF_CaretsVisible) && m_ViewHost && c->IsVisible())
+	{
+		Region fullRgn(m_ViewDeviceSize);
+		m_ViewHost->VH_DrawInContext(fullRgn, [c](DrawContext& dc) {
+			c->Reverse(dc, true);
+		});
+	}
+}
+
+void DataView::RemoveCaret(AbstrCaret* c)
+{
+	DBG_START("DataView", "RemoveCaret", MG_DEBUG_CARET);
+
+	if (m_State.Get(DVF_CaretsVisible) && m_ViewHost && c->IsVisible())
+	{
+		Region fullRgn(m_ViewDeviceSize);
+		m_ViewHost->VH_DrawInContext(fullRgn, [c](DrawContext& dc) {
+			c->Reverse(dc, false);
+		});
+	}
+	vector_erase(m_CaretVector, c);
+}
+
+void DataView::InsertController(AbstrController* c)
+{
+	m_ControllerVector.push_back(c);
+}
+
+void DataView::RemoveController(AbstrController* c)
+{
+	vector_erase(m_ControllerVector, c);
+}
+
+void DataView::MoveCaret(AbstrCaret* caret, const AbstrCaretOperator& caretOperator)
+{
+	DBG_START("DataView", "MoveCaret", MG_DEBUG_CARET);
+
+	assert(caret);
+
+	if (m_State.Get(DVF_CaretsVisible) && m_ViewHost)
+	{
+		Region fullRgn(m_ViewDeviceSize);
+		m_ViewHost->VH_DrawInContext(fullRgn, [caret, &caretOperator](DrawContext& dc) {
+			caret->Move(caretOperator, dc);
+		});
+	}
+	else
+		caretOperator(caret);
+}
+
+GRect DataView::TextCaretRect() const
+{
+	return GRect(
+		m_TextCaretPos.x, m_TextCaretPos.y,
+		m_TextCaretPos.x + m_TextCaretWidth,
+		m_TextCaretPos.y + m_TextCaretHeight
+	);
+}
+
+bool DataView::TextCaretTargetVisible() const
+{
+	return m_State.Get(DVF_TextCaretCreated)
+		&& m_TextCaretHideCount == 0
+		&& m_TextCaretBlinkOn;
+}
+
+void DataView::SyncTextCaret(DrawContext& dc, bool forceHidden)
+{
+	if (!m_State.Get(DVF_TextCaretCreated))
+		return;
+	bool target = forceHidden ? false : TextCaretTargetVisible();
+	if (target == m_TextCaretCurrentlyDrawn)
+		return;
+	dc.InvertRect(TextCaretRect());
+	m_TextCaretCurrentlyDrawn = target;
+}
+
+void DataView::SetTextCaret(const GPoint& caretPos, const GRect& clipRect)
+{
+	bool const justCreated = !m_State.Get(DVF_TextCaretCreated);
+	if (justCreated)
+	{
+		m_State.Set(DVF_TextCaretCreated);
+		m_TextCaretHideCount = 0;
+		m_TextCaretBlinkOn = true;
+		m_TextCaretCurrentlyDrawn = false;
+		// Start blink timer. ~530ms half-cycle ≈ system default cursor flash.
+		if (m_ViewHost)
+			m_ViewHost->VH_SetTimer(CARET_BLINK_TIMER_ID, 530);
+	}
+	// Position update. The OnPaint / ScrollDevice / etc. brackets call
+	// SyncTextCaret via ReverseCaretsImpl with the paintDC, so when this
+	// SetTextCaret is invoked from inside DataItemColumn::DrawElement during
+	// Visit, the post-Visit ReverseCaretsImpl will draw at the new position.
+	m_TextCaretPos = caretPos;
+	// Confine the caret to the cell box (#607). A value wider than the box
+	// otherwise pushes the caret past clipRect.right; since cell repaints clip
+	// to the box, those out-of-box XOR pixels are never erased and accumulate
+	// as a trail of vertical bars to the right of the box. Also size the caret
+	// to the box height so it never overflows top/bottom.
+	m_TextCaretHeight = clipRect.bottom - clipRect.top;
+	if (m_TextCaretPos.x + m_TextCaretWidth > clipRect.right)
+		m_TextCaretPos.x = clipRect.right - m_TextCaretWidth;
+	if (m_TextCaretPos.x < clipRect.left)
+		m_TextCaretPos.x = clipRect.left;
+	if (m_TextCaretPos.y < clipRect.top)
+		m_TextCaretPos.y = clipRect.top;
+	m_TextCaretBlinkOn = true; // reset blink phase on caret move
+}
+
+void DataView::ClearTextCaret()
+{
+	if (!m_State.Get(DVF_TextCaretCreated))
+		return;
+	if (m_ViewHost)
+		m_ViewHost->VH_KillTimer(CARET_BLINK_TIMER_ID);
+	// Erase before clearing the created flag (otherwise SyncTextCaret short-
+	// circuits and the XOR pixels stay on screen).
+	if (m_TextCaretCurrentlyDrawn && m_ViewHost)
+	{
+		Region rgn(TextCaretRect());
+		m_ViewHost->VH_DrawInContext(rgn, [this](DrawContext& dc) {
+			dc.InvertRect(TextCaretRect());
+			m_TextCaretCurrentlyDrawn = false;
+		});
+	}
+	m_State.Clear(DVF_TextCaretCreated);
+	m_TextCaretHideCount = 0;
+	m_TextCaretBlinkOn = false;
+	m_TextCaretCurrentlyDrawn = false;
+}
+
+auto DataView::OnCommandEnable(ToolButtonID id) const->CommandStatus
+{
+	try {
+		auto result = GetContents()->OnCommandEnable(id);
+		if (result == CommandStatus::ENABLED)
+		{
+			for (auto ctrlPtr : m_ControllerVector)
+			{
+				switch (ctrlPtr->GetPressStatus(id))
+				{
+				case PressStatus::DontCare: continue;
+				case PressStatus::Dn: return CommandStatus::DOWN;
+				case PressStatus::Up: return CommandStatus::UP;
+				}
+			}
+		}
+		return result;
+	}
+	catch (...)
+	{
+		return CommandStatus::DISABLED;
+	}
+}
+
+
+#ifdef _WIN32
+void DataView::SetCaretsVisible(bool visibility, HDC dc)
+{
+	DBG_START("DataView", "SetCaretsVisible", MG_DEBUG_CARET);
+	DBG_TRACE(("Curr {}", m_State.Get(DVF_CaretsVisible)));
+	DBG_TRACE(("Req  {}", visibility));
+	DBG_TRACE(("HDC  {:x}", dc));
+	DBG_TRACE(("HWND {:x}", m_hWnd));
+
+	if (m_State.Get(DVF_CaretsVisible) != visibility)
+	{
+		// Qt port: m_hWnd is 0; ReverseCarets routes through m_ViewHost->VH_DrawInContext.
+		// Gating on m_hWnd here made CaretHider a no-op on the Qt path, leaking XOR pixels across ScrollWindowEx.
+		// The managed text caret is hidden/shown by ReverseCaretsImpl via SyncTextCaret.
+		if (m_ViewHost || m_hWnd)
+			ReverseCarets(dc, visibility);
+		m_State.Set(DVF_CaretsVisible, visibility);
+
+	}
+}
+
+void DataView::ReverseCarets(HDC hdc, bool newVisibleState)
+{
+	DBG_START("DataView", "ReverseCarets", MG_DEBUG_CARET);
+
+	if (m_ViewHost)
+	{
+		Region fullRgn(m_ViewDeviceSize);
+		m_ViewHost->VH_DrawInContext(fullRgn, [this, newVisibleState](DrawContext& dc) {
+			ReverseCaretsImpl(dc, newVisibleState);
+		});
+	}
+}
+#endif // _WIN32
+
+void DataView::ReverseCaretsImpl(DrawContext& dc, bool newVisibleState)
+{
+	DBG_START("DataView", "ReverseCaretsImpl", MG_DEBUG_CARET);
+
+	caret_iterator i = m_CaretVector.begin();
+	caret_iterator e = m_CaretVector.end();
+	for(; i != e; ++i)
+		if ((*i)->IsVisible())
+			(*i)->Reverse(dc, newVisibleState);
+	// Managed text caret: integrated with the same hide-before-paint /
+	// show-after-paint bracket as the rubber-band carets above so its XOR
+	// pixels go through the same DrawContext (paintDC during OnPaint, or the
+	// VH_DrawInContext DC during ScrollDevice/blink). `newVisibleState=false`
+	// means we're entering the bracket (hide everything); `true` means we're
+	// leaving it (restore to per-caret target visibility).
+	SyncTextCaret(dc, /*forceHidden=*/!newVisibleState);
+}
+
+
+
+#ifdef _WIN32
+void DataView::ReverseSelCaretImpl(HDC hdc, const Region& selCaretRgn)
+{
+	if (!m_SelBrush)
+	{
+		struct {
+			BITMAPINFOHEADER bmiHeader;
+			RGBQUAD          colorData[2];
+			UINT32           bitData[8];
+		} packedDIB =
+		{
+			{ sizeof(BITMAPINFOHEADER), 8, 8, 1, 1, BI_RGB, 0 },
+			{ {255,255,255, 0}, {0,0,0,0}, },
+			{ 0xCC, 0xCC, 0x00, 0x00, 0xCC, 0xCC, 0x00, 0x00, }
+		};
+
+		m_SelBrush = GdiHandle<HBRUSH>(CreateDIBPatternBrushPt(&packedDIB, DIB_RGB_COLORS));
+
+		UINT32 bitData2[8] = { 0xAA, 0x00, 0xAA, 0x00, 0xAA, 0x00, 0xAA, 0x00, };
+
+		for (UInt32 i = 0; i !=8; ++i)
+			packedDIB.bitData[i] ^= bitData2[i];
+
+		m_BrdBrush = GdiHandle<HBRUSH>(CreateDIBPatternBrushPt(&packedDIB, DIB_RGB_COLORS));
+	}
+	auto hSelRgn = RegionToHRGN(selCaretRgn);
+	FillRgn (hdc, hSelRgn, m_SelBrush);
+}
+#endif // _WIN32 (ReverseSelCaretImpl)
+
+void DataView::SetSelCaret(Region& newSelCaret)
+{
+	m_SelCaret.swap( newSelCaret );
+}
+
+void DataView::XOrSelCaret(const Region& newSelCaret)
+{
+	m_SelCaret ^= newSelCaret;
+}
+
+
+/////////////////////////////////////////////////////////////////////////////
+// DataView event handlers
+
+#ifdef _WIN32
+
+auto IsTooltipKiller(UINT msg) -> bool
+{
+	return msg == WM_LBUTTONDOWN || msg == WM_RBUTTONDOWN || msg == WM_MBUTTONDOWN || msg == WM_MOUSEWHEEL;
+}
+
+MsgResult DataView::DispatchMsg(const MsgStruct& msg)
+{
+	DBG_START("DataView", "DispatchMsg", MG_DEBUG_WNDPROC);
+		DBG_TRACE(("msg: {:x}({:x}, {:x})", msg.m_Msg, msg.m_wParam, msg.m_lParam));
+
+	if (IsTooltipKiller(msg.m_Msg))
+		HideActiveTooltip();
+
+	switch (msg.m_Msg)
+	{
+		case WM_PAINT:
+//			dbg_assert(!md_IsDrawingCount); can be Sent when Peeking msg in Update.
+			OnPaint();
+			goto completed;
+
+		case WM_TIMER:
+		{
+			// TIP_WATCH_TIMER_ID and HOVER_TIMER_ID are now started exclusively via
+			// VH_SetTimer (see GraphicObject::MouseEvent and StartTipWatchdog), so
+			// their timeouts fire on the portable OnTimer() path -- not WM_TIMER --
+			// even on Windows. Removing the WM_TIMER handlers for those IDs
+			// eliminates the per-DataView native Win32 tooltip path that bypassed
+			// Qt's singleton QToolTip and could not be hidden on window-level
+			// events (deactivate / move / resize).
+			if (msg.m_wParam != UPDATE_TIMER_ID)
+				goto defaultProcessing;
+
+			if (!IsProcessingMainThreadOpers())
+			{
+
+				if (m_ViewHost)
+					m_ViewHost->VH_KillTimer(UPDATE_TIMER_ID);
+				else
+					KillTimer(m_hWnd, UPDATE_TIMER_ID);
+				if (IdleTimer::IsInIdleMode())
+				{
+					IdleTimer::Subscribe(shared_from_this());
+					m_Waiter.end();
+				}
+				else
+				{
+					SuspendTrigger::Resume(); // keyboard-only nav never generates mouse events, so Resume() must be called here
+					auto status = GVS_Ready;
+					auto curr = SessionData::Curr();
+					if (curr)
+						status = UpdateView();
+					if (status == GraphVisitState::GVS_Break)
+						SetUpdateTimer();
+					else
+						m_Waiter.end();
+				}
+			}
+			goto completed;
+		}
+		case WM_ERASEBKGND:
+			goto completed;
+
+		case WM_SETFOCUS:
+			m_State.Set(DVF_HasFocus);
+			goto defaultProcessing;
+
+		case WM_KILLFOCUS:
+			m_State.Clear(DVF_HasFocus);
+			goto defaultProcessing;
+
+		case WM_MOUSEMOVE:
+			OnMouseMove (msg.m_wParam, LParam2Point(msg.m_lParam));
+			goto completed;
+
+		case WM_MOUSEWHEEL:
+		{
+			GPoint pt = LParam2Point(msg.m_lParam);
+			GPoint clientPt = m_ViewHost
+				? m_ViewHost->VH_ScreenToClient(pt)
+				: ScreenToClientGPoint(pt, m_hWnd);
+			DispatchMouseEvent(EventID::MOUSEWHEEL, msg.m_wParam, clientPt);
+			goto completed;
+		}
+
+		case WM_SETCURSOR:
+			if (LOWORD(msg.m_lParam) != HTCLIENT)
+				goto defaultProcessing;
+			if (IsBusy())
+			{
+				if (m_ViewHost)
+					m_ViewHost->VH_SetCursorWait();
+				else
+					SetCursor( LoadCursor(NULL, IDC_WAIT) );
+			}
+			else
+			{
+				GPoint cursorPos;
+				if (m_ViewHost)
+				{
+					m_ViewHost->VH_GetCursorScreenPos(cursorPos);
+					if (!DispatchMouseEvent(EventID::SETCURSOR, 0, m_ViewHost->VH_ScreenToClient(cursorPos)))
+						m_ViewHost->VH_SetCursorArrow();
+				}
+				else
+				{
+					CheckedGdiCall(
+						GetCursorPos(&AsPOINT(cursorPos)),
+						"GetCursorPos"
+					);
+					if (!DispatchMouseEvent(EventID::SETCURSOR, 0, ScreenToClientGPoint(cursorPos, m_hWnd)) )
+						SetCursor( LoadCursor(NULL, IDC_ARROW) );
+				}
+			}
+			goto completed;
+
+		case WM_MOUSELEAVE:
+			OnMouseMove(0, UNDEFINED_VALUE(GPoint) );
+			goto completed;
+
+		case WM_LBUTTONDOWN:
+		{
+			// Capture on our own native HWND. Using VH_SetCapture (Qt grabMouse on the parent
+			// QDmsViewArea) here would leak the capture: subsequent WM_LBUTTONUP would be
+			// routed to QDmsViewArea, whose mouseReleaseEvent is Linux-only, so VH_ReleaseCapture
+			// would never be called and the title-bar [x] would stop responding.
+			SetCapture(m_hWnd);
+			// Take focus on every click. WM_MOUSEACTIVATE only fires when activating an
+			// inactive top-level window, so on second+ clicks inside an already-active
+			// main window focus would otherwise stay on whichever widget had it before
+			// (TreeView, address bar, …) and key events would never reach DispatchMsg
+			// or QDmsViewArea::keyPressEvent (issue #1112).
+			if (m_ViewHost)
+			{
+				m_ViewHost->VH_SetFocus();
+				m_ViewHost->VH_NotifyParentActivation();
+			}
+			else
+			{
+				SetFocus(m_hWnd);
+				auto parent = GetAncestor(m_hWnd, GA_PARENT);
+				SendMessage(parent, WM_QT_ACTIVATENOTIFIERS, 0, 0);
+			}
+			DispatchMouseEvent(EventID::LBUTTONDOWN, msg.m_wParam, LParam2Point(msg.m_lParam));
+			goto completed;
+		}
+		case WM_RBUTTONDOWN:
+			SetCapture(m_hWnd); // capture for the right-button marquee drag; released on WM_RBUTTONUP
+			DispatchMouseEvent(EventID::RBUTTONDOWN,   msg.m_wParam, LParam2Point(msg.m_lParam) );
+			goto completed;
+
+		case WM_LBUTTONUP:
+			DispatchMouseEvent(EventID::LBUTTONUP,     msg.m_wParam, LParam2Point(msg.m_lParam) );
+			ReleaseCapture(); // pairs with SetCapture in WM_LBUTTONDOWN above
+			goto completed;
+
+		case WM_RBUTTONUP:
+			DispatchMouseEvent(EventID::RBUTTONUP,     msg.m_wParam, LParam2Point(msg.m_lParam) );
+			ReleaseCapture(); // pairs with SetCapture in WM_RBUTTONDOWN above
+			goto completed;
+
+		case WM_LBUTTONDBLCLK:
+			DispatchMouseEvent(EventID::LBUTTONDBLCLK, msg.m_wParam, LParam2Point(msg.m_lParam) );
+			goto completed;
+
+		case WM_RBUTTONDBLCLK:
+			DispatchMouseEvent(EventID::RBUTTONDBLCLK, msg.m_wParam, LParam2Point(msg.m_lParam) );
+			goto completed;
+
+
+#if defined(MG_SKIP_WINDOWPOSCHANGED)
+		case WM_SIZE:
+			{
+				OnSize(msg.m_wParam, LParam2Point(msg.m_lParam) );
+				goto completed;
+			}
+#else
+		case WM_WINDOWPOSCHANGED:
+			{
+				DBG_START(GetClsName().c_str(), "DispatchMsg(WM_WINDOWPOSCHANGED)", MG_DEBUG_SIZE);
+				WINDOWPOS* wp = reinterpret_cast<WINDOWPOS*>(msg.m_lParam);
+				OnSize(0, GPoint(wp->cx, wp->cy));
+//				IdleTimer::OnStartLoop();
+				goto completed;
+			}
+#endif
+		case WM_HSCROLL:
+			if (!msg.m_lParam)
+				goto defaultProcessing;
+			dms_assert(m_ScrollEventsReceiver);
+			if (m_ScrollEventsReceiver)
+				m_ScrollEventsReceiver->OnHScroll(LOWORD(msg.m_wParam));
+			goto completed;
+
+		case WM_VSCROLL:
+			if (!msg.m_lParam)
+				goto defaultProcessing;
+			dms_assert(m_ScrollEventsReceiver);
+			if (m_ScrollEventsReceiver)
+				m_ScrollEventsReceiver->OnVScroll(LOWORD(msg.m_wParam));
+			goto completed;
+
+
+		case WM_CAPTURECHANGED:
+			OnCaptureChanged(HWND(msg.m_lParam));
+			goto completed;
+
+		case WM_MOUSEACTIVATE:
+			if (m_ViewHost)
+				m_ViewHost->VH_SetFocus();
+			else
+				SetFocus(m_hWnd);
+			return { true, MA_ACTIVATE };
+		case WM_ACTIVATE:
+			OnActivate(LOWORD(msg.m_wParam) != WA_INACTIVE); // bool minimized = (HIWORD(msg.m_wParam) != 0);
+			goto completed;
+
+		case WM_COMMAND:
+		{
+			SuspendTrigger::FencedBlocker suspendLock("DataView::OnCommand()");
+			if (HIWORD(msg.m_wParam) == 0 && GetContents()->OnCommand(ToolButtonID(LOWORD(msg.m_wParam))))
+				goto completed;
+			goto defaultProcessing;
+		}
+
+		case WM_KEYDOWN:
+			if (OnKeyDown(msg.m_wParam))
+				goto completed;
+			goto defaultProcessing;
+
+		case WM_SYSKEYDOWN:
+			if (OnKeyDown(msg.m_wParam | (msg.m_lParam & KeyInfo::Flag::Menu) | KeyInfo::Flag::Syst))
+				goto completed;
+			goto defaultProcessing;
+		case WM_CHAR:
+			if (OnKeyDown(msg.m_wParam | KeyInfo::Flag::Char))
+				goto completed;
+			goto defaultProcessing;
+			
+		case WM_SYSCHAR:
+			if (OnKeyDown(msg.m_wParam  | (msg.m_lParam & KeyInfo::Flag::Menu) | KeyInfo::Flag::Syst | KeyInfo::Flag::Char ))
+				goto completed;
+			goto defaultProcessing;
+
+		case UM_PROCESS_QUEUE:
+			ProcessGuiOpers();
+			goto completed;
+
+		case UM_COPYDATA:
+		case WM_COPYDATA:
+			PCOPYDATASTRUCT pCopyData = PCOPYDATASTRUCT(msg.m_lParam);
+			const UInt32* dataBegin = PUINT32(pCopyData->lpData);
+			OnCopyData(UINT(pCopyData->dwData), dataBegin, dataBegin + (pCopyData->cbData / 4));
+			goto completed;
+	}
+defaultProcessing:
+	return { false, 0 }; // send to default processing
+
+completed:
+	return { true, 0 }; // don't dispatch any further
+}
+
+#endif // _WIN32 (IsTooltipKiller through DispatchMsg)
+
+bool DataView::OnKeyDown(UInt32 nVirtKey)
+{
+#ifdef _WIN32
+	// On Windows the modifier flags are queried live (caller passes raw virtKey).
+	// On Linux/Qt the caller (QDmsViewArea::keyPressEvent) already encoded modifiers in the flag bits.
+	if (GetKeyState(VK_CONTROL) & 0x8000)
+		nVirtKey |= KeyInfo::Flag::Ctrl;
+	if (GetKeyState(VK_MENU) & 0x8000)
+		nVirtKey |= KeyInfo::Flag::Menu;
+	if (GetKeyState(VK_SHIFT) & 0x8000)
+		nVirtKey |= KeyInfo::Flag::Shift;
+#endif
+	if (m_ActivationInfo)
+		return m_ActivationInfo.OnKeyDown(nVirtKey);
+	return GetContents()->OnKeyDown(nVirtKey);
+}
+
+//----------------------------------------------------------------------
+// OnTimer: Portable timer handler (called by ViewHost)
+//----------------------------------------------------------------------
+
+void DataView::OnTimer(UInt32 timerId)
+{
+	if (timerId == TIP_WATCH_TIMER_ID)
+	{
+		auto attObj = m_activeTooltipObj.lock();
+		if (!attObj)
+			StopTipWatchdog();
+		else
+			if (!IsCursorInsideObject(*attObj))
+				HideActiveTooltip();
+		return;
+	}
+
+	if (timerId == CARET_BLINK_TIMER_ID)
+	{
+		// Blink toggle for the managed text caret. Route the XOR through
+		// VH_DrawInContext so the same DrawContext.InvertRect primitive used
+		// inside ReverseCaretsImpl draws here too — same code path, same
+		// surface, no DWM-cache desync (issue #1112).
+		if (!m_State.Get(DVF_TextCaretCreated) || !m_ViewHost)
+			return;
+		m_TextCaretBlinkOn = !m_TextCaretBlinkOn;
+		Region rgn(TextCaretRect());
+		m_ViewHost->VH_DrawInContext(rgn, [this](DrawContext& dc) {
+			SyncTextCaret(dc, /*forceHidden=*/false);
+		});
+		return;
+	}
+
+	if (timerId == HOVER_TIMER_ID)
+	{
+		if (!m_ViewHost)
+			return;
+		m_ViewHost->VH_KillTimer(HOVER_TIMER_ID);
+
+		GPoint ptScreen{};
+		if (!m_ViewHost->VH_GetCursorScreenPos(ptScreen))
+			return;
+		GPoint ptClient = m_ViewHost->VH_ScreenToClient(ptScreen);
+
+		if (ptClient == m_hoverStartLocation)
+		{
+			TooltipCollector ttc(this, ptClient);
+			SuspendTrigger::Resume();
+			if (ttc.Visit(GetContents().get()))
+			{
+				assert(m_activeTooltipObj.lock().get());
+
+				GPoint tipPos = { ptScreen.x + 32, ptScreen.y + 10 };
+				auto tooltipText = ttc.m_Buff.AsString();
+				m_ViewHost->VH_ShowTooltip(tipPos, tooltipText.c_str());
+				StartTipWatchdog();
+			}
+		}
+		return;
+	}
+
+	if (timerId == UPDATE_TIMER_ID)
+	{
+		if (m_ViewHost)
+			m_ViewHost->VH_KillTimer(UPDATE_TIMER_ID);
+#ifdef _WIN32
+		else
+			KillTimer(m_hWnd, UPDATE_TIMER_ID);
+#endif
+		if (!IsProcessingMainThreadOpers())
+		{
+			if (IdleTimer::IsInIdleMode())
+			{
+				IdleTimer::Subscribe(shared_from_this());
+				m_Waiter.end();
+			}
+			else
+			{
+				// Resume any previous suspension before driving the update cycle.
+				// On Win32, Resume() is implicitly called by mouse/hover events between
+				// timer fires. On Linux (Qt path), no such events fire between timers,
+				// so we call Resume() explicitly — same semantics, portable.
+				if (m_ViewHost)
+					SuspendTrigger::Resume();
+
+				auto status = GVS_Ready;
+				auto curr = SessionData::Curr();
+				if (curr)
+				{
+					try {
+						status = UpdateView();
+					}
+					catch (...)
+					{
+						// exceptions may not escape into the Qt event loop; report them
+						// through the regular channel (eventlog / failed items in detail page)
+						catchAndReportException();
+						status = GVS_Break;
+					}
+				}
+				if (status == GraphVisitState::GVS_Break)
+					SetUpdateTimer();
+				else
+					m_Waiter.end();
+			}
+		}
+		return;
+	}
+}
+
+ActorVisitState DataView::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor) const
+{
+	if (GetContents()->VisitSuppliers(svf, visitor) == AVS_SuspendedOrFailed)
+		return AVS_SuspendedOrFailed;
+	return Actor::VisitSuppliers(svf, visitor);
+}
+
+void DataView::DoInvalidate() const
+{
+	DBG_START("DataView", "DoInvalidate", MG_DEBUG_REGION);
+
+	dbg_assert( md_IsDrawingCount == 0);
+	dbg_assert( md_InvalidateDrawLock == 0);
+
+	m_DoneGraphics.Reset( Region(m_ViewDeviceSize) );
+#ifndef _WIN32
+	m_BackgroundNeedsPainting = true;
+#endif
+	dms_assert(DoesHaveSupplInterest() || !GetInterestCount());
+}
+
+void DataView::InvalidateChangedGraphics()
+{
+	dbg_assert(!md_IsDrawingCount);
+	dms_assert(!SuspendTrigger::DidSuspend());
+
+	auto go = GetContents();
+	dms_assert(go);
+
+	MG_DEBUG_DATA_CODE( SuspendTrigger::ApplyLock protectSuspend; )
+
+	assert( !go->IsDrawn() || IsIncluding(GRect2CrdRect(ViewDeviceRect()), go->GetDrawnFullAbsDeviceRect()));
+
+	if (m_CheckedTS != UpdateMarker::LastTS())
+	{
+		m_CheckedTS = UpdateMarker::GetLastTS();
+		GraphInvalidator().Visit( go.get() );
+	}
+
+	assert(!SuspendTrigger::DidSuspend());
+
+	// make sure the m_DoneGraphics is updated according to invalidated rgn before scrolling; can result in UpdateView
+	if (m_ViewHost)
+		m_ViewHost->VH_UpdateWindow();
+#ifdef _WIN32
+	else
+		UpdateWindow(GetHWnd());
+#endif // may Send WM_PAINT or WM_ERASEBKGND to SHV_DataView_DispatchMessage
+	assert(!SuspendTrigger::DidSuspend());
+}
+
+//	SELCARET
+#include "MapControl.h"
+#include "ViewPort.h"
+//	END SELCARET
+
+
+GraphVisitState DataView::UpdateView()
+{
+	if (m_State.Get(DVF_InUpdateView))
+		return GVS_Continue;
+//	if (SuspendTrigger::MustSuspend())
+//		return GVS_Break;
+
+	SuspendibleUpdate();
+	if (SuspendTrigger::DidSuspend())
+		return GVS_Break;
+
+	auto_flag_recursion_lock<DVF_InUpdateView> recursionLock(m_State);
+
+	ObjectContextHandle context(this, "UpdateView");
+
+	dms_assert(!SuspendTrigger::DidSuspend());
+
+	InvalidateChangedGraphics();
+
+	auto scaleFactors = GetScaleFactors();
+
+	if (GraphUpdater( ViewDeviceRect(), scaleFactors).Visit( GetContents().get() ) == GVS_Break)
+		return GVS_Break;
+
+	assert(!SuspendTrigger::DidSuspend());
+	if (SuspendTrigger::MustSuspend())
+		return GVS_Break;
+
+
+	if (!m_DoneGraphics.Empty())
+	{
+		dbg_assert(md_IsDrawingCount == 0);
+		MG_DEBUGCODE( DynamicIncrementalLock<decltype(md_IsDrawingCount)> lock(md_IsDrawingCount); )
+
+		MG_DEBUGCODE( DbgInvalidateDrawLock protectFromViewChanges(this); )
+
+		dms_assert(!SuspendTrigger::DidSuspend());
+		while (! m_DoneGraphics.Empty() )
+		{
+			DBG_START("DataView::UpdateView", "Region", MG_DEBUG_REGION);
+
+			const Region& drawRegion = m_DoneGraphics.CurrRegion();
+			bool regionDone = false;
+			if (m_ViewHost)
+			{
+				m_ViewHost->VH_DrawInContext(drawRegion, [&](DrawContext& drawContext) {
+					dms_assert(!SuspendTrigger::DidSuspend());
+
+					regionDone = true;
+
+					// Hide carets across the redraw.  Any caret (NeedleCaret in
+					// particular) whose XOR pixels overlap the dirty region would
+					// otherwise be silently wiped by GraphDrawer's paint while the
+					// DataView still considers it "visible" -- the next caret Move
+					// then XOR-erases on top of freshly-painted pixels and leaves
+					// a permanent inverted streak in the MapView.  Clear the flag
+					// for the duration so nested code (if any) does not draw a
+					// second caret pass on top.
+					bool const caretsActive = m_State.Get(DVF_CaretsVisible);
+					if (caretsActive)
+					{
+						ReverseCaretsImpl(drawContext, false);
+						m_State.Clear(DVF_CaretsVisible);
+					}
+
+#ifndef _WIN32
+					// Pass 1: background (white fill + WMS tiles) — run once per dirty cycle, not on retries.
+					// On Windows this is done by OnPaint(); on Linux we guard with m_BackgroundNeedsPainting
+					// so suspended data retries never erase already-drawn fills.
+					// GD_OnPaint marks this as a paint-driven draw so GraphDrawer::Visit's assert
+					// (line 510 of GraphVisitor.cpp) accepts a non-suspendible, possibly-not-updated graph.
+					if (m_BackgroundNeedsPainting) {
+						GraphDrawer(&drawContext, drawRegion, this, GdMode(GD_DrawBackground|GD_OnPaint), scaleFactors)
+							.Visit(GetContents().get());
+						m_BackgroundNeedsPainting = false;
+					}
+					// Pass 2: data only (fills + borders) — suspendible, accumulates via m_DoneGraphics
+					GraphDrawer drawer(&drawContext, m_DoneGraphics, this, GdMode(GD_StoreRect|GD_Suspendible|GD_UpdateData|GD_DrawData), scaleFactors);
+#else
+					GraphDrawer drawer(&drawContext, m_DoneGraphics, this, GdMode(GD_StoreRect|GD_Suspendible|GD_UpdateData|GD_DrawData), scaleFactors);
+#endif
+					GraphVisitState suspended = GVS_Continue;
+					try {
+						suspended = drawer.Visit(GetContents().get());
+					}
+					catch (...)
+					{
+						catchAndReportException();
+					}
+					bool stopped = m_DoneGraphics.DidBreak();
+
+					dms_assert(!stopped || !SuspendTrigger::DidSuspend());
+
+					if (stopped || suspended == GVS_Continue)
+					{
+						if (!m_DoneGraphics.HasMultipleStacks() && !m_SelCaret.Empty())
+							drawContext.InvertRegion(m_SelCaret);
+//						dms_assert(m_DoneGraphics.NoSuspendedCounters());
+						m_DoneGraphics.PopBack();
+						SuspendTrigger::MarkProgress();
+					}
+					else
+						regionDone = false;
+
+					// Restore carets after the paint so the on-screen XOR pixels match
+					// the still-"visible" state the DataView holds.
+					if (caretsActive)
+					{
+						m_State.Set(DVF_CaretsVisible);
+						ReverseCaretsImpl(drawContext, true);
+					}
+				});
+			}
+			else
+				m_DoneGraphics.PopBack();
+
+			if (SuspendTrigger::DidSuspend())
+				return GVS_Break;
+		}
+	}
+	dms_assert(m_DoneGraphics.Empty()); // post condition of while loop
+
+	// now try to update all remaining (invisible) Contents, thus preparing data for later view
+
+	MG_DEBUGCODE( DbgInvalidateDrawLock protectFromViewChanges(this); )
+
+	CounterStacks updateAllStack;
+//	GPoint viewSize = m_ViewDeviceSize; viewSize *= GetWindowDIP2pixFactorXY(GetHWnd());
+	updateAllStack.AddDrawRegion(Region(m_ViewDeviceSize));
+
+	dms_assert(!SuspendTrigger::DidSuspend()); // should have been acted upon, DEBUG, REMOVE
+
+	GraphVisitState suspended = GraphDrawer(nullptr, updateAllStack, this, GdMode(GD_Suspendible | GD_UpdateData), scaleFactors)
+		.Visit(GetContents().get());
+
+	dms_assert((suspended == GVS_Break) == SuspendTrigger::DidSuspend());
+
+	dms_assert(m_DoneGraphics.Empty()); // it was empty and the OnPaint is only processed in sync
+	if (!m_DoneGraphics.Empty()) // DEBUG, REMOVE when above assert is proven to hold
+		return GVS_Break;
+
+	if (SuspendTrigger::DidSuspend())
+		return GVS_Break;
+
+	if (UpdateChildViews(this) == AVS_SuspendedOrFailed)
+		return GVS_Break;
+
+	return GVS_Ready;
+}
+
+#include "utl/Environment.h"
+#include "utl/PlatformError.h"
+
+#ifdef _WIN32
+UINT GetShowCmd(HWND hWnd)
+{
+	WINDOWPLACEMENT wpl;
+	wpl.length = sizeof(WINDOWPLACEMENT);
+	CheckedGdiCall(
+		GetWindowPlacement(hWnd, &wpl)
+	,	"GetWindowPlacement"
+	);
+	if (wpl.showCmd == SW_SHOWNORMAL)
+		CheckedGdiCall(
+			GetWindowPlacement(GetParent(hWnd), &wpl)
+		,	"GetWindowPlacement"
+		);
+
+	dms_assert(
+			wpl.showCmd == SW_HIDE
+		||	wpl.showCmd == SW_SHOWMAXIMIZED
+		||	wpl.showCmd == SW_SHOWMINIMIZED
+		||	wpl.showCmd == SW_SHOWNORMAL
+	);
+	return wpl.showCmd;
+}
+#endif // _WIN32
+
+ActorVisitState UpdateChildViews(DataViewTree* dvl)
+{
+	DataView* dv = dvl->_GetFirstSubItem();
+	while (dv)
+	{
+		if (UpdateChildViews(dv) == AVS_SuspendedOrFailed)
+			return AVS_SuspendedOrFailed;
+
+		auto vh = dv->GetViewHost();
+#ifdef _WIN32
+		HWND hWnd = dv->GetHWnd();
+		if (vh ? vh->VH_IsVisible() : IsWindowVisible(hWnd))
+		{
+			UINT showCmd = vh ? vh->VH_GetShowCmd() : GetShowCmd(hWnd);
+#else
+		if (!vh || vh->VH_IsVisible())
+		{
+			UINT showCmd = vh ? vh->VH_GetShowCmd() : SW_SHOWNORMAL;
+#endif
+			if (showCmd != SW_HIDE && showCmd != SW_SHOWMINIMIZED)
+			{
+				if ((dv->UpdateView() != GVS_Continue))
+					return AVS_SuspendedOrFailed;  // come back if suspended and not failed
+				if (showCmd == SW_SHOWMAXIMIZED)
+					return AVS_Ready; // don't update sibblings that are hidden under a maximized View
+			}
+		}
+		dv = dv->GetNextItem();
+	}
+	return AVS_Ready;
+}
+
+void DataView::ScrollDevice(GPoint delta, GRect rcScroll, GRect rcClip, const MovableObject* src)
+{
+	DBG_START("DataView", "Scroll", MG_DEBUG_SCROLL);
+	DBG_TRACE(("dx = {}, dy={}", delta.x, delta.y));
+	DBG_TRACE(("rect = {}", AsString(rcScroll).c_str()));
+	DBG_TRACE(("clip = {}", AsString(rcClip  ).c_str()));
+
+	dbg_assert( md_InvalidateDrawLock == 0);
+	assert(src);
+#if !defined(_WIN32)
+	bool const wasCaretsVisible = m_State.Get(DVF_CaretsVisible);
+	m_State.Clear(DVF_CaretsVisible); // Linux: no CaretHider; satisfy assertion below
+#endif
+	{
+#if defined(_WIN32)
+		// Carets are hidden across this scroll by CaretHider below, so the
+		// XOR-drawn MovableRectCaret resize guides are erased before the blit
+		// and do not get smeared across the scrolled cells.  Use GetHWnd()
+		// (= m_ViewHost->VH_GetHWnd() on the Qt port) so the DcHandle holds
+		// the data-view child HWND rather than a screen DC; the DC itself is
+		// unused on the Qt path (ReverseCarets goes through
+		// m_ViewHost->VH_DrawInContext), but keep it correct for any future
+		// HDC-based path.  See issue 1100; the actual gate that was silently
+		// dropping the XOR-erase on the Qt port was the m_hWnd check inside
+		// DataView::SetCaretsVisible, fixed there.
+		DcHandle dc(GetHWnd(), GetDefaultFont(FontSizeCategory::MEDIUM));
+		Region   rgnClip(rcClip);
+		{
+			auto hClip = RegionToHRGN(rgnClip);
+			SelectClipRgn(dc, hClip);
+		}
+
+		CaretHider caretHider(this, dc);
+#else
+		Region   rgnClip(rcClip);
+#endif
+
+		GRect rcClippedScroll = rcClip; 
+		rcClippedScroll &= rcScroll; // prepare for making rcScrolll TRect
+
+		Region drawRgn(GPoint(0, 0));
+#ifdef _WIN32
+		Region invalidRgn = RegionFromUpdateRgn( GetHWnd() );
+#else
+		Region invalidRgn;
+#endif
+
+		DBG_TRACE(("invr = {}", invalidRgn.AsString().c_str()));
+
+		GRect validRect = (rcClippedScroll + delta) & rcClip; // dest region of scroll
+		if (!validRect.empty())
+			ValidateRect(validRect);
+
+		if (m_ViewHost)
+			m_ViewHost->VH_ScrollWindow(delta, rcClippedScroll, rcClip, drawRgn, GRect());
+#if defined(_WIN32)
+		else
+		{
+			GdiHandle<HRGN> hDrawRgn(CreateRectRgn(0, 0, 0, 0), nullptr);
+			ScrollWindowEx(GetHWnd(),
+				delta.x , delta.y,
+				&AsRECT(rcClippedScroll),      // prcScrill
+				&AsRECT(rcClip),               // prcClip
+				hDrawRgn,              // HRGN hrgnUpdate,  // handle to update region
+				NULL,                  // LPRECT prcUpdate, // address of structure for update rectangle
+				0                      // SW_SCROLLCHILDREN //SW_ERASE|SW_INVALIDATE // |SW_SMOOTHSCROLL + 0x00010000
+			);
+			drawRgn = Region(HRGNToQRegion(hDrawRgn));
+		}
+#endif
+/*
+		Region drawRgn(rcClippedScroll);                         // source region of scroll
+		if (rcScroll != rcClippedScroll)
+			drawRgn |= Region((rcScroll  + delta) & rcClip);     // invalidate dest region that was outside the clipping region
+		drawRgn -= Region(validRect);
+*/
+		// scroll invalidations within clippedScroll rect
+		if (! invalidRgn.Empty())
+		{
+			invalidRgn &= rcClippedScroll;
+			if (! invalidRgn.Empty())
+			{
+				invalidRgn += delta;
+				invalidRgn &= rcClip;
+				drawRgn  |= invalidRgn;
+			}
+		}
+
+		// Full-source invalidation was added here as belt-and-suspenders
+		// coverage when the carets-around-scroll/paint contract was broken
+		// (XOR pixels of NeedleCaret / FocusCaret / selection highlights
+		// could survive the blit and stamp permanent streaks).  With
+		// CaretHider properly erasing all carets before ScrollWindowEx
+		// (SetCaretsVisible gate fix) plus the explicit caret hide/show
+		// brackets in OnPaint and UpdateView, the scroll-blit alone is
+		// visually correct -- only the trailing strip exposed by the scroll
+		// needs invalidation, and ScrollWindowEx's update region (folded
+		// into drawRgn just above) already covers it.  Keeping the union
+		// here invalidates the entire scroll source on every drag step,
+		// which is what made MapView pan blank the view until mouse-up.
+
+		// then invalidate rgn that became waste
+		if (!drawRgn.Empty())
+			InvalidateRgn(drawRgn);
+
+		m_DoneGraphics.ScrollDevice( delta, rcScroll, rcClip );
+
+		// Update positions of carets before reappearing
+		dms_assert(!m_State.Get(DVF_CaretsVisible)); // guaranteed by CaretHider
+
+		if (m_SelCaret.IsIntersecting(rcClip))
+			m_SelCaret.ScrollDevice( delta, rcScroll, rgnClip);
+
+		if (IsIncluding(rcClippedScroll, m_TextCaretPos))
+			m_TextCaretPos += delta;
+		if (m_FocusCaret)
+		{
+			GRect focusRect = m_FocusCaret->GetRect();
+			if (IsIncluding(rcClippedScroll, focusRect))
+			{
+				focusRect += delta;
+				focusRect &= rcClip;
+				SetFocusRect(focusRect);
+			}
+		}
+	}
+#if !defined(_WIN32)
+	m_State.Set(DVF_CaretsVisible, wasCaretsVisible); // Linux: restore after scroll (mirrors CaretHider destructor)
+#endif
+	// Remove active carets after they reappeared to erase them in full.
+	// Removing them before reappearande would avoid flicker, but we have only partially removed active carets)
+	DispatchMouseEvent(EventID::SCROLLED, 0, UNDEFINED_VALUE(GPoint) ); 
+}
+
+#ifdef _WIN32
+
+typedef GdiHandle<HMENU>             SafeMenuHandle;
+typedef std::vector<SafeMenuHandle>  MenuHandleCollection;
+
+void InsertMenuItems(
+	MenuHandleCollection& hMenus,
+	MenuData::const_iterator& i,
+	MenuData::const_iterator e,
+	UInt32* menuItemIdPtr,
+	UInt32 level)
+{
+	dms_assert(i!=e && i->m_Level == level); // only get here when at least one item to insert
+
+
+	hMenus.push_back( SafeMenuHandle( CreatePopupMenu() ) );
+	HMENU hMenu = hMenus.back();
+
+	while (i!=e && i->m_Level == level)
+	{
+		MENUITEMINFO itemInfo;
+		itemInfo.cbSize = sizeof(MENUITEMINFO);
+		itemInfo.fMask  = MIIM_TYPE|MIIM_ID|MIIM_STATE|MIIM_SUBMENU|MIIM_DATA;
+		std::wstring wCaption; // wide copy of the UTF-8 caption; must outlive the InsertMenuItem call below
+		if (! i->m_Caption.empty())
+		{
+			CharPtr cap = i->m_Caption.c_str();
+			int wLen = MultiByteToWideChar(CP_UTF8, 0, cap, i->m_Caption.ssize(), nullptr, 0);
+			wCaption.resize(wLen);
+			MultiByteToWideChar(CP_UTF8, 0, cap, i->m_Caption.ssize(), wCaption.data(), wLen);
+			itemInfo.fType      = MFT_STRING;
+			itemInfo.dwTypeData = wCaption.data();
+			itemInfo.cch        = wLen;
+		}
+		else
+			itemInfo.fType = MFT_SEPARATOR;
+		itemInfo.fState     = i->m_Flags;
+		itemInfo.wID        = *menuItemIdPtr;
+		itemInfo.hSubMenu   = 0;
+		itemInfo.dwItemData = 0;
+
+		++i; ++*menuItemIdPtr;
+
+		if (i!=e && i->m_Level > level)
+		{
+			dms_assert(i->m_Level == level + 1);
+
+			SizeT menuCount = hMenus.size();
+			InsertMenuItems(hMenus, i, e, menuItemIdPtr, level+1);
+			dms_assert(menuCount < hMenus.size());
+			itemInfo.hSubMenu = hMenus[menuCount];
+		}
+
+		CheckedGdiCall(
+			InsertMenuItem(hMenu,
+				itemInfo.wID, true,
+				&itemInfo),
+			"ShowPopupMenu"
+		);
+	}
+	dms_assert(i==e || i->m_Level < level);
+
+}
+#endif // _WIN32
+
+void DataView::ShowPopupMenu(GPoint point, const MenuData& menuData) const
+{
+	dms_assert(menuData.size());
+
+	if (m_ViewHost)
+	{
+		m_ViewHost->VH_ShowPopupMenu(point, menuData);
+		return;
+	}
+
+#ifdef _WIN32
+	MenuHandleCollection hMenus;
+
+	UInt32 menuItemID = 1;
+	auto menuDataIter = menuData.begin();
+	InsertMenuItems(hMenus, menuDataIter, menuData.end(), &menuItemID, 0);
+	dms_assert(hMenus.size() > 0);
+
+	GPoint screenPoint = point;
+	CheckedGdiCall(
+		ClientToScreen(m_hWnd, &AsPOINT(screenPoint)),
+		"ShowPopupMenu"
+	);
+
+	UInt32 result;
+	{
+		IdleTimer idleProcessingProvider;
+		result = TrackPopupMenuEx(
+			hMenus[0],
+			TPM_NONOTIFY|TPM_RETURNCMD|TPM_RIGHTBUTTON ,
+			screenPoint.x, screenPoint.y,
+			m_hWnd,
+			NULL //Pointer to a TPMPARAMS structure that specifies an area of the screen the menu should not overlap
+		);
+	}
+	if (result)
+	{
+		--result;
+		assert(result < menuData.size());
+		menuData[result].Execute();
+	}
+#endif // _WIN32
+}
+
+bool IsAnchestor(MovableObject* candidateParent, MovableObject* childObj)
+{
+	dms_assert(candidateParent);
+	std::shared_ptr<GraphicObject> co = childObj->shared_from_this();
+	while (co)
+	{
+		if (co.get() == candidateParent)
+			return true;
+		co = co->GetOwner().lock();
+
+	}
+	return false;
+}
+
+void Activate(MovableObject* newAct, MovableObject* base)
+{
+	if (newAct && newAct != base)
+	{
+		Activate(newAct->GetOwner().lock().get(), base);
+		newAct->SetActive(true);
+	}
+}
+
+void ChangeActivation(MovableObject*  oldAct, MovableObject* newAct)
+{
+	dms_assert(newAct);
+	std::shared_ptr<GraphicObject> oa;
+	if (oldAct) oa = oldAct->shared_from_this();
+	while (oa && !IsAnchestor(debug_cast<MovableObject*>(oa.get()), newAct))
+	{
+		auto pa = oa->GetOwner().lock();
+		assert(pa);
+		if (oa->IsActive())
+			oa->SetActive(false);
+		oa = pa;
+	}
+	Activate(newAct, debug_cast<MovableObject*>(oa.get()));
+}
+
+void DataView::Activate(MovableObject* src)
+{
+	assert(src);
+	if (!src)
+		return;
+	if (m_ActivationInfo.get() == src)
+		return;
+
+	m_PrevActivated = m_ActivationInfo;
+	auto activationInfo = ActivationInfo(src);
+	ChangeActivation(m_ActivationInfo.get(), activationInfo.get());
+	m_ActivationInfo = std::move(activationInfo);
+}
+
+void DataView::ActivatePrev()
+{
+	auto prevActivated = m_PrevActivated.lock(); 
+	if (!prevActivated)
+		return;
+	Activate(prevActivated.get());
+	m_PrevActivated = {};
+}
+
+void DataView::SetCursorPos(GPoint clientPoint)
+{
+	if (m_ViewHost)
+	{
+		GPoint screenPoint = m_ViewHost->VH_ClientToScreen(clientPoint);
+		GPoint currPos;
+		if (!m_ViewHost->VH_GetCursorScreenPos(currPos) || !(currPos == screenPoint))
+			m_ViewHost->VH_SetGlobalCursorPos(screenPoint);
+	}
+#ifdef _WIN32
+	else
+	{
+		ClientToScreen(m_hWnd, &AsPOINT(clientPoint));
+		GPoint currPos;
+		if (!::GetCursorPos(&AsPOINT(currPos)) || !(currPos == clientPoint))
+			::SetCursorPos(clientPoint.x, clientPoint.y);
+	}
+#endif
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// DataView message handlers
+
+// MK_CONTROL	Set if the CTRL key is down.
+// MK_LBUTTON	Set if the left mouse button is down.
+// MK_MBUTTON	Set if the middle mouse button is down.
+// MK_RBUTTON	Set if the right mouse button is down.
+// MK_SHIFT	  Set if the SHIFT key is down.
+
+bool DataView::DispatchMouseEvent(EventID event, WPARAM nFlags, GPoint devicePoint)
+{
+#if defined(_WIN32)
+	// Win32 mouse-message wParam carries MK_CONTROL/MK_SHIFT but not Alt; fold it in here.
+	// On Linux the Qt path (qtModsToMkFlags) already sets MK_ALT, so this is Win32-only.
+	if (GetKeyState(VK_MENU) & 0x8000) nFlags |= MK_ALT;
+#endif
+	if (nFlags & MK_CONTROL) event |= EventID::CTRLKEY;
+	if (nFlags & MK_SHIFT  ) event |= EventID::SHIFTKEY;
+	if (nFlags & MK_ALT    ) event |= EventID::ALTKEY;
+
+	EventInfo eventInfo(event, nFlags, devicePoint);
+
+	m_ControllerVector(eventInfo);
+
+	if (eventInfo.m_EventID & EventID::HANDLED)
+		return true;
+
+	if (!IsDefined(devicePoint))
+		return false;
+	if (eventInfo.m_EventID & EventID::RBUTTONUP)
+		m_TextEditController.CloseCurr();
+
+	bool result = false;
+	MouseEventDispatcher med(this, eventInfo);
+	{
+//		SuspendTrigger::FencedBlocker blockSuspension("DataView::DispatchMouseEvent");
+		SuspendTrigger::Resume();
+		result = med.Visit(GetContents().get());
+	}
+
+	if ( ! med.GetMenuData().empty() )
+	{
+		ShowPopupMenu(eventInfo.m_Point, med.GetMenuData() );
+		return true;
+	}
+	if (med.IsActivating() && med.m_ActivatedObject)
+	{
+		Activate(med.m_ActivatedObject.get());
+		return true;
+	}
+	return result;
+}
+
+void DataView::SetFocusRect(GRect focusRect)
+{
+	if (m_FocusCaret)
+	{
+		if (focusRect == m_FocusCaret->GetRect()) 
+			return;
+
+		MoveCaret(
+			m_FocusCaret.get(),
+			DualPointCaretOperator(focusRect.LeftTop(), focusRect.RightBottom(), 0)
+		);	
+	}
+}
+
+SharedStr DataView::GetCaption() const
+{
+	if (!m_Contents)
+		return {};
+	return m_Contents->GetCaption();
+}
+
+
+void DataView::OnCaptionChanged() const
+{
+	SendStatusText(SeverityTypeID::ST_MajorTrace, GetCaption().c_str());
+}
+
+// ============   Painting
+
+#ifdef _WIN32
+void DataView::OnEraseBkgnd(HDC dc)
+{
+	DBG_START("DataView", "OnEraseBkgnd", MG_DEBUG_CARET || MG_DEBUG_REGION);
+
+	GRect rect;
+	int clipStatus = GetClipBox(dc, &AsRECT(rect));
+	if (clipStatus == NULLREGION)
+		return;
+	if (clipStatus == ERROR)
+		throwLastSystemError("DataView::OnEraseBkgnd");
+
+	DBG_TRACE(("FillRect [({},{})-({},{})]", rect.left, rect.top, rect.right, rect.bottom));
+
+	FillRect(dc, &AsRECT(rect), (HBRUSH) (COLOR_WINDOW+1) );
+}
+#endif // _WIN32
+
+std::atomic<UInt32> s_DataViewOnPaintRecursionCount = 0;
+
+
+void DataView::OnPaint() 
+{
+#if defined(_WIN32)
+	DBG_START("DataView", "OnPaint", MG_DEBUG_CARET || MG_DEBUG_REGION);
+
+	if (s_DataViewOnPaintRecursionCount)
+		return; // already processing a message; do after completion.
+	StaticMtIncrementalLock<s_DataViewOnPaintRecursionCount> recursionLock;
+
+	PaintDcHandle paintDC(m_hWnd, GetDefaultFont(FontSizeCategory::MEDIUM));
+	if (!paintDC.GetHDC())
+		throwLastSystemError("DataView::OnPaint");
+
+	Region rgn = RegionFromSystemClipRgn(paintDC, m_hWnd);
+	if (rgn.Empty())
+		return;
+
+	dbg_assert( md_InvalidateDrawLock == 0);
+	MG_DEBUGCODE( DbgInvalidateDrawLock protectFromViewChanges(this); )
+
+	GdiDrawContext paintDrawContext(paintDC);
+
+	// Bracket the background paint with caret hide/show, mirroring the
+	// UpdateView pattern (and CaretHider in ScrollDevice).  The previous
+	// trailing ReverseCarets(paintDC, true) call toggled every visible
+	// caret in the full view: that worked when the paint wiped the caret
+	// entirely (small carets fully contained in the invalidated region)
+	// but corrupted NeedleCaret, whose cross-hair spans the whole view.
+	// On a partial-paint the unconditional toggle flips the part outside
+	// the paint area from XOR'd to clean -- the next NeedleCaret::Move
+	// then XOR-erases on now-clean pixels and stamps a permanent streak.
+	bool const caretsActive = m_State.Get(DVF_CaretsVisible);
+	if (caretsActive)
+	{
+		ReverseCaretsImpl(paintDrawContext, false);
+		m_State.Clear(DVF_CaretsVisible);
+	}
+
+	try {
+		GraphDrawer( &paintDrawContext, rgn, this, GdMode(GD_StoreRect|GD_OnPaint|GD_DrawBackground), GetScaleFactors())
+		.Visit( GetContents().get() );
+	}
+	catch (...)
+	{
+		catchAndReportException();
+	}
+
+	m_DoneGraphics.AddDrawRegion( std::move(rgn) );
+
+	DBG_TRACE(("PaintDc must erase {}", paintDC.MustEraseBkgnd()));
+
+	if (caretsActive)
+	{
+		m_State.Set(DVF_CaretsVisible);
+		ReverseCaretsImpl(paintDrawContext, true);
+	}
+	SetUpdateTimer();
+#endif // _WIN32
+}
+void DataView::SetUpdateTimer()
+{
+	m_Waiter.start(this);
+	if (m_ViewHost)
+		m_ViewHost->VH_SetTimer(UPDATE_TIMER_ID, 100);
+#ifdef _WIN32
+	else
+		SetTimer(m_hWnd, UPDATE_TIMER_ID, 100, nullptr);
+#endif
+}
+
+#ifdef _WIN32
+// ============   Mouse Handling
+
+void DataView::OnMouseMove(WPARAM nFlags, GPoint devicePoint)
+{
+	if (IsDefined(devicePoint))
+	{
+		if (m_ViewHost)
+			m_ViewHost->VH_TrackMouseLeave();
+		else
+		{
+			TRACKMOUSEEVENT tme;
+			tme.cbSize      = sizeof(TRACKMOUSEEVENT);
+			tme.dwFlags     = TME_LEAVE;
+			tme.hwndTrack   = m_hWnd;
+			if (!_TrackMouseEvent(&tme))
+				throwLastSystemError("TrackMouseEvent");
+		}
+	}
+	if (nFlags & (MK_LBUTTON|MK_RBUTTON)) // left- or right-button drag (right = marquee zoom)
+		DispatchMouseEvent(EventID::MOUSEDRAG, nFlags, devicePoint);
+	else if ((nFlags & (MK_LBUTTON|MK_MBUTTON|MK_RBUTTON)) == 0)
+		DispatchMouseEvent(EventID::MOUSEMOVE, nFlags, devicePoint);
+}
+
+void DataView::OnCaptureChanged(HWND hWnd)
+{
+//	SetCaretsVisible(false, 0);
+	if (hWnd && hWnd != m_hWnd)
+		DispatchMouseEvent(EventID::CAPTURECHANGED, 0, UNDEFINED_VALUE(GPoint) );
+}
+#endif // _WIN32
+
+void DataView::OnActivate(bool becomeActive)
+{
+	DBG_START("DataView", "OnActivate", MG_DEBUG_CARET);
+#ifdef _WIN32
+	SetCaretsVisible(becomeActive, 0);
+#else
+	if (m_State.Get(DVF_CaretsVisible) != becomeActive)
+	{
+		if (m_ViewHost)
+		{
+			Region fullRgn(m_ViewDeviceSize);
+			m_ViewHost->VH_DrawInContext(fullRgn, [this, becomeActive](DrawContext& dc) {
+				ReverseCaretsImpl(dc, becomeActive);
+			});
+		}
+		m_State.Set(DVF_CaretsVisible, becomeActive);
+		// Managed text caret is hidden/shown by ReverseCaretsImpl via SyncTextCaret above.
+	}
+#endif
+	if (becomeActive)
+	{
+		dms_assert(m_ParentView);
+		m_ParentView->BringChildToTop(this);
+		UpdateMarker::GetFreshTS(MG_DEBUG_TS_SOURCE_CODE("DataView::OnActivate")); // trigger DetermineStateChange to look for authentic source changes
+	}
+}
+
+#ifdef _WIN32
+void DataView::OnSize(WPARAM nType, GPoint deviceSize)
+{
+	DBG_START(GetClsName().c_str(), "OnSize", MG_DEBUG_CARET || MG_DEBUG_REGION || MG_DEBUG_SIZE);
+	DBG_TRACE(("NewSize=({},{})", deviceSize.x, deviceSize.y));
+	auto hWnd = GetHWnd();
+	assert(hWnd);
+	auto currScaleFactors = GetWindowDip2PixFactors(hWnd);
+	if (m_CurrScaleFactors != currScaleFactors)
+	{
+		m_CurrScaleFactors = currScaleFactors;
+		GetContents()->InvalidateDraw();
+	}
+
+	auto logicalSize = Reverse(GPoint2CrdPoint(deviceSize));
+	if (m_ViewDeviceSize == deviceSize)
+	{
+		if (GetContents()->GetCurrFullSize() == logicalSize)
+			return;
+	}
+
+	if (deviceSize.x <= 0 || deviceSize.y <= 0)
+	{
+		GetContents()->InvalidateDraw();
+		return;
+	}
+
+#if defined(MG_DEBUG)
+	if (MG_DEBUG_INVALIDATE || true)
+	{
+		DcHandle dc(GetHWnd(), 0);
+
+		GRect rect1(GPoint(m_ViewDeviceSize.x, 0), UpperBound(m_ViewDeviceSize, deviceSize));
+		GRect rect2(GPoint(0, m_ViewDeviceSize.y), UpperBound(m_ViewDeviceSize, deviceSize));
+
+		::FillRect(dc, &AsRECT(rect1), GdiHandle<HBRUSH>(CreateSolidBrush(DmsColor2COLORREF(DmsBlue))));
+		::FillRect(dc, &AsRECT(rect2), GdiHandle<HBRUSH>(CreateSolidBrush(DmsColor2COLORREF(DmsGreen))));
+	}
+#endif
+
+	MakeUpperBound(m_ViewDeviceSize, deviceSize);
+
+
+	if (m_Contents) {
+		auto deviceRect = GRect(GPoint(0, 0), deviceSize);
+		auto logicalRect = CrdRect(Point<CrdType>(0, 0), logicalSize);
+		if (GetContents()->IsDrawn())
+			GetContents()->ClipDrawnRect(GRect2CrdRect(deviceRect));
+		GetContents()->SetFullRelRect(logicalRect);
+	}
+	m_ViewDeviceSize = deviceSize;
+
+	dbg_assert( md_InvalidateDrawLock == 0);
+	m_DoneGraphics.LimitDrawRegions(deviceSize); // limit rect if window becomes smaller
+}
+#endif // _WIN32
+
+void DataView::OnResize(GPoint deviceSize, CrdPoint scaleFactors)
+{
+	if (m_CurrScaleFactors != scaleFactors)
+	{
+		m_CurrScaleFactors = scaleFactors;
+		GetContents()->InvalidateDraw();
+	}
+
+	auto logicalSize = Reverse(GPoint2CrdPoint(deviceSize));
+	if (m_ViewDeviceSize == deviceSize)
+	{
+		if (GetContents()->GetCurrFullSize() == logicalSize)
+			return;
+	}
+
+	if (deviceSize.x <= 0 || deviceSize.y <= 0)
+	{
+		GetContents()->InvalidateDraw();
+		return;
+	}
+
+	MakeUpperBound(m_ViewDeviceSize, deviceSize);
+
+	if (m_Contents) {
+		auto deviceRect = GRect(GPoint(0, 0), deviceSize);
+		auto logicalRect = CrdRect(Point<CrdType>(0, 0), logicalSize);
+		if (GetContents()->IsDrawn())
+			GetContents()->ClipDrawnRect(GRect2CrdRect(deviceRect));
+		GetContents()->SetFullRelRect(logicalRect);
+	}
+	m_ViewDeviceSize = deviceSize;
+
+	dbg_assert( md_InvalidateDrawLock == 0);
+	m_DoneGraphics.LimitDrawRegions(deviceSize);
+}
+
+TreeItem* DataView::GetDesktopContext() const
+{
+	TreeItem* desktopItem = const_cast<TreeItem*>( GetViewContext()->GetTreeParent().get() ); 
+	assert(desktopItem && !desktopItem->IsCacheItem());
+	return desktopItem;
+}
+
+#ifdef _WIN32
+void DataView::ResetHWnd(HWND hWnd)
+{
+	dms_assert(hWnd);
+	m_hWnd = hWnd;
+	if (!m_ParentView)
+		g_DataViewRoots.AddChildView(this);
+}
+#endif
+
+void DataView::SetViewHost(ViewHost* vh)
+{
+	m_ViewHost = vh;
+}
+
+void DataView::SetScrollEventsReceiver(ScrollPort* sp)
+{
+	dms_assert(m_ScrollEventsReceiver == 0 || m_ScrollEventsReceiver == sp);
+	m_ScrollEventsReceiver = sp;
+}
+
+ExportInfo DataView::GetExportInfo()
+{
+	return ExportInfo();
+}
+
+void DataView::SendStatusText(SeverityTypeID st, CharPtr msg) const
+{
+	m_StatusTextCaller(st, msg); 
+}
+
+void DataView::SetStatusTextFunc(ClientHandle clientHandle, StatusTextFunc stf)
+{
+	m_StatusTextCaller.m_ClientHandle = clientHandle; 
+	m_StatusTextCaller.m_Func   = stf;
+}
+
+void DataView::InvalidateDeviceRect(GRect rect)
+{
+#if defined(MG_DEBUG)
+	CheckRgnLimits(rect);
+#endif
+	if (m_ViewHost)
+	{
+		m_ViewHost->VH_InvalidateRect(rect, true);
+#ifndef _WIN32
+		// On Linux, VH_InvalidateRect only blits the current backing store.
+		// Queue the region for re-render so UpdateView() redraws updated content (e.g. WMS tiles).
+		// On Win32, WM_PAINT → OnPaint() → AddDrawRegion + SetUpdateTimer serves this purpose.
+		m_DoneGraphics.AddDrawRegion(Region(rect));
+		m_BackgroundNeedsPainting = true;
+		RequestUpdate();
+#endif
+	}
+#ifdef _WIN32
+	else
+		::InvalidateRect(m_hWnd, &AsRECT(rect), true);
+#if defined(MG_DEBUG)
+	if (MG_DEBUG_INVALIDATE || true)
+	{
+		DcHandle dc(GetHWnd(), 0);
+		GdiHandle<HBRUSH> br( CreateSolidBrush( DmsColor2COLORREF(DmsRed) ) );
+		::FillRect(dc, &AsRECT(rect), br );
+	}
+#endif
+#endif // _WIN32
+}
+
+void DataView::InvalidateRgn (const Region& rgn)
+{
+	if (m_ViewHost)
+	{
+		m_ViewHost->VH_InvalidateRgn(rgn, true);
+#ifndef _WIN32
+		m_DoneGraphics.AddDrawRegion(Region(rgn.BoundingBox()));
+		m_BackgroundNeedsPainting = true;
+		RequestUpdate();
+#endif
+	}
+#if defined(_WIN32)
+	else
+	{
+		auto hrgn = RegionToHRGN(rgn);
+		::InvalidateRgn(m_hWnd, hrgn, true);
+	}
+#if defined(MG_DEBUG)
+	if (MG_DEBUG_INVALIDATE || true)
+	{
+		DcHandle dc(GetHWnd(), 0);
+		GdiHandle<HBRUSH> br( CreateSolidBrush( DmsColor2COLORREF(DmsOrange) ) );
+		auto hrgn = RegionToHRGN(rgn);
+		::FillRgn(dc, hrgn, br );
+	}
+#endif
+#endif // _WIN32
+}
+
+
+void DataView::ValidateRect(const GRect& pixRect)
+{
+	if (m_ViewHost)
+		m_ViewHost->VH_ValidateRect(pixRect);
+#ifdef _WIN32
+	else
+		::ValidateRect(m_hWnd, &AsRECT(pixRect));
+#if defined(MG_DEBUG)
+	if (MG_DEBUG_INVALIDATE && false)
+	{
+		DcHandle dc(GetHWnd(), 0);
+		GdiHandle<HBRUSH> br( CreateSolidBrush( DmsColor2COLORREF(DmsBlue) ) );
+		::FillRect(dc, &AsRECT(pixRect), br );
+	}
+#endif
+#endif // _WIN32
+}
+
+DmsColor DataView::GetNextDmsColor() const
+{
+	auto currIndex = m_PaletteIndex++;
+	dms_assert(currIndex < nrPaletteColors);
+	if (m_PaletteIndex == nrPaletteColors)
+		m_PaletteIndex = 0;
+	return m_ColorPalette[currIndex];
+}
+
+
+IMPL_RTTI_CLASS(DataView);
+
+/////////////////////////////////////////////////////////////////////////////
+// DataView Creation funcs
+
+#include "ShvDllInterface.h"
+
+bool DataView::CreateMdiChild(ViewStyle ct, CharPtr caption)
+{
+	assert(m_ParentView == 0);
+
+	MdiCreateStruct createStruct{
+		.ct = ct,
+		.dataView = this,
+		.contextItem = GetViewContext(),
+		.caption = caption,
+	};
+//	if (m_Contents)
+//		MakeLowerBound(createStruct.maxSize, TPoint2GPoint(GetContents()->CalcMaxSize(), GetScaleFactors()));
+
+	NotifyStateChange(reinterpret_cast<const TreeItem*>(&createStruct), CC_CreateMdiChild);
+#ifdef _WIN32
+	if (createStruct.hWnd)
+	{
+		m_hWnd = createStruct.hWnd;
+		if (m_ParentView)
+			m_ParentView->DelChildView(this);
+		g_DataViewRoots.AddChildView(this);
+		return true;
+	}
+	return false;
+#else
+	return createStruct.created;
+#endif
+}
+
+void DataView::PostGuiOper(std::function<void()>&& func)
+{
+	bool wasEmpty = m_GuiOperQueue.Post(std::move(func));
+	if (wasEmpty)
+	{
+		if (m_ViewHost)
+			m_ViewHost->VH_PostMessage(UM_PROCESS_QUEUE, 0, 0);
+#ifdef _WIN32
+		else if (m_hWnd)
+			PostMessage(m_hWnd, UM_PROCESS_QUEUE, 0, 0);
+#endif
+	}
+}
+
+
+void DataView::ProcessGuiOpers()
+{
+	assert(IsMainThread());
+	m_GuiOperQueue.Process();
+}
+
+void OnControlActivate(DataView* self, const UInt32* first, const UInt32* last)
+{
+	auto mo = self->GetContents();
+
+	while (first != last)
+	{
+		UInt32 i = *first++;
+		reportF(SeverityTypeID::ST_MajorTrace, "At {} {} go to item {}"
+			, mo->GetDynamicClass()->GetName()
+			, mo->GetFullCfgName()
+			, i
+		);
+		if (!i)
+			break;
+		auto n = mo->NrEntries();
+		if (i > n)
+		{
+			reportF(SeverityTypeID::ST_MajorTrace, "exit because object has only {} sub-objects", n);
+			return;
+		}
+		auto sgo = mo->GetEntry(--i);
+		dms_assert(sgo);
+		auto smo = dynamic_cast<MovableObject*>(sgo);
+		if (!smo)
+		{
+			reportD(SeverityTypeID::ST_MajorTrace, "exit because object is not a movable");
+			return;
+		}
+		mo = smo->shared_from_this();
+	}
+	reportF(SeverityTypeID::ST_MajorTrace, "Activate {} {}!"
+		, mo->GetDynamicClass()->GetName()
+		, mo->GetFullCfgName()
+	);
+	self->Activate(mo.get());
+}
+
+void FillAllMenu(sharedPtrMovableObject mo, MouseEventDispatcher& med)
+{
+	dms_assert(mo);
+	mo->FillMenu(med);
+	mo = mo->GetOwner().lock();
+	if (mo)
+		FillAllMenu(mo, med);
+}
+
+void OnPopupMenuActivate(DataView* self, const UInt32* first, const UInt32* last)
+{
+	EventInfo eventInfo(EventID::RBUTTONDOWN, 0);
+	MouseEventDispatcher med(self, eventInfo);
+	FillAllMenu(self->m_ActivationInfo ? self->m_ActivationInfo : self->GetContents()->shared_from_this(), med);
+
+	auto& menuData = med.GetMenuData();
+	UInt32 result = 0;
+	while (first != last)
+	{
+		UInt32 i = *first++;
+		if (!i)
+			break;
+
+		// go to i-th item at current level.
+		if (result >= menuData.size())
+			return;
+
+
+		UInt32 level = menuData[result].m_Level;
+
+		reportF(SeverityTypeID::ST_MajorTrace, "At {} with level {} go to  the {}-th item", menuData[result].m_Caption, level, i);
+
+		while (--i)
+		{
+			while (true) {
+				if (++result >= menuData.size())
+				{
+					reportD(SeverityTypeID::ST_MajorTrace, "exit at end of menu");
+					return;
+				}
+				UInt32 currLevel = menuData[result].m_Level;
+				if (currLevel < level)
+				{
+					reportD(SeverityTypeID::ST_MajorTrace, "exit at end of sub-menu");
+					return;
+				}
+				if (currLevel == level)
+					break;
+			};
+			assert(menuData[result].m_Level == level);
+		}
+		assert(menuData[result].m_Level == level);
+
+		// if more to come, go to next item, which should be first sub-item of the current menu-item.
+		if (first != last && *first)
+		{
+			if (++result >= menuData.size())
+			{
+				reportD(SeverityTypeID::ST_MajorTrace, "exit at end of menu");
+				return;
+			}
+			if (menuData[result].m_Level < level)
+			{
+				reportD(SeverityTypeID::ST_MajorTrace, "exit at end of sub-menu");
+				return;
+			}
+		}
+	}
+	reportF(SeverityTypeID::ST_MajorTrace, "Execute {}", menuData[result].m_Caption);
+	menuData[result].Execute();
+}
+
+#include "ptr/SharedArrayPtr.h"
+
+void DataView::OnCopyData(UINT cmd, const UInt32* first, const UInt32* last)
+{
+	reportF(SeverityTypeID::ST_MajorTrace, "OnCopyDataPost with cmd {}", cmd);
+
+	switch (cmd)
+	{
+	case 0: OnControlActivate(this, first, last); break;
+	case 1: OnPopupMenuActivate(this, first, last); break;
+	}
+
+}
+
+// ContextHandling
+void DataView::GenerateDescription()
+{
+	SetText(GetCaption());
+}
+
+std::map<DataView*, std::shared_ptr<DataView>> g_DataViewMap;
+
+// #418: re-emit every open view's caption. Called when the set of caption items changes (a view
+// opens with / changes its domain, or a view closes), so cross-view name disambiguation stays
+// current. Each view's caption is recomputed self-only (no fan-out), so this is bounded to the
+// rare set-changing moments rather than every count/selection update.
+void RefreshAllDataViewCaptions()
+{
+	for (const auto& [dvPtr, dvKeep] : g_DataViewMap)
+		dvPtr->OnCaptionChanged();
+}
+
+void Keep(const std::shared_ptr<DataView>& self)
+{
+	g_DataViewMap[self.get()] = self;
+	// No refresh needed yet — the newcomer has no caption item until its domain/active layer is
+	// established, which itself triggers RefreshAllDataViewCaptions().
+}
+
+void Unkeep(DataView* self)
+{
+	g_DataViewMap.erase(self);
+	RefreshAllDataViewCaptions(); // remaining views may now be able to shorten their captions
+}
+
+const TreeItem* DataView::GetCaptionItem() const
+{
+	// Default (table views): the domain whose name the caption shows. The contents is a
+	// TableViewControl that *holds* the TableControl (it is not itself one), so reach through it.
+	if (auto tvc = dynamic_cast<const TableViewControl*>(m_Contents.get()))
+		if (auto tc = tvc->GetTableControl())
+			return tc->GetEntity();
+	return nullptr;
+}
+
+SharedStr DataView::GetDisambiguatedItemName(const TreeItem* item) const
+{
+	if (!item)
+		return {};
+	if (item->IsCacheItem())
+		return SharedStr(item->GetFullName());
+
+	UInt32 nameLevel = 1; // 1 == leaf name
+again:
+	SharedStr result = GetPartialName(item, nameLevel);
+	if (nameLevel < 10) // 10: same loop guard as GetDisplayNameWithinContext
+	{
+		for (const auto& [dvPtr, dvKeep] : g_DataViewMap)
+		{
+			if (dvPtr == this)
+				continue;
+			const TreeItem* peer = dvPtr->GetCaptionItem();
+			if (peer && peer != item && !peer->IsCacheItem())
+				if (result == GetPartialName(peer, nameLevel))
+				{
+					++nameLevel;
+					goto again;
+				}
+		}
+	}
+	return result;
+}
+
+// =============================================== ToolTip
+//
+// Tooltips are rendered by the host GUI (Qt's QToolTip singleton, reached
+// through ViewHost::VH_ShowTooltip / VH_HideTooltip). DataView no longer
+// owns a native tooltip window: doing so produced a per-DataView floating
+// HWND_TOPMOST that bypassed Qt's singleton and remained visible across
+// window deactivate / move / resize. The watchdog below still tracks the
+// GraphicObject under the cursor so the host tooltip can be hidden as soon
+// as the cursor leaves that object.
+
+void DataView::StartTipWatchdog()
+{
+	if (m_ViewHost)
+		m_ViewHost->VH_SetTimer(TIP_WATCH_TIMER_ID, kTipWatchPeriodMs);
+}
+
+void DataView::StopTipWatchdog()
+{
+	if (m_ViewHost)
+		m_ViewHost->VH_KillTimer(TIP_WATCH_TIMER_ID);
+}
+
+void DataView::SetActiveTooltipObject(const GraphicObject* obj) noexcept
+{
+	m_activeTooltipObj = obj->shared_from_this();
+	StartTipWatchdog();
+}
+
+void DataView::ClearActiveTooltipObject(const GraphicObject* obj) noexcept
+{
+	if (m_activeTooltipObj.lock().get() == obj)
+		m_activeTooltipObj = {};
+
+	if (!m_activeTooltipObj.lock())
+		StopTipWatchdog();
+}
+
+void DataView::HideActiveTooltip()
+{
+	auto attObj = m_activeTooltipObj.lock();
+	if (!attObj)
+		return;
+
+	if (m_ViewHost)
+		m_ViewHost->VH_HideTooltip();
+
+	m_activeTooltipObj.reset();
+
+	StopTipWatchdog();
+}
+
+bool DataView::IsCursorInsideObject(const GraphicObject& obj) const noexcept
+{
+	GPoint ptScreen{};
+	if (m_ViewHost)
+	{
+		if (!m_ViewHost->VH_GetCursorScreenPos(ptScreen)) return false;
+		GPoint ptClient = m_ViewHost->VH_ScreenToClient(ptScreen);
+		return obj.HitTest(ptClient);
+	}
+#ifdef _WIN32
+	else
+	{
+		if (!GetCursorPos(&AsPOINT(ptScreen))) return false;
+		POINT ptClient = AsPOINT(ptScreen);
+		ScreenToClient(GetHWnd(), &ptClient);
+		return obj.HitTest(POINTToGPoint(ptClient));
+	}
+#endif
+	return false;
+}

@@ -7,7 +7,7 @@
 
 #include "ResourceIndexCache.h"
 
-#include "set/Token.h"
+#include "sym/Token.h"
 
 #include <tuple>
 #include <utility>

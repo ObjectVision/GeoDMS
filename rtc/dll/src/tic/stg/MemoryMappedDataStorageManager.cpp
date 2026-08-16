@@ -28,7 +28,7 @@
 #include "utl/FileSystem.h"
 #include "utl/StrFormat.h"
 #include "utl/scoped_exit.h"
-#include "utl/SplitPath.h"
+#include "utl/splitPath.h"
 #include "xml/XMLOut.h"
 
 #include "AbstrDataItem.h"

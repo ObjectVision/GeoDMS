@@ -37,7 +37,7 @@ granted by an additional written contract for support, assistance and/or develop
 #define __TIC_TREEITEMUTILS_H
 
 #include "xct/DmsException.h"
-#include "geo/color.h"
+#include "vt/color.h"
 
 #include "AbstrDataItem.h"
 #include "AbstrUnit.h"

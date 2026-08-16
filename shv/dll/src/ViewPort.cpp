@@ -20,14 +20,14 @@
 #include "act/UpdateMark.h"
 #include "dbg/debug.h"
 #include "dbg/DebugCast.h"
-#include "geo/Conversions.h"
+#include "vt/Conversions.h"
 #include "mci/Class.h"
 #include "mci/ValueComposition.h"
-#include "set/Token.h"
+#include "sym/Token.h"
 #include "utl/FixedBufferFormat.h"
 #include "utl/StrFormat.h"
 
-#include "utl/SplitPath.h"
+#include "utl/splitPath.h"
 
 #include "AbstrDataItem.h"
 #include "AbstrDataObject.h"
@@ -41,7 +41,7 @@
 
 #include "CaretOperators.h"
 #include "Carets.h"
-#include "ClipBoard.h"
+#include "Clipboard.h"
 #include "Controllers.h"
 #include "DataView.h"
 #include "GraphicContainer.h"

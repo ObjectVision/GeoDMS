@@ -10,7 +10,7 @@
 #ifndef __RTC_SER_PAIRSTREAM_H
 #define __RTC_SER_PAIRSTREAM_H
 
-#include "geo/Pair.h"
+#include "vt/Pair.h"
 #include "ser/FormattedStream.h"
 
 //----------------------------------------------------------------------

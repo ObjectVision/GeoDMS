@@ -16,7 +16,7 @@
 
 #include <typeinfo>
 
-#include "dbg/Check.h"
+#include "dbg/Diagnostics.h"
 
 //----------------------------------------------------------------------
 // Typesafe cast

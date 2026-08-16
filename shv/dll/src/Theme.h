@@ -37,7 +37,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "act/Actor.h"
 #include "act/any.h"
-#include "geo/color.h"
+#include "vt/color.h"
 #include "ptr/WeakPtr.h"
 
 #include "TreeItem.h"

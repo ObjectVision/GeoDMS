@@ -13,7 +13,7 @@
 #ifndef __RTC_PTR_WEAKPTR_H
 #define __RTC_PTR_WEAKPTR_H
 
-#include "dbg/Check.h"
+#include "dbg/Diagnostics.h"
 #include "ptr/PtrBase.h"
 #include "utl/swap.h"
 

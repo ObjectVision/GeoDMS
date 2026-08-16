@@ -16,7 +16,7 @@
 #include "utl/IncrementalLock.h"
 #include "utl/StrFormat.h"
 
-#include "ClipBoard.h"
+#include "Clipboard.h"
 #include "DataView.h"
 #include "ViewHost.h"
 #include "DrawContext.h"

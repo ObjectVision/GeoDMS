@@ -9,9 +9,9 @@
 #if !defined(__RTC_SET_FILEVIEW_H)
 #define __RTC_SET_FILEVIEW_H
 
-#include "geo/Conversions.h"
-#include "geo/Undefined.h"
-#include "geo/SizeCalculator.h"
+#include "vt/Conversions.h"
+#include "vt/Undefined.h"
+#include "vt/SizeCalculator.h"
 #include "ser/FileMapHandle.h"
 
 //----------------------------------------------------------------------

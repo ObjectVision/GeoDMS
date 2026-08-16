@@ -8,7 +8,7 @@
 #pragma hdrstop
 #endif
 
-#include "geo/CheckedCalc.h"
+#include "vt/CheckedCalc.h"
 #include "mci/CompositeCast.h"
 #include "ptr/InterestHolders.h"
 

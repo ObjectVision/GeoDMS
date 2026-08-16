@@ -38,7 +38,7 @@
 
 #include "RtcBase.h"
 
-//#include "set/Token.h"
+//#include "sym/Token.h"
 
 struct ErrMsg;
 struct SourceLocation;

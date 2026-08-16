@@ -10,7 +10,7 @@
 #define __RTC_SER_FILEMAPHANDLE_H
 
 #include "cpc/Types.h"
-#include "geo/IndexRange.h"
+#include "vt/IndexRange.h"
 #include "ser/FileCreationMode.h"
 
 // the following define should clean-up resources of Closed FileMap Handles by Closing the file

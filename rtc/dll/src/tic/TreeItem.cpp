@@ -37,7 +37,7 @@
 #include "utl/FileSystem.h"
 #include "utl/IncrementalLock.h"
 #include "utl/StrFormat.h"
-#include "utl/SplitPath.h"
+#include "utl/splitPath.h"
 #include "utl/scoped_exit.h"
 #include "utl/SourceLocation.h"
 #include "xct/DmsException.h"
@@ -69,7 +69,7 @@
 #include "TreeItemProps.h"
 #include "TreeItemContextHandle.h"
 #include "UsingCache.h"
-#include "stg/MemoryMappeddataStorageManager.h"
+#include "stg/MemoryMappedDataStorageManager.h"
 
 #include "set/StaticQuickAssoc.h"
 
@@ -5061,8 +5061,8 @@ void TreeItem::ClearDataObject(garbage_can&) const
 // Dumping to OutStreamBase
 //----------------------------------------------------------------------
 
-#include "xml/xmlOut.h"
-#include "xml/xmlTreeOut.h"
+#include "xml/XMLOut.h"
+#include "Xml/XmlTreeOut.h"
 #include <time.h>
 
 bool IsDumpingToFolder();

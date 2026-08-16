@@ -30,8 +30,8 @@ granted by an additional written contract for support, assistance and/or develop
 #if !defined(__RTC_SET_STACK_UTIL_H)
 #define __RTC_SET_STACK_UTIL_H
 
-#include "dbg/Check.h"
-#include "geo/BaseBounds.h"
+#include "dbg/Diagnostics.h"
+#include "vt/BaseBounds.h"
 #include <vector>
 
 ///////////////////////////////////////////////////////////////////////////////

@@ -16,7 +16,7 @@
 #include "Prototypes.h"
 #include "UnitCreators.h"
 
-#include "geo/BoostPolygon.h"
+#include "geom/BoostPolygon.h"
 
 template <typename G> 
 struct binary_assign_groupoid: binary_assign<G, G, G> {};

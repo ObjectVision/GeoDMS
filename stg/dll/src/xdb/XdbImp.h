@@ -22,7 +22,7 @@
 #include <vector>	// ColDescriptions
 #include "stdio.h"	// FP
 
-#include "geo/BaseBounds.h"
+#include "vt/BaseBounds.h"
 #include "mci/ValueClassID.h"
 #include "ptr/SharedPtr.h"
 #include "ptr/SharedStr.h"

@@ -11,9 +11,9 @@
 
 #include "RtcBase.h"
 
-#include "dbg/Check.h"
-#include "geo/mpf.h"
-#include "geo/Undefined.h"
+#include "dbg/Diagnostics.h"
+#include "vt/mpf.h"
+#include "vt/Undefined.h"
 #include "mem/FixedAlloc.h"
 #include "mem/resize.h"
 #include "ptr/IterCast.h"

@@ -18,7 +18,8 @@
 #define __UTL_PLATFORMERROR_H
 
 #include "cpc/Types.h"
-#include "dbg/Check.h"
+#include "dbg/Diagnostics.h"
+#include "utl/MgFormat.h"
 #include "ptr/SharedStr.h"
 
 namespace platform {

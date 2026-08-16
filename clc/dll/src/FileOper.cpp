@@ -12,8 +12,8 @@
 #include "set/VectorFunc.h"
 #include "utl/Environment.h"
 #include "utl/FileSystem.h"
-#include "geo/Conversions.h"
-#include "geo/StringArray.h"
+#include "vt/Conversions.h"
+#include "vt/StringArray.h"
 #include "mci/CompositeCast.h"
 #include "stg/AbstrStorageManager.h"
 

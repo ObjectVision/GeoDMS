@@ -11,7 +11,7 @@
 // XML output of the configuration tree: config export, item description
 // pages and source descriptions.
 
-#include "xml/XmlTreeOut.h"
+#include "Xml/XmlTreeOut.h"
 
 #include "RtcInterface.h"
 #include "act/TriggerOperator.h"

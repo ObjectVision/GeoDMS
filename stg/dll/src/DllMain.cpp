@@ -11,9 +11,9 @@
 
 #include "dbg/DebugCast.h"
 #include "dbg/DmsCatch.h"
-#include "geo/Round.h"
-#include "geo/Transform.h"
-#include "geo/Conversions.h"
+#include "vt/Round.h"
+#include "geom/Transform.h"
+#include "vt/Conversions.h"
 #include "mci/CompositeCast.h"
 #include "mci/ValueClass.h"
 #include "mci/ValueWrap.h"

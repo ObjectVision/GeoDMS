@@ -9,7 +9,7 @@
 #endif
 
 #include "mci/CompositeCast.h"
-#include "geo/CheckedCalc.h"
+#include "vt/CheckedCalc.h"
 
 #include "ParallelTiles.h"
 #include "UnitClass.h"

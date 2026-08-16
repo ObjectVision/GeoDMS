@@ -9,7 +9,7 @@
 
 #include "Param.h"
 #include "ser/VectorStream.h"
-#include "geo/BaseBounds.h"
+#include "vt/BaseBounds.h"
 
 #include "Prototypes.h"
 

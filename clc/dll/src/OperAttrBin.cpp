@@ -9,7 +9,7 @@
 #endif
 
 #include "mci/CompositeCast.h"
-#include "geo/CheckedCalc.h"
+#include "vt/CheckedCalc.h"
 #include "ser/StringStream.h"
 
 #include "AttrBinStruct.h"
@@ -145,7 +145,7 @@ auto makeStr2Oper(AbstrOperGroup& aog, SubTerFunc&& sf)
 //							String2Operator
 // *****************************************************************************
 
-#include "geo/StringArray.h"
+#include "vt/StringArray.h"
 
 template <typename TA>
 struct String2Operator : BinaryAttrOper<SharedStr, TA, decpos_t>

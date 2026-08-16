@@ -18,7 +18,7 @@
 
 #include "dbg/debug.h"
 #include "dbg/SeverityType.h"
-#include "geo/Pair.h"
+#include "vt/Pair.h"
 #include "mci/CompositeCast.h"
 #include "mth/Mathlib.h"
 #include "ptr/OwningPtrSizedArray.h"

@@ -46,7 +46,7 @@
 #include <QTextBrowser>
 
 #include "ser/FileStreamBuff.h"
-#include "stg/AbstrStoragemanager.h"
+#include "stg/AbstrStorageManager.h"
 #include "GridStorageManager.h"
 #include "utl/splitPath.h"
 

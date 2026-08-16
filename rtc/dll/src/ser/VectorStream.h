@@ -9,10 +9,10 @@
 #if !defined(__SER_VECTORSTREAM_H)
 #define __SER_VECTORSTREAM_H
 
-#include "dbg/Check.h"
-#include "geo/Conversions.h"
-#include "geo/SequenceTraits.h"
-#include "geo/Undefined.h"
+#include "dbg/Diagnostics.h"
+#include "vt/Conversions.h"
+#include "vt/SequenceTraits.h"
+#include "vt/Undefined.h"
 #include "mem/LockedSequenceObj.h"
 #include "mem/resize.h"
 #include "ptr/IterCast.h"

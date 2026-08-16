@@ -7,8 +7,8 @@
 #if !defined(__RTC_ACT_ENUMS_H)
 #define __RTC_ACT_ENUMS_H
 
-#include "dbg/Check.h"
-#include "geo/mpf.h"
+#include "dbg/Diagnostics.h"
+#include "vt/mpf.h"
 
 #if defined(_MSC_VER)
 #pragma warning( disable: 26812 ) // enum type 'xxx' is unscoped. Prefer 'enum class' over 'enum'

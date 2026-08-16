@@ -17,8 +17,15 @@
 #define __UTL_STRFORMAT_H
 
 #include "ptr/SharedStr.h"
+#include "utl/MgFormat.h"
 
 //----------------------------------------------------------------------
+
+template<typename ...Args>
+SharedStr mgFormat2SharedStr(CharPtr msg, Args&&... args)
+{
+	return SharedStr(mgFormat2string<Args...>(msg, std::forward<Args>(args)...));
+}
 
 template<typename ...Args>
 SharedStr mySSPrintF(CharPtr format, Args&&... args) {

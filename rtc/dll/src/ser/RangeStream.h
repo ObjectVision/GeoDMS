@@ -13,8 +13,8 @@
 #define __SER_RANGEUTIL_H
 
 // Range
-#include "dbg/Check.h"
-#include "geo/Range.h"
+#include "dbg/Diagnostics.h"
+#include "geom/Range.h"
 #include "ser/FormattedStream.h"
 #include "ser/PointStream.h"
 

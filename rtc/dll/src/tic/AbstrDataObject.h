@@ -18,7 +18,7 @@
 //----------------------------------------------------------------------
 
 #include "act/ActorEnums.h"
-#include "geo/Geometry.h"
+#include "geom/Geometry.h"
 #include "ptr/PtrBase.h"
 #include "ptr/SharedPtr.h"
 #include "ser/FileCreationMode.h"

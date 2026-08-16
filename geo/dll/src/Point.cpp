@@ -11,11 +11,11 @@
 
 #include "mci/CompositeCast.h"
 #include "mth/Mathlib.h"
-#include "geo/PointOrder.h"
+#include "geom/PointOrder.h"
 #include "ser/AsString.h"
 #include "ser/RangeStream.h"
 #include "set/VectorFunc.h"
-#include "utl/Swap.h"
+#include "utl/swap.h"
 
 #include "ParallelTiles.h"
 #include "Projection.h"

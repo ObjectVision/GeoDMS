@@ -15,7 +15,7 @@
 #if !defined(__RTC_PTR_OWNINGPTRARRAY_H)
 #define __RTC_PTR_OWNINGPTRARRAY_H
 
-#include "dbg/Check.h"
+#include "dbg/Diagnostics.h"
 #include "mem/MyAllocator.h"
 #include "ptr/PtrBase.h"
 

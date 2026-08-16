@@ -15,7 +15,7 @@
 
 #include "GraphVisitor.h"
 #include "DrawContext.h"
-#include "geo/PointOrder.h"
+#include "geom/PointOrder.h"
 
 WmsLegendControl::WmsLegendControl(MovableObject* owner, std::shared_ptr<WmsLayer> layer)
 	:	base_type(owner)

@@ -10,8 +10,8 @@
 
 #include "TextControl.h"
 
-#include "geo/PointOrder.h"
-#include "geo/StringBounds.h"
+#include "geom/PointOrder.h"
+#include "vt/StringBounds.h"
 #include "mci/Class.h"
 #include "ser/AsString.h"
 #include "ser/FormattedStream.h"

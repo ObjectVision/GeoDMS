@@ -8,7 +8,7 @@
 #pragma hdrstop
 #endif //defined(CC_PRAGMAHDRSTOP)
 
-#include "geo/StringBounds.h"
+#include "vt/StringBounds.h"
 #include "mci/ValueComposition.h"
 #include "set/FileView.h"
 #include "utl/Environment.h"

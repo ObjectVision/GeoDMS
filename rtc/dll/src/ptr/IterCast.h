@@ -10,8 +10,8 @@
 #define __RTC_PTR_ITERCAST_H
 
 #include "cpc/CompChar.h"
-#include "dbg/Check.h"
-//#include "geo/SequenceTraits.h"
+#include "dbg/Diagnostics.h"
+//#include "vt/SequenceTraits.h"
 
 //=======================================
 // conversion of container range to dumb pointers 

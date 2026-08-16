@@ -12,8 +12,8 @@
 
 #include "dbg/debug.h"
 #include "dbg/SeverityType.h"
-#include "geo/Conversions.h"
-#include "geo/Point.h"
+#include "vt/Conversions.h"
+#include "geom/Point.h"
 #include "mci/CompositeCast.h"
 #include "ser/AsString.h"
 

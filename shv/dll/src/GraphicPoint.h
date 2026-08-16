@@ -31,7 +31,7 @@ granted by an additional written contract for support, assistance and/or develop
 #ifndef __GRAPHICPOINT_H
 #define __GRAPHICPOINT_H
 
-#include "types.h"
+#include "Types.h"
 
 //----------------------------------------------------------------------
 // used modules and forward class references

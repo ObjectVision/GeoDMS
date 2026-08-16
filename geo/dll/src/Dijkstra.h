@@ -77,7 +77,7 @@
 #if !defined(__GEO_DIJKSTRA_H)
 #define __GEO_DIJKSTRA_H
 
-#include "geo/HeapElem.h"
+#include "vt/HeapElem.h"
 #include "ptr/OwningPtrSizedArray.h"
 
 // *****************************************************************************

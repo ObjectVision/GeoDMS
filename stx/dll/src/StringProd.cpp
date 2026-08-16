@@ -11,7 +11,7 @@
 #include "StringProd.h"
 
 #include "ConfigFileName.h"
-#include "dbg/Check.h"
+#include "dbg/Diagnostics.h"
 #include "utl/StrFormat.h"
 #include "utl/Quotes.h"
 #include "Parallel.h"

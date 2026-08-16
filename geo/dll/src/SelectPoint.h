@@ -18,9 +18,9 @@
 #define __GEO_SELECTPOINT_H
 
 #include "dbg/debug.h"
-#include "geo/Area.h"
+#include "geom/Area.h"
 #include "set/VectorFunc.h"
-#include "geo/CalcWidth.h"
+#include "geom/CalcWidth.h"
 
 #include <cmath>
 #include "ser/PointStream.h"
@@ -148,7 +148,7 @@ ScalarType SelectRow(ConstPointIter polyBegin, ConstPointIter polyEnd, DensityTy
 	return UNDEFINED_VALUE(ScalarType);
 }
 
-#include "geo/PointOrder.h"
+#include "geom/PointOrder.h"
 
 template <typename ScalarType, typename DensityType, typename ConstPointIter>
 Point<ScalarType> AreaPercentile(ConstPointIter polyBegin, ConstPointIter polyEnd, DensityType yMeasure, DensityType xMeasure, ScanPointCalcResource<ScalarType>& calcResource)

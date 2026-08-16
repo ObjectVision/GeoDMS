@@ -10,7 +10,7 @@
 #ifndef __RTC_GEO_CENTROIDORMID_H
 #define __RTC_GEO_CENTROIDORMID_H
 
-#include "geo/Centroid.h"
+#include "geom/Centroid.h"
 #include "SelectPoint.h"
 
 template <typename ScalarType, typename PointType>

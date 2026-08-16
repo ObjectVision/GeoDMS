@@ -9,7 +9,7 @@
 
 #include "ptr/WeakPtr.h"
 #include "ptr/SharedPtr.h"
-#include "utl/Swapper.h"
+#include "utl/swapper.h"
 
 #include "DrawContext.h"
 #ifdef _WIN32

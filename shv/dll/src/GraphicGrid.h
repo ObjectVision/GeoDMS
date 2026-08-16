@@ -36,7 +36,7 @@ granted by an additional written contract for support, assistance and/or develop
 //----------------------------------------------------------------------
 
 #include "ScalableObject.h"
-#include "geo/color.h"
+#include "vt/color.h"
 
 //----------------------------------------------------------------------
 // class  : GraphicGrid

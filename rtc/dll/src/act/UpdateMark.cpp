@@ -11,7 +11,7 @@
 #include "act/Actor.h"
 #include "act/MainThread.h"
 #include "act/UpdateMark.h"
-#include "dbg/Check.h"
+#include "dbg/Diagnostics.h"
 #include "dbg/SeverityType.h"
 #include "ptr/SharedStr.h"
 #include "utl/StrFormat.h"

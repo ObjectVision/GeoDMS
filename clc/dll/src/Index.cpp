@@ -11,8 +11,8 @@
 // index operator: the ordering permutation (sort index) of an attribute,
 // instantiated per value type.
 
-#include "geo/StringBounds.h"
-#include "geo/GeoSequence.h"
+#include "vt/StringBounds.h"
+#include "vt/GeoSequence.h"
 #include "mci/CompositeCast.h"
 #include "ser/AsString.h"
 #include "set/VectorFunc.h"

@@ -12,9 +12,9 @@
 #if !defined(__CLC_LOOKUPIMPL_H)
 #define __CLC_LOOKUPIMPL_H
 
-#include "geo/CheckedCalc.h"
-#include "geo/GeoSequence.h"
-#include "geo/StringBounds.h"
+#include "vt/CheckedCalc.h"
+#include "vt/GeoSequence.h"
+#include "vt/StringBounds.h"
 #include "ser/AsString.h"
 #include "set/VectorFunc.h"
 

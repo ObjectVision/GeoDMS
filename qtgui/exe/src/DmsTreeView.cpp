@@ -34,7 +34,7 @@
 
 
 #include "act/Waiter.h"
-#include "dbg/Check.h"
+#include "dbg/Diagnostics.h"
 #include "dbg/DmsCatch.h"
 #include "dbg/SeverityType.h"
 #include "utl/scoped_exit.h"
@@ -44,7 +44,7 @@
 #include "TicInterface.h"
 
 #include "ShvDllInterface.h"
-#include "dataview.h"
+#include "DataView.h"
 
 
 namespace {

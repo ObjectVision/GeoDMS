@@ -20,7 +20,7 @@
 //----------------------------------------------------------------------
 
 #include "ptr/SharedObj.h"
-#include "geo/Geometry.h"
+#include "geom/Geometry.h"
 
 class AbstrCaretOperator;
 class DrawContext;

@@ -6,8 +6,8 @@
 #include "cpc/CompChar.h"
 #include "mem/MyAllocator.h"
 #include "ptr/SharedBase.h"
-#include "geo/SequenceTraits.h"
-#include "geo/SizeCalculator.h"
+#include "vt/SequenceTraits.h"
+#include "vt/SizeCalculator.h"
 #include "set/rangefuncs.h"
 
 using shared_array_size_t = std::size_t; // different for Win32 and x64

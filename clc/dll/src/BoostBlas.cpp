@@ -12,7 +12,7 @@
 // boost::numeric::ublas.
 
 #include "RtcTypeLists.h"
-#include "geo/Range.h"
+#include "geom/Range.h"
 #include "mci/ValueWrap.h"
 #include "utl/TypeListOper.h"
 

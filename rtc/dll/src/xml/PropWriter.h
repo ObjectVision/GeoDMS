@@ -34,7 +34,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "ser/FileStreamBuff.h"
 #include "utl/Environment.h"
 #include "utl/FileSystem.h"
-#include "xml/XmlOut.h"
+#include "xml/XMLOut.h"
 
 
 struct AbstrPropWriter

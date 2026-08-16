@@ -3,7 +3,7 @@
 /////////////////////////////////////////////////////////////////////////////
 
 
-#include "ClcPCH.h"
+#include "ClcBase.h"
 
 #if !defined(__CLC_RLOOKUP_H)
 #define __CLC_RLOOKUP_H 

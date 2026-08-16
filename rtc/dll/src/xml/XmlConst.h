@@ -32,7 +32,7 @@ granted by an additional written contract for support, assistance and/or develop
 #ifndef __XML_XMLCONST_H
 #define __XML_XMLCONST_H
 
-#include "dbg/Check.h"
+#include "dbg/Diagnostics.h"
 
 const UInt32 MAX_TOKEN_LEN = 4;
 

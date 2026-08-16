@@ -35,7 +35,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "cpc/Types.h"
 
 #include "act/MainThread.h"
-#include "dbg/Check.h"
+#include "dbg/Diagnostics.h"
 
 //#include <gsl/gsl>
 

@@ -21,7 +21,7 @@
 
 #include "dbg/DmsCatch.h"
 
-#include "geo/StringBounds.h"
+#include "vt/StringBounds.h"
 #include "set/VectorFunc.h"
 #include "utl/Environment.h"  // Utf8_2_wchar
 

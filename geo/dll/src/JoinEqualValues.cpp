@@ -11,13 +11,13 @@
 // join_equal_values operator: relational join of two attributes on equal
 // values.
 
-#include "geo/RangeIndex.h"
+#include "vt/RangeIndex.h"
 #include "utl/StrFormat.h"
 
 #include "DataItemClass.h"
 #include "UnitClass.h"
 
-#include "pcount.h"
+#include "PCount.h"
 #include "mem/MyContainers.h"
 
 // *****************************************************************************

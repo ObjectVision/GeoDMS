@@ -7,10 +7,10 @@
 #ifndef __MCI_REGISTER_H
 #define __MCI_REGISTER_H
 
-#include "geo/BaseBounds.h"
+#include "vt/BaseBounds.h"
 #include "set/VectorFunc.h"
-#include "set/Token.h"
-#include "utl/noncopyable.h"
+#include "sym/Token.h"
+#include "utl/NonCopyable.h"
 
 #include <cstring> // strcmp (self-sufficient; MSVC provides it transitively, GCC/libstdc++ does not)
 

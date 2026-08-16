@@ -14,7 +14,7 @@
 #include "ser/AsString.h"
 
 #include "GeoTypes.h"
-#include "geo/Conversions.h"
+#include "vt/Conversions.h"
 
 static const GRect s_WindowClipRect = GRect(-1024, -1024, 4096, 4096);
 static const GRect s_EmptyRect      = GRect(0, 0, 0, 0);

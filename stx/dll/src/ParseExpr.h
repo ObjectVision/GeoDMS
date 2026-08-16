@@ -10,7 +10,7 @@
 #define __STX_PARSEEXPR_H
 
 #include "StxInterface.h"
-#include "Lispref.h"
+#include "LispRef.h"
 
 // *****************************************************************************
 //							New Funcs

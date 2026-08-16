@@ -23,7 +23,7 @@
 #include "utl/Environment.h"
 #include "utl/FileSystem.h"
 #include "utl/StrFormat.h"
-#include "utl/SplitPath.h"
+#include "utl/splitPath.h"
 
 #include "AbstrDataItem.h"
 #include "AbstrDataObject.h"

@@ -12,7 +12,7 @@
 #include <time.h>
 #include <atomic>
 
-#include "geo/MinMax.h"
+#include "vt/MinMax.h"
 
 struct Timer
 {

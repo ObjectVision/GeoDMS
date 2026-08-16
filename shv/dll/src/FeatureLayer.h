@@ -13,7 +13,7 @@
 
 #include "ptr/OwningPtr.h"
 #include "ptr/WeakPtr.h"
-#include "geo/color.h"
+#include "vt/color.h"
 
 #include "DataArray.h"
 

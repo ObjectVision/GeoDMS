@@ -10,7 +10,7 @@
 #if !defined(__RTC_SET_DATACOMPARE_H)
 #define __RTC_SET_DATACOMPARE_H
 
-#include "geo/Undefined.h"
+#include "vt/Undefined.h"
 
 template<typename T> constexpr bool equality_must_check_undefines_v = has_undefines_v<T> && std::is_floating_point_v<scalar_of_t<T>>;
 template<typename T> constexpr bool compare_must_check_undefines_v = has_undefines_v<T> && !has_min_as_null_v<T> && has_fixed_elem_size_v<T>;

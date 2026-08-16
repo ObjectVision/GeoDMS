@@ -10,6 +10,7 @@
 #define __TIC_OPERGROUPS_H
 
 #include "TicBase.h"
+#include "utl/StrFormat.h" // mgFormat2SharedStr
 
 #include "OperArgPolicy.h"
 #include "set/StackUtil.h"

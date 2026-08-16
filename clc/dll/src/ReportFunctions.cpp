@@ -8,11 +8,11 @@
 #pragma hdrstop
 #endif
 
-#include "geo/StringArray.h"
+#include "vt/StringArray.h"
 #include "mci/CompositeCast.h"
 #include "ser/AsString.h"
 #include "ser/StringStream.h"
-#include "xml/XmlOut.h"
+#include "xml/XMLOut.h"
 
 #include "DataArray.h"
 #include "DataItemClass.h"

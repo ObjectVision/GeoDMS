@@ -20,6 +20,6 @@
 #define DM_SHV_EXPORTS
 #include "ShvBase.h"
 
-#include "dataview.h"
+#include "DataView.h"
 
 #endif // __SHV_SHVDLLPCH_H

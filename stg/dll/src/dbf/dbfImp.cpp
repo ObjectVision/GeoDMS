@@ -14,14 +14,14 @@
 #pragma hdrstop
 #endif //defined(CC_PRAGMAHDRSTOP)
 
-#include "DbfImpl.h"
+#include "dbfImpl.h"
 #include <memory> // std::addressof
 
 #include "dbg/debug.h"
-#include "geo/BaseBounds.h"
-#include "geo/Conversions.h"
-#include "geo/SequenceArray.h"
-#include "geo/StringBounds.h"
+#include "vt/BaseBounds.h"
+#include "vt/Conversions.h"
+#include "vt/SequenceArray.h"
+#include "vt/StringBounds.h"
 #include "mci/ValueClassID.h"
 #include "ser/FormattedStream.h"
 #include "ser/ReadValue.h"

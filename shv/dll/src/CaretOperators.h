@@ -38,7 +38,7 @@ granted by an additional written contract for support, assistance and/or develop
 class AbstrCaret;
 class GraphicObject;
 
-#include "geo/Geometry.h"
+#include "geom/Geometry.h"
 #include "ShvUtils.h"
 
 //----------------------------------------------------------------------

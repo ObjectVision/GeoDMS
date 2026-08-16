@@ -8,6 +8,7 @@
 #define __RTC_THROWITEMERROR_H
 
 #include "ptr/SharedStr.h"
+#include "utl/StrFormat.h" // mgFormat2SharedStr
 
 class Object;
 

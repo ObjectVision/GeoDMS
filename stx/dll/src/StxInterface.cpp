@@ -14,15 +14,15 @@
 #include "act/UpdateMark.h"
 #include "dbg/DebugContext.h"
 #include "dbg/DmsCatch.h"
-#include "geo/PointOrder.h"
-#include "geo/IterRangeFuncs.h"
+#include "geom/PointOrder.h"
+#include "vt/iterrangefuncs.h"
 #include "ser/FileStreamBuff.h"
 #include "utl/Encodes.h"
 #include "utl/Environment.h"
 #include "utl/FileSystem.h"
 #include "utl/splitPath.h"
 #include "utl/StringFunc.h"
-#include "xml/XmlTreeParser.h"
+#include "Xml/XmlTreeParser.h"
 
 #include "stg/AbstrStorageManager.h"
 #include "AbstrCalculator.h"
@@ -188,7 +188,7 @@ bool TryAppendTreeFromConfiguration(CharPtr dektopRootFolderName, CharPtr deskto
 	AppendTreeFromConfiguration(desktopRootFile, context, false);
 	return true;
 }
-#include "stg/MemoryMappeddataStorageManager.h"
+#include "stg/MemoryMappedDataStorageManager.h"
 
 TreeItem* AppendTreeFromDictionary(CharPtr sourceFileName, TreeItem* context /*can be NULL*/)
 {

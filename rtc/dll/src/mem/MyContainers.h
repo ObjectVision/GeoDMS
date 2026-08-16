@@ -9,8 +9,8 @@
 #if !defined(__RTC_MEM_MYCONTAINERS_H)
 #define __RTC_MEM_MYCONTAINERS_H
 
-#include "geo/ElemTraits.h"      // is_bitvalue_v
-#include "geo/SequenceTraits.h"  // sequence_traits<T>::container_type (BitVector for bit values)
+#include "vt/ElemTraits.h"      // is_bitvalue_v
+#include "vt/SequenceTraits.h"  // sequence_traits<T>::container_type (BitVector for bit values)
 #include "mem/MyAllocator.h"
 
 #include <map>

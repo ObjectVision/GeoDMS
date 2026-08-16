@@ -13,7 +13,7 @@
 #include "dbg/DmsCatch.h"
 #include "utl/Environment.h"
 #include "utl/IncrementalLock.h"
-#include "geo/SequenceArray.h"
+#include "vt/SequenceArray.h"
 #include "ser/MoreStreamBuff.h"
 #include "stg/AbstrStorageManager.h"
 

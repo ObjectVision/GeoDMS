@@ -16,10 +16,10 @@
 
 #include "XdbImp.h"
 
-#include "dbg/Check.h"
+#include "dbg/Diagnostics.h"
 #include "dbg/debug.h"
-#include "geo/Conversions.h"
-#include "geo/Undefined.h"
+#include "vt/Conversions.h"
+#include "vt/Undefined.h"
 #include "ser/FormattedStream.h"
 #include "set/rangefuncs.h"
 #include "utl/Environment.h"

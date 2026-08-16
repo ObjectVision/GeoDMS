@@ -11,7 +11,7 @@
 // used modules and forward class references
 //----------------------------------------------------------------------
 
-#include "geo/Geometry.h"
+#include "geom/Geometry.h"
 #include "ptr/SharedStr.h"
 
 class ViewPort;

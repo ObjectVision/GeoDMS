@@ -9,7 +9,7 @@
 #define __SET_VECTORMULTIMAP_H
 
 #include "set/CompareFirst.h"
-#include "geo/Pair.h"
+#include "vt/Pair.h"
 
 #include <vector>
 #include <algorithm>

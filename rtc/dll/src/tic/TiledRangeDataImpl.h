@@ -17,8 +17,8 @@
 
 #include "TiledRangeData.h"
 
-#include "geo/Point.h"
-#include "geo/Range.h"
+#include "geom/Point.h"
+#include "geom/Range.h"
 
 #include "LispList.h"
 

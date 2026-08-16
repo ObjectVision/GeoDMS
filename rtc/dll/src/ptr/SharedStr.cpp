@@ -12,8 +12,8 @@
 #include "ptr/OwningPtr.h"
 #include "ptr/SharedStr.h"
 
-#include "geo/iterrangefuncs.h"
-#include "geo/StringBounds.h"
+#include "vt/iterrangefuncs.h"
+#include "vt/StringBounds.h"
 
 #include <algorithm>
 
@@ -76,8 +76,8 @@ RTC_CALL WeakStr::operator CharPtrRange() const
 
 //============================= SharedStr mfuncs
 
-#include "geo/SequenceArray.h"
-#include "set/Token.h"
+#include "vt/SequenceArray.h"
+#include "sym/Token.h"
 
 SharedStr::SharedStr() noexcept
 	: base_type(SharedCharArray_CreateEmpty(), no_zombies{})
@@ -612,7 +612,7 @@ size_t SharedStr::ci_hasher::operator()(const SharedStr& str) const noexcept
 
 #if !defined(MG_DEBUG)
 
-#include "geo/BitValue.h"
+#include "vt/BitValue.h"
 
 // check expected application of empty base class elimination (of mixin class movable).
 static_assert(sizeof(ref_base<char, movable>)== sizeof(ptr_wrap<char, movable>));

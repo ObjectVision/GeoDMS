@@ -8,7 +8,7 @@
 #pragma hdrstop
 #endif
 
-#include "geo/Conversions.h"
+#include "vt/Conversions.h"
 #include "ser/StringStream.h"
 
 #include "CheckedDomain.h"

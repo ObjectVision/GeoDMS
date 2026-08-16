@@ -11,7 +11,7 @@
 #define __TEXTCONTROL_H
 
 #include "MovableObject.h"
-#include "geo/color.h"
+#include "vt/color.h"
 
 class GraphDrawer;
 class DrawContext;

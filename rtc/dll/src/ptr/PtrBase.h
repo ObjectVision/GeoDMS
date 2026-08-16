@@ -10,9 +10,9 @@
 #define __PTR_PTR_BASE_H
 
 #include "RtcBase.h"
-#include "dbg/Check.h"
+#include "dbg/Diagnostics.h"
 #include "set/BitVector.h"
-#include "utl/noncopyable.h"
+#include "utl/NonCopyable.h"
 
 //  -----------------------------------------------------------------------
 // movable (kind of boost::noncopyable

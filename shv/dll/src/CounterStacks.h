@@ -13,9 +13,9 @@
 // used modules and forward class references
 //----------------------------------------------------------------------
 
-#include "geo/Geometry.h"
-#include "geo/BaseBounds.h"
-#include "utl/noncopyable.h"
+#include "geom/Geometry.h"
+#include "vt/BaseBounds.h"
+#include "utl/NonCopyable.h"
 #include "utl/swap.h"
 
 

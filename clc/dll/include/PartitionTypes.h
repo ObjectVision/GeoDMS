@@ -10,7 +10,7 @@
 #if !defined(__CLC_PARTITIONTYPES_H)
 #define __CLC_PARTITIONTYPES_H
 
-#include "geo/RangeIndex.h"
+#include "vt/RangeIndex.h"
 
 // *****************************************************************************
 //                      partition functions

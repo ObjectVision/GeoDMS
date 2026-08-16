@@ -12,7 +12,7 @@
 #include "ptr/SharedBase.h"
 #include "ptr/SharedPtr.h"
 #include "ptr/SharedTreePtr.h"
-#include "geo/Transform.h"
+#include "geom/Transform.h"
 
 // *****************************************************************************
 // UnitProjection, used to express coordinate units as (x,y) scale + offset 

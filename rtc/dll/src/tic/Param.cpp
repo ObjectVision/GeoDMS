@@ -38,7 +38,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "dbg/DmsCatch.h"
 #include "mci/ValueWrap.h"
 #include "mci/ValueClass.h"
-#include "geo/StringBounds.h"
+#include "vt/StringBounds.h"
 #include "ser/SequenceArrayStream.h"
 
 #include "AbstrDataItem.h"

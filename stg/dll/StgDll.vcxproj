@@ -64,13 +64,13 @@
     <ClCompile Include="src\gdal\gdal_grid.cpp" />
     <ClCompile Include="src\gdal\gdal_vect.cpp" />
     <ClCompile Include="src\bmp\BmpImp.cpp" />
-    <ClCompile Include="src\odbc\OdbcImp.cpp" />
+    <ClCompile Include="src\odbc\ODBCImp.cpp" />
     <ClCompile Include="src\xdb\XdbImp.cpp" />
     <ClCompile Include="src\shp\ShpImp.cpp" />
     <ClCompile Include="src\tif\TifImp.cpp" />
     <ClCompile Include="src\dbf\dbfImp.cpp" />
     <ClCompile Include="src\ImplMain.cpp" />
-    <ClCompile Include="src\GridStoragemanager.cpp" />
+    <ClCompile Include="src\GridStorageManager.cpp" />
     <ClCompile Include="src\odbc\OdbcStorageManager.cpp" />
     <ClCompile Include="src\xdb\XdbStorageManager.cpp" />
     <ClCompile Include="src\tif\TifStorageManager.cpp" />
@@ -83,8 +83,8 @@
   <ItemGroup>
     <ClInclude Include="src\bmp\BmpCompat.h" />
     <ClInclude Include="src\bmp\BmpImp.h" />
-    <ClInclude Include="src\odbc\OdbcImp.h" />
-    <ClInclude Include="src\viewportinfo.h" />
+    <ClInclude Include="src\odbc\ODBCImp.h" />
+    <ClInclude Include="src\ViewPortInfo.h" />
     <ClInclude Include="src\xdb\XdbImp.h" />
     <ClInclude Include="src\shp\ShpImp.h" />
     <ClInclude Include="src\tif\TifImp.h" />
@@ -107,7 +107,7 @@
     <ClInclude Include="src\str\StrStorageManager.h" />
     <ClInclude Include="src\shp\ShpStorageManager.h" />
     <ClInclude Include="src\StgBase.h" />
-    <ClInclude Include="src\StgImpl.h" />
+    <ClInclude Include="src\StorageUtils.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\rtc\dll\DmRtc.vcxproj">

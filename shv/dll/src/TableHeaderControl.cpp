@@ -30,7 +30,7 @@
 #include "Carets.h"
 #include "Controllers.h"
 #include "CaretOperators.h"
-#include "geo/PointOrder.h"
+#include "geom/PointOrder.h"
 class ColumnHeaderControl;
 
 class ColumnHeaderDragger : public DualPointCaretController

@@ -11,8 +11,8 @@
 #include <cmath>
 
 #include "act/ActorVisitor.h"
-#include "geo/Transform.h"
-#include "geo/Conversions.h"
+#include "geom/Transform.h"
+#include "vt/Conversions.h"
 
 #include "Param.h"
 #include "TreeItemClass.h"

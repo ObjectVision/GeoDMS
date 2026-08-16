@@ -32,10 +32,10 @@ granted by an additional written contract for support, assistance and/or develop
 #pragma hdrstop
 #endif //defined(CC_PRAGMAHDRSTOP)
 
-#include "parser.h"
+#include "Parser.h"
 
 #include "dbg/debug.h"
-#include "geo/iterrange.h"
+#include "vt/iterrange.h"
 #include "ser/AsString.h"
 #include "ser/StringStream.h"
 

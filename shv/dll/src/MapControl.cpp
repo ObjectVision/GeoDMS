@@ -11,8 +11,8 @@
 #include "MapControl.h"
 
 #include "dbg/DebugContext.h"
-#include "geo/Conversions.h"
-#include "geo/PointOrder.h"
+#include "vt/Conversions.h"
+#include "geom/PointOrder.h"
 #include "mci/Class.h"
 
 #include "AbstrDataItem.h"

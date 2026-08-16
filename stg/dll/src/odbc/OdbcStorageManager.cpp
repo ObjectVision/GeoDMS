@@ -14,25 +14,25 @@
 //	- ODBCStorageManager
 // *****************************************************************************
 
-#include "ODBCStorageManager.h"
+#include "OdbcStorageManager.h"
 
 #include "PropDefInterface.h"
 
 #include "dbg/debug.h"
 #include "dbg/DmsCatch.h"
-#include "geo/GeoSequence.h"
-#include "geo/StringBounds.h"
+#include "vt/GeoSequence.h"
+#include "vt/StringBounds.h"
 #include "mci/ValueClass.h"
 #include "mci/ValueClassID.h"
 #include "mci/PropDef.h"
 #include "ser/BaseStreamBuff.h" 
 #include "ser/SequenceArrayStream.h"
-#include "ser/vectorstream.h"
+#include "ser/VectorStream.h"
 #include "stg/StorageClass.h"
 #include "utl/Environment.h"
 #include "utl/TimeFmt.h"
 #include "utl/StrFormat.h"
-#include "utl/splitpath.h"
+#include "utl/splitPath.h"
 #include "xct/DmsException.h"
 
 #include "LockLevels.h"

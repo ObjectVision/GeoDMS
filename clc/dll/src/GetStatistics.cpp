@@ -12,7 +12,7 @@
 // shown in the GUI's statistics pane.
 
 #include "dbg/DmsCatch.h"
-#include "geo/DataPtrTraits.h"
+#include "vt/DataPtrTraits.h"
 #include "mci/ValueClass.h"
 #include "mci/ValueClassID.h"
 #include "utl/StrFormat.h"
@@ -31,12 +31,12 @@
 #include "TreeItemClass.h"
 #include "TreeItemContextHandle.h"
 #include "UnitProcessor.h"
-#include "xml/XmlTreeOut.h"
+#include "Xml/XmlTreeOut.h"
 
 #include "TicInterface.h"
 #include "ClcInterface.h"
 
-#include "pcount.h"
+#include "PCount.h"
 
 #include <cmath>
 

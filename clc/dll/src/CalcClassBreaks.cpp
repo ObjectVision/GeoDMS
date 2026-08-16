@@ -10,7 +10,7 @@
 
 #include "dbg/debug.h"
 #include "dbg/SeverityType.h"
-#include "geo/Range.h"
+#include "geom/Range.h"
 #include "set/DataCompare.h"
 
 #include "CalcClassBreaks.h"

@@ -36,7 +36,7 @@
 #include "ptr/SharedPtr.h"
 #include "ptr/SharedTreePtr.h"
 #include "ShvUtils.h"
-#include "dataview.h"
+#include "DataView.h"
 
 #include "ui_DmsDetailPageProperties.h"
 #include "ui_DmsDetailPageSourceDescription.h"

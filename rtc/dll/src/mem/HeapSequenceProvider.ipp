@@ -9,7 +9,7 @@
 #if !defined(__RTC_MEM_HEAPSEQUENCEPROVIDER_IPP)
 #define __RTC_MEM_HEAPSEQUENCEPROVIDER_IPP
 
-#include "geo/IndexRange.h"
+#include "vt/IndexRange.h"
 #include "mem/HeapSequenceProvider.h"
 #include "mem/ManagedAllocData.h"
 

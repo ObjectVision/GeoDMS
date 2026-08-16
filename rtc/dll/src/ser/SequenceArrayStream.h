@@ -7,7 +7,7 @@
 #if !defined(__RTC_SER_SEQUENCEARRAYSTREAM_H)
 #define __RTC_SER_SEQUENCEARRAYSTREAM_H
 
-#include "geo/SequenceArray.h"
+#include "vt/SequenceArray.h"
 #include "ser/VectorStream.h"
 
 // ====================================== BinaryStream sequences

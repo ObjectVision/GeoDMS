@@ -8,7 +8,7 @@
 #pragma hdrstop
 #endif //defined(CC_PRAGMAHDRSTOP)
 
-#include "assoc.h"
+#include "Assoc.h"
 
 #include "ser/FormattedStream.h"
 

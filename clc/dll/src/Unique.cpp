@@ -8,7 +8,7 @@
 #pragma hdrstop
 #endif
 
-#include "geo/IsNotUndef.h"
+#include "vt/IsNotUndef.h"
 #include "mci/CompositeCast.h"
 #include "mci/ValueClass.h"
 #include "set/DataCompare.h"

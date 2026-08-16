@@ -226,7 +226,7 @@ void LayerControlBase::ToggleVisibilityAndMakeActiveIfNeeded()
 #include "Carets.h"
 #include "Controllers.h"
 #include "CaretOperators.h"
-#include "geo/PointOrder.h"
+#include "geom/PointOrder.h"
 
 class LayerControlBaseDragger : public DualPointCaretController
 {

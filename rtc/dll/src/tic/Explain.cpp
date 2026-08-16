@@ -37,7 +37,7 @@
 #include "TreeItemClass.h"
 #include "TreeItemContextHandle.h"
 #include "TreeItemUtils.h" // GetPartialName, for #620 value-info name disambiguation
-#include "xml/XmlTreeOut.h"
+#include "Xml/XmlTreeOut.h"
 
 //  -----------------------------------------------------------------------
 //  Name        : dms\tic\src\Explain.cpp

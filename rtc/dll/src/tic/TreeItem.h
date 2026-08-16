@@ -31,7 +31,7 @@
 #include "ptr/OwningPtr.h"
 #include "ptr/SharedPtr.h"
 #include "ptr/SharedStr.h"
-#include "set/Token.h"
+#include "sym/Token.h"
 
 #include "MetaInfo.h"
 #include "OperArgPolicy.h"
@@ -41,8 +41,8 @@
 #include <act/ActorVisitor.h>
 #include <act/SupplierVisitFlag.h>
 #include <cpc/Types.h>
-#include <dbg/Check.h>
-#include <geo/CharPtrRange.h>
+#include <dbg/Diagnostics.h>
+#include <vt/CharPtrRange.h>
 #include <mci/Class.h>
 #include <mci/Object.h>
 #include <LispRef.h>

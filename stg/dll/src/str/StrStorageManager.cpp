@@ -22,7 +22,7 @@
 #include "mci/CompositeCast.h"
 #include "mci/ValueClass.h"
 #include "stg/StorageClass.h"
-#include "utl/SplitPath.h"
+#include "utl/splitPath.h"
 
 #include "AbstrDataItem.h"
 #include "DataArray.h"

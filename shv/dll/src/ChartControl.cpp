@@ -11,7 +11,7 @@
 #include "ChartControl.h"
 
 #include "dbg/DebugContext.h"
-#include "geo/PointOrder.h"
+#include "geom/PointOrder.h"
 #include "mci/Class.h"
 
 #include "AxisControl.h"

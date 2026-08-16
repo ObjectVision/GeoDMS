@@ -21,7 +21,7 @@
 #include "Parallel.h"
 #include "act/ActorEnums.h"
 #include "utl/IncrementalLock.h"
-#include "utl/noncopyable.h"
+#include "utl/NonCopyable.h"
 #include "utl/swapper.h"
 
 #if defined(MG_ITEMLEVEL)

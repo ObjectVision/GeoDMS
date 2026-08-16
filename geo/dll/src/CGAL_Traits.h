@@ -11,7 +11,7 @@
 
 #include <numbers>
 #include <optional>
-#include "geo/RingIterator.h"
+#include "geom/RingIterator.h"
 
 
 #include "RemoveAdjacentsAndSpikes.h"

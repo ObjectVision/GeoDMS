@@ -18,9 +18,9 @@
 #include "mci/CompositeCast.h"
 #include "mci/ValueClass.h"
 #include "mci/ValueClassID.h"
-#include "geo/GeoDist.h"
-#include "geo/SpatialIndex.h"
-#include "geo/NeighbourIter.h"
+#include "geom/GeoDist.h"
+#include "geom/SpatialIndex.h"
+#include "geom/NeighbourIter.h"
 #include "ptr/Resource.h"
 #include "set/DataCompare.h"
 

@@ -36,7 +36,7 @@
 #include "TreeItemContextHandle.h"
 #include "TreeItemUtils.h"
 #include "UnitProcessor.h"
-#include "stg/MemoryMappeddataStorageManager.h"
+#include "stg/MemoryMappedDataStorageManager.h"
 
 #if defined(MG_DEBUG)
 #define MG_DEBUG_DATALOCKS 0

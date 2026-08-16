@@ -10,7 +10,7 @@
 #define __RTC_MCI_DOUBLELINKEDTREE_INC
 
 #include "mci/DoubleLinkedTree.h"
-#include "dbg/Check.h"
+#include "dbg/Diagnostics.h"
 
 /***********    composites                           **********/
 

@@ -25,7 +25,7 @@
 #endif
 
 #include "RtcBase.h"
-#include "set/Token.h"
+#include "sym/Token.h"
 
 using Number_t = double;
 

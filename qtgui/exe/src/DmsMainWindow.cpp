@@ -6,7 +6,7 @@
 #include "TicInterface.h"
 
 #include "act/MainThread.h"
-#include "dbg/Check.h"
+#include "dbg/Diagnostics.h"
 #include "dbg/debug.h"
 #include "dbg/DebugLog.h"
 #include "dbg/DmsCatch.h"

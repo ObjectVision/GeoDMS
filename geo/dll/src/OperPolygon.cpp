@@ -8,9 +8,9 @@
 #pragma hdrstop
 #endif
 
-#include "geo/DynamicPoint.h"
-#include "geo/CheckedCalc.h"
-#include "geo/Conversions.h"
+#include "geom/DynamicPoint.h"
+#include "vt/CheckedCalc.h"
+#include "vt/Conversions.h"
 #include "mci/CompositeCast.h"
 #include "ptr/OwningPtrSizedArray.h"
 #include "ptr/Resource.h"
@@ -198,7 +198,7 @@ struct ElementCountFunc : unary_func<UInt32, typename sequence_traits<T>::contai
 //									Area Operator
 // *****************************************************************************
 
-#include "geo/Area.h"
+#include "geom/Area.h"
 
 template <class P>
 struct AreaFunc : Sequence2ScalarFunc<P>
@@ -1338,10 +1338,10 @@ public:
 //									PointInPolygon
 // *****************************************************************************
 
-#include "geo/IsInside.h"
+#include "geom/IsInside.h"
 
 #include "UnitProcessor.h"
-#include "geo/SpatialIndex.h"
+#include "geom/SpatialIndex.h"
 
 template <typename E, typename ResSequence, typename PointArray, typename PolyArray, typename SpatialIndexType>
 void point_in_polygon(

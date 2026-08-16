@@ -212,8 +212,8 @@ RTC_CALL SharedStr GetSessionStartTimeStr()
 
 #if defined(MG_DEBUG)
 
-#include "geo/Range.h"
-#include "geo/iterrange.h"
+#include "geom/Range.h"
+#include "vt/iterrange.h"
 
 bool RangeTest()
 {

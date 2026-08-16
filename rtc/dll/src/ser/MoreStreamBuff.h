@@ -12,11 +12,11 @@
 #ifndef __SER_MORESTREAMBUFF_H
 #define __SER_MORESTREAMBUFF_H
 
-#include "dbg/Check.h"
+#include "dbg/Diagnostics.h"
 #include "ptr/IterCast.h"
 #include "ser/BaseStreamBuff.h"
-#include "geo/iterrange.h"
-#include "geo/CharPtrRange.h"
+#include "vt/iterrange.h"
+#include "vt/CharPtrRange.h"
 
 using ByteRange = IterRange<BytePtr>;
 using CByteRange = IterRange<CBytePtr>;

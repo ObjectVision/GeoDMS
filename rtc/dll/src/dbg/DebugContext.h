@@ -19,7 +19,7 @@
 #include "dbg/CheckPtr.h"
 #include "ptr/PersistentObject.h"
 #include "ptr/SharedStr.h"
-#include "set/Token.h"
+#include "sym/Token.h"
 struct FormattedOutStream;
 
 /********** AbstrMsgGenerator **********/

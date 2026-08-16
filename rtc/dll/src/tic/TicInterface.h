@@ -10,7 +10,7 @@
 //----------------------------------------------------------------------
 
 #include "TicBase.h"
-#include "geo/ElemTraits.h"
+#include "vt/ElemTraits.h"
 #include "utl/Instantiate.h"
 #include "act/ActorEnums.h"
 #include "TreeItemProps.h"

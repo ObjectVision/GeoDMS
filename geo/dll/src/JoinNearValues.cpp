@@ -11,14 +11,14 @@
 // join_near_values operator: relational join of two attributes on nearly
 // equal values.
 
-#include "geo/RangeIndex.h"
+#include "vt/RangeIndex.h"
 #include "utl/StrFormat.h"
 
 #include "DataItemClass.h"
 #include "UnitClass.h"
 
-#include "geo/CheckedCalc.h"
-#include "geo/SpatialIndex.h"
+#include "vt/CheckedCalc.h"
+#include "geom/SpatialIndex.h"
 #include "mem/MyContainers.h"
 
 #include "ParallelTiles.h"

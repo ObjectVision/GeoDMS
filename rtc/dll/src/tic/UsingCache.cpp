@@ -35,10 +35,10 @@ granted by an additional written contract for support, assistance and/or develop
 #include "UsingCache.h"
 
 #include "dbg/DebugCast.h"
-#include "geo/StringBounds.h"
+#include "vt/StringBounds.h"
 #include "mci/register.h"
 #include "utl/IncrementalLock.h"
-#include "utl/Swapper.h"
+#include "utl/swapper.h"
 
 #include "SessionData.h"
 #include "TreeItemClass.h"

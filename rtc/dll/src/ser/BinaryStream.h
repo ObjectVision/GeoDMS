@@ -7,7 +7,7 @@
 #if !defined(__RTC_SER_BINARYSTREAM)
 #define __RTC_SER_BINARYSTREAM
 
-#include "geo/BitValue.h"
+#include "vt/BitValue.h"
 #include "ser/BaseStreamBuff.h"
 #include "utl/Instantiate.h"
 

@@ -17,12 +17,13 @@
 #include "utl/PlatformError.h"
 #include "utl/Registry.h"
 #include "utl/TimeFmt.h"
+#include "utl/MgFormat.h"
 
 #include "dbg/DmsCatch.h"
-#include "geo/Conversions.h"
-#include "geo/Point.h"
-#include "geo/MinMax.h"
-#include "geo/StringBounds.h"
+#include "vt/Conversions.h"
+#include "geom/Point.h"
+#include "vt/MinMax.h"
+#include "vt/StringBounds.h"
 #include "mem/FixedAlloc.h" // SetFreeStackDrainageEnabled: the /SF - /CF switch
 #include "ptr/IterCast.h"
 #include "set/IndexedStrings.h"

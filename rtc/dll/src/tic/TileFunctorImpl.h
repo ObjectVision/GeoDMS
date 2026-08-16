@@ -15,7 +15,7 @@
 
 #include "DataLocks.h"
 #include "dbg/SeverityType.h"
-#include "mem/TileData.h"
+#include "mem/tiledata.h"
 #include "ptr/OwningPtrReservedArray.h"
 #include "ptr/WeakPtr.h"
 #include "ser/VectorStream.h"

@@ -9,7 +9,7 @@
 #if !defined(DMS_GEO_GEOS_TRAITS_H)
 #define DMS_GEO_GEOS_TRAITS_H
 
-#include "geo/RingIterator.h"
+#include "geom/RingIterator.h"
 
 
 #include "RemoveAdjacentsAndSpikes.h"

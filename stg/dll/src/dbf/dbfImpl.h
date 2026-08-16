@@ -16,8 +16,8 @@
 #include "stdio.h"	// m_FP
 
 #include "FileResult.h"
-#include "geo/BaseBounds.h"
-#include "geo/iterrange.h"
+#include "vt/BaseBounds.h"
+#include "vt/iterrange.h"
 #include "ptr/SharedStr.h"
 #include "utl/Instantiate.h"
 

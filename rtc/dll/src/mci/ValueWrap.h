@@ -10,12 +10,12 @@
 #if !defined(__RTC_MCI_VALUEWRAP_H)
 #define __RTC_MCI_VALUEWRAP_H
 
-#include "dbg/Check.h"
+#include "dbg/Diagnostics.h"
 #include "mci/AbstrValue.h"
 #include "mem/ManagedAllocData.h"
-#include "geo/BitValue.h"
-#include "geo/SequenceTraits.h"
-#include "geo/SequenceArray.h"
+#include "vt/BitValue.h"
+#include "vt/SequenceTraits.h"
+#include "vt/SequenceArray.h"
 
 template<typename T, typename U> struct equal_type : std::false_type {};
 template<typename TU> struct equal_type<TU, TU> : std::true_type {};

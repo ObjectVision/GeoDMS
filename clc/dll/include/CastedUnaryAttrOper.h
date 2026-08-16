@@ -15,7 +15,7 @@
 #include "ParallelTiles.h"
 #include "UnitClass.h"
 #include "TileFunctorImpl.h"
-#include "stg/MemoryMappeddataStorageManager.h"
+#include "stg/MemoryMappedDataStorageManager.h"
 
 // *****************************************************************************
 //									AbstrCastedUnaryAttrOperator

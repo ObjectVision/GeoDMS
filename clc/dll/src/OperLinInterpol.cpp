@@ -9,7 +9,7 @@
 #endif
 
 #include "dbg/debug.h"
-#include "geo/Pair.h"
+#include "vt/Pair.h"
 #include "mci/CompositeCast.h"
 #include "set/CompareFirst.h"
 

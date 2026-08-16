@@ -5,7 +5,7 @@
 
 #include "ptr/SharedStr.h"
 #include "ptr/InterestHolders.h"
-#include "Ticbase.h"
+#include "TicBase.h"
 #include "TreeItemProps.h"
 
 enum ActiveDetailPage

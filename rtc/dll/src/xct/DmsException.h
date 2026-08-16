@@ -11,7 +11,7 @@
 #if !defined(__RTC_XCT_DMSEXCEPTION_H)
 #define __RTC_XCT_DMSEXCEPTION_H
 
-#include "ser/format.h"
+#include "utl/MgFormat.h"
 #include "xct/ErrMsg.h"
 
 enum ExceptionContextState {

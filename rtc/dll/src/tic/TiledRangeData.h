@@ -13,11 +13,11 @@
 // used modules and forward class references
 //----------------------------------------------------------------------
 
-#include "geo/CheckedCalc.h"
-#include "geo/Conversions.h"
-#include "geo/Point.h"
-#include "geo/Range.h"
-#include "geo/RangeIndex.h"
+#include "vt/CheckedCalc.h"
+#include "vt/Conversions.h"
+#include "geom/Point.h"
+#include "geom/Range.h"
+#include "vt/RangeIndex.h"
 #include "ser/FileMapHandle.h"
 
 #include "LispRef.h"

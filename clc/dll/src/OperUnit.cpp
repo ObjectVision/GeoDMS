@@ -12,7 +12,7 @@
 #include "OperConv.h"
 
 //#include "RtcGeneratedVersion.h"
-#include "geo/GeoSequence.h"
+#include "vt/GeoSequence.h"
 #include "mci/CompositeCast.h"
 #include "mci/ValueWrap.h"
 #include "ser/FormattedStream.h"

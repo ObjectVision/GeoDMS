@@ -27,10 +27,10 @@
 #include "set/StackUtil.h"
 #include "utl/IncrementalLock.h"
 #include "utl/StrFormat.h"
-#include "utl/SplitPath.h"
+#include "utl/splitPath.h"
 #include "xct/DmsException.h"
 #include "xct/ErrMsg.h"
-#include "xml/XmlOut.h"
+#include "xml/XMLOut.h"
 
 #include "LispList.h"
 #include "LispTreeType.h"

@@ -22,7 +22,7 @@
 
 #include "AbstrDataItem.h"
 #include "act/InterestRetainContext.h"
-#include "dbg/Check.h"
+#include "dbg/Diagnostics.h"
 #include "ser/FileCreationMode.h"
 #include "ItemLocks.h"
 

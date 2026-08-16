@@ -69,7 +69,7 @@
 #include "dbg/SeverityType.h"
 #include "set/VectorFunc.h" // vector_resize
 #include "dbg/Timer.h"
-#include "geo/Point.h"
+#include "geom/Point.h"
 #include "mci/ValueClassID.h"
 #include "utl/scoped_exit.h"
 
@@ -86,7 +86,7 @@
 #include "ParallelTiles.h"
 #include "UnitClass.h"
 
-#include "makeCululative.h"
+#include "makeCumulative.h"
 
 #include "TreeBuilder.h"
 #include "DijkstraFlags.h"

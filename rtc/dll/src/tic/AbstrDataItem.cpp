@@ -15,7 +15,7 @@
 
 #include "AbstrDataItem.h"
 
-#include "RtcTypelists.h"
+#include "RtcTypeLists.h"
 #include "act/ActorVisitor.h"
 #include "act/InterestRetainContext.h"
 #include "act/SupplierVisitFlag.h"
@@ -28,7 +28,7 @@
 #include "ser/FileCreationMode.h"
 #include "utl/StrFormat.h"
 #include "utl/scoped_exit.h"
-#include "xml/XmlOut.h"
+#include "xml/XMLOut.h"
 
 #include "LockLevels.h"
 

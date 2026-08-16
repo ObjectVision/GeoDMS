@@ -9,15 +9,15 @@
 #endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "dbg/DmsCatch.h"
-#include "geo/color.h"
-#include "geo/Conversions.h"
-#include "geo/SequenceArray.h"
+#include "vt/color.h"
+#include "vt/Conversions.h"
+#include "vt/SequenceArray.h"
 #include "ser/BinaryStream.h"
 #include "ser/FormattedStream.h"
 #include "ser/MoreStreamBuff.h"
 #include "ser/StringStream.h"
 #include "ser/AsString.h"
-#include "set/Token.h"
+#include "sym/Token.h"
 #include "utl/StrFormat.h"
 
 #include "PropDefInterface.h"
@@ -212,7 +212,7 @@ BinaryInpStream& operator >>(BinaryInpStream& ar, SharedStr& str)
 // Section      : Serialization support for SharedStr
 //----------------------------------------------------------------------
 
-#include "geo/iterrange.h"
+#include "vt/iterrange.h"
 
 FormattedInpStream& operator >> (FormattedInpStream& is, SharedStr& str)
 {

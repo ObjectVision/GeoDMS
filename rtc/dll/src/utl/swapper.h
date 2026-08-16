@@ -14,9 +14,9 @@
 // used modules and forward class references
 //----------------------------------------------------------------------
 
-#include "utl/noncopyable.h"
+#include "utl/NonCopyable.h"
 #include "utl/swap.h"
-#include "geo/ElemTraits.h"
+#include "vt/ElemTraits.h"
 
 //----------------------------------------------------------------------
 // mt_swap(per) helps to do thread safe resource swapping/locking

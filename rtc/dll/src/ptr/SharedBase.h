@@ -23,7 +23,7 @@
 #define __RTC_PTR_SHAREDOBJBASE_H
 
 #include "RtcBase.h"
-#include "dbg/Check.h"
+#include "dbg/Diagnostics.h"
 
 #include <atomic>
 

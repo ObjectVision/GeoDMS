@@ -9,8 +9,8 @@
 #endif
 
 #include "mci/CompositeCast.h"
-#include "geo/PointOrder.h"
-#include "geo/SpatialIndex.h"
+#include "geom/PointOrder.h"
+#include "geom/SpatialIndex.h"
 #include "ptr/LifetimeProtector.h"
 
 #include <cmath>

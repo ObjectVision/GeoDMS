@@ -3,6 +3,7 @@
 /////////////////////////////////////////////////////////////////////////////
 
 #include "TicPCH.h"
+#include "utl/StrFormat.h" // mgFormat2SharedStr
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop

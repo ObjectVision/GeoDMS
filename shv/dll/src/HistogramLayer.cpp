@@ -11,9 +11,9 @@
 #include "HistogramLayer.h"
 
 #include "act/InvalidationBlock.h"
-#include "geo/Conversions.h"
-#include "geo/IsInside.h"
-#include "geo/PointOrder.h"
+#include "vt/Conversions.h"
+#include "geom/IsInside.h"
+#include "geom/PointOrder.h"
 #include "mci/Class.h"
 
 #include "AbstrDataItem.h"

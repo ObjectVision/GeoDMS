@@ -12,7 +12,7 @@
 
 #include "ptr/SharedArray.h"
 #include "ptr/SharedPtr.h"
-#include "geo/StringBounds.h"
+#include "vt/StringBounds.h"
 
 template<typename T>
 struct SharedArrayPtr : SharedPtr<SharedArray<T> > 

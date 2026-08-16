@@ -1,7 +1,7 @@
 #include <QAction>
 #include <QString>
 #include "ShvUtils.h"
-#include "dataview.h"
+#include "DataView.h"
 
 class QDmsViewArea;
 

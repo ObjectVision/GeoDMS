@@ -9,12 +9,12 @@
 
 #include "ser/FormattingFlags.h"
 #include "ser/BaseStreamBuff.h"
-#include "geo/CharPtrRange.h"
-#include "geo/iterrange.h"
-#include "geo/StringBounds.h"
+#include "vt/CharPtrRange.h"
+#include "vt/iterrange.h"
+#include "vt/StringBounds.h"
 #include "ptr/StaticPtr.h"
 #include "utl/Instantiate.h"
-#include "utl/noncopyable.h"
+#include "utl/NonCopyable.h"
 
 // *****************************************************************************
 // Section:     FormattedOutStream

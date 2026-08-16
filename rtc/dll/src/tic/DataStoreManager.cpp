@@ -8,7 +8,7 @@
 
 #include "act/SupplierVisitFlag.h"
 #include "dbg/DmsCatch.h"
-#include "set/Token.h"
+#include "sym/Token.h"
 
 
 #include "OperationContext.h"

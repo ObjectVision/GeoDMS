@@ -13,7 +13,7 @@
 
 #include "ptr/SharedPtr.h"
 #include "ptr/WeakPtr.h"
-#include "set/Token.h"
+#include "sym/Token.h"
 
 #include "DataBlockProd.h"
 #include "ExprProd.h"

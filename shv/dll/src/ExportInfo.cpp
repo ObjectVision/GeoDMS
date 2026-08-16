@@ -10,8 +10,8 @@
 
 #include "ExportInfo.h"
 
-#include "geo/Conversions.h"
-#include "utl/SplitPath.h"
+#include "vt/Conversions.h"
+#include "utl/splitPath.h"
 
 #include "stg/AbstrStorageManager.h"
 

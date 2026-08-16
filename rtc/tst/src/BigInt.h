@@ -28,7 +28,7 @@ granted by an additional written contract for support, assistance and/or develop
 //</HEADER>
 #include "ptr/RefObject.h"
 #include "ptr/RefPtr.h"
-#include "mth/mathlib.h"
+#include "mth/Mathlib.h"
 
 struct BigUInt
 {

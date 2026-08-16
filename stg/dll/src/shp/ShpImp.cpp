@@ -21,8 +21,8 @@
 #include "cpc/EndianConversions.h"
 
 #include "dbg/debug.h"
-#include "geo/Conversions.h"
-#include "geo/StringBounds.h"
+#include "vt/Conversions.h"
+#include "vt/StringBounds.h"
 #include "utl/splitPath.h"
 #include "utl/Environment.h"
 #include "set/VectorFunc.h"

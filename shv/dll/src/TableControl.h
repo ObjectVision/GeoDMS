@@ -11,7 +11,7 @@
 
 #include "ptr/WeakPtr.h"
 
-#include "ChangeLock.h"
+#include "changelock.h"
 #include "ExportInfo.h"
 #include "MovableContainer.h"
 #include "TextEditController.h"

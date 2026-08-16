@@ -14,7 +14,7 @@
 #include "LispList.h"
 
 struct TreeItem;
-#include "geo/SequenceArray.h"
+#include "vt/SequenceArray.h"
 #include "mci/ValueWrap.h"
 
 #if defined(MG_DEBUG)

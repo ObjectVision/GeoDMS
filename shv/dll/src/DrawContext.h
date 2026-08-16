@@ -8,7 +8,7 @@
 #define __SHV_DRAWCONTEXT_H
 
 #include "ShvBase.h"
-#include "geo/color.h"
+#include "vt/color.h"
 #include "GeoTypes.h"
 
 struct GRect;

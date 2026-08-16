@@ -12,7 +12,7 @@
 
 #include "cpc/CompChar.h"
 #include "cpc/Types.h"
-#include "dbg/Check.h"
+#include "dbg/Diagnostics.h"
 #include "ptr/IterCast.h"
 
 #include <algorithm>

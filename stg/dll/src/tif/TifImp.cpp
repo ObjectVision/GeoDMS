@@ -14,13 +14,13 @@
 
 #include "cpc/EndianConversions.h"
 #include "dbg/SeverityType.h"
-#include "geo/BaseBounds.h"
-#include "geo/PointOrder.h"
+#include "vt/BaseBounds.h"
+#include "geom/PointOrder.h"
 #include "ptr/SharedStr.h"
 #include "utl/Environment.h"
 #include "utl/FileSystem.h"
 #include "utl/FixedBufferFormat.h"
-#include "mci/ValueClassId.h"
+#include "mci/ValueClassID.h"
 
 #include <tiff.h> // See http://www.libtiff.org/man/TIFFGetField.3t.html for TIFFTAG specification
 #include <tiffio.h> 

@@ -23,7 +23,7 @@
 #include "CalcClassBreaks.h"
 
 #include "ser/FileCreationMode.h"
-#include "set/Token.h"
+#include "sym/Token.h"
 #include "DataLocks.h"
 
 class GraphicObject;

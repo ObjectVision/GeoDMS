@@ -8,9 +8,9 @@
 
 #include "act/UpdateMark.h"
 #include "dbg/DmsCatch.h"
-#include "geo/Conversions.h"
-#include "geo/RangeIndex.h"
-#include "geo/StringBounds.h"
+#include "vt/Conversions.h"
+#include "vt/RangeIndex.h"
+#include "vt/StringBounds.h"
 #include "mci/ValueWrap.h"
 #include "ptr/InterestHolders.h"
 #include "ser/AsString.h"

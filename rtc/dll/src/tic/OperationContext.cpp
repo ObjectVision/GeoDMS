@@ -69,16 +69,17 @@
 
 #include "OperationContext.h"
 #include "utl/Registry.h" // resource_scheduling, RTC_GetRegDWord
+#include "utl/MgFormat.h"
 
 #include <deque>
 
 #include "Parallel.h"
-#include "dbg/Check.h"
+#include "dbg/Diagnostics.h"
 #include "dbg/Timer.h"
 #include "dbg/DmsCatch.h"
 #include "dbg/SeverityType.h"
 #include "ser/AsString.h"
-#include "utl/memGuard.h"
+#include "utl/MemGuard.h"
 #include "utl/StrFormat.h"
 #include "utl/scoped_exit.h"
 #include "utl/IncrementalLock.h"

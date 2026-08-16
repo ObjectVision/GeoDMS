@@ -50,18 +50,18 @@
     <Link />
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="src\act\actorlock.h" />
+    <ClInclude Include="src\act\ActorLock.h" />
     <ClInclude Include="src\act\ActorVisitor.h" />
     <ClInclude Include="src\act\any.h" />
     <ClInclude Include="src\act\garbage_can.h" />
-    <ClInclude Include="src\act\interestretaincontext.h" />
+    <ClInclude Include="src\act\InterestRetainContext.h" />
     <ClInclude Include="src\act\MainThread.h" />
     <ClInclude Include="src\act\SupplierVisitFlag.h" />
     <ClInclude Include="src\act\SupplInterest.h" />
-    <ClInclude Include="src\act\waiter.h" />
+    <ClInclude Include="src\act\Waiter.h" />
     <ClInclude Include="src\buildstamp.h" />
     <ClInclude Include="src\cs_lock_map.h" />
-    <ClInclude Include="src\dbg\Check.h" />
+    <ClInclude Include="src\dbg\Diagnostics.h" />
     <ClInclude Include="src\dbg\CheckPtr.h" />
     <ClInclude Include="src\dbg\debug.h" />
     <ClInclude Include="src\dbg\DebugCast.h" />
@@ -72,17 +72,17 @@
     <ClInclude Include="src\dbg\Timer.h" />
     <ClInclude Include="src\dbg\UnitTesting.h" />
     <ClInclude Include="src\FileResult.h" />
-    <ClInclude Include="src\geo\AssocTower.h" />
-    <ClInclude Include="src\geo\BoostPolygon.h" />
-    <ClInclude Include="src\geo\CharPtrRange.h" />
-    <ClInclude Include="src\geo\CheckedCalc.h" />
-    <ClInclude Include="src\geo\DataPtrTraits.h" />
-    <ClInclude Include="src\geo\heapelem.h" />
-    <ClInclude Include="src\geo\IsNotUndef.h" />
-    <ClInclude Include="src\geo\IterTraits.h" />
-    <ClInclude Include="src\geo\neighbouriter.h" />
-    <ClInclude Include="src\geo\PointIndexBuffer.h" />
-    <ClInclude Include="src\geo\Undef_xx.h" />
+    <ClInclude Include="src\vt\AssocTower.h" />
+    <ClInclude Include="src\geom\BoostPolygon.h" />
+    <ClInclude Include="src\vt\CharPtrRange.h" />
+    <ClInclude Include="src\vt\CheckedCalc.h" />
+    <ClInclude Include="src\vt\DataPtrTraits.h" />
+    <ClInclude Include="src\vt\HeapElem.h" />
+    <ClInclude Include="src\vt\IsNotUndef.h" />
+    <ClInclude Include="src\vt\IterTraits.h" />
+    <ClInclude Include="src\geom\NeighbourIter.h" />
+    <ClInclude Include="src\geom\PointIndexBuffer.h" />
+    <ClInclude Include="src\vt\undef_xx.h" />
     <ClInclude Include="src\ipolygon\detail\boolean_op.hpp" />
     <ClInclude Include="src\ipolygon\detail\boolean_op_45.hpp" />
     <ClInclude Include="src\ipolygon\detail\iterator_compact_to_points.hpp" />
@@ -150,7 +150,7 @@
     <ClInclude Include="src\mci\SingleLinkedTree.h" />
     <ClInclude Include="src\tic\TreeItemFunctionSpec.h" />
     <ClInclude Include="src\mem\FixedAlloc.h" />
-    <ClInclude Include="src\mem\grid.h" />
+    <ClInclude Include="src\mem\Grid.h" />
     <ClInclude Include="src\mem\RectCopy.h" />
     <ClInclude Include="src\mem\resize.h" />
     <ClInclude Include="src\mem\tiledata.h" />
@@ -169,7 +169,7 @@
     <ClInclude Include="src\ptr\SharedTreePtr.h" />
     <ClInclude Include="src\RtcVersionNumbers.h" />
     <ClInclude Include="src\ser\DebugOutStream.h" />
-    <ClInclude Include="src\ser\format.h" />
+    <ClInclude Include="src\utl\MgFormat.h" />
     <ClInclude Include="src\ser\FormattingFlags.h" />
     <ClInclude Include="src\ser\ReadValue.h" />
     <ClInclude Include="src\set\DataCompare.h" />
@@ -220,41 +220,41 @@
     <ClInclude Include="src\ptr\SharedStr.h" />
     <ClInclude Include="src\ptr\StaticPtr.h" />
     <ClInclude Include="src\ptr\WeakPtr.h" />
-    <ClInclude Include="src\geo\Area.h" />
-    <ClInclude Include="src\geo\BaseBounds.h" />
-    <ClInclude Include="src\geo\BitValue.h" />
-    <ClInclude Include="src\geo\CalcWidth.h" />
-    <ClInclude Include="src\geo\Centroid.h" />
-    <ClInclude Include="src\geo\color.h" />
-    <ClInclude Include="src\geo\ConversionBase.h" />
-    <ClInclude Include="src\geo\Conversions.h" />
-    <ClInclude Include="src\geo\ConvertFunctor.h" />
-    <ClInclude Include="src\geo\Couple.h" />
-    <ClInclude Include="src\geo\DynamicPoint.h" />
-    <ClInclude Include="src\geo\ElemTraits.h" />
-    <ClInclude Include="src\geo\GeoDist.h" />
-    <ClInclude Include="src\geo\Geometry.h" />
-    <ClInclude Include="src\geo\GeoSequence.h" />
-    <ClInclude Include="src\geo\IndexRange.h" />
-    <ClInclude Include="src\geo\IsInside.h" />
-    <ClInclude Include="src\geo\iterrange.h" />
-    <ClInclude Include="src\geo\iterrangefuncs.h" />
-    <ClInclude Include="src\geo\MinMax.h" />
-    <ClInclude Include="src\geo\mpf.h" />
-    <ClInclude Include="src\geo\Pair.h" />
-    <ClInclude Include="src\geo\Point.h" />
-    <ClInclude Include="src\geo\PointOrder.h" />
-    <ClInclude Include="src\geo\Range.h" />
-    <ClInclude Include="src\geo\RangeIndex.h" />
-    <ClInclude Include="src\geo\Round.h" />
-    <ClInclude Include="src\geo\SequenceArray.h" />
-    <ClInclude Include="src\geo\SequenceTraits.h" />
-    <ClInclude Include="src\geo\SizeCalculator.h" />
-    <ClInclude Include="src\geo\SpatialIndex.h" />
-    <ClInclude Include="src\geo\StringArray.h" />
-    <ClInclude Include="src\geo\StringBounds.h" />
-    <ClInclude Include="src\geo\Transform.h" />
-    <ClInclude Include="src\geo\Undefined.h" />
+    <ClInclude Include="src\geom\Area.h" />
+    <ClInclude Include="src\vt\BaseBounds.h" />
+    <ClInclude Include="src\vt\BitValue.h" />
+    <ClInclude Include="src\geom\CalcWidth.h" />
+    <ClInclude Include="src\geom\Centroid.h" />
+    <ClInclude Include="src\vt\color.h" />
+    <ClInclude Include="src\vt\ConversionBase.h" />
+    <ClInclude Include="src\vt\Conversions.h" />
+    <ClInclude Include="src\vt\ConvertFunctor.h" />
+    <ClInclude Include="src\vt\Couple.h" />
+    <ClInclude Include="src\geom\DynamicPoint.h" />
+    <ClInclude Include="src\vt\ElemTraits.h" />
+    <ClInclude Include="src\geom\GeoDist.h" />
+    <ClInclude Include="src\geom\Geometry.h" />
+    <ClInclude Include="src\vt\GeoSequence.h" />
+    <ClInclude Include="src\vt\IndexRange.h" />
+    <ClInclude Include="src\geom\IsInside.h" />
+    <ClInclude Include="src\vt\iterrange.h" />
+    <ClInclude Include="src\vt\iterrangefuncs.h" />
+    <ClInclude Include="src\vt\MinMax.h" />
+    <ClInclude Include="src\vt\mpf.h" />
+    <ClInclude Include="src\vt\Pair.h" />
+    <ClInclude Include="src\geom\Point.h" />
+    <ClInclude Include="src\geom\PointOrder.h" />
+    <ClInclude Include="src\geom\Range.h" />
+    <ClInclude Include="src\vt\RangeIndex.h" />
+    <ClInclude Include="src\vt\Round.h" />
+    <ClInclude Include="src\vt\SequenceArray.h" />
+    <ClInclude Include="src\vt\SequenceTraits.h" />
+    <ClInclude Include="src\vt\SizeCalculator.h" />
+    <ClInclude Include="src\geom\SpatialIndex.h" />
+    <ClInclude Include="src\vt\StringArray.h" />
+    <ClInclude Include="src\vt\StringBounds.h" />
+    <ClInclude Include="src\geom\Transform.h" />
+    <ClInclude Include="src\vt\Undefined.h" />
     <ClInclude Include="src\ser\AsString.h" />
     <ClInclude Include="src\ser\BaseStreamBuff.h" />
     <ClInclude Include="src\ser\BinaryStream.h" />
@@ -295,7 +295,7 @@
     <ClInclude Include="src\set\SetOper.h" />
     <ClInclude Include="src\set\StackUtil.h" />
     <ClInclude Include="src\set\StaticQuickAssoc.h" />
-    <ClInclude Include="src\set\Token.h" />
+    <ClInclude Include="src\sym\Token.h" />
     <ClInclude Include="src\set\VectorFunc.h" />
     <ClInclude Include="src\set\VectorMap.h" />
     <ClInclude Include="src\set\VectorMultiMap.h" />
@@ -329,7 +329,7 @@
     <ClInclude Include="src\rtctypemodel.h" />
     <ClInclude Include="src\StreamBuffInterface.h" />
     <ClInclude Include="src\dllimp\RunDllProc.h" />
-    <ClInclude Include="src\utl\case.h" />
+    <ClInclude Include="src\utl\Case.h" />
     <ClInclude Include="src\mci\DoubleLinkedTree.inc" />
     <ClInclude Include="src\mem\HeapSequenceProvider.ipp" />
   </ItemGroup>
@@ -347,26 +347,26 @@
     <ClCompile Include="src\dbg\DebugContext.cpp" />
     <ClCompile Include="src\dbg\DebugReporter.cpp" />
     <ClCompile Include="src\dbg\DebugStream.cpp" />
-    <ClCompile Include="src\geo\Transform.cpp" />
+    <ClCompile Include="src\geom\Transform.cpp" />
     <ClCompile Include="src\mem\FixedAlloc.cpp" />
     <ClCompile Include="src\mem\HeapSequenceProvider.cpp" />
     <ClCompile Include="src\parallel\portable_task_group.cpp" />
     <ClCompile Include="src\ptr\SharedObjBase.cpp" />
     <ClCompile Include="src\RtcMain.cpp" />
     <ClCompile Include="src\ser\AsString.cpp" />
-    <ClCompile Include="src\utl\encodes.cpp" />
+    <ClCompile Include="src\utl\Encodes.cpp" />
     <ClCompile Include="src\utl\MemGuard.cpp" />
     <ClCompile Include="src\utl\SourceLocation.cpp" />
     <ClCompile Include="src\xct\DmsException.cpp" />
     <ClCompile Include="src\utl\Environment.cpp" />
     <ClCompile Include="src\utl\StrFormat.cpp" />
-    <ClCompile Include="src\utl\quotes.cpp" />
+    <ClCompile Include="src\utl\Quotes.cpp" />
     <ClCompile Include="src\utl\Registry.cpp" />
     <ClCompile Include="src\utl\TypeInfoOrdering.cpp" />
     <ClCompile Include="src\ptr\SharedStr.cpp" />
-    <ClCompile Include="src\geo\BaseBounds.cpp" />
-    <ClCompile Include="src\geo\iterrangefuncs.cpp" />
-    <ClCompile Include="src\geo\SequenceArray.cpp" />
+    <ClCompile Include="src\vt\BaseBounds.cpp" />
+    <ClCompile Include="src\vt\iterrangefuncs.cpp" />
+    <ClCompile Include="src\vt\SequenceArray.cpp" />
     <ClCompile Include="src\ser\BaseStreamBuff.cpp" />
     <ClCompile Include="src\ser\FileMapHandle.cpp" />
     <ClCompile Include="src\ser\FileStreamBuff.cpp" />
@@ -379,7 +379,7 @@
     <ClCompile Include="src\mth\BigInt.cpp" />
     <ClCompile Include="src\utl\Case.cpp" />
     <ClCompile Include="src\set\IndexedStrings.cpp" />
-    <ClCompile Include="src\set\Token.cpp" />
+    <ClCompile Include="src\sym\Token.cpp" />
     <ClCompile Include="src\xml\XmlConst.cpp" />
     <ClCompile Include="src\xml\XMLOut.cpp" />
     <ClCompile Include="src\xml\XmlParser.cpp" />
@@ -393,7 +393,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="src\act\ActorEnums.txt" />
-    <None Include="src\geo\SequenceArray.txt" />
+    <None Include="src\vt\SequenceArray.txt" />
     <None Include="src\mci\SingleLinkedTree.inc" />
   </ItemGroup>
   <ItemGroup>
@@ -414,7 +414,7 @@
       <PrecompiledHeaderFile>SymPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Sym.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="src\sym\Lispeval.cpp">
+    <ClCompile Include="src\sym\LispEval.cpp">
       <PrecompiledHeaderFile>SymPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Sym.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
@@ -474,7 +474,7 @@
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="src\tic\stg\AbstrStoragemanager.cpp">
+    <ClCompile Include="src\tic\stg\AbstrStorageManager.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
@@ -661,7 +661,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\sym\Assoc.h" />
-    <ClInclude Include="src\sym\Lispeval.h" />
+    <ClInclude Include="src\sym\LispEval.h" />
     <ClInclude Include="src\sym\LispList.h" />
     <ClInclude Include="src\sym\LispRef.h" />
     <ClInclude Include="src\sym\Parser.h" />
@@ -672,8 +672,8 @@
     <ClInclude Include="src\sym\SymPCH.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\tic\aspect.h" />
-    <ClInclude Include="src\tic\dedicatedattrs.h" />
+    <ClInclude Include="src\tic\Aspect.h" />
+    <ClInclude Include="src\tic\DedicatedAttrs.h" />
     <ClInclude Include="src\tic\Explain.h" />
     <ClInclude Include="src\tic\ExprRewrite.h" />
     <ClInclude Include="src\tic\FutureTileArray.h" />
@@ -684,10 +684,10 @@
     <ClInclude Include="src\tic\OperationContext.h" />
     <ClInclude Include="src\tic\ParallelTiles.h" />
     <ClInclude Include="src\tic\Projection.h" />
-    <ClInclude Include="src\tic\propfuncs.h" />
+    <ClInclude Include="src\tic\PropFuncs.h" />
     <ClInclude Include="src\tic\stg\AbstrStorageManager.h" />
     <ClInclude Include="src\tic\stg\AsmUtil.h" />
-    <ClInclude Include="src\tic\stg\MemoryMappeddataStorageManager.h" />
+    <ClInclude Include="src\tic\stg\MemoryMappedDataStorageManager.h" />
     <ClInclude Include="src\tic\stg\StorageClass.h" />
     <ClInclude Include="src\tic\stg\StorageInterface.h" />
     <ClInclude Include="src\tic\AbstrCalculator.h" />
@@ -703,7 +703,7 @@
     <ClInclude Include="src\tic\DataItemClass.h" />
     <ClInclude Include="src\tic\DataLockContainers.h" />
     <ClInclude Include="src\tic\DataLocks.h" />
-    <ClInclude Include="src\tic\datastoremanager.h" />
+    <ClInclude Include="src\tic\DataStoreManager.h" />
     <ClInclude Include="src\tic\DataStoreManagerCaller.h" />
     <ClInclude Include="src\tic\DC_Ptr.h" />
     <ClInclude Include="src\tic\DisplayValue.h" />
@@ -730,7 +730,7 @@
     <ClInclude Include="src\tic\TicPropDefConst.h" />
     <ClInclude Include="src\tic\TileAccess.h" />
     <ClInclude Include="src\tic\TileArrayImpl.h" />
-    <ClInclude Include="src\tic\tilechannel.h" />
+    <ClInclude Include="src\tic\TileChannel.h" />
     <ClInclude Include="src\tic\TiledRangeData.h" />
     <ClInclude Include="src\tic\TiledRangeDataImpl.h" />
     <ClInclude Include="src\tic\TiledUnit.h" />
@@ -739,18 +739,18 @@
     <ClInclude Include="src\tic\TreeItem.h" />
     <ClInclude Include="src\tic\TreeItemClass.h" />
     <ClInclude Include="src\tic\TreeItemContextHandle.h" />
-    <ClInclude Include="src\tic\TreeItemDualref.h" />
-    <ClInclude Include="src\tic\treeitemflags.h" />
+    <ClInclude Include="src\tic\TreeItemDualRef.h" />
+    <ClInclude Include="src\tic\TreeItemFlags.h" />
     <ClInclude Include="src\tic\TreeItemProps.h" />
     <ClInclude Include="src\tic\TreeItemSet.h" />
-    <ClInclude Include="src\tic\treeitemutils.h" />
+    <ClInclude Include="src\tic\TreeItemUtils.h" />
     <ClInclude Include="src\tic\Unit.h" />
     <ClInclude Include="src\tic\UnitClass.h" />
     <ClInclude Include="src\tic\UnitClassReg.h" />
     <ClInclude Include="src\tic\UnitCreators.h" />
     <ClInclude Include="src\tic\UnitProcessor.h" />
     <ClInclude Include="src\tic\UsingCache.h" />
-    <ClInclude Include="src\tic\valuefiller.h" />
+    <ClInclude Include="src\tic\ValueFiller.h" />
     <ClInclude Include="src\tic\ValueGetter.h" />
     <ClInclude Include="src\tic\Xml\XmlTreeOut.h" />
     <ClInclude Include="src\tic\Xml\XmlTreeParser.h" />

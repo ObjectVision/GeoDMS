@@ -23,7 +23,7 @@
 #include "ser/MoreStreamBuff.h"
 #include "utl/Encodes.h"
 #include "utl/Environment.h"
-#include "xml/XmlOut.h"
+#include "xml/XMLOut.h"
 
 #include "FilePtrHandle.h"
 

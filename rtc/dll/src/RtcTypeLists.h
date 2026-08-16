@@ -15,7 +15,7 @@
 
 #include "rtctypemodel.h"
 #include "cpc/transform.h"
-#include "geo/GeoSequence.h"
+#include "vt/GeoSequence.h"
 
 //----------------------------------------------------------------------
 // MPL style enumeration type for element-types

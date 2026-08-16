@@ -5,8 +5,8 @@
 #if !defined(__RTC_MEM_ALLOCDATA_H)
 #define __RTC_MEM_ALLOCDATA_H
 
-#include "geo/SequenceTraits.h"
-#include "geo/iterrange.h"
+#include "vt/SequenceTraits.h"
+#include "vt/iterrange.h"
 
 //----------------------------------------------------------------------
 // interfaces to allocated (file mapped?) arrays

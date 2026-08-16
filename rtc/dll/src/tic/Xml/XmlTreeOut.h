@@ -11,7 +11,7 @@
 
 #include "ptr/SharedStr.h"
 #include "utl/StrFormat.h"
-#include "xml/xmlOut.h"
+#include "xml/XMLOut.h"
 #include "xct/ErrMsg.h"
 
 #include "TreeItem.h"

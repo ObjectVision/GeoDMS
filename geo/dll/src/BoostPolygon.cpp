@@ -14,9 +14,9 @@
 
 #include "dbg/SeverityType.h"
 #include "dbg/Timer.h"
-#include "geo/AssocTower.h"
-#include "geo/BoostPolygon.h"
-#include "geo/SpatialIndex.h"
+#include "vt/AssocTower.h"
+#include "geom/BoostPolygon.h"
+#include "geom/SpatialIndex.h"
 #include "mci/ValueWrap.h"
 #include "ptr/Resource.h"
 #include "ptr/ResourceArray.h"

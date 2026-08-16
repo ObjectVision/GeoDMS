@@ -16,7 +16,7 @@
 #include "ParseExpr.h"
 
 #include "act/MainThread.h"
-#include "xml/XmlTreeOut.h"
+#include "Xml/XmlTreeOut.h"
 #include "dbg/DmsCatch.h"
 
 ///////////////////////////////////////////////////////////////////////////////

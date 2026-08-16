@@ -13,7 +13,7 @@
 #include "BoostGeometry.h"
 
 #include "Parallel.h" // MaxConcurrentTreads, for the buffer operators' working-memory estimate
-#include "geo/BoostPolygon.h"
+#include "geom/BoostPolygon.h"
 
 #include "CGAL_Traits.h"
 #include "GEOS_Traits.h"

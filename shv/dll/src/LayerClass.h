@@ -31,7 +31,7 @@ granted by an additional written contract for support, assistance and/or develop
 #if !defined(__SHV_GRAPHICCLASS_H)
 #define __SHV_GRAPHICCLASS_H
 
-#include "cpc/types.h"
+#include "cpc/Types.h"
 
 //----------------------------------------------------------------------
 // used modules and forward class references

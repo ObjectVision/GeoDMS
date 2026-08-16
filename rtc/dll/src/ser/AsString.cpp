@@ -9,7 +9,7 @@
 #endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "ser/AsString.h"
-#include "geo/iterrange.h"
+#include "vt/iterrange.h"
 #include "ptr/SharedStr.h"
 #include "ser/FormattedStream.h"
 #include "ser/PointStream.h"

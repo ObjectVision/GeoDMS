@@ -10,9 +10,9 @@
 
 #include "DataBlockProd.h"
 
-#include "geo/color.h"
-#include "geo/Conversions.h"
-#include "geo/PointOrder.h"
+#include "vt/color.h"
+#include "vt/Conversions.h"
+#include "geom/PointOrder.h"
 #include "mci/ValueClass.h"
 #include "mci/ValueClassID.h"
 

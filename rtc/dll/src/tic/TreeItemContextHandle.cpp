@@ -27,12 +27,13 @@ granted by an additional written contract for support, assistance and/or develop
 */
 //</HEADER>
 #include "TicPCH.h"
+#include "utl/StrFormat.h" // mgFormat2SharedStr
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
 #endif //defined(CC_PRAGMAHDRSTOP)
 
-#include "TreeItemContexthandle.h"
+#include "TreeItemContextHandle.h"
 
 #include "dbg/DmsCatch.h"
 #include "utl/Environment.h"

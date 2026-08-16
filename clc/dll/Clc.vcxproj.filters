@@ -162,7 +162,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="include\AggrBinStructNum.h">
+    <ClInclude Include="src\AggrBinStructNum.h">
       <Filter>Clc Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\AggrFunc.h">
@@ -195,13 +195,13 @@
     <ClInclude Include="include\AttrUniStructStr.h">
       <Filter>Clc Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\BoostBlas.h">
+    <ClInclude Include="src\BoostBlas.h">
       <Filter>Clc Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\CalcClassBreaks.h">
       <Filter>Clc Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\CalcFactory.h">
+    <ClInclude Include="src\CalcFactory.h">
       <Filter>Clc Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\CastedUnaryAttrOper.h">
@@ -213,19 +213,19 @@
     <ClInclude Include="include\ClcInterface.h">
       <Filter>Clc Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\ClcPch.h">
+    <ClInclude Include="src\ClcPCH.h">
       <Filter>Clc Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\composition.h">
       <Filter>Clc Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\ConstOper.h">
+    <ClInclude Include="src\ConstOper.h">
       <Filter>Clc Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\dms_transform.h">
       <Filter>Clc Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\ExprCalculator.h">
+    <ClInclude Include="src\ExprCalculator.h">
       <Filter>Clc Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\funclist.h">
@@ -234,28 +234,28 @@
     <ClInclude Include="include\IndexAssigner.h">
       <Filter>Clc Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\makeCululative.h">
+    <ClInclude Include="include\makeCumulative.h">
       <Filter>Clc Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\OperAcc.h">
       <Filter>Clc Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\Invert.h">
+    <ClInclude Include="src\Invert.h">
       <Filter>Clc Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\InvertedRel.h">
       <Filter>Clc Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\lookup.h">
+    <ClInclude Include="src\lookup.h">
       <Filter>Clc Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\OperAccBin.h">
+    <ClInclude Include="src\OperAccBin.h">
       <Filter>Clc Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\OperAccUni.h">
       <Filter>Clc Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\OperAccUniNum.h">
+    <ClInclude Include="src\OperAccUniNum.h">
       <Filter>Clc Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\OperAttrBin.h">
@@ -270,10 +270,10 @@
     <ClInclude Include="include\OperRelUni.h">
       <Filter>Clc Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\OperUnit.h">
+    <ClInclude Include="src\OperUnit.h">
       <Filter>Clc Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\UnitGroup.h">
+    <ClInclude Include="src\UnitGroup.h">
       <Filter>Clc Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\rlookup.h">
@@ -282,7 +282,7 @@
     <ClInclude Include="include\Prototypes.h">
       <Filter>Clc Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\pCount.h">
+    <ClInclude Include="include\PCount.h">
       <Filter>Clc Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\PartitionTypes.h">
@@ -297,7 +297,7 @@
     <ClInclude Include="include\ValuesTableTypes.h">
       <Filter>Clc Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\OperConv.h" />
+    <ClInclude Include="src\OperConv.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Source Files">

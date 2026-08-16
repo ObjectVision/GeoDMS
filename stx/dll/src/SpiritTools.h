@@ -10,7 +10,7 @@
 #if !defined(__STX_SPRITTOOLS_H)
 #define __STX_SPRITTOOLS_H
 
-#include "stxBase.h"
+#include "StxBase.h"
 #include "utl/IncrementalLock.h"
 #include "xct/DmsException.h"
 

@@ -12,7 +12,7 @@
 
 #include "OperAccBin.h"
 
-#include "prototypes.h"
+#include "Prototypes.h"
 
 #include "AggrBinStructNum.h"
 

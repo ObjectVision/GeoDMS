@@ -14,8 +14,8 @@
 #include "AttrUniStruct.h"
 #include "UnitCreators.h"
 
-#include "geo/StringBounds.h"
-#include "geo/StringArray.h"
+#include "vt/StringBounds.h"
+#include "vt/StringArray.h"
 #include "utl/Encodes.h"
 #include "utl/Quotes.h"
 #include "utl/Case.h"

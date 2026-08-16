@@ -15,8 +15,8 @@
 
 #include <set>
 
-#include "dbg/Check.h"
-#include "geo/SequenceArray.h"
+#include "dbg/Diagnostics.h"
+#include "vt/SequenceArray.h"
 #include "mem/HeapSequenceProvider.h"
 
 RTC_CALL IndexedString_critical_section& GetCS();

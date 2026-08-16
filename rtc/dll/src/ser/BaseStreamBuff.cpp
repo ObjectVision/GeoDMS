@@ -16,7 +16,7 @@
 #include "ser/FormattedStream.h"
 #include "ser/StreamException.h"
 #include "utl/StrFormat.h"
-#include "geo/Conversions.h"
+#include "vt/Conversions.h"
 
 // *****************************************************************************
 // Section:     streaming exceptions

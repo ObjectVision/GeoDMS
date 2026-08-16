@@ -12,8 +12,8 @@
 
 #include "dbg/debug.h"
 #include "dbg/DebugCast.h"
-#include "geo/Conversions.h"
-#include "geo/PointOrder.h"
+#include "vt/Conversions.h"
+#include "geom/PointOrder.h"
 #include "mci/Class.h"
 #include "ser/RangeStream.h"
 #include "utl/IncrementalLock.h"

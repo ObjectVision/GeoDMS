@@ -11,11 +11,11 @@
 #include "SpatialAnalyzer.h"
 
 #include "dbg/debug.h"
-#include "geo/Conversions.h"
-#include "geo/Point.h"
+#include "vt/Conversions.h"
+#include "geom/Point.h"
 
 #include <cmath>
-#include "geo/PointOrder.h"
+#include "geom/PointOrder.h"
 #include "mth/Mathlib.h"
 
 // *****************************************************************************

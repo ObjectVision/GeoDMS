@@ -10,7 +10,7 @@
 
 #include "ShvBase.h"
 
-#include "geo/Round.h"
+#include "vt/Round.h"
 
 //----------------------------------------------------------------------
 // section : TPoint & TRect
@@ -678,7 +678,7 @@ inline GRect  RECTToGRect(const RECT& r) { return GRect(r.left, r.top, r.right, 
 // section : RGBQUAD
 //----------------------------------------------------------------------
 
-#include "geo/color.h"
+#include "vt/color.h"
 
 template<typename ExceptFunc, typename ConvertFunc>
 inline RGBQUAD Convert4(DmsColor dmsColor, const RGBQUAD*, const ExceptFunc*, const ConvertFunc*)
@@ -707,7 +707,7 @@ const COLORREF TRANSPARENT_COLORREF = 0xFFFFFFFF;
 
 #else // !_WIN32
 
-#include "geo/color.h"
+#include "vt/color.h"
 
 // Portable replacements for COLORREF
 using COLORREF = UInt32;

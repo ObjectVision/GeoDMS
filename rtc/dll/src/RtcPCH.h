@@ -15,15 +15,15 @@
 #endif
 
 #include "RtcBase.h"
-#include "dbg/Check.h"
+#include "dbg/Diagnostics.h"
 #include "dbg/debug.h"
-#include "set/Token.h"
+#include "sym/Token.h"
 
 //----------------------------------------------------------------------
 // RtcLock
 //
 // ElemAllocComponent / IndexedStringsComponent / TokenComponent and StaticTokenID moved to
-// RtcComponents.h resp. set/Token.h (both included via dbg/Check.h -> set/Token.h above) so that
+// RtcComponents.h resp. sym/Token.h (both included via dbg/Diagnostics.h -> sym/Token.h above) so that
 // tic/sym can derive their static objects from the exported components ahead of the DLL merge.
 //----------------------------------------------------------------------
 

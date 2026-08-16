@@ -42,8 +42,8 @@
 #endif
 
 #include "dbg/DmsCatch.h"
-#include "geo/PointOrder.h"
-#include "geo/StringArray.h"
+#include "geom/PointOrder.h"
+#include "vt/StringArray.h"
 #include "mci/ValueClass.h"
 #include "mci/ValueClassID.h"
 #include "utl/Environment.h"

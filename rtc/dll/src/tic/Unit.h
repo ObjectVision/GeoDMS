@@ -19,7 +19,7 @@
 // used modules and forward class references
 //----------------------------------------------------------------------
 
-#include "geo/CheckedCalc.h"
+#include "vt/CheckedCalc.h"
 #include "ser/RangeStream.h"
 
 #include "AbstrUnit.h"

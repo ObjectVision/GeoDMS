@@ -11,10 +11,10 @@
 
 #include <cctype>
 
-#include "dbg/Check.h"
+#include "dbg/Diagnostics.h"
 #include "ser/FormattedStream.h"
-#include "geo/Point.h"
-#include "geo/PointOrder.h"
+#include "geom/Point.h"
+#include "geom/PointOrder.h"
 
 //----------------------------------------------------------------------
 // Section      : Serialization support for Points

@@ -10,7 +10,7 @@
 #include "SpiritTools.h"
 
 #include "ptr/PtrBase.h"
-#include "utl/encodes.h"
+#include "utl/Encodes.h"
 #include "ExprProd.h"
 #include "StringParse.h"
 

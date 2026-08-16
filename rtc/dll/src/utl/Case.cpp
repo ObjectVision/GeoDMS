@@ -8,9 +8,9 @@
 #pragma hdrstop
 #endif //defined(CC_PRAGMAHDRSTOP)
 
-#include "geo/SequenceArray.h"
+#include "vt/SequenceArray.h"
 #include "ptr/SharedStr.h"
-#include "utl/case.h"
+#include "utl/Case.h"
 
 #include <ctype.h>
 #include <string>

@@ -12,11 +12,11 @@
 
 #include "TicBase.h"
 
-#include "dbg/Check.h"
-#include "geo/Undefined.h"
-#include "geo/Point.h"
-#include "geo/Range.h"
-#include "geo/Transform.h"
+#include "dbg/Diagnostics.h"
+#include "vt/Undefined.h"
+#include "geom/Point.h"
+#include "geom/Range.h"
+#include "geom/Transform.h"
 
 
 #include <vector>

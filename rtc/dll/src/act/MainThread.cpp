@@ -20,7 +20,7 @@
 
 #include "act/MainThread.h"
 #include "act/TriggerOperator.h"
-#include "dbg/Check.h"
+#include "dbg/Diagnostics.h"
 #include "dbg/DmsCatch.h"
 #include "utl/Environment.h"
 

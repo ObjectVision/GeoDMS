@@ -18,15 +18,15 @@
 #include "dbg/debug.h"
 #include "dbg/DmsCatch.h"
 #include "dbg/SeverityType.h"
-#include "geo/DataPtrTraits.h"
-#include "geo/StringArray.h"
+#include "vt/DataPtrTraits.h"
+#include "vt/StringArray.h"
 #include "mci/ValueClass.h"
 #include "mci/ValueWrap.h"
 #include "mem/Grid.h"
 #include "mem/RectCopy.h"
-#include "mem/TileData.h"
+#include "mem/tiledata.h"
 #include "ser/SequenceArrayStream.h"
-#include "xml/XmlOut.h"
+#include "xml/XMLOut.h"
 
 #include "AbstrDataItem.h"
 #include "AbstrDataObject.h"
@@ -993,7 +993,7 @@ auto CreateFileTileArray(const AbstrDataItem* adi, const SharedObj* abstrValuesR
 // instantiation and registration
 //----------------------------------------------------------------------
 
-#include "rtcTypeLists.h"
+#include "RtcTypeLists.h"
 #include "utl/TypeListOper.h"
 
 namespace  {

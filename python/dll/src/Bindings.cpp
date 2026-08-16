@@ -11,7 +11,7 @@
 #include "PropDefInterface.h"
 #include "ShvUtils.h"
 
-#include "dbg/Debug.h"
+#include "dbg/debug.h"
 #include "dbg/DebugLog.h"
 #include "dbg/DmsCatch.h"
 #include "ptr/AutoDeletePtr.h"

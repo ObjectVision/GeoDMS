@@ -12,7 +12,7 @@
 
 #include "RtcBase.h"
 
-#include "geo/BaseBounds.h"
+#include "vt/BaseBounds.h"
 
 #include <vector>
 

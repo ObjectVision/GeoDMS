@@ -17,7 +17,7 @@
 #include "dbg/DmsCatch.h"
 #include "mci/AbstrValue.h"
 #include "mci/ValueWrap.h"
-#include "geo/Point.h"
+#include "geom/Point.h"
 #include "utl/StrFormat.h"
 
 #include "DataLocks.h"

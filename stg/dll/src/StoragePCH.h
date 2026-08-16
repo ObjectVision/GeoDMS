@@ -7,7 +7,7 @@
 #endif
 
 /*
- *  The precompiled header of the Stg DLL: StgImpl.h (the storage prelude,
+ *  The precompiled header of the Stg DLL: StorageUtils.h (the storage prelude,
  *  which reaches the TreeItem graph via stg/AbstrStorageManager.h) plus
  *  the diagnostics and storage-manager helpers that all storage TUs use.
  */
@@ -20,9 +20,9 @@
 #endif //STGDLL_CALL
 
 #define DMSTGDLL_EXPORTS
-#include "StgImpl.h"
+#include "StorageUtils.h"
 
-#include "dbg/Check.h"
+#include "dbg/Diagnostics.h"
 #include "stg/AbstrStorageManager.h"
 #include "stg/AsmUtil.h"
 

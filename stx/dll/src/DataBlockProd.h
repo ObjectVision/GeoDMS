@@ -9,9 +9,9 @@
 #if !defined( __STX_PRODDATABLOCK_H)
 #define __STX_PRODDATABLOCK_H
 
-#include "geo/Point.h"
-#include "geo/Range.h"
-#include "geo/Geometry.h"
+#include "geom/Point.h"
+#include "geom/Range.h"
+#include "geom/Geometry.h"
 #include "mci/ValueClassID.h"
 #include "set/StackUtil.h"
 

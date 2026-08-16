@@ -10,7 +10,7 @@
 #define __RTC_SET_MEMPAGETABLE_H
 
 #include "set/FileView.h" 
-#include "geo/IndexRange.h"
+#include "vt/IndexRange.h"
 #include <set>
 
 

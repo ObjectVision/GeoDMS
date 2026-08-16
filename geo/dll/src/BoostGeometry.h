@@ -13,9 +13,9 @@
 #include "VersionComponent.h"
 #include "ser/SequenceArrayStream.h"
 
-#include "dbg/Check.h"
+#include "dbg/Diagnostics.h"
 #include "dbg/Timer.h"
-#include "geo/RingIterator.h"
+#include "geom/RingIterator.h"
 #include "mci/ValueClass.h"
 #include "mci/ValueWrap.h"
 #include "utl/TypeListOper.h"

@@ -16,9 +16,9 @@
 
 #include "act/MainThread.h"
 #include "dbg/DebugCast.h"
-#include "geo/Conversions.h"
-#include "geo/PointOrder.h"
-#include "geo/Range.h"
+#include "vt/Conversions.h"
+#include "geom/PointOrder.h"
+#include "geom/Range.h"
 #include "utl/StrFormat.h"
 #include "mci/Class.h"
 #include "utl/IncrementalLock.h"

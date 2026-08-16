@@ -13,7 +13,7 @@
 
 #include "dbg/DebugCast.h"
 #include "mci/ValueClass.h"
-#include "utl/Swapper.h"
+#include "utl/swapper.h"
 
 #include "DataArray.h"
 

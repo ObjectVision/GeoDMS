@@ -14,7 +14,7 @@
 #include <memory>
 #include <type_traits>
 
-#include "dbg/Check.h"
+#include "dbg/Diagnostics.h"
 
 //----------------------------------------------------------------------
 // class template  : rtc::any::Any<T>

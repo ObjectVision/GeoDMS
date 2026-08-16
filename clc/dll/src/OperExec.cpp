@@ -10,7 +10,7 @@
 
 #include "RtcInterface.h"
 #include "dbg/SeverityType.h"
-#include "geo/StringArray.h"
+#include "vt/StringArray.h"
 #include "mci/CompositeCast.h"
 #include "ser/AsString.h"
 #include "utl/Environment.h"

@@ -16,13 +16,13 @@
 #include "TicInterface.h"
 
 #include "RtcInterface.h"
-#include "act/actorVisitor.h"
+#include "act/ActorVisitor.h"
 #include "act/SupplierVisitFlag.h"
 #include "act/TriggerOperator.h"
 #include "dbg/debug.h"
 #include "dbg/DebugCast.h"
 #include "dbg/DmsCatch.h"
-#include "geo/Conversions.h"
+#include "vt/Conversions.h"
 #include "utl/Encodes.h"
 
 #include "stg/AbstrStorageManager.h"

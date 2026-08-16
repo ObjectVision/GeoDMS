@@ -33,8 +33,8 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include <vector>
 
-#include "dbg/Check.h"
-#include "geo/BaseBounds.h"
+#include "dbg/Diagnostics.h"
+#include "vt/BaseBounds.h"
 #include "set/rangefuncs.h"
 
 #include <algorithm>

@@ -9,7 +9,7 @@
 
 #include "ShvUtils.h"
 
-#include "geo/Pair.h"
+#include "vt/Pair.h"
 #include "ptr/SharedBase.h"
 
 using grid_rowcol_id = UInt32 ;

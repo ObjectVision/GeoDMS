@@ -31,9 +31,9 @@
 #include "act/UpdateMark.h"
 #include "dbg/debug.h"
 #include "dbg/SeverityType.h"
-#include "geo/Conversions.h"
-#include "geo/PointOrder.h"
-#include "geo/Round.h"
+#include "vt/Conversions.h"
+#include "geom/PointOrder.h"
+#include "vt/Round.h"
 #include "xct/DmsException.h"
 #include "cpc/EndianConversions.h"
 

@@ -1,22 +1,29 @@
-// Copyright (C) 1998-2026 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
-#if !defined(__RTC_PTR_SHAREDCHARARRAY_H)
-#define __RTC_PTR_SHAREDCHARARRAY_H
+/*
+ *  SharedStr / WeakStr: the shared, reference-counted string of GeoDMS,
+ *  backed by SharedCharArray, with the string compare/search helpers and
+ *  Undefined-aware conversions used throughout the code base.
+ */
 
-#include "geo/BaseBounds.h"
-#include "geo/iterrangefuncs.h"
-#include "geo/CharPtrRange.h"
-#include "geo/StringBounds.h"
-#include "geo/Undefined.h"
+#if !defined(__PTR_SHAREDSTR_H)
+#define __PTR_SHAREDSTR_H
+
+#include "vt/BaseBounds.h"
+#include "vt/iterrangefuncs.h"
+#include "vt/CharPtrRange.h"
+#include "vt/StringBounds.h"
+#include "vt/Undefined.h"
 #include "ptr/IterCast.h"
 #include "ptr/SharedPtr.h"
 #include "ptr/SharedArray.h"
 #include "ptr/WeakPtr.h"
-#include "ser/format.h"
 
 struct TokenID;
 struct CharPtrRange;
@@ -562,11 +569,7 @@ RTC_CALL Float64 AsFloat64(WeakStr x );
 
 inline void Assign(SharedStr& lhs, WeakStr rhs) { lhs = rhs; }
 
-template<typename ...Args>
-SharedStr mgFormat2SharedStr(CharPtr msg, Args&&... args)
-{
-	return SharedStr(mgFormat2string<Args...>(msg, std::forward<Args>(args)...));
-}
+// mgFormat2SharedStr moved to utl/StrFormat.h
 
 //----------------------------------------------------------------------
 // Section      : MG_DEBUG_ALLOCATOR
@@ -607,5 +610,5 @@ struct MsgData {
 
 extern "C" RTC_CALL CharPtr DMS_CONV RTC_MsgData_GetMsgAsCStr(MsgData * msgData);
 
-#endif // __RTC_PTR_SHAREDCHARARRAY_H
+#endif // __PTR_SHAREDSTR_H
 

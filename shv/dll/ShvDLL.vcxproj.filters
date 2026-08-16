@@ -27,7 +27,7 @@
     <ClCompile Include="src\Carets.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\ClipBoard.cpp">
+    <ClCompile Include="src\Clipboard.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\Cmds.cpp">
@@ -42,7 +42,7 @@
     <ClCompile Include="src\DataItemColumn.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\dataview.cpp">
+    <ClCompile Include="src\DataView.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\DcHandle.cpp">
@@ -269,7 +269,7 @@
     <ClInclude Include="src\DataItemColumn.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\dataview.h">
+    <ClInclude Include="src\DataView.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\DcHandle.h">
@@ -380,13 +380,13 @@
     <ClInclude Include="src\MouseEventDispatcher.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\movablecontainer.h">
+    <ClInclude Include="src\MovableContainer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\movableobject.h">
+    <ClInclude Include="src\MovableObject.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\palettecontrol.h">
+    <ClInclude Include="src\PaletteControl.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\PenIndexCache.h">
@@ -398,7 +398,7 @@
     <ClInclude Include="src\RegionTower.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\scalableobject.h">
+    <ClInclude Include="src\ScalableObject.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\ScaleBar.h">
@@ -407,7 +407,7 @@
     <ClInclude Include="src\ScrollPort.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\selcaret.h">
+    <ClInclude Include="src\SelCaret.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\ShvBase.h">
@@ -440,7 +440,7 @@
     <ClInclude Include="src\TextControl.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\texteditcontroller.h">
+    <ClInclude Include="src\TextEditController.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\Theme.h">
@@ -476,7 +476,7 @@
     <ClInclude Include="src\AspectGroup.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\fontrole.h">
+    <ClInclude Include="src\FontRole.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\ThemeValueGetter.h">

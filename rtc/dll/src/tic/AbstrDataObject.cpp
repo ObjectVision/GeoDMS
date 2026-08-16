@@ -11,7 +11,7 @@
 #include "AbstrDataObject.h"
 #include "TiledRangeData.h"
 
-#include "geo/Range.h"
+#include "geom/Range.h"
 #include "mci/ValueWrap.h"
 #include "mci/PropDef.h"
 #include "mci/ValueClass.h"

@@ -13,8 +13,8 @@
 
 #include "ser/AsString.h"
 #include "set/VectorFunc.h"
-#include "geo/StringBounds.h"
-#include "geo/GeoSequence.h"
+#include "vt/StringBounds.h"
+#include "vt/GeoSequence.h"
 
 #include "CheckedDomain.h"
 #include "DataArray.h"

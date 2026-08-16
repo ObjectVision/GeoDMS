@@ -39,18 +39,18 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "dbg/debug.h"
 #include "dbg/SeverityType.h"
-#include "geo/Conversions.h"
-#include "geo/StringBounds.h"
+#include "vt/Conversions.h"
+#include "vt/StringBounds.h"
 #include "mci/PropDef.h"
 #include "ptr/SharedBase.h"
 #include "ptr/SharedPtr.h"
 #include "ser/StringStream.h"
-#include "set/vectorFunc.h"
+#include "set/VectorFunc.h"
 #include "stg/StorageClass.h"
 #include "utl/StrFormat.h"
 #include "utl/Environment.h"
 #include "utl/FileSystem.h"
-#include "utl/SplitPath.h"
+#include "utl/splitPath.h"
 
 #include "DataStoreManagerCaller.h"
 

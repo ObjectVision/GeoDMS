@@ -29,8 +29,8 @@ granted by an additional written contract for support, assistance and/or develop
 #if !defined(__RTC_SET_VECTORMAP_H)
 #define __RTC_SET_VECTORMAP_H
 
-#include "geo/Pair.h"
-#include "geo/BaseBounds.h"
+#include "vt/Pair.h"
+#include "vt/BaseBounds.h"
 #include "set/CompareFirst.h"
 
 #include <vector>

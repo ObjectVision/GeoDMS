@@ -9,7 +9,7 @@
 #endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "dbg/DmsCatch.h"
-#include "geo/StringBounds.h"
+#include "vt/StringBounds.h"
 #include "ser/MoreStreamBuff.h"
 #include "ser/StreamException.h"
 #include "utl/Environment.h"

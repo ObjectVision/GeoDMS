@@ -179,7 +179,7 @@ struct iif_assign: ternary_assign<T, Bool, T, T>
 	}
 };
 
-#include "geo/color.h"
+#include "vt/color.h"
 
 //template<typename T> struct rgb_assign;
 

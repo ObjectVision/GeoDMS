@@ -24,12 +24,12 @@
 
 #include "ser/AsString.h"
 #include "set/VectorFunc.h"
-#include "geo/StringBounds.h"
+#include "vt/StringBounds.h"
 #include "set/IndexCompare.h"
 
-#include "makeCululative.h"
-#include "pcount.h"
-#include "prototypes.h"
+#include "makeCumulative.h"
+#include "PCount.h"
+#include "Prototypes.h"
 
 template <typename vIt, typename V>
 vIt lowerbound(vIt beginData, vIt endData, const V& value)

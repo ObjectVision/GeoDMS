@@ -10,7 +10,7 @@
 #ifndef __RTC_SER_FILESTREAMBUFF_H
 #define __RTC_SER_FILESTREAMBUFF_H
 
-#include "dbg/Check.h"
+#include "dbg/Diagnostics.h"
 #include "ser/BaseStreamBuff.h"
 #include "ptr/SharedStr.h"
 

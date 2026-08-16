@@ -11,7 +11,7 @@
 #include "MovableContainer.h"
 
 #include "dbg/DebugCast.h"
-#include "geo/PointOrder.h"
+#include "geom/PointOrder.h"
 #include "mci/Class.h"
 #include "utl/swap.h"
 

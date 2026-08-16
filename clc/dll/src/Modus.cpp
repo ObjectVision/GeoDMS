@@ -11,9 +11,9 @@
 #include <numbers>
 #include <cmath>
 
-#include "geo/CheckedCalc.h"
-#include "geo/Conversions.h"
-#include "geo/IsNotUndef.h"
+#include "vt/CheckedCalc.h"
+#include "vt/Conversions.h"
+#include "vt/IsNotUndef.h"
 #include "mci/CompositeCast.h"
 // #include "mem/HeapSequenceProvider.ipp"
 #include "set/VectorFunc.h"

@@ -67,7 +67,7 @@
     <ClCompile Include="src\gdal\gdal_vect.cpp">
       <Filter>GDAL</Filter>
     </ClCompile>
-    <ClCompile Include="src\GridStoragemanager.cpp" />
+    <ClCompile Include="src\GridStorageManager.cpp" />
     <ClCompile Include="src\ImplMain.cpp" />
     <ClCompile Include="src\bmp\BmpImp.cpp">
       <Filter>Bmp</Filter>
@@ -75,7 +75,7 @@
     <ClCompile Include="src\dbf\dbfImp.cpp">
       <Filter>dbf</Filter>
     </ClCompile>
-    <ClCompile Include="src\odbc\OdbcImp.cpp">
+    <ClCompile Include="src\odbc\ODBCImp.cpp">
       <Filter>Odbc</Filter>
     </ClCompile>
     <ClCompile Include="src\shp\ShpImp.cpp">
@@ -104,7 +104,7 @@
     <ClInclude Include="src\shp\ShpStorageManager.h">
       <Filter>Shp</Filter>
     </ClInclude>
-    <ClInclude Include="src\StgImpl.h" />
+    <ClInclude Include="src\StorageUtils.h" />
     <ClInclude Include="src\str\StrStorageManager.h">
       <Filter>Str</Filter>
     </ClInclude>
@@ -128,7 +128,7 @@
       <Filter>GDAL</Filter>
     </ClInclude>
     <ClInclude Include="src\GridStorageManager.h" />
-    <ClInclude Include="src\viewportinfo.h" />
+    <ClInclude Include="src\ViewPortInfo.h" />
     <ClInclude Include="src\FilePtrHandle.h" />
     <ClInclude Include="src\ImplMain.h" />
     <ClInclude Include="src\bmp\BmpImp.h">
@@ -137,7 +137,7 @@
     <ClInclude Include="src\dbf\dbfImpl.h">
       <Filter>dbf</Filter>
     </ClInclude>
-    <ClInclude Include="src\odbc\OdbcImp.h">
+    <ClInclude Include="src\odbc\ODBCImp.h">
       <Filter>Odbc</Filter>
     </ClInclude>
     <ClInclude Include="src\shp\ShpImp.h">

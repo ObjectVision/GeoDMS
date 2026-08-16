@@ -23,8 +23,8 @@
 #include "dbg/SeverityType.h"
 #include "CheckedDomain.h"
 #include "mem/MyContainers.h"
-#include "geo/RangeIndex.h"
-#include "geo/PointOrder.h"
+#include "vt/RangeIndex.h"
+#include "geom/PointOrder.h"
 #include "utl/scoped_exit.h"
 
 #include "Projection.h"

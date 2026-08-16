@@ -37,9 +37,9 @@ granted by an additional written contract for support, assistance and/or develop
 // ViewPortInfo
 // *****************************************************************************
 
-#include "geo/CheckedCalc.h"
-#include "geo/Transform.h"
-#include "geo/Geometry.h"
+#include "vt/CheckedCalc.h"
+#include "geom/Transform.h"
+#include "geom/Geometry.h"
 
 typedef long countcolor_t;
 

@@ -18,7 +18,7 @@
 #include "act/UpdateMark.h"
 #include "dbg/DebugContext.h"
 #include "dbg/SeverityType.h"
-#include "geo/StringArray.h"
+#include "vt/StringArray.h"
 #include "ser/FileStreamBuff.h"
 #include "utl/StrFormat.h"
 #include "utl/swap.h"

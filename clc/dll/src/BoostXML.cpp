@@ -17,7 +17,7 @@
 #include "utl/StrFormat.h"
 #include "utl/splitPath.h"
 
-#include "Abstrunit.h"
+#include "AbstrUnit.h"
 #include "SessionData.h"
 #include "TreeItemClass.h"
 #include "Unit.h"

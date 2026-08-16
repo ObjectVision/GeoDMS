@@ -382,6 +382,30 @@ ConfigProd.cpp), so HOF-spec churn no longer invalidates four PCHs. Full-solutio
 469 s, zero errors. Bulk mechanical migrations (include-line rewrites) deliberately do not
 trigger the §7 prolog rule; content-touched files do. Step 5 remains open.*
 
+*Step 5 is DONE (same day), in four build-gated chunks:
+(1) the high-value renames — `makeCumulative.h` (typo), `dbg/Check.h` → `dbg/Diagnostics.h`
+(58 includers), `ser/format.h` → `utl/MgFormat.h`, `StgImpl.h` → `StorageUtils.h`; the
+`mgFormat2SharedStr` relocation ended up in `utl/StrFormat.h` rather than `MgFormat.h` —
+MgFormat must stay a leaf because six headers in SharedStr's closure include
+`dbg/Diagnostics.h` back (a guard-skipped include cycle otherwise, found the hard way);
+(2) include-case normalization — 22 case-only file renames (shv `dataview.*` →
+`DataView.*`, `pCount.h` → `PCount.h`, the 15 .h/.cpp case-mismatched siblings,
+`TreeItemDualRef.h`, `LispEval.*`, `mem/Grid.h`) plus a scripted normalizer that made all
+108 mismatched `#include` directives and 78 build-file entries match on-disk case exactly
+(the latent Linux break of Finding 6);
+(3) clc `include/` repopulation — 15 truly-private headers (incl. `ClcPCH.h`) moved to
+`src/`; 9 of the audit's 26 "private" headers turned out to be infrastructure reachable
+from public headers (`AttrUniStruct.h`, `composition.h`, `AggrFunc.h`,
+`PartitionTypes.h`, …) and stay; two public headers (`IndexAssigner.h`, `rlookup.h`)
+included the private PCH — replaced with `ClcBase.h`; and `set/Token.h` + `Token.cpp`
+moved to `sym/` (19 includers);
+(4) the `rtc/dll/src/geo/` split into `vt/` (35 files: value types, traits, conversions,
+sequences, strings, color) and `geom/` (17 files: points, ranges, transforms, spatial
+index, polygon helpers) — 493 include directives in 278 files plus 102 build-file entries
+rewritten; the `geo` directory is gone, ending the collision with the geo DLL.
+Guard/prolog normalization of the ~50 moved vt/geom headers is deferred (bulk-mechanical
+exemption); tests re-run green after the final chunk.*
+
 1. **Zero-risk cleanup**: delete the Finding-2 dead files; remove the 52 duplicated
    `#include` lines; drop `ViewPort.cpp`'s gdal include; fix `StgImpl.h`'s `#endif`.
    Gate: one `.m` build.

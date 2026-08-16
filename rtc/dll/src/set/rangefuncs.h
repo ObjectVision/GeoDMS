@@ -10,8 +10,8 @@
 #define __RTC_SET_RANGEFUNCS_H
 
 #include "dbg/DebugCast.h"
-#include "geo/ElemTraits.h"
-#include "geo/IterTraits.h"
+#include "vt/ElemTraits.h"
+#include "vt/IterTraits.h"
 #include "utl/swap.h"
 
 #include <cstring> // memcpy / memmove / memset used below: self-sufficient include (MSVC provides these transitively, GCC/libstdc++ does not)

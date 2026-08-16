@@ -39,7 +39,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "StgBase.h"
 #include "GridStorageManager.h"
 
-#include "geo/color.h"
+#include "vt/color.h"
 
 struct BmpPalStorageManager : AbstrGridStorageManager
 {

@@ -10,8 +10,8 @@
 
 #include "RtcTypeLists.h"
 
-#include "geo/StringArray.h"
-#include "geo/Conversions.h"
+#include "vt/StringArray.h"
+#include "vt/Conversions.h"
 #include "mci/CompositeCast.h"
 #include "set/VectorFunc.h"
 

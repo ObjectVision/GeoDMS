@@ -11,7 +11,7 @@
 
 #include "GraphicLayer.h"
 
-#include "geo/color.h"
+#include "vt/color.h"
 #include "ptr/InterestHolders.h"
 
 class AbstrThemeValueGetter;

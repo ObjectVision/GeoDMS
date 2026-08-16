@@ -99,7 +99,7 @@ private:
 #include "ser/AsString.h"
 #include "ser/StringStream.h"
 #include "ser/PairStream.h"
-#include "geo/ElemTraits.h"
+#include "vt/ElemTraits.h"
 
 template <class ItemType, class PropType>
 class PropDef : public AbstrPropDef

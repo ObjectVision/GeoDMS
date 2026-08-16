@@ -12,8 +12,8 @@
 // attributes, with value-info (Explain) support for the merged items.
 
 #include "Explain.h" // Explain::Context, AddQueueEntry
-#include "geo/GeoSequence.h"
-#include "geo/StringBounds.h"
+#include "vt/GeoSequence.h"
+#include "vt/StringBounds.h"
 #include "mci/CompositeCast.h"
 #include "ser/AsString.h"
 #include "dbg/SeverityType.h"

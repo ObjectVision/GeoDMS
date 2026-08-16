@@ -56,7 +56,7 @@
 
 #include "act/MainThread.h"
 #include "dbg/SeverityType.h"
-#include "geo/mpf.h"
+#include "vt/mpf.h"
 #include "mem/FixedAlloc.h"
 #include "set/VectorFunc.h"
 #include "utl/Environment.h"

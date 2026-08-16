@@ -8,7 +8,7 @@
 
 #include "DmsValueInfo.h"
 #include "ser/MoreStreamBuff.h"
-#include "xml/XmlOut.h"
+#include "xml/XMLOut.h"
 
 #include <QDockWidget>
 

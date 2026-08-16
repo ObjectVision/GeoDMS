@@ -16,9 +16,9 @@
 #if !defined(__SHV_DRAWPOLYGONS_H)
 #define __SHV_DRAWPOLYGONS_H
 
-#include "geo/CalcWidth.h"
-#include "geo/PointIndexBuffer.h"
-#include "geo/PointOrder.h"
+#include "geom/CalcWidth.h"
+#include "geom/PointIndexBuffer.h"
+#include "geom/PointOrder.h"
 
 #include "BoundingBoxCache.h"
 #include "CounterStacks.h"

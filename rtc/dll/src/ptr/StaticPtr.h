@@ -10,7 +10,7 @@
 #if !defined(__RTC_PTR_STATIC_H)
 #define __RTC_PTR_STATIC_H
 
-#include "dbg/Check.h"
+#include "dbg/Diagnostics.h"
 #include "utl/NonCopyable.h"
 
 template <class T>

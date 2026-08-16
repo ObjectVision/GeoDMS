@@ -12,13 +12,13 @@
 #include "ImplMain.h"
 #include "FilePtrHandle.h"
 
-#include "dbg/Check.h"
-#include "geo/iterrange.h"
-#include "geo/PointOrder.h"
-#include "geo/Range.h"
-#include "geo/BaseBounds.h"
-#include "geo/SequenceArray.h"
-#include "geo/GeoSequence.h"
+#include "dbg/Diagnostics.h"
+#include "vt/iterrange.h"
+#include "geom/PointOrder.h"
+#include "geom/Range.h"
+#include "vt/BaseBounds.h"
+#include "vt/SequenceArray.h"
+#include "vt/GeoSequence.h"
 
 #include "stdio.h"
 #include <vector>

@@ -12,11 +12,11 @@
 #include "StgBase.h"
 #include <optional>
 
-#include "geo/Conversions.h"
-#include "geo/Round.h"
-#include "geo/undef_xx.h"
+#include "vt/Conversions.h"
+#include "vt/Round.h"
+#include "vt/undef_xx.h"
 #include "mci/ValueClass.h"
-#include "mem/grid.h"
+#include "mem/Grid.h"
 #include "mem/RectCopy.h"
 #include "mem/tiledata.h"
 #include "TiledUnit.h"
@@ -29,7 +29,7 @@
 #include "ViewPortInfoEx.h"
 
 #include "ImplMain.h"
-#include "StgImpl.h"
+#include "StorageUtils.h"
 
 //  ---------------------------------------------------------------------------
 

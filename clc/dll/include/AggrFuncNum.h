@@ -9,7 +9,7 @@
 
 #include <vector>
 
-#include "geo/BaseBounds.h"
+#include "vt/BaseBounds.h"
 
 #include "AggrFunc.h"
 #include "composition.h"

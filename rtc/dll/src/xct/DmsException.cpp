@@ -15,7 +15,7 @@
 #include "dbg/debug.h"
 #include "dbg/DmsCatch.h"
 #include "dbg/SeverityType.h"
-#include "geo/iterrangefuncs.h"
+#include "vt/iterrangefuncs.h"
 #include "mci/Object.h"
 #include "ser/DebugOutStream.h"
 #include "ser/MoreStreamBuff.h"

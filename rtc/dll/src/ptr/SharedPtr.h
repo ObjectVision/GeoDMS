@@ -10,7 +10,7 @@
 #define __PTR_SHAREDPTR_H
 
 #include "RtcBase.h"
-#include "dbg/Check.h"
+#include "dbg/Diagnostics.h"
 #include "dbg/DebugCast.h"
 #include "ptr/PtrBase.h"
 #include <compare>

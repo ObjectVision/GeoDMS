@@ -17,7 +17,7 @@
 #include "DataLocks.h"
 #include "dbg/DebugCast.h"
 #include "mem/FixedAlloc.h"
-#include "mem/TileData.h"
+#include "mem/tiledata.h"
 
 template <typename V>
 struct HeapTileArray : GeneratedTileFunctor<V>
@@ -299,7 +299,7 @@ auto HeapSingleValue<V>::GetTile(tile_id t) const -> locked_cseq_t
 //----------------------------------------------------------------------
 
 #include "mem/MappedSequenceProvider.h"
-#include "geo/mpf.h"
+#include "vt/mpf.h"
 #include "utl/splitPath.h"
 #include "utl/StrFormat.h"
 

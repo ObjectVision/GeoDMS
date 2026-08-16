@@ -31,7 +31,7 @@ granted by an additional written contract for support, assistance and/or develop
 #ifndef __CMD_H
 #define __CMD_H
 
-#include "cpc/types.h"
+#include "cpc/Types.h"
 
 //----------------------------------------------------------------------
 // used modules and forward class references
@@ -39,7 +39,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "AbstrCmd.h"
 
-#include "geo/Geometry.h"
+#include "geom/Geometry.h"
 
 //----------------------------------------------------------------------
 // class  : CmdSelectDistrict

@@ -16,8 +16,8 @@
 #include "act/MainThread.h"
 #include "dbg/debug.h"
 #include "utl/FixedBufferFormat.h" // myFixedBufferWrite
-#include "geo/Area.h"
-#include "geo/DynamicPoint.h"
+#include "geom/Area.h"
+#include "geom/DynamicPoint.h"
 
 #include "Param.h"
 #include "Projection.h"
@@ -356,8 +356,8 @@ bool TieCursorController::Move (EventInfo& eventInfo)
 // class  : ZoomInControlller
 //----------------------------------------------------------------------
 
-#include "geo/Transform.h"
-#include "geo/Conversions.h"
+#include "geom/Transform.h"
+#include "vt/Conversions.h"
 #include "Carets.h"
 
 // Right-button marquee uses RBUTTONUP as its exec/stop trigger; the left-button (Alt+drag and

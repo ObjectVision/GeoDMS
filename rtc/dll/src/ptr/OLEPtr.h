@@ -11,7 +11,7 @@
 #define __RTC_PTR_OLEPTR_H
 
 // Check
-#include "dbg/Check.h"
+#include "dbg/Diagnostics.h"
 #include "ptr/PtrBase.h"
 
 template <class T>

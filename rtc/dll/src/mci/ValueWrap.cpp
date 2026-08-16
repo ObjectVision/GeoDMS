@@ -11,7 +11,7 @@
 #include "dbg/DmsCatch.h"
 #include "dbg/DebugCast.h"
 
-#include "geo/BitValue.h"
+#include "vt/BitValue.h"
 #include "ptr/OwningPtr.h"
 
 #include "mci/AbstrValue.h"
@@ -27,7 +27,7 @@
 #include "ser/StreamTraits.h"
 #include "ser/StringStream.h"
 #include "ser/VectorStream.h"
-#include "geo/StringBounds.h"
+#include "vt/StringBounds.h"
 #include "utl/Case.h"
 #include "utl/Instantiate.h"
 

@@ -9,7 +9,7 @@
 #ifndef __TIC_TREEITEMPROPS_H
 #define __TIC_TREEITEMPROPS_H
 
-#include "geo/Pair.h"
+#include "vt/Pair.h"
 #include "mci/PropDef.h"
 
 using PropBool = Bool;

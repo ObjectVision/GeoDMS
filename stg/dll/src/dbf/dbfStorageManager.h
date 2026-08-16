@@ -35,7 +35,7 @@ granted by an additional written contract for support, assistance and/or develop
 #if !defined(__STG_DBF_STORAGEMANAGER_H)
 #define __STG_DBF_STORAGEMANAGER_H
 
-//#include "StgImpl.h"
+//#include "StorageUtils.h"
 #include "ptr/OwningPtr.h"
 #include "ptr/SharedPtr.h"
 #include "ptr/SharedTreePtr.h"

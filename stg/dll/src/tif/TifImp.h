@@ -35,10 +35,10 @@ granted by an additional written contract for support, assistance and/or develop
 #include "ImplMain.h"
 #include "ViewPortInfo.h"
 
-#include "dbg/Check.h"
-#include "geo/color.h"
-#include "geo/SequenceTraits.h"
-#include "mem/TileData.h"
+#include "dbg/Diagnostics.h"
+#include "vt/color.h"
+#include "vt/SequenceTraits.h"
+#include "mem/tiledata.h"
 
 #include <vector>
 

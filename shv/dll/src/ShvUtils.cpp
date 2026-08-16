@@ -16,9 +16,9 @@
 
 #include "dbg/debug.h"
 #include "dbg/DebugContext.h"
-#include "geo/BaseBounds.h"
-#include "geo/Conversions.h"
-#include "geo/Pair.h"
+#include "vt/BaseBounds.h"
+#include "vt/Conversions.h"
+#include "vt/Pair.h"
 #include "mci/Class.h"
 #include "mci/CompositeCast.h"
 #include "mci/ValueClass.h"
@@ -27,7 +27,7 @@
 #include "utl/PlatformError.h"
 #include "utl/IncrementalLock.h"
 #include "utl/StrFormat.h"
-#include "utl/SplitPath.h"
+#include "utl/splitPath.h"
 
 #include "AbstrDataItem.h"
 #include "AbstrDataObject.h"

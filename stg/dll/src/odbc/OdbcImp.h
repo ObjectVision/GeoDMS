@@ -34,7 +34,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "ImplMain.h"
 
-#include "geo/BaseBounds.h"
+#include "vt/BaseBounds.h"
 
 #include <vector>
 #include <set>

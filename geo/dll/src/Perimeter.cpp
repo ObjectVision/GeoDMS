@@ -8,7 +8,7 @@
 #pragma hdrstop
 #endif
 
-#include "geo/RangeIndex.h"
+#include "vt/RangeIndex.h"
 #include "mci/ValueClass.h"
 
 #include "OperGroups.h"

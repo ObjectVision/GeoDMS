@@ -12,7 +12,7 @@
 #include "ptr/IterCast.h"
 #include "set/BitVector.h"
 
-#include "geo/MinMax.h"
+#include "vt/MinMax.h"
 
 //----------------------------------------------------------------------
 // Implementation

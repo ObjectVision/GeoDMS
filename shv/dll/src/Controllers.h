@@ -35,7 +35,7 @@ granted by an additional written contract for support, assistance and/or develop
 // used modules and forward class references
 //----------------------------------------------------------------------
 
-#include "geo/Geometry.h"
+#include "geom/Geometry.h"
 
 #include "AbstrController.h"
 #include "MenuData.h"

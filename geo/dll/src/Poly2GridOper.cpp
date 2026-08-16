@@ -37,8 +37,8 @@
 #include "set/VectorFunc.h" // vector_fill_n
 #include "mem/MyContainers.h"
 #include "dbg/SeverityType.h"
-#include "geo/Conversions.h"
-#include "geo/RangeIndex.h"
+#include "vt/Conversions.h"
+#include "vt/RangeIndex.h"
 #include "mth/Mathlib.h"
 #include "xct/DmsException.h"
 
@@ -46,7 +46,7 @@
 #include "DataArray.h"
 #include "ParallelTiles.h"
 #include "Param.h"
-#include "tilechannel.h"
+#include "TileChannel.h"
 #include "TreeItemClass.h"
 #include "UnitClass.h"
 #include "UnitProcessor.h"

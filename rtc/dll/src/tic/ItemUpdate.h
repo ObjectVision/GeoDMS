@@ -10,7 +10,7 @@
 #if !defined(__TIC_ITEMUPDATE_H)
 #define __TIC_ITEMUPDATE_H
 
-#include "ptr/Interestholders.h"
+#include "ptr/InterestHolders.h"
 
 TIC_CALL bool ItemUpdateImpl(const TreeItem* self, CharPtr context, SharedTreeItemInterestPtr& holder );
 TIC_CALL auto TreeUpdateOrReturnFailerImpl(const TreeItem* self, CharPtr context, SharedTreeItemInterestPtr& holder ) -> SharedTreeItem;

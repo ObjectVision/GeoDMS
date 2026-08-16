@@ -14,7 +14,7 @@
 // used modules and forward class references
 //----------------------------------------------------------------------
 
-#include "ser/format.h"
+#include "utl/MgFormat.h"
 #include "dbg/DebugContext.h"
 
 

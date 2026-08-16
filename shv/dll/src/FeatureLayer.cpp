@@ -17,19 +17,19 @@
 
 #include "DrawPolygons.h"
 
-#include "rtcTypeLists.h"
+#include "RtcTypeLists.h"
 #include "act/TriggerOperator.h"
 #include "act/UpdateMark.h"
 #include "dbg/debug.h"
 #include "mci/CompositeCast.h"
 #include "mci/ValueClass.h"
 #include "mci/ValueClassID.h"
-#include "geo/Conversions.h"
-#include "geo/Area.h"
-#include "geo/IsInside.h"
-#include "geo/PointOrder.h"
+#include "vt/Conversions.h"
+#include "geom/Area.h"
+#include "geom/IsInside.h"
+#include "geom/PointOrder.h"
 #include "CentroidOrMid.h"
-#include "geo/MinMax.h"
+#include "vt/MinMax.h"
 #include "ser/StringStream.h"
 #include "utl/IncrementalLock.h"
 
@@ -2115,8 +2115,8 @@ IMPL_DYNC_LAYERCLASS(GraphicMultiPointLayer, ASE_Feature|ASE_OrderBy|ASE_Label|A
 // class  : GraphicArcLayer
 //----------------------------------------------------------------------
 
-#include "geo/DynamicPoint.h"
-#include "geo/GeoDist.h"
+#include "geom/DynamicPoint.h"
+#include "geom/GeoDist.h"
 
 template <typename ScalarType>
 SizeT FindArcByPoint(const GraphicArcLayer* layer, const Point<ScalarType>& pnt)
@@ -2591,7 +2591,7 @@ IMPL_DYNC_LAYERCLASS(GraphicArcLayer, ASE_Feature|ASE_OrderBy|ASE_Label|ASE_Pen|
 // class  : GraphicPolygonLayer
 //----------------------------------------------------------------------
 
-#include "geo/Centroid.h"
+#include "geom/Centroid.h"
 #include "SelectPoint.h"
 
 template <typename ScalarType>

@@ -11,8 +11,8 @@
 #define __RTC_XML_XMLPARSER_H
 
 
-#include "geo/BaseBounds.h"
-#include "set/Token.h"
+#include "vt/BaseBounds.h"
+#include "sym/Token.h"
 
 #include <vector>
 

@@ -26,7 +26,7 @@
 #include "AbstrUnit.h"
 #include "Unit.h"
 #include "UnitClass.h"
-#include "geo/PointOrder.h"
+#include "geom/PointOrder.h"
 
 #include "IndexAssigner.h"
 

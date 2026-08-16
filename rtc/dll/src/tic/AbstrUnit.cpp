@@ -3,6 +3,7 @@
 /////////////////////////////////////////////////////////////////////////////
 
 #include "TicPCH.h"
+#include "utl/StrFormat.h" // mgFormat2SharedStr
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
@@ -12,12 +13,12 @@
 
 #include "act/ActorVisitor.h"
 #include "act/UpdateMark.h"
-#include "dbg/Check.h"        // reportF_without_cancellation_check, for the Stage-2 CRS drift detector
+#include "dbg/Diagnostics.h"        // reportF_without_cancellation_check, for the Stage-2 CRS drift detector
 #include "dbg/DmsCatch.h"
 #include "dbg/SeverityType.h"
 
 #include <optional>
-#include "geo/PointOrder.h"
+#include "geom/PointOrder.h"
 #include "mci/ValueClass.h"
 #include "mci/ValueClassID.h"
 #include "set/StaticQuickAssoc.h"
@@ -1117,7 +1118,7 @@ IMPL_CLASS(AbstrUnit, nullptr)
 //----------------------------------------------------------------------
 #include "RtcInterface.h"
 
-#include "xml/XmlOut.h"
+#include "xml/XMLOut.h"
 #include "AbstrDataItem.h"
 #include "TicPropDefConst.h"
 

@@ -10,7 +10,7 @@
 
 #include "ExprProd.h"
 
-#include "geo/Conversions.h"
+#include "vt/Conversions.h"
 #include "Parallel.h"
 
 #include "LispList.h"
@@ -281,12 +281,12 @@ void ExprProd::CloseExprList()
 	m_Result.push_back(list);
 }
 
-#include "set/Token.h"
+#include "sym/Token.h"
 #include "xml/XMLOut.h"
 #include "ptr/SharedStr.h"
 
 #include "TreeItem.h"
-#include "xml/XmlTreeOut.h"
+#include "Xml/XmlTreeOut.h"
 
 const TreeItem* WriteHtmlLink(OutStreamBase& outStream, const TreeItem* searchContext, CharPtr first, CharPtr last)
 {

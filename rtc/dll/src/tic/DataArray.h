@@ -20,8 +20,8 @@
 // used modules and forward class references
 //----------------------------------------------------------------------
 
-#include "geo/GeoSequence.h"
-#include "geo/SequenceArray.h"
+#include "vt/GeoSequence.h"
+#include "vt/SequenceArray.h"
 #include "mem/LockedSequenceObj.h"
 #include "ptr/LifetimeProtector.h"
 

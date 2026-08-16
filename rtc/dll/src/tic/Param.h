@@ -31,7 +31,7 @@ granted by an additional written contract for support, assistance and/or develop
 #if !defined(__TIC_PARAM_H)
 #define __TIC_PARAM_H
 
-#include "geo/Conversions.h"
+#include "vt/Conversions.h"
 #include "CheckedDomain.h"
 
 #include "DataArray.h"

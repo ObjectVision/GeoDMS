@@ -10,8 +10,8 @@
 
 #include "dbg/debug.h"
 #include "dbg/DebugCast.h"
-#include "geo/PointOrder.h"
-#include "geo/Undefined.h"
+#include "geom/PointOrder.h"
+#include "vt/Undefined.h"
 #include "mci/Class.h"
 #include "utl/Environment.h"
 
@@ -267,7 +267,7 @@ BoundaryCaret::BoundaryCaret(MovableObject* obj)
 // class  : RoiCaret
 //----------------------------------------------------------------------
 
-#include "geo/Conversions.h"
+#include "vt/Conversions.h"
 
 #include "ViewPort.h"
 

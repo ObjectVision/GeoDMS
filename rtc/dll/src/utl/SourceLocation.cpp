@@ -27,6 +27,7 @@ granted by an additional written contract for support, assistance and/or develop
 */
 //</HEADER>
 #include "RtcPCH.h"
+#include "utl/StrFormat.h" // mgFormat2SharedStr
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop

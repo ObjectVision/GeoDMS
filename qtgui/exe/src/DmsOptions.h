@@ -2,7 +2,7 @@
 
 #include <QPointer>
 #include <QDialog>
-#include "geo/color.h"
+#include "vt/color.h"
 #include "ptr/SharedStr.h"
 #include "ui_DmsLocalMachineOptionsWindow.h"
 #include "ui_DmsGuiOptionsWindow.h"

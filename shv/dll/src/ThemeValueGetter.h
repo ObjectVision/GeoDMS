@@ -7,8 +7,8 @@
 
 #include <map>
 
-#include "geo/color.h"
-#include "geo/Conversions.h"
+#include "vt/color.h"
+#include "vt/Conversions.h"
 #include "ptr/OwningPtr.h"
 #include "ptr/SharedArrayPtr.h"
 

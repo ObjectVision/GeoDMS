@@ -16,8 +16,8 @@
 #include "utl/StrFormat.h"
 
 #include "dbg/DebugContext.h"
-#include "geo/iterrange.h"
-#include "geo/StringBounds.h"
+#include "vt/iterrange.h"
+#include "vt/StringBounds.h"
 #include "utl/splitPath.h"
 #include "utl/Environment.h"
 #include "utl/FileSystem.h"

@@ -10,7 +10,7 @@
 
 // string x:= PropValue(treeitem, propName)
 
-#include "geo/StringArray.h"
+#include "vt/StringArray.h"
 #include "mci/CompositeCast.h"
 #include "mci/PropDef.h"
 #include "mci/ValueWrap.h"

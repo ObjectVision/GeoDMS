@@ -9,7 +9,7 @@
 #if !defined(__TIC_ASPECT_H)
 #define __TIC_ASPECT_H
 
-#include "set/Token.h"
+#include "sym/Token.h"
 
 //----------------------------------------------------------------------
 // enum   : AspectID

@@ -13,7 +13,7 @@
 #include "GraphicLayer.h"
 #include "MenuData.h"
 #include "Theme.h"
-#include "ThemeCmd.h"
+#include "themecmd.h"
 
 //----------------------------------------------------------------------
 // AspectGroupData

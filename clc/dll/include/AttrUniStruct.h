@@ -14,7 +14,7 @@
 #include "UnitCreators.h"
 #include "dms_transform.h"
 
-#include "geo/IsNotUndef.h"
+#include "vt/IsNotUndef.h"
 
 // *****************************************************************************
 //						ELEMENTARY PREDICATE FUNCTORS

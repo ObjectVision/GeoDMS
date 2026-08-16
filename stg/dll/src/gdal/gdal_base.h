@@ -21,7 +21,7 @@
 #include <optional>
 
 #include "ptr/WeakPtr.h"
-#include "geo/Transform.h"
+#include "geom/Transform.h"
 
 #include <gdal_priv.h>
 #include <limits>

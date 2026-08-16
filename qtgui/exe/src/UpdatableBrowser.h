@@ -24,7 +24,7 @@
 #include "DmsMainWindow.h"
 
 #include "dbg/DebugContext.h"
-#include "act/waiter.h"
+#include "act/Waiter.h"
 
 class FindTextWindow : public QWidget
 {

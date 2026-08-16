@@ -36,8 +36,8 @@ granted by an additional written contract for support, assistance and/or develop
 #include "stg/StorageClass.h"
 
 #include <set>
-#include "geo/color.h"
-#include "geo/transform.h"
+#include "vt/color.h"
+#include "geom/Transform.h"
 
 #if !defined(_MSC_VER)
 #	define STGDLL_CALL
