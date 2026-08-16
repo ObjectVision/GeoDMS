@@ -968,10 +968,15 @@ I64Rect GeoUnitAdapter<U>::GetTileSizeAsI64Rect(tile_id t) const
 }
 
 template <class U>
-IRect GeoUnitAdapterI<U>::GetTileRangeAsIRect(tile_id t) const
+IRect GeoUnitAdapter<U>::GetTileRangeAsIRect(tile_id t) const
 {
-	dbg_assert(this->CheckMetaInfoReadyOrPassor());
-	return ThrowingConvert<IRect>(this->GetTileRange(t));
+	if constexpr (!has_simple_range_v<typename U::value_t>) // integral point types; float point types keep AbstrUnit's throw
+	{
+		dbg_assert(this->CheckMetaInfoReadyOrPassor());
+		return ThrowingConvert<IRect>(this->GetTileRange(t));
+	}
+	else
+		return AbstrUnit::GetTileRangeAsIRect(t);
 }
 
 
@@ -1256,13 +1261,16 @@ SizeT IndexableUnitAdapter<U>::GetIndexForAbstrValue(const AbstrValue& av) const
 
 
 //----------------------------------------------------------------------
-// OrdinalUnit member funcs implementations
+// OrderedUnit member funcs implementations (continued)
 //----------------------------------------------------------------------
 
 template <class V>
-void OrdinalUnit<V>::SetCount(SizeT count)
+void OrderedUnit<V>::SetCount(SizeT count)
 {
-	this->SetRange(typename OrdinalUnit::range_t(0, ThrowingConvert<V>(count)));
+	if constexpr (std::is_unsigned_v<V>) // Support for Ordinals; signed V keep AbstrUnit's throw
+		this->SetRange(typename OrderedUnit::range_t(0, ThrowingConvert<V>(count)));
+	else
+		AbstrUnit::SetCount(count);
 }
 
 //----------------------------------------------------------------------
@@ -1411,22 +1419,22 @@ INSTANTIATE_VOID
 
 // TileAdapter member instantiations — needed because template class Unit<T>
 // does not instantiate base-class template members on GCC.
-template void TileAdapter<VarNumRangeUnitAdapter<OrdinalUnit<UInt32>>>::SetRegularTileRange(const range_t&, extent_t);
-template void TileAdapter<VarNumRangeUnitAdapter<OrdinalUnit<UInt32>>>::SetIrregularTileRange(std::vector<range_t>);
-template void TileAdapter<VarNumRangeUnitAdapter<OrdinalUnit<UInt64>>>::SetRegularTileRange(const range_t&, extent_t);
-template void TileAdapter<VarNumRangeUnitAdapter<OrdinalUnit<UInt64>>>::SetIrregularTileRange(std::vector<range_t>);
+template void TileAdapter<VarNumRangeUnitAdapter<OrderedUnit<UInt32>>>::SetRegularTileRange(const range_t&, extent_t);
+template void TileAdapter<VarNumRangeUnitAdapter<OrderedUnit<UInt32>>>::SetIrregularTileRange(std::vector<range_t>);
+template void TileAdapter<VarNumRangeUnitAdapter<OrderedUnit<UInt64>>>::SetRegularTileRange(const range_t&, extent_t);
+template void TileAdapter<VarNumRangeUnitAdapter<OrderedUnit<UInt64>>>::SetIrregularTileRange(std::vector<range_t>);
 template void TileAdapter<VarNumRangeUnitAdapter<OrderedUnit<Int32>>>::SetRegularTileRange(const range_t&, extent_t);
 template void TileAdapter<VarNumRangeUnitAdapter<OrderedUnit<Int32>>>::SetIrregularTileRange(std::vector<range_t>);
 template void TileAdapter<VarNumRangeUnitAdapter<OrderedUnit<Int64>>>::SetRegularTileRange(const range_t&, extent_t);
 template void TileAdapter<VarNumRangeUnitAdapter<OrderedUnit<Int64>>>::SetIrregularTileRange(std::vector<range_t>);
-template void TileAdapter<CountableUnit<SPoint>>::SetRegularTileRange(const range_t&, extent_t);
-template void TileAdapter<CountableUnit<SPoint>>::SetIrregularTileRange(std::vector<range_t>);
-template void TileAdapter<CountableUnit<WPoint>>::SetRegularTileRange(const range_t&, extent_t);
-template void TileAdapter<CountableUnit<WPoint>>::SetIrregularTileRange(std::vector<range_t>);
-template void TileAdapter<CountableUnit<IPoint>>::SetRegularTileRange(const range_t&, extent_t);
-template void TileAdapter<CountableUnit<IPoint>>::SetIrregularTileRange(std::vector<range_t>);
-template void TileAdapter<CountableUnit<UPoint>>::SetRegularTileRange(const range_t&, extent_t);
-template void TileAdapter<CountableUnit<UPoint>>::SetIrregularTileRange(std::vector<range_t>);
+template void TileAdapter<IndexableUnitAdapter<CountableUnitBase<SPoint>>>::SetRegularTileRange(const range_t&, extent_t);
+template void TileAdapter<IndexableUnitAdapter<CountableUnitBase<SPoint>>>::SetIrregularTileRange(std::vector<range_t>);
+template void TileAdapter<IndexableUnitAdapter<CountableUnitBase<WPoint>>>::SetRegularTileRange(const range_t&, extent_t);
+template void TileAdapter<IndexableUnitAdapter<CountableUnitBase<WPoint>>>::SetIrregularTileRange(std::vector<range_t>);
+template void TileAdapter<IndexableUnitAdapter<CountableUnitBase<IPoint>>>::SetRegularTileRange(const range_t&, extent_t);
+template void TileAdapter<IndexableUnitAdapter<CountableUnitBase<IPoint>>>::SetIrregularTileRange(std::vector<range_t>);
+template void TileAdapter<IndexableUnitAdapter<CountableUnitBase<UPoint>>>::SetRegularTileRange(const range_t&, extent_t);
+template void TileAdapter<IndexableUnitAdapter<CountableUnitBase<UPoint>>>::SetIrregularTileRange(std::vector<range_t>);
 #endif
 
 //----------------------------------------------------------------------

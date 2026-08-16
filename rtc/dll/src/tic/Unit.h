@@ -59,7 +59,7 @@ struct UnitBase : AbstrUnit
 
 	bool HasTiledRangeData() const override { if constexpr (has_var_range_field_v<V>) return m_RangeDataPtr; return true; }
 
-	[[no_unique_address]] range_data_ptr_or_void<V> m_RangeDataPtr; // , mc_RangeDataPtr;
+	[[no_unique_address]] range_data_ptr_or_void<V> m_RangeDataPtr;
 };
 
 template <class V> 
@@ -159,6 +159,7 @@ struct GeoUnitAdapter : U // all integral and float Point types
 	void SetRangeAsDPoint(Float64  rowBegin, Float64  colBegin, Float64  rowEnd, Float64  colEnd) override;
 
 	I64Rect GetTileSizeAsI64Rect(tile_id t) const override;
+	IRect GetTileRangeAsIRect(tile_id t) const override; // integral point types; float point types keep AbstrUnit's throw
 
 	const UnitProjection* GetProjection() const override;
 	const UnitProjection* GetCurrProjection() const override;
@@ -172,15 +173,9 @@ private:
 	mutable SharedPtr<const UnitProjection> m_Projection;
 };
 
-template <typename U>
-struct GeoUnitAdapterI : GeoUnitAdapter<U> // all integral Point types, but not the float Point types
-{
-	IRect GetTileRangeAsIRect(tile_id t) const override;
-};
-
 //----------------------------------------------------------------------
 
-template <typename V> 
+template <typename V>
 struct CountableUnitBase : RangedUnit<V> // all integral objects and integral point types
 {
 	using base_type = RangedUnit<V>;
@@ -240,13 +235,8 @@ struct IndexableUnitAdapter : U
 
 
 //----------------------------------------------------------------------
-template <typename V> 
-struct CountableUnit : IndexableUnitAdapter< CountableUnitBase<V> > 
-{};
-
-//----------------------------------------------------------------------
-template <class V> 
-struct OrderedUnit : CountableUnit<V>
+template <class V>
+struct OrderedUnit : IndexableUnitAdapter< CountableUnitBase<V> >
 {
 	static_assert(std::is_integral_v<V>);
 
@@ -254,19 +244,9 @@ struct OrderedUnit : CountableUnit<V>
 
 	V GetTileFirstValue (tile_id t) const;
 	V GetTileValue (tile_id t, tile_offset localIndex) const;
-};
 
-
-//----------------------------------------------------------------------
-template <class V> 
-struct OrdinalUnit : OrderedUnit<V>
-{
-	static_assert(std::is_integral_v<V>);
-	static_assert(std::is_unsigned_v<V>);
-
-	//	Support for Ordinals
+	//	Support for Ordinals; unsigned V only, signed V keep AbstrUnit's throw
 	void SetCount(SizeT) override;
-//	void MakeTiledUnitFromSize(SizeT count, SizeT maxTileSize = MAX_TILE_SIZE) override;
 };
 
 //----------------------------------------------------------------------
@@ -321,19 +301,13 @@ struct VoidUnitBase : UnitBase<Void>
 	TIC_CALL row_id  GetIndexForValue(value_t ) const { return 0; }
 };
 
-template <bit_size_t N>
-struct BitUnit : IndexableUnitAdapter< FixedNumRangeUnitAdapter<BitUnitBase<N> > >
-{};
-
-typedef IndexableUnitAdapter<FixedNumRangeUnitAdapter< VoidUnitBase> > VoidUnit;
-
 //----------------------------------------------------------------------
 
 template <typename V> struct unit_traits;
-template<> struct unit_traits<UInt64>    { typedef TileAdapter < VarNumRangeUnitAdapter<OrdinalUnit<UInt64> >> type; };
-template<> struct unit_traits<UInt32>    { typedef TileAdapter < VarNumRangeUnitAdapter<OrdinalUnit<UInt32> >> type; };
-template<> struct unit_traits<UInt16>    { typedef VarNumRangeUnitAdapter<OrdinalUnit<UInt16> > type; };
-template<> struct unit_traits<UInt8 >    { typedef VarNumRangeUnitAdapter<OrdinalUnit< UInt8> > type; };
+template<> struct unit_traits<UInt64>    { typedef TileAdapter < VarNumRangeUnitAdapter<OrderedUnit<UInt64> >> type; };
+template<> struct unit_traits<UInt32>    { typedef TileAdapter < VarNumRangeUnitAdapter<OrderedUnit<UInt32> >> type; };
+template<> struct unit_traits<UInt16>    { typedef VarNumRangeUnitAdapter<OrderedUnit<UInt16> > type; };
+template<> struct unit_traits<UInt8 >    { typedef VarNumRangeUnitAdapter<OrderedUnit< UInt8> > type; };
 template<> struct unit_traits<Int64>     { typedef TileAdapter < VarNumRangeUnitAdapter<OrderedUnit< Int64>> > type; };
 template<> struct unit_traits<Int32>     { typedef TileAdapter < VarNumRangeUnitAdapter<OrderedUnit< Int32>> > type; };
 template<> struct unit_traits<Int16>     { typedef VarNumRangeUnitAdapter<OrderedUnit< Int16> > type; };
@@ -343,14 +317,14 @@ template<> struct unit_traits<Float64>   { typedef VarNumRangeUnitAdapter<FloatU
 #if defined(DMS_TM_HAS_FLOAT80)
 template<> struct unit_traits<Float80>   { typedef VarNumRangeUnitAdapter<RangedUnit<Float80> > type; };
 #endif
-template<> struct unit_traits<Bool>      { typedef BitUnit<1>                                type; };
-template<> struct unit_traits<UInt2>     { typedef BitUnit<2>                                type; };
-template<> struct unit_traits<UInt4>     { typedef BitUnit<4>                                type; };
-template<> struct unit_traits<Void>      { typedef VoidUnit                                  type; };
-template<> struct unit_traits<SPoint>    { typedef GeoUnitAdapterI< TileAdapter<CountableUnit<SPoint> > > type; };
-template<> struct unit_traits<IPoint>    { typedef GeoUnitAdapterI< TileAdapter<CountableUnit<IPoint> > > type; };
-template<> struct unit_traits<WPoint>    { typedef GeoUnitAdapterI< TileAdapter<CountableUnit<WPoint> > > type; };
-template<> struct unit_traits<UPoint>    { typedef GeoUnitAdapterI< TileAdapter<CountableUnit<UPoint> > > type; };
+template<> struct unit_traits<Bool>      { typedef IndexableUnitAdapter< FixedNumRangeUnitAdapter<BitUnitBase<1> > > type; };
+template<> struct unit_traits<UInt2>     { typedef IndexableUnitAdapter< FixedNumRangeUnitAdapter<BitUnitBase<2> > > type; };
+template<> struct unit_traits<UInt4>     { typedef IndexableUnitAdapter< FixedNumRangeUnitAdapter<BitUnitBase<4> > > type; };
+template<> struct unit_traits<Void>      { typedef IndexableUnitAdapter< FixedNumRangeUnitAdapter<VoidUnitBase> >    type; };
+template<> struct unit_traits<SPoint>    { typedef GeoUnitAdapter< TileAdapter< IndexableUnitAdapter<CountableUnitBase<SPoint> > > > type; };
+template<> struct unit_traits<IPoint>    { typedef GeoUnitAdapter< TileAdapter< IndexableUnitAdapter<CountableUnitBase<IPoint> > > > type; };
+template<> struct unit_traits<WPoint>    { typedef GeoUnitAdapter< TileAdapter< IndexableUnitAdapter<CountableUnitBase<WPoint> > > > type; };
+template<> struct unit_traits<UPoint>    { typedef GeoUnitAdapter< TileAdapter< IndexableUnitAdapter<CountableUnitBase<UPoint> > > > type; };
 template<> struct unit_traits<FPoint>    { typedef GeoUnitAdapter<FloatUnit<FPoint>    >     type; };
 template<> struct unit_traits<DPoint>    { typedef GeoUnitAdapter<FloatUnit<DPoint>    >     type; };
 template<> struct unit_traits<SharedStr> { typedef UnitBase<SharedStr>                       type; };
