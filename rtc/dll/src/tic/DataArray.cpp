@@ -993,7 +993,7 @@ namespace  {
 
 template SizeT DataArrayBase<Bool>::CountValues(Bool v) const;
 #if defined(_MSC_VER)
-template class DataArrayBase<Bool>;
+template struct DataArrayBase<Bool>;
 #endif
 
 // Explicit instantiations for GCC/Linux (MSVC exports all members via dllexport on the class).
