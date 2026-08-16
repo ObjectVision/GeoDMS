@@ -67,7 +67,6 @@
     <ClCompile Include="src\ExprParse.cpp" />
     <ClCompile Include="src\ExprProd.cpp" />
     <ClCompile Include="src\SpiritTools.cpp" />
-    <ClCompile Include="src\StringProd.cpp" />
     <ClCompile Include="src\StxInterface.cpp" />
   </ItemGroup>
   <ItemGroup>

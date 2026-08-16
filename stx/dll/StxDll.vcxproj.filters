@@ -41,9 +41,6 @@
     <ClCompile Include="src\SpiritTools.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\StringProd.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\StxInterface.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
