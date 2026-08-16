@@ -6,8 +6,8 @@
 #pragma once
 #endif
 
-#ifndef __CLC_REMOVEADJACENTSANDSPIKES_H
-#define __CLC_REMOVEADJACENTSANDSPIKES_H
+#ifndef __GEOM_REMOVEADJACENTSANDSPIKES_H
+#define __GEOM_REMOVEADJACENTSANDSPIKES_H
 
 // *****************************************************************************
 //									remove_adjacents_and_spikes
@@ -142,4 +142,4 @@ void remove_adjacents(Vec& points)
 }
 
 
-#endif // __CLC_REMOVEADJACENTSANDSPIKES_H
+#endif // __GEOM_REMOVEADJACENTSANDSPIKES_H

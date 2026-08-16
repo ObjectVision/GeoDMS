@@ -78,6 +78,8 @@
     </ClCompile>
     <ClCompile Include="src\ActivationInfo.cpp" />
     <ClCompile Include="src\AspectGroup.cpp" />
+    <ClCompile Include="src\InvalidationBlock.cpp" />
+    <ClCompile Include="src\TypeInfoOrdering.cpp" />
     <ClCompile Include="src\AxisControl.cpp" />
     <ClCompile Include="src\CaretOperators.cpp" />
     <ClCompile Include="src\Carets.cpp" />
@@ -154,6 +156,8 @@
     <ClInclude Include="src\AbstrCaret.h" />
     <ClInclude Include="src\AbstrCmd.h" />
     <ClInclude Include="src\AbstrController.h" />
+    <ClInclude Include="src\InvalidationBlock.h" />
+    <ClInclude Include="src\TypeInfoOrdering.h" />
     <ClInclude Include="src\ActivationInfo.h" />
     <ClInclude Include="src\AspectGroup.h" />
     <ClInclude Include="src\AxisControl.h" />

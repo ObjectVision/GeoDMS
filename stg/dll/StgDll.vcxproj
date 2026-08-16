@@ -60,6 +60,7 @@
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="src\bmp\BmpStorageManager.cpp" />
+    <ClCompile Include="src\AbstrStreamManager.cpp" />
     <ClCompile Include="src\gdal\gdal_base.cpp" />
     <ClCompile Include="src\gdal\gdal_grid.cpp" />
     <ClCompile Include="src\gdal\gdal_vect.cpp" />
@@ -106,6 +107,8 @@
     <ClInclude Include="src\dbf\dbfStorageManager.h" />
     <ClInclude Include="src\str\StrStorageManager.h" />
     <ClInclude Include="src\shp\ShpStorageManager.h" />
+    <ClInclude Include="src\ProjectionUnits.h" />
+    <ClInclude Include="src\AbstrStreamManager.h" />
     <ClInclude Include="src\StgBase.h" />
     <ClInclude Include="src\StorageUtils.h" />
   </ItemGroup>

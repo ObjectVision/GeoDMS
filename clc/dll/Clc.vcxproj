@@ -184,7 +184,6 @@
     <ClInclude Include="src\ExprCalculator.h" />
     <ClInclude Include="include\IndexAssigner.h" />
     <ClInclude Include="src\Invert.h" />
-    <ClInclude Include="include\InvertedRel.h" />
     <ClInclude Include="src\lookup.h" />
     <ClInclude Include="include\makeCumulative.h" />
     <ClInclude Include="include\OperAcc.h" />
@@ -200,7 +199,6 @@
     <ClInclude Include="include\PartitionTypes.h" />
     <ClInclude Include="include\PCount.h" />
     <ClInclude Include="include\Prototypes.h" />
-    <ClInclude Include="include\RemoveAdjacentsAndSpikes.h" />
     <ClInclude Include="include\rlookup.h" />
     <ClInclude Include="src\SeparableMapping.h" />
     <ClInclude Include="src\UnitGroup.h" />

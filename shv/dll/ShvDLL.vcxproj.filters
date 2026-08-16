@@ -210,6 +210,12 @@
     <ClCompile Include="src\Wrapper.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\InvalidationBlock.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\TypeInfoOrdering.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="src\AspectGroup.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -237,6 +243,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\AbstrCmd.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\InvalidationBlock.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\TypeInfoOrdering.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\AbstrController.h">

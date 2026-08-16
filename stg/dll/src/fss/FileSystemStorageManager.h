@@ -16,7 +16,7 @@
 #include "ser/FileMapHandle.h"
 
 #include "stg/AsmUtil.h"
-#include "stg/AbstrStreamManager.h"
+#include "AbstrStreamManager.h"
 /*
  *	FileSystemStorageManager
  *

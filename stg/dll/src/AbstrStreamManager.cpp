@@ -2,12 +2,14 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
-#include "TicPCH.h"
+#include "StoragePCH.h"
 #include "act/UpdateMark.h" // UpdateMarker
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif //defined(CC_PRAGMAHDRSTOP)
+#endif
+
+// AbstrStreamManager: stream-based storage-manager base, see AbstrStreamManager.h.
 
 #include "AbstrStreamManager.h"
 

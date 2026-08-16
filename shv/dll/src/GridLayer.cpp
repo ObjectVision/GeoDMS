@@ -10,7 +10,7 @@
 
 #include "GridLayer.h"
 
-#include "act/InvalidationBlock.h"
+#include "InvalidationBlock.h"
 #include "act/TriggerOperator.h"
 #include "dbg/debug.h"
 #include "vt/Conversions.h"

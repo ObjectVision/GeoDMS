@@ -2,13 +2,15 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
-#include "RtcPCH.h"
+#include "ShvDllPCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif //defined(CC_PRAGMAHDRSTOP)
+#endif
 
-#include "act/InvalidationBlock.h"
+// InvalidationBlock: RAII invalidation suppression around local Actor changes, see InvalidationBlock.h.
+
+#include "InvalidationBlock.h"
 #include "act/Actor.h"
 
 //----------------------------------------------------------------------

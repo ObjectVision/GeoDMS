@@ -19,7 +19,7 @@
 #include "AbstrUnit.h"
 #include "Metric.h"
 
-#include "gdal/gdal_base.h"
+#include "ProjectionUnits.h"
 
 #include "DataView.h"
 #include "GraphVisitor.h"

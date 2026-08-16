@@ -71,9 +71,6 @@
     <ClInclude Include="src\act\ActorSet.h">
       <Filter>Actor Update Mechanism</Filter>
     </ClInclude>
-    <ClInclude Include="src\act\InvalidationBlock.h">
-      <Filter>Actor Update Mechanism</Filter>
-    </ClInclude>
     <ClInclude Include="src\act\TriggerOperator.h">
       <Filter>Actor Update Mechanism</Filter>
     </ClInclude>
@@ -194,6 +191,9 @@
     <ClInclude Include="src\vt\Pair.h">
       <Filter>Geometry</Filter>
     </ClInclude>
+    <ClInclude Include="src\geom\RemoveAdjacentsAndSpikes.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
     <ClInclude Include="src\geom\Point.h">
       <Filter>Geometry</Filter>
     </ClInclude>
@@ -216,9 +216,6 @@
       <Filter>Geometry</Filter>
     </ClInclude>
     <ClInclude Include="src\vt\SizeCalculator.h">
-      <Filter>Geometry</Filter>
-    </ClInclude>
-    <ClInclude Include="src\geom\SpatialIndex.h">
       <Filter>Geometry</Filter>
     </ClInclude>
     <ClInclude Include="src\vt\StringArray.h">
@@ -500,9 +497,6 @@
     <ClInclude Include="src\utl\swapper.h">
       <Filter>Utility Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\utl\TypeInfoOrdering.h">
-      <Filter>Utility Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\utl\TypeListOper.h">
       <Filter>Utility Files</Filter>
     </ClInclude>
@@ -694,9 +688,6 @@
     <ClInclude Include="src\ipolygon\detail\boolean_op_45.hpp">
       <Filter>ipolygon</Filter>
     </ClInclude>
-    <ClInclude Include="src\geom\BoostPolygon.h">
-      <Filter>Geometry</Filter>
-    </ClInclude>
     <ClInclude Include="src\ipolygon\detail\iterator_points_to_compact.hpp">
       <Filter>ipolygon</Filter>
     </ClInclude>
@@ -723,9 +714,6 @@
     </ClInclude>
     <ClInclude Include="src\ipolygon\detail\minkowski.hpp">
       <Filter>ipolygon</Filter>
-    </ClInclude>
-    <ClInclude Include="src\geom\NeighbourIter.h">
-      <Filter>Geometry</Filter>
     </ClInclude>
     <ClInclude Include="src\ipolygon\point_traits.hpp">
       <Filter>ipolygon</Filter>
@@ -862,9 +850,6 @@
       <Filter>TreeItemComponent</Filter>
     </ClInclude>
     <ClInclude Include="src\tic\stg\AbstrStorageManager.h">
-      <Filter>TreeItemComponent</Filter>
-    </ClInclude>
-    <ClInclude Include="src\tic\stg\AbstrStreamManager.h">
       <Filter>TreeItemComponent</Filter>
     </ClInclude>
     <ClInclude Include="src\tic\AbstrUnit.h">
@@ -1178,9 +1163,6 @@
     <ClCompile Include="src\act\ActorSet.cpp">
       <Filter>Actor Update Mechanism</Filter>
     </ClCompile>
-    <ClCompile Include="src\act\InvalidationBlock.cpp">
-      <Filter>Actor Update Mechanism</Filter>
-    </ClCompile>
     <ClCompile Include="src\act\TriggerOperator.cpp">
       <Filter>Actor Update Mechanism</Filter>
     </ClCompile>
@@ -1257,9 +1239,6 @@
       <Filter>Utility Files</Filter>
     </ClCompile>
     <ClCompile Include="src\utl\Registry.cpp">
-      <Filter>Utility Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\utl\TypeInfoOrdering.cpp">
       <Filter>Utility Files</Filter>
     </ClCompile>
     <ClCompile Include="src\xct\DmsException.cpp">
@@ -1353,9 +1332,6 @@
       <Filter>TreeItemComponent</Filter>
     </ClCompile>
     <ClCompile Include="src\tic\stg\AbstrStorageManager.cpp">
-      <Filter>TreeItemComponent</Filter>
-    </ClCompile>
-    <ClCompile Include="src\tic\stg\AbstrStreamManager.cpp">
       <Filter>TreeItemComponent</Filter>
     </ClCompile>
     <ClCompile Include="src\tic\AbstrUnit.cpp">

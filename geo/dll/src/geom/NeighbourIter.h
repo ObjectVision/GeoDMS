@@ -11,8 +11,8 @@
  *  neighbour_iter over spatial-index buckets.
  */
 
-#if !defined(__GEOM_NEIGHBOURITER_H)
-#define __GEOM_NEIGHBOURITER_H
+#if !defined(__GEO_NEIGHBOURITER_H)
+#define __GEO_NEIGHBOURITER_H
 
 #include "vt/HeapElem.h"
 #include "geom/SpatialIndex.h"
@@ -196,4 +196,4 @@ private:
 	std::vector<LeafRec>       m_LeafHeap;
 };
 
-#endif // __GEOM_NEIGHBOURITER_H
+#endif // __GEO_NEIGHBOURITER_H

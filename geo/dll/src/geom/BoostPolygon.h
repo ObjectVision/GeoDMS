@@ -11,8 +11,8 @@
  *  geometry_library selector for the polygon-operation backends.
  */
 
-#if !defined(__GEOM_BOOSTPOLYGON_H)
-#define __GEOM_BOOSTPOLYGON_H
+#if !defined(__GEO_BOOSTPOLYGON_H)
+#define __GEO_BOOSTPOLYGON_H
 
 #pragma warning( disable : 4018) // warning C4018: '<=' : signed/unsigned mismatch
 #pragma warning( disable : 4146) // warning C4146: unary minus operator applied to unsigned type, result still unsigned
@@ -390,4 +390,4 @@ void move(typename bp_union_poly_traits<C>::ring_type& ring, typename bp_union_p
 }
 
 
-#endif //!defined(__GEOM_BOOSTPOLYGON_H)
+#endif //!defined(__GEO_BOOSTPOLYGON_H)

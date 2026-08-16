@@ -356,13 +356,22 @@ violation)**, clc→stg 4/5, geo→stg 4.
   (`Crs.h`, `Case.h`, `AsmUtil.h`, `garbage_can.h`, `DebugReporter.h`, `ActorEnums.h`,
   `SupplCache.h`, `CopyTreeContext.h`, `LispContextHandle.h`, `Mathlib.h`, `OLEPtr.h`,
   `SeqLock.h`, `TimeFmt.h`, `Cache.h`, …) have 3-13 rtc-internal users — they stay.
-- **stx/DijkstraString.cpp** (226 LOC) + `DijkstraFlags.h` exist only to parse option
-  strings for `geo/Dijkstra.cpp` → move to geo.
-- **Layering violation**: `shv/TableControl.cpp` and `shv/Win32ViewHost.cpp` include
-  qtgui's `resource.h` (a DLL including from the exe) — fix regardless of the reorg.
-- **clc → stg edges**: `OperConv.h` and `ReportFunctions.cpp` include
-  `gdal/gdal_base.h`; `OperExec.cpp` includes `OdbcStorageManager.h` — GDAL and ODBC
-  headers inside calculator TUs; reduce to what is actually needed.
+- ~~**stx/DijkstraString.cpp** (226 LOC) + `DijkstraFlags.h` → move to geo.~~
+  **Reconsidered during step C**: the parser uses stx-internal Spirit machinery
+  (`SpiritTools.h`); moving it would drag boost::spirit into geo. Stays in stx; the cost
+  is a single imported symbol (`ParseDijkstraString`).
+- ~~**Layering violation**: shv includes qtgui's `resource.h`.~~ **Retracted during
+  step C**: `../res/resource.h` in `TableControl.cpp`/`Win32ViewHost.cpp` resolves to
+  shv's OWN `shv/dll/res/resource.h` (cursor resources) — no upward edge exists.
+- **clc → stg edges — inspected, legitimate**: `OperConv.h` genuinely uses GDAL/PROJ
+  (`<gdal_priv.h>`, `<proj.h>` — projection conversion operators); `ReportFunctions.cpp`
+  includes the gdal surface for the storage-manager doc generator; `OperExec.cpp` uses
+  `ODBCStorageManager::GetDatabaseFilename` by design. No thin-header extraction
+  available; left as-is.
+- ~~rtc `tic/DedicatedAttrs.cpp` → shv~~ **Blocked during step C**: the TU carries
+  published `DMS_*` C-API entry points (`DMS_DataItem_VisitClassBreakCandidates`,
+  `DMS_Unit_GetNrDataItemsIn/Out`, …) — moving it would relocate C-ABI exports from
+  Rtc.dll to Shv.dll, which the keep-all decision forbids. Stays in rtc.
 
 Bookkeeping: every add/move/rename lands in BOTH the authored `.vcxproj`(+`.filters`)
 AND the module `CMakeLists.txt`. Rtc/Stg filters have real taxonomies (19 resp. 10
@@ -444,7 +453,7 @@ lines the scope-aware mapper could not match safely (UNMATCHED) + 44 dead Shv sy
 (members of the restored class-decorated types) — optional second pass, low value.
 Fresh evidence + maps live in `scratch/deexport*` (gitignored); tooling in the session
 scratchpad (`deexport_evidence.py`, `deexport_map2.py`, `deexport_strip.py`).
-| C | cross-DLL moves + edge hygiene (§4); dumpbin re-sweep for newly-dead exports | — |
+| C | cross-DLL moves + edge hygiene (§4); dumpbin re-sweep for newly-dead exports | ✅ (ProjectionUnits.h extraction, geom→geo ×3 + InvertedRel→geo + RemoveAdjacentsAndSpikes→rtc geom/, TypeInfoOrdering+InvalidationBlock→shv, AbstrStreamManager→stg; DedicatedAttrs blocked by its DMS_* C-API entries, DijkstraString and the clc→stg edges reconsidered — see §4 strikethroughs) |
 | D | TU splits (§3a) | — |
 | E | TU merges (§3b, with the template-TU limits pre-check) | — |
 | F | TU renames + non-included-sibling fixes + filter taxonomies (§3c) | — |

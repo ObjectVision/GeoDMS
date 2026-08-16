@@ -131,7 +131,7 @@ private:
 // GdiHandle<HandleType>
 //----------------------------------------------------------------------
 
-#include "utl/TypeInfoOrdering.h"
+#include "TypeInfoOrdering.h"
 
 template <typename HandleType>
 struct GdiHandle : private geodms::rtc::noncopyable

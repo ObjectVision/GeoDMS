@@ -37,7 +37,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "StgBase.h"
 #include "stg/AsmUtil.h"
-#include "stg/AbstrStreamManager.h"
+#include "AbstrStreamManager.h"
 #include "ptr/OLEPtr.h"
 
 //class CMemFile;

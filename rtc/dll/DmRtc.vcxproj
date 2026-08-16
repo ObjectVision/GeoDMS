@@ -73,14 +73,12 @@
     <ClInclude Include="src\dbg\UnitTesting.h" />
     <ClInclude Include="src\FileResult.h" />
     <ClInclude Include="src\vt\AssocTower.h" />
-    <ClInclude Include="src\geom\BoostPolygon.h" />
     <ClInclude Include="src\vt\CharPtrRange.h" />
     <ClInclude Include="src\vt\CheckedCalc.h" />
     <ClInclude Include="src\vt\DataPtrTraits.h" />
     <ClInclude Include="src\vt\HeapElem.h" />
     <ClInclude Include="src\vt\IsNotUndef.h" />
     <ClInclude Include="src\vt\IterTraits.h" />
-    <ClInclude Include="src\geom\NeighbourIter.h" />
     <ClInclude Include="src\geom\PointIndexBuffer.h" />
     <ClInclude Include="src\vt\undef_xx.h" />
     <ClInclude Include="src\ipolygon\detail\boolean_op.hpp" />
@@ -205,7 +203,6 @@
     <ClInclude Include="src\utl\StringFunc.h" />
     <ClInclude Include="src\utl\swap.h" />
     <ClInclude Include="src\utl\swapper.h" />
-    <ClInclude Include="src\utl\TypeInfoOrdering.h" />
     <ClInclude Include="src\utl\TypeListOper.h" />
     <ClInclude Include="src\ptr\AutoDeletePtr.h" />
     <ClInclude Include="src\ptr\IterCast.h" />
@@ -243,6 +240,7 @@
     <ClInclude Include="src\vt\mpf.h" />
     <ClInclude Include="src\vt\Pair.h" />
     <ClInclude Include="src\geom\Point.h" />
+    <ClInclude Include="src\geom\RemoveAdjacentsAndSpikes.h" />
     <ClInclude Include="src\geom\PointOrder.h" />
     <ClInclude Include="src\geom\Range.h" />
     <ClInclude Include="src\vt\RangeIndex.h" />
@@ -250,7 +248,6 @@
     <ClInclude Include="src\vt\SequenceArray.h" />
     <ClInclude Include="src\vt\SequenceTraits.h" />
     <ClInclude Include="src\vt\SizeCalculator.h" />
-    <ClInclude Include="src\geom\SpatialIndex.h" />
     <ClInclude Include="src\vt\StringArray.h" />
     <ClInclude Include="src\vt\StringBounds.h" />
     <ClInclude Include="src\geom\Transform.h" />
@@ -317,7 +314,6 @@
     <ClInclude Include="src\act\Actor.h" />
     <ClInclude Include="src\act\ActorEnums.h" />
     <ClInclude Include="src\act\ActorSet.h" />
-    <ClInclude Include="src\act\InvalidationBlock.h" />
     <ClInclude Include="src\act\TriggerOperator.h" />
     <ClInclude Include="src\act\UpdateMark.h" />
     <ClInclude Include="src\RtcBase.h" />
@@ -362,7 +358,6 @@
     <ClCompile Include="src\utl\StrFormat.cpp" />
     <ClCompile Include="src\utl\Quotes.cpp" />
     <ClCompile Include="src\utl\Registry.cpp" />
-    <ClCompile Include="src\utl\TypeInfoOrdering.cpp" />
     <ClCompile Include="src\ptr\SharedStr.cpp" />
     <ClCompile Include="src\vt\BaseBounds.cpp" />
     <ClCompile Include="src\vt\iterrangefuncs.cpp" />
@@ -385,7 +380,6 @@
     <ClCompile Include="src\xml\XmlParser.cpp" />
     <ClCompile Include="src\act\Actor.cpp" />
     <ClCompile Include="src\act\ActorSet.cpp" />
-    <ClCompile Include="src\act\InvalidationBlock.cpp" />
     <ClCompile Include="src\act\TriggerOperator.cpp" />
     <ClCompile Include="src\act\UpdateMark.cpp" />
     <ClCompile Include="src\gen\General.cpp" />
@@ -475,10 +469,6 @@
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
     <ClCompile Include="src\tic\stg\AbstrStorageManager.cpp">
-      <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
-      <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
-    </ClCompile>
-    <ClCompile Include="src\tic\stg\AbstrStreamManager.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
@@ -693,7 +683,6 @@
     <ClInclude Include="src\tic\AbstrCalculator.h" />
     <ClInclude Include="src\tic\AbstrDataItem.h" />
     <ClInclude Include="src\tic\AbstrDataObject.h" />
-    <ClInclude Include="src\tic\stg\AbstrStreamManager.h" />
     <ClInclude Include="src\tic\AbstrUnit.h" />
     <ClInclude Include="src\tic\CheckedDomain.h" />
     <ClInclude Include="src\tic\CopyTreeContext.h" />

@@ -36,7 +36,7 @@ granted by an additional written contract for support, assistance and/or develop
 //----------------------------------------------------------------------
 
 #include "GraphicObject.h"
-#include "act/InvalidationBlock.h"
+#include "InvalidationBlock.h"
 
 //----------------------------------------------------------------------
 // class  : RecursiveLock

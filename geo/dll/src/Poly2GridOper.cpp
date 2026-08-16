@@ -54,7 +54,7 @@
 #include "Operator.h"
 
 #include "ViewPortInfoEx.h"
-#include "RemoveAdjacentsAndSpikes.h"
+#include "geom/RemoveAdjacentsAndSpikes.h"
 #include "DataArrayValue.h"
 
 /************************************************************************/

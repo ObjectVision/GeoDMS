@@ -38,7 +38,7 @@
 #include "UnitProcessor.h"
 
 #include "StgBase.h"
-#include "gdal/gdal_base.h"
+#include "ProjectionUnits.h"
 
 #include "AbstrCmd.h"
 #include "AbstrController.h"
@@ -373,7 +373,7 @@ bool FeatureLayer::Draw(GraphDrawer& d) const
 	return DrawImpl(featureDrawer);
 }
 
-#include "act/InvalidationBlock.h"
+#include "InvalidationBlock.h"
 
 const int FONT_DECIFONTSIZE_ABOVE = 10;
 const int FONT_DECIFONTSIZE_BELOW = 10;

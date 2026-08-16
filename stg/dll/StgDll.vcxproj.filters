@@ -33,6 +33,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\AbstrStreamManager.cpp" />
     <ClCompile Include="src\bmp\BmpStorageManager.cpp">
       <Filter>Bmp</Filter>
     </ClCompile>
@@ -115,6 +116,8 @@
       <Filter>Ascii Table</Filter>
     </ClInclude>
     <ClInclude Include="src\StgBase.h" />
+    <ClInclude Include="src\ProjectionUnits.h" />
+    <ClInclude Include="src\AbstrStreamManager.h" />
     <ClInclude Include="src\NameSet.h" />
     <ClInclude Include="src\ViewPortInfoEx.h" />
     <ClInclude Include="src\StoragePCH.h" />

@@ -58,6 +58,18 @@
     <ClInclude Include="..\..\rtc\dll\src\ipolygon\polygon.hpp">
       <Filter>Geo Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\geom\BoostPolygon.h">
+      <Filter>Geo Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geom\NeighbourIter.h">
+      <Filter>Geo Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geom\SpatialIndex.h">
+      <Filter>Geo Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\InvertedRel.h">
+      <Filter>Geo Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="src\AbstrBoundingBoxCache.h">
       <Filter>Geo Header Files</Filter>
     </ClInclude>

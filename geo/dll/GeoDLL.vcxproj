@@ -75,6 +75,10 @@
   <ItemGroup>
     <ClInclude Include="..\..\rtc\dll\src\ipolygon\polygon.hpp" />
     <ClInclude Include="src\AbstrBoundingBoxCache.h" />
+    <ClInclude Include="src\geom\BoostPolygon.h" />
+    <ClInclude Include="src\geom\NeighbourIter.h" />
+    <ClInclude Include="src\geom\SpatialIndex.h" />
+    <ClInclude Include="src\InvertedRel.h" />
     <ClInclude Include="src\CentroidOrMid.h" />
     <ClInclude Include="src\SelectPoint.h" />
     <ClInclude Include="src\bi_graph.h" />

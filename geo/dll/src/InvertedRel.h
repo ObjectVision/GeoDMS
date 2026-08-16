@@ -7,8 +7,8 @@
 #endif
 
 
-#if !defined(__CLC_INVERTREL_H)
-#define __CLC_INVERTREL_H
+#if !defined(__GEO_INVERTEDREL_H)
+#define __GEO_INVERTEDREL_H
 
 // *****************************************************************************
 //									optional n:1 relation
@@ -72,4 +72,4 @@ private:
 	OwningPtrSizedArray<DomType> m_First_rel, m_Next_rel;
 };
 
-#endif //!defined(__CLC_INVERTREL_H)
+#endif //!defined(__GEO_INVERTEDREL_H)
