@@ -27,6 +27,7 @@ granted by an additional written contract for support, assistance and/or develop
 */
 //</HEADER>
 #include "TicPCH.h"
+#include "act/UpdateMark.h" // UpdateMarker
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop

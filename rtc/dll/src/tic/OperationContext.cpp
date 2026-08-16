@@ -62,6 +62,7 @@
 //
 
 #include "TicPCH.h"
+#include "act/UpdateMark.h" // UpdateMarker
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
