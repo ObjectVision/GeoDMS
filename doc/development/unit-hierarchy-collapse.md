@@ -181,9 +181,11 @@ requires-clause.
 ## 5. Commit sequence
 
 Each commit: build `all22.sln` (VS18 msbuild, serial, Debug x64 on the laptop; judge by link lines /
-bin timestamps, not exit code); user runs `testcases\run_testcases.bat` (mind the Release-exe
-default) and batch suites; **GCC-only regions changed in U1-U3 need an OVSRV10 Linux build before
-any merge toward main** (the laptop has no GCC).
+bin timestamps, not exit code). Per the owner's verification policy (2026-08-16): no per-step test
+battery — run `.\batch\TestDebugUnit.bat` once **after the last step** of a series (assert
+coverage); CMake/WSL builds and `full.py` run on OVSRV10, not the laptop. **GCC-only regions
+changed in U1-U3 need that OVSRV10 Linux build before any merge toward main** (the laptop has no
+GCC).
 
 - **U1 — DataArray dead code + instantiation groundwork** *(implemented 2026-08-16)*. Delete dead
   `GetRangeOrVoid` overload set (`DataArray.cpp:640-658`; zero callers) and

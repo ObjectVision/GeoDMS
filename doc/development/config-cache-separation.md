@@ -254,8 +254,10 @@ capability surface small enough that a type is worth it.
 ## 8. Migration stages
 
 Each stage is a separately buildable commit: build `all22.sln` only (VS18 msbuild, serial, Debug x64
-on the laptop), user runs `testcases\run_testcases.bat` (mind its Release-exe default) and the batch
-suites; Linux build on OVSRV10 before merging to main.
+on the laptop). Per the owner's verification policy (2026-08-16): no per-stage test battery —
+`.\batch\TestDebugUnit.bat` once after the last stage of a series; CMake/WSL and `full.py` on
+OVSRV10, which also gates any merge toward main. Stage-specific extra checks below (GUI smoke,
+teardown-sensitive configs) remain end-of-series items unless a stage is deemed risky on its own.
 
 - **C1 — invariant repair + hygiene (no structural change).** Decide the ConfigProperties invariant:
   recommended `assert(!IsCacheItem() || TreeItem::s_MakeEndoLockCount)` at `TreeItem.cpp:179`, with a
