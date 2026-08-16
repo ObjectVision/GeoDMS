@@ -403,8 +403,12 @@ moved to `sym/` (19 includers);
 sequences, strings, color) and `geom/` (17 files: points, ranges, transforms, spatial
 index, polygon helpers) — 493 include directives in 278 files plus 102 build-file entries
 rewritten; the `geo` directory is gone, ending the collision with the geo DLL.
-Guard/prolog normalization of the ~50 moved vt/geom headers is deferred (bulk-mechanical
-exemption); tests re-run green after the final chunk.*
+Tests re-run green after the final chunk. The guard/prolog normalization of the moved
+vt/geom headers followed in its own commit: all 46 headers now carry the §7 prolog and
+systematic `__VT_*`/`__GEOM_*` guards, with two structures deliberately preserved —
+`vt/Conversions.h`'s late-define guard (its includes run before the guard macro is
+defined, tolerating cyclic inclusion) and `vt/SequenceArray.h`'s design essay as its
+summary. With that, every item of this document's ladder is implemented.*
 
 1. **Zero-risk cleanup**: delete the Finding-2 dead files; remove the 52 duplicated
    `#include` lines; drop `ViewPort.cpp`'s gdal include; fix `StgImpl.h`'s `#endif`.
