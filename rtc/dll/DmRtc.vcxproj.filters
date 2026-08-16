@@ -1310,13 +1310,7 @@
     <ClCompile Include="src\tic\attr_Interface.cpp">
       <Filter>Mathematic Utilities</Filter>
     </ClCompile>
-    <ClCompile Include="src\tic\ExtLockMgr.cpp">
-      <Filter>Mathematic Utilities</Filter>
-    </ClCompile>
     <ClCompile Include="src\tic\SourceDescr.cpp">
-      <Filter>Mathematic Utilities</Filter>
-    </ClCompile>
-    <ClCompile Include="src\tic\StateChangeNotification.cpp">
       <Filter>Mathematic Utilities</Filter>
     </ClCompile>
     <ClCompile Include="src\utl\Case.cpp">
@@ -1326,9 +1320,6 @@
       <Filter>TreeItemComponent</Filter>
     </ClCompile>
     <ClCompile Include="src\tic\AbstrDataItem.cpp">
-      <Filter>TreeItemComponent</Filter>
-    </ClCompile>
-    <ClCompile Include="src\tic\AbstrDataObject.cpp">
       <Filter>TreeItemComponent</Filter>
     </ClCompile>
     <ClCompile Include="src\tic\stg\AbstrStorageManager.cpp">
@@ -1352,9 +1343,6 @@
     <ClCompile Include="src\tic\stg\AsmUtil.cpp">
       <Filter>TreeItemComponent</Filter>
     </ClCompile>
-    <ClCompile Include="src\tic\Aspect.cpp">
-      <Filter>TreeItemComponent</Filter>
-    </ClCompile>
     <ClCompile Include="src\sym\Assoc.cpp">
       <Filter>SymbolicCalculation</Filter>
     </ClCompile>
@@ -1376,16 +1364,10 @@
     <ClCompile Include="src\tic\TreeItemClass.cpp">
       <Filter>TreeItemComponent</Filter>
     </ClCompile>
-    <ClCompile Include="src\tic\TreeItemContextHandle.cpp">
-      <Filter>TreeItemComponent</Filter>
-    </ClCompile>
     <ClCompile Include="src\tic\TreeItemProps.cpp">
       <Filter>TreeItemComponent</Filter>
     </ClCompile>
     <ClCompile Include="src\tic\TreeItemSet.cpp">
-      <Filter>TreeItemComponent</Filter>
-    </ClCompile>
-    <ClCompile Include="src\tic\TreeItemUtils.cpp">
       <Filter>TreeItemComponent</Filter>
     </ClCompile>
     <ClCompile Include="src\sym\SymPCH.cpp">
@@ -1403,14 +1385,8 @@
     <ClCompile Include="src\tic\UsingCache.cpp">
       <Filter>TreeItemComponent</Filter>
     </ClCompile>
-    <ClCompile Include="src\tic\Param.cpp">
-      <Filter>TreeItemComponent</Filter>
-    </ClCompile>
     <ClCompile Include="src\sym\Prolog.cpp">
       <Filter>SymbolicCalculation</Filter>
-    </ClCompile>
-    <ClCompile Include="src\tic\Crs.cpp">
-      <Filter>TreeItemComponent</Filter>
     </ClCompile>
     <ClCompile Include="src\tic\Metric.cpp">
       <Filter>TreeItemComponent</Filter>
@@ -1424,22 +1400,10 @@
     <ClCompile Include="src\tic\DataItemClass.cpp">
       <Filter>TreeItemComponent</Filter>
     </ClCompile>
-    <ClCompile Include="src\tic\DataLockContainers.cpp">
-      <Filter>TreeItemComponent</Filter>
-    </ClCompile>
     <ClCompile Include="src\tic\DataLocks.cpp">
       <Filter>TreeItemComponent</Filter>
     </ClCompile>
-    <ClCompile Include="src\tic\DataStoreManager.cpp">
-      <Filter>TreeItemComponent</Filter>
-    </ClCompile>
     <ClCompile Include="src\tic\DedicatedAttrs.cpp">
-      <Filter>TreeItemComponent</Filter>
-    </ClCompile>
-    <ClCompile Include="src\tic\DisplayValue.cpp">
-      <Filter>TreeItemComponent</Filter>
-    </ClCompile>
-    <ClCompile Include="src\tic\ExprRewrite.cpp">
       <Filter>TreeItemComponent</Filter>
     </ClCompile>
     <ClCompile Include="src\tic\Explain.cpp">
@@ -1466,13 +1430,16 @@
     <ClCompile Include="src\tic\stg\StorageInterface.cpp">
       <Filter>TreeItemComponent</Filter>
     </ClCompile>
-    <ClCompile Include="src\tic\SupplCache.cpp">
-      <Filter>TreeItemComponent</Filter>
-    </ClCompile>
-    <ClCompile Include="src\tic\FreeDataManager.cpp">
-      <Filter>TreeItemComponent</Filter>
-    </ClCompile>
     <ClCompile Include="src\tic\OperationContext.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\TicDataSupport.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\TicItemSupport.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\TicCalcSupport.cpp">
       <Filter>TreeItemComponent</Filter>
     </ClCompile>
     <ClCompile Include="src\tic\ParallelTiles.cpp">
@@ -1485,9 +1452,6 @@
       <Filter>TreeItemComponent</Filter>
     </ClCompile>
     <ClCompile Include="src\tic\stg\MemoryMappedDataStorageManager.cpp">
-      <Filter>TreeItemComponent</Filter>
-    </ClCompile>
-    <ClCompile Include="src\tic\LispContextHandle.cpp">
       <Filter>TreeItemComponent</Filter>
     </ClCompile>
   </ItemGroup>
