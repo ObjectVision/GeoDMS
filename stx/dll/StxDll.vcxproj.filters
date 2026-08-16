@@ -23,6 +23,9 @@
     <ClCompile Include="src\ConfigProd.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\ConfigProd_functions.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="src\DataBlockProd.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>

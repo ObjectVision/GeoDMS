@@ -60,6 +60,7 @@
     <ClCompile Include="src\ConfigFileName.cpp" />
     <ClCompile Include="src\ConfigParse.cpp" />
     <ClCompile Include="src\ConfigProd.cpp" />
+    <ClCompile Include="src\ConfigProd_functions.cpp" />
     <ClCompile Include="src\DataBlockProd.cpp" />
     <ClCompile Include="src\DataBlockTask.cpp" />
     <ClCompile Include="src\DijkstraString.cpp" />
