@@ -82,12 +82,10 @@ struct DataArrayBase : AbstrDataObject
 //	set data functions
 	TIC_CALL void SetIndexedValue(SizeT index, param_t value);
 	TIC_CALL void SetTileIndexedValue(tile_id t, tile_offset index, param_t value);
-	TIC_CALL void SetIndexedValueArray(SizeT start, SizeT len, const api_t* pClientBuffer);
 
 //	get data functions
 	TIC_CALL value_type     GetIndexedValue   (SizeT index)    const;
 	TIC_CALL const_iterator GetIndexedIterator(SizeT index, GuiReadLock& lockHolder)    const;
-	TIC_CALL void GetIndexedValueArray (SizeT start, SizeT len, api_t* pClientBuffer) const;
 
 //	override AbstrDataObject
 	TICTOC_CALL bool CheckValuesUnit(const AbstrUnit* valuesUnit) override;

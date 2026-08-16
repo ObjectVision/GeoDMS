@@ -32,36 +32,6 @@ void DataArrayBase<V>::SetTileIndexedValue(tile_id t, tile_offset index, param_t
 }
 
 
-template <class V> 
-void DataArrayBase<V>::SetIndexedValueArray(SizeT start, SizeT len, const api_t* srcData)
-{
-	locked_seq_t data = GetLockedDataWrite(); // NOT TILE AWARE
-	SizeT end = start + len;
-	if (data.size() < start || data.size() < end || end < start)
-		throwErrorD("DataArrayBase", "SetIndexedValueArray: index out of range");
-
-	iterator pi = data.begin() + start;
-	iterator pe = data.begin() + end;
-	while (pi != pe)
-		Assign(*pi++, value_type(*srcData++) );
-}
-
-
-template <class V> 
-void DataArrayBase<V>::GetIndexedValueArray(SizeT start, SizeT len, api_t* destination) const
-{
-	locked_cseq_t data = GetLockedDataRead(); // NOT TILE AWARE
-
-	UInt32 end = start + len;
-	if (data.size() < start || data.size() < end || end < start)
-		throwErrorD("DataArrayBase", "GetIndexedValueArray: index out of range");
-
-	const_iterator pi = data.begin() + start;
-	const_iterator pe = data.begin() + end;
-	while (pi != pe)
-		*destination++ = value_type(*pi++);
-}
-
 // Overridden DataItem Get Functions
 
 template <class V>

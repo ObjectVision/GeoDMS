@@ -637,26 +637,6 @@ SizeT  DataArrayBase<V>::AsCharArraySize(SizeT index, streamsize_t maxLen, GuiRe
 // Support for RangedArrays
 //----------------------------------------------------------------------
 
-template <typename F>
-Range<F>
-GetRangeOrVoid(const RangedUnit<F>* ru)
-{
-	dms_assert(ru);
-	dms_assert(ru->HasVarRange());
-	return ru->GetRange();
-}
-
-template <int N>
-Void GetRangeOrVoid(const Unit<bit_value<N> >* ru)
-{
-	return Void();
-}
-
-Undefined GetRangeOrVoid(const Unit<SharedStr>* ru)
-{
-	return Undefined();
-}
-
 template <typename CI, typename F>
 DataCheckMode CheckMode(CI b, CI e, Range<F> valueRange, DataCheckMode dcm)
 {
@@ -1009,14 +989,15 @@ namespace  {
 template SizeT DataArrayBase<Bool>::CountValues(Bool v) const;
 template SizeT NumericArray<Bool>::FindPos(Bool v, SizeT startPos) const;
 
-// Explicit member instantiations for GCC/Linux (MSVC exports all members via dllexport on the class)
-// Note: we cannot use 'template class' because DataArray.ipp contains dead code (GetLockedDataWrite with no args).
+// Explicit instantiations for GCC/Linux (MSVC exports all members via dllexport on the class).
+// 'template class DataArrayBase<T>' became possible once the uninstantiable dead members
+// (Set/GetIndexedValueArray) were removed. The TileFunctor<T> RTTI members and the factory need
+// their own lines: explicit class instantiation does not cover base-class templates, nor does
+// instantiating the base cover the derived. TODO: confirm the Linux link on OVSRV10 before merge.
 #if !defined(_MSC_VER)
 using String = SharedStr;
 #define INSTANTIATE(T) \
-	template auto DataArrayBase<T>::GetDataWrite(tile_id, dms_rw_mode) -> locked_seq_t; \
-	template auto DataArrayBase<T>::GetDataRead(tile_id) const -> locked_cseq_t; \
-	template void DataArrayBase<T>::SetIndexedValue(SizeT, param_t); \
+	template class DataArrayBase<T>; \
 	template const Class* TileFunctor<T>::GetDynamicClass() const; \
 	template const DataItemClass* TileFunctor<T>::GetStaticClass(); \
 	template auto CreateHeapTileArrayV<T>(const AbstrTileRangeData*, const range_or_void_data<field_of_t<T>>*, bool MG_DEBUG_ALLOCATOR_SRC_ARG) -> std::unique_ptr<TileFunctor<T>>;
