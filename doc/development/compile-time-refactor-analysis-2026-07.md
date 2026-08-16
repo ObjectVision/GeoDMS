@@ -250,6 +250,10 @@ identifiers (classes `XmlElement`/`XmlParser`/`FindFileBlock`/`AbstrPropDef`/…
 to de-export wholesale; ~946 belong to 118 partially-dead identifiers needing per-overload care.
 De-exporting must be driven by the binary import list (header-inclusion heuristics are unsafe
 because of transitive inclusion) and verified by rebuild. Deferred as a dedicated pass.
+*Update 2026-08-16: that pass is now planned and quantified in
+`tu-reorg-and-export-surface-2026-08.md` (fresh dumpbin numbers: 2494/5672 dead, 85% in
+entirely-dead identifiers; C-ABI keep-list; the rtc+clc+geo merge-feasibility analysis
+follows up on Finding 3).*
 
 ### `/analyze` (PREfast) runs on every build — measured 2026-07-09
 
