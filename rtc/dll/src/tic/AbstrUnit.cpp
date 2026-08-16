@@ -430,7 +430,7 @@ bool AbstrUnit::HasVarRangeData() const
 
 const UnitCrs* AbstrUnit::GetCrs() const
 {
-	// 1. delegate to the referred item exactly as RangedUnit<V>::GetMetric does (Unit.cpp).
+	// 1. delegate to the referred item exactly as Unit<V>::GetMetric does (Unit.cpp).
 	// This is the whole point of moving off the side table: a cache unit can now answer
 	// for the config unit it refers to.
 	if (auto refItem = debug_cast<const AbstrUnit*>(GetReferredItem().get()))
@@ -953,7 +953,7 @@ tile_id AbstrUnit::GetThisCurrTileID(SizeT& index, tile_id prevT) const
 	return 0;
 }
 
-I64Rect AbstrUnit::GetTileSizeAsI64Rect(tile_id t) const // asssume 1D; GeoUnitAdapter overrules this for all 2D domains
+I64Rect AbstrUnit::GetTileSizeAsI64Rect(tile_id t) const // asssume 1D; Unit<V> overrules this for all 2D domains
 {
 	SizeT
 		fi = (t == no_tile) ? GetBase () : GetTileFirstIndex(t),

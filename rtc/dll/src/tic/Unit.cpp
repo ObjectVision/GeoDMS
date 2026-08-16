@@ -19,7 +19,7 @@
 #include "ser/RangeStream.h"
 #include "ser/SequenceArrayStream.h"
 #include "utl/IncrementalLock.h"
-#include "utl/FixedBufferFormat.h" 
+#include "utl/FixedBufferFormat.h"
 
 #include "AbstrCalculator.h"
 #include "AbstrDataItem.h"
@@ -40,32 +40,9 @@
 #include "UnitProcessor.h"
 
 //----------------------------------------------------------------------
-// Compile time polymorphic helper functions 
+// Compile time polymorphic helper functions
 //----------------------------------------------------------------------
 std::mutex sc_RangeDataPtrAccess;
-
-namespace {
-
-	template <typename U> 
-	inline UInt32 Unit_GetDimSize(const IndexableUnitAdapter<U>* self, DimType dimNr, const ord_type_tag*)
-	{
-		dms_assert(dimNr == 0);
-		dms_assert(self->GetNrDimensions() == 1);
-		return self->GetCount();
-	}
-
-	template <typename U> 
-	inline UInt32 Unit_GetDimSize(const IndexableUnitAdapter<U>* self, DimType dimNr, const crd_point_type_tag*)
-	{
-		dms_assert(self->GetNrDimensions() == 2);
-		dms_assert(dimNr < 2);
-		if (!dimNr)
-			return Height(self->GetRange());// case 0
-		else 
-			return Width(self->GetRange()); // case 1
-	}
-
-} // end anonymous namespace
 
 //----------------------------------------------------------------------
 // Domain Change Context
@@ -103,11 +80,11 @@ static auto GetRangeDataAsLispRef(Void rd, bool asCategorical, LispPtr base) -> 
 }
 
 //----------------------------------------------------------------------
-// UnitBase member funcs implementations
+// Unit<V> member funcs: key expression
 //----------------------------------------------------------------------
 
 template <class V>
-LispRef UnitBase<V>::GetKeyExprImpl() const
+LispRef Unit<V>::GetKeyExprImpl() const
 {
 	LispRef result;
 	if (!IsDefaultUnit()) // || IsCacheRoot())
@@ -199,25 +176,30 @@ LispRef UnitBase<V>::GetKeyExprImpl() const
 }
 
 //----------------------------------------------------------------------
-// RangedUnit member funcs implementations
+// Unit<V> member funcs: range data upkeep
 //----------------------------------------------------------------------
 
 template <class V>
-void  RangedUnit<V>::ClearDataObject(garbage_can& g) const
-{ 
-	g |= std::move(const_cast<RangedUnit<V>*>(this)->m_RangeDataPtr); 
-	dms_assert(!this->HasTiledRangeData());
+void  Unit<V>::ClearDataObject(garbage_can& g) const
+{
+	if constexpr (ranged_unit_v<V>)
+	{
+		g |= std::move(const_cast<Unit<V>*>(this)->m_RangeDataPtr);
+		dms_assert(!this->HasTiledRangeData());
+	}
+	else
+		AbstrUnit::ClearDataObject(g);
 }
 
 template <class V>
-void RangedUnit<V>::ValidateRange (const range_t& range) const
+void Unit<V>::ValidateRange (const range_t& range) const requires ranged_unit_v<V>
 {
 	auto currRange = GetRange();
 	if (range != currRange)
 	{
 		const ValueClass* cls = this->GetValueType();
 		dms_assert(cls);
-		throwItemErr("ValidateRange({}) failed because current range is {}"
+		throwItemErrorF("ValidateRange({}) failed because current range is {}"
 		,	AsString(range).c_str()
 		,	AsString(currRange).c_str()
 		);
@@ -225,12 +207,18 @@ void RangedUnit<V>::ValidateRange (const range_t& range) const
 }
 
 //	Override TreeItem virtuals
-template <typename V> 
-void RangedUnit<V>::CopyProps(TreeItem* result, const CopyTreeContext& copyContext) const
+template <typename V>
+void Unit<V>::CopyProps(TreeItem* result, const CopyTreeContext& copyContext) const
 {
 	AbstrUnit::CopyProps(result, copyContext);
-	debug_cast<RangedUnit*>(result)->m_Metric = this->m_Metric;
-	debug_cast<RangedUnit*>(result)->m_RangeDataPtr = this->m_RangeDataPtr;
+	if constexpr (ranged_unit_v<V>)
+	{
+		auto resultUnit = debug_cast<Unit*>(result);
+		resultUnit->m_Metric       = this->m_Metric;
+		resultUnit->m_RangeDataPtr = this->m_RangeDataPtr;
+		if constexpr (geo_unit_v<V>)
+			resultUnit->m_Projection = this->m_Projection;
+	}
 }
 
 struct hash_buffer: OutStreamBuff
@@ -291,7 +279,7 @@ auto TileStart(const Range<Point<V>>& range, tile_extent_t<Point<V>> tileExtent,
 
 template <typename Base>
 auto RegularAdapter<Base>::GetTileRange(tile_id t) const -> Range<value_type>
-{ 
+{
 	MG_CHECK(t < this->GetNrTiles());
 
 	value_type tileTL = TileStart(this->m_Range, this->tile_extent(), this->tiling_extent(), t);
@@ -380,7 +368,7 @@ datarow_id RegularAdapter<Base>::GetTileDataRow(tile_loc tileLoc) const
 		auto lastCol = tilingExtent.Col() - 1;
 		auto stripSize = tileSize * lastCol + this->GetTileSize(lastCol);
 
-		auto tileRow = tileLoc.first / tilingExtent.Col(); 
+		auto tileRow = tileLoc.first / tilingExtent.Col();
 		auto tileCol = tileLoc.first % tilingExtent.Col();
 		assert(tileRow < tilingExtent.Row());
 		if (tileRow + 1 == tilingExtent.Row())
@@ -395,7 +383,7 @@ tile_id RegularAdapter<Base>::GetNrTiles() const
 	return Cardinality(this->tiling_extent());
 }
 
-//-------------------------------LispRef	LispRef GetAsLispRef(LispRef base) const 
+//-------------------------------LispRef	LispRef GetAsLispRef(LispRef base) const
 
 template <typename V>
 auto SimpleRangeData<V>::GetAsLispRef(LispPtr base, bool asCategorical) const -> LispRef
@@ -484,39 +472,17 @@ void IrregularTileRangeData<V>::Save(BinaryOutStream& pos) const
 //-------------------------------
 
 template <typename V>
-void RangedUnit<V>::LoadBlobStream(const InpStreamBuff* is)
+void Unit<V>::LoadBlobStream(const InpStreamBuff* is)
 {
-	BinaryInpStream bis(is);
-	LoadRangeImpl(bis);
-
-//	this->SetDataInMem();
-}
-template <typename V>
-void RangedUnit<V>::LoadRangeImpl(BinaryInpStream& pis)
-{
-	if constexpr (has_simple_range_v<V>)
+	if constexpr (ranged_unit_v<V>)
 	{
-		Range<V> range;
-		tile_id tn;
-		pis >> range >> tn;
-		auto lock = std::lock_guard(sc_RangeDataPtrAccess);
-		if (range.empty() || tn == 0)
-			this->m_RangeDataPtr.reset();
-		else
-			this->m_RangeDataPtr.reset(new SimpleRangeData<V>());
+		BinaryInpStream bis(is);
+		LoadRangeImpl(bis);
+
+	//	this->SetDataInMem();
 	}
-/*
-		std::unique_ptr<SimpleRangeData<V>> newRangeDataPtr;
-		tile_type_id tt; pis >> reinterpret_cast<UInt32&>(tt);
-		switch (tt) {
-		case tile_type_id::none: this->m_RangeDataPtr.reset(); return;
-		case tile_type_id::simple: newRangeDataPtr.reset(new SimpleRangeData<V>()); break;
-		default: throwErrorF("Stream", "Unexpected tile_type_id in BinaryInpStream");
-		}
-		dms_assert(newRangeDataPtr);
-		newRangeDataPtr->Load(pis);
-		this->m_RangeDataPtr = newRangeDataPtr.release();
-*/
+	else
+		AbstrUnit::LoadBlobStream(is);
 }
 
 // Recognize Default and Regular tilings and construct them if possible.
@@ -550,9 +516,20 @@ auto CreateRegularTileRangeData(const auto& range, const auto& tileRange) -> Sha
 }
 
 template <typename V>
-void CountableUnitBase<V>::LoadRangeImpl(BinaryInpStream& pis)
+void Unit<V>::LoadRangeImpl(BinaryInpStream& pis)
 {
-	if constexpr (has_var_range_v<V>)
+	if constexpr (simple_range_unit_v<V>)
+	{
+		Range<V> range;
+		tile_id tn;
+		pis >> range >> tn;
+		auto lock = std::lock_guard(sc_RangeDataPtrAccess);
+		if (range.empty() || tn == 0)
+			this->m_RangeDataPtr.reset();
+		else
+			this->m_RangeDataPtr.reset(new SimpleRangeData<V>());
+	}
+	else if constexpr (countable_unit_v<V>)
 	{
 		Range<V> range;
 		tile_id tn;
@@ -595,37 +572,26 @@ void CountableUnitBase<V>::LoadRangeImpl(BinaryInpStream& pis)
 					}
 				}
 			}
-/* REMOVE
-			std::unique_ptr<TiledRangeData<V>> newRangeDataPtr;
-			tile_type_id tt; pis >> reinterpret_cast<UInt32&>(tt);
-			switch (tt) {
-			case tile_type_id::none: this->m_RangeDataPtr.reset(); return;
-			case tile_type_id::default_: newRangeDataPtr.reset(new DefaultTileRangeData<V>()); break;
-			case tile_type_id::regular: newRangeDataPtr.reset(new RegularTileRangeData<V>()); break;
-			case tile_type_id::irregular: newRangeDataPtr.reset(new IrregularTileRangeData<V>()); break;
-			default: throwErrorF("Stream", "Unexpected tile_type_id in BinaryInpStream");
-			}
-			dms_assert(newRangeDataPtr);
-			newRangeDataPtr->Load(pis);
-			newRangeDataPtr->CalcTilingExtent();
-
-			this->m_RangeDataPtr = newRangeDataPtr.release();
-*/
 		}
 	}
 }
 
-template <typename V> 
-void RangedUnit<V>::StoreBlobStream(OutStreamBuff* os) const
+template <typename V>
+void Unit<V>::StoreBlobStream(OutStreamBuff* os) const
 {
-	BinaryOutStream bos(os);
-	this->StoreRangeImpl(bos);
+	if constexpr (ranged_unit_v<V>)
+	{
+		BinaryOutStream bos(os);
+		this->StoreRangeImpl(bos);
+	}
+	else
+		AbstrUnit::StoreBlobStream(os);
 }
 
-template <typename V> 
-void RangedUnit<V>::StoreRangeImpl(BinaryOutStream& pos) const
+template <typename V>
+void Unit<V>::StoreRangeImpl(BinaryOutStream& pos) const
 {
-	if constexpr (has_var_range_v<V>)
+	if constexpr (simple_range_unit_v<V>)
 	{
 		auto lock = std::lock_guard(sc_RangeDataPtrAccess);
 		if (this->m_RangeDataPtr)
@@ -633,12 +599,7 @@ void RangedUnit<V>::StoreRangeImpl(BinaryOutStream& pos) const
 		else
 			pos << Range<V>(V(), V());
 	}
-}
-
-template <typename V>
-void CountableUnitBase<V>::StoreRangeImpl(BinaryOutStream& pos) const
-{
-	if constexpr (has_var_range_v<V>)
+	else if constexpr (countable_unit_v<V>)
 	{
 		auto lock = std::lock_guard(sc_RangeDataPtrAccess);
 		MG_CHECK(this->m_RangeDataPtr);
@@ -655,16 +616,20 @@ void CountableUnitBase<V>::StoreRangeImpl(BinaryOutStream& pos) const
 }
 
 template <typename V>
-bool CountableUnitBase<V>::ContainsUndefined(tile_id t) const
+bool Unit<V>::ContainsUndefined(tile_id t) const
 {
-	auto lock = std::lock_guard(sc_RangeDataPtrAccess);
-	assert(this->m_RangeDataPtr); // PRECONDITION: IsCurrTiled()
-	return :: ContainsUndefined(this->m_RangeDataPtr->GetTileRange(t));
+	if constexpr (countable_unit_v<V>)
+	{
+		auto lock = std::lock_guard(sc_RangeDataPtrAccess);
+		assert(this->m_RangeDataPtr); // PRECONDITION: IsCurrTiled()
+		return :: ContainsUndefined(this->m_RangeDataPtr->GetTileRange(t));
+	}
+	else
+		return AbstrUnit::ContainsUndefined(t); // throws
 }
 
 template <class V>
-Range<V>
-RangedUnit<V>::GetPreparedRange() const
+auto Unit<V>::GetPreparedRange() const -> range_t requires ranged_unit_v<V>
 {
 	dbg_assert(this->CheckMetaInfoReadyOrPassor() || this->HasConfigData());
 
@@ -672,7 +637,7 @@ RangedUnit<V>::GetPreparedRange() const
 
 	MG_CHECK(IsMetaThread()); // DEBUG
 
-	dms_check_not_debugonly; 
+	dms_check_not_debugonly;
 	dms_assert(!this->m_State.IsInTrans() || (this->m_State.GetTransState() > actor_flag_set::AF_CalculatingData) );
 
 	bool result = this->PrepareDataUsage(DrlType::CertainOrThrow);
@@ -681,42 +646,60 @@ RangedUnit<V>::GetPreparedRange() const
 }
 
 template <class V>
-auto RangedUnit<V>::GetRange() const -> range_t
+auto Unit<V>::GetRange() const -> range_t requires (ranged_unit_v<V> || fixed_range_unit_v<V>)
 {
-	auto sm = this->GetCurrSegmInfo();
-	MG_CHECK(sm || this->IsPassor());
-	if (!sm)
-		return range_t();
-	return sm->GetRange();
+	if constexpr (fixed_range_unit_v<V>)
+		return range_t(0, UInt32(1) << nrbits_of_v<V>); // [0, 2^N) for bit values, [0, 1) + 1 == [0, 1] for Void
+	else
+	{
+		auto sm = this->GetCurrSegmInfo();
+		MG_CHECK(sm || this->IsPassor());
+		if (!sm)
+			return range_t();
+		return sm->GetRange();
+	}
 }
 
 template <typename V>
 const UnitMetric*
-RangedUnit<V>::GetMetric() const
+Unit<V>::GetMetric() const
 {
-	const RangedUnit<V>* refItem = debug_cast<const RangedUnit<V>*>(this->GetReferredItem().get());
-	if (refItem)
-		return refItem->GetMetric();
+	if constexpr (ranged_unit_v<V>)
+	{
+		const Unit<V>* refItem = debug_cast<const Unit<V>*>(this->GetReferredItem().get());
+		if (refItem)
+			return refItem->GetMetric();
 
-	return m_Metric.get();
+		return m_Metric.get();
+	}
+	else
+		return AbstrUnit::GetMetric(); // nullptr
 }
 
 template <typename V>
 const UnitMetric*
-RangedUnit<V>::GetCurrMetric() const
+Unit<V>::GetCurrMetric() const
 {
-	dbg_assert(this->CheckMetaInfoReadyOrPassor());
-	const RangedUnit<V>* refItem = debug_cast<const RangedUnit<V>*>(this->GetCurrRefItem().get());
-	if (refItem)
-		return refItem->GetCurrMetric();
+	if constexpr (ranged_unit_v<V>)
+	{
+		dbg_assert(this->CheckMetaInfoReadyOrPassor());
+		const Unit<V>* refItem = debug_cast<const Unit<V>*>(this->GetCurrRefItem().get());
+		if (refItem)
+			return refItem->GetCurrMetric();
 
-	return m_Metric.get();
+		return m_Metric.get();
+	}
+	else
+		return AbstrUnit::GetCurrMetric(); // nullptr
 }
 
 template <typename V>
-void RangedUnit<V>::SetMetric(SharedPtr<const UnitMetric> m)
-{ 
-	m_Metric = m;
+void Unit<V>::SetMetric(SharedPtr<const UnitMetric> m)
+{
+	if constexpr (ranged_unit_v<V>)
+		m_Metric = m;
+	else
+		AbstrUnit::SetMetric(m); // no-op
 }
 
 static void MarkUnitChange(AbstrUnit* au) {
@@ -727,11 +710,11 @@ static void MarkUnitChange(AbstrUnit* au) {
 
 
 //----------------------------------------------------------------------
-// OrderedUnit member funcs implementations
+// Unit<V> member funcs: setting ranges and tilings
 //----------------------------------------------------------------------
 
 template <class V> typename std::enable_if_t<!std::is_floating_point_v< scalar_of_t<V> > >
-NotifyRangeDataChange(RangedUnit<V>* self, const typename RangedUnit<V>::range_data_t* oldRangeData, const typename RangedUnit<V>::range_data_t* newRangeData)
+NotifyRangeDataChange(Unit<V>* self, const typename Unit<V>::range_data_t* oldRangeData, const typename Unit<V>::range_data_t* newRangeData)
 {
 	auto oldSize = oldRangeData->GetElemCount();
 	auto newSize = newRangeData->GetElemCount();
@@ -750,112 +733,111 @@ NotifyRangeDataChange(RangedUnit<V>* self, const typename RangedUnit<V>::range_d
 }
 
 template <class V>
-void CountableUnitBase<V>::SetRange(const range_t& range)
+void Unit<V>::SetRange(const range_t& range) requires ranged_unit_v<V>
 {
-	decltype(this->m_RangeDataPtr) oldRangeDataPtr, newRangeDataPtr;
-	static_assert(!has_simple_range_v<V>);
+	if constexpr (has_simple_range_v<V>)
 	{
-		auto lock = std::lock_guard(sc_RangeDataPtrAccess);
-		oldRangeDataPtr = this->m_RangeDataPtr;
-		if constexpr (has_small_range_v<V>)
-			this->m_RangeDataPtr.reset(std::make_unique<SmallRangeData<V>>(range).release());
-		else
-			this->m_RangeDataPtr.reset(std::make_unique<DefaultTileRangeData<V>>(range).release());
-		newRangeDataPtr = this->m_RangeDataPtr;
-	}
-	if (this->IsCacheItem())
-		return;
-
-//	if (!UpdateMetaInfoDetectionLock::IsLocked())
-//		this->DoInvalidate();
-//	this->SetDC(nullptr);
-//	this->SetReferredItem(nullptr);
-
-	if (oldRangeDataPtr)
-	{
-		MG_CHECK(IsMetaThread());
-		dms_assert(!UpdateMarker::IsLoadingConfig());
-		NotifyRangeDataChange(this, oldRangeDataPtr.get_ptr(), newRangeDataPtr.get_ptr());
-	}
-	MarkUnitChange(this);
-}
-
-template <class V>
-void CountableUnitBase<V>::SetRange(const range_t& range, tile_extent_t<V> blockSize)
-{
-	decltype(this->m_RangeDataPtr) oldRangeDataPtr, newRangeDataPtr;
-	static_assert(!has_simple_range_v<V>);
-	{
-		auto lock = std::lock_guard(sc_RangeDataPtrAccess);
-		oldRangeDataPtr = this->m_RangeDataPtr;
-		if constexpr (has_small_range_v<V>)
-			this->m_RangeDataPtr.reset(std::make_unique<SmallRangeData<V>>(range).release());
-		else
 		{
-			if (blockSize == tile_extent_t<V>() || blockSize == default_tile_size<V>())
-				this->m_RangeDataPtr.reset(std::make_unique<DefaultTileRangeData<V>>(range).release());
-			else
-				this->m_RangeDataPtr.reset(std::make_unique<RegularTileRangeData<V>>(range, blockSize).release());
+			auto lock = std::lock_guard(sc_RangeDataPtrAccess);
+			this->m_RangeDataPtr.reset(std::make_unique<SimpleRangeData<V>>(range).release());
 		}
-		newRangeDataPtr = this->m_RangeDataPtr;
+
+		if (this->IsCacheItem())
+			return;
+		MarkUnitChange(this);
 	}
-	if (this->IsCacheItem())
-		return;
+	else
+	{
+		decltype(this->m_RangeDataPtr) oldRangeDataPtr, newRangeDataPtr;
+		{
+			auto lock = std::lock_guard(sc_RangeDataPtrAccess);
+			oldRangeDataPtr = this->m_RangeDataPtr;
+			if constexpr (has_small_range_v<V>)
+				this->m_RangeDataPtr.reset(std::make_unique<SmallRangeData<V>>(range).release());
+			else
+				this->m_RangeDataPtr.reset(std::make_unique<DefaultTileRangeData<V>>(range).release());
+			newRangeDataPtr = this->m_RangeDataPtr;
+		}
+		if (this->IsCacheItem())
+			return;
 
 	//	if (!UpdateMetaInfoDetectionLock::IsLocked())
 	//		this->DoInvalidate();
 	//	this->SetDC(nullptr);
 	//	this->SetReferredItem(nullptr);
 
-	if (oldRangeDataPtr)
-	{
-		MG_CHECK(IsMetaThread());
-		dms_assert(!UpdateMarker::IsLoadingConfig());
-		NotifyRangeDataChange(this, oldRangeDataPtr.get_ptr(), newRangeDataPtr.get_ptr());
+		if (oldRangeDataPtr)
+		{
+			MG_CHECK(IsMetaThread());
+			dms_assert(!UpdateMarker::IsLoadingConfig());
+			NotifyRangeDataChange(this, oldRangeDataPtr.get_ptr(), newRangeDataPtr.get_ptr());
+		}
+		MarkUnitChange(this);
 	}
-	MarkUnitChange(this);
 }
 
 template <class V>
-void CountableUnitBase<V>::SetMaxRange()
+void Unit<V>::SetRange(const range_t& range, extent_t blockSize) requires ranged_unit_v<V>
 {
-	dms_assert(!this->m_RangeDataPtr);
-	if constexpr (has_small_range_v<V>)
-		SetRange(range_t(MinValue<V>(), MaxValue<V>()));
+	if constexpr (has_simple_range_v<V>)
+		SetRange(range); // ignore blockSize since tiling doesn't make sense for floating point types
 	else
 	{
-		auto lock = std::lock_guard(sc_RangeDataPtrAccess);
-		this->m_RangeDataPtr.reset(std::make_unique <MaxRangeData<V>>().release()); // not suitable as domain
+		decltype(this->m_RangeDataPtr) oldRangeDataPtr, newRangeDataPtr;
+		{
+			auto lock = std::lock_guard(sc_RangeDataPtrAccess);
+			oldRangeDataPtr = this->m_RangeDataPtr;
+			if constexpr (has_small_range_v<V>)
+				this->m_RangeDataPtr.reset(std::make_unique<SmallRangeData<V>>(range).release());
+			else
+			{
+				if (blockSize == tile_extent_t<V>() || blockSize == default_tile_size<V>())
+					this->m_RangeDataPtr.reset(std::make_unique<DefaultTileRangeData<V>>(range).release());
+				else
+					this->m_RangeDataPtr.reset(std::make_unique<RegularTileRangeData<V>>(range, blockSize).release());
+			}
+			newRangeDataPtr = this->m_RangeDataPtr;
+		}
+		if (this->IsCacheItem())
+			return;
+
+		//	if (!UpdateMetaInfoDetectionLock::IsLocked())
+		//		this->DoInvalidate();
+		//	this->SetDC(nullptr);
+		//	this->SetReferredItem(nullptr);
+
+		if (oldRangeDataPtr)
+		{
+			MG_CHECK(IsMetaThread());
+			dms_assert(!UpdateMarker::IsLoadingConfig());
+			NotifyRangeDataChange(this, oldRangeDataPtr.get_ptr(), newRangeDataPtr.get_ptr());
+		}
+		MarkUnitChange(this);
 	}
 }
 
 template <class V>
-void FloatUnit<V>::SetRange (const range_t& range)
+void Unit<V>::SetMaxRange()
 {
+	if constexpr (simple_range_unit_v<V>)
+		this->SetRange(range_t(MinValue<V>(), MaxValue<V>()));
+	else if constexpr (countable_unit_v<V>)
 	{
-		auto lock = std::lock_guard(sc_RangeDataPtrAccess);
-		this->m_RangeDataPtr.reset(std::make_unique<SimpleRangeData<V>>(range).release());
+		dms_assert(!this->m_RangeDataPtr);
+		if constexpr (has_small_range_v<V>)
+			SetRange(range_t(MinValue<V>(), MaxValue<V>()));
+		else
+		{
+			auto lock = std::lock_guard(sc_RangeDataPtrAccess);
+			this->m_RangeDataPtr.reset(std::make_unique <MaxRangeData<V>>().release()); // not suitable as domain
+		}
 	}
-
-	if (this->IsCacheItem())
-		return;
-	MarkUnitChange(this);
+	else
+		AbstrUnit::SetMaxRange(); // no-op
 }
 
 template <class V>
-void FloatUnit<V>::SetRange(const range_t& range, tile_extent_t<V> blockSize)
-{
-	SetRange(range); // ignore blockSize since tiling doesn't make sense for floating point types
-}
-
-template <class V>
-void FloatUnit<V>::SetMaxRange()
-{
-	this->SetRange(range_t(MinValue<V>(), MaxValue<V>()));
-}
-
-template <typename Base>
-void TileAdapter<Base>::SetIrregularTileRange(std::vector<range_t> optionalTileRanges)
+void Unit<V>::SetIrregularTileRange(std::vector<range_t> optionalTileRanges) requires tileable_unit_v<V>
 {
 	static_assert(!has_simple_range_v<value_t>);
 	std::unique_ptr< TiledRangeData<value_t> > newRangeData;
@@ -880,8 +862,8 @@ void TileAdapter<Base>::SetIrregularTileRange(std::vector<range_t> optionalTileR
 	MarkUnitChange(this);
 }
 
-template <typename Base>
-void TileAdapter<Base>::SetRegularTileRange(const range_t& range, extent_t tileExtent)
+template <class V>
+void Unit<V>::SetRegularTileRange(const range_t& range, extent_t tileExtent) requires tileable_unit_v<V>
 {
 	static_assert(!has_simple_range_v<value_t>);
 
@@ -901,76 +883,95 @@ void TileAdapter<Base>::SetRegularTileRange(const range_t& range, extent_t tileE
 	this->m_RangeDataPtr.reset(newRangeData.release());
 	MarkUnitChange(this);
 }
+
 //----------------------------------------------------------------------
-// NumericUnitAdapter member funcs implementations
+// Unit<V> member funcs: support for Numerics (the 1-dimensional ranges)
 //----------------------------------------------------------------------
 
-template <typename U>
-Range<Float64> NumRangeUnitAdapterBase<U>::GetRangeAsFloat64() const
+template <class V>
+Range<Float64> Unit<V>::GetRangeAsFloat64() const
 {
-	return Convert<Range<Float64>>(this->GetRange());
+	if constexpr (num_range_unit_v<V>)
+		return Convert<Range<Float64>>(this->GetRange());
+	else
+		return AbstrUnit::GetRangeAsFloat64(); // throws
 }
 
-template <class U>
-void VarNumRangeUnitAdapter<U>::SetRangeAsFloat64(Float64 begin, Float64 end)
+template <class V>
+void Unit<V>::SetRangeAsFloat64(Float64 begin, Float64 end)
 {
-	this->SetRange(
-		typename U::range_t(
-			Convert<typename U::value_t>(begin)
-		,	Convert<typename U::value_t>(end)
-		)
-	);
+	if constexpr (num_range_unit_v<V> && ranged_unit_v<V>) // bit values and Void keep AbstrUnit's throw
+		this->SetRange(
+			range_t(
+				Convert<V>(begin)
+			,	Convert<V>(end)
+			)
+		);
+	else
+		AbstrUnit::SetRangeAsFloat64(begin, end); // throws
 }
 
-template <class U>
-void VarNumRangeUnitAdapter<U>::SetRangeAsUInt64(UInt64 begin, UInt64 end)
+template <class V>
+void Unit<V>::SetRangeAsUInt64(UInt64 begin, UInt64 end)
 {
-	this->SetRange(
-		typename U::range_t(
-			Convert<typename U::value_t>(begin)
-			, Convert<typename U::value_t>(end)
-		)
-	);
+	if constexpr (num_range_unit_v<V> && ranged_unit_v<V>) // bit values and Void keep AbstrUnit's throw
+		this->SetRange(
+			range_t(
+				Convert<V>(begin)
+				, Convert<V>(end)
+			)
+		);
+	else
+		AbstrUnit::SetRangeAsUInt64(begin, end); // throws
 }
 
 //----------------------------------------------------------------------
-// GeoUnitAdapter member funcs implementations
+// Unit<V> member funcs: support for Geometrics (the point types)
 //----------------------------------------------------------------------
 
-template <class U>
-GeoUnitAdapter<U>::~GeoUnitAdapter() // hide dtor of SharedPtr<const UnitProjection>
+template <class V>
+Unit<V>::~Unit() // out of line: hides the dtors of SharedPtr<const UnitMetric> / <const UnitProjection>
 {}
 
-// Support for Geometrics
-template <class U>
-IRect GeoUnitAdapter<U>::GetRangeAsIRect() const
+template <class V>
+IRect Unit<V>::GetRangeAsIRect() const
 {
-	typename U::range_t range = this->GetRange();
-	return Convert<IRect>(range);
-}
-
-template <typename U>
-I64Rect GeoUnitAdapter<U>::GetTileSizeAsI64Rect(tile_id t) const
-{
-	dbg_assert(this->CheckMetaInfoReadyOrPassor());
-	MG_CHECK(this->m_RangeDataPtr);
-	typename U::range_t result;
-	if constexpr (has_simple_range_v<typename U::value_t>)
+	if constexpr (geo_unit_v<V>)
 	{
-		result = this->GetRange();
-		dms_assert(t == no_tile);
+		range_t range = this->GetRange();
+		return Convert<IRect>(range);
 	}
-	else if (t == no_tile)
-		result = this->GetRange();
 	else
-		result = this->m_RangeDataPtr->GetTileRange(t);
-	return ThrowingConvert<I64Rect>(result);
+		return AbstrUnit::GetRangeAsIRect(); // throws
 }
 
-template <class U>
-IRect GeoUnitAdapter<U>::GetTileRangeAsIRect(tile_id t) const
+template <class V>
+I64Rect Unit<V>::GetTileSizeAsI64Rect(tile_id t) const
 {
-	if constexpr (!has_simple_range_v<typename U::value_t>) // integral point types; float point types keep AbstrUnit's throw
+	if constexpr (geo_unit_v<V>)
+	{
+		dbg_assert(this->CheckMetaInfoReadyOrPassor());
+		MG_CHECK(this->m_RangeDataPtr);
+		range_t result;
+		if constexpr (has_simple_range_v<V>)
+		{
+			result = this->GetRange();
+			dms_assert(t == no_tile);
+		}
+		else if (t == no_tile)
+			result = this->GetRange();
+		else
+			result = this->m_RangeDataPtr->GetTileRange(t);
+		return ThrowingConvert<I64Rect>(result);
+	}
+	else
+		return AbstrUnit::GetTileSizeAsI64Rect(t); // the 1-D implementation
+}
+
+template <class V>
+IRect Unit<V>::GetTileRangeAsIRect(tile_id t) const
+{
+	if constexpr (geo_unit_v<V> && !has_simple_range_v<V>) // integral point types; float point types keep AbstrUnit's throw
 	{
 		dbg_assert(this->CheckMetaInfoReadyOrPassor());
 		return ThrowingConvert<IRect>(this->GetTileRange(t));
@@ -980,24 +981,23 @@ IRect GeoUnitAdapter<U>::GetTileRangeAsIRect(tile_id t) const
 }
 
 
-template <class U>
-void GeoUnitAdapter<U>::SetRangeAsIPoint(Int32 rowBegin, Int32  colBegin, Int32  rowEnd, Int32  colEnd, UInt16 blockSizeY, UInt16 blockSizeX)
+template <class V>
+void Unit<V>::SetRangeAsIPoint(Int32 rowBegin, Int32  colBegin, Int32  rowEnd, Int32  colEnd, UInt16 blockSizeY, UInt16 blockSizeX)
 {
-	auto topLeft = shp2dms_order<Int32>(colBegin, rowBegin);
-	auto bottomRight = shp2dms_order<Int32>(colEnd, rowEnd);
-	auto iRange = IRect(topLeft, bottomRight);
-	auto range = ThrowingConvert<typename U::range_t>(iRange);
-	// Cap per-tile rows at MAX_STRIP_SIZE so a single-strip native layout (a full-height strip on a
-	// large grid) doesn't yield one over-tall tile. No cap on blockSizeX: it is already a UInt16
-	// (<= 0xFFFF) and the per-tile cell count (<= 1024 * 65535 = 2^26) stays within tile_offset (UInt32).
-	blockSizeY = Min<UInt16>(blockSizeY, UInt16(1024));
-	this->SetRange(range, shp2dms_order(blockSizeX, blockSizeY));
-}
-
-template <class U>
-DRect GeoUnitAdapter<U>::GetRangeAsDRect() const
-{
-	return Convert<DRect>(this->GetRange());
+	if constexpr (geo_unit_v<V>)
+	{
+		auto topLeft = shp2dms_order<Int32>(colBegin, rowBegin);
+		auto bottomRight = shp2dms_order<Int32>(colEnd, rowEnd);
+		auto iRange = IRect(topLeft, bottomRight);
+		auto range = ThrowingConvert<range_t>(iRange);
+		// Cap per-tile rows at MAX_STRIP_SIZE so a single-strip native layout (a full-height strip on a
+		// large grid) doesn't yield one over-tall tile. No cap on blockSizeX: it is already a UInt16
+		// (<= 0xFFFF) and the per-tile cell count (<= 1024 * 65535 = 2^26) stays within tile_offset (UInt32).
+		blockSizeY = Min<UInt16>(blockSizeY, UInt16(1024));
+		this->SetRange(range, shp2dms_order(blockSizeX, blockSizeY));
+	}
+	else
+		AbstrUnit::SetRangeAsIPoint(rowBegin, colBegin, rowEnd, colEnd, blockSizeY, blockSizeX); // throws
 }
 
 template<typename T>
@@ -1023,68 +1023,85 @@ ConvertRange(const Range<U>& src)
 	);
 }
 
-template <class U>
-void GeoUnitAdapter<U>::SetRangeAsDPoint(Float64  rowBegin, Float64  colBegin, Float64  rowEnd, Float64  colEnd )
+template <class V>
+DRect Unit<V>::GetRangeAsDRect() const
 {
-	this->SetRange(
-		ConvertRange<typename U::value_t>(
-			DRect(
-				shp2dms_order<Float64>(colBegin, rowBegin)
-			,	shp2dms_order<Float64>(colEnd,   rowEnd  )
+	if constexpr (geo_unit_v<V>)
+		return Convert<DRect>(this->GetRange());
+	else
+		return AbstrUnit::GetRangeAsDRect(); // throws
+}
+
+template <class V>
+void Unit<V>::SetRangeAsDPoint(Float64  rowBegin, Float64  colBegin, Float64  rowEnd, Float64  colEnd )
+{
+	if constexpr (geo_unit_v<V>)
+		this->SetRange(
+			ConvertRange<V>(
+				DRect(
+					shp2dms_order<Float64>(colBegin, rowBegin)
+				,	shp2dms_order<Float64>(colEnd,   rowEnd  )
+				)
 			)
-		)
-	);
+		);
+	else
+		AbstrUnit::SetRangeAsDPoint(rowBegin, colBegin, rowEnd, colEnd); // throws
 }
 
-template <class U>
-const UnitProjection* GeoUnitAdapter<U>::GetProjection() const
+template <class V>
+const UnitProjection* Unit<V>::GetProjection() const
 {
-	dms_assert(this->GetNrDimensions() == 2);
+	if constexpr (geo_unit_v<V>)
+	{
+		dms_assert(this->GetNrDimensions() == 2);
 
-	const GeoUnitAdapter<U>* refItem = debug_cast<const GeoUnitAdapter<U>*>(this->GetReferredItem().get());
-	if (refItem)
-		return refItem->GetProjection();
+		const Unit<V>* refItem = debug_cast<const Unit<V>*>(this->GetReferredItem().get());
+		if (refItem)
+			return refItem->GetProjection();
 
-//	dbg_assert(IsMetaInfoReadyOrPassor()); // caused by call to GetReferredItem
+	//	dbg_assert(IsMetaInfoReadyOrPassor()); // caused by call to GetReferredItem
 
-	return m_Projection.get();
+		return m_Projection.get();
+	}
+	else
+		return AbstrUnit::GetProjection(); // nullptr
 }
 
-template <class U>
-const UnitProjection* GeoUnitAdapter<U>::GetCurrProjection() const
+template <class V>
+const UnitProjection* Unit<V>::GetCurrProjection() const
 {
-	dms_assert(this->GetNrDimensions() == 2);
-	dbg_assert(this->CheckMetaInfoReadyOrPassor()); // caused by call to GetReferredItem
+	if constexpr (geo_unit_v<V>)
+	{
+		dms_assert(this->GetNrDimensions() == 2);
+		dbg_assert(this->CheckMetaInfoReadyOrPassor()); // caused by call to GetReferredItem
 
-	const GeoUnitAdapter<U>* refItem = debug_cast<const GeoUnitAdapter<U>*>(this->GetCurrRefItem().get());
-	if (refItem)
-		return refItem->GetCurrProjection();
+		const Unit<V>* refItem = debug_cast<const Unit<V>*>(this->GetCurrRefItem().get());
+		if (refItem)
+			return refItem->GetCurrProjection();
 
-	return m_Projection.get();
+		return m_Projection.get();
+	}
+	else
+		return AbstrUnit::GetCurrProjection(); // nullptr
 }
 
-template <class U>
-void GeoUnitAdapter<U>::SetProjection(SharedPtr <const UnitProjection> p)
-{ 
-	assert(!p || p->GetBaseUnit() != this);
-	m_Projection = std::move(p);
-}
-
-template <typename U>
-void
-GeoUnitAdapter<U>::CopyProps(TreeItem* result, const CopyTreeContext& copyContext) const
+template <class V>
+void Unit<V>::SetProjection(SharedPtr <const UnitProjection> p)
 {
-	U::CopyProps(result, copyContext);
-
-	GeoUnitAdapter<U>* resultUnit = debug_cast<GeoUnitAdapter<U>*>(result);
-	resultUnit->m_Projection = m_Projection;
+	if constexpr (geo_unit_v<V>)
+	{
+		assert(!p || p->GetBaseUnit() != this);
+		m_Projection = std::move(p);
+	}
+	else
+		AbstrUnit::SetProjection(std::move(p)); // no-op
 }
 
 //----------------------------------------------------------------------
-// CountableUnitBase member funcs implementations
+// Unit<V> member funcs: segment info and counts
 //----------------------------------------------------------------------
 
-template <typename Range> 
+template <typename Range>
 SizeT CheckedCardinality(const TreeItem* context, const Range& range, bool throwOnUndefined)
 {
 	if (!IsDefined(range))
@@ -1097,70 +1114,103 @@ SizeT CheckedCardinality(const TreeItem* context, const Range& range, bool throw
 	return Cardinality(range);
 }
 
-template <typename V> 
-auto RangedUnit<V>::GetSegmInfo() const -> const range_data_t *
+template <typename V>
+auto Unit<V>::GetSegmInfo() const -> const range_data_t* requires (ranged_unit_v<V> || fixed_range_unit_v<V>)
 {
-	this->PrepareDataUsage(DrlType::Certain);
-	if (this->IsFailed(FailType::Data))
-		return nullptr;
-
-	return this->GetCurrSegmInfo();
-}
-
-template <typename V> 
-auto RangedUnit<V>::GetCurrSegmInfo() const -> const range_data_t*
-{
-	dbg_assert(this->CheckMetaInfoReadyOrPassor());
-
-	if (this->WasFailed(FailType::Data))
-		this->ThrowFail();
-
-	const RangedUnit<V>* ultimateCU = debug_cast<const RangedUnit<V>*>(this->GetCurrRangeItem().get());
-	dbg_assert(ultimateCU->CheckMetaInfoReadyOrPassor());
-	dbg_assert(CheckCalculatingOrReady(ultimateCU) || ultimateCU->WasFailed(FailType::Data));
-
-//	dms_assert(this->PartOfInterestOrKeep() || ultimateCU->DataInMem());
-	WaitReady(ultimateCU);
-	if (ultimateCU->WasFailed(FailType::Data))
-		ultimateCU->ThrowFail();
-	dbg_assert(CheckDataReady(ultimateCU)); // calculation must have been finished
-	return ultimateCU->m_RangeDataPtr.get_ptr();
-}
-
-
-template <typename V> 
-bool CountableUnitBase<V>::IsTiled() const
-{
-	auto si = this->GetSegmInfo();
-	if (!si)
+	if constexpr (fixed_range_unit_v<V>)
+		return GetCurrSegmInfo();
+	else
 	{
-		MG_CHECK(this->IsPassor());
-		return false;
-	}
-	return si->GetNrTiles() != 1;
-}
+		this->PrepareDataUsage(DrlType::Certain);
+		if (this->IsFailed(FailType::Data))
+			return nullptr;
 
-template <typename V> 
-bool CountableUnitBase<V>::IsCurrTiled() const
-{
-	auto si = this->GetCurrSegmInfo();
-	if (!si)
-	{
-		MG_CHECK(this->IsPassor());
-		return false;
+		return this->GetCurrSegmInfo();
 	}
-	return si->GetNrTiles() != 1;
 }
 
 template <typename V>
-auto CountableUnitBase<V>::GetTiledRangeData() const -> SharedPtr <const AbstrTileRangeData>
-{ 
-	auto lock = std::lock_guard(sc_RangeDataPtrAccess);
-	return this->m_RangeDataPtr.get();
+auto Unit<V>::GetCurrSegmInfo() const -> const range_data_t* requires (ranged_unit_v<V> || fixed_range_unit_v<V>)
+{
+	if constexpr (fixed_range_unit_v<V>)
+	{
+		// everlasting function-local singleton (FixedRange<N>); handing out the raw pointer
+		// keeps the lifetime contract of the ranged branch, and GetTiledRangeData re-wraps
+		// it in a SharedPtr (an AddRef of an everlasting object).
+		static SharedPtr<const range_data_t> s_RangeData = new range_data_t;
+		return s_RangeData.get_ptr();
+	}
+	else
+	{
+		dbg_assert(this->CheckMetaInfoReadyOrPassor());
+
+		if (this->WasFailed(FailType::Data))
+			this->ThrowFail();
+
+		const Unit<V>* ultimateCU = debug_cast<const Unit<V>*>(this->GetCurrRangeItem().get());
+		dbg_assert(ultimateCU->CheckMetaInfoReadyOrPassor());
+		dbg_assert(CheckCalculatingOrReady(ultimateCU) || ultimateCU->WasFailed(FailType::Data));
+
+	//	dms_assert(this->PartOfInterestOrKeep() || ultimateCU->DataInMem());
+		WaitReady(ultimateCU);
+		if (ultimateCU->WasFailed(FailType::Data))
+			ultimateCU->ThrowFail();
+		dbg_assert(CheckDataReady(ultimateCU)); // calculation must have been finished
+		return ultimateCU->m_RangeDataPtr.get_ptr();
+	}
+}
+
+
+template <typename V>
+bool Unit<V>::IsTiled() const
+{
+	if constexpr (countable_unit_v<V>)
+	{
+		auto si = this->GetSegmInfo();
+		if (!si)
+		{
+			MG_CHECK(this->IsPassor());
+			return false;
+		}
+		return si->GetNrTiles() != 1;
+	}
+	else
+		return AbstrUnit::IsTiled(); // false
 }
 
 template <typename V>
-V OrderedUnit<V>::GetTileFirstValue (tile_id t) const
+bool Unit<V>::IsCurrTiled() const
+{
+	if constexpr (countable_unit_v<V>)
+	{
+		auto si = this->GetCurrSegmInfo();
+		if (!si)
+		{
+			MG_CHECK(this->IsPassor());
+			return false;
+		}
+		return si->GetNrTiles() != 1;
+	}
+	else
+		return AbstrUnit::IsCurrTiled(); // false
+}
+
+template <typename V>
+auto Unit<V>::GetTiledRangeData() const -> SharedPtr <const AbstrTileRangeData>
+{
+	if constexpr (countable_unit_v<V>)
+	{
+		auto lock = std::lock_guard(sc_RangeDataPtrAccess);
+		return this->m_RangeDataPtr.get();
+	}
+	else if constexpr (fixed_range_unit_v<V>)
+		return GetCurrSegmInfo(); // re-wrap of the everlasting singleton
+	else
+		return AbstrUnit::GetTiledRangeData(); // {} for floats, float points and SharedStr
+}
+
+template <typename V>
+V Unit<V>::GetTileFirstValue (tile_id t) const requires ordinal_unit_v<V>
 {
 	assert(t != no_tile);
 	auto si = this->GetCurrSegmInfo();
@@ -1169,7 +1219,7 @@ V OrderedUnit<V>::GetTileFirstValue (tile_id t) const
 }
 
 template <typename V>
-V OrderedUnit<V>::GetTileValue (tile_id t, tile_offset localIndex) const
+V Unit<V>::GetTileValue (tile_id t, tile_offset localIndex) const requires ordinal_unit_v<V>
 {
 	assert(t != no_tile);
 	auto si = this->GetCurrSegmInfo();
@@ -1178,99 +1228,181 @@ V OrderedUnit<V>::GetTileValue (tile_id t, tile_offset localIndex) const
 }
 
 template <typename V>
-auto CountableUnitBase<V>::GetTileRange(tile_id t) const -> range_t
+auto Unit<V>::GetTileRange(tile_id t) const -> range_t requires indexable_unit_v<V>
 {
-	assert(t != no_tile);
-	auto si = this->GetCurrSegmInfo();
-	MG_CHECK(si);
-	return si->GetTileRange(t);
+	if constexpr (fixed_range_unit_v<V>)
+	{
+		assert(t == 0);
+		return GetRange();
+	}
+	else
+	{
+		assert(t != no_tile);
+		auto si = this->GetCurrSegmInfo();
+		MG_CHECK(si);
+		return si->GetTileRange(t);
+	}
 }
 
 template <typename V>
-SizeT CountableUnitBase<V>::GetPreparedCount(bool throwOnUndefined) const
+SizeT Unit<V>::GetPreparedCount(bool throwOnUndefined) const
 {
-	return CheckedCardinality(this, this->GetPreparedRange(), throwOnUndefined );
-}
-
-template <typename V> 
-SizeT CountableUnitBase<V>::GetCount() const
-{
-	return Cardinality(this->GetRange());
+	if constexpr (countable_unit_v<V>)
+		return CheckedCardinality(this, this->GetPreparedRange(), throwOnUndefined );
+	else
+		return AbstrUnit::GetPreparedCount(throwOnUndefined); // delegates to the virtual GetCount
 }
 
 template <typename V>
-SizeT CountableUnitBase<V>::GetDataCount() const
+SizeT Unit<V>::GetCount() const
 {
-	auto sm = this->GetCurrSegmInfo();
-	MG_CHECK(sm || this->IsPassor());
-	if (!sm)
-		return GetCount();
-	return sm->GetElemCount();
+	if constexpr (indexable_unit_v<V>) // CountableUnitBase and FixedNumRangeUnitAdapter had identical bodies
+		return Cardinality(this->GetRange());
+	else
+		return AbstrUnit::GetCount(); // 0 for floats, float points and SharedStr
+}
+
+template <typename V>
+SizeT Unit<V>::GetDataCount() const
+{
+	if constexpr (countable_unit_v<V>)
+	{
+		auto sm = this->GetCurrSegmInfo();
+		MG_CHECK(sm || this->IsPassor());
+		if (!sm)
+			return GetCount();
+		return sm->GetElemCount();
+	}
+	else
+		return AbstrUnit::GetDataCount(); // delegates to the virtual GetCount
 }
 
 
 template <typename V>
-tile_offset CountableUnitBase<V>::GetPreparedTileCount(tile_id t) const
+tile_offset Unit<V>::GetPreparedTileCount(tile_id t) const
 {
-	return CheckedCardinality(this, this->GetSegmInfo()->GetTileRange(t), false);
+	if constexpr (countable_unit_v<V>)
+		return CheckedCardinality(this, this->GetSegmInfo()->GetTileRange(t), false);
+	else
+		return AbstrUnit::GetPreparedTileCount(t);
 }
 
 template <typename V>
-tile_offset CountableUnitBase<V>::GetTileCount(tile_id t) const
+tile_offset Unit<V>::GetTileCount(tile_id t) const
 {
-	return CheckedCardinality(this, this->GetCurrSegmInfo()->GetTileRange(t), false);
+	if constexpr (countable_unit_v<V>)
+		return CheckedCardinality(this, this->GetCurrSegmInfo()->GetTileRange(t), false);
+	else
+		return AbstrUnit::GetTileCount(t);
 }
 
 
-template <typename V> 
-typename CountableUnitBase<V>::value_t 
-CountableUnitBase<V>::GetValueAtIndex(row_id i) const
+template <typename V>
+auto Unit<V>::GetValueAtIndex(row_id i) const -> value_t requires indexable_unit_v<V>
 {
-	return Range_GetValue_checked(this->GetRange(), i);
+	if constexpr (is_void_v<V>)
+	{
+		assert(!i);
+		return Void();
+	}
+	else if constexpr (is_bitvalue_v<V>)
+		return i;
+	else
+		return Range_GetValue_checked(this->GetRange(), i);
 }
 
-template <typename V> 
-row_id CountableUnitBase<V>::GetIndexForValue(const value_t& v) const
+template <typename V>
+row_id Unit<V>::GetIndexForValue(const value_t& v) const requires indexable_unit_v<V>
 {
-	return Range_GetIndex_checked(this->GetRange(), v);
+	if constexpr (is_void_v<V>)
+		return 0;
+	else if constexpr (is_bitvalue_v<V>)
+		return v;
+	else
+		return Range_GetIndex_checked(this->GetRange(), v);
 }
 
 //----------------------------------------------------------------------
-// IndexableUnitAdapter member funcs implementations
-//----------------------------------------------------------------------
-
-template <typename U> 
-row_id IndexableUnitAdapter<U>::GetDimSize(DimType dimNr) const
-{
-	dms_assert(dimNr < this->GetNrDimensions());
-	return Unit_GetDimSize(this, dimNr, TYPEID(elem_traits<typename U::value_t>));
-}
-
-template <typename U> 
-auto IndexableUnitAdapter<U>::CreateAbstrValueAtIndex(SizeT i) const -> std::unique_ptr<AbstrValue>
-{
-	return std::make_unique<ValueWrap<typename U::value_t>>(IsDefined(i) ? this->GetValueAtIndex(i) : UNDEFINED_OR_ZERO(typename U::value_t));
-}
-
-
-template <typename U> 
-SizeT IndexableUnitAdapter<U>::GetIndexForAbstrValue(const AbstrValue& av) const
-{
-	return this->GetIndexForValue(debug_cast<const ValueWrap<typename U::value_t>*>(&av)->Get());
-}
-
-
-//----------------------------------------------------------------------
-// OrderedUnit member funcs implementations (continued)
+// Unit<V> member funcs: support for indexable units
 //----------------------------------------------------------------------
 
 template <class V>
-void OrderedUnit<V>::SetCount(SizeT count)
+row_id Unit<V>::GetDimSize(DimType dimNr) const
 {
-	if constexpr (std::is_unsigned_v<V>) // Support for Ordinals; signed V keep AbstrUnit's throw
-		this->SetRange(typename OrderedUnit::range_t(0, ThrowingConvert<V>(count)));
+	if constexpr (indexable_unit_v<V>)
+	{
+		dms_assert(dimNr < this->GetNrDimensions());
+		if constexpr (dimension_of_v<V> == 2)
+		{
+			if (!dimNr)
+				return Height(this->GetRange());// case 0
+			else
+				return Width(this->GetRange()); // case 1
+		}
+		else
+		{
+			dms_assert(dimNr == 0);
+			return this->GetCount();
+		}
+	}
+	else
+		return AbstrUnit::GetDimSize(dimNr); // throws
+}
+
+template <class V>
+auto Unit<V>::CreateAbstrValueAtIndex(SizeT i) const -> std::unique_ptr<AbstrValue>
+{
+	if constexpr (indexable_unit_v<V>)
+		return std::make_unique<ValueWrap<V>>(IsDefined(i) ? this->GetValueAtIndex(i) : UNDEFINED_OR_ZERO(V));
+	else
+		return AbstrUnit::CreateAbstrValueAtIndex(i); // throws
+}
+
+
+template <class V>
+SizeT Unit<V>::GetIndexForAbstrValue(const AbstrValue& av) const
+{
+	if constexpr (indexable_unit_v<V>)
+		return this->GetIndexForValue(debug_cast<const ValueWrap<V>*>(&av)->Get());
+	else
+		return AbstrUnit::GetIndexForAbstrValue(av); // throws
+}
+
+//----------------------------------------------------------------------
+// Unit<V> member funcs: support for ordinals
+//----------------------------------------------------------------------
+
+template <class V>
+void Unit<V>::SetCount(SizeT count)
+{
+	if constexpr (ordinal_unit_v<V> && std::is_unsigned_v<V>) // Support for Ordinals; all other V keep AbstrUnit's throw
+		this->SetRange(range_t(0, ThrowingConvert<V>(count)));
 	else
 		AbstrUnit::SetCount(count);
+}
+
+template <class V>
+row_id Unit<V>::GetBase() const
+{
+	if constexpr (ordinal_unit_v<V>) // was OrderedUnit's
+		return this->GetRange().first;
+	else if constexpr (fixed_range_unit_v<V>) // was FixedNumRangeUnitAdapter's
+		return 0;
+	else
+		return AbstrUnit::GetBase(); // throws; point types included, as before
+}
+
+//----------------------------------------------------------------------
+// Unit<V> member funcs: formatting
+//----------------------------------------------------------------------
+
+template <class V>
+SharedStr Unit<V>::GetRangeAsStr(FormattingFlags ff) const
+{
+	if constexpr (ranged_unit_v<V> || is_bitvalue_v<V>) // Void and SharedStr keep AbstrUnit's throw
+		return AsString(this->GetRange(), ff);
+	else
+		return AbstrUnit::GetRangeAsStr(ff);
 }
 
 //----------------------------------------------------------------------
@@ -1278,11 +1410,11 @@ void OrderedUnit<V>::SetCount(SizeT count)
 //----------------------------------------------------------------------
 
 template <class V>
-Unit<V>::Unit() 
+Unit<V>::Unit()
 {
 }
 
-template <class V> 
+template <class V>
 DimType  Unit<V>::GetNrDimensions() const
 {
 	return dimension_of<V>::value;
@@ -1314,7 +1446,7 @@ TokenID GetUnitClassID()
 	return result;
 }
 
-template <typename T> 
+template <typename T>
 const UnitClass* Unit<T>::GetStaticClass()
 {
 	static UnitClass s_Cls(
@@ -1338,78 +1470,16 @@ namespace {
 		tl::transform_templ<typelists::all_unit_types, Unit>
 	> s_x;
 
-	template <typename V>
-	struct TiledUnitInstantiator
-	{
-		TiledUnitInstantiator()
-		{
-			(void)&Unit<V>::SetRegularTileRange;   // force instantiation/ODR-use
-			(void)&Unit<V>::SetIrregularTileRange;
-		}
-
-		DefaultTileRangeData<V>* dtr = nullptr;
-		RegularTileRangeData<V>* rtr = nullptr;
-		IrregularTileRangeData<V>* itr = nullptr;
-	};
-
 	tl_oper::inst_tuple_templ<typelists::ranged_unit_objects, RangeProp> unitRangeProps(false);
 	tl_oper::inst_tuple_templ<typelists::ranged_unit_objects, RangeProp> unitCatRangeProps(true);
-
-	tl_oper::inst_tuple_templ<typelists::tiled_domain_elements, TiledUnitInstantiator > tui;
 }
 
-// Explicit Template Instantiation; TODO G8: Why?
-template auto RangedUnit<UInt8>::GetCurrSegmInfo() const -> const range_data_t*;
-template auto RangedUnit<Int8>::GetCurrSegmInfo() const -> const range_data_t*;
-template auto RangedUnit<UInt16>::GetCurrSegmInfo() const -> const range_data_t*;
-template auto RangedUnit<Int16>::GetCurrSegmInfo() const -> const range_data_t*;
-template auto RangedUnit<Float32>::GetCurrSegmInfo() const -> const range_data_t*;
-template auto RangedUnit<Float64>::GetCurrSegmInfo() const -> const range_data_t*;
-template auto RangedUnit<FPoint>::GetCurrSegmInfo() const -> const range_data_t*;
-template auto RangedUnit<DPoint>::GetCurrSegmInfo() const -> const range_data_t*;
-
-// GetRange — same cross-module (DmGeo/DmClc) need as GetCurrSegmInfo above. The base RangedUnit member
-// is defined in this .cpp and is NOT emitted by `template class Unit<T>` on GCC, so DmGeo/DmClc were
-// left with undefined references to RangedUnit<float|double|Point<double>>::GetRange(); instantiate it
-// here explicitly (harmless on MSVC, which dll-exports it via Unit<T>).
-template auto RangedUnit<UInt8>::GetRange() const -> range_t;
-template auto RangedUnit<Int8>::GetRange() const -> range_t;
-template auto RangedUnit<UInt16>::GetRange() const -> range_t;
-template auto RangedUnit<Int16>::GetRange() const -> range_t;
-template auto RangedUnit<Float32>::GetRange() const -> range_t;
-template auto RangedUnit<Float64>::GetRange() const -> range_t;
-template auto RangedUnit<FPoint>::GetRange() const -> range_t;
-template auto RangedUnit<DPoint>::GetRange() const -> range_t;
-
-template auto CountableUnitBase<Int32>::GetTileRange(tile_id t) const->range_t;
-template auto CountableUnitBase<Int64>::GetTileRange(tile_id t) const->range_t;
-template auto CountableUnitBase<Int16>::GetTileRange(tile_id t) const->range_t;
-template auto CountableUnitBase<Int8>::GetTileRange(tile_id t) const->range_t;
-template auto CountableUnitBase<UInt32>::GetTileRange(tile_id t) const->range_t;
-template auto CountableUnitBase<UInt64>::GetTileRange(tile_id t) const->range_t;
-template auto CountableUnitBase<UInt16>::GetTileRange(tile_id t) const->range_t;
-template auto CountableUnitBase<UInt8>::GetTileRange(tile_id t) const->range_t;
-template auto CountableUnitBase<SPoint>::GetTileRange(tile_id t) const->range_t;
-template auto CountableUnitBase<WPoint>::GetTileRange(tile_id t) const->range_t;
-template auto CountableUnitBase<IPoint>::GetTileRange(tile_id t) const->range_t;
-template auto CountableUnitBase<UPoint>::GetTileRange(tile_id t) const->range_t;
-
-// CountableUnitBase::GetValueAtIndex — needed by DmClc
-template SPoint CountableUnitBase<SPoint>::GetValueAtIndex(row_id) const;
-template WPoint CountableUnitBase<WPoint>::GetValueAtIndex(row_id) const;
-template IPoint CountableUnitBase<IPoint>::GetValueAtIndex(row_id) const;
-template UPoint CountableUnitBase<UPoint>::GetValueAtIndex(row_id) const;
-template Int8   CountableUnitBase<Int8>::GetValueAtIndex(row_id) const;
-template Int16  CountableUnitBase<Int16>::GetValueAtIndex(row_id) const;
-template Int32  CountableUnitBase<Int32>::GetValueAtIndex(row_id) const;
-template Int64  CountableUnitBase<Int64>::GetValueAtIndex(row_id) const;
-template UInt8  CountableUnitBase<UInt8>::GetValueAtIndex(row_id) const;
-template UInt16 CountableUnitBase<UInt16>::GetValueAtIndex(row_id) const;
-template UInt32 CountableUnitBase<UInt32>::GetValueAtIndex(row_id) const;
-template UInt64 CountableUnitBase<UInt64>::GetValueAtIndex(row_id) const;
-
-// Explicit class instantiations for GCC/Linux (MSVC exports all members via dllexport)
-#if !defined(_MSC_VER)
+// Explicit class instantiation, on both compilers. Now that every member lives on Unit<V> itself
+// there are no base-class template members left for GCC to leave un-emitted, which is what the
+// per-member lists here used to compensate for; and members whose requires-clause a given V does
+// not satisfy are simply skipped ([temp.explicit]/10 — the U4 DataArrayBase<Bool> canary). This
+// also subsumes the former TiledUnitInstantiator: the tile-range members are emitted here for
+// exactly the tileable types. TODO: confirm the Linux link on OVSRV10 before merge.
 #include "utl/Instantiate.h"
 using String = SharedStr;
 #define INSTANTIATE(T) template class Unit<T>;
@@ -1417,31 +1487,9 @@ INSTANTIATE_FLD_ELEM
 INSTANTIATE_VOID
 #undef INSTANTIATE
 
-// TileAdapter member instantiations — needed because template class Unit<T>
-// does not instantiate base-class template members on GCC.
-template void TileAdapter<VarNumRangeUnitAdapter<OrderedUnit<UInt32>>>::SetRegularTileRange(const range_t&, extent_t);
-template void TileAdapter<VarNumRangeUnitAdapter<OrderedUnit<UInt32>>>::SetIrregularTileRange(std::vector<range_t>);
-template void TileAdapter<VarNumRangeUnitAdapter<OrderedUnit<UInt64>>>::SetRegularTileRange(const range_t&, extent_t);
-template void TileAdapter<VarNumRangeUnitAdapter<OrderedUnit<UInt64>>>::SetIrregularTileRange(std::vector<range_t>);
-template void TileAdapter<VarNumRangeUnitAdapter<OrderedUnit<Int32>>>::SetRegularTileRange(const range_t&, extent_t);
-template void TileAdapter<VarNumRangeUnitAdapter<OrderedUnit<Int32>>>::SetIrregularTileRange(std::vector<range_t>);
-template void TileAdapter<VarNumRangeUnitAdapter<OrderedUnit<Int64>>>::SetRegularTileRange(const range_t&, extent_t);
-template void TileAdapter<VarNumRangeUnitAdapter<OrderedUnit<Int64>>>::SetIrregularTileRange(std::vector<range_t>);
-template void TileAdapter<IndexableUnitAdapter<CountableUnitBase<SPoint>>>::SetRegularTileRange(const range_t&, extent_t);
-template void TileAdapter<IndexableUnitAdapter<CountableUnitBase<SPoint>>>::SetIrregularTileRange(std::vector<range_t>);
-template void TileAdapter<IndexableUnitAdapter<CountableUnitBase<WPoint>>>::SetRegularTileRange(const range_t&, extent_t);
-template void TileAdapter<IndexableUnitAdapter<CountableUnitBase<WPoint>>>::SetIrregularTileRange(std::vector<range_t>);
-template void TileAdapter<IndexableUnitAdapter<CountableUnitBase<IPoint>>>::SetRegularTileRange(const range_t&, extent_t);
-template void TileAdapter<IndexableUnitAdapter<CountableUnitBase<IPoint>>>::SetIrregularTileRange(std::vector<range_t>);
-template void TileAdapter<IndexableUnitAdapter<CountableUnitBase<UPoint>>>::SetRegularTileRange(const range_t&, extent_t);
-template void TileAdapter<IndexableUnitAdapter<CountableUnitBase<UPoint>>>::SetIrregularTileRange(std::vector<range_t>);
-#endif
-
 //----------------------------------------------------------------------
 // C style Interface functions for StaticClass retrieval
 //----------------------------------------------------------------------
-
-typedef SharedStr String;
 
 extern "C" {
 
@@ -1480,7 +1528,7 @@ extern "C" {
 			TreeItemContextHandle checkPtr(self, AbstrUnit::GetStaticClass(), "DMS_NumericUnit_SetRangeAsFloat64");
 			assert(self->GetValueType()->IsNumeric());
 			self->SetRangeAsFloat64(begin, end);
-	
+
 		DMS_CALL_END
 	}
 
@@ -1506,7 +1554,7 @@ extern "C" {
 			TreeItemContextHandle checkPtr(self, AbstrUnit::GetStaticClass(), "DMS_GeometricUnit_SetRangeAsDPoint");
 
 			self->SetRangeAsDPoint(rowBegin, colBegin, rowEnd, colEnd);
-	
+
 		DMS_CALL_END
 	}
 

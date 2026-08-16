@@ -200,10 +200,13 @@ GCC).
   override, F/DPoint keep base throw) and `OrdinalUnit` → `OrderedUnit` (SetCount if-constexpr
   unsigned, signed keep base throw); update `unit_traits` entries and the GCC block spellings;
   remove the stale `// , mc_RangeDataPtr;` comment (`Unit.h:62`).
-- **U3 — SegmInfo unification + availability adapters.** §3.3; `TileAdapter` members →
-  `CountableUnitBase` with `requires tileable_value`; delete the GCC TileAdapter block; fold
-  `OrderedUnit` into `CountableUnitBase`; duplicate `NumRangeUnitAdapterBase`'s one member into its
-  two children (temporary, dies in U5).
+- **U3 — SegmInfo unification + availability adapters** *(absorbed into U5, never ran separately)*.
+  §3.3; `TileAdapter` members → `CountableUnitBase` with `requires tileable_value`; delete the GCC
+  TileAdapter block; fold `OrderedUnit` into `CountableUnitBase`; duplicate
+  `NumRangeUnitAdapterBase`'s one member into its two children (temporary, dies in U5). Since U5 had
+  to move every one of these members to the merged `Unit<V>` anyway, staging them through
+  `CountableUnitBase` first would have been pure churn; the SegmInfo protocol unification (raw
+  pointer, symmetric `FixedRange<0>` singleton for Void) landed as part of U5 instead.
 - **U4 — DataArray merge** *(implemented 2026-08-16)*. Merged per §3.4, but into **`DataArrayBase<V>`**
   rather than up into `TileFunctor<V>`, which now derives directly from it. That target keeps
   `DataArrayBase` a real class template, so both poison specializations (`DataArrayBase<bool>` and
@@ -215,10 +218,37 @@ GCC).
   virtual override may not, [class.virtual]/6), and MSVC then rejects naming that constrained member
   in an explicit *function* instantiation (C3190) — so constrained members must be emitted through
   `template class X<T>;`, never per-member. See the guarded instantiation at the end of DataArray.cpp.
-- **U5 — Unit spine merge** (the big one). §3.2 in full; delete `unit_traits`,
-  `TiledUnitInstantiator`, all instantiation tails → uniform `template class Unit<X>` on both
-  compilers. Debug spot-run of a tiled + a bit-domain + a string-values config (SetRange asserts are
-  Debug-only). Post-U5 grep invariant: no live references to any deleted class name.
+- **U5 — Unit spine merge** (the big one) *(implemented 2026-08-16, including the absorbed U3)*.
+  §3.2 in full; delete `unit_traits`, `TiledUnitInstantiator`, all instantiation tails → uniform
+  `template class Unit<X>` on both compilers. Debug spot-run of a tiled + a bit-domain + a
+  string-values config (SetRange asserts are Debug-only). Post-U5 grep invariant: no live references
+  to any deleted class name — holds.
+
+  **As landed**, deviations and findings against the recipe above:
+  - The predicates are spelled as constexpr bool variable templates
+    (`ranged_unit_v`, `simple_range_unit_v`, `countable_unit_v`, `tileable_unit_v`,
+    `fixed_range_unit_v`, `indexable_unit_v`, `num_range_unit_v`, `ordinal_unit_v`, `geo_unit_v`,
+    Unit.h) rather than §3.1's concepts; requires-clauses spell them token-identically at
+    declaration and out-of-line definition, per the U4 `FindPos` precedent.
+  - The fixed-range `GetRange` unifies bit and Void as
+    `range_t(0, UInt32(1) << nrbits_of_v<V>)` (2^N for `bit_value<N>`, 1 for Void);
+    `Get[Curr]SegmInfo` now also exists for Void (it never did — only `BitUnitBase` had SegmInfo
+    members), returning the everlasting `FixedRange<0>` singleton per §3.3.
+  - Gate-fidelity traps confirmed while merging: `GetRangeAsStr` is `ranged || is_bitvalue` only
+    (`VoidUnitBase` never had it — Void and SharedStr keep the base throw); `GetTiledRangeData`
+    is countable/fixed only (floats keep the base `{}` — `RangedUnit` never overrode it);
+    `GetBase` is ordinal/fixed only (point types keep the base throw).
+  - `m_Metric` is now conditional on `ranged_unit_v` (it sat in `RangedUnit`), `m_Projection` on
+    `geo_unit_v`; the out-of-line `~Unit()` keeps both `SharedPtr` pointees incomplete in the
+    header, as `~GeoUnitAdapter` did for the projection.
+  - **The U1 "uninstantiable dead code" class struck again**: `RangedUnit<V>::ValidateRange` —
+    declared TIC_CALL, zero callers repo-wide — called `throwItemErr`, a name that exists nowhere,
+    proving no compiler ever instantiated it. `template class Unit<T>` forced it; repaired to the
+    intended `Object::throwItemErrorF` rather than deleted, since §3.2 keeps it in the typed API.
+  - The instantiation tail is unconditional (MSVC + GCC): dllexport-tagged members are emitted per
+    explicit instantiation on MSVC exactly as the implicit-instantiation path did before, and
+    constraint-unsatisfied members are skipped ([temp.explicit]/10). Linux link still gated on
+    OVSRV10, as for U1/U2/U4.
 
   **U5 must be one atomic change — it cannot be staged into "adapters first, spine second."**
   Established by reading the bodies (2026-08-16): every adapter member calls a spine member on

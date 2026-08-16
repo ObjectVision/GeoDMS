@@ -106,7 +106,7 @@ public:
 	TIC_CALL void SetSpatialReference(TokenID format);
 
 	// The CRS as a first-class property, peer of the metric. GetCrs/GetCurrCrs delegate
-	// to the referred item exactly as RangedUnit<V>::GetMetric does (Unit.cpp) -- that
+	// to the referred item exactly as Unit<V>::GetMetric does (Unit.cpp) -- that
 	// delegation is what lets a cache unit answer for its config origin, and its absence
 	// on the old side-table channel is why the CRS had to ride inside the metric.
 	// See doc/development/crs-metric-decoupling.md.
@@ -217,7 +217,7 @@ public:
 	virtual void SetRangeAsDPoint(Float64  rowBegin, Float64  colBegin, Float64  rowEnd, Float64  colEnd);
 
 	virtual IRect GetRangeAsIRect() const;
-	virtual I64Rect GetTileSizeAsI64Rect(tile_id t) const; // asssume 1D; GeoUnitAdapter overrules this for all 2D domains
+	virtual I64Rect GetTileSizeAsI64Rect(tile_id t) const; // asssume 1D; Unit<V> overrules this for all 2D domains
 	virtual IRect GetTileRangeAsIRect(tile_id t) const;
 	TIC_CALL void SetRangeAsDRect(const DRect& rect);
 

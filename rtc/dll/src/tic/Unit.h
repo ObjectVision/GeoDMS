@@ -10,6 +10,19 @@
  *  Unit<V>: the typed unit template — holds the value range and tiling
  *  (TiledRangeData) of a domain or values unit, with checked cardinality
  *  calculation and range formatting/streaming support.
+ *
+ *  Unit<V> derives directly from AbstrUnit. Which part of its interface applies
+ *  depends on V, expressed by the element-group predicates below rather than by
+ *  the chain of intermediate classes (UnitBase, RangedUnit, FloatUnit,
+ *  CountableUnitBase, BitUnitBase, VoidUnitBase and the Num/Geo/Tile/Indexable
+ *  adapters) that unit_traits<V> used to splice together — those existed only to
+ *  express conditional members before constexpr and requires were available.
+ *
+ *  The non-virtual typed API carries requires-clauses. Virtual overrides cannot
+ *  ([class.virtual]/6), so they are declared unconditionally and guard their body
+ *  with `if constexpr`, delegating to the AbstrUnit default (which throws, or
+ *  returns the documented neutral value) for a V outside the group — exactly what
+ *  such a V got before by not having the member spliced in at all.
  */
 
 #if !defined(__TIC_UNIT_H)
@@ -26,322 +39,137 @@
 #include "TiledRangeData.h"
 
 //----------------------------------------------------------------------
-// class  : Unit<value_t>
+// element-group predicates
+//
+// These reproduce, per value type, the class chains that unit_traits<V> selected:
+//   ranged_unit_v      : RangedUnit        = ints, floats, all 6 point types
+//   simple_range_unit_v: FloatUnit         = floats and float points (no tiling)
+//   countable_unit_v   : CountableUnitBase = ints and integral point types
+//   tileable_unit_v    : TileAdapter       = countable with sizeof > 2
+//                        (== typelists::tiled_domain_elements)
+//   fixed_range_unit_v : BitUnitBase / VoidUnitBase = Bool, UInt2, UInt4, Void
+//   indexable_unit_v   : IndexableUnitAdapter = countable + fixed-range
+//   num_range_unit_v   : NumRangeUnitAdapterBase = the 1-dimensional ranges
+//   ordinal_unit_v     : OrderedUnit      = 1-dimensional countable
+//   geo_unit_v         : GeoUnitAdapter   = the 6 point types
+// SharedStr satisfies none of them and keeps the bare AbstrUnit behaviour, which
+// is what unit_traits<SharedStr> == UnitBase<SharedStr> amounted to.
 //----------------------------------------------------------------------
 
-/*
-unit_traits<T>::type tells which base type is used for a Unit<T>
-
-rangedUnit<T> isa abstrUnit with range<T>
-
-boolUnit isa abstrUnit
-  with GetCount impl
-
-voidUnit isa abstrUnit
-  with GetCount impl
-
-countableUnit isa rangedUnit
-  with GetCount impl
-
-ordinalUnit isa countableUnit
-  with SetCount impl
-  T = unsigned int 32/16/8
-*/
+template <typename V> constexpr bool ranged_unit_v       = has_var_range_v<V>;
+template <typename V> constexpr bool simple_range_unit_v = ranged_unit_v<V> &&  has_simple_range_v<V>;
+template <typename V> constexpr bool countable_unit_v    = ranged_unit_v<V> && !has_simple_range_v<V>;
+template <typename V> constexpr bool tileable_unit_v     = countable_unit_v<V> && !has_small_range_v<V>;
+template <typename V> constexpr bool fixed_range_unit_v  = is_bitvalue_v<V> || is_void_v<V>;
+template <typename V> constexpr bool indexable_unit_v    = countable_unit_v<V> || fixed_range_unit_v<V>;
+template <typename V> constexpr bool num_range_unit_v    = (dimension_of_v<V> == 1) && (ranged_unit_v<V> || fixed_range_unit_v<V>);
+template <typename V> constexpr bool ordinal_unit_v      = countable_unit_v<V> && (dimension_of_v<V> == 1);
+template <typename V> constexpr bool geo_unit_v          = (dimension_of_v<V> == 2);
 
 //----------------------------------------------------------------------
-template <class V>
-struct UnitBase : AbstrUnit
-{
-	using value_t = V;
-	using range_data_t = range_or_void_data<value_t>;
-
-	LispRef GetKeyExprImpl() const override;
-
-	bool HasTiledRangeData() const override { if constexpr (has_var_range_field_v<V>) return m_RangeDataPtr; return true; }
-
-	[[no_unique_address]] range_data_ptr_or_void<V> m_RangeDataPtr;
-};
-
-template <class V> 
-struct RangedUnit : UnitBase<V>
-{
-	using value_t = V;
-	using range_t = Range<value_t>;
-	using range_data_t = range_or_void_data<V>;
-
-	auto GetSegmInfo() const -> const range_data_t*;
-	TIC_CALL auto GetCurrSegmInfo() const -> const range_data_t*;
-
-	//	data member access
-	range_t GetPreparedRange() const;
-	TIC_CALL range_t GetRange() const;
-	TIC_CALL virtual void SetRange(const range_t& range) = 0;
-	TIC_CALL virtual void SetRange(const range_t& range, tile_extent_t<V> blockSize) =0;
-
-	void  ClearDataObject(garbage_can& g) const override;
-
-	TIC_CALL void ValidateRange(const range_t& range) const;
-
-//	Override TreeItem virtuals
-	void CopyProps(TreeItem* result, const CopyTreeContext& copyContext) const override;
-
-//	override AbstrUnit
-	void LoadBlobStream  (const InpStreamBuff* is) override;
-	void StoreBlobStream (      OutStreamBuff* os) const override;
-
-	bool HasVarRange() const override { return true; }
-
-	SharedStr GetRangeAsStr(FormattingFlags ff) const override { return AsString(GetRange(), ff); }
-
-	const UnitMetric* GetMetric() const override;
-	const UnitMetric* GetCurrMetric() const override;
-
-//	mag alleen vanuit Update of Create worden aangeroepen 
-	void SetMetric(SharedPtr < const UnitMetric> m) override;
-protected:
-	virtual void LoadRangeImpl (BinaryInpStream&);
-	virtual void StoreRangeImpl(BinaryOutStream&) const;
-
-private:
-	mutable SharedPtr<const UnitMetric> m_Metric;
-};
+// class  : Unit<V>
+//----------------------------------------------------------------------
 
 template <class V>
-struct FloatUnit : RangedUnit<V>
-{
-	using range_t = Range<V>;
-
-	void SetRange(const range_t& range) override;
-	void SetRange(const range_t& range, tile_extent_t<V> blockSize) override;
-	void SetMaxRange() override;
-};
-
-//----------------------------------------------------------------------
-
-template <typename U> 
-struct NumRangeUnitAdapterBase : U // all numerics elements
-{
-// Support for Numerics
-	Range<Float64> GetRangeAsFloat64() const override;
-};
-
-template <typename U> 
-struct VarNumRangeUnitAdapter : NumRangeUnitAdapterBase<U> // all numeric objects, but not the subbyte elements
-{
-	static_assert(has_var_range_field_v<U>);
-	// Support for Numerics
-	void SetRangeAsFloat64(Float64 begin, Float64 end) override;
-	void SetRangeAsUInt64 (UInt64 begin, UInt64 end) override;
-};
-
-template <typename U> 
-struct FixedNumRangeUnitAdapter : NumRangeUnitAdapterBase<U> // all subbyte elements
-{
-	static_assert(has_var_range_field_v<U>);
-	FixedNumRangeUnitAdapter() {} // this->SetDataInMem();
-	row_id GetBase() const override { return 0; }
-	SizeT GetCount() const override { return Cardinality(this->GetRange()); }
-};
-
-//----------------------------------------------------------------------
-template <typename U>
-struct GeoUnitAdapter : U // all integral and float Point types
-{
-//	static_assert(has_var_range_field_v<U>);
-
-	~GeoUnitAdapter(); // hide dtor of SharedPtr<const UnitProjection>
-// Support for Countable Geometrics
-	IRect GetRangeAsIRect() const override;
-	void SetRangeAsIPoint(Int32  rowBegin, Int32  colBegin, Int32  rowEnd, Int32  colEnd, UInt16 blockSizeY, UInt16 blockSizeX) override;
-
-// Support for Geometrics
-	DRect GetRangeAsDRect() const override;
-	void SetRangeAsDPoint(Float64  rowBegin, Float64  colBegin, Float64  rowEnd, Float64  colEnd) override;
-
-	I64Rect GetTileSizeAsI64Rect(tile_id t) const override;
-	IRect GetTileRangeAsIRect(tile_id t) const override; // integral point types; float point types keep AbstrUnit's throw
-
-	const UnitProjection* GetProjection() const override;
-	const UnitProjection* GetCurrProjection() const override;
-
-//	Override TreeItem virtuals
-	void CopyProps(TreeItem* result, const CopyTreeContext& copyContext) const override;
-
-//	mag alleen vanuit Update of Create worden aangeroepen 
-	void SetProjection(SharedPtr < const UnitProjection> p) override;
-private:
-	mutable SharedPtr<const UnitProjection> m_Projection;
-};
-
-//----------------------------------------------------------------------
-
-template <typename V>
-struct CountableUnitBase : RangedUnit<V> // all integral objects and integral point types
-{
-	using base_type = RangedUnit<V>;
-	using typename base_type::value_t;
-	using typename base_type::range_t;
-
-	void SetRange(const range_t& range) override;
-	void SetRange(const range_t& range, tile_extent_t<V> blockSize) override;
-	void SetMaxRange() override;
-
-	auto GetTiledRangeData() const -> SharedPtr<const AbstrTileRangeData> override;
-
-	bool IsTiled() const override;
-	bool IsCurrTiled() const override;
-//	tile_id GetTileID(SizeT& index) const override;
-//	tile_id GetThisCurrTileID(SizeT& index, tile_id prevT) const override;
-	TIC_CALL auto GetTileRange(tile_id t) const -> range_t;
-
-	row_id GetPreparedCount(bool throwOnUndefined = true) const override;
-	row_id GetCount() const override;
-	row_id GetDataCount() const override;
-	tile_offset GetPreparedTileCount(tile_id t) const override;
-	tile_offset GetTileCount(tile_id t) const override;
-
-	TIC_CALL value_t GetValueAtIndex(row_id i) const;
-	row_id  GetIndexForValue(const value_t&) const;
-
-protected:
-	void LoadRangeImpl (BinaryInpStream& pis) override;
-	void StoreRangeImpl(BinaryOutStream& pos) const override;
-	bool ContainsUndefined(tile_id t) const override;
-};
-
-template <typename Base>
-struct TileAdapter : Base
-{
-	using typename Base::value_t;
-	using typename Base::range_t;
-	using extent_t = tile_extent_t<value_t>;
-
-	TIC_CALL void SetIrregularTileRange(std::vector<range_t> optionalTileRanges);
-	TIC_CALL void SetRegularTileRange(const range_t& range, extent_t tileExtent);
-};
-
-//----------------------------------------------------------------------
-template <typename U> 
-struct IndexableUnitAdapter : U
-{
-	bool   CanBeDomain() const override { return true; }
-
-	row_id GetDimSize(DimType dimNr) const override;
-
-	// use U::GetValueAtIndex and U:GetIndexForValue
-	auto CreateAbstrValueAtIndex(SizeT i) const ->std::unique_ptr<AbstrValue> override;
-	SizeT GetIndexForAbstrValue(const AbstrValue&) const override;
-};
-
-
-//----------------------------------------------------------------------
-template <class V>
-struct OrderedUnit : IndexableUnitAdapter< CountableUnitBase<V> >
-{
-	static_assert(std::is_integral_v<V>);
-
-	row_id GetBase() const override { return this->GetRange().first; }
-
-	V GetTileFirstValue (tile_id t) const;
-	V GetTileValue (tile_id t, tile_offset localIndex) const;
-
-	//	Support for Ordinals; unsigned V only, signed V keep AbstrUnit's throw
-	void SetCount(SizeT) override;
-};
-
-//----------------------------------------------------------------------
-template <bit_size_t N>
-struct BitUnitBase : UnitBase<bit_value<N>>
-{
-//	static_assert(has_var_range_field_v<U>);
-
-	typedef bit_value<N>  value_t;
-	typedef Range<UInt32> range_t;
-	using range_data_t = FixedRange<N>;
-
-	static const UInt32 elem_count = mpf::exp2<N>::value;
-
-	auto GetTiledRangeData() const -> SharedPtr <const AbstrTileRangeData> override { return GetCurrSegmInfo(); }
-
-	range_t GetRange() const { return range_t(0, elem_count); }
-
-	range_t GetTileRange(tile_id t) const { dms_assert(t == 0); return range_t(0, elem_count); }
-
-	SharedStr GetRangeAsStr(FormattingFlags ff) const override { return AsString(GetRange(), ff); }
-
-//	Support for Numerics; TODO merge this func with the NumericUnitAdapter version
-	TIC_CALL value_t GetValueAtIndex (SizeT   i) const { return i; }
-	SizeT  GetIndexForValue(value_t v) const { return v; }
-
-	auto GetCurrSegmInfo() const -> SharedPtr<const range_data_t> {
-		static SharedPtr<const range_data_t> s_RangeData = new range_data_t;
-		return s_RangeData;
-	}
-	auto GetSegmInfo() const -> SharedPtr <const range_data_t> { return GetCurrSegmInfo(); }
-};
-
-//----------------------------------------------------------------------
-struct VoidUnitBase : UnitBase<Void>
-{
-	static_assert(!has_var_range_field_v<Void>);
-
-	using value_t = Void;
-	using range_t = Range<UInt32>;
-
-	auto GetTiledRangeData() const  -> SharedPtr<const AbstrTileRangeData> override {
-		static SharedPtr<FixedRange<0>> s_RangeData = { new FixedRange<0>, newly_obj{} };
-		return s_RangeData;
-	}
-
-	range_t GetRange() const { return range_t(0, 1); }
-	range_t GetTileRange(tile_id t) const { assert(t==0); return range_t(0, 1); }
-
-// Support for Numerics
-	value_t GetValueAtIndex (row_id i) const { assert(!i); return Void(); }
-	row_id  GetIndexForValue(value_t ) const { return 0; }
-};
-
-//----------------------------------------------------------------------
-
-template <typename V> struct unit_traits;
-template<> struct unit_traits<UInt64>    { typedef TileAdapter < VarNumRangeUnitAdapter<OrderedUnit<UInt64> >> type; };
-template<> struct unit_traits<UInt32>    { typedef TileAdapter < VarNumRangeUnitAdapter<OrderedUnit<UInt32> >> type; };
-template<> struct unit_traits<UInt16>    { typedef VarNumRangeUnitAdapter<OrderedUnit<UInt16> > type; };
-template<> struct unit_traits<UInt8 >    { typedef VarNumRangeUnitAdapter<OrderedUnit< UInt8> > type; };
-template<> struct unit_traits<Int64>     { typedef TileAdapter < VarNumRangeUnitAdapter<OrderedUnit< Int64>> > type; };
-template<> struct unit_traits<Int32>     { typedef TileAdapter < VarNumRangeUnitAdapter<OrderedUnit< Int32>> > type; };
-template<> struct unit_traits<Int16>     { typedef VarNumRangeUnitAdapter<OrderedUnit< Int16> > type; };
-template<> struct unit_traits<Int8 >     { typedef VarNumRangeUnitAdapter<OrderedUnit<  Int8> > type; };
-template<> struct unit_traits<Float32>   { typedef VarNumRangeUnitAdapter<FloatUnit<Float32> >  type; };
-template<> struct unit_traits<Float64>   { typedef VarNumRangeUnitAdapter<FloatUnit<Float64> >  type; };
-#if defined(DMS_TM_HAS_FLOAT80)
-template<> struct unit_traits<Float80>   { typedef VarNumRangeUnitAdapter<RangedUnit<Float80> > type; };
-#endif
-template<> struct unit_traits<Bool>      { typedef IndexableUnitAdapter< FixedNumRangeUnitAdapter<BitUnitBase<1> > > type; };
-template<> struct unit_traits<UInt2>     { typedef IndexableUnitAdapter< FixedNumRangeUnitAdapter<BitUnitBase<2> > > type; };
-template<> struct unit_traits<UInt4>     { typedef IndexableUnitAdapter< FixedNumRangeUnitAdapter<BitUnitBase<4> > > type; };
-template<> struct unit_traits<Void>      { typedef IndexableUnitAdapter< FixedNumRangeUnitAdapter<VoidUnitBase> >    type; };
-template<> struct unit_traits<SPoint>    { typedef GeoUnitAdapter< TileAdapter< IndexableUnitAdapter<CountableUnitBase<SPoint> > > > type; };
-template<> struct unit_traits<IPoint>    { typedef GeoUnitAdapter< TileAdapter< IndexableUnitAdapter<CountableUnitBase<IPoint> > > > type; };
-template<> struct unit_traits<WPoint>    { typedef GeoUnitAdapter< TileAdapter< IndexableUnitAdapter<CountableUnitBase<WPoint> > > > type; };
-template<> struct unit_traits<UPoint>    { typedef GeoUnitAdapter< TileAdapter< IndexableUnitAdapter<CountableUnitBase<UPoint> > > > type; };
-template<> struct unit_traits<FPoint>    { typedef GeoUnitAdapter<FloatUnit<FPoint>    >     type; };
-template<> struct unit_traits<DPoint>    { typedef GeoUnitAdapter<FloatUnit<DPoint>    >     type; };
-template<> struct unit_traits<SharedStr> { typedef UnitBase<SharedStr>                       type; };
-
-template <class V>
-class Unit : public unit_traits<V>::type
+class Unit : public AbstrUnit
 {
 	using base_type = AbstrUnit;
 public:
-	using value_t = V;
+	using value_t      = V;
+	using range_data_t = range_or_void_data<V>;                                              // FixedRange<N> for bits, FixedRange<0> for Void, Void for SharedStr
+	using range_t      = Range<std::conditional_t<fixed_range_unit_v<V>, UInt32, V>>;        // only named, never completed, for V without a range
+	using extent_t     = tile_extent_t<V>;
+
+//	Range data; public because get_range_ptr_of_valuesunit reads it through Unit<E>*
+	[[no_unique_address]] range_data_ptr_or_void<V> m_RangeDataPtr;
+
+//	Typed range API; non-virtual, so these carry their guard as a requires-clause
+	TIC_CALL auto GetSegmInfo()     const -> const range_data_t* requires (ranged_unit_v<V> || fixed_range_unit_v<V>);
+	TIC_CALL auto GetCurrSegmInfo() const -> const range_data_t* requires (ranged_unit_v<V> || fixed_range_unit_v<V>);
+
+	TIC_CALL range_t GetRange()         const requires (ranged_unit_v<V> || fixed_range_unit_v<V>);
+	TIC_CALL range_t GetPreparedRange() const requires ranged_unit_v<V>;
+	TIC_CALL void SetRange(const range_t& range)                       requires ranged_unit_v<V>;
+	TIC_CALL void SetRange(const range_t& range, extent_t blockSize)   requires ranged_unit_v<V>;
+	TIC_CALL void ValidateRange(const range_t& range) const            requires ranged_unit_v<V>;
+
+	TIC_CALL void SetIrregularTileRange(std::vector<range_t> optionalTileRanges) requires tileable_unit_v<V>;
+	TIC_CALL void SetRegularTileRange(const range_t& range, extent_t tileExtent) requires tileable_unit_v<V>;
+
+	TIC_CALL range_t GetTileRange(tile_id t)          const requires indexable_unit_v<V>;
+	TIC_CALL value_t GetValueAtIndex(row_id i)        const requires indexable_unit_v<V>;
+	TIC_CALL row_id  GetIndexForValue(const value_t&) const requires indexable_unit_v<V>;
+
+	V GetTileFirstValue(tile_id t)                    const requires ordinal_unit_v<V>;
+	V GetTileValue(tile_id t, tile_offset localIndex) const requires ordinal_unit_v<V>;
+
+//	override AbstrUnit / TreeItem: declared for every V, guarded in the body
+	LispRef GetKeyExprImpl() const override;
+	bool HasTiledRangeData() const override { if constexpr (has_var_range_field_v<V>) return m_RangeDataPtr; return true; }
+	bool HasVarRange() const override { return ranged_unit_v<V>; }
+	bool CanBeDomain() const override { return indexable_unit_v<V>; }
+
+	TIC_CALL void SetMaxRange() override;
+	TIC_CALL SharedStr GetRangeAsStr(FormattingFlags ff) const override;
+	void ClearDataObject(garbage_can& g) const override;
+	void CopyProps(TreeItem* result, const CopyTreeContext& copyContext) const override;
+	void LoadBlobStream (const InpStreamBuff* is) override;
+	void StoreBlobStream(      OutStreamBuff* os) const override;
+
+	auto GetTiledRangeData() const -> SharedPtr<const AbstrTileRangeData> override;
+	bool IsTiled() const override;
+	bool IsCurrTiled() const override;
+	bool ContainsUndefined(tile_id t) const override;
+
+	row_id GetBase() const override;
+	row_id GetCount() const override;
+	row_id GetDataCount() const override;
+	row_id GetPreparedCount(bool throwOnUndefined = true) const override;
+	tile_offset GetPreparedTileCount(tile_id t) const override;
+	tile_offset GetTileCount(tile_id t) const override;
+	void SetCount(SizeT) override;
+
+	row_id GetDimSize(DimType dimNr) const override;
+	auto CreateAbstrValueAtIndex(SizeT i) const -> std::unique_ptr<AbstrValue> override;
+	SizeT GetIndexForAbstrValue(const AbstrValue&) const override;
+
+//	Support for Numerics: the 1-dimensional ranges
+	Range<Float64> GetRangeAsFloat64() const override;
+	TIC_CALL void SetRangeAsFloat64(Float64 begin, Float64 end) override;
+	TIC_CALL void SetRangeAsUInt64 (UInt64  begin, UInt64  end) override;
+
+//	Support for Geometrics: the point types
+	IRect   GetRangeAsIRect() const override;
+	DRect   GetRangeAsDRect() const override;
+	IRect   GetTileRangeAsIRect(tile_id t) const override;
+	I64Rect GetTileSizeAsI64Rect(tile_id t) const override;
+	void SetRangeAsIPoint(Int32 rowBegin, Int32 colBegin, Int32 rowEnd, Int32 colEnd, UInt16 blockSizeY, UInt16 blockSizeX) override;
+	void SetRangeAsDPoint(Float64 rowBegin, Float64 colBegin, Float64 rowEnd, Float64 colEnd) override;
+
+//	Metric and projection; both are answered for the referred item when there is one
+	const UnitMetric*     GetMetric()         const override;
+	const UnitMetric*     GetCurrMetric()     const override;
+	void SetMetric(SharedPtr<const UnitMetric> m) override;                 // only from Update or Create
+	const UnitProjection* GetProjection()     const override;
+	const UnitProjection* GetCurrProjection() const override;
+	void SetProjection(SharedPtr<const UnitProjection> p) override;         // only from Update or Create
+
 //	implement AbstrUnit virtuals
 	DimType GetNrDimensions() const override;
 
 //	Visitor support
 	void InviteUnitProcessor(const UnitProcessor& visitor) const override;
 
-private: friend Object* CreateFunc<Unit<V> >();
+	~Unit(); // out of line: hides the dtors of SharedPtr<const UnitMetric> / <const UnitProjection>
+
+private:
+	void LoadRangeImpl (BinaryInpStream&);
+	void StoreRangeImpl(BinaryOutStream&) const;
+
+	[[no_unique_address]] mutable std::conditional_t<ranged_unit_v<V>, SharedPtr<const UnitMetric>,     Void> m_Metric;
+	[[no_unique_address]] mutable std::conditional_t<geo_unit_v<V>,    SharedPtr<const UnitProjection>, Void> m_Projection;
+
+	friend Object* CreateFunc<Unit<V> >();
 	Unit();
 
 	DECL_RTTI(TIC_CALL, UnitClass)

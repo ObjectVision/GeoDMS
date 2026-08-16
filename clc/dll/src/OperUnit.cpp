@@ -414,7 +414,7 @@ struct BaseUnitOperator : AbstrBaseUnitOperator
 // DataController key expression instead of being packed into a base-unit symbol as
 // "<SpatialReference>\xFF<DialogData>".
 //
-// UnitBase<V>::GetKeyExprImpl currently emits it as a WRAPPER around the old term:
+// Unit<V>::GetKeyExprImpl currently emits it as a WRAPPER around the old term:
 //     (CrsUnit "EPSG:28992" (BaseUnit "EPSG:28992\xFFwmts_layer" (fpoint)))
 // so the packed metric -- and therefore every existing 0xFF fallback -- keeps working
 // unchanged while the new channel is validated alongside it. See
