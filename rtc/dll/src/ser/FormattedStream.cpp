@@ -21,7 +21,8 @@
 #include "ser/StringStream.h"
 #include "set/rangefuncs.h"
 #include "utl/Environment.h"
-#include "utl/mySPrintF.h"
+#include "utl/Registry.h"
+#include "utl/StrFormat.h"
 
 
 // *****************************************************************************

@@ -9,6 +9,7 @@
 #endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "PerfMeasurement.h"
+#include "utl/Registry.h" // IsPerformanceLogging
 
 #include "AbstrDataItem.h"
 #include "AbstrDataObject.h"
@@ -18,7 +19,7 @@
 #include "TreeItem.h"
 #include "dbg/Check.h"
 #include "dbg/SeverityType.h"
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 
 namespace {
 

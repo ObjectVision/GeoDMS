@@ -10,6 +10,7 @@
 #include "DmsTreeView.h"
 #include "ExportInfo.h"
 #include "utl/Environment.h"
+#include "utl/FileSystem.h"
 #include "Parallel.h"
 #include "ptr/SharedStr.h"
 #include "TicInterface.h"

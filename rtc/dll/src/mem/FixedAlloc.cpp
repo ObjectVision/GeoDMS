@@ -59,7 +59,8 @@
 #include "geo/mpf.h"
 #include "mem/FixedAlloc.h"
 #include "set/VectorFunc.h"
-#include "utl/Environment.h" // RegDWordEnum::MemoryDrainage: the drainage on/off setting
+#include "utl/Environment.h"
+#include "utl/Registry.h" // RegDWordEnum::MemoryDrainage: the drainage on/off setting
 #include "utl/IncrementalLock.h"
 #include "utl/MemGuard.h"    // IsLowOnFreeRAM: RAM use vs MemoryFlushThreshold, the drainage trigger
 #include "xct/DmsException.h"
@@ -1252,7 +1253,7 @@ void LeaveToStock(void* objectPtr, size_t objectSize) {
 
 #if defined(MG_CACHE_ALLOC)
 
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 
 #if defined(WIN32)
 #include <Psapi.h>

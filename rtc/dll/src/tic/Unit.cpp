@@ -19,7 +19,7 @@
 #include "ser/RangeStream.h"
 #include "ser/SequenceArrayStream.h"
 #include "utl/IncrementalLock.h"
-#include "utl/mySPrintF.h" 
+#include "utl/FixedBufferFormat.h" 
 
 #include "AbstrCalculator.h"
 #include "AbstrDataItem.h"

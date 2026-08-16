@@ -26,7 +26,7 @@ General Public License for more details. However, specific warranties might be
 granted by an additional written contract for support, assistance and/or development
 */
 //</HEADER>
-#include "StxPch.h"
+#include "StxPCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
@@ -37,7 +37,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "mci/CompositeCast.h"
 #include "mci/ValueClass.h"
 #include "mci/ValueClassID.h"
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 
 #include "AbstrDataItem.h"
 #include "DataArray.h"

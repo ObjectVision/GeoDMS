@@ -2,7 +2,8 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
-#include "StxPch.h"
+#include "StxPCH.h"
+#include "TreeItemFunctionSpec.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
@@ -16,7 +17,7 @@
 #include "mci/PropDef.h"
 #include "mci/ValueClass.h"
 #include "mci/ValueClassID.h"
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 
 #include "stg/StorageInterface.h"
 

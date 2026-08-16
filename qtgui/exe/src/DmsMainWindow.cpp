@@ -15,7 +15,10 @@
 
 #include "utl/Encodes.h"
 #include "utl/Environment.h"
-#include "utl/mySPrintF.h"
+#include "utl/FileSystem.h"
+#include "utl/Registry.h"
+#include "utl/FixedBufferFormat.h"
+#include "utl/StrFormat.h"
 #include "utl/scoped_exit.h"
 #include "utl/splitPath.h"
 

@@ -17,7 +17,7 @@
 #include "mci/PropDef.h"
 #include "mci/PropdefEnums.h"
 #include "xml/XmlConst.h"
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 #include "utl/Quotes.h"
 
 //----------------------------------------------------------------------

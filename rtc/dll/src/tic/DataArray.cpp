@@ -797,7 +797,7 @@ LispRef DataArrayBase<V>::GetValuesAsKeyArgs(LispPtr valuesUnitKeyExpr) const
 // normal code
 template <class V> const Class* TileFunctor<V>::GetDynamicClass() const { return GetStaticClass(); }
 
-#include "utl/mySPrintF.h"
+#include "utl/FixedBufferFormat.h"
 
 template <typename T>
 TokenID GetDataItemClassID()

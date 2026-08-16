@@ -13,6 +13,8 @@
 #include "mem/FixedAlloc.h"
 #include "utl/MemGuard.h"
 #include "utl/Environment.h"
+#include "utl/PlatformError.h"
+#include "utl/Registry.h"
 
 #if defined(WIN32)
 

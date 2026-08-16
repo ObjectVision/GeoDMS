@@ -35,7 +35,8 @@
 #include "mem/MyContainers.h"
 
 #include "dbg/SeverityType.h"
-#include "utl/Environment.h" // IsPerformanceLogging
+#include "utl/Environment.h"
+#include "utl/Registry.h" // IsPerformanceLogging
 
 
 

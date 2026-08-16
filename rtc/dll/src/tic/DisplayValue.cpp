@@ -18,7 +18,7 @@
 #include "mci/AbstrValue.h"
 #include "mci/ValueWrap.h"
 #include "geo/Point.h"
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 
 #include "DataLocks.h"
 #include "AbstrDataItem.h"

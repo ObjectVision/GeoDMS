@@ -416,7 +416,7 @@
     <ClInclude Include="src\ShvDllInterface.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\ShvDllPch.h">
+    <ClInclude Include="src\ShvDllPCH.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\ShvSignal.h">

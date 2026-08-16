@@ -70,10 +70,10 @@
     </Link>
   </ItemDefinitionGroup>
   <PropertyGroup>
-    <DmsPchHeader>ShvDllPch.h</DmsPchHeader>
+    <DmsPchHeader>ShvDllPCH.h</DmsPchHeader>
   </PropertyGroup>
   <ItemGroup>
-    <ClCompile Include="src\ShvDllPch.cpp">
+    <ClCompile Include="src\ShvDllPCH.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="src\ActivationInfo.cpp" />
@@ -222,7 +222,7 @@
     <ClInclude Include="src\selcaret.h" />
     <ClInclude Include="src\ShvBase.h" />
     <ClInclude Include="src\ShvDllInterface.h" />
-    <ClInclude Include="src\ShvDllPch.h" />
+    <ClInclude Include="src\ShvDllPCH.h" />
     <ClInclude Include="src\ShvSignal.h" />
     <ClInclude Include="src\ShvUtils.h" />
     <ClInclude Include="src\TableControl.h" />

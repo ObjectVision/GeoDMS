@@ -301,7 +301,7 @@ auto HeapSingleValue<V>::GetTile(tile_id t) const -> locked_cseq_t
 #include "mem/MappedSequenceProvider.h"
 #include "geo/mpf.h"
 #include "utl/splitPath.h"
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 
 SharedStr TileSuffix(tile_id t)
 {

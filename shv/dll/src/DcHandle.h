@@ -16,6 +16,7 @@
 #include "ShvUtils.h"
 
 #include "utl/Environment.h"
+#include "utl/PlatformError.h"
 #include "utl/swapper.h"
 
 //----------------------------------------------------------------------

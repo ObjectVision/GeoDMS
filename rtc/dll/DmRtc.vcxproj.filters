@@ -458,13 +458,25 @@
     <ClInclude Include="src\utl\Environment.h">
       <Filter>Utility Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\utl\FileSystem.h">
+      <Filter>Utility Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\utl\PlatformError.h">
+      <Filter>Utility Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\utl\TimeFmt.h">
+      <Filter>Utility Files</Filter>
+    </ClInclude>
     <ClInclude Include="src\utl\IncrementalLock.h">
       <Filter>Utility Files</Filter>
     </ClInclude>
     <ClInclude Include="src\utl\Instantiate.h">
       <Filter>Utility Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\utl\mySPrintF.h">
+    <ClInclude Include="src\utl\FixedBufferFormat.h">
+      <Filter>Utility Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\utl\StrFormat.h">
       <Filter>Utility Files</Filter>
     </ClInclude>
     <ClInclude Include="src\utl\Quotes.h">
@@ -1238,7 +1250,7 @@
     <ClCompile Include="src\utl\Environment.cpp">
       <Filter>Utility Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\utl\mySPrintF.cpp">
+    <ClCompile Include="src\utl\StrFormat.cpp">
       <Filter>Utility Files</Filter>
     </ClCompile>
     <ClCompile Include="src\utl\quotes.cpp">

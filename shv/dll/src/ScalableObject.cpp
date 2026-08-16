@@ -2,7 +2,7 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////
 
-#include "ShvDllPch.h"
+#include "ShvDllPCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
@@ -19,7 +19,7 @@
 #include "geo/Conversions.h"
 #include "geo/PointOrder.h"
 #include "geo/Range.h"
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 #include "mci/Class.h"
 #include "utl/IncrementalLock.h"
 

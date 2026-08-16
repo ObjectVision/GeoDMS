@@ -12,6 +12,7 @@
 // update flow, storage binding and interest-count management.
 
 #include "TreeItem.h"
+#include "TreeItemFunctionSpec.h"
 //----------------------------------------------------------------------
 // used modules and forward class references
 //----------------------------------------------------------------------
@@ -33,8 +34,9 @@
 #include "stg/AbstrStorageManager.h"
 #include "utl/Encodes.h"
 #include "utl/Environment.h"
+#include "utl/FileSystem.h"
 #include "utl/IncrementalLock.h"
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 #include "utl/SplitPath.h"
 #include "utl/scoped_exit.h"
 #include "utl/SourceLocation.h"

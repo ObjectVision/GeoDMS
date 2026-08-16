@@ -11,7 +11,7 @@
 #include "OperSignature.h"
 
 #include "mci/ValueClass.h"
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 
 #include "OperGroups.h"
 #include "Operator.h"

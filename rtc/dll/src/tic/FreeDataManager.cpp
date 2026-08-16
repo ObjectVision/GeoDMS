@@ -12,6 +12,7 @@
 
 #include "DbgInterface.h"
 #include "utl/Environment.h"
+#include "utl/Registry.h"
 #include "geo/Couple.h"
 #include "mci/ValueClass.h"
 #include "utl/IncrementalLock.h"

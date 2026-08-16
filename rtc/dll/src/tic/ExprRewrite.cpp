@@ -38,6 +38,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "dbg/DebugContext.h"
 #include "ser/FileStreamBuff.h"
 #include "utl/Environment.h"
+#include "utl/FileSystem.h"
 #include "utl/splitPath.h"
 
 #include "Assoc.h"

@@ -14,6 +14,7 @@
 #include "mci/CompositeCast.h"
 #include "ser/AsString.h"
 #include "utl/Environment.h"
+#include "utl/FileSystem.h"
 
 #include "Param.h"
 #include "DataArray.h"

@@ -10,7 +10,7 @@
 //----------------------------------------------------------------------
 
 #include "ptr/SharedStr.h"
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 #include "xml/xmlOut.h"
 #include "xct/ErrMsg.h"
 

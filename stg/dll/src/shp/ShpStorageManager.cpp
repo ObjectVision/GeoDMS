@@ -2,7 +2,7 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////
 
-#include "StoragePch.h"
+#include "StoragePCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
@@ -35,7 +35,7 @@
 #include "mem/SeqLock.h"
 #include "ser/BaseStreamBuff.h"  
 #include "stg/StorageClass.h"
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 
 #include "gdal/gdal_base.h" // CplString
 #include "Projection.h"

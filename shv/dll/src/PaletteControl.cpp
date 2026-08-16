@@ -2,7 +2,7 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
-#include "ShvDllPch.h"
+#include "ShvDllPCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
@@ -12,7 +12,7 @@
 #include "ptr/SharedTreePtr.h"
 
 #include "mci/ValueClass.h"
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 
 #include "DataItemClass.h"
 #include "LispTreeType.h"

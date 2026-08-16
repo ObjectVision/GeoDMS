@@ -2,7 +2,7 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////
 
-#include "ShvDllPch.h"
+#include "ShvDllPCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
@@ -16,7 +16,7 @@
 #include "act/MainThread.h"
 #include "dbg/debug.h"
 #include "dbg/SeverityType.h"
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 #include "mci/Class.h"
 #include "dbg/DmsCatch.h"
 #include "ser/FormattedStream.h"

@@ -27,7 +27,7 @@ set(STG_SOURCES
 file(GLOB_RECURSE STG_HEADERS CONFIGURE_DEPENDS src/*.h)
 
 add_library(DmStg SHARED ${STG_SOURCES} ${STG_HEADERS})
-target_precompile_headers(DmStg PRIVATE src/StoragePch.h)
+target_precompile_headers(DmStg PRIVATE src/StoragePCH.h)
 
 target_include_directories(DmStg
     PUBLIC  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
@@ -45,7 +45,7 @@ target_include_directories(DmStg
             ${CMAKE_CURRENT_SOURCE_DIR}/src/gdal
 )
 
-# DMSTGDLL_EXPORTS is defined by the DLL's PCH (src/StoragePch.h). Defining it here as
+# DMSTGDLL_EXPORTS is defined by the DLL's PCH (src/StoragePCH.h). Defining it here as
 # well caused C4005 (macro redefinition) in every TU; the .vcxproj relies on the PCH alone.
 
 find_package(GDAL)

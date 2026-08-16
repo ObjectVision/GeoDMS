@@ -2,7 +2,7 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
-#include "StxPch.h"
+#include "StxPCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
@@ -13,7 +13,7 @@
 #include "geo/BaseBounds.h"
 #include "geo/MinMax.h"
 #include "ptr/IterCast.h"
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 
 ///////////////////////////////////////////////////////////////////////////////
 //

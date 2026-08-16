@@ -10,7 +10,7 @@
 #if !defined( __STX_TEXTPOSITION_H)
 #define __STX_TEXTPOSITION_H
 
-#if !defined(__STX_PCH) && ! defined(__CLC_PCH_H)
+#if !defined(__STX_STXPCH_H) && ! defined(__CLC_PCH_H)
 #error "Include StxPCH.h from using code unit in order to support PCH"
 #endif
 

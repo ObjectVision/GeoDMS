@@ -18,7 +18,7 @@
 #include "ser/AsString.h"
 #include "dbg/SeverityType.h"
 #include "set/VectorFunc.h"
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 #include "xct/DmsException.h"
 
 #include "CheckedDomain.h"

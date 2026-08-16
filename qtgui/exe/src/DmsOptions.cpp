@@ -2,6 +2,7 @@
 #include "DmsEventLog.h"
 #include "dbg/DmsCatch.h"
 #include "utl/Environment.h"
+#include "utl/Registry.h"
 #include "mem/FixedAlloc.h" // SetFreeStackDrainageEnabled, for the F checkbox
 #include "Parallel.h"
 #include "ptr/SharedStr.h"

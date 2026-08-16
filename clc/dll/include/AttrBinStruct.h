@@ -11,7 +11,7 @@
 #include <functional>
 
 #include "mci/ValueClass.h"
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 #include "utl/StringFunc.h"
 
 #include "Prototypes.h"

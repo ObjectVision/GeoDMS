@@ -16,7 +16,7 @@
 #include <boost/beast/http.hpp>
 #include <boost/beast/websocket/stream.hpp>
 
-#include "ShvDllPch.h"
+#include "ShvDllPCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
@@ -43,7 +43,8 @@
 #include "geo/PointOrder.h"
 #include "ser/FileStreamBuff.h"
 #include "utl/Environment.h"
-#include "utl/mySPrintF.h"
+#include "utl/FileSystem.h"
+#include "utl/StrFormat.h"
 #include "utl/encodes.h"
 
 #include "gdal/gdal_base.h"

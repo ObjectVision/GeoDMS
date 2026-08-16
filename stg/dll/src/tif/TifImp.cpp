@@ -2,7 +2,7 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
-#include "StoragePch.h"
+#include "StoragePCH.h"
 #include "ImplMain.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
@@ -18,7 +18,8 @@
 #include "geo/PointOrder.h"
 #include "ptr/SharedStr.h"
 #include "utl/Environment.h"
-#include "utl/mySPrintF.h"
+#include "utl/FileSystem.h"
+#include "utl/FixedBufferFormat.h"
 #include "mci/ValueClassId.h"
 
 #include <tiff.h> // See http://www.libtiff.org/man/TIFFGetField.3t.html for TIFFTAG specification

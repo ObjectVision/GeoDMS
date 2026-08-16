@@ -22,7 +22,7 @@
 #include "mci/ValueClassID.h"
 #include "set/StaticQuickAssoc.h"
 #include "set/VectorFunc.h"
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 #include "utl/Quotes.h"
 #include "xct/DmsException.h"
 

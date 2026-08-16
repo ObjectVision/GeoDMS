@@ -68,6 +68,7 @@
 #endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "OperationContext.h"
+#include "utl/Registry.h" // resource_scheduling, RTC_GetRegDWord
 
 #include <deque>
 
@@ -78,7 +79,7 @@
 #include "dbg/SeverityType.h"
 #include "ser/AsString.h"
 #include "utl/memGuard.h"
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 #include "utl/scoped_exit.h"
 #include "utl/IncrementalLock.h"
 #include "xct/DmsException.h"

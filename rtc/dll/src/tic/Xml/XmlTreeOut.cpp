@@ -20,6 +20,8 @@
 #include "ser/AsString.h"
 #include "ser/FileStreamBuff.h"
 #include "utl/Environment.h"
+#include "utl/FileSystem.h"
+#include "utl/Registry.h"
 #include "utl/splitPath.h"
 #include "xct/DmsException.h"
 

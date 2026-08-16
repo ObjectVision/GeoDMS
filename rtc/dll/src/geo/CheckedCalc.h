@@ -12,7 +12,7 @@
 #include "mci/ValueClass.h"
 #include "mci/ValueWrap.h"
 #include "ser/AsString.h"
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 #include "ser/StringStream.h"
 
 // *****************************************************************************

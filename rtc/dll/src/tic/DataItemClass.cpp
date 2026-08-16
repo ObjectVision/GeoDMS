@@ -248,7 +248,7 @@ IMPL_RTTI_METACLASS(DataItemClass, "DATAITEM", DataItemClass::CreateFromXml)
 #include "TicInterface.h"
 
 #include "AbstrUnit.h"
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 
 TIC_CALL AbstrDataItem* DMS_CONV DMS_CreateDataItem(
 	TreeItem*        context, 

@@ -8,7 +8,7 @@
 #pragma hdrstop
 #endif
 
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 
 #include "AbstrUnit.h"
 #include "CopyTreeContext.h"

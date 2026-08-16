@@ -1,254 +1,52 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #if defined(_MSC_VER)
 #pragma once
 #endif
 
-#if !defined(__RTC_UTL_ENVIRONMENT_H)
-#define __RTC_UTL_ENVIRONMENT_H
+/*
+ *  Process/session environment: the global main-window handle, waiting and
+ *  yielding, stack-space measurement, child-process launching, message-pump
+ *  queries, platform identification (PlatformInfo) and UTF-8/wide-char
+ *  conversion. The former registry, file-system, OS-error and time-format
+ *  clusters moved to utl/Registry.h, utl/FileSystem.h, utl/PlatformError.h
+ *  and utl/TimeFmt.h (header-hygiene-2026-08.md §5A); include those
+ *  directly where used.
+ */
+
+#if !defined(__UTL_ENVIRONMENT_H)
+#define __UTL_ENVIRONMENT_H
+
+#include <atomic>
+#include <memory>
+#include <utility>
 
 #include "cpc/Types.h"
-#include "geo/iterrange.h"
-#include "ptr/OwningPtrArray.h"
 #include "ptr/SharedStr.h"
 
 //  -----------------------------------------------------------------------
-namespace platform {
-	RTC_CALL SharedStr GetSystemErrorText(DWORD lastErr);
-	RTC_CALL DWORD GetLastError();
-	RTC_CALL bool isCharPtrAndExceeds_MAX_PATH(CharPtr xFileName);
-}
-
-template<typename T>
-bool isCharPtrAndExceeds_MAX_PATH(const T& xFileName) { return false;  }
-
-template<typename ...Args>
-[[noreturn]] void throwSystemError(DWORD lastErr, CharPtr format, Args&&... args)
-{
-	throwErrorF("WindowsSystem", "{}:\nErrorCode {}: {}{}"
-	,	mgFormat2string<Args...>(format, std::forward<Args>(args)...).c_str()
-	,	lastErr
-	,	::platform::GetSystemErrorText(lastErr).c_str()
-	,	(... || isCharPtrAndExceeds_MAX_PATH(args)) ? "\nNote that filenames cannot be longer than 260 characters" : ""
-	);
-}
-
-template<typename ...Args>
-[[noreturn]] void throwLastSystemError(CharPtr format, Args&&... args) {
-	throwSystemError<Args...>(::platform::GetLastError(), format, std::forward<Args>(args)...);
-}
-
-bool ManageSystemError(UInt32& retryCounter, CharPtr format, CharPtr fileName, bool throwOnError, bool doRetry);
 
 extern "C" RTC_CALL void* SetGlobalMainWindowHandle(void* hWindow); // Delphi code also calls this
 extern "C" RTC_CALL void* GetGlobalMainWindowHandle(); // Delphi code could also call this
 
 //  -----------------------------------------------------------------------
 
-// GetCurrentDir()
-//
-// CurrDir contains current main configuration file; does NOT end with '/'
-// main configuration directory (is a sub dir from Current Dir) contains config.ini 
-// data file location can be defined in config.ix (with an absolute or relative path)
-
-RTC_CALL SharedStr GetCurrentDir(); 
-
-// ExeDir contains DmsClient.exe (+dlls?) and dms.ini; does NOT end with '/' 
-
-RTC_CALL SharedStr GetExeDir();     
-RTC_CALL SharedStr GetLocalDataDir();
-RTC_CALL SharedStr GetSourceDataDir();
-RTC_CALL SharedStr ConvertDosFileName(WeakStr fileName);
-RTC_CALL SharedStr GetConvertedGeoDmsRegKey(CharPtr key);
-RTC_CALL SharedStr ConvertDmsFileName(WeakStr path);
-RTC_CALL SharedStr ConvertDmsFileNameAlways(SharedStr&& path); // for updated WinAPI funcs
-RTC_CALL void ReplaceSpecificDelimiters(MutableCharPtrRange range, const char delimiter);
-
-enum RegStatusFlags
-{
-	// flags only used in GeoDmsClient.exe
-	RSF_AdminMode = 1,
-	RSF_SuspendForGUI = 2,
-	RSF_ShowStateColors = 4,
-	RSF_TraceLogFile = 8,
-
-	RSF_TreeViewVisible = 16,
-	RSF_DetailsVisible = 32,
-	RSF_EventLogVisible = 64,
-	RSF_ToolBarVisible = 128,
-	RSF_CurrentItemBarHidden = 0x800,
-	RSF_AllPanelsVisible = RSF_TreeViewVisible + RSF_DetailsVisible + RSF_EventLogVisible + RSF_ToolBarVisible,
-
-	RSF_DynamicROI = 0x1000,
-
-	//  Flags really in use by the GeoDMS C++ Engine
-	RSF_MultiThreading0 = RSF_SuspendForGUI,
-	RSF_MultiThreading1 = 0x100,
-	RSF_DebugMode       = 0x200,
-	RSF_MultiThreading2 = 0x400,
-	RSF_MultiThreading3 = 0x2000,
-	RSF_AllMultiThreading = RSF_SuspendForGUI | RSF_MultiThreading1 | RSF_MultiThreading2 | RSF_MultiThreading3,
-
-	RSF_ShowThousandSeparator = 0x4000,
-
-	RSF_EventLog_ShowDateTime = 0x8000,
-	RSF_EventLog_ShowThreadID = 0x10000,
-	RSF_EventLog_ShowCategory = 0x20000,
-	RSF_EventLog_ShowAnyExtra = RSF_EventLog_ShowDateTime | RSF_EventLog_ShowThreadID | RSF_EventLog_ShowCategory,
-
-	RSF_EventLog_ClearOnLoad = 0x40000,
-	RSF_EventLog_ClearOnReLoad = 0x80000,
-
-	RSF_TreeView_FollowOSLayout  = 0x100000,
-	RSF_EventLog_ShowMinorTrace  = 0x200000,
-	RSF_EventLog_HideMajorTrace  = 0x400000,
-	RSF_EventLog_HideDepreciated = 0x800000,
-	RSF_EventLog_HideWarning     = 0x1000000,
-	RSF_EventLog_HideError       = 0x2000000,
-	RSF_EventLog_HideStorageRead = 0x4000000,
-	RSF_EventLog_HideStorageWrite= 0x8000000,
-//	RSF_EventLog_ShowConnection  = 0x10000000, out of bits, forget it
-//	RSF_EventLog_ShowRequest     = 0x20000000,out of bits, forget it
-	RSF_EventLog_HideCommands    = 0x10000000,
-	RSF_EventLog_ShowMemory      = 0x20000000,
-	RSF_EventLog_HideOther       = 0x40000000,
-
-	RSF_WasRead = 0x80000000,
-	RSF_Default = RSF_AdminMode | RSF_ShowStateColors | RSF_AllPanelsVisible | RSF_AllMultiThreading
-		| RSF_EventLog_ClearOnLoad | RSF_EventLog_ShowDateTime | RSF_EventLog_ShowCategory,
-};
-
-RTC_CALL UInt32 GetRegStatusFlags();
-RTC_CALL void SetCachedStatusFlag(UInt32 newSF, bool newVal = true);
-RTC_CALL void SetRegStatusFlags(UInt32 newSF);
-RTC_CALL void SetStatusFlag(UInt32 newSF, bool newVal);
-RTC_CALL bool HasDynamicROI();
-RTC_CALL bool ShowThousandSeparator();
-RTC_CALL bool EventLog_HideDepreciatedCaseMixupWarnings();
-
-
-//  -----------------------------------------------------------------------
-
-enum class RegDWordEnum
-{
-	MemoryFlushThreshold = 0,
-	SwapFileMinSize = 1,
-	DrawingSizeInPixels = 2,
-	MemoryRAM_MAX_GB = 3,
-	PerformanceLogging = 4,
-	ResourceAwareScheduling = 5, // 0 = off, 1 = shadow (log what would be refused), 2 = enforce
-	SchedulerBudgetMB = 6,       // 0 = derive from MemoryRAM_MAX_GB x MemoryFlushThreshold
-	MemoryDrainage = 7,          // 1 = give freed <2MB stores back once RAM use passes MemoryFlushThreshold (default), 0 = never
-};
-
-// Resource-aware admission of operations (doc/development/schedule-with-lookahead.md §5.1).
-// 0 = off (default), 1 = shadow: decide and report, never withhold, 2 = enforce.
-// Cached like IsPerformanceLogging, so the run gate pays one relaxed load.
-enum class resource_scheduling : UInt8 { off = 0, shadow = 1, enforce = 2 };
-RTC_CALL resource_scheduling GetResourceScheduling();
-RTC_CALL void SetResourceScheduling(resource_scheduling mode);
-
-// Whether to measure and report per-operation cost and footprint under MsgCategory::performance.
-// Off by default; caches the PerformanceLogging setting so hot paths pay one relaxed load.
-RTC_CALL bool IsPerformanceLogging();
-
-// Session-local override of that setting, as the /SP and /CP command-line options do.
-RTC_CALL void SetPerformanceLogging(bool enable);
-
-extern "C" RTC_CALL DWORD DMS_CONV RTC_GetRegDWord(RegDWordEnum i);
-extern "C" RTC_CALL void  DMS_CONV RTC_SetCachedDWord(RegDWordEnum i, DWORD dw);
-extern "C" RTC_CALL bool  DMS_CONV RTC_ParseRegStatusFlag(CharPtr param);
-
-RTC_CALL void ParseRegStatusFlags(int& argc, char**& argv);
-
-RTC_CALL SharedStr GetGeoDmsRegKey(CharPtr key);
-RTC_CALL auto GetGeoDmsRegKeyMultiString(CharPtr key) -> std::vector<SharedStr>;
-
-// Session-local overrides (not persisted to registry, only affects current session)
-RTC_CALL void SetSessionLocalOverride(CharPtr key, CharPtr value);
-RTC_CALL void ClearSessionLocalOverride(CharPtr key);
-RTC_CALL bool HasSessionLocalOverride(CharPtr key);
-RTC_CALL SharedStr GetSessionLocalOverride(CharPtr key);
-
-RTC_CALL DWORD GetGeoDmsRegKeyDWord(CharPtr key, DWORD defaultValue, CharPtr section = "");
-RTC_CALL bool SetGeoDmsRegKeyDWord(CharPtr key, DWORD dw, CharPtr section = "");
-RTC_CALL bool SetGeoDmsRegKeyString(CharPtr key, CharPtr str);
-RTC_CALL bool SetGeoDmsRegKeyMultiString(CharPtr key, const std::vector<SharedStr>& strings);
-
-//  -----------------------------------------------------------------------
-
-struct FindFileBlock
-{
-	RTC_CALL FindFileBlock(WeakStr fileSearchSpec);
-	RTC_CALL FindFileBlock(FindFileBlock&& src) noexcept;
-	RTC_CALL ~FindFileBlock() noexcept;
-
-	RTC_CALL bool    IsValid() const;
-	RTC_CALL CharPtr GetCurrFileName() const;          // UTF-8 (transcoded from WIN32_FIND_DATAW::cFileName)
-	RTC_CALL DWORD   GetFileAttr() const;
-	RTC_CALL bool    IsDirectory() const;
-	RTC_CALL FileDateTime GetFileOrDirDateTime() const;
-
-	RTC_CALL bool    Next();
-
-private:
-	// m_Data carries a WIN32_FIND_DATAW (wide-char filenames). m_CurrFileNameUtf8
-	// is refreshed from cFileName whenever the iterator advances, so that
-	// GetCurrFileName() can hand back a stable UTF-8 string pointer to callers.
-	std::unique_ptr<Byte[]> m_Data;
-	HANDLE                  m_Handle;
-	mutable SharedStr       m_CurrFileNameUtf8;
-};
-
 using start_process_result_t = std::pair<HANDLE, HANDLE>;
 
-RTC_CALL SharedStr AsDateTimeString(FileDateTime t);
-RTC_CALL SharedStr GetCurrentTimeStr();
-RTC_CALL SharedStr GetSessionStartTimeStr();
-
-//  -----------------------------------------------------------------------
-
-RTC_CALL FileDateTime AsFileDateTime(UInt32 hiDW, UInt32 loDW);
-
-//  -----------------------------------------------------------------------
-
-RTC_CALL void   MakeDir(WeakStr dirName);
-RTC_CALL void   CopyFileOrDir(CharPtr srcFileOrDirName, CharPtr destFileOrDirName, bool mayBeMissing);
-RTC_CALL bool   MoveFileOrDir(CharPtr srcFileOrDirName, CharPtr destFileOrDirName, bool mayBeMissing);
-RTC_CALL bool   KillFileOrDir(WeakStr fileOrDirName, bool canBeDir = true);
 RTC_CALL void   Wait(UInt32 nrMillisecs);
 RTC_CALL void   DmsYield(UInt32 nrMillisecs = 50);
 RTC_CALL SizeT  RemainingStackSpace();
-RTC_CALL bool   IsFileOrDirAccessible(WeakStr fileOrDirName);
-RTC_CALL bool   IsFileOrDirWritable(WeakStr fileOrDirName);
-RTC_CALL void   GetWritePermission(WeakStr fileName);
-RTC_CALL FileDateTime GetFileOrDirDateTime(WeakStr fileOrDirName);
-RTC_CALL auto   GetFileOrDirDateTimeAsReadableString(WeakStr fileOrDirName) -> SharedStr;
-RTC_CALL void   MakeDirsForFile(WeakStr fileName);
 RTC_CALL start_process_result_t StartChildProcess(CharPtr moduleName, Char* cmdLine = nullptr);
 RTC_CALL DWORD  ExecuteChildProcess(CharPtr moduleName, Char* cmdLine);
-RTC_CALL bool   HasDosDelimiters(CharPtr source);
-RTC_CALL bool   HasDosDelimiters(CharPtrRange source);
-RTC_CALL bool   IsRelative(CharPtr source);
 
 extern "C" {
 
 RTC_CALL bool   DMS_CONV HasWaitingMessages();
-
-RTC_CALL void   DMS_CONV SetCurrentDir(CharPtr dir);
 RTC_CALL void   DMS_CONV DMS_Appl_SetFont();
-RTC_CALL void   DMS_CONV DMS_Appl_SetRegStatusFlags(UInt32 sf);
-RTC_CALL UInt32 DMS_CONV DMS_Appl_GetRegStatusFlags();
+
 }	// extern "C"
-
-RTC_CALL bool IsInDebugMode();
-
-RTC_CALL Int32     GetConfigKeyValue (WeakStr configFileName, CharPtr sectionName, CharPtr keyName, Int32   defaultValue);
-RTC_CALL SharedStr GetConfigKeyString(WeakStr configFileName, CharPtr sectionName, CharPtr keyName, CharPtr defaultValue);
-RTC_CALL void      SetConfigKeyString(WeakStr configFileName, CharPtr sectionName, CharPtr keyName, CharPtr keyValue);
-RTC_CALL Int64     GetSecsSince1970();
 
 namespace PlatformInfo
 {
@@ -266,4 +64,4 @@ RTC_CALL std::unique_ptr<wchar_t[]> Utf8_2_wchar(CharPtr utf8str, int strLen = -
 RTC_CALL std::unique_ptr<wchar_t[]> Utf8_2_wchar(WeakStr utf8str);
 RTC_CALL auto wchar_2_Utf8Str(const wchar_t* wCharStr, int strLen = -1) -> SharedStr;
 
-#endif // __RTC_UTL_ENVIRONMENT_H
+#endif // __UTL_ENVIRONMENT_H

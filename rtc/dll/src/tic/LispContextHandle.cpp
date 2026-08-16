@@ -37,7 +37,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "dbg/SeverityType.h"
 #include "ser/AsString.h"
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 
 #if defined(MG_DEBUG)
 #define MG_DEBUG_LISPCONTEXT

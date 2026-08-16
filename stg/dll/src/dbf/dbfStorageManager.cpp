@@ -2,7 +2,7 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
-#include "StoragePch.h"
+#include "StoragePCH.h"
 #include "ImplMain.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
@@ -20,7 +20,7 @@
 #include "dbg/debug.h"
 #include "mci/ValueClassID.h"  
 #include "ser/BaseStreamBuff.h"  
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 
 #include "AbstrDataItem.h"						
 #include "DataItemClass.h"

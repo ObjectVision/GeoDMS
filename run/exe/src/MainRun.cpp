@@ -18,6 +18,8 @@
 #include "ptr/AutoDeletePtr.h"
 #include "utl/Encodes.h"
 #include "utl/Environment.h"
+#include "utl/FileSystem.h"
+#include "utl/Registry.h"
 #include "utl/scoped_exit.h"
 #include "utl/splitPath.h"
 #include "act/MainThread.h" // SetMainThreadID

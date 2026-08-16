@@ -28,6 +28,7 @@
 #include "TreeItem.h"
 #include "TreeItemUtils.h"
 #include "utl/Environment.h"
+#include "utl/Registry.h"
 #include <QMainWindow>
 #include <QApplication>
 

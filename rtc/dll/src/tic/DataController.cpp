@@ -17,7 +17,7 @@
 #include "act/UpdateMark.h"
 #include "dbg/SeverityType.h"
 #include "ser/AsString.h"
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 
 #include "LispRef.h"
 

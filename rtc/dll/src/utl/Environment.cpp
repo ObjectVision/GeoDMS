@@ -13,6 +13,10 @@
 // implemented in an MSVC section and a POSIX section.
 
 #include "utl/Environment.h"
+#include "utl/FileSystem.h"
+#include "utl/PlatformError.h"
+#include "utl/Registry.h"
+#include "utl/TimeFmt.h"
 
 #include "dbg/DmsCatch.h"
 #include "geo/Conversions.h"
@@ -22,7 +26,7 @@
 #include "mem/FixedAlloc.h" // SetFreeStackDrainageEnabled: the /SF - /CF switch
 #include "ptr/IterCast.h"
 #include "set/IndexedStrings.h"
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 #include "utl/splitPath.h"
 #include "LockLevels.h"
 #include <thread>

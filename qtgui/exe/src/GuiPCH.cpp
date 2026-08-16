@@ -5,4 +5,4 @@
 // Compiled with PrecompiledHeader=Create to produce this project's .pch
 // (see DmsDef.props); the header itself arrives via ForcedIncludeFiles.
 
-#include "GuiPch.h"
+#include "GuiPCH.h"

@@ -17,6 +17,8 @@
 #include "set/MemPageTable.h"
 #include "set/RangeFuncs.h"
 #include "utl/Environment.h"
+#include "utl/FileSystem.h"
+#include "utl/PlatformError.h"
 #include "utl/MemGuard.h"
 #include "utl/scoped_exit.h"
 

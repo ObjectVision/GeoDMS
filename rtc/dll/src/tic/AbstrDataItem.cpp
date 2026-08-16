@@ -26,7 +26,7 @@
 #include "mci/ValueClass.h"
 #include "mci/PropDef.h"
 #include "ser/FileCreationMode.h"
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 #include "utl/scoped_exit.h"
 #include "xml/XmlOut.h"
 

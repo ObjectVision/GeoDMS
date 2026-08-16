@@ -15,7 +15,7 @@
 #include "ser/BaseStreamBuff.h"
 #include "ser/FormattedStream.h"
 #include "ser/StreamException.h"
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 #include "geo/Conversions.h"
 
 // *****************************************************************************

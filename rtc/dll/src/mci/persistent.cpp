@@ -17,7 +17,8 @@
 #include "dbg/DmsCatch.h"
 #include "dbg/debug.h"
 #include "utl/splitPath.h"
-#include "utl/mySPrintF.h"
+#include "utl/FixedBufferFormat.h"
+#include "utl/StrFormat.h"
 #include "xct/DmsException.h"
 
 // *****************************************************************************

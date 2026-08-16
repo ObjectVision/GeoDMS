@@ -15,7 +15,7 @@
 #include "geo/DataPtrTraits.h"
 #include "mci/ValueClass.h"
 #include "mci/ValueClassID.h"
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 #include "xct/DmsException.h"
 
 #include "RtcTypeLists.h"

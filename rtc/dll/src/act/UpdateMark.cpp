@@ -14,7 +14,7 @@
 #include "dbg/Check.h"
 #include "dbg/SeverityType.h"
 #include "ptr/SharedStr.h"
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 #include "Parallel.h"
 
 #include <algorithm>

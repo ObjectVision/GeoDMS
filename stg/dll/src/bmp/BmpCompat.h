@@ -23,7 +23,8 @@
 #include <sys/stat.h>
 
 #include "cpc/Types.h"       // DWORD, HANDLE, LONG, etc.
-#include "utl/Environment.h"  // ConvertDmsFileName
+#include "utl/Environment.h"
+#include "utl/FileSystem.h"  // ConvertDmsFileName
 
 typedef uint16_t WORD;
 

@@ -18,7 +18,7 @@
 #include "ser/StringStream.h"
 #include "ser/AsString.h"
 #include "set/Token.h"
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 
 #include "PropDefInterface.h"
 

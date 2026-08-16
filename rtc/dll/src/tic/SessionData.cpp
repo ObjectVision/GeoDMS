@@ -13,6 +13,7 @@
 #include "act/UpdateMark.h"
 #include "dbg/DmsCatch.h"
 #include "utl/Environment.h"
+#include "utl/FileSystem.h"
 #include "utl/splitPath.h"
 
 #include "Crs.h"

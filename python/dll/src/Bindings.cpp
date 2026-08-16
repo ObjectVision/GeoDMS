@@ -17,6 +17,7 @@
 #include "ptr/AutoDeletePtr.h"
 #include "utl/Encodes.h"
 #include "utl/Environment.h"
+#include "utl/FileSystem.h"
 #include "utl/scoped_exit.h"
 #include "act/MainThread.h" // SetMainThreadID
 #include "utl/splitPath.h"

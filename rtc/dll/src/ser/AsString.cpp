@@ -16,7 +16,7 @@
 #include "ser/StringStream.h"
 #include "ser/SequenceArrayStream.h"
 #include "ser/MoreStreamBuff.h"
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 #include "utl/Quotes.h"
 
 

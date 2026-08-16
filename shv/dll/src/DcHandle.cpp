@@ -2,7 +2,7 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////
 
-#include "ShvDllPch.h"
+#include "ShvDllPCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
@@ -14,6 +14,7 @@
 
 #include "dbg/debug.h"
 #include "utl/Environment.h"
+#include "utl/PlatformError.h"
 #include "ser/AsString.h"
 
 #include "DataView.h"

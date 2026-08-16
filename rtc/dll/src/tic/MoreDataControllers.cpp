@@ -20,7 +20,7 @@
 #include "dbg/SeverityType.h"
 #include "geo/StringArray.h"
 #include "ser/FileStreamBuff.h"
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 #include "utl/swap.h"
 #include "xct/DmsException.h"
 

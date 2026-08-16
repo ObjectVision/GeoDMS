@@ -63,7 +63,8 @@ auto Operator::GetArgPolicy(arg_index argNr, CharPtr firstArgValue) const -> ope
 #include "AbstrUnit.h"
 #include "act/MainThread.h"
 #include "stg/AbstrStorageManager.h" // IsInMMD
-#include "utl/Environment.h"        // IsMultiThreaded3, IsPerformanceLogging
+#include "utl/Environment.h"
+#include "utl/Registry.h"        // IsMultiThreaded3, IsPerformanceLogging
 #include "dbg/Check.h"
 #include "dbg/DmsCatch.h"
 #include "dbg/SeverityType.h"

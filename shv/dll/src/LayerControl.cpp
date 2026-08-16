@@ -2,7 +2,7 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
-#include "ShvDllPch.h"
+#include "ShvDllPCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
@@ -13,7 +13,7 @@
 #include "act/ActorVisitor.h"
 #include "mci/Class.h"
 #include "utl/IncrementalLock.h"
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 
 #include "AbstrUnit.h"
 #include "DisplayValue.h"

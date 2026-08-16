@@ -2,7 +2,7 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
-#include "StoragePch.h"
+#include "StoragePCH.h"
 #include "ImplMain.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
@@ -12,7 +12,8 @@
 #include "mci/ValueClass.h"
 #include "ptr/SharedStr.h"
 #include "utl/Environment.h"
-#include "utl/mySPrintF.h"
+#include "utl/FileSystem.h"
+#include "utl/StrFormat.h"
 
 #if defined(_MSC_VER)
 #include <share.h>

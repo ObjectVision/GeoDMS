@@ -9,7 +9,7 @@
 #endif
 
 #include "dbg/SeverityType.h"
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 #include "utl/Quotes.h"
 #include "LispRef.h"
 

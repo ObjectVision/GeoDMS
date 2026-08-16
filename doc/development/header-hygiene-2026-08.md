@@ -42,11 +42,11 @@ The July enablement left **8 live PCHs**; the rtc merge kept three inside one pr
 | `rtc/dll/src/RtcPCH.h` | 51 | `dbg/Check.h`, `dbg/debug.h`, `set/Token.h` | 58 | 9,263 |
 | `rtc/dll/src/sym/SymPCH.h` | 6 | `LispRef.h` | 58 | 9,269 |
 | `rtc/dll/src/tic/TicPCH.h` | 56 | `TreeItem.h` | 134 | 22,441 |
-| `stx/dll/src/StxPch.h` | 13 | (none) | 45 | 7,595 |
-| `stg/dll/src/StoragePch.h` | 22 | `dbg/Check.h`, `stg/AbstrStorageManager.h`, `stg/AsmUtil.h` | 145 | 24,148 |
+| `stx/dll/src/StxPCH.h` | 13 | (none) | 45 | 7,595 |
+| `stg/dll/src/StoragePCH.h` | 22 | `dbg/Check.h`, `stg/AbstrStorageManager.h`, `stg/AsmUtil.h` | 145 | 24,148 |
 | `clc/dll/include/ClcPCH.h` | 73 | `AbstrDataItem.h`, `DataArray.h`, `DataLocks.h`, `DataItemClass.h`, `Operator.h`, `<vector>` | 146 | 24,741 |
 | `geo/dll/src/GeoPCH.h` | 29 | same 5 tic headers | 147 | 24,771 |
-| `shv/dll/src/ShvDllPch.h` | 72 | (none) | 51 | 8,820 |
+| `shv/dll/src/ShvDllPCH.h` | 72 | (none) | 51 | 8,820 |
 
 Union of all closures: **166 of 605 headers (27%)**. First-include discipline is intact
 (348/348 TUs; sole deliberate exception `shv/WmsLayer.cpp` = NotUsing for boost/asio).
@@ -60,7 +60,7 @@ Union of all closures: **166 of 605 headers (27%)**. First-include discipline is
   `set/Token.h → Parallel.h → parallel/portable_task_group.h` (WIN32-guarded);
   **`<strstream>`** (deprecated, with its silence-guard hack) sits in the Tic/Stg/Clc/Geo
   closures solely via `utl/mySPrintF.h`'s fixed-buffer family (see Finding 5B);
-  **`windows.h`** is in exactly one PCH (ShvDllPch, via `ShvBase.h:225`). No boost, Qt,
+  **`windows.h`** is in exactly one PCH (ShvDllPCH, via `ShvBase.h:225`). No boost, Qt,
   CGAL, or GDAL header is in any PCH closure — good.
 
 ## Finding 2 — dead files (delete; all confirmed unreferenced in vcxproj/CMake)
@@ -137,7 +137,7 @@ a big-bang sweep.
 | `tic/Unit.h` | 85 | 137 / 23,236 | **+1 header** |
 | `utl/Environment.h` | 76 | 46 / 7,997 | +1 (but see 4d) |
 | `dbg/DmsCatch.h` | 74 | 62 / 9,604 | +3 |
-| `shv/dataview.h` | 48 | 199 / 34,188 | (shv: +149 over ShvDllPch) |
+| `shv/dataview.h` | 48 | 199 / 34,188 | (shv: +149 over ShvDllPCH) |
 | `shv/ShvUtils.h` | 45 | 171 / 29,851 | (shv: +121) |
 | `tic/LispTreeType.h` | 43 | 75 / 12,587 | +2 |
 | `tic/UnitProcessor.h` | 42 | 138 / 23,413 | +2 |
@@ -158,12 +158,12 @@ is over. Candidates, in order of (fan-in × cheapness), all gated on the churn c
 - **TicPCH + ClcPCH + GeoPCH ←** `Unit.h`, `UnitClass.h`, `DmsCatch.h`, `DmsException.h`,
   `LispTreeType.h`; clc additionally `UnitProcessor.h`, `ParallelTiles.h` (23–24 clc TUs
   use them).
-- **ShvDllPch ← `dataview.h`** — the standout. Shv's PCH is a 51-header closure while
+- **ShvDllPCH ← `dataview.h`** — the standout. Shv's PCH is a 51-header closure while
   **53 of its 72 TUs** include `dataview.h` = 199 headers / 34k LOC, i.e. +149 headers
   parsed per TU beyond the PCH. `ShvUtils.h` (39 TUs, +121), `Theme.h` (32, +120),
   `GraphVisitor.h` (28, +127) tell the same story, and all are low-churn. This is the
   single biggest parse win available in the solution.
-- **qtgui: create a `GuiPch.h`** (the recurring Qt widget headers + `RtcInterface.h` /
+- **qtgui: create a `GuiPCH.h`** (the recurring Qt widget headers + `RtcInterface.h` /
   `ShvBase.h`), wire `DmsPchHeader` in `GeoDmsGuiQt.vcxproj` and
   `target_precompile_headers` in `qtgui/exe/CMakeLists.txt`, and normalize the 21 TUs'
   first include — the same recipe as the 2026-07 enablement.
@@ -321,6 +321,12 @@ renames, and all newly created headers — gets its prolog normalized to:
   `RingIterator.h`/`BoostPolygon.h` duplicated-guard bug of Finding 2 is exactly what it
   rules out.
 - All edits byte-exact (this is a CRLF repo — no sed/python text-mode scripts).
+- **Abbreviations in file and identifier names are upper-case** (`PCH`, not `Pch`) unless
+  directly followed by another CamelCased word (`DmsPchHeader` stays). Applied in step 4:
+  `StxPch.*` → `StxPCH.*`, `StoragePch.*` → `StoragePCH.*`, `ShvDllPch.*` → `ShvDllPCH.*`,
+  `GuiPch.*` → `GuiPCH.*` (case-only `git mv` two-step + 107 include-line updates + build
+  files), with guards `__STX_STXPCH_H` / `__STG_STORAGEPCH_H` (TextPosition.h's PCH-enforce
+  check updated along).
 
 **Companion convention for `.cpp` files** (user-specified; applies to every `.cpp` changed
 by any step): the same banner (rule line trimmed to the copyright line's length), then the
@@ -341,8 +347,8 @@ summary comment of the TU:
 // brief summary of what this translation unit implements
 ```
 
-PCH names per module: RtcPCH.h / SymPCH.h / TicPCH.h (rtc, per sub-tree), StxPch.h,
-StoragePch.h, ClcPCH.h, GeoPCH.h, ShvDllPch.h; qtgui/run/python TUs have no PCH — for
+PCH names per module: RtcPCH.h / SymPCH.h / TicPCH.h (rtc, per sub-tree), StxPCH.h,
+StoragePCH.h, ClcPCH.h, GeoPCH.h, ShvDllPCH.h; qtgui/run/python TUs have no PCH — for
 those the prolog is banner + summary only. This also retires the remaining pre-2004
 `//<HEADER>` YUSE GSO banners and stray field-style `Name/Description` blocks as files are
 touched.
@@ -353,12 +359,28 @@ touched.
 noted inline above), step 2 in `89836638` (15 dead includes cut from the six hot headers;
 10 TUs/headers needed a direct include for what they had been getting transitively —
 including `geo/SpatialIndex.h`, which used `RangeFromSequence_SkipUndefined` without
-including `set/VectorFunc.h`), step 3 in the follow-up commit: ShvDllPch ← `dataview.h`,
-Tic/Clc/Geo PCHs ← the §4b set, and a new `qtgui/exe/src/GuiPch.h` injected via
+including `set/VectorFunc.h`), step 3 in the follow-up commit: ShvDllPCH ← `dataview.h`,
+Tic/Clc/Geo PCHs ← the §4b set, and a new `qtgui/exe/src/GuiPCH.h` injected via
 `ForcedIncludeFiles` (msbuild; covers the QtMsBuild moc TUs) + `target_precompile_headers`
 (CMake). Measured after enrichment: a full rebuild of tic+clc+geo+shv = 578 s wall; a full
 qtgui rebuild = **21 s** (334 MB `.pch`). Gates: msbuild Release green, unit-suite
-aggregate empty, testcases 200/200. Steps 4–5 remain open.*
+aggregate empty, testcases 200/200.*
+
+*Step 4 is DONE (same day): (a) the PCH abbreviation-case normalization described in §7;
+(b) the §5B mySPrintF split — `mySSPrintF` lives on in the renamed `utl/StrFormat.h`, the
+fixed-buffer family (and its `<strstream>` dependency, now out of all PCH closures) in the
+new `utl/FixedBufferFormat.h`; 103 includers redirected, 11 family users rewired;
+(c) the §5A Environment split into `utl/Registry.h` (merged into the existing
+RegistryHandle header — the audit missed that `utl/Registry.h` already existed),
+`utl/FileSystem.h`, `utl/PlatformError.h`, `utl/TimeFmt.h` and a residual process/session
+`Environment.h`; 55 includers got symbol-matched direct includes up front, 3 more
+transitive users surfaced by compilation (OperationContext, PerfMeasurement,
+Win32ViewHost) — every former transitive user is now a direct includer of what it uses;
+(d) the §5C TreeItem.h extraction: the 51-line function-item specification API moved to
+`tic/TreeItemFunctionSpec.h` (only 3 users: AbstrCalculator.cpp, TreeItem.cpp, stx
+ConfigProd.cpp), so HOF-spec churn no longer invalidates four PCHs. Full-solution rebuild
+469 s, zero errors. Bulk mechanical migrations (include-line rewrites) deliberately do not
+trigger the §7 prolog rule; content-touched files do. Step 5 remains open.*
 
 1. **Zero-risk cleanup**: delete the Finding-2 dead files; remove the 52 duplicated
    `#include` lines; drop `ViewPort.cpp`'s gdal include; fix `StgImpl.h`'s `#endif`.
@@ -366,8 +388,8 @@ aggregate empty, testcases 200/200. Steps 4–5 remain open.*
 2. **Dead-include removals** in the six hot headers (Finding 3), per-header batches with a
    compile after each (they live in PCHs, so each batch is a full rebuild anyway).
    Gate: `batch\TestReleaseUnit.bat`.
-3. **PCH enrichment** (Finding 4b): ShvDllPch ← `dataview.h` first (biggest win), then
-   Tic/Clc/Geo ← `Unit.h`/`UnitClass.h`/`DmsCatch.h`/…, then the qtgui `GuiPch.h`.
+3. **PCH enrichment** (Finding 4b): ShvDllPCH ← `dataview.h` first (biggest win), then
+   Tic/Clc/Geo ← `Unit.h`/`UnitClass.h`/`DmsCatch.h`/…, then the qtgui `GuiPCH.h`.
    Measure with a timed `.m` build before/after each step; revert any addition that later
    turns churny.
 4. **Splits** (Finding 5): mySPrintF fixed-buffer extraction (+ rename to `StrFormat.h`),

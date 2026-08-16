@@ -16,7 +16,8 @@
 #include "ser/FormattedStream.h"
 #include "ser/MoreStreamBuff.h"
 #include "utl/Environment.h"
-#include "utl/mySPrintF.h"
+#include "utl/TimeFmt.h"
+#include "utl/StrFormat.h"
 
 #include "rtctypemodel.h"
 #include "RtcInterface.h"

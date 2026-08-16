@@ -12,7 +12,7 @@
 
 #include "mci/ValueClass.h"
 #include "mci/ValueClassID.h"
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 
 #include "LispTreeType.h"
 #include "Metric.h"

@@ -22,7 +22,7 @@
 #include "mci/CompositeCast.h"
 #include "mth/Mathlib.h"
 #include "ptr/OwningPtrSizedArray.h"
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 
 #include "CheckedDomain.h"
 #include "DataArray.h"

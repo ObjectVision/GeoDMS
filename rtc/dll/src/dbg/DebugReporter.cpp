@@ -20,7 +20,7 @@
 #include "dbg/SeverityType.h"
 #include "ptr/StaticPtr.h"
 #include "ptr/OwningPtr.h"
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 
 #include "ser/FormattedStream.h"
 

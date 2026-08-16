@@ -29,7 +29,7 @@
 #include "set/StaticQuickAssoc.h"
 #include "set/VectorFunc.h"
 #include "utl/Environment.h"
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 #include "utl/scoped_exit.h"
 #include "xct/DmsException.h"
 

@@ -2,7 +2,7 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
-#include "StxPch.h"
+#include "StxPCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
@@ -12,7 +12,7 @@
 
 #include "ConfigFileName.h"
 #include "dbg/Check.h"
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 #include "utl/Quotes.h"
 #include "Parallel.h"
 

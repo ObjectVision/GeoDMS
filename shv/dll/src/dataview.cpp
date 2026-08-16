@@ -2,7 +2,7 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////
 
-#include "ShvDllPch.h"
+#include "ShvDllPCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
@@ -1240,6 +1240,7 @@ GraphVisitState DataView::UpdateView()
 }
 
 #include "utl/Environment.h"
+#include "utl/PlatformError.h"
 
 #ifdef _WIN32
 UINT GetShowCmd(HWND hWnd)

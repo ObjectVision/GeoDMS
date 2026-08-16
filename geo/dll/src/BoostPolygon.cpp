@@ -21,7 +21,8 @@
 #include "ptr/Resource.h"
 #include "ptr/ResourceArray.h"
 #include "utl/Environment.h"
-#include "utl/mySPrintF.h"
+#include "utl/Registry.h"
+#include "utl/StrFormat.h"
 
 #include "ParallelTiles.h"
 #include "LispTreeType.h"

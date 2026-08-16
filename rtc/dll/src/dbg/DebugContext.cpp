@@ -17,7 +17,7 @@
 #include "dbg/DmsCatch.h"
 #include "ser/DebugOutStream.h"
 #include "utl/Environment.h"
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 #include "utl/swapper.h"
 #include "Parallel.h"
 

@@ -14,7 +14,7 @@
 #include "TreeItemUtils.h"
 
 #include "act/TriggerOperator.h" // SuspendTrigger
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 #include "utl/splitPath.h"
 
 #include "AbstrCalculator.h"

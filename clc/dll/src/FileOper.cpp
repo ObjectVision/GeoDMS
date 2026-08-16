@@ -11,6 +11,7 @@
 #include "RtcInterface.h"
 #include "set/VectorFunc.h"
 #include "utl/Environment.h"
+#include "utl/FileSystem.h"
 #include "geo/Conversions.h"
 #include "geo/StringArray.h"
 #include "mci/CompositeCast.h"

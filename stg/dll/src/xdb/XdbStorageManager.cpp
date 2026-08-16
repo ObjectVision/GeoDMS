@@ -26,7 +26,7 @@ General Public License for more details. However, specific warranties might be
 granted by an additional written contract for support, assistance and/or development
 */
 //</HEADER>
-#include "StoragePch.h"
+#include "StoragePCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
@@ -46,7 +46,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "stg/StorageClass.h"
 
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 #include "ser/BaseStreamBuff.h"  
 #include "dbg/debug.h"
 

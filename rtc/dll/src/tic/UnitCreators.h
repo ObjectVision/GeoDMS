@@ -11,7 +11,7 @@
 
 #include "TicBase.h"
 
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 
 #include "AbstrDataItem.h"
 #include "Metric.h"

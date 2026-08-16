@@ -2,7 +2,7 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////
 
-#include "ShvDllPch.h"
+#include "ShvDllPCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
@@ -24,8 +24,9 @@
 #include "mci/ValueClass.h"
 #include "mci/ValueWrap.h"
 #include "utl/Environment.h"
+#include "utl/PlatformError.h"
 #include "utl/IncrementalLock.h"
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 #include "utl/SplitPath.h"
 
 #include "AbstrDataItem.h"

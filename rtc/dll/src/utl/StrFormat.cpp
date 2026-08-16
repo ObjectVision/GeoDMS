@@ -1,20 +1,26 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V.
 // License: GNU GPL 3
-/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////
 
 #include "RtcPCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif //defined(CC_PRAGMAHDRSTOP)
+#endif
 
-#include "utl/mySPrintF.h"
+// String formatting implementation: myVSSPrintF and RepeatedDots (declared
+// in utl/FixedBufferFormat.h) plus the path-splitting helpers of
+// utl/splitPath.h. (Formerly mySPrintF.cpp.)
+
+#include "utl/FixedBufferFormat.h"
+#include "utl/StrFormat.h"
 
 #include "dbg/DebugContext.h"
 #include "geo/iterrange.h"
 #include "geo/StringBounds.h"
 #include "utl/splitPath.h"
 #include "utl/Environment.h"
+#include "utl/FileSystem.h"
 #include "act/MainThread.h"
 
 #include <stdio.h>

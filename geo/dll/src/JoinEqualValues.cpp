@@ -12,7 +12,7 @@
 // values.
 
 #include "geo/RangeIndex.h"
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 
 #include "DataItemClass.h"
 #include "UnitClass.h"

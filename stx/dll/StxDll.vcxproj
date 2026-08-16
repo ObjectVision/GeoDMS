@@ -50,10 +50,10 @@
     <Link />
   </ItemDefinitionGroup>
   <PropertyGroup>
-    <DmsPchHeader>StxPch.h</DmsPchHeader>
+    <DmsPchHeader>StxPCH.h</DmsPchHeader>
   </PropertyGroup>
   <ItemGroup>
-    <ClCompile Include="src\StxPch.cpp">
+    <ClCompile Include="src\StxPCH.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="src\AbstrDataBlockProd.cpp" />
@@ -84,7 +84,7 @@
     <ClInclude Include="src\StringProd.h" />
     <ClInclude Include="src\StxBase.h" />
     <ClInclude Include="src\StxInterface.h" />
-    <ClInclude Include="src\StxPch.h" />
+    <ClInclude Include="src\StxPCH.h" />
     <ClInclude Include="src\TextPosition.h" />
   </ItemGroup>
   <ItemGroup>

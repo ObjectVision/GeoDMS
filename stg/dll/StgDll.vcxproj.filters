@@ -117,7 +117,7 @@
     <ClInclude Include="src\StgBase.h" />
     <ClInclude Include="src\NameSet.h" />
     <ClInclude Include="src\ViewPortInfoEx.h" />
-    <ClInclude Include="src\StoragePch.h" />
+    <ClInclude Include="src\StoragePCH.h" />
     <ClInclude Include="src\gdal\gdal_grid.h">
       <Filter>GDAL</Filter>
     </ClInclude>

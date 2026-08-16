@@ -25,7 +25,7 @@
 #include "set/VectorFunc.h"
 #include "stg/AbstrStorageManager.h"
 #include "utl/Environment.h"
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 #include "LockLevels.h"
 
 #include "Unit.h"

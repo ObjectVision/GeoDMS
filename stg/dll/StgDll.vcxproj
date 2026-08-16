@@ -53,10 +53,10 @@
     </Link>
   </ItemDefinitionGroup>
   <PropertyGroup>
-    <DmsPchHeader>StoragePch.h</DmsPchHeader>
+    <DmsPchHeader>StoragePCH.h</DmsPchHeader>
   </PropertyGroup>
   <ItemGroup>
-    <ClCompile Include="src\StoragePch.cpp">
+    <ClCompile Include="src\StoragePCH.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="src\bmp\BmpStorageManager.cpp" />
@@ -98,7 +98,7 @@
     <ClInclude Include="src\GridStorageManager.h" />
     <ClInclude Include="src\NameSet.h" />
     <ClInclude Include="src\odbc\OdbcStorageManager.h" />
-    <ClInclude Include="src\StoragePch.h" />
+    <ClInclude Include="src\StoragePCH.h" />
     <ClInclude Include="src\ViewPortInfoEx.h" />
     <ClInclude Include="src\xdb\XdbStorageManager.h" />
     <ClInclude Include="src\tif\TifStorageManager.h" />

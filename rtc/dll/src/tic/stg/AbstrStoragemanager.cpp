@@ -24,6 +24,8 @@
 #include "dbg/debug.h"
 #include "ptr/InterestHolders.h"
 #include "utl/Environment.h"
+#include "utl/FileSystem.h"
+#include "utl/Registry.h"
 #include "utl/splitPath.h"
 #include "xct/DmsException.h"
 

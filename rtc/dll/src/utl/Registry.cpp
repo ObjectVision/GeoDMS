@@ -11,6 +11,7 @@
 #include "act/MainThread.h"
 #include "utl/Registry.h"
 #include "utl/Environment.h"
+#include "utl/PlatformError.h"
 
 #if defined(WIN32)
 #include <windows.h>

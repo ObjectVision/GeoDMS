@@ -2,7 +2,7 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////
 
-#include "StoragePch.h"
+#include "StoragePCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
@@ -47,7 +47,8 @@
 #include "mci/ValueClass.h"
 #include "mci/ValueClassID.h"
 #include "utl/Environment.h"
-#include "utl/mySPrintF.h"
+#include "utl/FileSystem.h"
+#include "utl/StrFormat.h"
 #include "utl/splitPath.h"
 
 #include "LockLevels.h"

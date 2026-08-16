@@ -36,7 +36,9 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "dbg/DmsCatch.h"
 #include "utl/Environment.h"
-#include "utl/mySPrintF.h" 
+#include "utl/Registry.h"
+#include "utl/TimeFmt.h"
+#include "utl/StrFormat.h" 
 
 //----------------------------------------------------------------------
 // class  : TreeItemContextHandle

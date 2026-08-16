@@ -10,6 +10,7 @@
 
 #include "set/IndexedStrings.h"
 #include "utl/Environment.h"
+#include "utl/Registry.h"
 #include "LockLevels.h"
 
 /****************** IndexedStrings *******************/

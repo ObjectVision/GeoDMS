@@ -8,7 +8,7 @@ if(NOT WIN32)
 endif()
 
 add_library(DmShv SHARED ${SHV_SOURCES} ${SHV_HEADERS})
-target_precompile_headers(DmShv PRIVATE src/ShvDllPch.h)
+target_precompile_headers(DmShv PRIVATE src/ShvDllPCH.h)
 # WmsLayer.cpp must include boost/asio before any windows.h; a force-included PCH would
 # break that ordering, so keep it PCH-free (matches the NotUsing entry in ShvDLL.vcxproj).
 set_source_files_properties(src/WmsLayer.cpp PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
@@ -18,7 +18,7 @@ target_include_directories(DmShv
     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
-# DM_SHV_EXPORTS is defined by the DLL's PCH (src/ShvDllPch.h). Defining it here as
+# DM_SHV_EXPORTS is defined by the DLL's PCH (src/ShvDllPCH.h). Defining it here as
 # well caused C4005 (macro redefinition) in every TU; the .vcxproj relies on the PCH
 # alone, so we do the same.
 

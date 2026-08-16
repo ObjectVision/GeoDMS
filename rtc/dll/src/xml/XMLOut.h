@@ -25,7 +25,7 @@
 #include "ptr/OwningPtr.h"
 #include "ptr/SharedStr.h"
 #include "ser/FormattedStream.h"
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 
 struct XML_OutElement;
 class ImpStreamBuff;

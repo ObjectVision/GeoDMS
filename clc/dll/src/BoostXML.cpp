@@ -14,7 +14,7 @@
 
 #include "mci/ValueClass.h"
 #include "set/IndexedStrings.h"
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 #include "utl/splitPath.h"
 
 #include "Abstrunit.h"

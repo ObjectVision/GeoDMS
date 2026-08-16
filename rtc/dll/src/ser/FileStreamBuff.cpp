@@ -10,6 +10,7 @@
 
 #include "ser/FileStreamBuff.h"
 #include "utl/Environment.h"
+#include "utl/FileSystem.h"
 
 // *****************************************************************************
 // Section:     Basic streambuffer Interface

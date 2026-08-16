@@ -148,6 +148,7 @@
     <ClInclude Include="src\LockLevels.h" />
     <ClInclude Include="src\mci\Object.h" />
     <ClInclude Include="src\mci\SingleLinkedTree.h" />
+    <ClInclude Include="src\tic\TreeItemFunctionSpec.h" />
     <ClInclude Include="src\mem\FixedAlloc.h" />
     <ClInclude Include="src\mem\grid.h" />
     <ClInclude Include="src\mem\RectCopy.h" />
@@ -190,9 +191,13 @@
     <ClInclude Include="src\cpc\transform.h" />
     <ClInclude Include="src\cpc\Types.h" />
     <ClInclude Include="src\utl\Environment.h" />
+    <ClInclude Include="src\utl\FileSystem.h" />
+    <ClInclude Include="src\utl\PlatformError.h" />
+    <ClInclude Include="src\utl\TimeFmt.h" />
     <ClInclude Include="src\utl\IncrementalLock.h" />
     <ClInclude Include="src\utl\Instantiate.h" />
-    <ClInclude Include="src\utl\mySPrintF.h" />
+    <ClInclude Include="src\utl\FixedBufferFormat.h" />
+    <ClInclude Include="src\utl\StrFormat.h" />
     <ClInclude Include="src\utl\Quotes.h" />
     <ClInclude Include="src\utl\Registry.h" />
     <ClInclude Include="src\utl\splitPath.h" />
@@ -354,7 +359,7 @@
     <ClCompile Include="src\utl\SourceLocation.cpp" />
     <ClCompile Include="src\xct\DmsException.cpp" />
     <ClCompile Include="src\utl\Environment.cpp" />
-    <ClCompile Include="src\utl\mySPrintF.cpp" />
+    <ClCompile Include="src\utl\StrFormat.cpp" />
     <ClCompile Include="src\utl\quotes.cpp" />
     <ClCompile Include="src\utl\Registry.cpp" />
     <ClCompile Include="src\utl\TypeInfoOrdering.cpp" />

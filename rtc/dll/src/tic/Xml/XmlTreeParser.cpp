@@ -14,7 +14,7 @@
 #include "dbg/DmsCatch.h"
 #include "stg/StorageInterface.h"
 #include "utl/IncrementalLock.h"
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 #include "xct/DmsException.h"
 
 // *****************************************************************************

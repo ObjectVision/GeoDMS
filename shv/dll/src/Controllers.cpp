@@ -2,7 +2,7 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////
 
-#include "ShvDllPch.h"
+#include "ShvDllPCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
@@ -15,6 +15,7 @@
 
 #include "act/MainThread.h"
 #include "dbg/debug.h"
+#include "utl/FixedBufferFormat.h" // myFixedBufferWrite
 #include "geo/Area.h"
 #include "geo/DynamicPoint.h"
 

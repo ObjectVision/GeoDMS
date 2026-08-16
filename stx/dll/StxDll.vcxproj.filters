@@ -82,7 +82,7 @@
     <ClInclude Include="src\StxInterface.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\StxPch.h">
+    <ClInclude Include="src\StxPCH.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\TextPosition.h">

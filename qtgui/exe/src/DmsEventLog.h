@@ -3,6 +3,7 @@
 #include "ptr/SharedStr.h"
 #include "ui_DmsEventLogSelection.h"
 #include "utl/Environment.h"
+#include "utl/Registry.h"
 
 #include <QPointer>
 #include <QAbstractListModel>

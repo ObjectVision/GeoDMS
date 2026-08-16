@@ -42,7 +42,7 @@
 //   - If grammar grows large, consider refactoring into Spirit.Qi (newer) or a hand parser.
 //   - startPointtRule / endPointtRule variable names retain legacy spelling (t double) to avoid broad renames.
 //
-#include "StxPch.h"
+#include "StxPCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop

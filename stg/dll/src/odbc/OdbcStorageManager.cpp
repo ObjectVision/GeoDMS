@@ -2,7 +2,7 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
-#include "StoragePch.h"
+#include "StoragePCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
@@ -30,7 +30,8 @@
 #include "ser/vectorstream.h"
 #include "stg/StorageClass.h"
 #include "utl/Environment.h"
-#include "utl/mySPrintF.h"
+#include "utl/TimeFmt.h"
+#include "utl/StrFormat.h"
 #include "utl/splitpath.h"
 #include "xct/DmsException.h"
 

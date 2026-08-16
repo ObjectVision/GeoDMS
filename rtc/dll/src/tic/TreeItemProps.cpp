@@ -16,7 +16,7 @@
 #include "TreeItemClass.h"
 #include "AbstrDataItem.h"
 #include "stg/AbstrStorageManager.h"
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 
 #include "AbstrUnit.h"
 #include "AbstrCalculator.h"

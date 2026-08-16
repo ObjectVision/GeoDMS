@@ -57,7 +57,7 @@
     <ClCompile Include="src\DmsFileChangedWindow.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\GuiPch.cpp">
+    <ClCompile Include="src\GuiPCH.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\DmsActions.cpp">
@@ -124,7 +124,7 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="resource.h" />
-    <ClInclude Include="src\GuiPch.h" />
+    <ClInclude Include="src\GuiPCH.h" />
     <ClInclude Include="src\DmsValueInfo.h">
       <Filter>Header Files</Filter>
     </ClInclude>

@@ -27,7 +27,7 @@ target_link_libraries(GeoDmsGuiQt PRIVATE
     Qt6::Core Qt6::Gui Qt6::Widgets
 )
 
-target_precompile_headers(GeoDmsGuiQt PRIVATE src/GuiPch.h)
+target_precompile_headers(GeoDmsGuiQt PRIVATE src/GuiPCH.h)
 
 if(WIN32)
     target_link_libraries(GeoDmsGuiQt PRIVATE Shcore shell32)

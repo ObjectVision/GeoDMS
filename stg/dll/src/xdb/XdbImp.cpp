@@ -2,7 +2,7 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////
 
-#include "StoragePch.h"
+#include "StoragePCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
@@ -12,7 +12,7 @@
 // 'Xdb-grids'.
 
 #include "ImplMain.h"
-#include "utl/mySPrintF.h" // mySSPrintF
+#include "utl/StrFormat.h" // mySSPrintF
 
 #include "XdbImp.h"
 
@@ -23,6 +23,7 @@
 #include "ser/FormattedStream.h"
 #include "set/rangefuncs.h"
 #include "utl/Environment.h"
+#include "utl/FileSystem.h"
 #include "utl/splitPath.h"
 
 #include <string.h>

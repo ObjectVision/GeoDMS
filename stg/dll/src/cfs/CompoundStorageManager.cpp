@@ -26,7 +26,7 @@ General Public License for more details. However, specific warranties might be
 granted by an additional written contract for support, assistance and/or development
 */
 //</HEADER>
-#include "StoragePch.h"
+#include "StoragePCH.h"
 #include "ImplMain.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
@@ -47,8 +47,9 @@ granted by an additional written contract for support, assistance and/or develop
 #include "ser/StringStream.h"
 #include "set/vectorFunc.h"
 #include "stg/StorageClass.h"
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 #include "utl/Environment.h"
+#include "utl/FileSystem.h"
 #include "utl/SplitPath.h"
 
 #include "DataStoreManagerCaller.h"

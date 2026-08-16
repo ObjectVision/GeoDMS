@@ -27,7 +27,7 @@ granted by an additional written contract for support, assistance and/or develop
 */
 //</HEADER>
 
-#include "StoragePch.h"
+#include "StoragePCH.h"
 #include "ImplMain.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
@@ -37,6 +37,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "BmpImp.h"
 
 #include "utl/Environment.h"
+#include "utl/FileSystem.h"
 #include "ptr/SharedStr.h"
 #include "ptr/OwningPtrSizedArray.h"
 #include "set/VectorFunc.h"

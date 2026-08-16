@@ -24,7 +24,7 @@
 #include "ptr/LifetimeProtector.h"
 #include "set/VectorFunc.h"
 #include "set/VectorMap.h"
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 #include "xct/DmsException.h"
 
 #include "AbstrDataItem.h"

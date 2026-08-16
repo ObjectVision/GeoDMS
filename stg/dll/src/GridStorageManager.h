@@ -20,7 +20,7 @@
 #include "mem/RectCopy.h"
 #include "mem/tiledata.h"
 #include "TiledUnit.h"
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 
 #include "AbstrDataItem.h"
 #include "AbstrDataObject.h"

@@ -2,7 +2,7 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////
 
-#include "StoragePch.h"
+#include "StoragePCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
@@ -21,7 +21,8 @@
 #include "gdal_grid.h"
 
 #include "set/VectorFunc.h"  // vector_resize
-#include "utl/Environment.h" // ConvertDmsFileName, see issue #367
+#include "utl/Environment.h"
+#include "utl/FileSystem.h" // ConvertDmsFileName, see issue #367
 
 #include <gdal_priv.h>
 

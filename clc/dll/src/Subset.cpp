@@ -13,7 +13,7 @@
 
 #include "mci/CompositeCast.h"
 #include "mci/ValueClass.h"
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 
 #include "DataArray.h"
 #include "DataItemClass.h"

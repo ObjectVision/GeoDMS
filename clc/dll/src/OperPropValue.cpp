@@ -15,7 +15,7 @@
 #include "mci/PropDef.h"
 #include "mci/ValueWrap.h"
 #include "ser/StringStream.h"
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 
 #include "Param.h"
 #include "UnitClass.h"

@@ -71,7 +71,7 @@
       <PreprocessorDefinitions>_WINDOWS;UNICODE;_UNICODE;WIN32;_ENABLE_EXTENDED_ALIGNED_STORAGE;WIN64;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <!-- Inject the PCH header into every TU, including the moc_*.cpp TUs QtMsBuild
            generates, which cannot carry a first #include themselves. -->
-      <ForcedIncludeFiles>GuiPch.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles>GuiPCH.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
     </ClCompile>
     <Link>
       <IgnoreImportLibrary>true</IgnoreImportLibrary>
@@ -121,10 +121,10 @@
     </Link>
   </ItemDefinitionGroup>
   <PropertyGroup>
-    <DmsPchHeader>GuiPch.h</DmsPchHeader>
+    <DmsPchHeader>GuiPCH.h</DmsPchHeader>
   </PropertyGroup>
   <ItemGroup>
-    <ClCompile Include="src\GuiPch.cpp">
+    <ClCompile Include="src\GuiPCH.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="src\DmsActions.cpp" />
@@ -171,7 +171,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="resource.h" />
-    <ClInclude Include="src\GuiPch.h" />
+    <ClInclude Include="src\GuiPCH.h" />
     <ClInclude Include="src\DmsActions.h" />
     <QtMoc Include="src\DmsAddressBar.h" />
     <ClInclude Include="src\DmsDetailPages.h" />

@@ -77,6 +77,8 @@ FileDescr::~FileDescr()
 #include "ser/MoreStreamBuff.h"
 #include "ser/FormattedStream.h"
 #include "utl/Environment.h"
+#include "utl/FileSystem.h"
+#include "utl/TimeFmt.h"
 #include "xml/XMLOut.h"
 
 auto ReportChangedFiles() -> VectorOutStreamBuff

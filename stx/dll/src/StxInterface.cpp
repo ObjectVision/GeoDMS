@@ -2,7 +2,7 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
-#include "StxPch.h"
+#include "StxPCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
@@ -19,6 +19,7 @@
 #include "ser/FileStreamBuff.h"
 #include "utl/Encodes.h"
 #include "utl/Environment.h"
+#include "utl/FileSystem.h"
 #include "utl/splitPath.h"
 #include "utl/StringFunc.h"
 #include "xml/XmlTreeParser.h"

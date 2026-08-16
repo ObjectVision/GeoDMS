@@ -2,13 +2,14 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
-#include "ShvDllPch.h"
+#include "ShvDllPCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
 #endif
 
 #include "Win32ViewHost.h"
+#include "utl/PlatformError.h" // throwLastSystemError
 #include "ShvDllInterface.h"
 #include "dbg/DmsCatch.h"
 

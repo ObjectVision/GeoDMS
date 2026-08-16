@@ -18,7 +18,7 @@
 #include "ser/FormattedStream.h"
 #include "ser/MoreStreamBuff.h"
 #include "ser/StringStream.h"
-#include "utl/mySPrintF.h"
+#include "utl/StrFormat.h"
 
 #include "Unit.h"
 #include "UnitClass.h"
