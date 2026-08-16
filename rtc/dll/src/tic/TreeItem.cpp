@@ -560,7 +560,6 @@ void TreeItem::EnableAutoDelete() // does not call UpdateMetaInfo
 // (semi) invariants: 
 //
 // TSF_IsCacheItem == actor_flag_set::AF_IsPassor if CacheRoot (subitems are also CacheItems but not passors)
-// TSF_IsCacheItem => TSF_AutoDeleteDisabled
 // TSF_IsCacheItem => TSF_IsEndogenous
 
 void TreeItem::SetIsCacheItem() // does not call UpdateMetaInfo
@@ -954,9 +953,8 @@ SharedTreeItemInterestPtr TreeItem::GetInterestPtrOrNull() const
 }
 
 bool TreeItem::HasCalculatorImpl() const  noexcept
-// if true this func guarantees that GetCalculator will return a non-null mc_Calculator
-// true if not in template and (has expr or creator) or this is cache-result
-// in which case mc_Calculator has already been set by DataController to a DC_BackPtr
+// if true this func guarantees that GetCalculator will return a non-null mc_Calculator:
+// not in template and (configured calculator, non-empty expr, or unit with a configured range)
 {
 	dbg_assert(IsPassor() || m_Parent.expired() || m_Parent.lock()->CheckMetaInfoReady() || s_MakeEndoLockCount);
 	if (GetCalculatorMember())
@@ -975,9 +973,8 @@ bool TreeItem::HasCalculatorImpl() const  noexcept
 }
 
 bool TreeItem::HasCalculator() const noexcept
-// if true this func guarantees that GetCalculator will return a non-null mc_Calculator
-// true if not in template and (has expr or creator) or this is cache-result
-// in which case mc_Calculator has already been set by DataController to a DC_BackPtr
+// if true this func guarantees that GetCalculator will return a non-null mc_Calculator:
+// not in template and (configured calculator, non-empty expr, or unit with a configured range)
 {
 	dms_check_not_debugonly; 
 

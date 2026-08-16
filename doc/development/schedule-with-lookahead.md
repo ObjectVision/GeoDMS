@@ -589,7 +589,7 @@ Integration:
   shaping uses the prorata).
 - **Plumbing.** Exactly the `SizeEstimator` template: name constant beside
   `SIZE_ESTIMATOR_NAME` (`tic/TicPropDefConst.h:37`), lazy member beside
-  `mc_SizeEstimator` in `TreeItem::ConfigProperties` (`tic/TreeItem.h:625`),
+  `mc_SizeEstimator` in `TreeItem::ConfigProperties` (`tic/TreeItem.h`, struct `ConfigProperties`),
   accessors + Void-domain single-numeric validation as in `TreeItem.cpp:1002-1016`,
   property registration in `tic/TreeItemProps.cpp`.
 - **Cheapness discipline.** Evaluated via `CalcCertainResult` on the meta thread at

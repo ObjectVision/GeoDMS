@@ -8,6 +8,12 @@ released a tile and a later consumer — one that held supplier interest on the 
 Based on code review of the GeoDMS26 tree (rtc/tic, clc, geo) on branch `lookahead-scheduling`,
 2026-07-30.
 
+> 2026-08-16: the mid-layer scaffolding of this hierarchy (`DataArrayBase`/`NumericArray`/
+> adapters) is being collapsed into `TileFunctor<V>` — see
+> `doc/development/unit-hierarchy-collapse.md`. The retention analysis and the
+> Generated/Delayed/Future/Lazy forks in §3-§4 are unaffected; the class tree in §2 will be
+> refreshed when the DataArray merge (stage U4) lands. Some line refs are a few lines stale.
+
 This is the per-class inventory behind the three **materialization regimes**
 (`rtc/dll/src/tic/TicBase.h:56`) that the scheduler's cost model reasons about; §4.7 maps the
 classes onto them. `doc/development/schedule-with-lookahead.md` §4.4 is the authority on what each

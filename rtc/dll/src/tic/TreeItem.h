@@ -268,8 +268,8 @@ public:
 
 	// Parents
 
-	// Parent access (PersistentSharedObj override) and storage parent resolution (for R/W).
-	TIC_CALL [[nodiscard]] const PersistentObject* GetParent () const noexcept override;       // override PersistentSharedObj
+	// Parent access (PersistentObject override) and storage parent resolution (for R/W).
+	TIC_CALL [[nodiscard]] const PersistentObject* GetParent () const noexcept override;       // override PersistentObject
           SharedTreeItem GetTreeParent   () const   { return m_Parent.lock(); } // safe weak->shared upgrade (parent owns child; m_Parent is non-owning)
 	TIC_CALL SharedTreeItem GetStorageParent(bool alsoForWrite) const;
 	TIC_CALL SharedTreeItem GetCurrStorageParent(bool alsoForWrite) const;

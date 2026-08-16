@@ -86,8 +86,9 @@ using check_set_ptr = SharedThingPtr<check_set>;
 
 `DataController` carries `mutable check_set_ptr m_ImpliedChecks` (null = not yet derived; a
 shared static empty instance is the derived-∅ sentinel — it holds no LispRefs, so its CRT-exit
-destruction stays clear of the LispObj caches) plus accessors `GetImpliedChecks()` and
-`ImpliesCheck(LispPtr icCond)`.
+destruction stays clear of the LispObj caches) plus the accessor `GetImpliedChecks()`;
+implication tests go through the free functions `InsertCheckAtoms`/`AreCheckAtomsImplied`
+(tic/DataController.h).
 
 `DataController::GetImpliedChecks()` (tic/MoreDataControllers.cpp) folds lazily, with an
 explicit stack (key expressions nest deeper than the C-stack allows; memoized DCs act as the
