@@ -242,6 +242,33 @@ GCC).
   | `GetBase` | `OrderedUnit` inline vs `FixedNumRangeUnitAdapter` inline | `countable_value` → `GetRange().first`; `fixed_range_value` → `0` |
   | `GetCount` | `CountableUnitBase` (`:1196`) vs `FixedNumRangeUnitAdapter` inline | as above |
 
+  **Trial run, 2026-08-16 — the mechanical half works; the guarded-body half is the real cost.**
+  A first pass rewrote `Unit.h` into a single `Unit<V> : AbstrUnit` (predicates `ranged_unit_v` =
+  `has_var_range_v`, `simple_range_unit_v`, `countable_unit_v`, `tileable_unit_v` =
+  `countable && !has_small_range_v` ≡ `tiled_domain_elements`, `fixed_range_unit_v`,
+  `indexable_unit_v`, `num_range_unit_v`, `ordinal_unit_v`, `geo_unit_v` — all verified against
+  `ElemTraits.h:314-317` and `TiledRangeData.h:112,365`; note `range_or_void_data<bit_value<N>>` is
+  already `FixedRange<N>`, so the unified `range_data_t` matches `BitUnitBase`'s exactly). Unit.cpp
+  was then transformed mechanically and cleanly: replace each of `UnitBase<V>::`, `RangedUnit<V>::`,
+  `CountableUnitBase<V>::`, `OrderedUnit<V>::`, `FloatUnit<V>::`, `GeoUnitAdapter<U>::`,
+  `IndexableUnitAdapter<U>::`, `NumRangeUnitAdapterBase<U>::`, `VarNumRangeUnitAdapter<U>::` and
+  `TileAdapter<Base>::` by `Unit<V>::`; rewrite the preceding `template <class U|typename Base>`
+  headers to `template <class V>` (match only where a `Unit<V>::` follows within two lines, so the
+  unrelated `RegularAdapter<Base>` definitions are left alone); then `typename U::range_t`→`range_t`,
+  `typename U::value_t`→`V`, `GeoUnitAdapter<U>*`/`RangedUnit<V>*`→`Unit<V>*`,
+  `typename OrderedUnit::range_t`→`range_t`, `U::CopyProps(...)`→`AbstrUnit::CopyProps(...)`. The
+  instantiation tail collapses to one unconditional `#define INSTANTIATE(T) template class Unit<T>;`
+  over `INSTANTIATE_FLD_ELEM INSTANTIATE_VOID`, deleting `TiledUnitInstantiator` and every
+  per-member list.
+
+  What that pass does **not** do, and what dominates the work: because each virtual is now declared
+  for every V, roughly **35 bodies need an `if constexpr` guard plus an else-branch delegating to the
+  `AbstrUnit` default**, and eight of them additionally need the fixed-range branch transplanted from
+  the old inline `BitUnitBase`/`VoidUnitBase` bodies (`GetRange`, `GetTileRange`, `GetValueAtIndex`,
+  `GetIndexForValue`, `GetTiledRangeData`, `Get[Curr]SegmInfo`, `GetRangeAsStr`, plus `GetBase`/
+  `GetCount` from `FixedNumRangeUnitAdapter`, which had no out-of-line definition at all). Budget the
+  step accordingly: it is one sitting of careful per-member work, not a scripted rename.
+
   Free functions to re-type while merging: `NotifyRangeDataChange` (`Unit.cpp:733`, takes
   `RangedUnit<V>*`), the `Unit_GetDimSize` tag-dispatch pair (`:49-66`, deleted in favour of
   `if constexpr (dimension_of_v<V> == 2)`), and the `debug_cast<RangedUnit<V>*>` /
