@@ -460,6 +460,10 @@
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
+    <ClCompile Include="src\tic\ParallelTiles.cpp">
+      <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
+      <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
+    </ClCompile>
     <ClCompile Include="src\tic\PerfMeasurement.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>

@@ -1475,6 +1475,9 @@
     <ClCompile Include="src\tic\OperationContext.cpp">
       <Filter>TreeItemComponent</Filter>
     </ClCompile>
+    <ClCompile Include="src\tic\ParallelTiles.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
     <ClCompile Include="src\tic\OperSignature.cpp">
       <Filter>TreeItemComponent</Filter>
     </ClCompile>
