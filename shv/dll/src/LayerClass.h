@@ -116,7 +116,7 @@ private:
 	AspectNr    m_MainAspect;
 	DimType     m_NrDims;
 
-	DECL_RTTI(SHV_CALL, MetaClass)
+	DECL_RTTI(, MetaClass)
 };
 
 #define IMPL_LAYERCLASS(CLS, CFUNC, ASPECTSET, MAINASPECT, NR_DIMS) \

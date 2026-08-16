@@ -278,7 +278,7 @@ Float64 AsFloat64(TokenID x )
 // Section      : various StringRef functions
 //----------------------------------------------------------------------
 
-RTC_CALL SharedStr AsDataStr(const StringCRef& v)
+SharedStr AsDataStr(const StringCRef& v)
 {
 	SharedStr result;
 	SingleQuote(

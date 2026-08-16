@@ -54,8 +54,8 @@ struct DataReadLockContainer : std::vector<DataReadLock>
 
 struct DataWriteLockContainer
 {
-	TIC_CALL void Add(AbstrDataItem* adi, dms_rw_mode rwm);
-	TIC_CALL void Commit();
+	void Add(AbstrDataItem* adi, dms_rw_mode rwm);
+	void Commit();
 
 private:
 	std::vector<DataWriteLock> m_Locks;

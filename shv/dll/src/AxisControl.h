@@ -43,7 +43,7 @@ private:
 
 	ScopedConnection m_connTransformChanged;
 
-	DECL_RTTI(SHV_CALL, Class)
+	DECL_RTTI(, Class)
 };
 
 #endif // __SHV_AXISCONTROL_H

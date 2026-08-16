@@ -48,7 +48,7 @@ struct OutStreamBase {
 
 	enum SyntaxType { ST_XML, ST_DMS, ST_HTM, ST_MD, ST_Count, ST_Unknown = -1 };
 
-	RTC_CALL OutStreamBase(OutStreamBuff* out, bool needsIndent, const AbstrPropDef* primaryPropDef, FormattingFlags flgs);
+	OutStreamBase(OutStreamBuff* out, bool needsIndent, const AbstrPropDef* primaryPropDef, FormattingFlags flgs);
 	virtual ~OutStreamBase() {}
 
 
@@ -76,11 +76,11 @@ struct OutStreamBase {
 
 	virtual SyntaxType GetSyntaxType() = 0;
 
-	RTC_CALL void DumpPropList(const Object* self, const Class* cls);
-	RTC_CALL void DumpPropList(const Object* self);
+	void DumpPropList(const Object* self, const Class* cls);
+	void DumpPropList(const Object* self);
 
-	RTC_CALL void DumpSubTags(const Object* self, const Class* cls);
-	RTC_CALL void DumpSubTags(const Object* self);
+	void DumpSubTags(const Object* self, const Class* cls);
+	void DumpSubTags(const Object* self);
 
 	UInt32     GetLevel()      { return m_Level;  }
 	WeakStr    GetFileName()   { return  m_OutStream.Buffer().FileName(); }
@@ -124,31 +124,31 @@ private:
 struct OutStream_XmlBase : OutStreamBase
 {
 protected:
-	RTC_CALL OutStream_XmlBase(OutStreamBuff* out, CharPtr header, CharPtr mainTag, CharPtr mainTagName, bool needsIndent, const AbstrPropDef* primaryPropDef, FormattingFlags flgs = FormattingFlags::None);
+	OutStream_XmlBase(OutStreamBuff* out, CharPtr header, CharPtr mainTag, CharPtr mainTagName, bool needsIndent, const AbstrPropDef* primaryPropDef, FormattingFlags flgs = FormattingFlags::None);
 	RTC_CALL ~OutStream_XmlBase();
 
 public:
-	RTC_CALL void WriteName(XML_OutElement& elem, CharPtr itemName) override;
+	void WriteName(XML_OutElement& elem, CharPtr itemName) override;
 
-	RTC_CALL void DumpSubTag(CharPtr tagName, CharPtr tagValue, bool isPrimaryTag) override;
-	RTC_CALL void DumpSubTagDelim() override;
+	void DumpSubTag(CharPtr tagName, CharPtr tagValue, bool isPrimaryTag) override;
+	void DumpSubTagDelim() override;
 
-	RTC_CALL void WriteValue (CharPtr data) override;
-	RTC_CALL void WriteValueN(CharPtr data, UInt32 maxSize, CharPtr moreIndicationStr) override;
-	RTC_CALL void WriteValueWithConfigSourceDecorations(CharPtr data) override;
+	void WriteValue (CharPtr data) override;
+	void WriteValueN(CharPtr data, UInt32 maxSize, CharPtr moreIndicationStr) override;
+	void WriteValueWithConfigSourceDecorations(CharPtr data) override;
 
-	RTC_CALL void WriteAttr(CharPtr name, CharPtr value) override;
-	RTC_CALL void WriteAttr(CharPtr name, bool value) override;
-	RTC_CALL void WriteAttr(CharPtr name, UInt32 value) override;
+	void WriteAttr(CharPtr name, CharPtr value) override;
+	void WriteAttr(CharPtr name, bool value) override;
+	void WriteAttr(CharPtr name, UInt32 value) override;
 
-	RTC_CALL void WriteInclude(CharPtr includeHref) override;
+	void WriteInclude(CharPtr includeHref) override;
 
 private:
-	RTC_CALL void OpenTag (CharPtr tagName, ClosePolicy cp) override;
-	RTC_CALL void CloseTag(CharPtr tagName, ClosePolicy cp) override;
+	void OpenTag (CharPtr tagName, ClosePolicy cp) override;
+	void CloseTag(CharPtr tagName, ClosePolicy cp) override;
 
-	RTC_CALL void AttrDelim    () override;
-	RTC_CALL void CloseAttrList() override;
+	void AttrDelim    () override;
+	void CloseAttrList() override;
 
 private:
 	XML_OutElement* m_RootElem;
@@ -156,7 +156,7 @@ private:
 
 struct OutStream_XML : OutStream_XmlBase
 {
-	RTC_CALL OutStream_XML(OutStreamBuff* out, CharPtr docType, const AbstrPropDef* primaryPropDef);
+	OutStream_XML(OutStreamBuff* out, CharPtr docType, const AbstrPropDef* primaryPropDef);
 
 	SyntaxType GetSyntaxType() override { return ST_XML; }
 };
@@ -173,32 +173,32 @@ struct OutStream_DMS :OutStreamBase
 {
 	RTC_CALL OutStream_DMS(OutStreamBuff* out, const AbstrPropDef* primaryPropDef);
 
-	RTC_CALL void WriteName(XML_OutElement& elem, CharPtr itemName) override;
+	void WriteName(XML_OutElement& elem, CharPtr itemName) override;
 
-	RTC_CALL void BeginSubItems() override;
-	RTC_CALL void ItemEnd() override;
-	RTC_CALL void EndSubItems() override;
+	void BeginSubItems() override;
+	void ItemEnd() override;
+	void EndSubItems() override;
 
-	RTC_CALL void DumpSubTag(CharPtr tagName, CharPtr tagValue, bool isPrimaryTag) override;
-	RTC_CALL void DumpSubTagDelim() override;
+	void DumpSubTag(CharPtr tagName, CharPtr tagValue, bool isPrimaryTag) override;
+	void DumpSubTagDelim() override;
 
-	RTC_CALL void WriteValue (CharPtr data) override;
-	RTC_CALL void WriteValueN(CharPtr data, UInt32 maxSize, CharPtr moreIndicationStr) override;
+	void WriteValue (CharPtr data) override;
+	void WriteValueN(CharPtr data, UInt32 maxSize, CharPtr moreIndicationStr) override;
 
-	RTC_CALL void WriteAttr(CharPtr name, CharPtr value) override;
-	RTC_CALL void WriteAttr(CharPtr name, bool value) override;
-	RTC_CALL void WriteAttr(CharPtr name, UInt32 value) override;
+	void WriteAttr(CharPtr name, CharPtr value) override;
+	void WriteAttr(CharPtr name, bool value) override;
+	void WriteAttr(CharPtr name, UInt32 value) override;
 
-	RTC_CALL void WriteInclude(CharPtr includeHref) override;
+	void WriteInclude(CharPtr includeHref) override;
 
 	SyntaxType GetSyntaxType() override { return ST_DMS; }
 
 private:
-	RTC_CALL void OpenTag (CharPtr tagName, ClosePolicy cp) override;
-	RTC_CALL void CloseTag(CharPtr tagName, ClosePolicy cp) override;
+	void OpenTag (CharPtr tagName, ClosePolicy cp) override;
+	void CloseTag(CharPtr tagName, ClosePolicy cp) override;
 
-	RTC_CALL void AttrDelim    () override;
-	RTC_CALL void CloseAttrList() override;
+	void AttrDelim    () override;
+	void CloseAttrList() override;
 
 };
 
@@ -209,7 +209,7 @@ private:
 struct XML_OutElement
 {
 	RTC_CALL XML_OutElement(OutStreamBase& xmlStream, CharPtr tagName, CharPtr objName = "", ClosePolicy cp = ClosePolicy::pairedOnNewline);
-	RTC_CALL void SetHasSubItems();
+	void SetHasSubItems();
 	RTC_CALL ~XML_OutElement();
 
 	inline bool IncAttrCount()    { return m_AttrCount++; } 
@@ -267,8 +267,8 @@ inline void hRefWithText(OutStreamBase& xmlStream, CharPtr value, CharPtr hRef)
 
 struct XML_DataBracket
 {
-	RTC_CALL  XML_DataBracket(OutStreamBase& xmlStream);
-	RTC_CALL ~XML_DataBracket();
+	 XML_DataBracket(OutStreamBase& xmlStream);
+	~XML_DataBracket();
 
 private:
 	std::unique_ptr<XML_OutElement> m_DataElement;

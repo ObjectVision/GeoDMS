@@ -39,7 +39,7 @@ using OArgRefs = std::optional<ArgRefs>;
 using FutureSuppliers = std::vector<FutureData>;
 
 TIC_CALL const TreeItem* GetItem(const ArgRef& ar);
-TIC_CALL const Actor* GetStatusActor(const ArgRef& ar); // TreeItem args are now Actors (no longer SharedActor)
+const Actor* GetStatusActor(const ArgRef& ar); // TreeItem args are now Actors (no longer SharedActor)
 TIC_CALL ArgSeqType GetItems(const ArgRefs& ar);
 TIC_CALL const AbstrDataItem* AsDataItem(const ArgRef& ar);
 
@@ -105,7 +105,7 @@ struct AbstrOperGroup
 	const Operator* GetFirstMember() const { return m_FirstMember; }
 	UInt32    GetNrMembers() const;
 
-	TIC_CALL void UpdateNameID();
+	void UpdateNameID();
 
 	const Operator* FindOper      (arg_index nrArgs, const ClassCPtr* argType) const;
 	TIC_CALL const Operator* FindOperByArgs(const ArgRefs& args) const;
@@ -121,7 +121,7 @@ struct AbstrOperGroup
 	// function (scope/prelude) may serve the foreign arity. Conservative: non-caching
 	// groups (fluid effective arity: the trailing calc_as_result drop) always accept;
 	// allow_extra_args groups accept any count >= their minimum required.
-	TIC_CALL bool AcceptsArity(arg_index nrArgs) const;
+	bool AcceptsArity(arg_index nrArgs) const;
 	// the cached member-arity envelope [minRequired, maxSpecified]; false when the
 	// group effectively accepts everything (non-caching). allow_extra_args groups
 	// report maxSpecified = the arg_index maximum.
@@ -134,7 +134,7 @@ struct AbstrOperGroup
 	TIC_CALL ConstUnitRef CreateValuesUnit(const ArgSeqType& dataArgs) const;
 
 protected: // friend Operator
-	TIC_CALL void Register  (Operator* member); friend class  Operator;
+	void Register  (Operator* member); friend class  Operator;
 
 private:
 	void Init();
@@ -188,7 +188,7 @@ struct SpecialOperGroup: AbstrOperGroup
 		: SpecialOperGroup(GetTokenID_st(operName), maxNrArgs, argPolicyArray, op)
 	{}
 
-	TIC_CALL oper_arg_policy GetArgPolicy(arg_index argNr, CharPtr firstArgValue) const override;
+	oper_arg_policy GetArgPolicy(arg_index argNr, CharPtr firstArgValue) const override;
 
 private:
 	void DetermineOperPolicy();

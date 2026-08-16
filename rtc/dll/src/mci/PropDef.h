@@ -31,12 +31,12 @@ class AbstrPropDef : public Object
 {
 	typedef Object base_type;
 protected:
-	RTC_CALL AbstrPropDef(CharPtr propName, 
+	AbstrPropDef(CharPtr propName, 
 		const Class* pc, const ValueClass* vt, 
 		set_mode setMode, xml_mode xmlMode, cpy_mode cpyMode, chg_mode chgMode, bool isStored, bool evaluateIndirectExpr, bool addImplicitSuppl);
 
 public:
-    RTC_CALL ~AbstrPropDef();
+    ~AbstrPropDef();
 	// get set
 	virtual void GetAbstrValue(const Object* self, AbstrValue* value) const=0;
 	virtual void SetAbstrValue(Object* self, const AbstrValue* value) =0;
@@ -63,14 +63,14 @@ public:
 
 	void SetDepreciated() { m_Depreciated = true;  }
 
-	RTC_CALL auto CreateValue() const ->std::unique_ptr<AbstrValue>;
+	auto CreateValue() const ->std::unique_ptr<AbstrValue>;
 
-	RTC_CALL TokenID GetID() const override;
+	TokenID GetID() const override;
 
 	AbstrPropDef* GetPrevPropDef        () const { return m_PrevPD; }
 	AbstrPropDef* GetPrevCopyablePropDef() const { return m_PrevCopyablePD; }
 
-	RTC_CALL virtual void RemoveValue(Object* item);
+	virtual void RemoveValue(Object* item);
 
 private:
 	TokenID           m_PropNameID;
@@ -92,7 +92,7 @@ private:
 	SharedStr         md_Name;
 #endif
 
-	DECL_RTTI(RTC_CALL, Class)
+	DECL_RTTI(, Class)
 };
 
 #include "mci/ValueWrap.h"

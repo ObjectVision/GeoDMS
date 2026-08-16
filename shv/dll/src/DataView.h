@@ -214,7 +214,7 @@ public:
 	MsgResult DispatchMsg(const MsgStruct& msg);
 #endif
 	SHV_CALL bool OnKeyDown(UInt32 nVirtKey);
-	SHV_CALL void OnResize(GPoint deviceSize, CrdPoint scaleFactors);
+	void OnResize(GPoint deviceSize, CrdPoint scaleFactors);
 
 //	Attributes
 	std::shared_ptr<MovableObject> GetContents()             { assert(m_Contents); return m_Contents; }
@@ -223,10 +223,10 @@ public:
 	TreeItem*      GetDesktopContext() const;
 
 	#ifdef _WIN32
-	SHV_CALL void ResetHWnd(HWND hWnd);
+	void ResetHWnd(HWND hWnd);
 	HWND     GetHWnd()        const { return m_ViewHost ? m_ViewHost->VH_GetHWnd() : m_hWnd; }
 #endif
-	SHV_CALL void SetViewHost(ViewHost* vh);
+	void SetViewHost(ViewHost* vh);
 	ViewHost* GetViewHost() const { return m_ViewHost; }
 	CrdPoint GetScaleFactors() const { assert(m_CurrScaleFactors.X() > 0.0 && m_CurrScaleFactors.Y() > 0.0);  return m_CurrScaleFactors; }
 	CrdPoint GetReverseFactors() const { auto sf = GetScaleFactors(); return { 1.0 / sf.first, 1.0 / sf.second }; }
@@ -238,7 +238,7 @@ public:
 #endif
 
 	void SendStatusText(SeverityTypeID st, CharPtr msg) const;
-	SHV_CALL void SetStatusTextFunc(ClientHandle clientHandle, StatusTextFunc stf);
+	void SetStatusTextFunc(ClientHandle clientHandle, StatusTextFunc stf);
 
 	//	Contents
 	virtual void AddLayer(const TreeItem*, bool isDropped) = 0;
@@ -424,7 +424,7 @@ public:
 	DmsColor m_ColorPalette[nrPaletteColors];
 	DmsColor GetNextDmsColor() const;
 
-	DECL_RTTI(SHV_CALL, Class)
+	DECL_RTTI(, Class)
 
 	// =============================================== ToolTip
 	//

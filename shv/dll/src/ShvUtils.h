@@ -123,7 +123,7 @@ void ChangePoint(AbstrDataItem* pointItem, const CrdPoint& point, bool isNew);
 enum class ChartKind : UInt8 { Histogram, Scatter, Line, Bar };
 
 SHV_CALL void      SetViewContextChartKind(TreeItem* viewContext, ChartKind kind);
-SHV_CALL ChartKind GetViewContextChartKind(const TreeItem* viewContext);
+ChartKind GetViewContextChartKind(const TreeItem* viewContext);
 
 //----------------------------------------------------------------------
 // section : ViewContext
@@ -281,15 +281,15 @@ const char16_t UNDEFINED_WCHAR = 0xFFFF;
 // in DIPs. Derives from font height plus a small constant pad so body+header text
 // (drawn top-aligned) sits inside the cell with breathing room. Returned value is
 // DIPs and gets * dip2pixFactor scaled to device pixels by the layout pipeline.
-SHV_CALL UInt32 GetDefaultRowHeightDIP(FontSizeCategory fid);
+UInt32 GetDefaultRowHeightDIP(FontSizeCategory fid);
 
 #ifdef _WIN32
-SHV_CALL Float64 GetWindowDip2PixFactorX(HWND hWnd);
-SHV_CALL Float64 GetWindowDip2PixFactorY(HWND hWnd);
+Float64 GetWindowDip2PixFactorX(HWND hWnd);
+Float64 GetWindowDip2PixFactorY(HWND hWnd);
 SHV_CALL Point<Float64> GetWindowDip2PixFactors(HWND hWnd);
 
-SHV_CALL Float64 GetWindowDip2PixFactor(HWND hWnd);
-SHV_CALL Point<Float64> GetWindowPix2DipFactors(HWND hWnd);
+Float64 GetWindowDip2PixFactor(HWND hWnd);
+Point<Float64> GetWindowPix2DipFactors(HWND hWnd);
 #endif
 
 //----------------------------------------------------------------------
@@ -298,9 +298,9 @@ SHV_CALL Point<Float64> GetWindowPix2DipFactors(HWND hWnd);
 
 SHV_CALL TreeItem* GetDefaultDesktopContainer(const TreeItem* ti);
 SHV_CALL TreeItem* GetExportsContainer   (TreeItem* desktopItem);
-SHV_CALL TreeItem* GetViewDataContainer  (TreeItem* desktopItem);
-SHV_CALL TreeItem* CreateContainer       (TreeItem* container,   const TreeItem* item); // borrow into the tree: the created/found item is owned by its parent container
-SHV_CALL TreeItem* CreateDesktopContainer(TreeItem* desktopItem, const TreeItem* item);
+TreeItem* GetViewDataContainer  (TreeItem* desktopItem);
+TreeItem* CreateContainer       (TreeItem* container,   const TreeItem* item); // borrow into the tree: the created/found item is owned by its parent container
+TreeItem* CreateDesktopContainer(TreeItem* desktopItem, const TreeItem* item);
 
 template <typename T>
 const T* GetUltimateSourceItem(const T* item)

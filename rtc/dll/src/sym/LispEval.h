@@ -35,7 +35,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 /****************** Function headers              *******************/
 
-SYM_CALL LispRef MakeVarsOfUnderscores(LispPtr expr);
+LispRef MakeVarsOfUnderscores(LispPtr expr);
 
 #if defined(MG_USE_LISPFUNCS)
 SYM_CALL LispRef         Eval(LispPtr expr, AssocListPtr env);
@@ -47,8 +47,8 @@ SYM_CALL LispRef RepeatedEval(LispPtr expr, AssocListPtr env);
 
 //==============================
 
-SYM_CALL void SetEnv(AssocListPtr env);
-SYM_CALL LispRef ApplyTopEnv(LispPtr expr);
+void SetEnv(AssocListPtr env);
+LispRef ApplyTopEnv(LispPtr expr);
 
 
 #endif // __MG_SYMBOL_LISPEVAL_H

@@ -198,6 +198,13 @@ Facts that shape the pass:
 - **Convention for survivors**: symbols that stay exported for a single niche consumer
   get a keep-justification comment, e.g. `TreeItem.h:251`
   `// exported: shv GraphicContainer::SaveOrder calls it`.
+- **Release import tables understate Debug-link needs** (found during B1): downstream
+  references sitting in code that `/OPT:REF` dead-strips in Release still require the
+  import in Debug links (e.g. `InpStreamBuff::~InpStreamBuff` and `ViewData::~ViewData`,
+  reached only via inline dtors of otherwise-unused wrapper classes;
+  `AbstrDataItem::GetDataRefLockCount`; `AsFileDateTime`). Consequence: the Debug-first
+  build gate is not just an assert-catcher here — it is the authoritative link check;
+  such symbols keep their export with an `/OPT:REF` keep-comment.
 - **Decision (user, 2026-08-16): de-export = bare macro removal** (undecorated =
   internal, matching house style). No marker macro.
 
@@ -416,7 +423,27 @@ battery. `/bigobj` may be set additionally wherever a merge/split needs it.
 |---|---|---|
 | 0 | this document; gh: comment on #1105 (pyd↔python313 mismatch), new issue for the rtc+clc+geo merge follow-up | — |
 | A | hygiene pre-fixes: `extern` on the 2 tentative definitions; `SHV_CALL` dllimport else-branch (DM_SHV_DLL hole — surfaced + fixed the DrawPolygons.h private-copy bug, see §2); drop dead `SHVDLL_EXPORTS` define; stale `cpp.hint`; `RtcComponents.h` comment; **`/pdbpagesize:16384`** in DmsDef.props + top CMakeLists (note: the page size only applies when a PDB is CREATED — existing PDBs must be deleted once; verified 16384 + cdb reads them, "private pdb symbols") | ✅ |
-| B | de-export, entirely-dead identifiers only, C-ABI keep-list excluded: B1 plain functions/members; B2 template families (instantiation care, .l check); B3 data symbols (symbol-wide grep each); B4 `DECL_RTTI` empty-CALLTYPE; B5 shv class-level decorations; B6 dumpbin re-sweep, record numbers | — |
+| B | de-export, entirely-dead identifiers only, C-ABI keep-list excluded: B1 plain functions/members; B2 template families (instantiation care, .l check); B3 data symbols (symbol-wide grep each); B4 `DECL_RTTI` empty-CALLTYPE; B5 shv class-level decorations; B6 dumpbin re-sweep, record numbers | ✅ |
+
+Step-B outcome (measured on the Debug binaries, 2026-08-16): **exports
+5999 → 4070 (−1929)** — Rtc 5672→3930, Shv 208→84, Stg 87→27, Stx 15→12, Clc 17→17,
+Geo 7→7. ~990 decorated lines stripped (Rtc ~900, Stg 47, Shv 53, Stx 4, Clc 1) + 72
+RTTI accessor pairs via an empty `DECL_RTTI`/`DECL_ABSTR` CALLTYPE argument +
+Win32ViewHost class decoration dropped. No template-instantiation fallout: the
+`#if !defined(_MSC_VER)` blocks needed NO extension — removing dllexport-forcing left
+every intra-DLL use satisfied, matching the GCC-parity argument (GCC never had the
+forcing and links today). 17 symbols/classes were restored with `// exported:`
+keep-comments after Debug link errors: 14 members/free functions whose downstream
+references are /OPT:REF-stripped in Release, plus the shv `Region`/`MenuItem`/`ViewHost`
+class decorations (qtgui's QDmsViewArea uses them; RELEASE INLINING of small members
+hides those imports from the Release evidence — a second understatement mechanism
+besides /OPT:REF). The strip machinery honours `// exported:` comments as a durable
+keep-marker; `s_DrawingSizeTresholdInPixels` was excluded as its liveness changed in
+step A. Residual: 52 entirely-dead C++ identifiers (170 symbols) in Rtc whose decorated
+lines the scope-aware mapper could not match safely (UNMATCHED) + 44 dead Shv symbols
+(members of the restored class-decorated types) — optional second pass, low value.
+Fresh evidence + maps live in `scratch/deexport*` (gitignored); tooling in the session
+scratchpad (`deexport_evidence.py`, `deexport_map2.py`, `deexport_strip.py`).
 | C | cross-DLL moves + edge hygiene (§4); dumpbin re-sweep for newly-dead exports | — |
 | D | TU splits (§3a) | — |
 | E | TU merges (§3b, with the template-TU limits pre-check) | — |

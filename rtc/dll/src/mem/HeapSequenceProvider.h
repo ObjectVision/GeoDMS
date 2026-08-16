@@ -16,7 +16,7 @@
 // heap_sequence_provider
 //----------------------------------------------------------------------
 
-RTC_CALL void throwInsertError(SizeT seqSize, SizeT n);
+void throwInsertError(SizeT seqSize, SizeT n);
 
 template <typename V>
 class heap_sequence_provider : public abstr_sequence_provider<V>
@@ -54,8 +54,8 @@ public:
 	bool IsHeapAllocated() const override   { return true; }
 
 	abstr_sequence_provider<IndexRange<SizeT> >* CloneForSeqs() const override;
-	RTC_CALL static abstr_sequence_provider<V>* CreateProvider();
-	RTC_CALL static SizeT max_size();
+	static abstr_sequence_provider<V>* CreateProvider();
+	static SizeT max_size();
 
 private:
 	heap_sequence_provider()  {}

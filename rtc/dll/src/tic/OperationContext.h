@@ -70,10 +70,10 @@ struct tg_maintainer
 // - On destruction: restores previous active context.
 // - CurrActive*: access/modify cancellation of the current context from nested code.
 struct CancelableFrame {
-	TIC_CALL CancelableFrame(OperationContext* self);
-	TIC_CALL ~CancelableFrame();
-	TIC_CALL static OperationContext* CurrActive();
-	TIC_CALL static void CurrActiveCancelIfNoInterestOrForced(bool forceCancel);
+	CancelableFrame(OperationContext* self);
+	~CancelableFrame();
+	static OperationContext* CurrActive();
+	static void CurrActiveCancelIfNoInterestOrForced(bool forceCancel);
 	TIC_CALL static bool CurrActiveCanceled();
 private:
 	OperationContext* m_Prev; // previously active OperationContext (for nesting)
@@ -144,13 +144,13 @@ struct OperationContext : std::enable_shared_from_this<OperationContext>
 	// critical section before running, instead of blocking a worker inside the read payload.
 	TIC_CALL static std::shared_ptr<OperationContext> CreateItemWriter(TreeItem* item, task_func_type func, const FutureSuppliers& allArgInterests, bool runDirect, SharedPtr<NonmappableStorageManager> requiredStorageManager = {});
 
-	TIC_CALL ~OperationContext();
+	~OperationContext();
 
 	// Constructors
 	// - FuncDC-bound constructor used for operator evaluations via data controllers.
-	TIC_CALL OperationContext(const FuncDC* self);
+	OperationContext(const FuncDC* self);
 	// - Task-func constructor used for ad-hoc writer contexts and other runnable work.
-	TIC_CALL OperationContext(task_func_type func);
+	OperationContext(task_func_type func);
 
 	OperationContext(const OperationContext&) = delete;
 	void operator =(const OperationContext&) = delete;
@@ -164,27 +164,27 @@ struct OperationContext : std::enable_shared_from_this<OperationContext>
 	// Primary scheduling entry. Registers suppliers, acquires write lock if needed,
 	// and optionally runs inline based on 'runDirect'.
 	// Returns final state after scheduling (may be running/done if inlined).
-	TIC_CALL task_status Schedule(TreeItem* item, const FutureSuppliers& allArgInterest, bool runDirect, explain_context_ptr_t context = {});
+	task_status Schedule(TreeItem* item, const FutureSuppliers& allArgInterest, bool runDirect, explain_context_ptr_t context = {});
 
 public:
 	// Join
 	// Wait until this context reaches a terminal state (done/cancelled/exception/suspended).
-	TIC_CALL task_status Join();
+	task_status Join();
 
 	// GetUniqueLicenseToRun
 	// Acquire exclusive execution license to ensure only one active runner per context.
-	TIC_CALL bool GetUniqueLicenseToRun();
+	bool GetUniqueLicenseToRun();
 	// getUniqueLicenseToRun (overload)
 	// If runDirect is true, try to claim license immediately for inlining.
-	TIC_CALL bool getUniqueLicenseToRun(bool runDirect);
+	bool getUniqueLicenseToRun(bool runDirect);
 
 	// OnException
 	// Transition to exception state and perform minimal safe cleanup (no-throw).
-	TIC_CALL void OnException() noexcept;
+	void OnException() noexcept;
 
 	// OnEnd
 	// Transition to final status and notify waiters; no-throw.
-	TIC_CALL void OnEnd(task_status status) noexcept;
+	void OnEnd(task_status status) noexcept;
 
 	// onEnd
 	// Variant returning a garbage_can that defers cleanup to caller scope.
@@ -192,7 +192,7 @@ public:
 
 	// CancelIfNoInterestOrForced
 	// Cancel execution if there are no waiters/interests or if 'forced' is true.
-	TIC_CALL bool CancelIfNoInterestOrForced(bool forced);
+	bool CancelIfNoInterestOrForced(bool forced);
 
 	// HandleFail
 	// Handle failure for a particular item; returns true if handled (and error propagated appropriately).
@@ -208,7 +208,7 @@ public:
 
 	// GetStatus
 	// Synchronizing accessor to current status (may include acquire semantics in impl).
-	TIC_CALL task_status GetStatus() const;
+	task_status GetStatus() const;
 
 	// getStatus
 	// Relaxed load of current status for non-synchronizing checks.
@@ -216,7 +216,7 @@ public:
 
 	// JoinSupplOrSuspendTrigger
 	// Either waits for suppliers to complete or transitions to suspended based on triggers.
-	TIC_CALL task_status JoinSupplOrSuspendTrigger();
+	task_status JoinSupplOrSuspendTrigger();
 
 	// ActivateOtherSuppl
 	// Wake up other suppliers that may proceed after state changes in this context.
@@ -406,8 +406,8 @@ public:
 // pairing perfectly).
 class AbstrDataItem;
 class AbstrDataObject;
-TIC_CALL void MemoryLedger_Retain(const AbstrDataItem* item, const AbstrDataObject* obj, SizeT bytes);
-TIC_CALL void MemoryLedger_ReleaseRetained(const AbstrDataObject* obj) noexcept;
+void MemoryLedger_Retain(const AbstrDataItem* item, const AbstrDataObject* obj, SizeT bytes);
+void MemoryLedger_ReleaseRetained(const AbstrDataObject* obj) noexcept;
 
 // GetNextPhaseNumber
 // Global monotonic counter to assign new phase numbers for batch scheduling/waiting.
@@ -415,12 +415,12 @@ TIC_CALL auto GetNextPhaseNumber() -> phase_number;
 
 // DoWorkWhileWaitingFor
 // Allow current thread to perform other work while waiting for a phase to complete.
-TIC_CALL void DoWorkWhileWaiting();
-TIC_CALL void DoWorkWhileWaitingFor(std::atomic<task_status>* phaseContainerStatus);
+void DoWorkWhileWaiting();
+void DoWorkWhileWaitingFor(std::atomic<task_status>* phaseContainerStatus);
 
 // WakeUpJoiners
 // Notifies threads/contexts waiting on global join conditions to re-check status.
-TIC_CALL void WakeUpJoiners();
+void WakeUpJoiners();
 
 // Diagnostics for current blocked phase (for UI/debugger integration):
 // - s_CurrBlockedPhaseNumber: phase that is currently blocked

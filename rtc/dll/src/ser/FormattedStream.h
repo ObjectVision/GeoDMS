@@ -80,11 +80,11 @@ struct FormattedInpStream
 //	const char& operator * () const { return NextChar(); }
 //	void       operator ++() { ReadChar(); }
 
-	RTC_CALL std::pair<FormattedInpStream::TokenType, CharPtrRange> NextToken();
-	RTC_CALL CharPtrRange NextWord ();
+	std::pair<FormattedInpStream::TokenType, CharPtrRange> NextToken();
+	CharPtrRange NextWord ();
 
 	streamsize_t CurrPos() const { return m_InpStreamBuff->CurrPos() - (AtEnd() ? 0 : 1); }
-	RTC_CALL void SetCurrPos(streamsize_t pos); 
+	void SetCurrPos(streamsize_t pos); 
 
 	UInt32 GetLineNr() const { return m_LineNr; }
 	UInt32 GetColNr()  const { return UInt32(1+ CurrPos() - m_LineStartPos); }
@@ -114,8 +114,8 @@ template <typename T> RTC_CALL FormattedOutStream& operator <<(FormattedOutStrea
 template <typename T> RTC_CALL FormattedInpStream& operator >>(FormattedInpStream& str, T& value) requires is_numeric_v<T>;
 template <typename T> RTC_CALL void AssignNumericValueFromCharPtr(T& value, CharPtr data);
 template <typename T> RTC_CALL void AssignNumericValueFromCharPtrs(T& value, CharPtr begin, CharPtr end);
-template <typename T> RTC_CALL void AssignNumericValueFromCharPtrs_Checked(T& value, CharPtr begin, CharPtr end);
-template <typename T> RTC_CALL bool AsCharArray(T value, char* buffer, UInt32 bufLen);
+template <typename T> void AssignNumericValueFromCharPtrs_Checked(T& value, CharPtr begin, CharPtr end);
+template <typename T> bool AsCharArray(T value, char* buffer, UInt32 bufLen);
 
 #define INSTANTIATE(T) \
 extern template RTC_CALL FormattedOutStream& operator << <T> (FormattedOutStream& str, T value); \
@@ -123,7 +123,7 @@ extern template RTC_CALL FormattedInpStream& operator >> <T> (FormattedInpStream
 extern template RTC_CALL void AssignNumericValueFromCharPtr<T>(T& value, CharPtr data); \
 extern template RTC_CALL void AssignNumericValueFromCharPtrs<T>(T& value, CharPtr begin, CharPtr end); \
 extern template RTC_CALL void AssignNumericValueFromCharPtrs_Checked<T>(T& value, CharPtr begin, CharPtr end); \
-extern template RTC_CALL bool AsCharArray(T value, char* buffer, UInt32 bufLen); \
+extern template bool AsCharArray(T value, char* buffer, UInt32 bufLen); \
 
 
 INSTANTIATE_NUM_ELEM

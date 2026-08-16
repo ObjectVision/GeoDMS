@@ -167,7 +167,7 @@ private:
 		m_ValueGetterPtr;
 	mutable Float64 m_MaxValue;
 
-	DECL_RTTI(SHV_CALL, ShvClass)
+	DECL_RTTI(, ShvClass)
 };
 
 SharedDataItemInterestPtr CreatePaletteData(DataView* dv, const AbstrUnit* domain, AspectNr aNr, bool ramp, bool always, const Float64* first, const Float64* last);

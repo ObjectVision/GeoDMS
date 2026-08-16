@@ -16,8 +16,8 @@
 // DemandManagement:: IncInterestDetector and LiftInterest; detect late expression of demand and promises
 //----------------------------------------------------------------------
 
-RTC_CALL void IncRemainingTargetCount();
-RTC_CALL void DecRemainingTargetCount();
+void IncRemainingTargetCount();
+void DecRemainingTargetCount();
 
 #if defined(MG_DEBUG_INTERESTSOURCE)
 
@@ -67,25 +67,25 @@ namespace SuspendTrigger
 	RTC_CALL void DoSuspend() noexcept;     // set result for next MustSuspend and DidSuspend
 	RTC_CALL bool DidSuspend() noexcept;    // Returns result from last MustSuspend call without calling the trigger-func again (unless a Blocker is active
 	RTC_CALL void Resume() noexcept;        // resets the last result of MustSuspend
-	RTC_CALL bool IncReportedErrorCount() noexcept;
+	bool IncReportedErrorCount() noexcept;
 
 
 	RTC_CALL void IncSuspendLevel() noexcept;
 	RTC_CALL void DecSuspendLevel() noexcept;
 
 	struct TryFrame { //: InterestRetainContextBase {
-		RTC_CALL TryFrame() noexcept;
-		RTC_CALL ~TryFrame() noexcept;
-		static RTC_CALL bool IsActive() noexcept;
-		static RTC_CALL void ConsiderSuspendException();
+		TryFrame() noexcept;
+		~TryFrame() noexcept;
+		static bool IsActive() noexcept;
+		static void ConsiderSuspendException();
 		struct task_suspended_exception {};
 	};
 	struct BlockerBase
 	{
 		RTC_CALL BlockerBase (CharPtr blockingAction);
 		RTC_CALL ~BlockerBase();
-		RTC_CALL static CharPtr GetCurrBlockingAction();
-		RTC_CALL static bool IsBlocked();
+		static CharPtr GetCurrBlockingAction();
+		RTC_CALL static bool IsBlocked(); // exported: shv ThemeReadLocks needs it in Debug links (/OPT:REF strips the reference in Release)
 	};
 
 	struct SilentBlocker : BlockerBase

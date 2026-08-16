@@ -77,16 +77,16 @@ struct DataArrayBase : AbstrDataObject
 	auto GetLockedDataRead(tile_id t = no_tile) const { return GetDataRead(t); } // TODO G8: SUBSTITUTE AWAY
 	auto GetLockedDataWrite(tile_id t, dms_rw_mode rwMode) { return GetDataWrite(t, rwMode); } // TODO G8: SUBSTITUTE AWAY
 
-	TIC_CALL SizeT CountValues(param_t v) const;
+	SizeT CountValues(param_t v) const;
 
 //	set data functions
 	TIC_CALL void SetIndexedValue(SizeT index, param_t value);
-	TIC_CALL void SetTileIndexedValue(tile_id t, tile_offset index, param_t value);
+	void SetTileIndexedValue(tile_id t, tile_offset index, param_t value);
 	TIC_CALL void SetIndexedValueArray(SizeT start, SizeT len, const api_t* pClientBuffer);
 
 //	get data functions
 	TIC_CALL value_type     GetIndexedValue   (SizeT index)    const;
-	TIC_CALL const_iterator GetIndexedIterator(SizeT index, GuiReadLock& lockHolder)    const;
+	const_iterator GetIndexedIterator(SizeT index, GuiReadLock& lockHolder)    const;
 	TIC_CALL void GetIndexedValueArray (SizeT start, SizeT len, api_t* pClientBuffer) const;
 
 //	override AbstrDataObject
@@ -212,7 +212,7 @@ struct NumericArray : DataArrayBase<V>
 
 
 	// Helper func
-	TIC_CALL SizeT FindPos(V val, SizeT startPos = 0) const;
+	SizeT FindPos(V val, SizeT startPos = 0) const;
 };
 
 //----------------------------------------------------------------------

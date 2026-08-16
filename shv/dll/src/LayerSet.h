@@ -59,7 +59,7 @@ private:
 
 	SharedStr m_Caption;
 
-	DECL_RTTI(SHV_CALL, ShvClass)
+	DECL_RTTI(, ShvClass)
 };
 
 #endif // __SHV_LAYERSET_H

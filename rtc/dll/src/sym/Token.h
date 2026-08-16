@@ -123,14 +123,14 @@ struct TokenID
 	RTC_CALL explicit TokenID(WeakStr str);
 	constexpr explicit TokenID(Undefined) : m_ID(UNDEFINED_VALUE(TokenT)) {}
 //	get id or -1 if not found
-	RTC_CALL static TokenID GetExisting(CharPtr tokenStr);
-	RTC_CALL static TokenID GetExisting(CharPtr first, CharPtr last, mt_tag*);
-	RTC_CALL static TokenID GetExisting(CharPtr first, CharPtr last, st_tag*);
+	static TokenID GetExisting(CharPtr tokenStr);
+	static TokenID GetExisting(CharPtr first, CharPtr last, mt_tag*);
+	static TokenID GetExisting(CharPtr first, CharPtr last, st_tag*);
 
 //	retieve string from token
 	RTC_CALL TokenStr GetStr   () const;
-	RTC_CALL TokenStr GetStrEnd() const;
-	RTC_CALL UInt32   GetStrLen() const;
+	TokenStr GetStrEnd() const;
+	UInt32   GetStrLen() const;
 	RTC_CALL TokenStrRange AsStrRange() const;
 	RTC_CALL SharedStr AsSharedStr() const;
 	RTC_CALL std::string AsStdString() const;
@@ -165,12 +165,12 @@ private:
 	friend struct AbstrOperGroup; friend struct SpecialOperGroup;
 
 	// UNSAFE, As another thread might reallocate token list, only use if singly threaded
-	RTC_CALL CharPtr c_str_st() const; 
-	RTC_CALL CharPtrRange str_range_st() const;
+	CharPtr c_str_st() const; 
+	CharPtrRange str_range_st() const;
 
 	explicit TokenID(TokenT id) : m_ID(id) {}
 	TokenT m_ID;
-	RTC_CALL static CharPtr s_EmptyStr; 
+	static CharPtr s_EmptyStr; 
 };
 
 #if defined(MG_DEBUG)
@@ -191,7 +191,7 @@ inline constexpr TokenID UndefinedValue(const TokenID*) { return TokenID(Undefin
 
 // ===================== Interface
 
-RTC_CALL void Trim(CharPtrRange& range);
+void Trim(CharPtrRange& range);
 
 // get or create id
 RTC_CALL TokenID GetTokenID_st(CharPtr tokenStr);
@@ -201,7 +201,7 @@ inline TokenID GetTokenID_st(CharPtrRange range) { return GetTokenID_st(range.fi
 
 inline TokenID GetTokenID_mt(CharPtr tokenStr) { return TokenID(tokenStr, multi_threading_tag_v); }
 inline TokenID GetTokenID_mt(CharPtr first, CharPtr last) { return TokenID(first, last, multi_threading_tag_v); }
-RTC_CALL TokenID GetTrimmedTokenID(CharPtr first, CharPtr last);
+TokenID GetTrimmedTokenID(CharPtr first, CharPtr last);
 inline TokenID GetTokenID_mt(CharPtrRange range) { return GetTokenID_mt(range.first, range.second); }
 
 template<typename TAG = mt_tag>
@@ -223,7 +223,7 @@ inline UInt32   GetTokenStrLen(TokenID tokenID) { return tokenID.GetStrLen(); }
 // Section      : Element operations on strings
 //----------------------------------------------------------------------
 
-RTC_CALL Float64 AsFloat64(TokenID x);
+Float64 AsFloat64(TokenID x);
 
 template <typename Char, typename Traits>
 std::basic_ostream<Char, Traits>& operator << (std::basic_ostream<Char, Traits>& os, TokenStr str)

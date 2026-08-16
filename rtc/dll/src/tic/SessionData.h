@@ -59,12 +59,12 @@ struct SessionData : std::enable_shared_from_this<SessionData>
 	TIC_CALL static std::shared_ptr<SessionData> Curr();
 	TIC_CALL static void ReleaseCurr();
 
-	TIC_CALL void release();
+	void release();
 
 	SharedTreeItem  GetConfigRoot   () const { return m_ConfigRoot; } 
 	WeakStr         GetConfigLoadDir() const { return m_ConfigLoadDir; }
 	SharedStr       GetConfigDir    () const;
-	TIC_CALL bool   IsConfigDirty   () const;
+	bool   IsConfigDirty   () const;
 
 	SharedStr       GetConfigIniFile() const;
 	static SharedStr GetConfigIniFile(CharPtr configDir);
@@ -73,7 +73,7 @@ struct SessionData : std::enable_shared_from_this<SessionData>
 	SharedTreeItem GetConfigSettings(CharPtr section, CharPtr key) const;
 
 	         SharedStr ReadConfigString(CharPtr section, CharPtr key, CharPtr defaultValue) const;
-	TIC_CALL Int32     ReadConfigValue (CharPtr section, CharPtr key, Int32   defaultValue) const;
+	Int32     ReadConfigValue (CharPtr section, CharPtr key, Int32   defaultValue) const;
 
 	const TreeItem* GetContainer(const TreeItem* context, CharPtr name) const;
 	const TreeItem* GetClassificationContainer(const TreeItem* context) const;

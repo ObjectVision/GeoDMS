@@ -167,7 +167,7 @@ public:
 	void AddLayer(const TreeItem*, bool isDropped) override;
 	bool CanContain(const TreeItem* viewCandidate) const override;
 
-	DECL_RTTI(SHV_CALL, Class)
+	DECL_RTTI(, Class)
 };
 
 

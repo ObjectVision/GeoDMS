@@ -29,7 +29,7 @@ public:
 
 	void DoUpdateTree (const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const override;
 
-	DECL_RTTI(STGDLL_CALL, StorageClass)
+	DECL_RTTI(, StorageClass)
 };
 
 

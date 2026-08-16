@@ -38,7 +38,7 @@ void ProgressMsg(CharPtr msg);
 using MsgCallbackFunc = void (DMS_CONV *)(ClientHandle clientHandle, const MsgData* data, bool moreToCome);
 using TASyncContinueCheck = void (DMS_CONV *)();
 
-RTC_CALL void MustCoalesceHeap(SizeT size);
+void MustCoalesceHeap(SizeT size);
 
 RTC_CALL auto SetASyncContinueCheck(TASyncContinueCheck asyncContinueCheckFunc) -> TASyncContinueCheck;
 RTC_CALL void ASyncContinueCheck();

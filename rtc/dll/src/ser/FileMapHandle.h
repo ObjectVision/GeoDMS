@@ -20,8 +20,8 @@
 
 //----------------------------------------------------------------------
 
-RTC_CALL SizeT GetAllocationGrannularity();
-RTC_CALL UInt8 GetLog2AllocationGrannularity();
+SizeT GetAllocationGrannularity();
+UInt8 GetLog2AllocationGrannularity();
 
 RTC_CALL UInt8 GetLog2MemPageSize();
 
@@ -52,7 +52,7 @@ struct WinHandle
 	WinHandle(const WinHandle& rhs) = delete;
 	void operator = (const WinHandle&) = delete;
 
-	RTC_CALL ~WinHandle(); // CloseHandle(m_Hnd)
+	RTC_CALL ~WinHandle(); // CloseHandle(m_Hnd) // exported: stg FileSystemStorageManager's FileHandle ctor-unwind needs it in Debug links (/OPT:REF strips the reference in Release)
 
 	operator HANDLE() const { return m_Hnd; }
 
@@ -102,14 +102,14 @@ struct MappedFileHandle : FileHandle
 	RTC_CALL MappedFileHandle();
 	RTC_CALL ~MappedFileHandle();
 
-	RTC_CALL void OpenRw(WeakStr fileName, dms::filesize_t requiredNrBytes, dms_rw_mode rwMode, bool isTmp);
+	void OpenRw(WeakStr fileName, dms::filesize_t requiredNrBytes, dms_rw_mode rwMode, bool isTmp);
 	RTC_CALL void OpenForRead(WeakStr fileName, bool throwOnError, bool doRetry);
 
-	RTC_CALL FileChunkSpec AllocFile (FileChunkSpec& viewSpec, dms::filesize_t viewCapacity);
-	RTC_CALL FileChunkSpec allocChunk(FileChunkSpec& viewSpec, dms::filesize_t viewCapacity, tile_id t);
-	RTC_CALL FileChunkSpec allocAtEnd(dms::filesize_t viewSize, dms::filesize_t viewCapacity);
+	FileChunkSpec AllocFile (FileChunkSpec& viewSpec, dms::filesize_t viewCapacity);
+	FileChunkSpec allocChunk(FileChunkSpec& viewSpec, dms::filesize_t viewCapacity, tile_id t);
+	FileChunkSpec allocAtEnd(dms::filesize_t viewSize, dms::filesize_t viewCapacity);
 
-	RTC_CALL void MapFile(bool alsoWrite);
+	void MapFile(bool alsoWrite);
 
 	WinHandle m_hFileMapping;
 	std::shared_mutex m_ResizeMutex;
@@ -123,7 +123,7 @@ struct MappedFileHandle : FileHandle
 	MappedFileHandle& operator =(MappedFileHandle&&) = delete;
 };
 
-RTC_CALL void CreateMemPageAllocTable(std::shared_ptr<MappedFileHandle> self, bool readOnly, tile_id tn);
+void CreateMemPageAllocTable(std::shared_ptr<MappedFileHandle> self, bool readOnly, tile_id tn);
 
 
 struct ConstMappedFileHandle : MappedFileHandle
@@ -138,8 +138,8 @@ struct ConstMappedFileHandle : MappedFileHandle
 
 struct ViewData : ptr_base<void, movable>
 {
-	RTC_CALL ViewData(MappedFileHandle* mappedFile, DWORD desiredAccess, dms::filesize_t viewOffset, dms::filesize_t viewCapacity);
-	RTC_CALL ~ViewData();
+	ViewData(MappedFileHandle* mappedFile, DWORD desiredAccess, dms::filesize_t viewOffset, dms::filesize_t viewCapacity);
+	RTC_CALL ~ViewData(); // exported: stg/stx ConstFileViewHandle dtor needs it in Debug links (/OPT:REF strips the reference in Release)
 
 	ViewData() {}
 	ViewData(ViewData&& rhs) noexcept
@@ -177,15 +177,15 @@ struct FileViewHandle
 		assert(rhs.m_ViewSpec.offset == 0);
 	}
 
-	RTC_CALL FileViewHandle(std::shared_ptr<mapped_file_type> mfh, dms::filesize_t viewOffset, dms::filesize_t viewSize, dms::filesize_t viewCapacity);
-	RTC_CALL void operator = (FileViewHandle&& rhs) noexcept;
+	FileViewHandle(std::shared_ptr<mapped_file_type> mfh, dms::filesize_t viewOffset, dms::filesize_t viewSize, dms::filesize_t viewCapacity);
+	void operator = (FileViewHandle&& rhs) noexcept;
 
-	RTC_CALL void AllocAndMapFile (dms::filesize_t capacity);
-	RTC_CALL void allocAndMapChunk(dms::filesize_t capacity, tile_id t);
+	void AllocAndMapFile (dms::filesize_t capacity);
+	void allocAndMapChunk(dms::filesize_t capacity, tile_id t);
 
 	bool IsUsable() const { return m_ViewData.has_ptr() || GetViewCapacity() == 0; }
 
-	RTC_CALL void MapView(bool alsoWrite);
+	void MapView(bool alsoWrite);
 	void UnmapView() { m_ViewData = ViewData(); }
 
 	char*   DataBegin()       { assert(IsUsable()); return reinterpret_cast<char*  >(m_ViewData.get_ptr()); }

@@ -93,7 +93,7 @@ UInt32 untab(CharPtr first, CharPtr last, char* outBuffer, UInt32 tabSize, UInt3
 	return pos;
 }
 
-SYNTAX_CALL SharedStr problemlocAsString(CharPtr bufferBegin, CharPtr bufferEnd, CharPtr problemLoc)
+SharedStr problemlocAsString(CharPtr bufferBegin, CharPtr bufferEnd, CharPtr problemLoc)
 {
 	if (!problemLoc)
 		return SharedStr();

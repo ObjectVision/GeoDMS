@@ -83,7 +83,7 @@ SharedStr platform::GetSystemErrorText(DWORD lastErr)
 	return utf8;
 };
 
-RTC_CALL bool platform::isCharPtrAndExceeds_MAX_PATH(CharPtr xFileName)
+bool platform::isCharPtrAndExceeds_MAX_PATH(CharPtr xFileName)
 {
 	return strnlen(xFileName, MAX_PATH) >= MAX_PATH;
 }
@@ -428,7 +428,7 @@ SharedStr GetSourceDataDirImpl()
 	return sourceDataDir;
 }
 
-RTC_CALL SharedStr GetSourceDataDir()
+SharedStr GetSourceDataDir()
 {
 	static SharedStr sourceDataDir = GetSourceDataDirImpl();
 	return sourceDataDir;
@@ -503,7 +503,7 @@ RTC_CALL void SetCachedStatusFlag(UInt32 newSF, bool newVal)
 
 }
 
-RTC_CALL void SetRegStatusFlags(UInt32 newSF)
+void SetRegStatusFlags(UInt32 newSF)
 {
 	SetGeoDmsRegKeyDWord("StatusFlags", newSF);
 	DMS_Appl_SetRegStatusFlags(newSF);
@@ -554,12 +554,12 @@ RTC_CALL bool IsMultiThreaded3()
 	return GetRegStatusFlags() & RSF_MultiThreading3;
 }
 
-RTC_CALL bool IsMultiThreaded1or2()
+bool IsMultiThreaded1or2()
 {
 	return GetRegStatusFlags() & (RSF_MultiThreading1| RSF_MultiThreading2);
 }
 
-RTC_CALL bool HasDynamicROI()
+bool HasDynamicROI()
 {
 	return GetRegStatusFlags() & RSF_DynamicROI;
 }
@@ -569,7 +569,7 @@ RTC_CALL bool ShowThousandSeparator()
 	return GetRegStatusFlags() & RSF_ShowThousandSeparator;
 }
 
-RTC_CALL bool EventLog_HideDepreciatedCaseMixupWarnings()
+bool EventLog_HideDepreciatedCaseMixupWarnings()
 {
 	return GetRegStatusFlags() & RSF_EventLog_HideDepreciated;
 }
@@ -1464,7 +1464,7 @@ Int64 GetSecsSince1970()
 
 namespace PlatformInfo
 {
-	RTC_CALL SharedStr GetVersionStr()
+	SharedStr GetVersionStr()
 	{
 		auto result = SharedStr("Windows ");
 
@@ -1478,7 +1478,7 @@ namespace PlatformInfo
 			result += ", server edition";
 		return result;
 	}
-	RTC_CALL SharedStr GetUserNameA()
+	SharedStr GetUserNameA()
 	{
 		DWORD sz = UNLEN+1;
 		wchar_t buffer[UNLEN+1];
@@ -1486,7 +1486,7 @@ namespace PlatformInfo
 			throwLastSystemError("GetUserName");
 		return SharedStr(wchar_2_Utf8Str(buffer, sz - 1)); // GetUserNameW includes null in sz
 	}
-	RTC_CALL SharedStr GetComputerNameA()
+	SharedStr GetComputerNameA()
 	{
 		DWORD sz = MAX_COMPUTERNAME_LENGTH+1;
 		wchar_t buffer[MAX_COMPUTERNAME_LENGTH + 1]; 
@@ -1494,7 +1494,7 @@ namespace PlatformInfo
 			throwLastSystemError("GetComputerName");
 		return SharedStr(wchar_2_Utf8Str(buffer, sz));
 	}
-	RTC_CALL bool GetEnv(CharPtr varName, SharedStr& result)
+	bool GetEnv(CharPtr varName, SharedStr& result)
 	{
 		auto varNameW = Utf8_2_wchar(varName);
 		const wchar_t* resPtr = _wgetenv(varNameW.get());
@@ -1503,13 +1503,13 @@ namespace PlatformInfo
 		result = wchar_2_Utf8Str(resPtr);
 		return true;
 	}
-	RTC_CALL bool GetEnvString(CharPtr section, CharPtr key, SharedStr& result)
+	bool GetEnvString(CharPtr section, CharPtr key, SharedStr& result)
 	{
 		SharedStr varName = mySSPrintF("GEODMS_{}_{}", section, key);
 		return GetEnv(varName.c_str(), result);
 	}
 
-	RTC_CALL SharedStr GetProgramFiles32()
+	SharedStr GetProgramFiles32()
 	{
 		SharedStr result;
 		if (!GetEnv("ProgramFiles(x86)", result))
@@ -1581,7 +1581,7 @@ SharedStr platform::GetSystemErrorText(DWORD lastErr)
 	return SharedStr(strerror(lastErr));
 }
 
-RTC_CALL bool platform::isCharPtrAndExceeds_MAX_PATH(CharPtr xFileName)
+bool platform::isCharPtrAndExceeds_MAX_PATH(CharPtr xFileName)
 {
 	return strnlen(xFileName, PATH_MAX) >= PATH_MAX;
 }
@@ -2423,7 +2423,7 @@ SharedStr GetSourceDataDirImpl()
 	return sourceDataDir;
 }
 
-RTC_CALL SharedStr GetSourceDataDir()
+SharedStr GetSourceDataDir()
 {
 	static SharedStr sourceDataDir = GetSourceDataDirImpl();
 	return sourceDataDir;
@@ -2482,7 +2482,7 @@ RTC_CALL void SetCachedStatusFlag(UInt32 newSF, bool newVal)
 	else        g_OvrStatusFlags &= ~newSF;
 }
 
-RTC_CALL void SetRegStatusFlags(UInt32 newSF)
+void SetRegStatusFlags(UInt32 newSF)
 {
 	SetGeoDmsRegKeyDWord("StatusFlags", newSF);
 	DMS_Appl_SetRegStatusFlags(newSF);
@@ -2508,10 +2508,10 @@ RTC_CALL bool IsMultiThreaded0()    { return GetRegStatusFlags() & RSF_SuspendFo
 RTC_CALL bool IsMultiThreaded1()    { return GetRegStatusFlags() & RSF_MultiThreading1; }
 RTC_CALL bool IsMultiThreaded2()    { return GetRegStatusFlags() & RSF_MultiThreading2; }
 RTC_CALL bool IsMultiThreaded3()    { return GetRegStatusFlags() & RSF_MultiThreading3; }
-RTC_CALL bool IsMultiThreaded1or2() { return GetRegStatusFlags() & (RSF_MultiThreading1 | RSF_MultiThreading2); }
-RTC_CALL bool HasDynamicROI()       { return GetRegStatusFlags() & RSF_DynamicROI; }
+bool IsMultiThreaded1or2() { return GetRegStatusFlags() & (RSF_MultiThreading1 | RSF_MultiThreading2); }
+bool HasDynamicROI()       { return GetRegStatusFlags() & RSF_DynamicROI; }
 RTC_CALL bool ShowThousandSeparator() { return GetRegStatusFlags() & RSF_ShowThousandSeparator; }
-RTC_CALL bool EventLog_HideDepreciatedCaseMixupWarnings() { return GetRegStatusFlags() & RSF_EventLog_HideDepreciated; }
+bool EventLog_HideDepreciatedCaseMixupWarnings() { return GetRegStatusFlags() & RSF_EventLog_HideDepreciated; }
 
 extern "C" RTC_CALL bool DMS_CONV RTC_ParseRegStatusFlag(const char* param)
 {
@@ -2664,7 +2664,7 @@ Int64 GetSecsSince1970()
 
 namespace PlatformInfo
 {
-	RTC_CALL SharedStr GetVersionStr()
+	SharedStr GetVersionStr()
 	{
 		struct utsname buf;
 		if (uname(&buf) == 0)
@@ -2672,7 +2672,7 @@ namespace PlatformInfo
 		return SharedStr("Linux (unknown version)");
 	}
 
-	RTC_CALL SharedStr GetUserNameA()
+	SharedStr GetUserNameA()
 	{
 		const char* user = getenv("USER");
 		if (user) return SharedStr(user);
@@ -2681,7 +2681,7 @@ namespace PlatformInfo
 		return SharedStr("unknown");
 	}
 
-	RTC_CALL SharedStr GetComputerNameA()
+	SharedStr GetComputerNameA()
 	{
 		char hostname[256];
 		if (gethostname(hostname, sizeof(hostname)) == 0)
@@ -2689,7 +2689,7 @@ namespace PlatformInfo
 		return SharedStr("unknown");
 	}
 
-	RTC_CALL bool GetEnv(CharPtr varName, SharedStr& result)
+	bool GetEnv(CharPtr varName, SharedStr& result)
 	{
 		const char* val = getenv(varName);
 		if (val)
@@ -2716,13 +2716,13 @@ namespace PlatformInfo
 		return false;
 	}
 
-	RTC_CALL bool GetEnvString(CharPtr section, CharPtr key, SharedStr& result)
+	bool GetEnvString(CharPtr section, CharPtr key, SharedStr& result)
 	{
 		SharedStr varName = mySSPrintF("GEODMS_{}_{}", section, key);
 		return GetEnv(varName.c_str(), result);
 	}
 
-	RTC_CALL SharedStr GetProgramFiles32()
+	SharedStr GetProgramFiles32()
 	{
 		return SharedStr("/usr/local");
 	}
@@ -2805,7 +2805,7 @@ RTC_CALL bool IsPerformanceLogging()
 	return state == 2;
 }
 
-RTC_CALL void SetPerformanceLogging(bool enable)
+void SetPerformanceLogging(bool enable)
 {
 	RTC_SetCachedDWord(RegDWordEnum::PerformanceLogging, enable ? 1 : 0);
 	s_PerformanceLoggingState.store(enable ? 2 : 1, std::memory_order_relaxed);
@@ -2814,7 +2814,7 @@ RTC_CALL void SetPerformanceLogging(bool enable)
 // Same tri-state caching trick: 0 = not yet read, else 1 + the mode.
 static std::atomic<UInt8> s_ResourceSchedulingState = 0;
 
-RTC_CALL resource_scheduling GetResourceScheduling()
+resource_scheduling GetResourceScheduling()
 {
 	auto state = s_ResourceSchedulingState.load(std::memory_order_relaxed);
 	if (!state)

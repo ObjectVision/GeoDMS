@@ -150,7 +150,7 @@ private:
 
 	Number_t m_Value;
 
-	DECL_RTTI(SYM_CALL, LispCls)
+	DECL_RTTI(, LispCls)
 };
 
 /******************                               *******************/
@@ -182,7 +182,7 @@ private:
 
 	UInt64 m_Value;
 
-	DECL_RTTI(SYM_CALL, LispCls)
+	DECL_RTTI(, LispCls)
 };
 
 IMPL_STATIC_LISPCLS(UI64Obj)
@@ -220,7 +220,7 @@ private:
 	TokenID m_TokenID;
 	ChroID  m_ChroID = 0;
 
-	DECL_RTTI(SYM_CALL, LispCls)
+	DECL_RTTI(, LispCls)
 };
 
 /******************                                   *******************/
@@ -285,7 +285,7 @@ private:
 
 	StrnType m_Data; 
 
-	DECL_RTTI(SYM_CALL, LispCls)
+	DECL_RTTI(, LispCls)
 };
 
 /******************                                   *******************/
@@ -320,7 +320,7 @@ private:
 	LispRef m_Left;
 	LispRef m_Right;
 
-	DECL_RTTI(SYM_CALL, LispCls)
+	DECL_RTTI(, LispCls)
 };
 
 LispRef::LispRef(LispPtr lrb) noexcept 

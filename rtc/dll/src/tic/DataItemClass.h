@@ -54,16 +54,16 @@ public:
     DataItemClass(Constructor cFunc, TokenID typeID, const ValueClass* valuesType);
    ~DataItemClass ();
 
-	TIC_CALL bool IsDataObjType() const override;
+	bool IsDataObjType() const override;
 	// Constructs a new DataItem of the type indicated by this DataItemClass
-	TIC_CALL SharedMutableDataItem CreateDataItem(
+	SharedMutableDataItem CreateDataItem(
 			TreeItem*         parent,
 			TokenID           nameID,
 			const AbstrUnit*  domainUnit, // Default unit will be selected when 0
 			const AbstrUnit*  valuesUnit,
 			ValueComposition  vc) const;
 
-	TIC_CALL SharedMutableDataItem CreateDataItemFromPath(
+	SharedMutableDataItem CreateDataItemFromPath(
 		TreeItem*         parent,
 		CharPtr           path,
 		const AbstrUnit*  domainUnit, // Default unit will be selected when 0
@@ -73,7 +73,7 @@ public:
 	const ValueClass* GetValuesType() const { return m_ValuesType; }
 
 	TIC_CALL static const DataItemClass* Find(const ValueClass* valueType);
-	TIC_CALL static const DataItemClass* FindCertain(
+	static const DataItemClass* FindCertain(
 		const ValueClass* valuesType,
 		const TreeItem* context);
 
@@ -82,7 +82,7 @@ public:
   private:
 	const ValueClass*   m_ValuesType;
 
-	DECL_RTTI(TIC_CALL, MetaClass)
+	DECL_RTTI(, MetaClass)
 };
 
 TIC_CALL SharedMutableDataItem CreateAbstrDataItem(

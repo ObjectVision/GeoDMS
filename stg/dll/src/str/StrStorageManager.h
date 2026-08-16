@@ -53,7 +53,7 @@ protected:
 	virtual SizeT     GetNrFiles (const TreeItem* storageHolder, const TreeItem* curr) const;
 
 private:
-	DECL_RTTI(STGDLL_CALL,StorageClass)
+	DECL_RTTI(,StorageClass)
 };
 
 class StrFilesStorageManager : public StrStorageManager
@@ -75,7 +75,7 @@ private:
 	const AbstrDataItem* GetFileNameAttr(const TreeItem* storageHolder, const TreeItem* curr) const;
 	mutable std::shared_ptr<const AbstrDataItem> m_FileNameAttr;
 
-	DECL_RTTI(STGDLL_CALL,StorageClass)
+	DECL_RTTI(,StorageClass)
 };
 
 

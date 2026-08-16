@@ -39,7 +39,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "TicInterface.h"
 #include "LispRef.h"
 
-TIC_CALL LispRef RewriteExpr(LispPtr org);
+LispRef RewriteExpr(LispPtr org);
 TIC_CALL LispRef RewriteExprTop(LispPtr org);
 
 // true iff RewriteExpr.lsp contains a rule whose pattern head is headID AND whose

@@ -19,7 +19,7 @@
 #include "vt/SequenceArray.h"
 #include "mem/HeapSequenceProvider.h"
 
-RTC_CALL IndexedString_critical_section& GetCS();
+IndexedString_critical_section& GetCS();
 
 struct StringIndexer
 {
@@ -86,12 +86,12 @@ struct IndexedStringsBase
 {
 	typedef TokenT index_type;
 
-	RTC_CALL  IndexedStringsBase();
-	RTC_CALL ~IndexedStringsBase();
+	 IndexedStringsBase();
+	RTC_CALL ~IndexedStringsBase(); // exported: clc BoostXML's IndexedStrings<> dtor needs it in Debug links (/OPT:REF strips the reference in Release)
 	
 	index_type size() const { return index_type(m_Vec.size()); }
 
-	RTC_CALL void reserve(index_type sz MG_DEBUG_ALLOCATOR_SRC_ARG);
+	void reserve(index_type sz MG_DEBUG_ALLOCATOR_SRC_ARG);
 
 	const StringVector& GetVec() const { return m_Vec; }
 
@@ -113,10 +113,10 @@ struct IndexedStrings : IndexedStringsBase
 
 	RTC_CALL IndexedStrings();
 
-	RTC_CALL index_type GetOrCreateID_st(CharPtr keyFirst, CharPtr keyLast); // range of chars excluding null terminator
+	index_type GetOrCreateID_st(CharPtr keyFirst, CharPtr keyLast); // range of chars excluding null terminator
 	RTC_CALL index_type GetOrCreateID_mt(CharPtr keyFirst, CharPtr keyLast); // range of chars excluding null terminator
-	RTC_CALL index_type GetExisting_st (CharPtr keyFirst, CharPtr keyLast) const; // range of chars excluding null terminator
-	RTC_CALL index_type GetExisting_mt (CharPtr keyFirst, CharPtr keyLast) const; // range of chars excluding null terminator
+	index_type GetExisting_st (CharPtr keyFirst, CharPtr keyLast) const; // range of chars excluding null terminator
+	index_type GetExisting_mt (CharPtr keyFirst, CharPtr keyLast) const; // range of chars excluding null terminator
 	index_type GetOrCreateID_st(CharPtr key) { return GetOrCreateID_st(key, key+StrLen(key)); }
 	index_type GetOrCreateID_mt(CharPtr key) { return GetOrCreateID_mt(key, key + StrLen(key)); }
 	index_type GetExisting_st  (CharPtr key) const { return GetExisting_st(key, key + StrLen(key)); }

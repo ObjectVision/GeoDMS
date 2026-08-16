@@ -46,8 +46,8 @@ using check_set_ptr = SharedThingPtr<check_set>;
 // recognise each other, and the sets of a function's arguments merge on atoms. The converse does
 // not hold -- enforcing 'a' says nothing about 'b' -- so a candidate condition may only be
 // skipped when EVERY one of its atoms is already enforced.
-TIC_CALL void InsertCheckAtoms(check_set& dest, LispPtr cond);
-TIC_CALL bool AreCheckAtomsImplied(const check_set& enforced, LispPtr cond);
+void InsertCheckAtoms(check_set& dest, LispPtr cond);
+bool AreCheckAtomsImplied(const check_set& enforced, LispPtr cond);
 
 struct DataController : TreeItemDualRef
 {
@@ -57,7 +57,7 @@ struct DataController : TreeItemDualRef
 	TIC_CALL FutureData CalcResultWithValuesUnits()  const;
 	virtual SharedTreeItem MakeResult()  const = 0;
 	virtual FutureData CallCalcResult(std::shared_ptr<Explain::Context> context = {})  const;
-	TIC_CALL FutureData CalcCertainResult()  const;
+	FutureData CalcCertainResult()  const;
 	virtual const Class* GetResultCls() const;
 	LispPtr GetLispRef()    const { return m_Key; }
 
@@ -69,16 +69,16 @@ struct DataController : TreeItemDualRef
 
 	virtual bool IsCalculating() const;
 
-	TIC_CALL check_set_ptr GetImpliedChecks() const; // meta-thread only; lazy, derived from m_Key
+	check_set_ptr GetImpliedChecks() const; // meta-thread only; lazy, derived from m_Key
 
 protected:
-	TIC_CALL void DoInvalidate () const override;
-	TIC_CALL SharedStr GetSourceName() const override; // override Object
+	void DoInvalidate () const override;
+	SharedStr GetSourceName() const override; // override Object
 
 	DataController(LispPtr keyExpr);
 	virtual ~DataController();
 public:
-	TIC_CALL ActorVisitState DoUpdate() override;
+	ActorVisitState DoUpdate() override;
 
 #if defined(MG_DEBUG_DCDATA)
 public:
@@ -89,11 +89,11 @@ protected:
 	DataControllerKey m_Key;  // expr + root of context
 	mutable check_set_ptr m_ImpliedChecks; // #1182: null = not yet derived from m_Key; shared empty instance = derived, none
 
-	DECL_RTTI(TIC_CALL, Class)
+	DECL_RTTI(, Class)
 };
 
 TIC_CALL DataControllerRef GetOrCreateDataController(LispPtr keyExpr);
-TIC_CALL DataControllerRef GetExistingDataController(LispPtr keyExpr);
+DataControllerRef GetExistingDataController(LispPtr keyExpr);
 
 /********** DcRefListElem **********/
 

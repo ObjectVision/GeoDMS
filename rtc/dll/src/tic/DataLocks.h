@@ -50,7 +50,7 @@ struct DataReadLockAtom
 	// reset-moves m_Item (shared_tree_ptr = std reset-not-swap) and LEAKS the count it replaces. (The old
 	// intrusive SharedPtr move-assignment was swap-based, so '= default' used to route the old lock through
 	// the moved-from temporary's dtor; std::shared_ptr semantics broke that.) Release first.
-	TIC_CALL DataReadLockAtom& operator = (DataReadLockAtom&& rhs) noexcept;
+	DataReadLockAtom& operator = (DataReadLockAtom&& rhs) noexcept;
 
 	const AbstrDataItem* GetItem() const { return m_Item.get(); }
 

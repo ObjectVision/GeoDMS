@@ -330,7 +330,7 @@ void DebugOutStream::PrintSpaces()
 	}
 }
 
-RTC_CALL static_ptr<DebugOutStream> g_DebugStream;
+static_ptr<DebugOutStream> g_DebugStream;
 
 /********** DebugOutStream::scopend_lock **********/
 

@@ -194,7 +194,7 @@ private:
 
 	CmdSignal  m_cmdOnCaptionChange;
 
-	DECL_RTTI(SHV_CALL, Class)
+	DECL_RTTI(, Class)
 };
 
 

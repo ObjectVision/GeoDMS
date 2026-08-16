@@ -21,7 +21,7 @@ enum ExceptionContextState {
 
 struct DmsException : std::exception, private ErrMsgPtr
 {
-	[[noreturn]] static RTC_CALL void throwMsg(ErrMsgPtr msg);
+	[[noreturn]] static void throwMsg(ErrMsgPtr msg);
 	[[noreturn]] static RTC_CALL void throwMsgD(WeakStr);
 	[[noreturn]] static RTC_CALL void throwMsgD(CharPtr);
 
@@ -45,7 +45,7 @@ struct DmsException : std::exception, private ErrMsgPtr
 
 struct MemoryAllocFailure: DmsException
 {
-	RTC_CALL MemoryAllocFailure();
+	MemoryAllocFailure();
 };
 
 //----------------------------------------------------------------------
@@ -58,7 +58,7 @@ extern "C" RTC_CALL void DMS_CONV DMS_DisplayError(CharPtr msg);
 RTC_CALL SharedStr GetErrorContext(WeakStr msg);
 RTC_CALL SharedStr GetFirstLine(WeakStr msg);
 RTC_CALL SharedStr GetLastErrorMsgStr();
-RTC_CALL ErrMsgPtr GetUnrollingErrorMsgPtr();
-RTC_CALL unsigned int GetLastExceptionCode();
+ErrMsgPtr GetUnrollingErrorMsgPtr();
+unsigned int GetLastExceptionCode();
 
 #endif // __RTC_XCT_DMSEXCEPTION_H

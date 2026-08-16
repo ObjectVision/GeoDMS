@@ -17,34 +17,34 @@ using PropBool = Bool;
 TIC_CALL extern PropDef<TreeItem, SharedStr>* calcRulePropDefPtr;
 TIC_CALL extern PropDef<TreeItem, SharedStr>* descrPropDefPtr;
 TIC_CALL extern PropDef<TreeItem, SharedStr>* integrityCheckPropDefPtr;
-TIC_CALL extern PropDef<TreeItem, SharedStr>* sizeExpectationPropDefPtr;
-TIC_CALL extern PropDef<TreeItem, SharedStr>* sizeUpperboundPropDefPtr;
-TIC_CALL extern PropDef<TreeItem, SharedStr>* explicitSupplPropDefPtr;
+extern PropDef<TreeItem, SharedStr>* sizeExpectationPropDefPtr;
+extern PropDef<TreeItem, SharedStr>* sizeUpperboundPropDefPtr;
+extern PropDef<TreeItem, SharedStr>* explicitSupplPropDefPtr;
 
 TIC_CALL extern PropDef<TreeItem, SharedStr>* storageNamePropDefPtr;
 TIC_CALL extern PropDef<TreeItem, TokenID  >* storageTypePropDefPtr;
-TIC_CALL extern PropDef<TreeItem, SharedStr>* storageDriverPropDefPtr;
-TIC_CALL extern PropDef<TreeItem, SharedStr>* storageOptionsPropDefPtr;
+extern PropDef<TreeItem, SharedStr>* storageDriverPropDefPtr;
+extern PropDef<TreeItem, SharedStr>* storageOptionsPropDefPtr;
 TIC_CALL extern PropDef<TreeItem, PropBool >* storageReadOnlyPropDefPtr;
-TIC_CALL extern PropDef<TreeItem, TokenID  >* syncModePropDefPtr;
+extern PropDef<TreeItem, TokenID  >* syncModePropDefPtr;
 
-TIC_CALL extern PropDef<TreeItem, TokenID  >* dialogTypePropDefPtr;
+extern PropDef<TreeItem, TokenID  >* dialogTypePropDefPtr;
 TIC_CALL extern PropDef<TreeItem, SharedStr>* dialogDataPropDefPtr;
-TIC_CALL extern PropDef<TreeItem, TokenID  >* paramTypePropDefPtr;
-TIC_CALL extern PropDef<TreeItem, SharedStr>* paramDataPropDefPtr;
+extern PropDef<TreeItem, TokenID  >* paramTypePropDefPtr;
+extern PropDef<TreeItem, SharedStr>* paramDataPropDefPtr;
 TIC_CALL extern PropDef<TreeItem, SharedStr>* labelPropDefPtr;
-TIC_CALL extern PropDef<TreeItem, SharedStr>* viewActionPropDefPtr;
+extern PropDef<TreeItem, SharedStr>* viewActionPropDefPtr;
 TIC_CALL extern PropDef<TreeItem, TokenID  >* configStorePropDefPtr;
-TIC_CALL extern PropDef<TreeItem, SharedStr>* caseDirPropDefPtr;
-TIC_CALL extern PropDef<TreeItem, SharedStr>* sourceDescrPropDefPtr;
+extern PropDef<TreeItem, SharedStr>* caseDirPropDefPtr;
+extern PropDef<TreeItem, SharedStr>* sourceDescrPropDefPtr;
 
 TIC_CALL extern PropDef<TreeItem, SharedStr>* sqlStringPropDefPtr;
-TIC_CALL extern PropDef<TreeItem, TokenID  >* tableTypeNamePropDefPtr;
+extern PropDef<TreeItem, TokenID  >* tableTypeNamePropDefPtr;
 TIC_CALL extern PropDef<TreeItem, SharedStr>* cdfPropDefPtr;
 TIC_CALL extern PropDef<TreeItem, SharedStr>* urlPropDefPtr;
 
-TIC_CALL extern PropDef<TreeItem, UInt32>* storageTileSizeXPropDefPtr;
-TIC_CALL extern PropDef<TreeItem, UInt32>* storageTileSizeYPropDefPtr;
+extern PropDef<TreeItem, UInt32>* storageTileSizeXPropDefPtr;
+extern PropDef<TreeItem, UInt32>* storageTileSizeYPropDefPtr;
 
 // Generic Properties
 
@@ -59,7 +59,7 @@ enum class SourceDescrMode {
 	DatasetInfo
 };
 
-TIC_CALL SharedStr TreeItem_GetSourceDescr(const TreeItem* studyObject, SourceDescrMode sdm, bool bShowHidden); // defined in SourceDescr.cpp
-TIC_CALL void TreeItem_DumpSourceCalculator(const TreeItem* studyObject, SourceDescrMode sdm, bool bShowHidden, OutStreamBase* xmlOutStrPtr);
+SharedStr TreeItem_GetSourceDescr(const TreeItem* studyObject, SourceDescrMode sdm, bool bShowHidden); // defined in SourceDescr.cpp
+void TreeItem_DumpSourceCalculator(const TreeItem* studyObject, SourceDescrMode sdm, bool bShowHidden, OutStreamBase* xmlOutStrPtr);
 
 #endif // __TIC_TREEITEMPROPS_H

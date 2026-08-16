@@ -27,7 +27,7 @@ class ValueWrap : public AbstrValue
 public:
 	typedef typename sequence_traits<T>::value_type value_type;
 	typedef typename param_type<value_type>::type   cref_type;
-	RTC_CALL ValueWrap();
+	ValueWrap();
 	explicit ValueWrap(cref_type val) : m_Value(val) {}
 	
 	// property access
@@ -36,17 +36,17 @@ public:
 	void Clear() { m_Value = UNDEFINED_OR_ZERO(T); }
 
 	// override virtuals fo AbstrValue
-	RTC_CALL const     ValueClass* GetValueClass() const override { return GetStaticClass(); }
+	const     ValueClass* GetValueClass() const override { return GetStaticClass(); }
 
-	RTC_CALL bool      AsCharArray(char* buffer, SizeT bufLen, FormattingFlags ff) const override;
-	RTC_CALL SizeT     AsCharArraySize(SizeT maxLen, FormattingFlags ff) const override;
-	RTC_CALL SharedStr AsString() const override;
+	bool      AsCharArray(char* buffer, SizeT bufLen, FormattingFlags ff) const override;
+	SizeT     AsCharArraySize(SizeT maxLen, FormattingFlags ff) const override;
+	SharedStr AsString() const override;
 
-	RTC_CALL Float64   AsFloat64() const override;
-	RTC_CALL bool      IsNull() const override;
+	Float64   AsFloat64() const override;
+	bool      IsNull() const override;
 
-	RTC_CALL void      AssignFromCharPtr(CharPtr data) override;
-	RTC_CALL void      AssignFromCharPtrs(CharPtr first, CharPtr last) override;
+	void      AssignFromCharPtr(CharPtr data) override;
+	void      AssignFromCharPtrs(CharPtr first, CharPtr last) override;
 
 private:
 	value_type m_Value;

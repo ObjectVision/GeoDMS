@@ -319,11 +319,11 @@ struct SA_Reference : private SequenceArray_Base<T>
 	const_reference back()                  const { dms_assert(0 < size()); return end()[-1]; }
 
 //	compare contents
-	RTC_CALL bool operator ==(SA_ConstReference<T> rhs) const;
+	bool operator ==(SA_ConstReference<T> rhs) const;
 	RTC_CALL bool operator < (SA_ConstReference<T> rhs) const;
-	RTC_CALL bool operator ==(SA_Reference<T> rhs) const;
+	bool operator ==(SA_Reference<T> rhs) const;
 	RTC_CALL bool operator < (SA_Reference<T> rhs) const;
-	RTC_CALL bool operator ==(const sequence_value_type& rhs) const;
+	bool operator ==(const sequence_value_type& rhs) const;
 	RTC_CALL bool operator < (const sequence_value_type& rhs) const;
 
 	RTC_CALL void assign(const_iterator first, const_iterator last MG_DEBUG_ALLOCATOR_SRC_ARG);
@@ -382,7 +382,7 @@ struct SA_Reference : private SequenceArray_Base<T>
 
 	RTC_CALL void erase(iterator first, iterator last);
 	RTC_CALL void clear();
-	RTC_CALL void resize(size_type seqSize, const value_type& zero MG_DEBUG_ALLOCATOR_SRC_ARG);
+	void resize(size_type seqSize, const value_type& zero MG_DEBUG_ALLOCATOR_SRC_ARG);
 	RTC_CALL void resize_uninitialized(size_type seqSize MG_DEBUG_ALLOCATOR_SRC_ARG);
 	RTC_CALL void reserve(size_type seqSize MG_DEBUG_ALLOCATOR_SRC_ARG)
 	{
@@ -406,7 +406,7 @@ struct SA_Reference : private SequenceArray_Base<T>
 	RTC_CALL void operator =(SA_Reference rhs);
 	RTC_CALL void operator =(const typename sequence_traits<T>::container_type& rhs);
 
-	RTC_CALL void swap(SA_Reference<T>& rhs);
+	void swap(SA_Reference<T>& rhs);
 
 	SA_Iterator<T> makePtr() const { return SA_Iterator<T>(m_Container, m_SeqPtr); }
 
@@ -668,7 +668,7 @@ public:
 		,	m_Indices(pr ? pr->CloneForSeqs() : 0)
 	{}
 
-	RTC_CALL sequence_array(const sequence_array<T>& src, data_size_type expectedGrowth MG_DEBUG_ALLOCATOR_SRC_ARG);
+	sequence_array(const sequence_array<T>& src, data_size_type expectedGrowth MG_DEBUG_ALLOCATOR_SRC_ARG);
 	sequence_array(sequence_array<T>&& rhs) noexcept { swap(rhs); }
 
 	void operator =(const sequence_array<T>& src) { assign(src, 0 MG_DEBUG_ALLOCATOR_SRC("sequence_array::operator =(const sequence_array<T>&)")); }
@@ -681,8 +681,8 @@ public:
 	// sequence_array collection modification
 	//=======================================
 
-	RTC_CALL void erase(const iterator& first, const iterator& last);
-	RTC_CALL void clear();
+	void erase(const iterator& first, const iterator& last);
+	void clear();
 
 	void reserve(size_type n MG_DEBUG_ALLOCATOR_SRC_ARG)      { m_Indices.reserve(n MG_DEBUG_ALLOCATOR_SRC_PARAM); }
 	void reserve_data(size_type n MG_DEBUG_ALLOCATOR_SRC_ARG) { m_Values.reserve(n MG_DEBUG_ALLOCATOR_SRC_PARAM); }
@@ -786,8 +786,8 @@ public:
 //	void Drop  () { m_Indices.Drop (); m_Values.Drop (); dms_assert(Empty()); m_ActualDataSize = 0; }
 	WeakStr GetFileName() const { return m_Values.GetFileName(); }
 
-	RTC_CALL void ResetAllocator(abstr_sequence_provider<T>* pr = nullptr);
-	RTC_CALL void ResetAllocators(abstr_sequence_provider<IndexRange<SizeT>>* prIndex, abstr_sequence_provider<T>* prSeqs);
+	void ResetAllocator(abstr_sequence_provider<T>* pr = nullptr);
+	void ResetAllocators(abstr_sequence_provider<IndexRange<SizeT>>* prIndex, abstr_sequence_provider<T>* prSeqs);
 
 	RTC_CALL void Reset(seq_size_type nrSeqs, typename data_vector_t::size_type expectedDataSize MG_DEBUG_ALLOCATOR_SRC_ARG);
 	RTC_CALL void reset(seq_size_type nrSeqs, typename data_vector_t::size_type expectedDataSize MG_DEBUG_ALLOCATOR_SRC_ARG);
@@ -837,8 +837,8 @@ public:
 	}
 
 
-	RTC_CALL bool allocate_data(data_size_type expectedGrowth MG_DEBUG_ALLOCATOR_SRC_ARG);
-	RTC_CALL bool allocate_data(data_vector_t& oldData, data_size_type expectedGrowth MG_DEBUG_ALLOCATOR_SRC_ARG);
+	bool allocate_data(data_size_type expectedGrowth MG_DEBUG_ALLOCATOR_SRC_ARG);
+	bool allocate_data(data_vector_t& oldData, data_size_type expectedGrowth MG_DEBUG_ALLOCATOR_SRC_ARG);
 
 	RTC_CALL void cut(size_type nrSeqs);
 
@@ -860,8 +860,8 @@ public:
 		return (m_ActualDataSize != m_Values.size());
 	}
 
-	RTC_CALL void StreamOut(BinaryOutStream& ar) const;
-	RTC_CALL void StreamIn (BinaryInpStream& ar, bool mayResize);
+	void StreamOut(BinaryOutStream& ar) const;
+	void StreamIn (BinaryInpStream& ar, bool mayResize);
 
 protected:
 	template<typename Initializer> void allocateSequence(typename base_type::seq_iterator seqPtr, data_size_type newSize, Initializer&& initFunc MG_DEBUG_ALLOCATOR_SRC_ARG);
@@ -873,7 +873,7 @@ private:
 	void abandon(data_size_type first, data_size_type last);
 	template<typename Initializer> void appendInitializer(size_type n, Initializer&& init MG_DEBUG_ALLOCATOR_SRC_ARG);
 
-	RTC_CALL void appendValues(const_data_iterator first, const_data_iterator last MG_DEBUG_ALLOCATOR_SRC_ARG);
+	void appendValues(const_data_iterator first, const_data_iterator last MG_DEBUG_ALLOCATOR_SRC_ARG);
 
 protected:
 	auto calcActualDataSize() const->data_size_type;

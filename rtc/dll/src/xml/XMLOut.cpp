@@ -701,7 +701,7 @@ DMS_CONV XML_OutStream_WriteText(OutStreamBase* xmlStr, CharPtr txt)
 #include "dbg/debug.h"
 #include "mci/ValueClass.h"
 
-RTC_CALL void DMS_CONV XML_ReportPropDef(OutStreamBase* xmlStr, AbstrPropDef* pd)
+void DMS_CONV XML_ReportPropDef(OutStreamBase* xmlStr, AbstrPropDef* pd)
 {
 	XML_OutElement xml_pd(*xmlStr,"PropDef", pd->GetName().c_str(), ClosePolicy::nonPairedElement);
 		xmlStr->WriteAttr("ClassName", pd->GetItemClass()->GetName().c_str());

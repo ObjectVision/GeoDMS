@@ -40,7 +40,7 @@ inline GRect QRect2GRect(const QRect& r)
 // class  : Region
 //----------------------------------------------------------------------
 
-struct SHV_CALL Region
+struct SHV_CALL Region // exported: qtgui QDmsViewArea uses Region members in Debug links (Release inlines them, hiding the import)
 {
 	Region();
 	explicit Region(GPoint size);

@@ -102,7 +102,7 @@ private:
 	bool m_ZoomedOnce = false;
 	bool m_ZoomPending = false; // request a one-shot zoom-to-fit (e.g. after the X attribute changed)
 
-	DECL_RTTI(SHV_CALL, LayerClass)
+	DECL_RTTI(, LayerClass)
 };
 
 #endif // __SHV_CHARTLAYER_H

@@ -95,7 +95,7 @@
 #include "MoreDataControllers.h"
 #include "PerfMeasurement.h"
 #include "stg/AbstrStorageManager.h" // #933: NonmappableStorageManager + m_CriticalSection
-RTC_CALL void NotifyCurrentTargetCount();
+void NotifyCurrentTargetCount();
 
 
 #if defined(MG_DEBUG)
@@ -700,7 +700,7 @@ void wakeUpJoiners()
 	WakeUpMainThreadWaiter();
 }
 
-TIC_CALL void WakeUpJoiners()
+void WakeUpJoiners()
 {
 	leveled_critical_section::scoped_lock lockToAvoidHasMainThreadTasksToBeMissed(cs_ThreadMessing);
 
@@ -1149,7 +1149,7 @@ void StartCollectedOperationContexts(context_array collectedActivatedContexts)
 }
 
 // Entry point to advance scheduling and run newly activated contexts.
-TIC_CALL void StartOperationContexts()
+void StartOperationContexts()
 {
 	auto collectedActivatedContexts = CollectOperationContextsImpl();
 	StartCollectedOperationContexts(std::move(collectedActivatedContexts));
@@ -1744,17 +1744,17 @@ static void TallyRegime(materialization regime, SizeT estimatedBytes)
 inline bool IsLedgerLogging() { return GetResourceScheduling() != resource_scheduling::off; }
 
 RTC_CALL auto GetMemoryStatus() -> SharedStr; // FixedAlloc.cpp: process commit vs peak, for the sample line
-RTC_CALL SizeT GetLiveLargeAllocBytes();      // FixedAlloc.cpp: measured live bytes in large allocations
-RTC_CALL SizeT GetFreeStackLiveBytes();       // FixedAlloc.cpp: the same population as the allocator counts it
-RTC_CALL SizeT GetFreeStackDeadBytes();       // FixedAlloc.cpp: freed but still committed, i.e. reclaimable on demand
-RTC_CALL void SetFreeStackDrainageMode(bool); // FixedAlloc.cpp: while on, each allocation decommits one cold freed store (§8.1.24)
+SizeT GetLiveLargeAllocBytes();      // FixedAlloc.cpp: measured live bytes in large allocations
+SizeT GetFreeStackLiveBytes();       // FixedAlloc.cpp: the same population as the allocator counts it
+SizeT GetFreeStackDeadBytes();       // FixedAlloc.cpp: freed but still committed, i.e. reclaimable on demand
+void SetFreeStackDrainageMode(bool); // FixedAlloc.cpp: while on, each allocation decommits one cold freed store (§8.1.24)
 
 static OperationContext* sd_LedgerClaimant = nullptr;       // under cs_ThreadMessing
 static SizeT sd_LedgerClaimBytes = 0;                       // its charge, for the log
 static bool  sd_LedgerCommitPressure = false;               // under cs_ThreadMessing; refreshed ~1/s
 static Int64 sd_LedgerPressureCheckNs = 0;
 
-RTC_CALL SizeT GetProcessCommitBytes(); // FixedAlloc.cpp: PagefileUsage, the §8.1.23 pressure gauge
+SizeT GetProcessCommitBytes(); // FixedAlloc.cpp: PagefileUsage, the §8.1.23 pressure gauge
 static SizeT LedgerBudgetBytes();       // defined below, beside the charge policy
 
 // Drainage (§8.1.24, trigger widened §8.1.30) follows BOTH pressure signals: a pending claim,
@@ -1982,7 +1982,7 @@ static SizeT MeasuredRetainedBytes(const AbstrDataItem* item) noexcept
 	catch (...) { return 0; }
 }
 
-TIC_CALL void MemoryLedger_Retain(const AbstrDataItem* item, const AbstrDataObject* obj, SizeT bytes)
+void MemoryLedger_Retain(const AbstrDataItem* item, const AbstrDataObject* obj, SizeT bytes)
 {
 	if (!item || !obj || !bytes || GetResourceScheduling() == resource_scheduling::off)
 		return;
@@ -2023,7 +2023,7 @@ TIC_CALL void MemoryLedger_Retain(const AbstrDataItem* item, const AbstrDataObje
 	sd_LedgerRetainedBytes.fetch_add(bytes, std::memory_order_relaxed);
 }
 
-TIC_CALL void MemoryLedger_ReleaseRetained(const AbstrDataObject* obj) noexcept
+void MemoryLedger_ReleaseRetained(const AbstrDataObject* obj) noexcept
 {
 	if (!obj || !obj->m_LedgerRetainedBytes)
 		return;
@@ -3314,7 +3314,7 @@ exit:
 //
 // *****************************************************************************
 
-TIC_CALL void DoWorkWhileWaiting()
+void DoWorkWhileWaiting()
 {
 	if (!IsMetaThread())
 		StealTasks();
@@ -3364,7 +3364,7 @@ TIC_CALL void DoWorkWhileWaiting()
 //
 // *****************************************************************************
 
-TIC_CALL void DoWorkWhileWaitingFor(std::atomic<task_status>* fenceStatus)
+void DoWorkWhileWaitingFor(std::atomic<task_status>* fenceStatus)
 {
 	assert(fenceStatus);
 

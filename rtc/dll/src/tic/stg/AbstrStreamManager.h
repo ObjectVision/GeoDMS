@@ -51,8 +51,8 @@ class AbstrStreamManager : public NonmappableStorageManager
 public:
 	TIC_CALL AbstrStreamManager();
 
-	TIC_CALL std::unique_ptr<OutStreamBuff> OpenOutStream(const StorageMetaInfo& smi, CharPtr path, tile_id t);
-	TIC_CALL std::unique_ptr<InpStreamBuff> OpenInpStream(const StorageMetaInfo& smi, CharPtr path) const;
+	std::unique_ptr<OutStreamBuff> OpenOutStream(const StorageMetaInfo& smi, CharPtr path, tile_id t);
+	std::unique_ptr<InpStreamBuff> OpenInpStream(const StorageMetaInfo& smi, CharPtr path) const;
 
 	TIC_CALL FileResult ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) override;
 	TIC_CALL FileResult WriteDataItem(StorageMetaInfoPtr&& smi) override;

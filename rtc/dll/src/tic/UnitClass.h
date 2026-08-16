@@ -47,18 +47,18 @@ public:
 	TIC_CALL auto CreateTmpUnit     (TreeItem* context) const -> SharedMutableUnit;
 
 	TIC_CALL const AbstrUnit* CreateDefault() const;
-	TIC_CALL void             DropDefault  () const;
+	void             DropDefault  () const;
 	TIC_CALL const ValueClass* GetValueType(ValueComposition vc = ValueComposition::Single) const;
-	TIC_CALL static const AbstrUnit* GetUnitOrDefault(const TreeItem* context, TokenID id, ValueComposition* vcPtr);
+	static const AbstrUnit* GetUnitOrDefault(const TreeItem* context, TokenID id, ValueComposition* vcPtr);
 
 	TIC_CALL static const UnitClass* Find(const ValueClass*);
-	TIC_CALL static std::shared_ptr<Actor> CreateFromXml(Object* context, struct XmlElement& elem);
+	static std::shared_ptr<Actor> CreateFromXml(Object* context, struct XmlElement& elem);
 
 private:
 	const ValueClass*            m_ValueType;
 	mutable SharedMutableUnit    m_DefaultUnit; // std::shared_ptr owner of the lazily-created default unit
 
-	DECL_RTTI(TIC_CALL, MetaClass)
+	DECL_RTTI(, MetaClass)
 };
 
 

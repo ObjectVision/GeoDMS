@@ -110,7 +110,7 @@ SharedStr asm_state_string(ASM_STATE state, CharPtr storageName)
  * ASMException
  */
 
-[[noreturn]] TIC_CALL void throwStorageError(ASM_STATE state, CharPtr storageName)
+[[noreturn]] void throwStorageError(ASM_STATE state, CharPtr storageName)
 {
 	throwErrorD("STG", asm_state_string(state, storageName).c_str() );
 }

@@ -127,7 +127,7 @@ public:
 
     RTC_CALL void clear();
 
-    RTC_CALL void merge_from(garbage_can&& other);
+    void merge_from(garbage_can&& other);
 };
 
 

@@ -557,14 +557,14 @@ RTC_CALL void AssignNumericValueFromCharPtrs(T& value, CharPtr begin, CharPtr en
 } 
 
 template<typename T>
-RTC_CALL void AssignNumericValueFromCharPtrs_Checked(T& value, CharPtr begin, CharPtr end)
+void AssignNumericValueFromCharPtrs_Checked(T& value, CharPtr begin, CharPtr end)
 { 
 	using U = mysnprintf_type_t<T>;
 	value = Convert<T>(ReadValueAfterSpace<U>(begin, end));
 } 
 
 template<typename T>
-RTC_CALL bool AsCharArray(T value, char* buffer, UInt32 bufLen)
+bool AsCharArray(T value, char* buffer, UInt32 bufLen)
 { 
 	if constexpr (has_undefines_v<T>) 
 		if (!IsDefined(value)) 
@@ -584,7 +584,7 @@ template RTC_CALL FormattedInpStream& operator >> <T> (FormattedInpStream& str, 
 template RTC_CALL void AssignNumericValueFromCharPtr<T>(T& value, CharPtr data); \
 template RTC_CALL void AssignNumericValueFromCharPtrs<T>(T& value, CharPtr begin, CharPtr end); \
 template RTC_CALL void AssignNumericValueFromCharPtrs_Checked<T>(T& value, CharPtr begin, CharPtr end); \
-template RTC_CALL bool AsCharArray(T value, char* buffer, UInt32 bufLen); \
+template bool AsCharArray(T value, char* buffer, UInt32 bufLen); \
 
 INSTANTIATE_NUM_ELEM
 
@@ -698,7 +698,7 @@ void AssignValueFromCharPtrs_Checked(Bool& value, CharPtr begin, CharPtr end)
 	value = AssignBoolFromCharPtrs_Checked(begin, end);
 }
 
-RTC_CALL bool AsCharArray(Bool value, char* buffer, UInt32 bufLen)
+bool AsCharArray(Bool value, char* buffer, UInt32 bufLen)
 { 
 	CharPtr str = value
 		?	"True"

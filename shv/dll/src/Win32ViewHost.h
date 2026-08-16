@@ -15,7 +15,7 @@
 // This is the initial implementation that preserves existing behavior.
 //----------------------------------------------------------------------
 
-class SHV_CALL Win32ViewHost : public ViewHost
+class Win32ViewHost : public ViewHost
 {
 public:
 	explicit Win32ViewHost(HWND hWnd);

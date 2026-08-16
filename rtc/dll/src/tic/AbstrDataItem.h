@@ -50,24 +50,24 @@ public:
 	const Object* _GetAs(const Class* cls) const override;
 
 public:
-	TIC_CALL AbstrDataItem();
-	TIC_CALL ~AbstrDataItem();
+	AbstrDataItem();
+	~AbstrDataItem();
 
 	bool HasDataObj() const { return m_DataObject; }
 	TIC_CALL ValueComposition GetValueComposition() const;
-	TIC_CALL void SetValueComposition(ValueComposition vc);
+	void SetValueComposition(ValueComposition vc);
 
 	void InitAbstrDataItem(TokenID domainUnit, TokenID valuesUnit, ValueComposition vc);
 
 	TIC_CALL auto GetDataObj() const->SharedPtr<const AbstrDataObject>;
-	TIC_CALL auto GetCurrDataObj() const -> SharedPtr<const AbstrDataObject>;
+	auto GetCurrDataObj() const -> SharedPtr<const AbstrDataObject>;
 
 	TIC_CALL auto GetRefObj() const ->SharedPtr<const AbstrDataObject>;
 	TIC_CALL auto GetCurrRefObj() const ->SharedPtr<const AbstrDataObject>;
 
 //	Override Actor
-	TIC_CALL void StartInterest() const override;
-	TIC_CALL garbage_can StopInterest () const noexcept override;
+	void StartInterest() const override;
+	garbage_can StopInterest () const noexcept override;
 
 //	wrapper funcs that forward to DataObject
 	TIC_CALL auto GetAbstrDomainUnit() const -> const AbstrUnit*;
@@ -110,10 +110,10 @@ public:
 //	additional interface funcs
 	TIC_CALL bool HasUndefinedValues() const;
 	TIC_CALL DataCheckMode GetRawCheckMode() const;
-	TIC_CALL DataCheckMode DetermineRawCheckMode() const;
+	DataCheckMode DetermineRawCheckMode() const;
 	TIC_CALL DataCheckMode GetCheckMode() const;
 	TIC_CALL DataCheckMode DetermineActualCheckMode() const;
-	TIC_CALL DataCheckMode GetTiledCheckMode(tile_id t) const;
+	DataCheckMode GetTiledCheckMode(tile_id t) const;
 
 	TIC_CALL bool HasVoidDomainGuarantee() const;
 
@@ -123,7 +123,7 @@ public:
 
 	void OnDomainUnitRangeChange(const DomainChangeInfo* info);
 	Int32 GetDataObjLockCount() const { return m_DataLockCount; }
-	TIC_CALL Int32 GetDataRefLockCount() const;
+	TIC_CALL Int32 GetDataRefLockCount() const; // exported: stg storage managers reference it in Debug links (/OPT:REF strips the reference in Release)
 
 	void LoadBlobStream (const InpStreamBuff*) override;
 	void StoreBlobStream(      OutStreamBuff*) const override;
@@ -166,7 +166,7 @@ public:
 	TIC_CALL void SetEstimatedBytesPerElement(SizeT bytesPerElement) const noexcept;
 
 protected:
-	TIC_CALL void CopyProps(TreeItem* result, const CopyTreeContext& copyContext) const override;
+	void CopyProps(TreeItem* result, const CopyTreeContext& copyContext) const override;
 
 private:
 	bool CheckResultItem(const TreeItem* refItem) const override;
@@ -198,7 +198,7 @@ public: // TODO G8: Re-encapsulate
 	friend struct DomainUnitPropDef;
 	friend struct ValuesUnitPropDef;
 
-	friend TIC_CALL BestItemRef TreeItem_GetErrorSource(const TreeItem* src, bool tryCalcSuppliers);
+	friend BestItemRef TreeItem_GetErrorSource(const TreeItem* src, bool tryCalcSuppliers);
 
 //	Serialization & RTTI
 	DECL_RTTI(TIC_CALL, TreeItemClass)
@@ -220,11 +220,11 @@ struct TableColumnSpec
 // PropDefPtrs
 //----------------------------------------------------------------------
 
-TIC_CALL extern PropDef<AbstrDataItem, SharedStr>* s_ValuesUnitPropDefPtr;
-TIC_CALL extern PropDef<AbstrDataItem, SharedStr>* s_DomainUnitPropDefPtr;
+extern PropDef<AbstrDataItem, SharedStr>* s_ValuesUnitPropDefPtr;
+extern PropDef<AbstrDataItem, SharedStr>* s_DomainUnitPropDefPtr;
 
-TIC_CALL const AbstrUnit* AbstrValuesUnit(const AbstrDataItem* adi);
-TIC_CALL UInt32 ElementWeight(const AbstrDataItem* adi);
+const AbstrUnit* AbstrValuesUnit(const AbstrDataItem* adi);
+UInt32 ElementWeight(const AbstrDataItem* adi);
 
 // Bytes a data block of nrElements elements of adi's value type occupies, sub-byte packing
 // included. For variable-width elements (strings, non-Single value compositions) the per-row
@@ -238,7 +238,7 @@ TIC_CALL SizeT EstimateDataBytes(const AbstrDataItem* adi, SizeT nrElements);
 // guaranteed -- right after a storage read or a DataWriteLock::Commit -- because the measurement
 // walks GetTile over all tiles. noexcept and self-guarding: a width is an optimization, never a
 // reason to fail the read or commit that just succeeded.
-TIC_CALL void PublishMeasuredElementWidth(const AbstrDataItem* adi) noexcept;
+void PublishMeasuredElementWidth(const AbstrDataItem* adi) noexcept;
 
 
 #endif // __TIC_ABSTRDATAITEM_H

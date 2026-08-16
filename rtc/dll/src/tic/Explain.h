@@ -53,9 +53,9 @@ namespace Explain {
 
 	struct NonStaticCalcExplanations
 	{
-		TIC_CALL NonStaticCalcExplanations(OutStreamBase& xmlOutStr, const AbstrDataItem* studyObject, SizeT index, CharPtr extraInfo);
-		TIC_CALL bool ProcessQueue();
-		TIC_CALL void WriteDescr();
+		NonStaticCalcExplanations(OutStreamBase& xmlOutStr, const AbstrDataItem* studyObject, SizeT index, CharPtr extraInfo);
+		bool ProcessQueue();
+		void WriteDescr();
 
 		std::unique_ptr<CalcExplImpl>     m_Impl;
 		std::unique_ptr<CalcExplanations> m_Interface;

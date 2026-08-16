@@ -140,8 +140,8 @@ struct LispRef : LispPtrWrap<SharedPtr<const LispObj> >
 	SYM_CALL LispRef(LispPtr head, LispPtr tail); // Makes a LispRef to ListObj
 
 //	static constants
-	SYM_CALL static LispRef s_null;
-	SYM_CALL static UInt32 MAX_PRINT_LEVEL;
+	static LispRef s_null;
+	static UInt32 MAX_PRINT_LEVEL;
 };
 
 //template <typename BasePtr> bool LispPtrWrap<BasePtr>::operator ==(const LispRef& rhs) const { return this->get() == rhs.get(); }
@@ -184,7 +184,7 @@ public:
 	virtual void Print(FormattedOutStream&, UInt32 level) const=0;
 	virtual void PrintAsFLisp(FormattedOutStream&, UInt32 level) const;
 
-	DECL_ABSTR(SYM_CALL, Class)
+	DECL_ABSTR(, Class)
 };
 
 /****************** operators for LispPtr       *******************/

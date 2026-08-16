@@ -35,7 +35,7 @@
 //----------------------------------------------------------------------
 
 RTC_CALL SharedStr myVSSPrintF(CharPtr format, va_list argList);
-RTC_CALL CharPtr RepeatedDots(SizeT n);
+CharPtr RepeatedDots(SizeT n);
 
 //----------------------------------------------------------------------
 

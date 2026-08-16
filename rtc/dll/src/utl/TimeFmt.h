@@ -18,12 +18,12 @@
 #include "cpc/Types.h"
 #include "ptr/SharedStr.h"
 
-RTC_CALL SharedStr AsDateTimeString(FileDateTime t);
-RTC_CALL SharedStr GetCurrentTimeStr();
-RTC_CALL SharedStr GetSessionStartTimeStr();
+SharedStr AsDateTimeString(FileDateTime t);
+SharedStr GetCurrentTimeStr();
+SharedStr GetSessionStartTimeStr();
 
-RTC_CALL FileDateTime AsFileDateTime(UInt32 hiDW, UInt32 loDW);
+RTC_CALL FileDateTime AsFileDateTime(UInt32 hiDW, UInt32 loDW); // exported: stg ODBCImp references it in Debug links (/OPT:REF strips the reference in Release)
 
-RTC_CALL Int64 GetSecsSince1970();
+Int64 GetSecsSince1970();
 
 #endif // __UTL_TIMEFMT_H

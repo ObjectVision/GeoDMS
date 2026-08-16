@@ -34,17 +34,17 @@ struct RegistryHandle
 {
 public:
 	RTC_CALL bool        ValueExists(CharPtr name) const;
-	RTC_CALL UInt32      GetDataSize(CharPtr name) const;
-	RTC_CALL RegDataType GetDataType(CharPtr name) const;
-	RTC_CALL UInt32      GetDataW(CharPtr name, BYTE* buffer, DWORD bufSize, RegDataType& regDataType)  const;
+	UInt32      GetDataSize(CharPtr name) const;
+	RegDataType GetDataType(CharPtr name) const;
+	UInt32      GetDataW(CharPtr name, BYTE* buffer, DWORD bufSize, RegDataType& regDataType)  const;
 //	RTC_CALL UInt32      GetData(CharPtr name, std::vector<BYTE>& buffer, DWORD bufSize, RegDataType& regDataType) const;
 	RTC_CALL SharedStr   ReadString(CharPtr name) const;
 	RTC_CALL void        WriteString(CharPtr name, CharPtrRange str) const;
 	RTC_CALL void        DeleteValue(CharPtr name) const;
-	RTC_CALL auto        ReadMultiString(CharPtr name) const->std::vector<SharedStr>;
-	RTC_CALL bool        WriteMultiString(CharPtr name, const std::vector<SharedStr>& strings) const;
-	RTC_CALL DWORD       ReadDWORD (CharPtr name) const;
-	RTC_CALL bool        WriteDWORD(CharPtr name, DWORD dw) const;
+	auto        ReadMultiString(CharPtr name) const->std::vector<SharedStr>;
+	bool        WriteMultiString(CharPtr name, const std::vector<SharedStr>& strings) const;
+	DWORD       ReadDWORD (CharPtr name) const;
+	bool        WriteDWORD(CharPtr name, DWORD dw) const;
 
 protected:
 	RegistryHandle(HKEY key);
@@ -132,11 +132,11 @@ enum RegStatusFlags
 
 RTC_CALL UInt32 GetRegStatusFlags();
 RTC_CALL void SetCachedStatusFlag(UInt32 newSF, bool newVal = true);
-RTC_CALL void SetRegStatusFlags(UInt32 newSF);
+void SetRegStatusFlags(UInt32 newSF);
 RTC_CALL void SetStatusFlag(UInt32 newSF, bool newVal);
-RTC_CALL bool HasDynamicROI();
+bool HasDynamicROI();
 RTC_CALL bool ShowThousandSeparator();
-RTC_CALL bool EventLog_HideDepreciatedCaseMixupWarnings();
+bool EventLog_HideDepreciatedCaseMixupWarnings();
 RTC_CALL bool IsInDebugMode();
 
 //  -----------------------------------------------------------------------
@@ -157,7 +157,7 @@ enum class RegDWordEnum
 // 0 = off (default), 1 = shadow: decide and report, never withhold, 2 = enforce.
 // Cached like IsPerformanceLogging, so the run gate pays one relaxed load.
 enum class resource_scheduling : UInt8 { off = 0, shadow = 1, enforce = 2 };
-RTC_CALL resource_scheduling GetResourceScheduling();
+resource_scheduling GetResourceScheduling();
 RTC_CALL void SetResourceScheduling(resource_scheduling mode);
 
 // Whether to measure and report per-operation cost and footprint under MsgCategory::performance.
@@ -165,7 +165,7 @@ RTC_CALL void SetResourceScheduling(resource_scheduling mode);
 RTC_CALL bool IsPerformanceLogging();
 
 // Session-local override of that setting, as the /SP and /CP command-line options do.
-RTC_CALL void SetPerformanceLogging(bool enable);
+void SetPerformanceLogging(bool enable);
 
 extern "C" RTC_CALL DWORD DMS_CONV RTC_GetRegDWord(RegDWordEnum i);
 extern "C" RTC_CALL void  DMS_CONV RTC_SetCachedDWord(RegDWordEnum i, DWORD dw);
@@ -176,7 +176,7 @@ extern "C" RTC_CALL UInt32 DMS_CONV DMS_Appl_GetRegStatusFlags();
 RTC_CALL void ParseRegStatusFlags(int& argc, char**& argv);
 
 RTC_CALL SharedStr GetGeoDmsRegKey(CharPtr key);
-RTC_CALL SharedStr GetConvertedGeoDmsRegKey(CharPtr key);
+SharedStr GetConvertedGeoDmsRegKey(CharPtr key);
 RTC_CALL auto GetGeoDmsRegKeyMultiString(CharPtr key) -> std::vector<SharedStr>;
 
 // Session-local overrides (not persisted to registry, only affects current session)

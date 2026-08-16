@@ -123,7 +123,7 @@ public:
 	const Operator*       GetNextGroupMember()     const { return m_NextGroupMember; }
 
 	TIC_CALL virtual oper_arg_policy GetArgPolicy(arg_index argNr, CharPtr firstArgValue) const;
-	TIC_CALL oper_policy GetOperPolicy() const { return GetGroup()->m_Policy; }
+	oper_policy GetOperPolicy() const { return GetGroup()->m_Policy; }
 
 	// Describe this operator's unit constraints declaratively (OperSignature.h).
 	// Returns false (the default) when undescribed: every consumer then defers.

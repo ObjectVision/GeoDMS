@@ -36,9 +36,9 @@ extern "C" RTC_CALL void* GetGlobalMainWindowHandle(); // Delphi code could also
 using start_process_result_t = std::pair<HANDLE, HANDLE>;
 
 RTC_CALL void   Wait(UInt32 nrMillisecs);
-RTC_CALL void   DmsYield(UInt32 nrMillisecs = 50);
-RTC_CALL SizeT  RemainingStackSpace();
-RTC_CALL start_process_result_t StartChildProcess(CharPtr moduleName, Char* cmdLine = nullptr);
+void   DmsYield(UInt32 nrMillisecs = 50);
+SizeT  RemainingStackSpace();
+start_process_result_t StartChildProcess(CharPtr moduleName, Char* cmdLine = nullptr);
 RTC_CALL DWORD  ExecuteChildProcess(CharPtr moduleName, Char* cmdLine);
 
 extern "C" {
@@ -50,18 +50,18 @@ RTC_CALL void   DMS_CONV DMS_Appl_SetFont();
 
 namespace PlatformInfo
 {
-	RTC_CALL SharedStr GetVersionStr();
-	RTC_CALL SharedStr GetUserNameA();
-	RTC_CALL SharedStr GetComputerNameA();
-	RTC_CALL bool      GetEnv(CharPtr varName, SharedStr& result);
-	RTC_CALL bool      GetEnvString(CharPtr section, CharPtr key, SharedStr& result);
-	RTC_CALL SharedStr GetProgramFiles32();
+	SharedStr GetVersionStr();
+	SharedStr GetUserNameA();
+	SharedStr GetComputerNameA();
+	bool      GetEnv(CharPtr varName, SharedStr& result);
+	bool      GetEnvString(CharPtr section, CharPtr key, SharedStr& result);
+	SharedStr GetProgramFiles32();
 };
 
 RTC_CALL extern std::atomic<UInt32> g_DispatchLockCount;
 
 RTC_CALL std::unique_ptr<wchar_t[]> Utf8_2_wchar(CharPtr utf8str, int strLen = -1);
 RTC_CALL std::unique_ptr<wchar_t[]> Utf8_2_wchar(WeakStr utf8str);
-RTC_CALL auto wchar_2_Utf8Str(const wchar_t* wCharStr, int strLen = -1) -> SharedStr;
+auto wchar_2_Utf8Str(const wchar_t* wCharStr, int strLen = -1) -> SharedStr;
 
 #endif // __UTL_ENVIRONMENT_H

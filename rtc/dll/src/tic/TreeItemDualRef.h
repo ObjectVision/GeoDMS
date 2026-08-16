@@ -179,11 +179,11 @@ struct TreeItemDualRef : SharedActor
 	// never seen at refcount 0 (e.g. CreateCacheRoot()). The DualRef's m_Data then owns it.
 	void operator =(const SharedMutableTreeItem& rhs) { SetNew(rhs.get()); }
 
-	TIC_CALL void Clear();
+	void Clear();
 
 	TIC_CALL void SetNew(      TreeItem* newTI);
 	TIC_CALL void SetOld(const TreeItem* oldTI);
-	TIC_CALL void SetTmp(      TreeItem* tmpTI);
+	void SetTmp(      TreeItem* tmpTI);
 
 	bool HasBackRef() const { auto p = m_Data.get(); return p && !p->m_BackRef.expired(); }
 	SharedStr GetBackRefStr() const // null-tolerant: m_BackRef can be reset concurrently after HasBackRef()
@@ -194,7 +194,7 @@ struct TreeItemDualRef : SharedActor
 	}
 
 	// kind 1: own the result subtree's cache units (called after the operator finished building the result).
-	TIC_CALL void CaptureResultUnits();
+	void CaptureResultUnits();
 
 	// Snapshot of the kind-1 owned refs ([0]=root, [1..]=kept-alive units); empty for other kinds. Lets a
 	// scheduled OperationContext co-own the result units for its whole run, so a meta-thread
@@ -242,17 +242,17 @@ protected:
 
 struct TreeItemDualRefContextHandle : ObjectContextHandle
 {
-	TIC_CALL TreeItemDualRefContextHandle(const TreeItemDualRef* currRef);
-	TIC_CALL ~TreeItemDualRefContextHandle();
+	TreeItemDualRefContextHandle(const TreeItemDualRef* currRef);
+	~TreeItemDualRefContextHandle();
 
-	TIC_CALL static bool HasBackRef();
-	TIC_CALL static SharedStr GetBackRefStr();
+	static bool HasBackRef();
+	static SharedStr GetBackRefStr();
 
-	TIC_CALL bool HasItemContext() const override { return HasBackRef(); }
-	TIC_CALL auto ItemAsStr() const->SharedStr override { return GetBackRefStr(); }
+	bool HasItemContext() const override { return HasBackRef(); }
+	auto ItemAsStr() const->SharedStr override { return GetBackRefStr(); }
 
 protected:
-	TIC_CALL void GenerateDescription() override;
+	void GenerateDescription() override;
 
 private:
 	const TreeItemDualRef* m_PrevRef;

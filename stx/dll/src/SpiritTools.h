@@ -190,7 +190,7 @@ UInt32 bolpos(CharPtr first, CharPtr last);
 UInt32 untabbed_size(CharPtr first, CharPtr last,                  UInt32 tabSize, UInt32 pos = 0);
 UInt32 untab        (CharPtr first, CharPtr last, char* outBuffer, UInt32 tabSize, UInt32 pos = 0);
 
-SYNTAX_CALL SharedStr problemlocAsString(CharPtr bufferBegin, CharPtr bufferEnd, CharPtr problemLoc);
+SharedStr problemlocAsString(CharPtr bufferBegin, CharPtr bufferEnd, CharPtr problemLoc);
 
 ///////////////////////////////////////////////////////////////////////////////
 //

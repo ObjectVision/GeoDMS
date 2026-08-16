@@ -196,7 +196,7 @@ RTC_CALL void ConfirmMainThreadOperProcessing()
 //	auto peekResult = PeekMessage(&msg, NULL, WM_USER, WM_USER, PM_NOREMOVE); // create a message queue for the main thread.
 }
 
-RTC_CALL bool IsMainThreadOperProcessingRequestPending()
+bool IsMainThreadOperProcessingRequestPending()
 {
 	return s_MainThreadOperProcessRequestPending;
 }
@@ -214,7 +214,7 @@ RTC_CALL bool IsMainThreadOperProcessingRequestPending()
 static HANDLE s_MainThreadWakeUpEvent = CreateEventW(nullptr, FALSE, FALSE, nullptr);
 #endif
 
-RTC_CALL void WakeUpMainThreadWaiter() noexcept
+void WakeUpMainThreadWaiter() noexcept
 {
 #if defined(WIN32)
 	if (s_MainThreadWakeUpEvent)
@@ -222,7 +222,7 @@ RTC_CALL void WakeUpMainThreadWaiter() noexcept
 #endif
 }
 
-RTC_CALL void WaitForTaskNotification(std::condition_variable& cv, std::unique_lock<std::mutex>& lock)
+void WaitForTaskNotification(std::condition_variable& cv, std::unique_lock<std::mutex>& lock)
 {
 #if defined(WIN32)
 	if (IsMainThread() && IsMultiThreaded0() && s_MainThreadWakeUpEvent)

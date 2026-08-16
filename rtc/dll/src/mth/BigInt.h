@@ -27,32 +27,32 @@ namespace Big {
 	struct UInt : container_type
 	{		
 		UInt() {}
-		RTC_CALL explicit UInt(radix_type v);
+		explicit UInt(radix_type v);
 
-		RTC_CALL void operator +=(const UInt& rhs);
-		RTC_CALL void operator *=(const UInt& rhs);
-		RTC_CALL void operator /=(const UInt& rhs);
-		RTC_CALL void operator >>=(size_type shift);
+		void operator +=(const UInt& rhs);
+		void operator *=(const UInt& rhs);
+		void operator /=(const UInt& rhs);
+		void operator >>=(size_type shift);
 
-		RTC_CALL void operator *=(UInt32 factor);
-		RTC_CALL void operator ++();
-		RTC_CALL void StripLSB(UInt32 p);
-		RTC_CALL size_type ShiftToOdd();
+		void operator *=(UInt32 factor);
+		void operator ++();
+		void StripLSB(UInt32 p);
+		size_type ShiftToOdd();
 
 		inline bool IsOne() const { return size() == 1 && (*this)[0] == 1; }
 
 	private:
-		RTC_CALL void add(const UInt& rhs, size_type shift);
+		void add(const UInt& rhs, size_type shift);
 	};
 
 /******************************************************************************/
 //                          UInt operations
 /******************************************************************************/
 
-	RTC_CALL UInt operator + (const UInt& a, const UInt& b);
-	RTC_CALL UInt operator * (const UInt& a, const UInt& b);
-	RTC_CALL UInt operator / (const UInt& a, const UInt& b);
-	RTC_CALL UInt operator >>(const UInt& a, UInt32 shift);
+	UInt operator + (const UInt& a, const UInt& b);
+	UInt operator * (const UInt& a, const UInt& b);
+	UInt operator / (const UInt& a, const UInt& b);
+	UInt operator >>(const UInt& a, UInt32 shift);
 
 } // namespace Big
 

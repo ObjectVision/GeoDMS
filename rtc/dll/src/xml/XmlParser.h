@@ -23,17 +23,17 @@ struct XmlElement {
 	typedef std::map<TokenID, SharedStr> AttrValuesType;
 	typedef AttrValuesType::const_iterator AttrValuesConstIterator;
 
-	RTC_CALL XmlElement(XmlElement* parent = nullptr) noexcept;
-	RTC_CALL XmlElement(XmlElement&& rhs) noexcept;
-	RTC_CALL ~XmlElement() noexcept;
+	XmlElement(XmlElement* parent = nullptr) noexcept;
+	XmlElement(XmlElement&& rhs) noexcept;
+	~XmlElement() noexcept;
 
-	RTC_CALL CharPtr GetAttrValue(TokenID attrNameID) const;
-	RTC_CALL SharedStr& GetAttrValueRef(TokenID attrNameID);
-	RTC_CALL std::size_t GetNrAttrValues() const;
-	RTC_CALL static void Inc(AttrValuesConstIterator& iter);
+	CharPtr GetAttrValue(TokenID attrNameID) const;
+	SharedStr& GetAttrValueRef(TokenID attrNameID);
+	std::size_t GetNrAttrValues() const;
+	static void Inc(AttrValuesConstIterator& iter);
 
-	RTC_CALL AttrValuesConstIterator GetAttrValuesBegin() const;
-	RTC_CALL AttrValuesConstIterator GetAttrValuesEnd() const;
+	AttrValuesConstIterator GetAttrValuesBegin() const;
+	AttrValuesConstIterator GetAttrValuesEnd() const;
 
 	TokenID                m_NameID;
 	XmlElement*            m_Parent;
@@ -54,10 +54,10 @@ private: // Let op: een std::map heeft een static _NIL dit per .DLL instantierin
 class XmlParser : protected FormattedInpStream
 {
 public:
-	RTC_CALL  XmlParser(InpStreamBuff* inpBuff);
-	RTC_CALL ~XmlParser();
+	 XmlParser(InpStreamBuff* inpBuff);
+	~XmlParser();
 
-	RTC_CALL void XmlRead();
+	void XmlRead();
 
 protected:
 	virtual void ReadAttrCallback(XmlElement& element); // called when all attributes of elem has been read

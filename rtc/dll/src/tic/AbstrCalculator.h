@@ -59,7 +59,7 @@ struct SubstitutionBuffer
 // Section:     Calculator interface with Constructor Factory
 // *****************************************************************************
 
-TIC_CALL AbstrCalculatorRef CreateCalculatorForTreeItem(TreeItem* context, const TreeItem* sourceObject, const CopyTreeContext& copyContext);
+AbstrCalculatorRef CreateCalculatorForTreeItem(TreeItem* context, const TreeItem* sourceObject, const CopyTreeContext& copyContext);
 
 //----------------------------------------------------------------------
 // now independent Calculator related function; TODO G8: dismantle Calculators
@@ -76,7 +76,7 @@ void ExplainResult(const AbstrCalculator* calculator, std::shared_ptr<Explain::C
 void CheckResultingTreeItem(const TreeItem* refItem, const Class* desiredResultingClass);
 
 TIC_CALL void InstantiateTemplate(TreeItem* holder, const TreeItem* applyItem, LispPtr templCallArgList);
-TIC_CALL void ApplyAsMetaFunction(TreeItem* holder, const AbstrCalculator* ac, const AbstrOperGroup* og,  LispPtr metaCallArgs);
+void ApplyAsMetaFunction(TreeItem* holder, const AbstrCalculator* ac, const AbstrOperGroup* og,  LispPtr metaCallArgs);
 
 //----------------------------------------------------------------------
 // AcConstructor
@@ -105,30 +105,30 @@ public:
 	TIC_CALL static AcConstructor* GetConstructor();
 	TIC_CALL static void SetConstructor(AcConstructor* constructor);
 
-	TIC_CALL static AbstrCalculatorRef ConstructFromStr      (const TreeItem* context, WeakStr expr, CalcRole cr);
-	TIC_CALL static AbstrCalculatorRef ConstructFromDirectStr(const TreeItem* context, WeakStr expr, CalcRole cr);
+	static AbstrCalculatorRef ConstructFromStr      (const TreeItem* context, WeakStr expr, CalcRole cr);
+	static AbstrCalculatorRef ConstructFromDirectStr(const TreeItem* context, WeakStr expr, CalcRole cr);
 	TIC_CALL static AbstrCalculatorRef ConstructFromLispRef  (const TreeItem* context, LispPtr lispExpr, CalcRole cr);
-	TIC_CALL static AbstrCalculatorRef ConstructFromDBT      (AbstrDataItem* context, const AbstrCalculator* src);
+	static AbstrCalculatorRef ConstructFromDBT      (AbstrDataItem* context, const AbstrCalculator* src);
 
 	static bool MustEvaluate(CharPtr expr) { dms_assert(expr); return *expr == '='; }
 	static LispRef RewriteExprTop(LispPtr org) { return GetConstructor()->RewriteExprTop(org); }
 
-	TIC_CALL static BestItemRef GetErrorSource(const TreeItem* context, WeakStr expr);
-	TIC_CALL static SharedStr EvaluatePossibleStringExpr(const TreeItem* context, WeakStr expr, CalcRole cr);
+	static BestItemRef GetErrorSource(const TreeItem* context, WeakStr expr);
+	static SharedStr EvaluatePossibleStringExpr(const TreeItem* context, WeakStr expr, CalcRole cr);
 	TIC_CALL static SharedStr EvaluateExpr(const TreeItem* context, CharPtrRange expr, CalcRole cr, UInt32 nrEvals);
 
 	TIC_CALL virtual ActorVisitState VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor) const;
-	TIC_CALL static ActorVisitState VisitImplSuppl(SupplierVisitFlag svf, const ActorVisitor& visitor, const TreeItem* context, WeakStr expr, CalcRole cr);
-	TIC_CALL static SharedTreeItem GetSearchContext(const TreeItem* holder, CalcRole cr);
+	static ActorVisitState VisitImplSuppl(SupplierVisitFlag svf, const ActorVisitor& visitor, const TreeItem* context, WeakStr expr, CalcRole cr);
+	static SharedTreeItem GetSearchContext(const TreeItem* holder, CalcRole cr);
 	auto VisitSourceItem(TokenID supplRefID, SupplierVisitFlag svf, const ActorVisitor& visitor) const->std::optional<SharedTreeItem>;
 
 	TIC_CALL virtual bool CheckSyntax () const;
-	TIC_CALL BestItemRef FindErrorneousItem() const;
-	TIC_CALL BestItemRef FindPrimaryDataFailedItem() const;
+	BestItemRef FindErrorneousItem() const;
+	BestItemRef FindPrimaryDataFailedItem() const;
 
-	TIC_CALL auto GetSourceItem() const->SharedTreeItem;  // directly referred persistent object.
+	auto GetSourceItem() const->SharedTreeItem;  // directly referred persistent object.
 
-	TIC_CALL virtual SharedStr GetExpr() const;
+	virtual SharedStr GetExpr() const;
 	TIC_CALL virtual void      WriteHtmlExpr(OutStreamBase& stream) const;
 	virtual TIC_CALL MetaInfo  GetMetaInfo() const;
 	virtual LispRef   GetLispExprOrg() const { return m_LispExprOrg; } // overridable, but with default behaviour
@@ -136,23 +136,23 @@ public:
 	TIC_CALL virtual bool IsSourceRef() const;
 
 // REMOVE	TIC_CALL SharedStr GetAsFLispExpr(FormattingFlags ff)    const;
-	TIC_CALL SharedStr GetAsFLispExprOrg(FormattingFlags ff) const;
+	SharedStr GetAsFLispExprOrg(FormattingFlags ff) const;
 
 	virtual bool        IsDataBlock() const { return false; }
 	virtual bool        IsDcPtr    () const { return false; }
 
-	TIC_CALL bool            HasTemplSource() const;
-	TIC_CALL const TreeItem* GetTemplSource() const;
+	bool            HasTemplSource() const;
+	const TreeItem* GetTemplSource() const;
 
-	TIC_CALL bool IsForEachTemplHolder () const;
-	TIC_CALL auto GetForEachTemplSource() const -> SharedTreeItem;
+	bool IsForEachTemplHolder () const;
+	auto GetForEachTemplSource() const -> SharedTreeItem;
 
 	const TreeItem* GetHolder() const { return m_Holder.lock().get(); }
 
 	TIC_CALL auto SearchContext() const -> SharedTreeItem;
-	TIC_CALL auto FindItem(TokenID itemRef) const -> SharedTreeItem;
-	TIC_CALL auto FindOrVisitItem(SubstitutionBuffer& buff, TokenID itemRef) const -> SharedTreeItem;
-	TIC_CALL BestItemRef FindBestItem(TokenID itemRef) const;
+	auto FindItem(TokenID itemRef) const -> SharedTreeItem;
+	auto FindOrVisitItem(SubstitutionBuffer& buff, TokenID itemRef) const -> SharedTreeItem;
+	BestItemRef FindBestItem(TokenID itemRef) const;
 	MetaInfo SubstituteExpr(SubstitutionBuffer& substBuff, LispPtr localExpr) const;
 
 	LispRef slSupplierExpr(SubstitutionBuffer& substBuff, LispPtr supplRef, metainfo_policy_flags mpf) const;

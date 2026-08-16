@@ -221,28 +221,28 @@ class AbstrStorageManager : public SharedObj
 
 public:
 	//	Static interface functions
-	TIC_CALL static AbstrStorageManagerRef Construct(CharPtr fullStorageName, TokenID typeID, StorageReadOnlySetting readOnly, bool throwOnFailure);
-	TIC_CALL static AbstrStorageManagerRef Construct(const TreeItem* holder, SharedStr relStorageName, TokenID typeID, StorageReadOnlySetting readOnly, bool throwOnFailure = true);
-	TIC_CALL static bool                 DoesExistEx(CharPtr name, TokenID typeID, const TreeItem* storageHolder); // XXX TODO, REPLACE CharPtr by SharedCharArray*
+	static AbstrStorageManagerRef Construct(CharPtr fullStorageName, TokenID typeID, StorageReadOnlySetting readOnly, bool throwOnFailure);
+	static AbstrStorageManagerRef Construct(const TreeItem* holder, SharedStr relStorageName, TokenID typeID, StorageReadOnlySetting readOnly, bool throwOnFailure = true);
+	static bool                 DoesExistEx(CharPtr name, TokenID typeID, const TreeItem* storageHolder); // XXX TODO, REPLACE CharPtr by SharedCharArray*
 	TIC_CALL static SharedStr            Expand(const TreeItem* configStore, SharedStr storageName);
 	TIC_CALL static SharedStr            Expand(CharPtr configDir, CharPtr storageName);
 	TIC_CALL static SharedStr            GetFullStorageName(const TreeItem* configStore, SharedStr storageName); // ForItem
 	TIC_CALL static SharedStr            GetFullStorageName(CharPtr subDir, CharPtr storageNameCStr); // ForFolder
-	TIC_CALL static SyncMode             GetSyncMode(const TreeItem* storageHolder);
+	static SyncMode             GetSyncMode(const TreeItem* storageHolder);
 
 	//	override / extent PerssistentRefObject interface
 	TIC_CALL SharedStr GetNameStr() const;
 
 protected:
 	// construction only from StorageMangers friends	
-	TIC_CALL AbstrStorageManager();
-	TIC_CALL virtual ~AbstrStorageManager();
+	AbstrStorageManager();
+	virtual ~AbstrStorageManager();
 
 public:
-	TIC_CALL void InitStorageManager(CharPtr storageName, bool readOnly);
-	TIC_CALL void DoNotCommitOnClose() { m_Commit = false; }
+	void InitStorageManager(CharPtr storageName, bool readOnly);
+	void DoNotCommitOnClose() { m_Commit = false; }
 	TIC_CALL bool DoesExist(const TreeItem* storageHolder)  const; // returns IsOpen() || DoCheckExistence()
-	TIC_CALL bool IsWritable() const;
+	bool IsWritable() const;
 	bool IsOpen() const { return m_IsOpen; }
 	bool IsReadOnly() const { return m_IsReadOnly; }
 	bool IsOpenForWrite() const { return IsOpen() && !IsReadOnly(); }
@@ -250,7 +250,7 @@ public:
 public:
 	// Wrapper functions for consistent StorageManager derivations
 	// of the public interface funcs
-	TIC_CALL void OpenForWrite(const StorageMetaInfo& smi); friend struct StorageWriteHandle;
+	void OpenForWrite(const StorageMetaInfo& smi); friend struct StorageWriteHandle;
 	TIC_CALL void CloseStorage() const; friend struct StorageCloseHandle;
 	TIC_CALL bool OpenForRead(const StorageMetaInfo& smi) const; friend struct StorageReadHandle; // POSTCONDITION: m_IsOpen == returnValue
 
@@ -270,13 +270,13 @@ public:
 	TIC_CALL virtual UInt32 GetNativeTileSizeY() const { return 0; }
 
 	TIC_CALL virtual FileDateTime GetLastChangeDateTime(const TreeItem* storageHolder, CharPtr relativePath) const;
-	TIC_CALL FileDateTime GetCachedChangeDateTime(const TreeItem* storageHolder, CharPtr relativePath) const;
+	FileDateTime GetCachedChangeDateTime(const TreeItem* storageHolder, CharPtr relativePath) const;
 	TIC_CALL virtual bool DoCheckExistence(const TreeItem* storageHolder, const TreeItem* storageItem = nullptr)  const; // Default implementation now checks existence of m_Name as a file
 	TIC_CALL virtual bool DoCheckWritability() const;
 	TIC_CALL virtual SharedStr GetUrl() const;
 
 	// public interface funcs wrap derived StorageManagers virtual funcs
-	TIC_CALL void UpdateTree(const TreeItem* storageHolder, TreeItem* curr) const;
+	void UpdateTree(const TreeItem* storageHolder, TreeItem* curr) const;
 
 	TIC_CALL virtual ActorVisitState VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor, const TreeItem* storageHolder, const TreeItem* self) const;
 
@@ -287,7 +287,7 @@ public:
 	TIC_CALL virtual bool ReadUnitRange(const StorageMetaInfo& smi) const;
 	TIC_CALL virtual bool WriteUnitRange(StorageMetaInfoPtr&& smi);
 
-	TIC_CALL void ExportMetaInfo(const TreeItem* storageHolder, const TreeItem* curr);
+	void ExportMetaInfo(const TreeItem* storageHolder, const TreeItem* curr);
 
 protected:
 	// overridable helper functions which are only called from the wrapper funcs 
@@ -328,7 +328,7 @@ private:
 
 	friend struct StorageClass;
 
-	DECL_ABSTR(TIC_CALL, Class)
+	DECL_ABSTR(, Class)
 };
 
 // *****************************************************************************
@@ -348,7 +348,7 @@ protected:
 
 public:
 
-	TIC_CALL auto ReaderClone(StorageMetaInfoPtr smi) const ->std::unique_ptr<StorageReadHandle>;
+	auto ReaderClone(StorageMetaInfoPtr smi) const ->std::unique_ptr<StorageReadHandle>;
 
 //	Abstact interface
 	TIC_CALL virtual StorageMetaInfoPtr GetMetaInfo(const TreeItem* storageHolder, TreeItem* curr, StorageAction sa) const;
@@ -367,7 +367,7 @@ private:
 	using interest_holders_map = std::map<interest_holders_key, interest_holders_container>;
 	mutable interest_holders_map m_InterestHolders;
 
-	DECL_ABSTR(TIC_CALL, Class)
+	DECL_ABSTR(, Class)
 };
 
 
@@ -436,8 +436,8 @@ struct StorageWriteHandle : StorageCloseHandle
 //
 // *****************************************************************************
 
-TIC_CALL SharedStr GetConfigIniFileName();
-TIC_CALL SharedStr GetCaseDir(const TreeItem* configStore);
+SharedStr GetConfigIniFileName();
+SharedStr GetCaseDir(const TreeItem* configStore);
 TIC_CALL bool IsInMMD(const AbstrDataItem*);
 
 extern "C" TIC_CALL bool DMS_CONV DMS_IsConfigDirty(const TreeItem* configRoot);

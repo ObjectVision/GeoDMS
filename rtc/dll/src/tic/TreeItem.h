@@ -113,7 +113,7 @@ typedef std::pair<CharPtrRange, CharPtrRange> name_pair_t;
 Split subItemNames into parent path and branch id (e.g., "a/b/c" => ("a", "b/c")).
 Assumes CharPtrRange is a non-owning range over a character buffer.
 */
-TIC_CALL auto NameTreeReg_GetParentAndBranchID(CharPtrRange subItemNames)->name_pair_t;
+auto NameTreeReg_GetParentAndBranchID(CharPtrRange subItemNames)->name_pair_t;
 
 //----------------------------------------------------------------------
 // Helper Functions
@@ -161,13 +161,13 @@ struct TreeItem : Actor, std::enable_shared_from_this<TreeItem>
 	// END   integrated members of impl::treeitem_production_task
 
 protected: // ctor
-	TIC_CALL TreeItem ();
+	TreeItem ();
 	friend struct OwningPtr<TreeItem>;
 
 public:
 	// Public dtor: required so std::shared_ptr's deleter can destroy the object from namespace scope
 	// (Object.h SharedCreateFunc, shared_tree_ptr's newly_obj ctor). Construction stays factory-only.
-	TIC_CALL ~TreeItem ();
+	~TreeItem ();
 
 //	ctor / dtor
 
@@ -180,11 +180,11 @@ public:
 	TIC_CALL void SetExpr (WeakStr expression);
 
 	// Identification
-	TIC_CALL TokenID GetID        () const override;
+	TokenID GetID        () const override;
 
 	// Description getters; GetDisplayName may prefer a localized/pretty form of the name.
-	TIC_CALL virtual SharedStr GetDescr() const;
-	TIC_CALL SharedStr _GetDescr() const;
+	virtual SharedStr GetDescr() const;
+	SharedStr _GetDescr() const;
 	TIC_CALL SharedStr GetDisplayName() const;
 
 	// Expression (config) getter/setter; _GetExprStr returns the raw stored expression.
@@ -195,14 +195,14 @@ public:
 // Namespaces
 
 	// Track used namespaces and URLs to enable unqualified name resolution.
-	TIC_CALL void AddUsing (const TreeItem* );
-	TIC_CALL void AddUsings(const TreeItem** firstNameSpace, const TreeItem** lastNameSpace);
-	TIC_CALL void AddUsingUrls(CharPtr urlsBegin, CharPtr urlsEnd);
+	void AddUsing (const TreeItem* );
+	void AddUsings(const TreeItem** firstNameSpace, const TreeItem** lastNameSpace);
+	void AddUsingUrls(CharPtr urlsBegin, CharPtr urlsEnd);
 	TIC_CALL void AddUsingUrl (TokenID );
 
-	TIC_CALL void ClearNamespaceUsage();
-	TIC_CALL UInt32 GetNrNamespaceUsages() const ;
-	TIC_CALL const TreeItem* GetNamespaceUsage(UInt32 i) const;
+	void ClearNamespaceUsage();
+	UInt32 GetNrNamespaceUsages() const ;
+	const TreeItem* GetNamespaceUsage(UInt32 i) const;
 
 //	Suppliers
 
@@ -214,7 +214,7 @@ public:
 // Dumping 
 
 	// XML dump for diagnostics or config serialization; dumpSubTags toggles subtree traversal.
-	TIC_CALL virtual void XML_Dump(OutStreamBase* out, bool dumpSubTags = true) const; // DumpDecl
+	virtual void XML_Dump(OutStreamBase* out, bool dumpSubTags = true) const; // DumpDecl
 private:
 	// DMS-syntax serialization of a function item as a 'function name<tvs>(params) -> result'
 	// declaration (rather than the generic 'container ...: IsTemplate' form). ST_DMS only.
@@ -231,16 +231,16 @@ public:
 	// Disable storage to force in-memory or calculator-only operation.
 	TIC_CALL void DisableStorage(bool disableStorage=true); // don't use storage
           bool IsDisabledStorage() const { return GetTSF(TSF_DisabledStorage); }
-	TIC_CALL bool IsDataReadable()    const;
+	bool IsDataReadable()    const;
 
 //	Containment
 
 	// Subitem counts; CountNrSubItems may call UpdateMetaInfo, while _CountNrSubItems will not.
 	TIC_CALL UInt32  CountNrSubItems () const noexcept; // calls UpdateMetaInfo
-	TIC_CALL UInt32 _CountNrSubItems () noexcept;       // doesn't call UpdateMetaInfo
+	UInt32 _CountNrSubItems () noexcept;       // doesn't call UpdateMetaInfo
 
 	TIC_CALL bool              HasSubItems   () const noexcept;                            // calls UpdateMetaInfo
-	TIC_CALL bool              _HasSubItems  ()  noexcept { return _GetFirstSubItem(); }    // doesn't call UpdateMetaInfo
+	bool              _HasSubItems  ()  noexcept { return _GetFirstSubItem(); }    // doesn't call UpdateMetaInfo
 
 	// Inlined single-linked sub-item list (was the single_linked_tree<TreeItem> base). Raw links for now;
 	// these become std::shared_ptr in the ownership migration (see doc/development/std-ptr-migration-plan.md).
@@ -252,13 +252,13 @@ public:
 
 	// GetFirstSubItem may return nullptr; Curr variants do not trigger UpdateMetaInfo.
 	TIC_CALL const TreeItem*   GetFirstSubItem() const  noexcept;
-	TIC_CALL const TreeItem*   GetCurrFirstSubItem() const  noexcept;
+	const TreeItem*   GetCurrFirstSubItem() const  noexcept;
 	TIC_CALL const TreeItem*   GetFirstVisibleSubItem() const  noexcept;
 	TIC_CALL const TreeItem*   GetNextVisibleItem() const  noexcept;
 
 	// Walkers for subtree traversal (const and non-const); Visit* supports visitor pattern.
 	TIC_CALL const TreeItem*   WalkConstSubTree(const TreeItem* curr) const  noexcept; // this acts as subTreeRoot
-	TIC_CALL auto              VisitConstVisibleSubTree(const ActorVisitor& visitor) const -> ActorVisitState;
+	auto              VisitConstVisibleSubTree(const ActorVisitor& visitor) const -> ActorVisitState;
 	TIC_CALL TreeItem*         WalkCurrSubTree(TreeItem* curr) noexcept;              // this acts as subTreeRoot
 	TIC_CALL TreeItem*         WalkNext(TreeItem* curr)  noexcept;                    // this acts as subTreeRoot
 
@@ -269,10 +269,10 @@ public:
 	// Parents
 
 	// Parent access (PersistentSharedObj override) and storage parent resolution (for R/W).
-	TIC_CALL [[nodiscard]] const PersistentObject* GetParent () const noexcept override;       // override PersistentSharedObj
+	[[nodiscard]] const PersistentObject* GetParent () const noexcept override;       // override PersistentSharedObj
           SharedTreeItem GetTreeParent   () const   { return m_Parent.lock(); } // safe weak->shared upgrade (parent owns child; m_Parent is non-owning)
 	TIC_CALL SharedTreeItem GetStorageParent(bool alsoForWrite) const;
-	TIC_CALL SharedTreeItem GetCurrStorageParent(bool alsoForWrite) const;
+	SharedTreeItem GetCurrStorageParent(bool alsoForWrite) const;
 
 // Search Items by name
 
@@ -283,7 +283,7 @@ public:
 
 	// Path-based resolution; BestItem attempts fuzzy or best-effort matching.
 	TIC_CALL       TreeItem* GetItem     (CharPtrRange subItemNames);
-	TIC_CALL       TreeItem* GetBestItem (CharPtrRange subItemNames);
+	      TreeItem* GetBestItem (CharPtrRange subItemNames);
 	TIC_CALL SharedTreeItem GetCurrItem (CharPtrRange subItemNames) const; // doesn't call UpdateMetaInfo
 
 	TIC_CALL SharedTreeItem FindItem    (CharPtrRange subItemNames) const; // calls UpdateMetaInfo
@@ -292,11 +292,11 @@ public:
 
 	// Type checking helpers to verify runtime class before usage.
 	TIC_CALL const TreeItem* CheckObjCls(const Class* requiredClass) const;
-	TIC_CALL       TreeItem* CheckCls   (const Class* requiredClass);
-	TIC_CALL const TreeItem* FollowDots(CharPtrRange dots) const;
+	      TreeItem* CheckCls   (const Class* requiredClass);
+	const TreeItem* FollowDots(CharPtrRange dots) const;
 
 	// Script-facing name in a context.
-	TIC_CALL virtual auto GetScriptName(const TreeItem* context) const -> SharedStr;
+	virtual auto GetScriptName(const TreeItem* context) const -> SharedStr;
 
 // Creation
 
@@ -317,13 +317,13 @@ public:
 	TIC_CALL bool IsLoadable()      const;
 	TIC_CALL bool IsStorable()      const;
 
-	TIC_CALL bool IsCurrLoadable()  const;
-	TIC_CALL bool IsCurrStorable()  const;
+	bool IsCurrLoadable()  const;
+	bool IsCurrStorable()  const;
 
 	// Derivable if loadable or has calculator without config data.
 	bool IsDerivable()     const { return IsLoadable() || (HasCalculator() && !HasConfigData()); }
 	TIC_CALL bool HasConfigData() const;
-	TIC_CALL bool HasCurrConfigData() const;
+	bool HasCurrConfigData() const;
 
 	// Cache item predicates (without UpdateMetaInfo).
 	bool IsPart()          const { return IsCacheItem() && GetTreeParent(); }    // doesn't call UpdateMetaInfo
@@ -333,19 +333,19 @@ public:
 	// Breaks supplier cycles over the subtree and, for a config root, releases it from its SessionData
 	// (which cascades destruction). Ownership is downward; there is no longer an auto-delete pin.
 	TIC_CALL void EnableAutoDelete();
-	TIC_CALL void SetIsCacheItem();
+	void SetIsCacheItem();
           bool IsCacheItem() const { return GetTSF(TSF_IsCacheItem); }
 
 //	Getting Data into or out of memory
 
 	// Data lifecycle: prepare, commit, cleanup. Some may suspend via Actor mechanisms.
-	TIC_CALL bool TryPrepareDataUsage() const; // called in idle time for items that will soon be visible, returns false when Suspended
-	TIC_CALL bool CommitDataChanges() const;
-	TIC_CALL garbage_can TryCleanupMem() const; // overridden by AbstrDataItem
-	TIC_CALL garbage_can DropValue();
+	bool TryPrepareDataUsage() const; // called in idle time for items that will soon be visible, returns false when Suspended
+	bool CommitDataChanges() const;
+	garbage_can TryCleanupMem() const; // overridden by AbstrDataItem
+	garbage_can DropValue();
 	TIC_CALL bool PrepareDataUsageImpl(DrlType drlType) const;
 	TIC_CALL bool PrepareDataUsage(DrlType drlType) const;
-	TIC_CALL virtual bool TryCleanupMemImpl(garbage_can& garbageCan) const; // overridden by AbstrDataItem
+	virtual bool TryCleanupMemImpl(garbage_can& garbageCan) const; // overridden by AbstrDataItem
 	TIC_CALL bool PrepareData() const;
 
 //	Copying
@@ -353,39 +353,39 @@ public:
 	// Deep copy into dest with specified id and context; CopyProps customizable.
 	TIC_CALL [[nodiscard]] SharedMutableTreeItem Copy(TreeItem* dest, TokenID id, CopyTreeContext& copyContext) const;
 	void UpdateMetaInfoImpl2() const; // sort of const
-	TIC_CALL void UpdateMetaInfo() const noexcept override; // sort of const
-	TIC_CALL void UpdateMetaInfoIfNotAlready() const noexcept;
+	void UpdateMetaInfo() const noexcept override; // sort of const
+	void UpdateMetaInfoIfNotAlready() const noexcept;
 
 //	override Actor callbacks
 
 	// Progress reporting, failure handling, and permission assertions.
-	TIC_CALL void SetProgress(ProgressState ps) const override;
-	TIC_CALL bool DoFail(ErrMsgPtr msg, FailType ft) const override;
-	TIC_CALL void AssertPropChangeRights(CharPtr changeWhat) const override;
-	TIC_CALL void AssertDataChangeRights(CharPtr changeWhat) const override;
+	void SetProgress(ProgressState ps) const override;
+	bool DoFail(ErrMsgPtr msg, FailType ft) const override;
+	void AssertPropChangeRights(CharPtr changeWhat) const override;
+	void AssertDataChangeRights(CharPtr changeWhat) const override;
 
 	// Visit suppliers with flags determining breadth/depth, implied/configured.
-	TIC_CALL ActorVisitState VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor) const override;
+	ActorVisitState VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor) const override;
 
 //	calculator and reffered items
 
 	// Calculator accessors and derivation chain navigation (source/ultimate items).
-	TIC_CALL auto GetCalculator() const -> AbstrCalculatorRef;
+	auto GetCalculator() const -> AbstrCalculatorRef;
 	TIC_CALL const TreeItem* GetCurrSourceItem() const noexcept;
 	TIC_CALL const TreeItem* GetSourceItem() const noexcept;
 	TIC_CALL const TreeItem* GetUltimateSourceItem() const noexcept;
-	TIC_CALL const TreeItem* GetCurrUltimateSourceItem() const noexcept;
+	const TreeItem* GetCurrUltimateSourceItem() const noexcept;
 
 	// Integrity checker and size estimator are specialized calculators.
-	TIC_CALL bool HasIntegrityChecker() const;
-	TIC_CALL auto GetIntegrityChecker() const -> AbstrCalculatorRef;
+	bool HasIntegrityChecker() const;
+	auto GetIntegrityChecker() const -> AbstrCalculatorRef;
 
 	// Declared size knowledge (§4.6): the expectation is a point estimate, the upperbound a sound
 	// bound that admission may reserve on. Both are cheap-to-evaluate calculation rules.
-	TIC_CALL bool HasSizeExpectation() const;
-	TIC_CALL auto GetSizeExpectation() const->AbstrCalculatorRef;
-	TIC_CALL bool HasSizeUpperbound() const;
-	TIC_CALL auto GetSizeUpperbound() const->AbstrCalculatorRef;
+	bool HasSizeExpectation() const;
+	auto GetSizeExpectation() const->AbstrCalculatorRef;
+	bool HasSizeUpperbound() const;
+	auto GetSizeUpperbound() const->AbstrCalculatorRef;
 
 	// Referred/ultimate item helpers; “Curr” variants avoid UpdateMetaInfo.
 	TIC_CALL auto GetCurrUltimateItem() const noexcept -> std::shared_ptr<const TreeItem>;
@@ -393,14 +393,14 @@ public:
 	TIC_CALL auto GetUltimateItem() const  noexcept -> std::shared_ptr<const TreeItem>;
 	TIC_CALL auto GetCurrRefItem () const  noexcept -> std::shared_ptr<const TreeItem>;
 	TIC_CALL auto GetReferredItem() const  noexcept -> std::shared_ptr<const TreeItem>;
-	TIC_CALL virtual void Unify(const TreeItem* refItem, CharPtr leftRole, CharPtr rightRole) const;
+	virtual void Unify(const TreeItem* refItem, CharPtr leftRole, CharPtr rightRole) const;
 
 //	TIC_CALL MetaInfo GetMetaInfo(metainfo_policy_flags mpf) const;
-	TIC_CALL MetaInfo GetCurrMetaInfo(metainfo_policy_flags mpf) const;
-	TIC_CALL LispRef GetBaseKeyExpr() const;
+	MetaInfo GetCurrMetaInfo(metainfo_policy_flags mpf) const;
+	LispRef GetBaseKeyExpr() const;
 //	TIC_CALL LispRef GetOrgKeyExpr() const;
-	TIC_CALL virtual LispRef GetKeyExprImpl() const;
-	TIC_CALL auto GetOrgDC() const->std::pair<DataControllerRef, SharedTreeItem>;
+	virtual LispRef GetKeyExprImpl() const;
+	auto GetOrgDC() const->std::pair<DataControllerRef, SharedTreeItem>;
 	TIC_CALL LispRef GetCheckedKeyExpr() const;
 	TIC_CALL auto GetCheckedDC() const -> DataControllerRef;
 	TIC_CALL void UpdateDC() const;
@@ -435,10 +435,10 @@ public:
 	TIC_CALL void SetKeepDataState(bool value);
           bool GetKeepDataState () const { return GetTSF(TSF_KeepData); }
 
-	TIC_CALL void SetLazyCalculatedState(bool value);
+	void SetLazyCalculatedState(bool value);
           bool GetLazyCalculatedState() const { return GetTSF(TSF_LazyCalculated); }
 
-	TIC_CALL void SetStoreDataState(bool value);
+	void SetStoreDataState(bool value);
           bool GetStoreDataState() const { return GetTSF(TSF_StoreData); }
 	TIC_CALL void SetFreeDataState(bool value);
           bool GetFreeDataState() const { return GetTSF(TSF_FreeData); }
@@ -453,13 +453,13 @@ public:
 //	SourceLocation
 	// Set and get source location info aiding error reporting and tooling.
 	TIC_CALL void SetLocation(const SourceLocation* loc);
-	TIC_CALL auto GetLocation() const -> const SourceLocation* override;
+	auto GetLocation() const -> const SourceLocation* override;
 	TIC_CALL SharedStr GetConfigFileName  () const;
 	TIC_CALL UInt32  GetConfigFileLineNr() const;
 	TIC_CALL UInt32  GetConfigFileColNr () const;
 
 	// Override Object to provide a more specific source name (e.g., composed from location).
-	TIC_CALL SharedStr GetSourceName() const override; // override Object
+	SharedStr GetSourceName() const override; // override Object
 
 //	StoredProp management
 	// Track stored property associations; helpful for persistence backends.
@@ -470,43 +470,43 @@ public:
 	TIC_CALL void SetDC(DataControllerRef newDC, const TreeItem* newRefItem = nullptr) const;
 	TIC_CALL void SetCalculator(AbstrCalculatorRef pr) const; // also called by DataController
 	TIC_CALL SharedTreeItemInterestPtr GetInterestPtrOrNull() const;
-	TIC_CALL SharedTreeItemInterestPtr GetInterestPtrOrCancel() const;
+	SharedTreeItemInterestPtr GetInterestPtrOrCancel() const;
 	std::weak_ptr<const Actor> weak_from_actor() const override { return weak_from_this(); } // std-managed: real weak for the supplier-interest list
 
 //protected: // new callback functions
 	// Hooks for storage read/write and data (clear/copy/signature/result checks).
-	TIC_CALL virtual bool DoReadItem(StorageMetaInfoPtr smi); friend struct StorageReadHandle;
-	TIC_CALL virtual bool DoWriteItem(StorageMetaInfoPtr&& smiHolder) const;
-	TIC_CALL virtual void ClearDataObject(garbage_can&) const;
-	TIC_CALL virtual void CopyProps(TreeItem* result, const CopyTreeContext& copyContext) const;
-	TIC_CALL virtual SharedStr GetSignature() const;
-	TIC_CALL virtual bool CheckResultItem(const TreeItem* refItem) const;
+	virtual bool DoReadItem(StorageMetaInfoPtr smi); friend struct StorageReadHandle;
+	virtual bool DoWriteItem(StorageMetaInfoPtr&& smiHolder) const;
+	virtual void ClearDataObject(garbage_can&) const;
+	virtual void CopyProps(TreeItem* result, const CopyTreeContext& copyContext) const;
+	virtual SharedStr GetSignature() const;
+	virtual bool CheckResultItem(const TreeItem* refItem) const;
 
 //	override Actor callbacks
 	// Update/invalidate hooks from Actor; handle suspended updates via SuspendibleUpdate.
-	TIC_CALL ActorVisitState DoUpdate() override;
-	TIC_CALL void DoInvalidate  () const override;
+	ActorVisitState DoUpdate() override;
+	void DoInvalidate  () const override;
 
 	// Determine last supplier change for caching and invalidation decisions.
-	TIC_CALL TimeStamp DetermineLastSupplierChange(ErrMsgPtr& failReason, FailType& ft) const /*noexcept*/ override;
+	TimeStamp DetermineLastSupplierChange(ErrMsgPtr& failReason, FailType& ft) const /*noexcept*/ override;
 
 private:
 	bool _CheckResultObjType(const TreeItem* refItem) const;
 
 public:
 	// Update that can suspend; returns appropriate visit state to scheduler.
-	TIC_CALL ActorVisitState SuspendibleUpdate() const override;
+	ActorVisitState SuspendibleUpdate() const override;
 
 // InterestCount management
 	// Interest drives resource lifetime; “KeepDataState” maintains data aside from interest count.
-	TIC_CALL bool PartOfInterest() const;
+	bool PartOfInterest() const;
 	bool   HasInterest     () const { return GetInterestCount() || GetKeepDataState(); }
 	bool   PartOfInterestOrKeep() const { return PartOfInterest() || GetKeepDataState(); }
 
 	// Namespace “using” cache accessors.
 	bool CurrHasUsingCache() const { return bool(m_UsingCache);  }
                 UsingCache* GetUsingCache();
-	TIC_CALL const UsingCache* GetUsingCache() const;
+	const UsingCache* GetUsingCache() const;
 
 	// Removal from config tree (detach and cleanup).
 	TIC_CALL void RemoveFromConfig() const; 
@@ -530,7 +530,7 @@ public: // TODO G8: Re-encapsulate
 	void RemoveItem(TreeItem* child); // PRECONDITION: child->GetParent()==this
 	void ReleaseSubItem(TreeItem* subItem); // detaches a sub-item and releases the parent's ownership of it
 	void InheritParentState(TreeItem* parent); // copy template/cache/passor/keep-data flags down from parent (called by InitTreeItem)
-	friend TIC_CALL void InitTreeItem(TreeItem* parent, SharedMutableTreeItem subItem, TokenID id);
+	friend void InitTreeItem(TreeItem* parent, SharedMutableTreeItem subItem, TokenID id);
 
 	// Storage IO entry points; ReadItem integrates with StorageReadHandle.
 	bool ReadItem(StorageReadHandle&& srh);
@@ -544,7 +544,7 @@ public: // TODO G8: Re-encapsulate
 	void SetInTemplate();
 
 	// Instantiation flag (eager template instantiation tracking).
-	TIC_CALL bool GetIsInstantiated() const;
+	bool GetIsInstantiated() const;
 	TIC_CALL void SetIsInstantiated() const;
 
 	// Whether to substitute by calculator spec (performance/semantics shortcut).
@@ -579,8 +579,8 @@ public:
 
 
 	// BackRef for special cache-root wiring; FullCfgName materialization.
-	TIC_CALL auto GetBackRef() const -> SharedTreeItem; // owning snapshot of the weak back-ref (null if unset/expired)
-	TIC_CALL auto GetFullCfgName() const -> SharedStr override;
+	auto GetBackRef() const -> SharedTreeItem; // owning snapshot of the weak back-ref (null if unset/expired)
+	auto GetFullCfgName() const -> SharedStr override;
 //private: // TODO G8: encapsulate
 
 	// Identification token; assumed cheap-copy and stable.
@@ -639,11 +639,11 @@ public: // TODO G8: encapsulate and move config attr (aka mc_ ) into a separate 
 	TIC_CALL ConfigProperties&               GetOrCreateConfigProperties() const;
 	TIC_CALL const SharedStr&          GetExprMember()             const noexcept;
 	TIC_CALL const AbstrCalculatorRef& GetCalculatorMember()       const noexcept;
-	TIC_CALL const AbstrCalculatorRef& GetIntegrityCheckerMember() const noexcept;
-	TIC_CALL const AbstrCalculatorRef& GetSizeExpectationMember()  const noexcept;
-	TIC_CALL const AbstrCalculatorRef& GetSizeUpperboundMember()   const noexcept;
-	TIC_CALL void ResetCalculatorMember()       const; // defined in .cpp where AbstrCalculator is complete
-	TIC_CALL void ResetIntegrityCheckerMember() const;
+	const AbstrCalculatorRef& GetIntegrityCheckerMember() const noexcept;
+	const AbstrCalculatorRef& GetSizeExpectationMember()  const noexcept;
+	const AbstrCalculatorRef& GetSizeUpperboundMember()   const noexcept;
+	void ResetCalculatorMember()       const; // defined in .cpp where AbstrCalculator is complete
+	void ResetIntegrityCheckerMember() const;
 
 	// Pluggable behavior: data controller and referred/template-original items.
 	mutable DataControllerRef      mc_DC;
@@ -669,13 +669,13 @@ private:
 // Initialize a freshly-created (make_shared'd) tree item: set its ID and transfer shared
 // ownership of subItem into parent's sub-item list (parent==nullptr for a root). Free function
 // so the caller's owning shared_ptr is moved in rather than recovered via shared_from_this.
-TIC_CALL void InitTreeItem(TreeItem* parent, SharedMutableTreeItem subItem, TokenID id);
+void InitTreeItem(TreeItem* parent, SharedMutableTreeItem subItem, TokenID id);
 
 // Free function that allows self==nullptr (avoids UB from calling member on nullptr).
-TIC_CALL auto TreeItem_CreateItem(TreeItem* self, TokenID id, const Class* cls = nullptr) -> SharedMutableTreeItem;
-TIC_CALL auto TreeItem_CreateItemFromPath(TreeItem* self, CharPtr subItemNames, const Class* cls = nullptr) -> SharedMutableTreeItem;
+auto TreeItem_CreateItem(TreeItem* self, TokenID id, const Class* cls = nullptr) -> SharedMutableTreeItem;
+auto TreeItem_CreateItemFromPath(TreeItem* self, CharPtr subItemNames, const Class* cls = nullptr) -> SharedMutableTreeItem;
 TIC_CALL TreeItem* TreeItem_CheckCls(TreeItem* self, const Class* requiredClass);
-TIC_CALL const TreeItem* TreeItem_CheckObjCls(const TreeItem* self, const Class* requiredClass);
+const TreeItem* TreeItem_CheckObjCls(const TreeItem* self, const Class* requiredClass);
 
 using SharedTreeItem = std::shared_ptr<const TreeItem>;
 /*

@@ -26,9 +26,9 @@ class FileSystemStorageManager : public AbstrStreamManager
 {
 public:
 
-	STGDLL_CALL ~FileSystemStorageManager();
+	~FileSystemStorageManager();
 
-	STGDLL_CALL SharedStr GetFullFileName(CharPtr name) const;
+	SharedStr GetFullFileName(CharPtr name) const;
 
 protected:
 //	implement AbstrStorageManager interface
@@ -46,7 +46,7 @@ protected:
 	friend class FileSystemStorageOutStreamBuff;
 	friend class FileSystemStorageInpStreamBuff;
 
-	DECL_RTTI(STGDLL_CALL, StorageClass)
+	DECL_RTTI(, StorageClass)
 };
 
 #endif // !defined(__STG_FILESYSTEM_STORAGEMANAGER_H)

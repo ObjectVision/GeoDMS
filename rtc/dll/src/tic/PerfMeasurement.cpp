@@ -55,7 +55,7 @@ namespace {
 
 } // anonymous namespace
 
-TIC_CALL SizeT ResolvedNrElements(const TreeItem* item)
+SizeT ResolvedNrElements(const TreeItem* item)
 {
 	if (!item || !IsDataItem(item))
 		return UNDEFINED_VALUE(SizeT);
@@ -71,7 +71,7 @@ TIC_CALL SizeT ResolvedNrElements(const TreeItem* item)
 	return domain->GetCount();
 }
 
-TIC_CALL auto EstimateOperPerformance(const Operator* oper, TreeItemDualRef& resultHolder
+auto EstimateOperPerformance(const Operator* oper, TreeItemDualRef& resultHolder
 	, const ArgRefs& args) -> PerformanceEstimationData
 {
 	assert(IsPerformanceLogging());
@@ -87,7 +87,7 @@ TIC_CALL auto EstimateOperPerformance(const Operator* oper, TreeItemDualRef& res
 	}
 }
 
-TIC_CALL void ReportOperPerformance(CharPtr operName, const TreeItem* result
+void ReportOperPerformance(CharPtr operName, const TreeItem* result
 	, const PerformanceEstimationData& scheduleEstimate, const PerformanceEstimationData& runEstimate
 	, Float64 elapsedMSec, SizeT actualNrElements, SizeT actualAllocBytes, SizeT actualPeakBytes)
 {
@@ -188,7 +188,7 @@ TIC_CALL void ReportOperPerformance(CharPtr operName, const TreeItem* result
 	);
 }
 
-TIC_CALL auto EstimateReadResources(const TreeItem* focusItem) -> PerformanceEstimationData
+auto EstimateReadResources(const TreeItem* focusItem) -> PerformanceEstimationData
 {
 	auto result = PerformanceEstimationData();
 	if (!focusItem || !IsDataItem(focusItem))
@@ -226,7 +226,7 @@ TIC_CALL auto EstimateReadResources(const TreeItem* focusItem) -> PerformanceEst
 	return result;
 }
 
-TIC_CALL void ReportReadPerformance(const TreeItem* focusItem, const PerformanceEstimationData& estimate
+void ReportReadPerformance(const TreeItem* focusItem, const PerformanceEstimationData& estimate
 	, Float64 elapsedMSec)
 {
 	assert(IsPerformanceLogging());

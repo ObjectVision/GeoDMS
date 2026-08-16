@@ -192,7 +192,7 @@ VersionComponent s_EdgVersion("EdgVersion: " BOOST_STRINGIZE(MG_EDG_VERSION));
 
 SharedStr g_sessionStartTime;
 
-RTC_CALL SharedStr GetCurrentTimeStr()
+SharedStr GetCurrentTimeStr()
 {
 	VectorOutStreamBuff outBuff;
 	FormattedOutStream fout(&outBuff, FormattingFlags::None);
@@ -205,7 +205,7 @@ RTC_CALL void DMS_CONV DMS_Rtc_Load()
 	g_sessionStartTime = GetCurrentTimeStr();
 }
 
-RTC_CALL SharedStr GetSessionStartTimeStr()
+SharedStr GetSessionStartTimeStr()
 {
 	return g_sessionStartTime;
 }

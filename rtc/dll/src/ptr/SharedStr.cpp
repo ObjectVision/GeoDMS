@@ -472,7 +472,7 @@ inline __m128i load_tail(const char* ptr, std::size_t size) noexcept {
 	return _mm_load_si128(reinterpret_cast<const __m128i*>(buffer));
 }
 
-RTC_CALL bool GenericEqual::operator()(CharPtrRange a, CharPtrRange b) const noexcept
+bool GenericEqual::operator()(CharPtrRange a, CharPtrRange b) const noexcept
 {
 	auto aSize = a.size();
 	if (aSize != b.size())
@@ -499,7 +499,7 @@ RTC_CALL bool GenericEqual::operator()(CharPtrRange a, CharPtrRange b) const noe
 	return true;
 }
 
-RTC_CALL bool AsciiFoldedCaseInsensitiveEqual::operator()(CharPtrRange a, CharPtrRange b) const noexcept
+bool AsciiFoldedCaseInsensitiveEqual::operator()(CharPtrRange a, CharPtrRange b) const noexcept
 {
 	auto aSize = a.size();
 	if (aSize != b.size())

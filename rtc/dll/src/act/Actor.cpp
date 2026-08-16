@@ -144,7 +144,7 @@ Actor::UpdateLock::~UpdateLock()
 #include "act/SupplInterest.h"
 
 // Supplier interest registry. Holds which suppliers are observed by which targets.
-RTC_CALL static_ptr<SupplTreeInterestType> s_SupplTreeInterest;
+static_ptr<SupplTreeInterestType> s_SupplTreeInterest;
 
 SupplInterestListPtr MoveSupplInterest(const Actor* self); // forward declaration
 

@@ -33,7 +33,7 @@ RTC_CALL void catchAndProcessException();
 
 		// functions defined in DmsException.cpp
 
-		RTC_CALL TCppExceptionTranslator SetCppTranslator(TCppExceptionTranslator trFunc); 
+		TCppExceptionTranslator SetCppTranslator(TCppExceptionTranslator trFunc); 
 
 		[[noreturn]] RTC_CALL void call_trans_SE2DMSfunc();
 		[[noreturn]] RTC_CALL void  call_HaltOnSE();

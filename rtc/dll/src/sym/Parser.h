@@ -33,7 +33,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "LispRef.h"
 #include "ser/FormattedStream.h"
 
-SYM_CALL LispRef GetExpr(FormattedInpStream& istr);
+LispRef GetExpr(FormattedInpStream& istr);
 SYM_CALL FormattedInpStream& operator >>(FormattedInpStream& is, LispRef& expr);
 
 #endif // __MG_SYMBOL_PARSER_H

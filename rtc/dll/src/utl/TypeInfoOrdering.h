@@ -12,7 +12,7 @@
 
 struct TypeInfoOrdering 
 {
-   RTC_CALL bool operator () (const std::type_info* a, const std::type_info* b) const;
+   bool operator () (const std::type_info* a, const std::type_info* b) const;
 };
 
 RTC_CALL CharPtr GetName(const std::type_info& ti);

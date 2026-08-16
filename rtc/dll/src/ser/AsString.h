@@ -74,7 +74,7 @@ RTC_CALL void WriteDataString(FormattedOutStream& out, const SharedStr& v);
 
 template <typename T> 
 inline   SharedStr AsRgbStr(const T& v) { return AsDataStr(v); }
-RTC_CALL SharedStr AsRgbStr(UInt32   v); // defined in StringStream.cpp
+SharedStr AsRgbStr(UInt32   v); // defined in StringStream.cpp
 
 template <class T>
 void AssignValueFromCharPtr(T& value, CharPtr data)
@@ -102,7 +102,7 @@ void AssignValueFromCharPtrs(T& value, CharPtr begin, CharPtr end)
 	}
 }
 
-RTC_CALL void AssignValueFromCharPtr(Bool& value, CharPtr data);
+void AssignValueFromCharPtr(Bool& value, CharPtr data);
 RTC_CALL void AssignValueFromCharPtrs(Bool& value, CharPtr begin, CharPtr end);
 
 template <class T>
@@ -155,7 +155,7 @@ inline bool AsCharArray(const SharedStr& value, char* buffer, SizeT bufLen, Form
 	return AsCharArray(typesafe_cast<WeakStr>(value), buffer, bufLen, ff); 
 }
 
-RTC_CALL bool AsCharArray(SA_ConstReference<char> value, char* buffer, SizeT bufLen, FormattingFlags);
+bool AsCharArray(SA_ConstReference<char> value, char* buffer, SizeT bufLen, FormattingFlags);
 
 template <class T>
 inline SizeT AsCharArraySize(const T& value, streamsize_t maxLen, FormattingFlags ff)
@@ -174,7 +174,7 @@ inline SizeT AsCharArraySize(const T& value, streamsize_t maxLen, FormattingFlag
 inline SizeT AsCharArraySize(CharPtr value, streamsize_t maxLen, FormattingFlags) { return StrLen(value, maxLen); }
 inline SizeT AsCharArraySize(WeakStr value, streamsize_t maxLen, FormattingFlags) { return Min<streamsize_t>(maxLen, value.ssize()); }
 inline SizeT AsCharArraySize(const SharedStr& value, streamsize_t maxLen, FormattingFlags) { return Min<streamsize_t>(maxLen, value.ssize()); }
-RTC_CALL SizeT AsCharArraySize(SA_ConstReference<char> value, streamsize_t maxLen, FormattingFlags);
+SizeT AsCharArraySize(SA_ConstReference<char> value, streamsize_t maxLen, FormattingFlags);
 
 //----------------------------------------------------------------------
 // Section : IString, used for returning string-handles to ClientAppl
@@ -192,8 +192,8 @@ struct IString : SharedStr
 	static RTC_CALL Handle Create(WeakStr strVal);
 	static RTC_CALL Handle Create(TokenID strVal);
 
-	static RTC_CALL void    Release  (Handle);
-	static RTC_CALL CharPtr AsCharPtr(Handle);
+	static void    Release  (Handle);
+	static CharPtr AsCharPtr(Handle);
 
 
 private:
@@ -211,7 +211,7 @@ private:
 //----------------------------------------------------------------------
 
 RTC_CALL SharedStr AsString(const StringCRef& v);
-RTC_CALL SharedStr AsDataStr(const StringCRef& v);
+SharedStr AsDataStr(const StringCRef& v);
 RTC_CALL void WriteDataString(FormattedOutStream& out, const StringCRef& v);
 
 

@@ -83,29 +83,29 @@ inline int stricmp(CharPtr lhs, CharPtr rhs)
 #endif
 
 struct GenericEqual {
-	RTC_CALL bool operator()(CharPtrRange a, CharPtrRange b) const noexcept;
+	bool operator()(CharPtrRange a, CharPtrRange b) const noexcept;
 };
 
 struct GenericHasher {
-	RTC_CALL std::size_t operator()(CharPtrRange str) const noexcept;
+	std::size_t operator()(CharPtrRange str) const noexcept;
 };
 
 struct Utf8CaseInsensitiveEqual {
-	RTC_CALL bool operator()(CharPtrRange a, CharPtrRange b) const noexcept;
+	bool operator()(CharPtrRange a, CharPtrRange b) const noexcept;
 };
 
 struct Utf8CaseInsensitiveHasher
 {
-	RTC_CALL std::size_t operator()(CharPtrRange input) const noexcept;
+	std::size_t operator()(CharPtrRange input) const noexcept;
 };
 
 
 struct AsciiFoldedCaseInsensitiveEqual {
-	RTC_CALL bool operator()(CharPtrRange a, CharPtrRange b) const noexcept;
+	bool operator()(CharPtrRange a, CharPtrRange b) const noexcept;
 };
 
 struct AsciiFoldedChunkedCaseInsensitiveHasher {
-	RTC_CALL std::size_t operator()(CharPtrRange str) const noexcept;
+	std::size_t operator()(CharPtrRange str) const noexcept;
 };
 
 inline bool lex_compare_cs(CharPtr f1, CharPtr l1, CharPtr f2, CharPtr l2)
@@ -193,7 +193,7 @@ inline bool equal(CI1 f1, CI1 l1, CI2 f2, CI2 l2)
 
 RTC_CALL SharedCharArray* SharedCharArray_Create(CharPtr str MG_DEBUG_ALLOCATOR_SRC_ARG);
 RTC_CALL SharedCharArray* SharedCharArray_Create(CharPtr begin, CharPtr end MG_DEBUG_ALLOCATOR_SRC_ARG);
-RTC_CALL SharedCharArray* SharedCharArray_CreateEmpty();
+SharedCharArray* SharedCharArray_CreateEmpty();
 inline constexpr SharedCharArray* SharedCharArray_CreateUndefined() { return nullptr; }
 
 inline bool IsDefined(const SharedCharArray* sca) { return sca != nullptr; }
@@ -435,17 +435,17 @@ public:
 	SharedCharArray* GetAsMutableCharArray()   { MakeUnique(); return const_cast<SharedCharArray*>(get_ptr()); }
 
 	RTC_CALL void resize(SizeT sz MG_DEBUG_ALLOCATOR_SRC_ARG);
-	RTC_CALL bool contains(CharPtrRange subStr) const;
+	bool contains(CharPtrRange subStr) const;
 	RTC_CALL bool contains_case_insensitive(CharPtrRange subStr) const;
 
 	struct cs_hasher
 	{
-		RTC_CALL size_t operator()(const SharedStr& str) const noexcept;
+		size_t operator()(const SharedStr& str) const noexcept;
 	};
 
 	struct ci_hasher
 	{
-		RTC_CALL size_t operator()(const SharedStr& str) const noexcept;
+		size_t operator()(const SharedStr& str) const noexcept;
 	};
 
 private:
@@ -512,8 +512,8 @@ std::basic_ostream<Char, Traits>& operator << (std::basic_ostream<Char, Traits>&
 // Section      : helper funcs
 //----------------------------------------------------------------------
 
-RTC_CALL SharedStr substr(WeakStr str, SizeT pos);
-RTC_CALL SharedStr substr(WeakStr str, SizeT pos, SizeT len);
+SharedStr substr(WeakStr str, SizeT pos);
+RTC_CALL SharedStr substr(WeakStr str, SizeT pos, SizeT len); // exported: shv ShvUtils CopyName needs it in Debug links (/OPT:REF strips the reference in Release)
 
 //----------------------------------------------------------------------
 // Section      : MinMax
@@ -565,7 +565,7 @@ inline streamsize_t StrLen(WeakStr str, streamsize_t maxLen)
 	return Min<streamsize_t>(maxLen, str.ssize());
 }	
 
-RTC_CALL Float64 AsFloat64(WeakStr x );
+Float64 AsFloat64(WeakStr x );
 
 inline void Assign(SharedStr& lhs, WeakStr rhs) { lhs = rhs; }
 
@@ -588,7 +588,7 @@ inline void Assign(SharedStr& lhs, WeakStr rhs) { lhs = rhs; }
 
 struct StreamableDateTime // Display operating system-style date and time. 
 {
-	RTC_CALL StreamableDateTime();
+	RTC_CALL StreamableDateTime(); // exported: qtgui DmsMainWindow needs it in Debug links (/OPT:REF strips the reference in Release)
 
 private:
 	time_t m_time;

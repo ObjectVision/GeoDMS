@@ -208,8 +208,8 @@ auto List(typename T::ptr_type e1, Args&&... args)
 	return LispList<T>(e1, List<T>(std::forward<Args>(args)...));
 }
 
-SYM_CALL bool IsExpr(LispPtr e);
-SYM_CALL bool IsExprList(LispPtr e);
+bool IsExpr(LispPtr e);
+bool IsExprList(LispPtr e);
 
 template <typename... Args>
 auto ExprList(TokenID t, Args&&... args)

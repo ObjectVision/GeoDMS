@@ -110,7 +110,7 @@ public:
 	// delegation is what lets a cache unit answer for its config origin, and its absence
 	// on the old side-table channel is why the CRS had to ride inside the metric.
 	// See doc/development/crs-metric-decoupling.md.
-	TIC_CALL const UnitCrs* GetCrs    () const;
+	const UnitCrs* GetCrs    () const;
 	TIC_CALL const UnitCrs* GetCurrCrs() const;
 	TIC_CALL void           SetCrs(const UnitCrs* crs);
 
@@ -131,18 +131,18 @@ public:
 	TIC_CALL auto GetUnitlabeledScalePair() const->UnitLabelScalePair;
 
 	TIC_CALL auto GetLabelAttr() const -> SharedDataItemInterestPtr;
-	TIC_CALL auto GetCurrLabelAttr() const -> const AbstrDataItem*;
+	auto GetCurrLabelAttr() const -> const AbstrDataItem*;
 	TIC_CALL ActorVisitState VisitLabelAttr(const ActorVisitor& visitor, SharedDataItemInterestPtr& labelLock) const;
-	TIC_CALL SharedStr GetLabelAtIndex(SizeT index, SharedDataItemInterestPtr& ipHolder, streamsize_t maxLen, GuiReadLock& lock) const;
-	TIC_CALL SharedStr GetMissingValueLabel() const;
+	SharedStr GetLabelAtIndex(SizeT index, SharedDataItemInterestPtr& ipHolder, streamsize_t maxLen, GuiReadLock& lock) const;
+	SharedStr GetMissingValueLabel() const;
 
-	TIC_CALL virtual const UnitProjection* GetProjection() const; // impl for GeoUnits
-	TIC_CALL virtual const UnitProjection* GetCurrProjection() const; // impl for GeoUnits
-	TIC_CALL virtual const UnitMetric*     GetMetric() const;     // impl for NumericUnits  
-	TIC_CALL virtual const UnitMetric*     GetCurrMetric() const;     // impl for NumericUnits  
+	virtual const UnitProjection* GetProjection() const; // impl for GeoUnits
+	virtual const UnitProjection* GetCurrProjection() const; // impl for GeoUnits
+	virtual const UnitMetric*     GetMetric() const;     // impl for NumericUnits  
+	virtual const UnitMetric*     GetCurrMetric() const;     // impl for NumericUnits  
 //	TIC_CALL UnitProjection                GetCompositeProjection() const; // combines a chain of projection into a stack object
 
-	TIC_CALL SharedStr GetNameOrCurrMetric(FormattingFlags ff) const;
+	SharedStr GetNameOrCurrMetric(FormattingFlags ff) const;
 
 	TIC_CALL const UnitClass*  GetUnitClass () const;
 	TIC_CALL bool  UnifyValues(const AbstrUnit* calculatedUnit, CharPtr leftRole = "", CharPtr rightRole = "", UnifyMode um = UnifyMode(), SharedStr* resultMsg = nullptr) const;
@@ -182,7 +182,7 @@ public:
 	virtual tile_offset GetTileCount(tile_id t) const;
 	virtual row_id GetBase () const;
 	TIC_CALL bool IsOrdinalAndZeroBased() const;
-	TIC_CALL row_id GetEstimatedCount() const; // == EstimateCount().expected
+	row_id GetEstimatedCount() const; // == EstimateCount().expected
 
 	// The confidence ladder of doc/development/schedule-with-lookahead.md §4.6: ready data gives the
 	// exact count; else a declared SizeUpperbound (reservable) and/or SizeExpectation (a point
@@ -234,14 +234,14 @@ public:
 	virtual void InviteUnitProcessor(const UnitProcessor& visitor) const = 0;
 
 // mag alleen vanuit Update of Create worden aangeroepen 
-	TIC_CALL virtual void SetMetric    (SharedPtr<const UnitMetric    > m);
-	TIC_CALL virtual void SetProjection(SharedPtr<const UnitProjection> p);
+	virtual void SetMetric    (SharedPtr<const UnitMetric    > m);
+	virtual void SetProjection(SharedPtr<const UnitProjection> p);
 	TIC_CALL void DuplFrom(const AbstrUnit* src);
 
 //	Override TreeItem virtuals
-	TIC_CALL void CopyProps(TreeItem* result, const CopyTreeContext& copyContext) const override;
-	TIC_CALL bool DoWriteItem(StorageMetaInfoPtr&& smi) const override;
-	TIC_CALL auto GetScriptName(const TreeItem* context) const -> SharedStr override;
+	void CopyProps(TreeItem* result, const CopyTreeContext& copyContext) const override;
+	bool DoWriteItem(StorageMetaInfoPtr&& smi) const override;
+	auto GetScriptName(const TreeItem* context) const -> SharedStr override;
 
 protected:
 	SharedStr GetSignature() const override;

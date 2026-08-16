@@ -35,8 +35,8 @@ class OGRLayer;
 
 struct gdalThread
 {
-	STGDLL_CALL gdalThread();
-	STGDLL_CALL ~gdalThread();
+	gdalThread();
+	~gdalThread();
 };
 
 struct gdalComponent
@@ -79,8 +79,8 @@ struct GDAL_ErrorFrame : gdalThread
 	GDAL_ErrorFrame* m_Prev;
 	pj_ctx* m_ctx = nullptr;
 
-	STGDLL_CALL pj_ctx* GetProjectionContext();
-	STGDLL_CALL int GetProjectionContextErrNo();
+	pj_ctx* GetProjectionContext();
+	int GetProjectionContextErrNo();
 	STGDLL_CALL static SharedStr GetProjectionContextErrorString();
 };
 

@@ -17,7 +17,7 @@
 #include "PartitionTypes.h"
 
 // *****************************************************************************
-extern CLC_CALL CommonOperGroup cog_lookup;
+extern CommonOperGroup cog_lookup;
 
 // *****************************************************************************
 //                      Lookup operations

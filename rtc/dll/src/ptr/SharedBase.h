@@ -36,7 +36,7 @@ struct SharedBase
 
 	RTC_CALL void AdoptRef() const noexcept;
 	RTC_CALL void IncRef() const noexcept;
-	RTC_CALL bool DuplRef() const noexcept;
+	bool DuplRef() const noexcept;
 	RTC_CALL bool DecRef() const noexcept;
 	RTC_CALL void Abandon() const noexcept;
 	RTC_CALL void IncMutableRef() const noexcept;

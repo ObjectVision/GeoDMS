@@ -821,7 +821,7 @@ const DataItemClass* TileFunctor<T>::GetStaticClass()
 //----------------------------------------------------------------------
 
 template<typename V>
-TIC_CALL auto CreateHeapTileArray_impl(const AbstrTileRangeData* tdr, bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG)->std::unique_ptr<TileFunctor<V>>
+auto CreateHeapTileArray_impl(const AbstrTileRangeData* tdr, bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG)->std::unique_ptr<TileFunctor<V>>
 {
 	dms_assert(tdr);
 	if constexpr (has_fixed_elem_size_v<V>) // TODO G8: Remove this restriction, especially for SharedStr parameters
@@ -848,7 +848,7 @@ TIC_CALL auto CreateHeapTileArray_impl(const AbstrTileRangeData* tdr, bool mustC
 
 
 template<typename V>
-TIC_CALL auto CreateHeapTileArrayU(const AbstrTileRangeData* tdr, const Unit<field_of_t<V>>* valuesUnitPtr, bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG)->std::unique_ptr<TileFunctor<V>>
+auto CreateHeapTileArrayU(const AbstrTileRangeData* tdr, const Unit<field_of_t<V>>* valuesUnitPtr, bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG)->std::unique_ptr<TileFunctor<V>>
 {
 	dms_assert(!valuesUnitPtr || valuesUnitPtr->GetCurrRangeItem().get() == valuesUnitPtr);
 	auto newTileFunctor = CreateHeapTileArray_impl<V>(tdr, mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM);

@@ -20,16 +20,16 @@ using CBytePtr = const Byte*;
 class InpStreamBuff
 {
 public:
-	RTC_CALL InpStreamBuff();
-	RTC_CALL virtual ~InpStreamBuff();
+	InpStreamBuff();
+	RTC_CALL virtual ~InpStreamBuff(); // exported: stg/stx MemoInpStreamBuff dtor needs it in Debug links (/OPT:REF strips the reference in Release)
 	RTC_CALL virtual void ReadBytes (BytePtr data, streamsize_t size) const=0;
 	RTC_CALL virtual streamsize_t CurrPos() const=0;
 	RTC_CALL virtual bool   AtEnd  () const=0;
-	RTC_CALL virtual WeakStr FileName();
+	virtual WeakStr FileName();
 
-	RTC_CALL virtual CharPtr GetDataBegin(); 
-	RTC_CALL virtual CharPtr GetDataEnd(); 
-	RTC_CALL virtual void    SetCurrPos(streamsize_t pos); 
+	virtual CharPtr GetDataBegin(); 
+	virtual CharPtr GetDataEnd(); 
+	virtual void    SetCurrPos(streamsize_t pos); 
 };
 
 class OutStreamBuff

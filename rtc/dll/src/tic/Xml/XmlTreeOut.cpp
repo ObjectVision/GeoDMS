@@ -649,7 +649,7 @@ void TraceConfigSource(const TreeItem* self, XML_Table& xmlTable)
 //											ITERFACE FUNCS
 // *****************************************************************************
 
-TIC_CALL void TreeItem_XML_DumpOrThrow(const TreeItem* self, OutStreamBase* xmlOutStr, bool notWritingDictionary)
+void TreeItem_XML_DumpOrThrow(const TreeItem* self, OutStreamBase* xmlOutStr, bool notWritingDictionary)
 {
 	assert(xmlOutStr);
 

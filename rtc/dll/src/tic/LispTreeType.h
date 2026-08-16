@@ -71,7 +71,7 @@ namespace token {
 	extern TIC_CALL TokenID null_dp;
 	extern TIC_CALL TokenID null_str;
 
-	TIC_CALL bool isConst(TokenID t);
+	bool isConst(TokenID t);
 
 	extern TIC_CALL TokenID arrow;
 	extern TIC_CALL TokenID lookup;
@@ -86,19 +86,19 @@ namespace token {
 	extern TIC_CALL TokenID cat_range;
 	extern TIC_CALL TokenID TiledUnit;
 	extern TIC_CALL TokenID point;
-	extern TIC_CALL TokenID point_xy;
+	extern TokenID point_xy;
 
-	extern TIC_CALL TokenID BaseUnit;
-	extern TIC_CALL TokenID CrsUnit;
-	extern TIC_CALL TokenID UInt32;
+	extern TokenID BaseUnit;
+	extern TokenID CrsUnit;
+	extern TokenID UInt32;
 	extern TIC_CALL TokenID left;
 	extern TIC_CALL TokenID right;
 	extern TIC_CALL TokenID DomainUnit;
-	extern TIC_CALL TokenID ValuesUnit;
+	extern TokenID ValuesUnit;
 
 	extern TIC_CALL TokenID union_data;
 	extern TIC_CALL TokenID ordered_union_data;
-	extern TIC_CALL TokenID sourceDescr;
+	extern TokenID sourceDescr;
 	extern TIC_CALL TokenID container;
 	extern TIC_CALL TokenID classify;
 
@@ -140,7 +140,7 @@ namespace token {
 	extern TIC_CALL TokenID collect_attr_by_org_rel;
 
 	extern TIC_CALL TokenID recollect_by_cond;
-	extern TIC_CALL TokenID recollect_by_org_rel;
+	extern TokenID recollect_by_org_rel;
 
 //	SELECT section END
 
@@ -155,16 +155,16 @@ namespace token {
 	extern TIC_CALL TokenID ordinal;
 	extern TIC_CALL TokenID integrity_check;
 
-	extern TIC_CALL TokenID map;
+	extern TokenID map;
 	extern TIC_CALL TokenID geometry;
 	extern TIC_CALL TokenID geometry_z;
 	extern TIC_CALL TokenID geometry_m;
 	extern TIC_CALL TokenID spatial_reference;
 	extern TIC_CALL TokenID PhaseContainer;
 
-	extern TIC_CALL TokenID SubItems;
-	extern TIC_CALL TokenID Error;
-	extern TIC_CALL TokenID SigAndSub;
+	extern TokenID SubItems;
+	extern TokenID Error;
+	extern TokenID SigAndSub;
 
 	extern TIC_CALL TokenID direct_index;
 	extern TIC_CALL TokenID index;

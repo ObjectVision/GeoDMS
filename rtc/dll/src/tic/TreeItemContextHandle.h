@@ -45,19 +45,19 @@ struct TreeItemContextHandle : ContextHandle
 	TIC_CALL TreeItemContextHandle(const TreeItem* obj, const Class* cls, CharPtr role = nullptr);
 
 	TIC_CALL ~TreeItemContextHandle();
-	TIC_CALL bool HasItemContext() const override { auto ti = GetItem(); return ti && !ti->IsCacheItem(); }
-	TIC_CALL auto ItemAsStr() const->SharedStr override;
+	bool HasItemContext() const override { auto ti = GetItem(); return ti && !ti->IsCacheItem(); }
+	auto ItemAsStr() const->SharedStr override;
 
 	const TreeItem* GetItem() const { return m_Obj; }
 
 protected:
-	TIC_CALL void GenerateDescription() override;
+	void GenerateDescription() override;
 
 private:
 	CharPtr         m_Role = nullptr;
 	const TreeItem* m_Obj = nullptr;
 };
 
-TIC_CALL void GenerateSystemInfo(AbstrPropWriter& apw, const TreeItem* curr);
+void GenerateSystemInfo(AbstrPropWriter& apw, const TreeItem* curr);
 
 #endif // __TIC_TI_CONTEXTHANDLE_H

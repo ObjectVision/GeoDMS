@@ -15,7 +15,7 @@
 #include "xct/ErrMsg.h"
 
 #include "TreeItem.h"
-TIC_CALL BestItemRef TreeItem_GetErrorSource(const TreeItem* src, bool tryCalcSuppliers); // impl in TicInterface.cpp
+BestItemRef TreeItem_GetErrorSource(const TreeItem* src, bool tryCalcSuppliers); // impl in TicInterface.cpp
 
 /********** defines                                        **********/
 
@@ -56,8 +56,8 @@ struct XML_Table : XML_OutElement
 			OutStream().WriteTrimmed(value);
 		}
 
-		TIC_CALL void ClickableCell(CharPtr value, CharPtr hRef, bool bold = false, CharPtr color = nullptr);
-		TIC_CALL void EditablePropCell(CharPtr propName, CharPtr propLabel = "", const TreeItem* item = nullptr);
+		void ClickableCell(CharPtr value, CharPtr hRef, bool bold = false, CharPtr color = nullptr);
+		void EditablePropCell(CharPtr propName, CharPtr propLabel = "", const TreeItem* item = nullptr);
 
 		void ItemCell(const TreeItem* item, bool bold = false)
 		{
@@ -71,7 +71,7 @@ struct XML_Table : XML_OutElement
 			row.ValueCell(propName);
 			row.ValueCell(propValue);
 	}
-	TIC_CALL void NameErrRow(CharPtr propName, const ErrMsg& err, const TreeItem* self);
+	void NameErrRow(CharPtr propName, const ErrMsg& err, const TreeItem* self);
 	void NamedItemRow(CharPtr role, const TreeItem* item)
 	{
 		XML_Table::Row row(*this);
