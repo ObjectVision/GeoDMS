@@ -2279,7 +2279,7 @@ void GraphicArcLayer::InvalidateFeature(SizeT featureIndex)
 }
 
 
-//Float64 s_DrawingSizeTresholdInPixels = 0.0;
+SHV_CALL Float64 s_DrawingSizeTresholdInPixels = 0.0; // declared extern in DrawPolygons.h; written by qtgui DmsOptions.cpp
 
 // TODO: SelectedColor and selectedOnly
 template <typename ScalarType>

@@ -88,6 +88,8 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <StackReserveSize>67108864</StackReserveSize>
       <StackCommitSize>8192</StackCommitSize>
+      <!-- 16k MSF pages: raises the PDB size cap from 4 GB to 16 GB; Debug Clc.pdb (3.2 GB) was hitting the 4 GB cap on incremental links -->
+      <AdditionalOptions>/pdbpagesize:16384 %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <Midl>
       <MkTypLibCompatible>true</MkTypLibCompatible>

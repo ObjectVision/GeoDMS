@@ -22,7 +22,7 @@
 #include "SupplCache.h"
 #include "TreeItemClass.h"
 #include "UnitProcessor.h"
-RTC_CALL bool s_IsDetectingIncInterest;
+extern RTC_CALL bool s_IsDetectingIncInterest; // defined in rtc act/Actor.cpp; extern is required: without it this is a tentative definition that silently creates a private copy if the symbol ever stops being dllimport
 
 // PhaseContainers are used to separate calculations into groups that are to be executed serially, sequentially and/or consequetively and NOT in parallel.
 // All calculation steps behind the phase are to be completed before calculation steps in front of the phase, i.e. steps that use fenced results, are to be executed

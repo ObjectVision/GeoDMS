@@ -42,7 +42,7 @@
 #include "NameSet.h"
 #include "ViewPortInfoEx.h"
 #include "GridStorageManager.h"
-RTC_CALL bool s_IsDetectingIncInterest;
+extern RTC_CALL bool s_IsDetectingIncInterest; // defined in rtc act/Actor.cpp; extern is required: without it this is a tentative definition that silently creates a private copy if the symbol ever stops being dllimport
 
 STGDLL_CALL void DMS_Stg_Load()
 {

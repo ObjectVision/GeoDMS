@@ -186,6 +186,15 @@ Facts that shape the pass:
   silently break. Fix the else-branch to plain dllimport. Related: `ShvDLL.vcxproj:63`
   defines `SHVDLL_EXPORTS`, which nothing reads (dead define), and `rtc/dll/cpp.hint:8-9`
   still hard-codes the pre-merge state (IntelliSense-only, stale).
+  *Step-A implementation note: fixing the else-branch immediately surfaced a real bug of
+  exactly the predicted class — `DrawPolygons.h:35` held a decorated DEFINITION
+  `SHV_CALL Float64 s_DrawingSizeTresholdInPixels = 0.0;` in a header included by both
+  shv (FeatureLayer.cpp, which reads it while drawing) and qtgui (DmsOptions.cpp:247,
+  which writes it from the options dialog). Under the empty-macro hole qtgui compiled
+  its own private copy, so the GUI "drawing size threshold" option never reached the shv
+  drawing code (dumpbin showed the export dead). Fixed: extern declaration in the
+  header, one `SHV_CALL` definition in FeatureLayer.cpp; the dllimport branch turns the
+  qtgui write into a store through the import, and the export becomes genuinely live.*
 - **Convention for survivors**: symbols that stay exported for a single niche consumer
   get a keep-justification comment, e.g. `TreeItem.h:251`
   `// exported: shv GraphicContainer::SaveOrder calls it`.
@@ -406,7 +415,7 @@ battery. `/bigobj` may be set additionally wherever a merge/split needs it.
 | step | content | status |
 |---|---|---|
 | 0 | this document; gh: comment on #1105 (pyd↔python313 mismatch), new issue for the rtc+clc+geo merge follow-up | — |
-| A | hygiene pre-fixes: `extern` on the 2 tentative definitions; `SHV_CALL` dllimport else-branch (DM_SHV_DLL hole); drop dead `SHVDLL_EXPORTS` define; stale `cpp.hint`; `RtcComponents.h` comment; **`/pdbpagesize:16384`** (+cdb read check) | — |
+| A | hygiene pre-fixes: `extern` on the 2 tentative definitions; `SHV_CALL` dllimport else-branch (DM_SHV_DLL hole — surfaced + fixed the DrawPolygons.h private-copy bug, see §2); drop dead `SHVDLL_EXPORTS` define; stale `cpp.hint`; `RtcComponents.h` comment; **`/pdbpagesize:16384`** in DmsDef.props + top CMakeLists (note: the page size only applies when a PDB is CREATED — existing PDBs must be deleted once; verified 16384 + cdb reads them, "private pdb symbols") | ✅ |
 | B | de-export, entirely-dead identifiers only, C-ABI keep-list excluded: B1 plain functions/members; B2 template families (instantiation care, .l check); B3 data symbols (symbol-wide grep each); B4 `DECL_RTTI` empty-CALLTYPE; B5 shv class-level decorations; B6 dumpbin re-sweep, record numbers | — |
 | C | cross-DLL moves + edge hygiene (§4); dumpbin re-sweep for newly-dead exports | — |
 | D | TU splits (§3a) | — |
