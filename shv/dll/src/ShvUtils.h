@@ -129,6 +129,7 @@ ChartKind GetViewContextChartKind(const TreeItem* viewContext);
 // section : ViewContext
 //----------------------------------------------------------------------
 
+TokenID UniqueName(TreeItem* context, CharPtr nameBase);
 SHV_CALL TokenID UniqueName(TreeItem* context, TokenID nameBaseID);
 TokenID UniqueName(TreeItem* context, const Class* cls);
 TokenID CopyName(TreeItem* context, TokenID orgNameID);

@@ -133,6 +133,9 @@
     <ClCompile Include="src\ScrollPort.cpp" />
     <ClCompile Include="src\SelCaret.cpp" />
     <ClCompile Include="src\ShvDllInterface.cpp" />
+    <ClCompile Include="src\ShvDesktopData.cpp" />
+    <ClCompile Include="src\ShvGdi.cpp" />
+    <ClCompile Include="src\ShvSync.cpp" />
     <ClCompile Include="src\ShvUtils.cpp" />
     <ClCompile Include="src\TableControl.cpp" />
     <ClCompile Include="src\TableDataView.cpp" />
