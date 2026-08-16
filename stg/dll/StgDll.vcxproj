@@ -79,6 +79,10 @@
     <ClCompile Include="src\dbf\dbfStorageManager.cpp" />
     <ClCompile Include="src\str\StrStorageManager.cpp" />
     <ClCompile Include="src\shp\ShpStorageManager.cpp" />
+    <ClCompile Include="src\GeoRef.cpp" />
+    <ClCompile Include="src\NameSet.cpp" />
+    <ClCompile Include="src\TreeItemColumnInfo.cpp" />
+    <ClCompile Include="src\ViewPortInfoEx.cpp" />
     <ClCompile Include="src\DllMain.cpp" />
   </ItemGroup>
   <ItemGroup>

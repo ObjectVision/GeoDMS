@@ -454,7 +454,7 @@ lines the scope-aware mapper could not match safely (UNMATCHED) + 44 dead Shv sy
 Fresh evidence + maps live in `scratch/deexport*` (gitignored); tooling in the session
 scratchpad (`deexport_evidence.py`, `deexport_map2.py`, `deexport_strip.py`).
 | C | cross-DLL moves + edge hygiene (§4); dumpbin re-sweep for newly-dead exports | ✅ (ProjectionUnits.h extraction, geom→geo ×3 + InvertedRel→geo + RemoveAdjacentsAndSpikes→rtc geom/, TypeInfoOrdering+InvalidationBlock→shv, AbstrStreamManager→stg; DedicatedAttrs blocked by its DMS_* C-API entries, DijkstraString and the clc→stg edges reconsidered — see §4 strikethroughs) |
-| D | TU splits (§3a) | — |
+| D | TU splits (§3a) | ◐ in progress — DONE: clc OperAttrBin (Impl.h + _muldiv/_addsub/_compare/_bits stubs; residual = strings/pow/units), clc OperAttrUni (string family → OperAttrUni_str.cpp), geo BoostGeometry (BoostGeometryImpl.h + per-backend TUs bg/bp/cgal/geos), stg DllMain (GeoRef/NameSet/TreeItemColumnInfo/ViewPortInfoEx .cpp). SKIPPED after inspection: clc OperAttrVar (one cohesive argmin/argmax family, 19.9 MB obj). REMAINING: OperationContext tile_task_group→parallel/, Environment.cpp 5-way (NB shared statics across concerns — s_RegAccess — and the dual `#if _MSC_VER` halves make this the least mechanical one), stx ConfigProd_functions, shv ShvUtils, tic TreeItem + AbstrCalculator by concern, clc OperUnit/Modus/OperConv residual, geo OperPolygon 5-way |
 | E | TU merges (§3b, with the template-TU limits pre-check) | — |
 | F | TU renames + non-included-sibling fixes + filter taxonomies (§3c) | — |
 

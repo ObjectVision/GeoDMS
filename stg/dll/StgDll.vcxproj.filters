@@ -40,6 +40,10 @@
     <ClCompile Include="src\dbf\dbfStorageManager.cpp">
       <Filter>dbf</Filter>
     </ClCompile>
+    <ClCompile Include="src\GeoRef.cpp" />
+    <ClCompile Include="src\NameSet.cpp" />
+    <ClCompile Include="src\TreeItemColumnInfo.cpp" />
+    <ClCompile Include="src\ViewPortInfoEx.cpp" />
     <ClCompile Include="src\DllMain.cpp" />
     <ClCompile Include="src\fss\FileSystemStorageManager.cpp">
       <Filter>File System Storage</Filter>
