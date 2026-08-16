@@ -219,6 +219,35 @@ GCC).
   `TiledUnitInstantiator`, all instantiation tails → uniform `template class Unit<X>` on both
   compilers. Debug spot-run of a tiled + a bit-domain + a string-values config (SetRange asserts are
   Debug-only). Post-U5 grep invariant: no live references to any deleted class name.
+
+  **U5 must be one atomic change — it cannot be staged into "adapters first, spine second."**
+  Established by reading the bodies (2026-08-16): every adapter member calls a spine member on
+  `this` — `GeoUnitAdapter::GetRangeAsIRect/SetRangeAsIPoint/GetTileSizeAsI64Rect` call
+  `GetRange`/`SetRange`/`m_RangeDataPtr` (`Unit.cpp:946,984,953`), `VarNumRangeUnitAdapter::SetRangeAs*`
+  calls `SetRange` (`:915,926`), `TileAdapter::Set*TileRange` uses `m_RangeDataPtr` +
+  `NotifyRangeDataChange` (`:858,884`), `IndexableUnitAdapter::GetDimSize` calls `GetCount`/`GetRange`
+  (`:1243`). Hoisting the adapters into `UnitBase<V>` would make them call members declared only in
+  classes *derived* from it, which does not compile. So the adapters can only move to the class that
+  also owns `GetRange`/`SetRange` — i.e. the merged `Unit<V>` itself.
+
+  **Members needing a real merge** (everything else in Unit.cpp is a pure qualifier rename to
+  `Unit<V>::`, the bodies already being either family-unique or internally `if constexpr`-guarded):
+
+  | member | competing definitions to fuse | fused gate |
+  |---|---|---|
+  | `SetRange(range)` / `SetRange(range, blockSize)` | `FloatUnit` (`Unit.cpp:833,846`) vs `CountableUnitBase` (`:753,784`) | `if constexpr (has_simple_range_v<V>)` — the two bodies already `static_assert` exactly this |
+  | `SetMaxRange` | `FloatUnit` (`:852`) vs `CountableUnitBase` (`:820`) | same |
+  | `LoadRangeImpl` / `StoreRangeImpl` | `RangedUnit` (`:495,626`) vs `CountableUnitBase` (`:553,639`) | same; both already open with `if constexpr (has_*_range_v<V>)` |
+  | `GetRange`, `GetTileRange`, `GetValueAtIndex`, `GetIndexForValue`, `GetTiledRangeData`, `Get[Curr]SegmInfo`, `GetRangeAsStr` | `RangedUnit`/`CountableUnitBase` (out-of-line) vs the inline `BitUnitBase`/`VoidUnitBase` versions (`Unit.h:284-321`) | `ranged_value` vs `fixed_range_value`; also unifies the SegmInfo return type per §3.3 |
+  | `GetBase` | `OrderedUnit` inline vs `FixedNumRangeUnitAdapter` inline | `countable_value` → `GetRange().first`; `fixed_range_value` → `0` |
+  | `GetCount` | `CountableUnitBase` (`:1196`) vs `FixedNumRangeUnitAdapter` inline | as above |
+
+  Free functions to re-type while merging: `NotifyRangeDataChange` (`Unit.cpp:733`, takes
+  `RangedUnit<V>*`), the `Unit_GetDimSize` tag-dispatch pair (`:49-66`, deleted in favour of
+  `if constexpr (dimension_of_v<V> == 2)`), and the `debug_cast<RangedUnit<V>*>` /
+  `debug_cast<GeoUnitAdapter<U>*>` referred-item hops in `GetMetric`/`GetCurrMetric`/`GetProjection`/
+  `GetCurrProjection`/`CopyProps` (`:697,709,1044,1059,232,1079`), which all become
+  `debug_cast<const Unit<V>*>`.
 - **U6 — optional follow-ups, separate efforts**: `[[msvc::no_unique_address]]` portability macro
   (plain `[[no_unique_address]]` is a no-op on MSVC — pre-existing, affects only bytes-per-unit);
   the 644-site `DataArray` → `TileFunctor` substitution (`TicBase.h:84` TODO) and eventual
