@@ -456,7 +456,7 @@ scratchpad (`deexport_evidence.py`, `deexport_map2.py`, `deexport_strip.py`).
 | C | cross-DLL moves + edge hygiene (§4); dumpbin re-sweep for newly-dead exports | ✅ (ProjectionUnits.h extraction, geom→geo ×3 + InvertedRel→geo + RemoveAdjacentsAndSpikes→rtc geom/, TypeInfoOrdering+InvalidationBlock→shv, AbstrStreamManager→stg; DedicatedAttrs blocked by its DMS_* C-API entries, DijkstraString and the clc→stg edges reconsidered — see §4 strikethroughs) |
 | D | TU splits (§3a) | ✅ for this pass — DONE (7): clc OperAttrBin (Impl.h + _muldiv/_addsub/_compare/_bits; residual = strings/pow/units), clc OperAttrUni (→ OperAttrUni_str.cpp), geo BoostGeometry (BoostGeometryImpl.h + bg/bp/cgal/geos TUs), stg DllMain (→ GeoRef/NameSet/TreeItemColumnInfo/ViewPortInfoEx.cpp), rtc tile_task_group (→ tic/ParallelTiles.cpp), stx ConfigProd typed-HOF block (→ ConfigProd_functions.cpp), shv ShvUtils (→ ShvSync/ShvGdi/ShvDesktopData.cpp). SKIPPED after inspection (recorded reasons): OperAttrVar (one cohesive argmin/argmax family, 19.9 MB obj); geo OperPolygon and clc Modus (their per-type instantiations are BUNDLED in aggregate structs — SequenceOperators/GeometricOperators resp. the AggrFuncInst bundle — a family split first needs aggregate restructuring); clc OperUnit (operator templates interleave across its sections; needs template-to-header extraction first); OperConv residual (small). **DEFERRED to a dedicated follow-up session** (dense file-local-static graphs need mapping before any cut): tic TreeItem.cpp (20+ static helpers, 4 anon namespaces), tic AbstrCalculator.cpp, utl Environment.cpp (dual-platform halves + shared statics like s_RegAccess) |
 | E | TU merges (§3b, with the template-TU limits pre-check) | ✅ — ~49 fewer TUs: rtc tic 15→3 (TicData/TicItem/TicCalcSupport), act 4→1 (ActorSupport), tic/stg 3→1 (StorageSupport), ser BaseStreamBuff+AsString→MoreStreamBuff, sym Assoc→LispEval, vt 2→1 (VtSupport), xml XmlConst→XmlParser, shv 13→2 (ShvControlsSupport/ShvDrawSupport), geo 4→1 (GeoSupport), clc misc 10→2 (OperMisc/OperMappings, ~22 MB combined objs), stx StringProd→SpiritTools, qtgui 7→1 (DmsSmallWindows; no moc in the .cpps). **OperAcc merge ABANDONED by the pre-check**: its six Release objs total 90.4 MB — merging would re-create the obj-size straggler the separation prevents (the x86-era split still pays, now for obj size). Merge-tool gotchas: interior UTF-8 BOMs must be stripped; bare `#pragma hdrstop` and PCH-less (/FI) TUs need prolog-cut fallbacks |
-| F | TU renames + non-included-sibling fixes + filter taxonomies (§3c) | — |
+| F | TU renames + non-included-sibling fixes + filter taxonomies (§3c) | ✅ renames done (DebugStream→MsgDispatch, persistent→MciInterface, attr_Interface→AttrInterface, SharedObjBase→SharedBase, StrFormat.cpp path helpers→splitPath.cpp, dbfImpl.h→dbfImp.h, clc lookup family→Lookup* + Random/Regex casing; ExtLockMgr/DataStoreManager were absorbed by the E merges). DEFERRED as cosmetic follow-ups: filter taxonomies for the flat projects (clc/geo/shv/stx/qtgui), gen/General.cpp + tic/SourceDescr.cpp renames, non-included-sibling include fixes (stx DataBlockProd, rtc dbg/DebugContext) |
 
 Every new/moved TU gets the `.cpp` prolog convention and touched headers the header
 prolog convention (`header-hygiene-2026-08.md` §7); new names follow the
@@ -466,5 +466,13 @@ C++-mangled entirely-dead symbols go; the 179 C-ABI names and the partially-dead
 template tails stay), Shv 208 → ~37, Stg 87 → ~26; de-exported dead code additionally
 becomes /OPT:REF-strippable, so a small Release binary-size drop is expected and will be
 recorded here.
+
+**Final Release numbers (measured after the full ladder, 2026-08-16)**: total exports
+**5999 → 3984 (−2015, −34%)** — Rtc 5672→3838, Shv 208→84, Stg 87→27, Stx 15→12,
+Clc 17→16, Geo 7→7. Residual Rtc dead = 669: the 166-name extern-"C" keep-list, the
+partially-dead template tails (~380, macro must stay on the template member), and 123
+symbols of mapper-UNMATCHED lines (optional second pass). Binary-size effect:
+Rtc.dll 4.9→4.7 MB, Shv.dll 3.5→3.4 MB (dead code became /OPT:REF-strippable);
+Release Clc.pdb 916→854 MB.
 
 No wiki page: nothing in this pass changes modeller-observable behaviour.
