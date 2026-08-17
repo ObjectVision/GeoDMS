@@ -34,6 +34,17 @@ inline bool IsAcceptableValuesComposition(ValueComposition vc)
 	return vc == ValueComposition::Sequence || vc == ValueComposition::Polygon || vc == ValueComposition::MultiPoint;
 }
 
+// A value-type cast or unit conversion doesn't change geometric structure, so a
+// sequence-typed result inherits the argument's actual composition (poly stays
+// poly, multipoint stays multipoint) rather than the result type's default
+// (Sequence, i.e. 'arc'). A non-sequence result (scalar, point, string) or a
+// non-sequence argument keeps the operator's own composition: inheriting there
+// would pair a composition with a value type that cannot carry it (#1038).
+inline ValueComposition CastResultingValueComposition(ValueComposition operVC, ValueComposition argVC)
+{
+	return IsAcceptableValuesComposition(operVC) && IsAcceptableValuesComposition(argVC) ? argVC : operVC;
+}
+
 RTC_CALL void Unify(ValueComposition& vc, ValueComposition rhs);
 
 const int ValueComposition_BitCount = 3;

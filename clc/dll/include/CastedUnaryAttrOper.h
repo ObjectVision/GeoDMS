@@ -67,9 +67,10 @@ public:
 			// NOT default to the result value-type's composition (m_VC == composition_of_v<TR>,
 			// which is Sequence/arc for coordinate types) -- that silently turned poly into arc,
 			// and #1038 then surfaced the mismatch (e.g. t060 pand geometry -> LINESTRING).
-			auto argVC = argDataA->GetValueComposition();
+			// A non-sequence result (e.g. a sequence->string convert) keeps m_VC: its value
+			// type cannot carry the argument's composition.
 			resultHolder = CreateCacheDataItem(argDataA->GetAbstrDomainUnit(), argUnitA,
-			                                   argVC != ValueComposition::Unknown ? argVC : m_VC);
+			                                   CastResultingValueComposition(m_VC, argDataA->GetValueComposition()));
 			if (argUnitA->GetTSF(TSF_Categorical))
 				resultHolder->SetTSF(TSF_Categorical);
 		}

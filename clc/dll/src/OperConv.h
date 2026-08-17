@@ -707,6 +707,14 @@ struct CastAttrOperator : UnaryAttrOperator<TR, TA>
 		: UnaryAttrOperator<TR, TA>(gr, ArgFlags(), cast_unit_creator_field<TR>, composition_of_v<TR>)
 	{}
 
+	// fpolygon/ipolygon/... are value-TYPE casts: composition_of_v<TR> is Sequence
+	// ('arc') for any sequence type, so a declared-(poly) argument came out 'arc'
+	// while convert() has preserved it since #1038 (issue #1038 follow-up).
+	ValueComposition ResultingValueComposition(const AbstrDataItem* arg1A) const override
+	{
+		return CastResultingValueComposition(composition_of_v<TR>, arg1A->GetValueComposition());
+	}
+
 	void CalcTile(typename sequence_traits<TR>::seq_t resData, sequence_traits<TA>::cseq_t arg1Data, const AbstrUnit* argVU, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const override
 	{
 		assert(arg1Data.size() == resData.size());

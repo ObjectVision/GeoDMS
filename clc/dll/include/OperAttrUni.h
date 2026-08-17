@@ -52,7 +52,7 @@ struct AbstrUnaryAttrOperator: UnaryOperator
 		if (!resultHolder)
 		{
 			auto v = (*m_UnitCreatorPtr)(GetGroup(), args); // hold the UnitCreator's unit (kept alive below)
-			resultHolder = CreateCacheDataItem(e, v.get(), m_VC);
+			resultHolder = CreateCacheDataItem(e, v.get(), ResultingValueComposition(arg1A));
 			resultHolder.KeepAlive(v); // the kind-1 result must own it (stored only weakly as m_ValuesUnit)
 		}
 
@@ -92,6 +92,11 @@ struct AbstrUnaryAttrOperator: UnaryOperator
 
 	virtual SharedPtr<const AbstrDataObject> CreateFutureTileFunctor(std::shared_ptr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, ArgFlags af MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr)) const = 0;
 	virtual void Calculate(AbstrDataObject* borrowedDataHandle, const AbstrDataItem* arg1A, ArgFlags af, tile_id t) const =0;
+
+	// value-type casts (fpolygon et al.) inherit a sequence argument's actual
+	// composition, like convert does since #1038; all other unary attr operators
+	// determine their result's composition at registration.
+	virtual ValueComposition ResultingValueComposition(const AbstrDataItem* arg1A) const { return m_VC; }
 
 	// mirrors CreateResult above: one data argument; the result ranges over the
 	// argument's domain; the concrete classes are the member's registration.
