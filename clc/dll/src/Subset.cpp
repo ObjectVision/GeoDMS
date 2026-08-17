@@ -176,7 +176,7 @@ struct SubsetOperator: public UnaryOperator
 		AbstrDataItem* resSub = nullptr;
 		if (m_ORCM != OrgRelCreationMode::none)
 		{
-			auto resSubName = ((m_ORCM == OrgRelCreationMode::org_rel) || (m_ORCM == OrgRelCreationMode::org_rel_and_use_it)) ? token::org_rel : token::nr_OrgEntity;
+			TokenID resSubName = ((m_ORCM == OrgRelCreationMode::org_rel) || (m_ORCM == OrgRelCreationMode::org_rel_and_use_it)) ? token::org_rel : token::nr_OrgEntity; // NOT auto: that deduces StaticTokenID and copies its TokenComponent
 			resSub = CreateDataItem(res, resSubName, res, arg1Domain).get(); // owned by res
 			resSub->SetTSF(TSF_Categorical);
 

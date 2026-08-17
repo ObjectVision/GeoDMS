@@ -1055,7 +1055,7 @@ void MainWindow::openExportPrimaryDataDialog(const TreeItem* exportItem) {
     m_export_window->show();
 }
 
-StaticTokenID s_ViewToken("View");
+StaticLateTokenID s_ViewToken("View");
 
 void MainWindow::createView(ViewStyle viewStyle, ChartKind chartKind) {
     try {

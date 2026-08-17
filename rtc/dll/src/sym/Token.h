@@ -17,7 +17,7 @@
 #include "vt/Undefined.h"
 #include "Parallel.h"
 #include "vt/CharPtrRange.h"
-#include "RtcComponents.h" // ElemAllocComponent / IndexedStringsComponent / TokenComponent (StaticTokenID base)
+#include "RtcComponents.h" // ElemAllocComponent / IndexedStringsComponent / TokenComponent (StaticTokenID base, StaticLateTokenID check)
 
 using IndexedString_critical_section = leveled_counted_section;
 struct IndexedString_shared_lock : RequestMainThreadOperProcessingBlocker, leveled_counted_section::shared_lock { using leveled_counted_section::shared_lock::shared_lock; };
@@ -180,11 +180,40 @@ RTC_CALL extern std::atomic<UInt32> gd_TokenCreationBlockCount;
 // A TokenID with static storage duration must guarantee the token subsystem is up before it
 // registers its string. Deriving from TokenComponent (constructed first, as a base) does exactly
 // that, making the object safe regardless of cross-TU static-init order within a single DLL.
-// Use StaticTokenID for every namespace-scope / file-static / class-static TokenID.
+// Use StaticTokenID for every namespace-scope / file-static / class-static TokenID INSIDE DmRtc,
+// where no such order guarantee exists.
 struct StaticTokenID : TokenComponent, TokenID
 {
 	StaticTokenID(CharPtr tokenStr) : TokenID(tokenStr, single_threading_tag_v) {}
 	StaticTokenID(CharPtr first, CharPtr last) : TokenID(first, last, single_threading_tag_v) {}
+
+	// A copy would carry a TokenComponent of its own: pointless (the original keeps the
+	// subsystem up for as long as the copy can live) and, in a module outside DmRtc, it
+	// needs that ctor/dtor exported. `auto id = token::org_rel;` deduces StaticTokenID and
+	// hits exactly this; write `TokenID id = ...` to keep the plain id.
+	StaticTokenID(const StaticTokenID&) = delete;
+};
+
+// The same, for a module OUTSIDE DmRtc (Stg, Stx, Clc, Geo, Shv, the GUI, ...). Such a module
+// imports from Rtc.dll, so the loader has already run DmRtc's initializers -- and with them the
+// TokenComponent that brings the token subsystem up -- before any initializer here. Holding a
+// component of its own would only bump a reference count that can never reach zero first, and
+// would force TokenComponent's ctor/dtor to be exported, so this variant just uses the subsystem
+// and checks the guarantee in Debug.
+struct StaticLateTokenID : TokenID
+{
+	StaticLateTokenID(CharPtr tokenStr) : TokenID(CheckedUp(tokenStr), single_threading_tag_v) {}
+	StaticLateTokenID(CharPtr first, CharPtr last) : TokenID(CheckedUp(first), last, single_threading_tag_v) {}
+
+private:
+	// runs as part of evaluating the base-ctor argument, i.e. before the token is registered
+	static CharPtr CheckedUp(CharPtr str)
+	{
+#if defined(MG_DEBUG)
+		assert(TokenComponent::IsUp()); // this module's Rtc.dll import should have brought it up
+#endif
+		return str;
+	}
 };
 
 inline constexpr TokenID UndefinedValue(const TokenID*) { return TokenID(Undefined()); }

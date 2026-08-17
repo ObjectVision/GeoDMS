@@ -55,6 +55,15 @@ TokenComponent::~TokenComponent()
 		s_TokenListPtr.reset();
 }
 
+#if defined(MG_DEBUG)
+
+bool TokenComponent::IsUp()
+{
+	return s_nrTokenComponents != 0;
+}
+
+#endif
+
 // ===================== TokenID
 
 CharPtr TokenID::s_EmptyStr = "";

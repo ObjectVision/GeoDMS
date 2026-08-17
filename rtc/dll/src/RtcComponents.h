@@ -20,9 +20,16 @@
 // StaticTokenID in set/Token.h for the canonical example.
 //
 // The ctors/dtors were RTC_CALL-exported so objects in the then-separate tic
-// and sym DLLs could derive from them. Since the rtc+sym+tic merge all deriving
+// and sym DLLs could derive from them. After the rtc+sym+tic merge all deriving
 // statics live inside DmRtc (dumpbin 2026-08: no downstream binary imported
 // these), so the 2026-08 de-export pass removed the decoration.
+//
+// A module OUTSIDE DmRtc does not need to hold a component at all: it links
+// against Rtc.dll, so the loader runs Rtc's own initializers -- including the
+// components DmRtc constructs -- before any initializer in the dependent module.
+// Such a static gets its subsystem for free and uses the Late* variant (see
+// StaticLateTokenID in sym/Token.h), which only verifies that guarantee in Debug
+// via IsUp() below. That keeps these ctors/dtors unexported.
 //----------------------------------------------------------------------
 
 #include "RtcBase.h"
@@ -64,6 +71,15 @@ struct TokenComponent : IndexedStringsComponent
 	TokenComponent& operator =(const TokenComponent&) { return *this; }
 	TokenComponent& operator =(TokenComponent&&) noexcept { return *this; }
 	~TokenComponent();
+
+#if defined(MG_DEBUG)
+	// exported: the Debug-only precondition check of StaticLateTokenID, which lives
+	// in stg, stx and qtgui. True once any TokenComponent is alive, i.e. once the
+	// token subsystem is up. Not a substitute for holding a component: a static
+	// INSIDE DmRtc must still derive from TokenComponent, because its own
+	// initializer may run before DmRtc's.
+	RTC_CALL static bool IsUp();
+#endif
 };
 
 #endif // __RTC_COMPONENTS_H

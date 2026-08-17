@@ -292,9 +292,9 @@ bool AbstrGridStorageManager::DoCheck50PercentExtentOverlap(StorageMetaInfoPtr s
 #define GRID_DOMAIN 	"GridDomain"
 #define PALETTE_DATA	"PaletteData"
 
-StaticTokenID GRID_DATA_ID(GRID_DATA);
-StaticTokenID GRID_DOMAIN_ID(GRID_DOMAIN);
-StaticTokenID PALETTE_DATA_ID(PALETTE_DATA);
+StaticLateTokenID GRID_DATA_ID(GRID_DATA);
+StaticLateTokenID GRID_DOMAIN_ID(GRID_DOMAIN);
+StaticLateTokenID PALETTE_DATA_ID(PALETTE_DATA);
 
 bool IsGridDomain(const AbstrUnit* au)
 {

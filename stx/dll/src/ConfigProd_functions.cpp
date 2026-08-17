@@ -80,12 +80,12 @@ void ConfigProd::OnTypeVarConstraint()
 	m_PendingTypeVars.emplace_back(m_PendingTypeVarName, m_strIdentifierID);
 }
 
-StaticTokenID st_Arc("arc");
-StaticTokenID st_Single("single");
-StaticTokenID st_Sequence("sequence");
-StaticTokenID st_Poly("poly");
-StaticTokenID st_Polygon("polygon");
-StaticTokenID st_MultiPoint("multipoint");
+StaticLateTokenID st_Arc("arc");
+StaticLateTokenID st_Single("single");
+StaticLateTokenID st_Sequence("sequence");
+StaticLateTokenID st_Poly("poly");
+StaticLateTokenID st_Polygon("polygon");
+StaticLateTokenID st_MultiPoint("multipoint");
 
 void ConfigProd::DoEntityParam()
 {
