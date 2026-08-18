@@ -65,8 +65,8 @@ void ChartLayer::SetDrawMode(ChartDrawMode m)
 	InvalidateDraw();
 }
 
-static TokenID s_DrawModeID = GetTokenID_st("ChartDrawMode");
-static TokenID s_XAttrID    = GetTokenID_st("XAttr");
+static StaticLateTokenID s_DrawModeID("ChartDrawMode");
+static StaticLateTokenID s_XAttrID   ("XAttr");
 
 void ChartLayer::Sync(TreeItem* viewContext, ShvSyncMode sm)
 {

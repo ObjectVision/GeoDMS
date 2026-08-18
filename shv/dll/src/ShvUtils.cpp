@@ -252,8 +252,8 @@ std::shared_ptr<GraphicObject> CreateFromContext(TreeItem* context, GraphicObjec
 // UpdateShowSelOnly section
 //----------------------------------------------------------------------
 
-static TokenID selID = GetTokenID_st("SelID");
-static TokenID selSetID = GetTokenID_st("SelSet");
+static StaticLateTokenID selID("SelID");
+static StaticLateTokenID selSetID("SelSet");
 
 void UpdateShowSelOnlyImpl(
 	GraphicObject* self

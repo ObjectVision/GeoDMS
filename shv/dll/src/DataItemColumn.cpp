@@ -103,7 +103,7 @@ DataItemColumn::DataItemColumn(const DataItemColumn& src)
 DataItemColumn::~DataItemColumn()
 {}
 
-static TokenID aggrID = GetTokenID_st("Aggr");
+static StaticLateTokenID aggrID("Aggr");
 
 static AggrMethod DefaultAggrMethod(const AbstrDataItem* adi)
 {

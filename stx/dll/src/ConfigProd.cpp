@@ -331,7 +331,7 @@ void ConfigProd::ClearPropData()
 	ResetDataBlock();
 }
 
-static TokenID t_Dot = GetTokenID_st(".");
+static StaticLateTokenID t_Dot(".");
 
 TokenID ConfigProd::RetrieveEntity()
 {
@@ -471,7 +471,7 @@ void ConfigProd::CreateAttribute(TokenID nameID)
 //					  possibly existing entity
 // *****************************************************************************
 
-static TokenID t_Void = GetTokenID_st("Void");
+static StaticLateTokenID t_Void("Void");
 
 void ConfigProd::CreateParameter(TokenID nameID)
 {

@@ -235,8 +235,8 @@ bool IsCompatibleValueType(const ValueClass* vc, AspectType at)
 	return false;
 }
 
-static TokenID oldColorPaletteNameID = GetTokenID_st("Palette");
-static TokenID oldFontPaletteNameID = GetTokenID_st("FontPalette");
+static StaticLateTokenID oldColorPaletteNameID("Palette");
+static StaticLateTokenID oldFontPaletteNameID("FontPalette");
 
 bool IsAspectData(AspectNr aNr, const AbstrDataItem* adi, const LayerClass* layerClass)
 {

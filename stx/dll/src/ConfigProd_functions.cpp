@@ -739,7 +739,7 @@ void ConfigProd::OnFunctionResultIsFunction()
 	SetSignature(SignatureType::TreeItem); // benign placeholder for OnFunctionResultSig
 }
 
-static TokenID t_Result = GetTokenID_st("result");
+static StaticLateTokenID t_Result("result");
 
 void ConfigProd::OnAnonResultFunction()
 {

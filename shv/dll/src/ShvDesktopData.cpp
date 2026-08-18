@@ -91,10 +91,10 @@ inline SharedMutableTreeItem SafeCreateItemFromPath(TreeItem* context, CharPtr p
 	return result;
 }
 
-static TokenID desktopsID = GetTokenID_st("Desktops");
-static TokenID defaultID  = GetTokenID_st("Default");
-static TokenID viewDataID = GetTokenID_st("ViewData");
-static TokenID exportsID  = GetTokenID_st("Exports");
+static StaticLateTokenID desktopsID("Desktops");
+static StaticLateTokenID defaultID ("Default");
+static StaticLateTokenID viewDataID("ViewData");
+static StaticLateTokenID exportsID ("Exports");
 
 TreeItem* GetDefaultDesktopContainer(const TreeItem* ti)
 {
@@ -164,7 +164,7 @@ TreeItem* CreateDesktopContainer(TreeItem* desktopItem, const TreeItem* item)
 	return CreateContainer(GetViewDataContainer(desktopItem), item);
 }
 
-static TokenID paletteDomainID = GetTokenID_st("PaletteDomain");
+static StaticLateTokenID paletteDomainID("PaletteDomain");
 
 SharedMutableUnitInterestPtr CreatePaletteDomain(TreeItem* themeContainer, SizeT n)
 {

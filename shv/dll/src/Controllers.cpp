@@ -93,13 +93,13 @@ AbstrController::AbstrController(DataView* owner, GraphicObject* target
 AbstrController::~AbstrController()
 {}
 
-static TokenID meterToken1 = GetTokenID_st("metre");
-static TokenID meterToken2 = GetTokenID_st("meter");
-static TokenID kmToken = GetTokenID_st("km");
+static StaticLateTokenID meterToken1("metre");
+static StaticLateTokenID meterToken2("meter");
+static StaticLateTokenID kmToken("km");
 
-static TokenID degreeToken = GetTokenID_st("degree");
-static TokenID minuteToken = GetTokenID_st("min");
-static TokenID secondToken = GetTokenID_st("sec");
+static StaticLateTokenID degreeToken("degree");
+static StaticLateTokenID minuteToken("min");
+static StaticLateTokenID secondToken("sec");
 
 bool isMeterToken(TokenID token)
 {

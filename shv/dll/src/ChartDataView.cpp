@@ -34,9 +34,9 @@
 // ChartKind <-> view-context DialogType token (issue #75)
 //----------------------------------------------------------------------
 
-static TokenID s_ChartScatterID = GetTokenID_st("chart_scatter");
-static TokenID s_ChartLineID    = GetTokenID_st("chart_line");
-static TokenID s_ChartBarID     = GetTokenID_st("chart_bar");
+static StaticLateTokenID s_ChartScatterID("chart_scatter");
+static StaticLateTokenID s_ChartLineID   ("chart_line");
+static StaticLateTokenID s_ChartBarID    ("chart_bar");
 
 void SetViewContextChartKind(TreeItem* viewContext, ChartKind kind)
 {

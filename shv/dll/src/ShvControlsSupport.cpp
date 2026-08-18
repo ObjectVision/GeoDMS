@@ -367,7 +367,7 @@ bool Wrapper::OnCommand(ToolButtonID id)
 	return base_type::OnCommand(id);
 }
 
-static TokenID s_ContentsTokenID = GetTokenID_st("Contents");
+static StaticLateTokenID s_ContentsTokenID("Contents");
 
 void Wrapper::Sync(TreeItem* context, ShvSyncMode sm) 
 {

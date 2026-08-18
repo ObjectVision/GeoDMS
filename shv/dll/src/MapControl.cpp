@@ -323,8 +323,8 @@ CommandStatus MapControl::OnCommandEnable(ToolButtonID id) const
 	return GetViewPort()->OnCommandEnable(id);
 }
 
-static TokenID s_ViewPortTokenID = GetTokenID_st("ViewPort");
-static TokenID s_OverviewTokenID = GetTokenID_st("Overview");
+static StaticLateTokenID s_ViewPortTokenID("ViewPort");
+static StaticLateTokenID s_OverviewTokenID("Overview");
 
 void MapControl::Sync(TreeItem* context, ShvSyncMode sm)
 {

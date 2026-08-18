@@ -95,7 +95,7 @@ void ExprProd::ProdStringValue()
 	);
 }
 
-static TokenID t_apply_value = GetTokenID_st("apply_value");
+static StaticLateTokenID t_apply_value("apply_value");
 
 void ExprProd::ProdFunctionCall()
 {
@@ -122,9 +122,9 @@ void ExprProd::ProdIdentifier(iterator_t first, iterator_t last)
 	m_Result.push_back(LispRef(GetTokenID_mt(&*first, &*last)));
 }
 
-static TokenID t_member            = GetTokenID_st("member");
-static TokenID t_container_literal = GetTokenID_st("container_literal");
-static TokenID t_no_domain         = GetTokenID_st("no_domain");
+static StaticLateTokenID t_member           ("member");
+static StaticLateTokenID t_container_literal("container_literal");
+static StaticLateTokenID t_no_domain        ("no_domain");
 
 void ExprProd::ProdContainerMember()
 {
@@ -162,7 +162,7 @@ void ExprProd::throwFunctionLiteralError()
 		"; it cannot appear in string-evaluated expressions");
 }
 
-static TokenID t_uint32 = GetTokenID_st("UInt32");
+static StaticLateTokenID t_uint32("UInt32");
 
 void ExprProd::ProdUInt32WithoutSuffix()
 {

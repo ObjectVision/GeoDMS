@@ -74,7 +74,7 @@ ThemeSet::~ThemeSet()
 		SelThemeCreator::UnregisterThemeSet(dv.get(), this);
 }
 
-static TokenID activeID = GetTokenID_st("ActiveTheme");
+static StaticLateTokenID activeID("ActiveTheme");
 
 void ThemeSet::SyncThemes(TreeItem* viewContext, ShvSyncMode sm)
 {

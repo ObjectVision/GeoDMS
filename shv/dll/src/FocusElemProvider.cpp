@@ -69,7 +69,7 @@ void SelThemeCreator::UnregisterThemeSet(DataView* dv, ThemeSet* ts)
 	}
 }
 
-static TokenID valuesUnitID = GetTokenID_st("SelValues");
+static StaticLateTokenID valuesUnitID("SelValues");
 
 void SelThemeCreator::CreateSelectionsThemeInDesktop(DataView* dv, const AbstrUnit* entity)
 {
@@ -135,7 +135,7 @@ std::shared_ptr<Theme> SelThemeCreator::GetSelectionsThemeInDesktop(DataView* dv
 //----------------------------------------------------------------------
 // module FocusElemProvider
 //----------------------------------------------------------------------
-static TokenID s_focusElemIndexID = GetTokenID_st("FocusElemIndex");
+static StaticLateTokenID s_focusElemIndexID("FocusElemIndex");
 
 AbstrDataItem* CreateFocusElemIndexParamInDesktop(const FocusElemKey& key)
 {

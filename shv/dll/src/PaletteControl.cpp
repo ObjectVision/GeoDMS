@@ -582,7 +582,7 @@ void PaletteControl::DoUpdateView()
 	base_type::DoUpdateView();
 }
 
-static TokenID paletteCtrlID = GetTokenID_st("PaletteControl");
+static StaticLateTokenID paletteCtrlID("PaletteControl");
 
 void PaletteControl::Sync(TreeItem* viewContext, ShvSyncMode sm)
 {

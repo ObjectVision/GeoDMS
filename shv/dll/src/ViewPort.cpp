@@ -125,12 +125,12 @@ ViewPort::~ViewPort()
 
 #define ROI_TL_NAME "RoiTopLeft"
 #define ROI_BR_NAME "RoiBottomRight"
-static TokenID t_RoiTL = GetTokenID_st(ROI_TL_NAME);
-static TokenID t_RoiBR = GetTokenID_st(ROI_BR_NAME);
-static TokenID t_WCU = GetTokenID_st("WorldCrdUnit");
-static TokenID vpminsID = GetTokenID_st("ViewPortMinSize");
-static TokenID vpmaxsID = GetTokenID_st("ViewPortMaxSize");
-static TokenID vpdefsID = GetTokenID_st("ViewPortDefaultSize");
+static StaticLateTokenID t_RoiTL(ROI_TL_NAME);
+static StaticLateTokenID t_RoiBR(ROI_BR_NAME);
+static StaticLateTokenID t_WCU("WorldCrdUnit");
+static StaticLateTokenID vpminsID("ViewPortMinSize");
+static StaticLateTokenID vpmaxsID("ViewPortMaxSize");
+static StaticLateTokenID vpdefsID("ViewPortDefaultSize");
 
 // Fallback view size (in metres, scaled to coordinate units) when zooming to a
 // single-point / zero-area extent with no background WMS layer to snap to (issue #374).

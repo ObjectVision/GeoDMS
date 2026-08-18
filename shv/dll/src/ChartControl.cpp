@@ -155,7 +155,7 @@ CommandStatus ChartControl::OnCommandEnable(ToolButtonID id) const
 	return GetViewPort()->OnCommandEnable(id);
 }
 
-static TokenID s_ChartViewPortTokenID = GetTokenID_st("ViewPort");
+static StaticLateTokenID s_ChartViewPortTokenID("ViewPort");
 
 void ChartControl::Sync(TreeItem* context, ShvSyncMode sm)
 {
