@@ -803,8 +803,8 @@ struct Poly2GridOperator : public BinaryOperator
 	}
 };
 
-static TokenID s_PolygonRelTokenID = GetTokenID_st("polygon_rel");
-static TokenID s_GridRelTokenID    = GetTokenID_st("grid_rel");
+static StaticLateTokenID s_PolygonRelTokenID("polygon_rel");
+static StaticLateTokenID s_GridRelTokenID   ("grid_rel");
 
 // *****************************************************************************
 //									Poly2AllGridsOperator

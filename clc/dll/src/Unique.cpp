@@ -318,7 +318,7 @@ CommonOperGroup cog_unique32WN("unique_uint32_with_null", oper_policy::dynamic_r
 CommonOperGroup cog_unique16WN("unique_uint16_with_null", oper_policy::dynamic_result_class);
 CommonOperGroup cog_unique08WN("unique_uint8_with_null", oper_policy::dynamic_result_class);
 
-static TokenID s_Values = GetTokenID_st("Values");
+static StaticLateTokenID s_Values("Values");
 
 class AbstrUniqueOperator : public UnaryOperator
 {

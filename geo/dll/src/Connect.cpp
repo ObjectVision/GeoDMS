@@ -556,12 +556,12 @@ struct IndexedArcProjectionHandle : ArcProjectionHandleWithDist<R, T>
 //									ConnectInfoOperator
 // *****************************************************************************
 
-static TokenID s_Dist = GetTokenID_st("dist");
-static TokenID s_ArcID = GetTokenID_st("ArcID");
-static TokenID s_CutPoint = GetTokenID_st("CutPoint");
-static TokenID s_InArc = GetTokenID_st("InArc");
-static TokenID s_InSegm = GetTokenID_st("InSegm");
-static TokenID s_SegmID = GetTokenID_st("SegmID");
+static StaticLateTokenID s_Dist("dist");
+static StaticLateTokenID s_ArcID("ArcID");
+static StaticLateTokenID s_CutPoint("CutPoint");
+static StaticLateTokenID s_InArc("InArc");
+static StaticLateTokenID s_InSegm("InSegm");
+static StaticLateTokenID s_SegmID("SegmID");
 
 template <compare_type CT, bool HasMaxDist, bool HasMinDist>
 using ConnectInfoBaseType = std::conditional_t < CT == compare_type::none,

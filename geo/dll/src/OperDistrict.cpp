@@ -28,7 +28,7 @@
 //											DistrictOperator
 // *****************************************************************************
 
-static TokenID s_Districts = GetTokenID_st("Districts");
+static StaticLateTokenID s_Districts("Districts");
 
 template <typename T, typename R = UInt32>
 struct DistrictOperator : public UnaryOperator

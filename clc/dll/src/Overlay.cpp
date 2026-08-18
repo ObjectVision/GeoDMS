@@ -317,7 +317,7 @@ void DoOverlay(AbstrDataItem* resAtomicRegionGrid, IterRange<const overlay_parti
 //									Overlay operator
 // *****************************************************************************
 
-static TokenID t_UnionData = GetTokenID_st("UnionData");
+static StaticLateTokenID t_UnionData("UnionData");
 
 template <typename ResID>
 class OverlayOperator : public TernaryOperator

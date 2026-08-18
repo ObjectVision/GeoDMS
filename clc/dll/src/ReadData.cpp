@@ -18,7 +18,7 @@
 #include "TreeItemClass.h"
 #include "UnitClass.h"
 
-static TokenID readPosToken = GetTokenID_st("ReadPos");
+static StaticLateTokenID readPosToken("ReadPos");
 
 // *****************************************************************************
 //										ReadNumbersOperator

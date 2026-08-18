@@ -47,7 +47,7 @@ namespace {
 		"v21: REMOVE the obsolete PartNr support below (GeoDMS issue #1177; use part_rel) "
 		"rather than bumping the major version with it still in place.");
 
-	static TokenID s_PartNr = GetTokenID_st("PartNr");
+	static StaticLateTokenID s_PartNr("PartNr");
 	TreeItemStatusFlags PartNrTSF()
 	{
 		if (DMS_GetMajorVersionNumber() <= 20)
@@ -57,10 +57,10 @@ namespace {
 	}
 }
 
-static TokenID s_PartRel = GetTokenID_st("part_rel");
-static TokenID s_PartLink = GetTokenID_st("PartLink");
-static TokenID s_PartFromRel = GetTokenID_st("from_rel");
-static TokenID s_PartToRel = GetTokenID_st("to_rel");
+static StaticLateTokenID s_PartRel("part_rel");
+static StaticLateTokenID s_PartLink("PartLink");
+static StaticLateTokenID s_PartFromRel("from_rel");
+static StaticLateTokenID s_PartToRel("to_rel");
 
 class ConnectedPartsOperator : public BinaryOperator
 {

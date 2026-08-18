@@ -491,7 +491,7 @@ public:
 //									LoopNTV operator
 // *****************************************************************************
 
-static TokenID lastValueToken = GetTokenID_st("lastValue");
+static StaticLateTokenID lastValueToken("lastValue");
 
 
 class LoopNTVOperator : public TernaryOperator

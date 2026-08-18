@@ -784,7 +784,7 @@ public:
 // *****************************************************************************
 
 static TokenID s_Point = token::point;
-static TokenID s_NextPoint = GetTokenID_st("NextPoint");
+static StaticLateTokenID s_NextPoint("NextPoint");
 
 namespace {
 	enum TableCreateFlags

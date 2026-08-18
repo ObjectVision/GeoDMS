@@ -33,10 +33,10 @@ PointType complexmul(const PointType& a, const PointType& b)
 	return shp2dms_order(PointType(a.Col() * b.Col() - a.Row()* b.Row(), a.Col()* b.Row()+ a.Row()*b.Col()));
 }
 
-static TokenID s_RLoc = GetTokenID_st("RLoc");
-static TokenID s_RRC = GetTokenID_st("RRC");
-static TokenID s_LLoc = GetTokenID_st("LLoc");
-static TokenID s_LRC = GetTokenID_st("LRC");
+static StaticLateTokenID s_RLoc("RLoc");
+static StaticLateTokenID s_RRC("RRC");
+static StaticLateTokenID s_LLoc("LLoc");
+static StaticLateTokenID s_LRC("LRC");
 
 template <typename T>
 class CanyonOperator : public NonaryOperator

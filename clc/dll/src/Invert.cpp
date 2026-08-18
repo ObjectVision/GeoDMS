@@ -39,7 +39,7 @@ CommonOperGroup cog_InvertAll("invertAll", oper_policy::dynamic_result_class);
 // rewrite: invert(X) -> rlookup(ID(ValuesUnit(X)), X)
 // rewrite: invert(A->B) -> rlookup(B->B, A->B)
 
-static TokenID nextToken = GetTokenID_st("Next");
+static StaticLateTokenID nextToken("Next");
 
 struct AbstrInvertOperator : public UnaryOperator
 {

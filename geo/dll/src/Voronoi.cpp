@@ -112,7 +112,7 @@ namespace {
 //	triangualize
 // *****************************************************************************
 
-static TokenID tF1 = GetTokenID_st("F1"), tF2 = GetTokenID_st("F2");
+static StaticLateTokenID tF1("F1"), tF2("F2");
 
 class AbstrTriangualizeOperator : public UnaryOperator
 {

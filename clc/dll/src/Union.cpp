@@ -59,7 +59,7 @@ Annotated<CommonOperGroup> cog_orderedUnionData(
 // *****************************************************************************
 //                         UnionOperator
 // *****************************************************************************
-static TokenID s_UnionData = GetTokenID_st("UnionData");
+static StaticLateTokenID s_UnionData("UnionData");
 
 class AbstrUnionOperator : public UnaryOperator // extra args are allowed
 {
