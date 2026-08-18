@@ -773,16 +773,18 @@ MsgResult DataView::DispatchMsg(const MsgStruct& msg)
 			// main window focus would otherwise stay on whichever widget had it before
 			// (TreeView, address bar, …) and key events would never reach DispatchMsg
 			// or QDmsViewArea::keyPressEvent (issue #1112).
+			// Activate the parent FIRST and take focus after: window/subwindow activation restores the
+			// host's own focus widget, which would otherwise steal the focus back (issue #1184).
 			if (m_ViewHost)
 			{
-				m_ViewHost->VH_SetFocus();
 				m_ViewHost->VH_NotifyParentActivation();
+				m_ViewHost->VH_SetFocus();
 			}
 			else
 			{
-				SetFocus(m_hWnd);
 				auto parent = GetAncestor(m_hWnd, GA_PARENT);
 				SendMessage(parent, WM_QT_ACTIVATENOTIFIERS, 0, 0);
+				SetFocus(m_hWnd);
 			}
 			DispatchMouseEvent(EventID::LBUTTONDOWN, msg.m_wParam, LParam2Point(msg.m_lParam));
 			goto completed;

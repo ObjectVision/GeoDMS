@@ -1066,9 +1066,29 @@ void QDmsViewArea::VH_TrackMouseLeave()
 void QDmsViewArea::VH_NotifyParentActivation()
 {
     auto mainWindow = MainWindow::TheOne();
-    if (mainWindow) {
+    if (!mainWindow)
+        return;
+
+    // Only raise the top-level window when it is not already the active one. QWidget::activateWindow()
+    // ends in ::SetForegroundWindow + ::SetFocus(mainWindowHWnd), which hands keyboard focus back to
+    // whichever Qt widget was focused last (e.g. the TreeView) and thereby undoes the
+    // ::SetFocus(m_DataViewHWnd) that DataView::DispatchMsg just performed for this click. Doing that
+    // unconditionally made +/- (zoom) stop working in a MapView after a TreeView click, while the mouse
+    // wheel kept working because Windows delivers WM_MOUSEWHEEL to the window under the cursor (#1184).
+    if (!mainWindow->isActiveWindow())
         mainWindow->activateWindow();
-    }
+
+    // Clicking inside a view must make it the active MDI subwindow, so the toolbar and the notifiers
+    // follow the view the user is working in. This is what the pre-ViewHost WM_QT_ACTIVATENOTIFIERS
+    // path did (issue #688, see QDmsViewArea::nativeEvent and Win32ViewHost::VH_NotifyParentActivation).
+    if (auto mdi_area = mainWindow->m_mdi_area.get())
+        if (mdi_area->activeSubWindow() != this)
+            mdi_area->setActiveSubWindow(this);
+
+    // setActiveSubWindow() moves Qt's focus to this subwindow, which on Windows must be forwarded to the
+    // embedded native DataView HWND; focusInEvent does that, but re-assert it here so that VH_SetFocus
+    // has the last word regardless of Qt's internal focus bookkeeping.
+    VH_SetFocus();
 }
 
 #ifndef _WIN32
