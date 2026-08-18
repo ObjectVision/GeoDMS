@@ -17,6 +17,7 @@
 #ifdef _WIN32
 #include "utl/Registry.h"
 #endif
+#include "DmsGuiParameters.h"
 #include "DmsMainWindow.h"
 #include "DmsTreeView.h"
 #include "StartEditor.h"
@@ -216,6 +217,7 @@ DmsGuiOptionsWindow::DmsGuiOptionsWindow(QWidget* parent)
     connect(m_show_hidden_items, &QCheckBox::stateChanged, this, &DmsGuiOptionsWindow::hasChanged);
     connect(m_show_thousand_separator, &QCheckBox::stateChanged, this, &DmsGuiOptionsWindow::hasChanged);
     connect(m_toggle_debug_mode, &QCheckBox::stateChanged, this, &DmsGuiOptionsWindow::hasChanged);
+    connect(m_reopen_last_config_at_startup, &QCheckBox::stateChanged, this, &DmsGuiOptionsWindow::hasChanged);
     connect(m_show_state_colors_in_treeview, &QCheckBox::stateChanged, this, &DmsGuiOptionsWindow::hasChanged);
     connect(m_idle_color_ti_button, &QPushButton::released, this, &DmsGuiOptionsWindow::changeNotCalculatedColor);
     connect(m_scheduled_color_ti_button, &QPushButton::released, this, &DmsGuiOptionsWindow::changeScheduledColor);
@@ -254,6 +256,11 @@ try {
     SetStatusFlag(RSF_ShowThousandSeparator,   m_show_thousand_separator      ->isChecked());
     SetStatusFlag(RSF_DebugMode,               m_toggle_debug_mode            ->isChecked());
     SetStatusFlag(RSF_ShowStateColors,         m_show_state_colors_in_treeview->isChecked());
+
+    // Not a StatusFlags bit -- that DWORD is out of bits -- but a registry DWORD of its own, read
+    // once at startup by the MainWindow constructor (issue #1162).
+    SetGeoDmsRegKeyDWord(dms_params::reg_key_ReopenLastConfigAtStartup,
+        m_reopen_last_config_at_startup->isChecked() ? 1 : 0);
 
     saveBackgroundColor(m_idle_color_ti_button, color_option::st_not_calculated);
     saveBackgroundColor(m_scheduled_color_ti_button, color_option::st_scheduled);
@@ -303,6 +310,7 @@ void DmsGuiOptionsWindow::restoreOptions()
     m_show_thousand_separator->setChecked(dms_reg_status_flags & RSF_ShowThousandSeparator);
     m_toggle_debug_mode->setChecked(dms_reg_status_flags & RSF_DebugMode);
     m_show_state_colors_in_treeview->setChecked(dms_reg_status_flags & RSF_ShowStateColors);
+    m_reopen_last_config_at_startup->setChecked(GetGeoDmsRegKeyDWord(dms_params::reg_key_ReopenLastConfigAtStartup, 0) != 0);
     auto drawing_size_in_pixels = GetDrawingSizeInPixels();
     m_drawing_size->setValue(drawing_size_in_pixels);
 

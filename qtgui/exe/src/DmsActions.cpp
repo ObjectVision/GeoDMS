@@ -23,11 +23,13 @@ void createDmsActions() {
     main_window->connect(file_open_act, &QAction::triggered, main_window, &MainWindow::fileOpen);
     main_window->m_file_menu->addAction(file_open_act);
 
-    auto re_open_act = new QAction(QObject::tr("&Reopen current Configuration"), main_window);
-    re_open_act->setShortcut(QKeySequence(QObject::tr("Alt+R")));
-    re_open_act->setStatusTip(QObject::tr("Reopen the current configuration and reactivate the current active item"));
-    main_window->connect(re_open_act, &QAction::triggered, main_window, &MainWindow::reopen);
-    main_window->m_file_menu->addAction(re_open_act);
+    // Kept as a member: updateFileMenu() retitles and enables it, as it also stands for reopening
+    // the last configuration when none is loaded (issue #1162).
+    main_window->m_reopen_action = std::make_unique<QAction>(QObject::tr("&Reopen current Configuration"));
+    main_window->m_reopen_action->setShortcut(QKeySequence(QObject::tr("Alt+R")));
+    main_window->m_reopen_action->setStatusTip(QObject::tr("Reopen the current configuration and reactivate the current active item"));
+    main_window->connect(main_window->m_reopen_action.get(), &QAction::triggered, main_window, &MainWindow::reopen);
+    main_window->m_file_menu->addAction(main_window->m_reopen_action.get());
 
     main_window->m_quit_action = std::make_unique<QAction>(QObject::tr("&Quit"));
     main_window->connect(main_window->m_quit_action.get(), &QAction::triggered, qApp, &QCoreApplication::quit);

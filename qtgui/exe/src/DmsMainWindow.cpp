@@ -271,24 +271,21 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings) {
     if (!cmdLineSettings.m_NoConfig) {
         CharPtr currentItemPath = "";
         if (cmdLineSettings.m_ConfigFileName.empty()) {
-            auto regPath = GetGeoDmsRegKey(dms_params::reg_key_LastConfigFile);
-            if (IsSafeAutoLoadPath(regPath)) {
-                // Even after A+B, ask before silently parsing a path the user
-                // didn't supply this session: HKCU is per-user-writable, so a
-                // confirmation prompt removes the planting-into-startup vector.
-                auto answer = QMessageBox::question(this,
-                    "Reopen last configuration?",
-                    QString("Reopen the last loaded configuration?\n\n%1")
-                        .arg(QString::fromUtf8(regPath.c_str())),
-                    QMessageBox::Yes | QMessageBox::No,
-                    QMessageBox::Yes);
-                if (answer == QMessageBox::Yes)
+            // Start with an empty project unless the user opted in with Settings > GUI options >
+            // Startup (issue #1162): the confirmation dialog this replaces was raised from the
+            // still-hidden MainWindow, so it had no taskbar button and could end up behind other
+            // windows, and it cost a keystroke on every launch. Not auto-loading is also the safer
+            // default; the opt-in re-enables a silent load of a path that this session did not
+            // supply, so the IsSafeAutoLoadPath filter stays on that path.
+            if (GetGeoDmsRegKeyDWord(dms_params::reg_key_ReopenLastConfigAtStartup, 0)) {
+                auto regPath = GetGeoDmsRegKey(dms_params::reg_key_LastConfigFile);
+                if (IsSafeAutoLoadPath(regPath))
                     cmdLineSettings.m_ConfigFileName = regPath;
+                else if (!regPath.empty())
+                    reportF(MsgCategory::commands, SeverityTypeID::ST_Warning,
+                        "Ignoring registry {} value '{}': not a regular local file. Use File->Open or --config to load.",
+                        dms_params::reg_key_LastConfigFile, regPath.c_str());
             }
-            else if (!regPath.empty())
-                reportF(MsgCategory::commands, SeverityTypeID::ST_Warning,
-                    "Ignoring registry {} value '{}': not a regular local file. Use File->Open or --config to load.",
-                    dms_params::reg_key_LastConfigFile, regPath.c_str());
         }
         else {
             if (cmdLineSettings.m_CurrItemFullNames.size())
@@ -532,7 +529,31 @@ void MainWindow::fileOpen() {
     LoadConfig(configFileName.toUtf8().data());
 }
 
+// The configuration that File > Reopen falls back to when nothing is loaded: the top of the
+// recent-files list, which LoadConfigImpl keeps in sync with the LastConfigFile registry value.
+// Not filtered through IsSafeAutoLoadPath: reopening is an explicit gesture of this session and
+// is equivalent to clicking that same first entry in the recent-files menu; the filter guards the
+// silent startup path only.
+auto MainWindow::lastConfigPath() const -> SharedStr {
+    if (!m_recent_file_entries.empty())
+        if (auto* recent_file_widget = dynamic_cast<DmsRecentFileEntry*>(m_recent_file_entries.at(0)))
+            return recent_file_widget->m_cfg_file_path;
+    return GetGeoDmsRegKey(dms_params::reg_key_LastConfigFile);
+}
+
 void MainWindow::reopen() {
+    // With no configuration loaded (the default startup state since #1162), Alt+R opens the last
+    // one instead of feeding an empty path to CreateTreeFromConfiguration, which used to raise an
+    // error dialog.
+    auto configToLoad = m_currConfigFileName;
+    if (configToLoad.empty())
+        configToLoad = lastConfigPath();
+    if (configToLoad.empty()) {
+        reportF(MsgCategory::commands, SeverityTypeID::ST_Warning,
+            "Reopen: no configuration is loaded and no recent configuration is known");
+        return;
+    }
+
     auto cip = m_address_bar->text();
     
     reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "Reopen configuration");
@@ -540,7 +561,7 @@ void MainWindow::reopen() {
     if (GetRegStatusFlags() & RSF_EventLog_ClearOnReLoad)
         m_eventlog_model->clear();
 
-    LoadConfig(m_currConfigFileName.c_str(), cip.toUtf8());
+    LoadConfig(configToLoad.c_str(), cip.toUtf8());
 }
 
 void OnVersionComponentVisit(ClientHandle clientHandle, UInt32 componentLevel, CharPtr componentName) {
@@ -1886,6 +1907,20 @@ void MainWindow::updateFileMenu() {
 
     for (const auto& recent_file : recent_files_from_registry)
         addRecentFilesEntry(recent_file);
+
+    // Reopen stands for two things: reload what is loaded, or -- with nothing loaded, the default
+    // startup state since #1162 -- open the last configuration. Say which one it will do, and grey
+    // it out when there is neither.
+    if (m_reopen_action) {
+        bool hasCurrentConfig = !m_currConfigFileName.empty();
+        m_reopen_action->setText(hasCurrentConfig
+            ? tr("&Reopen current Configuration")
+            : tr("&Reopen last Configuration"));
+        m_reopen_action->setStatusTip(hasCurrentConfig
+            ? tr("Reopen the current configuration and reactivate the current active item")
+            : tr("Open the most recently used configuration"));
+        m_reopen_action->setEnabled(hasCurrentConfig || !m_recent_file_entries.empty());
+    }
 }
 
 void MainWindow::updateViewMenu() const {

@@ -265,6 +265,7 @@ public:
     void updateDetailPagesToolbar();
 
 private:
+    auto lastConfigPath() const -> SharedStr;
     void openConfigSourceFor(const TreeItem* context);
     bool openErrorOnFailedCurrentItem();
     void clearActionsForEmptyCurrentItem() const;
@@ -296,7 +297,7 @@ public:
     std::unique_ptr<QMenu> m_file_menu, m_edit_menu, m_view_menu, m_tools_menu, m_window_menu, m_settings_menu, m_help_menu, m_code_analysis_submenu;
 
     // shared actions
-    std::unique_ptr<QAction> m_export_primary_data_action
+    std::unique_ptr<QAction> m_reopen_action, m_export_primary_data_action
 		, m_step_to_failreason_action, m_go_to_causa_prima_action, m_edit_config_source_action, m_find_treeitem_action
         , m_update_treeitem_action, m_update_subtree_action, m_invalidate_action
         , m_defaultview_action, m_tableview_action, m_mapview_action, m_statistics_action

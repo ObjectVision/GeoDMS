@@ -154,6 +154,7 @@ const int dms_params::default_font_size = 10;
 // registry keys
 const char* dms_params::reg_key_LastConfigFile = "LastConfigFile";
 const char* dms_params::reg_key_RecentFiles = "RecentFiles";
+const char* dms_params::reg_key_ReopenLastConfigAtStartup = "ReopenLastConfigAtStartup";
 
 // stylesheets
 

@@ -127,9 +127,10 @@ C:\dev\GeoDMS_2026\bin\Release\x64\GeoDmsGuiQt.exe
 
 Why the explicit config matters:
 
-- Launched **without** a config argument, the app stops at the splash screen on a protective
-  "Reopen last configuration?" confirmation dialog and does **not** show the main window until
-  someone clicks Yes/No. Automated/headless drivers get stuck there.
+- Launched **without** a config argument, the app comes up with an **empty project** (since the
+  #1162 change; the old "Reopen last configuration?" confirmation dialog that used to block
+  headless drivers at the splash screen is gone) — so nothing is loaded and the caption carries no
+  config name. Passing the config is what makes the run reproducible.
 - Passing a config makes it load that file directly and bring up the main window with a
   **recognisable caption** (`<config>.dms (aka ...) in <path> - GeoDms <ver> ...`), which is
   how you confirm you're driving the right instance.

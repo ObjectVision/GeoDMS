@@ -32,6 +32,7 @@ namespace dms_params {
 	// registry keys
 	extern const char* reg_key_LastConfigFile;
 	extern const char* reg_key_RecentFiles;
+	extern const char* reg_key_ReopenLastConfigAtStartup;
 
 	// stylesheets
 	extern const char* stylesheet_main_window;

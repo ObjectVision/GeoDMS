@@ -148,7 +148,7 @@
        </property>
       </widget>
      </item>
-     <item row="23" column="1" colspan="3">
+     <item row="24" column="1" colspan="3">
       <widget class="QLabel" name="lbl_empty">
        <property name="font">
         <font>
@@ -194,7 +194,7 @@
        </property>
       </widget>
      </item>
-     <item row="24" column="3">
+     <item row="25" column="3">
       <layout class="QHBoxLayout" name="horizontalLayout_2">
        <item>
         <widget class="QPushButton" name="m_ok">
@@ -473,6 +473,35 @@
        </property>
        <property name="text">
         <string>Debug mode</string>
+       </property>
+      </widget>
+     </item>
+     <item row="22" column="1" colspan="2">
+      <widget class="QLabel" name="lbl_startup">
+       <property name="font">
+        <font>
+         <family>Segoe UI</family>
+         <pointsize>10</pointsize>
+         <bold>true</bold>
+        </font>
+       </property>
+       <property name="text">
+        <string>Startup</string>
+       </property>
+      </widget>
+     </item>
+     <item row="23" column="1" colspan="3">
+      <widget class="QCheckBox" name="m_reopen_last_config_at_startup">
+       <property name="font">
+        <font>
+         <pointsize>10</pointsize>
+        </font>
+       </property>
+       <property name="toolTip">
+        <string>When off (the default), the GeoDMS GUI starts with an empty project; use File &gt; Reopen last Configuration (Alt+R) or the list of recent configurations to open one.</string>
+       </property>
+       <property name="text">
+        <string>Reopen last configuration at startup</string>
        </property>
       </widget>
      </item>
