@@ -370,6 +370,22 @@ protected:
 };
 
 
+// Restore the placement saved by MainWindow::~MainWindow() and show the window.
+// restoreGeometry() is DPI- and screen-aware and clamps the window onto the currently available
+// screen, so a geometry saved on a larger/again-scaled display no longer reopens oversized (which
+// previously looked like a maximized window). Fall back to maximized on first run or unreadable data.
+static void ShowMainWindowWithSavedGeometry(MainWindow& main_window)
+{
+    auto geomHex = GetGeoDmsRegKey("WindowGeometry");
+    QByteArray geom = geomHex.empty()
+        ? QByteArray()
+        : QByteArray::fromHex(QByteArray(geomHex.c_str()));
+    if (!geom.isEmpty() && main_window.restoreGeometry(geom))
+        main_window.show();
+    else
+        main_window.showMaximized();
+}
+
 int main_without_SE_handler(int argc, char *argv[]) {
 #ifdef Q_OS_WIN
     qputenv("QT_QPA_PLATFORM", "windows:darkmode=1"); // https://doc.qt.io/qt-6/qguiapplication.html#platform-specific-arguments
@@ -387,39 +403,33 @@ int main_without_SE_handler(int argc, char *argv[]) {
 
         SharedStr tsn = settingsFrame.m_TestScriptName;
 
+        // Resolve up front what -- if anything -- this session loads, because it decides how the
+        // window comes up. With a configuration to parse there is no splash screen and no one-second
+        // wait: the main window is shown first and the parsing starts behind it, so that an error
+        // dialog has a visible, taskbar-registered parent (#1162). The splash is for the idle start,
+        // where there is nothing else to look at yet.
+        ResolveStartupConfig(settingsFrame);
+        bool hasStartupConfig = !settingsFrame.m_ConfigFileName.empty();
+        bool useSplashScreen = tsn.empty() && !hasStartupConfig;
+
         std::unique_ptr<DmsSplashScreen> splash;
-        if (tsn.empty())
+        if (useSplashScreen) {
             splash = showSplashScreen();
-
-        if (tsn.empty())
             splash->showMessage("Initialize GeoDMS Gui");
+        }
 
-
-        MainWindow main_window(settingsFrame);
+        MainWindow main_window;
         dms_app_on_heap->setWindowIcon(QIcon(":/res/images/GeoDmsGuiQt.png"));
         dms_app_on_heap->installEventFilter(mouse_forward_backward_event_filter_on_heap.get());
 
         std::future<int> testResult;
         bool mustTerminateToken = false;
 
-        if (tsn.empty())
+        if (useSplashScreen)
             QTimer::singleShot(1000, &main_window,
                 [splashHandle = std::move(splash), &main_window]()
                 {
-                    // Restore the placement saved by MainWindow::~MainWindow().
-                    // restoreGeometry() is DPI- and screen-aware and clamps the
-                    // window onto the currently available screen, so a geometry
-                    // saved on a larger/again-scaled display no longer reopens
-                    // oversized (which previously looked like a maximized window).
-                    // Fall back to maximized on first run or unreadable data.
-                    auto geomHex = GetGeoDmsRegKey("WindowGeometry");
-                    QByteArray geom = geomHex.empty()
-                        ? QByteArray()
-                        : QByteArray::fromHex(QByteArray(geomHex.c_str()));
-                    if (!geom.isEmpty() && main_window.restoreGeometry(geom))
-                        main_window.show();
-                    else
-                        main_window.showMaximized();
+                    ShowMainWindowWithSavedGeometry(main_window);
                     splashHandle->close();
                     ConfirmMainThreadOperProcessing();
                 }
@@ -427,17 +437,32 @@ int main_without_SE_handler(int argc, char *argv[]) {
 
         else
         {
+            if (tsn.empty())
+                ShowMainWindowWithSavedGeometry(main_window);
+            else
+            {
 #ifdef Q_OS_WIN
-            main_window.show(); // show it without maximizing yet
-            HWND hwnd = (HWND)main_window.winId();
-            ShowWindow(hwnd, SW_SHOWMAXIMIZED);
-            SetWindowPos(hwnd, HWND_BOTTOM, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
+                main_window.show(); // show it without maximizing yet
+                HWND hwnd = (HWND)main_window.winId();
+                ShowWindow(hwnd, SW_SHOWMAXIMIZED);
+                SetWindowPos(hwnd, HWND_BOTTOM, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
 #else
-            main_window.setWindowState(Qt::WindowMaximized);
-            main_window.show();
+                main_window.setWindowState(Qt::WindowMaximized);
+                main_window.show();
 #endif
+            }
             ConfirmMainThreadOperProcessing();
+        }
 
+        // Queue the load before the test script is posted, so the script still runs on the loaded
+        // configuration -- the same order as when the MainWindow constructor did this.
+        if (hasStartupConfig)
+            main_window.LoadConfig(settingsFrame.m_ConfigFileName.c_str()
+                , settingsFrame.m_CurrItemFullNames.empty()
+                    ? ""
+                    : settingsFrame.m_CurrItemFullNames.back().c_str());
+
+        if (!tsn.empty())
             main_window.PostAppOper([tsn, &testResult, &mustTerminateToken]
                 {
                     testResult = std::async([tsn, &mustTerminateToken]
@@ -447,7 +472,6 @@ int main_without_SE_handler(int argc, char *argv[]) {
                     );
                 }
             );
-        }
 
         auto result = dms_app_on_heap->exec();
         mustTerminateToken = true;

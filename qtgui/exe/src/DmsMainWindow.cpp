@@ -179,7 +179,38 @@ static bool IsSafeAutoLoadPath(WeakStr path)
 #endif
 }
 
-MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings) {
+// Which configuration, if any, this session starts with. Called by main_qt BEFORE the MainWindow is
+// constructed, because the answer decides whether a splash screen is shown at all: with a
+// configuration to parse, the main window must go up first -- parsing raises modal error dialogs,
+// and a dialog parented to a still-hidden window gets no taskbar button and can end up behind other
+// windows. That is what made the startup confirmation dialog of #1162 so annoying, and it applies to
+// every dialog raised while the configuration is read.
+//
+// A configuration named on the command line always wins, /noconfig always wins over that. Without
+// either, the session starts empty unless the user opted in with Settings > GUI options > Startup.
+// That opt-in re-enables a silent load of a path this session did not supply, so IsSafeAutoLoadPath
+// still filters it.
+void ResolveStartupConfig(CmdLineSetttings& cmdLineSettings)
+{
+    if (cmdLineSettings.m_NoConfig) {
+        cmdLineSettings.m_ConfigFileName = SharedStr();
+        return;
+    }
+    if (!cmdLineSettings.m_ConfigFileName.empty())
+        return;
+    if (!GetGeoDmsRegKeyDWord(dms_params::reg_key_ReopenLastConfigAtStartup, 0))
+        return;
+
+    auto regPath = GetGeoDmsRegKey(dms_params::reg_key_LastConfigFile);
+    if (IsSafeAutoLoadPath(regPath))
+        cmdLineSettings.m_ConfigFileName = regPath;
+    else if (!regPath.empty())
+        reportF(MsgCategory::commands, SeverityTypeID::ST_Warning,
+            "Ignoring registry {} value '{}': not a regular local file. Use File->Open or --config to load.",
+            dms_params::reg_key_LastConfigFile, regPath.c_str());
+}
+
+MainWindow::MainWindow() {
     assert(s_CurrMainWindow == nullptr);
     s_CurrMainWindow = this;
 
@@ -266,34 +297,6 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings) {
 
     // actions
     createDmsActions();
-
-    // read initial last config file
-    if (!cmdLineSettings.m_NoConfig) {
-        CharPtr currentItemPath = "";
-        if (cmdLineSettings.m_ConfigFileName.empty()) {
-            // Start with an empty project unless the user opted in with Settings > GUI options >
-            // Startup (issue #1162): the confirmation dialog this replaces was raised from the
-            // still-hidden MainWindow, so it had no taskbar button and could end up behind other
-            // windows, and it cost a keystroke on every launch. Not auto-loading is also the safer
-            // default; the opt-in re-enables a silent load of a path that this session did not
-            // supply, so the IsSafeAutoLoadPath filter stays on that path.
-            if (GetGeoDmsRegKeyDWord(dms_params::reg_key_ReopenLastConfigAtStartup, 0)) {
-                auto regPath = GetGeoDmsRegKey(dms_params::reg_key_LastConfigFile);
-                if (IsSafeAutoLoadPath(regPath))
-                    cmdLineSettings.m_ConfigFileName = regPath;
-                else if (!regPath.empty())
-                    reportF(MsgCategory::commands, SeverityTypeID::ST_Warning,
-                        "Ignoring registry {} value '{}': not a regular local file. Use File->Open or --config to load.",
-                        dms_params::reg_key_LastConfigFile, regPath.c_str());
-            }
-        }
-        else {
-            if (cmdLineSettings.m_CurrItemFullNames.size())
-                currentItemPath = cmdLineSettings.m_CurrItemFullNames.back().c_str();
-        }
-        if (!cmdLineSettings.m_ConfigFileName.empty())
-           LoadConfig(cmdLineSettings.m_ConfigFileName.c_str(), currentItemPath);
-    }
 
     updateCaption();
     updateTracelogHandle();

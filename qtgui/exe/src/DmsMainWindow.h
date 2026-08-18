@@ -134,6 +134,10 @@ struct CmdLineSetttings {
     SharedStr m_TestScriptName;
 };
 
+// Resolves cmdLineSettings.m_ConfigFileName into the configuration this session starts with, taking
+// /noconfig and the ReopenLastConfigAtStartup setting into account. Empty afterwards = start empty.
+void ResolveStartupConfig(CmdLineSetttings& cmdLineSettings);
+
 class CalculationTimesWindow : public QMdiSubWindow {
 public:
     CalculationTimesWindow();
@@ -149,7 +153,7 @@ class MainWindow : public QMainWindow {
     Q_OBJECT
 
 public:
-    MainWindow(CmdLineSetttings& cmdLineSettings);
+    MainWindow();
     ~MainWindow();
 
     auto getRootTreeItem() -> TreeItem* { return m_root.get(); }
