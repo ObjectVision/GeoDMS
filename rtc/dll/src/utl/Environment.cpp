@@ -30,7 +30,89 @@
 #include "utl/StrFormat.h"
 #include "utl/splitPath.h"
 #include "LockLevels.h"
+#include <chrono>
+#include <string>
 #include <thread>
+
+//  -----------------------------------------------------------------------
+// Child process output; shared by the MSVC and POSIX implementations of
+// ExecuteChildProcess below.
+//
+// #659: the child used to inherit our std handles, so under GeoDmsGuiQt, which
+// has no console, a failing Rscript or python script left nothing behind but its
+// ExitCode. Both ExecuteChildProcess implementations now give the child one pipe
+// for stdout and stderr and copy what arrives into the message log.
+
+namespace {
+	// Cap on how much child output is copied into the message log, so that a chatty
+	// or runaway child cannot flood it. Beyond the cap the output is still read -
+	// not reading it would block the child once the pipe buffer fills - but dropped.
+	constexpr SizeT  c_MaxChildOutputBytes    = 1 << 20; // 1 MB
+	constexpr UInt32 c_ChildPollMSec          = 500;     // wait granularity
+	constexpr UInt64 c_ChildReportIntervalSec = 10;      // cadence of the still-running notice
+
+	// Reassembles the child's stdout+stderr into lines and reports them.
+	// reportF routes through ASyncContinueCheck(), which throws when a host cancel is
+	// pending; that must not escape while a child process is still running, hence the
+	// _without_cancellation_check variants here.
+	struct ChildOutputReporter
+	{
+		void Feed(CharPtr first, CharPtr last)
+		{
+			while (first != last)
+			{
+				CharPtr eol = first;
+				while (eol != last && *eol != '\n' && *eol != '\r')
+					++eol;
+				m_Pending.append(first, eol);
+				if (eol == last)
+					return;
+				ReportPending();
+				first = eol + 1;
+				if (first != last && *eol == '\r' && *first == '\n') // CRLF is one line break
+					++first;
+			}
+		}
+		void Flush() { ReportPending(); }
+
+	private:
+		void ReportPending()
+		{
+			if (!m_Pending.empty() && m_ReportedBytes < c_MaxChildOutputBytes)
+			{
+				m_ReportedBytes += m_Pending.size();
+				reportF_without_cancellation_check(MsgCategory::commands, SeverityTypeID::ST_MajorTrace
+				,	"exec: {}", m_Pending.c_str());
+				if (m_ReportedBytes >= c_MaxChildOutputBytes)
+					reportD_without_cancellation_check(MsgCategory::commands, SeverityTypeID::ST_Warning
+					,	"exec: the remaining output of this child process is not reported; it exceeds the 1 MB message-log limit");
+			}
+			m_Pending.clear();
+		}
+
+		std::string m_Pending;
+		SizeT       m_ReportedBytes = 0;
+	};
+
+	// Progress notice while waiting, so that a multi-minute child does not look like a hang.
+	struct ChildWaitReporter
+	{
+		void ReportWhenDue(CharPtr moduleName, CharPtr cmdLine)
+		{
+			auto elapsedSec = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - m_Start).count();
+			if (UInt64(elapsedSec) < m_NextReportSec)
+				return;
+			m_NextReportSec = UInt64(elapsedSec) + c_ChildReportIntervalSec;
+			reportF_without_cancellation_check(MsgCategory::commands, SeverityTypeID::ST_MinorTrace
+			,	"exec: still waiting for {} after {} seconds"
+			,	(moduleName && *moduleName) ? moduleName : (cmdLine ? cmdLine : "child process"), elapsedSec);
+		}
+
+	private:
+		std::chrono::steady_clock::time_point m_Start = std::chrono::steady_clock::now();
+		UInt64 m_NextReportSec = c_ChildReportIntervalSec;
+	};
+}
 
 #if defined(_MSC_VER)
 
@@ -1355,7 +1437,7 @@ auto wchar_2_Utf8Str(const wchar_t* wCharStr, int strLen) -> SharedStr
 //  -----------------------------------------------------------------------
 
 // Child process used by exec expressions for executables; Create; Execute and Wait for termination
-start_process_result_t StartChildProcess(CharPtr moduleName, Char* cmdLine)
+static start_process_result_t StartChildProcessImpl(CharPtr moduleName, Char* cmdLine, HANDLE childStdOutErr)
 {
 	STARTUPINFOW siStartInfo;
 	PROCESS_INFORMATION piProcInfo;
@@ -1365,6 +1447,16 @@ start_process_result_t StartChildProcess(CharPtr moduleName, Char* cmdLine)
 	ZeroMemory(&piProcInfo, sizeof(PROCESS_INFORMATION));
 	siStartInfo.cb = sizeof(STARTUPINFO);
 	//   siStartInfo.dwFlags = STARTF_FORCEONFEEDBACK;
+
+	// #659: send the child's stdout and stderr into the caller's pipe. stdin is left
+	// as it was: whatever this process has, which is nothing in a GUI session.
+	if (childStdOutErr)
+	{
+		siStartInfo.dwFlags   |= STARTF_USESTDHANDLES;
+		siStartInfo.hStdInput  = GetStdHandle(STD_INPUT_HANDLE);
+		siStartInfo.hStdOutput = childStdOutErr;
+		siStartInfo.hStdError  = childStdOutErr;
+	}
 
 //	MessageBox(nullptr, cmdLine, moduleName, MB_OK);
 
@@ -1392,23 +1484,97 @@ start_process_result_t StartChildProcess(CharPtr moduleName, Char* cmdLine)
 	return { piProcInfo.hProcess, piProcInfo.hThread };
 }
 
+start_process_result_t StartChildProcess(CharPtr moduleName, Char* cmdLine)
+{
+	return StartChildProcessImpl(moduleName, cmdLine, nullptr);
+}
+
+namespace {
+	struct scoped_handle
+	{
+		scoped_handle() = default;
+		explicit scoped_handle(HANDLE h) : m_Handle(h) {}
+		scoped_handle(const scoped_handle&) = delete;
+		scoped_handle& operator =(const scoped_handle&) = delete;
+		~scoped_handle() { reset(); }
+
+		void   reset(HANDLE h = nullptr) { if (m_Handle) CloseHandle(m_Handle); m_Handle = h; }
+		HANDLE get() const { return m_Handle; }
+
+	private:
+		HANDLE m_Handle = nullptr;
+	};
+
+	// Copies whatever the child has already written into the reporter. Every read is
+	// gated on PeekNamedPipe: a grandchild can keep the writing end open after our
+	// direct child exited, and a blocking ReadFile would then never return.
+	void DrainChildOutput(HANDLE hRead, ChildOutputReporter& reporter)
+	{
+		if (!hRead)
+			return;
+		char buffer[4096];
+		for (DWORD available = 0; PeekNamedPipe(hRead, nullptr, 0, nullptr, &available, nullptr) && available; )
+		{
+			DWORD nrRead = 0;
+			if (!ReadFile(hRead, buffer, Min<DWORD>(available, DWORD(sizeof(buffer))), &nrRead, nullptr) || !nrRead)
+				return;
+			reporter.Feed(buffer, buffer + nrRead);
+		}
+	}
+}
+
 DWORD ExecuteChildProcess(CharPtr moduleName, Char * cmdLine)
 {
-	auto childProcess = StartChildProcess(moduleName, cmdLine);
-
-	// Wait until child process exits.
-	UINT32 waitCounter = 0;
-	while (auto resWFSO = WaitForSingleObject(childProcess.first, INFINITE))
+	// #659: one inheritable pipe carries both stdout and stderr of the child. Failing
+	// to create it is not fatal; the child then inherits our std handles, as before.
+	scoped_handle outputRead, outputWrite;
 	{
-		++waitCounter;
+		HANDLE hRead = nullptr, hWrite = nullptr;
+		SECURITY_ATTRIBUTES pipeAttr = { sizeof(SECURITY_ATTRIBUTES), nullptr, TRUE }; // inheritable
+		if (CreatePipe(&hRead, &hWrite, &pipeAttr, 0))
+		{
+			SetHandleInformation(hRead, HANDLE_FLAG_INHERIT, 0); // our reading end stays out of the child
+			outputRead.reset(hRead);
+			outputWrite.reset(hWrite);
+		}
 	}
-	DWORD exitCode;
-	BOOL res = GetExitCodeProcess(childProcess.first, &exitCode);
-	if (!res)
-		throwLastSystemError("ExecuteChildProcess({}, {}) failed to return an exitcode", moduleName, cmdLine);
 
-	CloseHandle(childProcess.second);
-	CloseHandle(childProcess.first);
+	auto childProcess = StartChildProcessImpl(moduleName, cmdLine, outputWrite.get());
+	scoped_handle processHandle(childProcess.first), threadHandle(childProcess.second);
+
+	outputWrite.reset(); // as long as we hold a writing end, the pipe never reports end-of-data
+
+	ChildOutputReporter outputReporter;
+	ChildWaitReporter   waitReporter;
+
+	// Wait until child process exits, in ticks rather than the single
+	// WaitForSingleObject(INFINITE) this used to be. The tick is what makes the two
+	// other things possible: draining the pipe while the child still runs (a full pipe
+	// buffer blocks the child), and reporting that a long-running child is alive.
+	//
+	// Deliberately NOT MsgWaitForMultipleObjectsEx here, although the waiting-for-input
+	// state it puts the thread in would be welcome: nothing dispatches messages during
+	// an exec, so the message queue's wake bit is set by the first posted message and
+	// never cleared again, after which every MsgWaitForMultipleObjectsEx call returns
+	// WAIT_OBJECT_0 + nCount immediately - even once the child has exited and the
+	// process handle is signalled. That is a busy spin that never terminates, the same
+	// hazard the MWMO_INPUTAVAILABLE note in WaitForTaskNotification warns about
+	// (act/MainThread.cpp, #1156). Ghosting of the GUI is already prevented there by
+	// DisableProcessWindowsGhosting(); exec_ec still occupies the main thread for the
+	// duration of the child, because has_external_effects makes
+	// Operator::CanRunParallel() false and therefore keeps it off the worker pool.
+	while (WaitForSingleObject(processHandle.get(), c_ChildPollMSec) != WAIT_OBJECT_0)
+	{
+		DrainChildOutput(outputRead.get(), outputReporter);
+		waitReporter.ReportWhenDue(moduleName, cmdLine);
+	}
+	DrainChildOutput(outputRead.get(), outputReporter); // whatever the child wrote just before exiting
+	outputReporter.Flush();
+
+	DWORD exitCode;
+	BOOL res = GetExitCodeProcess(processHandle.get(), &exitCode);
+	if (!res)
+		throwLastSystemError("ExecuteChildProcess({}, {}) failed to return an exitcode", moduleName ? moduleName : "NULL", cmdLine);
 
 	return exitCode;
 };
@@ -1574,6 +1740,7 @@ struct WindowsComponent : AbstrVersionComponent {
 #include <dirent.h>
 #include <fcntl.h>
 #include <pwd.h>
+#include <poll.h>        // poll - draining the child-output pipe while waiting
 #include <spawn.h>
 #include <strings.h>     // strncasecmp
 #include <sys/wait.h>
@@ -2102,10 +2269,30 @@ bool KillFileOrDir(WeakStr fileOrDirName, bool canBeDir)
 // Child Process
 // =====================================================================
 
-start_process_result_t StartChildProcess(CharPtr moduleName, Char* cmdLine)
+namespace {
+	struct file_actions_guard
+	{
+		posix_spawn_file_actions_t* m_Ptr = nullptr;
+		~file_actions_guard() { if (m_Ptr) posix_spawn_file_actions_destroy(m_Ptr); }
+	};
+}
+
+static start_process_result_t StartChildProcessImpl(CharPtr moduleName, Char* cmdLine, int childStdOutErrFd)
 {
 	pid_t pid;
 	int status;
+
+	// #659: send the child's stdout and stderr into the caller's pipe.
+	posix_spawn_file_actions_t fileActions;
+	file_actions_guard fileActionsGuard;
+	if (childStdOutErrFd != -1 && posix_spawn_file_actions_init(&fileActions) == 0)
+	{
+		fileActionsGuard.m_Ptr = &fileActions;
+		posix_spawn_file_actions_adddup2(&fileActions, childStdOutErrFd, STDOUT_FILENO);
+		posix_spawn_file_actions_adddup2(&fileActions, childStdOutErrFd, STDERR_FILENO);
+		posix_spawn_file_actions_addclose(&fileActions, childStdOutErrFd);
+	}
+	auto fileActionsPtr = fileActionsGuard.m_Ptr;
 
 	// On Linux, use /bin/sh -c for command interpretation when:
 	// - no module specified (nullptr/empty), or
@@ -2137,14 +2324,14 @@ start_process_result_t StartChildProcess(CharPtr moduleName, Char* cmdLine)
 			shellCmd = shellCmd + 3;
 
 		char* argv[] = { const_cast<char*>(shell), const_cast<char*>("-c"), const_cast<char*>(shellCmd), nullptr };
-		status = posix_spawn(&pid, shell, nullptr, nullptr, argv, environ);
+		status = posix_spawn(&pid, shell, fileActionsPtr, nullptr, argv, environ);
 		if (status != 0)
 			throwErrorF("Environment", "posix_spawn({} -c '{}') failed: {}", shell, shellCmd, strerror(status));
 	}
 	else
 	{
 		char* argv[] = { const_cast<char*>(moduleName), cmdLine, nullptr };
-		status = posix_spawn(&pid, moduleName, nullptr, nullptr, argv, environ);
+		status = posix_spawn(&pid, moduleName, fileActionsPtr, nullptr, argv, environ);
 		if (status != 0)
 			throwErrorF("Environment", "posix_spawn({}) failed: {}", moduleName, strerror(status));
 	}
@@ -2153,12 +2340,83 @@ start_process_result_t StartChildProcess(CharPtr moduleName, Char* cmdLine)
 	return { reinterpret_cast<HANDLE>(static_cast<intptr_t>(pid)), nullptr };
 }
 
+start_process_result_t StartChildProcess(CharPtr moduleName, Char* cmdLine)
+{
+	return StartChildProcessImpl(moduleName, cmdLine, -1);
+}
+
+namespace {
+	struct fd_closer
+	{
+		int m_Fd = -1;
+		~fd_closer() { reset(); }
+		void reset(int fd = -1) { if (m_Fd != -1) close(m_Fd); m_Fd = fd; }
+	};
+}
+
 DWORD ExecuteChildProcess(CharPtr moduleName, Char* cmdLine)
 {
-	auto result = StartChildProcess(moduleName, cmdLine);
+	// #659: one pipe carries both stdout and stderr of the child, and the wait polls
+	// so that the pipe is drained while the child runs; see the MSVC section above.
+	// Failing to create the pipe is not fatal: the child then inherits our std
+	// descriptors, as before.
+	fd_closer outputRead, outputWrite;
+	{
+		int outputFds[2] = { -1, -1 };
+		if (pipe(outputFds) == 0)
+		{
+			outputRead.reset(outputFds[0]);
+			outputWrite.reset(outputFds[1]);
+			fcntl(outputFds[0], F_SETFL, fcntl(outputFds[0], F_GETFL, 0) | O_NONBLOCK);
+		}
+	}
+
+	auto result = StartChildProcessImpl(moduleName, cmdLine, outputWrite.m_Fd);
 	pid_t pid = static_cast<pid_t>(reinterpret_cast<intptr_t>(result.first));
-	int status;
-	waitpid(pid, &status, 0);
+
+	outputWrite.reset(); // as long as we hold a writing end, the pipe never reports end-of-data
+
+	ChildOutputReporter outputReporter;
+	ChildWaitReporter   waitReporter;
+
+	auto drain = [&]()
+	{
+		if (outputRead.m_Fd == -1)
+			return;
+		char buffer[4096];
+		while (true)
+		{
+			auto nrRead = read(outputRead.m_Fd, buffer, sizeof(buffer));
+			if (nrRead <= 0)
+				return; // EAGAIN on an empty non-blocking pipe, 0 at end-of-data
+			outputReporter.Feed(buffer, buffer + nrRead);
+		}
+	};
+
+	int status = 0;
+	while (true)
+	{
+		drain(); // a full pipe buffer would block the child
+
+		auto waited = waitpid(pid, &status, WNOHANG);
+		if (waited == pid)
+			break;
+		if (waited == -1 && errno != EINTR)
+			break;
+
+		if (outputRead.m_Fd != -1)
+		{
+			pollfd pfd = { outputRead.m_Fd, POLLIN, 0 };
+			poll(&pfd, 1, c_ChildPollMSec);
+		}
+		else
+			Wait(c_ChildPollMSec);
+
+		waitReporter.ReportWhenDue(moduleName, cmdLine);
+	}
+	drain(); // whatever the child wrote just before exiting
+	outputReporter.Flush();
+
 	return WIFEXITED(status) ? WEXITSTATUS(status) : 1;
 }
 
