@@ -390,6 +390,27 @@ FileTileArray<V>::FileTileArray(const AbstrTileRangeData* trd, SharedStr filenam
 		std::shared_ptr<ConstMappedFileHandle> 
 			cmfh = std::make_shared<ConstMappedFileHandle>(fullFileName, true, false)
 		,	cmfh_sequences;
+
+		// The element count of a stored array comes from the domain, never from the file, and the
+		// mapping call only notices a file that is too SHORT (as ERROR_ACCESS_DENIED from
+		// CreateFileMapping, which names neither the domain nor the size). A file that is too LONG
+		// used to be accepted silently: the surplus was dropped and the first N elements were handed
+		// out as if they belonged to this domain. Since the store is a keyless positional array, any
+		// length difference proves it was written against a different instance of the domain, so
+		// every value may be attached to the wrong element -- a wrong answer that looks plausible
+		// (issue #1187). The writer sizes this file with the very same MinimalDatFileSize<V>(trd), so
+		// equality is the right test, and it is the last line of defence for stores whose dictionary
+		// carries no domain restriction (everything written before 20.15.0).
+		auto expectedFileSize = dms::filesize_t(MinimalDatFileSize<V>(trd));
+		auto actualFileSize = cmfh->GetFileSize();
+		if (actualFileSize != expectedFileSize)
+			throwErrorF("FileTileArray"
+				, "stored array '{}' holds {} bytes, but the domain it is read into requires exactly {} bytes"
+				  " ({} elements in {} tile(s)). "
+				  "The array was written for a different domain; recreate the storage or restore the domain it was written with."
+				, fullFileName.c_str(), actualFileSize, expectedFileSize
+				, trd->GetElemCount(), tn
+			);
 		if constexpr (!has_fixed_elem_size_v<V>)
 		{
 			cmfh_sequences = std::make_shared<ConstMappedFileHandle>(fullFileName + ".seq");
