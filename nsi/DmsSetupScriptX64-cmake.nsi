@@ -68,6 +68,25 @@ Section "GeoDMS Program Folder"
   File ${CMakeBinDir}\Qt6Widgets.dll
   File ${CMakeBinDir}\tinyxml2.dll
 
+  ; Microsoft C/C++ runtime, shipped app-locally (mirrors DmsSetupScript.nsh for
+  ; the msbuild flavor). Without these the install silently borrows the machine's
+  ; VC++ redistributable; anything older than 14.40 has no __std_calloc_crt in
+  ; msvcp140_atomic_wait.dll, which arrow.dll imports, and GeoDmsGuiQt.exe then
+  ; fails to start with "procedure entry point ... not found". See #1186.
+  ; These six are genuine imports of the shipped binaries, so a missing one must
+  ; fail the packaging step rather than surface as a startup error on a user PC.
+  File ${CMakeBinDir}\vcruntime140.dll
+  File ${CMakeBinDir}\vcruntime140_1.dll
+  File ${CMakeBinDir}\msvcp140.dll
+  File ${CMakeBinDir}\msvcp140_1.dll
+  File ${CMakeBinDir}\msvcp140_2.dll
+  File ${CMakeBinDir}\msvcp140_atomic_wait.dll
+  ; Part of the same redistributable and deployed alongside the six above, but
+  ; not imported by anything we ship -- /nonfatal so a redist layout change
+  ; cannot break the build over a DLL nobody loads.
+  File /nonfatal ${CMakeBinDir}\concrt140.dll
+  File /nonfatal ${CMakeBinDir}\msvcp140_codecvt_ids.dll
+
   ; vcpkg third-party DLLs
   File ${CMakeBinDir}\fftw3.dll
   File ${CMakeBinDir}\fftw3f.dll

@@ -165,11 +165,34 @@ if(DEFINED VCPKG_TARGET_TRIPLET)
     endif()
 endif()
 
+# Resolve the Microsoft C/C++ runtime redistributable DLLs, so deploy_resources
+# can put them next to the executables. The msbuild flavour gets these for free
+# (DmsRelease.props sets CopyCppRuntimeToOutputDir); cmake has no equivalent, so
+# GeoDms<ver>.c shipped WITHOUT any CRT and silently fell back to whatever
+# VC++ redistributable happened to be installed on the target machine. Anything
+# older than 14.40 lacks msvcp140_atomic_wait.dll's __std_calloc_crt, which
+# arrow.dll (pulled in by gdal.dll) imports -- so the GUI died at startup with
+# "the procedure entry point __std_calloc_crt could not be located in ...
+# arrow.dll" on user machines while working fine on the build servers. See #1186.
+#
+# _SKIP suppresses the module's own install() rule: the DLLs are deployed by
+# deploy_resources (build time, survives the bin\ wipe), not by `cmake --install`.
+set(_msvc_runtime_libs "")
+if(MSVC)
+    set(CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS_SKIP TRUE)
+    include(InstallRequiredSystemLibraries)
+    set(_msvc_runtime_libs ${CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS})
+    if(NOT _msvc_runtime_libs)
+        message(WARNING "No MSVC runtime redistributable found -- the .c setup will depend on the VC++ redistributable installed on the target machine (see #1186).")
+    endif()
+endif()
+
 add_custom_target(deploy_resources ALL
     COMMAND ${CMAKE_COMMAND}
             -DSRC_DIR=${CMAKE_SOURCE_DIR}
             -DRUNTIME_DIR=${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
             -DVCPKG_SHARE=${_vcpkg_share}
+            "-DMSVC_RUNTIME_LIBS=${_msvc_runtime_libs}"
             -P ${CMAKE_SOURCE_DIR}/tools/DeployResources.cmake
     COMMENT "Deploying runtime resources into ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}"
     VERBATIM

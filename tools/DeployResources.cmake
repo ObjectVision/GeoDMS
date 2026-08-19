@@ -15,9 +15,10 @@
 # so re-running it each build is cheap.
 #
 # Expected -D arguments:
-#   SRC_DIR      = repo root                       (CMAKE_SOURCE_DIR)
-#   RUNTIME_DIR  = binary output dir               (CMAKE_RUNTIME_OUTPUT_DIRECTORY)
-#   VCPKG_SHARE  = <vcpkg>/<triplet>/share, or ""  (empty when not using vcpkg)
+#   SRC_DIR           = repo root                       (CMAKE_SOURCE_DIR)
+#   RUNTIME_DIR       = binary output dir               (CMAKE_RUNTIME_OUTPUT_DIRECTORY)
+#   VCPKG_SHARE       = <vcpkg>/<triplet>/share, or ""  (empty when not using vcpkg)
+#   MSVC_RUNTIME_LIBS = MSVC CRT redist DLLs, or ""     (empty on non-MSVC builds)
 
 # Expression-rewrite rules, required for expression parsing at runtime.
 file(COPY ${SRC_DIR}/res/RewriteExpr.lsp DESTINATION ${RUNTIME_DIR})
@@ -25,6 +26,20 @@ file(COPY ${SRC_DIR}/res/RewriteExpr.lsp DESTINATION ${RUNTIME_DIR})
 # Typed standard prelude: replacements for retired rewrite rules (WP4.5);
 # configs opt in with '#include <%exeDir%/prelude.dms>'.
 file(COPY ${SRC_DIR}/res/prelude.dms DESTINATION ${RUNTIME_DIR})
+
+# Microsoft C/C++ runtime, deployed app-locally so the binaries do NOT depend on
+# whatever VC++ redistributable is installed on the target machine (#1186: an
+# older system-wide msvcp140_atomic_wait.dll has no __std_calloc_crt, which
+# arrow.dll imports, and GeoDmsGuiQt then refuses to start). The list is resolved
+# at configure time by InstallRequiredSystemLibraries in the root CMakeLists.txt;
+# it is empty for non-MSVC builds, which makes this loop a no-op on Linux.
+foreach(_crt IN LISTS MSVC_RUNTIME_LIBS)
+    if(EXISTS ${_crt})
+        file(COPY ${_crt} DESTINATION ${RUNTIME_DIR})
+    else()
+        message(WARNING "DeployResources: MSVC runtime DLL not found: ${_crt}")
+    endif()
+endforeach()
 
 # GDAL and PROJ geographic data files (needed at runtime by DmStg via GDAL/PROJ).
 if(VCPKG_SHARE AND IS_DIRECTORY ${VCPKG_SHARE})
