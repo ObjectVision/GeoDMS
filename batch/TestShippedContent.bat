@@ -55,14 +55,27 @@ if not exist "%BINDIR%\examples\grid_to_polygon.dms" (
   exit /b 2
 )
 
-rem --- Resolve SourceDataDir the way GetSourceDataDirImpl() does: HKLM, then
-rem     HKCU, then the C:\SourceData default. An explicit third argument wins.
+rem --- Resolve SourceDataDir exactly the way GetGeoDmsRegKey() does, or the rename
+rem     below silently touches nothing and the download path is never walked.
+rem
+rem     Note the trap: RegistryHandleLocalMachineRO is NOT HKLM. Registry.cpp builds
+rem     its path as HKEY_CURRENT_USER\Software\ObjectVision\<COMPUTERNAME>\GeoDMS --
+rem     the per-machine settings live under HKCU. That key is consulted first, and a
+rem     value of #DELETED# there means "unset" and does NOT fall through to
+rem     Software\ObjectVision\DMS. Then comes that DMS key, then the C:\SourceData
+rem     default. An explicit third argument wins over all of it.
 set "SOURCEDATADIR=%~3"
 if defined SOURCEDATADIR goto :have_sourcedatadir
-for /f "tokens=2,*" %%a in ('reg query "HKLM\SOFTWARE\ObjectVision\DMS" /v SourceDataDir 2^>nul ^| find "SourceDataDir"') do set "SOURCEDATADIR=%%b"
-if not defined SOURCEDATADIR (
-  for /f "tokens=2,*" %%a in ('reg query "HKCU\SOFTWARE\ObjectVision\DMS" /v SourceDataDir 2^>nul ^| find "SourceDataDir"') do set "SOURCEDATADIR=%%b"
+
+set "SDD_LM="
+for /f "tokens=2,*" %%a in ('reg query "HKCU\Software\ObjectVision\%COMPUTERNAME%\GeoDMS" /v SourceDataDir 2^>nul ^| find "SourceDataDir"') do set "SDD_LM=%%b"
+if defined SDD_LM (
+  if /i not "%SDD_LM%"=="#DELETED#" set "SOURCEDATADIR=%SDD_LM%"
+  goto :sourcedatadir_default
 )
+for /f "tokens=2,*" %%a in ('reg query "HKCU\Software\ObjectVision\DMS" /v SourceDataDir 2^>nul ^| find "SourceDataDir"') do set "SOURCEDATADIR=%%b"
+
+:sourcedatadir_default
 if not defined SOURCEDATADIR set "SOURCEDATADIR=C:\SourceData"
 :have_sourcedatadir
 
