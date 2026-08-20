@@ -115,12 +115,15 @@ public:
     DmsRecentFileEntry(size_t index, WeakStr dms_file_full_path, QObject* parent = nullptr);
     SharedStr m_cfg_file_path;
     size_t m_index = 0;
+    bool m_is_pinned = false;
     std::unique_ptr<QMenu> m_context_menu;
     bool eventFilter(QObject* obj, QEvent* ev) override;
     bool event(QEvent* e) override;
+    void setMenuIndex(size_t index);
 
 public slots:
     void onDeleteRecentFileEntry() const;
+    void onTogglePinRecentFileEntry() const;
     void onFileEntryPressed() const;
 
 private:
@@ -169,6 +172,8 @@ public:
     void insertCurrentConfigInRecentFiles(WeakStr cfg);
     void removeRecentFileAtIndex(size_t index);
     void saveRecentFileActionToRegistry();
+    void savePinnedFilesToRegistry();
+    void togglePinAtIndex(size_t index);
     auto CreateCodeAnalysisSubMenu(QMenu* menu) const -> std::unique_ptr<QMenu>;
     auto getIconFromViewstyle(ViewStyle vs) const -> QIcon;
     void hideDetailPagesRadioButtonWidgets(bool hide_properties_buttons, bool hide_source_descr_buttons) const;
@@ -263,6 +268,7 @@ public:
     void updateTracelogHandle();
     bool CloseConfig(); // returns true when mdiSubWindows were closed
     void updateFileMenu();
+    void layoutRecentFileMenuEntries();
     void updateWindowMenu() const;
     void updateViewMenu() const;
     void updateSettingsMenu() const;
@@ -347,6 +353,7 @@ public:
     using processing_record = std::tuple<std::time_t, std::time_t, SharedStr>;
     //QList<QWidgetAction*> m_recent_files_actions;
     QList<DmsRecentFileEntry*> m_recent_file_entries;
+    QPointer<QAction> m_recent_files_separator; // divides the pinned block from the rest
 
 private:
     bool    m_dock_was_compressed = false;
