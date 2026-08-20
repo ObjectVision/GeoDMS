@@ -1,6 +1,6 @@
 # Open GitHub issues, classified
 
-Snapshot of the 36 open issues at https://github.com/ObjectVision/GeoDMS/issues, updated 2026-08-20
+Snapshot of the 32 open issues at https://github.com/ObjectVision/GeoDMS/issues, updated 2026-08-20
 (previous snapshots: 2026-07-31 with 48 listed, 2026-07-04 with 41, 2026-07-03 with 45 open; see
 "Recently closed" at the bottom for the delta). Grouped by implementability. Buckets:
 
@@ -12,22 +12,17 @@ Snapshot of the 36 open issues at https://github.com/ObjectVision/GeoDMS/issues,
 - **F. Documentation issues** — docs/website work, no engine code.
 - **G. Other** — roadmap, questions, investigations, likely-duplicates.
 
-The A bucket is thin this time, and that is the point: the July list's three items are down to two
-(#1162 and #612 were implemented), and the 2026-08 operator sweep (#1168-#1178) consumed the kind of
-small, self-contained defect that would otherwise be sitting here.
-
 ## A. Low hanging fruit
 
-| Issue | Rationale |
-|---|---|
-| [#859](https://github.com/ObjectVision/GeoDMS/issues/859) Qt color dialog with transparency | Promoted from B: the "which Qt dialog" question is answered by the code itself. `qtgui/exe/src/DmsOptions.cpp:159` already calls `QColorDialog::getColor` for the option colours, ShvDLL is a Qt-enabled project, and `ChooseColorDialog` (`shv/dll/src/DataItemColumn.cpp:1411`) is one self-contained Win32 `CHOOSECOLOR` block whose `#else` branch literally reads `// TODO: implement with QColorDialog`. Adding `QColorDialog::ShowAlphaChannel` is what the issue asks for; the 16 custom colours map onto `QColorDialog::setCustomColor`/`customColor`, and the non-Windows stub disappears with it. |
-| [#846](https://github.com/ObjectVision/GeoDMS/issues/846) Event-log message when item finishes | "Fence container without the fence" — stripped-down variant of existing machinery. |
-| [#828](https://github.com/ObjectVision/GeoDMS/issues/828) Layer control: thicker 3D lines, darker selected grey | Pure UI tweak; the exact values are specified in the issue. The activation half of the issue's 3-3-2025 comment was already implemented (`d8314446`, `GOF_IgnoreActivation`); what remains is the line width and the selected-row grey. |
+**Empty.** All three were implemented on 2026-08-20 (#859, #846, #828), after #1162 and #612 went
+the same way earlier in the month and the 2026-08 operator sweep (#1168-#1178) took the rest of that
+size class. Nothing in B is one decision away from dropping in here; the next candidates all need a
+naming or scoping call first (#1161, #990, #973, #711).
 
-Not an issue of its own, but the same size and found while fixing #1186: `tools/DeployResources.cmake`
-silently does nothing (exit 0, no copies) when `RUNTIME_DIR` is passed with backslashes. The real
-call site always passes forward slashes, so nothing is broken today — it is a two-line guard against
-an unpleasant failure mode for anyone invoking the script by hand.
+The one small thing left over is not an issue of its own, and was found while fixing #1186:
+`tools/DeployResources.cmake` silently does nothing (exit 0, no copies) when `RUNTIME_DIR` is passed
+with backslashes. The real call site always passes forward slashes, so nothing is broken today — it
+is a two-line guard against an unpleasant failure mode for anyone invoking the script by hand.
 
 ## B. Implementable after minor design choices
 
@@ -74,12 +69,9 @@ an unpleasant failure mode for anyone invoking the script by hand.
 
 ## E. Test issues
 
-- [#1031](https://github.com/ObjectVision/GeoDMS/issues/1031) — Include the bundled dms-files in the
-  test process. The issue body is empty, but the target is now unambiguous: `prelude.dms` is the
-  *only* `.dms` the setup packages (`nsi/DmsSetupScript.nsh:37`), it is auto-imported as the implicit
-  outermost namespace for every configuration, and `res/prelude.dms` holds ~43 definitions in 222
-  lines. Every test therefore exercises its *parse* and nothing else. Concrete work: a testcase per
-  prelude definition, in the `testcases/` suite that now runs 197 cases green.
+None open. #1031 was closed 2026-08-20: `prelude.dms` is the only `.dms` the setup packages, 33 of
+its 43 functions were already called from `testcases/`, and `testcases/prelude_coverage.dms` covers
+the other ten.
 
 ## F. Documentation issues
 
@@ -98,9 +90,15 @@ None open. #1080 (Academy on geodms.nl) was closed 2026-08-12.
   import closure of `bin\` against the packaged file list, so the next runtime dependency a vcpkg port
   introduces is again a manual responsibility.
 - [#949](https://github.com/ObjectVision/GeoDMS/issues/949) — Calculation-time difference between GUI
-  and Run, ~100 s. Cheap to settle now: the mechanism it was pinned on — the main thread runs the
-  calculation and never yields — was fixed for 20.13.0 under #1156. Re-measure on a current build; if
-  the gap is gone, close.
+  and Run, ~100 s. Less cheap than the July note assumed. The mechanism is indeed fixed (#1157 closed
+  as a duplicate of #1156, whose GUI half shipped in 20.13.0), but the model is NetworkModel_PBL (ROO)
+  and `%SourceDataDir%/NetworkModel_PBL` is not on the dev laptop, so the re-measure has to happen
+  where the data lives. Attempting a substitute exposed the real trap, recorded on the issue
+  2026-08-20: **GeoDmsRun and the GUI do not demand the same work from the same item**, so comparing
+  two clocks compares two different calculations. `GeoDmsRun <cfg> /parameter` calculated nothing
+  (0.001 s) until an IntegrityCheck forced it (6.2 s over 24M elements); the GUI's `ActivateItem` did
+  not demand the value at all, and `DefaultView` computed only the visible rows of a 24M-row table.
+  Both drivers must be pointed at the same *write*, and the numbers taken from the two `/L` logs.
 - [#810](https://github.com/ObjectVision/GeoDMS/issues/810) — Component planning 2024/2025: roadmap
   umbrella, not an implementable issue.
 - [#830](https://github.com/ObjectVision/GeoDMS/issues/830) — Question/investigation: why is tif
@@ -109,7 +107,37 @@ None open. #1080 (Academy on geodms.nl) was closed 2026-08-12.
 
 ## Recently closed (delta since 2026-07-31)
 
-Thirty-four issues, in three groups. The version went 20.10.0 -> 20.16.0 over the same window.
+Thirty-eight issues, in four groups. The version went 20.10.0 -> 20.16.0 over the same window.
+
+### Closed on 2026-08-20, working this list (4)
+
+- [#859](https://github.com/ObjectVision/GeoDMS/issues/859) — The palette colour picker is a
+  `QColorDialog` with `ShowAlphaChannel` (`58506a70`). Shv links Qt core+gui without widgets on
+  purpose, so the GUI registers the picker through a new `SHV_SetChooseColorFunc`, shaped like the
+  `SHV_SetCreateViewActionFunc` already there; the `// TODO: implement with QColorDialog` stub on
+  non-Windows is gone with it. Only fully opaque and fully transparent render — every consumer of a
+  palette colour either tests the `DmsTransparent` sentinel or calls `CheckColor()`, and
+  `GdiDrawContext` blends in `FillRect` only — so an intermediate opacity is snapped to the nearer
+  state with a warning. Making a partial alpha render is a drawing-layer change and wants its own
+  issue.
+- [#846](https://github.com/ObjectVision/GeoDMS/issues/846) — `CalcAndWrite(item, message)`
+  (`f16e940b`), the PhaseContainer message without the fence. The 2025-03-03 blockreason asked
+  whether there were still use cases; `tst/Operator/cfg/Fencetest.dms` contains the workaround that
+  proves there are — a `Say_t` template that wraps a value in a container, phases it and reads it
+  back, buying serialisation nobody asked for. The result IS the argument
+  (`oper_policy::existing`), so nothing is copied or scheduled.
+- [#828](https://github.com/ObjectVision/GeoDMS/issues/828) — Layer controls get a three-pixel 3D
+  border and a 20-per-channel darker background when selected (`6506404e`). The border width is now
+  `MovableObject::GetBorderLogicalWidth()`, so TableHeaderControls keep their two pixels untouched,
+  and `DrawButtonBorder` takes the ring count with 2 as the default, leaving every other control
+  byte-identical. The *look* is unverified: three pixels is a choice the issue does not specify.
+- [#1031](https://github.com/ObjectVision/GeoDMS/issues/1031) — The bundled `prelude.dms` is covered
+  by the test process (`869e16da`). Measured first: 33 of its 43 functions were already called from
+  `testcases/`; `testcases/prelude_coverage.dms` covers the other ten. Two findings recorded rather
+  than fixed, since the prelude's header declares bodies to be interface: `EK` reads an
+  `ExternalKeyData` *property* that no configuration can set (the name is a sub-item name, which is
+  how `LayerInfo.cpp` looks it up), and the `_or_rhs_null` comparisons mirror by swapping operands,
+  not by flipping the operator.
 
 ### From the 2026-07-31 open list (14)
 
@@ -255,10 +283,14 @@ admission gate / drain-mode series (SS8.1.21-SS8.1.33).
   operations is the wrong lever when 91% of the volume is deferred material from chains that were
   already admitted. `MemoryDrainage` is on by default; `WaitForAvailableMemory` remains disabled.
   Plan and measurements: `doc/development/schedule-with-lookahead.md`.
-- **PhaseContainer** (#1128, #1167): unchanged since July. Progress reporting and, possibly, the fence
-  itself hang off the same join hook, which only fires for the container's own `FuncDC`. §3 of the
-  lookahead-scheduling plan (automated phasing) would make most manual fences unnecessary, so it is
-  worth confirming #1167 before investing in the current mechanism — and it still has no repro.
+- **PhaseContainer** (#1128, #1167): progress reporting and, possibly, the fence itself hang off the
+  same join hook, which only fires for the container's own `FuncDC`. §3 of the lookahead-scheduling
+  plan (automated phasing) would make most manual fences unnecessary, so it is worth confirming
+  #1167 before investing in the current mechanism. Still no repro, but #846's `CalcAndWrite` gives a
+  cheaper vantage point on the same symptom: wrapping a *container* announces nothing when only a
+  sub-item is demanded, because `wrapped/x` resolves straight to the source `x` and never asks the
+  operator for its result. Not the same route as PhaseContainer's mirror tree, but the same
+  sub-item-steps-over-the-wrapper shape the #1167 hypothesis is about.
 - **MMD storage robustness**: closed out. #1154 and #1155 were fixed together as the July note
   predicted, and the same pass turned up #1179 (an IntegrityCheck suppressed the dictionary) and #1187
   (an over-long stored array read silently). The dictionary now records element restrictions and
