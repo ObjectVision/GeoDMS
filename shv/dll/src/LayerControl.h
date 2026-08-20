@@ -68,6 +68,8 @@ public:
 //	override virtuals of GraphicObject
   	void SetActive(bool newState) override;
 	void ToggleVisibilityAndMakeActiveIfNeeded();
+	COLORREF GetBkColor() const override; // issue #828: the selected layer is a darker grey
+	CrdType GetBorderLogicalWidth() const override { return LAYERCONTROL_BORDERSIZE; } // issue #828
 
 	void FillMenu(MouseEventDispatcher& med) override;
 	bool MouseEvent(MouseEventDispatcher& med) override;

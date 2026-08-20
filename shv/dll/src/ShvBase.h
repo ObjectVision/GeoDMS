@@ -201,6 +201,11 @@ extern ChooseColorFunc      g_ChooseColorFunc;
 constexpr int BORDERSIZE = 2;
 constexpr int DOUBLE_BORDERSIZE = 2 * BORDERSIZE;
 
+// issue #828: the 3D border is one shadow ring per logical pixel, so its width is also its ring
+// count. Layer controls ask for a thicker one; everything else -- TableHeaderControls included,
+// which the issue explicitly wants left at two -- keeps BORDERSIZE.
+constexpr int LAYERCONTROL_BORDERSIZE = 3;
+
 enum class CommandStatus {
 	ENABLED  = 0,
 	DISABLED = 1,
