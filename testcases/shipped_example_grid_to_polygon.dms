@@ -1,0 +1,24 @@
+// issue #1031, second pass: coverage for the shipped examples/grid_to_polygon.dms.
+//
+// This one can only be a PARSE test, and deliberately so. The example builds its polygons from
+// CBS_Buurt := /CBS/Y2025/Buurt, which comes out of the CBS Gebiedsindelingen geopackage; when
+// that file is absent, library/basedata_nl/RegioIndelingen.dms curl-downloads it. An automated
+// test may not reach for the network or write into %SourceDataDir%, so nothing below the CBS
+// data is demanded here.
+//
+// What this still pins, and what nothing pinned before: that the example parses, and that all
+// four library files it includes -- Units.dms, geometry/Grid2Poly.dms, basedata_nl/grids.dms and
+// basedata_nl/RegioIndelingen.dms -- still resolve under the %exeDir% paths it uses. A renamed or
+// moved library file, or a syntax error in any of them, fails here.
+//
+// The calculation itself is covered instead by shipped_library_grid2poly.dms, which instantiates
+// the same grid2poly template on a 4x4 fixture where every answer is known by hand.
+container shipped_example_grid_to_polygon
+{
+	#include <%exeDir%/examples/grid_to_polygon.dms>
+
+	container checks
+	{
+		parameter<bool> parsed := True, IntegrityCheck = "parsed == True";
+	}
+}
