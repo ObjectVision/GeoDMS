@@ -295,6 +295,7 @@ private:
 
 
     static void OnViewAction(const TreeItem* tiContext, CharPtr sAction, Int32 nCode, Int32 x, Int32 y, bool doAddHistory, bool isUrl, bool mustOpenDetailsPage);
+    static bool OnChooseColor(DmsColor* rgb, DmsColor* custColors, UInt32 nrCustColors, void* parentWindowHandle); // issue #859
 
     SharedStr m_currConfigFileName;
     std::shared_ptr<TreeItem> m_root;

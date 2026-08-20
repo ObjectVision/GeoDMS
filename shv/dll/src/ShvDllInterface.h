@@ -38,6 +38,7 @@ SHV_CALL MsgResult SHV_DataView_DispatchMessage(DataView*, HWND hWnd, UINT msg, 
 SHV_CALL void SHV_DataView_SetStatusTextFunc(DataView* self, ClientHandle clientHandle, StatusTextFunc stf);
 SHV_CALL void SHV_DataView_SetViewHost(DataView* self, ViewHost* vh);
 SHV_CALL void SHV_SetCreateViewActionFunc(CreateViewActionFunc cvaf);
+SHV_CALL void SHV_SetChooseColorFunc(ChooseColorFunc ccf); // issue #859
 
 #ifdef _WIN32
 // Helper for drawing to HDC with GdiDrawContext (implementation lives in shv.dll)

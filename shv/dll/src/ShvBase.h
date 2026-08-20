@@ -13,6 +13,7 @@
 #include "TicBase.h"
 
 #include "dbg/Diagnostics.h"
+#include "vt/color.h" // DmsColor, for ChooseColorFunc
 #include "vt/Undefined.h"
 #include "geom/Point.h"
 #include "geom/Range.h"
@@ -153,6 +154,17 @@ typedef void (DMS_CONV *CreateViewActionFunc)(
 	bool			mustOpenDetailsPage
 );
 
+// issue #859: the colour picker is a Qt *widget* dialog, and this module links Qt core+gui
+// only (see shv/dll/CMakeLists.txt), so the GUI registers one, the way it registers
+// CreateViewActionFunc. rgb is in/out; custColors is the caller's custom-colour palette,
+// also in/out. Returns false when the user cancels.
+typedef bool (DMS_CONV *ChooseColorFunc)(
+	DmsColor*       rgb,
+	DmsColor*       custColors,
+	UInt32          nrCustColors,
+	void*           parentWindowHandle
+);
+
 using sel_caret_key  = std::pair<const AbstrDataItem*, const IndexCollector*>;
 using sel_caret_map  = std::map<sel_caret_key, std::weak_ptr<SelCaret>>;
 using grid_coord_key = std::pair<CrdTransformation, IRect>;
@@ -165,6 +177,7 @@ using GridCoordCPtr = std::shared_ptr<const GridCoord>;
 using SelCaretCPtr = std::shared_ptr<const SelCaret>;
 
 extern CreateViewActionFunc g_ViewActionFunc;
+extern ChooseColorFunc      g_ChooseColorFunc;
 
 
 #if defined(MG_DEBUG)

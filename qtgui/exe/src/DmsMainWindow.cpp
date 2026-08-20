@@ -37,6 +37,7 @@
 #include <algorithm>
 #include <set>
 #include <QtWidgets>
+#include <QColorDialog>
 #include <QCompleter>
 #include <QMdiArea>
 #include <QPixmap>
@@ -1517,6 +1518,70 @@ void MainWindow::OnViewAction(const TreeItem* tiContext, CharPtr sAction, Int32 
     MainWindow::TheOne()->doViewAction(const_cast<TreeItem*>(tiContext), sAction);
 }
 
+// issue #859: the colour picker for a palette entry, registered into Shv.dll, which links
+// Qt core+gui without widgets and therefore cannot open a QColorDialog itself.
+//
+// DmsColor keeps *transparency* in its high byte (0 = opaque, 0xFF = fully transparent),
+// which is the complement of a QColor alpha, and fully transparent is the DmsTransparent
+// sentinel exactly, because the drawing code recognises transparency by that value.
+//
+// Only those two states render: every consumer of a palette colour either compares against
+// that sentinel or CheckColor()s the value, which requires an all-zero high byte. The alpha
+// slider is still shown, since it is how one asks a QColorDialog for transparency, but a
+// partial alpha is snapped to the nearest state that can be honoured, with a warning saying
+// so. Making a partial alpha render is a drawing-layer change -- GdiDrawContext blends only
+// in FillRect, not in DrawPolygon / DrawPolyline / TextOut -- and belongs in its own issue.
+bool MainWindow::OnChooseColor(DmsColor* rgb, DmsColor* custColors, UInt32 nrCustColors, void* parentWindowHandle)
+{
+    assert(IsMainThread());
+    assert(rgb);
+
+    QWidget* parent = nullptr;
+#if defined(_WIN32)
+    if (parentWindowHandle)
+        parent = QWidget::find(reinterpret_cast<WId>(parentWindowHandle));
+#endif
+    if (!parent)
+        parent = MainWindow::TheOne();
+
+    // The custom slots are owned by the DataView; QColorDialog keeps its own static set,
+    // so seed it on the way in and hand the edits back on the way out.
+    UInt32 nrSharedCustColors = Min<UInt32>(nrCustColors, UInt32(QColorDialog::customCount()));
+    for (UInt32 i = 0; i != nrSharedCustColors; ++i)
+        QColorDialog::setCustomColor(i, QColor(GetRed(custColors[i]), GetGreen(custColors[i]), GetBlue(custColors[i])));
+
+    QColor initialColor(GetRed(*rgb), GetGreen(*rgb), GetBlue(*rgb), 255 - GetTrans(*rgb));
+    auto pickedColor = QColorDialog::getColor(initialColor, parent, QObject::tr("Select Color")
+        , QColorDialog::ShowAlphaChannel); // issue #859: transparency must be asked for explicitly
+
+    for (UInt32 i = 0; i != nrSharedCustColors; ++i)
+    {
+        auto custColor = QColorDialog::customColor(i);
+        custColors[i] = CombineRGB(custColor.red(), custColor.green(), custColor.blue());
+    }
+
+    if (!pickedColor.isValid())
+        return false; // cancelled
+
+    auto pickedAlpha = pickedColor.alpha();
+    if (pickedAlpha != 0 && pickedAlpha != 255)
+    {
+        bool keepOpaque = (pickedAlpha >= 128);
+        reportF(MsgCategory::commands, SeverityTypeID::ST_Warning
+            , "Select Color: {}% opacity is not (yet) drawn; the colour is stored as {}. "
+              "Only fully opaque and fully transparent are rendered."
+            , (pickedAlpha * 100 + 127) / 255
+            , keepOpaque ? "opaque" : "transparent"
+        );
+        pickedAlpha = keepOpaque ? 255 : 0;
+    }
+
+    *rgb = pickedAlpha
+        ? CombineRGB(pickedColor.red(), pickedColor.green(), pickedColor.blue())
+        : DmsTransparent;
+    return true;
+}
+
 void MainWindow::showStatisticsDirectly(const TreeItem* tiContext) {
     if (openErrorOnFailedCurrentItem())
         return;
@@ -1964,6 +2029,7 @@ void MainWindow::setupDmsCallbacks() {
     DMS_RegisterMsgCallback(&geoDMSMessage, this);
     DMS_SetContextNotification(&geoDMSContextMessage, this);
     SHV_SetCreateViewActionFunc(&OnViewAction);
+    SHV_SetChooseColorFunc(&OnChooseColor); // issue #859
     DMS_RegisterStateChangeNotification(AnyTreeItemStateHasChanged, this);
     register_overlapping_periods_callback(OnStartWaiting, OnEndWaiting, this);
 }
@@ -1972,6 +2038,7 @@ void MainWindow::cleanupDmsCallbacks() {
     unregister_overlapping_periods_callback(OnStartWaiting, OnEndWaiting, this);
     DMS_ReleaseStateChangeNotification(AnyTreeItemStateHasChanged, this);
     DMS_SetContextNotification(nullptr, nullptr);
+    SHV_SetChooseColorFunc(nullptr);
     SHV_SetCreateViewActionFunc(nullptr);
     DMS_ReleaseMsgCallback(&geoDMSMessage, this);
 }

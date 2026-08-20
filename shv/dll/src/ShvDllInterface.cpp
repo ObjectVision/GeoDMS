@@ -351,6 +351,11 @@ void DMS_CONV SHV_SetCreateViewActionFunc(CreateViewActionFunc cvaf)
 
 }
 
+void DMS_CONV SHV_SetChooseColorFunc(ChooseColorFunc ccf)
+{
+	g_ChooseColorFunc = ccf;
+}
+
 #ifdef _WIN32
 #include "DrawContext.h"
 #include "GdiRegionUtil.h"
