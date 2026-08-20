@@ -904,19 +904,22 @@ LispRef AbstrCalculator::slSupplierExpr(SubstitutionBuffer& substBuff, LispPtr s
 
 	if (!supplier || supplier->IsCacheItem())
 	{
-		if (!m_BestGuessErrorSuppl.first)
-		{
-			auto x = FindBestItem(supplRefID);
-			if (x.first && !x.first->IsCacheItem() && x.first->WasFailed())
-				m_BestGuessErrorSuppl = x;
+		auto holder = m_Holder.lock();
+		if (!holder)
+			throwTaskCanceled();
 
-			auto errMsg = MakeUnknownIdentifierErrorMsg(supplRefID.AsSharedStr(), x);
-			auto holder = m_Holder.lock();
-			if (!holder)
-				throwTaskCanceled();
-			holder->Fail(errMsg, FailType::MetaInfo);
-		}
-		return supplRef;
+		auto x = FindBestItem(supplRefID);
+		if (!m_BestGuessErrorSuppl.first && x.first && !x.first->IsCacheItem() && x.first->WasFailed())
+			m_BestGuessErrorSuppl = x;
+
+		// #1188: fail AND stop here; never hand an unresolvable name back as a bare symbol.
+		// A relative name in a substituted expression becomes a SymbDC that FindItem cannot
+		// resolve from the config root, which then fails with an anonymous, unclickable
+		// "Cannot find Item <name>" -- once per dependent DataController, hence the log spam,
+		// while the real diagnosis is this "Unknown identifier '<name>'" on the item that holds
+		// the reference. Throwing keeps the failure attached to that item; its consumers get it
+		// through the regular supplier-failure route, which does refer to a config item.
+		holder->ThrowFail(MakeUnknownIdentifierErrorMsg(supplRefID.AsSharedStr(), x), FailType::MetaInfo);
 	}
 
 	return slSupplierExprImpl(substBuff, supplier.get(), mpf);
