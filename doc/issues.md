@@ -1,6 +1,6 @@
 # Open GitHub issues, classified
 
-Snapshot of the 32 open issues at https://github.com/ObjectVision/GeoDMS/issues, updated 2026-08-20
+Snapshot of the 33 open issues at https://github.com/ObjectVision/GeoDMS/issues, updated 2026-08-20
 (previous snapshots: 2026-07-31 with 48 listed, 2026-07-04 with 41, 2026-07-03 with 45 open; see
 "Recently closed" at the bottom for the delta). Grouped by implementability. Buckets:
 
@@ -17,7 +17,8 @@ Snapshot of the 32 open issues at https://github.com/ObjectVision/GeoDMS/issues,
 **Empty.** All three were implemented on 2026-08-20 (#859, #846, #828), after #1162 and #612 went
 the same way earlier in the month and the 2026-08 operator sweep (#1168-#1178) took the rest of that
 size class. Nothing in B is one decision away from dropping in here; the next candidates all need a
-naming or scoping call first (#1161, #990, #973, #711).
+naming or scoping call first (#1161, #990, #973, #711). #1031 is back in E, but what it is waiting
+for is a packaging decision, not an afternoon.
 
 The one small thing left over is not an issue of its own, and was found while fixing #1186:
 `tools/DeployResources.cmake` silently does nothing (exit 0, no copies) when `RUNTIME_DIR` is passed
@@ -69,9 +70,20 @@ is a two-line guard against an unpleasant failure mode for anyone invoking the s
 
 ## E. Test issues
 
-None open. #1031 was closed 2026-08-20: `prelude.dms` is the only `.dms` the setup packages, 33 of
-its 43 functions were already called from `testcases/`, and `testcases/prelude_coverage.dms` covers
-the other ten.
+- [#1031](https://github.com/ObjectVision/GeoDMS/issues/1031) — Include the bundled dms-files in the
+  test process. Reopened the same day it was closed, because the first pass had the premise wrong:
+  `prelude.dms` is not the only `.dms` the setup ships. `CopyResources.vcxproj` robocopies the repo's
+  `library\` and `examples\` folders into `bin\<Config>d\`, and the setup script packages both
+  wholesale with `File …\library\*.*` / `…\examples\*.*` — nine shipped `.dms` files, not one. All
+  of them are covered now (`869e16da`, `b8d44470`; suite 207/207), and doing it turned up two breaks
+  in shipped code, both fixed: `library/Units.dms` used `uur` and `yr`, defined nowhere in it, so
+  three of its 42 units did not resolve; and `examples/function.dms` did not compile at all against
+  the current definition check. **What is left is one decision**, not more work: `.c` and `.m` do not
+  ship the same library. `tools/DeployResources.cmake` copies from both `CopyResources/<dir>` and the
+  top-level `<dir>`, the msbuild project only from the top level, so a `.c` installation ships
+  `library/geometry/Grid2Poly_ipoint.dms` and `examples/grid_to_vector.dms` that a `.m` installation
+  does not. Drop the `CopyResources/` copies, or promote those two files so both flavours ship them
+  and they can be tested like the rest. Same class of gap as #1186.
 
 ## F. Documentation issues
 
@@ -131,10 +143,9 @@ Thirty-eight issues, in four groups. The version went 20.10.0 -> 20.16.0 over th
   `MovableObject::GetBorderLogicalWidth()`, so TableHeaderControls keep their two pixels untouched,
   and `DrawButtonBorder` takes the ring count with 2 as the default, leaving every other control
   byte-identical. The *look* is unverified: three pixels is a choice the issue does not specify.
-- [#1031](https://github.com/ObjectVision/GeoDMS/issues/1031) — The bundled `prelude.dms` is covered
-  by the test process (`869e16da`). Measured first: 33 of its 43 functions were already called from
-  `testcases/`; `testcases/prelude_coverage.dms` covers the other ten. Two findings recorded rather
-  than fixed, since the prelude's header declares bodies to be interface: `EK` reads an
+- [#1031](https://github.com/ObjectVision/GeoDMS/issues/1031) — Closed on the prelude, then reopened
+  on the wider shipped set; see E. The prelude half (`869e16da`) recorded two findings rather than
+  fixing them, since the prelude's header declares bodies to be interface: `EK` reads an
   `ExternalKeyData` *property* that no configuration can set (the name is a sub-item name, which is
   how `LayerInfo.cpp` looks it up), and the `_or_rhs_null` comparisons mirror by swapping operands,
   not by flipping the operator.
