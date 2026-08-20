@@ -3101,8 +3101,8 @@ void OperationContext::RunOperator(ArgRefs argRefs, std::vector<ItemReadLock> re
 			auto errPtr = resultHolder.GetFailReason();
 			if (m_FuncDC)
 				errPtr->TellExtraF("in function {}", GetOperGroup()->GetName());
-			if (resultHolder.HasBackRef())
-				errPtr->TellExtraF("while calculating {}", resultHolder.GetBackRefStr());
+			if (resultHolder.HasItemName())
+				errPtr->TellExtraF("while calculating {}", resultHolder.GetItemNameStr()); // #795: also for an intermediate result
 			HandleFail(resultHolder.GetOld()); // raw borrow of the current result item (implicit DualRef->TreeItem* conversion was removed)
 		}
 		assert(!resultHolder.IsNew() || resultHolder->m_LastChangeTS == resultHolder.m_LastChangeTS); // further changes in the resulting data must have caused resultHolder to invalidate, as IsNew results are passive

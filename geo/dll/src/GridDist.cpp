@@ -274,7 +274,7 @@ public:
 		if (!mustCalc)
 			return true;
 
-		auto itemRef = resultHolder.HasBackRef() ? resultHolder.GetBackRefStr() + " " : SharedStr();
+		auto itemRef = resultHolder.GetProgressPrefix(); // #795: names the config item, also for an intermediate result
 
 //      ================================= Calculate Primary data results =================================
 
