@@ -677,6 +677,9 @@ bool DmsRecentFileEntry::event(QEvent* e) {
 }
 
 void DmsRecentFileEntry::onDeleteRecentFileEntry() const {
+    // m_index is fixed at construction and goes stale as soon as the list is reordered, but
+    // every path that reorders it ends in updateFileMenu(), which destroys and rebuilds all
+    // entries -- so it is accurate whenever this menu is on screen.
     auto main_window = MainWindow::TheOne();
     main_window->m_file_menu->close();
     main_window->removeRecentFileAtIndex(m_index);
@@ -1262,16 +1265,40 @@ bool MainWindow::CloseConfig() {
     return has_active_dms_views;
 }
 
-auto configIsInRecentFiles(WeakStr cfg, const std::vector<SharedStr>& files) -> Int32 
+// A recent-files entry is stored in exactly one form: '/' separators, as ConvertDosFileName
+// produces (it also prefixes //SYSTEM/path with 'file:'), and on Windows lower-cased because
+// the filesystem is case-insensitive there. Without a single stored form, one config reached
+// along two spellings -- 'c:/dir/main.dms' and 'c:\Dir\Main.dms' -- lands in the list twice
+// and no comparison can collapse the pair again; the menu even renders the two identically,
+// since the label is built with ConvertDosFileName (#1034).
+//
+// The fold goes through QString rather than std::tolower over the bytes: tolower(char) is UB
+// for the negative bytes of a UTF-8 path and folding those bytes one at a time corrupts the
+// multi-byte sequence (cf. #1101), while an ASCII-only fold would leave case variants of a
+// non-ASCII path as separate entries even though NTFS resolves them to one file.
+SharedStr CanonicalConfigPath(WeakStr path)
 {
-//    std::string cfg_name = cfg.data();
+    auto result = ConvertDosFileName(path);
+#ifdef _WIN32
+    auto lowered = QString::fromUtf8(result.c_str(), result.ssize()).toLower().toUtf8();
+    result = SharedStr(CharPtrRange(lowered.constData(), lowered.constData() + lowered.size()));
+#endif
+    return result;
+}
+
+// Index of cfg in the menu list, or -1. Searches m_recent_file_entries rather than the registry
+// value: the result is used to move() within that very list, so reading it from the other
+// container is only right for as long as the two happen to stay in lock-step.
+auto configIsInRecentFiles(WeakStr cfg, const QList<DmsRecentFileEntry*>& entries) -> Int32
+{
+    auto canonical_cfg = CanonicalConfigPath(cfg);
     Int32 pos = 0;
-    for (auto& recent_file : files) {
-        if (recent_file == cfg)
+    for (auto* recent_file_entry : entries) {
+        if (recent_file_entry && CanonicalConfigPath(recent_file_entry->m_cfg_file_path) == canonical_cfg)
             return pos;
         pos++;
     }
-    
+
     return -1;
 }
 
@@ -1282,6 +1309,13 @@ void MainWindow::cleanRecentFilesThatDoNotExistOrListedBefore()
     auto recent_files_from_registry = GetGeoDmsRegKeyMultiString(dms_params::reg_key_RecentFiles);
     for (auto it_rf = recent_files_from_registry.begin(); it_rf != recent_files_from_registry.end();) 
     {
+        // Rewrite to the canonical form before the duplicate test, so that entries left behind
+        // by GeoDMS versions which stored the raw Windows path collapse onto their canonical
+        // twin instead of shadowing it forever (#1034). This migrates the stored value as well:
+        // the list is written back below, and this runs on every File-menu open.
+        if (!it_rf->empty())
+            *it_rf = CanonicalConfigPath(*it_rf);
+
 		// see if we can keep this file in the recent files list
         if (!it_rf->empty() && !listedFiles.contains(*it_rf))
         {
@@ -1345,11 +1379,14 @@ void MainWindow::saveRecentFileActionToRegistry() {
 }
 
 void MainWindow::insertCurrentConfigInRecentFiles(WeakStr cfg) {
-    auto cfg_index_in_recent_files = configIsInRecentFiles(cfg, GetGeoDmsRegKeyMultiString("RecentFiles"));
+    auto cfg_index_in_recent_files = configIsInRecentFiles(cfg, m_recent_file_entries);
     if (cfg_index_in_recent_files == -1)
         cfg_index_in_recent_files = addRecentFilesEntry(cfg);
 
-     m_recent_file_entries.move(cfg_index_in_recent_files, 0);
+    // QList::move is undefined for an out-of-range index; a list that somehow went out of step
+    // should leave the order alone for updateFileMenu() to rebuild, not corrupt the menu.
+    if (cfg_index_in_recent_files >= 0 && cfg_index_in_recent_files < m_recent_file_entries.size())
+        m_recent_file_entries.move(cfg_index_in_recent_files, 0);
 
     saveRecentFileActionToRegistry();
     updateFileMenu();
@@ -1392,11 +1429,7 @@ bool MainWindow::LoadConfigImpl(CharPtr configFilePath) {
 
         m_root = make_shared_tree(newRoot, existing_obj{});
         if (m_root) {
-            SharedStr configFilePathStr = DelimitedConcat(ConvertDosFileName(GetCurrentDir()), ConvertDosFileName(m_currConfigFileName));
-#ifdef _WIN32
-            for (auto& ch : configFilePathStr)
-                ch = std::tolower(ch);
-#endif
+            SharedStr configFilePathStr = CanonicalConfigPath(DelimitedConcat(ConvertDosFileName(GetCurrentDir()), ConvertDosFileName(m_currConfigFileName)));
 
             insertCurrentConfigInRecentFiles(configFilePathStr);
             SetGeoDmsRegKeyString("LastConfigFile", configFilePathStr.c_str());
