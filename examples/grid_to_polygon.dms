@@ -15,4 +15,67 @@ container grid2polygon_example
     container simplified_buurt := grid2poly(domain_grid, CBS_Buurt, domain_grid/buurt_grid, rdc_meter, 50.0[units/meter]);
 	
     attribute<rdc_meter> resulting_polygons(CBS_Buurt, polygon) := simplified_buurt/Results/geometry;
+
+	// ------------------------------------------------------------------ checks
+	//
+	// Run headless with:
+	//   GeoDmsRun.exe <install>\examples\grid_to_polygon.dms /checks
+	//
+	// batch\TestShippedContent.bat does exactly that before every release, after
+	// renaming the CBS geopackage to .bak so RegioIndelingen.dms has to download
+	// it again -- that download path is user-facing and silent when it breaks.
+	//
+	// The assertions are deliberately free of calibrated magic numbers; a check
+	// that needs re-tuning per release is a check nobody keeps:
+	//
+	//   1. the buurt map was really read      (> 10 000 buurten)
+	//   2. every buurt got a polygon
+	//   3. it is the same map                 (total area within 25% of source)
+	//   4. it is SIMPLIFIED                   (fewer points than the source)
+	//   5. the polygons do not overlap        (the template's own invariant)
+	//
+	// (3) is loose on purpose: this is a 25 m rasterisation simplified at 50 m,
+	// so a few per cent of boundary error is expected. The 'grid_to_polygon:'
+	// line in the event log reports what was actually measured.
+
+	container observed
+	{
+		parameter<uint32>  nr_buurten     := uint32(#CBS_Buurt);
+		parameter<uint32>  nr_defined     := sum(uint32(IsDefined(resulting_polygons)));
+
+		parameter<float64> src_area       := float64(sum(area(CBS_Buurt/geometry, units/meter2)));
+		parameter<float64> simp_area      := float64(sum(area(resulting_polygons, units/meter2)));
+		parameter<float64> area_deviation := abs(simp_area - src_area) / src_area;
+
+		unit<uint32> src_point  := sequence2points(CBS_Buurt/geometry);
+		unit<uint32> simp_point := sequence2points(resulting_polygons);
+		parameter<uint32> nr_src_points  := uint32(#src_point);
+		parameter<uint32> nr_simp_points := uint32(#simp_point);
+
+		parameter<float64> overlap_area := float64(sum(simplified_buurt/Results/overlap_check/area));
+
+		// one line in the event log, so a failing release run says what it measured
+		// instead of only which check tripped
+		parameter<uint32> report := CalcAndWrite(nr_buurten
+			, 'grid_to_polygon: ' + string(nr_buurten) + ' buurten, '
+			+ string(nr_defined) + ' with a polygon, area deviation '
+			+ string(area_deviation * 100.0) + '%, points '
+			+ string(nr_src_points) + ' -> ' + string(nr_simp_points));
+	}
+
+	container checks
+	{
+		parameter<bool> c_read       := observed/nr_buurten > 10000u,
+			IntegrityCheck = "c_read == True";
+		parameter<bool> c_complete   := observed/nr_defined == observed/nr_buurten,
+			IntegrityCheck = "c_complete == True";
+		parameter<bool> c_same_map   := observed/area_deviation < 0.25,
+			IntegrityCheck = "c_same_map == True";
+		parameter<bool> c_simpler    := observed/nr_simp_points < observed/nr_src_points,
+			IntegrityCheck = "c_simpler == True";
+		parameter<bool> c_no_overlap := observed/overlap_area < observed/src_area * 1e-6,
+			IntegrityCheck = "c_no_overlap == True";
+		parameter<bool> c_reported   := IsDefined(observed/report),
+			IntegrityCheck = "c_reported == True";
+	}
 }
