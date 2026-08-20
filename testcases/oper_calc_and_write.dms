@@ -1,0 +1,51 @@
+// issue #846: CalcAndWrite(item, message) writes `message` to the event log once `item` has
+// finished calculating, and hands the item itself back unchanged -- "just like the fence
+// container, but without the fence container functionality".
+//
+// The result IS the first argument (oper_policy::existing), so what this config pins is that
+// wrapping a value in CalcAndWrite does not change it: for a parameter, for an attribute, and
+// for a container whose sub-items are reached through the wrapper. The message text itself is
+// not checked here -- run this with /L<log> to see the lines.
+container oper_calc_and_write
+{
+	unit<uint32> src : nrofrows = 5
+	{
+		attribute<uint32> val : [ 3, 1, 4, 1, 5 ];
+	}
+
+	parameter<uint32> total     := sum(src/val);                                     // 14
+	parameter<uint32> total_caw := CalcAndWrite(total, 'total is ready');
+
+	attribute<uint32> dbl     (src) := src/val * 2;
+	attribute<uint32> dbl_caw (src) := CalcAndWrite(dbl, 'dbl is ready');
+
+	// several strings write a line each; the item still comes through unchanged.
+	// Note this wraps its OWN expression: the result of CalcAndWrite IS its argument, so
+	// wrapping an item that is already computed has nothing left to announce.
+	unit<uint32> lines : nrofrows = 2
+	{
+		attribute<string> txt : [ 'first line', 'second line' ];
+	}
+	parameter<uint32> maxval     := max(src/val);                                    // 5
+	parameter<uint32> maxval_caw := CalcAndWrite(maxval, lines/txt);
+
+	// an empty message writes nothing, as in PhaseContainer
+	parameter<uint32> minval        := min(src/val);                                 // 1
+	parameter<uint32> minval_silent := CalcAndWrite(minval, '');
+
+	// A container argument: the sub-item is reached through the wrapper and comes through
+	// unchanged, but no message is written -- demanding box_caw/x resolves straight to box/x
+	// and never asks the wrapper for its own result. Same shape as issue #1167 for
+	// PhaseContainer. Wrap the item you want announced, not its container.
+	container box { parameter<uint32> x := 42; }
+	container box_caw := CalcAndWrite(box, 'box is ready');
+
+	container checks
+	{
+		parameter<bool> param_unchanged     := total_caw     == 14,        IntegrityCheck = "param_unchanged == True";
+		parameter<bool> attr_unchanged      := all(dbl_caw   == dbl),      IntegrityCheck = "attr_unchanged == True";
+		parameter<bool> multiline_unchanged := maxval_caw    == 5,         IntegrityCheck = "multiline_unchanged == True";
+		parameter<bool> silent_unchanged    := minval_silent == 1,         IntegrityCheck = "silent_unchanged == True";
+		parameter<bool> container_unchanged := box_caw/x     == 42,        IntegrityCheck = "container_unchanged == True";
+	}
+}

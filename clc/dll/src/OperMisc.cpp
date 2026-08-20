@@ -750,3 +750,77 @@ namespace
 	RampOperator<RampRgbFunc, DmsColor> operRampOpenRgb(&cog_rampOpenRgb, false);
 } // end anonymous namespace
 
+
+// *****************************************************************************
+//										CalcAndWriteOperator
+// *****************************************************************************
+
+// issue #846: "a text message in the event log when an item is finished calculating --
+// just like the fence container, but without the fence container functionality".
+//
+// PhaseContainer already writes such a message, but it writes it as the closing act of a
+// *phase*, and a phase exists to serialise work. Asking for the message therefore also bought
+// the fence. CalcAndWrite is the message on its own: the result IS the first argument
+// (oper_policy::existing, the same shape as integrity_check above), so nothing is copied and
+// no extra work is scheduled; CalcResult only runs once that argument is ready, and writing
+// the message is all it does.
+//
+//     attribute<Type> y := CalcAndWrite(expensive(x), 'expensive(x) is ready');
+//
+// The message argument is a string data item, so an attribute of several strings writes a line
+// each, and -- as in PhaseContainer -- a single empty string writes nothing.
+//
+// Two consequences of the result BEING the argument, both covered in testcases/oper_calc_and_write.dms:
+// wrapping an item that is already computed announces nothing, since there is nothing left to
+// finish; and wrapping a *container* announces nothing when only a sub-item is demanded, because
+// that resolves straight to the source sub-item and never asks this operator for its result --
+// the shape #1167 describes for PhaseContainer. Wrap the item you want announced.
+
+CommonOperGroup sog_CalcAndWrite("CalcAndWrite", oper_policy::existing | oper_policy::dynamic_result_class | oper_policy::has_external_effects);
+
+struct CalcAndWriteOperator : public BinaryOperator
+{
+	using Arg2Type = DataArray<SharedStr>;
+
+	CalcAndWriteOperator()
+		: BinaryOperator(&sog_CalcAndWrite,
+			TreeItem::GetStaticClass(),
+			TreeItem::GetStaticClass(), Arg2Type::GetStaticClass())
+	{}
+
+	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
+	{
+		assert(args.size() == 2);
+		const TreeItem* arg1 = args[0];
+		assert(arg1);
+		if (!resultHolder)
+		{
+			assert(!mustCalc);
+			resultHolder = arg1;
+		}
+		assert(resultHolder);
+
+		if (mustCalc)
+		{
+			auto curr = resultHolder.GetCurr(); // owning snapshot; weak arm (config item) can expire
+			MG_CHECK(curr);
+
+			DataReadLock msgLock(AsDataItem(args[1]));
+			auto msgData = const_array_cast<SharedStr>(msgLock)->GetDataRead();
+
+			if (msgData.size() != 1 || !msgData[0].empty())
+				for (auto msg : msgData)
+					reportF(SeverityTypeID::ST_MajorTrace, "{}", SharedStr(msg));
+
+			if (curr->WasFailed())
+				resultHolder.Fail(curr.get());
+		}
+		return true;
+	}
+};
+
+namespace {
+
+	CalcAndWriteOperator calcAndWriteOperator;
+
+}
