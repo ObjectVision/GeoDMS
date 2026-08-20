@@ -73,7 +73,7 @@ is a two-line guard against an unpleasant failure mode for anyone invoking the s
 - [#1031](https://github.com/ObjectVision/GeoDMS/issues/1031) — Include the bundled dms-files in the
   test process. Reopened the same day it was closed, because the first pass had the premise wrong:
   `prelude.dms` is not the only `.dms` the setup ships. `CopyResources.vcxproj` robocopies the repo's
-  `library\` and `examples\` folders into `bin\<Config>d\`, and the setup script packages both
+  `library` and `examples` folders into `bin/<Config>/x64/`, and the setup script packages both
   wholesale with `File …\library\*.*` / `…\examples\*.*` — nine shipped `.dms` files, not one. All
   of them are covered now (`869e16da`, `b8d44470`; suite 207/207), and doing it turned up two breaks
   in shipped code, both fixed: `library/Units.dms` used `uur` and `yr`, defined nowhere in it, so
