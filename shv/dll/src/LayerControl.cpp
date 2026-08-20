@@ -109,6 +109,24 @@ LayerControlBase::LayerControlBase(MovableObject* owner, ScalableObject* layerSe
 	assert(m_LayerElem);
 }
 
+// issue #828: the selected layer stands out by a darker background, 20 off each channel of the
+// default. The header keeps its COLOR_HIGHLIGHT fill (see SetActive), so this is the body below it.
+COLORREF LayerControlBase::GetBkColor() const
+{
+	auto bkColor = base_type::GetBkColor();
+	if (!IsActive())
+		return bkColor;
+
+	const UInt32 darkenPerChannel = 20;
+	auto darken = [darkenPerChannel](UInt32 channel) -> UInt8 { return UInt8(channel > darkenPerChannel ? channel - darkenPerChannel : 0); };
+	return CombineRGB(
+		darken(GetRed  (bkColor))
+	,	darken(GetGreen(bkColor))
+	,	darken(GetBlue (bkColor))
+	,	GetTrans(bkColor)
+	);
+}
+
 void LayerControlBase::OnLayerVisibilityChanged()
 {
 	InvalidateDraw();
@@ -371,6 +389,8 @@ void LayerControlBase::SetActive(bool newState)
 
 	assert(m_LayerElem);
 	m_LayerElem->SetActive(newState);
+
+	InvalidateDraw(); // issue #828: GetBkColor() now depends on IsActive(), so the body must repaint
 
 	m_HeaderControl->SetBkColor(
 		(newState)

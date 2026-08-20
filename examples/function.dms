@@ -41,7 +41,7 @@ container function_example
 	)
 	-> attribute<float64> (Network) := result
 	{
-		attribute<float64> raw    (Network) := Network/flow / Network/capacity;
+		attribute<float64> raw    (Network) := float64(Network/flow) / float64(Network/capacity);
 		attribute<float64> result (Network) := min_elem(raw, 1.0);
 	}
 

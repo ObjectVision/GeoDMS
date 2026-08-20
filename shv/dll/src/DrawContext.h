@@ -122,9 +122,11 @@ public:
 	void DrawImageTransformed(const CrdTransformation& src2device, const void* pixelData32, int srcWidth, int srcHeight, DmsRasterOp op = DmsRasterOp::SrcCopy);
 
 	// === 3D Borders ===
-	void DrawButtonBorder(GRect& rect);
-	void DrawReversedBorder(GRect& rect);
-	void DrawBorder(GRect& rect, bool reversed) { if (reversed) DrawReversedBorder(rect); else DrawButtonBorder(rect); }
+	// nrRings is the border width in pixels: one shadow ring is drawn per pixel, outermost first
+	// (issue #828). Two rings is the classic look and the default.
+	void DrawButtonBorder(GRect& rect, int nrRings = BORDERSIZE);
+	void DrawReversedBorder(GRect& rect, int nrRings = BORDERSIZE);
+	void DrawBorder(GRect& rect, bool reversed, int nrRings = BORDERSIZE) { if (reversed) DrawReversedBorder(rect, nrRings); else DrawButtonBorder(rect, nrRings); }
 };
 
 #if defined(_WIN32)

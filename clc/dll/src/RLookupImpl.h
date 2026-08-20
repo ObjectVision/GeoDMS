@@ -30,6 +30,7 @@
 
 #include "OperSignature.h"
 
+#include "Explain.h"
 #include "Lookup.h"
 
 #include "rlookup.h"
@@ -39,9 +40,90 @@ class AbstrIndexedSearchOperator : public BinaryOperator
 	typedef AbstrDataItem      ResultType;
 
 public:
-	AbstrIndexedSearchOperator(AbstrOperGroup* gr, const Class* argClass)
+	// isExactMatchSearch: this member looks its argument's value up by equality (rlookup,
+	// rlookup_with_null), so #612 can state that a requested value does not occur at all. classify
+	// searches an interval, for which that statement would be wrong; it passes false.
+	// skipsNullKeys: a null in the first argument never matches (plain rlookup). Then a null result at
+	// a null key needs no explaining -- the page already shows that key as null.
+	AbstrIndexedSearchOperator(AbstrOperGroup* gr, const Class* argClass, bool isExactMatchSearch, bool skipsNullKeys)
 		:	BinaryOperator(gr, ResultType::GetStaticClass(), argClass, argClass)
-	{}
+		,	m_SkipsNullKeys(skipsNullKeys)
+	{
+		if (isExactMatchSearch)
+			gr->SetCanExplainValue();
+	}
+
+	// Overridden because SetCanExplainValue() makes the Operator base refuse the default caller;
+	// the creation itself is unchanged.
+	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, LispPtr) const override
+	{
+		if (resultHolder && !resultHolder.IsTmp())
+			return;
+
+		auto argSeq = GetItems(args);
+		MG_CHECK(CreateResult(resultHolder, argSeq, false));
+		assert(resultHolder);
+	}
+
+	// Idem, plus the #612 explanation: this runs a second time, with a context, when a value-info page
+	// explains one element of an already calculated result.
+	bool CalcResult(TreeItemDualRef& resultHolder, const ArgRefs& args, std::vector<ItemReadLock> readLocks, Explain::Context* context) const override
+	{
+		assert(resultHolder);
+		assert(args.size() == 2);
+
+		AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
+		assert(res);
+
+		if (!res->m_DataObject)
+		{
+			auto argSeq = GetItems(args);
+			if (!CreateResult(resultHolder, argSeq, true))
+				return false;
+		}
+		if (context)
+			ExplainResultElement(AsDataItem(args[0]), AsDataItem(args[1]), res, context);
+		return true;
+	}
+
+	// The one thing a value-info page cannot already say about a reverse lookup. It shows the key that
+	// was searched for (arg1 shares the result's domain, so the generic mechanism explains it at the
+	// same row) and, for a key that WAS found, the matching row of arg2 (the result value is a row of
+	// arg2's domain, which the generic mechanism follows). Neither of those covers a key that simply
+	// does not occur in arg2: that is what is stated here.
+	void ExplainResultElement(const AbstrDataItem* keysA, const AbstrDataItem* valuesA, const AbstrDataItem* res, Explain::Context* context) const
+	{
+		assert(keysA && valuesA && res);
+		assert(context && context->m_Coordinate);
+
+		SizeT i = context->m_Coordinate->first;
+
+		// Read the result through m_DataObject rather than a DataReadLock: we are inside this very
+		// item's calculation, and locking it here joins its own still-active OperationContext.
+		// The explanation pass only runs on an already calculated result, so the object is there.
+		const AbstrDataObject* resObj = res->m_DataObject.get();
+		if (!resObj || !(i < resObj->GetTiledRangeData()->GetRangeSize()))
+			return;
+		if (!resObj->IsNull(i))
+			return; // found: the matching row of arg2 already shows up as a supplier
+
+		if (m_SkipsNullKeys)
+		{
+			DataReadLock keysLock(keysA);
+			const AbstrDataObject* keysObj = keysLock.get_ptr();
+			if (!keysObj || !(i < keysObj->GetTiledRangeData()->GetRangeSize()))
+				return;
+			if (keysObj->IsNull(i))
+				return; // a null key cannot match here, and the page already shows the key as null
+		}
+
+		// Usually anonymous: a configured attribute is substituted by its definition, so what arrives
+		// here is a cache item. The page prints the expression right next to this note, which names it.
+		auto subjectName = SharedStr(valuesA->GetFullName());
+		Explain::SetValueReason(context, subjectName.empty()
+			? SharedStr("no row of the searched attribute has this value")
+			: mySSPrintF("no row of {} has this value", subjectName));
+	}
 
 	// A reverse search builds an INDEX over its second argument (the values being searched), one
 	// entry per value -- `indexed_tile_t = std::pair<std::vector<I>, locked_cseq_t>` with
@@ -148,6 +230,9 @@ public:
 	virtual std::any MakeIndex(bool mustMakeIndex, const AbstrDataItem* arg2A, const AbstrUnit* arg2_DomainUnit) const = 0;
 	virtual auto CreateFutureTileIndexer(std::shared_ptr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* arg2Domain, const AbstrTileRangeData* arg2DomainRange, bool hasIndex, std::any index MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr)) const->SharedPtr<const AbstrDataObject> = 0;
 	virtual void Calculate(AbstrDataObject* resObj, const AbstrDataItem* arg1A, const AbstrUnit* arg2Domain, bool hasIndex, const std::any&, tile_id t) const =0;
+
+private:
+	bool m_SkipsNullKeys;
 };
 
 
@@ -183,8 +268,8 @@ template <class V, class IndexApplicator, bool SkipNull>
 class SearchIndexOperatorImpl : AbstrIndexedSearchOperator
 {
 public:
-	SearchIndexOperatorImpl(AbstrOperGroup* og)
-		: AbstrIndexedSearchOperator(og, DataArray<V>::GetStaticClass())
+	SearchIndexOperatorImpl(AbstrOperGroup* og, bool isExactMatchSearch)
+		: AbstrIndexedSearchOperator(og, DataArray<V>::GetStaticClass(), isExactMatchSearch, SkipNull)
 	{}
 
 	std::any MakeIndex(bool mustMakeIndex, const AbstrDataItem* arg2A, const AbstrUnit* arg2DomainA) const override
@@ -304,20 +389,21 @@ template <class V>
 struct RLookupOperator
 {
 	SearchIndexOperatorImpl<V, rlookup_dispatcher, true> rlookup;
-	RLookupOperator() : rlookup(&cog_rlookup) {}
+	RLookupOperator() : rlookup(&cog_rlookup, true) {}
 };
 
 template <class V>
 struct RLookupWithNullOperator
 {
 	SearchIndexOperatorImpl<V, rlookup_with_null_dispatcher, false> rlookupWN;
-	RLookupWithNullOperator() : rlookupWN(&cog_rlookupWN) {}
+	RLookupWithNullOperator() : rlookupWN(&cog_rlookupWN, true) {}
 };
 
 template <typename V>
 struct ClassifyOperator : SearchIndexOperatorImpl<V, classify_dispatcher, true>
 {
-	ClassifyOperator() : SearchIndexOperatorImpl<V, classify_dispatcher, true>(&cog_classify) {}
+	// false: classify searches the interval a value falls in, not an exact match (#612)
+	ClassifyOperator() : SearchIndexOperatorImpl<V, classify_dispatcher, true>(&cog_classify, false) {}
 };
 
 #endif // __CLC_RLOOKUPIMPL_H

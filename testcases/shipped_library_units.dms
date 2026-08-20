@@ -1,0 +1,73 @@
+// issue #1031, second pass: the setup does not ship only prelude.dms. CopyResources robocopies the
+// repo's library and examples folders into bin/<Config>/x64/, and nsi/DmsSetupScript.nsh packages
+// both wholesale, with `File ...library\*.*` and `...examples\*.*` wildcards. That is six library
+// .dms files and two examples, none of which any test loaded.
+//
+// This one covers library/Units.dms, by demanding EVERY unit it defines. A unit whose definition
+// does not resolve costs nothing until something asks for it, which is how `day := 24 * uur` and
+// `MJ_yr := MJ / yr` -- two identifiers that are not defined anywhere in the file -- survived in a
+// shipped file. Both are fixed in the same commit as this test; this pins the whole file so the
+// next one is caught here rather than in a user's configuration.
+container shipped_library_units
+{
+	#include <%exeDir%/library/Units.dms>
+
+	container checks
+	{
+		parameter<bool> u_meter     := IsDefined(1.0[Units/meter]),     IntegrityCheck = "u_meter == True";
+		parameter<bool> u_hm        := IsDefined(1.0[Units/hm]),        IntegrityCheck = "u_hm == True";
+		parameter<bool> u_km        := IsDefined(1.0[Units/km]),        IntegrityCheck = "u_km == True";
+		parameter<bool> u_cm        := IsDefined(1.0[Units/cm]),        IntegrityCheck = "u_cm == True";
+		parameter<bool> u_mm        := IsDefined(1.0[Units/mm]),        IntegrityCheck = "u_mm == True";
+		parameter<bool> u_meter2    := IsDefined(1.0[Units/meter2]),    IntegrityCheck = "u_meter2 == True";
+		parameter<bool> u_km2       := IsDefined(1.0[Units/km2]),       IntegrityCheck = "u_km2 == True";
+		parameter<bool> u_ha        := IsDefined(1.0[Units/ha]),        IntegrityCheck = "u_ha == True";
+		parameter<bool> u_g         := IsDefined(1.0[Units/g]),         IntegrityCheck = "u_g == True";
+		parameter<bool> u_kg        := IsDefined(1.0[Units/kg]),        IntegrityCheck = "u_kg == True";
+		parameter<bool> u_s         := IsDefined(1.0[Units/s]),         IntegrityCheck = "u_s == True";
+		parameter<bool> u_min       := IsDefined(1.0[Units/min]),       IntegrityCheck = "u_min == True";
+		parameter<bool> u_hour      := IsDefined(1.0[Units/hour]),      IntegrityCheck = "u_hour == True";
+		parameter<bool> u_day       := IsDefined(1.0[Units/day]),       IntegrityCheck = "u_day == True";
+		parameter<bool> u_year      := IsDefined(1.0[Units/year]),      IntegrityCheck = "u_year == True";
+		parameter<bool> u_month     := IsDefined(1.0[Units/month]),     IntegrityCheck = "u_month == True";
+		parameter<bool> u_annually  := IsDefined(1.0[Units/annually]),  IntegrityCheck = "u_annually == True";
+		parameter<bool> u_J         := IsDefined(1.0[Units/J]),         IntegrityCheck = "u_J == True";
+		parameter<bool> u_kJ        := IsDefined(1.0[Units/kJ]),        IntegrityCheck = "u_kJ == True";
+		parameter<bool> u_MJ        := IsDefined(1.0[Units/MJ]),        IntegrityCheck = "u_MJ == True";
+		parameter<bool> u_MJ_yr     := IsDefined(1.0[Units/MJ_yr]),     IntegrityCheck = "u_MJ_yr == True";
+		parameter<bool> u_GJ        := IsDefined(1.0[Units/GJ]),        IntegrityCheck = "u_GJ == True";
+		parameter<bool> u_PJ        := IsDefined(1.0[Units/PJ]),        IntegrityCheck = "u_PJ == True";
+		parameter<bool> u_W         := IsDefined(1.0[Units/W]),         IntegrityCheck = "u_W == True";
+		parameter<bool> u_kW        := IsDefined(1.0[Units/kW]),        IntegrityCheck = "u_kW == True";
+		parameter<bool> u_MW        := IsDefined(1.0[Units/MW]),        IntegrityCheck = "u_MW == True";
+		parameter<bool> u_GW        := IsDefined(1.0[Units/GW]),        IntegrityCheck = "u_GW == True";
+		parameter<bool> u_TW        := IsDefined(1.0[Units/TW]),        IntegrityCheck = "u_TW == True";
+		parameter<bool> u_GWh       := IsDefined(1.0[Units/GWh]),       IntegrityCheck = "u_GWh == True";
+		parameter<bool> u_TWh       := IsDefined(1.0[Units/TWh]),       IntegrityCheck = "u_TWh == True";
+		parameter<bool> u_MW_km2    := IsDefined(1.0[Units/MW_km2]),    IntegrityCheck = "u_MW_km2 == True";
+		parameter<bool> u_MW_ha     := IsDefined(1.0[Units/MW_ha]),     IntegrityCheck = "u_MW_ha == True";
+		parameter<bool> u_ha_ha     := IsDefined(1.0[Units/ha_ha]),     IntegrityCheck = "u_ha_ha == True";
+		parameter<bool> u_mol       := IsDefined(1.0[Units/mol]),       IntegrityCheck = "u_mol == True";
+		parameter<bool> u_mol_ha    := IsDefined(1.0[Units/mol_ha]),    IntegrityCheck = "u_mol_ha == True";
+		parameter<bool> u_mol_ha_yr := IsDefined(1.0[Units/mol_ha_yr]), IntegrityCheck = "u_mol_ha_yr == True";
+		parameter<bool> u_m_s       := IsDefined(1.0[Units/m_s]),       IntegrityCheck = "u_m_s == True";
+		parameter<bool> u_km_hr     := IsDefined(1.0[Units/km_hr]),     IntegrityCheck = "u_km_hr == True";
+		parameter<bool> u_kg_m2     := IsDefined(1.0[Units/kg_m2]),     IntegrityCheck = "u_kg_m2 == True";
+		parameter<bool> u_K         := IsDefined(1.0[Units/K]),         IntegrityCheck = "u_K == True";
+		parameter<bool> u_A         := IsDefined(1.0[Units/A]),         IntegrityCheck = "u_A == True";
+		parameter<bool> u_cd        := IsDefined(1.0[Units/cd]),        IntegrityCheck = "u_cd == True";
+
+		// a few metric relations, so the test says more than "it resolves". GetMetricFactor gives
+		// the factor towards the base unit; a bare 1.0[km] / 1.0[m] would just be 1.0 / 1.0.
+		parameter<bool> r_km    := GetMetricFactor(Units/km)     / GetMetricFactor(Units/meter)  == 1000.0,  IntegrityCheck = "r_km == True";
+		parameter<bool> r_cm    := GetMetricFactor(Units/cm)     / GetMetricFactor(Units/meter)  == 0.01,    IntegrityCheck = "r_cm == True";
+		parameter<bool> r_ha    := GetMetricFactor(Units/ha)     / GetMetricFactor(Units/meter2) == 10000.0, IntegrityCheck = "r_ha == True";
+		parameter<bool> r_km2   := GetMetricFactor(Units/km2)    / GetMetricFactor(Units/meter2) == 1000000.0, IntegrityCheck = "r_km2 == True";
+		parameter<bool> r_day   := GetMetricFactor(Units/day)    / GetMetricFactor(Units/hour)   == 24.0,    IntegrityCheck = "r_day == True";
+		parameter<bool> r_hour  := GetMetricFactor(Units/hour)   / GetMetricFactor(Units/s)      == 3600.0,  IntegrityCheck = "r_hour == True";
+		parameter<bool> r_kg    := GetMetricFactor(Units/kg)     / GetMetricFactor(Units/g)      == 1000.0,  IntegrityCheck = "r_kg == True";
+		parameter<bool> r_pj    := GetMetricFactor(Units/PJ)     / GetMetricFactor(Units/J)      == 1e15,    IntegrityCheck = "r_pj == True";
+		parameter<bool> r_tw    := GetMetricFactor(Units/TW)     / GetMetricFactor(Units/W)      == 1e12,    IntegrityCheck = "r_tw == True";
+		parameter<bool> r_month := abs(GetMetricFactor(Units/month) * 12.0 - GetMetricFactor(Units/year)) < 1e-9, IntegrityCheck = "r_month == True";
+	}
+}

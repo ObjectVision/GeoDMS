@@ -34,8 +34,10 @@
 
 #include "StartEditor.h"
 
+#include <algorithm>
 #include <set>
 #include <QtWidgets>
+#include <QColorDialog>
 #include <QCompleter>
 #include <QMdiArea>
 #include <QPixmap>
@@ -628,29 +630,37 @@ void DmsConfigTextButton::paintEvent(QPaintEvent* event) {
 DmsRecentFileEntry::DmsRecentFileEntry(size_t index, WeakStr dms_file_full_path, QObject* parent)
     : QAction(parent) {
     m_cfg_file_path = dms_file_full_path;
+    setMenuIndex(index);
+}
+
+// The visible number and its Alt-accelerator follow the entry's position in the File menu, which
+// shifts as configurations are opened and as entries are pinned or unpinned.
+void DmsRecentFileEntry::setMenuIndex(size_t index) {
     m_index = index;
 
     std::string preprending_spaces = index < 9 ? "   &" : "  ";
-    std::string menu_text = preprending_spaces + std::to_string(index + 1) + ". " + std::string(ConvertDosFileName(dms_file_full_path).c_str());
+    std::string menu_text = preprending_spaces + std::to_string(index + 1) + ". " + std::string(ConvertDosFileName(m_cfg_file_path).c_str());
     setText(menu_text.c_str());
 }
 
 void DmsRecentFileEntry::showRecentFileContextMenu(QPoint pos) {
     auto main_window = MainWindow::TheOne();
     
-    std::unique_ptr<QMenu> recent_file_context_menu = std::make_unique<QMenu>();
-    std::unique_ptr<QAction> pin_action = std::make_unique<QAction>(QPixmap(":/res/images/TB_toggle_palette.bmp"), "pin", this);
-    std::unique_ptr<QAction> remove_action = std::make_unique<QAction>(QPixmap(":/res/images/EL_clear.bmp"), "remove", this);
-    pin_action->setDisabled(true);
-    recent_file_context_menu->addAction(pin_action.get());
-    recent_file_context_menu->addAction(remove_action.get());
-
-
+    // Resolve the entry the cursor is on before building the menu: the pin item is labelled after
+    // that entry's state, and it is the entry both actions must operate on.
     auto active_action = main_window->m_file_menu->activeAction();
     auto dms_recent_file_entry = dynamic_cast<DmsRecentFileEntry*>(active_action);
     if (!dms_recent_file_entry)
         return;
 
+    std::unique_ptr<QMenu> recent_file_context_menu = std::make_unique<QMenu>();
+    std::unique_ptr<QAction> pin_action = std::make_unique<QAction>(QPixmap(":/res/images/TB_toggle_palette.bmp"),
+        dms_recent_file_entry->m_is_pinned ? "unpin" : "pin", this);
+    std::unique_ptr<QAction> remove_action = std::make_unique<QAction>(QPixmap(":/res/images/EL_clear.bmp"), "remove", this);
+    recent_file_context_menu->addAction(pin_action.get());
+    recent_file_context_menu->addAction(remove_action.get());
+
+    connect(pin_action.get(), &QAction::triggered, dms_recent_file_entry, &DmsRecentFileEntry::onTogglePinRecentFileEntry);
     connect(remove_action.get(), &QAction::triggered, dms_recent_file_entry, &DmsRecentFileEntry::onDeleteRecentFileEntry);
     recent_file_context_menu->exec(pos);
 }
@@ -677,9 +687,18 @@ bool DmsRecentFileEntry::event(QEvent* e) {
 }
 
 void DmsRecentFileEntry::onDeleteRecentFileEntry() const {
+    // m_index is fixed at construction and goes stale as soon as the list is reordered, but
+    // every path that reorders it ends in updateFileMenu(), which destroys and rebuilds all
+    // entries -- so it is accurate whenever this menu is on screen.
     auto main_window = MainWindow::TheOne();
     main_window->m_file_menu->close();
     main_window->removeRecentFileAtIndex(m_index);
+}
+
+void DmsRecentFileEntry::onTogglePinRecentFileEntry() const {
+    auto main_window = MainWindow::TheOne();
+    main_window->m_file_menu->close();
+    main_window->togglePinAtIndex(m_index);
 }
 
 void DmsRecentFileEntry::onFileEntryPressed() const {
@@ -1262,16 +1281,40 @@ bool MainWindow::CloseConfig() {
     return has_active_dms_views;
 }
 
-auto configIsInRecentFiles(WeakStr cfg, const std::vector<SharedStr>& files) -> Int32 
+// A recent-files entry is stored in exactly one form: '/' separators, as ConvertDosFileName
+// produces (it also prefixes //SYSTEM/path with 'file:'), and on Windows lower-cased because
+// the filesystem is case-insensitive there. Without a single stored form, one config reached
+// along two spellings -- 'c:/dir/main.dms' and 'c:\Dir\Main.dms' -- lands in the list twice
+// and no comparison can collapse the pair again; the menu even renders the two identically,
+// since the label is built with ConvertDosFileName (#1034).
+//
+// The fold goes through QString rather than std::tolower over the bytes: tolower(char) is UB
+// for the negative bytes of a UTF-8 path and folding those bytes one at a time corrupts the
+// multi-byte sequence (cf. #1101), while an ASCII-only fold would leave case variants of a
+// non-ASCII path as separate entries even though NTFS resolves them to one file.
+SharedStr CanonicalConfigPath(WeakStr path)
 {
-//    std::string cfg_name = cfg.data();
+    auto result = ConvertDosFileName(path);
+#ifdef _WIN32
+    auto lowered = QString::fromUtf8(result.c_str(), result.ssize()).toLower().toUtf8();
+    result = SharedStr(CharPtrRange(lowered.constData(), lowered.constData() + lowered.size()));
+#endif
+    return result;
+}
+
+// Index of cfg in the menu list, or -1. Searches m_recent_file_entries rather than the registry
+// value: the result is used to move() within that very list, so reading it from the other
+// container is only right for as long as the two happen to stay in lock-step.
+auto configIsInRecentFiles(WeakStr cfg, const QList<DmsRecentFileEntry*>& entries) -> Int32
+{
+    auto canonical_cfg = CanonicalConfigPath(cfg);
     Int32 pos = 0;
-    for (auto& recent_file : files) {
-        if (recent_file == cfg)
+    for (auto* recent_file_entry : entries) {
+        if (recent_file_entry && CanonicalConfigPath(recent_file_entry->m_cfg_file_path) == canonical_cfg)
             return pos;
         pos++;
     }
-    
+
     return -1;
 }
 
@@ -1282,6 +1325,13 @@ void MainWindow::cleanRecentFilesThatDoNotExistOrListedBefore()
     auto recent_files_from_registry = GetGeoDmsRegKeyMultiString(dms_params::reg_key_RecentFiles);
     for (auto it_rf = recent_files_from_registry.begin(); it_rf != recent_files_from_registry.end();) 
     {
+        // Rewrite to the canonical form before the duplicate test, so that entries left behind
+        // by GeoDMS versions which stored the raw Windows path collapse onto their canonical
+        // twin instead of shadowing it forever (#1034). This migrates the stored value as well:
+        // the list is written back below, and this runs on every File-menu open.
+        if (!it_rf->empty())
+            *it_rf = CanonicalConfigPath(*it_rf);
+
 		// see if we can keep this file in the recent files list
         if (!it_rf->empty() && !listedFiles.contains(*it_rf))
         {
@@ -1344,12 +1394,49 @@ void MainWindow::saveRecentFileActionToRegistry() {
     SetGeoDmsRegKeyMultiString("RecentFiles", recent_files_as_std_strings);
 }
 
+void MainWindow::savePinnedFilesToRegistry() {
+    std::vector<SharedStr> pinned_files;
+    for (auto* recent_file_entry : m_recent_file_entries)
+        if (recent_file_entry && recent_file_entry->m_is_pinned)
+            pinned_files.emplace_back(recent_file_entry->m_cfg_file_path);
+    SetGeoDmsRegKeyMultiString(dms_params::reg_key_PinnedFiles, pinned_files);
+}
+
+void MainWindow::togglePinAtIndex(size_t index) {
+    if (size_t(m_recent_file_entries.size()) <= index)
+        return;
+    auto* recent_file_entry = m_recent_file_entries.at(index);
+    if (!recent_file_entry)
+        return;
+
+    recent_file_entry->m_is_pinned = !recent_file_entry->m_is_pinned;
+    savePinnedFilesToRegistry();
+
+    // Deliberately no updateFileMenu() here: it deletes every entry, including the one whose slot
+    // is running. The File menu was closed just above, so the next aboutToShow rebuilds it with
+    // this entry in its new block.
+}
+
 void MainWindow::insertCurrentConfigInRecentFiles(WeakStr cfg) {
-    auto cfg_index_in_recent_files = configIsInRecentFiles(cfg, GetGeoDmsRegKeyMultiString("RecentFiles"));
+    auto cfg_index_in_recent_files = configIsInRecentFiles(cfg, m_recent_file_entries);
     if (cfg_index_in_recent_files == -1)
         cfg_index_in_recent_files = addRecentFilesEntry(cfg);
 
-     m_recent_file_entries.move(cfg_index_in_recent_files, 0);
+    // QList::move is undefined for an out-of-range index; a list that somehow went out of step
+    // should leave the order alone for updateFileMenu() to rebuild, not corrupt the menu.
+    if (cfg_index_in_recent_files >= 0 && cfg_index_in_recent_files < m_recent_file_entries.size()) {
+        // Most-recently-used goes to the front of its own block: a pinned configuration stays
+        // inside the pinned block, an unpinned one never jumps above it.
+        auto* opened_entry = m_recent_file_entries.at(cfg_index_in_recent_files);
+        Int32 target_index = 0;
+        if (opened_entry && !opened_entry->m_is_pinned)
+            while (target_index < m_recent_file_entries.size()
+                && m_recent_file_entries.at(target_index)
+                && m_recent_file_entries.at(target_index)->m_is_pinned)
+                ++target_index;
+
+        m_recent_file_entries.move(cfg_index_in_recent_files, target_index);
+    }
 
     saveRecentFileActionToRegistry();
     updateFileMenu();
@@ -1392,11 +1479,7 @@ bool MainWindow::LoadConfigImpl(CharPtr configFilePath) {
 
         m_root = make_shared_tree(newRoot, existing_obj{});
         if (m_root) {
-            SharedStr configFilePathStr = DelimitedConcat(ConvertDosFileName(GetCurrentDir()), ConvertDosFileName(m_currConfigFileName));
-#ifdef _WIN32
-            for (auto& ch : configFilePathStr)
-                ch = std::tolower(ch);
-#endif
+            SharedStr configFilePathStr = CanonicalConfigPath(DelimitedConcat(ConvertDosFileName(GetCurrentDir()), ConvertDosFileName(m_currConfigFileName)));
 
             insertCurrentConfigInRecentFiles(configFilePathStr);
             SetGeoDmsRegKeyString("LastConfigFile", configFilePathStr.c_str());
@@ -1433,6 +1516,70 @@ void MainWindow::OnViewAction(const TreeItem* tiContext, CharPtr sAction, Int32 
 {
     assert(IsMainThread());
     MainWindow::TheOne()->doViewAction(const_cast<TreeItem*>(tiContext), sAction);
+}
+
+// issue #859: the colour picker for a palette entry, registered into Shv.dll, which links
+// Qt core+gui without widgets and therefore cannot open a QColorDialog itself.
+//
+// DmsColor keeps *transparency* in its high byte (0 = opaque, 0xFF = fully transparent),
+// which is the complement of a QColor alpha, and fully transparent is the DmsTransparent
+// sentinel exactly, because the drawing code recognises transparency by that value.
+//
+// Only those two states render: every consumer of a palette colour either compares against
+// that sentinel or CheckColor()s the value, which requires an all-zero high byte. The alpha
+// slider is still shown, since it is how one asks a QColorDialog for transparency, but a
+// partial alpha is snapped to the nearest state that can be honoured, with a warning saying
+// so. Making a partial alpha render is a drawing-layer change -- GdiDrawContext blends only
+// in FillRect, not in DrawPolygon / DrawPolyline / TextOut -- and belongs in its own issue.
+bool MainWindow::OnChooseColor(DmsColor* rgb, DmsColor* custColors, UInt32 nrCustColors, void* parentWindowHandle)
+{
+    assert(IsMainThread());
+    assert(rgb);
+
+    QWidget* parent = nullptr;
+#if defined(_WIN32)
+    if (parentWindowHandle)
+        parent = QWidget::find(reinterpret_cast<WId>(parentWindowHandle));
+#endif
+    if (!parent)
+        parent = MainWindow::TheOne();
+
+    // The custom slots are owned by the DataView; QColorDialog keeps its own static set,
+    // so seed it on the way in and hand the edits back on the way out.
+    UInt32 nrSharedCustColors = Min<UInt32>(nrCustColors, UInt32(QColorDialog::customCount()));
+    for (UInt32 i = 0; i != nrSharedCustColors; ++i)
+        QColorDialog::setCustomColor(i, QColor(GetRed(custColors[i]), GetGreen(custColors[i]), GetBlue(custColors[i])));
+
+    QColor initialColor(GetRed(*rgb), GetGreen(*rgb), GetBlue(*rgb), 255 - GetTrans(*rgb));
+    auto pickedColor = QColorDialog::getColor(initialColor, parent, QObject::tr("Select Color")
+        , QColorDialog::ShowAlphaChannel); // issue #859: transparency must be asked for explicitly
+
+    for (UInt32 i = 0; i != nrSharedCustColors; ++i)
+    {
+        auto custColor = QColorDialog::customColor(i);
+        custColors[i] = CombineRGB(custColor.red(), custColor.green(), custColor.blue());
+    }
+
+    if (!pickedColor.isValid())
+        return false; // cancelled
+
+    auto pickedAlpha = pickedColor.alpha();
+    if (pickedAlpha != 0 && pickedAlpha != 255)
+    {
+        bool keepOpaque = (pickedAlpha >= 128);
+        reportF(MsgCategory::commands, SeverityTypeID::ST_Warning
+            , "Select Color: {}% opacity is not (yet) drawn; the colour is stored as {}. "
+              "Only fully opaque and fully transparent are rendered."
+            , (pickedAlpha * 100 + 127) / 255
+            , keepOpaque ? "opaque" : "transparent"
+        );
+        pickedAlpha = keepOpaque ? 255 : 0;
+    }
+
+    *rgb = pickedAlpha
+        ? CombineRGB(pickedColor.red(), pickedColor.green(), pickedColor.blue())
+        : DmsTransparent;
+    return true;
 }
 
 void MainWindow::showStatisticsDirectly(const TreeItem* tiContext) {
@@ -1580,16 +1727,11 @@ void MainWindow::hideDetailPagesRadioButtonWidgets(bool hide_properties_buttons,
 
 Int32 MainWindow::addRecentFilesEntry(WeakStr recent_file) 
 {
+    // Only registered here; layoutRecentFileMenuEntries() decides where in the File menu it goes,
+    // renumbers it, and installs its event filter.
     auto index = m_recent_file_entries.size();
-    std::string preprending_spaces = index < 9 ? "   &" : "  ";
-    std::string pushbutton_text = preprending_spaces + std::to_string(index + 1) + ". " + std::string(ConvertDosFileName(recent_file).c_str());
     DmsRecentFileEntry* new_recent_file_entry = new DmsRecentFileEntry(index, recent_file, this);
 
-    m_file_menu->addAction(new_recent_file_entry);
-
-    for (auto action_object_pointer : new_recent_file_entry->associatedObjects()) {
-       action_object_pointer->installEventFilter(new_recent_file_entry);
-    }
     Int32 cfg_index = m_recent_file_entries.size();
     m_recent_file_entries.push_back(new_recent_file_entry);
 
@@ -1887,6 +2029,7 @@ void MainWindow::setupDmsCallbacks() {
     DMS_RegisterMsgCallback(&geoDMSMessage, this);
     DMS_SetContextNotification(&geoDMSContextMessage, this);
     SHV_SetCreateViewActionFunc(&OnViewAction);
+    SHV_SetChooseColorFunc(&OnChooseColor); // issue #859
     DMS_RegisterStateChangeNotification(AnyTreeItemStateHasChanged, this);
     register_overlapping_periods_callback(OnStartWaiting, OnEndWaiting, this);
 }
@@ -1895,8 +2038,45 @@ void MainWindow::cleanupDmsCallbacks() {
     unregister_overlapping_periods_callback(OnStartWaiting, OnEndWaiting, this);
     DMS_ReleaseStateChangeNotification(AnyTreeItemStateHasChanged, this);
     DMS_SetContextNotification(nullptr, nullptr);
+    SHV_SetChooseColorFunc(nullptr);
     SHV_SetCreateViewActionFunc(nullptr);
     DMS_ReleaseMsgCallback(&geoDMSMessage, this);
+}
+
+// Pinned configurations form their own numbered block at the top of the File menu, separated from
+// the merely-recent ones. The QList itself is ordered (not just the menu), so that the list, the
+// menu and the RecentFiles registry value stay in one order -- which is what the index-based
+// move() in insertCurrentConfigInRecentFiles and removeRecentFileAtIndex() assume.
+void MainWindow::layoutRecentFileMenuEntries() {
+    std::stable_partition(m_recent_file_entries.begin(), m_recent_file_entries.end(),
+        [](const DmsRecentFileEntry* entry) { return entry && entry->m_is_pinned; });
+
+    if (m_recent_files_separator) {
+        m_file_menu->removeAction(m_recent_files_separator);
+        delete m_recent_files_separator;
+    }
+
+    size_t index = 0;
+    bool previous_was_pinned = false;
+    for (auto* recent_file_entry : m_recent_file_entries) {
+        if (!recent_file_entry)
+            continue;
+
+        if (previous_was_pinned && !recent_file_entry->m_is_pinned)
+            m_recent_files_separator = m_file_menu->addSeparator();
+        previous_was_pinned = recent_file_entry->m_is_pinned;
+
+        recent_file_entry->setMenuIndex(index++);
+        recent_file_entry->setIcon(recent_file_entry->m_is_pinned
+            ? QIcon(QPixmap(":/res/images/TB_toggle_palette.bmp"))
+            : QIcon());
+        m_file_menu->addAction(recent_file_entry);
+
+        // associatedObjects() is only populated once the action belongs to a menu, and this filter
+        // is what turns a right-click on the entry into its context menu.
+        for (auto* action_object_pointer : recent_file_entry->associatedObjects())
+            action_object_pointer->installEventFilter(recent_file_entry);
+    }
 }
 
 void MainWindow::updateFileMenu() {
@@ -1906,10 +2086,21 @@ void MainWindow::updateFileMenu() {
     }
     m_recent_file_entries.clear();
     cleanRecentFilesThatDoNotExistOrListedBefore();
-    auto recent_files_from_registry = GetGeoDmsRegKeyMultiString("RecentFiles"); 
+    auto recent_files_from_registry = GetGeoDmsRegKeyMultiString(dms_params::reg_key_RecentFiles);
 
     for (const auto& recent_file : recent_files_from_registry)
         addRecentFilesEntry(recent_file);
+
+    // Which of them are pinned. Matched canonically, so that a PinnedFiles entry written before
+    // #1034 canonicalised the stored form still recognises its configuration.
+    std::set<SharedStr> pinned_files;
+    for (const auto& pinned_file : GetGeoDmsRegKeyMultiString(dms_params::reg_key_PinnedFiles))
+        pinned_files.insert(CanonicalConfigPath(pinned_file));
+    for (auto* recent_file_entry : m_recent_file_entries)
+        if (recent_file_entry)
+            recent_file_entry->m_is_pinned = pinned_files.contains(CanonicalConfigPath(recent_file_entry->m_cfg_file_path));
+
+    layoutRecentFileMenuEntries();
 
     // Reopen stands for two things: reload what is loaded, or -- with nothing loaded, the default
     // startup state since #1162 -- open the last configuration. Say which one it will do, and grey

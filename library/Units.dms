@@ -15,7 +15,7 @@ container Units
 	unit<Float64> s         := BaseUnit('s', Float64), Label = "second", Descr = "SI base unit for time: second";
 	unit<Float64> min       := 60 * s;
 	unit<Float64> hour      := 60 * min;
-	unit<Float64> day       := 24 * uur;
+	unit<Float64> day       := 24 * hour;
 	unit<Float64> year      := BaseUnit('yr', Float64);
 	unit<Float64> month     := (1.0/12.0) * year;
 	unit<Float64> annually  := 1.0 / year;
@@ -23,7 +23,7 @@ container Units
 	unit<Float64> J         := BaseUnit('J', Float64), Label = "Joule", Descr = "kg * m^2 * s^-2";
 	unit<Float64> kJ        := 1000 * J;
 	unit<Float64> MJ        := 1000 * kJ;
-	unit<Float64> MJ_yr     := MJ / yr;
+	unit<Float64> MJ_yr     := MJ / year;
 	unit<Float64> GJ        := 1000 * MJ;
 	unit<Float64> PJ        := 1000000 * GJ;
 	unit<Float64> W         := J / s, Label = "Watt";
@@ -40,7 +40,7 @@ container Units
 	
 	unit<Float64> mol       := BaseUnit('mol', Float64), Label = "mole", Descr = "SI unit for amount of substance: mole";
 	unit<Float64> mol_ha    := mol / ha;
-	unit<Float64> mol_ha_yr := mol_ha / yr;
+	unit<Float64> mol_ha_yr := mol_ha / year;
 
 	unit<Float64> m_s       := meter  / s;
 	unit<Float64> km_hr     := km / hour;

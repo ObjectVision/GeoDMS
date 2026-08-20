@@ -48,16 +48,17 @@ void MovableObject::SetBorder(bool hasBorder)
 {
 	if (hasBorder == HasBorder())
 		return;
+	auto borderSize = GetBorderLogicalWidth(); // issue #828: not always BORDERSIZE
 	auto owner = GetOwner().lock();
 	if (hasBorder)
 	{
 		CrdPoint bottRight = m_RelPos + Convert<CrdPoint>(m_ClientLogicalSize);
 		if (owner)
 		{
-			owner->GrowHor(BORDERSIZE*2, bottRight.X(), this);
-			owner->GrowVer(BORDERSIZE*2, bottRight.Y(), this);
+			owner->GrowHor(borderSize*2, bottRight.X(), this);
+			owner->GrowVer(borderSize*2, bottRight.Y(), this);
 		}
-		MoveTo(m_RelPos + Point<CrdType>(  BORDERSIZE,   BORDERSIZE));
+		MoveTo(m_RelPos + Point<CrdType>(  borderSize,   borderSize));
 
 		assert(m_ClientLogicalSize.X() >= 0);
 		assert(m_ClientLogicalSize.Y() >= 0);
@@ -66,12 +67,12 @@ void MovableObject::SetBorder(bool hasBorder)
 	else
 	{
 		m_State.Clear(MOF_HasBorder);
-		MoveTo(m_RelPos - Point<CrdType>(  BORDERSIZE,   BORDERSIZE));
-		auto bottRight = m_RelPos + Convert<CrdPoint>(m_ClientLogicalSize) + Point<CrdType>(2*BORDERSIZE, 2*BORDERSIZE);
+		MoveTo(m_RelPos - Point<CrdType>(  borderSize,   borderSize));
+		auto bottRight = m_RelPos + Convert<CrdPoint>(m_ClientLogicalSize) + Point<CrdType>(2*borderSize, 2*borderSize);
 		if (owner)
 		{
-			owner->GrowHor(-BORDERSIZE*2, bottRight.X(), this);
-			owner->GrowVer(-BORDERSIZE*2, bottRight.Y(), this);
+			owner->GrowHor(-borderSize*2, bottRight.X(), this);
+			owner->GrowVer(-borderSize*2, bottRight.Y(), this);
 		}
 	}
 }
@@ -90,8 +91,8 @@ void MovableObject::SetRevBorder(bool revBorder)
 	if (dv->GetViewHost())
 	{
 		Region rgn(gExtents);
-		dv->GetViewHost()->VH_DrawInContext(rgn, [&](DrawContext& dc) {
-			dc.DrawBorder(gExtents, revBorder);
+		dv->GetViewHost()->VH_DrawInContext(rgn, [&, nrRings = int(GetBorderLogicalWidth())](DrawContext& dc) {
+			dc.DrawBorder(gExtents, revBorder, nrRings);
 		});
 	}
 }
@@ -129,15 +130,17 @@ void MovableObject::SetDisconnected()
 
 CrdRect MovableObject::GetBorderLogicalExtents() const
 {
+	auto borderSize = GetBorderLogicalWidth();
 	return (HasBorder())
-		?	CrdRect(Point<CrdType>(-BORDERSIZE, -BORDERSIZE), Point<CrdType>(BORDERSIZE, BORDERSIZE))
+		?	CrdRect(Point<CrdType>(-borderSize, -borderSize), Point<CrdType>(borderSize, borderSize))
 		:	CrdRect(Point<CrdType>(0, 0), Point<CrdType>(0, 0));
 }
 
 CrdPoint MovableObject::GetBorderLogicalSize() const
 {
+	auto borderSize = GetBorderLogicalWidth();
 	return (HasBorder())
-		? Point<CrdType>(2*BORDERSIZE, 2*BORDERSIZE)
+		? Point<CrdType>(2*borderSize, 2*borderSize)
 		: Point<CrdType>(0, 0);
 }
 
@@ -226,7 +229,7 @@ void MovableObject::SetClientRect(CrdRect r)
 void MovableObject::SetFullRelRect(CrdRect r)
 {
 	if (HasBorder())
-		r = Deflate(r, CrdPoint(BORDERSIZE, BORDERSIZE));
+		r = Deflate(r, CrdPoint(GetBorderLogicalWidth(), GetBorderLogicalWidth()));
 	if (!r.empty())
 		SetClientRect(r);
 }

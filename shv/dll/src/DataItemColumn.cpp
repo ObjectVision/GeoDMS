@@ -1407,53 +1407,31 @@ std::weak_ptr<const TableControl> DataItemColumn::GetTableControl() const
 
 std::atomic<UInt32> s_ChooseColorDialogCount = 0;
 
-#ifdef _WIN32
+// issue #859: the picker itself is a QColorDialog registered by the Qt GUI through
+// SHV_SetChooseColorFunc; this module cannot open it, since it links Qt core+gui without
+// widgets. The DataView keeps owning the 16 custom-colour slots the dialog edits, as it did
+// when this was a CHOOSECOLOR common control.
 static bool ChooseColorDialog(DmsColor& rgb, DataView* dv)
 {
-	dms_assert(dv);
+	assert(dv);
 
-	HWND hParent = dv->GetHWnd();
+	if (!g_ChooseColorFunc)
+		return false;
+
 	if (s_ChooseColorDialogCount)
 		return false;
 	StaticMtIncrementalLock<s_ChooseColorDialogCount> dialogLock;
 
-	static_assert(nrPaletteColors >= 16);
-
-	COLORREF custColors[16] = {}; // array with static initialization enables users to change the custom colors
-	for (UInt32 i = 0; i != 16; ++i)
-		custColors[i] = DmsColor2COLORREF(dv->m_ColorPalette[i]);
-
-	CHOOSECOLOR colorData = { 
-		/*lStructSize    : */ sizeof(CHOOSECOLOR),
-		/*hwndOwner      : */ 0,
-		/*hInstance      = */ 0, // ignored unless CC_ENABLETEMPLATEHANDLE or CC_ENABLETEMPLATE is set,
-		/*rgbResult      = */ 0,
-		/*lpCustColors   = */ custColors,
-		/*Flags          = */ CC_ANYCOLOR|CC_RGBINIT|CC_FULLOPEN,
-		/*lCustData      = */ 0, // ignored unless CC_ENABLEHOOK is set
-		/*lpfnHook       = */ 0, // ignored unless CC_ENABLEHOOK is set
-		/*lpTemplateName = */ 0, // ignored unless CC_ENABLETEMPLATE is set
-	};
-	colorData.hwndOwner = hParent;
-
 	IdleTimer idleProcessingProvider;
 
-	colorData.rgbResult = DmsColor2COLORREF(rgb);
-	bool result = ChooseColor(&colorData);
-	if (result)
-		rgb = COLORREF2DmsColor(colorData.rgbResult);
-
-	// store edited custom colors
-	for (UInt32 i = 0; i != 16; ++i)
-		dv->m_ColorPalette[i] = COLORREF2DmsColor(custColors[i]);
-	return result;
-}
+#ifdef _WIN32
+	void* parentWindowHandle = dv->GetHWnd();
 #else
-static bool ChooseColorDialog(DmsColor& /*rgb*/, DataView* /*dv*/)
-{
-	return false; // TODO: implement with QColorDialog
-}
+	void* parentWindowHandle = nullptr;
 #endif
+
+	return (*g_ChooseColorFunc)(&rgb, dv->m_ColorPalette, nrPaletteColors, parentWindowHandle);
+}
 
 void DataItemColumn::SetActive(bool newState)
 {

@@ -1,0 +1,73 @@
+// issue #1031: prelude.dms is the only .dms the setup packages (nsi/DmsSetupScript.nsh), and it is
+// auto-imported under every config root, so every test exercises its *parse*. Its definitions are a
+// different matter: of the 43 functions in it, 33 are called somewhere under testcases/ (mostly by
+// fn_test_prelude, fn_test_autoprelude, fn_test_wp45t3 and fn_test_variadic) and these 10 were not
+// called anywhere:
+//
+//     Label, STORAGE, EK, ll1,
+//     lt_or_lhs_null, gt_or_lhs_null, ge_or_lhs_null,
+//     lt_or_rhs_null, gt_or_rhs_null, ge_or_rhs_null
+//
+// This config covers exactly those, so the bundled file is exercised end to end.
+container prelude_coverage
+{
+	// NO #include: the prelude is auto-imported under the config root, as in fn_test_autoprelude
+
+	// ---------------------------------------------------------------- property accessors
+	// These read the CONFIG item's metadata, so the properties only have to be configured --
+	// nothing is opened, and StorageName need not exist.
+	unit<uint32> Road : nrofrows = 4
+	,	Label = "Road segments"
+	{
+		attribute<float64> a : [  1.0,  null,  3.0,  null ];
+		attribute<float64> b : [  2.0,   2.0, null,  null ];
+	}
+
+	unit<uint32> Stored
+	:	StorageName     = "%LocalDataDir%/prelude_coverage_never_opened.dbf"
+	,	StorageReadOnly = "True"
+	,	NrOfRows        = 0
+	;
+
+	parameter<string> p_label   := Label(Road);      // "Road segments"
+	parameter<string> p_storage := STORAGE(Stored);  // the configured StorageName, %-expanded
+
+	// EK reads the 'ExternalKeyData' property. Note that this is NOT a property a configuration
+	// can set -- `ExternalKeyData = "..."` is rejected with "Unknown property 'ExternalKeyData'";
+	// the name exists as a SUB-ITEM name, which is how shv/dll/src/LayerInfo.cpp looks it up. So
+	// all this can pin is that the accessor resolves and yields a defined string.
+	parameter<string> p_ek      := EK(Road/a);
+
+	// ---------------------------------------------------------------- logit: ll1
+	// ll1(lc, xc, oc) = (oc*log(xc) - log(lc)) + ((lc-oc)*log(lc-xc) - log(lc))
+	parameter<float64> t_ll1      := ll1(4.0, 1.0, 2.0);
+	parameter<float64> t_ll1_expl := (2.0 * log(1.0) - log(4.0)) + ((4.0 - 2.0) * log(4.0 - 1.0) - log(4.0));
+
+	// ---------------------------------------------------------------- null-aware comparisons
+	// a = [1, null, 3, null], b = [2, 2, null, null]
+	attribute<bool> t_lt_l (Road) := lt_or_lhs_null(Road/a, Road/b);   // (a<b)  || (null a & b)   -> [T,T,F,F] = 2
+	attribute<bool> t_gt_l (Road) := gt_or_lhs_null(Road/a, Road/b);   // (a>b)  || (null a & b)   -> [F,T,F,F] = 1
+	attribute<bool> t_ge_l (Road) := ge_or_lhs_null(Road/a, Road/b);   // (a>=b) || null a         -> [F,T,F,T] = 2
+	// note the _or_rhs_null forms mirror by swapping the operands, not by flipping the operator:
+	// ge_or_rhs_null is "a >= b, or b is null", spelled (b <= a) || IsNull(b)
+	attribute<bool> t_lt_r (Road) := lt_or_rhs_null(Road/a, Road/b);   // (b>a)  || (null b & a)   -> [T,F,T,F] = 2
+	attribute<bool> t_gt_r (Road) := gt_or_rhs_null(Road/a, Road/b);   // (b<a)  || (null b & a)   -> [F,F,T,F] = 1
+	attribute<bool> t_ge_r (Road) := ge_or_rhs_null(Road/a, Road/b);   // (b<=a) || null b         -> [F,F,T,T] = 2
+
+	container checks
+	{
+		parameter<bool> c_label    := p_label == 'Road segments',   IntegrityCheck = "c_label == True";
+		parameter<bool> c_storage  := strpos(p_storage, 'prelude_coverage_never_opened.dbf') >= 0,
+		                                                            IntegrityCheck = "c_storage == True";
+		parameter<bool> c_ek       := IsDefined(p_ek),               IntegrityCheck = "c_ek == True";
+
+		parameter<float64> c_ll1   := abs(t_ll1 - t_ll1_expl),       IntegrityCheck = "c_ll1 < 1e-12";
+
+		parameter<uint32> c_lt_l   := sum(uint32(t_lt_l)),           IntegrityCheck = "c_lt_l == 2";
+		parameter<uint32> c_gt_l   := sum(uint32(t_gt_l)),           IntegrityCheck = "c_gt_l == 1";
+		parameter<uint32> c_ge_l   := sum(uint32(t_ge_l)),           IntegrityCheck = "c_ge_l == 2";
+		parameter<uint32> c_lt_r   := sum(uint32(t_lt_r)),           IntegrityCheck = "c_lt_r == 2";
+		parameter<uint32> c_gt_r   := sum(uint32(t_gt_r)),           IntegrityCheck = "c_gt_r == 1";
+		parameter<uint32> c_ge_r   := sum(uint32(t_ge_r)),           IntegrityCheck = "c_ge_r == 2";
+	}
+}
