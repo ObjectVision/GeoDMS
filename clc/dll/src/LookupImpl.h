@@ -332,6 +332,12 @@ public:
 };
 
 // ---- shared operator groups (single instance across all lookup*.cpp) ----
+// Deliberately NOT SetCanExplainValue() (#612): a value-info page already explains every way a
+// lookup(index, values) element can end up null, through the generic mechanism alone. index shares
+// the result's domain, so its value at the explained row is shown; that value is a row of values'
+// domain, which the page then follows into values. A null index shows as a null there and the chain
+// correctly stops; an out-of-range one shows as <OutOfRange>; a null in values shows at the row
+// looked up. There is nothing left for the operator to add.
 inline CommonOperGroup cog_lookup(token::lookup);
 inline CommonOperGroup cog_collect_by_org_rel(token::collect_by_org_rel);
 

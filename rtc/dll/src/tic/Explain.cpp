@@ -72,7 +72,12 @@ namespace Explain { // local defs
 			: m_DataItem(dataItem)
 			, m_UltimateDomainUnit(AsUnit(dataItem->GetAbstrDomainUnit()->GetUltimateItem()))
 			, m_UltimateValuesUnit(AsUnit(dataItem->GetAbstrValuesUnit()->GetUltimateItem()))
-		{}
+		{
+			// AddIndex never grows beyond MaxNrEntries, so reserving here keeps the CoordinateType*
+			// that ProcessQueue hands to an explaining operator valid while that operator calls
+			// AddQueueEntry, which can add coordinates to this same explanation.
+			m_Coordinates.reserve(MaxNrEntries);
+		}
 		virtual ~AbstrCalcExplanation()
 		{
 			reportD(SeverityTypeID::ST_MinorTrace, "Byte");
@@ -408,6 +413,7 @@ namespace Explain { // local defs
 		auto GetExprLevel() -> arg_index {return m_ExprLevel;};
 		bool IsKnownDomain(const AbstrUnit* valuesUnit);
 		bool IsExplainable(const AbstrUnit* valuesUnit, SizeT index);
+		auto FindReason(const AbstrUnit* ultimateDomain, SizeT index) const -> SharedStr;
 		auto FindExpl(LispPtr key) -> const LispCalcExplanation*;
 		auto URL(const LispCalcExplanation* expl, SizeT recNo) -> SharedStr;
 
@@ -726,6 +732,23 @@ namespace Explain { // local defs
 		return result;
 	}
 
+	// #612: an explaining operator records its note on the coordinate of the *expression* that it
+	// implements. When that expression is the calculation rule of a configured item, its own
+	// explanation is not rendered (m_IsExprOfExistingItem), so the note has to be picked up from
+	// there when the item's value is shown.
+	auto CalcExplImpl::FindReason(const AbstrUnit* ultimateDomain, SizeT index) const -> SharedStr
+	{
+		for (const auto& expl : m_Expl)
+		{
+			if (expl->m_UltimateDomainUnit.lock().get() != ultimateDomain)
+				continue;
+			for (const auto& coordinate : expl->m_Coordinates)
+				if (coordinate.first == index && !coordinate.m_Reason.empty())
+					return coordinate.m_Reason;
+		}
+		return {};
+	}
+
 	auto CalcExplImpl::FindExpl(LispPtr key) -> const LispCalcExplanation*
 	{
 		for (const auto& expl : m_Expl)
@@ -907,6 +930,13 @@ namespace Explain { // local defs
 				XML_OutElement bold(stream, "B");
 				stream << val_str.c_str();
 			}
+
+			auto reason = m_Coordinates[0].m_Reason; // #612: why is the value what it is?
+			if (reason.empty())
+				reason = self->FindReason(m_UltimateDomainUnit.lock().get(), recno);
+			if (!reason.empty())
+				stream << " (" << reason.c_str() << ")";
+
 			stream << " of item: ";
 		}
 
@@ -1073,6 +1103,8 @@ namespace Explain { // local defs
 
 			const AbstrValue* valuesValue = m_Coordinates[i].second.get();
 			auto valStr = GetDisplayValueString(calculatingStr, valuesUnit, valuesValue, true, m_Interests.m_valuesLabel, MAX_TEXTOUT_SIZE, m_UnitLabelLocks.second);
+			if (!m_Coordinates[i].m_Reason.empty()) // #612
+				valStr = valStr + " (" + m_Coordinates[i].m_Reason.c_str() + ")";
 
 			if (n == 1 && isFirst)
 			{
@@ -1328,6 +1360,15 @@ namespace Explain
 		assert(domain);
 		//	dms_assert(explImpl == &Explain::g_CalcExplImpl); // single threading singleton hack.
 		explImpl->AddQueueEntry(domain, index);
+	}
+
+	void SetValueReason(Explain::Context* context, SharedStr reason)
+	{
+		if (!context || !context->m_Coordinate)
+			return;
+		if (!context->m_Coordinate->m_Reason.empty())
+			return; // an inner explanation was more specific; keep it
+		context->m_Coordinate->m_Reason = std::move(reason);
 	}
 
 	bool AttrValueToXML(Explain::CalcExplImpl* context, const AbstrDataItem* studyObject, OutStreamBase* xmlOutStrPtr, SizeT index, CharPtr extraInfo, bool bShowHidden)
