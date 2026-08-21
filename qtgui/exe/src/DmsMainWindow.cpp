@@ -686,19 +686,16 @@ bool DmsRecentFileEntry::event(QEvent* e) {
     return QAction::event(e);
 }
 
-void DmsRecentFileEntry::onDeleteRecentFileEntry() const {
-    // m_index is fixed at construction and goes stale as soon as the list is reordered, but
-    // every path that reorders it ends in updateFileMenu(), which destroys and rebuilds all
-    // entries -- so it is accurate whenever this menu is on screen.
-    auto main_window = MainWindow::TheOne();
-    main_window->m_file_menu->close();
-    main_window->removeRecentFileAtIndex(m_index);
+// Both of these deliberately leave the File menu open, so that a list that has grown long can be
+// tidied up in one visit instead of one visit per entry. That is only safe because neither one
+// destroys an entry or reorders the list: they act on this entry by pointer rather than by index,
+// so the positions the other entries still carry cannot go stale underneath them.
+void DmsRecentFileEntry::onDeleteRecentFileEntry() {
+    MainWindow::TheOne()->removeRecentFileEntry(this);
 }
 
-void DmsRecentFileEntry::onTogglePinRecentFileEntry() const {
-    auto main_window = MainWindow::TheOne();
-    main_window->m_file_menu->close();
-    main_window->togglePinAtIndex(m_index);
+void DmsRecentFileEntry::onTogglePinRecentFileEntry() {
+    MainWindow::TheOne()->togglePinOfEntry(this);
 }
 
 void DmsRecentFileEntry::onFileEntryPressed() const {
@@ -1363,24 +1360,30 @@ void MainWindow::cleanRecentFilesThatDoNotExistOrListedBefore()
     SetGeoDmsRegKeyMultiString("RecentFiles", recent_files_from_registry);
 }
 
-void MainWindow::removeRecentFileAtIndex(size_t index) {
-    assert(m_recent_file_entries.size() >= 0);
-    if (size_t(m_recent_file_entries.size()) <= index)
+// Renumbers the visible entries. Only their text changes, so this is safe while the File menu is
+// on screen -- unlike layoutRecentFileMenuEntries(), which also reorders and re-adds the actions.
+void MainWindow::renumberRecentFileEntries() {
+    size_t index = 0;
+    for (auto* recent_file_entry : m_recent_file_entries)
+        if (recent_file_entry)
+            recent_file_entry->setMenuIndex(index++);
+}
+
+void MainWindow::removeRecentFileEntry(DmsRecentFileEntry* entry) {
+    if (!entry)
+        return;
+    auto index = m_recent_file_entries.indexOf(entry);
+    if (index < 0)
         return;
 
-    auto menu_to_be_removed = m_recent_file_entries.at(index);
-    auto rf_action = dynamic_cast<DmsRecentFileEntry*>(menu_to_be_removed);
-    if (!rf_action)
-        return;
-
-    auto msgTxt = mySSPrintF("Remove {} from the list of recent files ?", rf_action->m_cfg_file_path);
-    if (QMessageBox::question(this, "Confirmation Request",
-            QString::fromStdString(std::string(msgTxt.c_str())),
-            QMessageBox::Yes | QMessageBox::No) == QMessageBox::Yes) {
-        m_file_menu->removeAction(menu_to_be_removed);
-        m_recent_file_entries.removeAt(index);
-        saveRecentFileActionToRegistry();
-    }
+    // No confirmation: this drops a path from a list, it does not touch the configuration, and
+    // the cost of an accidental removal is opening that file once more. A prompt for every entry
+    // made cleaning up a long list needlessly tedious.
+    m_file_menu->removeAction(entry);
+    m_recent_file_entries.removeAt(index);
+    m_recent_file_entries_to_discard.push_back(entry); // deleted by the next updateFileMenu()
+    saveRecentFileActionToRegistry();
+    renumberRecentFileEntries(); // keep the numbering contiguous without rebuilding the menu
 }
 
 void MainWindow::saveRecentFileActionToRegistry() {
@@ -1402,19 +1405,20 @@ void MainWindow::savePinnedFilesToRegistry() {
     SetGeoDmsRegKeyMultiString(dms_params::reg_key_PinnedFiles, pinned_files);
 }
 
-void MainWindow::togglePinAtIndex(size_t index) {
-    if (size_t(m_recent_file_entries.size()) <= index)
-        return;
-    auto* recent_file_entry = m_recent_file_entries.at(index);
-    if (!recent_file_entry)
+void MainWindow::togglePinOfEntry(DmsRecentFileEntry* recent_file_entry) {
+    if (!recent_file_entry || !m_recent_file_entries.contains(recent_file_entry))
         return;
 
     recent_file_entry->m_is_pinned = !recent_file_entry->m_is_pinned;
     savePinnedFilesToRegistry();
 
-    // Deliberately no updateFileMenu() here: it deletes every entry, including the one whose slot
-    // is running. The File menu was closed just above, so the next aboutToShow rebuilds it with
-    // this entry in its new block.
+    // Show the result straight away, because the entry does not move yet: only the icon changes
+    // while the menu is open. Deliberately no updateFileMenu() here -- it deletes every entry,
+    // including the one whose slot is running -- so the move into (or out of) the pinned block
+    // happens at the next aboutToShow, as it did before.
+    recent_file_entry->setIcon(recent_file_entry->m_is_pinned
+        ? QIcon(QPixmap(":/res/images/TB_toggle_palette.bmp"))
+        : QIcon());
 }
 
 void MainWindow::insertCurrentConfigInRecentFiles(WeakStr cfg) {
@@ -2046,7 +2050,7 @@ void MainWindow::cleanupDmsCallbacks() {
 // Pinned configurations form their own numbered block at the top of the File menu, separated from
 // the merely-recent ones. The QList itself is ordered (not just the menu), so that the list, the
 // menu and the RecentFiles registry value stay in one order -- which is what the index-based
-// move() in insertCurrentConfigInRecentFiles and removeRecentFileAtIndex() assume.
+// move() in insertCurrentConfigInRecentFiles assumes.
 void MainWindow::layoutRecentFileMenuEntries() {
     std::stable_partition(m_recent_file_entries.begin(), m_recent_file_entries.end(),
         [](const DmsRecentFileEntry* entry) { return entry && entry->m_is_pinned; });
@@ -2080,6 +2084,12 @@ void MainWindow::layoutRecentFileMenuEntries() {
 }
 
 void MainWindow::updateFileMenu() {
+    // Entries removed while the menu was open could not be deleted from their own slot; do it
+    // here, where no handler of theirs is on the stack.
+    for (auto* discarded_entry : m_recent_file_entries_to_discard)
+        delete discarded_entry;
+    m_recent_file_entries_to_discard.clear();
+
     for (auto recent_file_entry : m_recent_file_entries) {
         m_file_menu->removeAction(recent_file_entry);
         delete recent_file_entry;
