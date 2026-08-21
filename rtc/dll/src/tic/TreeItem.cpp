@@ -4038,7 +4038,6 @@ void TreeItem::DoInvalidate() const
 		m_ReadAssets.Clear();
 	ClearTSF(TSF_ReadAssetsInterestScoped); // keep the interest-scoped marker in sync with m_ReadAssets
 
-	m_State.Clear(ASF_WasLoaded);
 	m_StatusFlags.Clear(TSF_DataInMem);
 
 	ResetIntegrityCheckerMember();
@@ -4932,8 +4931,6 @@ bool TreeItem::CommitDataChanges() const
 		return true;
 	if (IsFailed())
 		return false;
-
-	MG_DEBUGCODE( assert(! Actor::m_State.Get(ASF_WasLoaded) ); )
 
 	auto storageHolder = GetStorageParent(true);
 	assert(storageHolder); // guaranteed by IsStorable();

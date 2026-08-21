@@ -741,7 +741,6 @@ struct RegDWordAttr
 RegDWordAttr s_RegDWordAttrs[] =
 {
 	{ "MemoryFlushThreshold", 80, false},
-	{ "SwapFileMinSize", 0, false },
     { "DrawingSizeInPixels", 0, false },
 	{ "MemoryMaxRAM_GB", 64, false }, // simulates a smaller machine; also throttles operation activation via IsLowOnFreeRAM
 	{ "PerformanceLogging", 0, false },
@@ -2862,7 +2861,6 @@ struct RegDWordAttr { CharPtr key; DWORD value; bool wasRead; };
 static RegDWordAttr s_RegDWordAttrs[] =
 {
 	{ "MemoryFlushThreshold", 80, false },
-	{ "SwapFileMinSize", 0, false },
 	{ "DrawingSizeInPixels", 0, false },
 	{ "MemoryMaxRAM_GB", 64, false }, // simulates a smaller machine; also throttles operation activation via IsLowOnFreeRAM
 	{ "PerformanceLogging", 0, false },

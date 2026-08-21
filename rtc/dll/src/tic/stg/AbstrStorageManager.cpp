@@ -8,8 +8,6 @@
 #pragma hdrstop
 #endif //defined(CC_PRAGMAHDRSTOP)
 
-#include <boost/config/helper_macros.hpp> // BOOST_STRINGIZE (needed by MSVC and GCC; boost/format no longer provides it transitively)
-
 #include <iostream> // DEBUG
 #include <chrono>
 
@@ -351,14 +349,6 @@ SharedStr GetConfigName(CharPtr configDir)
 	return GetConvertedConfigDirKeyString(configDir, "configName", getFileName(configDir));
 }
 
-SharedStr GetCalcCacheDir(CharPtr configDir)
-{
-	return GetConvertedConfigDirKeyString(configDir, "calcCacheDir", 
-		"%localDataProjDir%/CalcCache%platform%.v" 
-		BOOST_STRINGIZE( DMS_VERSION_MAJOR) "." BOOST_STRINGIZE( DMS_VERSION_MINOR) 
-	);
-}
-
 SharedStr GetLocalDataProjDir(CharPtr configDir)
 {
 	return GetConvertedConfigDirKeyString(configDir, "localDataProjDir", "%LocalDataDir%/%projName%");
@@ -385,7 +375,8 @@ SharedStr GetPlaceholderValue(CharPtr subDirName, CharPtr placeHolder, bool must
 	if (!stricmp(placeHolder, "projName"        )) return GetProjName(subDirName);
 	if (!stricmp(placeHolder, "projBase"        )) return GetProjBase(subDirName);
 	if (!stricmp(placeHolder, "localDataProjDir")) return GetLocalDataProjDir (subDirName);
-	if (!stricmp(placeHolder, "calcCacheDir"    )) return GetCalcCacheDir     (subDirName);
+	// %calcCacheDir% is gone with the CalcCache itself (retired in the 8.0 series); a config that
+	// still spells it now gets an unknown-placeholder error instead of a directory nothing reads.
 	if (!stricmp(placeHolder, "exeDir"          )) return GetExeDir();
 	if (!stricmp(placeHolder, "programFiles32"  )) return PlatformInfo::GetProgramFiles32();
 	if (!stricmp(placeHolder, "localDataDir"    )) return GetLocalDataDir();

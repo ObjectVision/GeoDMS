@@ -143,14 +143,16 @@ RTC_CALL bool IsInDebugMode();
 
 enum class RegDWordEnum
 {
+	// These are direct indices into s_RegDWordAttrs[] in utl/Environment.cpp, of which there are TWO
+	// parallel per-platform copies. Keep all three in lockstep when adding or removing an entry.
+	// (Slot 1 was SwapFileMinSize, the CalcCache spill threshold, retired with the CalcCache.)
 	MemoryFlushThreshold = 0,
-	SwapFileMinSize = 1,
-	DrawingSizeInPixels = 2,
-	MemoryRAM_MAX_GB = 3,
-	PerformanceLogging = 4,
-	ResourceAwareScheduling = 5, // 0 = off, 1 = shadow (log what would be refused), 2 = enforce
-	SchedulerBudgetMB = 6,       // 0 = derive from MemoryRAM_MAX_GB x MemoryFlushThreshold
-	MemoryDrainage = 7,          // 1 = give freed <2MB stores back once RAM use passes MemoryFlushThreshold (default), 0 = never
+	DrawingSizeInPixels = 1,
+	MemoryRAM_MAX_GB = 2,
+	PerformanceLogging = 3,
+	ResourceAwareScheduling = 4, // 0 = off, 1 = shadow (log what would be refused), 2 = enforce
+	SchedulerBudgetMB = 5,       // 0 = derive from MemoryRAM_MAX_GB x MemoryFlushThreshold
+	MemoryDrainage = 6,          // 1 = give freed <2MB stores back once RAM use passes MemoryFlushThreshold (default), 0 = never
 };
 
 // Resource-aware admission of operations (doc/development/schedule-with-lookahead.md §5.1).

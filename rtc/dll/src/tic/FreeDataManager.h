@@ -40,33 +40,13 @@ granted by an additional written contract for support, assistance and/or develop
 
 // ====================== Various Predicates
 
-TIC_CALL UInt32 GetSwapFileMinSize();
+// Below this size a data object is cheap enough to keep in memory rather than drop; see
+// AbstrDataItem::TryCleanupMemImpl.
 #define KEEPMEM_MAX_NR_BYTES          128
 
-UInt32 ElemSize(const ValueClass* vc);
-template <typename V>
-inline UInt32 ElemSize()
-{
-	return ElemSize(ValueWrap<V>::GetStaticClass());
-}
-
-
-UInt32 AbstrDataByteSize(const AbstrDataItem* adi);
+// Decides whether a cache item's tile file is persistent or temporary; see CreateFileData in
+// DataLocks.cpp. The IsFileable/IsFileableSize family that used to sit beside it selected
+// CalcCache candidates by size and was retired with the CalcCache in the 8.0 series.
 bool MustStorePersistent(const TreeItem* adi);
-//TIC_CALL bool IsFileableSize(const AbstrDataItem* adi, SizeT nrBytes);
-/* 
-inline bool IsFileable(const AbstrDataItem* adi)
-{
-	return IsFileableSize(adi,  AbstrDataByteSize(adi) );
-}
-
-template <typename V>
-inline bool IsFileable(const AbstrDataItem* adi, SizeT nrElem)
-{
-	dbg_assert(adi->CheckMetaInfoReadyOrPassor()); // PRECONDITION
-
-	return IsFileableSize(adi, ElemSize<V>() * nrElem);
-}
-*/
 
 #endif !defined(__TIC_FREEDATAMANAGER_H)

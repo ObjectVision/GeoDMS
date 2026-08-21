@@ -28,8 +28,11 @@
 
 static_assert(actor_flag_set::AF_Next == 0x4000);
 
-const UInt32 ASF_MakeCalculatorLock    = 0x0001 * actor_flag_set::AF_Next; 
-const UInt32 ASF_WasLoaded             = 0x0002 * actor_flag_set::AF_Next; // TODO G8.5 ? REMOVE AFTER CalcCache restoration
+const UInt32 ASF_MakeCalculatorLock    = 0x0001 * actor_flag_set::AF_Next;
+// 0x0002 * AF_Next was ASF_WasLoaded, marking an item restored from the CalcCache, the automatic
+// disk cache of the GeoDMS 7 series. That cache was retired with the 8.0 series and nothing has
+// set this flag since; see doc/development/g8-todos.md. Actor::m_State values are persisted on
+// some paths, so the bit is left documented rather than silently reused.
 const UInt32 ASF_GetStorageManagerLock = 0x0004 * actor_flag_set::AF_Next;
 
 const UInt32 ASF_GetCalcMetaInfo       = 0x0008 * actor_flag_set::AF_Next;
@@ -73,7 +76,7 @@ const TreeItemStatusFlags TSF_InTemplate                  = 0x00080000;
 
 const TreeItemStatusFlags TSF_Categorical                 = 0x00100000;
 const TreeItemStatusFlags TSF_LazyCalculated              = 0x00200000;
-const TreeItemStatusFlags TSF_StoreData                   = 0x00400000; // Also use CalcCache when data is below the data-size threshold
+const TreeItemStatusFlags TSF_StoreData                   = 0x00400000; // Make data persistent in the configured storage, also below the data-size threshold
 const TreeItemStatusFlags TSF_Depreciated                 = 0x00800000; // unallocated bit
 const TreeItemStatusFlags TSF_IsFunctionItem              = 0x01000000; // 'function' definition: template-like (body inert via TSF_In/IsTemplate) + typed telescope, designated result, strict scope
 

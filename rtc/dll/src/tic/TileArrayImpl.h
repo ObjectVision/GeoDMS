@@ -120,7 +120,8 @@ struct FileTileArray : GeneratedTileFunctor<V>
 
 	SharedStr m_CacheFileName;
 	files_t m_Files;
-	bool    m_IsTmp;
+	// No m_IsTmp here: the ctor hands isTmp straight to MappedFileHandle::OpenRw, which owns the
+	// delete-on-close semantics (see ser/FileMapHandle.h).
 };
 
 //----------------------------------------------------------------------
@@ -370,7 +371,6 @@ SizeT MinimalDatFileSize(const AbstrTileRangeData* trd)
 template <typename V>
 FileTileArray<V>::FileTileArray(const AbstrTileRangeData* trd, SharedStr filenameBase, dms_rw_mode rwMode, bool isTmp)
 	: m_CacheFileName(filenameBase)
-	, m_IsTmp(isTmp)
 {
 	this->m_TileRangeData = trd;
 	assert(!m_CacheFileName.empty());
