@@ -142,6 +142,11 @@ results in:
 
 const bool DMS_DEBUG_DISCRALLOC = MG_DEBUGCODE( true ||) false;
 
+// Which argument layout an operator instantiation takes. NOTE that the last two names describe
+// the ARGUMENTS, not the behaviour: FeasibilityTest always runs, for every version. What
+// ..._with_feasibility_test adds is an 11th argument, the feasibility certificate, registered
+// calc_never and never read -- it exists so a config can make that certificate a dependency of
+// the allocation.
 enum class discr_alloc_version
 {
 	no_partition,
@@ -190,35 +195,18 @@ using partitioning_id = UInt8;
 const land_unit_id NR_BELOW_THRESHOLD_NOTIFICATIONS = 5;
 
 // -----------------------------------------------------------------------------
-// shadow_price
+// shadow_price<S, P>
 // -----------------------------------------------------------------------------
-// A tiny value object used throughout the discrete allocation (HTP) algorithm
-// to represent a (possibly perturbed) shadow price or edge (facet) cost.
-// It inherits from Pair<S,P> to reuse arithmetic, comparison, and min/max
-// utilities already specialized for Pair.
+// A price -- or a facet cost -- carrying its Simulation-of-Simplicity perturbation alongside it:
+//   .first   the real value, in suitability units
+//   .second  the infinitesimal term, the epsilon coefficient derived in the file header
+// Pair's lexicographic comparison then reads "compare prices, and on a tie compare
+// perturbations", which is exactly the strict order the algorithm needs and the reason
+// degenerate (equal suitability) input does not stall it. Arithmetic is componentwise, so the
+// perturbations compose just as the epsilon algebra in the file header requires.
 //
-// Template parameters:
-//   S : numeric (usually integral) suitability / price component
-//   P : perturbation component type (defaults to perturbation_type = Int32)
-//
-// Rationale:
-//   The algorithm applies a Simulation-of-Simplicity style symbolic
-//   perturbation to break degeneracies (equal costs) deterministically.
-//   We store both:
-//     .first  -> the primary numeric cost/price
-//     .second -> the infinitesimal ordering term (epsilon * something)
-//   Comparisons between shadow_price objects (inherited from Pair) thus
-//   first compare the primary part, and only if equal, the perturbation.
-//   This guarantees strict weak ordering and avoids tie related ambiguity.
-//
-// Constructors:
-//   - (S,P) explicit value construction
-//   - from Pair<S,P> for seamless interop
-//   - default (value-initialized)
-//
-// NOTE:
-//   Keep this struct trivially copyable & lightweight: it is passed around
-//   in tight inner loops (priority queues, Dijkstra-like expansions).
+// Kept small and trivially copyable: it is passed by value throughout the facet queues and the
+// splitter search.
 // -----------------------------------------------------------------------------
 
 template <typename S, typename P = perturbation_type>
@@ -237,47 +225,20 @@ template <typename S> struct minmax_traits<shadow_price<S> > : minmax_traits< Pa
 // -----------------------------------------------------------------------------
 // claim<S>
 // -----------------------------------------------------------------------------
-// Represents the allocation state (current count + shadow price) for one
-// (land use type, region) combination (a "claim").
+// The allocation state of one (ggType, region) pair: how many land units it currently holds, and
+// the shadow price that steers land units towards or away from it. A solution of the whole
+// problem IS a set of shadow prices -- one per claim -- for which allocating every land unit to
+// its highest augmented suitability (S_ij + price_j) happens to respect all claim bounds.
 //
-// Fields:
-//   m_ggTypeID        : Index of the land use (ggType).
-//   m_RegionID        : Index of the (partitioning specific) region.
-//   m_ClaimRange      : Inclusive [min,max] claim bounds (min <= max expected).
-//   m_Count           : Current number of allocated land units (cells) to this claim.
-//   m_ShadowPrice     : Current shadow price (can become positive or negative).
-//   m_StartPrice      : Shadow price snapshot used for reporting deltas.
-//   m_FirstOutHeapID  : Head of singly linked list of outgoing facets (source in facet queues).
-//   m_FirstInpHeapID  : Head of singly linked list of incoming facets (target in facet queues).
-//
-//   Overflow():
-//      True if count already exceeds hard max OR
-//      (count > min AND shadowPrice > 0)
-//      Meaning: even if max not exceeded, a positive shadow price above min
-//      indicates economic pressure to release units.
-//
-//   AtMax():
-//      True if count >= max OR
-//      (count >= min AND shadowPrice > 0)
-//
-//   Underflow():
-//      True if count < min OR
-//      (count < max AND shadowPrice < 0)
-//      (Mirrors Overflow logic toward lower side.)
-//
-//   AtMin():
-//      True if count <= min OR
-//      (count <= max AND shadowPrice < 0)
-//
-//   IsOK():
-//      Intends to validate that the (count, shadowPrice) pair is internally
-//      consistent w.r.t. bounds. The expression relies on operator precedence.
-//      DO NOT refactor without adding explicit parentheses and revalidating.
-//      (Historically used by diagnostics; it tolerates boundary shadow price
-//       sign transitions at exact min / max.)
-//
-// NOTE:
-//   Behaviour changed; Parentheses inside IsOK intentionally changed
+//   m_ClaimRange      [min, max]. min > max is rejected by FeasibilityTest, not here, so the
+//                     predicates below do not assume min <= max.
+//   m_Count           land units currently allocated to this claim.
+//   m_ShadowPrice     the current price; positive means oversubscribed, negative undersubscribed.
+//   m_StartPrice      snapshot at the start of the scaling round, for reporting the adjustment.
+//   m_FirstOutHeapID  head of this claim's outgoing facets, m_FirstInpHeapID of its incoming
+//                     ones. Both are singly linked through priority_heap::m_NextOut/InpHeapID,
+//                     which is what lets htp_info_t double as the directed_graph over which
+//                     FindMstDown / FindMstUp search for a claim with room.
 // -----------------------------------------------------------------------------
 
 template <typename S>
@@ -299,13 +260,17 @@ struct claim
 	facet_id         m_FirstOutHeapID; // singly linked via facet array
 	facet_id         m_FirstInpHeapID; // singly linked via facet array
 
-	// See detailed semantics in header comment above.
+	// A claim is at its bound either because the count says so, or because the shadow price has
+	// already moved past zero within the slack between min and max -- price and count are two
+	// views of the same saturation. Overflow/Underflow are the strict forms of AtMax/AtMin.
 	bool Overflow ()  const { return m_Count >  m_ClaimRange.second || (m_Count >  m_ClaimRange.first  && m_ShadowPrice > shadow_price<S>()); }
 	bool AtMax    ()  const { return m_Count >= m_ClaimRange.second || (m_Count >= m_ClaimRange.first  && m_ShadowPrice > shadow_price<S>()); }
 	bool Underflow()  const { return m_Count <  m_ClaimRange.first  || (m_Count <  m_ClaimRange.second && m_ShadowPrice < shadow_price<S>()); }
 	bool AtMin    ()  const { return m_Count <= m_ClaimRange.first  || (m_Count <=  m_ClaimRange.second && m_ShadowPrice < shadow_price<S>()); }
 
-	// Caution: relies on && precedence over ||. Parentheses added at 09/09/2025
+	// IsOK() is exactly !Overflow() && !Underflow() written out: inside [min, max] a positive
+	// price is only admissible at min and a negative one only at max. The parentheses are load
+	// bearing -- de Morgan on the two || forms above is what turns them into these two.
 	bool IsOK     ()  const 
 	{ 
 		return 
@@ -317,77 +282,39 @@ struct claim
 };
 
 // ========================== priority_heap ===================================
-// The priority_heap models a min-heap (via std::push_heap/pop_heap with a
-// custom comparator) of candidate land units (cells) that can be reallocated
-// from one claim (source land use type in a particular region) to another
-// overlapping claim (target).
+// One facet: the directed pair (src claim, dst claim) of two claims that share land units and
+// differ in ggType. It holds the land units currently allocated to src that could move to dst,
+// ordered by the marginal cost of that move,
+//     cost(i) = S_src(i) - S_dst(i)
+// so that the front is always the cheapest land unit to give up. That is what makes deciding a
+// reallocation O(1) once the facet is known, and it is why the order must not depend on the
+// shadow prices: those shift both claims by the same amount and so leave the order intact.
 //
-// PURPOSE
-// -------
-// For every facet (directed pair of claims (src,dst) that share at least one
-// land unit) we keep a priority queue of land_unit_id's (cells) currently
-// allocated to the source claim that could be moved to the target claim.
-// The "priority" represents the marginal reallocation cost:
-//     cost(i; src->dst) = S_src(i) - S_dst(i)
-// (i.e. how much suitability is lost when moving the cell to the target,
-// before shadow price adjustments). Smaller cost means "cheaper" (better)
-// to reallocate, thus higher priority.
+// ORDERING
+// std::push_heap/pop_heap build a MAX-heap under the comparator, and compare_oper calls the
+// HIGHER cost "less" -- so front() is the minimum-cost land unit.
 //
-// ORDERING & STABILITY
-// --------------------
-// We use std::push_heap / std::pop_heap with a comparator that returns true
-// if lhs has strictly LOWER priority than rhs (so the front() after heap
-// operations is the element with highest priority = minimal cost).
-//
-// TIES & PERTURBATION
-// -------------------
-// Exact ties (same suitability difference) are intentionally broken in a
-// deterministic, but direction dependent, manner:
-//   - If source ggTypeID > target ggTypeID (m_LhsDominates = true):
-//       For equal costs, LOWER land_unit_id gets HIGHER priority
-//   - Else (source ggTypeID < target ggTypeID):
-//       For equal costs, HIGHER land_unit_id gets HIGHER priority
-// This asymmetry plus the Simulation-of-Simplicity style perturbation
-// (outside this struct) ensures a deterministic, strictly ordered queue.
+// TIES
+// Equal costs are broken by land unit id, in a direction-dependent way that matches the
+// Simulation-of-Simplicity perturbation applied outside this struct (see the file header):
+//   src.ggTypeID > dst.ggTypeID (m_LhsDominates): the LOWER id wins;
+//   src.ggTypeID < dst.ggTypeID                 : the HIGHER id wins.
+// Together with that perturbation the order is strict -- no two land units ever compare equal --
+// which is what lets the algorithm terminate deterministically on degenerate input.
 //
 // LAZY DELETION
-// -------------
-// Cells already reallocated away from the source remain inside the heap
-// ("dirty entries") until they bubble to the top; the caller checks
-// current allocation and pops them if stale. Therefore:
-//   - top() must only be used after verifying the heap is not empty
-//   - Users may need to loop popping while top() refers to a no-longer
-//     source-owned cell.
-//
-// INVARIANTS
-// ----------
-// - m_SourceClaim != m_TargetClaim
-// - m_PerturbationFactor = source.ggTypeID - target.ggTypeID != 0
-// - Comparator's LhsDominated flag matches sign of m_PerturbationFactor
-//
-// COMPLEXITY
-// ----------
-// - add(): amortized O(log n)
-// - pop(): amortized O(log n)
-// - top(): O(1)
-// - GetC(): O(1)
+// A land unit that has moved elsewhere is NOT removed when it moves; it stays as "dirt" until it
+// surfaces. Readers must therefore skip entries whose current allocation is no longer the source
+// ggType. RemoveLoserInResultAndCleanupQueues does that, and maintains the invariant that the
+// only remaining dirt is covered dirt -- never at the top.
 //
 // MEMORY
-// ------
-// Inherits privately from my_vec_t<land_unit_id>; heap range is the full
-// underlying vector. The heaps jointly hold every cell that lost a confrontation
-// (~n x (k-1) entries across all facets), which is the operator's real working
-// set -- so they go through the allocation stocks, where the census sees them.
+// Inherits privately from my_vec_t<land_unit_id>; the heap range is the whole vector. Across all
+// facets these queues jointly hold every land unit that ever lost a confrontation (~n x (k-1)
+// entries), which is the operator's real working set -- so they go through the allocation stocks,
+// where the census sees them.
 //
-// THREAD SAFETY
-// -------------
-// Not thread-safe; external synchronization required if accessed concurrently.
-//
-// NOTE
-// ----
-// This structure is performance critical; avoid adding runtime overhead
-// inside the tight comparator path.
-//
+// Not thread-safe.
 // ============================================================================
 template <typename S>
 struct priority_heap : private my_vec_t<land_unit_id>
@@ -506,23 +433,21 @@ struct priority_heap : private my_vec_t<land_unit_id>
 // End priority_heap
 // ============================================================================
 
-/// <summary>
-/// Stores information about a single land use type (ggType) for the discrete allocation algorithm.
-/// Contains references to suitability and claim data, result containers, and partitioning information.
-/// - m_strName: Name of the land use type.
-/// - m_NameID: Token identifier for the land use type.
-/// - m_diMinClaims: Data item for minimum claims per region.
-/// - m_diMaxClaims: Data item for maximum claims per region.
-/// - m_diSuitabilityMap: Data item for suitability values per cell.
-/// - m_diResShadowPrices: Data item for storing resulting shadow prices.
-/// - m_diResTotalAllocated: Data item for storing total allocated land units.
-/// - m_PartitioningID: Index of the partitioning this ggType uses.
-/// - m_FirstClaimID: Offset into the claims array for this ggType.
-/// - m_NrClaims: Number of claims for this ggType.
-/// - m_SuitabilityDataLock: Lock for reading suitability data.
-/// - m_Suitabilities: Sequence of suitability values for all cells.
-/// - Note: Template parameter S represents the suitability value type (e.g., float or double).
-/// </summary>
+// -----------------------------------------------------------------------------
+// ggType_meta_t / ggType_info_t<S>
+// -----------------------------------------------------------------------------
+// One land use type (ggType). As with the partitionings the state is split in two:
+//
+//   ggType_meta_t   what is resolved once, at CreateResultingItems time, and cached in the
+//                   result's persistent m_ReadAssets: the name, which partitioning this type's
+//                   claims are stated in, and weak handles to its config arguments and to the
+//                   result sub-items it owns.
+//   ggType_info_t   what only exists while a computation runs: this type's slice of the claims
+//                   array, and the read lock on -- plus a direct pointer into -- its suitability
+//                   map, which is a memory-mapped file read once per land unit per type.
+//
+// S is the suitability / price value type (Int32 in every instantiation registered below).
+// -----------------------------------------------------------------------------
 
 
 struct ggType_meta_t
@@ -561,68 +486,29 @@ struct ggType_info_t : ggType_meta_t
 
 
 // -----------------------------------------------------------------------------
-// partitioning_info_t
+// partitioning_meta_t / partitioning_info_t<AR>
 // -----------------------------------------------------------------------------
-// Purpose:
-//   Holds per-partitioning (a.k.a. regional partition) meta data and mapping
-//   information used by the discrete allocation (HTP) algorithm. A "partitioning"
-//   groups atomic regions (AR) into higher level regions. Multiple different
-//   partitionings may coexist (e.g. administrative regions, planning zones, etc.).
+// A "partitioning" groups atomic regions (AR) into regions; several partitionings may coexist
+// (municipalities, provinces, planning zones, ...) and each ggType names the one its claims are
+// stated in. The AR -> region mapping is either an explicit attribute, or -- when the
+// partitioning IS the atomic region set -- the identity.
 //
-// Template parameter:
-//   AR : integral type representing an atomic region id (e.g. UInt16 / UInt32)
+// The split mirrors the meta/info split of this file: partitioning_meta_t is the part cached in
+// the result's persistent m_ReadAssets and therefore holds only weak handles (see the raw-ptr
+// hygiene notes on the members below for why); partitioning_info_t<AR> adds the state that only
+// exists while a computation runs.
 //
-// Life-cycle & Usage:
-//   1. Construct with either:
-//        - a DataItem (m_AtomicRegionPartitioningDI) that maps each atomic region
-//          to a region-id, OR
-//        - a Unit (m_PartitioningUnit) when the mapping is identity (ar -> ar).
-//   2. Call GetData() once to populate m_AtomicRegionPartitioningData if a
-//      DataItem-backed mapping is used.
-//   3. After all partitionings are created, the enclosing regions_info_t assigns
-//      a unique offset (m_UniqueRegionOffset) so that region ids across different
-//      partitionings can be concatenated into a single "unique region id" space.
-//   4. Accessors GetRegionID() / GetUniqueRegionID() are then used heavily
-//      inside allocation logic.
+// Life cycle
+//   1. constructed from either an AR -> region attribute or the atomic region unit itself;
+//   2. PreparePartitionings assigns m_NrRegions and m_UniqueRegionOffset, which concatenate the
+//      region id spaces of all partitionings into one "unique region" space (GetUniqueRegionID);
+//   3. GetData() materialises the dense AR -> region array, when there is a mapping attribute;
+//   4. GetRegionID / GetUniqueRegionID are then read on the hot allocation path.
 //
-// Fields:
-//   m_AtomicRegionPartitioningDI : (optional) Data item providing AR -> region mapping.
-//   m_PartitioningUnit           : Unit defining the region id domain for this partitioning.
-//   m_AtomicRegionPartitioningData:
-//       Dense array of size (#atomicRegions) holding region ids (only when a data
-//       item mapping is provided). When absent, identity mapping is assumed.
-//   m_NrRegions                  : Number of regions in this partitioning (cached).
-//   m_UniqueRegionOffset         : Offset into the global unique-region space
-//                                  assigned externally (must be set before GetUniqueRegionID()).
-//   m_ValuesLabelLock            : Optional lock to access human-readable region labels.
-//   md_NrAtomicRegions (debug)   : Cached count of atomic regions at GetData() time.
+// GetRegionID discriminates on the POPULATED ARRAY, not on the weak mapping handle: an identity
+// mapping leaves the array empty, and the hot loop must not pay a weak lock per atomic region.
 //
-// Invariants:
-//   - If m_AtomicRegionPartitioningDI != nullptr then m_AtomicRegionPartitioningData
-//     is filled after GetData() and its size equals the atomic region count.
-//   - If m_AtomicRegionPartitioningDI == nullptr, identity mapping is assumed:
-//       GetRegionID(ar) == ar
-//   - m_UniqueRegionOffset is set (not 0xFFFFFFFF) before calling GetUniqueRegionID().
-//
-// Thread-safety:
-//   - Not thread-safe. External synchronization required if used concurrently.
-//   - Designed for single-threaded preparation followed by many read-only queries.
-//
-// Error Handling:
-//   - Assertions (dbg/dms_assert) protect internal assumptions in debug builds.
-//   - No exceptions are thrown here; callers handle validation.
-//
-// Performance Notes:
-//   - GetRegionID() and GetUniqueRegionID() are on the hot path of allocation;
-//     functions are intentionally inlined and minimal.
-//   - Mapping array uses UInt32 for region ids; adapt if future domains exceed.
-//
-// -----------------------------------------------------------------------------
-// Future Improvements (if needed):
-//   - Optional compression of m_AtomicRegionPartitioningData for large sparse sets.
-//   - Lazy label fetching / caching strategies.
-//   - Support for partial (tile-based) loading if atomic region space becomes huge.
-//
+// Not thread-safe: single-threaded preparation, then read-only queries.
 // -----------------------------------------------------------------------------
 
 struct partitioning_meta_t
@@ -2771,7 +2657,9 @@ struct DistFromOpt
 			currPrice += htpInfo.GetClaim(ar, currBuyer).m_ShadowPrice;
 
 			UInt32 iXj = 0;
-			bool belowThreshold, foundHigherBidder = false;
+			// belowThreshold is only read when foundHigherBidder is set, and the branch that sets
+			// the latter always assigns the former -- initialised anyway so the coupling cannot rot.
+			bool belowThreshold = false, foundHigherBidder = false;
 
 			for(UInt32 j=0; j!=K; ++j)
 			{

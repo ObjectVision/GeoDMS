@@ -10,59 +10,53 @@
 
 // File: Dijkstra.cpp
 //
-// High-level purpose:
-//   Implements a versatile Dijkstra-based engine supporting:
-//     * Standard single-source multi-destination shortest path
-//     * OD impedance matrix generation (sparse or dense)
-//     * Optional per-link alternative impedances and attributes
-//     * Interaction / gravity / logit style potential & flow calculations
-//     * Cumulative mass limit cutoffs (DstLimit)
-//     * Org / Dst specific min / max impedance constraints
-//     * Euclidean pruning (optional)
-//     * Path reconstruction via TraceBack or LinkSet output
-//     * Link-flow accumulation (assignment style)
-//     * Multi-threaded per-origin parallelization with thread-local heaps
+// The impedance_table / impedance_matrix operator family. One shortest-path engine, whose whole
+// argument layout and output set is directed by a specification string (see DijkstraFlags.h and
+// ParseDijkstraString); CheckFlags below states which combinations are admissible.
 //
-// Core components overview:
-//   - TreeRelations: Lightweight parent/child traversal support for accepted nodes.
-//   - NetworkInfo:    Immutable network + zone relational metadata (nodes/links/zones/start/end).
-//   - GraphInfo:      Adjacency inversion (node -> incident edge lists).
-//   - NodeZoneConnector: Tracks which destination zones have been reached per origin
-//                        (dense vs sparse result modes) and maps result indices.
-//   - ResultInfo:     Bundled raw pointers into output buffers (filled inside ProcessDijkstra).
-//   - ProcessDijkstra: The main iterative multi-origin driver; executes parallel for each origin.
-//   - DijkstraMatrOperator<T>: Operator wrapper exposing functionality to scripting/runtime.
+// What it can produce
+//   impedance_table  (!OD): a single origin (the void org zone), an impedance per destination
+//                           zone, optionally with a TraceBack sub-item for path extraction.
+//   impedance_matrix (OD) : one row per origin zone -- DENSE (a cell for every org x dst pair) or
+//                           SPARSE (only the destinations actually reached); see NodeZoneConnector.
+//   per-OD extras         : alternative impedance, link attribute, LinkSet.
+//   org/dst aggregates    : spatial-interaction potentials D_i / M_ix / C_j / M_xj, SumImp,
+//                           SumLinkAttr, NrDstZones, MaxImp.
+//   network aggregate     : Link_flow -- the interaction demand assigned back onto the links.
 //
-// Concurrency design:
-//   - Each origin zone is processed independently in parallel (parallel_for).
-//   - Thread-local combinables hold: heap (OwningDijkstraHeap), TreeRelations, NodeZoneConnector,
-//     temporary vectors (potentials, link-flow buffers), minimizing contention.
-//   - Output writes requiring aggregation (e.g., dstZone_Factor, dstZone_Supply, LinkSet)
-//     use fine-grained leveled_critical_section locks.
+// Layout of this file
+//   TreeRelations        parent/child view of the accepted shortest-path forest, supporting the
+//                        top-down accumulation and the bottom-up link-flow walk (TreeBuilder.h).
+//   NetworkInfo          sizes, plus the start/end point relations (node_rel, impedance, zone_rel,
+//                        location) and the orgZone -> startPoint inversion.
+//   GraphInfo            link endpoints and impedances, plus node -> incident link inversions.
+//   NodeZoneConnector    per-origin record of which destination zones were reached, and the
+//                        mapping between the three index spaces; see its own comment.
+//   ResultInfo           the raw output pointers, bundled so ProcessDijkstra keeps one parameter.
+//   ProcessDijkstra      the driver: one parallel task per origin zone.
+//   DijkstraMatrOperator argument extraction, unit unification, result creation, two-pass run.
 //
-// Heap / traversal notes:
-//   - The custom heap supports "stale" nodes & finalization semantics to avoid redundant processing.
-//   - Endpoints may have their own impedance offsets (entered post-finalization via a secondary heap).
-//   - Euclidean pruning short-circuits CommitY if geometric distance exceeds a threshold.
+// Per-origin work (all of it inside the parallel_for task)
+//   1. seed every start point of the origin zone, each with its own impedance offset if given
+//   2. run the extract-min loop; when a node is finalized, commit the endpoints attached to it
+//   3. shrink the cutoff dh.m_MaxImp once the cumulative destination mass reaches limit()'s budget
+//   4. write this origin's OD rows, then the alt-impedance / link-attribute accumulations
+//   5. compute the interaction potentials and, from those, the link flows
+//   6. reconstruct the per-OD LinkSets
 //
-// Interaction model (when enabled via flags):
-//   - Computes potentials t_ij with either power/log decay or logit formulation
-//   - Aggregates D_i (OrgZone_Factor), flows M_ix (OrgZone_Demand), supplies M_xj (DstZone_Supply)
-//   - Optionally accumulates impedance and attribute weighted sums (OrgZone_SumImp / SumLinkAttr)
-//   - Supports alt exponents via alpha, decay beta, logit parameters.
-//   - Optional link-flow accumulation reconstructs subtree demands bottom-up.
+// Concurrency
+//   Origin zones are independent, so per-OD and per-origin outputs need no locking: each task
+//   writes only its own slice. What IS shared are the outputs indexed by DESTINATION zone
+//   (dstZone_Factor, dstZone_Supply) and the sequence-allocating LinkSet writes -- those take the
+//   fine-grained locks in WriteBlock. Link flow is accumulated per worker and summed afterwards.
+//   All per-worker scratch (heap, tree, connector, potentials) lives in dms_combinables and is
+//   allocated once per worker rather than once per origin.
 //
-// Path reconstruction modes:
-//   - TraceBack array (per node) (node_TB) for single tree extraction
-//   - Per OD LinkSet sequences (od_LS) built by reverse walking TB links
-//
-// Sparse vs Dense mode decision:
-//   - Sparse result when flags(df & SparseResult) and OD mode -- uses stamping arrays per origin
-//   - Dense mode: directly positions OD results at (org * nrDst + dst)
-//
-// Safety & assertions:
-//   - Defensive checks on undefined values, bounds, monotonic commits, and flag consistency.
-//   - Many MG_CHECK/MG_USERCHECK macros enforce invariants, fail fast on inconsistent inputs.
+// Endpoint impedances
+//   An endpoint that carries its own impedance offset is not final when its node is: a cheaper
+//   endpoint may still be attached to a node the frontier has not reached yet. Such candidates
+//   are therefore parked in a secondary heap and released as the main loop advances past them,
+//   with a final flush once the frontier is exhausted.
 
 #include "Dijkstra.h"
 
@@ -96,14 +90,9 @@
 #include <numeric>
 #include <semaphore>
 
-// Utility absolute template (kept inline for performance)
-template <class T>
-inline T absolute(const T& x)
-{
-	return (x<0) ? -x : x;
-}
-
-// Input validation helpers
+// Input validation helpers: the engine reads the argument arrays raw, so anything it cannot
+// represent (undefined, or out of the values unit's range) has to be rejected up front rather
+// than silently propagated into impedances and sums.
 void CheckNoneMode(const AbstrDataItem* adi, CharPtr role)
 {
 	if (adi && adi->DetermineActualCheckMode() != DCM_None)
@@ -270,10 +259,33 @@ struct GraphInfo {
 
 // *****************************************************************************
 // NodeZoneConnector:
-//   Manages destination zone reachability state for the current origin.
-//   Supports dense mode (direct indexing by dst zone) or sparse mode
-//   (compress only reached zones + stamping for O(1) duplicate prevention).
-//   Also applies optional Euclidean cutoff (if coordinates provided).
+//   Per-origin record of which destination zones were reached and at what impedance.
+//
+//   THREE INDEX SPACES are in play and the Res2* / DstZone2* / Y2Res members below are the only
+//   sanctioned conversions between them:
+//     end point (y)  0 .. nrY-1        -- a row of the endPoint_node_rel argument
+//     dst zone       0 .. nrDstZones-1 -- y mapped through endPoints.Zone_rel, or y itself when
+//                                         the specification has no endPoint(..., DstZone_rel)
+//     result index   0 .. ZonalResCount()-1 -- a slot in this origin's stretch of the OD result
+//
+//   DENSE regime -- impedance_table, or impedance_matrix without cut()/limit():
+//     every destination zone owns a result slot, so RESULT INDEX == DST ZONE and ZonalResCount()
+//     is nrDstZones. ResetSrc undefine-fills m_ResImpPerDstZone, and "not reached" is simply the
+//     undefined impedance. m_FoundYPerRes stays empty in this regime.
+//
+//   SPARSE regime -- impedance_matrix with cut() or limit(), i.e. flags(df & SparseResult):
+//     only reached zones own a slot, and m_FoundYPerRes lists the reached END POINTS in commit
+//     order, so the result index is a position in that list and has no relation to the dst zone.
+//     Undefine-filling per origin would cost O(nrDstZones) even for an origin that reaches three
+//     zones, so instead m_LastCommittedSrcZone stamps each zone with m_CurrSrcZoneTick and a
+//     stale stamp means "not reached by this origin".
+//
+//   Several end points may feed one destination zone; only the first commit (which, because the
+//   frontier advances monotonically, is the cheapest) counts. m_FoundYPerDstZone -- allocated
+//   only when the endpoints have a zone_rel -- remembers which end point that was.
+//
+//   When the specification asks for euclid(), a pair is additionally rejected on straight-line
+//   distance before it is ever committed; see CommitY.
 // *****************************************************************************
 template <typename NodeType, typename LinkType, typename ZoneType, typename ImpType>
 struct NodeZoneConnector 
@@ -334,7 +346,11 @@ struct NodeZoneConnector
 		ZoneType dstZone = m_NetworkInfoPtr->endPoints.Zone_rel ? m_NetworkInfoPtr->endPoints.Zone_rel[y] : y;
 		dms_assert(dstZone < m_NetworkInfoPtr->nrDstZones);
 
-		// Euclidean filter (if configured)
+		// euclid(): reject the pair on straight-line distance before it costs a result slot or
+		// eats into the limit() mass budget. Note that SqrDist subtracts in the euclid_location_t
+		// (SPoint) domain, so a component difference beyond the Int16 range wraps -- always to a
+		// SMALLER magnitude, hence to a smaller sqrDist. The filter can therefore fail to prune a
+		// far pair, but never prunes a near one: it stays conservative and the result stays right.
 		if (m_OrgZoneLocations)
 		{
 			auto dstLocation = m_NetworkInfoPtr->endPoints.Zone_location[dstZone];
@@ -409,6 +425,13 @@ struct NodeZoneConnector
 		return IsDefined(m_ResImpPerDstZone[zoneID]);
 	}
 
+	// CAUTION: both of these assume the SPARSE regime, where m_FoundYPerRes maps a result index to
+	// the end point that claimed it. In the DENSE regime m_FoundYPerRes is empty, LookupOrSame
+	// falls through to the identity, and the result index -- which is a DST ZONE there -- is then
+	// handed to Zone_rel as if it were an end point. That is harmless while the endpoints have no
+	// zone_rel (dst zone == end point, so both mappings are the identity), which is why the
+	// regression configs have not caught it, but it is wrong for dense + endPoint(..,DstZone_rel).
+	// The dense-correct forms are Res2DstZone(r) == r and Res2EndPoint(r) == DstZone2EndPoint(r).
 	ZoneType Res2EndPoint(ZoneType resIndex) const
 	{
 		assert(resIndex < ZonalResCount());
@@ -807,7 +830,10 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 					}
 				}
 
-				// Relax outgoing edges (forward direction)
+				// Relax the outgoing links. The deltaCost test is only a cheap early-out that
+				// skips links no path can ever afford; InsertNode applies the real cutoff to the
+				// accumulated currImp + deltaCost. Since currImp >= 0 the early-out can never
+				// reject a link that InsertNode would have accepted.
 				LinkType currLink = graph.node_link1_inv.First(currNode);
 				while (currLink != UNDEFINED_VALUE(LinkType))
 				{
@@ -821,7 +847,9 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 				if (!flags(df & (DijkstraFlag::Bidirectional | DijkstraFlag::BidirFlag)))
 					continue;
 
-				// Relax reverse direction edges if enabled (bidirectional)
+				// "bidirectional" in the specification means the links are UNDIRECTED (or, with
+				// bidirectional(link_flag), undirected where that flag is set) -- not that a
+				// bidirectional search is run. So also relax each link from its ToNode back.
 				currLink = graph.node_link2_inv.First(currNode);
 				while (currLink != UNDEFINED_VALUE(LinkType))
 				{
@@ -835,7 +863,11 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 			}
 			if (ni.endPoints.Impedances)
 			{
-				// Final flush of remaining endpoint candidates (still under cutoff)
+				// The frontier is exhausted, so every parked endpoint candidate is now final and
+				// can be committed -- subject to the cutoff, which may have been tightened by
+				// limit() while the loop ran. Inside the loop the release test is "<= currImp"
+				// (an endpoint is final once the frontier has passed it); here it is
+				// "< dh.m_MaxImp", the same admissibility test InsertNode applies to nodes.
 				while (!endPointHeap.empty() && endPointHeap.front().Imp() < dh.m_MaxImp)
 				{
 					ZoneType yy = endPointHeap.front().Value();
@@ -1006,6 +1038,9 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 				if (res.orgZone_MaxImp)
 					res.orgZone_MaxImp[orgZone] = maxImp;
 
+				// Only MaxImp was asked for; the potentials below are not needed. Jumping out of
+				// the block (rather than nesting the rest) keeps the interaction code at one
+				// indentation level; nothing between here and the label needs destruction.
 				if (!flags(df & DijkstraFlag::Interaction))
 					goto afterInteraction;
 
@@ -1095,7 +1130,11 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 				{
 					assert(dh.m_TraceBackDataPtr);
 					assert(trIsUsed);
-					// Zero flows on used nodes
+					// Reuse nodeALW (dh.m_AltLinkWeight) as the per-node flow accumulator; its
+					// alt-impedance contents have already been consumed by UpdateALW and by the
+					// potential loop above. Zero only the nodes this origin's trees actually
+					// reach -- the walk stops at the root, whose accumulator is written but never
+					// read (no link hangs above it), so leaving it stale is deliberate.
 					for (ZoneType startPointIndex = ni.orgZone_startPoint_inv.FirstOrSame(orgZone); IsDefined(startPointIndex); startPointIndex = ni.orgZone_startPoint_inv.NextOrNone(startPointIndex))
 					{
 						NodeType currNode = ni.startPoints.Node_rel ? ni.startPoints.Node_rel[startPointIndex] : startPointIndex;
