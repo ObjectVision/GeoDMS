@@ -765,7 +765,7 @@ protected:
 			DataReadLock arg3Lock(arg3A);
 
 			Timer processTimer;
-			auto itemRef = resultHolder.HasBackRef() ? resultHolder.GetBackRefStr() + " " : SharedStr();
+			auto itemRef = resultHolder.GetProgressPrefix(); // #795: names the config item, also for an intermediate result
 
 			Float64 bufferDistance = e2IsVoid ? const_array_cast<Float64>(arg2A)->GetLockedDataRead()[0] : 0;
 			UInt8 nrPointsInCircle = e3IsVoid ? const_array_cast<UInt8  >(arg3A)->GetLockedDataRead()[0] : 0;

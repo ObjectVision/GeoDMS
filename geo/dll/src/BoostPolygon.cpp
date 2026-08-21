@@ -186,7 +186,7 @@ protected:
 		{
 			DataReadLock arg1Lock(arg1A);
 			DataReadLock arg2Lock(arg2A);
-			auto itemRef = resultHolder.HasBackRef() ? resultHolder.GetBackRefStr() + " " : SharedStr();
+			auto itemRef = resultHolder.GetProgressPrefix(); // #795: names the config item, also for an intermediate result
 
 			ResourceHandle resData;
 			ResourceHandle pointBoxDataHandle;
@@ -863,7 +863,7 @@ protected:
 			DataReadLock arg4Lock(argNum2);
 
 			Timer processTimer;
-			auto itemRef = resultHolder.HasBackRef() ? resultHolder.GetBackRefStr() + " " : SharedStr();
+			auto itemRef = resultHolder.GetProgressPrefix(); // #795: names the config item, also for an intermediate result
 
 			if (DoDelayStore())
 			{
@@ -1765,7 +1765,7 @@ protected:
 		if (mustCalc)
 		{
 			DataReadLock arg1Lock(arg1A);
-			auto itemRef = resultHolder.HasBackRef() ? resultHolder.GetBackRefStr() + " " : SharedStr();
+			auto itemRef = resultHolder.GetProgressPrefix(); // #795: names the config item, also for an intermediate result
 
 			Calculate(res.get(), resF1, resF2, arg1A, itemRef.c_str());
 		}

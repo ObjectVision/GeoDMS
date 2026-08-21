@@ -122,8 +122,10 @@ public:
     void setMenuIndex(size_t index);
 
 public slots:
-    void onDeleteRecentFileEntry() const;
-    void onTogglePinRecentFileEntry() const;
+    // Not const, and no longer routed through m_index: both act on this entry itself, so that the
+    // File menu can stay open while several entries are removed or pinned in a row.
+    void onDeleteRecentFileEntry();
+    void onTogglePinRecentFileEntry();
     void onFileEntryPressed() const;
 
 private:
@@ -170,10 +172,11 @@ public:
     void openConfigSourceDirectly(std::string_view filename, std::string_view line, std::string_view column = "1");
     void cleanRecentFilesThatDoNotExistOrListedBefore();
     void insertCurrentConfigInRecentFiles(WeakStr cfg);
-    void removeRecentFileAtIndex(size_t index);
+    void removeRecentFileEntry(DmsRecentFileEntry* entry);
+    void renumberRecentFileEntries();
     void saveRecentFileActionToRegistry();
     void savePinnedFilesToRegistry();
-    void togglePinAtIndex(size_t index);
+    void togglePinOfEntry(DmsRecentFileEntry* entry);
     auto CreateCodeAnalysisSubMenu(QMenu* menu) const -> std::unique_ptr<QMenu>;
     auto getIconFromViewstyle(ViewStyle vs) const -> QIcon;
     void hideDetailPagesRadioButtonWidgets(bool hide_properties_buttons, bool hide_source_descr_buttons) const;
@@ -354,6 +357,10 @@ public:
     using processing_record = std::tuple<std::time_t, std::time_t, SharedStr>;
     //QList<QWidgetAction*> m_recent_files_actions;
     QList<DmsRecentFileEntry*> m_recent_file_entries;
+    // Entries taken out of the menu while it was open. They cannot be deleted from their own slot
+    // -- the context menu's exec() is still on the stack there -- so updateFileMenu() drops them
+    // on the next aboutToShow, which is outside any of their handlers.
+    QList<DmsRecentFileEntry*> m_recent_file_entries_to_discard;
     QPointer<QAction> m_recent_files_separator; // divides the pinned block from the rest
 
 private:

@@ -2007,7 +2007,7 @@ protected:
 		{
 			DataReadLock arg1Lock(arg1A);
 			DataReadLock arg2Lock(arg2A);
-			auto itemRef = resultHolder.HasBackRef() ? resultHolder.GetBackRefStr() + " " : SharedStr();
+			auto itemRef = resultHolder.GetProgressPrefix(); // #795: names the config item, also for an intermediate result
 
 			ResourceHandle resData;
 			ResourceHandle pointBoxDataHandle;

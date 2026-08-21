@@ -1,0 +1,29 @@
+container oper_district
+{
+	// Control for #1188: the 'Districts' member that district()/district_8() generates on
+	// their result unit resolves as an ordinary sub-item, as long as the argument derives
+	// its meta info. See oper_district_neg for the case where it cannot.
+	unit<spoint> grid := range(point_xy(0s, 0s), point_xy(4s, 4s)); // 4 x 4 cells
+
+	// row 1 holds 0, the other three rows hold 1, so both the 4- and the 8-connected
+	// variant see three groups: row 0, row 1, and rows 2+3 together.
+	attribute<uint8> src (grid) := uint8(pointrow(id(grid)) == 1s ? 0s : 1s);
+
+	unit<uint32> D4 := district(src)
+	{
+		attribute<uint32> cellCount := pcount(Districts);
+	}
+
+	unit<uint32> D8 := district_8(src)
+	{
+		attribute<uint32> cellCount := pcount(Districts);
+	}
+
+	container checks
+	{
+		parameter<uint32> nr4    := #D4                , IntegrityCheck = "nr4 == 3";
+		parameter<uint32> nr8    := #D8                , IntegrityCheck = "nr8 == 3";
+		parameter<uint32> total4 := sum(D4/cellCount)  , IntegrityCheck = "total4 == 16";
+		parameter<uint32> max4   := max(D4/cellCount)  , IntegrityCheck = "max4 == 8";
+	}
+}
