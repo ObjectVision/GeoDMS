@@ -57,44 +57,35 @@ thread_local const TreeItem* t_MmdDictionaryRoot = nullptr;
 
 namespace {
 
-	// The unit's name as the reader will resolve it: the RAW configured token, the same spelling
-	// the attribute signatures dump, resolving by up-scope search from the read holder.
-	SharedStr Mmd_UnitRefStr(TokenID nameToken)
+	// How the reader must spell this unit: the very text the dictionary's own attribute declaration
+	// carries for it -- the raw DomainUnit / ValuesUnit property, which is what DumpPropList writes
+	// into the '(domain)' suffix and the 'attribute<values>' prefix. Anything else can resolve
+	// differently than the declaration next to it: #1195 took the RAW configured token instead, so a
+	// domain configured as '../RegioUnit' produced 'PropValue(../RegioUnit, ..)' beside a declaration
+	// that said '(/BaseData/../RegioUnit)'. The reader merges the dictionary elsewhere in the tree,
+	// where '../RegioUnit' is not resolvable, and the store could not be read at all. Deriving both
+	// from one property keeps check and declaration in step by construction.
+	SharedStr Mmd_UnitRefStr(const AbstrDataItem* adi, bool isDomainRole)
 	{
-		if (!IsDefined(nameToken) || nameToken == TokenID::GetEmptyID())
-			return {};
-		return SharedStr(GetTokenStr(nameToken).c_str()); // materialize: TokenStr holds the token-registry lock
+		auto* propDef = isDomainRole ? s_DomainUnitPropDefPtr : s_ValuesUnitPropDefPtr;
+		return propDef->GetRawValue(adi);
 	}
 
-	void Mmd_AddUnitRestriction(SharedStr& expr, std::vector<const AbstrUnit*>& seen
-		, const TreeItem* dictRoot, const AbstrUnit* u, TokenID nameToken, bool isDomainRole)
+	// The extent of a domain: the stored per-element files are only readable against the count they
+	// were written with. Empty when it cannot be established (see the early returns), and empty for
+	// a values unit, which needs no bounds -- a base unit's range would assert the full value-type
+	// range, which restricts nothing.
+	SharedStr Mmd_UnitBoundsRestriction(const AbstrUnit* u, WeakStr name, bool isDomainRole)
 	{
-		if (!u || u->IsDefaultUnit() || dictRoot->DoesContain(u))
-			return;
-		if (std::find(seen.begin(), seen.end(), u) != seen.end())
-			return;
-		auto name = Mmd_UnitRefStr(nameToken);
-		if (name.empty() || name == ".")
-			return;
-		seen.push_back(u);
-
-		auto vc = u->GetValueType();
-		assert(vc);
-		if (!expr.empty())
-			expr += " && ";
-		expr += mySSPrintF("PropValue({}, 'ValueType') == '{}'", name, vc->GetName());
-
-		// The extent matters for a domain: the stored per-element files are only readable against
-		// the count they were written with. A values unit needs no bounds -- and a base unit's
-		// range would assert the full value-type range, which restricts nothing.
 		if (!isDomainRole)
-			return;
+			return {};
 		auto rangeItem = u->GetCurrRangeItem();
 		if (!rangeItem || !IsCalculatingOrReady(rangeItem.get()))
-			return; // not known yet; a later re-emission (see UpdateDictionary) refreshes the dictionary
+			return {}; // not known yet; a later re-emission (see UpdateDictionary) refreshes the dictionary
 		InterestPtr<const TreeItem*> holder(u); // the same guarded access the Range subtag emission uses
 		u->PrepareDataUsage(DrlType::Certain);
 
+		auto vc = u->GetValueType();
 		auto nrDims = vc->GetNrDims();
 		if (nrDims == 1 && vc->IsNumeric())
 		{
@@ -102,27 +93,57 @@ namespace {
 			// restriction still holds and the count mismatch surfaces at the file-size guards.
 			auto vcid = vc->GetValueClassID();
 			if (vcid == ValueClassID::VT_UInt64 || vcid == ValueClassID::VT_Int64)
-				return;
+				return {};
 			auto [b, e] = u->GetRangeAsFloat64();
 			if (!IsDefined(b) || !IsDefined(e) || b > e)
-				return;
+				return {};
 			// cast-constructor literals: <vt>(<plain number>) needs no per-type literal suffix
-			expr += mySSPrintF(" && LowerBound({0}) == {1}({2}) && UpperBound({0}) == {1}({3})"
+			return mySSPrintF("LowerBound({0}) == {1}({2}) && UpperBound({0}) == {1}({3})"
 				, name, vc->GetName()
 				, AsString(b, FormattingFlags::None), AsString(e, FormattingFlags::None));
 		}
-		else if (nrDims == 2)
+		if (nrDims == 2)
 		{
 			auto [from, to_] = u->GetRangeAsDRect();
 			if (!IsLowerBound(from, to_))
-				return;
+				return {};
 			auto crdName = vc->GetScalarClass()->GetName();
-			expr += mySSPrintF(" && LowerBound({0}) == point_xy({1}({2}), {1}({3}))"
+			return mySSPrintF("LowerBound({0}) == point_xy({1}({2}), {1}({3}))"
 				" && UpperBound({0}) == point_xy({1}({4}), {1}({5}))"
 				, name, crdName
 				, AsString(from.Col(), FormattingFlags::None), AsString(from.Row(), FormattingFlags::None)
 				, AsString(to_.Col(), FormattingFlags::None), AsString(to_.Row(), FormattingFlags::None));
 		}
+		return {};
+	}
+
+	void Mmd_AddUnitRestriction(SharedStr& expr, std::vector<const AbstrUnit*>& seen
+		, const TreeItem* dictRoot, const AbstrDataItem* adi, bool isDomainRole)
+	{
+		auto u = isDomainRole ? adi->GetAbstrDomainUnit() : adi->GetAbstrValuesUnit();
+		if (!u || u->IsDefaultUnit() || dictRoot->DoesContain(u))
+			return;
+		if (std::find(seen.begin(), seen.end(), u) != seen.end())
+			return;
+		auto name = Mmd_UnitRefStr(adi, isDomainRole);
+		if (name.empty() || name == ".")
+			return;
+		seen.push_back(u);
+
+		assert(u->GetValueType());
+		auto bounds = Mmd_UnitBoundsRestriction(u, name, isDomainRole);
+
+		if (!expr.empty())
+			expr += " && ";
+
+		// A typed bound literal pins the value type as well: with 'LowerBound(u) == uint32(0)' there
+		// is no eq operator left once u is declared int32 ("Cannot find operator for these
+		// arguments"), so the read fails on that term alone. A PropValue(u,'ValueType') term beside
+		// it would only restate that, so the ValueType restriction is emitted only where no bounds
+		// could be: a values unit, an unknown range, a 64-bit integral or a non-numeric 1-d domain.
+		expr += bounds.empty()
+			? mySSPrintF("PropValue({}, 'ValueType') == '{}'", name, u->GetValueType()->GetName())
+			: bounds;
 	}
 
 } // anonymous namespace
@@ -143,8 +164,8 @@ auto Mmd_SynthesizeExternalUnitRestrictions(const TreeItem* dictRoot) -> SharedS
 		if (!IsDataItem(ti))
 			continue;
 		auto adi = AsDataItem(ti);
-		Mmd_AddUnitRestriction(expr, seen, dictRoot, adi->GetAbstrDomainUnit(), adi->DomainUnitToken(), true);
-		Mmd_AddUnitRestriction(expr, seen, dictRoot, adi->GetAbstrValuesUnit(), adi->ValuesUnitToken(), false);
+		Mmd_AddUnitRestriction(expr, seen, dictRoot, adi, true);
+		Mmd_AddUnitRestriction(expr, seen, dictRoot, adi, false);
 	}
 	return expr;
 }
