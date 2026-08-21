@@ -9,7 +9,7 @@
 /*
  *  The precompiled header of the shv DLL: ShvBase.h (the shv prelude incl.
  *  windows.h) plus dataview.h, whose 199-header closure is included by 53
- *  of the 72 shv TUs anyway — precompiling it once saves the biggest
+ *  of the 72 shv TUs anyway -- precompiling it once saves the biggest
  *  per-TU parse in the solution (see
  *  doc/development/header-hygiene-2026-08.md §4b).
  */

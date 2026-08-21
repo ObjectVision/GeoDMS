@@ -945,7 +945,7 @@ void DataView::OnTimer(UInt32 timerId)
 	{
 		// Blink toggle for the managed text caret. Route the XOR through
 		// VH_DrawInContext so the same DrawContext.InvertRect primitive used
-		// inside ReverseCaretsImpl draws here too — same code path, same
+		// inside ReverseCaretsImpl draws here too -- same code path, same
 		// surface, no DWM-cache desync (issue #1112).
 		if (!m_State.Get(DVF_TextCaretCreated) || !m_ViewHost)
 			return;
@@ -1005,7 +1005,7 @@ void DataView::OnTimer(UInt32 timerId)
 				// Resume any previous suspension before driving the update cycle.
 				// On Win32, Resume() is implicitly called by mouse/hover events between
 				// timer fires. On Linux (Qt path), no such events fire between timers,
-				// so we call Resume() explicitly — same semantics, portable.
+				// so we call Resume() explicitly -- same semantics, portable.
 				if (m_ViewHost)
 					SuspendTrigger::Resume();
 
@@ -1157,7 +1157,7 @@ GraphVisitState DataView::UpdateView()
 					}
 
 #ifndef _WIN32
-					// Pass 1: background (white fill + WMS tiles) — run once per dirty cycle, not on retries.
+					// Pass 1: background (white fill + WMS tiles) -- run once per dirty cycle, not on retries.
 					// On Windows this is done by OnPaint(); on Linux we guard with m_BackgroundNeedsPainting
 					// so suspended data retries never erase already-drawn fills.
 					// GD_OnPaint marks this as a paint-driven draw so GraphDrawer::Visit's assert
@@ -1167,7 +1167,7 @@ GraphVisitState DataView::UpdateView()
 							.Visit(GetContents().get());
 						m_BackgroundNeedsPainting = false;
 					}
-					// Pass 2: data only (fills + borders) — suspendible, accumulates via m_DoneGraphics
+					// Pass 2: data only (fills + borders) -- suspendible, accumulates via m_DoneGraphics
 					GraphDrawer drawer(&drawContext, m_DoneGraphics, this, GdMode(GD_StoreRect|GD_Suspendible|GD_UpdateData|GD_DrawData), scaleFactors);
 #else
 					GraphDrawer drawer(&drawContext, m_DoneGraphics, this, GdMode(GD_StoreRect|GD_Suspendible|GD_UpdateData|GD_DrawData), scaleFactors);
@@ -2286,7 +2286,7 @@ void RefreshAllDataViewCaptions()
 void Keep(const std::shared_ptr<DataView>& self)
 {
 	g_DataViewMap[self.get()] = self;
-	// No refresh needed yet — the newcomer has no caption item until its domain/active layer is
+	// No refresh needed yet -- the newcomer has no caption item until its domain/active layer is
 	// established, which itself triggers RefreshAllDataViewCaptions().
 }
 

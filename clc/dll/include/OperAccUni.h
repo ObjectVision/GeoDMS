@@ -56,7 +56,7 @@ struct AbstrOperAccTotUni: UnaryOperator
 	// mirrors CreateResultCaller below: a total aggregation takes one data
 	// argument and yields a VOID-domain result (K15); the result class is the
 	// member's accumulator class (may widen: sum(uint8) -> uint32), carried by
-	// the tuples — no cross-position identity is claimed
+	// the tuples -- no cross-position identity is claimed
 	bool DescribeSignature(AbstrSignatureBuilder& sb) const override
 	{
 		auto argCls = dynamic_cast<const DataItemClass*>(GetArgClass(0));
@@ -183,7 +183,7 @@ struct AbstrOperAccPartUni: BinaryOperator
 
 	// mirrors CreateResultCaller below: both arguments share one domain (K1,
 	// e2->UnifyDomain(e1)), and the result ranges over the PARTITIONING
-	// argument's VALUES unit (K5) — one variable P in arg2's values role and
+	// argument's VALUES unit (K5) -- one variable P in arg2's values role and
 	// the result's domain role, so the classic error of declaring the result
 	// over the DATA domain instead of the partition set is caught at definition
 	bool DescribeSignature(AbstrSignatureBuilder& sb) const override

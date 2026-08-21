@@ -8,7 +8,7 @@
 #pragma hdrstop
 #endif
 
-// TableControl: the table view — column management, navigation, selection
+// TableControl: the table view -- column management, navigation, selection
 // and export of tabular data.
 
 #include "TableControl.h"

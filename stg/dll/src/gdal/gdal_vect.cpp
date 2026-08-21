@@ -8,7 +8,7 @@
 #pragma hdrstop
 #endif
 
-// GdalVectSM: the GDAL vector storage manager — reading and writing OGR
+// GdalVectSM: the GDAL vector storage manager -- reading and writing OGR
 // layers, features and attribute fields.
 
 #include "gdal_base.h"

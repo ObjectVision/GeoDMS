@@ -8,7 +8,7 @@
 #pragma hdrstop
 #endif
 
-// ScalableObject: base of the world-coordinate graphic objects — extents,
+// ScalableObject: base of the world-coordinate graphic objects -- extents,
 // transformations and viewport access.
 
 #include "ShvUtils.h"

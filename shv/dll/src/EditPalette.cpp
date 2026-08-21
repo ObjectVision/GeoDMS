@@ -66,7 +66,7 @@ SharedStr NumericEditControl::GetOrgText (SizeT recNo, GuiReadLock& lock) const
 	// round-trips through AssignValueFromCharPtr on commit. With the default
 	// ThousandSeparator the C-locale parser would either truncate at the
 	// first separator character or interpret it as a decimal point and then
-	// truncate to int — both drop data (issue #1112). The non-edit caption
+	// truncate to int -- both drop data (issue #1112). The non-edit caption
 	// keeps the thousand-separator format via GetAsText for readability.
 	return AsString(m_Value, FormattingFlags::None);
 }

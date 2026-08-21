@@ -7,7 +7,7 @@
 #endif
 
 /*
- *  The diagnostics prelude (formerly dbg/Check.h): the check/assert macro
+ *  The diagnostics prelude: the check/assert macro
  *  families (dms_assert, dbg_assert, MG_CHECK, MG_PRECONDITION, ...), the
  *  throw* error entry points (throwErrorD/F, throwDmsErrD/F, throwNYI,
  *  throwIllegalAbstract, ...) and the report* tracing functions. A "check"

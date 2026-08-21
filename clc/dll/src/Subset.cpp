@@ -124,12 +124,12 @@ struct SubsetOperator: public UnaryOperator
 	// K6: select(condition: attribute<bool>(D)) -> a FRESH subset unit U [new].
 	// The condition's Bool class is the checkable argument constraint (member
 	// elimination already rejects a non-bool concrete condition); the result is
-	// an existential unit whose value class is crd(D) — fixed for the typed
+	// an existential unit whose value class is crd(D) -- fixed for the typed
 	// select_uintN groups, unconstrained for the dynamic-result-class select.
-	// §12.7 slSubItemCall tranche: the org_rel / nr_OrgEntity sub-item —
+	// §12.7 slSubItemCall tranche: the org_rel / nr_OrgEntity sub-item --
 	// attribute<D>(U); D is in BOTH roles, so the member's values IDENTITY
 	// rides the condition's domain (the batch-B K2 rule). The member set is
-	// complete per ORCM variant — the plain select_* groups create NO
+	// complete per ORCM variant -- the plain select_* groups create NO
 	// sub-items, so a member reference on them reports at definition
 	bool DescribeSignature(AbstrSignatureBuilder& sb) const override
 	{
@@ -372,7 +372,7 @@ struct AbstrCollectByCondOperator : TernaryOperator
 
 	// collect_by_cond(subset: S; condition: attribute<bool>(D); data: attribute<V>(D))
 	// -> attribute<V>(S). K1: the condition and data domains are unified
-	// (UnifyDomain below) — the single variable D catches a domain mismatch at
+	// (UnifyDomain below) -- the single variable D catches a domain mismatch at
 	// the definition's first reference (the batch-D headline). The result ranges
 	// over the passed subset unit S (its arg0 identity) and borrows the data's
 	// value class V (values-only, so class-level per the batch-B identity rule).
@@ -752,8 +752,8 @@ namespace {
 	CommonOperGroup cog_select_32_with_org_rel(token::select_uint32_with_org_rel);
 	CommonOperGroup cog_select_64_with_org_rel(token::select_uint64_with_org_rel);
 
-	// Partly DEPRECIATED VARIANTS of select BEGIN
-	// The obsolete `subset` stub is REMOVED IN v21 (issue #1177). The static_assert is the
+	// Partly DEPRECATED VARIANTS of select BEGIN
+	// The obsolete `subset` stub below is still registered and MUST BE REMOVED IN v21 (issue #1177). The static_assert is the
 	// primary guarantee: it fails the BUILD when the major version is bumped, whereas the
 	// throw below runs from a STATIC INITIALIZER and would only surface as an opaque
 	// STATUS_DLL_INIT_FAILED (0xC0000142) with no message.
@@ -773,7 +773,7 @@ namespace {
 	}
 
 	Obsolete<CommonOperGroup> cog_subset_xx("use select_with_org_rel or select and use collect_by_cond for collecting selected attribute values", "subset", oper_policy::dynamic_result_class| ObsoleteOperatorsFlag());
-	// Partly DEPRECIATED VARIANTS of select END
+	// Partly DEPRECATED VARIANTS of select END
 
 
 	oper_arg_policy oap_select_with_attr[2] = { oper_arg_policy::calc_never , oper_arg_policy::calc_as_result };

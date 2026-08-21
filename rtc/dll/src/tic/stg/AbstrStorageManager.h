@@ -4,10 +4,6 @@
 
 #pragma once
 
-// AStorageManager.h: interface for the AStorageManager class.
-//
-//////////////////////////////////////////////////////////////////////
-
 #if !defined(__ABSTRSTORAGEMANAGER_H)
 #define __ABSTRSTORAGEMANAGER_H
 

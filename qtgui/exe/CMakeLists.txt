@@ -49,7 +49,7 @@ get_filename_component(_qt_bin_dir ${_qt_bin_dir} DIRECTORY)
 get_filename_component(_qt_prefix  ${_qt_bin_dir} DIRECTORY)
 
 if(WIN32)
-    # On Windows use windeployqt as a post-build step — it correctly picks
+    # On Windows use windeployqt as a post-build step -- it correctly picks
     # debug vs release variants (*d.dll vs *.dll) and copies all required plugins,
     # translations, and runtime DLLs.
     find_program(_windeployqt windeployqt HINTS ${_qt_bin_dir} REQUIRED)

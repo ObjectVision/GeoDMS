@@ -336,8 +336,8 @@ public:
 	// LispPtr memo); its value class is crd(D), knowable at definition only for
 	// the typed unique_uintN groups (m_ResDomainClass fixed), unconstrained for
 	// the dynamic-result-class cog_unique. §12.7 slSubItemCall tranche: the ONE
-	// sub-item CreateResult makes — Values : attribute<V>(U), the argument's
-	// composition — is a described, complete member set: unique(x)/Values types
+	// sub-item CreateResult makes -- Values : attribute<V>(U), the argument's
+	// composition -- is a described, complete member set: unique(x)/Values types
 	// at definition (values class linked through V; identity per application)
 	bool DescribeSignature(AbstrSignatureBuilder& sb) const override
 	{

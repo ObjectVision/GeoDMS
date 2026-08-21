@@ -9,7 +9,7 @@
 #endif
 
 // AbstrGridStorageManager: functionality shared by the grid storage
-// managers — grid-data domain creation and grid data helpers.
+// managers -- grid-data domain creation and grid data helpers.
 
 #include "GridStorageManager.h"
 #include "TreeItemProps.h"

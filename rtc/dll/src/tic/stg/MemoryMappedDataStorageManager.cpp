@@ -8,10 +8,6 @@
 #pragma hdrstop
 #endif //defined(CC_PRAGMAHDRSTOP)
 
-// MmdStorageManager.cpp: implementation of the MmdStorageManager class.
-//
-//////////////////////////////////////////////////////////////////////
-
 #include "stg/MemoryMappedDataStorageManager.h"
 
 #include <algorithm>

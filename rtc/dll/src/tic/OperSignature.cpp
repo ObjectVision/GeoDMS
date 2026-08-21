@@ -21,7 +21,7 @@
 #include "TreeItemClass.h" // complete TreeItemClass so *::GetStaticClass() upcasts to const Class*
 
 // *****************************************************************************
-// Operator::DescribeSignature — the batch-0 vtable slot. The default is
+// Operator::DescribeSignature -- the batch-0 vtable slot. The default is
 // "undescribed": every consumer then defers, reproducing the pre-signature
 // behavior exactly. Family bases (clc/geo) override it once per family.
 // *****************************************************************************
@@ -31,14 +31,14 @@ bool Operator::DescribeSignature(AbstrSignatureBuilder& /*sb*/) const
 	return false;
 }
 
-// §12.7: the closed-spec variant — default: no per-spec description, the walker
+// §12.7: the closed-spec variant -- default: no per-spec description, the walker
 // keeps the DynamicShape deferral exactly as without spec knowledge
 bool Operator::DescribeSpecSignature(AbstrSignatureBuilder& /*sb*/, CharPtr /*specValue*/) const
 {
 	return false;
 }
 
-// §12.7 for_each tranche — default: no describable generated container, the
+// §12.7 for_each tranche -- default: no describable generated container, the
 // walker keeps the wholesale meta-group deferral exactly as before
 bool Operator::DescribeMetaSignature(MetaMemberLayout& /*layout*/, CharPtr /*optSpecValue*/) const
 {
@@ -78,7 +78,7 @@ void SignatureRecorder::MemberValueClass(sig_var u, const ValueClass* vc)
 	// normalize to the walker's FIELD-class vocabulary (review finding, batch B):
 	// sequence/polygon members register COMPOSED classes (float32seq, dpolygon),
 	// but walker terms carry the field class with the composition separate
-	// (§18.2) — raw composed classes in the tuples would falsely reject every
+	// (§18.2) -- raw composed classes in the tuples would falsely reject every
 	// concrete sequence/polygon argument at the class bind and the tuple
 	// narrowing. The position's ValueComposition keeps the composed-ness.
 	if (vc && IsAcceptableValuesComposition(vc->GetValueComposition()))
@@ -200,7 +200,7 @@ void SignatureRecorder::DynamicShape(CharPtr why)
 }
 
 // *****************************************************************************
-// shape equality — everything except memberClasses
+// shape equality -- everything except memberClasses
 // *****************************************************************************
 
 bool SignatureRecord::SameShape(const SignatureRecord& rhs) const
@@ -244,7 +244,7 @@ const OperGroupSignatures* AbstrOperGroup::GetSignatures() const
 				assert(arg_index(recorder.rec.args.size()) <= m->NrSpecifiedArgs() || recorder.rec.repeat.active);
 #if defined(MG_DEBUG)
 				// SigUnitChecker (op-sig §9 defense #2): a described position's item KIND must not
-				// CONTRADICT the member's REGISTERED class — an 'attribute' position registered as a
+				// CONTRADICT the member's REGISTERED class -- an 'attribute' position registered as a
 				// unit (or a 'unit' position registered as a data item) means the hand-written
 				// DescribeSignature drifted from the operator itself. Only a definite contradiction
 				// fires: a generic/base registration (neither strictly data nor unit) passes, so this
@@ -298,7 +298,7 @@ const OperGroupSignatures* AbstrOperGroup::GetSignatures() const
 }
 
 // *****************************************************************************
-// the printer — the second interpreter over the same records
+// the printer -- the second interpreter over the same records
 // *****************************************************************************
 
 static SharedStr RenderVar(const SignatureRecord& shape, sig_var v)
@@ -367,7 +367,7 @@ SharedStr RenderMergedSignature(const AbstrOperGroup* og, const OperGroupSignatu
 		r += mySSPrintF(" [shape: {}]", shape.dynamicNote.c_str());
 
 	// batch F: deferred-relation prose (K12/K16 contracts the walker cannot
-	// check) — the printer is these notes' only consumer, so render them
+	// check) -- the printer is these notes' only consumer, so render them
 	SharedStr deferredRels;
 	for (const auto& rel : shape.rels)
 		if (rel.kind == SignatureRecord::RelKind::Deferred && !rel.note.empty())
@@ -409,50 +409,50 @@ SharedStr RenderMergedSignature(const AbstrOperGroup* og, const OperGroupSignatu
 #if defined(MG_DEBUG)
 
 // *****************************************************************************
-// SigUnitChecker — op-sig §9 drift defense #1 (the strongest of the four).
+// SigUnitChecker -- op-sig §9 drift defense #1 (the strongest of the four).
 //
 // Runs after a successful CreateResultCaller in FuncDC, where the operator, its
 // arguments, and the result are all CONCRETE. It re-derives, from the member's
 // hand-written DescribeSignature, which units the description CLAIMS are related,
 // and checks those claims against the units the operator actually produced:
 //
-//   * unit IDENTITY — a sig_var used in ANY domain role is ONE sort of unit
+//   * unit IDENTITY -- a sig_var used in ANY domain role is ONE sort of unit
 //     spanning its positions (the K2 bridge): all the actual units it names must
 //     UnifyDomain-agree. A values-ONLY var stays class-level (identity there
-//     would over-reject — S1), so it is checked for value class only. Void-domain
+//     would over-reject -- S1), so it is checked for value class only. Void-domain
 //     (broadcast), generated (existential), default-unit and void-flagged vars
 //     never claim identity.
-//   * value CLASS — each var's representative values-unit must carry the member's
+//   * value CLASS -- each var's representative values-unit must carry the member's
 //     own recorded value class (memberClasses / varFixedCls).
-//   * SameValueClass / CompatibleValues — the two vars' values-units must agree on
+//   * SameValueClass / CompatibleValues -- the two vars' values-units must agree on
 //     value class.
-//   * METRIC relations (product/quotient/dimensionless) — recomputed from the
+//   * METRIC relations (product/quotient/dimensionless) -- recomputed from the
 //     operand units and compared to GetCurrMetric. LOG ONLY: §9 rules metrics the
 //     deferred part, and the checker must never reject over them.
 //
 // Because it runs only AFTER the operator's own CreateResult succeeded, every
 // unit here already satisfies the operator's real constraints; a firing check
 // therefore means the DESCRIPTION over-claims a relation the operator does not
-// enforce (the exact drift §9 targets). Under-claims are invisible here — the
+// enforce (the exact drift §9 targets). Under-claims are invisible here -- the
 // soundness bias.
 //
 // ARMED: identity (CHECK 1), value class (CHECK 2) and SameValueClass/
 // CompatibleValues (CHECK 3-class) each emit a detailed ST_Error line and then
-// ASSERT — drift in a hand-written DescribeSignature is a programming error and
+// ASSERT -- drift in a hand-written DescribeSignature is a programming error and
 // must abort the debug run (headless: logged detail + exit(3)). This never breaks
 // a LEGITIMATE run: the checker runs only after CreateResult succeeded, so a fired
 // assert means the description genuinely over-claims. Metric relations stay
 // LOG-ONLY (§9: the deferred part), and a checker-INTERNAL exception is caught and
 // logged (ST_Warning), never asserted. The battery (137/137) and a 22-agent audit
 // showed zero false-fires across the described families before arming; a family
-// NOT exercised there could still surface a first-run assert in tst-Debug — that is
+// NOT exercised there could still surface a first-run assert in tst-Debug -- that is
 // the intended drift signal, to be fixed at its description, not silenced here.
 //
 // The ST_Error/warning reports MUST use reportF_without_cancellation_check: plain
 // reportF routes through ASyncContinueCheck(), which THROWS when a host cancel is
 // pending (GUI / any cancellable host). A throw before the assert would escape into
 // FuncDC_CreateResult's result-building catch and mark an already-successfully-
-// created cache result as FAILED — a spurious failure on a run that is merely being
+// created cache result as FAILED -- a spurious failure on a run that is merely being
 // cancelled. The call site additionally wraps this in its own catch(...).
 //
 // v2 (2026-07-29) closed the v1 coverage gaps: (a) rec.resultMembers ARE now
@@ -460,8 +460,8 @@ SharedStr RenderMergedSignature(const AbstrOperGroup* og, const OperGroupSignatu
 // no claim; presence = the described var's units are collected like a position);
 // (b) EVERY collected values-unit is class-checked, so a variadic tail's later
 // positions are covered. Still out: resultMemberSets (their names live in
-// argument DATA, which this debug checker must not read) and — by the 2026-07-29
-// ruling — metrics stay log-only permanently.
+// argument DATA, which this debug checker must not read) and -- by the 2026-07-29
+// ruling -- metrics stay log-only permanently.
 // *****************************************************************************
 
 void SigUnitChecker_VerifyApplication(const Operator* oper, const ArgSeqType& argItems, const TreeItem* result)
@@ -482,7 +482,7 @@ void SigUnitChecker_VerifyApplication(const Operator* oper, const ArgSeqType& ar
 	try {
 		SharedStr where = mySSPrintF("operator '{}'", oper->GetGroup()->GetNameStr());
 
-		// which vars are ever used in a domain role — only those claim unit identity
+		// which vars are ever used in a domain role -- only those claim unit identity
 		std::vector<bool> inDomainRole(nv, false);
 		auto noteDomainRole = [&](sig_var v) { if (v != no_sig_var && v < nv) inDomainRole[v] = true; };
 		for (const auto& p : rec.args)
@@ -498,7 +498,7 @@ void SigUnitChecker_VerifyApplication(const Operator* oper, const ArgSeqType& ar
 
 		// per var: the units that must be identical (an equivalence bucket) and the
 		// values-units driving the class + metric checks. v2 (coverage gap (b)): ALL
-		// collected values-units are class-checked, not just the first — a variadic
+		// collected values-units are class-checked, not just the first -- a variadic
 		// tail's positions beyond the first were previously invisible to CHECK 2.
 		struct VarUnits { std::vector<const AbstrUnit*> idUnits, valReps; };
 		std::vector<VarUnits> vu(nv);
@@ -572,9 +572,9 @@ void SigUnitChecker_VerifyApplication(const Operator* oper, const ArgSeqType& ar
 			collectPos(rec.result, result);
 
 		// v2 (coverage gap (a)): replay the DESCRIBED result members against the
-		// ACTUAL result's sub-items. Absence is NOT drift — described member sets are
+		// ACTUAL result's sub-items. Absence is NOT drift -- described member sets are
 		// deliberately incomplete/conditional (bid_price exists iff a suitability map
-		// is found) — but a member that IS present must carry the described var's
+		// is found) -- but a member that IS present must carry the described var's
 		// units. Paths are walked segment-wise on the freshly created result tree.
 		// (resultMemberSets stay out: their names come from argument DATA, which the
 		// debug checker must not read.)

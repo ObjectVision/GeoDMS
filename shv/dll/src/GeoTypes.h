@@ -662,7 +662,7 @@ FormattedOutStream& operator <<(FormattedOutStream& os, const TPoint& point);
 
 #include <windows.h>
 
-// Layout-compatible casts — valid on Windows where sizeof(Int32) == sizeof(LONG)
+// Layout-compatible casts -- valid on Windows where sizeof(Int32) == sizeof(LONG)
 static_assert(sizeof(Int32) == sizeof(LONG), "GType and LONG must have the same size for Win32 interop");
 
 inline       POINT& AsPOINT(      GPoint& p) { return reinterpret_cast<      POINT&>(p); }

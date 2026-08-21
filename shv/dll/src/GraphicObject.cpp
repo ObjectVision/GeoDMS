@@ -9,7 +9,7 @@
 #pragma hdrstop
 #endif
 
-// GraphicObject: the common base of all shv view objects — visibility,
+// GraphicObject: the common base of all shv view objects -- visibility,
 // extents and invalidation administration.
 
 #include "GraphicObject.h"

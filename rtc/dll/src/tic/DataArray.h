@@ -8,7 +8,7 @@
 
 /*
  *  DataArrayBase<V> / DataArray<V>: the typed tile-array interface over
- *  AbstrDataObject — locked tile access (seq/cseq), value-range data, and the
+ *  AbstrDataObject -- locked tile access (seq/cseq), value-range data, and the
  *  numeric/geometric value accessors. TileFunctor<V> derives directly from it.
  *  Template member bodies live in DataArray.ipp.
  *
@@ -16,7 +16,7 @@
  *  below are each guarded by a predicate (see "element-group predicates"). A
  *  virtual function cannot carry a requires-clause, so the guard sits in the
  *  body as an `if constexpr` whose else-branch calls the AbstrDataObject
- *  default (which throws or returns the documented neutral value) — exactly
+ *  default (which throws or returns the documented neutral value) -- exactly
  *  what a V outside the group inherited when these members still lived in the
  *  NumericArray / AdditiveArray / GeoArrayAdapter / PointArrayAdapter /
  *  SeqArrayAdapter layers that data_array_traits<V> used to splice in.

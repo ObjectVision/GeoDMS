@@ -40,7 +40,7 @@ namespace {
 	CommonOperGroup cogCP("connected_parts", oper_policy::better_not_in_meta_scripting);
 	CommonOperGroup cogSCC("strongly_connected_components", oper_policy::better_not_in_meta_scripting);
 
-	// REMOVE: Obsolte PartNr support -- REMOVED IN v21 (issue #1177); use part_rel.
+	// The obsolete PartNr support below is still present and MUST BE REMOVED IN v21 (issue #1177); use part_rel.
 	// The static_assert is the primary guarantee: it fails the BUILD when the major version
 	// is bumped, instead of leaving the removal to the runtime throw below.
 	static_assert(DMS_VERSION_MAJOR <= 20,

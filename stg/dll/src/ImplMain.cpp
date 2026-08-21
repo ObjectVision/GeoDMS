@@ -80,7 +80,7 @@ FileResult FilePtrHandle::OpenFH(WeakStr name, FileCreationMode fcm, bool transl
 #if defined(_MSC_VER)
 	// fileName is UTF-8; the narrow _fsopen interprets it as the active
 	// code page (CP1252 on Western installs), so non-ASCII paths fail to
-	// open even though the file is there. Use the wide-char variant —
+	// open even though the file is there. Use the wide-char variant --
 	// same root cause as #1101.
 	auto wideName = Utf8_2_wchar(fileName.c_str());
 	auto wideMode = Utf8_2_wchar(mode);

@@ -10,7 +10,6 @@
 
 // (BaseStreamBuff and AsString merged in, 2026-08)
 
-// ==== from MoreStreamBuff.cpp ====
 
 #include "dbg/DmsCatch.h"
 #include "vt/StringBounds.h"
@@ -240,7 +239,7 @@ DMS_CONV DMS_OutStreamBuff_CurrPos(OutStreamBuff* self)
 }
 
 
-// ==== from BaseStreamBuff.cpp ====
+// ==== BaseStreamBuff ====
 
 /*
  *  Name        : ser\BaseStreamBuff.cpp
@@ -306,7 +305,7 @@ void OutStreamBuff::WriteBytes(CharPtr cstr)
 
 
 
-// ==== from AsString.cpp ====
+// ==== AsString ====
 
 #include "ser/AsString.h"
 #include "vt/iterrange.h"

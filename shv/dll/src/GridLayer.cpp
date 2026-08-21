@@ -29,7 +29,6 @@
 
 #include "StgBase.h"
 
-//#include "SpatialInterface.h"
 #include "SpatialAnalyzer.h"
 
 #include "AbstrController.h"
@@ -1079,7 +1078,7 @@ bool GridLayer::DrawAllRects(GraphDrawer& d, const GridColorPalette& colorPalett
 	return false;
 }
 
-// Expand a GridDrawer's native-bpp source buffer (W cols x H rows, GridFill's row order — bottom-up in
+// Expand a GridDrawer's native-bpp source buffer (W cols x H rows, GridFill's row order -- bottom-up in
 // device terms) into a 32bpp RGBQUAD buffer in the SAME row order. The caller's src2device encodes the
 // bottom-up flip (a negative row factor), so this does NOT flip. Supports 32bpp direct and <=8bpp
 // indirect (the two GridColorPalette modes real rasters use); other depths are skipped with a one-time

@@ -10,7 +10,6 @@
 
 // (Assoc merged in, 2026-08)
 
-// ==== from LispEval.cpp ====
 
 /****************** Lisp interpreter              *******************/
 
@@ -1025,7 +1024,7 @@ LispRef BoolEvalCondList(LispPtr Goal)
 
 
 
-// ==== from Assoc.cpp ====
+// ==== Assoc ====
 
 #include "Assoc.h"
 

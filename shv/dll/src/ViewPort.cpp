@@ -8,7 +8,7 @@
 #pragma hdrstop
 #endif
 
-// ViewPort: the world-to-device viewport of a map view — region of
+// ViewPort: the world-to-device viewport of a map view -- region of
 // interest, zoom/scale management and coordinate display.
 
 #include "ViewPort.h"

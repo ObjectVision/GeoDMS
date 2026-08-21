@@ -11,7 +11,7 @@
 // Classification/mapping operator TUs, merged (2026-08): ClassBreak, ID,
 // SeparableMapping.
 
-// ==== from ClassBreak.cpp ====
+// ==== ClassBreak ====
 
 #include "RtcTypeLists.h"
 #include "dbg/DebugContext.h"
@@ -112,7 +112,7 @@ namespace
 
 
 
-// ==== from ID.cpp ====
+// ==== ID ====
 
 #include "vt/CheckedCalc.h"
 #include "mci/CompositeCast.h"
@@ -241,7 +241,7 @@ namespace
 
 
 
-// ==== from SeparableMapping.cpp ====
+// ==== SeparableMapping ====
 
 #include "OperConv.h"
 

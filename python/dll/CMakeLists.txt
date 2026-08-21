@@ -1,4 +1,4 @@
-# geodms.pyd — Python binding for GeoDMS (Windows-only, pybind11)
+# geodms.pyd -- Python binding for GeoDMS (Windows-only, pybind11)
 # Mirrors DmsPython.vcxproj: single source Bindings.cpp -> geodms.pyd
 
 if(NOT WIN32)
@@ -7,7 +7,7 @@ endif()
 
 # Build against the SAME Python the msbuild build (DmsPython.vcxproj uses %PYTHON3_*%) and
 # the test harness (batch/Unit/PythonTest.bat -> `py -3.13`) use, by consuming the include
-# dir and import library directly from %PYTHON3_INCLUDE_DIR% / %PYTHON3_LIBRARIES% — exactly
+# dir and import library directly from %PYTHON3_INCLUDE_DIR% / %PYTHON3_LIBRARIES% -- exactly
 # like DmsPython.vcxproj (%PYTHON3_INCLUDE_DIR% + %PYTHON3_LIBRARIES%/*.lib).
 #
 # We deliberately do NOT call find_package(Python3 ... COMPONENTS Development): under the

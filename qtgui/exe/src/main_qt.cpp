@@ -95,7 +95,7 @@ std::any interpret_command_line_parameters(CmdLineSetttings& settingsFrame) {
         // Unknown-option guard: on Windows '/x' is the option-prefix
         // convention; on Linux it's '-x'. Anything that survives the known-
         // option parsing above and still looks like an option must be a typo
-        // or an unsupported flag — fail loudly rather than silently treating
+        // or an unsupported flag -- fail loudly rather than silently treating
         // it as a config-file name.
 #ifdef _WIN32
         if ((*argv)[0] == '/')

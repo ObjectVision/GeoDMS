@@ -8,9 +8,7 @@
 
 
 /*
- *  Name        : act/UpdateMark.h
- *  SubSystem   : RTL
- *  Description : Update marker is a class that wraps time stamp functionality
+ *  Update marker: a class that wraps time stamp functionality.
  */
 
 #if !defined(__ACT_UPDATEMARK_H)

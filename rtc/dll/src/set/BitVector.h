@@ -133,9 +133,9 @@ struct bit_reference : private bit_sequence_base<N, Block>
 
 	// These read-modify-write the whole Block word at m_BlockData. When this reference wraps a
 	// standalone 1-byte bit_value (the bit_reference(bit_value<N>&) ctor reinterprets &elem as a
-	// Block*), the Block-wide access touches bytes past the 1-byte object. It is benign — only the
+	// Block*), the Block-wide access touches bytes past the 1-byte object. It is benign -- only the
 	// masked bits change and the trailing bytes are written back unchanged, and object alignment/
-	// allocator slack keeps it from faulting — so suppress GCC's -Warray-bounds here.
+	// allocator slack keeps it from faulting -- so suppress GCC's -Warray-bounds here.
 	// TODO: a byte-granular single-element path would remove the underlying out-of-bounds access.
 #if defined(__GNUC__)
 #pragma GCC diagnostic push

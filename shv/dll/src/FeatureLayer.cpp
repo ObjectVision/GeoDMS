@@ -8,7 +8,7 @@
 #pragma hdrstop
 #endif
 
-// FeatureLayer: the vector feature layers (points, arcs, polygons) —
+// FeatureLayer: the vector feature layers (points, arcs, polygons) --
 // drawing, label placement and selection handling.
 
 #include "FeatureLayer.h"

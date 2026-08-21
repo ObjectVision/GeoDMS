@@ -11,7 +11,7 @@
 // Small view/control satellites of shv, merged (2026-08): ViewControl,
 // TableDataView, WmsLegendControl, ActivationInfo, IdleTimer, Cmds, Wrapper.
 
-// ==== from ViewControl.cpp ====
+// ==== ViewControl ====
 
 #include "ViewControl.h"
 #include "DataView.h"
@@ -73,7 +73,7 @@ void ViewControl::SetClientSize(CrdPoint newSize)
 IMPL_ABSTR_CLASS(ViewControl)
 
 
-// ==== from TableDataView.cpp ====
+// ==== TableDataView ====
 
 #include "EditPalette.h"
 #include "TableDataView.h"
@@ -139,7 +139,7 @@ void TableDataView::AddLayer(const TreeItem* viewItem, bool isDragging)
 IMPL_RTTI_CLASS(TableDataView);
 
 
-// ==== from WmsLegendControl.cpp ====
+// ==== WmsLegendControl ====
 
 #include "ShvBase.h"
 
@@ -200,7 +200,7 @@ bool WmsLegendControl::Draw(GraphDrawer& d) const
 }
 
 
-// ==== from ActivationInfo.cpp ====
+// ==== ActivationInfo ====
 
 #include "ActivationInfo.h"
 #include "MovableObject.h"
@@ -236,7 +236,7 @@ bool ActivationInfo::OnKeyDown(UInt32 virtKey)
 
 
 
-// ==== from IdleTimer.cpp ====
+// ==== IdleTimer ====
 
 #include "IdleTimer.h"
 #include "DataView.h"
@@ -285,7 +285,7 @@ void IdleTimer::Subscribe  (std::weak_ptr<DataView> dv)
 }
 
 
-// ==== from Cmds.cpp ====
+// ==== Cmds ====
 
 #include "Cmds.h"
 #include "ViewPort.h"
@@ -306,7 +306,7 @@ GraphVisitState CmdSelectDistrict::DoGridLayer(GridLayer* dgl)
 
 
 
-// ==== from Wrapper.cpp ====
+// ==== Wrapper ====
 
 #include "Wrapper.h"
 

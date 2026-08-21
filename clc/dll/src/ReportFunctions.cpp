@@ -404,7 +404,7 @@ CLC_CALL void DMS_CONV XML_ReportOperGroup(OutStreamBase* xmlStr, const AbstrOpe
 {
 	XML_OutElement xml_oper(*xmlStr, "OperatorGroup", GetTokenStr(gr->GetNameID()).c_str());
 
-	// batch F (§6.3): the durable operator-doc surface — the group's declared
+	// batch F (§6.3): the durable operator-doc surface -- the group's declared
 	// unit-constraint signatures, rendered by the same printer that enriches
 	// FindOper's failure message. Undescribed groups (GetSignatures()==nullptr)
 	// emit nothing, keeping the report shape unchanged for them. Report
@@ -435,7 +435,7 @@ CLC_CALL void DMS_CONV XML_ReportAllOperGroups(OutStreamBase* xmlStr)
 	XML_OutElement xml_funcs(*xmlStr, "FunctionList", "");
 	// pre-existing bug, surfaced by the batch-F review: the loop bound was
 	// GetNrOperators() (the total MEMBER count) while GetOperatorGroup(i) takes
-	// a GROUP index — overrunning the group registry past GetNrOperatorGroups()
+	// a GROUP index -- overrunning the group registry past GetNrOperatorGroups()
 	// (debug assert; out-of-bounds read in release). Iterate the groups.
 	UInt32 nrGroups = AbstrOperGroup::GetNrOperatorGroups();
 	xmlStr->WriteAttr("NrFunctions", nrGroups);

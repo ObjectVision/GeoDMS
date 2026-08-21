@@ -11,7 +11,7 @@
 // Small geo satellites, merged (2026-08): GeoInterface (DMS_Geo_Load),
 // AbstrBoundingBoxCache, PolyOper, Mandlebrot.
 
-// ==== from GeoInterface.cpp ====
+// ==== GeoInterface ====
 
 #include "GeoInterface.h"
 
@@ -24,7 +24,7 @@ GEO_CALL void DMS_CONV DMS_Geo_Load()
 
 
 
-// ==== from AbstrBoundingBoxCache.cpp ====
+// ==== AbstrBoundingBoxCache ====
 
 #include "BoundingBoxCache.h"
 
@@ -66,7 +66,7 @@ DRect AbstrBoundingBoxCache::GetBounds(SizeT featureID) const
 
 
 
-// ==== from PolyOper.cpp ====
+// ==== PolyOper ====
 
 #include "PolyOper.h"
 
@@ -112,7 +112,7 @@ namespace {
 } // namespace
 
 
-// ==== from Mandlebrot.cpp ====
+// ==== Mandlebrot ====
 
 #include "mth/Mathlib.h"
 

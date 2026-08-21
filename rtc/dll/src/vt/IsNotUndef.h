@@ -11,8 +11,6 @@
  *  bit_value overloads.
  */
 
-//<HEADER> 
-
 #if !defined(__VT_ISNOTUNDEF_H)
 #define __VT_ISNOTUNDEF_H
 

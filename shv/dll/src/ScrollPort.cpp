@@ -408,7 +408,7 @@ void ScrollPort::SetScrollY(bool verScroll)
 
 void ScrollPort::SetScrollBars()
 {
-	// reposition — show/hide already done by SetScrollX/Y; position handled by QDmsViewArea resizeEvent
+	// reposition -- show/hide already done by SetScrollX/Y; position handled by QDmsViewArea resizeEvent
 }
 
 void ScrollPort::OnHScroll(UInt16) {} // handled by QScrollBar::valueChanged → onHScrollValueChanged

@@ -76,7 +76,7 @@
 #define	CASEDIR_NAME            "CaseDir"
 
 // PropDefs in AbstrUnit.cpp
-// FORMAT_NAME ("Format") removed in v21 (obsolete unit property; use SpatialReference).
+// FORMAT_NAME ("Format") was an obsolete unit property and has been removed; use SpatialReference.
 #define	SR_NAME                  "SpatialReference"
 #define METRIC_NAME              "Metric"
 #define PROJECTION_NAME          "Projection"

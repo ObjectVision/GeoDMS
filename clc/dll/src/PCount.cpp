@@ -76,7 +76,7 @@ namespace {
 				)
 		{}
 
-		// mirrors CreateResult below: pcount(rel: P[D]) -> R[P] — the result
+		// mirrors CreateResult below: pcount(rel: P[D]) -> R[P] -- the result
 		// ranges over the argument's VALUES unit (K5); the count class is either
 		// fixed (typed pcount_uintN groups) or chosen at runtime from the domain
 		// count (the dynamic cog_pcount form: R stays unconstrained)

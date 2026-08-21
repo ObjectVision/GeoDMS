@@ -12,8 +12,8 @@
  *  allocation (used e.g. for status-bar text), plus the va_list based
  *  myVSSPrintF and the RepeatedDots progress helper. This is the only
  *  header that drags in the deprecated <strstream>; include it only where
- *  fixed-buffer formatting is actually used (split out of mySPrintF.h,
- *  which sat in four PCH closures — see header-hygiene-2026-08.md §5B).
+ *  fixed-buffer formatting is actually used.
+ *  (See header-hygiene-2026-08.md §5B for why it is kept out of the PCHs.)
  */
 
 #if !defined(__UTL_FIXEDBUFFERFORMAT_H)

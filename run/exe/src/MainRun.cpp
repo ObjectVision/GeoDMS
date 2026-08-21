@@ -2,7 +2,7 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////
 
-// GeoDmsRun: the command-line runner — loads a configuration and updates
+// GeoDmsRun: the command-line runner -- loads a configuration and updates
 // the requested items, with logging and test-script support.
 
 //#include "ShvDllInterface.h"
@@ -137,7 +137,7 @@ int main2_without_SE(int argc, char** argv)
 	// Unknown-option guard: on Windows '/x' is the option-prefix convention,
 	// on Linux it's '-x'. Anything that survives the known-option parsing
 	// above (/L, /S<X>, /C<X>) and still looks like an option must be a typo
-	// or unsupported — fail loudly rather than treating it as a cfg name.
+	// or unsupported -- fail loudly rather than treating it as a cfg name.
 	if (argc >= 1)
 	{
 #ifdef _WIN32
@@ -224,7 +224,7 @@ int main2_without_SE(int argc, char** argv)
 			{
 				// headless config-source dump: write the loaded configuration back out in
 				// DMS syntax (the same serialization the GUI 'Configuration' detail page
-				// shows). Handy for inspecting how items — functions in particular — are
+				// shows). Handy for inspecting how items -- functions in particular -- are
 				// represented, and for round-trip checks.  Usage: @dumpconfig <out.dms>
 				if (argc > 1)
 				{

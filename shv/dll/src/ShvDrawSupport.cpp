@@ -11,7 +11,7 @@
 // Small drawing/theme satellites of shv, merged (2026-08): LayerClass,
 // CaretOperators, RegionTower, AspectGroup, ThemeReadLocks, DrawContext.
 
-// ==== from LayerClass.cpp ====
+// ==== LayerClass ====
 
 #include "LayerClass.h"
 
@@ -41,7 +41,7 @@ IMPL_RTTI_METACLASS(LayerClass, "GRAPHIC", nullptr);
 
 
 
-// ==== from CaretOperators.cpp ====
+// ==== CaretOperators ====
 
 #include "dbg/DebugCast.h"
 
@@ -98,7 +98,7 @@ void NeedleCaretOperator::operator() (AbstrCaret* caret) const
 
 
 
-// ==== from RegionTower.cpp ====
+// ==== RegionTower ====
 
 
 #include "RegionTower.h"
@@ -144,7 +144,7 @@ Region RegionTower::GetResult()
 }
 
 
-// ==== from AspectGroup.cpp ====
+// ==== AspectGroup ====
 
 #include "AspectGroup.h"
 
@@ -226,7 +226,7 @@ TokenID GetAspectGroupNameID(AspectGroup ag)
 
 
 
-// ==== from ThemeReadLocks.cpp ====
+// ==== ThemeReadLocks ====
 
 #include "ThemeReadLocks.h"
 
@@ -329,7 +329,7 @@ bool ThemeReadLocks::ProcessFailOrSuspend(const GraphicObject* go) const
 }
 
 
-// ==== from DrawContext.cpp ====
+// ==== DrawContext ====
 
 #include "DrawContext.h"
 #include "GeoTypes.h"

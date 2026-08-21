@@ -1188,7 +1188,7 @@ void QDmsViewArea::wheelEvent(QWheelEvent* event)
     auto dv = getDataView(); if (!dv) { QMdiSubWindow::wheelEvent(event); return; }
     QRect cr = contentsRect();
     GPoint pt = toClientPoint(event->position().toPoint(), cr, devicePixelRatioF());
-    // Pack delta (in 120-units) into HIWORD of flags, buttons in LOWORD — matches Win32 WM_MOUSEWHEEL wParam
+    // Pack delta (in 120-units) into HIWORD of flags, buttons in LOWORD -- matches Win32 WM_MOUSEWHEEL wParam
     int delta = event->angleDelta().y(); // positive = scroll up = zoom in
     UINT flags = qtModsToMkFlags(event->buttons(), event->modifiers());
     UINT wParam = (UINT)(((short)delta) << 16) | (flags & 0xFFFF);
@@ -1283,7 +1283,7 @@ void QDmsViewArea::keyPressEvent(QKeyEvent* event)
     // qtKeyToVK didn't translate this key. If it produces printable text
     // (digit, letter, punctuation), deliver it as a WM_CHAR-equivalent so
     // TextEditController's isWmChar branch starts/extends an edit. On the
-    // Qt build, focus lives on the QDmsViewArea Qt widget — keypresses for
+    // Qt build, focus lives on the QDmsViewArea Qt widget -- keypresses for
     // character keys never reach m_DataViewHWnd's DispatchMsg, so without
     // this path nothing inserts characters into the edit buffer (issue #1112).
     //
@@ -1310,7 +1310,7 @@ void QDmsViewArea::keyPressEvent(QKeyEvent* event)
         }
     }
 
-    // Unhandled special key — let Qt do its default thing (e.g. Ctrl+W to close).
+    // Unhandled special key -- let Qt do its default thing (e.g. Ctrl+W to close).
     QMdiSubWindow::keyPressEvent(event);
 }
 

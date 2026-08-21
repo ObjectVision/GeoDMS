@@ -9,7 +9,7 @@
 #pragma hdrstop
 #endif
 
-// DataItemColumn: one attribute column of a TableControl — rendering,
+// DataItemColumn: one attribute column of a TableControl -- rendering,
 // in-place editing, sorting, relative display and tooltips.
 
 #include "DataItemColumn.h"
@@ -1103,7 +1103,7 @@ void DataItemColumn::DrawElement(GraphDrawer& d, SizeT rowNr, GRect elemDeviceEx
 		// underlying attribute value. Step 4a's DrawContext migration dropped
 		// this path along with DrawEditText/DrawTextWithCursor; without it
 		// users typing into a cell only see the old value (issue #1112).
-		// IsBeingEdited(rowNr) is the AbstrTextEditControl shared check —
+		// IsBeingEdited(rowNr) is the AbstrTextEditControl shared check --
 		// the controller's m_CurrRec is the row currently being edited.
 		if (IsBeingEdited(rowNr))
 		{
@@ -2117,7 +2117,7 @@ bool DataItemColumn::GetTooltipText(TooltipCollector& ttc) const
 	if (!activeTextAttr)
 	{
 		// Column is rendered via a theme's value getter (e.g. palette /
-		// classification — typically the non-editable, coloured-background
+		// classification -- typically the non-editable, coloured-background
 		// cells). Mirror DataItemColumn::GetText's fallback so the tooltip
 		// shows the same string the cell displays, instead of nothing.
 		auto theme = GetEnabledTheme(AN_LabelText);

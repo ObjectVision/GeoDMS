@@ -11,7 +11,7 @@
 // Small clc operator TUs, merged (2026-08): AnyAll, Sort, Checker, SubItem,
 // ExprCalculator, Loop, Ramp.
 
-// ==== from AnyAll.cpp ====
+// ==== AnyAll ====
 
 #include "OperAccUniNum.h"
 
@@ -30,7 +30,7 @@ namespace
 }
 
 
-// ==== from Sort.cpp ====
+// ==== Sort ====
 
 #include "mci/CompositeCast.h"
 #include "set/DataCompare.h"
@@ -114,7 +114,7 @@ namespace
 
 
 
-// ==== from Checker.cpp ====
+// ==== Checker ====
 
 // *****************************************************************************
 //										CheckOperator
@@ -201,7 +201,7 @@ namespace {
 
 }
 
-// ==== from SubItem.cpp ====
+// ==== SubItem ====
 
 #include "dbg/SeverityType.h"
 #include "utl/StrFormat.h"
@@ -296,7 +296,7 @@ namespace {
 
 }
 
-// ==== from ExprCalculator.cpp ====
+// ==== ExprCalculator ====
 
 #include "ExprCalculator.h"
 
@@ -391,7 +391,7 @@ CLC_CALL bool ExprCalculatorTest()
 #endif //defined(MG_DEBUG)
 
 
-// ==== from Loop.cpp ====
+// ==== Loop ====
 
 #include "utl/StrFormat.h"
 
@@ -580,7 +580,7 @@ namespace
 
 
 
-// ==== from Ramp.cpp ====
+// ==== Ramp ====
 
 #include "mci/CompositeCast.h"
 

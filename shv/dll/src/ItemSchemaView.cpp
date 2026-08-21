@@ -2,7 +2,6 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 // 
-// SheetVisualTestView.cpp : implementation of the DataView class
 //
 
 #include "ShvDllPCH.h"

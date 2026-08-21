@@ -8,7 +8,7 @@
 #pragma hdrstop
 #endif
 
-// TreeItem: the configuration-tree node — tree topology, item state and
+// TreeItem: the configuration-tree node -- tree topology, item state and
 // update flow, storage binding and interest-count management.
 
 #include "TreeItem.h"
@@ -94,8 +94,8 @@ namespace {
 		bool hasRestParam = false;      // '...x' rest parameter (always the LAST param): binds ONE OR MORE trailing arguments
 		bool definitionChecked = false; // WP3.4: body scope/shape validated once
 		bool isVariantSet = false;      // §5.7: a function that dispatches to variant sub-functions by argument type
-		bool signatureOnly = false;     // 'alias = function<...>(...) -> ...;' — a signature-only function item (declared type, no body)
-		bool resultIsFunction = false;  // §5.10: '-> function' / '-> sigAlias' — the result is function-valued
+		bool signatureOnly = false;     // 'alias = function<...>(...) -> ...;' -- a signature-only function item (declared type, no body)
+		bool resultIsFunction = false;  // §5.10: '-> function' / '-> sigAlias' -- the result is function-valued
 		std::weak_ptr<const TreeItem> resultSig = {}; // the '-> sigAlias<...>' result-signature exemplar, if any (else expired)
 		std::vector<TokenID> resultSigTypeArgs = {};  // the result signature's type-application args
 	};
@@ -153,7 +153,7 @@ bool MatchesGenericConstraint(const ValueClass* vc, TokenID constraintName)
 	if (constraintName == t_gcSignedDomainPoints)
 		// domain_points restricted to SIGNED coordinates (spoint, ipoint): only those
 		// can carry a negative cell offset. Signedness lives on the coordinate type,
-		// not on the point value class — is_signed<Point<T>> is false for every T —
+		// not on the point value class -- is_signed<Point<T>> is false for every T --
 		// so consult the scalar class, exactly as IsCountable() does for integrality.
 		return vc->GetNrDims() == 2 && vc->GetValueComposition() == ValueComposition::Single && vc->IsCountable()
 			&& vc->GetScalarClass() && vc->GetScalarClass()->IsSigned();
@@ -1505,7 +1505,7 @@ SharedTreeItem TreeItem_GetFunctionParamSignature(const TreeItem* functionItem, 
 	return {};
 }
 
-// K11a by-example: a 'p: exemplar' parameter whose exemplar is a UNIT — the
+// K11a by-example: a 'p: exemplar' parameter whose exemplar is a UNIT -- the
 // exemplar's declared sub-items serve as the parameter's member block for the
 // definition-time checker (the parse-time clone carries only the class).
 TIC_CALL void TreeItem_AddFunctionParamTypeExemplar(const TreeItem* functionItem, UInt32 paramIndex, const TreeItem* exemplar)
@@ -1742,7 +1742,7 @@ int TreeItem_CompareVariantSpecificity(const TreeItem* a, const TreeItem* b)
 TIC_CALL void TreeItem_CheckVariantSetDisjointness(const TreeItem* setItem)
 {
 	// definition-time (§5.7 v2): two variants whose acceptance sets overlap must be
-	// specificity-ordered — identical or incomparable overlapping coverage is an
+	// specificity-ordered -- identical or incomparable overlapping coverage is an
 	// error now instead of a per-call ambiguity later. Pairs with a "soft" position
 	// (unresolvable/wildcard type) are left to the call-time ambiguity guard.
 	std::vector<VariantMatchInfo> infos;
@@ -2629,7 +2629,7 @@ SharedMutableTreeItem TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext
 		// call-site isolation): an instantiated (or copied) function scope sees its own
 		// sub-items (bound arguments, locals, result), the function's explicitly
 		// imported namespaces (frozen to absolute paths below), and the DEFINITION
-		// parent, injected as an absolute namespace like template instances get —
+		// parent, injected as an absolute namespace like template instances get --
 		// while the implicit tree-parent namespace (= call-site or copy-site scope) is
 		// removed below, so call-site names stay invisible.
 		bool srcIsFunction = IsFunctionItem();
@@ -2653,7 +2653,7 @@ SharedMutableTreeItem TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext
 				const TreeItem* sns = GetNamespaceUsage(i1);
 				// the parent/ancestor skips exist because instances reach ancestors through
 				// the injected definition-parent namespace; function imports are kept
-				// verbatim (frozen absolute) — a redundant entry is harmless
+				// verbatim (frozen absolute) -- a redundant entry is harmless
 				if (sns && (srcIsFunction || (sns != GetTreeParent().get() && !sns->DoesContain(this))))
 				{
 					if (nameSpaceBuffer.CurrPos())
@@ -5143,11 +5143,11 @@ void DMS_WriteValuesPrefix(OutStreamBase& out, const TreeItem* item)
 		out << (adi->HasVoidDomainGuarantee() ? "parameter<" : "attribute<"); out << vt.c_str(); out << ">";
 		return;
 	}
-	if (IsUnit(item)) { out << SharedStr(item->GetSignature()).c_str(); return; } // 'unit<vt>' — source-faithful
+	if (IsUnit(item)) { out << SharedStr(item->GetSignature()).c_str(); return; } // 'unit<vt>' -- source-faithful
 	out << "container";
 }
 
-// The domain SUFFIX ' (dTok[, comp])' — placed AFTER the item name (attribute grammar);
+// The domain SUFFIX ' (dTok[, comp])' -- placed AFTER the item name (attribute grammar);
 // nothing for a void/domain-less item or a non-data item. '.' (self) domains are omitted:
 // they are the parser's default for a domain-less function param/result and re-derive on reload.
 void DMS_WriteDomainSuffix(OutStreamBase& out, const TreeItem* item)
@@ -5287,7 +5287,7 @@ void TreeItem::XML_DumpFunctionDecl(OutStreamBase* out, bool notWritingDictionar
 		if (c->GetID() == resultNameTok) { resultChild = c; break; }
 
 	// header: 'function name<tvs>(params), using = ns -> result'  (variants: keyword 'variant';
-	// signature alias: 'name = function<tvs>(params) -> type;' — name precedes the keyword)
+	// signature alias: 'name = function<tvs>(params) -> type;' -- name precedes the keyword)
 	XML_OutElement elem(*out,
 		isSigOnly ? nameStr.c_str() : (isVariant ? "variant" : "function"),
 		isSigOnly ? "= function" : nameStr.c_str());
@@ -5306,7 +5306,7 @@ void TreeItem::XML_DumpFunctionDecl(OutStreamBase* out, bool notWritingDictionar
 	DMS_WriteResultType(*out, this, resultChild);
 
 	if (isSigOnly)
-		return; // 'nuf = function<...>(...) -> type;' — no designation, no body; the dtor emits ';'
+		return; // 'nuf = function<...>(...) -> type;' -- no designation, no body; the dtor emits ';'
 
 	if (resultChild) { *out << " := "; *out << SharedStr(resultChild->GetName()).c_str(); }
 
@@ -5796,7 +5796,7 @@ auto TreeItem_GetTemplateSource(const TreeItem* item) -> SharedTreeItem
 	if (calculator->HasTemplSource())
 		return make_shared_tree(calculator->GetTemplSource(), existing_obj{});
 	// IsForEachTemplHolder() is true only when applyItem==nullptr,
-	// but GetForEachTemplSource() asserts applyItem!=nullptr — mutually exclusive.
+	// but GetForEachTemplSource() asserts applyItem!=nullptr -- mutually exclusive.
 	// Skip holders that have not yet been instantiated.
 	if (calculator->IsForEachTemplHolder())
 		return {};

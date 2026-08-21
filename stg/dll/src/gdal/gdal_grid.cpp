@@ -8,7 +8,7 @@
 #pragma hdrstop
 #endif
 
-// GdalGridSM: the GDAL raster storage manager — reading and writing grid
+// GdalGridSM: the GDAL raster storage manager -- reading and writing grid
 // data and palettes through GDAL raster bands.
 
 // *****************************************************************************

@@ -30,7 +30,7 @@
 #include <ogr_api.h>
 #include <ogrsf_frmts.h>
 #ifndef _WIN32
-#include <xtiffio.h>   // XTIFFInitialize — ensures libgeotiff in DmStg.so is initialized
+#include <xtiffio.h>   // XTIFFInitialize -- ensures libgeotiff in DmStg.so is initialized
 #endif
 
 #ifndef _WIN32
@@ -1605,7 +1605,7 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 		// restricted mini-XML parser (CPLParseXMLString). That parser only accepts
 		// ASCII in element/attribute names and crashes ("Didn't find expected '='
 		// for value of attribute") on the non-ASCII item names GeoDMS permits
-		// (e.g. a Greek "<..._β_Size>") — even though the sidecar is well-formed
+		// (e.g. a Greek "<..._β_Size>") -- even though the sidecar is well-formed
 		// UTF-8 XML and GDAL's parser is the non-conforming party.
 		//
 		// Enumerating each driver's required companion files would be brittle

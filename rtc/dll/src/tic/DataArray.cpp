@@ -762,7 +762,7 @@ void DataArrayBase<V>::DoSimplifyCheckMode(DataCheckMode& dcm) const
 template <typename V>
 LispRef DataArrayBase<V>::GetValuesAsKeyArgs(LispPtr valuesUnitKeyExpr) const
 {
-	// TODO G8: Merge code with slUnionDataLispExpr TODO G8: Consider removing this function from AbstrDataObj.h interface
+	// TODO G8: Merge code with slUnionDataLispExpr TODO G8: Consider removing this function from the AbstrDataObject.h interface
 	LispRef tail;
 	SizeT i = m_TileRangeData->GetElemCount();
 	while (i)

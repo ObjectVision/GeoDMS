@@ -9,7 +9,7 @@
 #pragma hdrstop
 #endif
 
-// AbstrOperGroup: the operator-group registry — name resolution policies,
+// AbstrOperGroup: the operator-group registry -- name resolution policies,
 // the member chains that operators register into, and operator error
 // reporting.
 
@@ -255,7 +255,7 @@ bool AbstrOperGroup::AcceptsArity(arg_index nrArgs) const
 	if (!GetArityEnvelope(minReq, maxSpec))
 		return true;
 	// conservative ENVELOPE: a group with gappy member arities (e.g. 1-arg and 3-arg
-	// members only) accepts the gap values too — no fallback there, FindOper reports.
+	// members only) accepts the gap values too -- no fallback there, FindOper reports.
 	// False therefore guarantees that FindOper would throw for nrArgs.
 	return minReq <= nrArgs && nrArgs <= maxSpec;
 }
@@ -458,7 +458,7 @@ const Operator* AbstrOperGroup::FindOper(arg_index nrArgs, const ClassCPtr* argT
 	auto nameStr = SharedStr(GetName());
 
 	// batch E (§6.3): enrich the "cannot find operator" failure with this group's
-	// DECLARED unit-constraint signatures — the printer (RenderMergedSignature)
+	// DECLARED unit-constraint signatures -- the printer (RenderMergedSignature)
 	// over GetSignatures(). Undescribed groups yield sigs==nullptr => empty text
 	// => message byte-identical to before (zero behaviour change). Meta-thread-
 	// only and race-free: FindOper's genuine-not-found failure fires only at

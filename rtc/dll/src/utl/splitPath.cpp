@@ -10,7 +10,7 @@
 
 // String formatting implementation: myVSSPrintF and RepeatedDots (declared
 // in utl/FixedBufferFormat.h) plus the path-splitting helpers of
-// utl/splitPath.h. (Formerly mySPrintF.cpp.)
+// utl/splitPath.h.
 
 #include "utl/FixedBufferFormat.h"
 #include "utl/StrFormat.h"
@@ -34,8 +34,8 @@
 // The path-string helpers declared in utl/splitPath.h: splitPathBase,
 // getFileName(+Base/Extension), splitFullPath, replaceFileExtension,
 // IsAbsolutePath, DelimitedConcat, MakeAbsolutePath, MakeFileName and
-// MakeDataFileName. Split out of StrFormat.cpp (formerly mySPrintF.cpp)
-// 2026-08 to reunite them with their declaration header.
+// MakeDataFileName. Split out of StrFormat.cpp to reunite them with their
+// declaration header.
 
 SharedStr splitPathBase(CharPtr full_path, CharPtr* new_path_ptr)
 {

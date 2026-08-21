@@ -88,8 +88,8 @@ SYNTAX_CALL TreeItem* CreateTreeFromConfiguration(CharPtr sourceFilename)
 			// WP4.5: auto-import the standard prelude (typed replacements for retired
 			// RewriteExpr.lsp rules) as a hidden endogenous 'prelude' container under the
 			// config root. Call-head resolution falls back to it as the implicit
-			// outermost namespace (FindPreludeFunction in tic/AbstrCalculator.cpp) — a
-			// root 'using' cannot point at its own descendant (circularity check) — so
+			// outermost namespace (FindPreludeFunction in tic/AbstrCalculator.cpp) -- a
+			// root 'using' cannot point at its own descendant (circularity check) -- so
 			// user definitions shadow prelude names by the normal nearest-scope rules.
 			if (res)
 			{

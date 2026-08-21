@@ -58,7 +58,7 @@ struct AbstrInvertOperator : public UnaryOperator
 		(all ? &cog_InvertAll : &cog_Invert)->SetCanExplainValue();
 	}
 
-	// mirrors CreateResult below: invert(x: B[A]) -> A[B] — DOUBLE cross-role:
+	// mirrors CreateResult below: invert(x: B[A]) -> A[B] -- DOUBLE cross-role:
 	// x's VALUES unit is the result's DOMAIN and x's DOMAIN is the result's
 	// VALUES (reduction-honest: domains are UnifyDomain-checked everywhere and
 	// the result is flagged categorical, so declared-values conflicts also fail

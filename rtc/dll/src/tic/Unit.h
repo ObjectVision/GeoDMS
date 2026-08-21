@@ -7,7 +7,7 @@
 #endif
 
 /*
- *  Unit<V>: the typed unit template — holds the value range and tiling
+ *  Unit<V>: the typed unit template -- holds the value range and tiling
  *  (TiledRangeData) of a domain or values unit, with checked cardinality
  *  calculation and range formatting/streaming support.
  *
@@ -15,13 +15,13 @@
  *  depends on V, expressed by the element-group predicates below rather than by
  *  the chain of intermediate classes (UnitBase, RangedUnit, FloatUnit,
  *  CountableUnitBase, BitUnitBase, VoidUnitBase and the Num/Geo/Tile/Indexable
- *  adapters) that unit_traits<V> used to splice together — those existed only to
+ *  adapters) that unit_traits<V> used to splice together -- those existed only to
  *  express conditional members before constexpr and requires were available.
  *
  *  The non-virtual typed API carries requires-clauses. Virtual overrides cannot
  *  ([class.virtual]/6), so they are declared unconditionally and guard their body
  *  with `if constexpr`, delegating to the AbstrUnit default (which throws, or
- *  returns the documented neutral value) for a V outside the group — exactly what
+ *  returns the documented neutral value) for a V outside the group -- exactly what
  *  such a V got before by not having the member spliced in at all.
  */
 

@@ -32,7 +32,7 @@ TIC_CALL UInt32  TreeItem_GetFunctionParamCount(const TreeItem* functionItem);
 TokenID TreeItem_GetFunctionResultName(const TreeItem* functionItem);
 TIC_CALL void    TreeItem_AddFunctionParamSignature(const TreeItem* functionItem, UInt32 paramIndex, const TreeItem* signatureExemplar, std::vector<TokenID> typeArgs = {});
 // meta-reference parameters ('item x'): the argument binds as a raw item reference
-// (sourceDescr key), like PropValue's item argument in a direct call — never as the
+// (sourceDescr key), like PropValue's item argument in a direct call -- never as the
 // argument's calculation/range key
 TIC_CALL void    TreeItem_AddFunctionMetaRefParam(const TreeItem* functionItem, UInt32 paramIndex);
 bool    TreeItem_IsFunctionMetaRefParam(const TreeItem* functionItem, UInt32 paramIndex);
@@ -42,12 +42,12 @@ TIC_CALL void    TreeItem_SetFunctionRestParam(const TreeItem* functionItem);
 TIC_CALL bool    TreeItem_HasFunctionRestParam(const TreeItem* functionItem);
 auto    TreeItem_GetFunctionParamSignature(const TreeItem* functionItem, UInt32 paramIndex) -> SharedTreeItem;
 const std::vector<TokenID>* TreeItem_GetFunctionParamSigTypeArgs(const TreeItem* functionItem, UInt32 paramIndex); // WP4.1: 'sig<V, D>' arguments
-// K11a by-example: 'p: exemplar' with a UNIT exemplar — its declared sub-items are the parameter's member block for the definition-time checker
+// K11a by-example: 'p: exemplar' with a UNIT exemplar -- its declared sub-items are the parameter's member block for the definition-time checker
 TIC_CALL void    TreeItem_AddFunctionParamTypeExemplar(const TreeItem* functionItem, UInt32 paramIndex, const TreeItem* exemplar);
 auto    TreeItem_GetFunctionParamTypeExemplar(const TreeItem* functionItem, UInt32 paramIndex) -> SharedTreeItem;
 TIC_CALL void    TreeItem_SetFunctionTypeVars(const TreeItem* functionItem, std::vector<std::pair<TokenID, TokenID>> typeVars); // WP4.1: ordered <var: constraint> list
 const std::vector<std::pair<TokenID, TokenID>>* TreeItem_GetFunctionTypeVars(const TreeItem* functionItem);
-TIC_CALL void    TreeItem_SetFunctionSignatureOnly(const TreeItem* functionItem); // 'alias = function<...>(...) -> ...;' — declared type, no body
+TIC_CALL void    TreeItem_SetFunctionSignatureOnly(const TreeItem* functionItem); // 'alias = function<...>(...) -> ...;' -- declared type, no body
 bool    TreeItem_IsFunctionSignatureOnly(const TreeItem* functionItem);
 TIC_CALL void    TreeItem_SetFunctionResultSig(const TreeItem* functionItem, bool resultIsFunction, const TreeItem* resultSigExemplar, std::vector<TokenID> typeArgs = {}); // §5.10: function-valued result
 bool    TreeItem_IsFunctionResultFunction(const TreeItem* functionItem);

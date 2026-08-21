@@ -305,11 +305,11 @@ struct AbstrConnectPointOperator : VariadicOperator
 	// batch E: connect(point1: attribute<Vc>(D1); point2: attribute<Vc>(D2)) -> attribute<D1>(D2),
 	// and capacitated_connect(point1; weight1; point2; weight2). Faithful, safe claims only:
 	// the two coordinate value classes share (K16, CreateResult :300 is a plain UnifyValues(UM_Throw)
-	// with NO default escape — unlike union — so class equality is a sound def-time under-approximation
+	// with NO default escape -- unlike union -- so class equality is a sound def-time under-approximation
 	// of the class+metric reduction check), and the capacitated weights share their point domain (:303,
-	// :304) and each other's value class (:306) — all unconditional UM_Throw. The result relation is
+	// :304) and each other's value class (:306) -- all unconditional UM_Throw. The result relation is
 	// deferred (§16). GUARD: skip the mis-registered eq/ne members (4-arg non-capacitated, 6-arg
-	// capacitated) — their CreateResult never implements the compare-key contract (it asserts 2||4 args
+	// capacitated) -- their CreateResult never implements the compare-key contract (it asserts 2||4 args
 	// and treats any 4-arg as capacitated), so they must not be described.
 	bool DescribeSignature(AbstrSignatureBuilder& sb) const override
 	{
@@ -681,11 +681,11 @@ public:
 	// batch F: connect_info / dist_info (+ _eq/_ne, +maxdist/+mindist), deferred
 	// from batch E. Mirrors the shipped FastConnect describe: the arc geometry
 	// (Sequence|Polygon), the eq/ne join keys and the void-broadcasting distances
-	// stay deferred prose; the points position carries fresh (single-use) vars —
+	// stay deferred prose; the points position carries fresh (single-use) vars --
 	// no cross-argument unification claim. The one faithful upgrade is
 	// dist_info's RESULT (OnlyDistResult): CreateResult below unconditionally
 	// builds CreateCacheDataItem(pointEntity, the metric-LESS default dist unit)
-	// — ResultAttr(DefaultUnit, Dp) states the K3 domain identity and the class,
+	// -- ResultAttr(DefaultUnit, Dp) states the K3 domain identity and the class,
 	// both discharged by CheckResultItem at reduction.
 	// connect_info's container result is printer prose (ResultContainer).
 	bool DescribeSignature(AbstrSignatureBuilder& sb) const override
@@ -706,10 +706,10 @@ public:
 			{
 				// §12.8 slSubItemCall tranche: connect_info's CONTAINER members,
 				// exactly as CreateResult builds them (:755-760) plus the
-				// deprecated ArcID alias created at meta time (:765) — ALL keyed by
+				// deprecated ArcID alias created at meta time (:765) -- ALL keyed by
 				// the points' domain Dp (K3). Values: dist the metric-less default
 				// dist class; CutPoint the point coordinate class (Vpt, class-level
-				// — a values-only var); InArc/InSegm Bool; SegmID UInt32; arc_rel
+				// -- a values-only var); InArc/InSegm Bool; SegmID UInt32; arc_rel
 				// and ArcID hold the arc entity (a deferred arg, no var) so their
 				// values stay unclaimed. The set is COMPLETE: CreateResult builds
 				// exactly these, unconditionally. connect_info is cacheable, so
@@ -1042,12 +1042,12 @@ public:
 	// batch E: connect / connect_eq / connect_ne (arc -> network). This is a
 	// FRESH-UNIT operator (K6): CreateResult builds a new Unit<UInt32> result
 	// carrying geometry + arc_rel sub-items (:970-977). The one faithful def-time
-	// claim is that fresh result unit (ResultUnit(GeneratedUnit) — the proven-safe
+	// claim is that fresh result unit (ResultUnit(GeneratedUnit) -- the proven-safe
 	// batch-D pattern: a fresh flexible node, LispPtr-memoized, never rigid). The
 	// arc geometry (composition Sequence|Polygon, not member-fixed), the K16
 	// coordinate-class share (:955, plain UM_Throw), the eq/ne join keys (:960),
 	// and the void-broadcasting min/max distances (:963,:965, UM_AllowVoidRight)
-	// are recorded as deferred prose (§16 opaque) — no cross-argument unification.
+	// are recorded as deferred prose (§16 opaque) -- no cross-argument unification.
 	bool DescribeSignature(AbstrSignatureBuilder& sb) const override
 	{
 		arg_index n = this->NrSpecifiedArgs(), i = 0; // this-> : dependent base in the FastConnect template

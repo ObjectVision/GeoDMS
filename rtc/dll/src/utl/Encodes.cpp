@@ -1,31 +1,6 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+// Copyright (C) 1998-2026 Object Vision B.V.
+// License: GNU GPL 3
+/////////////////////////////////////////////
 #include "RtcPCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
@@ -399,13 +374,13 @@ SharedStr to_utf(CharPtr first, CharPtr last)
 
 // Map each UTF-8 accented Latin codepoint to its ASCII base character, matching
 // the Windows WinAPI CP1250 best-fit mapping: exactly one output byte per input codepoint.
-// Covers Latin-1 Supplement (U+00C0–U+00FF) and Œ/œ (U+0152–U+0153).
+// Covers Latin-1 Supplement (U+00C0-U+00FF) and Œ/œ (U+0152-U+0153).
 // This is the from_utf transliteration used on all platforms (previously only on
 // Linux; Windows formerly used boost::locale, which produced the same result for
 // these characters).
 static std::string strip_to_ascii(const char* first, const char* last)
 {
-	// Indexed by (second_byte - 0x80) for 0xC3-prefixed 2-byte sequences (U+00C0–U+00FF).
+	// Indexed by (second_byte - 0x80) for 0xC3-prefixed 2-byte sequences (U+00C0-U+00FF).
 	static const char latin1_asc[64] = {
 	//  À     Á     Â     Ã     Ä     Å     Æ     Ç
 	    'A',  'A',  'A',  'A',  'A',  'A',  'A',  'C',
@@ -446,7 +421,7 @@ static std::string strip_to_ascii(const char* first, const char* last)
 			else                 out += '?';
 			p += 2;
 		} else {
-			// No ASCII mapping — skip the entire multibyte sequence
+			// No ASCII mapping -- skip the entire multibyte sequence
 			++p;
 			while (p < end && (*p & 0xC0) == 0x80)
 				++p;

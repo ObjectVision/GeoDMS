@@ -693,7 +693,7 @@ GraphVisitState GraphDrawer::DoLayer(GraphicLayer* gl)
 
 	auto result = base_type::DoLayer(gl);
 	// m_DoneGraphics can be nullptr for Region-based (off-screen, non-suspendible) GraphDrawer
-	// instances — e.g. the bitmap created by MovableObject::GetAsDDBitmap for clipboard copy.
+	// instances -- e.g. the bitmap created by MovableObject::GetAsDDBitmap for clipboard copy.
 	assert((result == GVS_Handled) == (SuspendTrigger::DidSuspend() || (HasCounterStacks() && m_DoneGraphics->DidBreak())));
 	return result;
 }

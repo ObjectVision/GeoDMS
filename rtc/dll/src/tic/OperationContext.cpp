@@ -2720,7 +2720,7 @@ auto FindAndLicenceOnePriorityTasks() -> OperationContextSPtr
 		// take from the list
 		s_RadioActives.pop_front();
 
-		// try to grab the license—only one thread ever wins per OC
+		// try to grab the license--only one thread ever wins per OC
 		if (ocSPtr->getUniqueLicenseToRun(false))
 			return ocSPtr; // got it
 		// otherwise, someone else is already running it; try the next one

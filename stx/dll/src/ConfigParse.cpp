@@ -179,7 +179,7 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 					)[([&cp](...) { cp.OnTypeVarConstraint();})] )
 				>> assert_d("'>' expected after type-variable declarations")[RANGLE];
 
-			// type application: 'sig<V, D>' — each argument must name an active type
+			// type application: 'sig<V, D>' -- each argument must name an active type
 			// variable (documentation-level in v1, §5.10 Stage 2)
 			typeArgsOpt =
 				!( LANGLE
@@ -192,7 +192,7 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 				>> ( functionBody | variantSet );
 
 			// §5.11 anonymous whole-rule function: value := function[<typevars>](params) ...
-			// — the declared item IS the function (identical to 'function value(params) ...'),
+			// -- the declared item IS the function (identical to 'function value(params) ...'),
 			// so a following unbracketed block is unambiguously its body/sub-item block
 			anonFnDecl =
 				( (identifier >> COLON >> EQUAL >> epsilon_p(as_lower_d[FUNCTION] >> (LANGLE | LPAREN)))
@@ -200,7 +200,7 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 				>> as_lower_d[FUNCTION]
 				>> functionBody );
 
-			// §5.12 auto-typed declaration: name := expr; — a plain item whose type
+			// §5.12 auto-typed declaration: name := expr; -- a plain item whose type
 			// follows from its calculation (the DC layer derives class and domain;
 			// inside function bodies the definition-time walker infers it). Ordered
 			// AFTER anonFnDecl, which claims ':= function' literals.
@@ -238,7 +238,7 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 
 			// §5.11 result-position anonymous function (':= function(params) -> T := e;'):
 			// declares the nested function under the enclosing function's result name.
-			// No brace tail here — per the disambiguation rule, an unbracketed '{' after
+			// No brace tail here -- per the disambiguation rule, an unbracketed '{' after
 			// the rule belongs to the ENCLOSING function's body block; the literal's
 			// locals live there.
 			anonResultFunction =
@@ -290,7 +290,7 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 				[([&cp](...) { cp.OnFunctionResultSig();})];
 
 			// ':= expr' is optional in the grammar: without it, OnFunctionDeclEnd
-			// designates a body item by the result name (default 'result') — for
+			// designates a body item by the result name (default 'result') -- for
 			// '-> function' AND for data results followed by a body block (§5.11).
 			// ':= function(...)' declares an anonymous result-position function.
 			functionResultSpec =

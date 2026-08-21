@@ -11,7 +11,7 @@
 // Small vt satellites, merged (2026-08): BaseBounds throwers and
 // iterrangefuncs (CharPtrRange Search).
 
-// ==== from BaseBounds.cpp ====
+// ==== BaseBounds ====
 
 // Element bounds implementation: the out-of-line minmax_traits values.
 
@@ -37,7 +37,7 @@ Float64 AsFloat64(const Void& ) { throwIllegalAbstract(MG_POS, "AsFloat64(Void)"
 }
 
 
-// ==== from iterrangefuncs.cpp ====
+// ==== iterrangefuncs ====
 
 // Range utilities implementation: Search over CharPtrRange.
 

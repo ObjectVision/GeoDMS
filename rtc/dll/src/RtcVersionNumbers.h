@@ -13,14 +13,12 @@
 //                %GeoDmsVersion%, the NSIS setup scripts
 //   - CMake    : CMakeLists.txt parses it with file(STRINGS) into project(VERSION)
 //
-// It used to work the other way round: GeoDmsVersion.cmd WROTE a generated,
-// gitignored RtcGeneratedVersion.h. That made the version a build artefact of
-// the batch scripts, so a plain `msbuild all22.sln`, an F5 in Visual Studio, a
-// CMake build or CI compiled against whatever version the last batch run
-// happened to leave behind -- and a fresh clone did not compile at all. The
-// direction is now inverted, because C++ is the only consumer that cannot read
-// a plain data file without a generation step, while cmd and CMake parse
-// `#define NAME value` in one line each.
+// Do NOT invert this by having a script generate the header instead: that makes
+// the version a build artefact, so a plain `msbuild all22.sln`, an F5 in Visual
+// Studio, a CMake build or CI compiles against whatever the last script run left
+// behind, and a fresh clone does not compile at all. C++ is the only consumer
+// that cannot read a plain data file without a generation step, while cmd and
+// CMake each parse `#define NAME value` in one line.
 //
 // Keep the format simple: three #defines, decimal, one space before the number.
 // The findstr and file(STRINGS) patterns match on `#define DMS_VERSION_<PART> `.

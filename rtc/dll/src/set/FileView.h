@@ -120,8 +120,9 @@ struct rw_file_view : file_view_base<T, FileViewHandle>
 {
 	using base_type = file_view_base<T, FileViewHandle>;
 
-	//	somehow the following is neccesary for ProdConfig.cpp to avoid confusion with std:iterator
-	//	maybe somewhere there is a using std:: ??
+	// These re-declarations stop the names resolving to std::iterator / std::reference in some TU.
+	// The TU that needed it (ProdConfig.cpp) no longer exists, so this may now be removable --
+	// verify against all build flavours before dropping it.
 	using typename base_type::const_iterator;
 	using typename base_type::const_reference;
 

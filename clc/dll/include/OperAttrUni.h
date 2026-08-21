@@ -100,7 +100,7 @@ struct AbstrUnaryAttrOperator: UnaryOperator
 
 	// mirrors CreateResult above: one data argument; the result ranges over the
 	// argument's domain; the concrete classes are the member's registration.
-	// R is deliberately NOT the argument's var — the values-unit derivation
+	// R is deliberately NOT the argument's var -- the values-unit derivation
 	// (m_UnitCreatorPtr) may produce a different unit; the class-level relation
 	// between V and R is carried exactly by the merged records' member tuples.
 	bool DescribeSignature(AbstrSignatureBuilder& sb) const override

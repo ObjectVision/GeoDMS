@@ -385,7 +385,7 @@ protected:
 	// Single managed text caret per DataView (architecture: integrate with
 	// rubber-band caret system so the OnPaint / ScrollDevice / etc. brackets
 	// hide/show it via ReverseCaretsImpl + DVF_CaretsVisible, same as the
-	// line/focus carets — see SyncTextCaret).
+	// line/focus carets -- see SyncTextCaret).
 	GPoint                        m_TextCaretPos;
 	int                           m_TextCaretWidth = 2;
 	int                           m_TextCaretHeight = 16;

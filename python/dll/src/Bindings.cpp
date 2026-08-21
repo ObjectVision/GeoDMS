@@ -451,7 +451,7 @@ void treeitem_set_storage_manager(py_geodms::MutableTreeItem self, const std::st
 
 // Bulk-read all values of an attribute. We address tiles through the data object's own
 // GetTiledLocation rather than the DMS_NumericAttr_Get*Array C functions, which resolve
-// the tile location via GetAbstrDomainUnit()->GetTiledRangeData() — null for a domain
+// the tile location via GetAbstrDomainUnit()->GetTiledRangeData() -- null for a domain
 // whose range is defined by an expression (the range then lives in its current range item).
 auto dataitem_get_values_as_float_list(py_geodms::DataItem self) -> std::vector<Float64> {
 	const AbstrDataItem* adi = self.m_adi.get();

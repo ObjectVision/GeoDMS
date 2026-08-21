@@ -284,7 +284,7 @@ Region Region::FromEllipse(const GRect& boundingRect)
 }
 
 //----------------------------------------------------------------------
-// DcClipRegionSelector — on Win32 this lives in DcHandle.cpp
+// DcClipRegionSelector -- on Win32 this lives in DcHandle.cpp
 //----------------------------------------------------------------------
 
 #ifndef _WIN32

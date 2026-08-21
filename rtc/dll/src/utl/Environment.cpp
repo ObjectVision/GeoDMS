@@ -9,7 +9,7 @@
 #endif
 
 // Platform environment services: registry status flags, config and data
-// paths, file/directory operations, session times and platform info —
+// paths, file/directory operations, session times and platform info --
 // implemented in an MSVC section and a POSIX section.
 
 #include "utl/Environment.h"
@@ -144,7 +144,7 @@ SharedStr platform::GetSystemErrorText(DWORD lastErr)
 	// Use FormatMessageW so the system-language message comes back in UTF-16,
 	// then transcode to UTF-8 for the rest of the DMS string pipeline.
 	// FormatMessageA returns the message in the active code page, which then
-	// gets handed up as if it were UTF-8 — non-ASCII characters in localised
+	// gets handed up as if it were UTF-8 -- non-ASCII characters in localised
 	// system messages would become mojibake.
 	LPWSTR wMsgBuf = nullptr;
 	auto wLen = ::FormatMessageW(
@@ -1719,7 +1719,7 @@ struct WindowsComponent : AbstrVersionComponent {
 // =====================================================================
 
 // pthread_getattr_np is a glibc extension (note the _np = "non-portable"
-// suffix) — its declaration is only visible when _GNU_SOURCE is set. Other
+// suffix) -- its declaration is only visible when _GNU_SOURCE is set. Other
 // libcs (musl) provide it too but might gate it the same way. The define
 // below is local to the Linux block.
 #ifndef _GNU_SOURCE
@@ -1730,7 +1730,7 @@ struct WindowsComponent : AbstrVersionComponent {
 #include <ctime>
 #include <cerrno>
 #include <climits>
-#include <pthread.h>     // pthread_getattr_np / pthread_attr_getstack — for RemainingStackSpace
+#include <pthread.h>     // pthread_getattr_np / pthread_attr_getstack -- for RemainingStackSpace
 #include <sys/resource.h>
 #include <unistd.h>
 #include <sys/stat.h>
@@ -1743,7 +1743,7 @@ struct WindowsComponent : AbstrVersionComponent {
 #include <spawn.h>
 #include <strings.h>     // strncasecmp
 #include <sys/wait.h>
-#include <dlfcn.h>       // dladdr — for GetExeDir self-determination
+#include <dlfcn.h>       // dladdr -- for GetExeDir self-determination
 
 #include <vector>
 #include <map>
@@ -1782,17 +1782,17 @@ SizeT RemainingStackSpace()
 	// stack [base, base+size), then return (current_sp - base).
 	//
 	// The previous implementation returned a fake constant (rl.rlim_cur/2),
-	// which on a default 8 MB Linux stack is ~4 MB — always above the
+	// which on a default 8 MB Linux stack is ~4 MB -- always above the
 	// 327680 (=320 KB) threshold in TreeItem::UpdateMetaInfo, so the
 	// meta-thread baton transfer that #1102 depends on never fired on
 	// Linux. Without baton transfer, deeply recursive cfg trees would
 	// overflow the main thread's stack instead of handing the metadata
 	// work to a worker.
 	//
-	// pthread_getattr_np reads /proc/self/maps via getline — millisecond
+	// pthread_getattr_np reads /proc/self/maps via getline -- millisecond
 	// cost on every call, which surfaces as massive slowdowns when
 	// UpdateMetaInfo runs in tight per-record loops (gpkg writer was
-	// 80 min vs 2 min on Windows). Cache the stack base in TLS — it is
+	// 80 min vs 2 min on Windows). Cache the stack base in TLS -- it is
 	// stable for the thread's lifetime.
 	thread_local uintptr_t s_stack_low = 0;
 	if (!s_stack_low)
@@ -1802,7 +1802,7 @@ SizeT RemainingStackSpace()
 		{
 			// Fallback: rlimit-based estimate, halved (preserves previous
 			// behaviour if pthread introspection is unavailable for some
-			// reason — e.g. very stripped-down libc).
+			// reason -- e.g. very stripped-down libc).
 			struct rlimit rl;
 			getrlimit(RLIMIT_STACK, &rl);
 			return rl.rlim_cur / 2;
@@ -1962,7 +1962,7 @@ SharedStr ConvertDmsFileName(WeakStr path)
 	// POSIX path resolution rejects `..` after a non-directory component
 	// (e.g. `cfg/Regression_test/../main/Units.dms` where `Regression_test`
 	// is the .dms-file stem, not a real directory). Windows pathname
-	// resolution is more forgiving — match it by lexically normalising
+	// resolution is more forgiving -- match it by lexically normalising
 	// `<dir>/<name>/../<rest>` to `<dir>/<rest>` before any access()/open()
 	// call. Skip when there is nothing to collapse so the common path stays
 	// a no-op.
@@ -2420,7 +2420,7 @@ DWORD ExecuteChildProcess(CharPtr moduleName, Char* cmdLine)
 }
 
 // =====================================================================
-// Registry / Config — INI-file backend for Linux
+// Registry / Config -- INI-file backend for Linux
 // =====================================================================
 // All GeoDMS settings are stored in ~/.config/geodms/geodms.ini.
 // Format:
@@ -2985,7 +2985,7 @@ namespace PlatformInfo
 		}
 		// Linux env vars are case-sensitive; Windows env vars are not.
 		// Test harnesses (e.g. tst/batch/full.py) sometimes set var names in
-		// a different case than what callers look up — match Windows
+		// a different case than what callers look up -- match Windows
 		// behaviour by walking environ for a case-insensitive hit.
 		size_t nameLen = std::strlen(varName);
 		for (char** envp = environ; envp && *envp; ++envp)

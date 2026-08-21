@@ -42,8 +42,8 @@ struct AbstrOperAccTotBin : public BinaryOperator
 	// mirrors CreateResult below: two data arguments, VOID-domain result (K15).
 	// NB deliberately SEPARATE domain variables: this CreateResult does NOT
 	// unify the argument domains, so no shared-domain claim would be honest.
-	// A wildcard (AbstrDataItem) argument class — the weighted-modus weight
-	// vector — leaves its variable member-unconstrained (review finding)
+	// A wildcard (AbstrDataItem) argument class -- the weighted-modus weight
+	// vector -- leaves its variable member-unconstrained (review finding)
 	bool DescribeSignature(AbstrSignatureBuilder& sb) const override
 	{
 		auto resCls = dynamic_cast<const DataItemClass*>(GetResultClass());
@@ -179,7 +179,7 @@ struct AbstrOperAccPartBin: TernaryOperator
 
 	// mirrors CreateResult below: all three arguments share one domain (K1,
 	// e3->UnifyDomain(e1) and (e2)); the result ranges over the PARTITIONING
-	// argument's VALUES unit (K5) — one variable P in arg3's values role and
+	// argument's VALUES unit (K5) -- one variable P in arg3's values role and
 	// the result's domain role
 	bool DescribeSignature(AbstrSignatureBuilder& sb) const override
 	{
@@ -187,8 +187,8 @@ struct AbstrOperAccPartBin: TernaryOperator
 		if (!resCls)
 			return false;
 		sig_var D = sb.UnitVar("D"), V1 = sb.UnitVar("V1"), V2 = sb.UnitVar("V2"), P = sb.UnitVar("P"), R = sb.UnitVar("R");
-		// wildcard (AbstrDataItem) argument classes — the weighted-modus weight
-		// vector and the partitioning position — leave their variables
+		// wildcard (AbstrDataItem) argument classes -- the weighted-modus weight
+		// vector and the partitioning position -- leave their variables
 		// member-unconstrained (review finding)
 		ValueComposition vc1 = ValueComposition::Single, vc2 = ValueComposition::Single;
 		if (auto arg1Cls = dynamic_cast<const DataItemClass*>(GetArgClass(0)))

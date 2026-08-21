@@ -4,7 +4,7 @@
 // DmsAddressBar, DmsErrorWindow, DmsGuiParameters, DmsSplashScreen,
 // DmsFileChangedWindow, FindTreeItemWindow, UpdatableBrowser.
 
-// ==== from DmsAddressBar.cpp ====
+// ==== DmsAddressBar ====
 #include "DmsAddressBar.h"
 #include "DmsMainWindow.h"
 #include "DmsTreeView.h"
@@ -58,7 +58,7 @@ void DmsAddressBar::onEditingFinished() {
     findItem(MainWindow::TheOne()->getCurrentTreeItemOrRoot(), text().toUtf8(), true);
 }
 
-// ==== from DmsErrorWindow.cpp ====
+// ==== DmsErrorWindow ====
 #include "DmsErrorWindow.h"
 #include "DmsDetailPages.h"
 #include "DmsMainWindow.h"
@@ -122,7 +122,7 @@ DmsErrorWindow::DmsErrorWindow(QWidget* parent)
     setWindowModality(Qt::ApplicationModal);
 }
 
-// ==== from DmsGuiParameters.cpp ====
+// ==== DmsGuiParameters ====
 #include <QSize>
 #include <QPushButton>
 #include "DmsGuiParameters.h"
@@ -200,7 +200,7 @@ const char* dms_params::stylesheet_toolbar =	"QToolBar { background: rgb(117, 11
 												"QToolButton:checked {selection-color: rgba(255, 255, 255, 150);}\n"
 												"QToolButton:checked {selection-background-color: rgba(255, 255, 255, 150);}\n";
 
-// ==== from DmsSplashScreen.cpp ====
+// ==== DmsSplashScreen ====
 #include "DmsSplashScreen.h"
 
 #include <QApplication>
@@ -270,7 +270,7 @@ auto showSplashScreen() -> std::unique_ptr<DmsSplashScreen>
 }
 
 
-// ==== from DmsFileChangedWindow.cpp ====
+// ==== DmsFileChangedWindow ====
 #include "DmsFileChangedWindow.h"
 #include "DmsMainWindow.h"
 #include "dbg/DmsCatch.h"
@@ -344,7 +344,7 @@ void DmsFileChangedWindow::onAnchorClicked(const QUrl& link) {
     }
 }
 
-// ==== from FindTreeItemWindow.cpp ====
+// ==== FindTreeItemWindow ====
 // Copyright (C) 1998-2025 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
@@ -475,7 +475,7 @@ void FindTreeItemWindow::keyPressEvent(QKeyEvent* event)
 }
 
 
-// ==== from UpdatableBrowser.cpp ====
+// ==== UpdatableBrowser ====
 #include "UpdatableBrowser.h"
 
 #include "dbg/DmsCatch.h"

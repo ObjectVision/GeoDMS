@@ -57,7 +57,7 @@
 //   - Per OD LinkSet sequences (od_LS) built by reverse walking TB links
 //
 // Sparse vs Dense mode decision:
-//   - Sparse result when flags(df & SparseResult) and OD mode — uses stamping arrays per origin
+//   - Sparse result when flags(df & SparseResult) and OD mode -- uses stamping arrays per origin
 //   - Dense mode: directly positions OD results at (org * nrDst + dst)
 //
 // Safety & assertions:
@@ -1320,13 +1320,13 @@ public:
 	}
 
 	// batch F (§11 floor, §16 ruling): the impedance/dijkstra family is the K13
-	// archetype — the specification string, read at meta time, decides the whole
+	// archetype -- the specification string, read at meta time, decides the whole
 	// argument layout and every unit obligation. The description therefore
 	// CONSTRAINS NOTHING: the four registered prefix positions are stated as
-	// prose (their relations — one Links domain, one Node set — fire in
+	// prose (their relations -- one Links domain, one Node set -- fire in
 	// CreateResult's UnifyDomain preamble below), the shape is dynamic, and the
 	// result is ⊤. This record exists purely so the printer can state the
-	// contract — the vocabulary's floor case the design promised to prove.
+	// contract -- the vocabulary's floor case the design promised to prove.
 	bool DescribeSignature(AbstrSignatureBuilder& sb) const override
 	{
 		if (auto a0 = dynamic_cast<const DataItemClass*>(this->GetArgClass(0)))
@@ -1347,13 +1347,13 @@ public:
 
 	// §12.7 impedance tranche: the CONCRETE signature for a definition-time-known
 	// spec. Positions follow CreateResult's extraction order exactly; the emitted
-	// count therefore equals CalcNrArgs(df) — the walker's ruled honest arity
+	// count therefore equals CalcNrArgs(df) -- the walker's ruled honest arity
 	// check. Claim discipline: hard unit-variable shares mirror UNCONDITIONAL
 	// UnifyDomain calls of the metainfo preamble below (given the flags); value
 	// classes checked by MG_USERCHECK/checked-casts at metainfo become fixed or
 	// member classes; UnifyValues discharges stay class-level (shared class vars,
 	// never unit identity); void-escaping (UM_AllowVoidRight) domains use the
-	// shared var too — a void-domain actual short-circuits in the walker, so the
+	// shared var too -- a void-domain actual short-circuits in the walker, so the
 	// escape is preserved. A parse/CheckFlags throw makes the walker defer.
 	bool DescribeSpecSignature(AbstrSignatureBuilder& sb, CharPtr specValue) const override
 	{
@@ -1507,7 +1507,7 @@ public:
 			// are Unit<ImpType>==I's class (:1576-1578, :1643). Members over R
 			// (impedance/LinkSet/*_rel) share the fresh OD_Pairs node; the zone
 			// aggregates ride OZ/DZ. Values claimed only where the unit is a
-			// described var — the Imp class (values-only ⇒ class-level, the K2
+			// described var -- the Imp class (values-only ⇒ class-level, the K2
 			// rule), and the Links/zone/point units by IDENTITY (they are in a
 			// domain role); mass/param-derived values stay unclaimed (no_sig_var),
 			// exactly as union/connect. impedance_matrix is CACHEABLE, so these
@@ -1542,7 +1542,7 @@ public:
 			sb.ResultAttr(I, DZ, ValueComposition::Single); // impedance_table: attribute<Imp>(dstZones)
 			// the non-OD result attribute also carries a TraceBack sub-item
 			// (attribute<Links>(Nodes)-shaped: domain v==N, values e==E).
-			// NOT marked complete — non-OD aggregate members (CheckFlags-gated)
+			// NOT marked complete -- non-OD aggregate members (CheckFlags-gated)
 			// are not enumerated here, so unknown members must defer, not error.
 			if (flags(df & DijkstraFlag::ProdTraceBack))
 				sb.ResultContainerMember("TraceBack", E, N, ValueComposition::Single);
@@ -2181,7 +2181,8 @@ private:
 
 namespace
 {
-	// The obsolete dijkstra_s / dijkstra_m / dijkstra_m64 stubs are REMOVED IN v21 (issue
+	// The obsolete dijkstra_s / dijkstra_m / dijkstra_m64 stubs below are still registered and
+	// MUST BE REMOVED IN v21 (issue
 	// #1177). The static_assert is the primary guarantee: it fails the BUILD when the major
 	// version is bumped, whereas the throw below runs from a STATIC INITIALIZER and would
 	// only surface as an opaque STATUS_DLL_INIT_FAILED (0xC0000142) with no message.

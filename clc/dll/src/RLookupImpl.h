@@ -151,9 +151,9 @@ public:
 		return result;
 	}
 
-	// mirrors CreateResult below: rlookup(a: V1[D]; b: V2[E]) -> E[D] — the
+	// mirrors CreateResult below: rlookup(a: V1[D]; b: V2[E]) -> E[D] -- the
 	// result's VALUES unit IS b's domain (K4; one variable E in b's domain role
-	// and the result's values role — reduction-honest: the result is flagged
+	// and the result's values role -- reduction-honest: the result is flagged
 	// categorical, so a declared-values conflict also fails CheckResultItem's
 	// UnifyDomain discharge). E carries no member class (dynamic result class);
 	// its class flows through the unit node's companion when E binds. The

@@ -7,7 +7,7 @@
 #endif
 
 /*
- *  Operator: the base class of all operators — argument specification and
+ *  Operator: the base class of all operators -- argument specification and
  *  binding, applicability tests, and membership of the AbstrOperGroup
  *  under which the operator is found at name resolution.
  */
@@ -138,7 +138,7 @@ public:
 	// (no DynamicShape) carries exactly the spec-implied position count, which the
 	// walker enforces as the ruled honest arity check. False makes the walker defer
 	// exactly as without the spec. A THROW must be the member's own spec validation
-	// (the very predicate CreateResult applies first — ParseDijkstraString/
+	// (the very predicate CreateResult applies first -- ParseDijkstraString/
 	// CheckFlags): the walker PROPAGATES it as an honest definition-time error.
 	TIC_CALL virtual bool DescribeSpecSignature(struct AbstrSignatureBuilder& sb, CharPtr specValue) const;
 
@@ -150,7 +150,7 @@ public:
 	// for_each_ind), the walker passes that value once closed-evaluated;
 	// layout-static members ignore it. False (the default: no describable
 	// container) makes the walker defer as before. A THROW must be the member's
-	// own spec validation (ScanFirstArg — CreateResult's first predicate): the
+	// own spec validation (ScanFirstArg -- CreateResult's first predicate): the
 	// walker PROPAGATES it as an honest definition-time error.
 	TIC_CALL virtual bool DescribeMetaSignature(struct MetaMemberLayout& layout, CharPtr optSpecValue) const;
 

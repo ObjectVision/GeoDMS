@@ -7,7 +7,7 @@
 #endif
 
 /*
- *  mySSPrintF: heap-allocating string formatting to a SharedStr — a thin
+ *  mySSPrintF: heap-allocating string formatting to a SharedStr -- a thin
  *  forward to the std::format based mgFormat2SharedStr (ptr/SharedStr.h).
  *  The fixed-buffer formatting family (and its <strstream> dependency)
  *  lives in utl/FixedBufferFormat.h.

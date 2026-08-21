@@ -11,7 +11,7 @@
 // Small satellites of the tic storage framework, merged (2026-08):
 // StorageClass (registry), StorageInterface (C-API), AsmUtil.
 
-// ==== from StorageClass.cpp ====
+// ==== StorageClass ====
 
 // StorageClass: the meta-class registry that maps storage-type tokens to
 // storage-manager constructors.
@@ -71,7 +71,7 @@ StorageClass* StorageClass::Get(UInt32 classNr)
 IMPL_RTTI_METACLASS(StorageClass, "STORAGE", nullptr)
 
 
-// ==== from StorageInterface.cpp ====
+// ==== StorageInterface ====
 
 #include "AbstrStorageManager.h"
 #include "StorageInterface.h"
@@ -158,7 +158,7 @@ TIC_CALL IStringHandle DMS_CONV DMS_Config_GetFullStorageName(CharPtr subDir, Ch
 
 
 
-// ==== from AsmUtil.cpp ====
+// ==== AsmUtil ====
 
 #include "utl/StrFormat.h"
 #include "xct/DmsException.h"

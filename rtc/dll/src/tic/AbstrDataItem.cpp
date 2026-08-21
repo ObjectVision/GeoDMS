@@ -8,7 +8,7 @@
 #pragma hdrstop
 #endif
 
-// AbstrDataItem: the abstract attribute item — domain/values unit
+// AbstrDataItem: the abstract attribute item -- domain/values unit
 // resolution, data-object administration, checks and interest handling.
 
 #include <semaphore>
@@ -245,7 +245,7 @@ SharedStr AbstrDataItem::GetSignature() const
 {
 	// GetSignature is a SERIALIZER accessor: its only callers are the DMS config dump
 	// (the 'attribute<vu>' tag) and the function-decl writer. It therefore takes the
-	// RAW values-unit token — a bare source name re-resolves by up-scope search after
+	// RAW values-unit token -- a bare source name re-resolves by up-scope search after
 	// the item is written at another depth, whereas a resolved '../'-path would ascend
 	// above root on reload (e.g. a body item whose values unit is a function parameter).
 	// The user-visible PropValue(item,'ValuesUnit') keeps the resolved path via GetValue.
@@ -832,7 +832,7 @@ bool AbstrDataItem::HasVoidDomainGuarantee() const
 		// in-template item whose declared domain is a generic type-variable (a concrete item
 		// with a missing domain already throws in FindUnit); an instantiation may bind it to a
 		// non-void domain, so it must not be reported as a guaranteed-void (parameter) domain.
-		// (Data operators never reach this — they run on concrete, instantiated items.)
+		// (Data operators never reach this -- they run on concrete, instantiated items.)
 		return false;
 	return adu->IsKindOf( Unit<Void>::GetStaticClass() );
 }
@@ -972,7 +972,7 @@ struct DomainUnitPropDef : ReadOnlyPropDef<AbstrDataItem, SharedStr>
 	auto GetValue(const AbstrDataItem* item) const-> SharedStr override
 	{
 		// The PROPERTY value (what PropValue(item,'DomainUnit') returns) is the
-		// RESOLVED script name — documented public behavior, relative path since 18.x.
+		// RESOLVED script name -- documented public behavior, relative path since 18.x.
 		auto adu = item->GetAbstrDomainUnit();
 		if (adu)
 			return adu->GetScriptName(item);

@@ -8,7 +8,7 @@
 #pragma hdrstop
 #endif
 
-// DataControllers: the calculation cache — cache entries keyed by their
+// DataControllers: the calculation cache -- cache entries keyed by their
 // LispRef expression, with creation, lookup and interest administration.
 
 #include "DataController.h"
@@ -132,7 +132,7 @@ void TreeItemDualRef::Set(const TreeItem* ti, bool isNew)
 		//  - isNew                 -> arm 1 std::shared_ptr<TreeItem>       (DualRef is the primary owner)
 		//  - isOld borrowing CACHE -> arm 2 std::shared_ptr<const TreeItem> (co-own; transient cache result)
 		//  - isOld borrowing CONFIG-> arm 3 std::weak_ptr<const TreeItem>   (tree owns it; owning here = the
-		//    config-root retain cycle / teardown leak — so keep it NON-owning and .lock()-checked)
+		//    config-root retain cycle / teardown leak -- so keep it NON-owning and .lock()-checked)
 		auto setArm = [&]() // std co-ownership via shared_from_this/weak_from_this (ti is a make_shared'd TreeItem)
 		{
 			if (isNew)

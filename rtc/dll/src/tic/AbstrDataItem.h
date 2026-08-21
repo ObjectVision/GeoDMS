@@ -7,7 +7,7 @@
 #endif
 
 /*
- *  AbstrDataItem: the abstract attribute item — a TreeItem with a domain
+ *  AbstrDataItem: the abstract attribute item -- a TreeItem with a domain
  *  and a values unit, data-check modes, and typed access to its data
  *  object (AbstrDataObject) through the DataItemClass metaclass.
  */

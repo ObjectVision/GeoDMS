@@ -7,10 +7,7 @@
 #endif
 
 /*
- *  Name        : mci/PropDef.h
- *  SubSystem   : RTL
- *  Description : provides streaming, rtti, serialisation
- *  Definition  : a "check" is a conditional throw of an exception
+ *  Property definitions: provides streaming, rtti and serialisation.
  */
 
 #if !defined(__RTC_MCI_PROPDEF_H)

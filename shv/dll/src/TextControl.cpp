@@ -132,7 +132,7 @@ bool TextControl::GetTooltipText(TooltipCollector& ttc) const
 IMPL_RTTI_CLASS(TextControl)
 
 //----------------------------------------------------------------------
-// class  : AbstrTextEditControl — shared edit-buffer rendering
+// class  : AbstrTextEditControl -- shared edit-buffer rendering
 //----------------------------------------------------------------------
 
 bool AbstrTextEditControl::IsBeingEdited(SizeT recNo) const

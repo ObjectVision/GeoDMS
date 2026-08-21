@@ -12,7 +12,7 @@
 // Aspect, Crs, Param, DisplayValue, TreeItemUtils and ExtLockMgr (the
 // DMS_TreeItem_AddRef/Release C-API).
 
-// ==== from Aspect.cpp ====
+// ==== Aspect ====
 
 #include "Aspect.h"
 
@@ -104,7 +104,7 @@ bool IsColorAspectNameID(TokenID id)
 
 
 
-// ==== from Crs.cpp ====
+// ==== Crs ====
 
 #include "Crs.h"
 
@@ -194,7 +194,7 @@ void ClearCrsBackgroundRefs()
 }
 
 
-// ==== from Param.cpp ====
+// ==== Param ====
 
 #include "Param.h"
 
@@ -273,7 +273,7 @@ TIC_CALL void DMS_CONV DMS_StringParam_SetValue(AbstrParam* self, CharPtr value)
 }
 
 
-// ==== from DisplayValue.cpp ====
+// ==== DisplayValue ====
 
 //----------------------------------------------------------------------
 // used modules and forward class references
@@ -430,7 +430,7 @@ extern "C" TIC_CALL CharPtr DMS_CONV DMS_AbstrDataItem_DisplayValue(const AbstrD
 }
 
 
-// ==== from TreeItemUtils.cpp ====
+// ==== TreeItemUtils ====
 
 // Assorted TreeItem helper functions: naming and path resolution, and
 // state-change notification support.
@@ -610,7 +610,7 @@ auto GetMappingItem(const TreeItem* ti) -> const TreeItem*
 
 
 
-// ==== from ExtLockMgr.cpp ====
+// ==== ExtLockMgr ====
 
 //----------------------------------------------------------------------
 // used modules and forward class references

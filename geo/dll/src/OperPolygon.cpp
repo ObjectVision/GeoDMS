@@ -439,7 +439,7 @@ void GeoMeasure_ComputeTiles(AbstrDataItem* res, const AbstrDataItem* argDataA, 
 	resLock.Commit();
 }
 
-// Binary form: area(geometry, targetUnit) — converts to the requested unit, validating it.
+// Binary form: area(geometry, targetUnit) -- converts to the requested unit, validating it.
 template <typename TUniOper>
 class MeasureConvertOperator : public BinaryOperator
 {
@@ -485,7 +485,7 @@ public:
 	}
 };
 
-// Unary form: area(geometry) — auto-derives the result unit from the coordinate system (issue #1119).
+// Unary form: area(geometry) -- auto-derives the result unit from the coordinate system (issue #1119).
 template <typename TUniOper>
 class MeasureAutoOperator : public UnaryOperator
 {

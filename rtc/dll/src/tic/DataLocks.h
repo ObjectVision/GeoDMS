@@ -8,8 +8,8 @@
 
 /*
  *  DataReadLock / DataWriteLock: RAII access to the data object of an
- *  AbstrDataItem — a read lock triggers calculation or file loading as
- *  needed, a write lock administers preparation and commit — plus the
+ *  AbstrDataItem -- a read lock triggers calculation or file loading as
+ *  needed, a write lock administers preparation and commit -- plus the
  *  FileData open/close primitives.
  */
 

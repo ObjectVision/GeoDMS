@@ -8,7 +8,7 @@
 
 /*
  *  GeoDMS registry access: the low-level RegistryHandle wrappers over an
- *  HKEY, and the GeoDMS settings stored through them — the RegStatusFlags
+ *  HKEY, and the GeoDMS settings stored through them -- the RegStatusFlags
  *  bit set with its cached accessors, the RegDWordEnum settings (memory
  *  thresholds, performance logging, resource-aware scheduling), the
  *  GeoDmsRegKey string accessors and their session-local overrides. The

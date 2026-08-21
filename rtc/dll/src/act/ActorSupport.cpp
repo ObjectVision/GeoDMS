@@ -11,7 +11,7 @@
 // Small satellites of the Actor update mechanism, merged (2026-08):
 // garbage_can, ActorEnums (flag_set accessors), Waiter, ActorSet.
 
-// ==== from garbage_can.cpp ====
+// ==== garbage_can ====
 
 #include "act/garbage_can.h"
 
@@ -55,7 +55,7 @@ void garbage_can::merge_from(garbage_can&& other)
 
 
 
-// ==== from ActorEnums.cpp ====
+// ==== ActorEnums ====
 
 #include "act/ActorEnums.h"
 
@@ -108,7 +108,7 @@ RTC_CALL CharPtr FailStateName(FailType fs)
 
 
 
-// ==== from Waiter.cpp ====
+// ==== Waiter ====
 
 #include "act/Waiter.h"
 
@@ -199,7 +199,7 @@ void unregister_overlapping_periods_callback(wating_event_callback starting, wat
 
 
 
-// ==== from ActorSet.cpp ====
+// ==== ActorSet ====
 
 #include "act/ActorSet.h"
 

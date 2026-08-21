@@ -53,7 +53,7 @@ public:
 		:	UnaryOperator(&cog_index, AbstrDataItem::GetStaticClass(), argClass)
 	{}
 
-	// mirrors CreateResult below: index(x: V[E]) -> R[E] — the result ranges over
+	// mirrors CreateResult below: index(x: V[E]) -> R[E] -- the result ranges over
 	// x's domain. Its VALUES unit is that same domain unit, but the claim stays a
 	// SEPARATE variable R: the result item is not flagged categorical, so a
 	// declared values unit is discharged by UnifyValues at reduction, where a

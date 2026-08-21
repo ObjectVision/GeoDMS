@@ -41,7 +41,7 @@ struct ConfigProd : AbstrDataBlockProd, AbstrContextHandle, FunctionLiteralSink
 	ConfigProd(TreeItem* context, bool rootIsFirstItem);
 	~ConfigProd();
 
-//	§5.11 tier B: lambda lifting — function literals in parenthesized expression positions
+//	§5.11 tier B: lambda lifting -- function literals in parenthesized expression positions
 	void OnExprFunctionLiteral(CharPtr first, CharPtr last) override;
 	void OnWidenFunctionLiteral(CharPtr first, CharPtr last) override;
 
@@ -115,8 +115,8 @@ struct ConfigProd : AbstrDataBlockProd, AbstrContextHandle, FunctionLiteralSink
 	void DoFunctionResultName();
 	void OnFunctionResultSig();
 	void OnFunctionResultIsFunction(); // §5.10 '-> function'
-	void OnAnonResultFunction(); // §5.11: ':= function(params) ...' — anonymous result-position function
-	void OnBareExprHeading(iterator_t first); // §5.12: 'name := expr;' — auto-typed plain item
+	void OnAnonResultFunction(); // §5.11: ':= function(params) ...' -- anonymous result-position function
+	void OnBareExprHeading(iterator_t first); // §5.12: 'name := expr;' -- auto-typed plain item
 	void OnAnonSigParam(iterator_t first); // §5.10 Stage 2: anonymous signature-alias parameter
 	void OnParamSigTypeArg(); // §5.10 Stage 2: type application 'sig<V, D>' argument
 	void OnFunctionResultExpr(iterator_t first, iterator_t last);
@@ -225,7 +225,7 @@ void                ClearPropData();
 		ValueComposition          resultVC = ValueComposition::Unknown;
 		SharedStr                 resultExpr;
 		std::vector<std::tuple<UInt32, const TreeItem*, std::vector<TokenID>>> paramSigs; // (param index, signature exemplar, type-application args)
-		std::vector<std::pair<UInt32, const TreeItem*>> paramExemplars; // K11a by-example: (param index, UNIT type exemplar) — its declared members type the parameter
+		std::vector<std::pair<UInt32, const TreeItem*>> paramExemplars; // K11a by-example: (param index, UNIT type exemplar) -- its declared members type the parameter
 		std::vector<std::pair<TokenID, TokenID>> typeVars;         // (var, constraint)
 		std::vector<std::tuple<UInt32, TokenID, TokenID, bool>> genericParams; // (param index, var, constraint, isDomainVar)
 		std::vector<UInt32> metaRefParams;                         // 'item x' parameters (raw item-reference binding)

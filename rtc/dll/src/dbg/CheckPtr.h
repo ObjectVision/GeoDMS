@@ -16,7 +16,7 @@
 //----------------------------------------------------------------------
 
 // MG_DEBUG installs code to check the validity of Object* and their dynamic-types. 
-// Complexity: O(log(#Objects)) if MG_CHECKPTR is defined in Persistent.cpp 
+// Complexity: O(log(#Objects)) if MG_CHECKPTR is defined in mci/MciInterface.cpp 
 // ifdef  MG_DEBUG, but not MG_CHECKPTR, only non-null check is performed. 
 // ifndef MG_DEBUG, even this check is omitted.
 

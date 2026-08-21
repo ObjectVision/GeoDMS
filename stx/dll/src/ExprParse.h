@@ -139,7 +139,7 @@ struct expr_grammar : public boost::spirit::grammar<expr_grammar<Prod>>
 			//  Start grammar definition
 			//-----------------------------------------------------------------
 			// §5.9 application forms: 'apply X(args)' / 'instantiate X(args)'. Contextual
-			// keywords — matched only immediately before a function-call (identifier '(');
+			// keywords -- matched only immediately before a function-call (identifier '(');
 			// 'apply'/'instantiate' used as a plain item or a call (apply(x)) are unaffected
 			// (functionCallReq fails without parens and the alternative backtracks).
 			TokenID applyItemToken       = GetTokenID_mt("apply_item");
@@ -242,7 +242,7 @@ struct expr_grammar : public boost::spirit::grammar<expr_grammar<Prod>>
 				| functionCallOrIdentifier // expr5
 				//				|	dots
 				| (LBRACK >> exprList >> RBRACK)[syntaxError("value-array syntax in expression NYI")]
-				// §5.11 tier B: '(function ...)' as a parenthesized group — the splice
+				// §5.11 tier B: '(function ...)' as a parenthesized group -- the splice
 				// swallows the parentheses, so the lifted name can take call suffixes
 				// ('(function ...)(x)' is stored as '_lambda_n(x)' and re-parses as an
 				// ordinary suffixed call); the suffix chain is consumed here like in
@@ -296,7 +296,7 @@ struct expr_grammar : public boost::spirit::grammar<expr_grammar<Prod>>
 						[([&](...) { cp.ProdContainerLiteral(true); })] ));
 
 			// §5.11 tier B: a function literal in a parenthesized context (argument
-			// position or an explicitly parenthesized group — the brace rule confines
+			// position or an explicitly parenthesized group -- the brace rule confines
 			// literal braces to parentheses). Recognized here as a BALANCED EXTENT only;
 			// the config-side capture lifts it into a hidden '_lambda_<n>' declaration
 			// at its lexical position and splices that name into the stored rule text
@@ -312,7 +312,7 @@ struct expr_grammar : public boost::spirit::grammar<expr_grammar<Prod>>
 				>> lexeme_d[itemName_p] // plain failure -> backtrack: this may be a legacy '->' dereference expression
 				>> !( C_LT >> *(anychar_p - C_GT - SEMI - LPAREN - RPAREN - LBRACE - RBRACE) >> C_GT )
 				>> !balancedParens                                         // (domain)
-				// an IMPLEMENTATION is required — ':= expr' and/or '{ body }': this is
+				// an IMPLEMENTATION is required -- ':= expr' and/or '{ body }': this is
 				// what distinguishes a literal from legacy 'call(args) -> item' text,
 				// so speculative matches cannot capture pre-existing expressions
 				>> ( ( lexeme_d[C_ELSE >> P_EQ] >> expression >> !balancedBraces )
@@ -347,7 +347,7 @@ struct expr_grammar : public boost::spirit::grammar<expr_grammar<Prod>>
 					>> COMMA  >> expression
 					>> RPAREN [([&](...) { cp.ProdScope(); })];
 
-			// §5.10: call suffixes chain — each further '(args)' applies the RESULT of
+			// §5.10: call suffixes chain -- each further '(args)' applies the RESULT of
 			// the previous call (compose(sqr, sqr)(x)); ProdFunctionCall emits an
 			// apply_value marker when the head is a call rather than an identifier
 			functionCallOrIdentifier

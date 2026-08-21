@@ -115,7 +115,7 @@ public:
 
 	// mirrors CreateResult above: one data argument and one unit argument; the
 	// result ranges over the data argument's domain and takes the unit argument
-	// as values unit — at class level: R's class equals U's class per member,
+	// as values unit -- at class level: R's class equals U's class per member,
 	// which the merged records' tuples carry (convert/value: the typed cast)
 	bool DescribeSignature(AbstrSignatureBuilder& sb) const override
 	{

@@ -831,11 +831,11 @@ bool MainWindow::event(QEvent* event) {
             bool grew  = re->size().width() > re->oldSize().width();
             bool shrank = re->size().width() < re->oldSize().width();
 
-            // Window shrink compressed the docks — remember this
+            // Window shrink compressed the docks -- remember this
             if (shrank && (tv_w < 290 || dp_w < 290))
                 m_dock_was_compressed = true;
 
-            // Both docks fully restored — stop trying
+            // Both docks fully restored -- stop trying
             if (tv_w >= 290 && dp_w >= 290)
                 m_dock_was_compressed = false;
 
@@ -1227,7 +1227,7 @@ bool MainWindow::CloseConfig() {
 
     // Close AND destroy all dms views and value-info windows BEFORE the EnableAutoDelete()
     // drain below. These are WA_DeleteOnClose widgets whose destructors release the item
-    // interest they hold (DataView themes/columns, value-info study objects) — and each
+    // interest they hold (DataView themes/columns, value-info study objects) -- and each
     // of-interest item holds a share of s_SessionUsageCounter, which the drain waits on.
     // close() alone only schedules a DEFERRED delete; on the app-exit path CloseConfig runs
     // after the event loop ended, so nothing would ever process those deletions and the drain
@@ -2358,7 +2358,7 @@ void MainWindow::expandAll() {
 }
 
 // reporter for the "Check all function definitions" tools action (see CheckAllFunctionDefinitions
-// in TicInterface.h): passing definitions are only COUNTED — logging one 'OK' line each buried the
+// in TicInterface.h): passing definitions are only COUNTED -- logging one 'OK' line each buried the
 // single failing line among dozens of prelude entries. Failures are collected and re-surfaced at
 // the END, after the summary, where the user looks; each carries the same descriptive message the
 // application-time checker produces.

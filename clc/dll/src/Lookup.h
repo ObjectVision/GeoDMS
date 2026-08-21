@@ -39,7 +39,7 @@ extern CommonOperGroup cog_lookup;
 // Default lookup: writes valuesArray[partitioner.GetIndex(p)] for valid indices,
 // `Undefined()` (which Assign deduces to the iterator's value_type's NULL) for
 // missing ones. Correct as long as the iterator's value_type's NULL bit-pattern
-// is the one downstream code checks via IsNull — i.e. as long as the caller has
+// is the one downstream code checks via IsNull -- i.e. as long as the caller has
 // NOT applied a reinterpret_cast that changes that bit-pattern.
 template<typename Partitioner, typename OIV, typename CIP, typename CIV>
 void lookup_impl(OIV outFirst, OIV outLast

@@ -8,7 +8,7 @@
 #pragma hdrstop
 #endif
 
-// Operator: the base class of all operators — argument binding and
+// Operator: the base class of all operators -- argument binding and
 // applicability checks, and the performance estimation used by the
 // scheduler.
 

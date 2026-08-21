@@ -815,7 +815,7 @@ bool FuncDC_CreateResult(const FuncDC* funcDC)
 #if defined(MG_DEBUG)
 		// op-sig §9 drift defense #1: replay the resolved member's described signature
 		// against the freshly determined units (report-only; the operator, args and
-		// result are all concrete and alive here — the one place §9 specifies). The
+		// result are all concrete and alive here -- the one place §9 specifies). The
 		// checker reports via the cancellation-safe path, but wrap it defensively so no
 		// checker throw can EVER reach the result-failing catch below and fail a result.
 		if (resultHolder.IsNew())

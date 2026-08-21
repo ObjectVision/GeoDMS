@@ -43,7 +43,7 @@
 
 /*
 	discrete allocation, O(n*k), see:
-		Tokuyama, T., & Nakano, J.(1995). Efficient algorithms for the Hitchcock transportation problem. SIAM Journal on Computing, 24(3), 563–578.
+		Tokuyama, T., & Nakano, J.(1995). Efficient algorithms for the Hitchcock transportation problem. SIAM Journal on Computing, 24(3), 563-578.
 		Koomen, E., Hilferink, M., & Borsboom-van Beurden, J. (2011). Introducing land use scanner (pp. 3-21). Springer Netherlands. paragraph 1.3.3
 
 	See Abstract. The described splitter finding and scaling has been inspiration for this implementation
@@ -3575,15 +3575,15 @@ public:
 	// obligations split in two. The INPUT obligations (which members the
 	// suitabilities/claims containers must hold, and the name-directed
 	// shadow_prices/<name> + total_allocated/<name> outputs) are computed from
-	// the meta-read type-name array and the partitionings/suitabilities — those
+	// the meta-read type-name array and the partitionings/suitabilities -- those
 	// stay deferred prose. But the FIXED result members are STRUCTURAL, and the
-	// flagship — landuse = attribute<AT>(allocUnit), AT the typeNames' DOMAIN —
+	// flagship -- landuse = attribute<AT>(allocUnit), AT the typeNames' DOMAIN --
 	// is derivable symbolically even when typeNames/allocUnit are formals: this
 	// describes typeNames as an ATTRIBUTE so AT gets a var (used in BOTH the
-	// typeNames domain role and landuse's values role — the K2 bridge, so
+	// typeNames domain role and landuse's values role -- the K2 bridge, so
 	// landuse's values IDENTITY is AT). The result member set is deliberately
 	// INCOMPLETE (no ResultMembersComplete): the name-directed members and the
-	// conditional bid_price mean an unknown member DEFERS, never errors — the
+	// conditional bid_price mean an unknown member DEFERS, never errors -- the
 	// ruled broad placeholder (a/landuse types; a/anything_else defers).
 	bool DescribeSignature(AbstrSignatureBuilder& sb) const override
 	{
@@ -3603,7 +3603,7 @@ public:
 			sb.ArgDeferred(0, "typeNames");
 		sb.ArgUnit(1, A);
 		// K11b: the CONSUMED suitability members are looked up by TYPE NAME (arg 0's
-		// values), and each is an attribute over the allocUnit — so the shared member
+		// values), and each is an attribute over the allocUnit -- so the shared member
 		// domain is A and the naming array is argument 0. The container may carry
 		// further members (helpers, per-type weights): they are never read, and a
 		// claim over them would falsely reject working configs. The shared price
@@ -3630,12 +3630,12 @@ public:
 		sb.ArgDeferred(i++, "threshold: Int32 cutoff");
 		if (n == 11)
 			sb.ArgDeferred(i++, "feasibilityCertificate");
-		sb.DeferredRelation("suitabilities[t].domain == allocUnit; the claim and suitability members are keyed by the typeNames values (K11/K12); shadow_prices/<name> + total_allocated/<name> are name-directed — their types come from the partitionings/suitabilities, not the type-names, so they stay deferred");
+		sb.DeferredRelation("suitabilities[t].domain == allocUnit; the claim and suitability members are keyed by the typeNames values (K11/K12); shadow_prices/<name> + total_allocated/<name> are name-directed -- their types come from the partitionings/suitabilities, not the type-names, so they stay deferred");
 		// §12.8: the FIXED structural result members over allocUnit (A), keyed by A;
-		// landuse's values ride AT (the typeNames' domain) — the ruling's flagship.
-		// The set is INCOMPLETE by design — see the class comment. (status/statusFlag
+		// landuse's values ride AT (the typeNames' domain) -- the ruling's flagship.
+		// The set is INCOMPLETE by design -- see the class comment. (status/statusFlag
 		// are void parameters, deliberately left deferred; typing them would need two
-		// distinct default-class vars anyway — a DefaultUnit shares the role token
+		// distinct default-class vars anyway -- a DefaultUnit shares the role token
 		// "default", so two would collide in the unifier's (owner,inst,role) keying.)
 		if (ATv != no_sig_var)
 			sb.ResultContainerMember("landuse", ATv, A, ValueComposition::Single);        // attribute<AT>(allocUnit)
@@ -3648,7 +3648,7 @@ public:
 		// Only the UNPARTITIONED variants are described: there partitioningUnit is
 		// provably Unit<Void> (the else-branch of hasPartitionings), so both families
 		// are parameters. With partitionings the domain is a per-type partitioning
-		// unit — not one variable — so those variants keep deferring.
+		// unit -- not one variable -- so those variants keep deferring.
 		// The value classes are exact per member instantiation: claim_type for the
 		// totals, S (the suitability price class) for the shadow prices.
 		if constexpr (DAV == discr_alloc_version::no_partition)

@@ -51,7 +51,7 @@ public:
 		,	m_VC(arg2Cls->GetValuesType()->GetValueComposition())
 	{}
 
-	// mirrors CreateResult below: the join-key identity v1 == e2 (K2) — one
+	// mirrors CreateResult below: the join-key identity v1 == e2 (K2) -- one
 	// variable E2 in org_rel's VALUES role and values' DOMAIN role; the result
 	// ranges over org_rel's domain and borrows values' class (shared V is a
 	// CLASS-level claim only: the walker asserts unit identity exclusively for

@@ -1476,7 +1476,7 @@ namespace {
 // Explicit class instantiation, on both compilers. Now that every member lives on Unit<V> itself
 // there are no base-class template members left for GCC to leave un-emitted, which is what the
 // per-member lists here used to compensate for; and members whose requires-clause a given V does
-// not satisfy are simply skipped ([temp.explicit]/10 — the U4 DataArrayBase<Bool> canary). This
+// not satisfy are simply skipped ([temp.explicit]/10 -- the U4 DataArrayBase<Bool> canary). This
 // also subsumes the former TiledUnitInstantiator: the tile-range members are emitted here for
 // exactly the tileable types. TODO: confirm the Linux link on OVSRV10 before merge.
 #include "utl/Instantiate.h"

@@ -2081,7 +2081,7 @@ namespace
 			SetBetterNotInMetaScripting();
 		}
 
-		tl_oper::inst_tuple_templ<tl::type_list<DPoint>, GEOS_PolygonOperator> // v21: GEOS restricted to DPoint (non-DPoint geos-code removed)
+		tl_oper::inst_tuple_templ<tl::type_list<DPoint>, GEOS_PolygonOperator> // GEOS is restricted to DPoint; the non-DPoint geos code has been removed
 			m_Instances;
 	};
 
@@ -2091,7 +2091,7 @@ namespace
 			: m_Instances(cog, flags)
 		{}
 
-		tl_oper::inst_tuple_templ<tl::type_list<DPoint>, GEOS_PolygonOperator> // v21: GEOS restricted to DPoint (non-DPoint geos-code removed)
+		tl_oper::inst_tuple_templ<tl::type_list<DPoint>, GEOS_PolygonOperator> // GEOS is restricted to DPoint; the non-DPoint geos code has been removed
 			m_Instances;
 	};
 
@@ -2195,7 +2195,7 @@ namespace
 //	tl_oper::inst_tuple_templ<typelists::float_points, BoostGeometryOverlayOperator> boostGeometryOverlayOperators  (grOverlayPolygon, false);
 	tl_oper::inst_tuple_templ<typelists::points      , BoostGeometryOverlayOperator> boostGeometryBgOverlayOperators(grBgOverlayPolygon, false);
 	tl_oper::inst_tuple_templ<typelists::points,       CGAL_OverlayOperator> cgalOverlayOperators(grCGALOverlayPolygon, false);
-	tl_oper::inst_tuple_templ<tl::type_list<DPoint>, GEOS_OverlayOperator> geosOverlayOperators(grGEOSOverlayPolygon, false); // v21: GEOS DPoint-only
+	tl_oper::inst_tuple_templ<tl::type_list<DPoint>, GEOS_OverlayOperator> geosOverlayOperators(grGEOSOverlayPolygon, false); // GEOS is DPoint-only
 
 	tl_oper::inst_tuple_templ<typelists::sint_points, PolygonConnectivityOperator>	polygonConnectivityOperators;
 	tl_oper::inst_tuple_templ<typelists::points,      BoxConnectivityOperator>	    boxConnectivityOperators;
@@ -2208,15 +2208,15 @@ namespace
 	tl_oper::inst_tuple_templ<typelists::sint_points, BoostPolygonOverlayOperator> boostPolygonBpOverlay1Operators(grBpOverlayPolygon, true);
 	tl_oper::inst_tuple_templ<typelists::points, BoostGeometryOverlayOperator> boostGeometryBgOverlay1Operators(grBgOverlayPolygon, true);
 	tl_oper::inst_tuple_templ<typelists::points, CGAL_OverlayOperator> cgalOverlay1Operators(grCGALOverlayPolygon, true);
-	tl_oper::inst_tuple_templ<tl::type_list<DPoint>, GEOS_OverlayOperator> geosOverlay1Operators(grGEOSOverlayPolygon, true); // v21: GEOS DPoint-only
+	tl_oper::inst_tuple_templ<tl::type_list<DPoint>, GEOS_OverlayOperator> geosOverlay1Operators(grGEOSOverlayPolygon, true); // GEOS is DPoint-only
 	tl_oper::inst_tuple_templ<typelists::sint_points, BoostPolygonConnectivityOperator> boostPolygonConnectivity1Operators(grBpPolygonConnectivity, true);
 	tl_oper::inst_tuple_templ<typelists::points, BoostGeometryConnectivityOperator> boostGeometryConnectivity1Operators(grBgPolygonConnectivity, true);
 	tl_oper::inst_tuple_templ<typelists::points, CGAL_ConnectivityOperator> cgalConnectivity1Operators(grCGALPolygonConnectivity, true);
 	tl_oper::inst_tuple_templ<typelists::points, GEOS_ConnectivityOperator> geosConnectivity1Operators(grGEOSPolygonConnectivity, true);
 
 
-	// The obsolete UNPREFIXED boost::polygon operators were removed in v21 (they were depreciated in
-	// v20). Use the bp_/bg_/cgal_/geos_ prefixed variants below. (was: PolyOperatorGroupss simple)
+	// The obsolete UNPREFIXED boost::polygon operators (was: PolyOperatorGroupss simple) have been
+	// removed; they were deprecated in v20. Use the bp_/bg_/cgal_/geos_ prefixed variants below.
 
 	BpPolyOperatorGroupss bp_simple("", PolygonFlags());
 	BpPolyOperatorGroupss bp_f1("_filtered", PolygonFlags::F_Filter1);
@@ -2240,7 +2240,7 @@ namespace
 	GEOS_PolyOperatorGroupss geos_simple;
 
 	// The obsolete UNPREFIXED filtered/inflated/deflated boost::polygon operators (PolyOperatorGroupsss
-	// f2..f2f) were removed in v21 (depreciated in v20). Use the bp_*/bg_*/cgal_*/geos_* variants above.
+	// f2..f2f) have been removed; they were deprecated in v20. Use the bp_*/bg_*/cgal_*/geos_* variants above.
 }
 
 /******************************************************************************/

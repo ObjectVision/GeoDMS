@@ -108,7 +108,7 @@ void DmsToolbuttonAction::onToolbuttonPressed() {
 
     try {
         // onGlobalButtonPressed / onExportButtonPressed call into the DataView (OnCommand,
-        // GetExportInfo, GetViewType) and can throw — keep them inside the guard.
+        // GetExportInfo, GetViewType) and can throw -- keep them inside the guard.
         if (m_data.is_global) // ie. zoom-in and zoom-out are mutually exclusive
             onGlobalButtonPressed(dms_view_area);
 

@@ -8,9 +8,9 @@
 #pragma hdrstop
 #endif
 
-// String formatting implementation: myVSSPrintF and RepeatedDots (declared
-// in utl/FixedBufferFormat.h) plus the path-splitting helpers of
-// utl/splitPath.h. (Formerly mySPrintF.cpp.)
+// String formatting implementation: myVSSPrintF and RepeatedDots, both declared
+// in utl/FixedBufferFormat.h. The path-splitting helpers that used to sit here
+// now live in utl/splitPath.cpp, beside their declaration header.
 
 #include "utl/FixedBufferFormat.h"
 #include "utl/StrFormat.h"

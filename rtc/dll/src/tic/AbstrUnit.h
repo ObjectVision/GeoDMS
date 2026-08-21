@@ -78,7 +78,7 @@ enum UnifyMode {
 	// this flag MUST run on the meta thread; GetOrCreateDataController enforces
 	// that with a release-active MG_CHECK. Do not test IsMetaThread() to decide:
 	// worker tasks can incidentally execute on the meta thread, which would make
-	// the verdict scheduling-dependent — the flag is a caller CONTRACT, not a
+	// the verdict scheduling-dependent -- the flag is a caller CONTRACT, not a
 	// runtime probe.
 	UM_AllowRightExpansion = 64,
 };

@@ -76,9 +76,9 @@ public:
 	// stated. The arguments must share ONE value class END-TO-END (const_array_cast<V>
 	// in UnionCopy at CALC time), but that is NOT claimed here: adversarial review
 	// (2026-07-19) showed CreateResult's *metainfo* cross-arg check is skipped when
-	// arg0 carries the DEFAULT values unit — `if (arg1_ValuesUnit->IsDefaultUnit())
+	// arg0 carries the DEFAULT values unit -- `if (arg1_ValuesUnit->IsDefaultUnit())
 	// arg1_ValuesUnit = currArg_ValuesUnit;` adopts the next arg's unit of ANY class
-	// without UnifyValues — so a hard shared-values-var claim would reject a
+	// without UnifyValues -- so a hard shared-values-var claim would reject a
 	// definition whose metainfo succeeds (the batch-U default-unit S1 mirror).
 	// The arguments therefore stay class-independent (deferred); only arg0's own
 	// class is recorded, for the printer and member selection

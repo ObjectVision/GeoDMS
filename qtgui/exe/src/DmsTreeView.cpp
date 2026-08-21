@@ -165,7 +165,7 @@ QModelIndex DmsModel::parent(const QModelIndex& child) const {
 		return QModelIndex();
 
 	// parent() runs during Qt view layout/painting; report-and-continue is safe because
-	// reportD posts the event-log update to the main-thread oper queue — see DmsModel::index.
+	// reportD posts the event-log update to the main-thread oper queue -- see DmsModel::index.
 	try {
 		auto ti = GetTreeItem(child);
 		assert(ti);

@@ -112,12 +112,12 @@ struct AbstrOperGroup
 
 	// operator-signature descriptions (batch 0, OperSignature.h): the lazily built,
 	// per-group merge of the members' DescribeSignature records. nullptr when no
-	// member describes itself — consumers then defer, as before the description
+	// member describes itself -- consumers then defer, as before the description
 	// layer existed. Register() invalidates the cache (late-loading DLLs).
 	TIC_CALL const struct OperGroupSignatures* GetSignatures() const;
 
 	// arity-aware head dispatch (§5.14 successor): false ONLY when no member's arity
-	// range can cover nrArgs — FindOper is then guaranteed to throw, and a same-named
+	// range can cover nrArgs -- FindOper is then guaranteed to throw, and a same-named
 	// function (scope/prelude) may serve the foreign arity. Conservative: non-caching
 	// groups (fluid effective arity: the trailing calc_as_result drop) always accept;
 	// allow_extra_args groups accept any count >= their minimum required.

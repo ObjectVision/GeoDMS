@@ -539,7 +539,7 @@ void DmsLocalMachineOptionsWindow::apply()
     SetGeoDmsRegKeyString("SourceDataDir", m_sd_input->text().toStdString().c_str());
 
     // Store the resulting command line (Application + Parameters); the editor type itself
-    // is not remembered — only these values are used to start the editor.
+    // is not remembered -- only these values are used to start the editor.
     SetGeoDmsRegKeyString("DmsEditor", (m_editor_input->text() + " " + m_editor_parameters_input->text()).toStdString().c_str());
 
     SetStatusFlag(RSF_SuspendForGUI, m_pp0->isChecked());

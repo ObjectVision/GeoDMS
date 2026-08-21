@@ -31,7 +31,7 @@
 // roles (the K2 bridge). Until the UnitNode tranche (batch U) lands, the
 // walker interprets variables at the CLASS level only: values roles become
 // value-class nodes, domain roles become domain-identity nodes, and no unit
-// identity is claimed across the two — so descriptions stay honest (e.g. mul's
+// identity is claimed across the two -- so descriptions stay honest (e.g. mul's
 // result var is NOT its argument var: the metric product is a different unit
 // even where the classes coincide).
 // *****************************************************************************
@@ -65,7 +65,7 @@ struct AbstrSignatureBuilder
 	// position holding the STRING ARRAY that names them: operators read a
 	// name-directed SUBSET (discrete_alloc looks up suitabilities by the type names),
 	// so a container may legitimately carry further members. Without a `namesPos`
-	// the consumed set is unknown at definition time and K11b claims NOTHING — an
+	// the consumed set is unknown at definition time and K11b claims NOTHING -- an
 	// "every member" claim would reject the blessed superset-container pattern.
 	virtual void ArgContainer(arg_index i, CharPtr memberPattern,
 	                          sig_var sharedMemberDomain = no_sig_var,
@@ -93,7 +93,7 @@ struct AbstrSignatureBuilder
 
 	// --- §12.7 slSubItemCall tranche: TYPED sub-items of a composite result,
 	// path relative to the result root. The values var claims the member's
-	// value CLASS (identity only when the var is also used in a domain role —
+	// value CLASS (identity only when the var is also used in a domain role --
 	// the batch-B K2 rule); the domain var claims the member's domain
 	// IDENTITY; vc must be Unknown unless member-fixed (a wrong composition
 	// claim falsely eliminates downstream overloads). Emit
@@ -106,7 +106,7 @@ struct AbstrSignatureBuilder
 	// the string array at argument `namesPos`, all of the same declared type
 	// (discrete_alloc's shadow_prices/<type> and total_allocated/<type>). The
 	// walker expands these per application, and only when that array is
-	// definition-time evaluable — the same closedness test the §12.7 for_each
+	// definition-time evaluable -- the same closedness test the §12.7 for_each
 	// tranche and K11b apply; otherwise nothing is claimed.
 	virtual void ResultContainerMemberSet(CharPtr pathPrefix, arg_index namesPos,
 	                                      sig_var values, sig_var domain, ValueComposition vc) = 0;
@@ -120,7 +120,7 @@ protected:
 
 // the recorded form of one member's description: plain data, comparable.
 // memberClasses (per var) is the member's OWN concrete-class binding and is the
-// ONLY part excluded from shape equality — equal-shape records merge, their
+// ONLY part excluded from shape equality -- equal-shape records merge, their
 // class vectors become the merged record's tuples.
 struct SignatureRecord
 {
@@ -252,7 +252,7 @@ struct OperGroupSignatures
 // name array names the generated members/paths (K13); the domain/values/unit
 // positions declare each member's type, either as a direct unit argument
 // (context-only mode) or as a (container, name-array) pair resolving a unit
-// per member. nrArgs is the exact arity the layout implies — for a group
+// per member. nrArgs is the exact arity the layout implies -- for a group
 // whose layout is directed by its first argument's value (for_each_ind) it
 // is CreateResult's own predicate, so the walker may report its violation
 // honestly (the ruled §12.7 arity exemption); for layout-static groups the
@@ -325,11 +325,11 @@ TIC_CALL SharedStr RenderMergedSignature(const AbstrOperGroup* og, const OperGro
 
 #if defined(MG_DEBUG)
 // op-sig §9 drift defense #1 (the strongest): after a successful
-// CreateResultCaller in FuncDC — operator, args, and result all concrete — replay
+// CreateResultCaller in FuncDC -- operator, args, and result all concrete -- replay
 // the member's described SignatureRecord against the ACTUAL units and check the
 // record's claims (unit identity, value class, CompatibleValues; metric relations
 // are log-only). Drift is a programming error in DescribeSignature, so a violation
-// is REPORTED (ST_Warning, full detail) and NOT thrown — a debug-only cross-check
+// is REPORTED (ST_Warning, full detail) and NOT thrown -- a debug-only cross-check
 // must never break a legitimate config's run, and report-only surfaces EVERY
 // drifting family in one battery pass rather than aborting on the first.
 TIC_CALL void SigUnitChecker_VerifyApplication(const Operator* oper, const ArgSeqType& argItems, const TreeItem* result);

@@ -8,8 +8,7 @@
 
 /*
  *  make_cumulative / make_cumulative_base: running-sum transformation over
- *  an iterator range. (File name fixed from the historical typo
- *  'makeCululative.h'.)
+ *  an iterator range.
  */
 
 #if !defined(__CLC_MAKECUMULATIVE_H)

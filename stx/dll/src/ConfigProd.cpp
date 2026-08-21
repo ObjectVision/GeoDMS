@@ -299,7 +299,7 @@ void ConfigProd::CreateItem(TokenID nameID, const iterator_t& loc)
 		case SignatureType::Attribute:CreateAttribute(nameID); break;
 		case SignatureType::Parameter:CreateParameter(nameID); break;
 		case SignatureType::MetaRef:
-			// 'item x': a meta-reference parameter — the argument binds as a raw item
+			// 'item x': a meta-reference parameter -- the argument binds as a raw item
 			// reference (like PropValue's item argument), never as a calculation key.
 			// Validate AFTER creation: IsTopLevelFunctionParam tests m_pCurrent, which
 			// only becomes the declared item once CreateContainer ran

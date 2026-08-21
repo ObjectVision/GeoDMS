@@ -10,7 +10,6 @@
 
 // (StringProd merged in, 2026-08)
 
-// ==== from SpiritTools.cpp ====
 
 #include "SpiritTools.h"
 
@@ -164,7 +163,7 @@ void CheckInfo(const parse_info_t& info)
 }
 
 
-// ==== from StringProd.cpp ====
+// ==== StringProd ====
 
 #include "StringProd.h"
 

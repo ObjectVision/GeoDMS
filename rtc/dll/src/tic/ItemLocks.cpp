@@ -103,7 +103,7 @@ namespace treeitem_production_task
 
 		// Wait for the write lock to be released. There is deliberately no instantaneous deadlock
 		// test here: a held write lock (m_ItemCount < 0) may be released by an OperationContext, by
-		// a main-thread-posted action, or by an ItemWriteLock destructor on another thread — none of
+		// a main-thread-posted action, or by an ItemWriteLock destructor on another thread -- none of
 		// which are visible in a single (running-operations / lock-count) snapshot, so any such test
 		// only produces false positives (#1126). unlock_unique always notifies cv_lockrelease on
 		// release; genuine no-progress (task starvation) is detected over time by the

@@ -270,7 +270,7 @@ void MetaFuncCurry::operator ()(TreeItem* target, const AbstrCalculator* ac) con
 	{
 		// K11a-3 on the INSTANTIATE path: validate structured/by-example parameter
 		// contracts at the boundary before the body is copied (functions only).
-		// Arguments resolve from the TARGET's parent — the copy's binding context.
+		// Arguments resolve from the TARGET's parent -- the copy's binding context.
 		CheckStructuredParamContracts(applyItem, fullLispExpr.Right(), target);
 		InstantiateTemplate(target, applyItem, fullLispExpr.Right());
 	}
@@ -1142,7 +1142,7 @@ namespace {
 	// values, captured BY VALUE (already-substituted keys/items/bindings) when a nested
 	// function is returned as a result. `next` chains the enclosing function's own
 	// environment (nested closures). Because captured values are concrete interned
-	// keys — never unresolved symbols — capture is hygienic by construction.
+	// keys -- never unresolved symbols -- capture is hygienic by construction.
 	struct ClosureEnv
 	{
 		const TreeItem*              funcItem = nullptr; // the enclosing function definition
@@ -1248,7 +1248,7 @@ namespace {
 		return false;
 	}
 
-	// fill the holes of `b` with `holeFills` left-to-right; the counts must match —
+	// fill the holes of `b` with `holeFills` left-to-right; the counts must match --
 	// except for a '...x' rest function, whose LAST hole absorbs all surplus fills
 	FunctionBinding MergeBinding(const FunctionBinding& b, const std::vector<CallArg>& holeFills)
 	{
@@ -1265,7 +1265,7 @@ namespace {
 		return r;
 	}
 
-	// §5.10: reduce a fully-bound application to its VALUE — a data key, or a closure
+	// §5.10: reduce a fully-bound application to its VALUE -- a data key, or a closure
 	// binding when the applied function has a function-typed result
 	CallArg ReduceMergedValue(const FunctionBinding& merged, const FunctionApplication* parent, SubstitutionBuffer* substBuff, SharedTreeItem errorHolder)
 	{
@@ -1392,7 +1392,7 @@ namespace {
 	}
 
 	// declared value class of a variant parameter (params are inert, so prefer the
-	// declared values-unit token — a value-type name — over resolving the unit)
+	// declared values-unit token -- a value-type name -- over resolving the unit)
 	const ValueClass* ParamValueClass(const TreeItem* param)
 	{
 		if (IsDataItem(param))
@@ -1497,14 +1497,14 @@ namespace {
 	//
 	// Robinson unification specialized to the shallow type terms of §5: value-class
 	// variables and domain variables (concrete units are opaque, compared by
-	// UnifyDomain — key identity, §2). Variables are identified by (owner function,
+	// UnifyDomain -- key identity, §2). Variables are identified by (owner function,
 	// name), so a signature-typed parameter can LINK the bound generic function's OWN
-	// variable to one of the applied function's variables — a genuine
+	// variable to one of the applied function's variables -- a genuine
 	// variable-variable link, kept as a union-find equivalence class. Every class
 	// carries at most one concrete binding and, for value variables, the intersection
 	// of all member constraints as an acceptance set over the closed value-class
 	// universe (the §5.7 v2 mechanism), so conflicts surface at the application that
-	// creates them — with attribution — even when no member of the class is ever
+	// creates them -- with attribution -- even when no member of the class is ever
 	// bound concretely.
 
 	using ValueClassSet = std::bitset<UInt32(ValueClassID::VT_Count)>;
@@ -1555,7 +1555,7 @@ namespace {
 		// OperSignature.h). A concrete class outside the set is a definition-time
 		// error (reduction would find no member), but soft sets never narrow or
 		// reject a rigid ∀-variable and stay out of `feasible`: operator support is
-		// not a declared promise — an unsupported instantiation fails at its own
+		// not a declared promise -- an unsupported instantiation fails at its own
 		// reduction (S1), and the prelude's <T: any> null-aware predicates over
 		// eq/lt depend on passing through them symbolically.
 		struct ConstraintRec { TokenID name, constraint; SharedStr source; ValueClassSet set; bool soft = false; SharedStr setText = {}; };
@@ -1570,11 +1570,11 @@ namespace {
 			std::vector<ConstraintRec> constraints;
 		};
 		// batch U (§8): the former DomainNode, generalized to ONE pool of unit-
-		// identity nodes serving BOTH roles a unit can play — the domain of a data
+		// identity nodes serving BOTH roles a unit can play -- the domain of a data
 		// term AND (new) the values-unit identity of a data term. A unit variable
 		// (unit parameter, domain-sorted generic) used in a values position of one
 		// signature slot and a domain position of another therefore flows through a
-		// single node — the K2 bridge. Every unit node carries a companion CLASS
+		// single node -- the K2 bridge. Every unit node carries a companion CLASS
 		// node (the ValueNode keyed by the same (owner, instance, name), so all
 		// existing class-side resolution converges on it); the BindUnit/LinkUnit
 		// invariant keeps unit identity and class reasoning consistent.
@@ -1626,7 +1626,7 @@ namespace {
 		}
 		// get-or-create the unit-identity node for owner's variable, with its
 		// companion class node created eagerly under the SAME (owner, instance,
-		// name) key — the one moment the key is known — so any class-side path
+		// name) key -- the one moment the key is known -- so any class-side path
 		// (ValNode, signature bindings) resolves to the same node. `declaredCls`
 		// is the DECLARED value class of a unit parameter (`unit<uint32> U`): the
 		// identity varies per instantiation (rigid), but the class is pinned by
@@ -1653,7 +1653,7 @@ namespace {
 			{
 				// a later caller may know the declared class the creating path did
 				// not (get-or-create runs once; type applications and sig bindings
-				// can reach a unit parameter's node before ParamType does) —
+				// can reach a unit parameter's node before ParamType does) --
 				// reconcile rather than silently drop the pin
 				SizeT comp = m_UnitNodes[FindU(it->second)].classNode;
 				if (comp != NO_TYPE_VAR)
@@ -1666,7 +1666,7 @@ namespace {
 		// bind a companion class node to a DECLARED class, but never onto a rigid
 		// or already-bound node: a same-named type variable may legitimately own
 		// the key (pathological shadowing) and an existing binding is either
-		// already consistent or a conflict the unit side reports better — defer
+		// already consistent or a conflict the unit side reports better -- defer
 		void BindDeclaredClass(SizeT comp, const ValueClass* declaredCls, const SharedStr& declSource)
 		{
 			auto& cn = m_ValueNodes[FindV(comp)];
@@ -1802,10 +1802,10 @@ namespace {
 		// Unit-identity comparisons in this checker pass UM_AllowRightExpansion: the
 		// checker always runs on the meta thread (definition/application checking
 		// during meta-info construction), so UnifyDomain may intern the right
-		// operand's DC too, which makes the comparison total and symmetric — no
+		// operand's DC too, which makes the comparison total and symmetric -- no
 		// two-direction retry needed. (UM_AllowVoidRight is vestigial here: Void
-		// units never reach a UnitNode — they become Dom::Void at PositionType and
-		// short-circuit in UnifyData — but it is kept defensively.)
+		// units never reach a UnitNode -- they become Dom::Void at PositionType and
+		// short-circuit in UnifyData -- but it is kept defensively.)
 		static constexpr UnifyMode s_CheckerUM = UnifyMode(UM_AllowVoidRight | UM_AllowRightExpansion);
 
 		// the batch-U invariant, confined to BindUnit/LinkUnit: binding a unit also
@@ -1863,7 +1863,7 @@ namespace {
 		}
 	};
 
-	// WP4.1: enforce one 'sig<...>'-typed binding — the bound function's positions
+	// WP4.1: enforce one 'sig<...>'-typed binding -- the bound function's positions
 	// instantiate or LINK the target variables named by the type application: a
 	// concrete position BINDS the mapped variable; a position naming the bound
 	// function's OWN generic variable LINKS that variable (under its own fresh
@@ -2000,8 +2000,8 @@ namespace {
 	// parameter (op-sig scope doc §3(c)). The declared member block is a CLOSED
 	// interface, so each declared member must be PRESENT on the actual argument,
 	// KIND-compatible, CLASS-compatible (incl. generic-constraint satisfaction and
-	// cross-member consistency of a shared type variable), and — for the relations
-	// checkable at the boundary — co-domained: a member declared over a SIBLING
+	// cross-member consistency of a shared type variable), and -- for the relations
+	// checkable at the boundary -- co-domained: a member declared over a SIBLING
 	// member unit must relate to the argument's own that-unit, and a default-domain
 	// member must be an attribute of the argument unit itself. Violations are
 	// reported AT THE APPLICATION, naming the parameter and the member, instead of
@@ -2048,7 +2048,7 @@ namespace {
 			{
 				// declared container member: must be present; recurse for its members.
 				// BY-EXAMPLE: the exemplar is a real config item whose sub-containers
-				// are INCIDENTAL, not a declared interface — never require them
+				// are INCIDENTAL, not a declared interface -- never require them
 				// (review finding: an exemplar's 'container meta { … }' made every
 				// alternative argument fail).
 				if (byExample || !m->_GetFirstSubItem())
@@ -2118,7 +2118,7 @@ namespace {
 				}
 				else if (!byExample && (IsOwnDeclaredVar(funcItem, vt) || IsGenericVarOf(funcItem, vt)))
 				{
-					// generic value variable (own <...> clause OR positional generic —
+					// generic value variable (own <...> clause OR positional generic --
 					// same pair BuildParamMembers tests): satisfy the declared
 					// constraint and stay consistent with any earlier member sharing
 					// the variable
@@ -2152,13 +2152,13 @@ namespace {
 							, fnName.c_str(), pName.c_str(), mName.c_str()
 							, wantCls->GetName().c_str(), gotCls->GetName().c_str());
 				}
-				// else: resolves outside the block / telescope / unknown — defer
+				// else: resolves outside the block / telescope / unknown -- defer
 			}
 
 			// default-domain members are attributes OF the argument unit (claimed
-			// ONLY at a unit parameter's TOP block — containers/nested blocks have
+			// ONLY at a unit parameter's TOP block -- containers/nested blocks have
 			// no member-domain default); a VOID actual domain broadcasts (the
-			// language's single implicit coercion — review finding: a parameter<>
+			// language's single implicit coercion -- review finding: a parameter<>
 			// member must not be rejected); explicit non-default domains (telescope
 			// params, generic domain vars, scope units) are checked transitively by
 			// the body's reduction
@@ -2181,14 +2181,14 @@ namespace {
 
 	// K11 leftover (2026-07-29): the INSTANTIATE path bypasses ReduceValue's binding
 	// loop (it is a CopyTreeContext tree copy), so the K11a-3 contract check never
-	// ran there — a missing member surfaced as a transitive 'Unknown identifier
+	// ran there -- a missing member surfaced as a transitive 'Unknown identifier
 	// nw/F2' inside the copied body instead of the boundary message. This helper
 	// applies the same check from MetaFuncCurry; expression arguments and
 	// non-function apply-items (plain templates) defer, as at the inline site.
 	//
 	// Review finding (reproduced both ways, fixed): arguments must resolve from the
-	// TARGET's parent — the context the copied parameter's ArgCalc calculator will
-	// bind in (param.parent.parent = target.parent) — NOT via ac->FindItem (the
+	// TARGET's parent -- the context the copied parameter's ArgCalc calculator will
+	// bind in (param.parent.parent = target.parent) -- NOT via ac->FindItem (the
 	// calculator's search context). The two coincide for a Calculator-role holder,
 	// but when the 'instantiate f(...)' expression sits on a copied TEMPLATE
 	// ARGUMENT (ArgCalc role) inside a template whose LOCAL shadows the call-site
@@ -2249,13 +2249,13 @@ namespace {
 			if (ancestor->m_FuncItem == m_FuncItem && ancestor->m_Env == m_Env
 				// same function AND same closure environment: §5.10 allows distinct
 				// closures of one nested function within a single reduction chain.
-				// '...x' rest folds recurse with STRICTLY FEWER arguments — well-founded
+				// '...x' rest folds recurse with STRICTLY FEWER arguments -- well-founded
 				// on the parent chain, so permitted; equal-or-more args = true recursion
 				&& m_ArgKeys.size() >= ancestor->m_ArgKeys.size())
 				throwErrorF("ExprParser", "'{}': recursive function application is not supported"
 					, m_FuncItem->GetFullName().c_str());
 
-		// §5.9 'apply T(args)': a plain template applied as an ad-hoc function — its params
+		// §5.9 'apply T(args)': a plain template applied as an ad-hoc function -- its params
 		// are its first N sub-items with N = the number of provided arguments (the template
 		// binding rule), and its designated result is the CI-unique 'result' sub-item
 		bool isPlainTemplate = !m_FuncItem->IsFunctionItem();
@@ -2276,7 +2276,7 @@ namespace {
 		}
 		else
 			// tranche 3: definition-time check at every application entry (once per
-			// function) — uniformly covers closures, prelude functions and variant
+			// function) -- uniformly covers closures, prelude functions and variant
 			// members, which do not all pass through the direct-call substitution site
 			CheckFunctionDefinition(m_FuncItem);
 
@@ -2300,7 +2300,7 @@ namespace {
 			m_Params.push_back(child);
 
 			// '...x' rest parameter (always last): binds the argument TAIL m_ArgKeys[i..end),
-			// spliced where the body passes it as a trailing call argument — never a scalar
+			// spliced where the body passes it as a trailing call argument -- never a scalar
 			if (hasRest && i == nrParams - 1)
 			{
 				m_RestParam = child;
@@ -2309,7 +2309,7 @@ namespace {
 
 			// meta-reference parameter ('item x'): bind the RAW item reference (the same
 			// sourceDescr form PropValue's subst_never argument gets in a direct call),
-			// never the argument's calculation/range key — so PropValue & co read the
+			// never the argument's calculation/range key -- so PropValue & co read the
 			// CONFIG item's metadata, and the reduced key equals the direct call's key
 			if (TreeItem_IsFunctionMetaRefParam(m_FuncItem, i))
 			{
@@ -2339,7 +2339,7 @@ namespace {
 						, m_FuncItem->GetFullName().c_str(), child->GetID().GetStr().c_str()
 						, residualArity, declaredSig->GetFullName().c_str(), requiredArity);
 
-				// WP4.1: enforce the type application 'sig<V, D>' — the bound function's
+				// WP4.1: enforce the type application 'sig<V, D>' -- the bound function's
 				// CONCRETE positions constrain this application's type variables, shared
 				// with (and checked against) the data-argument bindings below
 				if (auto sigTypeArgs = TreeItem_GetFunctionParamSigTypeArgs(m_FuncItem, i))
@@ -2348,14 +2348,14 @@ namespace {
 			}
 
 			// K11a-3: a structured / by-example unit parameter carries a declared
-			// member interface — validate the ACTUAL argument against it here, at the
+			// member interface -- validate the ACTUAL argument against it here, at the
 			// call boundary (clear attribution), instead of deep inside the reduced
-			// body. The argument's CONFIG item (m_ArgItems — the same reference the
+			// body. The argument's CONFIG item (m_ArgItems -- the same reference the
 			// body's member access binds to) carries the members; an expression
 			// argument has none here and defers to the body's own resolution.
 			// FUNCTION items only (review finding): a plain template's unit-parameter
 			// sub-items (helper locals with calculation rules) are NOT a declared
-			// member contract — 'apply' on such templates must keep working.
+			// member contract -- 'apply' on such templates must keep working.
 			// K11a-4: CONTAINER parameters (plain non-data, non-function items with a
 			// member block or exemplar) carry the same declared interface.
 			if (!isPlainTemplate && m_ArgItems[i]
@@ -2377,7 +2377,7 @@ namespace {
 		// generic type variables: bind each variable from the actual arguments' value
 		// classes / domain units into the unification store (WP4.1 tranche 2), which
 		// also receives variable-variable links from the signature-typed parameters
-		// below — consistency and constraint satisfaction are checked per equivalence
+		// below -- consistency and constraint satisfaction are checked per equivalence
 		// class, with attribution
 		TypeUnifier unifier{ m_FuncItem };
 		SharedStr declSource = mySSPrintF("declared by function '{}'", m_FuncItem->GetFullName().c_str());
@@ -2425,7 +2425,7 @@ namespace {
 				, mySSPrintF("parameter '{}'", gpParam->GetID().GetStr().c_str()));
 		}
 
-		// WP4.1: merge signature-instantiation constraints — for each 'sig<V, D>'-typed
+		// WP4.1: merge signature-instantiation constraints -- for each 'sig<V, D>'-typed
 		// parameter, the bound function's positions instantiate or LINK the applied
 		// variables (LinkSignatureBinding). Each binding gets its OWN instance of the
 		// bound function's variables: two independent bindings of the same generic
@@ -2470,7 +2470,7 @@ namespace {
 					, m_FuncItem->GetFullName().c_str(), resultName.GetStr().c_str());
 		}
 
-		// §5.10: a function-typed result yields a closure — the nested function plus
+		// §5.10: a function-typed result yields a closure -- the nested function plus
 		// this application's bound parameters, captured by value
 		if (resultChild->IsFunctionItem())
 		{
@@ -2564,7 +2564,7 @@ namespace {
 			// arity-aware head dispatch: an argument count no operator member accepts may
 			// be served by a same-named function (prelude folds, log(x,base), ...).
 			// The count is the EFFECTIVE arity: a trailing '...x' rest symbol expands to
-			// its captured argument count — this is what lets a fold body's recursive
+			// its captured argument count -- this is what lets a fold body's recursive
 			// call resolve to the binary OPERATOR on the last step (rest = 1 element)
 			// and back to the function while more remain
 			bool arityFallback = false;
@@ -2726,7 +2726,7 @@ namespace {
 		TokenID firstTok = (slash == e) ? symbID : GetTokenID_mt(b, slash);
 
 		// nearest-scope resolution: from the referencing item's scope outward, up to and
-		// including the function item — matching the resolution order of the instantiated form
+		// including the function item -- matching the resolution order of the instantiated form
 		for (const TreeItem* scope = refScope; scope; scope = scope->GetTreeParent().get())
 		{
 			bool atFuncRoot = (scope == m_FuncItem);
@@ -2741,7 +2741,7 @@ namespace {
 							throwErrorF("ExprParser", "'{}': parameter '{}' is a '...' rest parameter; it can only be passed on as the trailing argument of a function call"
 								, m_FuncItem->GetFullName().c_str(), child->GetID().GetStr().c_str());
 						// §5.9 parameter bound to a container literal: reduce a bare use to the
-						// domain and 'param/member' to the named member value — no arg item exists
+						// domain and 'param/member' to the named member value -- no arg item exists
 						if (m_ArgLiterals[i])
 						{
 							const auto& lit = *m_ArgLiterals[i];
@@ -2800,7 +2800,7 @@ namespace {
 				{
 					// §12.7 slSubItemCall tranche: descend the DECLARED structure
 					// segment-wise; a miss below an item WITH a calculation rule
-					// resolves INTO its computed result — slSubItemCall(reducedKey,
+					// resolves INTO its computed result -- slSubItemCall(reducedKey,
 					// rest), the cache layer's canonical sub-item form (u/Values on
 					// u := unique(x) & co.). SubItemOperator reports a missing
 					// member per application; meta rules keep their own rejection
@@ -2826,8 +2826,8 @@ namespace {
 									// cache-layer SubItemOperator cannot take it as a base.
 									// But the member is directly resolvable: descend the
 									// remaining path against the referenced config item and
-									// emit that item's own key — exactly as member access
-									// through a structured parameter does (see above) —
+									// emit that item's own key -- exactly as member access
+									// through a structured parameter does (see above) --
 									// instead of routing through the cache layer.
 									if (baseKey.IsRealList() && baseKey.Left().IsSymb()
 										&& baseKey.Left().GetSymbID() == token::sourceDescr)
@@ -2872,8 +2872,8 @@ namespace {
 				break;
 		}
 
-		// §5.10: the captured closure environment — the enclosing applications' bound
-		// parameters — is lexically nearer than any import or definition-scope item
+		// §5.10: the captured closure environment -- the enclosing applications' bound
+		// parameters -- is lexically nearer than any import or definition-scope item
 		if (m_Env)
 		{
 			SharedTreeItem envItem; LispRef envKey; std::shared_ptr<FunctionBinding> envBnd;
@@ -2936,7 +2936,7 @@ namespace {
 		if (found->InTemplate())
 		{
 			// #1166: a nested function's body may reference the ENCLOSING function's
-			// LOCAL items. Those have no value of their own here — they must be reduced
+			// LOCAL items. Those have no value of their own here -- they must be reduced
 			// in the enclosing application, which holds its bindings. Its parameters are
 			// captured by value in the environment (resolved above); a local is reduced
 			// in place by delegating to that application on the parent chain. When the
@@ -2966,7 +2966,7 @@ namespace {
 
 	// resolve a body-call head to the function being applied; sets *paramBinding when the
 	// head is a function-valued parameter (so its pre-bound slots participate).
-	// mayFail: arity-fallback probe — return null instead of throwing when no function
+	// mayFail: arity-fallback probe -- return null instead of throwing when no function
 	// is found (the caller then falls through to the operator path).
 	SharedTreeItem FunctionApplication::ResolveBodyHeadFunction(const TreeItem* /*refScope*/, TokenID headID, std::shared_ptr<FunctionBinding>* paramBinding, bool mayFail)
 	{
@@ -3137,24 +3137,24 @@ namespace {
 		CallArg a; a.key = SubstituteBodyExpr(refScope, argExpr); return a;
 	}
 
-	// WP3.4 + WP4.1 tranche 3: definition-time validation of a function body — the
+	// WP3.4 + WP4.1 tranche 3: definition-time validation of a function body -- the
 	// scope/shape walk (every identifier must resolve; operator/function heads must be
 	// known; direct calls have the right arity) now also derives TYPES, bottom-up over
 	// the body reachable from the designated result. The function's own type/domain
 	// variables (and its unit parameters) are RIGID: the body must be well-typed for
 	// EVERY instantiation, so anything that would pin them to a concrete type/unit,
 	// force two of them equal, or narrow them below their declared constraints is a
-	// definition error — caught here once, without any application. Each callee
+	// definition error -- caught here once, without any application. Each callee
 	// instantiates its declared signature under a fresh variable instance. Built-in
 	// operators, externals, variant selections, partial applications and
 	// member/container accesses stay DEFERRED (type Unknown) and remain checked per
-	// application by the reduction — operator signatures are the next tranche.
+	// application by the reduction -- operator signatures are the next tranche.
 
-	// §12.7: generated/computed member maps are keyed CASE-INSENSITIVELY —
+	// §12.7: generated/computed member maps are keyed CASE-INSENSITIVELY --
 	// TreeItem lookup (and hence SubItemOperator's GetCurrItem) accepts either
 	// case (with a deprecation warning), so an exact-case map would falsely
 	// miss legal references (S1). Folding is FIXED ASCII, matching the
-	// engine's token equality — locale-dependent folding (stricmp/tolower)
+	// engine's token equality -- locale-dependent folding (stricmp/tolower)
 	// could diverge under a changed CRT locale (review finding)
 	struct MemberPathLess
 	{
@@ -3190,7 +3190,7 @@ namespace {
 
 		// values-unit IDENTITY of a Data term (batch U, §8): a unit node when the
 		// declared values token names a unit parameter or domain-sorted generic
-		// (the function-signature K2 bridge — the SAME node its domain role uses),
+		// (the function-signature K2 bridge -- the SAME node its domain role uses),
 		// or the concrete scope unit it resolves to. Class reasoning stays on
 		// vc/vNode; identity is compared by UnifyData's values-identity block.
 		// Neither set = no identity claim (defers)
@@ -3211,13 +3211,13 @@ namespace {
 		UInt32 instance = 0;
 		std::shared_ptr<std::map<TokenID, TokenID>> tok2owner;
 
-		// K11 member map (§12.7): the member set of a composite result — the
+		// K11 member map (§12.7): the member set of a composite result -- the
 		// pseudo-expanded members of a container-GENERATING meta application
 		// (for_each, Kind::Container) OR the DESCRIBED sub-items of a
 		// cacheable operator's cache result (unique/Values & co., any kind;
-		// slSubItemCall tranche) — keyed by the sub-item PATH (a name-array
+		// slSubItemCall tranche) -- keyed by the sub-item PATH (a name-array
 		// entry may contain '/'), case-insensitively (TreeItem lookup accepts
-		// either case). membersComplete marks a definitively-known set — the
+		// either case). membersComplete marks a definitively-known set -- the
 		// only state in which a missing member may be reported (sound: meta
 		// rules reject every inline member access; described-complete cache
 		// results make SubItemOperator certain to reject the same reference)
@@ -3238,7 +3238,7 @@ namespace {
 		// batch D (§6.1): memoize operator-application results per (refScope,
 		// hash-consed application expr). LispRefs are interned, so two textually
 		// identical applications share one LispObj; keying on it makes repeated
-		// subexpressions denote ONE result node — a K6 SOUNDNESS prerequisite (two
+		// subexpressions denote ONE result node -- a K6 SOUNDNESS prerequisite (two
 		// `unique(a)`/`select(c)` occurrences reduce to a single DataController, so
 		// their fresh existential units must be the same node), and a diagnostics
 		// de-duplicator for every repeated subexpression as a bonus. refScope is in
@@ -3246,7 +3246,7 @@ namespace {
 		// The key holds a STRONG LispRef (§12.7 review): the map entry itself pins
 		// the interned node, so the pointer-ordered key can never dangle or ABA
 		std::map<std::pair<const TreeItem*, LispRef>, DefType> m_ApplTypes;
-		// K11a-3.1 review: memoize the checked function's own parameter types — every
+		// K11a-3.1 review: memoize the checked function's own parameter types -- every
 		// nw/member reference re-derived ParamType (and for a structured parameter
 		// rebuilt the whole member map incl. per-member FindItem scope walks). Nodes
 		// are get-or-create so this only removes rework, never changes a verdict.
@@ -3286,7 +3286,7 @@ namespace {
 
 		// unifier nodes; the checked function's own variables (instance 0) are rigid.
 		// A rigid variable may lexically belong to an ENCLOSING function (nested
-		// declarations see the enclosing type-parameter clause) — seed its constraint
+		// declarations see the enclosing type-parameter clause) -- seed its constraint
 		// from that declaration when the checked function's own lists lack it.
 		SizeT ValNode(const TreeItem* owner, UInt32 inst, TokenID tok)
 		{
@@ -3306,7 +3306,7 @@ namespace {
 		{
 			// the token may name a unit PARAMETER of the owner whose declared class
 			// must pin the companion regardless of WHICH path creates the node
-			// first — type applications and sig bindings reach here before
+			// first -- type applications and sig bindings reach here before
 			// ParamType does, and creation is get-or-create-once (review finding:
 			// an unpinned first creation froze the companion rigid/unconstrained,
 			// making the verdict depend on the body's reference order)
@@ -3323,7 +3323,7 @@ namespace {
 			// the companion class node needs the SAME enclosing-declaration
 			// constraint fallback as ValNode: a rigid domain variable lexically
 			// belonging to an ENCLOSING function (named here only through a type
-			// application) must not seed an all-set acceptance — the t3 defect-#3
+			// application) must not seed an all-set acceptance -- the t3 defect-#3
 			// rule, re-applied to the batch-U companions
 			bool rigid = owner == m_FuncItem && inst == 0;
 			TokenID fallback;
@@ -3349,7 +3349,7 @@ namespace {
 		}
 		// a nested function's body may reference the ENCLOSING function's parameters
 		// and locals; those are bound through the closure environment at reduction and
-		// have no definition-time value here — resolve them only to defer them
+		// have no definition-time value here -- resolve them only to defer them
 		SharedTreeItem FindEnclosingFunctionMember(TokenID tok)
 		{
 			for (auto enc = m_FuncItem->GetTreeParent(); enc && enc->IsFunctionItem(); enc = enc->GetTreeParent())
@@ -3373,12 +3373,12 @@ namespace {
 		}
 
 		// 0=parameter (index via *paramIdx), 1=local (via *local), 2=import/external; throws on unknown.
-		// §12.7: the bare code 2 conflates CLOSED and OPEN references — extKindPtr
+		// §12.7: the bare code 2 conflates CLOSED and OPEN references -- extKindPtr
 		// discriminates (see ExtRefKind); externalOut receives the resolved item for
 		// the DefScopeExternal case (the only evaluable one).
 		// 3 (only when genSubPathOut is passed) = a path miss below an item whose
 		// rule may GENERATE sub-items at instantiation (§12.7 for_each tranche):
-		// *local is that generating item, *genSubPathOut the remaining path — the
+		// *local is that generating item, *genSubPathOut the remaining path -- the
 		// caller resolves it against the container's pseudo-expanded member set
 		enum class ExtRefKind : UInt32 { DefScopeExternal = 0, ParamMember, PreludeFunc, ClosureCapture };
 		int ResolveName(const TreeItem* refScope, TokenID sym, const TreeItem** local, UInt32* paramIdx = nullptr,
@@ -3386,11 +3386,11 @@ namespace {
 
 		// §12.7 impedance tranche: definition-time K13 spec processing. A body
 		// sub-expression CLOSED over the formals (references no parameter, rest
-		// slice, closure capture, or parameter member — transitively through body
+		// slice, closure capture, or parameter member -- transitively through body
 		// locals; externals terminate the scan since formals are lexically
-		// invisible outside the function) is REDUCED to its DataController key —
+		// invisible outside the function) is REDUCED to its DataController key --
 		// the same hash-consed key every application interns (β-substitution is
-		// the identity on closed expressions) — and EVALUATED at definition scan,
+		// the identity on closed expressions) -- and EVALUATED at definition scan,
 		// storage-backed sources included (the explicit ruling). Any failure at
 		// any stage yields nullopt/empty = defer, exactly as without the spec.
 		std::map<std::pair<const TreeItem*, LispRef>, LispRef> m_ClosedKeyMemo; // strong key AND value LispRefs: nothing dangles
@@ -3404,8 +3404,8 @@ namespace {
 
 		// §12.7 for_each tranche: the container-generating meta family. A
 		// closed name array (and, for for_each_ind, the closed field spec) is
-		// EVALUATED at definition scan — storage-backed sources included, per
-		// the ruling — and the application types as a Container whose member
+		// EVALUATED at definition scan -- storage-backed sources included, per
+		// the ruling -- and the application types as a Container whose member
 		// set is the pseudo-expansion of the names; member domain/values types
 		// come from the layout's unit positions (a formal unit parameter
 		// contributes its unifier node: the K2 bridge). Any failure at any
@@ -3416,13 +3416,13 @@ namespace {
 		DefType InferGeneratedMember(TokenID sym, const TreeItem* genItem, const SharedStr& subPath);
 	};
 
-	// §12.7: may `item`'s calculation rule COMPUTE sub-items at application —
+	// §12.7: may `item`'s calculation rule COMPUTE sub-items at application --
 	// a meta head GENERATING config items (for_each_*), or a cacheable rule
 	// whose composite cache result carries members (unique/Values & co., now
 	// reachable through slSubItemCall)? Any non-empty rule qualifies since the
 	// slSubItemCall tranche: reduction resolves the remaining path against the
 	// rule's result, so a declared-tree miss below such an item is never
-	// reported as unknown at definition — it types via the pseudo-expanded or
+	// reported as unknown at definition -- it types via the pseudo-expanded or
 	// described member set (a code-3 access) or defers to the per-application
 	// SubItem check. (A leading-'=' rule qualifies too: InferBodyItem reports
 	// its own honest error, matching ReduceBodyItem's.)
@@ -3435,7 +3435,7 @@ namespace {
 	// declared children are the member set only when nothing can ADD to them at
 	// instantiation. A storage manager (GDAL & co. generate layer sub-items at
 	// UpdateMetaInfo) or a calculation rule (a composite result contributes its
-	// members) leaves the set OPEN — membersComplete must then stay false, or a
+	// members) leaves the set OPEN -- membersComplete must then stay false, or a
 	// body reference to a generated member is a false definition-time
 	// "declares no member" error whose verdict even depends on whether the
 	// exemplar's meta info happened to be updated first. An explicitly written
@@ -3445,7 +3445,7 @@ namespace {
 		return !RuleMayComputeSubItems(exemplar) && !exemplar->HasStorageManager();
 	}
 
-	// K11b: is `item` a plain CONTAINER — something that can carry an operator's
+	// K11b: is `item` a plain CONTAINER -- something that can carry an operator's
 	// ArgContainer members? Units and data items have their own positions, function
 	// items and templates are inert type/logic carriers, never member bags.
 	bool IsPlainContainer(const TreeItem* item)
@@ -3531,7 +3531,7 @@ namespace {
 		}
 
 		auto found = m_FuncItem->FindItem(fullStr);
-		// lexical definition scope (§4.6): the whole enclosing chain — see the
+		// lexical definition scope (§4.6): the whole enclosing chain -- see the
 		// matching walk in ResolveBodySymbol (ObjectVision/GeoDMS#1166). This site
 		// types the reference and throws first, so it needs the same ascent.
 		for (auto defScope = m_FuncItem->GetTreeParent(); !found && defScope; defScope = defScope->GetTreeParent())
@@ -3553,7 +3553,7 @@ namespace {
 		if (!found->IsFunctionItem() && found->InTemplate())
 		{
 			// FindItem ascends the parent chain, so an ENCLOSING function's data/unit
-			// parameter or local is 'found' here — those are §5.10 closure captures,
+			// parameter or local is 'found' here -- those are §5.10 closure captures,
 			// bound through the environment at reduction: defer, don't reject
 			if (FindEnclosingFunctionMember(firstTok))
 			{
@@ -3566,7 +3566,7 @@ namespace {
 		// §12.7 (review finding): reduction resolves the closure ENVIRONMENT before
 		// imports/definition scope (ResolveBodySymbol), so a definition-scope item
 		// SHADOWED by an enclosing function's member is bound to the CAPTURE at
-		// reduction — classifying it DefScopeExternal would evaluate the wrong
+		// reduction -- classifying it DefScopeExternal would evaluate the wrong
 		// (and formal-dependent) binding. Probe the shadow for the §12.7 caller
 		if (extKindPtr && FindEnclosingFunctionMember(firstTok))
 		{
@@ -3578,7 +3578,7 @@ namespace {
 	}
 
 	// §12.7: reduce a body sub-expression that is CLOSED over the formals to its
-	// DataController key — the SAME hash-consed key every application interns
+	// DataController key -- the SAME hash-consed key every application interns
 	// (β-substitution is the identity on closed expressions), so a definition-time
 	// evaluation reads the value once through the very DC reduction will use.
 	// Empty result = open or not buildable: the caller defers. Mirrors the closed
@@ -3682,8 +3682,8 @@ namespace {
 	}
 
 	// §12.7: evaluate a closed spec sub-expression at definition scan. Literal
-	// fast path reads straight off the parse tree; everything else — including
-	// storage-backed definition-scope items, per the explicit ruling — goes
+	// fast path reads straight off the parse tree; everything else -- including
+	// storage-backed definition-scope items, per the explicit ruling -- goes
 	// through the standard meta-thread calculation (the CalcCertainResult idiom
 	// the dynamic-argument-policies spec read already uses). ANY failure,
 	// including a transient storage failure, yields nullopt = defer: the
@@ -3732,7 +3732,7 @@ namespace {
 		}
 	}
 
-	// §12.7 for_each tranche: the array sibling of EvalClosedSpec — evaluate a
+	// §12.7 for_each tranche: the array sibling of EvalClosedSpec -- evaluate a
 	// closed string ARRAY (any domain) at definition scan and read all its
 	// values, storage-backed sources included per the ruling. The evaluation
 	// runs through the very hash-consed DC every instantiation of the meta
@@ -3829,7 +3829,7 @@ namespace {
 			r.dNode = UNode(m_FuncItem, 0, p->GetID(), r.vc);
 			// K11a-1: a structured unit parameter carries a member block (sub-items).
 			// K11a by-example ('nw: network_links'): the parse-time clone carries only
-			// the CLASS (ConfigProd.cpp DoRefTypeSignature) — the retained UNIT
+			// the CLASS (ConfigProd.cpp DoRefTypeSignature) -- the retained UNIT
 			// exemplar supplies the declared member block instead, typed through the
 			// SAME BuildParamMembers ladder (declared kind/type only; exemplar DATA is
 			// never read, risk R-b).
@@ -3854,7 +3854,7 @@ namespace {
 			return r;
 		}
 		// K11a-4: a CONTAINER parameter ('container cfg { … }', or by-example
-		// 'cfg: Settings') — the declared member block types exactly like a
+		// 'cfg: Settings') -- the declared member block types exactly like a
 		// structured unit parameter's, except there is no parameter unit: members
 		// without an explicit domain DEFER instead of defaulting (NO_TYPE_VAR).
 		// A plain member-less TreeItem parameter ('item x' meta-refs and friends)
@@ -3882,11 +3882,11 @@ namespace {
 	// member sub-item is typed: a member UNIT gets a per-instantiation identity node; a
 	// member ATTRIBUTE is Data with its declared value class and domain. K11a-1b: a
 	// member attribute whose values token names a sibling member unit also carries that
-	// unit's IDENTITY node (vuNode) — so members sharing a node unit (F1,F2 both
+	// unit's IDENTITY node (vuNode) -- so members sharing a node unit (F1,F2 both
 	// attribute<nodeset>) unify over the SAME node at definition, and members over
 	// different node units fail to unify.
 	// K11a-3.1 (generic member types): member tokens resolve through the SAME ladder a
-	// positional declaration uses (PositionType), innermost first —
+	// positional declaration uses (PositionType), innermost first --
 	//   values: sibling member unit → the function's generic variables (a domain-
 	//     sorted variable also carries unit identity, the K2 bridge) → ValueClass
 	//     name → a telescope unit parameter → a definition-scope unit;
@@ -3894,7 +3894,7 @@ namespace {
 	//     generic domain variable → telescope unit parameter → definition-scope
 	//     unit (Void broadcasts) → otherwise DEFER (Dom::Unknown).
 	// (Review findings, K11a-3.1 round:) generic variables come BEFORE ValueClass
-	// names, matching PositionType — a type variable named like a value class must
+	// names, matching PositionType -- a type variable named like a value class must
 	// type members and body items to the SAME rigid node; a member declared without
 	// a domain carries the implicit '.' entity token (ConfigProd RetrieveEntity),
 	// never an empty one, so '.' selects the parameter-unit default; and member-unit
@@ -3903,17 +3903,17 @@ namespace {
 	// same-named telescope parameter) stay DISTINCT rigid units.
 	// An explicit domain token must NEVER silently fall back to the parameter unit:
 	// that mistyped `cost (E2)` as over the parameter and falsely rejected a correct
-	// body item declared over E2 (rigid-rigid 'nw'≠'E2' conflict) — unresolvable
+	// body item declared over E2 (rigid-rigid 'nw'≠'E2' conflict) -- unresolvable
 	// tokens defer.
 	std::shared_ptr<const std::map<SharedStr, DefType, MemberPathLess>>
 	FunctionChecker::BuildParamMembers(const TreeItem* p, SizeT paramDomNode, const TreeItem* memberSrc)
 	{
-		// memberSrc: the item whose DECLARED sub-items form the member block — the
+		// memberSrc: the item whose DECLARED sub-items form the member block -- the
 		// parameter itself (explicit block) or its by-example UNIT exemplar. Node
 		// qualification stays on the PARAMETER's name either way (two by-example
 		// parameters of one exemplar must still be distinct rigid units).
 		// By-example review finding (reproduced): EXEMPLAR member tokens are
-		// lexically the EXEMPLAR's world — they must never resolve against the
+		// lexically the EXEMPLAR's world -- they must never resolve against the
 		// function's generic variables, telescope parameters, definition scope, or
 		// the caller-chosen parameter name (a same-named parameter/scope unit
 		// CAPTURED them, falsely rejecting correct programs at definition). In
@@ -3927,7 +3927,7 @@ namespace {
 		SharedStr pName(p->GetID().AsStrRange()); // materialized: TokenStr must not span token creation below
 
 		// K11a-4: one WALK per block, recursing into declared CONTAINER members with
-		// the member path as prefix — the map is FLAT, keyed by the full relative
+		// the member path as prefix -- the map is FLAT, keyed by the full relative
 		// path ('meta', 'meta/factor'), so deep member access types directly.
 		// blockDomNode is the enclosing unit's node, or NO_TYPE_VAR when the block
 		// has no enclosing unit (a container parameter / a nested container block):
@@ -3947,7 +3947,7 @@ namespace {
 			for (const TreeItem* m = block->_GetFirstSubItem(); m; m = m->GetNextItem())
 			{
 				// review finding: nested FUNCTIONS, TEMPLATES and type-alias exemplars
-				// are implementation content, not members — they must neither be typed
+				// are implementation content, not members -- they must neither be typed
 				// nor (through membersComplete) make a same-named reference an error
 				if (m->IsTemplate() || m->IsFunctionItem())
 					continue;
@@ -3972,7 +3972,7 @@ namespace {
 							if (u->GetID() == vt && IsUnit(u))
 							{
 								// K11a-1b: the member attribute's values unit IS the sibling
-								// member unit — carry its IDENTITY node, not just its class.
+								// member unit -- carry its IDENTITY node, not just its class.
 								// The node is keyed by the QUALIFIED token, so it is the SAME
 								// node the member unit itself got above. Hence F1,F2 both
 								// `attribute<nodeset>` share one node: the body's
@@ -3986,7 +3986,7 @@ namespace {
 							}
 						if (!vMatched && !byExample && (IsOwnDeclaredVar(m_FuncItem, vt) || IsGenericVarOf(m_FuncItem, vt)))
 						{
-							// K11a-3.1: `w: attribute<V>` under `<V: numerics>` — the member's
+							// K11a-3.1: `w: attribute<V>` under `<V: numerics>` -- the member's
 							// values class IS the function's rigid variable, so body uses of
 							// nw/w are checked under ∀ exactly like a positional attribute<V>
 							md.vNode = ValNode(m_FuncItem, 0, vt);
@@ -4020,7 +4020,7 @@ namespace {
 								md.vc = AsUnit(u.get())->GetValueType();
 								md.vKeep = u; md.vUnit = AsUnit(u.get()); // identity too (batch U)
 							}
-						// else: unknown values class — checked per application
+						// else: unknown values class -- checked per application
 					}
 
 					// domain: default = the enclosing unit (or DEFER when the block has
@@ -4038,7 +4038,7 @@ namespace {
 							md.dom = DefType::Dom::Node;
 							md.dNode = blockDomNode;
 						}
-						// else: containers have no member-domain default — defer
+						// else: containers have no member-domain default -- defer
 					}
 					else
 					{
@@ -4046,7 +4046,7 @@ namespace {
 						for (const TreeItem* u = block->_GetFirstSubItem(); u; u = u->GetNextItem())
 							if (u->GetID() == dt && IsUnit(u))
 							{
-								// over a sibling member unit — the SAME (qualified) node that
+								// over a sibling member unit -- the SAME (qualified) node that
 								// member got
 								md.dom = DefType::Dom::Node;
 								md.dNode = UNode(m_FuncItem, 0, qualTok(dt), AsUnit(u)->GetValueType());
@@ -4084,10 +4084,10 @@ namespace {
 								}
 								dMatched = true;
 							}
-						// !dMatched: md.dom stays Dom::Unknown — defer
+						// !dMatched: md.dom stays Dom::Unknown -- defer
 					}
 				}
-				// else (container / nested-function members): md stays Unknown — the
+				// else (container / nested-function members): md stays Unknown -- the
 				// member IS declared, so it must be IN the map (K11a-3 review finding:
 				// dropping it while membersComplete=true made a direct `nw/meta`
 				// reference a false "declares no member" definition error)
@@ -4095,7 +4095,7 @@ namespace {
 				SharedStr mPath = prefix.empty() ? mName : prefix + mName;
 				(*members)[mPath] = md;
 
-				// K11a-4: recurse into a declared CONTAINER member — its members type
+				// K11a-4: recurse into a declared CONTAINER member -- its members type
 				// under the flattened path ('meta/factor'); nested blocks have no
 				// enclosing unit, so their default domains defer. Nested UNIT members'
 				// sub-items stay deferred (the argument may carry label attrs etc.).
@@ -4111,7 +4111,7 @@ namespace {
 	// as an operator's ArgContainer argument). Unlike a parameter's member block these
 	// members are real items, so their types are CONCRETE: a member unit is itself the
 	// unit, and a member attribute's domain/values tokens resolve in the CONTAINER's
-	// OWN scope (never the function's — the by-example capture-shadowing lesson).
+	// OWN scope (never the function's -- the by-example capture-shadowing lesson).
 	// Members whose tokens do not resolve stay Unknown and simply defer.
 	std::shared_ptr<const std::map<SharedStr, DefType, MemberPathLess>>
 	FunctionChecker::BuildConcreteContainerMembers(const TreeItem* c)
@@ -4170,7 +4170,7 @@ namespace {
 	// K11a-2: type `P/member` access at definition against the structured parameter's
 	// member map. Hit → the member's type (so the body's use of it is checked under ∀).
 	// K11a-3: a DIRECT-member miss under a COMPLETE declared interface is a
-	// definition-time error — the member block is the parameter's declared contract
+	// definition-time error -- the member block is the parameter's declared contract
 	// (§4.6 strict scope), so a body reference outside it is wrong regardless of what
 	// extra members an argument happens to provide. DEEP paths defer (the argument may
 	// legitimately carry structure BELOW a declared member, e.g. nw/nodeset/label);
@@ -4199,7 +4199,7 @@ namespace {
 					for (CharPtr q = memberPath.begin(); q != memberPath.send(); ++q)
 						if (*q == '/')
 							lastSlash = q;
-					// NB: CharPtrRange, NOT (begin, end) — SharedStr has no two-pointer
+					// NB: CharPtrRange, NOT (begin, end) -- SharedStr has no two-pointer
 					// ctor, so that silently binds to SharedStr(zStr, debugSrcName) and
 					// yields the WHOLE path
 					SharedStr parentPath{ CharPtrRange(memberPath.begin(), lastSlash) };
@@ -4276,7 +4276,7 @@ namespace {
 				// of a type application (tok2owner set) belong to fnDef's own lexical
 				// world and never resolve to the origin's variables.
 				// batch U: a values token naming a DOMAIN-SORTED generic or a unit
-				// PARAMETER additionally carries the unit's IDENTITY (vuNode) — the
+				// PARAMETER additionally carries the unit's IDENTITY (vuNode) -- the
 				// SAME node its domain role uses, which is the K2 bridge; a token
 				// resolving to a concrete scope unit carries that unit (vUnit)
 				if (IsOwnDeclaredVar(fnDef, vTok))
@@ -4391,7 +4391,7 @@ namespace {
 				, a.vc->GetName().c_str(), srcA.c_str(), b.vc->GetName().c_str(), srcB.c_str());
 
 		// values-unit IDENTITY (batch U): declared identities through unit
-		// parameters and domain-sorted generics — the function-signature K2
+		// parameters and domain-sorted generics -- the function-signature K2
 		// bridge (`attribute<E> rel (D); attribute<V> vals (E)` flows both roles
 		// of E through ONE unit node). Terms without identity information defer;
 		// concrete pairs compare by defining-expression identity under the
@@ -4405,7 +4405,7 @@ namespace {
 			else if (b.vuNode != NO_TYPE_VAR && a.vUnit)
 				m_Unifier.BindUnit(b.vuNode, a.vKeep, a.vUnit, srcA);
 			// concrete-vs-concrete deliberately DEFERS (S1, review finding): reduction
-			// checks values units by UnifyValues (class + metric, AllowDefaultLeft) —
+			// checks values units by UnifyValues (class + metric, AllowDefaultLeft) --
 			// two key-distinct metric-less units of one class unify there, so a
 			// key-identity error here would reject configs that reduce fine. Identity
 			// is enforced only through a declared unit-variable contract (the arms
@@ -4545,7 +4545,7 @@ namespace {
 			{
 				// function-typed parameters short-circuit by name (mirroring the
 				// reducer's binding lookup in ResolveBodyArg); DATA parameters do
-				// NOT — a nearer body local may shadow them (nearest-scope, exactly
+				// NOT -- a nearer body local may shadow them (nearest-scope, exactly
 				// like ResolveBodySymbol resolves the argument at reduction)
 				if (auto headChild = m_FuncItem->GetConstSubTreeItemByID(sym))
 					for (UInt32 i = 0, n = m_Params.size(); i != n; ++i)
@@ -4595,17 +4595,17 @@ namespace {
 	//
 	// The walker consumes AbstrOperGroup::GetSignatures() (OperSignature.h). Per
 	// application it (1) filters the group's members by arity and by the argument
-	// classes it knows — a concrete class, a node's binding, or a node's (hard)
+	// classes it knows -- a concrete class, a node's binding, or a node's (hard)
 	// feasible set, each an over-approximation of the classes any successful
 	// reduction can present, so elimination is sound; (2) applies the unique
 	// surviving merged record: the shared domain variable with void broadcast and
 	// one class node per record variable; and (3) derives the cross-position class
-	// relations from the record's member TUPLES — positions on which ALL tuples
+	// relations from the record's member TUPLES -- positions on which ALL tuples
 	// agree are LINKED (hard: exactly the old shared-node semantics, so e.g.
 	// mul(x:V, y:W) with independent rigids still errors), and positions all
 	// tuples pin to one class are BOUND, but never onto a rigid ∀-variable
 	// (support sets are soft, see ConstraintRec). Mixed survivor sets, undescribed
-	// survivors, and arity mismatches DEFER — FindOper's widening escape hatches
+	// survivors, and arity mismatches DEFER -- FindOper's widening escape hatches
 	// and per-application checking stay in charge, so a description can only ADD
 	// judgments where the membership is unambiguous.
 
@@ -4672,9 +4672,9 @@ namespace {
 
 	// sound elimination on the REGISTERED classes (described or not).
 	// Survives: no known argument class rules the member out.
-	// EliminatedConcrete: some position with a CONCRETE class rejects it — the
+	// EliminatedConcrete: some position with a CONCRETE class rejects it -- the
 	// same classes reach reduction, so FindOper is certain to reject it there too.
-	// EliminatedFeasible: only feasible-SET witnesses reject it — symbolic
+	// EliminatedFeasible: only feasible-SET witnesses reject it -- symbolic
 	// knowledge, so the no-candidate verdict must defer, not error (a rejecting
 	// concrete position elsewhere still upgrades the member to Concrete: the
 	// scan continues past a feasible rejection looking for one).
@@ -4711,7 +4711,7 @@ namespace {
 		return verdict;
 	}
 
-	// K11b: consume an ArgContainer position — the members a container argument
+	// K11b: consume an ArgContainer position -- the members a container argument
 	// contributes are unified against the shared domain/values variables the
 	// description declares, so a container that disagrees with another argument
 	// bound to the same variable (e.g. discrete_alloc's allocUnit) is a
@@ -4720,20 +4720,20 @@ namespace {
 	// THE CONSUMED SET IS NAME-DIRECTED (review finding, reproduced). Operators read
 	// a SUBSET of the container: discrete_alloc looks each suitability up by type
 	// NAME (`GetConstSubTreeItemByID(gg->m_NameID)`), so a container carrying further
-	// members — a per-type weight, a regional helper — is legitimate and already
+	// members -- a per-type weight, a regional helper -- is legitimate and already
 	// exercised in tst (`source/Compacted/SuitabilityMaps` has 3 members for 2 type
 	// names). An "every member" claim therefore FALSELY rejects working configs, as a
 	// same-file control proved: the top-level call reduces while the function-body
 	// call was rejected. So the claim applies to the NAMED members only, and only
-	// when those names are definition-time knowable — the `namesPos` string array,
+	// when those names are definition-time knowable -- the `namesPos` string array,
 	// evaluated exactly like the §12.7 for_each tranche evaluates its name arrays.
 	// No evaluable name array ⇒ NO claim (defer), which is the honest verdict when
 	// the member set is data-directed.
 	//
 	// Two argument shapes are typed: a structured/by-example CONTAINER PARAMETER
 	// (K11a-4 already built its member map) and a definition-scope CONTAINER item
-	// (members enumerated concretely here). Anything else — expressions, generated
-	// containers, closure captures — defers exactly as before.
+	// (members enumerated concretely here). Anything else -- expressions, generated
+	// containers, closure captures -- defers exactly as before.
 	void FunctionChecker::LinkContainerArg(const SignatureRecord::Pos& p, const DefType& argTerm, LispPtr argExpr,
 		const TreeItem* refScope, const SharedStr& argSrc, LispPtr argsList,
 		const std::function<SizeT(sig_var)>& VN, const std::function<SizeT(sig_var)>& DN)
@@ -4790,14 +4790,14 @@ namespace {
 			return;
 
 		// A definition-scope container's members are CONCRETE, and definition-scope
-		// externals deliberately DEFER (their types are checked per application) —
+		// externals deliberately DEFER (their types are checked per application) --
 		// binding the operator's shared variable to a concrete member unit would pin
 		// a rigid unit parameter and falsely reject a body that today type-checks
 		// (verified: `attribute<V> x (cells) := SomeExternal;` is accepted precisely
 		// because the external defers). So for an external argument only the
 		// INTRA-container fact is claimed: the NAMED member attributes must agree with
 		// EACH OTHER on one domain. A container PARAMETER's members carry variables,
-		// so there the full cross-argument link runs — the ∀ payoff.
+		// so there the full cross-argument link runs -- the ∀ payoff.
 		SharedStr refName; const DefType* refMember = nullptr;
 		for (const auto& nm : *names)
 		{
@@ -4845,8 +4845,8 @@ namespace {
 
 	// §6.2 cross-record fallback. When several congruence records survive, the
 	// walker used to defer wholesale: no single record's class tuples apply. But a
-	// group's records often still AGREE on the DOMAIN SKELETON — which positions are
-	// attributes/units and which of them share a domain — and that part holds no
+	// group's records often still AGREE on the DOMAIN SKELETON -- which positions are
+	// attributes/units and which of them share a domain -- and that part holds no
 	// matter which member reduction ultimately selects, so claiming it is sound.
 	//
 	// This is the gate the K11a-1b note called out: `add`/`+` splits into three
@@ -4993,7 +4993,7 @@ namespace {
 			else if (ps.kind == SignatureRecord::PosKind::Container)
 			{
 				// the agreed container claim: shared member domain slot, an intra-
-				// container shared VALUES var when every record declares one (fresh —
+				// container shared VALUES var when every record declares one (fresh --
 				// no cross-position class identity), and the agreed naming argument
 				p.domain = ps.dom.id == UInt32(-1) ? no_sig_var : sig_var(ps.dom.id);
 				if (ps.hasVal)
@@ -5194,7 +5194,7 @@ namespace {
 			if (!p || p->kind == SignatureRecord::PosKind::None)
 				continue;
 			SharedStr argSrc = mySSPrintF("argument {} of operator '{}'", k + 1, headName.c_str());
-			// K11b: a described CONTAINER argument — unify its actual members against
+			// K11b: a described CONTAINER argument -- unify its actual members against
 			// the shared domain/values variables the description declares
 			if (p->kind == SignatureRecord::PosKind::Container)
 			{
@@ -5219,7 +5219,7 @@ namespace {
 		}
 
 		// narrow the tuples by what the arguments bound; an empty remainder means
-		// no registered member matches the (concrete) classes — reduction is bound
+		// no registered member matches the (concrete) classes -- reduction is bound
 		// to fail on the same FindOper this record was derived from
 		std::vector<const std::vector<const ValueClass*>*> compatible;
 		for (auto t : allTuples)
@@ -5274,14 +5274,14 @@ namespace {
 		if (shape.dynamicShape || shape.resultDeferred)
 			return {};
 		DefType r = posType(shape.result);
-		// §12.7 slSubItemCall tranche: typed sub-items of a composite result —
+		// §12.7 slSubItemCall tranche: typed sub-items of a composite result --
 		// consumed by InferGeneratedMember when the body references INTO the
 		// result (u/Values). Member values stay class-level unless the var is
 		// also in a domain role (the batch-B K2 rule); member domains claim
-		// identity through the same DN nodes the positions bound — so
+		// identity through the same DN nodes the positions bound -- so
 		// unique's Values rides the SAME existential node as the result unit.
 		// The completeness flag licenses definition-time missing-member errors
-		// (SubItemOperator is certain to reject the same reference) — and a
+		// (SubItemOperator is certain to reject the same reference) -- and a
 		// complete-EMPTY set (the plain select_* groups) must attach too, or
 		// its promised definition-time report never fires (review finding).
 		if (!shape.resultMembers.empty() || shape.resultMembersComplete || !shape.resultMemberSets.empty())
@@ -5312,7 +5312,7 @@ namespace {
 				(*members)[rm.path] = memberTypeOf(rm.values, rm.domain, rm.vc);
 
 			// NAME-DIRECTED result member families: one member per entry of the
-			// declared names array — discrete_alloc's shadow_prices/<type> and
+			// declared names array -- discrete_alloc's shadow_prices/<type> and
 			// total_allocated/<type>. The array must be definition-time evaluable
 			// (the §12.7 / K11b closedness test); otherwise this family contributes
 			// nothing, leaving the set exactly as incomplete as before.
@@ -5352,7 +5352,7 @@ namespace {
 	// §12.7: attempt definition-time K13 spec processing for a DynamicShape record
 	// whose single string-valued ArgMetaValue position holds a spec CLOSED over
 	// the formals. On success the surviving members' DescribeSpecSignature records
-	// (merged; NO DynamicShape) are applied — including the ruled honest ARITY
+	// (merged; NO DynamicShape) are applied -- including the ruled honest ARITY
 	// check: the derived position count IS the CalcNrArgs predicate CreateResult
 	// applies, the sole exemption from §6.2's arity-always-defers rule. Every
 	// other outcome returns nullopt and the caller defers exactly as today.
@@ -5363,7 +5363,7 @@ namespace {
 		if (survivors.empty())
 			return std::nullopt;
 		// review finding: a trailing '...rest' symbol counts as ONE syntactic term
-		// here but splices to its captured argument count at reduction — both the
+		// here but splices to its captured argument count at reduction -- both the
 		// positional mapping and the arity verdict would misalign. Rest-having
 		// functions defer the whole spec path (their effective arity is per
 		// application)
@@ -5406,7 +5406,7 @@ namespace {
 		{
 			SignatureRecorder rec;
 			// a throw here is the member's OWN spec validation (ParseDijkstraString/
-			// CheckFlags — the very predicates CreateResult applies first), reached
+			// CheckFlags -- the very predicates CreateResult applies first), reached
 			// only for a CLEANLY EVALUATED closed spec: reporting it at definition
 			// is honest (the §12.7 ruling's sanctioned upgrade from the v1 deferral)
 			bool described = m->DescribeSpecSignature(rec, specValue->c_str());
@@ -5424,7 +5424,7 @@ namespace {
 		}
 		const auto& derived = merged;
 
-		// the ruled arity exemption — strictly OUTSIDE every defer-catch above
+		// the ruled arity exemption -- strictly OUTSIDE every defer-catch above
 		if (argTerms.size() != derived->shape.args.size())
 			throwErrorF("ExprParser", "{}: number of given arguments to operator '{}' doesn't match the specification '{}': {} arguments given (including the specification), but {} expected"
 				, m_Unifier.FullName().c_str(), headName.c_str(), specValue->c_str()
@@ -5436,17 +5436,17 @@ namespace {
 	// §12.7 for_each tranche: definition-time processing of a container-
 	// GENERATING meta application (a dont_cache_result group). The group's
 	// member(s) describe their argument LAYOUT (MetaMemberLayout); when the
-	// name array — and, for for_each_ind, the field spec directing the layout —
+	// name array -- and, for for_each_ind, the field spec directing the layout --
 	// is CLOSED over the checked function's formals, it is EVALUATED at
 	// definition scan (the ruling: storage-backed sources included) and the
 	// application types as a Container carrying the pseudo-expanded member set.
 	// Member types come from the layout's unit positions: a direct unit
 	// argument types every member uniformly (a formal unit parameter
-	// contributes its unifier node — the K2 bridge; a closed external unit its
+	// contributes its unifier node -- the K2 bridge; a closed external unit its
 	// concrete identity), a (container, name-array) pair resolves a unit per
 	// member inside a closed external container. An unresolvable unit defers
-	// that MEMBER's type, never the member set. Every other failure — open
-	// arguments, evaluation failure, duplicate names, heterogeneous layouts —
+	// that MEMBER's type, never the member set. Every other failure -- open
+	// arguments, evaluation failure, duplicate names, heterogeneous layouts --
 	// returns nullopt and the caller defers exactly as before the tranche.
 	std::optional<DefType> FunctionChecker::TryMetaContainerProcessing(const AbstrOperGroup* og, TokenID headID,
 		const TreeItem* refScope, LispPtr argsList, const std::vector<DefType>& argTerms)
@@ -5470,7 +5470,7 @@ namespace {
 		}
 
 		// every member must describe the SAME layout (each for_each group holds one).
-		// A throw is the member's OWN spec validation (ScanFirstArg — the predicate
+		// A throw is the member's OWN spec validation (ScanFirstArg -- the predicate
 		// CreateResult applies first), reached only for a CLEANLY EVALUATED closed
 		// spec: reporting it at definition is honest (the §12.7 ruling's sanctioned
 		// upgrade from the v1 deferral)
@@ -5491,7 +5491,7 @@ namespace {
 			return std::nullopt;
 
 		// arity: outside the group's accepted range, a same-named function may
-		// serve the call — defer (§6.2). Within it, a spec-derived width is
+		// serve the call -- defer (§6.2). Within it, a spec-derived width is
 		// CreateResult's own predicate: its violation is the ruled honest error
 		// (for_each_ind's own message shape), strictly outside every defer-catch.
 		arg_index nrGiven = arg_index(argTerms.size());
@@ -5668,14 +5668,14 @@ namespace {
 		return r;
 	}
 
-	// §12.7: type a reference INTO a rule-computed member set — 'r/foo' where
+	// §12.7: type a reference INTO a rule-computed member set -- 'r/foo' where
 	// r's rule is a meta application (the pseudo-expanded for_each container)
 	// or a cacheable composite whose record describes its sub-items
-	// (u := unique(x); u/Values — the slSubItemCall tranche). An exact hit
+	// (u := unique(x); u/Values -- the slSubItemCall tranche). An exact hit
 	// (case-insensitive, like the engine's item lookup) yields the member's
 	// type, a path prefix of a deeper member is an intermediate container (no
 	// claim), a path BELOW a member defers (members may carry deeper
-	// sub-structure), and a complete-set miss is reported honestly — sound
+	// sub-structure), and a complete-set miss is reported honestly -- sound
 	// because meta rules reject every inline member access and described-
 	// complete cache results make SubItemOperator certain to reject the same
 	// reference per application. Everything else defers as before.
@@ -5791,7 +5791,7 @@ namespace {
 		if (theRecord < 0)
 		{
 			// §6.2 cross-record fallback: several congruence classes survive, so no
-			// single record's VALUE claims apply — but they may still AGREE on the
+			// single record's VALUE claims apply -- but they may still AGREE on the
 			// DOMAIN skeleton, and whichever member reduction picks, that part holds.
 			// This un-gates the combining operators: `add`/`+` splits into three
 			// records (two polygon families + the scalar family), all of which say
@@ -5835,7 +5835,7 @@ namespace {
 					// K11a-2: structured-parameter member access. Code 2 is OVERLOADED
 					// (K11a-3 review finding): prelude refs, closure captures and
 					// def-scope externals also return 2 WITHOUT touching paramIdx/
-					// genSubPath — only a genuine ParamMember may reach the member map
+					// genSubPath -- only a genuine ParamMember may reach the member map
 					// (the stale defaults falsely hit parameter 0 with an empty path)
 					if (extKind == ExtRefKind::ParamMember)
 						return InferParamMember(paramIdx, genSubPath);
@@ -5928,8 +5928,8 @@ namespace {
 		// built-in operator: the group's described signature records (batch A)
 		// type the application; groups without described members walk their
 		// arguments and defer the result. Memoized per (refScope, interned expr)
-		// so repeated applications — crucially fresh-unit ones like unique(a) /
-		// select(c) — share ONE result node (batch D, §6.1). An error throws
+		// so repeated applications -- crucially fresh-unit ones like unique(a) /
+		// select(c) -- share ONE result node (batch D, §6.1). An error throws
 		// (never cached); a cache hit skips re-walking the (identical) arguments,
 		// whose own checks already ran on the first occurrence
 		auto memoKey = std::make_pair(refScope, LispRef(expr));
@@ -5976,7 +5976,7 @@ namespace {
 		if (TreeItem_IsFunctionDefinitionChecked(funcItem))
 		{
 			// The definition was already checked. A wrong definition is a persistent error whose
-			// verdict is recorded ON THE FUNCTION ITEM (below) — re-raise it so this application
+			// verdict is recorded ON THE FUNCTION ITEM (below) -- re-raise it so this application
 			// fails too, WITHOUT re-running the (failing) check at every application.
 			if (funcItem->WasFailed(FailType::MetaInfo))
 				funcItem->ThrowFail();
@@ -5987,7 +5987,7 @@ namespace {
 
 		// §12.7: closed-spec evaluation can UpdateMetaInfo definition-scope items
 		// whose expressions apply the function CURRENTLY being checked, and the
-		// checked-flag is set only on completion — guard against re-entry (the
+		// checked-flag is set only on completion -- guard against re-entry (the
 		// outer invocation completes the verdict). Meta-thread-only, like the
 		// whole checker, so a plain static set suffices
 		static std::set<const TreeItem*> s_CheckInProgress;
@@ -6056,7 +6056,7 @@ void InstantiateTemplate(TreeItem* holder, const TreeItem* applyItem, LispPtr te
 	holder->SetIsInstantiated();
 }
 
-// WP3.3: map(function, container) — populate `holder` with one child per data-item /
+// WP3.3: map(function, container) -- populate `holder` with one child per data-item /
 // unit child of the source container, each computed as function(child). The mapped
 // function must take exactly one parameter (the element); its result type follows from
 // the reduction. A first-order for_each replacement.
@@ -6800,10 +6800,10 @@ MetaInfo AbstrCalculator::SubstituteExpr(SubstitutionBuffer& substBuff, LispPtr 
 				return MetaFuncCurry{ .fullLispExpr = innerCall, .applyItem = callee.get() };
 			}
 			// apply: the result value. For a function this is the bare call (inline).
-			// For a template (decision 3): apply the template as an ad-hoc function — bind
+			// For a template (decision 3): apply the template as an ad-hoc function -- bind
 			// the provided arguments to its first N sub-items and beta-reduce its CI-unique
 			// 'result' sub-item. Body names resolve nearest-scope within the template, then
-			// through the template's own scope (definition scope, ancestors included) —
+			// through the template's own scope (definition scope, ancestors included) --
 			// matching what a copy-instantiation without call-site fallback would see. Two
 			// applies merge exactly iff their substituted keys coincide, so a body that
 			// captures definition-scope names keys on what it captured.
@@ -6925,7 +6925,7 @@ MetaInfo AbstrCalculator::SubstituteExpr(SubstitutionBuffer& substBuff, LispPtr 
 						, nrProvidedArgs
 					);
 
-				// §5.9: a function application is always a value — inline it by
+				// §5.9: a function application is always a value -- inline it by
 				// beta-reduction, regardless of the holder. Binding to a container holder
 				// is an error (no holder-driven instantiation): use 'instantiate F(…)' to
 				// materialize the calculation steps, or bind to a typed item for the value.
@@ -7009,10 +7009,10 @@ TIC_CALL IStringHandle DMS_CONV DMS_TreeItem_PropertyValue(TreeItem* context, Ab
 }
 
 // =============================================================================
-// Opt-in "check all function definitions" audit — see TicInterface.h. Config load
+// Opt-in "check all function definitions" audit -- see TicInterface.h. Config load
 // is left untouched (the ordinary checker fires only on application); this walks the
 // PARSE-created structure with the raw _GetFirstSubItem accessor, so NO whole-tree
-// meta-update is forced — only the reachable-from-result slice of each checked
+// meta-update is forced -- only the reachable-from-result slice of each checked
 // function is parsed, exactly as at an application. `insideUncheckableScope` tracks
 // whether we are lexically inside a scope whose functions can be typed only on their
 // instantiated/applied copy (which the application-time checker already covers), so
@@ -7055,7 +7055,7 @@ static void CheckFunctionDefinitionsInSubtree(const TreeItem* item, bool insideU
 
 		// Propagate the flag to c's children. An ordinary function's children are its
 		// body; a TEMPLATE container's functions are template-internal (a function/variant
-		// set is ITSELF a template — SetIsFunction implies SetIsTemplate — so exclude those
+		// set is ITSELF a template -- SetIsFunction implies SetIsTemplate -- so exclude those
 		// via !isFn to keep variant members and plain-template-less scopes checkable). A
 		// variant SET and a plain container pass the flag through unchanged.
 		bool isTemplateContainer = !isFn && c->IsTemplate();

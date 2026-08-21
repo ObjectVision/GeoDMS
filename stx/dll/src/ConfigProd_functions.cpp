@@ -245,7 +245,7 @@ SharedStr ConfigProd::MaterializePendingLambdas(CharPtr first, CharPtr last)
 SharedStr ConfigProd::HoistFunctionLiteral(CharPtr litFirst, CharPtr litLast)
 {
 	// synthesize a hidden declaration at the literal's lexical position:
-	// 'function _lambda_<n> <literal-after-keyword>' — the keyword is 8 chars
+	// 'function _lambda_<n> <literal-after-keyword>' -- the keyword is 8 chars
 	dms_assert(litLast - litFirst > 8);
 	TreeItem* context = GetContextItem();
 	if (!context)
@@ -306,7 +306,7 @@ void ConfigProd::DoItemName()
 
 void ConfigProd::OnBareExprHeading(iterator_t first)
 {
-	// §5.12 'name := expr;' — an auto-typed plain item: class and domain follow
+	// §5.12 'name := expr;' -- an auto-typed plain item: class and domain follow
 	// from the calculation (the DC layer derives them; the definition-time walker
 	// infers them inside function bodies)
 	m_LastDeclNameCount = 1;
@@ -413,7 +413,7 @@ void ConfigProd::DoRefTypeSignature()
 		SetSignature(SignatureType::TreeItem); // container-like exemplar: plain item
 		// K11a-4: a CONTAINER exemplar of a function parameter ('cfg: Settings')
 		// supplies the parameter's declared member block, exactly like a unit
-		// exemplar — retain it for the definition-time checker (parameters only:
+		// exemplar -- retain it for the definition-time checker (parameters only:
 		// outside a param list the pending exemplar would wrongly feed
 		// CloneAliasRefinement for plain item declarations)
 		if (!m_FuncStates.empty() && m_FuncStates.back().inParamList)
@@ -448,7 +448,7 @@ void ConfigProd::DoColonItemHeading(iterator_t first, iterator_t last)
 		bool topLevel = inParams && IsTopLevelFunctionParam();
 		if (m_PendingFunctionParamSig && topLevel)
 			m_FuncStates.back().paramSigs.emplace_back(m_FuncStates.back().paramCount + i, m_PendingFunctionParamSig, m_PendingTypeArgs);
-		// K11a by-example: 'nw: network_links' / 'cfg: Settings' — retain the UNIT or
+		// K11a by-example: 'nw: network_links' / 'cfg: Settings' -- retain the UNIT or
 		// CONTAINER exemplar so the definition-time checker can type the parameter's
 		// members from ITS declared sub-items (the class clone above carries no
 		// member block). Data-item exemplars carry no member interface.
@@ -566,7 +566,7 @@ void ConfigProd::OnFunctionHeading(iterator_t first)
 
 void ConfigProd::OnVariantSetHeading()
 {
-	// 'function name { variant ... }' — a set that dispatches to variant sub-functions
+	// 'function name { variant ... }' -- a set that dispatches to variant sub-functions
 	// by argument type. The set item has no parameters or body of its own.
 	m_LastDeclNameCount = 1;
 	m_LastDeclSiblings.clear();
@@ -586,7 +586,7 @@ void ConfigProd::OnVariantSetEnd()
 	// the set container is closed; the variants have already been finalized
 	DoEndBlock(); // pop the set container opened by DoBeginBlock after OnVariantSetHeading
 
-	// §5.7 v2: definition-time disjointness — overlapping variants must be
+	// §5.7 v2: definition-time disjointness -- overlapping variants must be
 	// specificity-ordered (token-based match sets; parse-safe)
 	TreeItem_CheckVariantSetDisjointness(m_pCurrent.get());
 
@@ -596,7 +596,7 @@ void ConfigProd::OnVariantSetEnd()
 
 void ConfigProd::OnFunctionSigHeading(iterator_t first)
 {
-	// 'alias = (params) -> resultType;' — a signature-only function item
+	// 'alias = (params) -> resultType;' -- a signature-only function item
 	m_LastDeclNameCount = 1;
 	m_LastDeclSiblings.clear();
 
@@ -629,7 +629,7 @@ void ConfigProd::OnFunctionParamDecl()
 
 void ConfigProd::OnRestParamDecl(iterator_t first)
 {
-	// '...x': a variadic rest parameter — binds ONE OR MORE trailing arguments; in the
+	// '...x': a variadic rest parameter -- binds ONE OR MORE trailing arguments; in the
 	// body it may only be passed on as the trailing argument of a (typically recursive)
 	// function call, where it splices the captured arguments
 	if (m_FuncStates.empty() || !m_FuncStates.back().inParamList)
@@ -698,7 +698,7 @@ void ConfigProd::OnFunctionResultSig()
 	}
 	if (m_PendingFunctionParamSig)
 	{
-		// §5.10 Stage 2: '-> some_signature_alias[<V, D>]' — a function-valued result;
+		// §5.10 Stage 2: '-> some_signature_alias[<V, D>]' -- a function-valued result;
 		// v1 records the function-ness (shape checks against the alias stay kind-level).
 		// Retain the exemplar + type-application args so the config dump can render the
 		// declared result signature faithfully ('-> nuf<V, D>' rather than '-> function').
@@ -743,7 +743,7 @@ static StaticLateTokenID t_Result("result");
 
 void ConfigProd::OnAnonResultFunction()
 {
-	// §5.11 ':= function(params) -> T := e;' — the result is an ANONYMOUS nested
+	// §5.11 ':= function(params) -> T := e;' -- the result is an ANONYMOUS nested
 	// function, declared under the enclosing function's result name (default
 	// 'result'); the enclosing declaration then designates it implicitly
 	dms_assert(!m_FuncStates.empty());
@@ -761,7 +761,7 @@ void ConfigProd::OnFunctionDeclEnd(iterator_t first)
 	dms_assert(func);
 
 	// implicit designation (§5.10/§5.11): without ':= expr', the result name
-	// (default 'result') designates a body item — a nested function for
+	// (default 'result') designates a body item -- a nested function for
 	// '-> function', or a declared body item for a data result type followed by
 	// a body block ('-> restype { ... result ... }')
 	bool implicitDesignation = fs.resultExpr.empty() && !fs.signatureOnly;
