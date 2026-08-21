@@ -630,7 +630,6 @@
     <ClInclude Include="src\tic\DataItemClass.h" />
     <ClInclude Include="src\tic\DataLockContainers.h" />
     <ClInclude Include="src\tic\DataLocks.h" />
-    <ClInclude Include="src\tic\DataStoreManagerCaller.h" />
     <ClInclude Include="src\tic\DC_Ptr.h" />
     <ClInclude Include="src\tic\DisplayValue.h" />
     <ClInclude Include="src\tic\FreeDataManager.h" />

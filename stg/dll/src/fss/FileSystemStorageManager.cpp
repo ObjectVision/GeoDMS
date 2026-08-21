@@ -27,7 +27,6 @@
 
 #include "AbstrDataItem.h"
 #include "AbstrDataObject.h"
-#include "DataStoreManagerCaller.h"
 
 #include "stg/StorageClass.h"
 

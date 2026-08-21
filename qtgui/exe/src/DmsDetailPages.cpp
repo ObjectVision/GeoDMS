@@ -29,7 +29,6 @@
 
 #include "AbstrDataItem.h"
 #include "Explain.h"
-#include "DataStoreManagerCaller.h"
 #include "TicInterface.h"
 #include "TreeItemProps.h"
 

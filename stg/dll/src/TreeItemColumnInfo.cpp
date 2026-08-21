@@ -28,7 +28,6 @@
 #include "AbstrDataItem.h"
 #include "AbstrDataObject.h"
 #include "DataLocks.h"
-#include "DataStoreManagerCaller.h"
 #include "Metric.h"
 #include "Projection.h"
 #include "PropFuncs.h"

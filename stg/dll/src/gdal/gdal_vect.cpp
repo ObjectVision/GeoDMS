@@ -40,7 +40,6 @@
 #include "AbstrDataItem.h"
 #include "AbstrUnit.h"
 #include "DataArray.h"
-#include "DataStoreManagerCaller.h"
 #include "NameSet.h"
 #include "PropFuncs.h"
 #include "LispTreeType.h"

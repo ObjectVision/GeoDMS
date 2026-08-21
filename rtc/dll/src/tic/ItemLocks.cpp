@@ -19,7 +19,7 @@
 #include "LockLevels.h"
 
 #include "DataLocks.h"
-#include "DataStoreManagerCaller.h"
+#include "SessionData.h"
 #include "ItemLocks.h"
 #include "Parallel.h"
 #include "Unit.h"
@@ -268,7 +268,7 @@ namespace cs_lock {
 		{
 			if (item->WasFailed(FailType::Data))
 				item->ThrowFail(); // item will be unlocked at catch section
-			DSM::CancelOrThrow(item);
+			CancelOrThrow(item);
 		}
 	}
 
@@ -315,11 +315,11 @@ namespace cs_lock {
 
 		if (!s_SessionUsageCounter.try_lock_shared())
 		{
-			assert(DSM::IsCancelling());
+			assert(SessionData::IsCurrCancelling());
 			assert(CancelableFrame::CurrActive());
-			DSM::CancelOrThrow(item);
+			CancelOrThrow(item);
 		}
-		auto unlockDsmUsageCounter = make_releasable_scoped_exit([]() { s_SessionUsageCounter.unlock_shared(); });
+		auto unlockSessionUsageCounter = make_releasable_scoped_exit([]() { s_SessionUsageCounter.unlock_shared(); });
 
 		assert(item == item->GetCurrRangeItem().get());
 		dbg_assert(item->CheckMetaInfoReadyOrPassor());
@@ -328,7 +328,7 @@ namespace cs_lock {
 		cs_lock::ReadLock(item);
 
 		// from here nothrow
-		unlockDsmUsageCounter.release();
+		unlockSessionUsageCounter.release();
 		assert(item->WasFailed() || CheckDataReady(item));
 	}
 
@@ -339,11 +339,11 @@ namespace cs_lock {
 
 		if (!s_SessionUsageCounter.try_lock_shared())
 		{
-			assert(DSM::IsCancelling());
+			assert(SessionData::IsCurrCancelling());
 			assert(CancelableFrame::CurrActive());
-			DSM::CancelOrThrow(item);
+			CancelOrThrow(item);
 		}
-		auto unlockDsmUsageCounter = make_releasable_scoped_exit([]() { s_SessionUsageCounter.unlock_shared(); });
+		auto unlockSessionUsageCounter = make_releasable_scoped_exit([]() { s_SessionUsageCounter.unlock_shared(); });
 
 		assert(item == item->GetCurrRangeItem().get());
 		dbg_assert(item->CheckMetaInfoReadyOrPassor());
@@ -353,7 +353,7 @@ namespace cs_lock {
 			return false;
 
 		// from here nothrow
-		unlockDsmUsageCounter.release();
+		unlockSessionUsageCounter.release();
 		assert(item->WasFailed(FailType::Data) || CheckDataReady(item));
 		return true;
 	}

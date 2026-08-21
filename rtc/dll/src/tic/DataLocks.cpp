@@ -28,7 +28,6 @@
 
 #include "AbstrCalculator.h"
 #include "DataArray.h"
-#include "DataStoreManagerCaller.h"
 #include "FreeDataManager.h"
 #include "ParallelTiles.h"
 #include "TicInterface.h"

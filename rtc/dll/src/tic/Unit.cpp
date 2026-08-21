@@ -23,7 +23,6 @@
 
 #include "AbstrCalculator.h"
 #include "AbstrDataItem.h"
-#include "DataStoreManagerCaller.h"
 #include "DataController.h"
 #include "DataLocks.h"
 #include "Crs.h"

@@ -1017,9 +1017,6 @@
     <ClInclude Include="src\tic\DataLocks.h">
       <Filter>TreeItemComponent</Filter>
     </ClInclude>
-    <ClInclude Include="src\tic\DataStoreManagerCaller.h">
-      <Filter>TreeItemComponent</Filter>
-    </ClInclude>
     <ClInclude Include="src\tic\DC_Ptr.h">
       <Filter>TreeItemComponent</Filter>
     </ClInclude>

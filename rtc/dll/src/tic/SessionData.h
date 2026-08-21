@@ -40,7 +40,7 @@ struct SessionData : std::enable_shared_from_this<SessionData>
 {
 	static TIC_CALL std::shared_ptr<SessionData> Create(CharPtr configLoadDir, CharPtr configSubDir); // call this before reading a config in order to set cfgColFirst right
 
-	TIC_CALL void Open  (const TreeItem* configRoot);       // call this after  reading a config to init the configRoot and open the DataStoreManager
+	TIC_CALL void Open  (const TreeItem* configRoot);       // call this after reading a config to take ownership of the configRoot, stamp the load TimeStamp and create the hidden ConfigSettings child
 
 	void ActivateThis();
 
@@ -55,6 +55,8 @@ struct SessionData : std::enable_shared_from_this<SessionData>
 	// can still observe IsCancelling() and cancel gracefully). Used at config teardown to drain workers.
 	void SetCancelling() { m_IsCancelling = true; }
 
+	// Null-safe form of the above, for callers that run with or without a current session.
+	static bool IsCurrCancelling() { auto curr = Curr(); return curr && curr->IsCancelling(); }
 
 	TIC_CALL static std::shared_ptr<SessionData> Curr();
 	TIC_CALL static void ReleaseCurr();
@@ -95,6 +97,21 @@ private:
 	bool                          m_IsCancelling = false;
 };
 
+
+//----------------------------------------------------------------------
+// session cancellation
+//----------------------------------------------------------------------
+// These used to live in namespace DSM, the last remnant of the DataStoreManager that owned the
+// retired CalcCache. Nothing about them concerns a data store: they are the session's cancellation
+// surface, so they belong beside SessionData.
+
+// Cancel the current chore if it lost its interest, or if the session or the enclosing
+// CancelableFrame is cancelling. Does nothing on the meta thread outside a CancelableFrame.
+TIC_CALL void CancelIfOutOfInterest(const TreeItem* item = nullptr);
+
+// Throw task_canceled when a CancelableFrame is active; otherwise report a failed precondition
+// against item, since being asked to cancel outside a cancelable context is a programming error.
+[[noreturn]] void CancelOrThrow(const TreeItem* item);
 
 //----------------------------------------------------------------------
 // helper func

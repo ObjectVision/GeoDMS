@@ -90,7 +90,7 @@
 #include "LispTreeType.h"
 
 #include "DataLocks.h"
-#include "DataStoreManagerCaller.h"
+#include "SessionData.h"
 #include "Operator.h"
 #include "MoreDataControllers.h"
 #include "PerfMeasurement.h"
@@ -676,7 +676,7 @@ auto collectOperationContexts() -> std::pair<context_array, garbage_can>
 			if (operContext->m_Status < task_status::activated)
 			{
 				assert(operContext->m_TaskFunc);
-				if (isCancelling || DSM::IsCancelling())
+				if (isCancelling || SessionData::IsCurrCancelling())
 				{
 					isCancelling = true;
 					cancelGarbage |= operContext->separateResources(task_status::cancelled);
@@ -1236,7 +1236,7 @@ bool  OperationContext::getUniqueLicenseToRun(bool runDirect)
 			return false;
 		}
 
-	DSM::CancelIfOutOfInterest(m_Result);
+	CancelIfOutOfInterest(m_Result);
 	if (s_OcTaskGroupIsCanceling)
 		throw task_canceled{};
 

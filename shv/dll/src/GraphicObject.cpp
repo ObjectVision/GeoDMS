@@ -23,7 +23,7 @@
 #include "ser/FormattedStream.h"
 #include "LockLevels.h"
 
-#include "DataStoreManagerCaller.h"
+#include "SessionData.h"
 #include "PropFuncs.h"
 #include "StateChangeNotification.h"
 
@@ -793,7 +793,7 @@ void GraphicObject::FillMenu(MouseEventDispatcher& med)
 			bol = failReason.begin(),
 			eos = failReason.send();
 		SharedTreeItem item;
-		if (auto curr = DSM::Curr())
+		if (auto curr = SessionData::Curr())
 			if (auto cr = curr->GetConfigRoot())
 				item = cr->FindBestItem(fr->FullName()).first;
 		while (true) {

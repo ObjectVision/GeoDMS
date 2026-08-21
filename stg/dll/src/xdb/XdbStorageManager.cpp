@@ -53,7 +53,6 @@ granted by an additional written contract for support, assistance and/or develop
 #include "AbstrDataItem.h"
 #include "DataArray.h"
 #include "DataItemClass.h"
-#include "DataStoreManagerCaller.h"
 #include "Param.h"
 
 #include "TreeItemContextHandle.h"

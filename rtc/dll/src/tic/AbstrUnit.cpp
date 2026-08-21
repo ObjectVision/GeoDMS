@@ -31,8 +31,8 @@
 #include "LispList.h"
 
 #include "AbstrCalculator.h"
+#include "DataController.h" // GetOrCreateDataController, DataController::CalcCertainResult
 #include "DataLocks.h"
-#include "DataStoreManagerCaller.h"
 #include "Metric.h"
 #include "Projection.h"
 #include "PropFuncs.h"

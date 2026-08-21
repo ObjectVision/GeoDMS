@@ -30,7 +30,6 @@
 #include "DataArray.h"
 #include "DataItemClass.h"
 #include "DataLockContainers.h"
-#include "DataStoreManagerCaller.h"
 #include "LispTreeType.h"
 #include "OperationContext.h"
 #include "ShvUtils.h"

@@ -84,6 +84,7 @@
 #include "OperationContext.h"
 #include "OperSignature.h"
 #include "ParallelTiles.h"
+#include "SessionData.h" // CancelIfOutOfInterest
 #include "UnitClass.h"
 
 #include "makeCumulative.h"
@@ -659,7 +660,7 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 		&res
 		](ZoneType orgZone)
 		{
-			DSM::CancelIfOutOfInterest(resultHolder.GetNew());
+			CancelIfOutOfInterest(resultHolder.GetNew());
 			if (CancelableFrame::CurrActiveCanceled())
 				return;
 

@@ -24,7 +24,6 @@
 #include "AbstrCalculator.h"
 #include "AbstrDataItem.h" // for IsDataItem/AsDataItem + GetCurrDomainUnit/GetCurrValuesUnit in KeepResultUnitsAlive
 #include "AbstrUnit.h"     // complete AbstrUnit for the unit->TreeItem upcast + IsCacheItem in KeepResultUnitsAlive
-#include "DataStoreManagerCaller.h"
 #include "ItemLocks.h"
 #include "LispTreeType.h"
 #include "OperationContext.h"

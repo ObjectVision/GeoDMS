@@ -13,7 +13,6 @@
 #include "act/UpdateMark.h"
 
 #include "DataLockContainers.h"
-#include "DataStoreManagerCaller.h"
 #include "LispRef.h"
 
 // ============================= CLASS: DataBlockTask

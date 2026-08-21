@@ -14,7 +14,7 @@
 //REMOVE #include "utl/AddFakeCopyCTor.h"
 #include "utl/MemGuard.h"
 
-#include "DataStoreManagerCaller.h" 
+#include "SessionData.h" 
 #include "OperationContext.h" 
 
 #include <condition_variable>

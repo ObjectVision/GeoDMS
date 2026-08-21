@@ -100,7 +100,6 @@ void DataWriteLockContainer::Commit()
 #include "AbstrDataItem.h"
 #include "AbstrDataObject.h"
 #include "AbstrUnit.h"
-#include "DataStoreManagerCaller.h"
 #include "DataItemClass.h"
 
 // ====================== public Static functions
@@ -226,9 +225,7 @@ void SupplCache::BuildSet(const TreeItem* context) const
 }
 
 
-// ==== from DataStoreManager.cpp ====
-
-#include "DataStoreManagerCaller.h"
+// ==== session cancellation ====
 
 #include "act/SupplierVisitFlag.h"
 #include "dbg/DmsCatch.h"
@@ -240,11 +237,7 @@ void SupplCache::BuildSet(const TreeItem* context) const
 
 #include "LispRef.h"
 
-//----------------------------------------------------------------------
-// DSM
-//----------------------------------------------------------------------
-
-[[noreturn]] void DSM::CancelOrThrow(const TreeItem* item)
+[[noreturn]] void CancelOrThrow(const TreeItem* item)
 {
 	if (CancelableFrame::CurrActive())
 		throw task_canceled{}; // assume it was cancelled due to outdated suppliers
@@ -254,12 +247,12 @@ void SupplCache::BuildSet(const TreeItem* context) const
 	throwCheckFailed(MG_POS, "CancelOrThrow requested without CancelableFrame and without Item");
 }
 
-void DSM::CancelIfOutOfInterest(const TreeItem* item)
+void CancelIfOutOfInterest(const TreeItem* item)
 {
 	if (IsMetaThread() && !CancelableFrame::CurrActive())
 		return;
 
-	CancelableFrame::CurrActiveCancelIfNoInterestOrForced(DSM::IsCancelling());
+	CancelableFrame::CurrActiveCancelIfNoInterestOrForced(SessionData::IsCurrCancelling());
 
 	if (CancelableFrame::CurrActiveCanceled() && !std::uncaught_exceptions())
 	{

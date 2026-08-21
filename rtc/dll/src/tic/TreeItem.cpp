@@ -48,7 +48,6 @@
 #include "AbstrDataItem.h"
 #include "AbstrDataObject.h"
 #include "DataLockContainers.h"
-#include "DataStoreManagerCaller.h"
 #include "AbstrUnit.h"
 #include "CopyTreeContext.h"
 #include "DataArray.h"
@@ -4119,7 +4118,7 @@ TimeStamp TreeItem::DetermineLastSupplierChange(ErrMsgPtr& failReason, FailType&
 
 			if (lastFileChange)
 			{
-//				MakeMax(lastChangeTS, DSM::Curr()->DetermineExternalChange(lastFileChange) );
+//				MakeMax(lastChangeTS, SessionData::Curr()->DetermineExternalChange(lastFileChange) );
 				assert( UpdateMarker::CheckTS(lastChangeTS) );
 			}
 		}
@@ -5563,9 +5562,9 @@ void TreeItem::StartInterest() const
 	if (!s_SessionUsageCounter.try_lock_shared())
 	{
 		assert(CancelableFrame::CurrActive());
-		DSM::CancelOrThrow(this);
+		CancelOrThrow(this);
 	}
-	auto unlockDsmUsageCounter = make_releasable_scoped_exit([]() { s_SessionUsageCounter.unlock_shared(); });
+	auto unlockSessionUsageCounter = make_releasable_scoped_exit([]() { s_SessionUsageCounter.unlock_shared(); });
 	UpdateMetaInfo();
 	dms_assert(GetInterestCount() == 0);
 
@@ -5594,7 +5593,7 @@ void TreeItem::StartInterest() const
 	parentHolder.release();
 	refItemHolder.release();
 	calcHolder.release();
-	unlockDsmUsageCounter.release();
+	unlockSessionUsageCounter.release();
 #if defined(MG_DEBUG_DATASTORELOCK)
 	++sd_ItemInterestCounter;
 #endif
@@ -5650,7 +5649,7 @@ SharedTreeItemInterestPtr TreeItem::GetInterestPtrOrCancel() const
 		return result;
 
 	assert(CancelableFrame::CurrActive());
-	DSM::CancelOrThrow(this);
+	CancelOrThrow(this);
 }
 
 

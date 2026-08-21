@@ -37,7 +37,7 @@
 #include "LispTreeType.h"
 
 #include "DataLocks.h"
-#include "DataStoreManagerCaller.h"
+#include "SessionData.h"
 #include "Operator.h"
 #include "MoreDataControllers.h"
 #include "PerfMeasurement.h"
@@ -349,7 +349,7 @@ void tile_task_group::DoWork(IndexType i)
 		CancelableFrame frame(m_CallingContext);
 		while (IsDefined(i))
 		{
-			DSM::CancelIfOutOfInterest(); // don't continue if m_CallingContext or Process is cancelling
+			CancelIfOutOfInterest(); // don't continue if m_CallingContext or Process is cancelling
 			ASyncContinueCheck(); // additional check, set from CloseConfig
 			if (s_OcTaskGroupIsCanceling)
 				throw task_canceled{};
@@ -425,7 +425,7 @@ void tile_task_group::AwaitRunningSlots()
 			break;
 
 		if (m_CallingContext)
-			DSM::CancelIfOutOfInterest();
+			CancelIfOutOfInterest();
 		ASyncContinueCheck(); // can throw !
 
 		WaitForTaskNotification(m_TileTasksDone, lock);

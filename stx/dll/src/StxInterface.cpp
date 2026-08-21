@@ -26,7 +26,6 @@
 
 #include "stg/AbstrStorageManager.h"
 #include "AbstrCalculator.h"
-#include "DataStoreManagerCaller.h"
 #include "SessionData.h"
 #include "TreeItem.h"
 #include "TreeItemProps.h"

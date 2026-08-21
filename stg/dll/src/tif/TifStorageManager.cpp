@@ -37,7 +37,6 @@
 #include "CheckedDomain.h"
 #include "DataArray.h"
 #include "DataItemClass.h"
-#include "DataStoreManagerCaller.h"
 
 #include "TreeItemClass.h"
 #include "TreeItemContextHandle.h"

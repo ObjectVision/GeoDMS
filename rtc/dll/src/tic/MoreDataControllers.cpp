@@ -33,7 +33,6 @@
 #include "CopyTreeContext.h"
 #include "DataArray.h"
 #include "DataItemClass.h"
-#include "DataStoreManagerCaller.h"
 #include "DC_Ptr.h"
 #include "FreeDataManager.h"
 #include "ItemLocks.h"
@@ -197,7 +196,7 @@ std::shared_ptr<OperationContext> FuncDC::resetOperContextImpl() const
 	||	GetNew()->GetIsInstantiated()
 	||	GetNew()->WasFailed(FailType::Data)
 	||	CheckDataReady(GetNew())
-	||	DSM::IsCancelling()
+	||	SessionData::IsCurrCancelling()
 	||	m_State.GetProgress() == ProgressState::None // Just invalidated.
 	);
 

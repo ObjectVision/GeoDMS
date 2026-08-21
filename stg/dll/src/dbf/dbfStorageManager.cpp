@@ -24,7 +24,6 @@
 
 #include "AbstrDataItem.h"						
 #include "DataItemClass.h"
-#include "DataStoreManagerCaller.h"
 #include "Param.h"  // 'Hidden DMS-interface functions'
 
 #include "TreeItemContextHandle.h"

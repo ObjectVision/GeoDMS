@@ -31,7 +31,6 @@
 #include "AbstrDataItem.h"
 #include "AbstrDataObject.h"
 #include "DataLocks.h"
-#include "DataStoreManagerCaller.h"
 #include "StateChangeNotification.h"
 #include "SupplCache.h"
 #include "TicInterface.h"
