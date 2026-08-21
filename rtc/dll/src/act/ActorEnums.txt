@@ -34,7 +34,8 @@
 
 // ===== Interest Counting
 // Given some items on which iterest is casted, then interest is also administered on suppliers insofar they are required to generate the primary data, 
-// thus not if that data is already available in Memory or CalcCache and only the suppliers that are needed for suspendible processsing
+// thus not if that data is already available in Memory (nor, in the GeoDMS 7 series, in the CalcCache, which has since been retired)
+// and only the suppliers that are needed for suspendible processsing
 // once Data is Allocated, SupplInterest is dropped.
 //
 // Validation:

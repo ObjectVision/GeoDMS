@@ -547,7 +547,7 @@ SharedStr GetExceptionText(unsigned int exceptionCode, _EXCEPTION_POINTERS* pExp
 			break;
 		case EXCEPTION_IN_PAGE_ERROR:
 			result = "The thread tried to access a page that was not present, and the system was unable to load the page.\n"
-				"Possible causes: lost network connection or full disc volume when writing/changing data in a compressed CalcCache entry or other pagefiles.";
+				"Possible causes: a lost network connection to a memory-mapped storage, or a full disc volume while writing memory-mapped tile data or the system pagefile.";
 			break;
 		case EXCEPTION_INT_DIVIDE_BY_ZERO:
 			result = "The thread tried to divide an integer value by an integer divisor of zero.";

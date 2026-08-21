@@ -260,7 +260,10 @@ namespace cs_lock {
 
 	void ThrowIfNotReady(const TreeItem* item)
 	{
-		// for opening actual data for shared (readonly) use, non-shared preparation action might be required; i.e LoadBlobIfAny OR read from CalcCache (if IsFnKnown and not DataAllocated).
+		// Opening actual data for shared (readonly) use may require a non-shared preparation action first.
+		// The GeoDMS 7 forms of that -- LoadBlobIfAny, and reading from the CalcCache when IsFnKnown and
+		// not DataAllocated -- are all gone with the CalcCache; what remains is calculation or a read from
+		// a configured storage, so an item that is not ready here is either failing or cancelling.
 		if (!CheckDataReady(item))
 		{
 			if (item->WasFailed(FailType::Data))

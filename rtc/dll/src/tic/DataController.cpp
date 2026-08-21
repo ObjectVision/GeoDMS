@@ -380,7 +380,9 @@ namespace {
 
 				// Is it obvious that keyExpr describes the item that will be found as head.GetSymbID() ? 
 				// Yes it is: only expressions that have been generated from the current config get evaluated.
-				// CalcCache entry descriptions are passive which are used to match valid requests for cached data
+				// The sourceDescr head is passive: it identifies an item without describing a calculation.
+				// It once also matched entries in the CalcCache, which was retired with the 8.0 series;
+				// within a session it still keys the SymbDC.
 				return MakeSharedForNewlyCreatedObject(new SymbDC(keyExpr, head.GetSymbID()));
 			}
 			const AbstrOperGroup* og = AbstrOperGroup::FindName(head->GetSymbID());
