@@ -264,8 +264,14 @@ Windows filesystem cache on the source `.fss` files.
 **Retired, and what it means:**
 
 - `GetCalcCacheDir()` and the `%calcCacheDir%` placeholder (`tic/stg/AbstrStorageManager.cpp`).
-  A configuration that still spells `%calcCacheDir%` now raises an unknown-placeholder
-  error instead of silently resolving to a directory nothing reads.
+  **Compatibility note, verified by running it:** a configuration that still spells
+  `%calcCacheDir%` does *not* get an error. `StorageName` expansion goes through the
+  `TreeItem*` overload of `GetPlaceholderValue`, which passes `mustThrow = false` and ends
+  in a warning plus the placeholder's own text as the value. So the config loads, logs
+  `[W] Unable to find placeholder: %calcCacheDir%.`, and writes to a literal
+  `<configDir>/calcCacheDir/…` — where it previously wrote to
+  `%localDataProjDir%/CalcCache<platform>.v<major>.<minor>/…`. Data moves, nothing breaks,
+  and the warning names the cause. No configuration in this tree is affected.
 - `ASF_WasLoaded` (`tic/TreeItemFlags.h`) marked an item restored from the cache. Nothing
   had set it for years, so its `Clear()` was a no-op and its debug assert was
   tautologically true. The bit is left documented rather than reused, because

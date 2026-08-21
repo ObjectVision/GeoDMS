@@ -374,8 +374,11 @@ SharedStr GetPlaceholderValue(CharPtr subDirName, CharPtr placeHolder, bool must
 	if (!stricmp(placeHolder, "projName"        )) return GetProjName(subDirName);
 	if (!stricmp(placeHolder, "projBase"        )) return GetProjBase(subDirName);
 	if (!stricmp(placeHolder, "localDataProjDir")) return GetLocalDataProjDir (subDirName);
-	// %calcCacheDir% is gone with the CalcCache itself (retired in the 8.0 series); a config that
-	// still spells it now gets an unknown-placeholder error instead of a directory nothing reads.
+	// %calcCacheDir% is gone with the CalcCache itself (retired in the 8.0 series). Note what a
+	// config that still spells it now gets: the TreeItem overload below passes mustThrow=false,
+	// so it is NOT an error -- it warns "Unable to find placeholder: %calcCacheDir%." and then
+	// uses the literal text as a path component, e.g. <configDir>/calcCacheDir/x.fss. Previously
+	// it resolved to %localDataProjDir%/CalcCache<platform>.v<major>.<minor>.
 	if (!stricmp(placeHolder, "exeDir"          )) return GetExeDir();
 	if (!stricmp(placeHolder, "programFiles32"  )) return PlatformInfo::GetProgramFiles32();
 	if (!stricmp(placeHolder, "localDataDir"    )) return GetLocalDataDir();
