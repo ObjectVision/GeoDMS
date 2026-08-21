@@ -29,7 +29,13 @@
 enum class DrlType : UInt8 { UpdateNever = 0, Suspendible = 1, Certain = 2, ThrowOnFail = 4, UpdateMask = 0x0003, CertainOrThrow = Certain + ThrowOnFail };
 
 //----------------------------------------------------------------------
-// FileData primitives; TODO G8.5:Move to DataStoreManager
+// FileData primitives
+//
+// These were lifted out of the DataStoreManager, and a "TODO G8.5: move back" stood here
+// until 2026-08. There is nothing to move them back to: the DataStoreManager owned the
+// CalcCache and went with it (#1189). They now serve memory-mapped storages, keyed by
+// storage path plus relative item name rather than by expression, so tic is where they
+// belong. See doc/development/g8-todos.md.
 //----------------------------------------------------------------------
 
 auto OpenFileData(const AbstrDataItem* adi, const SharedObj* abstrValuesRangeData, SharedStr filenameBase)
