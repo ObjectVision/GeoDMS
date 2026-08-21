@@ -28,6 +28,10 @@ enum class SupplierVisitFlag
 	ExportInfo = 0x1000,
 
 	Calc = DataController | DcArgs,
+	// What a stored item's read must wait for: its Calc-suppliers plus its configured
+	// ExplicitSuppliers, so a read oc cannot race ahead of a declared supplier that is still
+	// producing the very file to read. See PrepareDataRead.
+	CalcAndExplicitSuppliers = Calc | ExplicitSuppliers,
 	//	Meta    = 0x0002, // Explicit Suppliers, FuncFC args that don't require delayed updating, such as TemplDC args, and ImplSupplFromIndirectProps
 	//	Calc    = 0x0002, // Data processing and reading, Domain +Values Unit
 

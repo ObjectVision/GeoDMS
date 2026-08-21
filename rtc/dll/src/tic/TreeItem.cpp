@@ -4398,7 +4398,15 @@ static how_to_proceed PrepareDataRead(std::shared_ptr<const TreeItem> self, cons
 	// still added explicitly below.
 	FutureSuppliers futureSuppliers;
 
-	auto supplResult = VisitSupplBoolImpl(self.get(), SupplierVisitFlag::Calc, [&futureSuppliers](auto a) -> bool
+	// Also visit the item's configured ExplicitSuppliers, so a stored item that declares "read me
+	// only after X" gets X's future as a prerequisite of its read OperationContext. Without this
+	// the read oc was scheduled with only the Calc-suppliers (storage data suppliers like FileName)
+	// and the domain/values futures below, and a read raced ahead of an ExplicitSupplier that was
+	// still producing the very file to read -- measured on the Hestia python coupling
+	// (pbl-nl/model-hestia-development#139): the gdal.vect read of a python-written parquet started
+	// 2s before the exec_ec that runs python. The actor-level visitation (SupplierVisitFlag::Update)
+	// already includes ExplicitSuppliers; the oc-level future list did not.
+	auto supplResult = VisitSupplBoolImpl(self.get(), SupplierVisitFlag::CalcAndExplicitSuppliers, [&futureSuppliers](auto a) -> bool
 		{
 			auto t = dynamic_cast<const TreeItem*>(a);
 			if (t)
