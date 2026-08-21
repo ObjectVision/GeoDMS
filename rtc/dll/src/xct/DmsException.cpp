@@ -251,12 +251,22 @@ auto getContext(SeverityTypeID st) -> SharedStr
 	return {};
 }
 
-void reportD_without_cancellation_check_impl(MsgCategory msgCat, SeverityTypeID st, auto&& payload)
+// #795: a calculating operator puts the item name in FRONT of its progress messages itself,
+// because that name has to reach the tile worker threads, which do not carry the reporting
+// context of the thread that started them. Appending the same name here would double it.
+static bool BeginsWith(CharPtrRange msg, WeakStr prefix)
+{
+	return msg.size() >= prefix.ssize() && std::equal(prefix.begin(), prefix.send(), msg.begin());
+}
+
+void reportD_without_cancellation_check_impl(MsgCategory msgCat, SeverityTypeID st, auto&& payload, CharPtrRange msgTextForContextCheck = {})
 {
 	if (!g_DebugStream)
 		return;
 
 	auto contextStr = getContext(st);
+	if (!contextStr.empty() && BeginsWith(msgTextForContextCheck, contextStr))
+		contextStr = SharedStr();
 	DebugOutStream::scoped_lock lock(g_DebugStream, st, msgCat);
 
 	payload();
@@ -268,14 +278,14 @@ void reportD_without_cancellation_check_impl(MsgCategory msgCat, SeverityTypeID 
 
 RTC_CALL void reportD_without_cancellation_check(MsgCategory msgCat, SeverityTypeID st, CharPtr msg)
 {
-	reportD_without_cancellation_check_impl(msgCat, st, [=] { *g_DebugStream << msg; });
+	reportD_without_cancellation_check_impl(msgCat, st, [=] { *g_DebugStream << msg; }, CharPtrRange(msg));
 }
 
 RTC_CALL void reportD(MsgCategory msgCat, SeverityTypeID st, CharPtr msg)
 {
 	ASyncContinueCheck();
 
-	reportD_without_cancellation_check_impl(msgCat, st, [=] {*g_DebugStream << msg;  });
+	reportD_without_cancellation_check_impl(msgCat, st, [=] {*g_DebugStream << msg;  }, CharPtrRange(msg));
 }
 
 
@@ -283,14 +293,14 @@ void reportD_impl(MsgCategory msgCat, SeverityTypeID st, CharPtrRange&& msg)
 {
 	ASyncContinueCheck();
 
-	reportD_without_cancellation_check_impl(msgCat, st, [=] { *g_DebugStream << msg; });
+	reportD_without_cancellation_check_impl(msgCat, st, [=] { *g_DebugStream << msg; }, msg);
 }
 
 RTC_CALL void reportD(MsgCategory msgCat, SeverityTypeID st, CharPtr msg1, CharPtr msg2)
 {
 	ASyncContinueCheck();
 
-	reportD_without_cancellation_check_impl(msgCat, st, [=] { *g_DebugStream << msg1 << msg2; });
+	reportD_without_cancellation_check_impl(msgCat, st, [=] { *g_DebugStream << msg1 << msg2; }, CharPtrRange(msg1));
 }
 
 void ReportSuspension()

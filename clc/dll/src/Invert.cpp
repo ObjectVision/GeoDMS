@@ -15,6 +15,7 @@
 
 #include "DataArray.h"
 #include "DataItemClass.h"
+#include "Explain.h"
 #include "OperSignature.h"
 #include "ParallelTiles.h"
 #include "Unit.h"
@@ -51,7 +52,11 @@ struct AbstrInvertOperator : public UnaryOperator
 			,	arg1Cls
 			)
 		,	m_All(all)
-	{}
+	{
+		// #612: this operator can say which argument row produced a result element, and -- more to the
+		// point -- that there is no such row when the result element is null.
+		(all ? &cog_InvertAll : &cog_Invert)->SetCanExplainValue();
+	}
 
 	// mirrors CreateResult below: invert(x: B[A]) -> A[B] — DOUBLE cross-role:
 	// x's VALUES unit is the result's DOMAIN and x's DOMAIN is the result's
@@ -70,6 +75,78 @@ struct AbstrInvertOperator : public UnaryOperator
 		sb.ArgAttr(0, B, A, argCls->GetValuesType()->GetValueComposition());
 		sb.ResultAttr(A, B, ValueComposition::Single);
 		return true;
+	}
+
+	// Overridden because SetCanExplainValue() makes the Operator base refuse the default caller;
+	// the creation itself is unchanged.
+	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, LispPtr) const override
+	{
+		if (resultHolder && !resultHolder.IsTmp())
+			return;
+
+		auto argSeq = GetItems(args);
+		MG_CHECK(CreateResult(resultHolder, argSeq, false));
+		assert(resultHolder);
+	}
+
+	// Idem, plus the #612 explanation: this runs a second time, with a context, when a value-info page
+	// explains one element of an already calculated result.
+	bool CalcResult(TreeItemDualRef& resultHolder, const ArgRefs& args, std::vector<ItemReadLock> readLocks, Explain::Context* context) const override
+	{
+		assert(resultHolder);
+		assert(args.size() == 1);
+
+		AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
+		assert(res);
+
+		if (!res->m_DataObject)
+		{
+			auto argSeq = GetItems(args);
+			if (!CreateResult(resultHolder, argSeq, true))
+				return false;
+		}
+		if (context)
+			ExplainResultElement(AsDataItem(args[0]), context);
+		return true;
+	}
+
+	// Report which rows of arg1 map onto the result row being explained, so that they show up as
+	// suppliers of that row, and say so when there are none, which is exactly when the result is null.
+	static void ExplainResultElement(const AbstrDataItem* arg1A, Explain::Context* context)
+	{
+		assert(arg1A);
+		assert(context && context->m_Coordinate);
+
+		// result row f is an element of arg1's values unit; invert maps it back to the rows of arg1's
+		// domain that hold value f.
+		SizeT f = context->m_Coordinate->first;
+		const AbstrUnit* entity = arg1A->GetAbstrDomainUnit();
+
+		DataReadLock arg1Lock(arg1A);
+		const AbstrDataObject* arg1Obj = arg1A->GetCurrRefObj().get();
+		assert(arg1Obj);
+
+		SizeT i = 0, k = 0, n = arg1Obj->GetTiledRangeData()->GetElemCount();
+		while (i < n)
+		{
+			i = arg1Obj->FindPosOfSizeT(f, i);
+			if (!IsDefined(i))
+				break;
+			Explain::AddQueueEntry(context->m_CalcExpl, entity, i);
+			if (++k >= Explain::MaxNrEntries)
+				break;
+			++i;
+		}
+		if (!k)
+		{
+			// Name the argument when it has a name. Usually it has none: a configured attribute is
+			// substituted by its definition, so what arrives here is an anonymous cache item (its domain
+			// unit likewise). The page prints the expression right next to this note, which names it.
+			auto subjectName = SharedStr(arg1A->GetFullName());
+			Explain::SetValueReason(context, subjectName.empty()
+				? SharedStr("no row of the inverted attribute refers to this row")
+				: mySSPrintF("no row of {} refers to this row", subjectName));
+		}
 	}
 
 	// Override Operator

@@ -1,0 +1,71 @@
+// issue #1031, second pass: coverage for the shipped library/geometry/Grid2Poly.dms.
+//
+// The file is a 416-line template that turns a grid attribute into a polygon set of connected
+// cells with the same value. It ships, and until now nothing instantiated it, so a break in it
+// would only ever have surfaced in a user's configuration.
+//
+// This is a deliberately tiny instance: a 4x4 grid of 1 m cells over a 4 m x 4 m coordinate
+// system, split into two rectangular zones, where every answer is known by hand -- so a failure
+// points at the template rather than at the fixture.
+//
+//     zone_rel, row 0 at the top:      0 0 1 1
+//                                      0 0 1 1
+//                                      0 0 1 1
+//                                      0 0 1 1
+//
+// Zone 0 is the left 2x4 block, zone 1 the right 2x4 block: 8 m2 each, 16 m2 together, and the
+// two must not overlap -- which the template checks itself, in Results/overlap_check.
+//
+// The grid is built the way library/basedata_nl/grids.dms builds one (a range() over a gridset()
+// with a negative row factor, so row 0 is the top), because the template maps grid cells to
+// coordinates through exactly that relation.
+container shipped_library_grid2poly
+{
+	#include <%exeDir%/library/geometry/Grid2Poly.dms>
+
+	unit<dpoint> coord_base
+	:	SpatialReference = "EPSG:28992"
+	,	Descr            = "test coordinate system, metres";
+
+	unit<dpoint> coord_system := range(coord_base, point_xy(0.0, 0.0), point_xy(4.0, 4.0));
+
+	unit<ipoint> domain_grid :=
+		range(
+			gridset(
+				coord_system
+			,	point_yx(-1.0, 1.0, coord_system)   // one metre per cell, row 0 at the top
+			,	point_yx( 4.0, 0.0, coord_system)   // origin at (x_min, y_max)
+			,	ipoint
+			)
+		,	point_yx(0i, 0i)
+		,	point_yx(4i, 4i)
+		)
+	{
+		attribute<Zone> zone_rel := pointcol(id(.)) < 2i ? 0[Zone] : 1[Zone];
+	}
+
+	unit<uint32> Zone : nrofrows = 2
+	{
+		attribute<string> name : [ 'left', 'right' ];
+	}
+
+	container poly := grid2poly(domain_grid, Zone, domain_grid/zone_rel, coord_system, 0.0);
+
+	unit<float64> meter  := BaseUnit('m', float64);
+	unit<float64> meter2 := meter * meter;
+
+	attribute<float64> zone_area (Zone) := float64(area(poly/Results/geometry, meter2));
+	parameter<float64> total_area       := sum(zone_area);
+	parameter<uint32>  nr_results       := uint32(#poly/Results);
+	parameter<float64> overlap_area     := float64(sum(poly/Results/overlap_check/area));
+
+	container checks
+	{
+		parameter<bool> c_nr    := nr_results == 2u,                 IntegrityCheck = "c_nr == True";
+		parameter<bool> c_left  := abs(zone_area[0] - 8.0) < 1e-9,   IntegrityCheck = "c_left == True";
+		parameter<bool> c_right := abs(zone_area[1] - 8.0) < 1e-9,   IntegrityCheck = "c_right == True";
+		parameter<bool> c_total := abs(total_area   - 16.0) < 1e-9,  IntegrityCheck = "c_total == True";
+		// the template's own no-overlap assumption, made into an assertion
+		parameter<bool> c_overl := overlap_area < 1e-9,              IntegrityCheck = "c_overl == True";
+	}
+}

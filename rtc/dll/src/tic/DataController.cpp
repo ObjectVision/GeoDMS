@@ -317,10 +317,21 @@ auto TreeItemDualRefContextHandle::GetBackRefStr() ->SharedStr
 }
 
 
+bool TreeItemDualRefContextHandle::HasItemName()
+{
+	return s_CurrTreeItemDualRef && s_CurrTreeItemDualRef->HasItemName();
+}
+
+auto TreeItemDualRefContextHandle::GetItemNameStr() ->SharedStr
+{
+	assert(s_CurrTreeItemDualRef);
+	return s_CurrTreeItemDualRef->GetItemNameStr();
+}
+
 void TreeItemDualRefContextHandle::GenerateDescription()
 {
-	if (HasBackRef())
-		SetText(mySSPrintF("while processing result for {}", GetBackRefStr().c_str()));
+	if (HasItemName())
+		SetText(mySSPrintF("while processing result for {}", GetItemNameStr().c_str()));
 }
 
 /********** DataControllerContextHandle **********/

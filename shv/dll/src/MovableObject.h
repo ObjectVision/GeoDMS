@@ -38,6 +38,12 @@ public:
 	void SetBorder(bool hasBorder);
 	void SetRevBorder(bool revBorder);
 
+	// issue #828: the width of the 3D border in logical pixels, which is also the number of
+	// shadow rings drawn for it. Must be constant per object: SetBorder(false) undoes with it
+	// what SetBorder(true) reserved. Override it in the class that calls SetBorder(true), so
+	// that the call in a constructor already sees the overridden value.
+	virtual CrdType GetBorderLogicalWidth() const { return BORDERSIZE; }
+
 	virtual void MoveTo(CrdPoint newClientRelPos); // SetClientRelPos
 	virtual void SetClientSize(CrdPoint newRelPos);
 	virtual void SetElemWidth(UInt16 width);

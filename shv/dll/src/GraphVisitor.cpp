@@ -645,7 +645,7 @@ GraphVisitState GraphDrawer::DoMovable(MovableObject* obj)
 		auto extents = obj->GetCurrFullAbsLogicalRect(*this);
 		auto devExtents = m_Transformation.Apply( extents );
 		auto gExtents = CrdRect2GRect(devExtents);
-		GetDrawContext()->DrawBorder(gExtents, obj->RevBorder());
+		GetDrawContext()->DrawBorder(gExtents, obj->RevBorder(), int(obj->GetBorderLogicalWidth()));
 	}
 	return GVS_UnHandled;
 }

@@ -1,0 +1,10 @@
+// issue #1031, second pass: coverage for the shipped examples/function.dms.
+//
+// That file is self-contained and already carries its own /checks container -- its header even
+// says "Run headless with: GeoDmsRun.exe C:\...\examples\function.dms /checks". Nothing ran it.
+// Including the SHIPPED copy from %exeDir% is what makes the test cover what the installer puts
+// on a user's machine, rather than the source tree beside it.
+//
+// function.dms wraps everything in container function_example, and a config's top-level container
+// IS the desktop root, so its checks are reached as /checks -- the runner default.
+#include <%exeDir%/examples/function.dms>

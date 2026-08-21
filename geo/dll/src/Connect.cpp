@@ -378,7 +378,7 @@ struct AbstrConnectPointOperator : VariadicOperator
 			auto arg1DataHolder = CreateIndex(arg1A, spi);
 
 			std::unique_ptr<WeightGetter> weights1Getter(arg1W ? WeightGetterCreator::Create(arg1W) : nullptr);
-			auto itemRef = resultHolder.HasBackRef() ? resultHolder.GetBackRefStr() + " " : SharedStr();
+			auto itemRef = resultHolder.GetProgressPrefix(); // #795: names the config item, also for an intermediate result
 
 			parallel_tileloop(point2Entity->GetNrTiles(), [res, resObj = resLock.get(), arg2A, arg2W, &spi, &weights1Getter, &itemRef, this](tile_id t)->void
 			{
@@ -794,7 +794,7 @@ public:
 		if (mustCalc)
 		{
 			Timer processTimer;
-			auto itemRef = resultHolder.HasBackRef() ? resultHolder.GetBackRefStr() + " " : SharedStr();
+			auto itemRef = resultHolder.GetProgressPrefix(); // #795: names the config item, also for an intermediate result
 
 			const Arg1Type* arg1 = const_array_cast<PolygonType>(arg1A);
 			const Arg2Type* arg2 = const_array_cast<  PointType>(arg2A);
@@ -1118,7 +1118,7 @@ public:
 		if (mustCalc)
 		{
 			Timer processTimer;
-			auto itemRef = resultHolder.HasBackRef() ? resultHolder.GetBackRefStr() + " " : SharedStr();
+			auto itemRef = resultHolder.GetProgressPrefix(); // #795: names the config item, also for an intermediate result
 
 			bool isPossiblyMultiPolygon = arg1A->GetValueComposition() == ValueComposition::Polygon;
 

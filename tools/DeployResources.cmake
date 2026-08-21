@@ -53,16 +53,17 @@ if(VCPKG_SHARE AND IS_DIRECTORY ${VCPKG_SHARE})
     endforeach()
 endif()
 
-# DMS script library and example configurations.
-# Both CopyResources/<dir>/ and the top-level <dir>/ are valid sources; msbuild
-# .vcxproj copies from the top-level layout while CopyResources/ is the older
-# cmake input. The two have drifted slightly (e.g. only library/ has Units.dms)
-# -- copy from both so the cmake bin matches the msbuild bin in coverage.
-# Top-level wins on collision (last file(COPY) overwrites).
+# DMS script library and example configurations, from the top-level layout --
+# the same source CopyResources.vcxproj robocopies for the msbuild flavour, so
+# .c and .m ship the same files (issue #1031).
+#
+# This used to copy from CopyResources/<dir>/ as well, an older duplicate of the
+# same trees. That made the .c setup ship two files the .m setup did not --
+# library/geometry/Grid2Poly_ipoint.dms and the examples/grid_to_vector.dms that
+# includes it -- and the _ipoint copy predated 38b9c5a7 ("fixed filled lakes
+# caused by geos ignoring inverted rings"), so .c shipped a template with a bug
+# that had been fixed in the copy .m shipped. Those duplicates are gone.
 foreach(_res_dir library examples)
-    if(IS_DIRECTORY ${SRC_DIR}/CopyResources/${_res_dir})
-        file(COPY ${SRC_DIR}/CopyResources/${_res_dir} DESTINATION ${RUNTIME_DIR})
-    endif()
     if(IS_DIRECTORY ${SRC_DIR}/${_res_dir})
         file(COPY ${SRC_DIR}/${_res_dir} DESTINATION ${RUNTIME_DIR})
     endif()

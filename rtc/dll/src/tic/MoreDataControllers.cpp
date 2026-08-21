@@ -10,6 +10,8 @@
 
 #include "MoreDataControllers.h"
 
+#include "Parallel.h" // THREAD_LOCAL
+
 #include "act/ActorSet.h"
 #include "act/ActorVisitor.h"
 #include "act/InterestRetainContext.h"
@@ -903,6 +905,42 @@ bool FuncDC::MakeResultImpl() const
 
 // =========================================  CallCalcResult
 
+// #795: name the config item that a progress or error message about a calculation belongs to.
+// Only a result that a config item refers to knows its own name (TreeItemDualRef::HasBackRef);
+// the intermediate results of the same calculation -- an operator's arguments, the inline
+// sub-expressions of a calculation rule -- are anonymous cache items, and a progress line about
+// one of them used to name no item at all. Argument calculations are started from within
+// CallCalcResultImpl of the calculation that needs them, all on the meta thread, so the name
+// travels down that nesting through this one thread-local, and is stored on each participating
+// DataController before its operator is scheduled -- possibly to run on a worker thread later.
+namespace {
+	THREAD_LOCAL SharedTreeItem s_CurrOriginItem; // meta thread only
+
+	struct OriginNameLock
+	{
+		OriginNameLock(const TreeItemDualRef& self)
+			: m_Prev(s_CurrOriginItem)
+		{
+			auto named = self.GetBackRefItem();
+			if (!named)
+			{
+				named = self.GetOriginItem(); // keep the name a running calculation started with
+				if (!named && m_Prev)
+				{
+					named = m_Prev; // adopt the config item whose calculation asked for this result
+					self.SetOriginItem(named);
+				}
+			}
+			if (named)
+				s_CurrOriginItem = std::move(named);
+		}
+		~OriginNameLock() { s_CurrOriginItem = std::move(m_Prev); }
+
+	private:
+		SharedTreeItem m_Prev;
+	};
+} // anonymous namespace
+
 void FuncDC::CallCalcResultImpl(std::shared_ptr<Explain::Context> context) const
 {
 #if defined(MG_DEBUG_DCDATA)
@@ -919,6 +957,8 @@ void FuncDC::CallCalcResultImpl(std::shared_ptr<Explain::Context> context) const
 	assert(!IsTmp());
 
 //	SharedTreeItemInterestPtr promise = m_Data;
+
+	OriginNameLock originName(*this); // #795, see above: covers GetArgs and ScheduleCalcResult
 
 	StaticStIncrementalLock<TreeItem::s_MakeEndoLockCount> makeEndoLock;
 	InterestRetainContextBase base;

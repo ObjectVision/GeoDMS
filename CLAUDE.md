@@ -17,6 +17,17 @@ battery + a few `fn_probe_*` probes + `tmpl_regress.dms`, with the `fe_names.txt
 gitignored `testcases/_out*/`. One-off investigation configs (controls, repros) still
 belong in gitignored `scratch/`, not `testcases/`.
 
+**That battery must stay offline and cheap.** Anything that reaches the network or
+processes real source data belongs in **`batch\TestShippedContent.bat`** instead, the
+release test for the `.dms` content the installer ships (issue #1031). It runs against
+`bin\<Config>\x64\` — the copies NSIS packages, not the source tree beside them — in two
+steps: the shipped `examples\testcases` battery through its own `run_testcases.bat`, and
+`examples\grid_to_polygon.dms` over the real CBS buurt map, with the CBS geopackage
+renamed to `.bak` first so `RegioIndelingen.dms` has to download it again. Both
+`batch\TestReleaseUnit.bat` and `batch\TestCMakeReleaseUnit.bat` call it, so each flavour
+walks its own output folder. Pass a third argument to point the geopackage step at a
+scratch `SourceDataDir` when testing the script itself.
+
 ## Build & setup policy — do NOT improvise
 
 Build ONLY through the committed solution / preset files, using **msbuild** or **CMake**.

@@ -617,7 +617,7 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 
 	Timer processTimer;
 	std::atomic<SizeT> resultCount = 0, zoneCount = 0;
-	auto itemRefStr = resultHolder.HasBackRef() ? resultHolder.GetBackRefStr() + " " : SharedStr();
+	auto itemRefStr = resultHolder.GetProgressPrefix(); // #795: names the config item, also for an intermediate result
 	CharPtr itemRef = itemRefStr.c_str();
 
 	assert(altLinkWeights || !res.od_AltLinkImp);

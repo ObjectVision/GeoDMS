@@ -91,6 +91,7 @@ HINSTANCE GetInstance(HWND hWnd)
 //----------------------------------------------------------------------
 
 CreateViewActionFunc g_ViewActionFunc = nullptr;
+ChooseColorFunc      g_ChooseColorFunc = nullptr; // issue #859, set by the Qt GUI
 
 void CreateViewAction(
 	const TreeItem* tiContext,

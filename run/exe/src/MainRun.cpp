@@ -29,7 +29,10 @@
 #include "AbstrDataObject.h"
 #include "AbstrUnit.h"
 #include "DataLocks.h"
+#include "Explain.h"
 #include "OperationContext.h"
+#include "ser/MoreStreamBuff.h"
+#include "xml/XMLOut.h"
 
 #include <iostream>
 #include <algorithm>
@@ -76,7 +79,43 @@ static void InstallHeadlessAssertHandlerIfNoDebugger()
 
 // ============== Main
 
-enum class itemCmd { commit, statistics, histogram, list, file };
+enum class itemCmd { commit, statistics, histogram, list, file, valueinfo };
+
+// Headless counterpart of the GUI's Value Info page (#612): render the same explanation for one
+// element of a data item, so that what that page says about a value -- in particular why it has no
+// value -- can be inspected, logged and diffed without starting the GUI.
+static void DumpValueInfo(std::ostream& out, const TreeItem* item, SizeT index)
+{
+	const AbstrDataItem* studyObject = AsDynamicDataItem(item);
+	if (!studyObject)
+	{
+		out << "@valueinfo: " << item->GetFullName().c_str() << " is not a data item" << std::endl;
+		return;
+	}
+
+	auto context = Explain::CreateContext();
+
+	// AttrValueToXML reports not-done while suppliers are still being calculated; the GUI retries on
+	// a timer, here we simply re-render until it is done. Each attempt writes a whole page, so the
+	// buffer is per attempt.
+	for (UInt32 attempt = 0; ; ++attempt)
+	{
+		VectorOutStreamBuff outStreamBuff;
+		auto xmlOut = OutStream_HTM(&outStreamBuff, "html", nullptr);
+
+		SuspendTrigger::Resume();
+		bool done = Explain::AttrValueToXML(context.get(), studyObject, &xmlOut, index, "", true);
+		ProcessMainThreadOpers();
+
+		if (done || attempt == 1000)
+		{
+			if (!done)
+				out << "@valueinfo: gave up waiting for the explanation to complete" << std::endl;
+			out << outStreamBuff.AsString().c_str() << std::endl;
+			return;
+		}
+	}
+}
 
 using itemCmdPair = std::pair<itemCmd, SharedTreeItemInterestPtr>;
 
@@ -140,6 +179,7 @@ int main2_without_SE(int argc, char** argv)
 
 	auto currCmd = itemCmd::commit;
 	std::string fileName;
+	SizeT valueInfoIndex = 0;
 	// find all specified items
 	for (; argc; --argc, ++argv) {
 		if ((*argv)[0] == '@')
@@ -153,6 +193,17 @@ int main2_without_SE(int argc, char** argv)
 				currCmd = itemCmd::histogram;
 			if (!stricmp(cmd, "list"))
 				currCmd = itemCmd::list;
+			if (!stricmp(cmd, "valueinfo"))
+			{
+				// @valueinfo <row>: the following items are reported as the Value Info page for that
+				// row, instead of merely being committed.
+				currCmd = itemCmd::valueinfo;
+				if (argc > 1)
+				{
+					--argc, ++argv;
+					valueInfoIndex = Convert<SizeT>(std::string_view(*argv));
+				}
+			}
 			if (!stricmp(cmd, "checkfunctions"))
 			{
 				// opt-in typed-HOF audit: type-check EVERY function definition in the
@@ -264,6 +315,10 @@ int main2_without_SE(int argc, char** argv)
 
 		case itemCmd::list:
 			(*dataOut) << "@list is Under Construction" << std::endl;
+			break;
+
+		case itemCmd::valueinfo:
+			DumpValueInfo(*dataOut, item, valueInfoIndex);
 			break;
 		}
 

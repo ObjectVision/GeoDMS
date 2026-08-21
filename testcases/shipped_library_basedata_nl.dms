@@ -1,0 +1,93 @@
+// issue #1031, second pass: coverage for the shipped library/basedata_nl files.
+//
+// grids.dms includes rdc.dms, which in turn includes rdc/ngr_layer.dms, so one config reaches
+// three of the six shipped library files. None of them reads any source data -- they are
+// coordinate-system, grid-domain and WMTS-layer *definitions* -- so all of it is checkable here.
+//
+// RegioIndelingen.dms is included too, but only its year table is demanded: everything below that
+// reads -- and, failing that, curl-downloads -- %SourceDataDir%/RegionalUnits/cbs/
+// gebiedsindelingen<year>.gpkg, which a test must not set off. Note it depends on rdc_meter without
+// including rdc.dms itself, so it only resolves when something else pulled that in first, as here.
+container shipped_library_basedata_nl
+{
+	#include <%exeDir%/library/basedata_nl/grids.dms>
+	#include <%exeDir%/library/basedata_nl/RegioIndelingen.dms>
+
+	// ---------------------------------------------------------------- rdc.dms
+	// rdc_meter is the RD extent of the Netherlands: x 0..280000, y 300000..625000.
+	parameter<float64> rdc_x_min := pointcol(lowerbound(rdc_meter));
+	parameter<float64> rdc_x_max := pointcol(upperbound(rdc_meter));
+	parameter<float64> rdc_y_min := pointrow(lowerbound(rdc_meter));
+	parameter<float64> rdc_y_max := pointrow(upperbound(rdc_meter));
+
+	// rdc_mm is that same extent gridded at 1 mm, so it counts 1000 cells per metre per axis
+	parameter<int32> mm_cols := pointcol(upperbound(rdc_mm)) - pointcol(lowerbound(rdc_mm));
+	parameter<int32> mm_rows := pointrow(upperbound(rdc_mm)) - pointrow(lowerbound(rdc_mm));
+
+	// ---------------------------------------------------------------- grids.dms
+	// 280000 x 325000 metres at 10 / 25 / 100 m
+	parameter<uint32> n10  := uint32(#grids/rdc_10m);
+	parameter<uint32> n25  := uint32(#grids/rdc_25m);
+	parameter<uint32> n100 := uint32(#grids/rdc_100m);
+
+	// ---------------------------------------------------------------- rdc/ngr_layer.dms
+	// The WMTS tile matrix is a 15 x 8 table of strings, sliced into typed columns by index
+	// arithmetic -- exactly the kind of thing that breaks silently. Demand every column.
+	parameter<uint32>  tm_rows   := uint32(#ngr_layer/TileMatrix);
+	parameter<uint32>  tm_elems  := uint32(#ngr_layer/TileMatrixElems);
+	parameter<string>  tm_first  := first(ngr_layer/TileMatrix/name);
+	parameter<string>  tm_last   := last(ngr_layer/TileMatrix/name);
+	parameter<float64> tm_scale0 := first(ngr_layer/TileMatrix/ScaleDenominator);
+	parameter<uint32>  tm_mw_sum := sum(ngr_layer/TileMatrix/MatrixWidth);
+	parameter<uint32>  tm_mh_sum := sum(ngr_layer/TileMatrix/MatrixHeight);
+	parameter<uint32>  tm_tw_sum := sum(uint32(ngr_layer/TileMatrix/TileWidth));
+	parameter<uint32>  tm_th_sum := sum(uint32(ngr_layer/TileMatrix/TileHeight));
+	parameter<float64> tm_left0  := first(ngr_layer/TileMatrix/LeftCoord);
+	parameter<float64> tm_top0   := first(ngr_layer/TileMatrix/TopCoord);
+	parameter<string>  tm_target := ngr_layer/target;
+
+	// ---------------------------------------------------------------- RegioIndelingen.dms
+	// The years the CBS Gebiedsindelingen are configured for; no gpkg is touched by this.
+	parameter<uint32> nr_years   := uint32(#CBS_Gebiedsindelingen_jaren);
+	parameter<string> year_first := first(CBS_Gebiedsindelingen_jaren/name);
+	parameter<string> year_last  := last (CBS_Gebiedsindelingen_jaren/name);
+
+	container checks
+	{
+		// rdc.dms
+		parameter<bool> c_x_min := rdc_x_min ==      0.0, IntegrityCheck = "c_x_min == True";
+		parameter<bool> c_x_max := rdc_x_max == 280000.0, IntegrityCheck = "c_x_max == True";
+		parameter<bool> c_y_min := rdc_y_min == 300000.0, IntegrityCheck = "c_y_min == True";
+		parameter<bool> c_y_max := rdc_y_max == 625000.0, IntegrityCheck = "c_y_max == True";
+		parameter<bool> c_mm_c  := mm_cols == 280000000i, IntegrityCheck = "c_mm_c == True";
+		parameter<bool> c_mm_r  := mm_rows == 325000000i, IntegrityCheck = "c_mm_r == True";
+
+		// grids.dms: (280000/g) * (325000/g) cells
+		parameter<bool> c_n10   := n10  == 28000u * 32500u, IntegrityCheck = "c_n10 == True";
+		parameter<bool> c_n25   := n25  == 11200u * 13000u, IntegrityCheck = "c_n25 == True";
+		parameter<bool> c_n100  := n100 ==  2800u *  3250u, IntegrityCheck = "c_n100 == True";
+
+		// ngr_layer.dms
+		parameter<bool> c_tm_rows  := tm_rows  == 15u,      IntegrityCheck = "c_tm_rows == True";
+		parameter<bool> c_tm_elems := tm_elems == 15u * 8u, IntegrityCheck = "c_tm_elems == True";
+		parameter<bool> c_tm_first := tm_first == 'EPSG:28992:0',  IntegrityCheck = "c_tm_first == True";
+		parameter<bool> c_tm_last  := tm_last  == 'EPSG:28992:14', IntegrityCheck = "c_tm_last == True";
+		parameter<bool> c_tm_scale := tm_scale0 == 12288000.0,     IntegrityCheck = "c_tm_scale == True";
+		// levels 0..14 are 2^k x 2^k tiles, so the widths sum to 2^15 - 1
+		parameter<bool> c_tm_mw    := tm_mw_sum == 32767u, IntegrityCheck = "c_tm_mw == True";
+		parameter<bool> c_tm_mh    := tm_mh_sum == 32767u, IntegrityCheck = "c_tm_mh == True";
+		parameter<bool> c_tm_tw    := tm_tw_sum == 15u * 256u, IntegrityCheck = "c_tm_tw == True";
+		parameter<bool> c_tm_th    := tm_th_sum == 15u * 256u, IntegrityCheck = "c_tm_th == True";
+		parameter<bool> c_tm_left  := tm_left0 == -285401.92,  IntegrityCheck = "c_tm_left == True";
+		parameter<bool> c_tm_top   := tm_top0  ==  903402.0,   IntegrityCheck = "c_tm_top == True";
+		// the request template keeps the placeholders the WMTS reader substitutes
+		parameter<bool> c_target   := strpos(tm_target, '@TM@') >= 0
+		                           && strpos(tm_target, '@TR@') >= 0
+		                           && strpos(tm_target, '@TC@') >= 0, IntegrityCheck = "c_target == True";
+
+		// RegioIndelingen.dms: range(uint32, 2019, 2027) is Y2019 .. Y2026
+		parameter<bool> c_years    := nr_years == 8u,             IntegrityCheck = "c_years == True";
+		parameter<bool> c_year_1st := year_first == 'Y2019',      IntegrityCheck = "c_year_1st == True";
+		parameter<bool> c_year_lst := year_last  == 'Y2026',      IntegrityCheck = "c_year_lst == True";
+	}
+}

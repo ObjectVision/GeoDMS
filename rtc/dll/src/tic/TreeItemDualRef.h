@@ -186,11 +186,32 @@ struct TreeItemDualRef : SharedActor
 	void SetTmp(      TreeItem* tmpTI);
 
 	bool HasBackRef() const { auto p = m_Data.get(); return p && !p->m_BackRef.expired(); }
+	SharedTreeItem GetBackRefItem() const { auto p = m_Data.get(); return p ? p->m_BackRef.lock() : SharedTreeItem(); }
 	SharedStr GetBackRefStr() const // null-tolerant: m_BackRef can be reset concurrently after HasBackRef()
 	{
-		auto p = m_Data.get();
-		auto backRef = p ? p->m_BackRef.lock() : nullptr;
+		auto backRef = GetBackRefItem();
 		return backRef ? backRef->GetSourceName() : SharedStr();
+	}
+
+	// #795: which config item a progress or error message about this calculation should name.
+	// A result that a config item refers to names itself, through the back reference that
+	// TreeItem::SetReferredItem installs. An INTERMEDIATE result, an operator argument or an
+	// inline sub-expression, has no such reference and would otherwise stay nameless; it then
+	// carries the name of the config item whose calculation it is part of, adopted from the
+	// requesting calculation by FuncDC::CallCalcResultImpl on the meta thread, before the
+	// operator is scheduled. Diagnostic only: when several config items share one intermediate
+	// result, the name is that of the calculation that asked for it first.
+	SharedTreeItem GetNamedItem() const { auto backRef = GetBackRefItem(); return backRef ? backRef : md_OriginItem.lock(); }
+	bool HasItemName() const { return GetNamedItem() != nullptr; }
+	SharedStr GetItemNameStr() const { auto item = GetNamedItem(); return item ? item->GetSourceName() : SharedStr(); }
+	SharedTreeItem GetOriginItem() const { return md_OriginItem.lock(); }
+	void SetOriginItem(const SharedTreeItem& item) const { md_OriginItem = item; }
+
+	// "[[/full/item/name]] " to prefix a progress report with; empty when no item is known.
+	SharedStr GetProgressPrefix() const
+	{
+		auto item = GetNamedItem();
+		return item ? item->GetSourceName() + " " : SharedStr();
 	}
 
 	// kind 1: own the result subtree's cache units (called after the operator finished building the result).
@@ -234,6 +255,12 @@ protected:
 	// The single result holder (variant): owning arms keep cache results alive; weak arms (config item,
 	// tmp) are non-owning + .lock()-checked. Replaces the old (m_Data WeakPtr + m_OwnedData SharedTreeItem).
 	mutable DcRef m_Data;
+
+	// #795, see HasItemName above. Non-owning, like m_BackRef: a name for messages must never keep
+	// a config item alive. Written on the meta thread before this calculation is scheduled, and read
+	// by the worker threads that run it; only ever set when still empty, so a running calculation
+	// keeps the name it started with.
+	mutable std::weak_ptr<const TreeItem> md_OriginItem;
 };
 
 // *****************************************************************************
@@ -247,9 +274,11 @@ struct TreeItemDualRefContextHandle : ObjectContextHandle
 
 	static bool HasBackRef();
 	static SharedStr GetBackRefStr();
+	static bool HasItemName();
+	static SharedStr GetItemNameStr();
 
-	bool HasItemContext() const override { return HasBackRef(); }
-	auto ItemAsStr() const->SharedStr override { return GetBackRefStr(); }
+	bool HasItemContext() const override { return HasItemName(); }
+	auto ItemAsStr() const->SharedStr override { return GetItemNameStr(); }
 
 protected:
 	void GenerateDescription() override;

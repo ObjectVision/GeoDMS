@@ -1,0 +1,22 @@
+container oper_district_neg
+{
+	// #1188: when the district argument cannot derive its meta info, the result unit never
+	// gets its generated 'Districts' member. The reference must then fail on the item that
+	// holds it ("Unknown identifier 'Districts'"), and must NOT leak a bare symbol into the
+	// substituted expression: that used to become a SymbDC failing with an anonymous,
+	// unclickable "Cannot find Item Districts", repeated per dependent DataController.
+	unit<spoint> grid := range(point_xy(0s, 0s), point_xy(4s, 4s));
+
+	attribute<uint8> src (grid) := NoSuchItem; // fails, so district(src) has no meta info
+
+	unit<uint32> D := district_8(src)
+	{
+		attribute<uint32> cellCount        := pcount(Districts);
+		attribute<uint32> perCell  (grid)  := Districts;
+	}
+
+	container checks
+	{
+		parameter<uint32> total := sum(D/cellCount);
+	}
+}

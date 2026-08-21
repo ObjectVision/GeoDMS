@@ -19,6 +19,15 @@ set TC_FAILED=0
 Call "%geodms_rootdir%\testcases\run_testcases.bat" "%geodms_rootdir%\bin\Release\x64\GeoDmsRun.exe"
 if errorlevel 1 set TC_FAILED=1
 
+REM Shipped-content release test (issue #1031): the examples\testcases battery run
+REM from the OUTPUT folder, plus examples\grid_to_polygon.dms over the real CBS buurt
+REM map with the geopackage renamed first, so the download path is walked too.
+REM This one goes to the internet and rasterises NL at 25 m, which is why it lives
+REM here and not in testcases\run_testcases.bat.
+set SHIPPED_FAILED=0
+call "%~dp0TestShippedContent.bat" "%geodms_rootdir%\bin\Release\x64"
+if errorlevel 1 set SHIPPED_FAILED=1
+
 echo.
 if "%TC_FAILED%"=="1" (
   echo *** TESTCASES BATTERY FAILED - see table above and testcases\_out\ logs ***
@@ -26,7 +35,13 @@ if "%TC_FAILED%"=="1" (
   echo TESTCASES BATTERY PASSED
 )
 if "%UNIT_FAILED%"=="1" echo *** UNIT SUITE DID NOT RUN - see the message further up ***
+if "%SHIPPED_FAILED%"=="1" (
+  echo *** SHIPPED CONTENT RELEASE TEST FAILED - see scratch\grid_to_polygon_release.log ***
+) else (
+  echo SHIPPED CONTENT RELEASE TEST PASSED
+)
 
 if "%UNIT_FAILED%"=="1" exit /b 1
 if "%TC_FAILED%"=="1" exit /b 1
+if "%SHIPPED_FAILED%"=="1" exit /b 1
 exit /b 0

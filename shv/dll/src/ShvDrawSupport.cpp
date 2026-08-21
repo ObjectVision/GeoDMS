@@ -355,22 +355,33 @@ static void DrawShadowEdges(DrawContext* dc, GRect rect, DmsColor light, DmsColo
 	dc->FillRect(GRect(rect.left, nextTop, nextLeft, prevBottom), light);          // left edge
 }
 
-// 3D raised button appearance
-void DrawContext::DrawButtonBorder(GRect& rect)
+// 3D raised button appearance. The outermost ring is the soft one; every further ring repeats the
+// bright highlight, so nrRings == 2 draws exactly what it always drew (issue #828).
+void DrawContext::DrawButtonBorder(GRect& rect, int nrRings)
 {
+	if (nrRings <= 0)
+		return;
 	DrawShadowEdges(this, rect, CombineRGB(227, 227, 227), CombineRGB(64, 64, 64));
 	rect.Shrink(1);
-	DrawShadowEdges(this, rect, CombineRGB(255, 255, 255), CombineRGB(160, 160, 160));
-	rect.Shrink(1);
+	for (int ring = 1; ring != nrRings; ++ring)
+	{
+		DrawShadowEdges(this, rect, CombineRGB(255, 255, 255), CombineRGB(160, 160, 160));
+		rect.Shrink(1);
+	}
 }
 
 // 3D sunken/pressed appearance
-void DrawContext::DrawReversedBorder(GRect& rect)
+void DrawContext::DrawReversedBorder(GRect& rect, int nrRings)
 {
+	if (nrRings <= 0)
+		return;
 	DrawShadowEdges(this, rect, CombineRGB(64, 64, 64), CombineRGB(227, 227, 227));
 	rect.Shrink(1);
-	DrawShadowEdges(this, rect, CombineRGB(160, 160, 160), CombineRGB(255, 255, 255));
-	rect.Shrink(1);
+	for (int ring = 1; ring != nrRings; ++ring)
+	{
+		DrawShadowEdges(this, rect, CombineRGB(160, 160, 160), CombineRGB(255, 255, 255));
+		rect.Shrink(1);
+	}
 }
 
 // Portable transformed blit: CPU inverse-map (nearest) resample into the device-AABB, then one
