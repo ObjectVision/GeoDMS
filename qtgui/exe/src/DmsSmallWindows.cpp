@@ -103,9 +103,9 @@ DmsErrorWindow::DmsErrorWindow(QWidget* parent)
     // ok/apply/cancel buttons
     auto box_layout = new QHBoxLayout(this);
     m_ignore = new QPushButton(tr("&Ignore"), this);
-    m_ignore->setMaximumSize(dms_params::default_push_button_maximum_size);
+    dms_params::SetDialogButtonSize(m_ignore);
     m_terminate = new QPushButton(tr("&Terminate"), this);
-    m_terminate->setMaximumSize(dms_params::default_push_button_maximum_size);
+    dms_params::SetDialogButtonSize(m_terminate);
 
     m_reopen = new QPushButton(tr("&Reopen"), this);
     m_reopen->setAutoDefault(true);
@@ -114,7 +114,7 @@ DmsErrorWindow::DmsErrorWindow(QWidget* parent)
     connect(m_ignore, &QPushButton::released, this, &DmsErrorWindow::ignore);
     connect(m_terminate, &QPushButton::released, this, &DmsErrorWindow::terminate);
     connect(m_reopen, &QPushButton::released, this, &DmsErrorWindow::reopen);
-    m_reopen->setMaximumSize(dms_params::default_push_button_maximum_size);
+    dms_params::SetDialogButtonSize(m_reopen);
     box_layout->addWidget(m_reopen);
     box_layout->addWidget(m_terminate);
     box_layout->addWidget(m_ignore);
@@ -124,6 +124,7 @@ DmsErrorWindow::DmsErrorWindow(QWidget* parent)
 
 // ==== from DmsGuiParameters.cpp ====
 #include <QSize>
+#include <QPushButton>
 #include "DmsGuiParameters.h"
 
 // windows
@@ -131,8 +132,16 @@ QSize const dms_params::file_changed_window_size = QSize(600, 200);
 QSize const dms_params::error_window_size = QSize(800, 400);
 
 // buttons
-QSize const dms_params::default_push_button_maximum_size = QSize(75, 30);
+QSize const dms_params::default_push_button_minimum_size = QSize(75, 30);
 QSize const dms_params::treeitem_visit_history_fixed_size = QSize(18, 18);
+
+void dms_params::SetDialogButtonSize(QPushButton* button)
+{
+    assert(button);
+    // sizeHint() already accounts for the label, the mnemonic and the application font, which
+    // main_qt installs from :/res/fonts/dmstext.ttf before any dialog is constructed.
+    button->setFixedSize(button->sizeHint().expandedTo(default_push_button_minimum_size));
+}
 
 // toolbar
 QSize const dms_params::toolbar_button_spacing = QSize(30, 0);
@@ -283,14 +292,14 @@ DmsFileChangedWindow::DmsFileChangedWindow(QWidget* parent)
     // ok/apply/cancel buttons
     auto box_layout = new QHBoxLayout(this);
     m_ignore = new QPushButton(tr("&Ignore"), this);
-    m_ignore->setMaximumSize(dms_params::default_push_button_maximum_size);
+    dms_params::SetDialogButtonSize(m_ignore);
 
     m_reopen = new QPushButton(tr("&Reopen"), this);
     connect(m_ignore, &QPushButton::released, this, &DmsFileChangedWindow::ignore);
     connect(m_reopen, &QPushButton::released, this, &DmsFileChangedWindow::reopen);
     m_reopen->setAutoDefault(true);
     m_reopen->setDefault(true);
-    m_reopen->setMaximumSize(dms_params::default_push_button_maximum_size);
+    dms_params::SetDialogButtonSize(m_reopen);
     box_layout->addWidget(m_reopen);
     box_layout->addWidget(m_ignore);
     grid_layout->addLayout(box_layout, 14, 0, 1, 3);

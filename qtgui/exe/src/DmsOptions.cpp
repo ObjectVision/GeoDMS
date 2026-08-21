@@ -726,13 +726,13 @@ DmsConfigOptionsWindow::DmsConfigOptionsWindow(QWidget* parent)
     // ok/cancel/undo buttons
     auto box_layout = new QHBoxLayout(this);
     m_ok = new QPushButton("Ok", this);
-    m_ok->setMaximumSize(75, 30);
+    dms_params::SetDialogButtonSize(m_ok);
     m_ok->setAutoDefault(true);
     m_ok->setDefault(true);
     m_cancel = new QPushButton("Cancel", this);
-    m_cancel->setMaximumSize(75, 30);
+    dms_params::SetDialogButtonSize(m_cancel);
     m_undo = new QPushButton("Undo", this);
-    m_undo->setMaximumSize(75, 30);
+    dms_params::SetDialogButtonSize(m_undo);
 
     connect(m_ok, &QPushButton::released, this, &DmsConfigOptionsWindow::ok);
     connect(m_cancel, &QPushButton::released, this, &DmsConfigOptionsWindow::cancel);

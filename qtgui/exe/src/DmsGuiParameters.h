@@ -9,8 +9,20 @@ namespace dms_params {
 	extern QSize const error_window_size;
 	
 	// buttons
-	extern QSize const default_push_button_maximum_size;
+	// The FLOOR for a dialog button, applied through SetDialogButtonSize below.
+	extern QSize const default_push_button_minimum_size;
 	extern QSize const treeitem_visit_history_fixed_size;
+
+	// Size a dialog button to its own content, but never below default_push_button_minimum_size,
+	// so a row of short buttons still looks even (issue #1192).
+	//
+	// These buttons used to be capped with setMaximumSize(75, 30), which clipped '&Terminate' in
+	// the error box: the T and the trailing e were cut off by the frame, and a wider font would
+	// have done the same to the others. A plain setMinimumSize is not the answer either -- the
+	// layout gives each button a cell of about a third of the dialog, and a button that may grow
+	// fills it, so all three would have become ~215px wide. Fixing the size keeps the small,
+	// centred buttons these dialogs have and lets the text decide how small.
+	void SetDialogButtonSize(class QPushButton* button);
 	
 	// toolbar
 	extern QSize const toolbar_button_spacing;
