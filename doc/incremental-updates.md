@@ -94,9 +94,12 @@ Based on code review of the GeoDMS26 tree (rtc, tic, clc, stg, stx, qtgui), 2026
 8. **`Invalidate()` is a no-op on never-timestamped actors** (`m_LastChangeTS == 0`,
    `Actor.cpp:355`) — side effects of `DoInvalidate` (DC drop, GUI notify) silently skipped.
 9. **Global `tsLast` not persisted; per-actor TSs are** ("for persistency only",
-   `Actor.h:154`). Persisted TSs are only meaningful after `Renumber()`; if CalcCache
-   restoration is revived (`ASF_WasLoaded` "TODO G8.5" in `tic/dll/src/TreeItemFlags.h:32`),
-   stale persisted TSs comparing as newer would validate stale data.
+   `Actor.h:154`). Persisted TSs are only meaningful after `Renumber()`. This only bites if
+   results themselves are persisted across sessions: stale persisted TSs comparing as newer
+   would then validate stale data. **No such store exists today** — the CalcCache that used
+   to be one was retired with the 8.0 series, and its `ASF_WasLoaded` flag has since been
+   removed (#1189; see `doc/development/g8-todos.md` §4). So this is a constraint on any
+   future persistent result store, not a live defect.
 
 ### C. Pull-model blind spots
 
@@ -139,11 +142,14 @@ Based on code review of the GeoDMS26 tree (rtc, tic, clc, stg, stx, qtgui), 2026
 17. **Old DataControllers linger in `s_DcMap`** after a rule change until interest drops —
     memory growth plus stale-result availability.
 18. **Dangling raw supplier pointers** in `s_SupplierLevels`: "registered suppliers may
-    already be destroyed (and locations even be reused!)"
-    (`tic/dll/src/DataStoreManager.cpp:121`); cleanup callback is a no-op.
-19. **CalcCache directory validity is version-only** (`CalcCache…v<major>.<minor>`,
-    `AbstrStoragemanager.cpp:348-354`); nothing ties cached results to source dates or config
-    content.
+    already be destroyed (and locations even be reused!)" (the comment now sits in
+    `tic/dll/src/TicDataSupport.cpp`, where `DataStoreManager.cpp` was merged); cleanup
+    callback is a no-op.
+19. ~~**CalcCache directory validity is version-only**~~ — historical. The cache directory
+    was named `CalcCache…v<major>.<minor>`, so validity was keyed on the GeoDMS version
+    alone and nothing tied cached results to source dates or config content. That is *why*
+    a persistent store needs the source version in the key (§3.3); the cache itself is gone
+    (#1189).
 
 ### E. Concurrency / exception paths
 
@@ -235,9 +241,10 @@ Design points, in order of importance:
 1. **Keys complement, not replace, the TS mechanism.** Keys are rebuilt only after
    invalidation re-derives the calculator; without the TS bump nobody rebuilds keys. TS route
    = "when to look again"; FDT-in-key = "identity of what was read". In-session invalidation
-   works with the TS route alone (stable keys); FDT-in-key is what makes a *persistent*
-   CalcCache safe, because raw FILETIME (UInt64, UTC) is session-stable while internal
-   `TimeStamp` resets to 1 each session.
+   works with the TS route alone (stable keys); FDT-in-key is what would make a *persistent*
+   result store safe, because raw FILETIME (UInt64, UTC) is session-stable while internal
+   `TimeStamp` resets to 1 each session. (The GeoDMS 7 CalcCache had no such key component,
+   which is why its validity was version-only — see failure mode 19.)
 2. **Sample once per epoch, from one place** — `GetCachedChangeDateTime`'s epoch gating
    already provides this if it is the single source of the FDT used in keys.
 3. **Version only authentic sources** (`IsDataReadable`, has storage parent, not cache item —
@@ -262,9 +269,13 @@ Design points, in order of importance:
 
 ### 3.4 Suggested order of attack
 
-1. Activation-event poll + DSM-style `{expandedStorageName → (FDT, TimeStamp)}` map; restore
-   `TreeItem.cpp:3466` as a lookup → correct in-session invalidation, stable keys.
+1. Activation-event poll + a DataStoreManager-style `{expandedStorageName → (FDT, TimeStamp)}`
+   map; reinstate the commented-out `DetermineExternalChange` call in
+   `TreeItem::DetermineLastSupplierChange` as a lookup → correct in-session invalidation,
+   stable keys. Note this needs re-implementing, not uncommenting: the `DSM` it named no
+   longer exists (#1189), and the two commented lines are kept only as markers for this step.
 2. Fix the stat/open TOCTOU: record handle-based FDTs at `DataReadLock` time, feed them back
    into the map.
-3. When persistent CalcCache restoration becomes concrete: extend the `sourceDescr` leaf with
-   the source version, with the exclusions from point 3.3-3.
+3. *If* a persistent result store is ever introduced: extend the `sourceDescr` leaf with the
+   source version, with the exclusions from point 3.3-3. There is no such store today and
+   none is planned; the CalcCache that used to be one was retired with the 8.0 series.

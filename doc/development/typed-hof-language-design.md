@@ -2338,15 +2338,16 @@ operator work; category D stays engine-side (§8.4).
 | R8 | definition-check cost at config load (meta thread) | Med | check lazily on first use, once-guard |
 | R9 | recursion diverges at reduction | Med | cycle guard → clean error |
 | R10 | alpha-capture in P3 HOF (no renaming exists; memo caches key on interned pointers) | High (P3) | fresh ChroID per β-step; assert no residual variables reach the DC layer |
-| R11 | CalcCache persistence of the new `applyF` key head | Low-Med | version the head; new heads simply miss old caches |
+| R11 | ~~CalcCache persistence of~~ the new `applyF` key head | Low | Largely moot: the CalcCache was retired with the 8.0 series (#1189), so no key outlives a session and a new head cannot miss an old cache. What remains is in-session DC identity in `s_DcMap` and cross-spelling unit unification — see R13. |
 | R12 | GUI predicates test `InTemplate` for badges/eval-suppression; `InFunction` items now carry DCs | Med | treat `InFunction` as template-like in all GUI data-request paths |
-| R13 | retiring a rewrite rule (or toggling a function's `inline`-ness) changes expression canonicalization → CalcCache misses AND previously-unifying units stop unifying across spellings | High (transition) | `inline` prelude functions reproduce today's keys byte-identically; retire per-rule with a stated key impact; regression configs asserting cross-spelling unit unification |
+| R13 | retiring a rewrite rule (or toggling a function's `inline`-ness) changes expression canonicalization → previously-unifying units stop unifying across spellings (the CalcCache-miss half of this risk lapsed with the cache itself, #1189; unification is now the whole risk, and it is the serious half) | High (transition) | `inline` prelude functions reproduce today's keys byte-identically; retire per-rule with a stated key impact; regression configs asserting cross-spelling unit unification |
 | R14 | overload resolution surprise (order dependence, ambiguity) | Med | definition-time pairwise disjointness / strict specificity over the closed 𝕍 universe; ambiguity is an error; never registration-order semantics (unlike `FindOper`'s first-match) |
-| R15 | CRS/key restructuring (§4.9): new `(BaseUnit (SRef …))` head + background refs leaving identity → CalcCache misses, and dd-only mismatches stop being unify errors | Med (transition) | key-head versioning (R11 pattern); regression configs asserting CRS mismatch *stays* an error while background-only mismatch stops being one |
+| R15 | CRS/key restructuring (§4.9): new `(BaseUnit (SRef …))` head + background refs leaving identity → dd-only mismatches stop being unify errors (the CalcCache-miss half lapsed with the cache, #1189) | Med (transition) | regression configs asserting CRS mismatch *stays* an error while background-only mismatch stops being one |
 
 Unverified, needs a prototype: the meta pass over calculator-bearing but data-less
 parameter items completing without tripping residual asserts; teardown behavior of
-chained subtree DCs (R5); CalcCache round-trip for new key heads (R11).
+chained subtree DCs (R5). (The CalcCache round-trip for new key heads is no longer on
+this list: there is no persistent cache to round-trip through — see R11.)
 
 ## 13. Prior art
 

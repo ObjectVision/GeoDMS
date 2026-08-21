@@ -10,8 +10,12 @@
 // fixpoint expansion its retired rewrite rule used to produce, and function
 // applications beta-reduce fully into the surrounding key expression. Hence
 // e.g. sqr(x) keys as (mul xKey xKey) — byte-identical to the old rule — so
-// CalcCache entries and cross-spelling unit unification are preserved.
-// Changing a body here changes cache identity: treat bodies as interface.
+// cross-spelling unit unification is preserved: two units written differently
+// but keying the same still unify, and a config that relied on that keeps
+// working. Changing a body here changes key identity: treat bodies as
+// interface. (This contract also used to preserve CalcCache entries across
+// runs; that cache was retired with the 8.0 series, so unification is now the
+// whole of it -- see doc/development/g8-todos.md.)
 //////////////////////////////////////////////////////////////////////////////
 
 // ---------------------------------------------------------------- elementary

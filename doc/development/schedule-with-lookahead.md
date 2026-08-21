@@ -911,8 +911,10 @@ inflates the resident set; a *memory-booking* admission scheme (book a task's me
 before starting it, refuse when the booked total would exceed the budget) with a
 guaranteed-progress fallback is their standard remedy and is precisely §5.1's ledger.
 The memory-aware out-of-core multifrontal work (Agullo, Guermouche, L'Excellent)
-is prior art for pairing such scheduling with spill-to-disk (our dormant
-`IsFileableSize` / CalcCache spilling).
+is prior art for pairing such scheduling with spill-to-disk — which GeoDMS does
+**not** currently have as a lever: `IsFileableSize` and the CalcCache spilling it
+selected for were retired with the CalcCache (#1189), so reviving spilling means
+building it, not switching it on.
 
 **List scheduling and its hazards.** Graham (1966/69): list scheduling is a
 2-approximation for makespan, *and* exhibits anomalies — adding processors or
@@ -945,10 +947,11 @@ including adaptive degree-of-parallelism.
 precedent for calibrated `m_CalcFactor` (§4.7); PaRSEC and Legion likewise separate
 cost models from mapping. Dask's static task ordering is explicitly designed to
 minimize resident intermediates ("run tasks that free memory first") and pairs with
-spilling — the same two levers as §5.2 + CalcCache. Rematerialization /
-gradient-checkpointing (Chen et al. 2016 sublinear-memory training; Griewank &
-Walther's `revolve`, ACM TOMS 2000) formalizes recompute-vs-retain — relevant to
-CalcCache policy for large intermediates with cheap producers.
+spilling — of which we have only the first lever (§5.2), spilling having gone with
+the CalcCache. Rematerialization / gradient-checkpointing (Chen et al. 2016
+sublinear-memory training; Griewank & Walther's `revolve`, ACM TOMS 2000)
+formalizes recompute-vs-retain — the policy question a future spill mechanism
+would have to answer for large intermediates with cheap producers.
 
 **Pipelines/streaming.** Bounded scheduling of Kahn process networks (Parks' thesis,
 1995) and reactive-streams backpressure justify bounding in-flight tiles per MT3
@@ -1004,7 +1007,8 @@ maxima; the perf-`.bin` infrastructure already records timings per test).
   without throttling-fences matches the fenced config's peak memory within 20%.
 - **P5 — shaping & maturity.**
   Chore-count shaping from per-chore bytes; pilot-tile probing; persisted
-  calibration warm-start; revisit CalcCache spilling (`IsFileableSize`) for whales;
+  calibration warm-start; consider building spill-to-disk for whales (the retired
+  CalcCache's `IsFileableSize` is gone, so this is new work, not a revival);
   modeler-facing docs (when to still use `PhaseContainer`; authoring guidance for
   `SizeExpectation` (né `SizeEstimator` — currently an undocumented power
   feature) and `SizeUpperbound`, §4.6).
@@ -3036,9 +3040,11 @@ relaxed atomic (`s_OcCount`).
 4. `SizeUpperbound` (§4.6) covers declared *size* expectations. Do we also
    want a declared *CPU-cost* annotation for black-box operators (external
    effects, `geos`), or is calibration alone sufficient there?
-5. Spilling: revive swap-to-file for whales (the commented `IsFileableSize`), or
-   rely on recompute-vs-retain against the CalcCache? The checkpointing literature
-   (§7) suggests recompute wins when producers are cheap and I/O is the bottleneck.
+5. Spilling: build swap-to-file for whales, or rely on recompute-vs-retain? Note both
+   halves of the old answer are gone — `IsFileableSize` and the CalcCache it selected
+   for were retired (#1189) — so there is nothing to fall back on and nothing to
+   revive. The checkpointing literature (§7) suggests recompute wins when producers
+   are cheap and I/O is the bottleneck, which argues for not rebuilding spilling first.
 6. Linux: `MemGuard`'s hard-coded 12% margin (`MemGuard.cpp:83-111`) should adopt
    the same budget model once P2 lands.
 

@@ -256,7 +256,7 @@ roundtrip gate. This repo has been bitten by exactly this seam before (commit `c
 | Config dumps / roundtrip | Guard with the Stage-5 `GetRawValue` override |
 | `.dms` config syntax | Unchanged — `SpatialReference=` / `DialogData=` keep working |
 | Exported GPKG/GeoTIFF SRS | Byte-identical (same token → same WKT) |
-| CalcCache | Invalidated ⇒ land Stage 2 behind a **minor version bump** |
+| ~~CalcCache~~ | Moot — retired with the 8.0 series (#1189). Had it existed, Stage 2 would have invalidated it and needed a **minor version bump** |
 | Two same-σ units unify | **Preserved** (σ stays in the key expr) |
 | Two same-σ, different-DialogData units unify | **Changed: now succeeds** (was `" (incompatible Metrics)"`) — intended |
 | `BaseUnit('EPSG:28992', fpoint)` hand-written in a config | Becomes a plain metric with no CRS meaning. No in-repo config does this; recommend an `ST_Warning` when a `BaseUnit` symbol matches `^EPSG:` |
