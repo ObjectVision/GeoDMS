@@ -26,6 +26,7 @@
 #include "AbstrDataObject.h"
 #include "AbstrUnit.h"
 #include "DataArray.h"
+#include "TreeItemUtils.h" // IsGridDomain, which moved to tic with issue #319
 #include "ViewPortInfoEx.h"
 
 #include "ImplMain.h"
@@ -75,7 +76,6 @@ extern TokenID GDAL_BLOCK_SIZE_Y_ID;
 const AbstrUnit* GetGridDataDomainRO(const TreeItem* storageHolder);
       AbstrUnit* GetGridDataDomainRW(TreeItem* storageHolder);
 
-STGDLL_CALL bool IsGridDomain(const AbstrUnit* au);
 STGDLL_CALL bool HasGridDomain(const AbstrDataItem* adi);
 SharedDataItem GetGridData(const TreeItem* storageHolder);
 SharedDataItem GetGridData(const TreeItem* storageHolder, bool projectionSpecsAvailable);

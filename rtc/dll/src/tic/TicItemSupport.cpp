@@ -541,6 +541,85 @@ void SetItemOriginTextColor(item_origin io, DmsColor clr)
 	s_OriginTextColors[UInt32(io)] = clr;
 }
 
+#include "PropFuncs.h"
+#include "Metric.h"
+
+bool IsGridDomain(const AbstrUnit* au)
+{
+	if (!au) // an in-template generic (unresolved) domain resolves to null; it is not a grid domain
+		return false;
+	return au->GetNrDimensions() == 2 && au->CanBeDomain();
+}
+
+bool IsBaseUnit(const AbstrUnit* au)
+{
+	assert(au);
+
+	// GetCurrMetric follows the referred item and thus requires the meta info to be there. A
+	// painter meets items that are not that far along and must not force them, so an unknown
+	// metric answers 'not a base unit' rather than triggering an update.
+	if (!au->Was(ProgressState::MetaInfo) || au->WasFailed(FailType::MetaInfo))
+		return false;
+
+	const UnitMetric* m = au->GetCurrMetric();
+	return m
+		&& m->m_Factor == 1.0
+		&& m->m_BaseUnits.size() == 1
+		&& m->m_BaseUnits.begin()->second == 1;
+}
+
+TokenID GetItemSpatialReference(const TreeItem* ti)
+{
+	assert(ti);
+
+	if (!IsUnit(ti))
+		return TokenID::GetEmptyID();
+
+	// AbstrUnit::GetCurrSpatialReference asserts on the progress state; see IsBaseUnit above for
+	// why a painter cannot promise it.
+	if (!ti->Was(ProgressState::MetaInfo) || ti->WasFailed(FailType::MetaInfo))
+		return TokenID::GetEmptyID();
+
+	return AsUnit(ti)->GetCurrSpatialReference();
+}
+
+item_icon_kind GetItemIconKind(const TreeItem* ti, bool isMapViewable, bool hasCommonDomain)
+{
+	assert(ti);
+
+	// order matters: a template is shown as one whatever it holds, and among data items the
+	// map-viewability that the caller established prevails over the palette role, as it did when
+	// these icons were still derived from ViewStyleFlags.
+	if (ti->IsTemplate())
+		return item_icon_kind::template_def;
+
+	if (IsUnit(ti))
+	{
+		auto au = AsUnit(ti);
+		if (au->CanBeDomain())
+			return IsGridDomain(au) ? item_icon_kind::unit_grid_domain : item_icon_kind::unit_domain;
+		return IsBaseUnit(au) ? item_icon_kind::unit_base : item_icon_kind::unit_values;
+	}
+
+	if (IsDataItem(ti))
+	{
+		if (isMapViewable)
+			return item_icon_kind::data_item_map;
+		if (IsClassBreakAttr(ti) || IsColorAspectNameID(TreeItem_GetDialogType(ti)))
+			return item_icon_kind::data_item_palette;
+		return item_icon_kind::data_item;
+	}
+
+	// a container, with or without subitems: whether it has any is what the tree expander says.
+	return hasCommonDomain ? item_icon_kind::container_table : item_icon_kind::container;
+}
+
+DmsColor GetItemIconColor(item_icon_kind ik)
+{
+	assert(ik < item_icon_kind::count);
+	return sc_DefaultIconColors[UInt32(ik)];
+}
+
 NotificationCode NotificationCodeFromProblem(FailType ft)
 {
 	switch (ft)

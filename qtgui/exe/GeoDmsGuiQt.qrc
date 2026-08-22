@@ -11,12 +11,8 @@
         <file>res/images/DP_statistics.bmp</file>
         <file>res/images/DP_ValueInfo.bmp</file>
         <file>res/images/TV_globe.bmp</file>
-        <file>res/images/TV_container.bmp</file>
-        <file>res/images/TV_container_table.bmp</file>
         <file>res/images/TV_palette.bmp</file>
         <file>res/images/TV_table.bmp</file>
-        <file>res/images/TV_unit_transparant.bmp</file>
-        <file>res/images/TV_unit_white.bmp</file>
         <file>res/images/TV_branch_end.png</file>
         <file>res/images/TV_branch_more.png</file>
         <file>res/images/TV_vline.png</file>
@@ -58,15 +54,8 @@
         <file>res/images/EL_scroll_down.bmp</file>
         <file>res/images/EL_selection_text.bmp</file>
         <file>res/images/EL_selection_type.bmp</file>
-        <file>res/images/TV_template.bmp</file>
         <file>res/images/DP_back.bmp</file>
         <file>res/images/DP_forward.bmp</file>
-        <file>res/images/TV_container_bw.bmp</file>
-        <file>res/images/TV_container_table_bw.bmp</file>
-        <file>res/images/TV_globe_bw.bmp</file>
-        <file>res/images/TV_palette_bw.bmp</file>
-        <file>res/images/TV_table_bw.bmp</file>
-        <file>res/images/TV_unit_transparant_bw.bmp</file>
         <file>res/images/DP_history.bmp</file>
         <file>res/images/arrow_down.png</file>
         <file>res/images/EL_selection.bmp</file>

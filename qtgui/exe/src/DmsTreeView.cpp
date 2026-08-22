@@ -18,8 +18,11 @@
 #include <QHeaderView>
 #include <QScrollBar>
 
+#include <map>
+#include <tuple>
 #include <variant>
 
+#include "DmsGuiParameters.h"
 #include "DmsMainWindow.h"
 #include "DmsOptions.h"
 #include "DmsExport.h"
@@ -219,20 +222,100 @@ bool DmsModel::updateChachedDisplayFlags() {
 	return was_updated;
 }
 
+// ==== tree item icons (issue #319) ====
+//
+// The icons are glyphs from the remixicon font that MainWindow loads, not bitmaps: adding one
+// costs a codepoint here instead of a pair of 16x16 .bmp files -- the icon and a greyed-out twin
+// for items within a template -- plus their entries in GeoDmsGuiQt.qrc. That per-icon cost is
+// why this view had no icon for a grid domain or a base unit for so long. The glyphs also stay
+// sharp when Windows scales the GUI, where the bitmaps were resampled.
+//
+// Which icon an item gets is decided by GetItemIconKind in rtc, next to the GetItemOrigin rule
+// that decides its color (issue #1159), so a second view can show the same icons.
+
+static QFont CreateRemixFont()
+{
+	QFont font;
+	font.setFamily("remixicon");
+	return font;
+}
+
+// Codepoints in the private use area of :/res/fonts/remixicon.ttf, in item_icon_kind order.
+static const char16_t sc_IconGlyphs[] =
+{
+	u'\uED6A', // container:         folder-line
+	u'\uED5E', // container_table:   folder-chart-line
+	u'\uF1D3', // template_def:      t-box-line
+	u'\uEE92', // data_item:         layout-left-2-line, one column of the domain's table
+	u'\uEC7A', // data_item_map:     earth-line
+	u'\uEFC5', // data_item_palette: palette-line
+	u'\uEE8F', // unit_grid_domain:  layout-grid-fill
+	u'\uF1DE', // unit_domain:       table-line, the table its attributes form
+	u'\uF0A3', // unit_base:         ruler-line, the 'rolmaat', now only for base units
+	u'\uF0B9', // unit_values:       scales-line
+};
+static_assert(std::size(sc_IconGlyphs) == UInt32(item_icon_kind::count), "a kind was added to item_icon_kind without a glyph");
+
+static const char16_t sc_SpatialReferenceGlyph = u'\uEBC4'; // compass-line
+
+static QPixmap RenderIconGlyph(char16_t glyph, QColor color, int size, qreal dpr)
+{
+	QPixmap pixmap(QSize(size, size) * dpr);
+	pixmap.setDevicePixelRatio(dpr);
+	pixmap.fill(Qt::transparent);
+
+	auto font = CreateRemixFont();
+	font.setPixelSize(size);
+
+	QPainter painter(&pixmap);
+	painter.setRenderHint(QPainter::TextAntialiasing);
+	painter.setFont(font);
+	painter.setPen(color);
+	painter.drawText(QRect(0, 0, size, size), Qt::AlignCenter, QString(QChar(glyph)));
+
+	return pixmap;
+}
+
+// Keep the rendered glyphs: data() is asked for the icon of every visible row on every repaint,
+// and the delegate then asks a second time for its width. This is the map the TODO that used to
+// stand here asked for; before it, each of those calls decoded a .bmp from the resources anew.
+// The device pixel ratio is part of the key, as it changes when the window is dragged to a
+// monitor with another scale factor. Model and delegate both run on the GUI thread.
+static auto GetTreeItemPixmap(item_icon_kind kind, bool isInTemplate) -> QPixmap
+{
+	assert(kind < item_icon_kind::count);
+
+	auto dpr = qApp->devicePixelRatio();
+
+	using icon_key = std::tuple<item_icon_kind, bool, int>;
+	static std::map<icon_key, QPixmap> s_pixmaps;
+
+	auto key = icon_key(kind, isInTemplate, int(dpr * 100));
+	auto pos = s_pixmaps.find(key);
+	if (pos == s_pixmaps.end())
+	{
+		auto clr = GetItemIconColor(kind);
+		auto color = isInTemplate
+			? QColor(0x9E, 0x9E, 0x9E) // what the _bw twin of each bitmap used to express
+			: QColor(GetRed(clr), GetGreen(clr), GetBlue(clr));
+
+		pos = s_pixmaps.emplace(key, RenderIconGlyph(sc_IconGlyphs[UInt32(kind)], color, dms_params::treeitem_icon_size, dpr)).first;
+	}
+	return pos->second;
+}
+
 QVariant DmsModel::getTreeItemIcon(const QModelIndex& index) const {
 	auto ti = GetTreeItemOrRoot(index);
 	if (!ti)
 		return QVariant();
 
-	bool isTemplate = ti->IsTemplate();
-
-	// TODO, CODE CLEAN-UP: All followwing code return a QVariant::fromValue(QPixmap(CharPtr)
-	// so we can factor the postprocessing after resource determination out and/or use a map to store the pixmaps and return the right one.
-
-	if (isTemplate)
-		return QVariant::fromValue(QPixmap(":/res/images/TV_template.bmp")); 
-
 	bool isInTemplate = ti->InTemplate();
+
+	// a template definition is answered before the interest below is looked at, as it was before
+	// issue #319; GetItemIconKind decides the same, for callers that reach it with a template
+	if (ti->IsTemplate())
+		return QVariant::fromValue(GetTreeItemPixmap(item_icon_kind::template_def, isInTemplate));
+
 	auto vsflags = SHV_GetViewStyleFlags(ti);
 
 	if (!isInTemplate)
@@ -249,38 +332,12 @@ QVariant DmsModel::getTreeItemIcon(const QModelIndex& index) const {
 			}
 	}
 
-	if (vsflags & ViewStyleFlags::vsfMapView) 
-		return isInTemplate 
-		? QVariant::fromValue(QPixmap(":/res/images/TV_globe_bw.bmp")) 
-		: QVariant::fromValue(QPixmap(":/res/images/TV_globe.bmp"));
+	// the two facts the tic level cannot establish; within a template SHV_GetViewStyleFlags
+	// leaves both off, which is why an in-template attribute gets the plain table icon
+	bool isMapViewable = vsflags & ViewStyleFlags::vsfMapView;
+	bool hasCommonDomain = vsflags & ViewStyleFlags::vsfTableContainer;
 
-	if (vsflags & ViewStyleFlags::vsfTableContainer)
-		return isInTemplate 
-		? QVariant::fromValue(QPixmap(":/res/images/TV_container_table_bw.bmp")) 
-		: QVariant::fromValue(QPixmap(":/res/images/TV_container_table.bmp"));
-
-	if (vsflags & ViewStyleFlags::vsfTableView)
-		return isInTemplate 
-		? QVariant::fromValue(QPixmap(":/res/images/TV_table_bw.bmp")) 
-		: QVariant::fromValue(QPixmap(":/res/images/TV_table.bmp"));
-
-	if (vsflags & ViewStyleFlags::vsfPaletteEdit)
-		return isInTemplate 
-		? QVariant::fromValue(QPixmap(":/res/images/TV_palette_bw.bmp")) 
-		: QVariant::fromValue(QPixmap(":/res/images/TV_palette.bmp"));
-
-	if (vsflags & ViewStyleFlags::vsfContainer) 
-		return isInTemplate 
-		? QVariant::fromValue(QPixmap(":/res/images/TV_container_bw.bmp")) 
-		: QVariant::fromValue(QPixmap(":/res/images/TV_container.bmp"));
-
-	bool isDataItem = IsDataItem(ti);
-	if (isDataItem)
-		return isInTemplate
-		? QVariant::fromValue(QPixmap(":/res/images/TV_table_bw.bmp"))
-		: QVariant::fromValue(QPixmap(":/res/images/TV_table.bmp"));
-
-	return QVariant::fromValue(QPixmap(":/res/images/TV_unit_transparant.bmp"));
+	return QVariant::fromValue(GetTreeItemPixmap(GetItemIconKind(ti, isMapViewable, hasCommonDomain), isInTemplate));
 }
 
 // the rule itself lives in rtc (GetItemOrigin) as the TableView applies it as well, see issue #1159
@@ -370,6 +427,14 @@ QVariant DmsModel::data(const QModelIndex& index, int role) const {
 		case Qt::DisplayRole:
 			return QString(ti->GetName().c_str());
 
+		case Qt::ToolTipRole: {
+			// what the compass badge that the delegate draws next to the name stands for
+			auto spatialRef = GetItemSpatialReference(ti);
+			if (spatialRef.empty())
+				return QVariant();
+			return QString("SpatialReference: ") + QString(spatialRef.GetStr().c_str());
+		}
+
 		case Qt::ForegroundRole:
 			return getTreeItemTextColor(index);
 
@@ -435,13 +500,6 @@ auto DmsModel::flags(const QModelIndex& index) const -> Qt::ItemFlags {
 	return Qt::ItemIsSelectable | Qt::ItemIsEnabled | Qt::ItemIsDragEnabled |  QAbstractItemModel::flags(index);
 }
 
-static QFont CreateRemixFont()
-{
-	QFont font;
-	font.setFamily("remixicon");
-	return font;
-}
-
 void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const {
 	painter->save();
 	auto painter_exit_guard = make_scoped_exit([painter] { painter->restore(); });
@@ -490,21 +548,36 @@ void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
 		}
 		bool show_validation_icon = ti->m_State.Get(actor_flag_set::AF_IntegrityChecked) && !ti->WasFailed(FailType::Data);
 
-		if (storageHolder || show_validation_icon)
+		// A unit can be georeferenced whatever else it is -- a grid domain and an fpoint
+		// coordinate unit both carry a CRS -- so this is a badge next to the name and not part
+		// of the icon, which has to say what the item IS (issue #319).
+		auto spatialRef = GetItemSpatialReference(ti);
+
+		if (storageHolder || show_validation_icon || !spatialRef.empty())
 		{
 			// from here on we have to draw the storage icon, but which color and opacity ?
 
 			QFontMetrics fm(QApplication::font());
 			int offset_item_text = fm.horizontalAdvance(index.data(Qt::DisplayRole).toString());
 
-			auto item_icon = MainWindow::TheOne()->m_dms_model->getTreeItemIcon(index).value<QImage>();
-			int offset_icon = item_icon.width();
+			// the logical width of the icon, which is what the layout is in; the pixmap itself is
+			// that many device pixels times the device pixel ratio
+			int offset_icon = dms_params::treeitem_icon_size;
 			auto rect = option.rect;
 			//		auto cur_brush = painter->brush(); NOT USED, REMOVE, if used, prefer a const auto&
 			auto offset = rect.topLeft().x() + offset_icon + offset_item_text + 15;
 
 			static QFont font = CreateRemixFont();
 			painter->setFont(font);
+			if (!spatialRef.empty())
+			{
+				static auto compassIcon = QString(QChar(sc_SpatialReferenceGlyph));
+
+				painter->setOpacity(1.0);
+				painter->setPen(QColor(0x00, 0x79, 0x6B));
+				painter->drawText(QPoint(offset, rect.center().y() + 5), compassIcon);
+				offset += fm.horizontalAdvance(compassIcon);
+			}
 			if (storageHolder && is_read_only)
 			{
 				// set transparancy if not committed yet

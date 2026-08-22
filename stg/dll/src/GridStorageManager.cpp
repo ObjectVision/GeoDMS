@@ -296,12 +296,8 @@ StaticLateTokenID GRID_DATA_ID(GRID_DATA);
 StaticLateTokenID GRID_DOMAIN_ID(GRID_DOMAIN);
 StaticLateTokenID PALETTE_DATA_ID(PALETTE_DATA);
 
-bool IsGridDomain(const AbstrUnit* au)
-{
-	if (!au) // an in-template generic (unresolved) domain resolves to null; it is not a grid domain
-		return false;
-	return au->GetNrDimensions() == 2 && au->CanBeDomain();
-}
+// IsGridDomain moved to rtc/tic/TreeItemUtils (issue #319): the tree view classifies items by
+// what they are, and 'is this a grid domain?' is the same question there as it is here.
 
 bool HasGridDomain(const AbstrDataItem* adi)
 {

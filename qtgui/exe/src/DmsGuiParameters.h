@@ -33,6 +33,11 @@ namespace dms_params {
 	extern const char* map_view_icon;
 	extern const char* statistics_view_icon;
 
+	// The em size the TreeView renders its item icons at, matching the 16x16 bitmaps they
+	// replaced (issue #319). The glyphs are drawn into a pixmap of this size times the device
+	// pixel ratio, so raising this is all it takes to get bigger icons.
+	extern const int treeitem_icon_size;
+
 	// coordinates bar
 	extern int coordinates_bar_width;
 
