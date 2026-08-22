@@ -3151,7 +3151,41 @@ static bool TreeItem_HasIntegrityCheckerInclAncestors(const TreeItem* self)
 // so a nearer ancestor's "a && b" also discharges an outer ancestor's "a"; the enforced set is
 // seeded from the expression and extended with the guards this fold adds on top of it, which
 // have no DataController of their own yet.
-static auto TreeItem_CreateCheckedExpr(LispPtr resultExpr, const DataController* resultExprDC, const TreeItem* self) -> LispRef
+// #1197: a check that cannot be BUILT fails where the guarded expression is instantiated, which is
+// after the check text was parsed and long after the "Create IntegrityCheck" context below has gone.
+// The error then names the item being checked and nothing else -- "eq Error: Cannot find operator for
+// these arguments" with no hint that an IntegrityCheck is involved, let alone which one. That is
+// unhelpful for a hand-written check and worse for a generated one, such as the restriction an .mmd
+// dictionary carries (#1195), which the modeller never wrote and cannot see.
+//
+// The text names the check itself, since that is what a reader has to look at.
+static SharedStr TreeItem_IntegrityCheckText(const TreeItem* guardian)
+{
+	return mySSPrintF("'{}' of {}"
+		, integrityCheckPropDefPtr->GetValue(guardian)
+		, guardian->GetFullName()
+	);
+}
+
+// Only the checks that this fold actually inserted, which is normally one: an ancestor check that is
+// already implied by the expression is skipped by the fold (#1182) and would be a false lead here.
+// Composed only when an error unwinds through the handle, so nothing is paid when nothing fails.
+static SharedStr TreeItem_IntegrityCheckBuildContextStr(const std::vector<const TreeItem*>& foldedChecks)
+{
+	SharedStr checks;
+	for (auto guardian : foldedChecks)
+	{
+		if (!checks.empty())
+			checks += " and ";
+		checks += TreeItem_IntegrityCheckText(guardian);
+	}
+	if (checks.empty())
+		return SharedStr();
+	return mySSPrintF("while building the IntegrityCheck {}", checks);
+}
+
+static auto TreeItem_CreateCheckedExpr(LispPtr resultExpr, const DataController* resultExprDC, const TreeItem* self
+	, std::vector<const TreeItem*>* foldedChecks = nullptr) -> LispRef
 {
 	dms_assert(TreeItem_HasIntegrityCheckerInclAncestors(self));
 	assert(!resultExprDC || resultExprDC->GetLispRef() == resultExpr);
@@ -3187,6 +3221,8 @@ static auto TreeItem_CreateCheckedExpr(LispPtr resultExpr, const DataController*
 			continue;
 		InsertCheckAtoms(enforced, ic);
 		result = ExprList(token::integrity_check, result, ic);
+		if (foldedChecks) // for the #1197 context: what went in, in the order it went in
+			foldedChecks->emplace_back(guardian);
 	}
 	return result;
 }
@@ -3214,7 +3250,16 @@ void TreeItem::UpdateDC() const
 	if (resultDC && TreeItem_HasIntegrityCheckerInclAncestors(this))
 	{
 		LispRef resultExpr = resultDC->GetLispRef();
-		resultDC = GetOrCreateDataController(TreeItem_CreateCheckedExpr(resultExpr, resultDC.get(), this));
+		std::vector<const TreeItem*> foldedChecks; // #1197: the guardians whose check went into checkedExpr
+		auto checkedExpr = TreeItem_CreateCheckedExpr(resultExpr, resultDC.get(), this, &foldedChecks);
+
+		// #1197: the operators of a folded check are resolved when the guarded DataController is made
+		// -- GetOrCreateDataController, and then SetDC -> FuncDC::MakeResult -> GetArgs ->
+		// AbstrOperGroup::FindOper -- so the context has to span both calls, not just the first.
+		auto buildContext = MakeLCH([&foldedChecks]() -> SharedStr { return TreeItem_IntegrityCheckBuildContextStr(foldedChecks); });
+		resultDC = GetOrCreateDataController(checkedExpr);
+		SetDC(resultDC, srcItem.get());
+		return;
 	}
 	SetDC(resultDC, srcItem.get());
 }
@@ -4032,6 +4077,19 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 			if (guardian->HasIntegrityChecker())
 			{
 				auto ic = guardian->GetIntegrityChecker();
+
+				// #1197: a check reached as a SUPPLIER is instantiated here, and that is the path a
+				// generated check takes -- the restriction an .mmd dictionary carries (#1195), which
+				// the modeller never wrote and cannot see. Measured: without this the failure reads
+				// "eq Error: Cannot find operator for these arguments" against the item being read,
+				// with nothing naming the check. The other site, in UpdateDC, covers a check folded
+				// into the item's own DataController; both are needed.
+				auto buildContext = MakeLCH([guardian]() -> SharedStr
+					{
+						return mySSPrintF("while building the IntegrityCheck {}", TreeItem_IntegrityCheckText(guardian));
+					}
+				);
+
 				if (ic->VisitSuppliers(svf, visitor) == AVS_SuspendedOrFailed)
 					return AVS_SuspendedOrFailed;
 
