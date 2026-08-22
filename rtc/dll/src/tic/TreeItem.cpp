@@ -521,6 +521,64 @@ void TreeItem::ResetSubTreeConfigData()
 // SessionData ownership, which drops the last owning ref and cascades destruction of the (now cycle-free)
 // tree. For any owned item (parented/cache/endogenous) the holder dropping its SharedPtr (or the parent's
 // ReleaseSubItem) is what frees it; here we only need the cycle-break.
+// Wait for the shared session usages to be released, but never forever, and say what is holding
+// them when they are not.
+//
+// The drain exists so the main thread does not begin teardown while workers still hold resources,
+// and it used to be an unbounded exclusive acquire of s_SessionUsageCounter. That is where a GUI
+// closed DURING a calculation parked for good (#1191): the window is gone, every worker is idle in
+// the task pool, and the process sits on its memory until someone kills it -- 7.2 GB in the small
+// reproduction, 148 GB for 7 hours in the case that started that report.
+//
+// The count is not held by running workers alone: TreeItem::StartInterest takes a shared usage per
+// item of interest and StopInterest releases it, so an item still of interest at teardown holds the
+// count above zero with nothing left to bring it down -- the residual interest of the t611/t810
+// teardown hangs. Waiting longer cannot help there.
+//
+// So the wait is bounded and reports: each slice names what is still outstanding, and after the
+// last one the teardown continues anyway. That is a deliberate trade: proceeding while a usage is
+// outstanding risks touching an item a worker still holds, but the alternative -- an invisible
+// process holding its memory forever -- is what users actually suffer, and the report is what
+// identifies the leaking holder for the follow-up fix.
+static void DrainSessionUsageOrReport(TreeItem* configRoot)
+{
+	const UInt32 sliceMSec = 10000;
+	const UInt32 nrSlices = 6;
+
+	for (UInt32 slice = 0; slice != nrSlices; ++slice)
+	{
+		if (s_SessionUsageCounter.try_lock_for(sliceMSec))
+		{
+			s_SessionUsageCounter.unlock();
+			return;
+		}
+		reportF(MsgCategory::other, SeverityTypeID::ST_Warning
+			, "Closing down: {} session usage(s) still outstanding after {} seconds"
+			, s_SessionUsageCounter.shared_use_count(), (slice + 1) * (sliceMSec / 1000)
+		);
+	}
+
+	// Name the items that are still of interest: they are the holders that kept the count up, and
+	// without this the next occurrence is again a process that just never exits.
+	SizeT nrReported = 0, nrOfInterest = 0;
+	for (TreeItem* walker = configRoot; walker; walker = configRoot->WalkCurrSubTree(walker))
+	{
+		if (!walker->GetInterestCount())
+			continue;
+		++nrOfInterest;
+		if (nrReported++ < 10)
+			reportF(MsgCategory::other, SeverityTypeID::ST_Warning
+				, "Closing down: [[{}]] is still of interest ({}x)"
+				, walker->GetFullName(), walker->GetInterestCount()
+			);
+	}
+	reportF(MsgCategory::other, SeverityTypeID::ST_Warning
+		, "Closing down: continuing teardown with {} item(s) of interest in the configuration tree;"
+		  " see issue #1191. Report this configuration and what it was doing when it was closed."
+		, nrOfInterest
+	);
+}
+
 void TreeItem::EnableAutoDelete() // does not call UpdateMetaInfo
 {
 	bool isConfigRoot = !(IsCacheItem() || IsEndogenous() || GetTreeParent());
@@ -531,12 +589,13 @@ void TreeItem::EnableAutoDelete() // does not call UpdateMetaInfo
 		// cancelling so in-flight workers cancel (releasing the shared ownership of their inputs and the
 		// mutable ownership of what they produce), then drain by taking s_SessionUsageCounter exclusively:
 		// this makes any new try_lock_shared fail (the designed cancellation trigger, see ItemLocks.cpp)
-		// and blocks until every worker has released its shared usage. Without it the main thread could
+		// and waits until every worker has released its shared usage. Without it the main thread could
 		// begin teardown / static-component destruction while workers still hold resources -> leak (the
-		// timing-dependent leak the removed auto-delete pin used to mask).
+		// timing-dependent leak the removed auto-delete pin used to mask). The wait is bounded and
+		// reports what it is waiting for; see DrainSessionUsageOrReport above for why (#1191).
 		if (auto sd = SessionData::Curr())
 			sd->SetCancelling();
-		{ leveled_counted_section::scoped_lock drainWorkers(s_SessionUsageCounter); }
+		DrainSessionUsageOrReport(this);
 
 		dbg_assert(ExplainValue_IsClear());
 		assert(!SessionData::Curr() || !SessionData::Curr()->GetConfigRoot() || SessionData::Curr()->GetConfigRoot().get() == this);
