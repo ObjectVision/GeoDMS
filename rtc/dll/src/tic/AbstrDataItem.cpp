@@ -58,6 +58,7 @@
 #include "FreeDataManager.h"
 
 #include "stg/AbstrStorageManager.h"
+#include "stg/MemoryMappedDataStorageManager.h" // t_MmdDictionaryRoot: dictionary dumps want absolute paths
 #include "DataArrayValue.h"
 
 //  -----------------------------------------------------------------------
@@ -962,6 +963,35 @@ IMPL_DYNC_TREEITEMCLASS(AbstrDataItem, "AbstrDataItem")
 // PropDefs for DataItems
 //----------------------------------------------------------------------
 
+// The DUMP value of a unit reference, for the two audiences that write one.
+//
+// A CONFIG dump prefers the SOURCE token when that token is a bare name: a bare name is re-resolved
+// by up-scope search, so it survives being written at another depth (a template body dumped at its
+// call site), whereas a resolved relative path would ascend above root there.
+//
+// An MMD DICTIONARY wants the ABSOLUTE path, always, for both the attribute declarations and the
+// #1154 restrictions that are synthesized beside them. A reader merges the dictionary into a
+// container of its own naming, where every relative form resolves against the reader's tree instead
+// of the writer's: a bare name by up-scope search, and the dots notation ('..' = parent, '...' =
+// grandparent) just as much. The latter carries no '/' and so used to pass the bare-name test and be
+// dumped verbatim, which bound the domain to whatever sat at that position in the reader
+// ("LowerBound Error: Cannot find operator for these arguments: arg1 of type TreeItem", #1195).
+// Inside a dictionary dump the resolved name IS the full name for a unit declared outside the
+// dictionary, because TreeItem_XML_Dump sets s_RelativeScope to the dictionary root.
+static SharedStr UnitRefDumpValue(TokenID srcToken, SharedStr resolved)
+{
+	if (t_MmdDictionaryRoot)
+		return resolved;
+
+	if (IsDefined(srcToken))
+	{
+		SharedStr src(srcToken);
+		if (!src.empty() && !strchr(src.c_str(), '/') && strchr(resolved.c_str(), '/'))
+			return src;
+	}
+	return resolved;
+}
+
 struct DomainUnitPropDef : ReadOnlyPropDef<AbstrDataItem, SharedStr>
 {
 	DomainUnitPropDef()
@@ -995,14 +1025,7 @@ struct DomainUnitPropDef : ReadOnlyPropDef<AbstrDataItem, SharedStr>
 	// property semantics are different questions, so they now use different hooks.
 	auto GetRawValue(const AbstrDataItem* item) const -> SharedStr override
 	{
-		auto resolved = GetValue(item);
-		if (IsDefined(item->m_tDomainUnit))
-		{
-			SharedStr src(item->m_tDomainUnit);
-			if (!src.empty() && !strchr(src.c_str(), '/') && strchr(resolved.c_str(), '/'))
-				return src;
-		}
-		return resolved;
+		return UnitRefDumpValue(item->m_tDomainUnit, GetValue(item));
 	}
 	bool HasNonDefaultValue(const Object* self) const override
 	{
@@ -1027,18 +1050,11 @@ struct ValuesUnitPropDef : ReadOnlyPropDef<AbstrDataItem, SharedStr>
 		return SharedStr(item->m_tValuesUnit);
 	}
 
-	// see DomainUnitPropDef::GetRawValue: the DUMP prefers the re-instantiation-safe
-	// bare source token
+	// see UnitRefDumpValue: the DUMP prefers the re-instantiation-safe bare source token, except in
+	// a dictionary, which needs the absolute path
 	auto GetRawValue(const AbstrDataItem* item) const -> SharedStr override
 	{
-		auto resolved = GetValue(item);
-		if (IsDefined(item->m_tValuesUnit))
-		{
-			SharedStr src(item->m_tValuesUnit);
-			if (!src.empty() && !strchr(src.c_str(), '/') && strchr(resolved.c_str(), '/'))
-				return src;
-		}
-		return resolved;
+		return UnitRefDumpValue(item->m_tValuesUnit, GetValue(item));
 	}
 };
 
