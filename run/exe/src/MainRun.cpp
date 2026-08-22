@@ -117,6 +117,32 @@ static void DumpValueInfo(std::ostream& out, const TreeItem* item, SizeT index)
 	}
 }
 
+// Headless counterpart of the GUI's Source Description page (#975): report which storages an item
+// is read from or written to, without starting the GUI. All four modes of that page are reported in
+// one go, so a single invocation can be logged and diffed. This is meta-level only: unlike the item
+// arguments, the item named here is described, not updated.
+static void DumpSourceDescr(std::ostream& out, const TreeItem* cfg, CharPtr itemPath)
+{
+	CheckTreeItemPath(itemPath);
+	const TreeItem* item = DMS_TreeItem_GetItem(cfg, itemPath);
+	if (!item)
+	{
+		out << "@sourcedescr: item " << itemPath << " not found" << std::endl;
+		return;
+	}
+
+	static const std::pair<SourceDescrMode, CharPtr> modes[] = {
+		{ SourceDescrMode::Configured, "Configured Source Descriptions" },
+		{ SourceDescrMode::ReadOnly,   "Read Only Storage Managers"     },
+		{ SourceDescrMode::WriteOnly,  "Non-Read Only Storage Managers" },
+		{ SourceDescrMode::All,        "Utilized Storage Managers"      },
+	};
+
+	out << "@sourcedescr " << item->GetFullName().c_str() << std::endl;
+	for (const auto& [mode, caption] : modes)
+		out << caption << ":" << TreeItem_GetSourceDescr(item, mode, true).c_str() << std::endl;
+}
+
 using itemCmdPair = std::pair<itemCmd, SharedTreeItemInterestPtr>;
 
 // reporter for the '@checkfunctions' verb: one line per audited function definition
@@ -235,6 +261,16 @@ int main2_without_SE(int argc, char** argv)
 						reportF(SeverityTypeID::ST_Error, "ErrorLevel up to 1 because the configuration dump to '{}' failed.", *argv);
 						result = 1;
 					}
+					ProcessMainThreadOpers();
+				}
+			}
+			if (!stricmp(cmd, "sourcedescr"))
+			{
+				// headless Source Description report for one item.  Usage: @sourcedescr <item-path>
+				if (argc > 1)
+				{
+					--argc, ++argv;
+					DumpSourceDescr(std::cout, cfg, *argv);
 					ProcessMainThreadOpers();
 				}
 			}

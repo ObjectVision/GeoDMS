@@ -90,6 +90,34 @@ namespace { // local defs
 
 			dms_assert(sourceDescrPropDefPtr);
 
+			// #975: a StorageName is usually configured on a container and then serves every item
+			// read from (or written to) it; only that container carries a StorageManager of its own.
+			// Attributing the storage to the items that actually use it is what makes the Source
+			// Description of a sub-item -- and thereby of everything computed from it elsewhere --
+			// name the file the data came from. Before this, only the item carrying the StorageName
+			// property reported a source at all, and the storage relation is not a supplier relation,
+			// so nothing downstream could pick it up either.
+			//
+			// Resolved only for the storage modes: the Configured mode reads a property and must not
+			// start paying for storage managers, as the FullSource property is on every General page.
+			SharedTreeItem storageParent; // keeps the ancestor alive while its storage name is read
+			const TreeItem* storageHolder = nullptr;
+			bool isReadOnly = false;
+			if (sdm != SourceDescrMode::Configured)
+			{
+				if (ti->HasStorageManager())
+					storageHolder = ti;
+				else
+				{
+					// cheap ancestor walk first; only then ask whether ti is read from or written to it
+					storageParent = ti->GetStorageParent(false);
+					if (storageParent && (ti->IsDataReadable() || ti->IsStorable()))
+						storageHolder = storageParent.get();
+				}
+				// StorageReadOnly is not inherited, so ask the item that carries the storage.
+				isReadOnly = storageReadOnlyPropDefPtr->GetValue(storageHolder ? storageHolder : ti);
+			}
+
 			switch (sdm) {
 
 			case SourceDescrMode::Configured:
@@ -98,12 +126,12 @@ namespace { // local defs
 
 			case SourceDescrMode::ReadOnly:
 			case SourceDescrMode::WriteOnly:
-				if (storageReadOnlyPropDefPtr->GetValue(ti) != (sdm == SourceDescrMode::ReadOnly))
+				if (isReadOnly != (sdm == SourceDescrMode::ReadOnly))
 					break;
 				[[fallthrough]];
 			case SourceDescrMode::All:
-				if (ti->HasStorageManager())
-					v += "name=" + DoubleQuote(ti->GetStorageManager()->GetNameStr().c_str());
+				if (storageHolder)
+					v += "name=" + DoubleQuote(storageHolder->GetStorageManager()->GetNameStr().c_str());
 				if (sqlStringPropDefPtr->HasNonDefaultValue(ti))
 				{
 					if (!v.empty())
@@ -111,7 +139,7 @@ namespace { // local defs
 					v += "SqlString=" + DoubleQuote(sqlStringPropDefPtr->GetValue(ti).c_str());
 				}
 				if ((sdm == SourceDescrMode::All) && !v.empty())
-					v += ";ReadOnly=" + AsDataStr(Bool(storageReadOnlyPropDefPtr->GetValue(ti)));
+					v += ";ReadOnly=" + AsDataStr(Bool(isReadOnly));
 			}
 		}
 		return GetTokenID_mt(v.c_str());

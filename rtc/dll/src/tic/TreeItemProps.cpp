@@ -494,7 +494,7 @@ namespace { // local defs
 	struct WriteOnlyStorageManagersPropDef : ReadOnlyPropDef<TreeItem, SharedStr>
 	{
 		WriteOnlyStorageManagersPropDef()
-			: ReadOnlyPropDef<TreeItem, SharedStr>(READ_ONLY_SM_NAME)
+			: ReadOnlyPropDef<TreeItem, SharedStr>(WRITE_ONLY_SM_NAME)
 		{}
 
 		ApiType GetValue(TreeItem const * ti) const override
