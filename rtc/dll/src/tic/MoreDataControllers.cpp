@@ -1035,12 +1035,55 @@ void FuncDC::CallCalcResultImpl(std::shared_ptr<Explain::Context> context) const
 
 // =========================================
 
-// provide correct supplier for SymbDC 
+// provide correct supplier for SymbDC
 // or operators with CanResultToConfigItem (SubItem, Domain/ValuesUnit, Literal)
 // normal configRef does NOT include all sub-items as template instantiation does
 // in order not to create recursive supplier dependencies when item refers to anchestor
 // this responsibility is moved to consumers in order to avoid recursion
 // DC consumers are (limited to) FuncDC and implementors of AbstrCalculator.
+
+// #1167: a SubItem call visits the WHOLE result sub-tree of its arg 0 (see VisitSuppliers below),
+// which is what keeps the members of a composite result together: unique()'s Values next to its
+// nr_OrgEntity, subset()'s org_rel next to nr_OrgEntity, Dijkstra's OD members next to each other.
+// Those members come out of ONE calculation, so naming one of them has to keep all of them alive.
+//
+// A PhaseContainer result is not that kind of composite: its members mirror source items that are
+// calculated independently of each other. Supplying its whole tree makes ONE phase/x reference take
+// interest on EVERY member, and PreCalcUpdate -- which collects exactly the members that carry
+// interest -- then materialises the entire fenced container. Measured before this split: a fence
+// over {A, B, C} with only A consumed calculated all three, where the same source container WITHOUT
+// the fence calculated only A. A fence meant to bound the working set was widening it, and an
+// unreferenced member read from storage (no calculation rule to collect) reported an error on every
+// run.
+//
+// The split is between VALUES and SHAPE, not between members and no members. The data items of a
+// phase result are independently calculable and must not be supplied wholesale; its units and
+// containers carry the shape of the result -- a consumer naming phase/u as its domain resolves
+// through the mirror unit -- and dropping those breaks the consumer with "is neither calculating
+// nor ready nor failed; no read lock can be set on it" (measured on a fenced unit).
+static bool DataController_SuppliesWholeResultTree(const DataController* argDC)
+{
+	auto argFuncDC = dynamic_cast<const FuncDC*>(argDC);
+	if (!argFuncDC)
+		return true;
+	return argFuncDC->m_OperatorGroup->GetNameID() != token::PhaseContainer;
+}
+
+// Supply the shape of a phase result without supplying its values: forward every member except the
+// data items, whose calculation is what the fence is supposed to schedule on demand.
+static ActorVisitState DataController_VisitResultShape(const TreeItem* dcResult, const ActorVisitor& visitor)
+{
+	return dcResult->VisitConstVisibleSubTree(
+		MakeDerivedBoolVisitor([&visitor](const Actor* suppl) -> bool
+			{
+				auto memberItem = dynamic_cast<const TreeItem*>(suppl);
+				if (memberItem && IsDataItem(memberItem))
+					return true; // an independently calculable value: leave it to whoever names it
+				return visitor(suppl) != AVS_SuspendedOrFailed;
+			}
+		)
+	);
+}
 
 ActorVisitState FuncDC::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor) const
 {
@@ -1070,7 +1113,12 @@ ActorVisitState FuncDC::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor
 		if (m_OperatorGroup->MustSupplyTree(argNr, firstArgValueCPtr) ||
 			(Test(svf, SupplierVisitFlag::ScanSupplTree) && m_OperatorGroup->IsSubItemRoot(argNr, firstArgValueCPtr)))
 		{
-			if (dcResult->VisitConstVisibleSubTree(visitor) == AVS_SuspendedOrFailed)
+			// an arg declared subst_with_subitems (DiscrAlloc's claims, Overlay) asks for the tree as
+			// such and gets it whole, phase result or not; only the SubItem route splits shape from values
+			auto visitResult = (m_OperatorGroup->MustSupplyTree(argNr, firstArgValueCPtr) || DataController_SuppliesWholeResultTree(dc))
+				? dcResult->VisitConstVisibleSubTree(visitor)
+				: DataController_VisitResultShape(dcResult.get(), visitor);
+			if (visitResult == AVS_SuspendedOrFailed)
 				return AVS_SuspendedOrFailed;
 		}
 		if (argNr == 0 && m_OperatorGroup->HasDynamicArgPolicies())

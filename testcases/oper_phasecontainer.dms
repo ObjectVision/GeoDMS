@@ -1,0 +1,74 @@
+// issue #1167: PhaseContainer(container, message) fences a group of calculations -- everything
+// behind the fence completes before anything that uses its results starts -- and writes `message`
+// to the event log when the phase completes.
+//
+// What this config pins is that values come through a fence unchanged, that fences nest, and that
+// a fence is actually executed by BOTH ways of reaching one: a data demand on a member, and an
+// update-level visit (ExplicitSuppliers) of either a member or the container. The last of those is
+// #1167: up to 20.16.0 only the container was recognised, so a configuration that reaches members
+// through the 'Ready' + ExplicitSuppliers driver idiom -- which never asks for the value of
+// anything -- ran its work unfenced and the phase was never executed at all.
+//
+// Two properties are deliberately NOT pinned here, because this suite classifies on exit code and
+// neither is visible there:
+//   - message timing. That is a log property; see the PhaseContainer wiki page.
+//   - selectivity (a phase must calculate the members that are demanded and not the rest of the
+//     fenced container). Over-collection is a cost, not an error: a fenced member that fails is
+//     failed on the mirror member and never reaches the demanded result, so the run still exits 0.
+//     Measure it instead by counting the per-item `oper` lines in a /L log -- a fence over three
+//     members with one consumed must show one calculation, not three.
+//
+// Keep this offline and cheap: no storage is read or written.
+container oper_phasecontainer
+{
+	unit<uint32> src : nrofrows = 5
+	{
+		attribute<uint32> val : [ 3, 1, 4, 1, 5 ];
+	}
+
+	// --- 1: a parameter, an attribute and a sibling member all come through the same fence
+	container state1
+	{
+		parameter<uint32> total     := sum(src/val);                                     // 14
+		attribute<uint32> dbl (src) := src/val * 2;
+		parameter<uint32> maxval    := max(src/val);                                     // 5
+	}
+	container phase1 := PhaseContainer(state1, 'phase 1: state1 is ready');
+
+	// --- 2: nested fences. The inner one is created while the outer one copies its source, so it
+	//        gets the LOWER phase number (CreateResultCaller takes its number after the copy) and
+	//        completes first. A phase numbered above its own source would be a scheduling
+	//        inversion, reported as 'PhaseContainer: Invalid Recursion'.
+	container state2a { parameter<uint32> a := sum(src/val); }                            // 14
+	container phase2a := PhaseContainer(state2a, 'phase 2a: inner is ready');
+	container state2b { parameter<uint32> b := phase2a/a * 2; }                           // 28
+	container phase2b := PhaseContainer(state2b, 'phase 2b: outer is ready');
+
+	// --- 3: an empty message writes no line, as in CalcAndWrite; the value still comes through
+	container state3 { parameter<uint32> q := min(src/val); }                             // 1
+	container phase3 := PhaseContainer(state3, '');
+
+	// --- 4: #1167 -- a MEMBER reached only through the update path. Nothing here asks for the
+	//        value of member_driver, so the fence is reached by supplier visiting alone. What is
+	//        checkable is that the path resolves and delivers; before the fix it silently did
+	//        nothing, and a phase-number inversion on this path throws rather than returning.
+	container state4 { parameter<uint32> r := sum(src/val) + 1; }                         // 15
+	container phase4 := PhaseContainer(state4, 'phase 4: reached through a member');
+	parameter<string> member_driver := 'Ready', ExplicitSuppliers = "phase4/r";
+
+	// --- 5: the CONTAINER reached the same way; this route already worked before #1167
+	container state5 { parameter<uint32> s := max(src/val) * 3; }                         // 15
+	container phase5 := PhaseContainer(state5, 'phase 5: reached through the container');
+	parameter<string> container_driver := 'Ready', ExplicitSuppliers = "phase5";
+
+	container checks
+	{
+		parameter<bool> param_through_phase   := phase1/total  == 14,             IntegrityCheck = "param_through_phase == True";
+		parameter<bool> attr_through_phase    := all(phase1/dbl == src/val * 2),  IntegrityCheck = "attr_through_phase == True";
+		parameter<bool> sibling_through_phase := phase1/maxval == 5,              IntegrityCheck = "sibling_through_phase == True";
+		parameter<bool> nested_phase          := phase2b/b     == 28,             IntegrityCheck = "nested_phase == True";
+		parameter<bool> silent_phase          := phase3/q      == 1,              IntegrityCheck = "silent_phase == True";
+		parameter<bool> member_update_path    := member_driver    == 'Ready',     IntegrityCheck = "member_update_path == True";
+		parameter<bool> container_update_path := container_driver == 'Ready',     IntegrityCheck = "container_update_path == True";
+	}
+}
