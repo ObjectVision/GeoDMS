@@ -61,6 +61,30 @@ container oper_phasecontainer
 	container phase5 := PhaseContainer(state5, 'phase 5: reached through the container');
 	parameter<string> container_driver := 'Ready', ExplicitSuppliers = "phase5";
 
+	// --- 6: #902 shape -- a member that gains interest AFTER the phase has completed, which
+	//        re-enters the phase. The indirect expression has to be evaluated before it can name
+	//        `b`, and evaluating it forces `a`, so the fence runs once for `a` and is re-entered
+	//        for `b`. This is what t641_2 (RSopen) hits through a for_each whose generated items
+	//        each consume one member of the same phase; it stayed invisible while a SubItem call
+	//        supplied the whole result tree, because the first pass then already held everything.
+	//        Pinned here: the re-entry delivers the right value and re-collects nothing. That it
+	//        emits ONE message, not one per re-entry, is a log property the battery cannot see --
+	//        run with /L and count the lines.
+	//        KNOWN, SEPARATE DEFECT this case also trips: an indirect expression that reads a
+	//        phase member (as `late` does) makes EVERY phase in the config run and report about
+	//        four times over, work included -- /state1/total is calculated three times here and
+	//        once without this case. It needs the dependency on phase OUTPUT: the same indirect
+	//        expression over `max(src/val)` leaves all six phases at one run and one line. The
+	//        values stay correct, so this battery cannot fail on it; it is left here deliberately
+	//        as a tripwire, and the `oper` counts in the /L log are how you see it.
+	container state6
+	{
+		parameter<uint32> a := sum(src/val);                                              // 14
+		parameter<uint32> b := max(src/val) * 7;                                          // 35
+	}
+	container phase6 := PhaseContainer(state6, 'phase 6: re-entered for a late member');
+	parameter<uint32> late := ='phase6/' + (phase6/a > 0 ? 'b' : 'b');
+
 	container checks
 	{
 		parameter<bool> param_through_phase   := phase1/total  == 14,             IntegrityCheck = "param_through_phase == True";
@@ -70,5 +94,6 @@ container oper_phasecontainer
 		parameter<bool> silent_phase          := phase3/q      == 1,              IntegrityCheck = "silent_phase == True";
 		parameter<bool> member_update_path    := member_driver    == 'Ready',     IntegrityCheck = "member_update_path == True";
 		parameter<bool> container_update_path := container_driver == 'Ready',     IntegrityCheck = "container_update_path == True";
+		parameter<bool> late_member_reentry   := late          == 35,             IntegrityCheck = "late_member_reentry == True";
 	}
 }

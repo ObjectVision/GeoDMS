@@ -544,7 +544,9 @@ public: // TODO G8: Re-encapsulate
 	void SetInTemplate();
 
 	// Instantiation flag (eager template instantiation tracking).
-	bool GetIsInstantiated() const;
+	// Exported like its setter: PhaseContainer (in Clc) reads it to tell a phase's first
+	// completion from a re-entry, see PhaseContainerOperator::CalcResult.
+	TIC_CALL bool GetIsInstantiated() const;
 	TIC_CALL void SetIsInstantiated() const;
 
 	// Whether to substitute by calculator spec (performance/semantics shortcut).
