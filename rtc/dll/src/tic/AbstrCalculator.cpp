@@ -719,6 +719,33 @@ ActorVisitState AbstrCalculator::VisitSuppliers(SupplierVisitFlag svf, const Act
 	return substBuff.avs;
 }
 
+// An indirect expression is not scheduled: it has to be evaluated before the meta-info of the item
+// carrying it can be, so it is calculated in place, under interest, and then dropped again. Whatever
+// it read is dropped with it, and the next evaluation of the same indirection recalculates all of
+// it. Where a PhaseContainer is among those suppliers that means re-running the whole fence:
+// measured on a configuration whose indirect expression reads one fenced member, EVERY phase in it
+// ran and reported four times over and one source item was calculated three times, against once when
+// the expression read a non-fenced value instead.
+//
+// Keeping the data of what the expression reads is the cheaper strategy, and the engine can do it
+// rather than every configuration having to annotate its indirections. Only the items the expression
+// refers to DIRECTLY: their values are what a later evaluation needs again, whereas retaining the
+// transitive supplier tree would hold far more resident than the evaluation ever touched. Units are
+// left alone -- KeepData is about data, and a unit's range comes back with its definition.
+static void KeepDataOfDirectlyReferredItems(const AbstrCalculator* calculator)
+{
+	assert(calculator);
+	calculator->VisitSuppliers(SupplierVisitFlag::NamedSuppliers,
+		MakeDerivedProcVisitor([](const Actor* suppl)
+			{
+				auto supplItem = dynamic_cast<const TreeItem*>(suppl);
+				if (supplItem && IsDataItem(supplItem))
+					const_cast<TreeItem*>(supplItem)->SetKeepDataState(true);
+			}
+		)
+	);
+}
+
 ActorVisitState AbstrCalculator::VisitImplSuppl(SupplierVisitFlag svf, const ActorVisitor& visitor, const TreeItem* context, WeakStr expr, CalcRole cr)
 {
 	if (expr.empty())
@@ -741,6 +768,10 @@ ActorVisitState AbstrCalculator::VisitImplSuppl(SupplierVisitFlag svf, const Act
 		AbstrCalculatorRef calculator = ConstructFromDirectStr(const_cast<TreeItem*>(context), resultStr, cr);
 		auto dc = MakeResult(calculator.get());
 		irc.Add(dc.get());
+
+		// before the evaluation below, so what it reads is still held when this indirection is
+		// evaluated again -- see KeepDataOfDirectlyReferredItems
+		KeepDataOfDirectlyReferredItems(calculator.get());
 
 		auto res = CalledCalcHandle(calculator.get(), DataArray<SharedStr>::GetStaticClass());
 		irc.Add(res.get_ptr());
