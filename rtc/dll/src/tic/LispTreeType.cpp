@@ -172,6 +172,11 @@ namespace token {
 	TIC_CALL StaticTokenID collect_attr_by_cond("collect_attr_by_cond");
 	TIC_CALL StaticTokenID collect_attr_by_org_rel("collect_attr_by_org_rel");
 
+	// #337: the spec forms, whose first argument carries the configuration
+
+	TIC_CALL StaticTokenID select_spec("select_spec");
+	TIC_CALL StaticTokenID collect_spec("collect_spec");
+
 	TIC_CALL StaticTokenID recollect_by_cond("recollect_by_cond");
 	StaticTokenID recollect_by_org_rel("recollect_by_org_rel");
 

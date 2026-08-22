@@ -6198,9 +6198,13 @@ OArgRefs ApplyMetaFunc_GetArgs(TreeItem* holder, const AbstrCalculator* ac, cons
 			LispRef argExpr = cursor.Left();
 			if (oap == oper_arg_policy::calc_as_result)
 			{
-				// skip condition argument for select_with_attr_xxxx meta functions
-				assert(currArg == 1); // only this one
-				assert(cursor.Right().EndP()); // no next args, argSeq must remain consistent with the first args..
+				// Skipped rather than pushed into argSeq: the operator reads this
+				// argument from metaCallArgs itself. Only a TRAILING argument may be
+				// skipped, so argSeq stays index-aligned with the leading arguments --
+				// that is the invariant. WHICH position it sits at is the group's own
+				// business: select_with_attr_xxx puts the condition second, select_spec
+				// puts it after its leading spec argument.
+				assert(cursor.Right().EndP());
 				continue;
 			}
 			if (oap == oper_arg_policy::calc_at_subitem)

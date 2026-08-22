@@ -140,6 +140,11 @@ namespace token {
 	extern TIC_CALL StaticTokenID collect_attr_by_cond;
 	extern TIC_CALL StaticTokenID collect_attr_by_org_rel;
 
+	// #337: the spec forms, whose first argument carries the configuration
+
+	extern TIC_CALL StaticTokenID select_spec;
+	extern TIC_CALL StaticTokenID collect_spec;
+
 	extern TIC_CALL StaticTokenID recollect_by_cond;
 	extern StaticTokenID recollect_by_org_rel;
 

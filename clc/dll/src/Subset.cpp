@@ -16,6 +16,7 @@
 #include "utl/StrFormat.h"
 
 #include "DataArray.h"
+#include "DataArrayValue.h"
 #include "DataItemClass.h"
 #include "LispTreeType.h"
 #include "ParallelTiles.h"
@@ -242,36 +243,268 @@ struct SubsetOperator: public UnaryOperator
 };
 
 // *****************************************************************************
+//                          attribute collection scope
+// *****************************************************************************
+
+// Which sub-items of the container argument the _with_attr_ and collect_attr_
+// operators collect.
+//
+// ref: also walk the referred-item chain. A template case parameter is bound by
+//      an ArgCalc and deliberately gets no sub-items of its own (TreeItem::Copy:
+//      "don't copy subItems from this to result (take them from arg)"), so the
+//      attributes of the unit it is bound to are only reachable through
+//      mc_RefItem. Name lookup already follows that chain in
+//      GetConstSubTreeItemByID, which is why the condition argument resolves
+//      while the collection came up empty; ref makes enumeration agree with it.
+// sub: also descend into sub-containers, mirroring their structure in the result.
+enum class attr_scope { own = 0, ref = 1, sub = 2, ref_sub = 3 };
+
+inline bool FollowsRef(attr_scope s) { return UInt32(s) & UInt32(attr_scope::ref); }
+inline bool Recurses  (attr_scope s) { return UInt32(s) & UInt32(attr_scope::sub); }
+
+struct collect_target
+{
+	SharedStr            relPath; // "name", or "geo/point" for a mirrored member
+	const AbstrDataItem* src;
+	UInt32               depth;   // 0 for a direct member of the result
+};
+
+// GeoDMS spells "N levels up" as N+1 DOTS: "." is the context itself, ".." its
+// parent, "..." its grandparent -- the same encoding GetFindableName builds with
+// RepeatedDots. A slash-joined "../.." is not a path at all: the expression
+// parser reads the slash as division and reports div(.., ..).
+SharedStr UpDots(UInt32 levels)
+{
+	std::vector<char> dots(levels + 1, '.');
+	return SharedStr(CharPtrRange(dots.data(), dots.data() + dots.size()));
+}
+
+// Enumerate the attributes a select_with_attr / collect_attr call considers.
+// Candidates only: the caller applies the domain filter, as select and collect
+// differ in what they report about a domain mismatch.
+//
+// Within one container level the first name found wins, so an own sub-item
+// shadows a same-named one further down the referred-item chain -- the order
+// GetConstSubTreeItemByID resolves in. A name is claimed before the caller's
+// domain filter runs, so a shadowing item that is not itself collectable still
+// hides the one it shadows, which is what {container}/{name} would resolve to.
+void EnumCollectCandidates(const TreeItem* container, attr_scope scope
+,	SharedStr prefix, UInt32 depth
+,	std::vector<collect_target>& out, std::set<const TreeItem*>& visitedScopes)
+{
+	std::set<TokenID> seenNames;
+	for (const TreeItem* link = container; link; )
+	{
+		if (!visitedScopes.insert(link).second)
+			break; // a cycle in the referred-item chain, or a scope already scanned
+		link->UpdateMetaInfo();
+		for (auto subItem = link->GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
+		{
+			auto subID = subItem->GetID();
+			if (subID == token::org_rel || subID == token::nr_OrgEntity)
+				continue;
+			if (!seenNames.insert(subID).second)
+				continue; // shadowed by a nearer sub-item of the same name
+			if (IsDataItem(subItem))
+			{
+				auto subDataItem = AsDataItem(subItem);
+				subDataItem->UpdateMetaInfo();
+				out.push_back({ mySSPrintF("{}{}", prefix, subID), subDataItem, depth });
+			}
+			else if (Recurses(scope) && !IsUnit(subItem)
+				&& !subItem->IsTemplate() && !subItem->IsFunctionItem() && !subItem->IsCacheItem())
+				EnumCollectCandidates(subItem, scope
+				,	mySSPrintF("{}{}/", prefix, subID), depth + 1
+				,	out, visitedScopes);
+		}
+		if (!FollowsRef(scope))
+			break;
+		link->UpdateDC(); // mc_RefItem of a bound case parameter is only set here
+		link = link->GetCurrRefItem().get();
+	}
+}
+
+// *****************************************************************************
+//                          the select spec
+// *****************************************************************************
+
+// The select family varies along four independent axes: the value type of the
+// result domain, whether an org_rel is produced, whether attributes are collected
+// (and through that org_rel or through the condition), and -- since #337 -- how
+// far that collection reaches. Each named operator pins all four at registration.
+// select_spec reads them from a ';'-separated first argument instead, so a
+// combination that has no name of its own stays reachable and the #337 scopes
+// cost no new operator names.
+//
+// Same split as ForEach.cpp: for_each_<fs> fixes its field_spec at registration,
+// for_each_ind takes it from the first argument's VALUE, which is what
+// oper_policy::dynamic_argument_policies arranges.
+
+struct select_config
+{
+	const Class* resDomainClass = nullptr; // null: derive from the condition's domain
+	TokenID      selectOper;               // Tier-1 group that produces the domain
+	bool         useOrgRelForCollect = false;
+	bool         collectAttrs = false;
+	attr_scope   scope = attr_scope::own;
+};
+
+struct select_vt_row { CharPtr name; TokenID plain, withOrgRel; const Class* cls; };
+
+// A ';'-separated word list; order is free and an empty spec is allowed. An
+// unknown word throws, naming what is accepted: a spec typo is a configuration
+// error and belongs at definition time, not halfway through a calculation.
+select_config ParseSelectSpec(const AbstrOperGroup* og, CharPtr specPtr)
+{
+	const select_vt_row vtRows[] =
+	{ { ""      , token::select       , token::select_with_org_rel       , nullptr }
+	, { "uint8" , token::select_uint8 , token::select_uint8_with_org_rel , Unit<UInt8 >::GetStaticClass() }
+	, { "uint16", token::select_uint16, token::select_uint16_with_org_rel, Unit<UInt16>::GetStaticClass() }
+	, { "uint32", token::select_uint32, token::select_uint32_with_org_rel, Unit<UInt32>::GetStaticClass() }
+	, { "uint64", token::select_uint64, token::select_uint64_with_org_rel, Unit<UInt64>::GetStaticClass() }
+	};
+	const UInt32 nrVt = sizeof(vtRows) / sizeof(vtRows[0]);
+
+	select_config cfg;
+	UInt32 vtIndex = 0;
+	bool wantOrgRel = false, followRef = false, recurse = false;
+
+	for (CharPtr b = specPtr; b && *b; )
+	{
+		CharPtr e = b;
+		while (*e && *e != ';')
+			++e;
+		CharPtr tb = b, te = e;
+		while (tb != te && (*tb == ' ' || *tb == '\t')) ++tb;
+		while (tb != te && (te[-1] == ' ' || te[-1] == '\t')) --te;
+		b = *e ? e + 1 : e;
+		if (tb == te)
+			continue;
+
+		auto is = [tb, te](CharPtr lit) -> bool
+		{
+			SizeT n = strlen(lit);
+			return SizeT(te - tb) == n && !strncmp(tb, lit, n);
+		};
+
+		UInt32 i = 1;
+		while (i != nrVt && !is(vtRows[i].name))
+			++i;
+		if (i != nrVt)         { vtIndex = i;                                      continue; }
+		if (is("org_rel"))     { wantOrgRel = true;                                continue; }
+		if (is("use_org_rel")) { wantOrgRel = true; cfg.useOrgRelForCollect = true; continue; }
+		if (is("attr"))        { cfg.collectAttrs = true;                          continue; }
+		if (is("ref"))         { followRef = true;                                 continue; }
+		if (is("sub"))         { recurse = true;                                   continue; }
+
+		og->throwOperErrorF(
+			"unknown word '{}' in the specification; accepted: uint8, uint16, uint32, uint64, org_rel, use_org_rel, attr, ref, sub"
+		,	SharedStr(CharPtrRange(tb, te))
+		);
+	}
+
+	if (cfg.useOrgRelForCollect && !cfg.collectAttrs)
+		og->throwOperError("'use_org_rel' says how attributes are collected, so it requires 'attr'");
+	if (!cfg.collectAttrs && (followRef || recurse))
+		og->throwOperError("'ref' and 'sub' say how far attributes are collected, so they require 'attr'");
+
+	cfg.resDomainClass = vtRows[vtIndex].cls;
+	cfg.selectOper     = wantOrgRel ? vtRows[vtIndex].withOrgRel : vtRows[vtIndex].plain;
+	cfg.scope = attr_scope(UInt32(followRef ? attr_scope::ref : attr_scope::own)
+	                     | UInt32(recurse   ? attr_scope::sub : attr_scope::own));
+	return cfg;
+}
+
+// select_spec(spec, [container,] condition): the container argument is there
+// exactly when the spec says 'attr' -- which is what makes the policies dynamic.
+struct SelectSpecOperGroup : AbstrOperGroup
+{
+	SelectSpecOperGroup()
+		:	AbstrOperGroup(token::select_spec
+			,	oper_policy::dont_cache_result
+			|	oper_policy::dynamic_result_class
+			|	oper_policy::dynamic_argument_policies
+			)
+		// Deliberately NOT allow_extra_args: FindOperByArgs returns the first member
+		// whose declared args all match, and with extra args allowed that is the
+		// one-argument form even for a three-argument call. Arity acceptance does not
+		// need it either -- a dont_cache_result group accepts any arity anyway.
+	{}
+
+	oper_arg_policy GetArgPolicy(arg_index argNr, CharPtr firstArgValue) const override
+	{
+		if (!argNr)
+			return oper_arg_policy::calc_always; // the spec itself
+		// FindOper strips trailing calc_as_result args while probing with a null spec
+		// value (OperGroups.cpp): with no spec to read, the trailing condition is the
+		// only answer that matters there, so do not insist on having one.
+		if (firstArgValue && argNr == 1 && ParseSelectSpec(this, firstArgValue).collectAttrs)
+			return oper_arg_policy::calc_never;  // the attribute container
+		return oper_arg_policy::calc_as_result;  // the condition
+	}
+};
+
+// *****************************************************************************
 //                               selet_with_attr_xxx
 // *****************************************************************************
 
 struct SelectMetaOperator : public BinaryOperator
 {
+	// Fixed-spec form: each named operator pins its configuration here, the way
+	// ForEachOperGroup pins its field_spec.
 	SelectMetaOperator(AbstrOperGroup& cog, const Class* resDomainClass, OrgRelCreationMode orcm, TokenID selectOper)
 		: BinaryOperator(&cog, resDomainClass, TreeItem::GetStaticClass(), DataArray<Bool>::GetStaticClass())
-		, m_ORCM(orcm)
-		, m_SelectOper(selectOper)
-	{}
+		, m_FromSpec(false)
+	{
+		m_Cfg.resDomainClass       = resDomainClass;
+		m_Cfg.selectOper           = selectOper;
+		m_Cfg.useOrgRelForCollect  = (orcm == OrgRelCreationMode::org_rel_and_use_it);
+		m_Cfg.collectAttrs         = true;
+	}
+
+	// Spec-driven form, with a container argument ('attr' in the spec).
+	SelectMetaOperator(SelectSpecOperGroup& cog, bool withContainer)
+		: BinaryOperator(&cog, AbstrUnit::GetStaticClass(), DataArray<SharedStr>::GetStaticClass(), TreeItem::GetStaticClass())
+		, m_FromSpec(true)
+	{
+		MG_CHECK(withContainer);
+	}
 
 	using ArgType = DataArray<Bool>;
 
-	OrgRelCreationMode m_ORCM;
-	TokenID            m_SelectOper;
+	select_config m_Cfg;
+	bool          m_FromSpec;
 
 	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, LispPtr metaCallArgs) const override
 	{
-		assert(args.size() == 1);
+		select_config cfg = m_Cfg;
+		LispPtr callArgs = metaCallArgs;
 
-		const TreeItem* attrContainer = GetItem(args[0]);
-
-		if (!metaCallArgs.IsRealList())
+		if (!callArgs.IsRealList())
 			throwErrorD(GetGroup()->GetNameStr(), "arguments expected");
-		auto containerExpr = metaCallArgs.Left();
 
-		auto tailExprList = metaCallArgs.Right();
-		if (!tailExprList.IsRealList())
-			throwErrorD(GetGroup()->GetNameStr(), "2nd argument expected");
-		auto conditionExpr = tailExprList.Left();
+		SizeT containerArg = 0;
+		if (m_FromSpec)
+		{
+			auto specItem = GetItem(args[0]);
+			MG_USERCHECK2(specItem && IsDataItem(specItem), "select_spec: a string specification is expected as 1st argument");
+			cfg = ParseSelectSpec(GetGroup(), GetValue<SharedStr>(AsDataItem(specItem), 0).c_str());
+			callArgs = callArgs.Right();
+			containerArg = 1;
+			if (!callArgs.IsRealList())
+				throwErrorD(GetGroup()->GetNameStr(), "2nd argument expected");
+		}
+
+		const TreeItem* attrContainer = nullptr;
+		LispPtr containerExpr = callArgs.Left();
+		if (cfg.collectAttrs)
+		{
+			attrContainer = GetItem(args[containerArg]);
+			callArgs = callArgs.Right();
+			if (!callArgs.IsRealList())
+				throwErrorD(GetGroup()->GetNameStr(), "condition argument expected");
+		}
+		auto conditionExpr = callArgs.Left();
 
 		auto conditionExprStr = AsFLispSharedStr(conditionExpr, FormattingFlags::NoLimitInLispExpr);
 		auto conditionCalc = AbstrCalculator::ConstructFromLispRef(resultHolder.GetOld(), conditionExpr, CalcRole::Other);
@@ -291,71 +524,117 @@ struct SelectMetaOperator : public BinaryOperator
 			conditionA = AsDynamicDataItem(conditionItem.get());
 		}
 		if (!conditionA)
-			throwErrorD(GetGroup()->GetNameStr(), "condition expected as 2nd argument");
+			throwErrorD(GetGroup()->GetNameStr(), "condition expected as last argument");
 
 		const AbstrUnit* domain = conditionA->GetAbstrDomainUnit();
 		assert(domain);
 
 		const ValueClass* vc = domain->GetValueType();
-		const UnitClass* resDomainCls = dynamic_cast<const UnitClass*>(m_ResultClass);
+		const UnitClass* resDomainCls = dynamic_cast<const UnitClass*>(cfg.resDomainClass);
 		if (!resDomainCls)
 			resDomainCls = UnitClass::Find(vc->GetCrdClass());
 
-		auto res_owner = resDomainCls->CreateResultUnit(resultHolder.GetNew()); AbstrUnit* res = res_owner.get(); // does this set result to Failed when
+		auto res_owner = resDomainCls->CreateResultUnit(resultHolder.GetNew()); AbstrUnit* res = res_owner.get();
 		assert(res);
-		auto resExpr = ExprList(m_SelectOper, conditionKeyExpr);
+		auto resExpr = ExprList(cfg.selectOper, conditionKeyExpr);
 		assert(!resExpr.EndP());
 		auto resDC = GetOrCreateDataController(resExpr);
 		assert(resDC);
 		res->SetDC(resDC);
 		resultHolder = res;
 
-		TokenID resSubName;
-		LispRef resSubExpr;
-		if (m_ORCM != OrgRelCreationMode::none)
+		if (cfg.collectAttrs)
 		{
-			resSubName = ((m_ORCM == OrgRelCreationMode::org_rel) || (m_ORCM == OrgRelCreationMode::org_rel_and_use_it)) ? token::org_rel : token::nr_OrgEntity;
-			if (m_ORCM == OrgRelCreationMode::org_rel_and_use_it)
-				resSubExpr = slSubItemCall(resExpr, resSubName.AsStrRange());
-		}
-		SizeT foundSubItems = 0;
-		for (auto subItem = attrContainer->GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
-		{
-			if (!IsDataItem(subItem))
-				continue;
-			auto subDataItem = AsDataItem(subItem);
-			auto subDataID = subDataItem->GetID();
-			if (subDataID == token::org_rel || subDataID == token::nr_OrgEntity)
-				continue;
-			subDataItem->UpdateMetaInfo();
-			if (!domain->UnifyDomain(subDataItem->GetAbstrDomainUnit()))
-				continue;
+			SizeT foundSubItems = 0;
+			std::vector<collect_target> candidates;
+			std::set<const TreeItem*> visitedScopes;
+			EnumCollectCandidates(attrContainer, cfg.scope, SharedStr(), 0, candidates, visitedScopes);
 
-			auto resSub = CreateDataItem(res, subDataID, res, subDataItem->GetAbstrValuesUnit(), subDataItem->GetValueComposition());
-
-			SharedStr selectExpr;
-			if (m_ORCM == OrgRelCreationMode::org_rel_and_use_it)
-				selectExpr = mySSPrintF("collect_by_org_rel(org_rel, scope(.., {}/{}))"
-				,	containerExpr.GetSymbID()
-				,	subDataID
-				);
-			else
-				selectExpr = mySSPrintF("collect_by_cond(., scope(.., {}), scope(.., {}/{}))"
-				,	conditionExprStr
-				,	containerExpr.GetSymbID()
-				,	subDataID
-				);
-			auto oldExpr = resSub->GetExprMember();
-			if (!oldExpr.empty() && oldExpr != selectExpr)
+			for (const auto& target : candidates)
 			{
-				auto msg = mySSPrintF("Cannot set calculation rule '{}' to selected attribute '{}' as it is already defined as '{}'", selectExpr, subDataID, oldExpr);
-				throwErrorD(GetGroup()->GetNameID(), msg.c_str());
+				if (!domain->UnifyDomain(target.src->GetAbstrDomainUnit()))
+					continue;
+
+				auto resSub = CreateDataItemFromPath(res, target.relPath.c_str(), res, target.src->GetAbstrValuesUnit(), target.src->GetValueComposition());
+
+				// A mirrored member sits deeper than the result root, and its rule is
+				// resolved from its own parent, so every relative path deepens with it.
+				// At depth 0 these are ".", "org_rel" and "..", i.e. unchanged.
+				auto subsetPath = UpDots(target.depth);                 // the result root: "." at depth 0
+				auto orgRelPath = target.depth ? mySSPrintF("{}/org_rel", UpDots(target.depth)) : SharedStr("org_rel");
+				auto srcScope   = UpDots(target.depth + 1);              // one above it: ".." at depth 0
+
+				SharedStr selectExpr;
+				if (cfg.useOrgRelForCollect)
+					selectExpr = mySSPrintF("collect_by_org_rel({}, scope({}, {}/{}))"
+					,	orgRelPath
+					,	srcScope
+					,	containerExpr.GetSymbID()
+					,	target.relPath
+					);
+				else
+					selectExpr = mySSPrintF("collect_by_cond({}, scope({}, {}), scope({}, {}/{}))"
+					,	subsetPath
+					,	srcScope
+					,	conditionExprStr
+					,	srcScope
+					,	containerExpr.GetSymbID()
+					,	target.relPath
+					);
+				auto oldExpr = resSub->GetExprMember();
+				if (!oldExpr.empty() && oldExpr != selectExpr)
+				{
+					auto msg = mySSPrintF("Cannot set calculation rule '{}' to selected attribute '{}' as it is already defined as '{}'", selectExpr, target.relPath, oldExpr);
+					throwErrorD(GetGroup()->GetNameID(), msg.c_str());
+				}
+				resSub->SetExpr(selectExpr);
+				++foundSubItems;
 			}
-			resSub->SetExpr(selectExpr);
-			++foundSubItems;
+			if (!foundSubItems)
+				reportF(SeverityTypeID::ST_Warning, "{}: no sub-items found with a domain that is compatible with the domain of the given condition", GetGroup()->GetNameStr());
 		}
-		if (!foundSubItems)
-			reportF(SeverityTypeID::ST_Warning, "{}: no sub-items found with a domain that is compatible with the domain of the given condition", GetGroup()->GetNameStr());
+		res->SetIsInstantiated();
+	}
+};
+
+// select_spec without 'attr': no container argument, so the result is just the
+// selection domain that the named Tier-1 select operators produce.
+struct SelectSpecNoAttrOperator : public UnaryOperator
+{
+	SelectSpecNoAttrOperator(SelectSpecOperGroup& cog)
+		: UnaryOperator(&cog, AbstrUnit::GetStaticClass(), DataArray<SharedStr>::GetStaticClass())
+	{}
+
+	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, LispPtr metaCallArgs) const override
+	{
+		auto specItem = GetItem(args[0]);
+		MG_USERCHECK2(specItem && IsDataItem(specItem), "select_spec: a string specification is expected as 1st argument");
+		auto cfg = ParseSelectSpec(GetGroup(), GetValue<SharedStr>(AsDataItem(specItem), 0).c_str());
+		MG_USERCHECK2(!cfg.collectAttrs, "select_spec: 'attr' needs a container argument between the specification and the condition");
+
+		if (!metaCallArgs.IsRealList() || !metaCallArgs.Right().IsRealList())
+			throwErrorD(GetGroup()->GetNameStr(), "condition argument expected");
+		auto conditionExpr = metaCallArgs.Right().Left();
+
+		auto conditionCalc = AbstrCalculator::ConstructFromLispRef(resultHolder.GetOld(), conditionExpr, CalcRole::Other);
+		MG_CHECK(conditionCalc);
+		auto conditionDC = GetDC(conditionCalc.get());
+		MG_USERCHECK2(conditionDC, "select_spec: condition expected as last argument");
+		auto conditionKeyExpr = conditionDC->GetLispRef();
+		auto conditionItem = conditionDC->MakeResult();
+		if (conditionDC->WasFailed(FailType::MetaInfo))
+			conditionDC->ThrowFail();
+		auto conditionA = AsDynamicDataItem(conditionItem.get());
+		MG_USERCHECK2(conditionA, "select_spec: condition expected as last argument");
+
+		const AbstrUnit* domain = conditionA->GetAbstrDomainUnit();
+		const UnitClass* resDomainCls = dynamic_cast<const UnitClass*>(cfg.resDomainClass);
+		if (!resDomainCls)
+			resDomainCls = UnitClass::Find(domain->GetValueType()->GetCrdClass());
+
+		auto res_owner = resDomainCls->CreateResultUnit(resultHolder.GetNew()); AbstrUnit* res = res_owner.get();
+		res->SetDC(GetOrCreateDataController(ExprList(cfg.selectOper, conditionKeyExpr)));
+		resultHolder = res;
 		res->SetIsInstantiated();
 	}
 };
@@ -492,15 +771,68 @@ struct CollectByCondOperator : AbstrCollectByCondOperator
 
 enum class collect_mode { org_rel, condition };
 
+struct collect_config
+{
+	collect_mode mode = collect_mode::org_rel;
+	attr_scope   scope = attr_scope::own;
+};
+
+// A ';'-separated word list, like the select spec: e.g. 'by_cond;ref'. The mode
+// word is required: the last argument is read as an org_rel or as a condition,
+// and guessing which would silently produce a different result.
+collect_config ParseCollectSpec(const AbstrOperGroup* og, CharPtr specPtr)
+{
+	collect_config cfg;
+	bool modeSeen = false, followRef = false, recurse = false;
+
+	for (CharPtr b = specPtr; b && *b; )
+	{
+		CharPtr e = b;
+		while (*e && *e != ';')
+			++e;
+		CharPtr tb = b, te = e;
+		while (tb != te && (*tb == ' ' || *tb == '\t')) ++tb;
+		while (tb != te && (te[-1] == ' ' || te[-1] == '\t')) --te;
+		b = *e ? e + 1 : e;
+		if (tb == te)
+			continue;
+
+		auto is = [tb, te](CharPtr lit) -> bool
+		{
+			SizeT n = strlen(lit);
+			return SizeT(te - tb) == n && !strncmp(tb, lit, n);
+		};
+
+		if (is("by_org_rel")) { cfg.mode = collect_mode::org_rel;   modeSeen = true; continue; }
+		if (is("by_cond"))    { cfg.mode = collect_mode::condition; modeSeen = true; continue; }
+		if (is("ref"))        { followRef = true;                                    continue; }
+		if (is("sub"))        { recurse = true;                                      continue; }
+
+		og->throwOperErrorF("unknown word '{}' in the specification; accepted: by_org_rel, by_cond, ref, sub"
+		,	SharedStr(CharPtrRange(tb, te)));
+	}
+	if (!modeSeen)
+		og->throwOperError("the specification must say by_org_rel or by_cond, so the last argument is read as the one that was meant");
+
+	cfg.scope = attr_scope(UInt32(followRef ? attr_scope::ref : attr_scope::own)
+	                     | UInt32(recurse   ? attr_scope::sub : attr_scope::own));
+	return cfg;
+}
+
 struct CollectWithAttrOperator : public BinaryOperator
 {
 	collect_mode m_CollectMode;
-	CollectWithAttrOperator(AbstrOperGroup& cog, collect_mode collectMode)
+	attr_scope   m_Scope;
+	CollectWithAttrOperator(AbstrOperGroup& cog, collect_mode collectMode, attr_scope scope = attr_scope::own)
 		: BinaryOperator(&cog, TreeItem::GetStaticClass(), TreeItem::GetStaticClass(), AbstrUnit::GetStaticClass()) //, AbstrDataItem::GetStaticClass())
 		, m_CollectMode(collectMode)
+		, m_Scope(scope)
 	{}
 
-	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, LispPtr metaCallArgs) const override
+	// Shared by the named collect_attr_by_xxx operators and by collect_spec:
+	// only where the configuration comes from differs.
+	static void Run(const AbstrOperGroup* og, TreeItemDualRef& resultHolder
+	,	collect_mode mode, attr_scope scope, const ArgRefs& args, LispPtr callArgs)
 	{
 		assert(args.size() == 2);
 
@@ -510,25 +842,25 @@ struct CollectWithAttrOperator : public BinaryOperator
 		const AbstrUnit* domainA = AsDynamicUnit(subsetDomainItem);
 		MG_USERCHECK2(domainA, "domain unit expected as 2nd argument");
 
-		if (!metaCallArgs.IsRealList())
-			throwErrorD(GetGroup()->GetNameStr(), "arguments expected");
-		auto containerExpr = metaCallArgs.Left();
-		if (!metaCallArgs.Right().IsRealList())
-			throwErrorD(GetGroup()->GetNameStr(), "2nd argument expected");
-		auto subsetDomainExpr = metaCallArgs.Right().Left();
+		if (!callArgs.IsRealList())
+			throwErrorD(og->GetNameStr(), "arguments expected");
+		auto containerExpr = callArgs.Left();
+		if (!callArgs.Right().IsRealList())
+			throwErrorD(og->GetNameStr(), "2nd argument expected");
+		auto subsetDomainExpr = callArgs.Right().Left();
 		auto subsetDomainExprStr = AsFLispSharedStr(subsetDomainExpr, FormattingFlags::NoLimitInLispExpr);
 
-		if (!metaCallArgs.Right().Right().IsRealList())
-			throwErrorD(GetGroup()->GetNameStr(), m_CollectMode == collect_mode::org_rel
+		if (!callArgs.Right().Right().IsRealList())
+			throwErrorD(og->GetNameStr(), mode == collect_mode::org_rel
 			? "org_rel attribute expected as 3rd argument"
 			: "attribute expected as 3rd argument"
 		);
 		const AbstrDataItem* condOrOrgRelA = nullptr;
 		SharedStr condOrOrgRelExprStr;
 		DataControllerRef condOrOrgRelDC;
-		if (metaCallArgs.Right().Right().IsRealList())
+		if (callArgs.Right().Right().IsRealList())
 		{
-			auto condOrOrgRelExpr = metaCallArgs.Right().Right().Left();
+			auto condOrOrgRelExpr = callArgs.Right().Right().Left();
 			condOrOrgRelExprStr = AsFLispSharedStr(condOrOrgRelExpr, FormattingFlags::NoLimitInLispExpr);
 
 			auto condOrOrgRelCalc = AbstrCalculator::ConstructFromLispRef(resultHolder.GetOld(), condOrOrgRelExpr, CalcRole::Other);
@@ -541,70 +873,99 @@ struct CollectWithAttrOperator : public BinaryOperator
 			condOrOrgRelA = AsDynamicDataItem(condOrOrgRelItem.get());
 		}
 		MG_USERCHECK2(condOrOrgRelA,
-			m_CollectMode == collect_mode::org_rel
+			mode == collect_mode::org_rel
 			? "collect_with_attr_by_org_rel: org_rel data-item expected as 3rd argument"
 			: "collect_with_attr_cond: condition data-item expected as 3rd argument"
 		);
 
-		const AbstrUnit* sourceDomain = (m_CollectMode == collect_mode::org_rel) ? condOrOrgRelA->GetAbstrValuesUnit() : condOrOrgRelA->GetAbstrDomainUnit();
+		const AbstrUnit* sourceDomain = (mode == collect_mode::org_rel) ? condOrOrgRelA->GetAbstrValuesUnit() : condOrOrgRelA->GetAbstrDomainUnit();
 		assert(sourceDomain);
 		assert(resultHolder);
-		if (m_CollectMode == collect_mode::org_rel)
+		if (mode == collect_mode::org_rel)
 			MG_USERCHECK2(domainA->UnifyDomain(condOrOrgRelA->GetAbstrDomainUnit()), "collect_with_attr_by_org_rel(attr_container, subset_domain, org_rel): target_domain doesn't match the domain of org_rel");
 
-		for (auto subItem = attrContainer->GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
+		std::vector<collect_target> candidates;
+		std::set<const TreeItem*> visitedScopes;
+		EnumCollectCandidates(attrContainer, scope, SharedStr(), 0, candidates, visitedScopes);
+
+		for (const auto& target : candidates)
 		{
-			if (!IsDataItem(subItem))
-				continue;
-			auto subDataItem = AsDataItem(subItem);
-			auto subDataID = subDataItem->GetID();
-			if (subDataID == token::org_rel || subDataID == token::nr_OrgEntity)
-				continue;
-			subDataItem->UpdateMetaInfo();
+			auto subDataItem = target.src;
 			if (!sourceDomain->UnifyDomain(subDataItem->GetAbstrDomainUnit()))
 			{
-				if (m_CollectMode == collect_mode::org_rel)
+				if (mode == collect_mode::org_rel)
 					reportF(SeverityTypeID::ST_Warning, "{}: image of org_rel is {}, which is incompatible with the domain of attribute {}, which is {}"
-					,	GetGroup()->GetNameStr()
+					,	og->GetNameStr()
 					,	sourceDomain->GetFullCfgName().c_str()
 					,	subDataItem->GetFullName().c_str()
 					,	subDataItem->GetAbstrDomainUnit()->GetFullCfgName().c_str()
 					);
 				else
 					reportF(SeverityTypeID::ST_Warning, "{}: domain of condition is {}, which is incompatible with the domain of attribute {}, which is {}"
-					,	GetGroup()->GetNameStr()
+					,	og->GetNameStr()
 					,	sourceDomain->GetFullCfgName().c_str()
 					,	subDataItem->GetFullName().c_str()
 					,	subDataItem->GetAbstrDomainUnit()->GetFullCfgName().c_str()
 					);
 				continue;
 			}
-			auto resSub = CreateDataItem(resultHolder.GetNew(), subDataID, domainA, subDataItem->GetAbstrValuesUnit(), subDataItem->GetValueComposition());
+			auto resSub = CreateDataItemFromPath(resultHolder.GetNew(), target.relPath.c_str(), domainA, subDataItem->GetAbstrValuesUnit(), subDataItem->GetValueComposition());
+
+			// see the note in SelectMetaOperator: at depth 0 this is "..", unchanged.
+			auto srcScope = UpDots(target.depth + 1);
 
 			SharedStr collectExpr;
-			if (m_CollectMode == collect_mode::org_rel)
-				collectExpr = mySSPrintF("scope(.., lookup({}, {}/{}))"
+			if (mode == collect_mode::org_rel)
+				collectExpr = mySSPrintF("scope({}, lookup({}, {}/{}))"
+					, srcScope
 					, condOrOrgRelExprStr
 					, containerExpr.GetSymbID()
-					, subDataID
+					, target.relPath
 				);
 			else
-				collectExpr = mySSPrintF("scope(.., collect_by_cond({}, {}, {}/{}))"
+				collectExpr = mySSPrintF("scope({}, collect_by_cond({}, {}, {}/{}))"
+					, srcScope
 					, subsetDomainExprStr
 					, condOrOrgRelExprStr
 					, containerExpr.GetSymbID()
-					, subDataID
+					, target.relPath
 				);
 
 			auto oldExpr = resSub->GetExprMember();
 			if (!oldExpr.empty() && oldExpr != collectExpr)
 			{
-				auto msg = mySSPrintF("Cannot set calculation rule '{}' to collected attribute '{}' as it is already defined as '{}'", collectExpr, subDataID, oldExpr);
-				throwErrorD(GetGroup()->GetNameID(), msg.c_str());
+				auto msg = mySSPrintF("Cannot set calculation rule '{}' to collected attribute '{}' as it is already defined as '{}'", collectExpr, target.relPath, oldExpr);
+				throwErrorD(og->GetNameID(), msg.c_str());
 			}
 			resSub->SetExpr(collectExpr);
 		}
 		resultHolder->SetIsInstantiated();
+	}
+
+	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, LispPtr metaCallArgs) const override
+	{
+		Run(GetGroup(), resultHolder, m_CollectMode, m_Scope, args, metaCallArgs);
+	}
+};
+
+// collect_spec(spec, container, subset_domain, org_rel_or_condition): the same
+// four axes as the named collect_attr_by_xxx pair, taken from the first argument.
+struct CollectSpecOperator : public TernaryOperator
+{
+	CollectSpecOperator(AbstrOperGroup& cog)
+		: TernaryOperator(&cog, TreeItem::GetStaticClass()
+		,	DataArray<SharedStr>::GetStaticClass(), TreeItem::GetStaticClass(), AbstrUnit::GetStaticClass())
+	{}
+
+	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, LispPtr metaCallArgs) const override
+	{
+		auto specItem = GetItem(args[0]);
+		MG_USERCHECK2(specItem && IsDataItem(specItem), "collect_spec: a string specification is expected as 1st argument");
+		auto cfg = ParseCollectSpec(GetGroup(), GetValue<SharedStr>(AsDataItem(specItem), 0).c_str());
+		MG_USERCHECK2(metaCallArgs.IsRealList(), "collect_spec: arguments expected");
+
+		ArgRefs tail(args.begin() + 1, args.end());
+		CollectWithAttrOperator::Run(GetGroup(), resultHolder, cfg.mode, cfg.scope, tail, metaCallArgs.Right());
 	}
 };
 
@@ -831,12 +1192,24 @@ namespace {
 	SelectMetaOperator operMetaSA32(cog_select_32_with_attr_by_org_rel, Unit<UInt32>::GetStaticClass(), OrgRelCreationMode::org_rel_and_use_it, token::select_uint32_with_org_rel);
 	SelectMetaOperator operMetaSA64(cog_select_64_with_attr_by_org_rel, Unit<UInt64>::GetStaticClass(), OrgRelCreationMode::org_rel_and_use_it, token::select_uint64_with_org_rel);
 
+	// #337: the spec form. No new names per scope -- the spec carries the value
+	// type, the org_rel choice, whether attributes are collected, and how far.
+	SelectSpecOperGroup sog_select_spec;
+	SelectMetaOperator      operSelectSpecAttr(sog_select_spec, true);
+	SelectSpecNoAttrOperator operSelectSpecPlain(sog_select_spec);
+
+
 	oper_arg_policy oap_Relate[3] = { oper_arg_policy::calc_never , oper_arg_policy::calc_never, oper_arg_policy::calc_at_subitem };
 
 	SpecialOperGroup sog_collect_attr_by_org_rel(token::collect_attr_by_org_rel, 3, oap_Relate, oper_policy::dont_cache_result);
 	SpecialOperGroup sog_collect_attr_by_cond   (token::collect_attr_by_cond   , 3, oap_Relate, oper_policy::dont_cache_result);
 	CollectWithAttrOperator operCF(sog_collect_attr_by_org_rel, collect_mode::org_rel);
 	CollectWithAttrOperator operCM(sog_collect_attr_by_cond, collect_mode::condition);
+
+	// #337: the spec form of the collect family; see select_spec.
+	oper_arg_policy oap_CollectSpec[4] = { oper_arg_policy::calc_always, oper_arg_policy::calc_never, oper_arg_policy::calc_never, oper_arg_policy::calc_at_subitem };
+	SpecialOperGroup sog_collect_spec(token::collect_spec, 4, oap_CollectSpec, oper_policy::dont_cache_result);
+	CollectSpecOperator operCollectSpec(sog_collect_spec);
 
 	CommonOperGroup cog_collect_by_cond(token::collect_by_cond);
 	CommonOperGroup cog_recollect_by_cond(token::recollect_by_cond, oper_policy::allow_extra_args);

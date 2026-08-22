@@ -114,6 +114,7 @@ collect_attr_by_cond
 collect_attr_by_org_rel
 collect_by_cond
 collect_by_org_rel
+collect_spec
 combine
 combine_uint16
 combine_uint32
@@ -496,6 +497,7 @@ rth_element
 rtrim
 sd
 select
+select_spec
 select_uint16
 select_uint16_with_attr_by_cond
 select_uint16_with_attr_by_org_rel
