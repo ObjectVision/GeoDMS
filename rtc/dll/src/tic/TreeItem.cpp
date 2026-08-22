@@ -3710,21 +3710,47 @@ ActorVisitState TreeItem::DoUpdate()
 	if ( InTemplate() )
 		goto exitReady;
 
-	if (auto dc = GetOrgDC().first)
-		if (auto fc = dynamic_cast<const FuncDC*>(dc.get()))
-			if (fc->m_OperatorGroup->GetNameID() == token::PhaseContainer)
-				if (auto fd = dc->CallCalcResult())
-					if (auto oc = fc->GetOperContext())
-						if (oc->GetStatus() != task_status::none)
-						{
-							auto pcResult = oc->Join();
-							if (pcResult != task_status::done)
+	// #1167: a PhaseContainer must run when the update path reaches it, and the update path reaches
+	// it in two shapes. The container item's own DC IS the PhaseContainer FuncDC; a member of it
+	// (phase/x) carries a SubItem FuncDC whose arg 0 is that PhaseContainer, because the endogenous
+	// shadow of a fence member is given the calculation subitem(<phase expr>, 'x')
+	// (GetLispRefForTreeItem -> slSubItemCall), and a deeper path nests such calls.
+	// Only the first shape used to be recognised here, so a configuration that reaches fence members
+	// at UPDATE level only -- the 'Ready' + ExplicitSuppliers driver idiom, which GeoDmsRun turns
+	// into DMS_TreeItem_Update and never into a data demand -- walked straight past the fence into
+	// the source container: the work ran unfenced and the phase never executed, so it reported
+	// nothing and ordered nothing. A DATA demand on such a member does reach the phase, since
+	// SubItem's arg 0 has oper_arg_policy::calc_subitem_root; that path is unchanged.
+	// Joining arg 0 rather than the member's own DC keeps the collection semantics: PreCalcUpdate
+	// still gathers only the mirror members that carry interest, so nothing extra is materialised.
+	{
+		auto phaseDC = GetOrgDC().first;
+		while (phaseDC)
+		{
+			auto subItemCall = dynamic_cast<const FuncDC*>(phaseDC.get());
+			if (!subItemCall || subItemCall->m_OperatorGroup->GetNameID() != token::subitem)
+				break;
+			phaseDC = DataControllerRef(subItemCall->GetArgDC(0), existing_obj{});
+		}
+		if (phaseDC)
+			if (auto fc = dynamic_cast<const FuncDC*>(phaseDC.get()))
+				if (fc->m_OperatorGroup->GetNameID() == token::PhaseContainer)
+				{
+					FutureData phaseInterest = phaseDC; // CallCalcResult requires interest, which an arg DC reached through a SubItem call need not have yet
+					if (auto fd = phaseDC->CallCalcResult())
+						if (auto oc = fc->GetOperContext())
+							if (oc->GetStatus() != task_status::none)
 							{
-								if (pcResult == task_status::exception)
-									Fail(oc->m_Result);
-								return ActorVisitState::AVS_SuspendedOrFailed;
+								auto pcResult = oc->Join();
+								if (pcResult != task_status::done)
+								{
+									if (pcResult == task_status::exception)
+										Fail(oc->m_Result);
+									return ActorVisitState::AVS_SuspendedOrFailed;
+								}
 							}
-						}
+				}
+	}
 
 	if (m_State.GetProgress() < ProgressState::Validated)
 	{
