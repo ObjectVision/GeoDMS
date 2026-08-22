@@ -267,11 +267,21 @@ void ConfigProd::CreateItem(TokenID nameID, const iterator_t& loc)
 			{
 				if (!m_MergeIntoExisting)
 					throwDmsErrD("Illegal 2nd item after root of configuration tree.");
-				reportF(MsgCategory::storage_read, SeverityTypeID::ST_Warning
-					, "Configuration file {}: root item '{}' was already provided with name '{}'"
+
+				// Merging into an existing item means a storage dictionary is being read (the only
+				// caller that passes rootIsFirstItem is AppendTreeFromDictionary). Such a dictionary
+				// carries the name of the container that WROTE the store, while the reader merges it
+				// into a container of its own naming, so in the decoupling pattern the two differ by
+				// construction -- the writing project need not even be the same project (#1194).
+				// A name equal to the writer's proves nothing about reading the right file either;
+				// the merged structure and types do, and the dictionary restrictions (#1154) check
+				// them. Kept as provenance, not as a warning, so it stops training readers to skim
+				// past warnings.
+				reportF(MsgCategory::storage_read, SeverityTypeID::ST_MinorTrace
+					, "Configuration file {}: dictionary root '{}' merged into item '{}'"
 					, ConfigurationFilenameLock::GetCurrentFileDescrFromConfigLoadDir()->GetFileName().c_str()
-					, AsString(m_pCurrent->GetID()).c_str()
 					, AsString(nameID).c_str()
+					, AsString(m_pCurrent->GetID()).c_str()
 				);
 			}
 		}
