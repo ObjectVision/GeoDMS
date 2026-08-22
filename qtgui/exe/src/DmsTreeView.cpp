@@ -240,25 +240,35 @@ static QFont CreateRemixFont()
 	return font;
 }
 
-// Codepoints in the private use area of :/res/fonts/remixicon.ttf, in item_icon_kind order.
-static const char16_t sc_IconGlyphs[] =
+// A glyph from remixicon, optionally with a letter set inside it in the application font.
+// remixicon carries a lettered box for 't' alone, so a function -- which is a definition like a
+// template and wants to look like one -- gets the empty box plus an 'F' of our own.
+struct tree_icon_glyph
 {
-	u'\uED6A', // container:         folder-line
-	u'\uED5E', // container_table:   folder-chart-line
-	u'\uF1D3', // template_def:      t-box-line
-	u'\uEE92', // data_item:         layout-left-2-line, one column of the domain's table
-	u'\uEC7A', // data_item_map:     earth-line
-	u'\uEFC5', // data_item_palette: palette-line
-	u'\uEE8F', // unit_grid_domain:  layout-grid-fill
-	u'\uF1DE', // unit_domain:       table-line, the table its attributes form
-	u'\uF0A3', // unit_base:         ruler-line, the 'rolmaat', now only for base units
-	u'\uF0B9', // unit_values:       scales-line
+	char16_t glyph;  // codepoint in the private use area of :/res/fonts/remixicon.ttf
+	char     letter; // set inside the glyph, 0 for none
+};
+
+// In item_icon_kind order.
+static const tree_icon_glyph sc_IconGlyphs[] =
+{
+	{ u'\uED6A', 0   }, // container:         folder-line
+	{ u'\uED5E', 0   }, // container_table:   folder-chart-line
+	{ u'\uF1D3', 0   }, // template_def:      t-box-line
+	{ u'\uEB7F', 'F' }, // function_def:      checkbox-blank-line, the same box with an F in it
+	{ u'\uEE92', 0   }, // data_item:         layout-left-2-line, one column of the domain's table
+	{ u'\uEC7A', 0   }, // data_item_map:     earth-line
+	{ u'\uEFC5', 0   }, // data_item_palette: palette-line
+	{ u'\uEE8F', 0   }, // unit_grid_domain:  layout-grid-fill
+	{ u'\uF1DE', 0   }, // unit_domain:       table-line, the table its attributes form
+	{ u'\uF0A3', 0   }, // unit_base:         ruler-line, the 'rolmaat', now only for base units
+	{ u'\uF0B9', 0   }, // unit_values:       scales-line
 };
 static_assert(std::size(sc_IconGlyphs) == UInt32(item_icon_kind::count), "a kind was added to item_icon_kind without a glyph");
 
 static const char16_t sc_SpatialReferenceGlyph = u'\uEBC4'; // compass-line
 
-static QPixmap RenderIconGlyph(char16_t glyph, QColor color, int size, qreal dpr)
+static QPixmap RenderIconGlyph(tree_icon_glyph icon, QColor color, int size, qreal dpr)
 {
 	QPixmap pixmap(QSize(size, size) * dpr);
 	pixmap.setDevicePixelRatio(dpr);
@@ -271,7 +281,17 @@ static QPixmap RenderIconGlyph(char16_t glyph, QColor color, int size, qreal dpr
 	painter.setRenderHint(QPainter::TextAntialiasing);
 	painter.setFont(font);
 	painter.setPen(color);
-	painter.drawText(QRect(0, 0, size, size), Qt::AlignCenter, QString(QChar(glyph)));
+	painter.drawText(QRect(0, 0, size, size), Qt::AlignCenter, QString(QChar(icon.glyph)));
+
+	if (icon.letter)
+	{
+		// the application font is :/res/fonts/dmstext.ttf, which main_qt installs before any
+		// widget is built, so the letter is set in the same face as the item names beside it
+		auto letterFont = QApplication::font();
+		letterFont.setPixelSize(std::max(6, (size * 13) / 24));
+		painter.setFont(letterFont);
+		painter.drawText(QRect(0, 0, size, size), Qt::AlignCenter, QString(QChar(icon.letter)));
+	}
 
 	return pixmap;
 }
@@ -311,10 +331,11 @@ QVariant DmsModel::getTreeItemIcon(const QModelIndex& index) const {
 
 	bool isInTemplate = ti->InTemplate();
 
-	// a template definition is answered before the interest below is looked at, as it was before
-	// issue #319; GetItemIconKind decides the same, for callers that reach it with a template
+	// a template or function definition is answered before the interest below is looked at, as it
+	// was before issue #319; the view style flags say nothing about either, so ask the rule with
+	// both refinements off rather than repeat its template/function order here
 	if (ti->IsTemplate())
-		return QVariant::fromValue(GetTreeItemPixmap(item_icon_kind::template_def, isInTemplate));
+		return QVariant::fromValue(GetTreeItemPixmap(GetItemIconKind(ti, false, false), isInTemplate));
 
 	auto vsflags = SHV_GetViewStyleFlags(ti);
 

@@ -147,6 +147,7 @@ bool SharedBase::DecRef() const noexcept
 #include "utl/Environment.h"
 
 #include "LockLevels.h"
+#include <chrono>
 #include <condition_variable>
 
 leveled_std_section s_CountedMutexSection({}, ord_level_type::CountedMutexSection, "CountedMutextSection");
@@ -163,6 +164,19 @@ void counted_mutex::lock()
 
 	MG_DEBUGCODE(md_OwningThreadID = GetThreadID(); )
 	--m_Count;
+}
+
+bool counted_mutex::try_lock_for(UInt32 milliSeconds)
+{
+	leveled_std_section::unique_lock lock( s_CountedMutexSection );
+	dbg_assert(!m_Count || md_OwningThreadID != GetThreadID());
+
+	if (!s_cv_CountedMutexSection.wait_for(lock.m_BaseLock, std::chrono::milliseconds(milliSeconds), [&] { return m_Count == 0; }))
+		return false;
+
+	MG_DEBUGCODE(md_OwningThreadID = GetThreadID(); )
+	--m_Count;
+	return true;
 }
 
 void counted_mutex::lock_shared()

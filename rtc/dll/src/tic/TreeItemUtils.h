@@ -99,6 +99,7 @@ enum class item_icon_kind
 	container,         // anything that is neither a unit nor a data item, subitems or not
 	container_table,   // ... whose subitems share a domain, so it can be shown as one table
 	template_def,      // a template definition
+	function_def,      // a function definition -- IsTemplate() holds for these too, see below
 
 	data_item,         // an attribute or a parameter
 	data_item_map,     // ... that can be drawn on a map
@@ -126,6 +127,7 @@ constexpr std::array<DmsColor, UInt32(item_icon_kind::count)> sc_DefaultIconColo
 	CombineRGB(0xE0, 0xA0, 0x30), // container:         amber
 	CombineRGB(0xE0, 0xA0, 0x30), // container_table:   amber
 	CombineRGB(0x6A, 0x3D, 0x9A), // template_def:      purple
+	CombineRGB(0x6A, 0x3D, 0x9A), // function_def:      purple, a definition like a template is
 	CombineRGB(0x45, 0x5A, 0x64), // data_item:         slate
 	CombineRGB(0x1F, 0x6F, 0xB2), // data_item_map:     blue
 	CombineRGB(0xC2, 0x18, 0x5B), // data_item_palette: magenta

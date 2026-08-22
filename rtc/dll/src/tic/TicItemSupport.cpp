@@ -590,8 +590,12 @@ item_icon_kind GetItemIconKind(const TreeItem* ti, bool isMapViewable, bool hasC
 	// order matters: a template is shown as one whatever it holds, and among data items the
 	// map-viewability that the caller established prevails over the palette role, as it did when
 	// these icons were still derived from ViewStyleFlags.
+	//
+	// A function is asked about FIRST because IsTemplate() holds for it as well: a function body
+	// is inert like a template body (TreeItem::SetIsFunction), so the two would otherwise share
+	// one icon.
 	if (ti->IsTemplate())
-		return item_icon_kind::template_def;
+		return ti->IsFunctionItem() ? item_icon_kind::function_def : item_icon_kind::template_def;
 
 	if (IsUnit(ti))
 	{

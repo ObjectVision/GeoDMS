@@ -246,8 +246,17 @@ struct counted_mutex {
 	void unlock();
 	RTC_CALL void unlock_shared();
 
+	// Exclusive acquire that gives up: false means the shared usages did not drop to zero within
+	// the given time and nothing was acquired. Used by the teardown drain, which must not be able
+	// to park forever (#1191).
+	RTC_CALL bool try_lock_for(UInt32 milliSeconds);
+
 	bool try_lock_shared();
 	bool is_unique_locked() const { return m_Count < 0;  }
+
+	// Outstanding shared usages; 0 when free or exclusively locked. Diagnostic only: the value can
+	// change the moment it is read.
+	int shared_use_count() const { return m_Count > 0 ? m_Count : 0; }
 
 private:
 	int m_Count = 0; // -1 for unique lock, +n for n sharable locks
