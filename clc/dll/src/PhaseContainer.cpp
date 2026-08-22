@@ -19,6 +19,7 @@
 #include "LispTreeType.h"
 #include "MoreDataControllers.h"
 #include "OperationContext.h"
+#include "ItemLocks.h"   // IsDataReady: tells a member still to be collected from one already carried
 #include "SupplCache.h"
 #include "TreeItemClass.h"
 #include "UnitProcessor.h"
@@ -168,6 +169,19 @@ struct PhaseContainerOperator : BinaryOperator
 			if (!resInterestPtr)
 				continue;
 
+			// #1167 / #902: a phase is RE-ENTERED whenever a member gains interest after the phase
+			// has completed. That is the shape RSopen's Stand_PerAllocRegio produces -- a for_each
+			// whose generated items each consume ONE member of the same phase -- and it stayed
+			// invisible while a SubItem call supplied the whole result tree, because the first pass
+			// then already held every member of interest and there was never a second pass.
+			// Only what is newly interested is still to be collected. Re-collecting a member that
+			// already carries its result would call CallCalcResult on a source whose interest the
+			// previous CalcResult released, so that source RECALCULATES: measured in t641_2 as the
+			// same StateNaAllocatie2 members reconverting on every re-entry, ~90 s per pass, 19
+			// passes deep into the first of its 129 phases.
+			if ((IsDataItem(resWalker) || IsUnit(resWalker)) && IsDataReady(resWalker.get()))
+				continue;
+
 			auto srcItem = sourceContainer->FindItem(resWalker->GetRelativeName(resultRoot));
 			assert(srcItem);
 			assert(srcItem->GetCurrPhaseNumber() < resultPhaseNumber);
@@ -223,7 +237,15 @@ struct PhaseContainerOperator : BinaryOperator
 		auto resultPhaseNumber = resultHolder.m_PhaseNumber;
 		assert(resultPhaseNumber > 0);
 
-		MG_CHECK(resultRoot->m_ReadAssets.is_a<phase_resource>());	
+		// #1167 / #902: report once per phase. A re-entry (see PreCalcUpdate) collects only the
+		// members that gained interest since the phase last completed, and repeating the message
+		// for each of those turns one fence into a stream of identical lines -- 19 copies of
+		// "Results for Seq_0, Wonen_NVM, Iter_0 are finished calculating" in t641_2, where the
+		// whole run is meant to print one line per phase. SetIsInstantiated below marks the first
+		// completion, so this reads the state that completion leaves behind.
+		const bool isFirstCompletion = !resultHolder->GetIsInstantiated();
+
+		MG_CHECK(resultRoot->m_ReadAssets.is_a<phase_resource>());
 		auto& futureDataContainer = resultRoot->m_ReadAssets.Get<phase_resource>().first;
 		MG_CHECK(!resultRoot->m_ReadAssets.Get<phase_resource>().second);
 
@@ -281,7 +303,7 @@ struct PhaseContainerOperator : BinaryOperator
 		DataReadLock msgLock(AsDataItem(args[1]));
 		auto msgData = const_array_cast<SharedStr>(msgLock)->GetDataRead();
 
-		if (msgData.size() != 1 || !msgData[0].empty())
+		if (isFirstCompletion && (msgData.size() != 1 || !msgData[0].empty()))
 			for (auto msg: msgData)
 				reportF(SeverityTypeID::ST_MajorTrace, "PhaseContainer({}): {}", resultPhaseNumber, SharedStr(msg));
 
