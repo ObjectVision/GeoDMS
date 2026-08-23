@@ -320,7 +320,8 @@ public:
 	// count upward, which silently disabled the progress guarantee.
 	// See the ledger section in OperationContext.cpp and §5.1 of the plan.
 	SizeT m_LedgerCharge = 0;
-	bool  m_LedgerBooked = false;
+	bool  m_LedgerBooked  : 1 = false;
+	bool  m_ActiveJoinMsgWritten: 1 = false;
 
 	// Retry discipline (user ruling 2026-07-30): a parked (refused/deferred) task retries only when
 	// memory was released since it parked, or when nothing else runs -- a release may have been

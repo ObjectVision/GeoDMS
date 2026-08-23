@@ -2744,16 +2744,6 @@ bool StealOneTask()
 	return true;
 }
 
-// Returns whether the currently active context (if any) still has run-count.
-bool CurrActiveTaskHasRunCount()
-{
-	auto ca = CancelableFrame::CurrActive();
-	if (!ca)
-		return false;
-	auto status = ca->getStatus();
-	return IsActiveOrRunning(status);
-}
-
 /// <summary>
 ///		Wait for the task to finish.
 /// </summary>
@@ -2774,12 +2764,19 @@ task_status OperationContext::Join()
 	if (!IsMetaThread())
 		StealTasks();
 
-	if (CurrActiveTaskHasRunCount())
+	if (!m_ActiveJoinMsgWritten)
 	{
-		reportF(MsgCategory::other, SeverityTypeID::ST_MinorTrace, "OperationContext({})::Join called from Active Context {}"
-			, GetResult()->GetFullName()
-			, CancelableFrame::CurrActive()->GetResult()->GetFullName()
-		);
+		if (auto ca = CancelableFrame::CurrActive())
+		{
+			if (IsActiveOrRunning(ca->getStatus()))
+			{
+				m_ActiveJoinMsgWritten = true;
+				reportF(MsgCategory::other, SeverityTypeID::ST_MinorTrace, "OperationContext({})::Join called from Active Context {}"
+					, GetResult()->GetFullName()
+					, ca->GetResult()->GetFullName()
+				);
+			}
+		}
 	}
 	if (IsMetaThread() && s_CurrBlockedPhaseNumber && s_CurrBlockedPhaseNumber <= m_PhaseNumber)
 		throwErrorF("PhaseContainer", "Invalid Recursion, OperationContext({})::Join called from updating {} for {}"
