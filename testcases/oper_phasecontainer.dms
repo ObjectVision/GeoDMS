@@ -70,13 +70,14 @@ container oper_phasecontainer
 	//        Pinned here: the re-entry delivers the right value and re-collects nothing. That it
 	//        emits ONE message, not one per re-entry, is a log property the battery cannot see --
 	//        run with /L and count the lines.
-	//        KNOWN, SEPARATE DEFECT this case also trips: an indirect expression that reads a
-	//        phase member (as `late` does) makes EVERY phase in the config run and report about
-	//        four times over, work included -- /state1/total is calculated three times here and
-	//        once without this case. It needs the dependency on phase OUTPUT: the same indirect
-	//        expression over `max(src/val)` leaves all six phases at one run and one line. The
-	//        values stay correct, so this battery cannot fail on it; it is left here deliberately
-	//        as a tripwire, and the `oper` counts in the /L log are how you see it.
+	//        This case is also the tripwire for what an indirect expression costs. An IE is not
+	//        scheduled: it must be evaluated before the meta-info of the item carrying it can be,
+	//        so it is calculated in place under interest and then dropped, taking with it whatever
+	//        it read. Before AbstrCalculator::VisitImplSuppl kept the data of what an IE refers to
+	//        directly, `late` reading phase6/a made EVERY phase here run and report four times over
+	//        -- /state1/total calculated three times against once now. The battery cannot fail on
+	//        that, since the values stay correct; the `oper` counts in a /L log are how you see it,
+	//        and one calculation per source item is what this config should show.
 	container state6
 	{
 		parameter<uint32> a := sum(src/val);                                              // 14
