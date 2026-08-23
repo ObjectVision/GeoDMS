@@ -648,7 +648,33 @@ SharedStr AbstrCalculator::EvaluateExpr(const TreeItem* context, CharPtrRange ex
 		AbstrCalculatorRef calculator = ConstructFromDirectStr(context, resultStr, cr);
 		auto dc = MakeResult(calculator.get());
 		irc.Add(dc.get());
-		
+
+		auto phaseNumber = dc->GetPhaseNumber();
+		// A failed determination is handled by the normal calculation path below, which can
+		// report the underlying error. Only a successfully assigned fenced phase is the
+		// indirect-expression error diagnosed here.
+		if (phaseNumber != failed_phase_number && phaseNumber > 1)
+		{
+			const TreeItem* phaseResult = nullptr;
+			calculator->VisitSuppliers(SupplierVisitFlag::NamedSuppliers,
+				MakeDerivedProcVisitor([&phaseResult, phaseNumber](const Actor* supplier)
+					{
+						if (supplier->GetPhaseNumber() != phaseNumber)
+							return;
+						if (auto supplierItem = dynamic_cast<const TreeItem*>(supplier))
+							phaseResult = supplierItem;
+					}
+				)
+			);
+			context->throwItemErrorF(
+				"Indirect expression '{}' for {} requires PhaseContainer result {} (phase {}). "
+				"Results supplied through a PhaseContainer cannot be used in indirect expressions.",
+				resultStr,
+				context->GetFullName().c_str(),
+				phaseResult ? phaseResult->GetFullName().c_str() : "<indirect supplier chain>",
+				phaseNumber);
+		}
+
 		auto res = CalledCalcHandle(calculator.get(), DataArray<SharedStr>::GetStaticClass());
 		assert(res);
 		if (res->WasFailed()) // covers MetaInfo, Data, and Validate failures

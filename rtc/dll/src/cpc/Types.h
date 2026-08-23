@@ -131,6 +131,7 @@ using decpos_t = UInt8;
 using FileDateTime     = UInt64; // connection with the real world (as represented by a time stamped Persistent File system); don't confuse it with TimeStamp, which sequences transcient events
 using TimeStamp        = UInt32;    // only used for internal chronological ordering
 using phase_number     = UInt32;
+inline constexpr phase_number failed_phase_number = phase_number(-1);
 using interest_count_t = UInt32;
 
 //----------------------------------------------------------------------

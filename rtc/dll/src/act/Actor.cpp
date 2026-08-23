@@ -559,6 +559,10 @@ void Actor::DoInvalidate () const
     assert(!DoesHaveSupplInterest());
     assert(!WasFailed(FailType::Data));
 
+    // Supplier changes can change the scheduling fence inherited by this actor. A phase
+    // number is only valid for the state that caused its supplier scan.
+    m_PhaseNumber = 0;
+
 //    GetLastChangeTS();
     if (m_InterestCount)
     {
@@ -1493,18 +1497,27 @@ void AssignPhaseNumber(const Actor* item) noexcept
     if (item->m_PhaseNumber)
         return;
 
-    item->m_PhaseNumber = first_phase_number;
+    // The failure value is also the recursion sentinel: a supplier that reaches this actor
+    // while its scan is in progress propagates failure and shortcuts the remaining visits.
+    // Only a complete supplier scan publishes a positive phase number.
+    item->m_PhaseNumber = failed_phase_number;
+    phase_number candidate = first_phase_number;
 
     try {
-        VisitSupplProcImpl(item, SupplierVisitFlag::FenceNumberScan, [item](const Actor* suppl)
+        auto visitResult = VisitSupplBoolImpl(item, SupplierVisitFlag::FenceNumberScan, [&candidate](const Actor* suppl) -> bool
             {
 //              assert(suppl->m_State.GetProgress() >= ProgressState::ProgressState::MetaInfo);
 //              suppl->UpdateMetaInfo();
-                MakeMax<phase_number>(item->m_PhaseNumber, suppl->GetPhaseNumber());
+                MakeMax<phase_number>(candidate, suppl->GetPhaseNumber());
+                return candidate != failed_phase_number;
             }
         );
+        if (visitResult == AVS_Ready)
+            item->m_PhaseNumber = candidate;
     }
-    catch (...) {}
+    catch (...) {
+        // Keep failed_phase_number until DoInvalidate starts a new epoch.
+    }
 }
 
 // Public accessor that ensures assignment and returns cached phase number.

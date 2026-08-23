@@ -74,17 +74,15 @@ container oper_phasecontainer
 	//        scheduled: it must be evaluated before the meta-info of the item carrying it can be,
 	//        so it is calculated in place under interest and then dropped, taking with it whatever
 	//        it read. Before AbstrCalculator::VisitImplSuppl kept the data of what an IE refers to
-	//        directly, `late` reading phase6/a made EVERY phase here run and report four times over
-	//        -- /state1/total calculated three times against once now. The battery cannot fail on
-	//        that, since the values stay correct; the `oper` counts in a /L log are how you see it,
-	//        and one calculation per source item is what this config should show.
+	//        directly. The indirect expression itself remains pre-fence: PhaseContainer results
+	//        are not allowed as inputs while resolving an indirect expression.
 	container state6
 	{
 		parameter<uint32> a := sum(src/val);                                              // 14
 		parameter<uint32> b := max(src/val) * 7;                                          // 35
 	}
 	container phase6 := PhaseContainer(state6, 'phase 6: re-entered for a late member');
-	parameter<uint32> late := ='phase6/' + (phase6/a > 0 ? 'b' : 'b');
+	parameter<uint32> late := ='phase6/' + (max(src/val) > 0 ? 'b' : 'b');
 
 	container checks
 	{

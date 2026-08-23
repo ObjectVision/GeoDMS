@@ -1,0 +1,19 @@
+// issue #1199: resolving an indirect expression is an inline metadata operation. It cannot
+// demand a result behind a PhaseContainer, because doing so would enter the fence while the
+// holder's expression is still being determined. The diagnostic must be raised before the
+// phase-backed value is calculated.
+container oper_phasecontainer_indirect_neg
+{
+	container source
+	{
+		parameter<uint32> selector := 1;
+	}
+	container phase := PhaseContainer(source, 'must not run for an indirect expression');
+
+	parameter<uint32> bad := ='uint32(' + string(phase/selector) + ')';
+
+	container checks
+	{
+		parameter<bool> rejected := bad == 1, IntegrityCheck = "rejected == True";
+	}
+}

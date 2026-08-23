@@ -247,7 +247,8 @@ public:
 	RTC_CALL garbage_can StopSupplInterest() const noexcept; friend struct AbstrOperGroup;
 	void RestartSupplInterestIfAny() const;
 	// Phase numbers
-	// - Phase numbers tag update cycles to prevent re-entrancy issues and detect recursion.
+	// - 0 is undetermined, failed_phase_number is determining/failed, and positive values
+	//   are successfully determined scheduling phases.
 	RTC_CALL auto GetPhaseNumber() const -> phase_number;
 	// - Current phase number (valid for pass-through or when set).
 	auto GetCurrPhaseNumber() const -> phase_number { MG_CHECK(m_PhaseNumber || IsPassor()); return m_PhaseNumber; }
@@ -260,7 +261,7 @@ public:
 	mutable TimeStamp      m_LastChangeTS = 0;
 	// Timestamp of last full GetState evaluation; used to avoid redundant recomputation.
 	mutable TimeStamp      m_LastGetStateTS = 0;
-	// Phase number used to identify update/evaluation cycles.
+	// Cached phase-number determination; reset by DoInvalidate for the next epoch.
 	mutable phase_number   m_PhaseNumber = 0;
 
 #if defined(MG_ITEMLEVEL)
