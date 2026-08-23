@@ -10,7 +10,7 @@
 #include "DmsMainWindow.h"
 #include "TreeItem.h"
 #include "TreeItemUtils.h"
-#include "utl/Environment.h"
+#include "utl/FileSystem.h"
 
 #include <QAction>
 #include <QApplication>
@@ -30,8 +30,13 @@ const TreeItem* DefinitionTarget(const TreeItem* item)
     // Follow the chain as well: an instantiation can itself occur in a template
     // or function that is instantiated again.
     std::set<const TreeItem*> seen;
-    while (item && item->mc_OrgItem && seen.insert(item).second)
-        item = item->mc_OrgItem.get();
+    while (item && seen.insert(item).second)
+    {
+        auto org = item->mc_OrgItem.lock();
+        if (!org)
+            break;
+        item = org.get();
+    }
     return item;
 }
 
@@ -99,7 +104,7 @@ std::vector<SourcePosition> InstantiationRoots(const TreeItem* selected)
     // ancestor chain naturally exposes outer instantiations as further choices.
     for (auto p = selected; p; p = p->GetTreeParent().get())
     {
-        auto org = p->mc_OrgItem.get();
+        auto org = p->mc_OrgItem.lock();
         if (!org || !org->IsTemplate() || !seenTargets.insert(p).second)
             continue;
 
