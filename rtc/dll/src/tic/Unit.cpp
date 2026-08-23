@@ -90,6 +90,7 @@ LispRef Unit<V>::GetKeyExprImpl() const
 	{
 		result = AbstrUnit::GetKeyExprImpl();
 	}
+	bool hasCalcRule = !result.EndP();
 
 #if defined(MG_DEBUG)
 	auto resultStr = AsString(result.AsLispPtr());
@@ -162,6 +163,26 @@ LispRef Unit<V>::GetKeyExprImpl() const
 	reportF(SeverityTypeID::ST_MinorTrace, "AbstrUnit::GetAsLispRef -> {}", AsString(result.AsLispPtr()).c_str());
 	dms_assert(IsExpr(result));
 #endif
+	// A unit that declares a SpatialReference AND has a calculation rule must produce a unit that
+	// carries that CRS. Its rule (baseunit('m', fpoint)) yields a metric only, and asking the result
+	// for its CRS then reaches that CRS-less unit, which is how a written shapefile lost its .prj.
+	// Wrapping the rule the way the no-rule case above wraps the value type puts the CRS in the
+	// identity, so the DataController result is a unit<V> with it; see the CrsUnit operator.
+	// GetLocalCrs, not GetSpatialReference: only a CRS declared HERE belongs in this expression; one
+	// reached through the rule is already part of the term that rule contributed.
+	if constexpr (has_var_range_v<V>)
+	{
+		if (hasCalcRule && !IsEmpty(GetLocalCrs()))
+		{
+			// Materialize the token BEFORE building the LispRef, as the CRS branch above explains.
+			SharedStr srStr(GetLocalCrs()->m_SpatialRef);
+			result = ExprList(token::CrsUnit
+				, LispRef(srStr.begin(), srStr.send())
+				, result
+			);
+		}
+	}
+
 	// add range or tile spec to keyExpr
 	if (GetTSF(USF_HasConfigRange))
 		result = GetRangeDataAsLispRef(m_RangeDataPtr, GetTSF(TSF_Categorical), result); // enforce [expr(x) == expr(y)] => [range(x) == range(y)];
