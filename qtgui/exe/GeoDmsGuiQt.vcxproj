@@ -142,7 +142,7 @@
       <QtMocFileName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(Filename).moc</QtMocFileName>
     </ClCompile>
     <ClCompile Include="src\DmsMainWindow.cpp" />
-    <ClCompile Include="src\Issue471EditorNavigation.cpp" />
+    <ClCompile Include="src\EditorNavigation.cpp" />
     <ClCompile Include="src\DmsSmallWindows.cpp" />
     <ClCompile Include="src\DmsOptions.cpp" />
     <ClCompile Include="src\DmsToolbar.cpp">

@@ -149,7 +149,7 @@ protected:
         // Remove alternates inserted on the previous popup invocation.
         for (auto action : actions)
         {
-            if (!action->property("issue471InstantiationEditorAction").toBool())
+            if (!action->property("instantiationEditorAction").toBool())
                 continue;
             menu->removeAction(action);
             action->deleteLater();
@@ -164,7 +164,7 @@ protected:
         for (const auto& source : InstantiationRoots(selected))
         {
             auto action = new QAction(QObject::tr("Open %1 in Editor").arg(source.name), menu);
-            action->setProperty("issue471InstantiationEditorAction", true);
+            action->setProperty("instantiationEditorAction", true);
             QObject::connect(action, &QAction::triggered, mainWindow,
                 [mainWindow, filename = source.filename, line = source.line]() {
                     mainWindow->openConfigSourceDirectly(filename, line);
@@ -176,14 +176,14 @@ protected:
     }
 };
 
-void InstallIssue471EditorNavigation()
+void EditorNavigation()
 {
     // Q_COREAPP_STARTUP_FUNCTION runs after QApplication construction, but before
     // MainWindow is necessarily built.  Run installation on the first event-loop
     // turn; retrying is harmless for atypical startup sequences.
     if (!MainWindow::IsExisting() || !MainWindow::TheOne()->m_edit_config_source_action)
     {
-        QTimer::singleShot(0, InstallIssue471EditorNavigation);
+        QTimer::singleShot(0, EditorNavigation);
         return;
     }
 
@@ -205,11 +205,11 @@ void InstallIssue471EditorNavigation()
     qApp->installEventFilter(new EditorNavigationMenuFilter(qApp));
 }
 
-void ScheduleIssue471EditorNavigation()
+void ScheduleEditorNavigation()
 {
-    QTimer::singleShot(0, InstallIssue471EditorNavigation);
+    QTimer::singleShot(0, EditorNavigation);
 }
 
 } // namespace
 
-Q_COREAPP_STARTUP_FUNCTION(ScheduleIssue471EditorNavigation)
+Q_COREAPP_STARTUP_FUNCTION(ScheduleEditorNavigation)

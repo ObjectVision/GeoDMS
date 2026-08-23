@@ -18,7 +18,7 @@
     <ClCompile Include="src\DmsMainWindow.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\Issue471EditorNavigation.cpp">
+    <ClCompile Include="src\EditorNavigation.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\DmsSmallWindows.cpp">
