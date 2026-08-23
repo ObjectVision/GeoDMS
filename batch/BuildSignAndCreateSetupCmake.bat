@@ -115,7 +115,17 @@ REM concurrent builds of this repo interleave writes into the packaged output,
 REM so NSIS ships a TORN binary snapshot whose unit tests all fail (see the
 REM 2026-07-20 20.9.0.m incident in the msbuild sister script). If it provably
 REM targets another repo, the CHOICE allows continuing.
-powershell -NoProfile -Command "exit ([int](((Get-Process MSBuild,cmake -EA SilentlyContinue) | Measure-Object).Count -gt 0))"
+REM
+REM Counting processes is NOT that test -- see the sister script for the full
+REM reasoning. MSBuild parks its worker nodes (/nodemode:1 /nodeReuse:true) for
+REM 15 minutes after a build ends and Visual Studio keeps a set alive while it is
+REM open, so the plain count warned with nothing building. It matters here twice
+REM over: Build.bat runs the msbuild flavour first, whose nodes are still parked
+REM when this script starts. An MSBuild WITHOUT /nodemode: is a driver and counts;
+REM a /nodemode: worker counts when it is demonstrably working -- it has child
+REM processes (cl.exe, link.exe) or burns CPU of its own. cmake.exe has no such
+REM idle-node mechanism, so any cmake process still counts as a running build.
+powershell -NoProfile -Command "$ps = @(Get-Process MSBuild,cmake -EA SilentlyContinue); if ($ps.Count -eq 0) { exit 0 }; $cim = @(Get-CimInstance Win32_Process -Filter (($ps.Id | ForEach-Object { 'ProcessId=' + $_ }) -join ' OR ') -EA SilentlyContinue); if (@($cim | Where-Object { $_.Name -ne 'MSBuild.exe' -or $_.CommandLine -notmatch '[-/]nodemode:' }).Count -gt 0) { exit 1 }; if (@(Get-CimInstance Win32_Process -Filter (($ps.Id | ForEach-Object { 'ParentProcessId=' + $_ }) -join ' OR ') -EA SilentlyContinue).Count -gt 0) { exit 1 }; $t0 = @{}; foreach ($p in $ps) { $t0[$p.Id] = $p.TotalProcessorTime }; Start-Sleep -Milliseconds 750; foreach ($p in (Get-Process -Id $ps.Id -EA SilentlyContinue)) { if ($t0.ContainsKey($p.Id) -and (($p.TotalProcessorTime - $t0[$p.Id]).TotalMilliseconds -gt 50)) { exit 1 } }; exit 0"
 if errorlevel 1 (
     echo *** WARNING: an MSBuild.exe/cmake.exe is currently running. A concurrent build of THIS repo tears the setup contents. ***
     CHOICE /M "Continue anyway (only safe if that build targets ANOTHER repo)?"

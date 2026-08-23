@@ -56,7 +56,26 @@ REM collision produced a broken 20.9.0.m install on 2026-07-20: a background
 REM CLI build was still writing DLLs while this script wiped, rebuilt and
 REM packaged the same output folder). If the running MSBuild provably targets
 REM another repo, the CHOICE allows continuing.
-powershell -NoProfile -Command "exit ([int]((Get-Process MSBuild -EA SilentlyContinue | Measure-Object).Count -gt 0))"
+REM
+REM Counting MSBuild.exe processes is NOT that test. MSBuild keeps its worker
+REM nodes alive for 15 minutes after a build finishes (/nodemode:1 /nodeReuse:true)
+REM so the next build can reuse them, and an open Visual Studio keeps a set parked
+REM for its design-time builds -- so a developer shell on a machine with VS open
+REM tripped this guard with no build running at all. Warning about idle leftovers
+REM trains the answer "yes, continue", which is the one reflex this guard must not
+REM create.
+REM So: an MSBuild WITHOUT /nodemode: is an entry-point driver and always counts;
+REM a /nodemode: worker counts when it is demonstrably working, which is what a
+REM build driven by devenv.exe -- which has no MSBuild entry point of its own --
+REM looks like. A process whose command line cannot be read counts, as unknown.
+REM
+REM "Working" is two signals, because neither alone is reliable: a node running a
+REM compile has CHILD processes (cl.exe, link.exe, rc.exe), and a parked one has
+REM none; and a node burns CPU of its own for scheduling and logging. The child
+REM test carries the case where the node sits waiting on a long single-threaded
+REM link, the CPU test the case between task spawns. Both are cheap, and the
+REM 750 ms sample is only paid when nothing else already decided.
+powershell -NoProfile -Command "$ps = @(Get-Process MSBuild -EA SilentlyContinue); if ($ps.Count -eq 0) { exit 0 }; $cim = @(Get-CimInstance Win32_Process -Filter (($ps.Id | ForEach-Object { 'ProcessId=' + $_ }) -join ' OR ') -EA SilentlyContinue); if (@($cim | Where-Object { $_.CommandLine -notmatch '[-/]nodemode:' }).Count -gt 0) { exit 1 }; if (@(Get-CimInstance Win32_Process -Filter (($ps.Id | ForEach-Object { 'ParentProcessId=' + $_ }) -join ' OR ') -EA SilentlyContinue).Count -gt 0) { exit 1 }; $t0 = @{}; foreach ($p in $ps) { $t0[$p.Id] = $p.TotalProcessorTime }; Start-Sleep -Milliseconds 750; foreach ($p in (Get-Process -Id $ps.Id -EA SilentlyContinue)) { if ($t0.ContainsKey($p.Id) -and (($p.TotalProcessorTime - $t0[$p.Id]).TotalMilliseconds -gt 50)) { exit 1 } }; exit 0"
 if errorlevel 1 (
     echo *** WARNING: an MSBuild.exe is currently running. A concurrent build of THIS repo tears the setup contents. ***
     CHOICE /M "Continue anyway (only safe if that build targets ANOTHER repo)?"
