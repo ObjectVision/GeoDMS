@@ -957,8 +957,9 @@ void DataItemsWriteStatusInfo::ReleaseAllLayerInterestPtrs(TokenID layerID)
 {
 	for (auto& fieldInfo : m_LayerAndFieldIDMapping[layerID])
 	{
+		if (fieldInfo.second.writeInThisRound()) // only the fields that just went into the layer are now in the layer
+			fieldInfo.second.isWritten = true;
 		fieldInfo.second.m_DataHolder = {};
-		fieldInfo.second.isWritten = true;
 	}
 }
 
@@ -978,7 +979,9 @@ void DataItemsWriteStatusInfo::RefreshInterest(const TreeItem* storageHolder)
 
 		auto layer_id = unit_item->GetID();
 		auto field_id = sub_item->GetID();
-		bool sub_item_has_interest = sub_item->GetInterestCount(); // && m_LayerAndFieldIDMapping.contains(layer_id) && !m_LayerAndFieldIDMapping[layer_id][field_id].isWritten;
+		// A column that cannot be produced must not block the rest of its layer: it takes no part in the
+		// write and thus gets no field either (issue #711).
+		bool sub_item_has_interest = sub_item->GetInterestCount() and not sub_item->WasFailed();
 		setInterest(layer_id, field_id, sub_item_has_interest);
 	}
 }
@@ -1009,10 +1012,29 @@ bool DataItemsWriteStatusInfo::LayerIsReadyForWriting(TokenID layerID)
 		if (not writableField.second.doWrite)
 			continue;
 
+		if (writableField.second.isWritten) // already in the layer; its data was released right after that write
+			continue;
+
 		if (not writableField.second.m_DataHolder) // field is not on the writables list.
 			return false;
 	}
 	return true;
+}
+
+bool DataItemsWriteStatusInfo::LayerHasFieldsToWrite(TokenID layerID)
+{
+	for (auto& writableField : m_LayerAndFieldIDMapping[layerID])
+		if (writableField.second.writeInThisRound())
+			return true;
+	return false;
+}
+
+bool DataItemsWriteStatusInfo::LayerGeometryIsWritten(TokenID layerID)
+{
+	for (auto& writableField : m_LayerAndFieldIDMapping[layerID])
+		if (writableField.second.isGeometry and (writableField.second.writeInThisRound() or writableField.second.isWritten))
+			return true;
+	return false;
 }
 
 bool DataItemsWriteStatusInfo::DatasetIsReadyForWriting()

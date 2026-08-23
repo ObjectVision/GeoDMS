@@ -106,6 +106,11 @@ struct FieldInfo
 	TokenID     launderedNameID; // gdal could launder the name of DataItem
 
 	WeakDataItemInterestPtr m_DataHolder; // Ptr to keep data alive until all data for layer items of interest is present.
+
+	// A field takes part in the current write round when it is of interest and its data is at hand. Fields
+	// written in an earlier round had their m_DataHolder released and are already present in the layer;
+	// fields without interest are not written at all and get no field in the layer either (issue #711).
+	bool writeInThisRound() const { return doWrite && m_DataHolder.has_ptr(); }
 };
 
 struct gdal_affine_crd_transformation
@@ -148,6 +153,8 @@ public:
 	void RefreshInterest(const TreeItem* storageHolder);
 	bool DatasetIsReadyForWriting();
 	bool LayerIsReadyForWriting(TokenID layerID);
+	bool LayerHasFieldsToWrite(TokenID layerID);
+	bool LayerGeometryIsWritten(TokenID layerID);
 	bool LayerHasBeenWritten(TokenID layerID);
 	auto GetExampleAdiFromLayerID(TokenID layerID) -> SharedDataItem;
 

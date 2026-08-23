@@ -18,6 +18,8 @@
 #include "ogrsf_frmts.h"
 #include "ogr_api.h"
 
+#include <set>
+
 #include "dbg/debug.h"
 #include "dbg/SeverityType.h"
 #include "vt/Conversions.h"
@@ -2193,7 +2195,7 @@ std::vector<DataReadLock> ReadableDataHandles(TokenID layer_id, DataItemsWriteSt
 
 	for (auto& writableField : dataItemsStatusInfo.m_LayerAndFieldIDMapping[layer_id])
 	{
-		if (not writableField.second.doWrite)
+		if (not writableField.second.writeInThisRound())
 			continue;
 
 		std::weak_ptr<const AbstrDataItem> adi_w = writableField.second.m_DataHolder;
@@ -2309,10 +2311,14 @@ bool CheckVCAndVCIForGeometry(ValueComposition vc, ValueClassID vci)
 	return false;
 }
 
+// Create the fields that the current write round needs and that the layer doesn't have yet. Attributes
+// without interest get no field: creating one would only fill the layer with a <null> column (issue #711).
+// Attributes demanded later are added by a later call, hence the skipping of fields already present.
 void SetFeatureDefnForOGRLayerFromLayerHolder(const TreeItem* subItem, OGRLayer* layerHandle, TokenID layerID, DataItemsWriteStatusInfo& disi)
 {
 	GDAL_ErrorFrame error_frame;
 	int geometryFieldCount = 0;
+	auto& fieldIDMapping = disi.m_LayerAndFieldIDMapping[layerID];
 	for (auto fieldCandidate = subItem; fieldCandidate; fieldCandidate = subItem->WalkConstSubTree(fieldCandidate))
 	{
 		if (not (IsDataItem(fieldCandidate) and fieldCandidate->IsStorable()))
@@ -2331,6 +2337,24 @@ void SetFeatureDefnForOGRLayerFromLayerHolder(const TreeItem* subItem, OGRLayer*
 		{
 			TokenID         fieldNameID = fieldCandidate->GetID();
 			int             bApproxOK   = TRUE;
+
+			auto fieldInfoPtr = fieldIDMapping.find(fieldNameID);
+			if (fieldInfoPtr == fieldIDMapping.end() || not fieldInfoPtr->second.writeInThisRound())
+				continue; // no data for this attribute now, thus no field for it either
+
+			bool layerHasFieldAlready = false;
+			{	// a previous write round can already have created the field for this attribute
+				TokenStr currFieldName = (fieldInfoPtr->second.launderedNameID.empty() ? fieldNameID : fieldInfoPtr->second.launderedNameID).GetStr();
+				layerHasFieldAlready = (layerHandle->GetLayerDefn()->GetFieldIndex(currFieldName.c_str()) >= 0);
+				// destructor of TokenStr gives up lock on tokenlist
+			}
+			if (layerHasFieldAlready)
+				continue;
+
+			// drivers such as CSV can only define their fields before the first feature is written
+			if (not layerHandle->TestCapability(OLCCreateField))
+				throwErrorF("gdalwrite.vect", "cannot add field {} to the already written layer {}; this driver requires all attributes to be written at once, thus they must be of interest at the same time."
+					, fieldNameID.AsStdString(), layerID.AsStdString());
 
 			OGRFieldType    type    = DmsType2OGRFieldType(vci);
 			OGRFieldSubType subtype = DmsType2OGRSubFieldType(vci);
@@ -2510,10 +2534,18 @@ void GdalVectSM::WriteLayer(TokenID layer_id, const GdalMetaInfo& gmi)
 	if (not layer_handle)
 		throwErrorF("gdal.vect", "cannot find layer: {} in GDALDataset for writing.", layer_id.AsStdString());
 
-	if (not layer_handle->GetLayerDefn()->GetFieldCount()) // geosjon: fields uninitialized at this point
-		SetFeatureDefnForOGRLayerFromLayerHolder(unit_item, layer_handle, layer_id, m_DataItemsStatusInfo);
+	// create the fields of this write round that the layer doesn't have yet: geojson leaves them
+	// uninitialized at layer creation and a later round can add an attribute to an existing layer.
+	SetFeatureDefnForOGRLayerFromLayerHolder(unit_item, layer_handle, layer_id, m_DataItemsStatusInfo);
 
 	auto numExistingFeatures = ::ReadUnitRange(layer_handle, this->m_hDS);
+	layer_handle->ResetReading(); // the loop below walks the layer from its first feature onwards
+
+	// A column of interest pulls in the other columns of its layer (see StartInterest), so the geometry
+	// normally comes along; say so when it does not, as the written features then have no shape.
+	if (not numExistingFeatures and m_DataItemsStatusInfo.hasGeometry(layer_id) and not m_DataItemsStatusInfo.LayerGeometryIsWritten(layer_id))
+		reportF(MsgCategory::storage_write, SeverityTypeID::ST_Warning, "gdalwrite.vect, layer {} is written without its geometry, so its features have no shape."
+			, layer_id.AsStdString());
 
 	SizeT featureIndex = 0, tileFeatureIndex = 0;
 	for (tile_id t = 0, te = adu->GetNrTiles(); t != te; ++t)
@@ -2534,7 +2566,7 @@ void GdalVectSM::WriteLayer(TokenID layer_id, const GdalMetaInfo& gmi)
 			gdalVectImpl::FeaturePtr protoFeature = OGRFeature::CreateFeature(layer_handle->GetLayerDefn()); gdal_error_frame.ThrowUpWhateverCameUp();
 			for (auto& writableField : fieldIDMapping)
 			{
-				if (not writableField.second.doWrite)
+				if (not writableField.second.writeInThisRound())
 					continue;
 
 				if (not writableField.second.isGeometry)
@@ -2553,12 +2585,19 @@ void GdalVectSM::WriteLayer(TokenID layer_id, const GdalMetaInfo& gmi)
 		}
 		for (; tileFeatureIndex < numExistingFeaturesInTile; ++tileFeatureIndex, ++featureIndex)
 		{
-			gdalVectImpl::FeaturePtr curFeature = numExistingFeatures ? layer_handle->GetNextFeature() : OGRFeature::CreateFeature(layer_handle->GetLayerDefn()); gdal_error_frame.ThrowUpWhateverCameUp();
+			bool updateExistingFeature = featureIndex < numExistingFeatures;
+			OGRFeature* nextFeature = updateExistingFeature ? layer_handle->GetNextFeature() : nullptr; gdal_error_frame.ThrowUpWhateverCameUp();
+			if (!nextFeature) // no (further) feature to update: append one
+			{
+				updateExistingFeature = false;
+				nextFeature = OGRFeature::CreateFeature(layer_handle->GetLayerDefn()); gdal_error_frame.ThrowUpWhateverCameUp();
+			}
+			gdalVectImpl::FeaturePtr curFeature = nextFeature;
 
 			// write explicitly configured fields
 			for (auto& writableField : fieldIDMapping)
 			{
-				if (not writableField.second.doWrite)
+				if (not writableField.second.writeInThisRound())
 					continue;
 
 				std::weak_ptr<const AbstrDataItem> adi_w = writableField.second.m_DataHolder;
@@ -2582,7 +2621,7 @@ void GdalVectSM::WriteLayer(TokenID layer_id, const GdalMetaInfo& gmi)
 					WriteGeometryElement(orphan_geometry_adi, curFeature, t, tileFeatureIndex);
 			}
 
-			if (not numExistingFeatures)
+			if (not updateExistingFeature)
 				{ [[maybe_unused]] OGRErr createFeatureErr = layer_handle->CreateFeature(curFeature); }
 			else
 				{ [[maybe_unused]] OGRErr setFeatureErr = layer_handle->SetFeature(curFeature); }
@@ -2601,6 +2640,31 @@ void GdalVectSM::WriteLayer(TokenID layer_id, const GdalMetaInfo& gmi)
 	}
 
 	m_DataItemsStatusInfo.m_continueWrite = true;
+}
+
+// Produce the columns of a layer that are of interest but not at hand yet, so that the layer can be
+// written complete. They are of interest already, so this only determines when they are produced, not
+// how long they are kept: see GdalVectSM::StartInterest.
+void GdalVectSM::PrepareLayerFieldsForWriting(const TreeItem* layerHolder, TokenID layer_id, const AbstrDataItem* self) const
+{
+	assert(IsMetaThread());
+
+	auto& fieldIDMapping = m_DataItemsStatusInfo.m_LayerAndFieldIDMapping[layer_id];
+	for (auto column = layerHolder->WalkConstSubTree(nullptr); column; column = layerHolder->WalkConstSubTree(column))
+	{
+		if (column == self)
+			continue;
+		if (not (IsDataItem(column) and column->IsStorable()))
+			continue;
+		if (not column->GetInterestCount())
+			continue; // nobody asked for this column, thus no field for it either
+
+		auto fieldInfoPtr = fieldIDMapping.find(column->GetID());
+		if (fieldInfoPtr != fieldIDMapping.end() and (fieldInfoPtr->second.isWritten or fieldInfoPtr->second.m_DataHolder.has_ptr()))
+			continue; // already written, or its data is at hand
+
+		column->Update(false, "gdalwrite.vect, writing the columns of a layer together");
+	}
 }
 
 FileResult GdalVectSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
@@ -2640,12 +2704,32 @@ FileResult GdalVectSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	m_DataItemsStatusInfo.SetInterestForDataHolder(layer_id, fieldID, adi.get()); // write once all dataitems are ready
 
 	if (not m_DataItemsStatusInfo.LayerIsReadyForWriting(layer_id))
-		return {};
+	{
+		// The other columns of this layer are of interest (see StartInterest) but nothing is waiting for
+		// them, so produce them here; the layer goes into the file in one pass and a column that is not
+		// produced would be a <null> column (issue #711). Each column that becomes available commits and
+		// thus re-enters this function; the last one finds the layer complete and writes it.
+		PrepareLayerFieldsForWriting(unit_item, layer_id, adi.get());
+
+		if (not m_DataItemsStatusInfo.LayerIsReadyForWriting(layer_id))
+			return {};
+	}
+
+	if (not m_DataItemsStatusInfo.LayerHasFieldsToWrite(layer_id))
+		return {}; // producing those columns already wrote this layer
 
 	bool dataset_is_ready_for_writing = m_DataItemsStatusInfo.DatasetIsReadyForWriting();
 	bool driver_supports_update = DriverSupportsUpdate(data_source_name.begin(), driver_array);
-	if (not driver_supports_update and not dataset_is_ready_for_writing)
-		return {};
+	if (not driver_supports_update)
+	{
+		if (not dataset_is_ready_for_writing)
+			return {};
+
+		// such a driver recreates the dataset on each write-open, so a second round would drop what the
+		// first one wrote; the dataset was written in full when all data of interest was at hand.
+		if (m_DataItemsStatusInfo.m_continueWrite)
+			return {};
+	}
 
 	StorageWriteHandle storageHandle(this, std::move(smiHolder)); // open dataset
 
@@ -2653,7 +2737,8 @@ FileResult GdalVectSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 		WriteLayer(layer_id, gmi);
 	else { // write whole dataset in one go
 		for (auto& layer : m_DataItemsStatusInfo.m_LayerAndFieldIDMapping)
-			WriteLayer(layer.first, gmi);
+			if (m_DataItemsStatusInfo.LayerHasFieldsToWrite(layer.first))
+				WriteLayer(layer.first, gmi);
 	}
 
 	return {};
@@ -2864,6 +2949,81 @@ void GdalVectSM::OnTerminalDataItem(const AbstrDataItem* adi) const
 			if (writableField.second.m_DataHolder == adi)
 				writableField.second.m_DataHolder = nullptr;
 	}
+}
+
+// Which layers are collecting their columns right now, per thread; see GdalVectSM::StartInterest.
+struct layer_collection_guard
+{
+	layer_collection_guard(const TreeItem* layerHolder)
+		: m_LayerHolder(layerHolder)
+		, m_IsFirst(s_CollectingLayers.insert(layerHolder).second)
+	{}
+	~layer_collection_guard()
+	{
+		if (m_IsFirst)
+			s_CollectingLayers.erase(m_LayerHolder);
+	}
+	bool IsFirst() const { return m_IsFirst; }
+
+	const TreeItem* m_LayerHolder;
+	bool            m_IsFirst;
+
+	static thread_local std::set<const TreeItem*> s_CollectingLayers;
+};
+
+thread_local std::set<const TreeItem*> layer_collection_guard::s_CollectingLayers;
+
+// A vector layer is written as a whole: all its columns go into the file in one pass. A column that is
+// of interest therefore requires its siblings; without them the layer would get a <null> column for
+// everything nobody asked for (issue #711). The interest on those siblings is registered here, on
+// behalf of the column that is of interest, and dropped again in StopInterest, so it lives exactly as
+// long as the outside interest in that column and always traces back to the command line or dataview
+// that asked for it. The holders are weak: the columns are owned by the tree, and an owning ptr from
+// a storage manager back into its own storage holder would be a cycle.
+// A column pulled in this way must not pull its siblings in turn: two columns that keep each other of
+// interest would never let go, and pulling back while the first column is still starting its interest
+// would re-enter that column, which Actor::StartInterest forbids. The guard prevents both.
+void GdalVectSM::StartInterest(const TreeItem* storageHolder, const TreeItem* self) const
+{
+	NonmappableStorageManager::StartInterest(storageHolder, self);
+
+	if (not IsWritableGDAL())
+		return;
+	if (not (IsDataItem(self) and self->IsStorable()))
+		return;
+
+	auto layer_holder = GetLayerHolderFromDataItem(storageHolder, self);
+	if (not layer_holder)
+		return;
+
+	layer_collection_guard collectingThisLayer(layer_holder);
+	if (not collectingThisLayer.IsFirst())
+		return; // self is one of the columns collected for this layer
+
+	std::vector<WeakDataItemInterestPtr> siblingInterest;
+	for (auto column = layer_holder->WalkConstSubTree(nullptr); column; column = layer_holder->WalkConstSubTree(column))
+	{
+		if (column == self)
+			continue;
+		if (not (IsDataItem(column) and column->IsStorable()))
+			continue;
+		siblingInterest.emplace_back(AsDataItem(column)); // starts the interest of that column
+	}
+
+	if (siblingInterest.empty())
+		return;
+
+	auto exclusiveAcccess = std::scoped_lock(m_xSectionDataItemsStatusInfo);
+	m_LayerSiblingInterest[self] = std::move(siblingInterest);
+}
+
+void GdalVectSM::StopInterest(const TreeItem* storageHolder, const TreeItem* self) const noexcept
+{
+	{
+		auto exclusiveAcccess = std::scoped_lock(m_xSectionDataItemsStatusInfo);
+		m_LayerSiblingInterest.erase(self); // the columns that self pulled in lose that interest again
+	}
+	NonmappableStorageManager::StopInterest(storageHolder, self);
 }
 
 void GdalVectSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const
