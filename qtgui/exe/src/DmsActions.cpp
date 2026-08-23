@@ -1,8 +1,16 @@
 #include "DmsActions.h"
 #include "DmsMainWindow.h"
+#include "TreeItem.h"
+#include "TreeItemUtils.h"
+#include "utl/FileSystem.h"
 
 #include <memory>
+#include <set>
+#include <string>
+#include <vector>
 #include <QObject>
+#include <QApplication>
+#include <QEvent>
 #include <QMenu>
 #include <QTranslator>
 #include <QAction>
@@ -12,6 +20,143 @@
 #include "DmsEventLog.h"
 #include "DmsDetailPages.h"
 #include "DmsViewArea.h"
+
+namespace {
+
+const TreeItem* DefinitionTarget(const TreeItem* item)
+{
+    std::set<const TreeItem*> seen;
+    while (item && seen.insert(item).second)
+    {
+        auto org = item->mc_OrgItem.lock();
+        if (!org)
+            break;
+        item = org.get();
+    }
+    return item;
+}
+
+const TreeItem* DefinitionRoot(const TreeItem* item)
+{
+    for (auto p = item; p; p = p->GetTreeParent().get())
+        if (p->IsTemplate())
+            return p;
+    return nullptr;
+}
+
+QString ItemName(const TreeItem* item)
+{
+    return item ? QString::fromUtf8(item->GetName().c_str()) : QString();
+}
+
+QString DefinitionActionText(const TreeItem* selected)
+{
+    auto target = DefinitionTarget(selected);
+    if (!target)
+        return QObject::tr("Open in Editor");
+
+    auto defRoot = DefinitionRoot(target);
+    if (!defRoot)
+        return QObject::tr("Open %1 in Editor").arg(ItemName(target));
+
+    auto kind = GetItemIconKind(defRoot, false, false);
+    auto definitionKind = kind == item_icon_kind::function_def
+        ? QObject::tr("function")
+        : QObject::tr("template");
+
+    if (target == defRoot)
+        return QObject::tr("Open %1 %2 in Editor").arg(definitionKind, ItemName(defRoot));
+
+    return QObject::tr("Open %1 in %2 %3 in Editor")
+        .arg(ItemName(target), definitionKind, ItemName(defRoot));
+}
+
+void OpenItem(MainWindow* mainWindow, const TreeItem* item)
+{
+    if (!mainWindow || !item)
+        return;
+
+    auto filename = ConvertDmsFileNameAlways(item->GetConfigFileName());
+    mainWindow->openConfigSourceDirectly(filename.c_str(), std::to_string(item->GetConfigFileLineNr()));
+}
+
+struct SourcePosition
+{
+    QString name;
+    std::string filename;
+    std::string line;
+};
+
+std::vector<SourcePosition> InstantiationRoots(const TreeItem* selected)
+{
+    std::vector<SourcePosition> result;
+    std::set<const TreeItem*> seenTargets;
+
+    for (auto p = selected; p; p = p->GetTreeParent().get())
+    {
+        auto org = p->mc_OrgItem.lock();
+        if (!org || !org->IsTemplate() || !seenTargets.insert(p).second)
+            continue;
+
+        auto filename = ConvertDmsFileNameAlways(p->GetConfigFileName());
+        result.push_back({ ItemName(p), filename.c_str(), std::to_string(p->GetConfigFileLineNr()) });
+    }
+    return result;
+}
+
+class EditorNavigationMenuFilter final : public QObject
+{
+public:
+    using QObject::QObject;
+
+protected:
+    bool eventFilter(QObject* watched, QEvent* event) override
+    {
+        if (event->type() != QEvent::Show)
+            return QObject::eventFilter(watched, event);
+
+        auto menu = qobject_cast<QMenu*>(watched);
+        auto mainWindow = MainWindow::TheOne();
+        auto primary = mainWindow->m_edit_config_source_action.get();
+        if (!menu || !primary || !menu->actions().contains(primary))
+            return QObject::eventFilter(watched, event);
+
+        auto selected = mainWindow->getCurrentTreeItemOrRoot();
+        primary->setText(DefinitionActionText(selected));
+
+        if (!menu->actions().contains(mainWindow->m_export_primary_data_action.get()))
+            return QObject::eventFilter(watched, event);
+
+        for (auto action : menu->actions())
+        {
+            if (!action->property("instantiationEditorAction").toBool())
+                continue;
+            menu->removeAction(action);
+            action->deleteLater();
+        }
+
+        auto actions = menu->actions();
+        auto primaryIndex = actions.indexOf(primary);
+        QAction* insertBefore = primaryIndex >= 0 && primaryIndex + 1 < actions.size()
+            ? actions[primaryIndex + 1]
+            : nullptr;
+
+        for (const auto& source : InstantiationRoots(selected))
+        {
+            auto action = new QAction(QObject::tr("Open %1 in Editor").arg(source.name), menu);
+            action->setProperty("instantiationEditorAction", true);
+            QObject::connect(action, &QAction::triggered, mainWindow,
+                [mainWindow, filename = source.filename, line = source.line]() {
+                    mainWindow->openConfigSourceDirectly(filename, line);
+                });
+            menu->insertAction(insertBefore, action);
+        }
+
+        return QObject::eventFilter(watched, event);
+    }
+};
+
+} // namespace
 
 void createDmsActions() {
     auto main_window = MainWindow::TheOne();
@@ -69,9 +214,12 @@ void createDmsActions() {
 
     // open config source
     main_window->m_edit_config_source_action = std::make_unique<QAction>(QObject::tr("&Open in Editor"));
-    main_window->connect(main_window->m_edit_config_source_action.get(), &QAction::triggered, main_window, &MainWindow::openConfigSource);
+    main_window->connect(main_window->m_edit_config_source_action.get(), &QAction::triggered, main_window, [main_window]() {
+        OpenItem(main_window, DefinitionTarget(main_window->getCurrentTreeItemOrRoot()));
+    });
     main_window->m_edit_menu->addAction(main_window->m_edit_config_source_action.get());
     main_window->m_edit_config_source_action->setShortcut(QKeySequence(QObject::tr("Ctrl+E")));
+    qApp->installEventFilter(new EditorNavigationMenuFilter(qApp));
 
     // find TreeItem (Ctrl+Shift+F for global tree search, Ctrl+F remains for local text search in detail pages)
     main_window->m_find_treeitem_action = std::make_unique<QAction>(QObject::tr("&Find TreeItem"));
