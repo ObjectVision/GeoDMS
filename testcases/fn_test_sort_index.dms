@@ -1,0 +1,43 @@
+// issue #421: variadic stable lexicographic sorting in the prelude, followed by
+// table_spec collection of the source attributes onto the fresh sorted domain.
+container fn_test_sort_index
+{
+	unit<uint32> Trip : nrofrows = 6
+	{
+		attribute<uint32> trip_id        : [1, 1, 2, 1, 2, 1];
+		attribute<float64> departure_time : [30.0, 10.0, 5.0, 10.0, 20.0, 10.0];
+		attribute<string>  label          : ['a', 'b', 'c', 'd', 'e', 'f'];
+		attribute<uint32> payload         : [10, 20, 30, 40, 50, 60];
+		container nested
+		{
+			attribute<uint32> code (Trip) : [100, 200, 300, 400, 500, 600];
+		}
+	}
+
+	// First criterion is primary; equal trip/departure pairs retain source order.
+	attribute<uint32> RawPermutation (Trip) := sort_index_raw(Trip/trip_id, Trip/departure_time);
+	unit<uint32> DomainOnly := sort_index(Trip/trip_id, Trip/departure_time);
+	unit<uint32> Sorted := sort_index_with_attr(Trip, Trip/trip_id, Trip/departure_time);
+	unit<uint32> SortedSub := sort_index_spec('ref;sub', Trip, Trip/trip_id, Trip/departure_time);
+	unit<uint32> ByLabel := sort_index_with_attr(Trip, Trip/label);
+
+	attribute<uint32> expected_raw (Trip) : [1, 3, 5, 0, 2, 4];
+	attribute<uint32> expected_domain_org_rel (DomainOnly) : [1, 3, 5, 0, 2, 4];
+	attribute<uint32> expected_org_rel (Sorted) : [1, 3, 5, 0, 2, 4];
+	attribute<uint32> expected_payload (Sorted) : [20, 40, 60, 10, 30, 50];
+	attribute<string> expected_label   (Sorted) : ['b', 'd', 'f', 'a', 'c', 'e'];
+	attribute<uint32> expected_code (SortedSub) : [200, 400, 600, 100, 300, 500];
+	attribute<uint32> expected_label_order (ByLabel) : [0, 1, 2, 3, 4, 5];
+
+	container checks
+	{
+		parameter<bool> raw_ok     := all(RawPermutation == expected_raw), IntegrityCheck = "raw_ok == true";
+		parameter<bool> domain_ok  := all(uint32(DomainOnly/org_rel) == expected_domain_org_rel), IntegrityCheck = "domain_ok == true";
+		parameter<bool> org_rel_ok := all(uint32(Sorted/org_rel) == expected_org_rel), IntegrityCheck = "org_rel_ok == true";
+		parameter<bool> payload_ok := all(Sorted/payload == expected_payload), IntegrityCheck = "payload_ok == true";
+		parameter<bool> label_ok   := all(Sorted/label == expected_label), IntegrityCheck = "label_ok == true";
+		parameter<bool> stable_ok  := all(uint32(Sorted/org_rel) == expected_org_rel), IntegrityCheck = "stable_ok == true";
+		parameter<bool> sub_ok     := all(SortedSub/nested/code == expected_code), IntegrityCheck = "sub_ok == true";
+		parameter<bool> one_ok     := all(uint32(ByLabel/org_rel) == expected_label_order), IntegrityCheck = "one_ok == true";
+	}
+}

@@ -42,6 +42,7 @@ fn_test_scope.dms /checks
 fn_test_scope_neg.dms /checks
 fn_test_sig.dms /checks
 fn_test_sig_neg.dms /failing
+fn_test_table_spec_nested_neg.dms /invalid
 fn_test_unify.dms /checks
 fn_test_unify_neg1.dms /checks
 fn_test_unify_neg2.dms /checks
@@ -54,3 +55,4 @@ fn_test_vv_neg1.dms /a
 fn_test_vv_neg2.dms /z
 fn_test_vv_neg3.dms /b
 fn_test_vv4.dms /checks
+oper_table_spec_neg.dms /bad

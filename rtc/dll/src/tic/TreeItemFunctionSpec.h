@@ -51,6 +51,8 @@ TIC_CALL void    TreeItem_SetFunctionSignatureOnly(const TreeItem* functionItem)
 bool    TreeItem_IsFunctionSignatureOnly(const TreeItem* functionItem);
 TIC_CALL void    TreeItem_SetFunctionResultSig(const TreeItem* functionItem, bool resultIsFunction, const TreeItem* resultSigExemplar, std::vector<TokenID> typeArgs = {}); // §5.10: function-valued result
 bool    TreeItem_IsFunctionResultFunction(const TreeItem* functionItem);
+TIC_CALL void    TreeItem_SetFunctionResultGenericUnit(const TreeItem* functionItem); // '-> unit<V>': concrete UnitClass follows from application
+bool    TreeItem_IsFunctionResultGenericUnit(const TreeItem* functionItem);
 auto    TreeItem_GetFunctionResultSig(const TreeItem* functionItem) -> SharedTreeItem;
 const std::vector<TokenID>* TreeItem_GetFunctionResultSigTypeArgs(const TreeItem* functionItem);
 void    TreeItem_CopyFunctionSpec(const TreeItem* dstFunctionItem, const TreeItem* srcFunctionItem);

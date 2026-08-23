@@ -1,0 +1,40 @@
+// issue #421: table_spec is collect_spec with the selection domain as the
+// returned unit; generated attributes are direct sub-items of that unit.
+container oper_table_spec
+{
+	unit<uint32> Source : nrofrows = 5
+	{
+		attribute<bool>    keep       : [false, true, false, true, true];
+		attribute<float64> population : [10.0, 20.0, 30.0, 40.0, 50.0];
+		attribute<string>  name       : ['a', 'b', 'c', 'd', 'e'];
+		container geo
+		{
+			attribute<uint32> code (Source) : [100, 200, 300, 400, 500];
+		}
+	}
+
+	unit<uint32> Selection := select_with_org_rel(Source/keep);
+	unit<uint32> Table := table_spec('by_org_rel;sub', Source, Selection, Selection/org_rel);
+	unit<uint32> CondTable := table_spec('by_cond', Source, Selection, Source/keep);
+
+	// A referred unit has no own attributes; ref makes enumeration follow the
+	// same referred-item chain that name lookup follows.
+	unit<uint32> SourceRef := Source;
+	unit<uint32> RefTable := table_spec('by_org_rel;ref', SourceRef, Selection, Selection/org_rel);
+
+	attribute<float64> expected_population (Table)    : [20.0, 40.0, 50.0];
+	attribute<string>  expected_name       (Table)    : ['b', 'd', 'e'];
+	attribute<uint32>  expected_code       (Table)    : [200, 400, 500];
+	attribute<float64> expected_ref_pop     (RefTable) : [20.0, 40.0, 50.0];
+	attribute<float64> expected_cond_pop    (CondTable) : [20.0, 40.0, 50.0];
+
+	container checks
+	{
+		parameter<bool> population_ok := all(Table/population == expected_population), IntegrityCheck = "population_ok == true";
+		parameter<bool> name_ok       := all(Table/name       == expected_name),       IntegrityCheck = "name_ok == true";
+		parameter<bool> sub_ok        := all(Table/geo/code   == expected_code),       IntegrityCheck = "sub_ok == true";
+		parameter<bool> ref_ok        := all(RefTable/population == expected_ref_pop), IntegrityCheck = "ref_ok == true";
+		parameter<bool> cond_ok       := all(CondTable/population == expected_cond_pop), IntegrityCheck = "cond_ok == true";
+		parameter<bool> org_rel_ok    := all(uint32(Table/org_rel) == uint32(Selection/org_rel)), IntegrityCheck = "org_rel_ok == true";
+	}
+}

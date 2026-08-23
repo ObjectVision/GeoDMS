@@ -1,0 +1,11 @@
+// table_spec uses the collect_spec grammar: the relation/condition mode is mandatory.
+container oper_table_spec_neg
+{
+	unit<uint32> D : nrofrows = 2
+	{
+		attribute<bool> keep : [true, false];
+		attribute<uint32> value : [1, 2];
+	}
+	unit<uint32> S := select_with_org_rel(D/keep);
+	unit<uint32> bad := table_spec('ref', D, S, S/org_rel);
+}

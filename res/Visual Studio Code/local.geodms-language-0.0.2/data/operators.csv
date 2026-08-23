@@ -565,6 +565,7 @@ sum_uint32
 sum_uint64
 sum_uint8
 sum_upoint
+table_spec
 tan
 TiledUnit
 to_utf
