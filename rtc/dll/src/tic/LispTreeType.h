@@ -144,6 +144,7 @@ namespace token {
 
 	extern TIC_CALL StaticTokenID select_spec;
 	extern TIC_CALL StaticTokenID collect_spec;
+	extern TIC_CALL StaticTokenID table_spec;
 
 	extern TIC_CALL StaticTokenID recollect_by_cond;
 	extern StaticTokenID recollect_by_org_rel;

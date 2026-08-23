@@ -176,6 +176,7 @@ namespace token {
 
 	TIC_CALL StaticTokenID select_spec("select_spec");
 	TIC_CALL StaticTokenID collect_spec("collect_spec");
+	TIC_CALL StaticTokenID table_spec("table_spec");
 
 	TIC_CALL StaticTokenID recollect_by_cond("recollect_by_cond");
 	StaticTokenID recollect_by_org_rel("recollect_by_org_rel");

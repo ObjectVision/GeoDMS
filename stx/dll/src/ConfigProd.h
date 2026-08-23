@@ -214,6 +214,7 @@ void                ClearPropData();
 		UInt32                    paramCount = 0;
 		bool                      signatureOnly = false; // function-signature type alias: no result expression, no body
 		bool                      resultIsFunction = false; // §5.10 '-> function': result is a nested function
+		bool                      resultIsGenericUnit = false; // '-> unit<V>': parsed as a TreeItem until V is bound
 		const TreeItem*           resultSigExemplar = nullptr; // '-> sigAlias<...>' result-signature exemplar (for the config dump)
 		std::vector<TokenID>      resultSigTypeArgs;        // its type-application args
 		bool                      inParamList = false;

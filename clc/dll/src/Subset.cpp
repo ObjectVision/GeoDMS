@@ -832,7 +832,8 @@ struct CollectWithAttrOperator : public BinaryOperator
 	// Shared by the named collect_attr_by_xxx operators and by collect_spec:
 	// only where the configuration comes from differs.
 	static void Run(const AbstrOperGroup* og, TreeItemDualRef& resultHolder
-	,	collect_mode mode, attr_scope scope, const ArgRefs& args, LispPtr callArgs)
+	,	collect_mode mode, attr_scope scope, const ArgRefs& args, LispPtr callArgs
+	,	const AbstrUnit* resultDomain = nullptr, bool preserveExpressionKeys = false)
 	{
 		assert(args.size() == 2);
 
@@ -841,6 +842,8 @@ struct CollectWithAttrOperator : public BinaryOperator
 		auto subsetDomainItem = GetItem(args[1]);
 		const AbstrUnit* domainA = AsDynamicUnit(subsetDomainItem);
 		MG_USERCHECK2(domainA, "domain unit expected as 2nd argument");
+		if (!resultDomain)
+			resultDomain = domainA;
 
 		if (!callArgs.IsRealList())
 			throwErrorD(og->GetNameStr(), "arguments expected");
@@ -857,6 +860,7 @@ struct CollectWithAttrOperator : public BinaryOperator
 		);
 		const AbstrDataItem* condOrOrgRelA = nullptr;
 		SharedStr condOrOrgRelExprStr;
+		LispRef condOrOrgRelKey;
 		DataControllerRef condOrOrgRelDC;
 		if (callArgs.Right().Right().IsRealList())
 		{
@@ -866,6 +870,7 @@ struct CollectWithAttrOperator : public BinaryOperator
 			auto condOrOrgRelCalc = AbstrCalculator::ConstructFromLispRef(resultHolder.GetOld(), condOrOrgRelExpr, CalcRole::Other);
 			condOrOrgRelDC = GetDC(condOrOrgRelCalc.get());
 			MG_CHECK(condOrOrgRelDC);
+			condOrOrgRelKey = condOrOrgRelDC->GetLispRef();
 			//		condOrOrgRelExpr = condOrOrgRelDC->GetLispRef();
 			auto condOrOrgRelItem = condOrOrgRelDC->MakeResult();
 			MG_CHECK(condOrOrgRelItem);
@@ -883,6 +888,21 @@ struct CollectWithAttrOperator : public BinaryOperator
 		assert(resultHolder);
 		if (mode == collect_mode::org_rel)
 			MG_USERCHECK2(domainA->UnifyDomain(condOrOrgRelA->GetAbstrDomainUnit()), "collect_with_attr_by_org_rel(attr_container, subset_domain, org_rel): target_domain doesn't match the domain of org_rel");
+
+		// table_spec supplies a fresh result unit rather than the collection
+		// domain itself.  Expose the supplied relation as an own sub-item of that
+		// table root.  The ordinary collect operators keep their historical
+		// container-only result (resultDomain == domainA).
+		if (mode == collect_mode::org_rel && resultDomain != domainA)
+		{
+			auto resultOrgRel = CreateDataItem(resultHolder.GetNew(), token::org_rel
+				, resultDomain, sourceDomain, condOrOrgRelA->GetValueComposition());
+			if (preserveExpressionKeys)
+				resultOrgRel->SetCalculator(AbstrCalculator::ConstructFromLispRef(
+					resultOrgRel.get(), condOrOrgRelKey, CalcRole::Calculator));
+			else
+				resultOrgRel->SetExpr(mySSPrintF("scope({}, {})", UpDots(1), condOrOrgRelExprStr));
+		}
 
 		std::vector<collect_target> candidates;
 		std::set<const TreeItem*> visitedScopes;
@@ -909,20 +929,26 @@ struct CollectWithAttrOperator : public BinaryOperator
 					);
 				continue;
 			}
-			auto resSub = CreateDataItemFromPath(resultHolder.GetNew(), target.relPath.c_str(), domainA, subDataItem->GetAbstrValuesUnit(), subDataItem->GetValueComposition());
+			auto resSub = CreateDataItemFromPath(resultHolder.GetNew(), target.relPath.c_str(), resultDomain, subDataItem->GetAbstrValuesUnit(), subDataItem->GetValueComposition());
 
 			// see the note in SelectMetaOperator: at depth 0 this is "..", unchanged.
 			auto srcScope = UpDots(target.depth + 1);
 
 			SharedStr collectExpr;
+			LispRef collectKey;
 			if (mode == collect_mode::org_rel)
+			{
 				collectExpr = mySSPrintF("scope({}, lookup({}, {}/{}))"
 					, srcScope
 					, condOrOrgRelExprStr
 					, containerExpr.GetSymbID()
 					, target.relPath
 				);
+				if (preserveExpressionKeys)
+					collectKey = ExprList(token::lookup, condOrOrgRelKey, subDataItem->GetCheckedKeyExpr());
+			}
 			else
+			{
 				collectExpr = mySSPrintF("scope({}, collect_by_cond({}, {}, {}/{}))"
 					, srcScope
 					, subsetDomainExprStr
@@ -930,6 +956,17 @@ struct CollectWithAttrOperator : public BinaryOperator
 					, containerExpr.GetSymbID()
 					, target.relPath
 				);
+				if (preserveExpressionKeys)
+					collectKey = ExprList(token::collect_by_cond, LispRef(subsetDomainExpr)
+						, condOrOrgRelKey, subDataItem->GetCheckedKeyExpr());
+			}
+
+			if (preserveExpressionKeys)
+			{
+				resSub->SetCalculator(AbstrCalculator::ConstructFromLispRef(
+					resSub.get(), collectKey, CalcRole::Calculator));
+				continue;
+			}
 
 			auto oldExpr = resSub->GetExprMember();
 			if (!oldExpr.empty() && oldExpr != collectExpr)
@@ -966,6 +1003,59 @@ struct CollectSpecOperator : public TernaryOperator
 
 		ArgRefs tail(args.begin() + 1, args.end());
 		CollectWithAttrOperator::Run(GetGroup(), resultHolder, cfg.mode, cfg.scope, tail, metaCallArgs.Right());
+	}
+};
+
+// table_spec(spec, container, selection_domain, org_rel_or_condition): collect_spec
+// with the selection domain itself as the result root.  The result is a fresh
+// unit referring to selection_domain; generated attributes are direct sub-items
+// of that unit.  Never add them to selection_domain itself: that argument may be
+// shared by other expressions or be a configured unit in the source tree.
+struct TableSpecOperator : public TernaryOperator
+{
+	TableSpecOperator(AbstrOperGroup& cog)
+		: TernaryOperator(&cog, AbstrUnit::GetStaticClass()
+		, DataArray<SharedStr>::GetStaticClass(), TreeItem::GetStaticClass(), AbstrUnit::GetStaticClass())
+	{}
+
+	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, LispPtr metaCallArgs) const override
+	{
+		auto specItem = GetItem(args[0]);
+		MG_USERCHECK2(specItem && IsDataItem(specItem), "table_spec: a string specification is expected as 1st argument");
+		auto cfg = ParseCollectSpec(GetGroup(), GetValue<SharedStr>(AsDataItem(specItem), 0).c_str());
+		MG_USERCHECK2(metaCallArgs.IsRealList(), "table_spec: arguments expected");
+
+		const TreeItem* selectionDomainItem = GetItem(args[2]);
+		const AbstrUnit* selectionDomain = AsDynamicUnit(selectionDomainItem);
+		MG_USERCHECK2(selectionDomain, "table_spec: domain unit expected as 3rd argument");
+		MG_USERCHECK2(metaCallArgs.Right().IsRealList()
+			&& metaCallArgs.Right().Right().IsRealList(), "table_spec: domain unit expected as 3rd argument");
+
+		// args[2] is already the materialized cache unit and therefore need not
+		// carry the DataController that produced it.  Preserve the controller of
+		// the original call expression: TreeItem::Copy needs it to turn generated
+		// cache sub-items into subitem(table, ...) calculators at the call site.
+		auto selectionDomainExpr = metaCallArgs.Right().Right().Left();
+		auto selectionDomainCalc = AbstrCalculator::ConstructFromLispRef(
+			resultHolder.GetOld(), selectionDomainExpr, CalcRole::Other);
+		auto selectionDomainDC = GetDC(selectionDomainCalc.get());
+		MG_CHECK(selectionDomainDC);
+
+		auto resultOwner = selectionDomain->GetUnitClass()->CreateResultUnit(resultHolder.GetNew());
+		AbstrUnit* result = resultOwner.get();
+		// Keep the calculated selection domain alive through its DataController.
+		// A bare SetReferredItem would leave only a weak link to a cache unit after
+		// this operator's argument snapshot is released.
+		result->SetDC(selectionDomainDC, selectionDomain);
+		resultHolder = result;
+
+		ArgRefs tail(args.begin() + 1, args.end());
+		// HOF reduction can supply anonymous unit keys that cannot safely make a
+		// Lisp -> string -> parser round trip: nominal domain identity would be
+		// duplicated even though the printed expression is identical.  Keep the
+		// already-substituted Lisp keys for table members instead.
+		CollectWithAttrOperator::Run(GetGroup(), resultHolder, cfg.mode, cfg.scope
+			, tail, metaCallArgs.Right(), result, true);
 	}
 };
 
@@ -1210,6 +1300,15 @@ namespace {
 	oper_arg_policy oap_CollectSpec[4] = { oper_arg_policy::calc_always, oper_arg_policy::calc_never, oper_arg_policy::calc_never, oper_arg_policy::calc_at_subitem };
 	SpecialOperGroup sog_collect_spec(token::collect_spec, 4, oap_CollectSpec, oper_policy::dont_cache_result);
 	CollectSpecOperator operCollectSpec(sog_collect_spec);
+
+	// #421: collect onto a fresh result unit instead of a sibling container.
+	// Unlike collect_spec, its selection domain may be a reduced unit expression;
+	// this is what lets a prelude function build that domain locally and return the
+	// whole table_spec call for instantiation in its caller's unit holder.
+	oper_arg_policy oap_TableSpec[4] = { oper_arg_policy::calc_always, oper_arg_policy::calc_never, oper_arg_policy::calc_always, oper_arg_policy::calc_at_subitem };
+	SpecialOperGroup sog_table_spec(token::table_spec, 4, oap_TableSpec
+		, oper_policy::dynamic_result_class | oper_policy::dont_cache_result | oper_policy::allow_as_function_result);
+	TableSpecOperator operTableSpec(sog_table_spec);
 
 	CommonOperGroup cog_collect_by_cond(token::collect_by_cond);
 	CommonOperGroup cog_recollect_by_cond(token::recollect_by_cond, oper_policy::allow_extra_args);

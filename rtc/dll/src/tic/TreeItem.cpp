@@ -96,10 +96,11 @@ namespace {
 		bool isVariantSet = false;      // §5.7: a function that dispatches to variant sub-functions by argument type
 		bool signatureOnly = false;     // 'alias = function<...>(...) -> ...;' -- a signature-only function item (declared type, no body)
 		bool resultIsFunction = false;  // §5.10: '-> function' / '-> sigAlias' -- the result is function-valued
+		bool resultIsGenericUnit = false; // '-> unit<V>': represented as TreeItem until the application binds V
 		std::weak_ptr<const TreeItem> resultSig = {}; // the '-> sigAlias<...>' result-signature exemplar, if any (else expired)
 		std::vector<TokenID> resultSigTypeArgs = {};  // the result signature's type-application args
 	};
-	bool IsDefaultValue(const FunctionSpecData& v) { return v.nrParams == 0 && !v.resultName && v.paramSigs.empty() && v.genericParams.empty() && v.typeVars.empty() && v.metaRefParams.empty() && !v.hasRestParam && !v.definitionChecked && !v.isVariantSet && !v.signatureOnly && !v.resultIsFunction && v.resultSig.expired() && v.resultSigTypeArgs.empty(); }
+	bool IsDefaultValue(const FunctionSpecData& v) { return v.nrParams == 0 && !v.resultName && v.paramSigs.empty() && v.genericParams.empty() && v.typeVars.empty() && v.metaRefParams.empty() && !v.hasRestParam && !v.definitionChecked && !v.isVariantSet && !v.signatureOnly && !v.resultIsFunction && !v.resultIsGenericUnit && v.resultSig.expired() && v.resultSigTypeArgs.empty(); }
 	static_quick_assoc<const TreeItem*, FunctionSpecData> s_FunctionSpecAssoc;
 
 	static TokenID t_gcAny          = GetTokenID_st("any");
@@ -1664,6 +1665,18 @@ bool TreeItem_IsFunctionResultFunction(const TreeItem* functionItem)
 {
 	auto specPtr = s_FunctionSpecAssoc.get_value_ptr(functionItem);
 	return specPtr && specPtr->resultIsFunction;
+}
+
+TIC_CALL void TreeItem_SetFunctionResultGenericUnit(const TreeItem* functionItem)
+{
+	assert(functionItem && functionItem->IsFunctionItem());
+	s_FunctionSpecAssoc[functionItem].resultIsGenericUnit = true;
+}
+
+bool TreeItem_IsFunctionResultGenericUnit(const TreeItem* functionItem)
+{
+	auto specPtr = s_FunctionSpecAssoc.get_value_ptr(functionItem);
+	return specPtr && specPtr->resultIsGenericUnit;
 }
 
 SharedTreeItem TreeItem_GetFunctionResultSig(const TreeItem* functionItem)

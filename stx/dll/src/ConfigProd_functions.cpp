@@ -693,6 +693,7 @@ void ConfigProd::OnFunctionResultSig()
 	{
 		// '-> unit<V>' generic-unit result: declare as plain item; the computed type
 		// follows from the reduced expression
+		m_FuncStates.back().resultIsGenericUnit = true;
 		m_PendingGenericUnitVar = TokenID::GetEmptyID();
 		SetSignature(SignatureType::TreeItem);
 	}
@@ -877,6 +878,8 @@ void ConfigProd::OnFunctionDeclEnd(iterator_t first)
 		TreeItem_SetFunctionSignatureOnly(func); // config-dump: render 'nuf = function<...>(...) -> ...;'
 	if (fs.resultIsFunction)
 		TreeItem_SetFunctionResultSig(func, true, fs.resultSigExemplar, fs.resultSigTypeArgs); // config-dump: render '-> nuf<V, D>'
+	if (fs.resultIsGenericUnit)
+		TreeItem_SetFunctionResultGenericUnit(func);
 	// arity-aware operator-name coexistence check (variant members are not call heads;
 	// their SET is validated at OnVariantSetEnd)
 	if (!(func->GetTreeParent() && TreeItem_IsFunctionVariantSet(func->GetTreeParent().get())))

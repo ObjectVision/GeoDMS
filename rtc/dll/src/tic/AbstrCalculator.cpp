@@ -260,12 +260,15 @@ void CheckResultingTreeItem(const TreeItem* refItem, const Class* desiredResulti
 void InstantiateMap(TreeItem* holder, const AbstrCalculator* ac, LispPtr mapExpr); // fwd (defined below, uses FunctionApplication)
 namespace { // merges with the checker machinery's anonymous namespace below
 	void CheckStructuredParamContracts(const TreeItem* applyItem, LispPtr argList, const TreeItem* target); // fwd (K11a-3 boundary check, instantiate path)
+	void InstantiateStructuredFunctionResult(TreeItem* target, LispPtr rootKey, const StructuredFunctionResult& result);
 }
 
 void MetaFuncCurry::operator ()(TreeItem* target, const AbstrCalculator* ac) const
 {
 	if (isMapCall)
 		InstantiateMap(target, ac, fullLispExpr);
+	else if (structuredResult)
+		InstantiateStructuredFunctionResult(target, fullLispExpr, *structuredResult);
 	else if (applyItem)
 	{
 		// K11a-3 on the INSTANTIATE path: validate structured/by-example parameter
@@ -1191,9 +1194,24 @@ namespace {
 		SharedTreeItem                   item;            // plain-reference item (member access), else null
 		std::shared_ptr<FunctionBinding> binding;         // function value (plain ref or partial application), else null
 		std::shared_ptr<ContainerLiteralArg> literal;     // §5.9 container-literal argument, else null
+		std::shared_ptr<const StructuredFunctionResult> structuredResult; // sub-items declared beneath a returned unit
 		bool                             isHole = false;  // '_' placeholder
 		bool IsFunctionValue() const { return binding != nullptr; }
 	};
+
+	bool IsFunctionResultMetaCall(LispPtr expr)
+	{
+		if (!expr.IsRealList() || !expr.Left().IsSymb())
+			return false;
+		const AbstrOperGroup* group = AbstrOperGroup::FindName(expr.Left().GetSymbID());
+		return !group->MustCacheResult() && group->AllowsAsFunctionResult();
+	}
+
+	void RejectNestedFunctionResultMetaCall(LispPtr expr)
+	{
+		if (IsFunctionResultMetaCall(expr))
+			throwErrorF("ExprParser", "a generating meta function such as 'table_spec' can only be the whole result of an inlined function");
+	}
 
 	// §5.10 closure environment: the enclosing application's parameters and their bound
 	// values, captured BY VALUE (already-substituted keys/items/bindings) when a nested
@@ -1337,12 +1355,15 @@ namespace {
 		return appl.ReduceValue();
 	}
 
-	LispRef ReduceMerged(const FunctionBinding& merged, const FunctionApplication* parent, SubstitutionBuffer* substBuff, SharedTreeItem errorHolder)
+	LispRef ReduceMerged(const FunctionBinding& merged, const FunctionApplication* parent, SubstitutionBuffer* substBuff, SharedTreeItem errorHolder
+		, std::shared_ptr<const StructuredFunctionResult>* structuredResult = nullptr)
 	{
 		CallArg r = ReduceMergedValue(merged, parent, substBuff, errorHolder);
 		if (r.binding)
 			throwErrorF("ExprParser", "'{}': a function value can only be applied with '(...)', passed as an argument, or returned as a result"
 				, merged.funcItem->GetFullName().c_str());
+		if (structuredResult)
+			*structuredResult = std::move(r.structuredResult);
 		return r.key;
 	}
 
@@ -2549,6 +2570,30 @@ namespace {
 
 		CallArg r;
 		r.key = ReduceBodyItem(resultChild.get());
+		// A generic unit result is represented as a container in the inert
+		// function tree (its concrete UnitClass is only known after applying the
+		// function).  Retain its member block, but do not treat every container
+		// result as structured: doing so changes ordinary container-returning HOFs
+		// and can eagerly expand large generated trees.
+		if ((IsUnit(resultChild.get()) || TreeItem_IsFunctionResultGenericUnit(m_FuncItem))
+			&& resultChild->_GetFirstSubItem())
+		{
+			auto structured = std::make_shared<StructuredFunctionResult>();
+			auto collectSubItems = [&](auto&& self, const TreeItem* source, std::vector<StructuredFunctionResultMember>& members) -> void
+			{
+				for (const TreeItem* child = source->_GetFirstSubItem(); child; child = child->GetNextItem())
+				{
+					StructuredFunctionResultMember member;
+					member.id = child->GetID();
+					if (!child->GetExpr().empty() || IsDataItem(child) || IsUnit(child))
+						member.key = ReduceBodyItem(child);
+					self(self, child, member.subItems);
+					members.push_back(std::move(member));
+				}
+			};
+			collectSubItems(collectSubItems, resultChild.get(), structured->subItems);
+			r.structuredResult = std::move(structured);
+		}
 		return r;
 	}
 
@@ -2688,8 +2733,42 @@ namespace {
 				// whose FindOper reports the arity error
 			}
 			if (!og->MustCacheResult())
-				throwErrorF("ExprParser", "'{}': meta function call is not supported inside function bodies"
-					, headID.GetStr().c_str());
+			{
+				if (!og->AllowsAsFunctionResult())
+					throwErrorF("ExprParser", "'{}': meta function call is not supported inside function bodies"
+						, headID.GetStr().c_str());
+
+				// A result-eligible generating call survives beta reduction so the
+				// caller's typed holder can instantiate it.  Tree arguments must remain
+				// item references; calculated arguments are reduced normally.  Embedding
+				// sites reject a surviving call before placing it in another expression.
+				std::vector<LispRef> substArgs;
+				arg_index argNr = 0;
+				for (LispPtr argPtr = expr.Right(); !argPtr.EndP(); argPtr = argPtr.Right(), ++argNr)
+				{
+					LispPtr a = argPtr.Left();
+					auto argPolicy = og->GetArgPolicy(argNr, nullptr);
+					if (argPolicy == oper_arg_policy::calc_never || argPolicy == oper_arg_policy::is_templ)
+					{
+						CallArg bound = ResolveBodyArg(refScope, a);
+						if (!bound.item)
+							throwErrorF("ExprParser", "'{}': argument {} of meta function '{}' must reduce to a direct item reference"
+								, m_FuncItem->GetFullName().c_str(), argNr + 1, headID.GetStr().c_str());
+						substArgs.emplace_back(TokenID(bound.item->GetFullName()));
+					}
+					else
+					{
+						auto substArg = SubstituteBodyExpr(refScope, a);
+						RejectNestedFunctionResultMetaCall(substArg);
+						substArgs.push_back(std::move(substArg));
+					}
+				}
+
+				LispRef argList;
+				for (auto ri = substArgs.rbegin(); ri != substArgs.rend(); ++ri)
+					argList = LispRef(*ri, argList);
+				return LispRef(head, std::move(argList));
+			}
 
 			// ordinary operator application: substitute the arguments
 			std::vector<LispRef> substArgs;
@@ -2709,11 +2788,14 @@ namespace {
 						if (m_ArgBindings[k] || m_ArgLiterals[k])
 							throwErrorF("ExprParser", "'{}': a function value or container literal in '...{}' cannot be passed to operator '{}'"
 								, m_FuncItem->GetFullName().c_str(), a.GetSymbStr().c_str(), headID.GetStr().c_str());
+						RejectNestedFunctionResultMetaCall(m_ArgKeys[k]);
 						substArgs.push_back(m_ArgKeys[k]);
 					}
 					break;
 				}
-				substArgs.push_back(SubstituteBodyExpr(refScope, a));
+				auto substArg = SubstituteBodyExpr(refScope, a);
+				RejectNestedFunctionResultMetaCall(substArg);
+				substArgs.push_back(std::move(substArg));
 			}
 
 			LispRef argList;
@@ -3124,7 +3206,9 @@ namespace {
 						CallArg a; a.binding = MakeAllHoles(callee); return a;
 					}
 				}
-				CallArg a; a.key = ResolveBodySymbol(refScope, sym, &a.item); return a;
+				CallArg a; a.key = ResolveBodySymbol(refScope, sym, &a.item);
+				RejectNestedFunctionResultMetaCall(a.key);
+				return a;
 			}
 		}
 		if (argExpr.IsRealList() && argExpr.Left().IsSymb())
@@ -3151,7 +3235,11 @@ namespace {
 					outer.push_back(ResolveBodyArg(refScope, a.Left()));
 				FunctionBinding merged = MergeBinding(*fnVal.binding, outer);
 				if (merged.NrHoles() == 0)
-					return ReduceMergedValue(merged, this, m_SubstBuff, m_ErrorHolder);
+				{
+					auto result = ReduceMergedValue(merged, this, m_SubstBuff, m_ErrorHolder);
+					RejectNestedFunctionResultMetaCall(result.key);
+					return result;
+				}
 				CallArg a; a.binding = std::make_shared<FunctionBinding>(std::move(merged)); return a;
 			}
 
@@ -3187,11 +3275,17 @@ namespace {
 					calleeBinding.env = MakeCurrentEnv(); // #1166: nested callee sees the enclosing parameters
 				FunctionBinding merged = MergeBinding(calleeBinding, sub);
 				if (merged.NrHoles() == 0)
-					return ReduceMergedValue(merged, this, m_SubstBuff, m_ErrorHolder); // §5.10: data key OR closure binding
+				{
+					auto result = ReduceMergedValue(merged, this, m_SubstBuff, m_ErrorHolder); // §5.10: data key OR closure binding
+					RejectNestedFunctionResultMetaCall(result.key);
+					return result;
+				}
 				CallArg a; a.binding = std::make_shared<FunctionBinding>(std::move(merged)); return a;
 			}
 		}
-		CallArg a; a.key = SubstituteBodyExpr(refScope, argExpr); return a;
+		CallArg a; a.key = SubstituteBodyExpr(refScope, argExpr);
+		RejectNestedFunctionResultMetaCall(a.key);
+		return a;
 	}
 
 	// WP3.4 + WP4.1 tranche 3: definition-time validation of a function body -- the
@@ -6113,6 +6207,72 @@ void InstantiateTemplate(TreeItem* holder, const TreeItem* applyItem, LispPtr te
 	holder->SetIsInstantiated();
 }
 
+namespace {
+	void InstantiateStructuredFunctionResultMembers(TreeItem* parent
+		, const std::vector<StructuredFunctionResultMember>& members
+		, const AbstrUnit* reducedRootDomain, AbstrUnit* targetRootDomain)
+	{
+		for (const auto& member : members)
+		{
+			SharedMutableTreeItem child;
+			if (member.key.EndP())
+				child = parent->CreateItem(member.id);
+			else
+			{
+				auto dc = GetOrCreateDataController(member.key);
+				auto reducedItem = dc->MakeResult();
+				if (!reducedItem)
+				{
+					dms_assert(dc->WasFailed(FailType::MetaInfo));
+					parent->ThrowFail(dc.get());
+				}
+
+				if (IsDataItem(reducedItem.get()))
+				{
+					auto reducedData = AsDataItem(reducedItem.get());
+					const AbstrUnit* memberDomain = reducedData->GetAbstrDomainUnit();
+					if (reducedRootDomain && targetRootDomain && reducedRootDomain->UnifyDomain(memberDomain))
+						memberDomain = targetRootDomain;
+					child = CreateDataItem(parent, member.id, memberDomain
+						, reducedData->GetAbstrValuesUnit(), reducedData->GetValueComposition());
+				}
+				else if (IsUnit(reducedItem.get()))
+					child = AsUnit(reducedItem.get())->GetUnitClass()->CreateUnit(parent, member.id);
+				else
+					child = parent->CreateItem(member.id);
+
+				child->SetCalculator(AbstrCalculator::ConstructFromLispRef(child.get(), member.key, CalcRole::Calculator));
+			}
+
+			InstantiateStructuredFunctionResultMembers(child.get(), member.subItems, reducedRootDomain, targetRootDomain);
+			if (member.key.EndP())
+				child->SetIsInstantiated();
+		}
+	}
+
+	void InstantiateStructuredFunctionResult(TreeItem* target, LispPtr rootKey, const StructuredFunctionResult& result)
+	{
+		dms_assert(target);
+		if (target->WasFailed(FailType::MetaInfo) || target->GetIsInstantiated())
+			return;
+
+		auto rootDC = GetOrCreateDataController(rootKey);
+		auto reducedRoot = rootDC->MakeResult();
+		if (!reducedRoot)
+		{
+			dms_assert(rootDC->WasFailed(FailType::MetaInfo));
+			target->ThrowFail(rootDC.get());
+		}
+		target->SetDC(rootDC, reducedRoot.get());
+
+		const AbstrUnit* reducedRootDomain = IsUnit(reducedRoot.get()) ? AsUnit(reducedRoot.get()) : nullptr;
+		AbstrUnit* targetRootDomain = IsUnit(target) ? AsDynamicUnit(target) : nullptr;
+		InstantiateStructuredFunctionResultMembers(target, result.subItems
+			, reducedRootDomain, targetRootDomain);
+		target->SetIsInstantiated();
+	}
+}
+
 // WP3.3: map(function, container) -- populate `holder` with one child per data-item /
 // unit child of the source container, each computed as function(child). The mapped
 // function must take exactly one parameter (the element); its result type follows from
@@ -6757,7 +6917,8 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 					if (merged.NrHoles() != 0)
 						throwErrorF("ExprParser", "'{}': a partial application can only be passed as an argument, not bound to an item"
 							, head.GetSymbStr().c_str());
-					bufferValue = ReduceMerged(merged, nullptr, &substBuff, holder);
+					bufferValue = ReduceMerged(merged, nullptr, &substBuff, holder
+						, (mpf & metainfo_policy_flags::is_root_expr) ? &substBuff.m_StructuredFunctionResult : nullptr);
 					goto exit;
 				}
 
@@ -7007,7 +7168,16 @@ MetaInfo AbstrCalculator::SubstituteExpr(SubstitutionBuffer& substBuff, LispPtr 
 			return MetaFuncCurry{ .fullLispExpr = localExpr, .og = og };
 	}
 skipTemplInst:
-	return SubstituteExpr_impl(substBuff, localExpr, metainfo_policy_flags::is_root_expr);
+	auto reduced = SubstituteExpr_impl(substBuff, localExpr, metainfo_policy_flags::is_root_expr);
+	if (substBuff.m_StructuredFunctionResult)
+		return MetaFuncCurry{ .fullLispExpr = std::move(reduced), .structuredResult = std::move(substBuff.m_StructuredFunctionResult) };
+	if (reduced.IsRealList() && reduced.Left().IsSymb())
+	{
+		const AbstrOperGroup* reducedGroup = AbstrOperGroup::FindName(reduced.Left().GetSymbID());
+		if (!reducedGroup->MustCacheResult() && reducedGroup->AllowsAsFunctionResult())
+			return MetaFuncCurry{ .fullLispExpr = std::move(reduced), .og = reducedGroup };
+	}
+	return reduced;
 }
 
 auto AbstrCalculator::GetMetaInfo() const -> MetaInfo

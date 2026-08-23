@@ -35,6 +35,89 @@ function reversed_id(container D) -> container := (UpperBound(D) + LowerBound(D)
 
 function reverse<T: any>(attribute<T> x) -> attribute<T> := lookup(reversed_id(DomainUnit(x)), x);
 
+// Raw stable lexicographic permutation.  The first criterion is primary: sort
+// the trailing criteria first, stably sort the leading criterion in that order,
+// then compose both permutations.  Use sort_index for the fresh result domain.
+function sort_index_raw
+{
+	variant one<V: any, D: domains>(attribute<V> value (D))
+	-> attribute<D> (D) := index(value);
+
+	variant more<V: any, D: domains>(attribute<V> value (D); ...rest)
+	-> attribute<D> (D)
+	:=	lookup(index(lookup(sort_index_raw(rest), value)), sort_index_raw(rest));
+}
+
+// Build a fresh sorted table and collect the source attributes onto it.
+// specString carries optional table_spec scope extensions ('ref' and/or 'sub');
+// by_org_rel is fixed because the generated permutation is the collection key.
+// A rest parameter represents one-or-more arguments in the current HOF syntax,
+// so the single-criterion overload must remain explicit.
+function sort_index_spec
+{
+	variant one<V: any, D: domains>(parameter<string> specString; container attrContainer; attribute<V> value (D))
+	-> unit<D> := result
+	{
+		attribute<D> permutation (D) := sort_index_raw(value);
+		unit<D> sortingDomain := unique(permutation);
+		unit<D> result := table_spec(
+			concat(specString, ';by_org_rel'),
+			attrContainer,
+			sortingDomain,
+			lookup(sortingDomain/values, permutation)
+		);
+	}
+
+	variant more<V: any, D: domains>(parameter<string> specString; container attrContainer; attribute<V> value (D); ...rest)
+	-> unit<D> := result
+	{
+		attribute<D> permutation (D) := sort_index_raw(value, rest);
+		unit<D> sortingDomain := unique(permutation);
+		unit<D> result := table_spec(
+			concat(specString, ';by_org_rel'),
+			attrContainer,
+			sortingDomain,
+			lookup(sortingDomain/values, permutation)
+		);
+	}
+}
+
+// The public sort_index returns the new sorting domain and its canonical org_rel,
+// without invoking the attribute-collecting table_spec meta-operation.
+function sort_index
+{
+	variant one<V: any, D: domains>(attribute<V> value (D))
+	-> unit<D> := result
+	{
+		attribute<D> permutation (D) := sort_index_raw(value);
+		unit<D> result := unique(permutation)
+		{
+			attribute<D> org_rel := lookup(result/values, permutation);
+		}
+	}
+
+	variant more<V: any, D: domains>(attribute<V> value (D); ...rest)
+	-> unit<D> := result
+	{
+		attribute<D> permutation (D) := sort_index_raw(value, rest);
+		unit<D> result := unique(permutation)
+		{
+			attribute<D> org_rel := lookup(result/values, permutation);
+		}
+	}
+}
+
+// Opt-in convenience: this scans and collects every matching own attribute of
+// src.  Use sort_index when only the sorted domain and org_rel are required.
+function sort_index_with_attr
+{
+	variant one<V: any, D: domains>(container src; attribute<V> value (D))
+	-> unit<D> := sort_index_spec('', src, value);
+
+	variant more<V: any, D: domains>(container src; attribute<V> value (D); ...rest)
+	-> unit<D> := sort_index_spec('', src, value, rest);
+}
+
 // ---------------------------------------------------------------- proximity (WP4.5 tranche 3)
 // the retained 'order' and 'isOverlapping' rewrite rules fire at body-parse
 // fixpoint on these spellings, so the reduced keys equal the old rule chain.

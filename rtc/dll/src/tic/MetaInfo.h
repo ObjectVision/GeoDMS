@@ -6,7 +6,9 @@
 
 #include "TicBase.h"
 
+#include <memory>
 #include <variant>
+#include <vector>
 
 #include "ptr/WeakPtr.h"
 
@@ -16,10 +18,23 @@
 // MetaFuncCurry
 //----------------------------------------------------------------------
 
+struct StructuredFunctionResultMember
+{
+	TokenID id;
+	LispRef key;
+	std::vector<StructuredFunctionResultMember> subItems;
+};
+
+struct StructuredFunctionResult
+{
+	std::vector<StructuredFunctionResultMember> subItems;
+};
+
 struct MetaFuncCurry
 {
 //	LispRef callArgList;
 	LispRef fullLispExpr;
+	std::shared_ptr<const StructuredFunctionResult> structuredResult;
 
 	const TreeItem* applyItem = nullptr;
 	const AbstrOperGroup* og = nullptr;

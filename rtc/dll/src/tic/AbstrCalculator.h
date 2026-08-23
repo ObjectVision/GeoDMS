@@ -45,6 +45,7 @@ struct SubstitutionBuffer
 
 	LispRefAssoc m_SubstituteBuffer[3];
 	TTreeItemSet m_SupplierSet;
+	std::shared_ptr<const StructuredFunctionResult> m_StructuredFunctionResult;
 
 	bool m_CollectSuppliers;
 
