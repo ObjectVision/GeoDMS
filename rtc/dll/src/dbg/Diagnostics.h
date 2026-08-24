@@ -118,6 +118,10 @@ template<typename ...Args>
 	throwDmsErrD(mgFormat2string<Args...>(format, std::forward<Args>(args)...).c_str());
 }
 
+// The internal-error family: a violated invariant of the GeoDms code itself, as opposed to
+// anything a configuration can provoke. Each of these names a source file and line and tells the
+// reader that the problem is not in their configuration. #1202: they also mark their ErrMsg
+// (ErrMsg::m_IsInternalError), so that the report keeps error severity wherever it surfaces.
 [[noreturn]] RTC_CALL void throwPreconditionFailed(CharPtr sourceFile, int line, CharPtr msg);
 [[noreturn]] RTC_CALL void throwCheckFailed       (CharPtr sourceFile, int line, CharPtr msgFormat);
 [[noreturn]] RTC_CALL void throwIllegalAbstract   (CharPtr sourceFile, int line, const Object* obj, CharPtr method);
@@ -176,6 +180,12 @@ void reportF_without_cancellation_check(MsgCategory msgCat, SeverityTypeID st, C
 }
 
 void ReportSuspension();
+
+// #1202: the item that the calling thread is currently reporting about, as "[[/full/item/name]]",
+// or empty when no context handle on this thread knows one. This is the same name that reportD
+// appends to a message of severity MajorTrace and up; a reporter that puts the name in FRONT of
+// its message asks for it here instead, so that the appending is suppressed (see reportD).
+RTC_CALL auto GetReportingItemName() -> SharedStr;
 
 
 #define MG_CHECK2(Cond, Msg)        if(!(Cond))  { throwCheckFailed(MG_POS, Msg); }

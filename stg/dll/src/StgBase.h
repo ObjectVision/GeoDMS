@@ -38,6 +38,7 @@ const PALETTE_SIZE CI_LAST       = 258;
 extern "C" STGDLL_CALL void     DMS_CONV STG_Bmp_SetDefaultColor(PALETTE_SIZE i, DmsColor color);
 extern "C" STGDLL_CALL DmsColor DMS_CONV STG_Bmp_GetDefaultColor(PALETTE_SIZE i);
 extern "C" STGDLL_CALL void DMS_Stg_Load();
+extern "C" STGDLL_CALL void DMS_Stg_Terminate();
 
 //----------------------------------------------------------------------
 // section : generic Storage related TreeItem helper funcs

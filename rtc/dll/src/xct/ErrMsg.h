@@ -49,6 +49,13 @@ struct ErrMsg {
 	SharedStr m_Why, m_FullName, m_Context;
 //	WeakPtr<const Class> m_Class;
 
+	// #1202: set by the internal-error throwers (throwCheckFailed, throwPreconditionFailed,
+	// throwIllegalAbstract, throwNYI), which report a violated invariant of the GeoDms code
+	// itself and ask the reader to file an issue. Such a failure is an error wherever it
+	// surfaces, so Actor::DoFail does not demote it to a warning when it is reported again
+	// as the Validate or Committed failure of a consumer.
+	bool m_IsInternalError = false;
+
 private:
 	mutable bool m_HasBeenReported = false;
 

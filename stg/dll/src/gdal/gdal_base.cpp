@@ -14,7 +14,7 @@
 
 #include <boost/config/helper_macros.hpp> // BOOST_STRINGIZE (needed by MSVC and GCC; boost/format no longer provides it transitively)
 
-#include <cstdlib> // std::atexit (gdalCleanup at process exit)
+#include <cstdlib> // std::atexit (gdalFinalCleanup fallback)
 #include <numbers>
 
 // *****************************************************************************
@@ -105,6 +105,7 @@ CharPtr gdal2CharPtr(CPLErr st)
 namespace gdalComponentImpl
 {
 	UInt32          s_ComponentCount = 0;
+	bool            s_FinalCleanupDone = false;
 	CPLErrorHandler s_OldErrorHandler = nullptr;
 
 	THREAD_LOCAL UInt32 s_TlsCount = 0;
@@ -281,6 +282,26 @@ void gdalCleanup()
 	//proj_cleanup();
 	OSRCleanup();
 	//	CPLCleanupTLS();
+}
+
+void gdalFinalCleanup()
+{
+	leveled_critical_section::scoped_lock lock(gdalComponentImpl::gdalSection);
+	if (gdalComponentImpl::s_FinalCleanupDone)
+		return;
+	gdalComponentImpl::s_FinalCleanupDone = true;
+
+	if (!gdalComponentImpl::s_ComponentCount)
+		return;
+
+	// On Windows, gdald.dll is detached before Stg.dll.  Waiting for Stg's
+	// atexit table therefore lets GDALDestroy run first from gdald!DllMain,
+	// where destruction of the curl VSI handlers creates a fresh CPL TLS map
+	// too late for the Debug CRT.  Executables call this while both DLLs and
+	// all worker-thread teardown are still alive; the atexit hook remains an
+	// idempotent fallback for other hosts.
+	gdalCleanup();
+	GDALDestroy();
 }
 
 bool AuthorityCodeIsValidCrs(std::string_view wkt)
@@ -619,7 +640,7 @@ gdalComponent::gdalComponent()
 		assert(gdalComponentImpl::s_HookedFilesPtr == nullptr);
 		initializeGDAL();
 		// Cleanup ONCE at process exit. Per-component cleanup is disabled (see ~gdalComponent: cleanup
-		// followed by re-initialization crashed, issue 169); an atexit cleanup cannot be followed by a
+		// followed by re-initialization crashed, issue 169); final cleanup cannot be followed by a
 		// re-init, so it is safe AND releases the driver manager / CPL state before the Debug CRT
 		// leak dump (which otherwise reports thousands of GDAL-internal blocks in every gdal test).
 		// GDALDestroy is GDAL's sanctioned final teardown (driver manager + OGR + CPL TLS + master
@@ -627,9 +648,9 @@ gdalComponent::gdalComponent()
 		// piecemeal gdalCleanup calls alone leave (and even re-create) CPL mutex/TLS registry blocks.
 		// This 0->1 branch runs at most once per process: s_ComponentCount never decrements.
 #if defined(_WIN32)
-		// WINDOWS ONLY. On Windows GDAL is a separate DLL: DmStg's atexit table runs at DmStg
-		// unload, before gdal.dll unloads, so this cleanup runs while GDAL's statics are alive.
-		std::atexit([] { gdalCleanup(); GDALDestroy(); });
+		// WINDOWS ONLY. The executable normally invokes this callback explicitly before DLL
+		// detach; keep it registered here as an idempotent fallback for other Stg hosts.
+		std::atexit(gdalFinalCleanup);
 #else
 		// On unix GDAL is linked INTO DmGeo.so and its own __attribute__((destructor)) already
 		// runs GDALDestroy in _dl_fini, AFTER all C++ static destructors -- the only safe moment.
@@ -687,7 +708,7 @@ bool gdalComponent::isActive()
 gdalComponent::~gdalComponent()
 {
 	leveled_critical_section::scoped_lock lock(gdalComponentImpl::gdalSection);
-	return; // no per-component cleanup: cleanup + later re-init crashed (issue 169); gdalCleanup now runs once via atexit (registered at first init)
+	return; // no per-component cleanup: cleanup + later re-init crashed (issue 169); gdalFinalCleanup now runs once at process shutdown
 	if (!--gdalComponentImpl::s_ComponentCount)
 	{
 		//		proj_context_set_file_finder(nullptr, nullptr, nullptr);

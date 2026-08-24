@@ -241,12 +241,20 @@ extern "C" RTC_CALL void DMS_CONV DMS_DisplayError(CharPtr msg)
 	DMS_CALL_END
 }
 
-auto getContext(SeverityTypeID st) -> SharedStr
+RTC_CALL auto GetReportingItemName() -> SharedStr
 {
-	if (st >= SeverityTypeID::ST_MajorTrace && !g_IsTerminating)
+	if (!g_IsTerminating)
 		for (auto ch = ContextHandle::GetLast(); ch; ch = ch->GetPrev())
 			if (ch->HasItemContext())
 				return ch->ItemAsStr();
+
+	return {};
+}
+
+auto getContext(SeverityTypeID st) -> SharedStr
+{
+	if (st >= SeverityTypeID::ST_MajorTrace)
+		return GetReportingItemName();
 
 	return {};
 }
@@ -338,33 +346,70 @@ SharedStr ErrLoc(CharPtr sourceFile, int line, bool isInternal)
 	DmsException::throwMsgF("Error: {}", msg);
 }
 
+// ---------------------------------------------------------------------------
+// The internal-error family: throwCheckFailed (MG_CHECK), throwPreconditionFailed
+// (MG_PRECONDITION), throwIllegalAbstract and throwNYI. They report a violated invariant of the
+// GeoDms code itself, which is why each of them names a source file and line and why ErrLoc adds
+// the line telling the reader the problem is not in their configuration.
+//
+// #1202: they mark their ErrMsg as well. Actor::DoFail derives severity from the FailType, so a
+// failure that surfaces again as a consumer's Validate or Committed failure is reported as a
+// warning -- and for an internal error that second report is the only one that names the item.
+// The mark carries "this is not a configuration error" to that decision. It is set here, in the
+// one place all four of these throwers pass through, rather than at each of them.
+// ---------------------------------------------------------------------------
+
+namespace { // local defs
+
+	[[noreturn]] void throwInternalError(ErrMsgPtr errMsg)
+	{
+		errMsg->m_IsInternalError = true;
+		DmsException::throwMsg(errMsg);
+	}
+
+	// the internal counterpart of throwErrorD / throwErrorF: same "<type> Error: <msg>" text
+	[[noreturn]] void throwInternalErrorD(CharPtr type, CharPtr msg)
+	{
+		dms_assert(type && *type && (strncmp(type, msg, StrLen(type)) || strncmp(ERR_TXT, msg + StrLen(type), sizeof(ERR_TXT) - 1)));
+		throwInternalError(std::make_shared<ErrMsg>(mgFormat2SharedStr("{}" ERR_TXT "{}", type, msg)));
+	}
+
+	template<typename ...Args>
+	[[noreturn]] void throwInternalErrorF(CharPtr type, CharPtr format, Args&&... args)
+	{
+		throwInternalErrorD(type, mgFormat2string<Args...>(format, std::forward<Args>(args)...).c_str());
+	}
+
+} // end anonymous namespace
+
 [[noreturn]] RTC_CALL void throwIllegalAbstract(CharPtr sourceFile, int line, const Object* obj, CharPtr method)
 {
 	assert(0);
-	obj->throwItemErrorF("Illegal Abstract {} called.\n{}", method, ErrLoc(sourceFile, line, true));
+	throwInternalError(std::make_shared<ErrMsg>(
+		mgFormat2SharedStr("Illegal Abstract {} called.\n{}", method, ErrLoc(sourceFile, line, true)), obj));
 }
 
 [[noreturn]] RTC_CALL void throwIllegalAbstract(CharPtr sourceFile, int line, CharPtr method)
 {
 	assert(0);
-	throwErrorF("Illegal Abstract", "{} called.\n{}", method, ErrLoc(sourceFile, line, true));
+	throwInternalErrorF("Illegal Abstract", "{} called.\n{}", method, ErrLoc(sourceFile, line, true));
 }
 
 [[noreturn]] RTC_CALL void throwNYI(CharPtr sourceFile, int line, CharPtr method)
 {
-	throwErrorF("NYI", "Function {} is not yet implemented\n{}", method, ErrLoc(sourceFile, line, true));
+	throwInternalErrorF("NYI", "Function {} is not yet implemented\n{}", method, ErrLoc(sourceFile, line, true));
 }
 
 [[noreturn]] RTC_CALL void  throwPreconditionFailed(CharPtr sourceFile, int line, CharPtr msg)
 {
 	assert(0);
-	throwErrorF("Precondition Exception", "{}\n{}", msg, ErrLoc(sourceFile, line, true));
+	throwInternalErrorF("Precondition Exception", "{}\n{}", msg, ErrLoc(sourceFile, line, true));
 }
 
 [[noreturn]] RTC_CALL void throwCheckFailed(CharPtr sourceFile, int line, CharPtr msg)
 {
 	assert(0);
-	throwErrorF("Check Failed", "{}\n{}", msg, ErrLoc(sourceFile, line, true));
+	throwInternalErrorF("Check Failed", "{}\n{}", msg, ErrLoc(sourceFile, line, true));
 }
 
 //----------------------------------------------------------------------

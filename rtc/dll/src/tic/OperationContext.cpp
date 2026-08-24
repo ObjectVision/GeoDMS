@@ -3031,11 +3031,17 @@ void OperationContext::RunOperator(ArgRefs argRefs, std::vector<ItemReadLock> re
 		bool newResult = false;
 		if (funcDC->WasFailed(FailType::MetaInfo))
 			return;
+
+		// #1202: OUTSIDE the try. This handle is what tells the reporting code which item this
+		// thread is computing, and the catch below is where the failure is reported. Declared
+		// inside the try, it was destroyed by the unwinding before the handler ran, so every
+		// error raised in an operator on a worker thread -- which carries no other reporting
+		// context -- was logged without naming an item.
+		TreeItemDualRefContextHandle reportProgressAndErr(&resultHolder);
+
 		try {
 
 			ASyncContinueCheck();
-
-			TreeItemDualRefContextHandle reportProgressAndErr(&resultHolder);
 
 			auto op = funcDC->m_Operator;
 			MG_CHECK(op);
