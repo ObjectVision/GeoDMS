@@ -1,6 +1,9 @@
 /distr
 /bin
 /obj
+/bin_GLOBIO
+/obj_GLOBIO
+/vcpkg_installed_GLOBIO
 .vs
 *.user
 *.log

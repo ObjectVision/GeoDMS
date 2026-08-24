@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project>
   <PropertyGroup>
+    <!-- `/p:GeoDmsGlobio=true` selects the compatibility build without adding
+         duplicate solution configurations. Both Debug and Release keep their
+         normal names and are redirected by DmsDef.props to bin_GLOBIO/obj_GLOBIO. -->
+    <GeoDmsGlobio Condition="'$(GeoDmsGlobio)' == ''">false</GeoDmsGlobio>
+    <GeoDmsGlobioRoot Condition="'$(GeoDmsGlobioRoot)' == ''">$([System.Environment]::GetEnvironmentVariable('GLOBIO_ENV_ROOT'))</GeoDmsGlobioRoot>
+
     <!--
       Force the 64-bit-hosted cl.exe for every C++ project under the repo. The 32-bit-hosted
       compiler hits C1060 "compiler is out of heap space" when compiling DmClc's RLookup.cpp
@@ -37,7 +43,9 @@
       used by the outer MSBuild project; that project recursively builds the other
       entries into the same output directory.
     -->
-    <GeoDmsPythonVersions>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)python\PythonVersions.txt').Trim())</GeoDmsPythonVersions>
+    <GeoDmsPythonVersionFile Condition="'$(GeoDmsGlobio)' != 'true'">$(MSBuildThisFileDirectory)python\PythonVersions.txt</GeoDmsPythonVersionFile>
+    <GeoDmsPythonVersionFile Condition="'$(GeoDmsGlobio)' == 'true'">$(MSBuildThisFileDirectory)python\PythonVersionsGlobio.txt</GeoDmsPythonVersionFile>
+    <GeoDmsPythonVersions>$([System.IO.File]::ReadAllText('$(GeoDmsPythonVersionFile)').Trim())</GeoDmsPythonVersions>
     <GeoDmsDefaultPythonVersion>$([System.Text.RegularExpressions.Regex]::Match('$(GeoDmsPythonVersions)', '[^;]+$').Value)</GeoDmsDefaultPythonVersion>
     <GeoDmsPythonVersion Condition="'$(GeoDmsPythonVersion)' == ''">$(GeoDmsDefaultPythonVersion)</GeoDmsPythonVersion>
     <GeoDmsPythonAbi>$([System.String]::Copy('$(GeoDmsPythonVersion)').Replace('.', ''))</GeoDmsPythonAbi>
@@ -52,6 +60,12 @@
     <GeoDmsPythonRoot>$([System.Environment]::GetEnvironmentVariable('PYTHON$(GeoDmsPythonAbi)_ROOT'))</GeoDmsPythonRoot>
     <GeoDmsPythonIncludeDir>$([System.Environment]::GetEnvironmentVariable('PYTHON$(GeoDmsPythonAbi)_INCLUDE_DIR'))</GeoDmsPythonIncludeDir>
     <GeoDmsPythonLibraries>$([System.Environment]::GetEnvironmentVariable('PYTHON$(GeoDmsPythonAbi)_LIBRARIES'))</GeoDmsPythonLibraries>
+    <!-- The G binding must use the interpreter from the same locked conda
+         prefix as its GDAL, even when a developer also has a generic
+         PYTHON39_ROOT installation. -->
+    <GeoDmsPythonRoot Condition="'$(GeoDmsGlobio)' == 'true'">$(GeoDmsGlobioRoot)</GeoDmsPythonRoot>
+    <GeoDmsPythonIncludeDir Condition="'$(GeoDmsGlobio)' == 'true'">$(GeoDmsGlobioRoot)\include</GeoDmsPythonIncludeDir>
+    <GeoDmsPythonLibraries Condition="'$(GeoDmsGlobio)' == 'true'">$(GeoDmsGlobioRoot)\libs</GeoDmsPythonLibraries>
     <GeoDmsPythonIncludeDir Condition="'$(GeoDmsPythonIncludeDir)' == '' and '$(GeoDmsPythonRoot)' != ''">$(GeoDmsPythonRoot)\include</GeoDmsPythonIncludeDir>
     <GeoDmsPythonLibraries Condition="'$(GeoDmsPythonLibraries)' == '' and '$(GeoDmsPythonRoot)' != ''">$(GeoDmsPythonRoot)\libs</GeoDmsPythonLibraries>
     <!--

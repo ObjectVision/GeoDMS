@@ -3,8 +3,8 @@
 @REM The version itself is NOT set here -- it lives in
 @REM   rtc\dll\src\RtcVersionNumbers.h
 @REM which is tracked, hand-edited and read by the C++ code directly. Bump it
-@REM there; this file only parses it back out so that Build.bat, the three
-@REM batch\BuildSignAndCreateSetup{,Cmake,Linux}.bat scripts and (via
+@REM there; this file only parses it back out so that Build.bat, the four
+@REM batch\BuildSignAndCreateSetup{,Cmake,Globio,Linux}.bat scripts and (via
 @REM %GeoDmsVersion%) the NSIS setup scripts all see the same numbers as the
 @REM compiled binaries. CMakeLists.txt parses the same header independently.
 @REM
@@ -13,7 +13,7 @@
 @REM (msbuild all22.sln, F5 in MSVC, CMake, CI) picked up a stale version, and a
 @REM fresh clone had no header at all.
 @REM
-@REM The .bat caller is responsible for setting its own GeoDmsFlavor (m / c / l)
+@REM The .bat caller is responsible for setting its own GeoDmsFlavor (m / c / g / l)
 @REM and for composing GeoDmsVersion=%MAJOR%.%MINOR%.%PATCH% after this call.
 
 set "DMS_VERSION_HEADER=%~dp0rtc\dll\src\RtcVersionNumbers.h"
@@ -38,8 +38,8 @@ if not defined DMS_VERSION_PATCH goto :parse_failed
 
 REM Refresh the buildstamp header -- but only ONCE per build session. Build.bat
 REM calls this file up-front; the guard below then makes the subsequent
-REM per-flavor scripts (m/c/l) reuse the SAME header. Two reasons:
-REM   1) all three flavors report an identical build date/time;
+REM per-flavor scripts (m/c/g/l) reuse the SAME header. Two reasons:
+REM   1) all four flavours report an identical build date/time;
 REM   2) the header is written before any flavor builds, so it stays OLDER than
 REM      the build outputs. A later F5 in MSVC therefore does NOT see
 REM      buildstamp.h as changed, does NOT re-run msbuild, and does NOT emit

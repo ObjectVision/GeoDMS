@@ -4,13 +4,15 @@ param(
 
     # Primarily for a focused verifier self-test. Release scripts omit this and
     # therefore always verify the complete PythonVersions.txt matrix.
-    [string[]]$ExpectedVersions
+    [string[]]$ExpectedVersions,
+
+    [string]$VersionsFile
 )
 
 $ErrorActionPreference = 'Stop'
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
-$versionFile = Join-Path $repoRoot 'python\PythonVersions.txt'
+$versionFile = if ($VersionsFile) { $VersionsFile } else { Join-Path $repoRoot 'python\PythonVersions.txt' }
 if (-not $ExpectedVersions) {
     $ExpectedVersions = @((Get-Content -LiteralPath $versionFile -Raw).Trim().Split(';'))
 }

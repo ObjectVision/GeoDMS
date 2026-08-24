@@ -313,7 +313,11 @@ bool AuthorityCodeIsValidCrs(std::string_view wkt)
 	auto is_derived_geographic = srs.IsDerivedGeographic();
 	auto is_projected = srs.IsProjected();
 	auto is_local = srs.IsLocal();
+#if GDAL_VERSION_NUM >= GDAL_COMPUTE_VERSION(3, 4, 0)
 	auto is_dynamic = srs.IsDynamic();
+#else
+	constexpr bool is_dynamic = false; // dynamic CRS API was added in GDAL 3.4
+#endif
 	auto is_geocentric = srs.IsGeocentric();
 	auto is_vertical = srs.IsVertical();
 	auto is_compound = srs.IsCompound();
@@ -1390,11 +1394,13 @@ void TryRegisterVectorDriverFromKnownDriverShortName(std::string_view known_driv
 	else if (known_driver_shortname == "GPKG")
 		RegisterOGRGeoPackage();
 
+#if GDAL_VERSION_NUM >= GDAL_COMPUTE_VERSION(3, 5, 0)
 	else if (known_driver_shortname == "Parquet")
 		RegisterOGRParquet();
 
 	else if (known_driver_shortname == "Arrow")
 		RegisterOGRArrow();
+#endif
 
 	else if (known_driver_shortname == "CSV")
 		RegisterOGRCSV();

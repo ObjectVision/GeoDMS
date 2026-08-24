@@ -40,7 +40,9 @@
 
 
 #include <algorithm>
+#include <array>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <memory>
 #include <vector>
@@ -71,6 +73,36 @@ namespace py_geodms
 			return std::filesystem::path(std::wstring(buffer.data(), length));
 		}
 
+#ifdef GEODMS_GLOBIO
+		bool FilesHaveEqualContent(const std::filesystem::path& lhs, const std::filesystem::path& rhs)
+		{
+			std::error_code fileError;
+			const auto lhsSize = std::filesystem::file_size(lhs, fileError);
+			if (fileError)
+				return false;
+			const auto rhsSize = std::filesystem::file_size(rhs, fileError);
+			if (fileError || lhsSize != rhsSize)
+				return false;
+
+			std::ifstream lhsStream(lhs, std::ios::binary);
+			std::ifstream rhsStream(rhs, std::ios::binary);
+			if (!lhsStream || !rhsStream)
+				return false;
+
+			std::array<char, 64 * 1024> lhsBuffer;
+			std::array<char, 64 * 1024> rhsBuffer;
+			do {
+				lhsStream.read(lhsBuffer.data(), lhsBuffer.size());
+				rhsStream.read(rhsBuffer.data(), rhsBuffer.size());
+				const auto lhsCount = lhsStream.gcount();
+				const auto rhsCount = rhsStream.gcount();
+				if (lhsCount != rhsCount || !std::equal(lhsBuffer.begin(), lhsBuffer.begin() + lhsCount, rhsBuffer.begin()))
+					return false;
+			} while (lhsStream);
+			return true;
+		}
+#endif
+
 		void CheckBundledGdalIsActive()
 		{
 			HMODULE bindingModule = nullptr;
@@ -82,7 +114,12 @@ namespace py_geodms
 				throw py::import_error("Cannot locate the loaded geodms extension while checking its GDAL runtime");
 			}
 
-			const HMODULE gdalModule = GetModuleHandleW(L"gdal.dll");
+#ifdef GEODMS_GLOBIO
+			constexpr wchar_t gdalDllName[] = L"gdal301.dll";
+#else
+			constexpr wchar_t gdalDllName[] = L"gdal.dll";
+#endif
+			const HMODULE gdalModule = GetModuleHandleW(gdalDllName);
 			if (!gdalModule)
 				return; // DmGeo may be delay-loaded by a future build.
 
@@ -94,12 +131,26 @@ namespace py_geodms
 			if (!pathError && sameDirectory)
 				return;
 
+#ifdef GEODMS_GLOBIO
+			// `osgeo` may have loaded the GLOBIO copy before geodms. Permit that
+			// only when it is byte-for-byte the same locked gdal301.dll that the
+			// G setup bundles; a matching version string alone is not an ABI proof.
+			const auto bundledGdalPath = bindingPath.parent_path() / gdalDllName;
+			if (FilesHaveEqualContent(gdalPath, bundledGdalPath))
+				return;
+
+			throw py::import_error(
+				"The GeoDMS G flavour refused an already-loaded gdal301.dll from '" + gdalPath.string() +
+				"' because it differs from the GLOBIO-locked copy in '" + bundledGdalPath.string() +
+				"'. Recreate the environment from the pinned GLOBIO environment.yml or use separate processes.");
+#else
 			throw py::import_error(
 				"GeoDMS refused to use an already-loaded GDAL from '" + gdalPath.string() +
 				"'. The geodms extension and its bundled gdal.dll must be loaded from '" +
 				bindingPath.parent_path().string() +
 				"'. A different QGIS/OSGeo4W/GDAL build cannot safely share this Python process; "
 				"use matching builds or separate processes.");
+#endif
 		}
 	}
 

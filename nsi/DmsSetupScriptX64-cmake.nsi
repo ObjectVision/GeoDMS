@@ -142,7 +142,7 @@ Section "GeoDMS Program Folder"
 
   ; Register in Windows "Apps & Features" so the install is visible there
   ; and can be removed via the standard system UI. Subkey includes flavor
-  ; so side-by-side .m/.c/.l installs of the same version each get their
+  ; so side-by-side .m/.c/.g/.l installs of the same version each get their
   ; own row. See issue #499.
   !define UninstKey "Software\Microsoft\Windows\CurrentVersion\Uninstall\GeoDms${GeoDmsVersion}.${GeoDmsFlavor}"
   SetRegView 64

@@ -43,19 +43,27 @@ into `bin\Release\x64`.
   for v145 cannot be found`. Use:
   `C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Current\Bin\amd64\MSBuild.exe`.
   Build the solution **`all22.sln`**, or run
-  `batch\BuildSignAndCreateSetup.bat` (or `Build.bat` at the repo root to do all three
-  flavors m/c/l in sequence). Do **not** build individual `*.vcxproj` projects standalone
+  `batch\BuildSignAndCreateSetup.bat` (or `Build.bat` at the repo root to do all four
+  flavours m/c/g/l in sequence). Do **not** build individual `*.vcxproj` projects standalone
   (e.g. `DmRtc.vcxproj`, `Clc.vcxproj`). A standalone project build makes `$(SolutionDir)`
   resolve to that module's `dll\` folder, which scatters `vcpkg_installed`, `vc_archives`, and
   `vc_downloads` into the module folder (this is what contaminated `rtc\dll`). All vcpkg
   caches must stay at the **repo root**.
+- **Windows GLOBIO compatibility (`.g`):** use `batch\BuildGlobio.bat Debug` or
+  `batch\BuildGlobio.bat Release`; use `batch\BuildSignAndCreateSetupGlobio.bat`
+  for the release setup. These still build `all22.sln`, with the committed
+  `GeoDmsGlobio=true` switch. Outputs go to `bin_GLOBIO\<Config>\x64`, objects to
+  `obj_GLOBIO`, and non-spatial vcpkg packages to `vcpkg_installed_GLOBIO` from
+  `vcpkg-globio\vcpkg.json`. `GLOBIO_ENV_ROOT` must name the exact conda prefix
+  locked by `vcpkg-globio\environment.yml`; never point a G build at the regular
+  `vcpkg_installed` spatial stack.
 - **Windows (CMake):** use the committed presets —
   `cmake --preset windows-x64-release` (or `windows-x64-debug`), then `cmake --build`. Or run
   `batch\BuildSignAndCreateSetupCmake.bat`.
 - **Linux (CMake):** use presets `linux-x64-release` / `linux-x64-debug`, or run
   `batch\BuildSignAndCreateSetupLinux.bat`.
 - **The per-flavor setup scripts now live in `batch\`.** The repo root holds a single
-  `Build.bat` that calls `batch\BuildSignAndCreateSetup{,Cmake,Linux}.bat` sequentially; the
+  `Build.bat` that calls the m/c/g/l `batch\BuildSignAndCreateSetup*.bat` scripts sequentially; the
   unit-test launchers (`Test*Unit.bat`, `RunGUITests.bat`, `run_unit.bat`) also moved to
   `batch\`. Each moved script re-roots to the repo root via `cd /d "%~dp0.."`, so it still
   works whether run from `batch\` or via `Build.bat`. `GeoDmsVersion.cmd` stays at the root.
@@ -98,7 +106,7 @@ with no context around them. Run them in a real console window — see below.
 
 ### Running a build or test script with live progress on screen *and* readable by Codex
 
-The `batch\BuildSignAndCreateSetup{,Cmake,Linux}.bat` scripts (and the `Build.bat` wrapper), and the
+The `batch\BuildSignAndCreateSetup{,Cmake,Globio,Linux}.bat` scripts (and the `Build.bat` wrapper), and the
 `batch\Test*Unit.bat` / `RunGUITests.bat` test launchers, are run by the **user** in their own
 interactive PowerShell (so they inherit the user's environment and don't trigger a clean-env
 vcpkg re-bootstrap). To let the user watch live progress **and** let Codex read the output,

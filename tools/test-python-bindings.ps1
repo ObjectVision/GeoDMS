@@ -1,12 +1,14 @@
 param(
     [Parameter(Mandatory = $true)]
-    [string]$OutputDir
+    [string]$OutputDir,
+
+    [string]$VersionsFile
 )
 
 $ErrorActionPreference = 'Stop'
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
-$versionFile = Join-Path $repoRoot 'python\PythonVersions.txt'
+$versionFile = if ($VersionsFile) { $VersionsFile } else { Join-Path $repoRoot 'python\PythonVersions.txt' }
 $versions = @((Get-Content -LiteralPath $versionFile -Raw).Trim().Split(';') |
     ForEach-Object { $_.Trim() } |
     Where-Object { $_ } |

@@ -120,7 +120,7 @@
              Targets="Build"
              BuildInParallel="false"
              Condition="'%(_DmsPythonMatrixVersion.Identity)' != '$(GeoDmsPythonVersion)'"
-             Properties="Configuration=$(Configuration);Platform=$(Platform);GeoDmsPythonVersion=%(_DmsPythonMatrixVersion.Identity);DmsPythonMatrixChild=true;BuildProjectReferences=false;IntDir=$(SolutionDir)obj\$(Configuration)\$(Platform)\PyDms.cp%(_DmsPythonMatrixVersion.Identity)\" />
+             Properties="Configuration=$(Configuration);Platform=$(Platform);GeoDmsPythonVersion=%(_DmsPythonMatrixVersion.Identity);DmsPythonMatrixChild=true;BuildProjectReferences=false;IntDir=$(DmsIntermediateRoot)\$(Configuration)\$(Platform)\PyDms.cp%(_DmsPythonMatrixVersion.Identity)\" />
   </Target>
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
