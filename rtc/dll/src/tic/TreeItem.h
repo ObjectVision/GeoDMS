@@ -286,7 +286,7 @@ public:
 	      TreeItem* GetBestItem (CharPtrRange subItemNames);
 	TIC_CALL SharedTreeItem GetCurrItem (CharPtrRange subItemNames) const; // doesn't call UpdateMetaInfo
 
-	TIC_CALL SharedTreeItem FindItem    (CharPtrRange subItemNames) const; // calls UpdateMetaInfo
+	TIC_CALL SharedTreeItem ResolveItemPath(CharPtrRange subItemNames) const; // calls UpdateMetaInfo
 	TIC_CALL BestItemRef FindBestItem(CharPtrRange subItemNames) const; // calls UpdateMetaInfo
 	auto FindAndVisitItem(CharPtrRange subItemNames, SupplierVisitFlag svf, const ActorVisitor& visitor) const->std::optional<SharedTreeItem>;  // directly referred persistent object.
 

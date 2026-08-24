@@ -164,7 +164,7 @@ const TreeItem* GetCdfDataRef(const TreeItem* item)
 	if (HasCdfProp(item))
 	{
 		SharedStr cdfValue = GetCdfProp(item);
-		auto result = item->FindItem( cdfValue );
+		auto result = item->ResolveItemPath( cdfValue );
 		if (result)
 			result->UpdateMetaInfo();
 		return result.get();

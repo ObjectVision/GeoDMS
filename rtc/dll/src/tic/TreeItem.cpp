@@ -2179,6 +2179,8 @@ bool TreeItem::IsDataReadable() const
 
 SharedTreeItem TreeItem::GetConstSubTreeItemByID(TokenID subItemID) const
 {
+	// Qualified descent searches only this item and its referred-item chain.
+	// In particular, it never ascends to the parent of a referred item.
 	const TreeItem* subItem = GetFirstSubItem(); // calls UpdateMetaInfo
 	while (true)
 	{
@@ -2282,7 +2284,7 @@ SharedTreeItem TreeItem::GetCurrItem(CharPtrRange subItemNames) const
 }
 
 
-SharedTreeItem TreeItem::FindItem(CharPtrRange subItemNames) const
+SharedTreeItem TreeItem::ResolveItemPath(CharPtrRange subItemNames) const
 {
 	assert(IsMetaThread());
 
@@ -2312,7 +2314,7 @@ SharedTreeItem TreeItem::FindItem(CharPtrRange subItemNames) const
 		parent = make_shared_tree(static_cast<const TreeItem*>(GetRoot()), existing_obj{});
 	}
 	else
-		parent = FindItem(ids.first);
+		parent = ResolveItemPath(ids.first);
 
 	if (!parent)
 		return {};
@@ -4018,7 +4020,7 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 		auto dialogData = dialogDataPropDefPtr->GetValue(this);
 		if (!dialogData.empty())
 		{
-			auto dialogDataItem = FindItem(dialogData.AsRange());
+			auto dialogDataItem = ResolveItemPath(dialogData.AsRange());
 			if (dialogDataItem && visitor(dialogDataItem.get()) == AVS_SuspendedOrFailed)
 				return AVS_SuspendedOrFailed;
 		}
@@ -5967,7 +5969,7 @@ auto TreeItem_GetTemplateSource(const TreeItem* item) -> SharedTreeItem
 	return calculator->GetForEachTemplSource();
 }
 
-auto TreeItem_FindItem_impl(template_set& visitedSet, const TreeItem* searchLoc, TokenID id, const TreeItem* blockedSubItem = nullptr, bool findNextMode = false) -> SharedTreeItem
+auto TreeItem_SearchItem_impl(template_set& visitedSet, const TreeItem* searchLoc, TokenID id, const TreeItem* blockedSubItem = nullptr, bool findNextMode = false) -> SharedTreeItem
 {
 //	if (searchLoc->GetID() == id)
 //		return searchLoc;
@@ -6000,7 +6002,7 @@ auto TreeItem_FindItem_impl(template_set& visitedSet, const TreeItem* searchLoc,
 			if (subItem->GetID() == id)
 				return make_shared_tree(subItem, existing_obj{});
 
-			if (auto result = TreeItem_FindItem_impl(visitedSet, subItem, id))
+			if (auto result = TreeItem_SearchItem_impl(visitedSet, subItem, id))
 				return result;
 		}
 	}
@@ -6008,7 +6010,7 @@ auto TreeItem_FindItem_impl(template_set& visitedSet, const TreeItem* searchLoc,
 	return {};
 }
 
-TIC_CALL auto TreeItem_FindItem(const TreeItem* searchLoc, TokenID id) -> SharedTreeItem
+TIC_CALL auto TreeItem_SearchItem(const TreeItem* searchLoc, TokenID id) -> SharedTreeItem
 {
 	if (!searchLoc || searchLoc->IsCacheItem())
 		return {};
@@ -6024,7 +6026,7 @@ TIC_CALL auto TreeItem_FindItem(const TreeItem* searchLoc, TokenID id) -> Shared
 	}
 	
 	template_set alreadyVisited;
-	if (auto result = TreeItem_FindItem_impl(alreadyVisited, searchLoc, id, nullptr, false))
+	if (auto result = TreeItem_SearchItem_impl(alreadyVisited, searchLoc, id, nullptr, false))
 		return result;	
 
 	while (auto parent = searchLoc->GetTreeParent().get())
@@ -6032,7 +6034,7 @@ TIC_CALL auto TreeItem_FindItem(const TreeItem* searchLoc, TokenID id) -> Shared
 		if (!findNextMode && parent->GetID() == id)
 			return make_shared_tree(parent, existing_obj{});
 
-		if (auto result = TreeItem_FindItem_impl(alreadyVisited, parent, id, searchLoc, findNextMode))
+		if (auto result = TreeItem_SearchItem_impl(alreadyVisited, parent, id, searchLoc, findNextMode))
 			return result;
 		searchLoc = parent;
 	}

@@ -1895,7 +1895,7 @@ Scope of the walk (`CheckFunctionDefinitionsInSubtree`, `tic/AbstrCalculator.cpp
   non-invasive and never fails the tree, so it cannot change the configuration's state.
 
 Running the checker **cold** (before the configuration is otherwise resolved) exposed one
-Debug-only ordering issue: the checker resolves a call head through `TreeItem::FindItem`,
+Debug-only ordering issue: the checker resolves a call head through `TreeItem::ResolveItemPath`,
 which builds the scope's `UsingCache` for the first time, and the namespace-merge walk
 inside `UsingCache::UpdateCache` calls `GetReferredItem()` — triggering a fresh
 `UpdateMetaInfo` under that method's own (Debug-only) no-update-metainfo guard. At

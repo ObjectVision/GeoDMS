@@ -1215,7 +1215,7 @@ SharedTreeItem SymbDC::MakeResult() const
 		SharedStr fullName = SharedStr(m_FullNameID); // overcome lock on m_FullNameID
 		auto curr = SessionData::Curr();
 		MG_CHECK(curr);
-		auto sourceItem = curr->GetConfigRoot()->FindItem(fullName);
+		auto sourceItem = curr->GetConfigRoot()->ResolveItemPath(fullName);
 /* NYI
 		MG_CHECK(sourceItem);
 		TreeItem* res = nullptr;

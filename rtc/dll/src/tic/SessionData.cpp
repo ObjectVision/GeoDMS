@@ -174,7 +174,7 @@ const TreeItem* SessionData::GetContainer(const TreeItem* context, CharPtr name)
 {
     SharedStr fullName = ReadConfigString("configuration", name, name);
 	CharPtrRange searchKey = fullName.empty() ? CharPtrRange(name): fullName.AsRange();
-    return context->FindItem(searchKey).get();
+    return context->ResolveItemPath(searchKey).get();
 }
 
 const TreeItem* SessionData::GetClassificationContainer(const TreeItem* context) const

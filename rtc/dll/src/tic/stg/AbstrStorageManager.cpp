@@ -88,7 +88,7 @@ void StorageMetaInfo::OnClose(StorageCloseHandle*)
 
 TIC_CALL const TreeItem* GetExportSettingsContext(const TreeItem* context)
 {
-	const TreeItem* exportContext = context->FindItem(CharPtrRange("ExportSettings")).get();
+	const TreeItem* exportContext = context->ResolveItemPath(CharPtrRange("ExportSettings")).get();
 	if (exportContext)
 		return exportContext;
 	return context;
@@ -109,7 +109,7 @@ const TreeItem* GetExportMetaInfo(const TreeItem* curr)
 	const TreeItem* exportSettings = GetExportSettings(curr);
 	if (!exportSettings)
 		return nullptr;
-	return exportSettings->FindItem("MetaInfo").get();
+	return exportSettings->ResolveItemPath("MetaInfo").get();
 }
 
 // *****************************************************************************
@@ -958,10 +958,10 @@ TIC_CALL const Class* DMS_CONV DMS_AbstrStorageManager_GetStaticClass()
 
 GdalMetaInfo::GdalMetaInfo(const TreeItem* storageHolder, const TreeItem* curr)
 	: StorageMetaInfo(storageHolder, curr)
-	, m_OptionsItem(storageOptionsPropDefPtr->HasNonDefaultValue(storageHolder) ? nullptr : storageHolder->FindItem("GDAL_Options").get())
-	, m_DriverItem (storageDriverPropDefPtr ->HasNonDefaultValue(storageHolder) ? nullptr : storageHolder->FindItem("GDAL_Driver").get())
-	, m_LayerCreationOptions(storageHolder->FindItem("GDAL_LayerCreationOptions").get())
-	, m_ConfigurationOptions(storageHolder->FindItem("GDAL_ConfigurationOptions").get())
+	, m_OptionsItem(storageOptionsPropDefPtr->HasNonDefaultValue(storageHolder) ? nullptr : storageHolder->ResolveItemPath("GDAL_Options").get())
+	, m_DriverItem (storageDriverPropDefPtr ->HasNonDefaultValue(storageHolder) ? nullptr : storageHolder->ResolveItemPath("GDAL_Driver").get())
+	, m_LayerCreationOptions(storageHolder->ResolveItemPath("GDAL_LayerCreationOptions").get())
+	, m_ConfigurationOptions(storageHolder->ResolveItemPath("GDAL_ConfigurationOptions").get())
 {
 	if (storageOptionsPropDefPtr->HasNonDefaultValue(storageHolder))
 		m_Options = storageOptionsPropDefPtr->GetValue(storageHolder).c_str();

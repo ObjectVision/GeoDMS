@@ -96,7 +96,7 @@ const TreeItem* GetNextDialogDataRef(const TreeItem* item, CharPtr& i, CharPtr e
 	CharPtr newI = std::find(i, e, ';');
 	i = newI;
 	if (newI != e) ++i;
-	return item->FindItem( CharPtrRange(orgI, newI) ).get();
+	return item->ResolveItemPath( CharPtrRange(orgI, newI) ).get();
 }
 
 const TreeItem* GetDialogDataRef(const TreeItem* item)

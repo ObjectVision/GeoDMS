@@ -2,7 +2,7 @@
 
 // The small single-widget windows of the Qt GUI, merged (2026-08):
 // DmsAddressBar, DmsErrorWindow, DmsGuiParameters, DmsSplashScreen,
-// DmsFileChangedWindow, FindTreeItemWindow, UpdatableBrowser.
+// DmsFileChangedWindow, SearchTreeItemWindow, UpdatableBrowser.
 
 // ==== DmsAddressBar ====
 #include "DmsAddressBar.h"
@@ -345,12 +345,12 @@ void DmsFileChangedWindow::onAnchorClicked(const QUrl& link) {
     }
 }
 
-// ==== FindTreeItemWindow ====
+// ==== SearchTreeItemWindow ====
 // Copyright (C) 1998-2025 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
-#include "FindTreeItemWindow.h"
+#include "SearchTreeItemWindow.h"
 
 #include <QVBoxLayout>
 
@@ -358,16 +358,16 @@ void DmsFileChangedWindow::onAnchorClicked(const QUrl& link) {
 #include "TicInterface.h"
 #include "DmsMainWindow.h"
 
-// Forward declaration of TreeItem_FindItem from TreeItem.cpp
-TIC_CALL SharedTreeItem TreeItem_FindItem(const TreeItem* searchLoc, TokenID id);
+// Forward declaration of TreeItem_SearchItem from TreeItem.cpp
+TIC_CALL SharedTreeItem TreeItem_SearchItem(const TreeItem* searchLoc, TokenID id);
 
-FindTreeItemWindow::FindTreeItemWindow(QWidget* parent)
+SearchTreeItemWindow::SearchTreeItemWindow(QWidget* parent)
     : QWidget(parent)
 {
     setWindowFlag(Qt::Window, true);
     setMinimumSize(300, 120);
     resize(350, 150);
-    setWindowTitle("Find TreeItem");
+    setWindowTitle("Search TreeItem");
 
     auto* layout = new QVBoxLayout(this);
     find_text = new QLineEdit(this);
@@ -379,9 +379,9 @@ FindTreeItemWindow::FindTreeItemWindow(QWidget* parent)
     result_info = new QLabel("", this);
 
     // connections
-    connect(next, &QPushButton::clicked, this, &FindTreeItemWindow::nextClicked);
+    connect(next, &QPushButton::clicked, this, &SearchTreeItemWindow::nextClicked);
     connect(find_text, &QLineEdit::returnPressed, this, [this]() { findInTreeView(true); });
-    connect(find_text, &QLineEdit::textChanged, this, &FindTreeItemWindow::onFindTextChanged);
+    connect(find_text, &QLineEdit::textChanged, this, &SearchTreeItemWindow::onFindTextChanged);
 
     // fill layout
     layout->addWidget(find_text);
@@ -392,7 +392,7 @@ FindTreeItemWindow::FindTreeItemWindow(QWidget* parent)
     setLayout(layout);
 }
 
-void FindTreeItemWindow::findInTreeView(bool closeOnSuccess)
+void SearchTreeItemWindow::findInTreeView(bool closeOnSuccess)
 {
     auto search_text = find_text->text();
     if (search_text.isEmpty())
@@ -417,7 +417,7 @@ void FindTreeItemWindow::findInTreeView(bool closeOnSuccess)
 
     try {
         TokenID search_token = GetTokenID_mt(search_text.toUtf8().constData());
-        auto found_item = TreeItem_FindItem(current_item, search_token);
+        auto found_item = TreeItem_SearchItem(current_item, search_token);
 
         if (found_item)
         {
@@ -439,12 +439,12 @@ void FindTreeItemWindow::findInTreeView(bool closeOnSuccess)
     }
 }
 
-void FindTreeItemWindow::nextClicked(bool checked)
+void SearchTreeItemWindow::nextClicked(bool checked)
 {
     findInTreeView();
 }
 
-void FindTreeItemWindow::onFindTextChanged(const QString& text)
+void SearchTreeItemWindow::onFindTextChanged(const QString& text)
 {
     auto main_window = MainWindow::TheOne();
     if (!main_window)
@@ -467,7 +467,7 @@ void FindTreeItemWindow::onFindTextChanged(const QString& text)
     }
 }
 
-void FindTreeItemWindow::keyPressEvent(QKeyEvent* event)
+void SearchTreeItemWindow::keyPressEvent(QKeyEvent* event)
 {
     if (event->key() == Qt::Key_Escape)
         close();

@@ -169,7 +169,7 @@ SharedUnit FindProjectionRef(const TreeItem* storageHolder, const AbstrUnit* gri
 	SharedStr coordRef = dialogDataPropDefPtr->GetValue(gridDataDomain);
 	if (!coordRef.empty())
 	{
-		auto coordItem = gridDataDomain->FindItem(coordRef);
+		auto coordItem = gridDataDomain->ResolveItemPath(coordRef);
 		if (!coordItem && !HasMapType(gridDataDomain))
 			gridDataDomain->throwItemErrorF("Cannot find DialogData reference '{}'", coordRef.c_str());
 		if (IsUnit(coordItem))
@@ -180,7 +180,7 @@ SharedUnit FindProjectionRef(const TreeItem* storageHolder, const AbstrUnit* gri
 		coordRef = dialogDataPropDefPtr->GetValue(storageHolder);
 		if (!coordRef.empty())
 		{
-			auto coordItem = storageHolder->FindItem(coordRef);
+			auto coordItem = storageHolder->ResolveItemPath(coordRef);
 			if (!coordItem && !HasMapType(storageHolder))
 				storageHolder->throwItemErrorF("Cannot find DialogData reference '{}'", coordRef.c_str());
 			if (IsUnit(coordItem))

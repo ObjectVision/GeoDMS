@@ -60,7 +60,7 @@
 #include "DmsErrorWindow.h"
 #include "DmsAddressBar.h"
 #include "StatisticsBrowser.h"
-#include "FindTreeItemWindow.h"
+#include "SearchTreeItemWindow.h"
 #include "UpdatableBrowser.h"
 
 #include "StateChangeNotification.h"
@@ -2429,14 +2429,14 @@ void MainWindow::expandRecursiveFromCurrentItem() {
     m_treeview->expandRecursiveFromCurrentItem();
 }
 
-void MainWindow::findTreeItem() {
-    if (!m_find_treeitem_window)
+void MainWindow::searchTreeItem() {
+    if (!m_search_treeitem_window)
     {
-        m_find_treeitem_window = new FindTreeItemWindow(this);
-        m_find_treeitem_window->setWindowTitle("Find in configured TreeItems");
+        m_search_treeitem_window = new SearchTreeItemWindow(this);
+        m_search_treeitem_window->setWindowTitle("Search configured TreeItems");
     }
-    m_find_treeitem_window->show();
-    m_find_treeitem_window->find_text->setFocus();
+    m_search_treeitem_window->show();
+    m_search_treeitem_window->find_text->setFocus();
 }
 
 void MainWindow::createDetailPagesDock() {

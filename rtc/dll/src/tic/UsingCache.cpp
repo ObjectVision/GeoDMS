@@ -416,6 +416,9 @@ void UsingCache::UpdateCache() const
 
 	TreeItemCPtrArray tmpSubItems, tmpNameSpace;
 
+	// Finish the context's complete referred-item chain before merging any Using
+	// namespace (including the context parent). A referred item's own parent/usings
+	// are deliberately not followed: parent.ref is visible, ref.parent is not.
 	SharedTreeItem refItem = make_shared_tree(m_Context, existing_obj{}); // TODO ownership: was raw const TreeItem*; held as shared so the GetReferredItem() chain outlives each loop iteration
 	while (true) {
 		assert(refItem->m_State.GetProgress() >= ProgressState::MetaInfo || (refItem->m_State.GetFailType() != FailType::None));
@@ -461,12 +464,12 @@ auto UsingCache::FindNamespace(TokenID url, bool mayResolveViaHiddenParent) cons
 		// required for strict function-instance scopes whose usings hold no parent to
 		// route through
 		if (!m_Context->GetTreeParent() && m_Context->IsCacheItem())
-			return SessionData::Curr()->GetConfigRoot()->FindItem(urlAsString); // context ref of instantiated template in cache
+			return SessionData::Curr()->GetConfigRoot()->ResolveItemPath(urlAsString); // context ref of instantiated template in cache
 		const TreeItem* root = m_Context;
 		while (auto parent = root->GetTreeParent())
 			root = parent.get();
 		if (!root->IsCacheItem())
-			return root->FindItem(urlAsString);
+			return root->ResolveItemPath(urlAsString);
 	}
 	if (!n)
 	{
@@ -475,7 +478,7 @@ auto UsingCache::FindNamespace(TokenID url, bool mayResolveViaHiddenParent) cons
 			// strict function scope: relative 'using' urls still resolve against the
 			// (hidden) parent, i.e. the definition scope
 			if (auto contextParent = m_Context->GetTreeParent())
-				return contextParent->FindItem(urlAsString);
+				return contextParent->ResolveItemPath(urlAsString);
 		}
 		if (!m_Context->GetTreeParent() && !m_Context->IsCacheItem())
 			return {};
@@ -483,14 +486,14 @@ auto UsingCache::FindNamespace(TokenID url, bool mayResolveViaHiddenParent) cons
 			return {}; // strict scope with hidden parent: plain identifiers do not fall back
 		// we look for context ref of instantiated template in cache
 		dms_assert(url.GetStr().c_str()[0] == '/');
-		return SessionData::Curr()->GetConfigRoot()->FindItem(urlAsString);
+		return SessionData::Curr()->GetConfigRoot()->ResolveItemPath(urlAsString);
 	}
 	while (n--)
 	{
 		const TreeItem* u = lock_raw(m_Usings[n]); // never assume a weak using entry is still alive
 		if (!u)
 			continue;
-		auto foundItem = u->FindItem(urlAsString); // TODO return 0 if firstName found somewhere
+		auto foundItem = u->ResolveItemPath(urlAsString); // TODO return 0 if firstName found somewhere
 		if (foundItem)
 			return foundItem;
 	}
@@ -499,7 +502,7 @@ auto UsingCache::FindNamespace(TokenID url, bool mayResolveViaHiddenParent) cons
 		// strict function scope: relative 'using' urls still resolve against the
 		// (hidden) parent, i.e. the definition scope
 		if (auto contextParent = m_Context->GetTreeParent())
-			return contextParent->FindItem(urlAsString);
+			return contextParent->ResolveItemPath(urlAsString);
 	}
 	return {};
 }
