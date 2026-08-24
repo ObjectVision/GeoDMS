@@ -25,6 +25,13 @@ set geodms_rootdir=%cd%
 
 set GeoDmsVersion=%DMS_VERSION_MAJOR%.%DMS_VERSION_MINOR%.%DMS_VERSION_PATCH%
 
+set GeoDmsPythonVersions=
+set /p GeoDmsPythonVersions=<python\PythonVersions.txt
+if not defined GeoDmsPythonVersions (
+    echo *** ABORT: python\PythonVersions.txt is empty - Python ABI matrix unknown ***
+    goto :build_failed
+)
+
 cd ..
 md tst
 cd tst
@@ -140,6 +147,15 @@ if errorlevel 1 (
     echo *** ABORT: bin\Release\x64\GeoDmsRun.exe was not rebuilt - msbuild was a no-op against stale binaries. ***
     goto :build_failed
 )
+
+REM Catch Python ABI/deployment drift before NSIS sees the output. This requires
+REM all configured ABI-tagged modules and rejects any bundled Python runtime.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%geodms_rootdir%\tools\verify-python-binding.ps1" -OutputDir "%geodms_rootdir%\bin\Release\x64"
+if errorlevel 1 goto :build_failed
+
+REM Prove that each tagged module is selected and imports in its matching CPython.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%geodms_rootdir%\tools\test-python-bindings.ps1" -OutputDir "%geodms_rootdir%\bin\Release\x64"
+if errorlevel 1 goto :build_failed
 
 :setupCreation
 

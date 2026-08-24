@@ -49,12 +49,60 @@
 #include <pybind11/cast.h>
 #include <pybind11/stl.h>
 
+static_assert(PY_MAJOR_VERSION == GEODMS_PYTHON_MAJOR && PY_MINOR_VERSION == GEODMS_PYTHON_MINOR,
+	"Python.h does not match python/PythonVersions.txt; point the ABI-specific Python root at the requested CPython minor");
+
 
 
 namespace py = pybind11;
 
 namespace py_geodms
 {
+	namespace
+	{
+		int binding_module_anchor;
+
+		std::filesystem::path GetLoadedModulePath(HMODULE module)
+		{
+			std::vector<wchar_t> buffer(32768);
+			const DWORD length = GetModuleFileNameW(module, buffer.data(), static_cast<DWORD>(buffer.size()));
+			if (!length || length == buffer.size())
+				throw py::import_error("Cannot determine a loaded DLL path while checking the GeoDMS GDAL runtime");
+			return std::filesystem::path(std::wstring(buffer.data(), length));
+		}
+
+		void CheckBundledGdalIsActive()
+		{
+			HMODULE bindingModule = nullptr;
+			const auto anchorAddress = reinterpret_cast<LPCWSTR>(&binding_module_anchor);
+			if (!GetModuleHandleExW(
+				GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+				anchorAddress, &bindingModule))
+			{
+				throw py::import_error("Cannot locate the loaded geodms extension while checking its GDAL runtime");
+			}
+
+			const HMODULE gdalModule = GetModuleHandleW(L"gdal.dll");
+			if (!gdalModule)
+				return; // DmGeo may be delay-loaded by a future build.
+
+			const auto bindingPath = GetLoadedModulePath(bindingModule);
+			const auto gdalPath = GetLoadedModulePath(gdalModule);
+			std::error_code pathError;
+			const bool sameDirectory = std::filesystem::equivalent(
+				bindingPath.parent_path(), gdalPath.parent_path(), pathError);
+			if (!pathError && sameDirectory)
+				return;
+
+			throw py::import_error(
+				"GeoDMS refused to use an already-loaded GDAL from '" + gdalPath.string() +
+				"'. The geodms extension and its bundled gdal.dll must be loaded from '" +
+				bindingPath.parent_path().string() +
+				"'. A different QGIS/OSGeo4W/GDAL build cannot safely share this Python process; "
+				"use matching builds or separate processes.");
+		}
+	}
+
 	//----------------------------------------------------------------------
 	// helper: resolve a script value-type name (e.g. "float64", "uint32",
 	//         "spoint", "string") to its UnitClass.
@@ -535,6 +583,8 @@ void dataitem_set_values_from_int_list(py_geodms::MutableDataItem self, const st
 }
 
 PYBIND11_MODULE(geodms, m) {
+	py_geodms::CheckBundledGdalIsActive();
+
 	m.doc() = "Python bindings for the GeoDMS Data & Model Server: read/query a configuration, "
 	          "set parameter values, build an in-memory configuration without a model script, "
 	          "and query results via Primary Data Access.";

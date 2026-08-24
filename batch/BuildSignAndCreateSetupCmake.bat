@@ -32,6 +32,12 @@ set GeoDmsFlavor=c
 
 set geodms_rootdir=%cd%
 set GeoDmsVersion=%DMS_VERSION_MAJOR%.%DMS_VERSION_MINOR%.%DMS_VERSION_PATCH%
+set GeoDmsPythonVersions=
+set /p GeoDmsPythonVersions=<python\PythonVersions.txt
+if not defined GeoDmsPythonVersions (
+    echo *** ABORT: python\PythonVersions.txt is empty - Python ABI matrix unknown ***
+    goto :build_failed
+)
 
 REM Share the vc_archives binary cache with the msbuild (.m) flavor — see
 REM DmsDef.props VcpkgAdditionalInstallOptions. Without this, cmake falls
@@ -158,6 +164,14 @@ if errorlevel 1 (
     echo *** ABORT: %BUILD_DIR%\bin\DmRtc.dll was not rebuilt - cmake --build was a no-op against stale binaries. ***
     goto :build_failed
 )
+
+REM The .c flavour must target and package the same CPython ABI matrix as .m.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%geodms_rootdir%\tools\verify-python-binding.ps1" -OutputDir "%geodms_rootdir%\%BUILD_DIR%\bin"
+if errorlevel 1 goto :build_failed
+
+REM Prove that each tagged module is selected and imports in its matching CPython.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%geodms_rootdir%\tools\test-python-bindings.ps1" -OutputDir "%geodms_rootdir%\%BUILD_DIR%\bin"
+if errorlevel 1 goto :build_failed
 
 echo --- creating NSIS installer ---
 mkdir distr 2>nul

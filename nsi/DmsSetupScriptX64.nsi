@@ -12,5 +12,6 @@
 ;   c -> cmake    (DmsSetupScriptX64-cmake.nsi)
 ;   l -> linux    (CreateLinuxSetup.sh)
 !define GeoDmsFlavor "m"
+!define GeoDmsPythonPlatformTag "win_amd64"
 
 !include DmsSetupScript.nsh

@@ -113,7 +113,9 @@ Section "GeoDMS Program Folder" ;No components page, name is not important
   File ..\bin\Release\${GeoDmsPlatform}\z.dll
   File ..\bin\Release\${GeoDmsPlatform}\zstd.dll
 
-  File ..\bin\Release\${GeoDmsPlatform}\geodms.pyd
+  ; The pre-package verifier requires the exact configured ABI matrix, so this
+  ; wildcard cannot silently admit a stale or missing binding.
+  File ..\bin\Release\${GeoDmsPlatform}\geodms.cp*-${GeoDmsPythonPlatformTag}.pyd
 
   File ..\res\NotePadPlusPlus\GeoDMS_npp_def.xml
   
@@ -223,7 +225,7 @@ Section uninstall
   Delete $INSTDIR\profiler.py
   Delete $INSTDIR\regression.py
   Delete $INSTDIR\*.dll
-  Delete $INSTDIR\geodms.pyd
+  Delete $INSTDIR\geodms*.pyd
   Delete $INSTDIR\GeoDMS_npp_def.xml
 
   Delete $INSTDIR\gdaldata\*.*

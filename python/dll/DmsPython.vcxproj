@@ -29,13 +29,21 @@
   </PropertyGroup>
   <PropertyGroup>
     <_ProjectFileVersion>10.0.21006.1</_ProjectFileVersion>
+    <!-- A CPython extension consumes the interpreter's already-loaded runtime.
+         In particular, vcpkg applocal must not copy its python312.dll when it
+         scans the cp312 target; the setup intentionally ships no Python DLL. -->
+    <VcpkgApplocalDeps>false</VcpkgApplocalDeps>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <!-- Set after Cpp.props so its DynamicLibrary default (.dll) does not override .pyd;
        otherwise $(TargetExt) stays .dll and mismatches the linker OutputFile (MSB8012). -->
   <PropertyGroup>
     <TargetExt>.pyd</TargetExt>
-    <TargetName>geodms</TargetName>
+    <!-- Use Python's normal SOABI filename. A different CPython minor will then
+         ignore this module instead of trying to load an incompatible DLL. -->
+    <GeoDmsPythonPlatformTag Condition="'$(Platform)'=='x64'">win_amd64</GeoDmsPythonPlatformTag>
+    <GeoDmsPythonPlatformTag Condition="'$(Platform)'=='Win32'">win32</GeoDmsPythonPlatformTag>
+    <TargetName>geodms.cp$(GeoDmsPythonAbi)-$(GeoDmsPythonPlatformTag)</TargetName>
   </PropertyGroup>
   <ImportGroup Label="ExtensionSettings">
   </ImportGroup>
@@ -50,13 +58,15 @@
   </ImportGroup>
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>%PYTHON3_INCLUDE_DIR%;./src;../../rtc/dll/src/sym;../../rtc/dll/src/tic;../../rtc/dll/src;../../geo/dll/src;../../clc/dll/include;../../stx/dll/src;../../shv/dll/src;../../stg/dll/src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(GeoDmsPythonIncludeDir);./src;../../rtc/dll/src/sym;../../rtc/dll/src/tic;../../rtc/dll/src;../../geo/dll/src;../../clc/dll/include;../../stx/dll/src;../../shv/dll/src;../../stg/dll/src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_CONSOLE;GEODMS_PYTHON_MAJOR=$(GeoDmsPythonMajor);GEODMS_PYTHON_MINOR=$(GeoDmsPythonMinor);%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
-      <OutputFile>$(OutDir)geodms.pyd</OutputFile>
-      <AdditionalDependencies>%PYTHON3_LIBRARIES%/*.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
+      <!-- Never use *.lib here: the CPython install also contains python3.lib,
+           which made the module import both python3.dll and python313.dll. -->
+      <AdditionalDependencies>$(GeoDmsPythonLibraries)/python$(GeoDmsPythonAbi).lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Platform)'=='Win32'">
@@ -68,6 +78,14 @@
   <ItemGroup>
     <ClCompile Include="src\Bindings.cpp" />
   </ItemGroup>
+  <Target Name="DmsValidatePythonAbi" BeforeTargets="ClCompile;Link">
+    <Error Condition="'$(GeoDmsPythonVersion)' == ''"
+           Text="GeoDMS Python versions are missing from python\PythonVersions.txt." />
+    <Error Condition="'$(GeoDmsPythonIncludeDir)' == '' or !Exists('$(GeoDmsPythonIncludeDir)\Python.h')"
+           Text="CPython $(GeoDmsPythonVersion) headers not found. Set PYTHON$(GeoDmsPythonAbi)_ROOT or PYTHON$(GeoDmsPythonAbi)_INCLUDE_DIR." />
+    <Error Condition="'$(GeoDmsPythonLibraries)' == '' or !Exists('$(GeoDmsPythonLibraries)\python$(GeoDmsPythonAbi).lib')"
+           Text="CPython $(GeoDmsPythonVersion) import library not found. Set PYTHON$(GeoDmsPythonAbi)_ROOT or PYTHON$(GeoDmsPythonAbi)_LIBRARIES." />
+  </Target>
   <ItemGroup>
     <ProjectReference Include="..\..\clc\dll\Clc.vcxproj">
       <Project>{41dd88b1-2f24-45aa-9cbb-4318f97bbc22}</Project>
@@ -86,6 +104,24 @@
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <!-- Build every non-default ABI as a second project instance. The outer
+       instance (currently cp314) has already built all project references;
+       each child gets its own IntDir and writes its tagged .pyd beside it. -->
+  <Target Name="DmsBuildAdditionalPythonAbis"
+          AfterTargets="Build"
+          Condition="'$(DmsPythonMatrixChild)' != 'true' and '$(Platform)' == 'x64'">
+    <ItemGroup>
+      <_DmsPythonMatrixVersion Include="$(GeoDmsPythonVersions)" />
+    </ItemGroup>
+    <Message Importance="high"
+             Condition="'%(_DmsPythonMatrixVersion.Identity)' != '$(GeoDmsPythonVersion)'"
+             Text="Building geodms for CPython %(_DmsPythonMatrixVersion.Identity)..." />
+    <MSBuild Projects="$(MSBuildProjectFullPath)"
+             Targets="Build"
+             BuildInParallel="false"
+             Condition="'%(_DmsPythonMatrixVersion.Identity)' != '$(GeoDmsPythonVersion)'"
+             Properties="Configuration=$(Configuration);Platform=$(Platform);GeoDmsPythonVersion=%(_DmsPythonMatrixVersion.Identity);DmsPythonMatrixChild=true;BuildProjectReferences=false;IntDir=$(SolutionDir)obj\$(Configuration)\$(Platform)\PyDms.cp%(_DmsPythonMatrixVersion.Identity)\" />
+  </Target>
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
 </Project>

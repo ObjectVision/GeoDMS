@@ -51,8 +51,8 @@ Section "GeoDMS Program Folder"
   File ${CMakeBinDir}\profiler.py
   File ${CMakeBinDir}\regression.py
 
-  ; Python binding
-  File ${CMakeBinDir}\geodms.pyd
+  ; Python ABI matrix (validated exactly before packaging)
+  File ${CMakeBinDir}\geodms.cp*-win_amd64.pyd
 
   ; GeoDMS DLLs (Dm-prefixed in CMake build)
   File ${CMakeBinDir}\DmRtc.dll
@@ -251,7 +251,7 @@ Section uninstall
   Delete $INSTDIR\RewriteExpr.lsp
   Delete $INSTDIR\profiler.py
   Delete $INSTDIR\regression.py
-  Delete $INSTDIR\geodms.pyd
+  Delete $INSTDIR\geodms*.pyd
   Delete $INSTDIR\GeoDMS_npp_def.xml
   Delete $INSTDIR\*.dll
   Delete $INSTDIR\*.pyd

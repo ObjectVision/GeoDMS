@@ -161,7 +161,13 @@
       <_DmsVcpkgBin Condition="'$(Configuration)' == 'Debug'">$(VcpkgInstalledDir)$(VcpkgTriplet)\debug\bin</_DmsVcpkgBin>
     </PropertyGroup>
     <ItemGroup>
-      <_DmsVcpkgDll Include="$(_DmsVcpkgBin)\*.dll" />
+      <!-- python3 is a vcpkg build/host dependency, not a GeoDMS application
+           dependency. The bindings use the separately configured CPython ABI
+           matrix and Python itself supplies the matching runtime when importing
+           a .pyd. Copying vcpkg's minor here created the python313/python312
+           mismatch from issue #1105. -->
+      <_DmsVcpkgDll Include="$(_DmsVcpkgBin)\*.dll"
+                    Exclude="$(_DmsVcpkgBin)\python*.dll" />
     </ItemGroup>
     <Copy SourceFiles="@(_DmsVcpkgDll)"
           DestinationFolder="$(OutDir)"

@@ -30,6 +30,31 @@
     <UseOfMfc>false</UseOfMfc>
 
     <!--
+      Supported Python ABIs per GeoDMS release line. CMake reads the same
+      semicolon-separated list in python/dll/CMakeLists.txt; keeping it outside
+      either build system prevents the .m and .c flavours from silently targeting
+      different CPython minors (issue #1105). The last entry is the default ABI
+      used by the outer MSBuild project; that project recursively builds the other
+      entries into the same output directory.
+    -->
+    <GeoDmsPythonVersions>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)python\PythonVersions.txt').Trim())</GeoDmsPythonVersions>
+    <GeoDmsDefaultPythonVersion>$([System.Text.RegularExpressions.Regex]::Match('$(GeoDmsPythonVersions)', '[^;]+$').Value)</GeoDmsDefaultPythonVersion>
+    <GeoDmsPythonVersion Condition="'$(GeoDmsPythonVersion)' == ''">$(GeoDmsDefaultPythonVersion)</GeoDmsPythonVersion>
+    <GeoDmsPythonAbi>$([System.String]::Copy('$(GeoDmsPythonVersion)').Replace('.', ''))</GeoDmsPythonAbi>
+    <GeoDmsPythonMajor>$([System.Version]::Parse('$(GeoDmsPythonVersion)').Major)</GeoDmsPythonMajor>
+    <GeoDmsPythonMinor>$([System.Version]::Parse('$(GeoDmsPythonVersion)').Minor)</GeoDmsPythonMinor>
+
+    <!-- Per-ABI build roots: PYTHON39_ROOT / PYTHON312_ROOT /
+         PYTHON313_ROOT / PYTHON314_ROOT. Explicit *_INCLUDE_DIR +
+         *_LIBRARIES pairs are also accepted. Requiring an ABI in each variable
+         prevents an old generic PYTHON3_* value from silently feeding the wrong
+         headers to one entry in the matrix. -->
+    <GeoDmsPythonRoot>$([System.Environment]::GetEnvironmentVariable('PYTHON$(GeoDmsPythonAbi)_ROOT'))</GeoDmsPythonRoot>
+    <GeoDmsPythonIncludeDir>$([System.Environment]::GetEnvironmentVariable('PYTHON$(GeoDmsPythonAbi)_INCLUDE_DIR'))</GeoDmsPythonIncludeDir>
+    <GeoDmsPythonLibraries>$([System.Environment]::GetEnvironmentVariable('PYTHON$(GeoDmsPythonAbi)_LIBRARIES'))</GeoDmsPythonLibraries>
+    <GeoDmsPythonIncludeDir Condition="'$(GeoDmsPythonIncludeDir)' == '' and '$(GeoDmsPythonRoot)' != ''">$(GeoDmsPythonRoot)\include</GeoDmsPythonIncludeDir>
+    <GeoDmsPythonLibraries Condition="'$(GeoDmsPythonLibraries)' == '' and '$(GeoDmsPythonRoot)' != ''">$(GeoDmsPythonRoot)\libs</GeoDmsPythonLibraries>
+    <!--
       Use the in-repo vcpkg tool (./vcpkg submodule) instead of the VS-bundled one.
       The bundled vcpkg ships read-only with Visual Studio and lags the ports baseline;
       a baseline ahead of it (see vcpkg-configuration.json) breaks autotools ports
