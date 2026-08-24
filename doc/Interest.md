@@ -238,6 +238,102 @@ Notes / follow-ups:
   `FinalizeFailure(..., FailType::Committed)` in the commit path) follow the same
   "actual failtype" principle; revisit if a similar mislabel appears there.
 
+## Revisited (Aug 2026): the role passes in `Actor::UpdateSuppliers`
+
+A similar mislabel had indeed appeared, one function down. `Actor::UpdateSuppliers`
+(`rtc/dll/src/act/Actor.cpp`) checks its suppliers in three role passes, each guarded by
+`supplier->WasFailed(FailType::Committed)` — which reads "failed at all", not "failed at
+commit":
+
+```cpp
+// UpdateForDataPrep   (Calc):       this->Fail(supplier);                      // actual
+// UpdateForValidation (structural): this->Fail(supplier, FailType::Validate);  // FORCED
+// UpdateForCommit     (ExportInfo): this->Fail(supplier, FailType::Committed); // FORCED
+```
+
+So every supplier failure that reached the second pass came out as `Validate` on the
+consumer. **The validation pass now propagates the actual failtype; the commit pass keeps
+its forced `Committed`.** They are not the same case:
+
+- `UpdateForValidation` is `Domain | Values | ExplicitSuppliers | SourceData |
+  NamedSuppliers`. Despite the name it visits **no IntegrityCheck input at all** — those are
+  the `Checker` flag, visited separately by `SuspendibleUpdate`, which already propagates the
+  actual failtype. What it visits are the *structural prerequisites of this item's own data*,
+  so their failure genuinely means "this item has no data" and belongs at `<= Data`. The
+  forced `Validate` announced "Validation (Integrity Check) Failed" about an item that need
+  not carry a check, and left it data-less with `WasFailed(FailType::Data)` **false** — the
+  #1144 state exactly. Since `DoFail` derives severity from the failtype, it also lifts to E
+  any report that this propagation is the first to give a full name to.
+- `UpdateForCommit` is `ExportInfo`, which visits only the `ExportSettings/MetaInfo` subtree
+  describing the sidecar of a **storable item that is being written**
+  (`AbstrStorageManager::VisitSuppliers`, gated on `IsStorable() && (HasCalculator() ||
+  HasConfigData())`). Whatever failed in there, the consequence for this item is precisely
+  that its *commit* cannot proceed: its data is unaffected and, per the contract above, still
+  ready. `Committed` is therefore the actual consequence, not a role stamp. Lowering it would
+  claim the data could not be produced, and any failtype `<= Data` makes `DoFail` drop this
+  item's supplier interest, abandoning a calculation that is still valid. Those suppliers are
+  configured `TreeItem`s that name themselves in their own report, so this is also not the
+  propagation that first supplies a name to the `ErrMsg`.
+
+Ordering consequences, checked because `DoFail` early-outs on `(prevFT != None) && (prevFT
+<= ft)` and `DoFailCaller` raises progress to `Committed` only for `ft >= Validate`:
+
+- **A lowered failtype no longer forces `ProgressState::Committed`.** Re-entry stays bounded:
+  the next `SuspendibleUpdate` reaches `MustApplyImpl()` — `progress < Committed &&
+  !WasFailed(FailType::Data)`, false for every `<= Data` failure — which sets `Committed` and
+  returns `AVS_Ready` *before* `UpdateSuppliers` and its `assert(!WasFailed())` precondition.
+  This is the same state the DataPrep pass has always produced, so no assert in the update
+  path depended on the restamping. (`Actor::UpdateLock`'s own fail guard is inert: it tests
+  `ts > AF_DeterminingState`, and `AF_DeterminingState` is the highest `TransState`.)
+- **Where the DataPrep pass already failed this item at `Data`**, a validation-pass supplier
+  failing at `MetaInfo` now overwrites it (`8 < 12`) instead of being swallowed — the
+  "strongest failure wins" rule that `DetermineLastSupplierChange` follows as well.
+- **A supplier that failed at `Committed`** now propagates as `Committed` instead of being
+  *lowered* to `Validate`. `AbstrCalculator`'s indirect-expression handling does the same
+  ("just pass on commit failures").
+- The exit code of `GeoDmsRun` keys off `IsFailed()`, not off a failtype, so the offline
+  `testcases\run_testcases.bat` battery is a regression guard here, not a proof: the change
+  relabels failures, it never adds or removes one.
+- One corner is worth naming. An `ExplicitSuppliers` entry is a *declared ordering*
+  dependency, so an item whose explicit supplier data-failed can in principle already hold
+  valid data — it read a file that an earlier run left behind. Such an item now says `Data`,
+  i.e. "no data", while it has some. It was failed before this change too (as `Validate`);
+  only the label is new, and "the supplier declared to produce my input failed" is the more
+  honest of the two, since the alternative serves stale data under a green icon. Debug
+  asserts of the shape `!WasFailed(FailType::Data)` on an item known to be ready
+  (`TreeItem.cpp:4520`, `ShvDesktopData.cpp:301`) are where that corner would first show.
+
+### What this does *not* fix: the severity of an ordinary data error
+
+#1202 left the general demotion alone and named this restamping as its cause. Measuring it
+says otherwise. A probe whose operator throws at data time (`ReadArray` with an out-of-range
+`readPos`, the #1202 probe shape) still logs
+
+```
+[E] [[/arr]] ReadArray Error: readPos 99 is larger than dataArraySize 5
+[W] [[/arr]] ReadArray Error: readPos 99 is larger than dataArraySize 5
+```
+
+with this change in place, and the W does not come from `UpdateSuppliers` at all: **nothing
+has failed yet when `UpdateSuppliers` runs**. The operator is scheduled later, throws from
+inside `DoUpdate` (through the `ItemReadLock` rethrow contract above), and
+`SuspendibleUpdate`'s blanket
+
+```cpp
+catch (const DmsException& x) { if (!WasFailed()) DoFailCaller(x.AsErrMsg(), FailType::Committed); }
+```
+
+stamps `Committed` on it — a fourth forced site, not on the list above. The offline battery
+shows the same shape from the *other* catch on that list: `oper_ordered_union_data_neg2`
+logs `[E] [[/AB/v]]` followed by `[W] [[/checks/v_sum]]`, which is
+`TreeItem_ValidateIntegrity`'s `DoFailCaller(err, FailType::Validate)` — an IntegrityCheck
+that could not be *evaluated* because its input data failed.
+
+So the two catch sites, not the role passes, are where #1202's general case lives. Each
+needs the same treatment and the same care: a `catch` has only the exception, so
+"the actual failtype" there means the failtype of whatever the exception came from, which is
+not something `x.AsErrMsg()` carries today.
+
 ## Other findings from this session
 
 - **The model error itself** (project-side): `unique(<upoint attr>).Values` is
