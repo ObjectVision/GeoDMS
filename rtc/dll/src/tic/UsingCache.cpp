@@ -86,6 +86,10 @@ static SizeT g_Count = 0;
 #endif
 
 UsingCache::UsingCache(const TreeItem* context)
+:	UsingCache(context, true, nullptr)
+{}
+
+UsingCache::UsingCache(const TreeItem* context, bool includeImplicitParent, const TreeItem* definitionNamespace)
 :	m_Context(context)
 #if defined(MG_DEBUG_DATA)
 ,	md_SeqNr(++g_Count)
@@ -94,7 +98,11 @@ UsingCache::UsingCache(const TreeItem* context)
 	dms_assert(context);
 	MG_DEBUGCODE( ++sd_NrInstances; )
 
-	AddParent();
+	if (includeImplicitParent)
+		AddParent();
+	if (definitionNamespace)
+		AddUsingInternal(definitionNamespace);
+	m_NrFixedUsings = m_Usings.size();
 }
 
 UsingCache::~UsingCache()
@@ -111,7 +119,11 @@ UsingCache::~UsingCache()
 		{
 			SizeT pos = weak_find(incoming->m_Usings, m_Context);
 			if (pos < incoming->m_Usings.size())
+			{
+				if (pos < incoming->m_NrFixedUsings)
+					--incoming->m_NrFixedUsings;
 				incoming->m_Usings.erase(incoming->m_Usings.begin() + pos);
+			}
 		}
 		incoming->SetDirty();
 	}
@@ -124,21 +136,6 @@ void UsingCache::AddParent()
 	auto contextParent = m_Context->GetTreeParent();
 	if (contextParent)
 		AddUsingInternal(contextParent.get());
-}
-
-void UsingCache::RemoveParentUsing()
-{
-	auto contextParent = m_Context->GetTreeParent();
-	if (!contextParent)
-		return;
-	m_ParentIsHidden = true;
-	SizeT pos = weak_find(m_Usings, contextParent.get());
-	if (pos >= m_Usings.size())
-		return;
-	if (contextParent->CurrHasUsingCache())
-		contextParent->GetUsingCache()->DelIncoming(this);
-	m_Usings.erase(m_Usings.begin() + pos);
-	SetDirty();
 }
 
 UInt32 UsingCache::GetNrUsings() const
@@ -194,14 +191,12 @@ void UsingCache::CheckSearchSpace(const TreeItem* nameSpace) const
 }
 
 
-void UsingCache::ClearUsings(bool keepParent)
+void UsingCache::ClearUsings(bool keepFixedUsings)
 {
-	UInt32 nrKeep = (keepParent && m_Context->GetTreeParent() && !m_ParentIsHidden)
-		? 1
-		: 0;
+	SizeT nrKeep = keepFixedUsings ? m_NrFixedUsings : 0;
 	dms_assert(m_Usings.begin()+nrKeep <= m_Usings.end());
 
-	usings_iterator b = m_Usings.begin()+nrKeep; // don't clear parent?
+	usings_iterator b = m_Usings.begin()+nrKeep;
 	usings_iterator e = m_Usings.end();
 	const_usings_iterator i = b;
 
@@ -235,6 +230,8 @@ bool UsingCache::AddUsingInternal(const TreeItem* nameSpace) const
 	}
 	else
 	{
+		if (prevPos < m_NrFixedUsings)
+			return false; // the fixed definition/parent namespace keeps lowest precedence
 		if (prevPos == m_Usings.size() -1)
 			return false;
 		m_Usings.erase(m_Usings.begin() + prevPos);
@@ -326,7 +323,7 @@ void UsingCache::UpdateUsings() const
 	for (auto i = m_UsingUrls.begin(), e = m_UsingUrls.end(); i!=e; ++i)
 	{
 		TokenID url = *i;
-		auto ns = FindNamespace(url, true); // 'using' url resolution: definition scope reachable via hidden parent
+		auto ns = FindNamespace(url, true);
 	   	if (!ns)
 			throwErrorF("UsingCache", "Cannot find reference in Using = \"{}\"\n{}"
 			,	GetTokenStr(url).c_str()
@@ -454,15 +451,14 @@ void UsingCache::UpdateCache() const
 	m_SortedItemCache.insert(m_SortedItemCache.begin(), tmpNameSpace.begin(), tmpNameSpace.end());
 }
 
-auto UsingCache::FindNamespace(TokenID url, bool mayResolveViaHiddenParent) const -> SharedTreeItem
+auto UsingCache::FindNamespace(TokenID url, bool allowAbsolutePath) const -> SharedTreeItem
 {
 	UInt32 n = m_Usings.size();
 	SharedStr urlAsString = SharedStr(url);
-	if (mayResolveViaHiddenParent && !urlAsString.empty() && *urlAsString.begin() == '/')
+	if (allowAbsolutePath && !urlAsString.empty() && *urlAsString.begin() == '/')
 	{
 		// absolute 'using' urls resolve from the root, independent of the usings list;
-		// required for strict function-instance scopes whose usings hold no parent to
-		// route through
+		// required for function-instance scopes whose usings hold no call-site parent
 		if (!m_Context->GetTreeParent() && m_Context->IsCacheItem())
 			return SessionData::Curr()->GetConfigRoot()->ResolveItemPath(urlAsString); // context ref of instantiated template in cache
 		const TreeItem* root = m_Context;
@@ -473,17 +469,10 @@ auto UsingCache::FindNamespace(TokenID url, bool mayResolveViaHiddenParent) cons
 	}
 	if (!n)
 	{
-		if (m_ParentIsHidden && mayResolveViaHiddenParent)
-		{
-			// strict function scope: relative 'using' urls still resolve against the
-			// (hidden) parent, i.e. the definition scope
-			if (auto contextParent = m_Context->GetTreeParent())
-				return contextParent->ResolveItemPath(urlAsString);
-		}
 		if (!m_Context->GetTreeParent() && !m_Context->IsCacheItem())
 			return {};
 		if (m_Context->GetTreeParent())
-			return {}; // strict scope with hidden parent: plain identifiers do not fall back
+			return {};
 		// we look for context ref of instantiated template in cache
 		dms_assert(url.GetStr().c_str()[0] == '/');
 		return SessionData::Curr()->GetConfigRoot()->ResolveItemPath(urlAsString);
@@ -496,13 +485,6 @@ auto UsingCache::FindNamespace(TokenID url, bool mayResolveViaHiddenParent) cons
 		auto foundItem = u->ResolveItemPath(urlAsString); // TODO return 0 if firstName found somewhere
 		if (foundItem)
 			return foundItem;
-	}
-	if (m_ParentIsHidden && mayResolveViaHiddenParent)
-	{
-		// strict function scope: relative 'using' urls still resolve against the
-		// (hidden) parent, i.e. the definition scope
-		if (auto contextParent = m_Context->GetTreeParent())
-			return contextParent->ResolveItemPath(urlAsString);
 	}
 	return {};
 }

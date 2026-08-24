@@ -886,7 +886,7 @@ void ConfigProd::OnFunctionDeclEnd(iterator_t first)
 		ValidateFunctionArityVsOperator(func);
 	if (!fs.typeVars.empty())
 		TreeItem_SetFunctionTypeVars(func, fs.typeVars); // WP4.1: ordered <var: constraint> list
-	TreeItem_MakeStrictScope(func); // definition-side strictness: inline reduction resolves through this scope
+	TreeItem_MakeStrictScope(func);
 	m_FuncStates.pop_back();
 
 	DoEndBlock(); // close the frame opened at '('; m_pCurrent = the function item

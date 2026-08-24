@@ -201,6 +201,7 @@ public:
 	TIC_CALL void AddUsingUrl (TokenID );
 
 	void ClearNamespaceUsage();
+	void ResetNamespaceUsage(bool includeImplicitParent, const TreeItem* definitionNamespace);
 	UInt32 GetNrNamespaceUsages() const ;
 	const TreeItem* GetNamespaceUsage(UInt32 i) const;
 

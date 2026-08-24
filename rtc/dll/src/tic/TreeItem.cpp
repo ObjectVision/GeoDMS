@@ -1910,7 +1910,7 @@ TokenID TreeItem_GetFunctionResultName(const TreeItem* functionItem)
 TIC_CALL void TreeItem_MakeStrictScope(TreeItem* functionItem)
 {
 	assert(functionItem && functionItem->IsFunctionItem());
-	functionItem->GetUsingCache()->RemoveParentUsing();
+	functionItem->GetUsingCache(); // initialize own items, declared usings, then definition namespace
 }
 
 void TreeItem::SetKeepDataState(bool value)
@@ -2145,7 +2145,13 @@ void TreeItem::AddUsingUrl(TokenID url)
 
 void TreeItem::ClearNamespaceUsage()
 {
-	if (m_UsingCache) m_UsingCache->ClearUsings(true);
+	if (m_UsingCache)
+		m_UsingCache->ClearUsings(true);
+}
+
+void TreeItem::ResetNamespaceUsage(bool includeImplicitParent, const TreeItem* definitionNamespace)
+{
+	m_UsingCache = std::make_unique<UsingCache>(this, includeImplicitParent, definitionNamespace);
 }
 
 UInt32 TreeItem::GetNrNamespaceUsages() const
@@ -2697,26 +2703,23 @@ SharedMutableTreeItem TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext
 	if (copyContext.MustCopyExpr() && !isArg)
 	{
 		result->AssertPropChangeRights(USING_NAME);
-		result->ClearNamespaceUsage();
-
-		// function scoping (§4.6, revised 2026-07-13: lexical definition scope with
-		// call-site isolation): an instantiated (or copied) function scope sees its own
-		// sub-items (bound arguments, locals, result), the function's explicitly
-		// imported namespaces (frozen to absolute paths below), and the DEFINITION
-		// parent, injected as an absolute namespace like template instances get --
-		// while the implicit tree-parent namespace (= call-site or copy-site scope) is
-		// removed below, so call-site names stay invisible.
 		bool srcIsFunction = IsFunctionItem();
+		bool isFunctionInstantiation = srcIsFunction && dstIsRoot;
+
+		// Build the correct fixed namespace base directly: an explicit function
+		// instantiation has no call-site parent, while both function and template
+		// instantiations search their definition namespace. Declared usings are added
+		// afterwards and therefore have higher precedence.
+		if (dstIsRoot)
+			result->ResetNamespaceUsage(!isFunctionInstantiation, GetTreeParent().get());
+		else
+			result->ClearNamespaceUsage();
 
 		UInt32 nrNameSpaces = GetNrNamespaceUsages();
-		bool addParentAsNamespace = dstIsRoot && GetTreeParent();
-		if (nrNameSpaces || addParentAsNamespace)
+		if (nrNameSpaces)
 		{
 			VectorOutStreamBuff nameSpaceBuffer;
 			FormattedOutStream nameSpaceStream(&nameSpaceBuffer, FormattingFlags::None);
-
-			if (addParentAsNamespace)
-				nameSpaceStream << GetTreeParent()->GetFullName();
 
 			//	Now, copy all namespaces.
 			//	Note that namespaces may not be circular (requirement of FindItem)
@@ -2728,7 +2731,7 @@ SharedMutableTreeItem TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext
 				// the parent/ancestor skips exist because instances reach ancestors through
 				// the injected definition-parent namespace; function imports are kept
 				// verbatim (frozen absolute) -- a redundant entry is harmless
-				if (sns && (srcIsFunction || (sns != GetTreeParent().get() && !sns->DoesContain(this))))
+				if (sns && sns != GetTreeParent().get() && (srcIsFunction || !sns->DoesContain(this)))
 				{
 					if (nameSpaceBuffer.CurrPos())
 						nameSpaceStream << ';';
@@ -2746,8 +2749,6 @@ SharedMutableTreeItem TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext
 				result->AddUsingUrls(dataBegin, dataBegin+nameSpaceBuffer.CurrPos());
 			}
 		}
-		if (srcIsFunction)
-			result->GetUsingCache()->RemoveParentUsing(); // also forces the cache into existence: name resolution delegates-and-stops here
 	}
 	if (InTemplate())
 		result->mc_OrgItem = make_weak_tree(this);
@@ -2755,10 +2756,9 @@ SharedMutableTreeItem TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext
 	if (IsFunctionItem() && !dstIsRoot)
 	{
 		// a function definition copied as part of a larger subtree (e.g. inside an
-		// instantiated template) stays a function: flag, declared spec, strict scope
+		// instantiated template) stays a function with its declared specification
 		result->SetIsFunction();
 		TreeItem_CopyFunctionSpec(result.get(), this);
-		result->GetUsingCache()->RemoveParentUsing();
 	}
 	//	Now, call the virtual CopyProps func to let the derived class do some work
 
