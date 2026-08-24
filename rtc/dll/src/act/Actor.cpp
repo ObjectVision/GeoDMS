@@ -745,6 +745,22 @@ ActorVisitState Actor::UpdateSuppliers() const // returns US_Valid, US_UpdatingE
     if (updateRes == AVS_SuspendedOrFailed)
         return updateRes;
 
+    // #1144 follow-up (doc/Interest.md): propagate the supplier's ACTUAL failtype here, as
+    // UpdateSupplMetaInfo and the IntegrityChecked visit in SuspendibleUpdate already do.
+    // Despite its name, UpdateForValidation visits no IntegrityCheck input at all -- those are
+    // reached through the Checker flag -- but Domain | Values | ExplicitSuppliers | SourceData |
+    // NamedSuppliers, i.e. the structural prerequisites of this item's own data. Stamping their
+    // failure as Validate claimed "Validation (Integrity Check) Failed" about an item that need
+    // not carry a check and, since Validate(16) > Data(12), left a data-less item with
+    // WasFailed(FailType::Data) false: the state ItemReadLock asserted on in #1144.
+    // A supplier that failed at Validate or Committed still propagates as such; only a failure
+    // that really means "this item has no data" now says so.
+    // On severity (#1202): DoFail derives it from the failtype, so this also lifts to E any
+    // report that THIS propagation is the first to give a full name to. That is not where the
+    // named W lines on an ordinary data error come from, though. Measured with an operator
+    // that throws at data time: nothing has failed yet when UpdateSuppliers runs, the operator
+    // throws later from inside DoUpdate, and the blanket catch in SuspendibleUpdate above stamps
+    // FailType::Committed on it. That site is untouched here.
     updateRes =
         VisitSupplBoolImpl(this, SupplierVisitFlag::UpdateForValidation,
             [this](const Actor* supplier) -> ActorVisitState
@@ -752,7 +768,7 @@ ActorVisitState Actor::UpdateSuppliers() const // returns US_Valid, US_UpdatingE
                 if (!supplier->IsPassor())
                     if (supplier->WasFailed(FailType::Committed))
                     {
-                        this->Fail(supplier, FailType::Validate);
+                        this->Fail(supplier);
                         return AVS_SuspendedOrFailed;
                     }
                 return AVS_Ready;
@@ -762,6 +778,15 @@ ActorVisitState Actor::UpdateSuppliers() const // returns US_Valid, US_UpdatingE
     if (updateRes == AVS_SuspendedOrFailed)
         return updateRes;
 
+    // The forced failtype STAYS here, and is not a role mislabel: UpdateForCommit is ExportInfo,
+    // which visits only the ExportSettings/MetaInfo subtree describing the sidecar of a storable
+    // item that is being written (AbstrStorageManager::VisitSuppliers). Whatever failed in there,
+    // the consequence for THIS item is precisely that its commit cannot proceed; its data is
+    // unaffected and, per the interest contract, still ready. Propagating the supplier's actual
+    // failtype would instead claim the data could not be produced, and any failtype <= Data makes
+    // DoFail drop this item's supplier interest, abandoning a calculation that is still valid.
+    // Those suppliers are configured TreeItems that name themselves in their own report, so this
+    // is not the propagation that first supplies a name to the ErrMsg.
     updateRes =
         VisitSupplBoolImpl(this, SupplierVisitFlag::UpdateForCommit,
             [this](const Actor* supplier) -> ActorVisitState
