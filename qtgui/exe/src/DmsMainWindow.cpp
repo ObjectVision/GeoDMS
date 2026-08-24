@@ -318,18 +318,67 @@ MainWindow::MainWindow() {
 
     setTabOrder(m_address_bar.get(), m_treeview);
     setTabOrder(m_treeview, m_eventlog.get());
+
+    // File>Quit is wired straight to QCoreApplication::quit(), which delivers no closeEvent.
+    // aboutToQuit still runs while this window is alive and in its final placement.
+    connect(qApp, &QCoreApplication::aboutToQuit, this, &MainWindow::persistWindowGeometry);
+}
+
+// A drag produces a storm of Move/Resize events; one registry write per settled placement is enough.
+static constexpr int c_WindowGeometrySaveDelayMSec = 750;
+
+static bool s_PersistWindowGeometry = true;
+
+void SetPersistWindowGeometry(bool enable) {
+    s_PersistWindowGeometry = enable;
+}
+
+// Persist the full window placement (position, size and maximized/fullscreen state) for the
+// next session via Qt's saveGeometry(). We deliberately do NOT store raw pixel rectangles (the
+// pre-20.13 WindowX/Y/Width/Height + WindowMaximized keys): those carry no DPI or screen
+// context, so a window saved on a higher-resolution / differently-scaled display reopened
+// oversized and clipped to the screen, which looked like an unwanted "always maximized"
+// window. saveGeometry() records the screen and its width and the maximized/fullscreen state,
+// and the matching restoreGeometry() clamps the window back onto the currently available screen.
+//
+// This runs whenever the placement settles, not only at shutdown. ~MainWindow is not reached
+// when a session ends by a crash, by Task Manager, or by the machine logging the session off
+// -- and after such a session the next start restored the placement of the last session that
+// DID exit cleanly, which is what made the window come up somewhere the user had long moved
+// away from, or maximized when that stale value happened to be maximized.
+void MainWindow::persistWindowGeometry() {
+    if (!s_PersistWindowGeometry)
+        return;
+    if (!m_window_was_shown) // nothing placed yet; do not overwrite the last good value
+        return;
+    auto geometry = saveGeometry();
+    if (geometry.isEmpty())
+        return;
+    SetGeoDmsRegKeyString("WindowGeometry", geometry.toHex().constData());
+}
+
+void MainWindow::scheduleWindowGeometrySave() {
+    if (m_window_geometry_save_pending || !m_window_was_shown)
+        return;
+    m_window_geometry_save_pending = true;
+    QTimer::singleShot(c_WindowGeometrySaveDelayMSec, this,
+        [this]()
+        {
+            m_window_geometry_save_pending = false;
+            if (g_IsTerminating)
+                return;
+            persistWindowGeometry();
+        }
+    );
+}
+
+void MainWindow::closeEvent(QCloseEvent* event) {
+    persistWindowGeometry(); // still up and in its final placement here
+    QMainWindow::closeEvent(event);
 }
 
 MainWindow::~MainWindow() {
-    // Persist the full window placement (position, size and maximized/fullscreen
-    // state) for the next session via Qt's saveGeometry(). We deliberately do
-    // NOT store raw pixel rectangles: those carry no DPI or screen context, so a
-    // window saved on a higher-resolution / differently-scaled display reopened
-    // oversized and clipped to the screen, which looked like an unwanted "always
-    // maximized" window. saveGeometry() records the device-pixel-ratio and the
-    // screen, and the matching restoreGeometry() clamps the window back onto the
-    // currently available screen.
-    SetGeoDmsRegKeyString("WindowGeometry", saveGeometry().toHex().constData());
+    persistWindowGeometry();
 
     g_IsTerminating = true;
 
@@ -762,6 +811,21 @@ bool MainWindow::event(QEvent* event) {
     case QEvent::Move:
     case QEvent::Resize:
         QToolTip::hideText();
+        break;
+    default:
+        break;
+    }
+
+    // Keep the stored window placement in step with the window itself, so it survives a session
+    // that never reaches ~MainWindow. See persistWindowGeometry().
+    switch (event->type()) {
+    case QEvent::Show:
+        m_window_was_shown = true;
+        break;
+    case QEvent::Move:
+    case QEvent::Resize:
+    case QEvent::WindowStateChange:
+        scheduleWindowGeometrySave();
         break;
     default:
         break;

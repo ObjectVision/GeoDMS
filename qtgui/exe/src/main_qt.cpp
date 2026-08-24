@@ -371,7 +371,7 @@ protected:
 };
 
 
-// Restore the placement saved by MainWindow::~MainWindow() and show the window.
+// Restore the placement saved by MainWindow::persistWindowGeometry() and show the window.
 // restoreGeometry() is DPI- and screen-aware and clamps the window onto the currently available
 // screen, so a geometry saved on a larger/again-scaled display no longer reopens oversized (which
 // previously looked like a maximized window). Fall back to maximized on first run or unreadable data.
@@ -442,6 +442,9 @@ int main_without_SE_handler(int argc, char *argv[]) {
                 ShowMainWindowWithSavedGeometry(main_window);
             else
             {
+                // A test script drives the window itself and force-maximizes it below; that is not a
+                // placement the user chose, so it must not end up in the WindowGeometry key.
+                SetPersistWindowGeometry(false);
 #ifdef Q_OS_WIN
                 main_window.show(); // show it without maximizing yet
                 HWND hwnd = (HWND)main_window.winId();

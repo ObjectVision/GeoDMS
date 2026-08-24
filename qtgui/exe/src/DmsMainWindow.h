@@ -143,6 +143,11 @@ struct CmdLineSetttings {
 // /noconfig and the ReopenLastConfigAtStartup setting into account. Empty afterwards = start empty.
 void ResolveStartupConfig(CmdLineSetttings& cmdLineSettings);
 
+// Whether the main window's placement is written back to the WindowGeometry registry key.
+// A test-script run drives the placement itself (it force-maximizes), so it must not clobber
+// the placement the user left behind.
+void SetPersistWindowGeometry(bool enable);
+
 class CalculationTimesWindow : public QMdiSubWindow {
 public:
     CalculationTimesWindow();
@@ -265,6 +270,7 @@ public slots:
 
 protected:
     bool event(QEvent* event) override;
+    void closeEvent(QCloseEvent* event) override;
 
 public:
     void updateToolsMenu() const;
@@ -289,6 +295,8 @@ private:
     void createDetailPagesDock();
     void createDmsHelperWindowDocks();
     void updateCaption();
+    void persistWindowGeometry();
+    void scheduleWindowGeometrySave();
     void updateTreeItemVisitHistory() const;
     void on_status_msg_changed(const QString& msg);
     void updateStatusMessage();
@@ -364,6 +372,8 @@ public:
     QPointer<QAction> m_recent_files_separator; // divides the pinned block from the rest
 
 private:
+    bool    m_window_was_shown = false;
+    bool    m_window_geometry_save_pending = false;
     bool    m_dock_was_compressed = false;
     QTimer* m_dock_restore_timer  = nullptr;
     std::vector<processing_record> m_processing_records;
