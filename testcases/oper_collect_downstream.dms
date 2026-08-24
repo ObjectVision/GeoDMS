@@ -11,6 +11,9 @@ container oper_collect_downstream
 		attribute<float64> population (D) : [10.0, 20.0, 30.0, 40.0];
 		unit<uint32> Result := select_with_attr_by_cond(., keep);
 		attribute<float64> downstream (D) := recollect_by_cond(keep, Result/population);
+		// Shares the already-proven downstream node. The collection-wide memo must
+		// preserve that positive result instead of revisiting the same chain.
+		attribute<float64> downstream_again (D) := downstream;
 	}
 
 	container SpecSelectCase
@@ -59,5 +62,17 @@ container oper_collect_downstream
 		parameter<float64> named_collect_sum := sum(NamedCollectCase/Result/population), IntegrityCheck = "named_collect_sum == 50.0";
 		parameter<float64> spec_collect_sum := sum(SpecCollectCase/Result/population), IntegrityCheck = "spec_collect_sum == 50.0";
 		parameter<float64> spec_table_sum := sum(SpecTableCase/Result/population), IntegrityCheck = "spec_table_sum == 50.0";
+
+		unit<uint32> named_select_items := SubItem_PropValues(NamedSelectCase/Result, 'name');
+		unit<uint32> spec_select_items := SubItem_PropValues(SpecSelectCase/Result, 'name');
+		unit<uint32> named_collect_items := SubItem_PropValues(NamedCollectCase/Result, 'name');
+		unit<uint32> spec_collect_items := SubItem_PropValues(SpecCollectCase/Result, 'name');
+		unit<uint32> spec_table_items := SubItem_PropValues(SpecTableCase/Result, 'name');
+
+		parameter<bool> named_select_excludes_downstream := all(named_select_items/name != 'downstream' && named_select_items/name != 'downstream_again'), IntegrityCheck = "named_select_excludes_downstream == true";
+		parameter<bool> spec_select_excludes_downstream := all(spec_select_items/name != 'downstream'), IntegrityCheck = "spec_select_excludes_downstream == true";
+		parameter<bool> named_collect_excludes_downstream := all(named_collect_items/name != 'downstream'), IntegrityCheck = "named_collect_excludes_downstream == true";
+		parameter<bool> spec_collect_excludes_downstream := all(spec_collect_items/name != 'downstream'), IntegrityCheck = "spec_collect_excludes_downstream == true";
+		parameter<bool> spec_table_excludes_downstream := all(spec_table_items/name != 'downstream'), IntegrityCheck = "spec_table_excludes_downstream == true";
 	}
 }
