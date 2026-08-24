@@ -15,6 +15,9 @@
 #include "mci/ValueClass.h"
 #include "utl/StrFormat.h"
 
+#include "act/ActorVisitor.h"
+#include "act/SupplierVisitFlag.h"
+
 #include "DataArray.h"
 #include "DataArrayValue.h"
 #include "DataItemClass.h"
@@ -269,6 +272,48 @@ struct collect_target
 	UInt32               depth;   // 0 for a direct member of the result
 };
 
+// A collecting meta-operation must not copy an attribute whose calculation is
+// downstream from the item that holds the meta call.  Updating such a candidate
+// while that holder is being instantiated walks back into the holder (possibly
+// through intermediate calculated items) and reports a spurious recursion.
+//
+// Inspect the original expressions with a substitution visitor.  That visitor
+// resolves names but, unlike normal substitution, returns before it updates the
+// resolved supplier's meta-info.  This distinction is essential here: asking a
+// downstream supplier for meta-info is exactly the cycle this predicate avoids.
+bool HasSupplierInContext(const TreeItem* candidate, const TreeItem* context
+, std::set<const TreeItem*>& visited)
+{
+	if (context->DoesContain(candidate))
+		return true;
+	if (!visited.insert(candidate).second)
+		return false;
+
+	auto expr = candidate->GetExprMember();
+	if (expr.empty())
+		return false;
+
+	auto calculator = AbstrCalculator::ConstructFromStr(candidate, expr, CalcRole::Calculator);
+	bool found = false;
+	auto visitor = MakeDerivedBoolVisitor([&](const Actor* supplier)
+		{
+			auto supplierItem = dynamic_cast<const TreeItem*>(supplier);
+			if (supplierItem && HasSupplierInContext(supplierItem, context, visited))
+			{
+				found = true;
+				return false;
+			}
+			return true;
+		});
+	SubstitutionBuffer buffer(false);
+	// ImplSuppliers makes path lookup visit each parent before expanding its
+	// sub-tree, so Result/member stops at Result while Result is being built.
+	buffer.svf = SupplierVisitFlag::ImplSuppliers;
+	buffer.optionalVisitor = &visitor;
+	calculator->SubstituteExpr(buffer, calculator->GetLispExprOrg());
+	return found;
+}
+
 // GeoDMS spells "N levels up" as N+1 DOTS: "." is the context itself, ".." its
 // parent, "..." its grandparent -- the same encoding GetFindableName builds with
 // RepeatedDots. A slash-joined "../.." is not a path at all: the expression
@@ -288,7 +333,7 @@ SharedStr UpDots(UInt32 levels)
 // GetConstSubTreeItemByID resolves in. A name is claimed before the caller's
 // domain filter runs, so a shadowing item that is not itself collectable still
 // hides the one it shadows, which is what {container}/{name} would resolve to.
-void EnumCollectCandidates(const TreeItem* container, attr_scope scope
+void EnumCollectCandidates(const AbstrOperGroup* og, const TreeItem* container, const TreeItem* context, attr_scope scope
 ,	SharedStr prefix, UInt32 depth
 ,	std::vector<collect_target>& out, std::set<const TreeItem*>& visitedScopes)
 {
@@ -307,13 +352,21 @@ void EnumCollectCandidates(const TreeItem* container, attr_scope scope
 				continue; // shadowed by a nearer sub-item of the same name
 			if (IsDataItem(subItem))
 			{
+				std::set<const TreeItem*> visitedSuppliers;
+				if (HasSupplierInContext(subItem, context, visitedSuppliers))
+				{
+					reportF(SeverityTypeID::ST_Warning,
+						"{}: attribute '{}' is not collected because its calculation is downstream from '{}'"
+					,	og->GetNameStr(), subItem->GetFullName().c_str(), context->GetFullName().c_str());
+					continue;
+				}
 				auto subDataItem = AsDataItem(subItem);
 				subDataItem->UpdateMetaInfo();
 				out.push_back({ mySSPrintF("{}{}", prefix, subID), subDataItem, depth });
 			}
 			else if (Recurses(scope) && !IsUnit(subItem)
 				&& !subItem->IsTemplate() && !subItem->IsFunctionItem() && !subItem->IsCacheItem())
-				EnumCollectCandidates(subItem, scope
+				EnumCollectCandidates(og, subItem, context, scope
 				,	mySSPrintF("{}{}/", prefix, subID), depth + 1
 				,	out, visitedScopes);
 		}
@@ -548,7 +601,7 @@ struct SelectMetaOperator : public BinaryOperator
 			SizeT foundSubItems = 0;
 			std::vector<collect_target> candidates;
 			std::set<const TreeItem*> visitedScopes;
-			EnumCollectCandidates(attrContainer, cfg.scope, SharedStr(), 0, candidates, visitedScopes);
+			EnumCollectCandidates(GetGroup(), attrContainer, resultHolder.GetOld(), cfg.scope, SharedStr(), 0, candidates, visitedScopes);
 
 			for (const auto& target : candidates)
 			{
@@ -906,7 +959,7 @@ struct CollectWithAttrOperator : public BinaryOperator
 
 		std::vector<collect_target> candidates;
 		std::set<const TreeItem*> visitedScopes;
-		EnumCollectCandidates(attrContainer, scope, SharedStr(), 0, candidates, visitedScopes);
+		EnumCollectCandidates(og, attrContainer, resultHolder.GetOld(), scope, SharedStr(), 0, candidates, visitedScopes);
 
 		for (const auto& target : candidates)
 		{

@@ -1,0 +1,63 @@
+// issue #403: attribute-collecting meta-functions skip source members whose
+// calculation is downstream from the item that holds the meta call.  Each
+// downstream member below refers back into its corresponding generated result;
+// trying to inspect and collect it would create an invalid recursion.
+container oper_collect_downstream
+{
+	container NamedSelectCase
+	{
+		unit<uint32> D : nrofrows = 4;
+		attribute<bool> keep (D) : [false, true, true, false];
+		attribute<float64> population (D) : [10.0, 20.0, 30.0, 40.0];
+		unit<uint32> Result := select_with_attr_by_cond(., keep);
+		attribute<float64> downstream (D) := recollect_by_cond(keep, Result/population);
+	}
+
+	container SpecSelectCase
+	{
+		unit<uint32> D : nrofrows = 4;
+		attribute<bool> keep (D) : [false, true, true, false];
+		attribute<float64> population (D) : [10.0, 20.0, 30.0, 40.0];
+		unit<uint32> Result := select_spec('attr', ., keep);
+		attribute<float64> downstream (D) := recollect_by_cond(keep, Result/population);
+	}
+
+	container NamedCollectCase
+	{
+		unit<uint32> D : nrofrows = 4;
+		attribute<bool> keep (D) : [false, true, true, false];
+		attribute<float64> population (D) : [10.0, 20.0, 30.0, 40.0];
+		unit<uint32> Selection := select(keep);
+		container Result := collect_attr_by_cond(., Selection, keep);
+		attribute<float64> downstream (D) := recollect_by_cond(keep, Result/population);
+	}
+
+	container SpecCollectCase
+	{
+		unit<uint32> D : nrofrows = 4;
+		attribute<bool> keep (D) : [false, true, true, false];
+		attribute<float64> population (D) : [10.0, 20.0, 30.0, 40.0];
+		unit<uint32> Selection := select(keep);
+		container Result := collect_spec('by_cond', ., Selection, keep);
+		attribute<float64> downstream (D) := recollect_by_cond(keep, Result/population);
+	}
+
+	container SpecTableCase
+	{
+		unit<uint32> D : nrofrows = 4;
+		attribute<bool> keep (D) : [false, true, true, false];
+		attribute<float64> population (D) : [10.0, 20.0, 30.0, 40.0];
+		unit<uint32> Selection := select(keep);
+		unit<uint32> Result := table_spec('by_cond', ., Selection, keep);
+		attribute<float64> downstream (D) := recollect_by_cond(keep, Result/population);
+	}
+
+	container checks
+	{
+		parameter<float64> named_select_sum := sum(NamedSelectCase/Result/population), IntegrityCheck = "named_select_sum == 50.0";
+		parameter<float64> spec_select_sum := sum(SpecSelectCase/Result/population), IntegrityCheck = "spec_select_sum == 50.0";
+		parameter<float64> named_collect_sum := sum(NamedCollectCase/Result/population), IntegrityCheck = "named_collect_sum == 50.0";
+		parameter<float64> spec_collect_sum := sum(SpecCollectCase/Result/population), IntegrityCheck = "spec_collect_sum == 50.0";
+		parameter<float64> spec_table_sum := sum(SpecTableCase/Result/population), IntegrityCheck = "spec_table_sum == 50.0";
+	}
+}
