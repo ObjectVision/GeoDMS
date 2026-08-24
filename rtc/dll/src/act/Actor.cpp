@@ -956,11 +956,29 @@ bool Actor::DoFail(ErrMsgPtr msg, FailType ft) const
             msg->TellWhere(dynamic_cast<const SharedActor*>(this));
             if (msg->MustReport())
             {
-                auto st = ft <= FailType::Data ? SeverityTypeID::ST_Error : SeverityTypeID::ST_Warning;
-                if (msg->m_FullName.empty())
-                    reportD(st, msg->m_Why.c_str());
-                else
+                // #1202: a failure that surfaces again as a Validate or Committed failure of a
+                // consumer is reported as a warning, because the error itself was already
+                // reported where it occurred. An INTERNAL error is exempt: it is a violated
+                // invariant of the GeoDms code, and the report that names an item -- the one the
+                // meta thread writes after the failure has propagated -- is the only actionable
+                // one there is. It must not be the line that a log filtered on severity drops.
+                auto st = (ft <= FailType::Data || msg->m_IsInternalError) ? SeverityTypeID::ST_Error : SeverityTypeID::ST_Warning;
+                if (!msg->m_FullName.empty())
                     reportF(st, "[[{}]] {}", msg->m_FullName, msg->m_Why);
+                else
+                {
+                    // #1202: what fails on a worker thread is the DataController running the
+                    // operator, which has no configuration name of its own, so m_FullName stays
+                    // empty and the line named no item at all -- thirteen of them in the run that
+                    // issue reports. The operation context does know which item is being computed;
+                    // ask it, and put that name where the named case puts it, in front. reportD
+                    // then skips appending the same name (see the #795 note there).
+                    auto itemName = GetReportingItemName();
+                    if (itemName.empty())
+                        reportD(st, msg->m_Why.c_str());
+                    else
+                        reportF(st, "{} {}", itemName, msg->m_Why);
+                }
             }
         }
         catch (...)
