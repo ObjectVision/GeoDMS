@@ -221,13 +221,13 @@ void createDmsActions() {
     main_window->m_edit_config_source_action->setShortcut(QKeySequence(QObject::tr("Ctrl+E")));
     qApp->installEventFilter(new EditorNavigationMenuFilter(qApp));
 
-    // find TreeItem (Ctrl+Shift+F for global tree search, Ctrl+F remains for local text search in detail pages)
-    main_window->m_find_treeitem_action = std::make_unique<QAction>(QObject::tr("&Find TreeItem"));
-    main_window->connect(main_window->m_find_treeitem_action.get(), &QAction::triggered, main_window, &MainWindow::findTreeItem);
-    main_window->m_edit_menu->addAction(main_window->m_find_treeitem_action.get());
-    main_window->m_find_treeitem_action->setShortcut(QKeySequence(QObject::tr("Ctrl+Shift+F")));
-    main_window->m_find_treeitem_action->setShortcutContext(Qt::ApplicationShortcut);
-    main_window->addAction(main_window->m_find_treeitem_action.get());
+    // search TreeItems (Ctrl+Shift+F for global tree search, Ctrl+F remains for local text search in detail pages)
+    main_window->m_search_treeitem_action = std::make_unique<QAction>(QObject::tr("&Search TreeItem"));
+    main_window->connect(main_window->m_search_treeitem_action.get(), &QAction::triggered, main_window, &MainWindow::searchTreeItem);
+    main_window->m_edit_menu->addAction(main_window->m_search_treeitem_action.get());
+    main_window->m_search_treeitem_action->setShortcut(QKeySequence(QObject::tr("Ctrl+Shift+F")));
+    main_window->m_search_treeitem_action->setShortcutContext(Qt::ApplicationShortcut);
+    main_window->addAction(main_window->m_search_treeitem_action.get());
 
     // update treeitem
     main_window->m_update_treeitem_action = std::make_unique<QAction>(QObject::tr("&Update TreeItem"));

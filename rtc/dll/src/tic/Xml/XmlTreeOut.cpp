@@ -1118,7 +1118,7 @@ void ExploreCell(const TreeItem* subItem, XML_Table::Row& xmlRow, bool showFullP
 	);
 }
 
-void TreeItem_XML_DumpItem(const TreeItem* subItem, XML_Table& xmlTable, bool viewHidden)
+void TreeItem_XML_DumpItem(const TreeItem* subItem, XML_Table& xmlTable, bool viewHidden, UInt32 hiddenBy)
 {
 	dms_assert(subItem);
 	dms_assert(subItem->GetTreeParent());
@@ -1126,9 +1126,13 @@ void TreeItem_XML_DumpItem(const TreeItem* subItem, XML_Table& xmlTable, bool vi
 	if (viewHidden || !subItem->GetTSF(TSF_InHidden))
 	{
 		XML_Table::Row xmlRow(xmlTable);
+			if (hiddenBy)
+				xmlRow.OutStream().WriteAttr("bgcolor", "#E8E8E8");
 			ExploreCell(subItem, xmlRow);
 			if (parent->GetTreeParent())
 				xmlRow.ValueCell( mySSPrintF("in {}", parent->GetFullName()).c_str());
+			if (hiddenBy)
+				xmlRow.ValueCell(mySSPrintF("hidden by {}", hiddenBy).c_str());
 			try {
 				if (IsDataItem(subItem))
 				{
@@ -1166,75 +1170,120 @@ void TreeItem_XML_DumpItem(const TreeItem* subItem, XML_Table& xmlTable, bool vi
 	}
 }
 
-void TreeItem_XML_DumpExploreThisAndParents_impl(const TreeItem* self, OutStreamBase* xmlOutStrPtr
-	, bool viewHidden, TreeItemSetType& doneItems, const TreeItem* calledBy, CharPtr callingRole)
+struct ExploreNameSpacesState
+{
+	std::map<const TreeItem*, UInt32> m_NameSpaceNrs;
+	std::unordered_map<TokenID, UInt32> m_FirstNameSpaceByItemName;
+	UInt32 m_NextNameSpaceNr = 1;
+};
+
+void TreeItem_XML_DumpExploreRelation(XML_Table& xmlTable, UInt32 nameSpaceNr, const TreeItem* self
+	, const TreeItem* calledBy, UInt32 calledByNr, CharPtr callingRole)
 {
 	{
-		XML_Table    xmlTable   (*xmlOutStrPtr);
-		if (calledBy)
-		{
-			XML_Table::Row xmlRow(xmlTable);
-				xmlRow.ValueCell( callingRole );
-				ExploreCell(calledBy, xmlRow, true);
-		}
-
-		TreeItemSetType::iterator itemPtr = doneItems.lower_bound(make_shared_tree(self, existing_obj{}));
-		if (itemPtr != doneItems.end() && itemPtr->get() == self)
-		{
-			dms_assert(calledBy);
-			goto omit_repetition;
-		}
-		doneItems.insert(itemPtr, make_shared_tree(self, existing_obj{}));
-
-		for (const TreeItem* subItem = self->GetFirstVisibleSubItem(); subItem; subItem = subItem->GetNextVisibleItem())
-			TreeItem_XML_DumpItem(subItem, xmlTable, viewHidden);
+		XML_Table::Row xmlRow(xmlTable);
+		xmlRow.ValueCell(mySSPrintF("namespace {}", nameSpaceNr).c_str());
+		ExploreCell(self, xmlRow, true);
 	}
+	if (calledBy)
+	{
+		XML_Table::Row xmlRow(xmlTable);
+		xmlRow.ValueCell(mySSPrintF("{} namespace {}", callingRole, calledByNr).c_str());
+		ExploreCell(calledBy, xmlRow, true);
+	}
+}
+
+bool TreeItem_XML_DumpExploreNameSpace(const TreeItem* self, OutStreamBase* xmlOutStrPtr
+	, bool viewHidden, ExploreNameSpacesState& state, const TreeItem* calledBy, UInt32 calledByNr, CharPtr callingRole
+	, UInt32& nameSpaceNr)
+{
+	auto [nameSpacePos, isNewNameSpace] = state.m_NameSpaceNrs.try_emplace(self, 0);
+	if (!isNewNameSpace)
+	{
+		nameSpaceNr = nameSpacePos->second;
+		XML_Table xmlTable(*xmlOutStrPtr);
+		TreeItem_XML_DumpExploreRelation(xmlTable, nameSpaceNr, self, calledBy, calledByNr, callingRole);
+		xmlTable.SingleCellRow("contents already listed above", "#E8E8E8", 4);
+		return false;
+	}
+
+	nameSpaceNr = state.m_NextNameSpaceNr++;
+	nameSpacePos->second = nameSpaceNr;
+	self->UpdateMetaInfo();
+
+	{
+		XML_Table    xmlTable   (*xmlOutStrPtr);
+		TreeItem_XML_DumpExploreRelation(xmlTable, nameSpaceNr, self, calledBy, calledByNr, callingRole);
+
+		for (const TreeItem* subItem = self->_GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
+		{
+			auto [itemNamePos, isFirstOccurrence] = state.m_FirstNameSpaceByItemName.try_emplace(subItem->GetID(), nameSpaceNr);
+			TreeItem_XML_DumpItem(subItem, xmlTable, viewHidden, isFirstOccurrence ? 0 : itemNamePos->second);
+		}
+	}
+	return true;
+}
+
+void TreeItem_XML_DumpExploreThisAndParents_impl(const TreeItem* self, OutStreamBase* xmlOutStrPtr
+	, bool viewHidden, ExploreNameSpacesState& state, const TreeItem* calledBy, UInt32 calledByNr, CharPtr callingRole)
+{
+	UInt32 selfNameSpaceNr = 0;
+	if (!TreeItem_XML_DumpExploreNameSpace(self, xmlOutStrPtr, viewHidden, state, calledBy, calledByNr, callingRole, selfNameSpaceNr))
+		return;
+
+	// GetConstSubTreeItemByID searches the complete referred-item chain before it
+	// consults any Using namespace. Keep each link visible as a separate numbered
+	// namespace, but do not traverse the referred item's own usings here.
+	const TreeItem* refNameSpace = self;
+	UInt32 referringNameSpaceNr = selfNameSpaceNr;
+	while (auto referredItem = refNameSpace->GetReferredItem())
+	{
+		UInt32 referredNameSpaceNr = 0;
+		if (!TreeItem_XML_DumpExploreNameSpace(referredItem.get(), xmlOutStrPtr, viewHidden, state
+			, refNameSpace, referringNameSpaceNr, "referred by", referredNameSpaceNr))
+			break;
+		refNameSpace = referredItem.get();
+		referringNameSpaceNr = referredNameSpaceNr;
+	}
+
 	if (self->CurrHasUsingCache())
 	{
 		auto uc = self->GetUsingCache();
 		UInt32 i=uc->GetNrUsings();
 		if(!i)
-		{
-			dms_assert(!self->GetTreeParent());
 			return;
-		}
 		while (i)
 		{
 			auto us = uc->GetUsing(--i);
 			if (!us)
 				continue;
-			CharPtr role = "is used by";
+			CharPtr role = "used by";
 			if (us == self->GetTreeParent().get())
 			{
-				role = "is parent of";
+				role = "parent of";
 				if (i)
-					role = "is parent and used by";
+					role = "parent of and used by";
 			}
-			TreeItem_XML_DumpExploreThisAndParents_impl(us, xmlOutStrPtr, viewHidden, doneItems, self, role);
+			TreeItem_XML_DumpExploreThisAndParents_impl(us, xmlOutStrPtr, viewHidden, state, self, selfNameSpaceNr, role);
 		}
 	}
 	else
 	{
 		auto parent = self->GetTreeParent();
 		if (parent)
-			TreeItem_XML_DumpExploreThisAndParents_impl(parent.get(), xmlOutStrPtr, viewHidden, doneItems, self, "is parent of");
+			TreeItem_XML_DumpExploreThisAndParents_impl(parent.get(), xmlOutStrPtr, viewHidden, state, self, selfNameSpaceNr, "parent of");
 	}
-	return;
-
-omit_repetition:
-	// here we are outside the scope of xmlTable
-	(*xmlOutStrPtr) << "(repetition of sub items omitted)";
 }
 
 void TreeItem_XML_DumpExploreThisAndParents(const TreeItem* self, OutStreamBase* xmlOutStrPtr, bool viewHidden, const TreeItem* calledBy, CharPtr callingRole)
 {
 	assert(self);
-	assert(self);
+	assert(xmlOutStrPtr);
 
-	TreeItemSetType doneItems;
+	ExploreNameSpacesState state;
 	XML_ItemBody xmlItemBody(*xmlOutStrPtr, "Explore accessible namespaces", "in search order.", self, true);
 
-	TreeItem_XML_DumpExploreThisAndParents_impl(self, xmlOutStrPtr, viewHidden, doneItems, calledBy, callingRole);
+	TreeItem_XML_DumpExploreThisAndParents_impl(self, xmlOutStrPtr, viewHidden, state, calledBy, 0, callingRole);
 }
 
 TIC_CALL void DMS_CONV DMS_TreeItem_XML_DumpExplore(const TreeItem* self, OutStreamBase* xmlOutStrPtr, bool viewHidden)

@@ -4,8 +4,8 @@
 
 #pragma once
 
-#if !defined(DMS_QT_FIND_TREEITEM_WINDOW_H)
-#define DMS_QT_FIND_TREEITEM_WINDOW_H
+#if !defined(DMS_QT_SEARCH_TREEITEM_WINDOW_H)
+#define DMS_QT_SEARCH_TREEITEM_WINDOW_H
 
 #include <QWidget>
 #include <QLineEdit>
@@ -13,12 +13,12 @@
 #include <QLabel>
 #include <QKeyEvent>
 
-class FindTreeItemWindow : public QWidget
+class SearchTreeItemWindow : public QWidget
 {
     Q_OBJECT
 
 public:
-    FindTreeItemWindow(QWidget* parent);
+    SearchTreeItemWindow(QWidget* parent);
 
 protected:
     void keyPressEvent(QKeyEvent* event) override;
@@ -34,4 +34,4 @@ public:
     QLabel* result_info = nullptr;
 };
 
-#endif //!defined(DMS_QT_FIND_TREEITEM_WINDOW_H)
+#endif //!defined(DMS_QT_SEARCH_TREEITEM_WINDOW_H)

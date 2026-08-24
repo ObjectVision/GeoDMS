@@ -168,7 +168,7 @@ Facts that shape the pass:
   definitions by symbol, not by expecting a decorated definition line.
 - **Out-of-module hand-written re-declarations** exist at 7 sites and must be included
   in any rewrite: `qtgui/exe/src/DmsMainWindow.cpp:859/:1485/:1528`,
-  `qtgui/exe/src/FindTreeItemWindow.cpp:14`, `stg/dll/src/gdal/gdal_base.cpp:387`,
+  `qtgui/exe/src/DmsSmallWindows.cpp`, `stg/dll/src/gdal/gdal_base.cpp:387`,
   `stg/dll/src/DllMain.cpp:45`, `clc/dll/src/PhaseContainer.cpp:25`.
 - **Exported data needs a higher bar.** ~205 exported-data declarations exist (13
   `RTC_CALL extern` incl. `UpdateMark.h` `tsLast`/`bCommitted` and `g_DebugStream`; 116

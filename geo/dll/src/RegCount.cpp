@@ -219,7 +219,7 @@ struct RegCountOperator : public QuaternaryOperator
 			DataControllerRef partitionResultHolder;
 			if (!partitionName.empty())
 			{
-				partition = AsDynamicDataItem(partitionContainer->FindItem(partitionName));
+				partition = AsDynamicDataItem(partitionContainer->ResolveItemPath(partitionName));
 				if (!partition)
 					GetGroup()->throwOperErrorF("Partition {} not found in partition container {}",
 						partitionName.c_str(),
@@ -318,4 +318,3 @@ namespace
 }	// end anonymous namespace
 
 /******************************************************************************/
-

@@ -115,7 +115,7 @@ auto FindName(const TreeItem* context, const SharedStrArray* nameArray, arg_inde
 		return context;
 
 	SharedStr itemName = nameArray->GetIndexedValue(i);
-	auto result = context->FindItem(itemName);
+	auto result = context->ResolveItemPath(itemName);
 	if (!result || (mustBeUnit && !IsUnit(result.get())))
 	{
 		auto contextName = SharedStr(context->GetName());

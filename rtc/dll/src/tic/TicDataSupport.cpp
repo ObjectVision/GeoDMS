@@ -182,7 +182,7 @@ void SupplCache::BuildSet(const TreeItem* context) const
 		{
 			CharPtrRange explicitSupplierName(iBegin, iFirstEnd);
 			Trim(explicitSupplierName);
-			auto suppl = context->FindItem(explicitSupplierName);
+			auto suppl = context->ResolveItemPath(explicitSupplierName);
 			if (!suppl)
 				context->throwItemErrorF("ExplicitSupplier {} not found", SingleQuote(explicitSupplierName.first, explicitSupplierName.second));
 

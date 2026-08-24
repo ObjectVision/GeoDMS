@@ -16,8 +16,32 @@ container fn_test_scope
 
 	attribute<float64> good (Road) := F(Road, Road/flow);
 
+	// An explicitly instantiated function resolves a template in its definition
+	// namespace, without inheriting the instantiation site's parent namespace.
+	template Square
+	{
+		parameter<float64> x;
+		parameter<float64> result := x * x;
+	}
+	function Materialize(parameter<float64> x) -> parameter<float64>
+	{
+		container square_call := Square(x);
+		parameter<float64> result := square_call/result;
+	}
+	container site
+	{
+		// A same-named call-site template must not capture the body call.
+		template Square
+		{
+			parameter<float64> x;
+			parameter<float64> result := x + x;
+		}
+		container materialized := instantiate /Materialize(3.0);
+	}
+
 	container checks
 	{
 		parameter<float64> check := sum(good), IntegrityCheck = "check == 12600.0"; // 300 * 42
+		parameter<float64> check_inst := site/materialized/result, IntegrityCheck = "check_inst == 9.0";
 	}
 }

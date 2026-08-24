@@ -1910,7 +1910,7 @@ TokenID TreeItem_GetFunctionResultName(const TreeItem* functionItem)
 TIC_CALL void TreeItem_MakeStrictScope(TreeItem* functionItem)
 {
 	assert(functionItem && functionItem->IsFunctionItem());
-	functionItem->GetUsingCache()->RemoveParentUsing();
+	functionItem->GetUsingCache(); // initialize own items, declared usings, then definition namespace
 }
 
 void TreeItem::SetKeepDataState(bool value)
@@ -2145,7 +2145,13 @@ void TreeItem::AddUsingUrl(TokenID url)
 
 void TreeItem::ClearNamespaceUsage()
 {
-	if (m_UsingCache) m_UsingCache->ClearUsings(true);
+	if (m_UsingCache)
+		m_UsingCache->ClearUsings(true);
+}
+
+void TreeItem::ResetNamespaceUsage(bool includeImplicitParent, const TreeItem* definitionNamespace)
+{
+	m_UsingCache = std::make_unique<UsingCache>(this, includeImplicitParent, definitionNamespace);
 }
 
 UInt32 TreeItem::GetNrNamespaceUsages() const
@@ -2179,6 +2185,8 @@ bool TreeItem::IsDataReadable() const
 
 SharedTreeItem TreeItem::GetConstSubTreeItemByID(TokenID subItemID) const
 {
+	// Qualified descent searches only this item and its referred-item chain.
+	// In particular, it never ascends to the parent of a referred item.
 	const TreeItem* subItem = GetFirstSubItem(); // calls UpdateMetaInfo
 	while (true)
 	{
@@ -2282,7 +2290,7 @@ SharedTreeItem TreeItem::GetCurrItem(CharPtrRange subItemNames) const
 }
 
 
-SharedTreeItem TreeItem::FindItem(CharPtrRange subItemNames) const
+SharedTreeItem TreeItem::ResolveItemPath(CharPtrRange subItemNames) const
 {
 	assert(IsMetaThread());
 
@@ -2312,7 +2320,7 @@ SharedTreeItem TreeItem::FindItem(CharPtrRange subItemNames) const
 		parent = make_shared_tree(static_cast<const TreeItem*>(GetRoot()), existing_obj{});
 	}
 	else
-		parent = FindItem(ids.first);
+		parent = ResolveItemPath(ids.first);
 
 	if (!parent)
 		return {};
@@ -2695,26 +2703,23 @@ SharedMutableTreeItem TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext
 	if (copyContext.MustCopyExpr() && !isArg)
 	{
 		result->AssertPropChangeRights(USING_NAME);
-		result->ClearNamespaceUsage();
-
-		// function scoping (§4.6, revised 2026-07-13: lexical definition scope with
-		// call-site isolation): an instantiated (or copied) function scope sees its own
-		// sub-items (bound arguments, locals, result), the function's explicitly
-		// imported namespaces (frozen to absolute paths below), and the DEFINITION
-		// parent, injected as an absolute namespace like template instances get --
-		// while the implicit tree-parent namespace (= call-site or copy-site scope) is
-		// removed below, so call-site names stay invisible.
 		bool srcIsFunction = IsFunctionItem();
+		bool isFunctionInstantiation = srcIsFunction && dstIsRoot;
+
+		// Build the correct fixed namespace base directly: an explicit function
+		// instantiation has no call-site parent, while both function and template
+		// instantiations search their definition namespace. Declared usings are added
+		// afterwards and therefore have higher precedence.
+		if (dstIsRoot)
+			result->ResetNamespaceUsage(!isFunctionInstantiation, GetTreeParent().get());
+		else
+			result->ClearNamespaceUsage();
 
 		UInt32 nrNameSpaces = GetNrNamespaceUsages();
-		bool addParentAsNamespace = dstIsRoot && GetTreeParent();
-		if (nrNameSpaces || addParentAsNamespace)
+		if (nrNameSpaces)
 		{
 			VectorOutStreamBuff nameSpaceBuffer;
 			FormattedOutStream nameSpaceStream(&nameSpaceBuffer, FormattingFlags::None);
-
-			if (addParentAsNamespace)
-				nameSpaceStream << GetTreeParent()->GetFullName();
 
 			//	Now, copy all namespaces.
 			//	Note that namespaces may not be circular (requirement of FindItem)
@@ -2726,7 +2731,7 @@ SharedMutableTreeItem TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext
 				// the parent/ancestor skips exist because instances reach ancestors through
 				// the injected definition-parent namespace; function imports are kept
 				// verbatim (frozen absolute) -- a redundant entry is harmless
-				if (sns && (srcIsFunction || (sns != GetTreeParent().get() && !sns->DoesContain(this))))
+				if (sns && sns != GetTreeParent().get() && (srcIsFunction || !sns->DoesContain(this)))
 				{
 					if (nameSpaceBuffer.CurrPos())
 						nameSpaceStream << ';';
@@ -2744,8 +2749,6 @@ SharedMutableTreeItem TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext
 				result->AddUsingUrls(dataBegin, dataBegin+nameSpaceBuffer.CurrPos());
 			}
 		}
-		if (srcIsFunction)
-			result->GetUsingCache()->RemoveParentUsing(); // also forces the cache into existence: name resolution delegates-and-stops here
 	}
 	if (InTemplate())
 		result->mc_OrgItem = make_weak_tree(this);
@@ -2753,10 +2756,9 @@ SharedMutableTreeItem TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext
 	if (IsFunctionItem() && !dstIsRoot)
 	{
 		// a function definition copied as part of a larger subtree (e.g. inside an
-		// instantiated template) stays a function: flag, declared spec, strict scope
+		// instantiated template) stays a function with its declared specification
 		result->SetIsFunction();
 		TreeItem_CopyFunctionSpec(result.get(), this);
-		result->GetUsingCache()->RemoveParentUsing();
 	}
 	//	Now, call the virtual CopyProps func to let the derived class do some work
 
@@ -4018,7 +4020,7 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 		auto dialogData = dialogDataPropDefPtr->GetValue(this);
 		if (!dialogData.empty())
 		{
-			auto dialogDataItem = FindItem(dialogData.AsRange());
+			auto dialogDataItem = ResolveItemPath(dialogData.AsRange());
 			if (dialogDataItem && visitor(dialogDataItem.get()) == AVS_SuspendedOrFailed)
 				return AVS_SuspendedOrFailed;
 		}
@@ -5967,7 +5969,7 @@ auto TreeItem_GetTemplateSource(const TreeItem* item) -> SharedTreeItem
 	return calculator->GetForEachTemplSource();
 }
 
-auto TreeItem_FindItem_impl(template_set& visitedSet, const TreeItem* searchLoc, TokenID id, const TreeItem* blockedSubItem = nullptr, bool findNextMode = false) -> SharedTreeItem
+auto TreeItem_SearchItem_impl(template_set& visitedSet, const TreeItem* searchLoc, TokenID id, const TreeItem* blockedSubItem = nullptr, bool findNextMode = false) -> SharedTreeItem
 {
 //	if (searchLoc->GetID() == id)
 //		return searchLoc;
@@ -6000,7 +6002,7 @@ auto TreeItem_FindItem_impl(template_set& visitedSet, const TreeItem* searchLoc,
 			if (subItem->GetID() == id)
 				return make_shared_tree(subItem, existing_obj{});
 
-			if (auto result = TreeItem_FindItem_impl(visitedSet, subItem, id))
+			if (auto result = TreeItem_SearchItem_impl(visitedSet, subItem, id))
 				return result;
 		}
 	}
@@ -6008,7 +6010,7 @@ auto TreeItem_FindItem_impl(template_set& visitedSet, const TreeItem* searchLoc,
 	return {};
 }
 
-TIC_CALL auto TreeItem_FindItem(const TreeItem* searchLoc, TokenID id) -> SharedTreeItem
+TIC_CALL auto TreeItem_SearchItem(const TreeItem* searchLoc, TokenID id) -> SharedTreeItem
 {
 	if (!searchLoc || searchLoc->IsCacheItem())
 		return {};
@@ -6024,7 +6026,7 @@ TIC_CALL auto TreeItem_FindItem(const TreeItem* searchLoc, TokenID id) -> Shared
 	}
 	
 	template_set alreadyVisited;
-	if (auto result = TreeItem_FindItem_impl(alreadyVisited, searchLoc, id, nullptr, false))
+	if (auto result = TreeItem_SearchItem_impl(alreadyVisited, searchLoc, id, nullptr, false))
 		return result;	
 
 	while (auto parent = searchLoc->GetTreeParent().get())
@@ -6032,7 +6034,7 @@ TIC_CALL auto TreeItem_FindItem(const TreeItem* searchLoc, TokenID id) -> Shared
 		if (!findNextMode && parent->GetID() == id)
 			return make_shared_tree(parent, existing_obj{});
 
-		if (auto result = TreeItem_FindItem_impl(alreadyVisited, parent, id, searchLoc, findNextMode))
+		if (auto result = TreeItem_SearchItem_impl(alreadyVisited, parent, id, searchLoc, findNextMode))
 			return result;
 		searchLoc = parent;
 	}

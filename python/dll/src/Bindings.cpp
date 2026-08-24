@@ -306,13 +306,13 @@ void treeitem_CheckNonNull_mutable(py_geodms::MutableTreeItem self) {
 
 auto treeitem_find_const(py_geodms::ConstTreeItem self, CharPtr itemPath) -> py_geodms::ConstTreeItem { // const TreeItem* self
 	treeitem_CheckNonNull_const(self);
-	auto foundItem = self.item->FindItem(CharPtrRange(itemPath));
+	auto foundItem = self.item->ResolveItemPath(CharPtrRange(itemPath));
 	return py_geodms::ConstTreeItem(foundItem);
 }
 
 auto treeitem_find_mutable(py_geodms::MutableTreeItem self, CharPtr itemPath) -> py_geodms::MutableTreeItem { // const TreeItem* self
 	treeitem_CheckNonNull_mutable(self);
-	auto foundItem = self.item->FindItem(CharPtrRange(itemPath));
+	auto foundItem = self.item->ResolveItemPath(CharPtrRange(itemPath));
 
 	return py_geodms::MutableTreeItem(make_shared_tree(const_cast<TreeItem*>(foundItem.get()), existing_obj{})); // TODO: future improvement: use GetItem to stay non-const.
 }

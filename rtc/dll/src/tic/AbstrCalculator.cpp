@@ -363,7 +363,7 @@ auto AbstrCalculator::FindItem(TokenID itemRef) const -> SharedTreeItem
 		return m_Holder.lock();
 
 	SharedStr itemRefStr(itemRef.AsStrRange());
-	return SearchContext()->FindItem(itemRefStr);
+	return SearchContext()->ResolveItemPath(itemRefStr);
 }
 
 auto AbstrCalculator::FindOrVisitItem(SubstitutionBuffer& buff, TokenID itemRef) const -> SharedTreeItem
@@ -421,7 +421,7 @@ auto AbstrCalculator::VisitSourceItem(TokenID supplRefID, SupplierVisitFlag svf,
 	SharedStr itemRefStr(supplRefID.AsStrRange());
 	if (Test(svf, SupplierVisitFlag::ImplSuppliers))
 		return SearchContext()->FindAndVisitItem(itemRefStr, svf, visitor);
-	auto searchResult = SearchContext()->FindItem(itemRefStr);
+	auto searchResult = SearchContext()->ResolveItemPath(itemRefStr);
 	if (Test(svf, SupplierVisitFlag::NamedSuppliers))
 		if (visitor.Visit(searchResult.get()) == AVS_SuspendedOrFailed)
 			return {};
@@ -1985,8 +1985,8 @@ namespace {
 					else if (fnDU)
 						if (auto defP = boundFn->GetTreeParent())
 						{
-							SharedStr fnDUName(fnDU.AsStrRange()); // materialized: a TokenStr must not span FindItem (parse-capable, token-registry lock)
-							if (auto unitItem = defP->FindItem(fnDUName); unitItem && IsUnit(unitItem.get()))
+							SharedStr fnDUName(fnDU.AsStrRange()); // materialized: a TokenStr must not span ResolveItemPath (parse-capable, token-registry lock)
+							if (auto unitItem = defP->ResolveItemPath(fnDUName); unitItem && IsUnit(unitItem.get()))
 								u.BindUnit(target, unitItem, AsUnit(unitItem.get())
 									, mySSPrintF("by {}", bindSource.c_str()));
 						}
@@ -2302,7 +2302,7 @@ namespace {
 			LispPtr ae = a.Left();
 			if (!ae.IsSymb())
 				continue; // expression argument: defers, as at the inline site
-			auto argItem = bindScope->FindItem(SharedStr(ae.GetSymbID().AsStrRange()));
+			auto argItem = bindScope->ResolveItemPath(SharedStr(ae.GetSymbID().AsStrRange()));
 			if (!argItem)
 				continue; // an unresolvable argument fails through the ordinary path
 			CheckStructuredParamContract(applyItem, param, memberSrc, argItem.get());
@@ -2975,9 +2975,9 @@ namespace {
 										if (fullNameRef.IsSymb())
 										{
 											// materialize the name first: a TokenStr range holds the
-											// token-registry lock, which FindItem (parse-capable) must not span
+											// token-registry lock, which ResolveItemPath (parse-capable) must not span
 											SharedStr baseName(fullNameRef.GetSymbID().AsStrRange());
-											if (auto baseItem = m_FuncItem->FindItem(baseName))
+											if (auto baseItem = m_FuncItem->ResolveItemPath(baseName))
 											{
 												// FindSubItem throws a clean FindSubItem error on a genuinely missing member
 												auto member = FindSubItem(baseItem.get(), SharedStr(CharPtrRange(ri->second, e)));
@@ -3054,9 +3054,9 @@ namespace {
 		// using-cache, so one GetTreeParent() step only suffices while the function
 		// sits directly in a container; from '/outer/inner' it lands on '/outer' and
 		// the container was never consulted (ObjectVision/GeoDMS#1166).
-		auto found = m_FuncItem->FindItem(fullStr);
+		auto found = m_FuncItem->ResolveItemPath(fullStr);
 		for (auto defScope = m_FuncItem->GetTreeParent(); !found && defScope; defScope = defScope->GetTreeParent())
-			found = defScope->FindItem(fullStr);
+			found = defScope->ResolveItemPath(fullStr);
 		if (!found)
 			throwErrorF("ExprParser", "'{}': unknown identifier in body of function '{}' (visible are: parameters, local items, 'using' imports, and the definition scope)"
 				, fullStr.c_str(), m_FuncItem->GetFullName().c_str());
@@ -3136,10 +3136,10 @@ namespace {
 			}
 		}
 
-		auto callee = m_FuncItem->FindItem(SharedStr(headID.AsStrRange()));
+		auto callee = m_FuncItem->ResolveItemPath(SharedStr(headID.AsStrRange()));
 		if (!callee || !callee->IsFunctionItem())
 			if (auto defParent = m_FuncItem->GetTreeParent()) // lexical definition scope (§4.6)
-				if (auto lex = defParent->FindItem(SharedStr(headID.AsStrRange())); lex && lex->IsFunctionItem())
+				if (auto lex = defParent->ResolveItemPath(SharedStr(headID.AsStrRange())); lex && lex->IsFunctionItem())
 					callee = lex;
 		if (!callee || !callee->IsFunctionItem())
 			// the auto-imported prelude is the implicit outermost namespace for call heads
@@ -3192,10 +3192,10 @@ namespace {
 							return a;
 					}
 					// import or lexically visible function?
-					auto callee = m_FuncItem->FindItem(s);
+					auto callee = m_FuncItem->ResolveItemPath(s);
 					if (!callee || !callee->IsFunctionItem())
 						if (auto defParent = m_FuncItem->GetTreeParent()) // lexical definition scope (§4.6)
-							if (auto lex = defParent->FindItem(s); lex && lex->IsFunctionItem())
+							if (auto lex = defParent->ResolveItemPath(s); lex && lex->IsFunctionItem())
 								callee = lex;
 					if (!callee)
 						if (auto pf = FindPreludeFunction(sym); pf && pf->IsFunctionItem())
@@ -3490,10 +3490,10 @@ namespace {
 		SharedTreeItem ResolveUnitInScope(TokenID tok, const TreeItem* fnDef)
 		{
 			SharedStr s(tok.AsStrRange());
-			auto u = fnDef->FindItem(s);
+			auto u = fnDef->ResolveItemPath(s);
 			if (!u || !IsUnit(u.get()))
 				if (auto defP = fnDef->GetTreeParent()) // lexical definition scope (§4.6)
-					u = defP->FindItem(s);
+					u = defP->ResolveItemPath(s);
 			if (u && IsUnit(u.get()) && !u->InTemplate()) // body-local units stay deferred (their meta info is not available here)
 				return u;
 			return {};
@@ -3681,12 +3681,12 @@ namespace {
 				break;
 		}
 
-		auto found = m_FuncItem->FindItem(fullStr);
+		auto found = m_FuncItem->ResolveItemPath(fullStr);
 		// lexical definition scope (§4.6): the whole enclosing chain -- see the
 		// matching walk in ResolveBodySymbol (ObjectVision/GeoDMS#1166). This site
 		// types the reference and throws first, so it needs the same ascent.
 		for (auto defScope = m_FuncItem->GetTreeParent(); !found && defScope; defScope = defScope->GetTreeParent())
-			found = defScope->FindItem(fullStr);
+			found = defScope->ResolveItemPath(fullStr);
 		if (!found && slash == e)
 			if (auto pf = FindPreludeFunction(sym); pf && pf->IsFunctionItem())
 			{
@@ -4721,10 +4721,10 @@ namespace {
 					if (scope == m_FuncItem)
 						break;
 				}
-				auto fnRef = m_FuncItem->FindItem(s);
+				auto fnRef = m_FuncItem->ResolveItemPath(s);
 				if (!fnRef || !fnRef->IsFunctionItem())
 					if (auto defParent = m_FuncItem->GetTreeParent()) // lexical definition scope (§4.6)
-						if (auto lex = defParent->FindItem(s); lex && lex->IsFunctionItem())
+						if (auto lex = defParent->ResolveItemPath(s); lex && lex->IsFunctionItem())
 							fnRef = lex;
 				if (!fnRef || !fnRef->IsFunctionItem())
 					if (auto pf = FindPreludeFunction(sym); pf && pf->IsFunctionItem())
@@ -5687,7 +5687,7 @@ namespace {
 						return {};
 					try
 					{
-						auto u = container->FindItem((*perMemberNames)[i]);
+						auto u = container->ResolveItemPath((*perMemberNames)[i]);
 						if (u && IsUnit(u.get()) && !u->InTemplate())
 						{
 							DefType f; f.kind = DefType::Kind::UnitVal;
@@ -6028,10 +6028,10 @@ namespace {
 					return InferApplication(refScope, ParamType(i), expr.Right(), headName.c_str());
 
 			// a direct function/import call: resolve, then type the application
-			auto callee = m_FuncItem->FindItem(SharedStr(headID.AsStrRange()));
+			auto callee = m_FuncItem->ResolveItemPath(SharedStr(headID.AsStrRange()));
 			if (!callee || !callee->IsFunctionItem())
 				if (auto defParent = m_FuncItem->GetTreeParent()) // lexical definition scope (§4.6)
-					if (auto lex = defParent->FindItem(SharedStr(headID.AsStrRange())); lex && lex->IsFunctionItem())
+					if (auto lex = defParent->ResolveItemPath(SharedStr(headID.AsStrRange())); lex && lex->IsFunctionItem())
 						callee = lex;
 			if (!callee || !callee->IsFunctionItem())
 				if (auto pf = FindPreludeFunction(headID); pf && pf->IsFunctionItem())

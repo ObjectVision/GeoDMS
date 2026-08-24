@@ -73,7 +73,7 @@ struct PhaseContainerOperator : BinaryOperator
 			auto resultRoot = resultHolder.GetNew();
 			for (std::shared_ptr<TreeItem> resWalker = make_shared_tree(resultRoot, existing_obj{}); resWalker; resWalker = make_shared_tree(resultRoot->WalkCurrSubTree(resWalker.get()), existing_obj{}))
 			{
-				auto srcItem = sourceContainer->FindItem(resWalker->GetRelativeName(resultHolder.GetNew()));
+				auto srcItem = sourceContainer->ResolveItemPath(resWalker->GetRelativeName(resultHolder.GetNew()));
 				if (!srcItem)
 					continue;
 				MG_CHECK(!srcItem->IsCacheItem());
@@ -182,7 +182,7 @@ struct PhaseContainerOperator : BinaryOperator
 			if ((IsDataItem(resWalker) || IsUnit(resWalker)) && IsDataReady(resWalker.get()))
 				continue;
 
-			auto srcItem = sourceContainer->FindItem(resWalker->GetRelativeName(resultRoot));
+			auto srcItem = sourceContainer->ResolveItemPath(resWalker->GetRelativeName(resultRoot));
 			assert(srcItem);
 			assert(srcItem->GetCurrPhaseNumber() < resultPhaseNumber);
 			MG_CHECK(!srcItem->IsCacheItem());

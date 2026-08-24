@@ -380,8 +380,8 @@ CLC_CALL bool ExprCalculatorTest()
 		"	parameter<UInt32> Item2: Expr = \"Item1\"; "
 		"}"
 	);
-	const TreeItem* item1 = testConfig->FindItem("Item1").get();
-	const TreeItem* item2 = testConfig->FindItem("Item2").get();
+	const TreeItem* item1 = testConfig->ResolveItemPath("Item1").get();
+	const TreeItem* item2 = testConfig->ResolveItemPath("Item2").get();
 	bool result = true;
 	result &= DBG_TEST("SourceItem", item2->GetSourceItem() == item1);
 	result &= DBG_TEST("RefObj",     AsDataItem(item2)->LockAndGetValue<UInt32>(0) == 8);
@@ -446,7 +446,7 @@ public:
 
 		bool checkStopValue
 			=	mustCalc 
-			&&	(	loopContents->FindItem("stopValue")
+			&&	(	loopContents->ResolveItemPath("stopValue")
 				->	CheckObjCls(DataArray<Bool>::GetStaticClass())
 				);
 
@@ -471,7 +471,7 @@ public:
 			{
 				const AbstrDataItem* stopParamA
 					=	debug_cast<const AbstrDataItem*>(
-							iter->FindItem("stopValue")->CheckObjCls(DataArray<Bool>::GetStaticClass())
+							iter->ResolveItemPath("stopValue")->CheckObjCls(DataArray<Bool>::GetStaticClass())
 						);
 
 				if (stopParamA && GetValue<Bool>(stopParamA, 0))

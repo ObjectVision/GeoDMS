@@ -131,7 +131,7 @@
     <ClInclude Include="src\QtDrawContext.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <QtMoc Include="src\FindTreeItemWindow.h">
+    <QtMoc Include="src\SearchTreeItemWindow.h">
       <Filter>Header Files</Filter>
     </QtMoc>
   </ItemGroup>
