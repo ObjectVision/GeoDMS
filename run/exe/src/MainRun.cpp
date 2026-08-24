@@ -11,6 +11,7 @@
 #include "TicInterface.h"
 #include "StxInterface.h"
 #include "RtcInterface.h"
+#include "StgBase.h"
 
 #include "dbg/debug.h"
 #include "dbg/DebugLog.h"
@@ -513,9 +514,12 @@ int main(int argc, char** argv)
 		}
 	);
 
-	tg_maintainer manageOperationContextTasks;
-
-	auto result = main_with_error_report(argc, argv);
+	int result;
+	{
+		tg_maintainer manageOperationContextTasks;
+		result = main_with_error_report(argc, argv);
+	}
+	DMS_Stg_Terminate();
 
 	// 4) when you’re done, detach so the default scheduler resumes
 //	concurrency::CurrentScheduler::Detach();

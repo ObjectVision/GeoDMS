@@ -29,6 +29,7 @@
 #include "xct/ErrMsg.h"
 
 #include "stg/AbstrStorageManager.h"
+#include "StgBase.h"
 #include "ser/FileStreamBuff.h"
 #include "ShvDllInterface.h"
 #include "ShvUtils.h"
@@ -550,9 +551,12 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
-    tg_maintainer manageOperationContextTasks;
-
-    auto result = main1(argc, argv);
+    int result;
+    {
+        tg_maintainer manageOperationContextTasks;
+        result = main1(argc, argv);
+    }
+    DMS_Stg_Terminate();
 
     return result;
 }
