@@ -33,8 +33,9 @@
 #endif
 
 // Platform string in vcpkg-triplet-like form: <arch>-<os>[-<toolset>], e.g.
-// "x64-windows-cmake", "x64-windows-msbuild", "x64-linux-cmake". Surfaces in
-// the GUI title bar (DMS_GetVersion) and via DMS_GetPlatform.
+// "x64-windows-cmake", "x64-windows-msbuild", "x64-linux-cmake", or
+// "x64-windows-msbuild for GLOBIO" for the G flavour. Surfaces in the GUI
+// title bar (DMS_GetVersion) and via DMS_GetPlatform.
 #if defined(DMS_64)
 #	define DMS_PLATFORM_ARCH "x64"
 #else
@@ -53,9 +54,15 @@
 
 // Toolset distinction: cmake defines DMS_TOOLSET_CMAKE in CMakeLists.txt; in
 // its absence we are being built by MSBuild (the .vcxproj/.sln path). Both are
-// surfaced explicitly so the GUI title bar makes the toolset unambiguous.
+// surfaced explicitly so the GUI title bar makes the toolset unambiguous. The
+// GLOBIO compatibility flavour (all22.sln with GeoDmsGlobio=true, which puts
+// GEODMS_GLOBIO in every TU via DmsDef.props) is msbuild-built against the
+// locked GLOBIO conda stack; name it so its title bar is distinguishable from
+// a regular m build.
 #if defined(DMS_TOOLSET_CMAKE)
 #	define DMS_PLATFORM_TOOLSET "-cmake"
+#elif defined(GEODMS_GLOBIO)
+#	define DMS_PLATFORM_TOOLSET "-msbuild for GLOBIO"
 #else
 #	define DMS_PLATFORM_TOOLSET "-msbuild"
 #endif
