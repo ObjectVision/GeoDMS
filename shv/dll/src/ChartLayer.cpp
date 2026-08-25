@@ -46,6 +46,10 @@
 const DmsColor s_DefaultPointColor = CombineRGB(0, 128, 255);
 const DmsColor s_LineColor         = CombineRGB(200, 0, 0);
 
+// Cap on the number of per-element tick labels materialised for a row-number X axis:
+// a domain larger than this cannot show a label per element anyway, so it keeps the indices.
+const SizeT MAX_X_AXIS_LABELS = 4096;
+
 ChartLayer::ChartLayer(GraphicObject* owner)
 	:	base_type(owner, GetStaticClass())
 {}
@@ -188,6 +192,22 @@ void ChartLayer::DoUpdateView()
 	if (xAttr && !PrepareDataOrUpdateViewLater(xAttr))
 		return;
 
+	// X = row number: when the domain unit carries a Label attribute, tick the axis with those
+	// labels rather than with the raw element indices (issue #1207). Take the new interest before
+	// releasing the old one, so a repeated view update doesn't drop and recompute the same data.
+	SharedDataItemInterestPtr xLabelAttr;
+	if (!xAttr)
+	{
+		try {
+			if (auto domain = yAttr->GetAbstrDomainUnit())
+				xLabelAttr = domain->GetLabelAttr();
+		}
+		catch (...) {} // a broken Label costs the tick labels, not the plot
+	}
+	m_XLabelAttr.swap(xLabelAttr);
+	if (m_XLabelAttr && !PrepareDataOrUpdateViewLater(m_XLabelAttr.get_ptr()))
+		return;
+
 	// optional classification/palette for per-element colour
 	const AbstrDataItem* breaks = theme->GetClassification();
 	if (breaks && !PrepareDataOrUpdateViewLater(breaks))
@@ -225,6 +245,15 @@ void ChartLayer::DoUpdateView()
 	// distinct values map to consecutive ordinals 0,1,2,… and feed the axis tick labels.
 	bool xIsCategorical = xAttr && !xAttr->GetAbstrValuesUnit()->GetValueType()->IsNumeric();
 
+	// row-number X with a domain Label: one tick label per element, as long as there aren't too many
+	decltype(yData) xLabelData;
+	if (m_XLabelAttr && n <= MAX_X_AXIS_LABELS && !m_XLabelAttr->WasFailed(FailType::Data))
+	{
+		auto labelData = m_XLabelAttr->GetRefObj();
+		if (labelData && labelData->GetTiledRangeData()->GetElemCount() >= n)
+			xLabelData = labelData;
+	}
+
 	auto vg = theme->GetValueGetter(); // per-element classification, for colour; may be null
 	const AbstrThemeValueGetter* paletteGetter = vg ? vg->CreatePaletteGetter() : nullptr;
 
@@ -239,7 +268,7 @@ void ChartLayer::DoUpdateView()
 
 	// categorical ordinal assignment, in order of first appearance
 	std::map<SharedStr, CrdType> categoryOrdinals;
-	GuiReadLock categoryLock;
+	GuiReadLock labelLock; // tile lock held while reading tick-label text
 
 	bool any = false;
 	Float64 minX = 0, maxX = 0, minY = 0, maxY = 0; // origin anchored at (0,0)
@@ -248,7 +277,7 @@ void ChartLayer::DoUpdateView()
 		Float64 x;
 		if (xIsCategorical)
 		{
-			SharedStr label = xData->AsString(e, categoryLock, FormattingFlags::None);
+			SharedStr label = xData->AsString(e, labelLock, FormattingFlags::None);
 			auto it = categoryOrdinals.find(label);
 			if (it == categoryOrdinals.end())
 			{
@@ -259,7 +288,11 @@ void ChartLayer::DoUpdateView()
 			x = it->second;
 		}
 		else
+		{
 			x = xData ? xData->GetValueAsFloat64(e) : Float64(e);
+			if (xLabelData)
+				m_XAxisLabels.emplace_back(x, xLabelData->AsString(e, labelLock, FormattingFlags::None));
+		}
 
 		Float64 y = yData->GetValueAsFloat64(e);
 		m_Points[e] = shp2dms_order<CrdType>(x, y); // X=col, Y=row

@@ -56,6 +56,7 @@ static CrdType NiceStepSize(CrdType range, UInt32 maxTicks)
 }
 
 const int TICK_LEN = 4;
+const int LABEL_GAP = 4; // device px kept free between two consecutive tick labels
 
 bool AxisControl::Draw(GraphDrawer& d) const
 {
@@ -99,13 +100,18 @@ bool AxisControl::Draw(GraphDrawer& d) const
 	CrdType worldMin = isHor ? roi.first .X() : roi.first .Y();
 	CrdType worldMax = isHor ? roi.second.X() : roi.second.Y();
 
-	// categorical horizontal axis: when the active ChartLayer maps a non-numeric X attribute to
-	// ordinal positions, label each ordinal with its category instead of drawing numeric ticks.
+	// labelled horizontal axis: when the active ChartLayer supplies tick labels -- categories of a
+	// non-numeric X attribute, or the domain's Label attribute along a row-number axis (issue #1207)
+	// -- label those positions instead of drawing numeric ticks.
 	if (isHor)
 	{
 		auto* chartLayer = dynamic_cast<const ChartLayer*>(m_ViewPort->GetActiveLayer());
 		if (chartLayer && !chartLayer->GetXAxisLabels().empty())
 		{
+			// The labels come in ascending X order, so a label is legible iff it starts right of where
+			// the previous one ended; skip the rest. A row-number axis carries one label per element,
+			// many more than the band can show at once, yet every position still gets its tick.
+			GType nextTextLeft = MinValue<GType>();
 			for (const auto& posLabel : chartLayer->GetXAxisLabels())
 			{
 				CrdType pos = posLabel.first;
@@ -117,7 +123,11 @@ bool AxisControl::Draw(GraphDrawer& d) const
 					continue;
 				const SharedStr& text = posLabel.second;
 				dc->DrawLine(GPoint(devX, clientIntRect.top), GPoint(devX, clientIntRect.top + TICK_LEN), lineColor, 1);
-				dc->TextOut(GPoint(devX + 2, clientIntRect.top + TICK_LEN), text.c_str(), text.ssize(), lineColor);
+				GType textLeft = devX + 2;
+				if (textLeft < nextTextLeft)
+					continue;
+				dc->TextOut(GPoint(textLeft, clientIntRect.top + TICK_LEN), text.c_str(), text.ssize(), lineColor);
+				nextTextLeft = textLeft + dc->GetTextExtent(text.c_str(), text.ssize()).x + LABEL_GAP;
 			}
 			return false;
 		}
