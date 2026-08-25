@@ -373,10 +373,35 @@ struct BiCriteriaDijkstraHeap
 		return m_SrcZoneStamp && (m_SrcZoneStamp[v] != m_CurrSrcZoneTick);
 	}
 
-	// True iff a label with second criterion d2 at node v is not (weakly) dominated by any
-	// label accepted at v so far: every accepted label has imp <= any future label's imp,
-	// so dominance reduces to this imp2 comparison. Weak (>= rejects) so that duplicates
-	// and zero-weight cycles terminate, mirroring the strict < of IsBetter.
+	// True iff a label with second criterion d2 at node v is neither Pareto-dominated by, nor
+	// a duplicate of, any label ACCEPTED at v so far.
+	//
+	// Full Pareto dominance tests BOTH criteria: (d', d2') dominates (d, d2) iff
+	//     d' < d && d2' <= d2   OR   d' <= d && d2' < d2.
+	// The d-comparison is not executed here because the pop SCHEDULE has already decided it:
+	// with nonnegative weights every pushed key is componentwise >= its parent's, so labels
+	// leave the heap in lexicographically nondecreasing order -- Dijkstra's monotone frontier
+	// lifted to pairs -- and hence every label accepted at v so far has d' <= d for the label
+	// under test. Given d' <= d, the case analysis collapses:
+	//     d2' <  d2               -> dominated  (second disjunct)
+	//     d2' == d2 and d' <  d   -> dominated  (first disjunct)
+	//     d2' == d2 and d' == d   -> exact duplicate
+	// so "dominated or duplicate" is precisely: some accepted d2' <= d2, i.e. d2 >= m_MinImp2[v].
+	// The min over accepted imp2 values is therefore a COMPLETE summary of the accepted set for
+	// this test; no other per-node state is needed. Rejecting duplicates (>=, not >) keeps one
+	// representative route per Pareto-optimal (imp, imp2) VALUE -- the same tie convention as
+	// the scalar IsBetter -- and is what terminates zero-weight cycles.
+	//
+	// PENDING labels need no consultation: a label that could dominate (d, d2) is strictly
+	// lexicographically smaller, so it cannot still be in the heap when (d, d2) pops -- it
+	// popped earlier and was either accepted (then m_MinImp2[v] already reflects it) or was
+	// itself discarded in favour of a componentwise-better accepted label, whose extensions
+	// cover the dominating path onward (induction along that path; the accept direction of the
+	// Hansen argument, written out in doc/bicriteria-impedance.md section 3).
+	//
+	// Serves as the authoritative pop-time test (AcceptLabel) and, since m_MinImp2 only
+	// decreases during an origin's run, also as a safe push-time pre-prune (InsertLabel):
+	// a label failing it at push time would also fail it at pop time.
 	bool IsUndominated(NodeType v, ImpType d2) const
 	{
 		assert(v < m_NrV);

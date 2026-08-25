@@ -338,35 +338,38 @@ Requesting StartPoint_rel therefore yields an uninitialized attribute. Until imp
 rejected in CheckFlags with a clear message. Tracked separately from #856.
 
 
-## 8. Draft comment for issue #856 (to be reviewed and posted by a maintainer)
+## 8. Draft closing comment for issue #856 (to be reviewed and posted by a maintainer once merged)
 
-> **Assessment and proposed direction**
+> **Implemented: the `pareto` option of impedance_matrix / impedance_matrix_od64** (GeoDMS 20.18 and later)
 >
-> Analysed against the current impedance engine (geo/dll/src/Dijkstra.h/.cpp). Summary:
+> A specification like
 >
-> 1. This cannot be obtained by instantiating the existing heap with a (time, cost) pair: the engine keeps one
->    label per node, so only the lexicographic minimum survives — "min time, cheapest among min-time paths".
->    The request needs bi-criteria label-setting (Hansen 1980): multiple labels per node, a label pruned only
->    when Pareto-dominated.
-> 2. The bi-criteria case is cheap on state: popping labels in lexicographic (time, cost) order, exact
->    dominance needs only one scalar per node (minimum accepted cost so far), which slots into the existing
->    zone-stamp reset machinery. A structural bonus: the first accepted label per destination zone equals the
->    current operator's min-time result — the validation criterion from NetworkModel_PBL#19 holds by
->    construction.
-> 3. Proposed integration: same impedance_matrix/_od64 operator family and specification string — the second
->    link impedance rides the existing `alternative(link_imp)` argument — with a new spec section (working
->    name `pareto`, optionally `pareto(OrgZone_max_imp2)` for a cost cutoff) that switches to a separate
->    label-setting core loop and a new heap sibling in Dijkstra.h. The scalar hot path is untouched. A
->    separate operator/file would duplicate ~1500 lines of argument/unit/result glue and fork the spec
->    dialect; weaving dominance into the existing loop would put branches in the performance-critical
->    mainline.
-> 4. Output: one od-row per Pareto-optimal (time, cost) label, via the existing sparse two-pass count+fill;
->    requires `od` + `cut(OrgZone_max_imp)`. v1 products: impedance, alt_imp, OrgZone_rel, DstZone_rel,
->    EndPoint_rel. Interaction/link_flow/LinkSet/limit() excluded in v1 (tree-shaped products need per-label
->    traceback; planned as follow-ups).
-> 5. Scale: front size per node is bounded by the number of distinct reachable cost values below the cost
->    cutoff — so the intended usage at PBL scale is quantized costs (integer cents/eurodimes) plus the
->    time and optional cost cutoffs. The engine stays exact w.r.t. its inputs; "cheapest within a time budget"
->    is then a trivial post-processing selection on the result rows.
+> ```
+> 'bidirectional;startPoint(Node_rel,OrgZone_rel);endPoint(Node_rel,DstZone_rel)'
+> ';cut(OrgZone_max_imp);alternative(link_imp):alt_imp;pareto'
+> ';od:impedance,alt_imp,OrgZone_rel,DstZone_rel,StartPoint_rel,EndPoint_rel'
+> ```
 >
-> Full design note with the correctness argument, code anchors and v2 roadmap: doc/bicriteria-impedance.md.
+> runs a bi-criteria label-setting search on (impedance, alternative impedance): a partial route is
+> discarded only when another route is at least as good in BOTH criteria — exactly the requested pruning
+> rule. The result holds **one row per Pareto-optimal route**, identified by the tuple
+> (OrgZone, DstZone, impedance, alt_imp); StartPoint_rel and EndPoint_rel are attributes of that route,
+> telling which start and end point it used. "Cheapest within a maximum travel time" is then a plain
+> selection on the rows.
+>
+> Notes:
+>
+> 1. The second criterion rides the existing `alternative(link_imp)` argument; `pareto(OrgZone_max_imp2)`
+>    optionally bounds it per origin zone, next to the required `cut(OrgZone_max_imp)` on the first.
+> 2. Guaranteed by construction (and asserted in the regression test by joining against a plain
+>    impedance_matrix run): the FIRST row per (OrgZone, DstZone) carries the current operator's
+>    minimum-impedance result — the min-time validation criterion from ObjectVision/NetworkModel_PBL#19.
+> 3. Scale guidance: the number of routes per node is bounded by the number of DISTINCT alternative-impedance
+>    totals below the cutoff, so supply costs in coarse units (integer cents / eurodimes) at national scale;
+>    the engine stays exact for the impedances as given.
+> 4. Not (yet) combinable with pareto: the interaction section, Link_flow, LinkSet, link_attr and limit()
+>    (per-label traceback and front-mass semantics are follow-up work). Both link impedance arrays and
+>    start/end point impedances must be nonnegative in this mode.
+>
+> Documentation: the pareto section of Impedance-options in the wiki. Design note with the correctness
+> argument and the follow-up roadmap: doc/bicriteria-impedance.md. Regression: testcases/fn_test_od_pareto.dms.
