@@ -184,7 +184,11 @@ struct DijkstraHeap
 
 	// Attempts to insert node v with tentative distance d and optional backTrace.
 	// Skips insertion if d >= m_MaxImp or not an improvement.
-	void InsertNode(NodeType v, ImpType d, LinkType backTrace)
+	// startPoint is the origin-side provenance of the accepted route: the start point that
+	// seeded it. It is written in lockstep with the distance, so it is valid for exactly the
+	// nodes MarkTentative stamped for the current tick. A variant that keeps node state per
+	// pareto option must carry the provenance per option too, on this same write.
+	void InsertNode(NodeType v, ImpType d, LinkType backTrace, ZoneType startPoint = UNDEFINED_VALUE(ZoneType))
 	{
 		if (d < m_MaxImp)
 		{
@@ -200,7 +204,19 @@ struct DijkstraHeap
 			MarkTentative(v, d);
 			if (m_TraceBackDataPtr)
 				m_TraceBackDataPtr[v] = backTrace;
+			if (m_StartPointDataPtr)
+				m_StartPointDataPtr[v] = startPoint;
 		}
+	}
+
+	// The start point that produced node v's current distance; undefined when provenance is
+	// not tracked or v was never reached.
+	ZoneType StartPointOf(NodeType v) const
+	{
+		if (!m_StartPointDataPtr || !IsDefined(v))
+			return UNDEFINED_VALUE(ZoneType);
+		assert(v < m_NrV);
+		return m_StartPointDataPtr[v];
 	}
 
 	// Removes top (best) node from heap.
@@ -217,6 +233,7 @@ struct DijkstraHeap
 	// External pointers (non-owning by this base type):
 	ImpType* m_ResultDataPtr = nullptr; // Distance array (size: m_NrV)
 	typename sequence_traits<LinkType>::seq_t::iterator m_TraceBackDataPtr = {}; // Optional traceback array
+	ZoneType* m_StartPointDataPtr = nullptr; // Optional per-node origin start point (size: m_NrV)
 	ImpType m_MaxImp = MaxValue<ImpType>(); // Sentinel for "infinite" distance / current cutoff
 
 protected:
@@ -237,14 +254,14 @@ struct OwningDijkstraHeap : DijkstraHeap<NodeType, LinkType, ZoneType,ImpType>
 	OwningDijkstraHeap()
 	{}
 
-	// Construct with ownership of distance and optional traceback arrays.
-	OwningDijkstraHeap(NodeType nrV, bool useSrcZoneStamps, bool useTraceBack)
+	// Construct with ownership of distance and optional traceback / start-point arrays.
+	OwningDijkstraHeap(NodeType nrV, bool useSrcZoneStamps, bool useTraceBack, bool useStartPoints = false)
 	{
-		Init(nrV, useSrcZoneStamps, useTraceBack);
+		Init(nrV, useSrcZoneStamps, useTraceBack, useStartPoints);
 	}
 
 	// Initializes base and allocates buffers if not already allocated.
-	void Init(NodeType nrV, bool useSrcZoneStamps, bool useTraceBack)
+	void Init(NodeType nrV, bool useSrcZoneStamps, bool useTraceBack, bool useStartPoints = false)
 	{
 		DijkstraHeap<NodeType, LinkType, ZoneType, ImpType>::Init(nrV, useSrcZoneStamps);
 		if (nrV && !m_ResultData)
@@ -256,17 +273,25 @@ struct OwningDijkstraHeap : DijkstraHeap<NodeType, LinkType, ZoneType,ImpType>
 				m_TraceBackData = OwningPtrSizedArray<LinkType>(nrV, Undefined() MG_DEBUG_ALLOCATOR_SRC("dijkstra: m_TraceBackData"));
 				this->m_TraceBackDataPtr = m_TraceBackData.begin();
 			}
+			// Undefined() rather than dont_initialize: a node that this origin never reached must
+			// read back as undefined, since the provenance is not re-initialised per origin.
+			if (useStartPoints && !m_StartPointData)
+			{
+				m_StartPointData = OwningPtrSizedArray<ZoneType>(nrV, Undefined() MG_DEBUG_ALLOCATOR_SRC("dijkstra: m_StartPointData"));
+				this->m_StartPointDataPtr = m_StartPointData.begin();
+			}
 		}
 	}
 
 	// Copy constructor delegates to unified Init logic (note: shallow semantics for stamps/traceback pointer usage).
 	OwningDijkstraHeap(const OwningDijkstraHeap& rhs)
-		: OwningDijkstraHeap(rhs.m_NrV, rhs.m_SrcZoneStamp, rhs.m_TraceBackDataPtr)
+		: OwningDijkstraHeap(rhs.m_NrV, rhs.m_SrcZoneStamp, rhs.m_TraceBackDataPtr, rhs.m_StartPointDataPtr)
 	{}
 
 	// Owned arrays:
 	OwningPtrSizedArray<ImpType> m_ResultData;      // Distance buffer
 	OwningPtrSizedArray<LinkType> m_TraceBackData;  // Optional predecessor links
+	OwningPtrSizedArray<ZoneType> m_StartPointData; // Optional per-node origin start point
 	OwningPtrSizedArray<ImpType> m_AltLinkWeight,   // (Potential future use: alternative edge weights)
                              m_LinkAttr;         // (Potential future use: edge attribute storage)
 };

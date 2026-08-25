@@ -651,6 +651,9 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 	bool tgBetaDecayIsZeroOrOne = tgBetaDecayIsZero || tgBetaDecayIsOne;
 	bool useSrcZoneStamps = flags(df & DijkstraFlag::SparseResult) && flags(df & DijkstraFlag::OD);
 	bool useTraceBack = (altLinkWeights || linkAttr || res.od_LS || res.LinkFlow || (flags(df & DijkstraFlag::VerboseLogging) && !res.node_TB));
+	// od:StartPoint_rel is the only consumer of origin-side provenance, so the per-node array is
+	// allocated only when that member is actually produced (never in the Counting pass).
+	bool useStartPointProvenance = (res.od_StartPointIds != nullptr);
 
 	WriteBlock writeBlocks;
 
@@ -701,7 +704,7 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 			if (!nzc.m_ResImpPerDstZone)
 			{
 				nzc.Init(ni, df, euclidicSqrDist);
-				dh.Init(ni.nrV, useSrcZoneStamps, useTraceBack);
+				dh.Init(ni.nrV, useSrcZoneStamps, useTraceBack, useStartPointProvenance);
 			}
 
 			bool trIsUsed = false;
@@ -745,7 +748,7 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 			{
 				dms_assert(startPointIndex < ni.nrX);
 				NodeType startNode = ni.startPoints.Node_rel ? ni.startPoints.Node_rel[startPointIndex] : startPointIndex;
-				dh.InsertNode(startNode, ni.startPoints.Impedances ? ni.startPoints.Impedances[startPointIndex] : ImpType(0), UNDEFINED_VALUE(LinkType));
+				dh.InsertNode(startNode, ni.startPoints.Impedances ? ni.startPoints.Impedances[startPointIndex] : ImpType(0), UNDEFINED_VALUE(LinkType), startPointIndex);
 				if (trIsUsed)
 					tr.InitRootNode(startNode);
 			};
@@ -830,6 +833,10 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 					}
 				}
 
+				// Any node relaxed from here inherits this node's origin start point; read once,
+				// as currNode is final and its provenance cannot change any more.
+				ZoneType currStartPoint = dh.StartPointOf(currNode);
+
 				// Relax the outgoing links. The deltaCost test is only a cheap early-out that
 				// skips links no path can ever afford; InsertNode applies the real cutoff to the
 				// accumulated currImp + deltaCost. Since currImp >= 0 the early-out can never
@@ -841,7 +848,7 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 					NodeType otherNode = graph.linkF2Data[currLink];
 					ImpType deltaCost = graph.linkImpDataPtr[currLink];
 					if (deltaCost < dh.m_MaxImp)
-						dh.InsertNode(otherNode, currImp + deltaCost, currLink);
+						dh.InsertNode(otherNode, currImp + deltaCost, currLink, currStartPoint);
 					currLink = graph.node_link1_inv.Next(currLink);
 				}
 				if (!flags(df & (DijkstraFlag::Bidirectional | DijkstraFlag::BidirFlag)))
@@ -857,7 +864,7 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 					NodeType otherNode = graph.linkF1Data[currLink];
 					ImpType deltaCost = graph.linkImpDataPtr[currLink];
 					if (deltaCost < dh.m_MaxImp)
-						dh.InsertNode(otherNode, currImp + deltaCost, currLink);
+						dh.InsertNode(otherNode, currImp + deltaCost, currLink, currStartPoint);
 					currLink = graph.node_link2_inv.Next(currLink);
 				}
 			}
@@ -930,6 +937,18 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 					while (c)
 						*--endPointPtr = nzc.DstZone2EndPoint(--c);
 				}
+				// The accepted route's origin was recorded on the arrival NODE during the
+				// traversal, so go through the end node rather than through the end point.
+				// DstZone2EndNode, not Res2EndNode: here the result index IS the dst zone
+				// (see the CAUTION at Res2EndPoint). Unreached zones still own a row and get
+				// an undefined start point, matching their undefined impedance.
+				if (res.od_StartPointIds)
+				{
+					auto startPointPtr = res.od_StartPointIds + resultCountBase + zonalResultCount;
+					ZoneType c = zonalResultCount;
+					while (c)
+						*--startPointPtr = dh.StartPointOf(nzc.DstZone2EndNode(--c));
+				}
 			}
 			else
 			{
@@ -955,6 +974,14 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 						auto currPtr = res.od_EndPointIds + resultCountBase;
 						for (ZoneType resIndex = 0; resIndex != zonalResultCount; ++resIndex)
 							*currPtr++ = nzc.Res2EndPoint(resIndex);
+					}
+					// See the dense counterpart above: the origin of the accepted route is read
+					// from the arrival node. Every sparse row is a reached zone, so the end node
+					// is defined here.
+					if (res.od_StartPointIds) {
+						auto currPtr = res.od_StartPointIds + resultCountBase;
+						for (ZoneType resIndex = 0; resIndex != zonalResultCount; ++resIndex)
+							*currPtr++ = dh.StartPointOf(nzc.Res2EndNode(resIndex));
 					}
 				}
 			}
