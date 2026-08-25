@@ -44,7 +44,10 @@ Section "GeoDMS Program Folder" ;No components page, name is not important
 !ifdef GeoDmsGlobio
   ; The G output is wiped before every release build and its dependency-closure
   ; verifier rejects gdal.dll, so package its validated DLL set as one unit.
-  File ${GeoDmsBinDir}\*.dll
+  ; Excluded: the windeployqt extras that the curated m/c lists below also omit
+  ; (opengl32sw is the 20 MB software-OpenGL fallback, D3Dcompiler_47 its shader
+  ; compiler); without them the g setup is size-comparable to m/c again.
+  File /x opengl32sw.dll /x D3Dcompiler_47.dll ${GeoDmsBinDir}\*.dll
 !else
   File ${GeoDmsBinDir}\Rtc.dll
   File ${GeoDmsBinDir}\Shv.dll
