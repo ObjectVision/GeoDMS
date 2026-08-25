@@ -92,6 +92,10 @@ enum class DijkstraFlag : UInt64
 	ProdTraceBack    = 0x10'0000, // Store predecessor info for path reconstruction (non-OD single-source).
 	ProdOdLinkSet    = 0x20'0000, // Produce per-OD link set (set of traversed edges).
 
+	// Bi-criteria (pareto) mode -- issue #856
+	BiCriteria       = 0x40'0000, // pareto: bi-criteria label-setting on (imp, alternative imp); one od-row per Pareto-optimal route.
+	Imp2Cut          = 0x80'0000, // pareto(OrgZone_max_imp2): extra argument bounding the second criterion.
+
 	// OD relative outputs
 	ProdOdOrgZone_rel    = 0x100'0000, // Output: origin zone (per OD pair).
 	ProdOdDstZone_rel    = 0x200'0000, // Output: destination zone (per OD pair).

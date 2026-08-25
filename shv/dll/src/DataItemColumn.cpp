@@ -628,6 +628,20 @@ private:
 	SizeT m_CellIndex;
 };
 
+// Columns share the cell pitch along the repeat axis, but a column that draws an element
+// border spends DOUBLE_BORDERSIZE of that pitch on the border, so the smallest pitch that
+// still leaves every column MIN_COL_ELEM_WIDTH of element extent is set by the bordered
+// columns, if any.
+CrdType MinSharedCellPitch(TableControl* tc, CrdType rowSep)
+{
+	CrdType maxBorder = 0;
+	for (gr_elem_index i = 0, n = tc->NrEntries(); i != n; ++i)
+		if (auto* col = tc->GetColumn(i))
+			if (col->HasElemBorder())
+				maxBorder = DOUBLE_BORDERSIZE;
+	return MIN_COL_ELEM_WIDTH + maxBorder + rowSep;
+}
+
 } // anonymous namespace
 
 bool DataItemColumn::FindSharedCellBorder(CrdType absLogicalC, bool isColOriented, SizeT& cellIndex) const
@@ -685,7 +699,7 @@ void DataItemColumn::StartSharedCellResize(MouseEventDispatcher& med, bool isCol
 
 	// cursor-tie along the cell axis: the border may move outward freely but not past the
 	// minimum block extent measured from the viewport near-edge (avoids an inverted block)
-	CrdType minPitch = MIN_COL_ELEM_WIDTH + (HasElemBorder() ? DOUBLE_BORDERSIZE : 0) + RowSepHeight();
+	CrdType minPitch = MinSharedCellPitch(tc.get(), RowSepHeight());
 	GType tieMinDevC = CrdType2GType((viewEdgeAbsC + CrdType(cellIndex + 1 - r0) * minPitch) * sC);
 
 	// stack-axis extent of the drag caret: span the whole viewport so the dragged
@@ -745,14 +759,21 @@ void DataItemColumn::SharedCellDragTo(CrdType mouseLogicalC, bool isColOriented,
 	// pitch such that border (cellIndex) lands under the mouse while cell r0 stays pinned:
 	//   border-from-edge = pitch*(cellIndex+1 - r0) + (pitchOld*r0 - contentCatEdge) == dTarget
 	CrdType pitchNew = (dTarget + contentCatEdge - pitchOld * CrdType(r0)) / nAbove;
-	CrdType elemNew = pitchNew - RowSepHeight() - (HasElemBorder() ? DOUBLE_BORDERSIZE : 0);
-	MakeMax(elemNew, MIN_COL_ELEM_WIDTH);
-	UInt16 elemC = TType2GType(elemNew);
-	pitchNew = CrdType(elemC) + (HasElemBorder() ? DOUBLE_BORDERSIZE : 0) + RowSepHeight(); // after clamp
+
+	// What the columns share is the pitch, not the element extent: a bordered column spends
+	// DOUBLE_BORDERSIZE of its pitch on the element border. Handing every column the same
+	// element extent therefore let the bordered symbol column of a PaletteControl drift
+	// DOUBLE_BORDERSIZE per row (issue #1208), so derive each column's element extent from
+	// the shared pitch and its own border allowance, as TableControl::SetRowHeight does.
+	UInt32 rowSep = RowSepHeight();
+	MakeMax(pitchNew, MinSharedCellPitch(tc.get(), rowSep));
+	UInt32 pitchC = TType2GType(pitchNew);
+	pitchNew = pitchC; // after clamp and truncation
 
 	for (gr_elem_index i = 0, n = tc->NrEntries(); i != n; ++i)
 		if (auto* col = tc->GetColumn(i))
 		{
+			UInt16 elemC = UInt16(pitchC - rowSep - (col->HasElemBorder() ? DOUBLE_BORDERSIZE : 0));
 			WPoint sz = col->ElemSize();
 			sz.FlippableY(isColOriented) = elemC;
 			col->SetElemSize(sz);

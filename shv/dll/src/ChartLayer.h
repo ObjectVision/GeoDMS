@@ -46,8 +46,9 @@ public:
 	void SetXAttr(const AbstrDataItem* xAttr);
 	const AbstrDataItem* GetXAttr() const { return m_XAttr.get_ptr(); }
 
-	// categorical X tick labels (position -> label) for the horizontal AxisControl; empty for a
-	// numeric X axis. Queried by AxisControl on the chart's active layer.
+	// X tick labels (position -> label) for the horizontal AxisControl; empty for a numeric X
+	// axis. Filled for a categorical X attribute, and for the row-number X axis when the domain
+	// unit has a Label attribute (issue #1207). Queried by AxisControl on the chart's active layer.
 	const std::vector<std::pair<CrdType, SharedStr>>& GetXAxisLabels() const { return m_XAxisLabels; }
 
 //	override virtuals of GraphicLayer
@@ -89,6 +90,9 @@ private:
 	void AddXAxisMenu(MenuData& menuData);
 
 	SharedDataItemInterestPtr m_XAttr; // optional; null => row number
+	// the domain unit's Label attribute, providing the tick labels of a row-number X axis;
+	// null when an X attribute is set or the domain has no Label (issue #1207)
+	SharedDataItemInterestPtr m_XLabelAttr;
 	ChartDrawMode m_DrawMode = ChartDrawMode::Points;
 
 	// per-element state, (re)computed by DoUpdateView in world coords (X=col, Y=row)
@@ -96,7 +100,7 @@ private:
 	mutable std::vector<DmsColor> m_PointColors;
 	mutable std::vector<bool>     m_Selected;
 	mutable CrdType               m_BarSlotHalf = 0.4; // world half-width of a per-element bar slot (shared by sibling bar layers)
-	// categorical X: tick labels at ordinal positions (empty => numeric X axis)
+	// tick labels at their X positions (empty => numeric X axis)
 	mutable std::vector<std::pair<CrdType, SharedStr>> m_XAxisLabels;
 	mutable bool m_Ready = false;
 	bool m_ZoomedOnce = false;
