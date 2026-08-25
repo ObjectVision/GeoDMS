@@ -51,8 +51,8 @@ Section "GeoDMS Program Folder"
   File ${CMakeBinDir}\profiler.py
   File ${CMakeBinDir}\regression.py
 
-  ; Python binding
-  File ${CMakeBinDir}\geodms.pyd
+  ; Python ABI matrix (validated exactly before packaging)
+  File ${CMakeBinDir}\geodms.cp*-win_amd64.pyd
 
   ; GeoDMS DLLs (Dm-prefixed in CMake build)
   File ${CMakeBinDir}\DmRtc.dll
@@ -142,7 +142,7 @@ Section "GeoDMS Program Folder"
 
   ; Register in Windows "Apps & Features" so the install is visible there
   ; and can be removed via the standard system UI. Subkey includes flavor
-  ; so side-by-side .m/.c/.l installs of the same version each get their
+  ; so side-by-side .m/.c/.g/.l installs of the same version each get their
   ; own row. See issue #499.
   !define UninstKey "Software\Microsoft\Windows\CurrentVersion\Uninstall\GeoDms${GeoDmsVersion}.${GeoDmsFlavor}"
   SetRegView 64
@@ -251,7 +251,7 @@ Section uninstall
   Delete $INSTDIR\RewriteExpr.lsp
   Delete $INSTDIR\profiler.py
   Delete $INSTDIR\regression.py
-  Delete $INSTDIR\geodms.pyd
+  Delete $INSTDIR\geodms*.pyd
   Delete $INSTDIR\GeoDMS_npp_def.xml
   Delete $INSTDIR\*.dll
   Delete $INSTDIR\*.pyd

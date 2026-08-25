@@ -46,7 +46,7 @@ is a two-line guard against an unpleasant failure mode for anyone invoking the s
 | [#1202](https://github.com/ObjectVision/GeoDMS/issues/1202) Worker-thread internal errors lack item context and are duplicated as warnings | Concrete diagnostic defects, but the known reproduction is the large/heisenbug run from #1201. Trace the worker reporting and meta-thread replay paths before changing severity or deduplication. |
 | [#1206](https://github.com/ObjectVision/GeoDMS/issues/1206) Spatial/CRS Debug runs leave 17 CRT blocks at shutdown | Already taken. The fixed signature across CRS/GDAL cases points at process-lifetime spatial-library cleanup; keep separate from the GUI nontermination in #1191 until stacks connect them. |
 | [#1191](https://github.com/ObjectVision/GeoDMS/issues/1191) Closing the GUI during calculation leaves the process alive | Repro and dump exist. Likely scheduler teardown ordering: scheduled suppliers are discarded before active joiners are released, followed by an unbounded task-group wait. Needs stack-backed shutdown/lifetime work, not a local GUI close patch. |
-| [#1105](https://github.com/ObjectVision/GeoDMS/issues/1105) geodms.pyd Python ABI mismatch across .m/.c installers | Build/packaging restructuring for a consistent bundled Python and coexistence with user GDAL/QGIS. One concrete sub-defect is now pinned and is much smaller than the issue as a whole: `bin\Release\x64\geodms.pyd` imports `python313.dll` while the same directory ships `python312.dll` — whatever copies the Python runtime is not keyed to the Python that `python/dll` links against. |
+| [#1105](https://github.com/ObjectVision/GeoDMS/issues/1105) geodms.pyd Python ABI mismatch across .m/.c installers | Regular Windows builds now target CPython 3.12/3.13/3.14. A separate `.g` GLOBIO build targets CPython 3.9 and the exact GDAL 3.1.4 conda stack, with isolated output/vcpkg roots, ABI-tagged modules, dependency-closure deployment, and both-import-order checks. Interactive `.m`/`.c`/`.g` release/setup validation remains open. |
 | [#403](https://github.com/ObjectVision/GeoDMS/issues/403) Don't collect recollected items into subset | Changes how subitems are collected in `select_with_attr` subunits. |
 
 ## D. Needs design
@@ -316,11 +316,12 @@ admission gate / drain-mode series (SS8.1.21-SS8.1.33).
 - **Export-flow cluster**: #711 is closed; #411's pattern — route table exports through the Export Primary
   Data dialog via a constructed `Desktops/Default/ViewData` config table — is the base for what
   remains: #973 (VAT option) is a dialog/driver option on top of the same machinery.
-- **Packaging as a blind spot** (#1186, #1105): both are the same shape — a runtime dependency that
-  nothing verifies. The `.c` setup shipped no CRT and the packaging step could not notice, because
+- **Packaging as a blind spot** (#1186, #1105): both had the same shape — a runtime dependency that
+  nothing verified. The `.c` setup shipped no CRT and the packaging step could not notice, because
   NSIS only fails on a `File` line naming a missing file, never on a dependency that is named nowhere;
-  `geodms.pyd` imports `python313.dll` next to a shipped `python312.dll`. An import-closure check of
-  `bin\` against the packaged file list would catch both classes.
+  `geodms.pyd` imported `python313.dll` next to a shipped `python312.dll`. The Python bindings now have
+  targeted pre-packaging import/ABI checks; a general import-closure check would extend the same
+  protection to every executable and DLL.
 - **Least certain classifications**: #1145 still needs a debugging session before it is clear whether
   it is an afternoon or a refactor. #1204 needs the compatibility decision from its reporter.
 - **Reproducing a GUI issue** is cheap: `GeoDmsGuiQt.exe /L<log> /T<script> /S1 /S2 /S3 <config.dms>`

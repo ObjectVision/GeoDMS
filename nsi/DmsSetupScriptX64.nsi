@@ -10,7 +10,9 @@
 ; outputs of the same version can co-exist:
 ;   m -> msbuild  (this script)
 ;   c -> cmake    (DmsSetupScriptX64-cmake.nsi)
+;   g -> GLOBIO   (DmsSetupScriptX64-globio.nsi)
 ;   l -> linux    (CreateLinuxSetup.sh)
 !define GeoDmsFlavor "m"
+!define GeoDmsPythonPlatformTag "win_amd64"
 
 !include DmsSetupScript.nsh

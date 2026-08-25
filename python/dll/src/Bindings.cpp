@@ -40,7 +40,9 @@
 
 
 #include <algorithm>
+#include <array>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <memory>
 #include <vector>
@@ -49,12 +51,109 @@
 #include <pybind11/cast.h>
 #include <pybind11/stl.h>
 
+static_assert(PY_MAJOR_VERSION == GEODMS_PYTHON_MAJOR && PY_MINOR_VERSION == GEODMS_PYTHON_MINOR,
+	"Python.h does not match python/PythonVersions.txt; point the ABI-specific Python root at the requested CPython minor");
+
 
 
 namespace py = pybind11;
 
 namespace py_geodms
 {
+	namespace
+	{
+		int binding_module_anchor;
+
+		std::filesystem::path GetLoadedModulePath(HMODULE module)
+		{
+			std::vector<wchar_t> buffer(32768);
+			const DWORD length = GetModuleFileNameW(module, buffer.data(), static_cast<DWORD>(buffer.size()));
+			if (!length || length == buffer.size())
+				throw py::import_error("Cannot determine a loaded DLL path while checking the GeoDMS GDAL runtime");
+			return std::filesystem::path(std::wstring(buffer.data(), length));
+		}
+
+#ifdef GEODMS_GLOBIO
+		bool FilesHaveEqualContent(const std::filesystem::path& lhs, const std::filesystem::path& rhs)
+		{
+			std::error_code fileError;
+			const auto lhsSize = std::filesystem::file_size(lhs, fileError);
+			if (fileError)
+				return false;
+			const auto rhsSize = std::filesystem::file_size(rhs, fileError);
+			if (fileError || lhsSize != rhsSize)
+				return false;
+
+			std::ifstream lhsStream(lhs, std::ios::binary);
+			std::ifstream rhsStream(rhs, std::ios::binary);
+			if (!lhsStream || !rhsStream)
+				return false;
+
+			std::array<char, 64 * 1024> lhsBuffer;
+			std::array<char, 64 * 1024> rhsBuffer;
+			do {
+				lhsStream.read(lhsBuffer.data(), lhsBuffer.size());
+				rhsStream.read(rhsBuffer.data(), rhsBuffer.size());
+				const auto lhsCount = lhsStream.gcount();
+				const auto rhsCount = rhsStream.gcount();
+				if (lhsCount != rhsCount || !std::equal(lhsBuffer.begin(), lhsBuffer.begin() + lhsCount, rhsBuffer.begin()))
+					return false;
+			} while (lhsStream);
+			return true;
+		}
+#endif
+
+		void CheckBundledGdalIsActive()
+		{
+			HMODULE bindingModule = nullptr;
+			const auto anchorAddress = reinterpret_cast<LPCWSTR>(&binding_module_anchor);
+			if (!GetModuleHandleExW(
+				GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+				anchorAddress, &bindingModule))
+			{
+				throw py::import_error("Cannot locate the loaded geodms extension while checking its GDAL runtime");
+			}
+
+#ifdef GEODMS_GLOBIO
+			constexpr wchar_t gdalDllName[] = L"gdal301.dll";
+#else
+			constexpr wchar_t gdalDllName[] = L"gdal.dll";
+#endif
+			const HMODULE gdalModule = GetModuleHandleW(gdalDllName);
+			if (!gdalModule)
+				return; // DmGeo may be delay-loaded by a future build.
+
+			const auto bindingPath = GetLoadedModulePath(bindingModule);
+			const auto gdalPath = GetLoadedModulePath(gdalModule);
+			std::error_code pathError;
+			const bool sameDirectory = std::filesystem::equivalent(
+				bindingPath.parent_path(), gdalPath.parent_path(), pathError);
+			if (!pathError && sameDirectory)
+				return;
+
+#ifdef GEODMS_GLOBIO
+			// `osgeo` may have loaded the GLOBIO copy before geodms. Permit that
+			// only when it is byte-for-byte the same locked gdal301.dll that the
+			// G setup bundles; a matching version string alone is not an ABI proof.
+			const auto bundledGdalPath = bindingPath.parent_path() / gdalDllName;
+			if (FilesHaveEqualContent(gdalPath, bundledGdalPath))
+				return;
+
+			throw py::import_error(
+				"The GeoDMS G flavour refused an already-loaded gdal301.dll from '" + gdalPath.string() +
+				"' because it differs from the GLOBIO-locked copy in '" + bundledGdalPath.string() +
+				"'. Recreate the environment from the pinned GLOBIO environment.yml or use separate processes.");
+#else
+			throw py::import_error(
+				"GeoDMS refused to use an already-loaded GDAL from '" + gdalPath.string() +
+				"'. The geodms extension and its bundled gdal.dll must be loaded from '" +
+				bindingPath.parent_path().string() +
+				"'. A different QGIS/OSGeo4W/GDAL build cannot safely share this Python process; "
+				"use matching builds or separate processes.");
+#endif
+		}
+	}
+
 	//----------------------------------------------------------------------
 	// helper: resolve a script value-type name (e.g. "float64", "uint32",
 	//         "spoint", "string") to its UnitClass.
@@ -535,6 +634,8 @@ void dataitem_set_values_from_int_list(py_geodms::MutableDataItem self, const st
 }
 
 PYBIND11_MODULE(geodms, m) {
+	py_geodms::CheckBundledGdalIsActive();
+
 	m.doc() = "Python bindings for the GeoDMS Data & Model Server: read/query a configuration, "
 	          "set parameter values, build an in-memory configuration without a model script, "
 	          "and query results via Primary Data Access.";

@@ -217,6 +217,26 @@ void UsingCache::ClearUsings(bool keepFixedUsings)
 	SetDirty();
 }
 
+void UsingCache::ResetFixedUsings(bool includeImplicitParent, const TreeItem* definitionNamespace)
+{
+	// Rebuild the fixed namespace base IN PLACE, keeping m_Incoming: the sub-items that took
+	// m_Context as their implicit parent namespace stay registered here and are merely marked
+	// dirty (ClearUsings -> SetDirty propagates to them). Assigning a fresh UsingCache over
+	// TreeItem::m_UsingCache instead runs ~UsingCache, which walks m_Incoming and erases
+	// m_Context from each incoming m_Usings -- right when the item is being destroyed, wrong
+	// when it lives on: AddParent runs at construction only, so a sub-item declared in a
+	// template-instantiation body would lose its parent namespace for good and every relative
+	// 'Using' url in it stops resolving.
+	ClearUsings(false);
+	m_NrFixedUsings = 0;
+	if (includeImplicitParent)
+		AddParent();
+	if (definitionNamespace)
+		AddUsingInternal(definitionNamespace);
+	m_NrFixedUsings = m_Usings.size();
+	SetDirty();
+}
+
 bool UsingCache::AddUsingInternal(const TreeItem* nameSpace) const
 {
 	dms_assert(nameSpace);

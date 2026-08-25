@@ -1,0 +1,23 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "dependencies": [
+    "boost-algorithm",
+    "boost-asio",
+    "boost-beast",
+    "boost-config",
+    "boost-geometry",
+    "boost-lockfree",
+    "boost-polygon",
+    "boost-property-tree",
+    "boost-regex",
+    "boost-spirit",
+    "boost-ublas",
+    "cgal",
+    "fftw3",
+    "openssl",
+    {
+      "name": "pybind11",
+      "platform": "windows"
+    }
+  ]
+}

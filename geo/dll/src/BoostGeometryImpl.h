@@ -33,6 +33,9 @@
 
 #include <geos/simplify/DouglasPeuckerSimplifier.h>
 
+template <geometry_library>
+inline constexpr bool unsupported_geometry_library_v = false;
+
 // *****************************************************************************
 //	more conversion functions
 // *****************************************************************************
@@ -675,7 +678,7 @@ struct SimplifyLinestringOperator : public AbstrSimplifyOperator
 			}
 			else
 			{
-				static_assert(false, "Unsupported geometry library for SimplifyLinestringOperator");
+				static_assert(unsupported_geometry_library_v<GL>, "Unsupported geometry library for SimplifyLinestringOperator");
 			}
 		}
 	}
@@ -1079,7 +1082,7 @@ struct BufferMultiPointOperator : public AbstrBufferOperator
 			}
 			else
 			{
-				static_assert(false, "Unsupported geometry library for BufferMultiPointOperator");
+				static_assert(unsupported_geometry_library_v<GL>, "Unsupported geometry library for BufferMultiPointOperator");
 			}
 		}
 	}
@@ -1219,7 +1222,7 @@ struct BufferLineStringOperator : public AbstrBufferOperator
 			}
 			else
 			{
-				static_assert(false, "Unsupported geometry library for BufferLineStringOperator");
+				static_assert(unsupported_geometry_library_v<GL>, "Unsupported geometry library for BufferLineStringOperator");
 			}
 		}
 	}
@@ -1499,13 +1502,15 @@ struct GeosBufferOperator : public AbstrBufferOperator
 };
 
 // *****************************************************************************
-//	outer
+//	unary polygon -> polygon base
 // *****************************************************************************
 
-class AbstrOuterOperator : public UnaryOperator
+// Shared skeleton for the unary polygon operators: same domain and values unit as the argument,
+// ValueComposition::Polygon in and out, one tile at a time. Subclasses only implement Calculate.
+class AbstrUnaryPolygonOperator : public UnaryOperator
 {
 protected:
-	AbstrOuterOperator(AbstrOperGroup& og, const DataItemClass* polyAttrClass)
+	AbstrUnaryPolygonOperator(AbstrOperGroup& og, const DataItemClass* polyAttrClass)
 		: UnaryOperator(&og, polyAttrClass, polyAttrClass)
 	{}
 
@@ -1546,14 +1551,14 @@ protected:
 };
 
 template <typename P>
-struct OuterMultiPolygonOperator : public AbstrOuterOperator
+struct OuterMultiPolygonOperator : public AbstrUnaryPolygonOperator
 {
 	using PointType = P;
 	using PolygonType = sequence_traits<PointType>::container_type;
 	using Arg1Type = DataArray<PolygonType>;
 
 	OuterMultiPolygonOperator(AbstrOperGroup& gr)
-		: AbstrOuterOperator(gr, Arg1Type::GetStaticClass())
+		: AbstrUnaryPolygonOperator(gr, Arg1Type::GetStaticClass())
 	{}
 
 	void Calculate(AbstrDataObject* resItem, const AbstrDataItem* polyItem, tile_id t) const override
@@ -1579,14 +1584,14 @@ struct OuterMultiPolygonOperator : public AbstrOuterOperator
 };
 
 template <typename P>
-struct OuterSinglePolygonOperator : public AbstrOuterOperator
+struct OuterSinglePolygonOperator : public AbstrUnaryPolygonOperator
 {
 	using PointType = P;
 	using PolygonType = sequence_traits<PointType>::container_type;
 	using Arg1Type = DataArray<PolygonType>;
 
 	OuterSinglePolygonOperator(AbstrOperGroup& gr)
-		: AbstrOuterOperator(gr, Arg1Type::GetStaticClass())
+		: AbstrUnaryPolygonOperator(gr, Arg1Type::GetStaticClass())
 	{}
 
 	void Calculate(AbstrDataObject* resObj, const AbstrDataItem* polyItem, tile_id t) const override
@@ -1616,6 +1621,284 @@ struct OuterSinglePolygonOperator : public AbstrOuterOperator
 				throw;
 			}
 
+		}
+	}
+};
+
+// *****************************************************************************
+//	reverse_polygon
+// *****************************************************************************
+
+// Reverses the winding order of every ring, leaving the sequence layout alone.
+//
+// Reversing a polygon value as a whole - what the sequence2points / reverse / points2sequence
+// workaround in issue #302 does - destroys anything with holes or parts. Rings are self-delimiting
+// (a ring ends where its own first point repeats) and the parts of a multi-polygon are strung
+// together with backtrack points, so after a whole-sequence reverse fillPointIndexBuffer reads one
+// bogus ring spanning the backtrack head plus every hole.
+//
+// Reversing each ring in place is exact instead: a closed ring p0 p1 .. pk p0 reverses to
+// p0 pk .. p1 p0, so its first and last point are unchanged, and therefore so is every ring
+// delimiter and every backtrack point (each of which is by construction some ring's first point).
+// The points between the rings - the backtracks - are copied through untouched.
+template <typename P>
+struct ReversePolygonOperator : public AbstrUnaryPolygonOperator
+{
+	using PointType = P;
+	using PolygonType = sequence_traits<PointType>::container_type;
+	using Arg1Type = DataArray<PolygonType>;
+
+	ReversePolygonOperator(AbstrOperGroup& gr)
+		: AbstrUnaryPolygonOperator(gr, Arg1Type::GetStaticClass())
+	{}
+
+	void Calculate(AbstrDataObject* resObj, const AbstrDataItem* polyItem, tile_id t) const override
+	{
+		auto polyData = const_array_cast<PolygonType>(polyItem)->GetTile(t);
+		auto resData = mutable_array_cast<PolygonType>(resObj)->GetWritableTile(t);
+		assert(polyData.size() == resData.size());
+
+		index_range_vector_t ringRanges;
+
+		for (SizeT i = 0, n = polyData.size(); i != n; ++i)
+		{
+			auto polyRef = polyData[i];
+			auto resRef = resData[i];
+
+			if (!polyRef.IsDefined())
+			{
+				resRef.assign(Undefined());
+				continue;
+			}
+			if (polyRef.empty())
+				continue;
+
+			resRef.assign(polyRef.begin(), polyRef.end() MG_DEBUG_ALLOCATOR_SRC("ReversePolygon"));
+
+			ringRanges.clear();
+			fillPointIndexBuffer(ringRanges, polyRef.begin(), polyRef.end());
+
+			for (const auto& ringRange : ringRanges)
+				std::reverse(resRef.begin() + ringRange.first, resRef.begin() + ringRange.second);
+		}
+	}
+};
+
+// *****************************************************************************
+//	fix_winding_order / fix_polygon / has_correct_winding  (issue #302)
+// *****************************************************************************
+
+// All three run geos_polygons_by_nesting (GEOS_Traits.h), which derives the shell/hole roles from
+// geometric nesting rather than from ring orientation, and then applies the clockwise-shell /
+// counter-clockwise-hole convention with Polygon::orientRings. They differ only in what they do
+// with the verdict it returns.
+
+// fix_winding_order: reorder and reorient the rings, never move a vertex.
+//
+// Vertices are carried over from the input unchanged - the only points that disappear are the
+// repeats and spikes that geos_create_linear_ring drops, the same normalisation every geometry
+// reader in GeoDMS already applies. Because GEOS is used for the ANALYSIS only, this is exact for
+// integer coordinates as well, so the operator is registered for every point type.
+//
+// It does not repair self-intersections: for a bow-tie the signed area is not an orientation
+// indicator at all (the lobes cancel, and a symmetric bow-tie has area exactly 0), and repairing
+// one means moving coordinates. Those features are passed through with a warning naming
+// fix_polygon.
+template <typename P>
+struct FixWindingOrderOperator : public AbstrUnaryPolygonOperator
+{
+	using PointType = P;
+	using PolygonType = sequence_traits<PointType>::container_type;
+	using Arg1Type = DataArray<PolygonType>;
+
+	FixWindingOrderOperator(AbstrOperGroup& gr)
+		: AbstrUnaryPolygonOperator(gr, Arg1Type::GetStaticClass())
+	{}
+
+	void Calculate(AbstrDataObject* resObj, const AbstrDataItem* polyItem, tile_id t) const override
+	{
+		auto polyData = const_array_cast<PolygonType>(polyItem)->GetTile(t);
+		auto resData = mutable_array_cast<PolygonType>(resObj)->GetWritableTile(t);
+		assert(polyData.size() == resData.size());
+
+		geos_create_linear_ring_helper_data<PointType> tmpRingData;
+		SizeT nrStillInvalid = 0;
+
+		for (SizeT i = 0, n = polyData.size(); i != n; ++i)
+		{
+			auto polyRef = polyData[i];
+			auto resRef = resData[i];
+
+			if (!polyRef.IsDefined())
+			{
+				resRef.assign(Undefined());
+				continue;
+			}
+			if (polyRef.empty())
+				continue;
+
+			auto nesting = geos_polygons_by_nesting(polyRef, tmpRingData);
+			if (!nesting.geometry)
+				continue;
+
+			if (!nesting.isValid)
+				++nrStillInvalid;
+
+			geos_assign_geometry(resRef, nesting.geometry.get());
+		}
+
+		if (nrStillInvalid)
+			reportF(SeverityTypeID::ST_Warning
+				, "{}: {} of {} geometries in tile {} are still invalid after the rings were reordered. "
+				  "fix_winding_order never moves a vertex, so a self-intersecting ring survives it; use fix_polygon to repair those."
+				, GetGroup()->GetNameStr()
+				, nrStillInvalid, polyData.size(), t);
+	}
+};
+
+// fix_polygon: fix_winding_order, and then GEOS MakeValid for whatever is still invalid.
+//
+// A single operator rather than geos_polygon(fix_winding_order(g)) in configuration, for two
+// reasons. The nesting pass already knows which features are invalid, so MakeValid runs only on
+// those instead of on every row. And it cleans an in-memory geometry that has already been given
+// the right ring roles, so it never re-reads the point sequence through geos_create_polygons.
+//
+// This one does move coordinates - that is the point - so it is restricted to dpoint like the rest
+// of the geos family: MakeValid introduces intersection points that an integer coordinate grid
+// cannot represent, and truncating them back could produce new invalid geometry.
+template <typename P>
+struct FixPolygonOperator : public AbstrUnaryPolygonOperator
+{
+	using PointType = P;
+	using PolygonType = sequence_traits<PointType>::container_type;
+	using Arg1Type = DataArray<PolygonType>;
+
+	FixPolygonOperator(AbstrOperGroup& gr)
+		: AbstrUnaryPolygonOperator(gr, Arg1Type::GetStaticClass())
+	{}
+
+	void Calculate(AbstrDataObject* resObj, const AbstrDataItem* polyItem, tile_id t) const override
+	{
+		auto polyData = const_array_cast<PolygonType>(polyItem)->GetTile(t);
+		auto resData = mutable_array_cast<PolygonType>(resObj)->GetWritableTile(t);
+		assert(polyData.size() == resData.size());
+
+		geos_create_linear_ring_helper_data<PointType> tmpRingData;
+
+		for (SizeT i = 0, n = polyData.size(); i != n; ++i)
+		{
+			auto polyRef = polyData[i];
+			auto resRef = resData[i];
+
+			if (!polyRef.IsDefined())
+			{
+				resRef.assign(Undefined());
+				continue;
+			}
+			if (polyRef.empty())
+				continue;
+
+			auto nesting = geos_polygons_by_nesting(polyRef, tmpRingData);
+			if (!nesting.geometry)
+				continue;
+
+			if (nesting.isValid)
+			{
+				geos_assign_geometry(resRef, nesting.geometry.get());
+				continue;
+			}
+
+			// clean_geos_geometry reports what was wrong and what survived, so the repair is visible
+			auto cleaned = clean_geos_geometry(nesting.geometry.get());
+			geos_assign_geometry(resRef, cleaned.get());
+		}
+	}
+};
+
+// *****************************************************************************
+//	unary polygon -> bool base
+// *****************************************************************************
+
+class AbstrPolygonPredicateOperator : public UnaryOperator
+{
+protected:
+	AbstrPolygonPredicateOperator(AbstrOperGroup& og, const DataItemClass* polyAttrClass)
+		: UnaryOperator(&og, DataArray<Bool>::GetStaticClass(), polyAttrClass)
+	{}
+
+	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
+	{
+		assert(args.size() == 1);
+
+		const AbstrDataItem* arg1A = AsDataItem(args[0]);
+		assert(arg1A);
+
+		CheckGeometryArgComposition(GetGroup(), arg1A, ValueComposition::Polygon);
+
+		const AbstrUnit* domain1Unit = arg1A->GetAbstrDomainUnit();
+
+		if (!resultHolder)
+			resultHolder = CreateCacheDataItem(domain1Unit, Unit<Bool>::GetStaticClass()->CreateDefault());
+
+		if (mustCalc)
+		{
+			DataReadLock arg1Lock(arg1A);
+			auto resItem = AsDataItem(resultHolder.GetNew());
+			DataWriteLock resLock(resItem, dms_rw_mode::write_only_all);
+
+			parallel_tileloop(domain1Unit->GetNrTiles(), [this, resObj = resLock.get(), arg1A](tile_id t)->void
+				{
+					ReadableTileLock readPoly1Lock(arg1A->GetCurrRefObj().get(), t);
+
+					Calculate(resObj, arg1A, t);
+				}
+			);
+
+			resLock.Commit();
+		}
+		return true;
+	}
+	virtual void Calculate(AbstrDataObject* resItem, const AbstrDataItem* polyItem, tile_id t) const = 0;
+};
+
+// has_correct_winding: the selection predicate that area(g) < 0 was standing in for.
+//
+// True only when the feature is certifiably clean: every ring's orientation agrees with its
+// nesting parity, no ring collapsed, and IsValidOp accepts the result. Any doubt gives False, so
+// select_with_org_rel(!has_correct_winding(g)) never under-selects. Unlike area(g) < 0 it catches
+// the half-flipped feature, whose total area is too LARGE rather than negative.
+//
+// An undefined or empty geometry has no rings and therefore no winding to get wrong: it answers
+// True, so selecting on the negation does not drag in every null row.
+template <typename P>
+struct HasCorrectWindingOperator : public AbstrPolygonPredicateOperator
+{
+	using PointType = P;
+	using PolygonType = sequence_traits<PointType>::container_type;
+	using Arg1Type = DataArray<PolygonType>;
+
+	HasCorrectWindingOperator(AbstrOperGroup& gr)
+		: AbstrPolygonPredicateOperator(gr, Arg1Type::GetStaticClass())
+	{}
+
+	void Calculate(AbstrDataObject* resObj, const AbstrDataItem* polyItem, tile_id t) const override
+	{
+		auto polyData = const_array_cast<PolygonType>(polyItem)->GetTile(t);
+		auto resData = mutable_array_cast<Bool>(resObj)->GetWritableTile(t, dms_rw_mode::write_only_all);
+		assert(polyData.size() == resData.size());
+
+		geos_create_linear_ring_helper_data<PointType> tmpRingData;
+
+		for (SizeT i = 0, n = polyData.size(); i != n; ++i)
+		{
+			auto polyRef = polyData[i];
+
+			if (!polyRef.IsDefined() || polyRef.empty())
+			{
+				resData[i] = true;
+				continue;
+			}
+			resData[i] = geos_polygons_by_nesting(polyRef, tmpRingData).IsClean();
 		}
 	}
 };

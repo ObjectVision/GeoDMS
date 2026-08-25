@@ -2,6 +2,9 @@
 ;--------------------------------
 
 !define GeoDmsVersion "$%GeoDmsVersion%"
+!ifndef GeoDmsBinDir
+  !define GeoDmsBinDir "..\bin\Release\${GeoDmsPlatform}"
+!endif
 !echo "Current Version: {GeoDmsVersion}"
 Name "GeoDms${GeoDmsVersion}.${GeoDmsFlavor} for ${GeoDmsPlatform}"
 
@@ -31,89 +34,94 @@ Section "GeoDMS Program Folder" ;No components page, name is not important
   SetOutPath $INSTDIR
   
   CreateDirectory $INSTDIR
-  File ..\bin\Release\${GeoDmsPlatform}\GeoDmsRun.exe
-  File ..\bin\Release\${GeoDmsPlatform}\GeoDmsGuiQt.exe
-  File ..\bin\Release\${GeoDmsPlatform}\RewriteExpr.lsp
-  File ..\bin\Release\${GeoDmsPlatform}\prelude.dms
-  File ..\bin\Release\${GeoDmsPlatform}\profiler.py
-  File ..\bin\Release\${GeoDmsPlatform}\regression.py
+  File ${GeoDmsBinDir}\GeoDmsRun.exe
+  File ${GeoDmsBinDir}\GeoDmsGuiQt.exe
+  File ${GeoDmsBinDir}\RewriteExpr.lsp
+  File ${GeoDmsBinDir}\prelude.dms
+  File ${GeoDmsBinDir}\profiler.py
+  File ${GeoDmsBinDir}\regression.py
 
-  ; File ..\bin\Release\${GeoDmsPlatform}\*.dll
-  File ..\bin\Release\${GeoDmsPlatform}\Rtc.dll
-  File ..\bin\Release\${GeoDmsPlatform}\Shv.dll
-  File ..\bin\Release\${GeoDmsPlatform}\Stg.dll
-  File ..\bin\Release\${GeoDmsPlatform}\Stx.dll
-  File ..\bin\Release\${GeoDmsPlatform}\Clc.dll
-  File ..\bin\Release\${GeoDmsPlatform}\Geo.dll
+!ifdef GeoDmsGlobio
+  ; The G output is wiped before every release build and its dependency-closure
+  ; verifier rejects gdal.dll, so package its validated DLL set as one unit.
+  File ${GeoDmsBinDir}\*.dll
+!else
+  File ${GeoDmsBinDir}\Rtc.dll
+  File ${GeoDmsBinDir}\Shv.dll
+  File ${GeoDmsBinDir}\Stg.dll
+  File ${GeoDmsBinDir}\Stx.dll
+  File ${GeoDmsBinDir}\Clc.dll
+  File ${GeoDmsBinDir}\Geo.dll
 
-  File ..\bin\Release\${GeoDmsPlatform}\Qt6Core.dll
-  File ..\bin\Release\${GeoDmsPlatform}\Qt6Gui.dll
-  File ..\bin\Release\${GeoDmsPlatform}\Qt6Svg.dll
-  File ..\bin\Release\${GeoDmsPlatform}\Qt6Widgets.dll
-  File ..\bin\Release\${GeoDmsPlatform}\tinyxml2.dll
+  File ${GeoDmsBinDir}\Qt6Core.dll
+  File ${GeoDmsBinDir}\Qt6Gui.dll
+  File ${GeoDmsBinDir}\Qt6Svg.dll
+  File ${GeoDmsBinDir}\Qt6Widgets.dll
+  File ${GeoDmsBinDir}\tinyxml2.dll
   
-  File ..\bin\Release\${GeoDmsPlatform}\vccorlib140.dll
-  File ..\bin\Release\${GeoDmsPlatform}\vcomp140.dll
-  File ..\bin\Release\${GeoDmsPlatform}\vcruntime140.dll
-  File ..\bin\Release\${GeoDmsPlatform}\vcruntime140_1.dll
-  File ..\bin\Release\${GeoDmsPlatform}\vcruntime140_threads.dll
-  File ..\bin\Release\${GeoDmsPlatform}\concrt140.dll
+  File ${GeoDmsBinDir}\vccorlib140.dll
+  File ${GeoDmsBinDir}\vcomp140.dll
+  File ${GeoDmsBinDir}\vcruntime140.dll
+  File ${GeoDmsBinDir}\vcruntime140_1.dll
+  File ${GeoDmsBinDir}\vcruntime140_threads.dll
+  File ${GeoDmsBinDir}\concrt140.dll
+  File ${GeoDmsBinDir}\msvcp140.dll
+  File ${GeoDmsBinDir}\msvcp140_1.dll
+  File ${GeoDmsBinDir}\msvcp140_2.dll
+  File ${GeoDmsBinDir}\msvcp140_atomic_wait.dll
+  File ${GeoDmsBinDir}\msvcp140_codecvt_ids.dll
 
-  File ..\bin\Release\${GeoDmsPlatform}\msvcp140.dll
-  File ..\bin\Release\${GeoDmsPlatform}\msvcp140_1.dll
-  File ..\bin\Release\${GeoDmsPlatform}\msvcp140_2.dll
-  File ..\bin\Release\${GeoDmsPlatform}\msvcp140_atomic_wait.dll
-  File ..\bin\Release\${GeoDmsPlatform}\msvcp140_codecvt_ids.dll
+  File ${GeoDmsBinDir}\fftw3.dll
+  File ${GeoDmsBinDir}\fftw3f.dll
+  File ${GeoDmsBinDir}\gdal.dll
+  File ${GeoDmsBinDir}\tiff.dll
+  File ${GeoDmsBinDir}\arrow.dll
+  File ${GeoDmsBinDir}\brotlicommon.dll
+  File ${GeoDmsBinDir}\brotlidec.dll
+  File ${GeoDmsBinDir}\brotlienc.dll
+  File ${GeoDmsBinDir}\bz2.dll
+  File ${GeoDmsBinDir}\freexl-1.dll
+  File ${GeoDmsBinDir}\geos.dll
+  File ${GeoDmsBinDir}\geos_c.dll
+  File ${GeoDmsBinDir}\geotiff.dll
+  File ${GeoDmsBinDir}\gif.dll
+  File ${GeoDmsBinDir}\gmp-10.dll
+  File ${GeoDmsBinDir}\hdf5.dll
+  File ${GeoDmsBinDir}\hdf5_hl.dll
+  File ${GeoDmsBinDir}\iconv-2.dll
+  File ${GeoDmsBinDir}\jpeg62.dll
+  File ${GeoDmsBinDir}\json-c.dll
+  File ${GeoDmsBinDir}\Lerc.dll
+  File ${GeoDmsBinDir}\libcrypto-3-x64.dll
+  File ${GeoDmsBinDir}\libcurl.dll
+  File ${GeoDmsBinDir}\libexpat.dll
+  File ${GeoDmsBinDir}\liblzma.dll
+  File ${GeoDmsBinDir}\libpng16.dll
+  File ${GeoDmsBinDir}\LIBPQ.dll
+  File ${GeoDmsBinDir}\libsharpyuv.dll
+  File ${GeoDmsBinDir}\libssl-3-x64.dll
+  File ${GeoDmsBinDir}\libwebp.dll
+  File ${GeoDmsBinDir}\libxml2.dll
+  File ${GeoDmsBinDir}\lz4.dll
+  File ${GeoDmsBinDir}\minizip.dll
+  File ${GeoDmsBinDir}\mpfr-6.dll
+  File ${GeoDmsBinDir}\netcdf.dll
+  File ${GeoDmsBinDir}\openjp2.dll
+  File ${GeoDmsBinDir}\parquet.dll
+  File ${GeoDmsBinDir}\pcre2-8.dll
+  File ${GeoDmsBinDir}\proj_9.dll
+  File ${GeoDmsBinDir}\qhull_r.dll
+  File ${GeoDmsBinDir}\snappy.dll
+  File ${GeoDmsBinDir}\spatialite.dll
+  File ${GeoDmsBinDir}\sqlite3.dll
+  File ${GeoDmsBinDir}\szip.dll
+  File ${GeoDmsBinDir}\z.dll
+  File ${GeoDmsBinDir}\zstd.dll
+!endif
 
-
-  File ..\bin\Release\${GeoDmsPlatform}\fftw3.dll
-  File ..\bin\Release\${GeoDmsPlatform}\fftw3f.dll
-  File ..\bin\Release\${GeoDmsPlatform}\gdal.dll
-  File ..\bin\Release\${GeoDmsPlatform}\tiff.dll
-  File ..\bin\Release\${GeoDmsPlatform}\arrow.dll
-  File ..\bin\Release\${GeoDmsPlatform}\brotlicommon.dll
-  File ..\bin\Release\${GeoDmsPlatform}\brotlidec.dll
-  File ..\bin\Release\${GeoDmsPlatform}\brotlienc.dll
-  File ..\bin\Release\${GeoDmsPlatform}\bz2.dll
-  File ..\bin\Release\${GeoDmsPlatform}\freexl-1.dll
-  File ..\bin\Release\${GeoDmsPlatform}\geos.dll
-  File ..\bin\Release\${GeoDmsPlatform}\geos_c.dll
-  File ..\bin\Release\${GeoDmsPlatform}\geotiff.dll
-  File ..\bin\Release\${GeoDmsPlatform}\gif.dll
-  File ..\bin\Release\${GeoDmsPlatform}\gmp-10.dll
-  File ..\bin\Release\${GeoDmsPlatform}\hdf5.dll
-  File ..\bin\Release\${GeoDmsPlatform}\hdf5_hl.dll
-  File ..\bin\Release\${GeoDmsPlatform}\iconv-2.dll
-  File ..\bin\Release\${GeoDmsPlatform}\jpeg62.dll
-  File ..\bin\Release\${GeoDmsPlatform}\json-c.dll
-  File ..\bin\Release\${GeoDmsPlatform}\Lerc.dll
-  File ..\bin\Release\${GeoDmsPlatform}\libcrypto-3-x64.dll
-  File ..\bin\Release\${GeoDmsPlatform}\libcurl.dll
-  File ..\bin\Release\${GeoDmsPlatform}\libexpat.dll
-  File ..\bin\Release\${GeoDmsPlatform}\liblzma.dll
-  File ..\bin\Release\${GeoDmsPlatform}\libpng16.dll
-  File ..\bin\Release\${GeoDmsPlatform}\LIBPQ.dll
-  File ..\bin\Release\${GeoDmsPlatform}\libsharpyuv.dll
-  File ..\bin\Release\${GeoDmsPlatform}\libssl-3-x64.dll
-  File ..\bin\Release\${GeoDmsPlatform}\libwebp.dll
-  File ..\bin\Release\${GeoDmsPlatform}\libxml2.dll
-  File ..\bin\Release\${GeoDmsPlatform}\lz4.dll
-  File ..\bin\Release\${GeoDmsPlatform}\minizip.dll
-  File ..\bin\Release\${GeoDmsPlatform}\mpfr-6.dll
-  File ..\bin\Release\${GeoDmsPlatform}\netcdf.dll
-  File ..\bin\Release\${GeoDmsPlatform}\openjp2.dll
-  File ..\bin\Release\${GeoDmsPlatform}\parquet.dll
-  File ..\bin\Release\${GeoDmsPlatform}\pcre2-8.dll
-  File ..\bin\Release\${GeoDmsPlatform}\proj_9.dll
-  File ..\bin\Release\${GeoDmsPlatform}\qhull_r.dll
-  File ..\bin\Release\${GeoDmsPlatform}\snappy.dll
-  File ..\bin\Release\${GeoDmsPlatform}\spatialite.dll
-  File ..\bin\Release\${GeoDmsPlatform}\sqlite3.dll
-  File ..\bin\Release\${GeoDmsPlatform}\szip.dll
-  File ..\bin\Release\${GeoDmsPlatform}\z.dll
-  File ..\bin\Release\${GeoDmsPlatform}\zstd.dll
-
-  File ..\bin\Release\${GeoDmsPlatform}\geodms.pyd
+  ; The pre-package verifier requires the exact configured ABI matrix, so this
+  ; wildcard cannot silently admit a stale or missing binding.
+  File ${GeoDmsBinDir}\geodms.cp*-${GeoDmsPythonPlatformTag}.pyd
 
   File ..\res\NotePadPlusPlus\GeoDMS_npp_def.xml
   
@@ -121,7 +129,7 @@ Section "GeoDMS Program Folder" ;No components page, name is not important
 
   ; Register in Windows "Apps & Features" so the install is visible there
   ; and can be removed via the standard system UI. Subkey includes flavor
-  ; so side-by-side .m/.c/.l installs of the same version each get their
+  ; so side-by-side .m/.c/.g/.l installs of the same version each get their
   ; own row. See issue #499.
   !define UninstKey "Software\Microsoft\Windows\CurrentVersion\Uninstall\GeoDms${GeoDmsVersion}.${GeoDmsFlavor}"
   !if "${GeoDmsPlatform}" == "x64"
@@ -139,54 +147,54 @@ Section "GeoDMS Program Folder" ;No components page, name is not important
   WriteRegDWORD HKLM "${UninstKey}" "NoRepair" 1
 
   SetOutPath $INSTDIR\gdaldata
-  File ..\bin\Release\${GeoDmsPlatform}\gdaldata\*.*
+  File ${GeoDmsBinDir}\gdaldata\*.*
   
   SetOutPath $INSTDIR\generic
-  File ..\bin\Release\${GeoDmsPlatform}\generic\*.*
+  File ${GeoDmsBinDir}\generic\*.*
   
   SetOutPath $INSTDIR\iconengines
-  File ..\bin\Release\${GeoDmsPlatform}\iconengines\*.*
+  File ${GeoDmsBinDir}\iconengines\*.*
   
   SetOutPath $INSTDIR\imageformats
-  File ..\bin\Release\${GeoDmsPlatform}\imageformats\*.*
+  File ${GeoDmsBinDir}\imageformats\*.*
   
   SetOutPath $INSTDIR\misc\fonts
-  File ..\bin\Release\${GeoDmsPlatform}\misc\fonts\*.*
+  File ${GeoDmsBinDir}\misc\fonts\*.*
   
   SetOutPath $INSTDIR\networkinformation
-  File ..\bin\Release\${GeoDmsPlatform}\networkinformation\*.*
+  File ${GeoDmsBinDir}\networkinformation\*.*
   
   SetOutPath $INSTDIR\platforms
-  File ..\bin\Release\${GeoDmsPlatform}\platforms\*.*
+  File ${GeoDmsBinDir}\platforms\*.*
   
   SetOutPath $INSTDIR\proj4data
-  File ..\bin\Release\${GeoDmsPlatform}\proj4data\*.*
+  File ${GeoDmsBinDir}\proj4data\*.*
 
   SetOutPath $INSTDIR\styles
-  File ..\bin\Release\${GeoDmsPlatform}\styles\*.*
+  File ${GeoDmsBinDir}\styles\*.*
   
   SetOutPath $INSTDIR\tls
-  File ..\bin\Release\${GeoDmsPlatform}\tls\*.*
+  File ${GeoDmsBinDir}\tls\*.*
   
   SetOutPath $INSTDIR\examples
-  File ..\bin\Release\${GeoDmsPlatform}\examples\*.*
+  File ${GeoDmsBinDir}\examples\*.*
 
   ; typed-function testcases battery (also the regression suite: run via
   ; examples\testcases\run_testcases.bat against the installed GeoDmsRun)
   SetOutPath $INSTDIR\examples\testcases
-  File ..\bin\Release\${GeoDmsPlatform}\examples\testcases\*.*
+  File ${GeoDmsBinDir}\examples\testcases\*.*
 
   SetOutPath $INSTDIR\library
-  File ..\bin\Release\${GeoDmsPlatform}\library\*.*
+  File ${GeoDmsBinDir}\library\*.*
 
   SetOutPath $INSTDIR\library\basedata_nl
-  File ..\bin\Release\${GeoDmsPlatform}\library\basedata_nl\*.*
+  File ${GeoDmsBinDir}\library\basedata_nl\*.*
 
   SetOutPath $INSTDIR\library\basedata_nl\rdc
-  File ..\bin\Release\${GeoDmsPlatform}\library\basedata_nl\rdc\*.*
+  File ${GeoDmsBinDir}\library\basedata_nl\rdc\*.*
 
   SetOutPath $INSTDIR\library\geometry
-  File ..\bin\Release\${GeoDmsPlatform}\library\geometry\*.*
+  File ${GeoDmsBinDir}\library\geometry\*.*
 
   IfSilent skip_set_all
     MessageBox MB_YESNO 'Install startmenu shortcuts for all users?' IDNO skip_set_all
@@ -223,7 +231,7 @@ Section uninstall
   Delete $INSTDIR\profiler.py
   Delete $INSTDIR\regression.py
   Delete $INSTDIR\*.dll
-  Delete $INSTDIR\geodms.pyd
+  Delete $INSTDIR\geodms*.pyd
   Delete $INSTDIR\GeoDMS_npp_def.xml
 
   Delete $INSTDIR\gdaldata\*.*

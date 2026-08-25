@@ -48,6 +48,23 @@
           WorkingDirectory="$(MSBuildThisFileDirectory)" />
   </Target>
 
+  <Target Name="DmsRequireGlobioEnvironment"
+          BeforeTargets="VcpkgInstallManifestDependencies;ClCompile"
+          Condition="'$(GeoDmsGlobio)' == 'true'">
+    <Error Condition="'$(GeoDmsGlobioRoot)' == ''"
+           Text="GLOBIO_ENV_ROOT is not set. Point it at the conda environment locked by vcpkg-globio\environment.yml." />
+    <Error Condition="!Exists('$(GeoDmsGlobioRoot)\python.exe') or !Exists('$(GeoDmsGlobioRoot)\Library\bin\gdal301.dll')"
+           Text="GLOBIO_ENV_ROOT does not contain the required CPython 3.9/GDAL 3.1.4 environment: $(GeoDmsGlobioRoot)" />
+  </Target>
+
+  <Target Name="DmsValidateGlobioEnvironment"
+          BeforeTargets="VcpkgInstallManifestDependencies;ClCompile"
+          DependsOnTargets="DmsRequireGlobioEnvironment"
+          Condition="'$(GeoDmsGlobio)' == 'true' and '$(MSBuildProjectName)' == 'DmRtc'">
+    <Exec Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)tools\verify-globio-environment.ps1&quot; -GlobioRoot &quot;$(GeoDmsGlobioRoot)&quot;"
+          WorkingDirectory="$(MSBuildThisFileDirectory)" />
+  </Target>
+
   <!--
     Counterpart to the vcpkg.props import in Directory.Build.props: pull in the submodule's
     vcpkg.targets late (manifest install + include/lib injection + applocal DLL copy). It
@@ -81,6 +98,10 @@
     decides whether anything actually needs rebuilding, which is the correct authority.
   -->
   <ItemGroup Condition="'$(VcpkgEnabled)' == 'true' and '$(VcpkgEnableManifest)' == 'true' and '$(VcpkgManifestInstall)' == 'true'">
+    <_ZVcpkgInstallManifestDependenciesInputs Include="$(VcpkgManifestRoot)vcpkg.json"
+                                              Condition="Exists('$(VcpkgManifestRoot)vcpkg.json')" />
+    <_ZVcpkgInstallManifestDependenciesInputs Include="$(VcpkgManifestRoot)vcpkg-configuration.json"
+                                              Condition="Exists('$(VcpkgManifestRoot)vcpkg-configuration.json')" />
     <!-- the triplet: carries VCPKG_PLATFORM_TOOLSET / arch and feeds triplet_abi -->
     <_ZVcpkgInstallManifestDependenciesInputs Include="$(MSBuildThisFileDirectory)vcpkg-triplets\$(VcpkgTriplet).cmake"
                                               Condition="Exists('$(MSBuildThisFileDirectory)vcpkg-triplets\$(VcpkgTriplet).cmake')" />
@@ -158,10 +179,16 @@
           Condition="'$(ConfigurationType)' == 'Application' and '$(VcpkgInstalledDir)' != '' and '$(VcpkgTriplet)' != ''">
     <PropertyGroup>
       <_DmsVcpkgBin>$(VcpkgInstalledDir)$(VcpkgTriplet)\bin</_DmsVcpkgBin>
-      <_DmsVcpkgBin Condition="'$(Configuration)' == 'Debug'">$(VcpkgInstalledDir)$(VcpkgTriplet)\debug\bin</_DmsVcpkgBin>
+      <_DmsVcpkgBin Condition="'$(Configuration)' == 'Debug' and '$(GeoDmsGlobio)' != 'true'">$(VcpkgInstalledDir)$(VcpkgTriplet)\debug\bin</_DmsVcpkgBin>
     </PropertyGroup>
     <ItemGroup>
-      <_DmsVcpkgDll Include="$(_DmsVcpkgBin)\*.dll" />
+      <!-- python3 is a vcpkg build/host dependency, not a GeoDMS application
+           dependency. The bindings use the separately configured CPython ABI
+           matrix and Python itself supplies the matching runtime when importing
+           a .pyd. Copying vcpkg's minor here created the python313/python312
+           mismatch from issue #1105. -->
+      <_DmsVcpkgDll Include="$(_DmsVcpkgBin)\*.dll"
+                    Exclude="$(_DmsVcpkgBin)\python*.dll" />
     </ItemGroup>
     <Copy SourceFiles="@(_DmsVcpkgDll)"
           DestinationFolder="$(OutDir)"
@@ -170,5 +197,22 @@
           Condition="'@(_DmsVcpkgDll)' != ''">
       <Output TaskParameter="CopiedFiles" ItemName="FileWrites" />
     </Copy>
+  </Target>
+
+  <!-- Deploy only the transitive conda DLLs actually imported by the G build.
+       The script deliberately prefers the locked GLOBIO copies for shared names
+       (geos_c.dll, tiff.dll, sqlite3.dll, ...) but retains the current v145 CRT. -->
+  <Target Name="DmsDeployGlobioDeps"
+          AfterTargets="Build"
+          Condition="'$(GeoDmsGlobio)' == 'true' and '$(ConfigurationType)' == 'Application' and Exists('$(OutDir)')">
+    <Exec Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)tools\deploy-globio-runtime.ps1&quot; -OutputDir &quot;$(OutDir.TrimEnd('\'))&quot; -GlobioRoot &quot;$(GeoDmsGlobioRoot)&quot; -CopiedFilesLog &quot;$(IntDir)globio.applocal.log&quot;"
+          WorkingDirectory="$(MSBuildThisFileDirectory)" />
+    <ReadLinesFromFile File="$(IntDir)globio.applocal.log"
+                       Condition="Exists('$(IntDir)globio.applocal.log')">
+      <Output TaskParameter="Lines" ItemName="_DmsGlobioAppLocalDLLs" />
+    </ReadLinesFromFile>
+    <ItemGroup>
+      <FileWrites Include="@(_DmsGlobioAppLocalDLLs)" />
+    </ItemGroup>
   </Target>
 </Project>

@@ -313,7 +313,11 @@ bool AuthorityCodeIsValidCrs(std::string_view wkt)
 	auto is_derived_geographic = srs.IsDerivedGeographic();
 	auto is_projected = srs.IsProjected();
 	auto is_local = srs.IsLocal();
+#if GDAL_VERSION_NUM >= GDAL_COMPUTE_VERSION(3, 4, 0)
 	auto is_dynamic = srs.IsDynamic();
+#else
+	constexpr bool is_dynamic = false; // dynamic CRS API was added in GDAL 3.4
+#endif
 	auto is_geocentric = srs.IsGeocentric();
 	auto is_vertical = srs.IsVertical();
 	auto is_compound = srs.IsCompound();
@@ -860,12 +864,18 @@ GDALDataType gdalRasterDataType(ValueClassID tid, bool write)
 	case ValueClassID::VT_UInt8:   return GDT_Byte;
 	case ValueClassID::VT_UInt16:  return GDT_UInt16;
 	case ValueClassID::VT_UInt32:  return GDT_UInt32;
+#if GDAL_VERSION_NUM >= GDAL_COMPUTE_VERSION(3, 5, 0)
 	case ValueClassID::VT_UInt64:  return GDT_UInt64;
+#endif
 
+#if GDAL_VERSION_NUM >= GDAL_COMPUTE_VERSION(3, 7, 0)
 	case ValueClassID::VT_Int8:   return GDT_Int8;
+#endif
 	case ValueClassID::VT_Int16:   return GDT_Int16;
 	case ValueClassID::VT_Int32:   return GDT_Int32;
+#if GDAL_VERSION_NUM >= GDAL_COMPUTE_VERSION(3, 5, 0)
 	case ValueClassID::VT_Int64:   return GDT_Int64;
+#endif
 
 	case ValueClassID::VT_Float32: return GDT_Float32;
 	case ValueClassID::VT_Float64: return GDT_Float64;
@@ -1390,11 +1400,13 @@ void TryRegisterVectorDriverFromKnownDriverShortName(std::string_view known_driv
 	else if (known_driver_shortname == "GPKG")
 		RegisterOGRGeoPackage();
 
+#if GDAL_VERSION_NUM >= GDAL_COMPUTE_VERSION(3, 5, 0)
 	else if (known_driver_shortname == "Parquet")
 		RegisterOGRParquet();
 
 	else if (known_driver_shortname == "Arrow")
 		RegisterOGRArrow();
+#endif
 
 	else if (known_driver_shortname == "CSV")
 		RegisterOGRCSV();

@@ -15,7 +15,11 @@
 #include "geom/RemoveAdjacentsAndSpikes.h"
 
 //============================  GEOS  ============================
+#include <geos/version.h>
 #include <geos/geom/GeometryFactory.h>
+#if GEOS_VERSION_MAJOR == 3 && GEOS_VERSION_MINOR < 12
+#include <geos/geom/CoordinateSequenceFactory.h>
+#endif
 #include <geos/geom/Geometry.h>
 #include <geos/geom/Polygon.h>
 #include <geos/geom/LinearRing.h>
@@ -23,6 +27,11 @@
 #include <geos/operation/polygonize/Polygonizer.h>
 #include <geos/operation/valid/IsValidOp.h>
 #include <geos/operation/valid/MakeValid.h>
+#include <geos/algorithm/Area.h>
+#include <geos/algorithm/locate/IndexedPointInAreaLocator.h>
+#include <geos/geom/MultiPolygon.h>
+
+#include <numeric>
 //#include <geos_c.h>
 
 inline auto geos_factory() -> const geos::geom::GeometryFactory*
@@ -71,12 +80,20 @@ auto geos_create_multi_linestring(const DmsPointType* begin, const DmsPointType*
 		}
 		if (!lineStringCoords.empty())
 		{
+#if GEOS_VERSION_MAJOR == 3 && GEOS_VERSION_MINOR < 12
+			auto coordSeq = geos_factory()->getCoordinateSequenceFactory()->create(lineStringCoords.size(), 2);
+			std::size_t i = 0;
+			for (const auto& p : lineStringCoords)
+				coordSeq->setAt(p, i++);
+			auto ls = geos_factory()->createLineString(std::move(coordSeq));
+#else
 			auto coordSeq = geos::geom::CoordinateSequence::XY(lineStringCoords.size());
 			std::size_t i = 0;
 			for (const auto& p: lineStringCoords)
 				coordSeq[i++] = p;
 
 			auto ls = geos_factory()->createLineString(coordSeq);
+#endif
 			resLineStrings.emplace_back(std::move(ls));
 		}
 		if (curr == beyond)
@@ -97,6 +114,17 @@ auto geos_circle(double radius, int pointsPerCircle) -> std::unique_ptr<geos::ge
 	if (pointsPerCircle < 3)
 		pointsPerCircle = 3;
 	auto anglePerPoint = 2.0 * std::numbers::pi_v<double> / pointsPerCircle;
+#if GEOS_VERSION_MAJOR == 3 && GEOS_VERSION_MINOR < 12
+	auto seq = geos_factory()->getCoordinateSequenceFactory()->create(pointsPerCircle + 1, 2);
+	for (int i = 0; i < pointsPerCircle; ++i) {
+		double angle = i * anglePerPoint;
+		int x = static_cast<int>(radius * std::cos(angle));
+		int y = static_cast<int>(radius * std::sin(angle));
+		seq->setAt(geos::geom::Coordinate(x, y), i);
+	}
+	seq->setAt(seq->getAt(0), pointsPerCircle);
+	return geos_factory()->createLinearRing(std::move(seq));
+#else
 	auto seq = geos::geom::CoordinateSequence::XY(pointsPerCircle + 1);
 	for (int i = 0; i < pointsPerCircle; ++i) {
 		double angle = i * anglePerPoint;
@@ -106,6 +134,7 @@ auto geos_circle(double radius, int pointsPerCircle) -> std::unique_ptr<geos::ge
 	}
 	seq[pointsPerCircle] = seq[0]; // close ring
 	return geos_factory()->createLinearRing(seq);
+#endif
 }
 
 
@@ -113,7 +142,6 @@ template <typename DmsPointType>
 struct geos_create_linear_ring_helper_data
 {
 	std::vector<DmsPointType> helperRingPoints;
-//	std::vector<geos::geom::Coordinate> helperRingCoords;
 };
 
 template <typename DmsPointType>
@@ -130,15 +158,14 @@ auto geos_create_linear_ring(const DmsPointType* begin, const DmsPointType* beyo
 	remove_adjacents_and_spikes(tmp.helperRingPoints);
 	if (tmp.helperRingPoints.size() < 3)
 		return {};
-
-/* REMOVE
-	tmp.helperRingCoords.clear();
-	tmp.helperRingCoords.reserve(tmp.helperRingPoints.size() + 1);
+#if GEOS_VERSION_MAJOR == 3 && GEOS_VERSION_MINOR < 12
+	auto sequence = geos_factory()->getCoordinateSequenceFactory()->create(tmp.helperRingPoints.size() + 1, 2);
+	std::size_t i = 0;
 	for (const auto& p : tmp.helperRingPoints)
-		tmp.helperRingCoords.emplace_back(geos_Coordinate(p));
-	tmp.helperRingCoords.emplace_back(geos_Coordinate(tmp.helperRingPoints[0])); // close ring.
-	*/
-
+		sequence->setAt(geos_Coordinate(p), i++);
+	sequence->setAt(geos_Coordinate(tmp.helperRingPoints[0]), i); // close ring.
+	auto result = geos_factory()->createLinearRing(std::move(sequence));
+#else
 	auto sequence = geos::geom::CoordinateSequence::XY(tmp.helperRingPoints.size() + 1);
 	std::size_t i = 0;
 	for (const auto& p : tmp.helperRingPoints)
@@ -146,8 +173,8 @@ auto geos_create_linear_ring(const DmsPointType* begin, const DmsPointType* beyo
 	sequence[i] = geos_Coordinate(tmp.helperRingPoints[0]); // close ring.
 
 
-//	auto coordSerq = geos_factory()->create(sequence)
 	auto result = geos_factory()->createLinearRing(sequence);
+#endif
 	MG_CHECK(result->isClosed());
 	return result;
 }
@@ -247,6 +274,181 @@ auto geos_create_polygons(SA_ConstReference<DmsPointType> polyRef, bool mustInse
 	r->normalize();
 	return r;
 }
+
+// *****************************************************************************
+//	nesting-based ring roles: geos_polygons_by_nesting (issue #302)
+// *****************************************************************************
+
+// Why this exists next to geos_create_polygons above.
+//
+// Both geos_create_polygons and assign_multi_polygon on the boost side decide which ring is a
+// shell and which is a hole from the ring's ORIENTATION. That works while the source honours the
+// convention, and it is exactly what breaks on the data in issue #302: when only some rings of a
+// feature are flipped, a lake that turned clockwise reads as a new shell, and an island inside
+// that lake reads as a hole of the wrong polygon. Reversing points afterwards cannot repair it,
+// because by then the roles are already wrong. area() does not even flag it - a flipped lake
+// makes the total too large, never negative.
+//
+// This reader derives the roles from geometric NESTING and only then applies the convention: a
+// ring at even nesting depth is a shell, a ring at odd depth is a hole of the ring that contains
+// it, and Polygon::orientRings() gives each assembled polygon the clockwise-shell /
+// counter-clockwise-hole order. The input orientation is never consulted for the roles, so a
+// uniformly flipped feature and a half-flipped one both come out right.
+
+// GeoDMS documents clockwise outer rings and counter-clockwise holes, and area() is positive for
+// exactly that order. GEOS uses the same sign convention - Area::ofRingSigned is positive for a
+// clockwise ring - and since DMS_POINT_ROWCOL is not defined, geos_Coordinate and geos_write_point
+// round-trip (x, y) unchanged. The geos set operations already depend on this mapping through
+// cleanupPolygons -> Geometry::normalize(), which orients shells clockwise too.
+constexpr bool GEOS_EXTERIOR_IS_CW = true;
+
+struct geos_nesting_result
+{
+	std::unique_ptr<geos::geom::Geometry> geometry;
+
+	bool hadWrongWinding   = false; // a ring's orientation disagreed with its nesting parity
+	bool hadDegenerateRing = false; // a ring collapsed below 3 distinct points and was dropped
+	bool isValid           = true;  // IsValidOp accepts the assembled geometry
+
+	// GEOS validity deliberately ignores ring orientation, so isValid alone would pass a
+	// mixed-winding feature; hadWrongWinding is the half that catches it.
+	bool IsClean() const { return !hadWrongWinding && !hadDegenerateRing && isValid; }
+};
+
+// Is inner strictly inside the ring the locator was built on?
+//
+// One vertex is not enough: rings that touch their parent share vertices, and a shared vertex
+// reports BOUNDARY, which says nothing about the ring as a whole. Walk until a vertex lands
+// strictly inside or strictly outside.
+inline bool geos_ring_is_inside(const geos::geom::LinearRing& inner
+	, geos::algorithm::locate::IndexedPointInAreaLocator& outerLocator)
+{
+	const auto* coords = inner.getCoordinatesRO();
+	for (std::size_t i = 0, n = coords->getSize(); i != n; ++i)
+	{
+		auto loc = outerLocator.locate(&coords->getAt<geos::geom::CoordinateXY>(i));
+		if (loc == geos::geom::Location::INTERIOR)
+			return true;
+		if (loc == geos::geom::Location::EXTERIOR)
+			return false;
+	}
+	return false; // every vertex on the boundary: the same ring twice, not a nesting
+}
+
+template <typename DmsPointType>
+auto geos_polygons_by_nesting(SA_ConstReference<DmsPointType> polyRef
+	, geos_create_linear_ring_helper_data<DmsPointType>& tmpRingData)
+-> geos_nesting_result
+{
+	geos_nesting_result result;
+
+	SA_ConstRingIterator<DmsPointType> ri(polyRef, 0), re(polyRef, -1);
+	if (ri == re)
+		return result;
+
+	// 1. the rings, closed and with spikes and repeated points removed
+	std::vector<std::unique_ptr<geos::geom::LinearRing>> rings;
+	for (; ri != re; ++ri)
+	{
+		auto ring = geos_create_linear_ring((*ri).begin(), (*ri).end(), tmpRingData);
+		if (!ring)
+		{
+			result.hadDegenerateRing = true;
+			continue;
+		}
+		rings.emplace_back(std::move(ring));
+	}
+	auto nrRings = rings.size();
+	if (!nrRings)
+		return result;
+
+	// 2. the signed area gives the current orientation; |area| orders parents before children
+	std::vector<double> absArea(nrRings);
+	std::vector<bool> isCW(nrRings);
+	for (std::size_t r = 0; r != nrRings; ++r)
+	{
+		auto signedArea = geos::algorithm::Area::ofRingSigned(rings[r]->getCoordinatesRO());
+		absArea[r] = std::abs(signedArea);
+		isCW[r] = (signedArea > 0.0);
+	}
+
+	std::vector<std::size_t> order(nrRings);
+	std::iota(order.begin(), order.end(), std::size_t(0));
+	std::sort(order.begin(), order.end(), [&](std::size_t a, std::size_t b) { return absArea[a] > absArea[b]; });
+
+	// 3. a ring's parent is the SMALLEST already-placed ring that contains it. Walking largest
+	// first means every candidate parent is placed before any of its children, so scanning the
+	// placed rings backwards - smallest first - finds the innermost container first.
+	// The locators are lazy-loaded, so building one per ring costs nothing until it is queried.
+	std::vector<std::size_t> parent(nrRings, std::size_t(-1));
+	std::vector<UInt32> depth(nrRings, 0);
+	std::vector<std::unique_ptr<geos::algorithm::locate::IndexedPointInAreaLocator>> locators(nrRings);
+
+	for (std::size_t oi = 0; oi != nrRings; ++oi)
+	{
+		auto r = order[oi];
+		const auto* rEnv = rings[r]->getEnvelopeInternal();
+
+		for (std::size_t oj = oi; oj--; )
+		{
+			auto c = order[oj];
+			if (!rings[c]->getEnvelopeInternal()->contains(*rEnv))
+				continue;
+			if (!locators[c])
+				locators[c] = std::make_unique<geos::algorithm::locate::IndexedPointInAreaLocator>(*rings[c]);
+			if (geos_ring_is_inside(*rings[r], *locators[c]))
+			{
+				parent[r] = c;
+				depth[r] = depth[c] + 1;
+				break;
+			}
+		}
+	}
+
+	// 4. even depth is a shell, odd depth a hole of the ring that contains it
+	std::vector<std::vector<std::size_t>> holesOf(nrRings);
+	std::vector<std::size_t> shells;
+	for (std::size_t oi = 0; oi != nrRings; ++oi)
+	{
+		auto r = order[oi];
+		bool isShell = ((depth[r] % 2) == 0);
+
+		if (isCW[r] != (isShell == GEOS_EXTERIOR_IS_CW))
+			result.hadWrongWinding = true;
+
+		if (isShell)
+			shells.emplace_back(r);
+		else
+			holesOf[parent[r]].emplace_back(r); // depth > 0, so parent is set
+	}
+
+	std::vector<std::unique_ptr<geos::geom::Polygon>> polygons;
+	polygons.reserve(shells.size());
+	for (auto r : shells)
+	{
+		std::vector<std::unique_ptr<geos::geom::LinearRing>> holes;
+		holes.reserve(holesOf[r].size());
+		for (auto h : holesOf[r])
+			holes.emplace_back(std::move(rings[h]));
+
+		auto poly = geos_factory()->createPolygon(std::move(rings[r]), std::move(holes));
+		poly->orientRings(GEOS_EXTERIOR_IS_CW);
+		polygons.emplace_back(std::move(poly));
+	}
+
+	if (polygons.empty())
+		return result;
+
+	result.geometry = (polygons.size() == 1)
+		? std::unique_ptr<geos::geom::Geometry>(std::move(polygons.front()))
+		: std::unique_ptr<geos::geom::Geometry>(geos_factory()->createMultiPolygon(std::move(polygons)));
+
+	geos::operation::valid::IsValidOp validator(result.geometry.get());
+	result.isValid = validator.isValid();
+
+	return result;
+}
+
 
 
 template <dms_sequence E>
@@ -715,7 +917,7 @@ inline void checkAndReportValidity(const geos::geom::Geometry* input)
 	geos::operation::valid::IsValidOp validator(input);
 	if (validator.isValid())
 		return;
-	const auto* err = validator.getValidationError();
+	auto* err = validator.getValidationError();
 	if (!err)
 		return;
 	auto coord = err->getCoordinate();

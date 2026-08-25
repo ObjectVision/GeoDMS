@@ -28,6 +28,8 @@
 [CmdletBinding()]
 param(
     [string] $RepoRoot,
+    [string] $ManifestRoot,
+    [string] $InstallRoot,
     [string] $Triplet   = 'x64-windows-v145',
     [int]    $Threshold = 5,
     [int]    $ListMax   = 20
@@ -38,6 +40,8 @@ $ErrorActionPreference = 'Continue'
 # Not a param default: $PSScriptRoot is not reliably populated while the param block is
 # being bound under Windows PowerShell 5.1 invoked as -File.
 if (-not $RepoRoot) { $RepoRoot = Split-Path -Parent $PSScriptRoot }
+if (-not $ManifestRoot) { $ManifestRoot = $RepoRoot }
+if (-not $InstallRoot) { $InstallRoot = Join-Path $RepoRoot 'vcpkg_installed' }
 
 $vcpkgExe = Join-Path $RepoRoot 'vcpkg\vcpkg.exe'
 if (-not (Test-Path $vcpkgExe)) {
@@ -54,8 +58,8 @@ $vcpkgArgs = @(
     '--triplet', $Triplet,
     "--host-triplet=$Triplet",
     '--vcpkg-root', (Join-Path $RepoRoot 'vcpkg'),
-    "--x-manifest-root=$RepoRoot",
-    "--x-install-root=$(Join-Path $RepoRoot 'vcpkg_installed')"
+    "--x-manifest-root=$ManifestRoot",
+    "--x-install-root=$InstallRoot"
 )
 
 $out = & $vcpkgExe @vcpkgArgs 2>&1

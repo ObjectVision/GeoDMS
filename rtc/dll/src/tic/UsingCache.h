@@ -32,6 +32,12 @@ struct UsingCache
 
 	void ClearUsings(bool keepFixedUsings);
 
+	// Re-seat the fixed namespace base (implicit parent and/or lexical definition namespace)
+	// of an EXISTING cache. Never replace the cache object to achieve this: ~UsingCache
+	// detaches m_Context from every incoming cache, which for a context item that stays alive
+	// silently strips the parent namespace from its sub-items forever.
+	void ResetFixedUsings(bool includeImplicitParent, const TreeItem* definitionNamespace);
+
 	UInt32 GetNrUsings() const;
 	const TreeItem* GetUsing(UInt32 i) const;
 

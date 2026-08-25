@@ -22,6 +22,7 @@
 
 #include "AbstrCmd.h"
 #include "AbstrController.h"
+#include "ClassBreakClipboard.h"
 #include "DataView.h"
 #include "FocusElemProvider.h"
 #include "GraphicLayer.h"
@@ -498,6 +499,57 @@ void LayerControl::FillMenu(MouseEventDispatcher& med)
 		,	0 // GetEntry(2)->IsVisible() ? 0 : MFS_DISABLED
 		)
 	);
+
+	// issue #734: build a classification once and reuse it in another view. Appended after
+	// Edit Palette on purpose: the GUI test scripts address this menu by item index.
+	med.m_MenuData.push_back(
+		MenuItem(SharedStr("&Copy Classbreaks")
+		,	make_MembFuncCmd(&LayerControl::CopyClassBreaks)
+		,	this
+		,	theme->GetClassification() ? 0 : MFS_GRAYED
+		)
+	);
+	med.m_MenuData.push_back(
+		MenuItem(SharedStr("Paste Classbreaks")
+		,	make_MembFuncCmd(&LayerControl::PasteClassBreaks)
+		,	this
+		,	ClipBoard_HasClassBreaks() ? 0 : MFS_GRAYED
+		)
+	);
+}
+
+void LayerControl::CopyClassBreaks()
+{
+	auto layer = GetLayer(); if (!layer) return;
+	auto theme = layer->GetActiveTheme(); if (!theme) return;
+
+	auto items = ClassBreaks_GetItems(theme.get());
+	if (!items)
+		throwDmsErrF("CopyClassBreaks: {} has no class breaks to copy", GetThemeDisplayName(layer));
+
+	if (!ClassBreaks_ToClipboard(items.m_BreakAttr.get_ptr(), items.m_ColorAttr.get_ptr(), items.m_LabelAttr.get_ptr(), theme->GetThemeAttr()))
+		throwDmsErrF("CopyClassBreaks: cannot write the class breaks of {} to the clipboard", GetThemeDisplayName(layer));
+}
+
+void LayerControl::PasteClassBreaks()
+{
+	auto dv = GetDataView().lock(); if (!dv) return;
+	auto layer = GetLayer(); if (!layer) return;
+
+	ClassBreakClip clip;
+	SharedStr diagnostic;
+	if (!ClassBreaks_FromClipboard(clip, diagnostic))
+		throwDmsErrF("PasteClassBreaks: {}", diagnostic);
+	if (!diagnostic.empty())
+		reportF(SeverityTypeID::ST_Warning, "PasteClassBreaks: {}", diagnostic);
+
+	if (ClassBreaks_ApplyToLayer(dv.get(), layer, clip))
+		reportF(SeverityTypeID::ST_Warning
+		,	"PasteClassBreaks: the classification of {} is configured or calculated and was left unchanged; a new one was generated for this view"
+		,	GetThemeDisplayName(layer)
+		);
+
+	InvalidateView();
 }
 
 void LayerControl::TogglePaletteIsVisible()

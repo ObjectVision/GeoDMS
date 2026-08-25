@@ -9,26 +9,30 @@
     <RunCodeAnalysis>false</RunCodeAnalysis>
   </PropertyGroup>
   <PropertyGroup Label="Vcpkg">
-    <VcpkgConfiguration>Debug</VcpkgConfiguration>
+    <VcpkgConfiguration Condition="'$(GeoDmsGlobio)' != 'true'">Debug</VcpkgConfiguration>
+    <!-- The GLOBIO conda SDK is a release ABI. A G Debug build keeps debug
+         symbols/assertions but must use release CRT/STL and release vcpkg libs
+         when calling GEOS's C++ API across the DLL boundary. -->
+    <VcpkgConfiguration Condition="'$(GeoDmsGlobio)' == 'true'">Release</VcpkgConfiguration>
   </PropertyGroup>
   <PropertyGroup Label="Configuration">
     <UseDebugLibraries>true</UseDebugLibraries>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
-      <PreprocessorDefinitions>_DEBUG;_ITERATOR_DEBUG_LEVEL=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <PreprocessorDefinitions>_DEBUG;_ITERATOR_DEBUG_LEVEL=$(DmsIteratorDebugLevel);%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>$(DmsDebugRuntimeLibrary)</RuntimeLibrary>
       <Optimization>Disabled</Optimization>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
     </ClCompile>
     <Midl>
-      <PreprocessorDefinitions>_DEBUG;_ITERATOR_DEBUG_LEVEL=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_ITERATOR_DEBUG_LEVEL=$(DmsIteratorDebugLevel);%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </Midl>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <ResourceCompile>
-      <PreprocessorDefinitions>_DEBUG;_ITERATOR_DEBUG_LEVEL=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_ITERATOR_DEBUG_LEVEL=$(DmsIteratorDebugLevel);%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
   </ItemDefinitionGroup>
 </Project>

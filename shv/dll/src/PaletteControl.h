@@ -30,6 +30,8 @@ public:
 	const AbstrDataItem* GetBreakAttr    () const;
 	const AbstrUnit*     GetPaletteDomain() const;
 	const AbstrDataItem* GetThemeAttr    () const;
+	const AbstrDataItem* GetPaletteAttr  () const { return m_PaletteAttr; }  // the aspect value per class, when this legend describes a layer
+	      GraphicLayer*  GetLayer        () const { return m_Layer.get(); }  // null when the palette editor was opened on a class-break attribute
 
 //	override virtuals of GraphicObject
 	void Sync(TreeItem* viewContext, ShvSyncMode sm) override;

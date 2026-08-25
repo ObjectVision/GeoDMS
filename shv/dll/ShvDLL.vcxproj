@@ -83,6 +83,7 @@
     <ClCompile Include="src\ChartControl.cpp" />
     <ClCompile Include="src\ChartDataView.cpp" />
     <ClCompile Include="src\ChartLayer.cpp" />
+    <ClCompile Include="src\ClassBreakClipboard.cpp" />
     <ClCompile Include="src\Clipboard.cpp" />
     <ClCompile Include="src\Controllers.cpp" />
     <ClCompile Include="src\CounterStacks.cpp" />
@@ -159,6 +160,7 @@
     <ClInclude Include="src\ChartControl.h" />
     <ClInclude Include="src\ChartDataView.h" />
     <ClInclude Include="src\ChartLayer.h" />
+    <ClInclude Include="src\ClassBreakClipboard.h" />
     <ClInclude Include="src\Clipboard.h" />
     <ClInclude Include="src\Cmds.h" />
     <ClInclude Include="src\Controllers.h" />

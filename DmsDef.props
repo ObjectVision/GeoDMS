@@ -3,8 +3,12 @@
   <PropertyGroup>
     <_ProjectFileVersion>10.0.21006.1</_ProjectFileVersion>
     <_PropertySheetDisplayName>Dms</_PropertySheetDisplayName>
-    <OutDir>$(SolutionDir)bin\$(Configuration)\$(Platform)\</OutDir>
-    <IntDir>$(SolutionDir)obj\$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
+    <DmsBinaryRoot Condition="'$(GeoDmsGlobio)' != 'true'">$(MSBuildThisFileDirectory)bin</DmsBinaryRoot>
+    <DmsBinaryRoot Condition="'$(GeoDmsGlobio)' == 'true'">$(MSBuildThisFileDirectory)bin_GLOBIO</DmsBinaryRoot>
+    <DmsIntermediateRoot Condition="'$(GeoDmsGlobio)' != 'true'">$(MSBuildThisFileDirectory)obj</DmsIntermediateRoot>
+    <DmsIntermediateRoot Condition="'$(GeoDmsGlobio)' == 'true'">$(MSBuildThisFileDirectory)obj_GLOBIO</DmsIntermediateRoot>
+    <OutDir>$(DmsBinaryRoot)\$(Configuration)\$(Platform)\</OutDir>
+    <IntDir>$(DmsIntermediateRoot)\$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
     <RunCodeAnalysis>false</RunCodeAnalysis>
 	<CAExcludePath>c:\SourceData\ext\boost;$(CAExcludePath)</CAExcludePath>
 	<Platforms>x64;x86</Platforms>
@@ -35,12 +39,26 @@
 	<!-- same path however the build was started, so the IDE, a bare msbuild and the batch -->
 	<!-- scripts all share one vcpkg tree, one binary cache and one downloads root. -->
     <VcpkgAdditionalInstallOptions>--binarysource=clear;files,$(MSBuildThisFileDirectory)vc_archives,readwrite --downloads-root=$(MSBuildThisFileDirectory)vc_downloads</VcpkgAdditionalInstallOptions>
-	<VcpkgTriplet>x64-windows-v145</VcpkgTriplet>
+	<VcpkgTriplet Condition="'$(GeoDmsGlobio)' != 'true'">x64-windows-v145</VcpkgTriplet>
+	<VcpkgTriplet Condition="'$(GeoDmsGlobio)' == 'true'">x64-windows-v143</VcpkgTriplet>
+	<VcpkgManifestRoot Condition="'$(GeoDmsGlobio)' != 'true'">$(MSBuildThisFileDirectory)</VcpkgManifestRoot>
+	<VcpkgManifestRoot Condition="'$(GeoDmsGlobio)' == 'true'">$(MSBuildThisFileDirectory)vcpkg-globio\</VcpkgManifestRoot>
 	<!-- Override default (vcpkg_installed\$(VcpkgTriplet)\) so the layout matches what cmake -->
 	<!-- writes via -DVCPKG_INSTALLED_DIR=vcpkg_installed: a single $(VcpkgTriplet) level, -->
 	<!-- not the doubly-nested vcpkg_installed\<triplet>\<triplet>\ MS's vcpkg.targets produces -->
 	<!-- by default. Shared layout means .m and .c link against the same binaries. -->
-	<VcpkgInstalledDir>$(MSBuildThisFileDirectory)vcpkg_installed\</VcpkgInstalledDir>
+	<VcpkgInstalledDir Condition="'$(GeoDmsGlobio)' != 'true'">$(MSBuildThisFileDirectory)vcpkg_installed\</VcpkgInstalledDir>
+	<VcpkgInstalledDir Condition="'$(GeoDmsGlobio)' == 'true'">$(MSBuildThisFileDirectory)vcpkg_installed_GLOBIO\</VcpkgInstalledDir>
+  </PropertyGroup>
+  <PropertyGroup>
+    <DmsIteratorDebugLevel Condition="'$(GeoDmsGlobio)' != 'true'">1</DmsIteratorDebugLevel>
+    <DmsIteratorDebugLevel Condition="'$(GeoDmsGlobio)' == 'true'">0</DmsIteratorDebugLevel>
+    <DmsDebugRuntimeLibrary Condition="'$(GeoDmsGlobio)' != 'true'">MultiThreadedDebugDLL</DmsDebugRuntimeLibrary>
+    <DmsDebugRuntimeLibrary Condition="'$(GeoDmsGlobio)' == 'true'">MultiThreadedDLL</DmsDebugRuntimeLibrary>
+    <GeoDmsGdalShareDir Condition="'$(GeoDmsGlobio)' != 'true'">$(VcpkgInstalledDir)$(VcpkgTriplet)\share\gdal</GeoDmsGdalShareDir>
+    <GeoDmsProjShareDir Condition="'$(GeoDmsGlobio)' != 'true'">$(VcpkgInstalledDir)$(VcpkgTriplet)\share\proj</GeoDmsProjShareDir>
+    <GeoDmsGdalShareDir Condition="'$(GeoDmsGlobio)' == 'true'">$(GeoDmsGlobioRoot)\Library\share\gdal</GeoDmsGdalShareDir>
+    <GeoDmsProjShareDir Condition="'$(GeoDmsGlobio)' == 'true'">$(GeoDmsGlobioRoot)\Library\share\proj</GeoDmsProjShareDir>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <Bscmake>
@@ -54,6 +72,11 @@
       <!-- _SILENCE_CXX17_STRSTREAM_DEPRECATION_WARNING: utl/mySPrintF.h still uses
            std::ostrstream (see its TODO); same pragma-vs-PCH story as above. -->
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;_SILENCE_CXX17_STRSTREAM_DEPRECATION_WARNING;BOOST_SPIRIT_USE_OLD_NAMESPACE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(GeoDmsGlobio)' == 'true'">GEODMS_GLOBIO;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <!-- Prefer the G vcpkg headers for common packages (notably Boost). The
+           conda prefix also contains older copies of some common headers, but
+           owns the spatial headers that are absent from the G manifest. -->
+      <AdditionalIncludeDirectories Condition="'$(GeoDmsGlobio)' == 'true'">$(VcpkgInstalledDir)$(VcpkgTriplet)\include;$(GeoDmsGlobioRoot)\Library\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ExceptionHandling>Sync</ExceptionHandling>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
       <!-- Projects opt in to a real precompiled header by setting the DmsPchHeader property
@@ -90,6 +113,8 @@
       <StackCommitSize>8192</StackCommitSize>
       <!-- 16k MSF pages: raises the PDB size cap from 4 GB to 16 GB; Debug Clc.pdb (3.2 GB) was hitting the 4 GB cap on incremental links -->
       <AdditionalOptions>/pdbpagesize:16384 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalLibraryDirectories Condition="'$(GeoDmsGlobio)' == 'true'">$(VcpkgInstalledDir)$(VcpkgTriplet)\lib;$(GeoDmsGlobioRoot)\Library\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies Condition="'$(GeoDmsGlobio)' == 'true'">gdal_i.lib;proj.lib;geos.lib;tiff.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <Midl>
       <MkTypLibCompatible>true</MkTypLibCompatible>

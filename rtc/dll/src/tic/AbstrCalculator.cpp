@@ -6036,7 +6036,12 @@ namespace {
 			if (!callee || !callee->IsFunctionItem())
 				if (auto pf = FindPreludeFunction(headID); pf && pf->IsFunctionItem())
 					callee = pf; // prelude: implicit outermost namespace for call heads
-			if (!callee)
+			// A lexical lookup that landed on a NON-function item -- typically the
+			// enclosing function's function-valued parameter, which became visible here
+			// once the definition namespace was injected -- must still fall through to
+			// the closure environment. Testing only for a null callee misreports such a
+			// head as a template instantiation.
+			if (!callee || !callee->IsFunctionItem())
 				if (auto env = FindEnclosingFunctionMember(headID))
 				{
 					// an enclosing function's parameter or local applied as a function:

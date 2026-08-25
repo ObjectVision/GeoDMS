@@ -1,0 +1,90 @@
+container fn_test_od_startpoint
+{
+	// od:StartPoint_rel -- per od-pair, the start point whose route was accepted. This is the
+	// origin-side counterpart of EndPoint_rel, and it is only distinguishable from OrgZone_rel
+	// when one origin zone owns several start points -- which is what this network sets up:
+	//
+	//   start point 0 = node 0 --1.0--> node 2 = end point 0 (dst zone 0)
+	//   start point 1 = node 1 -10.0--> node 2                  ... loses, 10.0 > 1.0
+	//   start point 1 = node 1 --2.0--> node 3 = end point 1 (dst zone 1), the only way in
+	//                              node 4 = end point 2 (dst zone 2) is isolated, never reached
+	//
+	// Both start points sit in org zone 0, so OrgZone_rel is 0 on every row while StartPoint_rel
+	// differs. Dense OD (no cut/limit), so row r is dst zone r, including the unreachable one.
+	unit<uint32> Node : nrofrows = 5;
+	unit<uint32> Link : nrofrows = 3
+	{
+		attribute<Node>    F1  : [0, 1, 1];
+		attribute<Node>    F2  : [2, 2, 3];
+		attribute<float64> imp : [1.0, 10.0, 2.0];
+	}
+	unit<uint32> OrgZone : nrofrows = 1;
+	unit<uint32> DstZone : nrofrows = 3;
+	unit<uint32> StartSet : nrofrows = 2
+	{
+		attribute<Node>    node_rel : [0, 1];
+		attribute<OrgZone> zone_rel : [0, 0];
+	}
+	unit<uint32> EndSet : nrofrows = 3
+	{
+		attribute<Node>    node_rel : [2, 3, 4];
+		attribute<DstZone> zone_rel : [0, 1, 2];
+	}
+
+	unit<uint32> od := impedance_matrix(
+		  'directed;startPoint(Node_rel,OrgZone_rel);endPoint(Node_rel,DstZone_rel)'
+		  ';od:impedance,OrgZone_rel,DstZone_rel,StartPoint_rel,EndPoint_rel'
+		, Link/imp, Link/F1, Link/F2
+		, StartSet/node_rel, StartSet/zone_rel
+		, EndSet/node_rel,   EndSet/zone_rel
+		);
+
+	// Same question through the SPARSE path: cut() makes the result hold only reached zones, so
+	// the rows are in commit order and the start point is looked up per result index rather than
+	// per dst zone. cut() also forces the two-pass (count, then fill) run.
+	unit<uint32> od_cut := impedance_matrix(
+		  'directed;startPoint(Node_rel,OrgZone_rel);endPoint(Node_rel,DstZone_rel)'
+		  ';cut(OrgZone_max_imp);od:impedance,OrgZone_rel,DstZone_rel,StartPoint_rel'
+		, Link/imp, Link/F1, Link/F2
+		, StartSet/node_rel, StartSet/zone_rel
+		, EndSet/node_rel,   EndSet/zone_rel
+		, const(5.0, OrgZone)
+		);
+
+	container checks
+	{
+		parameter<uint32>  nr_rows := uint32(#od)                , IntegrityCheck = "nr_rows == 3";
+
+		parameter<float64> imp_0   := od/impedance[0]            , IntegrityCheck = "imp_0 == 1.0";
+		parameter<float64> imp_1   := od/impedance[1]            , IntegrityCheck = "imp_1 == 2.0";
+
+		parameter<uint32>  dst_0   := uint32(od/DstZone_rel[0])  , IntegrityCheck = "dst_0 == 0";
+		parameter<uint32>  dst_1   := uint32(od/DstZone_rel[1])  , IntegrityCheck = "dst_1 == 1";
+
+		// both rows share the one org zone ...
+		parameter<uint32>  org_0   := uint32(od/OrgZone_rel[0])  , IntegrityCheck = "org_0 == 0";
+		parameter<uint32>  org_1   := uint32(od/OrgZone_rel[1])  , IntegrityCheck = "org_1 == 0";
+
+		// ... while the accepted start point differs per destination: this is the whole point
+		parameter<uint32>  start_0 := uint32(od/StartPoint_rel[0]), IntegrityCheck = "start_0 == 0";
+		parameter<uint32>  start_1 := uint32(od/StartPoint_rel[1]), IntegrityCheck = "start_1 == 1";
+
+		parameter<uint32>  end_0   := uint32(od/EndPoint_rel[0])  , IntegrityCheck = "end_0 == 0";
+		parameter<uint32>  end_1   := uint32(od/EndPoint_rel[1])  , IntegrityCheck = "end_1 == 1";
+
+		// dst zone 2 owns a dense row but was never reached: no route means no origin, so the
+		// start point must read back as null rather than as leftover memory
+		parameter<bool> unreached_imp_null   := !IsDefined(od/impedance[2])     , IntegrityCheck = "unreached_imp_null == True";
+		parameter<bool> unreached_start_null := !IsDefined(od/StartPoint_rel[2]), IntegrityCheck = "unreached_start_null == True";
+		parameter<bool> unreached_end_null   := !IsDefined(od/EndPoint_rel[2])  , IntegrityCheck = "unreached_end_null == True";
+
+		// sparse path: both zones stay within the cut, committed cheapest first
+		parameter<uint32>  cut_rows    := uint32(#od_cut)              , IntegrityCheck = "cut_rows == 2";
+		parameter<float64> cut_imp_0   := od_cut/impedance[0]          , IntegrityCheck = "cut_imp_0 == 1.0";
+		parameter<float64> cut_imp_1   := od_cut/impedance[1]          , IntegrityCheck = "cut_imp_1 == 2.0";
+		parameter<uint32>  cut_dst_0   := uint32(od_cut/DstZone_rel[0]), IntegrityCheck = "cut_dst_0 == 0";
+		parameter<uint32>  cut_dst_1   := uint32(od_cut/DstZone_rel[1]), IntegrityCheck = "cut_dst_1 == 1";
+		parameter<uint32>  cut_start_0 := uint32(od_cut/StartPoint_rel[0]), IntegrityCheck = "cut_start_0 == 0";
+		parameter<uint32>  cut_start_1 := uint32(od_cut/StartPoint_rel[1]), IntegrityCheck = "cut_start_1 == 1";
+	}
+}

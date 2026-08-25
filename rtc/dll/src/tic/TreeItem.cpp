@@ -2151,7 +2151,10 @@ void TreeItem::ClearNamespaceUsage()
 
 void TreeItem::ResetNamespaceUsage(bool includeImplicitParent, const TreeItem* definitionNamespace)
 {
-	m_UsingCache = std::make_unique<UsingCache>(this, includeImplicitParent, definitionNamespace);
+	// Re-seat the fixed usings of the cache we already have; never swap the cache object
+	// itself. See UsingCache::ResetFixedUsings for why replacing it loses the parent
+	// namespace of every sub-item that already registered as incoming.
+	GetUsingCache()->ResetFixedUsings(includeImplicitParent, definitionNamespace);
 }
 
 UInt32 TreeItem::GetNrNamespaceUsages() const

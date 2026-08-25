@@ -23,6 +23,7 @@
 #include "Unit.h"
 #include "UnitClass.h"
 
+#include <array>
 #include <functional>
 #include <iterator>
 #include <algorithm>

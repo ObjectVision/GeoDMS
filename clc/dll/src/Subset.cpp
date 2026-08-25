@@ -15,6 +15,10 @@
 #include "mci/ValueClass.h"
 #include "utl/StrFormat.h"
 
+#include "act/ActorVisitor.h"
+#include "act/SupplierVisitFlag.h"
+#include "act/UpdateMark.h"
+
 #include "DataArray.h"
 #include "DataArrayValue.h"
 #include "DataItemClass.h"
@@ -269,6 +273,127 @@ struct collect_target
 	UInt32               depth;   // 0 for a direct member of the result
 };
 
+// A collecting meta-operation must not copy an attribute whose calculation is
+// downstream from the item that holds the meta call.  Updating such a candidate
+// while that holder is being instantiated walks back into the holder (possibly
+// through intermediate calculated items) and reports a spurious recursion.
+//
+// Inspect the original expressions with a substitution visitor.  That visitor
+// resolves names but, unlike normal substitution, returns before it updates the
+// resolved supplier's meta-info.  This distinction is essential here: asking a
+// downstream supplier for meta-info is exactly the cycle this predicate avoids.
+enum class context_dependency_state { visiting, independent, dependent };
+
+struct context_dependency_search
+{
+	explicit context_dependency_search(const TreeItem* context)
+		: m_Context(context)
+	{
+		dms_assert(m_Context);
+		dms_assert(m_Context->m_State.IsUpdatingMetaInfo());
+	}
+
+	bool HasSupplierInContext(const TreeItem* candidate)
+	{
+		return Search(candidate).found;
+	}
+
+private:
+	struct search_result
+	{
+		bool found;
+		bool cacheable;
+	};
+
+	search_result Search(const TreeItem* candidate)
+	{
+		if (m_Context->DoesContain(candidate))
+			return { true, true };
+
+		const auto currentTS = UpdateMarker::LastTS();
+		dms_assert(candidate->m_LastGetStateTS <= currentTS);
+		if (candidate->Was(ProgressState::MetaInfo)
+			&& candidate->m_LastGetStateTS == currentTS
+			&& !candidate->m_State.IsUpdatingMetaInfo())
+		{
+			// Completed meta-info is supplier ordered.  Actor::UpdateMetaInfo raises
+			// PS_MetaInfo before TreeItem finishes its own meta-info work, so the
+			// transient updating flag is part of the completion test.  The context
+			// still has that flag while this meta-function runs; a different item
+			// already completed in this epoch therefore cannot depend on it.  This
+			// normal case must stay O(1), without reconstructing indirect expressions.
+			dms_assert(m_Context->m_State.IsUpdatingMetaInfo());
+			dms_assert(candidate->m_LastChangeTS <= currentTS);
+			return { false, true };
+		}
+
+		auto [memoIt, inserted] = m_Memo.try_emplace(candidate, context_dependency_state::visiting);
+		if (!inserted)
+		{
+			switch (memoIt->second)
+			{
+			case context_dependency_state::dependent:   return { true,  true };
+			case context_dependency_state::independent: return { false, true };
+			case context_dependency_state::visiting:    return { false, false };
+			}
+			dms_assert(false);
+			return { false, false };
+		}
+
+		auto expr = candidate->GetExprMember();
+		if (expr.empty())
+		{
+			memoIt->second = context_dependency_state::independent;
+			return { false, true };
+		}
+
+		auto calculator = AbstrCalculator::ConstructFromStr(candidate, expr, CalcRole::Calculator);
+		bool found = false;
+		bool cacheable = true;
+		auto visitor = MakeDerivedBoolVisitor([&](const Actor* supplier)
+			{
+				auto supplierItem = dynamic_cast<const TreeItem*>(supplier);
+				if (!supplierItem)
+					return true;
+
+				auto supplierResult = Search(supplierItem);
+				if (supplierResult.found)
+				{
+					found = true;
+					return false;
+				}
+				cacheable &= supplierResult.cacheable;
+				return true;
+			});
+		SubstitutionBuffer buffer(false);
+		// ImplSuppliers makes path lookup visit each parent before expanding its
+		// sub-tree, so Result/member stops at Result while Result is being built.
+		buffer.svf = SupplierVisitFlag::ImplSuppliers;
+		buffer.optionalVisitor = &visitor;
+		calculator->SubstituteExpr(buffer, calculator->GetLispExprOrg());
+
+		if (found)
+		{
+			memoIt->second = context_dependency_state::dependent;
+			return { true, true };
+		}
+		if (cacheable)
+		{
+			memoIt->second = context_dependency_state::independent;
+			return { false, true };
+		}
+
+		// A back-edge reached this item while it was still being searched.  Do
+		// not cache a negative result for that supplier cycle: another member of
+		// the cycle can still prove the path to the context later in this search.
+		m_Memo.erase(memoIt);
+		return { false, false };
+	}
+
+	const TreeItem* m_Context;
+	std::map<const TreeItem*, context_dependency_state> m_Memo;
+};
+
 // GeoDMS spells "N levels up" as N+1 DOTS: "." is the context itself, ".." its
 // parent, "..." its grandparent -- the same encoding GetFindableName builds with
 // RepeatedDots. A slash-joined "../.." is not a path at all: the expression
@@ -288,9 +413,10 @@ SharedStr UpDots(UInt32 levels)
 // GetConstSubTreeItemByID resolves in. A name is claimed before the caller's
 // domain filter runs, so a shadowing item that is not itself collectable still
 // hides the one it shadows, which is what {container}/{name} would resolve to.
-void EnumCollectCandidates(const TreeItem* container, attr_scope scope
+void EnumCollectCandidates(const AbstrOperGroup* og, const TreeItem* container, const TreeItem* context, attr_scope scope
 ,	SharedStr prefix, UInt32 depth
-,	std::vector<collect_target>& out, std::set<const TreeItem*>& visitedScopes)
+,	std::vector<collect_target>& out, std::set<const TreeItem*>& visitedScopes
+,	context_dependency_search& dependencySearch)
 {
 	std::set<TokenID> seenNames;
 	for (const TreeItem* link = container; link; )
@@ -307,15 +433,22 @@ void EnumCollectCandidates(const TreeItem* container, attr_scope scope
 				continue; // shadowed by a nearer sub-item of the same name
 			if (IsDataItem(subItem))
 			{
+				if (dependencySearch.HasSupplierInContext(subItem))
+				{
+					reportF(SeverityTypeID::ST_Warning,
+						"{}: attribute '{}' is not collected because its calculation is downstream from '{}'"
+					,	og->GetNameStr(), subItem->GetFullName().c_str(), context->GetFullName().c_str());
+					continue;
+				}
 				auto subDataItem = AsDataItem(subItem);
 				subDataItem->UpdateMetaInfo();
 				out.push_back({ mySSPrintF("{}{}", prefix, subID), subDataItem, depth });
 			}
 			else if (Recurses(scope) && !IsUnit(subItem)
 				&& !subItem->IsTemplate() && !subItem->IsFunctionItem() && !subItem->IsCacheItem())
-				EnumCollectCandidates(subItem, scope
+				EnumCollectCandidates(og, subItem, context, scope
 				,	mySSPrintF("{}{}/", prefix, subID), depth + 1
-				,	out, visitedScopes);
+				,	out, visitedScopes, dependencySearch);
 		}
 		if (!FollowsRef(scope))
 			break;
@@ -548,7 +681,8 @@ struct SelectMetaOperator : public BinaryOperator
 			SizeT foundSubItems = 0;
 			std::vector<collect_target> candidates;
 			std::set<const TreeItem*> visitedScopes;
-			EnumCollectCandidates(attrContainer, cfg.scope, SharedStr(), 0, candidates, visitedScopes);
+			context_dependency_search dependencySearch(resultHolder.GetOld());
+			EnumCollectCandidates(GetGroup(), attrContainer, resultHolder.GetOld(), cfg.scope, SharedStr(), 0, candidates, visitedScopes, dependencySearch);
 
 			for (const auto& target : candidates)
 			{
@@ -833,7 +967,8 @@ struct CollectWithAttrOperator : public BinaryOperator
 	// only where the configuration comes from differs.
 	static void Run(const AbstrOperGroup* og, TreeItemDualRef& resultHolder
 	,	collect_mode mode, attr_scope scope, const ArgRefs& args, LispPtr callArgs
-	,	const AbstrUnit* resultDomain = nullptr, bool preserveExpressionKeys = false)
+	,	const AbstrUnit* resultDomain = nullptr, bool preserveExpressionKeys = false
+	,	LispRef preservedSubsetDomainKey = LispRef())
 	{
 		assert(args.size() == 2);
 
@@ -906,7 +1041,8 @@ struct CollectWithAttrOperator : public BinaryOperator
 
 		std::vector<collect_target> candidates;
 		std::set<const TreeItem*> visitedScopes;
-		EnumCollectCandidates(attrContainer, scope, SharedStr(), 0, candidates, visitedScopes);
+		context_dependency_search dependencySearch(resultHolder.GetOld());
+		EnumCollectCandidates(og, attrContainer, resultHolder.GetOld(), scope, SharedStr(), 0, candidates, visitedScopes, dependencySearch);
 
 		for (const auto& target : candidates)
 		{
@@ -957,7 +1093,8 @@ struct CollectWithAttrOperator : public BinaryOperator
 					, target.relPath
 				);
 				if (preserveExpressionKeys)
-					collectKey = ExprList(token::collect_by_cond, LispRef(subsetDomainExpr)
+					collectKey = ExprList(token::collect_by_cond
+						, preservedSubsetDomainKey.EndP() ? LispRef(subsetDomainExpr) : preservedSubsetDomainKey
 						, condOrOrgRelKey, subDataItem->GetCheckedKeyExpr());
 			}
 
@@ -1055,7 +1192,7 @@ struct TableSpecOperator : public TernaryOperator
 		// duplicated even though the printed expression is identical.  Keep the
 		// already-substituted Lisp keys for table members instead.
 		CollectWithAttrOperator::Run(GetGroup(), resultHolder, cfg.mode, cfg.scope
-			, tail, metaCallArgs.Right(), result, true);
+			, tail, metaCallArgs.Right(), result, true, selectionDomainDC->GetLispRef());
 	}
 };
 

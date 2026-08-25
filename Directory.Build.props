@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project>
   <PropertyGroup>
+    <!-- `/p:GeoDmsGlobio=true` selects the compatibility build without adding
+         duplicate solution configurations. Both Debug and Release keep their
+         normal names and are redirected by DmsDef.props to bin_GLOBIO/obj_GLOBIO. -->
+    <GeoDmsGlobio Condition="'$(GeoDmsGlobio)' == ''">false</GeoDmsGlobio>
+    <GeoDmsGlobioRoot Condition="'$(GeoDmsGlobioRoot)' == ''">$([System.Environment]::GetEnvironmentVariable('GLOBIO_ENV_ROOT'))</GeoDmsGlobioRoot>
+
     <!--
       Force the 64-bit-hosted cl.exe for every C++ project under the repo. The 32-bit-hosted
       compiler hits C1060 "compiler is out of heap space" when compiling DmClc's RLookup.cpp
@@ -20,15 +26,53 @@
 
     <!-- Common toolset settings for every GeoDMS C++ project (ConfigurationType stays
          per-project: DynamicLibrary vs Application). -->
-    <PlatformToolset>v145</PlatformToolset>
+    <PlatformToolset Condition="'$(GeoDmsGlobio)' != 'true'">v145</PlatformToolset>
+    <PlatformToolset Condition="'$(GeoDmsGlobio)' == 'true'">v143</PlatformToolset>
     <!-- WORKAROUND: MSVC 14.51.36231 (VS2026 18.6.x) miscompiles geos's KdTree::queryNodePoint
          (elides the `while(currentNode!=nullptr)` back-edge null-check -> 0xC0000005 in MultiPolygon
          buffer/snap-rounding; also silent wrong results). 14.50.35717 compiles it correctly.
          Pin the compiler to 14.50 until Microsoft fixes 14.5x. See memory project_geos_buffer_crash_2026_06.
          Keep in sync with VCPKG_PLATFORM_TOOLSET_VERSION in vcpkg-triplets/x64-windows-v145.cmake. -->
-    <VCToolsVersion>14.50.35717</VCToolsVersion>
+    <VCToolsVersion Condition="'$(GeoDmsGlobio)' != 'true'">14.50.35717</VCToolsVersion>
+    <!-- Match the upstream GLOBIO environment's pinned vc14_runtime 14.36.
+         Loading osgeo first otherwise fixes msvcp140.dll at 14.36 in the
+         Python process and a v145-built Rtc.dll cannot initialize. -->
+    <VCToolsVersion Condition="'$(GeoDmsGlobio)' == 'true'">14.36.32532</VCToolsVersion>
     <UseOfMfc>false</UseOfMfc>
 
+    <!--
+      Supported Python ABIs per GeoDMS release line. CMake reads the same
+      semicolon-separated list in python/dll/CMakeLists.txt; keeping it outside
+      either build system prevents the .m and .c flavours from silently targeting
+      different CPython minors (issue #1105). The last entry is the default ABI
+      used by the outer MSBuild project; that project recursively builds the other
+      entries into the same output directory.
+    -->
+    <GeoDmsPythonVersionFile Condition="'$(GeoDmsGlobio)' != 'true'">$(MSBuildThisFileDirectory)python\PythonVersions.txt</GeoDmsPythonVersionFile>
+    <GeoDmsPythonVersionFile Condition="'$(GeoDmsGlobio)' == 'true'">$(MSBuildThisFileDirectory)python\PythonVersionsGlobio.txt</GeoDmsPythonVersionFile>
+    <GeoDmsPythonVersions>$([System.IO.File]::ReadAllText('$(GeoDmsPythonVersionFile)').Trim())</GeoDmsPythonVersions>
+    <GeoDmsDefaultPythonVersion>$([System.Text.RegularExpressions.Regex]::Match('$(GeoDmsPythonVersions)', '[^;]+$').Value)</GeoDmsDefaultPythonVersion>
+    <GeoDmsPythonVersion Condition="'$(GeoDmsPythonVersion)' == ''">$(GeoDmsDefaultPythonVersion)</GeoDmsPythonVersion>
+    <GeoDmsPythonAbi>$([System.String]::Copy('$(GeoDmsPythonVersion)').Replace('.', ''))</GeoDmsPythonAbi>
+    <GeoDmsPythonMajor>$([System.Version]::Parse('$(GeoDmsPythonVersion)').Major)</GeoDmsPythonMajor>
+    <GeoDmsPythonMinor>$([System.Version]::Parse('$(GeoDmsPythonVersion)').Minor)</GeoDmsPythonMinor>
+
+    <!-- Per-ABI build roots: PYTHON39_ROOT / PYTHON312_ROOT /
+         PYTHON313_ROOT / PYTHON314_ROOT. Explicit *_INCLUDE_DIR +
+         *_LIBRARIES pairs are also accepted. Requiring an ABI in each variable
+         prevents an old generic PYTHON3_* value from silently feeding the wrong
+         headers to one entry in the matrix. -->
+    <GeoDmsPythonRoot>$([System.Environment]::GetEnvironmentVariable('PYTHON$(GeoDmsPythonAbi)_ROOT'))</GeoDmsPythonRoot>
+    <GeoDmsPythonIncludeDir>$([System.Environment]::GetEnvironmentVariable('PYTHON$(GeoDmsPythonAbi)_INCLUDE_DIR'))</GeoDmsPythonIncludeDir>
+    <GeoDmsPythonLibraries>$([System.Environment]::GetEnvironmentVariable('PYTHON$(GeoDmsPythonAbi)_LIBRARIES'))</GeoDmsPythonLibraries>
+    <!-- The G binding must use the interpreter from the same locked conda
+         prefix as its GDAL, even when a developer also has a generic
+         PYTHON39_ROOT installation. -->
+    <GeoDmsPythonRoot Condition="'$(GeoDmsGlobio)' == 'true'">$(GeoDmsGlobioRoot)</GeoDmsPythonRoot>
+    <GeoDmsPythonIncludeDir Condition="'$(GeoDmsGlobio)' == 'true'">$(GeoDmsGlobioRoot)\include</GeoDmsPythonIncludeDir>
+    <GeoDmsPythonLibraries Condition="'$(GeoDmsGlobio)' == 'true'">$(GeoDmsGlobioRoot)\libs</GeoDmsPythonLibraries>
+    <GeoDmsPythonIncludeDir Condition="'$(GeoDmsPythonIncludeDir)' == '' and '$(GeoDmsPythonRoot)' != ''">$(GeoDmsPythonRoot)\include</GeoDmsPythonIncludeDir>
+    <GeoDmsPythonLibraries Condition="'$(GeoDmsPythonLibraries)' == '' and '$(GeoDmsPythonRoot)' != ''">$(GeoDmsPythonRoot)\libs</GeoDmsPythonLibraries>
     <!--
       Use the in-repo vcpkg tool (./vcpkg submodule) instead of the VS-bundled one.
       The bundled vcpkg ships read-only with Visual Studio and lags the ports baseline;
@@ -43,7 +87,8 @@
       triplet, avoiding the stock x64-windows host path.
     -->
     <VcpkgRoot>$(MSBuildThisFileDirectory)vcpkg</VcpkgRoot>
-    <VcpkgHostTriplet>x64-windows-v145</VcpkgHostTriplet>
+    <VcpkgHostTriplet Condition="'$(GeoDmsGlobio)' != 'true'">x64-windows-v145</VcpkgHostTriplet>
+    <VcpkgHostTriplet Condition="'$(GeoDmsGlobio)' == 'true'">x64-windows-v143</VcpkgHostTriplet>
 
     <!--
       Neutralise any machine-wide `vcpkg integrate install` (a VS-bundled vcpkg) so ONLY the

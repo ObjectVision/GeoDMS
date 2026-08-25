@@ -32,10 +32,10 @@
        tinyxml2/... stack at runtime, and vcpkg's applocal does not reliably repopulate them
        into $(OutDir) on incremental builds. Copy them here so bin\<cfg>\x64 is always complete
        (and the NSIS installers find them). VcpkgInstalledDir/VcpkgTriplet come from DmsDef.props. -->
-  <PropertyGroup Condition="'$(Configuration)'=='Release'">
+  <PropertyGroup>
     <_VcpkgRuntimeBin>$(VcpkgInstalledDir)$(VcpkgTriplet)\bin</_VcpkgRuntimeBin>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)'=='Debug'">
+  <PropertyGroup Condition="'$(Configuration)'=='Debug' and '$(GeoDmsGlobio)' != 'true'">
     <_VcpkgRuntimeBin>$(VcpkgInstalledDir)$(VcpkgTriplet)\debug\bin</_VcpkgRuntimeBin>
   </PropertyGroup>
   <PropertyGroup>
@@ -49,8 +49,10 @@ if errorlevel 8 ( echo *** CopyResources: robocopy examples FAILED *** &amp; exi
 robocopy "$(SolutionDir)testcases" "$(OutDir)examples\testcases" /E /NJH /NJS /NP /R:2 /W:2 /XO /XD _out*
 if errorlevel 8 ( echo *** CopyResources: robocopy testcases FAILED *** &amp; exit /b 1 )
 if not exist "$(_VcpkgRuntimeBin)\*.dll" ( echo *** CopyResources: vcpkg runtime bin not found or empty - "$(_VcpkgRuntimeBin)" *** &amp; exit /b 1 )
-robocopy "$(_VcpkgRuntimeBin)" "$(OutDir.TrimEnd('\'))" *.dll /NJH /NJS /NP /R:2 /W:2 /XO
+robocopy "$(_VcpkgRuntimeBin)" "$(OutDir.TrimEnd('\'))" *.dll /XF python*.dll /NJH /NJS /NP /R:2 /W:2 /XO
 if errorlevel 8 ( echo *** CopyResources: robocopy vcpkg runtime DLLs FAILED *** &amp; exit /b 1 )
+if "$(GeoDmsGlobio)"=="true" powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$(SolutionDir)tools\deploy-globio-runtime.ps1" -OutputDir "$(OutDir.TrimEnd('\'))" -GlobioRoot "$(GeoDmsGlobioRoot)"
+if "$(GeoDmsGlobio)"=="true" if errorlevel 1 ( echo *** CopyResources: GLOBIO runtime deployment FAILED *** &amp; exit /b 1 )
 exit /b 0
     </NMakeBuildCommandLine>
     <CopyCppRuntimeToOutputDir>false</CopyCppRuntimeToOutputDir>

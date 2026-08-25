@@ -8,5 +8,6 @@
 
 ; Flavor suffix — see DmsSetupScriptX64.nsi for the full list.
 !define GeoDmsFlavor "m"
+!define GeoDmsPythonPlatformTag "win32"
 
 !include DmsSetupScript.nsh

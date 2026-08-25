@@ -28,6 +28,12 @@ def check(condition: bool, message: str):
 
 
 try:
+    import geodms as geodms_module
+    expected_abi_tag = f"cp{sys.version_info.major}{sys.version_info.minor}"
+    check(
+        expected_abi_tag in os.path.basename(geodms_module.__file__),
+        f"loaded ABI-tagged {expected_abi_tag} extension",
+    )
     from geodms import *
 
     print(f"geodms version: {version()}")
