@@ -17,12 +17,18 @@ Implementation summary (v1):
 - Preparatory refactor (same change set): ProcessDijkstra's per-origin task split into stage functions
   (WriteZonalResults, AccumulateInteraction + InteractionParams, WriteLinkSets, commitAndAccount), fill-pass
   ResultInfo assembly named (odResPtrs); scalar behavior unchanged.
-- v1 admissibility exactly as section 5.3; both cutoffs, euclid(), bidirectional and start/end offsets
-  (first criterion) supported; negative values rejected for the alternative impedances and offsets.
+- v1 admissibility as section 5.3 with one upgrade over the original plan: StartPoint_rel IS supported --
+  StartPoint_rel/EndPoint_rel are attributes of the ROUTE each row represents, and per-label provenance
+  (the seeding start point travels in the heap label, BiCriteriaDijkstraHeap::LabelRef) makes it exact for
+  fronts where per-node provenance cannot be; for 8-byte-aligned ImpTypes the field rides existing padding.
+  Both cutoffs, euclid(), bidirectional and start/end offsets (first criterion) supported; negative values
+  rejected for the alternative impedances and offsets.
 - Tests: testcases/fn_test_od_pareto.dms (fronts, dominance pruning, min-time equality against a plain
   impedance_matrix run, both cutoffs, endpoint parking-heap ties, multi-origin two-pass rows, and a
   function-body signature probe) plus _neg1/2/3 for the CheckFlags and negativity rejections.
-- Still open: OVSRV10 CMake/Linux + full.py gate; wiki Impedance-options section on release; v2 items in 5.6.
+- Wiki: documented in Impedance-options.md (new `pareto` section + row-identity note in the od-pair
+  section) and impedance_matrix.md, wiki commit fb40badc.
+- Still open: OVSRV10 CMake/Linux + full.py gate; v2 items in 5.6 minus StartPoint_rel (done).
 
 Scope of the remainder of this document: analyse the request, assess "integrate into the existing operators
 in Dijkstra.cpp with a specialized 2D OwningDijkstraHeap" versus "separate implementation", and record the

@@ -332,7 +332,14 @@ template <typename NodeType, typename ZoneType, typename ImpType>
 struct BiCriteriaDijkstraHeap
 {
 	using ImpPairType = std::pair<ImpType, ImpType>; // (imp, imp2), compared lexicographically
-	using HeapElemType = heapElemType<ImpPairType, NodeType>;
+
+	// The heap's payload: the labeled node plus the start point that seeded the label's route.
+	// StartPoint_rel is an attribute of the ROUTE, and a node's accepted labels may descend
+	// from different start points, so the scalar heap's per-node provenance array cannot serve
+	// here -- provenance travels in the label. For 8-byte-aligned ImpTypes the extra field
+	// rides the element's existing padding for free.
+	struct LabelRef { NodeType node; ZoneType startPoint; };
+	using HeapElemType = heapElemType<ImpPairType, LabelRef>;
 	using HeapType = std::vector<HeapElemType>;
 
 	void Init(NodeType nrV, bool useSrcZoneStamps)
@@ -377,7 +384,8 @@ struct BiCriteriaDijkstraHeap
 	}
 
 	// Attempt to push label (d, d2) for node v; prunes on both cutoffs and on dominance.
-	void InsertLabel(NodeType v, ImpType d, ImpType d2)
+	// startPoint is the origin-side provenance of the route the label extends.
+	void InsertLabel(NodeType v, ImpType d, ImpType d2, ZoneType startPoint)
 	{
 		if (d >= m_MaxImp || d2 >= m_MaxImp2)
 			return;
@@ -386,7 +394,7 @@ struct BiCriteriaDijkstraHeap
 		assert(d2 >= 0);
 		if (!IsUndominated(v, d2))
 			return;
-		m_LabelHeap.push_back(HeapElemType(v, ImpPairType(d, d2)));
+		m_LabelHeap.push_back(HeapElemType(LabelRef{ v, startPoint }, ImpPairType(d, d2)));
 		std::push_heap(m_LabelHeap.begin(), m_LabelHeap.end());
 	}
 

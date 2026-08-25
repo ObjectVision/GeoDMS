@@ -150,8 +150,8 @@ void CheckFlags(DijkstraFlag df)
 			"pareto does not (yet) support interaction, trip distribution, Link_flow, max_imp or NrDstZones productions");
 		MG_USERCHECK2(!flags(df & (DijkstraFlag::DistDecay | DijkstraFlag::DistLogit | DijkstraFlag::InteractionVi | DijkstraFlag::InteractionWj | DijkstraFlag::InteractionAlpha | DijkstraFlag::OrgMinImp | DijkstraFlag::DstMinImp)),
 			"pareto does not (yet) support the interaction() section");
-		MG_USERCHECK2(!flags(df & (DijkstraFlag::UseLinkAttr | DijkstraFlag::ProdOdLinkSet | DijkstraFlag::ProdOdStartPoint_rel)),
-			"pareto does not (yet) support link_attr, LinkSet or StartPoint_rel productions: they need per-label traceback");
+		MG_USERCHECK2(!flags(df & (DijkstraFlag::UseLinkAttr | DijkstraFlag::ProdOdLinkSet)),
+			"pareto does not (yet) support link_attr or LinkSet productions: they need per-label traceback");
 		MG_USERCHECK2(!flags(df & DijkstraFlag::PrecalculatedNrDstZones),
 			"pareto cannot use precalculateted_NrDstZones: it counts destination zones, not Pareto-optimal routes");
 		MG_USERCHECK2(!flags(df & DijkstraFlag::VerboseLogging),
@@ -541,7 +541,9 @@ struct BiNodeZoneConnector
 {
 	using network_info = NetworkInfo<NodeType, ZoneType, ImpType>;
 
-	struct CommitType { ZoneType y; ZoneType dstZone; ImpType imp, imp2; };
+	// One accepted od-row: the reached end point, its zone, the start point whose route was
+	// accepted (StartPoint_rel and EndPoint_rel are attributes of the route), and both criteria.
+	struct CommitType { ZoneType y; ZoneType startPoint; ZoneType dstZone; ImpType imp, imp2; };
 
 	void Init(const network_info& networkInfo, sqr_dist_t euclidSqrDist)
 	{
@@ -563,9 +565,9 @@ struct BiNodeZoneConnector
 			m_OrgZoneLocation = m_OrgZoneLocations[orgZone];
 	}
 
-	// Attempt to commit end point y with label (imp, imp2); see the struct comment for why the
-	// per-zone dominance test reduces to the imp2 comparison.
-	bool CommitY(ZoneType y, ImpType imp, ImpType imp2)
+	// Attempt to commit end point y with label (imp, imp2) whose route was seeded by startPoint;
+	// see the struct comment for why the per-zone dominance test reduces to the imp2 comparison.
+	bool CommitY(ZoneType y, ZoneType startPoint, ImpType imp, ImpType imp2)
 	{
 		dms_assert(IsDefined(m_CurrSrcZoneTick));
 		dms_assert(y < m_NetworkInfoPtr->nrY);
@@ -591,7 +593,7 @@ struct BiNodeZoneConnector
 			m_LastCommittedSrcZone[dstZone] = m_CurrSrcZoneTick;
 
 		m_MinImp2PerDstZone[dstZone] = imp2;
-		m_Commits.push_back(CommitType{ y, dstZone, imp, imp2 });
+		m_Commits.push_back(CommitType{ y, startPoint, dstZone, imp, imp2 });
 		return true;
 	}
 
@@ -1474,12 +1476,16 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 //   and its preconditions live with BiCriteriaDijkstraHeap in Dijkstra.h.
 //
 //   Emits one od-row per accepted commit -- impedance, alt_imp (= imp2),
-//   OrgZone_rel, DstZone_rel, EndPoint_rel -- through the same sparse two-pass
-//   Counting/fill protocol as the scalar engine; the count and fill pass MUST
-//   replay identical searches, which holds because no output structure
-//   influences pruning. The first commit per destination zone carries the
-//   scalar engine's minimum impedance, so a plain impedance_matrix run over the
-//   same arguments is the reference for validation.
+//   OrgZone_rel, DstZone_rel, StartPoint_rel, EndPoint_rel -- through the same
+//   sparse two-pass Counting/fill protocol as the scalar engine; the count and
+//   fill pass MUST replay identical searches, which holds because no output
+//   structure influences pruning. StartPoint_rel and EndPoint_rel are
+//   attributes of the accepted ROUTE: the labels carry their seeding start
+//   point as provenance (see BiCriteriaDijkstraHeap::LabelRef), and the commit
+//   records the end point that produced the row. The first commit per
+//   destination zone carries the scalar engine's minimum impedance, so a plain
+//   impedance_matrix run over the same arguments is the reference for
+//   validation.
 //
 //   Endpoint impedance offsets apply to the FIRST criterion. Parked endpoint
 //   candidates are keyed AND released on the full lexicographic pair: released
@@ -1489,9 +1495,9 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 //   failing the imp2 cutoff may be followed by one that passes.
 //
 //   CheckFlags keeps interaction/trip-distribution/link-flow/LinkSet/limit()
-//   and StartPoint_rel away from this engine (per-label traceback and
-//   front-mass semantics are follow-up work), which is what keeps this driver
-//   small; both cutoffs are therefore fixed per origin.
+//   away from this engine (per-label traceback and front-mass semantics are
+//   follow-up work), which is what keeps this driver small; both cutoffs are
+//   therefore fixed per origin.
 // *****************************************************************************
 template <typename NodeType, typename LinkType, typename ZoneType, typename ImpType, typename MassType>
 SizeT ProcessBiDijkstra(TreeItemDualRef& resultHolder
@@ -1555,23 +1561,26 @@ SizeT ProcessBiDijkstra(TreeItemDualRef& resultHolder
 			dh.ResetImpedances();
 			nzc.ResetSrc(orgZone);
 
-			// Seed every start point of this origin zone; start offsets apply to the first criterion
+			// Seed every start point of this origin zone; start offsets apply to the first
+			// criterion, and each label carries its seeding start point as route provenance
 			for (ZoneType startPointIndex = ni.orgZone_startPoint_inv.FirstOrSame(orgZone); IsDefined(startPointIndex); startPointIndex = ni.orgZone_startPoint_inv.NextOrNone(startPointIndex))
 			{
 				dms_assert(startPointIndex < ni.nrX);
 				NodeType startNode = ni.startPoints.Node_rel ? ni.startPoints.Node_rel[startPointIndex] : startPointIndex;
-				dh.InsertLabel(startNode, ni.startPoints.Impedances ? ni.startPoints.Impedances[startPointIndex] : ImpType(0), ImpType(0));
+				dh.InsertLabel(startNode, ni.startPoints.Impedances ? ni.startPoints.Impedances[startPointIndex] : ImpType(0), ImpType(0), startPointIndex);
 			}
 
 			using ImpPairType = typename BiCriteriaDijkstraHeap<NodeType, ZoneType, ImpType>::ImpPairType;
-			using EndPointHeapElemType = heapElemType<ImpPairType, ZoneType>;
+			struct EndPointRef { ZoneType y; ZoneType startPoint; };
+			using EndPointHeapElemType = heapElemType<ImpPairType, EndPointRef>;
 			my_vec_t<EndPointHeapElemType> endPointHeap;
 
 			// Main label-setting loop
 			SizeT popCount = 0;
 			while (!dh.Empty())
 			{
-				NodeType currNode = dh.Front().Value(); dms_assert(currNode < ni.nrV);
+				NodeType currNode = dh.Front().Value().node; dms_assert(currNode < ni.nrV);
+				ZoneType currStartPoint = dh.Front().Value().startPoint;
 				ImpPairType currLabel = dh.Front().Imp();
 				dh.PopLabel();
 
@@ -1589,7 +1598,7 @@ SizeT ProcessBiDijkstra(TreeItemDualRef& resultHolder
 					// Each endpoint offset considered as a separate candidate, keyed on the full pair
 					while (IsDefined(y))
 					{
-						endPointHeap.push_back(EndPointHeapElemType(y, ImpPairType(currLabel.first + ni.endPoints.Impedances[y], currLabel.second)));
+						endPointHeap.push_back(EndPointHeapElemType(EndPointRef{ y, currStartPoint }, ImpPairType(currLabel.first + ni.endPoints.Impedances[y], currLabel.second)));
 						std::push_heap(endPointHeap.begin(), endPointHeap.end());
 						y = node_endPoint_inv.NextOrNone(y);
 					}
@@ -1598,7 +1607,7 @@ SizeT ProcessBiDijkstra(TreeItemDualRef& resultHolder
 					// lexicographic order and CommitY's dominance test stays exact.
 					while (!endPointHeap.empty() && !(currLabel < endPointHeap.front().Imp()))
 					{
-						nzc.CommitY(endPointHeap.front().Value(), endPointHeap.front().Imp().first, endPointHeap.front().Imp().second);
+						nzc.CommitY(endPointHeap.front().Value().y, endPointHeap.front().Value().startPoint, endPointHeap.front().Imp().first, endPointHeap.front().Imp().second);
 						std::pop_heap(endPointHeap.begin(), endPointHeap.end());
 						endPointHeap.pop_back();
 					}
@@ -1607,13 +1616,13 @@ SizeT ProcessBiDijkstra(TreeItemDualRef& resultHolder
 				{
 					while (IsDefined(y))
 					{
-						nzc.CommitY(y, currLabel.first, currLabel.second);
+						nzc.CommitY(y, currStartPoint, currLabel.first, currLabel.second);
 						y = node_endPoint_inv.NextOrNone(y);
 					}
 				}
 
 				// Relax the outgoing links on both criteria; InsertLabel applies the cutoffs and
-				// the dominance pre-prune.
+				// the dominance pre-prune, and the extended labels inherit this route's start point.
 				LinkType currLink = graph.node_link1_inv.First(currNode);
 				while (currLink != UNDEFINED_VALUE(LinkType))
 				{
@@ -1621,7 +1630,8 @@ SizeT ProcessBiDijkstra(TreeItemDualRef& resultHolder
 					NodeType otherNode = graph.linkF2Data[currLink];
 					dh.InsertLabel(otherNode
 					,	currLabel.first + graph.linkImpDataPtr[currLink]
-					,	currLabel.second + linkImp2Data[linkImp2HasVoidDomain ? 0 : currLink]);
+					,	currLabel.second + linkImp2Data[linkImp2HasVoidDomain ? 0 : currLink]
+					,	currStartPoint);
 					currLink = graph.node_link1_inv.Next(currLink);
 				}
 				if (!flags(df & (DijkstraFlag::Bidirectional | DijkstraFlag::BidirFlag)))
@@ -1633,7 +1643,8 @@ SizeT ProcessBiDijkstra(TreeItemDualRef& resultHolder
 					NodeType otherNode = graph.linkF1Data[currLink];
 					dh.InsertLabel(otherNode
 					,	currLabel.first + graph.linkImpDataPtr[currLink]
-					,	currLabel.second + linkImp2Data[linkImp2HasVoidDomain ? 0 : currLink]);
+					,	currLabel.second + linkImp2Data[linkImp2HasVoidDomain ? 0 : currLink]
+					,	currStartPoint);
 					currLink = graph.node_link2_inv.Next(currLink);
 				}
 			}
@@ -1645,7 +1656,7 @@ SizeT ProcessBiDijkstra(TreeItemDualRef& resultHolder
 			{
 				const auto& parked = endPointHeap.front().Imp();
 				if (parked.first < dh.m_MaxImp && parked.second < dh.m_MaxImp2)
-					nzc.CommitY(endPointHeap.front().Value(), parked.first, parked.second);
+					nzc.CommitY(endPointHeap.front().Value().y, endPointHeap.front().Value().startPoint, parked.first, parked.second);
 				std::pop_heap(endPointHeap.begin(), endPointHeap.end());
 				endPointHeap.pop_back();
 			}
@@ -1665,11 +1676,12 @@ SizeT ProcessBiDijkstra(TreeItemDualRef& resultHolder
 				for (SizeT r = 0; r != zonalResultCount; ++r)
 				{
 					const auto& commit = nzc.Commit(r);
-					if (res.od_ImpData)     res.od_ImpData    [resultCountBase + r] = commit.imp;
-					if (res.od_AltLinkImp)  res.od_AltLinkImp [resultCountBase + r] = commit.imp2;
-					if (res.od_SrcZoneIds)  res.od_SrcZoneIds [resultCountBase + r] = orgZone;
-					if (res.od_DstZoneIds)  res.od_DstZoneIds [resultCountBase + r] = commit.dstZone;
-					if (res.od_EndPointIds) res.od_EndPointIds[resultCountBase + r] = commit.y;
+					if (res.od_ImpData)        res.od_ImpData       [resultCountBase + r] = commit.imp;
+					if (res.od_AltLinkImp)     res.od_AltLinkImp    [resultCountBase + r] = commit.imp2;
+					if (res.od_SrcZoneIds)     res.od_SrcZoneIds    [resultCountBase + r] = orgZone;
+					if (res.od_DstZoneIds)     res.od_DstZoneIds    [resultCountBase + r] = commit.dstZone;
+					if (res.od_StartPointIds)  res.od_StartPointIds [resultCountBase + r] = commit.startPoint;
+					if (res.od_EndPointIds)    res.od_EndPointIds   [resultCountBase + r] = commit.y;
 				}
 			}
 			resultCount += zonalResultCount;
