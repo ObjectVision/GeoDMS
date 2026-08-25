@@ -10,19 +10,30 @@
 
 // File: Dijkstra.cpp
 //
-// The impedance_table / impedance_matrix operator family. One shortest-path engine, whose whole
+// The impedance_table / impedance_matrix operator family. One operator shell, whose whole
 // argument layout and output set is directed by a specification string (see DijkstraFlags.h and
-// ParseDijkstraString); CheckFlags below states which combinations are admissible.
+// ParseDijkstraString), over TWO route-search engines: the scalar single-label Dijkstra
+// (ProcessDijkstra) and, under the pareto option, a bi-criteria label-setting variant
+// (ProcessBiDijkstra) that prunes on Pareto dominance over (imp, alternative imp) -- issue #856.
+// CheckFlags below states which combinations are admissible in which mode.
 //
 // What it can produce
 //   impedance_table  (!OD): a single origin (the void org zone), an impedance per destination
 //                           zone, optionally with a TraceBack sub-item for path extraction.
-//   impedance_matrix (OD) : one row per origin zone -- DENSE (a cell for every org x dst pair) or
-//                           SPARSE (only the destinations actually reached); see NodeZoneConnector.
-//   per-OD extras         : alternative impedance, link attribute, LinkSet.
+//   impedance_matrix (OD) : one row per (org, dst) pair -- DENSE (a cell for every org x dst
+//                           pair) or SPARSE (only the destinations actually reached); see
+//                           NodeZoneConnector.
+//   pareto mode      (OD) : one row per Pareto-optimal ROUTE, identified by (org, dst, imp,
+//                           imp2); always sparse. impedance / alt_imp are the row's two criteria
+//                           and OrgZone_rel / DstZone_rel / StartPoint_rel / EndPoint_rel are
+//                           attributes of that route: which zones it connects and which start
+//                           and end point it used.
+//   per-OD extras         : alternative impedance, StartPoint_rel / EndPoint_rel, and -- scalar
+//                           engine only -- link attribute and LinkSet.
 //   org/dst aggregates    : spatial-interaction potentials D_i / M_ix / C_j / M_xj, SumImp,
-//                           SumLinkAttr, NrDstZones, MaxImp.
-//   network aggregate     : Link_flow -- the interaction demand assigned back onto the links.
+//                           SumLinkAttr, NrDstZones, MaxImp (scalar engine only).
+//   network aggregate     : Link_flow -- the interaction demand assigned back onto the links
+//                           (scalar engine only).
 //
 // Layout of this file
 //   TreeRelations        parent/child view of the accepted shortest-path forest, supporting the
@@ -32,31 +43,54 @@
 //   GraphInfo            link endpoints and impedances, plus node -> incident link inversions.
 //   NodeZoneConnector    per-origin record of which destination zones were reached, and the
 //                        mapping between the three index spaces; see its own comment.
-//   ResultInfo           the raw output pointers, bundled so ProcessDijkstra keeps one parameter.
-//   ProcessDijkstra      the driver: one parallel task per origin zone.
-//   DijkstraMatrOperator argument extraction, unit unification, result creation, two-pass run.
+//   BiNodeZoneConnector  its pareto sibling: the per-zone Pareto front, whose commit list in
+//                        commit order IS this origin's stretch of od rows.
+//   ResultInfo           the raw output pointers, bundled so the drivers keep one parameter.
+//   UpdateALW            tree accumulation of a per-link quantity (alt impedance / link attr).
+//   per-origin stages    InteractionParams + WriteZonalResults / AccumulateInteraction /
+//                        WriteLinkSets: the scalar driver's od-row emission, interaction &
+//                        trip-distribution & link-flow, and route-reconstruction stages, split
+//                        out so orgZoneTask reads as the numbered list below.
+//   ProcessDijkstra      the scalar driver: one parallel task per origin zone.
+//   ProcessBiDijkstra    the pareto driver: the same task shape, but label-setting with O(1)
+//                        per-node dominance state; the algorithm and its preconditions live with
+//                        BiCriteriaDijkstraHeap (Dijkstra.h), the design and its rationale in
+//                        doc/bicriteria-impedance.md.
+//   DijkstraMatrOperator argument extraction, unit unification, result creation, two-pass run,
+//                        and the engine dispatch on DijkstraFlag::BiCriteria.
 //
-// Per-origin work (all of it inside the parallel_for task)
+// Per-origin work, scalar engine (all of it inside the parallel_for task)
 //   1. seed every start point of the origin zone, each with its own impedance offset if given
 //   2. run the extract-min loop; when a node is finalized, commit the endpoints attached to it
 //   3. shrink the cutoff dh.m_MaxImp once the cumulative destination mass reaches limit()'s budget
-//   4. write this origin's OD rows, then the alt-impedance / link-attribute accumulations
-//   5. compute the interaction potentials and, from those, the link flows
-//   6. reconstruct the per-OD LinkSets
+//   4. write this origin's OD rows (WriteZonalResults), then the alt-impedance / link-attribute
+//      accumulations (UpdateALW)
+//   5. compute the interaction potentials and, from those, the link flows (AccumulateInteraction)
+//   6. reconstruct the per-OD LinkSets (WriteLinkSets)
+//
+// Per-origin work, pareto engine
+//   1. seed one label per start point, carrying the start point as route provenance
+//   2. pop labels in lexicographic (imp, imp2) order; accept iff imp2 improves on the node's
+//      minimum accepted imp2 -- exact bi-criteria dominance -- and both cutoffs hold
+//   3. commit accepted labels' endpoints per destination zone under the same dominance rule;
+//      the commit list, in order, is the origin's od rows (or, in the Counting pass, its count)
 //
 // Concurrency
 //   Origin zones are independent, so per-OD and per-origin outputs need no locking: each task
-//   writes only its own slice. What IS shared are the outputs indexed by DESTINATION zone
-//   (dstZone_Factor, dstZone_Supply) and the sequence-allocating LinkSet writes -- those take the
-//   fine-grained locks in WriteBlock. Link flow is accumulated per worker and summed afterwards.
-//   All per-worker scratch (heap, tree, connector, potentials) lives in dms_combinables and is
-//   allocated once per worker rather than once per origin.
+//   writes only its own slice. What IS shared in the scalar engine are the outputs indexed by
+//   DESTINATION zone (dstZone_Factor, dstZone_Supply) and the sequence-allocating LinkSet writes
+//   -- those take the fine-grained locks in WriteBlock; link flow is accumulated per worker and
+//   summed afterwards. The pareto engine produces per-OD outputs only and therefore needs no
+//   locks at all. All per-worker scratch (heap, tree, connector, potentials) lives in
+//   dms_combinables and is allocated once per worker rather than once per origin.
 //
 // Endpoint impedances
 //   An endpoint that carries its own impedance offset is not final when its node is: a cheaper
 //   endpoint may still be attached to a node the frontier has not reached yet. Such candidates
 //   are therefore parked in a secondary heap and released as the main loop advances past them,
-//   with a final flush once the frontier is exhausted.
+//   with a final flush once the frontier is exhausted. In pareto mode the parked candidates are
+//   keyed AND released on the full lexicographic pair, which keeps per-zone commits in
+//   lexicographic order -- the property both dominance tests rest on.
 
 #include "Dijkstra.h"
 
@@ -2636,7 +2670,7 @@ public:
 			DataWriteLock resLinkFlowLock(resLinkFlow, dms_rw_mode::write_only_mustzero);
 
 			ResultInfo<ZoneType, ImpType, MassType> odResPtrs{
-        .od_ImpData          = resDist          ? mutable_array_cast<ImpType >(resDistLock          )->GetDataWrite(no_tile, dms_rw_mode::write_only_all).begin() : nullptr
+				  .od_ImpData          = resDist          ? mutable_array_cast<ImpType >(resDistLock          )->GetDataWrite(no_tile, dms_rw_mode::write_only_all).begin() : nullptr
 				, .od_AltLinkImp       = resAltLinkImp    ? mutable_array_cast<ImpType >(resALWLock           )->GetDataWrite(no_tile, dms_rw_mode::write_only_all).begin() : nullptr
 				, .od_LinkAttr         = resLinkAttr      ? mutable_array_cast<ImpType >(resLinkAttrLock      )->GetDataWrite(no_tile, dms_rw_mode::write_only_all).begin() : nullptr
 				, .od_SrcZoneIds       = resSrcZone       ? mutable_array_cast<ZoneType>(resSrcZoneLock       )->GetDataWrite(no_tile, dms_rw_mode::write_only_all).begin() : nullptr
