@@ -8,6 +8,17 @@
 #pragma hdrstop
 #endif
 
+// Debug-only diagnostic initialisation for the per-run scratch arrays that Release
+// deliberately leaves dont_initialize (their consumers guard every read with zone
+// stamps or slot claims instead of initialisation): poisoning them makes a read of a
+// slot that was not written for the current origin assert-detectable in the Debug
+// configuration.
+#if defined(MG_DEBUG)
+#define dijkstra_scratch_init Undefined()
+#else
+#define dijkstra_scratch_init dont_initialize
+#endif
+
 // File: Dijkstra.cpp
 //
 // The impedance_table / impedance_matrix operator family. One operator shell, whose whole
@@ -365,17 +376,17 @@ struct NodeZoneConnector
 		m_EuclidSqrDist = euclidSqrDist;
 		if (!m_ResImpPerDstZone) // first-time lazy allocation
 		{
-			m_ResImpPerDstZone = OwningPtrSizedArray<ImpType>( m_NetworkInfoPtr->nrDstZones, dont_initialize MG_DEBUG_ALLOCATOR_SRC("dijkstra: m_ResImpPerDstZone"));
+			m_ResImpPerDstZone = OwningPtrSizedArray<ImpType>( m_NetworkInfoPtr->nrDstZones, dijkstra_scratch_init MG_DEBUG_ALLOCATOR_SRC("dijkstra: m_ResImpPerDstZone"));
 
 			if (flags(df & DijkstraFlag::OD) && flags(df & DijkstraFlag::SparseResult))
 			{
 				dms_assert(m_NetworkInfoPtr->nrDstZones);
 				m_LastCommittedSrcZone = OwningPtrSizedArray<ZoneType>(m_NetworkInfoPtr->nrDstZones, Undefined() MG_DEBUG_ALLOCATOR_SRC("dijkstra: m_LastCommittedSrcZone"));
 				if (flags(df & DijkstraFlag::ProdLinkFlow))
-					m_FoundResPerY = OwningPtrSizedArray<ZoneType>(m_NetworkInfoPtr->nrY, dont_initialize MG_DEBUG_ALLOCATOR_SRC("dijkstra: m_FoundResPerY"));
+					m_FoundResPerY = OwningPtrSizedArray<ZoneType>(m_NetworkInfoPtr->nrY, dijkstra_scratch_init MG_DEBUG_ALLOCATOR_SRC("dijkstra: m_FoundResPerY"));
 			}
 			if (m_NetworkInfoPtr->endPoints.Zone_rel)
-				m_FoundYPerDstZone = OwningPtrSizedArray<ZoneType>(m_NetworkInfoPtr->nrDstZones, dont_initialize MG_DEBUG_ALLOCATOR_SRC("dijkstra: m_FoundYPerDstZone"));
+				m_FoundYPerDstZone = OwningPtrSizedArray<ZoneType>(m_NetworkInfoPtr->nrDstZones, dijkstra_scratch_init MG_DEBUG_ALLOCATOR_SRC("dijkstra: m_FoundYPerDstZone"));
 			m_OrgZoneLocations = networkInfo.startPoints.Zone_location;
 		}
 	}
@@ -395,7 +406,15 @@ struct NodeZoneConnector
 				fast_undefine(m_FoundYPerDstZone.begin(), m_FoundYPerDstZone.begin() + m_NetworkInfoPtr->nrDstZones);
 		}
 		else
+		{
 			m_FoundYPerRes.clear();
+#if defined(MG_DEBUG)
+			// diagnostic: drop the previous origin's slots, so a read of a slot that was
+			// not (re)written for THIS origin trips the asserts in Y2Res
+			if (m_FoundResPerY)
+				fast_undefine(m_FoundResPerY.begin(), m_FoundResPerY.begin() + m_NetworkInfoPtr->nrY);
+#endif
+		}
 
 		if (m_OrgZoneLocations)
 			m_OrgZoneLocation = m_OrgZoneLocations[orgZone];
@@ -470,6 +489,8 @@ struct NodeZoneConnector
 
 		dms_assert(m_FoundResPerY);
 		dms_assert(IsDefined(m_FoundResPerY[y]));
+		dms_assert(m_FoundResPerY[y] < m_FoundYPerRes.size()); // a violation here means the slot table was overwritten
+		dms_assert(m_FoundYPerRes[m_FoundResPerY[y]] == y);    // the slot must belong to the end point that claimed it
 		return m_FoundResPerY[y];
 	}
 
@@ -585,7 +606,7 @@ struct BiNodeZoneConnector
 		m_EuclidSqrDist = euclidSqrDist;
 		if (!m_MinImp2PerDstZone && m_NetworkInfoPtr->nrDstZones)
 		{
-			m_MinImp2PerDstZone = OwningPtrSizedArray<ImpType>(m_NetworkInfoPtr->nrDstZones, dont_initialize MG_DEBUG_ALLOCATOR_SRC("dijkstra: m_MinImp2PerDstZone"));
+			m_MinImp2PerDstZone = OwningPtrSizedArray<ImpType>(m_NetworkInfoPtr->nrDstZones, dijkstra_scratch_init MG_DEBUG_ALLOCATOR_SRC("dijkstra: m_MinImp2PerDstZone"));
 			m_LastCommittedSrcZone = OwningPtrSizedArray<ZoneType>(m_NetworkInfoPtr->nrDstZones, Undefined() MG_DEBUG_ALLOCATOR_SRC("dijkstra: bi m_LastCommittedSrcZone"));
 			m_OrgZoneLocations = networkInfo.startPoints.Zone_location;
 		}
@@ -725,6 +746,7 @@ void UpdateALW(const NetworkInfo<NodeType, ZoneType, ImpType>& ni, const OwningD
 			LinkType currLink = dh.m_TraceBackDataPtr[node];
 			NodeType prevNode = tr.NrOfNode(currNodePtr->GetParent());
 			assert(currLink < ni.nrE);
+			assert(prevNode < ni.nrV);
 			nodeALW[node] = altLinkWeights[altLinkWeightsHasVoidDomain ? 0 : currLink] + nodeALW[prevNode];
 		}
 	}
@@ -735,6 +757,7 @@ void UpdateALW(const NetworkInfo<NodeType, ZoneType, ImpType>& ni, const OwningD
 		for (ZoneType j = 0; j != zonalResultCount; ++j)
 		{
 			NodeType node = nzc.Res2EndNode(j);
+			assert(!IsDefined(node) || node < ni.nrV);
 			*currPtr++ = IsDefined(node) ? nodeALW[node] : UNDEFINED_VALUE(ImpType);
 		}
 	}
@@ -795,11 +818,16 @@ SizeT WriteZonalResults(const NetworkInfo<NodeType, ZoneType, ImpType>& ni
 		}
 	}
 
+	dms_assert(orgZone < ni.nrOrgZones);
+
 	// Write OD-based arrays
 	if (nzc.IsDense())
 	{
 		if (res.od_ImpData)
+		{
+			dms_assert(zonalResultCount <= ni.nrDstZones);
 			fast_copy(nzc.m_ResImpPerDstZone.begin(), nzc.m_ResImpPerDstZone.begin() + zonalResultCount, res.od_ImpData + resultCountBase);
+		}
 		if (res.od_DstZoneIds)
 		{
 			auto dstZonePtr = res.od_DstZoneIds + resultCountBase + zonalResultCount;
@@ -900,6 +928,8 @@ void AccumulateInteraction(const InteractionParams<ImpType, MassType, ParamType>
 {
 	auto& nodeALW = dh.m_AltLinkWeight;
 
+	dms_assert(orgZone < ni.nrOrgZones);
+
 	Float64 totalPotential = 0;
 	ImpType maxImp = 0;
 
@@ -908,9 +938,11 @@ void AccumulateInteraction(const InteractionParams<ImpType, MassType, ParamType>
 	for (SizeT j = 0; j != zonalResultCount; ++j)
 	{
 		ZoneType dstZone = nzc.Res2DstZone(j);
+		dms_assert(dstZone < ni.nrDstZones);
 		NodeType node = nzc.DstZone2EndNode(dstZone);
 		if (!IsDefined(node))
 			continue;
+		dms_assert(node < ni.nrV);
 		Float64 impedance = d_vj[node];
 		if (ni.endPoints.Impedances && !dImpIsAltBased)
 			impedance += ni.endPoints.Impedances[dstZone];
@@ -943,7 +975,10 @@ void AccumulateInteraction(const InteractionParams<ImpType, MassType, ParamType>
 				potential = 0;
 		}
 		if (flags(df & DijkstraFlag::Calc_pot_ij))
+		{
+			dms_assert(j < pot_ij.size());
 			pot_ij[j] = potential;
+		}
 
 		if (ip.tgDstMass)
 			potential *= ip.tgDstMass[ip.tgDstMassHasVoidDomain ? 0 : dstZone];
@@ -987,9 +1022,11 @@ void AccumulateInteraction(const InteractionParams<ImpType, MassType, ParamType>
 			Float64 sumImp = 0.0, sumLinkAttr = 0.0;
 			for (ZoneType j = 0; j != zonalResultCount; ++j)
 			{
+				dms_assert(j < pot_ij.size());
 				pot_ij[j] *= balancingFactor;
 
 				ZoneType dstZone = nzc.Res2DstZone(j);
+				dms_assert(dstZone < ni.nrDstZones);
 				if (res.dstZone_Factor)
 				{
 					leveled_critical_section::scoped_lock lock(writeBlocks.dstFactor);
@@ -1009,6 +1046,7 @@ void AccumulateInteraction(const InteractionParams<ImpType, MassType, ParamType>
 				NodeType node = nzc.DstZone2EndNode(dstZone);
 				if (!IsDefined(node))
 					continue;
+				dms_assert(node < ni.nrV);
 
 				if (res.orgZone_SumImp)
 				{
@@ -1054,6 +1092,7 @@ void AccumulateInteraction(const InteractionParams<ImpType, MassType, ParamType>
 			for (currNodePtr = tr.MostDown(currNodePtr); currNodePtr->GetParent(); currNodePtr = tr.WalkDepthFirst_BottomUp(currNodePtr))
 			{
 				NodeType n = tr.NrOfNode(currNodePtr);
+				dms_assert(n < ni.nrV);
 				nodeALW[n] = 0;
 			}
 		}
@@ -1067,11 +1106,14 @@ void AccumulateInteraction(const InteractionParams<ImpType, MassType, ParamType>
 			for (currNodePtr = tr.MostDown(currNodePtr); currNodePtr->GetParent(); currNodePtr = tr.WalkDepthFirst_BottomUp(currNodePtr))
 			{
 				currNode = tr.NrOfNode(currNodePtr);
+				dms_assert(currNode < ni.nrV);
 				MassType* flowPtr = &nodeALW[currNode];
 				ZoneType y = node_endPoint_inv.FirstOrSame(currNode);
 				while (IsDefined(y))
 				{
+					dms_assert(y < ni.nrY);
 					ZoneType j = nzc.Y2Res(y);
+					dms_assert(!IsDefined(j) || j < pot_ij.size());
 					if (IsDefined(j))
 						*flowPtr += pot_ij[j];
 					y = node_endPoint_inv.NextOrNone(y);
@@ -1079,6 +1121,9 @@ void AccumulateInteraction(const InteractionParams<ImpType, MassType, ParamType>
 				NodeType prevNode = tr.NrOfNode(currNodePtr->GetParent());
 				LinkType currLink = dh.m_TraceBackDataPtr[currNode];
 				MassType flow = *flowPtr;
+				dms_assert(prevNode < ni.nrV);
+				dms_assert(currLink < ni.nrE);
+				dms_assert(resLinkFlow.size() == ni.nrE);
 				nodeALW[prevNode] += flow;
 				resLinkFlow[currLink] += flow;
 			}
@@ -1278,14 +1323,14 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 				if (altLinkWeights || res.LinkFlow)
 				{
 					if (!nodeALW)
-						nodeALW = OwningPtrSizedArray<ImpType>(ni.nrV, dont_initialize MG_DEBUG_ALLOCATOR_SRC("dijkstra: nodeALW"));
+						nodeALW = OwningPtrSizedArray<ImpType>(ni.nrV, dijkstra_scratch_init MG_DEBUG_ALLOCATOR_SRC("dijkstra: nodeALW"));
 					if (res.LinkFlow)
 						resLinkFlow.resize(ni.nrE, 0);
 				}
 				if (linkAttr)
 				{
 					if (!nodeLA)
-						nodeLA = OwningPtrSizedArray<ImpType>(ni.nrV, dont_initialize MG_DEBUG_ALLOCATOR_SRC("dijkstra: nodeLA"));
+						nodeLA = OwningPtrSizedArray<ImpType>(ni.nrV, dijkstra_scratch_init MG_DEBUG_ALLOCATOR_SRC("dijkstra: nodeLA"));
 				}
 			}
 
@@ -2669,7 +2714,63 @@ public:
 			DataWriteLock resDSLock(resDstSupply,      dms_rw_mode::write_only_mustzero);
 			DataWriteLock resLinkFlowLock(resLinkFlow, dms_rw_mode::write_only_mustzero);
 
-			ResultInfo<ZoneType, ImpType, MassType> odResPtrs{
+			// The engines receive BORROWED raw pointers to the result buffers: ResultInfo
+			// only communicates them to the worker threads; ownership stays with the
+			// DataWriteLocks in THIS scope (never copy those into a worker lambda -- that
+			// would turn mutable ownership into something shared). The write views that
+			// own or shadow the buffers are materialized as TEMPORARIES IN THE ARGUMENT
+			// LIST of the runEngine call below: C++ keeps argument temporaries alive
+			// until the call returns, i.e. for the whole engine run, and destroys them
+			// right after -- before the Commits, so a tiled domain's MutableShadowTile
+			// (what GetDataWrite(no_tile, ...) hands out over a multi-tile domain, see
+			// CastedUnaryAttrOper.h) copies its data back into the locked tiles first.
+			// Do NOT hoist the aggregate into a named variable: that shortens the views'
+			// lifetime to the end of that one statement, every pointer into a tiled
+			// domain dangles for the whole run, and the stray writes land in whatever the
+			// allocator reuses the freed shadow buffers for (the 20.18.0 operator-test
+			// heap corruption).
+			auto runEngine = [&](ResultInfo<ZoneType, ImpType, MassType>&& res) -> SizeT
+			{
+				if (flags(df & DijkstraFlag::BiCriteria))
+					return ProcessBiDijkstra<NodeType, LinkType, ZoneType, ImpType, MassType>(resultHolder, networkInfo
+					,	orgMaxImpedances.begin(), HasVoidDomainGuarantee(adiOrgMaxImp)
+					,	orgMaxImp2Data.begin(), HasVoidDomainGuarantee(adiOrgMaxImp2)
+					,	euclidicSqrDist
+					,	graph
+					,	altWeight.begin(), HasVoidDomainGuarantee(adiLinkAltImp)
+					,	node_endPoint_inv
+					,	df
+					,	resCount.begin(), nullptr
+					,	std::move(res)
+					,	"Filling"
+					);
+				return ProcessDijkstra<NodeType, LinkType, ZoneType, ImpType, MassType, ParamType>(resultHolder, networkInfo
+				,	orgMaxImpedances.begin(), HasVoidDomainGuarantee(adiOrgMaxImp)
+				,	orgMassLimit.begin(), HasVoidDomainGuarantee(adiOrgMassLimit)
+				,	dstMassLimit.begin(), HasVoidDomainGuarantee(adiDstMassLimit)
+				,	euclidicSqrDist
+				,	graph, node_endPoint_inv
+				,	df
+				,	altWeight.begin(), HasVoidDomainGuarantee(adiLinkAltImp)
+				,	linkAttr.begin(), HasVoidDomainGuarantee(adiLinkAttr)
+				,	orgMinImpData.begin(), HasVoidDomainGuarantee(adiOrgMinImp)
+				,	dstMinImpData.begin(), HasVoidDomainGuarantee(adiDstMinImp)
+				,	tgOrgMass.begin(), HasVoidDomainGuarantee(adiOrgMass)
+				,	tgDstMass.begin(), HasVoidDomainGuarantee(adiDstMass)
+				,	argDistDecayBetaParam ? tgDistDecayBetaParam[0] : ParamType()
+				,	argDistLogitAlphaParam? tgDistLogitA[0] : ParamType()
+				,	argDistLogitBetaParam? tgDistLogitB[0] : ParamType()
+				,	argDistLogitGammaParam? tgDistLogitC[0] : ParamType()
+				,	tgOrgAlpha.begin(), HasVoidDomainGuarantee(adiOrgAlpha)
+				,	resCount.begin(), nrRes
+				,	nullptr
+				,	std::move(res)
+				,	(flags(df & DijkstraFlag::OD_Data) || !mutableResultUnit) ? resultUnit->GetNrTiles() : no_tile
+				,	"Filling"
+				);
+			};
+
+			SizeT nrRes2 = runEngine(ResultInfo<ZoneType, ImpType, MassType>{
 				  .od_ImpData          = resDist          ? mutable_array_cast<ImpType >(resDistLock          )->GetDataWrite(no_tile, dms_rw_mode::write_only_all).begin() : nullptr
 				, .od_AltLinkImp       = resAltLinkImp    ? mutable_array_cast<ImpType >(resALWLock           )->GetDataWrite(no_tile, dms_rw_mode::write_only_all).begin() : nullptr
 				, .od_LinkAttr         = resLinkAttr      ? mutable_array_cast<ImpType >(resLinkAttrLock      )->GetDataWrite(no_tile, dms_rw_mode::write_only_all).begin() : nullptr
@@ -2688,47 +2789,9 @@ public:
 				, .dstZone_Factor      = resDstFactor     ? mutable_array_cast<MassType>(resDFLock            )->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero).begin() : nullptr
 				, .dstZone_Supply      = resDstSupply     ? mutable_array_cast<MassType>(resDSLock            )->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero).begin() : nullptr
 				, .LinkFlow            = resLinkFlow      ? mutable_array_cast<MassType>(resLinkFlowLock      )->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero).begin() : nullptr
-				};
+				});
 
-			SizeT nrRes2;
-			if (flags(df & DijkstraFlag::BiCriteria))
-				nrRes2 = ProcessBiDijkstra<NodeType, LinkType, ZoneType, ImpType, MassType>(resultHolder, networkInfo
-				,	orgMaxImpedances.begin(), HasVoidDomainGuarantee(adiOrgMaxImp)
-				,	orgMaxImp2Data.begin(), HasVoidDomainGuarantee(adiOrgMaxImp2)
-				,	euclidicSqrDist
-				,	graph
-				,	altWeight.begin(), HasVoidDomainGuarantee(adiLinkAltImp)
-				,	node_endPoint_inv
-				,	df
-				,	resCount.begin(), nullptr
-				,	std::move(odResPtrs)
-				,	"Filling"
-				);
-			else
-				nrRes2 = ProcessDijkstra<NodeType, LinkType, ZoneType, ImpType, MassType, ParamType>(resultHolder, networkInfo
-				,	orgMaxImpedances.begin(), HasVoidDomainGuarantee(adiOrgMaxImp)
-				,	orgMassLimit.begin(), HasVoidDomainGuarantee(adiOrgMassLimit)
-				,	dstMassLimit.begin(), HasVoidDomainGuarantee(adiDstMassLimit)
-				,	euclidicSqrDist
-				,	graph, node_endPoint_inv
-				,	df
-				,	altWeight.begin(), HasVoidDomainGuarantee(adiLinkAltImp)
-				,	linkAttr.begin(), HasVoidDomainGuarantee(adiLinkAttr)
-				,	orgMinImpData.begin(), HasVoidDomainGuarantee(adiOrgMinImp)
-				,	dstMinImpData.begin(), HasVoidDomainGuarantee(adiDstMinImp)
-				,	tgOrgMass.begin(), HasVoidDomainGuarantee(adiOrgMass)
-				,	tgDstMass.begin(), HasVoidDomainGuarantee(adiDstMass)
-				,	argDistDecayBetaParam ? tgDistDecayBetaParam[0] : ParamType()
-				,	argDistLogitAlphaParam? tgDistLogitA[0] : ParamType()
-				,	argDistLogitBetaParam? tgDistLogitB[0] : ParamType()
-				,	argDistLogitGammaParam? tgDistLogitC[0] : ParamType()
-				,   tgOrgAlpha.begin(), HasVoidDomainGuarantee(adiOrgAlpha)
-				,	resCount.begin(), nrRes
-				,	nullptr
-				,	std::move(odResPtrs)
-				,	(flags(df & DijkstraFlag::OD_Data) || !mutableResultUnit) ? resultUnit->GetNrTiles() : no_tile
-				,	"Filling"
-				);
+
 			if (!IsDefined(nrRes2))
 				return false;
 
