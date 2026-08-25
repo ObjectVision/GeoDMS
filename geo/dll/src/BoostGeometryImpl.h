@@ -33,6 +33,9 @@
 
 #include <geos/simplify/DouglasPeuckerSimplifier.h>
 
+template <geometry_library>
+inline constexpr bool unsupported_geometry_library_v = false;
+
 // *****************************************************************************
 //	more conversion functions
 // *****************************************************************************
@@ -675,7 +678,7 @@ struct SimplifyLinestringOperator : public AbstrSimplifyOperator
 			}
 			else
 			{
-				static_assert(false, "Unsupported geometry library for SimplifyLinestringOperator");
+				static_assert(unsupported_geometry_library_v<GL>, "Unsupported geometry library for SimplifyLinestringOperator");
 			}
 		}
 	}
@@ -1079,7 +1082,7 @@ struct BufferMultiPointOperator : public AbstrBufferOperator
 			}
 			else
 			{
-				static_assert(false, "Unsupported geometry library for BufferMultiPointOperator");
+				static_assert(unsupported_geometry_library_v<GL>, "Unsupported geometry library for BufferMultiPointOperator");
 			}
 		}
 	}
@@ -1219,7 +1222,7 @@ struct BufferLineStringOperator : public AbstrBufferOperator
 			}
 			else
 			{
-				static_assert(false, "Unsupported geometry library for BufferLineStringOperator");
+				static_assert(unsupported_geometry_library_v<GL>, "Unsupported geometry library for BufferLineStringOperator");
 			}
 		}
 	}

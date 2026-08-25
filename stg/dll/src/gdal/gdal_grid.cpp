@@ -710,13 +710,17 @@ void GdalGridSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 				switch (first_band_datatype) // TODO: Take sql band specification into account
 				{
 				case GDT_Byte: vu = Unit<UInt8>::GetStaticClass()->CreateDefault(); break;
+#if GDAL_VERSION_NUM >= GDAL_COMPUTE_VERSION(3, 7, 0)
 				case GDT_Int8: vu = Unit<Int8>::GetStaticClass()->CreateDefault(); break;
+#endif
 				case GDT_UInt16: vu = Unit<UInt16>::GetStaticClass()->CreateDefault(); break;
 				case GDT_Int16: vu = Unit<Int16>::GetStaticClass()->CreateDefault(); break;
 				case GDT_UInt32: vu = Unit<UInt32>::GetStaticClass()->CreateDefault(); break;
 				case GDT_Int32: vu = Unit<Int32>::GetStaticClass()->CreateDefault(); break;
+#if GDAL_VERSION_NUM >= GDAL_COMPUTE_VERSION(3, 5, 0)
 				case GDT_UInt64: vu = Unit<UInt64>::GetStaticClass()->CreateDefault(); break;
 				case GDT_Int64: vu = Unit<Int64>::GetStaticClass()->CreateDefault(); break;
+#endif
 				case GDT_Float32: vu = Unit<Float32>::GetStaticClass()->CreateDefault(); break;
 				case GDT_Float64: vu = Unit<Float64>::GetStaticClass()->CreateDefault(); break;
 				default: throwErrorF("gdal.grid", "Cannot convert raster GDALDataType {} to GeoDMS values unit.", first_band_datatype); return;

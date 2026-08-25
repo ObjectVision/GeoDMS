@@ -26,13 +26,18 @@
 
     <!-- Common toolset settings for every GeoDMS C++ project (ConfigurationType stays
          per-project: DynamicLibrary vs Application). -->
-    <PlatformToolset>v145</PlatformToolset>
+    <PlatformToolset Condition="'$(GeoDmsGlobio)' != 'true'">v145</PlatformToolset>
+    <PlatformToolset Condition="'$(GeoDmsGlobio)' == 'true'">v143</PlatformToolset>
     <!-- WORKAROUND: MSVC 14.51.36231 (VS2026 18.6.x) miscompiles geos's KdTree::queryNodePoint
          (elides the `while(currentNode!=nullptr)` back-edge null-check -> 0xC0000005 in MultiPolygon
          buffer/snap-rounding; also silent wrong results). 14.50.35717 compiles it correctly.
          Pin the compiler to 14.50 until Microsoft fixes 14.5x. See memory project_geos_buffer_crash_2026_06.
          Keep in sync with VCPKG_PLATFORM_TOOLSET_VERSION in vcpkg-triplets/x64-windows-v145.cmake. -->
-    <VCToolsVersion>14.50.35717</VCToolsVersion>
+    <VCToolsVersion Condition="'$(GeoDmsGlobio)' != 'true'">14.50.35717</VCToolsVersion>
+    <!-- Match the upstream GLOBIO environment's pinned vc14_runtime 14.36.
+         Loading osgeo first otherwise fixes msvcp140.dll at 14.36 in the
+         Python process and a v145-built Rtc.dll cannot initialize. -->
+    <VCToolsVersion Condition="'$(GeoDmsGlobio)' == 'true'">14.36.32532</VCToolsVersion>
     <UseOfMfc>false</UseOfMfc>
 
     <!--
@@ -82,7 +87,8 @@
       triplet, avoiding the stock x64-windows host path.
     -->
     <VcpkgRoot>$(MSBuildThisFileDirectory)vcpkg</VcpkgRoot>
-    <VcpkgHostTriplet>x64-windows-v145</VcpkgHostTriplet>
+    <VcpkgHostTriplet Condition="'$(GeoDmsGlobio)' != 'true'">x64-windows-v145</VcpkgHostTriplet>
+    <VcpkgHostTriplet Condition="'$(GeoDmsGlobio)' == 'true'">x64-windows-v143</VcpkgHostTriplet>
 
     <!--
       Neutralise any machine-wide `vcpkg integrate install` (a VS-bundled vcpkg) so ONLY the

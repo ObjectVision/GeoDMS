@@ -864,12 +864,18 @@ GDALDataType gdalRasterDataType(ValueClassID tid, bool write)
 	case ValueClassID::VT_UInt8:   return GDT_Byte;
 	case ValueClassID::VT_UInt16:  return GDT_UInt16;
 	case ValueClassID::VT_UInt32:  return GDT_UInt32;
+#if GDAL_VERSION_NUM >= GDAL_COMPUTE_VERSION(3, 5, 0)
 	case ValueClassID::VT_UInt64:  return GDT_UInt64;
+#endif
 
+#if GDAL_VERSION_NUM >= GDAL_COMPUTE_VERSION(3, 7, 0)
 	case ValueClassID::VT_Int8:   return GDT_Int8;
+#endif
 	case ValueClassID::VT_Int16:   return GDT_Int16;
 	case ValueClassID::VT_Int32:   return GDT_Int32;
+#if GDAL_VERSION_NUM >= GDAL_COMPUTE_VERSION(3, 5, 0)
 	case ValueClassID::VT_Int64:   return GDT_Int64;
+#endif
 
 	case ValueClassID::VT_Float32: return GDT_Float32;
 	case ValueClassID::VT_Float64: return GDT_Float64;

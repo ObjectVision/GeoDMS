@@ -19,5 +19,5 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\verify-globio-environm
 if errorlevel 1 exit /b 1
 
 set "PYTHON39_ROOT=%GLOBIO_ENV_ROOT%"
-"C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Current\Bin\amd64\MSBuild.exe" all22.sln -t:build -p:Configuration=%CONFIG% -p:Platform=x64 -p:GeoDmsGlobio=true
+"C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\MSBuild.exe" all22.sln -t:build -p:Configuration=%CONFIG% -p:Platform=x64 -p:GeoDmsGlobio=true
 exit /b %ERRORLEVEL%

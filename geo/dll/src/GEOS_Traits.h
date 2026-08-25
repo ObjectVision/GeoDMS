@@ -15,7 +15,11 @@
 #include "geom/RemoveAdjacentsAndSpikes.h"
 
 //============================  GEOS  ============================
+#include <geos/version.h>
 #include <geos/geom/GeometryFactory.h>
+#if GEOS_VERSION_MAJOR == 3 && GEOS_VERSION_MINOR < 12
+#include <geos/geom/CoordinateSequenceFactory.h>
+#endif
 #include <geos/geom/Geometry.h>
 #include <geos/geom/Polygon.h>
 #include <geos/geom/LinearRing.h>
@@ -71,12 +75,20 @@ auto geos_create_multi_linestring(const DmsPointType* begin, const DmsPointType*
 		}
 		if (!lineStringCoords.empty())
 		{
+#if GEOS_VERSION_MAJOR == 3 && GEOS_VERSION_MINOR < 12
+			auto coordSeq = geos_factory()->getCoordinateSequenceFactory()->create(lineStringCoords.size(), 2);
+			std::size_t i = 0;
+			for (const auto& p : lineStringCoords)
+				coordSeq->setAt(p, i++);
+			auto ls = geos_factory()->createLineString(std::move(coordSeq));
+#else
 			auto coordSeq = geos::geom::CoordinateSequence::XY(lineStringCoords.size());
 			std::size_t i = 0;
 			for (const auto& p: lineStringCoords)
 				coordSeq[i++] = p;
 
 			auto ls = geos_factory()->createLineString(coordSeq);
+#endif
 			resLineStrings.emplace_back(std::move(ls));
 		}
 		if (curr == beyond)
@@ -97,6 +109,17 @@ auto geos_circle(double radius, int pointsPerCircle) -> std::unique_ptr<geos::ge
 	if (pointsPerCircle < 3)
 		pointsPerCircle = 3;
 	auto anglePerPoint = 2.0 * std::numbers::pi_v<double> / pointsPerCircle;
+#if GEOS_VERSION_MAJOR == 3 && GEOS_VERSION_MINOR < 12
+	auto seq = geos_factory()->getCoordinateSequenceFactory()->create(pointsPerCircle + 1, 2);
+	for (int i = 0; i < pointsPerCircle; ++i) {
+		double angle = i * anglePerPoint;
+		int x = static_cast<int>(radius * std::cos(angle));
+		int y = static_cast<int>(radius * std::sin(angle));
+		seq->setAt(geos::geom::Coordinate(x, y), i);
+	}
+	seq->setAt(seq->getAt(0), pointsPerCircle);
+	return geos_factory()->createLinearRing(std::move(seq));
+#else
 	auto seq = geos::geom::CoordinateSequence::XY(pointsPerCircle + 1);
 	for (int i = 0; i < pointsPerCircle; ++i) {
 		double angle = i * anglePerPoint;
@@ -106,6 +129,7 @@ auto geos_circle(double radius, int pointsPerCircle) -> std::unique_ptr<geos::ge
 	}
 	seq[pointsPerCircle] = seq[0]; // close ring
 	return geos_factory()->createLinearRing(seq);
+#endif
 }
 
 
@@ -113,7 +137,6 @@ template <typename DmsPointType>
 struct geos_create_linear_ring_helper_data
 {
 	std::vector<DmsPointType> helperRingPoints;
-//	std::vector<geos::geom::Coordinate> helperRingCoords;
 };
 
 template <typename DmsPointType>
@@ -130,15 +153,14 @@ auto geos_create_linear_ring(const DmsPointType* begin, const DmsPointType* beyo
 	remove_adjacents_and_spikes(tmp.helperRingPoints);
 	if (tmp.helperRingPoints.size() < 3)
 		return {};
-
-/* REMOVE
-	tmp.helperRingCoords.clear();
-	tmp.helperRingCoords.reserve(tmp.helperRingPoints.size() + 1);
+#if GEOS_VERSION_MAJOR == 3 && GEOS_VERSION_MINOR < 12
+	auto sequence = geos_factory()->getCoordinateSequenceFactory()->create(tmp.helperRingPoints.size() + 1, 2);
+	std::size_t i = 0;
 	for (const auto& p : tmp.helperRingPoints)
-		tmp.helperRingCoords.emplace_back(geos_Coordinate(p));
-	tmp.helperRingCoords.emplace_back(geos_Coordinate(tmp.helperRingPoints[0])); // close ring.
-	*/
-
+		sequence->setAt(geos_Coordinate(p), i++);
+	sequence->setAt(geos_Coordinate(tmp.helperRingPoints[0]), i); // close ring.
+	auto result = geos_factory()->createLinearRing(std::move(sequence));
+#else
 	auto sequence = geos::geom::CoordinateSequence::XY(tmp.helperRingPoints.size() + 1);
 	std::size_t i = 0;
 	for (const auto& p : tmp.helperRingPoints)
@@ -146,8 +168,8 @@ auto geos_create_linear_ring(const DmsPointType* begin, const DmsPointType* beyo
 	sequence[i] = geos_Coordinate(tmp.helperRingPoints[0]); // close ring.
 
 
-//	auto coordSerq = geos_factory()->create(sequence)
 	auto result = geos_factory()->createLinearRing(sequence);
+#endif
 	MG_CHECK(result->isClosed());
 	return result;
 }
@@ -715,7 +737,7 @@ inline void checkAndReportValidity(const geos::geom::Geometry* input)
 	geos::operation::valid::IsValidOp validator(input);
 	if (validator.isValid())
 		return;
-	const auto* err = validator.getValidationError();
+	auto* err = validator.getValidationError();
 	if (!err)
 		return;
 	auto coord = err->getCoordinate();

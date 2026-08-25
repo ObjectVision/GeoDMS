@@ -39,7 +39,8 @@
 	<!-- same path however the build was started, so the IDE, a bare msbuild and the batch -->
 	<!-- scripts all share one vcpkg tree, one binary cache and one downloads root. -->
     <VcpkgAdditionalInstallOptions>--binarysource=clear;files,$(MSBuildThisFileDirectory)vc_archives,readwrite --downloads-root=$(MSBuildThisFileDirectory)vc_downloads</VcpkgAdditionalInstallOptions>
-	<VcpkgTriplet>x64-windows-v145</VcpkgTriplet>
+	<VcpkgTriplet Condition="'$(GeoDmsGlobio)' != 'true'">x64-windows-v145</VcpkgTriplet>
+	<VcpkgTriplet Condition="'$(GeoDmsGlobio)' == 'true'">x64-windows-v143</VcpkgTriplet>
 	<VcpkgManifestRoot Condition="'$(GeoDmsGlobio)' != 'true'">$(MSBuildThisFileDirectory)</VcpkgManifestRoot>
 	<VcpkgManifestRoot Condition="'$(GeoDmsGlobio)' == 'true'">$(MSBuildThisFileDirectory)vcpkg-globio\</VcpkgManifestRoot>
 	<!-- Override default (vcpkg_installed\$(VcpkgTriplet)\) so the layout matches what cmake -->

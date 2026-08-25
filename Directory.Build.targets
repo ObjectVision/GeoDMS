@@ -205,7 +205,7 @@
   <Target Name="DmsDeployGlobioDeps"
           AfterTargets="Build"
           Condition="'$(GeoDmsGlobio)' == 'true' and '$(ConfigurationType)' == 'Application' and Exists('$(OutDir)')">
-    <Exec Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)tools\deploy-globio-runtime.ps1&quot; -OutputDir &quot;$(OutDir)&quot; -GlobioRoot &quot;$(GeoDmsGlobioRoot)&quot; -CopiedFilesLog &quot;$(IntDir)globio.applocal.log&quot;"
+    <Exec Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)tools\deploy-globio-runtime.ps1&quot; -OutputDir &quot;$(OutDir.TrimEnd('\'))&quot; -GlobioRoot &quot;$(GeoDmsGlobioRoot)&quot; -CopiedFilesLog &quot;$(IntDir)globio.applocal.log&quot;"
           WorkingDirectory="$(MSBuildThisFileDirectory)" />
     <ReadLinesFromFile File="$(IntDir)globio.applocal.log"
                        Condition="Exists('$(IntDir)globio.applocal.log')">

@@ -31,7 +31,16 @@ $dumpbinPath = if ($dumpbin.Source) { $dumpbin.Source } else { $dumpbin.FullName
 
 # GeoDMS is built with the current v145 runtime. Never replace it with the older
 # runtime carried by the conda prefix, even when a conda DLL imports the same ABI.
-$neverCopy = '^(?:api-ms-|ucrtbase\.dll$|msvcp140.*\.dll$|vcruntime140.*\.dll$|concrt140\.dll$|vccorlib140\.dll$|vcomp140\.dll$|vcamp140\.dll$)'
+#
+# ICU is on the list for a different reason. Qt6Core.dll (vcpkg) carries a STATIC import
+# of icuuc.dll for the UNSUFFIXED ucnv_* symbols; on Windows those come from the OS copy,
+# C:\Windows\System32\icuuc.dll, which forwards them into icu.dll. conda-forge ships
+# icuuc.dll as an alias of icuuc68.dll, whose exports are ALL version-suffixed
+# (ucnv_open_68, ...). Copying it next to the binaries shadows the OS copy in the loader
+# search order, so GeoDmsGuiQt.exe -- any process that loads Qt6Core -- dies before main()
+# with STATUS_ENTRYPOINT_NOT_FOUND (0xC0000139). Nothing in the GLOBIO closure wants the
+# conda ICU: Qt6Core is its only importer in the deployed set.
+$neverCopy = '^(?:api-ms-|ucrtbase\.dll$|msvcp140.*\.dll$|vcruntime140.*\.dll$|concrt140\.dll$|vccorlib140\.dll$|vcomp140\.dll$|vcamp140\.dll$|icu)'
 $seen = @{}
 $queue = [Collections.Generic.Queue[string]]::new()
 Get-ChildItem -LiteralPath $resolvedOutput -File |

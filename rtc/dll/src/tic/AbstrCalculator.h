@@ -106,7 +106,7 @@ public:
 	TIC_CALL static AcConstructor* GetConstructor();
 	TIC_CALL static void SetConstructor(AcConstructor* constructor);
 
-	static AbstrCalculatorRef ConstructFromStr      (const TreeItem* context, WeakStr expr, CalcRole cr);
+	TIC_CALL static AbstrCalculatorRef ConstructFromStr      (const TreeItem* context, WeakStr expr, CalcRole cr);
 	static AbstrCalculatorRef ConstructFromDirectStr(const TreeItem* context, WeakStr expr, CalcRole cr);
 	TIC_CALL static AbstrCalculatorRef ConstructFromLispRef  (const TreeItem* context, LispPtr lispExpr, CalcRole cr);
 	static AbstrCalculatorRef ConstructFromDBT      (AbstrDataItem* context, const AbstrCalculator* src);
@@ -154,7 +154,7 @@ public:
 	auto FindItem(TokenID itemRef) const -> SharedTreeItem;
 	auto FindOrVisitItem(SubstitutionBuffer& buff, TokenID itemRef) const -> SharedTreeItem;
 	BestItemRef FindBestItem(TokenID itemRef) const;
-	MetaInfo SubstituteExpr(SubstitutionBuffer& substBuff, LispPtr localExpr) const;
+	TIC_CALL MetaInfo SubstituteExpr(SubstitutionBuffer& substBuff, LispPtr localExpr) const;
 
 	LispRef slSupplierExpr(SubstitutionBuffer& substBuff, LispPtr supplRef, metainfo_policy_flags mpf) const;
 	LispRef slSupplierExprImpl(SubstitutionBuffer& substBuff, const TreeItem* supplier, metainfo_policy_flags mpf) const;

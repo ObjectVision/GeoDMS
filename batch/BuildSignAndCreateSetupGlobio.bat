@@ -55,7 +55,7 @@ if errorlevel 1 (
 
 if exist "%OUTPUT_DIR%" rmdir /s /q "%OUTPUT_DIR%"
 
-powershell -NoProfile -ExecutionPolicy Bypass -File "%geodms_rootdir%\tools\vcpkg-drift-check.ps1" -Triplet x64-windows-v145 -ManifestRoot "%geodms_rootdir%\vcpkg-globio" -InstallRoot "%geodms_rootdir%\vcpkg_installed_GLOBIO"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%geodms_rootdir%\tools\vcpkg-drift-check.ps1" -Triplet x64-windows-v143 -ManifestRoot "%geodms_rootdir%\vcpkg-globio" -InstallRoot "%geodms_rootdir%\vcpkg_installed_GLOBIO"
 if errorlevel 1 if not errorlevel 2 (
     choice /C YN /T 30 /D Y /M "Continue with the G build"
     if errorlevel 2 goto :build_failed
@@ -64,7 +64,7 @@ if errorlevel 1 if not errorlevel 2 (
 powershell -NoProfile -ExecutionPolicy Bypass -File "%geodms_rootdir%\tools\patch-qtdeploy-targets.ps1"
 
 :retry_build
-"C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Current\Bin\amd64\MSBuild.exe" all22.sln -t:build -p:Configuration=Release -p:Platform=x64 -p:GeoDmsGlobio=true
+"C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\MSBuild.exe" all22.sln -t:build -p:Configuration=Release -p:Platform=x64 -p:GeoDmsGlobio=true
 if errorlevel 1 (
     choice /M "G build failed. Retry"
     if not errorlevel 2 goto :retry_build
