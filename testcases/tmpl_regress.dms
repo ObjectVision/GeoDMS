@@ -17,8 +17,26 @@ container tmpl_regress
 
 	container d := Doubler(Road, Road/flow);
 
+	// A container declared in the INSTANTIATION BODY, resolving a relative 'Using'.
+	// Such a child already owns a UsingCache (built when its Using property was parsed,
+	// with the instantiation root as its implicit parent namespace) by the time
+	// TreeItem::Copy re-seats the root's own fixed usings. Re-seating must happen IN
+	// PLACE: replacing the root's UsingCache object runs ~UsingCache, which detaches the
+	// root from every incoming cache, and this child then permanently loses the parent
+	// namespace it resolves 'lookups' through -- "UsingCache Error: Cannot find reference
+	// in Using". See UsingCache::ResetFixedUsings.
+	container body_using := Doubler(Road, Road/flow)
+	{
+		container lookups { parameter<float64> bonus := 7.0; }
+		container uses_lookups : Using = "lookups"
+		{
+			parameter<float64> value := bonus;
+		}
+	}
+
 	container checks
 	{
 		parameter<float64> check1 := sum(d/result), IntegrityCheck = "check1 == 1500.0";
+		parameter<float64> check2 := body_using/uses_lookups/value, IntegrityCheck = "check2 == 7.0";
 	}
 }
