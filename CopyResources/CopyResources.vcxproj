@@ -49,10 +49,10 @@ if errorlevel 8 ( echo *** CopyResources: robocopy examples FAILED *** &amp; exi
 robocopy "$(SolutionDir)testcases" "$(OutDir)examples\testcases" /E /NJH /NJS /NP /R:2 /W:2 /XO /XD _out*
 if errorlevel 8 ( echo *** CopyResources: robocopy testcases FAILED *** &amp; exit /b 1 )
 if not exist "$(_VcpkgRuntimeBin)\*.dll" ( echo *** CopyResources: vcpkg runtime bin not found or empty - "$(_VcpkgRuntimeBin)" *** &amp; exit /b 1 )
-robocopy "$(_VcpkgRuntimeBin)" "$(OutDir.TrimEnd('\'))" *.dll /NJH /NJS /NP /R:2 /W:2 /XO
+robocopy "$(_VcpkgRuntimeBin)" "$(OutDir.TrimEnd('\'))" *.dll /XF python*.dll /NJH /NJS /NP /R:2 /W:2 /XO
 if errorlevel 8 ( echo *** CopyResources: robocopy vcpkg runtime DLLs FAILED *** &amp; exit /b 1 )
-if "$(GeoDmsGlobio)"=="true" powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$(SolutionDir)tools\deploy-globio-runtime.ps1" -OutputDir "$(OutDir)" -GlobioRoot "$(GeoDmsGlobioRoot)"
-if errorlevel 1 ( echo *** CopyResources: GLOBIO runtime deployment FAILED *** &amp; exit /b 1 )
+if "$(GeoDmsGlobio)"=="true" powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$(SolutionDir)tools\deploy-globio-runtime.ps1" -OutputDir "$(OutDir.TrimEnd('\'))" -GlobioRoot "$(GeoDmsGlobioRoot)"
+if "$(GeoDmsGlobio)"=="true" if errorlevel 1 ( echo *** CopyResources: GLOBIO runtime deployment FAILED *** &amp; exit /b 1 )
 exit /b 0
     </NMakeBuildCommandLine>
     <CopyCppRuntimeToOutputDir>false</CopyCppRuntimeToOutputDir>

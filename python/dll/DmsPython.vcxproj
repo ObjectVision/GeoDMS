@@ -111,7 +111,15 @@
           AfterTargets="Build"
           Condition="'$(DmsPythonMatrixChild)' != 'true' and '$(Platform)' == 'x64'">
     <ItemGroup>
-      <_DmsPythonMatrixVersion Include="$(GeoDmsPythonVersions)" />
+      <!-- Unescape before Include: GeoDmsPythonVersions comes from a property function
+           ([System.IO.File]::ReadAllText), and MSBuild ESCAPES a property function's
+           result, so its ';' arrives here as %3B. Without the unescape the Include
+           yields ONE item literally named "3.12;3.13;3.14": the tasks below do not batch,
+           the child build is handed that whole string as GeoDmsPythonVersion, and
+           Directory.Build.props dies on [System.Version]::Parse. Only the default ABI
+           would ever be built. Invisible on the G flavour, whose PythonVersionsGlobio.txt
+           holds a single version and therefore never enters this recursion. -->
+      <_DmsPythonMatrixVersion Include="$([MSBuild]::Unescape('$(GeoDmsPythonVersions)'))" />
     </ItemGroup>
     <Message Importance="high"
              Condition="'%(_DmsPythonMatrixVersion.Identity)' != '$(GeoDmsPythonVersion)'"
