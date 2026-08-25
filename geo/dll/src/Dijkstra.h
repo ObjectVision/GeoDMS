@@ -80,6 +80,8 @@
 #include "vt/HeapElem.h"
 #include "ptr/OwningPtrSizedArray.h"
 
+#include <utility>
+
 // *****************************************************************************
 // DijkstraHeap
 //   Non-owning base: external code must set m_ResultDataPtr (and optionally
@@ -292,8 +294,134 @@ struct OwningDijkstraHeap : DijkstraHeap<NodeType, LinkType, ZoneType,ImpType>
 	OwningPtrSizedArray<ImpType> m_ResultData;      // Distance buffer
 	OwningPtrSizedArray<LinkType> m_TraceBackData;  // Optional predecessor links
 	OwningPtrSizedArray<ZoneType> m_StartPointData; // Optional per-node origin start point
-	OwningPtrSizedArray<ImpType> m_AltLinkWeight,   // (Potential future use: alternative edge weights)
-                             m_LinkAttr;         // (Potential future use: edge attribute storage)
+	OwningPtrSizedArray<ImpType> m_AltLinkWeight,   // per-node scratch: UpdateALW accumulator for alternative impedance, reused as the link-flow accumulator
+                             m_LinkAttr;         // per-node scratch: UpdateALW accumulator for link_attr
+};
+
+// *****************************************************************************
+// BiCriteriaDijkstraHeap
+//   Label-setting heap for the bi-criteria (pareto) variant -- issue #856. The
+//   heap holds LABELS (imp, imp2, node), several of which may refer to the same
+//   node, in lexicographic (imp, imp2) order: heapElemType over std::pair,
+//   whose operator> is exactly that order.
+//
+//   Dominance needs only ONE scalar per node (Hansen 1980): labels pop in
+//   lexicographically nondecreasing order, so a popped label (t, c) at node v
+//   is Pareto-optimal among all v-paths iff c < m_MinImp2[v], the minimum imp2
+//   over labels ACCEPTED at v so far. Accepted labels per node are then exactly
+//   the distinct Pareto front, in strictly increasing imp and strictly
+//   decreasing imp2; in particular the FIRST accepted label per node carries
+//   the scalar engine's minimum imp. The same test pre-prunes at push time,
+//   since m_MinImp2 is nonincreasing during a run; pending labels are not
+//   compared against each other, which only makes the queue larger, not the
+//   front wrong. NOTE: this reduction is intrinsically 2-dimensional -- three
+//   or more criteria need real per-node front storage, not a scalar.
+//
+//   Correctness preconditions: BOTH per-link weight arrays nonnegative
+//   (negative imp2 cycles yield unbounded label sets), and the heap ordered on
+//   the FULL pair -- an imp-only order with imp2 as payload can pop equal-imp
+//   labels of one node in the wrong order and leak a dominated pair into the
+//   front.
+//
+//   m_MinImp2 reuses the zone-stamp lazy reset of DijkstraHeap: a stale stamp
+//   reads as +infinity, keeping ResetImpedances O(1) per origin. Both cutoffs
+//   are fixed per origin (no limit() in this mode), so a label admitted at push
+//   time stays admissible.
+// *****************************************************************************
+template <typename NodeType, typename ZoneType, typename ImpType>
+struct BiCriteriaDijkstraHeap
+{
+	using ImpPairType = std::pair<ImpType, ImpType>; // (imp, imp2), compared lexicographically
+	using HeapElemType = heapElemType<ImpPairType, NodeType>;
+	using HeapType = std::vector<HeapElemType>;
+
+	void Init(NodeType nrV, bool useSrcZoneStamps)
+	{
+		m_NrV = nrV;
+		if (nrV && !m_MinImp2)
+			m_MinImp2 = OwningPtrSizedArray<ImpType>(nrV, dont_initialize MG_DEBUG_ALLOCATOR_SRC("dijkstra: m_MinImp2"));
+		if (useSrcZoneStamps && !m_SrcZoneStamp)
+			m_SrcZoneStamp = OwningPtrSizedArray<ZoneType>(nrV, dont_initialize MG_DEBUG_ALLOCATOR_SRC("dijkstra: bi m_SrcZoneStamp"));
+		ResetZoneStamps();
+	}
+
+	void ResetZoneStamps()
+	{
+		m_CurrSrcZoneTick = UNDEFINED_VALUE(ZoneType);
+		if (m_SrcZoneStamp)
+			fast_undefine(m_SrcZoneStamp.begin(), m_SrcZoneStamp.begin() + m_NrV);
+	}
+
+	// Prepares for a new origin: O(1) with stamps, O(n) fill otherwise.
+	void ResetImpedances()
+	{
+		++m_CurrSrcZoneTick;
+		if (!m_SrcZoneStamp)
+			fast_fill(m_MinImp2.begin(), m_MinImp2.begin() + m_NrV, MaxValue<ImpType>());
+	}
+
+	bool IsStale(NodeType v) const
+	{
+		assert(v < m_NrV);
+		return m_SrcZoneStamp && (m_SrcZoneStamp[v] != m_CurrSrcZoneTick);
+	}
+
+	// True iff a label with second criterion d2 at node v is not (weakly) dominated by any
+	// label accepted at v so far: every accepted label has imp <= any future label's imp,
+	// so dominance reduces to this imp2 comparison. Weak (>= rejects) so that duplicates
+	// and zero-weight cycles terminate, mirroring the strict < of IsBetter.
+	bool IsUndominated(NodeType v, ImpType d2) const
+	{
+		assert(v < m_NrV);
+		return IsStale(v) || d2 < m_MinImp2[v];
+	}
+
+	// Attempt to push label (d, d2) for node v; prunes on both cutoffs and on dominance.
+	void InsertLabel(NodeType v, ImpType d, ImpType d2)
+	{
+		if (d >= m_MaxImp || d2 >= m_MaxImp2)
+			return;
+		assert(v < m_NrV);
+		assert(d >= 0);
+		assert(d2 >= 0);
+		if (!IsUndominated(v, d2))
+			return;
+		m_LabelHeap.push_back(HeapElemType(v, ImpPairType(d, d2)));
+		std::push_heap(m_LabelHeap.begin(), m_LabelHeap.end());
+	}
+
+	// Pop-time acceptance: re-test dominance (a cheaper-imp2 label for v may have been
+	// accepted after this label was pushed) and record the new per-node minimum.
+	bool AcceptLabel(NodeType v, ImpType d2)
+	{
+		assert(v < m_NrV);
+		if (!IsUndominated(v, d2))
+			return false;
+		m_MinImp2[v] = d2;
+		if (m_SrcZoneStamp)
+			m_SrcZoneStamp[v] = m_CurrSrcZoneTick;
+		return true;
+	}
+
+	void PopLabel()
+	{
+		std::pop_heap(m_LabelHeap.begin(), m_LabelHeap.end());
+		m_LabelHeap.pop_back();
+	}
+
+	bool                Empty() const { return m_LabelHeap.empty(); }
+	const HeapElemType& Front() const { return m_LabelHeap.front(); }
+
+	ImpType m_MaxImp  = MaxValue<ImpType>(); // cutoff on the first criterion: cut(OrgZone_max_imp), required in pareto mode
+	ImpType m_MaxImp2 = MaxValue<ImpType>(); // optional cutoff on the second criterion: pareto(OrgZone_max_imp2)
+
+	OwningPtrSizedArray<ImpType>  m_MinImp2;      // min imp2 over ACCEPTED labels, per node
+
+protected:
+	NodeType m_NrV = 0;
+	ZoneType m_CurrSrcZoneTick = UNDEFINED_VALUE(ZoneType);
+	HeapType m_LabelHeap;
+	OwningPtrSizedArray<ZoneType> m_SrcZoneStamp; // optional per-node stamp buffer (lazy reset)
 };
 
 #endif //!defined(__GEO_DIJKSTRA_H))

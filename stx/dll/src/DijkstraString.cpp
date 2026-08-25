@@ -135,6 +135,16 @@ DijkstraFlag ParseDijkstraString(CharPtr str)
 			% COMMA
 			);
 
+	// Bi-criteria (pareto) mode: keep both the primary and the alternative link impedance in the
+	// search and drop a partial route only when it is Pareto-dominated (issue #856). The second
+	// per-link criterion itself rides the alternative(link_imp) argument; the optional
+	// OrgZone_max_imp2 argument bounds the second criterion per origin zone.
+	boost::spirit::rule<>  paretoRule =
+		strlit<>("pareto")[AssignFlags(result, DijkstraFlag::BiCriteria)]
+		>> !(LBRACE
+			>> strlit<>("OrgZone_max_imp2")[AssignFlags(result, DijkstraFlag::Imp2Cut)]
+			>> RBRACE);
+
 	// Interaction model configuration + optional production outputs
 	boost::spirit::rule<>  interactionRule =
 		strlit<>("interaction")
@@ -202,6 +212,7 @@ DijkstraFlag ParseDijkstraString(CharPtr str)
 		>> !(chlit<>(';') >> dstLimitRule)
 		>> !(chlit<>(';') >> dstEuclidicRule)
 		>> !(chlit<>(';') >> altLinkImpRule)
+		>> !(chlit<>(';') >> paretoRule)
 		>> !(chlit<>(';') >> interactionRule)
 		>> !(chlit<>(';') >> tbRule)
 		>> !(chlit<>(';') >> odRule)

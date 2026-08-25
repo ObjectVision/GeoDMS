@@ -1,0 +1,26 @@
+container fn_test_od_pareto_neg1
+{
+	// pareto requires alternative(link_imp) -- without it there is no second criterion, and
+	// CheckFlags must reject the specification at definition time.
+	unit<uint32> Node : nrofrows = 2;
+	unit<uint32> Link : nrofrows = 1
+	{
+		attribute<Node>    F1  : [0];
+		attribute<Node>    F2  : [1];
+		attribute<float64> imp : [1.0];
+	}
+	unit<uint32> StartSet : nrofrows = 1 { attribute<Node> nr : [0]; }
+	unit<uint32> EndSet   : nrofrows = 1 { attribute<Node> nr : [1]; }
+
+	unit<uint32> od := impedance_matrix(
+		  'directed;startPoint(Node_rel);endPoint(Node_rel);cut(OrgZone_max_imp);pareto;od:impedance'
+		, Link/imp, Link/F1, Link/F2
+		, StartSet/nr, EndSet/nr
+		, const(100.0, StartSet)
+		);
+
+	container checks
+	{
+		parameter<uint32> nr_rows := uint32(#od), IntegrityCheck = "nr_rows == 1";
+	}
+}

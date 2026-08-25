@@ -1,0 +1,192 @@
+container fn_test_od_pareto
+{
+	// pareto (issue #856): bi-criteria label-setting on (imp, alternative imp) with
+	// Pareto-dominance pruning; one od-row per Pareto-optimal route, alt_imp = second criterion.
+	//
+	// The network is the NetworkModel_PBL#19 counterexample in miniature -- a fast-expensive and
+	// a slow-cheap way out of the origin -- plus a second origin zone to exercise the two-pass
+	// row cumulation:
+	//
+	//   org zone 0 = node 0:  L0: 0 -(t=1,c=10)-> 1   (fast, expensive)
+	//                         L1: 0 -(t=5,c=1 )-> 2   (slow, cheap)
+	//                         L2: 1 -(t=1,c=0 )-> 3 = end point 0, dst zone 0
+	//                         L3: 2 -(t=1,c=0 )-> 3
+	//                         L4: 1 -(t=10,c=0)-> 4 = end point 1, dst zone 1
+	//                         L5: 2 -(t=2,c=1 )-> 4
+	//   org zone 1 = node 5:  L6: 5 -(t=1,c=1 )-> 2
+	//
+	//   org 0 -> dst 0: (2,10) via node 1 and (6,1) via node 2: a genuine two-point front.
+	//   org 0 -> dst 1: (7,2) via node 2 DOMINATES (11,10) via node 1: exactly one row, and the
+	//                   route a scalar time-Dijkstra would consider second-best must NOT appear.
+	//   org 1: single-point fronts (2,1) to dst 0 and (3,2) to dst 1.
+	//
+	// Rows come per origin in lexicographic commit order; the FIRST row per (org, dst) must carry
+	// the plain impedance_matrix time (the NetworkModel_PBL#19 validation criterion).
+	unit<uint32> Node : nrofrows = 6;
+	unit<uint32> Link : nrofrows = 7
+	{
+		attribute<Node>    F1 : [0, 0, 1, 2, 1, 2, 5];
+		attribute<Node>    F2 : [1, 2, 3, 3, 4, 4, 2];
+		attribute<float64> t  : [1.0, 5.0, 1.0, 1.0, 10.0, 2.0, 1.0];
+		attribute<float64> c  : [10.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0];
+	}
+	unit<uint32> OrgZone : nrofrows = 2;
+	unit<uint32> DstZone : nrofrows = 2;
+	unit<uint32> StartSet : nrofrows = 2
+	{
+		attribute<Node>    node_rel : [0, 5];
+		attribute<OrgZone> zone_rel : [0, 1];
+	}
+	unit<uint32> EndSet : nrofrows = 2
+	{
+		attribute<Node>    node_rel : [3, 4];
+		attribute<float64> imp      : [1.0, 0.0];
+		attribute<DstZone> zone_rel : [0, 1];
+	}
+
+	unit<uint32> od_pareto := impedance_matrix(
+		  'directed;startPoint(Node_rel,OrgZone_rel);endPoint(Node_rel,DstZone_rel)'
+		  ';cut(OrgZone_max_imp);alternative(link_imp):alt_imp'
+		  ';pareto'
+		  ';od:impedance,OrgZone_rel,DstZone_rel,EndPoint_rel'
+		, Link/t, Link/F1, Link/F2
+		, StartSet/node_rel, StartSet/zone_rel
+		, EndSet/node_rel,   EndSet/zone_rel
+		, const(100.0, OrgZone)
+		, Link/c
+		);
+
+	// the scalar reference: the first pareto row per (org, dst) must reproduce these times
+	unit<uint32> od_ref := impedance_matrix(
+		  'directed;startPoint(Node_rel,OrgZone_rel);endPoint(Node_rel,DstZone_rel)'
+		  ';od:impedance'
+		, Link/t, Link/F1, Link/F2
+		, StartSet/node_rel, StartSet/zone_rel
+		, EndSet/node_rel,   EndSet/zone_rel
+		);
+
+	// tighter cut on the first criterion: (7,2) and (11,10) to dst 1 both exceed 6.5 from org 0,
+	// so org 0 loses its dst-1 row while its dst-0 front stays intact
+	unit<uint32> od_cut := impedance_matrix(
+		  'directed;startPoint(Node_rel,OrgZone_rel);endPoint(Node_rel,DstZone_rel)'
+		  ';cut(OrgZone_max_imp);alternative(link_imp):alt_imp'
+		  ';pareto'
+		  ';od:impedance,OrgZone_rel,DstZone_rel'
+		, Link/t, Link/F1, Link/F2
+		, StartSet/node_rel, StartSet/zone_rel
+		, EndSet/node_rel,   EndSet/zone_rel
+		, const(6.5, OrgZone)
+		, Link/c
+		);
+
+	// cut on the SECOND criterion: c >= 5 prunes the expensive first leg at the push, so org 0
+	// keeps only the cheap routes -- and dst 0 falls back to the (6,1) label
+	unit<uint32> od_imp2cut := impedance_matrix(
+		  'directed;startPoint(Node_rel,OrgZone_rel);endPoint(Node_rel,DstZone_rel)'
+		  ';cut(OrgZone_max_imp);alternative(link_imp):alt_imp'
+		  ';pareto(OrgZone_max_imp2)'
+		  ';od:impedance,OrgZone_rel,DstZone_rel'
+		, Link/t, Link/F1, Link/F2
+		, StartSet/node_rel, StartSet/zone_rel
+		, EndSet/node_rel,   EndSet/zone_rel
+		, const(100.0, OrgZone)
+		, Link/c
+		, const(5.0, OrgZone)
+		);
+
+	// endpoint impedance offsets (first criterion): routes into dst 0 gain 1.0, which exercises
+	// the parked-endpoint heap, including the equal-imp release tie at org 1 -- (3,1) into dst 0
+	// must commit before (3,2) into dst 1
+	unit<uint32> od_endimp := impedance_matrix(
+		  'directed;startPoint(Node_rel,OrgZone_rel);endPoint(Node_rel,impedance,DstZone_rel)'
+		  ';cut(OrgZone_max_imp);alternative(link_imp):alt_imp'
+		  ';pareto'
+		  ';od:impedance,OrgZone_rel,DstZone_rel'
+		, Link/t, Link/F1, Link/F2
+		, StartSet/node_rel, StartSet/zone_rel
+		, EndSet/node_rel,   EndSet/imp, EndSet/zone_rel
+		, const(100.0, OrgZone)
+		, Link/c
+		);
+
+	// §12.7 signature probe: a definition-time-known pareto spec inside a function body walks
+	// DescribeSpecSignature -- including the new OrgZone_max_imp2 position and the honest arity
+	// check -- and the od/impedance member ride-through. Sum over the imp2cut variant: 6+7+2+3.
+	function paretoSum(
+		  attribute<float64> w (Link); attribute<Node> f1 (Link); attribute<Node> f2 (Link)
+		; attribute<Node> sr (StartSet); attribute<OrgZone> szr (StartSet)
+		; attribute<Node> er (EndSet); attribute<DstZone> ezr (EndSet)
+		; attribute<float64> mx (OrgZone); attribute<float64> w2 (Link); attribute<float64> mx2 (OrgZone))
+	-> parameter<float64>
+	{
+		unit<uint32> od := impedance_matrix(
+			  'directed;startPoint(Node_rel,OrgZone_rel);endPoint(Node_rel,DstZone_rel)'
+			  ';cut(OrgZone_max_imp);alternative(link_imp):alt_imp;pareto(OrgZone_max_imp2);od:impedance'
+			, w, f1, f2, sr, szr, er, ezr, mx, w2, mx2);
+		parameter<float64> result := sum(od/impedance);
+	}
+	parameter<float64> paretoSumApplied := paretoSum(
+		  Link/t, Link/F1, Link/F2
+		, StartSet/node_rel, StartSet/zone_rel
+		, EndSet/node_rel, EndSet/zone_rel
+		, const(100.0, OrgZone), Link/c, const(5.0, OrgZone));
+
+	container checks
+	{
+		// org 0: rows (dst0: 2,10), (dst0: 6,1), (dst1: 7,2); org 1: (dst0: 2,1), (dst1: 3,2)
+		parameter<uint32>  nr_rows := uint32(#od_pareto)              , IntegrityCheck = "nr_rows == 5";
+
+		parameter<float64> p0_imp  := od_pareto/impedance[0]          , IntegrityCheck = "p0_imp == 2.0";
+		parameter<float64> p0_alt  := od_pareto/alt_imp[0]            , IntegrityCheck = "p0_alt == 10.0";
+		parameter<float64> p1_imp  := od_pareto/impedance[1]          , IntegrityCheck = "p1_imp == 6.0";
+		parameter<float64> p1_alt  := od_pareto/alt_imp[1]            , IntegrityCheck = "p1_alt == 1.0";
+		parameter<float64> p2_imp  := od_pareto/impedance[2]          , IntegrityCheck = "p2_imp == 7.0";
+		parameter<float64> p2_alt  := od_pareto/alt_imp[2]            , IntegrityCheck = "p2_alt == 2.0";
+		parameter<float64> p3_imp  := od_pareto/impedance[3]          , IntegrityCheck = "p3_imp == 2.0";
+		parameter<float64> p3_alt  := od_pareto/alt_imp[3]            , IntegrityCheck = "p3_alt == 1.0";
+		parameter<float64> p4_imp  := od_pareto/impedance[4]          , IntegrityCheck = "p4_imp == 3.0";
+		parameter<float64> p4_alt  := od_pareto/alt_imp[4]            , IntegrityCheck = "p4_alt == 2.0";
+
+		parameter<uint32>  p0_org  := uint32(od_pareto/OrgZone_rel[0]), IntegrityCheck = "p0_org == 0";
+		parameter<uint32>  p2_org  := uint32(od_pareto/OrgZone_rel[2]), IntegrityCheck = "p2_org == 0";
+		parameter<uint32>  p3_org  := uint32(od_pareto/OrgZone_rel[3]), IntegrityCheck = "p3_org == 1";
+		parameter<uint32>  p0_dst  := uint32(od_pareto/DstZone_rel[0]), IntegrityCheck = "p0_dst == 0";
+		parameter<uint32>  p1_dst  := uint32(od_pareto/DstZone_rel[1]), IntegrityCheck = "p1_dst == 0";
+		parameter<uint32>  p2_dst  := uint32(od_pareto/DstZone_rel[2]), IntegrityCheck = "p2_dst == 1";
+		parameter<uint32>  p0_end  := uint32(od_pareto/EndPoint_rel[0]), IntegrityCheck = "p0_end == 0";
+		parameter<uint32>  p2_end  := uint32(od_pareto/EndPoint_rel[2]), IntegrityCheck = "p2_end == 1";
+
+		// the NetworkModel_PBL#19 validation criterion: the first pareto row per (org, dst) pair
+		// carries exactly the scalar operator's minimum time
+		parameter<bool> mintime_00 := od_pareto/impedance[0] == od_ref/impedance[0], IntegrityCheck = "mintime_00 == True";
+		parameter<bool> mintime_01 := od_pareto/impedance[2] == od_ref/impedance[1], IntegrityCheck = "mintime_01 == True";
+		parameter<bool> mintime_10 := od_pareto/impedance[3] == od_ref/impedance[2], IntegrityCheck = "mintime_10 == True";
+		parameter<bool> mintime_11 := od_pareto/impedance[4] == od_ref/impedance[3], IntegrityCheck = "mintime_11 == True";
+
+		// cut(6.5): org 0 loses dst 1, keeps its two-point dst-0 front; org 1 keeps both rows
+		parameter<uint32>  cut_rows  := uint32(#od_cut)               , IntegrityCheck = "cut_rows == 4";
+		parameter<float64> cut_0     := od_cut/impedance[0]           , IntegrityCheck = "cut_0 == 2.0";
+		parameter<float64> cut_1     := od_cut/impedance[1]           , IntegrityCheck = "cut_1 == 6.0";
+		parameter<uint32>  cut_2_org := uint32(od_cut/OrgZone_rel[2]) , IntegrityCheck = "cut_2_org == 1";
+
+		// pareto(OrgZone_max_imp2) with 5.0: the expensive first leg (c=10) is pruned at the push,
+		// so org 0's dst-0 front collapses to the cheap (6,1) label
+		parameter<uint32>  i2_rows := uint32(#od_imp2cut)             , IntegrityCheck = "i2_rows == 4";
+		parameter<float64> i2_0    := od_imp2cut/impedance[0]         , IntegrityCheck = "i2_0 == 6.0";
+		parameter<float64> i2_0a   := od_imp2cut/alt_imp[0]           , IntegrityCheck = "i2_0a == 1.0";
+		parameter<uint32>  i2_0d   := uint32(od_imp2cut/DstZone_rel[0]), IntegrityCheck = "i2_0d == 0";
+
+		// endpoint offsets: dst 0 rows gain 1.0 on the first criterion; org 1's equal-imp release
+		// tie must order (3,1) into dst 0 before (3,2) into dst 1
+		parameter<uint32>  e_rows := uint32(#od_endimp)               , IntegrityCheck = "e_rows == 5";
+		parameter<float64> e_0    := od_endimp/impedance[0]           , IntegrityCheck = "e_0 == 3.0";
+		parameter<float64> e_1    := od_endimp/impedance[1]           , IntegrityCheck = "e_1 == 7.0";
+		parameter<float64> e_1a   := od_endimp/alt_imp[1]             , IntegrityCheck = "e_1a == 1.0";
+		parameter<float64> e_3    := od_endimp/impedance[3]           , IntegrityCheck = "e_3 == 3.0";
+		parameter<uint32>  e_3d   := uint32(od_endimp/DstZone_rel[3]) , IntegrityCheck = "e_3d == 0";
+		parameter<uint32>  e_4d   := uint32(od_endimp/DstZone_rel[4]) , IntegrityCheck = "e_4d == 1";
+
+		// signature probe result: the imp2cut fronts summed through the function body
+		parameter<float64> sig_sum := paretoSumApplied                , IntegrityCheck = "sig_sum == 18.0";
+	}
+}
