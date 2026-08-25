@@ -113,6 +113,7 @@
     <ClCompile Include="src\BoostGeometry_bp.cpp" />
     <ClCompile Include="src\BoostGeometry_cgal.cpp" />
     <ClCompile Include="src\BoostGeometry_geos.cpp" />
+    <ClCompile Include="src\WindingOrder.cpp" />
     <ClCompile Include="src\BoostPolygon.cpp" />
     <ClCompile Include="src\Canyon.cpp" />
     <ClCompile Include="src\CGAL.cpp" />

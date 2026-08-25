@@ -104,6 +104,10 @@ protected: // override GraphicObject virtuals
 
 	void ClassifyLogInterval  ();
 
+//	issue #734: reuse a classification that was built in another view
+	void CopyClassBreaks ();
+	void PasteClassBreaks();
+
 	void UpdateCounts();
 
 private:

@@ -28,14 +28,17 @@
 
 #include "ValuesTable.h"
 
+#include "ClassBreakClipboard.h"
 #include "DataView.h"
 #include "DataItemColumn.h"
+#include "GraphicLayer.h"
 #include "KeyFlags.h"
 #include "LayerControl.h"
 #include "MenuData.h"
 #include "MouseEventDispatcher.h"
 #include "PaletteControl.h"
 #include "ScrollPort.h"
+#include "ShvDllInterface.h"
 #include "Theme.h"
 
 //----------------------------------------------------------------------
@@ -321,7 +324,91 @@ void EditPaletteControl::FillMenu(MouseEventDispatcher& med)
 		if (dic->GetActiveAttr() && dic->GetActiveAttr() == m_PaletteControl->GetLabelTextAttr())
 			med.m_MenuData.push_back( MenuItem(SharedStr("ReLabel"), make_MembFuncCmd(&EditPaletteControl::ReLabelRanges), this, 0) );
 	}
+
+	// issue #734: appended after the existing entries on purpose, since the GUI test scripts
+	// address the Classify submenu of this menu by item index.
+	auto breakAttr = m_PaletteControl->GetBreakAttr();
+	med.m_MenuData.push_back( MenuItem(SharedStr("&Copy Classbreaks")
+		, make_MembFuncCmd(&EditPaletteControl::CopyClassBreaks), this, breakAttr ? 0 : MFS_GRAYED) );
+	med.m_MenuData.push_back( MenuItem(SharedStr("&Paste Classbreaks")
+		, make_MembFuncCmd(&EditPaletteControl::PasteClassBreaks), this, (breakAttr && ClipBoard_HasClassBreaks()) ? 0 : MFS_GRAYED) );
+
 	base_type::FillMenu(med);
+}
+
+// The class attributes this editor works on: those of the layer's active theme when it was
+// opened from a layer control, and the ones handed to the PaletteControl otherwise.
+static ClassBreakItems GetItemsOfPaletteControl(const PaletteControl* pc)
+{
+	assert(pc);
+
+	if (auto layer = pc->GetLayer())
+		if (auto items = ClassBreaks_GetItems(layer->GetActiveTheme().get()))
+			return items;
+
+	ClassBreakItems result;
+	auto breakAttr = pc->GetBreakAttr();
+	if (!breakAttr)
+		return result;
+
+	result.m_BreakAttr = const_cast<AbstrDataItem*>(breakAttr);
+	result.m_PaletteDomain = breakAttr->GetAbstrDomainUnit();
+	result.m_ColorAttr = const_cast<AbstrDataItem*>(pc->GetPaletteAttr());
+	result.m_LabelAttr = const_cast<AbstrDataItem*>(pc->GetLabelTextAttr());
+	return result;
+}
+
+void EditPaletteControl::CopyClassBreaks()
+{
+	auto items = GetItemsOfPaletteControl(m_PaletteControl.get());
+	if (!items)
+		throwDmsErrF("CopyClassBreaks: this palette has no class breaks to copy");
+
+	if (!ClassBreaks_ToClipboard(items.m_BreakAttr.get_ptr(), items.m_ColorAttr.get_ptr(), items.m_LabelAttr.get_ptr(), m_ThemeAttr))
+		throwDmsErrF("CopyClassBreaks: cannot write the class breaks to the clipboard");
+}
+
+void EditPaletteControl::PasteClassBreaks()
+{
+	auto dv = GetDataView().lock(); if (!dv) return;
+
+	ClassBreakClip clip;
+	SharedStr diagnostic;
+	if (!ClassBreaks_FromClipboard(clip, diagnostic))
+		throwDmsErrF("PasteClassBreaks: {}", diagnostic);
+	if (!diagnostic.empty())
+		reportF(SeverityTypeID::ST_Warning, "PasteClassBreaks: {}", diagnostic);
+
+	if (auto layer = m_PaletteControl->GetLayer())
+	{
+		if (ClassBreaks_ApplyToLayer(dv.get(), layer, clip))
+		{
+			// The configured classification was left alone and the layer now carries a freshly
+			// generated one, which this editor does not show: open one that does.
+			reportF(SeverityTypeID::ST_Warning
+			,	"PasteClassBreaks: the classification of {} is configured or calculated and was left unchanged; "
+				"a new one was generated for this view and opened in a new palette editor"
+			,	GetThemeDisplayName(layer)
+			);
+			if (m_ThemeAttr)
+				CreateEditPaletteMdiChild(layer, m_ThemeAttr);
+			return;
+		}
+	}
+	else
+	{
+		auto items = GetItemsOfPaletteControl(m_PaletteControl.get());
+		if (!items)
+			throwDmsErrF("PasteClassBreaks: there is no class-break attribute to paste into");
+		if (!ClassBreaks_IsOverwritable(dv.get(), items))
+			items.m_BreakAttr->throwItemError("Cannot paste class breaks into a configured or calculated class-break attribute");
+
+		ClassBreaks_ApplyToItems(dv.get(), items, m_ThemeAttr, clip);
+	}
+
+	UpdateNrClasses();
+	InvalidateView();
+	InvalidateDraw();
 }
 
 void EditPaletteControl::Sync(TreeItem* viewContext, ShvSyncMode sm)
