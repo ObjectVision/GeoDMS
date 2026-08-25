@@ -129,6 +129,10 @@ protected:
 	void SetPaletteControl();
 	void EditPalette();
 
+//	issue #734: carry a classification from one view to another, through the clipboard
+	void CopyClassBreaks();
+	void PasteClassBreaks();
+
 private:
 	void OnFocusElemChanged(SizeT selectedID, SizeT oldSelectedID);
 	void OnDetailsVisibilityChanged() override;
