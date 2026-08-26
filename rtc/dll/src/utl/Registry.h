@@ -132,6 +132,13 @@ enum RegStatusFlags
 
 RTC_CALL UInt32 GetRegStatusFlags();
 RTC_CALL void SetCachedStatusFlag(UInt32 newSF, bool newVal = true);
+
+// Which flags currently have an in-process override, i.e. a value that does not come from the
+// registry. Snapshot it right after the command line has been parsed and nothing else can have
+// touched it, and the result says which flags the user set with /S<X> or /C<X> -- knowledge a
+// later, weaker source of the same setting needs in order to yield to them.
+RTC_CALL UInt32 GetCachedStatusMask();
+
 void SetRegStatusFlags(UInt32 newSF);
 RTC_CALL void SetStatusFlag(UInt32 newSF, bool newVal);
 bool HasDynamicROI();

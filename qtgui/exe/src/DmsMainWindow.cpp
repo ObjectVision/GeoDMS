@@ -333,6 +333,12 @@ void SetPersistWindowGeometry(bool enable) {
     s_PersistWindowGeometry = enable;
 }
 
+static UInt32 s_CmdLineStatusFlagMask = 0;
+
+void SetCmdLineStatusFlagMask(UInt32 mask) {
+    s_CmdLineStatusFlagMask = mask;
+}
+
 // Persist the full window placement (position, size and maximized/fullscreen state) for the
 // next session via Qt's saveGeometry(). We deliberately do NOT store raw pixel rectangles (the
 // pre-20.13 WindowX/Y/Width/Height + WindowMaximized keys): those carry no DPI or screen
@@ -1533,6 +1539,39 @@ void MainWindow::LoadConfig(CharPtr configFilePath, CharPtr currentItemPath) {
     );
 }
 
+// A configuration can ask for hidden items to be hidden (or shown) with a string parameter
+// ConfigSettings/Overridable/ShowHiddenItems (issue #694), which is how the setting travels with a
+// project instead of with the machine -- a demo configuration wants its scaffolding out of sight on
+// whoever's laptop it is opened.
+//
+// Applied with SetCachedStatusFlag, not SetStatusFlag: the registry keeps holding the user's own
+// preference, so the choice is not silently taken away from them, and every load of this
+// configuration re-applies its value on top of it. That is what lets the user flip the checkbox
+// during the session and still get the configuration's value back when they reopen it.
+//
+// A /SA or /CA on the command line was an explicit act for this one session and wins: an explicit
+// /SA has to keep working on exactly the configurations that ship with hidden items hidden.
+static void ApplyConfiguredShowHiddenItems(const TreeItem* configRoot, UInt32 cmdLineMask)
+{
+    assert(configRoot);
+
+    if (cmdLineMask & RSF_AdminMode)
+        return;
+
+    auto value = GetRegConfigSetting(configRoot, "ShowHiddenItems", "");
+    if (value.empty())
+        return;
+
+    auto firstChar = *value.begin();
+    if (firstChar == 'T' || firstChar == 't' || firstChar == '1')
+        SetCachedStatusFlag(RSF_AdminMode, true);
+    else if (firstChar == 'F' || firstChar == 'f' || firstChar == '0')
+        SetCachedStatusFlag(RSF_AdminMode, false);
+    else
+        reportF(MsgCategory::other, SeverityTypeID::ST_Warning,
+            "Ignoring ShowHiddenItems setting '{}': expected True or False", value.c_str());
+}
+
 bool MainWindow::LoadConfigImpl(CharPtr configFilePath) {
   retry:
     try {
@@ -1551,6 +1590,12 @@ bool MainWindow::LoadConfigImpl(CharPtr configFilePath) {
 
             insertCurrentConfigInRecentFiles(configFilePathStr);
             SetGeoDmsRegKeyString("LastConfigFile", configFilePathStr.c_str());
+
+            // Before the model is attached below: the m_dms_model->reset() at the end of this
+            // function then builds the tree with the flag this configuration asked for already in
+            // place, instead of building it twice.
+            ApplyConfiguredShowHiddenItems(m_root.get(), s_CmdLineStatusFlagMask);
+            m_dms_model->updateChachedDisplayFlags();
 
             m_treeview->setItemDelegate(new TreeItemDelegate(m_treeview));
             m_treeview->setModel(m_dms_model.get());

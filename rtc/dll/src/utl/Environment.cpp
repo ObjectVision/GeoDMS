@@ -600,6 +600,12 @@ RTC_CALL void SetCachedStatusFlag(UInt32 newSF, bool newVal)
 
 }
 
+RTC_CALL UInt32 GetCachedStatusMask()
+{
+	leveled_critical_section::scoped_lock lock(RegAccessSection());
+	return g_OvrStatusMask;
+}
+
 void SetRegStatusFlags(UInt32 newSF)
 {
 	SetGeoDmsRegKeyDWord("StatusFlags", newSF);
@@ -2767,6 +2773,12 @@ RTC_CALL void SetCachedStatusFlag(UInt32 newSF, bool newVal)
 	g_OvrStatusMask |= newSF;
 	if (newVal) g_OvrStatusFlags |= newSF;
 	else        g_OvrStatusFlags &= ~newSF;
+}
+
+RTC_CALL UInt32 GetCachedStatusMask()
+{
+	leveled_critical_section::scoped_lock lock(RegAccessSection());
+	return g_OvrStatusMask;
 }
 
 void SetRegStatusFlags(UInt32 newSF)
