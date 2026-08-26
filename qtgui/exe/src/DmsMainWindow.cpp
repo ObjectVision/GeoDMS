@@ -1558,7 +1558,21 @@ static void ApplyConfiguredShowHiddenItems(const TreeItem* configRoot, UInt32 cm
     if (cmdLineMask & RSF_AdminMode)
         return;
 
-    auto value = GetRegConfigSetting(configRoot, "ShowHiddenItems", "");
+    SharedStr value;
+    try {
+        // Reading it calculates it, and a configuration is free to derive it from an expression
+        // that fails. Whether a tree item is visible must never be the reason a configuration
+        // refuses to open, so this stays a warning: the caller is inside the load's try block,
+        // where an escaping exception becomes the "reload?" dialog.
+        value = GetRegConfigSetting(configRoot, "ShowHiddenItems", "");
+    }
+    catch (...) {
+        auto err = catchException(false);
+        reportF(MsgCategory::other, SeverityTypeID::ST_Warning,
+            "Ignoring the ShowHiddenItems setting, it could not be read: {}", err ? err->Why().c_str() : "unknown error");
+        return;
+    }
+
     if (value.empty())
         return;
 
