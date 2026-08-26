@@ -1,8 +1,16 @@
 # Open GitHub issues, classified
 
-Snapshot of the 27 open issues at https://github.com/ObjectVision/GeoDMS/issues, updated 2026-08-24
-(previous snapshots: 2026-08-20 with 33, 2026-07-31 with 48 listed, 2026-07-04 with 41,
-2026-07-03 with 45 open; see
+Snapshot of the open issues at https://github.com/ObjectVision/GeoDMS/issues. The classified tables
+below are the **2026-08-24** snapshot with only the #917 -> #1216 delta of 2026-08-26 applied.
+
+> **This file has drifted and needs a re-audit.** Checked against GitHub on 2026-08-26: **19 issues
+> are open**, not the 27 the previous header claimed. Sixteen issues still classified below have
+> since been closed (#302, #403, #694, #734, #757, #810, #830, #856, #949, #1105, #1186, #1199,
+> #1200, #1202, #1204, #1206 — note this includes the row marked **NEXT**), and five open issues are
+> missing entirely (#1211–#1215). Re-snapshot before using this as a work queue.
+
+(previous snapshots: 2026-08-24 claiming 27, 2026-08-20 with 33, 2026-07-31 with 48 listed,
+2026-07-04 with 41, 2026-07-03 with 45 open; see
 "Recently closed" at the bottom for the delta). Grouped by implementability. Buckets:
 
 - **A. Low hanging fruit** — small, well-defined fixes; no design decisions needed.
@@ -36,7 +44,6 @@ is a two-line guard against an unpleasant failure mode for anyone invoking the s
 | [#990](https://github.com/ObjectVision/GeoDMS/issues/990) `union_data` with unmatching but equal-sized domains | Hard error or warning? Might existing configs rely on it? |
 | [#973](https://github.com/ObjectVision/GeoDMS/issues/973) Missing VAT in dbf/gpkg export | Always emit VAT, or an export-dialog option (with ArcGIS Pro note)? |
 | [#694](https://github.com/ObjectVision/GeoDMS/issues/694) Show/hide items via model parameter | Property name and GUI-vs-config override semantics; use case (lus_demo) is clear. |
-| ~~[#917](https://github.com/ObjectVision/GeoDMS/issues/917) `xx_minkowski_sum` with variant as argument~~ | **DONE in 20.18.0** except its last checkbox. `{bp,bg,cgal,geos}_minkowski_sum` and `…_minkowski_difference` ship with two signatures each — `(geometry, kernel)` and `(geometry, size, variant)` — and the 48 `bp_*_i4HV`…`_dXD` names are now `oper_policy::depreciated`. Two of the six checkboxes (`geos_simplify_linestring`, `polygon_connectivity`) were already implemented before this work. The remaining one, "polygon_intersection and overlay with fault tolerant sweep operation", is an unrelated home-brewed sweep algorithm adjacent to #1205 and should become its own issue. |
 
 ## C. Refactoring
 
@@ -53,6 +60,7 @@ is a two-line guard against an unpleasant failure mode for anyone invoking the s
 
 | Issue | Rationale |
 |---|---|
+| [#1216](https://github.com/ObjectVision/GeoDMS/issues/1216) Fault-tolerant sweep for polygon_intersection and overlay | Split out of the now-closed #917, whose other five boxes shipped in 20.18.0. Settle what "fault tolerant" promises (a valid result always, or a valid result plus a diagnostic saying where tolerance was applied — silently snapping geometry is the failure mode to avoid), where the tolerance comes from, and whether it replaces the per-backend cleanup pre-passes. Touches the same code as #1205 and should be designed with it: a tolerant sweep changes the per-feature cost model #1205's subdivision decisions rest on. |
 | [#1205](https://github.com/ObjectVision/GeoDMS/issues/1205) Balance polygon overlay by geometric complexity | The current outer/inner tile loops expose only the first argument's element tiling as parallel work, so a few dissolved features with millions of vertices collapse to one worker. Needs a choice between feature/vertex subdivision, parallelising both tile dimensions, prepared geometry, and a user-visible `subdivide` operator; argument-order guidance can be documented independently. |
 | [#1198](https://github.com/ObjectVision/GeoDMS/issues/1198) Resource-aware admission does not converge | Follow-up to the now-closed #1158: enforce mode churns without reducing the live peak, and its committed-memory figure can exceed physical memory. Requires a corrected accounting/admission model rather than another local threshold. |
 | [#1196](https://github.com/ObjectVision/GeoDMS/issues/1196) `discrete_alloc` arithmetic can overflow at production sizes | The two cheap widenings are clear (`perturbation_type` and feasibility aggregates), but shadow-price bounds and hot-path checked signed arithmetic need a design/performance decision. The issue is an audit finding, not a reproduced wrong allocation. |
@@ -107,6 +115,13 @@ None open. #1080 (Academy on geodms.nl) was closed 2026-08-12.
   bug at all.
 
 ## Recently closed (delta since 2026-07-31)
+
+### Closed on 2026-08-26 (1)
+
+- #917 (`2c82cb27`, `30e3da16`) — `{bp,bg,cgal,geos}_minkowski_sum` / `_minkowski_difference` with
+  the kernel as an argument, and the 48 `bp_*_i4HV`…`_dXD` names depreciated. Five of its six boxes;
+  two of those (`geos_simplify_linestring`, `polygon_connectivity`) turned out to be implemented
+  already. The sixth was split out as the new #1216, listed in D above.
 
 ### Closed on 2026-08-21 through 2026-08-24 (24)
 
