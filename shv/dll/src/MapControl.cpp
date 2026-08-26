@@ -131,10 +131,10 @@ void MapControl::FillMenu(MouseEventDispatcher& med)
 	ViewControl::FillMenu(med);
 	med.m_MenuData.AddSeparator();
 	med.m_MenuData.push_back(
-		MenuItem(SharedStr("Drag LayerControl Left (Ctrl-S)"), make_MembFuncCmd(&MapControl::ShiftLayerControlSliderLeft), this)
+		MenuItem(SharedStr("Widen LayerControl (Ctrl-Shift-Left): 10 pixels wider, or re-open it when hidden"), make_MembFuncCmd(&MapControl::ShiftLayerControlSliderLeft), this)
 	);
 	med.m_MenuData.push_back(
-		MenuItem(SharedStr("Drag LayerControl Right (Ctrl-D)"), make_MembFuncCmd(&MapControl::ShiftLayerControlSliderRight), this)
+		MenuItem(SharedStr("Narrow LayerControl (Ctrl-Shift-Right): 10 pixels narrower, and hidden when it no longer fits"), make_MembFuncCmd(&MapControl::ShiftLayerControlSliderRight), this)
 	);
 	med.m_MenuData.push_back(
 		MenuItem(SharedStr("Copy LayerControl to Clipboard (Ctrl-G)"), make_MembFuncCmd(&MapControl::OnCommand, TB_CopyLC), this)

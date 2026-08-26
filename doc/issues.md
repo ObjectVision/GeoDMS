@@ -1,9 +1,10 @@
 # Open GitHub issues, classified
 
-Snapshot of the **15 open issues** at https://github.com/ObjectVision/GeoDMS/issues, re-audited
+Snapshot of the **16 open issues** at https://github.com/ObjectVision/GeoDMS/issues, re-audited
 against GitHub on **2026-08-26**. The previous header claimed 27; sixteen issues it still classified
 had been closed and five open ones were missing, so the tables below were rebuilt from the live list
-rather than edited in place. Grouped by implementability. Buckets:
+rather than edited in place; #1217 was filed later that afternoon and is added here.
+Grouped by implementability. Buckets:
 
 - **A. Low hanging fruit** — small, well-defined fixes; no design decisions needed.
 - **B. Implementable after minor design choices** — clear scope; one or two decisions to settle first.
@@ -21,6 +22,7 @@ Previous snapshots: 2026-08-24 claiming 27, 2026-08-20 with 33, 2026-07-31 with 
 | Issue | Why it is small |
 |---|---|
 | **NEXT: [#1215](https://github.com/ObjectVision/GeoDMS/issues/1215) polygon_connectivity** | **Verify and close.** Split out of #757 on 2026-08-26 with an empty body, but `polygon_connectivity` is already implemented: `cogPC` at `geo/dll/src/BoostPolygon.cpp` plus the `bp_`/`bg_`/`cgal_`/`geos_polygon_connectivity` variants, all four registered and documented on the wiki. Unless the reporter meant something beyond the existing operator, this is a bookkeeping closure. |
+| [#1217](https://github.com/ObjectVision/GeoDMS/issues/1217) Drag Layer Control functionality unclear | **Fixed in code, awaiting closure.** The two map-view pop-up items resize the legend column by 10 pixels a step (`MapControl::ShiftLayerControlSlider`), but their captions still named **Ctrl-S**/**Ctrl-D**, the keys that `f7e9a1a7c` (#1011) unbound in 18.2.1 because **Ctrl-D** had become Table View. Captions now say what they do and name **Ctrl-Shift-Left**/**Ctrl-Shift-Right**; the behaviour is documented on the wiki page *Map view Legend*. All three sub-questions answered; nothing further to implement. |
 | [#1211](https://github.com/ObjectVision/GeoDMS/issues/1211) Icons for view menu options and view titles | Every chart window currently reuses the Statistics view icon. The reporter attached the icons they want; the work is wiring them into the view registry, the same table #319 touched for the tree-item icons (`518dc747`, `0ce9f427`). No semantics involved. |
 
 ## B. Implementable after minor design choices
