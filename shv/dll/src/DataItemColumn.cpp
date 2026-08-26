@@ -54,6 +54,7 @@
 #include "Controllers.h"
 #include "KeyFlags.h"
 #include "MouseEventDispatcher.h"
+#include "PaletteControl.h"
 #include "ScrollPort.h"
 #include "TableControl.h"
 #include "TableViewControl.h"
@@ -1212,8 +1213,92 @@ bool DataItemColumn::IsEditable(AspectNr a) const
 	if (!theme)
 		return false;
 
+	return IsEditableTheme(theme.get());
+}
+
+// issue #634: a legend or palette-editor cell whose attribute the configuration calculates counts
+// as editable, because the first edit copies that attribute rather than writing it.
+bool DataItemColumn::IsEditableTheme(const Theme* theme) const
+{
+	if (!theme)
+		return false;
+
 	const AbstrDataItem* adi = theme->GetThemeAttrSource();
-	return !adi || adi->IsEditable();
+	if (!adi)
+		return true;                    // an aspect parameter, kept in memory by its value getter
+	if (adi->IsEditable())
+		return true;
+
+	return CanMakeEditableAttr(adi);
+}
+
+bool DataItemColumn::CanMakeEditableAttr(const AbstrDataItem* adi) const
+{
+	auto pc = std::dynamic_pointer_cast<const PaletteControl>(GetTableControl().lock());
+	return pc && pc->CanMakeEditable(adi);
+}
+
+// The write target for a cell of this column. Returns adi when it can be written as it is; in a
+// legend or a palette editor a configured or calculated attribute yields a view-local editable copy
+// instead, with the layer and this column re-themed onto it (issue #634). Returns adi again when no
+// copy can be made, so that write then fails exactly as it did before.
+AbstrDataItem* DataItemColumn::MakeEditableAttr(AbstrDataItem* adi)
+{
+	if (!adi || adi->IsEditable())
+		return adi;
+
+	auto pc = std::dynamic_pointer_cast<PaletteControl>(GetTableControl().lock());
+	if (!pc)
+		return adi;                     // a table view keeps refusing to edit calculated data
+
+	auto copy = pc->MakeEditable(adi, this);
+	return copy ? copy : adi;
+}
+
+void DataItemColumn::ReplaceAttr(const AbstrDataItem* orgAttr, const AbstrDataItem* newAttr)
+{
+	if (!orgAttr || !newAttr || orgAttr == newAttr)
+		return;
+
+	bool changed = false;
+
+	// the aspect themes this column renders with: a legend's symbol column holds its palette as the
+	// ThemeAttr of an AN_LabelBackColor / AN_LabelTextColor theme, created with a null context, but
+	// a themed column can carry the same attribute as its classification or its palette instead.
+	for (AspectNr a = AspectNr(0); a != AN_AspectCount; a = AspectNr(a + 1))
+	{
+		auto theme = GetTheme(a);
+		if (!theme)
+			continue;
+
+		auto themeAttr      = theme->GetThemeAttr();
+		auto classification = theme->GetClassification();
+		auto palette        = theme->GetPaletteAttr();
+
+		bool hit = false;
+		if (palette        == orgAttr) { palette        = newAttr; hit = true; }
+		if (classification == orgAttr) { classification = newAttr; hit = true; }
+		if (!hit && themeAttr == orgAttr) { themeAttr   = newAttr; hit = true; }
+		if (!hit)
+			continue;
+
+		SetTheme(Theme::Create(a, themeAttr, classification, palette).get(), nullptr);
+		changed = true;
+	}
+
+	// a plain attribute column - the class-break and label columns - renders its src attr
+	if (GetSrcAttr() == orgAttr)
+	{
+		m_FutureSrcAttr = newAttr;
+		UpdateTheme();                  // rebuilds the LabelText theme and invalidates
+		return;
+	}
+
+	if (changed)
+	{
+		InvalidateView();
+		InvalidateDraw();
+	}
 }
 
 DmsColor DataItemColumn::GetOrgColor(SizeT recNo, AspectNr a) const
@@ -1237,6 +1322,7 @@ void DataItemColumn::SetOrgColor(SizeT recNo, AspectNr a, DmsColor color)
 	if (!theme)
 		return;
 	AbstrDataItem* adi = const_cast<AbstrDataItem*>(theme->GetThemeAttrSource());
+	adi = MakeEditableAttr(adi); // issue #634: a configured or calculated palette is copied, not written
 	if (adi)
 	{
 		StaticStIncrementalLock<TreeItem::s_MakeEndoLockCount> makeEndoLock;
@@ -1331,6 +1417,7 @@ void DataItemColumn::SetOrgText  (SizeT recNo, CharPtr textData)
 	if (!theme)
 		return;
 	AbstrDataItem* adi = const_cast<AbstrDataItem*>(theme->GetThemeAttrSource());
+	adi = MakeEditableAttr(adi); // issue #634: a configured or calculated label or class break is copied, not written
 	if (!adi)
 		return;
 
@@ -1764,9 +1851,11 @@ bool DataItemColumn::MouseEvent(MouseEventDispatcher& med)
 
 		if(med.GetEventInfo().m_EventID & EventID::LBUTTONDBLCLK )
 		{
+			// issue #634: IsEditableTheme, not Theme::IsEditable, so that a configured or
+			// calculated palette opens the editor and is copied on commit
 			if ( auto theme = GetEnabledTheme(AN_LabelBackColor) )
 			{
-				if (theme->IsEditable())
+				if (IsEditableTheme(theme.get()))
 				{
 					SelectBrushColor();
 					return true;
@@ -1774,7 +1863,7 @@ bool DataItemColumn::MouseEvent(MouseEventDispatcher& med)
 			}
 			else if ((theme = GetEnabledTheme(AN_LabelTextColor)))
 			{
-				if (theme->IsEditable())
+				if (IsEditableTheme(theme.get()))
 				{
 					SelectPenColor();
 					return true;
@@ -1782,7 +1871,7 @@ bool DataItemColumn::MouseEvent(MouseEventDispatcher& med)
 			}
 			else if ((theme = GetEnabledTheme(AN_LabelText)))
 			{
-				if (theme->IsEditable())
+				if (IsEditableTheme(theme.get()))
 				{
 					OnKeyDown(VK_F2);
 					return true;
@@ -1947,7 +2036,7 @@ void DataItemColumn::FillMenu(MouseEventDispatcher& med)
 
 			bool rampingPossible = 
 				adi->GetAbstrValuesUnit()->GetValueType()->IsNumeric()
-			&&	!adi->IsDerivable();
+			&&	(!adi->IsDerivable() || CanMakeEditableAttr(adi)); // issue #634
 
 			med.m_MenuData.push_back(
 				MenuItem(
@@ -2067,6 +2156,7 @@ void DataItemColumn::Ramp()
 	dms_assert( tc->m_Rows.IsDefined());
 	dms_assert(!tc->m_Rows.IsClosed());
 
+	adi = MakeEditableAttr(adi); // issue #634: ramp the view-local copy of a calculated palette
 	if (adi->IsDerivable())
 		adi->throwItemError("Ramp: Cannot change derived data; try to copy the attribute and change the copied data");
 

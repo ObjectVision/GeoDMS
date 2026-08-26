@@ -135,6 +135,9 @@
     <ClCompile Include="src\PaletteControl.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\PaletteCopyOnWrite.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="src\PenIndexCache.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -384,6 +387,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\PaletteControl.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\PaletteCopyOnWrite.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\PenIndexCache.h">

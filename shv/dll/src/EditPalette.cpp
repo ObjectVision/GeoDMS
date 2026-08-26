@@ -344,7 +344,14 @@ static ClassBreakItems GetItemsOfPaletteControl(const PaletteControl* pc)
 
 	if (auto layer = pc->GetLayer())
 		if (auto items = ClassBreaks_GetItems(layer->GetActiveTheme().get()))
+		{
+			// The palette domain still resolves its label to the configured item, while this editor
+			// may already show a view-local copy of it, made for an edit (issue #634). Copy what the
+			// user sees.
+			if (auto shownLabelAttr = pc->GetLabelTextAttr())
+				items.m_LabelAttr = const_cast<AbstrDataItem*>(shownLabelAttr);
 			return items;
+		}
 
 	ClassBreakItems result;
 	auto breakAttr = pc->GetBreakAttr();

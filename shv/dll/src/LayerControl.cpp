@@ -527,6 +527,12 @@ void LayerControl::CopyClassBreaks()
 	if (!items)
 		throwDmsErrF("CopyClassBreaks: {} has no class breaks to copy", GetThemeDisplayName(layer));
 
+	// The palette domain still resolves its label to the configured item, while this legend may
+	// already show a view-local copy of it, made for an edit (issue #634). Copy what the user sees.
+	if (m_PaletteControl)
+		if (auto shownLabelAttr = m_PaletteControl->GetLabelTextAttr())
+			items.m_LabelAttr = const_cast<AbstrDataItem*>(shownLabelAttr);
+
 	if (!ClassBreaks_ToClipboard(items.m_BreakAttr.get_ptr(), items.m_ColorAttr.get_ptr(), items.m_LabelAttr.get_ptr(), theme->GetThemeAttr()))
 		throwDmsErrF("CopyClassBreaks: cannot write the class breaks of {} to the clipboard", GetThemeDisplayName(layer));
 }

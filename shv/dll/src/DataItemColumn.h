@@ -82,6 +82,10 @@ public:
 	const AbstrDataItem* GetActiveTextAttr() const;
 	const AbstrDataItem* GetSrcAttr() const;
 
+	// issue #634: the attribute this column renders was replaced by an editable copy; re-point the
+	// aspect themes and, for a plain attribute column, the src attr.
+	void ReplaceAttr(const AbstrDataItem* orgAttr, const AbstrDataItem* newAttr);
+
 	// Text color for the values of this column and for its caption in the TableHeaderControl,
 	// following the origin of the shown attribute the way the TreeView does (issue #1159):
 	// black when calculated, dark blue when read from a storage, purple within a template.
@@ -165,6 +169,12 @@ protected:
 
 	bool    IsNumeric     () const;
 	Float64 GetColumnTotal() const;
+
+//	issue #634: copy-on-write for a cell whose attribute the configuration calculates. Only a
+//	legend or a palette editor copies; a table view keeps refusing to edit calculated data.
+	bool           IsEditableTheme   (const Theme* theme)     const;
+	bool           CanMakeEditableAttr(const AbstrDataItem*)  const;
+	AbstrDataItem* MakeEditableAttr   (AbstrDataItem* adi);
 private:
 	void InvalidateRelRect(CrdRect rect);
 

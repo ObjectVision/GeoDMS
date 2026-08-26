@@ -25,6 +25,8 @@
 #include "GridLayer.h"
 #include "LayerClass.h"
 #include "LayerControl.h"
+#include "PaletteCopyOnWrite.h"
+#include "PropFuncs.h"
 #include "Theme.h"
 
 #include "StgBase.h"
@@ -561,6 +563,102 @@ void PaletteControl::CreateSelCountColumn()
 			InsertColumn(selCountColumn.get());
 		}
 	}
+}
+
+//----------------------------------------------------------------------
+// copy-on-write for the cells of this legend (issue #634)
+//----------------------------------------------------------------------
+
+// The attributes a cell of this control may be copied for: the class-break attribute, the label
+// attribute and the per-class aspect palettes. The generated Count / Area / SelCount columns are
+// calculated too, but an editable pcount is meaningless, so they are deliberately excluded.
+bool PaletteControl::IsEditableCellAttr(const AbstrDataItem* adi) const
+{
+	if (!adi)
+		return false;
+
+	if (adi == m_BreakAttr.get_ptr() || adi == m_LabelTextAttr.get_ptr() || adi == m_PaletteAttr.get_ptr())
+		return true;
+
+	auto dialogType = TreeItem_GetDialogType(adi);
+	if (!dialogType)
+		return false;
+
+	for (AspectNr a = AspectNr(0); a != AN_AspectCount; a = AspectNr(a + 1))
+		if (GetAspectNameID(a) == dialogType)
+			return true;
+
+	return false;
+}
+
+bool PaletteControl::CanMakeEditable(const AbstrDataItem* adi) const
+{
+	if (!IsEditableCellAttr(adi))
+		return false;
+
+	auto dv = GetDataView().lock(); if (!dv) return false;
+	return PaletteCoW_CanCopy(dv.get(), adi);
+}
+
+AbstrDataItem* PaletteControl::MakeEditable(const AbstrDataItem* adi, DataItemColumn* column)
+{
+	if (!adi)
+		return nullptr;
+	if (adi->IsEditable())
+		return const_cast<AbstrDataItem*>(adi);
+	if (!CanMakeEditable(adi))
+		return nullptr;
+
+	auto dv = GetDataView().lock(); if (!dv) return nullptr;
+
+	auto copy = PaletteCoW_GetOrCreateCopy(dv.get(), adi);
+	if (!copy)
+		return nullptr;
+
+	auto result = const_cast<AbstrDataItem*>(copy.get_ptr());
+	RethemeOnto(adi, result, column);
+	return result;
+}
+
+// Point everything that referred to orgAttr at its editable copy: the members this control keeps
+// (and syncs into the view context), the themes of the layer - which is what makes the map repaint
+// and what makes the substitution outlive this control - and the column that is about to be edited.
+void PaletteControl::RethemeOnto(const AbstrDataItem* orgAttr, const AbstrDataItem* newAttr, DataItemColumn* column)
+{
+	assert(orgAttr && newAttr);
+
+	if (m_BreakAttr.get_ptr()     == orgAttr) m_BreakAttr     = newAttr;
+	if (m_LabelTextAttr.get_ptr() == orgAttr) m_LabelTextAttr = newAttr;
+	if (m_PaletteAttr.get_ptr()   == orgAttr) m_PaletteAttr   = newAttr;
+
+	if (m_Layer)
+	{
+		for (AspectNr a = AspectNr(0); a != AN_AspectCount; a = AspectNr(a + 1))
+		{
+			auto theme = m_Layer->GetTheme(a);
+			if (!theme)
+				continue;
+
+			auto themeAttr      = theme->GetThemeAttr();
+			auto classification = theme->GetClassification();
+			auto palette        = theme->GetPaletteAttr();
+
+			bool hit = false;
+			if (palette        == orgAttr) { palette        = newAttr; hit = true; }
+			if (classification == orgAttr) { classification = newAttr; hit = true; }
+			if (!hit && themeAttr == orgAttr) { themeAttr   = newAttr; hit = true; }
+			if (!hit)
+				continue;
+
+			m_Layer->ChangeTheme(Theme::Create(a, themeAttr, classification, palette).get());
+		}
+		m_Layer->Invalidate();
+	}
+
+	if (column)
+		column->ReplaceAttr(orgAttr, newAttr);
+
+	InvalidateView();
 }
 
 void PaletteControl::DoUpdateView()

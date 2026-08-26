@@ -12,6 +12,7 @@
 #include "TableControl.h"
 #include "LayerInfo.h"
 #include "ptr/SharedTreePtr.h"
+class DataItemColumn;
 class Theme;
 
 //----------------------------------------------------------------------
@@ -42,6 +43,12 @@ public:
 	void CreateSelCountColumn();
 	bool m_HasTriedToAddSelCountColumn = false;
 
+//	issue #634: a legend cell whose attribute the configuration calculates is not refused but
+//	edited on a view-local copy. CanMakeEditable is the cheap predicate used while drawing and
+//	while building menus; MakeEditable makes the copy and re-themes onto it.
+	bool           CanMakeEditable(const AbstrDataItem* adi) const;
+	AbstrDataItem* MakeEditable   (const AbstrDataItem* adi, DataItemColumn* column);
+
 protected:
 	std::shared_ptr<Theme> GetActiveTheme() const;
 
@@ -56,6 +63,10 @@ private:
 	void CreateColorColumn();
 	void CreateLabelTextColumn();
 	void CreateAreaOrLengthColumn(TreeItem* container, SharedStr exprStr);
+
+//	issue #634
+	bool IsEditableCellAttr(const AbstrDataItem* adi) const;
+	void RethemeOnto(const AbstrDataItem* orgAttr, const AbstrDataItem* newAttr, DataItemColumn* column);
 
 	std::shared_ptr<GraphicLayer>  m_Layer;
 	SharedDataItemInterestPtr  m_LabelTextAttr;

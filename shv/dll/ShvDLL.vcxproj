@@ -119,6 +119,7 @@
     <ClCompile Include="src\MovableContainer.cpp" />
     <ClCompile Include="src\MovableObject.cpp" />
     <ClCompile Include="src\PaletteControl.cpp" />
+    <ClCompile Include="src\PaletteCopyOnWrite.cpp" />
     <ClCompile Include="src\PenIndexCache.cpp" />
     <ClCompile Include="src\Region.cpp" />
     <ClCompile Include="src\ScalableObject.cpp" />
@@ -211,6 +212,7 @@
     <ClInclude Include="src\MovableContainer.h" />
     <ClInclude Include="src\MovableObject.h" />
     <ClInclude Include="src\PaletteControl.h" />
+    <ClInclude Include="src\PaletteCopyOnWrite.h" />
     <ClInclude Include="src\PenIndexCache.h" />
     <ClInclude Include="src\Region.h" />
     <ClInclude Include="src\RegionTower.h" />

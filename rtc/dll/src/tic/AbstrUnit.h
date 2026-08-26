@@ -51,7 +51,9 @@ struct DomainChangeInfo
 	domain_change_context* domainChangeContext = nullptr;
 };
 
-void CopyData(const AbstrDataObject* oldData, AbstrDataObject* newData, const DomainChangeInfo* info = nullptr);
+// exported: shv copies the values a calculated palette computes into an editable view-local
+// item (issue #634), the same old-object -> new-object copy a domain change uses.
+TIC_CALL void CopyData(const AbstrDataObject* oldData, AbstrDataObject* newData, const DomainChangeInfo* info = nullptr);
 
 const UInt32 MAX_TILE_SIZE = 0x10000;
 
