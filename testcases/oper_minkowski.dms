@@ -116,20 +116,28 @@ container oper_minkowski
 		parameter<bool> bp_kernel_ok := d_kernel == 0.0, IntegrityCheck = "bp_kernel_ok == True";
 
 		// ---- 2b. the kernel overload on the three float64 backends -------------------------
-		// Only bp exercised the kernel argument above; these pin the other three, and pin that the
-		// kernel form and the variant form agree on each of them.
+		// Only bp exercised the kernel argument above; these pin the other three. Each is compared
+		// against the SAME backend's variant form, so a failure here means one backend's two
+		// signatures disagree with each other. Agreement BETWEEN backends is a separate question,
+		// checked in section 5 (bg_geos_ok / cgal_geos_ok) — keeping the two apart is what makes a
+		// red check say which of the two it is.
 		attribute<dpoint> bg_via_kernel   (G, polygon) := bg_minkowski_sum  (geom_d, kernel_d);
 		attribute<dpoint> geos_via_kernel (G, polygon) := geos_minkowski_sum(geom_d, kernel_d);
 		attribute<dpoint> cgal_via_kernel (G, polygon) := cgal_minkowski_sum(geom_d, kernel_d);
 
-		parameter<float64> d_bg_kernel := sum(area(geos_xor(bg_via_kernel, sum_geos)));
+		parameter<float64> d_bg_kernel := sum(area(geos_xor(bg_via_kernel, sum_bg)));
 		parameter<bool> bg_kernel_ok := d_bg_kernel < 0.001, IntegrityCheck = "bg_kernel_ok == True";
 
 		parameter<float64> d_geos_kernel := sum(area(geos_xor(geos_via_kernel, sum_geos)));
 		parameter<bool> geos_kernel_ok := d_geos_kernel < 0.001, IntegrityCheck = "geos_kernel_ok == True";
 
-		parameter<float64> d_cgal_kernel := sum(area(geos_xor(cgal_via_kernel, sum_geos)));
+		parameter<float64> d_cgal_kernel := sum(area(geos_xor(cgal_via_kernel, sum_cgal)));
 		parameter<bool> cgal_kernel_ok := d_cgal_kernel < 0.001, IntegrityCheck = "cgal_kernel_ok == True";
+
+		// Each kernel-form result must also have the right absolute area, so that "the two forms
+		// agree" cannot be satisfied by both being wrong in the same way.
+		parameter<float64> a_bg_kernel := sum(area(bg_via_kernel));
+		parameter<bool> bg_kernel_area_ok := abs(a_bg_kernel - 19200.0) < 0.001, IntegrityCheck = "bg_kernel_area_ok == True";
 
 		// ---- 2c. a kernel per element, and a size per element ------------------------------
 		// The square grown by 10 is 120 x 120 = 14400; the L grown by 5 is
