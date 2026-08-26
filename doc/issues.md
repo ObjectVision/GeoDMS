@@ -1,19 +1,9 @@
 # Open GitHub issues, classified
 
-Snapshot of the open issues at https://github.com/ObjectVision/GeoDMS/issues. The classified tables
-below are the **2026-08-24** snapshot with the #917 -> #1216, #1213 and #634 deltas of
-2026-08-26 applied.
-
-> **This file has drifted and needs a re-audit.** Checked against GitHub on 2026-08-26: **19 issues
-> are open**, not the 27 the previous header claimed. Sixteen issues still classified below have
-> since been closed (#302, #403, #694, #734, #757, #810, #830, #856, #949, #1105, #1186, #1199,
-> #1200, #1202, #1204, #1206 — note this includes the row marked **NEXT**), and five open issues
-> were missing entirely (#1211–#1215); #1213 has since been fixed and is recorded below, leaving
-> #1211, #1212, #1214 and #1215 unlisted. Re-snapshot before using this as a work queue.
-
-(previous snapshots: 2026-08-24 claiming 27, 2026-08-20 with 33, 2026-07-31 with 48 listed,
-2026-07-04 with 41, 2026-07-03 with 45 open; see
-"Recently closed" at the bottom for the delta). Grouped by implementability. Buckets:
+Snapshot of the **17 open issues** at https://github.com/ObjectVision/GeoDMS/issues, re-audited
+against GitHub on **2026-08-26**. The previous header claimed 27; sixteen issues it still classified
+had been closed and five open ones were missing, so the tables below were rebuilt from the live list
+rather than edited in place. Grouped by implementability. Buckets:
 
 - **A. Low hanging fruit** — small, well-defined fixes; no design decisions needed.
 - **B. Implementable after minor design choices** — clear scope; one or two decisions to settle first.
@@ -23,56 +13,44 @@ below are the **2026-08-24** snapshot with the #917 -> #1216, #1213 and #634 del
 - **F. Documentation issues** — docs/website work, no engine code.
 - **G. Other** — roadmap, questions, investigations, likely-duplicates.
 
+Previous snapshots: 2026-08-24 claiming 27, 2026-08-20 with 33, 2026-07-31 with 48 listed,
+2026-07-04 with 41, 2026-07-03 with 45 open. See "Recently closed" at the bottom for the delta.
+
 ## A. Low hanging fruit
 
-**Empty.** #1204 looks small but is not specified yet: the `.tfw` duplicates GeoTIFF metadata, but
-some consumers still use the world file and the reporter has not said what harm its presence causes.
-#1202 has two concrete diagnostic defects but still depends on the difficult worker-thread failure
-from #1201. The best ready target is therefore #1200 in C, not a nominally smaller issue here.
-
-The one small thing left over is not an issue of its own, and was found while fixing #1186:
-`tools/DeployResources.cmake` silently does nothing (exit 0, no copies) when `RUNTIME_DIR` is passed
-with backslashes. The real call site always passes forward slashes, so nothing is broken today — it
-is a two-line guard against an unpleasant failure mode for anyone invoking the script by hand.
+| Issue | Why it is small |
+|---|---|
+| **NEXT: [#1215](https://github.com/ObjectVision/GeoDMS/issues/1215) polygon_connectivity** | **Verify and close.** Split out of #757 on 2026-08-26 with an empty body, but `polygon_connectivity` is already implemented: `cogPC` at `geo/dll/src/BoostPolygon.cpp` plus the `bp_`/`bg_`/`cgal_`/`geos_polygon_connectivity` variants, all four registered and documented on the wiki. Unless the reporter meant something beyond the existing operator, this is a bookkeeping closure. |
+| [#1211](https://github.com/ObjectVision/GeoDMS/issues/1211) Icons for view menu options and view titles | Every chart window currently reuses the Statistics view icon. The reporter attached the icons they want; the work is wiring them into the view registry, the same table #319 touched for the tree-item icons (`518dc747`, `0ce9f427`). No semantics involved. |
 
 ## B. Implementable after minor design choices
 
 | Issue | Design choice to settle |
 |---|---|
-| [#1204](https://github.com/ObjectVision/GeoDMS/issues/1204) Stop writing `.tfw` beside GeoTIFF | Decide whether compatibility with consumers that still read world files outweighs removing redundant metadata, and whether `tif` and `gdalwrite.grid` should behave identically or expose an option. |
 | [#1165](https://github.com/ObjectVision/GeoDMS/issues/1165) Deprecate the point-valued `range` property | Rescoped by the 20.14.0 work (`7d1a336e`): every textual rendering of a point now states its coordinate order as `xy(x; y)`, so the property is no longer order-ambiguous, and reading an untagged range already warns from `RangeStream`. What is left is (a) property-level deprecation machinery — `AbstrPropDef::IsDepreciated()` is still consulted only at `rtc/dll/src/tic/Xml/XmlTreeOut.cpp:1016`, where it hides the property from the detail page, so configuring the deprecated `Expr` property warns nothing — and (b) migrating the 19 regression configurations that still use the brace form. Decide the choke point and the warn-now/error-later timing. |
-| [#1161](https://github.com/ObjectVision/GeoDMS/issues/1161) Mitigate mixed-case deprecation warnings | Still a naming decision, but the inputs are now on the shelf: `DocData()/OperatorGroups/name` dumps the authoritative 2322 registered group names, and `data/operators.csv` is the curated user-facing list, resynced against it in `5a20c5a7`. Decide the canonical casing per operator/value-type name, and whether the sweep also touches the docs and the bundled configs or only the accepted spellings. |
-| [#1145](https://github.com/ObjectVision/GeoDMS/issues/1145) Export Primary Data exports wrong (Buurt) geometry | Bug, not feature: needs repro/debug on OVSRV08; fix is picking the geometry of the right domain. |
+| [#1161](https://github.com/ObjectVision/GeoDMS/issues/1161) Mitigate mixed-case deprecation warnings | Still a naming decision, but the inputs are on the shelf: `DocData()/OperatorGroups/name` dumps the authoritative registered group names and `data/operators.csv` is the curated user-facing list, resynced in `5a20c5a7`. The #917 work removed 48 mixed-case names from the problem set by depreciating the `bp_*_i4HV`…`_dXD` family, so the remaining set is smaller than the last count suggests — re-dump before deciding. Decide the canonical casing per operator/value-type name, and whether the sweep also touches the docs and the bundled configs or only the accepted spellings. |
+| [#1145](https://github.com/ObjectVision/GeoDMS/issues/1145) Export Primary Data exports wrong (Buurt) geometry | Bug, not feature: needs repro/debug on OVSRV08; the fix is picking the geometry of the right domain. |
 | [#990](https://github.com/ObjectVision/GeoDMS/issues/990) `union_data` with unmatching but equal-sized domains | Hard error or warning? Might existing configs rely on it? |
 | [#973](https://github.com/ObjectVision/GeoDMS/issues/973) Missing VAT in dbf/gpkg export | Always emit VAT, or an export-dialog option (with ArcGIS Pro note)? |
-| [#694](https://github.com/ObjectVision/GeoDMS/issues/694) Show/hide items via model parameter | Property name and GUI-vs-config override semantics; use case (lus_demo) is clear. |
 
 ## C. Refactoring
 
 | Issue | Rationale |
 |---|---|
-| **NEXT: [#1200](https://github.com/ObjectVision/GeoDMS/issues/1200) Enumeration through the referred-item chain yields shadowed sub-items** | Best ready target after #1199/#421. Lookup is first-name-wins, but the stateless visible-sub-item iterator enumerates both the shadow and the unreachable referred item. Reproduce the duplicate in the XML detail page first, then introduce one stateful name-deduplicating traversal for the affected callers. Existing correct models are `TreeItem_VisitConstVisibleSubTree`, `TreeItem::Copy`, and #337's `EnumCollectCandidates`. |
-| [#1202](https://github.com/ObjectVision/GeoDMS/issues/1202) Worker-thread internal errors lack item context and are duplicated as warnings | Concrete diagnostic defects, but the known reproduction is the large/heisenbug run from #1201. Trace the worker reporting and meta-thread replay paths before changing severity or deduplication. |
-| [#1206](https://github.com/ObjectVision/GeoDMS/issues/1206) Spatial/CRS Debug runs leave 17 CRT blocks at shutdown | Already taken. The fixed signature across CRS/GDAL cases points at process-lifetime spatial-library cleanup; keep separate from the GUI nontermination in #1191 until stacks connect them. |
-| [#1191](https://github.com/ObjectVision/GeoDMS/issues/1191) Closing the GUI during calculation leaves the process alive | Repro and dump exist. Likely scheduler teardown ordering: scheduled suppliers are discarded before active joiners are released, followed by an unbounded task-group wait. Needs stack-backed shutdown/lifetime work, not a local GUI close patch. |
-| [#1105](https://github.com/ObjectVision/GeoDMS/issues/1105) geodms.pyd Python ABI mismatch across .m/.c installers | Regular Windows builds now target CPython 3.12/3.13/3.14. A separate `.g` GLOBIO build targets CPython 3.9 and the exact GDAL 3.1.4 conda stack, with isolated output/vcpkg roots, ABI-tagged modules, dependency-closure deployment, and both-import-order checks. Interactive `.m`/`.c`/`.g` release/setup validation remains open. |
-| [#403](https://github.com/ObjectVision/GeoDMS/issues/403) Don't collect recollected items into subset | Changes how subitems are collected in `select_with_attr` subunits. |
+| [#1212](https://github.com/ObjectVision/GeoDMS/issues/1212) `geos_polygon` mis-reads a uniformly counter-clockwise polygon | Split off from the closed #302 while building the winding-order operators. `geos_create_polygons` decides shell-versus-hole from a ring's **absolute** orientation — a ring is a shell iff it is clockwise — so a feature whose rings are uniformly counter-clockwise loses its shell and promotes its lake. The fix is to derive ring roles from nesting, which is what `fix_winding_order` already does (`302`'s output); the refactor is sharing that determination between the GEOS and boost.geometry readers instead of each deciding for itself. |
+| [#1191](https://github.com/ObjectVision/GeoDMS/issues/1191) Closing the GUI during calculation leaves the process alive | Repro and dump exist. Likely scheduler teardown ordering: scheduled suppliers are discarded before active joiners are released, followed by an unbounded task-group wait. Needs stack-backed shutdown/lifetime work, not a local GUI close patch. Note #1206, which shared a suspicion of process-lifetime cleanup, closed separately on 2026-08-24 (`12f6eb90`) without connecting the two stacks. |
 
 ## D. Needs design
 
 | Issue | Rationale |
 |---|---|
-| [#1216](https://github.com/ObjectVision/GeoDMS/issues/1216) Fault-tolerant sweep for polygon_intersection and overlay | Split out of the now-closed #917, whose other five boxes shipped in 20.18.0. Settle what "fault tolerant" promises (a valid result always, or a valid result plus a diagnostic saying where tolerance was applied — silently snapping geometry is the failure mode to avoid), where the tolerance comes from, and whether it replaces the per-backend cleanup pre-passes. Touches the same code as #1205 and should be designed with it: a tolerant sweep changes the per-feature cost model #1205's subdivision decisions rest on. |
+| [#1214](https://github.com/ObjectVision/GeoDMS/issues/1214) Fault-tolerant sweep for polygon_intersection and overlay | Split out of #757 on 2026-08-26; also the last unchecked box of the now-closed #917. Settle what "fault tolerant" promises (a valid result always, or a valid result plus a diagnostic saying where tolerance was applied — silently snapping geometry is the failure mode to avoid), where the tolerance comes from, and whether it replaces the per-backend cleanup pre-passes (`fix_polygon`/MakeValid, `clean_bg_geometry`, CGAL `Polygon_repair`), which today run *before* the overlay rather than being tolerance inside the sweep. Touches the same code as #1205 and should be designed with it: a tolerant sweep changes the per-feature cost model #1205's subdivision decisions rest on. Design notes are on the issue. |
 | [#1205](https://github.com/ObjectVision/GeoDMS/issues/1205) Balance polygon overlay by geometric complexity | The current outer/inner tile loops expose only the first argument's element tiling as parallel work, so a few dissolved features with millions of vertices collapse to one worker. Needs a choice between feature/vertex subdivision, parallelising both tile dimensions, prepared geometry, and a user-visible `subdivide` operator; argument-order guidance can be documented independently. |
-| [#1198](https://github.com/ObjectVision/GeoDMS/issues/1198) Resource-aware admission does not converge | Follow-up to the now-closed #1158: enforce mode churns without reducing the live peak, and its committed-memory figure can exceed physical memory. Requires a corrected accounting/admission model rather than another local threshold. |
+| [#1198](https://github.com/ObjectVision/GeoDMS/issues/1198) Resource-aware admission does not converge | Follow-up to the closed #1158: enforce mode churns without reducing the live peak, and its committed-memory figure can exceed physical memory. Requires a corrected accounting/admission model rather than another local threshold. |
 | [#1196](https://github.com/ObjectVision/GeoDMS/issues/1196) `discrete_alloc` arithmetic can overflow at production sizes | The two cheap widenings are clear (`perturbation_type` and feasibility aggregates), but shadow-price bounds and hot-path checked signed arithmetic need a design/performance decision. The issue is an audit finding, not a reproduced wrong allocation. |
-| [#856](https://github.com/ObjectVision/GeoDMS/issues/856) 2-dimensional Dijkstra (time + cost) | Non-trivial pruning semantics (Pareto frontier over two criteria). |
 | [#659](https://github.com/ObjectVision/GeoDMS/issues/659) R (or Python) integration for calculations | The linking route is closed for good and recorded on the wiki: R's C API needs the MinGW-w64 toolchain R itself was built with, and hosting a single-threaded, `longjmp`-based interpreter inside a thread-scheduling engine is not viable. The file-and-`exec_ec` route is the answer instead, and 20.16.0 makes it usable (`5a9d4478`: the child's stdout+stderr are captured on one pipe and reported line by line as `exec: <line>`, capped at 1 MB but still drained, and waited for in ticks). What remains under "design" is the ordering discipline — the NetworkModel_EU/Julia production example shows the batch file, not the configuration, must own any sequence that includes a GeoDMS *write*. |
 | [#724](https://github.com/ObjectVision/GeoDMS/issues/724) Circular units (wrap-around grid/time) | New unit semantics rippling through operators and metric checking. |
-| [#734](https://github.com/ObjectVision/GeoDMS/issues/734) Reuse classbreaks across mapviews | Where do classifications live, and how do views share them? |
 | [#587](https://github.com/ObjectVision/GeoDMS/issues/587) Storage-read functions in keyExpr | Language-level change to make storage reads expressible in calculation rules. |
-| [#302](https://github.com/ObjectVision/GeoDMS/issues/302) Winding-order reversal operator | May be subsumed by `split_polygon`/cleaning strategy — needs that decision first. |
-| [#757](https://github.com/ObjectVision/GeoDMS/issues/757) Home-brewed polygon operators (remaining items) | The bg_* items are done; polygon_connectivity and fault-tolerant sweep overlay are algorithm design. |
 
 ## E. Test issues
 
@@ -83,41 +61,30 @@ release flavours.
 
 None open. #1080 (Academy on geodms.nl) was closed 2026-08-12.
 
-## G. Other and recently resolved context
+## G. Other
 
-- [#1199](https://github.com/ObjectVision/GeoDMS/issues/1199) — Implemented and merged as
-  `8b09c0f6`: indirect-expression evaluation now rejects a supply chain behind a PhaseContainer;
-  phase-number determination is transactional, propagates its determining/failure sentinel, and is
-  reset by invalidation. Regression battery 211/211. The issue is still open pending closure.
-- **Closed:** [#1186](https://github.com/ObjectVision/GeoDMS/issues/1186) — The `.c` setup shipped no MSVC runtime
-  at all, so it borrowed whatever redistributable happened to be in `System32`; `arrow.dll` failing on
-  `__std_calloc_crt` proved that copy was older than 14.40. dumpbin over the whole `.c` installation
-  found 6 CRT DLLs and 297 imported symbols, and all eight redistributable versions available here
-  cover them. Fixed in `4b95e5dc` (CMake `InstallRequiredSystemLibraries` + build-time
-  `deploy_resources`, plus `File` lines in `nsi/DmsSetupScriptX64-cmake.nsi`); the reporter will retest
-  the `.c` variant at the next release and deliberately will *not* update their system redistributable,
-  so the problem stays visible until then. Open follow-up worth its own issue: nothing checks the
-  import closure of `bin\` against the packaged file list, so the next runtime dependency a vcpkg port
-  introduces is again a manual responsibility.
-- **Closed:** [#949](https://github.com/ObjectVision/GeoDMS/issues/949) — Calculation-time difference between GUI
-  and Run, ~100 s. Less cheap than the July note assumed. The mechanism is indeed fixed (#1157 closed
-  as a duplicate of #1156, whose GUI half shipped in 20.13.0), but the model is NetworkModel_PBL (ROO)
-  and `%SourceDataDir%/NetworkModel_PBL` is not on the dev laptop, so the re-measure has to happen
-  where the data lives. Attempting a substitute exposed the real trap, recorded on the issue
-  2026-08-20: **GeoDmsRun and the GUI do not demand the same work from the same item**, so comparing
-  two clocks compares two different calculations. `GeoDmsRun <cfg> /parameter` calculated nothing
-  (0.001 s) until an IntegrityCheck forced it (6.2 s over 24M elements); the GUI's `ActivateItem` did
-  not demand the value at all, and `DefaultView` computed only the visible rows of a 24M-row table.
-  Both drivers must be pointed at the same *write*, and the numbers taken from the two `/L` logs.
-- [#810](https://github.com/ObjectVision/GeoDMS/issues/810) — Component planning 2024/2025: roadmap
-  umbrella, not an implementable issue.
-- **Closed:** [#830](https://github.com/ObjectVision/GeoDMS/issues/830) — Question/investigation: why is tif
-  DialogData needed while the projection choice doesn't matter? Outcome determines whether there's a
-  bug at all.
+- [#1213](https://github.com/ObjectVision/GeoDMS/issues/1213) — **fixed in code, issue still open.**
+  The EventLog filter panel's clipped `category` checkbox was fixed in `e958f8f4` (see the entry under
+  "Recently closed" for the mechanism), but the GitHub issue was never closed. Either close it or say
+  what is still outstanding.
+
+The umbrella and question issues that used to sit here — #810 (component planning), #830 (tif
+DialogData), #949 (GUI-versus-Run calculation time), #1186 (`.c` setup CRT), #1199 (indirect-property
+dependency) — have all been closed; their write-ups are under "Recently closed" below.
+
+One small thing is not an issue of its own, and was found while fixing #1186:
+`tools/DeployResources.cmake` silently does nothing (exit 0, no copies) when `RUNTIME_DIR` is passed
+with backslashes. The real call site always passes forward slashes, so nothing is broken today — it
+is a two-line guard against an unpleasant failure mode for anyone invoking the script by hand.
 
 ## Recently closed (delta since 2026-07-31)
 
-### Closed on 2026-08-26 (3)
+### Closed on 2026-08-26 (7, plus #1213 fixed but not closed)
+
+- #694 (`da6bb6cc`, `1ae70e5c`, `24863f95`), #757, #810 and #1105 (`b0fa05eb`, `565e9ef4`) were
+  closed here. #757 was split into #1214 (fault-tolerant sweep, still open in D) and #1215
+  (polygon_connectivity, already implemented — see A); #810 was a roadmap umbrella rather than an
+  implementable issue.
 
 - #634 (`a7475fac`) — copy-on-write for the data a layer control shows, implemented in samenhang
   with the just-closed #734 as its comment asked. A colour, a label or a class break whose attribute
@@ -136,9 +103,15 @@ None open. #1080 (Academy on geodms.nl) was closed 2026-08-12.
 - #917 (`2c82cb27`, `30e3da16`) — `{bp,bg,cgal,geos}_minkowski_sum` / `_minkowski_difference` with
   the kernel as an argument, and the 48 `bp_*_i4HV`…`_dXD` names depreciated. Five of its six boxes;
   two of those (`geos_simplify_linestring`, `polygon_connectivity`) turned out to be implemented
-  already. The sixth was split out as the new #1216, listed in D above.
+  already. The sixth is #1214, listed in D above.
 
-- #1213 (`e958f8f4`) — the `category` checkbox at the bottom right of the EventLog filter panel
+- #1216 — closed as **not planned**: a duplicate of #1214, filed 45 minutes later while splitting
+  #917 without noticing that #757 had just been split into #1214 and #1215 covering the same ground.
+  Its design notes were moved to #1214 before closing. Worth remembering that #757 and #917 shared a
+  checkbox, so splitting either one can collide with the other.
+
+- #1213 (`e958f8f4`) — **the code fix landed but the GitHub issue is still open**; see G above.
+  The `category` checkbox at the bottom right of the EventLog filter panel
   rendered clipped. Not a styling or a DPI problem: the panel is not laid out. `DmsTypeFilter` positions
   every child absolutely from `DmsEventLogSelection.ui`, and its `sizeHint()` returns `groupBox->size()`
   (`qtgui/exe/src/DmsEventLog.cpp:376`), so the widget is exactly 121 px high whatever it contains, and
@@ -150,6 +123,38 @@ None open. #1080 (Academy on geodms.nl) was closed 2026-08-12.
   margin the left group box's last row already had, and the panel height is unchanged. That leaves one
   row of headroom; a fifth entry in those columns would need the block converted to a real layout, or
   `sizeHint()` derived from `childrenRect()` instead of from the group box.
+
+### Closed on 2026-08-25 (3)
+
+- #302 (`4e152d11`, `f2db238e`, `771d950a`) — the winding-order operators. Its counter-clockwise
+  reader defect was split off as #1212, still open in C.
+- #734 (`a7475fac`, `771d950a`, `f66c5c46`) — reuse classbreaks across mapviews; #634's
+  copy-on-write landed in samenhang with it.
+- #856 (`fd09c8a9`, `975d4410`, `98d217d2`) — 2-dimensional Dijkstra.
+
+### Closed on 2026-08-22 through 2026-08-24, but still classified as open until the 2026-08-26 re-audit (7)
+
+These are the entries the previous snapshot carried in its A/B/C/D tables after they had already been
+closed; they are the bulk of the drift that re-audit found.
+
+- #403 (`a6b9fe61`, `8c980d05`) — don't collect recollected items into subset.
+- #1199 (`8b09c0f6`) — indirect-expression evaluation now rejects a supply chain behind a
+  PhaseContainer; phase-number determination is transactional and reset by invalidation.
+- #1200 (`f539d3ef`) — the referred-item-chain enumeration that yielded shadowed sub-items. It had
+  been marked **NEXT** in the C table for two days after it was closed.
+- #1202 (`781f033c`, `26265cda`) — worker-thread internal errors now carry item context.
+- #1204 — the `.tfw` written beside GeoTIFF.
+- #1206 (`12f6eb90`) — the 17-block CRT leak in spatial/CRS Debug runs.
+- #1186 (`565e9ef4`, `4b95e5dc`) — the `.c` setup shipped no MSVC runtime at all, so it borrowed
+  whatever redistributable happened to be in `System32`; `arrow.dll` failing on `__std_calloc_crt`
+  proved that copy was older than 14.40. dumpbin over the whole `.c` installation found 6 CRT DLLs
+  and 297 imported symbols, and all eight redistributable versions available here cover them. Fixed
+  with CMake `InstallRequiredSystemLibraries` + build-time `deploy_resources`, plus `File` lines in
+  `nsi/DmsSetupScriptX64-cmake.nsi`. The reporter will retest the `.c` variant at the next release
+  and deliberately will *not* update their system redistributable, so the problem stays visible until
+  then. Open follow-up worth its own issue: nothing checks the import closure of `bin\` against the
+  packaged file list, so the next runtime dependency a vcpkg port introduces is again a manual
+  responsibility.
 
 ### Closed on 2026-08-21 through 2026-08-24 (24)
 
@@ -339,7 +344,7 @@ admission gate / drain-mode series (SS8.1.21-SS8.1.33).
   operations is the wrong lever when 91% of the volume is deferred material from chains that were
   already admitted. `MemoryDrainage` is on by default; `WaitForAvailableMemory` remains disabled.
   Plan and measurements: `doc/development/schedule-with-lookahead.md`.
-- **PhaseContainer** (#1128, #1167, #1199, all implemented; #1199 pending closure): demanded members
+- **PhaseContainer** (#1128, #1167, #1199, all implemented and now all closed): demanded members
   now reach and selectively collect the phase, completion messages are emitted when the phase
   finishes, and phase-backed values are rejected while evaluating an indirect expression. The
   remaining work is no longer in this cluster.
@@ -366,7 +371,8 @@ admission gate / drain-mode series (SS8.1.21-SS8.1.33).
   targeted pre-packaging import/ABI checks; a general import-closure check would extend the same
   protection to every executable and DLL.
 - **Least certain classifications**: #1145 still needs a debugging session before it is clear whether
-  it is an afternoon or a refactor. #1204 needs the compatibility decision from its reporter.
+  it is an afternoon or a refactor. #1215 is classified as a bookkeeping closure on the strength of
+  the operator already existing, which the reporter should confirm — its body is empty.
 - **Reproducing a GUI issue** is cheap: `GeoDmsGuiQt.exe /L<log> /T<script> /S1 /S2 /S3 <config.dms>`
   (note: `/L` must precede `/T`) with `ActivateItem` + `ShowDetailPage` + `SaveDetailPage` for a detail
   page, `DefaultView` + `SEND 3 3 273 9 0` + `SaveValueInfo` for a value-info page, and
