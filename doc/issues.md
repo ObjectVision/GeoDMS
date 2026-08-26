@@ -1,13 +1,15 @@
 # Open GitHub issues, classified
 
 Snapshot of the open issues at https://github.com/ObjectVision/GeoDMS/issues. The classified tables
-below are the **2026-08-24** snapshot with only the #917 -> #1216 delta of 2026-08-26 applied.
+below are the **2026-08-24** snapshot with only the #917 -> #1216 and #1213 deltas of
+2026-08-26 applied.
 
 > **This file has drifted and needs a re-audit.** Checked against GitHub on 2026-08-26: **19 issues
 > are open**, not the 27 the previous header claimed. Sixteen issues still classified below have
 > since been closed (#302, #403, #694, #734, #757, #810, #830, #856, #949, #1105, #1186, #1199,
-> #1200, #1202, #1204, #1206 — note this includes the row marked **NEXT**), and five open issues are
-> missing entirely (#1211–#1215). Re-snapshot before using this as a work queue.
+> #1200, #1202, #1204, #1206 — note this includes the row marked **NEXT**), and five open issues
+> were missing entirely (#1211–#1215); #1213 has since been fixed and is recorded below, leaving
+> #1211, #1212, #1214 and #1215 unlisted. Re-snapshot before using this as a work queue.
 
 (previous snapshots: 2026-08-24 claiming 27, 2026-08-20 with 33, 2026-07-31 with 48 listed,
 2026-07-04 with 41, 2026-07-03 with 45 open; see
@@ -116,12 +118,25 @@ None open. #1080 (Academy on geodms.nl) was closed 2026-08-12.
 
 ## Recently closed (delta since 2026-07-31)
 
-### Closed on 2026-08-26 (1)
+### Closed on 2026-08-26 (2)
 
 - #917 (`2c82cb27`, `30e3da16`) — `{bp,bg,cgal,geos}_minkowski_sum` / `_minkowski_difference` with
   the kernel as an argument, and the 48 `bp_*_i4HV`…`_dXD` names depreciated. Five of its six boxes;
   two of those (`geos_simplify_linestring`, `polygon_connectivity`) turned out to be implemented
   already. The sixth was split out as the new #1216, listed in D above.
+
+- #1213 (`e958f8f4`) — the `category` checkbox at the bottom right of the EventLog filter panel
+  rendered clipped. Not a styling or a DPI problem: the panel is not laid out. `DmsTypeFilter` positions
+  every child absolutely from `DmsEventLogSelection.ui`, and its `sizeHint()` returns `groupBox->size()`
+  (`qtgui/exe/src/DmsEventLog.cpp:376`), so the widget is exactly 121 px high whatever it contains, and
+  the layout adds it with stretch 0. The two columns under *Filter message contents* began at y=40 —
+  30 px lower than every other column in the form — so their fourth row landed at y=100..120, flush
+  against that edge. `line_6`, the separator between those two columns, had the same defect in the
+  other direction: it ran to y=140 and was simply cut off. Fixed by moving the block up to start at
+  y=26, at the 20 px row pitch the rest of the form uses; `m_category` now ends at 106, the same bottom
+  margin the left group box's last row already had, and the panel height is unchanged. That leaves one
+  row of headroom; a fifth entry in those columns would need the block converted to a real layout, or
+  `sizeHint()` derived from `childrenRect()` instead of from the group box.
 
 ### Closed on 2026-08-21 through 2026-08-24 (24)
 
