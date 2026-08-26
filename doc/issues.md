@@ -36,7 +36,7 @@ is a two-line guard against an unpleasant failure mode for anyone invoking the s
 | [#990](https://github.com/ObjectVision/GeoDMS/issues/990) `union_data` with unmatching but equal-sized domains | Hard error or warning? Might existing configs rely on it? |
 | [#973](https://github.com/ObjectVision/GeoDMS/issues/973) Missing VAT in dbf/gpkg export | Always emit VAT, or an export-dialog option (with ArcGIS Pro note)? |
 | [#694](https://github.com/ObjectVision/GeoDMS/issues/694) Show/hide items via model parameter | Property name and GUI-vs-config override semantics; use case (lus_demo) is clear. |
-| [#917](https://github.com/ObjectVision/GeoDMS/issues/917) `xx_minkowski_sum` with variant as argument | Argument shape and which backends (cgal/bg/geos) to ship first. |
+| ~~[#917](https://github.com/ObjectVision/GeoDMS/issues/917) `xx_minkowski_sum` with variant as argument~~ | **DONE in 20.18.0** except its last checkbox. `{bp,bg,cgal,geos}_minkowski_sum` and `…_minkowski_difference` ship with two signatures each — `(geometry, kernel)` and `(geometry, size, variant)` — and the 48 `bp_*_i4HV`…`_dXD` names are now `oper_policy::depreciated`. Two of the six checkboxes (`geos_simplify_linestring`, `polygon_connectivity`) were already implemented before this work. The remaining one, "polygon_intersection and overlay with fault tolerant sweep operation", is an unrelated home-brewed sweep algorithm adjacent to #1205 and should become its own issue. |
 
 ## C. Refactoring
 

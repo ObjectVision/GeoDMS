@@ -40,6 +40,7 @@
 #include "BoostGeometry.h"
 #include "CGAL_Traits.h"
 #include "GEOS_Traits.h"
+#include "minkowski.h"
 
 const Int32 MAX_COORD = (1 << 26);
 
@@ -957,93 +958,29 @@ void SetKernel(typename bp_union_poly_traits<C>::ring_type& kernel, Float64 valu
 	if (f <= PolygonFlags::F_Filter1)
 		return;
 
-	kernel.clear();
-	const Float64 c0 = 0;
-	const Float64 csqrtHalf = std::numbers::sqrt2 / 2.0;
-
+	// The twelve _i*/_d* suffixes pair up two by two: the ring is identical, only the convolution
+	// direction differs (the `substract` argument that ProcessNumOperImpl derives from
+	// flag >= F_D4HV1). Issue #917 split shape from direction so that the xx_minkowski_sum /
+	// xx_minkowski_difference operators can take the shape as an argument; this function is now a
+	// thin adapter over that shared definition, which is what makes "the named variant reproduces
+	// the deprecated suffixed operator" true by construction rather than by coincidence.
+	MinkowskiKernelShape shape;
 	switch (f) {
-	case PolygonFlags::F_I4HV1:
-	case PolygonFlags::F_D4HV1:
-		kernel.reserve(5);
-		kernel.push_back(typename traits_t::point_type(value, value));
-		kernel.push_back(typename traits_t::point_type(value, -value));
-		kernel.push_back(typename traits_t::point_type(-value, -value));
-		kernel.push_back(typename traits_t::point_type(-value, value));
-		kernel.push_back(kernel.front());
-		break;
-	case PolygonFlags::F_I4D1:
-	case PolygonFlags::F_D4D1:
-		kernel.reserve(5);
-		kernel.push_back(typename traits_t::point_type(c0, value));
-		kernel.push_back(typename traits_t::point_type(value, c0));
-		kernel.push_back(typename traits_t::point_type(c0, -value));
-		kernel.push_back(typename traits_t::point_type(-value, c0));
-		kernel.push_back(kernel.front());
-		break;
-	case PolygonFlags::F_I8D1:
-	case PolygonFlags::F_D8D1:
-		kernel.reserve(9);
-		kernel.push_back(typename traits_t::point_type(c0, value));
-		kernel.push_back(typename traits_t::point_type(csqrtHalf * value, csqrtHalf * value));
-		kernel.push_back(typename traits_t::point_type(value, c0));
-		kernel.push_back(typename traits_t::point_type(csqrtHalf * value, -csqrtHalf * value));
-		kernel.push_back(typename traits_t::point_type(c0, -value));
-		kernel.push_back(typename traits_t::point_type(-csqrtHalf * value, -csqrtHalf * value));
-		kernel.push_back(typename traits_t::point_type(-value, c0));
-		kernel.push_back(typename traits_t::point_type(-csqrtHalf * value, csqrtHalf * value));
-		kernel.push_back(kernel.front());
-		break;
-
-	case PolygonFlags::F_I16D1:
-	case PolygonFlags::F_D16D1:
-		kernel.reserve(17);
-		kernel.push_back(typename traits_t::point_type(c0, value));
-		kernel.push_back(typename traits_t::point_type(0.3826834 * value, 0.9238795 * value));
-		kernel.push_back(typename traits_t::point_type(csqrtHalf * value, csqrtHalf * value));
-		kernel.push_back(typename traits_t::point_type(0.9238795 * value, 0.3826834 * value));
-		kernel.push_back(typename traits_t::point_type(value, c0));
-		kernel.push_back(typename traits_t::point_type(0.9238795 * value, -0.3826834 * value));
-		kernel.push_back(typename traits_t::point_type(csqrtHalf * value, -csqrtHalf * value));
-		kernel.push_back(typename traits_t::point_type(0.3826834 * value, -0.9238795 * value));
-		kernel.push_back(typename traits_t::point_type(c0, -value));
-		kernel.push_back(typename traits_t::point_type(-0.3826834 * value, -0.9238795 * value));
-		kernel.push_back(typename traits_t::point_type(-csqrtHalf * value, -csqrtHalf * value));
-		kernel.push_back(typename traits_t::point_type(-0.9238795 * value, -0.3826834 * value));
-		kernel.push_back(typename traits_t::point_type(-value, c0));
-		kernel.push_back(typename traits_t::point_type(-0.9238795 * value, 0.3826834 * value));
-		kernel.push_back(typename traits_t::point_type(-csqrtHalf * value, csqrtHalf * value));
-		kernel.push_back(typename traits_t::point_type(-0.3826834 * value, 0.9238795 * value));
-		kernel.push_back(kernel.front());
-		break;
-
-	case PolygonFlags::F_IXHV1:
-	case PolygonFlags::F_DXHV1:
-		kernel.reserve(9);
-		kernel.push_back(typename traits_t::point_type(0.1 * value, 0.1 * value));
-		kernel.push_back(typename traits_t::point_type(+value, c0));
-		kernel.push_back(typename traits_t::point_type(0.1 * value, -0.1 * value));
-		kernel.push_back(typename traits_t::point_type(c0, -value));
-		kernel.push_back(typename traits_t::point_type(-0.1 * value, -0.1 * value));
-		kernel.push_back(typename traits_t::point_type(-value, c0));
-		kernel.push_back(typename traits_t::point_type(-0.1 * value, 0.1 * value));
-		kernel.push_back(typename traits_t::point_type(c0, +value));
-		kernel.push_back(kernel.front());
-		break;
-
-	case PolygonFlags::F_IXD1:
-	case PolygonFlags::F_DXD1:
-		kernel.reserve(9);
-		kernel.push_back(typename traits_t::point_type(value, value));
-		kernel.push_back(typename traits_t::point_type(0.1 * value, c0));
-		kernel.push_back(typename traits_t::point_type(value, -value));
-		kernel.push_back(typename traits_t::point_type(c0, -0.1 * value));
-		kernel.push_back(typename traits_t::point_type(-value, -value));
-		kernel.push_back(typename traits_t::point_type(-0.1 * value, c0));
-		kernel.push_back(typename traits_t::point_type(-value, value));
-		kernel.push_back(typename traits_t::point_type(c0, 0.1 * value));
-		kernel.push_back(kernel.front());
-		break;
+	case PolygonFlags::F_I4HV1: case PolygonFlags::F_D4HV1: shape = MinkowskiKernelShape::k4HV; break;
+	case PolygonFlags::F_I4D1:  case PolygonFlags::F_D4D1:  shape = MinkowskiKernelShape::k4D;  break;
+	case PolygonFlags::F_I8D1:  case PolygonFlags::F_D8D1:  shape = MinkowskiKernelShape::k8D;  break;
+	case PolygonFlags::F_I16D1: case PolygonFlags::F_D16D1: shape = MinkowskiKernelShape::k16D; break;
+	case PolygonFlags::F_IXHV1: case PolygonFlags::F_DXHV1: shape = MinkowskiKernelShape::kXHV; break;
+	case PolygonFlags::F_IXD1:  case PolygonFlags::F_DXD1:  shape = MinkowskiKernelShape::kXD;  break;
+	default: return; // F_Inflate1 / F_Deflate1 / F_Filter1 resize or keep; they have no kernel ring
 	}
+
+	auto ring = MakeMinkowskiKernel(shape, value);
+
+	kernel.clear();
+	kernel.reserve(ring.size());
+	for (auto p : ring)
+		kernel.push_back(typename traits_t::point_type(p.X(), p.Y()));
 }
 
 template<typename C>
@@ -2003,15 +1940,44 @@ public:
 
 namespace 
 {
+	// issue #917: the twelve kernel suffixes (_i4HV .. _dXD) became an argument to
+	// bp_minkowski_sum / bp_minkowski_difference. The suffixed operators keep working, but say
+	// once per use what to write instead. The suffix carries both halves of the answer: its first
+	// letter picks the operator, the rest is the variant literal.
+	auto BpKernelSuffixObsMsg(CharPtr suffix) -> SharedStr
+	{
+		assert(suffix[0] == '_');
+		CharPtr shape = suffix + 2; // past the '_' and the i/d
+		CharPtr minkowskiOper = (suffix[1] == 'd' || suffix[1] == 'D') ? "bp_minkowski_difference" : "bp_minkowski_sum";
+
+		return mySSPrintF(
+			"the kernel shape is an argument now, so apply {} to the result of the same operator "
+			"WITHOUT the suffix. bp_polygon{}(g, size) becomes {}(bp_polygon(g), size, '{}'), and "
+			"bp_split_union_polygon{}(g, part, size) becomes "
+			"bp_split_polygon({}(bp_union_polygon(g, part), size, '{}')). "
+			"That materialises one intermediate polygon attribute which the fused operator did not. "
+			"See the minkowski_sum wiki page"
+			, minkowskiOper
+			, suffix, minkowskiOper, shape
+			, suffix, minkowskiOper, shape
+		);
+	}
+
 	struct BpPolyOperatorGroup : CommonOperGroup
 	{
-		BpPolyOperatorGroup(CharPtr name, PolygonFlags flags)
+		BpPolyOperatorGroup(CharPtr name, PolygonFlags flags, SharedStr obsMsg = SharedStr())
 			: CommonOperGroup(name)
+			, m_ObsMsg(obsMsg)
 			, m_Instances(this, flags)
 		{
 			SetBetterNotInMetaScripting();
+			if (!m_ObsMsg.empty())
+				m_Policy |= oper_policy::depreciated;
 		}
 
+		CharPtr GetObsoleteMsg() const override { return m_ObsMsg.c_str(); }
+
+		SharedStr m_ObsMsg;
 		tl_oper::inst_tuple_templ<typelists::sint_points, BpPolygonOperator>
 			m_Instances;
 	};
@@ -2100,9 +2066,9 @@ namespace
 		BpPolyOperatorGroup simplePO, unionPO;
 		BpPartionedAlternatives partitionedPO;
 
-		BpPolyOperatorGroups(WeakStr nameTempl, PolygonFlags flags)
-			: simplePO(mySSPrintF(nameTempl.c_str(), "").c_str(), flags)
-			, unionPO(mySSPrintF(nameTempl.c_str(), "union_").c_str(), PolygonFlags(flags | PolygonFlags::F_DoUnion))
+		BpPolyOperatorGroups(WeakStr nameTempl, PolygonFlags flags, SharedStr obsMsg = SharedStr())
+			: simplePO(mySSPrintF(nameTempl.c_str(), "").c_str(), flags, obsMsg)
+			, unionPO(mySSPrintF(nameTempl.c_str(), "union_").c_str(), PolygonFlags(flags | PolygonFlags::F_DoUnion), obsMsg)
 			, partitionedPO(&unionPO, PolygonFlags(flags | PolygonFlags::F_DoPartUnion))
 		{}
 	};
@@ -2141,11 +2107,13 @@ namespace
 	};
 	struct BpPolyOperatorGroupss
 	{
+		SharedStr m_ObsMsg; // declared first: simple and split are initialised from it
 		BpPolyOperatorGroups simple, split;
 
-		BpPolyOperatorGroupss(CharPtr suffix, PolygonFlags flags)
-			: simple( BpPolyOperatorGroups(SharedStr("bp_{}polygon")+ suffix, flags) )
-			, split( BpPolyOperatorGroups(SharedStr("bp_split_{}polygon") + suffix, flags | PolygonFlags::F_DoSplit) )
+		BpPolyOperatorGroupss(CharPtr suffix, PolygonFlags flags, bool isDepreciatedKernelSuffix = false)
+			: m_ObsMsg(isDepreciatedKernelSuffix ? BpKernelSuffixObsMsg(suffix) : SharedStr())
+			, simple( BpPolyOperatorGroups(SharedStr("bp_{}polygon")+ suffix, flags, m_ObsMsg) )
+			, split( BpPolyOperatorGroups(SharedStr("bp_split_{}polygon") + suffix, flags | PolygonFlags::F_DoSplit, m_ObsMsg) )
 		{}
 	};
 	struct BgPolyOperatorGroupss
@@ -2222,18 +2190,23 @@ namespace
 	BpPolyOperatorGroupss bp_f1("_filtered", PolygonFlags::F_Filter1);
 	BpPolyOperatorGroupss bp_f2("_inflated", PolygonFlags::F_Inflate1);
 	BpPolyOperatorGroupss bp_f3("_deflated", PolygonFlags::F_Deflate1);
-	BpPolyOperatorGroupss bp_f4("_i4HV", PolygonFlags::F_I4HV1);
-	BpPolyOperatorGroupss bp_f5("_i4D", PolygonFlags::F_I4D1);
-	BpPolyOperatorGroupss bp_f6("_i8D", PolygonFlags::F_I8D1);
-	BpPolyOperatorGroupss bp_f7("_i16D", PolygonFlags::F_I16D1);
-	BpPolyOperatorGroupss bp_f8("_iXHV", PolygonFlags::F_IXHV1);
-	BpPolyOperatorGroupss bp_f9("_iXD", PolygonFlags::F_IXD1);
-	BpPolyOperatorGroupss bp_fa("_d4HV", PolygonFlags::F_D4HV1);
-	BpPolyOperatorGroupss bp_fb("_d4D", PolygonFlags::F_D4D1);
-	BpPolyOperatorGroupss bp_fc("_d8D", PolygonFlags::F_D8D1);
-	BpPolyOperatorGroupss bp_fd("_d16D", PolygonFlags::F_D16D1);
-	BpPolyOperatorGroupss bp_fe("_dXHV", PolygonFlags::F_DXHV1);
-	BpPolyOperatorGroupss bp_ff("_dXD", PolygonFlags::F_DXD1);
+	// The twelve kernel-suffix families, all DEPRECIATED since issue #917 (the trailing `true`):
+	// 48 registered names -- 12 suffixes x {plain, union, split, split_union} -- that exist only to
+	// pick one of the twelve rings. bp_minkowski_sum / bp_minkowski_difference take the shape as an
+	// argument instead. _filtered / _inflated / _deflated above are NOT part of this: they use
+	// bp::keep and polygon_set_data::resize, not a Minkowski kernel.
+	BpPolyOperatorGroupss bp_f4("_i4HV", PolygonFlags::F_I4HV1, true);
+	BpPolyOperatorGroupss bp_f5("_i4D", PolygonFlags::F_I4D1, true);
+	BpPolyOperatorGroupss bp_f6("_i8D", PolygonFlags::F_I8D1, true);
+	BpPolyOperatorGroupss bp_f7("_i16D", PolygonFlags::F_I16D1, true);
+	BpPolyOperatorGroupss bp_f8("_iXHV", PolygonFlags::F_IXHV1, true);
+	BpPolyOperatorGroupss bp_f9("_iXD", PolygonFlags::F_IXD1, true);
+	BpPolyOperatorGroupss bp_fa("_d4HV", PolygonFlags::F_D4HV1, true);
+	BpPolyOperatorGroupss bp_fb("_d4D", PolygonFlags::F_D4D1, true);
+	BpPolyOperatorGroupss bp_fc("_d8D", PolygonFlags::F_D8D1, true);
+	BpPolyOperatorGroupss bp_fd("_d16D", PolygonFlags::F_D16D1, true);
+	BpPolyOperatorGroupss bp_fe("_dXHV", PolygonFlags::F_DXHV1, true);
+	BpPolyOperatorGroupss bp_ff("_dXD", PolygonFlags::F_DXD1, true);
 
 	BgPolyOperatorGroupss bg_simple;
 	CGAL_PolyOperatorGroupss cgal_simple;

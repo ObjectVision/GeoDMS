@@ -30,6 +30,8 @@ static CommonOperGroup grOuter_polygon("outer_single_polygon", oper_policy::bett
 static CommonOperGroup grOuter_multi_polygon("outer_multi_polygon", oper_policy::better_not_in_meta_scripting);
 static CommonOperGroup grBgOuter_single_polygon("bg_outer_single_polygon", oper_policy::better_not_in_meta_scripting);
 static CommonOperGroup grBgOuter_multi_polygon("bg_outer_multi_polygon", oper_policy::better_not_in_meta_scripting);
+static CommonOperGroup grBgMinkowskiSum("bg_minkowski_sum", oper_policy::better_not_in_meta_scripting);
+static CommonOperGroup grBgMinkowskiDifference("bg_minkowski_difference", oper_policy::better_not_in_meta_scripting);
 
 namespace
 {
@@ -65,4 +67,15 @@ namespace
 
 	tl_oper::inst_tuple_templ<typelists::points, OuterSinglePolygonOperator> bg_outerSinglePolygonOperators(grBgOuter_single_polygon);
 	tl_oper::inst_tuple_templ<typelists::points, OuterMultiPolygonOperator> bg_outerMultiPolygonOperators(grBgOuter_multi_polygon);
+
+	// issue #917: both signatures land on one group -- (geometry, kernel) and (geometry, size, variant)
+	template <typename P> using BgMinkowskiSumKernel  = MinkowskiKernelOperator<P, geometry_library::boost_geometry, false>;
+	template <typename P> using BgMinkowskiDiffKernel = MinkowskiKernelOperator<P, geometry_library::boost_geometry, true >;
+	template <typename P> using BgMinkowskiSumNamed   = MinkowskiNamedOperator <P, geometry_library::boost_geometry, false>;
+	template <typename P> using BgMinkowskiDiffNamed  = MinkowskiNamedOperator <P, geometry_library::boost_geometry, true >;
+
+	tl_oper::inst_tuple_templ<typelists::points, BgMinkowskiSumKernel > bgMinkowskiSumKernelOperators (grBgMinkowskiSum);
+	tl_oper::inst_tuple_templ<typelists::points, BgMinkowskiDiffKernel> bgMinkowskiDiffKernelOperators(grBgMinkowskiDifference);
+	tl_oper::inst_tuple_templ<typelists::points, BgMinkowskiSumNamed  > bgMinkowskiSumNamedOperators  (grBgMinkowskiSum,        "bg_minkowski_difference");
+	tl_oper::inst_tuple_templ<typelists::points, BgMinkowskiDiffNamed > bgMinkowskiDiffNamedOperators (grBgMinkowskiDifference, "bg_minkowski_sum");
 }

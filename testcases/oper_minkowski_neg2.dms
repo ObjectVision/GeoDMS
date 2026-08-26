@@ -1,0 +1,24 @@
+// #917 negative: a 'd' (deflate) prefix handed to the DILATING operator must be rejected.
+// Honouring it would compute the opposite of what the operator name promises, so the error names
+// bp_minkowski_difference instead.
+// Expected: nonzero exit.
+container oper_minkowski_neg2
+{
+	unit<uint32> G   : nrofrows = 1;
+	unit<uint32> GPt : nrofrows = 4;
+
+	attribute<int32>  gx   (GPt) : [ 0, 0, 100, 100 ];
+	attribute<int32>  gy   (GPt) : [ 0, 100, 100, 0 ];
+	attribute<G>      gseq (GPt) : [ 0, 0, 0, 0 ];
+	attribute<uint32> gord (GPt) : [ 0, 1, 2, 3 ];
+
+	attribute<ipoint> gpt (GPt) := point_xy(gx, gy, ipoint);
+	attribute<ipoint> geom (G, polygon) := points2polygon(gpt, gseq, gord);
+
+	container checks
+	{
+		attribute<ipoint> bad (G, polygon) := bp_minkowski_sum(bp_polygon(geom), float64(10), 'd4HV');
+		parameter<float64> a := sum(area(bad));
+		parameter<bool> ok := a > 0.0, IntegrityCheck = "ok == True";
+	}
+}

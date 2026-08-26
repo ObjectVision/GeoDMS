@@ -1,0 +1,170 @@
+// Pins the xx_minkowski_sum / xx_minkowski_difference operators of issue #917 across all four
+// geometry backends, and against the twelve depreciated bp_*_i4HV / _d4HV / ... suffix operators
+// they replace.
+//
+// What this guards:
+// - The named variant reproduces the suffixed operator it replaces. Both build their ring through
+//   MakeMinkowskiKernel in geo/dll/src/minkowski.h, so this is a check that the adapter left the
+//   twelve rings alone, not a coincidence.
+// - The kernel-polygon overload and the named overload agree when handed the same ring.
+// - The four backends agree with each other. They do NOT share an algorithm: boost.polygon uses its
+//   own winding convolution, CGAL uses CGAL::minkowski_sum_2, and boost.geometry and GEOS union the
+//   convex cells that minkowski.h derives. Agreement here is what makes the backends interchangeable.
+// - Erosion really is the inverse-ish of dilation: closing contains the original, opening is
+//   contained in it.
+// - An off-origin kernel DISPLACES the result. That is the Minkowski definition and it is the one
+//   way the general kernel overload differs from the twelve centred rings.
+//
+// Note on types: area() over an ipoint polygon yields int32, over a dpoint polygon float64, so
+// every comparison below goes through float64() first.
+//
+// Offline and cheap by design (testcases/ rule): two literal polygons of 4 and 6 points.
+container oper_minkowski
+{
+	// ---- geometry: a square and an L, both clockwise as the right-hand rule wants ----------
+	unit<uint32> G   : nrofrows = 2;
+	unit<uint32> GPt : nrofrows = 10;
+
+	attribute<int32>  gx   (GPt) : [ 0, 0, 100, 100,   0,  0, 20, 20, 60, 60 ];
+	attribute<int32>  gy   (GPt) : [ 0, 100, 100, 0,   0, 60, 60, 20, 20,  0 ];
+	attribute<G>      gseq (GPt) : [ 0, 0, 0, 0,       1,  1,  1,  1,  1,  1 ];
+	attribute<uint32> gord (GPt) : [ 0, 1, 2, 3,       0,  1,  2,  3,  4,  5 ];
+
+	attribute<ipoint> gpt_i (GPt) := point_xy(gx, gy, ipoint);
+	attribute<ipoint> geom_i (G, polygon) := points2polygon(gpt_i, gseq, gord);
+
+	attribute<float64> gxd (GPt) := float64(gx);
+	attribute<float64> gyd (GPt) := float64(gy);
+	attribute<dpoint>  gpt_d (GPt) := point_xy(gxd, gyd, dpoint);
+	attribute<dpoint>  geom_d (G, polygon) := points2polygon(gpt_d, gseq, gord);
+
+	parameter<float64> size := float64(10);
+
+	// ---- the 4HV kernel, written out by hand ----------------------------------------------
+	// The same ring MakeMinkowskiKernel produces for shape 4HV at size 10: an axis-aligned square
+	// centred on the origin, clockwise. A single kernel for a whole attribute has to be a Void-domain
+	// polygon parameter, and dissolving a one-row polygon attribute is how you get one.
+	unit<uint32> KS  : nrofrows = 1;
+	unit<uint32> KPt : nrofrows = 4;
+
+	attribute<int32>  kx   (KPt) : [  10,  10, -10, -10 ];
+	attribute<int32>  ky   (KPt) : [  10, -10, -10,  10 ];
+	attribute<KS>     kseq (KPt) : [   0,   0,   0,   0 ];
+	attribute<uint32> kord (KPt) : [   0,   1,   2,   3 ];
+
+	attribute<ipoint> kpt_i (KPt) := point_xy(kx, ky, ipoint);
+	attribute<ipoint> kernel_row_i (KS, polygon) := points2polygon(kpt_i, kseq, kord);
+	parameter<ipoint> kernel_i (polygon) := bp_union_polygon(kernel_row_i);
+
+	// ---- the same square, shifted so the origin is its lower-left corner -------------------
+	// A Minkowski sum with this kernel comes out 10 units up and to the right of the centred one:
+	// the kernel is not required to contain the origin, and where it sits moves the answer.
+	attribute<int32>  ox (KPt) : [  20,  20,   0,   0 ];
+	attribute<int32>  oy (KPt) : [  20,   0,   0,  20 ];
+	attribute<ipoint> opt_i (KPt) := point_xy(ox, oy, ipoint);
+	attribute<ipoint> offkernel_row_i (KS, polygon) := points2polygon(opt_i, kseq, kord);
+	parameter<ipoint> offkernel_i (polygon) := bp_union_polygon(offkernel_row_i);
+
+	container checks
+	{
+		// ---- 1. the named variant reproduces the depreciated suffixed operator -------------
+		// bp_polygon_i4HV cleans each element and then convolves; bp_polygon does the cleaning
+		// half, so this is the same pipeline with the kernel step named instead of suffixed.
+		attribute<ipoint> named_i4hv (G, polygon) := bp_minkowski_sum(bp_polygon(geom_i), size, 'i4HV');
+		attribute<ipoint> old_i4hv   (G, polygon) := bp_polygon_i4HV(geom_i, size);
+		parameter<float64> d_i4hv := sum(float64(area(bp_xor(named_i4hv, old_i4hv))));
+		parameter<bool> bp_i4hv_ok := d_i4hv == 0.0, IntegrityCheck = "bp_i4hv_ok == True";
+
+		attribute<ipoint> named_i8d (G, polygon) := bp_minkowski_sum(bp_polygon(geom_i), size, 'i8D');
+		attribute<ipoint> old_i8d   (G, polygon) := bp_polygon_i8D(geom_i, size);
+		parameter<float64> d_i8d := sum(float64(area(bp_xor(named_i8d, old_i8d))));
+		parameter<bool> bp_i8d_ok := d_i8d == 0.0, IntegrityCheck = "bp_i8d_ok == True";
+
+		// The X-shaped kernels are the non-convex ones, so they are the case that separates a
+		// correct decomposition from a fan about an arbitrary vertex.
+		attribute<ipoint> named_ixhv (G, polygon) := bp_minkowski_sum(bp_polygon(geom_i), size, 'iXHV');
+		attribute<ipoint> old_ixhv   (G, polygon) := bp_polygon_iXHV(geom_i, size);
+		parameter<float64> d_ixhv := sum(float64(area(bp_xor(named_ixhv, old_ixhv))));
+		parameter<bool> bp_ixhv_ok := d_ixhv == 0.0, IntegrityCheck = "bp_ixhv_ok == True";
+
+		// ... and the same for the eroding half of the family.
+		attribute<ipoint> named_d4hv (G, polygon) := bp_minkowski_difference(bp_polygon(geom_i), size, 'd4HV');
+		attribute<ipoint> old_d4hv   (G, polygon) := bp_polygon_d4HV(geom_i, size);
+		parameter<float64> d_d4hv := sum(float64(area(bp_xor(named_d4hv, old_d4hv))));
+		parameter<bool> bp_d4hv_ok := d_d4hv == 0.0, IntegrityCheck = "bp_d4hv_ok == True";
+
+		// ---- 2. the kernel overload agrees with the named overload -------------------------
+		attribute<ipoint> via_kernel (G, polygon) := bp_minkowski_sum(bp_polygon(geom_i), kernel_i);
+		parameter<float64> d_kernel := sum(float64(area(bp_xor(via_kernel, named_i4hv))));
+		parameter<bool> bp_kernel_ok := d_kernel == 0.0, IntegrityCheck = "bp_kernel_ok == True";
+
+		// ---- 3. the absolute area, so a uniformly wrong answer cannot pass ------------------
+		// Square [0,100]^2 (+) [-10,10]^2 = [-10,110]^2 = 120 x 120 = 14400.
+		// The L is R1 = [0,60]x[0,20] together with R2 = [0,20]x[0,60], and dilation distributes
+		// over union, so its sum is [-10,70]x[-10,30] (3200) with [-10,30]x[-10,70] (3200),
+		// overlapping in [-10,30]^2 (1600): 3200 + 3200 - 1600 = 4800.
+		parameter<float64> a_sum := sum(float64(area(named_i4hv)));
+		parameter<bool> area_ok := a_sum == 19200.0, IntegrityCheck = "area_ok == True";
+
+		// ---- 4. an off-origin kernel displaces the result ----------------------------------
+		// offkernel_i is kernel_i moved by (10, 10). Same shape, so the same area ...
+		attribute<ipoint> via_offkernel (G, polygon) := bp_minkowski_sum(bp_polygon(geom_i), offkernel_i);
+		parameter<float64> a_off := sum(float64(area(via_offkernel)));
+		parameter<bool> offkernel_area_ok := a_off == a_sum, IntegrityCheck = "offkernel_area_ok == True";
+		// ... but somewhere else, which is what a dropped displacement would break.
+		parameter<float64> d_off := sum(float64(area(bp_xor(via_offkernel, via_kernel))));
+		parameter<bool> offkernel_moved_ok := d_off > 0.0, IntegrityCheck = "offkernel_moved_ok == True";
+
+		// ---- 5. the four backends agree ----------------------------------------------------
+		// Not bit-identical: bp is integer, CGAL is exact rational, bg and GEOS are float64.
+		attribute<dpoint> sum_bg   (G, polygon) := bg_minkowski_sum  (geom_d, size, '4HV');
+		attribute<dpoint> sum_geos (G, polygon) := geos_minkowski_sum(geom_d, size, '4HV');
+		attribute<dpoint> sum_cgal (G, polygon) := cgal_minkowski_sum(geom_d, size, '4HV');
+
+		parameter<float64> d_bg_geos := sum(area(geos_xor(sum_bg, sum_geos)));
+		parameter<bool> bg_geos_ok := d_bg_geos < 0.001, IntegrityCheck = "bg_geos_ok == True";
+
+		parameter<float64> d_cgal_geos := sum(area(geos_xor(sum_cgal, sum_geos)));
+		parameter<bool> cgal_geos_ok := d_cgal_geos < 0.001, IntegrityCheck = "cgal_geos_ok == True";
+
+		parameter<float64> a_geos := sum(area(sum_geos));
+		parameter<bool> geos_area_ok := abs(a_geos - 19200.0) < 0.001, IntegrityCheck = "geos_area_ok == True";
+
+		// The eroding half of each backend, which otherwise only bp would exercise.
+		// Erosion keeps the positions at which the kernel still fits inside, and it does NOT
+		// distribute over a union, so the L has to be read as a whole: a 10x10 square fits at p iff
+		// its y-span stays within [0,20] and its x-span within [0,60], or its x-span within [0,20]
+		// and its y-span within [0,60]. That is [5,55]x[5,15] together with [5,15]x[5,55],
+		// overlapping in [5,15]^2: 500 + 500 - 100 = 900. The square gives [5,95]^2 = 8100.
+		// Half the kernel on purpose: at size 10 the L erodes to a zero-area cross, which every
+		// backend drops, and the comparison would pass vacuously.
+		parameter<float64> half := float64(5);
+		attribute<dpoint> dif_bg   (G, polygon) := bg_minkowski_difference  (geom_d, half, '4HV');
+		attribute<dpoint> dif_geos (G, polygon) := geos_minkowski_difference(geom_d, half, '4HV');
+		attribute<dpoint> dif_cgal (G, polygon) := cgal_minkowski_difference(geom_d, half, '4HV');
+
+		parameter<float64> e_bg_geos := sum(area(geos_xor(dif_bg, dif_geos)));
+		parameter<bool> bg_geos_erode_ok := e_bg_geos < 0.001, IntegrityCheck = "bg_geos_erode_ok == True";
+
+		parameter<float64> e_cgal_geos := sum(area(geos_xor(dif_cgal, dif_geos)));
+		parameter<bool> cgal_geos_erode_ok := e_cgal_geos < 0.001, IntegrityCheck = "cgal_geos_erode_ok == True";
+
+		parameter<float64> e_geos := sum(area(dif_geos));
+		parameter<bool> geos_erode_area_ok := abs(e_geos - 9000.0) < 0.001, IntegrityCheck = "geos_erode_area_ok == True";
+
+		// ---- 6. closing contains the original, opening is contained in it -------------------
+		// (A (+) K) (-) K is the morphological closing: it can only add, never remove, so nothing
+		// of A may fall outside it. A wrong erosion bounding box shows up here immediately.
+		attribute<ipoint> closed_i (G, polygon) := bp_minkowski_difference(named_i4hv, size, 'd4HV');
+		parameter<float64> lost := sum(float64(area(bp_difference(bp_polygon(geom_i), closed_i))));
+		parameter<bool> closing_ok := lost == 0.0, IntegrityCheck = "closing_ok == True";
+
+		// Half the kernel again, so the L survives the erosion and the containment says something.
+		attribute<ipoint> opened_i (G, polygon) := bp_minkowski_sum(bp_minkowski_difference(bp_polygon(geom_i), half, 'd4HV'), half, 'i4HV');
+		parameter<float64> gained := sum(float64(area(bp_difference(opened_i, bp_polygon(geom_i)))));
+		parameter<bool> opening_ok := gained == 0.0, IntegrityCheck = "opening_ok == True";
+		// ... and non-empty, so it is not passing by producing nothing.
+		parameter<float64> opened_area := sum(float64(area(opened_i)));
+		parameter<bool> opening_nonempty_ok := opened_area > 0.0, IntegrityCheck = "opening_nonempty_ok == True";
+	}
+}

@@ -26,6 +26,8 @@ static CommonOperGroup grGeosBuffer_multi_point("geos_buffer_multi_point", oper_
 static CommonOperGroup grGeosBuffer_linestring("geos_buffer_linestring", oper_policy::better_not_in_meta_scripting);
 static CommonOperGroup grGeosBuffer_multi_polygon("geos_buffer_multi_polygon", oper_policy::better_not_in_meta_scripting);
 static CommonOperGroup grGeosBuffer("geos_buffer", oper_policy::better_not_in_meta_scripting);
+static CommonOperGroup grGeosMinkowskiSum("geos_minkowski_sum", oper_policy::better_not_in_meta_scripting);
+static CommonOperGroup grGeosMinkowskiDifference("geos_minkowski_difference", oper_policy::better_not_in_meta_scripting);
 
 namespace
 {
@@ -64,4 +66,16 @@ namespace
 	template <typename P> using GEOS_SymmetricDifferenceMultiPolygonOperator = GEOS_MultiPolygonOperator<P, geos_sym_difference>;
 	tl_oper::inst_tuple_templ<typelists::points, GEOS_SymmetricDifferenceMultiPolygonOperator> geosSymmetricDifferenceMultiPolygonOperatorsNamed(grgeosXOR);
 	tl_oper::inst_tuple_templ<typelists::float_points, GEOS_SymmetricDifferenceMultiPolygonOperator> bgSymmetricDifferenceMultiPolygonOperatorsBitXOR(cog_bitxor);
+
+	// issue #917. GEOS has no Minkowski primitive; these build the sum from the convex cells of
+	// minkowski.h and collapse them with one cascaded UnaryUnionOp.
+	template <typename P> using GeosMinkowskiSumKernel  = MinkowskiKernelOperator<P, geometry_library::geos, false>;
+	template <typename P> using GeosMinkowskiDiffKernel = MinkowskiKernelOperator<P, geometry_library::geos, true >;
+	template <typename P> using GeosMinkowskiSumNamed   = MinkowskiNamedOperator <P, geometry_library::geos, false>;
+	template <typename P> using GeosMinkowskiDiffNamed  = MinkowskiNamedOperator <P, geometry_library::geos, true >;
+
+	tl_oper::inst_tuple_templ<tl::type_list<DPoint>, GeosMinkowskiSumKernel > geosMinkowskiSumKernelOperators (grGeosMinkowskiSum); // GEOS is DPoint-only
+	tl_oper::inst_tuple_templ<tl::type_list<DPoint>, GeosMinkowskiDiffKernel> geosMinkowskiDiffKernelOperators(grGeosMinkowskiDifference);
+	tl_oper::inst_tuple_templ<tl::type_list<DPoint>, GeosMinkowskiSumNamed  > geosMinkowskiSumNamedOperators  (grGeosMinkowskiSum,        "geos_minkowski_difference");
+	tl_oper::inst_tuple_templ<tl::type_list<DPoint>, GeosMinkowskiDiffNamed > geosMinkowskiDiffNamedOperators (grGeosMinkowskiDifference, "geos_minkowski_sum");
 }

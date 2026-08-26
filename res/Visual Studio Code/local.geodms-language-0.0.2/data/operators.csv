@@ -48,6 +48,8 @@ bg_buffer_point
 bg_buffer_single_polygon
 bg_difference
 bg_intersect
+bg_minkowski_difference
+bg_minkowski_sum
 bg_outer_multi_polygon
 bg_outer_single_polygon
 bg_overlay_polygon
@@ -73,6 +75,8 @@ bp_buffer_multi_point
 bp_buffer_point
 bp_difference
 bp_intersect
+bp_minkowski_difference
+bp_minkowski_sum
 bp_overlay_polygon
 bp_polygon
 bp_polygon_connectivity
@@ -93,6 +97,8 @@ cgal_buffer_multi_point
 cgal_buffer_point
 cgal_difference
 cgal_intersect
+cgal_minkowski_difference
+cgal_minkowski_sum
 cgal_overlay_polygon
 cgal_polygon
 cgal_polygon_connectivity
@@ -237,6 +243,8 @@ geos_buffer_multi_polygon
 geos_buffer_point
 geos_difference
 geos_intersect
+geos_minkowski_difference
+geos_minkowski_sum
 geos_overlay_polygon
 geos_polygon
 geos_polygon_connectivity
