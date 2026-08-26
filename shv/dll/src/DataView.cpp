@@ -2361,6 +2361,16 @@ void ExecuteMenuPath(DataView* self, const std::vector<MenuPathElem>& path)
 			}
 		}
 	}
+	// A disabled item is one a user could not have picked, so firing it tests something the GUI
+	// does not offer. MenuItem::Execute does not look at the flags, so check here. Only the leaf
+	// is checked: a sub-menu caption carries flags only when it collapsed into a single child.
+	if (menuData[result].m_Flags & MFS_GRAYED)
+	{
+		reportF(SeverityTypeID::ST_Error, "TestScript: menu item '{}' is disabled in this state; a user could not have picked it"
+		,	menuData[result].m_Caption);
+		return;
+	}
+
 	reportF(SeverityTypeID::ST_MajorTrace, "Execute {}", menuData[result].m_Caption);
 	menuData[result].Execute();
 }
