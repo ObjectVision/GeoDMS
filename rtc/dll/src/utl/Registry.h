@@ -78,22 +78,13 @@ struct RegistryHandleLocalMachineRW : RegistryHandle
 
 enum RegStatusFlags
 {
-	// flags only used in GeoDmsClient.exe
+	// The bits 0x10, 0x20, 0x40, 0x80, 0x800 and 0x1000 are retired and must not be
+	// reused: a StatusFlags value written by an older version can still have them set.
 	RSF_AdminMode = 1,
 	RSF_SuspendForGUI = 2,
 	RSF_ShowStateColors = 4,
 	RSF_TraceLogFile = 8,
 
-	RSF_TreeViewVisible = 16,
-	RSF_DetailsVisible = 32,
-	RSF_EventLogVisible = 64,
-	RSF_ToolBarVisible = 128,
-	RSF_CurrentItemBarHidden = 0x800,
-	RSF_AllPanelsVisible = RSF_TreeViewVisible + RSF_DetailsVisible + RSF_EventLogVisible + RSF_ToolBarVisible,
-
-	RSF_DynamicROI = 0x1000,
-
-	//  Flags really in use by the GeoDMS C++ Engine
 	RSF_MultiThreading0 = RSF_SuspendForGUI,
 	RSF_MultiThreading1 = 0x100,
 	RSF_DebugMode       = 0x200,
@@ -126,7 +117,7 @@ enum RegStatusFlags
 	RSF_EventLog_HideOther       = 0x40000000,
 
 	RSF_WasRead = 0x80000000,
-	RSF_Default = RSF_AdminMode | RSF_ShowStateColors | RSF_AllPanelsVisible | RSF_AllMultiThreading
+	RSF_Default = RSF_AdminMode | RSF_ShowStateColors | RSF_AllMultiThreading
 		| RSF_EventLog_ClearOnLoad | RSF_EventLog_ShowDateTime | RSF_EventLog_ShowCategory,
 };
 
@@ -141,7 +132,6 @@ RTC_CALL UInt32 GetCachedStatusMask();
 
 void SetRegStatusFlags(UInt32 newSF);
 RTC_CALL void SetStatusFlag(UInt32 newSF, bool newVal);
-bool HasDynamicROI();
 RTC_CALL bool ShowThousandSeparator();
 bool EventLog_HideDepreciatedCaseMixupWarnings();
 RTC_CALL bool IsInDebugMode();

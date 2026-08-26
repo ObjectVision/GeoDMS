@@ -662,11 +662,6 @@ bool IsMultiThreaded1or2()
 	return GetRegStatusFlags() & (RSF_MultiThreading1| RSF_MultiThreading2);
 }
 
-bool HasDynamicROI()
-{
-	return GetRegStatusFlags() & RSF_DynamicROI;
-}
-
 RTC_CALL bool ShowThousandSeparator()
 {
 	return GetRegStatusFlags() & RSF_ShowThousandSeparator;
@@ -694,13 +689,7 @@ extern "C" RTC_CALL bool DMS_CONV RTC_ParseRegStatusFlag(const char* param)
 	{
 		case 'A': SetCachedStatusFlag(RSF_AdminMode, newValue); break;
 		case 'C': SetCachedStatusFlag(RSF_ShowStateColors, newValue); break;
-		case 'V': SetCachedStatusFlag(RSF_TreeViewVisible, newValue); break;
-		case 'D': SetCachedStatusFlag(RSF_DetailsVisible, newValue); break;
-		case 'E': SetCachedStatusFlag(RSF_EventLogVisible, newValue); break;
-		case 'T': SetCachedStatusFlag(RSF_ToolBarVisible, newValue); break;
-		case 'I': SetCachedStatusFlag(RSF_CurrentItemBarHidden, newValue); break;
 		case 'M': SetCachedStatusFlag(RSF_DebugMode, newValue); break;
-		case 'R': SetCachedStatusFlag(RSF_DynamicROI, newValue); break;
 		case 'S':
 		case '0': SetCachedStatusFlag(RSF_SuspendForGUI, newValue); break;
 		case '1': SetCachedStatusFlag(RSF_MultiThreading1, newValue); break;
@@ -2808,7 +2797,6 @@ RTC_CALL bool IsMultiThreaded1()    { return GetRegStatusFlags() & RSF_MultiThre
 RTC_CALL bool IsMultiThreaded2()    { return GetRegStatusFlags() & RSF_MultiThreading2; }
 RTC_CALL bool IsMultiThreaded3()    { return GetRegStatusFlags() & RSF_MultiThreading3; }
 bool IsMultiThreaded1or2() { return GetRegStatusFlags() & (RSF_MultiThreading1 | RSF_MultiThreading2); }
-bool HasDynamicROI()       { return GetRegStatusFlags() & RSF_DynamicROI; }
 RTC_CALL bool ShowThousandSeparator() { return GetRegStatusFlags() & RSF_ShowThousandSeparator; }
 bool EventLog_HideDepreciatedCaseMixupWarnings() { return GetRegStatusFlags() & RSF_EventLog_HideDepreciated; }
 
@@ -2823,13 +2811,7 @@ extern "C" RTC_CALL bool DMS_CONV RTC_ParseRegStatusFlag(const char* param)
 	{
 		case 'A': SetCachedStatusFlag(RSF_AdminMode, newValue); break;
 		case 'C': SetCachedStatusFlag(RSF_ShowStateColors, newValue); break;
-		case 'V': SetCachedStatusFlag(RSF_TreeViewVisible, newValue); break;
-		case 'D': SetCachedStatusFlag(RSF_DetailsVisible, newValue); break;
-		case 'E': SetCachedStatusFlag(RSF_EventLogVisible, newValue); break;
-		case 'T': SetCachedStatusFlag(RSF_ToolBarVisible, newValue); break;
-		case 'I': SetCachedStatusFlag(RSF_CurrentItemBarHidden, newValue); break;
 		case 'M': SetCachedStatusFlag(RSF_DebugMode, newValue); break;
-		case 'R': SetCachedStatusFlag(RSF_DynamicROI, newValue); break;
 		case 'S': case '0': SetCachedStatusFlag(RSF_SuspendForGUI, newValue); break;
 		case '1': SetCachedStatusFlag(RSF_MultiThreading1, newValue); break;
 		case '2': SetCachedStatusFlag(RSF_MultiThreading2, newValue); break;
