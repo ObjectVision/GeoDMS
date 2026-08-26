@@ -1,6 +1,6 @@
 # Open GitHub issues, classified
 
-Snapshot of the **16 open issues** at https://github.com/ObjectVision/GeoDMS/issues, re-audited
+Snapshot of the **15 open issues** at https://github.com/ObjectVision/GeoDMS/issues, re-audited
 against GitHub on **2026-08-26**. The previous header claimed 27; sixteen issues it still classified
 had been closed and five open ones were missing, so the tables below were rebuilt from the live list
 rather than edited in place. Grouped by implementability. Buckets:
@@ -62,12 +62,6 @@ None open. #1080 (Academy on geodms.nl) was closed 2026-08-12.
 
 ## G. Other
 
-- [#973](https://github.com/ObjectVision/GeoDMS/issues/973) — **fixed in code, issue still open.**
-  Missing VAT in dbf/gpkg export, fixed in `8412b7f2` (see the entry under "Recently closed" for the
-  four defects behind it). The design question the issue asked — always emit the VAT, or offer it as
-  a dialog option — was settled as *always*, so there is nothing to check in the dialog. Left open
-  for the reporter to confirm against a build; ready to close.
-
 The umbrella and question issues that used to sit here — #810 (component planning), #830 (tif
 DialogData), #949 (GUI-versus-Run calculation time), #1186 (`.c` setup CRT), #1199 (indirect-property
 dependency) — have all been closed; their write-ups are under "Recently closed" below.
@@ -79,7 +73,7 @@ is a two-line guard against an unpleasant failure mode for anyone invoking the s
 
 ## Recently closed (delta since 2026-07-31)
 
-### Closed on 2026-08-26 (8, plus #973 fixed but not closed)
+### Closed on 2026-08-26 (9)
 
 - #694 (`da6bb6cc`, `1ae70e5c`, `24863f95`), #757, #810 and #1105 (`b0fa05eb`, `565e9ef4`) were
   closed here. #757 was split into #1214 (fault-tolerant sweep, still open in D) and #1215
@@ -140,8 +134,7 @@ is a two-line guard against an unpleasant failure mode for anyone invoking the s
   surfaces at whichever control happens to sit lowest. A further entry in those columns should
   convert the block to a real layout rather than take the remaining row of headroom.
 
-- #973 (`8412b7f2`) — **the code fix landed but the GitHub issue is still open**; see G above.
-  Missing VAT when exporting to dbf or gpkg. The issue asked for a case to reproduce; building one
+- #973 (`8412b7f2`) — missing VAT when exporting to dbf or gpkg. The issue asked for a case to reproduce; building one
   turned up **four** defects, each of which on its own ends in a shapefile without its `.dbf` or a
   GeoPackage layer without attribute columns. QGIS opens those, ArcGIS Pro does not, which is why the
   reporter saw it and we did not.
