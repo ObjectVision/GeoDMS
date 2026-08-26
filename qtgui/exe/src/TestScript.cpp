@@ -1,4 +1,7 @@
+#include <algorithm>
+#include <cstring>
 #include <iostream>
+#include <vector>
 
 #include "DmsMainWindow.h"
 #include "DmsAddressBar.h"
@@ -25,6 +28,36 @@ void SaveDetailPage(CharPtr fileName); // defined in main_qt.cpp
 void reportErr(CharPtr errMsg)
 {
 	std::cerr << std::endl << errMsg;
+}
+
+// A SEND element is an index when it is all digits, and a menu-item caption otherwise. Naming an
+// item keeps a script working when menu entries are added or removed above it, which numbering
+// does not: it silently fires whatever moved into that position. Quoting is what makes a caption
+// with spaces one element; the tokenizer has already stripped the quotes by the time we see it.
+bool IsElemIndex(CharPtr str)
+{
+	if (!str || !*str)
+		return false;
+	for (CharPtr i = str; *i; ++i)
+		if (*i < '0' || *i > '9')
+			return false;
+	return true;
+}
+
+// The payload of the named pop-up-menu command: the elements as NUL terminated strings, padded
+// with NULs to a whole number of UInt32s because the receiving end counts 4-byte words.
+std::vector<char> MakeNamedMenuPayload(char* argv[], int first, int last)
+{
+	std::vector<char> result;
+	for (int i = first; i != last; ++i)
+	{
+		CharPtr elem = argv[i];
+		result.insert(result.end(), elem, elem + std::strlen(elem));
+		result.emplace_back(char(0));
+	}
+	while (result.size() % 4)
+		result.emplace_back(char(0));
+	return result;
 }
 
 UInt32 str2int(CharPtr str)
@@ -67,6 +100,7 @@ int PassMsg(int argc, char* argv[])
 	{
 		COPYDATASTRUCT myCDS;
 		std::vector<UInt32> buffer;
+		std::vector<char>   charBuffer;
 
 		if (std::strcmp(argv[i], "SEND") == 0)
 		{
@@ -76,21 +110,42 @@ int PassMsg(int argc, char* argv[])
 			int code = str2int(argv[i]);
 			myCDS.dwData = code;
 			if (argc <= ++i)
-				throw stx_error("DWORD count expected after SEND command-code ");
+				throw stx_error("element count expected after SEND command-code ");
 			int size = str2int(argv[i]), allocSize = size ? size : 1;
-			buffer.reserve(allocSize);
-			myCDS.cbData = allocSize * 4; // j 32-bit integers follow
-			if (size > 0)
+			int firstElem = i + 1;
+			if (argc < firstElem + size)
+				throw stx_error(mgFormat2string("{0} elements expected after SEND command", size).c_str());
+			i += size;
+
+			// A pop-up-menu path may name its items instead of numbering them; that needs the
+			// strings themselves, so it goes out as WmCopyActiveDmsControl command 2 with a
+			// NUL separated payload rather than as an array of indices.
+			bool hasNamedElem = false;
+			for (int j = firstElem; j != firstElem + size; ++j)
+				if (!IsElemIndex(argv[j]))
+					hasNamedElem = true;
+
+			if (hasNamedElem)
 			{
-				for (int j = 0; j != size; ++j)
-				{
-					if (argc <= ++i)
-						throw stx_error(mgFormat2string("{0} DWORDs expected after SEND command", size).c_str());
-					buffer.emplace_back(str2int(argv[i]));
-				}
+				if (code != int(CommandCode::WmCopyActiveDmsControl) || size < 1 || !IsElemIndex(argv[firstElem]) || str2int(argv[firstElem]) != 1)
+					throw stx_error("a named element is only supported in a pop-up menu path, i.e. SEND 4 <n> 1 ...");
+
+				charBuffer = MakeNamedMenuPayload(argv, firstElem + 1, firstElem + size);
+				buffer.emplace_back(2); // WmCopyActiveDmsControl sub-command: menu path by name
+				buffer.insert(buffer.end()
+				,	reinterpret_cast<const UInt32*>(charBuffer.data())
+				,	reinterpret_cast<const UInt32*>(charBuffer.data() + charBuffer.size()));
+			}
+			else if (size > 0)
+			{
+				buffer.reserve(allocSize);
+				for (int j = firstElem; j != firstElem + size; ++j)
+					buffer.emplace_back(str2int(argv[j]));
 			}
 			else
 				buffer.emplace_back(0);
+
+			myCDS.cbData = buffer.size() * 4;
 			myCDS.lpData = &(buffer[0]);
 		}
 		else if (std::strcmp(argv[i], "DefaultView") == 0)
@@ -282,15 +337,37 @@ int PassMsg(int argc, char* argv[])
 				throw stx_error("command-code expected after SEND");
 			int code = str2int(argv[i]);
 			if (argc <= ++i)
-				throw stx_error("DWORD count expected after SEND command-code");
+				throw stx_error("element count expected after SEND command-code");
 			int size = str2int(argv[i]);
+			int firstElem = i + 1;
+			if (argc < firstElem + size)
+				throw stx_error("not enough elements after SEND");
+			i += size;
+
+			// see the Win32 branch: a named pop-up-menu path travels as sub-command 2
+			bool hasNamedElem = false;
+			for (int j = firstElem; j != firstElem + size; ++j)
+				if (!IsElemIndex(argv[j]))
+					hasNamedElem = true;
+
 			std::vector<UInt32> buf;
-			buf.reserve(size ? size : 1);
-			for (int j = 0; j < size; ++j)
+			std::vector<char> charBuffer;
+			if (hasNamedElem)
 			{
-				if (argc <= ++i)
-					throw stx_error("not enough DWORDs after SEND");
-				buf.emplace_back(str2int(argv[i]));
+				if (code != int(CommandCode::WmCopyActiveDmsControl) || size < 1 || !IsElemIndex(argv[firstElem]) || str2int(argv[firstElem]) != 1)
+					throw stx_error("a named element is only supported in a pop-up menu path, i.e. SEND 4 <n> 1 ...");
+
+				charBuffer = MakeNamedMenuPayload(argv, firstElem + 1, firstElem + size);
+				buf.emplace_back(2);
+				buf.insert(buf.end()
+				,	reinterpret_cast<const UInt32*>(charBuffer.data())
+				,	reinterpret_cast<const UInt32*>(charBuffer.data() + charBuffer.size()));
+			}
+			else
+			{
+				buf.reserve(size ? size : 1);
+				for (int j = firstElem; j != firstElem + size; ++j)
+					buf.emplace_back(str2int(argv[j]));
 			}
 			if (buf.empty()) buf.emplace_back(0);
 

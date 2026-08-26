@@ -13,6 +13,8 @@
 
 #include "DataView.h"
 
+#include <algorithm>
+
 #include "act/ActorVisitor.h"
 #include "act/UpdateMark.h"
 #include "act/TriggerOperator.h"
@@ -2159,7 +2161,11 @@ void OnControlActivate(DataView* self, const UInt32* first, const UInt32* last)
 		auto n = mo->NrEntries();
 		if (i > n)
 		{
-			reportF(SeverityTypeID::ST_MajorTrace, "exit because object has only {} sub-objects", n);
+			// an error, not a trace: the script asked for a sub-object that is not there, and
+			// silently activating its container instead makes the rest of the script address the
+			// wrong control while still looking like it works.
+			reportF(SeverityTypeID::ST_Error, "TestScript: sub-object {} does not exist, {} has only {} sub-objects"
+			,	i, mo->GetDynamicClass()->GetName(), n);
 			return;
 		}
 		auto sgo = mo->GetEntry(--i);
@@ -2188,67 +2194,215 @@ void FillAllMenu(sharedPtrMovableObject mo, MouseEventDispatcher& med)
 		FillAllMenu(mo, med);
 }
 
-void OnPopupMenuActivate(DataView* self, const UInt32* first, const UInt32* last)
+//----------------------------------------------------------------------
+// naming a pop-up menu item instead of numbering it
+//----------------------------------------------------------------------
+
+// One step of a menu path from a test script: either a 1-based index at its level, or a prefix of
+// the caption. Naming an item keeps a script working when entries are added or removed above it,
+// which numbering does not: it silently fires whatever moved into that position.
+struct MenuPathElem
+{
+	UInt32    m_Index = 0;   // 0 when m_Caption is used, or when this element ends the path
+	SharedStr m_Caption;
+
+	bool IsCaption() const { return !m_Caption.empty(); }
+	bool IsEnd    () const { return !IsCaption() && !m_Index; }
+};
+
+// Menu captions carry '&' accelerator markers and the script writes the plain text, so "Edit
+// Palette" has to find "&Edit Palette". Comparison is case-insensitive for the same reason: a
+// script should not have to reproduce the exact casing of a caption to address it.
+static bool MenuCaptionStartsWith(WeakStr caption, WeakStr prefix)
+{
+	auto ci = caption.begin(), ce = caption.send();
+	auto pi = prefix .begin(), pe = prefix .send();
+	while (pi != pe)
+	{
+		if (ci == ce)
+			return false;
+		if (*ci == '&')          // skip the accelerator marker, unless the prefix asks for it
+		{
+			++ci;
+			if (ci == ce)
+				return false;
+			if (*pi != '&')
+				continue;
+		}
+		if (tolower(static_cast<unsigned char>(*ci)) != tolower(static_cast<unsigned char>(*pi)))
+			return false;
+		++ci; ++pi;
+	}
+	return true;
+}
+
+// The captions of the items at menuData[from]'s level, up to the end of the sub-menu it is in;
+// used to say what a script could have addressed when its element found nothing.
+static SharedStr MenuLevelCaptions(const MenuData& menuData, SizeT from, UInt32 level)
+{
+	SharedStr result;
+	UInt32 nrListed = 0;
+	for (SizeT i = from; i != menuData.size(); ++i)
+	{
+		if (menuData[i].m_Level < level)
+			break;
+		if (menuData[i].m_Level != level)
+			continue;
+		if (++nrListed > 40)
+		{
+			result += ", ...";
+			break;
+		}
+		if (!result.empty())
+			result += ", ";
+		result += "'" + menuData[i].m_Caption + "'";
+	}
+	return result;
+}
+
+// Moves result to the elem-th resp. named item at its level. Reports and returns false when the
+// script addressed something that is not there, rather than firing a neighbouring item.
+static bool GotoMenuItem(const MenuData& menuData, SizeT& result, const MenuPathElem& elem)
+{
+	UInt32 level = menuData[result].m_Level;
+
+	if (elem.IsCaption())
+	{
+		reportF(SeverityTypeID::ST_MajorTrace, "At {} with level {} go to the item named '{}'"
+		,	menuData[result].m_Caption, level, elem.m_Caption);
+
+		SizeT found = UNDEFINED_VALUE(SizeT), nrFound = 0;
+		SharedStr foundCaptions;
+		for (SizeT i = result; i != menuData.size(); ++i)
+		{
+			if (menuData[i].m_Level < level)
+				break;
+			if (menuData[i].m_Level != level)
+				continue;
+			if (!MenuCaptionStartsWith(menuData[i].m_Caption, elem.m_Caption))
+				continue;
+			if (!nrFound++)
+				found = i;
+			else
+				foundCaptions += ", ";
+			if (nrFound <= 8)
+				foundCaptions += "'" + menuData[i].m_Caption + "'";
+		}
+
+		if (!nrFound)
+		{
+			reportF(SeverityTypeID::ST_Error, "TestScript: no menu item starts with '{}'; the items at this level are: {}"
+			,	elem.m_Caption, MenuLevelCaptions(menuData, result, level));
+			return false;
+		}
+		if (nrFound > 1)
+		{
+			reportF(SeverityTypeID::ST_Error, "TestScript: '{}' is ambiguous, it starts {} menu items: {}. Name more of the caption"
+			,	elem.m_Caption, nrFound, foundCaptions);
+			return false;
+		}
+		result = found;
+		return true;
+	}
+
+	reportF(SeverityTypeID::ST_MajorTrace, "At {} with level {} go to  the {}-th item"
+	,	menuData[result].m_Caption, level, elem.m_Index);
+
+	SizeT levelStart = result;
+	for (UInt32 i = elem.m_Index; --i; )
+	{
+		while (true)
+		{
+			if (++result >= menuData.size() || menuData[result].m_Level < level)
+			{
+				reportF(SeverityTypeID::ST_Error, "TestScript: there is no {}-th menu item at this level; the items there are: {}"
+				,	elem.m_Index, MenuLevelCaptions(menuData, levelStart, level));
+				return false;
+			}
+			if (menuData[result].m_Level == level)
+				break;
+		}
+	}
+	assert(menuData[result].m_Level == level);
+	return true;
+}
+
+void ExecuteMenuPath(DataView* self, const std::vector<MenuPathElem>& path)
 {
 	EventInfo eventInfo(EventID::RBUTTONDOWN, 0);
 	MouseEventDispatcher med(self, eventInfo);
 	FillAllMenu(self->m_ActivationInfo ? self->m_ActivationInfo : self->GetContents()->shared_from_this(), med);
 
 	auto& menuData = med.GetMenuData();
-	UInt32 result = 0;
-	while (first != last)
+	if (menuData.empty())
 	{
-		UInt32 i = *first++;
-		if (!i)
+		reportD(SeverityTypeID::ST_Error, "TestScript: the active control has no pop-up menu");
+		return;
+	}
+
+	SizeT result = 0;
+	for (SizeT p = 0; p != path.size(); ++p)
+	{
+		if (path[p].IsEnd())
 			break;
 
-		// go to i-th item at current level.
-		if (result >= menuData.size())
+		if (!GotoMenuItem(menuData, result, path[p]))
 			return;
 
-
-		UInt32 level = menuData[result].m_Level;
-
-		reportF(SeverityTypeID::ST_MajorTrace, "At {} with level {} go to  the {}-th item", menuData[result].m_Caption, level, i);
-
-		while (--i)
-		{
-			while (true) {
-				if (++result >= menuData.size())
-				{
-					reportD(SeverityTypeID::ST_MajorTrace, "exit at end of menu");
-					return;
-				}
-				UInt32 currLevel = menuData[result].m_Level;
-				if (currLevel < level)
-				{
-					reportD(SeverityTypeID::ST_MajorTrace, "exit at end of sub-menu");
-					return;
-				}
-				if (currLevel == level)
-					break;
-			};
-			assert(menuData[result].m_Level == level);
-		}
-		assert(menuData[result].m_Level == level);
-
 		// if more to come, go to next item, which should be first sub-item of the current menu-item.
-		if (first != last && *first)
+		if (p + 1 != path.size() && !path[p + 1].IsEnd())
 		{
-			if (++result >= menuData.size())
+			auto subMenuOf = menuData[result].m_Caption;
+			UInt32 level = menuData[result].m_Level;
+			if (++result >= menuData.size() || menuData[result].m_Level <= level)
 			{
-				reportD(SeverityTypeID::ST_MajorTrace, "exit at end of menu");
-				return;
-			}
-			if (menuData[result].m_Level < level)
-			{
-				reportD(SeverityTypeID::ST_MajorTrace, "exit at end of sub-menu");
+				reportF(SeverityTypeID::ST_Error, "TestScript: menu item '{}' has no sub-menu", subMenuOf);
 				return;
 			}
 		}
 	}
 	reportF(SeverityTypeID::ST_MajorTrace, "Execute {}", menuData[result].m_Caption);
 	menuData[result].Execute();
+}
+
+void OnPopupMenuActivate(DataView* self, const UInt32* first, const UInt32* last)
+{
+	std::vector<MenuPathElem> path;
+	while (first != last)
+		path.push_back(MenuPathElem{ .m_Index = *first++ });
+
+	ExecuteMenuPath(self, path);
+}
+
+// The named form of the same command: the payload is a run of NUL terminated strings, each either
+// all digits (a 1-based index, as above) or a caption prefix. It is padded to a whole number of
+// UInt32s, so trailing empty strings are skipped.
+void OnPopupMenuActivateByName(DataView* self, const UInt32* first, const UInt32* last)
+{
+	auto begin = reinterpret_cast<CharPtr>(first), end = reinterpret_cast<CharPtr>(last);
+
+	std::vector<MenuPathElem> path;
+	while (begin != end)
+	{
+		auto elemEnd = std::find(begin, end, char(0));
+		if (elemEnd != begin)
+		{
+			MenuPathElem elem;
+			if (std::all_of(begin, elemEnd, [](char ch) { return ch >= '0' && ch <= '9'; }))
+			{
+				for (auto i = begin; i != elemEnd; ++i)
+					elem.m_Index = elem.m_Index * 10 + (*i - '0');
+			}
+			else
+				elem.m_Caption = SharedStr(CharPtrRange(begin, elemEnd));
+			path.emplace_back(std::move(elem));
+		}
+		if (elemEnd == end)
+			break;
+		begin = elemEnd + 1;
+	}
+
+	ExecuteMenuPath(self, path);
 }
 
 #include "ptr/SharedArrayPtr.h"
@@ -2261,6 +2415,7 @@ void DataView::OnCopyData(UINT cmd, const UInt32* first, const UInt32* last)
 	{
 	case 0: OnControlActivate(this, first, last); break;
 	case 1: OnPopupMenuActivate(this, first, last); break;
+	case 2: OnPopupMenuActivateByName(this, first, last); break;
 	}
 
 }
