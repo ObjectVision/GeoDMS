@@ -1,0 +1,29 @@
+// #1218: an IntegrityCheck on an ExplicitSupplier is woven into the calculation of the
+// declaring item. The checks that apply to an item are the transitive closure along its parent
+// chain AND its ExplicitSuppliers -- each supplier bringing its own closure -- folded into the
+// checked expression like ancestor checks (#1180) and deduplicated against the DataController-
+// memoized implied sets (#1182). This positive pins that values still arrive through declaring
+// consumers; fn_test_icheck_suppl_neg1/2 pin that a violated supplier-borne check fails them.
+container fn_test_icheck_suppl
+{
+	parameter<uint32> g1 := 11, IntegrityCheck = "this == 11";
+	parameter<uint32> g2 := 22, IntegrityCheck = "this == 22", ExplicitSuppliers = "g1";
+
+	// two hops along the supplier relation: x declares g2, g2 declares g1 -- both checks apply
+	parameter<uint32> x := 2 + 3, ExplicitSuppliers = "g2";
+
+	// the supplier's ancestors count too: s carries no check of its own, but sits under a
+	// guarded container, so grp's check travels along the parent relation of the supplier
+	parameter<uint32> c_src := 7;
+	container grp : IntegrityCheck = "c_src == 7"
+	{
+		parameter<uint32> s := 5;
+	}
+	parameter<uint32> y := 10 + 4, ExplicitSuppliers = "grp/s";
+
+	container checks
+	{
+		parameter<bool> c1 := x == 5,  IntegrityCheck = "c1 == True";
+		parameter<bool> c2 := y == 14, IntegrityCheck = "c2 == True";
+	}
+}

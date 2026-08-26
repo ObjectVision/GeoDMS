@@ -190,3 +190,52 @@ empty-at-teardown asserts.
   change, watched during its verification runs.
 - The RewriteExpr.lsp hoist rules (`42441a58`) relocate guards rather than duplicate conds;
   the memo sees post-rewrite keys (RewriteExprTop precedes DC creation), so no interaction.
+
+## #1218: checks travel along ExplicitSuppliers
+
+The collection side of the fold gained a second in-edge. The checks that apply to an item were
+"own + ancestors", walked per fold; since #1218 they are the transitive closure of the item
+under **GetTreeParent ∪ ExplicitSuppliers**: declaring a supplier means "evaluate me first",
+and whatever guards the supplier — its own check, its ancestors', its suppliers', transitively —
+guards the declaring item with it. Before, a supplier's check was only evaluated beside the
+declaring item by the validate phase (out-of-band, verdict not travelling to consumers), and a
+TreeView/detail-page visit ran it not at all.
+
+Design (TreeItem.cpp, `TreeItem_GetCheckGuardians`):
+
+- The closure is reduced to a per-item **guardian list** (items with `HasIntegrityChecker()`,
+  in fold order: own check, then each ExplicitSupplier's closure in declaration order, then the
+  parent's closure) and memoized in `ConfigProperties::mc_CheckGuardians` — meta-thread only,
+  like `mc_DC`, reset with the other config-derived state in `DoInvalidate` and in
+  `ResetSubTreeConfigData` (the list holds `SharedTreeItem` refs that can cross branches via
+  the supplier edge; the teardown reset is what breaks those cycles before refcount collapse).
+- An item that adds nothing **shares its parent's instance and is not memoized**: re-deriving
+  it is the walk the pre-#1218 fold did anyway, so no ConfigProperties is allocated per
+  descendant of a checked root. For a chain without supplier edges the list is exactly the old
+  self-to-root walk in the same order — folded expressions, and thereby every existing
+  DataController moniker, are byte-identical (pinned: `fn_test_icheck_dedup` still instantiates
+  the 4 check DCs recorded above).
+- The gate (`TreeItem_HasIntegrityCheckerInclAncestors`) stays a flag walk when no
+  (config, non-template) SupplCache sits on the parent chain; only then is the closure consulted.
+- Redundancy stays decided at the wrap site, per folded expression, against the DC-memoized
+  implied-atom sets of #1182: an item that both references and declares the same supplier
+  carries the guard once, through the reference (verified on the detail page: no CheckedKeyExpr
+  wrap appears).
+- Cycles along ExplicitSuppliers are broken with an in-progress set; nothing computed under a
+  skipped back-edge is memoized (it would be incomplete). The DoesContain gate does not refuse
+  a supplier's checker that references its own declaring consumer; that shape surfaces as a
+  metainfo/DC circularity like any other cyclic configuration.
+- Fence SupplCaches (`InitAt`, PhaseContainer mirrors on cache items) are engine bookkeeping,
+  not a configured "evaluate me first" relation, and are excluded from the closure.
+
+Semantics: the guard gates the **delivery** of the declaring item's result, not the start of
+its calculation — cond and the item's own expression are sibling args of CheckOperator and may
+still compute concurrently (measured: a 20M-element supplier check and the declaring item's
+`add` run on different workers; the view waits for both). Strict check-before-calc ordering
+would need the org expression's OperationContext to depend on the check future — a lookahead-
+scheduling follow-up, not part of this change.
+
+Verified: `fn_test_icheck_suppl` (two-hop supplier chain + supplier-under-checked-container;
+Debug trace shows `IntegrityCheck(IntegrityCheck(add(2,3), eq(22,22)), eq(11,11))` — the
+closure in fold order), `fn_test_icheck_suppl_neg1/2` (violated direct and transitive supplier
+checks fail the run), battery 231/0, Debug runs assert-free.

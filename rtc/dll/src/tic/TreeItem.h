@@ -74,6 +74,7 @@ struct OperationContext;
 struct UsingCache;
 struct SupplCache;
 struct SourceLocation;
+struct TreeItemCheckGuardians; // #1218: closure of applicable IntegrityChecks (TreeItem.cpp)
 
 class AbstrCalculator;
 // (single_linked_tree<TreeItem> is now inlined directly into TreeItem; see m_FirstSub/m_Next below)
@@ -633,6 +634,12 @@ public: // TODO G8: encapsulate and move config attr (aka mc_ ) into a separate 
 		AbstrCalculatorRef mc_IntegrityChecker;
 		AbstrCalculatorRef mc_SizeExpectation;
 		AbstrCalculatorRef mc_SizeUpperbound;
+
+		// #1218: memoized closure of the items whose IntegrityCheck applies here, along the
+		// GetTreeParent and ExplicitSuppliers relations (TreeItem.cpp, TreeItem_GetCheckGuardians).
+		// Meta-thread only, like mc_DC; reset with the other config-derived state (DoInvalidate,
+		// ResetSubTreeConfigData -- it can hold cross-branch supplier references).
+		std::shared_ptr<const TreeItemCheckGuardians> mc_CheckGuardians;
 	};
 	mutable std::unique_ptr<ConfigProperties> m_ConfigProperties;
 

@@ -510,6 +510,8 @@ void TreeItem::ResetSubTreeConfigData()
 {
 	ResetCalculatorMember();
 	ResetIntegrityCheckerMember();
+	if (m_ConfigProperties) // #1218: may hold cross-branch supplier refs; break them before the refcount teardown
+		m_ConfigProperties->mc_CheckGuardians.reset();
 	if (!IsCacheItem())
 		DisableStorage();
 	for (TreeItem* subItem = _GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
@@ -3146,13 +3148,130 @@ static auto TreeItem_CreateConvertedExpr(const TreeItem* self, const TreeItem* c
 // holder's subtree, and the checked expressions of those can never fold this check again.
 // The condition's LispRef is one and the same for every descendant, so its DataController is
 // shared and the check's calculation runs once, not once per descendant.
+// #1218: the checks that apply to an item are not only its own and its ancestors'. An
+// ExplicitSupplier declares "evaluate me first", and whatever guards THAT item -- its own check,
+// its ancestors', its suppliers', transitively -- guards the declaring item's calculation with
+// it. TreeItemCheckGuardians is the closure of one item under both relations, reduced to the
+// items that actually carry a check, in fold order: the item's own check first, then the checks
+// reached through its ExplicitSuppliers (declaration order, each supplier bringing its own
+// closure), then the parent's closure. For an item without ExplicitSuppliers anywhere on its
+// parent chain this is exactly the pre-#1218 self-to-root walk, in the same order, so the folded
+// expression -- and thereby every existing DataController moniker -- is unchanged.
+//
+// The closure is memoized per config item in ConfigProperties::mc_CheckGuardians (meta-thread
+// only, like mc_DC; reset with the other config-derived state). An item that adds nothing shares
+// its parent's instance and is not memoized -- re-deriving it is the same walk the pre-#1218
+// code did on every fold -- so no ConfigProperties is allocated just to hold a copy of the
+// parent's pointer. Whether a collected guard is REDUNDANT for a specific expression is not
+// decided here: that stays with the wrap site, per folded expression, against the
+// DataController-memoized implied-check sets (#1182).
+//
+// Well-foundedness along the supplier edge: the DoesContain gate (see above) refuses a checker
+// reaching into its holder's subtree, but not one referencing a consumer that declares the
+// holder as ExplicitSupplier; that shape closes a cycle through this closure and surfaces as a
+// metainfo/DataController circularity, like any other cyclically configured calculation.
+struct TreeItemCheckGuardians
+{
+	std::vector<SharedTreeItem> guardians; // each satisfies HasIntegrityChecker()
+};
+using TreeItemCheckGuardiansPtr = std::shared_ptr<const TreeItemCheckGuardians>;
+
+static const TreeItemCheckGuardiansPtr& TreeItem_NoCheckGuardians()
+{
+	// shared derived-none sentinel; holds no TreeItem refs, so its CRT-exit destruction is inert
+	static TreeItemCheckGuardiansPtr s_None = std::make_shared<TreeItemCheckGuardians>();
+	return s_None;
+}
+
+struct CheckGuardianWalkContext
+{
+	std::vector<const TreeItem*> inProgress; // cycle guard along the ExplicitSuppliers relation
+	bool hitCycle = false;                   // a back-edge was skipped somewhere below
+};
+
+static auto TreeItem_GetCheckGuardians(const TreeItem* self, CheckGuardianWalkContext& ctx)
+	-> TreeItemCheckGuardiansPtr
+{
+	if (!self)
+		return TreeItem_NoCheckGuardians();
+
+	if (auto cfg = self->GetConfigProperties())
+		if (cfg->mc_CheckGuardians)
+			return cfg->mc_CheckGuardians;
+
+	// ExplicitSuppliers may be configured cyclically; each item contributes once, the back-edge
+	// is skipped, and nothing computed under a skipped edge is memoized (it would be incomplete).
+	if (std::find(ctx.inProgress.begin(), ctx.inProgress.end(), self) != ctx.inProgress.end())
+	{
+		ctx.hitCycle = true;
+		return TreeItem_NoCheckGuardians();
+	}
+	ctx.inProgress.push_back(self);
+	bool outerHitCycle = ctx.hitCycle; ctx.hitCycle = false;
+
+	std::vector<SharedTreeItem> extra; // own check + supplier-borne checks, in fold order
+	if (self->HasIntegrityChecker())
+		extra.emplace_back(make_shared_tree(self, existing_obj{}));
+
+	// The supplier edge: config items only. Cache items also carry a SupplCache -- the
+	// PhaseContainer fence mirrors, InitAt'ed for error attribution -- but those are engine
+	// bookkeeping, not a configured "evaluate me first" relation; and inside a template the
+	// configured names need not resolve yet.
+	if (self->HasSupplCache() && !self->IsCacheItem() && !self->InTemplate())
+	{
+		auto supplCache = self->GetSupplCache();
+		UInt32 n = supplCache->GetNrConfigured(self); // resolves the configured names; an unknown supplier fails here, as on every other consultation
+		for (UInt32 i = 0; i != n; ++i)
+			if (auto supplier = supplCache->GetSupplier(i))
+				for (const auto& g : TreeItem_GetCheckGuardians(supplier, ctx)->guardians)
+					if (std::find(extra.begin(), extra.end(), g) == extra.end())
+						extra.emplace_back(g);
+	}
+
+	auto parentHolder = self->GetTreeParent();
+	auto parentClosure = TreeItem_GetCheckGuardians(parentHolder.get(), ctx);
+
+	ctx.inProgress.pop_back();
+	bool incomplete = ctx.hitCycle;
+	ctx.hitCycle = outerHitCycle || incomplete;
+
+	TreeItemCheckGuardiansPtr result;
+	if (extra.empty())
+		result = parentClosure; // share: this item adds nothing (the dominant case)
+	else
+	{
+		for (const auto& g : parentClosure->guardians)
+			if (std::find(extra.begin(), extra.end(), g) == extra.end())
+				extra.emplace_back(g);
+		auto owned = std::make_shared<TreeItemCheckGuardians>();
+		owned->guardians = std::move(extra);
+		result = std::move(owned);
+	}
+
+	if (!incomplete && !self->IsCacheItem() && !self->InTemplate())
+		if (result != parentClosure || self->GetConfigProperties())
+			self->GetOrCreateConfigProperties().mc_CheckGuardians = result;
+
+	return result;
+}
+
 static bool TreeItem_HasIntegrityCheckerInclAncestors(const TreeItem* self)
 {
+	bool chainHasSupplierEdge = false;
 	SharedTreeItem holder; // keeps the ancestor alive while it is inspected
 	for (auto guardian = self; guardian; holder = guardian->GetTreeParent(), guardian = holder.get())
+	{
 		if (guardian->HasIntegrityChecker())
 			return true;
-	return false;
+		if (guardian->HasSupplCache() && !guardian->IsCacheItem() && !guardian->InTemplate())
+			chainHasSupplierEdge = true;
+	}
+	if (!chainHasSupplierEdge)
+		return false; // the common case: no supplier edges, so the walk above was exhaustive
+
+	// #1218: a check may also apply through the ExplicitSuppliers relation
+	CheckGuardianWalkContext ctx;
+	return !TreeItem_GetCheckGuardians(self, ctx)->guardians.empty();
 }
 
 // Guarding an expression that already enforces the same check adds nothing: evaluating it
@@ -3214,11 +3333,16 @@ static auto TreeItem_CreateCheckedExpr(LispPtr resultExpr, const DataController*
 			enforced = implied->thing;
 
 	LispRef result = resultExpr;
-	SharedTreeItem holder; // keeps the ancestor alive while its checker is folded
-	for (auto guardian = self; guardian; holder = guardian->GetTreeParent(), guardian = holder.get())
+
+	// #1218: fold the whole closure of applicable checks -- self, ancestors, and the checks
+	// reached through ExplicitSuppliers, transitively over both relations (see
+	// TreeItem_GetCheckGuardians above; the list keeps each guardian alive while folded).
+	CheckGuardianWalkContext ctx;
+	auto closure = TreeItem_GetCheckGuardians(self, ctx);
+	for (const auto& guardianHolder : closure->guardians)
 	{
-		if (!guardian->HasIntegrityChecker())
-			continue;
+		auto guardian = guardianHolder.get();
+		assert(guardian->HasIntegrityChecker());
 
 		auto icCalc = guardian->GetIntegrityChecker();
 		if (!icCalc)
@@ -4225,6 +4349,8 @@ void TreeItem::DoInvalidate() const
 	m_StatusFlags.Clear(TSF_DataInMem);
 
 	ResetIntegrityCheckerMember();
+	if (m_ConfigProperties) // #1218: derived from the same config state as the checker and the SupplCache reset above
+		m_ConfigProperties->mc_CheckGuardians.reset();
 
 	TreeItem_RemoveDC(this);
 	if (!GetExprMember().empty())

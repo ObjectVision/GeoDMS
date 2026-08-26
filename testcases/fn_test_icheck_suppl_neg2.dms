@@ -1,0 +1,15 @@
+// Transitive negative twin of fn_test_icheck_suppl: the violated check sits two hops away,
+// behind an intermediate supplier that carries no check of its own. The closure along the
+// ExplicitSuppliers relation (#1218) still folds it into x's checked expression, so the run
+// must fail.
+container fn_test_icheck_suppl_neg2
+{
+	parameter<uint32> ec  := 1, IntegrityCheck = "this == 0"; // violated on purpose
+	parameter<uint32> mid := 7, ExplicitSuppliers = "ec";     // no own check
+	parameter<uint32> x   := 2 + 3, ExplicitSuppliers = "mid";
+
+	container checks
+	{
+		parameter<bool> c1 := x == 5, IntegrityCheck = "c1 == True";
+	}
+}

@@ -1,0 +1,15 @@
+// Negative twin of fn_test_icheck_suppl: the check on a directly declared ExplicitSupplier is
+// violated on purpose, so requesting the declaring item must fail the run -- the supplier's
+// guard is folded into x's checked expression (#1218), even though x's own calculation rule
+// never mentions the supplier.
+container fn_test_icheck_suppl_neg1
+{
+	parameter<uint32> ec := 1, IntegrityCheck = "this == 0"; // violated on purpose
+	parameter<uint32> x  := 2 + 3, ExplicitSuppliers = "ec";
+
+	container checks
+	{
+		// the computed value would be correct; the violated supplier check must fail the run anyway
+		parameter<bool> c1 := x == 5, IntegrityCheck = "c1 == True";
+	}
+}
