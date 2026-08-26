@@ -31,7 +31,6 @@ Previous snapshots: 2026-08-24 claiming 27, 2026-08-20 with 33, 2026-07-31 with 
 | [#1161](https://github.com/ObjectVision/GeoDMS/issues/1161) Mitigate mixed-case deprecation warnings | Still a naming decision, but the inputs are on the shelf: `DocData()/OperatorGroups/name` dumps the authoritative registered group names and `data/operators.csv` is the curated user-facing list, resynced in `5a20c5a7`. The #917 work removed 48 mixed-case names from the problem set by depreciating the `bp_*_i4HV`…`_dXD` family, so the remaining set is smaller than the last count suggests — re-dump before deciding. Decide the canonical casing per operator/value-type name, and whether the sweep also touches the docs and the bundled configs or only the accepted spellings. |
 | [#1145](https://github.com/ObjectVision/GeoDMS/issues/1145) Export Primary Data exports wrong (Buurt) geometry | Bug, not feature: needs repro/debug on OVSRV08; the fix is picking the geometry of the right domain. |
 | [#990](https://github.com/ObjectVision/GeoDMS/issues/990) `union_data` with unmatching but equal-sized domains | Hard error or warning? Might existing configs rely on it? |
-| [#973](https://github.com/ObjectVision/GeoDMS/issues/973) Missing VAT in dbf/gpkg export | Always emit VAT, or an export-dialog option (with ArcGIS Pro note)? |
 
 ## C. Refactoring
 
@@ -68,6 +67,12 @@ None open. #1080 (Academy on geodms.nl) was closed 2026-08-12.
   "Recently closed" for the mechanism), but the GitHub issue was never closed. Either close it or say
   what is still outstanding.
 
+- [#973](https://github.com/ObjectVision/GeoDMS/issues/973) — **fixed in code, issue still open.**
+  Missing VAT in dbf/gpkg export, fixed in `8412b7f2` (see the entry under "Recently closed" for the
+  four defects behind it). The design question the issue asked — always emit the VAT, or offer it as
+  a dialog option — was settled as *always*, so there is nothing to check in the dialog. Left open
+  for the reporter to confirm against a build; ready to close.
+
 The umbrella and question issues that used to sit here — #810 (component planning), #830 (tif
 DialogData), #949 (GUI-versus-Run calculation time), #1186 (`.c` setup CRT), #1199 (indirect-property
 dependency) — have all been closed; their write-ups are under "Recently closed" below.
@@ -79,7 +84,7 @@ is a two-line guard against an unpleasant failure mode for anyone invoking the s
 
 ## Recently closed (delta since 2026-07-31)
 
-### Closed on 2026-08-26 (7, plus #1213 fixed but not closed)
+### Closed on 2026-08-26 (7, plus #1213 and #973 fixed but not closed)
 
 - #694 (`da6bb6cc`, `1ae70e5c`, `24863f95`), #757, #810 and #1105 (`b0fa05eb`, `565e9ef4`) were
   closed here. #757 was split into #1214 (fault-tolerant sweep, still open in D) and #1215
@@ -123,6 +128,45 @@ is a two-line guard against an unpleasant failure mode for anyone invoking the s
   margin the left group box's last row already had, and the panel height is unchanged. That leaves one
   row of headroom; a fifth entry in those columns would need the block converted to a real layout, or
   `sizeHint()` derived from `childrenRect()` instead of from the group box.
+
+- #973 (`8412b7f2`) — **the code fix landed but the GitHub issue is still open**; see G above.
+  Missing VAT when exporting to dbf or gpkg. The issue asked for a case to reproduce; building one
+  turned up **four** defects, each of which on its own ends in a shapefile without its `.dbf` or a
+  GeoPackage layer without attribute columns. QGIS opens those, ArcGIS Pro does not, which is why the
+  reporter saw it and we did not.
+  1. `DoExportTable` collected the columns by walking the sub-tree of the *selected* item, and
+  `WalkConstSubTree(nullptr)` returns that item, so for a data item the loop yields exactly one
+  candidate — the geometry — which the next line skips *as* the geometry. The reported case reaches
+  this whenever the domain has no map relation: `IsThisMappable` is `HasMapType || GeometrySubItem`
+  and `GeometrySubItem` looks for a sub-item named literally `geometry`, so with a feature attribute
+  called `pand_geometry` the only item of the table that opens as a map is that attribute itself, and
+  that is what gets exported. The map relation is not what the *exporter* needs — exporting any other
+  attribute of the same unmapped domain already worked, because a later fallback scans the domain.
+  Settled as **always emit the VAT**, not as a dialog option: when the exported item is the feature
+  attribute, the value attributes now come from the table it belongs to.
+  2. `nativeShapeFile` compared `storageTypeName` with `"ESRI Shapefile"`, but under the native driver
+  that string is `driver.nativeName`, `"shp"`. Always false, so the branch was **dead since
+  `ca591b6f` (2023-06-28)** and the container got one `shp` storage manager instead of `shp` on the
+  geometry plus `dbf` on the container — the geometry was written and every value attribute reported
+  *Failure during Writing*. Three years in which no native shapefile export carried a `.dbf`.
+  3. That failure was invisible: the dialog closed with *"Export ready"*.
+  `Tree_Update_Or_Return_Failer` only reports the item it **suspended** on — `ItemUpdateImpl` returns
+  `true` for an item that is already failed (`rtc/dll/src/tic/TicInterface.cpp:613`) — so a storage
+  failure leaves the walk empty. Fixed in `exportImpl`, not in the shared walker whose contract other
+  callers rely on: after the update it walks the generated config for a recorded failure.
+  4. *Use native driver* was unconditionally unchecked by `showEvent` and checked only when the driver
+  combo actually changed index, which `showEvent` triggers only on the first opening of the dialog per
+  GUI session. Combined with (2) this meant the export a modeller got depended on how many exports
+  they had already done that session. `setNativeDriverCheckbox` is now the single decision point, and
+  a tick or untick by the user is remembered per driver.
+
+  Reproducing case in `scratch/issue973/` (gitignored): three polygons from literals, six export
+  containers reproducing what the dialog builds for each choice of item and driver, plus a
+  `Pand_failing` table with `IntegrityCheck = "1 == 0"` to exercise (3). Case F is (2) on its own and
+  exits 1 on 20.18.0.m. Worth generalising from: the export dialog builds a config subtree and hands
+  it to the ordinary update machinery, so every dialog path can be emulated by a plain `.dms` and run
+  under `GeoDmsRun` — but only the GUI shows which subtree it actually builds, and here the emulation
+  of the *intended* native wiring was right while the shipped dialog was not.
 
 ### Closed on 2026-08-25 (3)
 
@@ -361,9 +405,13 @@ admission gate / drain-mode series (SS8.1.21-SS8.1.33).
   sees the whole definition scope, including the enclosing function's parameters and locals. #1165 is
   now the narrower "untagged `{a, b}` spelling" deprecation and still blocks on property-level
   deprecation machinery that does not exist; once built, #1161 can reuse it.
-- **Export-flow cluster**: #711 is closed; #411's pattern — route table exports through the Export Primary
-  Data dialog via a constructed `Desktops/Default/ViewData` config table — is the base for what
-  remains: #973 (VAT option) is a dialog/driver option on top of the same machinery.
+- **Export-flow cluster**: closed out. #711 and #411 were already done, and #973 (`8412b7f2`) turned
+  out to be four defects in the same dialog rather than the VAT option it was filed as. The pattern
+  #411 established — the dialog builds a `Desktops/Default/Exports` config subtree and hands it to the
+  ordinary update machinery — is what made it diagnosable: every path can be emulated by a plain
+  `.dms`. It is also what hid the defects, because nothing verifies that the subtree the dialog builds
+  is the one the code was written for; a comparison against `"ESRI Shapefile"` that should have read
+  `"shp"` disabled the whole native branch for three years without a single test noticing.
 - **Packaging as a blind spot** (#1186, #1105): both had the same shape — a runtime dependency that
   nothing verified. The `.c` setup shipped no CRT and the packaging step could not notice, because
   NSIS only fails on a `File` line naming a missing file, never on a dependency that is named nowhere;
