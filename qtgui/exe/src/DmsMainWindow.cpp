@@ -512,8 +512,8 @@ void MainWindow::setCurrentTreeItem(TreeItem* target_item, bool update_history)
                 const TreeItem* visible_parent = target_item;
                 while (visible_parent && visible_parent->GetTSF(TSF_InHidden))
                     visible_parent = visible_parent->GetTreeParent().get();
-                reportF(MsgCategory::other, SeverityTypeID::ST_Warning, "cannnot set '{0}' as Current Item, as it is a hidden sub-item of '{1}'"
-                    "\nHint: you can make hidden items visible in the Settings->GUI Options Dialog"
+                reportF(MsgCategory::other, SeverityTypeID::ST_Warning, "cannot set '{0}' as Current Item, as it is a hidden sub-item of '{1}'"
+                    "\nHint: you can make hidden items visible in the Settings->GUI Options Dialog, or start the GUI with the /SA command line option"
                     , target_item->GetFullName().c_str()
                     , visible_parent ? visible_parent->GetFullName().c_str() : "a hidden root"
                 );

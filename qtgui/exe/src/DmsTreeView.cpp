@@ -730,7 +730,7 @@ search_at_parent_index:
 	MG_CHECK(isAncestor(currItem, target_item));
 	MG_CHECK(!MainWindow::TheOne()->m_dms_model->show_hidden_items);
 	MG_CHECK(target_item->GetTSF(TSF_InHidden));
-	reportF(MsgCategory::other, SeverityTypeID::ST_FatalError, "cannnot activate '{0}' in TreeView as it seems to be a hidden sub-item of '{1}'"
+	reportF(MsgCategory::other, SeverityTypeID::ST_FatalError, "cannot activate '{0}' in TreeView as it seems to be a hidden sub-item of '{1}'"
 		"\nIllegal Target for DmsTreeView::expandToItem"
 		, target_item->GetFullName().c_str()
 		, currItem->GetFullName().c_str()
@@ -941,7 +941,7 @@ void DmsTreeView::setNewCurrentItem(TreeItem* target_item)
 					break;
 			} while (visible_parent != nullptr);
 
-			reportF(MsgCategory::other, SeverityTypeID::ST_Warning, "cannnot activate '{0}' in TreeView as it seems to be a hidden sub-item of '{1}'"
+			reportF(MsgCategory::other, SeverityTypeID::ST_Warning, "cannot activate '{0}' in TreeView as it seems to be a hidden sub-item of '{1}'"
 				"\nHint: you can make hidden items visible in the Settings->GUI Options Dialog"
 				, target_item->GetFullName().c_str()
 				, visible_parent ? visible_parent->GetFullName().c_str() : "a hidden root"
