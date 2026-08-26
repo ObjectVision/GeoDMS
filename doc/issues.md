@@ -1,10 +1,10 @@
 # Open GitHub issues, classified
 
-Snapshot of the **16 open issues** at https://github.com/ObjectVision/GeoDMS/issues, re-audited
+Snapshot of the **14 open issues** at https://github.com/ObjectVision/GeoDMS/issues, re-audited
 against GitHub on **2026-08-26**. The previous header claimed 27; sixteen issues it still classified
 had been closed and five open ones were missing, so the tables below were rebuilt from the live list
-rather than edited in place; #1217 was filed later that afternoon and is added here.
-Grouped by implementability. Buckets:
+rather than edited in place. #1215 was closed that afternoon and #1217 was filed and closed after
+it, so both are recorded below rather than in the tables. Grouped by implementability. Buckets:
 
 - **A. Low hanging fruit** — small, well-defined fixes; no design decisions needed.
 - **B. Implementable after minor design choices** — clear scope; one or two decisions to settle first.
@@ -21,8 +21,6 @@ Previous snapshots: 2026-08-24 claiming 27, 2026-08-20 with 33, 2026-07-31 with 
 
 | Issue | Why it is small |
 |---|---|
-| **NEXT: [#1215](https://github.com/ObjectVision/GeoDMS/issues/1215) polygon_connectivity** | **Verify and close.** Split out of #757 on 2026-08-26 with an empty body, but `polygon_connectivity` is already implemented: `cogPC` at `geo/dll/src/BoostPolygon.cpp` plus the `bp_`/`bg_`/`cgal_`/`geos_polygon_connectivity` variants, all four registered and documented on the wiki. Unless the reporter meant something beyond the existing operator, this is a bookkeeping closure. |
-| [#1217](https://github.com/ObjectVision/GeoDMS/issues/1217) Drag Layer Control functionality unclear | **Fixed in code, awaiting closure.** The two map-view pop-up items resize the legend column by 10 pixels a step (`MapControl::ShiftLayerControlSlider`), but their captions still named **Ctrl-S**/**Ctrl-D**, the keys that `f7e9a1a7c` (#1011) unbound in 18.2.1 because **Ctrl-D** had become Table View. Captions now say what they do and name **Ctrl-Shift-Left**/**Ctrl-Shift-Right**; the behaviour is documented on the wiki page *Map view Legend*. All three sub-questions answered; nothing further to implement. |
 | [#1211](https://github.com/ObjectVision/GeoDMS/issues/1211) Icons for view menu options and view titles | Every chart window currently reuses the Statistics view icon. The reporter attached the icons they want; the work is wiring them into the view registry, the same table #319 touched for the tree-item icons (`518dc747`, `0ce9f427`). No semantics involved. |
 
 ## B. Implementable after minor design choices
@@ -75,7 +73,46 @@ is a two-line guard against an unpleasant failure mode for anyone invoking the s
 
 ## Recently closed (delta since 2026-07-31)
 
-### Closed on 2026-08-26 (9)
+### Closed on 2026-08-26 (11)
+
+- #1217 (`9f89ddf8`, wiki `77922c0c`) — the map view pop-up offered *Drag LayerControl Left
+  (Ctrl-S)* and *Drag LayerControl Right (Ctrl-D)*, and the reporter could work out neither what
+  they did nor why the keys were dead. Both halves of the caption were wrong, in different ways.
+
+  The **function** is real and has no other entry point: the two items move the virtual splitter
+  between the map and the legend by 10 pixels a step (`MapControl::ShiftLayerControlSlider`).
+  There is no draggable splitter in a map view, which is what #511 added them for. Past the
+  minimum width, narrowing calls `ToggleLayerControl()` and hides the legend outright; widening a
+  hidden legend re-opens it. Neither limit was discoverable from the caption, and *"Drag ... Left"*
+  reads backwards — dragging left makes the legend **wider**.
+
+  The **keys** were stale documentation inside the binary. `c7e35b9f6` bound Ctrl-S/Ctrl-D in
+  17.9.5 and `3f374867b` added the menu items beside them; `f7e9a1a7c` (#1011) then unbound both
+  in 18.2.1, because Ctrl-D had meanwhile become the Qt **Table View** shortcut
+  (`DmsActions.cpp`) and pressing it in a map view opened a table instead of resizing — #1011's
+  actual complaint. The width control moved to Ctrl+Shift+Left/Right in `MapControl::OnKeyDown`,
+  where `qtKeyToVK` translates the arrows and folds the modifiers in, but the two `MenuItem`
+  strings were never touched. Worth remembering as a class of defect: an accelerator named in a
+  caption is documentation with no compiler behind it, so re-binding a key silently falsifies
+  every menu that mentions it. Ctrl-G survived only because nothing else claimed it.
+
+  Verified against `bin\Release\x64\GeoDmsGuiQt.exe` 20.18.0 on a self-contained grid map view,
+  one screenshot per step: Ctrl+Shift+Right narrows 10 px a press and hides the legend after ~30;
+  Ctrl+Shift+Left widens and re-opens it at its previous width; Ctrl+S does nothing; Ctrl+D opens
+  a table view (`[commands] tableView // for item /domain/Value`); Ctrl+G still copies a 246x46
+  bitmap of the legend to the clipboard. The captions now name the effect and the working keys,
+  following the `DataItemColumn` precedent of spelling the effect out after a colon. **The
+  caption change is committed but not yet built into a binary.**
+
+  Documented on the wiki, [Map view Legend → width of the
+  legend](https://github.com/ObjectVision/GeoDMS/wiki/Map-view-Legend#width-of-the-legend), with
+  a pointer from Map View's keyboard table saying Ctrl-Shift-arrow resizes the legend rather than
+  moving the map. The page records the 17.9.5 / 18.2.1 / 20.18.0 caption history, since a reader
+  on an older build will see the old menu.
+
+- #1215 — closed by the reporter at 16:14, before this snapshot's bucket A reached him: the
+  `polygon_connectivity` verify-and-close listed there was already done. `cogPC` plus the
+  `bp_`/`bg_`/`cgal_`/`geos_` variants exist on all four backends and are on the wiki.
 
 - #694 (`da6bb6cc`, `1ae70e5c`, `24863f95`), #757, #810 and #1105 (`b0fa05eb`, `565e9ef4`) were
   closed here. #757 was split into #1214 (fault-tolerant sweep, still open in D) and #1215
