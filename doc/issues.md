@@ -73,7 +73,48 @@ is a two-line guard against an unpleasant failure mode for anyone invoking the s
 
 ## Recently closed (delta since 2026-07-31)
 
-### Closed on 2026-08-26 (11)
+### Closed on 2026-08-26 (12)
+
+- #1218 (`58c3c1a4`, wiki `926a07e7`) — "IntegrityCheck op ExplicitSupplier uitvoeren juist
+  voordat berekening van item start", the supplier variant of #1209. The issue's pair —
+  `exec_ec` with a check, `x := 2+3, ExplicitSuppliers = "exec_ec"` — was measured first:
+  requesting `x` in a **table view** did run the supplier's check, but out-of-band (the
+  validate phase of the actor update; two threads, `add [[/x]]` computed regardless, verdict
+  reaching `x` only afterwards via the F2 chain), and selecting either item in the
+  **TreeView**, detail page included, ran it not at all — the TreeView demands metadata only,
+  and `x`'s CheckedKeyExpr simply did not contain the guard, because the fold collected checks
+  from the parent chain alone.
+
+  The fix extends the collection side of the #1180 fold: the checks that apply to an item are
+  now the transitive closure along **GetTreeParent ∪ ExplicitSuppliers** — declaring a supplier
+  means "evaluate me first", and whatever guards the supplier (its own check, its ancestors',
+  its suppliers', transitively) is folded into the declaring item's checked expression and
+  fails it in-band. The closure is reduced to a per-item guardian list memoized in
+  `ConfigProperties::mc_CheckGuardians` (meta-thread only; reset in DoInvalidate and
+  ResetSubTreeConfigData, which is what breaks the cross-branch SharedTreeItem cycles the list
+  can otherwise hold at teardown). An item that adds nothing shares its parent's instance and
+  is not memoized, so a chain without supplier edges folds byte-identically to before —
+  `fn_test_icheck_dedup` still instantiating exactly its 4 recorded check DCs is the
+  DataController-moniker compatibility tripwire. Redundancy stays decided at the wrap site
+  against the #1182 implied-atom sets: an item that both references and declares the same
+  supplier carries the guard once, through the reference (verified: no CheckedKeyExpr wrap
+  appears). Supplier cycles are broken with an in-progress set and incomplete closures are
+  never memoized; fence SupplCaches (PhaseContainer `InitAt` mirrors on cache items) are
+  engine bookkeeping and excluded.
+
+  Verified: testcases battery 231/0 with three new cases (`fn_test_icheck_suppl` — two-hop
+  supplier chain plus a supplier under a checked container, the Debug trace showing
+  `IntegrityCheck(IntegrityCheck(add(2,3), eq(22,22)), eq(11,11))` in closure fold order —
+  and `_neg1`/`_neg2` for violated direct and transitive supplier checks); Debug runs
+  assert-free; GUI probes confirm the guard in the declaring item's CheckedKeyExpr and the
+  in-band failure on its own DC.
+
+  **Deliberately not delivered by this change:** the title's strict ordering. The guard gates
+  the *delivery* of the declaring item's result, not the start of its calculation — condition
+  and org expression are sibling CheckOperator args and still compute concurrently (measured
+  with a 20M-element check against a trivial `add`). Making the org expression's
+  OperationContext depend on the check future is the lookahead-scheduling follow-up, recorded
+  in `doc/IntegrityCheck.md` §#1218 with the rest of the design.
 
 - #1217 (`9f89ddf8`, wiki `77922c0c`) — the map view pop-up offered *Drag LayerControl Left
   (Ctrl-S)* and *Drag LayerControl Right (Ctrl-D)*, and the reporter could work out neither what
