@@ -1,6 +1,6 @@
 # Open GitHub issues, classified
 
-Snapshot of the **17 open issues** at https://github.com/ObjectVision/GeoDMS/issues, re-audited
+Snapshot of the **16 open issues** at https://github.com/ObjectVision/GeoDMS/issues, re-audited
 against GitHub on **2026-08-26**. The previous header claimed 27; sixteen issues it still classified
 had been closed and five open ones were missing, so the tables below were rebuilt from the live list
 rather than edited in place. Grouped by implementability. Buckets:
@@ -62,11 +62,6 @@ None open. #1080 (Academy on geodms.nl) was closed 2026-08-12.
 
 ## G. Other
 
-- [#1213](https://github.com/ObjectVision/GeoDMS/issues/1213) — **fixed in code, issue still open.**
-  The EventLog filter panel's clipped `category` checkbox was fixed in `e958f8f4` + `e60b3ddd` (see the
-  "Recently closed" for the mechanism), but the GitHub issue was never closed. Either close it or say
-  what is still outstanding.
-
 - [#973](https://github.com/ObjectVision/GeoDMS/issues/973) — **fixed in code, issue still open.**
   Missing VAT in dbf/gpkg export, fixed in `8412b7f2` (see the entry under "Recently closed" for the
   four defects behind it). The design question the issue asked — always emit the VAT, or offer it as
@@ -84,7 +79,7 @@ is a two-line guard against an unpleasant failure mode for anyone invoking the s
 
 ## Recently closed (delta since 2026-07-31)
 
-### Closed on 2026-08-26 (7, plus #1213 and #973 fixed but not closed)
+### Closed on 2026-08-26 (8, plus #973 fixed but not closed)
 
 - #694 (`da6bb6cc`, `1ae70e5c`, `24863f95`), #757, #810 and #1105 (`b0fa05eb`, `565e9ef4`) were
   closed here. #757 was split into #1214 (fault-tolerant sweep, still open in D) and #1215
@@ -115,9 +110,9 @@ is a two-line guard against an unpleasant failure mode for anyone invoking the s
   Its design notes were moved to #1214 before closing. Worth remembering that #757 and #917 shared a
   checkbox, so splitting either one can collide with the other.
 
-- #1213 (`e958f8f4`, `e60b3ddd`) — **the code fix landed but the GitHub issue is still open**; see G above.
-  The `category` checkbox at the bottom right of the EventLog filter panel rendered clipped. Not a
-  styling or a DPI problem, and worth recording because the obvious fix was only half of it.
+- #1213 (`e958f8f4`, `e60b3ddd`) — the `category` checkbox at the bottom right of the EventLog
+  filter panel rendered clipped. Not a styling or a DPI problem, and worth recording because the
+  obvious fix was only half of it.
 
   `DmsTypeFilter` places every child at an absolute position from `DmsEventLogSelection.ui`, so the
   two columns under *Filter message contents* began at y=40, 30 px lower than every other column in
