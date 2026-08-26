@@ -1,0 +1,22 @@
+// Negative twin of fn_test_icheck_storage: the ancestor check over the storage-read item is
+// violated (guard is 44), so consuming the read item must fail the run -- through the guard
+// woven around the source reference, which the retired unguarded GetCheckedDC exit did not do.
+container fn_test_icheck_storage_neg1
+{
+	parameter<uint32> guard := 44;
+
+	container grp : IntegrityCheck = "guard == 45"
+	{
+		parameter<string> readItem
+		:	StorageType = "str"
+		,	StorageName = "%currDir%/icheck_payload.txt";
+	}
+
+	parameter<string> bareRef := grp/readItem;
+
+	container checks
+	{
+		// the value itself would be correct; the violated ancestor check must fail the run anyway
+		parameter<bool> c1 := bareRef == 'payload-42', IntegrityCheck = "c1 == True";
+	}
+}

@@ -1,0 +1,27 @@
+// #1209: an IntegrityCheck on the ancestor of an item READ FROM A STORAGE (no calculation
+// rule) is woven into the calculation of its consumers: GetCheckedDC's loadable exit folds
+// the ancestor checks around the source reference, the same way GetCheckedKeyExpr already
+// folds it for expression consumers. A source-ref consumer then carries the guard as a
+// scheduled supplier, instead of relying only on the out-of-band validate phase.
+// This positive pins that the payload still arrives through both consumer shapes;
+// fn_test_icheck_storage_neg1 pins that a violated ancestor check fails them.
+container fn_test_icheck_storage
+{
+	parameter<uint32> guard := 45;
+
+	container grp : IntegrityCheck = "guard == 45"
+	{
+		parameter<string> readItem
+		:	StorageType = "str"
+		,	StorageName = "%currDir%/icheck_payload.txt";
+	}
+
+	parameter<string> bareRef := grp/readItem;        // source-ref consumer: no operator involved
+	parameter<string> viaOper := grp/readItem + '!';  // genuine calculation rule over the read item
+
+	container checks
+	{
+		parameter<bool> c1 := bareRef == 'payload-42',  IntegrityCheck = "c1 == True";
+		parameter<bool> c2 := viaOper == 'payload-42!', IntegrityCheck = "c2 == True";
+	}
+}
