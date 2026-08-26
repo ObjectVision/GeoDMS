@@ -1,7 +1,7 @@
 # Open GitHub issues, classified
 
 Snapshot of the open issues at https://github.com/ObjectVision/GeoDMS/issues. The classified tables
-below are the **2026-08-24** snapshot with only the #917 -> #1216 and #1213 deltas of
+below are the **2026-08-24** snapshot with the #917 -> #1216, #1213 and #634 deltas of
 2026-08-26 applied.
 
 > **This file has drifted and needs a re-audit.** Checked against GitHub on 2026-08-26: **19 issues
@@ -69,7 +69,6 @@ is a two-line guard against an unpleasant failure mode for anyone invoking the s
 | [#856](https://github.com/ObjectVision/GeoDMS/issues/856) 2-dimensional Dijkstra (time + cost) | Non-trivial pruning semantics (Pareto frontier over two criteria). |
 | [#659](https://github.com/ObjectVision/GeoDMS/issues/659) R (or Python) integration for calculations | The linking route is closed for good and recorded on the wiki: R's C API needs the MinGW-w64 toolchain R itself was built with, and hosting a single-threaded, `longjmp`-based interpreter inside a thread-scheduling engine is not viable. The file-and-`exec_ec` route is the answer instead, and 20.16.0 makes it usable (`5a9d4478`: the child's stdout+stderr are captured on one pipe and reported line by line as `exec: <line>`, capped at 1 MB but still drained, and waited for in ticks). What remains under "design" is the ordering discipline — the NetworkModel_EU/Julia production example shows the batch file, not the configuration, must own any sequence that includes a GeoDMS *write*. |
 | [#724](https://github.com/ObjectVision/GeoDMS/issues/724) Circular units (wrap-around grid/time) | New unit semantics rippling through operators and metric checking. |
-| [#634](https://github.com/ObjectVision/GeoDMS/issues/634) Editable layer-control data via copy-on-write | Needs a copy-on-write design for calculated visualisation properties. |
 | [#734](https://github.com/ObjectVision/GeoDMS/issues/734) Reuse classbreaks across mapviews | Where do classifications live, and how do views share them? |
 | [#587](https://github.com/ObjectVision/GeoDMS/issues/587) Storage-read functions in keyExpr | Language-level change to make storage reads expressible in calculation rules. |
 | [#302](https://github.com/ObjectVision/GeoDMS/issues/302) Winding-order reversal operator | May be subsumed by `split_polygon`/cleaning strategy — needs that decision first. |
@@ -118,7 +117,21 @@ None open. #1080 (Academy on geodms.nl) was closed 2026-08-12.
 
 ## Recently closed (delta since 2026-07-31)
 
-### Closed on 2026-08-26 (2)
+### Closed on 2026-08-26 (3)
+
+- #634 (`a7475fac`) — copy-on-write for the data a layer control shows, implemented in samenhang
+  with the just-closed #734 as its comment asked. A colour, a label or a class break whose attribute
+  the configuration calculates used to be uneditable: `TreeItem::IsEditable()` is false as soon as an
+  item carries a non-data-block rule, so the Change Color submenu was never built, the double-click
+  and F2 paths fell through, and Ramp reported *"Cannot change derived data; try to copy the
+  attribute and change the copied data"*. The first edit now makes that copy: the values the rule
+  currently computes are copied into `/Desktops/<desktop>/ViewData/<path>/`, the layer is re-themed
+  onto the copy and the edit is applied there, so the configured item — shared with every other view
+  that uses the same classification — is never written. A second edit of the same cell reuses the
+  copy. Scope is per cell: the *number* of classes resizes the class unit itself and is not covered,
+  which stays #734's Copy/Paste Classbreaks route. A plain reference rule (`PenColor := BrushColor`)
+  is not copied, because `GetCurrSourceItem` resolves it to the referred item, which is writable.
+  Table views are unaffected: only a `PaletteControl` copies.
 
 - #917 (`2c82cb27`, `30e3da16`) — `{bp,bg,cgal,geos}_minkowski_sum` / `_minkowski_difference` with
   the kernel as an argument, and the 48 `bp_*_i4HV`…`_dXD` names depreciated. Five of its six boxes;
