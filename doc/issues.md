@@ -63,7 +63,7 @@ None open. #1080 (Academy on geodms.nl) was closed 2026-08-12.
 ## G. Other
 
 - [#1213](https://github.com/ObjectVision/GeoDMS/issues/1213) — **fixed in code, issue still open.**
-  The EventLog filter panel's clipped `category` checkbox was fixed in `e958f8f4` (see the entry under
+  The EventLog filter panel's clipped `category` checkbox was fixed in `e958f8f4` + `e60b3ddd` (see the
   "Recently closed" for the mechanism), but the GitHub issue was never closed. Either close it or say
   what is still outstanding.
 
@@ -115,19 +115,35 @@ is a two-line guard against an unpleasant failure mode for anyone invoking the s
   Its design notes were moved to #1214 before closing. Worth remembering that #757 and #917 shared a
   checkbox, so splitting either one can collide with the other.
 
-- #1213 (`e958f8f4`) — **the code fix landed but the GitHub issue is still open**; see G above.
-  The `category` checkbox at the bottom right of the EventLog filter panel
-  rendered clipped. Not a styling or a DPI problem: the panel is not laid out. `DmsTypeFilter` positions
-  every child absolutely from `DmsEventLogSelection.ui`, and its `sizeHint()` returns `groupBox->size()`
-  (`qtgui/exe/src/DmsEventLog.cpp:376`), so the widget is exactly 121 px high whatever it contains, and
-  the layout adds it with stretch 0. The two columns under *Filter message contents* began at y=40 —
-  30 px lower than every other column in the form — so their fourth row landed at y=100..120, flush
-  against that edge. `line_6`, the separator between those two columns, had the same defect in the
-  other direction: it ran to y=140 and was simply cut off. Fixed by moving the block up to start at
-  y=26, at the 20 px row pitch the rest of the form uses; `m_category` now ends at 106, the same bottom
-  margin the left group box's last row already had, and the panel height is unchanged. That leaves one
-  row of headroom; a fifth entry in those columns would need the block converted to a real layout, or
-  `sizeHint()` derived from `childrenRect()` instead of from the group box.
+- #1213 (`e958f8f4`, `e60b3ddd`) — **the code fix landed but the GitHub issue is still open**; see G above.
+  The `category` checkbox at the bottom right of the EventLog filter panel rendered clipped. Not a
+  styling or a DPI problem, and worth recording because the obvious fix was only half of it.
+
+  `DmsTypeFilter` places every child at an absolute position from `DmsEventLogSelection.ui`, so the
+  two columns under *Filter message contents* began at y=40, 30 px lower than every other column in
+  the form, and their fourth row landed at y=100..120 against the bottom of a 121 px panel. `line_6`,
+  the separator between those columns, had the same defect in the other direction: it ran to y=140
+  and was cut off. Moving the block up to y=26 at the form's own 20 px row pitch put `m_category` at
+  86..106, the bottom margin the left group box's last row already had, without making the panel
+  higher (`e958f8f4`).
+
+  That unclipped `category` and exposed the real defect: the group box's own last row, at y=110, was
+  clipped too, because the panel was being drawn at roughly 107 px for a form that needs 121.
+  `toggleFilter` computed the new size as `height() + 150` — the height of the DmsEventLog *widget*
+  — and handed it to `resizeDocks`, which sizes the *dock*, so the dock's title bar was counted
+  twice and the widget grew by well under 150 while the panel wanted 121 plus the layout spacing.
+  Nothing stopped the `QVBoxLayout` from taking that shortfall out of the panel: a widget whose
+  children are all placed absolutely has no layout, so its `minimumSizeHint()` is effectively zero
+  and it is the cheapest thing in the box to shrink. `e60b3ddd` pins it with
+  `setFixedHeight(groupBox->height())` and takes the resize delta from the dock itself, so the list
+  absorbs nothing and the shrink path is the exact inverse of the grow path. Verified on
+  `escape_codes.dms`: the group box border and its bottom row render in full, and an off/on toggle
+  cycle returns the panel and the list to the same geometry.
+
+  The lesson is the second half, not the first: an absolutely-positioned Qt form inside a layout
+  advertises no minimum, so it is squeezed rather than clipped by its own geometry, and the symptom
+  surfaces at whichever control happens to sit lowest. A further entry in those columns should
+  convert the block to a real layout rather than take the remaining row of headroom.
 
 - #973 (`8412b7f2`) — **the code fix landed but the GitHub issue is still open**; see G above.
   Missing VAT when exporting to dbf or gpkg. The issue asked for a case to reproduce; building one
