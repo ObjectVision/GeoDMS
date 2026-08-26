@@ -44,14 +44,22 @@ Section "GeoDMS Program Folder" ;No components page, name is not important
 !ifdef GeoDmsGlobio
   ; The G output is wiped before every release build and its dependency-closure
   ; verifier rejects gdal.dll, so package its validated DLL set as one unit.
-  ; Excluded: the windeployqt extras that the curated m/c lists below also omit,
-  ; none of which any GeoDMS binary or deploy script asks for -- opengl32sw is the
-  ; software-OpenGL fallback and D3Dcompiler_47/dxcompiler/dxil are shader
-  ; compilers (dxcompiler + dxil are ~15 MB, opengl32sw another ~20). g stays
-  ; larger than m/c regardless, because conda's GDAL 3.1.4 drags in a much wider
-  ; driver closure than vcpkg's (tiledb, poppler, xerces-c, cfitsio, hdf, krb5,
-  ; openssl) and those ARE load-bearing.
-  File /x opengl32sw.dll /x D3Dcompiler_47.dll /x dxcompiler.dll /x dxil.dll ${GeoDmsBinDir}\*.dll
+  ; Excluded: what the glob sweeps up that nothing in bin_GLOBIO actually imports,
+  ; and that the curated m/c lists below therefore also omit. Verified by scanning
+  ; the import tables of every dll/exe/pyd in the output; redo that scan before
+  ; assuming an entry here is still dead weight.
+  ;   opengl32sw    software-OpenGL fallback, ~20 MB
+  ;   D3Dcompiler_47, dxcompiler, dxil  shader compilers, ~15 MB for the last two
+  ;   Qt6Network    imported by nothing but itself
+  ;   boost_*       GeoDMS links no compiled boost (only header-only libs); these
+  ;                 reach bin_GLOBIO from vcpkg_installed_GLOBIO and reference
+  ;                 only each other
+  ; Together ~6 MB of the setup. g stays some MB above m/c regardless, because
+  ; conda's GDAL 3.1.4 drags in a much wider driver closure than vcpkg's build
+  ; (tiledb, poppler, xerces-c, cfitsio, hdf, krb5, openssl) and those ARE
+  ; load-bearing -- only partly offset by m carrying arrow and parquet, which
+  ; GDAL 3.1.4 does not use.
+  File /x opengl32sw.dll /x D3Dcompiler_47.dll /x dxcompiler.dll /x dxil.dll /x Qt6Network.dll /x boost_*.dll ${GeoDmsBinDir}\*.dll
 !else
   File ${GeoDmsBinDir}\Rtc.dll
   File ${GeoDmsBinDir}\Shv.dll
