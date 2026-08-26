@@ -46,7 +46,18 @@ struct CmdLineException : SharedStr, std::runtime_error {
     CmdLineException(SharedStr x)
     :   SharedStr(x +
             "\nexpected syntax:"
-            "\nGeoDmsGuiQt.exe [options] [/LLogFile] [/TTestFile] configFileName.dms [item]"
+            "\nGeoDmsGuiQt.exe [/L<LogFile>] [/T<TestScript>] [/S<X> /C<X> ...] [/noconfig] [<ConfigFile.dms> [<Item>]]"
+            "\n"
+            "\n  /L<LogFile>     write a session log; must be the first argument"
+            "\n  /T<TestScript>  replay a GUI test script and exit with its result"
+            "\n  /S<X>, /C<X>    set resp. clear status flag <X>; before the configuration file name."
+            "\n                  /SA shows hidden items, /SC state colours, /SM debug mode,"
+            "\n                  /S1 /S2 /S3 the multi-threading levels, /SP performance logging"
+            "\n  /noconfig       start without a configuration"
+            "\n  <Item>          item to select as current item, relative to the configuration root"
+            "\n"
+            "\nfor the complete list of options and status flags, see"
+            "\nhttps://github.com/ObjectVision/GeoDMS/wiki/Command-line-options"
         )
     ,   std::runtime_error(SharedStr::c_str())
     {}
@@ -100,10 +111,10 @@ std::any interpret_command_line_parameters(CmdLineSetttings& settingsFrame) {
         // it as a config-file name.
 #ifdef _WIN32
         if ((*argv)[0] == '/')
-            throw CmdLineException(mySSPrintF("Unknown command-line option {}. Known options: /L<log>, /T<test>, /S<X>/C<X> status flags, /noconfig.", *argv));
+            throw CmdLineException(mySSPrintF("Unknown command-line option {}, or an option given out of turn.", *argv));
 #else
         if ((*argv)[0] == '-' && (*argv)[1] != '\0')
-            throw CmdLineException(mySSPrintF("Unknown command-line option {}. Known options: /L<log>, /T<test>, /S<X>/C<X> status flags, /noconfig.", *argv));
+            throw CmdLineException(mySSPrintF("Unknown command-line option {}, or an option given out of turn.", *argv));
 #endif
 
         settingsFrame.m_ConfigFileName = SharedStr(*argv);
@@ -496,8 +507,10 @@ int main_without_SE_handler(int argc, char *argv[]) {
     }
     catch (...) {
         auto msg = catchException(false);
-        std::cout << "error          : " << msg->Why() << std::endl;
-        std::cout << "context        : " << msg->Why() << std::endl;
+        // One rendering, the same one the dialog shows: the two labelled lines this used to print
+        // both reported Why(), so a multi-line message -- the command-line syntax help in particular
+        // -- arrived twice with nothing to tell the copies apart.
+        std::cout << msg->GetAsText() << std::endl;
         QMessageBox::critical(nullptr, "GeoDMS Error",
             QString::fromUtf8(msg->GetAsText().c_str()));
     }

@@ -208,7 +208,7 @@ void ResolveStartupConfig(CmdLineSetttings& cmdLineSettings)
         cmdLineSettings.m_ConfigFileName = regPath;
     else if (!regPath.empty())
         reportF(MsgCategory::commands, SeverityTypeID::ST_Warning,
-            "Ignoring registry {} value '{}': not a regular local file. Use File->Open or --config to load.",
+            "Ignoring registry {} value '{}': not a regular local file. Use File->Open, or name the configuration on the command line, to load it.",
             dms_params::reg_key_LastConfigFile, regPath.c_str());
 }
 

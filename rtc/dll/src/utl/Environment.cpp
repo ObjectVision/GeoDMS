@@ -713,7 +713,7 @@ extern "C" RTC_CALL bool DMS_CONV RTC_ParseRegStatusFlag(const char* param)
 		          SetFreeStackDrainageEnabled(newValue); break;
 		case 'W': SetCachedStatusFlag(RSF_EventLog_HideDepreciated, !newValue); break; // the command line option is /SW to Show (not hide) deprecated events, but the flag is HideDepreciated, so invert the value
 		default:
-			reportF(SeverityTypeID::ST_Warning, "Unrecognised command line {} option {}",  (newValue ? "Set" : "Clear"), param);
+			reportF(SeverityTypeID::ST_Warning, "Unrecognised command line {} option {}; for the available status flags see https://github.com/ObjectVision/GeoDMS/wiki/Command-line-options",  (newValue ? "Set" : "Clear"), param);
 			return true;
 	}
 //	reportF(SeverityTypeID::ST_MinorTrace, "Recognised command line option {} {}", (newValue ? "Set" : "Clear"), param[2]);
@@ -2835,7 +2835,7 @@ extern "C" RTC_CALL bool DMS_CONV RTC_ParseRegStatusFlag(const char* param)
 		          SetFreeStackDrainageEnabled(newValue); break;
 		case 'W': SetCachedStatusFlag(RSF_EventLog_HideDepreciated, !newValue); break;
 		default:
-			reportF(SeverityTypeID::ST_Warning, "Unrecognised command line {} option {}", (newValue ? "Set" : "Clear"), param);
+			reportF(SeverityTypeID::ST_Warning, "Unrecognised command line {} option {}; for the available status flags see https://github.com/ObjectVision/GeoDMS/wiki/Command-line-options", (newValue ? "Set" : "Clear"), param);
 			return true;
 	}
 	return true;

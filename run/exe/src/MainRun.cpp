@@ -155,6 +155,26 @@ static void DMS_CONV ReportFunctionDefinitionCheck(ClientHandle /*clientHandle*/
 		reportF(SeverityTypeID::ST_Error, "function definition FAILED: {}: {}", funcItem->GetFullName().c_str(), message);
 }
 
+// The one place that describes the command line, printed both when nothing is given and when an
+// option is rejected. Keep it in step with interpret_command_line_parameters in the GUI and with
+// RTC_ParseRegStatusFlag, which owns the status-flag letters; the wiki page carries the full table.
+static void ReportUsage(std::ostream& out)
+{
+	out << "To (re)calculate a resulting item use:\n\n"
+		<< "   GeoDmsRun.exe [/L<LogFile>] [/S<X> /C<X> ...] <ConfigFile.dms> [<Item>|@<command> ...]\n\n"
+		<< "  /L<LogFile>   write a log file; must be the first argument\n"
+		<< "  /S<X>, /C<X>  set resp. clear status flag <X>; before the configuration file name.\n"
+		<< "                /S1 /S2 /S3 set the multi-threading levels, /SP logs performance,\n"
+		<< "                /SW shows deprecated-token warnings\n"
+		<< "  <Item>        tree item to update; results are committed to the storages configured\n"
+		<< "                for it. Naming a container updates its whole subtree\n"
+		<< "  @<command>    action for the items that follow: @commit (the default), @statistics,\n"
+		<< "                @valueinfo <row>, @sourcedescr <item>, @checkfunctions,\n"
+		<< "                @dumpconfig <file>, @file <file>\n\n"
+		<< "for the complete list of options and status flags, see\n"
+		<< "https://github.com/ObjectVision/GeoDMS/wiki/Command-line-options\n\n";
+}
+
 int main2_without_SE(int argc, char** argv)
 {
 	ParseRegStatusFlags(argc, argv);
@@ -176,16 +196,15 @@ int main2_without_SE(int argc, char** argv)
 		{
 			std::cerr << std::endl
 				<< "Unknown command-line option " << argv[0]
-				<< ". Known options: /L<log>, /S<X>/C<X> status flags." << std::endl;
+				<< ", or an option given out of turn." << std::endl << std::endl;
+			ReportUsage(std::cerr);
 			return 2;
 		}
 	}
 
 	if (argc <= 1)
 	{
-		std::cerr << "To (re)calculate a resulting item use:\n\n"
-			<< "   GeoDmsRun.exe [/PProjName] [/LLogFileName] ConfigFileName ItemNames\n\n"
-			<< "Multiple item names can be specified and data will be committed to the external storages that are configured for the mentioned items\n\n";
+		ReportUsage(std::cerr);
 		return 2;
 	}
 
