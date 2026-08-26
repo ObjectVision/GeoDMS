@@ -381,10 +381,25 @@ static void ShowMainWindowWithSavedGeometry(MainWindow& main_window)
     QByteArray geom = geomHex.empty()
         ? QByteArray()
         : QByteArray::fromHex(QByteArray(geomHex.c_str()));
-    if (!geom.isEmpty() && main_window.restoreGeometry(geom))
-        main_window.show();
-    else
+    if (geom.isEmpty() || !main_window.restoreGeometry(geom))
+    {
         main_window.showMaximized();
+        return;
+    }
+
+    const bool restoredMaximized = main_window.isMaximized() || main_window.isFullScreen();
+    main_window.show();
+
+#ifdef Q_OS_WIN
+    // Windows discards the nCmdShow of a process's FIRST ShowWindow call when the launcher supplied
+    // STARTUPINFO.wShowWindow -- which Explorer does for every shortcut whose "Run:" field is not
+    // "Normal window". Our own installer created its start-menu shortcuts with SW_SHOWMAXIMIZED, so
+    // Qt's show() above lost that race: the window appeared at the placement restored just now and
+    // was maximized by the shell a frame later, which reads as "it never remembers where I put it".
+    // A second ShowWindow is no longer overridden, so re-assert what was restored. The installer now
+    // writes SW_SHOWNORMAL, but every shortcut already on disk keeps its flag -- hence this stays.
+    ShowWindow((HWND)main_window.winId(), restoredMaximized ? SW_SHOWMAXIMIZED : SW_SHOWNORMAL);
+#endif
 }
 
 int main_without_SE_handler(int argc, char *argv[]) {
