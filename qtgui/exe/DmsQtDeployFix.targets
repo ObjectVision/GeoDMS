@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Replaces the QtDeploy target from $(QtMsBuild)\qtdeploy.targets (Qt VS Tools 3.5.0).
+
+  That target runs windeployqt in "list target" mode with stdout redirected to a log, reads EVERY
+  line of that log into an item list, and then evaluates %(FullPath) on each one. windeployqt
+  writes its informational output to the same stdout as the file list, so a line such as
+
+      Skipping system library C:/WINDOWS/system32/icuuc.dll
+
+  (emitted whenever the dependency scan meets a library it leaves to the system) ends up in that
+  list. It is not a path, %(FullPath) cannot be evaluated, and the build dies with MSB4023 AFTER
+  the deployment itself has already succeeded. It comes and goes between builds depending on
+  whether the scan happens to hit such a library, and lowering the verbosity does not suppress it.
+
+  The windeployqt invocation below is the one Qt VS Tools composes for this project, so exactly
+  the same files are deployed. Only the parsing of its output is dropped; that served solely to
+  register the deployed files as VS deployment content for packaging projects, which this repo
+  does not use, since NSIS packages bin\<Config>\x64 directly.
+
+  Living in the repo rather than in %LOCALAPPDATA%\QtMsBuild also means the build no longer
+  depends on which Qt VS Tools version a given machine happens to have installed. It does NOT
+  touch the Qt version itself; that stays pinned by QtInstall in GeoDmsGuiQt.vcxproj.
+-->
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Target Name="QtDeploy"
+          AfterTargets="Link"
+          Inputs="$(TargetPath)" Outputs="$(QtDeployLog)"
+          Condition="'$(QtDeploy)' == 'true' AND '$(ApplicationType)' != 'Linux'">
+    <PropertyGroup>
+      <DmsQtDeployDir>$([System.String]::Copy('$(OutDir)').TrimEnd('\'))</DmsQtDeployDir>
+      <DmsQtDeployCmd>"$(QtToolsPath)\windeployqt.exe" --list target --qmldir "$(MSBuildProjectDirectory)" --dir "$(DmsQtDeployDir)" "$(TargetPath)"</DmsQtDeployCmd>
+    </PropertyGroup>
+    <Message Importance="high" Text="Qt Deploy: $(DmsQtDeployCmd)" />
+    <Exec Command="$(DmsQtDeployCmd) &gt; &quot;$(QtDeployLog)&quot;"
+          EnvironmentVariables="$(QtDeployEnv)" />
+  </Target>
+</Project>

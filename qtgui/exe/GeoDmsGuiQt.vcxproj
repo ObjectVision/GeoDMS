@@ -196,7 +196,10 @@
   <ImportGroup Condition="Exists('$(QtMsBuild)\qt.targets')">
     <Import Project="$(QtMsBuild)\qt.targets" />
   </ImportGroup>
-  <ImportGroup Label="ExtensionTargets" />
+  <ImportGroup Label="ExtensionTargets">
+    <!-- Works around MSB4023 from Qt VS Tools' own QtDeploy target; see the file. -->
+    <Import Project="DmsQtDeployFix.targets" />
+  </ImportGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\clc\dll\Clc.vcxproj">
       <Project>{41dd88b1-2f24-45aa-9cbb-4318f97bbc22}</Project>

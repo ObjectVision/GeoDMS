@@ -217,7 +217,13 @@ Section "GeoDMS Program Folder" ;No components page, name is not important
   skip_set_all:
 
   CreateDirectory "$SMPROGRAMS\GeoDMS\version${GeoDmsVersion}"
-  CreateShortCut "$SMPROGRAMS\GeoDMS\version${GeoDmsVersion}\GeoDms Qt GUI ${GeoDmsVersion}.lnk" "$INSTDIR\GeoDmsGuiQt.exe"   "" "$INSTDIR\GeoDmsGuiQt.exe"   0 SW_SHOWMAXIMIZED "" "Preview the new GeoDMS GuiQt"
+  ; SW_SHOWNORMAL, not SW_SHOWMAXIMIZED: Explorer passes a shortcut's "Run:" field to
+  ; CreateProcess as STARTUPINFO.wShowWindow, and Windows lets that OVERRIDE the nCmdShow of
+  ; the process's first ShowWindow call, so a maximized shortcut beat the window placement the
+  ; GUI restores at startup -- the window flashed at its remembered spot and was maximized by
+  ; the shell right after. Harmless while the GUI always came up maximized anyway; since 20.0.0
+  ; it remembers its placement, so the flag has to go.
+  CreateShortCut "$SMPROGRAMS\GeoDMS\version${GeoDmsVersion}\GeoDms Qt GUI ${GeoDmsVersion}.lnk" "$INSTDIR\GeoDmsGuiQt.exe"   "" "$INSTDIR\GeoDmsGuiQt.exe"   0 SW_SHOWNORMAL    "" "Preview the new GeoDMS GuiQt"
   CreateShortCut "$SMPROGRAMS\GeoDMS\version${GeoDmsVersion}\uninstall.lnk" "$INSTDIR\uninstaller.exe" "" "$INSTDIR\uninstaller.exe" 0 SW_SHOWNORMAL    "" "Remove the Geographic Data & Model Software"
  
   
