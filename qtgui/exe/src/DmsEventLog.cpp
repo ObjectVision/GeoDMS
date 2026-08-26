@@ -371,6 +371,12 @@ DmsTypeFilter::DmsTypeFilter(QWidget* parent)
 	: QWidget(parent)
 {
 	setupUi(this);
+
+	// The form places every child at an absolute position, so this widget has no layout to
+	// derive a minimum height from and the enclosing QVBoxLayout is free to shrink it below
+	// its sizeHint, which clips the bottom row of controls (#1213). Pin it to the height the
+	// form was drawn for.
+	setFixedHeight(groupBox->height());
 }
 
 QSize DmsTypeFilter::sizeHint() const
@@ -612,11 +618,12 @@ void DmsEventLog::toggleFilter(bool toggled)
 {
 	auto main_window = MainWindow::TheOne();
 
-	auto current_height = height();
-	if (toggled)
-		default_height = current_height + 150;
-	else
-		default_height = current_height - 150;
+	// Grow and shrink the dock by exactly what the filter panel occupies, measured on the dock
+	// itself: deriving the new size from this widget's height() ignored the dock's title bar, so
+	// the panel came up more than a dozen pixels short of its sizeHint (#1213).
+	auto filter_height = m_eventlog_filter->sizeHint().height() + layout()->spacing();
+	auto current_height = main_window->m_eventlog_dock->height();
+	default_height = toggled ? current_height + filter_height : current_height - filter_height;
 
 	main_window->resizeDocks({ main_window->m_eventlog_dock }, { default_height }, Qt::Vertical);
 
