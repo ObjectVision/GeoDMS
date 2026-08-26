@@ -1,0 +1,26 @@
+// #917 negative: the kernel variant must be a parameter, not an attribute.
+// It names one of six fixed rings and is read once, before any tile is calculated, so a per-element
+// variant cannot be honoured. Rejecting it is better than quietly using the first element's value.
+// Expected: nonzero exit.
+container oper_minkowski_neg4
+{
+	unit<uint32> G   : nrofrows = 2;
+	unit<uint32> GPt : nrofrows = 8;
+
+	attribute<int32>  gx   (GPt) : [ 0, 0, 100, 100,   200, 200, 300, 300 ];
+	attribute<int32>  gy   (GPt) : [ 0, 100, 100, 0,     0, 100, 100,   0 ];
+	attribute<G>      gseq (GPt) : [ 0, 0, 0, 0,         1,   1,   1,   1 ];
+	attribute<uint32> gord (GPt) : [ 0, 1, 2, 3,         0,   1,   2,   3 ];
+
+	attribute<ipoint> gpt_i (GPt) := point_xy(gx, gy, ipoint);
+	attribute<ipoint> geom (G, polygon) := points2polygon(gpt_i, gseq, gord);
+
+	attribute<string> variant (G) : [ '4HV', '8D' ];
+
+	container checks
+	{
+		attribute<ipoint> bad (G, polygon) := bp_minkowski_sum(bp_polygon(geom), float64(10), variant);
+		parameter<float64> a := sum(float64(area(bad)));
+		parameter<bool> ok := a > 0.0, IntegrityCheck = "ok == True";
+	}
+}

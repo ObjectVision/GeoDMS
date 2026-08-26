@@ -1,0 +1,36 @@
+// #917 negative: a kernel with more than one ring must be rejected.
+// A Minkowski kernel is a single ring here -- boost.polygon's own convolution documents the same
+// restriction, and holding all four backends to it is what lets them agree. Two disjoint squares
+// dissolved into one parameter give a two-island kernel, which is exactly what must not pass.
+// Expected: nonzero exit.
+container oper_minkowski_neg3
+{
+	unit<uint32> G   : nrofrows = 1;
+	unit<uint32> GPt : nrofrows = 4;
+
+	attribute<int32>  gx   (GPt) : [ 0, 0, 100, 100 ];
+	attribute<int32>  gy   (GPt) : [ 0, 100, 100, 0 ];
+	attribute<G>      gseq (GPt) : [ 0, 0, 0, 0 ];
+	attribute<uint32> gord (GPt) : [ 0, 1, 2, 3 ];
+
+	attribute<ipoint> gpt_i (GPt) := point_xy(gx, gy, ipoint);
+	attribute<ipoint> geom (G, polygon) := points2polygon(gpt_i, gseq, gord);
+
+	// two squares that do not touch: [-10,10]^2 and [40,60]x[-10,10]
+	unit<uint32> KS  : nrofrows = 2;
+	unit<uint32> KPt : nrofrows = 8;
+	attribute<int32>  kx   (KPt) : [  10,  10, -10, -10,   60,  60,  40,  40 ];
+	attribute<int32>  ky   (KPt) : [  10, -10, -10,  10,   10, -10, -10,  10 ];
+	attribute<KS>     kseq (KPt) : [   0,   0,   0,   0,    1,   1,   1,   1 ];
+	attribute<uint32> kord (KPt) : [   0,   1,   2,   3,    0,   1,   2,   3 ];
+
+	attribute<ipoint> kernel_rows (KS, polygon) := points2polygon(point_xy(kx, ky, ipoint), kseq, kord);
+	parameter<ipoint> kernel      (polygon)     := bp_union_polygon(kernel_rows);
+
+	container checks
+	{
+		attribute<ipoint> bad (G, polygon) := bp_minkowski_sum(bp_polygon(geom), kernel);
+		parameter<float64> a := sum(float64(area(bad)));
+		parameter<bool> ok := a > 0.0, IntegrityCheck = "ok == True";
+	}
+}

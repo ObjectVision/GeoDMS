@@ -56,6 +56,23 @@ container oper_minkowski
 	attribute<ipoint> kernel_row_i (KS, polygon) := points2polygon(kpt_i, kseq, kord);
 	parameter<ipoint> kernel_i (polygon) := bp_union_polygon(kernel_row_i);
 
+	// the same ring in float64, for the three backends that take dpoint. bp_union_polygon is
+	// integer-only, so the dissolve to a Void-domain parameter goes through GEOS here.
+	attribute<dpoint> kpt_d (KPt) := point_xy(float64(kx), float64(ky), dpoint);
+	attribute<dpoint> kernel_row_d (KS, polygon) := points2polygon(kpt_d, kseq, kord);
+	parameter<dpoint> kernel_d (polygon) := geos_union_polygon(kernel_row_d);
+
+	// ---- a kernel PER ELEMENT, and a size per element ------------------------------------
+	// Same domain as the geometry rather than Void: the square gets a 10-kernel, the L a 5-kernel.
+	unit<uint32> PKPt : nrofrows = 8;
+	attribute<int32>  pkx  (PKPt) : [  10,  10, -10, -10,    5,   5,  -5,  -5 ];
+	attribute<int32>  pky  (PKPt) : [  10, -10, -10,  10,    5,  -5,  -5,   5 ];
+	attribute<G>      pkseq(PKPt) : [   0,   0,   0,   0,    1,   1,   1,   1 ];
+	attribute<uint32> pkord(PKPt) : [   0,   1,   2,   3,    0,   1,   2,   3 ];
+	attribute<ipoint> kernel_per_elem (G, polygon) := points2polygon(point_xy(pkx, pky, ipoint), pkseq, pkord);
+
+	attribute<float64> size_per_elem (G) : [ 10, 5 ];
+
 	// ---- the same square, shifted so the origin is its lower-left corner -------------------
 	// A Minkowski sum with this kernel comes out 10 units up and to the right of the centred one:
 	// the kernel is not required to contain the origin, and where it sits moves the answer.
@@ -97,6 +114,36 @@ container oper_minkowski
 		attribute<ipoint> via_kernel (G, polygon) := bp_minkowski_sum(bp_polygon(geom_i), kernel_i);
 		parameter<float64> d_kernel := sum(float64(area(bp_xor(via_kernel, named_i4hv))));
 		parameter<bool> bp_kernel_ok := d_kernel == 0.0, IntegrityCheck = "bp_kernel_ok == True";
+
+		// ---- 2b. the kernel overload on the three float64 backends -------------------------
+		// Only bp exercised the kernel argument above; these pin the other three, and pin that the
+		// kernel form and the variant form agree on each of them.
+		attribute<dpoint> bg_via_kernel   (G, polygon) := bg_minkowski_sum  (geom_d, kernel_d);
+		attribute<dpoint> geos_via_kernel (G, polygon) := geos_minkowski_sum(geom_d, kernel_d);
+		attribute<dpoint> cgal_via_kernel (G, polygon) := cgal_minkowski_sum(geom_d, kernel_d);
+
+		parameter<float64> d_bg_kernel := sum(area(geos_xor(bg_via_kernel, sum_geos)));
+		parameter<bool> bg_kernel_ok := d_bg_kernel < 0.001, IntegrityCheck = "bg_kernel_ok == True";
+
+		parameter<float64> d_geos_kernel := sum(area(geos_xor(geos_via_kernel, sum_geos)));
+		parameter<bool> geos_kernel_ok := d_geos_kernel < 0.001, IntegrityCheck = "geos_kernel_ok == True";
+
+		parameter<float64> d_cgal_kernel := sum(area(geos_xor(cgal_via_kernel, sum_geos)));
+		parameter<bool> cgal_kernel_ok := d_cgal_kernel < 0.001, IntegrityCheck = "cgal_kernel_ok == True";
+
+		// ---- 2c. a kernel per element, and a size per element ------------------------------
+		// The square grown by 10 is 120 x 120 = 14400; the L grown by 5 is
+		// [-5,65]x[-5,25] (2100) with [-5,25]x[-5,65] (2100) overlapping in [-5,25]^2 (900),
+		// so 3300. Together 17700. Both routes -- a kernel attribute and a size attribute --
+		// must produce exactly that, and each other.
+		attribute<ipoint> per_elem_kernel (G, polygon) := bp_minkowski_sum(bp_polygon(geom_i), kernel_per_elem);
+		attribute<ipoint> per_elem_size   (G, polygon) := bp_minkowski_sum(bp_polygon(geom_i), size_per_elem, '4HV');
+
+		parameter<float64> a_per_elem := sum(float64(area(per_elem_kernel)));
+		parameter<bool> per_elem_kernel_ok := a_per_elem == 17700.0, IntegrityCheck = "per_elem_kernel_ok == True";
+
+		parameter<float64> d_per_elem := sum(float64(area(bp_xor(per_elem_kernel, per_elem_size))));
+		parameter<bool> per_elem_size_ok := d_per_elem == 0.0, IntegrityCheck = "per_elem_size_ok == True";
 
 		// ---- 3. the absolute area, so a uniformly wrong answer cannot pass ------------------
 		// Square [0,100]^2 (+) [-10,10]^2 = [-10,110]^2 = 120 x 120 = 14400.

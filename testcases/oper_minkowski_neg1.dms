@@ -10,14 +10,14 @@ container oper_minkowski_neg1
 	attribute<G>      gseq (GPt) : [ 0, 0, 0, 0 ];
 	attribute<uint32> gord (GPt) : [ 0, 1, 2, 3 ];
 
-	attribute<ipoint> gpt (GPt) := point_xy(gx, gy, ipoint);
-	attribute<ipoint> geom (G, polygon) := points2polygon(gpt, gseq, gord);
+	attribute<ipoint> gpt_i (GPt) := point_xy(gx, gy, ipoint);
+	attribute<ipoint> geom (G, polygon) := points2polygon(gpt_i, gseq, gord);
 
 	container checks
 	{
 		// '5D' is not one of the six shapes; there is no 5-corner kernel.
 		attribute<ipoint> bad (G, polygon) := bp_minkowski_sum(bp_polygon(geom), float64(10), 'i5D');
-		parameter<float64> a := sum(area(bad));
+		parameter<float64> a := sum(float64(area(bad)));
 		parameter<bool> ok := a > 0.0, IntegrityCheck = "ok == True";
 	}
 }
