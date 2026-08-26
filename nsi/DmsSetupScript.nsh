@@ -44,10 +44,14 @@ Section "GeoDMS Program Folder" ;No components page, name is not important
 !ifdef GeoDmsGlobio
   ; The G output is wiped before every release build and its dependency-closure
   ; verifier rejects gdal.dll, so package its validated DLL set as one unit.
-  ; Excluded: the windeployqt extras that the curated m/c lists below also omit
-  ; (opengl32sw is the 20 MB software-OpenGL fallback, D3Dcompiler_47 its shader
-  ; compiler); without them the g setup is size-comparable to m/c again.
-  File /x opengl32sw.dll /x D3Dcompiler_47.dll ${GeoDmsBinDir}\*.dll
+  ; Excluded: the windeployqt extras that the curated m/c lists below also omit,
+  ; none of which any GeoDMS binary or deploy script asks for -- opengl32sw is the
+  ; software-OpenGL fallback and D3Dcompiler_47/dxcompiler/dxil are shader
+  ; compilers (dxcompiler + dxil are ~15 MB, opengl32sw another ~20). g stays
+  ; larger than m/c regardless, because conda's GDAL 3.1.4 drags in a much wider
+  ; driver closure than vcpkg's (tiledb, poppler, xerces-c, cfitsio, hdf, krb5,
+  ; openssl) and those ARE load-bearing.
+  File /x opengl32sw.dll /x D3Dcompiler_47.dll /x dxcompiler.dll /x dxil.dll ${GeoDmsBinDir}\*.dll
 !else
   File ${GeoDmsBinDir}\Rtc.dll
   File ${GeoDmsBinDir}\Shv.dll
