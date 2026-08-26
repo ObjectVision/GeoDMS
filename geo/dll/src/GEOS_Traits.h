@@ -29,6 +29,9 @@
 #include <geos/operation/valid/MakeValid.h>
 #include <geos/algorithm/Area.h>
 #include <geos/algorithm/locate/IndexedPointInAreaLocator.h>
+#if GEOS_VERSION_MAJOR == 3 && GEOS_VERSION_MINOR < 12
+#include <geos/algorithm/RayCrossingCounter.h>
+#endif
 #include <geos/geom/MultiPolygon.h>
 
 #include <numeric>
@@ -315,18 +318,62 @@ struct geos_nesting_result
 	bool IsClean() const { return !hadWrongWinding && !hadDegenerateRing && isValid; }
 };
 
+#if GEOS_VERSION_MAJOR == 3 && GEOS_VERSION_MINOR < 12
+// GEOS < 3.12 has no Polygon::orientRings(bool), so the rings have to be oriented BEFORE
+// the polygon is assembled. Polygon::normalize(LinearRing*, bool) is private there, hence
+// this local equivalent: reverse the ring's coordinates when its winding is not the one
+// the caller asks for.
+inline void geos_orient_ring(std::unique_ptr<geos::geom::LinearRing>& ring, bool wantCW)
+{
+	bool isCW = !geos::algorithm::Orientation::isCCW(ring->getCoordinatesRO());
+	if (isCW == wantCW)
+		return;
+	auto seq = ring->getCoordinatesRO()->clone();
+	geos::geom::CoordinateSequence::reverse(seq.get());
+	ring = geos_factory()->createLinearRing(std::move(seq));
+}
+#endif
+
+#if GEOS_VERSION_MAJOR == 3 && GEOS_VERSION_MINOR < 12
+// GEOS 3.9 does not mark IndexedPointInAreaLocator with GEOS_DLL, so its constructor is not
+// exported from geos.dll and the class cannot be used across that boundary at all. RayCrossingCounter
+// IS exported, and is the very primitive that locator counts its crossings with; the difference is
+// that it walks the ring on each query instead of indexing it once. The envelope pre-filter in
+// geos_polygons_by_nesting keeps that scan off all but the genuinely nested candidates.
+class geos_ring_locator
+{
+public:
+	geos_ring_locator(const geos::geom::LinearRing& ring) : m_Coords(ring.getCoordinatesRO()) {}
+
+	auto locate(const geos::geom::Coordinate* p) const -> geos::geom::Location
+	{
+		return geos::algorithm::RayCrossingCounter::locatePointInRing(*p, *m_Coords);
+	}
+
+private:
+	const geos::geom::CoordinateSequence* m_Coords;
+};
+#else
+using geos_ring_locator = geos::algorithm::locate::IndexedPointInAreaLocator;
+#endif
+
 // Is inner strictly inside the ring the locator was built on?
 //
 // One vertex is not enough: rings that touch their parent share vertices, and a shared vertex
 // reports BOUNDARY, which says nothing about the ring as a whole. Walk until a vertex lands
 // strictly inside or strictly outside.
 inline bool geos_ring_is_inside(const geos::geom::LinearRing& inner
-	, geos::algorithm::locate::IndexedPointInAreaLocator& outerLocator)
+	, geos_ring_locator& outerLocator)
 {
 	const auto* coords = inner.getCoordinatesRO();
 	for (std::size_t i = 0, n = coords->getSize(); i != n; ++i)
 	{
+#if GEOS_VERSION_MAJOR == 3 && GEOS_VERSION_MINOR < 12
+		// GEOS < 3.12 has no CoordinateXY and no templated getAt; locate() takes a Coordinate*.
+		auto loc = outerLocator.locate(&coords->getAt(i));
+#else
 		auto loc = outerLocator.locate(&coords->getAt<geos::geom::CoordinateXY>(i));
+#endif
 		if (loc == geos::geom::Location::INTERIOR)
 			return true;
 		if (loc == geos::geom::Location::EXTERIOR)
@@ -382,7 +429,7 @@ auto geos_polygons_by_nesting(SA_ConstReference<DmsPointType> polyRef
 	// The locators are lazy-loaded, so building one per ring costs nothing until it is queried.
 	std::vector<std::size_t> parent(nrRings, std::size_t(-1));
 	std::vector<UInt32> depth(nrRings, 0);
-	std::vector<std::unique_ptr<geos::algorithm::locate::IndexedPointInAreaLocator>> locators(nrRings);
+	std::vector<std::unique_ptr<geos_ring_locator>> locators(nrRings);
 
 	for (std::size_t oi = 0; oi != nrRings; ++oi)
 	{
@@ -395,7 +442,7 @@ auto geos_polygons_by_nesting(SA_ConstReference<DmsPointType> polyRef
 			if (!rings[c]->getEnvelopeInternal()->contains(*rEnv))
 				continue;
 			if (!locators[c])
-				locators[c] = std::make_unique<geos::algorithm::locate::IndexedPointInAreaLocator>(*rings[c]);
+				locators[c] = std::make_unique<geos_ring_locator>(*rings[c]);
 			if (geos_ring_is_inside(*rings[r], *locators[c]))
 			{
 				parent[r] = c;
@@ -431,8 +478,16 @@ auto geos_polygons_by_nesting(SA_ConstReference<DmsPointType> polyRef
 		for (auto h : holesOf[r])
 			holes.emplace_back(std::move(rings[h]));
 
+#if GEOS_VERSION_MAJOR == 3 && GEOS_VERSION_MINOR < 12
+		// GEOS_EXTERIOR_IS_CW: shell clockwise, holes counter-clockwise.
+		geos_orient_ring(rings[r], true);
+		for (auto& hole : holes)
+			geos_orient_ring(hole, false);
+		auto poly = geos_factory()->createPolygon(std::move(rings[r]), std::move(holes));
+#else
 		auto poly = geos_factory()->createPolygon(std::move(rings[r]), std::move(holes));
 		poly->orientRings(GEOS_EXTERIOR_IS_CW);
+#endif
 		polygons.emplace_back(std::move(poly));
 	}
 

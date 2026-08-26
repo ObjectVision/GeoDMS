@@ -148,6 +148,12 @@ void ResolveStartupConfig(CmdLineSetttings& cmdLineSettings);
 // the placement the user left behind.
 void SetPersistWindowGeometry(bool enable);
 
+// The status flags the user set with /S<X> or /C<X>. Recorded once, right after the command line
+// has been parsed, so that a configuration carrying its own value for one of those settings knows
+// to leave it alone: an explicit /SA must keep working on the very configurations that ship with
+// hidden items hidden.
+void SetCmdLineStatusFlagMask(UInt32 mask);
+
 class CalculationTimesWindow : public QMdiSubWindow {
 public:
     CalculationTimesWindow();

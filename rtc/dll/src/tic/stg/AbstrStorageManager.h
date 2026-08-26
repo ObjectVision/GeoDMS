@@ -436,6 +436,13 @@ SharedStr GetConfigIniFileName();
 SharedStr GetCaseDir(const TreeItem* configStore);
 TIC_CALL bool IsInMMD(const AbstrDataItem*);
 
+// Reads a setting that a configuration may carry and a user may overrule, in this order:
+// the environment variable GEODMS_Overridable_<key>; the session-local or registry override of
+// <key>, which is what the GUI's Config Options dialog writes; the string parameter
+// ConfigSettings/Overridable/<key> (or ConfigSettings/<key>) of the configuration; defaultValue.
+// Meta thread only: reading the parameter calculates it.
+TIC_CALL SharedStr GetRegConfigSetting(const TreeItem* configRoot, CharPtr key, CharPtr defaultValue);
+
 extern "C" TIC_CALL bool DMS_CONV DMS_IsConfigDirty(const TreeItem* configRoot);
 
 #endif // __ABSTRSTORAGEMANAGER_H
