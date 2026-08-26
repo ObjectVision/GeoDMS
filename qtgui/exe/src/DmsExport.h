@@ -1,6 +1,8 @@
 #include <QPointer>
 #include <QDialog>
 #include "ptr/SharedPtr.h"
+#include <map>
+#include <string>
 #include <vector>
 
 struct TreeItem;
@@ -72,6 +74,7 @@ private slots:
     void setFoldernameUsingFileDialog();
     void onComboBoxItemActivate(int index);
     void onFilenameEntryTextChanged(const QString& new_filename);
+    void rememberNativeDriverChoice(bool checked);
 
 protected:
     void showEvent(QShowEvent* event) override;
@@ -81,6 +84,9 @@ private:
     void repopulateDriverSelection();
 
     DmsExportWindow* m_export_window = nullptr;
+
+    // "Use native driver" as the user last set it, per driver, for this GUI session (#973)
+    std::map<std::string, bool> m_native_driver_choice;
 };
 
 class DmsExportWindow : public QDialog

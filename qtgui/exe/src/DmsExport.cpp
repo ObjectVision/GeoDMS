@@ -231,23 +231,51 @@ void DoExportTable(const TreeItem* ti, SharedStr fn, TreeItem* vdc)
         vdGeometry->SetExpr(adiGeometry->GetFullName());
     }
 
-    const AbstrDataItem* adi = nullptr;
-    while ((adi = DataContainer_NextItem(ti, adi, auCommon, false)))
-        if (adi != adiGeometry)
+    // the value attributes of the exported table: everything of the common domain
+    // that is not a feature attribute (a layer carries one geometry).
+    auto collectValueAttrs = [auCommon, adiGeometry](const TreeItem* src)
+    {
+        std::vector<const AbstrDataItem*> result;
+        const AbstrDataItem* adi = nullptr;
+        while ((adi = DataContainer_NextItem(src, adi, auCommon, false)))
         {
             // TODO: reproduce multi-level structure of DataContainer
-            // TODO: cleanup
-            auto value_composition = adi->GetValueComposition();
-            auto values_unit = adi->GetAbstrValuesUnit();
-            auto vci = values_unit->GetValueType()->GetValueClassID();
+            if (adi == adiGeometry)
+                continue;
+            auto vci = adi->GetAbstrValuesUnit()->GetValueType()->GetValueClassID();
             auto vc = adi->GetValueComposition();
             bool is_geometry = vc <= ValueComposition::Sequence && (vci >= ValueClassID::VT_SPoint && vci < ValueClassID::VT_FirstAfterPolygon);
-
             if (is_geometry)
                 continue;
-            auto vda = CreateDataItem(vdc, UniqueName(vdc, adi->GetID()), auCommon, values_unit, value_composition);
-            vda->SetExpr(adi->GetFullName());
+            result.emplace_back(adi);
         }
+        return result;
+    };
+
+    auto valueAttrs = collectValueAttrs(ti);
+
+    // #973: when the exported item IS the feature attribute, DataContainer_NextItem
+    // walks its own sub-tree and finds nothing but that geometry, so the export used
+    // to carry the geometry alone: an ESRI Shapefile without its .dbf, a GeoPackage
+    // layer without attribute columns. QGIS opens those, ArcGIS Pro does not. This is
+    // reached whenever the domain has no map relation, since the feature attribute is
+    // then the only item of the table that opens as a map. Take the value attributes
+    // from the table that the geometry belongs to instead: its parent, or else the
+    // domain unit -- the same two places the geometry fallbacks above already search.
+    if (valueAttrs.empty() && adiGeometry == ti)
+    {
+        auto parent = ti->GetTreeParent().get();
+        if (parent)
+            valueAttrs = collectValueAttrs(parent);
+        if (valueAttrs.empty() && auCommon != ti)
+            valueAttrs = collectValueAttrs(auCommon);
+    }
+
+    for (auto adi : valueAttrs)
+    {
+        auto vda = CreateDataItem(vdc, UniqueName(vdc, adi->GetID()), auCommon, adi->GetAbstrValuesUnit(), adi->GetValueComposition());
+        vda->SetExpr(adi->GetFullName());
+    }
 
     if (fn.empty())
         return;
@@ -277,7 +305,13 @@ static TokenID rasterID = GetTokenID("Raster");
 
 auto DoExportTableOrDatabase(const TreeItem* tableOrDatabaseItem, bool nativeFlagged, SharedStr fn, CharPtr storageTypeName, CharPtr driverName, CharPtr options) -> const TreeItem*
 {
-    bool nativeShapeFile = nativeFlagged && !stricmp(storageTypeName, "ESRI Shapefile");
+    // When the native driver is used, storageTypeName is the GeoDMS storage type
+    // (driver.nativeName, "shp"), never the GDAL driver name "ESRI Shapefile" that this
+    // used to compare against -- so nativeShapeFile was always false and the branch below
+    // dead ever since ca591b6f (2023-06-28). The container then got a single "shp" storage
+    // manager, which writes the geometry and reports "Failure during Writing" for every
+    // value attribute, leaving the shapefile without its .dbf (#973).
+    bool nativeShapeFile = nativeFlagged && !stricmp(storageTypeName, "shp");
     auto avd = GetExportsContainer(GetDefaultDesktopContainer(tableOrDatabaseItem));
     TreeItem* vdc = nullptr;
 
@@ -502,15 +536,45 @@ auto getAvailableDrivers() -> std::vector<gdal_driver_id>
     return available_drivers;
 }
 
+// The single place that decides the state of the "Use native driver" box, called both
+// when the driver changes and when the dialog is shown.
+//
+// #973: it used to be shared with showEvent, which unconditionally UNCHECKED the box, and
+// this function only ran when the driver combo actually changed index. showEvent selects
+// ESRI Shapefile for a mappable item, so the index changed -- and the box was checked --
+// only on the first opening of the dialog in a GUI session; every later opening left it
+// unchecked. Which of the two shapefile paths a modeller got therefore depended on how
+// many times they had opened the dialog. Now: native by default for a driver that has a
+// native version, and once the user ticks or unticks it for a driver, that choice holds
+// for the rest of the session.
 void ExportTab::setNativeDriverCheckbox()
 {
     auto driver = m_available_drivers.at(m_driver_selection->currentIndex());
     auto driver_has_native_version = driver.HasNativeVersion();
-    m_native_driver_checkbox->setChecked(driver_has_native_version);
+
     // #1141: GDAL cannot write sub-byte raster types (Bool/UInt2/UInt4); force the native driver.
     bool require_native = m_is_raster && driver_has_native_version
         && rasterItemRequiresNativeDriver(m_export_window->exportItem());
-    m_native_driver_checkbox->setEnabled(driver_has_native_version && !require_native);
+    bool force_native = driver_has_native_version
+        && ((driver.m_driver_characteristics & driver_characteristics::only_native_driver) || require_native);
+
+    bool checked = driver_has_native_version;
+    if (!force_native)
+    {
+        auto choice = m_native_driver_choice.find(driver.Caption());
+        if (choice != m_native_driver_choice.end())
+            checked = choice->second && driver_has_native_version;
+    }
+
+    m_native_driver_checkbox->setChecked(checked);
+    m_native_driver_checkbox->setEnabled(driver_has_native_version && !force_native);
+}
+
+void ExportTab::rememberNativeDriverChoice(bool checked)
+{
+    auto driver = m_available_drivers.at(m_driver_selection->currentIndex());
+    if (driver.HasNativeVersion())
+        m_native_driver_choice[driver.Caption()] = checked;
 }
 
 void ExportTab::repopulateDriverSelection()
@@ -609,6 +673,8 @@ ExportTab::ExportTab(bool is_raster, DmsExportWindow* exportWindow)
 
     m_native_driver_checkbox = new QCheckBox("Use native driver", this);
     connect(m_native_driver_checkbox, &QCheckBox::stateChanged, exportWindow, &DmsExportWindow::resetExportDialog);
+    // clicked, not toggled: only a tick BY THE USER is remembered for the session (#973)
+    connect(m_native_driver_checkbox, &QCheckBox::clicked, this, &ExportTab::rememberNativeDriverChoice);
     grid_layout_box->addWidget(format_label, 2, 0);
     grid_layout_box->addWidget(m_driver_selection, 2, 1);
     grid_layout_box->addWidget(m_native_driver_checkbox, 2, 2);
@@ -648,24 +714,10 @@ void ExportTab::showEvent(QShowEvent* event)
     // Qt calls this when the tab becomes visible; the TreeItem queries below
     // (GetFullFolderNameBase, GetName, isItemOrItsSubItemsMappable) can throw.
     try {
-        const auto& currDriver = m_available_drivers.at(m_driver_selection->currentIndex());
-        auto driver_has_native_version = currDriver.HasNativeVersion();
-
         auto current_item = m_export_window->exportItem();
         if (!current_item)
             return;
-        bool require_native = m_is_raster && driver_has_native_version && rasterItemRequiresNativeDriver(current_item); // #1141
 
-        m_native_driver_checkbox->setEnabled(driver_has_native_version);
-        if (driver_has_native_version && ((currDriver.m_driver_characteristics & driver_characteristics::only_native_driver) || require_native))
-        {
-            m_native_driver_checkbox->setChecked(true);
-            m_native_driver_checkbox->setEnabled(false);
-        }
-        else
-        {
-            m_native_driver_checkbox->setChecked(false);
-        }
         auto full_foldername_base = GetFullFolderNameBase(current_item);
         auto current_item_folder_name_extension = convertFullNameToFoldernameExtension(current_item);
         m_foldername_entry->setText((QString(full_foldername_base.c_str())+current_item_folder_name_extension));// +current_item_folder_name_extention));
@@ -697,6 +749,10 @@ void ExportTab::showEvent(QShowEvent* event)
             else
                 item->setEnabled(true);
         }
+
+        // after the driver index is settled, so the box does not depend on whether
+        // setCurrentIndex above happened to change it (#973)
+        setNativeDriverCheckbox();
     }
     catch (...) {
         catchAndReportException();
@@ -804,7 +860,22 @@ bool DmsExportWindow::exportImpl()
             exportInterests.emplace_back(si);
         }
 
-    auto failedItem = Tree_Update_Or_Return_Failer(exportConfig, "Export");
+    auto suspendedItem = Tree_Update_Or_Return_Failer(exportConfig, "Export");
+    const TreeItem* failedItem = suspendedItem.get();
+
+    // Tree_Update_Or_Return_Failer only reports the item it SUSPENDED on: ItemUpdateImpl
+    // returns true for an item that is already failed (rtc/dll/src/tic/TicInterface.cpp:613),
+    // so a storage that reported "Failure during Writing" left the walk empty and the export
+    // closed with "Export ready" while nothing but the geometry had been written (#973).
+    // Walk the generated config ourselves for an item that recorded a failure.
+    if (!failedItem)
+        for (auto si = exportConfig->WalkConstSubTree(nullptr); si; si = exportConfig->WalkConstSubTree(si))
+            if (si->WasFailed())
+            {
+                failedItem = si;
+                break;
+            }
+
     if (!failedItem)
         return true;
 
