@@ -4,9 +4,11 @@ Snapshot of the **14 open issues** at https://github.com/ObjectVision/GeoDMS/iss
 against GitHub on **2026-08-26**. The previous header claimed 27; sixteen issues it still classified
 had been closed and five open ones were missing, so the tables below were rebuilt from the live list
 rather than edited in place. #1215 was closed that afternoon and #1217 was filed and closed after
-it, so both are recorded below rather than in the tables. Since that audit, #1212 was closed
-(2026-08-27, recorded below) and #1219 was filed, which is not yet classified in the tables; the
-live count is therefore still 14. Grouped by implementability. Buckets:
+it, so both are recorded below rather than in the tables. Since that audit, #1212 and #1219 were
+both closed (2026-08-27, recorded below); #1219 was filed and fixed after the audit and so never
+entered the tables. Live count checked against GitHub on 2026-08-27: **13 open** — #587, #659,
+#724, #990, #1145, #1161, #1165, #1191, #1196, #1198, #1205, #1211, #1214. Note #973 has closed
+since the audit and its row below is stale. Grouped by implementability. Buckets:
 
 - **A. Low hanging fruit** — small, well-defined fixes; no design decisions needed.
 - **B. Implementable after minor design choices** — clear scope; one or two decisions to settle first.
@@ -74,7 +76,31 @@ is a two-line guard against an unpleasant failure mode for anyone invoking the s
 
 ## Recently closed (delta since 2026-07-31)
 
-### Closed on 2026-08-27 (1)
+### Closed on 2026-08-27 (2)
+
+- #1219 (`1b0f6b5c`, wiki `05537e72`) — a Debug run aborted on
+  `assert(begin[0] == beyond[-1]); // closed ?` in `geos_create_linear_ring` while reading a
+  sequence that `points2polygon` had built from *n* corner points. The precondition was never
+  needed: the function appends the first point to its own copy and ends with
+  `MG_CHECK(result->isClosed())`, which runs in Release too, so Release computed the right answer
+  all along and only Debug fell over. `remove_adjacents_and_spikes` moreover already drops a
+  closing duplicate itself (`if (last[-1] == first[0]) --last;`) before any spike handling, so
+  trimming it at the call site is one element less to copy rather than a change in behaviour —
+  which is what made replacing the assert with an explicit skip safe, in both readers as well.
+  Battery 231/231 in Debug **and** Release; the Release run matters because the skip is ordinary
+  code, unlike the assert it replaced.
+  Two false trails are worth remembering. The isolation first appeared to implicate the
+  IntegrityCheck route, because `GeoDmsRun <cfg> /item` **creates an item without calculating it** —
+  so the check was the only thing forcing any calculation and every "clean" control run had done
+  nothing at all (zero breakpoint hits). That is the #949 trap again, one level down. A five-build
+  bisect resting on that artefact was equally void; it tracked which commits happened to force a
+  calculation, and exonerated #1218, #1209 and #302 for no reason. Also noted in passing: an
+  unrelated `IsMetaThread()` assert at `AbstrDataItem.cpp:192` masks this configuration shape on
+  builds around 2026-08-12 and older, so read the assert text when bisecting in that range, not the
+  exit code. The wiki page [[points2polygon]] now states that the operator repairs nothing and what
+  to use instead.
+
+### Closed on 2026-08-27 (1, earlier)
 
 - #1212 (`6d5cf8cf`, wiki `3938ee73`, tst `17cad21`) — "geos_polygon silently mis-reads a
   uniformly counter-clockwise polygon: shell dropped, lake promoted", split off from the closed
