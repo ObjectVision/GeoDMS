@@ -432,6 +432,13 @@ UInt32 bi_graph_dijkstra::allocate(
 //									directed_dijkstra
 // *****************************************************************************
 
+// How cost accumulates along a path. Declared, not defined: the graph's cost_type supplies the
+// overload, found by ADL at the point of instantiation, so that a cost type which must not wrap
+// silently -- DiscrAlloc.cpp's shadow_price, whose maximum value doubles as a sentinel -- can make
+// accumulation overflow-checked without directed_dijkstra knowing about it. A cost type that
+// provides no overload fails to link, which is the intended reminder.
+template <typename cost_type> cost_type CheckedCostAdd(cost_type a, cost_type b);
+
 template <typename cost_type>
 struct directed_heap_elem
 {
@@ -615,7 +622,7 @@ void directed_dijkstra<DIRECTED_GRAPH>::fix_node(
 				dms_assert(!(linkCost < cost_type())); // linkCost may not have higher priority than ZERO
 				m_Heap.push_back(
 					heap_elem(
-						travelCost + linkCost,
+						CheckedCostAdd(travelCost, linkCost),
 						link
 					)
 				);

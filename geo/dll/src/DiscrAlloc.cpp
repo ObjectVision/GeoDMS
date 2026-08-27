@@ -23,6 +23,7 @@
 #include "mth/Mathlib.h"
 #include "ptr/OwningPtrSizedArray.h"
 #include "utl/StrFormat.h"
+#include "vt/CheckedCalc.h" // CheckedAdd / CheckedSub, see the checked shadow price arithmetic below
 
 #include "CheckedDomain.h"
 #include "DataArray.h"
@@ -138,8 +139,6 @@ results in:
 	Edelsbrunner, H. And Mücke, E. Simulation of simplicity: a technique to cope with degenerate cases in geometric algorithms, 4th Annual ACM Symposium on Computational Geometry (1988) 118-133.
 */
 
-#define EPSILON(x) (x)
-
 const bool DMS_DEBUG_DISCRALLOC = MG_DEBUGCODE( true ||) false;
 
 // Which argument layout an operator instantiation takes. NOTE that the last two names describe
@@ -188,7 +187,14 @@ using claim_id = UInt32;    // set of all claims, a (subset of a) partitioning o
 using facet_id = UInt32;    // set of claim substitution possibilities  
 using facet_code = UInt32;  // set of #AR * k * k, which is renumbered by m_FacetIDs to facet_id  
 
-using perturbation_type = Int32; // Simulation of Simplicity, see Edelsbrunner, 1990  
+// The Simulation-of-Simplicity perturbation term, see Edelsbrunner, 1990, and the file header.
+// It is the template parameter P throughout this file, NOT a fixed type: every operator is
+// instantiated twice, once at Int32 and once -- under the _pi64 name suffix -- at Int64. The
+// perturbation reaches i * (K-1) for i the land unit id and K the number of land use types, so
+// Int32 aliases two land units within one facet past 2^31 / (K-1) land units, which breaks
+// requirement (R1) above silently (the wrap itself is defined). See the instantiations at the
+// bottom of this file, and the checked arithmetic that reports the aliasing when it happens.
+
 using land_unit_id = claim_type; // representation of number of units allocated to one class; must correspond with claim_type  
 using partitioning_id = UInt8;
 
@@ -206,10 +212,11 @@ const land_unit_id NR_BELOW_THRESHOLD_NOTIFICATIONS = 5;
 // perturbations compose just as the epsilon algebra in the file header requires.
 //
 // Kept small and trivially copyable: it is passed by value throughout the facet queues and the
-// splitter search.
+// splitter search. That is also what the perturbation width costs: 8 bytes at P == Int32 against
+// 16 at P == Int64, on a type that claim<S, P> holds twice and that every splitter step copies.
 // -----------------------------------------------------------------------------
 
-template <typename S, typename P = perturbation_type>
+template <typename S, typename P>
 struct shadow_price : Pair<S, P>
 {
 	using base_type = Pair<S, P>;
@@ -219,11 +226,139 @@ struct shadow_price : Pair<S, P>
 	shadow_price() = default;
 };
 
-template <typename S> struct minmax_traits<shadow_price<S> > : minmax_traits< Pair<S, perturbation_type> > {};
+template <typename S, typename P> struct minmax_traits<shadow_price<S, P> > : minmax_traits< Pair<S, P> > {};
 
 
 // -----------------------------------------------------------------------------
-// claim<S>
+// Overflow-checked shadow price arithmetic
+// -----------------------------------------------------------------------------
+// Every addition and subtraction that produces a shadow price goes through the functions below,
+// and every one of them can throw. That is deliberate: an overflowed shadow price does not give a
+// slightly wrong allocation, it gives one whose optimality argument has silently stopped holding,
+// and CheckAllClaims will not necessarily notice. Since C++20 the wrap itself is defined
+// behaviour, so there is nothing for a sanitizer to catch either. See issue #1196.
+//
+// The two components overflow for different reasons and have different remedies, so the thrown
+// exception records which one it was:
+//   .first  the price, in suitability units. It drifts across scaling rounds and is bounded only
+//           by the range of the suitability values the config hands in.
+//   .second the Simulation-of-Simplicity perturbation. It reaches i * (K-1) for i a land unit id
+//           and K the number of land use types, and it is what the _pi64 operator names widen.
+// CalcResult catches this and turns it into a config-level message carrying that advice.
+//
+// What is NOT checked, and why: compare_oper::GetC, which only ORDERS land units within one facet
+// queue and is called O(n * k * log n) times. The same difference IS checked in
+// priority_heap::GetC, which is the one that turns it into a cost, so a suitability range wide
+// enough to wrap is reported the moment such a land unit reaches the top of a queue.
+// -----------------------------------------------------------------------------
+
+enum class price_component { price, perturbation };
+
+// Thrown by everything below. A type of its own, rather than a plain DmsException, so that
+// CalcResult can tell an arithmetic overflow -- for which widening the perturbation is the
+// remedy -- from any other error raised while solving.
+struct shadow_price_overflow : std::exception
+{
+	shadow_price_overflow(SharedStr why, price_component component)
+		: m_Why(why), m_Component(component)
+	{}
+
+	CharPtr what() const noexcept override { return m_Why.c_str(); }
+
+	SharedStr       m_Why;
+	price_component m_Component;
+};
+
+template <price_component C, typename T>
+T CheckedPriceComponentAdd(T a, T b)
+{
+	try {
+		return CheckedAdd<T>(a, b, false);
+	}
+	catch (const DmsException& x) {
+		throw shadow_price_overflow(x.AsErrMsg()->Why(), C);
+	}
+}
+
+template <price_component C, typename T>
+T CheckedPriceComponentSub(T a, T b)
+{
+	try {
+		return CheckedSub<T>(a, b, false);
+	}
+	catch (const DmsException& x) {
+		throw shadow_price_overflow(x.AsErrMsg()->Why(), C);
+	}
+}
+
+template <typename S> S CheckedPriceAdd(S a, S b) { return CheckedPriceComponentAdd<price_component::price>(a, b); }
+template <typename S> S CheckedPriceSub(S a, S b) { return CheckedPriceComponentSub<price_component::price>(a, b); }
+
+template <typename P> P CheckedPerturbationAdd(P a, P b) { return CheckedPriceComponentAdd<price_component::perturbation>(a, b); }
+template <typename P> P CheckedPerturbationSub(P a, P b) { return CheckedPriceComponentSub<price_component::perturbation>(a, b); }
+
+// Bring an already-formed perturbation back into P. Compiled away for P == Int64, which is what
+// makes the _pi64 operators pay nothing for this.
+template <typename P>
+P NarrowPerturbation(Int64 perturbation)
+{
+	if constexpr (sizeof(P) < sizeof(Int64))
+		if (perturbation != Int64(P(perturbation)))
+			throw shadow_price_overflow(
+				mySSPrintF("The Simulation-of-Simplicity perturbation {} does not fit in {}, so two land units"
+					" within one facet would share a perturbation and the strict ordering that the facet queues,"
+					" the termination argument and the splitter invariants rest on no longer holds"
+					, perturbation
+					, AsString(ValueWrap<P>::GetStaticClass()->GetID())
+				)
+			,	price_component::perturbation
+			);
+	return P(perturbation);
+}
+
+// i * (j - k): the perturbation delta of a transfer through facet (j, k), see SMALL PERTURBATIONS
+// in the file header. i is a land unit id (UInt32) and |j - k| < K <= 2^16, so the product always
+// fits Int64; the only question is whether it still fits P.
+template <typename P>
+P PerturbationOf(land_unit_id i, P perturbationFactor)
+{
+	return NarrowPerturbation<P>(Int64(i) * Int64(perturbationFactor));
+}
+
+template <typename S, typename P>
+shadow_price<S, P> CheckedAdd(shadow_price<S, P> a, shadow_price<S, P> b)
+{
+	return shadow_price<S, P>(CheckedPriceAdd(a.first, b.first), CheckedPerturbationAdd(a.second, b.second));
+}
+
+template <typename S, typename P>
+shadow_price<S, P> CheckedSub(shadow_price<S, P> a, shadow_price<S, P> b)
+{
+	return shadow_price<S, P>(CheckedPriceSub(a.first, b.first), CheckedPerturbationSub(a.second, b.second));
+}
+
+// The customization point directed_dijkstra (bi_graph.h) accumulates path cost with. The running
+// total of facet costs is a shadow price like any other and must not wrap either:
+// MaxValue<shadow_price<S, P> >() doubles as the "no free claim" sentinel in both splitters, so a
+// wrapped total can compare as CHEAPER than the sentinel and be taken for a real path.
+template <typename S, typename P>
+shadow_price<S, P> CheckedCostAdd(shadow_price<S, P> a, shadow_price<S, P> b)
+{
+	return CheckedAdd(a, b);
+}
+
+// Accumulate a shadow price into a wider one; used for the reporting totals in DistFromOpt.
+template <typename S, typename P, typename S2, typename P2>
+void CheckedAccumulate(shadow_price<S, P>& self, shadow_price<S2, P2> other)
+{
+	static_assert(sizeof(S) >= sizeof(S2) && sizeof(P) >= sizeof(P2)); // else the widening below truncates
+	self.first  = CheckedPriceAdd<S>(self.first, other.first);
+	self.second = CheckedPerturbationAdd<P>(self.second, other.second);
+}
+
+
+// -----------------------------------------------------------------------------
+// claim<S, P>
 // -----------------------------------------------------------------------------
 // The allocation state of one (ggType, region) pair: how many land units it currently holds, and
 // the shadow price that steers land units towards or away from it. A solution of the whole
@@ -241,7 +376,7 @@ template <typename S> struct minmax_traits<shadow_price<S> > : minmax_traits< Pa
 //                     FindMstDown / FindMstUp search for a claim with room.
 // -----------------------------------------------------------------------------
 
-template <typename S>
+template <typename S, typename P>
 struct claim 
 {
 	claim(UInt32 g, UInt32 r, const claim_range& claimRange)
@@ -256,17 +391,17 @@ struct claim
 	UInt32           m_ggTypeID, m_RegionID;
 	claim_range      m_ClaimRange;
 	claim_type       m_Count;
-	shadow_price<S>  m_ShadowPrice, m_StartPrice;
+	shadow_price<S, P>  m_ShadowPrice, m_StartPrice;
 	facet_id         m_FirstOutHeapID; // singly linked via facet array
 	facet_id         m_FirstInpHeapID; // singly linked via facet array
 
 	// A claim is at its bound either because the count says so, or because the shadow price has
 	// already moved past zero within the slack between min and max -- price and count are two
 	// views of the same saturation. Overflow/Underflow are the strict forms of AtMax/AtMin.
-	bool Overflow ()  const { return m_Count >  m_ClaimRange.second || (m_Count >  m_ClaimRange.first  && m_ShadowPrice > shadow_price<S>()); }
-	bool AtMax    ()  const { return m_Count >= m_ClaimRange.second || (m_Count >= m_ClaimRange.first  && m_ShadowPrice > shadow_price<S>()); }
-	bool Underflow()  const { return m_Count <  m_ClaimRange.first  || (m_Count <  m_ClaimRange.second && m_ShadowPrice < shadow_price<S>()); }
-	bool AtMin    ()  const { return m_Count <= m_ClaimRange.first  || (m_Count <=  m_ClaimRange.second && m_ShadowPrice < shadow_price<S>()); }
+	bool Overflow ()  const { return m_Count >  m_ClaimRange.second || (m_Count >  m_ClaimRange.first  && m_ShadowPrice > shadow_price<S, P>()); }
+	bool AtMax    ()  const { return m_Count >= m_ClaimRange.second || (m_Count >= m_ClaimRange.first  && m_ShadowPrice > shadow_price<S, P>()); }
+	bool Underflow()  const { return m_Count <  m_ClaimRange.first  || (m_Count <  m_ClaimRange.second && m_ShadowPrice < shadow_price<S, P>()); }
+	bool AtMin    ()  const { return m_Count <= m_ClaimRange.first  || (m_Count <=  m_ClaimRange.second && m_ShadowPrice < shadow_price<S, P>()); }
 
 	// IsOK() is exactly !Overflow() && !Underflow() written out: inside [min, max] a positive
 	// price is only admissible at min and a negative one only at max. The parentheses are load
@@ -276,8 +411,8 @@ struct claim
 		return 
 				m_Count >= m_ClaimRange.first 
 			&&	m_Count <= m_ClaimRange.second 
-			&& (m_ShadowPrice <= shadow_price<S>() || m_Count == m_ClaimRange.first)
-			&& (m_ShadowPrice >= shadow_price<S>() || m_Count == m_ClaimRange.second);
+			&& (m_ShadowPrice <= shadow_price<S, P>() || m_Count == m_ClaimRange.first)
+			&& (m_ShadowPrice >= shadow_price<S, P>() || m_Count == m_ClaimRange.second);
 	}
 };
 
@@ -316,21 +451,24 @@ struct claim
 //
 // Not thread-safe.
 // ============================================================================
-template <typename S>
+template <typename S, typename P>
 struct priority_heap : private my_vec_t<land_unit_id>
 {
 	// Construct a facet heap connecting source->target claim.
 	// Registers this heap in singly linked adjacency lists of both claims.
 	priority_heap(facet_id thisHeapID,
-               claim<S>* src,
-               claim<S>* dst,
+               claim<S, P>* src,
+               claim<S, P>* dst,
                const S* srcSuitMapBegin,
                const S* dstSuitMapBegin)
 		:	m_NextOutHeapID(src->m_FirstOutHeapID)
 		,	m_NextInpHeapID(dst->m_FirstInpHeapID)
 		,	m_SourceClaim(src)
 		,	m_TargetClaim(dst)
-		,	m_PerturbationFactor(src->m_ggTypeID - dst->m_ggTypeID)
+		// signed on purpose: m_ggTypeID is UInt32, so a bare src - dst is an UNSIGNED difference.
+		// It only landed on the right negative value because the result used to be narrowed to
+		// Int32; at P == Int64 the wrap survives and the tie-break direction below inverts.
+		,	m_PerturbationFactor(P(src->m_ggTypeID) - P(dst->m_ggTypeID))
 		,	m_Compare(src->m_ggTypeID > dst->m_ggTypeID, srcSuitMapBegin, dstSuitMapBegin)
 	{
 		dms_assert(m_PerturbationFactor != 0); // same ggType cannot form a facet
@@ -360,8 +498,16 @@ struct priority_heap : private my_vec_t<land_unit_id>
 		m_Compare.m_DstSuitabilityMapBegin = dstSuitMapBegin;
 	}
 
-	// Raw marginal cost S_src(i) - S_dst(i) (ignores shadow prices).
+	// Raw marginal cost S_src(i) - S_dst(i) (ignores shadow prices), overflow-checked because
+	// this is the one that becomes a cost; compare_oper::GetC below is the unchecked twin that
+	// only orders the queue. See the note on the checked arithmetic above.
 	S GetC(land_unit_id i) const
+	{
+		return CheckedPriceSub(m_Compare.m_SrcSuitabilityMapBegin[i], m_Compare.m_DstSuitabilityMapBegin[i]);
+	}
+
+	// The same difference without the check, for htp_info_t::GetLinkCostUnchecked.
+	S GetCUnchecked(land_unit_id i) const
 	{
 		return m_Compare.GetC(i);
 	}
@@ -388,6 +534,8 @@ struct priority_heap : private my_vec_t<land_unit_id>
 		{}
 
 		// Marginal cost of moving land unit i from src to dst (no shadow prices).
+		// Deliberately unchecked: this runs on the heap's hot path and only decides an ORDER.
+		// priority_heap::GetC above is the checked twin. See the note on the checked arithmetic.
 		S GetC(land_unit_id i) const
 		{
 			return m_SrcSuitabilityMapBegin[i] - m_DstSuitabilityMapBegin[i];
@@ -423,11 +571,11 @@ struct priority_heap : private my_vec_t<land_unit_id>
 	facet_id          m_NextInpHeapID;
 
 	// Sign encodes direction (src ggTypeID - dst ggTypeID); used for perturbation.
-	perturbation_type m_PerturbationFactor;
+	P                 m_PerturbationFactor;
 
 	// Owning claim pointers (not owning memory).
-	claim<S>*         m_SourceClaim;
-	claim<S>*         m_TargetClaim;
+	claim<S, P>*         m_SourceClaim;
+	claim<S, P>*         m_TargetClaim;
 };
 // ============================================================================
 // End priority_heap
@@ -875,7 +1023,7 @@ struct htp_meta_t : regions_meta_t, htp_meta_extra<S>
 };
 
 
-template <typename S, typename AR, typename AT>
+template <typename S, typename P, typename AR, typename AT>
 struct htp_info_t : regions_info_t<AR>, htp_meta_extra<S>
 {
 	using typename regions_info_t<AR>::atomic_region_id;
@@ -899,21 +1047,21 @@ struct htp_info_t : regions_info_t<AR>, htp_meta_extra<S>
 	DataWriteLock                       m_ResultPriceDataLock;
 
 	std::vector<ggType_info_t<S> >      m_ggTypes;               // 1 per ggType              (==  k )
-	std::vector<claim<S> >              m_Claims;                // 1 per claim region
+	std::vector<claim<S, P> >              m_Claims;                // 1 per claim region
 
 	std::vector<UInt32> m_PossibleAllocationPerAr2UrLink;        // 1 per #ar * P; related to links    in m_Ar2Ur
 	std::vector<UInt32> m_PossibleAllocatedPerUniqueRegion;      // 1 per #ur;     related to dstNodes in m_Ar2Ur
 
-	std::vector<priority_heap<S> >       m_Facets;                // 1 per claim to claim confrontation
+	std::vector<priority_heap<S, P> >       m_Facets;                // 1 per claim to claim confrontation
 	std::vector<facet_id>                m_FacetIds;              // 1 per ggType^2 in each atomic region (== #ar * k *k)
 
-	claim<S>& GetClaim(UInt32 ar, AT j)
+	claim<S, P>& GetClaim(UInt32 ar, AT j)
 	{ 
 		assert(ar < this->GetNrAtomicRegions());
 		ggType_info_t<S>& gg = m_ggTypes[j];
 		return m_Claims[SizeT(gg.m_FirstClaimID) + this->GetRegionID(ar, gg.m_PartitioningID)];
 	}
-	priority_heap<S>& GetHeap(atomic_region_proxy ar, AT j, AT jj)
+	priority_heap<S, P>& GetHeap(atomic_region_proxy ar, AT j, AT jj)
 	{
 		assert(ar < this->GetNrAtomicRegions() );
 		AT k = GetK();
@@ -924,12 +1072,12 @@ struct htp_info_t : regions_info_t<AR>, htp_meta_extra<S>
 	}
 	UInt32 ClaimID2UniqueRegionID(UInt32 claimID) const
 	{
-		const claim<S>& claim = m_Claims[claimID];
+		const claim<S, P>& claim = m_Claims[claimID];
 		auto p = m_ggTypes[claim.m_ggTypeID].m_PartitioningID;
 		return this->GetUniqueRegionOffset(p) + claim.m_RegionID;
 	}
 
-	SharedStr GetClaimRangeStr(const claim<S>& cl) const
+	SharedStr GetClaimRangeStr(const claim<S, P>& cl) const
 	{
 		UInt32 ggTypeID = cl.m_ggTypeID;
 
@@ -947,7 +1095,7 @@ struct htp_info_t : regions_info_t<AR>, htp_meta_extra<S>
 
 	// implement directed_graph concept for G(m_Claims, m_Facets) and let it be used by the directed_dijkstra member
 
-	typedef shadow_price<S> cost_type;
+	typedef shadow_price<S, P> cost_type;
 	UInt32 GetNrNodes()                 const { return m_Claims.size(); }
 	UInt32 GetNrLinks()                 const { return m_Facets.size(); }
 	UInt32 GetK()                       const { return m_ggTypes.size(); }
@@ -961,8 +1109,22 @@ struct htp_info_t : regions_info_t<AR>, htp_meta_extra<S>
 	UInt32 GetDstNode  (UInt32 heapID, dir_backward_tag)  const { return GetSrcNode(heapID, dir_forward_tag()); }
 	UInt32 GetSrcNode  (UInt32 heapID, dir_backward_tag)  const { return GetDstNode(heapID, dir_forward_tag()); }
 
-	shadow_price<S> GetLinkCost (UInt32 heapID)  const;
-	bool            CheckLink   (UInt32 facetID) const;
+	// The cost of taking this facet: its raw marginal cost plus the price difference of the two
+	// claims it connects, as a shadow price.
+	//
+	// Two spellings of the same value. GetLinkCost is overflow-checked and is what the algorithm
+	// runs on; GetLinkCostUnchecked omits the checks and is what the dms_assert expressions use,
+	// including through CheckLink -- every call of which is an assertion. An assertion must not be
+	// able to throw: that would let a Debug build take a path a Release build never takes, and
+	// formatting the error allocates, which the DebugOnlyLock that dms_assert wraps its expression
+	// in rightly refuses. Nothing is lost by it: every value an assertion inspects here is also
+	// computed, and checked, by the algorithm itself.
+	template <bool checked>
+	shadow_price<S, P> GetLinkCostImpl(UInt32 heapID) const;
+
+	shadow_price<S, P> GetLinkCost         (UInt32 heapID)  const { return GetLinkCostImpl<true >(heapID); }
+	shadow_price<S, P> GetLinkCostUnchecked(UInt32 heapID)  const { return GetLinkCostImpl<false>(heapID); }
+	bool               CheckLink           (UInt32 facetID) const;
 
 	// ========== more data members
 	directed_dijkstra<htp_info_t> m_TreeBuilder;
@@ -975,7 +1137,7 @@ struct htp_info_t : regions_info_t<AR>, htp_meta_extra<S>
 #endif
 };
 
-template <typename S, typename AR, typename AT>
+template <typename S, typename P, typename AR, typename AT>
 struct htp_calc_t //: regions_info_t<AR>
 {
 };
@@ -1009,15 +1171,16 @@ const bi_graph& GetAr2UrBiGraph(const regions_info_t<AR>* self)
 //									Facet related funcs
 // *****************************************************************************
 
-template <typename S, typename AR, typename AT>
-shadow_price<S> htp_info_t<S, AR, AT>::GetLinkCost(UInt32 facetID) const
+template <typename S, typename P, typename AR, typename AT>
+template <bool checked>
+shadow_price<S, P> htp_info_t<S, P, AR, AT>::GetLinkCostImpl(UInt32 facetID) const
 {
 	dms_assert(facetID < GetNrLinks()); 
 
-	priority_heap<S>& ph = const_cast<htp_info_t*>(this)->m_Facets[facetID];  // contains q(a,b), with a=src && b=target of move option
+	priority_heap<S, P>& ph = const_cast<htp_info_t*>(this)->m_Facets[facetID];  // contains q(a,b), with a=src && b=target of move option
 
 	if (ph.empty())
-		return MAX_VALUE(shadow_price<S>);
+		return MaxValue<shadow_price<S, P> >();
 
 	UInt32 topI = ph.top();
 	dms_assert(m_ResultArray[topI] == ph.m_SourceClaim->m_ggTypeID);
@@ -1027,27 +1190,36 @@ shadow_price<S> htp_info_t<S, AR, AT>::GetLinkCost(UInt32 facetID) const
 	// and Epsilon(a) - Epsilon(b), the delta-Epsilon of a transfer though this facet 
 	// corresponds with  p(i)*(Ja - Jb) == p(i) * perturbationfactor(a,b)
 
-	shadow_price<S> cost(
-		ph.GetC(topI),
-		EPSILON(topI * ph.m_PerturbationFactor) 
-	);
+	shadow_price<S, P> cost = checked
+		? shadow_price<S, P>(ph.GetC         (topI), PerturbationOf<P>(topI, ph.m_PerturbationFactor))
+		: shadow_price<S, P>(ph.GetCUnchecked(topI), P(Int64(topI) * Int64(ph.m_PerturbationFactor)));
 
-	dms_assert(cost + ph.m_SourceClaim->m_ShadowPrice >= ph.m_TargetClaim->m_ShadowPrice);
+	// only in the checked instantiation: the unchecked one deliberately lets the arithmetic wrap,
+	// and these invariants say nothing about wrapped values.
+	if constexpr (checked)
+		dms_assert(cost + ph.m_SourceClaim->m_ShadowPrice >= ph.m_TargetClaim->m_ShadowPrice);
 
 	// -(Qa - Qb).
-	cost +=
-		(	ph.m_SourceClaim->m_ShadowPrice	// Ga
-		-	ph.m_TargetClaim->m_ShadowPrice	// Gb
+	if constexpr (checked)
+		cost = CheckedAdd(cost,
+			CheckedSub(
+				ph.m_SourceClaim->m_ShadowPrice	// Ga
+			,	ph.m_TargetClaim->m_ShadowPrice	// Gb
+			)
 		);
+	else
+		cost += (ph.m_SourceClaim->m_ShadowPrice - ph.m_TargetClaim->m_ShadowPrice);
 
-	dms_assert(cost >= shadow_price<S>());
+	if constexpr (checked)
+		dms_assert(cost >= cost_type());
 	return cost;
 }
 
-template <typename S, typename AR, typename AT>
-bool htp_info_t<S, AR, AT>::CheckLink(UInt32 facetID) const
+template <typename S, typename P, typename AR, typename AT>
+bool htp_info_t<S, P, AR, AT>::CheckLink(UInt32 facetID) const
 {
-	return GetLinkCost(facetID) < MAX_VALUE(shadow_price<S>); // if not; link may not be taken
+	// unchecked: every call of CheckLink is inside an assertion, see GetLinkCostUnchecked
+	return GetLinkCostUnchecked(facetID) < MaxValue<shadow_price<S, P> >(); // if not; link may not be taken
 }
 
 // *****************************************************************************
@@ -1333,8 +1505,8 @@ bool IsFeasible(
 	return ok;
 }
 
-template <typename S, typename AR, typename AT>
-bool FeasibilityTest(const htp_info_t<S, AR, AT>& htpInfo, SharedStr& strStatus)
+template <typename S, typename P, typename AR, typename AT>
+bool FeasibilityTest(const htp_info_t<S, P, AR, AT>& htpInfo, SharedStr& strStatus)
 {
 	UInt32 nrAtomicRegions = htpInfo.GetNrAtomicRegions();
 	UInt32 nrUniqueRegions = htpInfo.GetNrUniqueRegions();
@@ -1388,8 +1560,8 @@ bool FeasibilityTest(const htp_info_t<S, AR, AT>& htpInfo, SharedStr& strStatus)
 	assert(aggrMaxClaims.size()         == gr.GetNrDstNodes(dir_forward_tag()));
 
 	std::vector<UInt32>  srcAllocated(nrAtomicRegions, 0);
-	std::vector<UInt32>& allocatedPerLink = const_cast<htp_info_t<S, AR, AT>&>(htpInfo).m_PossibleAllocationPerAr2UrLink;
-	std::vector<UInt32>& dstAllocated     = const_cast<htp_info_t<S, AR, AT>&>(htpInfo).m_PossibleAllocatedPerUniqueRegion;
+	std::vector<UInt32>& allocatedPerLink = const_cast<htp_info_t<S, P, AR, AT>&>(htpInfo).m_PossibleAllocationPerAr2UrLink;
+	std::vector<UInt32>& dstAllocated     = const_cast<htp_info_t<S, P, AR, AT>&>(htpInfo).m_PossibleAllocatedPerUniqueRegion;
 
 	vector_zero_n(allocatedPerLink, gr.GetNrLinks());
 	vector_zero_n(dstAllocated,     nrUniqueRegions);
@@ -1708,8 +1880,8 @@ void CreateResultingItems(
 //									Prepare
 // *****************************************************************************
 
-template <typename S, typename AR, typename AT>
-void PrepareClaims(htp_info_t<S, AR, AT>& htpInfo)
+template <typename S, typename P, typename AR, typename AT>
+void PrepareClaims(htp_info_t<S, P, AR, AT>& htpInfo)
 {
 	UInt32 K = htpInfo.GetK();
 
@@ -1752,7 +1924,7 @@ void PrepareClaims(htp_info_t<S, AR, AT>& htpInfo)
 		for (UInt32 r = 0; r != gg.m_NrClaims; ++r)
 		{
 			htpInfo.m_Claims.push_back(
-				claim<S>(
+				claim<S, P>(
 					j, r,
 					claim_range(
 						const_array_cast<claim_type>(minClaimsDI)->GetIndexedValue(r),
@@ -1765,8 +1937,8 @@ void PrepareClaims(htp_info_t<S, AR, AT>& htpInfo)
 	dms_assert(htpInfo.m_Claims.size() == nrClaims);
 }
 
-template <typename S, typename AR, typename AT>
-void PreparePartitionings(htp_info_t<S, AR, AT>& htpInfo, const AbstrUnit* allocUnit, const AbstrDataItem* atomicRegionMapA, const Unit<AR>* atomicRegionUnit)
+template <typename S, typename P, typename AR, typename AT>
+void PreparePartitionings(htp_info_t<S, P, AR, AT>& htpInfo, const AbstrUnit* allocUnit, const AbstrDataItem* atomicRegionMapA, const Unit<AR>* atomicRegionUnit)
 {
 	assert(allocUnit);
 	assert((atomicRegionMapA ==nullptr)==(atomicRegionUnit == nullptr));
@@ -1841,8 +2013,8 @@ void PreparePartitionings(htp_info_t<S, AR, AT>& htpInfo, const AbstrUnit* alloc
 	htpInfo.m_N = n;
 }
 
-template <typename S, typename AR, typename AT>
-void DataReadLockSuitabilities(htp_info_t<S, AR, AT>& htpInfo)
+template <typename S, typename P, typename AR, typename AT>
+void DataReadLockSuitabilities(htp_info_t<S, P, AR, AT>& htpInfo)
 {
 	UInt32 K = htpInfo.GetK();
 
@@ -1858,8 +2030,8 @@ void DataReadLockSuitabilities(htp_info_t<S, AR, AT>& htpInfo)
 	}
 }
 
-template <typename S, typename AR, typename AT>
-void PrepareResultTileLock(htp_info_t<S, AR, AT>& htpInfo, bool initUndefined)
+template <typename S, typename P, typename AR, typename AT>
+void PrepareResultTileLock(htp_info_t<S, P, AR, AT>& htpInfo, bool initUndefined)
 {
 	htpInfo.m_ResultArray = mutable_array_cast<AT>(htpInfo.m_ResultDataLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
 
@@ -1867,8 +2039,8 @@ void PrepareResultTileLock(htp_info_t<S, AR, AT>& htpInfo, bool initUndefined)
 		fast_fill(htpInfo.m_ResultArray.begin(), htpInfo.m_ResultArray.end(), UNDEFINED_VALUE(AT));
 }
 
-template <typename S, typename AR, typename AT>
-void PrepareTileLock(htp_info_t<S, AR, AT>& htpInfo)
+template <typename S, typename P, typename AR, typename AT>
+void PrepareTileLock(htp_info_t<S, P, AR, AT>& htpInfo)
 {
 	if constexpr (!std::is_same_v<AR, Void>)
 	{
@@ -1900,18 +2072,18 @@ void PrepareTileLock(htp_info_t<S, AR, AT>& htpInfo)
 		);
 	}
 
-	PrepareResultTileLock<S, AR>(htpInfo, false);
+	PrepareResultTileLock<S, P, AR>(htpInfo, false);
 }
 
-template <typename S, typename AR, typename AT>
-void PrepareFacets(htp_info_t<S, AR, AT>& htpInfo)
+template <typename S, typename P, typename AR, typename AT>
+void PrepareFacets(htp_info_t<S, P, AR, AT>& htpInfo)
 {
 	UInt32 K = htpInfo.GetK();
 	UInt32 nrAtomicRegions = htpInfo.GetNrAtomicRegions();
 
 	htpInfo.m_FacetIds.reserve(SizeT(nrAtomicRegions) * K * K);
 
-	typedef std::pair<claim<S>*, claim<S>*> claim_pair;
+	typedef std::pair<claim<S, P>*, claim<S, P>*> claim_pair;
 
 	std::map<claim_pair, UInt32> allocatedQueIds;
 
@@ -1919,21 +2091,21 @@ void PrepareFacets(htp_info_t<S, AR, AT>& htpInfo)
 	{
 		for (UInt32 j=0; j !=K; ++j)
 		{
-			claim<S>* claimJ = &htpInfo.GetClaim(ar, j);
+			claim<S, P>* claimJ = &htpInfo.GetClaim(ar, j);
 			for (UInt32 jj=0; jj!=K; ++jj) 
 			{
 				if (jj == j)
 					htpInfo.m_FacetIds.push_back(-1); // ease of admin
 				else
 				{
-					claim<S>* claimJJ = &htpInfo.GetClaim(ar, jj);
+					claim<S, P>* claimJJ = &htpInfo.GetClaim(ar, jj);
 					claim_pair claimPair(claimJ, claimJJ);
 					if (allocatedQueIds.find(claimPair) == allocatedQueIds.end())
 					{
 						UInt32 heapID = htpInfo.m_Facets.size();
 						allocatedQueIds[claimPair] = heapID;
 						htpInfo.m_Facets.push_back(
-							priority_heap<S>(
+							priority_heap<S, P>(
 								heapID, 
 								claimJ, claimJJ, 
 								htpInfo.m_ggTypes[ j].m_Suitabilities.begin(), 
@@ -1950,8 +2122,8 @@ void PrepareFacets(htp_info_t<S, AR, AT>& htpInfo)
 	// it lived in PrepareReport until the greedy/needy regimes started skipping PrepareFacets altogether.
 }
 
-template <typename S, typename AR, typename AT>
-void PrepareReport(htp_info_t<S, AR, AT>& htpInfo)
+template <typename S, typename P, typename AR, typename AT>
+void PrepareReport(htp_info_t<S, P, AR, AT>& htpInfo)
 {
 	reportF(SeverityTypeID::ST_MajorTrace, "DiscrAlloc: Prepare created alloc structs for "
 		"{} cells, {} landuse types, {} (min-max) claims, {} unique partitionings, "
@@ -1970,16 +2142,16 @@ void PrepareReport(htp_info_t<S, AR, AT>& htpInfo)
 //									Update
 // *****************************************************************************
 
-template <typename S, typename AR, typename AT>
-void RemoveLoserInResultAndCleanupQueues(htp_info_t<S, AR, AT>& htpInfo
-	,	typename htp_info_t<S, AR, AT>::atomic_region_proxy ar
+template <typename S, typename P, typename AR, typename AT>
+void RemoveLoserInResultAndCleanupQueues(htp_info_t<S, P, AR, AT>& htpInfo
+	,	typename htp_info_t<S, P, AR, AT>::atomic_region_proxy ar
 	,	land_unit_id i
 	,	AT losing_ggTypeID)
 {
 	UInt32 K = htpInfo.m_ggTypes.size();
 	for (UInt32 j=0; j!=K; ++j) if (j != losing_ggTypeID)
 	{
-		priority_heap<S>& ph = htpInfo.GetHeap(ar, losing_ggTypeID, j);
+		priority_heap<S, P>& ph = htpInfo.GetHeap(ar, losing_ggTypeID, j);
 
 		if (!ph.empty() && ph.top() == i)
 		{
@@ -2005,10 +2177,10 @@ void RemoveLoserInResultAndCleanupQueues(htp_info_t<S, AR, AT>& htpInfo
 }
 
 // insert highestBidder into solution and queues
-template <typename S, typename AR, typename AT>
+template <typename S, typename P, typename AR, typename AT>
 void InsertWinnerInResultAndReallocQueues(
-	htp_info_t<S, AR, AT>& htpInfo
-,	typename htp_info_t<S, AR, AT>::atomic_region_proxy ar
+	htp_info_t<S, P, AR, AT>& htpInfo
+,	typename htp_info_t<S, P, AR, AT>::atomic_region_proxy ar
 ,	land_unit_id i
 ,	AT winning_ggTypeID)
 {
@@ -2026,16 +2198,16 @@ void InsertWinnerInResultAndReallocQueues(
 		S s = htpInfo.m_ggTypes[j].m_Suitabilities[i];
 		if (s < htpInfo.m_Threshold) continue;
 
-		priority_heap<S>& ph = htpInfo.GetHeap(ar, winning_ggTypeID, j);
+		priority_heap<S, P>& ph = htpInfo.GetHeap(ar, winning_ggTypeID, j);
 
 		UInt32 popNode = ph.m_TargetClaim - begin_ptr( htpInfo.m_Claims );
 		dms_assert( currNode == ph.m_SourceClaim - begin_ptr( htpInfo.m_Claims ) );
 
 #if defined(MG_DEBUG) // DEBUG
 		if( ph.m_SourceClaim->m_ShadowPrice // Ga
-			+	shadow_price<S>(
-					htpInfo.m_ggTypes[winning_ggTypeID].m_Suitabilities[i] - htpInfo.m_ggTypes[j].m_Suitabilities[i], 
-					i * ph.m_PerturbationFactor
+			+	shadow_price<S, P>(
+					htpInfo.m_ggTypes[winning_ggTypeID].m_Suitabilities[i] - htpInfo.m_ggTypes[j].m_Suitabilities[i],
+					PerturbationOf<P>(i, ph.m_PerturbationFactor)
 				)                                  // -(Qa - Qb)
 			<	ph.m_TargetClaim->m_ShadowPrice)   // Gb
 		{
@@ -2097,11 +2269,11 @@ void InsertWinnerInResultAndReallocQueues(
 // - all points i are allocated to the claim j with the corrected maximum ( Sij + shadowprice(j) )
 // *****************************************************************************
 
-template <typename S, typename AR, typename AT>
+template <typename S, typename P, typename AR, typename AT>
 UInt32 FindMstDown(
-	htp_info_t<S, AR, AT>&                     htpInfo, 
+	htp_info_t<S, P, AR, AT>&                     htpInfo, 
 	UInt32                                     rootClaimID,
-	typename htp_info_t<S, AR, AT>::cost_type& minLinkCost //cost until dst of (free)link; thus including GetLinkCost(currLink)
+	typename htp_info_t<S, P, AR, AT>::cost_type& minLinkCost //cost until dst of (free)link; thus including GetLinkCost(currLink)
 )
 {
 	DBG_START("DiscrAlloc", "FindMstDown", DMS_DEBUG_DISCRALLOC);
@@ -2129,13 +2301,13 @@ UInt32 FindMstDown(
 			return UNDEFINED_VALUE(UInt32); // no free claim found
 		}
 
-		const directed_heap_elem<typename htp_info_t<S, AR, AT>::cost_type>& currElem = htpInfo.m_TreeBuilder.top(); 
+		const directed_heap_elem<typename htp_info_t<S, P, AR, AT>::cost_type>& currElem = htpInfo.m_TreeBuilder.top(); 
 
 		UInt32 currLink = currElem.Link();
 		auto   linkCost = currElem.Cost(); //cost until dst of link; thus including GetLinkCost(currLink)
 		DBG_TRACE(( "currLink {} with linkCost {}", currLink, AsString(linkCost).c_str() ));
 
-		const claim<S>* targetClaim = htpInfo.m_Facets[currLink].m_TargetClaim;
+		const claim<S, P>* targetClaim = htpInfo.m_Facets[currLink].m_TargetClaim;
 
 		bool atMax = targetClaim->AtMax();
 		if (atMax && targetClaim->m_Count < targetClaim->m_ClaimRange.second)
@@ -2194,13 +2366,14 @@ UInt32 FindMstDown(
 	}
 }
 
-template <typename S, typename AR, typename AT>
+template <typename S, typename P, typename AR, typename AT>
 UInt32 FindMstUp(
-	htp_info_t<S, AR, AT>&                     htpInfo, 
+	htp_info_t<S, P, AR, AT>&                     htpInfo, 
 	UInt32                                     rootClaimID,
-	typename htp_info_t<S, AR, AT>::cost_type& minLinkCost //cost until dst of (free)link; thus including GetLinkCost(currLink)
+	typename htp_info_t<S, P, AR, AT>::cost_type& minLinkCost //cost until dst of (free)link; thus including GetLinkCost(currLink)
 )
 {
+	using price_type = shadow_price<S, P>; // comma-free spelling: dms_assert is a macro, so a bare shadow_price<S, P>() would split its arguments
 	DBG_START("DiscrAlloc", "FindMstUp", DMS_DEBUG_DISCRALLOC);
 
 	UInt32 minLink = UNDEFINED_VALUE(UInt32); // corresponds with given minLinkCost if not INF.
@@ -2226,18 +2399,18 @@ UInt32 FindMstUp(
 			return UNDEFINED_VALUE(UInt32); // no free claim found
 		}
 
-		const directed_heap_elem<typename htp_info_t<S, AR, AT>::cost_type>& currElem = htpInfo.m_TreeBuilder.top(); 
+		const directed_heap_elem<typename htp_info_t<S, P, AR, AT>::cost_type>& currElem = htpInfo.m_TreeBuilder.top(); 
 
 		UInt32 currLink = currElem.Link();
 		auto   linkCost = currElem.Cost(); //cost until dst of link; thus including GetLinkCost(currLink)
 		DBG_TRACE(( "currLink {} with linkCost {}", currLink, AsString(linkCost).c_str() ));
 
-		const claim<S>* sourceClaim = htpInfo.m_Facets[currLink].m_SourceClaim;
+		const claim<S, P>* sourceClaim = htpInfo.m_Facets[currLink].m_SourceClaim;
 
 		bool atMin = sourceClaim->AtMin();
 		if (atMin && sourceClaim->m_Count > sourceClaim->m_ClaimRange.first)
 		{
-			dms_assert(sourceClaim->m_ShadowPrice < shadow_price<S>()); // else it wouldnt be AtMin
+			dms_assert(sourceClaim->m_ShadowPrice < price_type()); // else it wouldnt be AtMin
 			if (linkCost - sourceClaim->m_ShadowPrice < minLinkCost)
 			{
 				minLinkCost = linkCost - sourceClaim->m_ShadowPrice;
@@ -2294,9 +2467,10 @@ UInt32 FindMstUp(
 	}
 }
 
-template <typename S, typename AR, typename AT>
-bool UpdateSplitterDown(htp_info_t<S, AR, AT>& htpInfo, claim<S>& root)
+template <typename S, typename P, typename AR, typename AT>
+bool UpdateSplitterDown(htp_info_t<S, P, AR, AT>& htpInfo, claim<S, P>& root)
 {
+	using price_type = shadow_price<S, P>; // comma-free spelling: dms_assert is a macro, so a bare shadow_price<S, P>() would split its arguments
 	DBG_START("DiscrAllocCells", "UpdateSplitterDown", DMS_DEBUG_DISCRALLOC);
 
 	// make shortest path tree (dijstra) with claims as vertices and priority heaps as edges
@@ -2311,24 +2485,24 @@ bool UpdateSplitterDown(htp_info_t<S, AR, AT>& htpInfo, claim<S>& root)
 	));
 
 
-	typename htp_info_t<S, AR, AT>::cost_type freeClaimCost = MAX_VALUE(shadow_price<S>); //cost until dst of (free)link;
+	price_type freeClaimCost = MaxValue<price_type>(); //cost until dst of (free)link;
 	if (root.m_Count <= root.m_ClaimRange.second) // Overflow created by going over min with positive price
 	{
 		dms_assert(root.m_Count -1 == root.m_ClaimRange.first);
-		dms_assert(root.m_ShadowPrice > shadow_price<S>());
+		dms_assert(root.m_ShadowPrice > price_type());
 		freeClaimCost = root.m_ShadowPrice;
 		DBG_TRACE( ("SrcClaim is over lowerbound with positive price reduction possible") );
 	}
 
 	UInt32 freeLink = FindMstDown(htpInfo, rootClaimID, freeClaimCost);
 
-	if (freeClaimCost == MAX_VALUE(shadow_price<S>))
+	if (freeClaimCost == MaxValue<price_type>())
 		return false;
 
 	DBG_TRACE(("FindMstDown returned FreeLink {} at cost {}", freeLink, AsString(freeClaimCost).c_str() ));
 	// adjust G such that transport from root to nearest free claim becomes a free lunch
 
-	root.m_ShadowPrice -= freeClaimCost;
+	root.m_ShadowPrice = CheckedSub(root.m_ShadowPrice, freeClaimCost);
 
 	// adjust G on whole MST (including dead ends) in ClaimIdList order (from root) 
 	// to prevent unadministered facet crossings
@@ -2337,26 +2511,24 @@ bool UpdateSplitterDown(htp_info_t<S, AR, AT>& htpInfo, claim<S>& root)
 
 	for (auto claimIdPtr = htpInfo.m_ClaimIdList.begin(), claimIdEnd = htpInfo.m_ClaimIdList.end(); claimIdPtr != claimIdEnd; ++claimIdPtr)
 	{
-		const directed_heap_elem<shadow_price<S> >& traceBack = 
+		const directed_heap_elem<shadow_price<S, P> >& traceBack = 
 			htpInfo.m_TreeBuilder.get_traceback(*claimIdPtr);
 
-		priority_heap<S>& ph = htpInfo.m_Facets[traceBack.Link()];
+		priority_heap<S, P>& ph = htpInfo.m_Facets[traceBack.Link()];
 
 		UInt32 i = ph.top();
 		S      c = ph.GetC(i);
+		shadow_price<S, P> transferCost(c, PerturbationOf<P>(i, ph.m_PerturbationFactor));
 
 		// this heap was visited and cleaned since last reallocation
 		dms_assert(htpInfo.m_ResultArray[i] == ph.m_SourceClaim->m_ggTypeID);
 
 		dms_assert( ph.m_TargetClaim->m_ShadowPrice
-			>=	ph.m_SourceClaim->m_ShadowPrice
-			+	shadow_price<S>(c, EPSILON(i * ph.m_PerturbationFactor) ) );
+			>=	ph.m_SourceClaim->m_ShadowPrice + transferCost );
 
-		ph.m_TargetClaim->m_ShadowPrice
-			=	ph.m_SourceClaim->m_ShadowPrice
-			+	shadow_price<S>(c, EPSILON(i * ph.m_PerturbationFactor) );
+		ph.m_TargetClaim->m_ShadowPrice = CheckedAdd(ph.m_SourceClaim->m_ShadowPrice, transferCost);
 
-		dms_assert(htpInfo.GetLinkCost( traceBack.Link() ) == shadow_price<S>()); 
+		dms_assert(htpInfo.GetLinkCostUnchecked( traceBack.Link() ) == price_type()); 
 	}
 	
 #if defined(MG_DEBUG) // DEBUG BEGIN: check that all claimIds are still valid 
@@ -2372,7 +2544,7 @@ bool UpdateSplitterDown(htp_info_t<S, AR, AT>& htpInfo, claim<S>& root)
 	while (IsDefined(freeLink))
 	{
 		// remove (c,i) from ph and add in the reverse queues
-		priority_heap<S>& ph = htpInfo.m_Facets[freeLink];
+		priority_heap<S, P>& ph = htpInfo.m_Facets[freeLink];
 		land_unit_id i = ph.top(); 
 		DBG_TRACE(
 			(	"Relax Facet {}: ({}, {})->({}, {}) with cell {}", 
@@ -2402,7 +2574,7 @@ bool UpdateSplitterDown(htp_info_t<S, AR, AT>& htpInfo, claim<S>& root)
 
 		// curr  forms a path through the adjusted MST indicated by ClaimList
 		// We checked that freeLink is in ClaimList AND that each ClaimList elem guarantees the following
-		dms_assert(htpInfo.GetLinkCost(freeLink) == shadow_price<S>()); 
+		dms_assert(htpInfo.GetLinkCostUnchecked(freeLink) == price_type()); 
 
 
 		dms_assert(htpInfo.m_ResultArray[i] == ph.m_SourceClaim->m_ggTypeID);
@@ -2412,8 +2584,8 @@ bool UpdateSplitterDown(htp_info_t<S, AR, AT>& htpInfo, claim<S>& root)
 
 		assert(htpInfo.m_ResultArray[i] == ggTypeIdSrc); ph.m_SourceClaim->m_Count--;
 		auto ar = htpInfo.GetAtomicRegionID(i);
-		RemoveLoserInResultAndCleanupQueues <S, AR, AT>(htpInfo, ar, i, ggTypeIdSrc);
-		InsertWinnerInResultAndReallocQueues<S, AR, AT>(htpInfo, ar, i, ggTypeIdDst);
+		RemoveLoserInResultAndCleanupQueues <S, P, AR, AT>(htpInfo, ar, i, ggTypeIdSrc);
+		InsertWinnerInResultAndReallocQueues<S, P, AR, AT>(htpInfo, ar, i, ggTypeIdDst);
 		assert(htpInfo.m_ResultArray[i] == ggTypeIdDst); ph.m_TargetClaim->m_Count++;
 		
 #if defined(MG_DEBUG)
@@ -2440,9 +2612,10 @@ bool UpdateSplitterDown(htp_info_t<S, AR, AT>& htpInfo, claim<S>& root)
 	return true;
 }
 
-template <typename S, typename AR, typename AT>
-bool UpdateSplitterUp(htp_info_t<S, AR, AT>& htpInfo, claim<S>& root)
+template <typename S, typename P, typename AR, typename AT>
+bool UpdateSplitterUp(htp_info_t<S, P, AR, AT>& htpInfo, claim<S, P>& root)
 {
+	using price_type = shadow_price<S, P>; // comma-free spelling: dms_assert is a macro, so a bare shadow_price<S, P>() would split its arguments
 	DBG_START("DiscrAllocMinClaims", "UpdateSplitterUp", DMS_DEBUG_DISCRALLOC);
 
 	// make shortest path tree (dijstra) with claims as vertices and priority heaps as edges
@@ -2456,23 +2629,23 @@ bool UpdateSplitterUp(htp_info_t<S, AR, AT>& htpInfo, claim<S>& root)
 	));
 
 
-	typename htp_info_t<S, AR, AT>::cost_type freeClaimCost = MAX_VALUE(shadow_price<S>); //cost until dst of (free)link;
+	price_type freeClaimCost = MaxValue<price_type>(); //cost until dst of (free)link;
 	if (root.m_Count >= root.m_ClaimRange.first) // Underflow created by going over min with negative price
 	{
-		dms_assert(root.m_ShadowPrice < shadow_price<S>());
-		freeClaimCost = - root.m_ShadowPrice;
+		dms_assert(root.m_ShadowPrice < price_type());
+		freeClaimCost = CheckedSub(price_type(), root.m_ShadowPrice);
 		DBG_TRACE( ("SrcClaim is over lowerbound with positive price reduction possible") );
 	}
 
 	UInt32 freeLink = FindMstUp(htpInfo, rootClaimID, freeClaimCost);
 
-	if (freeClaimCost == MAX_VALUE(shadow_price<S>))
+	if (freeClaimCost == MaxValue<price_type>())
 		return false;
 
 	DBG_TRACE(("FindMstUp returned FreeLink {} at cost {}", freeLink, AsString(freeClaimCost).c_str() ));
 	// adjust G such that transport from root to nearest free claim becomes a free lunch
 
-	root.m_ShadowPrice += freeClaimCost;
+	root.m_ShadowPrice = CheckedAdd(root.m_ShadowPrice, freeClaimCost);
 
 	// adjust G on whole MST (including dead ends) in ClaimIdList order (from root) 
 	// to prevent unadministered facet crossings
@@ -2484,26 +2657,24 @@ bool UpdateSplitterUp(htp_info_t<S, AR, AT>& htpInfo, claim<S>& root)
 		claimIdEnd = htpInfo.m_ClaimIdList.end();
 	while (claimIdPtr != claimIdEnd)
 	{
-		const directed_heap_elem<shadow_price<S> >& traceBack = 
+		const directed_heap_elem<shadow_price<S, P> >& traceBack = 
 			htpInfo.m_TreeBuilder.get_traceback(*claimIdPtr++);
 
-		priority_heap<S>& ph = htpInfo.m_Facets[traceBack.Link()];
+		priority_heap<S, P>& ph = htpInfo.m_Facets[traceBack.Link()];
 
 		UInt32            i  = ph.top();
 		S                 c  = ph.GetC(i);
+		shadow_price<S, P> transferCost(c, PerturbationOf<P>(i, ph.m_PerturbationFactor));
 
 		// this heap was visited and cleaned since last reallocation
 		dms_assert(htpInfo.m_ResultArray[i] == ph.m_SourceClaim->m_ggTypeID);
 
 		dms_assert( ph.m_TargetClaim->m_ShadowPrice
-			>=	ph.m_SourceClaim->m_ShadowPrice
-			+	shadow_price<S>(c, EPSILON(i * ph.m_PerturbationFactor) ) );
+			>=	ph.m_SourceClaim->m_ShadowPrice + transferCost );
 
-		ph.m_SourceClaim->m_ShadowPrice
-			=	ph.m_TargetClaim->m_ShadowPrice
-			-	shadow_price<S>(c, EPSILON(i * ph.m_PerturbationFactor) );
+		ph.m_SourceClaim->m_ShadowPrice = CheckedSub(ph.m_TargetClaim->m_ShadowPrice, transferCost);
 
-		dms_assert(htpInfo.GetLinkCost( traceBack.Link() ) == shadow_price<S>()); 
+		dms_assert(htpInfo.GetLinkCostUnchecked( traceBack.Link() ) == price_type()); 
 	}
 	
 
@@ -2521,7 +2692,7 @@ bool UpdateSplitterUp(htp_info_t<S, AR, AT>& htpInfo, claim<S>& root)
 	while (IsDefined(freeLink))
 	{
 		// remove (c,i) from ph and add in the reverse queues
-		priority_heap<S>& ph = htpInfo.m_Facets[freeLink];
+		priority_heap<S, P>& ph = htpInfo.m_Facets[freeLink];
 		SizeT i = ph.top(); 
 
 		DBG_TRACE(
@@ -2552,7 +2723,7 @@ bool UpdateSplitterUp(htp_info_t<S, AR, AT>& htpInfo, claim<S>& root)
 
 		// curr  forms a path through the adjusted MST indicated by ClaimList
 		// We checked that freeLink is in ClaimList AND that each ClaimList elem guarantees the following
-		assert(htpInfo.GetLinkCost(freeLink) == shadow_price<S>()); 
+		assert(htpInfo.GetLinkCostUnchecked(freeLink) == price_type()); 
 
 
 		assert(htpInfo.m_ResultArray[i] == ph.m_SourceClaim->m_ggTypeID);
@@ -2562,8 +2733,8 @@ bool UpdateSplitterUp(htp_info_t<S, AR, AT>& htpInfo, claim<S>& root)
 
 		assert(htpInfo.m_ResultArray[i] == ggTypeIdSrc); ph.m_SourceClaim->m_Count--;
 		auto ar = htpInfo.GetAtomicRegionID(i);
-		RemoveLoserInResultAndCleanupQueues <S, AR, AT>(htpInfo, ar, i, ggTypeIdSrc);
-		InsertWinnerInResultAndReallocQueues<S, AR, AT>(htpInfo, ar, i, ggTypeIdDst);
+		RemoveLoserInResultAndCleanupQueues <S, P, AR, AT>(htpInfo, ar, i, ggTypeIdSrc);
+		InsertWinnerInResultAndReallocQueues<S, P, AR, AT>(htpInfo, ar, i, ggTypeIdDst);
 		assert(htpInfo.m_ResultArray[i] == ggTypeIdDst); ph.m_TargetClaim->m_Count++;
 		
 //		dms_assert(!ph.m_TargetClaim->Overflow()); target will be relaxed in next pull
@@ -2622,11 +2793,14 @@ struct ArOrVoid<Void>
 struct DistFromOpt
 {
 	UInt32 nrLandUnits, nrSubOptimal, nrDueToBelowThreshold;
-	shadow_price<UInt64, Int64> totalSuit, totalDistFromOpt;
+	// Int64, not UInt64: a net negative total is a legitimate outcome of negative suitabilities
+	// and must report as negative rather than wrap. Both components are widened from S / P so
+	// the sums have room.
+	shadow_price<Int64, Int64> totalSuit, totalDistFromOpt;
 	tile_id tn;
 
-	template <typename S, typename AR, typename AT>
-	DistFromOpt(htp_info_t<S, AR, AT>& htpInfo)
+	template <typename S, typename P, typename AR, typename AT>
+	DistFromOpt(htp_info_t<S, P, AR, AT>& htpInfo)
 		:	nrLandUnits()
 		,	nrSubOptimal()
 		,	nrDueToBelowThreshold()
@@ -2652,26 +2826,27 @@ struct DistFromOpt
 
 			UInt32 ar = ArOrVoid<AR>::Deref(armIter);
 
-			shadow_price<S> currPrice(htpInfo.m_ggTypes[currBuyer].m_Suitabilities[i], i*currBuyer);
-			totalSuit += currPrice;
-			currPrice += htpInfo.GetClaim(ar, currBuyer).m_ShadowPrice;
+			shadow_price<S, P> currPrice(htpInfo.m_ggTypes[currBuyer].m_Suitabilities[i], PerturbationOf<P>(i, P(currBuyer)));
+			CheckedAccumulate(totalSuit, currPrice);
+			currPrice = CheckedAdd(currPrice, htpInfo.GetClaim(ar, currBuyer).m_ShadowPrice);
 
-			UInt32 iXj = 0;
+			Int64 iXj = 0; // i*j, as in the bidding loop of DiscrAllocCells
 			// belowThreshold is only read when foundHigherBidder is set, and the branch that sets
 			// the latter always assigns the former -- initialised anyway so the coupling cannot rot.
 			bool belowThreshold = false, foundHigherBidder = false;
 
-			for(UInt32 j=0; j!=K; ++j)
+			for(UInt32 j=0; j!=K; ++j, iXj += i)
 			{
 				S Sij = htpInfo.m_ggTypes[j].m_Suitabilities[i];
-				shadow_price<S> bid(Sij, iXj);  // small pertubation (SoS) for making a difference between similar cells
-				bid += htpInfo.GetClaim(ar, j).m_ShadowPrice;
-				iXj += i;
+				shadow_price<S, P> bid(Sij, NarrowPerturbation<P>(iXj));  // small pertubation (SoS) for making a difference between similar cells
+				bid = CheckedAdd(bid, htpInfo.GetClaim(ar, j).m_ShadowPrice);
 				if (currPrice < bid)
 				{
 					foundHigherBidder = true;
-					totalDistFromOpt.first  += bid.first;  totalDistFromOpt.first  -= currPrice.first;
-					totalDistFromOpt.second += bid.second; totalDistFromOpt.second -= currPrice.second;
+					// kept as two steps rather than one bid - currPrice: the difference of two
+					// S values need not fit in S, whereas the running total is already Int64.
+					totalDistFromOpt.first  = CheckedPriceSub<Int64>(CheckedPriceAdd<Int64>(totalDistFromOpt.first, bid.first), currPrice.first);
+					totalDistFromOpt.second = CheckedPerturbationSub<Int64>(CheckedPerturbationAdd<Int64>(totalDistFromOpt.second, bid.second), currPrice.second);
 
 					belowThreshold = (Sij < htpInfo.m_Threshold);
 						
@@ -2691,18 +2866,19 @@ struct DistFromOpt
 
 #if defined(MG_DEBUG)
 
-template <typename S, typename AR, typename AT>
-void CheckAllLinks(htp_info_t<S, AR, AT>& htpInfo)
+template <typename S, typename P, typename AR, typename AT>
+void CheckAllLinks(htp_info_t<S, P, AR, AT>& htpInfo)
 {
+	using price_type = shadow_price<S, P>; // comma-free spelling: dms_assert is a macro, so a bare shadow_price<S, P>() would split its arguments
 	UInt32 L = htpInfo.GetNrLinks();
 	for (UInt32 l = 0; l != L; ++l)
-		dms_assert(htpInfo.GetLinkCost(l) >= shadow_price<S>());
+		dms_assert(htpInfo.GetLinkCostUnchecked(l) >= price_type());
 }
 
 #endif
 
-template <typename S, typename AR, typename AT>
-bool CheckAllClaims(const htp_info_t<S, AR, AT>& htpInfo, SharedStr* resultPtr)
+template <typename S, typename P, typename AR, typename AT>
+bool CheckAllClaims(const htp_info_t<S, P, AR, AT>& htpInfo, SharedStr* resultPtr)
 {
 	bool isAllOK = true;
 	auto
@@ -2729,8 +2905,8 @@ bool CheckAllClaims(const htp_info_t<S, AR, AT>& htpInfo, SharedStr* resultPtr)
 	return isAllOK;
 }
 
-template <typename S, typename AR, typename AT>
-void DiscrAllocCellsBegin(htp_info_t<S, AR, AT>& htpInfo, UInt32 nextI)
+template <typename S, typename P, typename AR, typename AT>
+void DiscrAllocCellsBegin(htp_info_t<S, P, AR, AT>& htpInfo, UInt32 nextI)
 {
 	// calc sum claims for report
 	auto
@@ -2751,17 +2927,17 @@ void DiscrAllocCellsBegin(htp_info_t<S, AR, AT>& htpInfo, UInt32 nextI)
 	);
 }
 
-template <typename S, typename AR, typename AT>
-void DiscrAllocEnd(htp_info_t<S, AR, AT>& htpInfo, UInt32 currI)
+template <typename S, typename P, typename AR, typename AT>
+void DiscrAllocEnd(htp_info_t<S, P, AR, AT>& htpInfo, UInt32 currI)
 {
 	// set StartPrice to CurrPrice and report maximum difference
 	auto
 		claimIter = htpInfo.m_Claims.begin(),
 		claimEnd  = htpInfo.m_Claims.end();
-	shadow_price<S> minPriceDiff, maxPriceDiff;
+	shadow_price<S, P> minPriceDiff, maxPriceDiff;
 	while (claimIter != claimEnd)
 	{
-		shadow_price<S> priceDiff = claimIter->m_ShadowPrice - claimIter->m_StartPrice;
+		shadow_price<S, P> priceDiff = CheckedSub(claimIter->m_ShadowPrice, claimIter->m_StartPrice);
 		MakeMin(minPriceDiff, priceDiff);
 		MakeMax(maxPriceDiff, priceDiff);
 
@@ -2776,8 +2952,8 @@ void DiscrAllocEnd(htp_info_t<S, AR, AT>& htpInfo, UInt32 currI)
 	);
 }
 
-template <typename S, typename AR, typename AT>
-void DiscrAllocCells(htp_info_t<S, AR, AT>& htpInfo, UInt32 currI, UInt32 nextI)
+template <typename S, typename P, typename AR, typename AT>
+void DiscrAllocCells(htp_info_t<S, P, AR, AT>& htpInfo, UInt32 currI, UInt32 nextI)
 {
 	DiscrAllocCellsBegin(htpInfo, nextI);
 
@@ -2801,17 +2977,17 @@ void DiscrAllocCells(htp_info_t<S, AR, AT>& htpInfo, UInt32 currI, UInt32 nextI)
 //		assert(!IsDefined(htpInfo.m_ResultArray[htpInfo.m_CurrPI]));
 
 		UInt32 highestBidder = UNDEFINED_VALUE(UInt32);
-		shadow_price<S> highestBid = MIN_VALUE(shadow_price<S>);
+		shadow_price<S, P> highestBid = MinValue<shadow_price<S, P> >();
 
-		perturbation_type c = 0;
+		Int64 c = 0; // i*j, the SoS perturbation of type j's bid for land unit i; see the file header
 
 		for(UInt32 j=0; j!=K; ++j, c += htpInfo.m_CurrPI)
 		{
 			S s = htpInfo.m_ggTypes[j].m_Suitabilities[htpInfo.m_CurrPI];
 			if (s < htpInfo.m_Threshold) continue;
-			shadow_price<S> bid = htpInfo.GetClaim(ar, j).m_ShadowPrice;
-			                bid.first  += s;
-			                bid.second += c; // small pertubation (SoS) for making a difference between similar cells
+			shadow_price<S, P> bid = htpInfo.GetClaim(ar, j).m_ShadowPrice;
+			                bid.first  = CheckedPriceAdd(bid.first, s);
+			                bid.second = CheckedPerturbationAdd(bid.second, NarrowPerturbation<P>(c)); // small pertubation (SoS) for making a difference between similar cells
 
 			if (highestBid < bid)
 			{
@@ -2832,10 +3008,10 @@ void DiscrAllocCells(htp_info_t<S, AR, AT>& htpInfo, UInt32 currI, UInt32 nextI)
 			continue;
 		}
 
-		InsertWinnerInResultAndReallocQueues<S, AR, AT>(htpInfo, ar, htpInfo.m_CurrPI, highestBidder);
+		InsertWinnerInResultAndReallocQueues<S, P, AR, AT>(htpInfo, ar, htpInfo.m_CurrPI, highestBidder);
 
 		// Update total and move if facing claim-restriction
-		claim<S>& claim = htpInfo.GetClaim(ar, highestBidder);
+		claim<S, P>& claim = htpInfo.GetClaim(ar, highestBidder);
 		++ claim.m_Count;
 		if ( claim.Overflow() )
 		{
@@ -2873,8 +3049,8 @@ void DiscrAllocCells(htp_info_t<S, AR, AT>& htpInfo, UInt32 currI, UInt32 nextI)
 	); 
 }
 
-template <typename S, typename AR, typename AT>
-void DiscrAllocMinClaims(htp_info_t<S, AR, AT>& htpInfo)
+template <typename S, typename P, typename AR, typename AT>
+void DiscrAllocMinClaims(htp_info_t<S, P, AR, AT>& htpInfo)
 {
 	UInt32 count = 0;
 	auto
@@ -2904,8 +3080,8 @@ void DiscrAllocMinClaims(htp_info_t<S, AR, AT>& htpInfo)
 	); 
 }
 
-template <typename S, typename AR, typename AT>
-void SolveRange(htp_info_t<S, AR, AT>& htpInfo, UInt32 firstI, UInt32 lastI)
+template <typename S, typename P, typename AR, typename AT>
+void SolveRange(htp_info_t<S, P, AR, AT>& htpInfo, UInt32 firstI, UInt32 lastI)
 {
 	DiscrAllocCells(htpInfo, firstI, lastI);
 	#if defined(MG_DEBUG)
@@ -2941,10 +3117,10 @@ UInt32 muldiv_u32(UInt32 a, UInt32 b, UInt32 d)
 
 struct ClaimScaler: std::vector<claim_range>
 {
-//	std::vector<claim<S> >& m_Claims;
+//	std::vector<claim<S, P> >& m_Claims;
 
-	template <typename S>
-	ClaimScaler(std::vector<claim<S> >& claims)
+	template <typename S, typename P>
+	ClaimScaler(std::vector<claim<S, P> >& claims)
 	{
 		reserve(claims.size());
 
@@ -2960,8 +3136,8 @@ struct ClaimScaler: std::vector<claim_range>
 		}
 	}
 
-	template <typename S>
-	void RestoreClaims(std::vector<claim<S> >& claims)
+	template <typename S, typename P>
+	void RestoreClaims(std::vector<claim<S, P> >& claims)
 	{
 		auto
 			claimIter = claims.begin(),
@@ -2970,8 +3146,8 @@ struct ClaimScaler: std::vector<claim_range>
 			claimIter->m_ClaimRange = *orgClaimRangePtr++;
 	}
 
-	template <typename S, typename AR, typename AT>
-	void ScaleClaims(htp_info_t<S, AR, AT>& htpInfo, UInt32* atomicRegionCount, UInt32 N, UInt32 nextI)
+	template <typename S, typename P, typename AR, typename AT>
+	void ScaleClaims(htp_info_t<S, P, AR, AT>& htpInfo, UInt32* atomicRegionCount, UInt32 N, UInt32 nextI)
 	{
 		//	scale each claim: 
 		//		for each AtomicRegion in UniqueRegion of (ggType, regionID)
@@ -2984,7 +3160,7 @@ struct ClaimScaler: std::vector<claim_range>
 
 		if (nextI == N)
 		{
-			RestoreClaims<S>(htpInfo.m_Claims);
+			RestoreClaims<S, P>(htpInfo.m_Claims);
 			return;
 		}
 
@@ -3053,8 +3229,8 @@ void IncrementAtomicRegionCount<Void>(std::vector<claim_type>& atomicRegionCount
 	atomicRegionCount[0] += (e - i);
 }
 
-template <typename S, typename AR, typename AT>
-void Solve(htp_info_t<S, AR, AT>& htpInfo, S threshold, AbstrDataObject* resPrices)
+template <typename S, typename P, typename AR, typename AT>
+void Solve(htp_info_t<S, P, AR, AT>& htpInfo, S threshold, AbstrDataObject* resPrices)
 {
 	CDebugContextHandle debugContext("DiscrAlloc", "Solve", true);
 
@@ -3165,8 +3341,8 @@ struct greedy_totals
 // Give land unit i its best type whose claim still has room, and administer the allocation.
 // minPhase: room means "below the MINIMUM claim" instead of "below the maximum claim". That cannot
 // overshoot the maximum, because FeasibilityTest has already rejected every claim with min > max.
-template <typename S, typename AR, typename AT>
-bool GreedyAllocateUnit(htp_info_t<S, AR, AT>& htpInfo, land_unit_id i, bool minPhase, Int64& totalSuitability)
+template <typename S, typename P, typename AR, typename AT>
+bool GreedyAllocateUnit(htp_info_t<S, P, AR, AT>& htpInfo, land_unit_id i, bool minPhase, Int64& totalSuitability)
 {
 	auto ar = htpInfo.GetAtomicRegionID(i);
 	UInt32 K = htpInfo.GetK();
@@ -3180,8 +3356,8 @@ bool GreedyAllocateUnit(htp_info_t<S, AR, AT>& htpInfo, land_unit_id i, bool min
 			continue;
 
 		// shadow prices stay zero in these regimes, so a plain count test says it all; using
-		// AtMax() here would drag the (unused) price terms of claim<S> into the criterion.
-		const claim<S>& c = htpInfo.GetClaim(ar, AT(j));
+		// AtMax() here would drag the (unused) price terms of claim<S, P> into the criterion.
+		const claim<S, P>& c = htpInfo.GetClaim(ar, AT(j));
 		if (c.m_Count >= (minPhase ? c.m_ClaimRange.first : c.m_ClaimRange.second))
 			continue;
 
@@ -3200,8 +3376,8 @@ bool GreedyAllocateUnit(htp_info_t<S, AR, AT>& htpInfo, land_unit_id i, bool min
 	return true;
 }
 
-template <typename S, typename AR, typename AT>
-greedy_totals SolveGreedy(htp_info_t<S, AR, AT>& htpInfo, S threshold, alloc_regime regime, AbstrDataObject* resPrices)
+template <typename S, typename P, typename AR, typename AT>
+greedy_totals SolveGreedy(htp_info_t<S, P, AR, AT>& htpInfo, S threshold, alloc_regime regime, AbstrDataObject* resPrices)
 {
 	CDebugContextHandle debugContext("DiscrAlloc", "SolveGreedy", true);
 	CharPtr regimeName = AllocRegimeName(regime);
@@ -3306,8 +3482,8 @@ greedy_totals SolveGreedy(htp_info_t<S, AR, AT>& htpInfo, S threshold, alloc_reg
 //									StoreLanduseTypeInfo
 // *****************************************************************************
 
-template <typename S, typename AR, typename AT>
-void StoreLanduseTypeInfo(htp_info_t<S, AR, AT>& htpInfo, bool isFeasible)
+template <typename S, typename P, typename AR, typename AT>
+void StoreLanduseTypeInfo(htp_info_t<S, P, AR, AT>& htpInfo, bool isFeasible)
 {
 	for (UInt32 j = 0; j!= htpInfo.m_ggTypes.size(); ++j)
 	{
@@ -3361,8 +3537,8 @@ void StoreLanduseTypeInfo(htp_info_t<S, AR, AT>& htpInfo, bool isFeasible)
 }
 
 
-template <typename S, typename AR, typename AT>
-void StoreBidPricesCurrTile(htp_info_t<S, AR, AT>& htpInfo, AbstrDataObject* bidPrices, bool isFeasible)
+template <typename S, typename P, typename AR, typename AT>
+void StoreBidPricesCurrTile(htp_info_t<S, P, AR, AT>& htpInfo, AbstrDataObject* bidPrices, bool isFeasible)
 {
 	auto priceData = mutable_array_checkedcast<S>(bidPrices)->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
 
@@ -3373,7 +3549,7 @@ void StoreBidPricesCurrTile(htp_info_t<S, AR, AT>& htpInfo, AbstrDataObject* bid
 		{
 			AT j = htpInfo.m_ResultArray[i];
 			if (IsDefined(j))
-				priceData[i] = htpInfo.m_ggTypes[j].m_Suitabilities[i] + htpInfo.GetClaim( htpInfo.GetAtomicRegionID(i), j).m_ShadowPrice.first;
+				priceData[i] = CheckedPriceAdd<S>(htpInfo.m_ggTypes[j].m_Suitabilities[i], htpInfo.GetClaim( htpInfo.GetAtomicRegionID(i), j).m_ShadowPrice.first);
 			else
 				priceData[i] = UNDEFINED_VALUE(S);
 		}
@@ -3385,7 +3561,7 @@ void StoreBidPricesCurrTile(htp_info_t<S, AR, AT>& htpInfo, AbstrDataObject* bid
 //									HitchcockTransportation operator
 // *****************************************************************************
 
-template <typename S, discr_alloc_version DAV, typename AR, typename AT>
+template <typename S, typename P, discr_alloc_version DAV, typename AR, typename AT>
 class HitchcockTransportationOperator : public VariadicOperator
 {
 	typedef DataArray<SharedStr>  Arg1Type;          // ggTypes->name
@@ -3408,7 +3584,7 @@ class HitchcockTransportationOperator : public VariadicOperator
 	typedef ClaimType     ResultTotalType;   
 	typedef PriceType     ResultShadowPriceType; 
 	using htp_meta_type = htp_meta_t<S>;
-	using htp_info_type = htp_info_t<S, AR, AT>;
+	using htp_info_type = htp_info_t<S, P, AR, AT>;
 
 	// Which algorithm this operator group runs; see alloc_regime. Only the hitchcock regime
 	// computes shadow prices, so only it gets shadow_prices/<name> result members.
@@ -3650,6 +3826,45 @@ public:
 			resPrices = CreateDataItem(res, GetTokenID_mt("bid_price"), allocUnit, priceUnitLock.get()).get(); // owned by res
 	}
 
+	// Runs one step of the allocation and turns a shadow price overflow into a config-level error
+	// that names the remedy. The checked arithmetic near the top of this file explains why these
+	// steps throw at all; here is where the caller learns what to do about it.
+	template <typename Func>
+	auto WithPerturbationAdvice(Func&& func) const -> decltype(func())
+	{
+		try {
+			return func();
+		}
+		catch (const shadow_price_overflow& x)
+		{
+			CharPtr groupName = GetGroup()->GetNameStr();
+
+			SharedStr advice;
+			if constexpr (sizeof(P) < sizeof(Int64))
+				advice = mySSPrintF("\nConsider using {}_pi64: the same operator with the"
+					" Simulation-of-Simplicity perturbation term carried in Int64 instead of {}."
+					, groupName
+					, AsString(ValueWrap<P>::GetStaticClass()->GetID())
+				);
+			else
+				advice = SharedStr("\nThis is already the _pi64 variant, which carries the widest"
+					" supported perturbation term.");
+
+			// A price overflow is a different problem with a different remedy, so say so even
+			// though the _pi64 advice above stands for any overflow in an Int32-perturbation run.
+			if (x.m_Component == price_component::price)
+				advice += "\nNote that it was the PRICE component that overflowed, which a wider"
+					" perturbation does not address: narrow the range of the suitability values, so"
+					" that the shadow price adjustments keep room in their value type.";
+
+			throwDmsErrF("{}: numeric overflow in the shadow price arithmetic.\n{}.{}"
+				, groupName
+				, x.m_Why
+				, advice
+			);
+		}
+	}
+
 	bool CalcResult(TreeItemDualRef& resultHolder, const ArgRefs& args, std::vector<ItemReadLock> readLocks, Explain::Context* context) const override
 	{
 		assert(args.size() == GetNrArguments());
@@ -3691,10 +3906,10 @@ public:
 					argIter += 2;
 				auto atomicRegionUnit = debug_cast<const Unit<AR>*>(GetItem(*argIter++));
 				const AbstrDataItem* atomicRegionMapA = AsDataItem(*argIter++);
-				PreparePartitionings<S, AR, AT>(htpInfo, allocUnit, atomicRegionMapA, atomicRegionUnit);
+				PreparePartitionings<S, P, AR, AT>(htpInfo, allocUnit, atomicRegionMapA, atomicRegionUnit);
 			}
 			else
-				PreparePartitionings<S, AR, AT>(htpInfo, allocUnit, nullptr, nullptr);
+				PreparePartitionings<S, P, AR, AT>(htpInfo, allocUnit, nullptr, nullptr);
 
 
 			isFeasible = FeasibilityTest(htpInfo, strStatus);
@@ -3723,9 +3938,9 @@ public:
 
 				greedy_totals greedyTotals;
 				if (MustAdjust())
-					Solve(htpInfo, threshold, htpInfo.m_ResultPriceDataLock.get());
+					WithPerturbationAdvice([&] { Solve(htpInfo, threshold, htpInfo.m_ResultPriceDataLock.get()); });
 				else
-					greedyTotals = SolveGreedy(htpInfo, threshold, m_Regime, htpInfo.m_ResultPriceDataLock.get());
+					greedyTotals = WithPerturbationAdvice([&] { return SolveGreedy(htpInfo, threshold, m_Regime, htpInfo.m_ResultPriceDataLock.get()); });
 
 				if (htpInfo.m_NrBelowThreshold > 0)
 				{
@@ -3761,7 +3976,7 @@ public:
 				else if (isFeasible)
 				{
 					dms_assert(strStatus.empty());
-					DistFromOpt distData(htpInfo);
+					DistFromOpt distData = WithPerturbationAdvice([&] { return DistFromOpt(htpInfo); });
 
 					strStatus = "DiscrAlloc completed";
 
@@ -3900,61 +4115,139 @@ namespace
 	SpecialOperGroup needyGroup_np ("needy_alloc_np", 6, np_oap, oper_policy::better_not_in_meta_scripting);
 	SpecialOperGroup needyGroup_np_16("needy_alloc_np_16", 6, np_oap, oper_policy::better_not_in_meta_scripting);
 
+	// The _pi64 twins of all eighteen names above. Same arguments, same results, same algorithm:
+	// the ONLY difference is that the Simulation-of-Simplicity perturbation term is carried in
+	// Int64 instead of Int32 (the P template parameter, see the note near the top of this file),
+	// which moves the land unit count at which two units within one facet start sharing a
+	// perturbation -- and requirement (R1) stops holding -- out of reach of any grid.
+	// Spelled out rather than generated, so that every operator name a config can write is
+	// greppable in this file.
+	SpecialOperGroup hitchcockGroup_pi64   ("discrete_alloc_pi64",    11, da_oap, oper_policy::better_not_in_meta_scripting);
+	SpecialOperGroup hitchcockGroup_16_pi64("discrete_alloc_16_pi64", 11, da_oap, oper_policy::better_not_in_meta_scripting);
+	SpecialOperGroup greedyGroup_pi64      ("greedy_alloc_pi64",      11, da_oap, oper_policy::better_not_in_meta_scripting);
+	SpecialOperGroup greedyGroup_16_pi64   ("greedy_alloc_16_pi64",   11, da_oap, oper_policy::better_not_in_meta_scripting);
+	SpecialOperGroup needyGroup_pi64       ("needy_alloc_pi64",       11, da_oap, oper_policy::better_not_in_meta_scripting);
+	SpecialOperGroup needyGroup_16_pi64    ("needy_alloc_16_pi64",    11, da_oap, oper_policy::better_not_in_meta_scripting);
+
+	SpecialOperGroup hitchcockGroup_sp_pi64   ("discrete_alloc_sp_pi64",    8, sp_oap, oper_policy::better_not_in_meta_scripting);
+	SpecialOperGroup hitchcockGroup_sp_16_pi64("discrete_alloc_sp_16_pi64", 8, sp_oap, oper_policy::better_not_in_meta_scripting);
+	SpecialOperGroup greedyGroup_sp_pi64      ("greedy_alloc_sp_pi64",      8, sp_oap, oper_policy::better_not_in_meta_scripting);
+	SpecialOperGroup greedyGroup_sp_16_pi64   ("greedy_alloc_sp_16_pi64",   8, sp_oap, oper_policy::better_not_in_meta_scripting);
+	SpecialOperGroup needyGroup_sp_pi64       ("needy_alloc_sp_pi64",       8, sp_oap, oper_policy::better_not_in_meta_scripting);
+	SpecialOperGroup needyGroup_sp_16_pi64    ("needy_alloc_sp_16_pi64",    8, sp_oap, oper_policy::better_not_in_meta_scripting);
+
+	SpecialOperGroup hitchcockGroup_np_pi64   ("discrete_alloc_np_pi64",    6, np_oap, oper_policy::better_not_in_meta_scripting);
+	SpecialOperGroup hitchcockGroup_np_16_pi64("discrete_alloc_np_16_pi64", 6, np_oap, oper_policy::better_not_in_meta_scripting);
+	SpecialOperGroup greedyGroup_np_pi64      ("greedy_alloc_np_pi64",      6, np_oap, oper_policy::better_not_in_meta_scripting);
+	SpecialOperGroup greedyGroup_np_16_pi64   ("greedy_alloc_np_16_pi64",   6, np_oap, oper_policy::better_not_in_meta_scripting);
+	SpecialOperGroup needyGroup_np_pi64       ("needy_alloc_np_pi64",       6, np_oap, oper_policy::better_not_in_meta_scripting);
+	SpecialOperGroup needyGroup_np_16_pi64    ("needy_alloc_np_16_pi64",    6, np_oap, oper_policy::better_not_in_meta_scripting);
+
 	constexpr auto ar_hitchcock = alloc_regime::hitchcock;
 	constexpr auto ar_greedy    = alloc_regime::greedy;
 	constexpr auto ar_needy     = alloc_regime::needy;
 
-	template <typename S>
+	// The six operator groups that one argument layout registers for one perturbation type: three
+	// allocation regimes (see alloc_regime) x two land use type widths (the _16 names take UInt16
+	// land use types, the others UInt8). Passing the set in lets each operator set template below
+	// be written once and instantiated per perturbation type.
+	struct alloc_group_set
+	{
+		AbstrOperGroup* m_Hitchcock;
+		AbstrOperGroup* m_Greedy;
+		AbstrOperGroup* m_Needy;
+		AbstrOperGroup* m_Hitchcock16;
+		AbstrOperGroup* m_Greedy16;
+		AbstrOperGroup* m_Needy16;
+	};
+
+	const alloc_group_set npGroups32 = { &hitchcockGroup_np, &greedyGroup_np, &needyGroup_np, &hitchcockGroup_np_16, &greedyGroup_np_16, &needyGroup_np_16 };
+	const alloc_group_set spGroups32 = { &hitchcockGroup_sp, &greedyGroup_sp, &needyGroup_sp, &hitchcockGroup_sp_16, &greedyGroup_sp_16, &needyGroup_sp_16 };
+	const alloc_group_set daGroups32 = { &hitchcockGroup,    &greedyGroup,    &needyGroup,    &hitchcockGroup_16,    &greedyGroup_16,    &needyGroup_16    };
+
+	const alloc_group_set npGroups64 = { &hitchcockGroup_np_pi64, &greedyGroup_np_pi64, &needyGroup_np_pi64, &hitchcockGroup_np_16_pi64, &greedyGroup_np_16_pi64, &needyGroup_np_16_pi64 };
+	const alloc_group_set spGroups64 = { &hitchcockGroup_sp_pi64, &greedyGroup_sp_pi64, &needyGroup_sp_pi64, &hitchcockGroup_sp_16_pi64, &greedyGroup_sp_16_pi64, &needyGroup_sp_16_pi64 };
+	const alloc_group_set daGroups64 = { &hitchcockGroup_pi64,    &greedyGroup_pi64,    &needyGroup_pi64,    &hitchcockGroup_16_pi64,    &greedyGroup_16_pi64,    &needyGroup_16_pi64    };
+
+	template <typename S, typename P>
 	struct HitchcockTransportationOperatorSetjeNP
 	{
-		HitchcockTransportationOperator<S, discr_alloc_version::no_partition, Void, UInt8>
-			htpDefault = { &hitchcockGroup_np, ar_hitchcock },
-			htpGreedy = { &greedyGroup_np, ar_greedy },
-			htpNeedy = { &needyGroup_np, ar_needy };
-		HitchcockTransportationOperator<S, discr_alloc_version::no_partition, Void, UInt16>
-			htpDefault16 = { &hitchcockGroup_np_16, ar_hitchcock },
-			htpGreedy16 = { &greedyGroup_np_16, ar_greedy },
-			htpNeedy16 = { &needyGroup_np_16, ar_needy };
+		HitchcockTransportationOperatorSetjeNP(const alloc_group_set& g)
+			:	htpDefault  (g.m_Hitchcock,   ar_hitchcock)
+			,	htpGreedy   (g.m_Greedy,      ar_greedy)
+			,	htpNeedy    (g.m_Needy,       ar_needy)
+			,	htpDefault16(g.m_Hitchcock16, ar_hitchcock)
+			,	htpGreedy16 (g.m_Greedy16,    ar_greedy)
+			,	htpNeedy16  (g.m_Needy16,     ar_needy)
+		{}
+
+		HitchcockTransportationOperator<S, P, discr_alloc_version::no_partition, Void, UInt8>
+			htpDefault, htpGreedy, htpNeedy;
+		HitchcockTransportationOperator<S, P, discr_alloc_version::no_partition, Void, UInt16>
+			htpDefault16, htpGreedy16, htpNeedy16;
 	};
 
-	template <typename S, typename AR>
+	template <typename S, typename P, typename AR>
 	struct HitchcockTransportationOperatorSetjeSP
 	{
-		HitchcockTransportationOperator<S, discr_alloc_version::one_partition, AR, UInt8>
-			htpDefault = { &hitchcockGroup_sp, ar_hitchcock },
-			htpGreedy = { &greedyGroup_sp, ar_greedy },
-			htpNeedy = { &needyGroup_sp, ar_needy };
-		HitchcockTransportationOperator<S, discr_alloc_version::one_partition, AR, UInt16>
-			htpDefault16 = { &hitchcockGroup_sp_16, ar_hitchcock },
-			htpGreedy16 = { &greedyGroup_sp_16, ar_greedy },
-			htpNeedy16 = { &needyGroup_sp_16, ar_needy };
+		HitchcockTransportationOperatorSetjeSP(const alloc_group_set& g)
+			:	htpDefault  (g.m_Hitchcock,   ar_hitchcock)
+			,	htpGreedy   (g.m_Greedy,      ar_greedy)
+			,	htpNeedy    (g.m_Needy,       ar_needy)
+			,	htpDefault16(g.m_Hitchcock16, ar_hitchcock)
+			,	htpGreedy16 (g.m_Greedy16,    ar_greedy)
+			,	htpNeedy16  (g.m_Needy16,     ar_needy)
+		{}
+
+		HitchcockTransportationOperator<S, P, discr_alloc_version::one_partition, AR, UInt8>
+			htpDefault, htpGreedy, htpNeedy;
+		HitchcockTransportationOperator<S, P, discr_alloc_version::one_partition, AR, UInt16>
+			htpDefault16, htpGreedy16, htpNeedy16;
 	};
 
-	template <typename S, discr_alloc_version DAV, typename AR>
+	template <typename S, typename P, discr_alloc_version DAV, typename AR>
 	struct HitchcockTransportationOperatorSetje
 	{
-		HitchcockTransportationOperator<S, DAV, AR, UInt8>
-			htpDefault = { &hitchcockGroup, ar_hitchcock },
-			htpGreedy = { &greedyGroup, ar_greedy },
-			htpNeedy = { &needyGroup, ar_needy };
-		HitchcockTransportationOperator<S, DAV, AR, UInt16>
-			htpDefault16 = { &hitchcockGroup_16, ar_hitchcock },
-			htpGreedy16 = { &greedyGroup_16, ar_greedy },
-			htpNeedy16 = { &needyGroup_16, ar_needy };
+		HitchcockTransportationOperatorSetje(const alloc_group_set& g)
+			:	htpDefault  (g.m_Hitchcock,   ar_hitchcock)
+			,	htpGreedy   (g.m_Greedy,      ar_greedy)
+			,	htpNeedy    (g.m_Needy,       ar_needy)
+			,	htpDefault16(g.m_Hitchcock16, ar_hitchcock)
+			,	htpGreedy16 (g.m_Greedy16,    ar_greedy)
+			,	htpNeedy16  (g.m_Needy16,     ar_needy)
+		{}
+
+		HitchcockTransportationOperator<S, P, DAV, AR, UInt8>
+			htpDefault, htpGreedy, htpNeedy;
+		HitchcockTransportationOperator<S, P, DAV, AR, UInt16>
+			htpDefault16, htpGreedy16, htpNeedy16;
 	};
 
-	template <typename S, typename AR>
+	template <typename S, typename P, typename AR>
 	struct HitchcockTransportationOperators
 	{
-		HitchcockTransportationOperatorSetjeSP<S, AR> htpOnePartition;
-		HitchcockTransportationOperatorSetje<S, discr_alloc_version::multiple_partitions_without_feasibility_test, AR> htpManyPartitionsNoFeasibilityTest;
-		HitchcockTransportationOperatorSetje<S, discr_alloc_version::multiple_partitions_with_feasibility_test   , AR> htpManyPartitionsWithFeasibilityTest;
+		HitchcockTransportationOperators(const alloc_group_set& spGroups, const alloc_group_set& daGroups)
+			:	htpOnePartition(spGroups)
+			,	htpManyPartitionsNoFeasibilityTest(daGroups)
+			,	htpManyPartitionsWithFeasibilityTest(daGroups)
+		{}
+
+		HitchcockTransportationOperatorSetjeSP<S, P, AR> htpOnePartition;
+		HitchcockTransportationOperatorSetje<S, P, discr_alloc_version::multiple_partitions_without_feasibility_test, AR> htpManyPartitionsNoFeasibilityTest;
+		HitchcockTransportationOperatorSetje<S, P, discr_alloc_version::multiple_partitions_with_feasibility_test   , AR> htpManyPartitionsWithFeasibilityTest;
 	};
 
-	HitchcockTransportationOperatorSetjeNP<Int32> htpNoPartition;
-	HitchcockTransportationOperators<Int32, UInt32> htp3232;
-	HitchcockTransportationOperators<Int32, UInt16> htp3216;
-	HitchcockTransportationOperators<Int32, UInt8 > htp3208;
+	// S (the suitability and price type) is Int32 throughout; P (the perturbation type) is Int32
+	// for the plain names and Int64 for their _pi64 twins.
+	HitchcockTransportationOperatorSetjeNP<Int32, Int32> htpNoPartition(npGroups32);
+	HitchcockTransportationOperators<Int32, Int32, UInt32> htp3232(spGroups32, daGroups32);
+	HitchcockTransportationOperators<Int32, Int32, UInt16> htp3216(spGroups32, daGroups32);
+	HitchcockTransportationOperators<Int32, Int32, UInt8 > htp3208(spGroups32, daGroups32);
+
+	HitchcockTransportationOperatorSetjeNP<Int32, Int64> htpNoPartition_pi64(npGroups64);
+	HitchcockTransportationOperators<Int32, Int64, UInt32> htp3232_pi64(spGroups64, daGroups64);
+	HitchcockTransportationOperators<Int32, Int64, UInt16> htp3216_pi64(spGroups64, daGroups64);
+	HitchcockTransportationOperators<Int32, Int64, UInt8 > htp3208_pi64(spGroups64, daGroups64);
 
 	// *************************************************************************
 	// OBSOLETE claim_* stubs -- REMOVE IN v21, see issue #1177

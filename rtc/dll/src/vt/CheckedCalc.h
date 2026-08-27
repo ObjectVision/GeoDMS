@@ -170,16 +170,63 @@ const ValueClass* NextSubIntegral()
 
 //----------------------------------------------------------------------
 
-template <typename T> 
+// CheckedAdd / CheckedSub, for unsigned and signed integrals alike.
+//
+// suggestAlternative == true offers the caller the ..._or_null attribute operator and the next
+// wider value type, which is the right advice when the overflow came from an attribute
+// expression. Callers whose overflow has a different remedy -- discrete_alloc's shadow price
+// arithmetic, see DiscrAlloc.cpp -- pass false and add their own.
+
+template <typename T>
 requires (!is_signed_v<T>)
-auto CheckedAdd(T a, T b) -> T
+auto CheckedAdd(T a, T b, bool suggestAlternative = true) -> T
 {
 	assert(a>=0);
 	assert(b>=0);
 	T r = a+b;
 	assert(r>=0);
 	if (r < a || r < b)
-		throwDmsErrD("Overflow in addition");
+		throwOverflow("adding", a, "and", b, suggestAlternative, "add_or_null", NextAddIntegral<T>());
+	return r;
+}
+
+// Signed counterpart of the unsigned CheckedAdd above.
+//
+// Signed overflow is still UB in C++20, so the sum is formed in the unsigned representation --
+// where wrapping is defined -- and converted back, which C++20 made well defined by fixing the
+// representation to two's complement. The sign of b then decides which way the result must have
+// moved: a + b can only end up below a when b is negative, so a mismatch is exactly an overflow.
+template <typename T>
+requires is_signed_integral_v<T>
+auto CheckedAdd(T a, T b, bool suggestAlternative = true) -> T
+{
+	using unsigned_t = std::make_unsigned_t<T>;
+	T r = T(unsigned_t(a) + unsigned_t(b));
+	if ((b >= 0) != (r >= a))
+		throwOverflow("adding", a, "and", b, suggestAlternative, "add_or_null", NextAddIntegral<T>());
+	return r;
+}
+
+// Unsigned subtraction has no representable negative result, so any borrow is an overflow.
+template <typename T>
+requires (!is_signed_v<T>)
+auto CheckedSub(T a, T b, bool suggestAlternative = true) -> T
+{
+	if (a < b)
+		throwOverflow("subtracting", b, "from", a, suggestAlternative, "sub_or_null", NextSubIntegral<T>());
+	return a - b;
+}
+
+// Signed subtraction, by the same argument as the signed CheckedAdd above: a - b can only end up
+// below a when b is positive.
+template <typename T>
+requires is_signed_integral_v<T>
+auto CheckedSub(T a, T b, bool suggestAlternative = true) -> T
+{
+	using unsigned_t = std::make_unsigned_t<T>;
+	T r = T(unsigned_t(a) - unsigned_t(b));
+	if ((b <= 0) != (r >= a))
+		throwOverflow("subtracting", b, "from", a, suggestAlternative, "sub_or_null", NextSubIntegral<T>());
 	return r;
 }
 

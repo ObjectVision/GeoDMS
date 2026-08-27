@@ -1,0 +1,59 @@
+container fn_test_da_pi64
+{
+	// Issue #1196: the _pi64 operator names are the same allocation with the
+	// Simulation-of-Simplicity perturbation term carried in Int64 instead of Int32. On any
+	// configuration small enough to run here the two must agree cell for cell and price for
+	// price -- that equivalence is what this case pins down, together with the mere
+	// existence of the _pi64 names for all three allocation regimes.
+	//
+	// The overflow that _pi64 exists for needs ~2^31 land units and cannot be reached from a
+	// testcase; what CAN be regression-tested is that widening the perturbation changes
+	// nothing else. It very nearly did: the facet's perturbation factor was formed as an
+	// UNSIGNED difference of two type ids, which only came out right because the result was
+	// narrowed back to Int32.
+	unit<uint8>  LuType : nrofrows = 3 { attribute<string> name : ['A','B','C']; }
+	unit<uint32> Cells  : nrofrows = 8;
+
+	container Suit
+	{
+		attribute<int32> A (Cells) : [9,8,7,6,5,4,3,2];
+		attribute<int32> B (Cells) : [2,3,4,5,6,7,8,9];
+		attribute<int32> C (Cells) : [1,1,1,1,1,1,1,1];
+	}
+	// A's and B's maxima bind, so shadow prices have to move and the perturbation is really used
+	container CMin { parameter<uint32> A := 0; parameter<uint32> B := 0; parameter<uint32> C := 0; }
+	container CMax { parameter<uint32> A := 2; parameter<uint32> B := 3; parameter<uint32> C := 8; }
+	parameter<int32> thr := 0i;
+
+	container da32 := discrete_alloc_np     (LuType/name, Cells, Suit, CMin, CMax, thr);
+	container da64 := discrete_alloc_np_pi64(LuType/name, Cells, Suit, CMin, CMax, thr);
+	container gr64 := greedy_alloc_np_pi64  (LuType/name, Cells, Suit, CMin, CMax, thr);
+	container ne64 := needy_alloc_np_pi64   (LuType/name, Cells, Suit, CMin, CMax, thr);
+
+	container checks
+	{
+		// same land use, cell for cell
+		parameter<uint32> nrEqualLanduse := sum(uint32(da32/landuse == da64/landuse))
+		,	IntegrityCheck = "nrEqualLanduse == 8";
+
+		// same shadow prices, so the wider perturbation leaves the price arithmetic alone
+		parameter<uint32> nrEqualPrices :=
+				uint32(da32/shadow_prices/A == da64/shadow_prices/A)
+			+	uint32(da32/shadow_prices/B == da64/shadow_prices/B)
+			+	uint32(da32/shadow_prices/C == da64/shadow_prices/C)
+		,	IntegrityCheck = "nrEqualPrices == 3";
+
+		// same totals per type
+		parameter<uint32> nrEqualTotals :=
+				uint32(da32/total_allocated/A == da64/total_allocated/A)
+			+	uint32(da32/total_allocated/B == da64/total_allocated/B)
+			+	uint32(da32/total_allocated/C == da64/total_allocated/C)
+		,	IntegrityCheck = "nrEqualTotals == 3";
+
+		// the greedy and needy _pi64 names exist and place every cell
+		parameter<uint32> greedyTotal := gr64/total_allocated/A + gr64/total_allocated/B + gr64/total_allocated/C
+		,	IntegrityCheck = "greedyTotal == 8";
+		parameter<uint32> needyTotal := ne64/total_allocated/A + ne64/total_allocated/B + ne64/total_allocated/C
+		,	IntegrityCheck = "needyTotal == 8";
+	}
+}
