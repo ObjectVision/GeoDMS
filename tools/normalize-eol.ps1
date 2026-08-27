@@ -101,7 +101,13 @@ if ($autocrlf -eq 'input' -or $coreEol -eq 'lf') {
 # single one of them modified while `git diff` is empty and the hashes are identical.
 # git diff runs the content through the same clean filter a commit would use, which
 # is the question actually being asked here: is there work to lose?
-$dirty = @(@(git diff --name-only) + @(git diff --cached --name-only) | Select-Object -Unique)
+#
+# Submodules are excluded. A vcpkg checkout sitting on a different commit than the one
+# recorded here shows up as a modification, and it blocked a run on a build server for
+# no reason: this script never touches a submodule, because the gitlink row from
+# `git ls-files --eol` carries no working-tree line ending and is skipped.
+$dirty = @(@(git diff --name-only --ignore-submodules=all) +
+           @(git diff --cached --name-only --ignore-submodules=all) | Select-Object -Unique)
 if ($dirty.Count -gt 0 -and -not $Scan) {
     Write-Host ''
     Write-Host 'The working tree has uncommitted changes to tracked files:' -ForegroundColor Yellow
@@ -167,8 +173,8 @@ if (-not $Force) {
 # One file must not abort the run. Whatever fails is collected and reported at the end,
 # because stopping halfway leaves the files already rewritten with a stale index stat,
 # and that is the state that makes git status -- and Visual Studio reading it -- claim
-# hundreds of modified files. Getting to the `git add -u` below matters more than
-# failing fast.
+# hundreds of modified files. Reaching the settle step below matters more than failing
+# fast.
 $latin1 = [System.Text.Encoding]::GetEncoding(28591)
 $failures = @()
 foreach ($item in $mismatched) {
@@ -197,17 +203,20 @@ $paths = @($mismatched | ForEach-Object { $_.Path })
 # nor `--really-refresh` clears that; the latter reports every one as "needs update" and
 # leaves it that way. `git add` does, staging nothing because the blobs are identical.
 #
-# `-u` across the whole tree, deliberately, rather than naming the repaired paths.
-# Naming them made git refuse the entire batch as soon as one path sat under an ignored
-# directory while being tracked anyway: .gitignore has /.claude, .claude/settings.json
-# is tracked regardless, and `git add` rejects an explicitly named ignored path even
-# then. `-u` only ever considers files that are already tracked, so exclude rules never
-# enter into it, and it needs no chunking to stay under the command line limit. The tree
-# was verified clean above, so this cannot stage content.
-& git add -u
-if ($LASTEXITCODE -ne 0) { Fail 'git add -u failed while settling the index stat cache.' }
+# The repaired paths by name, with -f, in chunks. Not `git add -u` across the tree:
+# that would also stage a submodule whose checked-out commit differs from the recorded
+# one, which is none of this script's business. And -f because git refuses an explicitly
+# named path that matches an ignore rule even when the path is tracked -- .gitignore
+# carries /.claude while .claude/settings.json is tracked regardless, and that one
+# rejection failed a whole batch. Every path here came from `git ls-files`, so it is
+# tracked already and -f cannot pull anything new in. Chunked for the command line limit.
+for ($i = 0; $i -lt $paths.Count; $i += 100) {
+    $chunk = $paths[$i .. [Math]::Min($i + 99, $paths.Count - 1)]
+    & git add -f -- @chunk
+    if ($LASTEXITCODE -ne 0) { Fail "git add failed on the chunk starting at $i." }
+}
 
-$staged = @(git diff --cached --name-only)
+$staged = @(git diff --cached --name-only --ignore-submodules=all)
 if ($staged.Count -gt 0) {
     Write-Host ''
     Write-Host 'The rewrite left staged changes, which it must not:' -ForegroundColor Red
@@ -233,9 +242,9 @@ $left = @(git -c core.quotePath=false ls-files --eol | ForEach-Object { Get-EolM
 
 # The tree was clean going in, so it must still be clean: git cleans the rewritten
 # files back to LF and they have to match their blobs again. Anything reported here
-# would mean the rewrite changed more than line endings. Content comparison again,
-# for the same reason as the check above.
-$stillDirty = @(git diff --name-only)
+# would mean the rewrite changed more than line endings. Content comparison again, and
+# submodules excluded again, for the same reasons as the check above.
+$stillDirty = @(git diff --name-only --ignore-submodules=all)
 if ($stillDirty.Count -gt 0) {
     Write-Host ''
     Write-Host 'The rewrite changed more than line endings:' -ForegroundColor Red
