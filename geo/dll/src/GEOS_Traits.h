@@ -199,6 +199,7 @@ auto geos_create_polygons(SA_ConstReference<DmsPointType> polyRef, bool mustInse
 	geos_create_linear_ring_helper_data<DmsPointType> tmpRingData;
 
 	bool isFirstRing = true;
+	bool outerOrientationCW = true;
 
 	for (; ri != re; ++ri)
 	{
@@ -207,16 +208,26 @@ auto geos_create_polygons(SA_ConstReference<DmsPointType> polyRef, bool mustInse
 			continue;
 
 		bool currOrientationCW = !geos::algorithm::Orientation::isCCW(helperRing->getCoordinatesRO());
-		if (isFirstRing && !currOrientationCW)
-			continue;
 
-		if (isFirstRing || currOrientationCW)
+		// The first ring that survives defines what "outer" means for THIS feature: a ring wound the
+		// other way is a hole, a ring wound like it opens the next polygon. That is the rule that
+		// assign_multi_polygon already uses on the boost side. Deciding it in ABSOLUTE terms - outer
+		// iff clockwise - dropped the shell of a uniformly counter-clockwise feature, which is what a
+		// source listing coordinates in latitude/longitude order gives you: the shell was skipped
+		// while isFirstRing was still true, so the next ring, a lake, was promoted to shell and the
+		// geometry came out with the wrong area and no complaint (issue #1212). normalize() below
+		// still hands the caller clockwise shells, so a flipped input does not reach the result.
+		// A feature whose rings are only PARTLY flipped is beyond any orientation rule; roles derived
+		// from NESTING live in geos_polygons_by_nesting below, at a containment test per ring, which
+		// is why fix_winding_order keeps them out of the readers.
+		if (isFirstRing || currOrientationCW == outerOrientationCW)
 		{
 			if (currRing && !currRing->isEmpty())
 				resPolygons.emplace_back(geos_factory()->createPolygon(std::move(currRing), std::move(currInnerRings)));
 
 			currInnerRings.clear();
 			currRing = std::move( helperRing );
+			outerOrientationCW = currOrientationCW;
 			isFirstRing = false;
 /* NYI
 			// skip outer rings that intersect with a previous outer ring if innerRings are skipped

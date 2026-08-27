@@ -99,6 +99,8 @@ void assign_multi_polygon(CGAL_Traits::Polygon_set& resMP, SA_ConstReference<Dms
 	std::optional<CGAL_Traits::Polygon_set> currPS;
 	CGAL_Traits::Ring                       currOuter;
 	bool hasCurrPolygon = false; // an outer ring is open, in currPS when that exists else in currOuter
+	bool isFirstRing    = true;
+	bool outerIsCCW     = true;  // the reversal below turns a DMS clockwise outer ring counter-clockwise
 
 	auto flushCurrPolygon = [&]
 	{
@@ -141,16 +143,28 @@ void assign_multi_polygon(CGAL_Traits::Polygon_set& resMP, SA_ConstReference<Dms
 
 		if (helperRing.is_simple())
 		{
-			if (helperRing.orientation() == CGAL::COUNTERCLOCKWISE)
+			bool currIsCCW = (helperRing.orientation() == CGAL::COUNTERCLOCKWISE);
+
+			// Relative, for the reason spelled out in geos_create_polygons (issue #1212): testing
+			// against CGAL::COUNTERCLOCKWISE in absolute terms made the shell of a uniformly flipped
+			// feature fall into the hole branch with no polygon open yet, where it was dropped and
+			// the lake that followed became the shell. The first ring that survives decides what
+			// "outer" means here too, exactly as the boost and geos readers do.
+			if (isFirstRing || currIsCCW == outerIsCCW)
 			{
 				// an outer ring closes the polygon that was open and opens a new one
 				flushCurrPolygon();
+				outerIsCCW = currIsCCW;
+				isFirstRing = false;
+				if (!currIsCCW)
+					helperRing.reverse_orientation(); // CGAL wants an outer boundary counter-clockwise
 				currOuter = std::move(helperRing);
 				hasCurrPolygon = true;
 			}
 			else if (hasCurrPolygon && mustInsertInnerRings)
 			{
-				helperRing.reverse_orientation();
+				if (!currIsCCW)
+					helperRing.reverse_orientation(); // difference() wants a counter-clockwise polygon too
 				if (!currPS)
 				{
 					currPS.emplace();
