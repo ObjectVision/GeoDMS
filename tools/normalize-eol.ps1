@@ -174,6 +174,27 @@ foreach ($item in $mismatched) {
 }
 $paths = @($mismatched | ForEach-Object { $_.Path })
 
+# Settle the index stat cache, or every repaired file shows up as modified in
+# `git status` from here on. The rewrite changed each file's size and timestamp while
+# its content still cleans to the same blob, and status decides on stat data alone.
+# Neither `git update-index --refresh` nor `--really-refresh` clears it -- the latter
+# reports every one of them as "needs update" and leaves them that way. A plain
+# `git add` of the same paths stages nothing, because the blobs are identical, but it
+# does record the new stat. Paths go in chunks to stay under the command line limit.
+for ($i = 0; $i -lt $paths.Count; $i += 100) {
+    $chunk = $paths[$i .. [Math]::Min($i + 99, $paths.Count - 1)]
+    & git add -- @chunk
+    if ($LASTEXITCODE -ne 0) { Fail "git add failed on the chunk starting at $i." }
+}
+
+$staged = @(git diff --cached --name-only)
+if ($staged.Count -gt 0) {
+    Write-Host ''
+    Write-Host 'The rewrite left staged changes, which it must not:' -ForegroundColor Red
+    $staged | ForEach-Object { Write-Host "    $_" }
+    Fail 'Inspect with `git diff --cached` before doing anything else.'
+}
+
 # --- verify ----------------------------------------------------------------
 
 $left = @(git ls-files --eol | ForEach-Object { Get-EolMismatch $_ })

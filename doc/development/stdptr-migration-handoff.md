@@ -2,7 +2,7 @@
 
 Branch: `refactor_ownership`. This continues the migration of the TreeItem family off the intrusive
 `SharedPtr<T>`/`WeakPtr<T>` onto std ownership. Read this together with
-`doc/development/std-ptr-migration-plan.md` (§4 = the `DcRef` variant) and `CLAUDE.md` (build rules).
+`doc/development/std-ptr-migration-plan.md` (§4 = the `DcRef` variant) and `AGENTS.md` (build rules).
 
 ## ★★ CURRENT STATE (2026-07-02, session 4) — MIGRATION FUNCTIONALLY COMPLETE ★★
 
@@ -333,7 +333,7 @@ template/select/union/namespace configs FAIL. Root-caused (temp diagnostics in F
 the config tree) it falls back to `FindUnit(token)`, which asserts `GetTreeParent()` because the item is a
 parentless **cache root** (`isCache=1 isEndo=1 name='' m_Parent.has_ptr=0`). `AddItem` never fails to capture
 m_Parent (verified) — the parent simply doesn't exist for these cache roots. **A failed CRT `assert` pops a
-modal MessageBoxW dialog that HANGS headless Debug runs** (per CLAUDE.md) — so these configs hang, not exit.
+modal MessageBoxW dialog that HANGS headless Debug runs** (per AGENTS.md) — so these configs hang, not exit.
 This is exactly the prior-session finding that "m_DomainUnit/m_ValuesUnit are load-bearing during compute and
 CANNOT be weakened" (weakening them crashed/asserted), now reproduced under the std migration. The std plan bet
 that tree-shared-ownership keeps units alive so the weak wouldn't expire — that bet FAILS for cache/instantiation

@@ -1,4 +1,4 @@
-# GeoDMS — Codex project instructions and repo notes
+# GeoDMS — project instructions for coding agents, and repo notes
 
 ## Scratch files go in `scratch/`, never in the repo root
 
@@ -46,7 +46,11 @@ The renormalisation is commit `fd052639` and is listed in `.git-blame-ignore-rev
 **`git status` misreports line endings; `git diff` does not.** status decides by comparing
 stat data, so a file whose bytes on disk are not the checkout form is reported as modified
 even when its content hashes identically to the blob. To ask whether there is real
-uncommitted work, use `git diff --name-only` (plus `--cached`), not `git status`.
+uncommitted work, use `git diff --name-only` (plus `--cached`), not `git status`. When a
+tool leaves files stuck in that state, a plain `git add` of those paths settles it: it
+stages nothing, because the blobs are identical, but it does record the new stat.
+`git update-index --refresh` will not, and `--really-refresh` reports every one of them
+as *needs update* and leaves them that way.
 
 A clone made before the renormalisation keeps whatever its files already contained. Repair
 it once with **`batch\NormalizeCRLF.bat`** (`/scan` to look first, `/y` to skip the prompt).
@@ -60,7 +64,7 @@ Never invent custom build, setup, or bootstrap steps, and never build to "save t
 way the solution/presets don't define.
 
 **For testing a new feature, always use msbuild as the preferred build tool** (the `.m`
-flavour — see "Codex CLI msbuild recipe" below). It gives the fastest incremental turnaround
+flavour — see the Windows msbuild rules below). It gives the fastest incremental turnaround
 into `bin\Release\x64`.
 
 - **Windows (msbuild):** use the **MSVC 18 (VS18) msbuild**, never the VS2022 one — the repo
@@ -129,12 +133,12 @@ without a console: the script's `timeout /T` steps fail with
 `ERROR: Input redirection is not supported`, nothing is visible on screen, and GUI tests pop up
 with no context around them. Run them in a real console window — see below.
 
-### Running a build or test script with live progress on screen *and* readable by Codex
+### Running a build or test script with live progress on screen *and* readable by the agent
 
 The `batch\BuildSignAndCreateSetup{,Cmake,Globio,Linux}.bat` scripts (and the `Build.bat` wrapper), and the
 `batch\Test*Unit.bat` / `RunGUITests.bat` test launchers, are run by the **user** in their own
 interactive PowerShell (so they inherit the user's environment and don't trigger a clean-env
-vcpkg re-bootstrap). To let the user watch live progress **and** let Codex read the output,
+vcpkg re-bootstrap). To let the user watch live progress **and** let the agent read the output,
 pipe the script through `Tee-Object`:
 
 ```powershell
@@ -144,9 +148,9 @@ pipe the script through `Tee-Object`:
 - `cmd /c "... 2>&1"` merges **stderr** (where GCC/clang warnings + errors land) into stdout
   *inside cmd*, avoiding Windows PowerShell 5.1 wrapping native stderr lines as
   `NativeCommandError` noise.
-- `Tee-Object` shows live output on the user's console and writes a logfile Codex tails
+- `Tee-Object` shows live output on the user's console and writes a logfile the agent tails
   (`wc -l`, `Read` with offset, `Select-String 'warning:|error:'`).
-- Swap the `.bat` name and log name per flavor: `build_{m,c,l}_<ver>.log`. Codex does **not**
+- Swap the `.bat` name and log name per flavor: `build_{m,c,l}_<ver>.log`. The agent does **not**
   launch these scripts itself — it only reads the teed log. The `.m`/`.c` Windows setups still
   need the user to drive CHOICE prompts + the SafeNet PIN at the console.
 

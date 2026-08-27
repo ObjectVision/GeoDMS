@@ -2491,7 +2491,7 @@ extension).
 & bin\Release\x64\GeoDmsRun.exe /L<abs>\run.log <abs>\config.dms /checks
 ```
 
-Always build the whole solution (VS18 msbuild, toolset v145 — see CLAUDE.md); after
+Always build the whole solution (VS18 msbuild, toolset v145 — see AGENTS.md); after
 any change to the function machinery, re-run the full battery of §15.1's test configs
 plus a classic-template regression (definition-scope reference through the implicit
 namespace must keep working) before committing.
