@@ -1,5 +1,48 @@
+# Line endings.
+#
+# Since GeoDMS 20.18.0 every text blob in this repository is stored with LF.
+# `* text=auto` makes git normalise on commit and convert back on checkout, so a
+# Windows working tree still gets CRLF while the history stays on one convention.
+#
+# Before this, the repository was split roughly in half -- 696 CRLF blobs against
+# 629 LF blobs -- and 45 files had drifted into a mix of both. That mix could not
+# heal by itself: git skips normalisation for any file whose index version already
+# contains CR, so every bare LF written into a CRLF file was committed verbatim and
+# stayed there. With all blobs on LF that exception no longer applies, and `git add`
+# normalises every working copy again, mixed ones included.
+#
+# One-time repair for a working tree cloned before this change: batch\NormalizeCRLF.bat
+* text=auto
+
+# Windows-only scripts. cmd.exe itself runs LF batch files fine (verified on
+# Windows 11 26200 against goto / call :label / for /f / if-else / ^-continuation),
+# but pinning CRLF costs nothing and keeps older Windows versions out of trouble.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Visual Studio rewrites these with CRLF the moment you add a file or change a
+# property in the IDE. Pinning CRLF keeps that from showing up as a diff.
+*.sln     text eol=crlf
+*.vcxproj text eol=crlf
+*.filters text eol=crlf
+*.pyproj  text eol=crlf
+
 # Shell scripts MUST stay LF: bash (the WSL Linux build via nsi/CreateLinuxSetup.sh
 # and the Linux unit-test launchers TestLinux*Unit.sh / RunLinuxGUITests.sh) fails on
 # CRLF ($'\r': command not found). Without this, core.autocrlf=true rewrites them to
 # CRLF on checkout/merge and breaks the Linux build + unit tests.
 *.sh text eol=lf
+
+# Binary assets: never eligible for eol conversion. Git's own detection already
+# classifies these; the rules below just make it explicit and unconditional.
+*.bmp  binary
+*.png  binary
+*.jpg  binary
+*.webp binary
+*.ico  binary
+*.cur  binary
+*.ttf  binary
+
+# UTF-16LE, so it looks binary to git and must stay that way. Its sibling
+# shv/dll/res/DmShv32.rc is plain text and is covered by `* text=auto` above.
+qtgui/exe/GeoDmsGuiQt.rc binary
