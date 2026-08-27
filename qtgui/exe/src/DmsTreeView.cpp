@@ -18,11 +18,10 @@
 #include <QHeaderView>
 #include <QScrollBar>
 
-#include <map>
-#include <tuple>
 #include <variant>
 
 #include "DmsGuiParameters.h"
+#include "DmsIcons.h"
 #include "DmsMainWindow.h"
 #include "DmsOptions.h"
 #include "DmsExport.h"
@@ -222,107 +221,10 @@ bool DmsModel::updateChachedDisplayFlags() {
 	return was_updated;
 }
 
-// ==== tree item icons (issue #319) ====
-//
-// The icons are glyphs from the remixicon font that MainWindow loads, not bitmaps: adding one
-// costs a codepoint here instead of a pair of 16x16 .bmp files -- the icon and a greyed-out twin
-// for items within a template -- plus their entries in GeoDmsGuiQt.qrc. That per-icon cost is
-// why this view had no icon for a grid domain or a base unit for so long. The glyphs also stay
-// sharp when Windows scales the GUI, where the bitmaps were resampled.
-//
-// Which icon an item gets is decided by GetItemIconKind in rtc, next to the GetItemOrigin rule
-// that decides its color (issue #1159), so a second view can show the same icons.
-
-static QFont CreateRemixFont()
-{
-	QFont font;
-	font.setFamily("remixicon");
-	return font;
-}
-
-// A glyph from remixicon, optionally with a letter set inside it in the application font.
-// remixicon carries a lettered box for 't' alone, so a function -- which is a definition like a
-// template and wants to look like one -- gets the empty box plus an 'F' of our own.
-struct tree_icon_glyph
-{
-	char16_t glyph;  // codepoint in the private use area of :/res/fonts/remixicon.ttf
-	char     letter; // set inside the glyph, 0 for none
-};
-
-// In item_icon_kind order.
-static const tree_icon_glyph sc_IconGlyphs[] =
-{
-	{ u'\uED6A', 0   }, // container:         folder-line
-	{ u'\uED5E', 0   }, // container_table:   folder-chart-line
-	{ u'\uF1D3', 0   }, // template_def:      t-box-line
-	{ u'\uEB7F', 'F' }, // function_def:      checkbox-blank-line, the same box with an F in it
-	{ u'\uEE92', 0   }, // data_item:         layout-left-2-line, one column of the domain's table
-	{ u'\uEC7A', 0   }, // data_item_map:     earth-line
-	{ u'\uEFC5', 0   }, // data_item_palette: palette-line
-	{ u'\uEE8F', 0   }, // unit_grid_domain:  layout-grid-fill
-	{ u'\uF1DE', 0   }, // unit_domain:       table-line, the table its attributes form
-	{ u'\uF0A3', 0   }, // unit_base:         ruler-line, the 'rolmaat', now only for base units
-	{ u'\uF0B9', 0   }, // unit_values:       scales-line
-};
-static_assert(std::size(sc_IconGlyphs) == UInt32(item_icon_kind::count), "a kind was added to item_icon_kind without a glyph");
-
+// The icons of the tree items are glyphs from remixicon, rendered and cached by DmsIcons;
+// GetItemIconKind in rtc decides which glyph an item gets, see there and DmsIcons.h.
+// The CRS badge below is drawn by the delegate itself and so keeps its glyph here.
 static const char16_t sc_SpatialReferenceGlyph = u'\uEBC4'; // compass-line
-
-static QPixmap RenderIconGlyph(tree_icon_glyph icon, QColor color, int size, qreal dpr)
-{
-	QPixmap pixmap(QSize(size, size) * dpr);
-	pixmap.setDevicePixelRatio(dpr);
-	pixmap.fill(Qt::transparent);
-
-	auto font = CreateRemixFont();
-	font.setPixelSize(size);
-
-	QPainter painter(&pixmap);
-	painter.setRenderHint(QPainter::TextAntialiasing);
-	painter.setFont(font);
-	painter.setPen(color);
-	painter.drawText(QRect(0, 0, size, size), Qt::AlignCenter, QString(QChar(icon.glyph)));
-
-	if (icon.letter)
-	{
-		// the application font is :/res/fonts/dmstext.ttf, which main_qt installs before any
-		// widget is built, so the letter is set in the same face as the item names beside it
-		auto letterFont = QApplication::font();
-		letterFont.setPixelSize(std::max(6, (size * 13) / 24));
-		painter.setFont(letterFont);
-		painter.drawText(QRect(0, 0, size, size), Qt::AlignCenter, QString(QChar(icon.letter)));
-	}
-
-	return pixmap;
-}
-
-// Keep the rendered glyphs: data() is asked for the icon of every visible row on every repaint,
-// and the delegate then asks a second time for its width. This is the map the TODO that used to
-// stand here asked for; before it, each of those calls decoded a .bmp from the resources anew.
-// The device pixel ratio is part of the key, as it changes when the window is dragged to a
-// monitor with another scale factor. Model and delegate both run on the GUI thread.
-static auto GetTreeItemPixmap(item_icon_kind kind, bool isInTemplate) -> QPixmap
-{
-	assert(kind < item_icon_kind::count);
-
-	auto dpr = qApp->devicePixelRatio();
-
-	using icon_key = std::tuple<item_icon_kind, bool, int>;
-	static std::map<icon_key, QPixmap> s_pixmaps;
-
-	auto key = icon_key(kind, isInTemplate, int(dpr * 100));
-	auto pos = s_pixmaps.find(key);
-	if (pos == s_pixmaps.end())
-	{
-		auto clr = GetItemIconColor(kind);
-		auto color = isInTemplate
-			? QColor(0x9E, 0x9E, 0x9E) // what the _bw twin of each bitmap used to express
-			: QColor(GetRed(clr), GetGreen(clr), GetBlue(clr));
-
-		pos = s_pixmaps.emplace(key, RenderIconGlyph(sc_IconGlyphs[UInt32(kind)], color, dms_params::treeitem_icon_size, dpr)).first;
-	}
-	return pos->second;
-}
 
 QVariant DmsModel::getTreeItemIcon(const QModelIndex& index) const {
 	auto ti = GetTreeItemOrRoot(index);
@@ -335,7 +237,7 @@ QVariant DmsModel::getTreeItemIcon(const QModelIndex& index) const {
 	// was before issue #319; the view style flags say nothing about either, so ask the rule with
 	// both refinements off rather than repeat its template/function order here
 	if (ti->IsTemplate())
-		return QVariant::fromValue(GetTreeItemPixmap(GetItemIconKind(ti, false, false), isInTemplate));
+		return QVariant::fromValue(GetItemIconPixmap(GetItemIconKind(ti, false, false), isInTemplate));
 
 	auto vsflags = SHV_GetViewStyleFlags(ti);
 
@@ -358,7 +260,7 @@ QVariant DmsModel::getTreeItemIcon(const QModelIndex& index) const {
 	bool isMapViewable = vsflags & ViewStyleFlags::vsfMapView;
 	bool hasCommonDomain = vsflags & ViewStyleFlags::vsfTableContainer;
 
-	return QVariant::fromValue(GetTreeItemPixmap(GetItemIconKind(ti, isMapViewable, hasCommonDomain), isInTemplate));
+	return QVariant::fromValue(GetItemIconPixmap(GetItemIconKind(ti, isMapViewable, hasCommonDomain), isInTemplate));
 }
 
 // the rule itself lives in rtc (GetItemOrigin) as the TableView applies it as well, see issue #1159

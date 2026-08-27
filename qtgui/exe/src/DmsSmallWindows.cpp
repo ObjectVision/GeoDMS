@@ -147,10 +147,6 @@ void dms_params::SetDialogButtonSize(QPushButton* button)
 QSize const dms_params::toolbar_button_spacing = QSize(30, 0);
 
 // icons
-const char* dms_params::default_view_icon = ":/res/images/TV_default_view.bmp";
-const char* dms_params::table_view_icon = ":/res/images/TV_table.bmp";
-const char* dms_params::map_view_icon = ":/res/images/TV_globe.bmp";
-const char* dms_params::statistics_view_icon = ":/res/images/DP_statistics.bmp";
 const int dms_params::treeitem_icon_size = 16;
 
 // coordinates bar

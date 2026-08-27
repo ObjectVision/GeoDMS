@@ -8,11 +8,7 @@
         <file>res/images/DP_explore.bmp</file>
         <file>res/images/DP_configuration.bmp</file>
         <file>res/images/DP_MetaData.bmp</file>
-        <file>res/images/DP_statistics.bmp</file>
         <file>res/images/DP_ValueInfo.bmp</file>
-        <file>res/images/TV_globe.bmp</file>
-        <file>res/images/TV_palette.bmp</file>
-        <file>res/images/TV_table.bmp</file>
         <file>res/images/TV_branch_end.png</file>
         <file>res/images/TV_branch_more.png</file>
         <file>res/images/TV_vline.png</file>
@@ -62,9 +58,6 @@
         <file>res/images/GeoDmsGuiQt.png</file>
         <file>res/images/TV_storage_unstored.png</file>
         <file>res/fonts/remixicon.ttf</file>
-        <file>res/images/IconCalculationTimeOverview.png</file>
-        <file>res/images/TV_default_view.bmp</file>
-        <file>res/images/ConfigFileList.png</file>
         <file>res/images/TB_pan_button.bmp</file>
         <file>res/images/WorldHeatMap.jpg</file>
     </qresource>

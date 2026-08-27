@@ -252,8 +252,10 @@ void createDmsActions() {
     main_window->m_view_menu = std::make_unique<QMenu>(QObject::tr("&View"));
     main_window->menuBar()->addMenu(main_window->m_view_menu.get());
 
-    main_window->m_defaultview_action = std::make_unique<QAction>(QObject::tr("Default"));
-    main_window->m_defaultview_action->setIcon(QIcon::fromTheme("backward", QIcon(dms_params::default_view_icon)));
+    main_window->m_defaultview_action = std::make_unique<QAction>(QObject::tr("Default View"));
+    // The icon of this one is not fixed: updateActionsForNewCurrentItem replaces it by the icon of
+    // the view this action will open on the current item (issue #1220). This is the no-item state.
+    main_window->m_defaultview_action->setIcon(main_window->getIconFromViewstyle(ViewStyle::tvsDefault));
     main_window->m_defaultview_action->setStatusTip(QObject::tr("Open current selected TreeItem's default view."));
     main_window->connect(main_window->m_defaultview_action.get(), &QAction::triggered, main_window, &MainWindow::defaultView);
     main_window->m_view_menu->addAction(main_window->m_defaultview_action.get());
@@ -262,7 +264,7 @@ void createDmsActions() {
     // table view
     main_window->m_tableview_action = std::make_unique<QAction>(QObject::tr("&Table"));
     main_window->m_tableview_action->setStatusTip(QObject::tr("Open current selected TreeItem's in a table view."));
-    main_window->m_tableview_action->setIcon(QIcon::fromTheme("backward", QIcon(dms_params::table_view_icon)));
+    main_window->m_tableview_action->setIcon(main_window->getIconFromViewstyle(ViewStyle::tvsTableView));
     main_window->connect(main_window->m_tableview_action.get(), &QAction::triggered, main_window, &MainWindow::tableView);
     main_window->m_view_menu->addAction(main_window->m_tableview_action.get());
     main_window->m_tableview_action->setShortcut(QKeySequence(QObject::tr("Ctrl+D")));
@@ -270,14 +272,14 @@ void createDmsActions() {
     // map view
     main_window->m_mapview_action = std::make_unique<QAction>(QObject::tr("&Map"));
     main_window->m_mapview_action->setStatusTip(QObject::tr("Open current selected TreeItem's in a map view."));
-    main_window->m_mapview_action->setIcon(QIcon::fromTheme("backward", QIcon(dms_params::map_view_icon)));
+    main_window->m_mapview_action->setIcon(main_window->getIconFromViewstyle(ViewStyle::tvsMapView));
     main_window->connect(main_window->m_mapview_action.get(), &QAction::triggered, main_window, &MainWindow::mapView);
     main_window->m_view_menu->addAction(main_window->m_mapview_action.get());
     main_window->m_mapview_action->setShortcut(QKeySequence(QObject::tr("CTRL+M")));
 
     // statistics view
     main_window->m_statistics_action = std::make_unique<QAction>(QObject::tr("&Statistics"));
-    main_window->m_statistics_action->setIcon(QIcon::fromTheme("backward", QIcon(dms_params::statistics_view_icon)));
+    main_window->m_statistics_action->setIcon(main_window->getIconFromViewstyle(ViewStyle::tvsStatistics));
     main_window->connect(main_window->m_statistics_action.get(), &QAction::triggered, main_window, &MainWindow::showStatistics);
     main_window->m_view_menu->addAction(main_window->m_statistics_action.get());
 
@@ -321,7 +323,7 @@ void createDmsActions() {
     main_window->m_view_menu->addAction(main_window->m_view_calculation_times_action.get());
 
     main_window->m_view_current_config_filelist = std::make_unique<QAction>(QObject::tr("List of loaded Configuration Files"));
-    main_window->m_view_current_config_filelist->setIcon(main_window->getIconFromViewstyle(ViewStyle::tvsCurrentConfigFileList));// QPixmap(":/res/images/IconCalculationTimeOverview.png"));
+    main_window->m_view_current_config_filelist->setIcon(main_window->getIconFromViewstyle(ViewStyle::tvsCurrentConfigFileList));
     main_window->connect(main_window->m_view_current_config_filelist.get(), &QAction::triggered, main_window, &MainWindow::view_current_config_filelist);
     main_window->m_view_menu->addAction(main_window->m_view_current_config_filelist.get());
 

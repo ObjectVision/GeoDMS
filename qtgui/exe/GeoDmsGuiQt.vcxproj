@@ -143,6 +143,7 @@
       <DynamicSource Condition="'$(Configuration)|$(Platform)'=='Release|x64'">input</DynamicSource>
       <QtMocFileName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(Filename).moc</QtMocFileName>
     </ClCompile>
+    <ClCompile Include="src\DmsIcons.cpp" />
     <ClCompile Include="src\DmsMainWindow.cpp" />
     <ClCompile Include="src\DmsSmallWindows.cpp" />
     <ClCompile Include="src\DmsOptions.cpp" />
@@ -174,6 +175,7 @@
     <QtMoc Include="src\DmsFileChangedWindow.h" />
     <QtMoc Include="src\DmsErrorWindow.h" />
     <ClInclude Include="src\DmsGuiParameters.h" />
+    <ClInclude Include="src\DmsIcons.h" />
     <QtMoc Include="src\DmsToolbar.h" />
     <ClInclude Include="src\DmsSplashScreen.h" />
     <QtMoc Include="src\SearchTreeItemWindow.h" />

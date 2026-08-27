@@ -190,6 +190,7 @@ public:
     void togglePinOfEntry(DmsRecentFileEntry* entry);
     auto CreateCodeAnalysisSubMenu(QMenu* menu) const -> std::unique_ptr<QMenu>;
     auto getIconFromViewstyle(ViewStyle vs) const -> QIcon;
+    auto defaultViewStyleOf(const TreeItem* ti) const -> ViewStyle;
     void hideDetailPagesRadioButtonWidgets(bool hide_properties_buttons, bool hide_source_descr_buttons) const;
     Int32 addRecentFilesEntry(WeakStr recent_file);
     void onInternalLinkClick(const QUrl& link, QWidget* origin = nullptr);

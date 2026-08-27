@@ -56,6 +56,7 @@
 #include "DmsValueInfo.h"
 #include "DmsFileChangedWindow.h"
 #include "DmsActions.h"
+#include "DmsIcons.h"
 #include "DmsToolbar.h"
 #include "DmsErrorWindow.h"
 #include "DmsAddressBar.h"
@@ -430,6 +431,7 @@ bool MainWindow::openErrorOnFailedCurrentItem() {
 
 void MainWindow::clearActionsForEmptyCurrentItem() const {
     m_defaultview_action->setDisabled(true);
+    m_defaultview_action->setIcon(getIconFromViewstyle(ViewStyle::tvsDefault)); // back to the no-item icon
     m_tableview_action->setDisabled(true);
     m_mapview_action->setDisabled(true);
     m_statistics_action->setDisabled(true);
@@ -449,6 +451,8 @@ void MainWindow::updateActionsForNewCurrentItem() {
     bool dataActionable = ci && !ci->InTemplate() && !ci->IsTemplate();
     auto viewstyle_flags = dataActionable ? SHV_GetViewStyleFlags(ci) : ViewStyleFlags::vsfNone;
     m_defaultview_action->setEnabled(viewstyle_flags & (ViewStyleFlags::vsfDefault | ViewStyleFlags::vsfTableView | ViewStyleFlags::vsfTableContainer | ViewStyleFlags::vsfMapView)); // TODO: vsfDefault appears to never be set
+    // ... and it wears the icon of the view it will open on this item, see defaultViewStyleOf
+    m_defaultview_action->setIcon(getIconFromViewstyle(defaultViewStyleOf(dataActionable ? ci : nullptr)));
     m_tableview_action->setEnabled(viewstyle_flags & (ViewStyleFlags::vsfTableView | ViewStyleFlags::vsfTableContainer));
     m_mapview_action->setEnabled(viewstyle_flags & ViewStyleFlags::vsfMapView);
     // This slot runs on every current-item change. The values unit / value type may be absent
@@ -1220,15 +1224,24 @@ void MainWindow::defaultViewOrAddItemToCurrentView() {
     }
 }
 
+// The view that defaultView() will open on this item, or tvsDefault when it can deduce none.
+// Kept here rather than inside defaultView because the Default View action's icon is set from it
+// (issue #1220): that entry is an action and not a category, so it shows the icon of the Table or
+// the Map entry beside it -- whichever view it is actually going to create.
+auto MainWindow::defaultViewStyleOf(const TreeItem* ti) const -> ViewStyle {
+    auto viewstyle = ti ? SHV_GetDefaultViewStyle(ti) : ViewStyle::tvsDefault;
+    if (viewstyle == ViewStyle::tvsPaletteEdit)
+        viewstyle = ViewStyle::tvsTableView; // a palette is edited in a table
+    return viewstyle;
+}
+
 void MainWindow::defaultView() {
     auto currItem = getCurrentTreeItem();
     if (!currItem)
         return;
 
     reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "defaultView // for item {}", currItem->GetFullName());
-    auto default_view_style = SHV_GetDefaultViewStyle(m_current_item.get());
-    if (default_view_style == ViewStyle::tvsPaletteEdit)
-        default_view_style = ViewStyle::tvsTableView;
+    auto default_view_style = defaultViewStyleOf(m_current_item.get());
     if (default_view_style == ViewStyle::tvsDefault) {
         reportF(MsgCategory::other, SeverityTypeID::ST_Error, "Unable to deduce viewstyle for item {}, no view created.", currItem->GetFullName());
         return;
@@ -1835,15 +1848,28 @@ void MainWindow::updateStatusMessage() {
     statusBar()->showMessage(fullMsg.c_str());
 }
 
+// The View and Window menus and the window titles wear the same remixicon glyphs the TreeView
+// draws (issue #1220), so an item and a view opened on it are recognizable as the same thing:
+// a map view carries the earth its map-viewable attributes carry, a table view the table its
+// domains carry, a palette view the palette its class breaks carry. The view kinds with no
+// counterpart in the tree take the slate a plain attribute is drawn in, so that the glyph alone
+// distinguishes them. tvsDefault gets no glyph of its own: the Default View action shows the icon
+// of the concrete view it will open, so it only ever asks about that view -- see defaultViewStyleOf.
+static auto ViewStyleIcon(char16_t glyph, item_icon_kind paletteEntry) -> QIcon
+{
+    return GetGlyphPixmap({ glyph, 0 }, GetItemIconColor(paletteEntry));
+}
+
 auto MainWindow::getIconFromViewstyle(ViewStyle viewstyle) const -> QIcon {
     switch (viewstyle) {
-    case ViewStyle::tvsMapView: { return QPixmap(":/res/images/TV_globe.bmp"); }
-    case ViewStyle::tvsHistogram: { return QPixmap(":/res/images/DP_statistics.bmp"); }
-    case ViewStyle::tvsStatistics: { return QPixmap(":/res/images/DP_statistics.bmp"); }
-    case ViewStyle::tvsCalculationTimes: { return QPixmap(":/res/images/IconCalculationTimeOverview.png"); }
-    case ViewStyle::tvsPaletteEdit: { return QPixmap(":/res/images/TV_palette.bmp");}
-    case ViewStyle::tvsCurrentConfigFileList: { return QPixmap(":/res/images/ConfigFileList.png"); }
-    default: { return QPixmap(":/res/images/TV_table.bmp");}
+    case ViewStyle::tvsMapView              : return ViewStyleIcon(u'\uEC7A', item_icon_kind::data_item_map); // earth-line, as a map-viewable attribute wears
+    case ViewStyle::tvsPaletteEdit          : return ViewStyleIcon(u'\uEFC5', item_icon_kind::data_item_palette); // palette-line, as a class-break attribute wears
+    case ViewStyle::tvsStatistics           : return ViewStyleIcon(u'\uED9F', item_icon_kind::data_item); // functions, the sigma the bitmap drew
+    case ViewStyle::tvsHistogram            : return ViewStyleIcon(u'\uEA96', item_icon_kind::data_item); // bar-chart-2-line, for all four chart kinds
+    case ViewStyle::tvsCalculationTimes     : return ViewStyleIcon(u'\uF215', item_icon_kind::data_item); // timer-line, the clock the bitmap drew
+    case ViewStyle::tvsCurrentConfigFileList: return ViewStyleIcon(u'\uECEF', item_icon_kind::data_item); // file-list-3-line
+    // tvsTableView, and every style that reaches a window or a menu without one of its own
+    default: return ViewStyleIcon(u'\uF1DE', item_icon_kind::unit_domain); // table-line
     }
 }
 
@@ -2446,7 +2472,7 @@ void MainWindow::view_calculation_times() {
 
     m_calculation_times_browser->show();
     m_calculation_times_window->setWindowTitle("Calculation time overview");
-    m_calculation_times_window->setWindowIcon(QPixmap(":/res/images/IconCalculationTimeOverview.png"));
+    m_calculation_times_window->setWindowIcon(getIconFromViewstyle(ViewStyle::tvsCalculationTimes));
     m_calculation_times_window->show();
 }
 
