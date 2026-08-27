@@ -28,6 +28,31 @@ renamed to `.bak` first so `RegioIndelingen.dms` has to download it again. Both
 walks its own output folder. Pass a third argument to point the geopackage step at a
 scratch `SourceDataDir` when testing the script itself.
 
+## Line endings: LF in the repository, CRLF in a Windows working tree
+
+**Since GeoDMS 20.18.0 every text blob is stored with LF.** `.gitattributes` carries
+`* text=auto`, so a Windows checkout is handed CRLF and the clean filter normalises back
+on commit. `*.bat`, `*.cmd`, `*.sln`, `*.vcxproj`, `*.filters` and `*.pyproj` are pinned to
+CRLF on checkout, `*.sh` to LF. **Always stage with plain `git add`**; never with
+`-c core.autocrlf=false`, which stores working-copy bytes verbatim and explodes the diff.
+
+What this ended, and why it could never fix itself: the repository used to be split
+roughly in half — 696 CRLF blobs against 629 LF — with 45 files carrying both at once.
+Git skips normalisation for any file whose index version already contains CR, so every
+bare LF written into a CRLF file (which is what a tool that rewrites a file whole emits)
+was committed verbatim and stayed. With all blobs on LF that exception no longer fires.
+The renormalisation is commit `fd052639` and is listed in `.git-blame-ignore-revs`.
+
+**`git status` misreports line endings; `git diff` does not.** status decides by comparing
+stat data, so a file whose bytes on disk are not the checkout form is reported as modified
+even when its content hashes identically to the blob. To ask whether there is real
+uncommitted work, use `git diff --name-only` (plus `--cached`), not `git status`.
+
+A clone made before the renormalisation keeps whatever its files already contained. Repair
+it once with **`batch\NormalizeCRLF.bat`** (`/scan` to look first, `/y` to skip the prompt).
+The repair is cosmetic — git already normalises those files on `git add` — but it rewrites
+files, so whatever depends on them recompiles afterwards.
+
 ## Build & setup policy — do NOT improvise
 
 Build ONLY through the committed solution / preset files, using **msbuild** or **CMake**.
