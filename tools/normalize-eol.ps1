@@ -175,17 +175,22 @@ foreach ($item in $mismatched) {
 $paths = @($mismatched | ForEach-Object { $_.Path })
 
 # Settle the index stat cache, or every repaired file shows up as modified in
-# `git status` from here on. The rewrite changed each file's size and timestamp while
-# its content still cleans to the same blob, and status decides on stat data alone.
-# Neither `git update-index --refresh` nor `--really-refresh` clears it -- the latter
-# reports every one of them as "needs update" and leaves them that way. A plain
-# `git add` of the same paths stages nothing, because the blobs are identical, but it
-# does record the new stat. Paths go in chunks to stay under the command line limit.
-for ($i = 0; $i -lt $paths.Count; $i += 100) {
-    $chunk = $paths[$i .. [Math]::Min($i + 99, $paths.Count - 1)]
-    & git add -- @chunk
-    if ($LASTEXITCODE -ne 0) { Fail "git add failed on the chunk starting at $i." }
-}
+# `git status` from here on -- and in everything that reads it, which is how a Visual
+# Studio session came to report 522 changed files after a run of this script. The
+# rewrite changed each file's size and timestamp while its content still cleans to the
+# same blob, and status decides on stat data alone. Neither `git update-index --refresh`
+# nor `--really-refresh` clears that; the latter reports every one as "needs update" and
+# leaves it that way. `git add` does, staging nothing because the blobs are identical.
+#
+# `-u` across the whole tree, deliberately, rather than naming the repaired paths.
+# Naming them made git refuse the entire batch as soon as one path sat under an ignored
+# directory while being tracked anyway: .gitignore has /.claude, .claude/settings.json
+# is tracked regardless, and `git add` rejects an explicitly named ignored path even
+# then. `-u` only ever considers files that are already tracked, so exclude rules never
+# enter into it, and it needs no chunking to stay under the command line limit. The tree
+# was verified clean above, so this cannot stage content.
+& git add -u
+if ($LASTEXITCODE -ne 0) { Fail 'git add -u failed while settling the index stat cache.' }
 
 $staged = @(git diff --cached --name-only)
 if ($staged.Count -gt 0) {
