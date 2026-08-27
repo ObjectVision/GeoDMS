@@ -152,9 +152,9 @@ auto geos_create_linear_ring(const DmsPointType* begin, const DmsPointType* beyo
 -> std::unique_ptr<geos::geom::LinearRing>
 {
 	assert(begin != beyond);
-	assert(begin[0] == beyond[-1]); // closed ?
-
 	tmp.helperRingPoints.clear();
+	if (beyond[-1] == begin[0])
+		--beyond; // skip last point if it is the same as the first point, as the ring will be closed by the code below anyway
 	tmp.helperRingPoints.reserve(beyond - begin);
 	for (auto ptr = begin; ptr != beyond; ++ptr)
 		tmp.helperRingPoints.emplace_back(*ptr);

@@ -122,7 +122,10 @@ void MakeLowerBound(P& lb, const boost::geometry::model::multi_polygon<Polygon>&
 
 inline bool clean(bg_ring_t& ring)
 {
-	assert(ring.empty() || ring.front() == ring.back());
+	// Accepts an open as well as a closed ring: this function closes the ring itself (emplace_back
+	// below). A closed one loses its duplicate end point to remove_adjacents_and_spikes, an open one
+	// has nothing to lose, and both end up closed. The callers in assign_multi_polygon drop that
+	// duplicate up front, so the ring is copied once instead of copied and then trimmed. See #1219.
 	remove_adjacents_and_spikes(ring);
 	if (ring.size() < 3)
 	{
@@ -360,10 +363,13 @@ void assign_polygon(bg_polygon_t& resPoly, SA_ConstReference<DmsPointType> polyR
 	bool outerOrientation = true;
 	for (; ri != re; ++ri)
 	{
-		dms_assert((*ri).begin() != (*ri).end());
-		dms_assert((*ri).begin()[0] == (*ri).end()[-1]); // closed ?
+		auto currRing = *ri;
+		auto ringBegin = currRing.begin(), ringEnd = currRing.end();
+		dms_assert(ringBegin != ringEnd);
+		if (ringEnd[-1] == ringBegin[0])
+			--ringEnd; // skip last point if it is the same as the first point, as clean() closes the ring below anyway
 
-		helperRing.assign((*ri).begin(), (*ri).end());
+		helperRing.assign(ringBegin, ringEnd);
 		if (!clean(helperRing))
 		{
 			if (ri == rb)
@@ -412,10 +418,13 @@ void assign_multi_polygon(bg_multi_polygon_t& resMP, SA_ConstReference<DmsPointT
 	bool isFirstRing = true;
 	for (; ri != re; ++ri, isFirstRing = false)
 	{
-		assert((*ri).begin() != (*ri).end());
-		assert((*ri).begin()[0] == (*ri).end()[-1]); // closed ?
+		auto currRing = *ri;
+		auto ringBegin = currRing.begin(), ringEnd = currRing.end();
+		assert(ringBegin != ringEnd);
+		if (ringEnd[-1] == ringBegin[0])
+			--ringEnd; // skip last point if it is the same as the first point, as clean() closes the ring below anyway
 
-		helperRing.assign((*ri).begin(), (*ri).end());
+		helperRing.assign(ringBegin, ringEnd);
 		if (!clean(helperRing))
 		{
 			continue;
