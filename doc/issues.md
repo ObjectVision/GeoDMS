@@ -7,10 +7,11 @@ rather than edited in place. #1215 was closed that afternoon and #1217 was filed
 it, so both are recorded below rather than in the tables. Since that audit, #1212 and #1219 were
 both closed (2026-08-27, recorded below); #1219 was filed and fixed after the audit and so never
 entered the tables, and neither did #1220, which was filed and closed on 2026-08-27 as well.
-#1211, which the tables did classify, was closed right after it by the same work. Live count
-re-checked against GitHub after that: **11 open** — #587, #724, #990, #1145, #1161, #1165, #1191,
-#1196, #1198, #1205, #1214. Note #973 and #659 have both closed since the audit and their rows
-below are stale. Grouped by implementability. Buckets:
+#1211, which the tables did classify, was closed right after it by the same work. #1196 has
+since been closed as well (2026-08-27, recorded below), and #1221 was filed that afternoon and has
+not been classified here yet. Live count re-checked against GitHub after that: **11 open** — #587,
+#724, #990, #1145, #1161, #1165, #1191, #1198, #1205, #1214, #1221. Note #973 and #659 have both
+closed since the audit and their rows below are stale. Grouped by implementability. Buckets:
 
 - **A. Low hanging fruit** — small, well-defined fixes; no design decisions needed.
 - **B. Implementable after minor design choices** — clear scope; one or two decisions to settle first.
@@ -49,7 +50,6 @@ None open. #1211, the last one, was closed on 2026-08-27 (recorded below).
 | [#1214](https://github.com/ObjectVision/GeoDMS/issues/1214) Fault-tolerant sweep for polygon_intersection and overlay | Split out of #757 on 2026-08-26; also the last unchecked box of the now-closed #917. Settle what "fault tolerant" promises (a valid result always, or a valid result plus a diagnostic saying where tolerance was applied — silently snapping geometry is the failure mode to avoid), where the tolerance comes from, and whether it replaces the per-backend cleanup pre-passes (`fix_polygon`/MakeValid, `clean_bg_geometry`, CGAL `Polygon_repair`), which today run *before* the overlay rather than being tolerance inside the sweep. Touches the same code as #1205 and should be designed with it: a tolerant sweep changes the per-feature cost model #1205's subdivision decisions rest on. Design notes are on the issue. |
 | [#1205](https://github.com/ObjectVision/GeoDMS/issues/1205) Balance polygon overlay by geometric complexity | The current outer/inner tile loops expose only the first argument's element tiling as parallel work, so a few dissolved features with millions of vertices collapse to one worker. Needs a choice between feature/vertex subdivision, parallelising both tile dimensions, prepared geometry, and a user-visible `subdivide` operator; argument-order guidance can be documented independently. |
 | [#1198](https://github.com/ObjectVision/GeoDMS/issues/1198) Resource-aware admission does not converge | Follow-up to the closed #1158: enforce mode churns without reducing the live peak, and its committed-memory figure can exceed physical memory. Requires a corrected accounting/admission model rather than another local threshold. |
-| [#1196](https://github.com/ObjectVision/GeoDMS/issues/1196) `discrete_alloc` arithmetic can overflow at production sizes | The two cheap widenings are clear (`perturbation_type` and feasibility aggregates), but shadow-price bounds and hot-path checked signed arithmetic need a design/performance decision. The issue is an audit finding, not a reproduced wrong allocation. |
 | [#659](https://github.com/ObjectVision/GeoDMS/issues/659) R (or Python) integration for calculations | The linking route is closed for good and recorded on the wiki: R's C API needs the MinGW-w64 toolchain R itself was built with, and hosting a single-threaded, `longjmp`-based interpreter inside a thread-scheduling engine is not viable. The file-and-`exec_ec` route is the answer instead, and 20.16.0 makes it usable (`5a9d4478`: the child's stdout+stderr are captured on one pipe and reported line by line as `exec: <line>`, capped at 1 MB but still drained, and waited for in ticks). What remains under "design" is the ordering discipline — the NetworkModel_EU/Julia production example shows the batch file, not the configuration, must own any sequence that includes a GeoDMS *write*. |
 | [#724](https://github.com/ObjectVision/GeoDMS/issues/724) Circular units (wrap-around grid/time) | New unit semantics rippling through operators and metric checking. |
 | [#587](https://github.com/ObjectVision/GeoDMS/issues/587) Storage-read functions in keyExpr | Language-level change to make storage reads expressible in calculation rules. |
@@ -76,7 +76,86 @@ is a two-line guard against an unpleasant failure mode for anyone invoking the s
 
 ## Recently closed (delta since 2026-07-31)
 
-### Closed on 2026-08-27 (4)
+### Closed on 2026-08-27 (5)
+
+- #1196 (`0209878c`, `d7ffb9f4`, `c37b773c`, wiki `d970ae1d`, `53d9ab5d`) — an audit of four places
+  where `discrete_alloc` did 32-bit arithmetic that production grid sizes reach, none of it checked.
+  All four are addressed; none of them was a reported wrong allocation, and the one that turned out
+  to bite in practice was not the one the issue led with.
+
+  **The perturbation (§1)** is no longer a file-level `using perturbation_type = Int32` but the
+  template parameter `P`, and the six `discrete_alloc` names are instantiated at both widths: the
+  plain ones at `Int32`, and `discrete_alloc_pi64`, `_16_pi64`, `_sp_pi64`, `_sp_16_pi64`,
+  `_np_pi64` and `_np_16_pi64` at `Int64`. Same arguments, same results; the wider term costs eight
+  bytes per shadow price, on a value that `claim` holds twice and every splitter step copies.
+  `greedy_alloc` and `needy_alloc` deliberately have **no** `_pi64` twin: they rank the land units
+  once and serve them from the raw suitabilities, so a wide-perturbation name would have differed
+  from the plain one in nothing but those eight unused bytes. That asymmetry is structural rather
+  than a convention — `hitchcock_operators` is instantiated over both perturbation types and
+  `heuristic_operators` over `Int32` only, so there is no template that could produce the name.
+
+  **The prices (§3)** now go through `CheckedAdd`/`CheckedSub`, which `rtc/dll/src/vt/CheckedCalc.h`
+  gained for signed integrals (forming the result in the unsigned representation, where wrapping is
+  defined; `CheckedSub` is new for both signednesses). Everything that produces a shadow price is
+  covered: the facet cost, both splitters' price assignments, the bid, the Dijkstra path cost in
+  `bi_graph.h`, and the `DistFromOpt` reporting totals — which also moved from `UInt64` to `Int64`,
+  so a net negative total reports as negative instead of wrapping. An overflow throws a
+  `shadow_price_overflow` carrying *which* component failed, and `CalcResult` turns it into a config
+  error naming the `_pi64` variant to switch to, with a separate note when it was the price rather
+  than the perturbation, since a wider perturbation does not help there.
+
+  Two things are deliberately **not** checked, both commented in place. `compare_oper::GetC` only
+  *orders* a facet queue and runs O(n·k·log n) times; the same difference is checked in
+  `priority_heap::GetC`, which is the one that becomes a cost, so a suitability range wide enough to
+  wrap is still reported the moment such a land unit reaches the top of a queue. And every
+  `dms_assert` reads `GetLinkCostUnchecked` instead of `GetLinkCost` — see the trap below.
+
+  **The claim aggregates (§2) were the finding that actually bit, and it needs no grid at all.**
+  Individual claims are bounded by the land unit count; the aggregates are not, and were summed in
+  `UInt32`. `testcases/fn_test_da_claimsum.dms` is four cells and two land use types, each with the
+  "no limit" maximum claim of 2^31: their sum is exactly 2^32, the aggregate read **zero**, and the
+  run was rejected with *"there are 4 cells that should be allocated while the total of the maximum
+  claims is only 0"*. Verified failing on the parent commit and passing on `c37b773c`.
+  `IsFeasible`'s four totals and two link sums became `SizeT` locals, which is free.
+  `FeasibilityTest`'s per-unique-region aggregates needed more thought, because they feed the
+  max-flow search in `bi_graph.h`, which counts in `UInt32` end to end — widening the arrays would
+  have rippled into `push_node_pos`/`augment`/`heap_elem`. They are summed in `SizeT` and narrowed
+  instead, which is exact in both directions: no region can absorb more land units than exist, so a
+  **maximum** aggregate above N means what N means and is clamped to it, while a **minimum** above N
+  is reported as the infeasibility it is rather than hidden by the clamp. §4 (`muldiv_u32`) is a
+  three-line check on a narrowing that was an invariant of the caller, not of the function.
+
+  **A latent bug fell out of the second instantiation**, and it is the argument for having built the
+  variant rather than only widening the type: `priority_heap`'s perturbation factor was
+  `src->m_ggTypeID - dst->m_ggTypeID`, an **unsigned** difference of two `UInt32` ids that only came
+  out right because the result was narrowed back to `Int32`. At `P == Int64` the wrap survives and
+  the facet's tie-break direction inverts. The existing
+  `dms_assert((m_PerturbationFactor > 0) == m_Compare.LhsDominated())` caught it on the very first
+  run of `discrete_alloc_np_pi64`.
+
+  **Two traps worth keeping, both costing a build cycle.** `dms_assert`, `assert`, `MAX_VALUE`,
+  `MIN_VALUE` and `UNDEFINED_VALUE` are *macros*: a template argument containing a comma splits
+  their arguments, so turning `shadow_price<S>` into `shadow_price<S, P>` produced some forty
+  `warning C4002` lines followed by a cascade of syntax errors many lines away. `MAX_VALUE(T)`
+  expands to `MaxValue<T>()`, which can be called directly; assertions took a local
+  `using price_type = ...` alias. And **an expression inside `dms_assert` must not be able to
+  throw**: the macro installs a `DebugOnlyLock` around it, and formatting a `DmsException` message
+  goes through `StringStream`, whose `dms_check_not_debugonly` then fires `__debugbreak()` — the
+  process dies with exit `-2147483645` (0x80000003) and no error text at all. Hence the
+  checked/unchecked pair. In Release `dms_assert` is `CC_ASSUME`, which does not evaluate the
+  expression, so a throwing assertion would have been a genuine Debug/Release divergence as well.
+
+  **What is not covered.** The overflow the `_pi64` names exist for needs ~2^31 land units and stays
+  untested; `testcases/fn_test_da_pi64.dms` pins the equivalence of the two widths instead, which is
+  what a small configuration can say. A config extreme enough to overflow the *price* component also
+  violates the algorithm's own Debug invariants before the checked arithmetic runs — an attempted
+  negative testcase died on `exit 3` and was dropped — so that path has no regression case either.
+  This is the "not covered by the regression suite" note the issue itself opened with, and it stands.
+
+  Documented on the wiki: [Allocation functions](https://github.com/ObjectVision/GeoDMS/wiki/Allocation-functions)
+  gains the section on when a model needs `_pi64` and what it costs; the discrete_alloc, greedy_alloc
+  and needy_alloc pages point at it, the last two stating that no such name exists for them and why.
+
 
 - #1211 (`a5c57688`, wiki `7f33d44b`) — the four chart kinds all reach `getIconFromViewstyle` as
   `tvsHistogram`: the `ViewStyle` says that a chart window is meant, not *which* chart, which is why
