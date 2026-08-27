@@ -7,9 +7,10 @@ rather than edited in place. #1215 was closed that afternoon and #1217 was filed
 it, so both are recorded below rather than in the tables. Since that audit, #1212 and #1219 were
 both closed (2026-08-27, recorded below); #1219 was filed and fixed after the audit and so never
 entered the tables, and neither did #1220, which was filed and closed on 2026-08-27 as well.
-Live count re-checked against GitHub after that: **12 open** — #587, #724, #990, #1145, #1161,
-#1165, #1191, #1196, #1198, #1205, #1211, #1214. Note #973 and #659 have both closed since the
-audit and their rows below are stale. Grouped by implementability. Buckets:
+#1211, which the tables did classify, was closed right after it by the same work. Live count
+re-checked against GitHub after that: **11 open** — #587, #724, #990, #1145, #1161, #1165, #1191,
+#1196, #1198, #1205, #1214. Note #973 and #659 have both closed since the audit and their rows
+below are stale. Grouped by implementability. Buckets:
 
 - **A. Low hanging fruit** — small, well-defined fixes; no design decisions needed.
 - **B. Implementable after minor design choices** — clear scope; one or two decisions to settle first.
@@ -24,9 +25,7 @@ Previous snapshots: 2026-08-24 claiming 27, 2026-08-20 with 33, 2026-07-31 with 
 
 ## A. Low hanging fruit
 
-| Issue | Why it is small |
-|---|---|
-| [#1211](https://github.com/ObjectVision/GeoDMS/issues/1211) Icons for view menu options and view titles | Half of this landed with #1220 (`71282962`): the whole View menu, the TreeView pop-up and the window titles now draw from the remixicon set, and the chart windows no longer reuse the Statistics sigma — they carry a bar chart. What is left is the reporter's actual suggestion, a **distinct** icon per chart kind, and that is no longer just a table entry: `getIconFromViewstyle` is keyed on `ViewStyle`, and all four chart kinds arrive as `tvsHistogram`. The kind is known at the menu (`chartKind` in `openView`) and is put on the view context by `SetViewContextChartKind`, so the icon path has to be given the kind as well before four glyphs can be told apart. |
+None open. #1211, the last one, was closed on 2026-08-27 (recorded below).
 
 ## B. Implementable after minor design choices
 
@@ -77,7 +76,33 @@ is a two-line guard against an unpleasant failure mode for anyone invoking the s
 
 ## Recently closed (delta since 2026-07-31)
 
-### Closed on 2026-08-27 (3)
+### Closed on 2026-08-27 (4)
+
+- #1211 (`a5c57688`, wiki `7f33d44b`) — the four chart kinds all reach `getIconFromViewstyle` as
+  `tvsHistogram`: the `ViewStyle` says that a chart window is meant, not *which* chart, which is why
+  all four had worn one icon — the Statistics sigma until #1220, a single bar chart after it. The
+  switch now takes the `ChartKind` that `createView` already holds (and that `SetViewContextChartKind`
+  puts on the view context), and `ChartKindGlyph` answers with one of four: `bar-chart-2-line`,
+  `bubble-chart-line`, `line-chart-line`, `bar-chart-line`. The two bar glyphs differ in what the two
+  charts themselves differ in — a histogram's bins touch, a bar chart's bars stand apart — which is
+  the one pair a reader could confuse at 16 px.
+  No second sub-window property was added for this. `updateWindowMenu` stopped recomputing the icon
+  from the `viewstyle` property and takes each sub-window's own `windowIcon()` instead, with the view
+  style as a fallback for a window that never set one; the chart kind is known where that icon is
+  set, and a menu entry can no longer come to disagree with the title bar it stands for.
+  The reporter's four attached bitmaps were deliberately **not** used, and the issue says so: #1220
+  had just moved this set from `.bmp` pairs to font glyphs, and a bitmap pair per icon is exactly the
+  per-icon cost that kept the set small for years. Each glyph is a single codepoint to change if the
+  drawn shapes are preferred.
+  Documented on [Main menu](https://github.com/ObjectVision/GeoDMS/wiki/Main-menu), section View, and
+  on [TreeView](https://github.com/ObjectVision/GeoDMS/wiki/TreeView), section pop-up/context menu —
+  the same two pages #1220 touched, both screenshots retaken from the current build.
+  Noted in passing and *not* changed: in the View menu `&Statistics` and `&Scatter Chart` share the
+  `S` mnemonic, so Alt+V,S cycles between the two instead of activating either. It predates this work
+  (`Create &Scatter Chart` clashed the same way). It also breaks index-driven menu capture, because
+  Qt's arrow keys skip *disabled* items: which entry `{DOWN}`×n lands on depends on how many chart
+  entries the current item has enabled, so drive a chart from its shortcut, not from its index.
+
 
 - #1220 (`71282962`, `362d0eba`, wiki `8ae06d3d`, `e24084e7`) — the TreeView has drawn its icons as
   remixicon glyphs since #319, but `getIconFromViewstyle` still answered with the 16x16 bitmaps, so
