@@ -27,6 +27,7 @@
 #include "GraphVisitor.h"
 #include "LayerClass.h"
 #include "LayerSet.h"
+#include "ShvUtils.h"
 #include "Theme.h"
 #include "ThemeReadLocks.h"
 #include "ThemeValueGetter.h"
@@ -213,12 +214,16 @@ void HistogramLayer::DoUpdateView()
 	for (SizeT k = 0; k != nrBins; ++k)
 		MakeMax(maxCount, m_Counts[k]);
 
-	// anchor the chart origin at (0, 0): counts are never negative and the value axis
-	// only extends below zero when the thematic values do
+	// The class boundaries are positions on the horizontal axis, so it fits them rather than always
+	// reaching back to zero, which used to squeeze a classification far from the origin into the
+	// right-hand edge (issue #1222). The vertical axis keeps its zero: a count is read off the bar's
+	// length, and a truncated baseline would misstate the ratios.
+	CrdType valueLo = m_BinBounds.front(), valueHi = m_BinBounds.back();
+	MakeNonDegenerateRange(valueLo, valueHi);
 	SetWorldClientRect(
 		CrdRect(
-			shp2dms_order<CrdType>(Min<CrdType>(0.0, m_BinBounds.front()), 0.0),
-			shp2dms_order<CrdType>(m_BinBounds.back(), CrdType(maxCount))
+			shp2dms_order<CrdType>(valueLo, 0.0),
+			shp2dms_order<CrdType>(valueHi, CrdType(maxCount))
 		)
 	);
 

@@ -68,6 +68,24 @@ void CreateViewValueAction(const TreeItem* tiContext, SizeT index, bool mustOpen
 void CreateGotoAction(const TreeItem* tiContext);
 
 //----------------------------------------------------------------------
+// section : Chart axis ranges
+//----------------------------------------------------------------------
+
+// A world rect with a zero-width side makes the view transformation singular, so a chart axis that
+// fits its data (issue #1222) has to widen a range that turns out to be a single value: one
+// element, or a constant attribute. 5% of the value, or half a unit around zero, keeps the tick
+// labels of such a chart readable.
+inline void MakeNonDegenerateRange(CrdType& lo, CrdType& hi)
+{
+	if (hi > lo)
+		return;
+	CrdType center = (IsDefined(lo) && IsDefined(hi)) ? lo : CrdType(0);
+	CrdType halfWidth = (center != 0) ? ((center < 0) ? -center : center) * 0.05 : 0.5;
+	lo = center - halfWidth;
+	hi = center + halfWidth;
+}
+
+//----------------------------------------------------------------------
 // section : Transform to projection
 //----------------------------------------------------------------------
 

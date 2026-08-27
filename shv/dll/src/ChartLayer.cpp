@@ -329,12 +329,21 @@ void ChartLayer::DoUpdateView()
 	}
 	m_BarSlotHalf = slotHalf; // per-bar offset/width derived from this at draw time (sees the live bar-layer set)
 
-	// anchor origin at (0,0): the value axis only extends below zero when the data does.
-	// Pad the X-extent by a slot half-width so the outermost bars are not clipped.
-	CrdType xPad = (m_DrawMode == ChartDrawMode::Bars) ? slotHalf : 0.0;
+	// Both axes fit the data (issue #1222). X carries a position -- the row number, a category
+	// ordinal, or the chosen X attribute -- so it never has to include zero. So does Y, except in
+	// Bars mode, where the bar runs from the zero line to the value and its length is what is read,
+	// so that mode keeps zero in view. Pad the X-extent by a slot half-width so the outermost bars
+	// are not clipped.
+	bool drawsBars = (m_DrawMode == ChartDrawMode::Bars);
+	CrdType xPad = drawsBars ? slotHalf : 0.0;
+	CrdType xLo = minX - xPad, xHi = maxX + xPad;
+	CrdType yLo = drawsBars ? Min<CrdType>(0.0, minY) : minY;
+	CrdType yHi = drawsBars ? Max<CrdType>(0.0, maxY) : maxY;
+	MakeNonDegenerateRange(xLo, xHi);
+	MakeNonDegenerateRange(yLo, yHi);
 	SetWorldClientRect(CrdRect(
-		shp2dms_order<CrdType>(Min<CrdType>(0.0, minX) - xPad, Min<CrdType>(0.0, minY)),
-		shp2dms_order<CrdType>(maxX + xPad, maxY)
+		shp2dms_order<CrdType>(xLo, yLo),
+		shp2dms_order<CrdType>(xHi, yHi)
 	));
 
 	if (!m_ZoomedOnce || m_ZoomPending)
