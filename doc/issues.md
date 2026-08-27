@@ -6,9 +6,10 @@ had been closed and five open ones were missing, so the tables below were rebuil
 rather than edited in place. #1215 was closed that afternoon and #1217 was filed and closed after
 it, so both are recorded below rather than in the tables. Since that audit, #1212 and #1219 were
 both closed (2026-08-27, recorded below); #1219 was filed and fixed after the audit and so never
-entered the tables. Live count checked against GitHub on 2026-08-27: **13 open** — #587, #659,
-#724, #990, #1145, #1161, #1165, #1191, #1196, #1198, #1205, #1211, #1214. Note #973 has closed
-since the audit and its row below is stale. Grouped by implementability. Buckets:
+entered the tables, and neither did #1220, which was filed and closed on 2026-08-27 as well.
+Live count re-checked against GitHub after that: **12 open** — #587, #724, #990, #1145, #1161,
+#1165, #1191, #1196, #1198, #1205, #1211, #1214. Note #973 and #659 have both closed since the
+audit and their rows below are stale. Grouped by implementability. Buckets:
 
 - **A. Low hanging fruit** — small, well-defined fixes; no design decisions needed.
 - **B. Implementable after minor design choices** — clear scope; one or two decisions to settle first.
@@ -25,7 +26,7 @@ Previous snapshots: 2026-08-24 claiming 27, 2026-08-20 with 33, 2026-07-31 with 
 
 | Issue | Why it is small |
 |---|---|
-| [#1211](https://github.com/ObjectVision/GeoDMS/issues/1211) Icons for view menu options and view titles | Every chart window currently reuses the Statistics view icon. The reporter attached the icons they want; the work is wiring them into the view registry, the same table #319 touched for the tree-item icons (`518dc747`, `0ce9f427`). No semantics involved. |
+| [#1211](https://github.com/ObjectVision/GeoDMS/issues/1211) Icons for view menu options and view titles | Half of this landed with #1220 (`71282962`): the whole View menu, the TreeView pop-up and the window titles now draw from the remixicon set, and the chart windows no longer reuse the Statistics sigma — they carry a bar chart. What is left is the reporter's actual suggestion, a **distinct** icon per chart kind, and that is no longer just a table entry: `getIconFromViewstyle` is keyed on `ViewStyle`, and all four chart kinds arrive as `tvsHistogram`. The kind is known at the menu (`chartKind` in `openView`) and is put on the view context by `SetViewContextChartKind`, so the icon path has to be given the kind as well before four glyphs can be told apart. |
 
 ## B. Implementable after minor design choices
 
@@ -76,7 +77,34 @@ is a two-line guard against an unpleasant failure mode for anyone invoking the s
 
 ## Recently closed (delta since 2026-07-31)
 
-### Closed on 2026-08-27 (2)
+### Closed on 2026-08-27 (3)
+
+- #1220 (`71282962`, `362d0eba`, wiki `8ae06d3d`, `e24084e7`) — the TreeView has drawn its icons as
+  remixicon glyphs since #319, but `getIconFromViewstyle` still answered with the 16x16 bitmaps, so
+  the View menu, the TreeView's pop-up menu and every window title kept the old set beside the new
+  one. The renderer and its cache moved out of `DmsTreeView` into a `DmsIcons` unit both callers
+  reach; the cache key became (glyph, letter, colour, dpr) instead of (item kind, in-template, dpr),
+  which is what lets a menu icon share an entry with a tree icon. A view kind that exists in the tree
+  wears exactly its icon and colour (map = earth/blue, table = table/teal, palette = palette/magenta);
+  the rest take the slate of a plain attribute with the glyph their bitmap drew.
+  What settled the one open question in the issue — whether *View > Default* should keep its place —
+  was the distinction drawn in its comment thread: **a tree icon states an immutable categorisation,
+  a menu entry is an applicable action**. So the entry stays, renamed *Default View*, and is the only
+  one with no icon of its own: `updateActionsForNewCurrentItem` gives it the icon of the view
+  `defaultView()` will create, through one `defaultViewStyleOf` that both use, so the icon cannot come
+  to disagree with the action. *Table* and *Map* became *Table View* and *Map View* and the four chart
+  entries dropped *Create*, all in the shared `QAction`s, so the pop-up menu follows for free.
+  Found in passing, worth remembering because it was invisible on Windows: the four entries that set
+  an icon directly did so with `QIcon::fromTheme("backward", <bitmap>)`. The bitmap is only the
+  *fallback*, so on any desktop with an icon theme installed — i.e. Linux — *Default*, *Table*, *Map*
+  and *Statistics* would each have drawn a **back arrow**. Nobody would have seen it here.
+  On verification: drive the GUI from a `.dmsscript` and capture the menus with `PrintWindow` on the
+  process's **own** window handles (`EnumWindows` filtered on the process id gives the menu pop-ups).
+  A full-screen `CopyFromScreen` grab is the wrong tool twice over — `Start-Process` cannot take the
+  foreground, so the first attempt photographed whatever else was on top — and the capturing process
+  must call `SetProcessDpiAwarenessContext` before `GetWindowRect`, or the rect under-reports on a
+  scaled display and the bitmap clips the menu's shortcut column.
+  Left open: #1211 wants a distinct icon per chart kind; the four still share one bar-chart glyph.
 
 - #1219 (`1b0f6b5c`, wiki `05537e72`) — a Debug run aborted on
   `assert(begin[0] == beyond[-1]); // closed ?` in `geos_create_linear_ring` while reading a
