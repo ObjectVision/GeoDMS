@@ -286,7 +286,7 @@ void createDmsActions() {
     // histogram chart view (issue #75)
     main_window->m_histogramview_action = std::make_unique<QAction>(QObject::tr("&Histogram Chart"));
     main_window->m_histogramview_action->setStatusTip(QObject::tr("Open a chart with a histogram of the current selected TreeItem's (classified) values."));
-    main_window->m_histogramview_action->setIcon(main_window->getIconFromViewstyle(ViewStyle::tvsHistogram));
+    main_window->m_histogramview_action->setIcon(main_window->getIconFromViewstyle(ViewStyle::tvsHistogram, ChartKind::Histogram));
     main_window->connect(main_window->m_histogramview_action.get(), &QAction::triggered, main_window, &MainWindow::histogramChartView);
     main_window->m_view_menu->addAction(main_window->m_histogramview_action.get());
     main_window->m_histogramview_action->setShortcut(QKeySequence(QObject::tr("Ctrl+H")));
@@ -294,21 +294,21 @@ void createDmsActions() {
     // scatter chart view (issue #75)
     main_window->m_scatterview_action = std::make_unique<QAction>(QObject::tr("&Scatter Chart"));
     main_window->m_scatterview_action->setStatusTip(QObject::tr("Open a chart that plots the current selected TreeItem's values against their row number."));
-    main_window->m_scatterview_action->setIcon(main_window->getIconFromViewstyle(ViewStyle::tvsHistogram));
+    main_window->m_scatterview_action->setIcon(main_window->getIconFromViewstyle(ViewStyle::tvsHistogram, ChartKind::Scatter));
     main_window->connect(main_window->m_scatterview_action.get(), &QAction::triggered, main_window, &MainWindow::scatterChartView);
     main_window->m_view_menu->addAction(main_window->m_scatterview_action.get());
 
     // line chart view (issue #75)
     main_window->m_lineview_action = std::make_unique<QAction>(QObject::tr("&Line Chart"));
     main_window->m_lineview_action->setStatusTip(QObject::tr("Open a chart that connects the current selected TreeItem's values (in row order) with a line."));
-    main_window->m_lineview_action->setIcon(main_window->getIconFromViewstyle(ViewStyle::tvsHistogram));
+    main_window->m_lineview_action->setIcon(main_window->getIconFromViewstyle(ViewStyle::tvsHistogram, ChartKind::Line));
     main_window->connect(main_window->m_lineview_action.get(), &QAction::triggered, main_window, &MainWindow::lineChartView);
     main_window->m_view_menu->addAction(main_window->m_lineview_action.get());
 
     // bar chart view (issue #75)
     main_window->m_barview_action = std::make_unique<QAction>(QObject::tr("&Bar Chart"));
     main_window->m_barview_action->setStatusTip(QObject::tr("Open a chart that draws the current selected TreeItem's values as vertical bars."));
-    main_window->m_barview_action->setIcon(main_window->getIconFromViewstyle(ViewStyle::tvsHistogram));
+    main_window->m_barview_action->setIcon(main_window->getIconFromViewstyle(ViewStyle::tvsHistogram, ChartKind::Bar));
     main_window->connect(main_window->m_barview_action.get(), &QAction::triggered, main_window, &MainWindow::barChartView);
     main_window->m_view_menu->addAction(main_window->m_barview_action.get());
 

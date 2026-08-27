@@ -189,7 +189,9 @@ public:
     void savePinnedFilesToRegistry();
     void togglePinOfEntry(DmsRecentFileEntry* entry);
     auto CreateCodeAnalysisSubMenu(QMenu* menu) const -> std::unique_ptr<QMenu>;
-    auto getIconFromViewstyle(ViewStyle vs) const -> QIcon;
+    // chartKind is consulted for tvsHistogram alone, where the ViewStyle says that a chart
+    // window is meant but not which chart it is (issue #1211).
+    auto getIconFromViewstyle(ViewStyle vs, ChartKind ck = ChartKind::Histogram) const -> QIcon;
     auto defaultViewStyleOf(const TreeItem* ti) const -> ViewStyle;
     void hideDetailPagesRadioButtonWidgets(bool hide_properties_buttons, bool hide_source_descr_buttons) const;
     Int32 addRecentFilesEntry(WeakStr recent_file);

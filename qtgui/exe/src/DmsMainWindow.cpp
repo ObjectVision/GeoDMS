@@ -1195,7 +1195,7 @@ void MainWindow::createView(ViewStyle viewStyle, ChartKind chartKind) {
         dms_mdi_subwindow->setFocusPolicy(Qt::FocusPolicy::ClickFocus);
         connect(dms_mdi_subwindow.get(), &QDmsViewArea::windowStateChanged, dms_mdi_subwindow.get(), &QDmsViewArea::onWindowStateChanged);
 
-        auto dms_view_window_icon = getIconFromViewstyle(viewStyle);
+        auto dms_view_window_icon = getIconFromViewstyle(viewStyle, chartKind);
         dms_mdi_subwindow->setWindowIcon(dms_view_window_icon);
         m_mdi_area->addDmsSubWindow(dms_mdi_subwindow.get());
         dms_mdi_subwindow.release();
@@ -1860,12 +1860,26 @@ static auto ViewStyleIcon(char16_t glyph, item_icon_kind paletteEntry) -> QIcon
     return GetGlyphPixmap({ glyph, 0 }, GetItemIconColor(paletteEntry));
 }
 
-auto MainWindow::getIconFromViewstyle(ViewStyle viewstyle) const -> QIcon {
+// All four chart kinds reach getIconFromViewstyle as tvsHistogram -- the ViewStyle says that a
+// chart window is meant, not which chart -- so this is the one style that needs a second answer
+// (issue #1211). The two bar glyphs differ in what the two charts themselves differ in: the bins
+// of a histogram touch, the bars of a bar chart stand apart.
+static auto ChartKindGlyph(ChartKind chartKind) -> char16_t
+{
+    switch (chartKind) {
+    case ChartKind::Scatter: return u'\uEB03'; // bubble-chart-line
+    case ChartKind::Line:    return u'\uEEAB'; // line-chart-line
+    case ChartKind::Bar:     return u'\uEA9E'; // bar-chart-line
+    }
+    return u'\uEA96'; // Histogram: bar-chart-2-line
+}
+
+auto MainWindow::getIconFromViewstyle(ViewStyle viewstyle, ChartKind chartKind) const -> QIcon {
     switch (viewstyle) {
     case ViewStyle::tvsMapView              : return ViewStyleIcon(u'\uEC7A', item_icon_kind::data_item_map); // earth-line, as a map-viewable attribute wears
     case ViewStyle::tvsPaletteEdit          : return ViewStyleIcon(u'\uEFC5', item_icon_kind::data_item_palette); // palette-line, as a class-break attribute wears
     case ViewStyle::tvsStatistics           : return ViewStyleIcon(u'\uED9F', item_icon_kind::data_item); // functions, the sigma the bitmap drew
-    case ViewStyle::tvsHistogram            : return ViewStyleIcon(u'\uEA96', item_icon_kind::data_item); // bar-chart-2-line, for all four chart kinds
+    case ViewStyle::tvsHistogram            : return ViewStyleIcon(ChartKindGlyph(chartKind), item_icon_kind::data_item); // one glyph per chart kind
     case ViewStyle::tvsCalculationTimes     : return ViewStyleIcon(u'\uF215', item_icon_kind::data_item); // timer-line, the clock the bitmap drew
     case ViewStyle::tvsCurrentConfigFileList: return ViewStyleIcon(u'\uECEF', item_icon_kind::data_item); // file-list-3-line
     // tvsTableView, and every style that reaches a window or a menu without one of its own
@@ -2332,8 +2346,14 @@ void MainWindow::updateWindowMenu() const {
     auto asw = m_mdi_area->currentSubWindow();
     for (auto* sw : m_mdi_area->subWindowList()) {
         auto qa = new QAction(sw->windowTitle(), m_window_menu.get());
-        ViewStyle viewstyle = static_cast<ViewStyle>(sw->property("viewstyle").value<QVariant>().toInt());
-        qa->setIcon(getIconFromViewstyle(viewstyle));               
+        // The window's own icon, so that a menu entry cannot come to disagree with the title
+        // bar it stands for -- and so that a chart window keeps the icon of ITS chart kind,
+        // which the ViewStyle alone does not carry (issue #1211). The view style is the
+        // fallback for a sub-window that never set an icon.
+        auto icon = sw->windowIcon();
+        if (icon.isNull())
+            icon = getIconFromViewstyle(static_cast<ViewStyle>(sw->property("viewstyle").value<QVariant>().toInt()));
+        qa->setIcon(icon);
         connect(qa, &QAction::triggered, sw, [this, sw] { this->m_mdi_area->setActiveSubWindow(sw); });
         subWindowCount++;
         if (sw == asw) {
