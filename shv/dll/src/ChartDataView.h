@@ -42,11 +42,11 @@ protected:
 	const TreeItem* GetCaptionItem() const override;
 
 private:
-	void AddHistogramLayer(const AbstrDataItem* adi, bool isDropped);
+	void AddHistogramLayer(const AbstrDataItem* adi);
 	// scatter/line/bar: synthesize feature geometry over the value's domain and reuse
 	// the standard FeatureLayer path, so selection/focus/themes work verbatim.
-	void AddSeriesLayer(const AbstrDataItem* adi, ChartKind kind, bool isDropped);
-	void ActivateAndZoom(GraphicLayer* layer, bool isDropped);
+	void AddSeriesLayer(const AbstrDataItem* adi, ChartKind kind);
+	void ScheduleFirstUpdate(GraphicLayer* layer);
 
 	DECL_RTTI(, Class)
 };

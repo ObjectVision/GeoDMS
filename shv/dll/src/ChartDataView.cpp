@@ -103,12 +103,12 @@ void ChartDataView::AddLayer(const TreeItem* viewItem, bool isDropped)
 
 	ChartKind kind = GetViewContextChartKind(GetViewContext());
 	if (kind == ChartKind::Histogram)
-		AddHistogramLayer(adi, isDropped);
+		AddHistogramLayer(adi);
 	else
-		AddSeriesLayer(adi, kind, isDropped);
+		AddSeriesLayer(adi, kind);
 }
 
-void ChartDataView::AddHistogramLayer(const AbstrDataItem* adi, bool isDropped)
+void ChartDataView::AddHistogramLayer(const AbstrDataItem* adi)
 {
 	auto chartControl = GetContents();
 	auto vp = chartControl->GetViewPort();
@@ -129,11 +129,11 @@ void ChartDataView::AddHistogramLayer(const AbstrDataItem* adi, bool isDropped)
 	ls->InsertEntry(layer.get());
 	ls->SetActiveEntry(layer.get());
 
-	ActivateAndZoom(layer.get(), isDropped);
+	ScheduleFirstUpdate(layer.get());
 	chartControl->GetScrollPort()->ScrollHome();
 }
 
-void ChartDataView::AddSeriesLayer(const AbstrDataItem* adi, ChartKind kind, bool isDropped)
+void ChartDataView::AddSeriesLayer(const AbstrDataItem* adi, ChartKind kind)
 {
 	auto chartControl = GetContents();
 	auto vp = chartControl->GetViewPort();
@@ -162,23 +162,20 @@ void ChartDataView::AddSeriesLayer(const AbstrDataItem* adi, ChartKind kind, boo
 	ls->InsertEntry(layer.get());
 	ls->SetActiveEntry(layer.get());
 
-	ActivateAndZoom(layer.get(), isDropped);
+	ScheduleFirstUpdate(layer.get());
 	chartControl->GetScrollPort()->ScrollHome();
 }
 
-void ChartDataView::ActivateAndZoom(GraphicLayer* layer, bool isDropped)
+void ChartDataView::ScheduleFirstUpdate(GraphicLayer* layer)
 {
-	auto vp = GetContents()->GetViewPort();
-	if (vp->GetROI().empty()) // first layer: bootstrap the layer's first DoUpdateView; zooms once data is ready
-		vp->AL_ZoomAll();
-	else
-	{
-		// dropped into a live chart: schedule the layer's first DoUpdateView on the update timer.
-		// A synchronous pull here can deadlock on a classification/calc task queued for this same
-		// (main) thread that still holds a write lock.
-		layer->InvalidateView();
-		RequestUpdate();
-	}
+	// Schedule the layer's first DoUpdateView on the update timer; never pull it synchronously.
+	// A chart's extent follows from its classification, and a classification the theme had to
+	// generate is filled by a task that Theme::Create just queued on this same (main) thread and
+	// that ends in a PostGuiOper. Waiting for it from here blocks in a wait that deliberately
+	// delivers no messages, so that task can never run and the application hangs (#1221).
+	// Both chart layers post their own one-shot ZoomAll from DoUpdateView once their data is in.
+	layer->InvalidateView();
+	RequestUpdate();
 }
 
 ExportInfo ChartDataView::GetExportInfo()
