@@ -436,17 +436,13 @@ void GenerateSystemInfo(AbstrPropWriter& apw, const TreeItem* curr)
 	apw.WriteKey("SessionStartTime", GetSessionStartTimeStr());
 	apw.WriteKey("CurrentTime", GetCurrentTimeStr());
 	apw.WriteKey("StatusFlags",
-		mySSPrintF("0x{:x} = {}{}{}{}{}{}{}{}{}{}{}{}"
+		mySSPrintF("0x{:x} = {}{}{}{}{}{}{}{}"
 			, GetRegStatusFlags()
 			, (GetRegStatusFlags() & RSF_AdminMode) ? "AdminMode " : ""
 			, (GetRegStatusFlags() & RSF_DebugMode) ? "DebugMode " : ""
 			, (GetRegStatusFlags() & RSF_SuspendForGUI) ? "SuspendForGUI " : ""
 			, (GetRegStatusFlags() & RSF_ShowStateColors) ? "ShowStateColors " : ""
 			, (GetRegStatusFlags() & RSF_TraceLogFile) ? "TraceLogFile " : ""
-			, (GetRegStatusFlags() & RSF_TreeViewVisible) ? "TreeViewVisible " : ""
-			, (GetRegStatusFlags() & RSF_DetailsVisible) ? "DetailsVisible " : ""
-			, (GetRegStatusFlags() & RSF_EventLogVisible) ? "EventLogVisible " : ""
-			, (GetRegStatusFlags() & RSF_ToolBarVisible) ? "ToolBarVisible " : ""
 			, (GetRegStatusFlags() & RSF_MultiThreading1) ? "MT1 " : ""
 			, (GetRegStatusFlags() & RSF_MultiThreading2) ? "MT2 " : ""
 			, (GetRegStatusFlags() & RSF_MultiThreading3) ? "MT3 " : ""
@@ -454,43 +450,4 @@ void GenerateSystemInfo(AbstrPropWriter& apw, const TreeItem* curr)
 	);
 	apw.CloseSection();
 }
-
-void WriteContextImpl(const TreeItem* curr, OutStreamBuff* osb)
-{
-	dms_assert(osb);
-
-	XmlPropWriterBase writer(osb);
-	GenerateSystemInfo(writer, curr);
-}
-
-struct SystemContextHandle : AbstrContextHandle
-{
-	bool Describe(FormattedOutStream& fos) override
-	{
-		const TreeItem* curr = nullptr;
-		AbstrContextHandle* ach = AbstrContextHandle::GetLast();
-		while (ach)
-		{
-			if (dynamic_cast<TreeItemContextHandle*>(ach))
-				curr = static_cast<TreeItemContextHandle*>(ach)->GetItem();
-			ach = ach->GetPrev();
-		}
-		if (!curr && SessionData::Curr())
-			curr = SessionData::Curr()->GetConfigRoot().get();
-		if (curr)
-		{
-			try {
-				WriteContextImpl(curr, &(fos.Buffer()));
-			}
-			catch (...)
-			{
-				auto err = catchException(true);
-				if (err)
-					fos << "MetaInfo generation caused " << err->GetAsText();
-			}
-		}
-		return true;
-	}
-};
-
 
