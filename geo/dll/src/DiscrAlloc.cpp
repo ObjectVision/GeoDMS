@@ -1357,9 +1357,14 @@ bool IsFeasible(
 	}
 
 	// test if total claims fit total capacity
+	//
+	// SizeT, not UInt32: each term is bounded by the land unit count but these sums run over ALL
+	// regions, so they are bounded by nrRegions * N. Wrapping made the total SMALL, which inverts
+	// the test below -- a feasible problem rejected, or an infeasible one passed on to surface
+	// later as an unmet claim. Issue #1196. The same holds for the two link sums further down.
 	{
-		UInt32 totalMinClaim = 0;
-		UInt32 totalMaxCapacity = 0;
+		SizeT totalMinClaim = 0;
+		SizeT totalMaxCapacity = 0;
 
 		for (dstNode = 0; dstNode != nrDst; ++dstNode)
 			totalMinClaim += dstMinClaims[dstNode];
@@ -1378,8 +1383,8 @@ bool IsFeasible(
 		}
 	}
 	{
-		UInt32 totalMaxClaim = 0;
-		UInt32 totalMinCapacity = 0;
+		SizeT totalMaxClaim = 0;
+		SizeT totalMinCapacity = 0;
 
 		for (dstNode = 0; dstNode != nrDst; ++dstNode)
 			totalMaxClaim += dstMaxClaims[dstNode];
@@ -1401,7 +1406,7 @@ bool IsFeasible(
 	// test each dst restriction: min <= sum area for each atomicregion in dst
 	for (dstNode = 0; dstNode != nrDst; ++dstNode)
 	{
-		UInt32 maxCapacity = 0;
+		SizeT maxCapacity = 0;
 		lnk = gr.GetFirstLink(dstNode, dir_backward_tag());
 		while (IsDefined(lnk))
 		{
@@ -1426,7 +1431,7 @@ bool IsFeasible(
 	{
 		dms_assert(srcMinCapacity[srcNode] <= srcMaxCapacity[srcNode]);
 
-		UInt32 maxClaim = 0;
+		SizeT maxClaim = 0;
 		lnk = gr.GetFirstLink(srcNode, dir_forward_tag());
 		while (IsDefined(lnk))
 		{
@@ -1518,7 +1523,21 @@ bool FeasibilityTest(const htp_info_t<S, P, AR, AT>& htpInfo, SharedStr& strStat
 	dms_assert(nrUniqueRegions     == gr.GetNrDstNodes(dir_forward_tag()));
 	dms_assert(htpInfo.GetNrPartitionings() * nrAtomicRegions == gr.GetNrLinks());
 
-	// aggregate claims to unique regions
+	// Aggregate claims to unique regions.
+	//
+	// Summed in SizeT because the sum runs over the ggTypes and each term can be as large as the
+	// land unit count on its own: the common "no limit" idiom -- a maximum claim of N for every
+	// type -- reaches K * N, which leaves UInt32 at K >= 11 on a 4e8 cell grid. Issue #1196.
+	//
+	// What IsFeasible and the flow machinery in bi_graph.h are handed stays UInt32, and that
+	// costs nothing on the maximum side: no region can absorb more land units than exist, so a
+	// maximum aggregate above N means exactly what N means and is clamped to it below. A MINIMUM
+	// aggregate above N is a different matter -- clamping would hide the infeasibility instead of
+	// reporting it -- so it is reported here, from the true sum.
+	const SizeT N = htpInfo.GetN();
+
+	std::vector<SizeT>  aggrMinSums  (nrUniqueRegions, 0);
+	std::vector<SizeT>  aggrMaxSums  (nrUniqueRegions, 0);
 	std::vector<UInt32> aggrMinClaims(nrUniqueRegions, 0);
 	std::vector<UInt32> aggrMaxClaims(nrUniqueRegions, 0);
 
@@ -1537,8 +1556,8 @@ bool FeasibilityTest(const htp_info_t<S, P, AR, AT>& htpInfo, SharedStr& strStat
 		assert(uniqueRegionOffset + ggTypeIter->m_NrClaims <= nrUniqueRegions);
 
 		auto
-			aggrMinClaimIter = aggrMinClaims.begin() + uniqueRegionOffset,
-			aggrMaxClaimIter = aggrMaxClaims.begin() + uniqueRegionOffset;
+			aggrMinClaimIter = aggrMinSums.begin() + uniqueRegionOffset,
+			aggrMaxClaimIter = aggrMaxSums.begin() + uniqueRegionOffset;
 
 		for (; claimIter != claimEnd; ++claimIter)
 		{
@@ -1547,11 +1566,27 @@ bool FeasibilityTest(const htp_info_t<S, P, AR, AT>& htpInfo, SharedStr& strStat
 				strStatus += mySSPrintF("{}: minimum > maximum; ", htpInfo.GetClaimRangeStr(*claimIter).c_str());
 				ok = false;
 			}
-			*aggrMinClaimIter++ += claimIter->m_ClaimRange.first;
-			*aggrMaxClaimIter++ += claimIter->m_ClaimRange.second;
+			*aggrMinClaimIter = CheckedAdd<SizeT>(*aggrMinClaimIter, claimIter->m_ClaimRange.first ); ++aggrMinClaimIter;
+			*aggrMaxClaimIter = CheckedAdd<SizeT>(*aggrMaxClaimIter, claimIter->m_ClaimRange.second); ++aggrMaxClaimIter;
 		}
 
 		++ggTypeIter;
+	}
+
+	// narrow to what IsFeasible counts in; see the note at the declarations above
+	for (UInt32 ur = 0; ur != nrUniqueRegions; ++ur)
+	{
+		if (aggrMinSums[ur] > N)
+		{
+			strStatus += mySSPrintF(
+				"total minimum claim for {} is {} while the whole allocation has only {} land units; ",
+				htpInfo.UniqueRegionStr(ur).c_str(), aggrMinSums[ur], N
+			);
+			ok = false;
+			continue;
+		}
+		aggrMinClaims[ur] = UInt32(aggrMinSums[ur]);                 // <= N by the test above
+		aggrMaxClaims[ur] = UInt32(Min<SizeT>(aggrMaxSums[ur], N));  // clamped, so <= N as well
 	}
 	if (!ok)
 		return false;
@@ -3102,18 +3137,23 @@ void SolveRange(htp_info_t<S, P, AR, AT>& htpInfo, UInt32 firstI, UInt32 lastI)
 //									Solve
 // *****************************************************************************
 
+// a * b / d, evaluated in 64 bits and narrowed back to the UInt32 claim type. ScaleClaims keeps
+// b <= d, which bounds the quotient by a, but that is the CALLER's invariant and not this
+// function's, so the narrowing is checked rather than assumed. Issue #1196.
 UInt32 muldiv_u32(UInt32 a, UInt32 b, UInt32 d)
 {
-	UInt64 a64 = a;
-	UInt64 p64 = a64 * b;
-	dms_assert(!a || p64 / a == b);
+	UInt64 p64 = UInt64(a) * UInt64(b); // exact: both operands fit in 32 bits
 	if (!d)
 	{
 		dms_assert(!p64);
 		return 0;
 	}
-	UInt32 r64 = p64 / d;
-	return r64;
+	UInt64 q64 = p64 / d;
+	if (q64 > MAX_VALUE(UInt32))
+		throwDmsErrF("discrete_alloc: scaling the claim {} by {}/{} gives {}, which does not fit in the UInt32 claim type",
+			a, b, d, q64
+		);
+	return UInt32(q64);
 }
 
 struct ClaimScaler: std::vector<claim_range>

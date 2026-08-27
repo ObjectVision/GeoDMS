@@ -1,0 +1,31 @@
+container fn_test_da_claimsum
+{
+	// Issue #1196: the claim aggregate per region is summed over the land use types, so the
+	// common "no limit" idiom -- a maximum claim that stands for "as many as you like" -- makes
+	// each term as large as the claim type allows. Two types at 2^31 sum to exactly 2^32, which
+	// in UInt32 is ZERO: the feasibility test then read "there are 4 cells that should be
+	// allocated while the total of the maximum claims is only 0" and rejected a problem that is
+	// trivially feasible. The sum is now formed in SizeT and clamped to the land unit count,
+	// which is what an unbounded maximum means -- no region can absorb more cells than exist.
+	unit<uint8>  LuType : nrofrows = 2 { attribute<string> name : ['A','B']; }
+	unit<uint32> Cells  : nrofrows = 4;
+	container Suit
+	{
+		attribute<int32> A (Cells) : [4,3,2,1];
+		attribute<int32> B (Cells) : [1,2,3,4];
+	}
+	container CMin { parameter<uint32> A := 0; parameter<uint32> B := 0; }
+	container CMax { parameter<uint32> A := 2147483648; parameter<uint32> B := 2147483648; }
+	parameter<int32> thr := 0i;
+
+	container a := discrete_alloc_np(LuType/name, Cells, Suit, CMin, CMax, thr);
+
+	container checks
+	{
+		parameter<uint32> feasible := uint32(a/statusFlag)
+		,	IntegrityCheck = "feasible == 1";
+
+		parameter<uint32> allocated := a/total_allocated/A + a/total_allocated/B
+		,	IntegrityCheck = "allocated == 4";
+	}
+}
