@@ -4,7 +4,9 @@ Snapshot of the **14 open issues** at https://github.com/ObjectVision/GeoDMS/iss
 against GitHub on **2026-08-26**. The previous header claimed 27; sixteen issues it still classified
 had been closed and five open ones were missing, so the tables below were rebuilt from the live list
 rather than edited in place. #1215 was closed that afternoon and #1217 was filed and closed after
-it, so both are recorded below rather than in the tables. Grouped by implementability. Buckets:
+it, so both are recorded below rather than in the tables. Since that audit, #1212 was closed
+(2026-08-27, recorded below) and #1219 was filed, which is not yet classified in the tables; the
+live count is therefore still 14. Grouped by implementability. Buckets:
 
 - **A. Low hanging fruit** — small, well-defined fixes; no design decisions needed.
 - **B. Implementable after minor design choices** — clear scope; one or two decisions to settle first.
@@ -36,7 +38,6 @@ Previous snapshots: 2026-08-24 claiming 27, 2026-08-20 with 33, 2026-07-31 with 
 
 | Issue | Rationale |
 |---|---|
-| [#1212](https://github.com/ObjectVision/GeoDMS/issues/1212) `geos_polygon` mis-reads a uniformly counter-clockwise polygon | Split off from the closed #302 while building the winding-order operators. `geos_create_polygons` decides shell-versus-hole from a ring's **absolute** orientation — a ring is a shell iff it is clockwise — so a feature whose rings are uniformly counter-clockwise loses its shell and promotes its lake. The fix is to derive ring roles from nesting, which is what `fix_winding_order` already does (`302`'s output); the refactor is sharing that determination between the GEOS and boost.geometry readers instead of each deciding for itself. |
 | [#1191](https://github.com/ObjectVision/GeoDMS/issues/1191) Closing the GUI during calculation leaves the process alive | Repro and dump exist. Likely scheduler teardown ordering: scheduled suppliers are discarded before active joiners are released, followed by an unbounded task-group wait. Needs stack-backed shutdown/lifetime work, not a local GUI close patch. Note #1206, which shared a suspicion of process-lifetime cleanup, closed separately on 2026-08-24 (`12f6eb90`) without connecting the two stacks. |
 
 ## D. Needs design
@@ -72,6 +73,57 @@ with backslashes. The real call site always passes forward slashes, so nothing i
 is a two-line guard against an unpleasant failure mode for anyone invoking the script by hand.
 
 ## Recently closed (delta since 2026-07-31)
+
+### Closed on 2026-08-27 (1)
+
+- #1212 (`6d5cf8cf`, wiki `3938ee73`, tst `17cad21`) — "geos_polygon silently mis-reads a
+  uniformly counter-clockwise polygon: shell dropped, lake promoted", split off from the closed
+  #302. Two readers, not one: `geos_create_polygons` in `geo/dll/src/GEOS_Traits.h` and
+  `assign_multi_polygon` in `CGAL_Traits.h` both judged a ring **absolutely** — shell iff
+  clockwise — and both threw away a ring that failed that test while no polygon was open yet.
+  On a feature whose rings are uniformly counter-clockwise, which is what a source listing
+  coordinates in latitude/longitude order gives you, the shell was skipped with `isFirstRing`
+  still true and the lake behind it was promoted to shell, with the island inside that lake as
+  its hole: 36 − 4 = 32 where 100 − 36 + 4 = 68 is right. Nothing was rejected and nothing was
+  empty — ordinary-looking geometry with a smaller area, and every `geos_*` and `cgal_*`
+  operator goes through these two readers. The issue reported the cgal symptom without claiming
+  its cause; it is the same one, reached differently, because that reader reverses each ring on
+  the way in, so the flipped shell arrives clockwise, falls into the hole branch and is dropped
+  for want of an open polygon.
+
+  Both now do what `assign_multi_polygon` on the boost side already did, which is why
+  `bg_polygon` was the only one of the three that kept the shape: the first ring that survives
+  defines what "outer" means for that feature, a ring wound the other way is a hole of it, and a
+  ring wound like it opens the next polygon. Nothing can change for a correctly wound feature —
+  when the first surviving ring is clockwise, `outerOrientationCW` is `true` for the whole loop,
+  so `currOrientationCW == outerOrientationCW` reduces to the old `currOrientationCW`, branch for
+  branch. The results come back correctly wound as well: `geos_create_polygons` already ends in
+  `normalize()`, which orients shells clockwise and holes counter-clockwise, and a CGAL
+  `Polygon_set` is counter-clockwise by construction, which the writer reverses back. The CGAL
+  hole branch's `reverse_orientation()` became conditional on the ring actually being clockwise:
+  the same call it always made in the normal case, and the correct no-op when the whole feature
+  arrives flipped.
+
+  Verified on a Release build with a scratch probe over seven fixtures × four backends
+  (`scratch/issue_1212_probe.dms`): correctly wound 68/68/68/68 and two disjoint squares
+  50/50/50/50 unchanged; the flipped fixture now geos **68**, cgal **68**, bg −68 against −68 in,
+  where the issue measured 32 and 32; a flipped two-square multi-polygon likewise 50/50/−50; and
+  `geos_union_polygon`/`cgal_union_polygon` of the flipped feature 68, so the repair carries
+  through a real set operation and not just the reader round-trip. Testcases battery 231/0. The
+  `tst` polygon-family comparison (`Polygons/cfg/compare.dms`, ManySmall + FewLarge across geos,
+  bg, bp and cgal) `/results/syntOk = 1`, and `ring_encoding` passes whole, `island_in_hole/ok_cgal`
+  included — the #1178 case the CGAL edit sits next to. `winding_order` now carries the assertion
+  it was deliberately written without (`ok_readers`: geos 68, cgal 68, |bg| 68).
+
+  **Deliberately not delivered:** ring roles from nesting, which is what this entry's old
+  classification under C called for. `geos_polygons_by_nesting` already exists next door and
+  `fix_winding_order`/`fix_polygon`/`has_correct_winding` expose it, but it costs a containment
+  test per ring, which #302 kept out of the readers on purpose. The relative rule is free and
+  fixes the reported data loss; a feature whose rings are only **partly** flipped is beyond any
+  orientation rule and still needs `fix_winding_order`. Recorded on the wiki
+  (`Point-order-in-polygons`, new "what the readers accept" section, plus condition 2 on
+  `geos_polygon` and `cgal_polygon`), including that a configuration's areas may change on
+  upgrade and that the older numbers were the wrong ones.
 
 ### Closed on 2026-08-26 (12)
 
