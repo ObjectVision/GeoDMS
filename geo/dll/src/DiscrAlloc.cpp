@@ -188,8 +188,9 @@ using facet_id = UInt32;    // set of claim substitution possibilities
 using facet_code = UInt32;  // set of #AR * k * k, which is renumbered by m_FacetIDs to facet_id  
 
 // The Simulation-of-Simplicity perturbation term, see Edelsbrunner, 1990, and the file header.
-// It is the template parameter P throughout this file, NOT a fixed type: every operator is
-// instantiated twice, once at Int32 and once -- under the _pi64 name suffix -- at Int64. The
+// It is the template parameter P throughout this file, NOT a fixed type: the discrete_alloc
+// family is instantiated twice, once at Int32 and once -- under the _pi64 name suffix -- at
+// Int64, while greedy_alloc and needy_alloc take Int32 only, since they never use it. The
 // perturbation reaches i * (K-1) for i the land unit id and K the number of land use types, so
 // Int32 aliases two land units within one facet past 2^31 / (K-1) land units, which breaks
 // requirement (R1) above silently (the wrap itself is defined). See the instantiations at the
@@ -4115,139 +4116,141 @@ namespace
 	SpecialOperGroup needyGroup_np ("needy_alloc_np", 6, np_oap, oper_policy::better_not_in_meta_scripting);
 	SpecialOperGroup needyGroup_np_16("needy_alloc_np_16", 6, np_oap, oper_policy::better_not_in_meta_scripting);
 
-	// The _pi64 twins of all eighteen names above. Same arguments, same results, same algorithm:
-	// the ONLY difference is that the Simulation-of-Simplicity perturbation term is carried in
-	// Int64 instead of Int32 (the P template parameter, see the note near the top of this file),
-	// which moves the land unit count at which two units within one facet start sharing a
-	// perturbation -- and requirement (R1) stops holding -- out of reach of any grid.
+	// The _pi64 twins of the six discrete_alloc names above. Same arguments, same results, same
+	// algorithm: the ONLY difference is that the Simulation-of-Simplicity perturbation term is
+	// carried in Int64 instead of Int32 (the P template parameter, see the note near the top of
+	// this file), which moves the land unit count at which two units within one facet start
+	// sharing a perturbation -- and requirement (R1) stops holding -- out of reach of any grid.
+	//
+	// greedy_alloc and needy_alloc have NO _pi64 twin: those regimes use neither shadow prices nor
+	// the perturbation, so the suffix would name an operator that differs from the plain one in
+	// nothing but the eight extra bytes each claim's unused shadow price would carry.
+	//
 	// Spelled out rather than generated, so that every operator name a config can write is
 	// greppable in this file.
 	SpecialOperGroup hitchcockGroup_pi64   ("discrete_alloc_pi64",    11, da_oap, oper_policy::better_not_in_meta_scripting);
 	SpecialOperGroup hitchcockGroup_16_pi64("discrete_alloc_16_pi64", 11, da_oap, oper_policy::better_not_in_meta_scripting);
-	SpecialOperGroup greedyGroup_pi64      ("greedy_alloc_pi64",      11, da_oap, oper_policy::better_not_in_meta_scripting);
-	SpecialOperGroup greedyGroup_16_pi64   ("greedy_alloc_16_pi64",   11, da_oap, oper_policy::better_not_in_meta_scripting);
-	SpecialOperGroup needyGroup_pi64       ("needy_alloc_pi64",       11, da_oap, oper_policy::better_not_in_meta_scripting);
-	SpecialOperGroup needyGroup_16_pi64    ("needy_alloc_16_pi64",    11, da_oap, oper_policy::better_not_in_meta_scripting);
 
 	SpecialOperGroup hitchcockGroup_sp_pi64   ("discrete_alloc_sp_pi64",    8, sp_oap, oper_policy::better_not_in_meta_scripting);
 	SpecialOperGroup hitchcockGroup_sp_16_pi64("discrete_alloc_sp_16_pi64", 8, sp_oap, oper_policy::better_not_in_meta_scripting);
-	SpecialOperGroup greedyGroup_sp_pi64      ("greedy_alloc_sp_pi64",      8, sp_oap, oper_policy::better_not_in_meta_scripting);
-	SpecialOperGroup greedyGroup_sp_16_pi64   ("greedy_alloc_sp_16_pi64",   8, sp_oap, oper_policy::better_not_in_meta_scripting);
-	SpecialOperGroup needyGroup_sp_pi64       ("needy_alloc_sp_pi64",       8, sp_oap, oper_policy::better_not_in_meta_scripting);
-	SpecialOperGroup needyGroup_sp_16_pi64    ("needy_alloc_sp_16_pi64",    8, sp_oap, oper_policy::better_not_in_meta_scripting);
 
 	SpecialOperGroup hitchcockGroup_np_pi64   ("discrete_alloc_np_pi64",    6, np_oap, oper_policy::better_not_in_meta_scripting);
 	SpecialOperGroup hitchcockGroup_np_16_pi64("discrete_alloc_np_16_pi64", 6, np_oap, oper_policy::better_not_in_meta_scripting);
-	SpecialOperGroup greedyGroup_np_pi64      ("greedy_alloc_np_pi64",      6, np_oap, oper_policy::better_not_in_meta_scripting);
-	SpecialOperGroup greedyGroup_np_16_pi64   ("greedy_alloc_np_16_pi64",   6, np_oap, oper_policy::better_not_in_meta_scripting);
-	SpecialOperGroup needyGroup_np_pi64       ("needy_alloc_np_pi64",       6, np_oap, oper_policy::better_not_in_meta_scripting);
-	SpecialOperGroup needyGroup_np_16_pi64    ("needy_alloc_np_16_pi64",    6, np_oap, oper_policy::better_not_in_meta_scripting);
 
 	constexpr auto ar_hitchcock = alloc_regime::hitchcock;
 	constexpr auto ar_greedy    = alloc_regime::greedy;
 	constexpr auto ar_needy     = alloc_regime::needy;
 
-	// The six operator groups that one argument layout registers for one perturbation type: three
-	// allocation regimes (see alloc_regime) x two land use type widths (the _16 names take UInt16
-	// land use types, the others UInt8). Passing the set in lets each operator set template below
-	// be written once and instantiated per perturbation type.
-	struct alloc_group_set
+	// The operator groups that one argument layout registers, split by regime because the two
+	// families are instantiated over different perturbation types: the hitchcock regime over both
+	// Int32 and Int64, the heuristic ones over Int32 only. Within each, the _16 names take UInt16
+	// land use types and the others UInt8. Passing the set in lets the operator set templates
+	// below be written once and instantiated per perturbation type.
+	struct hitchcock_group_set
 	{
-		AbstrOperGroup* m_Hitchcock;
+		AbstrOperGroup* m_Default;
+		AbstrOperGroup* m_Default16;
+	};
+
+	struct heuristic_group_set
+	{
 		AbstrOperGroup* m_Greedy;
 		AbstrOperGroup* m_Needy;
-		AbstrOperGroup* m_Hitchcock16;
 		AbstrOperGroup* m_Greedy16;
 		AbstrOperGroup* m_Needy16;
 	};
 
-	const alloc_group_set npGroups32 = { &hitchcockGroup_np, &greedyGroup_np, &needyGroup_np, &hitchcockGroup_np_16, &greedyGroup_np_16, &needyGroup_np_16 };
-	const alloc_group_set spGroups32 = { &hitchcockGroup_sp, &greedyGroup_sp, &needyGroup_sp, &hitchcockGroup_sp_16, &greedyGroup_sp_16, &needyGroup_sp_16 };
-	const alloc_group_set daGroups32 = { &hitchcockGroup,    &greedyGroup,    &needyGroup,    &hitchcockGroup_16,    &greedyGroup_16,    &needyGroup_16    };
+	const hitchcock_group_set npHitchcock32 = { &hitchcockGroup_np, &hitchcockGroup_np_16 };
+	const hitchcock_group_set spHitchcock32 = { &hitchcockGroup_sp, &hitchcockGroup_sp_16 };
+	const hitchcock_group_set daHitchcock32 = { &hitchcockGroup,    &hitchcockGroup_16    };
 
-	const alloc_group_set npGroups64 = { &hitchcockGroup_np_pi64, &greedyGroup_np_pi64, &needyGroup_np_pi64, &hitchcockGroup_np_16_pi64, &greedyGroup_np_16_pi64, &needyGroup_np_16_pi64 };
-	const alloc_group_set spGroups64 = { &hitchcockGroup_sp_pi64, &greedyGroup_sp_pi64, &needyGroup_sp_pi64, &hitchcockGroup_sp_16_pi64, &greedyGroup_sp_16_pi64, &needyGroup_sp_16_pi64 };
-	const alloc_group_set daGroups64 = { &hitchcockGroup_pi64,    &greedyGroup_pi64,    &needyGroup_pi64,    &hitchcockGroup_16_pi64,    &greedyGroup_16_pi64,    &needyGroup_16_pi64    };
+	const hitchcock_group_set npHitchcock64 = { &hitchcockGroup_np_pi64, &hitchcockGroup_np_16_pi64 };
+	const hitchcock_group_set spHitchcock64 = { &hitchcockGroup_sp_pi64, &hitchcockGroup_sp_16_pi64 };
+	const hitchcock_group_set daHitchcock64 = { &hitchcockGroup_pi64,    &hitchcockGroup_16_pi64    };
 
-	template <typename S, typename P>
-	struct HitchcockTransportationOperatorSetjeNP
-	{
-		HitchcockTransportationOperatorSetjeNP(const alloc_group_set& g)
-			:	htpDefault  (g.m_Hitchcock,   ar_hitchcock)
-			,	htpGreedy   (g.m_Greedy,      ar_greedy)
-			,	htpNeedy    (g.m_Needy,       ar_needy)
-			,	htpDefault16(g.m_Hitchcock16, ar_hitchcock)
-			,	htpGreedy16 (g.m_Greedy16,    ar_greedy)
-			,	htpNeedy16  (g.m_Needy16,     ar_needy)
-		{}
+	const heuristic_group_set npHeuristic = { &greedyGroup_np, &needyGroup_np, &greedyGroup_np_16, &needyGroup_np_16 };
+	const heuristic_group_set spHeuristic = { &greedyGroup_sp, &needyGroup_sp, &greedyGroup_sp_16, &needyGroup_sp_16 };
+	const heuristic_group_set daHeuristic = { &greedyGroup,    &needyGroup,    &greedyGroup_16,    &needyGroup_16    };
 
-		HitchcockTransportationOperator<S, P, discr_alloc_version::no_partition, Void, UInt8>
-			htpDefault, htpGreedy, htpNeedy;
-		HitchcockTransportationOperator<S, P, discr_alloc_version::no_partition, Void, UInt16>
-			htpDefault16, htpGreedy16, htpNeedy16;
-	};
-
-	template <typename S, typename P, typename AR>
-	struct HitchcockTransportationOperatorSetjeSP
-	{
-		HitchcockTransportationOperatorSetjeSP(const alloc_group_set& g)
-			:	htpDefault  (g.m_Hitchcock,   ar_hitchcock)
-			,	htpGreedy   (g.m_Greedy,      ar_greedy)
-			,	htpNeedy    (g.m_Needy,       ar_needy)
-			,	htpDefault16(g.m_Hitchcock16, ar_hitchcock)
-			,	htpGreedy16 (g.m_Greedy16,    ar_greedy)
-			,	htpNeedy16  (g.m_Needy16,     ar_needy)
-		{}
-
-		HitchcockTransportationOperator<S, P, discr_alloc_version::one_partition, AR, UInt8>
-			htpDefault, htpGreedy, htpNeedy;
-		HitchcockTransportationOperator<S, P, discr_alloc_version::one_partition, AR, UInt16>
-			htpDefault16, htpGreedy16, htpNeedy16;
-	};
-
+	// The hitchcock regime of one argument layout (DAV + AR), for both land use type widths.
 	template <typename S, typename P, discr_alloc_version DAV, typename AR>
-	struct HitchcockTransportationOperatorSetje
+	struct hitchcock_operators
 	{
-		HitchcockTransportationOperatorSetje(const alloc_group_set& g)
-			:	htpDefault  (g.m_Hitchcock,   ar_hitchcock)
-			,	htpGreedy   (g.m_Greedy,      ar_greedy)
-			,	htpNeedy    (g.m_Needy,       ar_needy)
-			,	htpDefault16(g.m_Hitchcock16, ar_hitchcock)
-			,	htpGreedy16 (g.m_Greedy16,    ar_greedy)
-			,	htpNeedy16  (g.m_Needy16,     ar_needy)
+		hitchcock_operators(const hitchcock_group_set& g)
+			:	htpDefault  (g.m_Default,   ar_hitchcock)
+			,	htpDefault16(g.m_Default16, ar_hitchcock)
 		{}
 
-		HitchcockTransportationOperator<S, P, DAV, AR, UInt8>
-			htpDefault, htpGreedy, htpNeedy;
-		HitchcockTransportationOperator<S, P, DAV, AR, UInt16>
-			htpDefault16, htpGreedy16, htpNeedy16;
+		HitchcockTransportationOperator<S, P, DAV, AR, UInt8 > htpDefault;
+		HitchcockTransportationOperator<S, P, DAV, AR, UInt16> htpDefault16;
+	};
+
+	// The two heuristic regimes of the same layout. P is Int32 in every instantiation of this one:
+	// see the note at the _pi64 group declarations above for why they have no wide-perturbation
+	// twin. It is still a parameter so that both families read the same.
+	template <typename S, typename P, discr_alloc_version DAV, typename AR>
+	struct heuristic_operators
+	{
+		heuristic_operators(const heuristic_group_set& g)
+			:	htpGreedy  (g.m_Greedy,   ar_greedy)
+			,	htpNeedy   (g.m_Needy,    ar_needy)
+			,	htpGreedy16(g.m_Greedy16, ar_greedy)
+			,	htpNeedy16 (g.m_Needy16,  ar_needy)
+		{}
+
+		HitchcockTransportationOperator<S, P, DAV, AR, UInt8 > htpGreedy, htpNeedy;
+		HitchcockTransportationOperator<S, P, DAV, AR, UInt16> htpGreedy16, htpNeedy16;
+	};
+
+	// The three partitioned layouts at once, for one perturbation type and atomic region type.
+	template <typename S, typename P, typename AR>
+	struct hitchcock_operators_per_layout
+	{
+		hitchcock_operators_per_layout(const hitchcock_group_set& sp, const hitchcock_group_set& da)
+			:	htpOnePartition(sp)
+			,	htpManyPartitionsNoFeasibilityTest(da)
+			,	htpManyPartitionsWithFeasibilityTest(da)
+		{}
+
+		hitchcock_operators<S, P, discr_alloc_version::one_partition, AR> htpOnePartition;
+		hitchcock_operators<S, P, discr_alloc_version::multiple_partitions_without_feasibility_test, AR> htpManyPartitionsNoFeasibilityTest;
+		hitchcock_operators<S, P, discr_alloc_version::multiple_partitions_with_feasibility_test   , AR> htpManyPartitionsWithFeasibilityTest;
 	};
 
 	template <typename S, typename P, typename AR>
-	struct HitchcockTransportationOperators
+	struct heuristic_operators_per_layout
 	{
-		HitchcockTransportationOperators(const alloc_group_set& spGroups, const alloc_group_set& daGroups)
-			:	htpOnePartition(spGroups)
-			,	htpManyPartitionsNoFeasibilityTest(daGroups)
-			,	htpManyPartitionsWithFeasibilityTest(daGroups)
+		heuristic_operators_per_layout(const heuristic_group_set& sp, const heuristic_group_set& da)
+			:	htpOnePartition(sp)
+			,	htpManyPartitionsNoFeasibilityTest(da)
+			,	htpManyPartitionsWithFeasibilityTest(da)
 		{}
 
-		HitchcockTransportationOperatorSetjeSP<S, P, AR> htpOnePartition;
-		HitchcockTransportationOperatorSetje<S, P, discr_alloc_version::multiple_partitions_without_feasibility_test, AR> htpManyPartitionsNoFeasibilityTest;
-		HitchcockTransportationOperatorSetje<S, P, discr_alloc_version::multiple_partitions_with_feasibility_test   , AR> htpManyPartitionsWithFeasibilityTest;
+		heuristic_operators<S, P, discr_alloc_version::one_partition, AR> htpOnePartition;
+		heuristic_operators<S, P, discr_alloc_version::multiple_partitions_without_feasibility_test, AR> htpManyPartitionsNoFeasibilityTest;
+		heuristic_operators<S, P, discr_alloc_version::multiple_partitions_with_feasibility_test   , AR> htpManyPartitionsWithFeasibilityTest;
 	};
 
-	// S (the suitability and price type) is Int32 throughout; P (the perturbation type) is Int32
-	// for the plain names and Int64 for their _pi64 twins.
-	HitchcockTransportationOperatorSetjeNP<Int32, Int32> htpNoPartition(npGroups32);
-	HitchcockTransportationOperators<Int32, Int32, UInt32> htp3232(spGroups32, daGroups32);
-	HitchcockTransportationOperators<Int32, Int32, UInt16> htp3216(spGroups32, daGroups32);
-	HitchcockTransportationOperators<Int32, Int32, UInt8 > htp3208(spGroups32, daGroups32);
+	// S (the suitability and price type) is Int32 throughout. P (the perturbation type) is Int32
+	// for the plain names and Int64 for the six discrete_alloc _pi64 twins.
+	constexpr auto dav_np = discr_alloc_version::no_partition;
 
-	HitchcockTransportationOperatorSetjeNP<Int32, Int64> htpNoPartition_pi64(npGroups64);
-	HitchcockTransportationOperators<Int32, Int64, UInt32> htp3232_pi64(spGroups64, daGroups64);
-	HitchcockTransportationOperators<Int32, Int64, UInt16> htp3216_pi64(spGroups64, daGroups64);
-	HitchcockTransportationOperators<Int32, Int64, UInt8 > htp3208_pi64(spGroups64, daGroups64);
+	hitchcock_operators<Int32, Int32, dav_np, Void> htpNoPartition(npHitchcock32);
+	heuristic_operators<Int32, Int32, dav_np, Void> heuNoPartition(npHeuristic);
+
+	hitchcock_operators_per_layout<Int32, Int32, UInt32> htp3232(spHitchcock32, daHitchcock32);
+	hitchcock_operators_per_layout<Int32, Int32, UInt16> htp3216(spHitchcock32, daHitchcock32);
+	hitchcock_operators_per_layout<Int32, Int32, UInt8 > htp3208(spHitchcock32, daHitchcock32);
+
+	heuristic_operators_per_layout<Int32, Int32, UInt32> heu3232(spHeuristic, daHeuristic);
+	heuristic_operators_per_layout<Int32, Int32, UInt16> heu3216(spHeuristic, daHeuristic);
+	heuristic_operators_per_layout<Int32, Int32, UInt8 > heu3208(spHeuristic, daHeuristic);
+
+	hitchcock_operators<Int32, Int64, dav_np, Void> htpNoPartition_pi64(npHitchcock64);
+
+	hitchcock_operators_per_layout<Int32, Int64, UInt32> htp3232_pi64(spHitchcock64, daHitchcock64);
+	hitchcock_operators_per_layout<Int32, Int64, UInt16> htp3216_pi64(spHitchcock64, daHitchcock64);
+	hitchcock_operators_per_layout<Int32, Int64, UInt8 > htp3208_pi64(spHitchcock64, daHitchcock64);
 
 	// *************************************************************************
 	// OBSOLETE claim_* stubs -- REMOVE IN v21, see issue #1177
