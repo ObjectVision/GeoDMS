@@ -29,6 +29,10 @@ public:
 	bool AtEnd() const override { return false; }
 	WeakStr FileName() override;
 
+	// Push what std::ofstream still holds in its own buffer to the OS. Only the destructor did that
+	// until now, which is nothing when the process fail-fasts instead of unwinding; see DBG_FlushLogs.
+	RTC_CALL void Flush();
+
 	bool IsOpen() const;
 
 private:

@@ -22,6 +22,7 @@
 #include <deque>
 
 #include "Parallel.h"
+#include "DbgInterface.h" // DBG_ReportBoundaryException
 #include "dbg/Diagnostics.h"
 #include "dbg/Timer.h"
 #include "dbg/DmsCatch.h"
@@ -145,15 +146,32 @@ void DoThisOrThatAndDecommission()
 	SuspendTrigger::SilentBlocker blockSuspensionInWorkerTask("DoThisOrThatAndDecommission");
 	assert(!SuspendTrigger::DidSuspend());
 
-	while(true)
+	try {
+		while(true)
+		{
+			auto tileTask = TakeOneTaskOrDecommissionThread();
+			assert(!SuspendTrigger::DidSuspend());
+			if (!tileTask.first)
+				return; // TakeOneTaskOrDecommissionThread already did the decommission accounting
+			assert(IsDefined(tileTask.second)); // we assume starting with a valid ticket to a slot, or else this tile_task_group may already be destroyed.
+			tileTask.first->DoWork(tileTask.second);
+			assert(!SuspendTrigger::DidSuspend());
+		}
+	}
+	catch (...)
 	{
-		auto tileTask = TakeOneTaskOrDecommissionThread();
-		assert(!SuspendTrigger::DidSuspend());
-		if (!tileTask.first)
-			return;
-		assert(IsDefined(tileTask.second)); // we assume starting with a valid ticket to a slot, or else this tile_task_group may already be destroyed.
-		tileTask.first->DoWork(tileTask.second);
-		assert(!SuspendTrigger::DidSuspend());
+		// DoWork catches everything itself (it has to: it owns the slot bookkeeping), so what lands here
+		// came from TakeOneTaskOrDecommissionThread or the SilentBlocker. That path never reached the
+		// branch that decrements the running-thread count, so do it here: left too high, it permanently
+		// throttles tile parallelism, because CommissionThreads only hands out
+		// maxNrThreads - s_NrRunningTileTaskThreads slots. And an escape from here would terminate the
+		// process, this being a task_group task with nothing above it to catch (#1191).
+		DBG_ReportBoundaryException("DoThisOrThatAndDecommission");
+
+		auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex);
+		assert(s_NrRunningTileTaskThreads > 0);
+		if (s_NrRunningTileTaskThreads > 0)
+			--s_NrRunningTileTaskThreads;
 	}
 }
 

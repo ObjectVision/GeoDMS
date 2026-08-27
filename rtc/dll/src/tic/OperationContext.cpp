@@ -75,6 +75,7 @@
 #include <deque>
 
 #include "Parallel.h"
+#include "DbgInterface.h" // DBG_ReportBoundaryException
 #include "dbg/Diagnostics.h"
 #include "dbg/Timer.h"
 #include "dbg/DmsCatch.h"
@@ -1194,19 +1195,42 @@ bool OperationContext::collectTaskImpl()
 bool OperationContext::TryRunningTaskInline()
 {
 	assert(m_Suppliers.empty());
-	StealTasks();
 
-	// Re-estimate before licensing, because the admission gate inside it cannot use the
-	// schedule-time estimate: at queue time neither the result domain's count nor its tiling exists,
-	// so that estimate is the blind ASSUMED_SIZE one (§8.1 finding 1) and charging it under-books by
-	// orders of magnitude -- measured 4 MB against a real 200 MB. Here the suppliers are done (an OC
-	// only becomes runnable once they are), so the domain is resolved and the numbers are exact.
-	// Deliberately OUTSIDE cs_ThreadMessing: this walks unit meta-info and must not run under the
-	// single global scheduling mutex.
-	RefreshEstimateForAdmission();
+	// Everything up to Run_with_cleanup runs OUTSIDE the payload's CancelableFrame -- Run_with_catch
+	// installs that only once it starts the payload -- yet it can throw task_canceled: that is what
+	// getUniqueLicenseToRun does by design once the task group is cancelling, and StealTasks can
+	// surface the cancellation of a stolen task. Before #1191 such a throw ran straight out of the
+	// task_group worker and terminated the process.
+	try {
+		StealTasks();
 
-	if (!GetUniqueLicenseToRun())
+		// Re-estimate before licensing, because the admission gate inside it cannot use the
+		// schedule-time estimate: at queue time neither the result domain's count nor its tiling exists,
+		// so that estimate is the blind ASSUMED_SIZE one (§8.1 finding 1) and charging it under-books by
+		// orders of magnitude -- measured 4 MB against a real 200 MB. Here the suppliers are done (an OC
+		// only becomes runnable once they are), so the domain is resolved and the numbers are exact.
+		// Deliberately OUTSIDE cs_ThreadMessing: this walks unit meta-info and must not run under the
+		// single global scheduling mutex.
+		RefreshEstimateForAdmission();
+
+		if (!GetUniqueLicenseToRun())
+			return false;
+	}
+	catch (...)
+	{
+		// This OC is still 'activated', so s_NrActivatedOrRunningOperations[m_PhaseNumber] is counted up
+		// and nothing is left that would count it down -- the phase would never drain. OnEnd puts the OC
+		// in a terminal state, releasing that count along with its suppliers and waiters; it is noexcept
+		// and idempotent (onEnd returns immediately once the status is already terminal).
+		//
+		// Both live callers handle the false return: the task_group's selfCaller ignores it, and Join
+		// tests `if (TryRunningTaskInline()) return GetStatus();` -- falling through is correct there,
+		// and its `while (GetStatus() <= task_status::running)` loop now ends at once, cancelled being
+		// above running. Returning false without OnEnd would instead spin that loop forever.
+		DBG_ReportBoundaryException("TryRunningTaskInline");
+		OnEnd(task_status::cancelled);
 		return false;
+	}
 
 	Run_with_cleanup({});
 	return true;
@@ -2570,17 +2594,28 @@ void OperationContext::Run_with_catch(explain_context_ptr_t context) noexcept
 		GetResult()->CatchFail(FailType::Data);
 	}
 
-	releaseStorageLockIfHeld(); // #933: no-op on the normal path (payload adopted & released it)
+	// The tail below runs on the cancelled and failed paths too, and it touches the result item, which a
+	// concurrent teardown may already have taken apart. It sits AFTER the catch blocks above, so before
+	// #1191 a throw here did not fail the OC -- it broke this function's noexcept promise and killed the
+	// process. Guard it so the promise is true by construction. The braces matter: they put the release
+	// of localWriteLock (whose whole purpose is to run before OnEnd, so Waiters can start) inside the try.
+	try {
+		releaseStorageLockIfHeld(); // #933: no-op on the normal path (payload adopted & released it)
 
-	ItemWriteLock localWriteLock;
-	leveled_std_section::unique_lock lock(cs_ThreadMessing);
+		ItemWriteLock localWriteLock;
+		leveled_std_section::unique_lock lock(cs_ThreadMessing);
 
-	assert(!m_FuncDC || IsDataCurrCompleted(m_Result->GetCurrUltimateItem().get()) || s_OcTaskGroupIsCanceling || GetResult()->WasFailed(FailType::Data) || (getStatus() == task_status::cancelled));
+		assert(!m_FuncDC || IsDataCurrCompleted(m_Result->GetCurrUltimateItem().get()) || s_OcTaskGroupIsCanceling || GetResult()->WasFailed(FailType::Data) || (getStatus() == task_status::cancelled));
 
-	localWriteLock = std::move(m_WriteLock);
-	assert(!m_WriteLock);
-	assert(!localWriteLock || localWriteLock.GetItem() == GetResult().get());
-	// writeLock release here before OnEnd allows Waiters to start
+		localWriteLock = std::move(m_WriteLock);
+		assert(!m_WriteLock);
+		assert(!localWriteLock || localWriteLock.GetItem() == GetResult().get());
+		// writeLock release here before OnEnd allows Waiters to start
+	}
+	catch (...)
+	{
+		DBG_ReportBoundaryException("OperationContext::Run_with_catch cleanup");
+	}
 }
 
 // Wrapper that runs payload and transitions to final states accordingly.
@@ -2588,20 +2623,35 @@ void OperationContext::Run_with_cleanup(explain_context_ptr_t context) noexcept
 {
 	assert(!SuspendTrigger::DidSuspend());
 
-	Run_with_catch(context);
-	assert(!m_TaskFunc);
+	try {
+		Run_with_catch(context);
+		assert(!m_TaskFunc);
 
-	if (GetResult()->WasFailed(FailType::Data))
-		OnException(); // clean-up
-	else
-	{
-		assert(!SuspendTrigger::DidSuspend());
+		if (GetResult()->WasFailed(FailType::Data))
+			OnException(); // clean-up
+		else
+		{
+			assert(!SuspendTrigger::DidSuspend());
 
-		OnEnd(task_status::done); // just set status to done and clean-up
+			OnEnd(task_status::done); // just set status to done and clean-up
+		}
+
+		// check that clean-up was done. This includes releasing the RunCount
+		assert(!m_WriteLock);
 	}
-
-	// check that clean-up was done. This includes releasing the RunCount
-	assert(!m_WriteLock);
+	catch (...)
+	{
+		// What the three callers (the task_group's selfCaller, Join, StealOneTask) rely on is that this
+		// returns with the OC in a terminal state. Before #1191 an escape here delivered neither: it did
+		// not fail the OC and it did not return -- it terminated the process. Finalize as cancelled so
+		// the phase count, the suppliers and the waiters are released, and Join's
+		// `while (GetStatus() <= task_status::running)` loop ends instead of spinning.
+		//
+		// The trailing assert(!m_WriteLock) above stays on the normal path only: a cancelled OC is
+		// allowed to still hold its write lock here (see the same condition asserted in separateResources).
+		DBG_ReportBoundaryException("OperationContext::Run_with_cleanup");
+		OnEnd(task_status::cancelled);
+	}
 }
 
 // *****************************************************************************
