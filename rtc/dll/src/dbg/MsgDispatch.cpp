@@ -13,7 +13,9 @@
 
 #include "debug.h"
 #include "DebugReporter.h"
+#include "act/MainThread.h" // GetThreadID for the fatal report
 #include "act/TriggerOperator.h"
+#include "parallel/portable_task_group.h" // task_canceled, named by the fatal report
 #include "dbg/DebugLog.h"
 #include "utl/MemGuard.h"
 #include "utl/StrFormat.h"
@@ -32,6 +34,23 @@
 
 #include <vector>
 #include <ctime>
+
+// for the fatal (abort) diagnostics further down
+#include <algorithm>
+#include <cstdio>
+#include <cstdlib>
+#include <exception>
+#include <mutex>
+#include <typeinfo>
+
+#if defined(WIN32)
+// Declared here rather than pulling in windows.h, which must not precede cpc/CompChar.h. The
+// MG_CRTLOG block below declares the same import for the Debug-only CRT report hook; the fatal
+// handlers need it in Release too, so it is hoisted out of that guard.
+extern "C" __declspec(dllimport) int __stdcall IsDebuggerPresent();
+#else
+inline int IsDebuggerPresent() { return 0; }
+#endif
 
 /********** MsgCallback Register **********/
 
@@ -516,9 +535,8 @@ void MustCoalesceHeap(SizeT size)
 
 
 #ifdef MG_CRTLOG
-#include <cstdio>   // std::fputs/std::fflush for the headless report hook
-#include <cstdlib>  // _exit
-extern "C" __declspec(dllimport) int __stdcall IsDebuggerPresent(); // avoid windows.h (must not precede cpc/CompChar.h)
+// <cstdio>/<cstdlib> and the IsDebuggerPresent import are declared near the top of this file, for the
+// fatal handlers that need them in Release too.
 
 // Headless Debug-run report handling, installed for EVERY exe that loads Rtc (GeoDmsRun, GeoDmsGuiQt,
 // TicTst): a failed assert or abort() would pop a modal Retry/Ignore dialog that silently stalls any
@@ -545,6 +563,7 @@ RtcStreamLock::RtcStreamLock()
 	if (!s_nrRtcStreamLocks++)
 	{
 		SetMainThreadID();
+		DBG_InstallFatalHandlers(); // main thread; each task_group worker installs its own (per-thread on MSVC)
 #ifdef MG_CRTLOG
 		_CrtSetDbgFlag(_CRTDBG_LEAK_CHECK_DF|_CRTDBG_ALLOC_MEM_DF /*| _CRTDBG_CHECK_CRT_DF*/ );
 		if (!IsDebuggerPresent())
@@ -654,6 +673,204 @@ SharedStr DatedName(WeakStr fileName)
 	return mySSPrintF("{}_{:04}-{:02}-{:02}{}", CharPtrRange(nameStart, nameEnd), year, month, day_of_month, nameEnd);
 }
 
+// *****************************************************************************
+// live log registry, log flushing, and the fatal (abort) diagnostics
+// *****************************************************************************
+//
+// Why this exists (#1191): closing the GUI while a calculation is in flight can end the process at
+// ucrtbase!abort, which reports as exception 0xC0000409. That code reads as STATUS_STACK_BUFFER_OVERRUN
+// but is the generic __fastfail: abort() ends with `mov ecx, 7 (FAST_FAIL_FATAL_APP_EXIT); int 29h`.
+// So it is a DELIBERATE self-kill, not corruption -- reached in a Release build via std::terminate,
+// i.e. an exception crossing a noexcept boundary. Two things were wrong with how that landed:
+//
+//  - nothing said WHICH exception, from WHERE. WER gives a module and an offset and no more.
+//  - the session log lost its tail: a fail-fast runs no destructors, so ~CDebugLog never closed the
+//    ofstream and everything still sitting in its buffer was discarded -- including the warnings the
+//    teardown drain had just emitted about what it was still waiting for.
+//
+// The handlers below close both gaps: they name the in-flight exception and the thread's context
+// chain, push the logs to disk, and then end the process with a defined exit code.
+
+namespace {
+
+	// Guards s_LiveLogs only; never held while arbitrary code runs, so the fatal path can take it.
+	std::mutex          s_LiveLogsMutex;
+	std::vector<CDebugLog*> s_LiveLogs;
+
+} // end anonymous namespace
+
+static void RegisterLiveLog(CDebugLog* log)
+{
+	std::lock_guard lock(s_LiveLogsMutex);
+	s_LiveLogs.emplace_back(log);
+}
+
+static void UnregisterLiveLog(CDebugLog* log)
+{
+	std::lock_guard lock(s_LiveLogsMutex);
+	s_LiveLogs.erase(std::remove(s_LiveLogs.begin(), s_LiveLogs.end(), log), s_LiveLogs.end());
+}
+
+void DMS_CONV DBG_FlushLogs()
+{
+	std::lock_guard lock(s_LiveLogsMutex);
+	for (auto* log : s_LiveLogs)
+		log->Flush();
+}
+
+namespace {
+
+	// Write one line to every sink that can still take it, without going through MsgDispatch: the
+	// dispatch path locks g_DebugStream, and terminate can strike on a thread that already holds it.
+	// Losing the report to a self-deadlock would defeat the whole point of this handler.
+	void WriteFatalLine(CharPtr line)
+	{
+		std::fputs(line, stderr);
+		std::fputs("\n", stderr);
+
+		std::lock_guard lock(s_LiveLogsMutex);
+		for (auto* log : s_LiveLogs)
+			log->WriteRawLine(line);
+	}
+
+	// Describe the in-flight exception, if there is one. task_canceled is called out by name because
+	// it is the one this path expects: an expired TreeItem weak_ptr throws it by design once the config
+	// tree is being torn down (lock_or_cancel, SharedTreePtr.h), so it is the likely traveller here.
+	void ReportCurrentException()
+	{
+		auto ep = std::current_exception();
+		if (!ep)
+		{
+			WriteFatalLine("FATAL: terminate called with no exception in flight");
+			return;
+		}
+		try {
+			std::rethrow_exception(ep);
+		}
+		catch (const task_canceled&) {
+			WriteFatalLine("FATAL: uncaught task_canceled -- a cancellation escaped its CancelableFrame");
+		}
+		catch (const DmsException& x) {
+			WriteFatalLine(mySSPrintF("FATAL: uncaught DmsException: {}", x.what()).c_str());
+		}
+		catch (const std::exception& x) {
+			WriteFatalLine(mySSPrintF("FATAL: uncaught {}: {}", typeid(x).name(), x.what()).c_str());
+		}
+		catch (...) {
+			WriteFatalLine("FATAL: uncaught exception of non-standard type");
+		}
+	}
+
+	// The context chain is THREAD_LOCAL, so this names what THIS thread was doing -- for a worker that
+	// is the item and operator it was calculating, which is precisely what the #1191 report could not
+	// say. Bounded: a corrupted chain must not cost us the report we already have.
+	void ReportContextChain()
+	{
+		UInt32 level = 0;
+		for (auto* ch = AbstrContextHandle::GetLast(); ch && level < 25; ch = ch->GetPrev(), ++level)
+		{
+			CharPtr descr = nullptr;
+			try {
+				descr = ch->GetDescription();
+			}
+			catch (...) {
+				descr = "<GetDescription() threw>";
+			}
+			WriteFatalLine(mySSPrintF("FATAL:   [{}] {}", level, descr ? descr : "<null>").c_str());
+		}
+		if (!level)
+			WriteFatalLine("FATAL:   <no context handles on this thread>");
+	}
+
+	THREAD_LOCAL bool tl_InFatalHandler = false;
+
+	void ReportFatalAndExit(CharPtr what)
+	{
+		if (tl_InFatalHandler)
+			std::_Exit(3); // second fault inside the handler: take what already reached disk and go
+		tl_InFatalHandler = true;
+
+		WriteFatalLine("FATAL: ==================================================================");
+		WriteFatalLine(mySSPrintF("FATAL: {} on thread {}", what, GetThreadID()).c_str());
+		ReportCurrentException();
+		WriteFatalLine("FATAL: context chain of this thread (innermost first):");
+		ReportContextChain();
+		WriteFatalLine("FATAL: see GeoDMS issue #1191; report this log.");
+		WriteFatalLine("FATAL: ==================================================================");
+
+		DBG_FlushLogs();
+		std::fflush(stderr);
+		std::fflush(stdout);
+
+		// With a debugger attached, keep the break: the stack is not yet unwound when terminate runs,
+		// so this is the one moment the originating frame can still be inspected. Same rule the
+		// headless CRT report hook above follows.
+		if (IsDebuggerPresent())
+			return; // the CRT calls abort() next, which breaks into the debugger
+
+		// std::_Exit is the portable _exit: no destructors, no atexit, no WER dialog. 3 == abort-like,
+		// matching DmsHeadlessCrtReportHook, so a driving batch sees a clean failure rather than a crash.
+		std::_Exit(3);
+	}
+
+	void DmsTerminateHandler()
+	{
+		ReportFatalAndExit("std::terminate called");
+		std::abort(); // only reached with a debugger attached
+	}
+
+#if defined(_MSC_VER)
+	void __cdecl DmsPurecallHandler()
+	{
+		// A virtual call on an object whose vtable is mid-destruction; the other route to abort().
+		ReportFatalAndExit("pure virtual function call");
+	}
+#endif
+
+} // end anonymous namespace
+
+void DMS_CONV DBG_InstallFatalHandlers()
+{
+	// MSVC keeps the terminate handler PER THREAD -- verified with a standalone probe: with the handler
+	// installed on the main thread only, an exception escaping a std::thread does NOT call it and the
+	// process dies at 0xC0000409 with no output, whereas installing it inside that thread does call it.
+	// Hence every thread that can throw installs it for itself; on Linux the call is simply idempotent.
+	std::set_terminate(DmsTerminateHandler);
+
+#if defined(_MSC_VER)
+	_set_purecall_handler(DmsPurecallHandler); // process-wide, so repeat calls are harmless
+#endif
+}
+
+void DMS_CONV DBG_ReportBoundaryException(CharPtr where)
+{
+	// NOTE the _without_cancellation_check variants. Plain reportF/reportD perform a cancellation
+	// check that itself throws task_canceled while a session is tearing down -- which is exactly the
+	// situation this is called from. Reporting must never be the thing that kills the process.
+	try {
+		try {
+			throw; // re-raise whatever the enclosing catch handler is holding
+		}
+		catch (const task_canceled&) {
+			// Not an error: an expired TreeItem weak_ptr throws this by design once the config tree is
+			// being torn down (lock_or_cancel). Worth a trace, because it records where work stopped.
+			reportF_without_cancellation_check(MsgCategory::other, SeverityTypeID::ST_MajorTrace
+				, "{}: task cancelled, abandoning this work", where);
+		}
+		catch (const DmsException& x) {
+			reportF_without_cancellation_check(MsgCategory::other, SeverityTypeID::ST_Error, "{}: {}", where, x.what());
+		}
+		catch (const std::exception& x) {
+			reportF_without_cancellation_check(MsgCategory::other, SeverityTypeID::ST_Error, "{}: {}", where, x.what());
+		}
+		catch (...) {
+			reportF_without_cancellation_check(MsgCategory::other, SeverityTypeID::ST_Error
+				, "{}: exception of non-standard type", where);
+		}
+	}
+	catch (...) {} // a boundary reporter that throws would defeat its own purpose
+}
+
 CDebugLog::CDebugLog(WeakStr name)
 	: CDebugLog(DatedName(name), true)
 {}
@@ -662,8 +879,11 @@ CDebugLog::CDebugLog(WeakStr name, bool tag)
 	:	m_FileBuff(name, true, true), m_Stream(&m_FileBuff, FormattingFlags::ThousandSeparator)
 {
 	bool isOpened = m_FileBuff.IsOpen();
-	if (isOpened) 
+	if (isOpened)
+	{
 		DMS_RegisterMsgCallback(DebugMsgCallback, typesafe_cast<ClientHandle>(this));
+		RegisterLiveLog(this);
+	}
 
 	DebugOutStream::scoped_lock lock(g_DebugStream, isOpened ? SeverityTypeID::ST_MajorTrace : SeverityTypeID::ST_Warning);
 	if (!isOpened) 
@@ -693,6 +913,7 @@ CDebugLog::~CDebugLog()
 		}
 	}
 	ProcessMsgDataPipeline();
+	UnregisterLiveLog(this);
 	DMS_ReleaseMsgCallback(DebugMsgCallback, typesafe_cast<ClientHandle>(this));
 }
 
@@ -704,6 +925,16 @@ void DMS_CONV CDebugLog::DebugMsgCallback(ClientHandle clientHandle, const MsgDa
 		<< "[" << SeverityAsChar(msgData->m_SeverityType) << "]"
 		<< AsString(msgData->m_MsgCategory)
 		<< msgData->m_Txt;
+}
+
+void CDebugLog::Flush()
+{
+	m_FileBuff.Flush();
+}
+
+void CDebugLog::WriteRawLine(CharPtr line)
+{
+	m_Stream << '\n' << line;
 }
 
 CDebugLog* DMS_CONV DBG_DebugLog_Open(CharPtr fileName)

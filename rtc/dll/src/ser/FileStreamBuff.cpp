@@ -51,6 +51,12 @@ void FileOutStreamBuff::WriteBytes(const Byte* data, streamsize_t size)
 	m_ofstream.write(data, size);
 }
 
+void FileOutStreamBuff::Flush()
+{
+	if (m_ofstream.is_open())
+		m_ofstream.flush();
+}
+
 streamsize_t FileOutStreamBuff::CurrPos() const
 {
 	return m_ByteCount;

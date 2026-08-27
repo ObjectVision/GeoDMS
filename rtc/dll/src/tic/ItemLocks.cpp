@@ -10,9 +10,11 @@
 
 #include <assert.h>
 #include <cstdio>
+#include "DbgInterface.h" // DBG_ReportBoundaryException
 #include "act/ActorLock.h"
 #include "act/MainThread.h"
 #include "dbg/DebugContext.h"
+#include "parallel/portable_task_group.h" // task_canceled
 #include "mci/ValueClass.h"
 #include "utl/scoped_exit.h"
 
@@ -731,14 +733,37 @@ std::shared_ptr<const TreeItem> GetATask()
 }
 
 void RunTasks() {
+	// s_RunTaskActive gates ALL future scheduling of this function (see RunTask below), so it must be
+	// cleared on every path. An exception escaping PrepareData used to leave it true forever, after
+	// which no producer task was ever started again -- on top of terminating the process, this being a
+	// task_group task with nothing above it to catch (#1191).
+	auto clearRunTaskActive = make_scoped_exit([]() { s_RunTaskActive = false; });
+
 	while (true) {
 		auto nextTask = GetATask();
 		if (!nextTask)
 			break;
-		if (nextTask->HasInterest())
+		if (!nextTask->HasInterest())
+			continue;
+		try {
 			nextTask->PrepareData();
+		}
+		catch (const task_canceled&)
+		{
+			// The session is tearing down, so every remaining item would throw the same; stop here.
+			// GetATask already removed this one from s_ActiveProducerSet, and that is harmless: a
+			// consumer that still wants it re-inserts it through RunTask when it next polls IsDataReady.
+			DBG_ReportBoundaryException("RunTasks");
+			break;
+		}
+		catch (...)
+		{
+			// PrepareData records data failures on the item itself, so anything escaping it is a defect
+			// rather than a normal outcome. Report it and carry on with the next item, rather than
+			// abandoning the whole producer set on one bad one.
+			DBG_ReportBoundaryException("RunTasks");
+		}
 	}
-	s_RunTaskActive = false;
 }
 
 bool RunTask(const TreeItem* item)

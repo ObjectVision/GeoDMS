@@ -5,6 +5,8 @@
 #include "RtcPCH.h"
 #include "parallel/portable_task_group.h"
 
+#include "DbgInterface.h" // DBG_InstallFatalHandlers
+
 #include <cassert>
 
 portable_task_group::portable_task_group(unsigned concurrency)
@@ -14,6 +16,13 @@ portable_task_group::portable_task_group(unsigned concurrency)
 	{
 		m_workers.emplace_back([this]
 		{
+			// MSVC keeps the terminate handler PER THREAD, so the install done for the main thread does
+			// NOT cover these workers: without this line an exception escaping task() below kills the
+			// process at ucrtbase!abort (0xC0000409) with no report at all, which is how #1191 presented.
+			// This is where such an exception is most likely to originate: a worker abandoned mid-flight
+			// by a teardown throws task_canceled the moment it touches an expired TreeItem weak_ptr.
+			DBG_InstallFatalHandlers();
+
 			while (true)
 			{
 				std::function<void()> task;
@@ -35,7 +44,20 @@ portable_task_group::portable_task_group(unsigned concurrency)
 					m_tasks.pop();
 					++m_active;
 				}
-				task();
+				try {
+					task();
+				}
+				catch (...)
+				{
+					// Last boundary before the thread function itself: an escape from here terminates
+					// the process (#1191). Each task entry point restores its own bookkeeping before
+					// letting anything through, so all that is left to do here is report -- and to keep
+					// this worker alive, since killing it would permanently shrink the pool.
+					DBG_ReportBoundaryException("portable_task_group worker");
+				}
+
+				// Must run on the throwing path too: skipping it leaves m_active above zero forever,
+				// and wait() -- which blocks until m_tasks is empty AND m_active == 0 -- never returns.
 				{
 					std::lock_guard lock(m_mutex);
 					--m_active;
