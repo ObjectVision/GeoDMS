@@ -56,6 +56,9 @@ bool    TreeItem_IsFunctionResultGenericUnit(const TreeItem* functionItem);
 auto    TreeItem_GetFunctionResultSig(const TreeItem* functionItem) -> SharedTreeItem;
 const std::vector<TokenID>* TreeItem_GetFunctionResultSigTypeArgs(const TreeItem* functionItem);
 void    TreeItem_CopyFunctionSpec(const TreeItem* dstFunctionItem, const TreeItem* srcFunctionItem);
+// drop the spec of a function item that is being destroyed; called from ~TreeItem, which is
+// the only reader of the assoc outside this component
+void    TreeItem_EraseFunctionSpec(const TreeItem* functionItem);
 
 // generic type variables on function parameters: function f<V: numerics>(... attribute<V> x ...)
 class ValueClass;
