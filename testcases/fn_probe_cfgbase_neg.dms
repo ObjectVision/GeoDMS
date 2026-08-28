@@ -3,8 +3,8 @@ container fn_probe_cfgbase_neg
 	// Config-alias member access, NEGATIVE: a genuinely MISSING member below a
 	// config-alias must still fail cleanly with a FindSubItem error, never silently
 	// pass. Guards that the direct config-item resolution does not swallow real misses.
-	unit<uint32> D : nrofrows = 3;
-	container cfg { attribute<float64> sub (D) : [1.0, 2.0, 3.0]; }
+	unit<uint32> Dx : nrofrows = 3;
+	container cfg { attribute<float64> sub (Dx) : [1.0, 2.0, 3.0]; }
 
 	function f(item it) -> parameter<float64>
 	{

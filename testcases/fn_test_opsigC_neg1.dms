@@ -15,8 +15,8 @@ container fn_test_opsigC_neg1
 		attribute<float64> price : [1.0, 2.0, 3.0];
 	}
 
-	function bad<V: numerics>(attribute<V> x (House); attribute<Region> part (House))
-	-> attribute<V> (House) := sum(x, part);
+	function bad<Vx: numerics>(attribute<Vx> x (House); attribute<Region> part (House))
+	-> attribute<Vx> (House) := sum(x, part);
 
 	attribute<float64> z (House) := bad(House/price, House/reg);
 

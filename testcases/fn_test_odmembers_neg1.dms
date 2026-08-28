@@ -7,20 +7,20 @@ container fn_test_odmembers_neg1
 	unit<uint32> Node : nrofrows = 2;
 	unit<uint32> Link : nrofrows = 1
 	{
-		attribute<Node>    F1  : [0];
-		attribute<Node>    F2  : [1];
+		attribute<Node>    N1_rel  : [0];
+		attribute<Node>    N2_rel  : [1];
 		attribute<float64> imp : [1.0];
 	}
 	unit<uint32> StartSet : nrofrows = 1 { attribute<Node> nr : [0]; }
 	unit<uint32> EndSet   : nrofrows = 1 { attribute<Node> nr : [1]; }
 
-	function odbad(attribute<float64> w (Link); attribute<Node> f1 (Link); attribute<Node> f2 (Link); attribute<Node> sr (StartSet); attribute<Node> er (EndSet))
+	function odbad(attribute<float64> w (Link); attribute<Node> fromNd (Link); attribute<Node> toNd (Link); attribute<Node> sr (StartSet); attribute<Node> er (EndSet))
 	-> parameter<float64>
 	{
-		unit<uint32> od := impedance_matrix('directed;startPoint(Node_rel);endPoint(Node_rel);od:impedance,OrgZone_rel,DstZone_rel', w, f1, f2, sr, er);
+		unit<uint32> od := impedance_matrix('directed;startPoint(Node_rel);endPoint(Node_rel);od:impedance,OrgZone_rel,DstZone_rel', w, fromNd, toNd, sr, er);
 		parameter<float64> result := sum(od/LinkSet); // LinkSet NOT produced by this spec
 	}
-	parameter<float64> s := odbad(Link/imp, Link/F1, Link/F2, StartSet/nr, EndSet/nr);
+	parameter<float64> s := odbad(Link/imp, Link/N1_rel, Link/N2_rel, StartSet/nr, EndSet/nr);
 
 	container checks
 	{

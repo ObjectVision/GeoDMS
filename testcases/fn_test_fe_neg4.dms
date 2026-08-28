@@ -4,18 +4,18 @@ container fn_test_fe_neg4
 	// body's checks — member 'a' is float32-valued (the for_each values
 	// argument), the declared result is string: a DEFINITION-time class
 	// mismatch, caught without any application reduction.
-	unit<uint32> D : nrofrows = 3;
+	unit<uint32> Dx : nrofrows = 3;
 	unit<uint32> NSet : nrofrows = 2;
 	attribute<string> mnames (NSet) : ['a','b'];
 	attribute<string> mexprs (NSet) : ['x + x','x - x'];
-	attribute<float64> src (D) : [1.0, 2.0, 3.0];
+	attribute<float64> src (Dx) : [1.0, 2.0, 3.0];
 
-	function f(attribute<float64> x (D)) -> attribute<string> (D)
+	function f(attribute<float64> x (Dx)) -> attribute<string> (Dx)
 	{
-		container r := for_each_nedv(mnames, mexprs, D, float32);
-		attribute<string> result (D) := r/a; // float32 member vs string declaration: definition-time error
+		container r := for_each_nedv(mnames, mexprs, Dx, float32);
+		attribute<string> result (Dx) := r/a; // float32 member vs string declaration: definition-time error
 	}
-	attribute<string> y (D) := f(src);
+	attribute<string> y (Dx) := f(src);
 
 	container checks
 	{

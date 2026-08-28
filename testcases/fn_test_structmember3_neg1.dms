@@ -10,10 +10,10 @@ container fn_test_structmember3_neg1
 		attribute<float64> b : [ 4.0, 5.0, 6.0 ];
 	}
 
-	function bad<V: numerics, W: numerics>( unit<uint32> nw { attribute<V> a; attribute<W> b; } )
-	-> parameter<V> := sum(s)
+	function bad<Vx: numerics, Wx: numerics>( unit<uint32> nw { attribute<Vx> a; attribute<Wx> b; } )
+	-> parameter<Vx> := sum(s)
 	{
-		attribute<V> s (nw) := nw/b;   // W-member designated into a V-typed item: rigid V = rigid W
+		attribute<Vx> s (nw) := nw/b;   // W-member designated into a V-typed item: rigid V = rigid W
 	}
 
 	parameter<float64> t := bad(Net);

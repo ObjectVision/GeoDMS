@@ -4,15 +4,15 @@ container fn_probe_cfgbase_a
 	// def-scope CONFIG container; member access below it (c/sub) resolves directly
 	// against the referenced config item (cfg/sub) instead of routing through the cache
 	// SubItemOperator (which only accepts cache bases). Positive test.
-	unit<uint32> D : nrofrows = 3;
-	attribute<float64> x (D) : [1.0, 2.0, 3.0];
+	unit<uint32> Dx : nrofrows = 3;
+	attribute<float64> x (Dx) : [1.0, 2.0, 3.0];
 
 	container cfg
 	{
-		attribute<float64> sub (D) : [1.0, 2.0, 3.0];
+		attribute<float64> sub (Dx) : [1.0, 2.0, 3.0];
 	}
 
-	function f(attribute<float64> src (D)) -> parameter<float64>
+	function f(attribute<float64> src (Dx)) -> parameter<float64>
 	{
 		container c := cfg;
 		parameter<float64> result := sum(src) + sum(c/sub);

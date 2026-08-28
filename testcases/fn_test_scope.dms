@@ -9,12 +9,12 @@ container fn_test_scope
 
 	// lexical definition scope (§4.6 revision 2026-07-13): 'outside' is visible from
 	// the point of definition, so the body may reference it — no 'using' needed
-	function F(
+	function Fx(
 		unit<uint32>       Rd;
 		attribute<float64> x (Rd))
 	-> attribute<float64> (Rd) := x * outside;
 
-	attribute<float64> good (Road) := F(Road, Road/flow);
+	attribute<float64> good (Road) := Fx(Road, Road/flow);
 
 	// An explicitly instantiated function resolves a template in its definition
 	// namespace, without inheriting the instantiation site's parent namespace.

@@ -14,7 +14,7 @@ container fn_test_opsigE
 	// connect_neighbour inside a function body: the walker checks the K1 domain
 	// share (points and partitioning over the same domain D); the result relation
 	// is deferred, and the declared attribute<D>(D) is trusted (§17).
-	function nn<D: domains>(attribute<fpoint> p (D); attribute<uint32> part (D)) -> attribute<D> (D)
+	function nn<Dx: domains>(attribute<fpoint> p (Dx); attribute<uint32> part (Dx)) -> attribute<Dx> (Dx)
 		:= connect_neighbour(p, part);
 
 	attribute<Region> nearest (Region) := nn(pts, grp);   // nearest point in the other group

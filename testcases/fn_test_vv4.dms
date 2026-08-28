@@ -10,14 +10,14 @@ container fn_test_vv4
 		attribute<int32>   n    : [ 1, 2, 3 ];
 	}
 
-	nuf = function<V: numerics, D: domains>(attribute<V> (D)) -> attribute<V> (D);
+	nuf = function<Vx: numerics, Dx: domains>(attribute<Vx> (Dx)) -> attribute<Vx> (Dx);
 
-	function gid<W: numerics, E: domains>(attribute<W> x (E)) -> attribute<W> (E) := x;
+	function gid<Wx: numerics, E: domains>(attribute<Wx> x (E)) -> attribute<Wx> (E) := x;
 
-	function two<A: numerics, B: numerics, D: domains, E: domains>(
-		f: nuf<A, D>; g: nuf<B, E>;
-		attribute<A> x (D); attribute<B> y (E))
-	-> attribute<A> (D)
+	function two<Ax: numerics, Bx: numerics, Dx: domains, E: domains>(
+		f: nuf<Ax, Dx>; g: nuf<Bx, E>;
+		attribute<Ax> x (Dx); attribute<Bx> y (E))
+	-> attribute<Ax> (Dx)
 		:= f(x);
 
 	attribute<float64> a (Road) := two(gid, gid, Road/flow, Road/n);

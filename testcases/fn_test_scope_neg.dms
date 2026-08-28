@@ -6,14 +6,14 @@ container fn_test_scope_neg
 	{
 		// 'callsite_only' is NOT visible from F's definition point; it lives at the
 		// CALL site — call-site isolation must reject it
-		function F(unit<uint32> Rd; attribute<float64> x (Rd))
+		function Fx(unit<uint32> Rd; attribute<float64> x (Rd))
 		-> attribute<float64> (Rd) := x * callsite_only;
 	}
 
 	container site
 	{
 		parameter<float64> callsite_only := 10.0;
-		attribute<float64> bad (/Road) := /lib/F(/Road, /Road/flow);
+		attribute<float64> bad (/Road) := /lib/Fx(/Road, /Road/flow);
 	}
 
 	container checks { parameter<float64> use := sum(site/bad); }

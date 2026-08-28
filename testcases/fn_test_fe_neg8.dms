@@ -7,9 +7,9 @@ container fn_test_fe_neg8
 	// over a DIFFERENT formal 'other' is therefore a rigid-rigid conflict at the
 	// DEFINITION — it holds for every instantiation, and no for_each is expanded.
 	// (fn_test_fe_neg4 pins the VALUES-class half; fn_test_fe_neg1 the member set.)
-	unit<uint32> D : nrofrows = 3;
+	unit<uint32> Dx : nrofrows = 3;
 	unit<uint32> E : nrofrows = 5;
-	attribute<float64> src (D) : [1.0, 2.0, 3.0];
+	attribute<float64> src (Dx) : [1.0, 2.0, 3.0];
 
 	unit<uint32> NSet : nrofrows = 2;
 	attribute<string> mnames (NSet) : ['m1','m2'];
@@ -21,7 +21,7 @@ container fn_test_fe_neg8
 		attribute<float64> bad (other) := fe/m1;
 		parameter<float64> result := sum(bad);
 	}
-	parameter<float64> p := f_formal(D, E);
+	parameter<float64> p := f_formal(Dx, E);
 
 	container checks { parameter<float64> c := p, IntegrityCheck = "c == 9.0"; }
 }

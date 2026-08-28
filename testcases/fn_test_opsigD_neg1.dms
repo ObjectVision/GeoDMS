@@ -9,14 +9,14 @@ container fn_test_opsigD_neg1
 	// reference. At reduction the same config throws in that UnifyDomain.
 	// Expected: "the definition of '/bad': the body requires unit variables
 	//            'D1' and 'D2' to be equal ... they are independent ..."
-	unit<uint32> A : nrofrows = 3;
-	unit<uint32> B : nrofrows = 3;
-	attribute<uint32>  seqA  (A) : [0, 1, 2];
-	attribute<bool>    condA (A) := seqA < uint32(2);
-	attribute<float32> dataB (B) : [0, 1, 2];
+	unit<uint32> Ax : nrofrows = 3;
+	unit<uint32> Bx : nrofrows = 3;
+	attribute<uint32>  seqA  (Ax) : [0, 1, 2];
+	attribute<bool>    condA (Ax) := seqA < uint32(2);
+	attribute<float32> dataB (Bx) : [0, 1, 2];
 
-	function bad<D1: domains, D2: domains, V: any>(unit<uint32> s; attribute<bool> c (D1); attribute<V> d (D2))
-	-> attribute<V> (s) := collect_by_cond(s, c, d);
+	function bad<D1: domains, D2: domains, Vx: any>(unit<uint32> s; attribute<bool> c (D1); attribute<Vx> d (D2))
+	-> attribute<Vx> (s) := collect_by_cond(s, c, d);
 
 	unit<uint32> Sub := select(condA);
 	attribute<float32> z (Sub) := bad(Sub, condA, dataB);

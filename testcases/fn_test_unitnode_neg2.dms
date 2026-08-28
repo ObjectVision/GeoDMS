@@ -16,11 +16,11 @@ container fn_test_unitnode_neg2
 		attribute<Town>   twn : [1, 0, 1]; // NB not 'town': item names collide case-insensitively with the unit
 	}
 
-	function pass2<D: domains>(unit<uint32> E; attribute<E> a (D); attribute<E> b (D))
-	-> attribute<E> (D) := min_elem(a, b);
+	function pass2<Dx: domains>(unit<uint32> E; attribute<E> a (Dx); attribute<E> b (Dx))
+	-> attribute<E> (Dx) := min_elem(a, b);
 
-	function bad2<D: domains>(attribute<Region> x (D); attribute<Town> y (D))
-	-> attribute<Region> (D) := pass2(Region, x, y);
+	function bad2<Dx: domains>(attribute<Region> x (Dx); attribute<Town> y (Dx))
+	-> attribute<Region> (Dx) := pass2(Region, x, y);
 
 	attribute<Region> z (House) := bad2(House/reg, House/twn);
 

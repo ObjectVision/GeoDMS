@@ -2,12 +2,12 @@ container fn_test_closure
 {
 	unit<uint32> Road : nrofrows = 3 { attribute<float64> flow : [ 1.0, 2.0, 3.0 ]; }
 
-	function double_<V: numerics>(attribute<V> x) -> attribute<V> := x + x;
-	function inc<V: numerics>(attribute<V> x) -> attribute<V> := x + 1.0;
+	function double_<Vx: numerics>(attribute<Vx> x) -> attribute<Vx> := x + x;
+	function inc<Vx: numerics>(attribute<Vx> x) -> attribute<Vx> := x + 1.0;
 
 	function compose(f: function; g: function) -> function
 	{
-		function result<V: numerics>(attribute<V> x) -> attribute<V> := f(g(x));
+		function result<Vx: numerics>(attribute<Vx> x) -> attribute<Vx> := f(g(x));
 	}
 
 	// f after g: double(inc(x)) = 2x + 2

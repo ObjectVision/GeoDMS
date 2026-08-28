@@ -90,30 +90,30 @@ container oper_minkowski
 		attribute<ipoint> named_i4hv (G, polygon) := bp_minkowski_sum(bp_polygon(geom_i), size, 'i4HV');
 		attribute<ipoint> old_i4hv   (G, polygon) := bp_polygon_i4HV(geom_i, size);
 		parameter<float64> d_i4hv := sum(float64(area(bp_xor(named_i4hv, old_i4hv))));
-		parameter<bool> bp_i4hv_ok := d_i4hv == 0.0, IntegrityCheck = "bp_i4hv_ok == True";
+		parameter<bool> bp_i4hv_ok := d_i4hv == 0.0, IntegrityCheck = "bp_i4hv_ok == true";
 
 		attribute<ipoint> named_i8d (G, polygon) := bp_minkowski_sum(bp_polygon(geom_i), size, 'i8D');
 		attribute<ipoint> old_i8d   (G, polygon) := bp_polygon_i8D(geom_i, size);
 		parameter<float64> d_i8d := sum(float64(area(bp_xor(named_i8d, old_i8d))));
-		parameter<bool> bp_i8d_ok := d_i8d == 0.0, IntegrityCheck = "bp_i8d_ok == True";
+		parameter<bool> bp_i8d_ok := d_i8d == 0.0, IntegrityCheck = "bp_i8d_ok == true";
 
 		// The X-shaped kernels are the non-convex ones, so they are the case that separates a
 		// correct decomposition from a fan about an arbitrary vertex.
 		attribute<ipoint> named_ixhv (G, polygon) := bp_minkowski_sum(bp_polygon(geom_i), size, 'iXHV');
 		attribute<ipoint> old_ixhv   (G, polygon) := bp_polygon_iXHV(geom_i, size);
 		parameter<float64> d_ixhv := sum(float64(area(bp_xor(named_ixhv, old_ixhv))));
-		parameter<bool> bp_ixhv_ok := d_ixhv == 0.0, IntegrityCheck = "bp_ixhv_ok == True";
+		parameter<bool> bp_ixhv_ok := d_ixhv == 0.0, IntegrityCheck = "bp_ixhv_ok == true";
 
 		// ... and the same for the eroding half of the family.
 		attribute<ipoint> named_d4hv (G, polygon) := bp_minkowski_difference(bp_polygon(geom_i), size, 'd4HV');
 		attribute<ipoint> old_d4hv   (G, polygon) := bp_polygon_d4HV(geom_i, size);
 		parameter<float64> d_d4hv := sum(float64(area(bp_xor(named_d4hv, old_d4hv))));
-		parameter<bool> bp_d4hv_ok := d_d4hv == 0.0, IntegrityCheck = "bp_d4hv_ok == True";
+		parameter<bool> bp_d4hv_ok := d_d4hv == 0.0, IntegrityCheck = "bp_d4hv_ok == true";
 
 		// ---- 2. the kernel overload agrees with the named overload -------------------------
 		attribute<ipoint> via_kernel (G, polygon) := bp_minkowski_sum(bp_polygon(geom_i), kernel_i);
 		parameter<float64> d_kernel := sum(float64(area(bp_xor(via_kernel, named_i4hv))));
-		parameter<bool> bp_kernel_ok := d_kernel == 0.0, IntegrityCheck = "bp_kernel_ok == True";
+		parameter<bool> bp_kernel_ok := d_kernel == 0.0, IntegrityCheck = "bp_kernel_ok == true";
 
 		// ---- 2b. the kernel overload on the three float64 backends -------------------------
 		// Only bp exercised the kernel argument above; these pin the other three. Each is compared
@@ -126,18 +126,18 @@ container oper_minkowski
 		attribute<dpoint> cgal_via_kernel (G, polygon) := cgal_minkowski_sum(geom_d, kernel_d);
 
 		parameter<float64> d_bg_kernel := sum(area(geos_xor(bg_via_kernel, sum_bg)));
-		parameter<bool> bg_kernel_ok := d_bg_kernel < 0.001, IntegrityCheck = "bg_kernel_ok == True";
+		parameter<bool> bg_kernel_ok := d_bg_kernel < 0.001, IntegrityCheck = "bg_kernel_ok == true";
 
 		parameter<float64> d_geos_kernel := sum(area(geos_xor(geos_via_kernel, sum_geos)));
-		parameter<bool> geos_kernel_ok := d_geos_kernel < 0.001, IntegrityCheck = "geos_kernel_ok == True";
+		parameter<bool> geos_kernel_ok := d_geos_kernel < 0.001, IntegrityCheck = "geos_kernel_ok == true";
 
 		parameter<float64> d_cgal_kernel := sum(area(geos_xor(cgal_via_kernel, sum_cgal)));
-		parameter<bool> cgal_kernel_ok := d_cgal_kernel < 0.001, IntegrityCheck = "cgal_kernel_ok == True";
+		parameter<bool> cgal_kernel_ok := d_cgal_kernel < 0.001, IntegrityCheck = "cgal_kernel_ok == true";
 
 		// Each kernel-form result must also have the right absolute area, so that "the two forms
 		// agree" cannot be satisfied by both being wrong in the same way.
 		parameter<float64> a_bg_kernel := sum(area(bg_via_kernel));
-		parameter<bool> bg_kernel_area_ok := abs(a_bg_kernel - 19200.0) < 0.001, IntegrityCheck = "bg_kernel_area_ok == True";
+		parameter<bool> bg_kernel_area_ok := abs(a_bg_kernel - 19200.0) < 0.001, IntegrityCheck = "bg_kernel_area_ok == true";
 
 		// ---- 2c. a kernel per element, and a size per element ------------------------------
 		// The square grown by 10 is 120 x 120 = 14400; the L grown by 5 is
@@ -148,10 +148,10 @@ container oper_minkowski
 		attribute<ipoint> per_elem_size   (G, polygon) := bp_minkowski_sum(bp_polygon(geom_i), size_per_elem, '4HV');
 
 		parameter<float64> a_per_elem := sum(float64(area(per_elem_kernel)));
-		parameter<bool> per_elem_kernel_ok := a_per_elem == 17700.0, IntegrityCheck = "per_elem_kernel_ok == True";
+		parameter<bool> per_elem_kernel_ok := a_per_elem == 17700.0, IntegrityCheck = "per_elem_kernel_ok == true";
 
 		parameter<float64> d_per_elem := sum(float64(area(bp_xor(per_elem_kernel, per_elem_size))));
-		parameter<bool> per_elem_size_ok := d_per_elem == 0.0, IntegrityCheck = "per_elem_size_ok == True";
+		parameter<bool> per_elem_size_ok := d_per_elem == 0.0, IntegrityCheck = "per_elem_size_ok == true";
 
 		// ---- 3. the absolute area, so a uniformly wrong answer cannot pass ------------------
 		// Square [0,100]^2 (+) [-10,10]^2 = [-10,110]^2 = 120 x 120 = 14400.
@@ -159,16 +159,16 @@ container oper_minkowski
 		// over union, so its sum is [-10,70]x[-10,30] (3200) with [-10,30]x[-10,70] (3200),
 		// overlapping in [-10,30]^2 (1600): 3200 + 3200 - 1600 = 4800.
 		parameter<float64> a_sum := sum(float64(area(named_i4hv)));
-		parameter<bool> area_ok := a_sum == 19200.0, IntegrityCheck = "area_ok == True";
+		parameter<bool> area_ok := a_sum == 19200.0, IntegrityCheck = "area_ok == true";
 
 		// ---- 4. an off-origin kernel displaces the result ----------------------------------
 		// offkernel_i is kernel_i moved by (10, 10). Same shape, so the same area ...
 		attribute<ipoint> via_offkernel (G, polygon) := bp_minkowski_sum(bp_polygon(geom_i), offkernel_i);
 		parameter<float64> a_off := sum(float64(area(via_offkernel)));
-		parameter<bool> offkernel_area_ok := a_off == a_sum, IntegrityCheck = "offkernel_area_ok == True";
+		parameter<bool> offkernel_area_ok := a_off == a_sum, IntegrityCheck = "offkernel_area_ok == true";
 		// ... but somewhere else, which is what a dropped displacement would break.
 		parameter<float64> d_off := sum(float64(area(bp_xor(via_offkernel, via_kernel))));
-		parameter<bool> offkernel_moved_ok := d_off > 0.0, IntegrityCheck = "offkernel_moved_ok == True";
+		parameter<bool> offkernel_moved_ok := d_off > 0.0, IntegrityCheck = "offkernel_moved_ok == true";
 
 		// ---- 5. the four backends agree ----------------------------------------------------
 		// Not bit-identical: bp is integer, CGAL is exact rational, bg and GEOS are float64.
@@ -177,13 +177,13 @@ container oper_minkowski
 		attribute<dpoint> sum_cgal (G, polygon) := cgal_minkowski_sum(geom_d, size, '4HV');
 
 		parameter<float64> d_bg_geos := sum(area(geos_xor(sum_bg, sum_geos)));
-		parameter<bool> bg_geos_ok := d_bg_geos < 0.001, IntegrityCheck = "bg_geos_ok == True";
+		parameter<bool> bg_geos_ok := d_bg_geos < 0.001, IntegrityCheck = "bg_geos_ok == true";
 
 		parameter<float64> d_cgal_geos := sum(area(geos_xor(sum_cgal, sum_geos)));
-		parameter<bool> cgal_geos_ok := d_cgal_geos < 0.001, IntegrityCheck = "cgal_geos_ok == True";
+		parameter<bool> cgal_geos_ok := d_cgal_geos < 0.001, IntegrityCheck = "cgal_geos_ok == true";
 
 		parameter<float64> a_geos := sum(area(sum_geos));
-		parameter<bool> geos_area_ok := abs(a_geos - 19200.0) < 0.001, IntegrityCheck = "geos_area_ok == True";
+		parameter<bool> geos_area_ok := abs(a_geos - 19200.0) < 0.001, IntegrityCheck = "geos_area_ok == true";
 
 		// The eroding half of each backend, which otherwise only bp would exercise.
 		// Erosion keeps the positions at which the kernel still fits inside, and it does NOT
@@ -199,27 +199,27 @@ container oper_minkowski
 		attribute<dpoint> dif_cgal (G, polygon) := cgal_minkowski_difference(geom_d, half, '4HV');
 
 		parameter<float64> e_bg_geos := sum(area(geos_xor(dif_bg, dif_geos)));
-		parameter<bool> bg_geos_erode_ok := e_bg_geos < 0.001, IntegrityCheck = "bg_geos_erode_ok == True";
+		parameter<bool> bg_geos_erode_ok := e_bg_geos < 0.001, IntegrityCheck = "bg_geos_erode_ok == true";
 
 		parameter<float64> e_cgal_geos := sum(area(geos_xor(dif_cgal, dif_geos)));
-		parameter<bool> cgal_geos_erode_ok := e_cgal_geos < 0.001, IntegrityCheck = "cgal_geos_erode_ok == True";
+		parameter<bool> cgal_geos_erode_ok := e_cgal_geos < 0.001, IntegrityCheck = "cgal_geos_erode_ok == true";
 
 		parameter<float64> e_geos := sum(area(dif_geos));
-		parameter<bool> geos_erode_area_ok := abs(e_geos - 9000.0) < 0.001, IntegrityCheck = "geos_erode_area_ok == True";
+		parameter<bool> geos_erode_area_ok := abs(e_geos - 9000.0) < 0.001, IntegrityCheck = "geos_erode_area_ok == true";
 
 		// ---- 6. closing contains the original, opening is contained in it -------------------
 		// (A (+) K) (-) K is the morphological closing: it can only add, never remove, so nothing
 		// of A may fall outside it. A wrong erosion bounding box shows up here immediately.
 		attribute<ipoint> closed_i (G, polygon) := bp_minkowski_difference(named_i4hv, size, 'd4HV');
 		parameter<float64> lost := sum(float64(area(bp_difference(bp_polygon(geom_i), closed_i))));
-		parameter<bool> closing_ok := lost == 0.0, IntegrityCheck = "closing_ok == True";
+		parameter<bool> closing_ok := lost == 0.0, IntegrityCheck = "closing_ok == true";
 
 		// Half the kernel again, so the L survives the erosion and the containment says something.
 		attribute<ipoint> opened_i (G, polygon) := bp_minkowski_sum(bp_minkowski_difference(bp_polygon(geom_i), half, 'd4HV'), half, 'i4HV');
 		parameter<float64> gained := sum(float64(area(bp_difference(opened_i, bp_polygon(geom_i)))));
-		parameter<bool> opening_ok := gained == 0.0, IntegrityCheck = "opening_ok == True";
+		parameter<bool> opening_ok := gained == 0.0, IntegrityCheck = "opening_ok == true";
 		// ... and non-empty, so it is not passing by producing nothing.
 		parameter<float64> opened_area := sum(float64(area(opened_i)));
-		parameter<bool> opening_nonempty_ok := opened_area > 0.0, IntegrityCheck = "opening_nonempty_ok == True";
+		parameter<bool> opening_nonempty_ok := opened_area > 0.0, IntegrityCheck = "opening_nonempty_ok == true";
 	}
 }

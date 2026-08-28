@@ -19,6 +19,6 @@ container shipped_example_grid_to_polygon
 
 	container checks
 	{
-		parameter<bool> parsed := True, IntegrityCheck = "parsed == True";
+		parameter<bool> parsed := true, IntegrityCheck = "parsed == true";
 	}
 }

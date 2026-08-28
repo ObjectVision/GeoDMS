@@ -4,19 +4,19 @@
 // fail on the order check of ordered_union_data.
 container oper_ordered_union_data_neg2
 {
-	unit<uint32> A : nrofrows = 3
+	unit<uint32> Ax : nrofrows = 3
 	{
 		attribute<uint32> v : [ 1, 2, 3 ];
 	}
 
-	unit<uint32> B : nrofrows = 2
+	unit<uint32> Bx : nrofrows = 2
 	{
 		attribute<uint32> low : [ 0, 1 ];
 	}
 
-	unit<uint32> AB := union_unit(A, B)
+	unit<uint32> AB := union_unit(Ax, Bx)
 	{
-		attribute<uint32> v := ordered_union_data(., A/v, B/low);
+		attribute<uint32> v := ordered_union_data(., Ax/v, Bx/low);
 	}
 
 	container checks

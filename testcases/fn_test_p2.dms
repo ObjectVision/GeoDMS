@@ -7,29 +7,29 @@ container fn_test_p2
 	}
 
 	// value-type-generic function: one definition, multiple instantiations
-	function TwiceG<V: numerics>(unit<uint32> D; attribute<V> x (D))
-	-> attribute<V> (D) := x + x;
+	function TwiceG<Vx: numerics>(unit<uint32> Dx; attribute<Vx> x (Dx))
+	-> attribute<Vx> (Dx) := x + x;
 
 	attribute<float64> f2 (Road) := TwiceG(Road, Road/flow);
 	attribute<uint32>  l2 (Road) := TwiceG(Road, Road/lanes);
 
 	// generic domain parameter
-	function CountOf<D: domains>(unit<D> E) -> parameter<uint32> := uint32(#E);
+	function CountOf<Dx: domains>(unit<Dx> E) -> parameter<uint32> := uint32(#E);
 	parameter<uint32> n := CountOf(Road);
 
 	// two independent type variables
-	function Mix<V: numerics, W: numerics>(unit<uint32> D; attribute<V> a (D); attribute<W> b (D))
-	-> attribute<float64> (D) := float64(a) + float64(b);
+	function Mix<Vx: numerics, Wx: numerics>(unit<uint32> Dx; attribute<Vx> a (Dx); attribute<Wx> b (Dx))
+	-> attribute<float64> (Dx) := float64(a) + float64(b);
 	attribute<float64> mixed (Road) := Mix(Road, Road/flow, Road/lanes);
 
 	// signed/unsigned integer constraints (both spellings)
 	attribute<int32> delta (Road) : [ -1, 1, -2, 2 ];
-	function AbsG<V: signed_ints>(unit<uint32> D; attribute<V> x (D))
-	-> attribute<V> (D) := abs(x);
+	function AbsG<Vx: signed_ints>(unit<uint32> Dx; attribute<Vx> x (Dx))
+	-> attribute<Vx> (Dx) := abs(x);
 	attribute<int32> absd (Road) := AbsG(Road, delta);
 
-	function TwiceU<V: uints>(unit<uint32> D; attribute<V> x (D))
-	-> attribute<V> (D) := x + x;
+	function TwiceU<Vx: uints>(unit<uint32> Dx; attribute<Vx> x (Dx))
+	-> attribute<Vx> (Dx) := x + x;
 	attribute<uint32> l2u (Road) := TwiceU(Road, Road/lanes);
 
 	container checks

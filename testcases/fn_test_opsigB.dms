@@ -13,13 +13,13 @@ container fn_test_opsigB
 
 	// lookup: E2 in org_rel's VALUES role and values' DOMAIN role — one node;
 	// consistent concrete units bind it once from each side
-	function avgOf<D: domains>(attribute<Region> r (D); attribute<float64> v (Region))
-	-> attribute<float64> (D) := lookup(r, v);
+	function avgOf<Dx: domains>(attribute<Region> r (Dx); attribute<float64> v (Region))
+	-> attribute<float64> (Dx) := lookup(r, v);
 
 	// rlookup: the result's VALUES unit IS b's domain (K4) — the declared result
 	// values unit discharges against that identity
-	function toRegion<D: domains>(attribute<float64> a (D); attribute<float64> b (Region))
-	-> attribute<Region> (D) := rlookup(a, b);
+	function toRegion<Dx: domains>(attribute<float64> a (Dx); attribute<float64> b (Region))
+	-> attribute<Region> (Dx) := rlookup(a, b);
 
 	// invert: x's values unit becomes the result DOMAIN and x's domain the result
 	// VALUES — both identities checked against the declared result
@@ -29,16 +29,16 @@ container fn_test_opsigB
 	// only a value CLASS (the default uint32 unit at runtime) against a NAMED
 	// domain must NOT error at definition — and lookup's UM_AllowDefaultLeft
 	// borrow accepts it at reduction
-	function pick<D: domains>(attribute<uint32> r (D); attribute<float64> v (Region))
-	-> attribute<float64> (D) := lookup(r, v);
+	function pick<Dx: domains>(attribute<uint32> r (Dx); attribute<float64> v (Region))
+	-> attribute<float64> (Dx) := lookup(r, v);
 
 	// SEQUENCE-COMPOSITION REGRESSION (review finding): the record's tuples must
 	// speak the walker's FIELD-class vocabulary — a sequence-composed values
 	// argument through the K2 record must not error at definition. Meta-only:
 	// sq stays dataless, and the check below reads only t5's domain unit
 	attribute<float32> sq (Region, arc);
-	function seqOf<D: domains>(attribute<Region> r (D); attribute<float32> s (Region, arc))
-	-> attribute<float32> (D, arc) := lookup(r, s);
+	function seqOf<Dx: domains>(attribute<Region> r (Dx); attribute<float32> s (Region, arc))
+	-> attribute<float32> (Dx, arc) := lookup(r, s);
 	attribute<float32> t5 (House, arc) := seqOf(House/reg, sq);
 
 	attribute<float64> t1 (House)  := avgOf(House/reg, Region/avg);              // [10,20,20]
@@ -52,6 +52,6 @@ container fn_test_opsigB
 		parameter<uint32>  c_2 := sum(uint32(t2)), IntegrityCheck = "c_2 == 1";
 		parameter<uint32>  c_3 := sum(uint32(t3)), IntegrityCheck = "c_3 == 1";
 		parameter<float64> c_4 := sum(t4),         IntegrityCheck = "c_4 == 50.0";
-		parameter<uint32>  c_5 := NrOfRows(DomainUnit(t5)), IntegrityCheck = "c_5 == 3";
+		parameter<uint32>  c_5 := nrofrows(DomainUnit(t5)), IntegrityCheck = "c_5 == 3";
 	}
 }

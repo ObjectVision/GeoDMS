@@ -26,9 +26,9 @@ container fn_test_apply
 	// a template: bare = instantiation (unchanged); instantiate = the same
 	template Doubler
 	{
-		unit<uint32>       D;
-		attribute<float64> x (D);
-		attribute<float64> result (D) := 2.0 * x;
+		unit<uint32>       Dx;
+		attribute<float64> x (Dx);
+		attribute<float64> result (Dx) := 2.0 * x;
 	}
 	container t1 := Doubler(Road, Road/flow);              // bare template = instantiate (as always)
 	container t2 := instantiate Doubler(Road, Road/flow);  // explicit, same thing

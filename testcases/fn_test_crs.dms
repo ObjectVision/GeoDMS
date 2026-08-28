@@ -30,12 +30,12 @@ container fn_test_crs
 		parameter<string> sr_tag  := PropValue(tagged,   'SpatialReference');
 
 		// the declared unit reports its own CRS
-		parameter<bool> c1 := sr_base == 'EPSG:28992', IntegrityCheck = "c1 == True";
+		parameter<bool> c1 := sr_base == 'EPSG:28992', IntegrityCheck = "c1 == true";
 		// ... and so do units DERIVED from it, through both derivation paths
-		parameter<bool> c2 := sr_rng  == 'EPSG:28992', IntegrityCheck = "c2 == True";
-		parameter<bool> c3 := sr_mm   == 'EPSG:28992', IntegrityCheck = "c3 == True";
+		parameter<bool> c2 := sr_rng  == 'EPSG:28992', IntegrityCheck = "c2 == true";
+		parameter<bool> c3 := sr_mm   == 'EPSG:28992', IntegrityCheck = "c3 == true";
 		// a CrsUnit-tagged unit reports it even when its metric carries no packed tag,
 		// which proves the value comes from the UnitCrs slot and not from a metric decode
-		parameter<bool> c4 := sr_tag  == 'EPSG:28992', IntegrityCheck = "c4 == True";
+		parameter<bool> c4 := sr_tag  == 'EPSG:28992', IntegrityCheck = "c4 == true";
 	}
 }

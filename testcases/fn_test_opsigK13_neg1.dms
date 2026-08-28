@@ -11,16 +11,16 @@ container fn_test_opsigK13_neg1
 	unit<uint32> Node : nrofrows = 2;
 	unit<uint32> Link : nrofrows = 1
 	{
-		attribute<Node>    F1  : [0];
-		attribute<Node>    F2  : [1];
+		attribute<Node>    N1_rel  : [0];
+		attribute<Node>    N2_rel  : [1];
 		attribute<float64> imp : [1.0];
 	}
 	unit<uint32> StartSet : nrofrows = 1 { attribute<Node> nr : [0]; }
 
-	function bad<L: domains, S: domains>(attribute<float64> w (L); attribute<Node> f1 (L); attribute<Node> f2 (L); attribute<Node> sr (S))
-	-> attribute<float64> (Node) := impedance_table('directed;startPoint(Node_rel)', w, f1, f2, sr, sr);
+	function bad<L: domains, Sx: domains>(attribute<float64> w (L); attribute<Node> fromNd (L); attribute<Node> toNd (L); attribute<Node> sr (Sx))
+	-> attribute<float64> (Node) := impedance_table('directed;startPoint(Node_rel)', w, fromNd, toNd, sr, sr);
 
-	attribute<float64> z (Node) := bad(Link/imp, Link/F1, Link/F2, StartSet/nr);
+	attribute<float64> z (Node) := bad(Link/imp, Link/N1_rel, Link/N2_rel, StartSet/nr);
 
 	container checks { parameter<float64> use := sum(z); }
 }

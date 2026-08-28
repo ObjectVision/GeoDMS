@@ -5,36 +5,36 @@
 // configs cover the rejected ones.
 container oper_ordered_union_data
 {
-	unit<uint32> A : nrofrows = 3
+	unit<uint32> Ax : nrofrows = 3
 	{
 		attribute<uint32>  v : [   1,   2,   3 ];
 		attribute<float32> f : [ 1.0, 1.0, 2.5 ]; // an equal pair within one argument
 	}
 
-	unit<uint32> B : nrofrows = 2
+	unit<uint32> Bx : nrofrows = 2
 	{
 		attribute<uint32>  v : [   3,   7 ]; // opens with the last value of A/v: equal is allowed
 		attribute<float32> f : [ 2.5, 9.0 ];
 	}
 
-	unit<uint32> AB := union_unit(A, B)
+	unit<uint32> AB := union_unit(Ax, Bx)
 	{
-		attribute<uint32>  v := ordered_union_data(., A/v, B/v);
-		attribute<float32> f := ordered_union_data(., A/f, B/f);
+		attribute<uint32>  v := ordered_union_data(., Ax/v, Bx/v);
+		attribute<float32> f := ordered_union_data(., Ax/f, Bx/f);
 
 		// the accepted result must be the plain concatenation, i.e. what union_data yields
-		attribute<uint32>  v_plain := union_data(., A/v, B/v);
-		attribute<float32> f_plain := union_data(., A/f, B/f);
+		attribute<uint32>  v_plain := union_data(., Ax/v, Bx/v);
+		attribute<float32> f_plain := union_data(., Ax/f, Bx/f);
 	}
 
 	// one data item that already has the resulting domain: the pass-through path of CalcResult
-	attribute<uint32> single (A) := ordered_union_data(A, A/v);
+	attribute<uint32> single (Ax) := ordered_union_data(Ax, Ax/v);
 
 	container checks
 	{
-		parameter<bool>   v_ok   := all(AB/v == AB/v_plain), IntegrityCheck = "v_ok == True";
-		parameter<bool>   f_ok   := all(AB/f == AB/f_plain), IntegrityCheck = "f_ok == True";
-		parameter<bool>   one_ok := all(single == A/v),      IntegrityCheck = "one_ok == True";
+		parameter<bool>   v_ok   := all(AB/v == AB/v_plain), IntegrityCheck = "v_ok == true";
+		parameter<bool>   f_ok   := all(AB/f == AB/f_plain), IntegrityCheck = "f_ok == true";
+		parameter<bool>   one_ok := all(single == Ax/v),      IntegrityCheck = "one_ok == true";
 		parameter<uint32> n      := #AB,                     IntegrityCheck = "n == 5";
 		parameter<uint32> v_sum  := sum(AB/v),               IntegrityCheck = "v_sum == 16";
 	}

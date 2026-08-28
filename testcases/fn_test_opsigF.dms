@@ -16,16 +16,16 @@ container fn_test_opsigF
 
 	attribute<fpoint> arcs (ArcSet, arc) := points2sequence(apt, seqr, ord);
 
-	unit<uint32> P : nrofrows = 2;
-	attribute<float32> py  (P) : [1, 3];
-	attribute<float32> px  (P) : [2, 5];
-	attribute<fpoint>  pts (P) := point_yx(py, px, fpoint);
+	unit<uint32> PtSet : nrofrows = 2;
+	attribute<float32> py  (PtSet) : [1, 3];
+	attribute<float32> px  (PtSet) : [2, 5];
+	attribute<fpoint>  pts (PtSet) := point_yx(py, px, fpoint);
 
 	// K3 live: the declared result domain must be the POINTS domain D
-	function distF<A: domains, D: domains>(attribute<fpoint> a (A, arc); attribute<fpoint> p (D))
-	-> attribute<float64> (D) := dist_info(a, p);
+	function distF<ArcDom: domains, Dx: domains>(attribute<fpoint> a (ArcDom, arc); attribute<fpoint> p (Dx))
+	-> attribute<float64> (Dx) := dist_info(a, p);
 
-	attribute<float64> d (P) := distF(arcs, pts);   // vertical distances [1.0, 3.0]
+	attribute<float64> d (PtSet) := distF(arcs, pts);   // vertical distances [1.0, 3.0]
 
 	container checks
 	{

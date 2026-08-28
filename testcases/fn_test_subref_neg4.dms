@@ -4,11 +4,11 @@ container fn_test_subref_neg4
 	// create NO sub-items — their complete-EMPTY member set now reaches the
 	// checker, so a member reference reports at DEFINITION ("generates no
 	// members, so 'org_rel' cannot exist"), not just per application.
-	unit<uint32> D : nrofrows = 4;
-	attribute<float64> x (D) : [1.0, 2.0, 2.0, 3.0];
-	attribute<bool>    c (D) : [false, true, true, false];
+	unit<uint32> Dx : nrofrows = 4;
+	attribute<float64> x (Dx) : [1.0, 2.0, 2.0, 3.0];
+	attribute<bool>    c (Dx) : [false, true, true, false];
 
-	function f(attribute<bool> cond (D)) -> parameter<uint32>
+	function f(attribute<bool> cond (Dx)) -> parameter<uint32>
 	{
 		unit<uint32> s := select_uint32(cond);
 		parameter<uint32> result := sum(uint32(s/org_rel));

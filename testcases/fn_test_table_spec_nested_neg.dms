@@ -2,17 +2,17 @@
 // result, but it cannot be embedded in an ordinary data expression.
 container fn_test_table_spec_nested_neg
 {
-	unit<uint32> D : nrofrows = 2
+	unit<uint32> Dx : nrofrows = 2
 	{
 		attribute<uint32> value : [20, 10];
 	}
-	unit<uint32> S := unique(index(D/value))
+	unit<uint32> Sx := unique(index(Dx/value))
 	{
-		attribute<uint32> org_rel := lookup(S/values, index(D/value));
+		attribute<uint32> org_rel := lookup(Sx/values, index(Dx/value));
 	}
 
 	function table_size(container attrs; unit<uint32> selection; attribute<uint32> org_rel (selection))
 	-> parameter<uint32> := #table_spec('by_org_rel', attrs, selection, org_rel);
 
-	parameter<uint32> invalid := table_size(D, S, S/org_rel);
+	parameter<uint32> invalid := table_size(Dx, Sx, Sx/org_rel);
 }

@@ -4,8 +4,8 @@ container fn_test_domvar
 	unit<uint32> Rail : nrofrows = 2 { attribute<float64> flow : [ 5.0, 6.0 ]; }
 
 	// D is a domain variable: both arguments must share their domain
-	function ratio<V: numerics, D: domains>(attribute<V> a (D); attribute<V> b (D))
-	-> attribute<V> (D) := a / b;
+	function ratio<Vx: numerics, Dx: domains>(attribute<Vx> a (Dx); attribute<Vx> b (Dx))
+	-> attribute<Vx> (Dx) := a / b;
 
 	attribute<float64> ok (Road) := ratio(Road/flow, Road/cap);
 	parameter<float64> okScalar  := ratio(6.0, 3.0);              // void binds nothing

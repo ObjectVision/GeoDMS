@@ -5,19 +5,19 @@ container fn_test_fe_neg3
 	// unit parameter's unifier node (the K2 bridge) — the definition must scan
 	// CLEAN; the failure is the LATE inline-reduction one ('Cannot find a from
 	// ...' / meta-call rejection), never a premature definition-time error.
-	unit<uint32> D : nrofrows = 3;
+	unit<uint32> Dx : nrofrows = 3;
 	unit<uint32> NSet : nrofrows = 2;
 	unit<float64> Meters;
 	attribute<string> mnames (NSet) : ['a','b'];
 	attribute<string> mexprs (NSet) : ['x + x','x - x'];
-	attribute<Meters> src (D) : [1.0, 2.0, 3.0];
+	attribute<Meters> src (Dx) : [1.0, 2.0, 3.0];
 
-	function f(unit<float64> V; attribute<V> x (D)) -> attribute<V> (D)
+	function f(unit<float64> Vx; attribute<Vx> x (Dx)) -> attribute<Vx> (Dx)
 	{
-		container r := for_each_nedv(mnames, mexprs, D, V);
-		attribute<V> result (D) := r/a; // member 'a' types attribute<V-node>(D): unifies with the declared result
+		container r := for_each_nedv(mnames, mexprs, Dx, Vx);
+		attribute<Vx> result (Dx) := r/a; // member 'a' types attribute<V-node>(D): unifies with the declared result
 	}
-	attribute<Meters> y (D) := f(Meters, src);
+	attribute<Meters> y (Dx) := f(Meters, src);
 
 	container checks
 	{

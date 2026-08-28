@@ -14,11 +14,11 @@ container fn_test_variadic2
 	parameter<float64> me2 := median(5.0, 1.0, 3.0);
 	parameter<float64> me3 := median(0.0, 1.0, 3.0);
 
-	unit<uint32> A : nrofrows = 2 { attribute<float64> v := float64(id(A)); }
-	unit<uint32> B : nrofrows = 2 { attribute<float64> v := float64(id(B)) + 10.0; }
-	unit<uint32> C : nrofrows = 3 { attribute<float64> v := float64(id(C)) + 20.0; }
-	unit<uint32> U2 := union(A/v, B/v);
-	unit<uint32> U3 := union(A/v, B/v, C/v);
+	unit<uint32> Ax : nrofrows = 2 { attribute<float64> v := float64(id(Ax)); }
+	unit<uint32> Bx : nrofrows = 2 { attribute<float64> v := float64(id(Bx)) + 10.0; }
+	unit<uint32> Cx : nrofrows = 3 { attribute<float64> v := float64(id(Cx)) + 20.0; }
+	unit<uint32> Ux2 := union(Ax/v, Bx/v);
+	unit<uint32> Ux3 := union(Ax/v, Bx/v, Cx/v);
 
 	container checks
 	{
@@ -30,8 +30,8 @@ container fn_test_variadic2
 		parameter<bool> c_e1 := me1 == 2.0, IntegrityCheck = "c_e1 == true";
 		parameter<bool> c_e2 := me2 == 3.0, IntegrityCheck = "c_e2 == true";
 		parameter<bool> c_e3 := me3 == 1.0, IntegrityCheck = "c_e3 == true";
-		parameter<bool> c_u2 := NrOfRows(U2) == 4, IntegrityCheck = "c_u2 == true";
-		parameter<bool> c_u3 := NrOfRows(U3) == 7, IntegrityCheck = "c_u3 == true";
-		parameter<bool> c_us := sum(U3/UnionData) == 85.0, IntegrityCheck = "c_us == true";
+		parameter<bool> c_u2 := nrofrows(Ux2) == 4, IntegrityCheck = "c_u2 == true";
+		parameter<bool> c_u3 := nrofrows(Ux3) == 7, IntegrityCheck = "c_u3 == true";
+		parameter<bool> c_us := sum(Ux3/UnionData) == 85.0, IntegrityCheck = "c_us == true";
 	}
 }

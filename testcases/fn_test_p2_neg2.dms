@@ -6,8 +6,8 @@ container fn_test_p2_neg2
 		attribute<uint32>  lanes : [ 1, 2 ];
 	}
 
-	function Same<V: numerics>(unit<uint32> D; attribute<V> a (D); attribute<V> b (D))
-	-> attribute<V> (D) := a + b;
+	function Same<Vx: numerics>(unit<uint32> Dx; attribute<Vx> a (Dx); attribute<Vx> b (Dx))
+	-> attribute<Vx> (Dx) := a + b;
 
 	attribute<float64> failing (Road) := Same(Road, Road/flow, Road/lanes);   // expect: inconsistent instantiation of 'V'
 }

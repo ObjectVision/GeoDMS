@@ -13,14 +13,14 @@ container fn_test_vv_neg2
 		attribute<float64> flow : [ 1.0, 2.0, 3.0 ];
 	}
 
-	nuf = function<V: numerics, D: domains>(attribute<V> (D)) -> attribute<V> (D);
+	nuf = function<Vx: numerics, Dx: domains>(attribute<Vx> (Dx)) -> attribute<Vx> (Dx);
 
-	function fhalf<W: floats, E: domains>(attribute<W> x (E)) -> attribute<W> (E) := x / 2.0;
-	function uinc <U: uints,  E: domains>(attribute<U> x (E)) -> attribute<U> (E) := x + 1;
+	function fhalf<Wx: floats, E: domains>(attribute<Wx> x (E)) -> attribute<Wx> (E) := x / 2.0;
+	function uinc <Ux: uints,  E: domains>(attribute<Ux> x (E)) -> attribute<Ux> (E) := x + 1;
 
-	function ap2<V: numerics, D: domains>(f: nuf<V, D>; g: nuf<V, D>) -> nuf<V, D>
+	function ap2<Vx: numerics, Dx: domains>(f: nuf<Vx, Dx>; g: nuf<Vx, Dx>) -> nuf<Vx, Dx>
 	{
-		function result(attribute<V> x (D)) -> attribute<V> (D) := f(g(x));
+		function result(attribute<Vx> x (Dx)) -> attribute<Vx> (Dx) := f(g(x));
 	}
 
 	attribute<float64> z (Road) := ap2(fhalf, uinc)(Road/flow); // must FAIL at ap2(fhalf, uinc)

@@ -3,9 +3,9 @@ container fn_test_applyt_neg
 	// no 'result' sub-item: 'apply' has no value to take
 	template NoResult
 	{
-		unit<uint32>       D;
-		attribute<float64> x (D);
-		attribute<float64> outcome (D) := 2.0 * x;
+		unit<uint32>       Dx;
+		attribute<float64> x (Dx);
+		attribute<float64> outcome (Dx) := 2.0 * x;
 	}
 
 	unit<uint32> Road : nrofrows = 2 { attribute<float64> flow : [ 1.0, 2.0 ]; }

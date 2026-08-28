@@ -6,53 +6,53 @@ container oper_collect_downstream
 {
 	container NamedSelectCase
 	{
-		unit<uint32> D : nrofrows = 4;
-		attribute<bool> keep (D) : [false, true, true, false];
-		attribute<float64> population (D) : [10.0, 20.0, 30.0, 40.0];
+		unit<uint32> Dx : nrofrows = 4;
+		attribute<bool> keep (Dx) : [false, true, true, false];
+		attribute<float64> population (Dx) : [10.0, 20.0, 30.0, 40.0];
 		unit<uint32> Result := select_with_attr_by_cond(., keep);
-		attribute<float64> downstream (D) := recollect_by_cond(keep, Result/population);
+		attribute<float64> downstream (Dx) := recollect_by_cond(keep, Result/population);
 		// Shares the already-proven downstream node. The collection-wide memo must
 		// preserve that positive result instead of revisiting the same chain.
-		attribute<float64> downstream_again (D) := downstream;
+		attribute<float64> downstream_again (Dx) := downstream;
 	}
 
 	container SpecSelectCase
 	{
-		unit<uint32> D : nrofrows = 4;
-		attribute<bool> keep (D) : [false, true, true, false];
-		attribute<float64> population (D) : [10.0, 20.0, 30.0, 40.0];
+		unit<uint32> Dx : nrofrows = 4;
+		attribute<bool> keep (Dx) : [false, true, true, false];
+		attribute<float64> population (Dx) : [10.0, 20.0, 30.0, 40.0];
 		unit<uint32> Result := select_spec('attr', ., keep);
-		attribute<float64> downstream (D) := recollect_by_cond(keep, Result/population);
+		attribute<float64> downstream (Dx) := recollect_by_cond(keep, Result/population);
 	}
 
 	container NamedCollectCase
 	{
-		unit<uint32> D : nrofrows = 4;
-		attribute<bool> keep (D) : [false, true, true, false];
-		attribute<float64> population (D) : [10.0, 20.0, 30.0, 40.0];
+		unit<uint32> Dx : nrofrows = 4;
+		attribute<bool> keep (Dx) : [false, true, true, false];
+		attribute<float64> population (Dx) : [10.0, 20.0, 30.0, 40.0];
 		unit<uint32> Selection := select(keep);
 		container Result := collect_attr_by_cond(., Selection, keep);
-		attribute<float64> downstream (D) := recollect_by_cond(keep, Result/population);
+		attribute<float64> downstream (Dx) := recollect_by_cond(keep, Result/population);
 	}
 
 	container SpecCollectCase
 	{
-		unit<uint32> D : nrofrows = 4;
-		attribute<bool> keep (D) : [false, true, true, false];
-		attribute<float64> population (D) : [10.0, 20.0, 30.0, 40.0];
+		unit<uint32> Dx : nrofrows = 4;
+		attribute<bool> keep (Dx) : [false, true, true, false];
+		attribute<float64> population (Dx) : [10.0, 20.0, 30.0, 40.0];
 		unit<uint32> Selection := select(keep);
 		container Result := collect_spec('by_cond', ., Selection, keep);
-		attribute<float64> downstream (D) := recollect_by_cond(keep, Result/population);
+		attribute<float64> downstream (Dx) := recollect_by_cond(keep, Result/population);
 	}
 
 	container SpecTableCase
 	{
-		unit<uint32> D : nrofrows = 4;
-		attribute<bool> keep (D) : [false, true, true, false];
-		attribute<float64> population (D) : [10.0, 20.0, 30.0, 40.0];
+		unit<uint32> Dx : nrofrows = 4;
+		attribute<bool> keep (Dx) : [false, true, true, false];
+		attribute<float64> population (Dx) : [10.0, 20.0, 30.0, 40.0];
 		unit<uint32> Selection := select(keep);
 		unit<uint32> Result := table_spec('by_cond', ., Selection, keep);
-		attribute<float64> downstream (D) := recollect_by_cond(keep, Result/population);
+		attribute<float64> downstream (Dx) := recollect_by_cond(keep, Result/population);
 	}
 
 	container checks

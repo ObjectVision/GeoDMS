@@ -6,14 +6,14 @@ container fn_test_unify_neg4
 	// ("inconsistent instantiation of type variable 'V': float64 ... vs string ...").
 	unit<uint32> Road : nrofrows = 3 { attribute<float64> flow : [ 1.0, 2.0, 3.0 ]; }
 
-	nuf = function<V: numerics, D: domains>(attribute<V> (D)) -> attribute<V> (D);
+	nuf = function<Vx: numerics, Dx: domains>(attribute<Vx> (Dx)) -> attribute<Vx> (Dx);
 
 	function fhalf(attribute<float64> x) -> attribute<float64> := x / 2.0;
 	function strlength(attribute<string> str) -> attribute<uint32> := strlen(str);
 
-	function compose<V: numerics, D: domains>(f: nuf<V, D>; g: nuf<V, D>) -> nuf<V, D>
+	function compose<Vx: numerics, Dx: domains>(f: nuf<Vx, Dx>; g: nuf<Vx, Dx>) -> nuf<Vx, Dx>
 	{
-		function result(attribute<V> x (D)) -> attribute<V> (D) := f(g(x));
+		function result(attribute<Vx> x (Dx)) -> attribute<Vx> (Dx) := f(g(x));
 	}
 	attribute<float64> bad (Road) := compose(fhalf, strlength)(Road/flow);
 

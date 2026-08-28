@@ -9,23 +9,23 @@ container fn_test_opsig
 
 	// typed operator positions in a generic body: '+' links both args and the
 	// result through one implicit signature variable, so the declared types check
-	function addup<V: numerics, D: domains>(attribute<V> x (D); attribute<V> y (D)) -> attribute<V> (D)
+	function addup<Vx: numerics, Dx: domains>(attribute<Vx> x (Dx); attribute<Vx> y (Dx)) -> attribute<Vx> (Dx)
 		:= x + y;
 
 	// bare body local (auto-typed): 'raw' is inferred V[D] from the mul signature,
 	// and min_elem unifies it back with x — fully typed without a declaration
-	function scaled<V: numerics, D: domains>(attribute<V> x (D); attribute<V> y (D)) -> attribute<V> (D)
+	function scaled<Vx: numerics, Dx: domains>(attribute<Vx> x (Dx); attribute<Vx> y (Dx)) -> attribute<Vx> (Dx)
 	{
 		raw := x * y;
-		attribute<V> result (D) := min_elem(raw, x);
+		attribute<Vx> result (Dx) := min_elem(raw, x);
 	}
 
 	// comparisons yield bool over the shared domain
-	function isless<V: numerics, D: domains>(attribute<V> x (D); attribute<V> y (D)) -> attribute<bool> (D)
+	function isless<Vx: numerics, Dx: domains>(attribute<Vx> x (Dx); attribute<Vx> y (Dx)) -> attribute<bool> (Dx)
 		:= x < y;
 
 	// §5.12 untyped result designation: '-> restype { result := ...; }'
-	function twiceF<D: domains>(attribute<float64> x (D)) -> attribute<float64> (D)
+	function twiceF<Dx: domains>(attribute<float64> x (Dx)) -> attribute<float64> (Dx)
 	{
 		result := x + x;
 	}

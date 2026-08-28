@@ -4,23 +4,23 @@ container fn_test_dares_neg1
 	// (uint32). Declaring it as a string is a DEFINITION-time class conflict — the
 	// name-directed member family is expanded from the closed type-name array, so
 	// no allocation is reduced to find this out.
-	unit<uint8>  LuType : nrofrows = 2 { attribute<string> name : ['A','B']; }
-	unit<uint32> Cells  : nrofrows = 4;
+	unit<uint8>  LuType : nrofrows = 2 { attribute<string> name : ['LuA','LuB']; }
+	unit<uint32> CellDom  : nrofrows = 4;
 	container Suit
 	{
-		attribute<int32> A (Cells) := const(1i, Cells);
-		attribute<int32> B (Cells) := const(1i, Cells);
+		attribute<int32> LuA (CellDom) := const(1i, CellDom);
+		attribute<int32> LuB (CellDom) := const(1i, CellDom);
 	}
-	container CMin { parameter<uint32> A := 1; parameter<uint32> B := 1; }
-	container CMax { parameter<uint32> A := 4; parameter<uint32> B := 4; }
+	container CMin { parameter<uint32> LuA := 1; parameter<uint32> LuB := 1; }
+	container CMax { parameter<uint32> LuA := 4; parameter<uint32> LuB := 4; }
 	parameter<int32> thr := 0i;
 
 	function bad(unit<uint32> cells) -> parameter<string>
 	{
-		container a := discrete_alloc_np(LuType/name, cells, Suit, CMin, CMax, thr);
-		parameter<string> result := a/total_allocated/A;   // it is a uint32 count
+		container alloc := discrete_alloc_np(LuType/name, cells, Suit, CMin, CMax, thr);
+		parameter<string> result := alloc/total_allocated/LuA;   // it is a uint32 count
 	}
-	parameter<string> n := bad(Cells);
+	parameter<string> n := bad(CellDom);
 
 	container checks { parameter<string> c := n, IntegrityCheck = "c == '4'"; }
 }

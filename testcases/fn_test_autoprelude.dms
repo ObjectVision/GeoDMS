@@ -10,7 +10,7 @@ container fn_test_autoprelude
 	// a user function of the same name shadows the prelude (nearest scope wins)
 	container shadowed
 	{
-		function sqr<V: numerics>(attribute<V> x) -> attribute<V> := x + x; // deliberately different
+		function sqr<Vx: numerics>(attribute<Vx> x) -> attribute<Vx> := x + x; // deliberately different
 		attribute<float64> doubled (/Road) := sqr(/Road/flow);              // [4,6,0,2]
 	}
 
@@ -22,7 +22,7 @@ container fn_test_autoprelude
 	}
 
 	// prelude heads are callable inside user function bodies (strict scope + implicit prelude)
-	function twice_sqr<V: numerics>(attribute<V> x) -> attribute<V> := 2.0 * sqr(x);
+	function twice_sqr<Vx: numerics>(attribute<Vx> x) -> attribute<Vx> := 2.0 * sqr(x);
 	attribute<float64> ts (Road) := twice_sqr(Road/flow);                  // [8,18,0,2]
 
 	container checks

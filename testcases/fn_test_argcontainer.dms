@@ -13,38 +13,38 @@ container fn_test_argcontainer
 	//     SuitabilityMaps container for 2 type names).
 	// (c) definition-scope container: its members are CONCRETE and externals defer,
 	//     so only the intra-container fact over the NAMED members is claimed.
-	unit<uint8>  LuType : nrofrows = 2 { attribute<string> name : ['A','B']; }
-	unit<uint32> Cells  : nrofrows = 4;
+	unit<uint8>  LuType : nrofrows = 2 { attribute<string> name : ['LuA','LuB']; }
+	unit<uint32> CellDom  : nrofrows = 4;
 	unit<uint32> Other  : nrofrows = 5;
 	container Suit
 	{
-		attribute<int32> A (Cells) := const(1i, Cells);
-		attribute<int32> B (Cells) := const(1i, Cells);
+		attribute<int32> LuA (CellDom) := const(1i, CellDom);
+		attribute<int32> LuB (CellDom) := const(1i, CellDom);
 		attribute<int32> helper (Other) := const(7i, Other);   // never named: never claimed
 	}
-	container CMin { parameter<uint32> A := 1; parameter<uint32> B := 1; }
-	container CMax { parameter<uint32> A := 4; parameter<uint32> B := 4; }
+	container CMin { parameter<uint32> LuA := 1; parameter<uint32> LuB := 1; }
+	container CMax { parameter<uint32> LuA := 4; parameter<uint32> LuB := 4; }
 	parameter<int32> thr := 0i;
 
 	// (a)+(b): the named suitability members' domain IS the allocUnit argument
 	function alloc_p(unit<uint32> cells;
-	                 container suit { attribute<int32> A (cells); attribute<int32> B (cells); })
+	                 container suitArg { attribute<int32> LuA (cells); attribute<int32> LuB (cells); })
 	-> parameter<uint32>
 	{
-		container a := discrete_alloc_np(LuType/name, cells, suit, CMin, CMax, thr);
-		attribute<LuType> lu (cells) := a/landuse;
+		container alloc := discrete_alloc_np(LuType/name, cells, suitArg, CMin, CMax, thr);
+		attribute<LuType> lu (cells) := alloc/landuse;
 		parameter<uint32> result := sum(uint32(IsDefined(lu)));
 	}
-	parameter<uint32> n1 := alloc_p(Cells, Suit);
+	parameter<uint32> n1 := alloc_p(CellDom, Suit);
 
 	// (c): a definition-scope suitabilities container, superset included
 	function alloc_e(unit<uint32> cells) -> parameter<uint32>
 	{
-		container a := discrete_alloc_np(LuType/name, cells, Suit, CMin, CMax, thr);
-		attribute<LuType> lu (cells) := a/landuse;
+		container alloc := discrete_alloc_np(LuType/name, cells, Suit, CMin, CMax, thr);
+		attribute<LuType> lu (cells) := alloc/landuse;
 		parameter<uint32> result := sum(uint32(IsDefined(lu)));
 	}
-	parameter<uint32> n2 := alloc_e(Cells);
+	parameter<uint32> n2 := alloc_e(CellDom);
 
 	container checks
 	{

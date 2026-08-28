@@ -16,22 +16,22 @@ container fn_test_opsigD
 	// over the passed subset s + values borrow (class-level)
 	unit<uint32> Sub := select(cond);   // fresh subset unit, 3 rows
 
-	function collectF<D: domains, V: any>(unit<uint32> s; attribute<bool> c (D); attribute<V> d (D))
-	-> attribute<V> (s) := collect_by_cond(s, c, d);
+	function collectF<Dx: domains, Vx: any>(unit<uint32> s; attribute<bool> c (Dx); attribute<Vx> d (Dx))
+	-> attribute<Vx> (s) := collect_by_cond(s, c, d);
 
 	attribute<float32> picked (Sub) := collectF(Sub, cond, data);   // [0,1,2]
 
-	// select INSIDE a function body: the fresh unit feeds NrOfRows (a namable
+	// select INSIDE a function body: the fresh unit feeds nrofrows (a namable
 	// parameter result); the condition's Bool class is checked at definition
-	function countSel<D: domains>(attribute<bool> c (D)) -> parameter<uint32> := NrOfRows(select(c));
+	function countSel<Dx: domains>(attribute<bool> c (Dx)) -> parameter<uint32> := nrofrows(select(c));
 
-	// unique INSIDE a function body: fresh unit -> NrOfRows
-	function countUniq<D: domains, V: any>(attribute<V> x (D)) -> parameter<uint32> := NrOfRows(unique(x));
+	// unique INSIDE a function body: fresh unit -> nrofrows
+	function countUniq<Dx: domains, Vx: any>(attribute<Vx> x (Dx)) -> parameter<uint32> := nrofrows(unique(x));
 
 	// union INSIDE a function body: two attributes sharing value class V (K7
-	// compatible-values as class equality) -> a fresh unit -> NrOfRows
-	function countUnion<D1: domains, D2: domains, V: any>(attribute<V> a (D1); attribute<V> b (D2))
-	-> parameter<uint32> := NrOfRows(union(a, b));
+	// compatible-values as class equality) -> a fresh unit -> nrofrows
+	function countUnion<D1: domains, D2: domains, Vx: any>(attribute<Vx> a (D1); attribute<Vx> b (D2))
+	-> parameter<uint32> := nrofrows(union(a, b));
 
 	parameter<uint32> nSel   := countSel(cond);            // 3
 	parameter<uint32> nUniq  := countUniq(reps);           // 2
@@ -39,7 +39,7 @@ container fn_test_opsigD
 
 	container checks
 	{
-		parameter<uint32>  c_n := NrOfRows(Sub),   IntegrityCheck = "c_n == 3";
+		parameter<uint32>  c_n := nrofrows(Sub),   IntegrityCheck = "c_n == 3";
 		parameter<float32> c_p := sum(picked),     IntegrityCheck = "c_p == 3f";   // 0+1+2
 		parameter<uint32>  c_s := nSel,            IntegrityCheck = "c_s == 3";
 		parameter<uint32>  c_u := nUniq,           IntegrityCheck = "c_u == 2";

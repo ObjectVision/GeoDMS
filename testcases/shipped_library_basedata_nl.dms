@@ -55,39 +55,39 @@ container shipped_library_basedata_nl
 	container checks
 	{
 		// rdc.dms
-		parameter<bool> c_x_min := rdc_x_min ==      0.0, IntegrityCheck = "c_x_min == True";
-		parameter<bool> c_x_max := rdc_x_max == 280000.0, IntegrityCheck = "c_x_max == True";
-		parameter<bool> c_y_min := rdc_y_min == 300000.0, IntegrityCheck = "c_y_min == True";
-		parameter<bool> c_y_max := rdc_y_max == 625000.0, IntegrityCheck = "c_y_max == True";
-		parameter<bool> c_mm_c  := mm_cols == 280000000i, IntegrityCheck = "c_mm_c == True";
-		parameter<bool> c_mm_r  := mm_rows == 325000000i, IntegrityCheck = "c_mm_r == True";
+		parameter<bool> c_x_min := rdc_x_min ==      0.0, IntegrityCheck = "c_x_min == true";
+		parameter<bool> c_x_max := rdc_x_max == 280000.0, IntegrityCheck = "c_x_max == true";
+		parameter<bool> c_y_min := rdc_y_min == 300000.0, IntegrityCheck = "c_y_min == true";
+		parameter<bool> c_y_max := rdc_y_max == 625000.0, IntegrityCheck = "c_y_max == true";
+		parameter<bool> c_mm_c  := mm_cols == 280000000i, IntegrityCheck = "c_mm_c == true";
+		parameter<bool> c_mm_r  := mm_rows == 325000000i, IntegrityCheck = "c_mm_r == true";
 
 		// grids.dms: (280000/g) * (325000/g) cells
-		parameter<bool> c_n10   := n10  == 28000u * 32500u, IntegrityCheck = "c_n10 == True";
-		parameter<bool> c_n25   := n25  == 11200u * 13000u, IntegrityCheck = "c_n25 == True";
-		parameter<bool> c_n100  := n100 ==  2800u *  3250u, IntegrityCheck = "c_n100 == True";
+		parameter<bool> c_n10   := n10  == 28000u * 32500u, IntegrityCheck = "c_n10 == true";
+		parameter<bool> c_n25   := n25  == 11200u * 13000u, IntegrityCheck = "c_n25 == true";
+		parameter<bool> c_n100  := n100 ==  2800u *  3250u, IntegrityCheck = "c_n100 == true";
 
 		// ngr_layer.dms
-		parameter<bool> c_tm_rows  := tm_rows  == 15u,      IntegrityCheck = "c_tm_rows == True";
-		parameter<bool> c_tm_elems := tm_elems == 15u * 8u, IntegrityCheck = "c_tm_elems == True";
-		parameter<bool> c_tm_first := tm_first == 'EPSG:28992:0',  IntegrityCheck = "c_tm_first == True";
-		parameter<bool> c_tm_last  := tm_last  == 'EPSG:28992:14', IntegrityCheck = "c_tm_last == True";
-		parameter<bool> c_tm_scale := tm_scale0 == 12288000.0,     IntegrityCheck = "c_tm_scale == True";
+		parameter<bool> c_tm_rows  := tm_rows  == 15u,      IntegrityCheck = "c_tm_rows == true";
+		parameter<bool> c_tm_elems := tm_elems == 15u * 8u, IntegrityCheck = "c_tm_elems == true";
+		parameter<bool> c_tm_first := tm_first == 'EPSG:28992:0',  IntegrityCheck = "c_tm_first == true";
+		parameter<bool> c_tm_last  := tm_last  == 'EPSG:28992:14', IntegrityCheck = "c_tm_last == true";
+		parameter<bool> c_tm_scale := tm_scale0 == 12288000.0,     IntegrityCheck = "c_tm_scale == true";
 		// levels 0..14 are 2^k x 2^k tiles, so the widths sum to 2^15 - 1
-		parameter<bool> c_tm_mw    := tm_mw_sum == 32767u, IntegrityCheck = "c_tm_mw == True";
-		parameter<bool> c_tm_mh    := tm_mh_sum == 32767u, IntegrityCheck = "c_tm_mh == True";
-		parameter<bool> c_tm_tw    := tm_tw_sum == 15u * 256u, IntegrityCheck = "c_tm_tw == True";
-		parameter<bool> c_tm_th    := tm_th_sum == 15u * 256u, IntegrityCheck = "c_tm_th == True";
-		parameter<bool> c_tm_left  := tm_left0 == -285401.92,  IntegrityCheck = "c_tm_left == True";
-		parameter<bool> c_tm_top   := tm_top0  ==  903402.0,   IntegrityCheck = "c_tm_top == True";
+		parameter<bool> c_tm_mw    := tm_mw_sum == 32767u, IntegrityCheck = "c_tm_mw == true";
+		parameter<bool> c_tm_mh    := tm_mh_sum == 32767u, IntegrityCheck = "c_tm_mh == true";
+		parameter<bool> c_tm_tw    := tm_tw_sum == 15u * 256u, IntegrityCheck = "c_tm_tw == true";
+		parameter<bool> c_tm_th    := tm_th_sum == 15u * 256u, IntegrityCheck = "c_tm_th == true";
+		parameter<bool> c_tm_left  := tm_left0 == -285401.92,  IntegrityCheck = "c_tm_left == true";
+		parameter<bool> c_tm_top   := tm_top0  ==  903402.0,   IntegrityCheck = "c_tm_top == true";
 		// the request template keeps the placeholders the WMTS reader substitutes
 		parameter<bool> c_target   := strpos(tm_target, '@TM@') >= 0
 		                           && strpos(tm_target, '@TR@') >= 0
-		                           && strpos(tm_target, '@TC@') >= 0, IntegrityCheck = "c_target == True";
+		                           && strpos(tm_target, '@TC@') >= 0, IntegrityCheck = "c_target == true";
 
 		// RegioIndelingen.dms: range(uint32, 2019, 2027) is Y2019 .. Y2026
-		parameter<bool> c_years    := nr_years == 8u,             IntegrityCheck = "c_years == True";
-		parameter<bool> c_year_1st := year_first == 'Y2019',      IntegrityCheck = "c_year_1st == True";
-		parameter<bool> c_year_lst := year_last  == 'Y2026',      IntegrityCheck = "c_year_lst == True";
+		parameter<bool> c_years    := nr_years == 8u,             IntegrityCheck = "c_years == true";
+		parameter<bool> c_year_1st := year_first == 'Y2019',      IntegrityCheck = "c_year_1st == true";
+		parameter<bool> c_year_lst := year_last  == 'Y2026',      IntegrityCheck = "c_year_lst == true";
 	}
 }

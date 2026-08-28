@@ -7,10 +7,10 @@ container fn_test_opsigF_neg1
 	// including the "[shape: ...]" dynamic-shape marker and the meta spec arg.
 	// Expected: error text contains "Declared unit-constraint signatures" and
 	//           "[shape: the argument layout is computed from the specification"
-	unit<uint32> D : nrofrows = 2;
-	attribute<uint32> u (D) : [1, 2];
+	unit<uint32> Dx : nrofrows = 2;
+	attribute<uint32> u (Dx) : [1, 2];
 
-	attribute<float64> bad (D) := impedance_matrix(u, u, u, u);
+	attribute<float64> bad (Dx) := impedance_matrix(u, u, u, u);
 
 	container checks { parameter<float64> use := sum(bad); }
 }

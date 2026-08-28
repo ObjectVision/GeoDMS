@@ -43,16 +43,16 @@ container fn_test_unitpow
 		// a bare self-reference re-enters UpdateMetaInfo and reports Invalid Recursion.
 		//
 		// pow(m,1) must be m itself; the three powers must all differ from one another.
-		parameter<bool> c1 := s1 == sm,                         IntegrityCheck = "c1 == True";
-		parameter<bool> c2 := s2 != s1 && s2 != '',             IntegrityCheck = "c2 == True";
-		parameter<bool> c3 := s3 != s1 && s3 != s2,             IntegrityCheck = "c3 == True";
+		parameter<bool> c1 := s1 == sm,                         IntegrityCheck = "c1 == true";
+		parameter<bool> c2 := s2 != s1 && s2 != '',             IntegrityCheck = "c2 == true";
+		parameter<bool> c3 := s3 != s1 && s3 != s2,             IntegrityCheck = "c3 == true";
 
 		// the metric must be non-empty for every power (the else-branch really is taken,
 		// which is what made the out-of-bounds read reachable)
-		parameter<bool> c4 := strlen(s2) > 0 && strlen(s3) > 0, IntegrityCheck = "c4 == True";
+		parameter<bool> c4 := strlen(s2) > 0 && strlen(s3) > 0, IntegrityCheck = "c4 == true";
 
 		// EXACT: pow(m,2) must equal m*m and pow(m,3) must equal m*m*m
-		parameter<bool> c5 := s2 == x2,                         IntegrityCheck = "c5 == True";
-		parameter<bool> c6 := s3 == x3,                         IntegrityCheck = "c6 == True";
+		parameter<bool> c5 := s2 == x2,                         IntegrityCheck = "c5 == true";
+		parameter<bool> c6 := s3 == x3,                         IntegrityCheck = "c6 == true";
 	}
 }

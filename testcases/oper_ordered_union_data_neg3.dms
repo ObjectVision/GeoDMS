@@ -5,12 +5,12 @@
 // order check of ordered_union_data.
 container oper_ordered_union_data_neg3
 {
-	unit<uint32> A : nrofrows = 3
+	unit<uint32> Ax : nrofrows = 3
 	{
 		attribute<uint32> descending : [ 3, 2, 1 ];
 	}
 
-	attribute<uint32> single (A) := ordered_union_data(A, A/descending);
+	attribute<uint32> single (Ax) := ordered_union_data(Ax, Ax/descending);
 
 	container checks
 	{

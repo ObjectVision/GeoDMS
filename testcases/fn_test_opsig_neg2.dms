@@ -8,7 +8,7 @@ container fn_test_opsig_neg2
 	//            do not match any of its registered overloads"
 	unit<uint32> Road : nrofrows = 3 { attribute<float64> flow : [ 1.0, 2.0, 3.0 ]; }
 
-	function bad<V: numerics, D: domains>(attribute<V> x (D); attribute<bool> b (D)) -> attribute<V> (D)
+	function bad<Vx: numerics, Dx: domains>(attribute<Vx> x (Dx); attribute<bool> b (Dx)) -> attribute<Vx> (Dx)
 		:= x + b;
 
 	attribute<float64> z (Road) := bad(Road/flow, Road/flow > Road/flow);

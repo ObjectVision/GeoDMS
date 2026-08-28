@@ -5,8 +5,8 @@ container fn_test_od_pareto_neg1
 	unit<uint32> Node : nrofrows = 2;
 	unit<uint32> Link : nrofrows = 1
 	{
-		attribute<Node>    F1  : [0];
-		attribute<Node>    F2  : [1];
+		attribute<Node>    N1_rel  : [0];
+		attribute<Node>    N2_rel  : [1];
 		attribute<float64> imp : [1.0];
 	}
 	unit<uint32> StartSet : nrofrows = 1 { attribute<Node> nr : [0]; }
@@ -14,7 +14,7 @@ container fn_test_od_pareto_neg1
 
 	unit<uint32> od := impedance_matrix(
 		  'directed;startPoint(Node_rel);endPoint(Node_rel);cut(OrgZone_max_imp);pareto;od:impedance'
-		, Link/imp, Link/F1, Link/F2
+		, Link/imp, Link/N1_rel, Link/N2_rel
 		, StartSet/nr, EndSet/nr
 		, const(100.0, StartSet)
 		);

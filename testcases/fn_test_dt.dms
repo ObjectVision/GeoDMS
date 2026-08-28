@@ -9,35 +9,35 @@ container fn_test_dt
 		attribute<float64> cap  : [ 2.0, 4.0, 6.0 ];
 	}
 
-	nuf = function<V: numerics, D: domains>(attribute<V> (D)) -> attribute<V> (D);
+	nuf = function<Vx: numerics, Dx: domains>(attribute<Vx> (Dx)) -> attribute<Vx> (Dx);
 
 	// note the parentheses: a BARE ':= x' result loses its calculation rule at parse
 	// time (pre-existing wart, flagged separately)
-	function gid<W: numerics, E: domains>(attribute<W> x (E)) -> attribute<W> (E) := (x);
+	function gid<Wx: numerics, E: domains>(attribute<Wx> x (E)) -> attribute<Wx> (E) := (x);
 
 	// generic callee linked through the data flow: gid's fresh W unifies with A both
 	// ways; result type flows back to the declared result
-	function pass<A: numerics, D: domains>(attribute<A> x (D)) -> attribute<A> (D) := gid(x);
+	function pass<Ax: numerics, Dx: domains>(attribute<Ax> x (Dx)) -> attribute<Ax> (Dx) := gid(x);
 
 	// HOF plumbing typed end-to-end: sig-typed params applied in the body; the
 	// nested result's V/D are its own rigid variables at ITS definition check
-	function compose<V: numerics, D: domains>(f: nuf<V, D>; g: nuf<V, D>) -> nuf<V, D>
+	function compose<Vx: numerics, Dx: domains>(f: nuf<Vx, Dx>; g: nuf<Vx, Dx>) -> nuf<Vx, Dx>
 	{
-		function result(attribute<V> x (D)) -> attribute<V> (D) := f(g(x));
+		function result(attribute<Vx> x (Dx)) -> attribute<Vx> (Dx) := f(g(x));
 	}
 
 	// applied call result typed through the Func value of a sig-typed result
-	function pow4<V: numerics, D: domains>(attribute<V> x (D)) -> attribute<V> (D)
+	function pow4<Vx: numerics, Dx: domains>(attribute<Vx> x (Dx)) -> attribute<Vx> (Dx)
 		:= compose(sqr, sqr)(x);
 
 	// dependent domain positions: F's second parameter and result share the unit
 	// parameter; calling it with an own unit param + own attribute over it is
 	// well-typed for every instantiation
-	function F(unit<uint32> Rd; attribute<float64> x (Rd)) -> attribute<float64> (Rd) := 2.0 * x;
-	function useF(unit<uint32> U; attribute<float64> y (U)) -> attribute<float64> (U) := F(U, y);
+	function Fx(unit<uint32> Rd; attribute<float64> x (Rd)) -> attribute<float64> (Rd) := 2.0 * x;
+	function useF(unit<uint32> Ux; attribute<float64> y (Ux)) -> attribute<float64> (Ux) := Fx(Ux, y);
 
 	// conversions keep the domain; the declared result checks against the inferred call type
-	function conv<D: domains>(attribute<float64> x (D)) -> attribute<int32> (D) := int32(gid(x));
+	function conv<Dx: domains>(attribute<float64> x (Dx)) -> attribute<int32> (Dx) := int32(gid(x));
 
 	attribute<float64> a (Road) := pass(Road/flow);              // [1,2,3]
 	attribute<float64> b (Road) := pow4(Road/cap);               // [16,256,1296]

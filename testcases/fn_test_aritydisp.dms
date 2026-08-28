@@ -2,7 +2,7 @@ container fn_test_aritydisp
 {
 	// arity-aware head dispatch: argument counts the binary operators reject route to
 	// the same-named prelude variadic functions (add/mul/or/and folds, 2-arg log)
-	unit<uint32> D : nrofrows = 3 { attribute<float64> x := float64(id(D)); }
+	unit<uint32> Dx : nrofrows = 3 { attribute<float64> x := float64(id(Dx)); }
 
 	parameter<uint32>  a1 := add(7);
 	parameter<uint32>  a3 := add(1, 2, 3);
@@ -20,7 +20,7 @@ container fn_test_aritydisp
 
 	// dispatch from INSIDE a function body (incl. the folds' own recursion)
 	function inner(attribute<float64> y) -> attribute<float64> := add(y, y, y);
-	attribute<float64> tri (D) := inner(D/x);
+	attribute<float64> tri (Dx) := inner(Dx/x);
 
 	container checks
 	{
@@ -34,6 +34,6 @@ container fn_test_aritydisp
 		parameter<bool> c_r3 := rp3 == 'aYbZ',   IntegrityCheck = "c_r3 == true";
 		parameter<bool> c_r5 := rp5 == 'aYbW',   IntegrityCheck = "c_r5 == true";
 		parameter<bool> c_r7 := rp7 == 'aYbWcR', IntegrityCheck = "c_r7 == true";
-		parameter<bool> c_tr := all(tri == 3.0 * D/x), IntegrityCheck = "c_tr == true";
+		parameter<bool> c_tr := all(tri == 3.0 * Dx/x), IntegrityCheck = "c_tr == true";
 	}
 }

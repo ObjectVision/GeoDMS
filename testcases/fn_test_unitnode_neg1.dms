@@ -11,11 +11,11 @@ container fn_test_unitnode_neg1
 	unit<uint32> Town   : nrofrows = 2 { attribute<float64> pop : [ 5.0,  6.0]; }
 	unit<uint32> House  : nrofrows = 3 { attribute<Region> reg : [0, 1, 1]; }
 
-	function joinval<D: domains, V: numerics>(unit<uint32> E; attribute<E> rel (D); attribute<V> vals (E))
-	-> attribute<V> (D) := lookup(rel, vals);
+	function joinval<Dx: domains, Vx: numerics>(unit<uint32> E; attribute<E> rel (Dx); attribute<Vx> vals (E))
+	-> attribute<Vx> (Dx) := lookup(rel, vals);
 
-	function bad<D: domains>(attribute<Region> r (D); attribute<float64> v (Town))
-	-> attribute<float64> (D) := joinval(Region, r, v);
+	function bad<Dx: domains>(attribute<Region> r (Dx); attribute<float64> v (Town))
+	-> attribute<float64> (Dx) := joinval(Region, r, v);
 
 	attribute<float64> z (House) := bad(House/reg, Town/pop);
 

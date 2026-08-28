@@ -11,8 +11,8 @@ container fn_test_opsigB_neg1
 	unit<uint32> Town   : nrofrows = 2 { attribute<float64> pop : [5.0, 6.0]; }
 	unit<uint32> House  : nrofrows = 3 { attribute<Region> reg : [0, 1, 1]; }
 
-	function bad<D: domains>(attribute<Region> r (D); attribute<float64> v (Town))
-	-> attribute<float64> (D) := lookup(r, v);
+	function bad<Dx: domains>(attribute<Region> r (Dx); attribute<float64> v (Town))
+	-> attribute<float64> (Dx) := lookup(r, v);
 
 	attribute<float64> z (House) := bad(House/reg, Town/pop);
 

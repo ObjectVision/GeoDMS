@@ -8,10 +8,10 @@ container fn_test_opsigE_neg1
 	// float32 argument matches no member.
 	// Expected: the error text contains "Declared unit-constraint signatures"
 	//           followed by the rendered connect signatures.
-	unit<uint32> D : nrofrows = 2;
-	attribute<float32> f (D) : [1, 2];
+	unit<uint32> Dx : nrofrows = 2;
+	attribute<float32> f (Dx) : [1, 2];
 
-	attribute<uint32> bad (D) := connect(f, f);
+	attribute<uint32> bad (Dx) := connect(f, f);
 
 	container checks { parameter<uint32> use := sum(bad); }
 }

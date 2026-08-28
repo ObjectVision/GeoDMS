@@ -11,7 +11,7 @@ container fn_test_structcontract
 	unit<uint32> Net : nrofrows = 3
 	{
 		unit<uint32> nodeset : nrofrows = 4;
-		attribute<nodeset> F1 : [ 0, 1, 2 ];
+		attribute<nodeset> N1_rel : [ 0, 1, 2 ];
 		parameter<float64> w := 10.0;
 		container meta { parameter<float64> factor := 3.0; }
 	}
@@ -19,11 +19,11 @@ container fn_test_structcontract
 	// (a) external 'bias' + (b) void member w + (d) container member meta
 	function f( unit<uint32> nw {
 		unit<uint32> nodeset;
-		attribute<nodeset> F1;
+		attribute<nodeset> N1_rel;
 		parameter<float64> w;
 		container meta { parameter<float64> factor; }
 	} )
-	-> parameter<float64> := float64(sum(pcount(nw/F1))) + nw/w + nw/meta/factor + bias;
+	-> parameter<float64> := float64(sum(pcount(nw/N1_rel))) + nw/w + nw/meta/factor + bias;
 
 	parameter<float64> t1 := f(Net);
 
@@ -31,9 +31,9 @@ container fn_test_structcontract
 	unit<uint32> Road : nrofrows = 3 { attribute<float64> flow : [ 1.0, 2.0, 3.0 ]; }
 	Template Doubler
 	{
-		unit<uint32> D { attribute<uint32> helper := id(.); }
-		attribute<float64> x (D);
-		attribute<float64> result (D) := 2.0 * x;
+		unit<uint32> Dx { attribute<uint32> helper := id(.); }
+		attribute<float64> x (Dx);
+		attribute<float64> result (Dx) := 2.0 * x;
 	}
 	attribute<float64> dbl (Road) := apply Doubler(Road, Road/flow);
 

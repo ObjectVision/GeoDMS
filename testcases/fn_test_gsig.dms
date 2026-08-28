@@ -2,20 +2,20 @@ container fn_test_gsig
 {
 	unit<uint32> Road : nrofrows = 3 { attribute<float64> flow : [ 1.0, 2.0, 3.0 ]; }
 
-	nuf = function<V: numerics, D: domains>(attribute<V> (D)) -> attribute<V> (D);
+	nuf = function<Vx: numerics, Dx: domains>(attribute<Vx> (Dx)) -> attribute<Vx> (Dx);
 
-	function inc<V: numerics>(attribute<V> x) -> attribute<V> := x + 1.0;
+	function inc<Vx: numerics>(attribute<Vx> x) -> attribute<Vx> := x + 1.0;
 
 	// generic signature on a parameter of a closure-producing function
 	function twice(h: nuf) -> function
 	{
-		function result<V: numerics>(attribute<V> x) -> attribute<V> := h(h(x));
+		function result<Vx: numerics>(attribute<Vx> x) -> attribute<Vx> := h(h(x));
 	}
 
 	// typed compose: signature with type application on parameters and result
-	function compose2<V: numerics, D: domains>(f: nuf<V, D>; g: nuf<V, D>) -> nuf<V, D>
+	function compose2<Vx: numerics, Dx: domains>(f: nuf<Vx, Dx>; g: nuf<Vx, Dx>) -> nuf<Vx, Dx>
 	{
-		function result(attribute<V> x (D)) -> attribute<V> (D) := f(g(x));
+		function result(attribute<Vx> x (Dx)) -> attribute<Vx> (Dx) := f(g(x));
 	}
 
 	attribute<float64> t (Road) := twice(inc)(Road/flow);          // x+2 -> [3,4,5]

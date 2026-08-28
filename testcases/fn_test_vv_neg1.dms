@@ -11,11 +11,11 @@ container fn_test_vv_neg1
 		attribute<int32> n : [ 1, 2, 3 ];
 	}
 
-	nuf = function<V: numerics, D: domains>(attribute<V> (D)) -> attribute<V> (D);
+	nuf = function<Vx: numerics, Dx: domains>(attribute<Vx> (Dx)) -> attribute<Vx> (Dx);
 
-	function fhalf<W: floats, E: domains>(attribute<W> x (E)) -> attribute<W> (E) := x / 2.0;
+	function fhalf<Wx: floats, E: domains>(attribute<Wx> x (E)) -> attribute<Wx> (E) := x / 2.0;
 
-	function ap<V: numerics, D: domains>(f: nuf<V, D>; attribute<V> x (D)) -> attribute<V> (D) := f(x);
+	function ap<Vx: numerics, Dx: domains>(f: nuf<Vx, Dx>; attribute<Vx> x (Dx)) -> attribute<Vx> (Dx) := f(x);
 
 	attribute<int32> a (Road) := ap(fhalf, Road/n); // must FAIL
 }

@@ -15,16 +15,16 @@ container fn_test_sig
 	c1: parameter<float64> := 40.0 + 2.0;
 
 	// function-signature type alias
-	unary_fn = (unit<uint32> D; attribute<float64> v (D)) -> attribute<float64> (D);
+	unary_fn = (unit<uint32> Dx; attribute<float64> v (Dx)) -> attribute<float64> (Dx);
 
 	container lib
 	{
-		function Halve(unit<uint32> D; attribute<float64> v (D))
-		-> attribute<float64> (D) := v / 2.0;
+		function Halve(unit<uint32> Dx; attribute<float64> v (Dx))
+		-> attribute<float64> (Dx) := v / 2.0;
 
 		// signature-typed function parameter: bound functions are checked against unary_fn
-		function ApplyTwiceT(unit<uint32> D; f: unary_fn; attribute<float64> x (D))
-		-> attribute<float64> (D) := f(D, f(D, x));
+		function ApplyTwiceT(unit<uint32> Dx; f: unary_fn; attribute<float64> x (Dx))
+		-> attribute<float64> (Dx) := f(Dx, f(Dx, x));
 	}
 
 	attribute<float64> quarter (Road) := lib/ApplyTwiceT(Road, lib/Halve, Road/flow);

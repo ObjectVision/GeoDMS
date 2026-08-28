@@ -9,10 +9,10 @@ container tmpl_regress
 
 	template Doubler
 	{
-		unit<uint32>       D;
-		attribute<float64> x (D);
+		unit<uint32>       Dx;
+		attribute<float64> x (Dx);
 		// classic template: body may reference definition scope (factor) implicitly
-		attribute<float64> result (D) := x * factor;
+		attribute<float64> result (Dx) := x * factor;
 	}
 
 	container d := Doubler(Road, Road/flow);

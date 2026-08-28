@@ -8,10 +8,10 @@ container fn_test_opsigD_neg2
 	// [uint32]) finds no member and throws in GetOperator.
 	// Expected: "the argument types of operator 'select' do not match any of its
 	//            registered overloads"
-	unit<uint32> D : nrofrows = 3;
-	attribute<uint32> x (D) : [0, 1, 2];
+	unit<uint32> Dx : nrofrows = 3;
+	attribute<uint32> x (Dx) : [0, 1, 2];
 
-	function bad2<E: domains>(attribute<uint32> c (E)) -> parameter<uint32> := NrOfRows(select(c));
+	function bad2<E: domains>(attribute<uint32> c (E)) -> parameter<uint32> := nrofrows(select(c));
 
 	parameter<uint32> z := bad2(x);
 

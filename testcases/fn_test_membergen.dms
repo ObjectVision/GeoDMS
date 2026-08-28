@@ -15,10 +15,10 @@ container fn_test_membergen
 	// positional attribute<V> analog always was. The conversion also keeps the body
 	// V-token-free, which the instantiate path below requires (a copied body does not
 	// substitute type variables).
-	function CongestionRatio<V: numerics>(
+	function CongestionRatio<Vx: numerics>(
 		unit<uint32> Network {
-			attribute<V> flow;
-			attribute<V> capacity;
+			attribute<Vx> flow;
+			attribute<Vx> capacity;
 		}
 	)
 	-> attribute<float64> (Network) := result
@@ -32,7 +32,7 @@ container fn_test_membergen
 	container           morning       := instantiate CongestionRatio(Road);
 
 	// a top-level generic param still works alongside a member-generic one
-	function TwiceG<V: numerics>(unit<uint32> D; attribute<V> x (D)) -> attribute<V> (D) := x + x;
+	function TwiceG<Vx: numerics>(unit<uint32> Dx; attribute<Vx> x (Dx)) -> attribute<Vx> (Dx) := x + x;
 	attribute<float64> doubled (Road) := TwiceG(Road, Road/flow);
 
 	container checks

@@ -5,22 +5,22 @@ container fn_test_subref
 	// u := unique(src) types as an existential unit U; u/Values as
 	// attribute<V>(U) with V riding the FORMAL's rigid node — the rlookup/
 	// lookup roundtrip must scan clean at definition AND compute (identity).
-	unit<uint32> D : nrofrows = 4;
-	attribute<float64> x (D) : [1.0, 2.0, 2.0, 3.0];
+	unit<uint32> Dx : nrofrows = 4;
+	attribute<float64> x (Dx) : [1.0, 2.0, 2.0, 3.0];
 
-	function f<V: numerics, DD: domains>(attribute<V> src (DD)) -> attribute<V> (DD)
+	function f<Vx: numerics, DD: domains>(attribute<Vx> src (DD)) -> attribute<Vx> (DD)
 	{
 		unit<uint32> u := unique(src);
-		attribute<V> result (DD) := u/Values[rlookup(src, u/Values)];
+		attribute<Vx> result (DD) := u/Values[rlookup(src, u/Values)];
 	}
-	attribute<float64> y (D) := f(x);
+	attribute<float64> y (Dx) := f(x);
 
 	// lowercase member reference: the engine's item lookup is case-insensitive,
 	// so the checker's member map must be too
-	function g(attribute<float64> src (D)) -> parameter<float64>
+	function g(attribute<float64> src (Dx)) -> parameter<float64>
 	{
 		unit<uint32> u := unique(src);
-		parameter<float64> result := sum(u/values);
+		parameter<float64> result := sum(u/Values);
 	}
 	parameter<float64> s := g(x);
 

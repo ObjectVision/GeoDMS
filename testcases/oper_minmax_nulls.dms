@@ -56,23 +56,23 @@ container oper_minmax_nulls
 
 	container checks
 	{
-		parameter<bool> min_k_ok := all(partitioned/min_k_ok), IntegrityCheck = "min_k_ok == True";
-		parameter<bool> min_c_ok := all(partitioned/min_c_ok), IntegrityCheck = "min_c_ok == True";
-		parameter<bool> max_k_ok := all(partitioned/max_k_ok), IntegrityCheck = "max_k_ok == True";
-		parameter<bool> max_c_ok := all(partitioned/max_c_ok), IntegrityCheck = "max_c_ok == True";
-		parameter<bool> full_ok  := all(partitioned/full_ok),  IntegrityCheck = "full_ok == True";
+		parameter<bool> min_k_ok := all(partitioned/min_k_ok), IntegrityCheck = "min_k_ok == true";
+		parameter<bool> min_c_ok := all(partitioned/min_c_ok), IntegrityCheck = "min_c_ok == true";
+		parameter<bool> max_k_ok := all(partitioned/max_k_ok), IntegrityCheck = "max_k_ok == true";
+		parameter<bool> max_c_ok := all(partitioned/max_c_ok), IntegrityCheck = "max_c_ok == true";
+		parameter<bool> full_ok  := all(partitioned/full_ok),  IntegrityCheck = "full_ok == true";
 
-		parameter<bool> tot_min_k := total/min_k == 1i,        IntegrityCheck = "tot_min_k == True";
-		parameter<bool> tot_max_k := total/max_k == 5i,        IntegrityCheck = "tot_max_k == True";
-		parameter<bool> tot_min_c := IsNull(total/min_c),      IntegrityCheck = "tot_min_c == True";
-		parameter<bool> tot_max_c := IsNull(total/max_c),      IntegrityCheck = "tot_max_c == True";
+		parameter<bool> tot_min_k := total/min_k == 1i,        IntegrityCheck = "tot_min_k == true";
+		parameter<bool> tot_max_k := total/max_k == 5i,        IntegrityCheck = "tot_max_k == true";
+		parameter<bool> tot_min_c := IsNull(total/min_c),      IntegrityCheck = "tot_min_c == true";
+		parameter<bool> tot_max_c := IsNull(total/max_c),      IntegrityCheck = "tot_max_c == true";
 
-		parameter<bool> tot_full_min_k := total/full_min_k == 1i, IntegrityCheck = "tot_full_min_k == True";
-		parameter<bool> tot_full_min_c := total/full_min_c == 1i, IntegrityCheck = "tot_full_min_c == True";
-		parameter<bool> tot_full_max_c := total/full_max_c == 9i, IntegrityCheck = "tot_full_max_c == True";
+		parameter<bool> tot_full_min_k := total/full_min_k == 1i, IntegrityCheck = "tot_full_min_k == true";
+		parameter<bool> tot_full_min_c := total/full_min_c == 1i, IntegrityCheck = "tot_full_min_c == true";
+		parameter<bool> tot_full_max_c := total/full_max_c == 9i, IntegrityCheck = "tot_full_max_c == true";
 
-		parameter<bool> tot_fmin_k := total/fmin_k == 1f,      IntegrityCheck = "tot_fmin_k == True";
-		parameter<bool> tot_fmin_c := IsNull(total/fmin_c),    IntegrityCheck = "tot_fmin_c == True";
+		parameter<bool> tot_fmin_k := total/fmin_k == 1f,      IntegrityCheck = "tot_fmin_k == true";
+		parameter<bool> tot_fmin_c := IsNull(total/fmin_c),    IntegrityCheck = "tot_fmin_c == true";
 	}
 }
 

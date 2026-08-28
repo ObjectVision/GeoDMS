@@ -6,10 +6,10 @@ container fn_test_anon
 		attribute<float64> flow : [ 1.0, 2.0, 3.0 ];
 	}
 
-	nuf = function<V: numerics, D: domains>(attribute<V> (D)) -> attribute<V> (D);
+	nuf = function<Vx: numerics, Dx: domains>(attribute<Vx> (Dx)) -> attribute<Vx> (Dx);
 
 	// A1: whole-rule anonymous function, expression form (item == function)
-	twice := function<V: numerics, D: domains>(attribute<V> x (D)) -> attribute<V> (D) := x + x;
+	twice := function<Vx: numerics, Dx: domains>(attribute<Vx> x (Dx)) -> attribute<Vx> (Dx) := x + x;
 
 	// A1 + A2: whole-rule anonymous function with a designated-result body block
 	// (the original sketch: '-> restype { result := ...; }', declarations typed)
@@ -26,8 +26,8 @@ container fn_test_anon
 	}
 
 	// A3: anonymous result-position function — replaces the nested 'function result' idiom
-	function compose3<V: numerics, D: domains>(f: nuf<V, D>; g: nuf<V, D>) -> nuf<V, D>
-		:= function(attribute<V> x (D)) -> attribute<V> (D) := f(g(x));
+	function compose3<Vx: numerics, Dx: domains>(f: nuf<Vx, Dx>; g: nuf<Vx, Dx>) -> nuf<Vx, Dx>
+		:= function(attribute<Vx> x (Dx)) -> attribute<Vx> (Dx) := f(g(x));
 
 	attribute<float64> t  (Road) := twice(Road/flow);                    // [2,4,6]
 	attribute<float64> r  (Road) := ratio(Road/flow, twice(Road/flow)); // 0.5 each

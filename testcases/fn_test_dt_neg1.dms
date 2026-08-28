@@ -12,9 +12,9 @@ container fn_test_dt_neg1
 		attribute<float64> flow : [ 1.0, 2.0, 3.0 ];
 	}
 
-	function fonly<W: floats, E: domains>(attribute<W> x (E)) -> attribute<W> (E) := x / 2.0;
+	function fonly<Wx: floats, E: domains>(attribute<Wx> x (E)) -> attribute<Wx> (E) := x / 2.0;
 
-	function bad<V: numerics, D: domains>(attribute<V> x (D)) -> attribute<V> (D) := fonly(x);
+	function bad<Vx: numerics, Dx: domains>(attribute<Vx> x (Dx)) -> attribute<Vx> (Dx) := fonly(x);
 
 	attribute<float64> z (Road) := bad(Road/flow); // float64 args, yet the DEFINITION must fail
 

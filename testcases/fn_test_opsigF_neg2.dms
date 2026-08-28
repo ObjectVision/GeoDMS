@@ -20,13 +20,13 @@ container fn_test_opsigF_neg2
 
 	attribute<fpoint> arcs (ArcSet, arc) := points2sequence(apt, seqr, ord);
 
-	unit<uint32> P : nrofrows = 2;
-	attribute<float32> py  (P) : [1, 3];
-	attribute<float32> px  (P) : [2, 5];
-	attribute<fpoint>  pts (P) := point_yx(py, px, fpoint);
+	unit<uint32> PtSet : nrofrows = 2;
+	attribute<float32> py  (PtSet) : [1, 3];
+	attribute<float32> px  (PtSet) : [2, 5];
+	attribute<fpoint>  pts (PtSet) := point_yx(py, px, fpoint);
 
-	function bad<A: domains, D: domains>(attribute<fpoint> a (A, arc); attribute<fpoint> p (D))
-	-> attribute<float64> (A) := dist_info(a, p);
+	function bad<ArcDom: domains, Dx: domains>(attribute<fpoint> a (ArcDom, arc); attribute<fpoint> p (Dx))
+	-> attribute<float64> (ArcDom) := dist_info(a, p);
 
 	attribute<float64> z (ArcSet) := bad(arcs, pts);
 

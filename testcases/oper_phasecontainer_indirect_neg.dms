@@ -14,6 +14,6 @@ container oper_phasecontainer_indirect_neg
 
 	container checks
 	{
-		parameter<bool> rejected := bad == 1, IntegrityCheck = "rejected == True";
+		parameter<bool> rejected := bad == 1, IntegrityCheck = "rejected == true";
 	}
 }

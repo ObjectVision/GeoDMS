@@ -7,15 +7,15 @@ container fn_test_partial
 
 	container lib
 	{
-		function Add2(unit<uint32> D; attribute<float64> a (D); attribute<float64> b (D))
-		-> attribute<float64> (D) := a + b;
+		function Add2(unit<uint32> Dx; attribute<float64> a (Dx); attribute<float64> b (Dx))
+		-> attribute<float64> (Dx) := a + b;
 
-		function Scale(unit<uint32> D; parameter<float64> k; attribute<float64> x (D))
-		-> attribute<float64> (D) := x * k;
+		function Scale(unit<uint32> Dx; parameter<float64> k; attribute<float64> x (Dx))
+		-> attribute<float64> (Dx) := x * k;
 
 		// higher-order: applies a unary function twice
-		function ApplyTwice(unit<uint32> D; f: function; attribute<float64> x (D))
-		-> attribute<float64> (D) := f(f(x));
+		function ApplyTwice(unit<uint32> Dx; f: function; attribute<float64> x (Dx))
+		-> attribute<float64> (Dx) := f(f(x));
 	}
 
 	// partial application: bind the first data arg, leave a hole for the domain+value.
@@ -27,8 +27,8 @@ container fn_test_partial
 	// partial application bound directly is an error (tested separately);
 	// but a full application built from a partial-in-argument works:
 	// doubler = Add2(Road, _, _) applied with (flow, flow)
-	function ApplyBin(unit<uint32> D; g: function; attribute<float64> p (D); attribute<float64> q (D))
-	-> attribute<float64> (D) := g(p, q);
+	function ApplyBin(unit<uint32> Dx; g: function; attribute<float64> p (Dx); attribute<float64> q (Dx))
+	-> attribute<float64> (Dx) := g(p, q);
 	attribute<float64> doubled (Road) := ApplyBin(Road, lib/Add2(Road, _, _), Road/flow, Road/flow);
 
 	container checks

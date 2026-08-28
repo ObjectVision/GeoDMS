@@ -12,15 +12,15 @@ container fn_test_structmember_neg2
 	{
 		unit<uint32> ns1 : nrofrows = 3;
 		unit<uint32> ns2 : nrofrows = 4;
-		attribute<ns1> F1 : [ 0, 1 ];
-		attribute<ns2> F2 : [ 0, 2 ];
+		attribute<ns1> N1_rel : [ 0, 1 ];
+		attribute<ns2> N2_rel : [ 0, 2 ];
 	}
 	function bad_net( unit<uint32> nw {
 		unit<uint32> ns1;
 		unit<uint32> ns2;
-		attribute<ns1> F1;
-		attribute<ns2> F2;
-	} ) -> parameter<uint32> := sum(pcount(nw/F1) + pcount(nw/F2));
+		attribute<ns1> N1_rel;
+		attribute<ns2> N2_rel;
+	} ) -> parameter<uint32> := sum(pcount(nw/N1_rel) + pcount(nw/N2_rel));
 
 	parameter<uint32> total := bad_net(Net);
 	container checks { parameter<uint32> c := total, IntegrityCheck = "c == 5"; }

@@ -31,6 +31,6 @@ container oper_minkowski_neg3
 	{
 		attribute<ipoint> bad (G, polygon) := bp_minkowski_sum(bp_polygon(geom), kernel);
 		parameter<float64> a := sum(float64(area(bad)));
-		parameter<bool> ok := a > 0.0, IntegrityCheck = "ok == True";
+		parameter<bool> ok := a > 0.0, IntegrityCheck = "ok == true";
 	}
 }

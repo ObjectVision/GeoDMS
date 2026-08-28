@@ -12,7 +12,7 @@ container fn_test_opsig_neg1
 	//            do not match any of its registered overloads"
 	unit<uint32> Road : nrofrows = 3 { attribute<string> name : ['a','b','c']; }
 
-	function bad<D: domains>(attribute<string> s (D)) -> attribute<string> (D) := sin(s);
+	function bad<Dx: domains>(attribute<string> s (Dx)) -> attribute<string> (Dx) := sin(s);
 
 	attribute<string> z (Road) := bad(Road/name);
 

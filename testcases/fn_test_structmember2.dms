@@ -8,14 +8,14 @@ container fn_test_structmember2
 	unit<uint32> Net : nrofrows = 3
 	{
 		unit<uint32> nodeset : nrofrows = 3;
-		attribute<nodeset> F1 : [ 0, 1, 2 ];
-		attribute<nodeset> F2 : [ 1, 2, 0 ];
+		attribute<nodeset> N1_rel : [ 0, 1, 2 ];
+		attribute<nodeset> N2_rel : [ 1, 2, 0 ];
 	}
 	function connectedness( unit<uint32> nw {
 		unit<uint32> nodeset;
-		attribute<nodeset> F1;
-		attribute<nodeset> F2;
-	} ) -> parameter<uint32> := sum(pcount(nw/F1) + pcount(nw/F2));
+		attribute<nodeset> N1_rel;
+		attribute<nodeset> N2_rel;
+	} ) -> parameter<uint32> := sum(pcount(nw/N1_rel) + pcount(nw/N2_rel));
 
 	parameter<uint32> total := connectedness(Net);
 	// each of the 3 nodes appears exactly twice across F1,F2 → sum = 6

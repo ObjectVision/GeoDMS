@@ -18,6 +18,6 @@ container oper_minkowski_neg1
 		// '5D' is not one of the six shapes; there is no 5-corner kernel.
 		attribute<ipoint> bad (G, polygon) := bp_minkowski_sum(bp_polygon(geom), float64(10), 'i5D');
 		parameter<float64> a := sum(float64(area(bad)));
-		parameter<bool> ok := a > 0.0, IntegrityCheck = "ok == True";
+		parameter<bool> ok := a > 0.0, IntegrityCheck = "ok == true";
 	}
 }

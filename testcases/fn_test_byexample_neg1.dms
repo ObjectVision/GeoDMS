@@ -9,11 +9,11 @@ container fn_test_byexample_neg1
 	bad_links: unit<uint32> : nrofrows = 3
 	{
 		unit<uint32> nodeset : nrofrows = 4;
-		attribute<float64> F1 : [ 0.0, 1.0, 2.0 ];
+		attribute<float64> N1_rel : [ 0.0, 1.0, 2.0 ];
 	}
 
 	function connectedness( nw: bad_links )
-	-> parameter<uint32> := sum(pcount(nw/F1));
+	-> parameter<uint32> := sum(pcount(nw/N1_rel));
 
 	parameter<uint32> t := connectedness(bad_links);
 

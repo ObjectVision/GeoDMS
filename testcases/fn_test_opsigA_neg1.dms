@@ -12,7 +12,7 @@ container fn_test_opsigA_neg1
 		attribute<float64> flow : [ 1.0, 2.0, 3.0 ];
 	}
 
-	function bad<D: domains>(attribute<uint32> c (D); attribute<float64> x (D)) -> attribute<float64> (D)
+	function bad<Dx: domains>(attribute<uint32> c (Dx); attribute<float64> x (Dx)) -> attribute<float64> (Dx)
 		:= iif(c, x, x);
 
 	attribute<float64> z (Road) := bad(Road/cnt, Road/flow);

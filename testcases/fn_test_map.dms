@@ -22,7 +22,7 @@ container fn_test_map
 	attribute<float64> out_b (Road) := out/b;
 
 	// generic mapped function works too
-	function DoubleG<V: numerics>(attribute<V> y (Road)) -> attribute<V> (Road) := y + y;
+	function DoubleG<Vx: numerics>(attribute<Vx> y (Road)) -> attribute<Vx> (Road) := y + y;
 	container dbl := map(DoubleG, src);
 
 	container checks

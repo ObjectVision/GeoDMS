@@ -5,26 +5,26 @@ container fn_test_bareid
 	// designate the expression-less parameter item; applying gid then failed with
 	// "'/gid' is a function signature without implementation and cannot be applied".
 	// Designation (form a) stays reserved for BODY items: exact-case (':= helper')
-	// and case-insensitively-unique (':= Result' -> 'result').
+	// and case-insensitively-unique (':= result' -> 'result').
 	unit<uint32> Road : nrofrows = 3
 	{
 		attribute<float64> flow : [ 1.0, 2.0, 3.0 ];
 	}
 
-	nuf = function<V: numerics, D: domains>(attribute<V> (D)) -> attribute<V> (D);
+	nuf = function<Vx: numerics, Dx: domains>(attribute<Vx> (Dx)) -> attribute<Vx> (Dx);
 
 	// identity: bare parameter name after ':='
-	function gid<W: numerics, E: domains>(attribute<W> x (E)) -> attribute<W> (E) := x;
+	function gid<Wx: numerics, E: domains>(attribute<Wx> x (E)) -> attribute<Wx> (E) := x;
 
-	function ap<A: numerics, D: domains>(f: nuf<A, D>; attribute<A> x (D))
-	-> attribute<A> (D) := f(x);
+	function ap<Ax: numerics, Dx: domains>(f: nuf<Ax, Dx>; attribute<Ax> x (Dx))
+	-> attribute<Ax> (Dx) := f(x);
 
 	attribute<float64> direct (Road) := gid(Road/flow);      // direct application
 	attribute<float64> viaHof (Road) := ap(gid, Road/flow);  // application through a sig-typed parameter
 
-	// designation of a body item, case-insensitive (':= Result' -> 'result')
+	// designation of a body item, case-insensitive (':= result' -> 'result')
 	function capped(unit<uint32> Rd; attribute<float64> y (Rd))
-	-> attribute<float64> (Rd) := Result
+	-> attribute<float64> (Rd) := result
 	{
 		attribute<float64> result (Rd) := min_elem(y, 2.0);
 	}

@@ -6,22 +6,22 @@ container fn_test_vv
 		attribute<float64> cap  : [ 2.0, 4.0, 6.0 ];
 	}
 
-	nuf = function<V: numerics, D: domains>(attribute<V> (D)) -> attribute<V> (D);
-	bif = function<A: numerics, B: numerics, D: domains>(attribute<A> (D); attribute<B> (D)) -> attribute<A> (D);
+	nuf = function<Vx: numerics, Dx: domains>(attribute<Vx> (Dx)) -> attribute<Vx> (Dx);
+	bif = function<Ax: numerics, Bx: numerics, Dx: domains>(attribute<Ax> (Dx); attribute<Bx> (Dx)) -> attribute<Ax> (Dx);
 
 	// float-only generic: binding it to nuf<V, D> LINKS its W to V (WP4.1 t2);
 	// float64 satisfies floats ∩ numerics, so the link is consistent here
-	function fhalf<W: floats, E: domains>(attribute<W> x (E)) -> attribute<W> (E) := x / 2.0;
+	function fhalf<Wx: floats, E: domains>(attribute<Wx> x (E)) -> attribute<Wx> (E) := x / 2.0;
 
-	function ap<V: numerics, D: domains>(f: nuf<V, D>; attribute<V> x (D)) -> attribute<V> (D) := f(x);
+	function ap<Vx: numerics, Dx: domains>(f: nuf<Vx, Dx>; attribute<Vx> x (Dx)) -> attribute<Vx> (Dx) := f(x);
 
 	attribute<float64> a (Road) := ap(fhalf, Road/flow); // [0.5, 1.0, 1.5]
 
 	// add2 uses ONE variable W for both positions of bif<A, B, D>: binding it
 	// forces A == B transitively (A ≡ W ≡ B); both arguments are float64, so ok
-	function add2<W: numerics, E: domains>(attribute<W> p (E); attribute<W> q (E)) -> attribute<W> (E) := p + q;
+	function add2<Wx: numerics, E: domains>(attribute<Wx> p (E); attribute<Wx> q (E)) -> attribute<Wx> (E) := p + q;
 
-	function zip<A: numerics, B: numerics, D: domains>(f: bif<A, B, D>; attribute<A> x (D); attribute<B> y (D)) -> attribute<A> (D)
+	function zip<Ax: numerics, Bx: numerics, Dx: domains>(f: bif<Ax, Bx, Dx>; attribute<Ax> x (Dx); attribute<Bx> y (Dx)) -> attribute<Ax> (Dx)
 		:= f(x, y);
 
 	attribute<float64> b (Road) := zip(add2, Road/flow, Road/cap); // [3.0, 6.0, 9.0]

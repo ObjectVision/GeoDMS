@@ -12,20 +12,20 @@ container fn_test_checkall
 	unit<uint32> Road : nrofrows = 3 { attribute<float64> flow : [1.0, 2.0, 3.0]; }
 
 	// --- well-typed, unreferenced: audit reports OK ---
-	function good_sqr<V: numerics, D: domains>(attribute<V> x (D)) -> attribute<V> (D) := x * x;
+	function good_sqr<Vx: numerics, Dx: domains>(attribute<Vx> x (Dx)) -> attribute<Vx> (Dx) := x * x;
 	function good_id (unit<uint32> E; attribute<float64> x (E)) -> attribute<float64> (E) := x;
 
 	// --- ill-typed, unreferenced: audit reports FAILED ---
 	//     fonly requires floats; bad_numerics applies it under <V: numerics> (fails for V=int)
-	function fonly<W: floats, E: domains>(attribute<W> x (E)) -> attribute<W> (E) := x / 2.0;
-	function bad_numerics<V: numerics, D: domains>(attribute<V> x (D)) -> attribute<V> (D) := fonly(x);
+	function fonly<Wx: floats, E: domains>(attribute<Wx> x (E)) -> attribute<Wx> (E) := x / 2.0;
+	function bad_numerics<Vx: numerics, Dx: domains>(attribute<Vx> x (Dx)) -> attribute<Vx> (Dx) := fonly(x);
 
 	// --- variant set, unreferenced: each variant is audited individually ---
 	//     asF is fine; bad_gen applies the floats-only 'fonly' under <V: numerics> (fails for V=int)
 	function multi
 	{
 		variant asF   (attribute<float64> x (Road)) -> attribute<float64> (Road) := x * 2.0;
-		variant bad_gen<V: numerics>(attribute<V> x (Road)) -> attribute<V> (Road) := fonly(x);
+		variant bad_gen<Vx: numerics>(attribute<Vx> x (Road)) -> attribute<Vx> (Road) := fonly(x);
 	}
 
 	// --- a closure inside a body (nested function): must NOT be audited standalone ---
@@ -43,10 +43,10 @@ container fn_test_checkall
 	//     accepts. The audit must SKIP /TW/UsesSibling (checked at application). ---
 	template TW
 	{
-		unit<uint32>       D;
-		attribute<float64> vals (D);
-		function UsesSibling(attribute<float64> x (D)) -> attribute<float64> (D) := x + vals;
-		attribute<float64> out (D) := UsesSibling(vals);
+		unit<uint32>       Dx;
+		attribute<float64> vals (Dx);
+		function UsesSibling(attribute<float64> x (Dx)) -> attribute<float64> (Dx) := x + vals;
+		attribute<float64> out (Dx) := UsesSibling(vals);
 	}
 	container twInst := TW(Road, Road/flow); // instantiates: reduction accepts UsesSibling
 

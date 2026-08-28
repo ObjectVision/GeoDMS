@@ -6,18 +6,18 @@ container fn_test_subref2
 	// definition and compute. Union's UnionData member resolves too
 	// (domain-identity-only claim). (The classic 'subset' group is
 	// runtime-obsolete, so its nr_OrgEntity flavor is untestable here.)
-	unit<uint32> D : nrofrows = 4;
-	attribute<float64> x (D) : [1.0, 2.0, 2.0, 3.0];
-	attribute<bool>    c (D) : [false, true, true, false];
+	unit<uint32> Dx : nrofrows = 4;
+	attribute<float64> x (Dx) : [1.0, 2.0, 2.0, 3.0];
+	attribute<bool>    c (Dx) : [false, true, true, false];
 
-	function g(attribute<bool> cond (D); attribute<float64> v (D)) -> parameter<float64>
+	function g(attribute<bool> cond (Dx); attribute<float64> v (Dx)) -> parameter<float64>
 	{
 		unit<uint32> s := select_with_org_rel(cond);
 		parameter<float64> result := sum(v[s/org_rel]);
 	}
 	parameter<float64> sel := g(c, x);
 
-	function h(attribute<float64> a (D); attribute<float64> b (D)) -> parameter<float64>
+	function h(attribute<float64> a (Dx); attribute<float64> b (Dx)) -> parameter<float64>
 	{
 		unit<uint32> w := union(a, b);
 		parameter<float64> result := sum(w/UnionData);

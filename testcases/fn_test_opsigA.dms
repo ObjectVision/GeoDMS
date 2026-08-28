@@ -11,26 +11,26 @@ container fn_test_opsigA
 
 	// iif (absent from the retired OperSigKind registry): the tuples pin the
 	// condition to bool and link both branches with the result
-	function pickmax<V: numerics, D: domains>(attribute<V> x (D); attribute<V> y (D)) -> attribute<V> (D)
+	function pickmax<Vx: numerics, Dx: domains>(attribute<Vx> x (Dx); attribute<Vx> y (Dx)) -> attribute<Vx> (Dx)
 		:= iif(x < y, y, x);
 
 	// div (also absent from the old registry): result class follows the
 	// argument class through the all-members-agree tuple link
-	function half<F: floats, D: domains>(attribute<F> x (D)) -> attribute<F> (D) := x / (x + x);
+	function half<Fx: floats, Dx: domains>(attribute<Fx> x (Dx)) -> attribute<Fx> (Dx) := x / (x + x);
 
 	// min_elem: the variadic family (allow_extra_args) described via RepeatArgs —
 	// every trailing argument shares the class and domain of the first
-	function clamp3<V: numerics, D: domains>(attribute<V> a (D); attribute<V> b (D); attribute<V> c (D)) -> attribute<V> (D)
+	function clamp3<Vx: numerics, Dx: domains>(attribute<Vx> a (Dx); attribute<Vx> b (Dx); attribute<Vx> c (Dx)) -> attribute<Vx> (Dx)
 		:= min_elem(a, b, c);
 
 	// convert through the casted family: the result class equals the unit
 	// argument's class per member (tuple-linked U == R)
-	function toCnt<D: domains>(attribute<float64> x (D)) -> attribute<uint32> (D) := convert(x, uint32);
+	function toCnt<Dx: domains>(attribute<float64> x (Dx)) -> attribute<uint32> (Dx) := convert(x, uint32);
 
 	// the cog_mul mixed-group sentinel: with an untypeable argument (a literal)
 	// the unit-members and undescribed members stay in play, so the walker
 	// DEFERS — never errors — and the declared type stays authoritative
-	function twice<V: numerics, D: domains>(attribute<V> x (D)) -> attribute<V> (D) := x * 2.0;
+	function twice<Vx: numerics, Dx: domains>(attribute<Vx> x (Dx)) -> attribute<Vx> (Dx) := x * 2.0;
 
 	attribute<float64> t1 (Road) := pickmax(Road/flow, Road/cap);   // = cap
 	attribute<float64> t2 (Road) := half(Road/flow);                // 0.5 each

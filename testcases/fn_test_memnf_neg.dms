@@ -7,13 +7,13 @@ container fn_test_memnf_neg
 	unit<uint32> Net : nrofrows = 3
 	{
 		unit<uint32> nodeset : nrofrows = 4;
-		attribute<nodeset> F1 : [ 0, 1, 2 ];
+		attribute<nodeset> N1_rel : [ 0, 1, 2 ];
 		attribute<nodeset> F3 : [ 1, 2, 3 ];   // exists on the ARGUMENT, but not declared
 	}
 
 	function bad( unit<uint32> nw {
 		unit<uint32> nodeset;
-		attribute<nodeset> F1;
+		attribute<nodeset> N1_rel;
 	} )
 	-> parameter<uint32> := sum(pcount(nw/F3));
 

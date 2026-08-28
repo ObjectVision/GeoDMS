@@ -86,13 +86,13 @@ container oper_phasecontainer
 
 	container checks
 	{
-		parameter<bool> param_through_phase   := phase1/total  == 14,             IntegrityCheck = "param_through_phase == True";
-		parameter<bool> attr_through_phase    := all(phase1/dbl == src/val * 2),  IntegrityCheck = "attr_through_phase == True";
-		parameter<bool> sibling_through_phase := phase1/maxval == 5,              IntegrityCheck = "sibling_through_phase == True";
-		parameter<bool> nested_phase          := phase2b/b     == 28,             IntegrityCheck = "nested_phase == True";
-		parameter<bool> silent_phase          := phase3/q      == 1,              IntegrityCheck = "silent_phase == True";
-		parameter<bool> member_update_path    := member_driver    == 'Ready',     IntegrityCheck = "member_update_path == True";
-		parameter<bool> container_update_path := container_driver == 'Ready',     IntegrityCheck = "container_update_path == True";
-		parameter<bool> late_member_reentry   := late          == 35,             IntegrityCheck = "late_member_reentry == True";
+		parameter<bool> param_through_phase   := phase1/total  == 14,             IntegrityCheck = "param_through_phase == true";
+		parameter<bool> attr_through_phase    := all(phase1/dbl == src/val * 2),  IntegrityCheck = "attr_through_phase == true";
+		parameter<bool> sibling_through_phase := phase1/maxval == 5,              IntegrityCheck = "sibling_through_phase == true";
+		parameter<bool> nested_phase          := phase2b/b     == 28,             IntegrityCheck = "nested_phase == true";
+		parameter<bool> silent_phase          := phase3/q      == 1,              IntegrityCheck = "silent_phase == true";
+		parameter<bool> member_update_path    := member_driver    == 'Ready',     IntegrityCheck = "member_update_path == true";
+		parameter<bool> container_update_path := container_driver == 'Ready',     IntegrityCheck = "container_update_path == true";
+		parameter<bool> late_member_reentry   := late          == 35,             IntegrityCheck = "late_member_reentry == true";
 	}
 }

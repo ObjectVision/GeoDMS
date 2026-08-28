@@ -4,12 +4,12 @@ container fn_test_subref_neg3
 	// described members (add) accepts the member reference at definition scan
 	// (no set claim) and fails LATE, per application, with SubItemOperator's
 	// own "Cannot find 'nope' from ..." — never a definition-time error.
-	unit<uint32> D : nrofrows = 4;
-	attribute<float64> x (D) : [1.0, 2.0, 2.0, 3.0];
+	unit<uint32> Dx : nrofrows = 4;
+	attribute<float64> x (Dx) : [1.0, 2.0, 2.0, 3.0];
 
-	function f(attribute<float64> src (D)) -> parameter<float64>
+	function f(attribute<float64> src (Dx)) -> parameter<float64>
 	{
-		attribute<float64> twice (D) := src + src;
+		attribute<float64> twice (Dx) := src + src;
 		parameter<float64> result := sum(twice/nope);
 	}
 	parameter<float64> s := f(x);

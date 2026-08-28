@@ -5,19 +5,19 @@ container fn_test_fe_stor_neg
 	// formals, so it is EVALUATED (the file READ) at definition scan. The
 	// missing-member error must quote the generated names 'alpha, beta',
 	// proving fe_names.txt was read at definition time.
-	unit<uint32> D : nrofrows = 3;
+	unit<uint32> Dx : nrofrows = 3;
 	unit<uint32> NSet : nrofrows = 2;
 	parameter<string> storName : StorageName = "%currDir%/fe_names.txt", StorageType = "str";
 	attribute<string> mnames (NSet) := union_data(NSet, storName, 'beta');
 	attribute<string> mexprs (NSet) : ['x + x','x - x'];
-	attribute<float64> src (D) : [1.0, 2.0, 3.0];
+	attribute<float64> src (Dx) : [1.0, 2.0, 3.0];
 
-	function f(attribute<float64> x (D)) -> attribute<float64> (D)
+	function f(attribute<float64> x (Dx)) -> attribute<float64> (Dx)
 	{
-		container r := for_each_nedv(mnames, mexprs, D, float64);
-		attribute<float64> result (D) := r/zz; // not among {alpha, beta}: definition-time error
+		container r := for_each_nedv(mnames, mexprs, Dx, float64);
+		attribute<float64> result (Dx) := r/zz; // not among {alpha, beta}: definition-time error
 	}
-	attribute<float64> y (D) := f(src);
+	attribute<float64> y (Dx) := f(src);
 
 	container checks
 	{

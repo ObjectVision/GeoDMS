@@ -5,9 +5,9 @@ container fn_test_domptconstr
 	// value class itself (is_signed<Point<T>> is false for every T), so the constraint
 	// consults the scalar class — the same way IsCountable() does for integrality.
 
-	function nrCellsAny<P: domain_points>         (unit<P> D) -> parameter<uint32> := uint32(#D);
-	function nrCellsS  <P: signed_domain_points>  (unit<P> D) -> parameter<uint32> := uint32(#D);
-	function nrCellsU  <P: unsigned_domain_points>(unit<P> D) -> parameter<uint32> := uint32(#D);
+	function nrCellsAny<Px: domain_points>         (unit<Px> Dx) -> parameter<uint32> := uint32(#Dx);
+	function nrCellsS  <Px: signed_domain_points>  (unit<Px> Dx) -> parameter<uint32> := uint32(#Dx);
+	function nrCellsU  <Px: unsigned_domain_points>(unit<Px> Dx) -> parameter<uint32> := uint32(#Dx);
 
 	unit<spoint> Ds := range(point_xy(0s, 0s), point_xy(4s, 4s));
 	unit<ipoint> Di := range(point_xy(0i, 0i), point_xy(4i, 4i));

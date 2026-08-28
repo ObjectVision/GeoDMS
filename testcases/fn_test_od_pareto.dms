@@ -33,8 +33,8 @@ container fn_test_od_pareto
 	unit<uint32> Node : nrofrows = 8;
 	unit<uint32> Link : nrofrows = 9
 	{
-		attribute<Node>    F1 : [0, 0, 1, 2, 1, 2, 5, 6, 7];
-		attribute<Node>    F2 : [1, 2, 3, 3, 4, 4, 2, 4, 4];
+		attribute<Node>    N1_rel : [0, 0, 1, 2, 1, 2, 5, 6, 7];
+		attribute<Node>    N2_rel : [1, 2, 3, 3, 4, 4, 2, 4, 4];
 		attribute<float64> t  : [1.0, 5.0, 1.0, 1.0, 10.0, 2.0, 1.0, 1.0, 3.0];
 		attribute<float64> c  : [10.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 5.0, 1.0];
 	}
@@ -57,7 +57,7 @@ container fn_test_od_pareto
 		  ';cut(OrgZone_max_imp);alternative(link_imp):alt_imp'
 		  ';pareto'
 		  ';od:impedance,OrgZone_rel,DstZone_rel,StartPoint_rel,EndPoint_rel'
-		, Link/t, Link/F1, Link/F2
+		, Link/t, Link/N1_rel, Link/N2_rel
 		, StartSet/node_rel, StartSet/zone_rel
 		, EndSet/node_rel,   EndSet/zone_rel
 		, const(100.0, OrgZone)
@@ -68,7 +68,7 @@ container fn_test_od_pareto
 	unit<uint32> od_ref := impedance_matrix(
 		  'directed;startPoint(Node_rel,OrgZone_rel);endPoint(Node_rel,DstZone_rel)'
 		  ';od:impedance'
-		, Link/t, Link/F1, Link/F2
+		, Link/t, Link/N1_rel, Link/N2_rel
 		, StartSet/node_rel, StartSet/zone_rel
 		, EndSet/node_rel,   EndSet/zone_rel
 		);
@@ -80,7 +80,7 @@ container fn_test_od_pareto
 		  ';cut(OrgZone_max_imp);alternative(link_imp):alt_imp'
 		  ';pareto'
 		  ';od:impedance,OrgZone_rel,DstZone_rel'
-		, Link/t, Link/F1, Link/F2
+		, Link/t, Link/N1_rel, Link/N2_rel
 		, StartSet/node_rel, StartSet/zone_rel
 		, EndSet/node_rel,   EndSet/zone_rel
 		, const(6.5, OrgZone)
@@ -94,7 +94,7 @@ container fn_test_od_pareto
 		  ';cut(OrgZone_max_imp);alternative(link_imp):alt_imp'
 		  ';pareto(OrgZone_max_imp2)'
 		  ';od:impedance,OrgZone_rel,DstZone_rel'
-		, Link/t, Link/F1, Link/F2
+		, Link/t, Link/N1_rel, Link/N2_rel
 		, StartSet/node_rel, StartSet/zone_rel
 		, EndSet/node_rel,   EndSet/zone_rel
 		, const(100.0, OrgZone)
@@ -110,7 +110,7 @@ container fn_test_od_pareto
 		  ';cut(OrgZone_max_imp);alternative(link_imp):alt_imp'
 		  ';pareto'
 		  ';od:impedance,OrgZone_rel,DstZone_rel'
-		, Link/t, Link/F1, Link/F2
+		, Link/t, Link/N1_rel, Link/N2_rel
 		, StartSet/node_rel, StartSet/zone_rel
 		, EndSet/node_rel,   EndSet/imp, EndSet/zone_rel
 		, const(100.0, OrgZone)
@@ -121,7 +121,7 @@ container fn_test_od_pareto
 	// DescribeSpecSignature -- including the new OrgZone_max_imp2 position and the honest arity
 	// check -- and the od/impedance member ride-through. Sum over the imp2cut variant: 6+7+2+3+3.
 	function paretoSum(
-		  attribute<float64> w (Link); attribute<Node> f1 (Link); attribute<Node> f2 (Link)
+		  attribute<float64> w (Link); attribute<Node> fromNd (Link); attribute<Node> toNd (Link)
 		; attribute<Node> sr (StartSet); attribute<OrgZone> szr (StartSet)
 		; attribute<Node> er (EndSet); attribute<DstZone> ezr (EndSet)
 		; attribute<float64> mx (OrgZone); attribute<float64> w2 (Link); attribute<float64> mx2 (OrgZone))
@@ -130,11 +130,11 @@ container fn_test_od_pareto
 		unit<uint32> od := impedance_matrix(
 			  'directed;startPoint(Node_rel,OrgZone_rel);endPoint(Node_rel,DstZone_rel)'
 			  ';cut(OrgZone_max_imp);alternative(link_imp):alt_imp;pareto(OrgZone_max_imp2);od:impedance'
-			, w, f1, f2, sr, szr, er, ezr, mx, w2, mx2);
+			, w, fromNd, toNd, sr, szr, er, ezr, mx, w2, mx2);
 		parameter<float64> result := sum(od/impedance);
 	}
 	parameter<float64> paretoSumApplied := paretoSum(
-		  Link/t, Link/F1, Link/F2
+		  Link/t, Link/N1_rel, Link/N2_rel
 		, StartSet/node_rel, StartSet/zone_rel
 		, EndSet/node_rel, EndSet/zone_rel
 		, const(100.0, OrgZone), Link/c, const(5.0, OrgZone));
@@ -182,12 +182,12 @@ container fn_test_od_pareto
 
 		// the NetworkModel_PBL#19 validation criterion: the first pareto row per (org, dst) pair
 		// carries exactly the scalar operator's minimum time
-		parameter<bool> mintime_00 := od_pareto/impedance[0] == od_ref/impedance[0], IntegrityCheck = "mintime_00 == True";
-		parameter<bool> mintime_01 := od_pareto/impedance[2] == od_ref/impedance[1], IntegrityCheck = "mintime_01 == True";
-		parameter<bool> mintime_10 := od_pareto/impedance[3] == od_ref/impedance[2], IntegrityCheck = "mintime_10 == True";
-		parameter<bool> mintime_11 := od_pareto/impedance[4] == od_ref/impedance[3], IntegrityCheck = "mintime_11 == True";
-		parameter<bool> mintime_21 := od_pareto/impedance[5] == od_ref/impedance[5], IntegrityCheck = "mintime_21 == True";
-		parameter<bool> unreached_20 := !IsDefined(od_ref/impedance[4])            , IntegrityCheck = "unreached_20 == True";
+		parameter<bool> mintime_00 := od_pareto/impedance[0] == od_ref/impedance[0], IntegrityCheck = "mintime_00 == true";
+		parameter<bool> mintime_01 := od_pareto/impedance[2] == od_ref/impedance[1], IntegrityCheck = "mintime_01 == true";
+		parameter<bool> mintime_10 := od_pareto/impedance[3] == od_ref/impedance[2], IntegrityCheck = "mintime_10 == true";
+		parameter<bool> mintime_11 := od_pareto/impedance[4] == od_ref/impedance[3], IntegrityCheck = "mintime_11 == true";
+		parameter<bool> mintime_21 := od_pareto/impedance[5] == od_ref/impedance[5], IntegrityCheck = "mintime_21 == true";
+		parameter<bool> unreached_20 := !IsDefined(od_ref/impedance[4])            , IntegrityCheck = "unreached_20 == true";
 
 		// cut(6.5): org 0 loses dst 1, keeps its two-point dst-0 front; org 1 and org 2 keep all
 		parameter<uint32>  cut_rows  := uint32(#od_cut)               , IntegrityCheck = "cut_rows == 6";

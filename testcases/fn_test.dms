@@ -30,14 +30,14 @@ container fn_test
 	container cr2 := instantiate CongestionRatio2(Road);
 	attribute<float64> congestion2 (Road) := cr2/result;
 
-	// form a: name:type declarations in the telescope, ':= Result' designating a body item
+	// form a: name:type declarations in the telescope, ':= result' designating a body item
 	function CongestionRatio3(
 		Rd: unit<uint32> {
 			flow: attribute<float64>;
 			cap:  attribute<float64>;
 		}
 	)
-	-> attribute<float64> (Rd) := Result
+	-> attribute<float64> (Rd) := result
 	{
 		attribute<float64> raw    (Rd) := Rd/flow / Rd/cap;
 		attribute<float64> result (Rd) := min_elem(raw, 1.0);

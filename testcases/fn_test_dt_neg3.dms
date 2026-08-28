@@ -10,9 +10,9 @@ container fn_test_dt_neg3
 		attribute<float64> flow : [ 1.0, 2.0, 3.0 ];
 	}
 
-	function gid<W: numerics, E: domains>(attribute<W> x (E)) -> attribute<W> (E) := (x);
+	function gid<Wx: numerics, E: domains>(attribute<Wx> x (E)) -> attribute<Wx> (E) := (x);
 
-	function bad<V: numerics, D: domains>(attribute<V> x (D)) -> attribute<V> (D) := float64(gid(x));
+	function bad<Vx: numerics, Dx: domains>(attribute<Vx> x (Dx)) -> attribute<Vx> (Dx) := float64(gid(x));
 
 	attribute<float64> z (Road) := bad(Road/flow); // even the float64 call site must not save the definition
 

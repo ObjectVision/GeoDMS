@@ -10,10 +10,10 @@ container fn_test_shadow
 		attribute<float32> flow32 : [ 1.5, 2.5, 3.0 ];
 	}
 
-	function gid8<D: domains>(attribute<uint8> z (D)) -> attribute<uint8> (D) := (z);
+	function gid8<Dx: domains>(attribute<uint8> z (Dx)) -> attribute<uint8> (Dx) := (z);
 
 	// (a) a sub-container-local unit N shadows the outer N for declared types
-	function F(attribute<float64> x (Road)) -> attribute<uint8> (Road) := (sub/q);
+	function Fx(attribute<float64> x (Road)) -> attribute<uint8> (Road) := (sub/q);
 	{
 		container sub
 		{
@@ -22,18 +22,18 @@ container fn_test_shadow
 			attribute<N>     q (Road) := gid8(y); // 'N' here = the LOCAL uint8 N
 		}
 	}
-	attribute<uint8> outF (Road) := F(Road/flow);
+	attribute<uint8> outF (Road) := Fx(Road/flow);
 
 	// (b) a sub-container local shadows a same-named DATA parameter in argument
 	// position: the walker must type the LOCAL float32 'a', not the parameter
-	function gf32<D: domains>(attribute<float32> w (D)) -> attribute<float32> (D) := (w);
+	function gf32<Dx: domains>(attribute<float32> w (Dx)) -> attribute<float32> (Dx) := (w);
 
-	function G<V: numerics, D: domains>(attribute<V> a (D); attribute<float32> f32src (D)) -> attribute<float32> (D) := (helper/r);
+	function G<Vx: numerics, Dx: domains>(attribute<Vx> a (Dx); attribute<float32> f32src (Dx)) -> attribute<float32> (Dx) := (helper/r);
 	{
 		container helper
 		{
-			attribute<float32> a (D) := f32src;
-			attribute<float32> r (D) := gf32(a);   // 'a' = helper/a (float32), NOT the parameter
+			attribute<float32> a (Dx) := f32src;
+			attribute<float32> r (Dx) := gf32(a);   // 'a' = helper/a (float32), NOT the parameter
 		}
 	}
 	attribute<float32> outG (Road) := G(Road/flow, Road/flow32);

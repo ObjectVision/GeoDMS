@@ -42,7 +42,7 @@ container fn_test_p1
 	attribute<float64> pressure (Road) := lib/Ratio(Road) * 2.0;
 
 	// function calling function, with a literal argument
-	attribute<float64> scaled (Road) := lib/Scaled(Road, 10.0);
+	attribute<float64> scaledFlow (Road) := lib/Scaled(Road, 10.0);
 
 	// applicative identity: two separate bindings of the same application
 	// must yield UNIFIABLE domains
@@ -78,10 +78,10 @@ container fn_test_p1
 	// function defined inside a template body survives instantiation
 	template TWrap
 	{
-		unit<uint32> D;
-		attribute<float64> vals (D);
-		function Twice(attribute<float64> x (D)) -> attribute<float64> (D) := 2.0 * x;
-		attribute<float64> out (D) := Twice(vals);
+		unit<uint32> Dx;
+		attribute<float64> vals (Dx);
+		function Twice(attribute<float64> x (Dx)) -> attribute<float64> (Dx) := 2.0 * x;
+		attribute<float64> out (Dx) := Twice(vals);
 	}
 	container tw := TWrap(Road, Road/flow);
 
@@ -89,7 +89,7 @@ container fn_test_p1
 	{
 		parameter<float64> check1 := sum(congestion), IntegrityCheck = "check1 == 3.0";
 		parameter<float64> check2 := sum(pressure),   IntegrityCheck = "check2 == 6.0";
-		parameter<float64> check3 := sum(scaled),     IntegrityCheck = "check3 == 30.0";
+		parameter<float64> check3 := sum(scaledFlow),     IntegrityCheck = "check3 == 30.0";
 		parameter<uint32>  check4 := #busy1,          IntegrityCheck = "check4 == 2";
 		parameter<uint32>  check5 := sum(r1 - r2),    IntegrityCheck = "check5 == 0"; // requires busy1/busy2 to unify
 		parameter<float64> check6 := sum(scaled2),    IntegrityCheck = "check6 == 30.0";

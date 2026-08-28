@@ -42,10 +42,10 @@ container oper_calc_and_write
 
 	container checks
 	{
-		parameter<bool> param_unchanged     := total_caw     == 14,        IntegrityCheck = "param_unchanged == True";
-		parameter<bool> attr_unchanged      := all(dbl_caw   == dbl),      IntegrityCheck = "attr_unchanged == True";
-		parameter<bool> multiline_unchanged := maxval_caw    == 5,         IntegrityCheck = "multiline_unchanged == True";
-		parameter<bool> silent_unchanged    := minval_silent == 1,         IntegrityCheck = "silent_unchanged == True";
-		parameter<bool> container_unchanged := box_caw/x     == 42,        IntegrityCheck = "container_unchanged == True";
+		parameter<bool> param_unchanged     := total_caw     == 14,        IntegrityCheck = "param_unchanged == true";
+		parameter<bool> attr_unchanged      := all(dbl_caw   == dbl),      IntegrityCheck = "attr_unchanged == true";
+		parameter<bool> multiline_unchanged := maxval_caw    == 5,         IntegrityCheck = "multiline_unchanged == true";
+		parameter<bool> silent_unchanged    := minval_silent == 1,         IntegrityCheck = "silent_unchanged == true";
+		parameter<bool> container_unchanged := box_caw/x     == 42,        IntegrityCheck = "container_unchanged == true";
 	}
 }

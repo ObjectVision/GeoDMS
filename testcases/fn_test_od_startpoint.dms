@@ -14,8 +14,8 @@ container fn_test_od_startpoint
 	unit<uint32> Node : nrofrows = 5;
 	unit<uint32> Link : nrofrows = 3
 	{
-		attribute<Node>    F1  : [0, 1, 1];
-		attribute<Node>    F2  : [2, 2, 3];
+		attribute<Node>    N1_rel  : [0, 1, 1];
+		attribute<Node>    N2_rel  : [2, 2, 3];
 		attribute<float64> imp : [1.0, 10.0, 2.0];
 	}
 	unit<uint32> OrgZone : nrofrows = 1;
@@ -34,7 +34,7 @@ container fn_test_od_startpoint
 	unit<uint32> od := impedance_matrix(
 		  'directed;startPoint(Node_rel,OrgZone_rel);endPoint(Node_rel,DstZone_rel)'
 		  ';od:impedance,OrgZone_rel,DstZone_rel,StartPoint_rel,EndPoint_rel'
-		, Link/imp, Link/F1, Link/F2
+		, Link/imp, Link/N1_rel, Link/N2_rel
 		, StartSet/node_rel, StartSet/zone_rel
 		, EndSet/node_rel,   EndSet/zone_rel
 		);
@@ -45,7 +45,7 @@ container fn_test_od_startpoint
 	unit<uint32> od_cut := impedance_matrix(
 		  'directed;startPoint(Node_rel,OrgZone_rel);endPoint(Node_rel,DstZone_rel)'
 		  ';cut(OrgZone_max_imp);od:impedance,OrgZone_rel,DstZone_rel,StartPoint_rel'
-		, Link/imp, Link/F1, Link/F2
+		, Link/imp, Link/N1_rel, Link/N2_rel
 		, StartSet/node_rel, StartSet/zone_rel
 		, EndSet/node_rel,   EndSet/zone_rel
 		, const(5.0, OrgZone)
@@ -74,9 +74,9 @@ container fn_test_od_startpoint
 
 		// dst zone 2 owns a dense row but was never reached: no route means no origin, so the
 		// start point must read back as null rather than as leftover memory
-		parameter<bool> unreached_imp_null   := !IsDefined(od/impedance[2])     , IntegrityCheck = "unreached_imp_null == True";
-		parameter<bool> unreached_start_null := !IsDefined(od/StartPoint_rel[2]), IntegrityCheck = "unreached_start_null == True";
-		parameter<bool> unreached_end_null   := !IsDefined(od/EndPoint_rel[2])  , IntegrityCheck = "unreached_end_null == True";
+		parameter<bool> unreached_imp_null   := !IsDefined(od/impedance[2])     , IntegrityCheck = "unreached_imp_null == true";
+		parameter<bool> unreached_start_null := !IsDefined(od/StartPoint_rel[2]), IntegrityCheck = "unreached_start_null == true";
+		parameter<bool> unreached_end_null   := !IsDefined(od/EndPoint_rel[2])  , IntegrityCheck = "unreached_end_null == true";
 
 		// sparse path: both zones stay within the cut, committed cheapest first
 		parameter<uint32>  cut_rows    := uint32(#od_cut)              , IntegrityCheck = "cut_rows == 2";

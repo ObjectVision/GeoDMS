@@ -8,8 +8,8 @@ container fn_test_opsigK13
 	unit<uint32> Node : nrofrows = 2;
 	unit<uint32> Link : nrofrows = 1
 	{
-		attribute<Node>    F1   : [0];
-		attribute<Node>    F2   : [1];
+		attribute<Node>    N1_rel   : [0];
+		attribute<Node>    N2_rel   : [1];
 		attribute<float64> imp  : [1.0];
 		attribute<float32> tt32 : [1];
 	}
@@ -18,32 +18,32 @@ container fn_test_opsigK13
 	parameter<string> impSpec := 'directed;startPoint(Node_rel)';
 
 	// P1: LITERAL spec — read straight off the parse tree
-	function distL<L: domains, S: domains>(attribute<float64> w (L); attribute<Node> f1 (L); attribute<Node> f2 (L); attribute<Node> sr (S))
-	-> attribute<float64> (Node) := impedance_table('directed;startPoint(Node_rel)', w, f1, f2, sr);
+	function distL<L: domains, Sx: domains>(attribute<float64> w (L); attribute<Node> fromNd (L); attribute<Node> toNd (L); attribute<Node> sr (Sx))
+	-> attribute<float64> (Node) := impedance_table('directed;startPoint(Node_rel)', w, fromNd, toNd, sr);
 
 	// P2: CLOSED definition-scope spec — evaluated at definition scan through
 	// the same DC every application interns
-	function distC<L: domains, S: domains>(attribute<float64> w (L); attribute<Node> f1 (L); attribute<Node> f2 (L); attribute<Node> sr (S))
-	-> attribute<float64> (Node) := impedance_table(impSpec, w, f1, f2, sr);
+	function distC<L: domains, Sx: domains>(attribute<float64> w (L); attribute<Node> fromNd (L); attribute<Node> toNd (L); attribute<Node> sr (Sx))
+	-> attribute<float64> (Node) := impedance_table(impSpec, w, fromNd, toNd, sr);
 
 	// P4 (S1 regression): OPEN spec — a FORMAL parameter; must defer exactly as
 	// before this tranche (no def-time error) and still compute
-	function distO<L: domains, S: domains>(parameter<string> sp; attribute<float64> w (L); attribute<Node> f1 (L); attribute<Node> f2 (L); attribute<Node> sr (S))
-	-> attribute<float64> (Node) := impedance_table(sp, w, f1, f2, sr);
+	function distO<L: domains, Sx: domains>(parameter<string> sp; attribute<float64> w (L); attribute<Node> fromNd (L); attribute<Node> toNd (L); attribute<Node> sr (Sx))
+	-> attribute<float64> (Node) := impedance_table(sp, w, fromNd, toNd, sr);
 
 	// MEMO-REPLAY REGRESSION (review S1 finding, fixed): TWO impedance
 	// applications with DIFFERENT Imp classes in ONE body — the per-spec record
 	// must derive from each application's OWN surviving member (float64 vs
 	// float32), never replay the other's tuples
-	function dist2<L: domains, S: domains>(attribute<float64> w64 (L); attribute<float32> w32 (L); attribute<Node> f1 (L); attribute<Node> f2 (L); attribute<Node> sr (S))
+	function dist2<L: domains, Sx: domains>(attribute<float64> w64 (L); attribute<float32> w32 (L); attribute<Node> fromNd (L); attribute<Node> toNd (L); attribute<Node> sr (Sx))
 	-> attribute<float64> (Node) :=
-		   impedance_table('directed;startPoint(Node_rel)', w64, f1, f2, sr)
-		 + float64(impedance_table('directed;startPoint(Node_rel)', w32, f1, f2, sr));
+		   impedance_table('directed;startPoint(Node_rel)', w64, fromNd, toNd, sr)
+		 + float64(impedance_table('directed;startPoint(Node_rel)', w32, fromNd, toNd, sr));
 
-	attribute<float64> d1 (Node) := distL(Link/imp, Link/F1, Link/F2, StartSet/nr);
-	attribute<float64> d2 (Node) := distC(Link/imp, Link/F1, Link/F2, StartSet/nr);
-	attribute<float64> d3 (Node) := distO(impSpec, Link/imp, Link/F1, Link/F2, StartSet/nr);
-	attribute<float64> d4 (Node) := dist2(Link/imp, Link/tt32, Link/F1, Link/F2, StartSet/nr);
+	attribute<float64> d1 (Node) := distL(Link/imp, Link/N1_rel, Link/N2_rel, StartSet/nr);
+	attribute<float64> d2 (Node) := distC(Link/imp, Link/N1_rel, Link/N2_rel, StartSet/nr);
+	attribute<float64> d3 (Node) := distO(impSpec, Link/imp, Link/N1_rel, Link/N2_rel, StartSet/nr);
+	attribute<float64> d4 (Node) := dist2(Link/imp, Link/tt32, Link/N1_rel, Link/N2_rel, StartSet/nr);
 
 	container checks
 	{

@@ -4,18 +4,18 @@ container fn_test_fe_neg5
 	// parameter) must DEFER exactly as before the tranche — no definition-time
 	// error of any kind (in particular no bogus 'not among them'); the failure
 	// is the LATE inline-reduction one.
-	unit<uint32> D : nrofrows = 3;
+	unit<uint32> Dx : nrofrows = 3;
 	unit<uint32> NSet : nrofrows = 2;
 	attribute<string> mnames (NSet) : ['a','b'];
 	attribute<string> mexprs (NSet) : ['x + x','x - x'];
-	attribute<float64> src (D) : [1.0, 2.0, 3.0];
+	attribute<float64> src (Dx) : [1.0, 2.0, 3.0];
 
-	function f(attribute<string> nm (NSet); attribute<float64> x (D)) -> attribute<float64> (D)
+	function f(attribute<string> nm (NSet); attribute<float64> x (Dx)) -> attribute<float64> (Dx)
 	{
-		container r := for_each_nedv(nm, mexprs, D, float64);
-		attribute<float64> result (D) := r/anything; // member set unknowable at definition: defer
+		container r := for_each_nedv(nm, mexprs, Dx, float64);
+		attribute<float64> result (Dx) := r/anything; // member set unknowable at definition: defer
 	}
-	attribute<float64> y (D) := f(mnames, src);
+	attribute<float64> y (Dx) := f(mnames, src);
 
 	container checks
 	{

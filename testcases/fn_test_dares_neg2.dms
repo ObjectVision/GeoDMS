@@ -4,23 +4,23 @@ container fn_test_dares_neg2
 	// price class S (here int32, from the suitability maps), not the count class.
 	// Declaring it string is a DEFINITION-time conflict — proving the second
 	// name-directed family is typed too, and typed from the operator's own S.
-	unit<uint8>  LuType : nrofrows = 2 { attribute<string> name : ['A','B']; }
-	unit<uint32> Cells  : nrofrows = 4;
+	unit<uint8>  LuType : nrofrows = 2 { attribute<string> name : ['LuA','LuB']; }
+	unit<uint32> CellDom  : nrofrows = 4;
 	container Suit
 	{
-		attribute<int32> A (Cells) := const(1i, Cells);
-		attribute<int32> B (Cells) := const(1i, Cells);
+		attribute<int32> LuA (CellDom) := const(1i, CellDom);
+		attribute<int32> LuB (CellDom) := const(1i, CellDom);
 	}
-	container CMin { parameter<uint32> A := 1; parameter<uint32> B := 1; }
-	container CMax { parameter<uint32> A := 4; parameter<uint32> B := 4; }
+	container CMin { parameter<uint32> LuA := 1; parameter<uint32> LuB := 1; }
+	container CMax { parameter<uint32> LuA := 4; parameter<uint32> LuB := 4; }
 	parameter<int32> thr := 0i;
 
 	function bad(unit<uint32> cells) -> parameter<string>
 	{
-		container a := discrete_alloc_np(LuType/name, cells, Suit, CMin, CMax, thr);
-		parameter<string> result := a/shadow_prices/A;   // it is an int32 price
+		container alloc := discrete_alloc_np(LuType/name, cells, Suit, CMin, CMax, thr);
+		parameter<string> result := alloc/shadow_prices/LuA;   // it is an int32 price
 	}
-	parameter<string> n := bad(Cells);
+	parameter<string> n := bad(CellDom);
 
 	container checks { parameter<string> c := n, IntegrityCheck = "c == '0'"; }
 }

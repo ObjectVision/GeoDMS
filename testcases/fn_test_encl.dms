@@ -9,15 +9,15 @@ container fn_test_encl
 	// pre-existing limit; closures cover that case, see fn_test_closure2.)
 	unit<uint32> Road : nrofrows = 3 { attribute<float64> flow : [ 1.0, 2.0, 3.0 ]; }
 
-	nuf = function<V: numerics, D: domains>(attribute<V> (D)) -> attribute<V> (D);
+	nuf = function<Vx: numerics, Dx: domains>(attribute<Vx> (Dx)) -> attribute<Vx> (Dx);
 
-	function outer<F: floats, D: domains>(attribute<F> a (D)) -> attribute<F> (D) := inner(half);
+	function outer<Fx: floats, Dx: domains>(attribute<Fx> a (Dx)) -> attribute<Fx> (Dx) := inner(half);
 	{
-		function half<W: floats, Dh: domains>(attribute<W> x (Dh)) -> attribute<W> (Dh) := x / 2.0;
+		function half<Wx: floats, Dh: domains>(attribute<Wx> x (Dh)) -> attribute<Wx> (Dh) := x / 2.0;
 
 		// F appears ONLY in the type application here — its constraint must come
 		// from outer's clause when the walker links it to half's 'W: floats'
-		function inner(g: nuf<F, D>) -> attribute<F> (D) := g(half(1.0));
+		function inner(g: nuf<Fx, Dx>) -> attribute<Fx> (Dx) := g(half(1.0));
 	}
 
 	parameter<float64> o := outer(Road/flow); // g=half: half(half(1.0)) = 0.25 (void result)

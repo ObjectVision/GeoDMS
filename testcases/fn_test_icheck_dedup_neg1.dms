@@ -19,6 +19,6 @@ container fn_test_icheck_dedup_neg1
 	container checks
 	{
 		// the computed value would be correct; the violated ancestor check must fail the run anyway
-		parameter<bool> c1 := grp/z == 47, IntegrityCheck = "c1 == True";
+		parameter<bool> c1 := grp/z == 47, IntegrityCheck = "c1 == true";
 	}
 }

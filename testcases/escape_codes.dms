@@ -15,8 +15,8 @@ container escape_codes
 
 	container checks
 	{
-		parameter<bool> dropped   := unknown_escape == 'ad+b',                 IntegrityCheck = "dropped == True";
-		parameter<bool> hexEscape := known_escapes  == 'tab:\t nl:\n cr:\r backslash:\\ quote:'' hex:A', IntegrityCheck = "hexEscape == True";
-		parameter<bool> quoted    := known_escapes2 == 'double quote:" tab:\t backslash:\\',             IntegrityCheck = "quoted == True";
+		parameter<bool> dropped   := unknown_escape == 'ad+b',                 IntegrityCheck = "dropped == true";
+		parameter<bool> hexEscape := known_escapes  == 'tab:\t nl:\n cr:\r backslash:\\ quote:'' hex:A', IntegrityCheck = "hexEscape == true";
+		parameter<bool> quoted    := known_escapes2 == 'double quote:" tab:\t backslash:\\',             IntegrityCheck = "quoted == true";
 	}
 }

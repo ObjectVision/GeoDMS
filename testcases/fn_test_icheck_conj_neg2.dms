@@ -18,6 +18,6 @@ container fn_test_icheck_conj_neg2
 
 	container checks
 	{
-		parameter<bool> c1 := outer/inner/v == 43, IntegrityCheck = "c1 == True";
+		parameter<bool> c1 := outer/inner/v == 43, IntegrityCheck = "c1 == true";
 	}
 }

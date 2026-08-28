@@ -11,11 +11,11 @@ container fn_test_opsigC
 	}
 
 	// K15: total aggregation to a void-domain parameter
-	function tot<V: numerics, D: domains>(attribute<V> x (D)) -> parameter<V> := sum(x);
+	function tot<Vx: numerics, Dx: domains>(attribute<Vx> x (Dx)) -> parameter<Vx> := sum(x);
 
 	// K5: the result domain IS the partition's values unit
-	function regioSum<V: numerics, D: domains>(attribute<V> x (D); attribute<Region> part (D))
-	-> attribute<V> (Region) := sum(x, part);
+	function regioSum<Vx: numerics, Dx: domains>(attribute<Vx> x (Dx); attribute<Region> part (Dx))
+	-> attribute<Vx> (Region) := sum(x, part);
 
 	// pcount (typed group): result over the partition values unit, count class fixed
 	function cnt(attribute<Region> rel (House)) -> attribute<uint32> (Region) := pcount_uint32(rel);

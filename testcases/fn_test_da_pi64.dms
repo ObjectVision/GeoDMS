@@ -13,22 +13,22 @@ container fn_test_da_pi64
 	//
 	// greedy_alloc and needy_alloc have no _pi64 twin -- they use neither shadow prices nor
 	// the perturbation -- so there is nothing to compare for them here.
-	unit<uint8>  LuType : nrofrows = 3 { attribute<string> name : ['A','B','C']; }
-	unit<uint32> Cells  : nrofrows = 8;
+	unit<uint8>  LuType : nrofrows = 3 { attribute<string> name : ['LuA','LuB','LuC']; }
+	unit<uint32> CellDom  : nrofrows = 8;
 
 	container Suit
 	{
-		attribute<int32> A (Cells) : [9,8,7,6,5,4,3,2];
-		attribute<int32> B (Cells) : [2,3,4,5,6,7,8,9];
-		attribute<int32> C (Cells) : [1,1,1,1,1,1,1,1];
+		attribute<int32> LuA (CellDom) : [9,8,7,6,5,4,3,2];
+		attribute<int32> LuB (CellDom) : [2,3,4,5,6,7,8,9];
+		attribute<int32> LuC (CellDom) : [1,1,1,1,1,1,1,1];
 	}
-	// A's and B's maxima bind, so shadow prices have to move and the perturbation is really used
-	container CMin { parameter<uint32> A := 0; parameter<uint32> B := 0; parameter<uint32> C := 0; }
-	container CMax { parameter<uint32> A := 2; parameter<uint32> B := 3; parameter<uint32> C := 8; }
+	// LuA's and LuB's maxima bind, so shadow prices have to move and the perturbation is really used
+	container CMin { parameter<uint32> LuA := 0; parameter<uint32> LuB := 0; parameter<uint32> LuC := 0; }
+	container CMax { parameter<uint32> LuA := 2; parameter<uint32> LuB := 3; parameter<uint32> LuC := 8; }
 	parameter<int32> thr := 0i;
 
-	container da32 := discrete_alloc_np     (LuType/name, Cells, Suit, CMin, CMax, thr);
-	container da64 := discrete_alloc_np_pi64(LuType/name, Cells, Suit, CMin, CMax, thr);
+	container da32 := discrete_alloc_np     (LuType/name, CellDom, Suit, CMin, CMax, thr);
+	container da64 := discrete_alloc_np_pi64(LuType/name, CellDom, Suit, CMin, CMax, thr);
 
 	container checks
 	{
@@ -38,20 +38,20 @@ container fn_test_da_pi64
 
 		// same shadow prices, so the wider perturbation leaves the price arithmetic alone
 		parameter<uint32> nrEqualPrices :=
-				uint32(da32/shadow_prices/A == da64/shadow_prices/A)
-			+	uint32(da32/shadow_prices/B == da64/shadow_prices/B)
-			+	uint32(da32/shadow_prices/C == da64/shadow_prices/C)
+				uint32(da32/shadow_prices/LuA == da64/shadow_prices/LuA)
+			+	uint32(da32/shadow_prices/LuB == da64/shadow_prices/LuB)
+			+	uint32(da32/shadow_prices/LuC == da64/shadow_prices/LuC)
 		,	IntegrityCheck = "nrEqualPrices == 3";
 
 		// same totals per type
 		parameter<uint32> nrEqualTotals :=
-				uint32(da32/total_allocated/A == da64/total_allocated/A)
-			+	uint32(da32/total_allocated/B == da64/total_allocated/B)
-			+	uint32(da32/total_allocated/C == da64/total_allocated/C)
+				uint32(da32/total_allocated/LuA == da64/total_allocated/LuA)
+			+	uint32(da32/total_allocated/LuB == da64/total_allocated/LuB)
+			+	uint32(da32/total_allocated/LuC == da64/total_allocated/LuC)
 		,	IntegrityCheck = "nrEqualTotals == 3";
 
 		// every cell is placed
-		parameter<uint32> allocated := da64/total_allocated/A + da64/total_allocated/B + da64/total_allocated/C
+		parameter<uint32> allocated := da64/total_allocated/LuA + da64/total_allocated/LuB + da64/total_allocated/LuC
 		,	IntegrityCheck = "allocated == 8";
 	}
 }

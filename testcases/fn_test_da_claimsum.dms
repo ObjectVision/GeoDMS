@@ -7,25 +7,25 @@ container fn_test_da_claimsum
 	// allocated while the total of the maximum claims is only 0" and rejected a problem that is
 	// trivially feasible. The sum is now formed in SizeT and clamped to the land unit count,
 	// which is what an unbounded maximum means -- no region can absorb more cells than exist.
-	unit<uint8>  LuType : nrofrows = 2 { attribute<string> name : ['A','B']; }
-	unit<uint32> Cells  : nrofrows = 4;
+	unit<uint8>  LuType : nrofrows = 2 { attribute<string> name : ['LuA','LuB']; }
+	unit<uint32> CellDom  : nrofrows = 4;
 	container Suit
 	{
-		attribute<int32> A (Cells) : [4,3,2,1];
-		attribute<int32> B (Cells) : [1,2,3,4];
+		attribute<int32> LuA (CellDom) : [4,3,2,1];
+		attribute<int32> LuB (CellDom) : [1,2,3,4];
 	}
-	container CMin { parameter<uint32> A := 0; parameter<uint32> B := 0; }
-	container CMax { parameter<uint32> A := 2147483648; parameter<uint32> B := 2147483648; }
+	container CMin { parameter<uint32> LuA := 0; parameter<uint32> LuB := 0; }
+	container CMax { parameter<uint32> LuA := 2147483648; parameter<uint32> LuB := 2147483648; }
 	parameter<int32> thr := 0i;
 
-	container a := discrete_alloc_np(LuType/name, Cells, Suit, CMin, CMax, thr);
+	container alloc := discrete_alloc_np(LuType/name, CellDom, Suit, CMin, CMax, thr);
 
 	container checks
 	{
-		parameter<uint32> feasible := uint32(a/statusFlag)
+		parameter<uint32> feasible := uint32(alloc/statusFlag)
 		,	IntegrityCheck = "feasible == 1";
 
-		parameter<uint32> allocated := a/total_allocated/A + a/total_allocated/B
+		parameter<uint32> allocated := alloc/total_allocated/LuA + alloc/total_allocated/LuB
 		,	IntegrityCheck = "allocated == 4";
 	}
 }

@@ -10,6 +10,6 @@ container fn_test_icheck_suppl_neg1
 	container checks
 	{
 		// the computed value would be correct; the violated supplier check must fail the run anyway
-		parameter<bool> c1 := x == 5, IntegrityCheck = "c1 == True";
+		parameter<bool> c1 := x == 5, IntegrityCheck = "c1 == true";
 	}
 }

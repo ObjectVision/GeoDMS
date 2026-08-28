@@ -26,7 +26,7 @@ container prelude_coverage
 	unit<uint32> Stored
 	:	StorageName     = "%LocalDataDir%/prelude_coverage_never_opened.dbf"
 	,	StorageReadOnly = "True"
-	,	NrOfRows        = 0
+	,	nrofrows        = 0
 	;
 
 	parameter<string> p_label   := Label(Road);      // "Road segments"
@@ -56,10 +56,10 @@ container prelude_coverage
 
 	container checks
 	{
-		parameter<bool> c_label    := p_label == 'Road segments',   IntegrityCheck = "c_label == True";
+		parameter<bool> c_label    := p_label == 'Road segments',   IntegrityCheck = "c_label == true";
 		parameter<bool> c_storage  := strpos(p_storage, 'prelude_coverage_never_opened.dbf') >= 0,
-		                                                            IntegrityCheck = "c_storage == True";
-		parameter<bool> c_ek       := IsDefined(p_ek),               IntegrityCheck = "c_ek == True";
+		                                                            IntegrityCheck = "c_storage == true";
+		parameter<bool> c_ek       := IsDefined(p_ek),               IntegrityCheck = "c_ek == true";
 
 		parameter<float64> c_ll1   := abs(t_ll1 - t_ll1_expl),       IntegrityCheck = "c_ll1 < 1e-12";
 

@@ -4,14 +4,14 @@ container fn_test_lambda
 	// lifted at parse time into hidden '_lambda_<n>' declarations.
 	unit<uint32> Road : nrofrows = 3 { attribute<float64> flow : [ 1.0, 2.0, 3.0 ]; }
 
-	nuf = function<V: numerics, D: domains>(attribute<V> (D)) -> attribute<V> (D);
+	nuf = function<Vx: numerics, Dx: domains>(attribute<Vx> (Dx)) -> attribute<Vx> (Dx);
 
-	function compose<V: numerics, D: domains>(f: nuf<V, D>; g: nuf<V, D>) -> nuf<V, D>
-		:= function(attribute<V> x (D)) -> attribute<V> (D) := f(g(x));
+	function compose<Vx: numerics, Dx: domains>(f: nuf<Vx, Dx>; g: nuf<Vx, Dx>) -> nuf<Vx, Dx>
+		:= function(attribute<Vx> x (Dx)) -> attribute<Vx> (Dx) := f(g(x));
 
 	// B1: a GENERIC literal as an argument (its own <W, E> clause; extent ends at ',')
 	attribute<float64> a (Road)
-		:= compose(function<W: numerics, E: domains>(attribute<W> y (E)) -> attribute<W> (E) := y + 1.0, sqr)(Road/flow);
+		:= compose(function<Wx: numerics, E: domains>(attribute<Wx> y (E)) -> attribute<Wx> (E) := y + 1.0, sqr)(Road/flow);
 	// f=literal, g=sqr: x^2 + 1 -> [2, 5, 10]
 
 	// B2: a parenthesized literal, immediately applied (splice swallows the parens)
@@ -21,8 +21,8 @@ container fn_test_lambda
 
 	// B3: a literal inside a function's result expression — hoisted as a body item;
 	// its declared domain (D) is the ENCLOSING function's domain variable (lexical)
-	function scale2<D: domains>(attribute<float64> x (D)) -> attribute<float64> (D)
-		:= (function(attribute<float64> w (D)) -> attribute<float64> (D) := 2.0 * w)(x);
+	function scale2<Dx: domains>(attribute<float64> x (Dx)) -> attribute<float64> (Dx)
+		:= (function(attribute<float64> w (Dx)) -> attribute<float64> (Dx) := 2.0 * w)(x);
 	attribute<float64> c (Road) := scale2(Road/flow); // [2, 4, 6]
 
 	container checks

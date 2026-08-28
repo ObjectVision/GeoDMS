@@ -9,7 +9,7 @@ container oper_district_neg
 
 	attribute<uint8> src (grid) := NoSuchItem; // fails, so district(src) has no meta info
 
-	unit<uint32> D := district_8(src)
+	unit<uint32> Dx := district_8(src)
 	{
 		attribute<uint32> cellCount        := pcount(Districts);
 		attribute<uint32> perCell  (grid)  := Districts;
@@ -17,6 +17,6 @@ container oper_district_neg
 
 	container checks
 	{
-		parameter<uint32> total := sum(D/cellCount);
+		parameter<uint32> total := sum(Dx/cellCount);
 	}
 }

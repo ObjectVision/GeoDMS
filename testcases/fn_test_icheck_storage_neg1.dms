@@ -17,6 +17,6 @@ container fn_test_icheck_storage_neg1
 	container checks
 	{
 		// the value itself would be correct; the violated ancestor check must fail the run anyway
-		parameter<bool> c1 := bareRef == 'payload-42', IntegrityCheck = "c1 == True";
+		parameter<bool> c1 := bareRef == 'payload-42', IntegrityCheck = "c1 == true";
 	}
 }

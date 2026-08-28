@@ -6,18 +6,18 @@ container fn_test_selmeta_neg
 	// definition error), so the failure that surfaces is the HONEST inline
 	// reduction rejection ("meta function call is not supported inside
 	// function bodies"), proving the checker deferred rather than mis-typing.
-	unit<uint32> D : nrofrows = 4;
+	unit<uint32> Dx : nrofrows = 4;
 	container attrs
 	{
-		attribute<float64> population (D) : [10.0, 20.0, 30.0, 40.0];
+		attribute<float64> population (Dx) : [10.0, 20.0, 30.0, 40.0];
 	}
 
-	function usesMeta(attribute<bool> c (D)) -> parameter<uint32>
+	function usesMeta(attribute<bool> c (Dx)) -> parameter<uint32>
 	{
 		unit<uint32> s := select_with_attr_by_cond(attrs, c);
 		parameter<uint32> result := #s;
 	}
-	attribute<bool> cond (D) : [false, true, true, false];
+	attribute<bool> cond (Dx) : [false, true, true, false];
 	parameter<uint32> n := usesMeta(cond);
 
 	container checks

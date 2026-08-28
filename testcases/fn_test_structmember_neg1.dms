@@ -7,12 +7,12 @@ container fn_test_structmember_neg1
 	unit<uint32> Net : nrofrows = 2
 	{
 		unit<uint32> nodeset : nrofrows = 3;
-		attribute<nodeset> F1 : [ 0, 1 ];
+		attribute<nodeset> N1_rel : [ 0, 1 ];
 	}
 	function bad_net( unit<uint32> nw {
 		unit<uint32> nodeset;
-		attribute<float32> F1;
-	} ) -> parameter<uint32> := sum(pcount(nw/F1));
+		attribute<float32> N1_rel;
+	} ) -> parameter<uint32> := sum(pcount(nw/N1_rel));
 
 	parameter<uint32> total := bad_net(Net);
 	container checks { parameter<uint32> c := total, IntegrityCheck = "c == 2"; }

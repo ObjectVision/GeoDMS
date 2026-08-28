@@ -61,11 +61,11 @@ container shipped_library_grid2poly
 
 	container checks
 	{
-		parameter<bool> c_nr    := nr_results == 2u,                 IntegrityCheck = "c_nr == True";
-		parameter<bool> c_left  := abs(zone_area[0] - 8.0) < 1e-9,   IntegrityCheck = "c_left == True";
-		parameter<bool> c_right := abs(zone_area[1] - 8.0) < 1e-9,   IntegrityCheck = "c_right == True";
-		parameter<bool> c_total := abs(total_area   - 16.0) < 1e-9,  IntegrityCheck = "c_total == True";
+		parameter<bool> c_nr    := nr_results == 2u,                 IntegrityCheck = "c_nr == true";
+		parameter<bool> c_left  := abs(zone_area[0] - 8.0) < 1e-9,   IntegrityCheck = "c_left == true";
+		parameter<bool> c_right := abs(zone_area[1] - 8.0) < 1e-9,   IntegrityCheck = "c_right == true";
+		parameter<bool> c_total := abs(total_area   - 16.0) < 1e-9,  IntegrityCheck = "c_total == true";
 		// the template's own no-overlap assumption, made into an assertion
-		parameter<bool> c_overl := overlap_area < 1e-9,              IntegrityCheck = "c_overl == True";
+		parameter<bool> c_overl := overlap_area < 1e-9,              IntegrityCheck = "c_overl == true";
 	}
 }

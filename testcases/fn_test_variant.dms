@@ -1,6 +1,6 @@
 container fn_test_variant
 {
-	unit<uint32> D : nrofrows = 3
+	unit<uint32> Dx : nrofrows = 3
 	{
 		attribute<float64> f : [ 1.0, 2.0, 3.0 ];
 		attribute<int32>   i : [ 10, 20, 30 ];
@@ -9,12 +9,12 @@ container fn_test_variant
 	// a variant set: 'describe' dispatches on the element type of its argument
 	function describe
 	{
-		variant asFloat(attribute<float64> x (D)) -> attribute<float64> (D) := x * 100.0;
-		variant asInt  (attribute<int32>   x (D)) -> attribute<int32>   (D) := x + x;
+		variant asFloat(attribute<float64> x (Dx)) -> attribute<float64> (Dx) := x * 100.0;
+		variant asInt  (attribute<int32>   x (Dx)) -> attribute<int32>   (Dx) := x + x;
 	}
 
-	attribute<float64> df (D) := describe(D/f);   // picks asFloat
-	attribute<int32>   di (D) := describe(D/i);   // picks asInt
+	attribute<float64> df (Dx) := describe(Dx/f);   // picks asFloat
+	attribute<int32>   di (Dx) := describe(Dx/i);   // picks asInt
 
 	container checks
 	{

@@ -3,15 +3,15 @@ container fn_test_subref_neg2
 	// §12.7 slSubItemCall tranche: the member TYPE flows — u/Values is
 	// float64-classed (through unique's V linked to the argument), so a
 	// string-declared result is a DEFINITION-time class mismatch.
-	unit<uint32> D : nrofrows = 4;
-	attribute<float64> x (D) : [1.0, 2.0, 2.0, 3.0];
+	unit<uint32> Dx : nrofrows = 4;
+	attribute<float64> x (Dx) : [1.0, 2.0, 2.0, 3.0];
 
-	function f(attribute<float64> src (D)) -> attribute<string> (D)
+	function f(attribute<float64> src (Dx)) -> attribute<string> (Dx)
 	{
 		unit<uint32> u := unique(src);
-		attribute<string> result (D) := u/Values; // float64 member vs string declaration
+		attribute<string> result (Dx) := u/Values; // float64 member vs string declaration
 	}
-	attribute<string> y (D) := f(x);
+	attribute<string> y (Dx) := f(x);
 
 	container checks
 	{

@@ -5,13 +5,13 @@ container fn_test_subref_neg5
 	// cache result — so the member access must keep the pre-tranche throw
 	// ("Cannot find sub from ..."), never wrap it in slSubItemCall (which
 	// asserts on non-cache bases in Debug).
-	unit<uint32> D : nrofrows = 4;
+	unit<uint32> Dx : nrofrows = 4;
 	container ext
 	{
-		attribute<float64> sub (D) : [1.0, 2.0, 2.0, 3.0];
+		attribute<float64> sub (Dx) : [1.0, 2.0, 2.0, 3.0];
 	}
 
-	function f(attribute<float64> v (D)) -> parameter<float64>
+	function f(attribute<float64> v (Dx)) -> parameter<float64>
 	{
 		container c := ext;
 		parameter<float64> result := sum(c/sub) + sum(v);

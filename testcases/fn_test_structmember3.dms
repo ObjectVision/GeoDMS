@@ -17,8 +17,8 @@ container fn_test_structmember3
 
 	// (a) generic values member: sum(nw/w) is checked under forall-V and the result
 	// rides the same rigid V
-	function gsum<V: numerics>( unit<uint32> nw { attribute<V> w; } )
-	-> parameter<V> := sum(nw/w);
+	function gsum<Vx: numerics>( unit<uint32> nw { attribute<Vx> w; } )
+	-> parameter<Vx> := sum(nw/w);
 
 	parameter<float64> t1 := gsum(Net);
 
@@ -35,7 +35,7 @@ container fn_test_structmember3
 	// (c) generic domain variable in the member's domain position: cost lives on D,
 	// which the positional anchor binds at the application (D := Edge)
 	attribute<uint32> eid (Edge) := id(Edge);
-	function dsum<D: domains>( unit<uint32> nw { attribute<float64> cost (D); }; attribute<uint32> anchor (D) )
+	function dsum<Dx: domains>( unit<uint32> nw { attribute<float64> cost (Dx); }; attribute<uint32> anchor (Dx) )
 	-> parameter<float64> := sum(nw/cost);
 
 	parameter<float64> t3 := dsum(Net, eid);

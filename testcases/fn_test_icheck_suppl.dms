@@ -23,7 +23,7 @@ container fn_test_icheck_suppl
 
 	container checks
 	{
-		parameter<bool> c1 := x == 5,  IntegrityCheck = "c1 == True";
-		parameter<bool> c2 := y == 14, IntegrityCheck = "c2 == True";
+		parameter<bool> c1 := x == 5,  IntegrityCheck = "c1 == true";
+		parameter<bool> c2 := y == 14, IntegrityCheck = "c2 == true";
 	}
 }

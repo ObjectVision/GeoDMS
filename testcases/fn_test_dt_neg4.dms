@@ -12,7 +12,7 @@ container fn_test_dt_neg4
 		attribute<float64> cap  : [ 2.0, 4.0, 6.0 ];
 	}
 
-	function add2c<W: numerics, E: domains>(attribute<W> p (E); attribute<W> q (E)) -> attribute<W> (E) := p + q;
+	function add2c<Wx: numerics, E: domains>(attribute<Wx> p (E); attribute<Wx> q (E)) -> attribute<Wx> (E) := p + q;
 
 	function bad<D1: domains, D2: domains>(attribute<float64> x (D1); attribute<float64> y (D2)) -> attribute<float64> (D1)
 		:= add2c(x, y);

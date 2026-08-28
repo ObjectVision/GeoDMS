@@ -5,11 +5,11 @@ container fn_test_selmeta
 	// collected member per matching data-item child of the attribute
 	// container, over a fresh subset unit. At config scope the checker never
 	// runs — this is the ordinary working form and the reference semantics.
-	unit<uint32> D : nrofrows = 4;
+	unit<uint32> Dx : nrofrows = 4;
 	container attrs
 	{
-		attribute<float64> population (D) : [10.0, 20.0, 30.0, 40.0];
-		attribute<bool>    cond       (D) : [false, true, true, false];
+		attribute<float64> population (Dx) : [10.0, 20.0, 30.0, 40.0];
+		attribute<bool>    cond       (Dx) : [false, true, true, false];
 	}
 
 	// select_with_attr_by_cond(attrs, cond) -> unit<uint32> sel { population : attribute<float64>(sel) }

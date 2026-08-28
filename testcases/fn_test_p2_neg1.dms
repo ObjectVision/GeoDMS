@@ -5,8 +5,8 @@ container fn_test_p2_neg1
 		attribute<string> names : [ 'a', 'b' ];
 	}
 
-	function TwiceG<V: numerics>(unit<uint32> D; attribute<V> x (D))
-	-> attribute<V> (D) := x + x;
+	function TwiceG<Vx: numerics>(unit<uint32> Dx; attribute<Vx> x (Dx))
+	-> attribute<Vx> (Dx) := x + x;
 
 	attribute<string> failing (Road) := TwiceG(Road, Road/names);   // expect: does not satisfy 'V: numerics'
 }

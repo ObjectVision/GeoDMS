@@ -9,14 +9,14 @@ container fn_test_network_neg3
 	unit<uint32> NetBadRel : nrofrows = 3
 	{
 		unit<uint32> nodeset : nrofrows = 4;
-		attribute<other> F1 : [ 0, 1, 2 ];
+		attribute<other> N1_rel : [ 0, 1, 2 ];
 	}
 
 	function nodecount( unit<uint32> nw {
 		unit<uint32> nodeset;
-		attribute<nodeset> F1;
+		attribute<nodeset> N1_rel;
 	} )
-	-> parameter<uint32> := sum(pcount(nw/F1));
+	-> parameter<uint32> := sum(pcount(nw/N1_rel));
 
 	parameter<uint32> t1 := nodecount(NetBadRel);
 

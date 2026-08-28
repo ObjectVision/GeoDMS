@@ -4,18 +4,18 @@ container fn_test_fe_neg2
 	// argument's VALUE (K13). With a closed spec the arity is CreateResult's
 	// own CalcNrArgs predicate — the ruled honest exemption: 'nedv' expects 5
 	// arguments (including the specification), 4 given -> DEFINITION-time error.
-	unit<uint32> D : nrofrows = 3;
+	unit<uint32> Dx : nrofrows = 3;
 	unit<uint32> NSet : nrofrows = 2;
 	attribute<string> mnames (NSet) : ['a','b'];
 	attribute<string> mexprs (NSet) : ['x + x','x - x'];
-	attribute<float64> src (D) : [1.0, 2.0, 3.0];
+	attribute<float64> src (Dx) : [1.0, 2.0, 3.0];
 
-	function f(attribute<float64> x (D)) -> attribute<float64> (D)
+	function f(attribute<float64> x (Dx)) -> attribute<float64> (Dx)
 	{
-		container r := for_each_ind('nedv', mnames, mexprs, D); // values-unit argument missing
-		attribute<float64> result (D) := r/a;
+		container r := for_each_ind('nedv', mnames, mexprs, Dx); // values-unit argument missing
+		attribute<float64> result (Dx) := r/a;
 	}
-	attribute<float64> y (D) := f(src);
+	attribute<float64> y (Dx) := f(src);
 
 	container checks
 	{

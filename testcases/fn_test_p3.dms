@@ -7,20 +7,20 @@ container fn_test_p3
 
 	container lib
 	{
-		function Halve(unit<uint32> D; attribute<float64> v (D))
-		-> attribute<float64> (D) := v / 2.0;
+		function Halve(unit<uint32> Dx; attribute<float64> v (Dx))
+		-> attribute<float64> (Dx) := v / 2.0;
 
 		// higher-order: a function-valued parameter, applied twice
-		function ApplyTwice(unit<uint32> D; f: function; attribute<float64> x (D))
-		-> attribute<float64> (D) := f(D, f(D, x));
+		function ApplyTwice(unit<uint32> Dx; f: function; attribute<float64> x (Dx))
+		-> attribute<float64> (Dx) := f(Dx, f(Dx, x));
 
 		// two function-valued parameters, composed
-		function Compose2(unit<uint32> D; f: function; g: function; attribute<float64> x (D))
-		-> attribute<float64> (D) := f(D, g(D, x));
+		function Compose2(unit<uint32> Dx; f: function; g: function; attribute<float64> x (Dx))
+		-> attribute<float64> (Dx) := f(Dx, g(Dx, x));
 
 		// passing a sibling function (resolved via import) onward from inside a body
-		function QuarterViaPass(unit<uint32> D; attribute<float64> x (D)), using = /lib
-		-> attribute<float64> (D) := ApplyTwice(D, Halve, x);
+		function QuarterViaPass(unit<uint32> Dx; attribute<float64> x (Dx)), using = /lib
+		-> attribute<float64> (Dx) := ApplyTwice(Dx, Halve, x);
 	}
 
 	attribute<float64> quarter  (Road) := lib/ApplyTwice(Road, lib/Halve, Road/flow);

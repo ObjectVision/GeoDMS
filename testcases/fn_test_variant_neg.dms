@@ -1,15 +1,15 @@
 container fn_test_variant_neg
 {
-	unit<uint32> D : nrofrows = 2
+	unit<uint32> Dx : nrofrows = 2
 	{
 		attribute<string> s : [ 'a', 'b' ];
 	}
 
 	function describe
 	{
-		variant asFloat(attribute<float64> x (D)) -> attribute<float64> (D) := x * 100.0;
-		variant asInt  (attribute<int32>   x (D)) -> attribute<int32>   (D) := x * 2;
+		variant asFloat(attribute<float64> x (Dx)) -> attribute<float64> (Dx) := x * 100.0;
+		variant asInt  (attribute<int32>   x (Dx)) -> attribute<int32>   (Dx) := x * 2;
 	}
 
-	attribute<string> bad (D) := describe(D/s);   // expect: no variant matches (string)
+	attribute<string> bad (Dx) := describe(Dx/s);   // expect: no variant matches (string)
 }
