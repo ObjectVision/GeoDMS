@@ -277,7 +277,9 @@ void ChartLayer::DoUpdateView()
 		Float64 x;
 		if (xIsCategorical)
 		{
-			SharedStr label = xData->AsString(e, labelLock, FormattingFlags::None);
+			// tick-label text, so it is formatted for reading: the thousand separator is applied when
+			// the setting asks for it and dropped when it does not (issue #1223)
+			SharedStr label = xData->AsString(e, labelLock, FormattingFlags::ThousandSeparator);
 			auto it = categoryOrdinals.find(label);
 			if (it == categoryOrdinals.end())
 			{
@@ -291,7 +293,7 @@ void ChartLayer::DoUpdateView()
 		{
 			x = xData ? xData->GetValueAsFloat64(e) : Float64(e);
 			if (xLabelData)
-				m_XAxisLabels.emplace_back(x, xLabelData->AsString(e, labelLock, FormattingFlags::None));
+				m_XAxisLabels.emplace_back(x, xLabelData->AsString(e, labelLock, FormattingFlags::ThousandSeparator));
 		}
 
 		Float64 y = yData->GetValueAsFloat64(e);

@@ -319,7 +319,7 @@
         </font>
        </property>
        <property name="text">
-        <string>Table/Statistics View</string>
+        <string>Table/Statistics/Chart View</string>
        </property>
       </widget>
      </item>

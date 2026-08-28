@@ -14,6 +14,7 @@
 #include "vt/Conversions.h"
 #include "geom/PointOrder.h"
 #include "mci/Class.h"
+#include "ser/AsString.h"
 #include "utl/StrFormat.h"
 
 #include "DataView.h"
@@ -21,6 +22,7 @@
 #include "ViewPort.h"
 
 #include <cmath>
+#include <cstdlib>
 
 //----------------------------------------------------------------------
 // class  : AxisControl
@@ -53,6 +55,17 @@ static CrdType NiceStepSize(CrdType range, UInt32 maxTicks)
 	CrdType norm = rawStep / mag;
 	CrdType step = (norm <= 1.0) ? 1.0 : (norm <= 2.0) ? 2.0 : (norm <= 5.0) ? 5.0 : 10.0;
 	return step * mag;
+}
+
+// A tick label is rendered at six significant digits: t accumulates a rounding error along the
+// loop below, and the shortest round-tripping rendering of 1234.0000000000002 is not a tick label.
+// The trip through that text snaps the value back to the one the step meant to land on, after
+// which AsString applies the thousand separator (issue #1223). That separator stays optional:
+// FormattedOutStream drops the flag again when the setting is off.
+static SharedStr TickLabel(CrdType t)
+{
+	auto sixDigits = mySSPrintF("{:.6g}", t);
+	return AsString(std::strtod(sixDigits.c_str(), nullptr), FormattingFlags::ThousandSeparator);
 }
 
 const int TICK_LEN = 4;
@@ -148,7 +161,7 @@ bool AxisControl::Draw(GraphDrawer& d) const
 			: shp2dms_order<CrdType>(roi.first.X(), t);
 		CrdPoint vpLogical = w2v.Apply(worldPnt);
 
-		SharedStr label = mySSPrintF("{:.6g}", t);
+		SharedStr label = TickLabel(t);
 		if (isHor)
 		{
 			GType devX = GType(vpAbsDevicePos.X() + vpLogical.X() * sf.X());
