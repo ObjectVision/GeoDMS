@@ -2974,8 +2974,9 @@ process** and refused nothing at `/SB20480`. Two causes, two fixes:
    sample line reports both sides; its books/occupied ratio is the one figure that says whether
    the ledger can see a workload's memory at all.
 
-**Still pending:** re-run the t301 arms through full.py for a trustworthy 1 Hz process-peak
-comparison, and re-check the t641 numbers on the same basis.
+**Still pending:** the t301 half is done — §8.1.36 re-runs the arms on 20.18.0 with an external
+~3 Hz process sampler instead of full.py, and reports both the peaks and a double count in the
+gate's own committed figure. Re-checking the t641 numbers on the same basis is still open.
 
 ### 8.1.35 Release hygiene: the calibration log lines move behind `/SP`
 
@@ -3005,6 +3006,125 @@ branch, three lines below its `MG_DEBUG`-guarded define — is Debug-only again:
 pays a critical section + `std::set`/`std::map` touch per OperationContext lifecycle. The one
 functional use of its counter, `Join()`'s supplier-chain recursion bound, moved to an always-on
 relaxed atomic (`s_OcCount`).
+
+### 8.1.36 Re-measured on 20.18.0: the crest is transient library memory, and admission cannot shape it
+
+§8.1.33 measured enforce on t641_2, where 91 % of the volume is deferred material inside chains
+that were already admitted, so admission cannot see it by construction. This section asks the same
+question on the workload SHAPED for admission control — t301, 91 independent kaartblad
+instantiations of `select_with_org_rel` → `geos_buffer_multi_polygon` → `polygon_connectivity` →
+`unique` — on the 20.18.0 msbuild Release build, with the §8.1.34 fixes in. It also settles the
+process-peak half of §8.1.34's "still pending": the peak is sampled from OUTSIDE the process
+(~3 Hz `PrivateMemorySize64` / `WorkingSet64`), so neither the sampled `Highest CommitCharge` nor
+`PeakLiveLarge`'s blindness to the geos heap stands between the arms and their real footprint.
+Concurrency is reconstructed from the per-operation performance lines (completion stamp minus
+duration), counting `geos_buffer_multi_polygon` runs of a second or more.
+
+| arm | flags | wall s | peak commit | concurrent geos ops | parked | refusals | lifts |
+|---|---|---|---|---|---|---|---|
+| A  | `/CQ /SF` (off)    | 126.1 | 22 013 MB | 21 | — | 0 | — |
+| A2 | `/CQ /SF` (off)    | 141.3 | 21 895 MB | 22 | — | 0 | — |
+| G  | `/CQ /SF` (off)    | 127.1 | 23 552 MB | 19 | — | 0 | — |
+| B  | `/SQ /SF /SB20480` | 117.7 | 21 410 MB | 19 |  6 778 | 255 | 255 |
+| C  | `/SQ /SF /SB8192`  | 122.9 | 21 582 MB | 21 | 10 312 | 389 | 322 |
+| D  | `/SQ /SF /SB2048`  | 163.4 | 23 795 MB | 12 | 47 584 | 915 | 911 |
+| H  | `/SQ /SF /SB2048`  | 123.2 | 21 290 MB |  9 | 51 804 | 915 | 911 |
+
+Every arm exits 0 with `n_diff = 0` over 10 644 899 panden: enforce changes behaviour, not answers.
+
+**The budget does not steer the peak, in either direction.** All seven runs land between 21 290 and
+23 795 MB, and both extremes are settings measured twice: unthrottled peaks at 21 895–23 552 MB,
+`/SB2048` at 21 290–23 795 MB. The spread WITHIN one setting exceeds every difference BETWEEN
+settings, so a 2 GB budget and no budget at all draw from one distribution. (An earlier draft of
+this section read a single `/SB2048` run as 8 % worse than baseline; the repeat arms show that was
+noise. Repeat before concluding — on this workload one run per setting is not a measurement.)
+
+**Nor is the crest a floor.** `@statistics` on the largest single kaartblad (`R5_C2`, 471 661
+sequences) peaks at 4 573 MB in 52.7 s, and `@statistics` on the shared source every tile reads
+(`functioneel_pand/geometry_mm`) already costs 3 611 MB on its own — so a tile's MARGINAL footprint
+is about 1 GB. The 22 GB is an aggregate of what runs at once, not what the biggest tile needs.
+
+**The gate does cut concurrency; that is not where the money is.** 19–22 concurrent
+`geos_buffer_multi_polygon` runs unthrottled against 9–12 at `/SB2048`, and the window above 15 GB
+shrinks from 39 s to 25 s: the gate flattens the plateau. The crest does not follow, and the reason
+is what the crest is MADE of. Summed over all 91 tiles the geos stage's RESULTS come to 0.84 GiB
+against a ~22 GB process — roughly 95 % of the peak is transient working memory held inside the
+library while an admitted operation runs, taken from `std::allocator` at tile/thread granularity,
+invisible to both the allocation census and the ledger's retained books. Admitting half as many
+OperationContexts leaves the same 32-thread pool spending it.
+
+That is §8.1.33's verdict reproduced on a workload of the OPPOSITE shape, which is what makes it
+structural: on t641_2 the unreachable mass was deferred tile work inside already-admitted chains,
+on t301 it is library working memory inside already-admitted operations. In both cases the unit the
+gate controls is not the unit in which the memory is spent. Two corollaries carry over unchanged:
+the refused candidate is noise against the books (255 of 255 refusals in arm B, 305 of 389 in arm C
+charge under 1 % of committed), and nearly every refusal ends in a lift (255/255, 322/389, 911/915)
+— lift (b), "no drain available", is what actually admits, so the gate is a delay, not a limit.
+
+No `#running OperationContexts <= k × #vCPU` cap explains the ceiling either: the activation pass
+(`OperationContext.cpp:657-668`) admits every scheduled context of the current phase, braked only by
+`IsLowOnFreeRAM()`. The real bound is the portable task group, sized once at `GetNrVCPUs()`
+(`:319`, 32 here) — which is also why removing OperationContexts from the mix does not remove the
+threads that spend the memory.
+
+**A separate defect, found on the way: the committed figure double-counts in flight.**
+`LedgerEffectiveCommittedBytes()` (`OperationContext.cpp:1463`) returns
+`max(books, LedgerObservedCommitBytes() + sd_LedgerCommittedBytes)`, and `LedgerObservedCommitBytes()`
+(`:1442`) is the real process commit less the reclaimable dead pool. The full in-flight booking is
+then added on top of it — but the part of each running operation that has ALREADY allocated is
+inside that observed commit, and is counted twice. Sampled at the crest:
+
+| arm | process commit | occupied | + in flight | → gate weighs | budget |
+|---|---|---|---|---|---|
+| B | 21 509 MB | 21 501 MB | 3 889 MB | **25 390 MB** | 20 480 MB |
+| C | 20 664 MB | 20 656 MB | 3 984 MB | **24 640 MB** |  8 192 MB |
+
+`5f9ad853` introduced the term as "the in-flight charges the observation cannot yet contain", which
+is the right quantity; the code adds the whole charge rather than the unmaterialised remainder, so
+the error grows with the number of running operations. This is the mechanism behind #1198's second
+half — the figure is not bounded by anything real — and it answers the question the issue asks
+about it ("is 285.9 GB a lookahead projection or an accounting of live bytes?"): neither, it is a
+measurement with a projection added on top of it. `sd_LedgerCommittedBytes` sums the PREDICTED
+resident memory of every running operation, so where t301 has ten-odd small operations in flight
+and the term inflates the figure by 19 %, a tree of 129 449 data items with deep in-flight chains
+lets the projected term dominate the measured one outright: the issue reports 285.9 GB against a
+process whose commit charge at the time was ~90 GB. A gate that refuses against that figure is
+refusing against something it can never satisfy, which is exactly what the 14 984 "lifted: no
+drain available" resumptions in that run are.
+
+**Not tested here.** #1198's other half is the `MemoryMaxRAM_GB` default of 64 clamping a 128 GiB
+machine, which puts `IsLowOnFreeRAM()` permanently true above ~55 GiB of process use and halves
+the ledger budget at the same time. These arms peak at 22 GB, well under that clamp, so the brake
+never fired and the measurements above are clean of it — but they say nothing about the clamp
+itself, nor about the two run-ending stalls the issue reports (1 203 refusals logged with zero
+running operations, and a main thread 2 800 frames deep in `UpdateSuppliers` while 28 workers
+wait). Those need the reporter's configuration or a synthetic stand-in.
+
+Correcting the double count would make refusals fire later and less often; it would not make the
+budget bind, because the lift path already admits 911 of 915 refusals once the queue holds nothing
+that drains. The accounting defect and the admission model are separable, and only the first is a
+local change.
+
+**Consequence:** `ResourceAwareScheduling` stays **0 = off**, and #1198 is closed as answered rather
+than fixed: the measurement says what is wrong with the model, it does not repair it. Two follow-ups,
+in order. Fix the accounting — charge `max(0, charge − bytes this operation has already allocated)`
+against the observed basis, which needs a per-operation allocated-so-far counter the census does not
+keep today; the cheap approximation is to weigh `max(books, observed commit)` and let the in-flight
+term raise only the BOOKS side, where it is not double-counted. Then look for the lever at
+TILE/THREAD granularity instead of operation granularity, because on this workload that is where
+95 % of the crest lives — a bound on concurrent geometry working sets, not on admitted operations.
+Independent of both, and the cheapest thing on this list: `MemoryMaxRAM_GB` still defaults to 64
+and is still absent from Settings > Local machine options, so every machine above 64 GiB runs the
+`IsLowOnFreeRAM` brake and a halved ledger budget without being told (#1198 question 3, the second
+half of the closed #1156).
+
+Repro: `scratch/i1198/run_arm.ps1 -Arm <name> -Flags @('/SQ','/SF','/SB<MB>')` (2026-08-28, 127 GiB
+box, 32 vCPUs), optionally `-Item @('@statistics','<path>')`. It sets the full.py environment itself,
+points `TempDir/results_folder.txt` at its own output folder so a run cannot overwrite a json inside
+a historical result folder of the report, and leaves a log, console capture, memory trace and summary
+JSON per arm beside a `README.md` carrying the full numbers. Note that `@commit`, GeoDmsRun's default
+verb, does NOT force a data pull for a plain parameter or attribute — an early arm here "ran" a whole
+kaartblad in 1 ms that way. Target a storage-backed item, or use `@statistics`.
 
 ---
 
