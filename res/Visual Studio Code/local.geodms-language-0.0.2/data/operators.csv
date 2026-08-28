@@ -375,7 +375,6 @@ modus_count_uint8
 modus_weighted
 mul
 mul_or_null
-name
 ne
 needy_alloc
 needy_alloc_16
@@ -451,7 +450,6 @@ poly2allgrids
 poly2allgrids_uint64
 poly2grid
 poly2grid_untiled
-polygon
 polygon_connectivity
 potential
 potential32

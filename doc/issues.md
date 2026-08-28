@@ -741,6 +741,38 @@ layer interns through `_mt` at meta time, so the provenance would have to be exp
 considered and deliberately NOT built during #1161 -- the measurements did not justify a new
 mechanism while the engine was still the main offender.
 
+**Settled by measurement, so it is not re-litigated: the engine's mixed-case PROPERTY names stay as
+they are.** It was proposed to lower-case all ~57 of them (`Label`, `Expr`, `Descr`, `Source`,
+`Using`, `StorageName`, `DialogType`, ...) on the belief that nearly every real configuration writes
+them lower case. A census over the 1387 `.dms` files in `C:\dev	st`, `testcases/`, `library/` and
+`examples/`, counting only property positions (a name followed by `=`, not `:=` or `==`), says the
+opposite -- the corpus writes them the way the engine registers them:
+
+| property | engine spelling | other spellings |
+|---|---:|---|
+| `Expr` | 2394 | `expr` 1964 |
+| `DialogType` | 2079 | `dialogtype` 4, `Dialogtype` 1 |
+| `StorageName` | 1720 | `storagename` 122, `Storagename` 76 |
+| `Descr` | 1600 | `descr` 142 |
+| `StorageType` | 1206 | `storagetype` 2 |
+| `StorageReadOnly` | 979 | 26 across four other spellings |
+| `IntegrityCheck` | 853 | none |
+| `IsHidden` | 539 | `ishidden` 210, `isHidden` 196, `Ishidden` 62 |
+| `Source` | 483 | `source` 6 |
+| `Using` | 323 | `using` 194 |
+| `Label` | 171 | `label` 122 |
+| `FreeData` | 164 | none |
+| `SyncMode` | 118 | none |
+
+Lower-casing them would newly report a case mix-up on roughly 12 000 property writes in that corpus
+alone -- the exact opposite of what #1161 set out to do. The three properties the engine already
+spells lower case (`name`, `url`, `cdf`) are also the three the corpus writes lower case, so the
+engine and the corpus already agree everywhere except one: the unit property `range`
+(`UnitClassReg.h:37`), which the engine registers lower case and every one of the 31 corpus
+occurrences writes as `Range`. That one cannot be fixed by capitalising the property, because the
+`range` OPERATOR owns the same token; the configurations are what has to move, and the wiki examples
+now do.
+
 ## Cross-cutting observations
 
 - **Memory and liveness under load** (#1198, following the now-closed #1158/#1156/#1157): the GUI

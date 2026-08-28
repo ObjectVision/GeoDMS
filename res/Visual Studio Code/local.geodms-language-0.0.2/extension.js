@@ -4,6 +4,7 @@ const path = require("path");
 
 const PROPERTIES = [
   "cdf",
+  "name",
   "descr",
   "dialogdata",
   "dialogtype",

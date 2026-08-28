@@ -139,6 +139,16 @@ Section "GeoDMS Program Folder" ;No components page, name is not important
   File ${GeoDmsBinDir}\geodms.cp*-${GeoDmsPythonPlatformTag}.pyd
 
   File ..\res\NotePadPlusPlus\GeoDMS_npp_def.xml
+  ; Ship the VS Code extension WITH the product, not only into a user profile.
+  ; The profile copy in the section below lands in the profile of whoever ran the
+  ; setup -- which is elevated, so often not the account that edits .dms files.
+  ; This copy is the one a user can always find; README names the .vsix releases.
+  SetOutPath "$INSTDIR\VSCode\geodms-language"
+  File /r "..\res\Visual Studio Code\local.geodms-language-0.0.2\*"
+  SetOutPath "$INSTDIR\VSCode"
+  File "..\res\Visual Studio Code\README-vscode-extension.txt"
+  SetOutPath $INSTDIR
+
   
   WriteUninstaller $INSTDIR\uninstaller.exe
 
@@ -254,6 +264,10 @@ Section uninstall
   Delete $INSTDIR\*.dll
   Delete $INSTDIR\geodms*.pyd
   Delete $INSTDIR\GeoDMS_npp_def.xml
+
+  ; The shipped VS Code extension has nested folders, so remove it as a tree.
+  RMDir /r "$INSTDIR\VSCode"
+
 
   Delete $INSTDIR\gdaldata\*.*
   Delete $INSTDIR\generic\*.*
