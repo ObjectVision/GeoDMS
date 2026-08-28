@@ -23,6 +23,7 @@
 
 #include "CheckedDomain.h"
 #include "DataArray.h"
+#include "DataController.h"
 #include "DataItemClass.h"
 #include "LispTreeType.h"
 #include "Metric.h"
@@ -279,6 +280,186 @@ public:
 };
 
 // *****************************************************************************
+//                         union_data part domain check (#990)
+// *****************************************************************************
+
+// union_data concatenates the values of its data arguments and presents them over the domain given as
+// first argument. The only thing it verifies is that the cardinalities add up (ValidateCount in
+// CalcResult below), which is deliberate: union_data is a concatenating relabel, and in most of its
+// applications the result domain has no structural relation to the arguments at all. But it lets a
+// mistake pass as soon as the sizes happen to line up:
+// union_data(union_unit(NoordHolland, ZuidHolland), NH/CityNames, NH/CityNames) is accepted because
+// 5+5 == 5+5 (#990).
+//
+// In general the intended decomposition of the result domain is unknown here, but not when that domain
+// is itself produced by union_unit or combine(_unit): there the configurator wrote it down, and the
+// parts are available as sub-expressions of the first argument's key expression. Two decompositions
+// are recognised:
+//
+//	union_unit(u1 .. uk) with k data arguments: part i is ui.
+//	combine(a, b) with two or more data arguments: every part is b, because combine enumerates its
+//		factors with the FIRST varying slowest (the cycleSize loop in OperUnit.cpp), so the result
+//		splits into #a consecutive blocks of b.
+//
+// The combine case does not need the cardinality of a, which is not guaranteed to be available in the
+// meta phase: once every argument has domain b, the count check that runs at calculation time already
+// implies that there are #a of them.
+//
+// A mismatch is reported as a warning and not as an error: the relabel contract still holds, so a
+// configuration that means a per-part relabel keeps working. Everything this cannot establish -- an
+// unknown domain, an unrecognised decomposition, a differing arity -- is accepted silently, and the
+// caller wraps the check so that a diagnostic can never fail a result.
+
+static StaticLateTokenID
+	s_combine       ("combine"       ), s_combine_unit       ("combine_unit"       )
+,	s_combine_uint8 ("combine_uint8" ), s_combine_unit_uint8 ("combine_unit_uint8" )
+,	s_combine_uint16("combine_uint16"), s_combine_unit_uint16("combine_unit_uint16")
+,	s_combine_uint32("combine_uint32"), s_combine_unit_uint32("combine_unit_uint32")
+,	s_combine_uint64("combine_uint64"), s_combine_unit_uint64("combine_unit_uint64");
+
+static bool IsUnionUnitGroupID(TokenID id)
+{
+	return id == cog_unionUnit  .GetNameID() || id == cog_unionUnit08.GetNameID()
+		|| id == cog_unionUnit16.GetNameID() || id == cog_unionUnit32.GetNameID()
+		|| id == cog_unionUnit64.GetNameID();
+}
+
+static bool IsCombineGroupID(TokenID id)
+{
+	return id == s_combine        || id == s_combine_uint8        || id == s_combine_uint16
+		|| id == s_combine_uint32 || id == s_combine_uint64
+		|| id == s_combine_unit   || id == s_combine_unit_uint8   || id == s_combine_unit_uint16
+		|| id == s_combine_unit_uint32 || id == s_combine_unit_uint64;
+}
+
+// The parts are given as key (sub)expressions; interning one yields the unit item that the domain
+// argument was built from. GetOrCreateDataController is meta-thread only, which is why the check runs
+// only when a call expression was passed: that is the FuncDC path, whose FuncDC_CreateResult asserts
+// IsMetaThread, and the ApplyMetaFunc path.
+static auto UnionData_PartUnit(LispPtr partExpr) -> SharedTreeItem
+{
+	if (partExpr.EndP())
+		return {};
+	auto dc = GetOrCreateDataController(partExpr);
+	if (!dc || dc->WasFailed(FailType::MetaInfo))
+		return {};
+	auto item = dc->MakeResult();
+	if (!item || item->WasFailed(FailType::MetaInfo) || !AsDynamicUnit(item.get()))
+		return {};
+	return item;
+}
+
+static void UnionData_CheckPartDomains(const AbstrOperGroup* og, const TreeItemDualRef& resultHolder
+	, const ArgRefs& args, LispPtr metaCallArgs)
+{
+	assert(og);
+	if (!metaCallArgs.IsRealList())
+		return; // no call expression available to inspect
+
+	arg_index n = args.size() - 1;
+	if (n < 2)
+		return; // a single data argument relabels the whole domain; that is not a decomposition
+
+	LispPtr domainExpr = metaCallArgs.Left();
+	if (!domainExpr.IsRealList() || !domainExpr.Left().IsSymb())
+		return; // the result domain is not the result of an operator application
+
+	auto domainGroupID = domainExpr.Left().GetSymbID();
+	bool isUnionUnit = IsUnionUnitGroupID(domainGroupID);
+	if (!isUnionUnit && !IsCombineGroupID(domainGroupID))
+		return; // no decomposition of the result domain is known here
+
+	std::vector<LispPtr> factors;
+	for (auto tail = domainExpr.Right(); tail.IsRealList(); tail = tail.Right())
+		factors.push_back(tail.Left());
+
+	// union_unit states one part per argument, so a differing arity means the arguments do not
+	// correspond to the parts one by one and nothing can be concluded. Of the combine forms only the
+	// two-factor one has an unambiguous decomposition into equal consecutive blocks.
+	if (isUnionUnit ? (factors.size() != SizeT(n)) : (factors.size() != 2))
+		return;
+
+	SizeT nrMismatches = 0;
+	arg_index firstMismatch = 0;
+	SharedTreeItem firstPartItem;
+	const AbstrDataItem* firstArg = nullptr;
+
+	for (arg_index i = 0; i != n; ++i)
+	{
+		const AbstrDataItem* argA = AsDataItem(args[i + 1]);
+		if (!argA)
+			continue;
+		auto argDomain = argA->GetAbstrDomainUnit();
+		if (!argDomain)
+			continue;
+
+		auto partItem = UnionData_PartUnit(isUnionUnit ? factors[i] : factors[1]);
+		if (!partItem)
+			continue; // the part could not be established; say nothing about this argument
+		auto part = AsUnit(partItem.get());
+
+		// UM_AllowDefault: an argument whose domain is not (yet) known must not be judged.
+		// UM_AllowVoidRight: a parameter fits any part; that is how a total row is appended to a table
+		//	(union_unit(RowSet, void)) and how the AsItemList idiom fills a domain with parameters.
+		// UM_AllowRightExpansion: makes the comparison total and symmetric instead of dependent on DC
+		//	interning order; legal because this runs on the meta thread (see UnionData_PartUnit).
+		if (part->UnifyDomain(argDomain, "", "", UnifyMode(UM_AllowDefault | UM_AllowVoidRight | UM_AllowRightExpansion)))
+			continue;
+
+		if (!nrMismatches)
+		{
+			firstMismatch = i;
+			firstPartItem = partItem;
+			firstArg      = argA;
+		}
+		++nrMismatches;
+	}
+	if (!nrMismatches)
+		return;
+
+	// Name every item by its SOURCE name: the units taking part here are cache results, whose
+	// GetFullName is the empty name of a parentless cache root; GetSourceName walks the back
+	// reference to the config item that refers to it and renders it as "[[/full/name]]".
+	auto part          = AsUnit(firstPartItem.get());
+	auto argDomainName = firstArg->GetAbstrDomainUnit()->GetSourceName();
+	auto partName      = part->GetSourceName();
+	auto extra = (nrMismatches > 1) ? mySSPrintF(" (+{} more)", nrMismatches - 1) : SharedStr();
+
+	// Name the item this union_data is being calculated for, in FRONT of the message: the units that
+	// disagree do not tell the configurator which calculation rule to go and fix, and the result
+	// itself is an anonymous cache item. Putting the name first is also where reportD expects a
+	// self-supplied item name and where it then suppresses its own appending of it (#795).
+	auto itemName = resultHolder.GetItemNameStr();
+	if (itemName.empty())
+		itemName = GetReportingItemName();
+	auto prefix = itemName.empty() ? SharedStr() : itemName + " ";
+
+	// MsgDispatch truncates every message at 256 characters, and two source names of a deeply nested
+	// configuration already take about half of that, on top of the item prefix. So state the finding
+	// and nothing more: which argument, the domain it has, and the part it was matched against. The
+	// argument itself is identified by its number rather than by a third source name, and the wiki
+	// page carries the explanation and the advice.
+	if (isUnionUnit)
+		reportF(SeverityTypeID::ST_Warning
+		,	"{0}{1}: argument {2} has domain {3}, but part {4} of the result domain is {5}.{6}"
+		,	prefix.c_str(), og->GetNameStr()
+		,	firstMismatch + 2, argDomainName.c_str()
+		,	firstMismatch + 1, partName.c_str()
+		,	extra.c_str()
+		);
+	else
+		reportF(SeverityTypeID::ST_Warning
+		,	"{0}{1}: argument {2} has domain {3}, but the result domain splits into blocks of {4};"
+			" swap the factors of its {5}.{6}"
+		,	prefix.c_str(), og->GetNameStr()
+		,	firstMismatch + 2, argDomainName.c_str()
+		,	partName.c_str()
+		,	GetTokenStr(domainGroupID).c_str()
+		,	extra.c_str()
+		);
+}
+
+// *****************************************************************************
 //                         UnionDataOperator
 // *****************************************************************************
 
@@ -335,12 +516,17 @@ public:
 	}
 
    // Override Operator
-	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, LispPtr) const override
+	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, LispPtr metaCallArgs) const override
 	{
 		arg_index n = args.size() - 1;
 		assert(n >= 1);
 
 		const AbstrUnit* resultDomain = AsUnit(GetItem(args[0]));
+
+		// #990: report a result domain that was built by union_unit or combine but whose parts do not
+		// match the arguments. Diagnostic only, so never let it fail a result that the contract accepts.
+		try { UnionData_CheckPartDomains(GetGroup(), resultHolder, args, metaCallArgs); }
+		catch (...) {}
 
 		ConstUnitRef constUnitRef;
 		bool hadToTryWithoutCategoricalCheck = false;
