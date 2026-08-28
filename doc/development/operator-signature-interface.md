@@ -251,6 +251,7 @@ enum class SigArgTraits : UInt8 { none = 0, no_void_broadcast = 1, categorical =
 struct AbstrSignatureBuilder
 {
     // --- unit variables: ONE sort, usable in BOTH domain and values roles (the K2 fix)
+    // pass the label plainly; NewVar interns it 'sig_'-prefixed (#1161)
     virtual sig_var UnitVar(CharPtr role) = 0;             // "D", "E2", "V"
     virtual sig_var VoidDomain() = 0;                      // K15, parameters
     virtual sig_var DefaultUnit(const ValueClass* vc) = 0; // boolean/default_unit_creator
@@ -413,6 +414,16 @@ cache has no keep-alive concerns.
 | `ResultAttr` / `ResultUnit` | result `DefType` in the same nodes |
 
 **Owner = `nullptr`, fresh `m_NextInstance++` per application, node names = role tokens.**
+
+**Role labels are interned `sig_`-prefixed (#1161).** `SignatureRecorder::NewVar` adds the prefix, so
+describe sites keep writing plain `"D"` / `"Imp"` while the registry holds `sig_D` / `sig_Imp`. The labels share
+the case-folded token registry with configuration identifiers, and a bare `"D"` folds onto the `d`
+numeric-literal suffix (`ExprProd.cpp`) and `"Imp"` onto a modeller's `imp` -- each raising a depreciated
+case-mixup warning about a name the modeller never wrote. `sig_*` stays a legal item name but was measured
+against the regression corpus + battery and occurs there NOWHERE, where a trailing
+`_` still collided (`U_`, `E_`, `A_`, `D_`) and so did a leading one (`_P`, `_B`, `_A`). Synthetic skeleton
+roles are spelled out (`sig_arg0`, `sig_res`) so they cannot fold onto a one-letter label.
+Rendered signatures and type-error text therefore read `attribute<sig_V>(sig_D)`.
 Operators have no `TreeItem` identity and inventing one buys nothing: the instance
 already isolates applications, and `DeclaredConstraintOf(nullptr, …)` correctly returns
 none (`:1427-1428`), so constraints flow exclusively from the description. Role tokens

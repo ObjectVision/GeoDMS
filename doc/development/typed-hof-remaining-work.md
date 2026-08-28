@@ -222,6 +222,18 @@ Listed so the "remaining" set above isn't mistaken for exhaustive; none of these
 - **`RewriteExpr.lsp` end-state is NOT an empty file (2026-07-18 ruling).** Residual normalizers legitimately stay: `Value→convert`, `min_elem`/`max_elem(_fast)` unary collapses, `pow _X 2..6` integer-literal fast paths, NlLater `BaseUnit`/`convert` fixups, `MakeDefined` idempotence, and the boolean/constant simplification algebra. *Design §8.4 (1617-1639), §5.15 (1810-1812).*
 - **Pattern-destructuring definitional rules stay permanently** — `order` / `isOverlapping` / `median`-on-`interval` destructure syntactic nodes a function application would hide. *Design §8.4 (1570-1575, 1613-1621); `RewriteExpr.lsp:129-154`.*
 - **`rjoin` self-join collapse stays permanently** — `lookup(rlookup a a) c → c` fires only post-substitution; a prelude `rjoin` would break key identity (documented negative finding). *Design §8.4 (1644-1655).*
+- **Walker symbols are `TokenID`, not `SharedStr` (2026-08-28 ruling, #1161).** `SignatureRecord::varRoles`,
+  `ResultMember::path`, `ResultMemberSet::prefix`, `canon()`'s role vectors and the `DefType::members` maps all
+  hold tokens; `MemberPathLess` is deleted -- token equality IS the tree's ASCII case fold, so the maps get their
+  case-insensitivity from the registry instead of a hand-rolled comparator, and `SameShape` compares integers.
+  Probe member/name lookups with `GetExistingTokenID` (an absent token cannot name a present member; data-derived
+  names then create no registry entries); materialize `SharedStr(tok.AsStrRange())` before any code that CREATES
+  tokens (the registry-lock rule) and for the string-PREFIX scans, whose fold survives as `hof::AsciiTokenFold`.
+  Role labels are interned `sig_`-prefixed by `SignatureRecorder::NewVar` (one central site; describe sites
+  keep writing plain `"D"`/`"Imp"`), so they no longer fold onto the numeric-literal suffixes `d f u i w s b c`
+  or a modeller's `imp`. The prefix was picked by measuring candidates against the corpus + battery -- `sig_*`
+  occurs in neither, while `U_`/`E_`/`A_`/`D_` and `_P`/`_B`/`_A` all still collided. Synthetic skeleton roles
+  are spelled out (`sig_arg0`, `sig_res`): a one-letter synthetic folds onto a describe-side label.
 - **Serializer: domain/values case may normalize** when a reference resolves — round-trip-safe (DMS identifiers are case-insensitive), documented rather than fixed. *`function_serializer.md:149-150`.*
 - **Serializer: a config that explicitly `#include`s the auto-imported prelude cannot round-trip** — include-erasure re-emits `function sqr…` at root, colliding with the auto-import ("SubItem sqr already defined"). One documented skip (`fn_test_prelude`); the rendering itself is correct. *`function_serializer.md:151-157`.*
 - **§5.11 anonymous function-literal v1 limits** — literals carry no `using` clause and no named result; `_lambda_<n>` items report line-1 source location (GUI go-to-source lands at file top); the spliced name shows in calculation rules. *Design §5.11 tier B (1405-1412).*
