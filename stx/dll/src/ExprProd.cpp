@@ -162,7 +162,7 @@ void ExprProd::throwFunctionLiteralError()
 		"; it cannot appear in string-evaluated expressions");
 }
 
-static StaticLateTokenID t_uint32("UInt32");
+static StaticLateTokenID t_uint32("uint32");
 
 void ExprProd::ProdUInt32WithoutSuffix()
 {

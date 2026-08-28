@@ -100,13 +100,13 @@ container function_example
 	// declared 'nw: network' accepts any table that provides those members —
 	// no need to repeat an inline member block at every function.
 
-	unit<uint32> network
+	unit<uint32> Network
 	{
 		attribute<float64> flow;
 		attribute<float64> capacity;
 	}
 
-	function TotalLoad(nw: network)
+	function TotalLoad(nw: Network)
 	-> parameter<float64> := sum(min_elem(nw/flow / nw/capacity, 1.0));
 
 	parameter<float64> road_total := TotalLoad(Road);   // 0.5+1+0.5+1   = 3.0

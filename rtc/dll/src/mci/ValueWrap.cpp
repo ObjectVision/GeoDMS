@@ -232,7 +232,8 @@ auto ValueClass::CreateValue() const -> std::unique_ptr<AbstrValue>
 bool ValueClass::IsRange   () const { return m_ValueComposition == ValueComposition::Range; }
 bool ValueClass::IsSequence() const { return m_ValueComposition == ValueComposition::Sequence; }
 
-IMPL_RTTI_METACLASS(ValueClass, "Value", nullptr);
+// Lower case since #1161, like the `unit` metaclass name: see tic/LispTreeType.cpp.
+IMPL_RTTI_METACLASS(ValueClass, "value", nullptr);
 
 //----------------------------------------------------------------------
 // instantiation and registration

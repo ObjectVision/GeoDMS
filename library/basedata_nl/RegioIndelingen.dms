@@ -1,8 +1,8 @@
-unit<UInt32> CBS_Gebiedsindelingen_jaren := range(uint32, 2019, 2027)
+unit<uint32> CBS_Gebiedsindelingen_jaren := range(uint32, 2019, 2027)
 , Descr = "Welke CBS Gebiedsindelingen jaren zijn er"
 {
-	attribute<UInt32> jaar            := id(.);
-	attribute<String> name            := 'Y'+string(jaar);
+	attribute<uint32> jaar            := id(.);
+	attribute<string> name            := 'Y'+string(jaar);
 }
 
 container CBS :=
@@ -16,7 +16,7 @@ container CBS :=
 
 Template Read_Gebiedsindelingen_gpkg_T
 {
-	parameter<String> jaar;
+	parameter<string> jaar;
 	//
 	
 	parameter<string> SD := replace(Expand(., '%SourceDataDir%'), '/', '\\');
@@ -47,54 +47,54 @@ Template Read_Gebiedsindelingen_gpkg_T
 	container impl: IsHidden = "True"
 	{
 		parameter<string> suffix := (jaar <= '2021' ? '_'+jaar : '');
-		unit<UInt32> Buurt     := ='gpkg/buurt_niet_gegeneraliseerd'+suffix;
-		unit<UInt32> Wijk      := ='gpkg/wijk_niet_gegeneraliseerd'+suffix;
-		unit<UInt32> Gemeente  := ='gpkg/gemeente_niet_gegeneraliseerd'+suffix;
-		unit<UInt32> COROP     := ='gpkg/coropgebied_gegeneraliseerd'+suffix;
-		unit<UInt32> Provincie := ='gpkg/Provincie_gegeneraliseerd'+suffix;
+		unit<uint32> Buurt     := ='gpkg/buurt_niet_gegeneraliseerd'+suffix;
+		unit<uint32> Wijk      := ='gpkg/wijk_niet_gegeneraliseerd'+suffix;
+		unit<uint32> Gemeente  := ='gpkg/gemeente_niet_gegeneraliseerd'+suffix;
+		unit<uint32> COROP     := ='gpkg/coropgebied_gegeneraliseerd'+suffix;
+		unit<uint32> Provincie := ='gpkg/Provincie_gegeneraliseerd'+suffix;
 	}
 	
-	unit<UInt32> Buurt     := impl/Buurt
+	unit<uint32> Buurt     := impl/Buurt
 	, Descr = "CBS Buurtindeling"
 	{
 		attribute<rdc_meter> geometry(poly) := impl/Buurt/geometry[rdc_meter];
-		attribute<String>    Label          := statnaam;
-		attribute<String>    name           := AsItemName(statnaam);
+		attribute<string>    Label          := statnaam;
+		attribute<string>    name           := AsItemName(statnaam);
 	}
 	
-	unit<UInt32> Wijk      := impl/Wijk
+	unit<uint32> Wijk      := impl/Wijk
 	, Descr = "CBS Wijkindeling"
 	{
 		attribute<rdc_meter> geometry(poly) := impl/Wijk/geometry[rdc_meter];
-		attribute<String>    Label          := statnaam;
-		attribute<String>    name           := AsItemName(statnaam);
+		attribute<string>    Label          := statnaam;
+		attribute<string>    name           := AsItemName(statnaam);
 	}
 	
-	unit<UInt32> Gemeente  := impl/Gemeente
+	unit<uint32> Gemeente  := impl/Gemeente
 	, Descr = "CBS Gemeenteindeling"
 	{
 		attribute<rdc_meter> geometry(poly) := impl/Gemeente/geometry[rdc_meter];
-		attribute<String>    Label          := statnaam;
-		attribute<String>    name           := AsItemName(statnaam);
+		attribute<string>    Label          := statnaam;
+		attribute<string>    name           := AsItemName(statnaam);
 		
 		container V := for_each_nedv(name, string(id(.))+'[..]', void, .);
 	}
 
-	unit<UInt32> COROP     := impl/COROP
+	unit<uint32> COROP     := impl/COROP
 	, Descr = "CBS COROP indeling"
 	{
 		attribute<rdc_meter> geometry(poly) := impl/COROP/geometry[rdc_meter];
-		attribute<String>    Label          := statnaam;
-		attribute<String>    name           := AsItemName(statnaam);
+		attribute<string>    Label          := statnaam;
+		attribute<string>    name           := AsItemName(statnaam);
 		container V := for_each_nedv(name, string(id(.))+'[..]', void, .);
 	}
 	
-	unit<UInt32> Provincie := impl/Provincie
+	unit<uint32> Provincie := impl/Provincie
 	, Descr = "CBS Provincie indeling"
 	{
 		attribute<rdc_meter> geometry(poly) := impl/Provincie/geometry[rdc_meter];
-		attribute<String>    Label          := statnaam;
-		attribute<String>    name           := replace(AsItemName(statnaam), 'Fryslân', 'Friesland');
+		attribute<string>    Label          := statnaam;
+		attribute<string>    name           := replace(AsItemName(statnaam), 'Fryslân', 'Friesland');
 		
 		container V := for_each_nedv(name, string(id(.))+'[..]', void, .);
 	}

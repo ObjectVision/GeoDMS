@@ -481,7 +481,7 @@ void ConfigProd::CreateAttribute(TokenID nameID)
 //					  possibly existing entity
 // *****************************************************************************
 
-static StaticLateTokenID t_Void("Void");
+static StaticLateTokenID t_Void("void");
 
 void ConfigProd::CreateParameter(TokenID nameID)
 {

@@ -16,35 +16,47 @@
 // interface. (This contract also used to preserve CalcCache entries across
 // runs; that cache was retired with the 8.0 series, so unification is now the
 // whole of it -- see doc/development/g8-todos.md.)
+//
+// NAMING RULE (#1161): the TokenID table this file writes into is shared with the
+// engine and with every configuration, and it is ASCII-case-folded -- the first
+// spelling interned becomes canonical and every later different-case spelling is
+// reported to the modeller as a case mix-up. A type parameter called D therefore
+// clashed with the d numeric-literal suffix, and T clashed with the value
+// parameter t in this very file, on every single run. So: NO single-letter names
+// here at all -- type parameters are TV/TD/TT/TPoint/TF, unit-valued parameters are
+// dunit/vunit/punit, value parameters spell out their role (arg, lhs, rhs, val,
+// alt, subject, oldval, newval, target, shift, ...) -- and value-type, operator
+// and property names are spelled exactly as the engine registers them (int64,
+// void, value, nrofrows).
 //////////////////////////////////////////////////////////////////////////////
 
 // ---------------------------------------------------------------- elementary
 
-function sqr<V: numerics>(attribute<V> x) -> attribute<V> := x * x;
+function sqr<TV: numerics>(attribute<TV> arg) -> attribute<TV> := arg * arg;
 
-function plogp<F: floats>(attribute<F> x) -> attribute<F> := MakeDefined(x * log(x), 0.0);
+function plogp<TF: floats>(attribute<TF> arg) -> attribute<TF> := MakeDefined(arg * log(arg), 0.0);
 
-function abs<V: numerics>(attribute<V> x) -> attribute<V> := isNegative(x) ? -x : x;
+function abs<TV: numerics>(attribute<TV> arg) -> attribute<TV> := isNegative(arg) ? -arg : arg;
 
 // ---------------------------------------------------------------- ordering (WP4.5 tranche 3)
 
-function sort_str(attribute<string> x) -> attribute<string> := lookup(index(x), x);
+function sort_str(attribute<string> arg) -> attribute<string> := lookup(index(arg), arg);
 
-// D is a plain parameter binding any domain unit; the result ranges over D
-function reversed_id(container D) -> container := (UpperBound(D) + LowerBound(D) - id(D)) - convert(1, D);
+// dunit is a plain parameter binding any domain unit; the result ranges over it
+function reversed_id(container dunit) -> container := (UpperBound(dunit) + LowerBound(dunit) - id(dunit)) - convert(1, dunit);
 
-function reverse<T: any>(attribute<T> x) -> attribute<T> := lookup(reversed_id(DomainUnit(x)), x);
+function reverse<TT: any>(attribute<TT> arg) -> attribute<TT> := lookup(reversed_id(DomainUnit(arg)), arg);
 
 // Raw stable lexicographic permutation.  The first criterion is primary: sort
 // the trailing criteria first, stably sort the leading criterion in that order,
 // then compose both permutations.  Use sort_index for the fresh result domain.
 function sort_index_raw
 {
-	variant one<V: any, D: domains>(attribute<V> value (D))
-	-> attribute<D> (D) := index(value);
+	variant one<TV: any, TD: domains>(attribute<TV> value (TD))
+	-> attribute<TD> (TD) := index(value);
 
-	variant more<V: any, D: domains>(attribute<V> value (D); ...rest)
-	-> attribute<D> (D)
+	variant more<TV: any, TD: domains>(attribute<TV> value (TD); ...rest)
+	-> attribute<TD> (TD)
 	:=	lookup(index(lookup(sort_index_raw(rest), value)), sort_index_raw(rest));
 }
 
@@ -55,12 +67,12 @@ function sort_index_raw
 // so the single-criterion overload must remain explicit.
 function sort_index_spec
 {
-	variant one<V: any, D: domains>(parameter<string> specString; container attrContainer; attribute<V> value (D))
-	-> unit<D> := result
+	variant one<TV: any, TD: domains>(parameter<string> specString; container attrContainer; attribute<TV> value (TD))
+	-> unit<TD> := result
 	{
-		attribute<D> permutation (D) := sort_index_raw(value);
-		unit<D> sortingDomain := unique(permutation);
-		unit<D> result := table_spec(
+		attribute<TD> permutation (TD) := sort_index_raw(value);
+		unit<TD> sortingDomain := unique(permutation);
+		unit<TD> result := table_spec(
 			concat(specString, ';by_org_rel'),
 			attrContainer,
 			sortingDomain,
@@ -68,12 +80,12 @@ function sort_index_spec
 		);
 	}
 
-	variant more<V: any, D: domains>(parameter<string> specString; container attrContainer; attribute<V> value (D); ...rest)
-	-> unit<D> := result
+	variant more<TV: any, TD: domains>(parameter<string> specString; container attrContainer; attribute<TV> value (TD); ...rest)
+	-> unit<TD> := result
 	{
-		attribute<D> permutation (D) := sort_index_raw(value, rest);
-		unit<D> sortingDomain := unique(permutation);
-		unit<D> result := table_spec(
+		attribute<TD> permutation (TD) := sort_index_raw(value, rest);
+		unit<TD> sortingDomain := unique(permutation);
+		unit<TD> result := table_spec(
 			concat(specString, ';by_org_rel'),
 			attrContainer,
 			sortingDomain,
@@ -86,36 +98,36 @@ function sort_index_spec
 // without invoking the attribute-collecting table_spec meta-operation.
 function sort_index
 {
-	variant one<V: any, D: domains>(attribute<V> value (D))
-	-> unit<D> := result
+	variant one<TV: any, TD: domains>(attribute<TV> value (TD))
+	-> unit<TD> := result
 	{
-		attribute<D> permutation (D) := sort_index_raw(value);
-		unit<D> result := unique(permutation)
+		attribute<TD> permutation (TD) := sort_index_raw(value);
+		unit<TD> result := unique(permutation)
 		{
-			attribute<D> org_rel := lookup(result/values, permutation);
+			attribute<TD> org_rel := lookup(result/values, permutation);
 		}
 	}
 
-	variant more<V: any, D: domains>(attribute<V> value (D); ...rest)
-	-> unit<D> := result
+	variant more<TV: any, TD: domains>(attribute<TV> value (TD); ...rest)
+	-> unit<TD> := result
 	{
-		attribute<D> permutation (D) := sort_index_raw(value, rest);
-		unit<D> result := unique(permutation)
+		attribute<TD> permutation (TD) := sort_index_raw(value, rest);
+		unit<TD> result := unique(permutation)
 		{
-			attribute<D> org_rel := lookup(result/values, permutation);
+			attribute<TD> org_rel := lookup(result/values, permutation);
 		}
 	}
 }
 
 // Opt-in convenience: this scans and collects every matching own attribute of
-// src.  Use sort_index when only the sorted domain and org_rel are required.
+// srcCont.  Use sort_index when only the sorted domain and org_rel are required.
 function sort_index_with_attr
 {
-	variant one<V: any, D: domains>(container src; attribute<V> value (D))
-	-> unit<D> := sort_index_spec('', src, value);
+	variant one<TV: any, TD: domains>(container srcCont; attribute<TV> value (TD))
+	-> unit<TD> := sort_index_spec('', srcCont, value);
 
-	variant more<V: any, D: domains>(container src; attribute<V> value (D); ...rest)
-	-> unit<D> := sort_index_spec('', src, value, rest);
+	variant more<TV: any, TD: domains>(container srcCont; attribute<TV> value (TD); ...rest)
+	-> unit<TD> := sort_index_spec('', srcCont, value, rest);
 }
 
 // ---------------------------------------------------------------- proximity (WP4.5 tranche 3)
@@ -126,11 +138,11 @@ function sort_index_with_attr
 //  operator — it only resolves when consumed by the isOverlapping/median rule patterns
 //  below — so as a standalone result it was non-reducible; it had no callers.)
 
-function float_isNearby<V: numerics>(attribute<V> a; attribute<V> b; attribute<V> f)
--> attribute<bool> := isOverlapping(order(a, f * a), order(b, f * b));
+function float_isNearby<TV: numerics>(attribute<TV> lhs; attribute<TV> rhs; attribute<TV> frac)
+-> attribute<bool> := isOverlapping(order(lhs, frac * lhs), order(rhs, frac * rhs));
 
-function point_isNearby<P: points, V: numerics>(attribute<P> a; attribute<P> b; attribute<V> f)
--> attribute<bool> := float_isNearby(pointrow(a), pointrow(b), f) && float_isNearby(pointcol(a), pointcol(b), f);
+function point_isNearby<TPoint: points, TV: numerics>(attribute<TPoint> lhs; attribute<TPoint> rhs; attribute<TV> frac)
+-> attribute<bool> := float_isNearby(pointrow(lhs), pointrow(rhs), frac) && float_isNearby(pointcol(lhs), pointcol(rhs), frac);
 
 // ---------------------------------------------------------------- property accessors
 // 'item' parameters are meta-references: the argument binds as a raw item reference
@@ -138,61 +150,61 @@ function point_isNearby<P: points, V: numerics>(attribute<P> a; attribute<P> b; 
 // for containers, units and attributes alike — and each application keys identically
 // to the direct PropValue call.
 
-function name   (item t) -> parameter<string> := PropValue(t, 'name');
-function Descr  (item t) -> parameter<string> := PropValue(t, 'Descr');
-function Expr   (item t) -> parameter<string> := PropValue(t, 'Expr');
-function Label  (item t) -> parameter<string> := PropValue(t, 'Label');
-function STORAGE(item t) -> parameter<string> := PropValue(t, 'StorageName');
-function EK     (item t) -> parameter<string> := PropValue(t, 'ExternalKeyData');
+function name   (item self) -> parameter<string> := PropValue(self, 'name');
+function Descr  (item self) -> parameter<string> := PropValue(self, 'Descr');
+function Expr   (item self) -> parameter<string> := PropValue(self, 'Expr');
+function Label  (item self) -> parameter<string> := PropValue(self, 'Label');
+function STORAGE(item self) -> parameter<string> := PropValue(self, 'StorageName');
+function EK     (item self) -> parameter<string> := PropValue(self, 'ExternalKeyData');
 
 // ---------------------------------------------------------------- variadic folds
 // '...rest' parameters bind the argument tail; each recursive step consumes one
 // (or one group of) leading argument(s), so the fold terminates structurally.
 // KEY IDENTITY: each body spells the exact resolvent of the retired rewrite rule;
-// the retained rules (MakeDefined -> iif, Value -> convert) fire at body parse,
+// the retained rules (MakeDefined -> iif, value -> convert) fire at body parse,
 // so the fully reduced keys equal the old rule-chain fixpoints byte for byte.
 
 function concat
 {
-	variant none() -> parameter<string> := '';
-	variant one(attribute<string> a) -> attribute<string> := MakeDefined(a, '');
-	variant more(attribute<string> a; ...rest) -> attribute<string> := MakeDefined(a, '') + concat(rest);
+	variant empty() -> parameter<string> := '';
+	variant one(attribute<string> head) -> attribute<string> := MakeDefined(head, '');
+	variant more(attribute<string> head; ...rest) -> attribute<string> := MakeDefined(head, '') + concat(rest);
 }
 
 function replace_value
 {
-	variant base(container x; container v; container w) -> container := iif(x == v, w, x);
-	variant more(container x; container v; container w; ...rest) -> container
-	:=	replace_value(replace_value(x, v, w), rest);
+	variant base(container subject; container oldval; container newval) -> container := iif(subject == oldval, newval, subject);
+	variant more(container subject; container oldval; container newval; ...rest) -> container
+	:=	replace_value(replace_value(subject, oldval, newval), rest);
 }
 
 function combine_data
 {
-	variant base(container V; container a; container b) -> container
-	:=	Value(
-			(Int64(a) - Int64(LowerBound(ValuesUnit(a)))) * Int64(NrOfRows(ValuesUnit(b)))
-			+ (Int64(b) - Int64(LowerBound(ValuesUnit(b))))
-		,	V);
-	variant more(container V; container a1; container a2; ...rest) -> container
-	:=	combine_data(V, combine_data(combine_unit(ValuesUnit(a1), ValuesUnit(a2)), a1, a2), rest);
+	variant base(container vunit; container lhs; container rhs) -> container
+	:=	value(
+			(int64(lhs) - int64(LowerBound(ValuesUnit(lhs)))) * int64(nrofrows(ValuesUnit(rhs)))
+			+ (int64(rhs) - int64(LowerBound(ValuesUnit(rhs))))
+		,	vunit);
+	variant more(container vunit; container a1; container a2; ...rest) -> container
+	:=	combine_data(vunit, combine_data(combine_unit(ValuesUnit(a1), ValuesUnit(a2)), a1, a2), rest);
 }
 
 // MakeDefined: a pure rule head (no registered operator) — retired at ALL arities.
-// The structural idempotence collapse MakeDefined(MakeDefined(x,y),y) -> MakeDefined(x,y)
+// The structural idempotence collapse MakeDefined(MakeDefined(val,alt),alt) -> MakeDefined(val,alt)
 // stays a rewrite rule (it destructures its argument); it normalizes the SOURCE and its
 // output resolves to this function, so rule and function compose key-identically.
 function MakeDefined
 {
-	variant one (container a) -> container := a;
-	variant two (container x; container y) -> container := iif(IsDefined(x), x, y);
-	variant more(container x; container y; ...rest) -> container := MakeDefined(MakeDefined(x, y), rest);
+	variant one (container arg) -> container := arg;
+	variant two (container val; container alt) -> container := iif(IsDefined(val), val, alt);
+	variant more(container val; container alt; ...rest) -> container := MakeDefined(MakeDefined(val, alt), rest);
 }
 
 // median-of-3: the retained order + median-interval destructuring rules fire on this
 // body at parse, so the stored body equals the old rule chain's fixpoint
 function median
 {
-	variant three(container a; container b; container c) -> container := median(a, order(b, c));
+	variant three(container arg1; container arg2; container arg3) -> container := median(arg1, order(arg2, arg3));
 }
 
 // ---------------------------------------------------- arity-dispatched operator folds
@@ -201,109 +213,109 @@ function median
 // own binary inner calls -- always resolve to the OPERATOR. Bodies spell the retired
 // fold rules' exact resolvents, so reduced keys equal the old chains.
 
-function add { variant one(container a) -> container := a; variant more(container a; container b; ...rest) -> container := add(add(a, b), rest); }
-function mul { variant one(container a) -> container := a; variant more(container a; container b; ...rest) -> container := mul(mul(a, b), rest); }
-function or  { variant one(container a) -> container := a; variant more(container a; container b; ...rest) -> container := or(or(a, b), rest); }
-function and { variant one(container a) -> container := a; variant more(container a; container b; ...rest) -> container := and(and(a, b), rest); }
+function add { variant one(container arg1) -> container := arg1; variant more(container arg1; container arg2; ...rest) -> container := add(add(arg1, arg2), rest); }
+function mul { variant one(container arg1) -> container := arg1; variant more(container arg1; container arg2; ...rest) -> container := mul(mul(arg1, arg2), rest); }
+function or  { variant one(container arg1) -> container := arg1; variant more(container arg1; container arg2; ...rest) -> container := or(or(arg1, arg2), rest); }
+function and { variant one(container arg1) -> container := arg1; variant more(container arg1; container arg2; ...rest) -> container := and(and(arg1, arg2), rest); }
 
 // 2-arg log (the registered log operator is unary)
-function log { variant two(container x; container b) -> container := log(x) / log(b); }
+function log { variant two(container arg; container logbase) -> container := log(arg) / log(logbase); }
 
-// 5+-arg replace: pairwise (v,w) left fold; the ternary replace OPERATOR is the base case
-function replace { variant more(container x; container v; container w; ...rest) -> container := replace(replace(x, v, w), rest); }
+// 5+-arg replace: pairwise (oldval,newval) left fold; the ternary replace OPERATOR is the base case
+function replace { variant more(container subject; container oldval; container newval; ...rest) -> container := replace(replace(subject, oldval, newval), rest); }
 
 // ---------------------------------------------------- argument-completion aliases
-// 3-arg const(v, domain, valuesUnit) completes into the binary const operator
-// (arity-aware dispatch; the retained Value->convert rule fires at body parse)
-function const { variant three(container p; container e; container vu) -> container := const(Value(p, vu), e); }
+// 3-arg const(val, domain, valuesUnit) completes into the binary const operator
+// (arity-aware dispatch; the retained value->convert rule fires at body parse)
+function const { variant three(container val; container ent; container vunit) -> container := const(value(val, vunit), ent); }
 
 // ReadValue = ReadArray with the void domain (a single value at the read position)
-function ReadValue(container s; container vu; container pos) -> container := ReadArray(s, Void, vu, pos);
+function ReadValue(container content; container vunit; container pos) -> container := ReadArray(content, void, vunit, pos);
 
 // ---------------------------------------------------------------- logit
 
-function llpart<F: floats>(attribute<F> lc; attribute<F> xc; attribute<F> oc)
--> attribute<F> := oc * log(xc) - log(lc);
+function llpart<TF: floats>(attribute<TF> lc; attribute<TF> xc; attribute<TF> oc)
+-> attribute<TF> := oc * log(xc) - log(lc);
 
-function ll1<F: floats>(attribute<F> lc; attribute<F> xc; attribute<F> oc)
--> attribute<F> := (oc * log(xc) - log(lc)) + ((lc - oc) * log(lc - xc) - log(lc));
+function ll1<TF: floats>(attribute<TF> lc; attribute<TF> xc; attribute<TF> oc)
+-> attribute<TF> := (oc * log(xc) - log(lc)) + ((lc - oc) * log(lc - xc) - log(lc));
 
 // ---------------------------------------------------------------- rescaling
-// multi-arity forms dispatch by argument count; P (a partition relation) is a
+// multi-arity forms dispatch by argument count; punit (a partition relation) is a
 // plain parameter so any partition value type matches.
 
 function scalesum
 {
-	variant total<V: numerics>(attribute<V> x; attribute<V> s)
-	-> attribute<V> := isZero(s) ? s : x * (s / sum(x));
+	variant total<TV: numerics>(attribute<TV> arg; attribute<TV> target)
+	-> attribute<TV> := isZero(target) ? target : arg * (target / sum(arg));
 
-	variant partitioned<V: numerics>(attribute<V> x; container P; attribute<V> s)
-	-> attribute<V> := isZero(lookup(P, s)) ? lookup(P, s) : x * lookup(P, s / sum(x, P));
+	variant partitioned<TV: numerics>(attribute<TV> arg; container punit; attribute<TV> target)
+	-> attribute<TV> := isZero(lookup(punit, target)) ? lookup(punit, target) : arg * lookup(punit, target / sum(arg, punit));
 }
 
 function distribute
 {
-	variant total<V: numerics>(attribute<V> s; attribute<V> x)
-	-> attribute<V> := isZero(s) ? s : x * (s / sum(x));
+	variant total<TV: numerics>(attribute<TV> target; attribute<TV> arg)
+	-> attribute<TV> := isZero(target) ? target : arg * (target / sum(arg));
 
-	variant partitioned<V: numerics>(attribute<V> s; attribute<V> x; container P)
-	-> attribute<V> := isZero(lookup(P, s)) ? lookup(P, s) : x * lookup(P, s / sum(x, P));
+	variant partitioned<TV: numerics>(attribute<TV> target; attribute<TV> arg; container punit)
+	-> attribute<TV> := isZero(lookup(punit, target)) ? lookup(punit, target) : arg * lookup(punit, target / sum(arg, punit));
 }
 
 function rescale
 {
-	variant unit_range<V: numerics>(attribute<V> x)
-	-> attribute<V> := (x - min(x)) / (max(x) - min(x));
+	variant unit_range<TV: numerics>(attribute<TV> arg)
+	-> attribute<TV> := (arg - min(arg)) / (max(arg) - min(arg));
 
-	variant to_range<V: numerics>(attribute<V> x; attribute<V> mn; attribute<V> mx)
-	-> attribute<V> := (x - min(x)) * ((mx - mn) / (max(x) - min(x))) + mn;
+	variant to_range<TV: numerics>(attribute<TV> arg; attribute<TV> mn; attribute<TV> mx)
+	-> attribute<TV> := (arg - min(arg)) * ((mx - mn) / (max(arg) - min(arg))) + mn;
 
-	variant partitioned<V: numerics>(attribute<V> x; container P; attribute<V> mn; attribute<V> mx)
-	-> attribute<V> := (x - lookup(P, min(x, P))) * lookup(P, (mx - mn) / (max(x, P) - min(x, P))) + mn;
+	variant partitioned<TV: numerics>(attribute<TV> arg; container punit; attribute<TV> mn; attribute<TV> mx)
+	-> attribute<TV> := (arg - lookup(punit, min(arg, punit))) * lookup(punit, (mx - mn) / (max(arg, punit) - min(arg, punit))) + mn;
 }
 
 function normalize
 {
-	variant standard<V: numerics>(attribute<V> x)
-	-> attribute<V> := (x - mean(x)) / sd(x);
+	variant standard<TV: numerics>(attribute<TV> arg)
+	-> attribute<TV> := (arg - mean(arg)) / sd(arg);
 
-	variant shifted<V: numerics>(attribute<V> x; attribute<V> e)
-	-> attribute<V> := (x - mean(x)) / sd(x) + e;
+	variant shifted<TV: numerics>(attribute<TV> arg; attribute<TV> shift)
+	-> attribute<TV> := (arg - mean(arg)) / sd(arg) + shift;
 
-	variant scaled<V: numerics>(attribute<V> x; attribute<V> e; attribute<V> s)
-	-> attribute<V> := (x - mean(x)) * (s / sd(x)) + e;
+	variant scaledBy<TV: numerics>(attribute<TV> arg; attribute<TV> shift; attribute<TV> scaling)
+	-> attribute<TV> := (arg - mean(arg)) * (scaling / sd(arg)) + shift;
 }
 
 // ------------------------------------------------- null-aware predicates
 // null-transparent comparisons: the *_or_lhs_null forms treat a null left
 // operand as satisfying the relation; *_or_rhs_null mirror them.
 
-function eq_or_both_null<T: any>(attribute<T> a; attribute<T> b)
--> attribute<bool> := (a == b) || (IsNull(a) && IsNull(b));
+function eq_or_both_null<TT: any>(attribute<TT> lhs; attribute<TT> rhs)
+-> attribute<bool> := (lhs == rhs) || (IsNull(lhs) && IsNull(rhs));
 
-function ne_or_one_null<T: any>(attribute<T> a; attribute<T> b)
--> attribute<bool> := !((a == b) || (IsNull(a) && IsNull(b)));
+function ne_or_one_null<TT: any>(attribute<TT> lhs; attribute<TT> rhs)
+-> attribute<bool> := !((lhs == rhs) || (IsNull(lhs) && IsNull(rhs)));
 
-function lt_or_lhs_null<T: any>(attribute<T> a; attribute<T> b)
--> attribute<bool> := (a < b) || (IsNull(a) && !IsNull(b));
+function lt_or_lhs_null<TT: any>(attribute<TT> lhs; attribute<TT> rhs)
+-> attribute<bool> := (lhs < rhs) || (IsNull(lhs) && !IsNull(rhs));
 
-function gt_or_lhs_null<T: any>(attribute<T> a; attribute<T> b)
--> attribute<bool> := (a > b) || (IsNull(a) && !IsNull(b));
+function gt_or_lhs_null<TT: any>(attribute<TT> lhs; attribute<TT> rhs)
+-> attribute<bool> := (lhs > rhs) || (IsNull(lhs) && !IsNull(rhs));
 
-function le_or_lhs_null<T: any>(attribute<T> a; attribute<T> b)
--> attribute<bool> := (a <= b) || IsNull(a);
+function le_or_lhs_null<TT: any>(attribute<TT> lhs; attribute<TT> rhs)
+-> attribute<bool> := (lhs <= rhs) || IsNull(lhs);
 
-function ge_or_lhs_null<T: any>(attribute<T> a; attribute<T> b)
--> attribute<bool> := (a >= b) || IsNull(a);
+function ge_or_lhs_null<TT: any>(attribute<TT> lhs; attribute<TT> rhs)
+-> attribute<bool> := (lhs >= rhs) || IsNull(lhs);
 
-function lt_or_rhs_null<T: any>(attribute<T> a; attribute<T> b)
--> attribute<bool> := (b > a) || (IsNull(b) && !IsNull(a));
+function lt_or_rhs_null<TT: any>(attribute<TT> lhs; attribute<TT> rhs)
+-> attribute<bool> := (rhs > lhs) || (IsNull(rhs) && !IsNull(lhs));
 
-function gt_or_rhs_null<T: any>(attribute<T> a; attribute<T> b)
--> attribute<bool> := (b < a) || (IsNull(b) && !IsNull(a));
+function gt_or_rhs_null<TT: any>(attribute<TT> lhs; attribute<TT> rhs)
+-> attribute<bool> := (rhs < lhs) || (IsNull(rhs) && !IsNull(lhs));
 
-function le_or_rhs_null<T: any>(attribute<T> a; attribute<T> b)
--> attribute<bool> := (b >= a) || IsNull(b);
+function le_or_rhs_null<TT: any>(attribute<TT> lhs; attribute<TT> rhs)
+-> attribute<bool> := (rhs >= lhs) || IsNull(rhs);
 
-function ge_or_rhs_null<T: any>(attribute<T> a; attribute<T> b)
--> attribute<bool> := (b <= a) || IsNull(b);
+function ge_or_rhs_null<TT: any>(attribute<TT> lhs; attribute<TT> rhs)
+-> attribute<bool> := (rhs <= lhs) || IsNull(rhs);

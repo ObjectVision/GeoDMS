@@ -1338,7 +1338,9 @@ namespace
 		GetProjectionBaseOperator  <P> getProjectionBase;
 	};
 
-	CommonOperGroup cog_NrOfRows("NrOfRows");
+	// `nrofrows`, not `NrOfRows`: token::NrOfRows in tic/LispTreeType.cpp interns first, and the two
+	// must agree or GetName() and GetNameStr() would spell this operator differently (#1161).
+	CommonOperGroup cog_NrOfRows("nrofrows");
 	tl_oper::inst_tuple_templ<typelists::domain_elements, NrOfRowsOperator> nrOfRowsOpers(&cog_NrOfRows);
 
 	tl_oper::inst_tuple_templ<typelists::tiled_domain_elements, TiledDomainOperators > tiledDomainOpers;

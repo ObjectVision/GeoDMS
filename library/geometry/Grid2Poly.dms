@@ -75,7 +75,7 @@ template grid2poly
 		attribute<Point>          F2         := combine_data(Point, (first_rel+1[cols])[VerticalLine], second_rel);
 	}
 
-	unit<uint32> VerticalBoundarySegment := select(verticalSegment/isBoundarySegment)
+	unit<uint32> VerticalBoundarySegment := select(VerticalSegment/isBoundarySegment)
 	{
 		attribute<VerticalLine> first_rel  := collect_by_cond(., VerticalSegment/first_rel);
 		attribute<rows>         second_rel := collect_by_cond(., VerticalSegment/second_rel);
@@ -189,12 +189,12 @@ template grid2poly
 
 		attribute<JFLS2>              outJFLS2                      := invert(JFLS2/JL_rel);
 
-		attribute<.>                  other_rel                     := outJFLS2->Other_rel;
+		attribute<.>                  other_rel                     := outJFLS2->other_rel;
 		attribute<.>                  next_rel                      := other_rel->next_JL;
 	}
 
 	// Junction Free Section := clusters van BoundarySegments
-	unit<uint32> JFSection := connected_parts(intermediatePoint/Ra, intermediatePoint/Rb)
+	unit<uint32> JFSection := connected_parts(IntermediatePoint/Ra, IntermediatePoint/Rb)
 	{
 		attribute<uint32> nr_BoundarySegments := pcount(PartNr);
 
@@ -226,7 +226,7 @@ template grid2poly
 		}
 
 		attribute<.> per_IntermediatePoint (IntermediatePoint) := invert(JFSection_rel)[JFSection/per_IntermediatePoint];
-		attribute<.> per_BoundaryPoint     (BoundaryPoint)     := lookup(invert(intermediatePoint/org_rel), per_IntermediatePoint);
+		attribute<.> per_BoundaryPoint     (BoundaryPoint)     := lookup(invert(IntermediatePoint/org_rel), per_IntermediatePoint);
 
 		// as the first segment has been removed, the remaining segments form a clock-wise path from the first BoundaryPoint to the other side of the removed segment
 		attribute<uint32> dist_from_first_BP(BoundaryPoint) := impedance_table('bidirectional;startPoint(Node_rel);node:TraceBack'
@@ -287,12 +287,12 @@ template grid2poly
 			attribute<uint32>             ordinal               := collect_by_cond(Point, dist_from_first_BP);
 		}
 
-		attribute<uint32> NrPoints := pcount(Point/sequence_rel) > 0 ? max(Point/ordinal, Point/sequence_rel) + 1 : 0;
+		attribute<uint32> nrPoints := pcount(Point/sequence_rel) > 0 ? max(Point/ordinal, Point/sequence_rel) + 1 : 0;
 		unit<uint32> PointwithConnectors := union_unit(JFLineString, Point, JFLineString)
 		{
 			attribute<coordinate_system> geometry     := union_data(., firstJL_rel->Junction_geometry, Point/geometry, last_JL_rel->Junction_geometry);
 			attribute<JFLineString>       sequence_rel := union_data(., id(JFLineString), Point/sequence_rel, id(JFLineString));
-			attribute<uint32>             ordinal      := union_data(., const(0, JFLineString), Point/ordinal+1, NrPoints+1);
+			attribute<uint32>             ordinal      := union_data(., const(0, JFLineString), Point/ordinal+1, nrPoints+1);
 		}
 
 		attribute<coordinate_system> LineString               (arc) := points2sequence(Point/geometry, Point/sequence_rel, Point/ordinal);
@@ -309,7 +309,7 @@ template grid2poly
 	{
 		attribute<JunctionLink> JL_rel             := union_data(., JFLineString/firstJL_rel, JFLineString/last_JL_rel);
 		attribute<uint32>       NrSimplifiedPoints := union_data(., JFLineString/NrSimplifiedPoints, JFLineString/NrSimplifiedPoints);
-		attribute<JunctionLink> Other_rel          := union_data(., JFLineString/last_JL_rel, JFLineString/firstJL_rel);
+		attribute<JunctionLink> other_rel          := union_data(., JFLineString/last_JL_rel, JFLineString/firstJL_rel);
 		attribute<JFLS2_Point>  JFLS2_Point_Base   := cumulate(NrSimplifiedPoints) - NrSimplifiedPoints;
 	}
 	unit<uint32> JFLS2_Point := range(uint32, 0, sum(JFLS2/NrSimplifiedPoints))
@@ -385,7 +385,7 @@ template grid2poly
 		 attribute<coordinate_system> geometry     := union_data(., ZoneRingPoint/geometry, ZoneRing/ZoneRingPointBase->geometry);
 		 attribute<ZoneRing>          ZoneRing_rel := union_data(., ZoneRingPoint/ZoneRing_rel, id(ZoneRing));
 		 attribute<uint32>            Ring_ordinal := union_data(., ZoneRingPoint/Ring_ordinal, sum(ZoneRingJunction/nrPoints, ZoneRingJunction/ZoneRing_rel));
-		 attribute<Zone>              Zone_rel     := ZoneRing_rel->FirstZone_rel;
+		 attribute<Zone>              zone_rel     := ZoneRing_rel->FirstZone_rel;
 	}
 
 	unit<uint32> RingResults := union_unit(ZoneRing, NonEmptyJFRing, NonEmptyJFRing)
@@ -396,15 +396,15 @@ template grid2poly
 		attribute<coordinate_system> geometry_reversed(poly) := points2sequence(all_points/point, all_points/sequence_rel, max(all_points/ordinal, all_points/sequence_rel)[all_points/sequence_rel] - all_points/ordinal);
 		
 		attribute<meter2>            area           := area(geometry, meter2);
-		attribute<Zone>              Zone_rel       := union_data(., ZoneRing/FirstZone_rel, NonEmptyJFRing/RightZone_rel, NonEmptyJFRing/Left_Zone_rel), IntegrityCheck = "ZoneRing/CheckUniqueZonePerRing";
+		attribute<Zone>              zone_rel       := union_data(., ZoneRing/FirstZone_rel, NonEmptyJFRing/rightZone_rel, NonEmptyJFRing/left_Zone_rel), IntegrityCheck = "ZoneRing/CheckUniqueZonePerRing";
 	}
 
 	unit<uint32> Results := Zone
 	{
 		// Polygonen van dezelfde regio samenvoegen tot multi-polygons, in een afzonderlijke template
 		// TODO: met afzonderlijke ringen samenstellen o.b.v. de te checked aanname dat ze niet overlappen.
-		attribute<coordinate_system> islands (poly) := geos_union_polygon(RingResults/geometry         , RingResults/area > 0.0 ? RingResults/Zone_rel : null_u);
-		attribute<coordinate_system> lakes   (poly) := geos_union_polygon(RingResults/geometry_reversed, RingResults/area < 0.0 ? RingResults/Zone_rel : null_u);
+		attribute<coordinate_system> islands (poly) := geos_union_polygon(RingResults/geometry         , RingResults/area > 0.0 ? RingResults/zone_rel : null_u);
+		attribute<coordinate_system> lakes   (poly) := geos_union_polygon(RingResults/geometry_reversed, RingResults/area < 0.0 ? RingResults/zone_rel : null_u);
 		attribute<coordinate_system> geometry(poly) := geos_difference   (islands, lakes);
 
 		// check dat result geen overlappende polygonen bevat

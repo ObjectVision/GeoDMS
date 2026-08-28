@@ -385,7 +385,7 @@ needy_alloc_sp
 needy_alloc_sp_16
 neg
 not
-NrOfRows
+nrofrows
 nth_element
 nth_element_weighted
 null_b

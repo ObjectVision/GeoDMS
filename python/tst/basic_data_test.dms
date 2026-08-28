@@ -19,7 +19,7 @@
 
 		attribute<float32> FloatAtt             : [0,1,9999999,-2.5,99.9];
 		attribute<float32> FloatAttNull         : [null,1,9999999,-2.5,99.9];
-		attribute<float64> Float64Att           := Float64(FloatAtt);
+		attribute<float64> Float64Att           := float64(FloatAtt);
 		attribute<fpoint>  FPointAtt            := point_yx(FloatAtt, FloatAtt, fpoint);
 
 		attribute<bool>    BoolAtt              : [False, True, True, False, True];

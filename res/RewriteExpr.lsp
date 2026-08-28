@@ -21,10 +21,10 @@
 
 /*********** Const function    *********/
 
-[(Value _P _VU)                  (convert _P _VU)]
+[(value _P _VU)                  (convert _P _VU)]
 /* the 3-arg const completion is RETIRED to a prelude function (arity-aware head
    dispatch: the registered const operator is binary): three(p,e,vu) =
-   const(Value(p,vu), e) -- the Value rule above fires at body parse, so the stored
+   const(value(p,vu), e) -- the value rule above fires at body parse, so the stored
    body equals this rule's fixpoint. */
 
 /*********** selection Functions *********/
@@ -130,10 +130,10 @@
 [(not (false)) (true)]
 
 // For NlLater
-[(BaseUnit _SI "Bool") (BaseUnit _SI Bool)]
-[(BaseUnit "" Bool) Bool]
-[(convert 1.0 Bool) (true)]
-[(convert 0.0 Bool) (false)]
+[(BaseUnit _SI "Bool") (BaseUnit _SI bool)]
+[(BaseUnit "" bool) bool]
+[(convert 1.0 bool) (true)]
+[(convert 0.0 bool) (false)]
 
 /*********** Predicate functions *********/
 
@@ -216,12 +216,12 @@
 /*********** RuimteScanner specifics *********/
 
 /* _Tj never gets negative, but it can get 0; causing _Mj to be zero in the next iteration */
-[(claim_divF32  _ADj _Mj) (iif (isPositive _ADj) (div _ADj _Mj) (Float32 0 ))]
+[(claim_divF32  _ADj _Mj) (iif (isPositive _ADj) (div _ADj _Mj) (float32 0 ))]
 [(claim_corrF32 _ADj _Mj _Oper) 
-                     (iif (eq _Oper (Value 0 '/Classifications/OperatorType')) (min_elem (claim_divF32 _ADj _Mj) (Float32 1 )) /* resulting _Aj such that: _Mj * _Aj <= _ADj */
-                     (iif (eq _Oper (Value 1 '/Classifications/OperatorType'))           (claim_divF32 _ADj _Mj)               /* resulting _Aj such that: _Mj * _Aj == _ADj */
-                     (iif (eq _Oper (Value 2 '/Classifications/OperatorType')) (max_elem (claim_divF32 _ADj _Mj) (Float32 1 )) /* resulting _Aj such that: _Mj * _Aj >= _ADj */
-                            (Float32 1 ) )))]
+                     (iif (eq _Oper (value 0 '/Classifications/OperatorType')) (min_elem (claim_divF32 _ADj _Mj) (float32 1 )) /* resulting _Aj such that: _Mj * _Aj <= _ADj */
+                     (iif (eq _Oper (value 1 '/Classifications/OperatorType'))           (claim_divF32 _ADj _Mj)               /* resulting _Aj such that: _Mj * _Aj == _ADj */
+                     (iif (eq _Oper (value 2 '/Classifications/OperatorType')) (max_elem (claim_divF32 _ADj _Mj) (float32 1 )) /* resulting _Aj such that: _Mj * _Aj >= _ADj */
+                            (float32 1 ) )))]
 
 /*********** Logit funcs       *********/
 
@@ -241,9 +241,9 @@
    arity error (or reach a same-named function via arity-aware head dispatch,
    should one ever be defined). */
 
-/* combine_data is RETIRED to a prelude variadic function: base = the Value(...)
+/* combine_data is RETIRED to a prelude variadic function: base = the value(...)
    linearization formula, fold = combine_data(V, combine_data(combine_unit(...),
-   a1, a2), rest) -- the exact resolvents; ValuesUnit/LowerBound/NrOfRows args are
+   a1, a2), rest) -- the exact resolvents; ValuesUnit/LowerBound/nrofrows args are
    calc_as_result (subst_allowed), so body params substitute identically to the
    syntactic _a/_b of this rule. */
 
@@ -252,11 +252,11 @@
 
 /*********** Rewrites for pseudo-aggregations ***********/
 
-[(UInt32 (div _V _V)) (UInt32 1)]                                   // rewrite gridverhouding for 100m
-[(div (pointrow _GRIDIDS) (convert (UInt32 1) _PRU)) (pointrow _GRIDIDS)] // rewrite pseudo divide
-[(div (pointcol _GRIDIDS) (convert (UInt32 1) _PRU)) (pointcol _GRIDIDS)] // rewrite pseudo divide
+[(uint32 (div _V _V)) (uint32 1)]                                   // rewrite gridverhouding for 100m
+[(div (pointrow _GRIDIDS) (convert (uint32 1) _PRU)) (pointrow _GRIDIDS)] // rewrite pseudo divide
+[(div (pointcol _GRIDIDS) (convert (uint32 1) _PRU)) (pointcol _GRIDIDS)] // rewrite pseudo divide
 
-[(div _X (UInt32 1)) _X] // rewrite calculation of #cells of gridset
+[(div _X (uint32 1)) _X] // rewrite calculation of #cells of gridset
 
 [(convert (id _E) _E) (id _E)]
 

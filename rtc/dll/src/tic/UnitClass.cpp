@@ -189,7 +189,9 @@ std::shared_ptr<Actor> UnitClass::CreateFromXml(Object* context, struct XmlEleme
 // reflection
 //----------------------------------------------------------------------
 
-IMPL_RTTI_METACLASS(UnitClass, "Unit", UnitClass::CreateFromXml)
+// The metaclass name is lower case since #1161: it is interned in the same case-folded token table
+// as the `unit` keyword every configuration writes, and whichever spelling lands first wins.
+IMPL_RTTI_METACLASS(UnitClass, "unit", UnitClass::CreateFromXml)
 
 //----------------------------------------------------------------------
 // destruction of default units

@@ -122,7 +122,7 @@ namespace token {
 	TIC_CALL StaticTokenID scope("scope");
 
 	TIC_CALL StaticTokenID subitem("SubItem");
-	TIC_CALL StaticTokenID NrOfRows("NrOfRows");
+	TIC_CALL StaticTokenID NrOfRows("nrofrows");
 	TIC_CALL StaticTokenID range("range");
 	TIC_CALL StaticTokenID cat_range("cat_range");
 	TIC_CALL StaticTokenID TiledUnit("TiledUnit");
@@ -194,7 +194,7 @@ namespace token {
 	TIC_CALL StaticTokenID ordinal("ordinal");
 	StaticTokenID BaseUnit("BaseUnit");
 	StaticTokenID CrsUnit("CrsUnit"); // see doc/development/crs-metric-decoupling.md
-	StaticTokenID UInt32("UInt32");
+	StaticTokenID UInt32("uint32");
 	TIC_CALL StaticTokenID left("left");
 	TIC_CALL StaticTokenID right("right");
 	TIC_CALL StaticTokenID DomainUnit("DomainUnit");
@@ -258,10 +258,15 @@ LispRef CreateStorageSpec(const TreeItem* src)
 	);
 }
 
-static StaticTokenID paramID("Param");
-static StaticTokenID attrID("Attr");
-static StaticTokenID unitID("Unit");
-static StaticTokenID itemID("Item");
+// #1161: the sign-marker heads below, the metaclass names in UnitClass.cpp and ValueWrap.cpp and
+// the nrofrows token above are spelled lower case on purpose. The token table is ASCII-case-folded,
+// so the FIRST spelling interned becomes the canonical one and every later different-case spelling
+// raises a case-mixup warning. Configurations write all of these lower case, so a mixed-case literal
+// here made the engine warn about the modeller for spelling its own keywords the ordinary way.
+static StaticTokenID paramID("param");
+static StaticTokenID attrID("attr");
+static StaticTokenID unitID("unit");
+static StaticTokenID itemID("item");
 
 LispRef CreateLispSubTree(const TreeItem* self, bool inclSubTree);
 
