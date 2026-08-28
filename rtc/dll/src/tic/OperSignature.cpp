@@ -52,7 +52,20 @@ bool Operator::DescribeMetaSignature(MetaMemberLayout& /*layout*/, CharPtr /*opt
 sig_var SignatureRecorder::NewVar(CharPtr role, UInt8 flags, const ValueClass* fixedCls)
 {
 	sig_var v = rec.NrVars();
-	rec.varRoles.emplace_back(role ? role : "");
+	// Role labels are display text, but they are interned into the SAME case-folded
+	// registry as configuration identifiers, so a bare "D" folds onto the 'd'
+	// numeric-literal suffix token and a bare "Imp" onto a modeller's 'imp' -- both
+	// reported as depreciated case mix-ups the modeller can do nothing about (#1161).
+	// The 'sig_' prefix keeps them apart. It stays a legal tree item name (the
+	// registry holds identifier-shaped strings only), and it was chosen by measuring
+	// the candidates against the regression corpus + battery: 'sig_*' does not occur
+	// there at all, where a trailing '_' still collided (U_, E_, A_, D_) and so did a
+	// leading one (_P, _B, _A). NewVar applies it centrally, so describe sites keep
+	// writing plain "D"/"V"/"Imp" and future labels are covered automatically.
+	SharedStr roleStr = (role && *role)
+		? (strncmp(role, "sig_", 4) == 0 ? SharedStr(role) : SharedStr("sig_") + role)
+		: SharedStr("sig_");
+	rec.varRoles.emplace_back(GetTokenID_mt(roleStr.c_str()));
 	rec.varFlags.push_back(flags);
 	rec.varFixedCls.push_back(fixedCls);
 	rec.varConstraints.push_back(TokenID());
@@ -180,13 +193,13 @@ void SignatureRecorder::ResultDeferred(CharPtr note)
 void SignatureRecorder::ResultContainerMember(CharPtr path, sig_var values, sig_var domain, ValueComposition vc)
 {
 	SignatureRecord::ResultMember rm;
-	rm.path = SharedStr(path); rm.values = values; rm.domain = domain; rm.vc = vc;
+	rm.path = GetTokenID_mt(path); rm.values = values; rm.domain = domain; rm.vc = vc;
 	rec.resultMembers.push_back(std::move(rm));
 }
 void SignatureRecorder::ResultContainerMemberSet(CharPtr pathPrefix, arg_index namesPos, sig_var values, sig_var domain, ValueComposition vc)
 {
 	SignatureRecord::ResultMemberSet rms;
-	rms.prefix = SharedStr(pathPrefix); rms.namesPos = namesPos;
+	rms.prefix = GetTokenID_mt(pathPrefix); rms.namesPos = namesPos;
 	rms.values = values; rms.domain = domain; rms.vc = vc;
 	rec.resultMemberSets.push_back(std::move(rms));
 }
@@ -307,7 +320,7 @@ static SharedStr RenderVar(const SignatureRecord& shape, sig_var v)
 		return SharedStr("?");
 	if (shape.varFixedCls[v])
 		return SharedStr(shape.varFixedCls[v]->GetName());
-	return shape.varRoles[v];
+	return SharedStr(shape.varRoles[v].AsStrRange());
 }
 
 static SharedStr RenderPos(const SignatureRecord& shape, const SignatureRecord::Pos& p)
@@ -357,7 +370,8 @@ SharedStr RenderMergedSignature(const AbstrOperGroup* og, const OperGroupSignatu
 			const auto& rm = shape.resultMembers[i];
 			if (i)
 				r += "; ";
-			r += mySSPrintF("{}: attribute<{}>({})", rm.path.c_str()
+			SharedStr rmPath(rm.path.AsStrRange()); // materialized: TokenStr must not span other registry calls
+			r += mySSPrintF("{}: attribute<{}>({})", rmPath.c_str()
 				, rm.values != no_sig_var ? RenderVar(shape, rm.values).c_str() : "..."
 				, rm.domain != no_sig_var ? RenderVar(shape, rm.domain).c_str() : "...");
 		}
@@ -401,7 +415,8 @@ SharedStr RenderMergedSignature(const AbstrOperGroup* og, const OperGroupSignatu
 			continue;
 		r += anyWhere ? "; " : " where ";
 		anyWhere = true;
-		r += mySSPrintF("{} in [{}]", shape.varRoles[v].c_str(), classes.c_str());
+		SharedStr roleStr(shape.varRoles[v].AsStrRange());
+		r += mySSPrintF("{} in [{}]", roleStr.c_str(), classes.c_str());
 	}
 	return r;
 }
@@ -582,7 +597,8 @@ void SigUnitChecker_VerifyApplication(const Operator* oper, const ArgSeqType& ar
 			for (const auto& rm : rec.resultMembers)
 			{
 				const TreeItem* m = result;
-				CharPtr b = rm.path.begin(), e = rm.path.send();
+				SharedStr rmPath(rm.path.AsStrRange()); // materialized: the walk below CREATES tokens
+				CharPtr b = rmPath.begin(), e = rmPath.send();
 				while (m && b != e)
 				{
 					CharPtr segEnd = std::find(b, e, '/');
@@ -597,7 +613,7 @@ void SigUnitChecker_VerifyApplication(const Operator* oper, const ArgSeqType& ar
 				collectPos(mp, m);
 			}
 
-		auto roleName = [&](sig_var v) -> SharedStr { return (v != no_sig_var && v < nv) ? rec.varRoles[v] : SharedStr("?"); };
+		auto roleName = [&](sig_var v) -> SharedStr { return (v != no_sig_var && v < nv) ? SharedStr(rec.varRoles[v].AsStrRange()) : SharedStr("?"); };
 		auto valUnitOf = [&](sig_var v) -> const AbstrUnit* { return (v != no_sig_var && v < nv && !vu[v].valReps.empty()) ? vu[v].valReps.front() : nullptr; };
 
 		// (1) unit identity within each var's bucket (UnifyDomain, symmetric on the meta thread)

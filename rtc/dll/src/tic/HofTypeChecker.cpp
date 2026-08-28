@@ -573,7 +573,7 @@ namespace hof {
 	// that mistyped `cost (E2)` as over the parameter and falsely rejected a correct
 	// body item declared over E2 (rigid-rigid 'nw'≠'E2' conflict) -- unresolvable
 	// tokens defer.
-	std::shared_ptr<const std::map<SharedStr, DefType, MemberPathLess>>
+	std::shared_ptr<const std::map<TokenID, DefType>>
 	FunctionChecker::BuildParamMembers(const TreeItem* p, SizeT paramDomNode, const TreeItem* memberSrc)
 	{
 		// memberSrc: the item whose DECLARED sub-items form the member block -- the
@@ -591,7 +591,7 @@ namespace hof {
 		if (!memberSrc)
 			memberSrc = p;
 		const TreeItem* scopeAnchor = byExample ? memberSrc : m_FuncItem;
-		auto members = std::make_shared<std::map<SharedStr, DefType, MemberPathLess>>();
+		auto members = std::make_shared<std::map<TokenID, DefType>>();
 		SharedStr pName(p->GetID().AsStrRange()); // materialized: TokenStr must not span token creation below
 
 		// K11a-4: one WALK per block, recursing into declared CONTAINER members with
@@ -761,7 +761,8 @@ namespace hof {
 				// reference a false "declares no member" definition error)
 				SharedStr mName(m->GetID().AsStrRange());
 				SharedStr mPath = prefix.empty() ? mName : prefix + mName;
-				(*members)[mPath] = md;
+				// a direct member's key IS its item token; a nested path interns once here
+				(*members)[prefix.empty() ? m->GetID() : GetTokenID_mt(mPath.c_str())] = md;
 
 				// K11a-4: recurse into a declared CONTAINER member -- its members type
 				// under the flattened path ('meta/factor'); nested blocks have no
@@ -781,10 +782,10 @@ namespace hof {
 	// unit, and a member attribute's domain/values tokens resolve in the CONTAINER's
 	// OWN scope (never the function's -- the by-example capture-shadowing lesson).
 	// Members whose tokens do not resolve stay Unknown and simply defer.
-	std::shared_ptr<const std::map<SharedStr, DefType, MemberPathLess>>
+	std::shared_ptr<const std::map<TokenID, DefType>>
 	FunctionChecker::BuildConcreteContainerMembers(const TreeItem* c)
 	{
-		auto members = std::make_shared<std::map<SharedStr, DefType, MemberPathLess>>();
+		auto members = std::make_shared<std::map<TokenID, DefType>>();
 		for (const TreeItem* m = c->_GetFirstSubItem(); m; m = m->GetNextItem())
 		{
 			DefType md;
@@ -830,7 +831,7 @@ namespace hof {
 				}
 			}
 			// else: nested containers & co stay Unknown (declared, but untyped here)
-			(*members)[SharedStr(m->GetID().AsStrRange())] = md;
+			(*members)[m->GetID()] = md;
 		}
 		return members;
 	}
@@ -848,8 +849,11 @@ namespace hof {
 		DefType pt = ParamType(paramIdx);
 		if (pt.members)
 		{
-			if (auto it = pt.members->find(memberPath); it != pt.members->end())
-				return it->second;
+			// keys are TokenIDs; a path whose token does not even exist names no member
+			TokenID pathTok = GetExistingTokenID_mt(memberPath.begin(), memberPath.send());
+			if (IsDefined(pathTok))
+				if (auto it = pt.members->find(pathTok); it != pt.members->end())
+					return it->second;
 			if (pt.membersComplete)
 			{
 				// a DIRECT miss is an error; a DEEP miss is an error only when its
@@ -872,15 +876,25 @@ namespace hof {
 					// yields the WHOLE path
 					SharedStr parentPath{ CharPtrRange(memberPath.begin(), lastSlash) };
 					SharedStr parentPrefix = parentPath + "/";
-					if (auto pit = pt.members->find(parentPath); pit != pt.members->end()
+					TokenID parentTok = GetExistingTokenID_mt(parentPath.begin(), parentPath.send());
+					auto pit = IsDefined(parentTok) ? pt.members->find(parentTok) : pt.members->end();
+					if (pit != pt.members->end()
 						&& pit->second.kind != DefType::Kind::Data && pit->second.kind != DefType::Kind::UnitVal)
 						for (const auto& kv : *pt.members)
-							if (kv.first.ssize() > parentPrefix.ssize()
-								&& std::equal(parentPrefix.begin(), parentPrefix.send(), kv.first.begin()))
+						{
+							// prefix test on materialized key text; folded, so the scan
+							// agrees with the map's own (token) equality -- the former
+							// exact-case std::equal silently deferred on a case-mismatched
+							// parent spelling instead of reporting the closed-set miss
+							SharedStr kStr(kv.first.AsStrRange());
+							if (kStr.ssize() > parentPrefix.ssize()
+								&& std::equal(parentPrefix.begin(), parentPrefix.send(), kStr.begin(),
+									[](char x, char y) { return AsciiTokenFold(x) == AsciiTokenFold(y); }))
 							{
 								report = true; // the parent block was walked: its member set is closed
 								break;
 							}
+						}
 				}
 				if (report)
 				{
@@ -1426,7 +1440,7 @@ namespace hof {
 		auto names = EvalClosedStrArray(refScope, namesExpr);
 		if (!names || names->empty())
 			return; // data-directed member set: defer, exactly as before K11b
-		std::shared_ptr<const std::map<SharedStr, DefType, MemberPathLess>> members;
+		std::shared_ptr<const std::map<TokenID, DefType>> members;
 		bool fromExternal = false;
 		if (argTerm.kind == DefType::Kind::Container && argTerm.members)
 			members = argTerm.members;                       // a structured container parameter
@@ -1469,7 +1483,10 @@ namespace hof {
 		SharedStr refName; const DefType* refMember = nullptr;
 		for (const auto& nm : *names)
 		{
-			auto it = members->find(nm);
+			// nm is DATA (a name-array entry): probe with GetExisting so an unmatched
+			// name creates no registry entry -- an absent token cannot name a member
+			TokenID nmTok = GetExistingTokenID_mt(nm.begin(), nm.send());
+			auto it = IsDefined(nmTok) ? members->find(nmTok) : members->end();
 			if (it == members->end())
 				continue; // a named member the argument does not declare: reduction reports it
 			const DefType& mt = it->second;
@@ -1527,12 +1544,15 @@ namespace hof {
 		DefType ct = InferBodyItem(genItem);
 		if (!ct.members)
 			return {};
-		if (auto it = ct.members->find(subPath); it != ct.members->end())
-			return it->second;
-		auto ciEq = [](char x, char y) { return MemberPathLess::Fold(x) == MemberPathLess::Fold(y); };
+		TokenID subTok = GetExistingTokenID_mt(subPath.begin(), subPath.send());
+		if (IsDefined(subTok))
+			if (auto it = ct.members->find(subTok); it != ct.members->end())
+				return it->second;
+		auto ciEq = [](char x, char y) { return AsciiTokenFold(x) == AsciiTokenFold(y); };
 		SizeT sn = subPath.ssize();
-		for (const auto& [path, mt] : *ct.members)
+		for (const auto& [pathTok, mt] : *ct.members)
 		{
+			SharedStr path(pathTok.AsStrRange()); // materialized key text for the prefix tests
 			SizeT pn = path.ssize();
 			if (pn > sn && *(path.begin() + sn) == DELIMITER_CHAR
 				&& std::equal(subPath.begin(), subPath.send(), path.begin(), ciEq))
@@ -1549,7 +1569,7 @@ namespace hof {
 				, SharedStr(sym.AsStrRange()).c_str(), genItem->GetFullName().c_str()
 				, subPath.c_str(), m_FuncItem->GetFullName().c_str());
 		SharedStr listed; UInt32 nrListed = 0;
-		for (const auto& [path, mt] : *ct.members)
+		for (const auto& [pathTok, mt] : *ct.members)
 		{
 			if (nrListed == 10)
 			{
@@ -1558,7 +1578,7 @@ namespace hof {
 			}
 			if (nrListed++)
 				listed += ", ";
-			listed += path;
+			listed += SharedStr(pathTok.AsStrRange());
 		}
 		throwErrorF("ExprParser", "'{}': the calculation rule of '{}' generates member(s) {}; '{}' is not among them (body of function '{}')"
 			, SharedStr(sym.AsStrRange()).c_str(), genItem->GetFullName().c_str()

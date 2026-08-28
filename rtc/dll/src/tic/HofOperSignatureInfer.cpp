@@ -112,7 +112,7 @@ namespace hof {
 			bool hasVal = false;                  // Container: a shared member VALUES var exists
 			arg_index namesPos = arg_index(-1);   // Container: the naming argument
 		};
-		auto canon = [](const SignatureRecord& s, std::vector<PosSkel>& args, PosSkel& res, std::vector<SharedStr>& roles) -> bool
+		auto canon = [](const SignatureRecord& s, std::vector<PosSkel>& args, PosSkel& res, std::vector<TokenID>& roles) -> bool
 		{
 			if (s.dynamicShape || s.resultDeferred || s.repeat.active || !s.resultMembers.empty() || !s.resultMemberSets.empty())
 				return false; // deferred/variadic/composite shapes: not a plain skeleton
@@ -150,14 +150,14 @@ namespace hof {
 			return true;
 		};
 
-		std::vector<PosSkel> refArgs; PosSkel refRes; std::vector<SharedStr> refRoles;
+		std::vector<PosSkel> refArgs; PosSkel refRes; std::vector<TokenID> refRoles;
 		if (!canon(sigs->records[recordIdxs[0]].shape, refArgs, refRes, refRoles))
 			return std::nullopt;
 		std::vector<bool> vcAgrees(refArgs.size(), true);
 		bool resVcAgrees = true;
 		for (SizeT k = 1; k != recordIdxs.size(); ++k)
 		{
-			std::vector<PosSkel> a; PosSkel r; std::vector<SharedStr> roles;
+			std::vector<PosSkel> a; PosSkel r; std::vector<TokenID> roles;
 			if (!canon(sigs->records[recordIdxs[k]].shape, a, r, roles))
 				return std::nullopt;
 			if (a.size() != refArgs.size())
@@ -182,7 +182,7 @@ namespace hof {
 		OperGroupSignatures::MergedRecord mr;
 		auto& shape = mr.shape;
 		UInt32 nDom = UInt32(refRoles.size());
-		auto addVar = [&](const SharedStr& role, UInt8 flags) -> sig_var
+		auto addVar = [&](TokenID role, UInt8 flags) -> sig_var
 		{
 			sig_var v = shape.NrVars();
 			shape.varRoles.push_back(role);
@@ -212,7 +212,7 @@ namespace hof {
 				// would collapse into ONE class node and falsely equate the positions'
 				// value classes (that turned `cond ? 0 : 1` into a bool-vs-uint32
 				// conflict between the condition and the result).
-				p.values = addVar(SharedStr(posName), 0);
+				p.values = addVar(GetTokenID_mt(posName), 0);
 				p.domain = ps.dom.id == UInt32(-1) ? no_sig_var : sig_var(ps.dom.id);
 			}
 			else if (ps.kind == SignatureRecord::PosKind::Unit)
@@ -224,7 +224,7 @@ namespace hof {
 				// no cross-position class identity), and the agreed naming argument
 				p.domain = ps.dom.id == UInt32(-1) ? no_sig_var : sig_var(ps.dom.id);
 				if (ps.hasVal)
-					p.values = addVar(SharedStr(posName), 0);
+					p.values = addVar(GetTokenID_mt(posName), 0);
 				p.namesPos = ps.namesPos;
 			}
 			else
@@ -232,8 +232,11 @@ namespace hof {
 			return p;
 		};
 		for (SizeT i = 0; i != refArgs.size(); ++i)
-			shape.args.push_back(emitPos(refArgs[i], vcAgrees[i], mySSPrintF("?a{}", UInt32(i)).c_str()));
-		shape.result = emitPos(refRes, resVcAgrees, "?r");
+			// spelled-out synthetic role names: the label space is case-folded like any
+			// other token space, so a one-letter synthetic ('sig_r') would fold onto a
+			// describe-side label ('R' -> 'sig_R') and report an engine-internal mix-up
+			shape.args.push_back(emitPos(refArgs[i], vcAgrees[i], mySSPrintF("sig_arg{}", UInt32(i)).c_str()));
+		shape.result = emitPos(refRes, resVcAgrees, "sig_res");
 		// no tuples and no members: ApplyOperRecord's class machinery becomes a no-op
 		return mr;
 	}
@@ -247,15 +250,12 @@ namespace hof {
 
 		UInt32 nv = shape.NrVars();
 		std::vector<SizeT> valNode(nv, NO_TYPE_VAR), domNode(nv, NO_TYPE_VAR);
-		std::vector<TokenID> roleTok(nv);
-		for (UInt32 v = 0; v != nv; ++v)
-			roleTok[v] = GetTokenID_mt(shape.varRoles[v].c_str());
 
 		auto VN = [&](sig_var v) -> SizeT
 		{
 			if (valNode[v] == NO_TYPE_VAR)
 			{
-				valNode[v] = m_Unifier.ValueVar(nullptr, inst, roleTok[v], src, false, shape.varConstraints[v]);
+				valNode[v] = m_Unifier.ValueVar(nullptr, inst, shape.varRoles[v], src, false, shape.varConstraints[v]);
 				if (shape.varFixedCls[v])
 					m_Unifier.BindValue(valNode[v], shape.varFixedCls[v], src);
 				else
@@ -279,7 +279,7 @@ namespace hof {
 						setText += SharedStr(mc->GetName());
 					}
 					if (covered)
-						m_Unifier.AddSoftConstraint(valNode[v], set, roleTok[v], src, setText);
+						m_Unifier.AddSoftConstraint(valNode[v], set, shape.varRoles[v], src, setText);
 				}
 			}
 			return valNode[v];
@@ -287,7 +287,7 @@ namespace hof {
 		auto DN = [&](sig_var v) -> SizeT
 		{
 			if (domNode[v] == NO_TYPE_VAR)
-				domNode[v] = m_Unifier.UnitVar(nullptr, inst, roleTok[v]);
+				domNode[v] = m_Unifier.UnitVar(nullptr, inst, shape.varRoles[v]);
 			return domNode[v];
 		};
 
@@ -513,7 +513,7 @@ namespace hof {
 		// its promised definition-time report never fires (review finding).
 		if (!shape.resultMembers.empty() || shape.resultMembersComplete || !shape.resultMemberSets.empty())
 		{
-			auto members = std::make_shared<std::map<SharedStr, DefType, MemberPathLess>>();
+			auto members = std::make_shared<std::map<TokenID, DefType>>();
 			auto memberTypeOf = [&](sig_var values, sig_var domain, ValueComposition vc) -> DefType
 			{
 				DefType m; m.kind = DefType::Kind::Data; m.vcomp = vc;
@@ -563,11 +563,12 @@ namespace hof {
 				if (!names)
 					continue; // data-directed: no claim, as before
 				DefType mt = memberTypeOf(rms.values, rms.domain, rms.vc);
+				SharedStr prefixStr(rms.prefix.AsStrRange()); // materialized: the loop below CREATES tokens
 				for (const auto& nm : *names)
 				{
 					if (!nm.IsDefined() || nm.empty())
 						continue;
-					(*members)[rms.prefix + "/" + nm] = mt;
+					(*members)[GetTokenID_mt((prefixStr + "/" + nm).c_str())] = mt;
 				}
 			}
 			r.members = std::move(members);
@@ -878,14 +879,14 @@ namespace hof {
 			}
 		};
 
-		auto members = std::make_shared<std::map<SharedStr, DefType, MemberPathLess>>();
+		auto members = std::make_shared<std::map<TokenID, DefType>>();
 		for (SizeT i = 0; i != names->size(); ++i)
 		{
 			const SharedStr& nm = (*names)[i];
 			if (!nm.IsDefined() || nm.empty())
 				continue; // skipped rows, exactly as ForEach_CreateResult
-			if (!members->emplace(nm, memberTypeAt(i)).second)
-				return std::nullopt; // duplicate generated names (case-insensitively, like the tree): not modeled
+			if (!members->emplace(GetTokenID_mt(nm.c_str()), memberTypeAt(i)).second)
+				return std::nullopt; // duplicate generated names (token equality = the tree's case folding): not modeled
 		}
 
 		DefType r;

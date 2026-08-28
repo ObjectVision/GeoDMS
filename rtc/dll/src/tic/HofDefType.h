@@ -27,28 +27,19 @@
 
 namespace hof {
 
-	// §12.7: generated/computed member maps are keyed CASE-INSENSITIVELY --
-	// TreeItem lookup (and hence SubItemOperator's GetCurrItem) accepts either
-	// case (with a deprecation warning), so an exact-case map would falsely
-	// miss legal references (S1). Folding is FIXED ASCII, matching the
-	// engine's token equality -- locale-dependent folding (stricmp/tolower)
-	// could diverge under a changed CRT locale (review finding)
-	struct MemberPathLess
-	{
-		static char Fold(char ch) { return (ch >= 'A' && ch <= 'Z') ? char(ch - 'A' + 'a') : ch; }
-
-		bool operator()(const SharedStr& a, const SharedStr& b) const
-		{
-			CharPtr ai = a.begin(), ae = a.send(), bi = b.begin(), be = b.send();
-			for (; ai != ae && bi != be; ++ai, ++bi)
-			{
-				char fa = Fold(*ai), fb = Fold(*bi);
-				if (fa != fb)
-					return fa < fb;
-			}
-			return (ae - ai) < (be - bi);
-		}
-	};
+	// §12.7: generated/computed member maps are keyed by the TokenID of the full
+	// relative member path -- TreeItem lookup (and hence SubItemOperator's
+	// GetCurrItem) accepts either case (with a deprecation warning), and token
+	// equality IS the tree's fixed-ASCII case folding, so keying by token gives
+	// the case-insensitive map for free (a hand-rolled folding comparator used
+	// to duplicate it here). Look up with GetExistingTokenID: every key was
+	// interned when the map was built, so an absent token cannot name a present
+	// member (and data-derived probe names then create no registry entries).
+	// The fold survives only for the string-PREFIX scans over materialized key
+	// text, which token identity cannot express; FIXED ASCII, matching token
+	// equality -- locale-dependent folding (stricmp/tolower) could diverge
+	// under a changed CRT locale (review finding)
+	inline char AsciiTokenFold(char ch) { return (ch >= 'A' && ch <= 'Z') ? char(ch - 'A' + 'a') : ch; }
 
 	// the definition-time type of a body expression (kinds-level, §5 terms)
 	struct DefType
@@ -92,13 +83,13 @@ namespace hof {
 		// pseudo-expanded members of a container-GENERATING meta application
 		// (for_each, Kind::Container) OR the DESCRIBED sub-items of a
 		// cacheable operator's cache result (unique/Values & co., any kind;
-		// slSubItemCall tranche) -- keyed by the sub-item PATH (a name-array
-		// entry may contain '/'), case-insensitively (TreeItem lookup accepts
-		// either case). membersComplete marks a definitively-known set -- the
-		// only state in which a missing member may be reported (sound: meta
+		// slSubItemCall tranche) -- keyed by the TokenID of the sub-item PATH (a
+		// name-array entry may contain '/'); token equality is case-folded, as
+		// TreeItem lookup is. membersComplete marks a definitively-known set --
+		// the only state in which a missing member may be reported (sound: meta
 		// rules reject every inline member access; described-complete cache
 		// results make SubItemOperator certain to reject the same reference)
-		std::shared_ptr<const std::map<SharedStr, DefType, MemberPathLess>> members;
+		std::shared_ptr<const std::map<TokenID, DefType>> members;
 		bool membersComplete = false;
 	};
 
@@ -145,10 +136,10 @@ namespace hof {
 		// block on a `unit<...> P { … }` parameter), each member typed by its declared
 		// value class over the parameter's own domain. Enables def-time typing of
 		// `P/member` access (InferExpr case 2 / InferParamMember).
-		std::shared_ptr<const std::map<SharedStr, DefType, MemberPathLess>>
+		std::shared_ptr<const std::map<TokenID, DefType>>
 			BuildParamMembers(const TreeItem* p, SizeT paramDomNode, const TreeItem* memberSrc = nullptr);
 		// K11b: the CONCRETE members of a definition-scope container argument
-		std::shared_ptr<const std::map<SharedStr, DefType, MemberPathLess>>
+		std::shared_ptr<const std::map<TokenID, DefType>>
 			BuildConcreteContainerMembers(const TreeItem* c);
 		// K11b: link an ArgContainer position's shared domain/values against the actual members
 		void LinkContainerArg(const SignatureRecord::Pos& p, const DefType& argTerm, LispPtr argExpr,

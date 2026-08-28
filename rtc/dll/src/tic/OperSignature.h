@@ -44,6 +44,8 @@ enum class SigArgTraits : UInt8 { none = 0, no_void_broadcast = 1, categorical =
 struct AbstrSignatureBuilder
 {
 	// --- unit variables: ONE sort, usable in BOTH domain and values roles (the K2 fix)
+	// Pass the label plainly ("D", "E2", "V"): NewVar prefixes it with 'sig_' before
+	// interning, which keeps role labels out of the configuration name space (#1161).
 	virtual sig_var UnitVar(CharPtr role) = 0;             // "D", "E2", "V"
 	virtual sig_var VoidDomain() = 0;                      // K15, parameters
 	virtual sig_var DefaultUnit(const ValueClass* vc) = 0; // boolean/default_unit_creator
@@ -174,7 +176,7 @@ struct SignatureRecord
 
 	// per-var facts (indexed by sig_var)
 	enum VarFlags : UInt8 { VF_None = 0, VF_VoidDomain = 1, VF_Generated = 2, VF_DefaultUnit = 4 };
-	std::vector<SharedStr>         varRoles;
+	std::vector<TokenID>           varRoles;      // display labels ("D", "V", "sig_arg0"); tokenized so SameShape compares ids
 	std::vector<UInt8>             varFlags;
 	std::vector<const ValueClass*> varFixedCls;    // FixedValueClass / DefaultUnit class
 	std::vector<TokenID>           varConstraints; // ConstrainValueClass
@@ -182,7 +184,7 @@ struct SignatureRecord
 	// a typed sub-item of a composite result (§12.7 slSubItemCall tranche)
 	struct ResultMember
 	{
-		SharedStr path;
+		TokenID path; // the full relative sub-item path ('Values', 'total_allocated/A'); token equality = the tree's case folding
 		sig_var values = no_sig_var, domain = no_sig_var;
 		ValueComposition vc = ValueComposition::Unknown;
 
@@ -196,7 +198,7 @@ struct SignatureRecord
 	// in the string array at `namesPos`, each of the declared type
 	struct ResultMemberSet
 	{
-		SharedStr prefix;
+		TokenID prefix; // '<prefix>/<name>' member paths; tokenized like ResultMember::path
 		arg_index namesPos = arg_index(-1);
 		sig_var values = no_sig_var, domain = no_sig_var;
 		ValueComposition vc = ValueComposition::Unknown;
