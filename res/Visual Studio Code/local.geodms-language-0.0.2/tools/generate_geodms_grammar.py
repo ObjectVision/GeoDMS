@@ -28,6 +28,11 @@ keywords_primary = [w for w in kw1 if w.lower() in ["container", "template"]]
 keywords_secondary = [w for w in kw2 if w.lower() in ["attribute", "parameter"]]
 keywords_unit = [w for w in kw4 if w.lower() in ["unit"]]
 
+# Names are case insensitive in the GeoDMS, so types and booleans are matched that way:
+# a configuration written before the engine's names went lower case keeps its highlighting.
+# The CALL pattern stays case sensitive on purpose -- an operator spelled other than the way
+# the engine registers it loses its colour, which is the cue that it reports a case mix-up
+# (ObjectVision/GeoDMS#1161).
 def regex_alt(words, ci=False):
     # longest first, so a longer alternative is never masked by a prefix of itself.
     # The final `x` breaks ties between case variants of one word (TRUE/True/true):
@@ -40,7 +45,7 @@ def regex_alt(words, ci=False):
 callables = []
 excluded = {x.lower() for x in properties + types + kw1 + kw2 + kw4}
 for x in csv_items:
-    if x in ["TRUE", "FALSE", "true", "false", "True", "False"]:
+    if x.lower() in ["true", "false"]:
         continue
     if x.lower() in excluded:
         continue
@@ -49,11 +54,11 @@ for x in csv_items:
 
 func_pat = regex_alt(callables)
 prop_pat = regex_alt(properties, ci=True)
-type_pat = regex_alt(types)
+type_pat = regex_alt(types, ci=True)
 prim_pat = regex_alt(keywords_primary, ci=True)
 sec_pat = regex_alt(keywords_secondary, ci=True)
 unit_pat = regex_alt(keywords_unit, ci=True)
-bool_pat = regex_alt(["TRUE", "FALSE", "true", "false", "True", "False"])
+bool_pat = regex_alt(["true", "false"], ci=True)
 
 grammar = {
   "name":"GeoDMS",

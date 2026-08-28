@@ -2,7 +2,7 @@
   "unit": {
     "prefix": "unit",
     "body": [
-      "unit<${1:UInt32}> ${2:name}"
+      "unit<${1:uint32}> ${2:name}"
     ],
     "description": "GeoDMS unit<type> name"
   },

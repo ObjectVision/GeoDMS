@@ -138,7 +138,7 @@ def write_grammar(path: Path, data):
           ]
         },
         "booleans": {
-          "patterns": [{"name": "constant.language.boolean.geodms", "match": "\\b(?:TRUE|FALSE|true|false|True|False)\\b"}]
+          "patterns": [{"name": "constant.language.boolean.geodms", "match": "\\b(?i:false|true)\\b"}]
         },
         "functionCalls": {
           "patterns": [
@@ -256,7 +256,7 @@ function activate(context) {
           return [
             snippetItem(
               \"unit<type> name\",
-              \"unit<${1:UInt32}> ${2:name}\",
+              \"unit<${1:uint32}> ${2:name}\",
               \"GeoDMS unit snippet\"
             )
           ];
