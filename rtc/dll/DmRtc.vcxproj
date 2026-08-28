@@ -478,6 +478,30 @@
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
+    <ClCompile Include="src\tic\HofApplication.cpp">
+      <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
+      <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
+    </ClCompile>
+    <ClCompile Include="src\tic\HofClosure.cpp">
+      <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
+      <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
+    </ClCompile>
+    <ClCompile Include="src\tic\HofOperSignatureInfer.cpp">
+      <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
+      <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
+    </ClCompile>
+    <ClCompile Include="src\tic\HofTypeChecker.cpp">
+      <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
+      <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
+    </ClCompile>
+    <ClCompile Include="src\tic\HofTypeUnifier.cpp">
+      <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
+      <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
+    </ClCompile>
+    <ClCompile Include="src\tic\MetaFuncApply.cpp">
+      <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
+      <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
+    </ClCompile>
     <ClCompile Include="src\tic\AbstrDataItem.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
@@ -554,11 +578,31 @@
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
+    <ClCompile Include="src\tic\TreeItemDataUsage.cpp">
+      <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
+      <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
+    </ClCompile>
+    <ClCompile Include="src\tic\TreeItemFunctionSpec.cpp">
+      <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
+      <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
+    </ClCompile>
+    <ClCompile Include="src\tic\TreeItemMetaInfo.cpp">
+      <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
+      <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
+    </ClCompile>
+    <ClCompile Include="src\tic\TreeItemPath.cpp">
+      <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
+      <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
+    </ClCompile>
     <ClCompile Include="src\tic\TreeItemProps.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
     <ClCompile Include="src\tic\TreeItemSet.cpp">
+      <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
+      <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
+    </ClCompile>
+    <ClCompile Include="src\tic\TreeItemXmlDump.cpp">
       <PrecompiledHeaderFile>TicPCH.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)Tic.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
@@ -619,6 +663,9 @@
     <ClInclude Include="src\tic\stg\StorageClass.h" />
     <ClInclude Include="src\tic\stg\StorageInterface.h" />
     <ClInclude Include="src\tic\AbstrCalculator.h" />
+    <ClInclude Include="src\tic\HofClosure.h" />
+    <ClInclude Include="src\tic\HofDefType.h" />
+    <ClInclude Include="src\tic\HofTypeUnifier.h" />
     <ClInclude Include="src\tic\AbstrDataItem.h" />
     <ClInclude Include="src\tic\AbstrDataObject.h" />
     <ClInclude Include="src\tic\AbstrUnit.h" />
@@ -666,6 +713,7 @@
     <ClInclude Include="src\tic\TreeItemContextHandle.h" />
     <ClInclude Include="src\tic\TreeItemDualRef.h" />
     <ClInclude Include="src\tic\TreeItemFlags.h" />
+    <ClInclude Include="src\tic\TreeItemInternal.h" />
     <ClInclude Include="src\tic\TreeItemProps.h" />
     <ClInclude Include="src\tic\TreeItemSet.h" />
     <ClInclude Include="src\tic\TreeItemUtils.h" />

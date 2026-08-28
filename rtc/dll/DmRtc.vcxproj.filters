@@ -843,6 +843,15 @@
     <ClInclude Include="src\tic\AbstrCalculator.h">
       <Filter>TreeItemComponent</Filter>
     </ClInclude>
+    <ClInclude Include="src\tic\HofClosure.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\HofDefType.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\HofTypeUnifier.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
     <ClInclude Include="src\tic\AbstrDataItem.h">
       <Filter>TreeItemComponent</Filter>
     </ClInclude>
@@ -946,6 +955,9 @@
       <Filter>TreeItemComponent</Filter>
     </ClInclude>
     <ClInclude Include="src\tic\TreeItemFlags.h">
+      <Filter>TreeItemComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tic\TreeItemInternal.h">
       <Filter>TreeItemComponent</Filter>
     </ClInclude>
     <ClInclude Include="src\tic\TreeItemProps.h">
@@ -1295,6 +1307,24 @@
     <ClCompile Include="src\tic\AbstrCalculator.cpp">
       <Filter>TreeItemComponent</Filter>
     </ClCompile>
+    <ClCompile Include="src\tic\HofApplication.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\HofClosure.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\HofOperSignatureInfer.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\HofTypeChecker.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\HofTypeUnifier.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\MetaFuncApply.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
     <ClCompile Include="src\tic\AbstrDataItem.cpp">
       <Filter>TreeItemComponent</Filter>
     </ClCompile>
@@ -1337,10 +1367,25 @@
     <ClCompile Include="src\tic\TreeItemClass.cpp">
       <Filter>TreeItemComponent</Filter>
     </ClCompile>
+    <ClCompile Include="src\tic\TreeItemDataUsage.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\TreeItemFunctionSpec.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\TreeItemMetaInfo.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\TreeItemPath.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
     <ClCompile Include="src\tic\TreeItemProps.cpp">
       <Filter>TreeItemComponent</Filter>
     </ClCompile>
     <ClCompile Include="src\tic\TreeItemSet.cpp">
+      <Filter>TreeItemComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tic\TreeItemXmlDump.cpp">
       <Filter>TreeItemComponent</Filter>
     </ClCompile>
     <ClCompile Include="src\sym\SymPCH.cpp">
