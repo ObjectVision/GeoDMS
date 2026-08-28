@@ -9,8 +9,8 @@ both closed (2026-08-27, recorded below); #1219 was filed and fixed after the au
 entered the tables, and neither did #1220, which was filed and closed on 2026-08-27 as well.
 #1211, which the tables did classify, was closed right after it by the same work. #1196 has
 since been closed as well (2026-08-27, recorded below), and #1221 was filed that afternoon and has
-not been classified here yet. Live count re-checked against GitHub after that: **11 open** — #587,
-#724, #990, #1145, #1161, #1165, #1191, #1198, #1205, #1214, #1221. Note #973 and #659 have both
+not been classified here yet. Live count re-checked against GitHub after that: 11 open; #1161 was closed on 2026-08-28 (recorded below), leaving **10 open** — #587,
+#724, #990, #1145, #1165, #1191, #1198, #1205, #1214, #1221. Note #973 and #659 have both
 closed since the audit and their rows below are stale. Grouped by implementability. Buckets:
 
 - **A. Low hanging fruit** — small, well-defined fixes; no design decisions needed.
@@ -33,8 +33,6 @@ None open. #1211, the last one, was closed on 2026-08-27 (recorded below).
 | Issue | Design choice to settle |
 |---|---|
 | [#1165](https://github.com/ObjectVision/GeoDMS/issues/1165) Deprecate the point-valued `range` property | Rescoped by the 20.14.0 work (`7d1a336e`): every textual rendering of a point now states its coordinate order as `xy(x; y)`, so the property is no longer order-ambiguous, and reading an untagged range already warns from `RangeStream`. What is left is (a) property-level deprecation machinery — `AbstrPropDef::IsDepreciated()` is still consulted only at `rtc/dll/src/tic/Xml/XmlTreeOut.cpp:1016`, where it hides the property from the detail page, so configuring the deprecated `Expr` property warns nothing — and (b) migrating the 19 regression configurations that still use the brace form. Decide the choke point and the warn-now/error-later timing. |
-| [#1161](https://github.com/ObjectVision/GeoDMS/issues/1161) Mitigate mixed-case deprecation warnings | Half done in 20.19.0; the engine-level naming decision is made and corpus-backed. Measured first: every configuration emitted eleven case-mixup warnings before it had done anything wrong, and ten of them were the engine disagreeing with its own shipped `res/RewriteExpr.lsp` and `res/prelude.dms` (in `t050_fixed.log`, 39 of 56 log lines were this noise). Those are fixed, and `unit`, `value`, `item`, `param`, `attr` and `nrofrows` are now canonical lower case -- the census over the 1146 `.dms` files in `C:/dev/tst` says `unit` 13829 vs `Unit` 69, `value` 2333 vs `Value` 52, `nrofrows` 1256 vs `NrOfRows` 356. The `testcases` battery went from 2747 case-mixup lines to 511, and from 0 to 36 of its 233 configurations emitting none at all. What is left: (a) the ~86 hand-written mixed-case operator names in `clc/` and `geo/`, internally inconsistent (`IsNull`/`IsDefined` vs `isPositive`/`isNegative`, `Round` vs the config-written `roundUp`, `UpperCase`, `asDataString`, `LowerBound`, `spatialIndex`), which also touch `data/operators.csv`, the Notepad++ grammar and the wiki -- and note `AbstrOperGroup` keeps both `m_OperName` (`GetNameStr()`, signature text) and `m_OperNameID` (`GetName()`, DocData), so a rename must change every registration site or the engine spells one operator two ways; (b) the warning itself, which names no config file or line, fires for whole item PATHS (34 of the 229 distinct warnings in the regression corpus contain a `/`), and cannot tell a mis-spelled engine name from two unrelated tree items that fold to one token -- Renaming the short local names in `res/prelude.dms` and the battery's own configurations took it further, to 281 lines and 92 clean configurations. The remaining floor was then settled the OTHER way, by decision: symbols in the HOF checker are now uniformly `TokenID` rather than `SharedStr` -- `SignatureRecord::varRoles`/`ResultMember::path`/`ResultMemberSet::prefix`, the `canon()` role vectors, and the `DefType::members` maps, which had hand-rolled the token table's ASCII fold in a `MemberPathLess` comparator (now deleted; lookups probe with `GetExistingTokenID`, so data-derived names create no registry entries). `SameShape` congruence is integer compares now, and the fold survives only in the string-prefix scans over materialized key text. Interning the operator-signature role labels at describe time then widened their collision reach (306 lines / 80 clean), so they are now interned `sig_`-prefixed by `SignatureRecorder::NewVar` -- one central site, describe sites still write plain `"D"`/`"Imp"`. The prefix was CHOSEN BY MEASUREMENT: `sig_*` occurs nowhere in the regression corpus or the battery, where a trailing `_` still collided (`U_` 10 case-mismatches, `E_` 9, `A_` 8, `D_` 2) and a leading one did too (`_P`, `_B`, `_A`); the earlier idea of a word (`Res` 6589 mismatches, `Un` 127, `Sel` 97, `Arg` 86) was hopeless. Synthetic skeleton roles are spelled out (`sig_arg0`, `sig_res`) because a one-letter synthetic folds onto a describe-side label -- caught in measurement as a new `sig_R -> sig_r` line. That took the battery to 147 lines / 156 clean configurations, and the config-side sweep then took it to **40 lines, 24 distinct pairs, 214 of 233 configurations emitting none** (from 2747/0 at the start of the session), all 233 still passing. The config-side work: boolean literals `True`->`true` (211 occurrences), the `Units` container -> `units` (SI symbols `W`/`K`/`A` keep their case), file-local renames driven by a fold-conflict scanner (`A`/`a`, `V`/`v`, `Cells`/`cells`, the OD relational attributes -> `N1_rel`/`N2_rel`, the discrete_alloc type names -> `LuA`/`LuB`/`LuC` renamed together with the `['A','B']` data that resolves them), case-normalisation of `Grid2Poly.dms` (safe for shipped content: every spelling is already ONE token, so a case change cannot alter what a reference denotes), and prelude locals that collided with ordinary config names (`src`->`srcCont`, `TP`->`TPoint`, variant `scaled`->`scaledBy`). Two renames INTRODUCED conflicts before the scanner caught them (`P`->`Px` onto an existing `px`), which is why the scanner checks the target name too. The remaining 40 are engine names that 3rd-party scripts depend on -- operator names and composite-result sub-item names, out of scope by decision -- plus `w`/`W` where `W` is the SI symbol for Watt and must stay capitalised. `true`/`false` need an exemption either way: the corpus writes `True` 2830 + `TRUE` 456 against `true` 863. |
-| [#1145](https://github.com/ObjectVision/GeoDMS/issues/1145) Export Primary Data exports wrong (Buurt) geometry | Bug, not feature: needs repro/debug on OVSRV08; the fix is picking the geometry of the right domain. |
 | [#990](https://github.com/ObjectVision/GeoDMS/issues/990) `union_data` with unmatching but equal-sized domains | Hard error or warning? Might existing configs rely on it? |
 
 ## C. Refactoring
@@ -75,6 +73,66 @@ with backslashes. The real call site always passes forward slashes, so nothing i
 is a two-line guard against an unpleasant failure mode for anyone invoking the script by hand.
 
 ## Recently closed (delta since 2026-07-31)
+
+### Closed on 2026-08-28 (1)
+
+- #1161 (`67c88835`, `79a855ed`, `0ffd5291`, `99b2a0d3`, GeoDMS-Test `d2bc08e`, wiki `639e65f2`) --
+  "mitigate mixed-case deprecation warnings". It sat in bucket B for months as a naming decision;
+  measuring it first is what dissolved it. The battery emitted **2747 case-mixup lines over 233
+  configurations, with not one configuration clean**, and about eleven per configuration fired
+  before the modeller had done anything wrong. Ten of those eleven were the engine disagreeing with
+  **itself**: `res/RewriteExpr.lsp`, read from `<exeDir>` on every run, still wrote
+  `Bool`/`Float32`/`UInt32`/`Void` against the lower-case ValueClass canon of `5deaf9ff`;
+  `res/prelude.dms`, auto-imported for every configuration, had single-letter type parameters
+  colliding with the `d`/`f` numeric-literal suffix tokens and with its own lower-case value
+  parameters; and three C++ literals (`ExprProd.cpp`'s `t_uint32`, `ConfigProd.cpp`'s `t_Void`,
+  `token::UInt32`) warned before the log file was even open. The naming decision the issue was
+  waiting on was largely a defect report in disguise.
+
+  **The canonical spellings were chosen by census, not taste.** Over the 1146 `.dms` files of the
+  regression suite: `unit` 13829 vs `Unit` 69, `value` 2333 vs `Value` 52, `nrofrows` 1256 vs
+  `NrOfRows` 356. So `unit`, `value`, `item`, `param`, `attr` and `nrofrows` are now canonical lower
+  case. Since the registry folds case these are display-only changes -- the TokenID is unchanged, so
+  nothing that compares, dispatches on or looks up a name behaves differently. `token::NrOfRows` and
+  `cog_NrOfRows` had to move together, or `GetName()` and `GetNameStr()` would spell one operator two
+  ways. `true`/`false` were deliberately left alone: the corpus writes `True` 2830 + `TRUE` 456
+  against `true` 863, so the engine canon and the majority convention disagree whichever way it is set.
+
+  **Two rulings settled on the way, worth not relitigating.** Engine names stay as they are --
+  operator names and the sub-item names of composite results are depended on by third-party scripts,
+  so `F1`/`F2` (Voronoi), `arc`, `sub`, `Values`, `Geometry` and their kin were left untouched even
+  where they are what a configuration collides with. And a **case** change to shipped content is safe
+  where a rename is not: every spelling of a name is already one token, so changing case cannot alter
+  what any downstream reference denotes, which is what made `Units` -> `units` and the `Grid2Poly.dms`
+  normalisation acceptable in content that user configurations reference by path.
+
+  **Symbols in the HOF checker became `TokenID`** (`79a855ed`), which deleted `MemberPathLess` -- a
+  hand-rolled fixed-ASCII fold whose own comment admitted it duplicated the engine's token equality.
+  Token equality *is* that fold, so the member maps now get case-insensitivity from the registry and
+  `SameShape` compares integers. No performance claim: `SameShape` runs once per operator group at
+  cache build, and a 2500-function probe measured 375-383 ms before against 382-412 ms after. The win
+  is a deleted duplicate. Role labels are interned `sig_`-prefixed by `NewVar`, the prefix chosen by
+  measurement (`sig_*` occurs in neither corpus; a trailing `_` still collided -- `U_` 10, `E_` 9,
+  `A_` 8, `D_` 2 -- and so did a leading one).
+
+  **Three things went wrong and are the reusable lessons.** A blanket whole-word rename of the test
+  configurations mangled data and prose (`"C:\Users\..."` -> `"Cx:\Users\..."`, `['A','B']` -> `['A','Bx']`,
+  `[T,T,F,F]` -> `[T,T,Fx,Fx]`) and broke 5 cases, because `discrete_alloc` resolves members by name
+  from string data and `shipped_library_units` referenced `Units/W` from the library. The corrected
+  pass rewrites identifiers only, and only in a file that DECLARES the name and never mentions it in
+  a string. Then `P` -> `Px` collided with an existing `px`: a rename must also check that the TARGET
+  name is free. And in the regression suite the conservative rule paid off -- the in-string
+  occurrences there turned out to be property values and **expected-result data** (`'False'` in
+  `Operator/results.dms`, `Polygons/compare.dms`), with only 4 IntegrityCheck expressions among 4612,
+  so rewriting strings would have corrupted expected results.
+
+  **Result.** Battery 2747 -> 40 lines, 0 -> 214 of 233 configurations clean, all 233 passing
+  throughout. The regression suite had 8669 occurrences normalised across 548 of its 1146 files,
+  proven case-only (8669 removed lines, 8669 added, every pair equal under `tolower()`); its release
+  run is the maintainer's to make. The 40 that remain in the battery are engine names by decision,
+  plus `w`/`W` where `W` is the SI symbol for Watt. Silencing *those* needs the warning to know a
+  name is engine-declared rather than any further renaming -- the follow-up below.
+
 
 ### Closed on 2026-08-27 (5)
 
@@ -671,6 +729,18 @@ and IDE, with drift tripwires and a self-healing Qt deploy; two Linux-only build
 segfault from a config read during static initialization; and the retained-result accounting /
 admission gate / drain-mode series (SS8.1.21-SS8.1.33).
 
+
+Worth filing as a successor to #1161: the case-mixup warning itself. It names no config file or
+line (`WarnOnUnknownEscapeCode` in `stx/dll/src/SpiritTools.cpp` is the working precedent for that);
+it fires for whole item PATHS, which are interned as single tokens -- 34 of the 229 distinct warnings
+in the regression corpus contain a `/`; and it cannot tell a mis-spelled engine name from two
+unrelated tree items that merely fold together, which is the whole of the residue left after #1161
+(`w`/`W` for Watt, `b`/`B` where `b` is the uint8 literal suffix). The `_st` and `_mt` entry points of
+`IndexedStrings` almost separate engine registration from the parser, but not reliably: the signature
+layer interns through `_mt` at meta time, so the provenance would have to be explicit. That was
+considered and deliberately NOT built during #1161 -- the measurements did not justify a new
+mechanism while the engine was still the main offender.
+
 ## Cross-cutting observations
 
 - **Memory and liveness under load** (#1198, following the now-closed #1158/#1156/#1157): the GUI
@@ -698,12 +768,12 @@ admission gate / drain-mode series (SS8.1.21-SS8.1.33).
 - **Config language / syntax** (#1161, #1165): #1166 is closed with the wider answer — a nested body
   sees the whole definition scope, including the enclosing function's parameters and locals. #1165 is
   now the narrower "untagged `{a, b}` spelling" deprecation and still blocks on property-level
-  deprecation machinery that does not exist. #1161 is half done: measuring it first is what made it
-  tractable, because it showed that ten of the eleven warnings every configuration got were the
-  engine disagreeing with its own two shipped files, not with the modeller. Those are fixed and the
-  engine-level names are lower case; what remains is the operator-name sweep and the warning
-  mechanism itself, which still cannot tell a mis-spelled engine name from two unrelated tree items
-  that happen to fold to one token.
+  deprecation machinery that does not exist. #1161 is CLOSED (2026-08-28, debrief above): measuring
+  it first is what made it tractable, because it showed that ten of the eleven warnings every
+  configuration got were the engine disagreeing with its own two shipped files, not with the
+  modeller. The operator-name sweep it was thought to need turned out to be the wrong move --
+  third-party scripts depend on those names -- so what is left is the warning mechanism, noted above
+  as a successor worth filing.
 - **Export-flow cluster**: closed out. #711 and #411 were already done, and #973 (`8412b7f2`) turned
   out to be four defects in the same dialog rather than the VAT option it was filed as. The pattern
   #411 established — the dialog builds a `Desktops/Default/Exports` config subtree and hands it to the
