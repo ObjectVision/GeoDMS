@@ -568,6 +568,16 @@ void TreeItem::UpdateDC() const
 		return;
 
 	auto [resultDC, srcItem] = GetOrgDC();
+
+	// #795 in the meta phase: this is where the calculation rule of THIS item gets its result made,
+	// below and again in SetDC, and an operator that raises a diagnostic from CreateResult has no
+	// item to name yet -- the back reference that lets a result name itself is only installed once
+	// that result exists. Hand the DC the item whose calculation this is, the same name that
+	// CallCalcResultImpl adopts in the data phase and under the same rule: fill an empty slot only,
+	// so a calculation keeps the name it started with, and let the back reference take over later.
+	if (resultDC && !resultDC->GetOriginItem())
+		resultDC->SetOriginItem(make_shared_tree(this, existing_obj{}));
+
 	// required for Convert test and subItem moniking, empty for applicators non-calculatable or loadable items (such as some parents).
 	if (resultDC && IsDataItem(this) && !resultDC->WasFailed(FailType::MetaInfo))
 	{
