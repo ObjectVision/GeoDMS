@@ -44,6 +44,7 @@
 #include "LispTreeType.h"
 #include "OperationContext.h" // MemoryLedger_ReleaseRetained
 #include "ParallelTiles.h"
+#include "SessionData.h" // IsSessionTearingDown: no unit lookup while the config tree is being destroyed
 #include "TileAccess.h"
 #include "TileFunctorImpl.h"
 #include "TileLock.h"
@@ -120,16 +121,42 @@ AbstrDataItem::~AbstrDataItem() noexcept
 // class  : AbstrDataItem (inline) functions that forward to DataObject
 //----------------------------------------------------------------------
 
+// m_DomainUnit / m_ValuesUnit are NON-owning weak back-refs, so they read as expired both before the
+// first resolution and after the unit they referred to has been destroyed. Only the first of those two
+// states may be repaired by looking the unit up by name again; this decides which one we are in.
+//
+// The name lookup is skipped when:
+//  - the token is EMPTY. That is not "no name yet" but "this item never had one": an item whose units
+//    were bound directly at construction -- an operator result, a cache item, DMS_CreateDataItem --
+//    is created with TokenID::GetEmptyID() (DataItemClass::CreateDataItem). UnitClass::GetUnitOrDefault
+//    can only fail on it, and asking anyway is what made teardown throw "Cannot find Domain unit ."
+//    out of the noexcept ~AbstrDataItem -> StopInterest path and terminate the process (#1225).
+//  - the item is DETACHED. FindUnit resolves the name relative to GetTreeParent(); teardown clears that
+//    link before it destroys the child, and without a context there is nothing to resolve against.
+//  - the session is TEARING DOWN. Then expiredness means the unit is gone for good, not that it needs
+//    to be found again: the whole tree is being dismantled, so a named lookup can only fail (or, worse,
+//    hand back an item that is itself half destroyed), and for a VALUE-TYPE name (uint32, ...)
+//    UnitClass::GetUnitOrDefault would CREATE a fresh default unit while the session that would have
+//    owned it is disappearing. A dying data item must not bring new units into existence.
+//  - we are not on the meta thread, as before: creating tree items is a meta-thread operation.
+bool AbstrDataItem::CanResolveUnitByName(TokenID t) const
+{
+	return !t.empty()
+		&& IsMetaThread()
+		&& !IsSessionTearingDown()
+		&& GetTreeParent();
+}
+
 auto AbstrDataItem::GetAbstrDomainUnit() const -> const AbstrUnit*
-{ 
-	if (m_DomainUnit.expired() && IsMetaThread())
+{
+	if (m_DomainUnit.expired() && CanResolveUnitByName(m_tDomainUnit))
 		m_DomainUnit = make_shared_tree(FindUnit(m_tDomainUnit, "Domain", nullptr), existing_obj{});
 	return m_DomainUnit.lock().get(); // raw non-owning result: the unit is owned by the tree, outlives this call
 }
 
 auto AbstrDataItem::GetAbstrValuesUnit() const -> const AbstrUnit*
 {
-	if (m_ValuesUnit.expired() && IsMetaThread())
+	if (m_ValuesUnit.expired() && CanResolveUnitByName(m_tValuesUnit))
 	{
 		ValueComposition vc = GetValueComposition();
 		m_ValuesUnit = make_shared_tree(FindUnit(m_tValuesUnit, "Values", &vc), existing_obj{});
@@ -631,10 +658,19 @@ failResultMsg:
 
 const AbstrUnit* AbstrDataItem::FindUnit(TokenID t, CharPtr role, ValueComposition* vcPtr) const
 {
-	assert(GetTreeParent());
+	// A context to resolve the name against is a precondition, guaranteed by CanResolveUnitByName at both
+	// call sites -- but not merely ASSERTED here: DmsRelease.props defines NDEBUG, so in a Release build
+	// this assert compiles out and a detached item used to reach GetUnitOrDefault with a null context,
+	// which then dereferences it (ResolveItemPath). Teardown is exactly when parent links are being
+	// cleared (#1225), so answer "not resolvable" instead.
+	auto context = GetTreeParent();
+	assert(context);
+	if (!context)
+		return nullptr;
+
 	if (t == TokenID::GetUndefinedID())
 		ThrowFail(mySSPrintF("Undefined {} unit", role), FailType::MetaInfo);
-	const AbstrUnit* result = UnitClass::GetUnitOrDefault(GetTreeParent().get(), t, vcPtr);
+	const AbstrUnit* result = UnitClass::GetUnitOrDefault(context.get(), t, vcPtr);
 	if (!result && !InTemplate())
 	{
 		auto msg = mySSPrintF("Cannot find {} unit {}", role, GetTokenStr(t));
@@ -693,8 +729,13 @@ garbage_can AbstrDataItem::StopInterest() const noexcept
 	assert(GetInterestCount() == 0);
 
 	garbage_can garbage;
-	garbage |= OptionalInterestDec( GetAbstrDomainUnit() );
-	garbage |= OptionalInterestDec( GetAbstrValuesUnit() );
+	// The CURRENT weak members, not the resolving accessors: what has to be undone here is the interest
+	// StartInterest placed on the units it resolved back then, and those are what the members hold. An
+	// expired member means the unit is already gone and there is nothing left to decrement. Asking the
+	// resolving accessors instead would look a unit up by name from inside a noexcept destructor path
+	// (~AbstrDataItem calls this on residual interest) -- which is how #1225 terminated the process.
+	garbage |= OptionalInterestDec( GetCurrDomainUnit().get() );
+	garbage |= OptionalInterestDec( GetCurrValuesUnit().get() );
 
 	garbage |= TreeItem::StopInterest();
 	return garbage;

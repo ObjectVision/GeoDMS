@@ -53,7 +53,8 @@ struct SessionData : std::enable_shared_from_this<SessionData>
 	bool IsCancelling() const { return m_IsCancelling;  }
 	// Mark the session as cancelling WITHOUT deactivating it (keeps Curr() valid so in-flight workers
 	// can still observe IsCancelling() and cancel gracefully). Used at config teardown to drain workers.
-	void SetCancelling() { m_IsCancelling = true; }
+	// Also raises the lock-free IsSessionTearingDown() flag; see there.
+	void SetCancelling();
 
 	// Null-safe form of the above, for callers that run with or without a current session.
 	static bool IsCurrCancelling() { auto curr = Curr(); return curr && curr->IsCancelling(); }
@@ -104,6 +105,18 @@ private:
 // These used to live in namespace DSM, the last remnant of the DataStoreManager that owned the
 // retired CalcCache. Nothing about them concerns a data store: they are the session's cancellation
 // surface, so they belong beside SessionData.
+
+// True from the moment a configuration starts closing down until the next one is activated, and
+// readable WITHOUT taking a lock. Any code that can run while the config tree is being destroyed must
+// ask this rather than SessionData::IsCurrCancelling(), for two independent reasons:
+//   - Curr() takes sd_SessionDataCriticalSection, and the tree is destroyed from INSIDE
+//     SessionData::ReleaseIt while that non-recursive mutex is held, so a Curr() call made from the
+//     destructor cascade would self-deadlock;
+//   - by then Curr() is already null (deactivateThis clears s_CurrSD before the cascade runs), so
+//     IsCurrCancelling() answers false during exactly the window this is meant to detect.
+// It starts out false, so a process that never opens a session (the stg/tst drivers, unit tests)
+// behaves as it always did.
+bool IsSessionTearingDown();
 
 // Cancel the current chore if it lost its interest, or if the session or the enclosing
 // CancelableFrame is cancelling. Does nothing on the meta thread outside a CancelableFrame.

@@ -10,6 +10,8 @@
 
 #include "SessionData.h"
 
+#include <atomic>
+
 #include "act/UpdateMark.h"
 #include "dbg/DmsCatch.h"
 #include "utl/Environment.h"
@@ -28,6 +30,17 @@ leveled_counted_section s_SessionUsageCounter(item_level_type(0), ord_level_type
 std::mutex sd_SessionDataCriticalSection;
 
 static std::shared_ptr<SessionData> s_CurrSD;
+
+// Lock-free mirror of "the current session is cancelling, or there is no current session any more
+// because the one there was is being torn down". Written only under sd_SessionDataCriticalSection
+// (or, for SetCancelling, from the meta thread that owns the teardown), read from anywhere.
+// See IsSessionTearingDown() in SessionData.h for why the locked accessors cannot serve that read.
+static std::atomic<bool> s_IsSessionTearingDown = false;
+
+bool IsSessionTearingDown()
+{
+	return s_IsSessionTearingDown.load(std::memory_order_relaxed);
+}
 
 std::weak_ptr<SessionData> GetCurrentSessionDataWeakPtr()
 {
@@ -70,12 +83,18 @@ void SessionData::release()
 	deactivateThis();
 }
 
-void SessionData::deactivateThis()
+void SessionData::SetCancelling()
 {
 	m_IsCancelling = true;
+	s_IsSessionTearingDown.store(true, std::memory_order_relaxed);
+}
+
+void SessionData::deactivateThis()
+{
+	SetCancelling();
 
 	assert(s_CurrSD.get() == this);
-	
+
 	s_CurrSD = nullptr;
 }
 
@@ -91,6 +110,7 @@ void SessionData::ActivateThis()
 
 	s_CurrSD = shared_from_this();
 	assert(s_CurrSD);
+	s_IsSessionTearingDown.store(m_IsCancelling, std::memory_order_relaxed); // the outgoing session raised it
 }
 
 SharedStr SessionData::GetConfigDir() const
@@ -196,6 +216,7 @@ std::shared_ptr<SessionData> SessionData::Create(CharPtr configLoadDir, CharPtr 
 	ClearCrsBackgroundRefs();
 	s_CurrSD = std::make_shared<SessionData>(MakeAbsolutePath(configLoadDir).c_str(), configSubDir );
 	assert(s_CurrSD->m_ConfigRoot == nullptr); // POSTCONDITION of Created but not opend SessionData
+	s_IsSessionTearingDown.store(false, std::memory_order_relaxed); // the outgoing session raised it
 	return s_CurrSD;
 }
 
