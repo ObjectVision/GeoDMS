@@ -14,7 +14,13 @@
 #include "TicInterface.h"
 #include "LispRef.h"
 
-LispRef RewriteExpr(LispPtr org);
+// the whole-tree rewrite: RewriteExprTop applied bottom-up. Every substitution of a PARSED
+// expression must go through this first -- a raw parse still spells the head of every
+// rewrite rule, and such a head need not be a registered operator ('value', which rule 1
+// turns into 'convert', is not one), so substituting one unrewritten fails (#1224).
+// Exported: Clc's collecting meta-operations inspect candidate expressions with it
+// (Subset.cpp).
+TIC_CALL LispRef RewriteExpr(LispPtr org);
 TIC_CALL LispRef RewriteExprTop(LispPtr org);
 
 // true iff RewriteExpr.lsp contains a rule whose pattern head is headID AND whose

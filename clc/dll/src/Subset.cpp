@@ -22,6 +22,7 @@
 #include "DataArray.h"
 #include "DataArrayValue.h"
 #include "DataItemClass.h"
+#include "ExprRewrite.h"
 #include "LispTreeType.h"
 #include "ParallelTiles.h"
 #include "TileChannel.h"
@@ -370,7 +371,15 @@ private:
 		// sub-tree, so Result/member stops at Result while Result is being built.
 		buffer.svf = SupplierVisitFlag::ImplSuppliers;
 		buffer.optionalVisitor = &visitor;
-		calculator->SubstituteExpr(buffer, calculator->GetLispExprOrg());
+		// #1224: substitute the REWRITTEN expression, exactly as the item's own meta-info
+		// will (AbstrCalculator::GetMetaInfo and CalcSpec both call SubstituteExpr on
+		// RewriteExpr(GetLispExprOrg())). A raw parse still spells the head of every
+		// RewriteExpr.lsp rule, and those heads need not be registered operators: 'value',
+		// the values-unit conversion that rule 1 turns into 'convert', is not one. So
+		// substituting it unrewritten takes the template-call branch, finds no template or
+		// function of that name, and fails the whole collecting call -- over an attribute
+		// that is merely a CANDIDATE here, whose value nobody asked for.
+		calculator->SubstituteExpr(buffer, RewriteExpr(calculator->GetLispExprOrg()));
 
 		if (found)
 		{

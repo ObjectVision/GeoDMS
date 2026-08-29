@@ -55,7 +55,21 @@ enum class SupplierVisitFlag
 	CalcAll = Calc | Explain | Update | ReadyDcsToo,
 
 	InspectAll = CalcAll | Inspect,
-	FenceNumberScan = CalcAll | ScanSupplTree,
+
+	// #1224: WITHOUT ReadyDcsToo, deliberately. The fence scan asks which suppliers can put an item
+	// behind a phase fence, and the static argument policy already answers that: FuncDC::VisitSuppliers
+	// skips an argument the engine never calculates (MustCalcArg false, i.e. calc_never -- the container
+	// of SubItem_PropValues, the source of PhaseContainer itself), but ONLY when ReadyDcsToo is off.
+	// With it on, such an argument is visited anyway and its fenced phase folds into the maximum, so an
+	// item that merely reads the STRUCTURE of a fenced result inherits that result's phase and every
+	// indirect expression over it is then rejected by EvaluateExpr.
+	//
+	// Reading the structure needs no fenced calculation: PhaseContainer materialises its mirror tree as
+	// meta-info before the phase runs. An argument whose value the engine never computes therefore
+	// cannot enter the fence, and must not raise the phase number. Arguments that ARE calculated
+	// (calc_as_result / calc_always) are still visited, so #1199 keeps rejecting the case it was
+	// written for: an indirect expression that reads a VALUE from behind the fence.
+	FenceNumberScan = (CalcAll & ~ReadyDcsToo) | ScanSupplTree,
 
 	TemplateOrg = 0x1000, // use to visit also the template origin
 	CDF = 0x2000, // use to visit the cdf source item and its palette

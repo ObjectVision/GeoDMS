@@ -1,0 +1,42 @@
+// issue #1224: the driver idiom in which an ExplicitSuppliers list is COMPUTED from the
+// member names of another item -- SubItem_PropValues(<container>, 'name') -- rather than
+// written out. This is how a configuration says "compute every member of that container",
+// so the list follows the container instead of having to be maintained beside it:
+//
+//     unit<uint32>      names    := SubItem_PropValues(work, 'name');
+//     parameter<string> Generate := 'Ready', ExplicitSuppliers = "=AsList('work/'+names/name,';')";
+//
+// The battery covered the two halves separately and never together: SubItem_PropValues only
+// in oper_collect_downstream.dms, ExplicitSuppliers only in fn_test_icheck_suppl.dms and
+// oper_phasecontainer.dms. That gap let #1224 through, where a configuration built exactly
+// this way stopped loading. Pinned here: the derived list resolves, and it is really USED --
+// the members it names are updated before the driver, which is the whole point of declaring
+// them. oper_explicit_suppliers_propvalues_neg1 pins the same from the failing side.
+//
+// Resolution ORDER is what makes this delicate. `names` has no members of its own until the
+// meta phase runs SubItem_PropValues over `work`, so the indirect ExplicitSuppliers of the
+// driver can only be evaluated after that; nothing may consult it earlier. The driver is
+// referenced from `checks` below on purpose: referencing an item is one of the moments that
+// used to force its ExplicitSuppliers to resolve.
+container oper_explicit_suppliers_propvalues
+{
+	container work
+	{
+		parameter<uint32> a := 11, IntegrityCheck = "a == 11";
+		parameter<uint32> b := 22, IntegrityCheck = "b == 22";
+	}
+
+	unit<uint32> names := SubItem_PropValues(work, 'name');
+
+	parameter<string> Generate := 'Ready', ExplicitSuppliers = "=AsList('work/'+names/name,';')";
+
+	// a consumer, so the driver is reached by reference and not only by its own update
+	parameter<string> consumer := Generate + '!';
+
+	container checks
+	{
+		parameter<bool> two_members     := #names == 2,                                        IntegrityCheck = "two_members == true";
+		parameter<bool> members_named   := all(names/name == 'a' || names/name == 'b'),        IntegrityCheck = "members_named == true";
+		parameter<bool> driver_delivers := consumer == 'Ready!',                               IntegrityCheck = "driver_delivers == true";
+	}
+}

@@ -2160,7 +2160,15 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 			return AVS_SuspendedOrFailed;
 	}
 
-	if (Test(svf, SupplierVisitFlag::DetermineCalc))
+	// Not while this item is DETERMINING its state. UpdateDC builds mc_DC, and building it folds
+	// the applicable IntegrityChecks into its key expression (#1180/#1218) -- a walk over this
+	// item's ancestors AND its ExplicitSuppliers, which has to resolve configured supplier names.
+	// DetermineState runs BEFORE any of that is available: it is the change-timestamp scan, ahead
+	// of UpdateSupplMetaInfo, so the supplier names of this item's ancestors and suppliers need
+	// not resolve yet. Deferring the build to the meta-info phase puts it after
+	// Actor::UpdateMetaInfo's UpdateSupplMetaInfo(), where they do. A DC that already exists is
+	// still visited below, so a later DetermineState pass sees it as before.
+	if (Test(svf, SupplierVisitFlag::DetermineCalc) && !m_State.IsDeterminingState())
 		UpdateDC();
 
 	if (mc_DC)

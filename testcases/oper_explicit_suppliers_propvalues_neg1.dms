@@ -1,0 +1,23 @@
+// #1224 from the failing side: a member named by the DERIVED ExplicitSuppliers list carries
+// a check that does not hold. Declaring it means "evaluate me first", so the driver -- and
+// with it the run -- must fail. If this one ever exits 0, the computed list resolved to
+// nothing and the positive case is passing for the wrong reason.
+container oper_explicit_suppliers_propvalues_neg1
+{
+	container work
+	{
+		parameter<uint32> a := 11, IntegrityCheck = "a == 11";
+		parameter<uint32> b := 22, IntegrityCheck = "b == 99";
+	}
+
+	unit<uint32> names := SubItem_PropValues(work, 'name');
+
+	parameter<string> Generate := 'Ready', ExplicitSuppliers = "=AsList('work/'+names/name,';')";
+
+	parameter<string> consumer := Generate + '!';
+
+	container checks
+	{
+		parameter<bool> driver_delivers := consumer == 'Ready!', IntegrityCheck = "driver_delivers == true";
+	}
+}

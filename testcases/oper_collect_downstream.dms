@@ -55,6 +55,23 @@ container oper_collect_downstream
 		attribute<float64> downstream (Dx) := recollect_by_cond(keep, Result/population);
 	}
 
+	// issue #1224: the candidate scan reads an ORIGINAL expression, and a raw parse still
+	// spells the head of every RewriteExpr.lsp rule.  'value' is such a head -- the
+	// value(a, unit) conversion, which the rules turn into 'convert' -- and it is not a
+	// registered operator, so inspecting it without rewriting first took the template-call
+	// branch, found no template or function of that name, and failed the whole collecting
+	// call with "'value': unknown operator".  The attribute below is merely a CANDIDATE:
+	// nothing here asks for its value, and the collecting call must not care how the
+	// expression of a member it may copy happens to be spelled.
+	container RewrittenHeadCase
+	{
+		unit<uint32> Dx : nrofrows = 4;
+		unit<uint32> Cx : nrofrows = 2;
+		attribute<bool> keep (Dx) : [false, true, true, false];
+		attribute<Cx> class_rel (Dx) := value(id(Dx) % 2, Cx);
+		unit<uint32> Result := select_with_attr_by_cond(., keep);
+	}
+
 	container checks
 	{
 		parameter<float64> named_select_sum := sum(NamedSelectCase/Result/population), IntegrityCheck = "named_select_sum == 50.0";
@@ -74,5 +91,9 @@ container oper_collect_downstream
 		parameter<bool> named_collect_excludes_downstream := all(named_collect_items/name != 'downstream'), IntegrityCheck = "named_collect_excludes_downstream == true";
 		parameter<bool> spec_collect_excludes_downstream := all(spec_collect_items/name != 'downstream'), IntegrityCheck = "spec_collect_excludes_downstream == true";
 		parameter<bool> spec_table_excludes_downstream := all(spec_table_items/name != 'downstream'), IntegrityCheck = "spec_table_excludes_downstream == true";
+
+		// #1224: the rewrite-headed member is collected, and collected correctly -- keep
+		// selects Dx 1 and 2, whose classes are 1 and 0.
+		parameter<uint32> rewritten_head_sum := sum(uint32(RewrittenHeadCase/Result/class_rel)), IntegrityCheck = "rewritten_head_sum == 1";
 	}
 }

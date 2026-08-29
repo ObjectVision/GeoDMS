@@ -1,0 +1,40 @@
+// issue #1224: an ExplicitSuppliers list COMPUTED from the member names of a PHASE-FENCED
+// container. This is the half that oper_explicit_suppliers_propvalues does not reach: there the
+// container is plain, here it is behind a PhaseContainer, and that is what made the real
+// configuration (NetworkModel_PBL's ketenrijger) stop loading.
+//
+// Reading the member NAMES of a fenced result needs no fenced calculation: PhaseContainer builds
+// its mirror tree as meta-info before the phase runs, and SubItem_PropValues declares its container
+// argument calc_never, so the engine never computes that argument's data. The fence-number scan
+// used to visit it anyway -- FenceNumberScan carried ReadyDcsToo, which overrides the skip in
+// FuncDC::VisitSuppliers -- so `names` inherited the fence's phase and EvaluateExpr rejected the
+// indirect ExplicitSuppliers with "Results supplied through a PhaseContainer cannot be used in
+// indirect expressions". Pinned here: naming the members of a fenced container is allowed.
+//
+// The complementary restriction stays in force and is pinned by oper_phasecontainer_indirect_neg:
+// an indirect expression that reads a VALUE from behind the fence is still rejected. The
+// difference is exactly the static argument policy, which is what the scan now honours.
+container oper_explicit_suppliers_phasecontainer
+{
+	container work
+	{
+		parameter<uint32> a := 11, IntegrityCheck = "a == 11";
+		parameter<uint32> b := 22, IntegrityCheck = "b == 22";
+	}
+
+	container fenced := PhaseContainer(work, 'calculating the fenced members');
+
+	unit<uint32> names := SubItem_PropValues(fenced, 'name');
+
+	parameter<string> Generate := 'Ready', ExplicitSuppliers = "=AsList('fenced/'+names/name,';')";
+
+	// a consumer, so the driver is reached by reference and not only by its own update
+	parameter<string> consumer := Generate + '!';
+
+	container checks
+	{
+		parameter<bool> two_members     := #names == 2,                                 IntegrityCheck = "two_members == true";
+		parameter<bool> members_named   := all(names/name == 'a' || names/name == 'b'), IntegrityCheck = "members_named == true";
+		parameter<bool> driver_delivers := consumer == 'Ready!',                        IntegrityCheck = "driver_delivers == true";
+	}
+}
