@@ -10,6 +10,7 @@
 #endif //defined(_MSC_VER)
 
 #include "set/IndexedStrings.h"
+#include "sym/Token.h"
 #include "utl/Environment.h"
 #include "utl/Registry.h"
 #include "LockLevels.h"
@@ -52,6 +53,103 @@ IndexedStringsComponent::~IndexedStringsComponent()
 }
 
 //  -----------------------------------------------------------------------
+//  Never park on the token registry
+//
+//  GetOrCreateID_mt takes cs_GetOrCreateID exclusively, and counted_mutex::lock() waits -- without
+//  a deadline -- for every outstanding shared usage to be released. A thread that still holds a
+//  shared usage of its own is thus waiting for itself: nothing can wake it, and what the user sees
+//  is a process at 0% CPU with no error, no log line and no window title to go on.
+//
+//  A live TokenStr / TokenStrRange is exactly such a usage; TokenID::GetStr(), TokenID::AsStrRange()
+//  and Object::GetName() all hand one out, and it lives until the end of the full expression at the
+//  very least. Keeping one alive across a call that can tokenize a string hangs the process, and it
+//  has cost three separate debugging sessions:
+//    - the fn_test_shadow hang of 2026-07-14, in FunctionChecker::InferApplication;
+//    - stg/dll/src/gdal/gdal_vect.cpp, whose two hand-scoped blocks still carry the comment
+//      "destructor of TokenStr gives up lock on tokenlist to allow for GetTokenID_mt to be called";
+//    - issue #1226, where ExportTab::showEvent held Object::GetName() across
+//      isItemOrItsSubItemsMappable.
+//  So that a fourth case reports itself rather than being diagnosed by hand, count the usages each
+//  thread holds and refuse the acquire that provably cannot succeed.
+//
+//  This is deliberately NOT a timeout. A deadline detects nothing: it cannot distinguish a
+//  self-deadlock from a loaded machine, its constant is arbitrary, and it would report the one case
+//  that is certain no faster than the cases that are not. The count is exact -- a usage held by
+//  this thread can only be released after the acquire returns -- so the answer is known before the
+//  acquire is attempted, and that is where it is given.
+//
+//  Nor is it a new idea: it duplicates, for this one section and in Release, what the lock-level
+//  checker of Parallel.h already decides. level_type::Allow() permits an equal level only when BOTH
+//  sides are shared, so entering the exclusive IndexedString level while holding the shared one
+//  fails EnterLevel's dms_assert -- before the lock is even taken. That checker is broader (it
+//  orders every section against every other) and remains the primary guard. But it lives under
+//  MG_DEBUG_LOCKLEVEL, which is defined only for MG_DEBUG, and a Release dms_assert is CC_ASSUME --
+//  an optimizer hint, not a check. All three hangs above were met in Release builds, where the
+//  checker does not exist. Hence a counter narrow enough to be affordable unconditionally.
+//
+//  The check cannot have a false positive by construction: any code that reaches GetOrCreateID_mt
+//  while holding a usage of its own hangs today, so no working configuration can be doing it.
+//
+//  Retiring the class rather than reporting it is #1227: naming the accessors that hand out a
+//  registry lock for what they hold (Object::GetName() -> GetNameLock(), returning SharedStr from
+//  the plain name), and declaring lock-level ceilings so the ordering becomes checkable across
+//  virtual and indirect calls.
+
+namespace {
+
+	THREAD_LOCAL UInt32 td_TokenRegistrySharedUsages = 0;
+
+	// Set while the self-deadlock diagnostic is being built. Generating an error message walks the
+	// context handles (ErrMsg -> GenerateContext -> AbstrContextHandle::Describe), which may want to
+	// tokenize -- while this thread still holds the usage that started all this. The flag keeps that
+	// nested attempt from reporting the same self-deadlock again; it fails fast and is swallowed by
+	// GenerateContext's own catch, costing at most a line of context.
+	THREAD_LOCAL bool td_ReportingTokenRegistrySelfDeadlock = false;
+
+	struct SelfDeadlockReportScope
+	{
+		SelfDeadlockReportScope() { td_ReportingTokenRegistrySelfDeadlock = true; }
+		~SelfDeadlockReportScope() { td_ReportingTokenRegistrySelfDeadlock = false; }
+	};
+
+	[[noreturn]] void throwTokenRegistrySelfDeadlock(CharPtrRange newToken, UInt32 nrOwnUsages)
+	{
+		// Nested: the outer report's own context generation wants a token, with the usage that caused
+		// all this still held. Say that briefly rather than repeat the full diagnosis inside itself;
+		// GenerateContext's catch swallows it, and its g_DumpContextCount guard stops the walk one
+		// level further down, so this cannot recurse.
+		if (td_ReportingTokenRegistrySelfDeadlock)
+			throwErrorF("TOKEN"
+				, "cannot register the name '{}' while reporting a token registry self-deadlock"
+				, newToken
+			);
+
+		SelfDeadlockReportScope reportScope;
+
+		throwErrorF("TOKEN"
+			, "cannot register the name '{}': this thread still holds {} shared usage(s) of the token"
+			  " registry and would have to wait for itself to release them.\n"
+			  "A live TokenStr or TokenStrRange -- as returned by TokenID::GetStr(),"
+			  " TokenID::AsStrRange() or Object::GetName() -- is such a usage. Copy it into a SharedStr"
+			  " before calling anything that can create a token. See GeoDMS issue #1226."
+			, newToken, nrOwnUsages
+		);
+	}
+
+}	// end anonymous namespace
+
+RTC_CALL void IncTokenRegistrySharedUsage() noexcept
+{
+	++td_TokenRegistrySharedUsages;
+}
+
+RTC_CALL void DecTokenRegistrySharedUsage() noexcept
+{
+	assert(td_TokenRegistrySharedUsages);
+	--td_TokenRegistrySharedUsages;
+}
+
+//  -----------------------------------------------------------------------
 
 IndexedStringsBase::IndexedStringsBase()
 {}
@@ -76,6 +174,13 @@ template <bool MustZeroTerminate, typename CharPtrRangeEqCmp, typename CharPtrRa
 IndexedStringsBase::index_type 
 IndexedStrings<MustZeroTerminate, CharPtrRangeEqCmp, CharPtrRangeHasher>::GetOrCreateID_mt(CharPtr keyFirst, CharPtr keyLast) // range of chars excluding null terminator
 {
+	// Refuse before the acquire rather than park inside counted_mutex::lock(): see above. Deciding it
+	// here, instead of after taking the section, also keeps Debug and Release on the same message --
+	// the lock-level checker's own dms_assert inside EnterLevel would otherwise reach a Debug build
+	// first, with only a level name to go on.
+	if (auto nrOwnUsages = td_TokenRegistrySharedUsages)
+		throwTokenRegistrySelfDeadlock(CharPtrRange(keyFirst, keyLast), nrOwnUsages);
+
 	IndexedString_scoped_lock lock(GetCS());
 
 	return GetOrCreateID_impl(keyFirst, keyLast);

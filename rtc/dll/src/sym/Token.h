@@ -20,7 +20,73 @@
 #include "RtcComponents.h" // ElemAllocComponent / IndexedStringsComponent / TokenComponent (StaticTokenID base, StaticLateTokenID check)
 
 using IndexedString_critical_section = leveled_counted_section;
-struct IndexedString_shared_lock : RequestMainThreadOperProcessingBlocker, leveled_counted_section::shared_lock { using leveled_counted_section::shared_lock::shared_lock; };
+
+// The number of shared usages of the token registry that the calling thread currently holds.
+//
+// Registering a token (IndexedStrings::GetOrCreateID_mt) takes that registry exclusively, and
+// counted_mutex::lock() waits for the shared usage count to reach zero without a deadline. A thread
+// that still holds a usage of its own therefore waits for itself: it can never be woken, and what a
+// user sees is a process parked at 0% CPU with no message at all. A live TokenStr or TokenStrRange
+// -- as handed out by TokenID::GetStr(), TokenID::AsStrRange() and Object::GetName() -- is exactly
+// such a usage, so keeping one alive across any call that can tokenize a string hangs the process.
+// That has cost three separate debugging sessions; see set/IndexedStrings.cpp for the list.
+//
+// This duplicates, for one section and in Release, what the lock-level checker of Parallel.h
+// already decides in Debug: level_type::Allow() permits an equal level only when BOTH sides are
+// shared, so entering the exclusive IndexedString level while holding the shared one fails
+// EnterLevel's dms_assert. That checker is the broader guard and stays the primary one -- but it
+// lives under MG_DEBUG_LOCKLEVEL (= MG_DEBUG), and in Release dms_assert degrades to CC_ASSUME, so
+// it does not exist in the builds where all three of those hangs were actually met. Hence a counter
+// narrow enough to be affordable unconditionally: one call and one thread-local increment next to
+// the std::mutex acquire and condition-variable predicate that taking the usage performs anyway.
+//
+// Exported rather than a plain extern thread_local, because TokenStr is copied and destroyed in
+// every module that links Rtc.dll.
+RTC_CALL void IncTokenRegistrySharedUsage() noexcept;
+RTC_CALL void DecTokenRegistrySharedUsage() noexcept;
+
+struct IndexedString_shared_lock : RequestMainThreadOperProcessingBlocker, leveled_counted_section::shared_lock
+{
+	using base_type = leveled_counted_section::shared_lock;
+
+	IndexedString_shared_lock() = default;
+	explicit IndexedString_shared_lock(IndexedString_critical_section& cs) : base_type(cs) { CountAcquired(); }
+
+	IndexedString_shared_lock(const IndexedString_shared_lock& src)
+		: RequestMainThreadOperProcessingBlocker(src), base_type(src) // base_type's copy takes a usage of its own
+	{
+		CountAcquired();
+	}
+
+	// A move transfers the usage instead of taking one, so the thread's total does not change. The
+	// same goes for the move assignment: base_type swaps the two, which keeps both the registry's
+	// count and this one intact (the source then releases what the target held).
+	IndexedString_shared_lock(IndexedString_shared_lock&& src) noexcept
+		: RequestMainThreadOperProcessingBlocker(src), base_type(std::move(src))
+	{}
+
+	~IndexedString_shared_lock() { CountReleased(); }
+
+	void operator =(IndexedString_shared_lock&& src) noexcept { base_type::operator =(std::move(src)); }
+
+	void operator =(const IndexedString_shared_lock& src)
+	{
+		bool hadUsage = HoldsUsage();
+		base_type::operator =(src);
+		if (HoldsUsage() == hadUsage)
+			return;
+		if (hadUsage)
+			DecTokenRegistrySharedUsage();
+		else
+			IncTokenRegistrySharedUsage();
+	}
+
+private:
+	bool HoldsUsage() const { return m_CS != nullptr; } // false for a default-constructed or moved-from lock
+	void CountAcquired() { if (HoldsUsage()) IncTokenRegistrySharedUsage(); }
+	void CountReleased() { if (HoldsUsage()) DecTokenRegistrySharedUsage(); }
+};
+
 struct IndexedString_scoped_lock : RequestMainThreadOperProcessingBlocker, leveled_counted_section::scoped_lock { using leveled_counted_section::scoped_lock::scoped_lock; };
 
 
