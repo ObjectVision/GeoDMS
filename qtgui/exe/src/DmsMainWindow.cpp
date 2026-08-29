@@ -1169,6 +1169,31 @@ void MainWindow::openExportPrimaryDataDialog(const TreeItem* exportItem) {
     m_export_window->show();
 }
 
+// Export Primary Data on the current item, pressing Export with the settings the dialog
+// proposes itself: the "use defaults" path a modeller takes, made available to a /T test
+// script (verb ExportPrimaryData) so an export can be checked without a mouse.
+//
+// The verb arrives on the test-script thread, on Windows as a cross-thread SendMessage, so a
+// direct call would run the dialog inside a window procedure. It does not survive that: asking
+// an item for its view style flags parks the thread on work that only the event loop finishes,
+// and no event loop runs while a window procedure does. Queue the whole thing, so it runs from
+// the event loop the way the menu entry does; the WAIT that follows the verb in the script
+// gives it its turn.
+void MainWindow::exportPrimaryDataWithDialogDefaults() {
+    QMetaObject::invokeMethod(this, [this]() {
+        auto exportItem = getCurrentTreeItem();
+        if (!exportItem)
+            return;
+
+        openExportPrimaryDataDialog(exportItem);
+        if (!m_export_window)
+            return;
+
+        m_export_window->exportActiveTabInfoOrCloseAfterExport();
+        m_export_window->hide();
+    }, Qt::QueuedConnection);
+}
+
 StaticLateTokenID s_ViewToken("View");
 
 void MainWindow::createView(ViewStyle viewStyle, ChartKind chartKind) {

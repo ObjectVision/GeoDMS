@@ -279,6 +279,10 @@ bool WmCopyData(MSG* copyMsgPtr) {
         MainWindow::TheOne()->SaveValueInfoImpl(CharPtr(pcds->lpData));
         return true;
 
+    case CommandCode::ExportPrimaryData:
+        MainWindow::TheOne()->exportPrimaryDataWithDialogDefaults();
+        return true;
+
     default:
         return false;
     }
