@@ -61,6 +61,8 @@ FormattedInpStream& operator >> (FormattedInpStream& is, Range<T>& r)
 	bool legacyPointNotation = (is.NextChar() == '{');
 	is >> r.first;
 	point_stream::ReadSeparator(is);
+	point_stream::SkipSpace(is);
+	legacyPointNotation |= (is.NextChar() == '{');
 	is >> r.second;
 	point_stream::ReadChar(is, ')');
 	if (legacyPointNotation)

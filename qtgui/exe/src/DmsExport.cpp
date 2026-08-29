@@ -57,12 +57,14 @@ const AbstrUnit* CommonDomain(const TreeItem* item)
 
     const AbstrUnit* domainCandidate = nullptr;
     bool foundSomeAttr = false;
+    bool domainIsGiven = false; // the item IS a unit, so its domain is not up for negotiation
     if (IsUnit(item))
     {
         domainCandidate = AsUnit(item);
         if (!domainCandidate->CanBeDomain())
             return nullptr;
         domainCandidate->UpdateMetaInfo();
+        domainIsGiven = true;
     }
 
     for (auto subItem = item->GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
@@ -77,7 +79,20 @@ const AbstrUnit* CommonDomain(const TreeItem* item)
             if (domainCandidate && domainCandidate->GetUnitClass() != Unit<Void>::GetStaticClass())
             {
                 if (!domainCandidate->UnifyDomain(adu, "", "", UnifyMode::UM_AllowVoidRight))
+                {
+                    // #1145: a unit can carry an attribute of ANOTHER domain, typically a
+                    // relation to this unit configured on its source domain. That does not
+                    // make the table ambiguous: the domain of a unit is the unit itself, and
+                    // the column collection below (DataContainer_NextItem) already leaves any
+                    // foreign attribute out. Bailing out here sent such an item down the
+                    // "export as database" path, which then wrote a layer per sub-item, giving
+                    // the foreign attribute a layer of its own with the geometry of ITS domain.
+                    // Only a plain container has to derive its domain from its sub-items, and
+                    // for that one a second domain does mean there is no common one.
+                    if (domainIsGiven)
+                        continue;
                     return nullptr;
+                }
             }
             else
                 domainCandidate = adu;
@@ -808,6 +823,13 @@ bool DmsExportWindow::exportImpl()
     auto& driver = active_tab->m_available_drivers.at(active_tab->m_driver_selection->currentIndex());
     bool use_native_driver = active_tab->m_native_driver_checkbox->isChecked();
     auto filename = SharedStr((active_tab->m_foldername_entry->text() + "/" + active_tab->m_filename_entry->text() + driver.exts.at(0)).toStdString().c_str());
+
+    // Where an export went is otherwise only visible in the dialog that is about to close.
+    reportF(SeverityTypeID::ST_MajorTrace, "Export {} to {} with driver {}{}"
+        , current_export_item->GetFullName().c_str()
+        , filename.c_str()
+        , driver.Caption()
+        , (use_native_driver && driver.HasNativeVersion()) ? ", native" : "");
 
     CharPtr driverName = nullptr;
     CharPtr storageTypeName = nullptr;

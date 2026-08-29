@@ -220,6 +220,7 @@ public slots:
     void openConfigRootSource();
     void exportPrimaryData();
     void openExportPrimaryDataDialog(const TreeItem* exportItem);
+    void exportPrimaryDataWithDialogDefaults(); // test-script verb ExportPrimaryData
     void saveValueInfo();
 
     void gui_options();

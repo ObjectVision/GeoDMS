@@ -248,6 +248,15 @@ int PassMsg(int argc, char* argv[])
 			}
 			continue;
 		}
+		else if (std::strcmp(argv[i], "ExportPrimaryData") == 0)
+		{
+			// Export Primary Data on the current item, with the settings the dialog fills in
+			// itself. Takes no arguments: the point is to exercise what a modeller gets from
+			// "use defaults", and the resulting file names are traced by the export.
+			myCDS.dwData = ULONG_PTR(CommandCode::ExportPrimaryData);
+			myCDS.cbData = 0;
+			myCDS.lpData = nullptr;
+		}
 		else if (std::strcmp(argv[i], "SaveValueInfo") == 0)
 		{
 			if (argc <= ++i)
@@ -330,6 +339,10 @@ int PassMsg(int argc, char* argv[])
 		else if (std::strcmp(argv[i], "EditConfigRootSource") == 0)
 		{
 			mw->openConfigRootSource();
+		}
+		else if (std::strcmp(argv[i], "ExportPrimaryData") == 0)
+		{
+			mw->exportPrimaryDataWithDialogDefaults();
 		}
 		else if (std::strcmp(argv[i], "SEND") == 0)
 		{

@@ -1,0 +1,68 @@
+container range_spelling
+{
+	// GeoDMS #1165. A point range written with the xy()/yx() tags must define exactly the same
+	// rectangle as the legacy untagged {row, col} spelling, so that rewriting a configuration from
+	// the one to the other changes nothing but the text. Reading the untagged form also reports a
+	// deprecation warning, which leaves the exit code alone: this case guards the equivalence, and
+	// the warning shows up in the run log the suite already writes to _out/range_spelling.log.
+	//
+	// The untagged pair always meant {row, col} = {y, x}, so "[{a, b}, {c, d})" is the rectangle
+	// "[xy(b; a), xy(d; c))".
+
+	unit<fpoint> rdc_tagged  : range = "[xy(0; 300000), xy(280000; 625000))";
+	unit<fpoint> rdc_legacy  : range = "[{300000, 0}, {625000, 280000})";
+
+	unit<spoint> k3x3_tagged : range = "[xy(-1; -1), xy(2; 2))";
+	unit<spoint> k3x3_legacy : range = "[{-1, -1}, {2, 2})";
+
+	// One row by three columns: a swapped pair keeps the cell count, so only the bounds show it.
+	unit<spoint> k1x3_tagged : range = "[xy(-1; 0), xy(2; 1))";
+	unit<spoint> k1x3_legacy : range = "[{0, -1}, {1, 2})";
+	unit<spoint> k1x3_yx     : range = "[yx(0; -1), yx(1; 2))";
+
+	// A scalar range has no coordinate order to state and is untouched by all of this.
+	unit<uint32> scalar_range : range = "[1, 8)";
+
+	container checks
+	{
+		parameter<bool> rdc_same :=
+				get_x(LowerBound(rdc_tagged)) == get_x(LowerBound(rdc_legacy))
+			&&	get_y(LowerBound(rdc_tagged)) == get_y(LowerBound(rdc_legacy))
+			&&	get_x(UpperBound(rdc_tagged)) == get_x(UpperBound(rdc_legacy))
+			&&	get_y(UpperBound(rdc_tagged)) == get_y(UpperBound(rdc_legacy))
+		,	IntegrityCheck = "rdc_same == True";
+
+		parameter<bool> k3x3_same :=
+				get_x(LowerBound(k3x3_tagged)) == get_x(LowerBound(k3x3_legacy))
+			&&	get_y(LowerBound(k3x3_tagged)) == get_y(LowerBound(k3x3_legacy))
+			&&	get_x(UpperBound(k3x3_tagged)) == get_x(UpperBound(k3x3_legacy))
+			&&	get_y(UpperBound(k3x3_tagged)) == get_y(UpperBound(k3x3_legacy))
+		,	IntegrityCheck = "k3x3_same == True";
+
+		parameter<bool> k1x3_same :=
+				get_x(LowerBound(k1x3_tagged)) == get_x(LowerBound(k1x3_legacy))
+			&&	get_y(LowerBound(k1x3_tagged)) == get_y(LowerBound(k1x3_legacy))
+			&&	get_x(UpperBound(k1x3_tagged)) == get_x(UpperBound(k1x3_legacy))
+			&&	get_y(UpperBound(k1x3_tagged)) == get_y(UpperBound(k1x3_legacy))
+		,	IntegrityCheck = "k1x3_same == True";
+
+		parameter<bool> k1x3_yx_same :=
+				get_x(LowerBound(k1x3_tagged)) == get_x(LowerBound(k1x3_yx))
+			&&	get_y(LowerBound(k1x3_tagged)) == get_y(LowerBound(k1x3_yx))
+			&&	get_x(UpperBound(k1x3_tagged)) == get_x(UpperBound(k1x3_yx))
+			&&	get_y(UpperBound(k1x3_tagged)) == get_y(UpperBound(k1x3_yx))
+		,	IntegrityCheck = "k1x3_yx_same == True";
+
+		// Anchor the orientation itself, so a reader that swapped both spellings alike would still
+		// be caught: xy() states x first, and the rectangle is one row high and three columns wide.
+		// get_x / get_y widen a bound to float64 whatever the point scalar is, hence the float64 casts.
+		parameter<bool> k1x3_x_first :=
+				get_x(LowerBound(k1x3_tagged)) == float64(-1)
+			&&	get_y(LowerBound(k1x3_tagged)) == float64( 0)
+			&&	get_x(UpperBound(k1x3_tagged)) == float64( 2)
+			&&	get_y(UpperBound(k1x3_tagged)) == float64( 1)
+		,	IntegrityCheck = "k1x3_x_first == True";
+
+		parameter<uint32> scalar_count := #scalar_range, IntegrityCheck = "scalar_count == 7";
+	}
+}

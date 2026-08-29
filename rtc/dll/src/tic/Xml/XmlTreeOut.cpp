@@ -1013,7 +1013,7 @@ void WritePropValueRows(XML_Table& xmlTable, const TreeItem* self, const Class* 
 		bool firstValue = true;
 		bool canBeIndirect = pd->CanBeIndirect();
 		try {
-			if (pd->IsDepreciated())
+			if (pd->IsAlias())          // its value is already listed under the primary name
 				continue;
 			if (!showAll && !pd->HasNonDefaultValue(self))
 				continue;

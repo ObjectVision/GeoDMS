@@ -9,8 +9,8 @@ both closed (2026-08-27, recorded below); #1219 was filed and fixed after the au
 entered the tables, and neither did #1220, which was filed and closed on 2026-08-27 as well.
 #1211, which the tables did classify, was closed right after it by the same work. #1196 has
 since been closed as well (2026-08-27, recorded below), and #1221 was filed that afternoon and has
-not been classified here yet. Live count re-checked against GitHub after that: 11 open; #1161 was closed on 2026-08-28 (recorded below), leaving **10 open** — #587,
-#724, #990, #1145, #1165, #1191, #1198, #1205, #1214, #1221. Note #973 and #659 have both
+not been classified here yet. Live count re-checked against GitHub after that: 11 open; #1161 was closed on 2026-08-28 (recorded below), leaving 10 open; #1145 was closed on 2026-08-29 (recorded below), leaving **9 open** — #587,
+#724, #990, #1165, #1191, #1198, #1205, #1214, #1221. Note #973 and #659 have both
 closed since the audit and their rows below are stale. Grouped by implementability. Buckets:
 
 - **A. Low hanging fruit** — small, well-defined fixes; no design decisions needed.
@@ -73,6 +73,55 @@ with backslashes. The real call site always passes forward slashes, so nothing i
 is a two-line guard against an unpleasant failure mode for anyone invoking the script by hand.
 
 ## Recently closed (delta since 2026-07-31)
+
+### Closed on 2026-08-29 (1)
+
+- #1145 -- "Export Primary Data op unit met Provincies exporteert shapefile met Buurt-geometry".
+  The reported item, RSopen's `Bereikbaarheid/Output_PerProvincie`, is a unit of 12 provinces that
+  carries one attribute of another domain: `prov_rel`, the buurt-to-province relation, configured
+  on `Buurt` because that is the domain it is computed over. `CommonDomain` in
+  `qtgui/exe/src/DmsExport.cpp` walked the sub-items and bailed out to `nullptr` on the first
+  domain that would not unify with the unit, so `CurrentItemCanBeExportedAsTable` said no and the
+  dialog fell through to `CurrentItemCanBeExportedAsDatabase`, which is a yes for anything with an
+  exportable sub-item. The database branch writes one layer per sub-item, each with the geometry
+  of its own domain, so the relation got a layer of buurt polygons beside the province ones.
+  Whether that lands as a second layer or overwrites the first is up to the driver: with the
+  native shapefile writer the target name became a folder holding one shapefile per attribute,
+  with the GDAL driver the layers go into the one `.shp` datasource the dialog named, which is
+  what the reporter saw.
+
+  **The domain of a unit is the unit.** Only a container has to derive its domain from its
+  sub-items, and only there does a second domain mean there is no common one. The fix keeps the
+  bail-out for that case and skips the foreign attribute when the exported item is itself a unit.
+  Nothing downstream needed changing: `DoExportTable` collects its columns through
+  `DataContainer_NextItem`, which already filters on the domain, so the foreign attribute was
+  never going to be a column of the table anyway. A unit whose only data sub-items are foreign
+  still has no table of its own and still exports as a database, unchanged.
+
+  **Measured on a 2-province, 4-buurt config** (`scratch/issue1145/`), exporting the province unit
+  with the dialog defaults. Before: a folder `Output_PerProvincie.shp` holding `waarde.shp`
+  (2 features, extent 0..10, the provinces) and `prov_rel.shp` (4 features, extent 1..9, the buurt
+  geometry), built under `/Desktops/Default/Exports/ExportDatabase`. After: one shapefile, 2
+  features, extent 0..10, `WAARDE` 15 and 40, built under `.../Exports/ExportTable`. A plain unit,
+  a unit without the foreign attribute, and a container holding two domains all export exactly as
+  they did before, the container still as a database of two layers.
+
+  **RSopen worked around it the same day** (`5d6ddd85`, 2026-06-22) by moving the output into a
+  gpkg container and marking `prov_rel` with `DisableStorage`, which is right for the gpkg write
+  and no longer needed for the export dialog.
+
+  Two things came out of the session next to the fix. The export now writes one line to the event
+  log naming the item, the file and the driver, which is the only record of where an export went
+  once the dialog closes. And the GUI test script gained an `ExportPrimaryData` verb (command code
+  18, wiki page `Gui-scripting`), which runs the dialog with its own defaults and presses Export,
+  so the export path can be driven headlessly with `/T`.
+
+  **Found while testing, not fixed here**: opening the export dialog on a unit configured as an
+  alias of another unit (`unit<uint32> X := Y`) hangs the GUI when no view has been opened on that
+  item yet. The dialog's `showEvent` asks `isItemOrItsSubItemsMappable` for its driver list and
+  `SHV_GetViewStyleFlags` never returns for the cold unit. The same item exports fine once a
+  `DefaultView` has been opened on it, a plain unit is fine cold, and an attribute inside the alias
+  unit is fine cold. Worth an issue of its own.
 
 ### Closed on 2026-08-28 (1)
 
@@ -819,10 +868,12 @@ now do.
   `geodms.pyd` imported `python313.dll` next to a shipped `python312.dll`. The Python bindings now have
   targeted pre-packaging import/ABI checks; a general import-closure check would extend the same
   protection to every executable and DLL.
-- **Least certain classifications**: #1145 still needs a debugging session before it is clear whether
-  it is an afternoon or a refactor. #1215 is classified as a bookkeeping closure on the strength of
+- **Least certain classifications**: #1145 was the open question here, "an afternoon or a refactor";
+  the debugging session it was waiting for made it an afternoon, and a two-line one at that (see the
+  2026-08-29 entry). #1215 is classified as a bookkeeping closure on the strength of
   the operator already existing, which the reporter should confirm — its body is empty.
 - **Reproducing a GUI issue** is cheap: `GeoDmsGuiQt.exe /L<log> /T<script> /S1 /S2 /S3 <config.dms>`
+  with, since #1145, `ExportPrimaryData` for an export with the dialog defaults,
   (note: `/L` must precede `/T`) with `ActivateItem` + `ShowDetailPage` + `SaveDetailPage` for a detail
   page, `DefaultView` + `SEND 3 3 273 9 0` + `SaveValueInfo` for a value-info page, and
   `SEND 3 3 256 <VK> 0` to feed a virtual key straight into `DataView::OnKeyDown`. For a map view the
