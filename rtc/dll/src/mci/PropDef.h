@@ -56,9 +56,12 @@ public:
 	chg_mode          GetChgMode()       const { return m_ChgMode; }
 	bool              CanBeIndirect()    const { return m_CanBeIndirect; }
 	bool              AddImplicitSuppl() const { return m_AddImplicitSuppl; }
-	bool              IsDepreciated()    const { return m_Depreciated; }
+	// An alias PropDef is a second name for a value that another PropDef already defines, kept so
+	// that existing configurations keep parsing. Only the primary name is rendered, or the detail
+	// page would list the very same value twice under two names. Expr is the alias of CalcRule.
+	bool              IsAlias()          const { return m_IsAlias; }
 
-	void SetDepreciated() { m_Depreciated = true;  }
+	void SetIsAlias() { m_IsAlias = true;  }
 
 	auto CreateValue() const ->std::unique_ptr<AbstrValue>;
 
@@ -80,7 +83,7 @@ private:
 	chg_mode          m_ChgMode : (2+1);
 	bool              m_AddImplicitSuppl : 1 = false;
 	bool              m_CanBeIndirect: 1 = false;
-	bool              m_Depreciated : 1 = false;
+	bool              m_IsAlias : 1 = false;
 
 	AbstrPropDef*     m_PrevPD = nullptr;
 	AbstrPropDef*     m_PrevCopyablePD = nullptr;

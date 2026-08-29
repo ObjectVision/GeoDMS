@@ -196,18 +196,21 @@ namespace { // local defs
 		}
 	};
 
+	// Two names for one value: CalcRule is the primary one, Expr the alias that older configurations
+	// use. The alias reads and writes the same TreeItem expression, but is left out of the xml
+	// rendering, out of the copy set and, through SetIsAlias, out of the detail page property table.
 	class ExprPropDef: public PropDef<TreeItem, SharedStr>
 	{
 	public:
-		ExprPropDef(bool depreciatedName)
-			:	PropDef<TreeItem, SharedStr>(depreciatedName ? EXPR_NAME : CALCRULE_NAME
+		ExprPropDef(bool aliasName)
+			:	PropDef<TreeItem, SharedStr>(aliasName ? EXPR_NAME : CALCRULE_NAME
 				,	set_mode::optional
-				,	depreciatedName ? xml_mode::none : xml_mode::element
-				,	depreciatedName ? cpy_mode::none : cpy_mode::expr
+				,	aliasName ? xml_mode::none : xml_mode::element
+				,	aliasName ? cpy_mode::none : cpy_mode::expr
 				,	chg_mode::invalidate, false, true, true)
 		{
-			if (depreciatedName)
-				SetDepreciated();
+			if (aliasName)
+				SetIsAlias();
 		}
 		// override base class
 		ApiType GetValue(const TreeItem* ti) const override 
@@ -756,7 +759,7 @@ namespace { // local defs
 namespace {
 	static NamePropDef namePropDef;
 	static MF_RoPropDef<TreeItem, SharedStr> fullNameProp(FULLNAME_NAME, &TreeItem::GetFullName);
-	static ExprPropDef depreciatedExprPropDef(true);
+	static ExprPropDef exprAliasPropDef(true);
 	static ExprPropDef calcRulePropDef(false);
 	static DisableStoragePropDef disableStoragePropDef;
 	static KeepDataPropDef keepDataPropDef;
