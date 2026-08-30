@@ -539,6 +539,7 @@ int main(int argc, char** argv)
 		result = main_with_error_report(argc, argv);
 	}
 	DMS_Stg_Terminate();
+	DMS_Rtc_Terminate();
 
 	// 4) when you’re done, detach so the default scheduler resumes
 //	concurrency::CurrentScheduler::Detach();

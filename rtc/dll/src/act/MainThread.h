@@ -74,6 +74,10 @@ RTC_CALL UInt32 GetThreadID(); // exported: qtgui DmsMainWindow needs it in Debu
 RTC_CALL void PostMainThreadOper(operation_type&& func);
 void SendMainThreadOper(operation_type&& func);
 RTC_CALL void PostMainThreadTask(phase_number fn, suspendible_task_type&& task);
+
+// Called by DMS_Rtc_Terminate() when the run is over: from here on nothing drains these queues, so
+// posting to them is dropped rather than left for a static destructor to trip over.
+RTC_CALL void CloseMainThreadQueues();
 RTC_CALL void ProcessMainThreadOpers();
 void ProcessSuspendibleTasks();
 RTC_CALL void ProcessMainThreadOpersAndTasks();

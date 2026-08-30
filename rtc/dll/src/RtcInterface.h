@@ -24,6 +24,12 @@ RTC_CALL void DMS_CONV DMS_SetGlobalCppExceptionTranslator(TCppExceptionTranslat
 
 RTC_CALL void DMS_CONV DMS_Terminate();
 
+// Called by an executable when its run is over, beside DMS_Stg_Terminate(), while main()'s own
+// frame and every DLL are still alive: reports the final allocator summary if nothing has yet,
+// and closes the main-thread operation queues. See MsgDispatch.cpp for why this may not be left
+// to a static destructor.
+RTC_CALL void DMS_CONV DMS_Rtc_Terminate();
+
 //----------------------------------------------------------------------
 // C style Interface functions for class id retrieval
 //----------------------------------------------------------------------

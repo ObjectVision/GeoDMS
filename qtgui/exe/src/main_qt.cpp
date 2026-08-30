@@ -604,6 +604,7 @@ int main(int argc, char* argv[]) {
         result = main1(argc, argv);
     }
     DMS_Stg_Terminate();
+    DMS_Rtc_Terminate();
 
     return result;
 }

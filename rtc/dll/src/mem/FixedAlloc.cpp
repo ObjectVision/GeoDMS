@@ -1481,8 +1481,17 @@ auto UpdateAndGetFixedAllocFinalSummary() -> SharedStr
 	);
 }
 
+// Reported at most once per process. There are two callers left -- ~CDebugLog, so the summary
+// lands in the log file before it is closed, and DMS_Rtc_Terminate() for a run without one --
+// and whichever comes first wins.
+static bool s_FinalSummaryReported = false;
+
 void ReportFixedAllocFinalSummary()
 {
+	if (s_FinalSummaryReported)
+		return;
+	s_FinalSummaryReported = true;
+
 	// Decommit cost, once per run beside the memory summary. The size histogram only under
 	// PerformanceLogging (/SP): its question -- what sizes a workload asks for, and how much lives
 	// above ALLOC_OBJSSIZE_MAX -- is calibration, not product output. The underlying counters are
