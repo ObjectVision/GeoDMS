@@ -2874,6 +2874,30 @@ struct DistFromOpt
 			for(UInt32 j=0; j!=K; ++j, iXj += i)
 			{
 				S Sij = htpInfo.m_ggTypes[j].m_Suitabilities[i];
+
+				// An undefined suitability means this type is no option for this land unit at all,
+				// so there is no bid to compare the assignment against. The bidding loop of
+				// DiscrAllocCells reaches the same conclusion through `s < m_Threshold`: null is
+				// MIN_VALUE(S) and MinValue<S>() is MIN_VALUE(S)+1 (has_min_as_null), so a null
+				// sorts below even the default threshold and is skipped there before any
+				// arithmetic. This loop is a replica of that one, and skipping has to happen here
+				// too -- it consults the threshold only AFTER the add, to classify the deviation.
+				//
+				// Without this, CheckedAdd() below gets null + the claim's shadow price and reports
+				// a numeric overflow, which fails the whole allocation from what is only a status
+				// message ("DiscrAlloc completed with ... at most N from optimum"). Before the
+				// checked arithmetic of #1196 that add wrapped instead: null + a negative price
+				// came out large and POSITIVE, so a type that was never an option compared as a
+				// better bid and silently inflated nrSubOptimal and totalDistFromOpt. The
+				// dms_assert(belowThreshold) below did not catch it -- a null IS below the
+				// threshold -- and in Release it is CC_ASSUME. So those figures have been wrong
+				// for every model with null suitabilities; this is not merely an overflow fix.
+				//
+				// Only UNdefined values are skipped, not everything below the threshold: measuring
+				// deviations that the threshold caused is exactly what this loop is for.
+				if (!IsDefined(Sij))
+					continue;
+
 				shadow_price<S, P> bid(Sij, NarrowPerturbation<P>(iXj));  // small pertubation (SoS) for making a difference between similar cells
 				bid = CheckedAdd(bid, htpInfo.GetClaim(ar, j).m_ShadowPrice);
 				if (currPrice < bid)
