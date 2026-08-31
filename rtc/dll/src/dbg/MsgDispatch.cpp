@@ -588,12 +588,35 @@ RtcStreamLock::RtcStreamLock()
 
 void ReportFixedAllocFinalSummary(); // defined in FixedAlloc.cpp
 
+// Deliberately does NOT report the final allocator summary any more; DMS_Rtc_Terminate() does,
+// and ~CDebugLog does it earlier still when there is a log file to put it in.
+//
+// The single RtcReportLock of RtcMain.cpp is a namespace-scope static, so this destructor runs
+// from __cxa_finalize, and reporting is not a passive act: it formats a SharedStr, which allocates
+// from the stock allocator, and AllocateFromStock() -> ConsiderReporting() -> PostReporting() ends
+// in PostMainThreadOper(). By then the main-thread operation queue -- another static of this same
+// library -- has already been destroyed, so that Post() called emplace_back() on a destroyed
+// std::vector whose growth path freed the already-freed buffer a second time. Valgrind names it:
+//
+//   Invalid free() ... operation_queue::Post <- PostMainThreadOper <- PostReporting
+//   <- ConsiderReporting <- AllocateFromStock <- GetVmSysCallStats
+//   <- ReportFixedAllocFinalSummary <- RtcStreamLock::~RtcStreamLock <- __cxa_finalize
+//
+// on a block freed moments earlier by __cxa_finalize itself. That double free corrupts the heap;
+// glibc only notices later while consolidating and blames whichever chunk it walks first, so the
+// abort names an innocent Qt allocation ("corrupted size vs. prev_size in fastbins") and nothing
+// of ours. Measured on the shipped .l packages, 96 runs each under contention: 20.17.0 0 aborts,
+// 20.18.0 8. It reproduces only under load because ConsiderReporting() reports periodically.
+//
+// The rule this encodes: a static destructor may release, but must not perform work that needs
+// infrastructure which is itself static -- the queue here, and the ini cache that
+// IsPerformanceLogging() reads two lines into the same summary. Ordering the reporting ahead of
+// static destruction fixes both at once, which is why neither of those singletons needs to
+// outlive the process. Same reasoning, and the same shape, as DMS_Stg_Terminate() for GDAL (#1206).
 RtcStreamLock::~RtcStreamLock()
 {
 	if (!--s_nrRtcStreamLocks)
 	{
-		ReportFixedAllocFinalSummary();
-
 		// Clear Tracing system
 #if defined(MG_CRTLOG)
 		g_CrtLog.reset();
@@ -601,6 +624,25 @@ RtcStreamLock::~RtcStreamLock()
 		g_DebugStream.reset();
 		g_DebugStreamBuff.reset();
 	}
+}
+
+// Counterpart of DMS_Stg_Terminate() (#1206), and called next to it: the executable says when the
+// run is over, while its own main() frame, the DLLs and all worker-thread teardown are still
+// alive. Everything that must not happen from a static destructor belongs here.
+//
+// Reporting the final allocator summary is the reason this exists. It is a no-op when ~CDebugLog
+// already reported it -- that runs at log close, which is earlier and equally safe, and puts the
+// summary in the log file where it belongs. A run without /L has no such moment, and used to get
+// its summary from ~RtcStreamLock at __cxa_finalize; that is the call this replaces.
+//
+// Closing the main-thread queues afterwards is what makes the ordering an invariant rather than a
+// convention: past this point nothing drains them, so a late post can only be a leak or, once
+// their own static destructor has run, a use of freed memory. Dropping such posts is exactly what
+// their delivery would have been worth.
+extern "C" RTC_CALL void DMS_CONV DMS_Rtc_Terminate()
+{
+	ReportFixedAllocFinalSummary();
+	CloseMainThreadQueues();
 }
 
 RtcReportLock::RtcReportLock()

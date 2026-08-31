@@ -170,6 +170,9 @@ protected:
 
 private:
 	bool CheckResultItem(const TreeItem* refItem) const override;
+	// Whether an expired/unset weak unit member may be (re)resolved by name right now; see the comment
+	// at its definition for each of the four conditions.
+	bool CanResolveUnitByName(TokenID) const;
 	const AbstrUnit* FindUnit(TokenID, CharPtr role, ValueComposition* vcPtr) const;
 	void InitDataItem(const AbstrUnit* du, const AbstrUnit* vu, const DataItemClass* dic);
 	garbage_can CleanupMem(bool hasSourceOrExit, std::size_t minNrBytes) noexcept;

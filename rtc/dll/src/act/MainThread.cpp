@@ -393,8 +393,27 @@ operation_queue s_OperQueue;
 suspendible_task_queue s_TaskQueue;
 
 
+// Set by DMS_Rtc_Terminate(), i.e. by the executable when the run is over and nothing will drain
+// these queues again. A post after that point cannot be delivered, and once this library's own
+// static destructors have run it is worse than undeliverable: s_OperQueue is a namespace-scope
+// static, so Post() would then emplace_back() into a destroyed std::vector and its growth path
+// would free the already-freed buffer a second time -- the heap corruption behind the intermittent
+// "corrupted size vs. prev_size in fastbins" abort at GeoDmsGuiQt teardown. Dropping the post is
+// what its delivery would have been worth anyway.
+// Atomic because the posting side runs on worker threads: by the time DMS_Rtc_Terminate() sets
+// this the tg_maintainer scope has ended and the pool is joined, but a plain bool written on one
+// thread and read on another is a data race whether or not any thread is left to lose it.
+static std::atomic<bool> s_MainThreadQueuesClosed = false;
+
+void CloseMainThreadQueues()
+{
+	s_MainThreadQueuesClosed.store(true, std::memory_order_relaxed);
+}
+
 void PostMainThreadOper(operation_type&& func)
 {
+	if (s_MainThreadQueuesClosed.load(std::memory_order_relaxed))
+		return;
 	if (s_OperQueue.Post(std::move(func)))
 		RequestMainThreadOperProcessing();
 }
@@ -406,6 +425,8 @@ void SendMainThreadOper(operation_type&& func)
 
 void PostMainThreadTask(phase_number fn, suspendible_task_type&& func)
 {
+	if (s_MainThreadQueuesClosed.load(std::memory_order_relaxed))
+		return;
 	if (s_TaskQueue.Post(fn, std::move(func)))
 		RequestMainThreadOperProcessing();
 }
