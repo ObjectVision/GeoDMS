@@ -149,6 +149,7 @@ public:
 	void setInterest(TokenID layerID, TokenID  fieldID, bool hasInterest);
 	void SetInterestForDataHolder(TokenID layerID, TokenID fieldID, const AbstrDataItem*);
 	void SetLaunderedName(TokenID layerID, TokenID fieldID, TokenID launderedNameID);
+	void HoldSiblingInterest(const TreeItem* storageHolder, TokenID layerID);
 	void ReleaseAllLayerInterestPtrs(TokenID layerID);
 	void RefreshInterest(const TreeItem* storageHolder);
 	bool DatasetIsReadyForWriting();
@@ -160,6 +161,11 @@ public:
 
 	std::map<layer_id, std::map<field_id, FieldInfo>> m_LayerAndFieldIDMapping;
 	std::map<layer_id, SharedDataItemInterestPtr> m_orphan_geometry_items;
+
+	// per layer being written, the weak interest held in its columns so the layer goes into the
+	// file complete (issue #711); taken by HoldSiblingInterest when the first column commits and
+	// released by ReleaseAllLayerInterestPtrs when the layer has been written.
+	std::map<layer_id, std::vector<WeakDataItemInterestPtr>> m_SiblingInterest;
 	bool m_continueWrite = false;
 	bool m_initialized = false;
 };

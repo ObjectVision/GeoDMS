@@ -1,0 +1,23 @@
+// issue #1229: a gdalwrite.vect layer whose columns supply each other must not fail with
+// "Cannot start ChangeInterest while doing ChangeInterest; check for recursive dependencies".
+//
+// 20.17.0 pulled the sibling columns of a layer into interest from the storage manager's
+// StartInterest hook, inside the interest-propagation episode of the demanded column; when one
+// written column supplies another written column of the same layer, that pull re-entered the
+// column that was still midway its own interest change. The sibling interest is now taken at
+// write time (DataItemsWriteStatusInfo::HoldSiblingInterest), when no interest change is in
+// flight.
+//
+// This case demands the DEPENDENT column: y := x, demand /Export/sel/y. The supplier x is then
+// reached over the supplier chain while y's own interest is still being started.
+container stor_gdalwrite_sibling_dep
+{
+	container Export : StorageName = "='%LocalDataDir%/GeoDmsTestcases/stor_gdalwrite_sibling_dep.csv'", StorageType = "gdalwrite.vect"
+	{
+		unit<uint8> sel : nrofrows = 3
+		{
+			attribute<string> x : ['a', 'b', 'c'];
+			attribute<string> y := x;
+		}
+	}
+}

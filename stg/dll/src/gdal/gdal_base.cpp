@@ -43,6 +43,7 @@
 #endif
 
 #include "dbg/DmsCatch.h"
+#include "xct/DmsException.h" // HoldSiblingInterest catches DmsException per sibling
 #include "geom/PointOrder.h"
 #include "vt/StringArray.h"
 #include "mci/ValueClass.h"
@@ -991,6 +992,54 @@ void DataItemsWriteStatusInfo::ReleaseAllLayerInterestPtrs(TokenID layerID)
 		if (fieldInfo.second.writeInThisRound()) // only the fields that just went into the layer are now in the layer
 			fieldInfo.second.isWritten = true;
 		fieldInfo.second.m_DataHolder = {};
+	}
+	m_SiblingInterest.erase(layerID); // the layer is written; its columns are no longer kept on its behalf
+}
+
+// A vector layer is written as a whole: one pass over its features, with all its columns. A column
+// nobody asked for would end up as a <null> column in the file (issue #711), so when the first column
+// of a layer commits, take interest in the other storable columns of that layer: RefreshInterest then
+// counts them in and PrepareLayerFieldsForWriting produces them before the layer is written.
+//
+// The interest is taken HERE, at write time on the meta thread, and deliberately NOT in the storage
+// manager's StartInterest hook as 20.17.0 did. That hook runs inside the interest-propagation episode
+// of the column being demanded, and pulling in a sibling from there re-enters the interest machinery:
+// when columns of one layer supply each other, starting the sibling's interest reaches back into the
+// column that is still midway its own interest change, which fails with "Cannot start ChangeInterest
+// while doing ChangeInterest" (issue #1229). At commit time no interest change is in flight: everything
+// a sibling's supplier chain can reach either already has interest or is free to start it.
+//
+// The holders are weak -- the columns are owned by the tree, and an owning ptr from the write
+// administration back into the storage holder would be a cycle -- and live until the layer has been
+// written: ReleaseAllLayerInterestPtrs drops them together with the data holders.
+void DataItemsWriteStatusInfo::HoldSiblingInterest(const TreeItem* storageHolder, TokenID layerID)
+{
+	assert(IsMetaThread()); // interest may only be initiated from the meta thread; commits run there
+
+	if (m_SiblingInterest.contains(layerID))
+		return; // already holding the columns of this layer
+
+	auto& siblingInterest = m_SiblingInterest[layerID];
+	for (auto sub_item = storageHolder->WalkConstSubTree(nullptr); sub_item; sub_item = storageHolder->WalkConstSubTree(sub_item))
+	{
+		if (not (IsDataItem(sub_item) and sub_item->IsStorable()))
+			continue;
+
+		auto layer_holder = GetLayerHolderFromDataItem(storageHolder, sub_item);
+		if (not layer_holder or layer_holder->GetID() != layerID)
+			continue;
+
+		// A column that cannot be produced takes no part in the write (see RefreshInterest), so it is
+		// not kept for it either; its failure stays recorded on the item itself.
+		if (sub_item->WasFailed())
+			continue;
+		if (fieldIsWritten(layerID, sub_item->GetID()))
+			continue; // already in the layer from an earlier write round
+
+		try {
+			siblingInterest.emplace_back(AsDataItem(sub_item)); // starts the interest of that column
+		}
+		catch (const DmsException&) {} // it cannot be produced: it takes no part, as above
 	}
 }
 

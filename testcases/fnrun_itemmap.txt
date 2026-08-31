@@ -56,3 +56,5 @@ fn_test_vv_neg2.dms /z
 fn_test_vv_neg3.dms /b
 fn_test_vv4.dms /checks
 oper_table_spec_neg.dms /bad
+stor_gdalwrite_sibling_dep.dms /Export/sel/y
+stor_gdalwrite_sibling_sup.dms /Export/sel/name

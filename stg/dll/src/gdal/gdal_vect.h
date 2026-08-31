@@ -66,8 +66,6 @@ struct GdalVectSM : NonmappableStorageManager, gdalVectComponent
 	void DoCloseStorage(bool mustCommit) const override;
 	void DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const override;
 	void OnTerminalDataItem(const AbstrDataItem* adi) const override;
-	void StartInterest(const TreeItem* storageHolder, const TreeItem* self) const override;
-	void StopInterest (const TreeItem* storageHolder, const TreeItem* self) const noexcept override;
 
 	bool ReadUnitRange(const StorageMetaInfo& smi) const override;
 	bool WriteUnitRange(StorageMetaInfoPtr&& smi) override;
@@ -81,9 +79,6 @@ struct GdalVectSM : NonmappableStorageManager, gdalVectComponent
 	prop_tables GetPropTables(const TreeItem* storageHolder = nullptr, TreeItem* curr = nullptr) const override;
 	mutable DataItemsWriteStatusInfo m_DataItemsStatusInfo;
 	mutable std::recursive_mutex m_xSectionDataItemsStatusInfo;
-
-	// per column of interest, the weak interest it holds on the other columns of its layer (issue #711)
-	mutable std::map<const TreeItem*, std::vector<WeakDataItemInterestPtr>> m_LayerSiblingInterest;
 
 private:
 	void DoUpdateTableGeometry(const TreeItem* storageHolder, AbstrUnit* layerDomain, OGRLayer* layer) const;

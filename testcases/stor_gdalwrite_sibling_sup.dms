@@ -1,0 +1,21 @@
+// issue #1229, the direction the issue reports (Hestia /Jaarreeksen/Export/AlgemeneKPIs/name):
+// demand the SUPPLIER column of a gdalwrite.vect layer in which another written column depends
+// on it. In 20.17.0 the demanded column's StartInterest pulled in the dependent sibling, whose
+// supplier chain then reached back into the demanded column while it was still midway its own
+// interest change: "Cannot start ChangeInterest while doing ChangeInterest". See the _dep
+// variant for the other direction and the write-time fix.
+container stor_gdalwrite_sibling_sup
+{
+	unit<uint8> src : nrofrows = 3
+	{
+		attribute<string> name : ['a', 'b', 'c'];
+	}
+	container Export : StorageName = "='%LocalDataDir%/GeoDmsTestcases/stor_gdalwrite_sibling_sup.csv'", StorageType = "gdalwrite.vect"
+	{
+		unit<uint8> sel := select_with_org_rel(id(src) < 2b)
+		{
+			attribute<string> name          := org_rel->name, IsHidden = "True";
+			attribute<string> RekenstapNaam := name;
+		}
+	}
+}

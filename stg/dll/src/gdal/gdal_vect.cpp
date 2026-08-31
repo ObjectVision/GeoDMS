@@ -18,8 +18,6 @@
 #include "ogrsf_frmts.h"
 #include "ogr_api.h"
 
-#include <set>
-
 #include "dbg/debug.h"
 #include "dbg/SeverityType.h"
 #include "vt/Conversions.h"
@@ -2541,8 +2539,8 @@ void GdalVectSM::WriteLayer(TokenID layer_id, const GdalMetaInfo& gmi)
 	auto numExistingFeatures = ::ReadUnitRange(layer_handle, this->m_hDS);
 	layer_handle->ResetReading(); // the loop below walks the layer from its first feature onwards
 
-	// A column of interest pulls in the other columns of its layer (see StartInterest), so the geometry
-	// normally comes along; say so when it does not, as the written features then have no shape.
+	// A committing column pulls in the other columns of its layer (see HoldSiblingInterest), so the
+	// geometry normally comes along; say so when it does not, as the written features then have no shape.
 	if (not numExistingFeatures and m_DataItemsStatusInfo.hasGeometry(layer_id) and not m_DataItemsStatusInfo.LayerGeometryIsWritten(layer_id))
 		reportF(MsgCategory::storage_write, SeverityTypeID::ST_Warning, "gdalwrite.vect, layer {} is written without its geometry, so its features have no shape."
 			, layer_id.AsStdString());
@@ -2644,7 +2642,17 @@ void GdalVectSM::WriteLayer(TokenID layer_id, const GdalMetaInfo& gmi)
 
 // Produce the columns of a layer that are of interest but not at hand yet, so that the layer can be
 // written complete. They are of interest already, so this only determines when they are produced, not
-// how long they are kept: see GdalVectSM::StartInterest.
+// how long they are kept: see DataItemsWriteStatusInfo::HoldSiblingInterest.
+//
+// The data is produced through the calculation machinery (PreparedDataReadLock), NOT with
+// Actor::Update. This runs inside the commit of the column being written -- and, when that column is
+// a supplier of the item being demanded, inside the commit of that item too -- and a sibling's own
+// commit path then re-enters an item that is still midway its commit higher on this call stack:
+// "Cannot start ValidationAndCommit while doing ValidationAndCommit" (issue #1229). The DATA of
+// everything a calculation can reach is at hand or freely computable, so producing it stays clear of
+// the actor transient states; the produced data is registered here and goes into the file when the
+// layer is written, so the sibling's own commit has nothing left to store (see the fieldIsWritten
+// guard in WriteDataItem).
 void GdalVectSM::PrepareLayerFieldsForWriting(const TreeItem* layerHolder, TokenID layer_id, const AbstrDataItem* self) const
 {
 	assert(IsMetaThread());
@@ -2659,11 +2667,21 @@ void GdalVectSM::PrepareLayerFieldsForWriting(const TreeItem* layerHolder, Token
 		if (not column->GetInterestCount())
 			continue; // nobody asked for this column, thus no field for it either
 
-		auto fieldInfoPtr = fieldIDMapping.find(column->GetID());
+		auto fieldID = column->GetID();
+		auto fieldInfoPtr = fieldIDMapping.find(fieldID);
 		if (fieldInfoPtr != fieldIDMapping.end() and (fieldInfoPtr->second.isWritten or fieldInfoPtr->second.m_DataHolder.has_ptr()))
 			continue; // already written, or its data is at hand
 
-		column->Update(false, "gdalwrite.vect, writing the columns of a layer together");
+		auto columnDataItem = AsDataItem(column);
+		try {
+			PreparedDataReadLock produce(columnDataItem, "gdalwrite.vect, writing the columns of a layer together");
+			m_DataItemsStatusInfo.SetInterestForDataHolder(layer_id, fieldID, columnDataItem); // keeps the produced data alive until the layer is written
+		}
+		catch (const DmsException&) {
+			// A column that cannot be produced takes no part in the write and gets no field (see
+			// RefreshInterest); its failure stays recorded on the column itself.
+			m_DataItemsStatusInfo.setInterest(layer_id, fieldID, false);
+		}
 	}
 }
 
@@ -2700,15 +2718,20 @@ FileResult GdalVectSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 		m_DataItemsStatusInfo.m_initialized = true;
 	}
 
+	if (m_DataItemsStatusInfo.fieldIsWritten(layer_id, fieldID))
+		return {}; // this column already went into the file when a sibling's commit wrote its layer (#1229)
+
+	m_DataItemsStatusInfo.HoldSiblingInterest(storage_holder, layer_id); // a layer is written complete (#711); see there
 	m_DataItemsStatusInfo.RefreshInterest(storage_holder); // user may have set other iterests at this point.
 	m_DataItemsStatusInfo.SetInterestForDataHolder(layer_id, fieldID, adi.get()); // write once all dataitems are ready
 
 	if (not m_DataItemsStatusInfo.LayerIsReadyForWriting(layer_id))
 	{
-		// The other columns of this layer are of interest (see StartInterest) but nothing is waiting for
-		// them, so produce them here; the layer goes into the file in one pass and a column that is not
-		// produced would be a <null> column (issue #711). Each column that becomes available commits and
-		// thus re-enters this function; the last one finds the layer complete and writes it.
+		// The other columns of this layer are of interest (see HoldSiblingInterest) but nothing is waiting
+		// for them, so produce them here; the layer goes into the file in one pass and a column that is not
+		// produced would be a <null> column (issue #711). Producing a column registers its data holder, so
+		// the layer is complete right after; a commit of an already-produced column that arrives later
+		// leaves through the fieldIsWritten guard above.
 		PrepareLayerFieldsForWriting(unit_item, layer_id, adi.get());
 
 		if (not m_DataItemsStatusInfo.LayerIsReadyForWriting(layer_id))
@@ -2949,81 +2972,6 @@ void GdalVectSM::OnTerminalDataItem(const AbstrDataItem* adi) const
 			if (writableField.second.m_DataHolder == adi)
 				writableField.second.m_DataHolder = nullptr;
 	}
-}
-
-// Which layers are collecting their columns right now, per thread; see GdalVectSM::StartInterest.
-struct layer_collection_guard
-{
-	layer_collection_guard(const TreeItem* layerHolder)
-		: m_LayerHolder(layerHolder)
-		, m_IsFirst(s_CollectingLayers.insert(layerHolder).second)
-	{}
-	~layer_collection_guard()
-	{
-		if (m_IsFirst)
-			s_CollectingLayers.erase(m_LayerHolder);
-	}
-	bool IsFirst() const { return m_IsFirst; }
-
-	const TreeItem* m_LayerHolder;
-	bool            m_IsFirst;
-
-	static thread_local std::set<const TreeItem*> s_CollectingLayers;
-};
-
-thread_local std::set<const TreeItem*> layer_collection_guard::s_CollectingLayers;
-
-// A vector layer is written as a whole: all its columns go into the file in one pass. A column that is
-// of interest therefore requires its siblings; without them the layer would get a <null> column for
-// everything nobody asked for (issue #711). The interest on those siblings is registered here, on
-// behalf of the column that is of interest, and dropped again in StopInterest, so it lives exactly as
-// long as the outside interest in that column and always traces back to the command line or dataview
-// that asked for it. The holders are weak: the columns are owned by the tree, and an owning ptr from
-// a storage manager back into its own storage holder would be a cycle.
-// A column pulled in this way must not pull its siblings in turn: two columns that keep each other of
-// interest would never let go, and pulling back while the first column is still starting its interest
-// would re-enter that column, which Actor::StartInterest forbids. The guard prevents both.
-void GdalVectSM::StartInterest(const TreeItem* storageHolder, const TreeItem* self) const
-{
-	NonmappableStorageManager::StartInterest(storageHolder, self);
-
-	if (not IsWritableGDAL())
-		return;
-	if (not (IsDataItem(self) and self->IsStorable()))
-		return;
-
-	auto layer_holder = GetLayerHolderFromDataItem(storageHolder, self);
-	if (not layer_holder)
-		return;
-
-	layer_collection_guard collectingThisLayer(layer_holder);
-	if (not collectingThisLayer.IsFirst())
-		return; // self is one of the columns collected for this layer
-
-	std::vector<WeakDataItemInterestPtr> siblingInterest;
-	for (auto column = layer_holder->WalkConstSubTree(nullptr); column; column = layer_holder->WalkConstSubTree(column))
-	{
-		if (column == self)
-			continue;
-		if (not (IsDataItem(column) and column->IsStorable()))
-			continue;
-		siblingInterest.emplace_back(AsDataItem(column)); // starts the interest of that column
-	}
-
-	if (siblingInterest.empty())
-		return;
-
-	auto exclusiveAcccess = std::scoped_lock(m_xSectionDataItemsStatusInfo);
-	m_LayerSiblingInterest[self] = std::move(siblingInterest);
-}
-
-void GdalVectSM::StopInterest(const TreeItem* storageHolder, const TreeItem* self) const noexcept
-{
-	{
-		auto exclusiveAcccess = std::scoped_lock(m_xSectionDataItemsStatusInfo);
-		m_LayerSiblingInterest.erase(self); // the columns that self pulled in lose that interest again
-	}
-	NonmappableStorageManager::StopInterest(storageHolder, self);
 }
 
 void GdalVectSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const
