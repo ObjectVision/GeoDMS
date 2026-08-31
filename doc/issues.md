@@ -76,7 +76,8 @@ is a two-line guard against an unpleasant failure mode for anyone invoking the s
 
 ### Closed on 2026-08-29 (1)
 
-- #1145 -- "Export Primary Data op unit met Provincies exporteert shapefile met Buurt-geometry".
+- #1145 (`c75b5db7`, wiki `3d8fc992`) -- "Export Primary Data op unit met Provincies exporteert
+  shapefile met Buurt-geometry".
   The reported item, RSopen's `Bereikbaarheid/Output_PerProvincie`, is a unit of 12 provinces that
   carries one attribute of another domain: `prov_rel`, the buurt-to-province relation, configured
   on `Buurt` because that is the domain it is computed over. `CommonDomain` in
@@ -121,7 +122,10 @@ is a two-line guard against an unpleasant failure mode for anyone invoking the s
   item yet. The dialog's `showEvent` asks `isItemOrItsSubItemsMappable` for its driver list and
   `SHV_GetViewStyleFlags` never returns for the cold unit. The same item exports fine once a
   `DefaultView` has been opened on it, a plain unit is fine cold, and an attribute inside the alias
-  unit is fine cold. Worth an issue of its own.
+  unit is fine cold. It needs the alias and a calculated attribute together: the same alias with a
+  data attribute exports cold, and a plain unit with a calculated attribute exports cold. It is not
+  the parallel-processing condition of #1221, since `/S1 /S2 /S3` and `/S1 /C2 /S3` both hang.
+  Filed as #1226 with a repro configuration.
 
 ### Closed on 2026-08-28 (1)
 
