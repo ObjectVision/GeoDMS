@@ -298,32 +298,50 @@ template <typename S> S CheckedPriceSub(S a, S b) { return CheckedPriceComponent
 template <typename P> P CheckedPerturbationAdd(P a, P b) { return CheckedPriceComponentAdd<price_component::perturbation>(a, b); }
 template <typename P> P CheckedPerturbationSub(P a, P b) { return CheckedPriceComponentSub<price_component::perturbation>(a, b); }
 
-// Bring an already-formed perturbation back into P. Compiled away for P == Int64, which is what
-// makes the _pi64 operators pay nothing for this.
+// Every Simulation-of-Simplicity perturbation formed anywhere below is a land unit id times a
+// ggType index, or times a difference of two of them: i*j for type j's bid on land unit i, and
+// i*(j-k) for a transfer through facet (j, k) -- see SMALL PERTURBATIONS in the file header. With
+// i <= N-1 and both j and |j-k| <= K-1, (N-1)*(K-1) bounds every one of them in magnitude.
+//
+// The bidding loops carry their running i*j in the increment clause of the for statement, so the
+// accumulator steps once past its last use and ends the loop holding i*K. That value is never
+// read, but it must still not overflow, which is why the bound checked here is (N-1)*K.
+//
+// Checking that once, before the solve, is what lets every site below do its perturbation
+// arithmetic directly in P: no product can overflow, so none of them needs a per-value check.
+// The alternative -- forming each perturbation in Int64 and narrowing it back with a test at every
+// use -- asked the same question millions of times over to reach an answer that is fixed by N and
+// K alone. Compiled away entirely for P == Int64, where the bound cannot be exceeded: a land unit
+// count is a UInt32 and K <= 2^16, so (N-1)*K < 2^48.
 template <typename P>
-P NarrowPerturbation(Int64 perturbation)
+void CheckPerturbationRange(land_unit_id n, UInt32 k)
 {
 	if constexpr (sizeof(P) < sizeof(Int64))
-		if (perturbation != Int64(P(perturbation)))
+	{
+		if (!n || !k)
+			return;
+
+		Int64 highest = Int64(n - 1) * Int64(k);
+		if (highest != Int64(P(highest)))
 			throw shadow_price_overflow(
-				mySSPrintF("The Simulation-of-Simplicity perturbation {} does not fit in {}, so two land units"
-					" within one facet would share a perturbation and the strict ordering that the facet queues,"
-					" the termination argument and the splitter invariants rest on no longer holds"
-					, perturbation
+				mySSPrintF("The Simulation-of-Simplicity perturbations of {} land units over {} land use types"
+					" run up to {}, which does not fit in {}, so two land units within one facet would share a"
+					" perturbation and the strict ordering that the facet queues, the termination argument and"
+					" the splitter invariants rest on no longer holds"
+					, n, k, highest
 					, AsString(ValueWrap<P>::GetStaticClass()->GetID())
 				)
 			,	price_component::perturbation
 			);
-	return P(perturbation);
+	}
 }
 
-// i * (j - k): the perturbation delta of a transfer through facet (j, k), see SMALL PERTURBATIONS
-// in the file header. i is a land unit id (UInt32) and |j - k| < K <= 2^16, so the product always
-// fits Int64; the only question is whether it still fits P.
+// i * (j - k): the perturbation delta of a transfer through facet (j, k). Safe in P because
+// CheckPerturbationRange has already established that (N-1)*K fits, and i <= N-1, |j-k| <= K-1.
 template <typename P>
 P PerturbationOf(land_unit_id i, P perturbationFactor)
 {
-	return NarrowPerturbation<P>(Int64(i) * Int64(perturbationFactor));
+	return P(i) * perturbationFactor;
 }
 
 template <typename S, typename P>
@@ -1193,7 +1211,7 @@ shadow_price<S, P> htp_info_t<S, P, AR, AT>::GetLinkCostImpl(UInt32 facetID) con
 
 	shadow_price<S, P> cost = checked
 		? shadow_price<S, P>(ph.GetC         (topI), PerturbationOf<P>(topI, ph.m_PerturbationFactor))
-		: shadow_price<S, P>(ph.GetCUnchecked(topI), P(Int64(topI) * Int64(ph.m_PerturbationFactor)));
+		: shadow_price<S, P>(ph.GetCUnchecked(topI), P(topI) * ph.m_PerturbationFactor);
 
 	// only in the checked instantiation: the unchecked one deliberately lets the arithmetic wrap,
 	// and these invariants say nothing about wrapped values.
@@ -2866,12 +2884,12 @@ struct DistFromOpt
 			CheckedAccumulate(totalSuit, currPrice);
 			currPrice = CheckedAdd(currPrice, htpInfo.GetClaim(ar, currBuyer).m_ShadowPrice);
 
-			Int64 iXj = 0; // i*j, as in the bidding loop of DiscrAllocCells
+			P iXj = 0; // i*j, as in the bidding loop of DiscrAllocCells; bounded by CheckPerturbationRange
 			// belowThreshold is only read when foundHigherBidder is set, and the branch that sets
 			// the latter always assigns the former -- initialised anyway so the coupling cannot rot.
 			bool belowThreshold = false, foundHigherBidder = false;
 
-			for(UInt32 j=0; j!=K; ++j, iXj += i)
+			for(UInt32 j=0; j!=K; ++j, iXj += P(i))
 			{
 				S Sij = htpInfo.m_ggTypes[j].m_Suitabilities[i];
 
@@ -2898,7 +2916,7 @@ struct DistFromOpt
 				if (!IsDefined(Sij))
 					continue;
 
-				shadow_price<S, P> bid(Sij, NarrowPerturbation<P>(iXj));  // small pertubation (SoS) for making a difference between similar cells
+				shadow_price<S, P> bid(Sij, iXj);  // small pertubation (SoS) for making a difference between similar cells
 				bid = CheckedAdd(bid, htpInfo.GetClaim(ar, j).m_ShadowPrice);
 				if (currPrice < bid)
 				{
@@ -3039,15 +3057,15 @@ void DiscrAllocCells(htp_info_t<S, P, AR, AT>& htpInfo, UInt32 currI, UInt32 nex
 		UInt32 highestBidder = UNDEFINED_VALUE(UInt32);
 		shadow_price<S, P> highestBid = MinValue<shadow_price<S, P> >();
 
-		Int64 c = 0; // i*j, the SoS perturbation of type j's bid for land unit i; see the file header
+		P c = 0; // i*j, the SoS perturbation of type j's bid for land unit i; bounded by CheckPerturbationRange
 
-		for(UInt32 j=0; j!=K; ++j, c += htpInfo.m_CurrPI)
+		for(UInt32 j=0; j!=K; ++j, c += P(htpInfo.m_CurrPI))
 		{
 			S s = htpInfo.m_ggTypes[j].m_Suitabilities[htpInfo.m_CurrPI];
 			if (s < htpInfo.m_Threshold) continue;
 			shadow_price<S, P> bid = htpInfo.GetClaim(ar, j).m_ShadowPrice;
 			                bid.first  = CheckedPriceAdd(bid.first, s);
-			                bid.second = CheckedPerturbationAdd(bid.second, NarrowPerturbation<P>(c)); // small pertubation (SoS) for making a difference between similar cells
+			                bid.second = CheckedPerturbationAdd(bid.second, c); // small pertubation (SoS) for making a difference between similar cells
 
 			if (highestBid < bid)
 			{
@@ -3976,6 +3994,12 @@ public:
 			else
 				PreparePartitionings<S, P, AR, AT>(htpInfo, allocUnit, nullptr, nullptr);
 
+			// N is known from here on, and K was known before it: the single point at which the
+			// perturbation range can be settled for the whole run, so that no inner loop has to
+			// re-ask. Wrapped like the solve steps, so an unrepresentable range still reports
+			// itself as the config-level error that names the _pi64 remedy -- now before any work
+			// is done rather than partway through the allocation.
+			WithPerturbationAdvice([&] { CheckPerturbationRange<P>(htpInfo.GetN(), htpInfo.GetK()); });
 
 			isFeasible = FeasibilityTest(htpInfo, strStatus);
 			if (!isFeasible)
