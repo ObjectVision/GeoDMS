@@ -1,8 +1,9 @@
 # Deadlock analysis — lock inventory and (potential) deadlocks
 
 *Static analysis of the GeoDMS source, 2026-09-01, at commit `182e66e9` (post-#1227: `...Lock()`
-accessor naming, `DMS_ENTERS` ceilings, `DMS_CALLEE_ENTERS` callee contracts). Retiring the
-concrete findings (P1, P3, P4) is tracked as issue #1233. Method: exhaustive
+accessor naming, `DMS_ENTERS` ceilings, `DMS_CALLEE_ENTERS` callee contracts). **P1, P3 and P4
+were fixed in `b591f683` (issue #1233) and are kept below, marked FIXED, as the record of what the
+failure was.** Method: exhaustive
 grep inventory of every synchronization primitive and every blocking wait, followed by reading the
 wait structures and the sites where locks are held across opaque calls. Each finding states what
 was actually read versus inferred. This is a reading of the code, not a proof: absence from this
@@ -25,6 +26,8 @@ inner* (higher-ordinal) level, or an equal level when both sides are shared. It 
 `MG_DEBUG_LOCKLEVEL` (= `MG_DEBUG`); in Release, `dms_assert` is `CC_ASSUME` — every rule below is
 unenforced in exactly the builds users run.
 
+(ordinals as of `b591f683`; `UpdatingInterestSet` moved from 98 to 99 for #1233 P3)
+
 | ordinal | name | instance | file |
 |---|---|---|---|
 | 1 | (SessionUsageCounter) | `s_SessionUsageCounter` (counted) | tic/SessionData.cpp |
@@ -33,8 +36,8 @@ unenforced in exactly the builds users run.
 | 95 | SpecificOperator, DataRefContainer | `cs_SpatialRefBlockCreation`, `s_DataItemRefContainer`, polygon addition sections | clc, tic, geo |
 | 96 | TileShadow | (tile machinery) | |
 | 97 | Tile, ItemRegister, ThreadMessing | `cs_lock_map` per-item mutexes, `cs_ThreadMessing` | rtc/cs_lock_map.h, tic/OperationContext.cpp |
-| 98 | CountSection, FailSection, OperContextAccess, UpdatingInterestSet, ActiveProducerSet, TreeItemFlags, GDALComponent | `sg_CountSection`, `sc_FailSection`, `cs_OperContextAccess`, `sd_UpdatingInterestSet`, `s_ActiveProducerSetMutex`, `gdalSection` | act, tic, stg |
-| 99 | IndexedString, OperationContext, TileAccessMap, MoveSupplInterest, MOST_INNER (ExplainAccess) | token registry (counted), `cs_OcAdm`, `cs_lock_map` map lock, `sc_MoveSupplInterestSection`, `scs_ExplainAccess` | set, tic, act |
+| 98 | CountSection, FailSection, OperContextAccess, ActiveProducerSet, TreeItemFlags, GDALComponent | `sg_CountSection`, `sc_FailSection`, `cs_OperContextAccess`, `s_ActiveProducerSetMutex`, `gdalSection` | act, tic, stg |
+| 99 | IndexedString, UpdatingInterestSet, OperationContext, TileAccessMap, MoveSupplInterest, MOST_INNER (ExplainAccess) | token registry (counted), `sd_UpdatingInterestSet`, `cs_OcAdm`, `cs_lock_map` map lock, `sc_MoveSupplInterestSection`, `scs_ExplainAccess` | set, act, tic |
 | 100 | RegisterAccess, CountedMutexSection, LispObjCache, NotifyTargetCount | `s_RegAccess`, `s_CountedMutexSection`, LispObjRegister CS, `sc_NotifyTargetCount` | utl, ptr, sym, act |
 | 101 | ObjectRegister | `cs_ORT`, `cs_lockCounterUpdate` | mci, tic/ItemLocks.cpp |
 | 102 | DebugOutStream | `g_DebugStream` | dbg/MsgDispatch.cpp |
@@ -82,8 +85,11 @@ Recorded in issue #1227 §2; restated here because every finding below lives in 
   per-item lock (item level ≥ 1, e.g. via `Actor::DetermineLastSupplierChange`'s
   `MakeMax(m_ItemLevel, item_level_type(1))`) is thereafter *unchecked* against every level-0
   section — the registry, storage, everything.
-- **B2 — the explicit suppression.** `LevelCheckBlocker` at
-  [AbstrDataItem.cpp:1654](../rtc/dll/src/tic/AbstrDataItem.cpp) — finding P3.
+- ~~**B2 — the explicit suppression.** `LevelCheckBlocker`.~~ **Gone** (#1233): its one caller
+  was P3, and with that fixed the class is deleted rather than left for a future caller. An escape
+  hatch that switches the ordering check off wholesale means the checker cannot see anything a
+  blocked scope does, which is the opposite of what it is for; a section that genuinely may be
+  taken in either order needs an ordinal that says so, not a way to stop asking.
 - **B3 — bare mutexes** (§1.2) participate in no ordering at all.
 - **B4 — logical waits** (§1.3) are blocking edges the checker does not model: a cycle through
   "thread A waits for item X's producer" is invisible however thorough the level discipline is.
@@ -95,11 +101,12 @@ Recorded in issue #1227 §2; restated here because every finding below lives in 
 
 ## 3. Findings — potential deadlocks
 
-Ranked by (likelihood × cost of diagnosis when it fires).
+Ranked by (likelihood × cost of diagnosis when it fires). P1, P3 and P4 are fixed (#1233) and are
+kept here as the record of what the failure was; the rest are open.
 
-### P1 — `potential()` ordered accumulation: untimed wait with no exception path — **verified, highest concern**
+### P1 — `potential()` ordered accumulation: untimed wait with no exception path — **FIXED (#1233, `b591f683`)**
 
-[geo/dll/src/OperPot.cpp:256](../geo/dll/src/OperPot.cpp) and `:279`. Tile task `ti` waits, per
+*Was:* [geo/dll/src/OperPot.cpp](../geo/dll/src/OperPot.cpp). Tile task `ti` waited, per
 result tile, on `m_AddingProceeded.wait(lock, [..]{ return m_NrAddedTiles >= ti; })` — a **plain
 `std::condition_variable::wait`**: no timeout, no `ASyncContinueCheck`, no cancellation predicate.
 The ordering itself is sound — `parallel_tileloop` hands out tile numbers through a sequential
@@ -109,10 +116,12 @@ accumulation never happens, `m_NrAddedTiles` never reaches `ti`, and every later
 forever; the task group's `Join` then never completes. The empty-tile branch waits identically.
 What the user sees is the #1227 signature: a computation at ~0% CPU with no message.
 
-*Retirement:* make the wait a timed predicate loop that re-checks the group's stored
-`m_ExceptionPtr` / cancellation, or advance the counters on the unwind path (the task group
-already has `registerCompletions(nr)` for its own exception settle — the OperPot-local counters
-need the same).
+*Fixed by* publishing the failure: the unwinding tile calls `AbandonAccumulation`, which sets a
+shared flag and wakes every result tile, and `AwaitAccumulationTurn` returns false to any waiter
+that sees it, so the waiter abandons its own accumulation without touching a counter. The result
+is discarded either way — the original exception is stored by the task group and rethrown from
+`Join` — so what mattered was only that no thread stays parked and that the real error is the one
+reported. The wait is `wait_for` as well, so a lost notification cannot park either.
 
 ### P2 — cross-thread registry cycle: shared holder blocks on a producer that registers — **structural**
 
@@ -128,32 +137,37 @@ value is now spelled `...Lock()`, so "held across a blocking call" is greppable.
 deliberately keep lock accessors (the `DMS_*` C API, `createSimilarSet`, `Object::XML_Dump`) were
 each verified not to block.
 
-### P3 — the InterestReporter's suppressed equal-level pair — **verified shape, debug-only trigger**
+### P3 — the InterestReporter's suppressed equal-level pair — **FIXED (#1233, `b591f683`)**
 
-`InterestReporter::Report` ([AbstrDataItem.cpp:1652](../rtc/dll/src/tic/AbstrDataItem.cpp)) nests
-`sg_CountSection(98)` → `sd_UpdatingInterestSet(98)` under a `LevelCheckBlocker`, because Allow
-would reject the equal-level pair. The suppression means the checker can never see a thread that
-nests them the *other* way — which would be a classic AB/BA deadlock with this reporter. Current
-exposure is small (the reporter exists under `MG_DEBUG_INTERESTSOURCE` only and runs from the
-debug-report path), but the pattern is the dangerous one: a silenced checker plus a hand-picked
-order that nothing documents as *the* order.
+*Was:* `InterestReporter::Report` ([AbstrDataItem.cpp](../rtc/dll/src/tic/AbstrDataItem.cpp))
+nested `sg_CountSection(98)` → `sd_UpdatingInterestSet(98)` under a `LevelCheckBlocker`, because
+Allow rejects an equal-level pair. The suppression meant the checker could never see a thread that
+nests them the *other* way — a classic AB/BA with this reporter. Exposure was small (the reporter
+exists under `MG_DEBUG_INTERESTSOURCE` only), but the pattern is the dangerous one: a silenced
+checker plus a hand-picked order that nothing records as *the* order.
 
-*Retirement:* give `UpdatingInterestSet` its own ordinal one inner than `CountSection` and drop the
-blocker, so the chosen order becomes the checked order.
+*Fixed by* giving `UpdatingInterestSet` its own ordinal at `CountSection + 1`, so the order the
+reporter wants is the order the checker enforces. Verified safe both ways: all six of that lock's
+sections are leaves (set a pointer, insert into or erase from `sd_InterestSet`; nothing is taken
+inside them), and nothing at the new level is held when they are entered —
+`AddTempTarget`/`ReleaseTempTarget` are sequential with `sc_MoveSupplInterestSection(99)`, never
+nested. The blocker, now unused, is deleted; see B2.
 
-### P4 — DataController-map revisit wait — **verified shape; historical instance was fixed**
+### P4 — DataController-map revisit wait — **FIXED (#1233, `b591f683`)**
 
-[DataController.cpp:464](../rtc/dll/src/tic/DataController.cpp): a lookup that finds an expired
-weak entry waits **untimed** on `...WasRevisited` for the dying DataController's destructor to
-erase the entry (notify at `:440`). That is correct as long as the destructor runs on another
-thread, or later on this one. If the lookup is ever reachable *from within* that same DC's
-destruction chain on the meta thread, the thread waits for its own stack to unwind. This is not
-hypothetical in kind: the cache-unit teardown hang fixed by the DcRef KeepAlive change was exactly
-a self-referential expiry in this neighborhood. The `MG_CHECK(IsMetaThread() || !mayCreate)` entry
-condition concentrates the risk on the meta thread.
+*Was:* [DataController.cpp](../rtc/dll/src/tic/DataController.cpp): a lookup that finds an expired
+weak entry waited **untimed** on `...WasRevisited` for the dying DataController's destructor to
+erase the entry. That is correct as long as the destructor runs on another thread, or later on
+this one. Reached *from within* that same DC's destruction chain, the thread waited for its own
+stack to unwind — not hypothetical in kind: the cache-unit teardown hang fixed by the DcRef
+KeepAlive change was exactly a self-referential expiry in this neighborhood, and the
+`MG_CHECK(IsMetaThread() || !mayCreate)` entry condition concentrates the risk on the meta thread.
 
-*Retirement:* a debug assert that the current thread is not inside `~DataController` for the same
-key, or a timed wait that reports the key it is waiting for.
+*Fixed by* `~DataController` marking the key it is destroying on a per-thread stack, so the lookup
+refuses that case with a named error (`invalid recursion: the DataController for {} is being
+destructed by this thread`) instead of parking; the remaining wait is timed and reports which key
+it is waiting for, so a missed notify or an absent destructor surfaces as a slow report rather
+than a silent hang.
 
 ### P5 — equal-ordinal families — **structural, Release-only by construction**
 
@@ -281,12 +295,12 @@ Recorded so the next reader does not re-suspect them:
 
 ## 8. Follow-up work, in order of value
 
-1. Retire P1 (an afternoon: timed wait + exception-aware predicate in OperPot) — issue #1233.
-2. Un-suppress P3 by giving `UpdatingInterestSet` its own ordinal — issue #1233, which also
-   covers P4's self-wait guard.
-3. Fix B1 in `Allow` (compare ordinals when item levels are equal *or* incomparable), then delete
-   the `LevelCheckBlocker` class if nothing still needs it.
-4. Build the pairwise nesting table for act/ (interest machinery) and mem/ser (tile paging) — the
+1. ~~Retire P1, P3, P4~~ — done in `b591f683` (#1233), which also deleted `LevelCheckBlocker`
+   and with it blind spot B2.
+2. Fix B1 in `Allow` (compare ordinals when item levels are equal *or* incomparable). This is now
+   the largest remaining hole: it is what leaves P6 — and the P2 family entered from the item-lock
+   side — invisible to the checker.
+3. Build the pairwise nesting table for act/ (interest machinery) and mem/ser (tile paging) — the
    two layers §5 leaves open.
-5. The syntactic pass over `DMS_ENTERS` / `DMS_CALLEE_ENTERS` declarations (#1227 §3) — the static
+4. The syntactic pass over `DMS_ENTERS` / `DMS_CALLEE_ENTERS` declarations (#1227 §3) — the static
    half that would make §2's blind spots enumerable instead of remembered.
