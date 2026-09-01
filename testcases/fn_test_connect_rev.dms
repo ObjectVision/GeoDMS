@@ -42,6 +42,35 @@ container fn_test_connect_rev
 	parameter<float64> maxSqr := 12.25; // 3.5^2
 	container fwd_eq_max := connect_info_eq(Road/geometry, Road/key, Pnt/geometry, Pnt/key, maxSqr);
 
+	// #1228 follow-up: a maxSqrDist must cap the search, not cancel it. RoadC runs
+	// from (0,0) to (0,10) and eight key-1 points sit in a tight cluster at its
+	// (0,0) end, so the seed radius taken from that vertex is tiny and holds none of
+	// the arc's own key; the only key-0 point is at (5,5), 5 away and well inside
+	// maxSqrC = 100 (a cutoff of 10). Before the fix the cutoff suppressed the
+	// widening rounds and the arc reported nothing found.
+	unit<uint32> RoadCPoints : nrofrows = 2
+	{
+		attribute<float32> px      : [0, 10];
+		attribute<float32> py      : [0,  0];
+		attribute<fpoint>  point   := point_yx(py, px, fpoint);
+		attribute<RoadC>   seq_rel : [0, 0];
+		attribute<uint32>  ordinal : [0, 1];
+	}
+	unit<uint32> RoadC : nrofrows = 1
+	{
+		attribute<fpoint> geometry (arc) := points2sequence(RoadCPoints/point, RoadCPoints/seq_rel, RoadCPoints/ordinal);
+		attribute<uint32> key            : [0];
+	}
+	unit<uint32> PntC : nrofrows = 9
+	{
+		attribute<float32> py       : [0.10, 0.20, 0.30, 0.15, 0.25, 0.35, 0.12, 0.28, 5.0];
+		attribute<float32> px       : [0.10, 0.15, 0.12, 0.30, 0.22, 0.28, 0.24, 0.18, 5.0];
+		attribute<fpoint>  geometry := point_yx(py, px, fpoint);
+		attribute<uint32>  key      : [1, 1, 1, 1, 1, 1, 1, 1, 0];
+	}
+	parameter<float64> maxSqrC := 100.0; // 10^2
+	container rev_eq_maxC := connect_info_eq(PntC/geometry, PntC/key, RoadC/geometry, RoadC/key, maxSqrC);
+
 	container checks
 	{
 		parameter<uint32>  c_rows := sum(uint32(IsDefined(net/arc_rel))) + sum(uint32(!IsDefined(net/arc_rel)))
@@ -59,5 +88,9 @@ container fn_test_connect_rev
 		parameter<float64> c_fdst := sum(fwd_eq/dist)                         , IntegrityCheck = "c_fdst > 66.99 && c_fdst < 67.01";
 		// with maxSqrDist only p0 stays within 3.5 of its own road
 		parameter<uint32>  c_fmax := sum(uint32(IsDefined(fwd_eq_max/arc_rel))), IntegrityCheck = "c_fmax == 1";
+		// the cutoff may not hide the one key-0 point: it is at 5, the cutoff is 10
+		parameter<uint32>  c_cfnd := sum(uint32(IsDefined(rev_eq_maxC/point_rel))), IntegrityCheck = "c_cfnd == 1";
+		parameter<uint32>  c_crel := sum(uint32(rev_eq_maxC/point_rel))         , IntegrityCheck = "c_crel == 8";
+		parameter<float64> c_cdst := sum(rev_eq_maxC/dist)                      , IntegrityCheck = "c_cdst > 4.99 && c_cdst < 5.01";
 	}
 }

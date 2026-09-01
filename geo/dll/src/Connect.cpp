@@ -599,9 +599,9 @@ R SqrtBet(R sqrDist)
 // The seed radius is the tightest GetSqrProximityUpperBound over the arc's own
 // vertices: the index guarantees a point within that radius of the vertex it was
 // taken at, and that point lies in the inflated box, so ONE round finds
-// something -- unless a maxSqrDist cuts the radius short (then there is nothing
-// to be found within the allowed distance anyway), or an eq/ne filter rejects
-// every candidate, which is what the widening rounds are for.
+// something -- unless an eq/ne filter rejects every candidate, or a maxSqrDist
+// clamped the seed below the radius that guarantee needed. Both are what the
+// widening rounds are for; they stop at the cutoff, or at an exhaustive round.
 template <typename R, typename T>
 struct IndexedPointProjectionHandle
 {
@@ -661,8 +661,10 @@ struct IndexedPointProjectionHandle
 					// always included in what the iterator still holds
 					iter.RefineSearch(InflatedSearchBox<T>(arcBox, SqrtBet(m_MinSqrDist)));
 				}
-			if (m_FoundAny || isExhaustive || optionalMaxSqrDistPtr)
+			if (m_FoundAny || isExhaustive)
 				break;
+			if (optionalMaxSqrDistPtr && !(sqrBound < *optionalMaxSqrDistPtr))
+				break; // the whole allowed radius has been searched: nothing is within it
 			// the filter rejected every candidate the seeded box held: widen. A zero
 			// (or NaN) bound cannot be quadrupled into progress, so it goes all the
 			// way -- which makes the next round the exhaustive one.
@@ -670,6 +672,12 @@ struct IndexedPointProjectionHandle
 				sqrBound *= 4;
 			else
 				sqrBound = MaxValue<R>();
+			// but never widen past the cutoff: a candidate is only measured against
+			// sqrBound, so a round above it would accept a point beyond the cutoff.
+			// Capping here is also what ends the loop -- the next round breaks on the
+			// test above.
+			if (optionalMaxSqrDistPtr)
+				MakeMin(sqrBound, *optionalMaxSqrDistPtr);
 		}
 	}
 };
