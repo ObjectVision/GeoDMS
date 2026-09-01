@@ -1,0 +1,69 @@
+container fn_test_ci_rev
+{
+	// #1228: connect_info / dist_info with the POINTS first and the ARCS second.
+	// Each arc then reports the nearest of the points, instead of each point
+	// reporting the nearest arc, and the relation member is point_rel.
+	//
+	// The arc domain is NOT called Arc: that name collides with the composition
+	// keyword, so '(Arc)' after an attribute reads as a composition rather than a
+	// domain unit.
+	//
+	// Geometry, in (y, x):
+	//   road 0: (0,0) -> (0,10)       road 1: (100,0) -> (100,10)
+	//   p0 (3,5)   :   3 from road 0,  97 from road 1
+	//   p1 (104,5) : 104 from road 0,   4 from road 1
+	//   p2 (60,5)  :  60 from road 0,  40 from road 1
+	unit<uint32> RoadPoints : nrofrows = 4
+	{
+		attribute<float32> px      := float32(id(.) % 2) *  10f; //   0, 10,   0, 10
+		attribute<float32> py      := float32(id(.) / 2) * 100f; //   0,  0, 100, 100
+		attribute<fpoint>  point   := point_yx(py, px, fpoint);
+		attribute<Road>    seq_rel : [0, 0, 1, 1];
+		attribute<uint32>  ordinal : [0, 1, 0, 1];
+	}
+	unit<uint32> Road : nrofrows = 2
+	{
+		attribute<fpoint> geometry (arc) := points2sequence(RoadPoints/point, RoadPoints/seq_rel, RoadPoints/ordinal);
+	}
+	unit<uint32> Pnt : nrofrows = 3
+	{
+		attribute<float32> py       : [3, 104, 60];
+		attribute<float32> px       : [5,   5,  5];
+		attribute<fpoint>  geometry := point_yx(py, px, fpoint);
+	}
+
+	container rev := connect_info(Pnt/geometry, Road/geometry); // keyed by Road
+	container fwd := connect_info(Road/geometry, Pnt/geometry); // keyed by Pnt
+
+	attribute<float64> rev_dist (Road) := dist_info(Pnt/geometry, Road/geometry);
+
+	parameter<float64> maxSqr := 12.25; // 3.5^2: admits road 0 (3.0), cuts off road 1 (4.0)
+	container rev_max := connect_info(Pnt/geometry, Road/geometry, maxSqr);
+
+	// the same call inside a function body: the reversed member defers its result,
+	// so point_rel must not be rejected by the forward member's complete-member set
+	function rev_nearest(attribute<fpoint> pts (Pnt); attribute<fpoint> arcs (arc)) -> parameter<uint32>
+	{
+		container ci := connect_info(pts, arcs);
+		parameter<uint32> result := sum(uint32(ci/point_rel));
+	}
+	parameter<uint32> n_fn := rev_nearest(Pnt/geometry, Road/geometry);
+
+	container checks
+	{
+		// each road picks its own nearest point: road 0 -> p0, road 1 -> p1
+		parameter<uint32>  c_rel  := sum(uint32(rev/point_rel))               , IntegrityCheck = "c_rel == 1";
+		parameter<float64> c_dist := sum(rev/dist)                            , IntegrityCheck = "c_dist > 6.99 && c_dist < 7.01";
+		// the cut points are (0,5) and (100,5); summing row AND col keeps this
+		// independent of the XY-order convention
+		parameter<float64> c_cut  := float64(sum(pointrow(rev/CutPoint))) + float64(sum(pointcol(rev/CutPoint)))
+		                                                                      , IntegrityCheck = "c_cut > 109.9 && c_cut < 110.1";
+		// dist_info reports the same distances
+		parameter<float64> c_di   := sum(rev_dist)                            , IntegrityCheck = "c_di > 6.99 && c_di < 7.01";
+		// the forward direction is unchanged: p0 -> road 0, p1 -> road 1, p2 -> road 1
+		parameter<uint32>  c_fwd  := sum(uint32(fwd/arc_rel))                 , IntegrityCheck = "c_fwd == 2";
+		// maxSqrDist leaves road 1 unconnected
+		parameter<uint32>  c_max  := sum(uint32(IsDefined(rev_max/point_rel))), IntegrityCheck = "c_max == 1";
+		parameter<uint32>  c_fn   := n_fn                                     , IntegrityCheck = "c_fn == 1";
+	}
+}

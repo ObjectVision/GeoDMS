@@ -1,0 +1,63 @@
+container fn_test_connect_rev
+{
+	// #1228: connect / connect_info_eq with the POINTS first and the ARCS second,
+	// and the maxSqrDist that connect_eq / connect_info_eq accept since the same
+	// version.
+	//
+	// Geometry, in (y, x):
+	//   road 0 (key 0): (0,0) -> (0,10)      road 1 (key 1): (100,0) -> (100,10)
+	//   p0 (3,5)   key 0:   3 from road 0
+	//   p1 (104,5) key 1:   4 from road 1
+	//   p2 (60,5)  key 0:  60 from road 0, 40 from road 1
+	unit<uint32> RoadPoints : nrofrows = 4
+	{
+		attribute<float32> px      := float32(id(.) % 2) *  10f;
+		attribute<float32> py      := float32(id(.) / 2) * 100f;
+		attribute<fpoint>  point   := point_yx(py, px, fpoint);
+		attribute<Road>    seq_rel : [0, 0, 1, 1];
+		attribute<uint32>  ordinal : [0, 1, 0, 1];
+	}
+	unit<uint32> Road : nrofrows = 2
+	{
+		attribute<fpoint> geometry (arc) := points2sequence(RoadPoints/point, RoadPoints/seq_rel, RoadPoints/ordinal);
+		attribute<uint32> key            : [0, 1];
+	}
+	unit<uint32> Pnt : nrofrows = 3
+	{
+		attribute<float32> py       : [3, 104, 60];
+		attribute<float32> px       : [5,   5,  5];
+		attribute<fpoint>  geometry := point_yx(py, px, fpoint);
+		attribute<uint32>  key      : [0, 1, 0];
+	}
+
+	// one connection per ROAD, to the nearest point: 2 original roads, 2 connection
+	// edges and 2 tails (both cuts fall inside a segment), and an arc_rel that is
+	// null for the connection edges only
+	unit<uint32> net := connect(Pnt/geometry, Road/geometry);
+
+	container rev_eq := connect_info_eq(Pnt/geometry, Pnt/key, Road/geometry, Road/key);
+	container fwd_eq := connect_info_eq(Road/geometry, Road/key, Pnt/geometry, Pnt/key);
+	container rev_ne := connect_info_ne(Pnt/geometry, Pnt/key, Road/geometry, Road/key);
+
+	parameter<float64> maxSqr := 12.25; // 3.5^2
+	container fwd_eq_max := connect_info_eq(Road/geometry, Road/key, Pnt/geometry, Pnt/key, maxSqr);
+
+	container checks
+	{
+		parameter<uint32>  c_rows := sum(uint32(IsDefined(net/arc_rel))) + sum(uint32(!IsDefined(net/arc_rel)))
+		                                                                     , IntegrityCheck = "c_rows == 6";
+		parameter<uint32>  c_org  := sum(uint32(IsDefined(net/arc_rel)))      , IntegrityCheck = "c_org == 4";
+		// reversed: road 0 -> p0 (3), road 1 -> p1 (4); p2 shares road 0's key but is farther
+		parameter<uint32>  c_rrel := sum(uint32(rev_eq/point_rel))            , IntegrityCheck = "c_rrel == 1";
+		parameter<float64> c_rdst := sum(rev_eq/dist)                         , IntegrityCheck = "c_rdst > 6.99 && c_rdst < 7.01";
+		// reversed _ne: road 0 takes the nearest point of ANOTHER key (p1, 104),
+		// road 1 takes p2 (40) rather than its own-key p1
+		parameter<uint32>  c_nrel := sum(uint32(rev_ne/point_rel))            , IntegrityCheck = "c_nrel == 3";
+		parameter<float64> c_ndst := sum(rev_ne/dist)                         , IntegrityCheck = "c_ndst > 143.9 && c_ndst < 144.1";
+		// forward: p0 -> road 0 (3), p1 -> road 1 (4), p2 -> road 0 (60)
+		parameter<uint32>  c_frel := sum(uint32(fwd_eq/arc_rel))              , IntegrityCheck = "c_frel == 1";
+		parameter<float64> c_fdst := sum(fwd_eq/dist)                         , IntegrityCheck = "c_fdst > 66.99 && c_fdst < 67.01";
+		// with maxSqrDist only p0 stays within 3.5 of its own road
+		parameter<uint32>  c_fmax := sum(uint32(IsDefined(fwd_eq_max/arc_rel))), IntegrityCheck = "c_fmax == 1";
+	}
+}

@@ -1,0 +1,29 @@
+container fn_test_ci_rev_neg1
+{
+	// #1228: a REVERSED connect_info is keyed by the arcs and names its relation
+	// member point_rel; arc_rel (and its legacy alias ArcID) belong to the forward
+	// direction only, so referring to one must fail.
+	unit<uint32> RoadPoints : nrofrows = 2
+	{
+		attribute<float32> px      := float32(id(.)) * 10f; // 0, 10
+		attribute<float32> py      := float32(id(.)) *  0f; // 0, 0
+		attribute<fpoint>  point   := point_yx(py, px, fpoint);
+		attribute<Road>    seq_rel : [0, 0];
+		attribute<uint32>  ordinal := id(.);
+	}
+	unit<uint32> Road : nrofrows = 1
+	{
+		attribute<fpoint> geometry (arc) := points2sequence(RoadPoints/point, RoadPoints/seq_rel, RoadPoints/ordinal);
+	}
+	unit<uint32> Pnt : nrofrows = 1
+	{
+		attribute<fpoint> geometry := const(point_yx(3f, 5f, fpoint), .);
+	}
+
+	container rev := connect_info(Pnt/geometry, Road/geometry);
+
+	container checks
+	{
+		parameter<uint32> c_1 := sum(uint32(rev/arc_rel)), IntegrityCheck = "c_1 == 0"; // not a member of a reversed result
+	}
+}
