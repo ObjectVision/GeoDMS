@@ -612,15 +612,22 @@ def get_filepairs(benchmark_files:list, generated_files:list) -> list:
     if len(benchmark_files) == 1 and len(generated_files) == 1:
         return [(benchmark_files[0], generated_files[0])]
 
-    # multi file case
+    # multi file case: pair each benchmark file with the generated file of the same
+    # name, or with None when there is none -- compare_files reads a None partner as
+    # "missing generated file" and fails the comparison.
+    #
+    # This used to append the (benchmark_file, None) pair from inside the scan, on the
+    # last generated file, WITHOUT checking whether a match had been found. Every
+    # benchmark file therefore got a None partner as well as its match, so a multi-file
+    # comparison could never pass -- while a comparison whose generated side did not
+    # exist at all produced no pairs and passed on the empty list. The single-file case
+    # above is positional and was never affected. See GeoDMS-Test #37, where the two
+    # halves cancelled out and kept a test green on an empty comparison.
     for benchmark_file in benchmark_files:
         benchmark_filename = os.path.basename(benchmark_file)
-        for index, generated_file in enumerate(generated_files):
-            generated_filename = os.path.basename(generated_file)
-            if benchmark_filename ==  generated_filename:
-                file_pairs.append((benchmark_file, generated_file))
-            if index == len(generated_files)-1:
-                file_pairs.append((benchmark_file, None))
+        match = next((generated_file for generated_file in generated_files
+                      if os.path.basename(generated_file) == benchmark_filename), None)
+        file_pairs.append((benchmark_file, match))
     return file_pairs
 
 def _normalised_bytes(path:str) -> bytes:
