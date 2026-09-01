@@ -130,16 +130,24 @@ protected:
 	Object& operator =(Object&&) = delete;
 
 public:
-	RTC_CALL virtual TokenID GetID() const;
+	// Callee contracts (#1227): these virtuals are what the error-reporting path calls to name an
+	// item (see AbstrMsgGenerator in dbg/DebugContext.h), so their base declarations state what
+	// any override may enter. GetID and GetLocation are pure reads -- every override returns a
+	// member or a preregistered token, and an override that starts resolving or registering
+	// breaks the reporting path (#1225 was exactly such a re-resolve). The class-introspection
+	// trio may search the class register (ObjectRegister, inner) and may throw -- e.g.
+	// AbstrDataItem::GetDynamicObjClass via DataItemClass::FindCertain -- which stays
+	// registry-shared. GetSourceName may format names, nothing outer.
+	RTC_CALL virtual TokenID GetID() const DMS_CALLEE_ENTERS_NOTHING;
 
-	RTC_CALL virtual SharedStr GetSourceName() const;
-	RTC_CALL virtual const SourceLocation* GetLocation() const;
+	RTC_CALL virtual SharedStr GetSourceName() const DMS_CALLEE_ENTERS(ord_level_type::IndexedString, dms_shared_v);
+	RTC_CALL virtual const SourceLocation* GetLocation() const DMS_CALLEE_ENTERS_NOTHING;
 
-	RTC_CALL virtual const Class* GetDynamicClass() const;
+	RTC_CALL virtual const Class* GetDynamicClass() const DMS_CALLEE_ENTERS(ord_level_type::IndexedString, dms_shared_v);
 
 	// TODO G8: Move to AbstrDataItem
-	RTC_CALL virtual const Class* GetDynamicObjClass() const;
-	RTC_CALL virtual const Class* GetCurrentObjClass() const;
+	RTC_CALL virtual const Class* GetDynamicObjClass() const DMS_CALLEE_ENTERS(ord_level_type::IndexedString, dms_shared_v);
+	RTC_CALL virtual const Class* GetCurrentObjClass() const DMS_CALLEE_ENTERS(ord_level_type::IndexedString, dms_shared_v);
 
 	RTC_CALL virtual const Object* _GetAs(const Class* cls) const;
 	const Object* GetAs(const Class* cls) const { return _GetAs(cls); }
@@ -175,8 +183,8 @@ public:
 	/// so GetFullName must stay inside that ceiling: it reads the token registry -- which is
 	/// cheap and allowed -- and takes nothing outer to it. An override may not evaluate a
 	/// property, prepare data, or reach a storage or tile lock. Both bodies declare it (#1227).
-	[[nodiscard]] RTC_CALL virtual auto GetFullName() const -> SharedStr;
-	[[nodiscard]] RTC_CALL virtual auto GetFullCfgName() const -> SharedStr;
+	[[nodiscard]] RTC_CALL virtual auto GetFullName() const -> SharedStr DMS_CALLEE_ENTERS(ord_level_type::IndexedString, dms_shared_v);
+	[[nodiscard]] RTC_CALL virtual auto GetFullCfgName() const -> SharedStr DMS_CALLEE_ENTERS(ord_level_type::IndexedString, dms_shared_v);
 
 	/// Throw a contextualized item error with a pre-wrapped WeakStr message.
 	[[noreturn]] RTC_CALL void throwItemError(WeakStr msgStr) const;

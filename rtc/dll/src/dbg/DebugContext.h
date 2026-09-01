@@ -52,13 +52,18 @@ struct AbstrMsgGenerator :noncopyable
 	RTC_CALL AbstrMsgGenerator() noexcept;
 	RTC_CALL virtual ~AbstrMsgGenerator()  noexcept;
 
-	RTC_CALL virtual bool Describe(FormattedOutStream& fos); // default: calls GetDescription
+	// The DMS_CALLEE_ENTERS annotations below ARE the contract stated in prose above, written
+	// where an override can be checked against it. Describe / GetDescription / ItemAsStr may read
+	// the registry and everything inner (and may throw: building a DmsException reads names and
+	// generates nested context, all registry-shared); the two predicates read flags and pointers
+	// and take nothing at all.
+	RTC_CALL virtual bool Describe(FormattedOutStream& fos) DMS_CALLEE_ENTERS(ord_level_type::IndexedString, dms_shared_v); // default: calls GetDescription
 
-	RTC_CALL virtual CharPtr GetDescription();
+	RTC_CALL virtual CharPtr GetDescription() DMS_CALLEE_ENTERS(ord_level_type::IndexedString, dms_shared_v);
 
-	RTC_CALL virtual bool IsFinalContext() const { return false; }
-	RTC_CALL virtual bool HasItemContext() const { return false; }
-	RTC_CALL virtual auto ItemAsStr() const->SharedStr;
+	RTC_CALL virtual bool IsFinalContext() const DMS_CALLEE_ENTERS_NOTHING { return false; }
+	RTC_CALL virtual bool HasItemContext() const DMS_CALLEE_ENTERS_NOTHING { return false; }
+	RTC_CALL virtual auto ItemAsStr() const->SharedStr DMS_CALLEE_ENTERS(ord_level_type::IndexedString, dms_shared_v);
 };
 
 /********** AbstrContextHandle **********/
@@ -128,7 +133,9 @@ struct MsgGeneratorPolicy : Base
 	}
 
 protected:
-	RTC_CALL virtual void GenerateDescription() = 0;
+	// Runs under GetDescription's DMS_ENTERS above: format from what you already have --
+	// see AbstrMsgGenerator's contract at the top of this header.
+	RTC_CALL virtual void GenerateDescription() DMS_CALLEE_ENTERS(ord_level_type::IndexedString, dms_shared_v) = 0;
 
 	void SetText(WeakStr context)
 	{
@@ -196,7 +203,7 @@ private:
 template <typename GenerateFunc>
 struct LambdaContextHandle: ContextHandle 
 {
-	LambdaContextHandle(GenerateFunc&& DMS_CALLEE_ENTERS(ord_level_type::IndexedString) func = GenerateFunc())
+	LambdaContextHandle(GenerateFunc&& DMS_CALLEE_ENTERS(ord_level_type::IndexedString, dms_shared_v) func = GenerateFunc())
 		:	m_Func(func)
 	{}
 

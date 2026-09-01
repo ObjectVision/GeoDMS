@@ -25,7 +25,11 @@ struct MsgData;
 // class  : ContextNotification
 //----------------------------------------------------------------------
 
-typedef void (DMS_CONV *TContextNotification)(ClientHandle clientHandle, CharPtr description);
+// #1227: invoked (via ProgressMsg) while the caller HOLDS sc_NotifyTargetCount, which is INNER
+// to the token registry -- so the callback may not even read a token (a TokenStr, GetName, or
+// GetFullName is already outer). Copy the CharPtr out and post; take nothing but the levels
+// inner to NotifyTargetCount (ObjectRegister, DebugOutStream, OperationQueue).
+typedef void (DMS_CONV *TContextNotification DMS_CALLEE_ENTERS(ord_level_type::ObjectRegister, dms_exclusive_v))(ClientHandle clientHandle, CharPtr description);
 
 void ProgressMsg(CharPtr msg);
 
@@ -35,8 +39,14 @@ void ProgressMsg(CharPtr msg);
 //		msg: a PChar representing a DMS generated message
 //		clientHandle: a client suppplied DWord to identify a client object that handles the message
 
+// #1227: deliberately UNCONSTRAINED -- MsgDispatch moves the flush pipeline out of the
+// DebugOutStream lock before invoking these (meta thread, re-entrance blocked per sink), so a
+// callback may take what it needs; a false ceiling here would be worse than none.
 using MsgCallbackFunc = void (DMS_CONV *)(ClientHandle clientHandle, const MsgData* data, bool moreToCome);
-using TASyncContinueCheck = void (DMS_CONV *)();
+// #1227: a cancellation probe called from compute loops that may hold tile and shadow locks. It
+// may THROW the host's cancel (building that DmsException reads names, registry-shared) but must
+// take nothing outer than the token registry.
+using TASyncContinueCheck = void (DMS_CONV * DMS_CALLEE_ENTERS(ord_level_type::IndexedString, dms_shared_v))();
 
 void MustCoalesceHeap(SizeT size);
 

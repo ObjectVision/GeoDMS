@@ -77,6 +77,12 @@ struct level_type {
 RTC_CALL level_type EnterLevel(level_type level);
 RTC_CALL void LeaveLevel(level_type& oldLevel);
 
+// True when this thread holds no leveled section and has declared no ceiling. This is the
+// complement of a callee ceiling: a dispatch point whose callees are deliberately UNCONSTRAINED
+// (the main-thread operation queue) is only sound while the dispatcher itself holds nothing,
+// and this is what lets it assert that (#1227).
+RTC_CALL bool CurrentThreadHoldsNoLevelLock() noexcept;
+
 //----------------------------------------------------------------------
 // Declared lock-level ceilings (#1227)
 //----------------------------------------------------------------------

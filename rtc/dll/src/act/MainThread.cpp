@@ -283,6 +283,14 @@ void operation_queue::Process()
 	}
 
 	SuspendTrigger::SilentBlocker blockSuspensions("operation_queue::Process");
+
+#if defined(MG_DEBUG_LOCKLEVEL)
+	// The opers' ceiling is deliberately unconstrained (see PostMainThreadOper in MainThread.h);
+	// that is only sound while every pump site holds no leveled section. Enforce it here, once,
+	// rather than annotating every posted lambda with a ceiling that would be false (#1227).
+	dms_assert(CurrentThreadHoldsNoLevelLock());
+#endif
+
 	for (auto& oper : operQueue)
 	{
 		try {

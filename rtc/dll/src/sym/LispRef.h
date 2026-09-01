@@ -200,7 +200,9 @@ inline FormattedOutStream& operator <<(FormattedOutStream& output, LispPtr R)
 	return output;
 }
 
-SYM_CALL SharedStr AsFLispSharedStr(LispPtr lispRef, FormattingFlags ff);
+// #1227: prints symbol names, so it reads the token registry (shared) and takes nothing outer;
+// the print buffer it reuses is thread_local, so no lock of its own.
+SYM_CALL SharedStr AsFLispSharedStr(LispPtr lispRef, FormattingFlags ff) DMS_CALLEE_ENTERS(ord_level_type::IndexedString, dms_shared_v);
 SYM_CALL void LispError(CharPtr msg, LispPtr ref);
 
 #endif // __SYM_LISPREF_H

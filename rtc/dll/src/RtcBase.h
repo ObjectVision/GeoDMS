@@ -47,6 +47,22 @@
 
 using dms_thread_id = UInt32;
 
+//----------------------------------------------------------------------
+// Lock-level callee annotations (#1227)
+//----------------------------------------------------------------------
+// Declares the OUTERMOST lock level an opaque callee may enter: a virtual on its BASE
+// declaration (the contract every override must stay within), a function-pointer or
+// std::function on its PARAMETER, or a plain function whose body a caller cannot see.
+// DMS_CALLEE_ENTERS_NOTHING says the callee takes no leveled lock at all.
+//
+// Both expand to NOTHING and their arguments are never evaluated, so a leaf header can
+// annotate without including LockLevels.h. They exist for the reader, and for the checker
+// that validates a caller's DMS_ENTERS ceiling (see LockLevels.h) against what the callee
+// actually enters at runtime: the annotation is where that contract is WRITTEN; the
+// caller's ceiling is where it is ENFORCED.
+#define DMS_CALLEE_ENTERS(...)
+#define DMS_CALLEE_ENTERS_NOTHING
+
 #include <memory>
 #include <vector>
 

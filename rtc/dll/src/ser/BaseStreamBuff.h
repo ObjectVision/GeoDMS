@@ -37,7 +37,12 @@ class OutStreamBuff
 public:
 	RTC_CALL OutStreamBuff();
 	RTC_CALL virtual ~OutStreamBuff();
-	RTC_CALL virtual void WriteBytes(CBytePtr data, streamsize_t size) =0;
+	// #1227: streamed into from under the DebugOutStream lock and from the error-reporting
+	// ceiling (every Describe writes through here). An implementation may buffer, count, hash or
+	// do foreign I/O, and it may THROW -- ThrowingMemoOutStreamBuff and the CompoundStorage buff
+	// do, and building that DmsException reads names, registry-shared -- but it may take nothing
+	// outer than the token registry.
+	RTC_CALL virtual void WriteBytes(CBytePtr data, streamsize_t size) DMS_CALLEE_ENTERS(ord_level_type::IndexedString, dms_shared_v) =0;
 	RTC_CALL virtual streamsize_t CurrPos() const=0;
 	RTC_CALL virtual WeakStr FileName();
 	RTC_CALL virtual bool    AtEnd() const = 0;

@@ -70,7 +70,8 @@ enum class ord_level_type : UInt32
 
 	// level c+3 == MOST_INNER_LOCK + 1
 	GDALComponent = IndexedString -1,
-	FLispUsageCache = IndexedString - 1,
+//	FLispUsageCache: retired for #1227 -- AsFLispSharedStr now reuses a thread_local buffer
+//	instead of guarding one global static, so the level it occupied no longer exists.
 //	SymbObjSection = IndexedString + 1, // can be used while IndexedString is locked
 	NotifyTargetCount = MoveSupplInterest + 1,
 
@@ -113,12 +114,18 @@ enum class ord_level_type : UInt32
 //    the analysis from needing to know the dynamic type.
 //  - Function pointers and std::function. The ceiling belongs to the PARAMETER, not to the
 //    callee: DMS_CALLEE_ENTERS on the parameter is what the caller's lambda is checked against,
-//    and the callee is checked against its own. Neither side needs to know the other.
+//    and the callee is checked against its own. Neither side needs to know the other. The same
+//    macro annotates a virtual on its base declaration and any opaque plain function; its
+//    sibling DMS_CALLEE_ENTERS_NOTHING claims the callee takes no leveled lock at all. Both
+//    live in RtcBase.h (they expand to nothing and need none of this header), so leaf headers
+//    can carry the contract without the include.
 //
-// DMS_ENTERS expands to a Debug-only scope object; a Release build sees nothing. DMS_CALLEE_ENTERS
-// expands to nothing at all -- no compiler we build with can check a parameter annotation, so it
-// records the contract for the reader and for the syntactic pass over statically resolvable call
-// edges that is the other half of the scheme.
+// DMS_ENTERS expands to a Debug-only scope object; a Release build sees nothing. The
+// DMS_CALLEE_ENTERS pair (RtcBase.h) expands to nothing at all -- no compiler we build with can
+// check a declaration annotation, so it records the contract for the reader and for the syntactic
+// pass over statically resolvable call edges that is the other half of the scheme. What keeps a
+// written contract honest today is the caller's DMS_ENTERS: an annotated callee that lies is
+// caught the first time it runs under a ceiling in Debug.
 
 // Spelled out at the call site so that a reader sees which mode is meant, rather than a bare bool.
 inline constexpr bool dms_shared_v = true;
@@ -137,8 +144,7 @@ inline constexpr bool dms_exclusive_v = false;
 // Declares that the enclosing scope takes no lock level at all.
 #define DMS_ENTERS_NOTHING DMS_ENTERS(ord_level_type::EntersNothing, dms_exclusive_v)
 
-// Parameter annotation for a function-pointer / std::function parameter; see above.
-#define DMS_CALLEE_ENTERS(LEVEL)
+// DMS_CALLEE_ENTERS / DMS_CALLEE_ENTERS_NOTHING: see RtcBase.h.
 
 //==============================================================
 

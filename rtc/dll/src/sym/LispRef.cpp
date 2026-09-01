@@ -882,13 +882,14 @@ void ListObj::PrintAsFLisp(FormattedOutStream& out, UInt32 level) const
 /******************                                   *******************/
 
 
-leveled_critical_section gc_FLispUsageGuard(item_level_type(0), ord_level_type::FLispUsageCache, "FLispUsageCache");
-
 SharedStr AsFLispSharedStr(LispPtr lispRef, FormattingFlags ff)
 {
-	// MUTEX, PROTECT EXCLUSIVE USE OF GLOBAL STATIC RESOURCE FOR PERFORMANCE REASONS;
-	leveled_critical_section::scoped_lock lock(gc_FLispUsageGuard);
-	static ExternalVectorOutStreamBuff::VectorType vector;
+	// The reused print buffer is thread_local rather than one guarded global (#1227): the guard
+	// sat OUTER to the token registry (printing reads symbol names), so any caller already
+	// holding the registry shared -- the error-reporting path names items for a living -- was a
+	// level-order violation waiting to fire. Per-thread reuse keeps the perf point of the old
+	// static and retires the FLispUsageCache level entirely.
+	thread_local ExternalVectorOutStreamBuff::VectorType vector;
 	MG_DEBUGCODE( SizeT cap = vector.capacity(); )
 	vector.clear();
 	dbg_assert(cap == vector.capacity());

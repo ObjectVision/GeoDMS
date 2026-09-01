@@ -137,7 +137,11 @@ public:
 
 	// extent PropDef interface
 	virtual ApiType GetValue   (ItemType const * item) const=0;
-	virtual ApiType GetRawValue(ItemType const * item) const
+	// Same contract as AbstrPropDef::HasNonDefaultValue (see above): the raw accessor is what the
+	// error-reporting path may use, so an override must stay registry-shared -- read a member or a
+	// stored map, never evaluate. NOTE this default forwards to GetValue, which carries no such
+	// contract: a PropDef whose GetValue computes must override GetRawValue to stay within it.
+	virtual ApiType GetRawValue(ItemType const * item) const DMS_CALLEE_ENTERS(ord_level_type::IndexedString, dms_shared_v)
 	{
 		return GetValue(item);
 	}

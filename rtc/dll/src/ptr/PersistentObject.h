@@ -24,7 +24,9 @@ public:
 	/// Return the logical parent in the persistent hierarchy, or nullptr if this is the root.
 	/// Ownership: non-owning raw pointer.
 	/// Thread-safety: depends on implementation.
-	RTC_CALL [[nodiscard]] virtual const PersistentObject* GetParent() const noexcept;
+	/// #1227: called while the caller holds the token registry (GetFullName's walk), so an
+	/// override may take no leveled lock -- TreeItem's reads a weak parent pointer, nothing more.
+	RTC_CALL [[nodiscard]] virtual const PersistentObject* GetParent() const noexcept DMS_CALLEE_ENTERS_NOTHING;
 
 	/// Return the local source/name identifier of this object (without path/ancestor context).
 	/// Contract: Should be stable and suitable for composition by GetFullName().

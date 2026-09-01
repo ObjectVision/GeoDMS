@@ -258,6 +258,11 @@ bool LevelCheckBlocker::HasLevelCheckBlocked()
 }
 
 
+RTC_CALL bool CurrentThreadHoldsNoLevelLock() noexcept
+{
+	return s_LockLevel.m_Level == ord_level_type(0);
+}
+
 RTC_CALL level_type EnterLevel(level_type level)
 {
 	dms_assert(level.m_Level != ord_level_type(0));
