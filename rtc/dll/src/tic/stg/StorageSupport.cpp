@@ -45,7 +45,7 @@ AbstrStorageManagerRef StorageClass::CreateStorageManager(CharPtr name, TokenID 
 	{
 		if (!throwOnFailure)
 			return {};
-		throwStorageError(ASM_E_UNKNOWNSTORAGECLASS, GetTokenStr(typeID).c_str());
+		throwStorageError(ASM_E_UNKNOWNSTORAGECLASS, GetTokenStrLock(typeID).c_str());
 	}
 	auto  result = AbstrStorageManagerRef(debug_cast<AbstrStorageManager*>(cls->CreateObj()), newly_obj{});
 	assert(result);
@@ -105,7 +105,7 @@ TIC_CALL CharPtr DMS_CONV DMS_StorageManager_GetType(const AbstrStorageManager* 
 
 		ObjectContextHandle checkPtr(storageManager, AbstrStorageManager::GetStaticClass(), "DMS_StorageManager_GetType");
 
-		return storageManager->GetClsName().c_str();
+		return storageManager->GetClsNameLock().c_str(); // CharPtr into the registry: must outlive this call
 
 	DMS_CALL_END
 	return nullptr;

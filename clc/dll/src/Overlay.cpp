@@ -58,7 +58,7 @@ struct overlay_partitioning_info_t
 			,	m_ResPartRel(make_weak_tree(resPartRel))
 	{}
 
-	TokenStr GetName() const { return lock_or_cancel(m_DataItem)->GetName(); }
+	SharedStr GetName() const { return lock_or_cancel(m_DataItem)->GetName(); }
 
 	std::weak_ptr<const AbstrDataItem> m_DataItem; // weak: cached in m_ReadAssets, must not dangle nor hold interest
 	std::weak_ptr<AbstrDataItem>  m_ResPartRel;  // weak: also cached in m_ReadAssets; used only during compute (lock_or_cancel)
@@ -376,7 +376,7 @@ public:
 
 			const TreeItem* partitioningTI = GetItem(args[2])->GetConstSubTreeItemByID(partNameID).get();
 			if (!partitioningTI)
-				throwErrorF("Overlay", "{} not found in {}", partNameID.GetStr().c_str(), GetItem(args[2])->GetSourceName().c_str());
+				throwErrorF("Overlay", "{} not found in {}", partNameID.GetStrLock().c_str(), GetItem(args[2])->GetSourceName().c_str());
 			const AbstrDataItem* partitioningDI = AsCheckedDataItem(partitioningTI);
 			assert(partitioningDI);
 

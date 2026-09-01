@@ -20,6 +20,7 @@
 #include "utl/FixedBufferFormat.h"
 #include "utl/StrFormat.h"
 #include "xct/DmsException.h"
+#include "LockLevels.h" // DMS_ENTERS
 
 // *****************************************************************************
 // Section:     Annotated Object register for CheckPtr
@@ -85,7 +86,7 @@
 
 				_RPT1(_CRT_WARN, "\n\nMemory Leak of %d Objects after destructing all DMS Runtime components", orc.size());
 				for (auto t : orc)
-					_RPT1(_CRT_WARN, "\nMemoLeak: Object %s", t.GetStr().c_str());
+					_RPT1(_CRT_WARN, "\nMemoLeak: Object %s", t.GetStrLock().c_str());
 
 			DMS_CALL_END
 		}
@@ -183,14 +184,19 @@ TokenID Object::GetID() const
 	return cls->GetID();
 }
 
-TokenStr Object::GetClsName() const
+SharedStr Object::GetClsName() const
+{
+	return SharedStr(GetClsNameLock());
+}
+
+TokenStr Object::GetClsNameLock() const
 {
 	const Class* cls = GetCurrentObjClass();
 #ifdef MG_CHECKPTR
 	if (!cls) 
-		return TokenID("#DestructedClass#", (mt_tag*)nullptr).GetStr();
+		return TokenID("#DestructedClass#", (mt_tag*)nullptr).GetStrLock();
 #endif // MG_CHECKPTR
-	return cls->GetName();
+	return cls->GetNameLock();
 }
 
 TokenID Object::GetClsID() const
@@ -202,14 +208,19 @@ TokenID Object::GetClsID() const
 return cls->GetID();
 }
 
-TokenStr Object::GetName() const
+SharedStr Object::GetName() const
 {
-	return GetID().GetStr();
+	return SharedStr(GetID());
+}
+
+TokenStr Object::GetNameLock() const
+{
+	return GetID().GetStrLock();
 }
 
 auto Object::GetFullName() const -> SharedStr
 {
-	return SharedStr(GetName());
+	return GetName();
 }
 
 auto Object::GetFullCfgName() const -> SharedStr
@@ -234,9 +245,14 @@ bool Object::IsKindOf(const Class* cls) const
 	return dynamic_class->IsDerivedFrom(cls);
 }
 
-TokenStr Object::GetXmlClassName() const
+SharedStr Object::GetXmlClassName() const
 { 
-	return GetXmlClassID().GetStr(); 
+	return SharedStr(GetXmlClassID()); 
+}
+
+TokenStr Object::GetXmlClassNameLock() const
+{ 
+	return GetXmlClassID().GetStrLock(); 
 }
 
 TokenID Object::GetXmlClassID() const
@@ -339,14 +355,20 @@ SharedStr PersistentObject::GetFullName() const
 	// reset and fill buffer
 	item = this;
 	*--nameConcatBufferPtr = char(0);
-	while (auto parent = item->GetParent()) {
-		TokenID nameToken = item->GetID();
-		auto nameLen = nameToken.GetStrLen();
-		nameConcatBufferPtr -= nameLen;
-		auto range = nameToken.AsStrRange();
-		fast_copy(range.m_CharPtrRange.begin(), range.m_CharPtrRange.end(), nameConcatBufferPtr);
-		*--nameConcatBufferPtr = DELIMITER_CHAR;
-		item = parent;
+	{
+		// The walk holds a TokenStrRange -- a shared usage of the token registry -- across a virtual
+		// GetParent(). Declare that, so anything added here which registers a token, or which takes a
+		// lock outer to the registry, fails in Debug instead of parking the process (#1227).
+		DMS_ENTERS(ord_level_type::IndexedString, dms_shared_v);
+		while (auto parent = item->GetParent()) {
+			TokenID nameToken = item->GetID();
+			auto nameLen = nameToken.GetStrLen();
+			nameConcatBufferPtr -= nameLen;
+			auto range = nameToken.AsStrRangeLock();
+			fast_copy(range.m_CharPtrRange.begin(), range.m_CharPtrRange.end(), nameConcatBufferPtr);
+			*--nameConcatBufferPtr = DELIMITER_CHAR;
+			item = parent;
+		}
 	}
 
 	dms_assert(nameConcatBufferPtr == result->begin());
@@ -391,7 +413,7 @@ SharedStr PersistentObject::GetRelativeName(const PersistentObject* context) con
 		TokenID nameToken= item->GetID();
 		auto nameLen = nameToken.GetStrLen();
 		nameConcatBufferPtr -= nameLen;
-		fast_copy(nameToken.GetStr().c_str(), nameToken.GetStrEnd().c_str(), nameConcatBufferPtr);
+		fast_copy(nameToken.GetStrLock().c_str(), nameToken.GetStrEndLock().c_str(), nameConcatBufferPtr);
 		item = item->GetParent();
 		if (item == context)
 			break;
@@ -446,7 +468,7 @@ SharedStr PersistentObject::GetSourceName() const
 	if (!fullCfgName.empty())
 		return
 			mySSPrintF("[[{}]]", fullCfgName.c_str());
-	TokenStr nameID = GetName();
+	auto nameID = GetName();
 	return 
 		mySSPrintF("{}: {}"
 		,	nameID.c_str()
@@ -470,7 +492,11 @@ SharedStr PersistentObject::GetSourceName() const
 
 void Object::XML_Dump(OutStreamBase* xmlOutStr) const
 { 
-	XML_OutElement xmlElem(*xmlOutStr, GetXmlClassName().c_str(), GetName().c_str(), ClosePolicy::pairedOnNewline);
+	// Named locals: XML_OutElement keeps the tag-name pointer for its closing tag, so it must
+	// outlive the constructor's full expression.
+	auto clsName = GetXmlClassName();
+	auto name = GetName();
+	XML_OutElement xmlElem(*xmlOutStr, clsName.c_str(), name.c_str(), ClosePolicy::pairedOnNewline);
 
 	xmlOutStr->DumpPropList(this);
 	xmlOutStr->DumpSubTags(this);
@@ -711,7 +737,7 @@ RTC_CALL CharPtr       DMS_CONV DMS_Object_GetName    (const Object* self)
 
 		CheckPtr(self, NULL, "DMS_Object_GetName");
 
-		return self->GetName().c_str();
+		return self->GetNameLock().c_str(); // CharPtr into the registry: must outlive this call
 
 	DMS_CALL_END
 	return nullptr;

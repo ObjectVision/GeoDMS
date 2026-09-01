@@ -563,7 +563,7 @@ namespace hof {
 				if (!names)
 					continue; // data-directed: no claim, as before
 				DefType mt = memberTypeOf(rms.values, rms.domain, rms.vc);
-				SharedStr prefixStr(rms.prefix.AsStrRange()); // materialized: the loop below CREATES tokens
+				SharedStr prefixStr(rms.prefix.AsStrRangeLock()); // materialized: the loop below CREATES tokens
 				for (const auto& nm : *names)
 				{
 					if (!nm.IsDefined() || nm.empty())
@@ -729,7 +729,7 @@ namespace hof {
 		{
 			if (!specValue)
 				return std::nullopt; // layout-static groups: arity always defers (§6.2)
-			SharedStr headName(headID.AsStrRange());
+			SharedStr headName(headID.AsStrRangeLock());
 			throwErrorF("ExprParser", "{}: number of given arguments to operator '{}' doesn't match the specification '{}': {} arguments given (including the specification), but {} expected"
 				, m_Unifier.FullName().c_str(), headName.c_str(), specValue->c_str()
 				, nrGiven, layout.nrArgs);

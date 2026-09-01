@@ -321,7 +321,7 @@ auto AbstrCalculator::FindItem(TokenID itemRef) const -> SharedTreeItem
 	if (itemRef == thisToken)
 		return m_Holder.lock();
 
-	SharedStr itemRefStr(itemRef.AsStrRange());
+	SharedStr itemRefStr(itemRef.AsStrRangeLock());
 	return SearchContext()->ResolveItemPath(itemRefStr);
 }
 
@@ -350,7 +350,7 @@ BestItemRef AbstrCalculator::FindBestItem(TokenID itemRef) const
 		if (itemRef == thisToken)
 			return { {}, {} };
 
-	SharedStr itemRefStr(itemRef.AsStrRange());
+	SharedStr itemRefStr(itemRef.AsStrRangeLock());
 
 	return SearchContext()->FindBestItem(itemRefStr);
 }
@@ -377,7 +377,7 @@ auto AbstrCalculator::VisitSourceItem(TokenID supplRefID, SupplierVisitFlag svf,
 	if (supplRefID == thisToken)
 		return SharedTreeItem{};
 
-	SharedStr itemRefStr(supplRefID.AsStrRange());
+	SharedStr itemRefStr(supplRefID.AsStrRangeLock());
 	if (Test(svf, SupplierVisitFlag::ImplSuppliers))
 		return SearchContext()->FindAndVisitItem(itemRefStr, svf, visitor);
 	auto searchResult = SearchContext()->ResolveItemPath(itemRefStr);
@@ -1140,7 +1140,7 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 					throwErrorF("ExprParser", "Scope operator: Left operand should be a name, but '{}' given.", AsFLispSharedStr(leftExpr, FormattingFlags::ThousandSeparator).c_str());
 				SharedTreeItem scopeItem = FindItem(leftExpr.GetSymbID());
 				if (!scopeItem)
-					throwErrorF("ExprParser", "Scope operator: container '{}' not found", leftExpr.GetSymbID().GetStr().c_str());
+					throwErrorF("ExprParser", "Scope operator: container '{}' not found", leftExpr.GetSymbID().GetStrLock().c_str());
 
 				tmp_swapper<SharedTreeItem> swap(m_SearchContext, scopeItem);
 				SubstitutionBuffer localBuffer;
@@ -1230,7 +1230,7 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 					return {};
 				if (!callee || !callee->IsFunctionItem())
 					throwErrorF("ExprParser", "'apply' on a template can only appear as a whole calculation rule; '{}' is not a function"
-						, innerCall.Left().GetSymbID().GetStr().c_str());
+						, innerCall.Left().GetSymbID().GetStrLock().c_str());
 				bufferValue = SubstituteExpr_impl(substBuff, innerCall, mpf); // apply F == bare F
 				goto exit;
 			}
@@ -1477,7 +1477,7 @@ MetaInfo AbstrCalculator::SubstituteExpr(SubstitutionBuffer& substBuff, LispPtr 
 				return {};
 			if (!callee || !callee->IsTemplate()) // functions are IsTemplate too
 				throwErrorF("ExprParser", "'{}': '{}' is not a function or template"
-					, exprHeadID == t_ApplyItem ? "apply" : "instantiate", calleeID.GetStr().c_str());
+					, exprHeadID == t_ApplyItem ? "apply" : "instantiate", calleeID.GetStrLock().c_str());
 
 			if (exprHeadID == t_InstantiateItem)
 			{

@@ -48,7 +48,7 @@ SharedCharArray* SharedCharArray_Create(TokenID id MG_DEBUG_ALLOCATOR_SRC_ARG)
 {
 	RequestMainThreadOperProcessingBlocker saveNotificationAfterAssignment;
 
-	auto range = id.AsStrRange();
+	auto range = id.AsStrRangeLock();
 	return SharedCharArray_Create(range.m_CharPtrRange.begin(), range.m_CharPtrRange.end() MG_DEBUG_ALLOCATOR_SRC_PARAM);
 }
 
@@ -105,7 +105,7 @@ SharedStr::SharedStr(const TokenStr& str MG_DEBUG_ALLOCATOR_SRC_ARG)
 
 void SharedStr::operator = (const TokenID& id)
 { 
-	reset(SharedCharArray_Create(id.GetStr().c_str(), id.GetStrEnd().c_str() MG_DEBUG_ALLOCATOR_SRC("SharedStr::operator = ")));
+	reset(SharedCharArray_Create(id.GetStrLock().c_str(), id.GetStrEndLock().c_str() MG_DEBUG_ALLOCATOR_SRC("SharedStr::operator = ")));
 }
 void SharedStr::operator = (const SA_ConstReference<char>& range)
 { 

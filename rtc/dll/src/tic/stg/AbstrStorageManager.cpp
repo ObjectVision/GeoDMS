@@ -244,7 +244,7 @@ SharedStr GetCaseDir(const TreeItem* configStore)
 		TokenID configStoreName = configStorePropDefPtr->GetValue(configStore);
 		if (configStoreName)
 		{
-			caseDir = DelimitedConcat(getFileNameBase(configStoreName.GetStr().c_str()).c_str(), caseDir.c_str());
+			caseDir = DelimitedConcat(getFileNameBase(configStoreName.GetStrLock().c_str()).c_str(), caseDir.c_str());
 			if (IsAbsolutePath(AbstrStorageManager::Expand(configStore, caseDir).c_str()))
 				return caseDir;
 		}
@@ -533,7 +533,7 @@ SharedStr AbstrStorageManager::GetFullStorageName(const TreeItem* configStore, S
 		dms_assert(*storageName.c_str() != ':');
 		TokenID configStoreName = configStorePropDefPtr->GetValue(configStore);
 		if (configStoreName)
-			storageName = DelimitedConcat(getFileNameBase(configStoreName.GetStr().c_str()).c_str(), storageName.c_str());
+			storageName = DelimitedConcat(getFileNameBase(configStoreName.GetStrLock().c_str()).c_str(), storageName.c_str());
 		configStore = configStore->GetTreeParent().get();
 	}
 	if (!IsAbsolutePath(storageName.c_str()))
@@ -1106,7 +1106,7 @@ void GenerateMetaInfo(AbstrPropWriter& apw, const TreeItem* curr, const TreeItem
 		const_cast<TreeItem*>(section)->SetKeepDataState(true);
 		irc.Add(section);
 
-		SharedStr sectionName( section->GetID().AsStrRange() );
+		SharedStr sectionName( section->GetID().AsStrRangeLock() );
 		apw.OpenSection(sectionName.c_str());
 		for (const TreeItem* key = section->GetFirstVisibleSubItem(); key; key = key->GetNextVisibleItem())
 		{

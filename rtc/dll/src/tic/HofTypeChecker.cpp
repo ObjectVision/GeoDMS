@@ -127,7 +127,7 @@ namespace hof {
 		if (local) *local = nullptr;
 		if (externalOut) *externalOut = nullptr;
 		if (extKindPtr) *extKindPtr = ExtRefKind::DefScopeExternal;
-		SharedStr fullStr(sym.AsStrRange());
+		SharedStr fullStr(sym.AsStrRangeLock());
 		CharPtr b = fullStr.begin(), e = fullStr.send();
 		if (b != e && (*b == '.' || *b == '/'))
 			throwErrorF("ExprParser", "'{}': dot-relative and absolute references are not supported inside function bodies"
@@ -592,7 +592,7 @@ namespace hof {
 			memberSrc = p;
 		const TreeItem* scopeAnchor = byExample ? memberSrc : m_FuncItem;
 		auto members = std::make_shared<std::map<TokenID, DefType>>();
-		SharedStr pName(p->GetID().AsStrRange()); // materialized: TokenStr must not span token creation below
+		SharedStr pName(p->GetID().AsStrRangeLock()); // materialized: TokenStr must not span token creation below
 
 		// K11a-4: one WALK per block, recursing into declared CONTAINER members with
 		// the member path as prefix -- the map is FLAT, keyed by the full relative
@@ -607,7 +607,7 @@ namespace hof {
 		{
 			auto qualTok = [&](TokenID memberTok) -> TokenID
 			{
-				SharedStr mName(memberTok.AsStrRange());
+				SharedStr mName(memberTok.AsStrRangeLock());
 				return prefix.empty()
 					? GetTokenID_mt(mySSPrintF("{}/{}", pName.c_str(), mName.c_str()).c_str())
 					: GetTokenID_mt(mySSPrintF("{}/{}{}", pName.c_str(), prefix.c_str(), mName.c_str()).c_str());
@@ -759,7 +759,7 @@ namespace hof {
 				// member IS declared, so it must be IN the map (K11a-3 review finding:
 				// dropping it while membersComplete=true made a direct `nw/meta`
 				// reference a false "declares no member" definition error)
-				SharedStr mName(m->GetID().AsStrRange());
+				SharedStr mName(m->GetID().AsStrRangeLock());
 				SharedStr mPath = prefix.empty() ? mName : prefix + mName;
 				// a direct member's key IS its item token; a nested path interns once here
 				(*members)[prefix.empty() ? m->GetID() : GetTokenID_mt(mPath.c_str())] = md;
@@ -886,7 +886,7 @@ namespace hof {
 							// agrees with the map's own (token) equality -- the former
 							// exact-case std::equal silently deferred on a case-mismatched
 							// parent spelling instead of reporting the closed-set miss
-							SharedStr kStr(kv.first.AsStrRange());
+							SharedStr kStr(kv.first.AsStrRangeLock());
 							if (kStr.ssize() > parentPrefix.ssize()
 								&& std::equal(parentPrefix.begin(), parentPrefix.send(), kStr.begin(),
 									[](char x, char y) { return AsciiTokenFold(x) == AsciiTokenFold(y); }))
@@ -898,7 +898,7 @@ namespace hof {
 				}
 				if (report)
 				{
-					SharedStr pName(m_Params[paramIdx]->GetID().AsStrRange());
+					SharedStr pName(m_Params[paramIdx]->GetID().AsStrRangeLock());
 					throwErrorF("ExprParser", "the definition of '{}': parameter '{}' declares no member '{}'"
 						, m_FuncItem->GetFullName().c_str(), pName.c_str(), memberPath.c_str());
 				}
@@ -1148,7 +1148,7 @@ namespace hof {
 		const TreeItem* p = fnDef->_GetFirstSubItem();
 		for (UInt32 k = 0; k != nrParams && p; ++k, p = p->GetNextItem())
 		{
-			SharedStr pName(p->GetID().AsStrRange()); // materialized: TokenStr temporaries must not span nested walks (token-registry lock)
+			SharedStr pName(p->GetID().AsStrRangeLock()); // materialized: TokenStr temporaries must not span nested walks (token-registry lock)
 			if (auto declaredSig = TreeItem_GetFunctionParamSignature(fnDef, k))
 			{
 				// signature-typed parameter: a plain function reference with a declared
@@ -1222,7 +1222,7 @@ namespace hof {
 			TokenID sym = argExpr.GetSymbID();
 			if (sym == t_Hole || token::isConst(sym) || ValueClass::FindByScriptName(sym))
 				return {};
-			SharedStr s(sym.AsStrRange());
+			SharedStr s(sym.AsStrRangeLock());
 			if (std::find(s.begin(), s.send(), '/') == s.send())
 			{
 				// function-typed parameters short-circuit by name (mirroring the
@@ -1552,7 +1552,7 @@ namespace hof {
 		SizeT sn = subPath.ssize();
 		for (const auto& [pathTok, mt] : *ct.members)
 		{
-			SharedStr path(pathTok.AsStrRange()); // materialized key text for the prefix tests
+			SharedStr path(pathTok.AsStrRangeLock()); // materialized key text for the prefix tests
 			SizeT pn = path.ssize();
 			if (pn > sn && *(path.begin() + sn) == DELIMITER_CHAR
 				&& std::equal(subPath.begin(), subPath.send(), path.begin(), ciEq))
@@ -1566,7 +1566,7 @@ namespace hof {
 			return {};
 		if (ct.members->empty())
 			throwErrorF("ExprParser", "'{}': the calculation rule of '{}' generates no members, so '{}' cannot exist (body of function '{}')"
-				, SharedStr(sym.AsStrRange()).c_str(), genItem->GetFullName().c_str()
+				, SharedStr(sym.AsStrRangeLock()).c_str(), genItem->GetFullName().c_str()
 				, subPath.c_str(), m_FuncItem->GetFullName().c_str());
 		SharedStr listed; UInt32 nrListed = 0;
 		for (const auto& [pathTok, mt] : *ct.members)
@@ -1578,10 +1578,10 @@ namespace hof {
 			}
 			if (nrListed++)
 				listed += ", ";
-			listed += SharedStr(pathTok.AsStrRange());
+			listed += SharedStr(pathTok.AsStrRangeLock());
 		}
 		throwErrorF("ExprParser", "'{}': the calculation rule of '{}' generates member(s) {}; '{}' is not among them (body of function '{}')"
-			, SharedStr(sym.AsStrRange()).c_str(), genItem->GetFullName().c_str()
+			, SharedStr(sym.AsStrRangeLock()).c_str(), genItem->GetFullName().c_str()
 			, listed.c_str(), subPath.c_str(), m_FuncItem->GetFullName().c_str());
 	}
 
@@ -1639,7 +1639,7 @@ namespace hof {
 		if (!anyAritySurvivor)
 			return {}; // arity outside every member: defer (a same-named function or FindOper's own widening may serve)
 
-		SharedStr headName(headID.AsStrRange()); // materialized: no TokenStr may span the unification calls
+		SharedStr headName(headID.AsStrRangeLock()); // materialized: no TokenStr may span the unification calls
 		if (theRecord == -2)
 		{
 			// every member rejected the known argument classes. Members rejected by a
@@ -1716,7 +1716,7 @@ namespace hof {
 		if (headID == token::arrow || headID == token::scope || headID == token::subitem)
 			throwErrorF("ExprParser", "the '{}' construct is not yet supported inside inlined function bodies"
 				"; bind the function application to a container to use the instantiating form"
-				, headID.GetStr().c_str());
+				, headID.GetStrLock().c_str());
 
 		// §5.10 applied call result: type the application when the inner value's
 		// signature is known; residual arity is verified at reduction
@@ -1734,16 +1734,16 @@ namespace hof {
 			// the head name is materialized BEFORE the recursive walk: a TokenStr
 			// temporary holds the token registry's shared lock, and the walk below
 			// parses body expressions (token creation needs the exclusive lock)
-			SharedStr headName(headID.AsStrRange());
+			SharedStr headName(headID.AsStrRangeLock());
 			for (UInt32 i = 0, n = m_Params.size(); i != n; ++i)
 				if (m_Params[i]->GetID() == headID)
 					return InferApplication(refScope, ParamType(i), expr.Right(), headName.c_str());
 
 			// a direct function/import call: resolve, then type the application
-			auto callee = m_FuncItem->ResolveItemPath(SharedStr(headID.AsStrRange()));
+			auto callee = m_FuncItem->ResolveItemPath(SharedStr(headID.AsStrRangeLock()));
 			if (!callee || !callee->IsFunctionItem())
 				if (auto defParent = m_FuncItem->GetTreeParent()) // lexical definition scope (§4.6)
-					if (auto lex = defParent->ResolveItemPath(SharedStr(headID.AsStrRange())); lex && lex->IsFunctionItem())
+					if (auto lex = defParent->ResolveItemPath(SharedStr(headID.AsStrRangeLock())); lex && lex->IsFunctionItem())
 						callee = lex;
 			if (!callee || !callee->IsFunctionItem())
 				if (auto pf = FindPreludeFunction(headID); pf && pf->IsFunctionItem())
@@ -1828,7 +1828,7 @@ namespace hof {
 		DefType declared = DeclaredItemType(refItem);
 		if (declared.kind != DefType::Kind::Unknown && inferred.kind != DefType::Kind::Unknown)
 		{
-			SharedStr itemName(refItem->GetID().AsStrRange()); // TokenStr must not span UnifyData (token-registry lock)
+			SharedStr itemName(refItem->GetID().AsStrRangeLock()); // TokenStr must not span UnifyData (token-registry lock)
 			SharedStr ruleSrc = mySSPrintF("the calculation rule of '{}'", itemName.c_str());
 			SharedStr declSrc = mySSPrintF("the declared type of '{}'", itemName.c_str());
 			UnifyData(inferred, declared, ruleSrc, declSrc);
@@ -1872,7 +1872,7 @@ namespace hof {
 			auto resultChild = funcItem->GetConstSubTreeItemByID(resultName);
 			if (!resultChild)
 				throwErrorF("ExprParser", "'{}': designated result '{}' not found"
-					, funcItem->GetFullName().c_str(), resultName.GetStr().c_str());
+					, funcItem->GetFullName().c_str(), resultName.GetStrLock().c_str());
 			if (!resultChild->GetExpr().empty()) // signature-only functions and nested-function results have no body expression here
 			{
 				FunctionChecker chk;

@@ -190,7 +190,7 @@ struct ParseContext
 		if (iter == m_Map.end() || iter->first != key)
 		{
 			iter = m_Map.insert(iter, entity_map::value_type(key, CreateElement(m_ResultHolder, context, id, name, nameEnd, m_EntityNames.size())));
-			SharedStr elementName = mySSPrintF("{}.{}", ns.GetStr().c_str(), id.GetStr().c_str());
+			SharedStr elementName = mySSPrintF("{}.{}", ns.GetStrLock().c_str(), id.GetStrLock().c_str());
 			m_EntityNames.push_back_seq(elementName.cbegin(), elementName.csend() MG_DEBUG_ALLOCATOR_SRC("BoostXML::EntityNames"));
 			if (!iter->second->m_DmsFullName.empty())
 				m_KnownEntities.insert(std::make_pair(iter->second->m_DmsFullName, iter->second.get_ptr()));

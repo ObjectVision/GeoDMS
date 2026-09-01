@@ -206,7 +206,7 @@ namespace hof {
 		}
 		SharedTreeItem ResolveUnitInScope(TokenID tok, const TreeItem* fnDef)
 		{
-			SharedStr s(tok.AsStrRange());
+			SharedStr s(tok.AsStrRangeLock());
 			auto u = fnDef->ResolveItemPath(s);
 			if (!u || !IsUnit(u.get()))
 				if (auto defP = fnDef->GetTreeParent()) // lexical definition scope (§4.6)

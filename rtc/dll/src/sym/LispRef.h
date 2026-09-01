@@ -64,8 +64,8 @@ struct LispPtrWrap: BasePtr
 	UInt64   GetUI64Val() const { return get() ? get()->GetUI64Val() : 0; }
 
 	bool     IsSymb() const { return get() ? get()->IsSymb() : false; }
-	TokenStr GetSymbStr() const { return get() ? get()->GetSymbStr() : TokenID::GetEmptyTokenStr(); }
-	TokenStr GetSymbEnd() const { return get() ? get()->GetSymbEnd() : TokenID::GetEmptyTokenStr(); }
+	TokenStr GetSymbStr() const { return get() ? get()->GetSymbStr() : TokenID::GetEmptyTokenStrLock(); }
+	TokenStr GetSymbEnd() const { return get() ? get()->GetSymbEnd() : TokenID::GetEmptyTokenStrLock(); }
 	TokenID  GetSymbID() const { return get() ? get()->GetSymbID() : TokenID::GetEmptyID(); }
 
 	bool     IsVar() const { return get() ? get()->IsVar() : false; }

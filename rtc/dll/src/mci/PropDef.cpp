@@ -268,7 +268,7 @@ RTC_CALL CharPtr  DMS_CONV DMS_Class_GetName(const Class* self)
 	DMS_CALL_BEGIN
 
 		CheckPtr(self, Class::GetStaticClass(), "DMS_Class_GetName");
-		return self->GetName().c_str();
+		return self->GetNameLock().c_str(); // CharPtr into the registry: must outlive this call
 	
 	DMS_CALL_END
 	return "unknown class";
@@ -301,7 +301,7 @@ RTC_CALL CharPtr  DMS_CONV DMS_PropDef_GetName(const AbstrPropDef* self)
 	DMS_CALL_BEGIN
 
 		CheckPtr(self, AbstrPropDef::GetStaticClass(), "DMS_PropDef_GetName");
-		return self->GetName().c_str();
+		return self->GetNameLock().c_str(); // CharPtr into the registry: must outlive this call
 
 	DMS_CALL_END
 	return nullptr;

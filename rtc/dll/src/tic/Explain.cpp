@@ -1055,7 +1055,7 @@ namespace Explain { // local defs
 		return crd->second.get();
 	}
 
-	TokenStr ItemOrValueTypeName(const AbstrUnit* au)
+	SharedStr ItemOrValueTypeName(const AbstrUnit* au)
 	{
 		assert(au);
 		return au->GetID().empty() ? au->GetValueType()->GetName() : au->GetName();

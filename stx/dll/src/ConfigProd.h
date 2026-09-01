@@ -14,6 +14,7 @@
 #include "ptr/SharedPtr.h"
 #include "ptr/WeakPtr.h"
 #include "sym/Token.h"
+#include "LockLevels.h" // DMS_ENTERS
 
 #include "DataBlockProd.h"
 #include "ExprProd.h"
@@ -53,6 +54,10 @@ struct ConfigProd : AbstrDataBlockProd, AbstrContextHandle, FunctionLiteralSink
 	}
 	bool Describe(FormattedOutStream& fos) override
 	{
+		// The reporting-path contract; see AbstrMsgGenerator in dbg/DebugContext.h. This overrides
+		// Describe, so the base's declaration does not cover it and it states its own.
+		DMS_ENTERS(ord_level_type::IndexedString, dms_shared_v);
+
 		auto item_name = HasItemContext() ? ItemAsStr() : SharedStr("");
 		fos << "while parsing item " << item_name
 			<< "\nin config file " << m_CurrFileName;

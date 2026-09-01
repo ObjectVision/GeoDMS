@@ -565,7 +565,7 @@ void InitTreeItem(TreeItem* parent, SharedMutableTreeItem subItem, TokenID id)
 	TreeItem* self = subItem.get();
 
 	assert(self->m_State.GetProgress() < ProgressState::MetaInfo);
-	if (id) CheckTreeItemName( id.GetStr().c_str() );
+	if (id) CheckTreeItemName( id.GetStrLock().c_str() );
 	self->m_ID = id;
 
 	assert(!self->_GetFirstSubItem()); // not allowed since the FullName of sub items would be corrupted
@@ -1806,7 +1806,7 @@ SharedMutableTreeItem TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext
 					if (srcIsFunction)
 						nameSpaceStream << sns->GetFullName(); // freeze imports absolute: resolved at the definition site
 					else
-						nameSpaceStream << copyContext.GetAbsOrRelNameID(sns, this, dest).GetStr().c_str();
+						nameSpaceStream << copyContext.GetAbsOrRelNameID(sns, this, dest).GetStrLock().c_str();
 					assert(nameSpaceBuffer.GetData()[nameSpaceBuffer.CurrPos()-1] != ';');
 				}
 			}
@@ -2529,7 +2529,7 @@ const TreeItem* FindTreeItemByID(const TreeItem* searchLoc, TokenID subItemID)
 {
 	assert(searchLoc);
 	assert(!subItemID.empty());
-	assert(GetTokenStr(subItemID).c_str()[0] != '.');
+	assert(GetTokenStrLock(subItemID).c_str()[0] != '.');
 
 	while (searchLoc) {
 		if (searchLoc->m_UsingCache)

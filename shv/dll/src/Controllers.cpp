@@ -166,7 +166,7 @@ bool AbstrController::SendStatusText(CharPtr format, CrdType dst, CrdType dst2) 
 
 	// insert some replacements here
 
-	auto unitLabel = unitToken.GetStr();
+	auto unitLabel = unitToken.GetStrLock();
 
 	char buffer[201];
 	auto nrBytesWritten = myFixedBufferWrite(buffer, 200, format, dst, unitLabel.c_str(), dst2, unitLabel.c_str());

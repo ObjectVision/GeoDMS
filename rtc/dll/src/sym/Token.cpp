@@ -169,7 +169,7 @@ TokenID TokenID::GetExisting(CharPtr first, CharPtr last, st_tag*)
 	return TokenID(s_TokenListPtr->GetExisting_st(first, last));
 }
 
-TokenStr TokenID::GetStr() const
+TokenStr TokenID::GetStrLock() const
 {
 	IndexedString_shared_lock guard{ GetCS() };
 	return TokenStr{ std::move(guard),
@@ -177,7 +177,7 @@ TokenStr TokenID::GetStr() const
 	};
 }
 
-TokenStr TokenID::GetStrEnd() const
+TokenStr TokenID::GetStrEndLock() const
 {
 	IndexedString_shared_lock guard{ GetCS() };
 	return TokenStr{ std::move(guard),
@@ -201,7 +201,7 @@ CharPtr TokenID::c_str_st() const // UNSAFE, As another thread might reallocate
 }
 
 
-RTC_CALL TokenStrRange TokenID::AsStrRange() const
+RTC_CALL TokenStrRange TokenID::AsStrRangeLock() const
 {
 	IndexedString_shared_lock guard{ GetCS() };
 	return TokenStrRange{ std::move(guard),

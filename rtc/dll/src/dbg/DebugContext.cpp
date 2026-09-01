@@ -123,6 +123,10 @@ AbstrMsgGenerator::~AbstrMsgGenerator() noexcept
 
 bool AbstrMsgGenerator::Describe(FormattedOutStream& fos) // default: calls GetDescription
 {
+	// The reporting-path contract; see AbstrMsgGenerator in DebugContext.h. Declared here as well as
+	// in MsgGeneratorPolicy::GetDescription so that an override of Describe itself is covered too.
+	DMS_ENTERS(ord_level_type::IndexedString, dms_shared_v);
+
 	CharPtr extraInfo = GetDescription();
 	if (!extraInfo || !*extraInfo)
 		return false;
@@ -218,7 +222,7 @@ template struct ObjectContextPolicy<ContextHandle>;
 
 void ObjectIdContextHandle::GenerateDescription()
 {
-	SharedStr role = mySSPrintF("{}('{}')", m_Role, m_ID.GetStr().c_str());
+	SharedStr role = mySSPrintF("{}('{}')", m_Role, m_ID.GetStrLock().c_str());
 
 	tmp_swapper<CharPtr> swapper(m_Role, role.c_str());
 	ObjectContextHandle::GenerateDescription();

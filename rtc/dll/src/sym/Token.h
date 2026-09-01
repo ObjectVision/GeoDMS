@@ -27,8 +27,9 @@ using IndexedString_critical_section = leveled_counted_section;
 // counted_mutex::lock() waits for the shared usage count to reach zero without a deadline. A thread
 // that still holds a usage of its own therefore waits for itself: it can never be woken, and what a
 // user sees is a process parked at 0% CPU with no message at all. A live TokenStr or TokenStrRange
-// -- as handed out by TokenID::GetStr(), TokenID::AsStrRange() and Object::GetName() -- is exactly
-// such a usage, so keeping one alive across any call that can tokenize a string hangs the process.
+// -- as handed out by TokenID::GetStrLock(), TokenID::AsStrRangeLock() and Object::GetNameLock() -- is
+// exactly such a usage, so keeping one alive across any call that can tokenize a string hangs the
+// process. The Lock suffix, and the materializing Object::GetName(), are #1227.
 // That has cost three separate debugging sessions; see set/IndexedStrings.cpp for the list.
 //
 // This duplicates, for one section and in Release, what the lock-level checker of Parallel.h
@@ -194,15 +195,15 @@ struct TokenID
 	static TokenID GetExisting(CharPtr first, CharPtr last, st_tag*);
 
 //	retieve string from token
-	RTC_CALL TokenStr GetStr   () const;
-	TokenStr GetStrEnd() const;
+	RTC_CALL TokenStr GetStrLock() const;
+	TokenStr GetStrEndLock() const;
 	UInt32   GetStrLen() const;
-	RTC_CALL TokenStrRange AsStrRange() const;
+	RTC_CALL TokenStrRange AsStrRangeLock() const;
 	RTC_CALL SharedStr AsSharedStr() const;
 	RTC_CALL std::string AsStdString() const;
 
 	static CharPtr  GetEmptyStr()    { return s_EmptyStr; }
-	static TokenStr GetEmptyTokenStr() { return TokenID().GetStr(); }
+	static TokenStr GetEmptyTokenStrLock() { return TokenID().GetStrLock(); }
 	static TokenID  GetEmptyID()     { return TokenID(TokenT()); }
 	static TokenID  GetUndefinedID() { return TokenID(Undefined() ); }
 
@@ -310,8 +311,8 @@ template<typename TAG = mt_tag>
 inline TokenID GetExistingTokenID(CharPtrRange tokenStr, TAG* dummy=nullptr) { return TokenID::GetExisting(tokenStr.first, tokenStr.second, dummy); }
 
 // retieve string from token
-inline TokenStr GetTokenStr(TokenID tokenID) { return tokenID.GetStr(); }
-inline TokenStr GetTokenStrEnd(TokenID tokenID) { return tokenID.GetStrEnd(); }
+inline TokenStr GetTokenStrLock(TokenID tokenID) { return tokenID.GetStrLock(); }
+inline TokenStr GetTokenStrEndLock(TokenID tokenID) { return tokenID.GetStrEndLock(); }
 inline UInt32   GetTokenStrLen(TokenID tokenID) { return tokenID.GetStrLen(); }
 
 //----------------------------------------------------------------------
@@ -330,7 +331,7 @@ std::basic_ostream<Char, Traits>& operator << (std::basic_ostream<Char, Traits>&
 template <typename Char, typename Traits>
 std::basic_ostream<Char, Traits>& operator << (std::basic_ostream<Char, Traits>& os, TokenID id)
 {
-	return os << id.GetStr();
+	return os << id.GetStrLock();
 }
 
 namespace std {

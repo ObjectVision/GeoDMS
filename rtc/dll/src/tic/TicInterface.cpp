@@ -409,7 +409,7 @@ TIC_CALL CharPtr DMS_CONV DMS_TreeItem_GetName(const Object* self)
 	DMS_CALL_BEGIN
 
 		ObjectContextHandle checkPtr(self, nullptr, "DMS_TreeItem_GetName");
-		return self->GetName().c_str();
+		return self->GetNameLock().c_str(); // CharPtr into the registry: must outlive this call
 
 	DMS_CALL_END
 	return "";
@@ -561,7 +561,7 @@ TIC_CALL CharPtr DMS_CONV DMS_TreeItem_GetAssociatedFiletype(const TreeItem* sel
 
 		auto storageParent = self->GetStorageParent(false);
 		if (storageParent && storageParent->GetStorageManager())
-			return storageParent->GetStorageManager()->GetClsName().c_str();
+			return storageParent->GetStorageManager()->GetClsNameLock().c_str(); // CharPtr into the registry: must outlive this call
 
 	DMS_CALL_END
 	return "";
@@ -1104,14 +1104,14 @@ BestItemRef TreeItem_GetErrorSource(const TreeItem* src, bool tryCalcSuppliers)
 	{
 		BestItemRef result = { make_shared_tree(AsDataItem(src)->GetAbstrDomainUnit(), existing_obj{}), {} };
 		if (!result.first)
-			result = src->FindBestItem(AsDataItem(src)->m_tDomainUnit.AsStrRange());
+			result = src->FindBestItem(AsDataItem(src)->m_tDomainUnit.AsStrRangeLock());
 
 		if (result.first && WasInFailed(result.first.get()))
 			return result;
 
 		result = { make_shared_tree(AsDataItem(src)->GetAbstrValuesUnit(), existing_obj{}), {} };
 		if (!result.first)
-			result = src->FindBestItem(AsDataItem(src)->m_tValuesUnit.AsStrRange());
+			result = src->FindBestItem(AsDataItem(src)->m_tValuesUnit.AsStrRangeLock());
 		if (result.first && WasInFailed(result.first.get()))
 			return result;
 	}

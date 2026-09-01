@@ -77,6 +77,56 @@ struct level_type {
 RTC_CALL level_type EnterLevel(level_type level);
 RTC_CALL void LeaveLevel(level_type& oldLevel);
 
+//----------------------------------------------------------------------
+// Declared lock-level ceilings (#1227)
+//----------------------------------------------------------------------
+//
+// level_type above records what a thread ACTUALLY holds. A ceiling is that same thing DECLARED
+// instead of taken: "for the rest of this scope, treat me as holding this level". It is therefore
+// not a second bookkeeping -- DmsLockCeiling enters and leaves the very thread-local level that
+// every leveled_section acquire enters, through the same EnterLevel / LeaveLevel, and it is
+// checked by the same level_type::Allow. Whatever a real acquire would reject while that level is
+// held, the declaration rejects too, and there is one ordering rule rather than two to keep in
+// step.
+//
+// What the declaration buys is a check at a DISPATCH BOUNDARY. Virtual Object / Actor methods, the
+// operator registry, std::function callbacks (PostMainThreadOper) and eight DLL boundaries make a
+// static call graph degenerate to "anything reaches anything", so there is no whole-program
+// analysis to be had here. A declaration turns that whole-program question into a modular one:
+// what a scope promises is checked against what its callees actually take, however far apart the
+// two are written and without either side knowing anything about the other. Clang's Thread Safety
+// Analysis is the static equivalent; neither the pinned MSVC v145 nor GCC implements it, and
+// checking the promise against what really happens needs no new compiler.
+//
+// Declare only what a scope does NOT itself take. A function that takes the lock already publishes
+// its level through scoped_lock_impl, so declaring it again says nothing -- and declaring it
+// exclusively would make Allow reject that function's own acquire (equal level, not both shared).
+// The declaration is for the scope that promises a bound it never acquires: "everything from here
+// on stays at the token registry or inner", so that a call which registers a token fails.
+//
+// Two things it deliberately does not do:
+//  - It is SCOPE-shaped. The killer case of #1227, reportF("{}", item->GetNameLock()), is an
+//    unnamed argument temporary whose LIFETIME -- not whose scope -- spans the call, and no
+//    annotation on either side states that. The exact per-thread usage count of sym/Token.h covers
+//    that one, unconditionally and in Release.
+//  - It inherits Allow's item-level short-circuit. A ceiling is declared at item level 0, so a
+//    per-item lock taken in between (item level >= 1, via Actor::DetermineLastSupplierChange) makes
+//    Allow return true for everything after it. That blind spot is Allow's own, is recorded as such
+//    in #1227, and is not worked around here.
+struct DmsLockCeiling
+{
+	DmsLockCeiling(ord_level_type level, bool isShared, CharPtr descr) noexcept
+		: m_OldLevel(EnterLevel(level_type{ descr, level, item_level_type(0), isShared, &m_OldLevel }))
+	{}
+	~DmsLockCeiling() { LeaveLevel(m_OldLevel); }
+
+	DmsLockCeiling(const DmsLockCeiling&) = delete;
+	DmsLockCeiling& operator =(const DmsLockCeiling&) = delete;
+
+private:
+	level_type m_OldLevel;
+};
+
 #endif
 
 template <typename base_type>

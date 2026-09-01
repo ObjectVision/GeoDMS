@@ -1705,7 +1705,9 @@ SharedStr DataView::GetCaption() const
 
 void DataView::OnCaptionChanged() const
 {
-	SendStatusText(SeverityTypeID::ST_MajorTrace, GetCaption().c_str());
+	// Computed here, where preparing data is legitimate, and kept for GenerateDescription (#1227).
+	m_LastCaption = GetCaption();
+	SendStatusText(SeverityTypeID::ST_MajorTrace, m_LastCaption.c_str());
 }
 
 // ============   Painting
@@ -2433,7 +2435,14 @@ void DataView::OnCopyData(UINT cmd, const UInt32* first, const UInt32* last)
 // ContextHandling
 void DataView::GenerateDescription()
 {
-	SetText(GetCaption());
+	// #1227: the caption as last computed by OnCaptionChanged, never a fresh GetCaption(). This runs
+	// from the error-reporting path, whose ceiling permits reading names and nothing more, and
+	// GetCaption() reaches TableControl::GetCaption -> PrepareDataOrUpdateViewLater + GetDataCount.
+	// Before the first caption change there is nothing cached; name the view by its class instead.
+	if (m_LastCaption.empty())
+		SetText(SharedStr(GetDynamicClass()->GetName()));
+	else
+		SetText(m_LastCaption);
 }
 
 std::map<DataView*, std::shared_ptr<DataView>> g_DataViewMap;

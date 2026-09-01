@@ -327,7 +327,7 @@ void GdalVectlMetaInfo::OnOpenForRead(StorageReadHandle* self)
 		if (gdal_error_frame.HasError())
 		{
 			throwErrorF("gdal.vect", "cannot find layer with name {}, invalid sql string {},\n{}"
-			,	m_NameID.GetStr().c_str()
+			,	m_NameID.GetStrLock().c_str()
 			,	m_SqlString.c_str()
 			,	gdal_error_frame.GetMsgAndReleaseError().c_str()
 			);
@@ -341,7 +341,7 @@ void GdalVectlMetaInfo::OnOpenForRead(StorageReadHandle* self)
 		gdv->m_Layer =
 			(layerCount == 1)
 			? gdv->m_hDS->GetLayer(0)
-			: gdv->m_hDS->GetLayerByName(m_NameID.GetStr().c_str());
+			: gdv->m_hDS->GetLayerByName(m_NameID.GetStrLock().c_str());
 
 		if (gdv->m_Layer)
 			gdv->m_Layer->SetNextByIndex(0);
@@ -350,7 +350,7 @@ void GdalVectlMetaInfo::OnOpenForRead(StorageReadHandle* self)
 		{
 			auto is_container = !IsDataItem(CurrRI()) && !IsUnit(CurrRI());
 			if (!is_container)
-				throwErrorF("gdal.vect", "cannot find layer with name {} in dataset.\n", m_NameID.GetStr().c_str());
+				throwErrorF("gdal.vect", "cannot find layer with name {} in dataset.\n", m_NameID.GetStrLock().c_str());
 		}
 
 		gdv->m_IsOwner = false;
@@ -1785,7 +1785,7 @@ OGRLayer* GdalVectSM::Layer(const GdalVectlMetaInfo* br) const
 	assert(m_hDS);
 
 	if (!m_Layer)
-		throwErrorF("gdal.vect","cannot open layer {}{}", br->m_NameID.GetStr().c_str(), (m_hDS->GetLayerCount() == 1) ? "" : ", multiple layers available");
+		throwErrorF("gdal.vect","cannot open layer {}{}", br->m_NameID.GetStrLock().c_str(), (m_hDS->GetLayerCount() == 1) ? "" : ", multiple layers available");
 	return m_Layer;
 }
 
@@ -2340,12 +2340,10 @@ void SetFeatureDefnForOGRLayerFromLayerHolder(const TreeItem* subItem, OGRLayer*
 			if (fieldInfoPtr == fieldIDMapping.end() || not fieldInfoPtr->second.writeInThisRound())
 				continue; // no data for this attribute now, thus no field for it either
 
-			bool layerHasFieldAlready = false;
-			{	// a previous write round can already have created the field for this attribute
-				TokenStr currFieldName = (fieldInfoPtr->second.launderedNameID.empty() ? fieldNameID : fieldInfoPtr->second.launderedNameID).GetStr();
-				layerHasFieldAlready = (layerHandle->GetLayerDefn()->GetFieldIndex(currFieldName.c_str()) >= 0);
-				// destructor of TokenStr gives up lock on tokenlist
-			}
+			// a previous write round can already have created the field for this attribute.
+			// Materialized rather than a TokenStr: everything below this point can tokenize (#1227).
+			auto currFieldName = (fieldInfoPtr->second.launderedNameID.empty() ? fieldNameID : fieldInfoPtr->second.launderedNameID).AsSharedStr();
+			bool layerHasFieldAlready = (layerHandle->GetLayerDefn()->GetFieldIndex(currFieldName.c_str()) >= 0);
 			if (layerHasFieldAlready)
 				continue;
 
@@ -2357,11 +2355,12 @@ void SetFeatureDefnForOGRLayerFromLayerHolder(const TreeItem* subItem, OGRLayer*
 			OGRFieldType    type    = DmsType2OGRFieldType(vci);
 			OGRFieldSubType subtype = DmsType2OGRSubFieldType(vci);
 			{
-				TokenStr fieldName = fieldNameID.GetStr();
+				// Materialized: CreateField and the error frame below can tokenize, and a live
+				// TokenStr here would make GetTokenID_mt wait for this thread's own usage (#1227).
+				auto fieldName = fieldNameID.AsSharedStr();
 				OGRFieldDefn    fieldDefn(fieldName.c_str(), type);     error_frame.ThrowUpWhateverCameUp();
 				fieldDefn.SetSubType(subtype);                 error_frame.ThrowUpWhateverCameUp();
 				[[maybe_unused]] OGRErr createFieldErr = layerHandle->CreateField(&fieldDefn, bApproxOK); error_frame.ThrowUpWhateverCameUp();
-				// destructor of TokenStr gives up lock on tokenlist to allow for GetTokenID_mt to be called
 			}
 			// check for laundered fieldname
 			gdalVectImpl::FeaturePtr feat = OGRFeature::CreateFeature(layerHandle->GetLayerDefn());
@@ -2460,7 +2459,7 @@ auto InitializeLayer(const TreeItem* storage_holder, const TreeItem* unit_item, 
 	//	eGType = wkbNone; // this driver does not support writing geometry fields
 
 	error_frame.ThrowUpWhateverCameUp();
-	OGRLayer* layer_handle = result.dsh_->CreateLayer(layerID.GetStr().c_str(), ogrSR ? &ogrSR.value() : nullptr, eGType, layerOptionArray); // layer owned by GDALDataset
+	OGRLayer* layer_handle = result.dsh_->CreateLayer(layerID.GetStrLock().c_str(), ogrSR ? &ogrSR.value() : nullptr, eGType, layerOptionArray); // layer owned by GDALDataset
 	error_frame.ThrowUpWhateverCameUp();
 	if (layer_handle) 
 		SetFeatureDefnForOGRLayerFromLayerHolder(unit_item, layer_handle, layerID, disi);
@@ -2575,7 +2574,7 @@ void GdalVectSM::WriteLayer(TokenID layer_id, const GdalMetaInfo& gmi)
 					}
 
 					auto fieldname_n = writableField.second.nameID;
-					writableField.second.field_index = protoFeature->GetFieldIndex(fieldname_n.GetStr().c_str());
+					writableField.second.field_index = protoFeature->GetFieldIndex(fieldname_n.GetStrLock().c_str());
 					assert(writableField.second.field_index >= 0);
 				}
 			}
@@ -2606,7 +2605,7 @@ void GdalVectSM::WriteLayer(TokenID layer_id, const GdalMetaInfo& gmi)
 					WriteGeometryElement(adi_n.get(), curFeature, t, tileFeatureIndex);
 				else
 				{
-					dbg_assert(writableField.second.field_index == curFeature->GetFieldIndex(writableField.second.nameID.GetStr().c_str()));
+					dbg_assert(writableField.second.field_index == curFeature->GetFieldIndex(writableField.second.nameID.GetStrLock().c_str()));
 					WriteFieldElement(adi_n.get(), writableField.second.field_index, curFeature, t, tileFeatureIndex);
 				}
 			}

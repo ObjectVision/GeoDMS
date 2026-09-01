@@ -148,13 +148,23 @@ public:
 	RTC_CALL virtual void XML_Dump(OutStreamBase* xmlOutStr) const;
 	RTC_CALL virtual void XML_DumpData(OutStreamBase* xmlOutStr) const;
 
-	TokenStr GetXmlClassName() const;
+	[[nodiscard]] SharedStr GetXmlClassName() const;
+	[[nodiscard]] TokenStr  GetXmlClassNameLock() const;
 	RTC_CALL virtual TokenID GetXmlClassID() const;
 
 	// NON VIRTUAL ROUTINES BASED ON THE ABOVE INTERFACE
-	[[nodiscard]] RTC_CALL TokenStr GetName() const;
+	//
+	// The plain name materializes; the ...Lock variant hands out a TokenStr, which HOLDS A SHARED
+	// USAGE OF THE TOKEN REGISTRY for as long as it lives -- and, as an unnamed argument temporary,
+	// that is until the end of the full expression. Registering any token in the meantime (which
+	// most non-trivial calls can reach) is a self-deadlock: see sym/Token.h and issue #1227.
+	// Use ...Lock only where the string is consumed immediately and the call cannot tokenize, or
+	// where a CharPtr into the registry must outlive the expression (the DMS_* C interface).
+	[[nodiscard]] RTC_CALL SharedStr GetName() const;
+	[[nodiscard]] RTC_CALL TokenStr  GetNameLock() const;
 	[[nodiscard]] RTC_CALL bool    IsKindOf(const Class* cls) const;
-	[[nodiscard]] RTC_CALL TokenStr GetClsName() const; // Warning: GetClsName is already a #defined symbol in WINUSER.H
+	[[nodiscard]] RTC_CALL SharedStr GetClsName() const; // Warning: GetClsName is already a #defined symbol in WINUSER.H
+	[[nodiscard]] RTC_CALL TokenStr  GetClsNameLock() const;
 	[[nodiscard]] RTC_CALL TokenID GetClsID() const;
 
 	/// Return the full configuration name; default maps to GetName().

@@ -1106,7 +1106,7 @@ template <typename T> inline void Assign(SA_Reference<T> lhs, const my_vector<T>
 template <typename T> inline void Assign(SA_Reference<T> lhs, TokenID rhs)
 { 
 	if (IsDefined(rhs))
-		lhs.assign(rhs.GetStr(), rhs.GetStrEnd() ); 
+		lhs.assign(rhs.GetStrLock(), rhs.GetStrEndLock() ); 
 	else
 		lhs.assign(Undefined());
 }

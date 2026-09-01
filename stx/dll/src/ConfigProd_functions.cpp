@@ -76,7 +76,7 @@ void ConfigProd::OnTypeVarConstraint()
 {
 	if (!IsKnownGenericConstraint(m_strIdentifierID))
 		throwSemanticError(mgFormat2string("unknown type-variable constraint '{}'; known constraints: any, numerics, integers, floats, uints/unsigned_ints, sints/signed_ints, domains, points, domain_points"
-			, GetTokenStr(m_strIdentifierID)).c_str());
+			, GetTokenStrLock(m_strIdentifierID)).c_str());
 	m_PendingTypeVars.emplace_back(m_PendingTypeVarName, m_strIdentifierID);
 }
 
@@ -159,8 +159,8 @@ void ConfigProd::DoStorageProp()
 {
 	DMS_TreeItem_SetStorageManager(
 		m_pCurrent.get(), 
-		m_strIdentifierID.GetStr().c_str(),
-		m_sPropFileTypeID.GetStr().c_str(),
+		m_strIdentifierID.GetStrLock().c_str(),
+		m_sPropFileTypeID.GetStrLock().c_str(),
 		StorageReadOnlySetting::Default
 	);
 }
@@ -346,7 +346,7 @@ const TreeItem* ConfigProd::ResolveTypeRef(TokenID refID) const
 	// parse-time type resolution: declared-before-use, walking the parent chain of the
 	// current context; using-directives are deliberately not consulted (their lazy
 	// resolution must not be forced mid-parse)
-	SharedStr refStr(GetTokenStr(refID));
+	SharedStr refStr(GetTokenStrLock(refID));
 	CharPtr b = refStr.begin(), e = refStr.send();
 	if (b == e || *b == '.' || *b == '/')
 		return nullptr;
@@ -670,7 +670,7 @@ void ConfigProd::OnParamSigTypeArg()
 	// an active type variable; collected for binding enforcement at reduction
 	if (!FindActiveTypeVarConstraint(m_strIdentifierID))
 		throwSemanticError(mgFormat2string("'{}': type application argument must name a type variable of the enclosing declaration"
-			, GetTokenStr(m_strIdentifierID)).c_str());
+			, GetTokenStrLock(m_strIdentifierID)).c_str());
 	m_PendingTypeArgs.push_back(m_strIdentifierID);
 }
 

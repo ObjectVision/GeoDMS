@@ -397,7 +397,7 @@ CLC_CALL bool NumericDataItem_GetStatistics(const TreeItem* item, vos_buffer_typ
 			SharedStr metricStr = vu->GetCurrMetricStr(os.GetFormattingFlags());
 			if (!metricStr.empty())
 				table.AddRow("ValuesMetric", metricStr.c_str());
-			table.AddRow("ValuesType", vt->GetID().GetStr().c_str());
+			table.AddRow("ValuesType", vt->GetID().GetStrLock().c_str());
 
 			assert(!SuspendTrigger::DidSuspend() || !isReady);
 			if (isReady)

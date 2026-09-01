@@ -259,7 +259,7 @@ FontArray::FontArray(const FontIndexCache* indexCache, bool sizesAreCellHeights)
 		{
 			UInt16  fontAngle = std::get<2>(*i);
 			{
-				auto fontName = GetTokenStr(std::get<1>(*i));
+				auto fontName = GetTokenStrLock(std::get<1>(*i));
 				// Font name is UTF-8; convert to wide for the -W font API (LOGFONTW).
 				MultiByteToWideChar(CP_UTF8, 0, fontName.c_str(), -1, fontInfo.lfFaceName, LF_FACESIZE);
 			}

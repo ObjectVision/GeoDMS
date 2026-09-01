@@ -1112,7 +1112,7 @@ bool DrawPoints(
 				auto fontNameId = fontIndices->GetFontNameId(0);
 				auto fontHeight = fontIndices->GetFontHeight(0);
 				auto fontAngle  = fontIndices->GetFontAngle(0);
-				drawCtx->SetFont(GetTokenStr(fontNameId).c_str(), fontHeight, fontAngle);
+				drawCtx->SetFont(GetTokenStrLock(fontNameId).c_str(), fontHeight, fontAngle);
 				fontIndices = nullptr;
 			}
 
@@ -1165,7 +1165,7 @@ bool DrawPoints(
 							auto keyIndex = fontIndices->GetKeyIndex(entityIndex);
 							if (fontIndices->GetFontHeight(keyIndex) == 0)
 								goto nextSymbol;
-							drawCtx->SetFont(GetTokenStr(fontIndices->GetFontNameId(keyIndex)).c_str(),
+							drawCtx->SetFont(GetTokenStrLock(fontIndices->GetFontNameId(keyIndex)).c_str(),
 								fontIndices->GetFontHeight(keyIndex), fontIndices->GetFontAngle(keyIndex));
 						}
 
@@ -1866,7 +1866,7 @@ bool DrawMultiPoints(
 		{
 			if (fontIndices && fontIndices->GetNrKeys() == 1)
 			{
-				drawCtx->SetFont(GetTokenStr(fontIndices->GetFontNameId(0)).c_str(),
+				drawCtx->SetFont(GetTokenStrLock(fontIndices->GetFontNameId(0)).c_str(),
 					fontIndices->GetFontHeight(0), fontIndices->GetFontAngle(0));
 				fontIndices = nullptr;
 			}
@@ -1932,7 +1932,7 @@ bool DrawMultiPoints(
 								auto keyIndex = fontIndices->GetKeyIndex(entityIndex);
 								if (fontIndices->GetFontHeight(keyIndex) == 0)
 									goto nextMultiPoint;
-								drawCtx->SetFont(GetTokenStr(fontIndices->GetFontNameId(keyIndex)).c_str(),
+								drawCtx->SetFont(GetTokenStrLock(fontIndices->GetFontNameId(keyIndex)).c_str(),
 									fontIndices->GetFontHeight(keyIndex), fontIndices->GetFontAngle(keyIndex));
 							}
 

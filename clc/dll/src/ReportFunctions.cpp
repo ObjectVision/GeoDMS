@@ -386,7 +386,7 @@ namespace {
 
 CLC_CALL void DMS_CONV XML_ReportOperator(OutStreamBase* xmlStr, const Operator* oper)
 {
-	XML_OutElement xml_oper(*xmlStr, "Function", GetTokenStr(oper->GetGroup()->GetNameID()).c_str());
+	XML_OutElement xml_oper(*xmlStr, "Function", GetTokenStrLock(oper->GetGroup()->GetNameID()).c_str());
 	{
 		XML_OutElement xml_resulttype(*xmlStr, "ResultType", "");
 		XML_ReportSchema(xmlStr, oper->GetResultClass(), false);
@@ -402,7 +402,7 @@ CLC_CALL void DMS_CONV XML_ReportOperator(OutStreamBase* xmlStr, const Operator*
 
 CLC_CALL void DMS_CONV XML_ReportOperGroup(OutStreamBase* xmlStr, const AbstrOperGroup* gr)
 {
-	XML_OutElement xml_oper(*xmlStr, "OperatorGroup", GetTokenStr(gr->GetNameID()).c_str());
+	XML_OutElement xml_oper(*xmlStr, "OperatorGroup", GetTokenStrLock(gr->GetNameID()).c_str());
 
 	// batch F (§6.3): the durable operator-doc surface -- the group's declared
 	// unit-constraint signatures, rendered by the same printer that enriches

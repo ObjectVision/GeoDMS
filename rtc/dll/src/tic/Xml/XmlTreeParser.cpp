@@ -127,7 +127,7 @@ void XmlTreeParser::ReadAttrCallback(XmlElement& element)
 			{
 				throwErrorF("XML", "{}({}, {}): Unknown XML attribute {} for {}: {}",
 					Buffer().FileName(), GetLineNr(), GetColNr(), 
-					GetTokenStr((*avIter).first), 
+					GetTokenStrLock((*avIter).first), 
 					thisItem->GetName(),
 					thisCls->GetName()
 				);
@@ -137,7 +137,7 @@ void XmlTreeParser::ReadAttrCallback(XmlElement& element)
 				throwErrorF("XML",
 					"{}({}, {}): XML Element property {} seen as attribute for {}: {}",
 					Buffer().FileName(), GetLineNr(), GetColNr(), 
-					GetTokenStr((*avIter).first), 
+					GetTokenStrLock((*avIter).first), 
 					thisItem->GetName(), 
 					thisCls->GetName());
 			}
@@ -168,7 +168,7 @@ bool XmlTreeParser::ReadElemCallback(XmlElement& element)
 		{
 			throwErrorF("XML", "{}({}, {}): Unknown XML element {} for {}: {}",
 				Buffer().FileName(), GetLineNr(), GetColNr(), 
-				GetTokenStr(element.m_NameID), 
+				GetTokenStrLock(element.m_NameID), 
 				m_CurrItem->GetName(), 
 				cls->GetName()
 			);
@@ -177,7 +177,7 @@ bool XmlTreeParser::ReadElemCallback(XmlElement& element)
 		{
 			throwErrorF("XML", "{}({}, {}): XML Attribute property {} seen as element for {}: {}",
 				Buffer().FileName(), GetLineNr(), GetColNr(), 
-				GetTokenStr(element.m_NameID),
+				GetTokenStrLock(element.m_NameID),
 				m_CurrItem->GetName(), 
 				cls->GetName()
 			);

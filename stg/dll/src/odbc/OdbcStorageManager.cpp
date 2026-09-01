@@ -220,12 +220,19 @@ struct OdbcTableContextHandle : public ContextHandle
 		SharedStr descr("with TableItem [");
 		descr += m_TableItem->GetFullName().c_str();
 		descr += ']';
-		const AbstrUnit* domainUnit = 0;
-		if (TreeItemHasPropertyValue(m_TableItem, sqlStringPropDefPtr))
-		{
-			descr += "\n" SQLSTRING_NAME " = ";
-			descr += GetOrCreateSqlString(m_TableItem).c_str();
-		}
+
+		// #1227: the RAW stored property, never TreeItemPropertyValue / GetOrCreateSqlString. This
+		// runs on the error-reporting path, whose ceiling permits reading names and nothing more,
+		// and an indirect SqlString would be EVALUATED -- which parses, and parsing registers
+		// tokens. The source-item walk of TreeItemHasPropertyValue is kept; only the evaluation is
+		// dropped, so an indirect value now shows as configured rather than as computed.
+		for (const TreeItem* ti = m_TableItem; ti; ti = ti->GetSourceItem())
+			if (sqlStringPropDefPtr->HasNonDefaultValue(ti))
+			{
+				descr += "\n" SQLSTRING_NAME " = ";
+				descr += sqlStringPropDefPtr->GetRawValueAsSharedStr(ti).c_str();
+				break;
+			}
 		SetText(descr);
 	}
 

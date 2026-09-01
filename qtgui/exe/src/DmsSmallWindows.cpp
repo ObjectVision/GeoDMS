@@ -453,7 +453,7 @@ void SearchTreeItemWindow::onFindTextChanged(const QString& text)
     // text-changed slot fires per keystroke; swallow without reporting to avoid log spam.
     try {
         auto current_id = current_item->GetID();
-        if (text.compare(current_id.GetStr().c_str(), Qt::CaseInsensitive) == 0)
+        if (text.compare(current_id.GetStrLock().c_str(), Qt::CaseInsensitive) == 0)
             next->setText("Find next");
         else
             next->setText("Find");

@@ -210,8 +210,8 @@ private:
 	bool     IsSymb()     const override { return true;  }
 	TokenID  GetSymbID()  const override { return m_TokenID;     }
 	ChroID   GetChroID()  const override { return m_ChroID;      }
-	TokenStr GetSymbStr() const override { return GetTokenStr   (m_TokenID); }
-	TokenStr GetSymbEnd() const override { return GetTokenStrEnd(m_TokenID); }
+	TokenStr GetSymbStr() const override { return GetTokenStrLock(m_TokenID); }
+	TokenStr GetSymbEnd() const override { return GetTokenStrEndLock(m_TokenID); }
 	bool     IsVar()      const override { return m_ChroID != 0; }
 
 	void Print       (FormattedOutStream& out, UInt32 level)  const override;

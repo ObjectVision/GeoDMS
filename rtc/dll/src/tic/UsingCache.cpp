@@ -346,7 +346,7 @@ void UsingCache::UpdateUsings() const
 		auto ns = FindNamespace(url, true);
 	   	if (!ns)
 			throwErrorF("UsingCache", "Cannot find reference in Using = \"{}\"\n{}"
-			,	GetTokenStr(url).c_str()
+			,	GetTokenStrLock(url).c_str()
 			,	m_Context->GetSourceName().c_str()
 			);
 		AddUsingInternal(ns.get());
@@ -494,7 +494,7 @@ auto UsingCache::FindNamespace(TokenID url, bool allowAbsolutePath) const -> Sha
 		if (m_Context->GetTreeParent())
 			return {};
 		// we look for context ref of instantiated template in cache
-		dms_assert(url.GetStr().c_str()[0] == '/');
+		dms_assert(url.GetStrLock().c_str()[0] == '/');
 		return SessionData::Curr()->GetConfigRoot()->ResolveItemPath(urlAsString);
 	}
 	while (n--)

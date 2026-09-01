@@ -378,7 +378,7 @@ RTC_CALL CharPtr  DMS_CONV DMS_ValueType_GetName(const ValueClass* self)
 	DMS_CALL_BEGIN
 
 		return self
-			? self->GetName().c_str()
+			? self->GetNameLock().c_str() // CharPtr into the registry: must outlive this call
 			: "null";
 
 	DMS_CALL_END

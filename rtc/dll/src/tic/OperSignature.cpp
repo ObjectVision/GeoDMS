@@ -320,7 +320,7 @@ static SharedStr RenderVar(const SignatureRecord& shape, sig_var v)
 		return SharedStr("?");
 	if (shape.varFixedCls[v])
 		return SharedStr(shape.varFixedCls[v]->GetName());
-	return SharedStr(shape.varRoles[v].AsStrRange());
+	return SharedStr(shape.varRoles[v].AsStrRangeLock());
 }
 
 static SharedStr RenderPos(const SignatureRecord& shape, const SignatureRecord::Pos& p)
@@ -370,7 +370,7 @@ SharedStr RenderMergedSignature(const AbstrOperGroup* og, const OperGroupSignatu
 			const auto& rm = shape.resultMembers[i];
 			if (i)
 				r += "; ";
-			SharedStr rmPath(rm.path.AsStrRange()); // materialized: TokenStr must not span other registry calls
+			SharedStr rmPath(rm.path.AsStrRangeLock()); // materialized: TokenStr must not span other registry calls
 			r += mySSPrintF("{}: attribute<{}>({})", rmPath.c_str()
 				, rm.values != no_sig_var ? RenderVar(shape, rm.values).c_str() : "..."
 				, rm.domain != no_sig_var ? RenderVar(shape, rm.domain).c_str() : "...");
@@ -415,7 +415,7 @@ SharedStr RenderMergedSignature(const AbstrOperGroup* og, const OperGroupSignatu
 			continue;
 		r += anyWhere ? "; " : " where ";
 		anyWhere = true;
-		SharedStr roleStr(shape.varRoles[v].AsStrRange());
+		SharedStr roleStr(shape.varRoles[v].AsStrRangeLock());
 		r += mySSPrintF("{} in [{}]", roleStr.c_str(), classes.c_str());
 	}
 	return r;
@@ -597,7 +597,7 @@ void SigUnitChecker_VerifyApplication(const Operator* oper, const ArgSeqType& ar
 			for (const auto& rm : rec.resultMembers)
 			{
 				const TreeItem* m = result;
-				SharedStr rmPath(rm.path.AsStrRange()); // materialized: the walk below CREATES tokens
+				SharedStr rmPath(rm.path.AsStrRangeLock()); // materialized: the walk below CREATES tokens
 				CharPtr b = rmPath.begin(), e = rmPath.send();
 				while (m && b != e)
 				{
@@ -613,7 +613,7 @@ void SigUnitChecker_VerifyApplication(const Operator* oper, const ArgSeqType& ar
 				collectPos(mp, m);
 			}
 
-		auto roleName = [&](sig_var v) -> SharedStr { return (v != no_sig_var && v < nv) ? SharedStr(rec.varRoles[v].AsStrRange()) : SharedStr("?"); };
+		auto roleName = [&](sig_var v) -> SharedStr { return (v != no_sig_var && v < nv) ? SharedStr(rec.varRoles[v].AsStrRangeLock()) : SharedStr("?"); };
 		auto valUnitOf = [&](sig_var v) -> const AbstrUnit* { return (v != no_sig_var && v < nv && !vu[v].valReps.empty()) ? vu[v].valReps.front() : nullptr; };
 
 		// (1) unit identity within each var's bucket (UnifyDomain, symmetric on the meta thread)

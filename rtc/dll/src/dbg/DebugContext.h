@@ -20,10 +20,33 @@
 #include "ptr/PersistentObject.h"
 #include "ptr/SharedStr.h"
 #include "sym/Token.h"
+#include "LockLevels.h" // DMS_ENTERS / DMS_CALLEE_ENTERS
 struct FormattedOutStream;
 
 /********** AbstrMsgGenerator **********/
 
+// The lock-level contract of the whole reporting path (#1227).
+//
+// Describe / GetDescription / ItemAsStr are called from GenerateContext while an error is being
+// built, and an error can be raised anywhere -- including from inside the token registry itself.
+// So an override may read names and write to the debug stream, and nothing else:
+//
+//     DMS_ENTERS(ord_level_type::IndexedString, dms_shared_v)
+//
+// permits IndexedString SHARED (TokenID::GetStrLock, Object::GetName/GetFullName/GetClsName,
+// LispObj::Print) and everything inner to it -- LispObjCache, ObjectRegister, DebugOutStream,
+// OperationQueue. It forbids the two things that turn a report into a hang or a recursion:
+// REGISTERING a token (IndexedString exclusive, i.e. GetTokenID_mt -> GetOrCreateID_mt), and any
+// lock outer to the registry -- storage, tiles, the operation machinery, the item register.
+//
+// Practically: format from what you already have. Do not evaluate a property (that parses, and
+// parsing registers tokens) and do not prepare data. Two overrides used to do exactly that and
+// were changed for #1227 -- DataView::GenerateDescription (which called GetCaption(), and so
+// PrepareDataOrUpdateViewLater + GetDataCount) and OdbcTableContextHandle::GenerateDescription
+// (which called TreeItemPropertyValue).
+//
+// The ceiling is declared once, in MsgGeneratorPolicy::GetDescription below and in
+// AbstrMsgGenerator::Describe, so it covers every override through the virtual dispatch.
 struct AbstrMsgGenerator :noncopyable
 {
 	RTC_CALL AbstrMsgGenerator() noexcept;
@@ -90,6 +113,9 @@ struct MsgGeneratorPolicy : Base
 {
 	CharPtr GetDescription() override
 	{
+		// Every concrete context handle reaches its GenerateDescription() through here, so this one
+		// declaration is what checks all of them against the reporting-path contract above.
+		DMS_ENTERS(ord_level_type::IndexedString, dms_shared_v);
 		try {
 
 			if(m_Context.empty())	
@@ -164,10 +190,13 @@ private:
 
 /********** LambdaContextHandle **********/
 
+// The one context handle whose ceiling belongs to the CALLEE rather than to the class: what
+// m_Func may take is a property of the lambda each MakeLCH call site passes, not of this template.
+// Every such lambda runs inside GetDescription's DMS_ENTERS above and must stay within it.
 template <typename GenerateFunc>
 struct LambdaContextHandle: ContextHandle 
 {
-	LambdaContextHandle(GenerateFunc&& func = GenerateFunc())
+	LambdaContextHandle(GenerateFunc&& DMS_CALLEE_ENTERS(ord_level_type::IndexedString) func = GenerateFunc())
 		:	m_Func(func)
 	{}
 

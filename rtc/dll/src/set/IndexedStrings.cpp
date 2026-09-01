@@ -60,13 +60,14 @@ IndexedStringsComponent::~IndexedStringsComponent()
 //  shared usage of its own is thus waiting for itself: nothing can wake it, and what the user sees
 //  is a process at 0% CPU with no error, no log line and no window title to go on.
 //
-//  A live TokenStr / TokenStrRange is exactly such a usage; TokenID::GetStr(), TokenID::AsStrRange()
-//  and Object::GetName() all hand one out, and it lives until the end of the full expression at the
-//  very least. Keeping one alive across a call that can tokenize a string hangs the process, and it
-//  has cost three separate debugging sessions:
+//  A live TokenStr / TokenStrRange is exactly such a usage; TokenID::GetStrLock(),
+//  TokenID::AsStrRangeLock() and Object::GetNameLock() all hand one out, and it lives until the end
+//  of the full expression at the very least. Keeping one alive across a call that can tokenize a
+//  string hangs the process, and it has cost three separate debugging sessions:
 //    - the fn_test_shadow hang of 2026-07-14, in FunctionChecker::InferApplication;
-//    - stg/dll/src/gdal/gdal_vect.cpp, whose two hand-scoped blocks still carry the comment
-//      "destructor of TokenStr gives up lock on tokenlist to allow for GetTokenID_mt to be called";
+//    - stg/dll/src/gdal/gdal_vect.cpp, whose two hand-scoped blocks carried the comment "destructor
+//      of TokenStr gives up lock on tokenlist to allow for GetTokenID_mt to be called" until #1227
+//      replaced them with a materialized name;
 //    - issue #1226, where ExportTab::showEvent held Object::GetName() across
 //      isItemOrItsSubItemsMappable.
 //  So that a fourth case reports itself rather than being diagnosed by hand, count the usages each
@@ -90,10 +91,11 @@ IndexedStringsComponent::~IndexedStringsComponent()
 //  The check cannot have a false positive by construction: any code that reaches GetOrCreateID_mt
 //  while holding a usage of its own hangs today, so no working configuration can be doing it.
 //
-//  Retiring the class rather than reporting it is #1227: naming the accessors that hand out a
-//  registry lock for what they hold (Object::GetName() -> GetNameLock(), returning SharedStr from
-//  the plain name), and declaring lock-level ceilings so the ordering becomes checkable across
-//  virtual and indirect calls.
+//  Retiring the class rather than reporting it is #1227: the accessors that hand out a registry
+//  lock now say so (TokenID::GetStrLock() / AsStrRangeLock(), Object::GetNameLock() /
+//  GetClsNameLock() / GetXmlClassNameLock()), the plain names materialize into a SharedStr, and
+//  DMS_ENTERS (LockLevels.h) declares lock-level ceilings so the ordering becomes checkable across
+//  the virtual and indirect calls a static call graph cannot see.
 
 namespace {
 
@@ -129,9 +131,10 @@ namespace {
 		throwErrorF("TOKEN"
 			, "cannot register the name '{}': this thread still holds {} shared usage(s) of the token"
 			  " registry and would have to wait for itself to release them.\n"
-			  "A live TokenStr or TokenStrRange -- as returned by TokenID::GetStr(),"
-			  " TokenID::AsStrRange() or Object::GetName() -- is such a usage. Copy it into a SharedStr"
-			  " before calling anything that can create a token. See GeoDMS issue #1226."
+			  "A live TokenStr or TokenStrRange -- as returned by any of the ...Lock() accessors,"
+			  " TokenID::GetStrLock(), TokenID::AsStrRangeLock() or Object::GetNameLock() -- is such a"
+			  " usage. Use the plain, materializing accessor (Object::GetName(), TokenID::AsSharedStr())"
+			  " before calling anything that can create a token. See GeoDMS issues #1226 and #1227."
 			, newToken, nrOwnUsages
 		);
 	}
@@ -181,6 +184,9 @@ IndexedStrings<MustZeroTerminate, CharPtrRangeEqCmp, CharPtrRangeHasher>::GetOrC
 	if (auto nrOwnUsages = td_TokenRegistrySharedUsages)
 		throwTokenRegistrySelfDeadlock(CharPtrRange(keyFirst, keyLast), nrOwnUsages);
 
+	// No DMS_ENTERS here: taking the section below already publishes IndexedString/exclusive as this
+	// thread's level, and that is what a caller's declared ceiling is checked against. Declaring it
+	// as well would make level_type::Allow reject this very acquire -- equal level, not both shared.
 	IndexedString_scoped_lock lock(GetCS());
 
 	return GetOrCreateID_impl(keyFirst, keyLast);

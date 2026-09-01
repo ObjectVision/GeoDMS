@@ -149,7 +149,10 @@ static void createSimilarSet(const TreeItem* searchLoc, const TreeItem* pattern,
 {
 	if (searchLoc->IsTemplate())
 		return;
-	if (!(flags & CSS_MatchName) || (!stricmp( searchLoc->GetName().c_str(), pattern->GetName().c_str())))
+	// GetNameLock() rather than GetName(): this is a recursive walk over the whole tree, and the
+	// materializing accessor would allocate twice per node. Safe here because both TokenStrs die
+	// with the condition's full expression, and stricmp cannot register a token (#1227).
+	if (!(flags & CSS_MatchName) || (!stricmp( searchLoc->GetNameLock().c_str(), pattern->GetNameLock().c_str())))
 		if (isSimilar(searchLoc, pattern, CSS_FLAGS(flags | CSS_NoCaseParams)))
 		{
 			itemset.push_back(make_weak_tree(searchLoc));

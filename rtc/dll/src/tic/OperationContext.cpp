@@ -146,7 +146,7 @@ void OperatorContextHandle::GenerateDescription()
 	auto operID= m_FuncDC->m_OperatorGroup->GetNameID();
 
 	SharedStr msg = mySSPrintF("while operator {} is {}\n",
-		GetTokenStr(operID).c_str(),
+		GetTokenStrLock(operID).c_str(),
 		(m_MustCalc
 			? "calculating data"
 			: "creating a result item"));

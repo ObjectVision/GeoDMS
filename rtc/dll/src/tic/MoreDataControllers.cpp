@@ -1237,7 +1237,7 @@ SharedTreeItem SymbDC::MakeResult() const
 
 	if (!m_Data)
 	{
-		auto msg = mySSPrintF("Cannot find Item {}", m_FullNameID.GetStr());
+		auto msg = mySSPrintF("Cannot find Item {}", m_FullNameID.GetStrLock());
 		Fail(msg, FailType::MetaInfo);
 		return {};
 	}
@@ -1250,7 +1250,7 @@ SharedTreeItem SymbDC::MakeResult() const
 	auto result = GetCurr(); // owning snapshot; null if the config item expired since SetOld
 	if (!result)
 	{
-		auto msg = mySSPrintF("Item {} no longer exists", m_FullNameID.GetStr());
+		auto msg = mySSPrintF("Item {} no longer exists", m_FullNameID.GetStrLock());
 		Fail(msg, FailType::MetaInfo);
 		return {};
 	}

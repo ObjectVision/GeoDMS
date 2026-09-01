@@ -355,7 +355,7 @@ QVariant DmsModel::data(const QModelIndex& index, int role) const {
 			auto spatialRef = GetItemSpatialReference(ti);
 			if (spatialRef.empty())
 				return QVariant();
-			return QString("SpatialReference: ") + QString(spatialRef.GetStr().c_str());
+			return QString("SpatialReference: ") + QString(spatialRef.GetStrLock().c_str());
 		}
 
 		case Qt::ForegroundRole:

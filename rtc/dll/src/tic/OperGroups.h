@@ -101,7 +101,10 @@ struct AbstrOperGroup
 	bool IsArgTempl (arg_index argNr, CharPtr firstArgValue) const { return GetArgPolicy(argNr, firstArgValue) == oper_arg_policy::is_templ; }
 
 	TokenID   GetNameID()            const { return m_OperNameID; }
-	TokenStr  GetName()              const { return GetTokenStr(GetNameID()); }
+	// GetName() shares m_OperName (a refcount bump, no allocation); GetNameLock() hands out a
+	// TokenStr, which HOLDS THE TOKEN REGISTRY until it dies -- see mci/Object.h and issue #1227.
+	SharedStr GetName()              const { return SharedStr(m_OperName); }
+	TokenStr  GetNameLock()          const { return GetTokenStrLock(GetNameID()); }
 	CharPtr   GetNameStr()           const { return m_OperName.c_str(); }
 	const Operator* GetFirstMember() const { return m_FirstMember; }
 	UInt32    GetNrMembers() const;

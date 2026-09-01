@@ -169,8 +169,12 @@ void counted_mutex::lock()
 bool counted_mutex::try_lock_for(UInt32 milliSeconds)
 {
 	leveled_std_section::unique_lock lock( s_CountedMutexSection );
-	dbg_assert(!m_Count || md_OwningThreadID != GetThreadID());
 
+	// Deliberately WITHOUT lock()'s dbg_assert(!m_Count || md_OwningThreadID != GetThreadID()):
+	// this overload exists precisely so that a caller which cannot prove it holds no usage of its
+	// own gives up instead of parking. Asserting here would abort a Debug build on the one case the
+	// deadline is there to survive -- the #1191 teardown drain (DrainSessionUsageOrReport), which
+	// reports cleanly in Release. A self-held usage simply times out, like any other holder (#1227).
 	if (!s_cv_CountedMutexSection.wait_for(lock.m_BaseLock, std::chrono::milliseconds(milliSeconds), [&] { return m_Count == 0; }))
 		return false;
 

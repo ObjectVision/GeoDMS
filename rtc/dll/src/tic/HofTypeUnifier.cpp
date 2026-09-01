@@ -140,7 +140,7 @@ namespace hof {
 					else if (fnDU)
 						if (auto defP = boundFn->GetTreeParent())
 						{
-							SharedStr fnDUName(fnDU.AsStrRange()); // materialized: a TokenStr must not span ResolveItemPath (parse-capable, token-registry lock)
+							SharedStr fnDUName(fnDU.AsStrRangeLock()); // materialized: a TokenStr must not span ResolveItemPath (parse-capable, token-registry lock)
 							if (auto unitItem = defP->ResolveItemPath(fnDUName); unitItem && IsUnit(unitItem.get()))
 								u.BindUnit(target, unitItem, AsUnit(unitItem.get())
 									, mySSPrintF("by {}", bindSource.c_str()));
@@ -258,7 +258,7 @@ namespace hof {
 			return;
 		bool byExample = memberSrc != paramItem;
 		SharedStr fnName(funcItem->GetFullName());
-		SharedStr pName(paramItem->GetID().AsStrRange());
+		SharedStr pName(paramItem->GetID().AsStrRangeLock());
 		constexpr UnifyMode um = UnifyMode(UM_AllowVoidRight | UM_AllowRightExpansion);
 
 		// shared type variables: the first member's actual class binds; later members must agree
@@ -286,7 +286,7 @@ namespace hof {
 				// alternative argument fail).
 				if (byExample || !m->_GetFirstSubItem())
 					continue;
-				SharedStr cName(prefix + SharedStr(m->GetID().AsStrRange()));
+				SharedStr cName(prefix + SharedStr(m->GetID().AsStrRangeLock()));
 				auto c = argBlock->GetConstSubTreeItemByID(m->GetID());
 				if (!c)
 					throwErrorF("ExprParser", "'{}': the argument for parameter '{}' does not match its declared members: member '{}' is missing"
@@ -294,7 +294,7 @@ namespace hof {
 				walkBlock(m, c.get(), false, cName + "/");
 				continue;
 			}
-			SharedStr mName(prefix + SharedStr(m->GetID().AsStrRange()));
+			SharedStr mName(prefix + SharedStr(m->GetID().AsStrRangeLock()));
 			auto a = argBlock->GetConstSubTreeItemByID(m->GetID());
 			if (!a)
 				throwErrorF("ExprParser", "'{}': the argument for parameter '{}' does not match its declared members: member '{}' is missing"
@@ -344,7 +344,7 @@ namespace hof {
 					if (avu && aSib && IsUnit(aSib.get())
 						&& !avu->UnifyDomain(AsUnit(aSib.get()), "", "", um))
 					{
-						SharedStr vtName(vt.AsStrRange());
+						SharedStr vtName(vt.AsStrRangeLock());
 						throwErrorF("ExprParser", "'{}': the argument for parameter '{}' does not match its declared members: the values of '{}' must be '{}' (the argument's own member unit)"
 							, fnName.c_str(), pName.c_str(), mName.c_str(), vtName.c_str());
 					}
@@ -361,7 +361,7 @@ namespace hof {
 						if (TokenID cons = DeclaredConstraintOf(funcItem, vt))
 							if (!GenericConstraintSet(cons).test(UInt32(gotCls->GetValueClassID())))
 							{
-								SharedStr vtName(vt.AsStrRange()), consName(cons.AsStrRange());
+								SharedStr vtName(vt.AsStrRangeLock()), consName(cons.AsStrRangeLock());
 								throwErrorF("ExprParser", "'{}': the argument for parameter '{}' does not match its declared members: '{}' is an attribute<{}>, which does not satisfy '{}: {}'"
 									, fnName.c_str(), pName.c_str(), mName.c_str()
 									, gotCls->GetName().c_str(), vtName.c_str(), consName.c_str());
@@ -369,7 +369,7 @@ namespace hof {
 						auto [it, isNew] = varBindings.try_emplace(vt, gotCls, mName);
 						if (!isNew && it->second.first != gotCls)
 						{
-							SharedStr vtName(vt.AsStrRange());
+							SharedStr vtName(vt.AsStrRangeLock());
 							throwErrorF("ExprParser", "'{}': the argument for parameter '{}' does not match its declared members: '{}' ({}) and '{}' ({}) must share one value type for '{}'"
 								, fnName.c_str(), pName.c_str()
 								, it->second.second.c_str(), it->second.first->GetName().c_str()
@@ -457,7 +457,7 @@ namespace hof {
 			LispPtr ae = a.Left();
 			if (!ae.IsSymb())
 				continue; // expression argument: defers, as at the inline site
-			auto argItem = bindScope->ResolveItemPath(SharedStr(ae.GetSymbID().AsStrRange()));
+			auto argItem = bindScope->ResolveItemPath(SharedStr(ae.GetSymbID().AsStrRangeLock()));
 			if (!argItem)
 				continue; // an unresolvable argument fails through the ordinary path
 			CheckStructuredParamContract(applyItem, param, memberSrc, argItem.get());

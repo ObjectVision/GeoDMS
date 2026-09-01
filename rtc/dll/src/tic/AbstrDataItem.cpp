@@ -443,10 +443,10 @@ void AbstrDataItem::InitAbstrDataItem(TokenID domainUnit, TokenID valuesUnit, Va
 {
 #if defined(MG_DEBUG)
 		CharPtr
-			debug_currDomainUnitStr = m_tDomainUnit.GetStr().c_str(),
-			debug_currValuesUnitStr = m_tValuesUnit.GetStr().c_str(),
-			debug_newDomainUnitStr = domainUnit.GetStr().c_str(),
-			debug_newValuesUnitStr = valuesUnit.GetStr().c_str();
+			debug_currDomainUnitStr = m_tDomainUnit.GetStrLock().c_str(),
+			debug_currValuesUnitStr = m_tValuesUnit.GetStrLock().c_str(),
+			debug_newDomainUnitStr = domainUnit.GetStrLock().c_str(),
+			debug_newValuesUnitStr = valuesUnit.GetStrLock().c_str();
 #endif
 
 //	assert((m_tDomainUnit == domainUnit) || !IsDefined(m_tDomainUnit) || !domainUnit); // only called once?
@@ -673,7 +673,7 @@ const AbstrUnit* AbstrDataItem::FindUnit(TokenID t, CharPtr role, ValueCompositi
 	const AbstrUnit* result = UnitClass::GetUnitOrDefault(context.get(), t, vcPtr);
 	if (!result && !InTemplate())
 	{
-		auto msg = mySSPrintF("Cannot find {} unit {}", role, GetTokenStr(t));
+		auto msg = mySSPrintF("Cannot find {} unit {}", role, GetTokenStrLock(t));
 		ThrowFail(msg, FailType::MetaInfo);
 	}
 	return result;
@@ -963,7 +963,7 @@ bool FindAndVisitUnit(const AbstrDataItem* adi, TokenID t, SupplierVisitFlag svf
 	if (!context)
 		return true;
 
-	SharedStr itemRefStr(t.AsStrRange());
+	SharedStr itemRefStr(t.AsStrRangeLock());
 	return context->FindAndVisitItem(itemRefStr, svf, visitor).has_value();
 }
 
@@ -1269,7 +1269,7 @@ TIC_CALL void DMS_CONV Table_Dump(OutStreamBuff* out, const TableColumnSpec* col
 				out->WriteByte(';');
 			if (columnSpecIter->m_ColumnName)
 			{
-				auto columnStr = columnSpecIter->m_ColumnName.AsStrRange();
+				auto columnStr = columnSpecIter->m_ColumnName.AsStrRangeLock();
 				DoubleQuote(fout, columnStr.m_CharPtrRange.first, columnStr.m_CharPtrRange.second);
 			}
 			else

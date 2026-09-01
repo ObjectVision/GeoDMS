@@ -84,7 +84,7 @@ private:
 		auto fontNameId = get_ptr()->GetFontNameId(keyIndex);
 		auto fontHeight = get_ptr()->GetFontHeight(keyIndex);
 		auto fontAngle  = get_ptr()->GetFontAngle(keyIndex);
-		dc->SetFont(GetTokenStr(fontNameId).c_str(), fontHeight, fontAngle);
+		dc->SetFont(GetTokenStrLock(fontNameId).c_str(), fontHeight, fontAngle);
 	}
 
 	const FeatureDrawer& m_FeatureDrawer;

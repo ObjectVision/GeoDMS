@@ -124,7 +124,7 @@ void ConfigProd::DoInclude()
 		,	false
 		);
 	if (!m_pCurrent)
-		throwSemanticError(mgFormat2string("Parse error in included config file {}", GetTokenStr(m_strIdentifierID)).c_str());
+		throwSemanticError(mgFormat2string("Parse error in included config file {}", GetTokenStrLock(m_strIdentifierID)).c_str());
 	dms_assert(m_pCurrent);
 //	dbg_assert(!CurrentIsTop());
 }
@@ -250,7 +250,7 @@ void CheckIsNew(TreeItem* context, TokenID nameID)
 	dms_assert(context);
 	if (context->GetSubTreeItemByID(nameID))
 	{
-		auto name = SharedStr(GetTokenStr(nameID));
+		auto name = SharedStr(GetTokenStrLock(nameID));
 		context->throwItemErrorF("SubItem '{}' is already defined", name);
 	}
 }
@@ -387,7 +387,7 @@ void ConfigProd::CreateFunction(TokenID nameID)
 	// a same-named function may serve argument counts the operator rejects.
 	if (HasRewriteRuleForHead(nameID))
 		throwSemanticError(mgFormat2string("function name '{}' collides with a RewriteExpr.lsp rule head; calls would be rewritten before this function is found"
-			, GetTokenStr(nameID)).c_str());
+			, GetTokenStrLock(nameID)).c_str());
 
 	CreateContainer(nameID);
 	m_pCurrent->SetIsFunction();
@@ -428,7 +428,7 @@ void ConfigProd::ValidateFunctionArityVsOperator(const TreeItem* func)
 
 	if (collision)
 		throwSemanticError(mgFormat2string("function name '{}' collides with a built-in operator: it declares an argument count the operator also accepts; only argument counts the operator rejects may be served by a same-named function"
-			, GetTokenStr(func->GetID())).c_str());
+			, GetTokenStrLock(func->GetID())).c_str());
 }
 
 void ConfigProd::CreateUnit(TokenID nameID)
@@ -528,7 +528,7 @@ void ConfigProd::DoBasicType()
 			m_PendingGenericUnitVar = m_strIdentifierID; // unit<V> with V a generic type variable
 			return;
 		}
-		throwErrorD( "ConfigProd::DoBasicType: Unknown ValueType", m_strIdentifierID.GetStr().c_str());
+		throwErrorD( "ConfigProd::DoBasicType: Unknown ValueType", m_strIdentifierID.GetStrLock().c_str());
 	}
 }
 
@@ -541,7 +541,7 @@ void ConfigProd::DoAnyProp()
 	if (!pd) 
 		m_pCurrent->throwItemErrorF(
 			"Unknown property '{}'", 
-			GetTokenStr(m_strIdentifierID).c_str()
+			GetTokenStrLock(m_strIdentifierID).c_str()
 		);
 	pd->SetValueAsCharRange(m_pCurrent.get(), m_StringVal.begin(), m_StringVal.send());
 }

@@ -160,7 +160,7 @@ TokenID DeclaredConstraintOf(const TreeItem* fn, TokenID var);
 				SizeT idx = it->second;
 				UnitNode n; n.parent = idx; n.name = name; n.rigid = rigid;
 				m_UnitNodes.push_back(std::move(n));
-				SharedStr declSource = mySSPrintF("the declaration of '{}'", name.GetStr().c_str());
+				SharedStr declSource = mySSPrintF("the declaration of '{}'", name.GetStrLock().c_str());
 				SizeT comp = ValueVar(owner, instance, name, declSource, rigid && !declaredCls, fallbackConstraint);
 				m_UnitNodes[idx].classNode = comp;
 				if (declaredCls)
@@ -175,7 +175,7 @@ TokenID DeclaredConstraintOf(const TreeItem* fn, TokenID var);
 				SizeT comp = m_UnitNodes[FindU(it->second)].classNode;
 				if (comp != NO_TYPE_VAR)
 					BindDeclaredClass(comp, declaredCls
-						, mySSPrintF("the declaration of '{}'", name.GetStr().c_str()));
+						, mySSPrintF("the declaration of '{}'", name.GetStrLock().c_str()));
 			}
 			return it->second;
 		}
@@ -206,11 +206,11 @@ TokenID DeclaredConstraintOf(const TreeItem* fn, TokenID var);
 						throwErrorF("ExprParser", "{}: {} ({}) does not satisfy '{}: {}' ({})"
 							, FullName().c_str()
 							, vt->GetName().c_str(), source.c_str()
-							, rec.name.GetStr().c_str(), rec.constraint.GetStr().c_str(), rec.source.c_str());
+							, rec.name.GetStrLock().c_str(), rec.constraint.GetStrLock().c_str(), rec.source.c_str());
 				}
 			if (!hardOk)
 				throwErrorF("ExprParser", "{}: {} ({}) does not satisfy the combined constraints on type variable '{}'"
-					, FullName().c_str(), vt->GetName().c_str(), source.c_str(), n.name.GetStr().c_str());
+					, FullName().c_str(), vt->GetName().c_str(), source.c_str(), n.name.GetStrLock().c_str());
 		}
 
 		// attach an operator-support set (see ConstraintRec::soft); a node already
@@ -240,13 +240,13 @@ TokenID DeclaredConstraintOf(const TreeItem* fn, TokenID var);
 			auto& n = m_ValueNodes[FindV(i)];
 			if (n.rigid)
 				throwErrorF("ExprParser", "{}: the body requires type variable '{}' to be {} ({}), but '{}' must remain generic in the definition"
-					, FullName().c_str(), n.name.GetStr().c_str()
-					, vt->GetName().c_str(), source.c_str(), n.name.GetStr().c_str());
+					, FullName().c_str(), n.name.GetStrLock().c_str()
+					, vt->GetName().c_str(), source.c_str(), n.name.GetStrLock().c_str());
 			if (n.bound)
 			{
 				if (n.bound != vt)
 					throwErrorF("ExprParser", "{}: inconsistent instantiation of type variable '{}': {} ({}) vs {} ({})"
-						, FullName().c_str(), n.name.GetStr().c_str()
+						, FullName().c_str(), n.name.GetStrLock().c_str()
 						, n.bound->GetName().c_str(), n.boundSource.c_str()
 						, vt->GetName().c_str(), source.c_str());
 				return;
@@ -266,14 +266,14 @@ TokenID DeclaredConstraintOf(const TreeItem* fn, TokenID var);
 			auto& nb = m_ValueNodes[rb];
 			if (na.rigid && nb.rigid)
 				throwErrorF("ExprParser", "{}: the body requires type variables '{}' and '{}' to be equal ({}), but they are independent generic parameters of the definition"
-					, FullName().c_str(), na.name.GetStr().c_str(), nb.name.GetStr().c_str(), source.c_str());
+					, FullName().c_str(), na.name.GetStrLock().c_str(), nb.name.GetStrLock().c_str(), source.c_str());
 			if (na.rigid)
 			{
 				assert(!na.bound); // rigid variables never carry a concrete binding
 				if (nb.bound)
 					throwErrorF("ExprParser", "{}: the body requires type variable '{}' to be {} ({}), but '{}' must remain generic in the definition"
-						, FullName().c_str(), na.name.GetStr().c_str()
-						, nb.bound->GetName().c_str(), nb.boundSource.c_str(), na.name.GetStr().c_str());
+						, FullName().c_str(), na.name.GetStrLock().c_str()
+						, nb.bound->GetName().c_str(), nb.boundSource.c_str(), na.name.GetStrLock().c_str());
 				// FOR-ALL semantics: every instantiation allowed for the rigid variable
 				// must be accepted by the other side's DECLARED constraints; soft
 				// operator-support sets do not reject rigid variables (see ConstraintRec)
@@ -281,12 +281,12 @@ TokenID DeclaredConstraintOf(const TreeItem* fn, TokenID var);
 					for (const auto& rec : nb.constraints)
 						if (!rec.soft && (na.feasible & ~rec.set).any())
 							throwErrorF("ExprParser", "{}: type variable '{}' must satisfy '{}: {}' ({}) for every instantiation, which its declaration does not guarantee"
-								, FullName().c_str(), na.name.GetStr().c_str()
-								, rec.name.GetStr().c_str(), rec.constraint.GetStr().c_str(), rec.source.c_str());
+								, FullName().c_str(), na.name.GetStrLock().c_str()
+								, rec.name.GetStrLock().c_str(), rec.constraint.GetStrLock().c_str(), rec.source.c_str());
 			}
 			if (na.bound && nb.bound && na.bound != nb.bound)
 				throwErrorF("ExprParser", "{}: inconsistent instantiation of type variable '{}': {} ({}) vs {} ({})"
-					, FullName().c_str(), na.name.GetStr().c_str()
+					, FullName().c_str(), na.name.GetStrLock().c_str()
 					, na.bound->GetName().c_str(), na.boundSource.c_str()
 					, nb.bound->GetName().c_str(), nb.boundSource.c_str());
 			if (na.bound && !nb.bound)
@@ -300,11 +300,11 @@ TokenID DeclaredConstraintOf(const TreeItem* fn, TokenID var);
 					for (const auto& recB : nb.constraints)
 						if ((recA.set & recB.set).none())
 							throwErrorF("ExprParser", "{}: no value type can instantiate type variable '{}': '{}: {}' ({}) conflicts with '{}: {}' ({})"
-								, FullName().c_str(), na.name.GetStr().c_str()
-								, recA.name.GetStr().c_str(), recA.constraint.GetStr().c_str(), recA.source.c_str()
-								, recB.name.GetStr().c_str(), recB.constraint.GetStr().c_str(), recB.source.c_str());
+								, FullName().c_str(), na.name.GetStrLock().c_str()
+								, recA.name.GetStrLock().c_str(), recA.constraint.GetStrLock().c_str(), recA.source.c_str()
+								, recB.name.GetStrLock().c_str(), recB.constraint.GetStrLock().c_str(), recB.source.c_str());
 				throwErrorF("ExprParser", "{}: no value type satisfies the combined constraints on type variable '{}'"
-					, FullName().c_str(), na.name.GetStr().c_str());
+					, FullName().c_str(), na.name.GetStrLock().c_str());
 			}
 			// merge rb into ra: ra keeps its (rigid/outer) name; payload and constraints unite
 			if (!na.bound && nb.bound)
@@ -336,12 +336,12 @@ TokenID DeclaredConstraintOf(const TreeItem* fn, TokenID var);
 			auto& n = m_UnitNodes[FindU(i)];
 			if (n.rigid)
 				throwErrorF("ExprParser", "{}: the body pins unit variable '{}' to a specific unit ({}); it must remain generic in the definition"
-					, FullName().c_str(), n.name.GetStr().c_str(), source.c_str());
+					, FullName().c_str(), n.name.GetStrLock().c_str(), source.c_str());
 			if (n.bound)
 			{
 				if (!n.bound->UnifyDomain(du, "", "", s_CheckerUM))
 					throwErrorF("ExprParser", "{}: inconsistent instantiation of unit variable '{}': the unit bound {} differs from the unit bound {}"
-						, FullName().c_str(), n.name.GetStr().c_str()
+						, FullName().c_str(), n.name.GetStrLock().c_str()
 						, n.boundSource.c_str(), source.c_str());
 				return;
 			}
@@ -362,13 +362,13 @@ TokenID DeclaredConstraintOf(const TreeItem* fn, TokenID var);
 			auto& nb = m_UnitNodes[rb];
 			if (na.rigid && nb.rigid)
 				throwErrorF("ExprParser", "{}: the body requires unit variables '{}' and '{}' to be equal ({}), but they are independent in the definition"
-					, FullName().c_str(), na.name.GetStr().c_str(), nb.name.GetStr().c_str(), source.c_str());
+					, FullName().c_str(), na.name.GetStrLock().c_str(), nb.name.GetStrLock().c_str(), source.c_str());
 			if (na.rigid && nb.bound)
 				throwErrorF("ExprParser", "{}: the body pins unit variable '{}' to a specific unit ({}); it must remain generic in the definition"
-					, FullName().c_str(), na.name.GetStr().c_str(), nb.boundSource.c_str());
+					, FullName().c_str(), na.name.GetStrLock().c_str(), nb.boundSource.c_str());
 			if (na.bound && nb.bound && !na.bound->UnifyDomain(nb.bound, "", "", s_CheckerUM))
 				throwErrorF("ExprParser", "{}: inconsistent instantiation of unit variable '{}': the unit bound {} differs from the unit bound {}"
-					, FullName().c_str(), na.name.GetStr().c_str()
+					, FullName().c_str(), na.name.GetStrLock().c_str()
 					, na.boundSource.c_str(), nb.boundSource.c_str());
 			if (na.classNode != NO_TYPE_VAR && nb.classNode != NO_TYPE_VAR)
 				LinkValue(na.classNode, nb.classNode, source);

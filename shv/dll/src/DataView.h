@@ -365,6 +365,11 @@ public:
 	void OnCaptionChanged() const;
 
 protected:
+	// The caption as last computed by OnCaptionChanged. GenerateDescription reads THIS instead of
+	// calling GetCaption() again: building a caption prepares data (TableControl::GetCaption ->
+	// PrepareDataOrUpdateViewLater + GetDataCount), which the reporting path may not do (#1227).
+	mutable SharedStr              m_LastCaption;
+
 	caret_vector                   m_CaretVector;
 	std::shared_ptr<MovableObject> m_Contents;
 	std::shared_ptr<TreeItem>            m_ViewContext;

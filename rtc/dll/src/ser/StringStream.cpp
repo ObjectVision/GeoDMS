@@ -228,7 +228,7 @@ FormattedInpStream& operator >> (FormattedInpStream& is, SharedStr& str)
 FormattedOutStream& operator <<(FormattedOutStream& str, TokenID value)
 {
 	if (IsDefined(value))
-		str << value.GetStr().c_str();
+		str << value.GetStrLock().c_str();
 	else
 		str << Undefined();
 	return str;
@@ -268,7 +268,7 @@ Float64 AsFloat64(CharPtr x )
 Float64 AsFloat64(TokenID x )
 { 
 	Float64 r; 
-	MemoInpStreamBuff mis(x.GetStr().c_str(), x.GetStrEnd().c_str());
+	MemoInpStreamBuff mis(x.GetStrLock().c_str(), x.GetStrEndLock().c_str());
 	FormattedInpStream fin(&mis);
 	fin >> r;
 	return r; 

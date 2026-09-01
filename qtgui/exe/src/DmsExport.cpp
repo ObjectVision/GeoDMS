@@ -736,13 +736,12 @@ void ExportTab::showEvent(QShowEvent* event)
         auto full_foldername_base = GetFullFolderNameBase(current_item);
         auto current_item_folder_name_extension = convertFullNameToFoldernameExtension(current_item);
         m_foldername_entry->setText((QString(full_foldername_base.c_str())+current_item_folder_name_extension));// +current_item_folder_name_extention));
-        // #1226: GetName() returns a TokenStr, which is an RAII holder of the token registry's
-        // SHARED counted_mutex. Keeping it in a local would hold that lock over the rest of this
-        // function, and isItemOrItsSubItemsMappable below updates the meta info of a still-cold
-        // item, which interns tokens through GetTokenID_mt -> GetOrCreateID_mt. That takes the
-        // registry's EXCLUSIVE lock and waits for the shared count to reach zero, so the thread
-        // would wait for a lock it holds itself: a permanent park at ~0% CPU with the main window
-        // reported as not responding. Copy the name out and let the TokenStr die at the semicolon.
+        // #1226 was GetNameLock() here (then spelled GetName()): a TokenStr holds the token
+        // registry's SHARED counted_mutex, and isItemOrItsSubItemsMappable below updates the meta
+        // info of a still-cold item, which interns tokens through GetTokenID_mt ->
+        // GetOrCreateID_mt. That takes the registry EXCLUSIVELY and waits for the shared count to
+        // reach zero, so the thread waited for a lock it held itself: a permanent park at ~0% CPU
+        // with the main window reported as not responding. GetName() materializes (#1227).
         m_filename_entry->setText(QString::fromUtf8(current_item->GetName().c_str()));
 
         // set disabled drivers in combobox
