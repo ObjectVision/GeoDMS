@@ -28,7 +28,9 @@
 #include "LispTreeType.h"
 #include "OperationContext.h"
 
+#include <chrono>
 #include <condition_variable>
+#include <vector>
 
 // *****************************************************************************
 //										TLispRefTreeItemMap
@@ -428,10 +430,32 @@ DataController::DataController(LispPtr keyExpr)
 #endif
 {}
 
+// The key this thread is destroying, if any (#1233 P4). A lookup that finds an expired weak entry
+// waits for the destructor below to erase it; if that lookup is reached from within the very
+// destruction it is waiting for, the thread waits for its own stack to unwind. The map is keyed
+// per thread and nested destructions are possible, so this is a small stack rather than one slot.
+THREAD_LOCAL std::vector<const DataController::DataControllerKey*> td_KeysBeingDestructed;
+
+struct DestructionScope
+{
+	DestructionScope(const DataController::DataControllerKey& key) { td_KeysBeingDestructed.push_back(&key); }
+	~DestructionScope() { td_KeysBeingDestructed.pop_back(); }
+};
+
+static bool IsBeingDestructedByThisThread(const DataController::DataControllerKey& key)
+{
+	for (auto keyPtr : td_KeysBeingDestructed)
+		if (*keyPtr == key)
+			return true;
+	return false;
+}
+
 DataController::~DataController()
 {
 	dms_assert(GetInterestCount() == 0);
 	dms_assert(!IsNew() || m_Data.get()->GetInterestCount() == 0 || (m_Data.use_count() > 1)); // std owner-count replaces intrusive GetRefCount
+
+	DestructionScope markThisKey(m_Key);
 
 	std::lock_guard dcLock(sd_DataControllerMapCriticalSeciton);
 
@@ -461,7 +485,27 @@ GetDataControllerImpl(LispPtr keyExpr, bool mayCreate)
 				return result;
 			if (!mayCreate)
 				return {};
-			sd_DataControllerMapCriticalSectionWasRevisited.wait(dcLock);
+
+			// #1233 (P4): the entry is expired, so we wait for ~DataController to erase it. That
+			// only terminates while the destructor is on ANOTHER stack. Reached from within that
+			// same destruction -- which is what the cache-unit teardown hang fixed by the DcRef
+			// KeepAlive change was -- this waits for our own stack to unwind, and the untimed wait
+			// made it a silent park. Say so instead.
+			if (IsBeingDestructedByThisThread(keyExpr))
+				throwErrorF("DataController", "invalid recursion: the DataController for {} is being"
+					" destructed by this thread, so waiting for it to leave the map would wait for"
+					" this call to return"
+				,	AsFLispSharedStr(keyExpr, FormattingFlags::None)
+				);
+
+			// Timed, and it says what it is waiting for: a notify that is somehow missed, or a
+			// destructor that never runs, now surfaces as a slow report rather than a 0% CPU hang.
+			if (sd_DataControllerMapCriticalSectionWasRevisited.wait_for(dcLock, std::chrono::seconds(30))
+				== std::cv_status::timeout)
+				reportF(MsgCategory::other, SeverityTypeID::ST_Warning
+				,	"waiting for the expired DataController for {} to be removed from the map"
+				,	AsFLispSharedStr(keyExpr, FormattingFlags::None)
+				);
 		}
 		if (!mayCreate)
 			return {};

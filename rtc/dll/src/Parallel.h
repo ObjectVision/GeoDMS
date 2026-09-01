@@ -32,11 +32,12 @@ enum class ord_level_type : UInt32;
 #if defined(MG_DEBUG_LOCKLEVEL)
 #define MG_ITEMLEVEL
 
-struct LevelCheckBlocker {
-	RTC_CALL LevelCheckBlocker();
-	RTC_CALL ~LevelCheckBlocker();
-	RTC_CALL static bool HasLevelCheckBlocked();
-};
+// LevelCheckBlocker is gone (#1233 P3). It existed for one site, InterestReporter::Report, which
+// nested two sections that shared an ordinal; giving UpdatingInterestSet its own level made the
+// order checkable and left the blocker unused. It is not replaced: an escape hatch that switches
+// the ordering check off wholesale means the checker cannot see anything a blocked scope does,
+// which is the opposite of what it is for. A section that genuinely may be taken in either order
+// needs an ordinal that says so, not a way to stop asking.
 
 struct level_type {
 	CharPtr         m_Descr = nullptr;
@@ -47,8 +48,6 @@ struct level_type {
 
 	bool Allow(const level_type& other) const {
 		dms_assert(other.m_Level > ord_level_type(0));
-		if (LevelCheckBlocker::HasLevelCheckBlocked())
-			return true;
 		if (m_Level == ord_level_type(0))
 			return true;
 		if (m_ItemLevel > other.m_ItemLevel)

@@ -36,7 +36,13 @@ enum class ord_level_type : UInt32
 	TreeItemFlags = MOST_INNER_LOCK - 1,
 	ItemRegister = MOST_INNER_LOCK - 2,
 	OperationContext = MOST_INNER_LOCK,
-	UpdatingInterestSet = MOST_INNER_LOCK - 1,
+//	UpdatingInterestSet moved to CountSection + 1 below (#1233 P3): it used to share CountSection's
+//	ordinal, so InterestReporter::Report -- which holds CountSection and then takes this one -- had
+//	to silence the checker with a LevelCheckBlocker to nest two equal levels. A silenced checker
+//	cannot see a thread nesting the pair the other way round, which is the AB/BA it was hiding.
+//	All six sections of this lock are leaves (set a pointer, insert into or erase from
+//	sd_InterestSet; nothing is taken inside them), and nothing at CountSection + 1 is ever held
+//	when they are entered, so the pair simply has an order now, and it is the checked one.
 
 //	FailSection = IndexedString + 1,
 	TileShadow = MOST_INNER_LOCK - 3,
@@ -65,6 +71,7 @@ enum class ord_level_type : UInt32
 	// level c+2 == MOST_INNER_LOCK
 	TileAccessMap = highest_of(ThreadMessing, CountSection) + 1, // can be used in SymbObjSection and in CountSection
 	IndexedString = CountSection + 1,
+	UpdatingInterestSet = CountSection + 1, // taken while CountSection is held; see above (#1233)
 	LispObjCache = IndexedString + 1,
 	MoveSupplInterest = FailSection + 1,
 

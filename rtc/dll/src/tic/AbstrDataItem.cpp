@@ -1650,9 +1650,10 @@ struct InterestReporter : DebugReporter
 
 	void Report() const override
 	{
-#if defined(MG_DEBUG_LOCKLEVEL)
-		LevelCheckBlocker blockChecks;
-#endif
+		// CountSection then UpdatingInterestSet, in that order and checked (#1233 P3). This used to
+		// need a LevelCheckBlocker because the two shared an ordinal; UpdatingInterestSet now sits
+		// one level inner, so the order this reporter wants is the order the checker enforces --
+		// and a thread nesting them the other way round is no longer invisible.
 		leveled_std_section::scoped_lock globalSectionLock(sg_CountSection);
 		leveled_critical_section::scoped_lock lock(DemandManagement::sd_UpdatingInterestSet);
 

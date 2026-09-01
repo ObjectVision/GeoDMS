@@ -240,23 +240,6 @@ void counted_mutex::unlock_shared()
 #if defined(MG_DEBUG_LOCKLEVEL)
 
 THREAD_LOCAL level_type s_LockLevel;
-THREAD_LOCAL UInt32 s_LevelCheckBlockCount = 0;
-
-LevelCheckBlocker::LevelCheckBlocker()
-{
-	++s_LevelCheckBlockCount;
-}
-
-LevelCheckBlocker::~LevelCheckBlocker()
-{
-	--s_LevelCheckBlockCount;
-}
-
-bool LevelCheckBlocker::HasLevelCheckBlocked()
-{
-	return s_LevelCheckBlockCount;
-}
-
 
 RTC_CALL bool CurrentThreadHoldsNoLevelLock() noexcept
 {

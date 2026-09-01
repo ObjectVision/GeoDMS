@@ -122,6 +122,9 @@
 #include "AggrFuncNum.h"
 
 #include <algorithm>
+#include <atomic>
+#include <chrono>
+#include <mutex>
 
 // *****************************************************************************
 //                                    Potential
@@ -146,6 +149,45 @@ struct AbstrDirectPotentialOperator : public BinaryOperator
         tile_id                 m_NrAddedTiles = 0; // Number of processed contributing data tiles
         bool                    m_WasInitialized = false; // True after first write into tile
     };
+
+    // #1233 (P1): every data tile waits for the counter of each result tile to reach its own
+    // number, so the ordering only terminates while every earlier tile keeps advancing it. A tile
+    // that UNWINDS -- a tile read error, a cancellation surfacing through ReadableTileLock or
+    // Calculate, a failed allocation -- advances nothing, and before this fix every later tile
+    // waited for it forever on an untimed wait: the whole parallel_tileloop parked, its Join with
+    // it, and what the user saw was a computation at 0% CPU with no error and no log line.
+    //
+    // So failure is published: the unwinding tile sets the flag and wakes every result tile, and a
+    // waiter that sees it abandons its own accumulation. The result is discarded either way -- the
+    // original exception is stored by the task group and rethrown from Join -- so what matters here
+    // is only that no thread is left parked and that the real error is the one reported. The wait
+    // is timed as well, so a lost notification cannot park either.
+    static void AbandonAccumulation(OwningPtrSizedArray<result_tile_protector>& resTileAddition, tile_id te
+        ,   std::atomic<bool>& accumulationFailed)
+    {
+        accumulationFailed.store(true, std::memory_order_relaxed);
+        for (tile_id tr = 0; tr != te; ++tr)
+        {
+            auto& resTileInfo = resTileAddition[tr];
+            std::lock_guard resTileAdditionLock(resTileInfo.m_AddingNow);
+            resTileInfo.m_AddingProceeded.notify_all();
+        }
+    }
+
+    // Wait for this data tile turn on one result tile. False means another tile has failed and this
+    // one must give up rather than accumulate into a result that is discarded anyway; the caller
+    // then returns without touching any counter.
+    static bool AwaitAccumulationTurn(result_tile_protector& resTileInfo, tile_id ti
+        ,   const std::atomic<bool>& accumulationFailed, std::unique_lock<std::mutex>& resTileAdditionLock)
+    {
+        while (resTileInfo.m_NrAddedTiles < ti)
+        {
+            if (accumulationFailed.load(std::memory_order_relaxed))
+                return false;
+            resTileInfo.m_AddingProceeded.wait_for(resTileAdditionLock, std::chrono::milliseconds(500));
+        }
+        return !accumulationFailed.load(std::memory_order_relaxed);
+    }
 
     AbstrDirectPotentialOperator(AbstrOperGroup* gr, AnalysisType at, const Class* arrayType)
         : BinaryOperator(gr, arrayType, arrayType, arrayType)
@@ -210,6 +252,9 @@ struct AbstrDirectPotentialOperator : public BinaryOperator
 
             OwningPtrSizedArray<result_tile_protector> resTileAddition(te, value_construct MG_DEBUG_ALLOCATOR_SRC("OperPot: resTileAddition"));
 
+            // Set by the first tile to unwind, read by every waiter; see AbandonAccumulation (#1233).
+            std::atomic<bool> accumulationFailed = false;
+
             // Precompute kernel info once
             auto kernelInfo = CreateKernelInfo(weightGridA, Size(weightRect), maxDataTileSize);
             // Register per-column kernel expansions (if backend uses them)
@@ -233,6 +278,11 @@ struct AbstrDirectPotentialOperator : public BinaryOperator
                 // Main parallel convolution / accumulation loop
                 parallel_tileloop(te, [&, resDataObj = resDataHandle.get()](tile_id ti)->void
                     {
+                        // #1233: anything that throws below leaves this tile share of the
+                        // accumulation counters unadvanced, so publish the failure before unwinding
+                        // -- otherwise every later tile waits for this one forever.
+                        try {
+
                         potential_contexts& workingBuffer = workingBuffers.local();
 
                         IRect dataTileRect = resDomainUnit->GetTileRangeAsIRect(ti);
@@ -253,9 +303,8 @@ struct AbstrDirectPotentialOperator : public BinaryOperator
                                 auto& resTileInfo = resTileAddition[tr];
 
                                 std::unique_lock resTileAdditionLock(resTileInfo.m_AddingNow);
-                                resTileInfo.m_AddingProceeded.wait(resTileAdditionLock, [tr, ti, &resTileInfo]() {
-                                    return resTileInfo.m_NrAddedTiles >= ti;
-                                });
+                                if (!AwaitAccumulationTurn(resTileInfo, ti, accumulationFailed, resTileAdditionLock))
+                                    return;
 
                                 if (IsIntersecting(resTileRect, overlapTileRect))
                                 {
@@ -276,14 +325,20 @@ struct AbstrDirectPotentialOperator : public BinaryOperator
                                 auto& resTileInfo = resTileAddition[tr];
 
                                 std::unique_lock resTileAdditionLock(resTileInfo.m_AddingNow);
-                                resTileInfo.m_AddingProceeded.wait(resTileAdditionLock, [tr, ti, &resTileInfo]() {
-                                    return resTileInfo.m_NrAddedTiles >= ti;
-                                });
+                                if (!AwaitAccumulationTurn(resTileInfo, ti, accumulationFailed, resTileAdditionLock))
+                                    return;
 
                                 dms_assert(resTileInfo.m_NrAddedTiles == ti);
                                 resTileInfo.m_NrAddedTiles++;
                                 resTileInfo.m_AddingProceeded.notify_all();
                             }
+                        }
+
+                        }
+                        catch (...)
+                        {
+                            AbandonAccumulation(resTileAddition, te, accumulationFailed);
+                            throw; // stored by the task group; Join rethrows it as the real report
                         }
                     }
                 );
