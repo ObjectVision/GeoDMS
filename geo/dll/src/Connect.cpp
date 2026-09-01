@@ -541,7 +541,10 @@ struct IndexedArcProjectionHandle : ArcProjectionHandleWithDist<R, T>
 			}
 			if (aph.m_FoundAny || !maxDepth)
 			{
-				assert(!this->m_ArcPtr.is_null());
+				// the !maxDepth exit is the one taken because nothing was found: no arc passed
+				// the filter within the (maxSqrDist-clamped) radius. Callers read that off
+				// m_FoundAny, so a null m_ArcPtr is a legitimate outcome here.
+				assert(!this->m_ArcPtr.is_null() || !aph.m_FoundAny);
 				ArcProjectionHandleWithDist<R, T>::operator =(aph);
 				break;
 			}
