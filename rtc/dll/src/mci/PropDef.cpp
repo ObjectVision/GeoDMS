@@ -73,6 +73,7 @@ TokenID AbstrPropDef::GetID() const
 // non virtual helper functions
 bool AbstrPropDef::HasNonDefaultValue(const Object* self) const
 {
+	DMS_ENTERS(ord_level_type::IndexedString, dms_shared_v); // see the declaration in PropDef.h
 	return true; // best guess.
 }
 

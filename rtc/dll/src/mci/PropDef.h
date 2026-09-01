@@ -19,6 +19,7 @@
 #include "mci/PropdefEnums.h"
 #include "ptr/SharedStr.h"
 #include "mci/AbstrValue.h"
+#include "LockLevels.h" // DMS_ENTERS
 
 //*****************************************************************
 //**********         PropDef Interface                   **********
@@ -37,10 +38,16 @@ public:
 	// get set
 	virtual void GetAbstrValue(const Object* self, AbstrValue* value) const=0;
 	virtual void SetAbstrValue(Object* self, const AbstrValue* value) =0;
+	// Contract: DMS_ENTERS(ord_level_type::IndexedString, dms_shared_v), same as Object::GetFullName.
+	// The error-reporting path reads properties to say what it was doing -- see AbstrMsgGenerator in
+	// dbg/DebugContext.h -- so asking whether a property is set, and rendering the value it stores,
+	// must stay inside that ceiling: read the registry, take nothing outer to it. In particular an
+	// override may not EVALUATE (TreeItemPropertyValue does, and evaluating parses, and parsing
+	// registers tokens); that is why the cooked GetValueAsSharedStr carries no such contract (#1227).
 	virtual bool HasNonDefaultValue(const Object* self) const;
 
 	virtual SharedStr GetValueAsSharedStr   (const Object* self) const=0;
-	virtual SharedStr GetRawValueAsSharedStr(const Object* self) const=0;
+	virtual SharedStr GetRawValueAsSharedStr(const Object* self) const=0; // same contract as HasNonDefaultValue above
 	virtual void   SetValueAsCharArray(Object* self, CharPtr value) =0;
 	virtual void SetValueAsCharRange(Object* self, CharPtr begin, CharPtr end) =0;
 
@@ -165,6 +172,7 @@ public:
 
 	bool HasNonDefaultValue(const Object* self) const override
 	{
+		DMS_ENTERS(ord_level_type::IndexedString, dms_shared_v); // see AbstrPropDef::HasNonDefaultValue
 		const ItemType* item = debug_cast<const ItemType*>(self);
 		dms_assert(item);
 		return !(GetRawValue(item) == ApiType());
@@ -179,6 +187,7 @@ public:
 	}
 	SharedStr GetRawValueAsSharedStr(const Object* self) const override
 	{
+		DMS_ENTERS(ord_level_type::IndexedString, dms_shared_v); // see AbstrPropDef::HasNonDefaultValue
 		const ItemType* item = debug_cast<const ItemType*>(self);
 		dms_assert(item);
 		typename ValueWrap<PropType>::value_type propValue = GetRawValue(item);

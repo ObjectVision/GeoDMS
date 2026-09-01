@@ -169,6 +169,12 @@ public:
 
 	/// Return the full configuration name; default maps to GetName().
 	/// Override to include configuration-specific qualifiers.
+	///
+	/// Contract: DMS_ENTERS(ord_level_type::IndexedString, dms_shared_v). Naming an item is what
+	/// the error-reporting path does for a living (see AbstrMsgGenerator in dbg/DebugContext.h),
+	/// so GetFullName must stay inside that ceiling: it reads the token registry -- which is
+	/// cheap and allowed -- and takes nothing outer to it. An override may not evaluate a
+	/// property, prepare data, or reach a storage or tile lock. Both bodies declare it (#1227).
 	[[nodiscard]] RTC_CALL virtual auto GetFullName() const -> SharedStr;
 	[[nodiscard]] RTC_CALL virtual auto GetFullCfgName() const -> SharedStr;
 

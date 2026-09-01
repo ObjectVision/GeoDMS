@@ -220,6 +220,7 @@ TokenStr Object::GetNameLock() const
 
 auto Object::GetFullName() const -> SharedStr
 {
+	DMS_ENTERS(ord_level_type::IndexedString, dms_shared_v); // see Object::GetFullName in Object.h
 	return GetName();
 }
 
@@ -339,6 +340,12 @@ const SourceLocation* PersistentObject::GetLocation() const
 
 SharedStr PersistentObject::GetFullName() const
 {
+	// Declared for the whole function, not just the walk: the ceiling is the contract of the
+	// virtual (see Object::GetFullName in mci/Object.h), so it must hold even for an item with no
+	// parent, where the walk below never runs and takes no lock of its own. The walk itself holds
+	// a TokenStrRange across a virtual GetParent(), which is exactly what this permits (#1227).
+	DMS_ENTERS(ord_level_type::IndexedString, dms_shared_v);
+
 	// calc size
 	UInt32 nameSz = 1;
 	auto item = this;
@@ -355,20 +362,14 @@ SharedStr PersistentObject::GetFullName() const
 	// reset and fill buffer
 	item = this;
 	*--nameConcatBufferPtr = char(0);
-	{
-		// The walk holds a TokenStrRange -- a shared usage of the token registry -- across a virtual
-		// GetParent(). Declare that, so anything added here which registers a token, or which takes a
-		// lock outer to the registry, fails in Debug instead of parking the process (#1227).
-		DMS_ENTERS(ord_level_type::IndexedString, dms_shared_v);
-		while (auto parent = item->GetParent()) {
-			TokenID nameToken = item->GetID();
-			auto nameLen = nameToken.GetStrLen();
-			nameConcatBufferPtr -= nameLen;
-			auto range = nameToken.AsStrRangeLock();
-			fast_copy(range.m_CharPtrRange.begin(), range.m_CharPtrRange.end(), nameConcatBufferPtr);
-			*--nameConcatBufferPtr = DELIMITER_CHAR;
-			item = parent;
-		}
+	while (auto parent = item->GetParent()) {
+		TokenID nameToken = item->GetID();
+		auto nameLen = nameToken.GetStrLen();
+		nameConcatBufferPtr -= nameLen;
+		auto range = nameToken.AsStrRangeLock();
+		fast_copy(range.m_CharPtrRange.begin(), range.m_CharPtrRange.end(), nameConcatBufferPtr);
+		*--nameConcatBufferPtr = DELIMITER_CHAR;
+		item = parent;
 	}
 
 	dms_assert(nameConcatBufferPtr == result->begin());

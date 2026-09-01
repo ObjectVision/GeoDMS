@@ -120,6 +120,7 @@ public:
 	// override AbstrPropDef for more selective prop persistency
 	bool HasNonDefaultValue(const Object* item) const override
 	{
+		DMS_ENTERS(ord_level_type::IndexedString, dms_shared_v); // see AbstrPropDef::HasNonDefaultValue
 		if (!debug_cast<const ItemType*>(item)->GetTSF(TSF_HasStoredProps))
 			return false;
 
@@ -231,6 +232,7 @@ public:
 	// override AbstrPropDef for more selective prop persistency
 	bool HasNonDefaultValue(const Object* item) const override
 	{
+		DMS_ENTERS(ord_level_type::IndexedString, dms_shared_v); // see AbstrPropDef::HasNonDefaultValue
 		if (!debug_cast<const ItemType*>(item)->GetTSF(TSF_HasStoredProps))
 			return false;
 
@@ -336,6 +338,7 @@ public:
 	// override AbstrPropDef for more selective prop persistency
 	bool HasNonDefaultValue(const Object* item) const override
 	{
+		DMS_ENTERS(ord_level_type::IndexedString, dms_shared_v); // see AbstrPropDef::HasNonDefaultValue
 		if (!debug_cast<const ItemType*>(item)->GetTSF(TSF_HasStoredProps))
 			return false;
 
