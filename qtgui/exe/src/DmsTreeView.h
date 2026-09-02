@@ -74,6 +74,9 @@ class TreeItemDelegate : public QStyledItemDelegate
 public:
 	using QStyledItemDelegate::QStyledItemDelegate;
 	void paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const override;
+
+protected:
+	void initStyleOption(QStyleOptionViewItem* option, const QModelIndex& index) const override;
 };
 
 class DmsTreeView : public QTreeView

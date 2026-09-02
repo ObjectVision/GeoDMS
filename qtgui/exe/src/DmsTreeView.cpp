@@ -77,6 +77,49 @@ namespace {
 		}
 		return row;
 	}
+
+	auto BlendColor(const QColor& base, const QColor& overlay, double weight) -> QColor {
+		auto mix = [weight](int b, int o) { return int(b + (o - b) * weight + 0.5); };
+		return QColor(mix(base.red(), overlay.red()), mix(base.green(), overlay.green()), mix(base.blue(), overlay.blue()));
+	}
+
+	// The square of a perceptually weighted RGB difference, the unsquared distance running from 0
+	// to 765: the eye resolves green far better than blue, so a plain Euclidean distance calls
+	// (0,0,255) and (0,54,237) well apart while they look like the same colour.
+	int SquaredWeightedColorDistance(const QColor& a, const QColor& b) {
+		auto dr = a.red() - b.red(), dg = a.green() - b.green(), db = a.blue() - b.blue();
+		return 2 * dr * dr + 4 * dg * dg + 3 * db * db;
+	}
+
+	// The current item is marked by TINTING its background rather than by replacing it with the
+	// full highlight fill that a QTreeView would normally paint: that background encodes the
+	// item's calculation/validation state, which must stay recognisable (issue #1235).
+	//
+	// A blend alone does not always show: a standby item is painted blue and the OS highlight
+	// colour is blue too, so blending one into the other changes next to nothing. A tint that
+	// neither steps in lightness nor changes hue enough is therefore pushed towards white or
+	// black -- whichever the background is furthest from -- until it does read as different.
+	// Both tests have to fail before that happens: a tint that only shifts the hue (yellow
+	// turning green) is perfectly visible, and a tint that only shifts the lightness is too.
+	auto SelectionBackColor(const QColor& backColor, const QColor& highlightColor, double weight) -> QColor {
+		const int min_lightness_step = 25;
+		const int min_squared_contrast = 150 * 150;
+
+		auto result = BlendColor(backColor, highlightColor, weight);
+		auto lightnessStep = result.lightness() - backColor.lightness();
+		if (lightnessStep < 0)
+			lightnessStep = -lightnessStep;
+
+		if (lightnessStep < min_lightness_step && SquaredWeightedColorDistance(result, backColor) < min_squared_contrast)
+			result = BlendColor(result, backColor.lightness() < 128 ? QColor(Qt::white) : QColor(Qt::black), 0.30);
+		return result;
+	}
+
+	// Black on a light background, white on a dark one, so that the focus caret stays visible
+	// whatever the state colour and whatever the OS theme (dark mode included) made of it.
+	auto ContrastingColor(const QColor& backColor) -> QColor {
+		return backColor.lightness() < 128 ? QColor(Qt::white) : QColor(Qt::black);
+	}
 }
 
 TreeModelCompleter::TreeModelCompleter(QObject* parent)
@@ -423,32 +466,67 @@ auto DmsModel::flags(const QModelIndex& index) const -> Qt::ItemFlags {
 	return Qt::ItemIsSelectable | Qt::ItemIsEnabled | Qt::ItemIsDragEnabled |  QAbstractItemModel::flags(index);
 }
 
+// paint() fills the row itself, so that the state colour can be tinted for the active item. The
+// style must not fill it a second time: QStyledItemDelegate::paint() copies the option it is
+// given and calls this, which reads Qt::BackgroundRole back into backgroundBrush -- and the
+// style then paints that UNtinted colour straight over the tint. Clearing the brush in paint()
+// does not help, because the copy is re-initialised here. That overpainting is why the previous
+// selection marker, a 2px blue border, was invisible as well (issue #1235).
+void TreeItemDelegate::initStyleOption(QStyleOptionViewItem* option, const QModelIndex& index) const {
+	QStyledItemDelegate::initStyleOption(option, index);
+	option->backgroundBrush = Qt::NoBrush;
+}
+
 void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const {
 	painter->save();
 	auto painter_exit_guard = make_scoped_exit([painter] { painter->restore(); });
 
-	// 1. Always fill background first to clear any previous drawing artifacts (expand by 1px for DPI scaling)
-	QRect fillRect = option.rect; // .adjusted(0, 0, 1, 1);
-	QVariant backColor = index.data(Qt::BackgroundRole);
-	if (backColor.isValid())
-		painter->fillRect(option.rect, backColor.value<QColor>());
-	else
-		painter->fillRect(option.rect, option.widget ? option.widget->palette().base() : QColor(Qt::white));
+	// The active item is the CURRENT item -- the one currentChanged() hands to the DetailPages --
+	// which is asked of the view here rather than read from State_Selected: this TreeView never
+	// fills its selection model, so State_Selected does not arrive and keying on it left the
+	// active item unmarked. State_HasFocus does arrive, and it means "current AND the TreeView
+	// holds the keyboard focus", which is exactly the second signal that issue #1235 asks for:
+	// the DetailPages keep describing the current item after the focus moved to a MapView.
+	const auto* item_view = qobject_cast<const QAbstractItemView*>(option.widget);
+	const bool is_active = (item_view && item_view->currentIndex() == index) || (option.state & QStyle::State_Selected);
+	const bool has_keyboard_focus = option.state & QStyle::State_HasFocus;
 
-	// 2. Draw selection/hover as border overlay (preserves status background)
-	if (option.state & QStyle::State_Selected) {
-		painter->setPen(QPen(QColor(0, 120, 215), 2));
-		painter->drawRect(option.rect.adjusted(1, 1, -2, -2));
-	} else if (option.state & QStyle::State_MouseOver) {
-		painter->setPen(QPen(QColor(100, 100, 100), 1, Qt::DashLine));
-		painter->drawRect(option.rect.adjusted(1, 1, -2, -2));
+	// 1. Always fill background first to clear any previous drawing artifacts
+	QVariant backColor = index.data(Qt::BackgroundRole);
+	QColor itemBackColor = backColor.isValid()
+		? backColor.value<QColor>()
+		: (option.widget ? option.widget->palette().base().color() : QColor(Qt::white));
+
+	// Take the selection colour from the palette instead of hard-coding the Windows blue, so that
+	// it follows the OS theme -- with RSF_TreeView_FollowOSLayout on or off -- and dark mode.
+	auto highlightColor = option.palette.color(QPalette::Active, QPalette::Highlight);
+	if (is_active)
+		itemBackColor = SelectionBackColor(itemBackColor, highlightColor, has_keyboard_focus ? 0.45 : 0.25);
+
+	painter->fillRect(option.rect, itemBackColor);
+
+	// 2. The hover outline is only drawn on items that are not the current one, so that it can no
+	// longer be mistaken for the selection -- which is now a tint and no longer an outline itself.
+	if (!is_active && (option.state & QStyle::State_MouseOver)) {
+		painter->setPen(QPen(BlendColor(itemBackColor, ContrastingColor(itemBackColor), 0.45), 1, Qt::DashLine));
+		painter->setBrush(Qt::NoBrush);
+		painter->drawRect(option.rect.adjusted(0, 0, -1, -1));
 	}
 
-	// 3. Draw text/icon without default background painting
+	// 3. Draw text/icon without default background painting; the style must paint neither its own
+	// selection fill nor its own focus rect over the state colour, hence all three bits go. The
+	// background brush is dropped in initStyleOption above, which is where it would come back.
 	QStyleOptionViewItem opt = option;
-	opt.state &= ~(QStyle::State_Selected | QStyle::State_MouseOver);
-	opt.backgroundBrush = Qt::NoBrush;
+	opt.state &= ~(QStyle::State_Selected | QStyle::State_MouseOver | QStyle::State_HasFocus);
 	QStyledItemDelegate::paint(painter, opt, index);
+
+	// 3b. The dotted focus caret, drawn over the tint and only while the TreeView has the keyboard
+	// focus: the tint says which item is current, the caret says that the keystrokes go here.
+	if (has_keyboard_focus) {
+		painter->setPen(QPen(ContrastingColor(itemBackColor), 1, Qt::DotLine));
+		painter->setBrush(Qt::NoBrush);
+		painter->drawRect(option.rect.adjusted(1, 1, -2, -2));
+	}
 
 	// 4. Draw badges: storage icon and validation status
 	TreeItem* ti = nullptr;
