@@ -1,0 +1,97 @@
+container fn_test_connect_matrix
+{
+	// #1236: connect_matrix / dist_matrix -- ALL points within a cutoff per feature,
+	// as a fresh domain of (feature, point) pairs.
+	//
+	// The feature domain is NOT called Arc: that name collides with the composition
+	// keyword, so '(Arc)' after an attribute reads as a composition, not a domain.
+	//
+	// Geometry, in (y, x):
+	//   road 0: (0,0) -> (0,10)       road 1: (100,0) -> (100,10)
+	//   p0 (3,5)   :   3 from road 0, 97 from road 1
+	//   p1 (104,5) : 104 from road 0,  4 from road 1
+	//   p2 (60,5)  :  60 from road 0, 40 from road 1
+	unit<uint32> RoadPoints : nrofrows = 4
+	{
+		attribute<float32> px      := float32(id(.) % 2) *  10f;
+		attribute<float32> py      := float32(id(.) / 2) * 100f;
+		attribute<fpoint>  point   := point_yx(py, px, fpoint);
+		attribute<Road>    seq_rel : [0, 0, 1, 1];
+		attribute<uint32>  ordinal : [0, 1, 0, 1];
+	}
+	unit<uint32> Road : nrofrows = 2
+	{
+		attribute<fpoint>  geometry (arc) := points2sequence(RoadPoints/point, RoadPoints/seq_rel, RoadPoints/ordinal);
+		attribute<float64> maxSqrDist     : [4000, 4000]; // ~63 m, so p2 is in range of both roads
+		attribute<uint32>  key            : [0, 1];
+	}
+	unit<uint32> Pnt : nrofrows = 3
+	{
+		attribute<float32> py       : [3, 104, 60];
+		attribute<float32> px       : [5,   5,  5];
+		attribute<fpoint>  geometry := point_yx(py, px, fpoint);
+		attribute<float64> tight    : [100000000, 100000000, 100]; // p2 may only reach 10 m
+		attribute<uint32>  key      : [0, 1, 0];
+	}
+
+	parameter<float64> wide := 100000000.0; // one value for every point: no point-side limit
+	parameter<uint32>  one  := 1;
+
+	// A: cutoff from the features only
+	//    road 0 -> p0 (3), p2 (60);  road 1 -> p1 (4), p2 (40)
+	unit<uint32> mA := connect_matrix(Pnt/geometry, wide, Road/geometry, Road/maxSqrDist);
+
+	// B: p2 carries its own, much tighter cutoff, so it drops out of both roads
+	unit<uint32> mB := connect_matrix(Pnt/geometry, Pnt/tight, Road/geometry, Road/maxSqrDist);
+
+	// C: at most one match per feature -- and it must be the NEAREST one
+	unit<uint32> mC := connect_matrix(Pnt/geometry, wide, Road/geometry, Road/maxSqrDist, one);
+
+	// D: the distance-only variant reports the same pairs
+	unit<uint32> mD := dist_matrix(Pnt/geometry, wide, Road/geometry, Road/maxSqrDist);
+
+	// E/F: the key variants, with the same rule connect_eq / connect_ne use -- the
+	// comparison must hold, and a null POINT key waives it
+	//   _eq: road 0 (key 0) -> p0 (3) and p2 (60);  road 1 (key 1) -> p1 (4)
+	//   _ne: road 0 -> nothing (p1 is 104 away, beyond the cutoff);  road 1 -> p2 (40)
+	unit<uint32> mE := connect_matrix_eq(Pnt/geometry, Pnt/key, wide, Road/geometry, Road/key, Road/maxSqrDist);
+	unit<uint32> mF := connect_matrix_ne(Pnt/geometry, Pnt/key, wide, Road/geometry, Road/key, Road/maxSqrDist);
+
+	container checks
+	{
+		// A: four pairs, grouped by feature and nearest-first within a feature
+		parameter<uint32>  c_rowsA := sum(uint32(IsDefined(mA/arc_rel))), IntegrityCheck = "c_rowsA == 4";
+		parameter<uint32>  c_a0    := uint32(mA/arc_rel[0])            , IntegrityCheck = "c_a0 == 0";
+		parameter<uint32>  c_a2    := uint32(mA/arc_rel[2])            , IntegrityCheck = "c_a2 == 1";
+		parameter<uint32>  c_p0    := uint32(mA/point_rel[0])          , IntegrityCheck = "c_p0 == 0";
+		parameter<uint32>  c_p1    := uint32(mA/point_rel[1])          , IntegrityCheck = "c_p1 == 2";
+		parameter<float64> c_d0    := mA/dist[0]                       , IntegrityCheck = "c_d0 > 2.99 && c_d0 < 3.01";
+		parameter<float64> c_d1    := mA/dist[1]                       , IntegrityCheck = "c_d1 > 59.9 && c_d1 < 60.1";
+		parameter<float64> c_sumA  := sum(mA/dist)                     , IntegrityCheck = "c_sumA > 106.9 && c_sumA < 107.1";
+		// the cut points are (0,5), (0,5), (100,5) and (100,5); row+col keeps this
+		// independent of the XY-order convention
+		parameter<float64> c_cut   := float64(sum(pointrow(mA/CutPoint))) + float64(sum(pointcol(mA/CutPoint)))
+		                                                               , IntegrityCheck = "c_cut > 219.9 && c_cut < 220.1";
+
+		// B: the pair limit is the MINIMUM of the two cutoffs, so p2 is gone
+		parameter<uint32>  c_rowsB := sum(uint32(IsDefined(mB/arc_rel))), IntegrityCheck = "c_rowsB == 2";
+		parameter<float64> c_sumB  := sum(mB/dist)                      , IntegrityCheck = "c_sumB > 6.99 && c_sumB < 7.01";
+
+		// C: one per feature, and it is the nearest -- not just any within the cutoff
+		parameter<uint32>  c_rowsC := sum(uint32(IsDefined(mC/arc_rel))), IntegrityCheck = "c_rowsC == 2";
+		parameter<float64> c_sumC  := sum(mC/dist)                      , IntegrityCheck = "c_sumC > 6.99 && c_sumC < 7.01";
+		parameter<uint32>  c_pC0   := uint32(mC/point_rel[0])           , IntegrityCheck = "c_pC0 == 0";
+		parameter<uint32>  c_pC1   := uint32(mC/point_rel[1])           , IntegrityCheck = "c_pC1 == 1";
+
+		// D: dist_matrix agrees with connect_matrix
+		parameter<uint32>  c_rowsD := sum(uint32(IsDefined(mD/arc_rel))), IntegrityCheck = "c_rowsD == 4";
+		parameter<float64> c_sumD  := sum(mD/dist)                      , IntegrityCheck = "c_sumD > 106.9 && c_sumD < 107.1";
+
+		// E: only same-key pairs; F: only different-key pairs, and road 0 keeps none
+		parameter<uint32>  c_rowsE := sum(uint32(IsDefined(mE/arc_rel))), IntegrityCheck = "c_rowsE == 3";
+		parameter<float64> c_sumE  := sum(mE/dist)                      , IntegrityCheck = "c_sumE > 66.9 && c_sumE < 67.1";
+		parameter<uint32>  c_rowsF := sum(uint32(IsDefined(mF/arc_rel))), IntegrityCheck = "c_rowsF == 1";
+		parameter<uint32>  c_aF0   := uint32(mF/arc_rel[0])             , IntegrityCheck = "c_aF0 == 1";
+		parameter<float64> c_sumF  := sum(mF/dist)                      , IntegrityCheck = "c_sumF > 39.9 && c_sumF < 40.1";
+	}
+}

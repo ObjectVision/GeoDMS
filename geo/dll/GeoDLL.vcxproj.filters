@@ -99,6 +99,9 @@
     <ClCompile Include="src\Connect.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\ConnectMatrix.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="src\Dijkstra.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="14.3" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -79,6 +79,7 @@
     <ClInclude Include="src\geom\BoostPolygon.h" />
     <ClInclude Include="src\geom\NeighbourIter.h" />
     <ClInclude Include="src\geom\SpatialIndex.h" />
+    <ClInclude Include="src\geom\SpatialSearchBox.h" />
     <ClInclude Include="src\InvertedRel.h" />
     <ClInclude Include="src\CentroidOrMid.h" />
     <ClInclude Include="src\SelectPoint.h" />
@@ -118,6 +119,7 @@
     <ClCompile Include="src\Canyon.cpp" />
     <ClCompile Include="src\CGAL.cpp" />
     <ClCompile Include="src\Connect.cpp" />
+    <ClCompile Include="src\ConnectMatrix.cpp" />
     <ClCompile Include="src\ConnectedParts.cpp" />
     <ClCompile Include="src\Dijkstra.cpp" />
     <ClCompile Include="src\DiscrAlloc.cpp" />
