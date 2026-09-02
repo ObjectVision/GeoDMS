@@ -107,6 +107,7 @@ namespace gdalComponentImpl
 {
 	UInt32          s_ComponentCount = 0;
 	bool            s_FinalCleanupDone = false;
+	bool            s_AllDriversRegistered = false; // guarded by gdalSection; see GDALRegisterAllDriversOnce
 	CPLErrorHandler s_OldErrorHandler = nullptr;
 
 	THREAD_LOCAL UInt32 s_TlsCount = 0;
@@ -283,6 +284,8 @@ void gdalCleanup()
 	//proj_cleanup();
 	OSRCleanup();
 	//	CPLCleanupTLS();
+
+	gdalComponentImpl::s_AllDriversRegistered = false; // the driver manager just went away; a later GDALAllRegister must run again
 }
 
 void gdalFinalCleanup()
@@ -721,6 +724,35 @@ gdalComponent::~gdalComponent()
 	}
 }
 
+// Register every GDAL driver, at most once per process and never from two threads at the same time.
+//
+// GDALAllRegister() is NOT thread-safe (issue #1234). It calls GDALDriverManager::AutoLoadDrivers()
+// and ::ReorderDrivers(), and both touch the driver manager's m_osDriversIniPath / m_oSetPluginFileNames
+// members outside GDAL's own hDMMutex: AutoLoadDrivers takes no lock at all, and ReorderDrivers reads
+// AND assigns m_osDriversIniPath before it takes the mutex. Two threads in there concurrently free and
+// re-read the same std::string buffer, which is heap corruption: the process dies with 0xC0000374
+// ("Free Heap block ... modified ... after it was freed") or 0xC0000005 on a 0xFEEEFEEE pointer,
+// with no [E] line in the log and part of the output already written.
+//
+// Every other registration path in this file already serializes on gdalSection; this call site did not.
+// It is reached for any file whose extension is not in FileExtensionToKnownGDALDriverShortName -- e.g.
+// the .txt/.asc ASCII grids of #1234 -- and Gdal_DoOpenStorage runs once per tile read, on the tile
+// worker threads, so a single item with many tiles is already enough to have several threads inside it.
+//
+// Once is also what keeps this affordable: AutoLoadDrivers re-scans the plugin directories and
+// ReorderDrivers re-reads drivers.ini on every call, so serializing an unconditional GDALAllRegister
+// would put that scan on the critical path of every tile open.
+void GDALRegisterAllDriversOnce()
+{
+	leveled_critical_section::scoped_lock lock(gdalComponentImpl::gdalSection);
+
+	if (gdalComponentImpl::s_AllDriversRegistered)
+		return;
+
+	GDALAllRegister(); // can throw; leave the flag clear so a later attempt retries
+	gdalComponentImpl::s_AllDriversRegistered = true;
+}
+
 CplString::~CplString()
 {
 	if (m_Text)
@@ -813,7 +845,7 @@ void gdalVector_CreateMetaInfo(TreeItem* container, bool mustCalc)
 void gdalComponent::CreateMetaInfo(TreeItem* container, bool mustCalc)
 {
 	gdalComponent xxx;
-	GDALAllRegister(); // cannot open file based on trusted drivers
+	GDALRegisterAllDriversOnce(); // cannot open file based on trusted drivers
 
 	gdalRaster_CreateMetaInfo(container, mustCalc);
 	gdalVector_CreateMetaInfo(container, mustCalc);
@@ -1697,7 +1729,7 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 		if (driver_short_name && *driver_short_name)
 			driver_array.AddString(driver_short_name);
 		else
-			GDALAllRegister(); // cannot open file based on trusted drivers
+			GDALRegisterAllDriversOnce(); // cannot open file based on trusted drivers; #1234: never bare GDALAllRegister on a worker thread
 	}
 
 	if (rwMode == dms_rw_mode::read_only)
