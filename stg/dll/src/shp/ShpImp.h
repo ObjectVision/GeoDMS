@@ -199,6 +199,9 @@ struct ShpPolygon
 	template <typename InIter> 
 	void AddPoints(InIter first, InIter last);
 
+	template <typename InIter>
+	void AddRing(InIter first, InIter last);
+
 private:
 	bool Check() const;
 };
@@ -312,6 +315,26 @@ void ShpPolygon::AddPoints(InIter first, InIter last)
 	(*m_Parts).push_back((*m_Points).size() MG_DEBUG_ALLOCATOR_SRC("ShpPolygon::AddPoints"));
 
 	(*m_Points).append(first, last MG_DEBUG_ALLOCATOR_SRC("ShpPolygon::AddPoints"));
+}
+
+// Adds a ring as a part, closed as the ESRI specification requires: a polygon ring must repeat
+// its first point at the end. A GeoDMS polygon value need not, and ShpStorageManager::ReadSequences
+// closes such a ring on read, so writing the points as held produced a file that only that reader
+// accepts; gdal.vect -- which a .shp StorageName selects since 17.0.0 -- refuses it with
+// "Non closed ring detected" / "Check Failed Error: ring->getY(0) == ring->getY(numPoints-1)".
+template <typename InIter>
+void ShpPolygon::AddRing(InIter first, InIter last)
+{
+	SizeT ringStart = NrPoints();
+
+	AddPoints(first, last);
+
+	if (NrPoints() == ringStart)
+		return; // empty ring: nothing to close
+
+	ShpPoint ringBegin = (*m_Points)[ringStart]; // by value: push_back can reallocate
+	if (!((*m_Points).back() == ringBegin))
+		(*m_Points).push_back(ringBegin MG_DEBUG_ALLOCATOR_SRC("ShpPolygon::AddRing"));
 }
 
 // Throw some points into a fresh shape file

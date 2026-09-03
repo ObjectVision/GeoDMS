@@ -1,0 +1,61 @@
+// Shapefile ring closure: both shapefile writers wrote a polygon ring exactly as the GeoDMS
+// value holds it, so a ring whose first vertex is not repeated at the end produced a file that
+// violates the ESRI specification -- and that gdal.vect, which a .shp StorageName selects since
+// 17.0.0, refuses on the way back in with "Non closed ring detected" / "Check Failed Error:
+// ring->getY(0) == ring->getY(numPoints-1)". Only ShpStorageManager's own reader accepted it,
+// because that one closes a ring on read. Since 20.19.2 ShpPolygon::AddRing and
+// OGRLinearRing::closeRings() close the ring at write time, in the shp storage manager and in
+// gdalwrite.vect respectively.
+//
+// This config only WRITES the two files; stor_shp_ringclose_2_read.dms reads them back and checks
+// the areas. THE TWO BELONG TOGETHER AND RUN IN THIS ORDER: run_testcases.ps1 walks the configs
+// sorted by file name, and the `_1_write` / `_2_read` in the names is what orders them. A read of
+// a file just written cannot be ordered after the write inside one config, because the reading
+// domain unit takes its size from that file while its meta info is determined, which is before any
+// supplier of it is updated.
+//
+// Only a SINGLE-ring polygon can be left open. A multi-ring value delimits its rings by a point
+// that repeats the ring's own first point, so every ring but the last has to be closed for the
+// ring structure to be read at all -- which is why one open ring and one closed ring is the whole
+// matrix here. Feature 0 is a 10x10 square written open (4 vertices), feature 1 a 5x5 square
+// written closed (5 vertices); the closed one pins that closing does not run twice.
+container stor_shp_ringclose_1_write
+{
+	unit<fpoint> point_rd := baseunit('m', fpoint);
+
+	unit<uint32> region : nrofrows = 2;
+
+	unit<uint32> vertex : nrofrows = 9
+	{
+		//                              |<--- open: no repeat --->|  |<------ closed: 0,0 again ------>|
+		attribute<float32>  px      : [  0, 10, 10,  0,                0,  5,  5,  0,  0];
+		attribute<float32>  py      : [  0,  0, 10, 10,                0,  0,  5,  5,  0];
+		attribute<region>   poly_rel: [  0,  0,  0,  0,                1,  1,  1,  1,  1];
+		attribute<uint32>   ordinal : [  0,  1,  2,  3,                0,  1,  2,  3,  4];
+		attribute<point_rd> point   := point_yx(py, px, point_rd);
+	}
+
+	attribute<point_rd> poly (region, polygon) := points2polygon(vertex/point, vertex/poly_rel, vertex/ordinal);
+
+	container export
+	{
+		// the shp/dbf storage manager: the .dbf on the domain, the .shp on the feature attribute
+		unit<uint32> shp_layer  := /region
+		,	StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_shp_ringclose_n.dbf"
+		{
+			attribute<point_rd> geometry (polygon) := /poly
+			,	StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_shp_ringclose_n.shp"
+			,	StorageType = "shp";
+			attribute<string>   label               : ['open', 'closed'];
+		}
+
+		// gdalwrite.vect: one layer, geometry and fields together
+		unit<uint32> gdal_layer := /region
+		,	StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_shp_ringclose_g.shp"
+		,	StorageType = "gdalwrite.vect"
+		{
+			attribute<point_rd> geometry (polygon) := /poly;
+			attribute<string>   label               : ['open', 'closed'];
+		}
+	}
+}

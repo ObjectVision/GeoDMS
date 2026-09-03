@@ -311,7 +311,9 @@ void WriteSequences(const AbstrDataObject* ado, ShpImp* pImp, WeakStr nameStr, c
 			for (; ri  != re; ++ri)
 			{
 				auto ring = *ri;
-				feature.AddPoints(
+				// AddRing, not AddPoints: a ring the GeoDMS value left open is closed here, as
+				// the ESRI specification requires and as gdal.vect demands when reading back.
+				feature.AddRing(
 					func_iter(ring.begin()),
 					func_iter(ring.end  ())
 				);

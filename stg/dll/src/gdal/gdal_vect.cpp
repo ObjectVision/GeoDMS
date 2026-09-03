@@ -2028,6 +2028,14 @@ void SetPolygonGeometryForFeature(OGRFeature* feature, SA_ConstReference<PointTy
 			pt.setY(p.Y());
 			ogrRing->addPoint(&pt);
 		}
+		// A GeoDMS polygon value need not repeat a ring's first point at the end; every format that
+		// takes a polygon requires it, and GDAL does not add it for us -- an ESRI Shapefile written
+		// from such a value is refused by gdal.vect on the way back in with "Non closed ring
+		// detected" / "Check Failed Error: ring->getY(0) == ring->getY(numPoints-1)". Close before
+		// isClockwise() below, which reads the last point as the repeat of the first and would
+		// otherwise judge the winding of this ring without its final vertex.
+		ogrRing->closeRings();
+
 		// initialize a (new) polygon if this ring is an outer ring
 		if (!ogrPoly || (currOuterIsClockwise == (ogrRing->isClockwise() != 0)) )
 		{

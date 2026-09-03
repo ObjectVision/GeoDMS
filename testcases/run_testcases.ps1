@@ -10,6 +10,14 @@
 # line); the default item is /checks (each positive config carries a /checks container
 # whose IntegrityChecks fail the run if a computed value is wrong).
 #
+# Configs run SORTED BY FILE NAME, one GeoDmsRun invocation each. Cases are otherwise
+# independent, but a round trip over a storage cannot be: the reading domain unit takes
+# its size from the file while its meta info is determined, which is before any supplier
+# of it can be updated, so the write cannot be ordered before the read inside one config.
+# Such a pair is split over two configs whose names order them -- see
+# stor_shp_ringclose_1_write.dms / stor_shp_ringclose_2_read.dms. Do not rename one half
+# without the other.
+#
 # Usage: run_testcases.ps1 -Exe <path\to\GeoDmsRun.exe> [-OutDir <logfolder>]
 # Exit code: 0 if every case matched its expected outcome, 1 otherwise.
 param(

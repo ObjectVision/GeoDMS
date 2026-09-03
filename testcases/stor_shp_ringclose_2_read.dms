@@ -1,0 +1,35 @@
+// The read half of the shapefile ring-closure case; stor_shp_ringclose_1_write.dms writes the two
+// files and carries the description of what is being pinned. run_testcases.ps1 walks the configs
+// sorted by file name, so `_1_write` runs before this one; on its own this config fails with
+// "Failure to open" because neither file exists yet.
+//
+// Neither read declares a StorageType, so both go through gdal.vect -- the reader a .shp
+// StorageName selects since 17.0.0, and the one that refuses an unclosed ring. Before 20.19.2 both
+// reads failed here with "Non closed ring detected" / "Check Failed Error: ring->getY(0) ==
+// ring->getY(numPoints-1)", each writer having stored feature 0 with its ring left open.
+//
+// The areas are the check: a 10x10 square plus a 5x5 square is 125 m2. Reading a feature at all
+// proves the ring closed; the area proves it closed with the RIGHT point, since closing with any
+// other vertex would change the shape.
+container stor_shp_ringclose_2_read
+{
+	unit<fpoint> point_rd := baseunit('m', fpoint);
+
+	unit<uint32> from_shp : StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_shp_ringclose_n.dbf"
+	{
+		attribute<point_rd> geometry (polygon) : StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_shp_ringclose_n.shp";
+	}
+
+	unit<uint32> from_gdal : StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_shp_ringclose_g.dbf"
+	{
+		attribute<point_rd> geometry (polygon) : StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_shp_ringclose_g.shp";
+	}
+
+	container checks
+	{
+		parameter<bool>    shp_features  := #from_shp  == 2,     IntegrityCheck = "shp_features == true";
+		parameter<bool>    gdal_features := #from_gdal == 2,     IntegrityCheck = "gdal_features == true";
+		parameter<float32> shp_area      := sum(area(from_shp/geometry,  float32)), IntegrityCheck = "shp_area  == 125f";
+		parameter<float32> gdal_area     := sum(area(from_gdal/geometry, float32)), IntegrityCheck = "gdal_area == 125f";
+	}
+}
