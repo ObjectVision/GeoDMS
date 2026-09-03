@@ -27,6 +27,7 @@
 #include "DmsOptions.h"
 #include "DmsMainWindow.h"
 #include "DmsAddressBar.h"
+#include "TestScript.h"
 #include <QMainWindow>
 #include "dbg/SeverityType.h"
 
@@ -694,6 +695,8 @@ void geoDMSMessage(ClientHandle /*clientHandle*/, const MsgData* msgData, bool m
 
 	if (st == SeverityTypeID::ST_Nothing)
 		return;
+
+	CountScriptError(msgData); // a "TestScript:" error decides the exit code of a /T run
 
 	assert(IsMainThread());
 	if (g_IsTerminating)

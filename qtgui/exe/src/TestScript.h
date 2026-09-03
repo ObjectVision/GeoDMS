@@ -14,6 +14,8 @@
 using stx_error = std::runtime_error;
 
 void reportErr(CharPtr errMsg);
+struct MsgData;
+void CountScriptError(const MsgData* msgData); // called for every reported message; see TestScript.cpp
 UInt32 str2int(CharPtr str);
 
 enum class CommandCode {

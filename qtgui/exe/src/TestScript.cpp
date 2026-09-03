@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <atomic>
 #include <cctype>
 #include <cstring>
 #include <iostream>
@@ -44,6 +45,28 @@ void reportErr(CharPtr errMsg)
 static bool IsSpace(char ch)
 {
 	return std::isspace(static_cast<unsigned char>(ch)) != 0;
+}
+
+// Every script error is an ST_Error message that starts with "TestScript:": from reportErr above,
+// and from the pop-up menu path code in Shv's DataView.cpp, which a SEND reaches through the active
+// view. The GUI's message callback (geoDMSMessage) hands every message to CountScriptError, so both
+// are counted, and RunTestScript turns the count into the exit code of the run: 1 when a script
+// error was reported, 0 otherwise. A test runner then notices without reading the log.
+static std::atomic<UInt32> s_NrScriptErrors = 0;
+
+void CountScriptError(const MsgData* msgData)
+{
+	assert(msgData);
+	if (msgData->m_SeverityType != SeverityTypeID::ST_Error)
+		return;
+	static const char prefix[] = "TestScript:";
+	if (std::strncmp(msgData->m_Txt.c_str(), prefix, sizeof(prefix) - 1) == 0)
+		++s_NrScriptErrors;
+}
+
+static int ScriptExitCode()
+{
+	return s_NrScriptErrors ? 1 : 0;
 }
 
 // A SEND element is an index when it is all digits, and a menu-item caption otherwise. Naming an
@@ -564,11 +587,11 @@ int RunTestScript(SharedStr testScriptName, bool* mustTerminateToken)
 		std::promise<int> p;
 		auto mainThreadResult = p.get_future();
 		if (*mustTerminateToken)
-			return 0;
+			return ScriptExitCode();
 
 		auto mw = MainWindow::TheOne();
 		if (!mw)
-			return 0;
+			return ScriptExitCode();
 
 		mw->PostAppOper([line, lineNr, &p]
 			{
@@ -594,6 +617,6 @@ int RunTestScript(SharedStr testScriptName, bool* mustTerminateToken)
 		if (waitMilliSec)
 			std::this_thread::sleep_for(std::chrono::milliseconds(waitMilliSec));
 	}
-    return 0;
+    return ScriptExitCode();
 }
 

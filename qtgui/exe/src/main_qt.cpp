@@ -49,7 +49,7 @@ struct CmdLineException : SharedStr, std::runtime_error {
             "\nGeoDmsGuiQt.exe [/L<LogFile>] [/T<TestScript>] [/S<X> /C<X> ...] [/noconfig] [<ConfigFile.dms> [<Item>]]"
             "\n"
             "\n  /L<LogFile>     write a session log; must be the first argument"
-            "\n  /T<TestScript>  replay a GUI test script and exit with its result"
+            "\n  /T<TestScript>  replay a GUI test script; the exit code is 1 when it reported a script error"
             "\n  /S<X>, /C<X>    set resp. clear status flag <X>; before the configuration file name."
             "\n                  /SA shows hidden items, /SC state colours, /SM debug mode,"
             "\n                  /S1 /S2 /S3 the multi-threading levels, /SP performance logging"
