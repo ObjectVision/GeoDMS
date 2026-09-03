@@ -39,6 +39,19 @@ enum class ord_level_type : UInt32;
 // which is the opposite of what it is for. A section that genuinely may be taken in either order
 // needs an ordinal that says so, not a way to stop asking.
 
+// A level has two dimensions, and Allow decides the ITEM dimension before it looks at the ordinal:
+//
+//  - item level 0 is every global section and every DMS_ENTERS ceiling; a per-item lock from
+//    cs_lock_map carries GetItemLevel(item), non-zero once the item's state has been determined.
+//    A per-item lock is OUTER to every global section: holding one permits any global, and
+//    holding a global (or a ceiling) refuses every per-item lock. Two per-item locks are not
+//    ordered against each other at all -- see Allow -- so the VALUE of a non-zero item level
+//    carries no meaning for the checker; only zero versus non-zero does.
+//  - the ordinal orders the global sections among themselves (LockLevels.h).
+//
+// A per-item lock whose item is a passor or has not been determined yet reports item level 0 and
+// is not entered into the checker at all (cs_lock_map::ScopedLock) -- the one remaining place a
+// leveled lock is invisible; see doc/deadlocks.md, B1.
 struct level_type {
 	CharPtr         m_Descr = nullptr;
 	ord_level_type  m_Level = ord_level_type(0);
@@ -49,6 +62,14 @@ struct level_type {
 	bool Allow(const level_type& other) const {
 		dms_assert(other.m_Level > ord_level_type(0));
 		if (m_Level == ord_level_type(0))
+			return true;
+		// Two per-item locks are not ordered by this checker (#1233). Their nesting follows the
+		// interest recursion -- IncInterestCount holds the consumer while StartInterest takes the
+		// suppliers -- and the item levels do not track that relation: a supplier reached through
+		// StartSupplInterest can sit deeper than its consumer (measured: consumer 3, supplier 5),
+		// because DetermineLastSupplierChange folds in a different supplier set. What keeps that
+		// nesting acyclic is the supplier DAG itself. Refusing it here would only be false.
+		if (m_ItemLevel != item_level_type(0) && other.m_ItemLevel != item_level_type(0))
 			return true;
 		if (m_ItemLevel > other.m_ItemLevel)
 			return true;
@@ -76,11 +97,14 @@ struct level_type {
 RTC_CALL level_type EnterLevel(level_type level);
 RTC_CALL void LeaveLevel(level_type& oldLevel);
 
-// True when this thread holds no leveled section and has declared no ceiling. This is the
-// complement of a callee ceiling: a dispatch point whose callees are deliberately UNCONSTRAINED
-// (the main-thread operation queue) is only sound while the dispatcher itself holds nothing,
-// and this is what lets it assert that (#1227).
-RTC_CALL bool CurrentThreadHoldsNoLevelLock() noexcept;
+// True when this thread holds no GLOBAL leveled section and has declared no ceiling -- i.e. the
+// current level is either nothing or a per-item lock. This is the complement of a callee ceiling:
+// a dispatch point whose callees are deliberately unconstrained (the main-thread operation queue)
+// is only sound while the dispatcher holds nothing that would refuse them. A per-item lock does
+// not qualify: it is OUTER to every global section, so an oper may still take any of those, and
+// what it may not take -- a per-item lock at an equal or higher item level -- the checker refuses
+// on its own. The meta thread pumps under PrepareDataUsage per-item locks by design (#1233).
+RTC_CALL bool CurrentThreadHoldsNoGlobalLevelLock() noexcept;
 
 //----------------------------------------------------------------------
 // Declared lock-level ceilings (#1227)

@@ -82,13 +82,33 @@ struct cs_lock_map
 	inline static const CharPtr m_Descr = "";
 #endif
 
-	cs_lock_map(CharPtr descr)
+	cs_lock_map(CharPtr descr, [[maybe_unused]] ord_level_type lockLevel = ord_level_type::ItemRegister)
 		:	sc_TileAccessMapLock(item_level_type(0), ord_level_type::TileAccessMap, "cs_lock_map")
 #if defined(MG_DEBUG_LOCKLEVEL)
-		,	m_LockLevel(ord_level_type::ItemRegister)
+		,	m_LockLevel(lockLevel)
 		,	m_Descr(descr)
 #endif
 	{}
+
+#if defined(MG_DEBUG_LOCKLEVEL)
+	// #1233: a per-item lock enters the level checker exactly as scoped_lock_impl does. Until now
+	// this map called m_Lock.lock() on the std::mutex directly and its locks were invisible to the
+	// checker -- which also meant the item-level dimension of Allow had never been exercised by
+	// anything at all. What is checked: a global section or a ceiling held while a per-item lock
+	// is taken (refused), and anything taken under a per-item lock. Two per-item locks are not
+	// ordered against each other; see Allow in Parallel.h for why that would only be false.
+	struct level_entry
+	{
+		level_entry(item_level_type itemLevel, ord_level_type level, CharPtr descr)
+			:	m_OldLevel(EnterLevel(level_type{ descr, level, itemLevel, false, &m_OldLevel }))
+		{}
+		~level_entry() { LeaveLevel(m_OldLevel); }
+		level_entry(const level_entry&) = delete;
+		level_entry& operator =(const level_entry&) = delete;
+
+		level_type m_OldLevel;
+	};
+#endif
 
 	template <typename KeyProxy>
 	assoc_ptr GetorCreateMutex(MG_SOURCE_INFO_DECL KeyProxy&& key)
@@ -190,19 +210,29 @@ struct cs_lock_map
 	{
 		template <typename KeyProxy>
 		ScopedLock(MG_SOURCE_INFO_DECL cs_lock_map& map, KeyProxy&& key)
-			:	m_AssocPtr(map.Lock(MG_SOURCE_INFO_USE std::forward<KeyProxy>(key)))
-			,	m_Map(&map)
+			:	m_Map(&map)
 		{
+#if defined(MG_DEBUG_LOCKLEVEL)
+			// Entered BEFORE the acquire, like scoped_lock_impl: an ordering violation is reported
+			// before this thread can park on it. Only a determined item has a level; a passor or a
+			// not-yet-determined item reports 0 and stays invisible, as it always was.
+			if (auto itemLevel = GetItemLevel(key); itemLevel != item_level_type(0))
+				m_LevelEntry.emplace(itemLevel, map.m_LockLevel, map.m_Descr);
+#endif
+			m_AssocPtr = map.Lock(MG_SOURCE_INFO_USE std::forward<KeyProxy>(key));
 			dms_assert(m_AssocPtr != m_Map->scm_TileAccessLocks.end()); // _ITERATOR_DEBUG_LEVEL == 2: also checks that it belongs to map
 		}
 
 		~ScopedLock()
 		{
 			dms_assert(m_AssocPtr != m_Map->scm_TileAccessLocks.end()); // _ITERATOR_DEBUG_LEVEL == 2: also checks that it belongs to map
-			m_Map->UnLockAndReleaseMutexRef(m_AssocPtr);
+			m_Map->UnLockAndReleaseMutexRef(m_AssocPtr); // the level is left afterwards, when m_LevelEntry is destroyed
 		}
 
 	protected:
+#if defined(MG_DEBUG_LOCKLEVEL)
+		std::optional<level_entry> m_LevelEntry;
+#endif
 		assoc_ptr            m_AssocPtr;
 		WeakPtr<cs_lock_map> m_Map;
 	};
@@ -210,9 +240,18 @@ struct cs_lock_map
 	{
 		template <typename KeyProxy>
 		ScopedTryLock(MG_SOURCE_INFO_DECL cs_lock_map& map, KeyProxy&& key)
-			: m_AssocPtr(map.TryLock(MG_SOURCE_INFO_USE std::forward<KeyProxy>(key)))
-			, m_Map(&map)
-		{}
+			: m_Map(&map)
+		{
+#if defined(MG_DEBUG_LOCKLEVEL)
+			if (auto itemLevel = GetItemLevel(key); itemLevel != item_level_type(0))
+				m_LevelEntry.emplace(itemLevel, map.m_LockLevel, map.m_Descr);
+#endif
+			m_AssocPtr = map.TryLock(MG_SOURCE_INFO_USE std::forward<KeyProxy>(key));
+#if defined(MG_DEBUG_LOCKLEVEL)
+			if (!m_AssocPtr)
+				m_LevelEntry.reset(); // nothing acquired, so nothing is held
+#endif
+		}
 
 		~ScopedTryLock()
 		{
@@ -223,6 +262,9 @@ struct cs_lock_map
 		operator bool() const { return has_lock(); }
 
 	protected:
+#if defined(MG_DEBUG_LOCKLEVEL)
+		std::optional<level_entry> m_LevelEntry;
+#endif
 		assoc_ptr m_A2;
 		std::optional<assoc_ptr> m_AssocPtr;
 		WeakPtr<cs_lock_map>     m_Map;

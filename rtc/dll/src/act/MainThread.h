@@ -71,11 +71,13 @@ bool   NoOtherThreadsStarted();
 bool   IsElevatedThread();
 UInt32 GetCallCount();
 RTC_CALL UInt32 GetThreadID(); // exported: qtgui DmsMainWindow needs it in Debug links (/OPT:REF strips the reference in Release)
-// The posted oper's ceiling is deliberately UNCONSTRAINED -- opers do real work (GUI garbage
+// The ceiling of a posted oper is deliberately UNCONSTRAINED -- opers do real work (GUI garbage
 // collection, theme updates, deferred reporting) and any DMS_CALLEE_ENTERS level here would be
-// false. That is only sound because operation_queue::Process runs them with no leveled section
-// held: the queue lock is released before the first oper runs, and every pump site
-// (ProcessMainThreadOpers and its callers) holds nothing -- which Process asserts (#1227). An
+// false. That is only sound because operation_queue::Process runs them with no GLOBAL leveled
+// section held: the queue lock is released before the first oper runs, and every pump site
+// (ProcessMainThreadOpers and its callers) holds at most per-item locks -- which Process asserts
+// (#1227, #1233). Under a per-item lock an oper may still take every global section; what it may
+// not take, a per-item lock at an equal or higher item level, the checker refuses by itself. An
 // oper that must not run while this thread holds the token registry is already deferred by
 // RequestMainThreadOperProcessingBlocker (see IndexedString_shared_lock in sym/Token.h).
 RTC_CALL void PostMainThreadOper(operation_type&& func);

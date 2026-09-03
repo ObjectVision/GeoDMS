@@ -778,7 +778,7 @@ DataCheckMode AbstrDataItem::DetermineRawCheckModeImpl() const
 }
 
 using data_flags_lock_map = cs_lock_map<const AbstrDataItem*>;
-data_flags_lock_map sg_DataFlagsLockMap("DataItemFlags");
+data_flags_lock_map sg_DataFlagsLockMap("DataItemFlags", ord_level_type::DataFlagsLock);
 
 DataCheckMode AbstrDataItem::GetRawCheckMode() const
 {

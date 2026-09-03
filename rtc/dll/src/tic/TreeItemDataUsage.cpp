@@ -173,7 +173,7 @@ bool TreeItem::DoWriteItem(StorageMetaInfoPtr&&) const
 //=============================== ConcurrentMap (client is responsible for scoping and stack unwinding issues)
 
 
-treeitem_lock_map sg_PrepareDataUsageLockMap("PrepareDataUsage");
+treeitem_lock_map sg_PrepareDataUsageLockMap("PrepareDataUsage", ord_level_type::PrepareDataUsageLock);
 
 bool TreeItem::PrepareDataUsage(DrlType drlFlags) const 
 // returns false when 

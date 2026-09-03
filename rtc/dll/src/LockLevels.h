@@ -35,6 +35,14 @@ enum class ord_level_type : UInt32
 
 	TreeItemFlags = MOST_INNER_LOCK - 1,
 	ItemRegister = MOST_INNER_LOCK - 2,
+	// The three cs_lock_map instances (#1233). All three live in the per-item dimension of
+	// level_type::Allow, where an item level >= 1 makes each of them outer to every global section
+	// and per-item locks are not ordered against each other at all -- so today these ordinals are
+	// never compared. Kept distinct anyway: they record the one same-item nesting that is known,
+	// PrepareDataUsage(X) enclosing DataWriteLockAtom(X), for a finer rule to build on.
+	// ItemRegister itself is the actor lock map.
+	PrepareDataUsageLock = ItemRegister - 1,
+	DataFlagsLock = ItemRegister + 1,
 	OperationContext = MOST_INNER_LOCK,
 //	UpdatingInterestSet moved to CountSection + 1 below (#1233 P3): it used to share CountSection's
 //	ordinal, so InterestReporter::Report -- which holds CountSection and then takes this one -- had

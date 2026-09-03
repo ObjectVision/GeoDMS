@@ -241,9 +241,9 @@ void counted_mutex::unlock_shared()
 
 THREAD_LOCAL level_type s_LockLevel;
 
-RTC_CALL bool CurrentThreadHoldsNoLevelLock() noexcept
+RTC_CALL bool CurrentThreadHoldsNoGlobalLevelLock() noexcept
 {
-	return s_LockLevel.m_Level == ord_level_type(0);
+	return s_LockLevel.m_Level == ord_level_type(0) || s_LockLevel.m_ItemLevel != item_level_type(0);
 }
 
 RTC_CALL level_type EnterLevel(level_type level)

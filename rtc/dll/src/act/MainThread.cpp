@@ -285,10 +285,13 @@ void operation_queue::Process()
 	SuspendTrigger::SilentBlocker blockSuspensions("operation_queue::Process");
 
 #if defined(MG_DEBUG_LOCKLEVEL)
-	// The opers' ceiling is deliberately unconstrained (see PostMainThreadOper in MainThread.h);
-	// that is only sound while every pump site holds no leveled section. Enforce it here, once,
-	// rather than annotating every posted lambda with a ceiling that would be false (#1227).
-	dms_assert(CurrentThreadHoldsNoLevelLock());
+	// The ceiling of the opers is deliberately unconstrained (see PostMainThreadOper in
+	// MainThread.h); that is only sound while every pump site holds no GLOBAL leveled section.
+	// Enforce it here, once, rather than annotating every posted lambda with a ceiling that would
+	// be false (#1227). A per-item lock held here is by design -- the meta thread pumps from
+	// inside PrepareDataUsage -- and is outer to everything an oper takes, except another per-item
+	// lock at an equal or higher item level, which the checker refuses by itself (#1233).
+	dms_assert(CurrentThreadHoldsNoGlobalLevelLock());
 #endif
 
 	for (auto& oper : operQueue)
