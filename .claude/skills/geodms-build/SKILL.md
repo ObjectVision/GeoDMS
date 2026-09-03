@@ -10,6 +10,20 @@ single project, never an improvised script. This skill is the operational side o
 on this machine, where `C:\dev\GeoDMS_2026` is one tree used at the same time by the user in
 Visual Studio and by other agent sessions, all writing to the same `bin\<Config>\x64`.
 
+## Build in `C:\dev\GeoDMS_2026`, NEVER inside a worktree
+
+A session may be started in a git worktree under `.claude/worktrees/<name>\`. **Never build or
+test there.** A worktree gets the tracked files only: no `vcpkg_installed`, and the `vcpkg`
+submodule directory is empty. `tools\ensure-vcpkg.ps1` would take that as an unprovisioned tree
+and bootstrap vcpkg plus every port from scratch — hours of compiling and gigabytes, into a
+throwaway folder, while the real tree sits provisioned next door. There is also no second
+`bin\<Config>\x64` worth having: the `Test*.bat` scripts, the GUI and the user's own workflow all
+run out of the main checkout's.
+
+So when the edits are in a worktree and they need compiling, do not build; carry them into
+`C:\dev\GeoDMS_2026` first (`git diff > patch` + `git apply`, or merge the branch), after checking
+the tree is quiet as below. Say so rather than building where you stand.
+
 ## Before you build: is the tree quiet
 
 There is no lock. A second build interleaves writes into the same output folder, and a
@@ -85,6 +99,9 @@ and no `GeoDmsRun`, `cdb` or `WerFault` of yours parked on a dialog (see geodms-
   `tools\ensure-vcpkg.ps1` and `tools\vcpkg-toolchain.cmake`.
 - Using `batch\BuildSignAndCreateSetup*.bat` as a dev build. Those are the release scripts;
   see geodms-release.
+- Building or testing from a `.claude\worktrees\<name>\` checkout, whatever the tool. See the
+  top of this skill: an unprovisioned tree makes vcpkg rebuild the world into a throwaway
+  folder. Move the change to `C:\dev\GeoDMS_2026` and build there.
 
 If the build cannot be run exactly this way, stop and ask.
 
