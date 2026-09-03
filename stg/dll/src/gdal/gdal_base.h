@@ -182,6 +182,7 @@ STGDLL_CALL bool AuthorityCodeIsValidCrs(std::string_view wkt);
 auto DmsType2OGRFieldType(ValueClassID id) -> OGRFieldType; // TODO move OGR helper funcs to gdal_vect.cpp
 auto DmsType2OGRSubFieldType(ValueClassID id) -> OGRFieldSubType;
 auto DmsType2OGRGeometryType(ValueComposition vc) -> OGRwkbGeometryType;
+bool CheckVCAndVCIForGeometry(ValueComposition vc, ValueClassID vci); // defined in gdal_vect.cpp
 auto GetWktProjectionFromValuesUnit(const AbstrDataItem* adi) -> SharedStr;
 const TreeItem* GetLayerHolderFromDataItem(const TreeItem* storageHolder, const TreeItem* subItem);
 auto GetOptionArray(const TreeItem* optionsItem) -> CPLStringList;

@@ -1,0 +1,33 @@
+// issue #1232: gdalwrite.vect decided whether a column may be written by measuring its values type
+// against the driver's creation FIELD types, and exempted only a column literally called 'geometry'.
+// A layer's geometry is not a field, so a geometry column under any other name -- 'shape' here --
+// was measured as one, and no OGR field type corresponds to an fpoint: 20.19.1 refused the write
+// with "driver ESRI Shapefile does not support writing of values type fpoint". Versions before that
+// accepted the write but created the layer without a geometry field, so its features had no shape
+// and only the .dbf appeared. Both halves are fixed by recognizing the geometry by its value
+// composition. This case covers the refusal; that the .shp is really written is covered by t050 in
+// GeoDMS-Test, because a read of the file just written cannot be ordered after the write here.
+container stor_gdalwrite_geom_name
+{
+	unit<fpoint> point_rd := baseunit('m', fpoint);
+
+	unit<uint32> shapes : nrofrows = 2;
+
+	unit<uint32> coords : nrofrows = 8
+	{
+		attribute<float32>  px        : [ 0, 10, 10,  0, 20, 30, 30, 20];
+		attribute<float32>  py        : [ 0,  0, 10, 10,  0,  0, 10, 10];
+		attribute<shapes>   shape_rel : [ 0,  0,  0,  0,  1,  1,  1,  1];
+		attribute<uint32>   ordinal   : [ 0,  1,  2,  3,  0,  1,  2,  3];
+		attribute<point_rd> point     := point_yx(py, px, point_rd);
+	}
+
+	unit<uint32> Export := shapes
+	,	StorageName = "='%LocalDataDir%/GeoDmsTestcases/stor_gdalwrite_geom_name.shp'"
+	,	StorageType = "gdalwrite.vect"
+	{
+		// deliberately not called 'geometry'
+		attribute<point_rd> shape (polygon) := points2sequence(coords/point, coords/shape_rel, coords/ordinal);
+		attribute<string>   label           : ['left', 'right'];
+	}
+}

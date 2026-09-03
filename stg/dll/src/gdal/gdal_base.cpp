@@ -1333,6 +1333,27 @@ auto GetOGRSpatialReferenceFromDataItems(const TreeItem* storageHolder) -> std::
 	return {};
 }
 
+// The layer's geometry, found the way the rest of the write path finds it: by value composition.
+// GeometrySubItem, and therefore GetMappingItem, look up the name 'geometry', but what makes a column
+// the geometry is its composition (#1232). This is the rule that InitializeLayerFieldsMapping and
+// SetFeatureDefnForOGRLayerFromLayerHolder already apply to the very same subtree.
+static auto FindGeometryItemByValueComposition(const TreeItem* layerHolder) -> const TreeItem*
+{
+	if (!layerHolder)
+		return nullptr;
+
+	for (auto subItem = layerHolder->WalkConstSubTree(nullptr); subItem; subItem = layerHolder->WalkConstSubTree(subItem))
+	{
+		if (not (IsDataItem(subItem) and subItem->IsStorable()))
+			continue;
+
+		auto adi = AsDataItem(subItem);
+		if (CheckVCAndVCIForGeometry(adi->GetValueComposition(), adi->GetAbstrValuesUnit()->GetValueType()->GetValueClassID()))
+			return subItem;
+	}
+	return nullptr;
+}
+
 auto GetGeometryItemFromLayerHolder(const TreeItem* subItem) -> const TreeItem*
 {
 	// get mapping item from unit subitem
@@ -1356,7 +1377,12 @@ auto GetGeometryItemFromLayerHolder(const TreeItem* subItem) -> const TreeItem*
 			}
 		}
 	}
-	return mapping_item ? GeometrySubItem(mapping_item) : nullptr;
+	if (mapping_item)
+		if (auto geometry_item = GeometrySubItem(mapping_item))
+			return geometry_item;
+
+	// no subitem called 'geometry'; the geometry can still be there under another name (#1232)
+	return FindGeometryItemByValueComposition(IsDataItem(subItem) ? AsDataItem(subItem)->GetAbstrDomainUnit() : subItem);
 }
 
 auto GetGeometryTypeFromLayerHolder(const TreeItem* subItem) -> OGRwkbGeometryType
@@ -1600,6 +1626,15 @@ bool Gdal_DriverSupportsDmsValueType(UInt32 gdalOpenFlags, ValueClassID dms_valu
 	}
 	else if (gdalOpenFlags & GDAL_OF_VECTOR)
 	{
+		// A layer's geometry is not a field: the driver writes it as coordinates through its geometry
+		// writer, so the driver's creation field types say nothing about whether it can be written.
+		// Recognize the geometry by its value composition, which is what decides it everywhere else in
+		// gdal_vect.cpp, and not by the column being named 'geometry' (#1232). A shapefile stores
+		// coordinates as doubles whether the values type is fpoint or dpoint, and neither of those is
+		// an OGR field type at all.
+		if (CheckVCAndVCIForGeometry(dms_value_composition, dms_value_class_id))
+			return true;
+
 		auto driver_creation_field_data_types =  driver->GetMetadataItem(GDAL_DMD_CREATIONFIELDDATATYPES);
 		if (!driver_creation_field_data_types)
 			return false;
