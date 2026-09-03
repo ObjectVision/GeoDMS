@@ -55,6 +55,13 @@ option, a GUI behaviour. Verifying tells you it works; the wiki makes it usable.
   snippet.
 - The wiki documents the software. Project, client and publication lists live on
   objectvision.nl; link, do not copy.
+- **A `[[label|Page-Name]]` link inside a table cell needs its pipe escaped**, or the table
+  parser reads it as an extra column separator and the row breaks: `[[label\|Page-Name]]`.
+  Any page you touch that mixes tables with piped links, check with
+  `python3 .claude\skills\geodms-wiki\scripts\check-table-pipes.py <page.md>` (nonzero exit
+  and a printed `file:line: link` per hit); run it after editing, since it is easy to add a
+  new piped link to an existing table and miss the escape. This has bitten
+  `Spatial-joins-and-allocation.md` three times over two review rounds.
 
 ## When the page and the engine disagree
 
