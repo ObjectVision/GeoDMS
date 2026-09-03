@@ -512,6 +512,13 @@ public:
 			// Meta phase: derive the result values unit (coordinate metric ^ nrDims).
 			ConstUnitRef resUnit = GeoMeasure_DeriveResultUnit(ValuesUnitType::GetStaticClass(), GetGroup(), coordUnit, TUniOper::c_NrDims);
 			resultHolder = CreateCacheDataItem(argDataA->GetAbstrDomainUnit(), resUnit.get(), composition_of<ResultValueType>::value);
+			// The derived unit is a parentless tmp unit and a data item stores its values unit only
+			// weakly (AbstrDataItem::m_ValuesUnit), so the kind-1 result must own it -- as every other
+			// unit-creating operator does. Without this it died with resUnit at the end of this scope
+			// and GetAbstrValuesUnit() started handing out nullptr: issue #1237, a crash on any
+			// coordinate unit that HAS a metric (the no-metric branch returns the unit class's
+			// statically owned default and was never affected).
+			resultHolder.KeepAlive(resUnit);
 		}
 
 		if (mustCalc)

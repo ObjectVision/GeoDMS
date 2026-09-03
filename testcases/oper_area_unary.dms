@@ -1,0 +1,57 @@
+// area() / arc_length() with ONE argument, on a coordinate unit that HAS a linear metric.
+//
+// The single-argument form (issue #1119) derives its result values unit from the geometry's
+// coordinate unit: metre^2 for area, metre^1 for arc_length. That derived unit is a freshly
+// created, parentless tmp unit, and a data item stores its values unit only WEAKLY
+// (AbstrDataItem::m_ValuesUnit). MeasureAutoOperator forgot the resultHolder.KeepAlive(v)
+// that every other unit-creating operator does, so the unit died with CreateResult's scope
+// and GetAbstrValuesUnit() started returning nullptr: 0xC0000005 headless, a GUI crash on
+// opening the container (issue #1237).
+//
+// oper_minkowski already exercises the unary form, but only on ipoint geometry with no
+// metric at all, which takes the statically owned default-unit path and never allocates a
+// tmp unit. It takes a PROJECTED coordinate reference system, whose metric is {m:1} since
+// the CRS/metric decoupling, to reach the branch that crashed.
+container oper_area_unary
+{
+	unit<float32> m  := BaseUnit('m', float32);
+	unit<float32> m2 := m * m;
+
+	unit<fpoint> rdc_base : SpatialReference = "EPSG:28992";
+	unit<fpoint> rdc      := range(rdc_base, point_xy(0f, 300000f), point_xy(280000f, 625000f));
+
+	// one axis-parallel 1000 m x 1000 m square, clockwise, closed
+	unit<uint32> shape : nrofrows = 1
+	{
+		attribute<rdc> left_top     := const(point_xy(157500f, 461500f, rdc), .);
+		attribute<rdc> right_top    := const(point_xy(158500f, 461500f, rdc), .);
+		attribute<rdc> right_bottom := const(point_xy(158500f, 460500f, rdc), .);
+		attribute<rdc> left_bottom  := const(point_xy(157500f, 460500f, rdc), .);
+
+		attribute<rdc> geometry (poly) := points2polygon(pointset/point, pointset/sequence, pointset/order);
+	}
+	unit<uint32> pointset : nrofrows = 5
+	{
+		attribute<rdc>    point    := union_data(., shape/left_top, shape/right_top, shape/right_bottom, shape/left_bottom, shape/left_top);
+		attribute<shape>  sequence := const(0, ., shape);
+		attribute<uint32> order    := id(.);
+	}
+
+	container checks
+	{
+		// the reported configuration: the derived unit must survive long enough to be
+		// unified with the declared m2, and must still be there when the values are read
+		attribute<m2> a_unary (shape) := area(shape/geometry);
+
+		parameter<float32> a_sum := sum(float32(a_unary));
+		parameter<bool>    c1    := a_sum == 1000000f, IntegrityCheck = "c1 == true";
+
+		// the two-argument form must keep agreeing with it
+		attribute<m2>      a_binary (shape) := area(shape/geometry, m2);
+		parameter<bool>    c2 := sum(float32(a_binary)) == a_sum, IntegrityCheck = "c2 == true";
+
+		// same derivation path for the 1-dimensional measure: metre, not metre^2
+		attribute<m>       l_unary (shape) := arc_length(shape/geometry);
+		parameter<bool>    c3 := sum(float32(l_unary)) == 4000f, IntegrityCheck = "c3 == true";
+	}
+}
