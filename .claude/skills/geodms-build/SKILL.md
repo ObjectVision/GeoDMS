@@ -105,7 +105,7 @@ If the build cannot be run exactly this way, stop and ask.
 |---|---|---|---|
 | 0 | a headless `GeoDmsRun` probe with `@statistics` or an IntegrityCheck (geodms-debug) | seconds | the one thing you changed, on the data |
 | 1 | `testcases\run_testcases.bat` | minutes, offline | the typed-function battery, ~240 configs, positives exit 0, `_neg` exit nonzero, exit 3 always fails |
-| 2 | `batch\TestReleaseUnit.bat` / `batch\TestDebugUnit.bat` | 5 to 15 min | the `tst` unit suite plus tier 1 plus (Release) the shipped-content test |
+| 2 | `batch\TestReleaseUnit.bat` / `TestDebugUnit.bat` (`.m`), `TestCMakeReleaseUnit.bat` / `TestCMakeDebugUnit.bat` (`.c`), `TestGlobioReleaseUnit.bat` / `TestGlobioDebugUnit.bat` (`.g`) | 5 to 15 min | the `tst` unit suite, plus tier 1 (`.m`, `.g`), plus (Release) the shipped-content test |
 | 3 | `python full.py -version <installed>` in `C:\dev\tst\batch` | hours | the project regressions; the only thing that trips threading, stack-pressure and meta-thread bugs |
 
 Rules per tier:
@@ -115,13 +115,18 @@ Rules per tier:
 - Tier 2 must run in a visible console, never piped headless: the suite ends by launching
   Notepad++ on the result file and pausing, which hangs without a console. Register an
   interactive scheduled task (`schtasks /Create ... /IT` then `/Run`) and read the results
-  from disk. Clear `NoDefaultCurrentDirectoryInExePath` in the launching shell first, or the
-  nested `unit.bat` call is "not recognized" and the launcher still exits 0. The verdict is
-  the aggregate `C:\LocalData\GeoDMSTestResults\unit\v<selector>_<stamp>.txt`: it lists only
-  failures plus two `python ... OK` lines, so a file of about 190 bytes is all green; grep
-  the per-test files under `unit\` for `FAILED|Error`. `TestReleaseUnit.bat` also runs
+  from disk. Every launcher goes through `batch\run_unit_suite.bat`, which puts the `tst`
+  batch folder on `PATH` (so `NoDefaultCurrentDirectoryInExePath` no longer skips the nested
+  `unit.bat` call), exits 1 when no new aggregate appeared and 2 when the new aggregate lists
+  `FAILED`; the launcher prints which of the two it was and exits 1 for either. The verdict is
+  the aggregate `C:\LocalData\GeoDMSTestResults\unit\v<selector>.<flavour>_<stamp>.txt`
+  (`vR64.off_`, `vGR64.g_`, `v20.19.1.g_`): it lists only failures plus two `python ... OK`
+  lines, so a file of about 190 bytes is all green; grep the per-test files under `unit\` for
+  `FAILED|Error`. `TestReleaseUnit.bat` and `TestGlobioReleaseUnit.bat` also run
   `batch\TestShippedContent.bat`, which downloads and rasterises real data; `[W] GEOS fix
-  failed` lines there are expected, any `[E]` is not.
+  failed` lines there are expected, any `[E]` is not. `TestGlobioReleaseUnit.bat 20.19.1`
+  tests the installed `GeoDms20.19.1.g` instead of `bin_GLOBIO\Release\x64`; that is how the
+  `.g` setup script calls it and how a released `.g` is re-tested without a rebuild.
 - Tier 3 only with the user's explicit consent for that run. Use the Python 3.13 under the
   user's profile, launch from a scheduled task so the run survives this session and the
   Claude app's self-update, never set `PYTHONUTF8`, quote `set "VAR=value"` in cmd

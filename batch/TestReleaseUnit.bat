@@ -7,11 +7,11 @@ set geodms_rootdir=%cd%
 
 REM msbuild all22.sln -t:build -p:Configuration=Release -p:Platform=x64
 
-REM run_unit_suite.bat verifies the build exists and that unit.bat really started;
-REM both of those otherwise fail silently. See its header.
+REM run_unit_suite.bat verifies the build exists, that unit.bat really started (both
+REM otherwise fail silently) and that the new aggregate lists no FAILED line. See its header.
 set UNIT_FAILED=0
 call "%~dp0run_unit_suite.bat" R64 off bin\Release\x64
-if errorlevel 1 set UNIT_FAILED=1
+if errorlevel 2 (set UNIT_FAILED=2) else if errorlevel 1 set UNIT_FAILED=1
 
 REM Typed-function testcases battery (testcases\*.dms): positives must exit 0,
 REM _neg/defcheck configs must exit nonzero, a Debug assert (exit 3) always fails.
@@ -35,13 +35,14 @@ if "%TC_FAILED%"=="1" (
   echo TESTCASES BATTERY PASSED
 )
 if "%UNIT_FAILED%"=="1" echo *** UNIT SUITE DID NOT RUN - see the message further up ***
+if "%UNIT_FAILED%"=="2" echo *** UNIT SUITE FAILED - see the aggregate named further up ***
 if "%SHIPPED_FAILED%"=="1" (
   echo *** SHIPPED CONTENT RELEASE TEST FAILED - see scratch\grid_to_polygon_release.log ***
 ) else (
   echo SHIPPED CONTENT RELEASE TEST PASSED
 )
 
-if "%UNIT_FAILED%"=="1" exit /b 1
+if not "%UNIT_FAILED%"=="0" exit /b 1
 if "%TC_FAILED%"=="1" exit /b 1
 if "%SHIPPED_FAILED%"=="1" exit /b 1
 exit /b 0

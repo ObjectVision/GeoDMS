@@ -106,13 +106,13 @@ if exist "%INSTALL_DIR%\uninstaller.exe" "%INSTALL_DIR%\uninstaller.exe" /S _?=%
 "%INSTALLER%" /S
 if errorlevel 1 goto :unit_failed
 
-cd ..\tst\batch
-set "SAVED_PATH=%PATH%"
-set "PATH=%CD%;%PATH%"
-call "%CD%\unit.bat" %GeoDmsVersion% g off
-set "PATH=%SAVED_PATH%"
-cd /d "%geodms_rootdir%"
-powershell -NoProfile -Command "$d='%LocalDataDir%\GeoDMSTestResults\unit'; $f=Get-ChildItem (Join-Path $d 'v%GeoDmsVersion%.g_*.txt') -EA SilentlyContinue|Sort-Object LastWriteTime -Descending|Select-Object -First 1; if(-not $f -or (Select-String -Path $f.FullName -Pattern 'FAILED' -Quiet)){exit 1}"
+REM Post-install tests through the shared launcher (issue #1231), against the INSTALLED
+REM GeoDms<ver>.g, i.e. what the setup just put on disk: the tst unit suite via
+REM run_unit_suite.bat (which proves a NEW aggregate appeared and gates on a FAILED line
+REM in it, where the old inline grep graded whatever the newest file happened to be), the
+REM typed-HOF testcases battery, and TestShippedContent.bat. The launcher leaves echo on.
+call "%~dp0TestGlobioReleaseUnit.bat" %GeoDmsVersion%
+@echo off
 if errorlevel 1 goto :unit_failed
 
 echo === DONE: GeoDms%GeoDmsVersion%.g built, signed, installed, and tested ===
@@ -120,7 +120,7 @@ endlocal
 exit /b 0
 
 :unit_failed
-echo *** G unit tests failed; removing the installed build and setup. ***
+echo *** G post-install tests failed - unit suite, testcases battery or shipped content, see above; removing the installed build and setup. ***
 if exist "%INSTALL_DIR%\uninstaller.exe" "%INSTALL_DIR%\uninstaller.exe" /S _?=%INSTALL_DIR%
 if exist "%INSTALL_DIR%" rmdir /s /q "%INSTALL_DIR%"
 if exist "%INSTALLER%" del /q "%INSTALLER%"

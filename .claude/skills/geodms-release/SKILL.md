@@ -22,8 +22,10 @@ anything is built.
 `nsi\CreateLinuxSetup.sh`), signs with the SafeNet token, installs to
 `C:\Program Files\ObjectVision\GeoDms<ver>.<flavour>` (or `/opt/ObjectVision/...` in WSL),
 runs the `tst` unit suite against that install, and removes the install and the setup file
-when the suite fails. That last guard is why "all unit tests failed" after a setup run leaves
-only `examples`, `library` and the uninstaller behind.
+when the suite fails. The `.g` script does that through `batch\TestGlobioReleaseUnit.bat <ver>`
+(#1231), which adds the testcases battery and the shipped-content test to the gate. That last
+guard is why "all unit tests failed" after a setup run leaves only `examples`, `library` and
+the uninstaller behind.
 
 ## Who runs what
 
@@ -76,6 +78,8 @@ drift, the Qt deploy targets patch, the Python ABI modules, a concurrent MSBuild
 - `(Get-AuthenticodeSignature 'distr\GeoDms<ver>.<f>-Setup-x64.exe').Status` is `Valid`
 - the unit aggregate `C:\LocalData\GeoDMSTestResults\unit\v<ver>.<f>_<stamp>.txt` lists no
   failures (about 190 bytes: header plus two `python ... OK` lines)
+- `.g`: the launcher's summary at the end of the log reads `UNIT SUITE PASSED`,
+  `TESTCASES BATTERY PASSED` and `SHIPPED CONTENT RELEASE TEST PASSED`
 - `.l`: all four files in `distr\`, and the `.deb` installed in WSL
 
 ## Release tests

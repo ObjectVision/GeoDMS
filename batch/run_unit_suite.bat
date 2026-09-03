@@ -1,11 +1,17 @@
 @echo off
 REM Shared guard rail for the Test*Unit.bat launchers.
 REM
-REM   %1 = version selector passed to tst\batch\unit.bat (R64 / D64 / CR64 / CD64)
-REM   %2 = second argument passed through to unit.bat      (on / off)
-REM   %3 = build output folder under the repo root that holds GeoDmsRun.exe
+REM   %1 = version selector passed to tst\batch\unit.bat: a dev-tree shortcut
+REM        (R64 / D64 / CR64 / CD64 / GR64 / GD64) or an installed version such as 20.19.1
+REM   %2 = flavour passed through to unit.bat (off / on for m and c, g for GLOBIO); it
+REM        reaches the tests as GeoDmsFlavor and names the aggregate v<%1>.<%2>_<stamp>.txt
+REM   %3 = folder holding GeoDmsRun.exe: relative to the repo root (bin\Release\x64) or
+REM        absolute (an installed C:\Program Files\ObjectVision\GeoDms<ver>.<f>)
 REM
-REM This exists because the unit suite has two failure modes that produce NO error:
+REM Exit code: 0 the suite ran and its aggregate lists no FAILED line; 1 the suite did not
+REM run at all (the message says why); 2 the suite ran and the aggregate lists FAILED.
+REM
+REM This exists because the unit suite has three failure modes that produce NO error:
 REM
 REM  1. unit.bat and its helpers call each other by bare name, which cmd resolves via
 REM     the current directory. A shell with NoDefaultCurrentDirectoryInExePath=1 cannot
@@ -21,6 +27,12 @@ REM  2. tst\batch\generic\SetGeoDMSPlatform.bat defaults geodms_rootdir to C:\de
 REM     when it is unset, so the suite happily runs a GeoDmsRun.exe that does not exist
 REM     and every test "passes". Verifying the executable up front turns that into a
 REM     stop, and echoing the path lets a reader confirm which build was measured.
+REM
+REM  3. unit.bat sets no errorlevel for a failing test; the verdict is only in the aggregate
+REM     it writes. The setup scripts gate their install on a FAILED line in that file, and
+REM     so does this script, so a launcher and a setup run report the same verdict. The
+REM     before/after check that precedes the grep is what keeps a STALE aggregate from an
+REM     earlier run from being graded as if this run had produced it.
 
 setlocal
 
@@ -29,7 +41,15 @@ if "%geodms_rootdir%"=="" (
   exit /b 1
 )
 
-set "UNITEXE=%geodms_rootdir%\%3\GeoDmsRun.exe"
+if "%~3"=="" (
+  echo *** UNIT SUITE NOT RUN: no build folder given as the third argument ***
+  exit /b 1
+)
+REM A drive letter or a UNC prefix means an absolute folder (an installed build); anything
+REM else is taken relative to the repo root.
+set "UNITDIR=%~3"
+if not "%UNITDIR:~1,1%"==":" if not "%UNITDIR:~0,2%"=="\\" set "UNITDIR=%geodms_rootdir%\%UNITDIR%"
+set "UNITEXE=%UNITDIR%\GeoDmsRun.exe"
 if not exist "%UNITEXE%" (
   echo *** UNIT SUITE NOT RUN: %UNITEXE% does not exist -- build that configuration first ***
   exit /b 1
@@ -75,7 +95,17 @@ if "%AGGAFTER%"=="%AGGBEFORE%" (
   exit /b 1
 )
 
+REM The same case-insensitive FAILED test as the setup scripts' install gate, so a launcher
+REM and a setup run never disagree about the same aggregate.
+findstr /I /C:"FAILED" "%UNITRESULTS%\%AGGAFTER%" >nul 2>&1
+if not errorlevel 1 (
+  echo.
+  echo *** UNIT SUITE FAILED: %UNITRESULTS%\%AGGAFTER% lists ***
+  findstr /I /C:"FAILED" "%UNITRESULTS%\%AGGAFTER%"
+  exit /b 2
+)
+
 echo.
-echo unit suite results: %UNITRESULTS%\%AGGAFTER%
+echo unit suite results: %UNITRESULTS%\%AGGAFTER% -- no FAILED line
 echo   NB an EMPTY per-test .txt means that test PASSED; the aggregate lists failures only.
 exit /b 0

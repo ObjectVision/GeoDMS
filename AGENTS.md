@@ -23,10 +23,12 @@ release test for the `.dms` content the installer ships (issue #1031). It runs a
 `bin\<Config>\x64\` — the copies NSIS packages, not the source tree beside them — in two
 steps: the shipped `examples\testcases` battery through its own `run_testcases.bat`, and
 `examples\grid_to_polygon.dms` over the real CBS buurt map, with the CBS geopackage
-renamed to `.bak` first so `RegioIndelingen.dms` has to download it again. Both
-`batch\TestReleaseUnit.bat` and `batch\TestCMakeReleaseUnit.bat` call it, so each flavour
-walks its own output folder. Pass a third argument to point the geopackage step at a
-scratch `SourceDataDir` when testing the script itself.
+renamed to `.bak` first so `RegioIndelingen.dms` has to download it again.
+`batch\TestReleaseUnit.bat`, `batch\TestCMakeReleaseUnit.bat` and
+`batch\TestGlobioReleaseUnit.bat` call it, so each Windows flavour walks its own output
+folder (`bin\`, `build\windows-x64-release\bin\`, `bin_GLOBIO\`); the `.g` setup script runs
+the Globio launcher against the installed build (#1231). Pass a third argument to point the
+geopackage step at a scratch `SourceDataDir` when testing the script itself.
 
 ## Skills: the operational recipes live in `.claude/skills/`
 
@@ -142,10 +144,13 @@ in practice from invoking the pieces directly instead of the launcher:
 - `unit.bat` called on its own tests the WRONG binaries. `generic\SetGeoDMSPlatform.bat` defaults
   `geodms_rootdir` to `C:\dev\GeoDMS` when unset, so every test silently runs a nonexistent exe.
   `batch\TestReleaseUnit.bat` sets it. Check the `Testing <path>` line at the top of the output.
-- `batch\TestReleaseUnit.bat` exits **0** even when the whole unit portion never ran. If the shell
-  sets `NoDefaultCurrentDirectoryInExePath=1`, cmd cannot resolve `unit.bat` from the current
-  directory and prints `'unit.bat' is not recognized`; only the testcases battery then runs. Clear
-  that variable in the parent process first — setting it inside cmd is too late.
+- `batch\TestReleaseUnit.bat` used to exit **0** even when the whole unit portion never ran: with
+  `NoDefaultCurrentDirectoryInExePath=1` set, cmd cannot resolve `unit.bat` from the current
+  directory, prints `'unit.bat' is not recognized`, and only the testcases battery runs. Every
+  `Test*Unit.bat` now goes through `batch\run_unit_suite.bat`, which puts the `tst` batch folder
+  on `PATH`, requires a **new** aggregate after the run (exit 1 otherwise) and exits 2 when that
+  aggregate lists a `FAILED` line; the `.g` setup script gates its install on the same script
+  (#1231). Still clear that variable in the parent process when running the `tst` scripts by hand.
 
 **Do not run these scripts headless.** Piping them through `cmd /c ... | Tee-Object` leaves them
 without a console: the script's `timeout /T` steps fail with

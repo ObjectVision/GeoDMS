@@ -1,22 +1,22 @@
 echo on
-cls
 
-REM Re-root to the repo root (this script now lives in <root>\batch) so ..\tst\batch resolves.
+REM Debug counterpart of TestGlobioReleaseUnit.bat (issue #1231): the tst unit suite and
+REM the testcases battery against the dev tree bin_GLOBIO\Debug\x64, as built by
+REM batch\BuildGlobio.bat Debug. No shipped-content test and no installed-version form,
+REM since setups are Release only. TestGlobioReleaseUnit.bat explains the g flavour argument.
+
+REM Re-root to the repo root (this script lives in <root>\batch) so ..\tst\batch resolves.
 cd /d "%~dp0.."
 set geodms_rootdir=%cd%
 
-REM msbuild all22.sln -t:build -p:Configuration=Debug -p:Platform=x64
-
-REM run_unit_suite.bat verifies the build exists, that unit.bat really started (both
-REM otherwise fail silently) and that the new aggregate lists no FAILED line. See its header.
 set UNIT_FAILED=0
-call "%~dp0run_unit_suite.bat" D64 on bin\Debug\x64
+call "%~dp0run_unit_suite.bat" GD64 g bin_GLOBIO\Debug\x64
 if errorlevel 2 (set UNIT_FAILED=2) else if errorlevel 1 set UNIT_FAILED=1
 
 REM Typed-function testcases battery (testcases\*.dms): positives must exit 0,
 REM _neg/defcheck configs must exit nonzero, a Debug assert (exit 3) always fails.
 set TC_FAILED=0
-Call "%geodms_rootdir%\testcases\run_testcases.bat" "%geodms_rootdir%\bin\Debug\x64\GeoDmsRun.exe"
+Call "%geodms_rootdir%\testcases\run_testcases.bat" "%geodms_rootdir%\bin_GLOBIO\Debug\x64\GeoDmsRun.exe"
 if errorlevel 1 set TC_FAILED=1
 
 echo.
