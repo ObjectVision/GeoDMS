@@ -1,6 +1,6 @@
 ---
 name: geodms-release
-description: Producing GeoDMS setups and publishing them as a GitHub release. The four flavours (.m msbuild, .c cmake, .g GLOBIO, .l linux) and their assets in distr\, the version bump, why the user runs the canonical batch\BuildSignAndCreateSetup*.bat scripts in their own console while the agent prepares, tails and verifies, the release tests, the release-notes convention, and the gh release procedure with the immutable-release trap that burns a tag forever. Use for any request about a setup, an installer, a release, release notes, or publishing on GitHub.
+description: Producing GeoDMS setups and publishing them as a GitHub release. The four flavours (.m msbuild, .c cmake, .g GLOBIO, .l linux) and their assets in distr\, the version bump, the release notes in doc\release-notes\, why the user runs the canonical batch\BuildSignAndCreateSetup*.bat scripts in their own console while the agent prepares, tails and verifies, the release tests, the release-notes convention, and the gh release procedure with the immutable-release trap that burns a tag forever. Use for any request about a setup, an installer, a release, release notes, or publishing on GitHub.
 ---
 
 # Building setups and publishing a release
@@ -94,7 +94,10 @@ regenerating its reference from the regressing build.
 
 ## Release notes
 
-Write `distr\release-notes-<ver>.md` and commit it. The baseline is the last published
+Write `doc\release-notes\release-notes-<ver>.md` and commit it. They used to be written beside
+the setups in `distr\`, which is line 1 of `.gitignore`, so "commit it" was impossible and no
+notes file was ever in version control; the fourteen that existed moved to `doc\` in one go. The
+baseline is the last published
 GitHub release, not the last built version: `gh release list` shows it, and interim builds
 in `distr\` are often never published (20.13 to 20.15 were built and skipped; 20.16.0's notes
 covered everything since 20.12.0). Read the previous notes and the commits since that tag
@@ -119,7 +122,7 @@ assets cannot be added, and deleting a published release does not free its tag n
 1. Create the draft with every asset in the same call:
 
 ```
-gh release create v<ver> --draft --title "GeoDms <ver>" --notes-file distr\release-notes-<ver>.md ^
+gh release create v<ver> --draft --title "GeoDms <ver>" --notes-file doc\release-notes\release-notes-<ver>.md ^
   [--target <full sha>] distr\GeoDms<ver>.m-Setup-x64.exe distr\GeoDms<ver>.c-Setup-x64.exe ^
   distr\GeoDms<ver>.g-Setup-x64.exe distr\GeoDms<ver>.l-linux-x64.deb distr\GeoDms<ver>.l-linux-x64.tar.gz ^
   distr\GeoDms<ver>.l-linux-x64.tar.gz.sha256 distr\GeoDms<ver>.l-linux-x64.tar.gz.sha256.p7s
