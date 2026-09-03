@@ -92,7 +92,20 @@ TableDataView::TableDataView(TreeItem* viewContext, ShvSyncMode sm)
 }
 
 
-TableViewControl* TableDataView::GetTableViewControl()       
+SharedStr TableDataView::GetCaption() const
+{
+	// #1238: the caption leads with the view kind, as MapView does, taken from the enum so it
+	// cannot drift from GetViewStyleName. The subject itself stays with TableControl::GetCaption,
+	// which is also shown where no view kind applies.
+	SharedStr result(GetViewStyleName(GetViewType()));
+
+	auto body = base_type::GetCaption();
+	if (body.empty())
+		return result;
+	return result + " " + body;
+}
+
+TableViewControl* TableDataView::GetTableViewControl()
 {
 	return debug_cast<TableViewControl*>(GetContents().get());
 }

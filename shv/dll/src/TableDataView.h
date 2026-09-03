@@ -26,6 +26,8 @@ public:
 
 	auto GetViewType() const -> ViewStyle override { return ViewStyle::tvsTableView; }
 
+	SharedStr GetCaption() const override; // #1238: lead with the view kind, as the other views do
+
 	      TableViewControl* GetTableViewControl();
 	const TableViewControl* GetTableViewControl() const;
 	      TableControl*     GetTableControl();

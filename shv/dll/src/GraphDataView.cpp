@@ -420,32 +420,39 @@ ExportInfo GraphDataView::GetExportInfo()
 
 SharedStr GraphDataView::GetCaption() const // Mapview caption
 {
+	// #1238: "MapView <crs> - <active layer>". The view kind leads the caption, taken from the enum
+	// so it cannot drift from GetViewStyleName; the caption is also read where no icon is shown
+	// (tab tooltips, and the error context that GenerateDescription builds from it, see #1227).
+	SharedStr result(GetViewStyleName(GetViewType()));
+
 	auto mapContents = GetContents();
-	if (mapContents)
+	if (!mapContents)
+		return result;
+
+	SharedStr spatialRefStr;
+	auto wcu = mapContents->GetViewPort()->GetWorldCrdUnit();
+	if (wcu)
 	{
-		SharedStr spatialRefStr;
-		auto wcu = mapContents->GetViewPort()->GetWorldCrdUnit();
-		if (wcu)
-		{
-			auto world_crd_unit_label_property = TreeItemPropertyValue(wcu, labelPropDefPtr);
-			if (!world_crd_unit_label_property.empty()) // prioritize label over srs def in mapview caption
-				spatialRefStr = world_crd_unit_label_property;
-			else
-				spatialRefStr = wcu->GetSpatialReference();
-		}
-
-		if (spatialRefStr.empty())
-			spatialRefStr = "";
+		auto world_crd_unit_label_property = TreeItemPropertyValue(wcu, labelPropDefPtr);
+		if (!world_crd_unit_label_property.empty()) // prioritize label over srs def in mapview caption
+			spatialRefStr = world_crd_unit_label_property;
 		else
-			spatialRefStr = "with " + spatialRefStr;
-
-		if (auto ls = mapContents->GetLayerSet())
-			if (auto active_layer = ls->GetActiveLayer())
-				return spatialRefStr + ", " + active_layer->GetCaption();
-
-		return spatialRefStr;
+			spatialRefStr = wcu->GetSpatialReference();
 	}
-	return SharedStr("");
+
+	// #1238: name the absence explicitly. An empty string left the caption starting with a bare
+	// ", Active layer: ...", which reads as a formatting glitch instead of telling the modeller
+	// that the world coordinate unit carries no SpatialReference (nor a Label to stand in for it).
+	if (spatialRefStr.empty())
+		result = result + " No SpatialReference";
+	else
+		result = result + " with " + spatialRefStr;
+
+	if (auto ls = mapContents->GetLayerSet())
+		if (auto active_layer = ls->GetActiveLayer())
+			result = result + " - " + active_layer->GetCaption();
+
+	return result;
 }
 
 const TreeItem* GraphDataView::GetCaptionItem() const // #418: the active layer's domain, as a cross-view disambiguation peer

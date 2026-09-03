@@ -67,6 +67,13 @@ void ChartLayer::SetDrawMode(ChartDrawMode m)
 		return;
 	m_DrawMode = m;
 	InvalidateDraw();
+
+	// #1238: the view caption names the draw mode ("Bar Chart of ...", "Scatterplot of ..."), so a
+	// toggle from this layer's popup menu has to re-emit it; without this the caption would keep
+	// naming the chart kind the view was created with.
+	if (IsActive())
+		if (auto dv = GetDataView().lock())
+			dv->OnCaptionChanged();
 }
 
 static StaticLateTokenID s_DrawModeID("ChartDrawMode");

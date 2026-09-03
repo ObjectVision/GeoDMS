@@ -183,14 +183,34 @@ ExportInfo ChartDataView::GetExportInfo()
 	return GetContents()->GetViewPort()->GetExportInfo();
 }
 
+// #1238: the caption names the specific chart kind ("Bar Chart of ...", "Scatterplot of ..."),
+// not a generic "Chart of ...". Read from the ACTIVE LAYER rather than from the view-context
+// ChartKind, because the draw mode is a runtime toggle on the layer's own popup menu (Points /
+// Line / Points + Line / Bars, see ChartLayer::FillMenu); the creation-time kind would leave the
+// caption naming a chart that is no longer the one on screen.
+static auto ChartKindName(const GraphicLayer* active_layer) -> CharPtr
+{
+	auto chartLayer = dynamic_cast<const ChartLayer*>(active_layer);
+	if (!chartLayer)
+		return "Histogram"; // a HistogramLayer, added by AddHistogramLayer
+
+	switch (chartLayer->GetDrawMode()) {
+		case ChartDrawMode::Line:          return "Line Chart";
+		case ChartDrawMode::PointsAndLine: return "Point & Line Chart";
+		case ChartDrawMode::Bars:          return "Bar Chart";
+		default:                           return "Scatterplot"; // ChartDrawMode::Points
+	}
+}
+
 SharedStr ChartDataView::GetCaption() const
 {
 	auto chartContents = GetContents();
 	if (chartContents)
 		if (auto ls = chartContents->GetLayerSet())
 			if (auto active_layer = ls->GetActiveLayer())
-				return SharedStr("Chart of ") + active_layer->GetThemeDisplayNameWithinContext(chartContents.get(), false);
-	return SharedStr("Chart");
+				return SharedStr(ChartKindName(active_layer)) + " of "
+					+ active_layer->GetThemeDisplayNameWithinContext(chartContents.get(), false);
+	return SharedStr("Chart"); // no active layer: no kind and no subject to name
 }
 
 const TreeItem* ChartDataView::GetCaptionItem() const // #418: the active layer's domain, as a cross-view disambiguation peer
