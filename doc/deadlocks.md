@@ -3,7 +3,7 @@
 *Static analysis of the GeoDMS source, 2026-09-01, at commit `182e66e9` (post-#1227: `...Lock()`
 accessor naming, `DMS_ENTERS` ceilings, `DMS_CALLEE_ENTERS` callee contracts). **P1, P3 and P4
 were fixed in `b591f683` (issue #1233) and are kept below, marked FIXED, as the record of what the
-failure was.** Method: exhaustive
+failure was; B1 was fixed -- and its earlier statement corrected -- in `d9d791ba`.** Method: exhaustive
 grep inventory of every synchronization primitive and every blocking wait, followed by reading the
 wait structures and the sites where locks are held across opaque calls. Each finding states what
 was actually read versus inferred. This is a reading of the code, not a proof: absence from this
@@ -35,7 +35,7 @@ unenforced in exactly the builds users run.
 | 94 | SpecificOperatorGroup, DataViewQueue, UpdateActionSet, Storage, BoundingBoxCache2 | `s_OdbcSection`, `sm_UAS`, polygon insert sections | odbc, shv, geo |
 | 95 | SpecificOperator, DataRefContainer | `cs_SpatialRefBlockCreation`, `s_DataItemRefContainer`, polygon addition sections | clc, tic, geo |
 | 96 | TileShadow | (tile machinery) | |
-| 97 | Tile, ItemRegister, ThreadMessing | `cs_lock_map` per-item mutexes, `cs_ThreadMessing` | rtc/cs_lock_map.h, tic/OperationContext.cpp |
+| 97 | Tile, ItemRegister, ThreadMessing | `sg_ActorLockMap` per-item mutexes (item level ≥ 1, see §3.2), `cs_ThreadMessing` | rtc/cs_lock_map.h, tic/OperationContext.cpp |
 | 98 | CountSection, FailSection, OperContextAccess, ActiveProducerSet, TreeItemFlags, GDALComponent | `sg_CountSection`, `sc_FailSection`, `cs_OperContextAccess`, `s_ActiveProducerSetMutex`, `gdalSection` | act, tic, stg |
 | 99 | IndexedString, UpdatingInterestSet, OperationContext, TileAccessMap, MoveSupplInterest, MOST_INNER (ExplainAccess) | token registry (counted), `sd_UpdatingInterestSet`, `cs_OcAdm`, `cs_lock_map` map lock, `sc_MoveSupplInterestSection`, `scs_ExplainAccess` | set, act, tic |
 | 100 | RegisterAccess, CountedMutexSection, LispObjCache, NotifyTargetCount | `s_RegAccess`, `s_CountedMutexSection`, LispObjRegister CS, `sc_NotifyTargetCount` | utl, ptr, sym, act |
@@ -44,6 +44,13 @@ unenforced in exactly the builds users run.
 | 103 | OperationQueue | | |
 
 `FLispUsageCache` (was 98) is retired since `182e66e9` — see finding N6.
+
+The three `cs_lock_map` instances carry ordinals `PrepareDataUsageLock` 96, `ItemRegister` 97
+(`sg_ActorLockMap`) and `DataFlagsLock` 98, but they live in the *per-item* dimension, where they
+are outer to every global section and are not ordered against each other (§3.2) — so today those
+ordinals are never compared; they only record the one same-item nesting that is known,
+`PrepareDataUsage(X)` enclosing `DataWriteLockAtom(X)`. Since `d9d791ba` these locks enter the checker;
+before that they never did (B1).
 
 ### 1.2 Bare primitives (invisible to the checker)
 
@@ -80,13 +87,23 @@ These block threads but never pass through `EnterLevel`, so no static level assi
 These are the reasons a level-order violation can exist without a Debug assert ever firing.
 Recorded in issue #1227 §2; restated here because every finding below lives in one of them.
 
-- **B1 — the item-level short-circuit.** `Allow()` returns true whenever
-  `m_ItemLevel > other.m_ItemLevel`, before comparing ordinals. A thread that has taken any
-  per-item lock (item level ≥ 1, e.g. via `Actor::DetermineLastSupplierChange`'s
-  `MakeMax(m_ItemLevel, item_level_type(1))`) is thereafter *unchecked* against every level-0
-  section — the registry, storage, everything. The rule itself is wanted (it is what permits the
-  walk down the supplier DAG — see §3.2); the defect is that it skips the ordinal check while
-  doing so, rather than applying it within the item level.
+- **B1 — per-item locks: invisible until `d9d791ba`, and still unordered against each other.** The
+  earlier statement of this spot ("the item-level short-circuit") was wrong in an instructive way:
+  `Allow`'s item-level rules had **never executed**. `cs_lock_map::Lock` called `m_Lock.lock()` on
+  the `std::mutex` directly, bypassing `scoped_lock_impl` — the only place `EnterLevel` runs — so
+  the three per-item maps (`sg_ActorLockMap`, `sg_DataFlagsLockMap`, `sg_PrepareDataUsageLockMap`)
+  were as invisible to the checker as a bare mutex (B3), and every ordinal it ever compared was
+  between two item-level-0 sections. Since `d9d791ba` a per-item lock enters the checker like any
+  scoped lock. What that checks: a global section or a ceiling held while a per-item lock is
+  taken is refused, and everything taken under a per-item lock is checked as before. What it
+  deliberately does **not** check: two per-item locks against each other. Their nesting follows
+  the interest recursion (`IncInterestCount` holds the consumer while `StartInterest` takes the
+  suppliers), and the item levels do not track that relation — measured under cdb: a values unit at
+  level 3 taking its supplier DataController at level 5, because `DetermineLastSupplierChange`
+  folds in a different supplier set than `StartSupplInterest` visits. What keeps that nesting
+  acyclic is the supplier DAG itself, which no level can see. The other residue: a per-item lock
+  whose item reports level 0 — a passor (every base unit is one) or an item whose state has not
+  been determined — is not entered at all.
 - ~~**B2 — the explicit suppression.** `LevelCheckBlocker`.~~ **Gone** (#1233): its one caller
   was P3, and with that fixed the class is deleted rather than left for a future caller. An escape
   hatch that switches the ordering check off wholesale means the checker cannot see anything a
@@ -126,24 +143,33 @@ is what is about to be taken. In order:
 
 1. `target.ordinal == 0` — asserted against; a section must have a real ordinal.
 2. **Nothing held** (`held.ordinal == 0`) → allow.
-3. **`held.item > target.item`** → allow, **and the ordinal is not consulted at all**. This is
-   blind spot B1.
-4. **`held.item < target.item`** → refuse.
-5. Equal item levels → compare ordinals: `held < target` allow; `held > target` refuse;
-   **equal → allow only if BOTH are shared**.
+3. **Both per-item** (`held.item ≠ 0 && target.item ≠ 0`) → allow: two per-item locks are not
+   ordered by the checker at all (B1, since `d9d791ba`).
+4. **`held.item > target.item`** → allow — a per-item lock is outer to every global section, and
+   the ordinal is not consulted.
+5. **`held.item < target.item`** → refuse — no global section or ceiling may be held when a
+   per-item lock is taken.
+6. Equal item levels (both 0 in practice) → compare ordinals: `held < target` allow;
+   `held > target` refuse; **equal → allow only if BOTH are shared**.
 
-The item-level dimension is not noise, which is worth stating because §2 lists only its downside.
-A per-item lock from `cs_lock_map::GetorCreateMutex` gets `GetItemLevel(item)` as its item level,
-and `Actor::DetermineLastSupplierChange` maintains `m_ItemLevel` as `MakeMax` over the item's own
-suppliers — so a consumer's level is at least its suppliers'. Every *global* section uses
-`item_level_type(0)`. Read together: **higher item level = outer**, and the intended order is lock
-the consumer, then its suppliers, then global sections. Rule 3 is what permits that walk down the
-supplier DAG; the defect is only that it *skips the ordinal check* while doing so.
+Until `d9d791ba` the item dimension had never been exercised: nothing that reached `Allow` carried an
+item level other than 0, because the per-item maps bypassed `EnterLevel` (B1). A per-item lock now
+enters with `GetItemLevel(item)`, non-zero once the item's state has been determined; every global
+section and every ceiling uses `item_level_type(0)`. Only zero versus non-zero carries meaning: a
+per-item lock is **outer** to every global (rule 4 permits any global under it, rule 5 refuses it
+under any global or ceiling), and two per-item locks are not ordered at all (rule 3).
 
-One wart follows from `GetItemLevel` returning 0 for a passor and for an item whose state has not
-been determined yet: the same per-item lock is item level 0 before `DetermineLastSupplierChange`
-has run and ≥ 1 after. So whether rule 4 or rule 5 decides a given acquire can depend on how far
-the run has got — the check is in that respect a property of the data, not only of the code.
+Why not: the obvious refinement — order per-item locks by item level, consumer outer to supplier —
+was tried and measured false. `IncInterestCount` holds the consumer's actor lock while
+`StartInterest` takes the suppliers', which is the right direction, but `DetermineLastSupplierChange`
+computes the level over the `DetermineState` supplier set while `StartSupplInterest` visits a
+different one, so a supplier can sit *deeper* than its consumer (a values unit at 3 taking its
+DataController at 5). The nesting is acyclic because the supplier DAG is, and that is the only
+thing that guarantees it; a level rule would refuse legitimate nestings and prove nothing.
+
+An item that reports level 0 — a passor or a not-yet-determined item — is not entered into the
+checker at all: judged as a global it would refuse a level-1 attribute preparing its passor values
+unit. In that one respect the check is still a property of the data.
 
 ### 3.3 The table
 
@@ -157,7 +183,7 @@ column before ordinals are ever reached:
 | global section, ordinal **M == L**, exclusive | refused | refused |
 | global section, ordinal **M < L**, either mode | refused | refused |
 | per-item lock with item level **≥ 1** | refused | refused |
-| per-item lock still at item level 0 | treated as a global section at `ItemRegister` (97) | idem |
+| per-item lock whose item reports level 0 (passor / undetermined) | **not entered — invisible**, as before (B1) | idem |
 | a nested ceiling `(M, mode2)` | same rules as a global section at `(M, mode2)` | idem |
 | a bare `std::mutex` / `shared_mutex` / `recursive_mutex` | **invisible — never checked** | idem |
 | a blocking wait (`Join`, item production lock, any cv) | **invisible — never checked** | idem |
@@ -261,7 +287,8 @@ item production lock (§1.3). Thread B, the producer of that item, calls `GetTok
 `GetOrCreateID_mt`, which parks **untimed** until the shared count is zero. A's predicate never
 becomes true (B never finishes), B never wakes (A never releases): a two-thread cycle through one
 leveled lock and one logical lock. The per-thread usage counter (`208ab52f`) catches only the
-*same-thread* case; B1/B4 make this variant invisible to the checker.
+*same-thread* case; B4 makes this variant invisible to the checker (it is a *wait*, not an
+acquire — the per-item lock side is checked since `d9d791ba`, the wait on it is not).
 
 No concrete instance is known. The #1227 renames are the practical defense: every registry-holding
 value is now spelled `...Lock()`, so "held across a blocking call" is greppable. The sites that
@@ -309,14 +336,17 @@ nothing rejects the nesting, and any pair nested in both orders on different thr
 without a diagnostic. The 99 family is the one to watch: token registry, `cs_OcAdm`,
 `cs_lock_map`'s map lock and `sc_MoveSupplInterestSection` all sit there, all exclusive.
 
-### P6 — everything below a per-item lock is unchecked (B1) — **structural**
+### P6 — per-item locks against each other, and below an undetermined item — **structural, narrowed by `d9d791ba`**
 
-After taking any `cs_lock_map` per-item mutex, the short-circuit permits acquiring *every* level-0
-section, including registering a token (registry-exclusive) — the self-case parks and is reported
-by the Release counter, but a cross-thread interleaving (holder of registry-shared waiting on that
-item) is P2 again, entered from the other side. The blind spot belongs in `Allow` itself; the
-per-item locks having no fixable static level (they are map values, created on demand) is what
-#1227 §2/§3 records.
+*Was:* everything below any `cs_lock_map` per-item mutex was unchecked — not, as first written,
+because of an item-level short-circuit, but because the lock never entered the checker at all
+(B1). *Now:* a per-item lock on a determined item is checked against every global section and
+ceiling in both directions (a global or ceiling held when it is taken is refused). Two things
+remain unchecked, by decision: two per-item locks against each other, because item level does not
+track the interest recursion (§3.2) and the supplier DAG is what keeps that acyclic — a cycle
+there would need a cycle in suppliers, which the calculator refuses; and everything below the
+lock of an item that reports level 0, which is skipped as before. The registry-exclusive self-case
+under a per-item lock is still reported by the Release counter; the cross-thread variant is P2.
 
 ### P7 — the registry-exclusive park is untimed while outer locks are held — **structural**
 
@@ -370,7 +400,9 @@ Recorded so the next reader does not re-suspect them:
   per sink.
 - **N3** — `SendMainThreadOper` never blocks off-thread (it posts); the oper queue's own mutex is
   released before opers run, and since `182e66e9` `operation_queue::Process` *asserts* the pump
-  holds no leveled section (`CurrentThreadHoldsNoLevelLock`).
+  holds no *global* leveled section (`CurrentThreadHoldsNoGlobalLevelLock`; a per-item lock is by
+  design — the meta thread pumps from inside `PrepareDataUsage` — and an oper under it may still
+  take every global section).
 - **N4** — FixedAlloc's huge-alloc attribution report deliberately runs after
   `AllocateFromStock_impl` returns, with no allocator lock held (comment at
   [FixedAlloc.cpp:1165](../rtc/dll/src/mem/FixedAlloc.cpp)); the allocator↔registry inversion this
@@ -419,7 +451,7 @@ Recorded so the next reader does not re-suspect them:
   dispatch to (`DebugContext.h`).
 - **R3** — teardown-concurrent code gates on the lock-free `IsSessionTearingDown()`, never on
   `SessionData::Curr()` (which takes `sd_SessionDataCriticalSection` while the tree dies under it).
-- **R4** — main-thread opers are unconstrained *because* every pump holds nothing — asserted in
+- **R4** — main-thread opers are unconstrained *because* every pump holds at most per-item locks — asserted in
   `operation_queue::Process`.
 - **R5** — a foreign callback (GDAL error handler, progress notification) may report or post;
   it may not name items, take DMS locks, or wait.
@@ -428,9 +460,12 @@ Recorded so the next reader does not re-suspect them:
 
 1. ~~Retire P1, P3, P4~~ — done in `b591f683` (#1233), which also deleted `LevelCheckBlocker`
    and with it blind spot B2.
-2. Fix B1 in `Allow` (compare ordinals when item levels are equal *or* incomparable). This is now
-   the largest remaining hole: it is what leaves P6 — and the P2 family entered from the item-lock
-   side — invisible to the checker.
+2. ~~Fix B1 in `Allow`~~ — the premise was wrong: the item-level rules were dead code because
+   per-item locks never reached `Allow`. Done differently in `d9d791ba`: `cs_lock_map::ScopedLock` and
+   `ScopedTryLock` enter the checker (item level ≥ 1 only), so a global or ceiling held when a
+   per-item lock is taken is now refused; two per-item locks are deliberately left unordered
+   (§3.2 says why, with the measurement). Battery 244/245 (the one failure is a tile-zeroing assertion in the #1236 connect_matrix write path, TileArrayImpl.h:230, unrelated to locking) with the per-item locks live. Residue:
+   level-0 items stay invisible, and per-item-vs-per-item rests on DAG acyclicity — B1.
 3. Build the pairwise nesting table for act/ (interest machinery) and mem/ser (tile paging) — the
    two layers §6 leaves open.
 4. The syntactic pass over `DMS_ENTERS` / `DMS_CALLEE_ENTERS` declarations (#1227 §3) — the static
