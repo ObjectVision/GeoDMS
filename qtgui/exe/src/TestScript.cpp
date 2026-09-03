@@ -319,7 +319,9 @@ int PassMsg(int argc, char* argv[])
 		SendMessage(hwDispatch, WM_COPYDATA, WPARAM(NULL), LPARAM(&myCDS));
 	}
 #else
-	// Linux: direct method calls instead of Win32 IPC
+	// Linux: direct method calls instead of Win32 IPC. The two branches are two lists of the same
+	// keywords, so a keyword added to one has to be added to the other by hand; this list was written
+	// in April 2026 from the Win32 one and missed SaveValueInfo, a keyword of October 2023 (#1239).
 	for (; i < argc; ++i)
 	{
 		auto mw = MainWindow::TheOne();
@@ -362,6 +364,12 @@ int PassMsg(int argc, char* argv[])
 			if (argc <= ++i)
 				throw stx_error("path expected after SaveDetailPage");
 			SaveDetailPage(argv[i]);
+		}
+		else if (std::strcmp(argv[i], "SaveValueInfo") == 0)
+		{
+			if (argc <= ++i)
+				throw stx_error("path expected after SaveValueInfo");
+			mw->SaveValueInfoImpl(argv[i]);
 		}
 		else if (std::strcmp(argv[i], "CascadeSubWindows") == 0)
 		{
