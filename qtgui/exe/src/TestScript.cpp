@@ -1,12 +1,16 @@
 #include <algorithm>
+#include <cctype>
 #include <cstring>
 #include <iostream>
+#include <string>
 #include <vector>
 
 #include "DmsMainWindow.h"
 #include "DmsAddressBar.h"
 #include "DmsViewArea.h"
 
+#include "dbg/Diagnostics.h"
+#include "dbg/DmsCatch.h"
 #include "ser/FormattedStream.h"
 #include "ser/FileStreamBuff.h"
 #include "TestScript.h"
@@ -25,9 +29,21 @@ void SaveDetailPage(CharPtr fileName); // defined in main_qt.cpp
 #endif
 
 
+// A script error goes to the session log, which is what a headless run leaves behind; the GUI has
+// no console, so on stderr alone the message vanished in the runs that matter.
 void reportErr(CharPtr errMsg)
 {
 	std::cerr << std::endl << errMsg;
+	reportF(MsgCategory::commands, SeverityTypeID::ST_Error, "TestScript: {}", errMsg);
+}
+
+// The <cctype> classifiers take an int in the range of unsigned char, or EOF. A char is signed on
+// MSVC, so a script byte from 0x80 on, the UTF-8 byte order mark or an accented letter, reached
+// isspace as a negative number: undefined behaviour, and in the Debug CRT an assertion that took
+// the whole run down (#1239).
+static bool IsSpace(char ch)
+{
+	return std::isspace(static_cast<unsigned char>(ch)) != 0;
 }
 
 // A SEND element is an index when it is all digits, and a menu-item caption otherwise. Naming an
@@ -75,7 +91,7 @@ UInt32 str2int(CharPtr str)
 				throw stx_error(mgFormat2string("numeric overflow at {0}", str).c_str());
 			value = newValue;
 		}
-		if (!str[i] || isspace(str[i]))
+		if (!str[i] || IsSpace(str[i]))
 			return value;
 	}
 	throw stx_error(mgFormat2string("numeric value expected at {0}", str).c_str());
@@ -268,11 +284,16 @@ int PassMsg(int argc, char* argv[])
 
 		}
 		else
+		{
+			// The else used to cover only this report, so the SendMessage below still went out, with
+			// an uninitialized myCDS. Skip the token instead.
 			reportErr(mgFormat2string("Unrecognized keyword: {0}", argv[i]).c_str());
+			continue;
+		}
 
-			auto mainWindow = MainWindow::TheOne(); assert(mainWindow);
-			auto hwDispatch = (HWND)(mainWindow->winId());
-			SendMessage(hwDispatch, WM_COPYDATA, WPARAM(NULL), LPARAM(&myCDS));
+		auto mainWindow = MainWindow::TheOne(); assert(mainWindow);
+		auto hwDispatch = (HWND)(mainWindow->winId());
+		SendMessage(hwDispatch, WM_COPYDATA, WPARAM(NULL), LPARAM(&myCDS));
 	}
 #else
 	// Linux: direct method calls instead of Win32 IPC
@@ -449,7 +470,7 @@ int RunTestLine(SharedStr line)
 	char* argv[MAX_ARG_COUNT];
 	int argc = 0;
 	char* currPtr = line.begin();
-	while (currPtr != line.end() && *currPtr && isspace(*currPtr))
+	while (currPtr != line.end() && *currPtr && IsSpace(*currPtr))
 		++currPtr;
 	while (argc < MAX_ARG_COUNT && currPtr != line.end() && *currPtr)
 	{
@@ -463,7 +484,7 @@ int RunTestLine(SharedStr line)
 		else
 		{
 			argv[argc++] = currPtr++;
-			while (currPtr != line.end() && *currPtr && !isspace(*currPtr))
+			while (currPtr != line.end() && *currPtr && !IsSpace(*currPtr))
 				++currPtr;
 		}
 
@@ -471,7 +492,7 @@ int RunTestLine(SharedStr line)
 			break;
 		*currPtr++ = char(0);
 
-		while (currPtr != line.end() && *currPtr && isspace(*currPtr))
+		while (currPtr != line.end() && *currPtr && IsSpace(*currPtr))
 			++currPtr;
 	}
 	if (!argc)
@@ -483,10 +504,27 @@ int RunTestLine(SharedStr line)
 	return PassMsg(argc, argv);
 }
 
-SharedStr ReadLine(FormattedInpStream& fis)
+// PowerShell 5.1's Out-File and many editors write a UTF-8 byte order mark in front of a text
+// file; it is not part of the first command.
+static bool StartsWithUtf8Bom(const SharedStr& line)
+{
+	return line.ssize() >= 3 && line[0] == '\xEF' && line[1] == '\xBB' && line[2] == '\xBF';
+}
+
+// FileInpStreamBuff delivers the end of the file one read late: the read past the last byte comes
+// up short, ReadBytes fills in EOF, which is the char 0xFF, and only then does AtEnd() hold. So a
+// 0xFF in NextChar() is the end of the script when the buffer is at its end, and a Latin-1
+// y-diaeresis otherwise. Comparing NextChar() with EOF, as this did, took every 0xFF for the end
+// and silently ended the run at the first one, a comment included, before its WM_CLOSE.
+static bool AtEndOfScript(const FormattedInpStream& fis, const InpStreamBuff& buff)
+{
+	return fis.AtEnd() || (fis.NextChar() == char(EOF) && buff.AtEnd());
+}
+
+SharedStr ReadLine(FormattedInpStream& fis, const InpStreamBuff& buff, bool isFirstLine)
 {
 	SharedStr result; // TODO: us reusable allocate buffer.
-	while (!fis.AtEnd() && fis.NextChar() != '\n' && fis.NextChar() != EOF)
+	while (!AtEndOfScript(fis, buff) && fis.NextChar() != '\n')
 	{
 		auto ch = fis.NextChar(); fis.ReadChar();
 		if (ch == '/')
@@ -496,13 +534,15 @@ SharedStr ReadLine(FormattedInpStream& fis)
 	}
 
 	// read up till end or past EOL
-	while (!fis.AtEnd() && fis.NextChar() != EOF)
+	while (!AtEndOfScript(fis, buff))
 	{
 		auto ch = fis.NextChar(); fis.ReadChar();
 		if (ch == '\n')
 			break;
 	}
 
+	if (isFirstLine && StartsWithUtf8Bom(result))
+		return SharedStr(CharPtrRange(result.begin() + 3, result.send()));
 	return result;
 }
 
@@ -514,9 +554,12 @@ int RunTestScript(SharedStr testScriptName, bool* mustTerminateToken)
 {
 	auto fileBuff = FileInpStreamBuff(testScriptName, true);
     auto fis = FormattedInpStream(&fileBuff);
-	while (!fis.AtEnd() && fis.NextChar() != EOF)
+	bool isFirstLine = true;
+	while (!AtEndOfScript(fis, fileBuff))
 	{
-		auto line = ReadLine(fis);
+		auto lineNr = fis.GetLineNr();
+		auto line = ReadLine(fis, fileBuff, isFirstLine);
+		isFirstLine = false;
 
 		std::promise<int> p;
 		auto mainThreadResult = p.get_future();
@@ -527,9 +570,22 @@ int RunTestScript(SharedStr testScriptName, bool* mustTerminateToken)
 		if (!mw)
 			return 0;
 
-		mw->PostAppOper([line, &p]
+		mw->PostAppOper([line, lineNr, &p]
 			{
-				auto waitMilliSec = RunTestLine(line);
+				std::string lineText(line.begin(), line.send()); // tokenizing writes NULs into line
+				int waitMilliSec = 0;
+				try {
+					waitMilliSec = RunTestLine(line);
+				}
+				catch (...)
+				{
+					// A line that does not parse is reported and skipped, as a SEND path that names a
+					// menu item which is not there is; the script goes on with the next line. Before,
+					// the exception left p without a value and the get() below waited for it forever:
+					// the GUI stayed open and the log never got its end marker.
+					auto errMsg = catchException(false);
+					reportErr(mgFormat2string("line {0} \"{1}\" skipped: {2}", lineNr, lineText, errMsg->Why().c_str()).c_str());
+				}
 				p.set_value(waitMilliSec);
 			}
 		);
