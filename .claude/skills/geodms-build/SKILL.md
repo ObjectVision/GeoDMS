@@ -76,7 +76,11 @@ $msbuild = "C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Curren
   `batch\BuildGlobio.bat Release` (its own `bin_GLOBIO`).
 - Noise to ignore in the output: `MSB4011 GetGlobalProperties.task` import warnings,
   `'pwsh.exe' is not recognized` after a DLL is written, the `dxcompiler.dll`/`dxil.dll`
-  windeployqt lines.
+  windeployqt lines. A Debug build's QtDeploy step also fails now and then with `Cannot remove
+  existing file ...\msvcp140_1d.dll: The process cannot access the file because it is being
+  used by another process` and msbuild exits 1 (13 of the 20 Debug build logs in `scratch\` up
+  to 2026-09-03); the exe was linked before that step, so check its mtime and carry on. The
+  holder was not identified.
 
 Prove the build ran before believing it: compare the mtime of `bin\Release\x64\GeoDmsRun.exe`
 (and of the DLL your edit lives in) with the launch time. msbuild exits 0 on an up-to-date
