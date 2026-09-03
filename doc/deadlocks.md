@@ -54,7 +54,7 @@ non-trivial calls, or paired with a condition variable):
 - `sd_SessionDataCriticalSection` + `s_IsSessionTearingDown` (tic/SessionData.cpp) — see rule R3.
 - `sd_DataControllerMapCriticalSeciton` + `...WasRevisited` cv (tic/DataController.cpp) — finding P4.
 - `s_TileTaskGroupsMutex` + `m_TileTasksDone` cv (tic/ParallelTiles) — finding P9.
-- `FileMapHandle::m_ResizeMutex` (shared) + `tiledata.h cs_file` — not analyzed to completion (§5).
+- `FileMapHandle::m_ResizeMutex` (shared) + `tiledata.h cs_file` — not analyzed to completion (§6).
 - `gdal_vect.h m_xSectionDataItemsStatusInfo` (recursive) — held across per-layer bookkeeping.
 - `StoredPropDef::m_Mutex` ×3 — leaf map guards under `assert(IsMetaThread())`.
 - `s_MainQueueSection` — queue swap only, released before opers run (verified).
@@ -84,7 +84,9 @@ Recorded in issue #1227 §2; restated here because every finding below lives in 
   `m_ItemLevel > other.m_ItemLevel`, before comparing ordinals. A thread that has taken any
   per-item lock (item level ≥ 1, e.g. via `Actor::DetermineLastSupplierChange`'s
   `MakeMax(m_ItemLevel, item_level_type(1))`) is thereafter *unchecked* against every level-0
-  section — the registry, storage, everything.
+  section — the registry, storage, everything. The rule itself is wanted (it is what permits the
+  walk down the supplier DAG — see §3.2); the defect is that it skips the ordinal check while
+  doing so, rather than applying it within the item level.
 - ~~**B2 — the explicit suppression.** `LevelCheckBlocker`.~~ **Gone** (#1233): its one caller
   was P3, and with that fixed the class is deleted rather than left for a future caller. An escape
   hatch that switches the ordering check off wholesale means the checker cannot see anything a
@@ -99,7 +101,136 @@ Recorded in issue #1227 §2; restated here because every finding below lives in 
 
 ---
 
-## 3. Findings — potential deadlocks
+## 3. What a ceiling permits — the exact rules
+
+*This section answers: given `DMS_ENTERS(L, dms_shared_v)` or `DMS_ENTERS(L, dms_exclusive_v)`,
+what may the scope and everything it calls actually do? It is derived from `level_type::Allow`
+in `Parallel.h`, which is the whole of the enforcement.*
+
+### 3.1 What a ceiling is
+
+`DMS_ENTERS(L, MODE)` constructs a `DmsLockCeiling`, which calls `EnterLevel` with
+`level_type{ descr, L, item_level_type(0), MODE }` and restores the previous level on scope exit —
+the same push/restore `scoped_lock_impl` performs. It takes **no mutex**. It only makes the thread
+*claim to hold* `(ordinal L, mode MODE, item level 0)` for the rest of the scope, so that every
+subsequent acquire is checked against that claim. It exists only under `MG_DEBUG_LOCKLEVEL`
+(= `MG_DEBUG`); in Release the macro is `((void)0)` and none of this section applies.
+
+A ceiling is itself an acquire for checking purposes: declaring one while something is already held
+is checked by the same rules, and so is nesting one ceiling inside another.
+
+### 3.2 The decision procedure
+
+`held.Allow(target)` — `held` is the thread's current level (a real lock *or* a ceiling), `target`
+is what is about to be taken. In order:
+
+1. `target.ordinal == 0` — asserted against; a section must have a real ordinal.
+2. **Nothing held** (`held.ordinal == 0`) → allow.
+3. **`held.item > target.item`** → allow, **and the ordinal is not consulted at all**. This is
+   blind spot B1.
+4. **`held.item < target.item`** → refuse.
+5. Equal item levels → compare ordinals: `held < target` allow; `held > target` refuse;
+   **equal → allow only if BOTH are shared**.
+
+The item-level dimension is not noise, which is worth stating because §2 lists only its downside.
+A per-item lock from `cs_lock_map::GetorCreateMutex` gets `GetItemLevel(item)` as its item level,
+and `Actor::DetermineLastSupplierChange` maintains `m_ItemLevel` as `MakeMax` over the item's own
+suppliers — so a consumer's level is at least its suppliers'. Every *global* section uses
+`item_level_type(0)`. Read together: **higher item level = outer**, and the intended order is lock
+the consumer, then its suppliers, then global sections. Rule 3 is what permits that walk down the
+supplier DAG; the defect is only that it *skips the ordinal check* while doing so.
+
+One wart follows from `GetItemLevel` returning 0 for a passor and for an item whose state has not
+been determined yet: the same per-item lock is item level 0 before `DetermineLastSupplierChange`
+has run and ≥ 1 after. So whether rule 4 or rule 5 decides a given acquire can depend on how far
+the run has got — the check is in that respect a property of the data, not only of the code.
+
+### 3.3 The table
+
+Ceiling `(L, MODE)` — since a ceiling always carries item level 0, rules 3 and 4 fix the item
+column before ordinals are ever reached:
+
+| what the scope (or anything it calls) takes | under `(L, shared)` | under `(L, exclusive)` |
+|---|---|---|
+| global section, ordinal **M > L**, either mode | allowed | allowed |
+| global section, ordinal **M == L**, **shared** | **allowed** | refused |
+| global section, ordinal **M == L**, exclusive | refused | refused |
+| global section, ordinal **M < L**, either mode | refused | refused |
+| per-item lock with item level **≥ 1** | refused | refused |
+| per-item lock still at item level 0 | treated as a global section at `ItemRegister` (97) | idem |
+| a nested ceiling `(M, mode2)` | same rules as a global section at `(M, mode2)` | idem |
+| a bare `std::mutex` / `shared_mutex` / `recursive_mutex` | **invisible — never checked** | idem |
+| a blocking wait (`Join`, item production lock, any cv) | **invisible — never checked** | idem |
+
+So the two ceilings differ in exactly one row: whether the scope may still take `L` itself, shared.
+
+### 3.4 The exclusive ceiling is the STRICTER one
+
+This is the counterintuitive part and the one most likely to be got backwards. The mode is **not**
+"the mode in which I intend to take `L`". It is "the mode in which I am to be treated as *already
+holding* `L`". Holding a lock exclusively means nobody — including this thread — may take it again;
+holding it shared means this thread may still take it shared. Therefore:
+
+- `DMS_ENTERS(L, dms_shared_v)` = *"nothing outer than `L`, and `L` itself read-only."*
+- `DMS_ENTERS(L, dms_exclusive_v)` = *"strictly inner to `L`."*
+
+and the exclusive form forbids a strict superset of what the shared form forbids.
+
+Two consequences worth writing down:
+
+- **A function that takes `L` itself must not declare `(L, exclusive)`** — `Allow` would reject its
+  own acquire (equal ordinal, not both shared). If it takes `L` shared it may declare
+  `(L, shared)`; if it takes `L` exclusively it should declare nothing, because taking the lock
+  already publishes the level. This is the "declare only what you do not yourself take" rule from
+  `Parallel.h`.
+- **`DMS_ENTERS_NOTHING`** is `(EntersNothing = 0xFFFFFFFF, exclusive)`. No real section has an
+  ordinal above it, so rule 5 refuses every acquire at equal item level and rule 4 refuses every
+  per-item lock: the scope may take nothing at all.
+
+### 3.5 The two ceilings actually in use
+
+- **`DMS_ENTERS(ord_level_type::IndexedString, dms_shared_v)`** — the reporting path
+  (`AbstrMsgGenerator::Describe`, `MsgGeneratorPolicy::GetDescription`, `ConfigProd::Describe`),
+  `Object::GetFullName` and the raw `AbstrPropDef` accessors. With `IndexedString` at 99: reading a
+  token (99 shared) is allowed, **registering** one (99 exclusive, i.e. `GetOrCreateID_mt`) is
+  refused, everything from 100 up is allowed (`LispObjCache`, `ObjectRegister` 101,
+  `DebugOutStream` 102, `OperationQueue` 103), and everything ≤ 98 is refused — storage 94, tile
+  shadow 96, tile/item-register/thread-messing 97, count/fail/GDAL 98 — as is any per-item lock.
+  That is precisely "may name things and may report; may not compute, store or intern".
+- **`DMS_ENTERS_NOTHING`** — currently declared only as a callee contract
+  (`DMS_CALLEE_ENTERS_NOTHING` on `Object::GetID`, `GetLocation`, `PersistentObject::GetParent`),
+  not as a scope ceiling.
+
+### 3.6 What a ceiling does not and cannot say
+
+- **Bare mutexes are invisible.** A ceiled scope may take `StoredPropDef::m_Mutex`,
+  `s_TileTaskGroupsMutex`, `FileMapHandle::m_ResizeMutex` or any of the forty-odd others of §1.2
+  and the checker will not object, in either direction.
+- **Blocking is invisible.** Nothing stops a ceiled scope from calling `OperationContext::Join`,
+  waiting on an item production lock, or parking on a condition variable. P1 is the proof: an
+  untimed `cv.wait` that hangs the whole operation involves no leveled lock at all, so no ceiling
+  anywhere would have caught it. A ceiling constrains **lock order**, never **liveness**.
+- **Release enforces nothing** (B5).
+- **A `DMS_CALLEE_ENTERS` annotation is a declaration, not a check.** It states what a virtual,
+  callback or opaque function is permitted to reach, so a call site can be checked against it by
+  the static pass that does not exist yet (#1227 §3). Today it bites only when the callee actually
+  runs under a caller's `DMS_ENTERS` — which is why the annotations and the ceilings are worth
+  having together rather than either alone.
+
+### 3.7 Choosing the level when annotating something new
+
+1. Find the **outermost** (numerically lowest) leveled section the scope may legitimately reach,
+   directly or through anything it calls. That ordinal is `L`.
+2. If the scope reaches `L` itself and only ever shared, declare `(L, dms_shared_v)`. If it must
+   not touch `L` at all, declare `(L, dms_exclusive_v)`. If it takes `L` exclusively, declare
+   nothing — the acquire already publishes it.
+3. If the scope may take a per-item lock, it cannot carry a ceiling at all as ceilings stand:
+   `DmsLockCeiling` hardcodes item level 0, so rule 4 refuses every per-item lock. Widening this
+   would mean giving the ceiling the thread's current item level rather than 0.
+4. Run it in Debug. An annotation that lies fails on the first run that reaches it — which is the
+   whole reason the scheme is affordable without a Clang toolchain.
+
+## 4. Findings — potential deadlocks
 
 Ranked by (likelihood × cost of diagnosis when it fires). P1, P3 and P4 are fixed (#1233) and are
 kept here as the record of what the failure was; the rest are open.
@@ -226,7 +357,7 @@ callback may report, and nothing else.
 
 ---
 
-## 4. Verified non-findings
+## 5. Verified non-findings
 
 Recorded so the next reader does not re-suspect them:
 
@@ -256,7 +387,7 @@ Recorded so the next reader does not re-suspect them:
 
 ---
 
-## 5. Not analyzed to completion
+## 6. Not analyzed to completion
 
 - The file-mapping pair `FileMapHandle::m_ResizeMutex` (shared) ↔ `tiledata.h cs_file`, held
   across resize/page-in; a full nesting table of the mem/ser tile paging layer was not built.
@@ -266,7 +397,7 @@ Recorded so the next reader does not re-suspect them:
   unwritten.
 - Storage managers other than odbc/gdal/cfs.
 
-## 6. Historical deadlocks (fixed) — calibration
+## 7. Historical deadlocks (fixed) — calibration
 
 | what | mechanism | fix |
 |---|---|---|
@@ -279,7 +410,7 @@ Recorded so the next reader does not re-suspect them:
 | #659 exec_ec | `MsgWaitForMultipleObjectsEx` without a pump | pump added; rule in N1 |
 | #1156 window ghosting | cv wait invisible to user32 (not a deadlock, looked like one) | `MsgWaitForMultipleObjectsEx` wait |
 
-## 7. Standing rules that keep the list short
+## 8. Standing rules that keep the list short
 
 - **R1** — never hold a `...Lock()` value (TokenStr/TokenStrRange) across a call that can
   tokenize or block; materialize first (`Object.h`, `sym/Token.h`).
@@ -293,7 +424,7 @@ Recorded so the next reader does not re-suspect them:
 - **R5** — a foreign callback (GDAL error handler, progress notification) may report or post;
   it may not name items, take DMS locks, or wait.
 
-## 8. Follow-up work, in order of value
+## 9. Follow-up work, in order of value
 
 1. ~~Retire P1, P3, P4~~ — done in `b591f683` (#1233), which also deleted `LevelCheckBlocker`
    and with it blind spot B2.
@@ -301,6 +432,6 @@ Recorded so the next reader does not re-suspect them:
    the largest remaining hole: it is what leaves P6 — and the P2 family entered from the item-lock
    side — invisible to the checker.
 3. Build the pairwise nesting table for act/ (interest machinery) and mem/ser (tile paging) — the
-   two layers §5 leaves open.
+   two layers §6 leaves open.
 4. The syntactic pass over `DMS_ENTERS` / `DMS_CALLEE_ENTERS` declarations (#1227 §3) — the static
    half that would make §2's blind spots enumerable instead of remembered.
