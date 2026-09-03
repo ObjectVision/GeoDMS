@@ -28,6 +28,25 @@ renamed to `.bak` first so `RegioIndelingen.dms` has to download it again. Both
 walks its own output folder. Pass a third argument to point the geopackage step at a
 scratch `SourceDataDir` when testing the script itself.
 
+## Skills: the operational recipes live in `.claude/skills/`
+
+This file holds the policy; the recipes that apply it on this machine are skills, one folder
+per topic under `.claude/skills/<name>/SKILL.md`, tracked in git (the rest of `.claude/` is
+ignored). Claude Code loads a skill by name when its description matches the task; any other
+agent can read them as plain markdown.
+
+| Skill | When |
+|---|---|
+| `geodms-build` | compiling on this shared tree, and which test tier proves what |
+| `geodms-debug` | reproducing an issue headlessly, assertions, cdb, driving the GUI, probe configs |
+| `geodms-commit` | committing in the engine, the wiki and `tst`: message convention, shared-index discipline, never push |
+| `geodms-issues` | text that lands on GitHub issues: debriefs, closing, new issues |
+| `geodms-wiki` | documenting a behaviour change on the wiki |
+| `geodms-release` | building the setups and publishing a GitHub release |
+
+When a recipe changes (a script moves, a guard is added, a convention is settled), update the
+skill in the same commit; a skill that contradicts the scripts is worse than none.
+
 ## Line endings: LF in the repository, CRLF in a Windows working tree
 
 **Since GeoDMS 20.18.0 every text blob is stored with LF.** `.gitattributes` carries

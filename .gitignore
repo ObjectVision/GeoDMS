@@ -41,7 +41,12 @@ todo*.txt
 /enc_temp_folder
 /qtgui/exe/obj
 /qtgui/exe/bin
-/.claude
+# .claude holds private session state (settings.local.json, worktrees, one-off run shims),
+# except the skills under .claude/skills/, which are tracked so every agent working in this
+# tree loads the same recipes. A directory-level ignore cannot be re-included below it, hence
+# the /* form.
+/.claude/*
+!/.claude/skills/
 /profiler/__pycache__
 
 # Claude/diagnostic scratch space: cdb dumps, single-test logs, instrumentation output.
