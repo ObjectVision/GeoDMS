@@ -35,9 +35,11 @@ if not exist "%MSBUILD%" (
 
 set "WLOG=analyze_%CFG%.warnings.log"
 
-echo === Syntactic checks ^(tools\check-lock-across-sink.ps1^) ===
+echo === Syntactic checks ^(tools\check-lock-across-sink.ps1, tools\check-lock-ceilings.ps1^) ===
 powershell -NoProfile -ExecutionPolicy Bypass -File "tools\check-lock-across-sink.ps1"
 set "LINT_RC=%ERRORLEVEL%"
+powershell -NoProfile -ExecutionPolicy Bypass -File "tools\check-lock-ceilings.ps1"
+if not "%ERRORLEVEL%"=="0" set "LINT_RC=%ERRORLEVEL%"
 echo.
 
 echo === MSVC Code Analysis ^(/analyze, PREfast^) on all22.sln [%CFG% ^| x64] ===
