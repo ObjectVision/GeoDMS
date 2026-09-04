@@ -26,27 +26,53 @@ inner* (higher-ordinal) level, or an equal level when both sides are shared. It 
 `MG_DEBUG_LOCKLEVEL` (= `MG_DEBUG`); in Release, `dms_assert` is `CC_ASSUME` — every rule below is
 unenforced in exactly the builds users run.
 
-(ordinals as of `b591f683`; `UpdatingInterestSet` moved from 98 to 99 for #1233 P3)
+(ordinals as of `e2c6033c` — every section has its own since #1233 P5; the former families are noted)
 
 | ordinal | name | instance | file |
 |---|---|---|---|
-| 1 | (SessionUsageCounter) | `s_SessionUsageCounter` (counted) | tic/SessionData.cpp |
-| 93 | AbstrStorage, BoundingBoxCache1 | `cs_BB` | geo/GeoSupport.cpp |
-| 94 | SpecificOperatorGroup, DataViewQueue, UpdateActionSet, Storage, BoundingBoxCache2 | `s_OdbcSection`, `sm_UAS`, polygon insert sections | odbc, shv, geo |
-| 95 | SpecificOperator, DataRefContainer | `cs_SpatialRefBlockCreation`, `s_DataItemRefContainer`, polygon addition sections | clc, tic, geo |
-| 96 | TileShadow | (tile machinery) | |
-| 97 | Tile, ItemRegister, ThreadMessing | `sg_ActorLockMap` per-item mutexes (item level ≥ 1, see §3.2), `cs_ThreadMessing` | rtc/cs_lock_map.h, tic/OperationContext.cpp |
-| 98 | CountSection, FailSection, OperContextAccess, ActiveProducerSet, TreeItemFlags, GDALComponent | `sg_CountSection`, `sc_FailSection`, `cs_OperContextAccess`, `s_ActiveProducerSetMutex`, `gdalSection` | act, tic, stg |
-| 99 | IndexedString, UpdatingInterestSet, OperationContext, TileAccessMap, MoveSupplInterest, MOST_INNER (ExplainAccess) | token registry (counted), `sd_UpdatingInterestSet`, `cs_OcAdm`, `cs_lock_map` map lock, `sc_MoveSupplInterestSection`, `scs_ExplainAccess` | set, act, tic |
-| 100 | RegisterAccess, CountedMutexSection, LispObjCache, NotifyTargetCount | `s_RegAccess`, `s_CountedMutexSection`, LispObjRegister CS, `sc_NotifyTargetCount` | utl, ptr, sym, act |
-| 101 | ObjectRegister | `cs_ORT`, `cs_lockCounterUpdate` | mci, tic/ItemLocks.cpp |
-| 102 | DebugOutStream | `g_DebugStream` | dbg/MsgDispatch.cpp |
-| 103 | OperationQueue | | |
+| 1 | SessionUsageCounter | `s_SessionUsageCounter` (counted; raw `try_lock_shared`/`unlock_shared`, invisible to `Allow`) | tic/SessionData.cpp |
+| 2 | WmsTileCache | `TileCache::s_ImageAccess` | shv/WmsLayer.cpp |
+| 50 | (ItemProductionWait) | **not a section**: the per-item ceiling a production *wait* declares — §3.8 | tic/ItemLocks.cpp, tic/OperationContext.cpp |
+| 60 | BoundingBoxCache1 (was 93) | `cs_BB` | geo/GeoSupport.cpp |
+| 61 | AbstrStorage (was 93) | | |
+| 62 | SpecificOperatorGroup (was 94) | polygon-overlay insert sections | geo |
+| 63 | DataViewQueue (was 94) | | shv |
+| 64 | UpdateActionSet (was 94) | `sm_UAS` | shv/GraphicObject.cpp |
+| 65 | Storage (was 94) | `s_OdbcSection` | stg/odbc |
+| 66 | BoundingBoxCache2 (was 94) | | |
+| 68 | SpecificOperator (was 95) | `cs_SpatialRefBlockCreation`, polygon addition sections | clc, geo |
+| 69 | DataRefContainer (was 95) | `s_DataItemRefContainer` | tic/AbstrUnit.cpp |
+| 70 | PrepareDataUsageLock (was 96) — per-item | `sg_PrepareDataUsageLockMap` | tic/TreeItemDataUsage.cpp |
+| 72 | TileShadow (was 96) | tile machinery | |
+| 73 | Tile (was 97) | tile machinery; may schedule or join operation contexts, so outer to ThreadMessing | |
+| 74 | ItemRegister (was 97) — per-item | `sg_ActorLockMap` | rtc/cs_lock_map.h |
+| 75 | ThreadMessing (was 97) | `cs_ThreadMessing`; takes CountSection, FailSection, OperContextAccess inside | tic/OperationContext.cpp |
+| 76 | DataFlagsLock (was 98) — per-item | `sg_DataFlagsLockMap` | tic/AbstrDataItem.cpp |
+| 78 | CountSection (was 98) | `sg_CountSection` | act/Actor.cpp |
+| 79 | FailSection (was 98) | `sc_FailSection`; takes MoveSupplInterest inside | act/Actor.cpp |
+| 80 | OperContextAccess (was 98) | `cs_OperContextAccess`; taken under ThreadMessing | tic/MoreDataControllers.cpp |
+| 81 | ActiveProducerSet (was 98) | `s_ActiveProducerSetMutex` | tic/ItemLocks.cpp |
+| 82 | TreeItemFlags (was 98) | | |
+| 83 | GDALComponent (was 98) | `gdalSection`; its error handler may read tokens and report | stg/gdal/gdal_base.cpp |
+| 85 | UpdatingInterestSet (was 99) | `sd_UpdatingInterestSet`; taken under CountSection | act/TriggerOperator.cpp |
+| 86 | OperationContext (was 99) | `cs_OcAdm` | tic/OperationContext.cpp |
+| 87 | TileAccessMap (was 99) | | |
+| 88 | MoveSupplInterest (was 99) | `sc_MoveSupplInterestSection`; takes NotifyTargetCount inside | act/Actor.cpp |
+| 89 | ExplainAccess (was 99) | `scs_ExplainAccess` | tic/Explain.cpp |
+| 90 | IndexedString (was 99) | the token registry (counted): shared to read, exclusive to register — innermost of its former family, so a token can be read under any of them | set/IndexedStrings.cpp |
+| 92 | NotifyTargetCount (was 100) | `sc_NotifyTargetCount`; the TContextNotification callback runs under it | act/TriggerOperator.cpp |
+| 93 | RegisterAccess (was 100) | `s_RegAccess` | utl/Environment.cpp |
+| 94 | LispObjCache (was 100) | LispObjRegister CS | sym |
+| 95 | CountedMutexSection (was 100) | `s_CountedMutexSection`; every `counted_mutex` op takes it | ptr/SharedBase.cpp |
+| 97 | ObjectRegister (was 101) | `cs_ORT` | mci/MciInterface.cpp |
+| 98 | ItemCounter (was 101, shared with ObjectRegister) | `cs_lockCounterUpdate`: the item production read/write counter | tic/ItemLocks.cpp |
+| 100 | DebugOutStream (was 102) | `g_DebugStream` | dbg/MsgDispatch.cpp |
+| 101 | OperationQueue (was 103) | | |
 
 `FLispUsageCache` (was 98) is retired since `182e66e9` — see finding N6.
 
-The three `cs_lock_map` instances carry ordinals `PrepareDataUsageLock` 96, `ItemRegister` 97
-(`sg_ActorLockMap`) and `DataFlagsLock` 98, but they live in the *per-item* dimension, where they
+The three `cs_lock_map` instances carry ordinals `PrepareDataUsageLock` 70, `ItemRegister` 74
+(`sg_ActorLockMap`) and `DataFlagsLock` 76, but they live in the *per-item* dimension, where they
 are outer to every global section and are not ordered against each other (§3.2) — so today those
 ordinals are never compared; they only record the one same-item nesting that is known,
 `PrepareDataUsage(X)` enclosing `DataWriteLockAtom(X)`. Since `d9d791ba` these locks enter the checker;
@@ -243,11 +269,12 @@ established). The two that carry the semantics worth knowing by heart:
 
 - **`DMS_ENTERS(ord_level_type::IndexedString, dms_shared_v)`** — the reporting path
   (`AbstrMsgGenerator::Describe`, `MsgGeneratorPolicy::GetDescription`, `ConfigProd::Describe`),
-  `Object::GetFullName` and the raw `AbstrPropDef` accessors. With `IndexedString` at 99: reading a
-  token (99 shared) is allowed, **registering** one (99 exclusive, i.e. `GetOrCreateID_mt`) is
-  refused, everything from 100 up is allowed (`LispObjCache`, `ObjectRegister` 101,
-  `DebugOutStream` 102, `OperationQueue` 103), and everything ≤ 98 is refused — storage 94, tile
-  shadow 96, tile/item-register/thread-messing 97, count/fail/GDAL 98 — as is any per-item lock.
+  `Object::GetFullName` and the raw `AbstrPropDef` accessors. With `IndexedString` at 90: reading a
+  token (90 shared) is allowed, **registering** one (90 exclusive, i.e. `GetOrCreateID_mt`) is
+  refused, everything from 92 up is allowed (`NotifyTargetCount`, `RegisterAccess`, `LispObjCache`,
+  `CountedMutexSection`, `ObjectRegister` 97, `ItemCounter` 98, `DebugOutStream` 100), and
+  everything ≤ 89 is refused — `ExplainAccess` 89 down through `MoveSupplInterest` 88, GDAL 83,
+  count/fail 78/79, thread-messing 75, tile 73, storage 65 — as is any per-item lock.
   That is precisely "may name things and may report; may not compute, store or intern".
 - **`DMS_ENTERS_NOTHING`** — currently declared only as a callee contract
   (`DMS_CALLEE_ENTERS_NOTHING` on `Object::GetID`, `GetLocation`, `PersistentObject::GetParent`),
@@ -300,10 +327,57 @@ narrows that, and is checked on entry against what the caller holds. The rules t
 5. Run it in Debug and read the `lock level refused` lines, not the assert. Only the **first**
    refusal in a `.out` is evidence: the assert calls `exit(3)` without unwinding, so static
    teardown runs on that thread under the stale ceiling and every later line is an artefact.
-6. What the wave deliberately left undeclared, as "may take anything": everything under rule 3;
+6. What the first wave left undeclared, as "may take anything": everything under rule 3;
    `IncInterestCount`'s callers above `StartInterest`; the polygon and Dijkstra sections, which
    are declared inside operator bodies rather than at function scope; `ParseRegStatusFlags`
    (takes nothing itself); and every function whose only lock is a bare primitive (§1.2).
+7. **The second wave (`e2c6033c`, 89 declarations)** walked the callers of the declared functions up to
+   the frontier: every function whose level is the minimum of its callees' levels and its own
+   acquires got that minimum, with the per-item rule (2) deciding most of them — the interest
+   machinery (`TreeItemDualRef`, `AbstrDataItem::StartInterest`/`StopInterest`, `~TreeItem`,
+   `SetDC`, `Copy`, `DoInvalidate`, the `OptionalInterestInc`/`Dec` templates every interest
+   pointer goes through) and the scheduler (`Schedule`, `Run_with_cleanup`, `StealOneTask`,
+   `StartOperationContexts`, `~OperationContext`). A function that pumps got the production-wait
+   ceiling (§3.8), which is per-item and therefore admits pumping. A declaration goes **after** a
+   fast-path or null check, not before it: `OptionalInterestDec(nullptr)` — an empty interest
+   pointer dying, which happens under `sg_CountSection` all the time — takes nothing, and a
+   ceiling ahead of the check refused 46 cases for an acquire that never came; the same for an
+   empty `ItemWriteLock` being released (move-assignment into a fresh local under
+   `cs_ThreadMessing`, 167 cases) and for `CurrActiveCancelIfNoInterestOrForced` with no active
+   frame (57). Two kinds of caller stay undeclared on purpose: functions whose acquires depend on a thread-local mode (`DoFail` and
+   everything that fails an item; the leaf declaration on `DecInterestCount` is the detector), and
+   the status-flag getters (`GetRegStatusFlags`, `IsMultiThreaded*`): they take `RegisterAccess`
+   only on a never-read slow path, so a function-level declaration would refuse every hot call
+   made under an inner lock while the real acquire never happens there — P12's shape, one level
+   up. Also left: the operator bodies in clc/geo (`CreateResult` and friends), which are the
+   unconstrained context the checker is *for*, and the storage managers' `DoUpdateTree` /
+   `ReadDataItem` overrides outside odbc, which the battery does not reach.
+
+### 3.8 The production-wait ceiling — what makes P2 checkable
+
+A wait for another thread's production is not an acquire, and B4 said the checker cannot see it.
+Since `e2c6033c` it can, by declaration: `treeitem_production_task::lock_shared`/`lock_unique`,
+`cs_lock::AwaitAncestorWrites`, `ReadLockInit`, the `ItemReadLock` constructor,
+`WaitForReadyOrSuspendTrigger`, `OperationContext::Join`, `JoinSupplOrSuspendTrigger` and the two
+`DoWorkWhileWaiting` variants each open with
+
+    DMS_ENTERS_ITEM(ord_level_type::ItemProductionWait, dms_exclusive_v);
+
+That is a per-item ceiling (item level 1), so by the rules of §3.2 it is **admitted under nothing
+but a per-item lock or another per-item ceiling**: a thread holding any global section — and a
+`TokenStr` is exactly a registry-shared hold at ordinal 90 — is refused the moment it would start
+waiting. Under it, every global and every per-item acquire is allowed (rules 3 and 4), which is
+what a wait that pumps main-thread opers and takes the item counter needs. The ordinal 50 is
+immaterial (per-item levels are never ordered); it exists so the table can say what the ceiling
+is. The token registry is thereby *at a higher ceiling* than production: a `TokenStr` may be held
+across anything but a wait, and a wait may take anything but a `TokenStr`'s caller's locks.
+
+What this does not cover: waits on bare condition variables and semaphores outside those entry
+points (§1.2), and the pump inside `WaitForTaskNotification` when it is reached by a path other
+than the ones listed. The four named `TokenStr` locals found by the P2 survey that spanned a
+*foreign* call rather than a wait (`SendStatusText`, `FontArray`, `Gdal_DoOpenStorage`,
+`GdalVectlMetaInfo::OnOpenForRead`/`WriteLayer`) were materialized to `SharedStr` in the same
+commit; the survey found no site that spans a production wait.
 
 ## 4. Findings — potential deadlocks
 
@@ -329,20 +403,25 @@ is discarded either way — the original exception is stored by the task group a
 `Join` — so what mattered was only that no thread stays parked and that the real error is the one
 reported. The wait is `wait_for` as well, so a lost notification cannot park either.
 
-### P2 — cross-thread registry cycle: shared holder blocks on a producer that registers — **structural**
+### P2 — cross-thread registry cycle: shared holder blocks on a producer that registers — **checkable since `e2c6033c`**
 
 Thread A holds a `TokenStr` (registry-shared) and blocks — even in a *timed, retrying* wait — on an
 item production lock (§1.3). Thread B, the producer of that item, calls `GetTokenID_mt` →
 `GetOrCreateID_mt`, which parks **untimed** until the shared count is zero. A's predicate never
 becomes true (B never finishes), B never wakes (A never releases): a two-thread cycle through one
 leveled lock and one logical lock. The per-thread usage counter (`208ab52f`) catches only the
-*same-thread* case; B4 makes this variant invisible to the checker (it is a *wait*, not an
-acquire — the per-item lock side is checked since `d9d791ba`, the wait on it is not).
+*same-thread* case; until `e2c6033c` B4 made this variant invisible to the checker (it is a *wait*, not an acquire — the
+per-item lock side was checked since `d9d791ba`, the wait on it was not). Now every production wait
+declares the `ItemProductionWait` ceiling (§3.8), so a thread that starts one while holding a
+`TokenStr` — or any global section — is refused at that point.
 
 No concrete instance is known. The #1227 renames are the practical defense: every registry-holding
 value is now spelled `...Lock()`, so "held across a blocking call" is greppable. The sites that
 deliberately keep lock accessors (the `DMS_*` C API, `createSimilarSet`, `Object::XML_Dump`) were
-each verified not to block.
+each verified not to block. Since `e2c6033c` the Debug build checks it: every production wait declares
+the `ItemProductionWait` ceiling (§3.8), which a thread holding a `TokenStr` is refused. A survey
+of all 86 functions that still use a `...Lock()` accessor found none spanning a wait; the four
+that spanned a foreign (GDI/GDAL) call were materialized.
 
 ### P3 — the InterestReporter's suppressed equal-level pair — **FIXED (#1233, `b591f683`)**
 
@@ -376,14 +455,24 @@ destructed by this thread`) instead of parking; the remaining wait is timed and 
 it is waiting for, so a missed notify or an absent destructor surfaces as a slow report rather
 than a silent hang.
 
-### P5 — equal-ordinal families — **structural, Release-only by construction**
+### P5 — equal-ordinal families — **FIXED (`e2c6033c`): every section has its own ordinal**
 
 Distinct mutexes sharing an ordinal (see §1.1: five sections at 94, five at 98, five at 99, four
 at 100) can never be *nested* in a Debug-covered path — Allow rejects equal levels — so no
 cross-order cycle can be built there. The residual risk is paths never run under Debug: in Release
 nothing rejects the nesting, and any pair nested in both orders on different threads deadlocks
-without a diagnostic. The 99 family is the one to watch: token registry, `cs_OcAdm`,
-`cs_lock_map`'s map lock and `sc_MoveSupplInterestSection` all sit there, all exclusive.
+without a diagnostic. The 99 family was the one to watch: token registry, `cs_OcAdm`,
+`cs_lock_map`'s map lock and `sc_MoveSupplInterestSection` all sat there, all exclusive.
+
+*Fixed:* `LockLevels.h` now gives every section a distinct ordinal (the §1.1 table, with the old
+values beside the new). Within a former family the order follows the nestings that were known —
+`CountSection` before `UpdatingInterestSet`, `FailSection` before `MoveSupplInterest`,
+`MoveSupplInterest` before `NotifyTargetCount`, `ThreadMessing` before `OperContextAccess`, the
+registry innermost of its family so a token can be read under any of them, `CountedMutexSection`
+innermost of its family because every counted-mutex op takes it. Where no nesting was known the
+order is a choice, and the first Debug run that nests such a pair the other way round will refuse
+it and name both sides; that is the point — a pair that could never be nested in Debug now has one
+checked order instead of none.
 
 ### P6 — per-item locks against each other, and below an undetermined item — **structural, narrowed by `d9d791ba`**
 
@@ -434,7 +523,7 @@ re-entering GeoDMS lock-taking code, and the only such callback (the GDAL/CPL er
 reaches only `DebugOutStream(102)`, inner to everything held. The rule to preserve: a foreign
 callback may report, and nothing else.
 
-### P11 — `GetSequenceBoundingBoxCache` / `GetPointBoundingBoxCache` hold a global over a per-item lock — **open, found by the wave**
+### P11 — `GetSequenceBoundingBoxCache` / `GetPointBoundingBoxCache` hold a global over a per-item lock — **FIXED (`e2c6033c`)**
 
 `geo/dll/src/BoundingBoxCache.h`: both take `cs_BB` (`BoundingBoxCache1`, 93 — a global section)
 and then construct a `DataReadLock(featureAttr)`, which takes the item's actor lock. That is rule
@@ -444,9 +533,11 @@ The reverse edge exists: `~AbstrBoundingBoxCache` takes `cs_BB` and runs when a 
 object dies, which happens under `sg_CountSection` (98) in `TryCleanupMem` and under the item's
 own locks. Two threads — one building a cache for feature A while A's data is being cleaned up
 on another — close the cycle. Fix shape: take the `DataReadLock` first and `cs_BB` only around the
-registry lookup/insert, which is what the section actually protects. Neither function carries a
-ceiling until then: a truthful `DMS_ENTERS_ITEM` would not describe a body that takes a global
-first.
+registry lookup/insert, which is what the section actually protects. *Fixed:* both getters now take the `DataReadLock` first and hold `cs_BB` only around the registry
+lookup and the insert; building the cache — the expensive part, which used to run under `cs_BB`
+and so serialized every cache build in the process — runs outside it, and a lost race is settled
+by re-checking under the section (the loser's cache dies; its destructor finds the winner in the
+registry and leaves it). Both declare `DMS_ENTERS_ITEM(ItemRegister, exclusive)`, truthfully.
 
 ### P12 — `SetStatusFlag` re-enters `RegAccessSection` on the never-read path — **open, low**
 
@@ -458,7 +549,7 @@ self-deadlock. It is masked because the slow path runs once, at startup, before 
 `ReadOnceRegisteredStatusFlags` is therefore declared after its fast-path return, before the
 acquire. Fix shape: read the flags before taking the section in `SetStatusFlag`.
 
-### P13 — the result's `ItemWriteLock` is released inline under `cs_ThreadMessing` — **open, premise made explicit**
+### P13 — the result's `ItemWriteLock` is released inline under `cs_ThreadMessing` — **FIXED (`e2c6033c`)**
 
 `OperationContext::separateResources` runs under `cs_ThreadMessing` (97) and, by its own comment,
 moves everything whose destruction could destroy a `TreeItem` into a `garbage_can` that is emptied
@@ -469,9 +560,10 @@ interest release, per-item locks — would run under a global section (rule 5). 
 declared `releaseHeldLock` per-item on that account and the checker refused it in 224 cases, all
 from this call. The declaration now states what the function actually takes (the session counter
 at 100 and the item counter at 101) and the premise it rests on — the write lock is never the last
-owner of its item — is written at both sites. Fix shape, consistent with the comment already in
-`separateResources`: `releaseBin |= std::move(m_WriteLock)`, so the release joins the controlled
-path outside the section, after which `releaseHeldLock` can be declared per-item truthfully.
+owner of its item — is written at both sites. *Fixed:* `separateResources` now does `releaseBin |= std::move(m_WriteLock)`, so the release
+joins the controlled path outside the section like every other holder, and
+`ItemWriteLock::releaseHeldLock` declares `DMS_ENTERS_ITEM(ItemRegister, exclusive)` — the
+premise is no longer needed, the checker sees the release where it happens.
 
 ### P14 — `DoFail` released supplier interest under `cs_ThreadMessing` — **FIXED in the wave (`2052ee75`)**
 
@@ -574,10 +666,11 @@ Recorded so the next reader does not re-suspect them:
    (§3.2 says why, with the measurement). Battery 244/245 (the one failure is a tile-zeroing assertion in the #1236 connect_matrix write path, TileArrayImpl.h:230, unrelated to locking) with the per-item locks live. Residue:
    level-0 items stay invisible, and per-item-vs-per-item rests on DAG acyclicity — B1.
 3. ~~Annotate every direct acquirer with the ceiling it demands~~ — first wave done in `2052ee75`
-   (§3.7 has the rules; 118 declarations; battery 246/247). Left for the next wave: the callers of the
-   declared functions, transitively, until the frontier is the set of functions that pump; and
-   the findings it surfaced: P11 (a real order inversion in the bounding-box cache), P12, P13
-   (the write lock released inline under `cs_ThreadMessing`); P14 was fixed in the wave.
+   (§3.7 has the rules; 118 declarations; battery 246/247). Second wave done in `e2c6033c`
+   (§3.7 rule 7, §3.8; 89 declarations; battery 246/247): callers up to the pumping frontier, the
+   production-wait ceiling that makes P2 checkable, distinct ordinals for P5, and P11 and P13
+   fixed. Still open: P12 and the status-flag getters' slow path (the same shape); the operator
+   bodies and the non-odbc storage managers stay undeclared.
 4. Build the pairwise nesting table for act/ (interest machinery) and mem/ser (tile paging) — the
    two layers §6 leaves open.
 5. The syntactic pass over `DMS_ENTERS` / `DMS_CALLEE_ENTERS` declarations (#1227 §3) — the static
