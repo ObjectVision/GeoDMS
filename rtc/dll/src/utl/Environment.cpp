@@ -620,6 +620,10 @@ void SetRegStatusFlags(UInt32 newSF)
 RTC_CALL void SetStatusFlag(UInt32 newSF, bool newVal)
 {
 	DMS_ENTERS(ord_level_type::RegisterAccess, dms_exclusive_v);
+	// #1233 P12: read the registered flags BEFORE taking the section. ReadOnceRegisteredStatusFlags takes the
+	// same section on its never-read path, and it is a plain std::mutex: taken here under itself that path was a
+	// self-deadlock, masked only because the flags are always read once before anyone sets one.
+	auto sf = ReadOnceRegisteredStatusFlags();
 	leveled_critical_section::scoped_lock lock(RegAccessSection());
 	g_OvrStatusMask |= newSF;
 	if (newVal)
@@ -627,7 +631,6 @@ RTC_CALL void SetStatusFlag(UInt32 newSF, bool newVal)
 	else
 		g_OvrStatusFlags &= ~newSF; // clear
 
-	auto sf = ReadOnceRegisteredStatusFlags();
 	if (newVal)
 		sf |= newSF; // set
 	else
@@ -2792,12 +2795,15 @@ void SetRegStatusFlags(UInt32 newSF)
 RTC_CALL void SetStatusFlag(UInt32 newSF, bool newVal)
 {
 	DMS_ENTERS(ord_level_type::RegisterAccess, dms_exclusive_v);
+	// #1233 P12: read the registered flags BEFORE taking the section. ReadOnceRegisteredStatusFlags takes the
+	// same section on its never-read path, and it is a plain std::mutex: taken here under itself that path was a
+	// self-deadlock, masked only because the flags are always read once before anyone sets one.
+	auto sf = ReadOnceRegisteredStatusFlags();
 	leveled_critical_section::scoped_lock lock(RegAccessSection());
 	g_OvrStatusMask |= newSF;
 	if (newVal) g_OvrStatusFlags |= newSF;
 	else        g_OvrStatusFlags &= ~newSF;
 
-	auto sf = ReadOnceRegisteredStatusFlags();
 	if (newVal) sf |= newSF;
 	else        sf &= ~newSF;
 	sf &= ~RSF_WasRead;
