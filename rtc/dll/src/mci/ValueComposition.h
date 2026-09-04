@@ -45,7 +45,23 @@ inline ValueComposition CastResultingValueComposition(ValueComposition operVC, V
 	return IsAcceptableValuesComposition(operVC) && IsAcceptableValuesComposition(argVC) ? argVC : operVC;
 }
 
+// The legacy fold: throws when exactly one side is Single, lets Polygon win over anything else,
+// and keeps vc otherwise, which silently degrades MultiPoint to the seed. Only reached now as the
+// fallback of UnifyValueComposition below; use that one.
 RTC_CALL void Unify(ValueComposition& vc, ValueComposition rhs);
+
+// Folds the ValueComposition of one more value argument into the composition that an operator
+// will give its result. Operators that select or concatenate geometry without changing it (iif,
+// union, union_data, lookup) must hand the composition of their arguments on, MultiPoint
+// included, so seed vc with ValueComposition::Unknown and fold every value argument through this:
+// the first one seeds, equal ones are kept.
+//
+// Arguments that disagree have no honest answer: no composition describes a set that is part ring
+// and part polyline, and the label is what a storage writes (that is how #1038 wrote polygons as
+// LINESTRING). Since GeoDMS 20.19.3 a mixture is reported as deprecated and resolved with the
+// legacy rule, and from GeoDMS 21 it is an error (#1240). Single against a sequence composition
+// stays the hard error it always was.
+RTC_CALL void UnifyValueComposition(ValueComposition& vc, ValueComposition rhs, CharPtr operName);
 
 const int ValueComposition_BitCount = 3;
 

@@ -88,8 +88,10 @@ public:
 
 		const AbstrUnit* domainA = arg1A->GetAbstrDomainUnit();
 		const AbstrUnit* valuesA = arg2A->GetAbstrValuesUnit();
-		auto vc = m_VC;
-		Unify(vc, arg2A->GetValueComposition());
+		// a lookup copies values, it does not change their geometric structure, so the result
+		// has the composition of the values argument, multipoint included (#1240). There is
+		// nothing to unify: only one argument carries a composition.
+		auto vc = CastResultingValueComposition(m_VC, arg2A->GetValueComposition());
 
 		if (!resultHolder)
 		{

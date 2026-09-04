@@ -19,6 +19,8 @@
 #include "mci/ValueClass.h"
 #include "mci/ValueClassID.h"
 #include "mci/ValueComposition.h"
+#include "dbg/Diagnostics.h"   // reportF, for the deprecated mixed-composition report
+#include "RtcVersionNumbers.h" // DMS_VERSION_MAJOR, for the v21 error precoded below
 #include "mem/LockedSequenceObj.h"
 
 #include "ser/AsString.h"
@@ -59,6 +61,41 @@ void Unify(ValueComposition& vc, ValueComposition rhs)
 	assert(IsAcceptableValuesComposition(rhs));
 	if (rhs == ValueComposition::Polygon)
 		vc = ValueComposition::Polygon;
+}
+
+void UnifyValueComposition(ValueComposition& vc, ValueComposition rhs, CharPtr operName)
+{
+	if (vc == ValueComposition::Unknown) // the first value argument decides, so multipoint survives too
+	{
+		vc = rhs;
+		return;
+	}
+	if (vc == rhs)
+		return;
+
+	auto vc1Str = SharedStr(GetValueCompositionID(vc));
+	auto vc2Str = SharedStr(GetValueCompositionID(rhs));
+
+	if ((vc == ValueComposition::Single) != (rhs == ValueComposition::Single))
+		throwDmsErrF("{}: Value Composition {} incompatible with {}", operName, vc1Str, vc2Str);
+
+	// arc, poly and multipoint mixed: no composition describes the combination
+#if DMS_VERSION_MAJOR >= 21
+	throwDmsErrF("{}: the value arguments have different ValueCompositions, {} and {};"
+		" no ValueComposition describes their combination."
+		" Make the arguments agree: points2sequence for arc, points2polygon for poly, points2multi_point for multipoint."
+	,	operName, vc1Str, vc2Str);
+#else
+	auto legacyVC = vc;
+	Unify(legacyVC, rhs); // what a mixture has always resolved to: polygon wins
+	reportF(SeverityTypeID::ST_Warning
+	,	"{}: Depreciated: the value arguments have different ValueCompositions, {} and {}."
+		" No ValueComposition describes their combination; {} is used, as before."
+		" Make the arguments agree: points2sequence for arc, points2polygon for poly, points2multi_point for multipoint."
+		" This will become an error in GeoDms 21."
+	,	operName, vc1Str, vc2Str, SharedStr(GetValueCompositionID(legacyVC)));
+	vc = legacyVC;
+#endif
 }
 
 ValueComposition DetermineValueComposition(CharPtr featureType)

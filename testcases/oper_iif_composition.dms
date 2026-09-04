@@ -1,14 +1,18 @@
-// iif() and the ?: operator keep the ValueComposition of their two value arguments
-// (issue #1240).
+// The ValueComposition of a result that only selects or concatenates geometry: iif, ?:,
+// lookup and union_data must hand the composition of their value arguments on, and must
+// say so when those arguments disagree (issue #1240).
 //
-// The ternary attr operator gave its result the composition that the result VALUE TYPE
-// defaults to, which is Sequence ('arc') for every sequence type, so `cond ? poly_a : poly_b`
-// produced an 'arc'. With the composition check of #1038 an attribute declared (poly) then
-// reported "the declared ValueComposition 'poly' differs from the 'arc' of the calculation
-// result" and the computed 'arc' was adopted onto the declared item, so the wrong composition
-// propagated to whatever read it: choosing between two polygon attributes, the natural shape
-// for ?:, had to be rewritten as a lookup into a union_unit. Every other way of choosing
-// (a lookup, union_data) already kept 'poly'.
+// Every one of them used to give the result the composition that its result VALUE TYPE
+// defaults to, which is Sequence ('arc') for any sequence type. So `cond ? poly_a : poly_b`
+// produced an 'arc', and a multipoint argument came out of union_data and lookup as an 'arc'
+// as well. With the composition check of #1038 an attribute declared (poly) then reported
+// "the declared ValueComposition 'poly' differs from the 'arc' of the calculation result",
+// and the computed 'arc' was adopted onto the declared item, so the wrong composition
+// propagated to whatever read it and the configuration could not work around it.
+//
+// Arguments that disagree have no honest answer, since no composition describes a set that
+// is part ring and part polyline. That is reported as deprecated and resolved with the rule
+// it always had (polygon wins); from GeoDms 21 it is an error.
 //
 // The observable is PropValue(item, 'ValueComposition'), which reads 'poly', 'arc',
 // 'multipoint' or 'single' off the item as it ends up after the result-type check.
@@ -39,12 +43,14 @@ container oper_iif_composition
 		attribute<crs>  iif_arc  (arc)        := iif(c, arc_a, arc_a);
 		attribute<crs>  iif_mp   (multipoint) := iif(c, mp_a, mp_a);
 
-		// arguments that disagree fall back to 'arc', the composition that holds both
-		attribute<crs>  iif_mixed (arc) := iif(c, poly_a, arc_a);
+		// arguments that disagree: deprecated, resolved as polygon, an error from GeoDms 21
+		attribute<crs>  iif_mixed (poly) := iif(c, poly_a, arc_a);
 
-		// the paths that always kept the composition, as a guard
-		attribute<crs>  lookup_poly (poly) := poly_a[id(.)];
-		attribute<crs>  union_poly  (poly) := union_data(., poly_a);
+		// a lookup and union_data pass the composition of their values argument on as well
+		attribute<crs>  lookup_poly (poly)       := poly_a[id(.)];
+		attribute<crs>  lookup_mp   (multipoint) := mp_a[id(.)];
+		attribute<crs>  union_poly  (poly)       := union_data(., poly_a);
+		attribute<crs>  union_mp    (multipoint) := union_data(., mp_a);
 
 		// a non-sequence result has no composition to inherit
 		attribute<float64> f_iif := iif(c, 1.0, 2.0);
@@ -53,28 +59,53 @@ container oper_iif_composition
 		attribute<float64> a_lookup := area(lookup_poly, float64);
 	}
 
+	// two shapes, to give union_data more than one value argument to fold
+	unit<uint32> two_shapes := union_unit(shapes, shapes)
+	{
+		attribute<crs> both_poly  (poly) := union_data(., shapes/poly_a, shapes/poly_a);
+		attribute<crs> both_mp (multipoint) := union_data(., shapes/mp_a, shapes/mp_a);
+		attribute<crs> mixed_pa   (poly) := union_data(., shapes/poly_a, shapes/arc_a);
+	}
+
 	container checks
 	{
-		parameter<string> vc_ite_poly  := PropValue(shapes/ite_poly,    'ValueComposition');
-		parameter<string> vc_iif_poly  := PropValue(shapes/iif_poly,    'ValueComposition');
-		parameter<string> vc_iif_arc   := PropValue(shapes/iif_arc,     'ValueComposition');
-		parameter<string> vc_iif_mp    := PropValue(shapes/iif_mp,      'ValueComposition');
-		parameter<string> vc_iif_mixed := PropValue(shapes/iif_mixed,   'ValueComposition');
-		parameter<string> vc_lookup    := PropValue(shapes/lookup_poly, 'ValueComposition');
-		parameter<string> vc_union     := PropValue(shapes/union_poly,  'ValueComposition');
-		parameter<string> vc_f_iif     := PropValue(shapes/f_iif,       'ValueComposition');
+		parameter<string> vc_ite_poly    := PropValue(shapes/ite_poly,    'ValueComposition');
+		parameter<string> vc_iif_poly    := PropValue(shapes/iif_poly,    'ValueComposition');
+		parameter<string> vc_iif_arc     := PropValue(shapes/iif_arc,     'ValueComposition');
+		parameter<string> vc_iif_mp      := PropValue(shapes/iif_mp,      'ValueComposition');
+		parameter<string> vc_iif_mixed   := PropValue(shapes/iif_mixed,   'ValueComposition');
+		parameter<string> vc_lookup_poly := PropValue(shapes/lookup_poly, 'ValueComposition');
+		parameter<string> vc_lookup_mp   := PropValue(shapes/lookup_mp,   'ValueComposition');
+		parameter<string> vc_union_poly  := PropValue(shapes/union_poly,  'ValueComposition');
+		parameter<string> vc_union_mp    := PropValue(shapes/union_mp,    'ValueComposition');
+		parameter<string> vc_both_poly   := PropValue(two_shapes/both_poly, 'ValueComposition');
+		parameter<string> vc_both_mp     := PropValue(two_shapes/both_mp,   'ValueComposition');
+		parameter<string> vc_mixed_pa    := PropValue(two_shapes/mixed_pa,  'ValueComposition');
+		parameter<string> vc_f_iif       := PropValue(shapes/f_iif,       'ValueComposition');
 
+		// iif keeps what its two value arguments agree on
 		parameter<bool> c1 := vc_ite_poly  == 'poly',       IntegrityCheck = "c1 == true";
 		parameter<bool> c2 := vc_iif_poly  == 'poly',       IntegrityCheck = "c2 == true";
 		parameter<bool> c3 := vc_iif_arc   == 'arc',        IntegrityCheck = "c3 == true";
 		parameter<bool> c4 := vc_iif_mp    == 'multipoint', IntegrityCheck = "c4 == true";
-		parameter<bool> c5 := vc_iif_mixed == 'arc',        IntegrityCheck = "c5 == true";
-		parameter<bool> c6 := vc_lookup    == 'poly',       IntegrityCheck = "c6 == true";
-		parameter<bool> c7 := vc_union     == 'poly',       IntegrityCheck = "c7 == true";
-		parameter<bool> c8 := vc_f_iif     == 'single',     IntegrityCheck = "c8 == true";
+
+		// a lookup and union_data do the same, multipoint included
+		parameter<bool> c5 := vc_lookup_poly == 'poly',       IntegrityCheck = "c5 == true";
+		parameter<bool> c6 := vc_lookup_mp   == 'multipoint', IntegrityCheck = "c6 == true";
+		parameter<bool> c7 := vc_union_poly  == 'poly',       IntegrityCheck = "c7 == true";
+		parameter<bool> c8 := vc_union_mp    == 'multipoint', IntegrityCheck = "c8 == true";
+		parameter<bool> c9 := vc_both_poly   == 'poly',       IntegrityCheck = "c9 == true";
+		parameter<bool> c10 := vc_both_mp    == 'multipoint', IntegrityCheck = "c10 == true";
+
+		// disagreeing arguments: one rule for all of them, and a deprecation warning in the log
+		parameter<bool> c11 := vc_iif_mixed == 'poly', IntegrityCheck = "c11 == true";
+		parameter<bool> c12 := vc_mixed_pa  == 'poly', IntegrityCheck = "c12 == true";
+
+		// a non-sequence result keeps its own composition
+		parameter<bool> c13 := vc_f_iif == 'single', IntegrityCheck = "c13 == true";
 
 		// the values were always right; the composition must not change them
-		parameter<bool> c9  := shapes/a_ite[0] == 1.0 && shapes/a_ite[0] == shapes/a_lookup[0], IntegrityCheck = "c9 == true";
-		parameter<bool> c10 := shapes/f_iif[0] == 1.0, IntegrityCheck = "c10 == true";
+		parameter<bool> c14 := shapes/a_ite[0] == 1.0 && shapes/a_ite[0] == shapes/a_lookup[0], IntegrityCheck = "c14 == true";
+		parameter<bool> c15 := shapes/f_iif[0] == 1.0, IntegrityCheck = "c15 == true";
 	}
 }

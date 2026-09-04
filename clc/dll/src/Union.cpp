@@ -113,15 +113,19 @@ public:
 		auto arg1A = AsDataItem(args[0]);                   assert(arg1A);
 		auto arg1_ValuesUnit = arg1A->GetAbstrValuesUnit(); assert(arg1_ValuesUnit);
 
-		auto vc = m_VC;
-		Unify(vc, arg1A->GetValueComposition());
+		// The result concatenates its arguments without changing their geometric structure, so it
+		// takes their composition, multipoint included: seed from the first value argument rather
+		// than from the value class, whose composition is Sequence ('arc') for every sequence type
+		// and used to swallow multipoint (#1240).
+		auto vc = ValueComposition::Unknown;
+		UnifyValueComposition(vc, arg1A->GetValueComposition(), GetGroup()->GetNameStr());
 		for (arg_index i=1; i!=n; ++i)
 		{
 			const AbstrDataItem* argA = AsCertainDataItem(args[i]);
 			assert(argA);
 
 			const AbstrUnit* currArg_ValuesUnit = argA->GetAbstrValuesUnit();
-			Unify(vc, argA->GetValueComposition());
+			UnifyValueComposition(vc, argA->GetValueComposition(), GetGroup()->GetNameStr());
 
 			assert(currArg_ValuesUnit);
 			if (arg1_ValuesUnit->IsDefaultUnit())
@@ -134,7 +138,7 @@ public:
 		assert(resultDomain);
 		resultHolder = resultDomain;
 
-		AbstrDataItem* resSub = CreateDataItem(resultDomain, s_UnionData, resultDomain, arg1_ValuesUnit, vc ).get(); // owned by resultDomain
+		AbstrDataItem* resSub = CreateDataItem(resultDomain, s_UnionData, resultDomain, arg1_ValuesUnit, CastResultingValueComposition(m_VC, vc) ).get(); // owned by resultDomain
 		MG_PRECONDITION(resSub);
 
 		if (mustCalc)
@@ -545,13 +549,20 @@ public:
 		auto vc = COMPOSITION(V);
 		bool isCategorical = false;
 		if (!hadToTryWithoutCategoricalCheck)
+		{
+			// Seed from the first value argument, not from the value class: the class composition is
+			// Sequence ('arc') for every sequence type, which silently turned a multipoint argument
+			// into an arc. Arguments that disagree are reported by UnifyValueComposition (#1240).
+			auto argVC = ValueComposition::Unknown;
 			for (arg_index i = 1; i <= n; ++i)
 			{
 				auto adi = AsDataItem(args[i]); assert(adi);
 				if (adi->GetTSF(TSF_Categorical))
 					isCategorical = true;
-				Unify(vc, AsDataItem(args[i])->GetValueComposition());
+				UnifyValueComposition(argVC, adi->GetValueComposition(), GetGroup()->GetNameStr());
 			}
+			vc = CastResultingValueComposition(vc, argVC);
+		}
 
 		if (resultHolder)
 			return;
