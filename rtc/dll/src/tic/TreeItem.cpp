@@ -1145,18 +1145,28 @@ static void FailItemType(const TreeItem* self, const TreeItem* refItem)
 // common sequence-class, see UnitClass::GetValueType), so a declared composition that disagrees with
 // the computed one passes the ItemType check unnoticed - e.g. an attribute declared (poly) but filled
 // by points2sequence (which yields arc). Warn so users can make the configuration explicit about the
-// intended composition (points2sequence for arc, points2polygon for poly); this is slated to become an
-// error in a future GeoDms major version (issue #1038).
+// intended composition (points2sequence for arc, points2polygon for poly, points2multi_point for
+// multipoint); this is slated to become an error in GeoDms 21 (issue #1038).
 static void ReportResultCompositionDeprecation(const TreeItem* self, const AbstrDataItem* selfDi, const AbstrDataItem* refDi)
 {
+	// Name the cause next to the declaration (#1243): the item named here is where the modeller has to make
+	// the change, but not where the composition was decided - a lookup, union, union_data, convert or a
+	// value type cast passes its argument's composition through (#1240), so the deciding operator can be
+	// several steps up the expression. Quoting the calculation rule names the top of that chain at least.
+	// GetExprMember, not GetExpr: no UpdateMetaInfo re-entrancy while meta info is being determined; it is
+	// empty when the calculator comes from elsewhere (an inherited or cache item) and then nothing is added.
+	const auto& expr = self->GetExprMember();
+
 	auto msg = mySSPrintF(
-		"{}: Depreciated: the declared ValueComposition '{}' differs from the '{}' of the calculation result.\n"
+		"{}: Depreciated: the declared ValueComposition '{}' differs from the '{}' of the calculation result{}{}.\n"
 		"Make the configuration explicit about the intended composition "
-		"(use points2sequence for arc and points2polygon for poly). "
-		"This will become an error in a future GeoDms major version."
+		"(use points2sequence for arc, points2polygon for poly and points2multi_point for multipoint). "
+		"This will become an error in GeoDms 21."
 	,	self->GetFullName().c_str()
 	,	GetValueCompositionID(selfDi->GetValueComposition()).AsSharedStr().c_str()
 	,	GetValueCompositionID(refDi->GetValueComposition()).AsSharedStr().c_str()
+	,	expr.empty() ? "" : " of "
+	,	expr.empty() ? "" : expr.c_str()
 	);
 	reportD(SeverityTypeID::ST_Warning, msg.c_str());
 }
