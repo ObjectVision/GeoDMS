@@ -181,6 +181,7 @@ leveled_critical_section cs_OperContextAccess(item_level_type(0), ord_level_type
 
 std::shared_ptr<OperationContext> FuncDC::GetOperContext() const
 {
+	DMS_ENTERS(ord_level_type::OperContextAccess, dms_exclusive_v);
 	leveled_critical_section::scoped_lock ocaLock(cs_OperContextAccess);
 	return m_OperContext;
 }
@@ -219,6 +220,7 @@ garbage_can FuncDC::resetOperContextImplAndStopSupplInterest() const
 
 garbage_can FuncDC::ResetOperContextImplAndStopSupplInterest() const
 {
+	DMS_ENTERS(ord_level_type::ThreadMessing, dms_exclusive_v);
 	auto res = StopSupplInterest();
 
 	leveled_critical_section::scoped_lock octmLock(cs_ThreadMessing);

@@ -735,6 +735,7 @@ typedef SharedStr String;
 
 FileResult ODBCStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
 {
+	DMS_ENTERS(ord_level_type::Storage, dms_exclusive_v);
 	dms_assert(t == 0);
 
 	AbstrDataItem* adi = smi->CurrWD();
@@ -764,6 +765,7 @@ FileResult ODBCStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObj
 
 bool ODBCStorageManager::ReadUnitRange(const StorageMetaInfo& smi) const
 {
+	DMS_ENTERS(ord_level_type::Storage, dms_exclusive_v);
 	leveled_critical_section::scoped_lock lock(s_OdbcSection);
 	UInt32 count = const_cast<ODBCStorageManager*>(this)->GetRecordSet(smi.StorageHolder(), smi.CurrWU(), debug_cast<const OdbcMetaInfo*>(&smi)->m_SqlString)->RecordCount();
 	smi.CurrWU()->SetCount(count);
@@ -772,6 +774,7 @@ bool ODBCStorageManager::ReadUnitRange(const StorageMetaInfo& smi) const
 
 void ODBCStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const
 {
+	DMS_ENTERS(ord_level_type::Storage, dms_exclusive_v);
 	NonmappableStorageManager::DoUpdateTree(storageHolder, curr, sm);
 
 	dms_assert(sm != SyncMode::None);
@@ -787,6 +790,7 @@ void ODBCStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* c
 
 SharedStr ODBCStorageManager::GetDatabaseFilename(const TreeItem* storageHolder)
 {
+	DMS_ENTERS(ord_level_type::Storage, dms_exclusive_v);
 	leveled_critical_section::scoped_lock lock(s_OdbcSection);
 	TDatabase* db = DatabaseInstance(storageHolder);
 

@@ -201,6 +201,7 @@ static UInt32 s_CurrFinishedCount = 0;
 static std::atomic<UInt32> s_NrWaitingJoins = 0;
 UInt32 GetCurrFinishedCount()
 {
+	DMS_ENTERS(ord_level_type::ThreadMessing, dms_exclusive_v);
 	leveled_critical_section::scoped_lock lockToAvoidHasMainThreadTasksToBeMissed(cs_ThreadMessing);
 	return s_CurrFinishedCount;
 }
@@ -247,6 +248,7 @@ SizeT getNumberOfActivatedOrRunningOperations()
 
 SizeT GetNumberOfActivatedOrRunningOperations()
 {
+	DMS_ENTERS(ord_level_type::ThreadMessing, dms_exclusive_v);
 	leveled_critical_section::scoped_lock lockToAvoidHasMainThreadTasksToBeMissed(cs_ThreadMessing);
 
 	return getNumberOfActivatedOrRunningOperations();
@@ -299,6 +301,7 @@ void wakeUpJoiners()
 
 void WakeUpJoiners()
 {
+	DMS_ENTERS(ord_level_type::ThreadMessing, dms_exclusive_v);
 	leveled_critical_section::scoped_lock lockToAvoidHasMainThreadTasksToBeMissed(cs_ThreadMessing);
 
 	wakeUpJoiners();
@@ -321,6 +324,7 @@ TIC_CALL tg_maintainer::tg_maintainer()
 
 TIC_CALL tg_maintainer::~tg_maintainer()
 {
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 	s_OcTaskGroupIsCanceling = true;
 	{
 		leveled_std_section::scoped_lock lock(cs_ThreadMessing);
@@ -719,6 +723,7 @@ exit:
 // Collect activated contexts (under lock) and return by value.
 auto CollectOperationContextsImpl() -> context_array
 {
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 	context_array activatedOperationContextArray;
 	garbage_can receivedGarbage;
 
@@ -895,6 +900,7 @@ OperationContext::~OperationContext()
 // Connect argument suppliers under lock; returns true if any connections were made.
 bool OperationContext_ConnectArgs(OperationContext* oc, const FutureSuppliers& allArgInterest)
 {
+	DMS_ENTERS(ord_level_type::ThreadMessing, dms_exclusive_v);
 	leveled_std_section::scoped_lock lock(cs_ThreadMessing);
 
 	return oc->connectArgs(allArgInterest);
@@ -1154,6 +1160,7 @@ void CancelableFrame::CurrActiveCancelIfNoInterestOrForced(bool forceCancel)
 // Simple thread-safe getter for status.
 task_status OperationContext::GetStatus() const
 { 
+	DMS_ENTERS(ord_level_type::ThreadMessing, dms_exclusive_v);
 	leveled_std_section::scoped_lock lock(cs_ThreadMessing);
 	return m_Status;
 }
@@ -1898,6 +1905,7 @@ void OperationContext::RefreshEstimateForAdmission()
 // Thread-safe wrapper for licensing.
 bool OperationContext::GetUniqueLicenseToRun()
 {
+	DMS_ENTERS(ord_level_type::ThreadMessing, dms_exclusive_v);
 	leveled_std_section::scoped_lock lock(cs_ThreadMessing);
 	return getUniqueLicenseToRun(false);
 }
@@ -1925,6 +1933,7 @@ garbage_can OperationContext::onEnd(task_status status) noexcept
 // Finalization entry (thread-safe).
 void OperationContext::OnEnd(task_status status) noexcept
 {
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 	assert(status >= task_status::cancelled);
 
 	garbage_can garbage;
@@ -2099,6 +2108,7 @@ garbage_can OperationContext::separateResources(task_status status)
 // Attempt cancellation if no interest remains (or forced). Returns true if cancelled.
 bool OperationContext::CancelIfNoInterestOrForced(bool forced)
 {
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 	if (!forced)
 	{
 		if (!m_Result || m_Result->GetInterestCount())
@@ -2115,6 +2125,7 @@ bool OperationContext::CancelIfNoInterestOrForced(bool forced)
 // Handle a failure coming from item; transition this context to 'exception' if needed.
 bool OperationContext::HandleFail(const TreeItem* item)
 {
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 	// note that all statusses of cancelled and higher: exception or done, are final, i.e. never change again once it is set.
 	auto transientStatus = getStatus();
 	if (transientStatus == task_status::exception)
@@ -2140,10 +2151,15 @@ bool OperationContext::HandleFail(const TreeItem* item)
 	if (recheckedStatus >= task_status::cancelled) // ignore this Fail if Context is already canceled or done.
 		return false; 
 
-	if (item)
-		m_Result->Fail(item);
-	else
-		m_Result->Fail(SharedStr("supplier or result item no longer exists"), FailType::Data);
+	{
+		// #1233 P14: DoFail would release the result's supplier interest here, under cs_ThreadMessing;
+		// collect it into separatedResources instead, which is emptied after the section.
+		SupplInterestWasteCollector collectWaste(separatedResources);
+		if (item)
+			m_Result->Fail(item);
+		else
+			m_Result->Fail(SharedStr("supplier or result item no longer exists"), FailType::Data);
+	}
 	assert(m_Result->WasFailed(FailType::Data));
 	separatedResources = separateResources(task_status::exception);
 	assert(!m_ResKeeper);
@@ -2750,6 +2766,7 @@ auto PopActiveSuppliers(OperationContextSPtr waiter) -> std::pair<SupplierSet, c
 // Find and license a single activated OperationContext to run inline.
 auto FindAndLicenceOnePriorityTasks() -> OperationContextSPtr
 {
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 	std::vector<OperationContextSPtr> garbage;
 
 	leveled_std_section::unique_lock lock(cs_ThreadMessing);

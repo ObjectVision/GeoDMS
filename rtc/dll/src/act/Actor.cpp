@@ -931,6 +931,7 @@ static_quick_assoc<const Actor*, ErrMsgPtr> s_ActorFailReasonAssoc;
 // Clear failure state and drop associated message.
 void Actor::ClearFail() const 
 {
+	DMS_ENTERS(ord_level_type::FailSection, dms_exclusive_v);
     if (WasFailed())
     {
         leveled_critical_section::scoped_lock syncFailCalls(sc_FailSection);
@@ -945,6 +946,7 @@ void Actor::ClearFail() const
 // Retrieve failure reason (requires WasFailed()).
 ErrMsgPtr Actor::GetFailReason() const
 {
+	DMS_ENTERS(ord_level_type::FailSection, dms_exclusive_v);
     dms_assert(WasFailed()); // Catch in debug
 
     leveled_critical_section::scoped_lock syncFailCalls(sc_FailSection);
@@ -954,6 +956,24 @@ ErrMsgPtr Actor::GetFailReason() const
 // Record a failure with type and message; may stop supplier interest on data failures.
 // Emits report based on severity.
 // TODO: Consider rate-limiting repeated reports for noisy graphs.
+THREAD_LOCAL garbage_can* td_SupplInterestWasteCollector = nullptr;
+
+SupplInterestWasteCollector::SupplInterestWasteCollector(garbage_can& can) noexcept
+	: m_Prev(td_SupplInterestWasteCollector)
+{
+	td_SupplInterestWasteCollector = &can;
+}
+
+SupplInterestWasteCollector::~SupplInterestWasteCollector()
+{
+	td_SupplInterestWasteCollector = m_Prev;
+}
+
+// No DMS_ENTERS here, deliberately: what this takes depends on the caller. The FailSection scope below is
+// published by its own acquire; the supplier interest moved into supplInterestWaste is released at the
+// end of this function (per-item locks) unless a SupplInterestWasteCollector is active on this thread,
+// in which case it goes to the collector and nothing per-item is taken here. The per-item declaration on
+// DecInterestCount is what checks the uncollected case against whatever the caller holds (#1233 P14).
 bool Actor::DoFail(ErrMsgPtr msg, FailType ft) const
 {
 #if defined(MG_DEBUG_INTERESTSOURCE_LOGGING)
@@ -1013,10 +1033,13 @@ bool Actor::DoFail(ErrMsgPtr msg, FailType ft) const
         if (ft <= FailType::Data)
             supplInterestWaste.init( MoveSupplInterest(this).release());
     }
+    if (td_SupplInterestWasteCollector)
+        *td_SupplInterestWasteCollector |= std::move(supplInterestWaste); // released by the caller, outside whatever it holds
     return true;
 }
 
 
+// No DMS_ENTERS: see DoFail.
 bool Actor::DoFailCaller(ErrMsgPtr msg, FailType failType) const
 {
     auto result = DoFail(msg, failType);
@@ -1124,6 +1147,7 @@ UInt32 s_IntCount = 0;
 // TODO: Consider replacing some counting with atomics if lock ordering guarantees remain intact.
 void Actor::IncInterestCount() const // NO UpdateMetaInfo, Just work on existing structures, callee StartInterest can throw when allocating new interestholders.
 {
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 #if defined(MG_DEBUG_INTERESTSOURCE_LOGGING)
     bool isPivotedForLogging = m_State.Get(actor_flag_set::AFD_PivotElem);
     if (isPivotedForLogging)
@@ -1193,6 +1217,7 @@ void Actor::IncInterestCount() const // NO UpdateMetaInfo, Just work on existing
 // distinguishing the last-decrement path.
 bool DecCount(interest_count_t* interestCount)
 {
+	DMS_ENTERS(ord_level_type::CountSection, dms_exclusive_v);
     // only one thread gets the change to decrease to zero, but other thread might have increased it again.
     leveled_std_section::scoped_lock globalSectionLock(sg_CountSection);
     return -- * interestCount;
@@ -1200,6 +1225,7 @@ bool DecCount(interest_count_t* interestCount)
 
 bool DecCountIfAboveZero(interest_count_t* interestCount)
 {
+	DMS_ENTERS(ord_level_type::CountSection, dms_exclusive_v);
     // only one thread gets the change to decrease to zero, but other thread might have increased it again.
     leveled_std_section::scoped_lock globalSectionLock(sg_CountSection);
     if (*interestCount <= 1)
@@ -1213,6 +1239,7 @@ bool DecCountIfAboveZero(interest_count_t* interestCount)
 // TODO: Consider deferring StopInterest work to a safe executor when not main-thread.
 garbage_can Actor::DecInterestCount() const noexcept // nothrow, JUST LIKE destructor
 {
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 #if defined(MG_DEBUG_INTERESTSOURCE)
     DynamicIncrementalLock<> incInterestCountDetector(sd_DecInterestCount);
     bool isPivotedForLogging = m_State.Get(actor_flag_set::AFD_PivotElem);
@@ -1260,6 +1287,7 @@ RTC_CALL bool s_IsDetectingIncInterest = false;
 // Starts supplier interest accordingly.
 void Actor::StartInterest() const
 {
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
     assert(IsMetaThread());
 
     assert(m_InterestCount == 0); // PRECONDITION guaranteed by IncInterestCount
@@ -1279,6 +1307,7 @@ void Actor::StartInterest() const
 // Moves supplier interest out and returns garbage_can for cleanup.
 garbage_can Actor::StopInterest() const noexcept
 {
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 #if defined(MG_DEBUG_INTERESTSOURCE)
     DemandManagement::ReleaseTempTarget(dynamic_cast<const SharedActor*>(this));
 #endif
@@ -1321,6 +1350,7 @@ SupplInterestListPtr Actor::GetSupplInterest() const
 // - Register the list in global tree and set flag
 void Actor::StartSupplInterest() const
 {
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
     assert(IsMetaThread());
 
     if (IsPassor() || WasFailed(FailType::Data))
@@ -1358,6 +1388,7 @@ void Actor::StartSupplInterest() const
 // Rebuild supplier interest if it exists, swapping out old for new list.
 void Actor::RestartSupplInterestIfAny() const
 {
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
     assert(IsMetaThread());
 
     if (!DoesHaveSupplInterest())
@@ -1392,6 +1423,7 @@ void Actor::RestartSupplInterestIfAny() const
 // NOTE: Protected by sc_MoveSupplInterestSection.
 SupplInterestListPtr MoveSupplInterest(const Actor* self)
 {
+	DMS_ENTERS(ord_level_type::MoveSupplInterest, dms_exclusive_v);
     SupplInterestListPtr localInterestHolder;
     if ( self->DoesHaveSupplInterest() )
     {
@@ -1439,6 +1471,7 @@ SupplInterestListPtr MoveSupplInterest(const Actor* self)
 // Stop supplier interest and return the garbage_can for deferred cleanup.
 garbage_can Actor::StopSupplInterest() const noexcept
 {
+	DMS_ENTERS(ord_level_type::MoveSupplInterest, dms_exclusive_v);
     garbage_can garbage;
     garbage |= MoveSupplInterest(this);
     return garbage;
@@ -1466,6 +1499,7 @@ SupplInterestListPtr::~SupplInterestListPtr()
 // NOTE: Increments interest count while returning shared pointer wrapper.
 SharedActorInterestPtr Actor::GetInterestPtrOrNull() const
 {
+	DMS_ENTERS(ord_level_type::CountSection, dms_exclusive_v);
 
 	auto psa = dynamic_cast<const SharedActor*>(this);
     assert(psa);

@@ -3,6 +3,7 @@
 /////////////////////////////////////////////////////////////////////////////
 
 #include "RtcPCH.h"
+#include "LockLevels.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
@@ -249,6 +250,7 @@ CDebugContextHandle::CDebugContextHandle(CharPtr className, CharPtr funcName, bo
 	,	m_FuncName(funcName)
 	,	m_StartTime(0)
 {
+	DMS_ENTERS(ord_level_type::DebugOutStream, dms_exclusive_v);
 	if (m_Active)
 	{
 		DebugOutStream::scoped_lock lock(g_DebugStream);
@@ -263,6 +265,7 @@ CDebugContextHandle::CDebugContextHandle(CharPtr className, CharPtr funcName, bo
 
 CDebugContextHandle::~CDebugContextHandle() 
 {
+	DMS_ENTERS(ord_level_type::DebugOutStream, dms_exclusive_v);
 	if (m_Active)
 	{
 		dms_assert(sCallCount);
@@ -287,6 +290,7 @@ double CDebugContextHandle::RunningTime() const
 
 void CDebugContextHandle::LogTime(CharPtr action)
 {
+	DMS_ENTERS(ord_level_type::DebugOutStream, dms_exclusive_v);
 	if (m_Active)
 	{
 		--sCallCount;
@@ -299,6 +303,7 @@ void CDebugContextHandle::LogTime(CharPtr action)
 }
 void DMS_CONV DBG_TraceStr(CharPtr msg)
 {
+	DMS_ENTERS(ord_level_type::DebugOutStream, dms_exclusive_v);
 	DebugOutStream::scoped_lock lock(g_DebugStream);
 
 	*g_DebugStream << msg;

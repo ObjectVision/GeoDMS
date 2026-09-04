@@ -48,6 +48,7 @@ namespace treeitem_production_task
 
 	void lock_unique(const TreeItem* self, std::weak_ptr<OperationContext> oc)
 	{
+		DMS_ENTERS(ord_level_type::ObjectRegister, dms_exclusive_v);
 		DBG_START("treeitem_production_task", "lock_unique", MG_DEBUG_TPT_LOCKS(self));
 
 		assert(IsMetaThread() || oc.expired()); // creator tasks are initiated sequentialluy from the MainThread; Cleanup can come from any reading tasks that gives up the last iterest.
@@ -70,6 +71,7 @@ namespace treeitem_production_task
 
 	void lock_unique(const TreeItem* self)
 	{
+		DMS_ENTERS(ord_level_type::ObjectRegister, dms_exclusive_v);
 		DBG_START("treeitem_production_task", "lock_unique", MG_DEBUG_TPT_LOCKS(self));
 		DBG_TRACE(("count={}, producer = {}", self->m_ItemCount, self->m_Producer.lock() ? "available" : "null"));
 
@@ -127,6 +129,7 @@ namespace treeitem_production_task
 
 	bool try_lock_unique(const TreeItem* self)
 	{
+		DMS_ENTERS(ord_level_type::ObjectRegister, dms_exclusive_v);
 		DBG_START("treeitem_production_task", "try_lock", MG_DEBUG_TPT_LOCKS(self));
 
 		leveled_critical_section::scoped_lock lock(cs_lockCounterUpdate);
@@ -143,6 +146,7 @@ namespace treeitem_production_task
 	}
 	bool try_lock_shared(const TreeItem* self)
 	{
+		DMS_ENTERS(ord_level_type::ObjectRegister, dms_exclusive_v);
 		DBG_START("treeitem_production_task", "try_lock_read", MG_DEBUG_TPT_LOCKS(self));
 
 		leveled_critical_section::scoped_lock lock(cs_lockCounterUpdate);
@@ -158,6 +162,7 @@ namespace treeitem_production_task
 
 	void unlock_unique(const TreeItem* self) noexcept
 	{
+		DMS_ENTERS(ord_level_type::ObjectRegister, dms_exclusive_v);
 		DBG_START("treeitem_production_task", "unlock_unique", MG_DEBUG_TPT_LOCKS(self));
 
 		leveled_critical_section::scoped_lock lock(cs_lockCounterUpdate);
@@ -177,6 +182,7 @@ namespace treeitem_production_task
 
 	void unlock_shared(const TreeItem* self) noexcept
 	{
+		DMS_ENTERS(ord_level_type::ObjectRegister, dms_exclusive_v);
 		DBG_START("treeitem_production_task", "unlock_shared", MG_DEBUG_TPT_LOCKS(self));
 
 		leveled_critical_section::scoped_lock lock(cs_lockCounterUpdate);
@@ -431,6 +437,8 @@ ItemReadLock::ItemReadLock(ItemReadLock&& rhs) noexcept
 
 void ItemReadLock::releaseHeldLock() noexcept
 {
+	// per-item: dropping m_Ptr releases the item interest (DecInterestCount takes the actor lock); the session counter (100) and item counter (101) sit under that
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 	if (!m_Ptr.has_ptr())
 		return;
 
@@ -471,6 +479,8 @@ ItemWriteLock::ItemWriteLock() noexcept
 
 ItemWriteLock::ItemWriteLock(TreeItem* item, std::weak_ptr<OperationContext> ocb)
 {
+	// the session-usage counter is a counted_mutex: its ops take CountedMutexSection (100), outer to the item counter (101)
+	DMS_ENTERS(ord_level_type::CountedMutexSection, dms_exclusive_v);
 	if (item)
 	{
 		s_SessionUsageCounter.lock_shared();
@@ -486,6 +496,10 @@ ItemWriteLock::ItemWriteLock(TreeItem* item, std::weak_ptr<OperationContext> ocb
 
 void ItemWriteLock::releaseHeldLock() noexcept
 {
+	// CountedMutexSection (100, the session-usage counter) and the item counter (101) are what this takes. Dropping the owning
+	// m_ItemPtr is NOT counted: OperationContext::separateResources releases this lock inline under cs_ThreadMessing on the
+	// cancel/exception path, on the premise (stated there) that the write lock is never the last owner of its item.
+	DMS_ENTERS(ord_level_type::CountedMutexSection, dms_exclusive_v);
 	if (!has_ptr())
 		return;
 
@@ -724,6 +738,7 @@ std::atomic<bool> s_RunTaskActive = false;
 
 std::shared_ptr<const TreeItem> GetATask()
 {
+	DMS_ENTERS(ord_level_type::ActiveProducerSet, dms_exclusive_v);
 	leveled_critical_section::scoped_lock lock(s_ActiveProducerSetMutex);
 	if (s_ActiveProducerSet.empty())
 		return {};
@@ -768,6 +783,7 @@ void RunTasks() {
 
 bool RunTask(const TreeItem* item)
 {
+	DMS_ENTERS(ord_level_type::ActiveProducerSet, dms_exclusive_v);
 	assert(IsMetaThread());
 	assert(item);
 	assert(item->HasInterest());

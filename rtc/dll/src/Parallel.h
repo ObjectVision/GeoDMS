@@ -58,6 +58,7 @@ struct level_type {
 	item_level_type m_ItemLevel = item_level_type(0);
 	bool        m_Shared= false;
 	level_type* m_Prev = nullptr;
+	bool        m_IsCeiling = false; // a DMS_ENTERS declaration rather than a held lock
 
 	bool Allow(const level_type& other) const {
 		dms_assert(other.m_Level > ord_level_type(0));
@@ -79,6 +80,12 @@ struct level_type {
 			return true;
 		if (m_Level > other.m_Level)
 			return false;
+		// Equal level. A held lock admits only shared-under-shared. A CEILING admits taking the very
+		// level it declared, at a mode no stronger than declared: a function declares exactly the
+		// outermost acquire it will make, and that acquire must pass its own declaration. Once the
+		// lock is really taken it is pushed over the ceiling and the strict rule applies again.
+		if (m_IsCeiling)
+			return other.m_Shared || !m_Shared;
 		return m_Shared && other.m_Shared;
 	}
 	bool Shared(const level_type& other) const {
@@ -127,11 +134,13 @@ RTC_CALL bool CurrentThreadHoldsNoGlobalLevelLock() noexcept;
 // Analysis is the static equivalent; neither the pinned MSVC v145 nor GCC implements it, and
 // checking the promise against what really happens needs no new compiler.
 //
-// Declare only what a scope does NOT itself take. A function that takes the lock already publishes
-// its level through scoped_lock_impl, so declaring it again says nothing -- and declaring it
-// exclusively would make Allow reject that function's own acquire (equal level, not both shared).
-// The declaration is for the scope that promises a bound it never acquires: "everything from here
-// on stays at the token registry or inner", so that a call which registers a token fails.
+// Declare EXACTLY the outermost acquire the scope will make, directly or through anything it
+// calls: DMS_ENTERS(L, exclusive) for a scope that takes L exclusively, DMS_ENTERS(L, shared) for
+// one that only ever takes L shared. The declaration is checked on entry against what the caller
+// holds -- so a caller that is already inner to L, or holds L exclusively, fails at the call and
+// not on the lock -- and a ceiling admits its own declared acquire (Allow, equal-level rule), so
+// nothing has to be declared one level off. A scope that takes nothing may still declare the
+// outermost level of what it calls; that is what makes the property transitive.
 //
 // Two things it deliberately does not do:
 //  - It is SCOPE-shaped. The killer case of #1227, reportF("{}", item->GetNameLock()), is an
@@ -142,10 +151,17 @@ RTC_CALL bool CurrentThreadHoldsNoGlobalLevelLock() noexcept;
 //    per-item lock taken in between (item level >= 1, via Actor::DetermineLastSupplierChange) makes
 //    Allow return true for everything after it. That blind spot is Allow's own, is recorded as such
 //    in #1227, and is not worked around here.
+// A ceiling normally sits at item level 0. A function whose outermost acquire IS a per-item lock
+// (IncInterestCount, the DataReadLock atoms, PrepareDataUsage) declares DMS_ENTERS_ITEM instead,
+// which enters at a non-zero item level: that is outer to every global section, so its own
+// per-item acquire and everything under it pass, and -- the point of declaring it at all -- a
+// caller that holds any global section or item-level-0 ceiling is refused at the call. The value
+// of the item level is immaterial (two per-item levels are never ordered; see Allow), so one
+// sentinel serves every such function.
 struct DmsLockCeiling
 {
-	DmsLockCeiling(ord_level_type level, bool isShared, CharPtr descr) noexcept
-		: m_OldLevel(EnterLevel(level_type{ descr, level, item_level_type(0), isShared, &m_OldLevel }))
+	DmsLockCeiling(ord_level_type level, bool isShared, CharPtr descr, item_level_type itemLevel = item_level_type(0)) noexcept
+		: m_OldLevel(EnterLevel(level_type{ descr, level, itemLevel, isShared, &m_OldLevel, true }))
 	{}
 	~DmsLockCeiling() { LeaveLevel(m_OldLevel); }
 

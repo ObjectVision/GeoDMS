@@ -3,6 +3,7 @@
 /////////////////////////////////////////////
 
 #include "TicPCH.h"
+#include "LockLevels.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
@@ -731,6 +732,7 @@ void TreeItem::ReleaseSubItem(TreeItem* subItem) // detach a sub-item and releas
 
 void TreeItem::RemoveItem(TreeItem* child)
 {
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 	MGD_PRECONDITION(child);
 	dms_assert(child->m_Parent.lock().get() == this);
 
@@ -914,6 +916,7 @@ void TreeItem::SetCalculator(AbstrCalculatorRef pr) const
 
 SharedTreeItemInterestPtr TreeItem::GetInterestPtrOrNull() const
 {
+	DMS_ENTERS(ord_level_type::CountSection, dms_exclusive_v);
 	// TreeItem is now an Actor (no longer a SharedActor), so we cannot route through
 	// Actor::GetInterestPtrOrNull (which dynamic_casts to SharedActor). Build the interest ptr directly
 	// from this std-owned TreeItem, mirroring the base's lock + manual-increment + already_incremented flow
@@ -1307,6 +1310,7 @@ struct OldDcInterestDecrementer : SharedPtr<const DataController>
 
 void TreeItem::SetReferredItem(const TreeItem* refItem) const
 {
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 	assert(IsMetaThread() || !refItem);
 
 	assert(!IsDataItem(this) || AsDataItem(this)->GetDataObjLockCount() <= 0); // DON'T MESS WITH SHARED-LOCKED ITEMS
@@ -1461,6 +1465,7 @@ void TreeItem::SetIsFunction()
 
 void TreeItem::SetKeepDataState(bool value)
 { 
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 	if (GetTSF(TSF_KeepData) != value)
 	{
 		SetTSF(TSF_KeepData, value);
@@ -2263,6 +2268,7 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 
 void TreeItem_RemoveDC(const TreeItem* self)
 {
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 	assert(self);
 	assert(!self->IsCacheItem());
 	assert(IsMetaThread());
@@ -2556,6 +2562,7 @@ UInt32 sd_ItemInterestCounter = 0;
 
 void TreeItem::StartInterest() const
 {
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 	assert(!std::uncaught_exceptions());
 	if (!s_SessionUsageCounter.try_lock_shared())
 	{

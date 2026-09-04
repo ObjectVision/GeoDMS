@@ -303,6 +303,7 @@ struct Type2DConversion : unary_func<TR, TA>
 		: m_PreRescaler(UnitProjection::GetCompositeTransform(srcUnit->GetCurrProjection()))
 		, m_PostRescaler(UnitProjection::GetCompositeTransform(resUnit->GetCurrProjection()).Inverse())
 	{
+		DMS_ENTERS(ord_level_type::SpecificOperator, dms_exclusive_v);
 		TokenID srcFormat = CompositeBase(srcUnit)->GetCurrSpatialReference();
 		if (srcFormat)
 		{

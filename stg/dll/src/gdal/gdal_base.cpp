@@ -118,6 +118,7 @@ namespace gdalComponentImpl
 
 	CharPtr HookFilesToExeFolder(CharPtr fileName, CharPtr subFolder)
 	{
+		DMS_ENTERS(ord_level_type::GDALComponent, dms_exclusive_v);
 		leveled_critical_section::scoped_lock lock(gdalSection);
 
 		dms_assert(s_HookedFilesPtr != nullptr);
@@ -290,6 +291,7 @@ void gdalCleanup()
 
 void gdalFinalCleanup()
 {
+	DMS_ENTERS(ord_level_type::GDALComponent, dms_exclusive_v);
 	leveled_critical_section::scoped_lock lock(gdalComponentImpl::gdalSection);
 	if (gdalComponentImpl::s_FinalCleanupDone)
 		return;
@@ -636,6 +638,7 @@ void initializeGDAL()
 
 gdalComponent::gdalComponent()
 {
+	DMS_ENTERS(ord_level_type::GDALComponent, dms_exclusive_v);
 	leveled_critical_section::scoped_lock lock(gdalComponentImpl::gdalSection);
 
 	// TODO: test, experimental
@@ -715,6 +718,7 @@ bool gdalComponent::isActive()
 
 gdalComponent::~gdalComponent()
 {
+	DMS_ENTERS(ord_level_type::GDALComponent, dms_exclusive_v);
 	leveled_critical_section::scoped_lock lock(gdalComponentImpl::gdalSection);
 	return; // no per-component cleanup: cleanup + later re-init crashed (issue 169); gdalFinalCleanup now runs once at process shutdown
 	if (!--gdalComponentImpl::s_ComponentCount)
@@ -744,6 +748,7 @@ gdalComponent::~gdalComponent()
 // would put that scan on the critical path of every tile open.
 void GDALRegisterAllDriversOnce()
 {
+	DMS_ENTERS(ord_level_type::GDALComponent, dms_exclusive_v);
 	leveled_critical_section::scoped_lock lock(gdalComponentImpl::gdalSection);
 
 	if (gdalComponentImpl::s_AllDriversRegistered)
@@ -1579,6 +1584,7 @@ void gdalRegisterTrustedDriverFromKnownDriverShortName(std::string_view known_dr
 
 void GDALRegisterTrustedDriverFromKnownDriverShortName(std::string_view known_driver_short_name)
 {
+	DMS_ENTERS(ord_level_type::GDALComponent, dms_exclusive_v);
 	if (known_driver_short_name.empty())
 		return;
 
@@ -1677,6 +1683,7 @@ bool DriverSupportsUpdate(std::string_view dataset_file_name, const CPLStringLis
 
 GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwMode, UInt32 gdalOpenFlags, bool continueWrite)
 {
+	DMS_ENTERS(ord_level_type::GDALComponent, dms_exclusive_v);
 	assert(rwMode != dms_rw_mode::unspecified);
 	if (rwMode == dms_rw_mode::read_write)
 		rwMode = dms_rw_mode::write_only_all;

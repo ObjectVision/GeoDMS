@@ -12,6 +12,7 @@
 #include "ptr/IterCast.h"
 #include "ptr/SharedArray.h"
 #include "set/IndexedStrings.h"
+#include "LockLevels.h" // DMS_ENTERS
 
 #if defined(MG_DEBUG)
 std::atomic<UInt32> gd_TokenCreationBlockCount = 0;
@@ -171,6 +172,7 @@ TokenID TokenID::GetExisting(CharPtr first, CharPtr last, st_tag*)
 
 TokenStr TokenID::GetStrLock() const
 {
+	DMS_ENTERS(ord_level_type::IndexedString, dms_shared_v);
 	IndexedString_shared_lock guard{ GetCS() };
 	return TokenStr{ std::move(guard),
 		IsDefined(m_ID) ? (*s_TokenListPtr)[m_ID] : TokenID::GetEmptyStr()
@@ -179,6 +181,7 @@ TokenStr TokenID::GetStrLock() const
 
 TokenStr TokenID::GetStrEndLock() const
 {
+	DMS_ENTERS(ord_level_type::IndexedString, dms_shared_v);
 	IndexedString_shared_lock guard{ GetCS() };
 	return TokenStr{ std::move(guard),
 		IsDefined(m_ID) ? s_TokenListPtr->item_end(m_ID) : TokenID::GetEmptyStr()
@@ -189,6 +192,7 @@ UInt32 TokenID::GetStrLen() const
 {
 	if (!IsDefined(m_ID))
 		return 0;
+	DMS_ENTERS(ord_level_type::IndexedString, dms_shared_v);
 	IndexedString_shared_lock guard{ GetCS() };
 	return s_TokenListPtr->item_end(m_ID) - (*s_TokenListPtr)[m_ID];
 }
@@ -203,6 +207,7 @@ CharPtr TokenID::c_str_st() const // UNSAFE, As another thread might reallocate
 
 RTC_CALL TokenStrRange TokenID::AsStrRangeLock() const
 {
+	DMS_ENTERS(ord_level_type::IndexedString, dms_shared_v);
 	IndexedString_shared_lock guard{ GetCS() };
 	return TokenStrRange{ std::move(guard),
 		IsDefined(m_ID)
@@ -213,6 +218,7 @@ RTC_CALL TokenStrRange TokenID::AsStrRangeLock() const
 
 RTC_CALL SharedStr TokenID::AsSharedStr() const
 {
+	DMS_ENTERS(ord_level_type::IndexedString, dms_shared_v);
 	if (!IsDefined(m_ID))
 		return SharedStr(Undefined());
 
@@ -222,6 +228,7 @@ RTC_CALL SharedStr TokenID::AsSharedStr() const
 
 RTC_CALL std::string TokenID::AsStdString() const
 {
+	DMS_ENTERS(ord_level_type::IndexedString, dms_shared_v);
 	if (!IsDefined(m_ID))
 		return std::string(UNDEFINED_VALUE_STRING, UNDEFINED_VALUE_STRING_LEN);
 

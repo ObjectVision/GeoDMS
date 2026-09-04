@@ -3,6 +3,7 @@
 /////////////////////////////////////////////
 
 #include "TicPCH.h"
+#include "LockLevels.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
@@ -183,6 +184,7 @@ bool TreeItem::PrepareDataUsage(DrlType drlFlags) const
 //	doesn't suspend when drlType == DrlType::Certain, 
 //	but can still fail, thus IsFailed() == true and return false
 {
+	DMS_ENTERS_ITEM(ord_level_type::PrepareDataUsageLock, dms_exclusive_v);
 	dms_assert(m_State.GetProgress() >= ProgressState::MetaInfo || IsPassor() || WasFailed(FailType::Data));
 	if (UpdateMarker::PrepareDataInvalidatorLock::IsLocked())
 		drlFlags = DrlType(UInt32(drlFlags) & ~UInt32(DrlType::UpdateMask));
@@ -479,6 +481,7 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 //	doesn't suspend when drlType == DrlType::Certain, 
 //	but can still fail, thus IsFailed() == true and return false
 {
+	DMS_ENTERS_ITEM(ord_level_type::PrepareDataUsageLock, dms_exclusive_v);
 	UpdateMetaInfo();
 	bool throwOnFail = UInt32(drlFlags) &  UInt32(DrlType::ThrowOnFail);
 
@@ -933,6 +936,7 @@ bool TreeItem::PartOfInterest() const
 
 garbage_can TreeItem::TryCleanupMem() const
 {
+	DMS_ENTERS(ord_level_type::CountSection, dms_exclusive_v);
 	if (IsCacheItem() && !IsCacheRoot())
 		return {};
 

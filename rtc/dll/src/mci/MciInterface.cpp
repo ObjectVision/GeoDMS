@@ -46,6 +46,7 @@
 
 	bool IsObjectRegistered(const Object* item)
 	{
+		DMS_ENTERS(ord_level_type::ObjectRegister, dms_exclusive_v);
 		leveled_std_section::scoped_lock sl_ORT(cs_ORT);
 		return g_ObjectRegister->find(item) != g_ObjectRegister->end();
 
@@ -68,6 +69,7 @@
 
 	std::vector<TokenID> GetObjectRegisterCopy()
 	{
+		DMS_ENTERS(ord_level_type::ObjectRegister, dms_exclusive_v);
 		leveled_std_section::scoped_lock sl_ORT(cs_ORT);
 		if (!g_ObjectRegister)
 			return {};
@@ -98,6 +100,7 @@
 
 	Object::Object()
 	{
+		DMS_ENTERS(ord_level_type::ObjectRegister, dms_exclusive_v);
 		leveled_std_section::scoped_lock sl_ORT(cs_ORT);
 		if (!g_ObjectRegister)
 			g_ObjectRegister = new objectRegisterType;
@@ -106,6 +109,7 @@
 
 	Object::~Object()
 	{
+		DMS_ENTERS(ord_level_type::ObjectRegister, dms_exclusive_v);
 		leveled_std_section::scoped_lock sl_ORT(cs_ORT);
 		dms_assert(g_ObjectRegister);
 		g_ObjectRegister->erase(this);

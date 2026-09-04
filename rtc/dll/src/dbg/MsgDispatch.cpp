@@ -920,6 +920,7 @@ CDebugLog::CDebugLog(WeakStr name)
 CDebugLog::CDebugLog(WeakStr name, bool tag)
 	:	m_FileBuff(name, true, true), m_Stream(&m_FileBuff, FormattingFlags::ThousandSeparator)
 {
+	DMS_ENTERS(ord_level_type::IndexedString, dms_shared_v);
 	bool isOpened = m_FileBuff.IsOpen();
 	if (isOpened)
 	{
@@ -943,6 +944,7 @@ CDebugLog::CDebugLog(WeakStr name, bool tag)
 
 CDebugLog::~CDebugLog() 
 {
+	DMS_ENTERS(ord_level_type::IndexedString, dms_shared_v);
 	ReportFixedAllocFinalSummary();
 	{
 		DebugOutStream::scoped_lock lock(g_DebugStream, SeverityTypeID::ST_MajorTrace);

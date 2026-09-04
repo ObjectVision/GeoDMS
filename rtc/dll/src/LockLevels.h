@@ -121,8 +121,9 @@ enum class ord_level_type : UInt32
 //
 // Three rules, each checkable where it is written:
 //
-//  - Plain functions. A scope declaring DMS_ENTERS(L) may only call functions that take a level
-//    inner to L -- or L itself, if both are shared.
+//  - Plain functions. A scope declaring DMS_ENTERS(L, mode) may take L itself at a mode no
+//    stronger than declared, and anything inner to L; so it may only call functions whose own
+//    declaration is L at that mode or inner. Declare exactly the outermost acquire made.
 //  - Virtual functions. The annotation on the BASE declaration is the contract: the outermost
 //    level any override is permitted to reach. An override may declare a stricter (inner) level
 //    but never an outer one, and every call site is checked against the base. That is what keeps
@@ -148,11 +149,16 @@ inline constexpr bool dms_exclusive_v = false;
 
 #if defined(MG_DEBUG_LOCKLEVEL)
 
-#define DMS_ENTERS(LEVEL, MODE) DmsLockCeiling mg_lock_ceiling_(LEVEL, MODE, "DMS_ENTERS(" #LEVEL ")")
+#define DMS_ENTERS_STR2(x) #x
+#define DMS_ENTERS_STR(x) DMS_ENTERS_STR2(x)
+#define DMS_ENTERS(LEVEL, MODE) DmsLockCeiling mg_lock_ceiling_(LEVEL, MODE, "DMS_ENTERS(" #LEVEL ") at " __FILE__ ":" DMS_ENTERS_STR(__LINE__))
+// For a scope whose outermost acquire is a per-item lock (cs_lock_map); see DmsLockCeiling.
+#define DMS_ENTERS_ITEM(LEVEL, MODE) DmsLockCeiling mg_lock_ceiling_(LEVEL, MODE, "DMS_ENTERS_ITEM(" #LEVEL ") at " __FILE__ ":" DMS_ENTERS_STR(__LINE__), item_level_type(1))
 
 #else
 
 #define DMS_ENTERS(LEVEL, MODE) ((void)0)
+#define DMS_ENTERS_ITEM(LEVEL, MODE) ((void)0)
 
 #endif
 

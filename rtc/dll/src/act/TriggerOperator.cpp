@@ -47,6 +47,7 @@ namespace {
 
 void ProcessLastMsg()
 {
+	DMS_ENTERS(ord_level_type::NotifyTargetCount, dms_exclusive_v);
 	assert(IsMetaThread());
 	if (!g_LastMsg)
 		return;
@@ -123,6 +124,7 @@ void NotifyRemainingTargetCount(UInt32 nrCount, UInt32 maxCount)
 
 void NotifyCurrentTargetCount()
 {
+	DMS_ENTERS(ord_level_type::NotifyTargetCount, dms_exclusive_v);
 	leveled_critical_section::scoped_lock notifyLock(sc_NotifyTargetCount);
 	s_LastMsgTime = 0;
 }
@@ -130,6 +132,7 @@ void NotifyCurrentTargetCount()
 
 void IncRemainingTargetCount()
 {
+	DMS_ENTERS(ord_level_type::NotifyTargetCount, dms_exclusive_v);
 #if defined(MG_DEBUG_INTERESTSOURCE)
 	DemandManagement::IncInterestDetector::CheckInc();
 #endif // MG_DEBUG_INTERESTSOURCE
@@ -142,6 +145,7 @@ void IncRemainingTargetCount()
 
 void DecRemainingTargetCount()
 {
+	DMS_ENTERS(ord_level_type::NotifyTargetCount, dms_exclusive_v);
 	assert(g_RemainingTargetCount);
 
 	leveled_critical_section::scoped_lock notifyLock(sc_NotifyTargetCount);
@@ -160,6 +164,7 @@ void DecRemainingTargetCount()
 
 	void LeaveNotificationBlock()
 	{
+		DMS_ENTERS(ord_level_type::NotifyTargetCount, dms_exclusive_v);
 		dms_assert(g_NrTargetsAtEnter != UInt32(-1));
 		if (g_NrTargetsAtEnter != g_RemainingTargetCount)
 		{

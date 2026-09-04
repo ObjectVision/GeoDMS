@@ -2,6 +2,7 @@
 // License: GNU GPL 3
 
 #include "RtcPCH.h"
+#include "LockLevels.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
@@ -214,6 +215,7 @@ namespace {
 MemoryAllocFailure::MemoryAllocFailure()
 	: DmsException(std::make_shared<ErrMsg>(memoryAllocFailureMsg))
 {
+	DMS_ENTERS(ord_level_type::DebugOutStream, dms_exclusive_v);
 	s_BlockNewAllocations = true;
 }
 
@@ -223,6 +225,7 @@ MemoryAllocFailure::MemoryAllocFailure()
 
 extern "C" RTC_CALL void DMS_CONV DMS_ReportError(CharPtr msg)
 {
+	DMS_ENTERS(ord_level_type::IndexedString, dms_shared_v);
 	DMS_CALL_BEGIN
 
 		DebugOutStream::scoped_lock lock(g_DebugStream, SeverityTypeID::ST_Error);
@@ -233,6 +236,7 @@ extern "C" RTC_CALL void DMS_CONV DMS_ReportError(CharPtr msg)
 
 extern "C" RTC_CALL void DMS_CONV DMS_DisplayError(CharPtr msg)
 {
+	DMS_ENTERS(ord_level_type::IndexedString, dms_shared_v);
 	DMS_CALL_BEGIN
 
 		DebugOutStream::scoped_lock lock(g_DebugStream, SeverityTypeID::ST_DispError);
@@ -269,6 +273,7 @@ static bool BeginsWith(CharPtrRange msg, WeakStr prefix)
 
 void reportD_without_cancellation_check_impl(MsgCategory msgCat, SeverityTypeID st, auto&& payload, CharPtrRange msgTextForContextCheck = {})
 {
+	DMS_ENTERS(ord_level_type::IndexedString, dms_shared_v);
 	if (!g_DebugStream)
 		return;
 

@@ -265,6 +265,7 @@ struct PairRemover
 
 	~PairRemover()
 	{ 
+		DMS_ENTERS(ord_level_type::UpdateActionSet, dms_exclusive_v);
 		leveled_critical_section::scoped_lock lock(sm_UAS);
 		s_UpdateActionSet.erase(m_Pos);
 	}
@@ -273,6 +274,7 @@ struct PairRemover
 
 auto RegisterNew(GraphicObject* obj, const TreeItem* item) -> std::shared_ptr<PairRemover>
 {
+	DMS_ENTERS(ord_level_type::UpdateActionSet, dms_exclusive_v);
     // construct std::shared_ptr<const TreeItem> from raw pointer as a borrowed/existing object
 	UpdateActionType itemPair(obj, make_shared_tree(item, existing_obj{}));
 

@@ -43,6 +43,7 @@ AbstrBoundingBoxCache::AbstrBoundingBoxCache(const AbstrDataObject* featureData)
 
 AbstrBoundingBoxCache::~AbstrBoundingBoxCache()
 {
+	DMS_ENTERS(ord_level_type::BoundingBoxCache1, dms_exclusive_v);
 	leveled_critical_section::scoped_lock lockBB_register(cs_BB);
 	auto ptr = g_BB_Register.find(m_FeatureData);
 	if (ptr != g_BB_Register.end() && !ptr->second.lock())

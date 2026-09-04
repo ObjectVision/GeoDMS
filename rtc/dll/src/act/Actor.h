@@ -67,6 +67,25 @@
 struct ActorVisitor;
 struct SupplInterestListPtr;
 
+struct garbage_can;
+
+// #1233 P14. Actor::DoFail ends by releasing the supplier interest it moved out (a SupplInterestListPtr),
+// which takes each supplier's per-item actor lock. A caller that holds a global section while it fails
+// an item -- OperationContext::HandleFail holds cs_ThreadMessing -- would take those per-item locks
+// under that section, the inversion of IncInterestCount -> StartInterest -> Schedule -> cs_ThreadMessing.
+// Such a caller installs one of these around the Fail call: DoFail then hands the waste to the can
+// instead of dropping it, and the caller empties the can after its section. Nests; per thread.
+struct SupplInterestWasteCollector
+{
+	RTC_CALL explicit SupplInterestWasteCollector(garbage_can& can) noexcept;
+	RTC_CALL ~SupplInterestWasteCollector();
+	SupplInterestWasteCollector(const SupplInterestWasteCollector&) = delete;
+	SupplInterestWasteCollector& operator =(const SupplInterestWasteCollector&) = delete;
+private:
+	garbage_can* m_Prev;
+};
+
+
 struct ErrMsg;
 using ErrMsgPtr = std::shared_ptr<ErrMsg>;
 using SharedActor = SharedObjWrap<Actor>;

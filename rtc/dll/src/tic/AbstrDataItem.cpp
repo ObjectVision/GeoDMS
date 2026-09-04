@@ -782,6 +782,7 @@ data_flags_lock_map sg_DataFlagsLockMap("DataItemFlags", ord_level_type::DataFla
 
 DataCheckMode AbstrDataItem::GetRawCheckMode() const
 {
+	DMS_ENTERS_ITEM(ord_level_type::DataFlagsLock, dms_exclusive_v);
 	dbg_assert(CheckMetaInfoReadyOrPassor());
 	MG_LOCKER_NO_UPDATEMETAINFO
 
@@ -813,6 +814,7 @@ DataCheckMode AbstrDataItem::GetRawCheckMode() const
 
 DataCheckMode AbstrDataItem::DetermineRawCheckMode() const
 {
+	DMS_ENTERS_ITEM(ord_level_type::DataFlagsLock, dms_exclusive_v);
 	dbg_assert(CheckMetaInfoReadyOrPassor());
 	MG_LOCKER_NO_UPDATEMETAINFO
 

@@ -73,6 +73,7 @@ struct DataItemRefContainer
 
 	void Add(const AbstrDataItem* item)
 	{
+		DMS_ENTERS(ord_level_type::DataRefContainer, dms_exclusive_v);
 		leveled_std_section::scoped_lock lock(s_DataItemRefContainer);
 
 		auto pos = m_Map.lower_bound(item);
@@ -86,6 +87,7 @@ struct DataItemRefContainer
 
 	void Del(const AbstrDataItem* item)
 	{
+		DMS_ENTERS(ord_level_type::DataRefContainer, dms_exclusive_v);
 		leveled_std_section::scoped_lock lock(s_DataItemRefContainer);
 
 		map_t::iterator pos = m_Map.find(item);
@@ -148,6 +150,7 @@ AbstrUnit::~AbstrUnit()
 
 inline DataItemRefContainer& AbstrUnit::GetDataItemsAssoc() const
 {
+	DMS_ENTERS(ord_level_type::DataRefContainer, dms_exclusive_v);
 	leveled_std_section::scoped_lock lock(s_DataItemRefContainer);
 	if (!HasDataItemsAssoc())
 		m_DataItemsAssocPtr.reset(new DataItemRefContainer);

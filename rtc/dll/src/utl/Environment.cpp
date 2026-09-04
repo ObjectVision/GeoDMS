@@ -539,6 +539,7 @@ static leveled_critical_section& RegAccessSection()
 
 RTC_CALL void DMS_Appl_SetRegStatusFlags(UInt32 newSF)
 {
+	DMS_ENTERS(ord_level_type::RegisterAccess, dms_exclusive_v);
 	leveled_critical_section::scoped_lock lock(RegAccessSection());
 	g_RegStatusFlags = (newSF | RSF_WasRead);
 }
@@ -548,6 +549,7 @@ UInt32 ReadOnceRegisteredStatusFlags()
 	if (g_RegStatusFlags & RSF_WasRead)
 		return g_RegStatusFlags;
 
+	DMS_ENTERS(ord_level_type::RegisterAccess, dms_exclusive_v);
 	leveled_critical_section::scoped_lock lock(RegAccessSection());
 
 	if (g_RegStatusFlags & RSF_WasRead)
@@ -590,6 +592,7 @@ RTC_CALL UInt32 DMS_Appl_GetRegStatusFlags()
 
 RTC_CALL void SetCachedStatusFlag(UInt32 newSF, bool newVal)
 {
+	DMS_ENTERS(ord_level_type::RegisterAccess, dms_exclusive_v);
 	leveled_critical_section::scoped_lock lock(RegAccessSection());
 	g_OvrStatusMask |= newSF;
 	if (newVal)
@@ -602,6 +605,7 @@ RTC_CALL void SetCachedStatusFlag(UInt32 newSF, bool newVal)
 
 RTC_CALL UInt32 GetCachedStatusMask()
 {
+	DMS_ENTERS(ord_level_type::RegisterAccess, dms_exclusive_v);
 	leveled_critical_section::scoped_lock lock(RegAccessSection());
 	return g_OvrStatusMask;
 }
@@ -614,6 +618,7 @@ void SetRegStatusFlags(UInt32 newSF)
 
 RTC_CALL void SetStatusFlag(UInt32 newSF, bool newVal)
 {
+	DMS_ENTERS(ord_level_type::RegisterAccess, dms_exclusive_v);
 	leveled_critical_section::scoped_lock lock(RegAccessSection());
 	g_OvrStatusMask |= newSF;
 	if (newVal)
@@ -754,6 +759,7 @@ RegDWordAttr s_RegDWordAttrs[] =
 
 extern "C" RTC_CALL DWORD RTC_GetRegDWord(RegDWordEnum i)
 {
+	DMS_ENTERS(ord_level_type::RegisterAccess, dms_exclusive_v);
 	auto ui = UInt32(i);
 	MG_CHECK(ui < sizeof(s_RegDWordAttrs) / sizeof(RegDWordAttr));
 
@@ -2723,6 +2729,7 @@ static leveled_critical_section& RegAccessSection()
 
 RTC_CALL void DMS_Appl_SetRegStatusFlags(UInt32 newSF)
 {
+	DMS_ENTERS(ord_level_type::RegisterAccess, dms_exclusive_v);
 	leveled_critical_section::scoped_lock lock(RegAccessSection());
 	g_RegStatusFlags = (newSF | RSF_WasRead);
 }
@@ -2732,6 +2739,7 @@ UInt32 ReadOnceRegisteredStatusFlags()
 	if (g_RegStatusFlags & RSF_WasRead)
 		return g_RegStatusFlags;
 
+	DMS_ENTERS(ord_level_type::RegisterAccess, dms_exclusive_v);
 	leveled_critical_section::scoped_lock lock(RegAccessSection());
 	if (g_RegStatusFlags & RSF_WasRead)
 		return g_RegStatusFlags;
@@ -2758,6 +2766,7 @@ RTC_CALL UInt32 DMS_Appl_GetRegStatusFlags()
 
 RTC_CALL void SetCachedStatusFlag(UInt32 newSF, bool newVal)
 {
+	DMS_ENTERS(ord_level_type::RegisterAccess, dms_exclusive_v);
 	leveled_critical_section::scoped_lock lock(RegAccessSection());
 	g_OvrStatusMask |= newSF;
 	if (newVal) g_OvrStatusFlags |= newSF;
@@ -2766,6 +2775,7 @@ RTC_CALL void SetCachedStatusFlag(UInt32 newSF, bool newVal)
 
 RTC_CALL UInt32 GetCachedStatusMask()
 {
+	DMS_ENTERS(ord_level_type::RegisterAccess, dms_exclusive_v);
 	leveled_critical_section::scoped_lock lock(RegAccessSection());
 	return g_OvrStatusMask;
 }
@@ -2778,6 +2788,7 @@ void SetRegStatusFlags(UInt32 newSF)
 
 RTC_CALL void SetStatusFlag(UInt32 newSF, bool newVal)
 {
+	DMS_ENTERS(ord_level_type::RegisterAccess, dms_exclusive_v);
 	leveled_critical_section::scoped_lock lock(RegAccessSection());
 	g_OvrStatusMask |= newSF;
 	if (newVal) g_OvrStatusFlags |= newSF;
@@ -2873,6 +2884,7 @@ static RegDWordAttr s_RegDWordAttrs[] =
 
 extern "C" RTC_CALL DWORD RTC_GetRegDWord(RegDWordEnum i)
 {
+	DMS_ENTERS(ord_level_type::RegisterAccess, dms_exclusive_v);
 	auto ui = UInt32(i);
 	MG_CHECK(ui < sizeof(s_RegDWordAttrs) / sizeof(RegDWordAttr));
 	leveled_critical_section::scoped_lock lock(RegAccessSection());

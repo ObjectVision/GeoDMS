@@ -2,6 +2,7 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////
 
+#include <cstdio>
 #include "RtcPCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
@@ -156,6 +157,7 @@ std::condition_variable s_cv_CountedMutexSection;
 
 void counted_mutex::lock()
 {
+	DMS_ENTERS(ord_level_type::CountedMutexSection, dms_exclusive_v);
 	leveled_std_section::unique_lock lock( s_CountedMutexSection );
 	dbg_assert(!m_Count || md_OwningThreadID != GetThreadID());
 
@@ -168,6 +170,7 @@ void counted_mutex::lock()
 
 bool counted_mutex::try_lock_for(UInt32 milliSeconds)
 {
+	DMS_ENTERS(ord_level_type::CountedMutexSection, dms_exclusive_v);
 	leveled_std_section::unique_lock lock( s_CountedMutexSection );
 
 	// Deliberately WITHOUT lock()'s dbg_assert(!m_Count || md_OwningThreadID != GetThreadID()):
@@ -185,6 +188,7 @@ bool counted_mutex::try_lock_for(UInt32 milliSeconds)
 
 void counted_mutex::lock_shared()
 {
+	DMS_ENTERS(ord_level_type::CountedMutexSection, dms_exclusive_v);
 	leveled_std_section::unique_lock lock(s_CountedMutexSection);
 	dbg_assert(m_Count >= 0 || md_OwningThreadID != GetThreadID());
 
@@ -198,6 +202,7 @@ void counted_mutex::lock_shared()
 
 bool counted_mutex::try_lock_shared()
 {
+	DMS_ENTERS(ord_level_type::CountedMutexSection, dms_exclusive_v);
 	leveled_std_section::unique_lock lock(s_CountedMutexSection);
 	dbg_assert(m_Count >= 0 || md_OwningThreadID != GetThreadID());
 
@@ -213,6 +218,7 @@ bool counted_mutex::try_lock_shared()
 
 void counted_mutex::unlock()
 {
+	DMS_ENTERS(ord_level_type::CountedMutexSection, dms_exclusive_v);
 	leveled_std_section::unique_lock lock(s_CountedMutexSection);
 	dms_assert(m_Count == -1);
 	dbg_assert(md_OwningThreadID == GetThreadID());
@@ -225,6 +231,7 @@ void counted_mutex::unlock()
 
 void counted_mutex::unlock_shared()
 {
+	DMS_ENTERS(ord_level_type::CountedMutexSection, dms_exclusive_v);
 	leveled_std_section::unique_lock lock(s_CountedMutexSection);
 	dms_assert(m_Count > 0);
 //	dbg_assert(md_OwningThreadID == GetThreadID());
@@ -249,7 +256,14 @@ RTC_CALL bool CurrentThreadHoldsNoGlobalLevelLock() noexcept
 RTC_CALL level_type EnterLevel(level_type level)
 {
 	dms_assert(level.m_Level != ord_level_type(0));
-	dms_assert(s_LockLevel.Allow(level));
+	if (!s_LockLevel.Allow(level))
+	{
+		// name both sides before the assert: the checker is only useful when a refusal says what was held
+		fprintf(stderr, "lock level refused: held %s [ord %u, item %u, %s%s] -> requested %s [ord %u, item %u, %s%s]\n"
+			, s_LockLevel.m_Descr ? s_LockLevel.m_Descr : "?", unsigned(s_LockLevel.m_Level), unsigned(s_LockLevel.m_ItemLevel), s_LockLevel.m_Shared ? "shared" : "exclusive", s_LockLevel.m_IsCeiling ? " ceiling" : ""
+			, level.m_Descr ? level.m_Descr : "?", unsigned(level.m_Level), unsigned(level.m_ItemLevel), level.m_Shared ? "shared" : "exclusive", level.m_IsCeiling ? " ceiling" : "");
+		dms_assert(s_LockLevel.Allow(level));
+	}
 	std::swap(s_LockLevel, level);
 	return level;
 }

@@ -537,6 +537,7 @@ namespace Explain { // local defs
 
 	void CalcExplImpl::AddQueueEntry(const AbstrUnit* domain, SizeT index)
 	{
+		DMS_ENTERS(ord_level_type::MOST_INNER_LOCK, dms_exclusive_v);
 		leveled_critical_section::scoped_lock lock(scs_ExplainAccess);
 
 		dms_assert(domain);

@@ -3,6 +3,7 @@
 /////////////////////////////////////////////
 
 #include "TicPCH.h"
+#include "LockLevels.h"
 #include "act/UpdateMark.h" // UpdateMarker
 
 #if defined(CC_PRAGMAHDRSTOP)
@@ -98,6 +99,7 @@ DataReadLockAtom::DataReadLockAtom(DataReadLockAtom&& rhs) noexcept
 DataReadLockAtom::DataReadLockAtom(const AbstrDataItem* item)
 	:	m_Item(make_shared_tree(item, existing_obj{})) // share the item's REAL control block; a bare m_Item(item) used std::shared_ptr's inherited raw ctor -> a rogue control block whose delete-deleter destroyed the item out from under its other owners/locks
 {
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 	if (!item) //  || (item->m_DataLockCount < 0 && !type))
 		return;
 	if (item->WasFailed(FailType::Data))
@@ -137,6 +139,7 @@ DataReadLockAtom::DataReadLockAtom(const AbstrDataItem* item)
 
 void DataReadLockAtom::release() noexcept
 {
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 	if (!m_Item) // destruction from stack unwinding from throw in DataReadLock (before point of no return)
 		return;
 	{
@@ -183,6 +186,7 @@ DataReadLock::DataReadLock(const AbstrDataItem* item)
 	,	m_RefPtrLock(item)
 	,	m_DRLA(item)
 {
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 	assert(std::uncaught_exceptions() == 0);
 
 	if (!item)
@@ -275,6 +279,7 @@ auto OpenFileData(const AbstrDataItem* adi, const SharedObj* abstrValuesRangeDat
 
 DataWriteLock::DataWriteLock(AbstrDataItem* adi, dms_rw_mode rwm, const SharedObj* abstrValuesRangeData) // was lockTile 
 {
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 	assert(std::uncaught_exceptions() == 0);
 
 	DBG_START("DataWriteLock", "CreateFromItem", MG_DEBUG_DATALOCKS);
@@ -363,6 +368,7 @@ afterReset:
 
 void DataWrite_Unlock(AbstrDataItem* adi)
 {
+	DMS_ENTERS(ord_level_type::CountSection, dms_exclusive_v);
 	assert(adi);
 	leveled_std_section::scoped_lock globalDataLockCountLock(sg_CountSection);
 	++adi->m_DataLockCount;

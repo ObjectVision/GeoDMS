@@ -184,9 +184,9 @@ IndexedStrings<MustZeroTerminate, CharPtrRangeEqCmp, CharPtrRangeHasher>::GetOrC
 	if (auto nrOwnUsages = td_TokenRegistrySharedUsages)
 		throwTokenRegistrySelfDeadlock(CharPtrRange(keyFirst, keyLast), nrOwnUsages);
 
-	// No DMS_ENTERS here: taking the section below already publishes IndexedString/exclusive as this
-	// thread's level, and that is what a caller's declared ceiling is checked against. Declaring it
-	// as well would make level_type::Allow reject this very acquire -- equal level, not both shared.
+	// Declared after the self-deadlock check above, so that case keeps its named report in Debug
+	// too; a ceiling admits its own declared acquire, so this is exactly what the section takes.
+	DMS_ENTERS(ord_level_type::IndexedString, dms_exclusive_v);
 	IndexedString_scoped_lock lock(GetCS());
 
 	return GetOrCreateID_impl(keyFirst, keyLast);
@@ -264,6 +264,7 @@ template <bool MustZeroTerminate, typename CharPtrRangeEqCmp, typename CharPtrRa
 IndexedStringsBase::index_type
 IndexedStrings<MustZeroTerminate, CharPtrRangeEqCmp, CharPtrRangeHasher>::GetExisting_mt(CharPtr keyFirst, CharPtr keyLast) const
 {
+	DMS_ENTERS(ord_level_type::IndexedString, dms_shared_v);
 	IndexedString_shared_lock lock(GetCS());
 
 	return GetExisting_impl(keyFirst, keyLast);
