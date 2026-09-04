@@ -230,11 +230,15 @@ garbage_can FuncDC::ResetOperContextImplAndStopSupplInterest() const
 
 void FuncDC::CancelOperContext() const
 {
+	// the operation context is destroyed here
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 	auto operContext = ResetOperContextImplAndStopSupplInterest();
 }
 
 bool FuncDC::IsCalculating() const
 {
+	// GetOperContext (80), then GetStatus (75)
+	DMS_ENTERS(ord_level_type::ThreadMessing, dms_exclusive_v);
 	if (!IsNew())
 		return base_type::IsCalculating();
 
@@ -261,6 +265,7 @@ void FuncDC::DoInvalidate() const
 
 garbage_can FuncDC::StopInterest () const noexcept
 { 
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 	auto garbage = ResetOperContextImplAndStopSupplInterest();
 	garbage |= DataController::StopInterest(); 
 	return garbage;

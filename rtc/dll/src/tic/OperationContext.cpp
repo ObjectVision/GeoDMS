@@ -753,6 +753,8 @@ void StartCollectedOperationContexts(context_array collectedActivatedContexts)
 // Entry point to advance scheduling and run newly activated contexts.
 void StartOperationContexts()
 {
+	// through CollectOperationContextsImpl
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 	auto collectedActivatedContexts = CollectOperationContextsImpl();
 	StartCollectedOperationContexts(std::move(collectedActivatedContexts));
 }
@@ -860,6 +862,7 @@ std::shared_ptr<OperationContext> OperationContext::CreateItemWriter(TreeItem* i
 // (e.g. the payload threw before adopting, or the task was cancelled). No-op on the normal path.
 void OperationContext::releaseStorageLockIfHeld() noexcept
 {
+	DMS_ENTERS(ord_level_type::ThreadMessing, dms_exclusive_v);
 	if (m_StorageLockHeld)
 	{
 		m_StorageLockHeld = false;
@@ -871,6 +874,8 @@ void OperationContext::releaseStorageLockIfHeld() noexcept
 // Destructor enforces finalization and ensures no active/running states linger.
 OperationContext::~OperationContext()
 {
+	// through OnEnd
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 	DBG_START("OperationContext", "DTor", MG_DEBUG_FUNCCONTEXT);
 	DBG_TRACE(("FuncDC: {}", m_FuncDC ? m_FuncDC->md_sKeyExpr.c_str() : "(leeg)"));
 
@@ -995,6 +1000,8 @@ task_status OperationContext_ScheduleThis(OperationContext* self, bool runDirect
 // and either runs inline or enqueues for async execution.
 task_status OperationContext::Schedule(TreeItem* item, const FutureSuppliers& allArgInterest, bool runDirect, explain_context_ptr_t context)
 {
+	// takes the result's write lock and connects supplier interest: per-item at the outermost
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 	assert(IsMetaThread());
 	assert(!m_FuncDC || GetOperator()->CanRunParallel() || runDirect);
 
@@ -1154,7 +1161,11 @@ bool CancelableFrame::CurrActiveCanceled()
 void CancelableFrame::CurrActiveCancelIfNoInterestOrForced(bool forceCancel)
 {
 	if (CurrActive())
+	{
+		// through CancelIfNoInterestOrForced; declared inside the check: with no active frame this is called under cs_ThreadMessing and takes nothing
+		DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 		CurrActive()->CancelIfNoInterestOrForced(forceCancel);
+	}
 }
 
 // Simple thread-safe getter for status.
@@ -1201,6 +1212,8 @@ bool OperationContext::collectTaskImpl()
 // Try to run inline: first drain tile work, then acquire license and run.
 bool OperationContext::TryRunningTaskInline()
 {
+	// runs the task inline
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 	assert(m_Suppliers.empty());
 
 	// Everything up to Run_with_cleanup runs OUTSIDE the payload's CancelableFrame -- Run_with_catch
@@ -1688,6 +1701,7 @@ static SizeT LedgerChargeOf(const PerformanceEstimationData& e)
 // the pre-existing IsLowOnFreeRAM activation brake, confounding what this gate does.
 static SizeT LedgerBudgetBytes()
 {
+	DMS_ENTERS(ord_level_type::RegisterAccess, dms_exclusive_v);
 	if (auto budgetMB = RTC_GetRegDWord(RegDWordEnum::SchedulerBudgetMB))
 		return SizeT(budgetMB) << 20;
 
@@ -1913,6 +1927,8 @@ bool OperationContext::GetUniqueLicenseToRun()
 // Transition to 'exception' final state (no-throw wrapper).
 void OperationContext::OnException() noexcept
 {
+	// through OnEnd
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 	OnEnd(task_status::exception);
 }
 
@@ -2084,7 +2100,7 @@ garbage_can OperationContext::separateResources(task_status status)
 	assert(!m_ResKeeper);
 
 	assert(!m_WriteLock || status == task_status::cancelled || status == task_status::exception); // all other routes go through Run_with_cleanup, which alwayws release the writeLock on completion
-	m_WriteLock = ItemWriteLock();
+	releaseBin |= std::move(m_WriteLock); // #1233 P13: released with the other holders, after the section -- its owning item pointer may be a cache item's last owner
 
 	// release the kept supplier/result holders at the final state (not at ~OperationContext): work has
 	// ended, so nothing may be retained past this point, and the deferred releaseBin keeps last-owner
@@ -2401,6 +2417,8 @@ struct OC_CalcResultFunc {
 // High-level scheduling for CalcResult with arguments and optional context.
 bool OperationContext::ScheduleCalcResult(ArgRefs&& argRefs, explain_context_ptr_t context)
 {
+	// through StartSupplInterest
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 	auto funcDC = GetFuncDC();
 	assert(funcDC);
 	assert(GetOperator());
@@ -2518,6 +2536,8 @@ bool OperationContext::ScheduleCalcResult(ArgRefs&& argRefs, explain_context_ptr
 // Enforce supplier completion or return early on suspension; used by inline path.
 task_status OperationContext::JoinSupplOrSuspendTrigger()
 {
+	// a production wait (#1233 P2); cs_ThreadMessing (75) is taken inside
+	DMS_ENTERS_ITEM(ord_level_type::ItemProductionWait, dms_exclusive_v);
 	assert(!SuspendTrigger::DidSuspend());
 
 	SupplierSet suppliers;
@@ -2637,6 +2657,8 @@ void OperationContext::Run_with_catch(explain_context_ptr_t context) noexcept
 // Wrapper that runs payload and transitions to final states accordingly.
 void OperationContext::Run_with_cleanup(explain_context_ptr_t context) noexcept
 {
+	// runs the operation and finishes it: per-item at the outermost
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 	assert(!SuspendTrigger::DidSuspend());
 
 	try {
@@ -2801,6 +2823,8 @@ auto FindAndLicenceOnePriorityTasks() -> OperationContextSPtr
 // Try to steal and execute any single unit of work; returns true if did work.
 bool StealOneTask()
 {
+	// through FindAndLicenceOnePriorityTasks and the task it runs
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 	StealTasks();
 
 	auto ocSPtr = FindAndLicenceOnePriorityTasks();
@@ -2828,6 +2852,8 @@ bool StealOneTask()
 // Core wait function with cooperative progress (stealing and pumping).
 task_status OperationContext::Join()
 {
+	// a production wait (#1233 P2): refused if the caller holds any global section or a TokenStr; pumps under a per-item ceiling by design
+	DMS_ENTERS_ITEM(ord_level_type::ItemProductionWait, dms_exclusive_v);
 	if (!IsMetaThread())
 		StealTasks();
 
@@ -2976,6 +3002,8 @@ exit:
 
 void DoWorkWhileWaiting()
 {
+	// a production wait (#1233 P2): pumps and steals tasks
+	DMS_ENTERS_ITEM(ord_level_type::ItemProductionWait, dms_exclusive_v);
 	if (!IsMetaThread())
 		StealTasks();
 
@@ -3026,6 +3054,8 @@ void DoWorkWhileWaiting()
 
 void DoWorkWhileWaitingFor(std::atomic<task_status>* fenceStatus)
 {
+	// a production wait (#1233 P2)
+	DMS_ENTERS_ITEM(ord_level_type::ItemProductionWait, dms_exclusive_v);
 	assert(fenceStatus);
 
 	if (!IsMetaThread())

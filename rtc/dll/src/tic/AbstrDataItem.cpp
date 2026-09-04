@@ -71,6 +71,7 @@ AbstrDataItem::AbstrDataItem()
 
 AbstrDataItem::~AbstrDataItem() noexcept
 {
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 	// (was assert(!GetInterestCount())): an item may now be destroyed while consumers still hold non-owning
 	// (weak) supplier interest in it -- that interest does not keep it alive and is no-op-decremented once it
 	// is gone, so a residual count here is expected.
@@ -710,6 +711,7 @@ const Object* AbstrDataItem::_GetAs(const Class* cls) const
 //	Override Actor
 void AbstrDataItem::StartInterest() const
 {
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 	assert(GetInterestCount()==0);
 
 	InterestPtr<const TreeItem*>
@@ -726,6 +728,7 @@ void AbstrDataItem::StartInterest() const
 
 garbage_can AbstrDataItem::StopInterest() const noexcept
 {
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 	assert(GetInterestCount() == 0);
 
 	garbage_can garbage;
@@ -758,6 +761,8 @@ SharedStr AbstrDataItem::GetDescr() const
 
 bool AbstrDataItem::HasUndefinedValues() const // REMOVE, XXX TRY TO REPLACE BY DIRECT APPL OF GetCheckType
 {
+	// through GetRawCheckMode
+	DMS_ENTERS_ITEM(ord_level_type::DataFlagsLock, dms_exclusive_v);
 	return GetRawCheckMode() & DCM_CheckDefined;
 }
 
@@ -841,6 +846,7 @@ DataCheckMode AbstrDataItem::DetermineRawCheckMode() const
 
 DataCheckMode AbstrDataItem::GetCheckMode() const
 {
+	DMS_ENTERS_ITEM(ord_level_type::DataFlagsLock, dms_exclusive_v);
 	DataCheckMode dcm = GetRawCheckMode();
 	GetCurrRefObj()->DoSimplifyCheckMode(dcm);
 	return dcm;
@@ -848,6 +854,7 @@ DataCheckMode AbstrDataItem::GetCheckMode() const
 
 DataCheckMode AbstrDataItem::DetermineActualCheckMode() const
 {
+	DMS_ENTERS_ITEM(ord_level_type::DataFlagsLock, dms_exclusive_v);
 	DataCheckMode dcm = DetermineRawCheckMode();
 	GetCurrRefObj()->DoSimplifyCheckMode(dcm);
 	return dcm;

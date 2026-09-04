@@ -612,6 +612,7 @@ RTC_CALL UInt32 GetCachedStatusMask()
 
 void SetRegStatusFlags(UInt32 newSF)
 {
+	DMS_ENTERS(ord_level_type::RegisterAccess, dms_exclusive_v);
 	SetGeoDmsRegKeyDWord("StatusFlags", newSF);
 	DMS_Appl_SetRegStatusFlags(newSF);
 }
@@ -679,6 +680,7 @@ bool EventLog_HideDepreciatedCaseMixupWarnings()
 
 extern "C" RTC_CALL bool DMS_CONV RTC_ParseRegStatusFlag(const char* param)
 {
+	DMS_ENTERS(ord_level_type::RegisterAccess, dms_exclusive_v);
 	dms_assert(param);
 
 	if (param[0] != '/')
@@ -2782,6 +2784,7 @@ RTC_CALL UInt32 GetCachedStatusMask()
 
 void SetRegStatusFlags(UInt32 newSF)
 {
+	DMS_ENTERS(ord_level_type::RegisterAccess, dms_exclusive_v);
 	SetGeoDmsRegKeyDWord("StatusFlags", newSF);
 	DMS_Appl_SetRegStatusFlags(newSF);
 }
@@ -2813,6 +2816,7 @@ bool EventLog_HideDepreciatedCaseMixupWarnings() { return GetRegStatusFlags() & 
 
 extern "C" RTC_CALL bool DMS_CONV RTC_ParseRegStatusFlag(const char* param)
 {
+	DMS_ENTERS(ord_level_type::RegisterAccess, dms_exclusive_v);
 	assert(param);
 	if (param[0] != '/') return false;
 	char cmd = param[1];
@@ -3088,6 +3092,7 @@ static std::atomic<UInt8> s_PerformanceLoggingState = 0;
 
 RTC_CALL bool IsPerformanceLogging()
 {
+	DMS_ENTERS(ord_level_type::RegisterAccess, dms_exclusive_v);
 	auto state = s_PerformanceLoggingState.load(std::memory_order_relaxed);
 	if (!state)
 	{
@@ -3108,6 +3113,7 @@ static std::atomic<UInt8> s_ResourceSchedulingState = 0;
 
 resource_scheduling GetResourceScheduling()
 {
+	DMS_ENTERS(ord_level_type::RegisterAccess, dms_exclusive_v);
 	auto state = s_ResourceSchedulingState.load(std::memory_order_relaxed);
 	if (!state)
 	{

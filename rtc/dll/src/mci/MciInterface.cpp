@@ -53,6 +53,8 @@
 	}
 	void CheckPtr(const Object* item, const Class* cls, CharPtr dmsFunc)
 	{
+		// throws with the class name; IsObjectRegistered (97) is inner
+		DMS_ENTERS(ord_level_type::IndexedString, dms_shared_v);
 		assert(g_ObjectRegister);
 		if (!item)
 			throwErrorF("CheckPtr", "function {}: Invalid NULL pointer supplied", dmsFunc);
@@ -81,6 +83,8 @@
 
 	void ReportExistingObjects()
 	{
+		// reports; GetObjectRegisterCopy (97) is inner
+		DMS_ENTERS(ord_level_type::IndexedString, dms_shared_v);
 		auto orc = GetObjectRegisterCopy();
 		if (orc.size())
 		{
@@ -124,6 +128,8 @@
 
 	void CheckPtr(const Object* item, const Class* cls, CharPtr dmsFunc)
 	{
+		// throws with the class name; IsObjectRegistered (97) is inner
+		DMS_ENTERS(ord_level_type::IndexedString, dms_shared_v);
 		if (!item) 
 			throwErrorF("CheckPtr", "Invalid Null Pointer in {}", dmsFunc);
 
@@ -134,6 +140,8 @@
 	
 	void ReportExistingObjects()
 	{
+		// reports; GetObjectRegisterCopy (97) is inner
+		DMS_ENTERS(ord_level_type::IndexedString, dms_shared_v);
 		auto nrPersistentObjects = g_NrPersistentObjects.load();
 		if (nrPersistentObjects)
 		{
@@ -167,6 +175,8 @@
 #else
 	void ReportExistingObjects()
 	{
+		// reports; GetObjectRegisterCopy (97) is inner
+		DMS_ENTERS(ord_level_type::IndexedString, dms_shared_v);
 		// NOP, nothing to report in Release version
 	}
 

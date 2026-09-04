@@ -192,17 +192,31 @@ std::shared_ptr<const SequenceBoundingBoxCache<ScalarType>>
 GetSequenceBoundingBoxCache(const AbstrDataItem* featureAttr, bool mustPrepare)
 {
 	assert(featureAttr);
-	leveled_critical_section::scoped_lock lock(cs_BB);
+	// #1233 P11: the per-item DataReadLock comes FIRST; cs_BB, a global section, is held only around the
+	// registry lookup and the insert. The old order -- cs_BB outer, DataReadLock inside -- held a global over
+	// a per-item lock, the inverse of ~AbstrBoundingBoxCache taking cs_BB under the item's own locks. Building
+	// the cache, the expensive part, now runs outside cs_BB too; a lost race is settled by re-checking under it.
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 	DataReadLock readLock(featureAttr);
 	assert(featureAttr->GetDataRefLockCount() > 0);
 
 	const AbstrDataObject* featureData = featureAttr->GetCurrRefObj().get();
-	auto& bbCache = g_BB_Register[featureData];
-	auto result = bbCache.lock();
+	std::shared_ptr<const AbstrBoundingBoxCache> result;
+	{
+		leveled_critical_section::scoped_lock lock(cs_BB);
+		result = g_BB_Register[featureData].lock();
+	}
 	if (!result)
 	{
-		result = std::make_shared<SequenceBoundingBoxCache<ScalarType>> (featureData);
-		bbCache = result;
+		auto fresh = std::make_shared<SequenceBoundingBoxCache<ScalarType>>(featureData);
+		leveled_critical_section::scoped_lock lock(cs_BB);
+		auto& bbCache = g_BB_Register[featureData];
+		result = bbCache.lock(); // another thread may have built one meanwhile; its cache wins, ours dies below
+		if (!result)
+		{
+			bbCache = fresh;
+			result = std::move(fresh);
+		}
 	}
 	return { result, dynamic_cast<const SequenceBoundingBoxCache<ScalarType>*>(result.get()) };
 }
@@ -212,17 +226,31 @@ std::shared_ptr<const PointBoundingBoxCache<ScalarType>>
 GetPointBoundingBoxCache(const AbstrDataItem* featureAttr, bool mustPrepare)
 {
 	assert(featureAttr);
-	leveled_critical_section::scoped_lock lock(cs_BB);
+	// #1233 P11: the per-item DataReadLock comes FIRST; cs_BB, a global section, is held only around the
+	// registry lookup and the insert. The old order -- cs_BB outer, DataReadLock inside -- held a global over
+	// a per-item lock, the inverse of ~AbstrBoundingBoxCache taking cs_BB under the item's own locks. Building
+	// the cache, the expensive part, now runs outside cs_BB too; a lost race is settled by re-checking under it.
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 	DataReadLock readLock(featureAttr);
 	assert(featureAttr->GetDataRefLockCount() > 0);
 
 	const AbstrDataObject* featureData = featureAttr->GetCurrRefObj().get();
-	auto& bbCache = g_BB_Register[featureData];
-	auto result = bbCache.lock();
+	std::shared_ptr<const AbstrBoundingBoxCache> result;
+	{
+		leveled_critical_section::scoped_lock lock(cs_BB);
+		result = g_BB_Register[featureData].lock();
+	}
 	if (!result)
 	{
-		result = std::make_unique<PointBoundingBoxCache<ScalarType>>(featureData);
-		bbCache = result;
+		auto fresh = std::make_shared<PointBoundingBoxCache<ScalarType>>(featureData);
+		leveled_critical_section::scoped_lock lock(cs_BB);
+		auto& bbCache = g_BB_Register[featureData];
+		result = bbCache.lock(); // another thread may have built one meanwhile; its cache wins, ours dies below
+		if (!result)
+		{
+			bbCache = fresh;
+			result = std::move(fresh);
+		}
 	}
 	return { result, dynamic_cast<const PointBoundingBoxCache<ScalarType>*>(result.get()) };
 }

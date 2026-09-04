@@ -48,7 +48,7 @@
 #define MAX_LEVEL 1
 typedef InterestPtr<DataControllerRef> CalcInterestPtr;
 
-leveled_critical_section scs_ExplainAccess(item_level_type(0), ord_level_type::MOST_INNER_LOCK, "ExplainAccess");
+leveled_critical_section scs_ExplainAccess(item_level_type(0), ord_level_type::ExplainAccess, "ExplainAccess");
 
 //  -----------------------------------------------------------------------
 //  struct CalcExplanation
@@ -537,7 +537,7 @@ namespace Explain { // local defs
 
 	void CalcExplImpl::AddQueueEntry(const AbstrUnit* domain, SizeT index)
 	{
-		DMS_ENTERS(ord_level_type::MOST_INNER_LOCK, dms_exclusive_v);
+		DMS_ENTERS(ord_level_type::ExplainAccess, dms_exclusive_v);
 		leveled_critical_section::scoped_lock lock(scs_ExplainAccess);
 
 		dms_assert(domain);
@@ -1357,6 +1357,7 @@ namespace Explain
 
 	void AddQueueEntry(Explain::CalcExplImpl* explImpl, const AbstrUnit * domain, SizeT index)
 	{
+		DMS_ENTERS(ord_level_type::ExplainAccess, dms_exclusive_v);
 		assert(explImpl);
 		assert(domain);
 		//	dms_assert(explImpl == &Explain::g_CalcExplImpl); // single threading singleton hack.

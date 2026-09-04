@@ -181,12 +181,14 @@ const AbstrDataItem* AbstrUnit::GetDataItemOut(UInt32 index) const
 
 void AbstrUnit::AddDataItemOut(const AbstrDataItem* item) const
 {
+	DMS_ENTERS(ord_level_type::DataRefContainer, dms_exclusive_v);
 	if (HasVarRange())
 		GetDataItemsAssoc().Add(item);
 }
 
 void AbstrUnit::DelDataItemOut(const AbstrDataItem* item) const
 {
+	DMS_ENTERS(ord_level_type::DataRefContainer, dms_exclusive_v);
 	DataItemRefContainer* rc = m_DataItemsAssocPtr.get();
 //	dms_assert(rc); // once added, it must have an assoc
 	if (rc)

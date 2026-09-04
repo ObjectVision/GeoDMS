@@ -377,6 +377,8 @@ void DataWrite_Unlock(AbstrDataItem* adi)
 
 void DataWriteLock::release() noexcept
 {
+	// DataWrite_Unlock only; m_adi is dropped by the destructor
+	DMS_ENTERS(ord_level_type::CountSection, dms_exclusive_v);
 	if (!m_adi)
 		return;
 	DataWrite_Unlock(m_adi.get());

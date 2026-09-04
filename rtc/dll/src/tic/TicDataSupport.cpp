@@ -2,6 +2,7 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////
 #include "TicPCH.h"
+#include "LockLevels.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
@@ -432,6 +433,7 @@ std::mutex s_DaFailReasonMutex;
 
 auto AbstrDataObject::GetFailReason() const -> ErrMsgPtr
 {
+	DMS_ENTERS(ord_level_type::FailSection, dms_exclusive_v);
 	auto lock = std::lock_guard(s_DaFailReasonMutex);
 	return m_FailReason;
 }
@@ -445,6 +447,7 @@ void AbstrDataObject::SetFailReason(ErrMsgPtr err)
 
 void AbstrDataObject::CheckFailure() const
 {
+	DMS_ENTERS(ord_level_type::FailSection, dms_exclusive_v);
 	auto fr = GetFailReason(); // get it or not atomically
 	if (fr)
 		throw DmsException(fr);

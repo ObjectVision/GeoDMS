@@ -23,81 +23,74 @@ inline constexpr int highest_of(int a, int b) { return a > b ? a : b; }
 
 enum class ord_level_type : UInt32
 {
-	MOST_INNER_LOCK = 99,
-	MOST_MOST_INNER_LOCK = MOST_INNER_LOCK + 1,
+	// #1233 P5: every section has its OWN ordinal since the second annotation wave. Two sections that share
+	// an ordinal can never be nested in a Debug-covered path (Allow refuses equal levels), so their relative
+	// order was never defined -- and a Release-only path nesting such a pair in both directions on two threads
+	// deadlocks without a diagnostic. With distinct ordinals every pair has one checked order. The order within
+	// a former family follows the nestings that are known (noted per entry); where none is known the order is
+	// a choice, and the first Debug run that nests the pair the other way round will say so.
+	// Gaps are left so a new section can be placed without renumbering.
 
-	RegisterAccess = MOST_MOST_INNER_LOCK,
-	CountedMutexSection = MOST_MOST_INNER_LOCK,
+	// outermost: the whole-session counter and the wms tile cache, taken with nothing else held
+	SessionUsageCounter = 1,		// s_SessionUsageCounter (counted); raw try_lock_shared/unlock_shared, invisible to Allow
+	WmsTileCache = 2,				// TileCache::s_ImageAccess (shv WmsLayer)
 
-//	IndexedString = MOST_INNER_LOCK - 1,
-	ActiveProducerSet = MOST_INNER_LOCK - 1,
-//	TileAccessMap = CountSection + 1, // can be used in SymbObjSection and in CountSection
+	// Not a section: the per-item ceiling a production WAIT declares (#1233 P2). Entered at item level 1 by the
+	// item-counter waits, AwaitAncestorWrites, ReadLockInit and OperationContext::Join, so that a thread which
+	// holds any global section -- a TokenStr's registry-shared usage above all -- is refused at the point where
+	// it would start waiting on another thread's production. Its ordinal is immaterial (per-item levels are
+	// never ordered); it sits here to say what it is.
+	ItemProductionWait = 50,
 
-	TreeItemFlags = MOST_INNER_LOCK - 1,
-	ItemRegister = MOST_INNER_LOCK - 2,
-	// The three cs_lock_map instances (#1233). All three live in the per-item dimension of
-	// level_type::Allow, where an item level >= 1 makes each of them outer to every global section
-	// and per-item locks are not ordered against each other at all -- so today these ordinals are
-	// never compared. Kept distinct anyway: they record the one same-item nesting that is known,
-	// PrepareDataUsage(X) enclosing DataWriteLockAtom(X), for a finer rule to build on.
-	// ItemRegister itself is the actor lock map.
-	PrepareDataUsageLock = ItemRegister - 1,
-	DataFlagsLock = ItemRegister + 1,
-	OperationContext = MOST_INNER_LOCK,
-//	UpdatingInterestSet moved to CountSection + 1 below (#1233 P3): it used to share CountSection's
-//	ordinal, so InterestReporter::Report -- which holds CountSection and then takes this one -- had
-//	to silence the checker with a LevelCheckBlocker to nest two equal levels. A silenced checker
-//	cannot see a thread nesting the pair the other way round, which is the AB/BA it was hiding.
-//	All six sections of this lock are leaves (set a pointer, insert into or erase from
-//	sd_InterestSet; nothing is taken inside them), and nothing at CountSection + 1 is ever held
-//	when they are entered, so the pair simply has an order now, and it is the checked one.
+	// geo / shv / stg / clc sections (former 93..95 families)
+	BoundingBoxCache1 = 60,			// cs_BB: the bounding-box cache registry
+	AbstrStorage = 61,
+	SpecificOperatorGroup = 62,		// polygon-overlay insert sections
+	DataViewQueue = 63,
+	UpdateActionSet = 64,			// sm_UAS (shv GraphicObject)
+	Storage = 65,					// s_OdbcSection
+	BoundingBoxCache2 = 66,
+	SpecificOperator = 68,			// cs_SpatialRefBlockCreation, polygon addition sections
+	DataRefContainer = 69,			// s_DataItemRefContainer; inner to Storage as before
 
-//	FailSection = IndexedString + 1,
-	TileShadow = MOST_INNER_LOCK - 3,
-	Tile = TileShadow + 1,
+	// tile and item machinery (former 96..97)
+	PrepareDataUsageLock = 70,		// cs_lock_map, per-item: outer to every global section (see level_type::Allow)
+	TileShadow = 72,
+	Tile = 73,						// a tile lock may schedule/join operation contexts: outer to ThreadMessing
+	ItemRegister = 74,				// sg_ActorLockMap, per-item
+	ThreadMessing = 75,				// cs_ThreadMessing; takes CountSection, FailSection and OperContextAccess inside
+	DataFlagsLock = 76,				// sg_DataFlagsLockMap, per-item
 
-	SpecificOperator = TileShadow - 1, // MOST_INNER_LOCK - 4
-	SpecificOperatorGroup = SpecificOperator - 1,
-	DataViewQueue = SpecificOperator - 1,
-	UpdateActionSet = DataViewQueue,
-	Storage = SpecificOperator - 1, // MOST_INNER_LOCK - 5
-	AbstrStorage = Storage - 1,
-	BoundingBoxCache2 = SpecificOperator - 1,
-	BoundingBoxCache1 = BoundingBoxCache2 - 1,
+	// the former 98 family; CountSection first because IncInterestCount takes it and the rest are leaves
+	CountSection = 78,				// sg_CountSection
+	FailSection = 79,				// sc_FailSection; takes MoveSupplInterest inside
+	OperContextAccess = 80,			// cs_OperContextAccess; taken under ThreadMessing
+	ActiveProducerSet = 81,
+	TreeItemFlags = 82,
+	GDALComponent = 83,				// gdalSection; the GDAL error handler may read tokens and report: outer to IndexedString
 
-	// // MOST_INNER_LOCK - 4
-	DataRefContainer = Storage + 1,
+	// the former 99 family; IndexedString is the INNERMOST of them so that a token can be read under any of the
+	// others, and none of them may be taken while a TokenStr is held
+	UpdatingInterestSet = 85,		// sd_UpdatingInterestSet; taken under CountSection (#1233 P3)
+	OperationContext = 86,			// cs_OcAdm
+	TileAccessMap = 87,
+	MoveSupplInterest = 88,			// sc_MoveSupplInterestSection; takes NotifyTargetCount inside
+	ExplainAccess = 89,				// scs_ExplainAccess
+	IndexedString = 90,				// the token registry (counted): shared to read, exclusive to register
 
-	// level c == MOST_INNER_LOCK - 2
-	ThreadMessing = TileShadow+1, //lowest_of(CountSection - 1, IndexedString - 1), // calls CountSections.
-	CountSection = ThreadMessing+1,
+	// the former 100 family; CountedMutexSection innermost because every counted_mutex op -- the registry's
+	// and the session counter's -- takes it
+	NotifyTargetCount = 92,			// sc_NotifyTargetCount; the TContextNotification callback runs under it
+	RegisterAccess = 93,				// s_RegAccess
+	LispObjCache = 94,
+	CountedMutexSection = 95,		// s_CountedMutexSection
 
-	// level c+1 == MOST_INNER_LOCK - 1
-	FailSection = ThreadMessing + 1,
-	OperContextAccess = ThreadMessing + 1,
+	// the former 101 pair
+	ObjectRegister = 97,				// cs_ORT
+	ItemCounter = 98,				// cs_lockCounterUpdate (tic/ItemLocks.cpp): the item production read/write counter
 
-	// level c+2 == MOST_INNER_LOCK
-	TileAccessMap = highest_of(ThreadMessing, CountSection) + 1, // can be used in SymbObjSection and in CountSection
-	IndexedString = CountSection + 1,
-	UpdatingInterestSet = CountSection + 1, // taken while CountSection is held; see above (#1233)
-	LispObjCache = IndexedString + 1,
-	MoveSupplInterest = FailSection + 1,
-
-	// level c+3 == MOST_INNER_LOCK + 1
-	GDALComponent = IndexedString -1,
-//	FLispUsageCache: retired for #1227 -- AsFLispSharedStr now reuses a thread_local buffer
-//	instead of guarding one global static, so the level it occupied no longer exists.
-//	SymbObjSection = IndexedString + 1, // can be used while IndexedString is locked
-	NotifyTargetCount = MoveSupplInterest + 1,
-
-	// level c+4 == MOST_INNER_LOCK + 2
-	ObjectRegister = LispObjCache + 1, // can be used in SymbObjSection
-
-	// level c+5 == MOST_INNER_LOCK + 3
-	DebugOutStream = ObjectRegister + 1,
-
-	// level c+6 == MOST_INNER_LOCK + 4
-	OperationQueue = DebugOutStream + 1,
+	DebugOutStream = 100,			// g_DebugStream
+	OperationQueue = 101,
 
 	// Not a section: the ceiling DMS_ENTERS_NOTHING declares. Inner to every real level, so every
 	// real acquire is outer to it and therefore refused.

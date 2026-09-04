@@ -43,12 +43,13 @@ bool MG_DEBUG_TPT_LOCKS(const TreeItem* self)
 namespace treeitem_production_task
 {
 	// const bool MG_DEBUG_TPT_LOCKS = MG_DEBUG_LOCKS;
-	leveled_critical_section cs_lockCounterUpdate(item_level_type(0), ord_level_type::ObjectRegister, "LockCounter");
+	leveled_critical_section cs_lockCounterUpdate(item_level_type(0), ord_level_type::ItemCounter, "LockCounter");
 	std::condition_variable cv_lockrelease;
 
 	void lock_unique(const TreeItem* self, std::weak_ptr<OperationContext> oc)
 	{
-		DMS_ENTERS(ord_level_type::ObjectRegister, dms_exclusive_v);
+		// a production wait (#1233 P2): refused if the caller holds any global section or a TokenStr; the item counter (98) is taken inside
+		DMS_ENTERS_ITEM(ord_level_type::ItemProductionWait, dms_exclusive_v);
 		DBG_START("treeitem_production_task", "lock_unique", MG_DEBUG_TPT_LOCKS(self));
 
 		assert(IsMetaThread() || oc.expired()); // creator tasks are initiated sequentialluy from the MainThread; Cleanup can come from any reading tasks that gives up the last iterest.
@@ -71,7 +72,8 @@ namespace treeitem_production_task
 
 	void lock_unique(const TreeItem* self)
 	{
-		DMS_ENTERS(ord_level_type::ObjectRegister, dms_exclusive_v);
+		// a production wait (#1233 P2), as above
+		DMS_ENTERS_ITEM(ord_level_type::ItemProductionWait, dms_exclusive_v);
 		DBG_START("treeitem_production_task", "lock_unique", MG_DEBUG_TPT_LOCKS(self));
 		DBG_TRACE(("count={}, producer = {}", self->m_ItemCount, self->m_Producer.lock() ? "available" : "null"));
 
@@ -86,6 +88,8 @@ namespace treeitem_production_task
 
 	void lock_shared(const TreeItem* self)
 	{
+		// a production wait (#1233 P2): may Join the producer; the item counter (98) is taken inside
+		DMS_ENTERS_ITEM(ord_level_type::ItemProductionWait, dms_exclusive_v);
 		DBG_START("treeitem_production_task", "lock_shared", MG_DEBUG_TPT_LOCKS(self));
 		DBG_TRACE(("count={}, producer = {}", self->m_ItemCount, self->m_Producer.lock() ? "available" : "null"));
 
@@ -129,7 +133,7 @@ namespace treeitem_production_task
 
 	bool try_lock_unique(const TreeItem* self)
 	{
-		DMS_ENTERS(ord_level_type::ObjectRegister, dms_exclusive_v);
+		DMS_ENTERS(ord_level_type::ItemCounter, dms_exclusive_v);
 		DBG_START("treeitem_production_task", "try_lock", MG_DEBUG_TPT_LOCKS(self));
 
 		leveled_critical_section::scoped_lock lock(cs_lockCounterUpdate);
@@ -146,7 +150,7 @@ namespace treeitem_production_task
 	}
 	bool try_lock_shared(const TreeItem* self)
 	{
-		DMS_ENTERS(ord_level_type::ObjectRegister, dms_exclusive_v);
+		DMS_ENTERS(ord_level_type::ItemCounter, dms_exclusive_v);
 		DBG_START("treeitem_production_task", "try_lock_read", MG_DEBUG_TPT_LOCKS(self));
 
 		leveled_critical_section::scoped_lock lock(cs_lockCounterUpdate);
@@ -162,7 +166,7 @@ namespace treeitem_production_task
 
 	void unlock_unique(const TreeItem* self) noexcept
 	{
-		DMS_ENTERS(ord_level_type::ObjectRegister, dms_exclusive_v);
+		DMS_ENTERS(ord_level_type::ItemCounter, dms_exclusive_v);
 		DBG_START("treeitem_production_task", "unlock_unique", MG_DEBUG_TPT_LOCKS(self));
 
 		leveled_critical_section::scoped_lock lock(cs_lockCounterUpdate);
@@ -182,7 +186,7 @@ namespace treeitem_production_task
 
 	void unlock_shared(const TreeItem* self) noexcept
 	{
-		DMS_ENTERS(ord_level_type::ObjectRegister, dms_exclusive_v);
+		DMS_ENTERS(ord_level_type::ItemCounter, dms_exclusive_v);
 		DBG_START("treeitem_production_task", "unlock_shared", MG_DEBUG_TPT_LOCKS(self));
 
 		leveled_critical_section::scoped_lock lock(cs_lockCounterUpdate);
@@ -228,6 +232,8 @@ namespace cs_lock {
 	// wait for ancestor production to finish; a read item's ancestors stay stable meanwhile via its interest.
 	void AwaitAncestorWrites(const TreeItem* key)
 	{
+		// a production wait (#1233 P2): joins a producing ancestor
+		DMS_ENTERS_ITEM(ord_level_type::ItemProductionWait, dms_exclusive_v);
 		assert(key);
 		if (!key->IsCacheItem())
 			return;
@@ -318,6 +324,8 @@ namespace cs_lock {
 
 	void ReadLockInit(const TreeItem* item)
 	{
+		// a production wait (#1233 P2) through cs_lock::ReadLock; the session counter (95) and item counter (98) are taken inside
+		DMS_ENTERS_ITEM(ord_level_type::ItemProductionWait, dms_exclusive_v);
 		assert(item);
 		assert(!std::uncaught_exceptions());
 
@@ -342,6 +350,8 @@ namespace cs_lock {
 
 	bool TryReadLockInit(const TreeItem* item)
 	{
+		// no wait: the session counter (95) and item counter (98), and CancelOrThrow names the item (registry-shared)
+		DMS_ENTERS(ord_level_type::IndexedString, dms_shared_v);
 		assert(item);
 		assert(!std::uncaught_exceptions());
 
@@ -393,6 +403,8 @@ ItemReadLock::ItemReadLock(const TreeItem* item)
 
 ItemReadLock::ItemReadLock(SharedTreeItemInterestPtr&& rhs)
 {
+	// a production wait (#1233 P2) through ReadLockInit; on failure the interest is dropped (per-item)
+	DMS_ENTERS_ITEM(ord_level_type::ItemProductionWait, dms_exclusive_v);
 	if (!rhs)
 		return;
 
@@ -417,6 +429,8 @@ ItemReadLock::ItemReadLock(SharedTreeItemInterestPtr&& rhs)
 
 ItemReadLock::ItemReadLock(SharedTreeItemInterestPtr&& rhs, try_token_t justTry)
 {
+	// see TryReadLockInit
+	DMS_ENTERS(ord_level_type::IndexedString, dms_shared_v);
 	if (!rhs)
 		return;
 
@@ -437,10 +451,12 @@ ItemReadLock::ItemReadLock(ItemReadLock&& rhs) noexcept
 
 void ItemReadLock::releaseHeldLock() noexcept
 {
-	// per-item: dropping m_Ptr releases the item interest (DecInterestCount takes the actor lock); the session counter (100) and item counter (101) sit under that
-	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 	if (!m_Ptr.has_ptr())
 		return;
+	// declared AFTER the empty check: an empty lock is released routinely under cs_ThreadMessing (move-assignment
+	// into a fresh local, a moved-from member dying) and takes nothing
+	// per-item: dropping m_Ptr releases the item interest (DecInterestCount takes the actor lock); the session counter (100) and item counter (101) sit under that
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 
 	cs_lock::ReadFree(m_Ptr);
 	s_SessionUsageCounter.unlock_shared();
@@ -479,8 +495,8 @@ ItemWriteLock::ItemWriteLock() noexcept
 
 ItemWriteLock::ItemWriteLock(TreeItem* item, std::weak_ptr<OperationContext> ocb)
 {
-	// the session-usage counter is a counted_mutex: its ops take CountedMutexSection (100), outer to the item counter (101)
-	DMS_ENTERS(ord_level_type::CountedMutexSection, dms_exclusive_v);
+	// a production wait (#1233 P2): lock_unique waits for the readers to finish; the session counter (95) and the item counter (98) are taken inside
+	DMS_ENTERS_ITEM(ord_level_type::ItemProductionWait, dms_exclusive_v);
 	if (item)
 	{
 		s_SessionUsageCounter.lock_shared();
@@ -496,12 +512,14 @@ ItemWriteLock::ItemWriteLock(TreeItem* item, std::weak_ptr<OperationContext> ocb
 
 void ItemWriteLock::releaseHeldLock() noexcept
 {
-	// CountedMutexSection (100, the session-usage counter) and the item counter (101) are what this takes. Dropping the owning
-	// m_ItemPtr is NOT counted: OperationContext::separateResources releases this lock inline under cs_ThreadMessing on the
-	// cancel/exception path, on the premise (stated there) that the write lock is never the last owner of its item.
-	DMS_ENTERS(ord_level_type::CountedMutexSection, dms_exclusive_v);
 	if (!has_ptr())
 		return;
+	// declared AFTER the empty check: an empty lock is released routinely under cs_ThreadMessing (move-assignment
+	// into a fresh local, a moved-from member dying) and takes nothing
+	// per-item at the outermost: dropping the owning m_ItemPtr may be the last owner of a cache item, whose destruction
+	// releases its suppliers' interest. The session counter (95) and the item counter (98) are taken inside. Since #1233
+	// P13 OperationContext::separateResources no longer releases this lock under cs_ThreadMessing, so this is checkable.
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 
 	std::shared_ptr<const TreeItem> garbage = make_shared_tree(GetItem(), existing_obj{});
 
@@ -748,6 +766,8 @@ std::shared_ptr<const TreeItem> GetATask()
 }
 
 void RunTasks() {
+	// PrepareData on every task: per-item at the outermost
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 	// s_RunTaskActive gates ALL future scheduling of this function (see RunTask below), so it must be
 	// cleared on every path. An exception escaping PrepareData used to leave it true forever, after
 	// which no producer task was ever started again -- on top of terminating the process, this being a
@@ -862,6 +882,8 @@ bool IsInWriteLock(const TreeItem* item)
 // TODO: zoek OperationContext op en oc->Join()
 bool WaitForReadyOrSuspendTrigger(const TreeItem* item)
 {
+	// a production wait (#1233 P2)
+	DMS_ENTERS_ITEM(ord_level_type::ItemProductionWait, dms_exclusive_v);
 	assert(item);
 	assert(item == item->GetCurrRangeItem().get());
 

@@ -210,6 +210,7 @@ enum class how_to_proceed { nothing, data_ready, failed, suspended, suspended_or
 
 static how_to_proceed PrepareDataCalc(std::shared_ptr<const TreeItem> self, const TreeItem* refItem, DrlType drlFlags)
 {
+	DMS_ENTERS_ITEM(ord_level_type::PrepareDataUsageLock, dms_exclusive_v);
 	dms_assert(!SuspendTrigger::DidSuspend() && !self->WasFailed(FailType::Determine)); // Postcondition when CreateResultingTreeItem returns a result
 
 //				FutureData dc = GetDC(GetCalculator());
@@ -281,6 +282,7 @@ static how_to_proceed PrepareDataCalc(std::shared_ptr<const TreeItem> self, cons
 
 static how_to_proceed PrepareDataRead(std::shared_ptr<const TreeItem> self, const TreeItem* refItem, DrlType drlFlags)
 {
+	DMS_ENTERS_ITEM(ord_level_type::PrepareDataUsageLock, dms_exclusive_v);
 	// PSEUDOCODE:
 	// - Ensure refItem is data-readable and not a cache item.
 	// - Prepare all suppliers (Calc group) of 'self'; on failure/suspend, propagate result.
@@ -728,6 +730,7 @@ nodata:
 
 bool TreeItem::PrepareData() const
 {
+	DMS_ENTERS_ITEM(ord_level_type::PrepareDataUsageLock, dms_exclusive_v);
 	assert(IsMetaThread());
 
 	if (!PrepareDataUsage(DrlType::Suspendible))
@@ -749,6 +752,7 @@ bool TreeItem::PrepareData() const
 // called in idle time for items that will soon be visible, returns false when Suspended, true when Failed
 bool TreeItem::TryPrepareDataUsage() const
 {
+	DMS_ENTERS_ITEM(ord_level_type::PrepareDataUsageLock, dms_exclusive_v);
 	if (!GetInterestCount())
 		return true;
 	try { 
@@ -839,6 +843,7 @@ bool FinalizeFailure(const TreeItem* self, FailReasonFunc&& func)
 
 bool TreeItem::CommitDataChanges() const
 {
+	DMS_ENTERS_ITEM(ord_level_type::PrepareDataUsageLock, dms_exclusive_v);
 	assert(IsMetaThread());
 
 	assert(m_State.GetProgress() >= ProgressState::MetaInfo);

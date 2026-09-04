@@ -432,7 +432,7 @@ namespace wms {
 			};
 		}
 	};
-	leveled_critical_section TileCache::s_ImageAccess(item_level_type(0), ord_level_type(2), "WmsLayer.TileCache");
+	leveled_critical_section TileCache::s_ImageAccess(item_level_type(0), ord_level_type::WmsTileCache, "WmsLayer.TileCache");
 
 	TileLoader::~TileLoader()
 	{

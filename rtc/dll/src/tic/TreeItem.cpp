@@ -321,6 +321,7 @@ void RemoveStoredPropValues(TreeItem* item); // defined in CopyTreeContext.cpp
 
 TreeItem::~TreeItem ()
 {
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 	DisableStorage();
 
 	MG_LOCKER_NO_UPDATEMETAINFO
@@ -392,6 +393,8 @@ TreeItem::~TreeItem ()
 
 static void ResetAllKeepInterest(TreeItem* item)
 {
+	// through SetKeepDataState
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 	dms_assert(item);
 	TreeItem* walker = item;
 	do
@@ -545,6 +548,8 @@ void TreeItem::SetIsCacheItem() // does not call UpdateMetaInfo
 // Copy the template/cache/passor/keep-data flags down from parent into this freshly-linked child.
 void TreeItem::InheritParentState(TreeItem* parent)
 {
+	// through SetKeepDataState
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 	m_StatusFlags.Set( parent->m_StatusFlags.GetBits(TSF_InTemplate | TSF_IsCacheItem | TSF_InHidden) );
 
 	// special processing
@@ -845,6 +850,7 @@ void TreeItem::SetExpr(WeakStr expr)
 
 void TreeItem::SetDC(DataControllerRef newDC, const TreeItem* newRefItem) const
 {
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 	dms_assert(!InTemplate() || (!newDC && !newRefItem));
 
 	if (mc_DC == newDC && (!newRefItem || newRefItem == mc_RefItem.lock().get()))
@@ -1293,6 +1299,7 @@ struct OldRefDecrementer
 	explicit operator bool() const { return bool(m_Item); }
 	const TreeItem* operator->() const { return m_Item.get(); }
 	~OldRefDecrementer() {
+		DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 		if (m_Item)
 			m_Item->DecInterestCount();
 	}
@@ -1672,6 +1679,8 @@ const UsingCache* TreeItem::GetUsingCache() const
 
 void TreeItem::RemoveFromConfig() const
 {
+	// through RemoveItem
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 	assert(!IsCacheItem());
 	auto self = const_cast<TreeItem*>(this);
 	assert(self);
@@ -1742,6 +1751,8 @@ static bool HasOwnCalculatorNow(TreeItem* result)
 
 SharedMutableTreeItem TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& copyContext) const
 {
+	// through SetReferredItem
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 	const Class* cls = GetDynamicClass();
 
 	assert(dest || !id);
@@ -2292,6 +2303,7 @@ void TreeItem_RemoveDC(const TreeItem* self)
 
 void TreeItem::DoInvalidate() const
 {
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 	assert(!IsCacheItem());
 	assert(IsMetaThread());
 
@@ -2606,6 +2618,7 @@ void TreeItem::StartInterest() const
 
 garbage_can TreeItem::StopInterest() const noexcept
 {
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 	auto storageParent = GetCurrStorageParent(false);
 	if (storageParent)
 		if (auto nmsm = dynamic_cast<NonmappableStorageManager*>(storageParent->GetStorageManager()))
@@ -2649,6 +2662,8 @@ garbage_can TreeItem::StopInterest() const noexcept
 
 SharedTreeItemInterestPtr TreeItem::GetInterestPtrOrCancel() const
 {
+	// GetInterestPtrOrNull, or CancelOrThrow which names the item (registry-shared, inner)
+	DMS_ENTERS(ord_level_type::CountSection, dms_exclusive_v);
 	auto result = GetInterestPtrOrNull();
 	if (result)
 		return result;

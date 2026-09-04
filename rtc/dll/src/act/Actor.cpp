@@ -50,11 +50,13 @@
 
 inline void IncRemainingTargetCount(const Actor* self)
 {
+	DMS_ENTERS(ord_level_type::NotifyTargetCount, dms_exclusive_v);
     IncRemainingTargetCount();
 }
 
 inline void DecRemainingTargetCount(const Actor* self)
 {
+	DMS_ENTERS(ord_level_type::NotifyTargetCount, dms_exclusive_v);
     DecRemainingTargetCount();
 }
 
@@ -216,6 +218,8 @@ Actor::Actor ()
 
 Actor::~Actor ()
 {
+	// StopSupplInterest garbage is emptied here
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
     // (was assert(!m_InterestCount)): an actor may now be destroyed while consumers still hold non-owning
     // (weak) interest in it; that residual count dies harmlessly with the object (the weak holders no-op-
     // decrement a dead target). We MUST, however, undo any remaining supplier interest so our suppliers are
@@ -267,6 +271,8 @@ void Actor::SetProgressAt(ProgressState ps, TimeStamp ts) const
 // TODO: Consider narrowing window of state changes to simplify reasoning under concurrency.
 void Actor::InvalidateAt (TimeStamp invalidate_ts) const
 {
+	// through StartSupplInterest
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
     DBG_START("Actor", "InvalidateAt", sd_DebugInvalidations);
     DBG_TRACE(("time = {}", invalidate_ts));
 
@@ -555,6 +561,8 @@ ActorVisitState Actor::DoUpdate()
 // NOTE: Keep noexcept behavior: failures convert into failure state.
 void Actor::DoInvalidate () const
 {
+	// through StartSupplInterest
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
     assert(IsMetaThread());
     assert(!DoesHaveSupplInterest());
     assert(!WasFailed(FailType::Data));
@@ -1053,6 +1061,7 @@ bool Actor::DoFailCaller(ErrMsgPtr msg, FailType failType) const
 // Throw with the currently recorded failure.
 void Actor::ThrowFail() const
 {
+	DMS_ENTERS(ord_level_type::FailSection, dms_exclusive_v);
     dms_assert(WasFailed());
     DmsException::throwMsg(GetFailReason());
 }

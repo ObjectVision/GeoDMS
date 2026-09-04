@@ -14,6 +14,7 @@
 #define __RTC_PTR_INTERESTHOLDER_H
 
 #include "RtcBase.h"
+#include "LockLevels.h"
 #include "act/garbage_can.h"
 #include "ptr/SharedTreePtr.h" // make_shared_tree + construction tags for the TreeItem-family (std::shared_ptr) overloads
 #include "utl/swap.h"
@@ -32,8 +33,10 @@ template <typename P> constexpr bool is_std_weak_ptr_v = is_std_weak_ptr<P>::val
 // class  : OptionalInterest
 //----------------------------------------------------------------------
 
-template <typename T> void OptionalInterestInc(T* ptr)          { if (ptr) ptr->IncInterestCount(); }
-template <typename T> garbage_can OptionalInterestDec(T* ptr) noexcept { if (!ptr) return {};  return ptr->DecInterestCount(); }
+// The per-item declaration sits AFTER the null check: an empty interest pointer is created and destroyed
+// under sg_CountSection all the time (GetInterestPtrOrNull returns one), and takes nothing.
+template <typename T> void OptionalInterestInc(T* ptr)          { if (ptr) { DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v); ptr->IncInterestCount(); } }
+template <typename T> garbage_can OptionalInterestDec(T* ptr) noexcept { if (!ptr) return {}; DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v); return ptr->DecInterestCount(); }
 
 //----------------------------------------------------------------------
 // class  : InterestPtr

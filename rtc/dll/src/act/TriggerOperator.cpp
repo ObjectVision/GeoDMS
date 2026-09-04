@@ -504,6 +504,7 @@ namespace SuspendTrigger {
 
 	SilentBlocker::~SilentBlocker()
 	{
+		DMS_ENTERS(ord_level_type::NotifyTargetCount, dms_exclusive_v);
 		if (IsMetaThread() && s_SuspendBlockLevel == 1)
 			LeaveNotificationBlock();
 	}

@@ -341,7 +341,7 @@ void GdalVectlMetaInfo::OnOpenForRead(StorageReadHandle* self)
 		gdv->m_Layer =
 			(layerCount == 1)
 			? gdv->m_hDS->GetLayer(0)
-			: gdv->m_hDS->GetLayerByName(m_NameID.GetStrLock().c_str());
+			: gdv->m_hDS->GetLayerByName(SharedStr(m_NameID).c_str()); // materialized (#1233 P2): no registry usage across the GDAL call
 
 		if (gdv->m_Layer)
 			gdv->m_Layer->SetNextByIndex(0);
@@ -2467,7 +2467,7 @@ auto InitializeLayer(const TreeItem* storage_holder, const TreeItem* unit_item, 
 	//	eGType = wkbNone; // this driver does not support writing geometry fields
 
 	error_frame.ThrowUpWhateverCameUp();
-	OGRLayer* layer_handle = result.dsh_->CreateLayer(layerID.GetStrLock().c_str(), ogrSR ? &ogrSR.value() : nullptr, eGType, layerOptionArray); // layer owned by GDALDataset
+	OGRLayer* layer_handle = result.dsh_->CreateLayer(SharedStr(layerID).c_str(), ogrSR ? &ogrSR.value() : nullptr, eGType, layerOptionArray); // layer owned by GDALDataset
 	error_frame.ThrowUpWhateverCameUp();
 	if (layer_handle) 
 		SetFeatureDefnForOGRLayerFromLayerHolder(unit_item, layer_handle, layerID, disi);
@@ -2582,7 +2582,7 @@ void GdalVectSM::WriteLayer(TokenID layer_id, const GdalMetaInfo& gmi)
 					}
 
 					auto fieldname_n = writableField.second.nameID;
-					writableField.second.field_index = protoFeature->GetFieldIndex(fieldname_n.GetStrLock().c_str());
+					writableField.second.field_index = protoFeature->GetFieldIndex(SharedStr(fieldname_n).c_str()); // materialized (#1233 P2)
 					assert(writableField.second.field_index >= 0);
 				}
 			}
@@ -2613,7 +2613,7 @@ void GdalVectSM::WriteLayer(TokenID layer_id, const GdalMetaInfo& gmi)
 					WriteGeometryElement(adi_n.get(), curFeature, t, tileFeatureIndex);
 				else
 				{
-					dbg_assert(writableField.second.field_index == curFeature->GetFieldIndex(writableField.second.nameID.GetStrLock().c_str()));
+					dbg_assert(writableField.second.field_index == curFeature->GetFieldIndex(SharedStr(writableField.second.nameID).c_str()));
 					WriteFieldElement(adi_n.get(), writableField.second.field_index, curFeature, t, tileFeatureIndex);
 				}
 			}

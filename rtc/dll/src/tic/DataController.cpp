@@ -3,6 +3,7 @@
 /////////////////////////////////////////////
 
 #include "TicPCH.h"
+#include "LockLevels.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
@@ -246,6 +247,7 @@ bool TreeItemDualRef::DoFail(ErrMsgPtr msg, FailType ft) const
 
 void TreeItemDualRef::IncDataInterestCount() const
 {
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 	assert(IsMetaThread());
 	assert(m_Data);
 	dbg_assert(!m_State.Get(DCFD_DataCounted));
@@ -256,6 +258,7 @@ void TreeItemDualRef::IncDataInterestCount() const
 
 garbage_can TreeItemDualRef::DecDataInterestCount() const
 {
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 	dbg_assert( m_State.Get(DCFD_DataCounted));
 	garbage_can result;
 	if (auto curr = m_Data.get())
@@ -267,6 +270,7 @@ garbage_can TreeItemDualRef::DecDataInterestCount() const
 
 void TreeItemDualRef::StartInterest() const
 {
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 	dms_assert(!GetInterestCount());
 	Actor::StartInterest();
 
@@ -283,6 +287,7 @@ void TreeItemDualRef::StartInterest() const
 
 garbage_can TreeItemDualRef::StopInterest() const noexcept
 {
+	DMS_ENTERS_ITEM(ord_level_type::ItemRegister, dms_exclusive_v);
 	garbage_can garbage;
 	if (m_Data && !IsTmp())
 		garbage |= DecDataInterestCount();
