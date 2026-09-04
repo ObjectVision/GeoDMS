@@ -684,7 +684,8 @@ void dms_insert(bg_multi_polygon_t& lvalue, SA_ConstReference<DmsPointType> rval
 // sequence-class), so feeding a geometry operator the wrong composition - e.g. geos_buffer_multi_polygon
 // on arc geometry - is not caught by argument-type dispatch and instead fails deep inside the geometry
 // code (issue #1038). Warn so users configure the matching composition explicitly (points2sequence for
-// arc, points2polygon for poly); this is slated to become an error in a future GeoDms major version.
+// arc, points2polygon for poly, points2multi_point for multipoint - multipoint is an expected input of
+// the buffer operators, see BoostGeometryImpl.h); this is slated to become an error in GeoDms 21.
 inline void CheckGeometryArgComposition(const AbstrOperGroup* gr, const AbstrDataItem* argA, ValueComposition expectedVC)
 {
 	ValueComposition givenVC = argA->GetValueComposition();
@@ -696,8 +697,9 @@ inline void CheckGeometryArgComposition(const AbstrOperGroup* gr, const AbstrDat
 	auto argName = argA->GetFullName();
 	reportF(SeverityTypeID::ST_Warning
 		, "{}: Depreciated: the geometry argument{}{} has ValueComposition '{}' but {} is meant for '{}' geometry.\n"
-		  "Configure the argument with the matching composition (points2sequence for arc, points2polygon for poly). "
-		  "This will become an error in a future GeoDms major version."
+		  "Configure the argument with the matching composition "
+		  "(points2sequence for arc, points2polygon for poly and points2multi_point for multipoint). "
+		  "This will become an error in GeoDms 21."
 		, gr->GetNameStr()
 		, argName.empty() ? "" : " "
 		, argName.c_str()
