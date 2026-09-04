@@ -97,8 +97,8 @@ visited set, so each DC folds once per lifetime):
 - leaf DCs (SymbDC incl. sourceDescr, StringDC, NumbDC, UI64DC, nullary applications) → shared ∅;
 - FuncDC: union over the *contributing* args' sets, plus the own condition when the node is an
   integrity_check application (cond = `m_Key.Right().Right().Left()`). Identify that through
-  `m_OperatorGroup->GetNameID()`, **not** `DataController::GetID()`: `FuncDC::GetID()` returns
-  `GetLispRef()->Left()->GetID()`, which is the `Object` identity of the key's head node — its
+  `m_OperatorGroup->GetNameID()`, **not** `DataController::GetNameID()`: `FuncDC::GetNameID()` returns
+  `GetLispRef()->Left()->GetNameID()`, which is the `Object` identity of the key's head node — its
   LispObj class, reported as `SymbObj` — and never equals an operator token. Getting this wrong
   yields an empty set for every node, so every guard is re-applied and the dedup silently
   degrades to no dedup at all, with no error anywhere;

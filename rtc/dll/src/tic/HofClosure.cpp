@@ -361,7 +361,7 @@ StaticTokenID t_Dot(".");
 				continue;
 			if (!candidates.empty())
 				candidates = candidates + SharedStr(", ");
-			candidates = candidates + SharedStr(v->GetID());
+			candidates = candidates + SharedStr(v->GetNameID());
 
 			if (!TreeItem_VariantMatches(v, argVCs))
 				continue;
@@ -375,7 +375,7 @@ StaticTokenID t_Dot(".");
 				best = v;
 			else if (cmp != +1)
 				throwErrorF("ExprParser", "call to variant set '{}': the arguments match variants '{}' and '{}' and neither is more specific"
-					, setItem->GetFullName().c_str(), best->GetID(), v->GetID());
+					, setItem->GetFullName().c_str(), best->GetNameID(), v->GetNameID());
 		}
 		if (!best)
 			throwErrorF("ExprParser", "call to variant set '{}': no variant matches the argument types (variants: {})"

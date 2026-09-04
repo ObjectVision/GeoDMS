@@ -285,7 +285,7 @@ SharedStr AbstrDataItem::GetSignature() const
 
 TokenID AbstrDataItem::GetXmlClassID() const
 {
-	return DataItemClass::GetStaticClass()->GetID(); // We avoid calling GetDynamicObjClass
+	return DataItemClass::GetStaticClass()->GetNameID(); // We avoid calling GetDynamicObjClass
 }
 
 using semaphore_t = std::counting_semaphore<>;
@@ -475,7 +475,7 @@ const DataItemClass* AbstrDataItem::GetDynamicObjClass() const
 		assert(vc != ValueComposition::Single);
 		auto vtSingle = au->GetValueType(ValueComposition::Single);
 		assert(vtSingle);
-		throwDmsErrF("No ValueType for {} composition of {} values", GetValueCompositionID(vc), vtSingle->GetID());
+		throwDmsErrF("No ValueType for {} composition of {} values", GetValueCompositionID(vc), vtSingle->GetNameID());
 	}
 	MG_CHECK(vt);
 	auto dic = DataItemClass::FindCertain(vt, this);
@@ -1108,7 +1108,7 @@ struct ValuesUnitPropDef : ReadOnlyPropDef<AbstrDataItem, SharedStr>
 TokenID UnitName(const AbstrUnit* unit)
 {
 	if (unit->IsDefaultUnit())
-		return unit->GetValueType()->GetID();
+		return unit->GetValueType()->GetNameID();
 	else
 		return TokenID(unit->GetFullName());
 }
@@ -1323,7 +1323,7 @@ TIC_CALL void DMS_CONV DMS_Table_Dump(OutStreamBuff* out, UInt32 nrDataItems, co
 			auto& currDataItemSpec = columnSpecs.emplace_back();
 			auto dataItem = *dataItemArray++;
 			currDataItemSpec.m_DataItem = dataItem;
-//			currDataItemSpec.m_ColumnName = dataItem->GetID(); let Table_Dump fill this in
+//			currDataItemSpec.m_ColumnName = dataItem->GetNameID(); let Table_Dump fill this in
 		}
 		Table_Dump(out, begin_ptr(columnSpecs), end_ptr(columnSpecs), nullptr, nullptr);
 
@@ -1537,7 +1537,7 @@ struct InterestReporter : DebugReporter
 			YesNo(focusItem->DoesHaveSupplInterest()),
 			wasDone ? "[Rep]" : "[New]",
 			role, 
-			focusItem->GetDynamicClass()->GetName().c_str(),
+			focusItem->GetDynamicClass()->GetNameID(),
 			dc ? dc->md_sKeyExpr : focusItem->GetFullName()
 		);
 #endif

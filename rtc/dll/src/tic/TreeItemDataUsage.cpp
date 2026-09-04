@@ -109,7 +109,7 @@ bool TreeItem::ReadItem(StorageReadHandle&& srh) // TODO: Make this a method of 
 	try
 	{
 		auto progressMsg = mySSPrintF("Read {} from {}"
-			, GetName()
+			, GetNameID()
 			, storageParent->GetStorageManager()->GetNameStr()
 		);
 

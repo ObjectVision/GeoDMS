@@ -20,17 +20,17 @@ struct CompareLtItemIdPtrs
 	bool operator ()(const ItemType* a, const ItemType* b)
 	{
 		dms_assert(a && b);
-		return a->GetID() < b->GetID();
+		return a->GetNameID() < b->GetNameID();
 	}
 	bool operator ()(const ItemType* a, TokenID bID)
 	{
 		dms_assert(a);
-		return a->GetID() < bID;
+		return a->GetNameID() < bID;
 	}
 	bool operator ()(TokenID aID, const ItemType* b)
 	{
 		dms_assert(b);
-		return aID < b->GetID();
+		return aID < b->GetNameID();
 	}
 };
 
@@ -40,17 +40,17 @@ struct CompareEqItemIdPtrs
 	bool operator ()(const ItemType* a, const ItemType* b)
 	{
 		dms_assert(a && b);
-		return a->GetID() == b->GetID();
+		return a->GetNameID() == b->GetNameID();
 	}
 	bool operator ()(const ItemType* a, TokenID bID)
 	{
 		dms_assert(a);
-		return a->GetID() == bID;
+		return a->GetNameID() == bID;
 	}
 	bool operator ()(TokenID aID, const ItemType* b)
 	{
 		dms_assert(b);
-		return aID == b->GetID();
+		return aID == b->GetNameID();
 	}
 };
 

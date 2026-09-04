@@ -159,7 +159,7 @@ Recorded in issue #1227 §2; restated here because every finding below lives in 
   accessor in the argument text of any format sink. At a throw-family sink the span is harmless
   (after the format nothing runs in that frame but the throw, and unwinding destroys the
   temporary first) but it is flagged all the same: the `TokenID` form is shorter and cheaper.
-  The form to write is `reportF(st, "{}", item->GetID())`. Survey of 2026-09-04: 2 report-family
+  The form to write is `reportF(st, "{}", item->GetNameID())`. Survey of 2026-09-04: 2 report-family
   and 68 throw-family sites, all rewritten to pass the `TokenID` (74 call sites counting the
   `mySSPrintF` ones), 0 named locals spanning a sink.
 
@@ -298,7 +298,7 @@ established). The two that carry the semantics worth knowing by heart:
   count/fail 78/79, thread-messing 75, tile 73, storage 65 — as is any per-item lock.
   That is precisely "may name things and may report; may not compute, store or intern".
 - **`DMS_ENTERS_NOTHING`** — currently declared only as a callee contract
-  (`DMS_CALLEE_ENTERS_NOTHING` on `Object::GetID`, `GetLocation`, `PersistentObject::GetParent`),
+  (`DMS_CALLEE_ENTERS_NOTHING` on `Object::GetNameID`, `GetLocation`, `PersistentObject::GetParent`),
   not as a scope ceiling.
 
 ### 3.6 What a ceiling does not and cannot say

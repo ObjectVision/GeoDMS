@@ -36,11 +36,11 @@ static weak_ti make_weak(const TreeItem* p) { return p ? weak_ti(p->weak_from_th
 // keeping a strict weak ordering when entries expire while in a container.
 struct CompareLtWeakItemId
 {
-	bool operator ()(const weak_ti& a, const weak_ti& b) const { auto pa = a.lock(); auto pb = b.lock(); if (!pa || !pb) return pb && !pa; return pa->GetID() < pb->GetID(); }
-	bool operator ()(const weak_ti& a, TokenID bID)       const { auto pa = a.lock(); return !pa || pa->GetID() <  bID; }
-	bool operator ()(TokenID aID, const weak_ti& b)       const { auto pb = b.lock(); return pb && aID <  pb->GetID(); }
-	bool operator ()(const weak_ti& a, const TreeItem* b) const { auto pa = a.lock(); return !pa || pa->GetID() <  b->GetID(); }
-	bool operator ()(const TreeItem* a, const weak_ti& b) const { auto pb = b.lock(); return pb && a->GetID() <  pb->GetID(); }
+	bool operator ()(const weak_ti& a, const weak_ti& b) const { auto pa = a.lock(); auto pb = b.lock(); if (!pa || !pb) return pb && !pa; return pa->GetNameID() < pb->GetNameID(); }
+	bool operator ()(const weak_ti& a, TokenID bID)       const { auto pa = a.lock(); return !pa || pa->GetNameID() <  bID; }
+	bool operator ()(TokenID aID, const weak_ti& b)       const { auto pb = b.lock(); return pb && aID <  pb->GetNameID(); }
+	bool operator ()(const weak_ti& a, const TreeItem* b) const { auto pa = a.lock(); return !pa || pa->GetNameID() <  b->GetNameID(); }
+	bool operator ()(const TreeItem* a, const weak_ti& b) const { auto pb = b.lock(); return pb && a->GetNameID() <  pb->GetNameID(); }
 };
 
 // Find the first entry whose locked target == p (raw identity); returns index or size() if absent.
@@ -71,7 +71,7 @@ bool TestOrder(
 		auto currItem = b->lock();
 		if (!currItem)
 			continue;
-		dms_assert(!lastItem || lastItem->GetID() < currItem->GetID());
+		dms_assert(!lastItem || lastItem->GetNameID() < currItem->GetNameID());
 		lastItem = std::move(currItem);
 	}
 	return true;
@@ -546,7 +546,7 @@ void UsingCache::OnItemAdded(const TreeItem* child)
 	{
 		if (auto cachedItem = ip->lock()) // never assume a weak cache entry is still alive; an expired entry is simply overwritten
 		{
-			dms_assert(cachedItem->GetID() == child->GetID());
+			dms_assert(cachedItem->GetNameID() == child->GetNameID());
 			if (cachedItem.get() == child) // as same item; no problem, maybe inserted though other incoming route
 				return;
 			if (child->GetTreeParent().get() != m_Context) // would have been new
@@ -559,7 +559,7 @@ void UsingCache::OnItemAdded(const TreeItem* child)
 				SharedTreeItem foundItem;
 				while (n-- && !foundItem)
 					if (auto u = m_Usings[n].lock()) // never assume a weak using entry is still alive
-						foundItem = u->GetUsingCache()->FindItem(child->GetID());
+						foundItem = u->GetUsingCache()->FindItem(child->GetNameID());
 				assert(!foundItem || foundItem.get() == cachedItem.get() || foundItem.get() == child);
 				if (foundItem && foundItem.get() != child)
 					return; // best rights for existing *ip

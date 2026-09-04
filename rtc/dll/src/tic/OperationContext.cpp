@@ -157,7 +157,7 @@ void OperatorContextHandle::GenerateDescription()
 		msg += mySSPrintF(
 			"arg{}: {} of type {}\n",
 			++c,
-			arg ? arg->GetName().c_str() : "<nullptr>",
+			arg ? arg->GetName() : SharedStr("<nullptr>"),
 			arg ? arg->GetClsName().c_str() : "<nullptr>"
 		);
 	}
@@ -2386,7 +2386,7 @@ struct OC_CalcResultFunc {
 							if (auto argRangeItem = argItem->GetCurrRangeItem(); argRangeItem && !argRangeItem->WasFailed() && !IsCalculatingOrReady(argRangeItem.get()))
 							{
 								funcDC->Fail(mySSPrintF("argument {} of operator {}: {} is neither calculating nor ready nor failed"
-									, argNr + 1, funcDC->m_OperatorGroup->GetName(), argRangeItem->GetFullName()), FailType::Data);
+									, argNr + 1, funcDC->m_OperatorGroup->GetNameID(), argRangeItem->GetFullName()), FailType::Data);
 								return;
 							}
 					++argNr;

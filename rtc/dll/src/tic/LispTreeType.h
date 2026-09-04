@@ -185,7 +185,7 @@ TIC_CALL LispRef CreateLispTree(const TreeItem* self, bool inclSubTree);
 template <typename T, typename Enabled = std::enable_if_t<is_numeric_v<T>>>
 LispRef AsLispRef(T v)
 {
-	return ExprList(ValueWrap<T>::GetStaticClass()->GetID(), LispRef(Number(v)));
+	return ExprList(ValueWrap<T>::GetStaticClass()->GetNameID(), LispRef(Number(v)));
 }
 
 inline LispRef AsLispRef(double v)
@@ -208,7 +208,7 @@ LispRef AsLispRef(T v, LispPtr valuesUnitKeyExpr)
 template <bit_size_t N>
 LispRef AsLispRef(bit_value<N> v, LispPtr valuesUnitKeyExpr)
 {
-	return ExprList(ValueWrap<bit_value<N>>::GetStaticClass()->GetID(), LispRef(Number(v)));
+	return ExprList(ValueWrap<bit_value<N>>::GetStaticClass()->GetNameID(), LispRef(Number(v)));
 }
 
 auto AsLispRef(Bool v, LispPtr valuesUnitKeyExpr) -> LispRef;

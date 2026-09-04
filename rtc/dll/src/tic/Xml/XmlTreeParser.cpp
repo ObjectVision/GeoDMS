@@ -128,8 +128,8 @@ void XmlTreeParser::ReadAttrCallback(XmlElement& element)
 				throwErrorF("XML", "{}({}, {}): Unknown XML attribute {} for {}: {}",
 					Buffer().FileName(), GetLineNr(), GetColNr(), 
 					(*avIter).first, 
-					thisItem->GetName(),
-					thisCls->GetName()
+					thisItem->GetNameID(),
+					thisCls->GetNameID()
 				);
 			}
 			else if (propDef->GetXmlMode() == xml_mode::element)
@@ -138,8 +138,8 @@ void XmlTreeParser::ReadAttrCallback(XmlElement& element)
 					"{}({}, {}): XML Element property {} seen as attribute for {}: {}",
 					Buffer().FileName(), GetLineNr(), GetColNr(), 
 					(*avIter).first, 
-					thisItem->GetName(), 
-					thisCls->GetName());
+					thisItem->GetNameID(), 
+					thisCls->GetNameID());
 			}
 			else if (propDef->GetSetMode() > set_mode::construction) // set_optional || set_obligated, not: set_construction || set_none
 				propDef->SetValueAsCharRange(thisItem, (*avIter).second.begin(), (*avIter).second.send());
@@ -169,8 +169,8 @@ bool XmlTreeParser::ReadElemCallback(XmlElement& element)
 			throwErrorF("XML", "{}({}, {}): Unknown XML element {} for {}: {}",
 				Buffer().FileName(), GetLineNr(), GetColNr(), 
 				element.m_NameID, 
-				m_CurrItem->GetName(), 
-				cls->GetName()
+				m_CurrItem->GetNameID(), 
+				cls->GetNameID()
 			);
 		}
 		else if (propDef->GetXmlMode() == xml_mode::attribute)
@@ -178,8 +178,8 @@ bool XmlTreeParser::ReadElemCallback(XmlElement& element)
 			throwErrorF("XML", "{}({}, {}): XML Attribute property {} seen as element for {}: {}",
 				Buffer().FileName(), GetLineNr(), GetColNr(), 
 				element.m_NameID,
-				m_CurrItem->GetName(), 
-				cls->GetName()
+				m_CurrItem->GetNameID(), 
+				cls->GetNameID()
 			);
 		}
 		else if (propDef->GetSetMode() > set_mode::construction)

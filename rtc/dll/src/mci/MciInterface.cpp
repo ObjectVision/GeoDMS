@@ -64,7 +64,7 @@
 		{
 			if (!item->IsKindOf(cls) && !item->GetDynamicObjClass()->IsDerivedFrom(cls))
 				throwErrorF("CheckPtr", "function {} requires an item of type {}", 
-					dmsFunc, cls->GetName()
+					dmsFunc, cls->GetNameID()
 				);
 		}
 	}
@@ -77,7 +77,7 @@
 			return {};
 		std::vector<TokenID> result; result.reserve(g_ObjectRegister->size());
 		for (auto poPtr : *g_ObjectRegister)
-			result.push_back(poPtr->GetID());
+			result.push_back(poPtr->GetNameID());
 		return result;
 	}
 
@@ -134,7 +134,7 @@
 			throwErrorF("CheckPtr", "Invalid Null Pointer in {}", dmsFunc);
 
 		if (cls && !item->IsKindOf(cls) && !item->GetDynamicObjClass()->IsDerivedFrom(cls))
-			throwErrorF("CheckPtr", "Invalid Item in {}; {} expected" , dmsFunc, cls->GetName().c_str());
+			throwErrorF("CheckPtr", "Invalid Item in {}; {} expected" , dmsFunc, cls->GetNameID());
 	}
 	static std::atomic<UInt32> g_NrPersistentObjects = 0;
 	
@@ -187,7 +187,7 @@
 // *****************************************************************************
 
 
-TokenID Object::GetID() const
+TokenID Object::GetNameID() const
 {
 	const Class* cls = GetDynamicClass();
 #ifdef MG_CHECKPTR
@@ -195,7 +195,7 @@ TokenID Object::GetID() const
 		return TokenID(); // Class::GetID returns m_TypeID, if Class object was destroyed, infinite recursion is at the corner; which happens at ReportExistingObjects()
 #endif // MG_CHECKPTR
 	assert(cls && cls != this); 
-	return cls->GetID();
+	return cls->GetNameID();
 }
 
 SharedStr Object::GetClsName() const
@@ -219,17 +219,17 @@ TokenID Object::GetClsID() const
 #ifdef MG_CHECKPTR
 	if (!cls) return TokenID(Undefined());
 #endif // MG_CHECKPTR
-return cls->GetID();
+return cls->GetNameID();
 }
 
 SharedStr Object::GetName() const
 {
-	return SharedStr(GetID());
+	return SharedStr(GetNameID());
 }
 
 TokenStr Object::GetNameLock() const
 {
-	return GetID().GetStrLock();
+	return GetNameID().GetStrLock();
 }
 
 auto Object::GetFullName() const -> SharedStr
@@ -336,7 +336,7 @@ bool PersistentObject::DoesContain(const PersistentObject* subItemCandidate) con
 
 SharedStr Object::GetSourceName() const
 {
-	return SharedStr(GetID());
+	return SharedStr(GetNameID());
 }
 
 const SourceLocation* Object::GetLocation() const
@@ -364,7 +364,7 @@ SharedStr PersistentObject::GetFullName() const
 	UInt32 nameSz = 1;
 	auto item = this;
 	while (auto parent = item->GetParent()) {
-		nameSz += item->GetID().GetStrLen() + 1;
+		nameSz += item->GetNameID().GetStrLen() + 1;
 		item = parent;
 	}
 	dms_assert(nameSz);
@@ -377,7 +377,7 @@ SharedStr PersistentObject::GetFullName() const
 	item = this;
 	*--nameConcatBufferPtr = char(0);
 	while (auto parent = item->GetParent()) {
-		TokenID nameToken = item->GetID();
+		TokenID nameToken = item->GetNameID();
 		auto nameLen = nameToken.GetStrLen();
 		nameConcatBufferPtr -= nameLen;
 		auto range = nameToken.AsStrRangeLock();
@@ -394,7 +394,7 @@ SharedStr PersistentObject::GetFullName() const
 SharedStr PersistentObject::GetPrefixedFullName() const
 {
 	auto result = GetFullName();
-	auto rootID = GetRoot()->GetID();
+	auto rootID = GetRoot()->GetNameID();
 	if (rootID)
 		result = SharedStr(rootID) + ":" + result;
  	return result;
@@ -412,7 +412,7 @@ SharedStr PersistentObject::GetRelativeName(const PersistentObject* context) con
 	UInt32 nameSz = 0;
 	auto item = this;
 	while (item && item != context) {
-		nameSz += item->GetID().GetStrLen()+1;
+		nameSz += item->GetNameID().GetStrLen()+1;
 		item = item->GetParent();
 	}
 	assert(nameSz);
@@ -425,7 +425,7 @@ SharedStr PersistentObject::GetRelativeName(const PersistentObject* context) con
 	item = this;
 	*--nameConcatBufferPtr = char(0);
 	while (true) {
-		TokenID nameToken= item->GetID();
+		TokenID nameToken= item->GetNameID();
 		auto nameLen = nameToken.GetStrLen();
 		nameConcatBufferPtr -= nameLen;
 		fast_copy(nameToken.GetStrLock().c_str(), nameToken.GetStrEndLock().c_str(), nameConcatBufferPtr);
@@ -674,7 +674,7 @@ AbstrPropDef* Class::FindPropDef(TokenID nameID) const
 		AbstrPropDef* currPropDef = self->m_LastPD;
 		while (currPropDef)
 		{
-			if (currPropDef->GetID() == nameID)
+			if (currPropDef->GetNameID() == nameID)
 				return currPropDef;
 			currPropDef = currPropDef->GetPrevPropDef();
 		}

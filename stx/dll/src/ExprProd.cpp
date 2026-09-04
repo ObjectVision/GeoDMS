@@ -245,12 +245,12 @@ void ExprProd::ProdSuffix(iterator_t first, iterator_t last)
 
 		vc = ValueClass::FindByValueClassID(vt);
 		dms_assert(vc);
-		suffixToken = vc->GetID();
+		suffixToken = vc->GetNameID();
 	}
 	else
 	{
 		vc = ValueClass::FindByScriptName(suffixToken);
-		dms_assert(!vc || suffixToken == vc->GetID());
+		dms_assert(!vc || suffixToken == vc->GetNameID());
 	}
 
 	if (vc)

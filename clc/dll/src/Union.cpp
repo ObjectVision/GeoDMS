@@ -232,7 +232,7 @@ bool UnionUnit_impl(TreeItemDualRef& resultHolder, AbstrUnit* result, const ArgS
 		{
 			const AbstrUnit* adu = dynamic_cast<const AbstrUnit*>(args[i]);
 			if (!adu)
-				throwErrorF(cog_unionUnit.GetName().c_str(), "argument {} is not a Unit", i+1);
+				throwErrorF(cog_unionUnit.GetNameID(), "argument {} is not a Unit", i+1);
 			for (tile_id t = 0, tn = adu->GetNrTiles(); t != tn; ++t)
 			{
 				auto tileCount = adu->GetTileCount(t);

@@ -251,8 +251,8 @@ void CheckResultingTreeItem(const TreeItem* refItem, const Class* desiredResulti
 	if (desiredResultingClass && !refItem->GetDynamicObjClass()->IsDerivedFrom(desiredResultingClass))
 	{
 		throwErrorF("CheckResult", "calculation will result in a {}, which is not castable to the type {} of the result item",
-			refItem->GetDynamicObjClass()->GetName().c_str(),
-			desiredResultingClass->GetName().c_str()
+			refItem->GetDynamicObjClass()->GetNameID(),
+			desiredResultingClass->GetNameID()
 		);
 	}
 }
@@ -1166,7 +1166,7 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 				if (!IsDataItem(indexItem.get()))
 					throwErrorF("Calculation Rule Parser", "DataItem expected as left operand of the arrow operator; '{}' refers to a {}"
 					, AsString(indexExpr.GetSymbID())
-					, AsString(indexItem->GetDynamicClass()->GetID())
+					, AsString(indexItem->GetDynamicClass()->GetNameID())
 					);
 
 				auto avu = AbstrValuesUnit( AsDataItem(indexItem.get()) );

@@ -126,7 +126,7 @@ protected: friend struct ThemeSet;
 //	override virtuals of Actor
 	ActorVisitState VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor) const override;
 	void DoInvalidate () const override;
-	TokenID GetID() const override;
+	TokenID GetNameID() const override;
 
 private: 
 	friend class DataItemColumn;

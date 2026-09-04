@@ -99,7 +99,7 @@ LispRef Unit<V>::GetKeyExprImpl() const
 	// present as metric-less BaseUnit with a unique keyExpr.
 	if (result.EndP() && (!IsLoadable() || GetTSF(USF_HasConfigRange)))
 	{
-		result = ExprList(GetValueType()->GetID());
+		result = ExprList(GetValueType()->GetNameID());
 		//	if constexpr (is_integral_v<V> && has_var_range_v<V>) // could be domain or projection base; enforce [expr(x) == expr(y)] => [fullname(x) == fullname(y)];
 		if constexpr (has_var_range_v<V>) // could be domain or projection base; enforce [expr(x) == expr(y)] => [fullname(x) == fullname(y)];
 		{
@@ -1473,7 +1473,7 @@ void Unit<V>::InviteUnitProcessor(const UnitProcessor& visitor) const
 template <typename T>
 TokenID GetUnitClassID()
 {
-	static TokenID result = GetTokenID_st(myArrayPrintF<100>("Unit<{}>", ValueWrap<T>::GetStaticClass()->GetID().c_str_st()));
+	static TokenID result = GetTokenID_st(myArrayPrintF<100>("Unit<{}>", ValueWrap<T>::GetStaticClass()->GetNameID().c_str_st()));
 	return result;
 }
 

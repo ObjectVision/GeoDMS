@@ -135,7 +135,7 @@ static bool isSimilar(const TreeItem* searchLoc, const TreeItem* pattern, CSS_FL
 
 	for (; pattern; pattern = pattern->GetNextItem())
 	{
-		const TreeItem* si = const_cast<TreeItem*>(searchLoc)->GetSubTreeItemByID(pattern->GetID());
+		const TreeItem* si = const_cast<TreeItem*>(searchLoc)->GetSubTreeItemByID(pattern->GetNameID());
 		if (!si) 
 			return false;
 

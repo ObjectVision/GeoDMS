@@ -435,7 +435,7 @@ void EnumCollectCandidates(const AbstrOperGroup* og, const TreeItem* container, 
 		link->UpdateMetaInfo();
 		for (auto subItem = link->GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
 		{
-			auto subID = subItem->GetID();
+			auto subID = subItem->GetNameID();
 			if (subID == token::org_rel || subID == token::nr_OrgEntity)
 				continue;
 			if (!seenNames.insert(subID).second)

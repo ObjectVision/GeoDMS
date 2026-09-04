@@ -329,7 +329,7 @@ void CheckPerturbationRange(land_unit_id n, UInt32 k)
 					" perturbation and the strict ordering that the facet queues, the termination argument and"
 					" the splitter invariants rest on no longer holds"
 					, n, k, highest
-					, AsString(ValueWrap<P>::GetStaticClass()->GetID())
+					, AsString(ValueWrap<P>::GetStaticClass()->GetNameID())
 				)
 			,	price_component::perturbation
 			);
@@ -811,10 +811,10 @@ struct partitioning_info_t : partitioning_meta_t
 			if (labelItem->GetInterestCount())
 			{
 				SharedDataItemInterestPtr labelHolder = labelItem.get(); // bump only (already of-interest) -> no DC create
-				return mySSPrintF("{} {}", GetName().c_str(),
+				return mySSPrintF("{} {}", GetName(),
 					DisplayValue(pu.get(), regionID, false, labelHolder, MAX_TEXTOUT_SIZE, lock).c_str());
 			}
-		return mySSPrintF("{} {}", GetName().c_str(), regionID);
+		return mySSPrintF("{} {}", GetName(), regionID);
 	}
 
 	// Human-readable label for an atomic region (resolved to its region id).
@@ -1707,7 +1707,7 @@ void CreateResultingItems(
 		htpMeta.m_PartitioningMetas.reserve(P);
 		for (UInt32 p = 0; p != P; ++p)
 		{
-			SharedStr partitioningName = partitioningNames ? partitioningNames->GetIndexedValue(p) : SharedStr(atomicRegionUnit->GetID());
+			SharedStr partitioningName = partitioningNames ? partitioningNames->GetIndexedValue(p) : SharedStr(atomicRegionUnit->GetNameID());
 			CDebugContextHandle context("discrete_alloc", partitioningName.c_str(), false);
 
 			const AbstrDataItem* regioRefDI = nullptr;
@@ -3927,7 +3927,7 @@ public:
 				advice = mySSPrintF("\nConsider using {}_pi64: the same operator with the"
 					" Simulation-of-Simplicity perturbation term carried in Int64 instead of {}."
 					, groupName
-					, AsString(ValueWrap<P>::GetStaticClass()->GetID())
+					, AsString(ValueWrap<P>::GetStaticClass()->GetNameID())
 				);
 			else
 				advice = SharedStr("\nThis is already the _pi64 variant, which carries the widest"

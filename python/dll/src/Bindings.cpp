@@ -418,7 +418,7 @@ auto treeitem_find_mutable(py_geodms::MutableTreeItem self, CharPtr itemPath) ->
 
 auto treeitem_name_const(py_geodms::ConstTreeItem self) -> std::string {
 	treeitem_CheckNonNull_const(self);
-	return self.item->GetID().AsStdString();
+	return self.item->GetNameID().AsStdString();
 }
 
 auto treeitem_fullname_const(py_geodms::ConstTreeItem self) -> std::string {
@@ -438,7 +438,7 @@ auto treeitem_descr_const(py_geodms::ConstTreeItem self) -> std::string {
 
 auto treeitem_name_mutable(py_geodms::MutableTreeItem self) -> std::string {
 	treeitem_CheckNonNull_mutable(self);
-	return self.item->GetID().AsStdString();
+	return self.item->GetNameID().AsStdString();
 }
 
 auto treeitem_fullname_mutable(py_geodms::MutableTreeItem self) -> std::string {
@@ -749,7 +749,7 @@ PYBIND11_MODULE(geodms, m) {
 	// const unit
 	py::class_<py_geodms::UnitItem>(m, "UnitItem")
 		.def("is_null", [](py_geodms::UnitItem self) {return self.m_au== nullptr; })
-		.def("name", [](py_geodms::UnitItem self) -> std::string { return self.m_au->GetID().AsStdString(); })
+		.def("name", [](py_geodms::UnitItem self) -> std::string { return self.m_au->GetNameID().AsStdString(); })
 		.def("full_name", [](py_geodms::UnitItem self) -> std::string { return self.m_au->GetFullName().AsStdString(); })
 		.def("value_type_id", [](py_geodms::UnitItem self) -> ValueClassID { return DMS_Unit_GetValueTypeID(self.m_au.get()); }, "The value type of this unit, as a ValueTypeId enumeration value")
 		.def("count", [](py_geodms::UnitItem self) -> SizeT { return DMS_Unit_GetCount(self.m_au.get()); }, "Number of elements (entity count) of this domain unit")
@@ -763,7 +763,7 @@ PYBIND11_MODULE(geodms, m) {
 	// mutable unit
 	py::class_<py_geodms::MutableUnitItem>(m, "MutableUnitItem")
 		.def("is_null", [](py_geodms::MutableUnitItem self) {return self.m_au== nullptr; })
-		.def("name", [](py_geodms::MutableUnitItem self) -> std::string { return self.m_au->GetID().AsStdString(); })
+		.def("name", [](py_geodms::MutableUnitItem self) -> std::string { return self.m_au->GetNameID().AsStdString(); })
 		.def("full_name", [](py_geodms::MutableUnitItem self) -> std::string { return self.m_au->GetFullName().AsStdString(); })
 		.def("value_type_id", [](py_geodms::MutableUnitItem self) -> ValueClassID { return DMS_Unit_GetValueTypeID(self.m_au.get()); }, "The value type of this unit, as a ValueTypeId enumeration value")
 		.def("asConst", &py_geodms::MutableUnitItem::asConst)
@@ -783,7 +783,7 @@ PYBIND11_MODULE(geodms, m) {
 	// const data item
 	py::class_<py_geodms::DataItem>(m, "DataItem")
 		.def("is_null", [](py_geodms::DataItem self) {return self.m_adi== nullptr; })
-		.def("name", [](py_geodms::DataItem self) -> std::string { return self.m_adi->GetID().AsStdString(); })
+		.def("name", [](py_geodms::DataItem self) -> std::string { return self.m_adi->GetNameID().AsStdString(); })
 		.def("full_name", [](py_geodms::DataItem self) -> std::string { return self.m_adi->GetFullName().AsStdString(); })
 		.def("domain_unit", &py_geodms::DataItem::GetAbstrDomainUnit)
 		.def("values_unit", &py_geodms::DataItem::GetAbstrValuesUnit)
@@ -803,7 +803,7 @@ PYBIND11_MODULE(geodms, m) {
 	// mutable data item
 	py::class_<py_geodms::MutableDataItem>(m, "MutableDataItem")
 		.def("is_null", [](py_geodms::MutableDataItem self) {return self.m_adi== nullptr; })
-		.def("name", [](py_geodms::MutableDataItem self) -> std::string { return self.m_adi->GetID().AsStdString(); })
+		.def("name", [](py_geodms::MutableDataItem self) -> std::string { return self.m_adi->GetNameID().AsStdString(); })
 		.def("full_name", [](py_geodms::MutableDataItem self) -> std::string { return self.m_adi->GetFullName().AsStdString(); })
 		.def("asDataItem", &py_geodms::MutableDataItem::asDataItem, "Return a read-only view of this data item")
 		.def("domain_unit", [](py_geodms::MutableDataItem self) -> py_geodms::UnitItem { return py_geodms::UnitItem(self.m_adi->GetAbstrDomainUnit()); })

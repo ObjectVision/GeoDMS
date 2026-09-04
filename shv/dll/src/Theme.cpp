@@ -317,7 +317,7 @@ void Theme::DoInvalidate () const
 	dms_assert(DoesHaveSupplInterest() || !GetInterestCount());
 }
 
-TokenID Theme::GetID() const
+TokenID Theme::GetNameID() const
 {
 	return GetAspectNameID(m_AspectNr);
 }

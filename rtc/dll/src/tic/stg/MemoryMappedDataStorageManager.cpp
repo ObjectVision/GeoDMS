@@ -99,7 +99,7 @@ namespace {
 				return {};
 			// cast-constructor literals: <vt>(<plain number>) needs no per-type literal suffix
 			return mySSPrintF("LowerBound({0}) == {1}({2}) && UpperBound({0}) == {1}({3})"
-				, name, vc->GetName()
+				, name, vc->GetNameID()
 				, AsString(b, FormattingFlags::None), AsString(e, FormattingFlags::None));
 		}
 		if (nrDims == 2)
@@ -142,7 +142,7 @@ namespace {
 		// it would only restate that, so the ValueType restriction is emitted only where no bounds
 		// could be: a values unit, an unknown range, a 64-bit integral or a non-numeric 1-d domain.
 		expr += bounds.empty()
-			? mySSPrintF("PropValue({}, 'ValueType') == '{}'", name, u->GetValueType()->GetName())
+			? mySSPrintF("PropValue({}, 'ValueType') == '{}'", name, u->GetValueType()->GetNameID())
 			: bounds;
 	}
 

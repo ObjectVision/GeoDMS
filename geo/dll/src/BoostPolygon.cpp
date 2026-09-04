@@ -1148,7 +1148,7 @@ public:
 			{
 				reportF(SeverityTypeID::ST_MajorTrace, "{}{}: processed {} / {} sequences of tile {} / {}"
 					, itemRef
-					, GetGroup()->GetName()
+					, GetGroup()->GetNameID()
 					, AsString(i), AsString(domainCount)
 					, AsString(t), AsString(tn)
 				);

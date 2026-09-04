@@ -308,7 +308,7 @@ void TreeItem::XML_DumpFunctionDecl(OutStreamBase* out, bool notWritingDictionar
 	TokenID resultNameTok = TreeItem_GetFunctionResultName(this);
 	const TreeItem* resultChild = nullptr;
 	for (const TreeItem* c = _GetFirstSubItem(); c; c = c->GetNextItem())
-		if (c->GetID() == resultNameTok) { resultChild = c; break; }
+		if (c->GetNameID() == resultNameTok) { resultChild = c; break; }
 
 	// header: 'function name<tvs>(params), using = ns -> result'  (variants: keyword 'variant';
 	// signature alias: 'name = function<tvs>(params) -> type;' -- name precedes the keyword)

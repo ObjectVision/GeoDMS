@@ -200,17 +200,17 @@ TokenID DeclaredConstraintOf(const TreeItem* fn, TokenID var);
 					if (rec.soft)
 						throwErrorF("ExprParser", "{}: {} ({}) is not among the value types supported by {} ({})"
 							, FullName().c_str()
-							, vt->GetName().c_str(), source.c_str()
+							, vt->GetNameID(), source.c_str()
 							, rec.source.c_str(), rec.setText.c_str());
 					if (!hardOk)
 						throwErrorF("ExprParser", "{}: {} ({}) does not satisfy '{}: {}' ({})"
 							, FullName().c_str()
-							, vt->GetName().c_str(), source.c_str()
+							, vt->GetNameID(), source.c_str()
 							, rec.name, rec.constraint, rec.source.c_str());
 				}
 			if (!hardOk)
 				throwErrorF("ExprParser", "{}: {} ({}) does not satisfy the combined constraints on type variable '{}'"
-					, FullName().c_str(), vt->GetName().c_str(), source.c_str(), n.name);
+					, FullName().c_str(), vt->GetNameID(), source.c_str(), n.name);
 		}
 
 		// attach an operator-support set (see ConstraintRec::soft); a node already
@@ -225,7 +225,7 @@ TokenID DeclaredConstraintOf(const TreeItem* fn, TokenID var);
 				if (!set.test(UInt32(n.bound->GetValueClassID())))
 					throwErrorF("ExprParser", "{}: {} ({}) is not among the value types supported by {} ({})"
 						, FullName().c_str()
-						, n.bound->GetName().c_str(), n.boundSource.c_str()
+						, n.bound->GetNameID(), n.boundSource.c_str()
 						, source.c_str(), setText.c_str());
 				return;
 			}
@@ -241,14 +241,14 @@ TokenID DeclaredConstraintOf(const TreeItem* fn, TokenID var);
 			if (n.rigid)
 				throwErrorF("ExprParser", "{}: the body requires type variable '{}' to be {} ({}), but '{}' must remain generic in the definition"
 					, FullName().c_str(), n.name
-					, vt->GetName().c_str(), source.c_str(), n.name);
+					, vt->GetNameID(), source.c_str(), n.name);
 			if (n.bound)
 			{
 				if (n.bound != vt)
 					throwErrorF("ExprParser", "{}: inconsistent instantiation of type variable '{}': {} ({}) vs {} ({})"
 						, FullName().c_str(), n.name
-						, n.bound->GetName().c_str(), n.boundSource.c_str()
-						, vt->GetName().c_str(), source.c_str());
+						, n.bound->GetNameID(), n.boundSource.c_str()
+						, vt->GetNameID(), source.c_str());
 				return;
 			}
 			CheckFeasible(n, vt, source);
@@ -273,7 +273,7 @@ TokenID DeclaredConstraintOf(const TreeItem* fn, TokenID var);
 				if (nb.bound)
 					throwErrorF("ExprParser", "{}: the body requires type variable '{}' to be {} ({}), but '{}' must remain generic in the definition"
 						, FullName().c_str(), na.name
-						, nb.bound->GetName().c_str(), nb.boundSource.c_str(), na.name);
+						, nb.bound->GetNameID(), nb.boundSource.c_str(), na.name);
 				// FOR-ALL semantics: every instantiation allowed for the rigid variable
 				// must be accepted by the other side's DECLARED constraints; soft
 				// operator-support sets do not reject rigid variables (see ConstraintRec)
@@ -287,8 +287,8 @@ TokenID DeclaredConstraintOf(const TreeItem* fn, TokenID var);
 			if (na.bound && nb.bound && na.bound != nb.bound)
 				throwErrorF("ExprParser", "{}: inconsistent instantiation of type variable '{}': {} ({}) vs {} ({})"
 					, FullName().c_str(), na.name
-					, na.bound->GetName().c_str(), na.boundSource.c_str()
-					, nb.bound->GetName().c_str(), nb.boundSource.c_str());
+					, na.bound->GetNameID(), na.boundSource.c_str()
+					, nb.bound->GetNameID(), nb.boundSource.c_str());
 			if (na.bound && !nb.bound)
 				CheckFeasible(nb, na.bound, na.boundSource);
 			if (!na.bound && nb.bound)

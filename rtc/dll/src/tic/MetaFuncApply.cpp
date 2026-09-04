@@ -315,12 +315,12 @@ void InstantiateMap(TreeItem* holder, const AbstrCalculator* ac, LispPtr mapExpr
 		if (IsDataItem(res.get()))
 		{
 			auto rdi = AsDataItem(res.get());
-			child = CreateDataItem(holder, c->GetID(), rdi->GetAbstrDomainUnit(), rdi->GetAbstrValuesUnit(), rdi->GetValueComposition());
+			child = CreateDataItem(holder, c->GetNameID(), rdi->GetAbstrDomainUnit(), rdi->GetAbstrValuesUnit(), rdi->GetValueComposition());
 		}
 		else if (IsUnit(res.get()))
-			child = AsUnit(res.get())->GetUnitClass()->CreateUnit(holder, c->GetID());
+			child = AsUnit(res.get())->GetUnitClass()->CreateUnit(holder, c->GetNameID());
 		else
-			child = holder->CreateItem(c->GetID()); // a container/other result: keep the plain follower
+			child = holder->CreateItem(c->GetNameID()); // a container/other result: keep the plain follower
 
 		child->SetCalculator(AbstrCalculator::ConstructFromLispRef(child.get(), key, CalcRole::Calculator));
 	}
@@ -366,7 +366,7 @@ OArgRefs ApplyMetaFunc_GetArgs(TreeItem* holder, const AbstrCalculator* ac, cons
 				auto errMsgTxt = mySSPrintF(
 					"meta-function {} expects an item reference as argument {}, but an expression was given.\n"
 					"Consider defining and using a separate item as {}"
-					, og->GetName()
+					, og->GetNameID()
 					, currArg + 1
 					, AsFLispSharedStr(argExpr, FormattingFlags::ThousandSeparator)
 				);
@@ -464,9 +464,9 @@ bool ApplyMetaFunc_impl(TreeItem* holder, const AbstrCalculator* ac, const Abstr
 		if (!holder->GetDynamicObjClass()->IsDerivedFrom(oper->GetResultClass()))
 		{
 			auto msg = mySSPrintF("result of {} is of type {}, expected type: {}"
-				, og->GetName()
-				, resultHolder->GetCurrentObjClass()->GetName()
-				, oper->GetResultClass()->GetName()
+				, og->GetNameID()
+				, resultHolder->GetCurrentObjClass()->GetNameID()
+				, oper->GetResultClass()->GetNameID()
 			);
 			holder->Fail(msg, FailType::MetaInfo);
 		}

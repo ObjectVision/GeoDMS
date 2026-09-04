@@ -78,7 +78,7 @@ IndexCollector::IndexCollector(index_collector_key key)
 	if (!idValues->GetValueType()->IsNumeric() || idValues->GetRangeAsFloat64().first != 0)
 		expr = AbstrCalculator::RewriteExprTop(List2<LispRef>(LispRef(token::ordinal), expr)); //, idValues->GetAsLispRef()));
 	if (idValues->GetValueType()->GetCrdClass() != ValueWrap<entity_id>::GetStaticClass())
-		expr = AbstrCalculator::RewriteExprTop(List2<LispRef>(LispRef(ValueWrap<entity_id>::GetStaticClass()->GetID()), expr)); //, idValues->GetAsLispRef()));
+		expr = AbstrCalculator::RewriteExprTop(List2<LispRef>(LispRef(ValueWrap<entity_id>::GetStaticClass()->GetNameID()), expr)); //, idValues->GetAsLispRef()));
 	
 	m_DC = GetOrCreateDataController(expr);
 

@@ -1102,7 +1102,7 @@ public:
 								nrUnreportedPoints = 0;
 								reportF(SeverityTypeID::ST_MajorTrace, "{}{} {} / {} points done"
 									, itemRef.c_str()
-									, this->GetGroup()->GetName()
+									, this->GetGroup()->GetNameID()
 									, AsString(nrArg2), AsString(arg2Count));
 							}
 						}
@@ -1249,7 +1249,7 @@ public:
 								nrUnreportedArcs = 0;
 								reportF(SeverityTypeID::ST_MajorTrace, "{}{} {} / {} arcs done"
 									, itemRef.c_str()
-									, this->GetGroup()->GetName()
+									, this->GetGroup()->GetNameID()
 									, AsString(nrArg2), AsString(arg1Count));
 							}
 						}

@@ -51,7 +51,7 @@ public:
 	RTC_CALL Class(Constructor cFunc, const Class* baseCls, TokenID typeID, SharedConstructor sFunc = nullptr);
 	RTC_CALL ~Class();
 
-	RTC_CALL TokenID GetID() const override { return m_TypeID; }
+	RTC_CALL TokenID GetNameID() const override { return m_TypeID; }
 
 	RTC_CALL bool IsDerivedFrom(const Class* base) const;
 	Object*         CreateObj() const;

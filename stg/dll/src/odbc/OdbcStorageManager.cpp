@@ -200,7 +200,7 @@ SharedStr GetOrCreateSqlString(const TreeItem* tableHolder)
 {
 	SharedStr result = GetSqlString(tableHolder);
 	if (result.empty())
-		result = mySSPrintF("SELECT * FROM {}", tableHolder->GetName());
+		result = mySSPrintF("SELECT * FROM {}", tableHolder->GetNameID());
 	return result;
 }
 
@@ -445,8 +445,8 @@ public:
 				throwErrorF(
 					"ODBC","inconsistent ValueTypes; table: {}, column: {} has configured type '{}', but odbc type '{}'", 
 						m_ColItem->GetParent()->GetFullName().c_str(), m_Name.c_str(),
-						ic->GetName().c_str(),
-						dc->GetName().c_str()
+						ic->GetNameID(),
+						dc->GetNameID()
 					);
 		}
 		dms_assert(m_ColIndex != 0);
@@ -758,7 +758,7 @@ FileResult ODBCStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObj
 #undef INSTANTIATE
 
 		default	:
-			return std::unexpected(mySSPrintF("OdbcStorageManager::ReadDataItem not implemented for odbc data with ValuesUnitType: {}",	borrowedReadResultHolder->GetValuesType()->GetName()));
+			return std::unexpected(mySSPrintF("OdbcStorageManager::ReadDataItem not implemented for odbc data with ValuesUnitType: {}",	borrowedReadResultHolder->GetValuesType()->GetNameID()));
 	} // switch
 	return {};
 }
@@ -838,7 +838,7 @@ TIMESTAMP_STRUCT ODBCStorageManager::AccessTableLastUpdate(const TreeItem* stora
 		// 2. retrieve DATEUPDATE from MSYSOBJECTS_COPY via ODBC for the current tiTable
 		// PAS OP DUBBELE Namen!
 		TRecordSet updateinfo(OpenDatabaseInstance(storageHolder));
-		updateinfo.CreateRecordSet(mySSPrintF("SELECT DATEUPDATE FROM MSYSOBJECTS_COPY WHERE NAME = '{}'", tableHolder->GetName()).c_str());
+		updateinfo.CreateRecordSet(mySSPrintF("SELECT DATEUPDATE FROM MSYSOBJECTS_COPY WHERE NAME = '{}'", tableHolder->GetNameID()).c_str());
 		
 //ODBCTIME	}
 	TRecordSetOpenLock uiLock(&updateinfo);

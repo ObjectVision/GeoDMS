@@ -442,7 +442,7 @@ public:
 		TreeItem* result = resultHolder.GetNew();
 		dms_assert(result);
 
-		SharedStr lastIterName = SharedStr(loopContents->GetID());
+		SharedStr lastIterName = SharedStr(loopContents->GetNameID());
 
 		bool checkStopValue
 			=	mustCalc 
@@ -455,7 +455,7 @@ public:
 			TreeItem* iter = result->CreateItem(GetTokenID_mt(mySSPrintF("iter{}", i).c_str())).get();
 			dms_assert(iter);
 
-			SharedStr expr = SharedStr( loopContents->GetID() );
+			SharedStr expr = SharedStr( loopContents->GetNameID() );
 			expr += "(";
 			expr += mySSPrintF("UInt16({})", i);
 			if (i>0)
@@ -477,7 +477,7 @@ public:
 				if (stopParamA && GetValue<Bool>(stopParamA, 0))
 					break;
 			}
-			lastIterName = SharedStr(iter->GetID());
+			lastIterName = SharedStr(iter->GetNameID());
 		}
 		TreeItem* lastIter = result->CreateItem(GetTokenID_mt("lastIter")).get();
 		lastIter->SetExpr(SharedStr(lastIterName));

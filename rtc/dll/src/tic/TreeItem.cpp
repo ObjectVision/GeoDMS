@@ -298,7 +298,7 @@ void TreeItemAdmLock::Report()
 		{
 			const TreeItem* ti = *i++;
 			reportF_without_cancellation_check(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, "MemoryLeak: {} ({},{}) {}",
-				ti->GetDynamicClass()->GetName(),
+				ti->GetDynamicClass()->GetNameID(),
 				ti->weak_from_this().use_count(),
 				ti->IsCacheItem(),
 				ti->GetFullName().c_str());
@@ -613,7 +613,7 @@ auto NameTreeReg_GetParentAndBranchID(CharPtrRange subItemNames) -> name_pair_t
 // Parent & Name Functions
 //----------------------------------------------------------------------
 
-TokenID TreeItem::GetID () const
+TokenID TreeItem::GetNameID() const
 {
 	assert(m_ID || !(!m_Parent.expired())); // All SubItems must have a name
 	return m_ID;
@@ -717,7 +717,7 @@ void TreeItem::AddItem(SharedMutableTreeItem child)
 	assert(child);
 	assert(child->m_Parent.expired());
 
-	assert(!GetSubTreeItemByID(child->GetID()));
+	assert(!GetSubTreeItemByID(child->GetNameID()));
 
 	assert(!child->GetInterestCount());
 
@@ -810,10 +810,10 @@ SharedStr TreeItem::GetDisplayName() const
 			return SharedStr(tu->GetUnitClass()->GetValueType()->GetName().c_str() MG_DEBUG_ALLOCATOR_SRC("TreeItem::GetDisplayName"));
 	}
 
-	if (IsGenericID(GetID()) && GetTreeParent())
-		return GetTreeParent()->GetDisplayName() + " " + SharedStr(GetID());
+	if (IsGenericID(GetNameID()) && GetTreeParent())
+		return GetTreeParent()->GetDisplayName() + " " + SharedStr(GetNameID());
 
-	return SharedStr(GetID());
+	return SharedStr(GetNameID());
 }
 
 SharedStr TreeItem::GetExpr() const
@@ -1125,8 +1125,8 @@ static void ReportItemType(const TreeItem* self, const TreeItem* refItem)
 {
 	auto msg = mySSPrintF("{}: ItemType {} is incompatible with the result of the calculation which is of type {}"
 		, self->GetFullName().c_str()
-		, self->GetDynamicObjClass()->GetName().c_str()
-		, refItem->GetDynamicObjClass()->GetName().c_str()
+		, self->GetDynamicObjClass()->GetNameID()
+		, refItem->GetDynamicObjClass()->GetNameID()
 	);
 
 	reportF(SeverityTypeID::ST_Warning, msg.c_str());
@@ -1135,8 +1135,8 @@ static void ReportItemType(const TreeItem* self, const TreeItem* refItem)
 static void FailItemType(const TreeItem* self, const TreeItem* refItem)
 {
 	auto msg = mySSPrintF("ItemType {} is incompatible with the result of the calculation which is of type {}"
-	,	self->GetDynamicObjClass()->GetName().c_str()
-	,	refItem->GetDynamicObjClass()->GetName().c_str()
+	,	self->GetDynamicObjClass()->GetNameID()
+	,	refItem->GetDynamicObjClass()->GetNameID()
 	);
 	self->Fail(msg, FailType::Determine);
 }
@@ -1928,7 +1928,7 @@ SharedMutableTreeItem TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext
 	{
 		for (const TreeItem* subItem = GetCurrFirstSubItem(); subItem; subItem = subItem->GetNextItem())
 			if (!copyContext.InFenceOperator() || !subItem->IsTemplate())
-				subItem->Copy(result.get(), subItem->GetID(), copyContext); // copied item is owned by `result`; drop the returned co-owning temporary
+				subItem->Copy(result.get(), subItem->GetNameID(), copyContext); // copied item is owned by `result`; drop the returned co-owning temporary
 
 		// Now, copy from refItem; maybe more sub-items should be copied
 		if (copyContext.CopyReferredItems())
@@ -1951,9 +1951,9 @@ SharedMutableTreeItem TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext
 				{
 					if (!copyContext.InFenceOperator() || !subItem->IsTemplate())
 					{
-						auto subID = subItem->GetID();
+						auto subID = subItem->GetNameID();
 						if (result->GetSubTreeItemByID(subID) == nullptr)
-							subItem->Copy(result.get(), subItem->GetID(), copyContext); // copied item is owned by `result`; drop the returned co-owning temporary
+							subItem->Copy(result.get(), subItem->GetNameID(), copyContext); // copied item is owned by `result`; drop the returned co-owning temporary
 					}
 				}
 				refItem = refItem->GetCurrRefItem().get();
@@ -2065,7 +2065,7 @@ auto TreeItem_VisitConstVisibleSubTree(const TreeItem * self, const ActorVisitor
 		const TreeItem* subItem = f.nextSubItem;
 		f.nextSubItem = subItem->GetNextItem();
 
-		auto [_2, isNewSubItem] = f.visitedSubItemNames.insert(subItem->GetID());
+		auto [_2, isNewSubItem] = f.visitedSubItemNames.insert(subItem->GetNameID());
 		if (!isNewSubItem)
 			continue;
 		if (SuspendTrigger::DidSuspend())
@@ -2487,7 +2487,7 @@ void TreeItem::SetStorageManager(AbstrStorageManager* storageManager)
 		throwItemErrorF(
 			"StorageManager '{}' on root item is not allowed;\n"
 			"move StorageName property to the relevant subItems",
-			storageManager->GetName()
+			storageManager->GetNameID()
 		);
 	m_StorageManager = storageManager;
 	ClearTSF(TSF_DisabledStorage);

@@ -736,7 +736,7 @@ struct CastAttrOperator : UnaryAttrOperator<TR, TA>
 template <typename V>
 CommonOperGroup* GetUnitGroup()
 {
-	static CommonOperGroup cog(ValueWrap<V>::GetStaticClass()->GetID());
+	static CommonOperGroup cog(ValueWrap<V>::GetStaticClass()->GetNameID());
 	return &cog;
 }
 

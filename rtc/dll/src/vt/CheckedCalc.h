@@ -29,10 +29,10 @@
 template <typename T>
 [[noreturn]] void throwOverflow(CharPtr opName, T a, CharPtr preposition, T b, bool suggestAlternative, CharPtr alternativeFunc, const ValueClass* alternativeValueClass)
 {
-	SharedStr vcName = AsString(ValueWrap<T>::GetStaticClass()->GetID());
+	SharedStr vcName = AsString(ValueWrap<T>::GetStaticClass()->GetNameID());
 	SharedStr acName;
 	if (alternativeValueClass)
-		acName = AsString(alternativeValueClass->GetID());
+		acName = AsString(alternativeValueClass->GetNameID());
 
 	auto primaryMsg = mySSPrintF("Numeric overflow when {0} {1} values {2} {3} {4}."
 		, opName, vcName.c_str(), AsString(a), preposition, AsString(b)

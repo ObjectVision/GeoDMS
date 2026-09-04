@@ -175,7 +175,7 @@ namespace hof {
 			{
 				const TreeItem* param = fn->_GetFirstSubItem();
 				for (UInt32 j = 0, n = TreeItem_GetFunctionParamCount(fn); j != n && param; ++j, param = param->GetNextItem())
-					if (param->GetID() == unitRef)
+					if (param->GetNameID() == unitRef)
 						return mySSPrintF("#{}", j);
 			}
 			return SharedStr(unitRef);
@@ -192,9 +192,9 @@ namespace hof {
 			if (fnParam->GetDynamicClass() != sigCls)
 				throwErrorF("ExprParser", "function '{}' bound to parameter '{}': parameter {} is a {} but its declared signature '{}' requires a {}"
 					, boundFn->GetFullName().c_str(), paramName, i + 1
-					, fnParam->GetDynamicClass()->GetName().c_str()
+					, fnParam->GetDynamicClass()->GetNameID()
 					, sigExemplar->GetFullName().c_str()
-					, sigCls->GetName().c_str());
+					, sigCls->GetNameID());
 			if (IsDataItem(sigParam))
 			{
 				auto sigADI = AsDataItem(sigParam);
@@ -224,9 +224,9 @@ namespace hof {
 			&& fnResult->GetDynamicClass() != sigResult->GetDynamicClass())
 			throwErrorF("ExprParser", "function '{}' bound to parameter '{}': its result is a {} but the declared signature '{}' requires a {}"
 				, boundFn->GetFullName().c_str(), paramName
-				, fnResult->GetDynamicClass()->GetName().c_str()
+				, fnResult->GetDynamicClass()->GetNameID()
 				, sigExemplar->GetFullName().c_str()
-				, sigResult->GetDynamicClass()->GetName().c_str());
+				, sigResult->GetDynamicClass()->GetNameID());
 	}
 
 	// K11a-3: instantiation-point contract check for a structured / by-example unit
@@ -258,7 +258,7 @@ namespace hof {
 			return;
 		bool byExample = memberSrc != paramItem;
 		SharedStr fnName(funcItem->GetFullName());
-		SharedStr pName(paramItem->GetID().AsStrRangeLock());
+		SharedStr pName(paramItem->GetNameID().AsStrRangeLock());
 		constexpr UnifyMode um = UnifyMode(UM_AllowVoidRight | UM_AllowRightExpansion);
 
 		// shared type variables: the first member's actual class binds; later members must agree
@@ -286,16 +286,16 @@ namespace hof {
 				// alternative argument fail).
 				if (byExample || !m->_GetFirstSubItem())
 					continue;
-				SharedStr cName(prefix + SharedStr(m->GetID().AsStrRangeLock()));
-				auto c = argBlock->GetConstSubTreeItemByID(m->GetID());
+				SharedStr cName(prefix + SharedStr(m->GetNameID().AsStrRangeLock()));
+				auto c = argBlock->GetConstSubTreeItemByID(m->GetNameID());
 				if (!c)
 					throwErrorF("ExprParser", "'{}': the argument for parameter '{}' does not match its declared members: member '{}' is missing"
 						, fnName.c_str(), pName.c_str(), cName.c_str());
 				walkBlock(m, c.get(), false, cName + "/");
 				continue;
 			}
-			SharedStr mName(prefix + SharedStr(m->GetID().AsStrRangeLock()));
-			auto a = argBlock->GetConstSubTreeItemByID(m->GetID());
+			SharedStr mName(prefix + SharedStr(m->GetNameID().AsStrRangeLock()));
+			auto a = argBlock->GetConstSubTreeItemByID(m->GetNameID());
 			if (!a)
 				throwErrorF("ExprParser", "'{}': the argument for parameter '{}' does not match its declared members: member '{}' is missing"
 					, fnName.c_str(), pName.c_str(), mName.c_str());
@@ -309,7 +309,7 @@ namespace hof {
 				if (wantCls && gotCls && wantCls != gotCls)
 					throwErrorF("ExprParser", "'{}': the argument for parameter '{}' does not match its declared members: unit '{}' must be a unit<{}>, not a unit<{}>"
 						, fnName.c_str(), pName.c_str(), mName.c_str()
-						, wantCls->GetName().c_str(), gotCls->GetName().c_str());
+						, wantCls->GetNameID(), gotCls->GetNameID());
 				continue;
 			}
 
@@ -331,7 +331,7 @@ namespace hof {
 				// variable named like a value class stays the variable here too)
 				bool isSibling = false;
 				for (const TreeItem* u = srcBlock->_GetFirstSubItem(); u; u = u->GetNextItem())
-					if (u->GetID() == vt && IsUnit(u))
+					if (u->GetNameID() == vt && IsUnit(u))
 					{
 						isSibling = true;
 						break;
@@ -364,7 +364,7 @@ namespace hof {
 								SharedStr vtName(vt.AsStrRangeLock()), consName(cons.AsStrRangeLock());
 								throwErrorF("ExprParser", "'{}': the argument for parameter '{}' does not match its declared members: '{}' is an attribute<{}>, which does not satisfy '{}: {}'"
 									, fnName.c_str(), pName.c_str(), mName.c_str()
-									, gotCls->GetName().c_str(), vtName.c_str(), consName.c_str());
+									, gotCls->GetNameID(), vtName.c_str(), consName.c_str());
 							}
 						auto [it, isNew] = varBindings.try_emplace(vt, gotCls, mName);
 						if (!isNew && it->second.first != gotCls)
@@ -372,8 +372,8 @@ namespace hof {
 							SharedStr vtName(vt.AsStrRangeLock());
 							throwErrorF("ExprParser", "'{}': the argument for parameter '{}' does not match its declared members: '{}' ({}) and '{}' ({}) must share one value type for '{}'"
 								, fnName.c_str(), pName.c_str()
-								, it->second.second.c_str(), it->second.first->GetName().c_str()
-								, mName.c_str(), gotCls->GetName().c_str(), vtName.c_str());
+								, it->second.second.c_str(), it->second.first->GetNameID()
+								, mName.c_str(), gotCls->GetNameID(), vtName.c_str());
 						}
 					}
 				}
@@ -383,7 +383,7 @@ namespace hof {
 					if (gotCls && gotCls != wantCls)
 						throwErrorF("ExprParser", "'{}': the argument for parameter '{}' does not match its declared members: '{}' must be an attribute<{}>, not an attribute<{}>"
 							, fnName.c_str(), pName.c_str(), mName.c_str()
-							, wantCls->GetName().c_str(), gotCls->GetName().c_str());
+							, wantCls->GetNameID(), gotCls->GetNameID());
 				}
 				// else: resolves outside the block / telescope / unknown -- defer
 			}
@@ -396,8 +396,8 @@ namespace hof {
 			// params, generic domain vars, scope units) are checked transitively by
 			// the body's reduction
 			TokenID dt = declared->DomainUnitToken();
-			bool defaultDomain = !dt || dt == t_Dot || dt == srcBlock->GetID()
-				|| (!byExample && srcBlock == memberSrc && dt == paramItem->GetID());
+			bool defaultDomain = !dt || dt == t_Dot || dt == srcBlock->GetNameID()
+				|| (!byExample && srcBlock == memberSrc && dt == paramItem->GetNameID());
 			if (defaultDomain && blockIsParamUnit)
 			{
 				auto adu = actual->GetAbstrDomainUnit();

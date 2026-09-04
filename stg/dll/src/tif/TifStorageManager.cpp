@@ -158,7 +158,7 @@ FileResult TiffSM::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowe
 	assert(IsOpen());
 	assert(m_pImp->IsOpen());
 
-	if (adi->GetID() == PALETTE_DATA_ID)
+	if (adi->GetNameID() == PALETTE_DATA_ID)
 		return FileResult::require(ReadPalette(borrowedReadResultHolder), "failed to Read Palette data");
 
 	// Collect zoom info
@@ -203,15 +203,15 @@ void TiffSM::ReadGridData(const StgViewPortInfo& vpi, AbstrDataItem* adi, AbstrD
 		adi->throwItemErrorF("Uknown tiff pixel value type");
 	if (vc_ado->GetBitSize() != vc_tiff->GetBitSize())
 		adi->throwItemErrorF("Mismatch in number of bits between user specified value type: '{}' and tiff pixel value type: '{}'."
-		, AsString(vc_ado->GetID())
-		, AsString(vc_tiff->GetID())
+		, AsString(vc_ado->GetNameID())
+		, AsString(vc_tiff->GetNameID())
 		);
 
 	if (vcid_ado != vcid_tiff)
 		if (t == 0 || t == no_tile) // don't repeat this message for each tile
 			reportF(MsgCategory::storage_read, SeverityTypeID::ST_Warning, "Mismatch between user specified value type: '{}' and tiff pixel value type: '{}' for item {}."
-				, AsString(vc_ado->GetID())
-				, AsString(vc_tiff->GetID())
+				, AsString(vc_ado->GetNameID())
+				, AsString(vc_tiff->GetNameID())
 				, adi->GetFullName()
 			);
 
@@ -266,7 +266,7 @@ FileResult TiffSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 		pd->UpdateMetaInfo();
 		ValueClassID streamTypeID = GetStreamType(pd.get())->GetValueClassID();
 		if (streamTypeID == ValueClassID::VT_UInt32 || (streamTypeID == ValueClassID::VT_Int32
-			&& pd->GetID() == PALETTE_DATA_ID
+			&& pd->GetNameID() == PALETTE_DATA_ID
 			&& m_pImp->GetNrBitsPerPixel() <= MAX_BITS_PAL
 			))
 		{

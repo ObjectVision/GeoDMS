@@ -36,7 +36,7 @@ class PropertyContextHandle : ObjectContextHandle
 		this->SetText(
 			mySSPrintF("while evaluating '{}' for property {}"
 				, m_Role
-				, m_Obj->GetName().c_str()
+				, m_Obj->GetNameID()
 			)
 		);
 	}
@@ -192,7 +192,7 @@ namespace { // local defs
 		ApiType GetValue(const TreeItem* ti) const override 
 		{
 			MGD_PRECONDITION(ti);
-			return ti->GetID();
+			return ti->GetNameID();
 		}
 	};
 

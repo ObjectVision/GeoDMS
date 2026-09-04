@@ -143,7 +143,7 @@ void ConfigProd::DoUnitRangeProp(bool isCategorical)
 			break;
 
 		default:
-			throwDmsErrF("DoUnitRangeProp: cannot set range of units with ValueType {} ", vc->GetName().c_str());
+			throwDmsErrF("DoUnitRangeProp: cannot set range of units with ValueType {} ", vc->GetNameID());
 	}
 	unit->SetTSF(USF_HasConfigRange);
 }
@@ -336,7 +336,7 @@ void ConfigProd::AddPendingName()
 static const TreeItem* FindSubItemRaw(const TreeItem* parent, TokenID id)
 {
 	for (const TreeItem* c = parent->_GetFirstSubItem(); c; c = c->GetNextItem())
-		if (c->GetID() == id)
+		if (c->GetNameID() == id)
 			return c;
 	return nullptr;
 }
@@ -530,8 +530,8 @@ void ConfigProd::CloneAliasRefinement()
 
 	// the exemplar's IntegrityCheck references the value by the alias's own name;
 	// rebind it to the new item's name
-	SharedStr fromName(m_PendingTypeExemplar->GetID());
-	SharedStr toName(m_pCurrent->GetID());
+	SharedStr fromName(m_PendingTypeExemplar->GetNameID());
+	SharedStr toName(m_pCurrent->GetNameID());
 	SharedStr renamed = SubstituteWholeIdentifier(
 		check.begin(), check.send(),
 		fromName.begin(), fromName.send(),
@@ -789,7 +789,7 @@ void ConfigProd::OnFunctionDeclEnd(iterator_t first)
 		for (UInt32 k = fs.paramCount; k && firstBodyItem; --k)
 			firstBodyItem = firstBodyItem->GetNextItem();
 		for (const TreeItem* sub = firstBodyItem; sub; sub = sub->GetNextItem())
-			if (sub->GetID() == exprTok)
+			if (sub->GetNameID() == exprTok)
 			{
 				designated = exprTok;
 				break;
@@ -807,7 +807,7 @@ void ConfigProd::OnFunctionDeclEnd(iterator_t first)
 			const TreeItem* uniqueMatch = nullptr;
 			for (const TreeItem* sub = firstBodyItem; sub; sub = sub->GetNextItem())
 			{
-				SharedStr subName = SharedStr(sub->GetID());
+				SharedStr subName = SharedStr(sub->GetNameID());
 				if (equalsCI(subName.begin(), subName.send(), b, e))
 				{
 					if (uniqueMatch)
@@ -817,7 +817,7 @@ void ConfigProd::OnFunctionDeclEnd(iterator_t first)
 				}
 			}
 			if (uniqueMatch)
-				designated = uniqueMatch->GetID();
+				designated = uniqueMatch->GetNameID();
 		}
 	}
 

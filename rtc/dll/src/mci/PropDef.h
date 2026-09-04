@@ -72,7 +72,7 @@ public:
 
 	auto CreateValue() const ->std::unique_ptr<AbstrValue>;
 
-	TokenID GetID() const override;
+	TokenID GetNameID() const override;
 
 	AbstrPropDef* GetPrevPropDef        () const { return m_PrevPD; }
 	AbstrPropDef* GetPrevCopyablePropDef() const { return m_PrevCopyablePD; }

@@ -182,7 +182,7 @@ namespace hof {
 			{
 				const TreeItem* q = owner->_GetFirstSubItem();
 				for (UInt32 j = 0, n = TreeItem_GetFunctionParamCount(owner); j != n && q; ++j, q = q->GetNextItem())
-					if (q->GetID() == tok && IsUnit(q))
+					if (q->GetNameID() == tok && IsUnit(q))
 					{
 						declaredCls = AsUnit(q)->GetValueType();
 						break;

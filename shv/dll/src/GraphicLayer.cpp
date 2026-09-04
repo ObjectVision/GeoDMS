@@ -154,7 +154,7 @@ SharedStr GraphicLayer::GetCaption() const
 
 	SizeT nrRecs = dv && const_cast<GraphicLayer*>(this)->PrepareDataOrUpdateViewLater(domain) ? domain->GetCount() : UNDEFINED_VALUE(SizeT);
 
-	SharedStr domainName = SharedStr(domain->GetID());
+	SharedStr domainName = SharedStr(domain->GetNameID());
 	return mgFormat2SharedStr("Active layer: {} (#{} = {})"
 		, GetThemeDisplayName(this)
 		, domainName
@@ -390,7 +390,7 @@ const LayerClass* GraphicLayer::GetLayerClass() const
 	return debug_cast<const LayerClass*>(GetDynamicClass());
 }
 
-TokenID GraphicLayer::GetID() const
+TokenID GraphicLayer::GetNameID() const
 {
 	SharedStr themeDisplayName = GetThemeDisplayName(this);
 	return GetTokenID_mt(

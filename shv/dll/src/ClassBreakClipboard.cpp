@@ -716,7 +716,7 @@ static void CheckBreaksFitValuesUnit(const AbstrDataItem* context, const AbstrUn
 		context->throwItemErrorF(
 			"Cannot paste class break {} into class breaks of type {}, which holds values from {} to {}"
 		,	breakValue
-		,	vc->GetName()
+		,	vc->GetNameID()
 		,	lo
 		,	hi
 		);
@@ -738,7 +738,7 @@ void ClassBreaks_ApplyToItems(DataView* dv, const ClassBreakItems& items, const 
 		paletteDomain->throwItemErrorF(
 			"Cannot paste {} class breaks into a palette domain of type {}, which allows a maximum of {} classes"
 		,	k
-		,	paletteDomain->GetValueType()->GetName()
+		,	paletteDomain->GetValueType()->GetNameID()
 		,	maxNrClasses
 		);
 

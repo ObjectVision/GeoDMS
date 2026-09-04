@@ -192,7 +192,7 @@ struct ItemSchemaControllerWriter: ItemSchemaControllerWriterBase
 		if (auto sa = dynamic_cast<const SharedActor*>(item))
 		{
 			locationLock->SetValue<SPoint   >(nodeIndex, loc);
-			labelTextLock->SetValue<SharedStr>(nodeIndex, SharedStr(sa->GetID()));
+			labelTextLock->SetValue<SharedStr>(nodeIndex, SharedStr(sa->GetNameID()));
 			assert(m_ISC->m_AllItems.size() < m_ISC->m_AllItems.capacity()); // nrItems at construction is assumed to perfectly predict 
 			m_ISC->m_AllItems.push_back(SharedPtr<const SharedActor>(sa));
 			++nodeIndex;

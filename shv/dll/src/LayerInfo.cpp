@@ -541,7 +541,7 @@ LayerInfo GetAspectInfo(AspectNr aNr, const AbstrDataItem* adi, const LayerInfo&
 		infoTxt = mgFormat2SharedStr("thematic attribute {} has ValuesUnit {} of type {}",
 			adi->GetFullName().c_str(),
 			avu->GetFullName().c_str(),
-			avu->GetValueType()->GetName()
+			avu->GetValueType()->GetNameID()
 		);
 
 		// look for a classification: mapItem2. adi's cdf propdef precedes avu's cdf.

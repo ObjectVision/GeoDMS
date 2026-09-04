@@ -67,7 +67,7 @@ public:
 		m_Dic = dic;
 		auto aa = m_Dic->GetActiveAttr();
 		if (aa)
-			SetText(SharedStr(aa->GetID()));
+			SetText(SharedStr(aa->GetNameID()));
 		else
 			SetText(SharedStr("dummyColumn"));
 	}

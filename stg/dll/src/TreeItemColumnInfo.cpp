@@ -79,8 +79,8 @@ bool CreateTreeItemColumnInfo(TreeItem* tiTable, CharPtr colName, const AbstrUni
 			auto msg = mySSPrintF("StorageManager: inconsistent value types; table: {}, column: {}, configured type: {}, database type: {}",
 				tiTable->GetFullName(),
 				colName,
-				vCls->GetName(),
-				dbValuesClass->GetName()
+				vCls->GetNameID(),
+				dbValuesClass->GetNameID()
 			);
 			tiColumn->Fail(msg, FailType::Data);
 		}

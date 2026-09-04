@@ -332,7 +332,7 @@ static SharedStr RenderPos(const SignatureRecord& shape, const SignatureRecord::
 	case SignatureRecord::PosKind::Unit:
 		return mySSPrintF("unit<{}>", RenderVar(shape, p.values).c_str());
 	case SignatureRecord::PosKind::MetaValue:
-		return mySSPrintF("{} [meta: {}]", p.metaCls ? SharedStr(p.metaCls->GetName()).c_str() : "value", p.name.c_str());
+		return mySSPrintF("{} [meta: {}]", p.metaCls ? p.metaCls->GetName() : SharedStr("value"), p.name.c_str());
 	case SignatureRecord::PosKind::Container:
 		return mySSPrintF("container [{}]", p.name.c_str());
 	case SignatureRecord::PosKind::Deferred:

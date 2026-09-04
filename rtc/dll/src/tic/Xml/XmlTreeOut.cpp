@@ -1160,7 +1160,7 @@ void TreeItem_XML_DumpItem(const TreeItem* subItem, XML_Table& xmlTable, bool vi
 					if (auto vt = au->GetValueType()) // null only for a broken/unresolved unit
 						xmlRow.ValueCell(
 							mySSPrintF("unit<{}> {}"
-								, vt->GetName()
+								, vt->GetNameID()
 								, au->GetFormattedMetricStr()
 							).c_str()
 						);
@@ -1217,7 +1217,7 @@ bool TreeItem_XML_DumpExploreNameSpace(const TreeItem* self, OutStreamBase* xmlO
 
 		for (const TreeItem* subItem = self->_GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
 		{
-			auto [itemNamePos, isFirstOccurrence] = state.m_FirstNameSpaceByItemName.try_emplace(subItem->GetID(), nameSpaceNr);
+			auto [itemNamePos, isFirstOccurrence] = state.m_FirstNameSpaceByItemName.try_emplace(subItem->GetNameID(), nameSpaceNr);
 			TreeItem_XML_DumpItem(subItem, xmlTable, viewHidden, isFirstOccurrence ? 0 : itemNamePos->second);
 		}
 	}
@@ -1399,7 +1399,7 @@ void ItemSave(const TreeItem* self, CharPtr fileName, bool copyDir)
 
 	if (syntax == OutStreamBase::ST_Unknown)
 		throwErrorF("XML", "ItemSave({},{}): cannot write configuration data to the unknown format '{}'",
-				self->GetName(), fileName, fileExt);
+				self->GetNameID(), fileName, fileExt);
 
 	SharedStr fileNameStr    = DelimitedConcat(s_gDumpFolder.c_str(), fileName);
 	SharedStr fileDir        = DelimitedConcat(s_gDumpFolder.c_str(), getFileNameBase(fileName).c_str());

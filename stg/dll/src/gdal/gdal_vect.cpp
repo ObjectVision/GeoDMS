@@ -275,7 +275,7 @@ GdalVectlMetaInfo::GdalVectlMetaInfo(const GdalVectSM* gdv, const TreeItem* stor
 	while (true) {
 		if (IsUnit(adiParent))
 		{
-			m_NameID = adiParent->GetID();
+			m_NameID = adiParent->GetNameID();
 			return;
 		}
 		if (adiParent == storageHolder)
@@ -290,7 +290,7 @@ GdalVectlMetaInfo::GdalVectlMetaInfo(const GdalVectSM* gdv, const TreeItem* stor
 	while (true) {
 		if (!IsDataItem(adiParent))
 		{
-			m_NameID = adiParent->GetID();
+			m_NameID = adiParent->GetNameID();
 			return;
 		}
 
@@ -1532,7 +1532,7 @@ bool GdalVectSM::ReadGeometryZM(const GdalVectlMetaInfo* br, AbstrDataObject* ad
 	default:
 		ado->throwItemErrorF(
 			"GdalVectSM::ReadGeometryZM not implemented for DataItems with ValuesUnitType: {}",
-			vc->GetName()
+			vc->GetNameID()
 		);
 	}
 
@@ -1593,7 +1593,7 @@ bool GdalVectSM::ReadGeometry(const GdalVectlMetaInfo* br, AbstrDataObject* ado,
 	default:
 			ado->throwItemErrorF(
 				"GdalVectSM::ReadDataItem not implemented for DataItems with ValuesUnitType: {}", 
-				vc->GetName()
+				vc->GetNameID()
 			);
 	}
 
@@ -1919,11 +1919,11 @@ bool GdalVectSM::ReadLayerData(const GdalVectlMetaInfo* br, AbstrDataObject* ado
 		SetCurrFeatureIndex(firstIndex);
 
 	auto adi = br->CurrRD();
-	if (adi->GetID() == token::geometry || adi->GetAbstrValuesUnit()->GetValueType()->GetNrDims() == 2)
+	if (adi->GetNameID() == token::geometry || adi->GetAbstrValuesUnit()->GetValueType()->GetNrDims() == 2)
 		return ReadGeometry(br, ado, t, firstIndex, size);
-	if (adi->GetID() == token::geometry_z)
+	if (adi->GetNameID() == token::geometry_z)
 		return ReadGeometryZM(br, ado, t, firstIndex, size, true, br->GetValueComposition());
-	if (adi->GetID() == token::geometry_m)
+	if (adi->GetNameID() == token::geometry_m)
 		return ReadGeometryZM(br, ado, t, firstIndex, size, false, br->GetValueComposition());
 	return ReadAttrData(br, ado, t, firstIndex, size);
 }
@@ -2334,14 +2334,14 @@ void SetFeatureDefnForOGRLayerFromLayerHolder(const TreeItem* subItem, OGRLayer*
 		auto vci = subDI->GetAbstrValuesUnit()->GetValueType()->GetValueClassID();
 		auto vc = subDI->GetValueComposition();
 		
-		if (subItem->GetID() == token::geometry || CheckVCAndVCIForGeometry(vc, vci))
+		if (subItem->GetNameID() == token::geometry || CheckVCAndVCIForGeometry(vc, vci))
 		{
 			if (geometryFieldCount++)
 				throwErrorF("gdalwrite.vect", "error, multiple geometry fields are unsupported in GeoDMS.");
 		}
 		else
 		{
-			TokenID         fieldNameID = fieldCandidate->GetID();
+			TokenID         fieldNameID = fieldCandidate->GetNameID();
 			int             bApproxOK   = TRUE;
 
 			auto fieldInfoPtr = fieldIDMapping.find(fieldNameID);
@@ -2402,7 +2402,7 @@ void InitializeLayerGeometryAndFields(const TreeItem* unit_item, TokenID layerID
 			continue;
 
 		auto adi = AsDataItem(sub_item);
-		auto fieldID = sub_item->GetID();
+		auto fieldID = sub_item->GetNameID();
 
 		TreeItemContextHandle tich(adi, "InitializeLayer");
 
@@ -2442,7 +2442,7 @@ void InitializeLayerGeometryAndFields(const TreeItem* unit_item, TokenID layerID
 			continue;
 
 		auto adi = AsDataItem(sub_item);
-		auto fieldID = sub_item->GetID();
+		auto fieldID = sub_item->GetNameID();
 
 		if (layer_domain)
 			adi->GetAbstrDomainUnit()->UnifyDomain(layer_domain, "Domain of attribute", "layerDomain", UnifyMode::UM_Throw); // Check that domain of subItem is DomainUnifyable with layerItem
@@ -2501,7 +2501,7 @@ void PrepareDataItemsForWriting(const StorageMetaInfo& smi, DataItemsWriteStatus
 		auto layer_container = GetLayerHolderFromDataItem(storage_holder, sub_item);//sub_item->GetTreeParent();
 		auto layer_domain = adi->GetAbstrDomainUnit();
 		//auto layer_name = layer_container->GetRelativeName(storage_holder);
-		auto layerID = layer_container->GetID();// GetTokenID_mt(layer_name.begin(), layer_name.send());
+		auto layerID = layer_container->GetNameID();// GetTokenID_mt(layer_name.begin(), layer_name.send());
 //			unit_item->GetName().c_str();
 
 		if (disi.m_LayerAndFieldIDMapping.contains(layerID)) // layer already initialized
@@ -2674,7 +2674,7 @@ void GdalVectSM::PrepareLayerFieldsForWriting(const TreeItem* layerHolder, Token
 		if (not column->GetInterestCount())
 			continue; // nobody asked for this column, thus no field for it either
 
-		auto fieldID = column->GetID();
+		auto fieldID = column->GetNameID();
 		auto fieldInfoPtr = fieldIDMapping.find(fieldID);
 		if (fieldInfoPtr != fieldIDMapping.end() and (fieldInfoPtr->second.isWritten or fieldInfoPtr->second.m_DataHolder.has_ptr()))
 			continue; // already written, or its data is at hand
@@ -2716,8 +2716,8 @@ FileResult GdalVectSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	ValueClassID           vcID = vc->GetValueClassID();
 
 	auto unit_item = GetLayerHolderFromDataItem(storage_holder, adi.get());
-	auto layer_id = unit_item->GetID();
-	auto fieldID = adi->GetID();
+	auto layer_id = unit_item->GetNameID();
+	auto fieldID = adi->GetNameID();
 
 
 	if (not m_DataItemsStatusInfo.m_initialized) { // first time writing

@@ -684,7 +684,7 @@ void GraphicObject::Sync(TreeItem* context, ShvSyncMode sm)
 	m_ViewContext = make_shared_tree(context, existing_obj{});
 
 	if (sm == SM_Save && TreeItem_GetDialogType(context) == TokenID::GetEmptyID() && HasShvCreator())
-		TreeItem_SetDialogType(context, GetDynamicClass()->GetID());
+		TreeItem_SetDialogType(context, GetDynamicClass()->GetNameID());
 
 	SyncState(this, context, GetTokenID_mt("Visible"), GOF_IsVisible, true, sm);
 	SyncState(this, context, GetTokenID_mt("Active"), GOF_Active, false, sm);
@@ -789,7 +789,7 @@ void GraphicObject::FillMenu(MouseEventDispatcher& med)
 		auto ft = GetFailType();
 		auto fr = GetFailReason(); if (!fr) return;
 
-		SubMenu subMenu(med.m_MenuData, mySSPrintF("{} of {}", FailStateName(ft), GetDynamicClass()->GetName().c_str()));
+		SubMenu subMenu(med.m_MenuData, mySSPrintF("{} of {}", FailStateName(ft), GetDynamicClass()->GetNameID()));
 		SharedStr failReason = fr->GetAsText();
 		CharPtr
 			bol = failReason.begin(),

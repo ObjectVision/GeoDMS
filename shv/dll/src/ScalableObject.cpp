@@ -241,7 +241,7 @@ std::shared_ptr<LayerControlBase> ScalableObject::CreateControl(MovableObject* o
 
 SharedStr ScalableObject::GetCaption() const
 {
-	return SharedStr(GetDynamicClass()->GetID());
+	return SharedStr(GetDynamicClass()->GetNameID());
 }
 
 void ScalableObject::FillLcMenu(MenuData& menuData)

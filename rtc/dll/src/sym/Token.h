@@ -341,7 +341,7 @@ std::basic_ostream<Char, Traits>& operator << (std::basic_ostream<Char, Traits>&
 // the TokenID itself the argument to pass to reportF/throwErrorF: a ...Lock().c_str() argument keeps
 // its usage to the end of the caller's full expression (doc/deadlocks.md B6), and an AsSharedStr()
 // allocates only to be copied once more by the formatter. The form to write is
-//     reportF(st, "{}", item->GetID());
+//     reportF(st, "{}", item->GetNameID());
 inline std::string mgFormatArgOf(TokenID id)
 {
 	return std::string(id.GetStrLock().c_str());

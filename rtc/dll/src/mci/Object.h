@@ -13,7 +13,7 @@
  *	Instance : Class relations are as follows:
  * 
  *	SharedBase: AddRef, DelRef, m_RefCount
- *	NameBase: GetID()->TokenID, m_ID
+ *	NameBase: GetNameID()->TokenID, m_ID
  *
  *	FileDescr: SharedBase
  *	SourceLocation: SharedBase
@@ -77,7 +77,7 @@ using ErrMsgPtr = std::shared_ptr<ErrMsg>;
 // - Named Tree of things:
 //	 - Tree of things: GetParent()
 //	 - Traversable: GetFirst(), GetNext()
-//   - namespace: GetID()->TokenID; m_ID in thing or ID as key in a dictionary of things.
+//   - namespace: GetNameID()->TokenID; m_ID in thing or ID as key in a dictionary of things.
 //	 - who owns who: now=subitems shared-own their parents; consider=containment=parents shared-own their children and have an id-ed linked list of them
 // - reflection: GetDynamicClass()
 // - dynamic construction: CreateFunc()
@@ -104,7 +104,7 @@ using ErrMsgPtr = std::shared_ptr<ErrMsg>;
 // - Named Tree of things:
 //	 - Tree of things: GetParent()
 //	 - Traversable: GetFirst(), GetNext()
-//   - namespace: GetID()->TokenID; m_ID in thing or ID as key in a dictionary of things.
+//   - namespace: GetNameID()->TokenID; m_ID in thing or ID as key in a dictionary of things.
 //	 - TODO G8.5: who owns who: now=subitems shared-own their parents; consider=containment=parents shared-own their children and have an id-ed linked list of them
 
 /********** Object Interface: runtime polymorphism, adds a bit to the vtables **********/
@@ -138,7 +138,7 @@ public:
 	// trio may search the class register (ObjectRegister, inner) and may throw -- e.g.
 	// AbstrDataItem::GetDynamicObjClass via DataItemClass::FindCertain -- which stays
 	// registry-shared. GetSourceName may format names, nothing outer.
-	RTC_CALL virtual TokenID GetID() const DMS_CALLEE_ENTERS_NOTHING;
+	RTC_CALL virtual TokenID GetNameID() const DMS_CALLEE_ENTERS_NOTHING;
 
 	RTC_CALL virtual SharedStr GetSourceName() const DMS_CALLEE_ENTERS(ord_level_type::IndexedString, dms_shared_v);
 	RTC_CALL virtual const SourceLocation* GetLocation() const DMS_CALLEE_ENTERS_NOTHING;

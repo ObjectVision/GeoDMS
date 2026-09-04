@@ -270,8 +270,8 @@ void AbstrUnit::UnifyError(const AbstrUnit* cu, CharPtr reason, CharPtr leftRole
 
 	SharedStr msg = mgFormat2SharedStr("{} mismatch between {}{} ({} {}: {}) and {}{} ({} {}: {}){}"
 		,	isDomain ? "Domain" : "Values"
-		,	leftPair.first, leftPair.second, 	GetFullName(),     GetProjMetrString(),     GetValueType()->GetName()
-		,	rightPair.first, rightPair.second, cu->GetFullName(), cu->GetProjMetrString(), cu->GetValueType()->GetName()
+		,	leftPair.first, leftPair.second, 	GetFullName(),     GetProjMetrString(),     GetValueType()->GetNameID()
+		,	rightPair.first, rightPair.second, cu->GetFullName(), cu->GetProjMetrString(), cu->GetValueType()->GetNameID()
 		,	reason 
 		);
 
@@ -719,7 +719,7 @@ const UnitMetric* AbstrUnit::GetCurrMetric() const
 SharedStr AbstrUnit::GetNameOrCurrMetric(FormattingFlags ff) const
 {
 	if (!IsCacheItem())
-		return SharedStr(GetID());
+		return SharedStr(GetNameID());
 	const UnitMetric* m = GetCurrMetric();
 	if (m)
 		return m->AsString(ff);
@@ -796,7 +796,7 @@ SharedStr AbstrUnit::GetSignature() const
 auto AbstrUnit::GetScriptName(const TreeItem* context) const -> SharedStr
 {
 	if (IsDefaultUnit() || IsCacheItem() || !GetTreeParent())
-		return SharedStr(GetValueType()->GetID());
+		return SharedStr(GetValueType()->GetNameID());
 	return base_type::GetScriptName(context);
 }
 
@@ -1187,7 +1187,7 @@ struct ValueTypePropDef : ReadOnlyPropDef<AbstrUnit, TokenID>
 		:	ReadOnlyPropDef<AbstrUnit, TokenID>(VALUETYPE_NAME, set_mode::construction, xml_mode::signature)
 	{}
 	// override base class
-	ApiType GetValue(const AbstrUnit* item) const override{ return item->GetValueType()->GetID();	}
+	ApiType GetValue(const AbstrUnit* item) const override{ return item->GetValueType()->GetNameID();	}
 };
 
 SpatialReferencePropDef srPropDef;

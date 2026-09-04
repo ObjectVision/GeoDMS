@@ -80,10 +80,10 @@ ViewPortInfoEx<Int>::ViewPortInfoEx(const TreeItem* context, const AbstrUnit* cu
 			MG_CHECK(gridDomain);
 
 			context->throwItemErrorF("ProjectionBase {} of {} incompatible with ProjectionBase {} of {}."
-				, currBase->GetName().c_str()
-				, currDomain->GetName().c_str()
-				, gridBase->GetName().c_str()
-				, gridDomain->GetName().c_str()
+				, currBase->GetNameID()
+				, currDomain->GetNameID()
+				, gridBase->GetNameID()
+				, gridDomain->GetNameID()
 			);
 		}
 		if (tc == no_tile)
@@ -175,8 +175,8 @@ ViewPortInfoProvider::ViewPortInfoProvider(const TreeItem * storageHolder, const
 		auto sr2 = gridBase->GetSpatialReference();
 		if (sr1 && sr2 && sr1 != sr2)
 			adi->throwItemErrorF("SpatialReference {} of {} incompatible with SpatialReference {} of {}."
-			, sr1, currDomain->GetName().c_str()
-			, sr2, gridDomain->GetName().c_str()
+			, sr1, currDomain->GetNameID()
+			, sr2, gridDomain->GetNameID()
 			);
 	}
 	

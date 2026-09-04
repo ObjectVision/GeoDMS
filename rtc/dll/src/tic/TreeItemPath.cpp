@@ -93,7 +93,7 @@ SharedTreeItem TreeItem::GetConstSubTreeItemByID(TokenID subItemID) const
 			return {};
 		}
 
-		if	(subItem->GetID() == subItemID)
+		if	(subItem->GetNameID() == subItemID)
 			return make_shared_tree(subItem, existing_obj{});
 		subItem = subItem->GetNextItem();
 	}
@@ -114,7 +114,7 @@ SharedTreeItem TreeItem::GetCurrSubTreeItemByID(TokenID subItemID) const
 			return {};
 		}
 
-		if (subItem->GetID() == subItemID)
+		if (subItem->GetNameID() == subItemID)
 			return make_shared_tree(subItem, existing_obj{});
 		subItem = subItem->GetNextItem();
 	}
@@ -124,7 +124,7 @@ TreeItem* TreeItem::GetSubTreeItemByID(TokenID subItemID) // does not UpdateMeta
 {
 	TreeItem* subItem = _GetFirstSubItem(); // doesn't call UpdateMetaInfo (non const)
 
-	while (subItem && subItem->GetID() != subItemID)
+	while (subItem && subItem->GetNameID() != subItemID)
 		subItem = subItem->GetNextItem();
 
 	return subItem;
@@ -373,7 +373,7 @@ const TreeItem* TreeItem_CheckObjCls(const TreeItem* self, const Class* required
 
 	if	(!	thisClass->IsDerivedFrom(requiredClass))
 		self->throwItemErrorF("Cannot cast to the requested type: {}", 
-			requiredClass->GetName()
+			requiredClass->GetNameID()
 		);
 	return self;
 }
@@ -396,7 +396,7 @@ TreeItem* TreeItem_CheckCls(TreeItem* self, const Class* requiredClass)
 	if (!	thisClass->IsDerivedFrom(requiredClass))
 		self->throwItemErrorF(
 			"Cannot cast to the requested type: {}", 
-			requiredClass->GetName()
+			requiredClass->GetNameID()
 		);
 	return self;
 }
@@ -437,7 +437,7 @@ TreeItem* CheckedAs(TreeItem* self, const Class* requiredClass)
 	// check on type of this and return
 	if (requiredClass && !self->IsKindOf(requiredClass) )
 		self->throwItemErrorF("CreateItem('{}') failed since it is already created as '{}'",
-			requiredClass->GetName(), self->GetDynamicClass()->GetName());
+			requiredClass->GetNameID(), self->GetDynamicClass()->GetNameID());
 	return self; 
 }
 
@@ -589,7 +589,7 @@ auto TreeItem_GetTemplateSource(const TreeItem* item) -> SharedTreeItem
 
 auto TreeItem_SearchItem_impl(template_set& visitedSet, const TreeItem* searchLoc, TokenID id, const TreeItem* blockedSubItem = nullptr, bool findNextMode = false) -> SharedTreeItem
 {
-//	if (searchLoc->GetID() == id)
+//	if (searchLoc->GetNameID() == id)
 //		return searchLoc;
 	if (TreeItem_IsTemplateInstantiaton(searchLoc))
 	{
@@ -606,7 +606,7 @@ auto TreeItem_SearchItem_impl(template_set& visitedSet, const TreeItem* searchLo
 				if (!templItem)
 					break;
 
-				if (templItem->GetID() == id)
+				if (templItem->GetNameID() == id)
 					return make_shared_tree(templItem, existing_obj{});
 			}
 		}
@@ -617,7 +617,7 @@ auto TreeItem_SearchItem_impl(template_set& visitedSet, const TreeItem* searchLo
 			findNextMode = false; // start deep searching after this subItem
 		else if (!findNextMode)
 		{
-			if (subItem->GetID() == id)
+			if (subItem->GetNameID() == id)
 				return make_shared_tree(subItem, existing_obj{});
 
 			if (auto result = TreeItem_SearchItem_impl(visitedSet, subItem, id))
@@ -632,7 +632,7 @@ TIC_CALL auto TreeItem_SearchItem(const TreeItem* searchLoc, TokenID id) -> Shar
 {
 	if (!searchLoc || searchLoc->IsCacheItem())
 		return {};
-	bool findNextMode = searchLoc->GetID() == id;
+	bool findNextMode = searchLoc->GetNameID() == id;
 	if (!findNextMode) // else we're to do the FindNext 
 	{
 		if (auto cache = searchLoc->m_UsingCache.get())
@@ -649,7 +649,7 @@ TIC_CALL auto TreeItem_SearchItem(const TreeItem* searchLoc, TokenID id) -> Shar
 
 	while (auto parent = searchLoc->GetTreeParent().get())
 	{
-		if (!findNextMode && parent->GetID() == id)
+		if (!findNextMode && parent->GetNameID() == id)
 			return make_shared_tree(parent, existing_obj{});
 
 		if (auto result = TreeItem_SearchItem_impl(alreadyVisited, parent, id, searchLoc, findNextMode))

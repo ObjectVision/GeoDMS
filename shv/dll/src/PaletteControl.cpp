@@ -455,7 +455,7 @@ void PaletteControl::CreateAreaOrLengthColumn(TreeItem* container, SharedStr exp
 			attrName = "Area";
 			funcExpr = mySSPrintF("sum(Float64(area({}, {})), {})"
 				, featureAttr->GetFullName().c_str()
-				, featureAttr->GetAbstrValuesUnit()->GetValueType()->GetScalarClass()->GetID()
+				, featureAttr->GetAbstrValuesUnit()->GetValueType()->GetScalarClass()->GetNameID()
 				, exprStr.c_str()
 			);
 			if (useKm)
@@ -472,7 +472,7 @@ void PaletteControl::CreateAreaOrLengthColumn(TreeItem* container, SharedStr exp
 			attrName = "Length";
 			funcExpr = mySSPrintF("sum(Float64(arc_length({}, {})), {})"
 				, featureAttr->GetFullName().c_str()
-				, featureAttr->GetAbstrValuesUnit()->GetValueType()->GetScalarClass()->GetID()
+				, featureAttr->GetAbstrValuesUnit()->GetValueType()->GetScalarClass()->GetNameID()
 				, exprStr.c_str()
 			);
 			if (useKm)
@@ -552,7 +552,7 @@ void PaletteControl::CreateSelCountColumn()
 			selCountAttr->SetKeepDataState(true);
 			selCountAttr->DisableStorage(true);
 
-			auto clsName = SharedStr(countingUnitClass->GetValueType()->GetID());
+			auto clsName = SharedStr(countingUnitClass->GetValueType()->GetNameID());
 			auto aggrMethodName = mySSPrintF("sum_{}", clsName);
 			auto selAttrRef = CreateLispTree(selectionAttr, false);
 			keyExpr = ExprList(GetTokenID_mt(aggrMethodName.c_str()), selAttrRef, keyExpr);

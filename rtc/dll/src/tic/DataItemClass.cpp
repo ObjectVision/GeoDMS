@@ -198,7 +198,7 @@ const DataItemClass* DataItemClass::FindCertain(
 	if (!dic)
 		context->throwItemErrorF(
 			"Cannot find DataItemClass for ValuesType {}"
-		,	valuesType->GetName().c_str()
+		,	valuesType->GetNameID()
 		);
 	return dic;
 }
@@ -234,7 +234,7 @@ std::shared_ptr<Actor> DataItemClass::CreateFromXml(Object* context, XmlElement&
 FormattedOutStream& operator <<(FormattedOutStream& os, const DataItemClass& sc)
 {
 	return
-	os << "DataItemClass " << sc.GetID()
+	os << "DataItemClass " << sc.GetNameID()
 	   << ", " << *(sc.GetValuesType())
 	   << ") ";
 }

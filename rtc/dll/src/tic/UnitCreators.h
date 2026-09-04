@@ -58,7 +58,7 @@ inline ConstUnitRef default_unit_creator_and_check_input(const AbstrOperGroup* g
 			if (metric && !metric->Empty())
 			{
 				auto diagnostic = mySSPrintF("value(s) of operator {} have metric {} but are expected to be without metric. Consider dividing the argument by a unit-value with the same metric. Note that for non-integer exponents a^b and pow(a,b) are evaluated as exp(b*log(a)), which requires a dimensionless base."
-					, gr->GetName()
+					, gr->GetNameID()
 					, metric->AsString(FormattingFlags::ThousandSeparator)
 				);
 				throwDmsErrD(diagnostic.c_str());

@@ -11,7 +11,7 @@
 # it today; this check keeps the pattern out anyway, because the lock-level checker is SCOPE-shaped
 # and cannot see a LIFETIME that spans a call, and because the fix is free and cheaper: pass the
 # TokenID itself,
-#     reportF(st, "{}", item->GetID());
+#     reportF(st, "{}", item->GetNameID());
 # mgFormatArg renders it through mgFormatArgOf (sym/Token.h) into an SSO-sized std::string, and the
 # usage ends inside the format call.
 #

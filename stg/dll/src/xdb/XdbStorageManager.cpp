@@ -194,7 +194,7 @@ void SyncItem(XdbStorageManager* self, XdbImp& imp, bool saveColInfo, const Tree
 		case ValueClassID::VT_Int32:   col_size = 12;  break;
 		case ValueClassID::VT_Float32: col_size = 16; break;
 		case ValueClassID::VT_Float64: col_size = 25; break;
-		default: self->throwItemErrorF("xdb: unsupported value-type {}", vu->GetValueType()->GetName());
+		default: self->throwItemErrorF("xdb: unsupported value-type {}", vu->GetValueType()->GetNameID());
 	}
 	DBG_TRACE(("col_type = {}", int(vid)));
 	DBG_TRACE(("col_size = {}", col_size));

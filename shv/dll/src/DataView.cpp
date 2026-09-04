@@ -2154,7 +2154,7 @@ void OnControlActivate(DataView* self, const UInt32* first, const UInt32* last)
 	{
 		UInt32 i = *first++;
 		reportF(SeverityTypeID::ST_MajorTrace, "At {} {} go to item {}"
-			, mo->GetDynamicClass()->GetName()
+			, mo->GetDynamicClass()->GetNameID()
 			, mo->GetFullCfgName()
 			, i
 		);
@@ -2167,7 +2167,7 @@ void OnControlActivate(DataView* self, const UInt32* first, const UInt32* last)
 			// silently activating its container instead makes the rest of the script address the
 			// wrong control while still looking like it works.
 			reportF(SeverityTypeID::ST_Error, "TestScript: sub-object {} does not exist, {} has only {} sub-objects"
-			,	i, mo->GetDynamicClass()->GetName(), n);
+			,	i, mo->GetDynamicClass()->GetNameID(), n);
 			return;
 		}
 		auto sgo = mo->GetEntry(--i);
@@ -2181,7 +2181,7 @@ void OnControlActivate(DataView* self, const UInt32* first, const UInt32* last)
 		mo = smo->shared_from_this();
 	}
 	reportF(SeverityTypeID::ST_MajorTrace, "Activate {} {}!"
-		, mo->GetDynamicClass()->GetName()
+		, mo->GetDynamicClass()->GetNameID()
 		, mo->GetFullCfgName()
 	);
 	self->Activate(mo.get());

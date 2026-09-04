@@ -1059,7 +1059,7 @@ namespace Explain { // local defs
 	SharedStr ItemOrValueTypeName(const AbstrUnit* au)
 	{
 		assert(au);
-		return au->GetID().empty() ? au->GetValueType()->GetName() : au->GetName();
+		return au->GetNameID().empty() ? au->GetValueType()->GetName() : au->GetName();
 	}
 
 	void AbstrCalcExplanation::GetDescrBase(CalcExplImpl* self, OutStreamBase& stream, bool isFirst, const AbstrUnit* domainUnit, const AbstrUnit* valuesUnit) const

@@ -36,9 +36,9 @@ AbstrPropDef::AbstrPropDef(CharPtr propName,
 	dms_assert(!addImplicitSuppl          || canBeIndirect);
 
 	AbstrPropDef** insertionPoint = &(pc->m_LastPD);
-	while (*insertionPoint && stricmp((*insertionPoint)->GetID().c_str_st(), propName) < 0)
+	while (*insertionPoint && stricmp((*insertionPoint)->GetNameID().c_str_st(), propName) < 0)
 		insertionPoint = &((*insertionPoint)->m_PrevPD);
-	dms_assert(!*insertionPoint || stricmp((*insertionPoint)->GetID().c_str_st(), propName) > 0); // no double names
+	dms_assert(!*insertionPoint || stricmp((*insertionPoint)->GetNameID().c_str_st(), propName) > 0); // no double names
 
 	m_PrevPD = *insertionPoint;
 	*insertionPoint = this;
@@ -66,7 +66,7 @@ AbstrPropDef::~AbstrPropDef()
 #endif
 }
 
-TokenID AbstrPropDef::GetID() const
+TokenID AbstrPropDef::GetNameID() const
 {
 	return m_PropNameID;
 }
@@ -104,7 +104,7 @@ struct ItemClassProp: ReadOnlyPropDef<AbstrPropDef, TokenID>
 	TokenID GetValue(const AbstrPropDef* pd) const override
 	{
 		MGD_PRECONDITION(pd);
-		return pd->GetItemClass()->GetID();
+		return pd->GetItemClass()->GetNameID();
 	}
 };
 
@@ -117,7 +117,7 @@ struct ValueClassProp: ReadOnlyPropDef<AbstrPropDef, TokenID>
 	TokenID GetValue(const AbstrPropDef* pd) const override
 	{
 		MGD_PRECONDITION(pd);
-		return pd->GetValueClass()->GetID();
+		return pd->GetValueClass()->GetNameID();
 	}
 };
 

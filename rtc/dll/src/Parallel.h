@@ -147,7 +147,7 @@ RTC_CALL bool CurrentThreadHoldsNoGlobalLevelLock() noexcept;
 //    unnamed argument temporary whose LIFETIME -- not whose scope -- spans the call, and no
 //    annotation on either side states that. The exact per-thread usage count of sym/Token.h covers
 //    that one, unconditionally and in Release; tools/check-lock-across-sink.ps1 flags the pattern
-//    before any build; and the form to write is reportF("{}", item->GetID()): mgFormatArg renders a
+//    before any build; and the form to write is reportF("{}", item->GetNameID()): mgFormatArg renders a
 //    TokenID through mgFormatArgOf (sym/Token.h), and no usage outlives the format call.
 //  - It inherits Allow's item-level short-circuit. A ceiling is declared at item level 0, so a
 //    per-item lock taken in between (item level >= 1, via Actor::DetermineLastSupplierChange) makes

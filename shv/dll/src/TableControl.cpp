@@ -1007,7 +1007,7 @@ void TableControl_SaveTo(const TableControl* self, OutStreamBuff* buffPtr, SizeT
 			continue;
 		auto& currSpec = itemArray.emplace_back();
 		currSpec.m_DataItem = adi;
-		currSpec.m_ColumnName = dic->GetActiveTheme()->GetThemeAttr()->GetID();
+		currSpec.m_ColumnName = dic->GetActiveTheme()->GetThemeAttr()->GetNameID();
 		currSpec.m_RelativeDisplay = dic->m_State.Get(DIC_RelativeDisplay);
 	}
 	std::vector<SizeT> recNos; recNos.reserve(n2 - n1);
@@ -1108,7 +1108,7 @@ TreeItem* TableControl::CreateExportViewDataConfigTable() const
 	auto dv = GetDataView().lock(); if (!dv) return nullptr;
 
 	auto viewDataContainer = GetViewDataContainer(dv->GetDesktopContext());
-	TokenID nameBase = (m_Entity && !m_Entity->IsCacheItem()) ? m_Entity->GetID() : GetTokenID_mt("TableData");
+	TokenID nameBase = (m_Entity && !m_Entity->IsCacheItem()) ? m_Entity->GetNameID() : GetTokenID_mt("TableData");
 	auto vdc = viewDataContainer->CreateItem(UniqueName(viewDataContainer, nameBase));
 
 	for (SizeT j = 0, n = NrEntries(); j != n; ++j)
@@ -1121,7 +1121,7 @@ TreeItem* TableControl::CreateExportViewDataConfigTable() const
 			continue;
 
 		auto activeTheme = dic->GetActiveTheme();
-		TokenID columnName = (activeTheme && activeTheme->GetThemeAttr()) ? activeTheme->GetThemeAttr()->GetID() : adi->GetID();
+		TokenID columnName = (activeTheme && activeTheme->GetThemeAttr()) ? activeTheme->GetThemeAttr()->GetNameID() : adi->GetNameID();
 		auto vda = CreateDataItem(vdc.get(), UniqueName(vdc.get(), columnName), adi->GetAbstrDomainUnit(), adi->GetAbstrValuesUnit(), adi->GetValueComposition());
 		vda->DisableStorage(true);
 		if (adi->IsCacheItem())

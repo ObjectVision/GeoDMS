@@ -319,7 +319,7 @@ bool ForEach_CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args,
 				if (!oldStr.empty() && newStr != oldStr)
 				{
 					auto msg = mySSPrintF("Cannot set '{}'  to '{}' of item  '{}' as it is already defined as '{}'"
-						, propName, newStr, iter->GetName(), oldStr);
+						, propName, newStr, iter->GetNameID(), oldStr);
 					throwErrorD(groupNameID, msg.c_str());
 				}
 				return newStr;
@@ -533,7 +533,7 @@ public:
 		{
 			reportF(ST_Warning, 
 				"use of obsolete {}, replace by for_each_ind, see: http://www.objectvision.nl/geodms/operators-a-functions/metascript/for-each-indirect", 
-				GetGroup()->GetName()
+				GetGroup()->GetNameID()
 			);
 		}
 */

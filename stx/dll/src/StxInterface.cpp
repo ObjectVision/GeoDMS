@@ -99,7 +99,7 @@ SYNTAX_CALL TreeItem* CreateTreeFromConfiguration(CharPtr sourceFilename)
 				// UpdateMetaInfo, forbidden inside this MG_LOCKER_NO_UPDATEMETAINFO scope
 				bool rootHasPreludeChild = false;
 				for (const TreeItem* c = res->_GetFirstSubItem(); c; c = c->GetNextItem())
-					if (c->GetID() == t_Prelude)
+					if (c->GetNameID() == t_Prelude)
 					{
 						rootHasPreludeChild = true;
 						break;

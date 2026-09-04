@@ -58,7 +58,7 @@ void DataBlockProd::DoArrayAssignment()
 	{
 		auto errMsg = mySSPrintF("DoArrayAssignment: Index {} out of range of domain {}.\n"
 			"Remove values from the array or consider adjusting the domain"
-			, i, domain->GetName().c_str());
+			, i, domain->GetNameID());
 		adi->throwItemError(errMsg);
 	}
 	SizeT tileLocalIndex = i;
@@ -124,7 +124,7 @@ void DataBlockProd::Commit()
 		auto errMsg = mySSPrintF("DoArrayAssignment: Only {} values were provided, but domain {} has {} values. Since GeoDMS version 17.0.0, incomplete value arrays are diagnosed as errors.\n"
 			"Provide {} values to fix this or consider adjusting the domain"
 			, m_nIndexValue
-			, CurrDI()->GetAbstrDomainUnit()->GetName().c_str()
+			, CurrDI()->GetAbstrDomainUnit()->GetNameID()
 			, m_ElemCount
 			, m_ElemCount - m_nIndexValue);
 

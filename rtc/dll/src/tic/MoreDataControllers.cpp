@@ -138,10 +138,10 @@ FuncDC::FuncDC(LispPtr keyExpr,	const AbstrOperGroup* og)
 	DBG_TRACE(("keyExpr = {}", AsFLispSharedStr(keyExpr, FormattingFlags::ThousandSeparator).c_str()));
 
 	if (og->IsDepreciated())
-		reportF(SeverityTypeID::ST_Warning, "depreciated operator {} used: {}.", og->GetName(), og->GetObsoleteMsg());
+		reportF(SeverityTypeID::ST_Warning, "depreciated operator {} used: {}.", og->GetNameID(), og->GetObsoleteMsg());
 
 	if (og->IsObsolete())
-		throwErrorF("FuncDC", "obsolete operator {} used: {}.", og->GetName(), og->GetObsoleteMsg());
+		throwErrorF("FuncDC", "obsolete operator {} used: {}.", og->GetNameID(), og->GetObsoleteMsg());
 
 	assert(GetLispRef().IsRealList());    // no EndP allowed
 	assert(GetLispRef().Left().IsSymb()); // operator or calculation scheme call
@@ -423,7 +423,7 @@ auto FuncDC::CallCalcResult(std::shared_ptr<Explain::Context> context) const -> 
 			auto blockingActionContext = SuspendTrigger::BlockerBase::GetCurrBlockingAction();
 			if (blockingActionContext && *blockingActionContext != '@')
 				reportF(SeverityTypeID::ST_Warning, "operator {} is not suitable for processing {}"
-					, m_OperatorGroup->GetName()
+					, m_OperatorGroup->GetNameID()
 					, blockingActionContext
 				);
 		}
@@ -617,7 +617,7 @@ check_set_ptr DataController::GetImpliedChecks() const
 				singleContribution = argChecks;
 		}
 
-		// NB the operator group carries the applied operator's identity; DataController::GetID()
+		// NB the operator group carries the applied operator's identity; DataController::GetNameID()
 		// is the Object identity of the key's head node, which is its LispObj class, not its token
 		LispPtr ownCond;
 		if (funcDC->m_OperatorGroup->GetNameID() == token::integrity_check)
@@ -845,9 +845,9 @@ bool FuncDC_CreateResult(const FuncDC* funcDC)
 		if (!resultItem->GetDynamicObjClass()->IsDerivedFrom(funcDC->m_Operator->GetResultClass()))
 		{
 			auto msg = mySSPrintF("result of {} is of type {}, expected type: {}"
-				, funcDC->m_OperatorGroup->GetName()
-				, resultItem->GetCurrentObjClass()->GetName()
-				, funcDC->m_Operator->GetResultClass()->GetName()
+				, funcDC->m_OperatorGroup->GetNameID()
+				, resultItem->GetCurrentObjClass()->GetNameID()
+				, funcDC->m_Operator->GetResultClass()->GetNameID()
 			);
 			resultItem->Fail(msg, FailType::MetaInfo);
 		}

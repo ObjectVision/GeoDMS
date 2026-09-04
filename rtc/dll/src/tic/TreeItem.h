@@ -181,7 +181,7 @@ public:
 	TIC_CALL void SetExpr (WeakStr expression);
 
 	// Identification
-	TokenID GetID        () const override;
+	TokenID GetNameID() const override;
 
 	// Description getters; GetDisplayName may prefer a localized/pretty form of the name.
 	virtual SharedStr GetDescr() const;

@@ -392,7 +392,7 @@ public:
 					nrUnreported = 0;
 					reportF(SeverityTypeID::ST_MajorTrace, "{}{} {} / {} features done"
 						, itemRef.c_str()
-						, this->GetGroup()->GetName()
+						, this->GetGroup()->GetNameID()
 						, AsString(nrProcessedFeatures.load()), AsString(featCount));
 				}
 			}

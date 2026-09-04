@@ -214,7 +214,7 @@ TokenID UniqueName(TreeItem* context, TokenID nameBaseID)
 
 TokenID UniqueName(TreeItem* context, const Class* cls)
 {
-	return UniqueName(context, cls->GetID());
+	return UniqueName(context, cls->GetNameID());
 }	
 
 TokenID CopyName(TreeItem* context, TokenID orgNameID)

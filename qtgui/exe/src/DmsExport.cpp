@@ -288,7 +288,7 @@ void DoExportTable(const TreeItem* ti, SharedStr fn, TreeItem* vdc)
 
     for (auto adi : valueAttrs)
     {
-        auto vda = CreateDataItem(vdc, UniqueName(vdc, adi->GetID()), auCommon, adi->GetAbstrValuesUnit(), adi->GetValueComposition());
+        auto vda = CreateDataItem(vdc, UniqueName(vdc, adi->GetNameID()), auCommon, adi->GetAbstrValuesUnit(), adi->GetValueComposition());
         vda->SetExpr(adi->GetFullName());
     }
 
@@ -402,7 +402,7 @@ auto DoExportRasterOrMatrixData(const TreeItem* rasterItemOrDomain, bool nativeF
     {
 
         assert(adi->GetValueComposition() == ValueComposition::Single);
-        auto vda = CreateDataItem(avd, UniqueName(avd, adi->GetID()), rasterDomain, adi->GetAbstrValuesUnit(), adi->GetValueComposition());
+        auto vda = CreateDataItem(avd, UniqueName(avd, adi->GetNameID()), rasterDomain, adi->GetAbstrValuesUnit(), adi->GetValueComposition());
         auto expr = adi->GetFullName();
         if (baseGrid)
             expr = mySSPrintF("{}[{}]", expr.c_str(), baseGrid->GetFullName().c_str());

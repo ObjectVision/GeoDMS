@@ -494,7 +494,7 @@ namespace hof {
 			r.dom = DefType::Dom::Node;
 			// rigid identity (the unit bound at application); the declared class
 			// pins the companion class node concretely (batch U)
-			r.dNode = UNode(m_FuncItem, 0, p->GetID(), r.vc);
+			r.dNode = UNode(m_FuncItem, 0, p->GetNameID(), r.vc);
 			// K11a-1: a structured unit parameter carries a member block (sub-items).
 			// K11a by-example ('nw: network_links'): the parse-time clone carries only
 			// the CLASS (ConfigProd.cpp DoRefTypeSignature) -- the retained UNIT
@@ -592,7 +592,7 @@ namespace hof {
 			memberSrc = p;
 		const TreeItem* scopeAnchor = byExample ? memberSrc : m_FuncItem;
 		auto members = std::make_shared<std::map<TokenID, DefType>>();
-		SharedStr pName(p->GetID().AsStrRangeLock()); // materialized: TokenStr must not span token creation below
+		SharedStr pName(p->GetNameID().AsStrRangeLock()); // materialized: TokenStr must not span token creation below
 
 		// K11a-4: one WALK per block, recursing into declared CONTAINER members with
 		// the member path as prefix -- the map is FLAT, keyed by the full relative
@@ -625,7 +625,7 @@ namespace hof {
 					md.kind = DefType::Kind::UnitVal;
 					md.vc   = AsUnit(m)->GetValueType();
 					md.dom  = DefType::Dom::Node;
-					md.dNode = UNode(m_FuncItem, 0, qualTok(m->GetID()), md.vc);
+					md.dNode = UNode(m_FuncItem, 0, qualTok(m->GetNameID()), md.vc);
 				}
 				else if (IsDataItem(m))
 				{
@@ -637,7 +637,7 @@ namespace hof {
 					{
 						bool vMatched = false;
 						for (const TreeItem* u = block->_GetFirstSubItem(); u; u = u->GetNextItem())
-							if (u->GetID() == vt && IsUnit(u))
+							if (u->GetNameID() == vt && IsUnit(u))
 							{
 								// K11a-1b: the member attribute's values unit IS the sibling
 								// member unit -- carry its IDENTITY node, not just its class.
@@ -672,7 +672,7 @@ namespace hof {
 						{
 							const TreeItem* q = m_FuncItem->_GetFirstSubItem();
 							for (UInt32 j = 0, n = TreeItem_GetFunctionParamCount(m_FuncItem); j != n && q; ++j, q = q->GetNextItem())
-								if (q->GetID() == vt && IsUnit(q))
+								if (q->GetNameID() == vt && IsUnit(q))
 								{
 									// a telescope unit parameter in the VALUES role: its declared
 									// class + per-instantiation identity (as PositionType does)
@@ -699,7 +699,7 @@ namespace hof {
 					// PARAMETER name selects the default only for an explicit member
 					// block (an exemplar token never means it).
 					TokenID dt = adi->DomainUnitToken();
-					if (!dt || dt == t_Dot || dt == block->GetID() || (!byExample && block == memberSrc && dt == p->GetID()))
+					if (!dt || dt == t_Dot || dt == block->GetNameID() || (!byExample && block == memberSrc && dt == p->GetNameID()))
 					{
 						if (blockDomNode != NO_TYPE_VAR)
 						{
@@ -712,7 +712,7 @@ namespace hof {
 					{
 						bool dMatched = false;
 						for (const TreeItem* u = block->_GetFirstSubItem(); u; u = u->GetNextItem())
-							if (u->GetID() == dt && IsUnit(u))
+							if (u->GetNameID() == dt && IsUnit(u))
 							{
 								// over a sibling member unit -- the SAME (qualified) node that
 								// member got
@@ -731,7 +731,7 @@ namespace hof {
 						{
 							const TreeItem* q = m_FuncItem->_GetFirstSubItem();
 							for (UInt32 j = 0, n = TreeItem_GetFunctionParamCount(m_FuncItem); j != n && q; ++j, q = q->GetNextItem())
-								if (q->GetID() == dt && IsUnit(q))
+								if (q->GetNameID() == dt && IsUnit(q))
 								{
 									// over a telescope unit parameter (UNode self-pins its class)
 									md.dom = DefType::Dom::Node;
@@ -759,10 +759,10 @@ namespace hof {
 				// member IS declared, so it must be IN the map (K11a-3 review finding:
 				// dropping it while membersComplete=true made a direct `nw/meta`
 				// reference a false "declares no member" definition error)
-				SharedStr mName(m->GetID().AsStrRangeLock());
+				SharedStr mName(m->GetNameID().AsStrRangeLock());
 				SharedStr mPath = prefix.empty() ? mName : prefix + mName;
 				// a direct member's key IS its item token; a nested path interns once here
-				(*members)[prefix.empty() ? m->GetID() : GetTokenID_mt(mPath.c_str())] = md;
+				(*members)[prefix.empty() ? m->GetNameID() : GetTokenID_mt(mPath.c_str())] = md;
 
 				// K11a-4: recurse into a declared CONTAINER member -- its members type
 				// under the flattened path ('meta/factor'); nested blocks have no
@@ -817,7 +817,7 @@ namespace hof {
 					}
 				}
 				TokenID dt = adi->DomainUnitToken();
-				if (!dt || dt == t_Dot || dt == c->GetID())
+				if (!dt || dt == t_Dot || dt == c->GetNameID())
 					; // a container has no enclosing unit: an implicit domain defers
 				else if (auto u = ResolveUnitInScope(dt, c))
 				{
@@ -831,7 +831,7 @@ namespace hof {
 				}
 			}
 			// else: nested containers & co stay Unknown (declared, but untyped here)
-			(*members)[m->GetID()] = md;
+			(*members)[m->GetNameID()] = md;
 		}
 		return members;
 	}
@@ -898,7 +898,7 @@ namespace hof {
 				}
 				if (report)
 				{
-					SharedStr pName(m_Params[paramIdx]->GetID().AsStrRangeLock());
+					SharedStr pName(m_Params[paramIdx]->GetNameID().AsStrRangeLock());
 					throwErrorF("ExprParser", "the definition of '{}': parameter '{}' declares no member '{}'"
 						, m_FuncItem->GetFullName().c_str(), pName.c_str(), memberPath.c_str());
 				}
@@ -933,7 +933,7 @@ namespace hof {
 			r.kind = DefType::Kind::UnitVal;
 			r.vc = AsUnit(posItem)->GetValueType();
 			r.dom = DefType::Dom::Node;
-			r.dNode = UNode(fnDef, instance, posItem->GetID(), r.vc);
+			r.dNode = UNode(fnDef, instance, posItem->GetNameID(), r.vc);
 			return r;
 		}
 		if (!IsDataItem(posItem))
@@ -989,7 +989,7 @@ namespace hof {
 					// identity + the class its declaration pins (`unit<uint32> U`)
 					const TreeItem* q = fnDef->_GetFirstSubItem();
 					for (UInt32 j = 0, n = TreeItem_GetFunctionParamCount(fnDef); j != n && q; ++j, q = q->GetNextItem())
-						if (q->GetID() == vTok && IsUnit(q))
+						if (q->GetNameID() == vTok && IsUnit(q))
 						{
 							r.vc = AsUnit(q)->GetValueType();
 							r.vuNode = UNode(fnDef, instance, vTok, r.vc);
@@ -1032,7 +1032,7 @@ namespace hof {
 					// a unit parameter of fnDef: its per-instantiation identity
 					const TreeItem* q = fnDef->_GetFirstSubItem();
 					for (UInt32 j = 0, n = TreeItem_GetFunctionParamCount(fnDef); j != n && q; ++j, q = q->GetNextItem())
-						if (q->GetID() == dTok && IsUnit(q))
+						if (q->GetNameID() == dTok && IsUnit(q))
 						{
 							r.dom = DefType::Dom::Node; r.dNode = UNode(fnDef, instance, dTok, AsUnit(q)->GetValueType());
 							break;
@@ -1070,7 +1070,7 @@ namespace hof {
 		else if (a.vc && b.vc && a.vc != b.vc)
 			throwErrorF("ExprParser", "the definition of '{}': {} ({}) does not match {} ({})"
 				, m_FuncItem->GetFullName().c_str()
-				, a.vc->GetName().c_str(), srcA.c_str(), b.vc->GetName().c_str(), srcB.c_str());
+				, a.vc->GetNameID(), srcA.c_str(), b.vc->GetNameID(), srcB.c_str());
 
 		// values-unit IDENTITY (batch U): declared identities through unit
 		// parameters and domain-sorted generics -- the function-signature K2
@@ -1148,7 +1148,7 @@ namespace hof {
 		const TreeItem* p = fnDef->_GetFirstSubItem();
 		for (UInt32 k = 0; k != nrParams && p; ++k, p = p->GetNextItem())
 		{
-			SharedStr pName(p->GetID().AsStrRangeLock()); // materialized: TokenStr temporaries must not span nested walks (token-registry lock)
+			SharedStr pName(p->GetNameID().AsStrRangeLock()); // materialized: TokenStr temporaries must not span nested walks (token-registry lock)
 			if (auto declaredSig = TreeItem_GetFunctionParamSignature(fnDef, k))
 			{
 				// signature-typed parameter: a plain function reference with a declared
@@ -1736,7 +1736,7 @@ namespace hof {
 			// parses body expressions (token creation needs the exclusive lock)
 			SharedStr headName(headID.AsStrRangeLock());
 			for (UInt32 i = 0, n = m_Params.size(); i != n; ++i)
-				if (m_Params[i]->GetID() == headID)
+				if (m_Params[i]->GetNameID() == headID)
 					return InferApplication(refScope, ParamType(i), expr.Right(), headName.c_str());
 
 			// a direct function/import call: resolve, then type the application
@@ -1828,7 +1828,7 @@ namespace hof {
 		DefType declared = DeclaredItemType(refItem);
 		if (declared.kind != DefType::Kind::Unknown && inferred.kind != DefType::Kind::Unknown)
 		{
-			SharedStr itemName(refItem->GetID().AsStrRangeLock()); // TokenStr must not span UnifyData (token-registry lock)
+			SharedStr itemName(refItem->GetNameID().AsStrRangeLock()); // TokenStr must not span UnifyData (token-registry lock)
 			SharedStr ruleSrc = mySSPrintF("the calculation rule of '{}'", itemName.c_str());
 			SharedStr declSrc = mySSPrintF("the declared type of '{}'", itemName.c_str());
 			UnifyData(inferred, declared, ruleSrc, declSrc);

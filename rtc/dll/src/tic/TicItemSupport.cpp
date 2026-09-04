@@ -747,7 +747,7 @@ namespace {
 				const TreeItem* ti = *i++;
 				reportF(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, "{} Leak: {} ({},{}) {}",
 					m_ObjName,
-					ti->GetDynamicClass()->GetName(), 
+					ti->GetDynamicClass()->GetNameID(), 
 					ti->weak_from_this().use_count(), 
 					ti->IsCacheItem(), 
 					ti->GetFullName().c_str());

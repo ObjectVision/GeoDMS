@@ -564,7 +564,7 @@ ConstUnitRef AbstrOperGroup::CreateValuesUnit(const ArgSeqType& dataArgs) const
 
 [[noreturn]] void AbstrOperGroup::throwOperError(CharPtr msg) const
 {
-	auto errMsg = mySSPrintF("Operator {}", GetName().c_str());
+	auto errMsg = mySSPrintF("Operator {}", GetNameID());
 	throwErrorD(errMsg.c_str(), msg);
 }
 

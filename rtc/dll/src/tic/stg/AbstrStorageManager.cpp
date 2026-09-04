@@ -1106,7 +1106,7 @@ void GenerateMetaInfo(AbstrPropWriter& apw, const TreeItem* curr, const TreeItem
 		const_cast<TreeItem*>(section)->SetKeepDataState(true);
 		irc.Add(section);
 
-		SharedStr sectionName( section->GetID().AsStrRangeLock() );
+		SharedStr sectionName( section->GetNameID().AsStrRangeLock() );
 		apw.OpenSection(sectionName.c_str());
 		for (const TreeItem* key = section->GetFirstVisibleSubItem(); key; key = key->GetNextVisibleItem())
 		{

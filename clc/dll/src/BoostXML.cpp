@@ -274,11 +274,11 @@ TreeItem* WalkNextElementOrContainer(TreeItem* context, TreeItem* walker)
 {
 	walker = walker ? context->WalkCurrSubTree(walker) : context;
 	while (walker && (
-			walker->GetID() == GetTokens().valuesTableID || 
-			walker->GetID() == GetTokens().entityTableID || 
-			walker->GetID() == GetTokens().parentRelID   ||
-			walker->GetID() == GetTokens().valueRelID   ||
-			walker->GetID() == GetTokens().parentEntityTableRelID
+			walker->GetNameID() == GetTokens().valuesTableID || 
+			walker->GetNameID() == GetTokens().entityTableID || 
+			walker->GetNameID() == GetTokens().parentRelID   ||
+			walker->GetNameID() == GetTokens().valueRelID   ||
+			walker->GetNameID() == GetTokens().parentEntityTableRelID
 		))
 	{
 		walker = context->WalkNext(walker);
@@ -336,8 +336,8 @@ struct RapidXmlOperator : public BinaryOperator
 			AbstrUnit* entityDomain = AsDynamicUnit(walker);
 			if (entityDomain)
 			{
-				assert(entityDomain->GetID() != GetTokens().valuesTableID);
-				assert(entityDomain->GetID() != GetTokens().entityTableID);
+				assert(entityDomain->GetNameID() != GetTokens().valuesTableID);
+				assert(entityDomain->GetNameID() != GetTokens().entityTableID);
 				if (entityDomain->GetTreeParent().get() == resultHolder.GetNew())
 					CreateDataItem(entityDomain, GetTokens().parentEntityTableRelID, entityDomain, entityTable);
 				CreateDataItem(entityDomain, GetTokens().parentRelID, entityDomain, Unit<entity_index>::GetStaticClass()->CreateDefault());
@@ -392,8 +392,8 @@ struct RapidXmlOperator : public BinaryOperator
 			if (IsUnit(walker) && !walker->HasCalculator())
 			{
 				AbstrUnit* entityDomain = AsUnit(walker);
-				assert(entityDomain->GetID() != GetTokens().valuesTableID);
-				assert(entityDomain->GetID() != GetTokens().entityTableID);
+				assert(entityDomain->GetNameID() != GetTokens().valuesTableID);
+				assert(entityDomain->GetNameID() != GetTokens().entityTableID);
 
 //				assert(!entityDomain->GetTreeParent() || entityDomain->GetTreeParent()->DataInMem());
 				SharedStr relativeName = entityDomain->GetFullName();

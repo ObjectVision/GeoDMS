@@ -56,7 +56,7 @@ TokenID CopyTreeContext::GetAbsOrRelUnitID(const AbstrUnit* sourceUnit, const Ab
 			}
 		}
 	}
-	return sourceUnit->GetUnitClass()->GetValueType()->GetID();
+	return sourceUnit->GetUnitClass()->GetValueType()->GetNameID();
 }
 
 TokenID CopyTreeContext::GetAbsOrRelNameID(const TreeItem* si, const TreeItem* srcTI, TreeItem* dstTI) const

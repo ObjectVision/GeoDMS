@@ -459,12 +459,12 @@ void AbstrDataObject::CheckFailure() const
 
 void AbstrDataObject::illegalNumericOperation() const
 {
-	throwErrorF("DataObject", "illegal numeric operation called on DataItem<{}>", GetValuesType()->GetName().c_str());
+	throwErrorF("DataObject", "illegal numeric operation called on DataItem<{}>", GetValuesType()->GetNameID());
 }
 
 void AbstrDataObject::illegalGeometricOperation() const
 {
-	throwErrorF("DataObject", "illegal geometric operation called on DataItem<{}>", GetValuesType()->GetName().c_str());
+	throwErrorF("DataObject", "illegal geometric operation called on DataItem<{}>", GetValuesType()->GetNameID());
 }
 
 // Support for numerics (optional)

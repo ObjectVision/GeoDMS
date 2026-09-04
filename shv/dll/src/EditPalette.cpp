@@ -474,7 +474,7 @@ void EditPaletteControl::ClassifyUniqueValues ()
 		GetDomain()->throwItemErrorF(
 			"#Unique values = {}, which is too many for the palette domain of type {} which allows a maximum of {} classes",
 			m, 
-			GetDomain()->GetValueType()->GetName(), 
+			GetDomain()->GetValueType()->GetNameID(), 
 			maxK
 		);
 

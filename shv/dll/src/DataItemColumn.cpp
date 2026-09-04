@@ -128,7 +128,7 @@ static AggrMethod DefaultAggrMethod(const AbstrDataItem* adi)
 
 	if (vc->IsNumeric())
 	{
-		bool isTheFirstIdColumn = adi->GetID() == token::id;
+		bool isTheFirstIdColumn = adi->GetNameID() == token::id;
 		if (!isTheFirstIdColumn)
 			return AggrMethod::sum;
 	}	

@@ -155,7 +155,7 @@ FileResult GdalGridSM::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* bor
 
 	AbstrDataItem* adi = smi->CurrWD();
 
-	if (adi->GetID() == PALETTE_DATA_ID)
+	if (adi->GetNameID() == PALETTE_DATA_ID)
 		return FileResult::require(ReadPalette(borrowedReadResultHolder), "Error reading PaletetData");
 
 	if (HasGridDomain(adi))
@@ -205,7 +205,7 @@ GDalGridImp::GDalGridImp(GDALDataset* hDS, const AbstrDataObject* ado, UPoint vi
 
 			reportF(SeverityTypeID::ST_Warning, "gdal.grid: different value types. Storage contains {} values while GeoDms expects {} values"
 				, GDALGetDataTypeName(rasterDataType)
-				, valueClass->GetName()
+				, valueClass->GetNameID()
 			);
 		}
 }

@@ -351,13 +351,13 @@ inline void GeoMeasure_ValidateAndWarn(const AbstrOperGroup* gr,
 				, "{}: the coordinate unit has no linear metric, so a result in {} cannot be derived from it "
 				  "(a geographic coordinate reference system measures in degrees; reproject to a projected "
 				  "system, or compute a geodesic measure). The second argument is accepted as a label only."
-				, gr->GetName().c_str()
+				, gr->GetNameID()
 				, targetUnit->GetCurrMetricStr(FormattingFlags::ThousandSeparator).c_str());
 		else
 			reportF(SeverityTypeID::ST_Warning
 				, "{}: the requested result unit {} is not compatible with the coordinate metric ({})^{}; "
 				  "the second argument is accepted as a label only (deprecated, issue #1119)."
-				, gr->GetName().c_str()
+				, gr->GetNameID()
 				, targetUnit->GetCurrMetricStr(FormattingFlags::ThousandSeparator).c_str()
 				, L->AsString(FormattingFlags::ThousandSeparator).c_str()
 				, nrDims);
@@ -368,7 +368,7 @@ inline void GeoMeasure_ValidateAndWarn(const AbstrOperGroup* gr,
 	if (factor != 1.0)
 		reportF(SeverityTypeID::ST_Warning
 			, "{}: the result is now converted to {} (factor {:g}); the second argument previously acted as a label only (issue #1119)"
-			, gr->GetName().c_str()
+			, gr->GetNameID()
 			, targetUnit->GetMetricStr(FormattingFlags::ThousandSeparator).c_str()
 			, factor);
 }

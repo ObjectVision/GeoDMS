@@ -228,7 +228,7 @@ LispRef CreateStorageSpec(const TreeItem* src)
 		return LispRef();
 	auto storageManager = storageParent->GetStorageManager();
 	SharedStr storageName = storageManager ? storageManager->GetNameStr() : TreeItemPropertyValue(storageParent.get(), storageNamePropDefPtr);
-	TokenID   storageType = storageManager ? storageManager->GetDynamicClass()->GetID() : storageTypePropDefPtr->GetValue(storageParent.get());
+	TokenID   storageType = storageManager ? storageManager->GetDynamicClass()->GetNameID() : storageTypePropDefPtr->GetValue(storageParent.get());
 	SharedTreeItem sqlStringParent = make_shared_tree(src, existing_obj{});
 	while (true)
 	{
@@ -283,12 +283,12 @@ LispRef CreateLispSign(const TreeItem* self)
 		{
 			if (sourceData->HasVoidDomainGuarantee())
 			{
-				return ExprList(paramID, LispRef(self->GetID())
+				return ExprList(paramID, LispRef(self->GetNameID())
 					, CreateLispSubTree(sourceData->GetAbstrValuesUnit(), false)
 					, LispRef(GetValueCompositionID(sourceData->GetValueComposition()))
 					);
 			}
-			return ExprList(attrID, LispRef(self->GetID())
+			return ExprList(attrID, LispRef(self->GetNameID())
 				, CreateLispSubTree(sourceData->GetAbstrDomainUnit(), false)
 				, CreateLispSubTree(sourceData->GetAbstrValuesUnit(), false)
 				, LispRef(GetValueCompositionID(sourceData->GetValueComposition()))
@@ -296,9 +296,9 @@ LispRef CreateLispSign(const TreeItem* self)
 		}
 		if (sourceUnit)
 		{
-			return ExprList(unitID, LispRef(self->GetID()), LispRef(sourceUnit->GetValueType()->GetID()));
+			return ExprList(unitID, LispRef(self->GetNameID()), LispRef(sourceUnit->GetValueType()->GetNameID()));
 		}
-		return ExprList(itemID, LispRef(self->GetID()));
+		return ExprList(itemID, LispRef(self->GetNameID()));
 	}
 	catch (const DmsException& x)
 	{
@@ -390,7 +390,7 @@ LispRef slUnionDataLispExpr(LispPtr valueList, SizeT sz)
 		dms_assert(valueList.Right().EndP());
 		return valueList.Left();
 	}
-	static auto uint32Ref = ExprList(ValueWrap<UInt32>::GetStaticClass()->GetID());
+	static auto uint32Ref = ExprList(ValueWrap<UInt32>::GetStaticClass()->GetNameID());
 	auto unionRange = AsLispRef(Range<UInt32>(0, sz), std::move(uint32Ref), true);
 
 	return LispRef(LispRef(token::union_data), LispRef(unionRange, valueList));

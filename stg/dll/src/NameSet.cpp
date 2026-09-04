@@ -105,7 +105,7 @@ void NextName(SharedStr& name)
 
 void TNameSet::InsertItem(const AbstrDataItem* adi)
 {
-	SharedStr name = SharedStr(adi->GetID());
+	SharedStr name = SharedStr(adi->GetNameID());
 	auto name2 = name;
 	if (name2.ssize() > m_Len)
 		name2 = SharedStr(CharPtrRange(name.begin(), name.begin() + m_Len));

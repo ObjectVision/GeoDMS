@@ -85,7 +85,7 @@ void DbfStorageManager::TestDomain(const AbstrDataItem* adi) const
 	if (!TableDomain_IsAttr(m_TableDomain.get(), adi))
 		adi->throwItemErrorF(
 			"DataItem {} has a domain that is incompatible with the table domain {}", 
-			adi->GetName().c_str(), 
+			adi->GetNameID(), 
 			m_TableDomain->GetFullName().c_str()
 		);
 }
@@ -220,7 +220,7 @@ FileResult DbfStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObje
 		default:
 			return std::unexpected(mySSPrintF(
 				"DbfStorageManager::ReadDataItem not implemented for DataItem with ValuesUnitType: {}"
-			,	vc->GetName().c_str()
+			,	vc->GetNameID()
 			));
 	} // switch
 } // ReadData
@@ -252,7 +252,7 @@ FileResult DbfStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 		INSTANTIATE_OTHER
 #undef INSTANTIATE
 		default:
-			throwItemErrorF("WriteDataItem not implemented for dbf data with ValuesUnitType: {}", vc->GetName());
+			throwItemErrorF("WriteDataItem not implemented for dbf data with ValuesUnitType: {}", vc->GetNameID());
 	}
 }
 

@@ -48,7 +48,7 @@ const Unit<D>* checked_domain(const TreeItem* ti, CharPtr role)
 	if (!u) 
 		ti->throwItemErrorF("{} attribute with Domain of type {} expected, but Domain is of type {}"
 		,	ExpandRole(role)
-		,	Unit<D>::GetStaticClass()->GetName().c_str()
+		,	Unit<D>::GetStaticClass()->GetNameID()
 		,	au->GetClsName().c_str()
 		);
 	return u;

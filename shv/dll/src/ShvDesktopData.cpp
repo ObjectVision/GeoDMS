@@ -130,7 +130,7 @@ TreeItem* CreateContainer_impl(TreeItem* container, const TreeItem* item)
 	{
 		if (IsUnit(item) && AsUnit(item)->IsDefaultUnit())
 		{
-			auto result = SafeCreateItem(container, AsUnit(item)->GetValueType()->GetID());
+			auto result = SafeCreateItem(container, AsUnit(item)->GetValueType()->GetNameID());
 			assert(result);
 			return result.get();
 		}

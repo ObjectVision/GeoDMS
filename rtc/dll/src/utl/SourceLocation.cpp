@@ -167,7 +167,7 @@ SharedStr SourceLocation::GetSourceName(WeakStr fullName, const Class* cls) cons
 		, m_ConfigFileLineNr
 		, m_ConfigFileColNr
 		, fullName
-		, cls->GetName()
+		, cls->GetNameID()
 	);
 }
 

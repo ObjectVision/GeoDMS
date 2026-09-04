@@ -229,7 +229,7 @@ void WriteNumericAccuData(PostLinkedTable& table, const f64_accumulator& accu, c
 {
 	auto vu = di->GetAbstrValuesUnit();
 	auto metricPtr = vu->GetMetric();
-	table.AddRow(mySSPrintF("Formal Range {}",  vu->GetName().c_str()).c_str(), di->GetAbstrValuesUnit()->GetRangeAsStr(FormattingFlags::ThousandSeparator).c_str());
+	table.AddRow(mySSPrintF("Formal Range {}",  vu->GetNameID()).c_str(), di->GetAbstrValuesUnit()->GetRangeAsStr(FormattingFlags::ThousandSeparator).c_str());
 	if (metricPtr)
 		table.AddRow("Metric Units", metricPtr->AsString(FormattingFlags::ThousandSeparator).c_str());
 
@@ -299,7 +299,7 @@ void WritePointAccuData(PostLinkedTable& table, const point64_accumulator& accu,
 {
 	auto vu = di->GetAbstrValuesUnit();
 	auto metricPtr = vu->GetMetric();
-	table.AddRow(mySSPrintF("Formal Range {}", vu->GetName().c_str()).c_str(), di->GetAbstrValuesUnit()->GetRangeAsStr(FormattingFlags::ThousandSeparator).c_str());
+	table.AddRow(mySSPrintF("Formal Range {}", vu->GetNameID()).c_str(), di->GetAbstrValuesUnit()->GetRangeAsStr(FormattingFlags::ThousandSeparator).c_str());
 	if (metricPtr)
 		table.AddRow("Metric Units", metricPtr->AsString(FormattingFlags::ThousandSeparator).c_str());
 
@@ -397,7 +397,7 @@ CLC_CALL bool NumericDataItem_GetStatistics(const TreeItem* item, vos_buffer_typ
 			SharedStr metricStr = vu->GetCurrMetricStr(os.GetFormattingFlags());
 			if (!metricStr.empty())
 				table.AddRow("ValuesMetric", metricStr.c_str());
-			table.AddRow("ValuesType", vt->GetID().GetStrLock().c_str());
+			table.AddRow("ValuesType", vt->GetNameID().GetStrLock().c_str());
 
 			assert(!SuspendTrigger::DidSuspend() || !isReady);
 			if (isReady)

@@ -1063,14 +1063,14 @@ void DataItemsWriteStatusInfo::HoldSiblingInterest(const TreeItem* storageHolder
 			continue;
 
 		auto layer_holder = GetLayerHolderFromDataItem(storageHolder, sub_item);
-		if (not layer_holder or layer_holder->GetID() != layerID)
+		if (not layer_holder or layer_holder->GetNameID() != layerID)
 			continue;
 
 		// A column that cannot be produced takes no part in the write (see RefreshInterest), so it is
 		// not kept for it either; its failure stays recorded on the item itself.
 		if (sub_item->WasFailed())
 			continue;
-		if (fieldIsWritten(layerID, sub_item->GetID()))
+		if (fieldIsWritten(layerID, sub_item->GetNameID()))
 			continue; // already in the layer from an earlier write round
 
 		try {
@@ -1094,8 +1094,8 @@ void DataItemsWriteStatusInfo::RefreshInterest(const TreeItem* storageHolder)
 
 		auto unit_item = GetLayerHolderFromDataItem(storageHolder, sub_item);
 
-		auto layer_id = unit_item->GetID();
-		auto field_id = sub_item->GetID();
+		auto layer_id = unit_item->GetNameID();
+		auto field_id = sub_item->GetNameID();
 		// A column that cannot be produced must not block the rest of its layer: it takes no part in the
 		// write and thus gets no field either (issue #711).
 		bool sub_item_has_interest = sub_item->GetInterestCount() and not sub_item->WasFailed();
@@ -1876,9 +1876,9 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 		gdal_error_frame.GetMsgAndReleaseError(); // start empty, release error in case of nonexistance.
 
 		// check for values unit support in driver
-		if (!(smi.CurrRI()->GetID() == token::geometry) && !Gdal_DriverSupportsDmsValueType(gdalOpenFlags, valuesTypeID, value_composition, driver))
+		if (!(smi.CurrRI()->GetNameID() == token::geometry) && !Gdal_DriverSupportsDmsValueType(gdalOpenFlags, valuesTypeID, value_composition, driver))
 		{
-			SharedStr dms_value_type_token_str(smi.CurrRD()->GetAbstrValuesUnit()->GetValueType()->GetID()); // materialized (#1233 P2)
+			SharedStr dms_value_type_token_str(smi.CurrRD()->GetAbstrValuesUnit()->GetValueType()->GetNameID()); // materialized (#1233 P2)
 			throwErrorF("GDAL", "driver {} does not support writing of values type {}", driver_short_name, dms_value_type_token_str.c_str());
 		}
 

@@ -263,7 +263,7 @@ void ConfigProd::CreateItem(TokenID nameID, const iterator_t& loc)
 		assert( m_stackContexts.empty() );
 		if (m_pCurrent)
 		{
-			if (m_pCurrent->GetID() != nameID)
+			if (m_pCurrent->GetNameID() != nameID)
 			{
 				if (!m_MergeIntoExisting)
 					throwDmsErrD("Illegal 2nd item after root of configuration tree.");
@@ -281,7 +281,7 @@ void ConfigProd::CreateItem(TokenID nameID, const iterator_t& loc)
 					, "Configuration file {}: dictionary root '{}' merged into item '{}'"
 					, ConfigurationFilenameLock::GetCurrentFileDescrFromConfigLoadDir()->GetFileName().c_str()
 					, AsString(nameID).c_str()
-					, AsString(m_pCurrent->GetID()).c_str()
+					, AsString(m_pCurrent->GetNameID()).c_str()
 				);
 			}
 		}
@@ -398,7 +398,7 @@ void ConfigProd::ValidateFunctionArityVsOperator(const TreeItem* func)
 	// arity-aware coexistence (§5.14 successor): a function may share a built-in
 	// operator's name iff it only declares argument counts NO operator member accepts;
 	// arity-aware head dispatch then routes exactly those counts to the function
-	auto og = AbstrOperGroup::FindName(func->GetID());
+	auto og = AbstrOperGroup::FindName(func->GetNameID());
 	if (!og || og->IsTemplateCall())
 		return;
 
@@ -428,7 +428,7 @@ void ConfigProd::ValidateFunctionArityVsOperator(const TreeItem* func)
 
 	if (collision)
 		throwSemanticError(mgFormat2string("function name '{}' collides with a built-in operator: it declares an argument count the operator also accepts; only argument counts the operator rejects may be served by a same-named function"
-			, GetTokenStrLock(func->GetID())).c_str());
+			, GetTokenStrLock(func->GetNameID())).c_str());
 }
 
 void ConfigProd::CreateUnit(TokenID nameID)

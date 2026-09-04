@@ -146,7 +146,7 @@ extern StaticTokenID t_Dot;              // §5.9 current-domain reference in me
 			return env;
 		}
 
-		bool IsRestParamSymbol(TokenID sym) const { return m_RestParam && m_RestParam->GetID() == sym; }
+		bool IsRestParamSymbol(TokenID sym) const { return m_RestParam && m_RestParam->GetNameID() == sym; }
 		void SpliceRestArgs(std::vector<CallArg>& out) const
 		{
 			assert(m_RestParam);

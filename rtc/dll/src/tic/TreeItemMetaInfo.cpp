@@ -115,14 +115,14 @@ void TreeItem::UpdateMetaInfoImpl() const
 					refItem = refRefItem;
 					refRefItem = refItem->GetCurrRefItem();
 				}
-				MG_CHECK(prevItem->GetID() != refItem->GetID());
+				MG_CHECK(prevItem->GetNameID() != refItem->GetNameID());
 				
 				auto msg = mySSPrintF("'{}' refers by '{}' to '{}'\nReplace '{}' by '{}'."
 				,	this->GetFullName()
 				,	foundItem->GetFullName()
-				,	prevItem->GetID()
-				,	prevItem->GetID()
-				,	refItem->GetID()
+				,	prevItem->GetNameID()
+				,	prevItem->GetNameID()
+				,	refItem->GetNameID()
 				);
 				if (DMS_GetMajorVersionNumber() < 20)
 					reportD(SeverityTypeID::ST_Warning, msg.AsRange());
@@ -270,7 +270,7 @@ LispRef TreeItem::GetBaseKeyExpr() const
 		}
 	}
 	//	if (metaInfo.index() == 0 && IsUnit(this) && std::get<MetaFuncCurry>(metaInfo).fullLispExpr.EndP())
-	//		return ExprList(AsUnit(this)->GetValueType()->GetID());
+	//		return ExprList(AsUnit(this)->GetValueType()->GetNameID());
 //	dms_assert(metaInfo.index() != 0);
 	if (metaInfo.index() == 0)
 		return {};
@@ -682,7 +682,7 @@ LispRef TreeItem::GetCheckedKeyExpr() const
 			}
 			else if (valueList.EndP())
 				result = ExprList(token::const_
-					,	ExprList(adi->GetAbstrValuesUnit()->GetValueType()->GetID()
+					,	ExprList(adi->GetAbstrValuesUnit()->GetValueType()->GetNameID()
 						,	LispRef(Number(0))
 						)
 					,	adi->GetAbstrDomainUnit()->GetCheckedKeyExpr()

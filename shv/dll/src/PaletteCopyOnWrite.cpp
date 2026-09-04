@@ -89,7 +89,7 @@ SharedDataItemInterestPtr PaletteCoW_GetOrCreateCopy(DataView* dv, const AbstrDa
 
 	// An earlier edit of this same attribute already made the copy; edit that one further, so that
 	// a second colour change does not silently start from the configured values again.
-	TokenID name = adi->GetID();
+	TokenID name = adi->GetNameID();
 	if (auto existing = AsDynamicDataItem(container->GetSubTreeItemByID(name)))
 	{
 		if	(	existing->GetAbstrDomainUnit() == domain

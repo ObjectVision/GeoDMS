@@ -88,7 +88,7 @@ struct FuncDC : DataController
 		assert(m_OperatorGroup);
 		return m_OperatorGroup->CanResultToConfigItem();
 	}
-	TokenID GetID          () const override { return GetLispRef()->Left()->GetID(); }
+	TokenID GetNameID() const override { return GetLispRef()->Left()->GetNameID(); }
 
 	DcRefListElem* GetArgList() const { return m_Args.get(); }
 	const DataController* GetArgDC(arg_index i) const

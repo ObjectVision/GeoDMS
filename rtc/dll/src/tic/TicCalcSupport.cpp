@@ -405,7 +405,7 @@ void TreeItemContextHandle::GenerateDescription()
 		SetText(
 			mgFormat2SharedStr("while in {0}( {1}: {2} )"
 				,	role
-				,	objNameStr.empty() ? m_Obj->GetName().c_str() : objNameStr.c_str()
+				,	objNameStr.empty() ? m_Obj->GetName() : objNameStr
 				,	m_Obj->GetClsName()
 			)
 		);
