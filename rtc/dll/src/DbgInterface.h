@@ -72,6 +72,12 @@ RTC_CALL void       DMS_CONV DBG_DebugReport();
 // fail-fast -- loses the tail, which is exactly the part that says why the run ended (#1191).
 RTC_CALL void       DMS_CONV DBG_FlushLogs();
 
+// Write one line to stderr and to every open session log, without a timestamp and without going
+// through the message dispatch and its lock: the route of the fatal handlers, for the handler of a
+// fatal structured exception in DmsException.cpp (#1241). Follow it with DBG_FlushLogs when the
+// process is about to end without running destructors.
+RTC_CALL void       DMS_CONV DBG_WriteFatalLine(CharPtr line);
+
 // Install the fatal-path diagnostics: a std::terminate handler (and, on MSVC, a purecall handler)
 // that name the in-flight exception and the thread's context chain, flush the logs, and then end the
 // process deliberately instead of letting it die at ucrtbase!abort with a bare 0xC0000409.

@@ -884,6 +884,13 @@ void DMS_CONV DBG_InstallFatalHandlers()
 #endif
 }
 
+// The line writer of the fatal path, for the structured-exception handler in DmsException.cpp:
+// the same sinks, by the same lock-free route, as the terminate handler above (#1241).
+void DMS_CONV DBG_WriteFatalLine(CharPtr line)
+{
+	WriteFatalLine(line);
+}
+
 void DMS_CONV DBG_ReportBoundaryException(CharPtr where)
 {
 	// NOTE the _without_cancellation_check variants. Plain reportF/reportD perform a cancellation

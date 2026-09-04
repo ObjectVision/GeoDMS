@@ -21,6 +21,7 @@
 
 #include "rtctypemodel.h"
 #include "RtcInterface.h"
+#include "dbg/DmsCatch.h" // InitCrashDumpSupport
 
 #include "RtcVersionNumbers.h" // tracked single source of truth; see its header comment
 #include "buildstamp.h"        // generated per build (date/time only)
@@ -210,6 +211,9 @@ SharedStr GetCurrentTimeStr()
 RTC_CALL void DMS_CONV DMS_Rtc_Load()
 {
 	g_sessionStartTime = GetCurrentTimeStr();
+#if defined(_MSC_VER)
+	InitCrashDumpSupport(); // while there is still a working heap to do it with (#1241)
+#endif
 }
 
 SharedStr GetSessionStartTimeStr()

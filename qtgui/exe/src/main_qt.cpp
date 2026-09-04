@@ -548,8 +548,12 @@ int main_without_SE_handler(int argc, char *argv[]) {
     return 9;
 }
 
-void ProcessRequestedCmdLineFeedback(char* argMsg) {
+void ProcessRequestedCmdLineFeedback(int& argc, char* argv[], char* argMsg) {
     auto exceptionText = DoubleUnQuoteMiddle(argMsg);
+    // A QMessageBox needs a QApplication. Without one, the QWidgetPrivate constructor calls
+    // qFatal and this helper dies with FAST_FAIL_FATAL_APP_EXIT before showing anything, so
+    // every fatal structured exception was silent and the window just seemed to vanish (#1241).
+    QApplication feedback_app(argc, argv);
     QMessageBox::critical(nullptr, "GeoDMS Fatal Error",
         QString::fromStdString(std::string(exceptionText.c_str())));
 }
@@ -594,7 +598,7 @@ int main(int argc, char* argv[]) {
     s_argv = argv;
 #endif
     if ((argc > 1) && (argv[1][0] == '/') && (argv[1][1] == 'F')) {
-        ProcessRequestedCmdLineFeedback(argv[1] + 2 );
+        ProcessRequestedCmdLineFeedback(argc, argv, argv[1] + 2 );
         return 0;
     }
 

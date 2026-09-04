@@ -39,6 +39,10 @@ RTC_CALL void catchAndProcessException();
 		[[noreturn]] RTC_CALL void  call_HaltOnSE();
 		RTC_CALL int signalHandling(unsigned int u, _EXCEPTION_POINTERS* pExp, bool passBorlandException);
 
+		// Prepares everything a crash dump needs, the folder, the writer thread and the unhandled-exception
+		// backstop, once, at startup: the crash path itself must look up, allocate and create nothing (#1241).
+		RTC_CALL void InitCrashDumpSupport();
+
 		struct CppTranslatorContext
 		{
 			RTC_CALL CppTranslatorContext(TCppExceptionTranslator trFunc = nullptr);
