@@ -127,11 +127,23 @@ in `Parallel.h`, which is the whole of the enforcement.*
 ### 3.1 What a ceiling is
 
 `DMS_ENTERS(L, MODE)` constructs a `DmsLockCeiling`, which calls `EnterLevel` with
-`level_type{ descr, L, item_level_type(0), MODE }` and restores the previous level on scope exit —
-the same push/restore `scoped_lock_impl` performs. It takes **no mutex**. It only makes the thread
-*claim to hold* `(ordinal L, mode MODE, item level 0)` for the rest of the scope, so that every
-subsequent acquire is checked against that claim. It exists only under `MG_DEBUG_LOCKLEVEL`
-(= `MG_DEBUG`); in Release the macro is `((void)0)` and none of this section applies.
+`level_type{ descr, L, item_level_type(0), MODE, m_IsCeiling = true }` and restores the previous
+level on scope exit — the same push/restore `scoped_lock_impl` performs. It takes **no mutex**. It
+only makes the thread *claim to hold* `(ordinal L, mode MODE, item level 0)` for the rest of the
+scope, so that every subsequent acquire is checked against that claim. It exists only under
+`MG_DEBUG_LOCKLEVEL` (= `MG_DEBUG`); in Release the macro is `((void)0)` and none of this section
+applies.
+
+Since `2052ee75` a ceiling is **marked** as such (`m_IsCeiling`), and there is a second form:
+**`DMS_ENTERS_ITEM(L, MODE)`** enters the same claim at item level 1. It is the declaration for a
+scope whose outermost acquire is a *per-item* lock (`cs_lock_map`) — taken directly, or through
+the interest pointers the scope creates and destroys, since `IncInterestCount`/`DecInterestCount`
+take the item's actor lock. The value 1 is a sentinel: two per-item levels are never ordered
+(rule 3), so one value serves every such function. The `descr` of both forms now carries
+`__FILE__:__LINE__` of the declaring site, and `EnterLevel` prints both sides of a refusal
+(`lock level refused: held ... -> requested ...`) to stderr before the assert, so a battery
+`.out` names the declaration and the acquire that disagreed — without that line the checker's
+verdict was a bare `Allow(level)` assert and a cdb session per case.
 
 A ceiling is itself an acquire for checking purposes: declaring one while something is already held
 is checked by the same rules, and so is nesting one ceiling inside another.
@@ -150,7 +162,12 @@ is what is about to be taken. In order:
 5. **`held.item < target.item`** → refuse — no global section or ceiling may be held when a
    per-item lock is taken.
 6. Equal item levels (both 0 in practice) → compare ordinals: `held < target` allow;
-   `held > target` refuse; **equal → allow only if BOTH are shared**.
+   `held > target` refuse; **equal**: if `held` is a real lock → allow only if BOTH are shared; if
+   `held` is a **ceiling** → allow when `target` is shared, or when the ceiling itself is exclusive
+   (`target.shared || !held.shared`, since `2052ee75`). That is: a ceiling admits its own declared
+   acquire at a mode no stronger than declared, so a function declares *exactly* the outermost
+   acquire it makes and nothing has to be stated one level off. Once the lock is really taken it
+   sits over the ceiling and the strict rule applies again.
 
 Until `d9d791ba` the item dimension had never been exercised: nothing that reached `Allow` carried an
 item level other than 0, because the per-item maps bypassed `EnterLevel` (B1). A per-item lock now
@@ -179,16 +196,18 @@ column before ordinals are ever reached:
 | what the scope (or anything it calls) takes | under `(L, shared)` | under `(L, exclusive)` |
 |---|---|---|
 | global section, ordinal **M > L**, either mode | allowed | allowed |
-| global section, ordinal **M == L**, **shared** | **allowed** | refused |
-| global section, ordinal **M == L**, exclusive | refused | refused |
+| global section, ordinal **M == L**, **shared** | **allowed** | **allowed** (the ceiling's own acquire, weaker mode) |
+| global section, ordinal **M == L**, exclusive | refused | **allowed** (the ceiling's own acquire) |
 | global section, ordinal **M < L**, either mode | refused | refused |
-| per-item lock with item level **≥ 1** | refused | refused |
+| per-item lock with item level **≥ 1** | refused | refused — unless the ceiling is `DMS_ENTERS_ITEM`, which admits it (rule 3) |
 | per-item lock whose item reports level 0 (passor / undetermined) | **not entered — invisible**, as before (B1) | idem |
 | a nested ceiling `(M, mode2)` | same rules as a global section at `(M, mode2)` | idem |
 | a bare `std::mutex` / `shared_mutex` / `recursive_mutex` | **invisible — never checked** | idem |
 | a blocking wait (`Join`, item production lock, any cv) | **invisible — never checked** | idem |
 
-So the two ceilings differ in exactly one row: whether the scope may still take `L` itself, shared.
+So for *callees* the two ceilings differ in exactly one row — whether a callee may still take `L`
+shared — while for the scope's *own* acquire of `L` both admit it (an exclusive ceiling admits
+either mode, a shared ceiling only shared).
 
 ### 3.4 The exclusive ceiling is the STRICTER one
 
@@ -204,16 +223,23 @@ and the exclusive form forbids a strict superset of what the shared form forbids
 
 Two consequences worth writing down:
 
-- **A function that takes `L` itself must not declare `(L, exclusive)`** — `Allow` would reject its
-  own acquire (equal ordinal, not both shared). If it takes `L` shared it may declare
-  `(L, shared)`; if it takes `L` exclusively it should declare nothing, because taking the lock
-  already publishes the level. This is the "declare only what you do not yourself take" rule from
-  `Parallel.h`.
+- **Declare exactly the outermost acquire.** Until `2052ee75` a function that took `L` itself could not
+  declare `(L, exclusive)` — `Allow` rejected its own acquire — and the rule was "declare only what
+  you do not yourself take". That rule is retired: a ceiling admits its own declared acquire (rule
+  6), so `GetOrCreateID_mt` declares `(IndexedString, exclusive)`, `TokenID::GetStrLock` declares
+  `(IndexedString, shared)`, and a function whose outermost acquire is a per-item lock declares
+  `DMS_ENTERS_ITEM`. The alternative that was considered and rejected — "if you take `L`
+  exclusively, declare `L-1`" — is off by one: a caller that legitimately holds exactly `L-1` would
+  be refused at the call while the acquire itself is in order.
 - **`DMS_ENTERS_NOTHING`** is `(EntersNothing = 0xFFFFFFFF, exclusive)`. No real section has an
   ordinal above it, so rule 5 refuses every acquire at equal item level and rule 4 refuses every
   per-item lock: the scope may take nothing at all.
 
-### 3.5 The two ceilings actually in use
+### 3.5 The ceilings actually in use
+
+Since `2052ee75` every function that directly acquires a leveled section and does not transitively pump
+main-thread opers carries its ceiling (118 declarations, battery 246/247 — see §3.7 for what the wave
+established). The two that carry the semantics worth knowing by heart:
 
 - **`DMS_ENTERS(ord_level_type::IndexedString, dms_shared_v)`** — the reporting path
   (`AbstrMsgGenerator::Describe`, `MsgGeneratorPolicy::GetDescription`, `ConfigProd::Describe`),
@@ -245,16 +271,39 @@ Two consequences worth writing down:
 
 ### 3.7 Choosing the level when annotating something new
 
-1. Find the **outermost** (numerically lowest) leveled section the scope may legitimately reach,
-   directly or through anything it calls. That ordinal is `L`.
-2. If the scope reaches `L` itself and only ever shared, declare `(L, dms_shared_v)`. If it must
-   not touch `L` at all, declare `(L, dms_exclusive_v)`. If it takes `L` exclusively, declare
-   nothing — the acquire already publishes it.
-3. If the scope may take a per-item lock, it cannot carry a ceiling at all as ceilings stand:
-   `DmsLockCeiling` hardcodes item level 0, so rule 4 refuses every per-item lock. Widening this
-   would mean giving the ceiling the thread's current item level rather than 0.
-4. Run it in Debug. An annotation that lies fails on the first run that reaches it — which is the
-   whole reason the scheme is affordable without a Clang toolchain.
+The default, for a function with no declaration, is that it may take any lock. A declaration
+narrows that, and is checked on entry against what the caller holds. The rules the first wave
+(`2052ee75`) settled:
+
+1. Find the **outermost** (numerically lowest) leveled section the scope may reach, directly or
+   through anything it calls. Declare exactly that: `(L, exclusive)` if it is ever taken
+   exclusively, `(L, shared)` if only ever shared. When in doubt between two candidates declare the
+   **outer** one — a weaker promise that is still true beats a stronger one that a rare path
+   breaks.
+2. If any path takes a **per-item lock** — directly, or by constructing or destroying an interest
+   pointer (`SharedTreeItemInterestPtr`, `garbage_can` contents, an `OldDcInterestDecrementer`),
+   or by dropping a `DataReadLock` — declare **`DMS_ENTERS_ITEM(ItemRegister, exclusive)`**
+   (`DataFlagsLock` / `PrepareDataUsageLock` for the other two maps), whatever global sections the
+   scope also takes: a per-item lock is outer to every global, so that is the outermost. This is
+   why the `OperationContext` finishers (`OnEnd`, `HandleFail`, `CancelIfNoInterestOrForced`,
+   `CollectOperationContextsImpl`, `FindAndLicenceOnePriorityTasks`, `~tg_maintainer`) are
+   per-item and not `ThreadMessing`: each releases interest-holding garbage after its lock.
+3. A scope that **pumps** main-thread opers — `Join`, `DoWorkWhileWaiting`, `ReadLockInit`,
+   `lock_shared` of the item counter, `AwaitAncestorWrites`, `UpdateMetaInfo`, and everything
+   above them — cannot carry a *global* ceiling: the opers are its callees and are unconstrained,
+   and `operation_queue::Process` asserts no global level is held. It may carry
+   `DMS_ENTERS_ITEM` (pumping under a per-item lock is by design), or nothing.
+4. The session-usage counter is a `counted_mutex`: every `lock_shared`/`unlock_shared` on it takes
+   `CountedMutexSection` (100), so anything that touches it — `ItemReadLock`, `ItemWriteLock` —
+   is at 100 at the outermost, not at the item counter's 101. The first battery of the wave
+   refused 204 + 22 cases on exactly this, before the diagnostic named it.
+5. Run it in Debug and read the `lock level refused` lines, not the assert. Only the **first**
+   refusal in a `.out` is evidence: the assert calls `exit(3)` without unwinding, so static
+   teardown runs on that thread under the stale ceiling and every later line is an artefact.
+6. What the wave deliberately left undeclared, as "may take anything": everything under rule 3;
+   `IncInterestCount`'s callers above `StartInterest`; the polygon and Dijkstra sections, which
+   are declared inside operator bodies rather than at function scope; `ParseRegStatusFlags`
+   (takes nothing itself); and every function whose only lock is a bare primitive (§1.2).
 
 ## 4. Findings — potential deadlocks
 
@@ -385,6 +434,64 @@ re-entering GeoDMS lock-taking code, and the only such callback (the GDAL/CPL er
 reaches only `DebugOutStream(102)`, inner to everything held. The rule to preserve: a foreign
 callback may report, and nothing else.
 
+### P11 — `GetSequenceBoundingBoxCache` / `GetPointBoundingBoxCache` hold a global over a per-item lock — **open, found by the wave**
+
+`geo/dll/src/BoundingBoxCache.h`: both take `cs_BB` (`BoundingBoxCache1`, 93 — a global section)
+and then construct a `DataReadLock(featureAttr)`, which takes the item's actor lock. That is rule
+5 in its exact form — a global held while a per-item lock is taken — and the checker refuses it
+the first time a Debug run reaches the bounding-box cache (the testcases battery does not).
+The reverse edge exists: `~AbstrBoundingBoxCache` takes `cs_BB` and runs when a feature's data
+object dies, which happens under `sg_CountSection` (98) in `TryCleanupMem` and under the item's
+own locks. Two threads — one building a cache for feature A while A's data is being cleaned up
+on another — close the cycle. Fix shape: take the `DataReadLock` first and `cs_BB` only around the
+registry lookup/insert, which is what the section actually protects. Neither function carries a
+ceiling until then: a truthful `DMS_ENTERS_ITEM` would not describe a body that takes a global
+first.
+
+### P12 — `SetStatusFlag` re-enters `RegAccessSection` on the never-read path — **open, low**
+
+`rtc/dll/src/utl/Environment.cpp`: `SetStatusFlag` takes `RegAccessSection()` and, still holding
+it, calls `ReadOnceRegisteredStatusFlags`, which takes the same section on its slow path. The
+section is a `leveled_std_section` over a plain `std::mutex` — not recursive — so that path is a
+self-deadlock. It is masked because the slow path runs once, at startup, before any caller of
+`SetStatusFlag` exists; the checker refuses it too (equal ordinal, both exclusive). The ceiling on
+`ReadOnceRegisteredStatusFlags` is therefore declared after its fast-path return, before the
+acquire. Fix shape: read the flags before taking the section in `SetStatusFlag`.
+
+### P13 — the result's `ItemWriteLock` is released inline under `cs_ThreadMessing` — **open, premise made explicit**
+
+`OperationContext::separateResources` runs under `cs_ThreadMessing` (97) and, by its own comment,
+moves everything whose destruction could destroy a `TreeItem` into a `garbage_can` that is emptied
+*after* the section — except the write lock: on the cancel/exception path it assigns
+`m_WriteLock = ItemWriteLock()` inline. `ItemWriteLock::releaseHeldLock` drops an **owning**
+`shared_ptr<const TreeItem>`; if that were ever the last owner, item destruction — supplier
+interest release, per-item locks — would run under a global section (rule 5). The wave first
+declared `releaseHeldLock` per-item on that account and the checker refused it in 224 cases, all
+from this call. The declaration now states what the function actually takes (the session counter
+at 100 and the item counter at 101) and the premise it rests on — the write lock is never the last
+owner of its item — is written at both sites. Fix shape, consistent with the comment already in
+`separateResources`: `releaseBin |= std::move(m_WriteLock)`, so the release joins the controlled
+path outside the section, after which `releaseHeldLock` can be declared per-item truthfully.
+
+### P14 — `DoFail` released supplier interest under `cs_ThreadMessing` — **FIXED in the wave (`2052ee75`)**
+
+`Actor::DoFail` moves the failing item's supplier interest out (`MoveSupplInterest`) and let the
+list die at the end of the function, which takes each supplier's per-item actor lock.
+`OperationContext::HandleFail` calls `m_Result->Fail(item)` while holding `cs_ThreadMessing` (97,
+global) — so those per-item locks were taken under a global section, which is the exact inverse of
+the everyday edge `IncInterestCount` (holds the consumer's actor lock) → `StartInterest` →
+`Schedule` → `cs_ThreadMessing`. Two threads, one failing a result while another starts interest in
+one of its suppliers, close the cycle. The checker refused it on 7 battery cases the moment
+`DoFailCaller` carried a truthful per-item declaration.
+
+Fix: a per-thread `SupplInterestWasteCollector` (Actor.h). `HandleFail` installs one over its
+`separatedResources` can — the can it already empties after the section — and `DoFail` hands the
+waste to an active collector instead of dropping it. `DoFail`/`DoFailCaller` themselves carry **no**
+ceiling, on purpose: what they take depends on whether a collector is active, and a declaration
+cannot be conditional; the per-item declaration on `DecInterestCount` is what checks the
+uncollected case against whatever the caller holds, so any other caller that fails an item under a
+global section will be refused there.
+
 ---
 
 ## 5. Verified non-findings
@@ -466,7 +573,13 @@ Recorded so the next reader does not re-suspect them:
    per-item lock is taken is now refused; two per-item locks are deliberately left unordered
    (§3.2 says why, with the measurement). Battery 244/245 (the one failure is a tile-zeroing assertion in the #1236 connect_matrix write path, TileArrayImpl.h:230, unrelated to locking) with the per-item locks live. Residue:
    level-0 items stay invisible, and per-item-vs-per-item rests on DAG acyclicity — B1.
-3. Build the pairwise nesting table for act/ (interest machinery) and mem/ser (tile paging) — the
+3. ~~Annotate every direct acquirer with the ceiling it demands~~ — first wave done in `2052ee75`
+   (§3.7 has the rules; 118 declarations; battery 246/247). Left for the next wave: the callers of the
+   declared functions, transitively, until the frontier is the set of functions that pump; and
+   the findings it surfaced: P11 (a real order inversion in the bounding-box cache), P12, P13
+   (the write lock released inline under `cs_ThreadMessing`); P14 was fixed in the wave.
+4. Build the pairwise nesting table for act/ (interest machinery) and mem/ser (tile paging) — the
    two layers §6 leaves open.
-4. The syntactic pass over `DMS_ENTERS` / `DMS_CALLEE_ENTERS` declarations (#1227 §3) — the static
-   half that would make §2's blind spots enumerable instead of remembered.
+5. The syntactic pass over `DMS_ENTERS` / `DMS_CALLEE_ENTERS` declarations (#1227 §3) — the static
+   half that would make §2's blind spots enumerable instead of remembered. With every leaf now
+   declared, that pass has something to check call sites against.
