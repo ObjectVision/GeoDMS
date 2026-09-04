@@ -20,6 +20,7 @@
 // used modules and forward class references
 //----------------------------------------------------------------------
 
+#include <concepts>
 #include <format>
 #include <sstream>
 #include <tuple>
@@ -34,8 +35,14 @@
 // Arguments that std::format cannot format natively (SharedStr, TokenID, CharPtrRange,
 // item pointers, enums with an operator<<, ...) are rendered up-front through their
 // std::ostream operator<< -- exactly the path boost::format used -- and materialized
-// as a std::string. Materializing eagerly also drops any TokenStr locks held by the
-// arguments before the format call returns.
+// as a std::string. A type that provides mgFormatArgOf(value) -> std::string (TokenID and
+// SharedStr do; found by ADL, so this header stays a leaf) skips the stream: one copy into an
+// SSO-sized std::string, ~8 ns against ~130 ns for the std::ostringstream detour.
+// For a TokenID argument the token-registry usage the read takes ends inside the format
+// call. A TokenStr argument -- x.GetStrLock(), or its .c_str() -- is the CALLER's temporary
+// and keeps its usage to the end of the caller's full expression, i.e. across the whole sink
+// (reportD and everything under it). Pass the TokenID, not ...Lock() and not
+// AsSharedStr().c_str(); tools/check-lock-across-sink.ps1 flags the former at report sinks.
 //----------------------------------------------------------------------
 
 // The set of types std::format handles natively that these format calls actually use.
@@ -58,6 +65,8 @@ auto mgFormatArg(T&& value)
 		return int(value);                   // preserve stream default ("0"/"1"), not "true"/"false"
 	else if constexpr (mg_native_formattable<D>)
 		return std::forward<T>(value);
+	else if constexpr (requires { { mgFormatArgOf(value) } -> std::convertible_to<std::string>; })
+		return mgFormatArgOf(value);         // opted-in types (TokenID, SharedStr): a std::string, no stream
 	else
 	{
 		std::ostringstream os;

@@ -376,7 +376,7 @@ public:
 
 			const TreeItem* partitioningTI = GetItem(args[2])->GetConstSubTreeItemByID(partNameID).get();
 			if (!partitioningTI)
-				throwErrorF("Overlay", "{} not found in {}", partNameID.GetStrLock().c_str(), GetItem(args[2])->GetSourceName().c_str());
+				throwErrorF("Overlay", "{} not found in {}", partNameID, GetItem(args[2])->GetSourceName().c_str());
 			const AbstrDataItem* partitioningDI = AsCheckedDataItem(partitioningTI);
 			assert(partitioningDI);
 

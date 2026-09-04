@@ -34,6 +34,12 @@ if not exist "%MSBUILD%" (
 )
 
 set "WLOG=analyze_%CFG%.warnings.log"
+
+echo === Syntactic checks ^(tools\check-lock-across-sink.ps1^) ===
+powershell -NoProfile -ExecutionPolicy Bypass -File "tools\check-lock-across-sink.ps1"
+set "LINT_RC=%ERRORLEVEL%"
+echo.
+
 echo === MSVC Code Analysis ^(/analyze, PREfast^) on all22.sln [%CFG% ^| x64] ===
 echo Forcing EnablePREfast=true + RunCodeAnalysis=true ^(so findings surface as warnings^).
 echo Warnings -^> %WLOG%   ^(this is a full rebuild; it will take a while^)
@@ -50,5 +56,6 @@ echo.
 echo === native Code-Analysis warnings ^(C6xxx / C26xxx / C28xxx^) ===
 findstr /R /C:"warning C6" /C:"warning C26" /C:"warning C28" "%WLOG%" 2>nul
 echo.
-echo Full warnings log: %WLOG%   ^(msbuild exit code %RC%^)
+echo Full warnings log: %WLOG%   ^(msbuild exit code %RC%, syntactic checks exit code %LINT_RC%^)
+if "%RC%"=="0" set "RC=%LINT_RC%"
 endlocal ^& exit /B %RC%

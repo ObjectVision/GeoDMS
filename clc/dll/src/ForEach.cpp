@@ -285,7 +285,7 @@ bool ForEach_CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args,
 					"{}: this template has calculation rule '{}'\n"
 					"which conflicts with the explicit given expressions for the item domain set {};\n"
 					"this is considered as a potential error",
-					groupNameID.GetStrLock().c_str(),
+					groupNameID,
 					templ->_GetExprStr().c_str(),
 					domainUnit->GetFullName().c_str()
 				);

@@ -155,7 +155,7 @@ namespace hof {
 				if (!m_ArgItems[i])
 					throwErrorF("ExprParser", "'{}': parameter '{}' is an item (meta-reference) parameter; its argument must be a reference to a config item, not a calculated expression"
 						, m_FuncItem->GetFullName().c_str()
-						, child->GetID().GetStrLock().c_str());
+						, child->GetID());
 				m_ArgKeys[i] = CreateLispTree(m_ArgItems[i].get(), false);
 			}
 			m_Reductions[child] = m_ArgKeys[i];
@@ -165,7 +165,7 @@ namespace hof {
 				if (!m_ArgBindings[i])
 					throwErrorF("ExprParser", "'{}': parameter '{}' requires a function argument matching signature '{}'"
 						, m_FuncItem->GetFullName().c_str()
-						, child->GetID().GetStrLock().c_str()
+						, child->GetID()
 						, declaredSig->GetFullName().c_str());
 				// a partial application's residual arity must match; the full structural
 				// check applies only to plain (all-holes) function references (WP3.1 v1)
@@ -175,7 +175,7 @@ namespace hof {
 					CheckFunctionSignature(m_ArgBindings[i]->funcItem.get(), declaredSig.get(), child->GetID().GetStrLock().c_str());
 				else if (residualArity != requiredArity)
 					throwErrorF("ExprParser", "'{}': partial application bound to parameter '{}' has {} remaining argument(s); signature '{}' requires {}"
-						, m_FuncItem->GetFullName().c_str(), child->GetID().GetStrLock().c_str()
+						, m_FuncItem->GetFullName().c_str(), child->GetID()
 						, residualArity, declaredSig->GetFullName().c_str(), requiredArity);
 
 				// WP4.1: enforce the type application 'sig<V, D>' -- the bound function's
@@ -227,7 +227,7 @@ namespace hof {
 			const TreeItem* gpParam = m_Params[gpIndex];
 			if (m_ArgKeys[gpIndex].EndP())
 				throwErrorF("ExprParser", "'{}': parameter '{}' requires an attribute or unit argument"
-					, m_FuncItem->GetFullName().c_str(), gpParam->GetID().GetStrLock().c_str());
+					, m_FuncItem->GetFullName().c_str(), gpParam->GetID());
 
 			auto dc = GetOrCreateDataController(m_ArgKeys[gpIndex]);
 			auto argResult = dc->MakeResult();
@@ -244,12 +244,12 @@ namespace hof {
 				const AbstrUnit* du = IsDataItem(argResult.get()) ? AsDataItem(argResult.get())->GetAbstrDomainUnit() : nullptr;
 				if (!du)
 					throwErrorF("ExprParser", "'{}': parameter '{}' requires an attribute argument (its domain binds '{}')"
-						, m_FuncItem->GetFullName().c_str(), gpParam->GetID().GetStrLock().c_str(), gpVar.GetStrLock().c_str());
+						, m_FuncItem->GetFullName().c_str(), gpParam->GetID(), gpVar);
 				if (du->GetValueType()->GetValueClassID() == ValueClassID::VT_Void)
 				{ /* void broadcasts into any D and does not constrain it */ }
 				else
 					unifier.BindUnit(unifier.UnitVar(m_FuncItem, 0, gpVar), argResult, du
-						, mySSPrintF("via parameter '{}'", gpParam->GetID().GetStrLock().c_str()));
+						, mySSPrintF("via parameter '{}'", gpParam->GetID()));
 				continue;
 			}
 			const ValueClass* vt = nullptr;
@@ -259,9 +259,9 @@ namespace hof {
 				vt = AsUnit(argResult.get())->GetValueType();
 			if (!vt)
 				throwErrorF("ExprParser", "'{}': parameter '{}' requires an attribute or unit argument"
-					, m_FuncItem->GetFullName().c_str(), gpParam->GetID().GetStrLock().c_str());
+					, m_FuncItem->GetFullName().c_str(), gpParam->GetID());
 			unifier.BindValue(unifier.ValueVar(m_FuncItem, 0, gpVar, declSource), vt
-				, mySSPrintF("parameter '{}'", gpParam->GetID().GetStrLock().c_str()));
+				, mySSPrintF("parameter '{}'", gpParam->GetID()));
 		}
 
 		// WP4.1: merge signature-instantiation constraints -- for each 'sig<V, D>'-typed
@@ -274,7 +274,7 @@ namespace hof {
 		{
 			const TreeItem* viaParam = m_Params[sc.paramIndex];
 			SharedStr sigSource = mySSPrintF("function '{}' bound to parameter '{}'"
-				, sc.boundFn->GetFullName().c_str(), viaParam->GetID().GetStrLock().c_str());
+				, sc.boundFn->GetFullName().c_str(), viaParam->GetID());
 			LinkSignatureBinding(unifier, sc.sig.get(), sc.boundFn.get(), sc.sigVars, sc.typeArgs
 				, [&](TokenID t) { return unifier.ValueVar(m_FuncItem, 0, t, declSource); }
 				, [&](TokenID t) { return unifier.UnitVar(m_FuncItem, 0, t); }
@@ -295,7 +295,7 @@ namespace hof {
 				}
 			if (!resultChild)
 				throwErrorF("ExprParser", "'apply' on template '{}': no 'result' sub-item to take as the value; use 'instantiate {}(…)' for the steps"
-					, m_FuncItem->GetFullName().c_str(), m_FuncItem->GetID().GetStrLock().c_str());
+					, m_FuncItem->GetFullName().c_str(), m_FuncItem->GetID());
 			if (resultChild->GetExpr().empty())
 				throwErrorF("ExprParser", "'apply' on template '{}': the 'result' sub-item has no calculation rule"
 					, m_FuncItem->GetFullName().c_str());
@@ -306,7 +306,7 @@ namespace hof {
 			resultChild = m_FuncItem->GetConstSubTreeItemByID(resultName);
 			if (!resultChild)
 				throwErrorF("ExprParser", "'{}': designated result '{}' not found"
-					, m_FuncItem->GetFullName().c_str(), resultName.GetStrLock().c_str());
+					, m_FuncItem->GetFullName().c_str(), resultName);
 		}
 
 		// §5.10: a function-typed result yields a closure -- the nested function plus
@@ -411,7 +411,7 @@ namespace hof {
 			if (headID == token::arrow || headID == token::scope || headID == token::subitem)
 				throwErrorF("ExprParser", "the '{}' construct is not yet supported inside inlined function bodies"
 					"; bind the function application to a container to use the instantiating form"
-					, headID.GetStrLock().c_str());
+					, headID);
 
 			// §5.10 applied call result in a data position: must reduce all the way to data
 			if (headID == t_ApplyValue)
@@ -487,7 +487,7 @@ namespace hof {
 					FunctionBinding merged = MergeBinding(calleeBinding, holeFills);
 					if (merged.NrHoles() != 0)
 						throwErrorF("ExprParser", "'{}': a partial application can only be passed as an argument, not used as a value"
-							, headID.GetStrLock().c_str());
+							, headID);
 					return ReduceMerged(merged, this, m_SubstBuff, m_ErrorHolder);
 				}
 				// arity-fallback probe found no function: fall through to the operator path,
@@ -497,7 +497,7 @@ namespace hof {
 			{
 				if (!og->AllowsAsFunctionResult())
 					throwErrorF("ExprParser", "'{}': meta function call is not supported inside function bodies"
-						, headID.GetStrLock().c_str());
+						, headID);
 
 				// A result-eligible generating call survives beta reduction so the
 				// caller's typed holder can instantiate it.  Tree arguments must remain
@@ -514,7 +514,7 @@ namespace hof {
 						CallArg bound = ResolveBodyArg(refScope, a);
 						if (!bound.item)
 							throwErrorF("ExprParser", "'{}': argument {} of meta function '{}' must reduce to a direct item reference"
-								, m_FuncItem->GetFullName().c_str(), argNr + 1, headID.GetStrLock().c_str());
+								, m_FuncItem->GetFullName().c_str(), argNr + 1, headID);
 						substArgs.emplace_back(TokenID(bound.item->GetFullName()));
 					}
 					else
@@ -548,7 +548,7 @@ namespace hof {
 					{
 						if (m_ArgBindings[k] || m_ArgLiterals[k])
 							throwErrorF("ExprParser", "'{}': a function value or container literal in '...{}' cannot be passed to operator '{}'"
-								, m_FuncItem->GetFullName().c_str(), a.GetSymbStr().c_str(), headID.GetStrLock().c_str());
+								, m_FuncItem->GetFullName().c_str(), a.GetSymbStr().c_str(), headID);
 						RejectNestedFunctionResultMetaCall(m_ArgKeys[k]);
 						substArgs.push_back(m_ArgKeys[k]);
 					}
@@ -639,7 +639,7 @@ namespace hof {
 					{
 						if (child.get() == m_RestParam)
 							throwErrorF("ExprParser", "'{}': parameter '{}' is a '...' rest parameter; it can only be passed on as the trailing argument of a function call"
-								, m_FuncItem->GetFullName().c_str(), child->GetID().GetStrLock().c_str());
+								, m_FuncItem->GetFullName().c_str(), child->GetID());
 						// §5.9 parameter bound to a container literal: reduce a bare use to the
 						// domain and 'param/member' to the named member value -- no arg item exists
 						if (m_ArgLiterals[i])
@@ -651,7 +651,7 @@ namespace hof {
 							{
 								if (!lit.hasDomain)
 									throwErrorF("ExprParser", "'{}': the container literal bound to parameter '{}' has no domain unit and cannot be used as a unit"
-										, fullStr.c_str(), firstTok.GetStrLock().c_str());
+										, fullStr.c_str(), firstTok);
 								return lit.domainKey;
 							}
 							TokenID memberName = GetTokenID_mt(slash + 1, e);
@@ -659,7 +659,7 @@ namespace hof {
 								if (mv.first == memberName)
 									return mv.second;
 							throwErrorF("ExprParser", "'{}': the container literal bound to parameter '{}' has no member '{}'"
-								, fullStr.c_str(), firstTok.GetStrLock().c_str(), SharedStr(CharPtrRange(slash + 1, e)).c_str());
+								, fullStr.c_str(), firstTok, SharedStr(CharPtrRange(slash + 1, e)).c_str());
 						}
 
 						bool boundToFunction = (m_ArgBindings[i] != nullptr);
@@ -677,14 +677,14 @@ namespace hof {
 						auto argItem = m_ArgItems[i];
 						if (!argItem)
 							throwErrorF("ExprParser", "'{}': member access through parameter '{}' requires the corresponding argument to be a direct item reference"
-								, fullStr.c_str(), firstTok.GetStrLock().c_str());
+								, fullStr.c_str(), firstTok);
 						if (boundToFunction)
 							throwErrorF("ExprParser", "'{}': member access through a function-valued parameter is not supported"
 								, fullStr.c_str());
 						auto member = FindSubItem(argItem.get(), SharedStr(CharPtrRange(slash + 1, e)));
 						if (!member)
 							throwErrorF("ExprParser", "'{}': the argument '{}' bound to parameter '{}' has no member '{}'"
-								, fullStr.c_str(), argItem->GetFullName().c_str(), firstTok.GetStrLock().c_str()
+								, fullStr.c_str(), argItem->GetFullName().c_str(), firstTok
 								, SharedStr(CharPtrRange(slash + 1, e)).c_str());
 						member->UpdateMetaInfo();
 						if (m_SubstBuff)
@@ -792,11 +792,11 @@ namespace hof {
 				// argument item, as for a directly bound parameter
 				if (!envItem)
 					throwErrorF("ExprParser", "'{}': member access through captured '{}' requires the corresponding argument to be a direct item reference"
-						, fullStr.c_str(), firstTok.GetStrLock().c_str());
+						, fullStr.c_str(), firstTok);
 				auto member = FindSubItem(envItem.get(), SharedStr(CharPtrRange(slash + 1, e)));
 				if (!member)
 					throwErrorF("ExprParser", "'{}': the argument captured as '{}' has no member '{}'"
-						, fullStr.c_str(), firstTok.GetStrLock().c_str(), SharedStr(CharPtrRange(slash + 1, e)).c_str());
+						, fullStr.c_str(), firstTok, SharedStr(CharPtrRange(slash + 1, e)).c_str());
 				member->UpdateMetaInfo();
 				if (m_SubstBuff)
 					registerSupplier(*m_SubstBuff, member.get());
@@ -878,7 +878,7 @@ namespace hof {
 				{
 					if (!m_ArgBindings[i])
 						throwErrorF("ExprParser", "'{}': parameter is applied as a function but the corresponding argument is not a function reference"
-							, headID.GetStrLock().c_str());
+							, headID);
 					if (paramBinding) *paramBinding = m_ArgBindings[i];
 					return m_ArgBindings[i]->funcItem;
 				}
@@ -891,7 +891,7 @@ namespace hof {
 			{
 				if (!envBnd)
 					throwErrorF("ExprParser", "'{}': captured value is applied as a function but is not a function reference"
-						, headID.GetStrLock().c_str());
+						, headID);
 				if (paramBinding) *paramBinding = envBnd;
 				return envBnd->funcItem;
 			}
@@ -912,9 +912,9 @@ namespace hof {
 				return {};
 			if (!callee)
 				throwErrorF("ExprParser", "'{}': unknown operator or function in body of function '{}'"
-					, headID.GetStrLock().c_str(), m_FuncItem->GetFullName().c_str());
+					, headID, m_FuncItem->GetFullName().c_str());
 			throwErrorF("ExprParser", "'{}': template instantiations are not supported inside function bodies"
-				, headID.GetStrLock().c_str());
+				, headID);
 		}
 		if (m_SubstBuff)
 			registerSupplier(*m_SubstBuff, callee.get());

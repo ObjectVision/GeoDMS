@@ -703,9 +703,9 @@ inline void CheckGeometryArgComposition(const AbstrOperGroup* gr, const AbstrDat
 		, gr->GetNameStr()
 		, argName.empty() ? "" : " "
 		, argName.c_str()
-		, GetValueCompositionID(givenVC).AsSharedStr().c_str()
+		, GetValueCompositionID(givenVC)
 		, gr->GetNameStr()
-		, GetValueCompositionID(expectedVC).AsSharedStr().c_str()
+		, GetValueCompositionID(expectedVC)
 	);
 }
 

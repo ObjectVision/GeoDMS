@@ -1566,7 +1566,7 @@ namespace hof {
 			return {};
 		if (ct.members->empty())
 			throwErrorF("ExprParser", "'{}': the calculation rule of '{}' generates no members, so '{}' cannot exist (body of function '{}')"
-				, SharedStr(sym.AsStrRangeLock()).c_str(), genItem->GetFullName().c_str()
+				, sym, genItem->GetFullName().c_str()
 				, subPath.c_str(), m_FuncItem->GetFullName().c_str());
 		SharedStr listed; UInt32 nrListed = 0;
 		for (const auto& [pathTok, mt] : *ct.members)
@@ -1581,7 +1581,7 @@ namespace hof {
 			listed += SharedStr(pathTok.AsStrRangeLock());
 		}
 		throwErrorF("ExprParser", "'{}': the calculation rule of '{}' generates member(s) {}; '{}' is not among them (body of function '{}')"
-			, SharedStr(sym.AsStrRangeLock()).c_str(), genItem->GetFullName().c_str()
+			, sym, genItem->GetFullName().c_str()
 			, listed.c_str(), subPath.c_str(), m_FuncItem->GetFullName().c_str());
 	}
 
@@ -1716,7 +1716,7 @@ namespace hof {
 		if (headID == token::arrow || headID == token::scope || headID == token::subitem)
 			throwErrorF("ExprParser", "the '{}' construct is not yet supported inside inlined function bodies"
 				"; bind the function application to a container to use the instantiating form"
-				, headID.GetStrLock().c_str());
+				, headID);
 
 		// §5.10 applied call result: type the application when the inner value's
 		// signature is known; residual arity is verified at reduction
@@ -1872,7 +1872,7 @@ namespace hof {
 			auto resultChild = funcItem->GetConstSubTreeItemByID(resultName);
 			if (!resultChild)
 				throwErrorF("ExprParser", "'{}': designated result '{}' not found"
-					, funcItem->GetFullName().c_str(), resultName.GetStrLock().c_str());
+					, funcItem->GetFullName().c_str(), resultName);
 			if (!resultChild->GetExpr().empty()) // signature-only functions and nested-function results have no body expression here
 			{
 				FunctionChecker chk;

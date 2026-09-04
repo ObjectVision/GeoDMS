@@ -2187,7 +2187,7 @@ struct GeosBufferOperator : public AbstrBufferOperator
 		if (vc != ValueComposition::Polygon && vc != ValueComposition::Sequence && vc != ValueComposition::MultiPoint)
 			GetGroup()->throwOperErrorF(
 				"geos_buffer: unsupported ValueComposition '{}' of the first argument; expected polygon, arc or multipoint geometry"
-				, GetValueCompositionID(vc).AsSharedStr().c_str());
+				, GetValueCompositionID(vc));
 
 		SizeT i = 0, n = polyData.size(); if (!n) return;
 

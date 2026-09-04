@@ -223,7 +223,7 @@ template struct ObjectContextPolicy<ContextHandle>;
 
 void ObjectIdContextHandle::GenerateDescription()
 {
-	SharedStr role = mySSPrintF("{}('{}')", m_Role, m_ID.GetStrLock().c_str());
+	SharedStr role = mySSPrintF("{}('{}')", m_Role, m_ID);
 
 	tmp_swapper<CharPtr> swapper(m_Role, role.c_str());
 	ObjectContextHandle::GenerateDescription();

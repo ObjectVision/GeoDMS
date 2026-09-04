@@ -346,7 +346,7 @@ void UsingCache::UpdateUsings() const
 		auto ns = FindNamespace(url, true);
 	   	if (!ns)
 			throwErrorF("UsingCache", "Cannot find reference in Using = \"{}\"\n{}"
-			,	GetTokenStrLock(url).c_str()
+			,	url
 			,	m_Context->GetSourceName().c_str()
 			);
 		AddUsingInternal(ns.get());

@@ -133,8 +133,9 @@ namespace {
 			  " registry and would have to wait for itself to release them.\n"
 			  "A live TokenStr or TokenStrRange -- as returned by any of the ...Lock() accessors,"
 			  " TokenID::GetStrLock(), TokenID::AsStrRangeLock() or Object::GetNameLock() -- is such a"
-			  " usage. Use the plain, materializing accessor (Object::GetName(), TokenID::AsSharedStr())"
-			  " before calling anything that can create a token. See GeoDMS issues #1226 and #1227."
+			  " usage. Pass the TokenID itself to reportF/throwErrorF, or use the materializing accessor"
+			  " (Object::GetName(), TokenID::AsSharedStr()) before calling anything that can create a token."
+			  " See GeoDMS issues #1226 and #1227."
 			, newToken, nrOwnUsages
 		);
 	}

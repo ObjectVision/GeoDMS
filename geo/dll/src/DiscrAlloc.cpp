@@ -1656,7 +1656,7 @@ auto GetClaimAttr(const TreeItem* claimSet, TokenID nameID) -> const AbstrDataIt
 	auto result = AsDynamicDataItem(claimSet->GetConstSubTreeItemByID(nameID));
 
 	if (!result)
-		claimSet->throwItemErrorF("Claimset should contain an attribute for {}", nameID.GetStrLock().c_str());
+		claimSet->throwItemErrorF("Claimset should contain an attribute for {}", nameID);
 
 	result->UpdateMetaInfo();
 

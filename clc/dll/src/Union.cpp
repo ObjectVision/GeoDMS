@@ -458,7 +458,7 @@ static void UnionData_CheckPartDomains(const AbstrOperGroup* og, const TreeItemD
 		,	prefix.c_str(), og->GetNameStr()
 		,	firstMismatch + 2, argDomainName.c_str()
 		,	partName.c_str()
-		,	GetTokenStrLock(domainGroupID).c_str()
+		,	domainGroupID
 		,	extra.c_str()
 		);
 }

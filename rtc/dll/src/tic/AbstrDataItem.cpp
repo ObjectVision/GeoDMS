@@ -473,12 +473,9 @@ const DataItemClass* AbstrDataItem::GetDynamicObjClass() const
 	if (!vt)
 	{
 		assert(vc != ValueComposition::Single);
-		auto vcStr = GetValueCompositionID(vc).AsSharedStr();
 		auto vtSingle = au->GetValueType(ValueComposition::Single);
 		assert(vtSingle);
-		auto vtSingleStr = vtSingle->GetID().AsSharedStr();
-
-		throwDmsErrF("No ValueType for {} composition of {} values", vcStr.c_str(), vtSingleStr.c_str());
+		throwDmsErrF("No ValueType for {} composition of {} values", GetValueCompositionID(vc), vtSingle->GetID());
 	}
 	MG_CHECK(vt);
 	auto dic = DataItemClass::FindCertain(vt, this);
@@ -674,7 +671,7 @@ const AbstrUnit* AbstrDataItem::FindUnit(TokenID t, CharPtr role, ValueCompositi
 	const AbstrUnit* result = UnitClass::GetUnitOrDefault(context.get(), t, vcPtr);
 	if (!result && !InTemplate())
 	{
-		auto msg = mySSPrintF("Cannot find {} unit {}", role, GetTokenStrLock(t));
+		auto msg = mySSPrintF("Cannot find {} unit {}", role, t);
 		ThrowFail(msg, FailType::MetaInfo);
 	}
 	return result;

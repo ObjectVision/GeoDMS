@@ -327,7 +327,7 @@ void GdalVectlMetaInfo::OnOpenForRead(StorageReadHandle* self)
 		if (gdal_error_frame.HasError())
 		{
 			throwErrorF("gdal.vect", "cannot find layer with name {}, invalid sql string {},\n{}"
-			,	m_NameID.GetStrLock().c_str()
+			,	m_NameID
 			,	m_SqlString.c_str()
 			,	gdal_error_frame.GetMsgAndReleaseError().c_str()
 			);
@@ -350,7 +350,7 @@ void GdalVectlMetaInfo::OnOpenForRead(StorageReadHandle* self)
 		{
 			auto is_container = !IsDataItem(CurrRI()) && !IsUnit(CurrRI());
 			if (!is_container)
-				throwErrorF("gdal.vect", "cannot find layer with name {} in dataset.\n", m_NameID.GetStrLock().c_str());
+				throwErrorF("gdal.vect", "cannot find layer with name {} in dataset.\n", m_NameID);
 		}
 
 		gdv->m_IsOwner = false;
@@ -1785,7 +1785,7 @@ OGRLayer* GdalVectSM::Layer(const GdalVectlMetaInfo* br) const
 	assert(m_hDS);
 
 	if (!m_Layer)
-		throwErrorF("gdal.vect","cannot open layer {}{}", br->m_NameID.GetStrLock().c_str(), (m_hDS->GetLayerCount() == 1) ? "" : ", multiple layers available");
+		throwErrorF("gdal.vect","cannot open layer {}{}", br->m_NameID, (m_hDS->GetLayerCount() == 1) ? "" : ", multiple layers available");
 	return m_Layer;
 }
 

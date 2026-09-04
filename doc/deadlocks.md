@@ -141,6 +141,27 @@ Recorded in issue #1227 §2; restated here because every finding below lives in 
 - **B5 — Release enforces nothing.** Every historical deadlock here was met in Release. The two
   Release-alive guards are narrow: the registry's per-thread usage counter (self-deadlock only,
   since `208ab52f`), and `try_lock_for` on the teardown drain (#1191).
+- **B6 — a lifetime is not a scope.** A `TokenStr` argument temporary,
+  `reportF(st, "{}", x.GetNameLock().c_str())`, holds its registry usage to the end of the full
+  expression: across `mgFormat2string`, `reportD`, the `DebugOutStream` section and the post. A
+  ceiling is scope-shaped and no `DMS_ENTERS` on either side can state that (Parallel.h, "Two
+  things it deliberately does not do"). It is not an order violation today: the report funnel
+  (`reportD_without_cancellation_check_impl`) declares `(IndexedString, shared)`, which admits a
+  shared holder and refuses everything a holder could conflict with — an acquire ≤ 89, a
+  registration, a production wait — and `IndexedString_shared_lock` is a
+  `RequestMainThreadOperProcessingBlocker`, so the msg sinks never run inline under the holder.
+  Only the `TokenID` form ends its usage inside the format call (`mgFormatArg` renders it through
+  its `mgFormatArgOf` opt-in: one registry read into an SSO-sized `std::string`, no stream, no
+  allocation for a short name — also the cheapest form, ~8 ns against ~25 ns for an
+  `AsSharedStr().c_str()` and ~130 ns for the `std::ostringstream` detour a `TokenID` took before
+  the opt-in); a `TokenStr` form is the caller's temporary. Covered statically, before any
+  build, by `tools/check-lock-across-sink.ps1` (run by `analyze.bat`), which flags a `...Lock(`
+  accessor in the argument text of any format sink. At a throw-family sink the span is harmless
+  (after the format nothing runs in that frame but the throw, and unwinding destroys the
+  temporary first) but it is flagged all the same: the `TokenID` form is shorter and cheaper.
+  The form to write is `reportF(st, "{}", item->GetID())`. Survey of 2026-09-04: 2 report-family
+  and 68 throw-family sites, all rewritten to pass the `TokenID` (74 call sites counting the
+  `mySSPrintF` ones), 0 named locals spanning a sink.
 
 ---
 
@@ -644,7 +665,9 @@ Recorded so the next reader does not re-suspect them:
 ## 8. Standing rules that keep the list short
 
 - **R1** — never hold a `...Lock()` value (TokenStr/TokenStrRange) across a call that can
-  tokenize or block; materialize first (`Object.h`, `sym/Token.h`).
+  tokenize or block; materialize first (`Object.h`, `sym/Token.h`). At a report-family sink pass
+  the `TokenID` itself, never `...Lock().c_str()` (B6); `tools/check-lock-across-sink.ps1`
+  checks that syntactically and `analyze.bat` runs it.
 - **R2** — the error-reporting path reads names and streams, nothing else:
   `DMS_ENTERS(IndexedString, shared)` on `Describe`/`GetDescription`, contracts on everything they
   dispatch to (`DebugContext.h`).

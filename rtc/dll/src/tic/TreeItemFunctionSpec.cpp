@@ -418,10 +418,10 @@ TIC_CALL void TreeItem_CheckVariantSetDisjointness(const TreeItem* setItem)
 			int cmp = CompareVariantInfo(a, b);
 			if (cmp == 0)
 				throwDmsErrF("variant set '{}': variants '{}' and '{}' accept identical argument types"
-					, setItem->GetFullName().c_str(), a.variant->GetID().GetStrLock().c_str(), b.variant->GetID().GetStrLock().c_str());
+					, setItem->GetFullName().c_str(), a.variant->GetID(), b.variant->GetID());
 			if (cmp == 2)
 				throwDmsErrF("variant set '{}': variants '{}' and '{}' overlap without one being more specific than the other; split their parameter types"
-					, setItem->GetFullName().c_str(), a.variant->GetID().GetStrLock().c_str(), b.variant->GetID().GetStrLock().c_str());
+					, setItem->GetFullName().c_str(), a.variant->GetID(), b.variant->GetID());
 		}
 }
 

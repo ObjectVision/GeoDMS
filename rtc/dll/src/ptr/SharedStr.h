@@ -506,6 +506,18 @@ std::basic_ostream<Char, Traits>& operator << (std::basic_ostream<Char, Traits>&
 	return os;
 }
 
+// mgFormatArg (utl/MgFormat.h) opt-in, found by ADL: the characters operator<< above writes, into a
+// std::string (SSO below 16 characters) instead of through a std::ostringstream, which costs about
+// fifteen times as much per argument (sym/Token.h has the numbers). An undefined SharedStr renders
+// as the empty string, as on the stream.
+inline std::string mgFormatArgOf(const SharedStr& str)
+{
+	if (!str.IsDefined())
+		return {};
+	auto range = str.AsRange();
+	return std::string(range.begin(), range.end());
+}
+
 
 
 //----------------------------------------------------------------------

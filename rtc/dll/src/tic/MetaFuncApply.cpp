@@ -254,7 +254,7 @@ void InstantiateMap(TreeItem* holder, const AbstrCalculator* ac, LispPtr mapExpr
 			{
 				auto ai = ac->FindItem(ae.GetSymbID());
 				if (!ai)
-					holder->throwItemErrorF("map: partial-application argument '{}' not found", ae.GetSymbID().GetStrLock().c_str());
+					holder->throwItemErrorF("map: partial-application argument '{}' not found", ae.GetSymbID());
 				CallArg fa; fa.key = ai->GetCheckedKeyExpr(); fa.item = ai; fixedArgs.push_back(fa);
 			}
 			else
@@ -270,14 +270,14 @@ void InstantiateMap(TreeItem* holder, const AbstrCalculator* ac, LispPtr mapExpr
 
 	auto funcItem = ac->FindItem(fHead.GetSymbID());
 	if (!funcItem || !funcItem->IsFunctionItem())
-		holder->throwItemErrorF("map: '{}' is not a function", fHead.GetSymbID().GetStrLock().c_str());
+		holder->throwItemErrorF("map: '{}' is not a function", fHead.GetSymbID());
 	if (SizeT(TreeItem_GetFunctionParamCount(funcItem.get())) != fixedArgs.size())
 		holder->throwItemErrorF("map: function '{}' takes {} parameter(s), but the (partial) application supplies {} including the '_' element"
 			, funcItem->GetFullName().c_str(), UInt32(TreeItem_GetFunctionParamCount(funcItem.get())), UInt32(fixedArgs.size()));
 
 	auto srcItem = ac->FindItem(srcExpr.GetSymbID());
 	if (!srcItem)
-		holder->throwItemErrorF("map: source '{}' not found", srcExpr.GetSymbID().GetStrLock().c_str());
+		holder->throwItemErrorF("map: source '{}' not found", srcExpr.GetSymbID());
 	srcItem->UpdateMetaInfo();
 
 	SharedTreeItem errorHolder = make_shared_tree(holder, existing_obj{});

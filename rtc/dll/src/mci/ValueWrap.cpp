@@ -48,9 +48,9 @@ void Unify(ValueComposition& vc, ValueComposition rhs)
 {
 	if ((vc == ValueComposition::Single) != (rhs == ValueComposition::Single))
 	{
-		auto vc1Str = SharedStr(GetValueCompositionID(vc));
-		auto vc2Str = SharedStr(GetValueCompositionID(rhs));
-		throwDmsErrF("Value Composition {} incompatible with {}", vc1Str, vc2Str);
+		auto vc1ID = GetValueCompositionID(vc);
+		auto vc2ID = GetValueCompositionID(rhs);
+		throwDmsErrF("Value Composition {} incompatible with {}", vc1ID, vc2ID);
 	}
 	if (rhs == ValueComposition::Single)
 	{
@@ -73,18 +73,18 @@ void UnifyValueComposition(ValueComposition& vc, ValueComposition rhs, CharPtr o
 	if (vc == rhs)
 		return;
 
-	auto vc1Str = SharedStr(GetValueCompositionID(vc));
-	auto vc2Str = SharedStr(GetValueCompositionID(rhs));
+	auto vc1ID = GetValueCompositionID(vc);
+	auto vc2ID = GetValueCompositionID(rhs);
 
 	if ((vc == ValueComposition::Single) != (rhs == ValueComposition::Single))
-		throwDmsErrF("{}: Value Composition {} incompatible with {}", operName, vc1Str, vc2Str);
+		throwDmsErrF("{}: Value Composition {} incompatible with {}", operName, vc1ID, vc2ID);
 
 	// arc, poly and multipoint mixed: no composition describes the combination
 #if DMS_VERSION_MAJOR >= 21
 	throwDmsErrF("{}: the value arguments have different ValueCompositions, {} and {};"
 		" no ValueComposition describes their combination."
 		" Make the arguments agree: points2sequence for arc, points2polygon for poly, points2multi_point for multipoint."
-	,	operName, vc1Str, vc2Str);
+	,	operName, vc1ID, vc2ID);
 #else
 	auto legacyVC = vc;
 	Unify(legacyVC, rhs); // what a mixture has always resolved to: polygon wins
@@ -93,7 +93,7 @@ void UnifyValueComposition(ValueComposition& vc, ValueComposition rhs, CharPtr o
 		" No ValueComposition describes their combination; {} is used, as before."
 		" Make the arguments agree: points2sequence for arc, points2polygon for poly, points2multi_point for multipoint."
 		" This will become an error in GeoDms 21."
-	,	operName, vc1Str, vc2Str, SharedStr(GetValueCompositionID(legacyVC)));
+	,	operName, vc1ID, vc2ID, GetValueCompositionID(legacyVC));
 	vc = legacyVC;
 #endif
 }

@@ -1163,8 +1163,8 @@ static void ReportResultCompositionDeprecation(const TreeItem* self, const Abstr
 		"(use points2sequence for arc, points2polygon for poly and points2multi_point for multipoint). "
 		"This will become an error in GeoDms 21."
 	,	self->GetFullName().c_str()
-	,	GetValueCompositionID(selfDi->GetValueComposition()).AsSharedStr().c_str()
-	,	GetValueCompositionID(refDi->GetValueComposition()).AsSharedStr().c_str()
+	,	GetValueCompositionID(selfDi->GetValueComposition())
+	,	GetValueCompositionID(refDi->GetValueComposition())
 	,	expr.empty() ? "" : " of "
 	,	expr.empty() ? "" : expr.c_str()
 	);

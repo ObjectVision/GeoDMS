@@ -528,7 +528,7 @@ void ConfigProd::DoBasicType()
 			m_PendingGenericUnitVar = m_strIdentifierID; // unit<V> with V a generic type variable
 			return;
 		}
-		throwErrorD( "ConfigProd::DoBasicType: Unknown ValueType", m_strIdentifierID.GetStrLock().c_str());
+		throwErrorF("ConfigProd::DoBasicType: Unknown ValueType", "{}", m_strIdentifierID);
 	}
 }
 
@@ -541,7 +541,7 @@ void ConfigProd::DoAnyProp()
 	if (!pd) 
 		m_pCurrent->throwItemErrorF(
 			"Unknown property '{}'", 
-			GetTokenStrLock(m_strIdentifierID).c_str()
+			m_strIdentifierID
 		);
 	pd->SetValueAsCharRange(m_pCurrent.get(), m_StringVal.begin(), m_StringVal.send());
 }

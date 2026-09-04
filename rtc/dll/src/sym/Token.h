@@ -334,6 +334,19 @@ std::basic_ostream<Char, Traits>& operator << (std::basic_ostream<Char, Traits>&
 	return os << id.GetStrLock();
 }
 
+// mgFormatArg (utl/MgFormat.h) opt-in, found by ADL: renders what operator<< above writes -- the
+// token's characters, nothing for an undefined id -- into a std::string (SSO below 16 characters)
+// instead of through a std::ostringstream: ~8 ns against ~130 ns per argument, measured 2026-09-04
+// with MSVC 14.50 /O2. The registry usage the read takes ends inside this call, which is what makes
+// the TokenID itself the argument to pass to reportF/throwErrorF: a ...Lock().c_str() argument keeps
+// its usage to the end of the caller's full expression (doc/deadlocks.md B6), and an AsSharedStr()
+// allocates only to be copied once more by the formatter. The form to write is
+//     reportF(st, "{}", item->GetID());
+inline std::string mgFormatArgOf(TokenID id)
+{
+	return std::string(id.GetStrLock().c_str());
+}
+
 namespace std {
 	template<>
 	struct hash<TokenID> {

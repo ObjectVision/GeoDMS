@@ -62,7 +62,7 @@ auto UnitClass::CreateUnit(TreeItem* context, TokenID id) const -> SharedMutable
 	{
 		throwErrorF("UnitClass", "Cannot create a {} with the name '{}', since this name indicates a basic type"
 		,	GetName().c_str()
-		,	GetTokenStrLock(id).c_str()
+		,	id
 		);
 	}
 	return AsUnit(TreeItem_CreateItem(context, id, this));

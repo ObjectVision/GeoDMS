@@ -46,13 +46,13 @@ const UnitClass* GetUnitClass(TokenID valueTypeID)
 	if (!vc)
 		throwErrorF("UnitClass", 
 			"'{}' is not recognized as a valid type indicator",
-			GetTokenStrLock(valueTypeID)
+			valueTypeID
 		);
 	const UnitClass* uc = UnitClass::Find(vc);
 	if (!uc)
 		throwErrorF("UnitClass", 
 			"'{}' is not a valid type for defining a unit",
-			GetTokenStrLock(valueTypeID)
+			valueTypeID
 		);
 	return uc;
 }

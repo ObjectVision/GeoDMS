@@ -375,7 +375,7 @@ StaticTokenID t_Dot(".");
 				best = v;
 			else if (cmp != +1)
 				throwErrorF("ExprParser", "call to variant set '{}': the arguments match variants '{}' and '{}' and neither is more specific"
-					, setItem->GetFullName().c_str(), best->GetID().GetStrLock().c_str(), v->GetID().GetStrLock().c_str());
+					, setItem->GetFullName().c_str(), best->GetID(), v->GetID());
 		}
 		if (!best)
 			throwErrorF("ExprParser", "call to variant set '{}': no variant matches the argument types (variants: {})"
