@@ -237,12 +237,52 @@ void MmdStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* cu
 	m_MergedReadHolders.insert(curr);
 }
 
+namespace {
+
+	// #1245: DisableStorage below an MMD holder is refused, not skipped. Everything below the holder
+	// is the store: skipping an item wrote the attributes declared on it against a domain the
+	// dictionary does not carry, and where the flag had been lost -- a template's case parameters
+	// lost it on instantiation -- the parameter unit was written as a stored domain of its own,
+	// which the reader could not combine with the store it was derived from. Either way the store
+	// was written without complaint and failed much later, in the reader. Only the engine's own
+	// shadows of a referred cache root's sub-items (TSF_MergedFromRefItem) are still skipped, as
+	// XML_Dump does: no configuration declared those. The shadow's own subtree is not visited
+	// either, mirroring the dump.
+	void Mmd_RefuseDisabledStorage(const TreeItem* storageHolder, WeakStr storageName)
+	{
+		std::vector<const TreeItem*> stack{ storageHolder };
+		while (!stack.empty())
+		{
+			auto ti = stack.back();
+			stack.pop_back();
+			for (auto sub = ti->_GetFirstSubItem(); sub; sub = sub->GetNextItem())
+			{
+				if (!sub->IsDisabledStorage())
+				{
+					stack.push_back(sub);
+					continue;
+				}
+				if (sub->IsMergedFromRefItem())
+					continue;
+				sub->throwItemErrorF(
+					"DisableStorage is not supported below the MMD storage {} that is being written: "
+					"every item below its holder {} is part of the store. "
+					"Move this item outside the holder or drop the property."
+					, storageName, storageHolder->GetFullName());
+			}
+		}
+	}
+
+} // anonymous namespace
+
 void MmdStorageManager::DoWriteTree(const TreeItem* storageHolder)
 {
 	if (!storageHolder)
 		return;
 
 	ExportMetaInfo(storageHolder, storageHolder);
+
+	Mmd_RefuseDisabledStorage(storageHolder, GetNameStr());
 
 	auto dictFileName = GetFullFileName("0Dictionary.dms");
 

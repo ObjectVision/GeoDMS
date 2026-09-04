@@ -1,0 +1,32 @@
+// DisableStorage on a template's case parameter survives instantiation (issue #1245). The case
+// parameter of an instance is built from the argument and returns before the configured properties
+// are carried over, so the property was dropped: the instantiated parameter took part in any storage
+// of an ancestor, and an MMD writer stored a DisableStorage'd parameter unit as a domain of its own.
+// Since 20.19.3 the property is carried over; the other properties of a case parameter still come
+// from the argument, as before. No storage is involved here: PropValue reads the flag directly.
+container tmpl_disablestorage_arg
+{
+	unit<uint32> obj : nrofrows = 3
+	{
+		attribute<int32> a : [1, 2, 3];
+	}
+
+	Template t
+	{
+		// begin case parameters
+		unit<uint32>     domain: DisableStorage = "True";
+		attribute<int32> x (domain);
+		// end case parameters
+
+		attribute<int32> twice (domain) := x * 2i;
+	}
+
+	container inst := t(obj, obj/a);
+
+	container checks
+	{
+		parameter<string> dom_flag  := PropValue(inst/domain, 'DisableStorage'), IntegrityCheck = "dom_flag == 'True'";
+		parameter<string> x_flag    := PropValue(inst/x,      'DisableStorage'), IntegrityCheck = "x_flag == 'False'";
+		parameter<int32>  total     := sum(inst/twice),                          IntegrityCheck = "total == 12i";
+	}
+}

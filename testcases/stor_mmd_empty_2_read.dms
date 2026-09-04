@@ -1,0 +1,25 @@
+// The read half of the empty MMD attribute case (issue #1246); stor_mmd_empty_1_write.dms writes
+// the store and carries the description of what is being pinned. run_testcases.ps1 walks the
+// configs sorted by file name, so `_1_write` runs before this one; on its own this config fails
+// because the store does not exist yet.
+//
+// The counts read normally before the fix too: they come from the dictionary, not from the files.
+// The sums are the check: they need the values of sub/s and sub/n, the two zero-length files, and
+// before 20.19.3 every one of them failed on the mapping with ErrorCode 1006.
+container stor_mmd_empty_2_read
+{
+	unit<uint32> store
+	:	StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_empty.mmd"
+	,	StorageReadOnly = "True"
+	{
+	}
+
+	container checks
+	{
+		parameter<uint32> n_store := #store,                              IntegrityCheck = "n_store == 2";
+		parameter<uint32> n_sub   := #store/sub,                          IntegrityCheck = "n_sub == 0";
+		parameter<uint32> n_vals  := sum(uint32(IsDefined(store/sub/s))), IntegrityCheck = "n_vals == 0";
+		parameter<uint32> n_n     := sum(store/sub/n),                    IntegrityCheck = "n_n == 0";
+		parameter<string> first   := store/s[0],                          IntegrityCheck = "first == 'a'";
+	}
+}

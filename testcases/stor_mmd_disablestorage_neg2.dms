@@ -1,0 +1,19 @@
+// The direct form of stor_mmd_disablestorage_neg1.dms: a calculated attribute below an MMD storage
+// holder configured with DisableStorage = "True" (issue #1245). Before 20.19.3 the dictionary
+// silently left it out, and an attribute declared on a DisableStorage'd unit was written against a
+// domain the dictionary did not carry. Since 20.19.3 the writer refuses it: everything below the
+// holder is the store, so this write must fail, naming /store/tmp.
+container stor_mmd_disablestorage_neg2
+{
+	unit<uint32> obj : nrofrows = 2
+	{
+		attribute<string> s : ['a', 'b'];
+	}
+
+	unit<uint32> store := obj
+	,	StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_disablestorage_neg2.mmd"
+	{
+		attribute<string> s   := obj/s;
+		attribute<string> tmp := uppercase(s), DisableStorage = "True";
+	}
+}

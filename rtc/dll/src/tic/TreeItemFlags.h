@@ -65,6 +65,13 @@ const TreeItemStatusFlags TSF_HasPseudonym                = 0x0200;
 const TreeItemStatusFlags TSF_HasStoredProps              = 0x0400;
 // bits 11-13 (0x0800, 0x1000, 0x2000) reserved for ValueComposition
 
+// A sub-item that UpdateMetaInfo copied onto a config item from the cache root that item refers to
+// (the MergeProps copy in TreeItemMetaInfo.cpp): an endogenous shadow of the cache root's sub-item
+// that no configuration declared. Such a shadow is DisableStorage'd so that an ancestor's storage
+// neither reads nor writes it; this flag tells that engine-set DisableStorage apart from a
+// CONFIGURED one, which an MMD writer refuses (#1245).
+const TreeItemStatusFlags TSF_MergedFromRefItem           = 0x4000;
+
 //----------------------------------------------------------------------
 // DataItemStatusFlags
 //----------------------------------------------------------------------

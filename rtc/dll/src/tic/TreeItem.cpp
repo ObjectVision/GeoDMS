@@ -1866,6 +1866,13 @@ SharedMutableTreeItem TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext
 
 			result->SetCalculator(AbstrCalculator::ConstructFromLispRef(result.get(), copyContext.m_ArgList.Left(), CalcRole::ArgCalc));
 			result->SetIsHidden(true);
+			// #1245: a case parameter returns here, before the CopyPropsContext below carries the
+			// configured properties over, so its DisableStorage was lost on instantiation. That property
+			// decides whether the parameter takes part in an ancestor's storage: without it an MMD writer
+			// stored a DisableStorage'd parameter unit as a domain of its own, unrelated to the store on
+			// read. The other properties stay with the argument, as before.
+			if (IsDisabledStorage())
+				result->DisableStorage();
 			assert(result.get() != copyContext.m_DstRoot);
 			assert(copyContext.m_DstRoot != nullptr);
 			copyContext.m_ArgList = copyContext.m_ArgList.Right();
@@ -1877,7 +1884,12 @@ SharedMutableTreeItem TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext
 	if (mustCopyProps)
 	{
 		if (isNew && copyContext.MergeProps())
+		{
+			// a shadow of a sub-item of the referred cache root (TreeItemMetaInfo.cpp): kept out of an
+			// ancestor's storage, and marked as engine-set so an MMD writer does not refuse it (#1245)
 			result->DisableStorage();
+			result->SetTSF(TSF_MergedFromRefItem);
+		}
 
 		CopyPropsContext(result.get(), this, copyContext.MinCpyMode(dstIsRoot), !copyContext.MergeProps()).Apply();
 		if (!result->m_Location)

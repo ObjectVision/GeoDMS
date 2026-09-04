@@ -420,6 +420,16 @@ void MappedFileHandle::OpenForRead(WeakStr fileName, bool throwOnError, bool doR
 {
 	FileHandle::OpenForRead(fileName, throwOnError, doRetry);
 
+	// #1246: a zero-length file has nothing to map, and CreateFileMapping refuses a zero-length
+	// mapping with ERROR_FILE_INVALID (1006), which made every MMD attribute of an empty domain
+	// unreadable. OpenRw above already leaves m_hFileMapping empty for that case; every view of
+	// such a file has capacity 0 (ConstFileViewHandle clamps to the file size) and MapView maps
+	// nothing, so no reader ever touches the absent mapping.
+	if (IsOpen() && m_FileSize == 0)
+	{
+		m_hFileMapping = WinHandle();
+		return;
+	}
 	MapFile(false);
 }
 

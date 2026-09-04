@@ -59,4 +59,7 @@ oper_table_spec_neg.dms /bad
 stor_gdalwrite_geom_name.dms /Export/shape
 stor_gdalwrite_sibling_dep.dms /Export/sel/y
 stor_gdalwrite_sibling_sup.dms /Export/sel/name
+stor_mmd_disablestorage_neg1.dms /store
+stor_mmd_disablestorage_neg2.dms /store
+stor_mmd_empty_1_write.dms /store
 stor_shp_ringclose_1_write.dms /export

@@ -1,0 +1,35 @@
+// A template's case parameter declared with DisableStorage = "True", instantiated below an MMD
+// storage holder (issue #1245). The property was lost on instantiation, so the writer stored the
+// parameter unit `domain` as a stored domain of its own, with a second copy of s on it, and the
+// attributes beside it were declared against that unit instead of against the store. The store
+// read back without complaint, and only an expression combining store/meta/UPPER with the store
+// itself failed, with "Domain mismatch between the specified Domain (/store : uint32) and the
+// domain of the calculation result".
+//
+// Since 20.19.3 the property survives instantiation, and an MMD writer refuses any configured
+// DisableStorage below its holder rather than skipping the item: everything below the holder is
+// the store. This write must therefore fail, naming /store/meta/domain.
+container stor_mmd_disablestorage_neg1
+{
+	unit<uint32> obj : nrofrows = 2
+	{
+		attribute<string> s : ['a', 'b'];
+	}
+
+	Template meta_t
+	{
+		// begin case parameters
+		unit<uint32>      domain: DisableStorage = "True";
+		attribute<string> S (domain);
+		// end case parameters
+
+		attribute<string> UPPER (domain) := uppercase(S);
+	}
+
+	unit<uint32> store := obj
+	,	StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_disablestorage_neg1.mmd"
+	{
+		attribute<string> s    := obj/s;
+		container         meta := meta_t(., s);
+	}
+}

@@ -285,6 +285,8 @@ void TreeItem::XML_DumpFunctionDecl(OutStreamBase* out, bool notWritingDictionar
 	SharedStr nameStr(GetName());
 	bool mustDumpEndogenous = !IsDumpingToFolder();
 	auto passes = [&](const TreeItem* s) {
+		// in an MMD dictionary a DisableStorage'd item can only be an engine-set shadow of a referred
+		// cache root's sub-item: a configured one is refused before the dump (#1245, DoWriteTree)
 		return (notWritingDictionary || !s->IsDisabledStorage())
 			&& (mustDumpEndogenous || !s->IsEndogenous());
 	};
@@ -435,7 +437,7 @@ void TreeItem::XML_Dump(OutStreamBase* xmlOutStr, bool notWritingDictionary) con
 	bool mustDumpEndogenousSubItems = !IsDumpingToFolder();
 	while (true)
 	{
-		if (notWritingDictionary || !subItem->IsDisabledStorage()) // disabled storage items are not dumped in MMD dictionary
+		if (notWritingDictionary || !subItem->IsDisabledStorage()) // an MMD dictionary skips only the engine-set shadows; a configured DisableStorage was refused before the dump (#1245)
 			if (mustDumpEndogenousSubItems || !subItem->IsEndogenous())
 				break; // found one
 		subItem = subItem->GetNextItem();
@@ -450,7 +452,7 @@ void TreeItem::XML_Dump(OutStreamBase* xmlOutStr, bool notWritingDictionary) con
 	subItem = _GetFirstSubItem(); // we don't want UpdateMetaInfo
 	while (subItem)
 	{
-		if (notWritingDictionary || !subItem->IsDisabledStorage()) // disabled storage items are not dumped in MMD dictionary
+		if (notWritingDictionary || !subItem->IsDisabledStorage()) // an MMD dictionary skips only the engine-set shadows; a configured DisableStorage was refused before the dump (#1245)
 			if (mustDumpEndogenousSubItems || !subItem->IsEndogenous())
 				TreeItem_XML_DumpSubItemSafe(subItem, xmlOutStr, notWritingDictionary);
 		subItem = subItem->GetNextItem();

@@ -1,0 +1,40 @@
+// An MMD attribute of an empty domain is written as a zero-length file, and reading it back failed
+// with "FileMapHandle('<store>.mmd/sub/s') ErrorCode 1006: The volume for a file has been externally
+// altered so that the opened file is no longer valid": CreateFileMapping refuses a zero-length
+// mapping, and the read path asked for one regardless, where the write path already skipped it
+// (issue #1246). Any store with an optional sub-table hits this as soon as one instance has no rows:
+// the empty nevenadres tables of a small BAG extract, or any derived table a selection can empty out.
+// Since 20.19.3 a zero-length file is opened without a mapping; every view of it has capacity 0.
+//
+// This config only WRITES the store; stor_mmd_empty_2_read.dms reads it back and checks it. THE TWO
+// BELONG TOGETHER AND RUN IN THIS ORDER: run_testcases.ps1 walks the configs sorted by file name,
+// and the `_1_write` / `_2_read` in the names is what orders them. A read of a store just written
+// cannot be ordered after the write inside one config: the reading holder merges the dictionary
+// while its meta info is determined, before any supplier of it is updated.
+//
+// The write also pins the other half of #1245: `sub := none` inherits the org_rel of the selection
+// result as an engine-set, DisableStorage'd shadow. The MMD writer refuses a configured DisableStorage
+// below its holder (stor_mmd_disablestorage_neg*.dms) but must keep skipping such a shadow, or this
+// ordinary shape could no longer be written at all.
+container stor_mmd_empty_1_write
+{
+	unit<uint32> obj : nrofrows = 2
+	{
+		attribute<string> s : ['a', 'b'];
+	}
+
+	// a sub-table that comes out empty; its result carries org_rel and s as sub-items
+	unit<uint32> none := select_with_attr_by_org_rel(obj, const(false, obj));
+
+	unit<uint32> store := obj
+	,	StorageName = "%LocalDataDir%/GeoDmsTestcases/stor_mmd_empty.mmd"
+	{
+		attribute<string> s := obj/s;
+
+		unit<uint32> sub := none
+		{
+			attribute<string> s := none/s;          // variable-length: a zero-length s and s.seq
+			attribute<uint32> n := const(1, none);  // fixed-length: a zero-length n
+		}
+	}
+}
