@@ -81,19 +81,30 @@ struct AbstrTileRangeData : SharedObj
 	virtual I64Rect GetTileRangeAsI64Rect(tile_id t) const = 0;
 	virtual row_id  GetFirstRowIndex(tile_id t) const = 0;
 	virtual row_id  GetRowIndex(tile_id t, tile_offset localIndex) const = 0;
+	// no_tile is an answer that ARRIVES here, not an impossible input: an irregular tiling
+	// need not cover its own range, so GetTiledLocation and GetTileDataLocation report a
+	// location in a gap between tiles as tile_loc(no_tile, UNDEFINED_VALUE(tile_offset)).
+	// Translating that back into a row therefore yields an undefined row, which is what
+	// every caller of Shadow2DataRow / Data2ShadowRow already tests for. Before issue #1242
+	// each of these fed no_tile straight into a tile lookup, which read past the end of the
+	// tile-range vector.
 	virtual datarow_id GetTileDataRow(tile_loc tileLoc) const
 	{
+		if (!IsDefined(tileLoc.first))
+			return UNDEFINED_VALUE(datarow_id);
 		return GetRowIndex(tileLoc.first, tileLoc.second);
 	}
 
 	datarow_id Shadow2DataRow(row_id i) const
 	{
 		auto tileLoc = GetTiledLocation(i);
-		return GetTileDataRow(tileLoc);
+		return GetTileDataRow(tileLoc); // each override shields no_tile itself
 	}
 	row_id Data2ShadowRow(datarow_id i) const
 	{
 		auto tileLoc = GetTileDataLocation(i);
+		if (!IsDefined(tileLoc.first))
+			return UNDEFINED_VALUE(row_id);
 		return GetRowIndex(tileLoc.first, tileLoc.second);
 	}
 

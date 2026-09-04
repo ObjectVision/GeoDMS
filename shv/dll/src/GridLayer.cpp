@@ -346,10 +346,27 @@ bool GridLayer::GetTooltipText(TooltipCollector& ttc) const
 	IPoint gridLoc = RoundDown<4>(tr.Reverse(geoPoint));
 	ttc.m_Stream << "[" << gridLoc.X() << ", " << gridLoc.Y() << "]";
 
+	// The cursor goes wherever the user takes it, so both of the following are ordinary:
+	// a location outside the grid range, and one inside it that no tile covers (an
+	// irregular tiling need not cover its own range). Report the location and stop, rather
+	// than an index and a value for a cell that does not exist. Range_GetIndex_naked asks
+	// its caller to shield the first case; before issue #1242 nothing did, and the wrapped
+	// index it returned then took the tile lookup off the end of the tile-range vector.
+	if (!IsIncluding(gridRect, gridLoc))
+	{
+		ttc.m_Stream << ", outside the grid\n";
+		return false;
+	}
+
 	auto gridIdx = Range_GetIndex_naked(gridRect, gridLoc);
 	ttc.m_Stream << ", Index: " << gridIdx;
 
 	auto gridDataRow = AsUnit(GetGeoCrdUnit()->GetCurrRangeItem())->GetTiledRangeData()->Shadow2DataRow(gridIdx);
+	if (!IsDefined(gridDataRow))
+	{
+		ttc.m_Stream << ", not in any tile\n";
+		return false;
+	}
 	if (gridIdx != gridDataRow)
 		ttc.m_Stream << ", DataRow: " << gridDataRow;
 

@@ -210,7 +210,11 @@ struct IrregularTileRangeData : TiledRangeData<V>
 
 	tile_loc GetTiledLocation(row_id index) const override
 	{
-		assert(index < Cardinality(this->m_Range));
+		// as RegularAdapter::GetTiledLocation: an out of range index has no location.
+		// Range_GetValue_naked would otherwise fabricate a value from it, and divide by
+		// Width(m_Range), which is zero for an empty range.
+		if (index >= Cardinality(this->m_Range))
+			return tile_loc(no_tile, UNDEFINED_VALUE(tile_offset));
 
 		V v = Range_GetValue_naked(this->m_Range, index);
 		return GetTiledLocationForValue(v);
@@ -231,6 +235,9 @@ struct IrregularTileRangeData : TiledRangeData<V>
 	}
 	tile_loc GetTiledLocation(row_id index, tile_id prevT) const override
 	{
+		if (index >= Cardinality(this->m_Range))
+			return tile_loc(no_tile, UNDEFINED_VALUE(tile_offset));
+
 		V v = Range_GetValue_naked(this->m_Range, index);
 		if (prevT < m_Ranges.size())
 		{
@@ -243,10 +250,16 @@ struct IrregularTileRangeData : TiledRangeData<V>
 		return GetTiledLocationForValue(v);
 	}
 
-	datarow_id GetTileDataRow(tile_loc tileLoc) const
+	datarow_id GetTileDataRow(tile_loc tileLoc) const override
 	{
-		auto tn = this->GetNrTiles();
-		assert(tileLoc.first < tn);
+		// GetTiledLocationForValue answers no_tile for a value that lies in the range but in
+		// none of the tiles, which is normal here: these tiles need not cover their own
+		// bounding range. Without this guard the loop below counted up to tile_id(-1) and
+		// read m_Ranges far past its end -- issue #1242, a GUI that vanished on a mouse move.
+		if (!IsDefined(tileLoc.first))
+			return UNDEFINED_VALUE(datarow_id);
+
+		assert(tileLoc.first < this->GetNrTiles());
 		assert(tileLoc.second < Cardinality(m_Ranges[tileLoc.first]));
 
 		datarow_id d = 0;

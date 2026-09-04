@@ -355,7 +355,11 @@ tile_loc RegularAdapter<Base>::GetTileDataLocation(row_id dataIndex) const
 		return GetTiledLocation(dataIndex);
 	else
 	{
-		assert(dataIndex < Cardinality(this->m_Range));
+		// mirror of GetTiledLocation above: the tiles partition m_Range exactly, so a data
+		// index beyond its cardinality names no tile. The arithmetic below would otherwise
+		// pick a tile id out of thin air and GetTileSize would throw from deep inside.
+		if (dataIndex >= Cardinality(this->m_Range))
+			return tile_loc(no_tile, UNDEFINED_VALUE(tile_offset));
 
 		auto tileSize = this->GetTileSize(0);
 		auto tilingExtent = this->GetTilingExtent();
@@ -376,6 +380,13 @@ tile_loc RegularAdapter<Base>::GetTileDataLocation(row_id dataIndex) const
 template <typename Base>
 datarow_id RegularAdapter<Base>::GetTileDataRow(tile_loc tileLoc) const
 {
+	// as in AbstrTileRangeData::GetTileDataRow: no_tile arrives here from GetTiledLocation
+	// and must answer an undefined row. Without it the numeric branch threw out of
+	// GetTileRange's MG_CHECK and the Point branch -- the one a grid domain uses -- returned
+	// arithmetic garbage that the caller then took for a row number.
+	if (!IsDefined(tileLoc.first))
+		return UNDEFINED_VALUE(datarow_id);
+
 	if constexpr (is_numeric_v<value_type>)
 		return this->GetRowIndex(tileLoc.first, tileLoc.second);
 	else
