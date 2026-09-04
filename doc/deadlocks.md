@@ -313,9 +313,10 @@ established). The two that carry the semantics worth knowing by heart:
 - **Release enforces nothing** (B5).
 - **A `DMS_CALLEE_ENTERS` annotation is a declaration, not a check.** It states what a virtual,
   callback or opaque function is permitted to reach, so a call site can be checked against it by
-  the static pass that does not exist yet (#1227 §3). Today it bites only when the callee actually
-  runs under a caller's `DMS_ENTERS` — which is why the annotations and the ceilings are worth
-  having together rather than either alone.
+  a static pass. Since `fc9a5791` that pass exists for the `DMS_ENTERS` declarations themselves
+  (`tools/check-lock-ceilings.ps1`, §3.9); it does not yet read the `DMS_CALLEE_ENTERS` contracts,
+  so those still bite only when the callee actually runs under a caller's `DMS_ENTERS` — which is
+  why the annotations and the ceilings are worth having together rather than either alone.
 
 ### 3.7 Choosing the level when annotating something new
 
@@ -373,6 +374,9 @@ narrows that, and is checked on entry against what the caller holds. The rules t
    up. Also left: the operator bodies in clc/geo (`CreateResult` and friends), which are the
    unconstrained context the checker is *for*, and the storage managers' `DoUpdateTree` /
    `ReadDataItem` overrides outside odbc, which the battery does not reach.
+8. **Run the static pass** (`tools/check-lock-ceilings.ps1`, §3.9) before the Debug build: it
+   checks every call from a declared function to a declared function against the same rules
+   in one second, and `analyze.bat` runs it beside the lock-across-sink check.
 
 ### 3.8 The production-wait ceiling — what makes P2 checkable
 
@@ -399,6 +403,34 @@ than the ones listed. The four named `TokenStr` locals found by the P2 survey th
 *foreign* call rather than a wait (`SendStatusText`, `FontArray`, `Gdal_DoOpenStorage`,
 `GdalVectlMetaInfo::OnOpenForRead`/`WriteLayer`) were materialized to `SharedStr` in the same
 commit; the survey found no site that spans a production wait.
+
+### 3.9 The static pass — `tools/check-lock-ceilings.ps1`
+
+The static half that §2 and follow-up 5 kept referring to, since `fc9a5791`. It reads the ordinal
+table from `LockLevels.h`, ties every `DMS_ENTERS` / `DMS_ENTERS_ITEM` / `DMS_ENTERS_NOTHING` to
+the function that contains it, and for every call from a declared function to a declared function
+applies the rules of `level_type::Allow` to the two ceilings: a per-item caller admits everything;
+a global caller refuses a per-item callee; a global caller admits a global callee inner to it, or
+at the same level when the callee is shared or the caller exclusive; `EntersNothing` is admitted
+by all. A refusal prints caller, callee and both ceilings with file and line, and exits 1.
+
+What it sees today: 208 declarations, 177 call sites, all admitted. What it deliberately does not
+see, and reports as such: a name declared at different levels in different bodies (virtual
+overrides, overloads, unrelated same-named members — today only the two `ItemReadLock`
+constructors) is listed as ambiguous and skipped, since resolving the dynamic type is the
+runtime's job; a handful of generic member names (`Add`, `Del`, `lock`, `release`, …) are never
+tied to a callee; and a call made while the caller *holds* a section taken earlier in the same
+body is checked against the caller's ceiling, not against that section. The `DMS_CALLEE_ENTERS`
+contracts on virtuals, callbacks and function-pointer parameters are not consumed yet; that is
+the natural next step, with the call sites of those parameters as the frontier.
+
+Three things learned building it, so nobody rebuilds them: the header pattern must accept a space
+before the parameter list (`Actor::~Actor ()`) and a template class path
+(`IndexedStrings<A, B, C>::f(`), and its token repetition must be an atomic group, or a long
+statement line makes the regex backtrack for minutes; comment blanking must keep newline
+characters, or every line number after the first block comment is off; and the backward walk from
+a declaration to its header must stop at the previous function's closing brace rather than adopt
+the header above it. Set `CEIL_TRACE=<function>` to print the body range the pass computed.
 
 ## 4. Findings — potential deadlocks
 
@@ -705,6 +737,7 @@ Recorded so the next reader does not re-suspect them:
    (battery 253/253).
 4. Build the pairwise nesting table for act/ (interest machinery) and mem/ser (tile paging) — the
    two layers §6 leaves open.
-5. The syntactic pass over `DMS_ENTERS` / `DMS_CALLEE_ENTERS` declarations (#1227 §3) — the static
-   half that would make §2's blind spots enumerable instead of remembered. With every leaf now
-   declared, that pass has something to check call sites against.
+5. ~~The syntactic pass over `DMS_ENTERS` declarations~~ — done in `fc9a5791`:
+   `tools/check-lock-ceilings.ps1` (§3.9), run by `analyze.bat`. Left: consuming the
+   `DMS_CALLEE_ENTERS` contracts (virtuals, callbacks, function-pointer parameters) so their call
+   sites are checked too, and modelling a section held earlier in the caller's body.
