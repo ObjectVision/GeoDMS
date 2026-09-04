@@ -560,7 +560,7 @@ and so serialized every cache build in the process — runs outside it, and a lo
 by re-checking under the section (the loser's cache dies; its destructor finds the winner in the
 registry and leaves it). Both declare `DMS_ENTERS_ITEM(ItemRegister, exclusive)`, truthfully.
 
-### P12 — `SetStatusFlag` re-enters `RegAccessSection` on the never-read path — **open, low**
+### P12 — `SetStatusFlag` re-enters `RegAccessSection` on the never-read path — **FIXED (`3dfb7ed4`)**
 
 `rtc/dll/src/utl/Environment.cpp`: `SetStatusFlag` takes `RegAccessSection()` and, still holding
 it, calls `ReadOnceRegisteredStatusFlags`, which takes the same section on its slow path. The
@@ -568,7 +568,14 @@ section is a `leveled_std_section` over a plain `std::mutex` — not recursive �
 self-deadlock. It is masked because the slow path runs once, at startup, before any caller of
 `SetStatusFlag` exists; the checker refuses it too (equal ordinal, both exclusive). The ceiling on
 `ReadOnceRegisteredStatusFlags` is therefore declared after its fast-path return, before the
-acquire. Fix shape: read the flags before taking the section in `SetStatusFlag`.
+acquire.
+
+*Fixed:* `SetStatusFlag` (both platform copies) reads `ReadOnceRegisteredStatusFlags()` before it
+takes the section; the section only ever guarded the override globals and the registry write, and
+still does. What stays as it was, and is written up in §3.7 rule 7: the status-flag *getters*
+carry no ceiling, because their only acquire is that same never-read slow path — a function-level
+declaration would refuse every hot call made under an inner lock while the acquire never happens
+there. Both batteries pass with the change (Release 253/253, Debug 252/253).
 
 ### P13 — the result's `ItemWriteLock` is released inline under `cs_ThreadMessing` — **FIXED (`e2c6033c`)**
 
@@ -692,8 +699,10 @@ Recorded so the next reader does not re-suspect them:
    (§3.7 has the rules; 118 declarations; battery 246/247). Second wave done in `e2c6033c`
    (§3.7 rule 7, §3.8; 89 declarations; battery 246/247): callers up to the pumping frontier, the
    production-wait ceiling that makes P2 checkable, distinct ordinals for P5, and P11 and P13
-   fixed. Still open: P12 and the status-flag getters' slow path (the same shape); the operator
-   bodies and the non-odbc storage managers stay undeclared.
+   fixed; P12 in `3dfb7ed4`. Still open: the status-flag getters' slow path (undeclared by design,
+   §3.7 rule 7); the operator bodies and the non-odbc storage managers stay undeclared. The
+   Release build of everything since the 20.19.3 bump is verified with the same commit
+   (battery 253/253).
 4. Build the pairwise nesting table for act/ (interest machinery) and mem/ser (tile paging) — the
    two layers §6 leaves open.
 5. The syntactic pass over `DMS_ENTERS` / `DMS_CALLEE_ENTERS` declarations (#1227 §3) — the static
