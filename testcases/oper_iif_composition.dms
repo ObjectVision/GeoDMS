@@ -1,0 +1,80 @@
+// iif() and the ?: operator keep the ValueComposition of their two value arguments
+// (issue #1240).
+//
+// The ternary attr operator gave its result the composition that the result VALUE TYPE
+// defaults to, which is Sequence ('arc') for every sequence type, so `cond ? poly_a : poly_b`
+// produced an 'arc'. With the composition check of #1038 an attribute declared (poly) then
+// reported "the declared ValueComposition 'poly' differs from the 'arc' of the calculation
+// result" and the computed 'arc' was adopted onto the declared item, so the wrong composition
+// propagated to whatever read it: choosing between two polygon attributes, the natural shape
+// for ?:, had to be rewritten as a lookup into a union_unit. Every other way of choosing
+// (a lookup, union_data) already kept 'poly'.
+//
+// The observable is PropValue(item, 'ValueComposition'), which reads 'poly', 'arc',
+// 'multipoint' or 'single' off the item as it ends up after the result-type check.
+container oper_iif_composition
+{
+	unit<dpoint> crs : SpatialReference = "EPSG:3035";
+
+	// one axis-parallel unit square, closed; the single feature of every geometry below
+	unit<uint32> pts : nrofrows = 5
+	{
+		attribute<float64> x         : [0,0,1,1,0];
+		attribute<float64> y         : [0,1,1,0,0];
+		attribute<crs>     point    := point_xy(x, y, crs);
+		attribute<shapes>  sequence := const(0[shapes], .);
+		attribute<uint32>  order    := id(.);
+	}
+
+	unit<uint32> shapes : nrofrows = 1
+	{
+		attribute<crs>  poly_a (poly)       := points2polygon(pts/point, pts/sequence, pts/order);
+		attribute<crs>  arc_a  (arc)        := points2sequence(pts/point, pts/sequence, pts/order);
+		attribute<crs>  mp_a   (multipoint) := points2multi_point(pts/point, pts/sequence, pts/order);
+		attribute<bool> c                   := const(true, .);
+
+		// the reported configuration: both value arguments are polygons, so is the result
+		attribute<crs>  ite_poly (poly)       := c ? poly_a : poly_a;
+		attribute<crs>  iif_poly (poly)       := iif(c, poly_a, poly_a);
+		attribute<crs>  iif_arc  (arc)        := iif(c, arc_a, arc_a);
+		attribute<crs>  iif_mp   (multipoint) := iif(c, mp_a, mp_a);
+
+		// arguments that disagree fall back to 'arc', the composition that holds both
+		attribute<crs>  iif_mixed (arc) := iif(c, poly_a, arc_a);
+
+		// the paths that always kept the composition, as a guard
+		attribute<crs>  lookup_poly (poly) := poly_a[id(.)];
+		attribute<crs>  union_poly  (poly) := union_data(., poly_a);
+
+		// a non-sequence result has no composition to inherit
+		attribute<float64> f_iif := iif(c, 1.0, 2.0);
+
+		attribute<float64> a_ite    := area(ite_poly,    float64);
+		attribute<float64> a_lookup := area(lookup_poly, float64);
+	}
+
+	container checks
+	{
+		parameter<string> vc_ite_poly  := PropValue(shapes/ite_poly,    'ValueComposition');
+		parameter<string> vc_iif_poly  := PropValue(shapes/iif_poly,    'ValueComposition');
+		parameter<string> vc_iif_arc   := PropValue(shapes/iif_arc,     'ValueComposition');
+		parameter<string> vc_iif_mp    := PropValue(shapes/iif_mp,      'ValueComposition');
+		parameter<string> vc_iif_mixed := PropValue(shapes/iif_mixed,   'ValueComposition');
+		parameter<string> vc_lookup    := PropValue(shapes/lookup_poly, 'ValueComposition');
+		parameter<string> vc_union     := PropValue(shapes/union_poly,  'ValueComposition');
+		parameter<string> vc_f_iif     := PropValue(shapes/f_iif,       'ValueComposition');
+
+		parameter<bool> c1 := vc_ite_poly  == 'poly',       IntegrityCheck = "c1 == true";
+		parameter<bool> c2 := vc_iif_poly  == 'poly',       IntegrityCheck = "c2 == true";
+		parameter<bool> c3 := vc_iif_arc   == 'arc',        IntegrityCheck = "c3 == true";
+		parameter<bool> c4 := vc_iif_mp    == 'multipoint', IntegrityCheck = "c4 == true";
+		parameter<bool> c5 := vc_iif_mixed == 'arc',        IntegrityCheck = "c5 == true";
+		parameter<bool> c6 := vc_lookup    == 'poly',       IntegrityCheck = "c6 == true";
+		parameter<bool> c7 := vc_union     == 'poly',       IntegrityCheck = "c7 == true";
+		parameter<bool> c8 := vc_f_iif     == 'single',     IntegrityCheck = "c8 == true";
+
+		// the values were always right; the composition must not change them
+		parameter<bool> c9  := shapes/a_ite[0] == 1.0 && shapes/a_ite[0] == shapes/a_lookup[0], IntegrityCheck = "c9 == true";
+		parameter<bool> c10 := shapes/f_iif[0] == 1.0, IntegrityCheck = "c10 == true";
+	}
+}

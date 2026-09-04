@@ -250,6 +250,21 @@ namespace
 				resultHolder->SetTSF(TSF_Categorical);
 			return true;
 		}
+
+		// iif/?: chooses between its two value arguments without changing their geometric
+		// structure, so a sequence-typed result takes their composition when both agree
+		// (poly stays poly, multipoint stays multipoint) instead of the value type's default
+		// Sequence ('arc'), which made `cond ? poly1 : poly2` unusable for polygons: the
+		// declared (poly) was reported as deprecated and then overwritten by the computed
+		// 'arc' (#1240; #1038 fixed the same thing for the casts). Arguments that disagree
+		// fall back to the registered composition, Sequence being the one that holds both.
+		ValueComposition ResultingValueComposition(const AbstrDataItem* arg1A, const AbstrDataItem* arg2A, const AbstrDataItem* arg3A) const override
+		{
+			auto argVC = arg2A->GetValueComposition();
+			if (argVC != arg3A->GetValueComposition())
+				return composition_of_v<X>;
+			return CastResultingValueComposition(composition_of_v<X>, argVC);
+		}
 	};
 
 	template <typename X>

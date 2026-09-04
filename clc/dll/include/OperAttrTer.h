@@ -63,7 +63,7 @@ struct AbstrTernaryAttrOper : TernaryOperator
 		if (!resultHolder)
 		{
 			auto v = (*m_UnitCreatorPtr)(GetGroup(), args); // hold the UnitCreator's unit (kept alive below)
-			resultHolder = CreateCacheDataItem(e, v.get(), m_ValueComposition);
+			resultHolder = CreateCacheDataItem(e, v.get(), ResultingValueComposition(arg1A, arg2A, arg3A));
 			resultHolder.KeepAlive(v); // the kind-1 result must own it (stored only weakly as m_ValuesUnit)
 		}
 
@@ -110,6 +110,11 @@ struct AbstrTernaryAttrOper : TernaryOperator
 	}
 	virtual auto CreateFutureTileFunctor(std::shared_ptr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A, const AbstrDataItem* arg3A, ArgFlags af MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr)) const -> SharedPtr<const AbstrDataObject> =0;
 	virtual void Calculate(AbstrDataObject* borrowedDataHandle,	const AbstrDataItem* arg1A,	const AbstrDataItem* arg2A,	const AbstrDataItem* arg3A,	ArgFlags af, tile_id t) const =0;
+
+	// iif inherits the composition of its two value arguments when those agree, like the
+	// value-type casts do since #1038; all other ternary attr operators determine their
+	// result's composition at registration.
+	virtual ValueComposition ResultingValueComposition(const AbstrDataItem* arg1A, const AbstrDataItem* arg2A, const AbstrDataItem* arg3A) const { return m_ValueComposition; }
 
 	// mirrors CreateResult above: all three data arguments share one domain (void
 	// broadcasts); the result ranges over it; per-position class vars, with the
