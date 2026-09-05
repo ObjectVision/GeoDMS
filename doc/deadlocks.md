@@ -434,7 +434,7 @@ the header above it. Set `CEIL_TRACE=<function>` to print the body range the pas
 
 ## 4. Findings — potential deadlocks
 
-Ranked by (likelihood × cost of diagnosis when it fires). P1, P3 and P4 are fixed (#1233) and are
+Ranked by (likelihood × cost of diagnosis when it fires). P1, P3, P4 and P15 are fixed (#1233; P15 in `38dc6f81`, ObjectVision/BAG-Tools#2) and are
 kept here as the record of what the failure was; the rest are open.
 
 ### P1 — `potential()` ordered accumulation: untimed wait with no exception path — **FIXED (#1233, `b591f683`)**
@@ -643,6 +643,33 @@ ceiling, on purpose: what they take depends on whether a collector is active, an
 cannot be conditional; the per-item declaration on `DecInterestCount` is what checks the
 uncollected case against whatever the caller holds, so any other caller that fails an item under a
 global section will be refused there.
+
+### P15 — the new handler's report under the registry's own exclusive hold — **FIXED (`38dc6f81`, ObjectVision/BAG-Tools#2)**
+
+*Was:* the mirror image of the #1227 self-deadlock. `IndexedStrings::GetOrCreateID_mt`
+([set/IndexedStrings.cpp](../rtc/dll/src/set/IndexedStrings.cpp)) holds `cs_GetOrCreateID`
+exclusively while `GetOrCreateID_impl` appends the new string, and the append allocates. When that
+allocation failed, `MyNewExceptionHandler` ([dbg/MsgDispatch.cpp](../rtc/dll/src/dbg/MsgDispatch.cpp))
+reported it through `reportD`, whose context names the item being calculated:
+`GetReportingItemName` → `ItemAsStr` → `GetFullName` → `TokenID::GetStrLen` →
+`IndexedString_shared_lock` → `counted_mutex::lock_shared`, which waits **untimed** for the
+exclusive holder — this thread. The same walk sits under `ErrMsg::GenerateContext`, so the
+`MemoryAllocFailure` a worker throws in that state parked the same way. The #1227 counter could not
+see it: it counts *shared* usages and guards the *exclusive* acquire, and this is the other
+direction. What the user saw is the #1227 signature again: 0% CPU, no line, every worker idle.
+Measured on the BAG 2.0 import (parse_xml of 2452 PND files under a 64 GB commit cap, main thread
+parked at fs_45), on 20.19.3.m and on the dev tree of the same day; a 3-second probe with one
+parse_xml of 1.5 M unique values under a 1200 MB cap reproduces it.
+
+*Fixed by* counting the exclusive hold per thread as well (`IndexedString_scoped_lock`,
+[sym/Token.h](../rtc/dll/src/sym/Token.h)) and reading it in three places: the shared-lock
+constructor refuses the acquire that could only park (`RefuseSharedUsageUnderOwnExclusiveHold`),
+`GenerateContext` and `GetReportingItemName` leave the item unnamed instead of asking for its
+name, and the new handler, when the registry is held, writes its line bare and fails the
+allocation without `CoalesceHeap`. The memory error then unwinds through `GetOrCreateID_mt`, which
+releases the registry, and the operator that catches it names the item as usual. In Debug the
+lock-level checker refuses the `DMS_ENTERS(IndexedString, shared)` of any report under the
+exclusive hold before these guards are reached, which is the same verdict one level earlier.
 
 ---
 
